@@ -6,7 +6,8 @@ obj-y += sclpcpu.o
 obj-y += ipl.o
 obj-y += css.o
 obj-$(CONFIG_S390_CCW_VIRTIO) += s390-virtio-ccw.o
-obj-y += 3270-ccw.o
+obj-$(CONFIG_TERMINAL3270) += 3270-ccw.o
+ifeq ($(CONFIG_VIRTIO_CCW),y)
 obj-y += virtio-ccw.o
 obj-$(CONFIG_VIRTIO_SERIAL) += virtio-ccw-serial.o
 obj-$(CONFIG_VIRTIO_BALLOON) += virtio-ccw-balloon.o
@@ -19,6 +20,7 @@ obj-$(CONFIG_VIRTIO_NET) += virtio-ccw-net.o
 obj-$(CONFIG_VIRTIO_BLK) += virtio-ccw-blk.o
 obj-$(call land,$(CONFIG_VIRTIO_9P),$(CONFIG_VIRTFS)) += virtio-ccw-9p.o
 obj-$(CONFIG_VHOST_VSOCK) += vhost-vsock-ccw.o
+endif
 obj-y += css-bridge.o
 obj-y += ccw-device.o
 obj-y += s390-pci-bus.o s390-pci-inst.o

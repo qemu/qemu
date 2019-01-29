@@ -16,6 +16,10 @@ config VIRTIO_MMIO
     bool
     select VIRTIO
 
+config VIRTIO_CCW
+    bool
+    select VIRTIO
+
 config VIRTIO_BALLOON
     bool
     default y

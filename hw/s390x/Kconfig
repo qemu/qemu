@@ -1,2 +1,11 @@
 config S390_CCW_VIRTIO
     bool
+    imply VIRTIO_PCI
+    imply TERMINAL3270
+    imply VFIO_AP
+    imply VFIO_CCW
+    imply WDT_DIAG288
+    select PCI
+    select S390_FLIC
+    select SCLPCONSOLE
+    select VIRTIO_CCW
