@@ -1093,6 +1093,21 @@ static void s390_pcihost_reset(DeviceState *dev)
 {
     S390pciState *s = S390_PCI_HOST_BRIDGE(dev);
     PCIBus *bus = s->parent_obj.bus;
+    S390PCIBusDevice *pbdev, *next;
+
+    /* Process all pending unplug requests */
+    QTAILQ_FOREACH_SAFE(pbdev, &s->zpci_devs, link, next) {
+        if (pbdev->unplug_requested) {
+            if (pbdev->summary_ind) {
+                pci_dereg_irqs(pbdev);
+            }
+            if (pbdev->iommu->enabled) {
+                pci_dereg_ioat(pbdev->iommu);
+            }
+            pbdev->state = ZPCI_FS_STANDBY;
+            s390_pci_perform_unplug(pbdev);
+        }
+    }
 
     /*
      * When resetting a PCI bridge, the assigned numbers are set to 0. So
