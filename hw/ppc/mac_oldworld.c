@@ -30,7 +30,6 @@
 #include "hw/ppc/ppc.h"
 #include "mac.h"
 #include "hw/input/adb.h"
-#include "hw/timer/m48t59.h"
 #include "sysemu/sysemu.h"
 #include "net/net.h"
 #include "hw/isa/isa.h"
