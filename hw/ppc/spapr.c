@@ -1225,9 +1225,7 @@ static void spapr_dt_hypervisor(sPAPRMachineState *spapr, void *fdt)
     }
 }
 
-static void *spapr_build_fdt(sPAPRMachineState *spapr,
-                             hwaddr rtas_addr,
-                             hwaddr rtas_size)
+static void *spapr_build_fdt(sPAPRMachineState *spapr)
 {
     MachineState *machine = MACHINE(spapr);
     MachineClass *mc = MACHINE_GET_CLASS(machine);
@@ -1644,14 +1642,14 @@ static void spapr_machine_reset(void)
 
     /*
      * We place the device tree and RTAS just below either the top of the RMA,
-     * or just below 2GB, whichever is lowere, so that it can be
+     * or just below 2GB, whichever is lower, so that it can be
      * processed with 32-bit real mode code if necessary
      */
     rtas_limit = MIN(spapr->rma_size, RTAS_MAX_ADDR);
     rtas_addr = rtas_limit - RTAS_MAX_SIZE;
     fdt_addr = rtas_addr - FDT_MAX_SIZE;
 
-    fdt = spapr_build_fdt(spapr, rtas_addr, spapr->rtas_size);
+    fdt = spapr_build_fdt(spapr);
 
     spapr_load_rtas(spapr, fdt, rtas_addr);
 
