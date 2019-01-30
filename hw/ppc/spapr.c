@@ -1715,6 +1715,7 @@ static bool spapr_vga_init(PCIBus *pci_bus, Error **errp)
         return true;
     case VGA_STD:
     case VGA_VIRTIO:
+    case VGA_CIRRUS:
         return pci_vga_init(pci_bus) != NULL;
     default:
         error_setg(errp,
