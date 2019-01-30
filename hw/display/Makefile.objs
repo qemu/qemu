@@ -25,10 +25,10 @@ common-obj-$(CONFIG_BOCHS_DISPLAY) += edid-region.o
 common-obj-$(CONFIG_BLIZZARD) += blizzard.o
 common-obj-$(CONFIG_EXYNOS4) += exynos4210_fimd.o
 common-obj-$(CONFIG_FRAMEBUFFER) += framebuffer.o
-common-obj-$(CONFIG_MILKYMIST) += milkymist-vgafb.o
+obj-$(CONFIG_MILKYMIST) += milkymist-vgafb.o
 common-obj-$(CONFIG_ZAURUS) += tc6393xb.o
 
-common-obj-$(CONFIG_MILKYMIST_TMU2) += milkymist-tmu2.o
+obj-$(CONFIG_MILKYMIST_TMU2) += milkymist-tmu2.o
 milkymist-tmu2.o-cflags := $(X11_CFLAGS)
 milkymist-tmu2.o-libs := $(X11_LIBS)
 
