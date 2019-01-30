@@ -1041,14 +1041,6 @@ F: tests/libqos/*spapr*
 F: tests/rtas*
 F: tests/libqos/rtas*
 
-XIVE
-M: David Gibson <david@gibson.dropbear.id.au>
-M: Cédric Le Goater <clg@kaod.org>
-L: qemu-ppc@nongnu.org
-S: Supported
-F: hw/*/*xive*
-F: include/hw/*/*xive*
-
 virtex_ml507
 M: Edgar E. Iglesias <edgar.iglesias@gmail.com>
 L: qemu-ppc@nongnu.org
@@ -1647,6 +1639,14 @@ F: include/standard-headers/linux/qemu_fw_cfg.h
 F: tests/libqos/fw_cfg.c
 F: tests/fw_cfg-test.c
 T: git https://github.com/philmd/qemu.git fw_cfg-next
+
+XIVE
+M: David Gibson <david@gibson.dropbear.id.au>
+M: Cédric Le Goater <clg@kaod.org>
+L: qemu-ppc@nongnu.org
+S: Supported
+F: hw/*/*xive*
+F: include/hw/*/*xive*
 
 Subsystems
 ----------
