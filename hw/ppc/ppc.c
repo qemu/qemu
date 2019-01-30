@@ -310,6 +310,62 @@ void ppcPOWER7_irq_init(PowerPCCPU *cpu)
 }
 #endif /* defined(TARGET_PPC64) */
 
+void ppc40x_core_reset(PowerPCCPU *cpu)
+{
+    CPUPPCState *env = &cpu->env;
+    target_ulong dbsr;
+
+    qemu_log_mask(CPU_LOG_RESET, "Reset PowerPC core\n");
+    cpu_interrupt(CPU(cpu), CPU_INTERRUPT_RESET);
+    dbsr = env->spr[SPR_40x_DBSR];
+    dbsr &= ~0x00000300;
+    dbsr |= 0x00000100;
+    env->spr[SPR_40x_DBSR] = dbsr;
+}
+
+void ppc40x_chip_reset(PowerPCCPU *cpu)
+{
+    CPUPPCState *env = &cpu->env;
+    target_ulong dbsr;
+
+    qemu_log_mask(CPU_LOG_RESET, "Reset PowerPC chip\n");
+    cpu_interrupt(CPU(cpu), CPU_INTERRUPT_RESET);
+    /* XXX: TODO reset all internal peripherals */
+    dbsr = env->spr[SPR_40x_DBSR];
+    dbsr &= ~0x00000300;
+    dbsr |= 0x00000200;
+    env->spr[SPR_40x_DBSR] = dbsr;
+}
+
+void ppc40x_system_reset(PowerPCCPU *cpu)
+{
+    qemu_log_mask(CPU_LOG_RESET, "Reset PowerPC system\n");
+    qemu_system_reset_request(SHUTDOWN_CAUSE_GUEST_RESET);
+}
+
+void store_40x_dbcr0(CPUPPCState *env, uint32_t val)
+{
+    PowerPCCPU *cpu = ppc_env_get_cpu(env);
+
+    switch ((val >> 28) & 0x3) {
+    case 0x0:
+        /* No action */
+        break;
+    case 0x1:
+        /* Core reset */
+        ppc40x_core_reset(cpu);
+        break;
+    case 0x2:
+        /* Chip reset */
+        ppc40x_chip_reset(cpu);
+        break;
+    case 0x3:
+        /* System reset */
+        ppc40x_system_reset(cpu);
+        break;
+    }
+}
+
 /* PowerPC 40x internal IRQ controller */
 static void ppc40x_set_irq(void *opaque, int pin, int level)
 {
