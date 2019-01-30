@@ -1104,33 +1104,39 @@ void helper_vmsumuhs(CPUPPCState *env, ppc_avr_t *r, ppc_avr_t *a,
     }
 }
 
-#define VMUL_DO(name, mul_element, prod_element, cast, evenp)           \
+#define VMUL_DO_EVN(name, mul_element, mul_access, prod_access, cast)   \
     void helper_v##name(ppc_avr_t *r, ppc_avr_t *a, ppc_avr_t *b)       \
     {                                                                   \
         int i;                                                          \
                                                                         \
-        VECTOR_FOR_INORDER_I(i, prod_element) {                         \
-            if (evenp) {                                                \
-                r->prod_element[i] =                                    \
-                    (cast)a->mul_element[i * 2 + HI_IDX] *              \
-                    (cast)b->mul_element[i * 2 + HI_IDX];               \
-            } else {                                                    \
-                r->prod_element[i] =                                    \
-                    (cast)a->mul_element[i * 2 + LO_IDX] *              \
-                    (cast)b->mul_element[i * 2 + LO_IDX];               \
-            }                                                           \
+        for (i = 0; i < ARRAY_SIZE(r->mul_element); i += 2) {           \
+            r->prod_access(i >> 1) = (cast)a->mul_access(i) *           \
+                                     (cast)b->mul_access(i);            \
         }                                                               \
     }
-#define VMUL(suffix, mul_element, prod_element, cast)            \
-    VMUL_DO(mule##suffix, mul_element, prod_element, cast, 1)    \
-    VMUL_DO(mulo##suffix, mul_element, prod_element, cast, 0)
-VMUL(sb, s8, s16, int16_t)
-VMUL(sh, s16, s32, int32_t)
-VMUL(sw, s32, s64, int64_t)
-VMUL(ub, u8, u16, uint16_t)
-VMUL(uh, u16, u32, uint32_t)
-VMUL(uw, u32, u64, uint64_t)
-#undef VMUL_DO
+
+#define VMUL_DO_ODD(name, mul_element, mul_access, prod_access, cast)   \
+    void helper_v##name(ppc_avr_t *r, ppc_avr_t *a, ppc_avr_t *b)       \
+    {                                                                   \
+        int i;                                                          \
+                                                                        \
+        for (i = 0; i < ARRAY_SIZE(r->mul_element); i += 2) {           \
+            r->prod_access(i >> 1) = (cast)a->mul_access(i + 1) *       \
+                                     (cast)b->mul_access(i + 1);        \
+        }                                                               \
+    }
+
+#define VMUL(suffix, mul_element, mul_access, prod_access, cast)       \
+    VMUL_DO_EVN(mule##suffix, mul_element, mul_access, prod_access, cast)  \
+    VMUL_DO_ODD(mulo##suffix, mul_element, mul_access, prod_access, cast)
+VMUL(sb, s8, VsrSB, VsrSH, int16_t)
+VMUL(sh, s16, VsrSH, VsrSW, int32_t)
+VMUL(sw, s32, VsrSW, VsrSD, int64_t)
+VMUL(ub, u8, VsrB, VsrH, uint16_t)
+VMUL(uh, u16, VsrH, VsrW, uint32_t)
+VMUL(uw, u32, VsrW, VsrD, uint64_t)
+#undef VMUL_DO_EVN
+#undef VMUL_DO_ODD
 #undef VMUL
 
 void helper_vperm(CPUPPCState *env, ppc_avr_t *r, ppc_avr_t *a, ppc_avr_t *b,
