@@ -81,11 +81,15 @@ echo
 echo '=== Force cancel job paused in error state  ==='
 echo
 
+# Filter out BLOCK_JOB_ERROR events because they may or may not occur.
+# Cancelling the job means resuming it for a bit before it is actually
+# aborted, and in that time it may or may not re-encounter the error.
 success_or_failure="y" _send_qemu_cmd $QEMU_HANDLE \
     "{'execute': 'block-job-cancel',
                  'arguments': { 'device': 'testdisk',
                                 'force': true}}" \
-     "BLOCK_JOB_CANCELLED" "Assertion"
+     "BLOCK_JOB_CANCELLED" "Assertion" \
+    | grep -v '"BLOCK_JOB_ERROR"'
 
 # success, all done
 echo "*** done"
