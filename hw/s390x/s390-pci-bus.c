@@ -194,7 +194,7 @@ void s390_pci_sclp_deconfigure(SCCB *sccb)
         pbdev->state = ZPCI_FS_STANDBY;
         rc = SCLP_RC_NORMAL_COMPLETION;
 
-        if (pbdev->release_timer) {
+        if (pbdev->unplug_requested) {
             s390_pci_perform_unplug(pbdev);
         }
     }
@@ -959,23 +959,6 @@ static void s390_pcihost_plug(HotplugHandler *hotplug_dev, DeviceState *dev,
     }
 }
 
-static void s390_pcihost_timer_cb(void *opaque)
-{
-    S390PCIBusDevice *pbdev = opaque;
-
-    if (pbdev->summary_ind) {
-        pci_dereg_irqs(pbdev);
-    }
-    if (pbdev->iommu->enabled) {
-        pci_dereg_ioat(pbdev->iommu);
-    }
-
-    pbdev->state = ZPCI_FS_STANDBY;
-    s390_pci_generate_plug_event(HP_EVENT_CONFIGURED_TO_STBRES,
-                                 pbdev->fh, pbdev->fid);
-    s390_pci_perform_unplug(pbdev);
-}
-
 static void s390_pcihost_unplug(HotplugHandler *hotplug_dev, DeviceState *dev,
                                 Error **errp)
 {
@@ -1002,12 +985,6 @@ static void s390_pcihost_unplug(HotplugHandler *hotplug_dev, DeviceState *dev,
         pbdev->state = ZPCI_FS_RESERVED;
     } else if (object_dynamic_cast(OBJECT(dev), TYPE_S390_PCI_DEVICE)) {
         pbdev = S390_PCI_DEVICE(dev);
-
-        if (pbdev->release_timer) {
-            timer_del(pbdev->release_timer);
-            timer_free(pbdev->release_timer);
-            pbdev->release_timer = NULL;
-        }
         pbdev->fid = 0;
         QTAILQ_REMOVE(&s->zpci_devs, pbdev, link);
         g_hash_table_remove(s->zpci_table, &pbdev->idx);
@@ -1054,15 +1031,14 @@ static void s390_pcihost_unplug_request(HotplugHandler *hotplug_dev,
             s390_pci_perform_unplug(pbdev);
             break;
         default:
-            if (pbdev->release_timer) {
-                return;
-            }
+            /*
+             * Allow to send multiple requests, e.g. if the guest crashed
+             * before releasing the device, we would not be able to send
+             * another request to the same VM (e.g. fresh OS).
+             */
+            pbdev->unplug_requested = true;
             s390_pci_generate_plug_event(HP_EVENT_DECONFIGURE_REQUEST,
                                          pbdev->fh, pbdev->fid);
-            pbdev->release_timer = timer_new_ns(QEMU_CLOCK_VIRTUAL,
-                                                s390_pcihost_timer_cb, pbdev);
-            timer_mod(pbdev->release_timer,
-                    qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL) + HOT_UNPLUG_TIMEOUT);
         }
     } else {
         g_assert_not_reached();
