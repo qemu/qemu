@@ -148,6 +148,22 @@ out:
     psccb->header.response_code = cpu_to_be16(rc);
 }
 
+static void s390_pci_perform_unplug(S390PCIBusDevice *pbdev)
+{
+    HotplugHandler *hotplug_ctrl;
+
+    /* Unplug the PCI device */
+    if (pbdev->pdev) {
+        hotplug_ctrl = qdev_get_hotplug_handler(DEVICE(pbdev->pdev));
+        hotplug_handler_unplug(hotplug_ctrl, DEVICE(pbdev->pdev),
+                               &error_abort);
+    }
+
+    /* Unplug the zPCI device */
+    hotplug_ctrl = qdev_get_hotplug_handler(DEVICE(pbdev));
+    hotplug_handler_unplug(hotplug_ctrl, DEVICE(pbdev), &error_abort);
+}
+
 void s390_pci_sclp_deconfigure(SCCB *sccb)
 {
     IoaCfgSccb *psccb = (IoaCfgSccb *)sccb;
@@ -179,7 +195,7 @@ void s390_pci_sclp_deconfigure(SCCB *sccb)
         rc = SCLP_RC_NORMAL_COMPLETION;
 
         if (pbdev->release_timer) {
-            qdev_unplug(DEVICE(pbdev->pdev), NULL);
+            s390_pci_perform_unplug(pbdev);
         }
     }
 out:
@@ -210,6 +226,24 @@ S390PCIBusDevice *s390_pci_find_dev_by_target(S390pciState *s,
 
     QTAILQ_FOREACH(pbdev, &s->zpci_devs, link) {
         if (!strcmp(pbdev->target, target)) {
+            return pbdev;
+        }
+    }
+
+    return NULL;
+}
+
+static S390PCIBusDevice *s390_pci_find_dev_by_pci(S390pciState *s,
+                                                  PCIDevice *pci_dev)
+{
+    S390PCIBusDevice *pbdev;
+
+    if (!pci_dev) {
+        return NULL;
+    }
+
+    QTAILQ_FOREACH(pbdev, &s->zpci_devs, link) {
+        if (pbdev->pdev == pci_dev) {
             return pbdev;
         }
     }
@@ -939,77 +973,100 @@ static void s390_pcihost_timer_cb(void *opaque)
     pbdev->state = ZPCI_FS_STANDBY;
     s390_pci_generate_plug_event(HP_EVENT_CONFIGURED_TO_STBRES,
                                  pbdev->fh, pbdev->fid);
-    qdev_unplug(DEVICE(pbdev), NULL);
+    s390_pci_perform_unplug(pbdev);
 }
 
 static void s390_pcihost_unplug(HotplugHandler *hotplug_dev, DeviceState *dev,
                                 Error **errp)
 {
     S390pciState *s = S390_PCI_HOST_BRIDGE(hotplug_dev);
-    PCIDevice *pci_dev = NULL;
-    PCIBus *bus;
-    int32_t devfn;
     S390PCIBusDevice *pbdev = NULL;
+
+    if (object_dynamic_cast(OBJECT(dev), TYPE_PCI_DEVICE)) {
+        PCIDevice *pci_dev = PCI_DEVICE(dev);
+        PCIBus *bus;
+        int32_t devfn;
+
+        pbdev = s390_pci_find_dev_by_pci(s, PCI_DEVICE(dev));
+        g_assert(pbdev);
+
+        s390_pci_generate_plug_event(HP_EVENT_STANDBY_TO_RESERVED,
+                                     pbdev->fh, pbdev->fid);
+        bus = pci_get_bus(pci_dev);
+        devfn = pci_dev->devfn;
+        object_unparent(OBJECT(pci_dev));
+
+        s390_pci_msix_free(pbdev);
+        s390_pci_iommu_free(s, bus, devfn);
+        pbdev->pdev = NULL;
+        pbdev->state = ZPCI_FS_RESERVED;
+    } else if (object_dynamic_cast(OBJECT(dev), TYPE_S390_PCI_DEVICE)) {
+        pbdev = S390_PCI_DEVICE(dev);
+
+        if (pbdev->release_timer) {
+            timer_del(pbdev->release_timer);
+            timer_free(pbdev->release_timer);
+            pbdev->release_timer = NULL;
+        }
+        pbdev->fid = 0;
+        QTAILQ_REMOVE(&s->zpci_devs, pbdev, link);
+        g_hash_table_remove(s->zpci_table, &pbdev->idx);
+        object_unparent(OBJECT(pbdev));
+    }
+}
+
+static void s390_pcihost_unplug_request(HotplugHandler *hotplug_dev,
+                                        DeviceState *dev,
+                                        Error **errp)
+{
+    S390pciState *s = S390_PCI_HOST_BRIDGE(hotplug_dev);
+    S390PCIBusDevice *pbdev;
 
     if (object_dynamic_cast(OBJECT(dev), TYPE_PCI_BRIDGE)) {
         error_setg(errp, "PCI bridge hot unplug currently not supported");
-        return;
     } else if (object_dynamic_cast(OBJECT(dev), TYPE_PCI_DEVICE)) {
-        pci_dev = PCI_DEVICE(dev);
-
-        QTAILQ_FOREACH(pbdev, &s->zpci_devs, link) {
-            if (pbdev->pdev == pci_dev) {
-                break;
-            }
-        }
-        assert(pbdev != NULL);
+        /*
+         * Redirect the unplug request to the zPCI device and remember that
+         * we've checked the PCI device already (to prevent endless recursion).
+         */
+        pbdev = s390_pci_find_dev_by_pci(s, PCI_DEVICE(dev));
+        g_assert(pbdev);
+        pbdev->pci_unplug_request_processed = true;
+        qdev_unplug(DEVICE(pbdev), errp);
     } else if (object_dynamic_cast(OBJECT(dev), TYPE_S390_PCI_DEVICE)) {
         pbdev = S390_PCI_DEVICE(dev);
-        pci_dev = pbdev->pdev;
+
+        /*
+         * If unplug was initially requested for the zPCI device, we
+         * first have to redirect to the PCI device, which will in return
+         * redirect back to us after performing its checks (if the request
+         * is not blocked, e.g. because it's a PCI bridge).
+         */
+        if (pbdev->pdev && !pbdev->pci_unplug_request_processed) {
+            qdev_unplug(DEVICE(pbdev->pdev), errp);
+            return;
+        }
+        pbdev->pci_unplug_request_processed = false;
+
+        switch (pbdev->state) {
+        case ZPCI_FS_STANDBY:
+        case ZPCI_FS_RESERVED:
+            s390_pci_perform_unplug(pbdev);
+            break;
+        default:
+            if (pbdev->release_timer) {
+                return;
+            }
+            s390_pci_generate_plug_event(HP_EVENT_DECONFIGURE_REQUEST,
+                                         pbdev->fh, pbdev->fid);
+            pbdev->release_timer = timer_new_ns(QEMU_CLOCK_VIRTUAL,
+                                                s390_pcihost_timer_cb, pbdev);
+            timer_mod(pbdev->release_timer,
+                    qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL) + HOT_UNPLUG_TIMEOUT);
+        }
     } else {
         g_assert_not_reached();
     }
-
-    switch (pbdev->state) {
-    case ZPCI_FS_RESERVED:
-        goto out;
-    case ZPCI_FS_STANDBY:
-        break;
-    default:
-        if (pbdev->release_timer) {
-            return;
-        }
-        s390_pci_generate_plug_event(HP_EVENT_DECONFIGURE_REQUEST,
-                                     pbdev->fh, pbdev->fid);
-        pbdev->release_timer = timer_new_ns(QEMU_CLOCK_VIRTUAL,
-                                            s390_pcihost_timer_cb,
-                                            pbdev);
-        timer_mod(pbdev->release_timer,
-                  qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL) + HOT_UNPLUG_TIMEOUT);
-        return;
-    }
-
-    if (pbdev->release_timer) {
-        timer_del(pbdev->release_timer);
-        timer_free(pbdev->release_timer);
-        pbdev->release_timer = NULL;
-    }
-
-    s390_pci_generate_plug_event(HP_EVENT_STANDBY_TO_RESERVED,
-                                 pbdev->fh, pbdev->fid);
-    bus = pci_get_bus(pci_dev);
-    devfn = pci_dev->devfn;
-    object_unparent(OBJECT(pci_dev));
-    fmb_timer_free(pbdev);
-    s390_pci_msix_free(pbdev);
-    s390_pci_iommu_free(s, bus, devfn);
-    pbdev->pdev = NULL;
-    pbdev->state = ZPCI_FS_RESERVED;
-out:
-    pbdev->fid = 0;
-    QTAILQ_REMOVE(&s->zpci_devs, pbdev, link);
-    g_hash_table_remove(s->zpci_table, &pbdev->idx);
-    object_unparent(OBJECT(pbdev));
 }
 
 static void s390_pci_enumerate_bridge(PCIBus *bus, PCIDevice *pdev,
@@ -1059,6 +1116,7 @@ static void s390_pcihost_class_init(ObjectClass *klass, void *data)
     dc->realize = s390_pcihost_realize;
     hc->pre_plug = s390_pcihost_pre_plug;
     hc->plug = s390_pcihost_plug;
+    hc->unplug_request = s390_pcihost_unplug_request;
     hc->unplug = s390_pcihost_unplug;
     msi_nonbroken = true;
 }

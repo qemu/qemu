@@ -336,6 +336,7 @@ struct S390PCIBusDevice {
     IndAddr *summary_ind;
     IndAddr *indicator;
     QEMUTimer *release_timer;
+    bool pci_unplug_request_processed;
     QTAILQ_ENTRY(S390PCIBusDevice) link;
 };
 
