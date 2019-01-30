@@ -1873,7 +1873,7 @@ static void *file_ram_alloc(RAMBlock *block,
     if (mem_prealloc) {
         os_mem_prealloc(fd, area, memory, smp_cpus, errp);
         if (errp && *errp) {
-            qemu_ram_munmap(area, memory);
+            qemu_ram_munmap(fd, area, memory);
             return NULL;
         }
     }
@@ -2394,7 +2394,7 @@ static void reclaim_ramblock(RAMBlock *block)
         xen_invalidate_map_cache_entry(block->host);
 #ifndef _WIN32
     } else if (block->fd >= 0) {
-        qemu_ram_munmap(block->host, block->max_length);
+        qemu_ram_munmap(block->fd, block->host, block->max_length);
         close(block->fd);
 #endif
     } else {

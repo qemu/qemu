@@ -80,6 +80,7 @@ void *qemu_ram_mmap(int fd, size_t size, size_t align, bool shared)
     int flags;
     int guardfd;
     size_t offset;
+    size_t pagesize;
     size_t total;
     void *guardptr;
     void *ptr;
@@ -100,7 +101,8 @@ void *qemu_ram_mmap(int fd, size_t size, size_t align, bool shared)
      * anonymous memory is OK.
      */
     flags = MAP_PRIVATE;
-    if (fd == -1 || qemu_fd_getpagesize(fd) == getpagesize()) {
+    pagesize = qemu_fd_getpagesize(fd);
+    if (fd == -1 || pagesize == getpagesize()) {
         guardfd = -1;
         flags |= MAP_ANONYMOUS;
     } else {
@@ -109,6 +111,7 @@ void *qemu_ram_mmap(int fd, size_t size, size_t align, bool shared)
     }
 #else
     guardfd = -1;
+    pagesize = getpagesize();
     flags = MAP_PRIVATE | MAP_ANONYMOUS;
 #endif
 
@@ -120,7 +123,7 @@ void *qemu_ram_mmap(int fd, size_t size, size_t align, bool shared)
 
     assert(is_power_of_2(align));
     /* Always align to host page size */
-    assert(align >= getpagesize());
+    assert(align >= pagesize);
 
     flags = MAP_FIXED;
     flags |= fd == -1 ? MAP_ANONYMOUS : 0;
@@ -143,17 +146,24 @@ void *qemu_ram_mmap(int fd, size_t size, size_t align, bool shared)
      * a guard page guarding against potential buffer overflows.
      */
     total -= offset;
-    if (total > size + getpagesize()) {
-        munmap(ptr + size + getpagesize(), total - size - getpagesize());
+    if (total > size + pagesize) {
+        munmap(ptr + size + pagesize, total - size - pagesize);
     }
 
     return ptr;
 }
 
-void qemu_ram_munmap(void *ptr, size_t size)
+void qemu_ram_munmap(int fd, void *ptr, size_t size)
 {
+    size_t pagesize;
+
     if (ptr) {
         /* Unmap both the RAM block and the guard page */
-        munmap(ptr, size + getpagesize());
+#if defined(__powerpc64__) && defined(__linux__)
+        pagesize = qemu_fd_getpagesize(fd);
+#else
+        pagesize = getpagesize();
+#endif
+        munmap(ptr, size + pagesize);
     }
 }

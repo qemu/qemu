@@ -226,7 +226,7 @@ void qemu_vfree(void *ptr)
 void qemu_anon_ram_free(void *ptr, size_t size)
 {
     trace_qemu_anon_ram_free(ptr, size);
-    qemu_ram_munmap(ptr, size);
+    qemu_ram_munmap(-1, ptr, size);
 }
 
 void qemu_set_block(int fd)
