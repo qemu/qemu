@@ -896,7 +896,8 @@ static void s390_pcihost_plug(HotplugHandler *hotplug_dev, DeviceState *dev,
         qbus_set_hotplug_handler(bus, DEVICE(s), errp);
 
         if (dev->hotplugged) {
-            pci_default_write_config(pdev, PCI_PRIMARY_BUS, s->bus_no, 1);
+            pci_default_write_config(pdev, PCI_PRIMARY_BUS,
+                                     pci_dev_bus_num(pdev), 1);
             s->bus_no += 1;
             pci_default_write_config(pdev, PCI_SECONDARY_BUS, s->bus_no, 1);
             do {
@@ -1049,8 +1050,6 @@ static void s390_pci_enumerate_bridge(PCIBus *bus, PCIDevice *pdev,
                                       void *opaque)
 {
     S390pciState *s = opaque;
-    unsigned int primary = s->bus_no;
-    unsigned int subordinate = 0xff;
     PCIBus *sec_bus = NULL;
 
     if ((pci_default_read_config(pdev, PCI_HEADER_TYPE, 1) !=
@@ -1059,7 +1058,7 @@ static void s390_pci_enumerate_bridge(PCIBus *bus, PCIDevice *pdev,
     }
 
     (s->bus_no)++;
-    pci_default_write_config(pdev, PCI_PRIMARY_BUS, primary, 1);
+    pci_default_write_config(pdev, PCI_PRIMARY_BUS, pci_dev_bus_num(pdev), 1);
     pci_default_write_config(pdev, PCI_SECONDARY_BUS, s->bus_no, 1);
     pci_default_write_config(pdev, PCI_SUBORDINATE_BUS, s->bus_no, 1);
 
@@ -1068,7 +1067,7 @@ static void s390_pci_enumerate_bridge(PCIBus *bus, PCIDevice *pdev,
         return;
     }
 
-    pci_default_write_config(pdev, PCI_SUBORDINATE_BUS, subordinate, 1);
+    /* Assign numbers to all child bridges. The last is the highest number. */
     pci_for_each_device(sec_bus, pci_bus_num(sec_bus),
                         s390_pci_enumerate_bridge, s);
     pci_default_write_config(pdev, PCI_SUBORDINATE_BUS, s->bus_no, 1);
@@ -1079,6 +1078,10 @@ static void s390_pcihost_reset(DeviceState *dev)
     S390pciState *s = S390_PCI_HOST_BRIDGE(dev);
     PCIBus *bus = s->parent_obj.bus;
 
+    /*
+     * When resetting a PCI bridge, the assigned numbers are set to 0. So
+     * on every system reset, we also have to reassign numbers.
+     */
     s->bus_no = 0;
     pci_for_each_device(bus, pci_bus_num(bus), s390_pci_enumerate_bridge, s);
 }
