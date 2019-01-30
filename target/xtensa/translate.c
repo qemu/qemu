@@ -71,6 +71,7 @@ struct DisasContext {
 
     unsigned cpenable;
 
+    uint32_t op_flags;
     uint32_t *raw_arg;
     xtensa_insnbuf insnbuf;
     xtensa_insnbuf slotbuf;
@@ -363,6 +364,8 @@ static bool gen_check_cpenable(DisasContext *dc, uint32_t cp_mask)
     return true;
 }
 
+static int gen_postprocess(DisasContext *dc, int slot);
+
 static void gen_jump_slot(DisasContext *dc, TCGv dest, int slot)
 {
     tcg_gen_mov_i32(cpu_pc, dest);
@@ -372,6 +375,9 @@ static void gen_jump_slot(DisasContext *dc, TCGv dest, int slot)
     if (dc->base.singlestep_enabled) {
         gen_exception(dc, EXCP_DEBUG);
     } else {
+        if (dc->op_flags & XTENSA_OP_POSTPROCESS) {
+            slot = gen_postprocess(dc, slot);
+        }
         if (slot >= 0) {
             tcg_gen_goto_tb(slot);
             tcg_gen_exit_tb(dc->base.tb, slot);
@@ -846,6 +852,19 @@ static inline unsigned xtensa_op0_insn_len(DisasContext *dc, uint8_t op0)
     return xtensa_isa_length_from_chars(dc->config->isa, &op0);
 }
 
+static int gen_postprocess(DisasContext *dc, int slot)
+{
+    uint32_t op_flags = dc->op_flags;
+
+    if (op_flags & XTENSA_OP_CHECK_INTERRUPTS) {
+        gen_check_interrupts(dc);
+    }
+    if (op_flags & XTENSA_OP_EXIT_TB_M1) {
+        slot = -1;
+    }
+    return slot;
+}
+
 struct opcode_arg_info {
     uint32_t resource;
     int index;
@@ -1211,6 +1230,8 @@ static void disas_xtensa_insn(CPUXtensaState *env, DisasContext *dc)
         }
     }
 
+    dc->op_flags = op_flags;
+
     for (slot = 0; slot < slots; ++slot) {
         struct slot_prop *pslot = ordered[slot];
         XtensaOpcodeOps *ops = pslot->ops;
@@ -1220,20 +1241,16 @@ static void disas_xtensa_insn(CPUXtensaState *env, DisasContext *dc)
     }
 
     if (dc->base.is_jmp == DISAS_NEXT) {
-        if (op_flags & XTENSA_OP_CHECK_INTERRUPTS) {
-            gen_check_interrupts(dc);
-        }
-
+        gen_postprocess(dc, 0);
+        dc->op_flags = 0;
         if (op_flags & XTENSA_OP_EXIT_TB_M1) {
             /* Change in mmu index, memory mapping or tb->flags; exit tb */
             gen_jumpi_check_loop_end(dc, -1);
         } else if (op_flags & XTENSA_OP_EXIT_TB_0) {
             gen_jumpi_check_loop_end(dc, 0);
+        } else {
+            gen_check_loop_end(dc, 0);
         }
-    }
-
-    if (dc->base.is_jmp == DISAS_NEXT) {
-        gen_check_loop_end(dc, 0);
     }
     dc->pc = dc->base.pc_next;
 }
