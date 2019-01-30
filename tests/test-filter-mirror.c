@@ -21,10 +21,9 @@
 
 static void test_mirror(void)
 {
-    int send_sock[2], recv_sock;
+    int send_sock[2], recv_sock[2];
     uint32_t ret = 0, len = 0;
     char send_buf[] = "Hello! filter-mirror~";
-    char sock_path[] = "filter-mirror.XXXXXX";
     char *recv_buf;
     uint32_t size = sizeof(send_buf);
     size = htonl(size);
@@ -38,18 +37,15 @@ static void test_mirror(void)
     ret = socketpair(PF_UNIX, SOCK_STREAM, 0, send_sock);
     g_assert_cmpint(ret, !=, -1);
 
-    ret = mkstemp(sock_path);
+    ret = socketpair(PF_UNIX, SOCK_STREAM, 0, recv_sock);
     g_assert_cmpint(ret, !=, -1);
 
     qts = qtest_initf(
         "-netdev socket,id=qtest-bn0,fd=%d "
         "-device %s,netdev=qtest-bn0,id=qtest-e0 "
-        "-chardev socket,id=mirror0,path=%s,server,nowait "
+        "-chardev socket,id=mirror0,fd=%d "
         "-object filter-mirror,id=qtest-f0,netdev=qtest-bn0,queue=tx,outdev=mirror0 "
-        , send_sock[1], devstr, sock_path);
-
-    recv_sock = unix_connect(sock_path, NULL);
-    g_assert_cmpint(recv_sock, !=, -1);
+        , send_sock[1], devstr, recv_sock[1]);
 
     struct iovec iov[] = {
         {
@@ -67,18 +63,20 @@ static void test_mirror(void)
     g_assert_cmpint(ret, ==, sizeof(send_buf) + sizeof(size));
     close(send_sock[0]);
 
-    ret = qemu_recv(recv_sock, &len, sizeof(len), 0);
+    ret = qemu_recv(recv_sock[0], &len, sizeof(len), 0);
     g_assert_cmpint(ret, ==, sizeof(len));
     len = ntohl(len);
 
     g_assert_cmpint(len, ==, sizeof(send_buf));
     recv_buf = g_malloc(len);
-    ret = qemu_recv(recv_sock, recv_buf, len, 0);
+    ret = qemu_recv(recv_sock[0], recv_buf, len, 0);
     g_assert_cmpstr(recv_buf, ==, send_buf);
 
     g_free(recv_buf);
-    close(recv_sock);
-    unlink(sock_path);
+    close(send_sock[0]);
+    close(send_sock[1]);
+    close(recv_sock[0]);
+    close(recv_sock[1]);
     qtest_quit(qts);
 }
 
