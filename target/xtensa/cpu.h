@@ -373,6 +373,8 @@ enum {
     XTENSA_OP_EXIT_TB_0 = 0x800,
 
     XTENSA_OP_NAME_ARRAY = 0x8000,
+
+    XTENSA_OP_CONTROL_FLOW = 0x10000,
 };
 
 typedef struct XtensaOpcodeOps {
