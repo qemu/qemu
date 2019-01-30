@@ -4047,6 +4047,16 @@ EOF
   fi
 fi
 
+if test "$opengl" = "yes" -a "$have_x11" = "yes"; then
+  for target in $target_list; do
+    case $target in
+      lm32-softmmu) # milkymist-tmu2 requires X11 and OpenGL
+        need_x11=yes
+      ;;
+    esac
+  done
+fi
+
 ##########################################
 # libxml2 probe
 if test "$libxml2" != "no" ; then
