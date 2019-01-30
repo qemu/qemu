@@ -185,6 +185,7 @@ F: disas/lm32.c
 F: hw/lm32/
 F: hw/*/lm32_*
 F: hw/*/milkymist-*
+F: include/hw/display/milkymist_tmu2.h
 F: include/hw/char/lm32_juart.h
 F: include/hw/lm32/
 F: tests/tcg/lm32/

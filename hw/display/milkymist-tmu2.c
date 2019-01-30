@@ -31,6 +31,7 @@
 #include "qapi/error.h"
 #include "qemu/error-report.h"
 #include "qapi/error.h"
+#include "hw/display/milkymist_tmu2.h"
 
 #include <X11/Xlib.h>
 #include <epoxy/gl.h>
@@ -499,3 +500,51 @@ static void milkymist_tmu2_register_types(void)
 }
 
 type_init(milkymist_tmu2_register_types)
+
+DeviceState *milkymist_tmu2_create(hwaddr base, qemu_irq irq)
+{
+    DeviceState *dev;
+    Display *d;
+    GLXFBConfig *configs;
+    int nelements;
+    int ver_major, ver_minor;
+
+    /* check that GLX will work */
+    d = XOpenDisplay(NULL);
+    if (d == NULL) {
+        return NULL;
+    }
+
+    if (!glXQueryVersion(d, &ver_major, &ver_minor)) {
+        /*
+         * Yeah, sometimes getting the GLX version can fail.
+         * Isn't X beautiful?
+         */
+        XCloseDisplay(d);
+        return NULL;
+    }
+
+    if ((ver_major < 1) || ((ver_major == 1) && (ver_minor < 3))) {
+        printf("Your GLX version is %d.%d,"
+          "but TMU emulation needs at least 1.3. TMU disabled.\n",
+          ver_major, ver_minor);
+        XCloseDisplay(d);
+        return NULL;
+    }
+
+    configs = glXChooseFBConfig(d, 0, glx_fbconfig_attr, &nelements);
+    if (configs == NULL) {
+        XCloseDisplay(d);
+        return NULL;
+    }
+
+    XFree(configs);
+    XCloseDisplay(d);
+
+    dev = qdev_create(NULL, TYPE_MILKYMIST_TMU2);
+    qdev_init_nofail(dev);
+    sysbus_mmio_map(SYS_BUS_DEVICE(dev), 0, base);
+    sysbus_connect_irq(SYS_BUS_DEVICE(dev), 0, irq);
+
+    return dev;
+}
