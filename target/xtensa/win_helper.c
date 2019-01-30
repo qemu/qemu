@@ -96,9 +96,9 @@ void xtensa_rotate_window(CPUXtensaState *env, uint32_t delta)
     xtensa_rotate_window_abs(env, env->sregs[WINDOW_BASE] + delta);
 }
 
-void HELPER(wsr_windowbase)(CPUXtensaState *env, uint32_t v)
+void HELPER(sync_windowbase)(CPUXtensaState *env)
 {
-    xtensa_rotate_window_abs(env, v);
+    xtensa_rotate_window_abs(env, env->windowbase_next);
 }
 
 void HELPER(entry)(CPUXtensaState *env, uint32_t pc, uint32_t s, uint32_t imm)
@@ -106,9 +106,8 @@ void HELPER(entry)(CPUXtensaState *env, uint32_t pc, uint32_t s, uint32_t imm)
     int callinc = (env->sregs[PS] & PS_CALLINC) >> PS_CALLINC_SHIFT;
 
     env->regs[(callinc << 2) | (s & 3)] = env->regs[s] - imm;
-    xtensa_rotate_window(env, callinc);
-    env->sregs[WINDOW_START] |=
-        windowstart_bit(env->sregs[WINDOW_BASE], env);
+    env->windowbase_next = env->sregs[WINDOW_BASE] + callinc;
+    env->sregs[WINDOW_START] |= windowstart_bit(env->windowbase_next, env);
 }
 
 void HELPER(window_check)(CPUXtensaState *env, uint32_t pc, uint32_t w)
@@ -194,11 +193,6 @@ uint32_t HELPER(retw)(CPUXtensaState *env, uint32_t pc)
     xtensa_rotate_window(env, -n);
     env->sregs[WINDOW_START] &= ~windowstart_bit(windowbase, env);
     return ret_pc;
-}
-
-void HELPER(rotw)(CPUXtensaState *env, uint32_t imm4)
-{
-    xtensa_rotate_window(env, imm4);
 }
 
 void xtensa_restore_owb(CPUXtensaState *env)

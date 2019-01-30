@@ -486,6 +486,7 @@ typedef struct CPUXtensaState {
         float64 f64;
     } fregs[16];
     float_status fp_status;
+    uint32_t windowbase_next;
 
 #ifndef CONFIG_USER_ONLY
     xtensa_tlb_entry itlb[7][MAX_TLB_WAY_SIZE];
