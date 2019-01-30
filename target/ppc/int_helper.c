@@ -3306,12 +3306,7 @@ void helper_vncipherlast(ppc_avr_t *r, ppc_avr_t *a, ppc_avr_t *b)
     *r = result;
 }
 
-#define ROTRu32(v, n) (((v) >> (n)) | ((v) << (32-n)))
-#if defined(HOST_WORDS_BIGENDIAN)
-#define EL_IDX(i) (i)
-#else
-#define EL_IDX(i) (3 - (i))
-#endif
+#define ROTRu32(v, n) (((v) >> (n)) | ((v) << (32 - n)))
 
 void helper_vshasigmaw(ppc_avr_t *r,  ppc_avr_t *a, uint32_t st_six)
 {
@@ -3319,40 +3314,34 @@ void helper_vshasigmaw(ppc_avr_t *r,  ppc_avr_t *a, uint32_t st_six)
     int six = st_six & 0xF;
     int i;
 
-    VECTOR_FOR_INORDER_I(i, u32) {
+    for (i = 0; i < ARRAY_SIZE(r->u32); i++) {
         if (st == 0) {
             if ((six & (0x8 >> i)) == 0) {
-                r->u32[EL_IDX(i)] = ROTRu32(a->u32[EL_IDX(i)], 7) ^
-                                    ROTRu32(a->u32[EL_IDX(i)], 18) ^
-                                    (a->u32[EL_IDX(i)] >> 3);
+                r->VsrW(i) = ROTRu32(a->VsrW(i), 7) ^
+                             ROTRu32(a->VsrW(i), 18) ^
+                             (a->VsrW(i) >> 3);
             } else { /* six.bit[i] == 1 */
-                r->u32[EL_IDX(i)] = ROTRu32(a->u32[EL_IDX(i)], 17) ^
-                                    ROTRu32(a->u32[EL_IDX(i)], 19) ^
-                                    (a->u32[EL_IDX(i)] >> 10);
+                r->VsrW(i) = ROTRu32(a->VsrW(i), 17) ^
+                             ROTRu32(a->VsrW(i), 19) ^
+                             (a->VsrW(i) >> 10);
             }
         } else { /* st == 1 */
             if ((six & (0x8 >> i)) == 0) {
-                r->u32[EL_IDX(i)] = ROTRu32(a->u32[EL_IDX(i)], 2) ^
-                                    ROTRu32(a->u32[EL_IDX(i)], 13) ^
-                                    ROTRu32(a->u32[EL_IDX(i)], 22);
+                r->VsrW(i) = ROTRu32(a->VsrW(i), 2) ^
+                             ROTRu32(a->VsrW(i), 13) ^
+                             ROTRu32(a->VsrW(i), 22);
             } else { /* six.bit[i] == 1 */
-                r->u32[EL_IDX(i)] = ROTRu32(a->u32[EL_IDX(i)], 6) ^
-                                    ROTRu32(a->u32[EL_IDX(i)], 11) ^
-                                    ROTRu32(a->u32[EL_IDX(i)], 25);
+                r->VsrW(i) = ROTRu32(a->VsrW(i), 6) ^
+                             ROTRu32(a->VsrW(i), 11) ^
+                             ROTRu32(a->VsrW(i), 25);
             }
         }
     }
 }
 
 #undef ROTRu32
-#undef EL_IDX
 
 #define ROTRu64(v, n) (((v) >> (n)) | ((v) << (64-n)))
-#if defined(HOST_WORDS_BIGENDIAN)
-#define EL_IDX(i) (i)
-#else
-#define EL_IDX(i) (1 - (i))
-#endif
 
 void helper_vshasigmad(ppc_avr_t *r,  ppc_avr_t *a, uint32_t st_six)
 {
@@ -3360,33 +3349,32 @@ void helper_vshasigmad(ppc_avr_t *r,  ppc_avr_t *a, uint32_t st_six)
     int six = st_six & 0xF;
     int i;
 
-    VECTOR_FOR_INORDER_I(i, u64) {
+    for (i = 0; i < ARRAY_SIZE(r->u64); i++) {
         if (st == 0) {
             if ((six & (0x8 >> (2*i))) == 0) {
-                r->u64[EL_IDX(i)] = ROTRu64(a->u64[EL_IDX(i)], 1) ^
-                                    ROTRu64(a->u64[EL_IDX(i)], 8) ^
-                                    (a->u64[EL_IDX(i)] >> 7);
+                r->VsrD(i) = ROTRu64(a->VsrD(i), 1) ^
+                             ROTRu64(a->VsrD(i), 8) ^
+                             (a->VsrD(i) >> 7);
             } else { /* six.bit[2*i] == 1 */
-                r->u64[EL_IDX(i)] = ROTRu64(a->u64[EL_IDX(i)], 19) ^
-                                    ROTRu64(a->u64[EL_IDX(i)], 61) ^
-                                    (a->u64[EL_IDX(i)] >> 6);
+                r->VsrD(i) = ROTRu64(a->VsrD(i), 19) ^
+                             ROTRu64(a->VsrD(i), 61) ^
+                             (a->VsrD(i) >> 6);
             }
         } else { /* st == 1 */
             if ((six & (0x8 >> (2*i))) == 0) {
-                r->u64[EL_IDX(i)] = ROTRu64(a->u64[EL_IDX(i)], 28) ^
-                                    ROTRu64(a->u64[EL_IDX(i)], 34) ^
-                                    ROTRu64(a->u64[EL_IDX(i)], 39);
+                r->VsrD(i) = ROTRu64(a->VsrD(i), 28) ^
+                             ROTRu64(a->VsrD(i), 34) ^
+                             ROTRu64(a->VsrD(i), 39);
             } else { /* six.bit[2*i] == 1 */
-                r->u64[EL_IDX(i)] = ROTRu64(a->u64[EL_IDX(i)], 14) ^
-                                    ROTRu64(a->u64[EL_IDX(i)], 18) ^
-                                    ROTRu64(a->u64[EL_IDX(i)], 41);
+                r->VsrD(i) = ROTRu64(a->VsrD(i), 14) ^
+                             ROTRu64(a->VsrD(i), 18) ^
+                             ROTRu64(a->VsrD(i), 41);
             }
         }
     }
 }
 
 #undef ROTRu64
-#undef EL_IDX
 
 void helper_vpermxor(ppc_avr_t *r,  ppc_avr_t *a, ppc_avr_t *b, ppc_avr_t *c)
 {
