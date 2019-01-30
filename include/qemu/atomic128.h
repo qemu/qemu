@@ -68,7 +68,7 @@ static inline Int128 atomic16_cmpxchg(Int128 *ptr, Int128 cmp, Int128 new)
         "cbnz %w[tmp], 0b\n"
         "1:"
         : [mem] "+m"(*ptr), [tmp] "=&r"(tmp),
-          [oldl] "=&r"(oldl), [oldh] "=r"(oldh)
+          [oldl] "=&r"(oldl), [oldh] "=&r"(oldh)
         : [cmpl] "r"(cmpl), [cmph] "r"(cmph),
           [newl] "r"(newl), [newh] "r"(newh)
         : "memory", "cc");
