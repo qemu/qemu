@@ -45,23 +45,23 @@ write -P0xcd 0x3ff0000 64k
     "actions": [
       {
         "data": {
-          "node": "drive0",
-          "name": "bitmapB"
+          "name": "bitmapB",
+          "node": "drive0"
         },
         "type": "block-dirty-bitmap-disable"
       },
       {
         "data": {
-          "node": "drive0",
+          "granularity": 65536,
           "name": "bitmapC",
-          "granularity": 65536
+          "node": "drive0"
         },
         "type": "block-dirty-bitmap-add"
       },
       {
         "data": {
-          "node": "drive0",
-          "name": "bitmapA"
+          "name": "bitmapA",
+          "node": "drive0"
         },
         "type": "block-dirty-bitmap-clear"
       },
@@ -105,30 +105,30 @@ write -P0xcd 0x3ff0000 64k
     "actions": [
       {
         "data": {
-          "node": "drive0",
-          "name": "bitmapB"
+          "name": "bitmapB",
+          "node": "drive0"
         },
         "type": "block-dirty-bitmap-disable"
       },
       {
         "data": {
-          "node": "drive0",
+          "granularity": 65536,
           "name": "bitmapC",
-          "granularity": 65536
+          "node": "drive0"
         },
         "type": "block-dirty-bitmap-add"
       },
       {
         "data": {
-          "node": "drive0",
-          "name": "bitmapC"
+          "name": "bitmapC",
+          "node": "drive0"
         },
         "type": "block-dirty-bitmap-disable"
       },
       {
         "data": {
-          "node": "drive0",
-          "name": "bitmapC"
+          "name": "bitmapC",
+          "node": "drive0"
         },
         "type": "block-dirty-bitmap-enable"
       }
@@ -158,15 +158,15 @@ write -P0xea 0x3fe0000 64k
     "actions": [
       {
         "data": {
-          "node": "drive0",
-          "name": "bitmapA"
+          "name": "bitmapA",
+          "node": "drive0"
         },
         "type": "block-dirty-bitmap-disable"
       },
       {
         "data": {
-          "node": "drive0",
-          "name": "bitmapC"
+          "name": "bitmapC",
+          "node": "drive0"
         },
         "type": "block-dirty-bitmap-disable"
       }
@@ -209,21 +209,21 @@ write -P0xea 0x3fe0000 64k
     "actions": [
       {
         "data": {
-          "node": "drive0",
           "disabled": true,
+          "granularity": 65536,
           "name": "bitmapD",
-          "granularity": 65536
+          "node": "drive0"
         },
         "type": "block-dirty-bitmap-add"
       },
       {
         "data": {
-          "node": "drive0",
-          "target": "bitmapD",
           "bitmaps": [
             "bitmapB",
             "bitmapC"
-          ]
+          ],
+          "node": "drive0",
+          "target": "bitmapD"
         },
         "type": "block-dirty-bitmap-merge"
       },
@@ -273,21 +273,21 @@ write -P0xea 0x3fe0000 64k
     "actions": [
       {
         "data": {
-          "node": "drive0",
           "disabled": true,
+          "granularity": 65536,
           "name": "bitmapD",
-          "granularity": 65536
+          "node": "drive0"
         },
         "type": "block-dirty-bitmap-add"
       },
       {
         "data": {
-          "node": "drive0",
-          "target": "bitmapD",
           "bitmaps": [
             "bitmapB",
             "bitmapC"
-          ]
+          ],
+          "node": "drive0",
+          "target": "bitmapD"
         },
         "type": "block-dirty-bitmap-merge"
       }
