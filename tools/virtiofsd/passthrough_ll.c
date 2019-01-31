@@ -56,27 +56,10 @@
 
 #include "passthrough_helpers.h"
 
-/*
- * We are re-using pointers to our `struct lo_inode`
- * elements as inodes. This means that we must be able to
- * store uintptr_t values in a fuse_ino_t variable. The following
- * incantation checks this condition at compile time.
- */
-#if defined(__GNUC__) &&                                      \
-    (__GNUC__ > 4 || __GNUC__ == 4 && __GNUC_MINOR__ >= 6) && \
-    !defined __cplusplus
-_Static_assert(sizeof(fuse_ino_t) >= sizeof(uintptr_t),
-               "fuse_ino_t too small to hold uintptr_t values!");
-#else
-struct _uintptr_to_must_hold_fuse_ino_t_dummy_struct {
-    unsigned _uintptr_to_must_hold_fuse_ino_t
-        : ((sizeof(fuse_ino_t) >= sizeof(uintptr_t)) ? 1 : -1);
-};
-#endif
-
 struct lo_map_elem {
     union {
         struct lo_inode *inode;
+        struct lo_dirp *dirp;
         ssize_t freelist;
     };
     bool in_use;
@@ -123,6 +106,7 @@ struct lo_data {
     int timeout_set;
     struct lo_inode root; /* protected by lo->mutex */
     struct lo_map ino_map; /* protected by lo->mutex */
+    struct lo_map dirp_map; /* protected by lo->mutex */
 };
 
 static const struct fuse_opt lo_opts[] = {
@@ -250,6 +234,20 @@ static void lo_map_remove(struct lo_map *map, size_t key)
 
     elem->freelist = map->freelist;
     map->freelist = key;
+}
+
+/* Assumes lo->mutex is held */
+static ssize_t lo_add_dirp_mapping(fuse_req_t req, struct lo_dirp *dirp)
+{
+    struct lo_map_elem *elem;
+
+    elem = lo_map_alloc_elem(&lo_data(req)->dirp_map);
+    if (!elem) {
+        return -1;
+    }
+
+    elem->dirp = dirp;
+    return elem - lo_data(req)->dirp_map.elems;
 }
 
 /* Assumes lo->mutex is held */
@@ -861,9 +859,19 @@ struct lo_dirp {
     off_t offset;
 };
 
-static struct lo_dirp *lo_dirp(struct fuse_file_info *fi)
+static struct lo_dirp *lo_dirp(fuse_req_t req, struct fuse_file_info *fi)
 {
-    return (struct lo_dirp *)(uintptr_t)fi->fh;
+    struct lo_data *lo = lo_data(req);
+    struct lo_map_elem *elem;
+
+    pthread_mutex_lock(&lo->mutex);
+    elem = lo_map_get(&lo->dirp_map, fi->fh);
+    pthread_mutex_unlock(&lo->mutex);
+    if (!elem) {
+        return NULL;
+    }
+
+    return elem->dirp;
 }
 
 static void lo_opendir(fuse_req_t req, fuse_ino_t ino,
@@ -873,6 +881,7 @@ static void lo_opendir(fuse_req_t req, fuse_ino_t ino,
     struct lo_data *lo = lo_data(req);
     struct lo_dirp *d;
     int fd;
+    ssize_t fh;
 
     d = calloc(1, sizeof(struct lo_dirp));
     if (d == NULL) {
@@ -892,7 +901,14 @@ static void lo_opendir(fuse_req_t req, fuse_ino_t ino,
     d->offset = 0;
     d->entry = NULL;
 
-    fi->fh = (uintptr_t)d;
+    pthread_mutex_lock(&lo->mutex);
+    fh = lo_add_dirp_mapping(req, d);
+    pthread_mutex_unlock(&lo->mutex);
+    if (fh == -1) {
+        goto out_err;
+    }
+
+    fi->fh = fh;
     if (lo->cache == CACHE_ALWAYS) {
         fi->keep_cache = 1;
     }
@@ -903,6 +919,9 @@ out_errno:
     error = errno;
 out_err:
     if (d) {
+        if (d->dp) {
+            closedir(d->dp);
+        }
         if (fd != -1) {
             close(fd);
         }
@@ -920,17 +939,21 @@ static int is_dot_or_dotdot(const char *name)
 static void lo_do_readdir(fuse_req_t req, fuse_ino_t ino, size_t size,
                           off_t offset, struct fuse_file_info *fi, int plus)
 {
-    struct lo_dirp *d = lo_dirp(fi);
-    char *buf;
+    struct lo_dirp *d;
+    char *buf = NULL;
     char *p;
     size_t rem = size;
-    int err;
+    int err = ENOMEM;
 
     (void)ino;
 
+    d = lo_dirp(req, fi);
+    if (!d) {
+        goto error;
+    }
+
     buf = calloc(1, size);
     if (!buf) {
-        err = ENOMEM;
         goto error;
     }
     p = buf;
@@ -1028,8 +1051,21 @@ static void lo_readdirplus(fuse_req_t req, fuse_ino_t ino, size_t size,
 static void lo_releasedir(fuse_req_t req, fuse_ino_t ino,
                           struct fuse_file_info *fi)
 {
-    struct lo_dirp *d = lo_dirp(fi);
+    struct lo_data *lo = lo_data(req);
+    struct lo_dirp *d;
+
     (void)ino;
+
+    d = lo_dirp(req, fi);
+    if (!d) {
+        fuse_reply_err(req, EBADF);
+        return;
+    }
+
+    pthread_mutex_lock(&lo->mutex);
+    lo_map_remove(&lo->dirp_map, fi->fh);
+    pthread_mutex_unlock(&lo->mutex);
+
     closedir(d->dp);
     free(d);
     fuse_reply_err(req, 0);
@@ -1081,8 +1117,18 @@ static void lo_fsyncdir(fuse_req_t req, fuse_ino_t ino, int datasync,
                         struct fuse_file_info *fi)
 {
     int res;
-    int fd = dirfd(lo_dirp(fi)->dp);
+    struct lo_dirp *d;
+    int fd;
+
     (void)ino;
+
+    d = lo_dirp(req, fi);
+    if (!d) {
+        fuse_reply_err(req, EBADF);
+        return;
+    }
+
+    fd = dirfd(d->dp);
     if (datasync) {
         res = fdatasync(fd);
     } else {
@@ -1614,6 +1660,8 @@ int main(int argc, char *argv[])
     root_elem = lo_map_reserve(&lo.ino_map, lo.root.fuse_ino);
     root_elem->inode = &lo.root;
 
+    lo_map_init(&lo.dirp_map);
+
     if (fuse_parse_cmdline(&args, &opts) != 0) {
         return 1;
     }
@@ -1710,6 +1758,7 @@ err_out2:
 err_out1:
     fuse_opt_free_args(&args);
 
+    lo_map_destroy(&lo.dirp_map);
     lo_map_destroy(&lo.ino_map);
 
     if (lo.root.fd >= 0) {
