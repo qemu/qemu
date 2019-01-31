@@ -27,6 +27,7 @@
 #include "qemu/path.h"
 #include "qemu/config-file.h"
 #include "qemu/cutils.h"
+#include "qemu/error-report.h"
 #include "qemu/help_option.h"
 #include "cpu.h"
 #include "exec/exec-all.h"
@@ -600,6 +601,7 @@ int main(int argc, char **argv, char **envp)
     int ret;
     int execfd;
 
+    error_init(argv[0]);
     module_call_init(MODULE_INIT_TRACE);
     qemu_init_cpu_list();
     module_call_init(MODULE_INIT_QOM);

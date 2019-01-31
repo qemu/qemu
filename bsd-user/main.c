@@ -24,6 +24,7 @@
 #include "qapi/error.h"
 #include "qemu.h"
 #include "qemu/config-file.h"
+#include "qemu/error-report.h"
 #include "qemu/path.h"
 #include "qemu/help_option.h"
 #include "cpu.h"
@@ -743,6 +744,7 @@ int main(int argc, char **argv)
     if (argc <= 1)
         usage();
 
+    error_init(argv[0]);
     module_call_init(MODULE_INIT_TRACE);
     qemu_init_cpu_list();
     module_call_init(MODULE_INIT_QOM);
