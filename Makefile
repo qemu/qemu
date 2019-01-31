@@ -145,7 +145,7 @@ tracetool-y += $(shell find $(SRC_PATH)/scripts/tracetool -name "*.py")
 
 %/trace.h: %/trace.h-timestamp
 	@cmp $< $@ >/dev/null 2>&1 || cp $< $@
-%/trace.h-timestamp: $(SRC_PATH)/%/trace-events $(tracetool-y)
+%/trace.h-timestamp: $(SRC_PATH)/%/trace-events $(tracetool-y) $(BUILD_DIR)/config-host.mak
 	$(call quiet-command,$(TRACETOOL) \
 		--group=$(call trace-group-name,$@) \
 		--format=h \
@@ -154,7 +154,7 @@ tracetool-y += $(shell find $(SRC_PATH)/scripts/tracetool -name "*.py")
 
 %/trace.c: %/trace.c-timestamp
 	@cmp $< $@ >/dev/null 2>&1 || cp $< $@
-%/trace.c-timestamp: $(SRC_PATH)/%/trace-events $(tracetool-y)
+%/trace.c-timestamp: $(SRC_PATH)/%/trace-events $(tracetool-y) $(BUILD_DIR)/config-host.mak
 	$(call quiet-command,$(TRACETOOL) \
 		--group=$(call trace-group-name,$@) \
 		--format=c \
@@ -163,7 +163,7 @@ tracetool-y += $(shell find $(SRC_PATH)/scripts/tracetool -name "*.py")
 
 %/trace-ust.h: %/trace-ust.h-timestamp
 	@cmp $< $@ >/dev/null 2>&1 || cp $< $@
-%/trace-ust.h-timestamp: $(SRC_PATH)/%/trace-events $(tracetool-y)
+%/trace-ust.h-timestamp: $(SRC_PATH)/%/trace-events $(tracetool-y) $(BUILD_DIR)/config-host.mak
 	$(call quiet-command,$(TRACETOOL) \
 		--group=$(call trace-group-name,$@) \
 		--format=ust-events-h \
@@ -187,7 +187,7 @@ tracetool-y += $(shell find $(SRC_PATH)/scripts/tracetool -name "*.py")
 
 trace-root.h: trace-root.h-timestamp
 	@cmp $< $@ >/dev/null 2>&1 || cp $< $@
-trace-root.h-timestamp: $(SRC_PATH)/trace-events $(tracetool-y)
+trace-root.h-timestamp: $(SRC_PATH)/trace-events $(tracetool-y) $(BUILD_DIR)/config-host.mak
 	$(call quiet-command,$(TRACETOOL) \
 		--group=root \
 		--format=h \
@@ -196,7 +196,7 @@ trace-root.h-timestamp: $(SRC_PATH)/trace-events $(tracetool-y)
 
 trace-root.c: trace-root.c-timestamp
 	@cmp $< $@ >/dev/null 2>&1 || cp $< $@
-trace-root.c-timestamp: $(SRC_PATH)/trace-events $(tracetool-y)
+trace-root.c-timestamp: $(SRC_PATH)/trace-events $(tracetool-y) $(BUILD_DIR)/config-host.mak
 	$(call quiet-command,$(TRACETOOL) \
 		--group=root \
 		--format=c \
@@ -205,7 +205,7 @@ trace-root.c-timestamp: $(SRC_PATH)/trace-events $(tracetool-y)
 
 trace-ust-root.h: trace-ust-root.h-timestamp
 	@cmp $< $@ >/dev/null 2>&1 || cp $< $@
-trace-ust-root.h-timestamp: $(SRC_PATH)/trace-events $(tracetool-y)
+trace-ust-root.h-timestamp: $(SRC_PATH)/trace-events $(tracetool-y) $(BUILD_DIR)/config-host.mak
 	$(call quiet-command,$(TRACETOOL) \
 		--group=root \
 		--format=ust-events-h \
@@ -214,7 +214,7 @@ trace-ust-root.h-timestamp: $(SRC_PATH)/trace-events $(tracetool-y)
 
 trace-ust-all.h: trace-ust-all.h-timestamp
 	@cmp $< $@ >/dev/null 2>&1 || cp $< $@
-trace-ust-all.h-timestamp: $(trace-events-files) $(tracetool-y)
+trace-ust-all.h-timestamp: $(trace-events-files) $(tracetool-y) $(BUILD_DIR)/config-host.mak
 	$(call quiet-command,$(TRACETOOL) \
 		--group=all \
 		--format=ust-events-h \
@@ -223,7 +223,7 @@ trace-ust-all.h-timestamp: $(trace-events-files) $(tracetool-y)
 
 trace-ust-all.c: trace-ust-all.c-timestamp
 	@cmp $< $@ >/dev/null 2>&1 || cp $< $@
-trace-ust-all.c-timestamp: $(trace-events-files) $(tracetool-y)
+trace-ust-all.c-timestamp: $(trace-events-files) $(tracetool-y) $(BUILD_DIR)/config-host.mak
 	$(call quiet-command,$(TRACETOOL) \
 		--group=all \
 		--format=ust-events-c \
@@ -304,6 +304,9 @@ DOCS+=docs/qemu-block-drivers.7
 DOCS+=docs/qemu-cpu-models.7
 ifdef CONFIG_VIRTFS
 DOCS+=fsdev/virtfs-proxy-helper.1
+endif
+ifdef CONFIG_TRACE_SYSTEMTAP
+DOCS+=scripts/qemu-trace-stap.1
 endif
 else
 DOCS=
@@ -699,6 +702,9 @@ ifneq ($(TOOLS),)
 	$(INSTALL_DIR) "$(DESTDIR)$(mandir)/man8"
 	$(INSTALL_DATA) qemu-nbd.8 "$(DESTDIR)$(mandir)/man8"
 endif
+ifdef CONFIG_TRACE_SYSTEMTAP
+	$(INSTALL_DATA) scripts/qemu-trace-stap.1 "$(DESTDIR)$(mandir)/man1"
+endif
 ifneq (,$(findstring qemu-ga,$(TOOLS)))
 	$(INSTALL_DATA) qemu-ga.8 "$(DESTDIR)$(mandir)/man8"
 	$(INSTALL_DATA) docs/interop/qemu-ga-ref.html "$(DESTDIR)$(qemu_docdir)"
@@ -737,6 +743,9 @@ ifneq ($(CONFIG_MODULES),)
 endif
 ifneq ($(HELPERS-y),)
 	$(call install-prog,$(HELPERS-y),$(DESTDIR)$(libexecdir))
+endif
+ifdef CONFIG_TRACE_SYSTEMTAP
+	$(INSTALL_PROG) "scripts/qemu-trace-stap" $(DESTDIR)$(bindir)
 endif
 ifneq ($(BLOBS),)
 	set -e; for x in $(BLOBS); do \
@@ -852,6 +861,7 @@ qemu-nbd.8: qemu-nbd.texi qemu-option-trace.texi
 qemu-ga.8: qemu-ga.texi
 docs/qemu-block-drivers.7: docs/qemu-block-drivers.texi
 docs/qemu-cpu-models.7: docs/qemu-cpu-models.texi
+scripts/qemu-trace-stap.1: scripts/qemu-trace-stap.texi
 
 html: qemu-doc.html docs/interop/qemu-qmp-ref.html docs/interop/qemu-ga-ref.html
 info: qemu-doc.info docs/interop/qemu-qmp-ref.info docs/interop/qemu-ga-ref.info

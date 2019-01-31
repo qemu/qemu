@@ -34,9 +34,9 @@ cpu_out(unsigned int addr, char size, unsigned int val) "addr 0x%x(%c) value %u"
 balloon_event(void *opaque, unsigned long addr) "opaque %p addr %lu"
 
 # vl.c
-vm_state_notify(int running, int reason) "running %d reason %d"
+vm_state_notify(int running, int reason, const char *reason_str) "running %d reason %d (%s)"
 load_file(const char *name, const char *path) "name %s location %s"
-runstate_set(int new_state) "new state %d"
+runstate_set(int current_state, const char *current_state_str, int new_state, const char *new_state_str) "current_run_state %d (%s) new_state %d (%s)"
 system_wakeup_request(int reason) "reason=%d"
 qemu_system_shutdown_request(int reason) "reason=%d"
 qemu_system_powerdown_request(void) ""

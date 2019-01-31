@@ -1,0 +1,140 @@
+@example
+@c man begin SYNOPSIS
+@command{qemu-trace-stap} @var{GLOBAL-OPTIONS} @var{COMMAND} @var{COMMAND-OPTIONS} @var{ARGS...}
+@c man end
+@end example
+
+@c man begin DESCRIPTION
+
+The @command{qemu-trace-stap} program facilitates tracing of the execution
+of QEMU emulators using SystemTap.
+
+It is required to have the SystemTap runtime environment installed to use
+this program, since it is a wrapper around execution of the @command{stap}
+program.
+
+@c man end
+
+@c man begin OPTIONS
+
+The following global options may be used regardless of which command
+is executed:
+
+@table @option
+@item @var{--verbose}, @var{-v}
+
+Display verbose information about command execution.
+
+@end table
+
+The following commands are valid:
+
+@table @option
+
+@item @var{list} @var{BINARY} @var{PATTERN...}
+
+List all the probe names provided by @var{BINARY} that match
+@var{PATTERN}.
+
+If @var{BINARY} is not an absolute path, it will be located by searching
+the directories listed in the @code{$PATH} environment variable.
+
+@var{PATTERN} is a plain string that is used to filter the results of
+this command. It may optionally contain a @code{*} wildcard to facilitate
+matching multiple probes without listing each one explicitly. Multiple
+@var{PATTERN} arguments may be given, causing listing of probes that match
+any of the listed names. If no @var{PATTERN} is given, the all possible
+probes will be listed.
+
+For example, to list all probes available in the @command{qemu-system-x86_64}
+binary:
+
+@example
+$ qemu-trace-stap list qemu-system-x86_64
+@end example
+
+To filter the list to only cover probes related to QEMU's cryptographic
+subsystem, in a binary outside @code{$PATH}
+
+@example
+$ qemu-trace-stap list /opt/qemu/4.0.0/bin/qemu-system-x86_64 'qcrypto*'
+@end example
+
+
+@item @var{run} @var{OPTIONS} @var{BINARY} @var{PATTERN...}
+
+Run a trace session, printing formatted output any time a process that is
+executing @var{BINARY} triggers a probe matching @var{PATTERN}.
+
+If @var{BINARY} is not an absolute path, it will be located by searching
+the directories listed in the @code{$PATH} environment variable.
+
+@var{PATTERN} is a plain string that matches a probe name shown by the
+@var{list} command. It may optionally contain a @code{*} wildcard to
+facilitate matching multiple probes without listing each one explicitly.
+Multiple @var{PATTERN} arguments may be given, causing all matching probes
+to be monitored. At least one @var{PATTERN} is required, since stap is not
+capable of tracing all known QEMU probes concurrently without overflowing
+its trace buffer.
+
+Invocation of this command does not need to be synchronized with
+invocation of the QEMU process(es). It will match probes on all
+existing running processes and all future launched processes,
+unless told to only monitor a specific process.
+
+Valid command specific options are:
+
+@table @option
+@item @var{--pid=PID}, @var{-p PID}
+
+Restrict the tracing session so that it only triggers for the process
+identified by @code{PID}.
+
+@end table
+
+For example, to monitor all processes executing @command{qemu-system-x86_64}
+as found on $PATH, displaying all I/O related probes:
+
+@example
+$ qemu-trace-stap run qemu-system-x86_64 'qio*'
+@end example
+
+To monitor only the QEMU process with PID 1732
+
+@example
+$ qemu-trace-stap run --pid=1732 qemu-system-x86_64 'qio*'
+@end example
+
+To monitor QEMU processes running an alternative binary outside of
+@code{$PATH}, displaying verbose information about setup of the
+tracing environment:
+
+@example
+$ qemu-trace-stap -v run /opt/qemu/4.0.0/qemu-system-x86_64 'qio*'
+@end example
+
+@end table
+
+@c man end
+
+@ignore
+
+@setfilename qemu-trace-stap
+@settitle QEMU SystemTap trace tool
+
+@c man begin LICENSE
+
+Copyright (C) 2019 Red Hat, Inc.
+
+This program is free software; you can redistribute it and/or modify
+it under the terms of the GNU General Public License as published by
+the Free Software Foundation; either version 2 of the License, or
+# (at your option) any later version.
+
+@c man end
+
+@c man begin SEEALSO
+qemu(1), stap(1)
+@c man end
+
+@end ignore

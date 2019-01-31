@@ -317,6 +317,10 @@ probes:
                          --target-name x86_64 \
                          <trace-events-all >qemu.stp
 
+To facilitate simple usage of systemtap where there merely needs to be printf
+logging of certain probes, a helper script "qemu-trace-stap" is provided.
+Consult its manual page for guidance on its usage.
+
 == Trace event properties ==
 
 Each event in the "trace-events-all" file can be prefixed with a space-separated
