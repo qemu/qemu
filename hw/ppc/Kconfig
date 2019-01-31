@@ -27,9 +27,18 @@ config POWERNV
 
 config PPC405
     bool
+    select M48T59
+    select PFLASH_CFI02
+    select PPC4XX
+    select SERIAL
 
 config PPC440
     bool
+    imply PCI_DEVICES
+    imply TEST_DEVICES
+    select PCI_EXPRESS
+    select PPC4XX
+    select SERIAL
 
 config PPC4XX
     bool
@@ -87,9 +96,19 @@ config MAC_NEWWORLD
 
 config E500
     bool
+    imply AT24C
+    select ETSEC
+    select OPENPIC
+    select PLATFORM_BUS
+    select PPCE500_PCI
+    select SERIAL
 
 config VIRTEX
     bool
+    select PFLASH_CFI01
+    select SERIAL
+    select XILINX
+    select XILINX_ETHLITE
 
 config XIVE
     bool
