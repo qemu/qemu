@@ -4697,6 +4697,7 @@ static void coroutine_fn bdrv_co_invalidate_cache(BlockDriverState *bs,
         if (parent->role->activate) {
             parent->role->activate(parent, &local_err);
             if (local_err) {
+                bs->open_flags |= BDRV_O_INACTIVE;
                 error_propagate(errp, local_err);
                 return;
             }
