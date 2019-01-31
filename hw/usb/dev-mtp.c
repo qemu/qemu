@@ -25,6 +25,7 @@
 #include "trace.h"
 #include "hw/usb.h"
 #include "desc.h"
+#include "qemu/units.h"
 
 /* ----------------------------------------------------------------------- */
 
@@ -33,6 +34,13 @@ enum mtp_container_type {
     TYPE_DATA     = 2,
     TYPE_RESPONSE = 3,
     TYPE_EVENT    = 4,
+};
+
+/* MTP write stage, for internal use only */
+enum mtp_write_status {
+    WRITE_START    = 1,
+    WRITE_CONTINUE = 2,
+    WRITE_END      = 3,
 };
 
 enum mtp_code {
@@ -152,8 +160,10 @@ struct MTPData {
     bool         first;
     /* Used for >4G file sizes */
     bool         pending;
-    uint64_t     cached_length;
     int          fd;
+    uint8_t      write_status;
+    /* Internal pointer per every MTP_WRITE_BUF_SZ */
+    uint64_t     data_offset;
 };
 
 struct MTPObject {
@@ -244,6 +254,7 @@ typedef struct {
 
 #define MTP_MANUFACTURER  "QEMU"
 #define MTP_PRODUCT       "QEMU filesharing"
+#define MTP_WRITE_BUF_SZ  (512 * KiB)
 
 enum {
     STR_MANUFACTURER = 1,
@@ -666,6 +677,7 @@ static void usb_mtp_object_readdir(MTPState *s, MTPObject *o)
     }
     dir = fdopendir(fd);
     if (!dir) {
+        close(fd);
         return;
     }
 #ifdef CONFIG_INOTIFY1
@@ -1618,21 +1630,28 @@ static char *utf16_to_str(uint8_t len, uint16_t *arr)
 }
 
 /* Wrapper around write, returns 0 on failure */
-static uint64_t write_retry(int fd, void *buf, uint64_t size)
+static uint64_t write_retry(int fd, void *buf, uint64_t size, off_t offset)
 {
-        uint64_t bytes_left = size, ret;
+        uint64_t ret = 0;
 
-        while (bytes_left > 0) {
-                ret = write(fd, buf, bytes_left);
-                if ((ret == -1) && (errno != EINTR || errno != EAGAIN ||
-                                    errno != EWOULDBLOCK)) {
-                        break;
-                }
-                bytes_left -= ret;
-                buf += ret;
+        if (lseek(fd, offset, SEEK_SET) < 0) {
+            goto done;
         }
 
-        return size - bytes_left;
+        ret = qemu_write_full(fd, buf, size);
+
+done:
+        return ret;
+}
+
+static void usb_mtp_update_object(MTPObject *parent, char *name)
+{
+    MTPObject *o =
+        usb_mtp_object_lookup_name(parent, name, strlen(name));
+
+    if (o) {
+        lstat(o->path, &o->stat);
+    }
 }
 
 static void usb_mtp_write_data(MTPState *s)
@@ -1646,48 +1665,56 @@ static void usb_mtp_write_data(MTPState *s)
 
     assert(d != NULL);
 
-    if (parent == NULL || !s->write_pending) {
-        usb_mtp_queue_result(s, RES_INVALID_OBJECTINFO, d->trans,
-                             0, 0, 0, 0);
+    switch (d->write_status) {
+    case WRITE_START:
+        if (!parent || !s->write_pending) {
+            usb_mtp_queue_result(s, RES_INVALID_OBJECTINFO, d->trans,
+                0, 0, 0, 0);
         return;
-    }
-
-    if (s->dataset.filename) {
-        path = g_strdup_printf("%s/%s", parent->path, s->dataset.filename);
-        if (s->dataset.format == FMT_ASSOCIATION) {
-            d->fd = mkdir(path, mask);
-            goto free;
-        }
-        if ((s->dataset.size != 0xFFFFFFFF) && (s->dataset.size < d->length)) {
-            usb_mtp_queue_result(s, RES_STORE_FULL, d->trans,
-                                 0, 0, 0, 0);
-            goto done;
-        }
-        d->fd = open(path, O_CREAT | O_WRONLY | O_CLOEXEC | O_NOFOLLOW, mask);
-        if (d->fd == -1) {
-            usb_mtp_queue_result(s, RES_STORE_FULL, d->trans,
-                                 0, 0, 0, 0);
-            goto done;
         }
 
-        /*
-         * Return success if initiator sent 0 sized data
-         */
-        if (!s->dataset.size) {
-            goto success;
-        }
-
-        rc = write_retry(d->fd, d->data, d->offset);
-        if (rc != d->offset) {
-            usb_mtp_queue_result(s, RES_STORE_FULL, d->trans,
-                                 0, 0, 0, 0);
-            goto done;
+        if (s->dataset.filename) {
+            path = g_strdup_printf("%s/%s", parent->path, s->dataset.filename);
+            if (s->dataset.format == FMT_ASSOCIATION) {
+                d->fd = mkdir(path, mask);
+                goto free;
             }
-        /* Only for < 4G file sizes */
-        if (s->dataset.size != 0xFFFFFFFF && rc != s->dataset.size) {
-            usb_mtp_queue_result(s, RES_INCOMPLETE_TRANSFER, d->trans,
+            d->fd = open(path, O_CREAT | O_WRONLY |
+                         O_CLOEXEC | O_NOFOLLOW, mask);
+            if (d->fd == -1) {
+                usb_mtp_queue_result(s, RES_STORE_FULL, d->trans,
+                                     0, 0, 0, 0);
+                goto done;
+            }
+
+            /* Return success if initiator sent 0 sized data */
+            if (!s->dataset.size) {
+                goto success;
+            }
+            if (d->length != MTP_WRITE_BUF_SZ && !d->pending) {
+                d->write_status = WRITE_END;
+            }
+        }
+        /* fall through */
+    case WRITE_CONTINUE:
+    case WRITE_END:
+        rc = write_retry(d->fd, d->data, d->data_offset,
+                         d->offset - d->data_offset);
+        if (rc != d->data_offset) {
+            usb_mtp_queue_result(s, RES_STORE_FULL, d->trans,
                                  0, 0, 0, 0);
             goto done;
+        }
+        if (d->write_status != WRITE_END) {
+            return;
+        } else {
+            /* Only for < 4G file sizes */
+            if (s->dataset.size != 0xFFFFFFFF && d->offset != s->dataset.size) {
+                usb_mtp_queue_result(s, RES_INCOMPLETE_TRANSFER, d->trans,
+                                     0, 0, 0, 0);
+                goto done;
+            }
+            usb_mtp_update_object(parent, s->dataset.filename);
         }
     }
 
@@ -1776,37 +1803,43 @@ static void usb_mtp_get_data(MTPState *s, mtp_container *container,
         total_len = cpu_to_le32(container->length) - sizeof(mtp_container);
         /* Length of data in this packet */
         data_len -= sizeof(mtp_container);
-        usb_mtp_realloc(d, total_len);
-        d->length += total_len;
+        if (total_len < MTP_WRITE_BUF_SZ) {
+                usb_mtp_realloc(d, total_len);
+                d->length += total_len;
+        } else {
+                usb_mtp_realloc(d, MTP_WRITE_BUF_SZ - sizeof(mtp_container));
+                d->length += MTP_WRITE_BUF_SZ - sizeof(mtp_container);
+        }
         d->offset = 0;
-        d->cached_length = total_len;
         d->first = false;
         d->pending = false;
+        d->data_offset = 0;
+        d->write_status = WRITE_START;
     }
 
     if (d->pending) {
-        usb_mtp_realloc(d, d->cached_length);
-        d->length += d->cached_length;
+        memset(d->data, 0, d->length);
+        if (d->length != MTP_WRITE_BUF_SZ) {
+            usb_mtp_realloc(d, MTP_WRITE_BUF_SZ - d->length);
+            d->length += (MTP_WRITE_BUF_SZ - d->length);
+        }
         d->pending = false;
+        d->write_status = WRITE_CONTINUE;
+        d->data_offset = 0;
     }
 
-    if (d->length - d->offset > data_len) {
+    if (d->length - d->data_offset > data_len) {
         dlen = data_len;
     } else {
-        dlen = d->length - d->offset;
-        /* Check for cached data for large files */
-        if ((s->dataset.size == 0xFFFFFFFF) && (dlen < p->iov.size)) {
-            usb_mtp_realloc(d, p->iov.size - dlen);
-            d->length += p->iov.size - dlen;
-            dlen = p->iov.size;
-        }
+        dlen = d->length - d->data_offset;
     }
 
     switch (d->code) {
     case CMD_SEND_OBJECT_INFO:
-        usb_packet_copy(p, d->data + d->offset, dlen);
+        usb_packet_copy(p, d->data + d->data_offset, dlen);
         d->offset += dlen;
-        if (d->offset == d->length) {
+        d->data_offset += dlen;
+        if (d->data_offset == d->length) {
             /* The operation might have already failed */
             if (!s->result) {
                 usb_mtp_write_metadata(s, dlen);
@@ -1817,19 +1850,26 @@ static void usb_mtp_get_data(MTPState *s, mtp_container *container,
         }
         break;
     case CMD_SEND_OBJECT:
-        usb_packet_copy(p, d->data + d->offset, dlen);
+        usb_packet_copy(p, d->data + d->data_offset, dlen);
         d->offset += dlen;
+        d->data_offset += dlen;
         if ((p->iov.size % 64) || !p->iov.size) {
             assert((s->dataset.size == 0xFFFFFFFF) ||
-                   (s->dataset.size == d->length));
+                   (s->dataset.size == d->offset));
 
+            if (d->length == MTP_WRITE_BUF_SZ) {
+                d->write_status = WRITE_END;
+            } else {
+                d->write_status = WRITE_START;
+            }
             usb_mtp_write_data(s);
             usb_mtp_data_free(s->data_out);
             s->data_out = NULL;
             return;
         }
-        if (d->offset == d->length) {
+        if (d->data_offset == d->length) {
             d->pending = true;
+            usb_mtp_write_data(s);
         }
         break;
     default:

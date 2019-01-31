@@ -30,6 +30,9 @@ GlobalProperty hw_compat_3_1[] = {
     { "memory-backend-memfd", "x-use-canonical-path-for-ramblock-id", "true" },
     { "tpm-crb", "ppi", "false" },
     { "tpm-tis", "ppi", "false" },
+    { "usb-kbd", "serial", "42" },
+    { "usb-mouse", "serial", "42" },
+    { "usb-kbd", "serial", "42" },
 };
 const size_t hw_compat_3_1_len = G_N_ELEMENTS(hw_compat_3_1);
 
