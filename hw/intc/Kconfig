@@ -31,13 +31,11 @@ config OPENPIC_KVM
 
 config XICS
     bool
-    default y
-    depends on PSERIES
+    depends on POWERNV || PSERIES
 
 config XICS_SPAPR
     bool
-    default y
-    depends on PSERIES
+    select XICS
 
 config XICS_KVM
     bool
