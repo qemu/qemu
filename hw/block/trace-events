@@ -126,6 +126,7 @@ xen_block_realize(const char *type, uint32_t disk, uint32_t partition) "%s d%up%
 xen_block_connect(const char *type, uint32_t disk, uint32_t partition) "%s d%up%u"
 xen_block_disconnect(const char *type, uint32_t disk, uint32_t partition) "%s d%up%u"
 xen_block_unrealize(const char *type, uint32_t disk, uint32_t partition) "%s d%up%u"
+xen_block_size(const char *type, uint32_t disk, uint32_t partition, int64_t sectors) "%s d%up%u %"PRIi64
 xen_disk_realize(void) ""
 xen_disk_unrealize(void) ""
 xen_cdrom_realize(void) ""

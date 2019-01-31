@@ -144,6 +144,38 @@ static void xen_block_unrealize(XenDevice *xendev, Error **errp)
     }
 }
 
+static void xen_block_set_size(XenBlockDevice *blockdev)
+{
+    const char *type = object_get_typename(OBJECT(blockdev));
+    XenBlockVdev *vdev = &blockdev->props.vdev;
+    BlockConf *conf = &blockdev->props.conf;
+    int64_t sectors = blk_getlength(conf->blk) / conf->logical_block_size;
+    XenDevice *xendev = XEN_DEVICE(blockdev);
+
+    trace_xen_block_size(type, vdev->disk, vdev->partition, sectors);
+
+    xen_device_backend_printf(xendev, "sectors", "%"PRIi64, sectors);
+}
+
+static void xen_block_resize_cb(void *opaque)
+{
+    XenBlockDevice *blockdev = opaque;
+    XenDevice *xendev = XEN_DEVICE(blockdev);
+    enum xenbus_state state = xen_device_backend_get_state(xendev);
+
+    xen_block_set_size(blockdev);
+
+    /*
+     * Mimic the behaviour of Linux xen-blkback and re-write the state
+     * to trigger the frontend watch.
+     */
+    xen_device_backend_printf(xendev, "state", "%u", state);
+}
+
+static const BlockDevOps xen_block_dev_ops = {
+    .resize_cb = xen_block_resize_cb,
+};
+
 static void xen_block_realize(XenDevice *xendev, Error **errp)
 {
     XenBlockDevice *blockdev = XEN_BLOCK_DEVICE(xendev);
@@ -180,7 +212,7 @@ static void xen_block_realize(XenDevice *xendev, Error **errp)
     }
 
     if (!blkconf_apply_backend_options(conf, blockdev->info & VDISK_READONLY,
-                                       false, errp)) {
+                                       true, errp)) {
         return;
     }
 
@@ -197,6 +229,7 @@ static void xen_block_realize(XenDevice *xendev, Error **errp)
         return;
     }
 
+    blk_set_dev_ops(conf->blk, &xen_block_dev_ops, blockdev);
     blk_set_guest_block_size(conf->blk, conf->logical_block_size);
 
     if (conf->discard_granularity > 0) {
@@ -215,9 +248,8 @@ static void xen_block_realize(XenDevice *xendev, Error **errp)
 
     xen_device_backend_printf(xendev, "sector-size", "%u",
                               conf->logical_block_size);
-    xen_device_backend_printf(xendev, "sectors", "%"PRIi64,
-                              blk_getlength(conf->blk) /
-                              conf->logical_block_size);
+
+    xen_block_set_size(blockdev);
 
     blockdev->dataplane =
         xen_block_dataplane_create(xendev, conf, blockdev->props.iothread);
