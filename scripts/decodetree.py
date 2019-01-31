@@ -27,6 +27,7 @@ import getopt
 
 insnwidth = 32
 insnmask = 0xffffffff
+variablewidth = False
 fields = {}
 arguments = {}
 formats = {}
@@ -289,7 +290,7 @@ class Arguments:
 
 class General:
     """Common code between instruction formats and instruction patterns"""
-    def __init__(self, name, lineno, base, fixb, fixm, udfm, fldm, flds):
+    def __init__(self, name, lineno, base, fixb, fixm, udfm, fldm, flds, w):
         self.name = name
         self.file = input_file
         self.lineno = lineno
@@ -299,6 +300,7 @@ class General:
         self.undefmask = udfm
         self.fieldmask = fldm
         self.fields = flds
+        self.width = w
 
     def __str__(self):
         return self.name + ' ' + str_match_bits(self.fixedbits, self.fixedmask)
@@ -352,7 +354,7 @@ class Pattern(General):
 class MultiPattern(General):
     """Class representing an overlapping set of instruction patterns"""
 
-    def __init__(self, lineno, pats, fixb, fixm, udfm):
+    def __init__(self, lineno, pats, fixb, fixm, udfm, w):
         self.file = input_file
         self.lineno = lineno
         self.pats = pats
@@ -360,6 +362,7 @@ class MultiPattern(General):
         self.fixedbits = fixb
         self.fixedmask = fixm
         self.undefmask = udfm
+        self.width = w
 
     def __str__(self):
         r = "{"
@@ -502,7 +505,7 @@ def infer_argument_set(flds):
     return arg
 
 
-def infer_format(arg, fieldmask, flds):
+def infer_format(arg, fieldmask, flds, width):
     global arguments
     global formats
     global decode_function
@@ -521,6 +524,8 @@ def infer_format(arg, fieldmask, flds):
             continue
         if fieldmask != fmt.fieldmask:
             continue
+        if width != fmt.width:
+            continue
         if not eq_fields_for_fmts(flds, fmt.fields):
             continue
         return (fmt, const_flds)
@@ -529,7 +534,7 @@ def infer_format(arg, fieldmask, flds):
     if not arg:
         arg = infer_argument_set(flds)
 
-    fmt = Format(name, 0, arg, 0, 0, 0, fieldmask, var_flds)
+    fmt = Format(name, 0, arg, 0, 0, 0, fieldmask, var_flds, width)
     formats[name] = fmt
 
     return (fmt, const_flds)
@@ -546,6 +551,7 @@ def parse_generic(lineno, is_format, name, toks):
     global re_ident
     global insnwidth
     global insnmask
+    global variablewidth
 
     fixedmask = 0
     fixedbits = 0
@@ -633,8 +639,15 @@ def parse_generic(lineno, is_format, name, toks):
             error(lineno, 'invalid token "{0}"'.format(t))
         width += shift
 
+    if variablewidth and width < insnwidth and width % 8 == 0:
+        shift = insnwidth - width
+        fixedbits <<= shift
+        fixedmask <<= shift
+        undefmask <<= shift
+        undefmask |= (1 << shift) - 1
+
     # We should have filled in all of the bits of the instruction.
-    if not (is_format and width == 0) and width != insnwidth:
+    elif not (is_format and width == 0) and width != insnwidth:
         error(lineno, 'definition has {0} bits'.format(width))
 
     # Do not check for fields overlaping fields; one valid usage
@@ -660,7 +673,7 @@ def parse_generic(lineno, is_format, name, toks):
         if name in formats:
             error(lineno, 'duplicate format name', name)
         fmt = Format(name, lineno, arg, fixedbits, fixedmask,
-                     undefmask, fieldmask, flds)
+                     undefmask, fieldmask, flds, width)
         formats[name] = fmt
     else:
         # Patterns can reference a format ...
@@ -670,12 +683,14 @@ def parse_generic(lineno, is_format, name, toks):
                 error(lineno, 'pattern specifies both format and argument set')
             if fixedmask & fmt.fixedmask:
                 error(lineno, 'pattern fixed bits overlap format fixed bits')
+            if width != fmt.width:
+                error(lineno, 'pattern uses format of different width')
             fieldmask |= fmt.fieldmask
             fixedbits |= fmt.fixedbits
             fixedmask |= fmt.fixedmask
             undefmask |= fmt.undefmask
         else:
-            (fmt, flds) = infer_format(arg, fieldmask, flds)
+            (fmt, flds) = infer_format(arg, fieldmask, flds, width)
         arg = fmt.base
         for f in flds.keys():
             if f not in arg.fields:
@@ -687,7 +702,7 @@ def parse_generic(lineno, is_format, name, toks):
             if f not in flds.keys() and f not in fmt.fields.keys():
                 error(lineno, 'field {0} not initialized'.format(f))
         pat = Pattern(name, lineno, fmt, fixedbits, fixedmask,
-                      undefmask, fieldmask, flds)
+                      undefmask, fieldmask, flds, width)
         patterns.append(pat)
         allpatterns.append(pat)
 
@@ -727,6 +742,13 @@ def build_multi_pattern(lineno, pats):
         if p.lineno < lineno:
             lineno = p.lineno
 
+    width = None
+    for p in pats:
+        if width is None:
+            width = p.width
+        elif width != p.width:
+            error(lineno, 'width mismatch in patterns within braces')
+
     repeat = True
     while repeat:
         if fixedmask == 0:
@@ -742,7 +764,7 @@ def build_multi_pattern(lineno, pats):
         else:
             repeat = False
 
-    mp = MultiPattern(lineno, pats, fixedbits, fixedmask, undefmask)
+    mp = MultiPattern(lineno, pats, fixedbits, fixedmask, undefmask, width)
     patterns.append(mp)
 # end build_multi_pattern
 
@@ -979,13 +1001,14 @@ def main():
     global insntype
     global insnmask
     global decode_function
+    global variablewidth
 
     decode_scope = 'static '
 
     long_opts = ['decode=', 'translate=', 'output=', 'insnwidth=',
-                 'static-decode=']
+                 'static-decode=', 'varinsnwidth=']
     try:
-        (opts, args) = getopt.getopt(sys.argv[1:], 'o:w:', long_opts)
+        (opts, args) = getopt.getopt(sys.argv[1:], 'o:vw:', long_opts)
     except getopt.GetoptError as err:
         error(0, err)
     for o, a in opts:
@@ -999,7 +1022,9 @@ def main():
         elif o == '--translate':
             translate_prefix = a
             translate_scope = ''
-        elif o in ('-w', '--insnwidth'):
+        elif o in ('-w', '--insnwidth', '--varinsnwidth'):
+            if o == '--varinsnwidth':
+                variablewidth = True
             insnwidth = int(a)
             if insnwidth == 16:
                 insntype = 'uint16_t'
