@@ -1666,6 +1666,114 @@
 { 'command': 'query-named-block-nodes', 'returns': [ 'BlockDeviceInfo' ] }
 
 ##
+# @XDbgBlockGraphNodeType:
+#
+# @block-backend: corresponds to BlockBackend
+#
+# @block-job: corresonds to BlockJob
+#
+# @block-driver: corresponds to BlockDriverState
+#
+# Since: 4.0
+##
+{ 'enum': 'XDbgBlockGraphNodeType',
+  'data': [ 'block-backend', 'block-job', 'block-driver' ] }
+
+##
+# @XDbgBlockGraphNode:
+#
+# @id: Block graph node identifier. This @id is generated only for
+#      x-debug-query-block-graph and does not relate to any other identifiers in
+#      Qemu.
+#
+# @type: Type of graph node. Can be one of block-backend, block-job or
+#        block-driver-state.
+#
+# @name: Human readable name of the node. Corresponds to node-name for
+#        block-driver-state nodes; is not guaranteed to be unique in the whole
+#        graph (with block-jobs and block-backends).
+#
+# Since: 4.0
+##
+{ 'struct': 'XDbgBlockGraphNode',
+  'data': { 'id': 'uint64', 'type': 'XDbgBlockGraphNodeType', 'name': 'str' } }
+
+##
+# @BlockPermission:
+#
+# Enum of base block permissions.
+#
+# @consistent-read: A user that has the "permission" of consistent reads is
+#                   guaranteed that their view of the contents of the block
+#                   device is complete and self-consistent, representing the
+#                   contents of a disk at a specific point.
+#                   For most block devices (including their backing files) this
+#                   is true, but the property cannot be maintained in a few
+#                   situations like for intermediate nodes of a commit block
+#                   job.
+#
+# @write: This permission is required to change the visible disk contents.
+#
+# @write-unchanged: This permission (which is weaker than BLK_PERM_WRITE) is
+#                   both enough and required for writes to the block node when
+#                   the caller promises that the visible disk content doesn't
+#                   change.
+#                   As the BLK_PERM_WRITE permission is strictly stronger,
+#                   either is sufficient to perform an unchanging write.
+#
+# @resize: This permission is required to change the size of a block node.
+#
+# @graph-mod: This permission is required to change the node that this
+#             BdrvChild points to.
+#
+# Since: 4.0
+##
+  { 'enum': 'BlockPermission',
+    'data': [ 'consistent-read', 'write', 'write-unchanged', 'resize',
+              'graph-mod' ] }
+##
+# @XDbgBlockGraphEdge:
+#
+# Block Graph edge description for x-debug-query-block-graph.
+#
+# @parent: parent id
+#
+# @child: child id
+#
+# @name: name of the relation (examples are 'file' and 'backing')
+#
+# @perm: granted permissions for the parent operating on the child
+#
+# @shared-perm: permissions that can still be granted to other users of the
+#               child while it is still attached to this parent
+#
+# Since: 4.0
+##
+{ 'struct': 'XDbgBlockGraphEdge',
+  'data': { 'parent': 'uint64', 'child': 'uint64',
+            'name': 'str', 'perm': [ 'BlockPermission' ],
+            'shared-perm': [ 'BlockPermission' ] } }
+
+##
+# @XDbgBlockGraph:
+#
+# Block Graph - list of nodes and list of edges.
+#
+# Since: 4.0
+##
+{ 'struct': 'XDbgBlockGraph',
+  'data': { 'nodes': ['XDbgBlockGraphNode'], 'edges': ['XDbgBlockGraphEdge'] } }
+
+##
+# @x-debug-query-block-graph:
+#
+# Get the block graph.
+#
+# Since: 4.0
+##
+{ 'command': 'x-debug-query-block-graph', 'returns': 'XDbgBlockGraph' }
+
+##
 # @drive-mirror:
 #
 # Start mirroring a block device's writes to a new destination. target

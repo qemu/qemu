@@ -201,6 +201,20 @@ def qemu_nbd(*args):
     '''Run qemu-nbd in daemon mode and return the parent's exit code'''
     return subprocess.call(qemu_nbd_args + ['--fork'] + list(args))
 
+def qemu_nbd_pipe(*args):
+    '''Run qemu-nbd in daemon mode and return both the parent's exit code
+       and its output'''
+    subp = subprocess.Popen(qemu_nbd_args + ['--fork'] + list(args),
+                            stdout=subprocess.PIPE,
+                            stderr=subprocess.STDOUT,
+                            universal_newlines=True)
+    exitcode = subp.wait()
+    if exitcode < 0:
+        sys.stderr.write('qemu-nbd received signal %i: %s\n' %
+                         (-exitcode,
+                          ' '.join(qemu_nbd_args + ['--fork'] + list(args))))
+    return exitcode, subp.communicate()[0]
+
 def compare_images(img1, img2, fmt1=imgfmt, fmt2=imgfmt):
     '''Return True if two image files are identical'''
     return qemu_img('compare', '-f', fmt1,

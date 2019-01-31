@@ -4119,6 +4119,154 @@ BlockDeviceInfoList *bdrv_named_nodes_list(Error **errp)
     return list;
 }
 
+#define QAPI_LIST_ADD(list, element) do { \
+    typeof(list) _tmp = g_new(typeof(*(list)), 1); \
+    _tmp->value = (element); \
+    _tmp->next = (list); \
+    (list) = _tmp; \
+} while (0)
+
+typedef struct XDbgBlockGraphConstructor {
+    XDbgBlockGraph *graph;
+    GHashTable *graph_nodes;
+} XDbgBlockGraphConstructor;
+
+static XDbgBlockGraphConstructor *xdbg_graph_new(void)
+{
+    XDbgBlockGraphConstructor *gr = g_new(XDbgBlockGraphConstructor, 1);
+
+    gr->graph = g_new0(XDbgBlockGraph, 1);
+    gr->graph_nodes = g_hash_table_new(NULL, NULL);
+
+    return gr;
+}
+
+static XDbgBlockGraph *xdbg_graph_finalize(XDbgBlockGraphConstructor *gr)
+{
+    XDbgBlockGraph *graph = gr->graph;
+
+    g_hash_table_destroy(gr->graph_nodes);
+    g_free(gr);
+
+    return graph;
+}
+
+static uintptr_t xdbg_graph_node_num(XDbgBlockGraphConstructor *gr, void *node)
+{
+    uintptr_t ret = (uintptr_t)g_hash_table_lookup(gr->graph_nodes, node);
+
+    if (ret != 0) {
+        return ret;
+    }
+
+    /*
+     * Start counting from 1, not 0, because 0 interferes with not-found (NULL)
+     * answer of g_hash_table_lookup.
+     */
+    ret = g_hash_table_size(gr->graph_nodes) + 1;
+    g_hash_table_insert(gr->graph_nodes, node, (void *)ret);
+
+    return ret;
+}
+
+static void xdbg_graph_add_node(XDbgBlockGraphConstructor *gr, void *node,
+                                XDbgBlockGraphNodeType type, const char *name)
+{
+    XDbgBlockGraphNode *n;
+
+    n = g_new0(XDbgBlockGraphNode, 1);
+
+    n->id = xdbg_graph_node_num(gr, node);
+    n->type = type;
+    n->name = g_strdup(name);
+
+    QAPI_LIST_ADD(gr->graph->nodes, n);
+}
+
+static void xdbg_graph_add_edge(XDbgBlockGraphConstructor *gr, void *parent,
+                                const BdrvChild *child)
+{
+    typedef struct {
+        unsigned int flag;
+        BlockPermission num;
+    } PermissionMap;
+
+    static const PermissionMap permissions[] = {
+        { BLK_PERM_CONSISTENT_READ, BLOCK_PERMISSION_CONSISTENT_READ },
+        { BLK_PERM_WRITE,           BLOCK_PERMISSION_WRITE },
+        { BLK_PERM_WRITE_UNCHANGED, BLOCK_PERMISSION_WRITE_UNCHANGED },
+        { BLK_PERM_RESIZE,          BLOCK_PERMISSION_RESIZE },
+        { BLK_PERM_GRAPH_MOD,       BLOCK_PERMISSION_GRAPH_MOD },
+        { 0, 0 }
+    };
+    const PermissionMap *p;
+    XDbgBlockGraphEdge *edge;
+
+    QEMU_BUILD_BUG_ON(1UL << (ARRAY_SIZE(permissions) - 1) != BLK_PERM_ALL + 1);
+
+    edge = g_new0(XDbgBlockGraphEdge, 1);
+
+    edge->parent = xdbg_graph_node_num(gr, parent);
+    edge->child = xdbg_graph_node_num(gr, child->bs);
+    edge->name = g_strdup(child->name);
+
+    for (p = permissions; p->flag; p++) {
+        if (p->flag & child->perm) {
+            QAPI_LIST_ADD(edge->perm, p->num);
+        }
+        if (p->flag & child->shared_perm) {
+            QAPI_LIST_ADD(edge->shared_perm, p->num);
+        }
+    }
+
+    QAPI_LIST_ADD(gr->graph->edges, edge);
+}
+
+
+XDbgBlockGraph *bdrv_get_xdbg_block_graph(Error **errp)
+{
+    BlockBackend *blk;
+    BlockJob *job;
+    BlockDriverState *bs;
+    BdrvChild *child;
+    XDbgBlockGraphConstructor *gr = xdbg_graph_new();
+
+    for (blk = blk_all_next(NULL); blk; blk = blk_all_next(blk)) {
+        char *allocated_name = NULL;
+        const char *name = blk_name(blk);
+
+        if (!*name) {
+            name = allocated_name = blk_get_attached_dev_id(blk);
+        }
+        xdbg_graph_add_node(gr, blk, X_DBG_BLOCK_GRAPH_NODE_TYPE_BLOCK_BACKEND,
+                           name);
+        g_free(allocated_name);
+        if (blk_root(blk)) {
+            xdbg_graph_add_edge(gr, blk, blk_root(blk));
+        }
+    }
+
+    for (job = block_job_next(NULL); job; job = block_job_next(job)) {
+        GSList *el;
+
+        xdbg_graph_add_node(gr, job, X_DBG_BLOCK_GRAPH_NODE_TYPE_BLOCK_JOB,
+                           job->job.id);
+        for (el = job->nodes; el; el = el->next) {
+            xdbg_graph_add_edge(gr, job, (BdrvChild *)el->data);
+        }
+    }
+
+    QTAILQ_FOREACH(bs, &graph_bdrv_states, node_list) {
+        xdbg_graph_add_node(gr, bs, X_DBG_BLOCK_GRAPH_NODE_TYPE_BLOCK_DRIVER,
+                           bs->node_name);
+        QLIST_FOREACH(child, &bs->children, next) {
+            xdbg_graph_add_edge(gr, bs, child);
+        }
+    }
+
+    return xdbg_graph_finalize(gr);
+}
+
 BlockDriverState *bdrv_lookup_bs(const char *device,
                                  const char *node_name,
                                  Error **errp)

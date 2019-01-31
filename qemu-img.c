@@ -4962,7 +4962,7 @@ int main(int argc, char **argv)
         return 0;
     }
     argv += optind;
-    optind = 0;
+    qemu_reset_optind();
 
     if (!trace_init_backends()) {
         exit(1);

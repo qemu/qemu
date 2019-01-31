@@ -4269,6 +4269,17 @@ if compile_prog "" "" ; then
   signalfd=yes
 fi
 
+# check if optreset global is declared by <getopt.h>
+optreset="no"
+cat > $TMPC << EOF
+#include <getopt.h>
+int main(void) { return optreset; }
+EOF
+
+if compile_prog "" "" ; then
+  optreset=yes
+fi
+
 # check if eventfd is supported
 eventfd=no
 cat > $TMPC << EOF
@@ -6642,6 +6653,9 @@ if test "$membarrier" = "yes" ; then
 fi
 if test "$signalfd" = "yes" ; then
   echo "CONFIG_SIGNALFD=y" >> $config_host_mak
+fi
+if test "$optreset" = "yes" ; then
+  echo "HAVE_OPTRESET=y" >> $config_host_mak
 fi
 if test "$tcg" = "yes"; then
   echo "CONFIG_TCG=y" >> $config_host_mak

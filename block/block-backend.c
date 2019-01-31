@@ -2249,3 +2249,8 @@ int coroutine_fn blk_co_copy_range(BlockBackend *blk_in, int64_t off_in,
                               blk_out->root, off_out,
                               bytes, read_flags, write_flags);
 }
+
+const BdrvChild *blk_root(BlockBackend *blk)
+{
+    return blk->root;
+}
