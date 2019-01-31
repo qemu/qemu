@@ -10,8 +10,10 @@ config GRACKLE_PCI
     bool
 
 config UNIN_PCI
-    select PCI
     bool
+    select PCI
+    select DEC_PCI
+    select OPENPIC
 
 config PPCE500_PCI
     select PCI

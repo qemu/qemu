@@ -55,9 +55,24 @@ config RS6000_MC
 
 config MAC_OLDWORLD
     bool
+    imply PCI_DEVICES
+    imply SUNGEM
+    imply TEST_DEVICES
+    select ADB
+    select GRACKLE_PCI
+    select HEATHROW_PIC
+    select MACIO
 
 config MAC_NEWWORLD
     bool
+    imply PCI_DEVICES
+    imply SUNGEM
+    imply TEST_DEVICES
+    select ADB
+    select MACIO
+    select MACIO_GPIO
+    select MAC_PMU
+    select UNIN_PCI
 
 config E500
     bool

@@ -86,6 +86,7 @@ config FTGMAC100
 
 config SUNGEM
     bool
+    depends on PCI
 
 config COLDFIRE
     bool

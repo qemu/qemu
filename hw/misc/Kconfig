@@ -57,6 +57,12 @@ config MOS6522
 
 config MACIO
     bool
+    select CUDA
+    select ESCC
+    select IDE_MACIO
+    select MAC_DBDMA
+    select MAC_NVRAM
+    select MOS6522
 
 config IVSHMEM_DEVICE
     bool
