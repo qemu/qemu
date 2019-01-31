@@ -74,6 +74,21 @@ struct _uintptr_to_must_hold_fuse_ino_t_dummy_struct {
 };
 #endif
 
+struct lo_map_elem {
+    union {
+        /* Element values will go here... */
+        ssize_t freelist;
+    };
+    bool in_use;
+};
+
+/* Maps FUSE fh or ino values to internal objects */
+struct lo_map {
+    struct lo_map_elem *elems;
+    size_t nelems;
+    ssize_t freelist;
+};
+
 struct lo_inode {
     struct lo_inode *next; /* protected by lo->mutex */
     struct lo_inode *prev; /* protected by lo->mutex */
@@ -128,6 +143,115 @@ static const struct fuse_opt lo_opts[] = {
 static struct lo_data *lo_data(fuse_req_t req)
 {
     return (struct lo_data *)fuse_req_userdata(req);
+}
+
+__attribute__((unused)) static void lo_map_init(struct lo_map *map)
+{
+    map->elems = NULL;
+    map->nelems = 0;
+    map->freelist = -1;
+}
+
+__attribute__((unused)) static void lo_map_destroy(struct lo_map *map)
+{
+    free(map->elems);
+}
+
+static int lo_map_grow(struct lo_map *map, size_t new_nelems)
+{
+    struct lo_map_elem *new_elems;
+    size_t i;
+
+    if (new_nelems <= map->nelems) {
+        return 1;
+    }
+
+    new_elems = realloc(map->elems, sizeof(map->elems[0]) * new_nelems);
+    if (!new_elems) {
+        return 0;
+    }
+
+    for (i = map->nelems; i < new_nelems; i++) {
+        new_elems[i].freelist = i + 1;
+        new_elems[i].in_use = false;
+    }
+    new_elems[new_nelems - 1].freelist = -1;
+
+    map->elems = new_elems;
+    map->freelist = map->nelems;
+    map->nelems = new_nelems;
+    return 1;
+}
+
+__attribute__((unused)) static struct lo_map_elem *
+lo_map_alloc_elem(struct lo_map *map)
+{
+    struct lo_map_elem *elem;
+
+    if (map->freelist == -1 && !lo_map_grow(map, map->nelems + 256)) {
+        return NULL;
+    }
+
+    elem = &map->elems[map->freelist];
+    map->freelist = elem->freelist;
+
+    elem->in_use = true;
+
+    return elem;
+}
+
+__attribute__((unused)) static struct lo_map_elem *
+lo_map_reserve(struct lo_map *map, size_t key)
+{
+    ssize_t *prev;
+
+    if (!lo_map_grow(map, key + 1)) {
+        return NULL;
+    }
+
+    for (prev = &map->freelist; *prev != -1;
+         prev = &map->elems[*prev].freelist) {
+        if (*prev == key) {
+            struct lo_map_elem *elem = &map->elems[key];
+
+            *prev = elem->freelist;
+            elem->in_use = true;
+            return elem;
+        }
+    }
+    return NULL;
+}
+
+__attribute__((unused)) static struct lo_map_elem *
+lo_map_get(struct lo_map *map, size_t key)
+{
+    if (key >= map->nelems) {
+        return NULL;
+    }
+    if (!map->elems[key].in_use) {
+        return NULL;
+    }
+    return &map->elems[key];
+}
+
+__attribute__((unused)) static void lo_map_remove(struct lo_map *map,
+                                                  size_t key)
+{
+    struct lo_map_elem *elem;
+
+    if (key >= map->nelems) {
+        return;
+    }
+
+    elem = &map->elems[key];
+    if (!elem->in_use) {
+        return;
+    }
+
+    elem->in_use = false;
+
+    elem->freelist = map->freelist;
+    map->freelist = key;
 }
 
 static struct lo_inode *lo_inode(fuse_req_t req, fuse_ino_t ino)
