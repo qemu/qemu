@@ -33,9 +33,20 @@ config PPC440
 
 config PPC4XX
     bool
+    select BITBANG_I2C
+    select PCI
 
 config SAM460EX
     bool
+    select PFLASH_CFI01
+    select IDE_SII3112
+    select M41T80
+    select PPC440
+    select SERIAL
+    select SM501
+    select SMBUS_EEPROM
+    select USB_EHCI_SYSBUS
+    select USB_OHCI
 
 config PREP
     bool
