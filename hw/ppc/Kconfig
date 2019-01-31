@@ -39,6 +39,16 @@ config SAM460EX
 
 config PREP
     bool
+    imply PCI_DEVICES
+    imply TEST_DEVICES
+    select CS4231A
+    select PREP_PCI
+    select I82374
+    select I82378
+    select LSI_SCSI_PCI
+    select M48T59
+    select PC87312
+    select RS6000_MC
 
 config RS6000_MC
     bool
