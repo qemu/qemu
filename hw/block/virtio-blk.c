@@ -569,8 +569,6 @@ static int virtio_blk_handle_request(VirtIOBlockReq *req, MultiReqBuffer *mrb)
         break;
     case VIRTIO_BLK_T_GET_ID:
     {
-        VirtIOBlock *s = req->dev;
-
         /*
          * NB: per existing s/n string convention the string is
          * terminated by '\0' only when shorter than buffer.
