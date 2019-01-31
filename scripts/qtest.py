@@ -31,6 +31,7 @@ class QEMUQtestProtocol(object):
         """
         self._address = address
         self._sock = self._get_sock()
+        self._sockfile = None
         if server:
             self._sock.bind(self._address)
             self._sock.listen(1)
@@ -49,6 +50,7 @@ class QEMUQtestProtocol(object):
         @raise socket.error on socket connection errors
         """
         self._sock.connect(self._address)
+        self._sockfile = self._sock.makefile()
 
     def accept(self):
         """
@@ -57,6 +59,7 @@ class QEMUQtestProtocol(object):
         @raise socket.error on socket connection errors
         """
         self._sock, _ = self._sock.accept()
+        self._sockfile = self._sock.makefile()
 
     def cmd(self, qtest_cmd):
         """
@@ -65,9 +68,12 @@ class QEMUQtestProtocol(object):
         @param qtest_cmd: qtest command text to be sent
         """
         self._sock.sendall((qtest_cmd + "\n").encode('utf-8'))
+        resp = self._sockfile.readline()
+        return resp
 
     def close(self):
         self._sock.close()
+        self._sockfile.close()
 
     def settimeout(self, timeout):
         self._sock.settimeout(timeout)
