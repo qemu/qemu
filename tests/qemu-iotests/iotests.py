@@ -304,6 +304,16 @@ def filter_img_info(output, filename):
         lines.append(line)
     return '\n'.join(lines)
 
+def filter_imgfmt(msg):
+    return msg.replace(imgfmt, 'IMGFMT')
+
+def filter_qmp_imgfmt(qmsg):
+    def _filter(key, value):
+        if is_str(value):
+            return filter_imgfmt(value)
+        return value
+    return filter_qmp(qmsg, _filter)
+
 def log(msg, filters=[], indent=None):
     '''Logs either a string message or a JSON serializable message (like QMP).
     If indent is provided, JSON serializable messages are pretty-printed.'''
