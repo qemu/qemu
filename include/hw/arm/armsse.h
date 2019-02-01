@@ -28,9 +28,16 @@
  *  + QOM property "memory" is a MemoryRegion containing the devices provided
  *    by the board model.
  *  + QOM property "MAINCLK" is the frequency of the main system clock
- *  + QOM property "EXP_NUMIRQ" sets the number of expansion interrupts
- *  + Named GPIO inputs "EXP_IRQ" 0..n are the expansion interrupts, which
- *    are wired to the NVIC lines 32 .. n+32
+ *  + QOM property "EXP_NUMIRQ" sets the number of expansion interrupts.
+ *    (In hardware, the SSE-200 permits the number of expansion interrupts
+ *    for the two CPUs to be configured separately, but we restrict it to
+ *    being the same for both, to avoid having to have separate Property
+ *    lists for different variants. This restriction can be relaxed later
+ *    if necessary.)
+ *  + Named GPIO inputs "EXP_IRQ" 0..n are the expansion interrupts for CPU 0,
+ *    which are wired to its NVIC lines 32 .. n+32
+ *  + Named GPIO inputs "EXP_CPU1_IRQ" 0..n are the expansion interrupts for
+ *    CPU 1, which are wired to its NVIC lines 32 .. n+32
  *  + sysbus MMIO region 0 is the "AHB Slave Expansion" which allows
  *    bus master devices in the board model to make transactions into
  *    all the devices and memory areas in the IoTKit
@@ -95,12 +102,14 @@
 #error Too many SRAM banks
 #endif
 
+#define SSE_MAX_CPUS 2
+
 typedef struct ARMSSE {
     /*< private >*/
     SysBusDevice parent_obj;
 
     /*< public >*/
-    ARMv7MState armv7m;
+    ARMv7MState armv7m[SSE_MAX_CPUS];
     IoTKitSecCtl secctl;
     TZPPC apb_ppc0;
     TZPPC apb_ppc1;
@@ -114,6 +123,8 @@ typedef struct ARMSSE {
     SplitIRQ mpc_irq_splitter[IOTS_NUM_EXP_MPC + IOTS_NUM_MPC];
     qemu_or_irq mpc_irq_orgate;
     qemu_or_irq nmi_orgate;
+
+    SplitIRQ cpu_irq_splitter[32];
 
     CMSDKAPBDualTimer dualtimer;
 
@@ -130,7 +141,7 @@ typedef struct ARMSSE {
     MemoryRegion alias3;
     MemoryRegion sram[MAX_SRAM_BANKS];
 
-    qemu_irq *exp_irqs;
+    qemu_irq *exp_irqs[SSE_MAX_CPUS];
     qemu_irq ppc0_irq;
     qemu_irq ppc1_irq;
     qemu_irq sec_resp_cfg;
