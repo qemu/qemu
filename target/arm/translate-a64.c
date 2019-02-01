@@ -4201,6 +4201,7 @@ static void disas_add_sub_ext_reg(DisasContext *s, uint32_t insn)
     int imm3 = extract32(insn, 10, 3);
     int option = extract32(insn, 13, 3);
     int rm = extract32(insn, 16, 5);
+    int opt = extract32(insn, 22, 2);
     bool setflags = extract32(insn, 29, 1);
     bool sub_op = extract32(insn, 30, 1);
     bool sf = extract32(insn, 31, 1);
@@ -4209,7 +4210,7 @@ static void disas_add_sub_ext_reg(DisasContext *s, uint32_t insn)
     TCGv_i64 tcg_rd;
     TCGv_i64 tcg_result;
 
-    if (imm3 > 4) {
+    if (imm3 > 4 || opt != 0) {
         unallocated_encoding(s);
         return;
     }
