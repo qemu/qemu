@@ -146,6 +146,7 @@ typedef struct ARMSSE {
     MemoryRegion *board_memory;
     uint32_t exp_numirq;
     uint32_t mainclk_frq;
+    uint32_t sram_addr_width;
 } ARMSSE;
 
 typedef struct ARMSSEInfo ARMSSEInfo;

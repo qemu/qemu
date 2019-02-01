@@ -221,6 +221,7 @@ static void armsse_realize(DeviceState *dev, Error **errp)
     DeviceState *dev_apb_ppc1;
     DeviceState *dev_secctl;
     DeviceState *dev_splitter;
+    uint32_t addr_width_max;
 
     if (!s->board_memory) {
         error_setg(errp, "memory property was not set");
@@ -229,6 +230,15 @@ static void armsse_realize(DeviceState *dev, Error **errp)
 
     if (!s->mainclk_frq) {
         error_setg(errp, "MAINCLK property was not set");
+        return;
+    }
+
+    /* max SRAM_ADDR_WIDTH: 24 - log2(SRAM_NUM_BANK) */
+    assert(is_power_of_2(info->sram_banks));
+    addr_width_max = 24 - ctz32(info->sram_banks);
+    if (s->sram_addr_width < 1 || s->sram_addr_width > addr_width_max) {
+        error_setg(errp, "SRAM_ADDR_WIDTH must be between 1 and %d",
+                   addr_width_max);
         return;
     }
 
@@ -352,8 +362,10 @@ static void armsse_realize(DeviceState *dev, Error **errp)
     for (i = 0; i < info->sram_banks; i++) {
         char *ramname = g_strdup_printf("armsse.sram%d", i);
         SysBusDevice *sbd_mpc;
+        uint32_t sram_bank_size = 1 << s->sram_addr_width;
 
-        memory_region_init_ram(&s->sram[i], NULL, ramname, 0x00008000, &err);
+        memory_region_init_ram(&s->sram[i], NULL, ramname,
+                               sram_bank_size, &err);
         g_free(ramname);
         if (err) {
             error_propagate(errp, err);
@@ -372,7 +384,8 @@ static void armsse_realize(DeviceState *dev, Error **errp)
         }
         /* Map the upstream end of the MPC into the right place... */
         sbd_mpc = SYS_BUS_DEVICE(&s->mpc[i]);
-        memory_region_add_subregion(&s->container, 0x20000000 + i * 0x8000,
+        memory_region_add_subregion(&s->container,
+                                    0x20000000 + i * sram_bank_size,
                                     sysbus_mmio_get_region(sbd_mpc, 1));
         /* ...and its register interface */
         memory_region_add_subregion(&s->container, 0x50083000 + i * 0x1000,
@@ -748,6 +761,7 @@ static Property armsse_properties[] = {
                      MemoryRegion *),
     DEFINE_PROP_UINT32("EXP_NUMIRQ", ARMSSE, exp_numirq, 64),
     DEFINE_PROP_UINT32("MAINCLK", ARMSSE, mainclk_frq, 0),
+    DEFINE_PROP_UINT32("SRAM_ADDR_WIDTH", ARMSSE, sram_addr_width, 15),
     DEFINE_PROP_END_OF_LIST()
 };
 
