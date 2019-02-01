@@ -18,6 +18,16 @@
 #include "hw/arm/iotkit.h"
 #include "hw/arm/arm.h"
 
+struct ARMSSEInfo {
+    const char *name;
+};
+
+static const ARMSSEInfo armsse_variants[] = {
+    {
+        .name = TYPE_IOTKIT,
+    },
+};
+
 /* Clock frequency in HZ of the 32KHz "slow clock" */
 #define S32KCLK (32 * 1000)
 
@@ -732,29 +742,43 @@ static void iotkit_class_init(ObjectClass *klass, void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
     IDAUInterfaceClass *iic = IDAU_INTERFACE_CLASS(klass);
+    ARMSSEClass *asc = ARMSSE_CLASS(klass);
 
     dc->realize = iotkit_realize;
     dc->vmsd = &iotkit_vmstate;
     dc->props = iotkit_properties;
     dc->reset = iotkit_reset;
     iic->check = iotkit_idau_check;
+    asc->info = data;
 }
 
-static const TypeInfo iotkit_info = {
+static const TypeInfo armsse_info = {
     .name = TYPE_ARMSSE,
     .parent = TYPE_SYS_BUS_DEVICE,
     .instance_size = sizeof(ARMSSE),
     .instance_init = iotkit_init,
-    .class_init = iotkit_class_init,
+    .abstract = true,
     .interfaces = (InterfaceInfo[]) {
         { TYPE_IDAU_INTERFACE },
         { }
     }
 };
 
-static void iotkit_register_types(void)
+static void armsse_register_types(void)
 {
-    type_register_static(&iotkit_info);
+    int i;
+
+    type_register_static(&armsse_info);
+
+    for (i = 0; i < ARRAY_SIZE(armsse_variants); i++) {
+        TypeInfo ti = {
+            .name = armsse_variants[i].name,
+            .parent = TYPE_ARMSSE,
+            .class_init = iotkit_class_init,
+            .class_data = (void *)&armsse_variants[i],
+        };
+        type_register(&ti);
+    }
 }
 
-type_init(iotkit_register_types);
+type_init(armsse_register_types);

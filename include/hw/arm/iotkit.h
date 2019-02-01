@@ -74,15 +74,15 @@
 #include "hw/or-irq.h"
 #include "hw/core/split-irq.h"
 
-#define TYPE_ARMSSE "iotkit"
+#define TYPE_ARMSSE "arm-sse"
 #define ARMSSE(obj) OBJECT_CHECK(ARMSSE, (obj), TYPE_ARMSSE)
 
 /*
- * For the moment TYPE_IOTKIT is a synonym for TYPE_ARMSSE (and the
- * latter's underlying name is left as "iotkit"); in a later
- * commit it will become a subclass of TYPE_ARMSSE.
+ * These type names are for specific IoTKit subsystems; other than
+ * instantiating them, code using these devices should always handle
+ * them via the ARMSSE base class, so they have no IOTKIT() etc macros.
  */
-#define TYPE_IOTKIT TYPE_ARMSSE
+#define TYPE_IOTKIT "iotkit"
 
 /* We have an IRQ splitter and an OR gate input for each external PPC
  * and the 2 internal PPCs
@@ -142,5 +142,17 @@ typedef struct ARMSSE {
     uint32_t exp_numirq;
     uint32_t mainclk_frq;
 } ARMSSE;
+
+typedef struct ARMSSEInfo ARMSSEInfo;
+
+typedef struct ARMSSEClass {
+    DeviceClass parent_class;
+    const ARMSSEInfo *info;
+} ARMSSEClass;
+
+#define ARMSSE_CLASS(klass) \
+    OBJECT_CLASS_CHECK(ARMSSEClass, (klass), TYPE_ARMSSE)
+#define ARMSSE_GET_CLASS(obj) \
+    OBJECT_GET_CLASS(ARMSSEClass, (obj), TYPE_ARMSSE)
 
 #endif
