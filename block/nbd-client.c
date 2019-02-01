@@ -59,7 +59,7 @@ static void nbd_teardown_connection(BlockDriverState *bs)
     qio_channel_shutdown(client->ioc,
                          QIO_CHANNEL_SHUTDOWN_BOTH,
                          NULL);
-    BDRV_POLL_WHILE(bs, client->read_reply_co);
+    BDRV_POLL_WHILE(bs, client->connection_co);
 
     nbd_client_detach_aio_context(bs);
     object_unref(OBJECT(client->sioc));
@@ -68,7 +68,7 @@ static void nbd_teardown_connection(BlockDriverState *bs)
     client->ioc = NULL;
 }
 
-static coroutine_fn void nbd_read_reply_entry(void *opaque)
+static coroutine_fn void nbd_connection_entry(void *opaque)
 {
     NBDClientSession *s = opaque;
     uint64_t i;
@@ -100,14 +100,14 @@ static coroutine_fn void nbd_read_reply_entry(void *opaque)
         }
 
         /* We're woken up again by the request itself.  Note that there
-         * is no race between yielding and reentering read_reply_co.  This
+         * is no race between yielding and reentering connection_co.  This
          * is because:
          *
          * - if the request runs on the same AioContext, it is only
          *   entered after we yield
          *
          * - if the request runs on a different AioContext, reentering
-         *   read_reply_co happens through a bottom half, which can only
+         *   connection_co happens through a bottom half, which can only
          *   run after we yield.
          */
         aio_co_wake(s->requests[i].coroutine);
@@ -116,7 +116,7 @@ static coroutine_fn void nbd_read_reply_entry(void *opaque)
 
     s->quit = true;
     nbd_recv_coroutines_wake_all(s);
-    s->read_reply_co = NULL;
+    s->connection_co = NULL;
     aio_wait_kick();
 }
 
@@ -420,7 +420,7 @@ static coroutine_fn int nbd_co_do_receive_one_chunk(
     }
     *request_ret = 0;
 
-    /* Wait until we're woken up by nbd_read_reply_entry.  */
+    /* Wait until we're woken up by nbd_connection_entry.  */
     s->requests[i].receiving = true;
     qemu_coroutine_yield();
     s->requests[i].receiving = false;
@@ -495,7 +495,7 @@ static coroutine_fn int nbd_co_do_receive_one_chunk(
 }
 
 /* nbd_co_receive_one_chunk
- * Read reply, wake up read_reply_co and set s->quit if needed.
+ * Read reply, wake up connection_co and set s->quit if needed.
  * Return value is a fatal error code or normal nbd reply error code
  */
 static coroutine_fn int nbd_co_receive_one_chunk(
@@ -509,15 +509,15 @@ static coroutine_fn int nbd_co_receive_one_chunk(
     if (ret < 0) {
         s->quit = true;
     } else {
-        /* For assert at loop start in nbd_read_reply_entry */
+        /* For assert at loop start in nbd_connection_entry */
         if (reply) {
             *reply = s->reply;
         }
         s->reply.handle = 0;
     }
 
-    if (s->read_reply_co) {
-        aio_co_wake(s->read_reply_co);
+    if (s->connection_co) {
+        aio_co_wake(s->connection_co);
     }
 
     return ret;
@@ -970,7 +970,7 @@ void nbd_client_attach_aio_context(BlockDriverState *bs,
 {
     NBDClientSession *client = nbd_get_client_session(bs);
     qio_channel_attach_aio_context(QIO_CHANNEL(client->ioc), new_context);
-    aio_co_schedule(new_context, client->read_reply_co);
+    aio_co_schedule(new_context, client->connection_co);
 }
 
 void nbd_client_close(BlockDriverState *bs)
@@ -1075,7 +1075,7 @@ static int nbd_client_connect(BlockDriverState *bs,
     /* Now that we're connected, set the socket to be non-blocking and
      * kick the reply mechanism.  */
     qio_channel_set_blocking(QIO_CHANNEL(sioc), false, NULL);
-    client->read_reply_co = qemu_coroutine_create(nbd_read_reply_entry, client);
+    client->connection_co = qemu_coroutine_create(nbd_connection_entry, client);
     nbd_client_attach_aio_context(bs, bdrv_get_aio_context(bs));
 
     logout("Established connection with NBD server\n");
