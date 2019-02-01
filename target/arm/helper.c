@@ -1859,6 +1859,9 @@ static void scr_write(CPUARMState *env, const ARMCPRegInfo *ri, uint64_t value)
     if (cpu_isar_feature(aa64_lor, cpu)) {
         valid_mask |= SCR_TLOR;
     }
+    if (cpu_isar_feature(aa64_pauth, cpu)) {
+        valid_mask |= SCR_API | SCR_APK;
+    }
 
     /* Clear all-context RES0 bits.  */
     value &= valid_mask;
@@ -4557,6 +4560,9 @@ static void hcr_write(CPUARMState *env, const ARMCPRegInfo *ri, uint64_t value)
     }
     if (cpu_isar_feature(aa64_lor, cpu)) {
         valid_mask |= HCR_TLOR;
+    }
+    if (cpu_isar_feature(aa64_pauth, cpu)) {
+        valid_mask |= HCR_API | HCR_APK;
     }
 
     /* Clear RES0 bits.  */
