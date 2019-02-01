@@ -3249,6 +3249,7 @@ static void disas_ldst_multiple_struct(DisasContext *s, uint32_t insn)
 {
     int rt = extract32(insn, 0, 5);
     int rn = extract32(insn, 5, 5);
+    int rm = extract32(insn, 16, 5);
     int size = extract32(insn, 10, 2);
     int opcode = extract32(insn, 12, 4);
     bool is_store = !extract32(insn, 22, 1);
@@ -3264,6 +3265,11 @@ static void disas_ldst_multiple_struct(DisasContext *s, uint32_t insn)
     int r;
 
     if (extract32(insn, 31, 1) || extract32(insn, 21, 1)) {
+        unallocated_encoding(s);
+        return;
+    }
+
+    if (!is_postidx && rm != 0) {
         unallocated_encoding(s);
         return;
     }
@@ -3367,7 +3373,6 @@ static void disas_ldst_multiple_struct(DisasContext *s, uint32_t insn)
     }
 
     if (is_postidx) {
-        int rm = extract32(insn, 16, 5);
         if (rm == 31) {
             tcg_gen_mov_i64(tcg_rn, tcg_addr);
         } else {
