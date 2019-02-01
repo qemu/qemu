@@ -89,7 +89,8 @@ static void nrf51_soc_realize(DeviceState *dev_soc, Error **errp)
     }
     memory_region_add_subregion(&s->container, NRF51_FLASH_BASE, &s->flash);
 
-    memory_region_init_ram(&s->sram, NULL, "nrf51.sram", s->sram_size, &err);
+    memory_region_init_ram(&s->sram, OBJECT(s), "nrf51.sram", s->sram_size,
+                           &err);
     if (err) {
         error_propagate(errp, err);
         return;
