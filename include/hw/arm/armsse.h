@@ -135,7 +135,17 @@ typedef struct ARMSSE {
     IoTKitSysCtl sysctl;
     IoTKitSysCtl sysinfo;
 
+    /*
+     * 'container' holds all devices seen by all CPUs.
+     * 'cpu_container[i]' is the view that CPU i has: this has the
+     * per-CPU devices of that CPU, plus as the background 'container'
+     * (or an alias of it, since we can only use it directly once).
+     * container_alias[i] is the alias of 'container' used by CPU i+1;
+     * CPU 0 can use 'container' directly.
+     */
     MemoryRegion container;
+    MemoryRegion container_alias[SSE_MAX_CPUS - 1];
+    MemoryRegion cpu_container[SSE_MAX_CPUS];
     MemoryRegion alias1;
     MemoryRegion alias2;
     MemoryRegion alias3;

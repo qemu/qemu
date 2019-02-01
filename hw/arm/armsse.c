@@ -153,6 +153,15 @@ static void armsse_init(Object *obj)
         qdev_prop_set_string(DEVICE(&s->armv7m[i]), "cpu-type",
                              ARM_CPU_TYPE_NAME("cortex-m33"));
         g_free(name);
+        name = g_strdup_printf("arm-sse-cpu-container%d", i);
+        memory_region_init(&s->cpu_container[i], obj, name, UINT64_MAX);
+        g_free(name);
+        if (i > 0) {
+            name = g_strdup_printf("arm-sse-container-alias%d", i);
+            memory_region_init_alias(&s->container_alias[i - 1], obj,
+                                     name, &s->container, 0, UINT64_MAX);
+            g_free(name);
+        }
     }
 
     sysbus_init_child_obj(obj, "secctl", &s->secctl, sizeof(s->secctl),
@@ -332,7 +341,7 @@ static void armsse_realize(DeviceState *dev, Error **errp)
      * 0x50000000..0x5fffffff  alias of 0x40000000..0x4fffffff
      */
 
-    memory_region_add_subregion_overlap(&s->container, 0, s->board_memory, -1);
+    memory_region_add_subregion_overlap(&s->container, 0, s->board_memory, -2);
 
     for (i = 0; i < info->num_cpus; i++) {
         DeviceState *cpudev = DEVICE(&s->armv7m[i]);
@@ -373,7 +382,16 @@ static void armsse_realize(DeviceState *dev, Error **errp)
                 return;
             }
         }
-        object_property_set_link(cpuobj, OBJECT(&s->container), "memory", &err);
+
+        if (i > 0) {
+            memory_region_add_subregion_overlap(&s->cpu_container[i], 0,
+                                                &s->container_alias[i - 1], -1);
+        } else {
+            memory_region_add_subregion_overlap(&s->cpu_container[i], 0,
+                                                &s->container, -1);
+        }
+        object_property_set_link(cpuobj, OBJECT(&s->cpu_container[i]),
+                                 "memory", &err);
         if (err) {
             error_propagate(errp, err);
             return;
