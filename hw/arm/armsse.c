@@ -147,9 +147,22 @@ static void armsse_init(Object *obj)
     memory_region_init(&s->container, obj, "armsse-container", UINT64_MAX);
 
     for (i = 0; i < info->num_cpus; i++) {
-        char *name = g_strdup_printf("armv7m%d", i);
-        sysbus_init_child_obj(obj, name, &s->armv7m[i], sizeof(s->armv7m),
-                              TYPE_ARMV7M);
+        /*
+         * We put each CPU in its own cluster as they are logically
+         * distinct and may be configured differently.
+         */
+        char *name;
+
+        name = g_strdup_printf("cluster%d", i);
+        object_initialize_child(obj, name, &s->cluster[i],
+                                sizeof(s->cluster[i]), TYPE_CPU_CLUSTER,
+                                &error_abort, NULL);
+        qdev_prop_set_uint32(DEVICE(&s->cluster[i]), "cluster-id", i);
+        g_free(name);
+
+        name = g_strdup_printf("armv7m%d", i);
+        sysbus_init_child_obj(OBJECT(&s->cluster[i]), name,
+                              &s->armv7m[i], sizeof(s->armv7m), TYPE_ARMV7M);
         qdev_prop_set_string(DEVICE(&s->armv7m[i]), "cpu-type",
                              ARM_CPU_TYPE_NAME("cortex-m33"));
         g_free(name);
@@ -402,6 +415,18 @@ static void armsse_realize(DeviceState *dev, Error **errp)
             return;
         }
         object_property_set_bool(cpuobj, true, "realized", &err);
+        if (err) {
+            error_propagate(errp, err);
+            return;
+        }
+        /*
+         * The cluster must be realized after the armv7m container, as
+         * the container's CPU object is only created on realize, and the
+         * CPU must exist and have been parented into the cluster before
+         * the cluster is realized.
+         */
+        object_property_set_bool(OBJECT(&s->cluster[i]),
+                                 true, "realized", &err);
         if (err) {
             error_propagate(errp, err);
             return;
