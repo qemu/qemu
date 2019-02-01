@@ -90,6 +90,11 @@
 #define NUM_EXTERNAL_PPCS (IOTS_NUM_AHB_EXP_PPC + IOTS_NUM_APB_EXP_PPC)
 #define NUM_PPCS (NUM_EXTERNAL_PPCS + 2)
 
+#define MAX_SRAM_BANKS 4
+#if MAX_SRAM_BANKS > IOTS_NUM_MPC
+#error Too many SRAM banks
+#endif
+
 typedef struct ARMSSE {
     /*< private >*/
     SysBusDevice parent_obj;
@@ -99,7 +104,7 @@ typedef struct ARMSSE {
     IoTKitSecCtl secctl;
     TZPPC apb_ppc0;
     TZPPC apb_ppc1;
-    TZMPC mpc;
+    TZMPC mpc[IOTS_NUM_MPC];
     CMSDKAPBTIMER timer0;
     CMSDKAPBTIMER timer1;
     CMSDKAPBTIMER s32ktimer;
@@ -123,7 +128,7 @@ typedef struct ARMSSE {
     MemoryRegion alias1;
     MemoryRegion alias2;
     MemoryRegion alias3;
-    MemoryRegion sram0;
+    MemoryRegion sram[MAX_SRAM_BANKS];
 
     qemu_irq *exp_irqs;
     qemu_irq ppc0_irq;
