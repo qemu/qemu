@@ -5,6 +5,7 @@ benchmark-crypto-hmac
 check-*
 !check-*.c
 !check-*.sh
+fp/*.out
 qht-bench
 rcutorture
 test-*
