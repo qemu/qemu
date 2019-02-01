@@ -690,7 +690,7 @@ static void tcg_register_iommu_notifier(CPUState *cpu,
     int i;
 
     for (i = 0; i < cpu->iommu_notifiers->len; i++) {
-        notifier = &g_array_index(cpu->iommu_notifiers, TCGIOMMUNotifier, i);
+        notifier = g_array_index(cpu->iommu_notifiers, TCGIOMMUNotifier *, i);
         if (notifier->mr == mr && notifier->iommu_idx == iommu_idx) {
             break;
         }
@@ -698,7 +698,8 @@ static void tcg_register_iommu_notifier(CPUState *cpu,
     if (i == cpu->iommu_notifiers->len) {
         /* Not found, add a new entry at the end of the array */
         cpu->iommu_notifiers = g_array_set_size(cpu->iommu_notifiers, i + 1);
-        notifier = &g_array_index(cpu->iommu_notifiers, TCGIOMMUNotifier, i);
+        notifier = g_new0(TCGIOMMUNotifier, 1);
+        g_array_index(cpu->iommu_notifiers, TCGIOMMUNotifier *, i) = notifier;
 
         notifier->mr = mr;
         notifier->iommu_idx = iommu_idx;
@@ -730,8 +731,9 @@ static void tcg_iommu_free_notifier_list(CPUState *cpu)
     TCGIOMMUNotifier *notifier;
 
     for (i = 0; i < cpu->iommu_notifiers->len; i++) {
-        notifier = &g_array_index(cpu->iommu_notifiers, TCGIOMMUNotifier, i);
+        notifier = g_array_index(cpu->iommu_notifiers, TCGIOMMUNotifier *, i);
         memory_region_unregister_iommu_notifier(notifier->mr, &notifier->n);
+        g_free(notifier);
     }
     g_array_free(cpu->iommu_notifiers, true);
 }
@@ -1000,7 +1002,7 @@ void cpu_exec_realizefn(CPUState *cpu, Error **errp)
         vmstate_register(NULL, cpu->cpu_index, cc->vmsd, cpu);
     }
 
-    cpu->iommu_notifiers = g_array_new(false, true, sizeof(TCGIOMMUNotifier));
+    cpu->iommu_notifiers = g_array_new(false, true, sizeof(TCGIOMMUNotifier *));
 #endif
 }
 
