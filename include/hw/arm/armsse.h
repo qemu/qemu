@@ -150,6 +150,7 @@ typedef struct ARMSSE {
 
     UnimplementedDeviceState mhu[2];
     UnimplementedDeviceState ppu[NUM_PPUS];
+    UnimplementedDeviceState cachectrl[SSE_MAX_CPUS];
 
     /*
      * 'container' holds all devices seen by all CPUs.

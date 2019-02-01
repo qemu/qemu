@@ -32,6 +32,7 @@ struct ARMSSEInfo {
     SysConfigFormat sys_config_format;
     bool has_mhus;
     bool has_ppus;
+    bool has_cachectrl;
 };
 
 static const ARMSSEInfo armsse_variants[] = {
@@ -43,6 +44,7 @@ static const ARMSSEInfo armsse_variants[] = {
         .sys_config_format = IoTKitFormat,
         .has_mhus = false,
         .has_ppus = false,
+        .has_cachectrl = false,
     },
 };
 
@@ -286,6 +288,16 @@ static void armsse_init(Object *obj)
 
             sysbus_init_child_obj(obj, name, &s->ppu[ppuidx],
                                   sizeof(s->ppu[ppuidx]),
+                                  TYPE_UNIMPLEMENTED_DEVICE);
+            g_free(name);
+        }
+    }
+    if (info->has_cachectrl) {
+        for (i = 0; i < info->num_cpus; i++) {
+            char *name = g_strdup_printf("cachectrl%d", i);
+
+            sysbus_init_child_obj(obj, name, &s->cachectrl[i],
+                                  sizeof(s->cachectrl[i]),
                                   TYPE_UNIMPLEMENTED_DEVICE);
             g_free(name);
         }
@@ -795,7 +807,32 @@ static void armsse_realize(DeviceState *dev, Error **errp)
     qdev_connect_gpio_out(DEVICE(&s->ppc_irq_orgate), 0,
                           armsse_get_common_irq_in(s, 10));
 
-    /* 0x40010000 .. 0x4001ffff: private CPU region: unused in IoTKit */
+    /*
+     * 0x40010000 .. 0x4001ffff (and the 0x5001000... secure-only alias):
+     * private per-CPU region (all these devices are SSE-200 only):
+     *  0x50010000: L1 icache control registers
+     *  0x50011000: CPUSECCTRL (CPU local security control registers)
+     *  0x4001f000 and 0x5001f000: CPU_IDENTITY register block
+     */
+    if (info->has_cachectrl) {
+        for (i = 0; i < info->num_cpus; i++) {
+            char *name = g_strdup_printf("cachectrl%d", i);
+            MemoryRegion *mr;
+
+            qdev_prop_set_string(DEVICE(&s->cachectrl[i]), "name", name);
+            g_free(name);
+            qdev_prop_set_uint64(DEVICE(&s->cachectrl[i]), "size", 0x1000);
+            object_property_set_bool(OBJECT(&s->cachectrl[i]), true,
+                                     "realized", &err);
+            if (err) {
+                error_propagate(errp, err);
+                return;
+            }
+
+            mr = sysbus_mmio_get_region(SYS_BUS_DEVICE(&s->cachectrl[i]), 0);
+            memory_region_add_subregion(&s->cpu_container[i], 0x50010000, mr);
+        }
+    }
 
     /* 0x40020000 .. 0x4002ffff : ARMSSE system control peripheral region */
     /* Devices behind APB PPC1:
