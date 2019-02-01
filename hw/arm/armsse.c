@@ -33,6 +33,7 @@ struct ARMSSEInfo {
     bool has_mhus;
     bool has_ppus;
     bool has_cachectrl;
+    bool has_cpusecctrl;
 };
 
 static const ARMSSEInfo armsse_variants[] = {
@@ -45,6 +46,7 @@ static const ARMSSEInfo armsse_variants[] = {
         .has_mhus = false,
         .has_ppus = false,
         .has_cachectrl = false,
+        .has_cpusecctrl = false,
     },
 };
 
@@ -298,6 +300,16 @@ static void armsse_init(Object *obj)
 
             sysbus_init_child_obj(obj, name, &s->cachectrl[i],
                                   sizeof(s->cachectrl[i]),
+                                  TYPE_UNIMPLEMENTED_DEVICE);
+            g_free(name);
+        }
+    }
+    if (info->has_cpusecctrl) {
+        for (i = 0; i < info->num_cpus; i++) {
+            char *name = g_strdup_printf("cpusecctrl%d", i);
+
+            sysbus_init_child_obj(obj, name, &s->cpusecctrl[i],
+                                  sizeof(s->cpusecctrl[i]),
                                   TYPE_UNIMPLEMENTED_DEVICE);
             g_free(name);
         }
@@ -831,6 +843,25 @@ static void armsse_realize(DeviceState *dev, Error **errp)
 
             mr = sysbus_mmio_get_region(SYS_BUS_DEVICE(&s->cachectrl[i]), 0);
             memory_region_add_subregion(&s->cpu_container[i], 0x50010000, mr);
+        }
+    }
+    if (info->has_cpusecctrl) {
+        for (i = 0; i < info->num_cpus; i++) {
+            char *name = g_strdup_printf("CPUSECCTRL%d", i);
+            MemoryRegion *mr;
+
+            qdev_prop_set_string(DEVICE(&s->cpusecctrl[i]), "name", name);
+            g_free(name);
+            qdev_prop_set_uint64(DEVICE(&s->cpusecctrl[i]), "size", 0x1000);
+            object_property_set_bool(OBJECT(&s->cpusecctrl[i]), true,
+                                     "realized", &err);
+            if (err) {
+                error_propagate(errp, err);
+                return;
+            }
+
+            mr = sysbus_mmio_get_region(SYS_BUS_DEVICE(&s->cpusecctrl[i]), 0);
+            memory_region_add_subregion(&s->cpu_container[i], 0x50011000, mr);
         }
     }
 
