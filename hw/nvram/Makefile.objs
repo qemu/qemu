@@ -5,3 +5,4 @@ common-obj-y += fw_cfg.o
 common-obj-y += chrp_nvram.o
 common-obj-$(CONFIG_MAC_NVRAM) += mac_nvram.o
 obj-$(CONFIG_PSERIES) += spapr_nvram.o
+obj-$(CONFIG_NRF51_SOC) += nrf51_nvm.o
