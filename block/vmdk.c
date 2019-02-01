@@ -27,6 +27,7 @@
 #include "qapi/error.h"
 #include "block/block_int.h"
 #include "sysemu/block-backend.h"
+#include "qapi/qmp/qdict.h"
 #include "qapi/qmp/qerror.h"
 #include "qemu/error-report.h"
 #include "qemu/module.h"
@@ -2608,6 +2609,23 @@ static int vmdk_get_info(BlockDriverState *bs, BlockDriverInfo *bdi)
     return 0;
 }
 
+static void vmdk_gather_child_options(BlockDriverState *bs, QDict *target,
+                                      bool backing_overridden)
+{
+    /* No children but file and backing can be explicitly specified (TODO) */
+    qdict_put(target, "file",
+              qobject_ref(bs->file->bs->full_open_options));
+
+    if (backing_overridden) {
+        if (bs->backing) {
+            qdict_put(target, "backing",
+                      qobject_ref(bs->backing->bs->full_open_options));
+        } else {
+            qdict_put_null(target, "backing");
+        }
+    }
+}
+
 static QemuOptsList vmdk_create_opts = {
     .name = "vmdk-create-opts",
     .head = QTAILQ_HEAD_INITIALIZER(vmdk_create_opts.head),
@@ -2679,6 +2697,7 @@ static BlockDriver bdrv_vmdk = {
     .bdrv_get_specific_info       = vmdk_get_specific_info,
     .bdrv_refresh_limits          = vmdk_refresh_limits,
     .bdrv_get_info                = vmdk_get_info,
+    .bdrv_gather_child_options    = vmdk_gather_child_options,
 
     .supports_backing             = true,
     .create_opts                  = &vmdk_create_opts,
