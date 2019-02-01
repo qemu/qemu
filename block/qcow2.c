@@ -1474,13 +1474,15 @@ static int coroutine_fn qcow2_do_open(BlockDriverState *bs, QDict *options,
             goto fail;
         }
         ret = bdrv_pread(bs->file, header.backing_file_offset,
-                         bs->backing_file, len);
+                         bs->auto_backing_file, len);
         if (ret < 0) {
             error_setg_errno(errp, -ret, "Could not read backing file name");
             goto fail;
         }
-        bs->backing_file[len] = '\0';
-        s->image_backing_file = g_strdup(bs->backing_file);
+        bs->auto_backing_file[len] = '\0';
+        pstrcpy(bs->backing_file, sizeof(bs->backing_file),
+                bs->auto_backing_file);
+        s->image_backing_file = g_strdup(bs->auto_backing_file);
     }
 
     /* Internal snapshots */
@@ -2518,6 +2520,8 @@ static int qcow2_change_backing_file(BlockDriverState *bs,
         return -EINVAL;
     }
 
+    pstrcpy(bs->auto_backing_file, sizeof(bs->auto_backing_file),
+            backing_file ?: "");
     pstrcpy(bs->backing_file, sizeof(bs->backing_file), backing_file ?: "");
     pstrcpy(bs->backing_format, sizeof(bs->backing_format), backing_fmt ?: "");
 

@@ -702,6 +702,10 @@ struct BlockDriverState {
     char filename[PATH_MAX];
     char backing_file[PATH_MAX]; /* if non zero, the image is a diff of
                                     this file image */
+    /* The backing filename indicated by the image header; if we ever
+     * open this file, then this is replaced by the resulting BDS's
+     * filename (i.e. after a bdrv_refresh_filename() run). */
+    char auto_backing_file[PATH_MAX];
     char backing_format[16]; /* if non-zero and backing_file exists */
 
     QDict *full_open_options;

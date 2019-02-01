@@ -2361,6 +2361,7 @@ int bdrv_open_backing_file(BlockDriverState *bs, QDict *parent_options,
     char *bdref_key_dot;
     const char *reference = NULL;
     int ret = 0;
+    bool implicit_backing = false;
     BlockDriverState *backing_hd;
     QDict *options;
     QDict *tmp_parent_options = NULL;
@@ -2396,6 +2397,16 @@ int bdrv_open_backing_file(BlockDriverState *bs, QDict *parent_options,
         qobject_unref(options);
         goto free_exit;
     } else {
+        if (qdict_size(options) == 0) {
+            /* If the user specifies options that do not modify the
+             * backing file's behavior, we might still consider it the
+             * implicit backing file.  But it's easier this way, and
+             * just specifying some of the backing BDS's options is
+             * only possible with -drive anyway (otherwise the QAPI
+             * schema forces the user to specify everything). */
+            implicit_backing = !strcmp(bs->auto_backing_file, bs->backing_file);
+        }
+
         bdrv_get_full_backing_filename(bs, backing_filename, PATH_MAX,
                                        &local_err);
         if (local_err) {
@@ -2428,6 +2439,12 @@ int bdrv_open_backing_file(BlockDriverState *bs, QDict *parent_options,
         goto free_exit;
     }
     bdrv_set_aio_context(backing_hd, bdrv_get_aio_context(bs));
+
+    if (implicit_backing) {
+        bdrv_refresh_filename(backing_hd);
+        pstrcpy(bs->auto_backing_file, sizeof(bs->auto_backing_file),
+                backing_hd->filename);
+    }
 
     /* Hook up the backing file link; drop our reference, bs owns the
      * backing_hd reference now */
@@ -3848,6 +3865,8 @@ int bdrv_change_backing_file(BlockDriverState *bs,
     if (ret == 0) {
         pstrcpy(bs->backing_file, sizeof(bs->backing_file), backing_file ?: "");
         pstrcpy(bs->backing_format, sizeof(bs->backing_format), backing_fmt ?: "");
+        pstrcpy(bs->auto_backing_file, sizeof(bs->auto_backing_file),
+                backing_file ?: "");
     }
     return ret;
 }

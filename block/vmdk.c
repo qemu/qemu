@@ -386,12 +386,14 @@ static int vmdk_parent_open(BlockDriverState *bs)
             ret = -EINVAL;
             goto out;
         }
-        if ((end_name - p_name) > sizeof(bs->backing_file) - 1) {
+        if ((end_name - p_name) > sizeof(bs->auto_backing_file) - 1) {
             ret = -EINVAL;
             goto out;
         }
 
-        pstrcpy(bs->backing_file, end_name - p_name + 1, p_name);
+        pstrcpy(bs->auto_backing_file, end_name - p_name + 1, p_name);
+        pstrcpy(bs->backing_file, sizeof(bs->backing_file),
+                bs->auto_backing_file);
     }
 
 out:
