@@ -78,6 +78,7 @@
 #include "hw/watchdog/cmsdk-apb-watchdog.h"
 #include "hw/misc/iotkit-sysctl.h"
 #include "hw/misc/iotkit-sysinfo.h"
+#include "hw/misc/unimp.h"
 #include "hw/or-irq.h"
 #include "hw/core/split-irq.h"
 #include "hw/cpu/cluster.h"
@@ -136,6 +137,8 @@ typedef struct ARMSSE {
 
     IoTKitSysCtl sysctl;
     IoTKitSysCtl sysinfo;
+
+    UnimplementedDeviceState mhu[2];
 
     /*
      * 'container' holds all devices seen by all CPUs.
