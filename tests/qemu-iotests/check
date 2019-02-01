@@ -237,6 +237,7 @@ image format options
     -vhdx               test vhdx
     -vmdk               test vmdk
     -luks               test luks
+    -dmg                test dmg
 
 image protocol options
     -file               test file (default)
@@ -301,6 +302,12 @@ testlist options
             IMGOPTSSYNTAX=true
             IMGFMT=luks
             IMGKEYSECRET=123456
+            xpand=false
+            ;;
+
+        -dmg)
+            IMGFMT=dmg
+            IMGFMT_GENERIC=false
             xpand=false
             ;;
 

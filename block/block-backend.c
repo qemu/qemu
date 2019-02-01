@@ -47,9 +47,7 @@ struct BlockBackend {
     QTAILQ_ENTRY(BlockBackend) monitor_link; /* for monitor_block_backends */
     BlockBackendPublic public;
 
-    void *dev;                  /* attached device model, if any */
-    bool legacy_dev;            /* true if dev is not a DeviceState */
-    /* TODO change to DeviceState when all users are qdevified */
+    DeviceState *dev;           /* attached device model, if any */
     const BlockDevOps *dev_ops;
     void *dev_opaque;
 
@@ -836,7 +834,11 @@ void blk_get_perm(BlockBackend *blk, uint64_t *perm, uint64_t *shared_perm)
     *shared_perm = blk->shared_perm;
 }
 
-static int blk_do_attach_dev(BlockBackend *blk, void *dev)
+/*
+ * Attach device model @dev to @blk.
+ * Return 0 on success, -EBUSY when a device model is attached already.
+ */
+int blk_attach_dev(BlockBackend *blk, DeviceState *dev)
 {
     if (blk->dev) {
         return -EBUSY;
@@ -851,40 +853,16 @@ static int blk_do_attach_dev(BlockBackend *blk, void *dev)
 
     blk_ref(blk);
     blk->dev = dev;
-    blk->legacy_dev = false;
     blk_iostatus_reset(blk);
 
     return 0;
 }
 
 /*
- * Attach device model @dev to @blk.
- * Return 0 on success, -EBUSY when a device model is attached already.
- */
-int blk_attach_dev(BlockBackend *blk, DeviceState *dev)
-{
-    return blk_do_attach_dev(blk, dev);
-}
-
-/*
- * Attach device model @dev to @blk.
- * @blk must not have a device model attached already.
- * TODO qdevified devices don't use this, remove when devices are qdevified
- */
-void blk_attach_dev_legacy(BlockBackend *blk, void *dev)
-{
-    if (blk_do_attach_dev(blk, dev) < 0) {
-        abort();
-    }
-    blk->legacy_dev = true;
-}
-
-/*
  * Detach device model @dev from @blk.
  * @dev must be currently attached to @blk.
  */
-void blk_detach_dev(BlockBackend *blk, void *dev)
-/* TODO change to DeviceState *dev when all users are qdevified */
+void blk_detach_dev(BlockBackend *blk, DeviceState *dev)
 {
     assert(blk->dev == dev);
     blk->dev = NULL;
@@ -898,8 +876,7 @@ void blk_detach_dev(BlockBackend *blk, void *dev)
 /*
  * Return the device model attached to @blk if any, else null.
  */
-void *blk_get_attached_dev(BlockBackend *blk)
-/* TODO change to return DeviceState * when all users are qdevified */
+DeviceState *blk_get_attached_dev(BlockBackend *blk)
 {
     return blk->dev;
 }
@@ -908,10 +885,7 @@ void *blk_get_attached_dev(BlockBackend *blk)
  * device attached to the BlockBackend. */
 char *blk_get_attached_dev_id(BlockBackend *blk)
 {
-    DeviceState *dev;
-
-    assert(!blk->legacy_dev);
-    dev = blk->dev;
+    DeviceState *dev = blk->dev;
 
     if (!dev) {
         return g_strdup("");
@@ -949,11 +923,6 @@ BlockBackend *blk_by_dev(void *dev)
 void blk_set_dev_ops(BlockBackend *blk, const BlockDevOps *ops,
                      void *opaque)
 {
-    /* All drivers that use blk_set_dev_ops() are qdevified and we want to keep
-     * it that way, so we can assume blk->dev, if present, is a DeviceState if
-     * blk->dev_ops is set. Non-device users may use dev_ops without device. */
-    assert(!blk->legacy_dev);
-
     blk->dev_ops = ops;
     blk->dev_opaque = opaque;
 
@@ -978,8 +947,6 @@ void blk_dev_change_media_cb(BlockBackend *blk, bool load, Error **errp)
     if (blk->dev_ops && blk->dev_ops->change_media_cb) {
         bool tray_was_open, tray_is_open;
         Error *local_err = NULL;
-
-        assert(!blk->legacy_dev);
 
         tray_was_open = blk_dev_is_tray_open(blk);
         blk->dev_ops->change_media_cb(blk->dev_opaque, load, &local_err);
@@ -1220,6 +1187,7 @@ static void blk_read_entry(void *opaque)
 
     rwco->ret = blk_co_preadv(rwco->blk, rwco->offset, qiov->size,
                               qiov, rwco->flags);
+    aio_wait_kick();
 }
 
 static void blk_write_entry(void *opaque)
@@ -1229,6 +1197,7 @@ static void blk_write_entry(void *opaque)
 
     rwco->ret = blk_co_pwritev(rwco->blk, rwco->offset, qiov->size,
                                qiov, rwco->flags);
+    aio_wait_kick();
 }
 
 static int blk_prw(BlockBackend *blk, int64_t offset, uint8_t *buf,
@@ -1540,6 +1509,7 @@ static void blk_ioctl_entry(void *opaque)
 
     rwco->ret = blk_co_ioctl(rwco->blk, rwco->offset,
                              qiov->iov[0].iov_base);
+    aio_wait_kick();
 }
 
 int blk_ioctl(BlockBackend *blk, unsigned long int req, void *buf)
@@ -1586,6 +1556,7 @@ static void blk_flush_entry(void *opaque)
 {
     BlkRwCo *rwco = opaque;
     rwco->ret = blk_co_flush(rwco->blk);
+    aio_wait_kick();
 }
 
 int blk_flush(BlockBackend *blk)
@@ -1778,9 +1749,6 @@ void blk_eject(BlockBackend *blk, bool eject_flag)
 {
     BlockDriverState *bs = blk_bs(blk);
     char *id;
-
-    /* blk_eject is only called by qdevified devices */
-    assert(!blk->legacy_dev);
 
     if (bs) {
         bdrv_eject(bs, eject_flag);
@@ -2018,6 +1986,7 @@ static void blk_pdiscard_entry(void *opaque)
     QEMUIOVector *qiov = rwco->iobuf;
 
     rwco->ret = blk_co_pdiscard(rwco->blk, rwco->offset, qiov->size);
+    aio_wait_kick();
 }
 
 int blk_pdiscard(BlockBackend *blk, int64_t offset, int bytes)

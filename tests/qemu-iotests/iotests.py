@@ -76,15 +76,16 @@ def qemu_img(*args):
         sys.stderr.write('qemu-img received signal %i: %s\n' % (-exitcode, ' '.join(qemu_img_args + list(args))))
     return exitcode
 
-def ordered_kwargs(kwargs):
-    # kwargs prior to 3.6 are not ordered, so:
-    od = OrderedDict()
-    for k, v in sorted(kwargs.items()):
-        if isinstance(v, dict):
-            od[k] = ordered_kwargs(v)
-        else:
-            od[k] = v
-    return od
+def ordered_qmp(qmsg):
+    # Dictionaries are not ordered prior to 3.6, therefore:
+    if isinstance(qmsg, list):
+        return [ordered_qmp(atom) for atom in qmsg]
+    if isinstance(qmsg, dict):
+        od = OrderedDict()
+        for k, v in sorted(qmsg.items()):
+            od[k] = ordered_qmp(v)
+        return od
+    return qmsg
 
 def qemu_img_create(*args):
     args = list(args)
@@ -299,6 +300,7 @@ def filter_img_info(output, filename):
                    .replace(imgfmt, 'IMGFMT')
         line = re.sub('iters: [0-9]+', 'iters: XXX', line)
         line = re.sub('uuid: [-a-f0-9]+', 'uuid: XXXXXXXX-XXXX-XXXX-XXXX-XXXXXXXXXXXX', line)
+        line = re.sub('cid: [0-9]+', 'cid: XXXXXXXXXX', line)
         lines.append(line)
     return '\n'.join(lines)
 
@@ -505,7 +507,7 @@ class VM(qtest.QEMUQtestMachine):
     def qmp_log(self, cmd, filters=[], indent=None, **kwargs):
         full_cmd = OrderedDict((
             ("execute", cmd),
-            ("arguments", ordered_kwargs(kwargs))
+            ("arguments", ordered_qmp(kwargs))
         ))
         log(full_cmd, filters, indent=indent)
         result = self.qmp(cmd, **kwargs)

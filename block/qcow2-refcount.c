@@ -368,6 +368,9 @@ static int alloc_refcount_block(BlockDriverState *bs,
         return new_block;
     }
 
+    /* The offset must fit in the offset field of the refcount table entry */
+    assert((new_block & REFT_OFFSET_MASK) == new_block);
+
     /* If we're allocating the block at offset 0 then something is wrong */
     if (new_block == 0) {
         qcow2_signal_corruption(bs, true, -1, -1, "Preventing invalid "

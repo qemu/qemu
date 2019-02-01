@@ -1,0 +1,348 @@
+=== Successful image creation (defaults) ===
+
+{"execute": "blockdev-create", "arguments": {"job_id": "job0", "options": {"driver": "file", "filename": "TEST_DIR/PID-t.vmdk", "size": 0}}}
+{"return": {}}
+{"execute": "job-dismiss", "arguments": {"id": "job0"}}
+{"return": {}}
+
+{"execute": "blockdev-add", "arguments": {"driver": "file", "filename": "TEST_DIR/PID-t.vmdk", "node_name": "imgfile"}}
+{"return": {}}
+{"execute": "blockdev-create", "arguments": {"job_id": "job0", "options": {"driver": "vmdk", "file": "imgfile", "size": 5368709120}}}
+{"return": {}}
+{"execute": "job-dismiss", "arguments": {"id": "job0"}}
+{"return": {}}
+
+image: TEST_IMG
+file format: IMGFMT
+virtual size: 5.0G (5368709120 bytes)
+cluster_size: 65536
+Format specific information:
+    cid: XXXXXXXXXX
+    parent cid: XXXXXXXXXX
+    create type: monolithicSparse
+    extents:
+        [0]:
+            virtual size: 5368709120
+            filename: TEST_IMG
+            cluster size: 65536
+            format: 
+
+=== Successful image creation (inline blockdev-add, explicit defaults) ===
+
+{"execute": "blockdev-create", "arguments": {"job_id": "job0", "options": {"driver": "file", "filename": "TEST_DIR/PID-t.vmdk", "size": 0}}}
+{"return": {}}
+{"execute": "job-dismiss", "arguments": {"id": "job0"}}
+{"return": {}}
+
+{"execute": "blockdev-create", "arguments": {"job_id": "job0", "options": {"adapter-type": "ide", "driver": "vmdk", "extents": [], "file": {"driver": "file", "filename": "TEST_DIR/PID-t.vmdk"}, "hwversion": "4", "size": 67108864, "subformat": "monolithicSparse", "zeroed-grain": false}}}
+{"return": {}}
+{"execute": "job-dismiss", "arguments": {"id": "job0"}}
+{"return": {}}
+
+image: TEST_IMG
+file format: IMGFMT
+virtual size: 64M (67108864 bytes)
+cluster_size: 65536
+Format specific information:
+    cid: XXXXXXXXXX
+    parent cid: XXXXXXXXXX
+    create type: monolithicSparse
+    extents:
+        [0]:
+            virtual size: 67108864
+            filename: TEST_IMG
+            cluster size: 65536
+            format: 
+
+=== Successful image creation (with non-default options) ===
+
+{"execute": "blockdev-create", "arguments": {"job_id": "job0", "options": {"driver": "file", "filename": "TEST_DIR/PID-t.vmdk", "size": 0}}}
+{"return": {}}
+{"execute": "job-dismiss", "arguments": {"id": "job0"}}
+{"return": {}}
+
+{"execute": "blockdev-create", "arguments": {"job_id": "job0", "options": {"adapter-type": "buslogic", "driver": "vmdk", "extents": [], "file": {"driver": "file", "filename": "TEST_DIR/PID-t.vmdk"}, "size": 33554432, "subformat": "monolithicSparse", "zeroed-grain": true}}}
+{"return": {}}
+{"execute": "job-dismiss", "arguments": {"id": "job0"}}
+{"return": {}}
+
+image: TEST_IMG
+file format: IMGFMT
+virtual size: 32M (33554432 bytes)
+cluster_size: 65536
+Format specific information:
+    cid: XXXXXXXXXX
+    parent cid: XXXXXXXXXX
+    create type: monolithicSparse
+    extents:
+        [0]:
+            virtual size: 33554432
+            filename: TEST_IMG
+            cluster size: 65536
+            format: 
+
+=== Invalid BlockdevRef ===
+
+{"execute": "blockdev-create", "arguments": {"job_id": "job0", "options": {"driver": "vmdk", "file": "this doesn't exist", "size": 33554432}}}
+{"return": {}}
+Job failed: Cannot find device=this doesn't exist nor node_name=this doesn't exist
+{"execute": "job-dismiss", "arguments": {"id": "job0"}}
+{"return": {}}
+
+=== Adapter types ===
+
+== Valid adapter types ==
+
+{"execute": "blockdev-create", "arguments": {"job_id": "job0", "options": {"adapter-type": "ide", "driver": "vmdk", "file": "node0", "size": 33554432}}}
+{"return": {}}
+{"execute": "job-dismiss", "arguments": {"id": "job0"}}
+{"return": {}}
+
+{"execute": "blockdev-create", "arguments": {"job_id": "job0", "options": {"adapter-type": "buslogic", "driver": "vmdk", "file": "node0", "size": 33554432}}}
+{"return": {}}
+{"execute": "job-dismiss", "arguments": {"id": "job0"}}
+{"return": {}}
+
+{"execute": "blockdev-create", "arguments": {"job_id": "job0", "options": {"adapter-type": "lsilogic", "driver": "vmdk", "file": "node0", "size": 33554432}}}
+{"return": {}}
+{"execute": "job-dismiss", "arguments": {"id": "job0"}}
+{"return": {}}
+
+{"execute": "blockdev-create", "arguments": {"job_id": "job0", "options": {"adapter-type": "legacyESX", "driver": "vmdk", "file": "node0", "size": 33554432}}}
+{"return": {}}
+{"execute": "job-dismiss", "arguments": {"id": "job0"}}
+{"return": {}}
+
+== Invalid adapter types ==
+
+{"execute": "blockdev-create", "arguments": {"job_id": "job0", "options": {"adapter-type": "foo", "driver": "vmdk", "file": "node0", "size": 33554432}}}
+{"error": {"class": "GenericError", "desc": "Invalid parameter 'foo'"}}
+
+{"execute": "blockdev-create", "arguments": {"job_id": "job0", "options": {"adapter-type": "IDE", "driver": "vmdk", "file": "node0", "size": 33554432}}}
+{"error": {"class": "GenericError", "desc": "Invalid parameter 'IDE'"}}
+
+{"execute": "blockdev-create", "arguments": {"job_id": "job0", "options": {"adapter-type": "legacyesx", "driver": "vmdk", "file": "node0", "size": 33554432}}}
+{"error": {"class": "GenericError", "desc": "Invalid parameter 'legacyesx'"}}
+
+{"execute": "blockdev-create", "arguments": {"job_id": "job0", "options": {"adapter-type": 1, "driver": "vmdk", "file": "node0", "size": 33554432}}}
+{"error": {"class": "GenericError", "desc": "Invalid parameter type for 'options.adapter-type', expected: string"}}
+
+=== Other subformats ===
+
+Formatting 'TEST_DIR/PID-t.vmdk.1', fmt=vmdk size=0 compat6=off hwversion=undefined
+
+Formatting 'TEST_DIR/PID-t.vmdk.2', fmt=vmdk size=0 compat6=off hwversion=undefined
+
+Formatting 'TEST_DIR/PID-t.vmdk.3', fmt=vmdk size=0 compat6=off hwversion=undefined
+
+== Missing extent ==
+
+{"execute": "blockdev-create", "arguments": {"job_id": "job0", "options": {"driver": "vmdk", "file": "node0", "size": 33554432, "subformat": "monolithicFlat"}}}
+{"return": {}}
+Job failed: Extent [0] not specified
+{"execute": "job-dismiss", "arguments": {"id": "job0"}}
+{"return": {}}
+
+== Correct extent ==
+
+{"execute": "blockdev-create", "arguments": {"job_id": "job0", "options": {"driver": "vmdk", "extents": ["ext1"], "file": "node0", "size": 33554432, "subformat": "monolithicFlat"}}}
+{"return": {}}
+{"execute": "job-dismiss", "arguments": {"id": "job0"}}
+{"return": {}}
+
+== Extra extent ==
+
+{"execute": "blockdev-create", "arguments": {"job_id": "job0", "options": {"driver": "vmdk", "extents": ["ext1", "ext2", "ext3"], "file": "node0", "size": 512, "subformat": "monolithicFlat"}}}
+{"return": {}}
+Job failed: List of extents contains unused extents
+{"execute": "job-dismiss", "arguments": {"id": "job0"}}
+{"return": {}}
+
+== Split formats ==
+
+= twoGbMaxExtentFlat 512 =
+
+{"execute": "blockdev-create", "arguments": {"job_id": "job0", "options": {"driver": "vmdk", "extents": ["ext1"], "file": "node0", "size": 512, "subformat": "twoGbMaxExtentFlat"}}}
+{"return": {}}
+{"execute": "job-dismiss", "arguments": {"id": "job0"}}
+{"return": {}}
+
+image: TEST_IMG
+file format: IMGFMT
+virtual size: 512 (512 bytes)
+Format specific information:
+    cid: XXXXXXXXXX
+    parent cid: XXXXXXXXXX
+    create type: twoGbMaxExtentFlat
+    extents:
+        [0]:
+            virtual size: 512
+            filename: TEST_IMG.1
+            format: FLAT
+
+= twoGbMaxExtentSparse 512 =
+
+{"execute": "blockdev-create", "arguments": {"job_id": "job0", "options": {"driver": "vmdk", "extents": ["ext1"], "file": "node0", "size": 512, "subformat": "twoGbMaxExtentSparse"}}}
+{"return": {}}
+{"execute": "job-dismiss", "arguments": {"id": "job0"}}
+{"return": {}}
+
+image: TEST_IMG
+file format: IMGFMT
+virtual size: 512 (512 bytes)
+cluster_size: 65536
+Format specific information:
+    cid: XXXXXXXXXX
+    parent cid: XXXXXXXXXX
+    create type: twoGbMaxExtentSparse
+    extents:
+        [0]:
+            virtual size: 512
+            filename: TEST_IMG.1
+            cluster size: 65536
+            format: SPARSE
+
+= twoGbMaxExtentFlat 1073741824 =
+
+{"execute": "blockdev-create", "arguments": {"job_id": "job0", "options": {"driver": "vmdk", "extents": ["ext1"], "file": "node0", "size": 1073741824, "subformat": "twoGbMaxExtentFlat"}}}
+{"return": {}}
+{"execute": "job-dismiss", "arguments": {"id": "job0"}}
+{"return": {}}
+
+image: TEST_IMG
+file format: IMGFMT
+virtual size: 1.0G (1073741824 bytes)
+Format specific information:
+    cid: XXXXXXXXXX
+    parent cid: XXXXXXXXXX
+    create type: twoGbMaxExtentFlat
+    extents:
+        [0]:
+            virtual size: 1073741824
+            filename: TEST_IMG.1
+            format: FLAT
+
+= twoGbMaxExtentSparse 1073741824 =
+
+{"execute": "blockdev-create", "arguments": {"job_id": "job0", "options": {"driver": "vmdk", "extents": ["ext1"], "file": "node0", "size": 1073741824, "subformat": "twoGbMaxExtentSparse"}}}
+{"return": {}}
+{"execute": "job-dismiss", "arguments": {"id": "job0"}}
+{"return": {}}
+
+image: TEST_IMG
+file format: IMGFMT
+virtual size: 1.0G (1073741824 bytes)
+cluster_size: 65536
+Format specific information:
+    cid: XXXXXXXXXX
+    parent cid: XXXXXXXXXX
+    create type: twoGbMaxExtentSparse
+    extents:
+        [0]:
+            virtual size: 1073741824
+            filename: TEST_IMG.1
+            cluster size: 65536
+            format: SPARSE
+
+= twoGbMaxExtentFlat 2147483648 =
+
+{"execute": "blockdev-create", "arguments": {"job_id": "job0", "options": {"driver": "vmdk", "extents": ["ext1"], "file": "node0", "size": 2147483648, "subformat": "twoGbMaxExtentFlat"}}}
+{"return": {}}
+{"execute": "job-dismiss", "arguments": {"id": "job0"}}
+{"return": {}}
+
+image: TEST_IMG
+file format: IMGFMT
+virtual size: 2.0G (2147483648 bytes)
+Format specific information:
+    cid: XXXXXXXXXX
+    parent cid: XXXXXXXXXX
+    create type: twoGbMaxExtentFlat
+    extents:
+        [0]:
+            virtual size: 2147483648
+            filename: TEST_IMG.1
+            format: FLAT
+
+= twoGbMaxExtentSparse 2147483648 =
+
+{"execute": "blockdev-create", "arguments": {"job_id": "job0", "options": {"driver": "vmdk", "extents": ["ext1"], "file": "node0", "size": 2147483648, "subformat": "twoGbMaxExtentSparse"}}}
+{"return": {}}
+{"execute": "job-dismiss", "arguments": {"id": "job0"}}
+{"return": {}}
+
+image: TEST_IMG
+file format: IMGFMT
+virtual size: 2.0G (2147483648 bytes)
+cluster_size: 65536
+Format specific information:
+    cid: XXXXXXXXXX
+    parent cid: XXXXXXXXXX
+    create type: twoGbMaxExtentSparse
+    extents:
+        [0]:
+            virtual size: 2147483648
+            filename: TEST_IMG.1
+            cluster size: 65536
+            format: SPARSE
+
+= twoGbMaxExtentFlat 5368709120 =
+
+{"execute": "blockdev-create", "arguments": {"job_id": "job0", "options": {"driver": "vmdk", "extents": ["ext1", "ext2", "ext3"], "file": "node0", "size": 5368709120, "subformat": "twoGbMaxExtentFlat"}}}
+{"return": {}}
+{"execute": "job-dismiss", "arguments": {"id": "job0"}}
+{"return": {}}
+
+image: TEST_IMG
+file format: IMGFMT
+virtual size: 5.0G (5368709120 bytes)
+Format specific information:
+    cid: XXXXXXXXXX
+    parent cid: XXXXXXXXXX
+    create type: twoGbMaxExtentFlat
+    extents:
+        [0]:
+            virtual size: 2147483648
+            filename: TEST_IMG.1
+            format: FLAT
+        [1]:
+            virtual size: 2147483648
+            filename: TEST_IMG.2
+            format: FLAT
+        [2]:
+            virtual size: 1073741824
+            filename: TEST_IMG.3
+            format: FLAT
+
+= twoGbMaxExtentSparse 5368709120 =
+
+{"execute": "blockdev-create", "arguments": {"job_id": "job0", "options": {"driver": "vmdk", "extents": ["ext1", "ext2", "ext3"], "file": "node0", "size": 5368709120, "subformat": "twoGbMaxExtentSparse"}}}
+{"return": {}}
+{"execute": "job-dismiss", "arguments": {"id": "job0"}}
+{"return": {}}
+
+image: TEST_IMG
+file format: IMGFMT
+virtual size: 5.0G (5368709120 bytes)
+cluster_size: 65536
+Format specific information:
+    cid: XXXXXXXXXX
+    parent cid: XXXXXXXXXX
+    create type: twoGbMaxExtentSparse
+    extents:
+        [0]:
+            virtual size: 2147483648
+            filename: TEST_IMG.1
+            cluster size: 65536
+            format: SPARSE
+        [1]:
+            virtual size: 2147483648
+            filename: TEST_IMG.2
+            cluster size: 65536
+            format: SPARSE
+        [2]:
+            virtual size: 1073741824
+            filename: TEST_IMG.3
+            cluster size: 65536
+            format: SPARSE
+

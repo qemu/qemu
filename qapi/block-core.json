@@ -4138,6 +4138,76 @@
             '*cluster-size' :   'size' } }
 
 ##
+# @BlockdevVmdkSubformat:
+#
+# Subformat options for VMDK images
+#
+# @monolithicSparse:     Single file image with sparse cluster allocation
+#
+# @monolithicFlat:       Single flat data image and a descriptor file
+#
+# @twoGbMaxExtentSparse: Data is split into 2GB (per virtual LBA) sparse extent
+#                        files, in addition to a descriptor file
+#
+# @twoGbMaxExtentFlat:   Data is split into 2GB (per virtual LBA) flat extent
+#                        files, in addition to a descriptor file
+#
+# @streamOptimized:      Single file image sparse cluster allocation, optimized
+#                        for streaming over network.
+#
+# Since: 4.0
+##
+{ 'enum': 'BlockdevVmdkSubformat',
+  'data': [ 'monolithicSparse', 'monolithicFlat', 'twoGbMaxExtentSparse',
+            'twoGbMaxExtentFlat', 'streamOptimized'] }
+
+##
+# @BlockdevVmdkAdapterType:
+#
+# Adapter type info for VMDK images
+#
+# Since: 4.0
+##
+{ 'enum': 'BlockdevVmdkAdapterType',
+  'data': [ 'ide', 'buslogic', 'lsilogic', 'legacyESX'] }
+
+##
+# @BlockdevCreateOptionsVmdk:
+#
+# Driver specific image creation options for VMDK.
+#
+# @file         Where to store the new image file. This refers to the image
+#               file for monolithcSparse and streamOptimized format, or the
+#               descriptor file for other formats.
+# @size         Size of the virtual disk in bytes
+# @extents      Where to store the data extents. Required for monolithcFlat,
+#               twoGbMaxExtentSparse and twoGbMaxExtentFlat formats. For
+#               monolithicFlat, only one entry is required; for
+#               twoGbMaxExtent* formats, the number of entries required is
+#               calculated as extent_number = virtual_size / 2GB. Providing
+#               more extents than will be used is an error.
+# @subformat    The subformat of the VMDK image. Default: "monolithicSparse".
+# @backing-file The path of backing file. Default: no backing file is used.
+# @adapter-type The adapter type used to fill in the descriptor. Default: ide.
+# @hwversion    Hardware version. The meaningful options are "4" or "6".
+#               Default: "4".
+# @zeroed-grain Whether to enable zeroed-grain feature for sparse subformats.
+#               Default: false.
+#
+# Since: 4.0
+##
+{ 'struct': 'BlockdevCreateOptionsVmdk',
+  'data': { 'file':             'BlockdevRef',
+            'size':             'size',
+            '*extents':          ['BlockdevRef'],
+            '*subformat':       'BlockdevVmdkSubformat',
+            '*backing-file':    'str',
+            '*adapter-type':    'BlockdevVmdkAdapterType',
+            '*hwversion':       'str',
+            '*zeroed-grain':    'bool' } }
+
+
+##
 # @SheepdogRedundancyType:
 #
 # @full             Create a fully replicated vdi with x copies
@@ -4331,6 +4401,7 @@
       'ssh':            'BlockdevCreateOptionsSsh',
       'vdi':            'BlockdevCreateOptionsVdi',
       'vhdx':           'BlockdevCreateOptionsVhdx',
+      'vmdk':           'BlockdevCreateOptionsVmdk',
       'vpc':            'BlockdevCreateOptionsVpc'
   } }
 
