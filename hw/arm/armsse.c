@@ -138,7 +138,7 @@ static void armsse_init(Object *obj)
                             sizeof(s->mpc_irq_orgate), TYPE_OR_IRQ,
                             &error_abort, NULL);
 
-    for (i = 0; i < ARRAY_SIZE(s->mpc_irq_splitter); i++) {
+    for (i = 0; i < IOTS_NUM_EXP_MPC + 1; i++) {
         char *name = g_strdup_printf("mpc-irq-splitter-%d", i);
         SplitIRQ *splitter = &s->mpc_irq_splitter[i];
 
@@ -363,7 +363,7 @@ static void armsse_realize(DeviceState *dev, Error **errp)
 
     /* We must OR together lines from the MPC splitters to go to the NVIC */
     object_property_set_int(OBJECT(&s->mpc_irq_orgate),
-                            IOTS_NUM_EXP_MPC + IOTS_NUM_MPC, "num-lines", &err);
+                            IOTS_NUM_EXP_MPC + 1, "num-lines", &err);
     if (err) {
         error_propagate(errp, err);
         return;
@@ -636,7 +636,7 @@ static void armsse_realize(DeviceState *dev, Error **errp)
     }
 
     /* Wire up the splitters for the MPC IRQs */
-    for (i = 0; i < IOTS_NUM_EXP_MPC + IOTS_NUM_MPC; i++) {
+    for (i = 0; i < IOTS_NUM_EXP_MPC + 1; i++) {
         SplitIRQ *splitter = &s->mpc_irq_splitter[i];
         DeviceState *dev_splitter = DEVICE(splitter);
 
