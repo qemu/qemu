@@ -873,8 +873,7 @@ static int vmdk_parse_extents(const char *desc, BlockDriverState *bs,
             return -EINVAL;
         }
 
-        extent_path = g_malloc0(PATH_MAX);
-        path_combine(extent_path, PATH_MAX, desc_file_path, fname);
+        extent_path = path_combine(desc_file_path, fname);
 
         ret = snprintf(extent_opt_prefix, 32, "extents.%d", s->num_extents);
         assert(ret < 32);

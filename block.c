@@ -152,53 +152,62 @@ int path_is_absolute(const char *path)
 #endif
 }
 
-/* if filename is absolute, just copy it to dest. Otherwise, build a
+/* if filename is absolute, just return its duplicate. Otherwise, build a
    path to it by considering it is relative to base_path. URL are
    supported. */
-void path_combine(char *dest, int dest_size,
-                  const char *base_path,
-                  const char *filename)
+char *path_combine(const char *base_path, const char *filename)
 {
+    const char *protocol_stripped = NULL;
     const char *p, *p1;
+    char *result;
     int len;
 
-    if (dest_size <= 0)
-        return;
     if (path_is_absolute(filename)) {
-        pstrcpy(dest, dest_size, filename);
-    } else {
-        const char *protocol_stripped = NULL;
-
-        if (path_has_protocol(base_path)) {
-            protocol_stripped = strchr(base_path, ':');
-            if (protocol_stripped) {
-                protocol_stripped++;
-            }
-        }
-        p = protocol_stripped ?: base_path;
-
-        p1 = strrchr(base_path, '/');
-#ifdef _WIN32
-        {
-            const char *p2;
-            p2 = strrchr(base_path, '\\');
-            if (!p1 || p2 > p1)
-                p1 = p2;
-        }
-#endif
-        if (p1)
-            p1++;
-        else
-            p1 = base_path;
-        if (p1 > p)
-            p = p1;
-        len = p - base_path;
-        if (len > dest_size - 1)
-            len = dest_size - 1;
-        memcpy(dest, base_path, len);
-        dest[len] = '\0';
-        pstrcat(dest, dest_size, filename);
+        return g_strdup(filename);
     }
+
+    if (path_has_protocol(base_path)) {
+        protocol_stripped = strchr(base_path, ':');
+        if (protocol_stripped) {
+            protocol_stripped++;
+        }
+    }
+    p = protocol_stripped ?: base_path;
+
+    p1 = strrchr(base_path, '/');
+#ifdef _WIN32
+    {
+        const char *p2;
+        p2 = strrchr(base_path, '\\');
+        if (!p1 || p2 > p1) {
+            p1 = p2;
+        }
+    }
+#endif
+    if (p1) {
+        p1++;
+    } else {
+        p1 = base_path;
+    }
+    if (p1 > p) {
+        p = p1;
+    }
+    len = p - base_path;
+
+    result = g_malloc(len + strlen(filename) + 1);
+    memcpy(result, base_path, len);
+    strcpy(result + len, filename);
+
+    return result;
+}
+
+static void path_combine_deprecated(char *dest, int dest_size,
+                                    const char *base_path,
+                                    const char *filename)
+{
+    char *combined = path_combine(base_path, filename);
+    pstrcpy(dest, dest_size, combined);
+    g_free(combined);
 }
 
 /*
@@ -316,7 +325,7 @@ void bdrv_get_full_backing_filename_from_filename(const char *backed,
         error_setg(errp, "Cannot use relative backing file names for '%s'",
                    backed);
     } else {
-        path_combine(dest, sz, backed, backing);
+        path_combine_deprecated(dest, sz, backed, backing);
     }
 }
 
@@ -4657,8 +4666,8 @@ BlockDriverState *bdrv_find_backing_image(BlockDriverState *bs,
         } else {
             /* If not an absolute filename path, make it relative to the current
              * image's filename path */
-            path_combine(filename_tmp, PATH_MAX, curr_bs->filename,
-                         backing_file);
+            path_combine_deprecated(filename_tmp, PATH_MAX, curr_bs->filename,
+                                    backing_file);
 
             /* We are going to compare absolute pathnames */
             if (!realpath(filename_tmp, filename_full)) {
@@ -4667,8 +4676,8 @@ BlockDriverState *bdrv_find_backing_image(BlockDriverState *bs,
 
             /* We need to make sure the backing filename we are comparing against
              * is relative to the current image filename (or absolute) */
-            path_combine(filename_tmp, PATH_MAX, curr_bs->filename,
-                         curr_bs->backing_file);
+            path_combine_deprecated(filename_tmp, PATH_MAX, curr_bs->filename,
+                                    curr_bs->backing_file);
 
             if (!realpath(filename_tmp, backing_file_full)) {
                 continue;
