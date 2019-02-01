@@ -1,5 +1,5 @@
 /*
- * ARM SSE (Subsystems for Embedded): IoTKit
+ * ARM SSE (Subsystems for Embedded): IoTKit, SSE-200
  *
  * Copyright (c) 2018 Linaro Limited
  * Written by Peter Maydell
@@ -12,9 +12,13 @@
 /*
  * This is a model of the Arm "Subsystems for Embedded" family of
  * hardware, which include the IoT Kit and the SSE-050, SSE-100 and
- * SSE-200. Currently we model only the Arm IoT Kit which is documented in
+ * SSE-200. Currently we model:
+ *  - the Arm IoT Kit which is documented in
  * http://infocenter.arm.com/help/index.jsp?topic=/com.arm.doc.ecm0601256/index.html
- * It contains:
+ *  - the SSE-200 which is documented in
+ * http://infocenter.arm.com/help/topic/com.arm.doc.101104_0100_00_en/corelink_sse200_subsystem_for_embedded_technical_reference_manual_101104_0100_00_en.pdf
+ *
+ * The IoTKit contains:
  *  a Cortex-M33
  *  the IDAU
  *  some timers and watchdogs
@@ -23,6 +27,14 @@
  *  a security controller
  *  a bus fabric which arranges that some parts of the address
  *  space are secure and non-secure aliases of each other
+ * The SSE-200 additionally contains:
+ *  a second Cortex-M33
+ *  two Message Handling Units (MHUs)
+ *  an optional CryptoCell (which we do not model)
+ *  more SRAM banks with associated MPCs
+ *  multiple Power Policy Units (PPUs)
+ *  a control interface for an icache for each CPU
+ *  per-CPU identity and control register blocks
  *
  * QEMU interface:
  *  + QOM property "memory" is a MemoryRegion containing the devices provided
@@ -93,6 +105,7 @@
  * them via the ARMSSE base class, so they have no IOTKIT() etc macros.
  */
 #define TYPE_IOTKIT "iotkit"
+#define TYPE_SSE200 "sse-200"
 
 /* We have an IRQ splitter and an OR gate input for each external PPC
  * and the 2 internal PPCs

@@ -50,6 +50,18 @@ static const ARMSSEInfo armsse_variants[] = {
         .has_cpusecctrl = false,
         .has_cpuid = false,
     },
+    {
+        .name = TYPE_SSE200,
+        .sram_banks = 4,
+        .num_cpus = 2,
+        .sys_version = 0x22041743,
+        .sys_config_format = SSE200Format,
+        .has_mhus = true,
+        .has_ppus = true,
+        .has_cachectrl = true,
+        .has_cpusecctrl = true,
+        .has_cpuid = true,
+    },
 };
 
 static uint32_t armsse_sys_config_value(ARMSSE *s, const ARMSSEInfo *info)
