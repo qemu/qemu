@@ -281,23 +281,9 @@ static bool blkverify_recurse_is_first_non_filter(BlockDriverState *bs,
     return bdrv_recurse_is_first_non_filter(s->test_file->bs, candidate);
 }
 
-static void blkverify_refresh_filename(BlockDriverState *bs, QDict *options)
+static void blkverify_refresh_filename(BlockDriverState *bs)
 {
     BDRVBlkverifyState *s = bs->opaque;
-
-    if (bs->file->bs->full_open_options
-        && s->test_file->bs->full_open_options)
-    {
-        QDict *opts = qdict_new();
-        qdict_put_str(opts, "driver", "blkverify");
-
-        qdict_put(opts, "raw",
-                  qobject_ref(bs->file->bs->full_open_options));
-        qdict_put(opts, "test",
-                  qobject_ref(s->test_file->bs->full_open_options));
-
-        bs->full_open_options = opts;
-    }
 
     if (bs->file->bs->exact_filename[0]
         && s->test_file->bs->exact_filename[0])

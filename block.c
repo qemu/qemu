@@ -5621,33 +5621,6 @@ static bool append_strong_runtime_options(QDict *d, BlockDriverState *bs)
     return found_any;
 }
 
-static bool append_open_options(QDict *d, BlockDriverState *bs)
-{
-    const QDictEntry *entry;
-    QemuOptDesc *desc;
-    bool found_any = false;
-
-    for (entry = qdict_first(bs->options); entry;
-         entry = qdict_next(bs->options, entry))
-    {
-        /* Exclude all non-driver-specific options */
-        for (desc = bdrv_runtime_opts.desc; desc->name; desc++) {
-            if (!strcmp(qdict_entry_key(entry), desc->name)) {
-                break;
-            }
-        }
-        if (desc->name) {
-            continue;
-        }
-
-        qdict_put_obj(d, qdict_entry_key(entry),
-                      qobject_ref(qdict_entry_value(entry)));
-        found_any = true;
-    }
-
-    return found_any;
-}
-
 /* Note: This function may return false positives; it may return true
  * even if opening the backing file specified by bs's image header
  * would result in exactly bs->backing. */
@@ -5681,6 +5654,8 @@ void bdrv_refresh_filename(BlockDriverState *bs)
     BdrvChild *child;
     QDict *opts;
     bool backing_overridden;
+    bool generate_json_filename; /* Whether our default implementation should
+                                    fill exact_filename (false) or not (true) */
 
     if (!drv) {
         return;
@@ -5716,90 +5691,10 @@ void bdrv_refresh_filename(BlockDriverState *bs)
         backing_overridden = false;
     }
 
-    if (drv->bdrv_refresh_filename) {
-        /* Obsolete information is of no use here, so drop the old file name
-         * information before refreshing it */
-        bs->exact_filename[0] = '\0';
-        if (bs->full_open_options) {
-            qobject_unref(bs->full_open_options);
-            bs->full_open_options = NULL;
-        }
-
-        opts = qdict_new();
-        append_open_options(opts, bs);
-        drv->bdrv_refresh_filename(bs, opts);
-        qobject_unref(opts);
-    } else if (bs->file) {
-        /* Try to reconstruct valid information from the underlying file */
-        bool has_open_options;
-
-        bs->exact_filename[0] = '\0';
-        if (bs->full_open_options) {
-            qobject_unref(bs->full_open_options);
-            bs->full_open_options = NULL;
-        }
-
-        opts = qdict_new();
-        has_open_options = append_open_options(opts, bs);
-        has_open_options |= backing_overridden;
-
-        /* If no specific options have been given for this BDS, the filename of
-         * the underlying file should suffice for this one as well */
-        if (bs->file->bs->exact_filename[0] && !has_open_options) {
-            strcpy(bs->exact_filename, bs->file->bs->exact_filename);
-        }
-        /* Reconstructing the full options QDict is simple for most format block
-         * drivers, as long as the full options are known for the underlying
-         * file BDS. The full options QDict of that file BDS should somehow
-         * contain a representation of the filename, therefore the following
-         * suffices without querying the (exact_)filename of this BDS. */
-        if (bs->file->bs->full_open_options &&
-            (!bs->backing || bs->backing->bs->full_open_options))
-        {
-            qdict_put_str(opts, "driver", drv->format_name);
-            qdict_put(opts, "file",
-                      qobject_ref(bs->file->bs->full_open_options));
-
-            if (bs->backing) {
-                qdict_put(opts, "backing",
-                          qobject_ref(bs->backing->bs->full_open_options));
-            } else if (backing_overridden) {
-                qdict_put_null(opts, "backing");
-            }
-
-            bs->full_open_options = opts;
-        } else {
-            qobject_unref(opts);
-        }
-    } else if (!bs->full_open_options && qdict_size(bs->options)) {
-        /* There is no underlying file BDS (at least referenced by BDS.file),
-         * so the full options QDict should be equal to the options given
-         * specifically for this block device when it was opened (plus the
-         * driver specification).
-         * Because those options don't change, there is no need to update
-         * full_open_options when it's already set. */
-
-        opts = qdict_new();
-        append_open_options(opts, bs);
-        qdict_put_str(opts, "driver", drv->format_name);
-
-        if (bs->exact_filename[0]) {
-            /* This may not work for all block protocol drivers (some may
-             * require this filename to be parsed), but we have to find some
-             * default solution here, so just include it. If some block driver
-             * does not support pure options without any filename at all or
-             * needs some special format of the options QDict, it needs to
-             * implement the driver-specific bdrv_refresh_filename() function.
-             */
-            qdict_put_str(opts, "filename", bs->exact_filename);
-        }
-
-        bs->full_open_options = opts;
-    }
-
     /* Gather the options QDict */
     opts = qdict_new();
-    append_strong_runtime_options(opts, bs);
+    generate_json_filename = append_strong_runtime_options(opts, bs);
+    generate_json_filename |= backing_overridden;
 
     if (drv->bdrv_gather_child_options) {
         /* Some block drivers may not want to present all of their children's
@@ -5824,6 +5719,24 @@ void bdrv_refresh_filename(BlockDriverState *bs)
 
     qobject_unref(bs->full_open_options);
     bs->full_open_options = opts;
+
+    if (drv->bdrv_refresh_filename) {
+        /* Obsolete information is of no use here, so drop the old file name
+         * information before refreshing it */
+        bs->exact_filename[0] = '\0';
+
+        drv->bdrv_refresh_filename(bs);
+    } else if (bs->file) {
+        /* Try to reconstruct valid information from the underlying file */
+
+        bs->exact_filename[0] = '\0';
+
+        /* If no specific options have been given for this BDS, the filename of
+         * the underlying file should suffice for this one as well */
+        if (bs->file->bs->exact_filename[0] && !generate_json_filename) {
+            strcpy(bs->exact_filename, bs->file->bs->exact_filename);
+        }
+    }
 
     if (bs->exact_filename[0]) {
         pstrcpy(bs->filename, sizeof(bs->filename), bs->exact_filename);

@@ -1065,35 +1065,6 @@ static void quorum_del_child(BlockDriverState *bs, BdrvChild *child,
     bdrv_drained_end(bs);
 }
 
-static void quorum_refresh_filename(BlockDriverState *bs, QDict *options)
-{
-    BDRVQuorumState *s = bs->opaque;
-    QDict *opts;
-    QList *children;
-    int i;
-
-    for (i = 0; i < s->num_children; i++) {
-        if (!s->children[i]->bs->full_open_options) {
-            return;
-        }
-    }
-
-    children = qlist_new();
-    for (i = 0; i < s->num_children; i++) {
-        qlist_append(children,
-                     qobject_ref(s->children[i]->bs->full_open_options));
-    }
-
-    opts = qdict_new();
-    qdict_put_str(opts, "driver", "quorum");
-    qdict_put_int(opts, QUORUM_OPT_VOTE_THRESHOLD, s->threshold);
-    qdict_put_bool(opts, QUORUM_OPT_BLKVERIFY, s->is_blkverify);
-    qdict_put_bool(opts, QUORUM_OPT_REWRITE, s->rewrite_corrupted);
-    qdict_put(opts, "children", children);
-
-    bs->full_open_options = opts;
-}
-
 static void quorum_gather_child_options(BlockDriverState *bs, QDict *target,
                                         bool backing_overridden)
 {
@@ -1159,7 +1130,6 @@ static BlockDriver bdrv_quorum = {
 
     .bdrv_open                          = quorum_open,
     .bdrv_close                         = quorum_close,
-    .bdrv_refresh_filename              = quorum_refresh_filename,
     .bdrv_gather_child_options          = quorum_gather_child_options,
     .bdrv_dirname                       = quorum_dirname,
 

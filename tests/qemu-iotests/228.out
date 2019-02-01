@@ -74,7 +74,7 @@ bs->backing: (none)
 {"execute": "blockdev-snapshot", "arguments": {"node": "original-backing", "overlay": "node0"}}
 {"return": {}}
 
-bs->filename: json:{"driver": "IMGFMT", "file": {"driver": "file", "filename": "TEST_DIR/PID-top.img"}}
+bs->filename: TEST_DIR/PID-top.img
 bs->backing_file: TEST_DIR/PID-base.img
 bs->backing->bs->filename: TEST_DIR/PID-base.img
 

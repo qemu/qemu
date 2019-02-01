@@ -799,14 +799,9 @@ static int nfs_reopen_prepare(BDRVReopenState *state,
     return 0;
 }
 
-static void nfs_refresh_filename(BlockDriverState *bs, QDict *options)
+static void nfs_refresh_filename(BlockDriverState *bs)
 {
     NFSClient *client = bs->opaque;
-    QDict *opts = qdict_new();
-    QObject *server_qdict;
-    Visitor *ov;
-
-    qdict_put_str(opts, "driver", "nfs");
 
     if (client->uid && !client->gid) {
         snprintf(bs->exact_filename, sizeof(bs->exact_filename),
@@ -824,35 +819,6 @@ static void nfs_refresh_filename(BlockDriverState *bs, QDict *options)
         snprintf(bs->exact_filename, sizeof(bs->exact_filename),
                  "nfs://%s%s", client->server->host, client->path);
     }
-
-    ov = qobject_output_visitor_new(&server_qdict);
-    visit_type_NFSServer(ov, NULL, &client->server, &error_abort);
-    visit_complete(ov, &server_qdict);
-    qdict_put_obj(opts, "server", server_qdict);
-    qdict_put_str(opts, "path", client->path);
-
-    if (client->uid) {
-        qdict_put_int(opts, "user", client->uid);
-    }
-    if (client->gid) {
-        qdict_put_int(opts, "group", client->gid);
-    }
-    if (client->tcp_syncnt) {
-        qdict_put_int(opts, "tcp-syn-cnt", client->tcp_syncnt);
-    }
-    if (client->readahead) {
-        qdict_put_int(opts, "readahead-size", client->readahead);
-    }
-    if (client->pagecache) {
-        qdict_put_int(opts, "page-cache-size", client->pagecache);
-    }
-    if (client->debug) {
-        qdict_put_int(opts, "debug", client->debug);
-    }
-
-    visit_free(ov);
-    qdict_flatten(opts);
-    bs->full_open_options = opts;
 }
 
 static char *nfs_dirname(BlockDriverState *bs, Error **errp)

@@ -280,27 +280,6 @@ static int64_t blk_log_writes_getlength(BlockDriverState *bs)
     return bdrv_getlength(bs->file->bs);
 }
 
-static void blk_log_writes_refresh_filename(BlockDriverState *bs,
-                                            QDict *options)
-{
-    BDRVBlkLogWritesState *s = bs->opaque;
-
-    if (bs->file->bs->full_open_options
-        && s->log_file->bs->full_open_options)
-    {
-        QDict *opts = qdict_new();
-        qdict_put_str(opts, "driver", "blklogwrites");
-
-        qobject_ref(bs->file->bs->full_open_options);
-        qdict_put(opts, "file", bs->file->bs->full_open_options);
-        qobject_ref(s->log_file->bs->full_open_options);
-        qdict_put(opts, "log", s->log_file->bs->full_open_options);
-        qdict_put_int(opts, "log-sector-size", s->sectorsize);
-
-        bs->full_open_options = opts;
-    }
-}
-
 static void blk_log_writes_child_perm(BlockDriverState *bs, BdrvChild *c,
                                       const BdrvChildRole *role,
                                       BlockReopenQueue *ro_q,
@@ -531,7 +510,6 @@ static BlockDriver bdrv_blk_log_writes = {
     .bdrv_open              = blk_log_writes_open,
     .bdrv_close             = blk_log_writes_close,
     .bdrv_getlength         = blk_log_writes_getlength,
-    .bdrv_refresh_filename  = blk_log_writes_refresh_filename,
     .bdrv_child_perm        = blk_log_writes_child_perm,
     .bdrv_refresh_limits    = blk_log_writes_refresh_limits,
 

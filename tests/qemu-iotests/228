@@ -230,10 +230,6 @@ with iotests.FilePath('base.img') as base_img_path, \
                overlay='node0')
 
     # This should give us the original plain result
-    # FIXME: Currently, it yields a json:{} filename even though it
-    #        only contains a @driver and a @file entry, so a plain
-    #        filename would obviously suffice.  This is fixed by a
-    #        future patch.
 
     log_node_info(vm.node_info('node0'))
 
