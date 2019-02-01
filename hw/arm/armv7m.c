@@ -182,6 +182,14 @@ static void armv7m_realize(DeviceState *dev, Error **errp)
             return;
         }
     }
+    if (object_property_find(OBJECT(s->cpu), "start-powered-off", NULL)) {
+        object_property_set_bool(OBJECT(s->cpu), s->start_powered_off,
+                                 "start-powered-off", &err);
+        if (err != NULL) {
+            error_propagate(errp, err);
+            return;
+        }
+    }
 
     /*
      * Tell the CPU where the NVIC is; it will fail realize if it doesn't
@@ -250,6 +258,8 @@ static Property armv7m_properties[] = {
     DEFINE_PROP_LINK("idau", ARMv7MState, idau, TYPE_IDAU_INTERFACE, Object *),
     DEFINE_PROP_UINT32("init-svtor", ARMv7MState, init_svtor, 0),
     DEFINE_PROP_BOOL("enable-bitband", ARMv7MState, enable_bitband, false),
+    DEFINE_PROP_BOOL("start-powered-off", ARMv7MState, start_powered_off,
+                     false),
     DEFINE_PROP_END_OF_LIST(),
 };
 

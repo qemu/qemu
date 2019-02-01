@@ -65,6 +65,7 @@ typedef struct ARMv7MState {
     Object *idau;
     uint32_t init_svtor;
     bool enable_bitband;
+    bool start_powered_off;
 } ARMv7MState;
 
 #endif
