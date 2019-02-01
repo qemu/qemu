@@ -60,7 +60,8 @@ echo '=== Non-reconstructable filename ==='
 echo
 
 # Across blkdebug without a config file, you cannot reconstruct filenames, so
-# qemu is incapable of knowing the directory of the top image
+# qemu is incapable of knowing the directory of the top image from the filename
+# alone. However, using bdrv_dirname(), it should still work.
 TEST_IMG="json:{
     'driver': '$IMGFMT',
     'file': {
