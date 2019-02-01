@@ -17,14 +17,9 @@ common-obj-$(call lnot,$(CONFIG_VNC)) += vnc-stubs.o
 
 # ui-sdl module
 common-obj-$(CONFIG_SDL) += sdl.mo
-ifeq ($(CONFIG_SDLABI),1.2)
-sdl.mo-objs := sdl.o sdl_zoom.o
-endif
-ifeq ($(CONFIG_SDLABI),2.0)
 sdl.mo-objs := sdl2.o sdl2-input.o sdl2-2d.o
 ifeq ($(CONFIG_OPENGL),y)
 sdl.mo-objs += sdl2-gl.o
-endif
 endif
 sdl.mo-cflags := $(SDL_CFLAGS)
 sdl.mo-libs := $(SDL_LIBS)

@@ -348,7 +348,6 @@ docs=""
 fdt=""
 netmap="no"
 sdl=""
-sdlabi=""
 sdl_image=""
 virtfs=""
 mpath=""
@@ -577,7 +576,6 @@ query_pkg_config() {
     "${pkg_config_exe}" ${QEMU_PKG_CONFIG_FLAGS} "$@"
 }
 pkg_config=query_pkg_config
-sdl_config="${SDL_CONFIG-${cross_prefix}sdl-config}"
 sdl2_config="${SDL2_CONFIG-${cross_prefix}sdl2-config}"
 
 # If the user hasn't specified ARFLAGS, default to 'rv', just as make does.
@@ -1043,8 +1041,6 @@ for opt do
   --disable-sdl) sdl="no"
   ;;
   --enable-sdl) sdl="yes"
-  ;;
-  --with-sdlabi=*) sdlabi="$optarg"
   ;;
   --disable-sdl-image) sdl_image="no"
   ;;
@@ -1711,7 +1707,6 @@ disabled with --disable-FEATURE, default is enabled if available:
   nettle          nettle cryptography support
   gcrypt          libgcrypt cryptography support
   sdl             SDL UI
-  --with-sdlabi     select preferred SDL ABI 1.2 or 2.0
   sdl_image       SDL Image support for icons
   gtk             gtk UI
   vte             vte support for the gtk UI
@@ -2927,37 +2922,11 @@ fi
 
 sdl_probe ()
 {
-  sdl_too_old=no
-  if test "$sdlabi" = ""; then
-      if $pkg_config --exists "sdl2"; then
-          sdlabi=2.0
-      elif $pkg_config --exists "sdl"; then
-          sdlabi=1.2
-      else
-          sdlabi=2.0
-      fi
-  fi
-
-  if test $sdlabi = "2.0"; then
-      sdl_config=$sdl2_config
-      sdlname=sdl2
-      sdlconfigname=sdl2_config
-  elif test $sdlabi = "1.2"; then
-      sdlname=sdl
-      sdlconfigname=sdl_config
-  else
-      error_exit "Unknown sdlabi $sdlabi, must be 1.2 or 2.0"
-  fi
-
-  if test "$(basename $sdl_config)" != $sdlconfigname && ! has ${sdl_config}; then
-    sdl_config=$sdlconfigname
-  fi
-
-  if $pkg_config $sdlname --exists; then
-    sdlconfig="$pkg_config $sdlname"
+  if $pkg_config sdl2 --exists; then
+    sdlconfig="$pkg_config sdl2"
     sdlversion=$($sdlconfig --modversion 2>/dev/null)
   elif has ${sdl_config}; then
-    sdlconfig="$sdl_config"
+    sdlconfig="$sdl2_config"
     sdlversion=$($sdlconfig --version)
   else
     if test "$sdl" = "yes" ; then
@@ -2979,8 +2948,8 @@ EOF
   sdl_cflags=$($sdlconfig --cflags 2>/dev/null)
   sdl_cflags="$sdl_cflags -Wno-undef"  # workaround 2.0.8 bug
   if test "$static" = "yes" ; then
-    if $pkg_config $sdlname --exists; then
-      sdl_libs=$($pkg_config $sdlname --static --libs 2>/dev/null)
+    if $pkg_config sdl2 --exists; then
+      sdl_libs=$($pkg_config sdl2 --static --libs 2>/dev/null)
     else
       sdl_libs=$($sdlconfig --static-libs 2>/dev/null)
     fi
@@ -2988,11 +2957,7 @@ EOF
     sdl_libs=$($sdlconfig --libs 2>/dev/null)
   fi
   if compile_prog "$sdl_cflags" "$sdl_libs" ; then
-    if test $(echo $sdlversion | sed 's/[^0-9]//g') -lt 121 ; then
-      sdl_too_old=yes
-    else
-      sdl=yes
-    fi
+    sdl=yes
 
     # static link with sdl ? (note: sdl.pc's --static --libs is broken)
     if test "$sdl" = "yes" -a "$static" = "yes" ; then
@@ -3008,7 +2973,7 @@ EOF
     fi # static link
   else # sdl not found
     if test "$sdl" = "yes" ; then
-      feature_not_found "sdl" "Install SDL devel"
+      feature_not_found "sdl" "Install SDL2 devel"
     fi
     sdl=no
   fi # sdl compile test
@@ -4045,6 +4010,16 @@ EOF
   if compile_prog "" "" ; then
     opengl_dmabuf=yes
   fi
+fi
+
+if test "$opengl" = "yes" -a "$have_x11" = "yes"; then
+  for target in $target_list; do
+    case $target in
+      lm32-softmmu) # milkymist-tmu2 requires X11 and OpenGL
+        need_x11=yes
+      ;;
+    esac
+  done
 fi
 
 ##########################################
@@ -6221,16 +6196,6 @@ echo "docker            $docker"
 echo "libpmem support   $libpmem"
 echo "libudev           $libudev"
 
-if test "$sdl_too_old" = "yes"; then
-echo "-> Your SDL version is too old - please upgrade to have SDL support"
-fi
-
-if test "$sdlabi" = "1.2"; then
-    echo
-    echo "WARNING: Use of SDL 1.2 is deprecated and will be removed in"
-    echo "WARNING: future releases. Please switch to using SDL 2.0"
-fi
-
 if test "$supported_cpu" = "no"; then
     echo
     echo "WARNING: SUPPORT FOR THIS HOST CPU WILL GO AWAY IN FUTURE RELEASES!"
@@ -6435,7 +6400,6 @@ if test "$have_x11" = "yes" -a "$need_x11" = "yes"; then
 fi
 if test "$sdl" = "yes" ; then
   echo "CONFIG_SDL=m" >> $config_host_mak
-  echo "CONFIG_SDLABI=$sdlabi" >> $config_host_mak
   echo "SDL_CFLAGS=$sdl_cflags" >> $config_host_mak
   echo "SDL_LIBS=$sdl_libs" >> $config_host_mak
   if test "$sdl_image" = "yes" ; then
