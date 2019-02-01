@@ -14,6 +14,8 @@
  * Arm IoTKit and documented in
  * http://infocenter.arm.com/help/index.jsp?topic=/com.arm.doc.ecm0601256/index.html
  * QEMU interface:
+ *  + QOM property "SYS_VERSION": value to use for SYS_VERSION register
+ *  + QOM property "SYS_CONFIG": value to use for SYS_CONFIG register
  *  + sysbus MMIO region 0: the system information register bank
  */
 
@@ -32,6 +34,10 @@ typedef struct IoTKitSysInfo {
 
     /*< public >*/
     MemoryRegion iomem;
+
+    /* Properties */
+    uint32_t sys_version;
+    uint32_t sys_config;
 } IoTKitSysInfo;
 
 #endif

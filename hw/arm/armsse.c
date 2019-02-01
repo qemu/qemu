@@ -18,10 +18,18 @@
 #include "hw/arm/armsse.h"
 #include "hw/arm/arm.h"
 
+/* Format of the System Information block SYS_CONFIG register */
+typedef enum SysConfigFormat {
+    IoTKitFormat,
+    SSE200Format,
+} SysConfigFormat;
+
 struct ARMSSEInfo {
     const char *name;
     int sram_banks;
     int num_cpus;
+    uint32_t sys_version;
+    SysConfigFormat sys_config_format;
 };
 
 static const ARMSSEInfo armsse_variants[] = {
@@ -29,8 +37,38 @@ static const ARMSSEInfo armsse_variants[] = {
         .name = TYPE_IOTKIT,
         .sram_banks = 1,
         .num_cpus = 1,
+        .sys_version = 0x41743,
+        .sys_config_format = IoTKitFormat,
     },
 };
+
+static uint32_t armsse_sys_config_value(ARMSSE *s, const ARMSSEInfo *info)
+{
+    /* Return the SYS_CONFIG value for this SSE */
+    uint32_t sys_config;
+
+    switch (info->sys_config_format) {
+    case IoTKitFormat:
+        sys_config = 0;
+        sys_config = deposit32(sys_config, 0, 4, info->sram_banks);
+        sys_config = deposit32(sys_config, 4, 4, s->sram_addr_width - 12);
+        break;
+    case SSE200Format:
+        sys_config = 0;
+        sys_config = deposit32(sys_config, 0, 4, info->sram_banks);
+        sys_config = deposit32(sys_config, 4, 5, s->sram_addr_width);
+        sys_config = deposit32(sys_config, 24, 4, 2);
+        if (info->num_cpus > 1) {
+            sys_config = deposit32(sys_config, 10, 1, 1);
+            sys_config = deposit32(sys_config, 20, 4, info->sram_banks - 1);
+            sys_config = deposit32(sys_config, 28, 4, 2);
+        }
+        break;
+    default:
+        g_assert_not_reached();
+    }
+    return sys_config;
+}
 
 /* Clock frequency in HZ of the 32KHz "slow clock" */
 #define S32KCLK (32 * 1000)
@@ -726,6 +764,19 @@ static void armsse_realize(DeviceState *dev, Error **errp)
                           qdev_get_gpio_in_named(dev_apb_ppc1,
                                                  "cfg_sec_resp", 0));
 
+    object_property_set_int(OBJECT(&s->sysinfo), info->sys_version,
+                            "SYS_VERSION", &err);
+    if (err) {
+        error_propagate(errp, err);
+        return;
+    }
+    object_property_set_int(OBJECT(&s->sysinfo),
+                            armsse_sys_config_value(s, info),
+                            "SYS_CONFIG", &err);
+    if (err) {
+        error_propagate(errp, err);
+        return;
+    }
     object_property_set_bool(OBJECT(&s->sysinfo), true, "realized", &err);
     if (err) {
         error_propagate(errp, err);
