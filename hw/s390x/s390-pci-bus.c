@@ -1253,6 +1253,15 @@ static Property s390_pci_device_properties[] = {
     DEFINE_PROP_END_OF_LIST(),
 };
 
+static const VMStateDescription s390_pci_device_vmstate = {
+    .name = TYPE_S390_PCI_DEVICE,
+    /*
+     * TODO: add state handling here, so migration works at least with
+     * emulated pci devices on s390x
+     */
+    .unmigratable = 1,
+};
+
 static void s390_pci_device_class_init(ObjectClass *klass, void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
@@ -1263,6 +1272,7 @@ static void s390_pci_device_class_init(ObjectClass *klass, void *data)
     dc->bus_type = TYPE_S390_PCI_BUS;
     dc->realize = s390_pci_device_realize;
     dc->props = s390_pci_device_properties;
+    dc->vmsd = &s390_pci_device_vmstate;
 }
 
 static const TypeInfo s390_pci_device_info = {
