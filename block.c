@@ -5535,6 +5535,92 @@ out:
     return to_replace_bs;
 }
 
+/**
+ * Iterates through the list of runtime option keys that are said to
+ * be "strong" for a BDS.  An option is called "strong" if it changes
+ * a BDS's data.  For example, the null block driver's "size" and
+ * "read-zeroes" options are strong, but its "latency-ns" option is
+ * not.
+ *
+ * If a key returned by this function ends with a dot, all options
+ * starting with that prefix are strong.
+ */
+static const char *const *strong_options(BlockDriverState *bs,
+                                         const char *const *curopt)
+{
+    static const char *const global_options[] = {
+        "driver", "filename", NULL
+    };
+
+    if (!curopt) {
+        return &global_options[0];
+    }
+
+    curopt++;
+    if (curopt == &global_options[ARRAY_SIZE(global_options) - 1] && bs->drv) {
+        curopt = bs->drv->strong_runtime_opts;
+    }
+
+    return (curopt && *curopt) ? curopt : NULL;
+}
+
+/**
+ * Copies all strong runtime options from bs->options to the given
+ * QDict.  The set of strong option keys is determined by invoking
+ * strong_options().
+ *
+ * Returns true iff any strong option was present in bs->options (and
+ * thus copied to the target QDict) with the exception of "filename"
+ * and "driver".  The caller is expected to use this value to decide
+ * whether the existence of strong options prevents the generation of
+ * a plain filename.
+ */
+static bool append_strong_runtime_options(QDict *d, BlockDriverState *bs)
+{
+    bool found_any = false;
+    const char *const *option_name = NULL;
+
+    if (!bs->drv) {
+        return false;
+    }
+
+    while ((option_name = strong_options(bs, option_name))) {
+        bool option_given = false;
+
+        assert(strlen(*option_name) > 0);
+        if ((*option_name)[strlen(*option_name) - 1] != '.') {
+            QObject *entry = qdict_get(bs->options, *option_name);
+            if (!entry) {
+                continue;
+            }
+
+            qdict_put_obj(d, *option_name, qobject_ref(entry));
+            option_given = true;
+        } else {
+            const QDictEntry *entry;
+            for (entry = qdict_first(bs->options); entry;
+                 entry = qdict_next(bs->options, entry))
+            {
+                if (strstart(qdict_entry_key(entry), *option_name, NULL)) {
+                    qdict_put_obj(d, qdict_entry_key(entry),
+                                  qobject_ref(qdict_entry_value(entry)));
+                    option_given = true;
+                }
+            }
+        }
+
+        /* While "driver" and "filename" need to be included in a JSON filename,
+         * their existence does not prohibit generation of a plain filename. */
+        if (!found_any && option_given &&
+            strcmp(*option_name, "driver") && strcmp(*option_name, "filename"))
+        {
+            found_any = true;
+        }
+    }
+
+    return found_any;
+}
+
 static bool append_open_options(QDict *d, BlockDriverState *bs)
 {
     const QDictEntry *entry;
@@ -5711,9 +5797,37 @@ void bdrv_refresh_filename(BlockDriverState *bs)
         bs->full_open_options = opts;
     }
 
+    /* Gather the options QDict */
+    opts = qdict_new();
+    append_strong_runtime_options(opts, bs);
+
+    if (drv->bdrv_gather_child_options) {
+        /* Some block drivers may not want to present all of their children's
+         * options, or name them differently from BdrvChild.name */
+        drv->bdrv_gather_child_options(bs, opts, backing_overridden);
+    } else {
+        QLIST_FOREACH(child, &bs->children, next) {
+            if (child->role == &child_backing && !backing_overridden) {
+                /* We can skip the backing BDS if it has not been overridden */
+                continue;
+            }
+
+            qdict_put(opts, child->name,
+                      qobject_ref(child->bs->full_open_options));
+        }
+
+        if (backing_overridden && !bs->backing) {
+            /* Force no backing file */
+            qdict_put_null(opts, "backing");
+        }
+    }
+
+    qobject_unref(bs->full_open_options);
+    bs->full_open_options = opts;
+
     if (bs->exact_filename[0]) {
         pstrcpy(bs->filename, sizeof(bs->filename), bs->exact_filename);
-    } else if (bs->full_open_options) {
+    } else {
         QString *json = qobject_to_json(QOBJECT(bs->full_open_options));
         snprintf(bs->filename, sizeof(bs->filename), "json:%s",
                  qstring_get_str(json));
