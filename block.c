@@ -5618,6 +5618,12 @@ static bool append_strong_runtime_options(QDict *d, BlockDriverState *bs)
         }
     }
 
+    if (!qdict_haskey(d, "driver")) {
+        /* Drivers created with bdrv_new_open_driver() may not have a
+         * @driver option.  Add it here. */
+        qdict_put_str(d, "driver", bs->drv->format_name);
+    }
+
     return found_any;
 }
 
