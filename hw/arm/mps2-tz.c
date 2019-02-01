@@ -46,7 +46,7 @@
 #include "hw/misc/mps2-fpgaio.h"
 #include "hw/misc/tz-mpc.h"
 #include "hw/misc/tz-msc.h"
-#include "hw/arm/iotkit.h"
+#include "hw/arm/armsse.h"
 #include "hw/dma/pl080.h"
 #include "hw/ssi/pl022.h"
 #include "hw/devices.h"

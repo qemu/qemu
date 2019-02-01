@@ -15,7 +15,7 @@
 #include "trace.h"
 #include "hw/sysbus.h"
 #include "hw/registerfields.h"
-#include "hw/arm/iotkit.h"
+#include "hw/arm/armsse.h"
 #include "hw/arm/arm.h"
 
 struct ARMSSEInfo {

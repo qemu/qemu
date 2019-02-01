@@ -58,8 +58,8 @@
  *  + named GPIO outputs mscexp_ns[0..15]
  */
 
-#ifndef IOTKIT_H
-#define IOTKIT_H
+#ifndef ARMSSE_H
+#define ARMSSE_H
 
 #include "hw/sysbus.h"
 #include "hw/arm/armv7m.h"
