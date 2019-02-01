@@ -281,38 +281,6 @@ static void cpu_max_set_sve_vq(Object *obj, Visitor *v, const char *name,
     error_propagate(errp, err);
 }
 
-#ifdef CONFIG_USER_ONLY
-static void cpu_max_get_packey(Object *obj, Visitor *v, const char *name,
-                               void *opaque, Error **errp)
-{
-    ARMCPU *cpu = ARM_CPU(obj);
-    const uint64_t *bit = opaque;
-    bool enabled = (cpu->env.cp15.sctlr_el[1] & *bit) != 0;
-
-    visit_type_bool(v, name, &enabled, errp);
-}
-
-static void cpu_max_set_packey(Object *obj, Visitor *v, const char *name,
-                               void *opaque, Error **errp)
-{
-    ARMCPU *cpu = ARM_CPU(obj);
-    Error *err = NULL;
-    const uint64_t *bit = opaque;
-    bool enabled;
-
-    visit_type_bool(v, name, &enabled, errp);
-
-    if (!err) {
-        if (enabled) {
-            cpu->env.cp15.sctlr_el[1] |= *bit;
-        } else {
-            cpu->env.cp15.sctlr_el[1] &= ~*bit;
-        }
-    }
-    error_propagate(errp, err);
-}
-#endif
-
 /* -cpu max: if KVM is enabled, like -cpu host (best possible with this host);
  * otherwise, a CPU with as many features enabled as our emulation supports.
  * The version of '-cpu max' for qemu-system-arm is defined in cpu.c;
@@ -388,34 +356,6 @@ static void aarch64_max_initfn(Object *obj)
          */
         cpu->ctr = 0x80038003; /* 32 byte I and D cacheline size, VIPT icache */
         cpu->dcz_blocksize = 7; /*  512 bytes */
-
-        /*
-         * Note that Linux will enable enable all of the keys at once.
-         * But doing it this way will allow experimentation beyond that.
-         */
-        {
-            static const uint64_t apia_bit = SCTLR_EnIA;
-            static const uint64_t apib_bit = SCTLR_EnIB;
-            static const uint64_t apda_bit = SCTLR_EnDA;
-            static const uint64_t apdb_bit = SCTLR_EnDB;
-
-            object_property_add(obj, "apia", "bool", cpu_max_get_packey,
-                                cpu_max_set_packey, NULL,
-                                (void *)&apia_bit, &error_fatal);
-            object_property_add(obj, "apib", "bool", cpu_max_get_packey,
-                                cpu_max_set_packey, NULL,
-                                (void *)&apib_bit, &error_fatal);
-            object_property_add(obj, "apda", "bool", cpu_max_get_packey,
-                                cpu_max_set_packey, NULL,
-                                (void *)&apda_bit, &error_fatal);
-            object_property_add(obj, "apdb", "bool", cpu_max_get_packey,
-                                cpu_max_set_packey, NULL,
-                                (void *)&apdb_bit, &error_fatal);
-
-            /* Enable all PAC keys by default.  */
-            cpu->env.cp15.sctlr_el[1] |= SCTLR_EnIA | SCTLR_EnIB;
-            cpu->env.cp15.sctlr_el[1] |= SCTLR_EnDA | SCTLR_EnDB;
-        }
 #endif
 
         cpu->sve_max_vq = ARM_MAX_VQ;
@@ -480,20 +420,6 @@ static void aarch64_cpu_finalizefn(Object *obj)
 {
 }
 
-static void aarch64_cpu_set_pc(CPUState *cs, vaddr value)
-{
-    ARMCPU *cpu = ARM_CPU(cs);
-    /* It's OK to look at env for the current mode here, because it's
-     * never possible for an AArch64 TB to chain to an AArch32 TB.
-     * (Otherwise we would need to use synchronize_from_tb instead.)
-     */
-    if (is_a64(&cpu->env)) {
-        cpu->env.pc = value;
-    } else {
-        cpu->env.regs[15] = value;
-    }
-}
-
 static gchar *aarch64_gdb_arch_name(CPUState *cs)
 {
     return g_strdup("aarch64");
@@ -504,7 +430,6 @@ static void aarch64_cpu_class_init(ObjectClass *oc, void *data)
     CPUClass *cc = CPU_CLASS(oc);
 
     cc->cpu_exec_interrupt = arm_cpu_exec_interrupt;
-    cc->set_pc = aarch64_cpu_set_pc;
     cc->gdb_read_register = aarch64_cpu_gdb_read_register;
     cc->gdb_write_register = aarch64_cpu_gdb_write_register;
     cc->gdb_num_core_regs = 34;

@@ -158,7 +158,12 @@ static void armv7m_realize(DeviceState *dev, Error **errp)
 
     memory_region_add_subregion_overlap(&s->container, 0, s->board_memory, -1);
 
-    s->cpu = ARM_CPU(object_new(s->cpu_type));
+    s->cpu = ARM_CPU(object_new_with_props(s->cpu_type, OBJECT(s), "cpu",
+                                           &err, NULL));
+    if (err != NULL) {
+        error_propagate(errp, err);
+        return;
+    }
 
     object_property_set_link(OBJECT(s->cpu), OBJECT(&s->container), "memory",
                              &error_abort);
@@ -177,11 +182,21 @@ static void armv7m_realize(DeviceState *dev, Error **errp)
             return;
         }
     }
+    if (object_property_find(OBJECT(s->cpu), "start-powered-off", NULL)) {
+        object_property_set_bool(OBJECT(s->cpu), s->start_powered_off,
+                                 "start-powered-off", &err);
+        if (err != NULL) {
+            error_propagate(errp, err);
+            return;
+        }
+    }
 
-    /* Tell the CPU where the NVIC is; it will fail realize if it doesn't
-     * have one.
+    /*
+     * Tell the CPU where the NVIC is; it will fail realize if it doesn't
+     * have one. Similarly, tell the NVIC where its CPU is.
      */
     s->cpu->env.nvic = &s->nvic;
+    s->nvic.cpu = s->cpu;
 
     object_property_set_bool(OBJECT(s->cpu), true, "realized", &err);
     if (err != NULL) {
@@ -243,6 +258,8 @@ static Property armv7m_properties[] = {
     DEFINE_PROP_LINK("idau", ARMv7MState, idau, TYPE_IDAU_INTERFACE, Object *),
     DEFINE_PROP_UINT32("init-svtor", ARMv7MState, init_svtor, 0),
     DEFINE_PROP_BOOL("enable-bitband", ARMv7MState, enable_bitband, false),
+    DEFINE_PROP_BOOL("start-powered-off", ARMv7MState, start_powered_off,
+                     false),
     DEFINE_PROP_END_OF_LIST(),
 };
 

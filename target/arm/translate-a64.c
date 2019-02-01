@@ -2036,7 +2036,7 @@ static void disas_uncond_b_reg(DisasContext *s, uint32_t insn)
         if (!dc_isar_feature(aa64_pauth, s)) {
             goto do_unallocated;
         }
-        if (op3 != 2 || op3 != 3) {
+        if ((op3 & ~1) != 2) {
             goto do_unallocated;
         }
         if (s->pauth_active) {
@@ -2144,7 +2144,11 @@ static void disas_b_exc_sys(DisasContext *s, uint32_t insn)
         break;
     case 0x6a: /* Exception generation / System */
         if (insn & (1 << 24)) {
-            disas_system(s, insn);
+            if (extract32(insn, 22, 2) == 0) {
+                disas_system(s, insn);
+            } else {
+                unallocated_encoding(s);
+            }
         } else {
             disas_exc(s, insn);
         }
@@ -2799,7 +2803,7 @@ static void disas_ldst_reg_imm9(DisasContext *s, uint32_t insn,
     } else {
         if (size == 3 && opc == 2) {
             /* PRFM - prefetch */
-            if (is_unpriv) {
+            if (idx != 0) {
                 unallocated_encoding(s);
                 return;
             }
@@ -3245,6 +3249,7 @@ static void disas_ldst_multiple_struct(DisasContext *s, uint32_t insn)
 {
     int rt = extract32(insn, 0, 5);
     int rn = extract32(insn, 5, 5);
+    int rm = extract32(insn, 16, 5);
     int size = extract32(insn, 10, 2);
     int opcode = extract32(insn, 12, 4);
     bool is_store = !extract32(insn, 22, 1);
@@ -3260,6 +3265,11 @@ static void disas_ldst_multiple_struct(DisasContext *s, uint32_t insn)
     int r;
 
     if (extract32(insn, 31, 1) || extract32(insn, 21, 1)) {
+        unallocated_encoding(s);
+        return;
+    }
+
+    if (!is_postidx && rm != 0) {
         unallocated_encoding(s);
         return;
     }
@@ -3363,7 +3373,6 @@ static void disas_ldst_multiple_struct(DisasContext *s, uint32_t insn)
     }
 
     if (is_postidx) {
-        int rm = extract32(insn, 16, 5);
         if (rm == 31) {
             tcg_gen_mov_i64(tcg_rn, tcg_addr);
         } else {
@@ -3400,6 +3409,7 @@ static void disas_ldst_single_struct(DisasContext *s, uint32_t insn)
 {
     int rt = extract32(insn, 0, 5);
     int rn = extract32(insn, 5, 5);
+    int rm = extract32(insn, 16, 5);
     int size = extract32(insn, 10, 2);
     int S = extract32(insn, 12, 1);
     int opc = extract32(insn, 13, 3);
@@ -3414,6 +3424,15 @@ static void disas_ldst_single_struct(DisasContext *s, uint32_t insn)
     int index = is_q << 3 | S << 2 | size;
     int ebytes, xs;
     TCGv_i64 tcg_addr, tcg_rn, tcg_ebytes;
+
+    if (extract32(insn, 31, 1)) {
+        unallocated_encoding(s);
+        return;
+    }
+    if (!is_postidx && rm != 0) {
+        unallocated_encoding(s);
+        return;
+    }
 
     switch (scale) {
     case 3:
@@ -3492,7 +3511,6 @@ static void disas_ldst_single_struct(DisasContext *s, uint32_t insn)
     }
 
     if (is_postidx) {
-        int rm = extract32(insn, 16, 5);
         if (rm == 31) {
             tcg_gen_mov_i64(tcg_rn, tcg_addr);
         } else {
@@ -4183,6 +4201,7 @@ static void disas_add_sub_ext_reg(DisasContext *s, uint32_t insn)
     int imm3 = extract32(insn, 10, 3);
     int option = extract32(insn, 13, 3);
     int rm = extract32(insn, 16, 5);
+    int opt = extract32(insn, 22, 2);
     bool setflags = extract32(insn, 29, 1);
     bool sub_op = extract32(insn, 30, 1);
     bool sf = extract32(insn, 31, 1);
@@ -4191,7 +4210,7 @@ static void disas_add_sub_ext_reg(DisasContext *s, uint32_t insn)
     TCGv_i64 tcg_rd;
     TCGv_i64 tcg_result;
 
-    if (imm3 > 4) {
+    if (imm3 > 4 || opt != 0) {
         unallocated_encoding(s);
         return;
     }
@@ -5617,10 +5636,16 @@ static void handle_fp_fcvt(DisasContext *s, int opcode,
  */
 static void disas_fp_1src(DisasContext *s, uint32_t insn)
 {
+    int mos = extract32(insn, 29, 3);
     int type = extract32(insn, 22, 2);
     int opcode = extract32(insn, 15, 6);
     int rn = extract32(insn, 5, 5);
     int rd = extract32(insn, 0, 5);
+
+    if (mos) {
+        unallocated_encoding(s);
+        return;
+    }
 
     switch (opcode) {
     case 0x4: case 0x5: case 0x7:
@@ -5848,13 +5873,14 @@ static void handle_fp_2src_half(DisasContext *s, int opcode,
  */
 static void disas_fp_2src(DisasContext *s, uint32_t insn)
 {
+    int mos = extract32(insn, 29, 3);
     int type = extract32(insn, 22, 2);
     int rd = extract32(insn, 0, 5);
     int rn = extract32(insn, 5, 5);
     int rm = extract32(insn, 16, 5);
     int opcode = extract32(insn, 12, 4);
 
-    if (opcode > 8) {
+    if (opcode > 8 || mos) {
         unallocated_encoding(s);
         return;
     }
@@ -6009,6 +6035,7 @@ static void handle_fp_3src_half(DisasContext *s, bool o0, bool o1,
  */
 static void disas_fp_3src(DisasContext *s, uint32_t insn)
 {
+    int mos = extract32(insn, 29, 3);
     int type = extract32(insn, 22, 2);
     int rd = extract32(insn, 0, 5);
     int rn = extract32(insn, 5, 5);
@@ -6016,6 +6043,11 @@ static void disas_fp_3src(DisasContext *s, uint32_t insn)
     int rm = extract32(insn, 16, 5);
     bool o0 = extract32(insn, 15, 1);
     bool o1 = extract32(insn, 21, 1);
+
+    if (mos) {
+        unallocated_encoding(s);
+        return;
+    }
 
     switch (type) {
     case 0:
@@ -6086,11 +6118,18 @@ uint64_t vfp_expand_imm(int size, uint8_t imm8)
 static void disas_fp_imm(DisasContext *s, uint32_t insn)
 {
     int rd = extract32(insn, 0, 5);
+    int imm5 = extract32(insn, 5, 5);
     int imm8 = extract32(insn, 13, 8);
     int type = extract32(insn, 22, 2);
+    int mos = extract32(insn, 29, 3);
     uint64_t imm;
     TCGv_i64 tcg_res;
     TCGMemOp sz;
+
+    if (mos || imm5) {
+        unallocated_encoding(s);
+        return;
+    }
 
     switch (type) {
     case 0:
@@ -12602,7 +12641,7 @@ static void disas_simd_indexed(DisasContext *s, uint32_t insn)
         break;
     case 0x0e: /* SDOT */
     case 0x1e: /* UDOT */
-        if (size != MO_32 || !dc_isar_feature(aa64_dp, s)) {
+        if (is_scalar || size != MO_32 || !dc_isar_feature(aa64_dp, s)) {
             unallocated_encoding(s);
             return;
         }
@@ -12611,7 +12650,7 @@ static void disas_simd_indexed(DisasContext *s, uint32_t insn)
     case 0x13: /* FCMLA #90 */
     case 0x15: /* FCMLA #180 */
     case 0x17: /* FCMLA #270 */
-        if (!dc_isar_feature(aa64_fcma, s)) {
+        if (is_scalar || !dc_isar_feature(aa64_fcma, s)) {
             unallocated_encoding(s);
             return;
         }
@@ -12641,7 +12680,7 @@ static void disas_simd_indexed(DisasContext *s, uint32_t insn)
 
     case 2: /* complex fp */
         /* Each indexable element is a complex pair.  */
-        size <<= 1;
+        size += 1;
         switch (size) {
         case MO_32:
             if (h && !is_q) {

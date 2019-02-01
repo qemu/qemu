@@ -51,15 +51,16 @@ static const int sysinfo_id[] = {
 static uint64_t iotkit_sysinfo_read(void *opaque, hwaddr offset,
                                     unsigned size)
 {
+    IoTKitSysInfo *s = IOTKIT_SYSINFO(opaque);
     uint64_t r;
 
     switch (offset) {
     case A_SYS_VERSION:
-        r = 0x41743;
+        r = s->sys_version;
         break;
 
     case A_SYS_CONFIG:
-        r = 0x31;
+        r = s->sys_config;
         break;
     case A_PID4 ... A_CID3:
         r = sysinfo_id[(offset - A_PID4) / 4];
@@ -94,6 +95,12 @@ static const MemoryRegionOps iotkit_sysinfo_ops = {
     .valid.max_access_size = 4,
 };
 
+static Property iotkit_sysinfo_props[] = {
+    DEFINE_PROP_UINT32("SYS_VERSION", IoTKitSysInfo, sys_version, 0),
+    DEFINE_PROP_UINT32("SYS_CONFIG", IoTKitSysInfo, sys_config, 0),
+    DEFINE_PROP_END_OF_LIST()
+};
+
 static void iotkit_sysinfo_init(Object *obj)
 {
     SysBusDevice *sbd = SYS_BUS_DEVICE(obj);
@@ -106,10 +113,14 @@ static void iotkit_sysinfo_init(Object *obj)
 
 static void iotkit_sysinfo_class_init(ObjectClass *klass, void *data)
 {
+    DeviceClass *dc = DEVICE_CLASS(klass);
+
     /*
      * This device has no guest-modifiable state and so it
      * does not need a reset function or VMState.
      */
+
+    dc->props = iotkit_sysinfo_props;
 }
 
 static const TypeInfo iotkit_sysinfo_info = {

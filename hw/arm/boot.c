@@ -697,10 +697,6 @@ static void do_cpu_reset(void *opaque)
                 g_assert_not_reached();
             }
 
-            if (!env->aarch64) {
-                env->thumb = info->entry & 1;
-                entry &= 0xfffffffe;
-            }
             cpu_set_pc(cs, entry);
         } else {
             /* If we are booting Linux then we need to check whether we are
