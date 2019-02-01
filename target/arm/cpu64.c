@@ -480,20 +480,6 @@ static void aarch64_cpu_finalizefn(Object *obj)
 {
 }
 
-static void aarch64_cpu_set_pc(CPUState *cs, vaddr value)
-{
-    ARMCPU *cpu = ARM_CPU(cs);
-    /* It's OK to look at env for the current mode here, because it's
-     * never possible for an AArch64 TB to chain to an AArch32 TB.
-     * (Otherwise we would need to use synchronize_from_tb instead.)
-     */
-    if (is_a64(&cpu->env)) {
-        cpu->env.pc = value;
-    } else {
-        cpu->env.regs[15] = value;
-    }
-}
-
 static gchar *aarch64_gdb_arch_name(CPUState *cs)
 {
     return g_strdup("aarch64");
@@ -504,7 +490,6 @@ static void aarch64_cpu_class_init(ObjectClass *oc, void *data)
     CPUClass *cc = CPU_CLASS(oc);
 
     cc->cpu_exec_interrupt = arm_cpu_exec_interrupt;
-    cc->set_pc = aarch64_cpu_set_pc;
     cc->gdb_read_register = aarch64_cpu_gdb_read_register;
     cc->gdb_write_register = aarch64_cpu_gdb_write_register;
     cc->gdb_num_core_regs = 34;

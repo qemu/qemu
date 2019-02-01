@@ -120,11 +120,8 @@ static void arm_set_cpu_on_async_work(CPUState *target_cpu_state,
 
     if (info->target_aa64) {
         target_cpu->env.xregs[0] = info->context_id;
-        target_cpu->env.thumb = false;
     } else {
         target_cpu->env.regs[0] = info->context_id;
-        target_cpu->env.thumb = info->entry & 1;
-        info->entry &= 0xfffffffe;
     }
 
     /* Start the new CPU at the requested address */
