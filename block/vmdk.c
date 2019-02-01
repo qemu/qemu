@@ -2078,16 +2078,16 @@ static int coroutine_fn vmdk_co_do_create(int64_t size,
 
     if (backing_file) {
         BlockBackend *backing;
-        char *full_backing = g_new0(char, PATH_MAX);
-        bdrv_get_full_backing_filename_from_filename(blk_bs(blk)->filename, backing_file,
-                                                     full_backing, PATH_MAX,
-                                                     &local_err);
+        char *full_backing =
+            bdrv_get_full_backing_filename_from_filename(blk_bs(blk)->filename,
+                                                         backing_file,
+                                                         &local_err);
         if (local_err) {
-            g_free(full_backing);
             error_propagate(errp, local_err);
             ret = -ENOENT;
             goto exit;
         }
+        assert(full_backing);
 
         backing = blk_new_open(full_backing, NULL, NULL,
                                BDRV_O_NO_BACKING, errp);

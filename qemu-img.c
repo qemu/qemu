@@ -3343,18 +3343,14 @@ static int img_rebase(int argc, char **argv)
             bdrv_refresh_filename(bs);
             overlay_filename = bs->exact_filename[0] ? bs->exact_filename
                                                      : bs->filename;
-            out_real_path = g_malloc(PATH_MAX);
-
-            bdrv_get_full_backing_filename_from_filename(overlay_filename,
-                                                         out_baseimg,
-                                                         out_real_path,
-                                                         PATH_MAX,
-                                                         &local_err);
+            out_real_path =
+                bdrv_get_full_backing_filename_from_filename(overlay_filename,
+                                                             out_baseimg,
+                                                             &local_err);
             if (local_err) {
                 error_reportf_err(local_err,
                                   "Could not resolve backing filename: ");
                 ret = -1;
-                g_free(out_real_path);
                 goto out;
             }
 
