@@ -1254,6 +1254,17 @@ static int coroutine_fn ssh_co_truncate(BlockDriverState *bs, int64_t offset,
     return ssh_grow_file(s, offset, errp);
 }
 
+static const char *const ssh_strong_runtime_opts[] = {
+    "host",
+    "port",
+    "path",
+    "user",
+    "host_key_check",
+    "server.",
+
+    NULL
+};
+
 static BlockDriver bdrv_ssh = {
     .format_name                  = "ssh",
     .protocol_name                = "ssh",
@@ -1270,6 +1281,7 @@ static BlockDriver bdrv_ssh = {
     .bdrv_co_truncate             = ssh_co_truncate,
     .bdrv_co_flush_to_disk        = ssh_co_flush,
     .create_opts                  = &ssh_create_opts,
+    .strong_runtime_opts          = ssh_strong_runtime_opts,
 };
 
 static void bdrv_ssh_init(void)

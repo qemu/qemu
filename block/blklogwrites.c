@@ -517,6 +517,13 @@ blk_log_writes_co_pdiscard(BlockDriverState *bs, int64_t offset, int count)
                                  LOG_DISCARD_FLAG, false);
 }
 
+static const char *const blk_log_writes_strong_runtime_opts[] = {
+    "log-append",
+    "log-sector-size",
+
+    NULL
+};
+
 static BlockDriver bdrv_blk_log_writes = {
     .format_name            = "blklogwrites",
     .instance_size          = sizeof(BDRVBlkLogWritesState),
@@ -536,6 +543,7 @@ static BlockDriver bdrv_blk_log_writes = {
     .bdrv_co_block_status   = bdrv_co_block_status_from_file,
 
     .is_filter              = true,
+    .strong_runtime_opts    = blk_log_writes_strong_runtime_opts,
 };
 
 static void bdrv_blk_log_writes_init(void)

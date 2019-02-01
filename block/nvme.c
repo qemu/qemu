@@ -1136,6 +1136,13 @@ static void nvme_unregister_buf(BlockDriverState *bs, void *host)
     qemu_vfio_dma_unmap(s->vfio, host);
 }
 
+static const char *const nvme_strong_runtime_opts[] = {
+    NVME_BLOCK_OPT_DEVICE,
+    NVME_BLOCK_OPT_NAMESPACE,
+
+    NULL
+};
+
 static BlockDriver bdrv_nvme = {
     .format_name              = "nvme",
     .protocol_name            = "nvme",
@@ -1153,6 +1160,7 @@ static BlockDriver bdrv_nvme = {
 
     .bdrv_refresh_filename    = nvme_refresh_filename,
     .bdrv_refresh_limits      = nvme_refresh_limits,
+    .strong_runtime_opts      = nvme_strong_runtime_opts,
 
     .bdrv_detach_aio_context  = nvme_detach_aio_context,
     .bdrv_attach_aio_context  = nvme_attach_aio_context,

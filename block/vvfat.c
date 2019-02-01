@@ -3253,6 +3253,16 @@ static void vvfat_close(BlockDriverState *bs)
     }
 }
 
+static const char *const vvfat_strong_runtime_opts[] = {
+    "dir",
+    "fat-type",
+    "floppy",
+    "label",
+    "rw",
+
+    NULL
+};
+
 static BlockDriver bdrv_vvfat = {
     .format_name            = "vvfat",
     .protocol_name          = "fat",
@@ -3267,6 +3277,8 @@ static BlockDriver bdrv_vvfat = {
     .bdrv_co_preadv         = vvfat_co_preadv,
     .bdrv_co_pwritev        = vvfat_co_pwritev,
     .bdrv_co_block_status   = vvfat_co_block_status,
+
+    .strong_runtime_opts    = vvfat_strong_runtime_opts,
 };
 
 static void bdrv_vvfat_init(void)
