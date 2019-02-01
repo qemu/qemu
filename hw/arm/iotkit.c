@@ -1,5 +1,5 @@
 /*
- * Arm IoT Kit
+ * Arm SSE (Subsystems for Embedded): IoTKit
  *
  * Copyright (c) 2018 Linaro Limited
  * Written by Peter Maydell
@@ -24,7 +24,7 @@
 /* Create an alias region of @size bytes starting at @base
  * which mirrors the memory starting at @orig.
  */
-static void make_alias(IoTKit *s, MemoryRegion *mr, const char *name,
+static void make_alias(ARMSSE *s, MemoryRegion *mr, const char *name,
                        hwaddr base, hwaddr size, hwaddr orig)
 {
     memory_region_init_alias(mr, NULL, name, &s->container, orig, size);
@@ -41,18 +41,18 @@ static void irq_status_forwarder(void *opaque, int n, int level)
 
 static void nsccfg_handler(void *opaque, int n, int level)
 {
-    IoTKit *s = IOTKIT(opaque);
+    ARMSSE *s = ARMSSE(opaque);
 
     s->nsccfg = level;
 }
 
-static void iotkit_forward_ppc(IoTKit *s, const char *ppcname, int ppcnum)
+static void iotkit_forward_ppc(ARMSSE *s, const char *ppcname, int ppcnum)
 {
     /* Each of the 4 AHB and 4 APB PPCs that might be present in a
-     * system using the IoTKit has a collection of control lines which
+     * system using the ARMSSE has a collection of control lines which
      * are provided by the security controller and which we want to
-     * expose as control lines on the IoTKit device itself, so the
-     * code using the IoTKit can wire them up to the PPCs.
+     * expose as control lines on the ARMSSE device itself, so the
+     * code using the ARMSSE can wire them up to the PPCs.
      */
     SplitIRQ *splitter = &s->ppc_irq_splitter[ppcnum];
     DeviceState *iotkitdev = DEVICE(s);
@@ -91,7 +91,7 @@ static void iotkit_forward_ppc(IoTKit *s, const char *ppcname, int ppcnum)
     g_free(name);
 }
 
-static void iotkit_forward_sec_resp_cfg(IoTKit *s)
+static void iotkit_forward_sec_resp_cfg(ARMSSE *s)
 {
     /* Forward the 3rd output from the splitter device as a
      * named GPIO output of the iotkit object.
@@ -107,7 +107,7 @@ static void iotkit_forward_sec_resp_cfg(IoTKit *s)
 
 static void iotkit_init(Object *obj)
 {
-    IoTKit *s = IOTKIT(obj);
+    ARMSSE *s = ARMSSE(obj);
     int i;
 
     memory_region_init(&s->container, obj, "iotkit-container", UINT64_MAX);
@@ -175,20 +175,20 @@ static void iotkit_init(Object *obj)
 
 static void iotkit_exp_irq(void *opaque, int n, int level)
 {
-    IoTKit *s = IOTKIT(opaque);
+    ARMSSE *s = ARMSSE(opaque);
 
     qemu_set_irq(s->exp_irqs[n], level);
 }
 
 static void iotkit_mpcexp_status(void *opaque, int n, int level)
 {
-    IoTKit *s = IOTKIT(opaque);
+    ARMSSE *s = ARMSSE(opaque);
     qemu_set_irq(s->mpcexp_status_in[n], level);
 }
 
 static void iotkit_realize(DeviceState *dev, Error **errp)
 {
-    IoTKit *s = IOTKIT(dev);
+    ARMSSE *s = ARMSSE(dev);
     int i;
     MemoryRegion *mr;
     Error *err = NULL;
@@ -215,9 +215,9 @@ static void iotkit_realize(DeviceState *dev, Error **errp)
      * devices exist in both address spaces but with hard-wired security
      * permissions that will cause the CPU to fault for non-secure accesses.
      *
-     * The IoTKit has an IDAU (Implementation Defined Access Unit),
+     * The ARMSSE has an IDAU (Implementation Defined Access Unit),
      * which specifies hard-wired security permissions for different
-     * areas of the physical address space. For the IoTKit IDAU, the
+     * areas of the physical address space. For the ARMSSE IDAU, the
      * top 4 bits of the physical address are the IDAU region ID, and
      * if bit 28 (ie the lowest bit of the ID) is 0 then this is an NS
      * region, otherwise it is an S region.
@@ -239,7 +239,7 @@ static void iotkit_realize(DeviceState *dev, Error **errp)
      * 0x20000000..0x2007ffff  32KB FPGA block RAM
      * 0x30000000..0x3fffffff  alias of 0x20000000..0x2fffffff
      * 0x40000000..0x4000ffff  base peripheral region 1
-     * 0x40010000..0x4001ffff  CPU peripherals (none for IoTKit)
+     * 0x40010000..0x4001ffff  CPU peripherals (none for ARMSSE)
      * 0x40020000..0x4002ffff  system control element peripherals
      * 0x40080000..0x400fffff  base peripheral region 2
      * 0x50000000..0x5fffffff  alias of 0x40000000..0x4fffffff
@@ -306,8 +306,8 @@ static void iotkit_realize(DeviceState *dev, Error **errp)
     qdev_connect_gpio_out_named(dev_secctl, "nsc_cfg", 0, s->nsc_cfg_in);
 
     /* The sec_resp_cfg output from the security controller must be split into
-     * multiple lines, one for each of the PPCs within the IoTKit and one
-     * that will be an output from the IoTKit to the system.
+     * multiple lines, one for each of the PPCs within the ARMSSE and one
+     * that will be an output from the ARMSSE to the system.
      */
     object_property_set_int(OBJECT(&s->sec_resp_splitter), 3,
                             "num-lines", &err);
@@ -475,7 +475,7 @@ static void iotkit_realize(DeviceState *dev, Error **errp)
 
     /* 0x40010000 .. 0x4001ffff: private CPU region: unused in IoTKit */
 
-    /* 0x40020000 .. 0x4002ffff : IoTKit system control peripheral region */
+    /* 0x40020000 .. 0x4002ffff : ARMSSE system control peripheral region */
     /* Devices behind APB PPC1:
      *   0x4002f000: S32K timer
      */
@@ -558,7 +558,7 @@ static void iotkit_realize(DeviceState *dev, Error **errp)
                        qdev_get_gpio_in(DEVICE(&s->nmi_orgate), 0));
     sysbus_mmio_map(SYS_BUS_DEVICE(&s->s32kwatchdog), 0, 0x5002e000);
 
-    /* 0x40080000 .. 0x4008ffff : IoTKit second Base peripheral region */
+    /* 0x40080000 .. 0x4008ffff : ARMSSE second Base peripheral region */
 
     qdev_prop_set_uint32(DEVICE(&s->nswatchdog), "wdogclk-frq", s->mainclk_frq);
     object_property_set_bool(OBJECT(&s->nswatchdog), true, "realized", &err);
@@ -678,7 +678,7 @@ static void iotkit_realize(DeviceState *dev, Error **errp)
      * Expose our container region to the board model; this corresponds
      * to the AHB Slave Expansion ports which allow bus master devices
      * (eg DMA controllers) in the board model to make transactions into
-     * devices in the IoTKit.
+     * devices in the ARMSSE.
      */
     sysbus_init_mmio(SYS_BUS_DEVICE(s), &s->container);
 
@@ -688,11 +688,12 @@ static void iotkit_realize(DeviceState *dev, Error **errp)
 static void iotkit_idau_check(IDAUInterface *ii, uint32_t address,
                               int *iregion, bool *exempt, bool *ns, bool *nsc)
 {
-    /* For IoTKit systems the IDAU responses are simple logical functions
+    /*
+     * For ARMSSE systems the IDAU responses are simple logical functions
      * of the address bits. The NSC attribute is guest-adjustable via the
      * NSCCFG register in the security controller.
      */
-    IoTKit *s = IOTKIT(ii);
+    ARMSSE *s = ARMSSE(ii);
     int region = extract32(address, 28, 4);
 
     *ns = !(region & 1);
@@ -707,22 +708,22 @@ static const VMStateDescription iotkit_vmstate = {
     .version_id = 1,
     .minimum_version_id = 1,
     .fields = (VMStateField[]) {
-        VMSTATE_UINT32(nsccfg, IoTKit),
+        VMSTATE_UINT32(nsccfg, ARMSSE),
         VMSTATE_END_OF_LIST()
     }
 };
 
 static Property iotkit_properties[] = {
-    DEFINE_PROP_LINK("memory", IoTKit, board_memory, TYPE_MEMORY_REGION,
+    DEFINE_PROP_LINK("memory", ARMSSE, board_memory, TYPE_MEMORY_REGION,
                      MemoryRegion *),
-    DEFINE_PROP_UINT32("EXP_NUMIRQ", IoTKit, exp_numirq, 64),
-    DEFINE_PROP_UINT32("MAINCLK", IoTKit, mainclk_frq, 0),
+    DEFINE_PROP_UINT32("EXP_NUMIRQ", ARMSSE, exp_numirq, 64),
+    DEFINE_PROP_UINT32("MAINCLK", ARMSSE, mainclk_frq, 0),
     DEFINE_PROP_END_OF_LIST()
 };
 
 static void iotkit_reset(DeviceState *dev)
 {
-    IoTKit *s = IOTKIT(dev);
+    ARMSSE *s = ARMSSE(dev);
 
     s->nsccfg = 0;
 }
@@ -740,9 +741,9 @@ static void iotkit_class_init(ObjectClass *klass, void *data)
 }
 
 static const TypeInfo iotkit_info = {
-    .name = TYPE_IOTKIT,
+    .name = TYPE_ARMSSE,
     .parent = TYPE_SYS_BUS_DEVICE,
-    .instance_size = sizeof(IoTKit),
+    .instance_size = sizeof(ARMSSE),
     .instance_init = iotkit_init,
     .class_init = iotkit_class_init,
     .interfaces = (InterfaceInfo[]) {

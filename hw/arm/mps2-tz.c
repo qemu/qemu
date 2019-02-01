@@ -66,7 +66,7 @@ typedef struct {
 typedef struct {
     MachineState parent;
 
-    IoTKit iotkit;
+    ARMSSE iotkit;
     MemoryRegion psram;
     MemoryRegion ssram[3];
     MemoryRegion ssram1_m;

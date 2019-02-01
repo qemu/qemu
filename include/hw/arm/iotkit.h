@@ -1,5 +1,5 @@
 /*
- * ARM IoT Kit
+ * ARM SSE (Subsystems for Embedded): IoTKit
  *
  * Copyright (c) 2018 Linaro Limited
  * Written by Peter Maydell
@@ -9,7 +9,10 @@
  * (at your option) any later version.
  */
 
-/* This is a model of the Arm IoT Kit which is documented in
+/*
+ * This is a model of the Arm "Subsystems for Embedded" family of
+ * hardware, which include the IoT Kit and the SSE-050, SSE-100 and
+ * SSE-200. Currently we model only the Arm IoT Kit which is documented in
  * http://infocenter.arm.com/help/index.jsp?topic=/com.arm.doc.ecm0601256/index.html
  * It contains:
  *  a Cortex-M33
@@ -71,8 +74,15 @@
 #include "hw/or-irq.h"
 #include "hw/core/split-irq.h"
 
-#define TYPE_IOTKIT "iotkit"
-#define IOTKIT(obj) OBJECT_CHECK(IoTKit, (obj), TYPE_IOTKIT)
+#define TYPE_ARMSSE "iotkit"
+#define ARMSSE(obj) OBJECT_CHECK(ARMSSE, (obj), TYPE_ARMSSE)
+
+/*
+ * For the moment TYPE_IOTKIT is a synonym for TYPE_ARMSSE (and the
+ * latter's underlying name is left as "iotkit"); in a later
+ * commit it will become a subclass of TYPE_ARMSSE.
+ */
+#define TYPE_IOTKIT TYPE_ARMSSE
 
 /* We have an IRQ splitter and an OR gate input for each external PPC
  * and the 2 internal PPCs
@@ -80,7 +90,7 @@
 #define NUM_EXTERNAL_PPCS (IOTS_NUM_AHB_EXP_PPC + IOTS_NUM_APB_EXP_PPC)
 #define NUM_PPCS (NUM_EXTERNAL_PPCS + 2)
 
-typedef struct IoTKit {
+typedef struct ARMSSE {
     /*< private >*/
     SysBusDevice parent_obj;
 
@@ -131,6 +141,6 @@ typedef struct IoTKit {
     MemoryRegion *board_memory;
     uint32_t exp_numirq;
     uint32_t mainclk_frq;
-} IoTKit;
+} ARMSSE;
 
 #endif
