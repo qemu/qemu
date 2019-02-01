@@ -5549,6 +5549,20 @@ void bdrv_refresh_filename(BlockDriverState *bs)
         bdrv_refresh_filename(child->bs);
     }
 
+    if (bs->implicit) {
+        /* For implicit nodes, just copy everything from the single child */
+        child = QLIST_FIRST(&bs->children);
+        assert(QLIST_NEXT(child, next) == NULL);
+
+        pstrcpy(bs->exact_filename, sizeof(bs->exact_filename),
+                child->bs->exact_filename);
+        pstrcpy(bs->filename, sizeof(bs->filename), child->bs->filename);
+
+        bs->full_open_options = qobject_ref(child->bs->full_open_options);
+
+        return;
+    }
+
     if (drv->bdrv_refresh_filename) {
         /* Obsolete information is of no use here, so drop the old file name
          * information before refreshing it */
