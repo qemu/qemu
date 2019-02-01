@@ -34,6 +34,7 @@ struct ARMSSEInfo {
     bool has_ppus;
     bool has_cachectrl;
     bool has_cpusecctrl;
+    bool has_cpuid;
 };
 
 static const ARMSSEInfo armsse_variants[] = {
@@ -47,6 +48,7 @@ static const ARMSSEInfo armsse_variants[] = {
         .has_ppus = false,
         .has_cachectrl = false,
         .has_cpusecctrl = false,
+        .has_cpuid = false,
     },
 };
 
@@ -311,6 +313,16 @@ static void armsse_init(Object *obj)
             sysbus_init_child_obj(obj, name, &s->cpusecctrl[i],
                                   sizeof(s->cpusecctrl[i]),
                                   TYPE_UNIMPLEMENTED_DEVICE);
+            g_free(name);
+        }
+    }
+    if (info->has_cpuid) {
+        for (i = 0; i < info->num_cpus; i++) {
+            char *name = g_strdup_printf("cpuid%d", i);
+
+            sysbus_init_child_obj(obj, name, &s->cpuid[i],
+                                  sizeof(s->cpuid[i]),
+                                  TYPE_ARMSSE_CPUID);
             g_free(name);
         }
     }
@@ -862,6 +874,22 @@ static void armsse_realize(DeviceState *dev, Error **errp)
 
             mr = sysbus_mmio_get_region(SYS_BUS_DEVICE(&s->cpusecctrl[i]), 0);
             memory_region_add_subregion(&s->cpu_container[i], 0x50011000, mr);
+        }
+    }
+    if (info->has_cpuid) {
+        for (i = 0; i < info->num_cpus; i++) {
+            MemoryRegion *mr;
+
+            qdev_prop_set_uint32(DEVICE(&s->cpuid[i]), "CPUID", i);
+            object_property_set_bool(OBJECT(&s->cpuid[i]), true,
+                                     "realized", &err);
+            if (err) {
+                error_propagate(errp, err);
+                return;
+            }
+
+            mr = sysbus_mmio_get_region(SYS_BUS_DEVICE(&s->cpuid[i]), 0);
+            memory_region_add_subregion(&s->cpu_container[i], 0x4001F000, mr);
         }
     }
 
