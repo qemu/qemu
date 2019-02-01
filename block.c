@@ -338,16 +338,29 @@ char *bdrv_get_full_backing_filename_from_filename(const char *backed,
     }
 }
 
+/*
+ * If @filename is empty or NULL, this function returns NULL without
+ * setting @errp.  In all other cases, NULL will only be returned with
+ * @errp set.
+ */
+static char *bdrv_make_absolute_filename(BlockDriverState *relative_to,
+                                         const char *filename, Error **errp)
+{
+    char *bs_filename;
+
+    bdrv_refresh_filename(relative_to);
+
+    bs_filename = relative_to->exact_filename[0]
+                      ? relative_to->exact_filename
+                      : relative_to->filename;
+
+    return bdrv_get_full_backing_filename_from_filename(bs_filename,
+                                                        filename ?: "", errp);
+}
+
 char *bdrv_get_full_backing_filename(BlockDriverState *bs, Error **errp)
 {
-    char *backed;
-
-    bdrv_refresh_filename(bs);
-
-    backed = bs->exact_filename[0] ? bs->exact_filename : bs->filename;
-    return bdrv_get_full_backing_filename_from_filename(backed,
-                                                        bs->backing_file,
-                                                        errp);
+    return bdrv_make_absolute_filename(bs, bs->backing_file, errp);
 }
 
 void bdrv_register(BlockDriver *bdrv)
