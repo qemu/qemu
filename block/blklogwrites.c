@@ -285,9 +285,6 @@ static void blk_log_writes_refresh_filename(BlockDriverState *bs,
 {
     BDRVBlkLogWritesState *s = bs->opaque;
 
-    /* bs->file->bs has already been refreshed */
-    bdrv_refresh_filename(s->log_file->bs);
-
     if (bs->file->bs->full_open_options
         && s->log_file->bs->full_open_options)
     {
