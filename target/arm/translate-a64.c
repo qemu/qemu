@@ -12680,7 +12680,7 @@ static void disas_simd_indexed(DisasContext *s, uint32_t insn)
 
     case 2: /* complex fp */
         /* Each indexable element is a complex pair.  */
-        size <<= 1;
+        size += 1;
         switch (size) {
         case MO_32:
             if (h && !is_q) {
