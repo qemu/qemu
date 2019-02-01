@@ -1,0 +1,139 @@
+#!/usr/bin/env python
+#
+# Test json:{} filenames with qemu-internal BDSs
+# (the one of commit, to be precise)
+#
+# Copyright (C) 2018 Red Hat, Inc.
+#
+# This program is free software; you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation; either version 2 of the License, or
+# (at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with this program.  If not, see <http://www.gnu.org/licenses/>.
+#
+# Creator/Owner: Max Reitz <mreitz@redhat.com>
+
+import iotests
+from iotests import log, qemu_img, qemu_io_silent, filter_qmp_testfiles, \
+                    filter_qmp_imgfmt
+import json
+
+# Need backing file support (for arbitrary backing formats)
+iotests.verify_image_format(supported_fmts=['qcow2', 'qcow', 'qed'])
+iotests.verify_platform(['linux'])
+
+
+# There are two variations of this test:
+# (1) We do not set filter_node_name.  In that case, the commit_top
+#     driver should not appear anywhere.
+# (2) We do set filter_node_name.  In that case, it should appear.
+#
+# This for loop executes both.
+for filter_node_name in False, True:
+    log('')
+    log('--- filter_node_name: %s ---' % filter_node_name)
+    log('')
+
+    with iotests.FilePath('base.img') as base_img_path, \
+         iotests.FilePath('mid.img') as mid_img_path, \
+         iotests.FilePath('top.img') as top_img_path, \
+         iotests.VM() as vm:
+
+        assert qemu_img('create', '-f', iotests.imgfmt,
+                        base_img_path, '64M') == 0
+        assert qemu_img('create', '-f', iotests.imgfmt, '-b', base_img_path,
+                        mid_img_path) == 0
+        assert qemu_img('create', '-f', iotests.imgfmt, '-b', mid_img_path,
+                        top_img_path) == 0
+
+        # Something to commit
+        assert qemu_io_silent(mid_img_path, '-c', 'write -P 1 0 1M') == 0
+
+        vm.launch()
+
+        # Change the bottom-most image's backing file (to null-co://)
+        # to enforce json:{} filenames
+        vm.qmp_log('blockdev-add',
+                    node_name='top',
+                    driver=iotests.imgfmt,
+                    file={
+                        'driver': 'file',
+                        'filename': top_img_path
+                    },
+                    backing={
+                        'node-name': 'mid',
+                        'driver': iotests.imgfmt,
+                        'file': {
+                            'driver': 'file',
+                            'filename': mid_img_path
+                        },
+                        'backing': {
+                            'node-name': 'base',
+                            'driver': iotests.imgfmt,
+                            'file': {
+                                'driver': 'file',
+                                'filename': base_img_path
+                            },
+                            'backing': {
+                                'driver': 'null-co'
+                            }
+                        }
+                    },
+                    filters=[filter_qmp_testfiles, filter_qmp_imgfmt])
+
+        # As long as block-commit does not accept node names, we have to
+        # get our mid/base filenames here
+        mid_name = vm.node_info('mid')['image']['filename']
+        base_name = vm.node_info('base')['image']['filename']
+
+        assert mid_name[:5] == 'json:'
+        assert base_name[:5] == 'json:'
+
+        # Start the block job
+        if filter_node_name:
+            vm.qmp_log('block-commit',
+                        job_id='commit',
+                        device='top',
+                        filter_node_name='filter_node',
+                        top=mid_name,
+                        base=base_name,
+                        speed=1,
+                        filters=[filter_qmp_testfiles, filter_qmp_imgfmt])
+        else:
+            vm.qmp_log('block-commit',
+                        job_id='commit',
+                        device='top',
+                        top=mid_name,
+                        base=base_name,
+                        speed=1,
+                        filters=[filter_qmp_testfiles, filter_qmp_imgfmt])
+
+        vm.qmp_log('job-pause', id='commit')
+
+        # Get and parse top's json:{} filename
+        top_name = vm.node_info('top')['image']['filename']
+
+        vm.shutdown()
+
+        assert top_name[:5] == 'json:'
+        top_options = json.loads(top_name[5:])
+
+        if filter_node_name:
+            # This should be present and set
+            assert top_options['backing']['driver'] == 'commit_top'
+            # And the mid image is commit_top's backing image
+            mid_options = top_options['backing']['backing']
+        else:
+            # The mid image should appear as the immediate backing BDS
+            # of top
+            mid_options = top_options['backing']
+
+        assert mid_options['driver'] == iotests.imgfmt
+        assert mid_options['file']['filename'] == mid_img_path
