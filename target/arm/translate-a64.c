@@ -2803,7 +2803,7 @@ static void disas_ldst_reg_imm9(DisasContext *s, uint32_t insn,
     } else {
         if (size == 3 && opc == 2) {
             /* PRFM - prefetch */
-            if (is_unpriv) {
+            if (idx != 0) {
                 unallocated_encoding(s);
                 return;
             }
