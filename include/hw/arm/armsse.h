@@ -106,6 +106,16 @@
 
 #define SSE_MAX_CPUS 2
 
+/* These define what each PPU in the ppu[] index is for */
+#define CPU0CORE_PPU 0
+#define CPU1CORE_PPU 1
+#define DBG_PPU 2
+#define RAM0_PPU 3
+#define RAM1_PPU 4
+#define RAM2_PPU 5
+#define RAM3_PPU 6
+#define NUM_PPUS 7
+
 typedef struct ARMSSE {
     /*< private >*/
     SysBusDevice parent_obj;
@@ -139,6 +149,7 @@ typedef struct ARMSSE {
     IoTKitSysCtl sysinfo;
 
     UnimplementedDeviceState mhu[2];
+    UnimplementedDeviceState ppu[NUM_PPUS];
 
     /*
      * 'container' holds all devices seen by all CPUs.

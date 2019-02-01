@@ -31,6 +31,7 @@ struct ARMSSEInfo {
     uint32_t sys_version;
     SysConfigFormat sys_config_format;
     bool has_mhus;
+    bool has_ppus;
 };
 
 static const ARMSSEInfo armsse_variants[] = {
@@ -41,6 +42,7 @@ static const ARMSSEInfo armsse_variants[] = {
         .sys_version = 0x41743,
         .sys_config_format = IoTKitFormat,
         .has_mhus = false,
+        .has_ppus = false,
     },
 };
 
@@ -265,6 +267,29 @@ static void armsse_init(Object *obj)
         sysbus_init_child_obj(obj, "mhu1", &s->mhu[1], sizeof(s->mhu[1]),
                               TYPE_UNIMPLEMENTED_DEVICE);
     }
+    if (info->has_ppus) {
+        for (i = 0; i < info->num_cpus; i++) {
+            char *name = g_strdup_printf("CPU%dCORE_PPU", i);
+            int ppuidx = CPU0CORE_PPU + i;
+
+            sysbus_init_child_obj(obj, name, &s->ppu[ppuidx],
+                                  sizeof(s->ppu[ppuidx]),
+                                  TYPE_UNIMPLEMENTED_DEVICE);
+            g_free(name);
+        }
+        sysbus_init_child_obj(obj, "DBG_PPU", &s->ppu[DBG_PPU],
+                              sizeof(s->ppu[DBG_PPU]),
+                              TYPE_UNIMPLEMENTED_DEVICE);
+        for (i = 0; i < info->sram_banks; i++) {
+            char *name = g_strdup_printf("RAM%d_PPU", i);
+            int ppuidx = RAM0_PPU + i;
+
+            sysbus_init_child_obj(obj, name, &s->ppu[ppuidx],
+                                  sizeof(s->ppu[ppuidx]),
+                                  TYPE_UNIMPLEMENTED_DEVICE);
+            g_free(name);
+        }
+    }
     object_initialize_child(obj, "nmi-orgate", &s->nmi_orgate,
                             sizeof(s->nmi_orgate), TYPE_OR_IRQ,
                             &error_abort, NULL);
@@ -327,6 +352,17 @@ static qemu_irq armsse_get_common_irq_in(ARMSSE *s, int irqno)
         /* Connect to the splitter which feeds all CPUs */
         return qdev_get_gpio_in(DEVICE(&s->cpu_irq_splitter[irqno]), 0);
     }
+}
+
+static void map_ppu(ARMSSE *s, int ppuidx, const char *name, hwaddr addr)
+{
+    /* Map a PPU unimplemented device stub */
+    DeviceState *dev = DEVICE(&s->ppu[ppuidx]);
+
+    qdev_prop_set_string(dev, "name", name);
+    qdev_prop_set_uint64(dev, "size", 0x1000);
+    qdev_init_nofail(dev);
+    sysbus_mmio_map(SYS_BUS_DEVICE(&s->ppu[ppuidx]), 0, addr);
 }
 
 static void armsse_realize(DeviceState *dev, Error **errp)
@@ -832,6 +868,28 @@ static void armsse_realize(DeviceState *dev, Error **errp)
         return;
     }
     sysbus_mmio_map(SYS_BUS_DEVICE(&s->sysctl), 0, 0x50021000);
+
+    if (info->has_ppus) {
+        /* CPUnCORE_PPU for each CPU */
+        for (i = 0; i < info->num_cpus; i++) {
+            char *name = g_strdup_printf("CPU%dCORE_PPU", i);
+
+            map_ppu(s, CPU0CORE_PPU + i, name, 0x50023000 + i * 0x2000);
+            /*
+             * We don't support CPU debug so don't create the
+             * CPU0DEBUG_PPU at 0x50024000 and 0x50026000.
+             */
+            g_free(name);
+        }
+        map_ppu(s, DBG_PPU, "DBG_PPU", 0x50029000);
+
+        for (i = 0; i < info->sram_banks; i++) {
+            char *name = g_strdup_printf("RAM%d_PPU", i);
+
+            map_ppu(s, RAM0_PPU + i, name, 0x5002a000 + i * 0x1000);
+            g_free(name);
+        }
+    }
 
     /* This OR gate wires together outputs from the secure watchdogs to NMI */
     object_property_set_int(OBJECT(&s->nmi_orgate), 2, "num-lines", &err);
