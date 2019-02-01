@@ -2144,7 +2144,11 @@ static void disas_b_exc_sys(DisasContext *s, uint32_t insn)
         break;
     case 0x6a: /* Exception generation / System */
         if (insn & (1 << 24)) {
-            disas_system(s, insn);
+            if (extract32(insn, 22, 2) == 0) {
+                disas_system(s, insn);
+            } else {
+                unallocated_encoding(s);
+            }
         } else {
             disas_exc(s, insn);
         }
