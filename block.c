@@ -323,8 +323,11 @@ void bdrv_get_full_backing_filename_from_filename(const char *backed,
 void bdrv_get_full_backing_filename(BlockDriverState *bs, char *dest, size_t sz,
                                     Error **errp)
 {
-    char *backed = bs->exact_filename[0] ? bs->exact_filename : bs->filename;
+    char *backed;
 
+    bdrv_refresh_filename(bs);
+
+    backed = bs->exact_filename[0] ? bs->exact_filename : bs->filename;
     bdrv_get_full_backing_filename_from_filename(backed, bs->backing_file,
                                                  dest, sz, errp);
 }
@@ -1004,6 +1007,8 @@ static void bdrv_backing_attach(BdrvChild *c)
                "node is used as backing hd of '%s'",
                bdrv_get_device_or_node_name(parent));
 
+    bdrv_refresh_filename(backing_hd);
+
     parent->open_flags &= ~BDRV_O_NO_BACKING;
     pstrcpy(parent->backing_file, sizeof(parent->backing_file),
             backing_hd->filename);
@@ -1413,6 +1418,7 @@ static int bdrv_open_common(BlockDriverState *bs, BlockBackend *file,
     }
 
     if (file != NULL) {
+        bdrv_refresh_filename(blk_bs(file));
         filename = blk_bs(file)->filename;
     } else {
         /*
@@ -2334,8 +2340,6 @@ void bdrv_set_backing_hd(BlockDriverState *bs, BlockDriverState *backing_hd,
         bdrv_unref(backing_hd);
     }
 
-    bdrv_refresh_filename(bs);
-
 out:
     bdrv_refresh_limits(bs, NULL);
 }
@@ -2864,8 +2868,6 @@ static BlockDriverState *bdrv_open_inherit(const char *filename,
         g_free(child_key_dot);
     }
 
-    bdrv_refresh_filename(bs);
-
     /* Check if any unknown options were used */
     if (qdict_size(options) != 0) {
         const QDictEntry *entry = qdict_first(options);
@@ -3310,6 +3312,7 @@ int bdrv_reopen_prepare(BDRVReopenState *reopen_state, BlockReopenQueue *queue,
             if (local_err != NULL) {
                 error_propagate(errp, local_err);
             } else {
+                bdrv_refresh_filename(reopen_state->bs);
                 error_setg(errp, "failed while preparing to reopen image '%s'",
                            reopen_state->bs->filename);
             }
@@ -3937,7 +3940,10 @@ int bdrv_drop_intermediate(BlockDriverState *top, BlockDriverState *base,
     /* success - we can delete the intermediate states, and link top->base */
     /* TODO Check graph modification op blockers (BLK_PERM_GRAPH_MOD) once
      * we've figured out how they should work. */
-    backing_file_str = backing_file_str ? backing_file_str : base->filename;
+    if (!backing_file_str) {
+        bdrv_refresh_filename(base);
+        backing_file_str = base->filename;
+    }
 
     QLIST_FOREACH_SAFE(c, &top->parents, next_parent, next) {
         /* Check whether we are allowed to switch c from top to base */
@@ -4485,16 +4491,6 @@ bool bdrv_can_write_zeroes_with_unmap(BlockDriverState *bs)
     return bs->supported_zero_flags & BDRV_REQ_MAY_UNMAP;
 }
 
-const char *bdrv_get_encrypted_filename(BlockDriverState *bs)
-{
-    if (bs->backing && bs->backing->bs->encrypted)
-        return bs->backing_file;
-    else if (bs->encrypted)
-        return bs->filename;
-    else
-        return NULL;
-}
-
 void bdrv_get_backing_filename(BlockDriverState *bs,
                                char *filename, int filename_size)
 {
@@ -4614,6 +4610,9 @@ BlockDriverState *bdrv_find_backing_image(BlockDriverState *bs,
     filename_tmp      = g_malloc(PATH_MAX);
 
     is_protocol = path_has_protocol(backing_file);
+
+    /* This will recursively refresh everything in the backing chain */
+    bdrv_refresh_filename(bs);
 
     for (curr_bs = bs; curr_bs->backing; curr_bs = curr_bs->backing->bs) {
 

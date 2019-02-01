@@ -479,6 +479,7 @@ static int vmdk_init_tables(BlockDriverState *bs, VmdkExtent *extent,
                      extent->l1_table,
                      l1_size);
     if (ret < 0) {
+        bdrv_refresh_filename(extent->file->bs);
         error_setg_errno(errp, -ret,
                          "Could not read l1 table from extent '%s'",
                          extent->file->bs->filename);
@@ -499,6 +500,7 @@ static int vmdk_init_tables(BlockDriverState *bs, VmdkExtent *extent,
                          extent->l1_backup_table,
                          l1_size);
         if (ret < 0) {
+            bdrv_refresh_filename(extent->file->bs);
             error_setg_errno(errp, -ret,
                              "Could not read l1 backup table from extent '%s'",
                              extent->file->bs->filename);
@@ -530,6 +532,7 @@ static int vmdk_open_vmfs_sparse(BlockDriverState *bs,
 
     ret = bdrv_pread(file, sizeof(magic), &header, sizeof(header));
     if (ret < 0) {
+        bdrv_refresh_filename(file->bs);
         error_setg_errno(errp, -ret,
                          "Could not read header from file '%s'",
                          file->bs->filename);
@@ -607,6 +610,7 @@ static int vmdk_open_vmdk4(BlockDriverState *bs,
 
     ret = bdrv_pread(file, sizeof(magic), &header, sizeof(header));
     if (ret < 0) {
+        bdrv_refresh_filename(file->bs);
         error_setg_errno(errp, -ret,
                          "Could not read header from file '%s'",
                          file->bs->filename);
@@ -861,6 +865,7 @@ static int vmdk_parse_extents(const char *desc, BlockDriverState *bs,
         if (!path_is_absolute(fname) && !path_has_protocol(fname) &&
             !desc_file_path[0])
         {
+            bdrv_refresh_filename(bs->file->bs);
             error_setg(errp, "Cannot use relative extent paths with VMDK "
                        "descriptor file '%s'", bs->file->bs->filename);
             return -EINVAL;
@@ -2470,6 +2475,7 @@ static ImageInfo *vmdk_get_extent_info(VmdkExtent *extent)
 {
     ImageInfo *info = g_new0(ImageInfo, 1);
 
+    bdrv_refresh_filename(extent->file->bs);
     *info = (ImageInfo){
         .filename         = g_strdup(extent->file->bs->filename),
         .format           = g_strdup(extent->type),

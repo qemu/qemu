@@ -616,8 +616,6 @@ static void replication_done(void *opaque, int ret)
     if (ret == 0) {
         s->stage = BLOCK_REPLICATION_DONE;
 
-        /* refresh top bs's filename */
-        bdrv_refresh_filename(bs);
         s->active_disk = NULL;
         s->secondary_disk = NULL;
         s->hidden_disk = NULL;

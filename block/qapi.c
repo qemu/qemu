@@ -51,6 +51,8 @@ BlockDeviceInfo *bdrv_block_device_info(BlockBackend *blk,
         return NULL;
     }
 
+    bdrv_refresh_filename(bs);
+
     info = g_malloc0(sizeof(*info));
     info->file                   = g_strdup(bs->filename);
     info->ro                     = bs->read_only;
@@ -263,6 +265,8 @@ void bdrv_query_image_info(BlockDriverState *bs,
                          bs->exact_filename);
         goto out;
     }
+
+    bdrv_refresh_filename(bs);
 
     info = g_new0(ImageInfo, 1);
     info->filename        = g_strdup(bs->filename);
