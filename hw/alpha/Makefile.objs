@@ -1,1 +1,1 @@
-obj-y += dp264.o pci.o typhoon.o
+obj-$(CONFIG_DP264) += dp264.o pci.o typhoon.o
