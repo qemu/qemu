@@ -166,7 +166,7 @@ static void piix4_realize(PCIDevice *dev, Error **errp)
     memory_region_init_io(&s->rcr_mem, OBJECT(dev), &piix4_rcr_ops, s,
                           "reset-control", 1);
     memory_region_add_subregion_overlap(pci_address_space_io(dev),
-                                        RCR_IOPORT, &s->rcr_mem, 1);
+                                        PIIX_RCR_IOPORT, &s->rcr_mem, 1);
 
     /* initialize i8259 pic */
     i8259_out_irq = qemu_allocate_irqs(piix4_request_i8259_irq, s, 1);

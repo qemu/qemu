@@ -27,6 +27,7 @@
 #include "hw/irq.h"
 #include "hw/pci/pci.h"
 #include "hw/pci/pci_host.h"
+#include "hw/southbridge/piix.h"
 #include "hw/qdev-properties.h"
 #include "hw/isa/isa.h"
 #include "hw/sysbus.h"
@@ -87,7 +88,7 @@ typedef struct PIIX3State {
     /* Reset Control Register contents */
     uint8_t rcr;
 
-    /* IO memory region for Reset Control Register (RCR_IOPORT) */
+    /* IO memory region for Reset Control Register (PIIX_RCR_IOPORT) */
     MemoryRegion rcr_mem;
 } PIIX3State;
 
@@ -695,8 +696,8 @@ static void piix3_realize(PCIDevice *dev, Error **errp)
 
     memory_region_init_io(&d->rcr_mem, OBJECT(dev), &rcr_ops, d,
                           "piix3-reset-control", 1);
-    memory_region_add_subregion_overlap(pci_address_space_io(dev), RCR_IOPORT,
-                                        &d->rcr_mem, 1);
+    memory_region_add_subregion_overlap(pci_address_space_io(dev),
+                                        PIIX_RCR_IOPORT, &d->rcr_mem, 1);
 
     qemu_register_reset(piix3_reset, d);
 }
