@@ -321,6 +321,7 @@ class QEMUMachine(object):
         self._pre_launch()
         self._qemu_full_args = (self._wrapper + [self._binary] +
                                 self._base_args() + self._args)
+        LOG.debug('VM launch command: %r', ' '.join(self._qemu_full_args))
         self._popen = subprocess.Popen(self._qemu_full_args,
                                        stdin=devnull,
                                        stdout=self._qemu_log_file,
