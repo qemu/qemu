@@ -1246,7 +1246,6 @@ F: hw/pci-host/q35.c
 F: hw/pci-host/pam.c
 F: include/hw/pci-host/q35.h
 F: include/hw/pci-host/pam.h
-F: hw/isa/piix4.c
 F: hw/isa/lpc_ich9.c
 F: hw/i2c/smbus_ich9.c
 F: hw/acpi/piix4.c
@@ -1752,6 +1751,12 @@ S: Maintained
 F: hw/display/edid*
 F: include/hw/display/edid.h
 F: qemu-edid.c
+
+PIIX4 South Bridge (i82371AB)
+M: Hervé Poussineau <hpoussin@reactos.org>
+M: Philippe Mathieu-Daudé <f4bug@amsat.org>
+S: Maintained
+F: hw/isa/piix4.c
 
 Firmware configuration (fw_cfg)
 M: Philippe Mathieu-Daudé <philmd@redhat.com>
