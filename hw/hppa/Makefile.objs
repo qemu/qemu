@@ -1,1 +1,1 @@
-obj-y += machine.o pci.o dino.o
+obj-$(CONFIG_DINO) += pci.o machine.o dino.o
