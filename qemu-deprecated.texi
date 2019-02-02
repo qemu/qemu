@@ -43,11 +43,6 @@ The @code{--no-frame} argument works with SDL 1.2 only. The other user
 interfaces never implemented this in the first place. So this will be
 removed together with SDL 1.2 support.
 
-@subsection -virtioconsole (since 3.0.0)
-
-Option @option{-virtioconsole} has been replaced by
-@option{-device virtconsole}.
-
 @subsection -clock (since 3.0.0)
 
 The @code{-clock} option is ignored since QEMU version 1.7.0. There is no

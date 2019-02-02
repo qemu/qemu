@@ -3616,16 +3616,6 @@ character to Control-t.
 @end table
 ETEXI
 
-DEF("virtioconsole", HAS_ARG, QEMU_OPTION_virtiocon, \
-    "-virtioconsole c\n" \
-    "                set virtio console\n", QEMU_ARCH_ALL)
-STEXI
-@item -virtioconsole @var{c}
-@findex -virtioconsole
-Set virtio console.
-This option is deprecated, please use @option{-device virtconsole} instead.
-ETEXI
-
 DEF("show-cursor", 0, QEMU_OPTION_show_cursor, \
     "-show-cursor    show cursor\n", QEMU_ARCH_ALL)
 STEXI
