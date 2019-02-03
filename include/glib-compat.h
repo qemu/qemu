@@ -83,63 +83,6 @@ static inline gboolean g_strv_contains_qemu(const gchar *const *strv,
 }
 #define g_strv_contains(a, b) g_strv_contains_qemu(a, b)
 
-#if !GLIB_CHECK_VERSION(2, 58, 0)
-typedef struct QemuGSpawnFds {
-    GSpawnChildSetupFunc child_setup;
-    gpointer user_data;
-    gint stdin_fd;
-    gint stdout_fd;
-    gint stderr_fd;
-} QemuGSpawnFds;
-
-static inline void
-qemu_gspawn_fds_setup(gpointer user_data)
-{
-    QemuGSpawnFds *q = (QemuGSpawnFds *)user_data;
-
-    dup2(q->stdin_fd, 0);
-    dup2(q->stdout_fd, 1);
-    dup2(q->stderr_fd, 2);
-    q->child_setup(q->user_data);
-}
-#endif
-
-static inline gboolean
-g_spawn_async_with_fds_qemu(const gchar *working_directory,
-                            gchar **argv,
-                            gchar **envp,
-                            GSpawnFlags flags,
-                            GSpawnChildSetupFunc child_setup,
-                            gpointer user_data,
-                            GPid *child_pid,
-                            gint stdin_fd,
-                            gint stdout_fd,
-                            gint stderr_fd,
-                            GError **error)
-{
-#if GLIB_CHECK_VERSION(2, 58, 0)
-    return g_spawn_async_with_fds(working_directory, argv, envp, flags,
-                                  child_setup, user_data,
-                                  child_pid, stdin_fd, stdout_fd, stderr_fd,
-                                  error);
-#else
-    QemuGSpawnFds setup = {
-        .child_setup = child_setup,
-        .user_data = user_data,
-        .stdin_fd = stdin_fd,
-        .stdout_fd = stdout_fd,
-        .stderr_fd = stderr_fd,
-    };
-
-    return g_spawn_async(working_directory, argv, envp, flags,
-                         qemu_gspawn_fds_setup, &setup,
-                         child_pid, error);
-#endif
-}
-
-#define g_spawn_async_with_fds(wd, argv, env, f, c, d, p, ifd, ofd, efd, err) \
-    g_spawn_async_with_fds_qemu(wd, argv, env, f, c, d, p, ifd, ofd, efd, err)
-
 #if defined(_WIN32) && !GLIB_CHECK_VERSION(2, 50, 0)
 /*
  * g_poll has a problem on Windows when using

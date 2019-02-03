@@ -122,6 +122,68 @@ fork_exec_child_setup(gpointer data)
 #endif
 }
 
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wdeprecated-declarations"
+
+#if !GLIB_CHECK_VERSION(2, 58, 0)
+typedef struct SlirpGSpawnFds {
+    GSpawnChildSetupFunc child_setup;
+    gpointer user_data;
+    gint stdin_fd;
+    gint stdout_fd;
+    gint stderr_fd;
+} SlirpGSpawnFds;
+
+static inline void
+slirp_gspawn_fds_setup(gpointer user_data)
+{
+    SlirpGSpawnFds *q = (SlirpGSpawnFds *)user_data;
+
+    dup2(q->stdin_fd, 0);
+    dup2(q->stdout_fd, 1);
+    dup2(q->stderr_fd, 2);
+    q->child_setup(q->user_data);
+}
+#endif
+
+static inline gboolean
+g_spawn_async_with_fds_slirp(const gchar *working_directory,
+                            gchar **argv,
+                            gchar **envp,
+                            GSpawnFlags flags,
+                            GSpawnChildSetupFunc child_setup,
+                            gpointer user_data,
+                            GPid *child_pid,
+                            gint stdin_fd,
+                            gint stdout_fd,
+                            gint stderr_fd,
+                            GError **error)
+{
+#if GLIB_CHECK_VERSION(2, 58, 0)
+    return g_spawn_async_with_fds(working_directory, argv, envp, flags,
+                                  child_setup, user_data,
+                                  child_pid, stdin_fd, stdout_fd, stderr_fd,
+                                  error);
+#else
+    SlirpGSpawnFds setup = {
+        .child_setup = child_setup,
+        .user_data = user_data,
+        .stdin_fd = stdin_fd,
+        .stdout_fd = stdout_fd,
+        .stderr_fd = stderr_fd,
+    };
+
+    return g_spawn_async(working_directory, argv, envp, flags,
+                         slirp_gspawn_fds_setup, &setup,
+                         child_pid, error);
+#endif
+}
+
+#define g_spawn_async_with_fds(wd, argv, env, f, c, d, p, ifd, ofd, efd, err) \
+    g_spawn_async_with_fds_slirp(wd, argv, env, f, c, d, p, ifd, ofd, efd, err)
+
+#pragma GCC diagnostic pop
+
 int
 fork_exec(struct socket *so, const char *ex)
 {
