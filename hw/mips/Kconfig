@@ -51,6 +51,11 @@ config MIPS_CPS
 
 config MIPS_BOSTON
     bool
+    select FITLOADER
+    select MIPS_CPS
+    select PCI_EXPRESS_XILINX
+    select AHCI_ICH9
+    select SERIAL
 
 config FW_CFG_MIPS
     bool
