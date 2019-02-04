@@ -439,7 +439,7 @@ union {                                                                 \
 
 #define QTAILQ_FOREACH_REVERSE_SAFE(var, head, field, prev_var)         \
         for ((var) = QTAILQ_LAST(head);                                 \
-             (var) && ((prev_var) = QTAILQ_PREV(var, field));           \
+             (var) && ((prev_var) = QTAILQ_PREV(var, field), 1);        \
              (var) = (prev_var))
 
 /*
