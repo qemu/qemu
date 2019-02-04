@@ -15,7 +15,6 @@
 #include "ui/console.h"
 #include "hw/boards.h"
 #include "hw/loader.h"
-#include "hw/i386/pc.h"
 #include "sysemu/qtest.h"
 
 #undef DEBUG_PUV3
