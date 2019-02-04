@@ -790,10 +790,10 @@ vu_set_vring_addr_exec(VuDev *dev, VhostUserMsg *vmsg)
     DPRINT("vhost_vring_addr:\n");
     DPRINT("    index:  %d\n", vra->index);
     DPRINT("    flags:  %d\n", vra->flags);
-    DPRINT("    desc_user_addr:   0x%016llx\n", vra->desc_user_addr);
-    DPRINT("    used_user_addr:   0x%016llx\n", vra->used_user_addr);
-    DPRINT("    avail_user_addr:  0x%016llx\n", vra->avail_user_addr);
-    DPRINT("    log_guest_addr:   0x%016llx\n", vra->log_guest_addr);
+    DPRINT("    desc_user_addr:   0x%016" PRIx64 "\n", (uint64_t)vra->desc_user_addr);
+    DPRINT("    used_user_addr:   0x%016" PRIx64 "\n", (uint64_t)vra->used_user_addr);
+    DPRINT("    avail_user_addr:  0x%016" PRIx64 "\n", (uint64_t)vra->avail_user_addr);
+    DPRINT("    log_guest_addr:   0x%016" PRIx64 "\n", (uint64_t)vra->log_guest_addr);
 
     vq->vring.flags = vra->flags;
     vq->vring.desc = qva_to_va(dev, vra->desc_user_addr);
