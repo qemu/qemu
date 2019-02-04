@@ -16,6 +16,7 @@
 #include "monitor/monitor.h"
 #include "hw/ppc/fdt.h"
 #include "hw/ppc/spapr.h"
+#include "hw/ppc/spapr_cpu_core.h"
 #include "hw/ppc/spapr_xive.h"
 #include "hw/ppc/xive.h"
 #include "hw/ppc/xive_regs.h"
@@ -390,6 +391,13 @@ static int spapr_xive_write_nvt(XiveRouter *xrtr, uint8_t nvt_blk,
     g_assert_not_reached();
 }
 
+static XiveTCTX *spapr_xive_get_tctx(XiveRouter *xrtr, CPUState *cs)
+{
+    PowerPCCPU *cpu = POWERPC_CPU(cs);
+
+    return spapr_cpu_state(cpu)->tctx;
+}
+
 static const VMStateDescription vmstate_spapr_xive_end = {
     .name = TYPE_SPAPR_XIVE "/end",
     .version_id = 1,
@@ -454,6 +462,7 @@ static void spapr_xive_class_init(ObjectClass *klass, void *data)
     xrc->write_end = spapr_xive_write_end;
     xrc->get_nvt = spapr_xive_get_nvt;
     xrc->write_nvt = spapr_xive_write_nvt;
+    xrc->get_tctx = spapr_xive_get_tctx;
 }
 
 static const TypeInfo spapr_xive_info = {

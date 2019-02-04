@@ -43,7 +43,7 @@ ram_addr_t ppc4xx_sdram_adjust(ram_addr_t ram_size, int nr_banks,
                                MemoryRegion ram_memories[],
                                hwaddr ram_bases[],
                                hwaddr ram_sizes[],
-                               const unsigned int sdram_bank_sizes[]);
+                               const ram_addr_t sdram_bank_sizes[]);
 
 void ppc4xx_sdram_init (CPUPPCState *env, qemu_irq irq, int nbanks,
                         MemoryRegion ram_memories[],

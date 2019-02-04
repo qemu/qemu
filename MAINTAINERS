@@ -960,9 +960,10 @@ e500
 M: David Gibson <david@gibson.dropbear.id.au>
 L: qemu-ppc@nongnu.org
 S: Odd Fixes
-F: hw/ppc/e500.[hc]
-F: hw/ppc/e500plat.c
+F: hw/ppc/e500*
 F: hw/gpio/mpc8xxx.c
+F: hw/net/fsl_etsec/
+F: hw/pci-host/ppce500.c
 F: include/hw/ppc/ppc_e500.h
 F: include/hw/pci-host/ppce500.h
 F: pc-bios/u-boot.e500
@@ -975,7 +976,8 @@ F: hw/ppc/mpc8544ds.c
 F: hw/ppc/mpc8544_guts.c
 
 New World (mac99)
-M: David Gibson <david@gibson.dropbear.id.au>
+M: Mark Cave-Ayland <mark.cave-ayland@ilande.co.uk>
+R: David Gibson <david@gibson.dropbear.id.au>
 L: qemu-ppc@nongnu.org
 S: Odd Fixes
 F: hw/ppc/mac_newworld.c
@@ -993,7 +995,8 @@ F: include/hw/input/adb*
 F: pc-bios/qemu_vga.ndrv
 
 Old World (g3beige)
-M: David Gibson <david@gibson.dropbear.id.au>
+M: Mark Cave-Ayland <mark.cave-ayland@ilande.co.uk>
+R: David Gibson <david@gibson.dropbear.id.au>
 L: qemu-ppc@nongnu.org
 S: Odd Fixes
 F: hw/ppc/mac_oldworld.c
@@ -1040,14 +1043,6 @@ F: tests/spapr*
 F: tests/libqos/*spapr*
 F: tests/rtas*
 F: tests/libqos/rtas*
-
-XIVE
-M: David Gibson <david@gibson.dropbear.id.au>
-M: Cédric Le Goater <clg@kaod.org>
-L: qemu-ppc@nongnu.org
-S: Supported
-F: hw/*/*xive*
-F: include/hw/*/*xive*
 
 virtex_ml507
 M: Edgar E. Iglesias <edgar.iglesias@gmail.com>
@@ -1326,14 +1321,6 @@ F: hw/ppc/ppc4*.c
 F: hw/i2c/ppc4xx_i2c.c
 F: include/hw/ppc/ppc4xx.h
 F: include/hw/i2c/ppc4xx_i2c.h
-
-ppce500
-M: David Gibson <david@gibson.dropbear.id.au>
-L: qemu-ppc@nongnu.org
-S: Odd Fixes
-F: hw/ppc/e500*
-F: hw/pci-host/ppce500.c
-F: hw/net/fsl_etsec/
 
 Character devices
 M: Marc-André Lureau <marcandre.lureau@redhat.com>
@@ -1647,6 +1634,14 @@ F: include/standard-headers/linux/qemu_fw_cfg.h
 F: tests/libqos/fw_cfg.c
 F: tests/fw_cfg-test.c
 T: git https://github.com/philmd/qemu.git fw_cfg-next
+
+XIVE
+M: David Gibson <david@gibson.dropbear.id.au>
+M: Cédric Le Goater <clg@kaod.org>
+L: qemu-ppc@nongnu.org
+S: Supported
+F: hw/*/*xive*
+F: include/hw/*/*xive*
 
 Subsystems
 ----------

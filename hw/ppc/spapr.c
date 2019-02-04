@@ -1225,9 +1225,7 @@ static void spapr_dt_hypervisor(sPAPRMachineState *spapr, void *fdt)
     }
 }
 
-static void *spapr_build_fdt(sPAPRMachineState *spapr,
-                             hwaddr rtas_addr,
-                             hwaddr rtas_size)
+static void *spapr_build_fdt(sPAPRMachineState *spapr)
 {
     MachineState *machine = MACHINE(spapr);
     MachineClass *mc = MACHINE_GET_CLASS(machine);
@@ -1644,14 +1642,14 @@ static void spapr_machine_reset(void)
 
     /*
      * We place the device tree and RTAS just below either the top of the RMA,
-     * or just below 2GB, whichever is lowere, so that it can be
+     * or just below 2GB, whichever is lower, so that it can be
      * processed with 32-bit real mode code if necessary
      */
     rtas_limit = MIN(spapr->rma_size, RTAS_MAX_ADDR);
     rtas_addr = rtas_limit - RTAS_MAX_SIZE;
     fdt_addr = rtas_addr - FDT_MAX_SIZE;
 
-    fdt = spapr_build_fdt(spapr, rtas_addr, spapr->rtas_size);
+    fdt = spapr_build_fdt(spapr);
 
     spapr_load_rtas(spapr, fdt, rtas_addr);
 
@@ -1717,6 +1715,7 @@ static bool spapr_vga_init(PCIBus *pci_bus, Error **errp)
         return true;
     case VGA_STD:
     case VGA_VIRTIO:
+    case VGA_CIRRUS:
         return pci_vga_init(pci_bus) != NULL;
     default:
         error_setg(errp,
@@ -2959,10 +2958,11 @@ static char *spapr_get_fw_dev_path(FWPathProvider *p, BusState *bus,
         if (spapr) {
             /*
              * Replace "channel@0/disk@0,0" with "disk@8000000000000000":
-             * We use SRP luns of the form 8000 | (bus << 8) | (id << 5) | lun
-             * in the top 16 bits of the 64-bit LUN
+             * In the top 16 bits of the 64-bit LUN, we use SRP luns of the form
+             * 0x8000 | (target << 8) | (bus << 5) | lun
+             * (see the "Logical unit addressing format" table in SAM5)
              */
-            unsigned id = 0x8000 | (d->id << 8) | d->lun;
+            unsigned id = 0x8000 | (d->id << 8) | (d->channel << 5) | d->lun;
             return g_strdup_printf("%s@%"PRIX64, qdev_fw_name(dev),
                                    (uint64_t)id << 48);
         } else if (virtio) {
@@ -3125,6 +3125,11 @@ static char *spapr_get_ic_mode(Object *obj, Error **errp)
 static void spapr_set_ic_mode(Object *obj, const char *value, Error **errp)
 {
     sPAPRMachineState *spapr = SPAPR_MACHINE(obj);
+
+    if (SPAPR_MACHINE_GET_CLASS(spapr)->legacy_irq_allocation) {
+        error_setg(errp, "This machine only uses the legacy XICS backend, don't pass ic-mode");
+        return;
+    }
 
     /* The legacy IRQ backend can not be set */
     if (strcmp(value, "xics") == 0) {
@@ -3896,7 +3901,7 @@ static ICPState *spapr_icp_get(XICSFabric *xi, int vcpu_id)
 {
     PowerPCCPU *cpu = spapr_find_cpu(vcpu_id);
 
-    return cpu ? cpu->icp : NULL;
+    return cpu ? spapr_cpu_state(cpu)->icp : NULL;
 }
 
 static void spapr_pic_print_info(InterruptStatsProvider *obj,

@@ -964,7 +964,7 @@ static void populate_resource_props(PCIDevice *d, ResourceProps *rp)
         }
 
         assigned = &rp->assigned[assigned_idx++];
-        assigned->phys_hi = cpu_to_be32(reg->phys_hi | b_n(1));
+        assigned->phys_hi = cpu_to_be32(be32_to_cpu(reg->phys_hi) | b_n(1));
         assigned->phys_mid = cpu_to_be32(d->io_regions[i].addr >> 32);
         assigned->phys_lo = cpu_to_be32(d->io_regions[i].addr);
         assigned->size_hi = reg->size_hi;
@@ -2030,8 +2030,6 @@ static void spapr_phb_pci_enumerate_bridge(PCIBus *bus, PCIDevice *pdev,
                                            void *opaque)
 {
     unsigned int *bus_no = opaque;
-    unsigned int primary = *bus_no;
-    unsigned int subordinate = 0xff;
     PCIBus *sec_bus = NULL;
 
     if ((pci_default_read_config(pdev, PCI_HEADER_TYPE, 1) !=
@@ -2040,7 +2038,7 @@ static void spapr_phb_pci_enumerate_bridge(PCIBus *bus, PCIDevice *pdev,
     }
 
     (*bus_no)++;
-    pci_default_write_config(pdev, PCI_PRIMARY_BUS, primary, 1);
+    pci_default_write_config(pdev, PCI_PRIMARY_BUS, pci_dev_bus_num(pdev), 1);
     pci_default_write_config(pdev, PCI_SECONDARY_BUS, *bus_no, 1);
     pci_default_write_config(pdev, PCI_SUBORDINATE_BUS, *bus_no, 1);
 
@@ -2049,7 +2047,6 @@ static void spapr_phb_pci_enumerate_bridge(PCIBus *bus, PCIDevice *pdev,
         return;
     }
 
-    pci_default_write_config(pdev, PCI_SUBORDINATE_BUS, subordinate, 1);
     pci_for_each_device(sec_bus, pci_bus_num(sec_bus),
                         spapr_phb_pci_enumerate_bridge, bus_no);
     pci_default_write_config(pdev, PCI_SUBORDINATE_BUS, *bus_no, 1);

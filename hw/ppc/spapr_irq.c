@@ -12,6 +12,7 @@
 #include "qemu/error-report.h"
 #include "qapi/error.h"
 #include "hw/ppc/spapr.h"
+#include "hw/ppc/spapr_cpu_core.h"
 #include "hw/ppc/spapr_xive.h"
 #include "hw/ppc/xics.h"
 #include "hw/ppc/xics_spapr.h"
@@ -185,7 +186,7 @@ static void spapr_irq_print_info_xics(sPAPRMachineState *spapr, Monitor *mon)
     CPU_FOREACH(cs) {
         PowerPCCPU *cpu = POWERPC_CPU(cs);
 
-        icp_pic_print_info(cpu->icp, mon);
+        icp_pic_print_info(spapr_cpu_state(cpu)->icp, mon);
     }
 
     ics_pic_print_info(spapr->ics, mon);
@@ -196,6 +197,7 @@ static void spapr_irq_cpu_intc_create_xics(sPAPRMachineState *spapr,
 {
     Error *local_err = NULL;
     Object *obj;
+    sPAPRCPUState *spapr_cpu = spapr_cpu_state(cpu);
 
     obj = icp_create(OBJECT(cpu), spapr->icp_type, XICS_FABRIC(spapr),
                      &local_err);
@@ -204,7 +206,7 @@ static void spapr_irq_cpu_intc_create_xics(sPAPRMachineState *spapr,
         return;
     }
 
-    cpu->icp = ICP(obj);
+    spapr_cpu->icp = ICP(obj);
 }
 
 static int spapr_irq_post_load_xics(sPAPRMachineState *spapr, int version_id)
@@ -213,7 +215,7 @@ static int spapr_irq_post_load_xics(sPAPRMachineState *spapr, int version_id)
         CPUState *cs;
         CPU_FOREACH(cs) {
             PowerPCCPU *cpu = POWERPC_CPU(cs);
-            icp_resend(cpu->icp);
+            icp_resend(spapr_cpu_state(cpu)->icp);
         }
     }
     return 0;
@@ -334,7 +336,7 @@ static void spapr_irq_print_info_xive(sPAPRMachineState *spapr,
     CPU_FOREACH(cs) {
         PowerPCCPU *cpu = POWERPC_CPU(cs);
 
-        xive_tctx_pic_print_info(cpu->tctx, mon);
+        xive_tctx_pic_print_info(spapr_cpu_state(cpu)->tctx, mon);
     }
 
     spapr_xive_pic_print_info(spapr->xive, mon);
@@ -345,6 +347,7 @@ static void spapr_irq_cpu_intc_create_xive(sPAPRMachineState *spapr,
 {
     Error *local_err = NULL;
     Object *obj;
+    sPAPRCPUState *spapr_cpu = spapr_cpu_state(cpu);
 
     obj = xive_tctx_create(OBJECT(cpu), XIVE_ROUTER(spapr->xive), &local_err);
     if (local_err) {
@@ -352,13 +355,13 @@ static void spapr_irq_cpu_intc_create_xive(sPAPRMachineState *spapr,
         return;
     }
 
-    cpu->tctx = XIVE_TCTX(obj);
+    spapr_cpu->tctx = XIVE_TCTX(obj);
 
     /*
      * (TCG) Early setting the OS CAM line for hotplugged CPUs as they
      * don't beneficiate from the reset of the XIVE IRQ backend
      */
-    spapr_xive_set_tctx_os_cam(cpu->tctx);
+    spapr_xive_set_tctx_os_cam(spapr_cpu->tctx);
 }
 
 static int spapr_irq_post_load_xive(sPAPRMachineState *spapr, int version_id)
@@ -374,7 +377,7 @@ static void spapr_irq_reset_xive(sPAPRMachineState *spapr, Error **errp)
         PowerPCCPU *cpu = POWERPC_CPU(cs);
 
         /* (TCG) Set the OS CAM line of the thread interrupt context. */
-        spapr_xive_set_tctx_os_cam(cpu->tctx);
+        spapr_xive_set_tctx_os_cam(spapr_cpu_state(cpu)->tctx);
     }
 
     /* Activate the XIVE MMIOs */

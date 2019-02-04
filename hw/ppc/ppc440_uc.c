@@ -2,7 +2,7 @@
  * QEMU PowerPC 440 embedded processors emulation
  *
  * Copyright (c) 2012 François Revol
- * Copyright (c) 2016-2018 BALATON Zoltan
+ * Copyright (c) 2016-2019 BALATON Zoltan
  *
  * This work is licensed under the GNU GPL license version 2 or later.
  *
@@ -481,7 +481,7 @@ void ppc4xx_sdr_init(CPUPPCState *env)
 
 /*****************************************************************************/
 /* SDRAM controller */
-typedef struct ppc4xx_sdram_t {
+typedef struct ppc440_sdram_t {
     uint32_t addr;
     int nbanks;
     MemoryRegion containers[4]; /* used for clipping */
@@ -489,7 +489,7 @@ typedef struct ppc4xx_sdram_t {
     hwaddr ram_bases[4];
     hwaddr ram_sizes[4];
     uint32_t bcr[4];
-} ppc4xx_sdram_t;
+} ppc440_sdram_t;
 
 enum {
     SDRAM0_CFGADDR = 0x10,
@@ -505,10 +505,6 @@ enum {
     SDRAM_PLBADDUHB = 0x50,
 };
 
-/* XXX: TOFIX: some patches have made this code become inconsistent:
- *      there are type inconsistencies, mixing hwaddr, target_ulong
- *      and uint32_t
- */
 static uint32_t sdram_bcr(hwaddr ram_base, hwaddr ram_size)
 {
     uint32_t bcr;
@@ -538,11 +534,17 @@ static uint32_t sdram_bcr(hwaddr ram_base, hwaddr ram_size)
     case (1 * GiB):
         bcr = 0xe000;
         break;
+    case (2 * GiB):
+        bcr = 0xc000;
+        break;
+    case (4 * GiB):
+        bcr = 0x8000;
+        break;
     default:
         error_report("invalid RAM size " TARGET_FMT_plx, ram_size);
         return 0;
     }
-    bcr |= ram_base & 0xFF800000;
+    bcr |= ram_base >> 2 & 0xffe00000;
     bcr |= 1;
 
     return bcr;
@@ -550,12 +552,12 @@ static uint32_t sdram_bcr(hwaddr ram_base, hwaddr ram_size)
 
 static inline hwaddr sdram_base(uint32_t bcr)
 {
-    return bcr & 0xFF800000;
+    return (bcr & 0xffe00000) << 2;
 }
 
-static target_ulong sdram_size(uint32_t bcr)
+static uint64_t sdram_size(uint32_t bcr)
 {
-    target_ulong size;
+    uint64_t size;
     int sh;
 
     sh = 1024 - ((bcr >> 6) & 0x3ff);
@@ -564,50 +566,46 @@ static target_ulong sdram_size(uint32_t bcr)
     return size;
 }
 
-static void sdram_set_bcr(ppc4xx_sdram_t *sdram,
-                          uint32_t *bcrp, uint32_t bcr, int enabled)
+static void sdram_set_bcr(ppc440_sdram_t *sdram, int i,
+                          uint32_t bcr, int enabled)
 {
-    unsigned n = bcrp - sdram->bcr;
-
-    if (*bcrp & 1) {
-        /* Unmap RAM */
+    if (sdram->bcr[i] & 1) {
+        /* First unmap RAM if enabled */
         memory_region_del_subregion(get_system_memory(),
-                                    &sdram->containers[n]);
-        memory_region_del_subregion(&sdram->containers[n],
-                                    &sdram->ram_memories[n]);
-        object_unparent(OBJECT(&sdram->containers[n]));
+                                    &sdram->containers[i]);
+        memory_region_del_subregion(&sdram->containers[i],
+                                    &sdram->ram_memories[i]);
+        object_unparent(OBJECT(&sdram->containers[i]));
     }
-    *bcrp = bcr & 0xFFDEE001;
+    sdram->bcr[i] = bcr & 0xffe0ffc1;
     if (enabled && (bcr & 1)) {
-        memory_region_init(&sdram->containers[n], NULL, "sdram-containers",
+        memory_region_init(&sdram->containers[i], NULL, "sdram-containers",
                            sdram_size(bcr));
-        memory_region_add_subregion(&sdram->containers[n], 0,
-                                    &sdram->ram_memories[n]);
+        memory_region_add_subregion(&sdram->containers[i], 0,
+                                    &sdram->ram_memories[i]);
         memory_region_add_subregion(get_system_memory(),
                                     sdram_base(bcr),
-                                    &sdram->containers[n]);
+                                    &sdram->containers[i]);
     }
 }
 
-static void sdram_map_bcr(ppc4xx_sdram_t *sdram)
+static void sdram_map_bcr(ppc440_sdram_t *sdram)
 {
     int i;
 
     for (i = 0; i < sdram->nbanks; i++) {
         if (sdram->ram_sizes[i] != 0) {
-            sdram_set_bcr(sdram,
-                          &sdram->bcr[i],
-                          sdram_bcr(sdram->ram_bases[i], sdram->ram_sizes[i]),
-                          1);
+            sdram_set_bcr(sdram, i, sdram_bcr(sdram->ram_bases[i],
+                                              sdram->ram_sizes[i]), 1);
         } else {
-            sdram_set_bcr(sdram, &sdram->bcr[i], 0, 0);
+            sdram_set_bcr(sdram, i, 0, 0);
         }
     }
 }
 
 static uint32_t dcr_read_sdram(void *opaque, int dcrn)
 {
-    ppc4xx_sdram_t *sdram = opaque;
+    ppc440_sdram_t *sdram = opaque;
     uint32_t ret = 0;
 
     switch (dcrn) {
@@ -615,8 +613,10 @@ static uint32_t dcr_read_sdram(void *opaque, int dcrn)
     case SDRAM_R1BAS:
     case SDRAM_R2BAS:
     case SDRAM_R3BAS:
-        ret = sdram_bcr(sdram->ram_bases[dcrn - SDRAM_R0BAS],
-                        sdram->ram_sizes[dcrn - SDRAM_R0BAS]);
+        if (sdram->ram_sizes[dcrn - SDRAM_R0BAS]) {
+            ret = sdram_bcr(sdram->ram_bases[dcrn - SDRAM_R0BAS],
+                            sdram->ram_sizes[dcrn - SDRAM_R0BAS]);
+        }
         break;
     case SDRAM_CONF1HB:
     case SDRAM_CONF1LL:
@@ -658,7 +658,7 @@ static uint32_t dcr_read_sdram(void *opaque, int dcrn)
 
 static void dcr_write_sdram(void *opaque, int dcrn, uint32_t val)
 {
-    ppc4xx_sdram_t *sdram = opaque;
+    ppc440_sdram_t *sdram = opaque;
 
     switch (dcrn) {
     case SDRAM_R0BAS:
@@ -689,7 +689,7 @@ static void dcr_write_sdram(void *opaque, int dcrn, uint32_t val)
 
 static void sdram_reset(void *opaque)
 {
-    ppc4xx_sdram_t *sdram = opaque;
+    ppc440_sdram_t *sdram = opaque;
 
     sdram->addr = 0;
 }
@@ -699,7 +699,7 @@ void ppc440_sdram_init(CPUPPCState *env, int nbanks,
                        hwaddr *ram_bases, hwaddr *ram_sizes,
                        int do_init)
 {
-    ppc4xx_sdram_t *sdram;
+    ppc440_sdram_t *sdram;
 
     sdram = g_malloc0(sizeof(*sdram));
     sdram->nbanks = nbanks;

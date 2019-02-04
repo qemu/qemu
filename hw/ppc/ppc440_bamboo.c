@@ -49,7 +49,7 @@
 
 #define PPC440EP_SDRAM_NR_BANKS 4
 
-static const unsigned int ppc440ep_sdram_bank_sizes[] = {
+static const ram_addr_t ppc440ep_sdram_bank_sizes[] = {
     256 * MiB, 128 * MiB, 64 * MiB, 32 * MiB, 16 * MiB, 8 * MiB, 0
 };
 

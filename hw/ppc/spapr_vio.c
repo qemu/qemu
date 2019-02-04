@@ -44,38 +44,6 @@
 
 #define SPAPR_VIO_REG_BASE 0x71000000
 
-static void spapr_vio_get_irq(Object *obj, Visitor *v, const char *name,
-                              void *opaque, Error **errp)
-{
-    Property *prop = opaque;
-    uint32_t *ptr = qdev_get_prop_ptr(DEVICE(obj), prop);
-
-    visit_type_uint32(v, name, ptr, errp);
-}
-
-static void spapr_vio_set_irq(Object *obj, Visitor *v, const char *name,
-                              void *opaque, Error **errp)
-{
-    Property *prop = opaque;
-    uint32_t *ptr = qdev_get_prop_ptr(DEVICE(obj), prop);
-
-    if (!qtest_enabled()) {
-        warn_report(TYPE_VIO_SPAPR_DEVICE " '%s' property is deprecated", name);
-    }
-    visit_type_uint32(v, name, ptr, errp);
-}
-
-static const PropertyInfo spapr_vio_irq_propinfo = {
-    .name = "irq",
-    .get = spapr_vio_get_irq,
-    .set = spapr_vio_set_irq,
-};
-
-static Property spapr_vio_props[] = {
-    DEFINE_PROP("irq", VIOsPAPRDevice, irq, spapr_vio_irq_propinfo, uint32_t),
-    DEFINE_PROP_END_OF_LIST(),
-};
-
 static char *spapr_vio_get_dev_name(DeviceState *qdev)
 {
     VIOsPAPRDevice *dev = VIO_SPAPR_DEVICE(qdev);
@@ -534,15 +502,13 @@ static void spapr_vio_busdev_realize(DeviceState *qdev, Error **errp)
         dev->qdev.id = id;
     }
 
-    if (!dev->irq) {
-        dev->irq = spapr_vio_reg_to_irq(dev->reg);
+    dev->irq = spapr_vio_reg_to_irq(dev->reg);
 
-        if (SPAPR_MACHINE_GET_CLASS(spapr)->legacy_irq_allocation) {
-            dev->irq = spapr_irq_findone(spapr, &local_err);
-            if (local_err) {
-                error_propagate(errp, local_err);
-                return;
-            }
+    if (SPAPR_MACHINE_GET_CLASS(spapr)->legacy_irq_allocation) {
+        dev->irq = spapr_irq_findone(spapr, &local_err);
+        if (local_err) {
+            error_propagate(errp, local_err);
+            return;
         }
     }
 
@@ -668,7 +634,6 @@ static void vio_spapr_device_class_init(ObjectClass *klass, void *data)
     k->realize = spapr_vio_busdev_realize;
     k->reset = spapr_vio_busdev_reset;
     k->bus_type = TYPE_SPAPR_VIO_BUS;
-    k->props = spapr_vio_props;
 }
 
 static const TypeInfo spapr_vio_type_info = {

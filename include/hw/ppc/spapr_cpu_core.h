@@ -46,6 +46,8 @@ typedef struct sPAPRCPUState {
     uint64_t vpa_addr;
     uint64_t slb_shadow_addr, slb_shadow_size;
     uint64_t dtl_addr, dtl_size;
+    struct ICPState *icp;
+    struct XiveTCTX *tctx;
 } sPAPRCPUState;
 
 static inline sPAPRCPUState *spapr_cpu_state(PowerPCCPU *cpu)

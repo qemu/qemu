@@ -9,6 +9,6 @@ size_t qemu_mempath_getpagesize(const char *mem_path);
 
 void *qemu_ram_mmap(int fd, size_t size, size_t align, bool shared);
 
-void qemu_ram_munmap(void *ptr, size_t size);
+void qemu_ram_munmap(int fd, void *ptr, size_t size);
 
 #endif
