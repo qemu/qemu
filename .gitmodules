@@ -49,3 +49,6 @@
 [submodule "tests/fp/berkeley-softfloat-3"]
 	path = tests/fp/berkeley-softfloat-3
 	url = https://github.com/cota/berkeley-softfloat-3
+[submodule "roms/edk2"]
+	path = roms/edk2
+	url = https://github.com/tianocore/edk2.git
