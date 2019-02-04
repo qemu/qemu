@@ -9,7 +9,7 @@ First you must compile qemu with a user interface supporting
 multihead/multiseat and input event routing.  Right now this
 list includes sdl2, gtk (both 2+3) and vnc:
 
-  ./configure --enable-sdl --with-sdlabi=2.0
+  ./configure --enable-sdl
 
 or
 
