@@ -1004,7 +1004,9 @@ static gboolean gd_scroll_event(GtkWidget *widget, GdkEventScroll *scroll,
                                          &delta_x, &delta_y)) {
             return TRUE;
         }
-        if (delta_y > 0) {
+        if (delta_y == 0) {
+            return TRUE;
+        } else if (delta_y > 0) {
             btn = INPUT_BUTTON_WHEEL_DOWN;
         } else {
             btn = INPUT_BUTTON_WHEEL_UP;
