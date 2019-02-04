@@ -50,7 +50,6 @@ struct XenBlockDataPlane {
     unsigned int nr_ring_ref;
     void *sring;
     int64_t file_blk;
-    int64_t file_size;
     int protocol;
     blkif_back_rings_t rings;
     int more_work;
@@ -189,7 +188,7 @@ static int xen_block_parse_request(XenBlockRequest *request)
                request->req.seg[i].first_sect + 1) * dataplane->file_blk;
         request->size += len;
     }
-    if (request->start + request->size > dataplane->file_size) {
+    if (request->start + request->size > blk_getlength(dataplane->blk)) {
         error_report("error: access beyond end of file");
         goto err;
     }
@@ -638,7 +637,6 @@ XenBlockDataPlane *xen_block_dataplane_create(XenDevice *xendev,
     dataplane->xendev = xendev;
     dataplane->file_blk = conf->logical_block_size;
     dataplane->blk = conf->blk;
-    dataplane->file_size = blk_getlength(dataplane->blk);
 
     QLIST_INIT(&dataplane->inflight);
     QLIST_INIT(&dataplane->freelist);

@@ -547,20 +547,15 @@ static void xen_device_backend_changed(void *opaque)
     }
 
     /*
-     * If a backend is still 'online' then its state should be cycled
-     * back round to InitWait in order for a new frontend instance to
-     * connect. This may happen when, for example, a frontend driver is
-     * re-installed or updated.
-     * If a backend is not 'online' then the device should be destroyed.
+     * If a backend is still 'online' then we should leave it alone but,
+     * if a backend is not 'online', then the device should be destroyed
+     * once the state is Closed.
      */
-    if (xendev->backend_online &&
-        xendev->backend_state == XenbusStateClosed) {
-        xen_device_backend_set_state(xendev, XenbusStateInitWait);
-    } else if (!xendev->backend_online &&
-               (xendev->backend_state == XenbusStateClosed ||
-                xendev->backend_state == XenbusStateInitialising ||
-                xendev->backend_state == XenbusStateInitWait ||
-                xendev->backend_state == XenbusStateUnknown)) {
+    if (!xendev->backend_online &&
+        (xendev->backend_state == XenbusStateClosed ||
+         xendev->backend_state == XenbusStateInitialising ||
+         xendev->backend_state == XenbusStateInitWait ||
+         xendev->backend_state == XenbusStateUnknown)) {
         Error *local_err = NULL;
 
         if (!xen_backend_try_device_destroy(xendev, &local_err)) {
@@ -714,6 +709,17 @@ static void xen_device_frontend_changed(void *opaque)
     }
 
     xen_device_frontend_set_state(xendev, state);
+
+    if (state == XenbusStateInitialising &&
+        xendev->backend_state == XenbusStateClosed &&
+        xendev->backend_online) {
+        /*
+         * The frontend is re-initializing so switch back to
+         * InitWait.
+         */
+        xen_device_backend_set_state(xendev, XenbusStateInitWait);
+        return;
+    }
 
     if (xendev_class->frontend_changed) {
         Error *local_err = NULL;
