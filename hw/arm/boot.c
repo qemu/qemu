@@ -1182,7 +1182,8 @@ static void arm_setup_firmware_boot(ARMCPU *cpu, struct arm_boot_info *info)
 
     /*
      * We will start from address 0 (typically a boot ROM image) in the
-     * same way as hardware.
+     * same way as hardware. Leave env->boot_info NULL, so that
+     * do_cpu_reset() knows it does not need to alter the PC on reset.
      */
 }
 
