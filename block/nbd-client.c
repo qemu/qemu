@@ -53,15 +53,13 @@ static void nbd_teardown_connection(BlockDriverState *bs)
 {
     NBDClientSession *client = nbd_get_client_session(bs);
 
-    if (!client->ioc) { /* Already closed */
-        return;
-    }
+    assert(client->ioc);
 
     /* finish any pending coroutines */
     qio_channel_shutdown(client->ioc,
                          QIO_CHANNEL_SHUTDOWN_BOTH,
                          NULL);
-    BDRV_POLL_WHILE(bs, client->read_reply_co);
+    BDRV_POLL_WHILE(bs, client->connection_co);
 
     nbd_client_detach_aio_context(bs);
     object_unref(OBJECT(client->sioc));
@@ -70,7 +68,7 @@ static void nbd_teardown_connection(BlockDriverState *bs)
     client->ioc = NULL;
 }
 
-static coroutine_fn void nbd_read_reply_entry(void *opaque)
+static coroutine_fn void nbd_connection_entry(void *opaque)
 {
     NBDClientSession *s = opaque;
     uint64_t i;
@@ -102,14 +100,14 @@ static coroutine_fn void nbd_read_reply_entry(void *opaque)
         }
 
         /* We're woken up again by the request itself.  Note that there
-         * is no race between yielding and reentering read_reply_co.  This
+         * is no race between yielding and reentering connection_co.  This
          * is because:
          *
          * - if the request runs on the same AioContext, it is only
          *   entered after we yield
          *
          * - if the request runs on a different AioContext, reentering
-         *   read_reply_co happens through a bottom half, which can only
+         *   connection_co happens through a bottom half, which can only
          *   run after we yield.
          */
         aio_co_wake(s->requests[i].coroutine);
@@ -118,7 +116,7 @@ static coroutine_fn void nbd_read_reply_entry(void *opaque)
 
     s->quit = true;
     nbd_recv_coroutines_wake_all(s);
-    s->read_reply_co = NULL;
+    s->connection_co = NULL;
     aio_wait_kick();
 }
 
@@ -154,10 +152,7 @@ static int nbd_co_send_request(BlockDriverState *bs,
         rc = -EIO;
         goto err;
     }
-    if (!s->ioc) {
-        rc = -EPIPE;
-        goto err;
-    }
+    assert(s->ioc);
 
     if (qiov) {
         qio_channel_set_cork(s->ioc, true);
@@ -338,10 +333,9 @@ static int nbd_co_receive_offset_data_payload(NBDClientSession *s,
         return -EINVAL;
     }
 
-    if (nbd_read(s->ioc, &offset, sizeof(offset), errp) < 0) {
+    if (nbd_read64(s->ioc, &offset, "OFFSET_DATA offset", errp) < 0) {
         return -EIO;
     }
-    be64_to_cpus(&offset);
 
     data_size = chunk->length - sizeof(offset);
     assert(data_size);
@@ -388,7 +382,7 @@ static coroutine_fn int nbd_co_receive_structured_payload(
     }
 
     *payload = g_new(char, len);
-    ret = nbd_read(s->ioc, *payload, len, errp);
+    ret = nbd_read(s->ioc, *payload, len, "structured payload", errp);
     if (ret < 0) {
         g_free(*payload);
         *payload = NULL;
@@ -426,14 +420,15 @@ static coroutine_fn int nbd_co_do_receive_one_chunk(
     }
     *request_ret = 0;
 
-    /* Wait until we're woken up by nbd_read_reply_entry.  */
+    /* Wait until we're woken up by nbd_connection_entry.  */
     s->requests[i].receiving = true;
     qemu_coroutine_yield();
     s->requests[i].receiving = false;
-    if (!s->ioc || s->quit) {
+    if (s->quit) {
         error_setg(errp, "Connection closed");
         return -EIO;
     }
+    assert(s->ioc);
 
     assert(s->reply.handle == handle);
 
@@ -500,30 +495,29 @@ static coroutine_fn int nbd_co_do_receive_one_chunk(
 }
 
 /* nbd_co_receive_one_chunk
- * Read reply, wake up read_reply_co and set s->quit if needed.
+ * Read reply, wake up connection_co and set s->quit if needed.
  * Return value is a fatal error code or normal nbd reply error code
  */
 static coroutine_fn int nbd_co_receive_one_chunk(
         NBDClientSession *s, uint64_t handle, bool only_structured,
-        QEMUIOVector *qiov, NBDReply *reply, void **payload, Error **errp)
+        int *request_ret, QEMUIOVector *qiov, NBDReply *reply, void **payload,
+        Error **errp)
 {
-    int request_ret;
     int ret = nbd_co_do_receive_one_chunk(s, handle, only_structured,
-                                          &request_ret, qiov, payload, errp);
+                                          request_ret, qiov, payload, errp);
 
     if (ret < 0) {
         s->quit = true;
     } else {
-        /* For assert at loop start in nbd_read_reply_entry */
+        /* For assert at loop start in nbd_connection_entry */
         if (reply) {
             *reply = s->reply;
         }
         s->reply.handle = 0;
-        ret = request_ret;
     }
 
-    if (s->read_reply_co) {
-        aio_co_wake(s->read_reply_co);
+    if (s->connection_co) {
+        aio_co_wake(s->connection_co);
     }
 
     return ret;
@@ -531,22 +525,17 @@ static coroutine_fn int nbd_co_receive_one_chunk(
 
 typedef struct NBDReplyChunkIter {
     int ret;
-    bool fatal;
+    int request_ret;
     Error *err;
     bool done, only_structured;
 } NBDReplyChunkIter;
 
-static void nbd_iter_error(NBDReplyChunkIter *iter, bool fatal,
-                           int ret, Error **local_err)
+static void nbd_iter_channel_error(NBDReplyChunkIter *iter,
+                                   int ret, Error **local_err)
 {
     assert(ret < 0);
 
-    if ((fatal && !iter->fatal) || iter->ret == 0) {
-        if (iter->ret != 0) {
-            error_free(iter->err);
-            iter->err = NULL;
-        }
-        iter->fatal = fatal;
+    if (!iter->ret) {
         iter->ret = ret;
         error_propagate(&iter->err, *local_err);
     } else {
@@ -554,6 +543,15 @@ static void nbd_iter_error(NBDReplyChunkIter *iter, bool fatal,
     }
 
     *local_err = NULL;
+}
+
+static void nbd_iter_request_error(NBDReplyChunkIter *iter, int ret)
+{
+    assert(ret < 0);
+
+    if (!iter->request_ret) {
+        iter->request_ret = ret;
+    }
 }
 
 /* NBD_FOREACH_REPLY_CHUNK
@@ -571,13 +569,13 @@ static bool nbd_reply_chunk_iter_receive(NBDClientSession *s,
                                          QEMUIOVector *qiov, NBDReply *reply,
                                          void **payload)
 {
-    int ret;
+    int ret, request_ret;
     NBDReply local_reply;
     NBDStructuredReplyChunk *chunk;
     Error *local_err = NULL;
     if (s->quit) {
         error_setg(&local_err, "Connection closed");
-        nbd_iter_error(iter, true, -EIO, &local_err);
+        nbd_iter_channel_error(iter, -EIO, &local_err);
         goto break_loop;
     }
 
@@ -591,14 +589,16 @@ static bool nbd_reply_chunk_iter_receive(NBDClientSession *s,
     }
 
     ret = nbd_co_receive_one_chunk(s, handle, iter->only_structured,
-                                   qiov, reply, payload, &local_err);
+                                   &request_ret, qiov, reply, payload,
+                                   &local_err);
     if (ret < 0) {
-        /* If it is a fatal error s->quit is set by nbd_co_receive_one_chunk */
-        nbd_iter_error(iter, s->quit, ret, &local_err);
+        nbd_iter_channel_error(iter, ret, &local_err);
+    } else if (request_ret < 0) {
+        nbd_iter_request_error(iter, request_ret);
     }
 
     /* Do not execute the body of NBD_FOREACH_REPLY_CHUNK for simple reply. */
-    if (nbd_reply_is_simple(&s->reply) || s->quit) {
+    if (nbd_reply_is_simple(reply) || s->quit) {
         goto break_loop;
     }
 
@@ -631,7 +631,7 @@ break_loop:
 }
 
 static int nbd_co_receive_return_code(NBDClientSession *s, uint64_t handle,
-                                      Error **errp)
+                                      int *request_ret, Error **errp)
 {
     NBDReplyChunkIter iter;
 
@@ -640,12 +640,13 @@ static int nbd_co_receive_return_code(NBDClientSession *s, uint64_t handle,
     }
 
     error_propagate(errp, iter.err);
+    *request_ret = iter.request_ret;
     return iter.ret;
 }
 
 static int nbd_co_receive_cmdread_reply(NBDClientSession *s, uint64_t handle,
                                         uint64_t offset, QEMUIOVector *qiov,
-                                        Error **errp)
+                                        int *request_ret, Error **errp)
 {
     NBDReplyChunkIter iter;
     NBDReply reply;
@@ -670,7 +671,7 @@ static int nbd_co_receive_cmdread_reply(NBDClientSession *s, uint64_t handle,
                                                 offset, qiov, &local_err);
             if (ret < 0) {
                 s->quit = true;
-                nbd_iter_error(&iter, true, ret, &local_err);
+                nbd_iter_channel_error(&iter, ret, &local_err);
             }
             break;
         default:
@@ -680,7 +681,7 @@ static int nbd_co_receive_cmdread_reply(NBDClientSession *s, uint64_t handle,
                 error_setg(&local_err,
                            "Unexpected reply type: %d (%s) for CMD_READ",
                            chunk->type, nbd_reply_type_lookup(chunk->type));
-                nbd_iter_error(&iter, true, -EINVAL, &local_err);
+                nbd_iter_channel_error(&iter, -EINVAL, &local_err);
             }
         }
 
@@ -689,12 +690,14 @@ static int nbd_co_receive_cmdread_reply(NBDClientSession *s, uint64_t handle,
     }
 
     error_propagate(errp, iter.err);
+    *request_ret = iter.request_ret;
     return iter.ret;
 }
 
 static int nbd_co_receive_blockstatus_reply(NBDClientSession *s,
                                             uint64_t handle, uint64_t length,
-                                            NBDExtent *extent, Error **errp)
+                                            NBDExtent *extent,
+                                            int *request_ret, Error **errp)
 {
     NBDReplyChunkIter iter;
     NBDReply reply;
@@ -716,7 +719,7 @@ static int nbd_co_receive_blockstatus_reply(NBDClientSession *s,
             if (received) {
                 s->quit = true;
                 error_setg(&local_err, "Several BLOCK_STATUS chunks in reply");
-                nbd_iter_error(&iter, true, -EINVAL, &local_err);
+                nbd_iter_channel_error(&iter, -EINVAL, &local_err);
             }
             received = true;
 
@@ -725,7 +728,7 @@ static int nbd_co_receive_blockstatus_reply(NBDClientSession *s,
                                                 &local_err);
             if (ret < 0) {
                 s->quit = true;
-                nbd_iter_error(&iter, true, ret, &local_err);
+                nbd_iter_channel_error(&iter, ret, &local_err);
             }
             break;
         default:
@@ -735,7 +738,7 @@ static int nbd_co_receive_blockstatus_reply(NBDClientSession *s,
                            "Unexpected reply type: %d (%s) "
                            "for CMD_BLOCK_STATUS",
                            chunk->type, nbd_reply_type_lookup(chunk->type));
-                nbd_iter_error(&iter, true, -EINVAL, &local_err);
+                nbd_iter_channel_error(&iter, -EINVAL, &local_err);
             }
         }
 
@@ -750,14 +753,16 @@ static int nbd_co_receive_blockstatus_reply(NBDClientSession *s,
             iter.ret = -EIO;
         }
     }
+
     error_propagate(errp, iter.err);
+    *request_ret = iter.request_ret;
     return iter.ret;
 }
 
 static int nbd_co_request(BlockDriverState *bs, NBDRequest *request,
                           QEMUIOVector *write_qiov)
 {
-    int ret;
+    int ret, request_ret;
     Error *local_err = NULL;
     NBDClientSession *client = nbd_get_client_session(bs);
 
@@ -773,7 +778,8 @@ static int nbd_co_request(BlockDriverState *bs, NBDRequest *request,
         return ret;
     }
 
-    ret = nbd_co_receive_return_code(client, request->handle, &local_err);
+    ret = nbd_co_receive_return_code(client, request->handle,
+                                     &request_ret, &local_err);
     if (local_err) {
         trace_nbd_co_request_fail(request->from, request->len, request->handle,
                                   request->flags, request->type,
@@ -781,13 +787,13 @@ static int nbd_co_request(BlockDriverState *bs, NBDRequest *request,
                                   ret, error_get_pretty(local_err));
         error_free(local_err);
     }
-    return ret;
+    return ret ? ret : request_ret;
 }
 
 int nbd_client_co_preadv(BlockDriverState *bs, uint64_t offset,
                          uint64_t bytes, QEMUIOVector *qiov, int flags)
 {
-    int ret;
+    int ret, request_ret;
     Error *local_err = NULL;
     NBDClientSession *client = nbd_get_client_session(bs);
     NBDRequest request = {
@@ -808,7 +814,7 @@ int nbd_client_co_preadv(BlockDriverState *bs, uint64_t offset,
     }
 
     ret = nbd_co_receive_cmdread_reply(client, request.handle, offset, qiov,
-                                       &local_err);
+                                       &request_ret, &local_err);
     if (local_err) {
         trace_nbd_co_request_fail(request.from, request.len, request.handle,
                                   request.flags, request.type,
@@ -816,7 +822,7 @@ int nbd_client_co_preadv(BlockDriverState *bs, uint64_t offset,
                                   ret, error_get_pretty(local_err));
         error_free(local_err);
     }
-    return ret;
+    return ret ? ret : request_ret;
 }
 
 int nbd_client_co_pwritev(BlockDriverState *bs, uint64_t offset,
@@ -910,7 +916,7 @@ int coroutine_fn nbd_client_co_block_status(BlockDriverState *bs,
                                             int64_t *pnum, int64_t *map,
                                             BlockDriverState **file)
 {
-    int64_t ret;
+    int ret, request_ret;
     NBDExtent extent = { 0 };
     NBDClientSession *client = nbd_get_client_session(bs);
     Error *local_err = NULL;
@@ -935,7 +941,7 @@ int coroutine_fn nbd_client_co_block_status(BlockDriverState *bs,
     }
 
     ret = nbd_co_receive_blockstatus_reply(client, request.handle, bytes,
-                                           &extent, &local_err);
+                                           &extent, &request_ret, &local_err);
     if (local_err) {
         trace_nbd_co_request_fail(request.from, request.len, request.handle,
                                   request.flags, request.type,
@@ -943,8 +949,8 @@ int coroutine_fn nbd_client_co_block_status(BlockDriverState *bs,
                                   ret, error_get_pretty(local_err));
         error_free(local_err);
     }
-    if (ret < 0) {
-        return ret;
+    if (ret < 0 || request_ret < 0) {
+        return ret ? ret : request_ret;
     }
 
     assert(extent.length);
@@ -964,7 +970,7 @@ void nbd_client_attach_aio_context(BlockDriverState *bs,
 {
     NBDClientSession *client = nbd_get_client_session(bs);
     qio_channel_attach_aio_context(QIO_CHANNEL(client->ioc), new_context);
-    aio_co_schedule(new_context, client->read_reply_co);
+    aio_co_schedule(new_context, client->connection_co);
 }
 
 void nbd_client_close(BlockDriverState *bs)
@@ -972,25 +978,54 @@ void nbd_client_close(BlockDriverState *bs)
     NBDClientSession *client = nbd_get_client_session(bs);
     NBDRequest request = { .type = NBD_CMD_DISC };
 
-    if (client->ioc == NULL) {
-        return;
-    }
+    assert(client->ioc);
 
     nbd_send_request(client->ioc, &request);
 
     nbd_teardown_connection(bs);
 }
 
-int nbd_client_init(BlockDriverState *bs,
-                    QIOChannelSocket *sioc,
-                    const char *export,
-                    QCryptoTLSCreds *tlscreds,
-                    const char *hostname,
-                    const char *x_dirty_bitmap,
-                    Error **errp)
+static QIOChannelSocket *nbd_establish_connection(SocketAddress *saddr,
+                                                  Error **errp)
+{
+    QIOChannelSocket *sioc;
+    Error *local_err = NULL;
+
+    sioc = qio_channel_socket_new();
+    qio_channel_set_name(QIO_CHANNEL(sioc), "nbd-client");
+
+    qio_channel_socket_connect_sync(sioc, saddr, &local_err);
+    if (local_err) {
+        object_unref(OBJECT(sioc));
+        error_propagate(errp, local_err);
+        return NULL;
+    }
+
+    qio_channel_set_delay(QIO_CHANNEL(sioc), false);
+
+    return sioc;
+}
+
+static int nbd_client_connect(BlockDriverState *bs,
+                              SocketAddress *saddr,
+                              const char *export,
+                              QCryptoTLSCreds *tlscreds,
+                              const char *hostname,
+                              const char *x_dirty_bitmap,
+                              Error **errp)
 {
     NBDClientSession *client = nbd_get_client_session(bs);
     int ret;
+
+    /*
+     * establish TCP connection, return error if it fails
+     * TODO: Configurable retry-until-timeout behaviour.
+     */
+    QIOChannelSocket *sioc = nbd_establish_connection(saddr, errp);
+
+    if (!sioc) {
+        return -ECONNREFUSED;
+    }
 
     /* NBD handshake */
     logout("session init %s\n", export);
@@ -1007,6 +1042,7 @@ int nbd_client_init(BlockDriverState *bs,
     g_free(client->info.name);
     if (ret < 0) {
         logout("Failed to negotiate with the NBD server\n");
+        object_unref(OBJECT(sioc));
         return ret;
     }
     if (x_dirty_bitmap && !client->info.base_allocation) {
@@ -1029,10 +1065,7 @@ int nbd_client_init(BlockDriverState *bs,
         bs->supported_zero_flags |= BDRV_REQ_MAY_UNMAP;
     }
 
-    qemu_co_mutex_init(&client->send_mutex);
-    qemu_co_queue_init(&client->free_sema);
     client->sioc = sioc;
-    object_ref(OBJECT(client->sioc));
 
     if (!client->ioc) {
         client->ioc = QIO_CHANNEL(sioc);
@@ -1042,7 +1075,7 @@ int nbd_client_init(BlockDriverState *bs,
     /* Now that we're connected, set the socket to be non-blocking and
      * kick the reply mechanism.  */
     qio_channel_set_blocking(QIO_CHANNEL(sioc), false, NULL);
-    client->read_reply_co = qemu_coroutine_create(nbd_read_reply_entry, client);
+    client->connection_co = qemu_coroutine_create(nbd_connection_entry, client);
     nbd_client_attach_aio_context(bs, bdrv_get_aio_context(bs));
 
     logout("Established connection with NBD server\n");
@@ -1058,6 +1091,26 @@ int nbd_client_init(BlockDriverState *bs,
         NBDRequest request = { .type = NBD_CMD_DISC };
 
         nbd_send_request(client->ioc ?: QIO_CHANNEL(sioc), &request);
+
+        object_unref(OBJECT(sioc));
+
         return ret;
     }
+}
+
+int nbd_client_init(BlockDriverState *bs,
+                    SocketAddress *saddr,
+                    const char *export,
+                    QCryptoTLSCreds *tlscreds,
+                    const char *hostname,
+                    const char *x_dirty_bitmap,
+                    Error **errp)
+{
+    NBDClientSession *client = nbd_get_client_session(bs);
+
+    qemu_co_mutex_init(&client->send_mutex);
+    qemu_co_queue_init(&client->free_sema);
+
+    return nbd_client_connect(bs, saddr, export, tlscreds, hostname,
+                              x_dirty_bitmap, errp);
 }

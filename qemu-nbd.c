@@ -787,6 +787,8 @@ int main(int argc, char **argv)
             flags &= ~BDRV_O_RDWR;
             break;
         case 'P':
+            warn_report("The '-P' option is deprecated; use --image-opts with "
+                        "a raw device wrapper for subset exports instead");
             if (qemu_strtoi(optarg, NULL, 0, &partition) < 0 ||
                 partition < 1 || partition > 8) {
                 error_report("Invalid partition '%s'", optarg);

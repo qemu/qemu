@@ -56,8 +56,10 @@ auto-detecting.
 @item -r, --read-only
 Export the disk as read-only.
 @item -P, --partition=@var{num}
-Only expose MBR partition @var{num}.  Understands physical partitions
-1-4 and logical partitions 5-8.
+Deprecated: Only expose MBR partition @var{num}.  Understands physical
+partitions 1-4 and logical partition 5. New code should instead use
+@option{--image-opts} with the raw driver wrapping a subset of the
+original image.
 @item -B, --bitmap=@var{name}
 If @var{filename} has a qcow2 persistent bitmap @var{name}, expose
 that bitmap via the ``qemu:dirty-bitmap:@var{name}'' context

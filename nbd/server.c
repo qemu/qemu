@@ -438,8 +438,7 @@ static int nbd_negotiate_handle_export_name(NBDClient *client,
         error_setg(errp, "Bad length received");
         return -EINVAL;
     }
-    if (nbd_read(client->ioc, name, client->optlen, errp) < 0) {
-        error_prepend(errp, "read failed: ");
+    if (nbd_read(client->ioc, name, client->optlen, "export name", errp) < 0) {
         return -EIO;
     }
     name[client->optlen] = '\0';
@@ -1046,11 +1045,9 @@ static int nbd_negotiate_options(NBDClient *client, uint16_t myflags,
         ...           Rest of request
     */
 
-    if (nbd_read(client->ioc, &flags, sizeof(flags), errp) < 0) {
-        error_prepend(errp, "read failed: ");
+    if (nbd_read32(client->ioc, &flags, "flags", errp) < 0) {
         return -EIO;
     }
-    flags = be32_to_cpu(flags);
     trace_nbd_negotiate_options_flags(flags);
     if (flags & NBD_FLAG_C_FIXED_NEWSTYLE) {
         fixedNewstyle = true;
@@ -1070,30 +1067,23 @@ static int nbd_negotiate_options(NBDClient *client, uint16_t myflags,
         uint32_t option, length;
         uint64_t magic;
 
-        if (nbd_read(client->ioc, &magic, sizeof(magic), errp) < 0) {
-            error_prepend(errp, "read failed: ");
+        if (nbd_read64(client->ioc, &magic, "opts magic", errp) < 0) {
             return -EINVAL;
         }
-        magic = be64_to_cpu(magic);
         trace_nbd_negotiate_options_check_magic(magic);
         if (magic != NBD_OPTS_MAGIC) {
             error_setg(errp, "Bad magic received");
             return -EINVAL;
         }
 
-        if (nbd_read(client->ioc, &option,
-                     sizeof(option), errp) < 0) {
-            error_prepend(errp, "read failed: ");
+        if (nbd_read32(client->ioc, &option, "option", errp) < 0) {
             return -EINVAL;
         }
-        option = be32_to_cpu(option);
         client->opt = option;
 
-        if (nbd_read(client->ioc, &length, sizeof(length), errp) < 0) {
-            error_prepend(errp, "read failed: ");
+        if (nbd_read32(client->ioc, &length, "option length", errp) < 0) {
             return -EINVAL;
         }
-        length = be32_to_cpu(length);
         assert(!client->optlen);
         client->optlen = length;
 
@@ -1306,7 +1296,7 @@ static int nbd_receive_request(QIOChannel *ioc, NBDRequest *request,
     uint32_t magic;
     int ret;
 
-    ret = nbd_read(ioc, buf, sizeof(buf), errp);
+    ret = nbd_read(ioc, buf, sizeof(buf), "request", errp);
     if (ret < 0) {
         return ret;
     }
@@ -2111,8 +2101,9 @@ static int nbd_co_receive_request(NBDRequestData *req, NBDRequest *request,
         }
     }
     if (request->type == NBD_CMD_WRITE) {
-        if (nbd_read(client->ioc, req->data, request->len, errp) < 0) {
-            error_prepend(errp, "reading from socket failed: ");
+        if (nbd_read(client->ioc, req->data, request->len, "CMD_WRITE data",
+                     errp) < 0)
+        {
             return -EIO;
         }
         req->complete = true;
