@@ -13735,6 +13735,7 @@ void cpu_get_tb_cpu_state(CPUARMState *env, target_ulong *pc,
 
     if (is_a64(env)) {
         ARMCPU *cpu = arm_env_get_cpu(env);
+        uint64_t sctlr;
 
         *pc = env->pc;
         flags = FIELD_DP32(flags, TBFLAG_ANY, AARCH64_STATE, 1);
@@ -13779,6 +13780,12 @@ void cpu_get_tb_cpu_state(CPUARMState *env, target_ulong *pc,
             flags = FIELD_DP32(flags, TBFLAG_A64, ZCR_LEN, zcr_len);
         }
 
+        if (current_el == 0) {
+            /* FIXME: ARMv8.1-VHE S2 translation regime.  */
+            sctlr = env->cp15.sctlr_el[1];
+        } else {
+            sctlr = env->cp15.sctlr_el[current_el];
+        }
         if (cpu_isar_feature(aa64_pauth, cpu)) {
             /*
              * In order to save space in flags, we record only whether
@@ -13786,16 +13793,17 @@ void cpu_get_tb_cpu_state(CPUARMState *env, target_ulong *pc,
              * a nop, or "active" when some action must be performed.
              * The decision of which action to take is left to a helper.
              */
-            uint64_t sctlr;
-            if (current_el == 0) {
-                /* FIXME: ARMv8.1-VHE S2 translation regime.  */
-                sctlr = env->cp15.sctlr_el[1];
-            } else {
-                sctlr = env->cp15.sctlr_el[current_el];
-            }
             if (sctlr & (SCTLR_EnIA | SCTLR_EnIB | SCTLR_EnDA | SCTLR_EnDB)) {
                 flags = FIELD_DP32(flags, TBFLAG_A64, PAUTH_ACTIVE, 1);
             }
+        }
+
+        if (cpu_isar_feature(aa64_bti, cpu)) {
+            /* Note that SCTLR_EL[23].BT == SCTLR_BT1.  */
+            if (sctlr & (current_el == 0 ? SCTLR_BT0 : SCTLR_BT1)) {
+                flags = FIELD_DP32(flags, TBFLAG_A64, BT, 1);
+            }
+            flags = FIELD_DP32(flags, TBFLAG_A64, BTYPE, env->btype);
         }
     } else {
         *pc = env->regs[15];

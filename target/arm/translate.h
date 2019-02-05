@@ -69,6 +69,10 @@ typedef struct DisasContext {
     bool ss_same_el;
     /* True if v8.3-PAuth is active.  */
     bool pauth_active;
+    /* True with v8.5-BTI and SCTLR_ELx.BT* set.  */
+    bool bt;
+    /* A copy of PSTATE.BTYPE, which will be 0 without v8.5-BTI.  */
+    uint8_t btype;
     /* Bottom two bits of XScale c15_cpar coprocessor access control reg */
     int c15_cpar;
     /* TCG op of the current insn_start.  */
