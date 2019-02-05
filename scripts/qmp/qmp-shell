@@ -73,7 +73,7 @@ import sys
 import os
 import errno
 import atexit
-import shlex
+import re
 
 sys.path.append(os.path.join(os.path.dirname(__file__), '..', '..', 'python'))
 from qemu import qmp
@@ -222,7 +222,7 @@ class QMPShell(qmp.QEMUMonitorProtocol):
 
             < command-name > [ arg-name1=arg1 ] ... [ arg-nameN=argN ]
         """
-        cmdargs = shlex.split(cmdline)
+        cmdargs = re.findall(r'''(?:[^\s"']|"(?:\\.|[^"])*"|'(?:\\.|[^'])*')+''', cmdline)
 
         # Transactional CLI entry/exit:
         if cmdargs[0] == 'transaction(':
