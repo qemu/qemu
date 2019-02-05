@@ -189,37 +189,30 @@ static void sdl_callback (void *opaque, Uint8 *buf, int len)
     SDLAudioState *s = &glob_sdl;
     HWVoiceOut *hw = &sdl->hw;
     int samples = len >> hw->info.shift;
+    int to_mix, decr;
 
-    if (s->exit) {
+    if (s->exit || !sdl->live) {
         return;
     }
 
-    while (samples) {
-        int to_mix, decr;
+    /* dolog ("in callback samples=%d live=%d\n", samples, sdl->live); */
 
-        /* dolog ("in callback samples=%d\n", samples); */
+    to_mix = audio_MIN(samples, sdl->live);
+    decr = to_mix;
+    while (to_mix) {
+        int chunk = audio_MIN(to_mix, hw->samples - hw->rpos);
+        struct st_sample *src = hw->mix_buf + hw->rpos;
 
-        if (s->exit || !sdl->live) {
-            break;
-        }
-
-        /* dolog ("in callback live=%d\n", live); */
-        to_mix = audio_MIN (samples, sdl->live);
-        decr = to_mix;
-        while (to_mix) {
-            int chunk = audio_MIN (to_mix, hw->samples - hw->rpos);
-            struct st_sample *src = hw->mix_buf + hw->rpos;
-
-            /* dolog ("in callback to_mix %d, chunk %d\n", to_mix, chunk); */
-            hw->clip (buf, src, chunk);
-            hw->rpos = (hw->rpos + chunk) % hw->samples;
-            to_mix -= chunk;
-            buf += chunk << hw->info.shift;
-        }
-        samples -= decr;
-        sdl->live -= decr;
-        sdl->decr += decr;
+        /* dolog ("in callback to_mix %d, chunk %d\n", to_mix, chunk); */
+        hw->clip(buf, src, chunk);
+        hw->rpos = (hw->rpos + chunk) % hw->samples;
+        to_mix -= chunk;
+        buf += chunk << hw->info.shift;
     }
+    samples -= decr;
+    sdl->live -= decr;
+    sdl->decr += decr;
+
     /* dolog ("done len=%d\n", len); */
 
     /* SDL2 does not clear the remaining buffer for us, so do it on our own */
