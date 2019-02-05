@@ -22,6 +22,13 @@ struct target_pt_regs {
 #define TARGET_PR_SVE_SET_VL  50
 #define TARGET_PR_SVE_GET_VL  51
 
+#define TARGET_PR_PAC_RESET_KEYS 54
+# define TARGET_PR_PAC_APIAKEY   (1 << 0)
+# define TARGET_PR_PAC_APIBKEY   (1 << 1)
+# define TARGET_PR_PAC_APDAKEY   (1 << 2)
+# define TARGET_PR_PAC_APDBKEY   (1 << 3)
+# define TARGET_PR_PAC_APGAKEY   (1 << 4)
+
 void arm_init_pauth_key(ARMPACKey *key);
 
 #endif /* AARCH64_TARGET_SYSCALL_H */
