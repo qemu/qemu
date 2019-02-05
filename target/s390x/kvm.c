@@ -42,6 +42,7 @@
 #include "hw/hw.h"
 #include "sysemu/device_tree.h"
 #include "exec/gdbstub.h"
+#include "exec/ram_addr.h"
 #include "trace.h"
 #include "hw/s390x/s390-pci-inst.h"
 #include "hw/s390x/s390-pci-bus.h"
@@ -287,7 +288,7 @@ void kvm_s390_crypto_reset(void)
 
 static int kvm_s390_configure_mempath_backing(KVMState *s)
 {
-    size_t path_psize = qemu_mempath_getpagesize(mem_path);
+    size_t path_psize = qemu_getrampagesize();
 
     if (path_psize == 4 * KiB) {
         return 0;
@@ -319,7 +320,7 @@ int kvm_arch_init(MachineState *ms, KVMState *s)
 {
     MachineClass *mc = MACHINE_GET_CLASS(ms);
 
-    if (mem_path && kvm_s390_configure_mempath_backing(s)) {
+    if (kvm_s390_configure_mempath_backing(s)) {
         return -EINVAL;
     }
 

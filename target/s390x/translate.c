@@ -111,9 +111,8 @@ static TCGv_i64 cc_src;
 static TCGv_i64 cc_dst;
 static TCGv_i64 cc_vr;
 
-static char cpu_reg_names[32][4];
+static char cpu_reg_names[16][4];
 static TCGv_i64 regs[16];
-static TCGv_i64 fregs[16];
 
 void s390x_translate_init(void)
 {
@@ -144,13 +143,53 @@ void s390x_translate_init(void)
                                      offsetof(CPUS390XState, regs[i]),
                                      cpu_reg_names[i]);
     }
+}
 
-    for (i = 0; i < 16; i++) {
-        snprintf(cpu_reg_names[i + 16], sizeof(cpu_reg_names[0]), "f%d", i);
-        fregs[i] = tcg_global_mem_new(cpu_env,
-                                      offsetof(CPUS390XState, vregs[i][0].d),
-                                      cpu_reg_names[i + 16]);
-    }
+static inline int vec_reg_offset(uint8_t reg, uint8_t enr, TCGMemOp size)
+{
+    const uint8_t es = 1 << size;
+    int offs = enr * es;
+
+    g_assert(reg < 32);
+    /*
+     * vregs[n][0] is the lowest 8 byte and vregs[n][1] the highest 8 byte
+     * of the 16 byte vector, on both, little and big endian systems.
+     *
+     * Big Endian (target/possible host)
+     * B:  [ 0][ 1][ 2][ 3][ 4][ 5][ 6][ 7] - [ 8][ 9][10][11][12][13][14][15]
+     * HW: [     0][     1][     2][     3] - [     4][     5][     6][     7]
+     * W:  [             0][             1] - [             2][             3]
+     * DW: [                             0] - [                             1]
+     *
+     * Little Endian (possible host)
+     * B:  [ 7][ 6][ 5][ 4][ 3][ 2][ 1][ 0] - [15][14][13][12][11][10][ 9][ 8]
+     * HW: [     3][     2][     1][     0] - [     7][     6][     5][     4]
+     * W:  [             1][             0] - [             3][             2]
+     * DW: [                             0] - [                             1]
+     *
+     * For 16 byte elements, the two 8 byte halves will not form a host
+     * int128 if the host is little endian, since they're in the wrong order.
+     * Some operations (e.g. xor) do not care. For operations like addition,
+     * the two 8 byte elements have to be loaded separately. Let's force all
+     * 16 byte operations to handle it in a special way.
+     */
+    g_assert(size <= MO_64);
+#ifndef HOST_WORDS_BIGENDIAN
+    offs ^= (8 - es);
+#endif
+    return offs + offsetof(CPUS390XState, vregs[reg][0].d);
+}
+
+static inline int freg64_offset(uint8_t reg)
+{
+    g_assert(reg < 16);
+    return vec_reg_offset(reg, 0, MO_64);
+}
+
+static inline int freg32_offset(uint8_t reg)
+{
+    g_assert(reg < 16);
+    return vec_reg_offset(reg, 0, MO_32);
 }
 
 static TCGv_i64 load_reg(int reg)
@@ -160,10 +199,19 @@ static TCGv_i64 load_reg(int reg)
     return r;
 }
 
+static TCGv_i64 load_freg(int reg)
+{
+    TCGv_i64 r = tcg_temp_new_i64();
+
+    tcg_gen_ld_i64(r, cpu_env, freg64_offset(reg));
+    return r;
+}
+
 static TCGv_i64 load_freg32_i64(int reg)
 {
     TCGv_i64 r = tcg_temp_new_i64();
-    tcg_gen_shri_i64(r, fregs[reg], 32);
+
+    tcg_gen_ld32u_i64(r, cpu_env, freg32_offset(reg));
     return r;
 }
 
@@ -174,7 +222,7 @@ static void store_reg(int reg, TCGv_i64 v)
 
 static void store_freg(int reg, TCGv_i64 v)
 {
-    tcg_gen_mov_i64(fregs[reg], v);
+    tcg_gen_st_i64(v, cpu_env, freg64_offset(reg));
 }
 
 static void store_reg32_i64(int reg, TCGv_i64 v)
@@ -190,7 +238,7 @@ static void store_reg32h_i64(int reg, TCGv_i64 v)
 
 static void store_freg32_i64(int reg, TCGv_i64 v)
 {
-    tcg_gen_deposit_i64(fregs[reg], fregs[reg], v, 32, 32);
+    tcg_gen_st32_i64(v, cpu_env, freg32_offset(reg));
 }
 
 static void return_low128(TCGv_i64 dest)
@@ -3325,8 +3373,9 @@ static DisasJumpType op_maeb(DisasContext *s, DisasOps *o)
 
 static DisasJumpType op_madb(DisasContext *s, DisasOps *o)
 {
-    int r3 = get_field(s->fields, r3);
-    gen_helper_madb(o->out, cpu_env, o->in1, o->in2, fregs[r3]);
+    TCGv_i64 r3 = load_freg(get_field(s->fields, r3));
+    gen_helper_madb(o->out, cpu_env, o->in1, o->in2, r3);
+    tcg_temp_free_i64(r3);
     return DISAS_NEXT;
 }
 
@@ -3340,8 +3389,9 @@ static DisasJumpType op_mseb(DisasContext *s, DisasOps *o)
 
 static DisasJumpType op_msdb(DisasContext *s, DisasOps *o)
 {
-    int r3 = get_field(s->fields, r3);
-    gen_helper_msdb(o->out, cpu_env, o->in1, o->in2, fregs[r3]);
+    TCGv_i64 r3 = load_freg(get_field(s->fields, r3));
+    gen_helper_msdb(o->out, cpu_env, o->in1, o->in2, r3);
+    tcg_temp_free_i64(r3);
     return DISAS_NEXT;
 }
 
@@ -5085,19 +5135,11 @@ static void prep_r1_P(DisasContext *s, DisasFields *f, DisasOps *o)
 }
 #define SPEC_prep_r1_P SPEC_r1_even
 
-static void prep_f1(DisasContext *s, DisasFields *f, DisasOps *o)
-{
-    o->out = fregs[get_field(f, r1)];
-    o->g_out = true;
-}
-#define SPEC_prep_f1 0
-
+/* Whenever we need x1 in addition to other inputs, we'll load it to out/out2 */
 static void prep_x1(DisasContext *s, DisasFields *f, DisasOps *o)
 {
-    int r1 = get_field(f, r1);
-    o->out = fregs[r1];
-    o->out2 = fregs[r1 + 2];
-    o->g_out = o->g_out2 = true;
+    o->out = load_freg(get_field(f, r1));
+    o->out2 = load_freg(get_field(f, r1) + 2);
 }
 #define SPEC_prep_x1 SPEC_r1_f128
 
@@ -5393,28 +5435,24 @@ static void in1_e1(DisasContext *s, DisasFields *f, DisasOps *o)
 }
 #define SPEC_in1_e1 0
 
-static void in1_f1_o(DisasContext *s, DisasFields *f, DisasOps *o)
+static void in1_f1(DisasContext *s, DisasFields *f, DisasOps *o)
 {
-    o->in1 = fregs[get_field(f, r1)];
-    o->g_in1 = true;
+    o->in1 = load_freg(get_field(f, r1));
 }
-#define SPEC_in1_f1_o 0
+#define SPEC_in1_f1 0
 
-static void in1_x1_o(DisasContext *s, DisasFields *f, DisasOps *o)
+/* Load the high double word of an extended (128-bit) format FP number */
+static void in1_x2h(DisasContext *s, DisasFields *f, DisasOps *o)
 {
-    int r1 = get_field(f, r1);
-    o->out = fregs[r1];
-    o->out2 = fregs[r1 + 2];
-    o->g_out = o->g_out2 = true;
+    o->in1 = load_freg(get_field(f, r2));
 }
-#define SPEC_in1_x1_o SPEC_r1_f128
+#define SPEC_in1_x2h SPEC_r2_f128
 
-static void in1_f3_o(DisasContext *s, DisasFields *f, DisasOps *o)
+static void in1_f3(DisasContext *s, DisasFields *f, DisasOps *o)
 {
-    o->in1 = fregs[get_field(f, r3)];
-    o->g_in1 = true;
+    o->in1 = load_freg(get_field(f, r3));
 }
-#define SPEC_in1_f3_o 0
+#define SPEC_in1_f3 0
 
 static void in1_la1(DisasContext *s, DisasFields *f, DisasOps *o)
 {
@@ -5599,21 +5637,18 @@ static void in2_e2(DisasContext *s, DisasFields *f, DisasOps *o)
 }
 #define SPEC_in2_e2 0
 
-static void in2_f2_o(DisasContext *s, DisasFields *f, DisasOps *o)
+static void in2_f2(DisasContext *s, DisasFields *f, DisasOps *o)
 {
-    o->in2 = fregs[get_field(f, r2)];
-    o->g_in2 = true;
+    o->in2 = load_freg(get_field(f, r2));
 }
-#define SPEC_in2_f2_o 0
+#define SPEC_in2_f2 0
 
-static void in2_x2_o(DisasContext *s, DisasFields *f, DisasOps *o)
+/* Load the low double word of an extended (128-bit) format FP number */
+static void in2_x2l(DisasContext *s, DisasFields *f, DisasOps *o)
 {
-    int r2 = get_field(f, r2);
-    o->in1 = fregs[r2];
-    o->in2 = fregs[r2 + 2];
-    o->g_in1 = o->g_in2 = true;
+    o->in2 = load_freg(get_field(f, r2) + 2);
 }
-#define SPEC_in2_x2_o SPEC_r2_f128
+#define SPEC_in2_x2l SPEC_r2_f128
 
 static void in2_ra2(DisasContext *s, DisasFields *f, DisasOps *o)
 {

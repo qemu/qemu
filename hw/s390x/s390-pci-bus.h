@@ -35,7 +35,6 @@
 #define ZPCI_MAX_UID 0xffff
 #define UID_UNDEFINED 0
 #define UID_CHECKING_ENABLED 0x01
-#define HOT_UNPLUG_TIMEOUT (NANOSECONDS_PER_SECOND * 60 * 5)
 
 #define S390_PCI_HOST_BRIDGE(obj) \
     OBJECT_CHECK(S390pciState, (obj), TYPE_S390_PCI_HOST_BRIDGE)
@@ -335,7 +334,8 @@ struct S390PCIBusDevice {
     MemoryRegion msix_notify_mr;
     IndAddr *summary_ind;
     IndAddr *indicator;
-    QEMUTimer *release_timer;
+    bool pci_unplug_request_processed;
+    bool unplug_requested;
     QTAILQ_ENTRY(S390PCIBusDevice) link;
 };
 
