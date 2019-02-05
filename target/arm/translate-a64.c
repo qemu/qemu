@@ -1362,6 +1362,7 @@ static void disas_uncond_b_imm(DisasContext *s, uint32_t insn)
     }
 
     /* B Branch / BL Branch with link */
+    reset_btype(s);
     gen_goto_tb(s, 0, addr);
 }
 
@@ -1386,6 +1387,7 @@ static void disas_comp_b_imm(DisasContext *s, uint32_t insn)
     tcg_cmp = read_cpu_reg(s, rt, sf);
     label_match = gen_new_label();
 
+    reset_btype(s);
     tcg_gen_brcondi_i64(op ? TCG_COND_NE : TCG_COND_EQ,
                         tcg_cmp, 0, label_match);
 
@@ -1415,6 +1417,8 @@ static void disas_test_b_imm(DisasContext *s, uint32_t insn)
     tcg_cmp = tcg_temp_new_i64();
     tcg_gen_andi_i64(tcg_cmp, cpu_reg(s, rt), (1ULL << bit_pos));
     label_match = gen_new_label();
+
+    reset_btype(s);
     tcg_gen_brcondi_i64(op ? TCG_COND_NE : TCG_COND_EQ,
                         tcg_cmp, 0, label_match);
     tcg_temp_free_i64(tcg_cmp);
@@ -1441,6 +1445,7 @@ static void disas_cond_b_imm(DisasContext *s, uint32_t insn)
     addr = s->pc + sextract32(insn, 5, 19) * 4 - 4;
     cond = extract32(insn, 0, 4);
 
+    reset_btype(s);
     if (cond < 0x0e) {
         /* genuinely conditional branches */
         TCGLabel *label_match = gen_new_label();
@@ -1605,6 +1610,7 @@ static void handle_sync(DisasContext *s, uint32_t insn,
          * a self-modified code correctly and also to take
          * any pending interrupts immediately.
          */
+        reset_btype(s);
         gen_goto_tb(s, 0, s->pc);
         return;
     default:
