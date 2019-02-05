@@ -426,7 +426,8 @@ static void sam460ex_init(MachineState *machine)
         if (success < 0) {
             uint64_t elf_entry, elf_lowaddr;
 
-            success = load_elf(machine->kernel_filename, NULL, NULL, &elf_entry,
+            success = load_elf(machine->kernel_filename, NULL,
+                               NULL, NULL, &elf_entry,
                                &elf_lowaddr, NULL, 1, PPC_ELF_MACHINE, 0, 0);
             entry = elf_entry;
             loadaddr = elf_lowaddr;

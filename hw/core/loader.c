@@ -77,21 +77,20 @@ int64_t get_image_size(const char *filename)
 ssize_t load_image_size(const char *filename, void *addr, size_t size)
 {
     int fd;
-    ssize_t actsize;
+    ssize_t actsize, l = 0;
 
     fd = open(filename, O_RDONLY | O_BINARY);
     if (fd < 0) {
         return -1;
     }
 
-    actsize = read(fd, addr, size);
-    if (actsize < 0) {
-        close(fd);
-        return -1;
+    while ((actsize = read(fd, addr + l, size - l)) > 0) {
+        l += actsize;
     }
+
     close(fd);
 
-    return actsize;
+    return actsize < 0 ? -1 : l;
 }
 
 /* read()-like version */
@@ -396,37 +395,42 @@ fail:
 }
 
 /* return < 0 if error, otherwise the number of bytes loaded in memory */
-int load_elf(const char *filename, uint64_t (*translate_fn)(void *, uint64_t),
+int load_elf(const char *filename,
+             uint64_t (*elf_note_fn)(void *, void *, bool),
+             uint64_t (*translate_fn)(void *, uint64_t),
              void *translate_opaque, uint64_t *pentry, uint64_t *lowaddr,
              uint64_t *highaddr, int big_endian, int elf_machine,
              int clear_lsb, int data_swab)
 {
-    return load_elf_as(filename, translate_fn, translate_opaque, pentry,
-                       lowaddr, highaddr, big_endian, elf_machine, clear_lsb,
-                       data_swab, NULL);
+    return load_elf_as(filename, elf_note_fn, translate_fn, translate_opaque,
+                       pentry, lowaddr, highaddr, big_endian, elf_machine,
+                       clear_lsb, data_swab, NULL);
 }
 
 /* return < 0 if error, otherwise the number of bytes loaded in memory */
 int load_elf_as(const char *filename,
+                uint64_t (*elf_note_fn)(void *, void *, bool),
                 uint64_t (*translate_fn)(void *, uint64_t),
                 void *translate_opaque, uint64_t *pentry, uint64_t *lowaddr,
                 uint64_t *highaddr, int big_endian, int elf_machine,
                 int clear_lsb, int data_swab, AddressSpace *as)
 {
-    return load_elf_ram(filename, translate_fn, translate_opaque,
+    return load_elf_ram(filename, elf_note_fn, translate_fn, translate_opaque,
                         pentry, lowaddr, highaddr, big_endian, elf_machine,
                         clear_lsb, data_swab, as, true);
 }
 
 /* return < 0 if error, otherwise the number of bytes loaded in memory */
 int load_elf_ram(const char *filename,
+                 uint64_t (*elf_note_fn)(void *, void *, bool),
                  uint64_t (*translate_fn)(void *, uint64_t),
                  void *translate_opaque, uint64_t *pentry, uint64_t *lowaddr,
                  uint64_t *highaddr, int big_endian, int elf_machine,
                  int clear_lsb, int data_swab, AddressSpace *as,
                  bool load_rom)
 {
-    return load_elf_ram_sym(filename, translate_fn, translate_opaque,
+    return load_elf_ram_sym(filename, elf_note_fn,
+                            translate_fn, translate_opaque,
                             pentry, lowaddr, highaddr, big_endian,
                             elf_machine, clear_lsb, data_swab, as,
                             load_rom, NULL);
@@ -434,6 +438,7 @@ int load_elf_ram(const char *filename,
 
 /* return < 0 if error, otherwise the number of bytes loaded in memory */
 int load_elf_ram_sym(const char *filename,
+                     uint64_t (*elf_note_fn)(void *, void *, bool),
                      uint64_t (*translate_fn)(void *, uint64_t),
                      void *translate_opaque, uint64_t *pentry,
                      uint64_t *lowaddr, uint64_t *highaddr, int big_endian,
@@ -476,11 +481,13 @@ int load_elf_ram_sym(const char *filename,
 
     lseek(fd, 0, SEEK_SET);
     if (e_ident[EI_CLASS] == ELFCLASS64) {
-        ret = load_elf64(filename, fd, translate_fn, translate_opaque, must_swab,
+        ret = load_elf64(filename, fd, elf_note_fn,
+                         translate_fn, translate_opaque, must_swab,
                          pentry, lowaddr, highaddr, elf_machine, clear_lsb,
                          data_swab, as, load_rom, sym_cb);
     } else {
-        ret = load_elf32(filename, fd, translate_fn, translate_opaque, must_swab,
+        ret = load_elf32(filename, fd, elf_note_fn,
+                         translate_fn, translate_opaque, must_swab,
                          pentry, lowaddr, highaddr, elf_machine, clear_lsb,
                          data_swab, as, load_rom, sym_cb);
     }

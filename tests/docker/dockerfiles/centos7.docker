@@ -1,5 +1,6 @@
 FROM centos:7
-RUN yum install -y epel-release centos-release-xen
+RUN yum install -y epel-release centos-release-xen-48
+
 RUN yum -y update
 ENV PACKAGES \
     bison \
@@ -8,7 +9,7 @@ ENV PACKAGES \
     ccache \
     csnappy-devel \
     flex \
-    g++ \
+    gcc-c++ \
     gcc \
     gettext \
     git \

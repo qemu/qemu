@@ -9,12 +9,14 @@
 #define PDB_H
 
 
+#ifndef _WIN32
 typedef struct GUID {
     unsigned int Data1;
     unsigned short Data2;
     unsigned short Data3;
     unsigned char Data4[8];
 } GUID;
+#endif
 
 struct PDB_FILE {
     uint32_t size;
@@ -216,7 +218,7 @@ typedef struct pdb_seg {
 #define IMAGE_FILE_MACHINE_AMD64 0x8664
 
 struct pdb_reader {
-    int fd;
+    GMappedFile *gmf;
     size_t file_size;
     struct {
         PDB_DS_HEADER *header;

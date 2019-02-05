@@ -58,45 +58,19 @@ asm(
 "   jmp load_kernel\n"
 );
 
-/* QEMU_CFG_DMA_CONTROL bits */
-#define BIOS_CFG_DMA_CTL_ERROR   0x01
-#define BIOS_CFG_DMA_CTL_READ    0x02
-#define BIOS_CFG_DMA_CTL_SKIP    0x04
-#define BIOS_CFG_DMA_CTL_SELECT  0x08
-
-#define BIOS_CFG_DMA_ADDR_HIGH 0x514
-#define BIOS_CFG_DMA_ADDR_LOW  0x518
-
-#define uint64_t unsigned long long
-#define uint32_t unsigned int
-#define uint16_t unsigned short
-
-#include "../../include/standard-headers/linux/qemu_fw_cfg.h"
-
-#define barrier() asm("" : : : "memory")
-
-typedef struct FWCfgDmaAccess {
-    uint32_t control;
-    uint32_t length;
-    uint64_t address;
-} __attribute__((packed)) FWCfgDmaAccess;
-
-static inline void outl(uint32_t value, uint16_t port)
-{
-    asm("outl %0, %w1" : : "a"(value), "Nd"(port));
-}
+/*
+ * The includes of C headers must be after the asm block to avoid compiler
+ * errors.
+ */
+#include <stdint.h>
+#include "optrom.h"
+#include "optrom_fw_cfg.h"
 
 static inline void set_es(void *addr)
 {
     uint32_t seg = (uint32_t)addr >> 4;
     asm("movl %0, %%es" : : "r"(seg));
 }
-
-#ifdef __clang__
-#define ADDR32
-#else
-#define ADDR32 "addr32 "
-#endif
 
 static inline uint16_t readw_es(uint16_t offset)
 {
@@ -118,56 +92,6 @@ static inline void writel_es(uint16_t offset, uint32_t val)
 {
     barrier();
     asm(ADDR32 "movl %0, %%es:(%1)" : : "r"(val), "r"((uint32_t)offset));
-}
-
-static inline uint32_t bswap32(uint32_t x)
-{
-    asm("bswapl %0" : "=r" (x) : "0" (x));
-    return x;
-}
-
-static inline uint64_t bswap64(uint64_t x)
-{
-    asm("bswapl %%eax; bswapl %%edx; xchg %%eax, %%edx" : "=A" (x) : "0" (x));
-    return x;
-}
-
-static inline uint64_t cpu_to_be64(uint64_t x)
-{
-    return bswap64(x);
-}
-
-static inline uint32_t cpu_to_be32(uint32_t x)
-{
-    return bswap32(x);
-}
-
-static inline uint32_t be32_to_cpu(uint32_t x)
-{
-    return bswap32(x);
-}
-
-/* clang is happy to inline this function, and bloats the
- * ROM.
- */
-static __attribute__((__noinline__))
-void bios_cfg_read_entry(void *buf, uint16_t entry, uint32_t len)
-{
-    FWCfgDmaAccess access;
-    uint32_t control = (entry << 16) | BIOS_CFG_DMA_CTL_SELECT
-                        | BIOS_CFG_DMA_CTL_READ;
-
-    access.address = cpu_to_be64((uint64_t)(uint32_t)buf);
-    access.length = cpu_to_be32(len);
-    access.control = cpu_to_be32(control);
-
-    barrier();
-
-    outl(cpu_to_be32((uint32_t)&access), BIOS_CFG_DMA_ADDR_LOW);
-
-    while (be32_to_cpu(access.control) & ~BIOS_CFG_DMA_CTL_ERROR) {
-        barrier();
-    }
 }
 
 /* Return top of memory using BIOS function E801. */
@@ -223,9 +147,9 @@ void load_kernel(void)
     uint32_t initrd_end_page, max_allowed_page;
     uint32_t segment_addr, stack_addr;
 
-    bios_cfg_read_entry(&setup_addr, FW_CFG_SETUP_ADDR, 4);
-    bios_cfg_read_entry(&setup_size, FW_CFG_SETUP_SIZE, 4);
-    bios_cfg_read_entry(setup_addr, FW_CFG_SETUP_DATA, setup_size);
+    bios_cfg_read_entry_dma(&setup_addr, FW_CFG_SETUP_ADDR, 4);
+    bios_cfg_read_entry_dma(&setup_size, FW_CFG_SETUP_SIZE, 4);
+    bios_cfg_read_entry_dma(setup_addr, FW_CFG_SETUP_DATA, setup_size);
 
     set_es(setup_addr);
 
@@ -235,8 +159,8 @@ void load_kernel(void)
         writel_es(0x22c, 0x37ffffff);
     }
 
-    bios_cfg_read_entry(&initrd_addr, FW_CFG_INITRD_ADDR, 4);
-    bios_cfg_read_entry(&initrd_size, FW_CFG_INITRD_SIZE, 4);
+    bios_cfg_read_entry_dma(&initrd_addr, FW_CFG_INITRD_ADDR, 4);
+    bios_cfg_read_entry_dma(&initrd_size, FW_CFG_INITRD_SIZE, 4);
 
     initrd_end_page = ((uint32_t)(initrd_addr + initrd_size) & -4096);
     max_allowed_page = (readl_es(0x22c) & -4096);
@@ -251,15 +175,15 @@ void load_kernel(void)
 
     }
 
-    bios_cfg_read_entry(initrd_addr, FW_CFG_INITRD_DATA, initrd_size);
+    bios_cfg_read_entry_dma(initrd_addr, FW_CFG_INITRD_DATA, initrd_size);
 
-    bios_cfg_read_entry(&kernel_addr, FW_CFG_KERNEL_ADDR, 4);
-    bios_cfg_read_entry(&kernel_size, FW_CFG_KERNEL_SIZE, 4);
-    bios_cfg_read_entry(kernel_addr, FW_CFG_KERNEL_DATA, kernel_size);
+    bios_cfg_read_entry_dma(&kernel_addr, FW_CFG_KERNEL_ADDR, 4);
+    bios_cfg_read_entry_dma(&kernel_size, FW_CFG_KERNEL_SIZE, 4);
+    bios_cfg_read_entry_dma(kernel_addr, FW_CFG_KERNEL_DATA, kernel_size);
 
-    bios_cfg_read_entry(&cmdline_addr, FW_CFG_CMDLINE_ADDR, 4);
-    bios_cfg_read_entry(&cmdline_size, FW_CFG_CMDLINE_SIZE, 4);
-    bios_cfg_read_entry(cmdline_addr, FW_CFG_CMDLINE_DATA, cmdline_size);
+    bios_cfg_read_entry_dma(&cmdline_addr, FW_CFG_CMDLINE_ADDR, 4);
+    bios_cfg_read_entry_dma(&cmdline_size, FW_CFG_CMDLINE_SIZE, 4);
+    bios_cfg_read_entry_dma(cmdline_addr, FW_CFG_CMDLINE_DATA, cmdline_size);
 
     /* Boot linux */
     segment_addr = ((uint32_t)setup_addr >> 4);

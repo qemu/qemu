@@ -1642,7 +1642,7 @@ void calc_modrm_operand16(CPUX86State *env, struct x86_decode *decode,
     X86Seg seg = R_DS;
 
     if (!decode->modrm.mod && 6 == decode->modrm.rm) {
-        op->ptr = (uint16_t)decode->displacement;
+        ptr = decode->displacement;
         goto calc_addr;
     }
 

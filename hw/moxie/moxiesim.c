@@ -57,7 +57,7 @@ static void load_kernel(MoxieCPU *cpu, LoaderParams *loader_params)
     long kernel_size;
     ram_addr_t initrd_offset;
 
-    kernel_size = load_elf(loader_params->kernel_filename,  NULL, NULL,
+    kernel_size = load_elf(loader_params->kernel_filename,  NULL, NULL, NULL,
                            &entry, &kernel_low, &kernel_high, 1, EM_MOXIE,
                            0, 0);
 

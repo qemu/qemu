@@ -190,10 +190,6 @@ The appropriate DEVNAME depends on the machine type.  For type "pc":
 
   -device usb-braille,chardev=braille -chardev braille,id=braille
 
-* -virtioconsole becomes
-  -device virtio-serial-pci,class=C,vectors=V,ioeventfd=IOEVENTFD,max_ports=N
-  -device virtconsole,is_console=NUM,nr=NR,name=NAME
-
 LEGACY-CHARDEV translates to -chardev HOST-OPTS... as follows:
 
 * null becomes -chardev null

@@ -146,13 +146,14 @@ void nios2_load_kernel(Nios2CPU *cpu, hwaddr ddr_base,
 #endif
 
         /* Boots a kernel elf binary. */
-        kernel_size = load_elf(kernel_filename, NULL, NULL,
+        kernel_size = load_elf(kernel_filename, NULL, NULL, NULL,
                                &entry, &low, &high,
                                big_endian, EM_ALTERA_NIOS2, 0, 0);
         base32 = entry;
         if (base32 == 0xc0000000) {
-            kernel_size = load_elf(kernel_filename, translate_kernel_address,
-                                   NULL, &entry, NULL, NULL,
+            kernel_size = load_elf(kernel_filename, NULL,
+                                   translate_kernel_address, NULL,
+                                   &entry, NULL, NULL,
                                    big_endian, EM_ALTERA_NIOS2, 0, 0);
         }
 

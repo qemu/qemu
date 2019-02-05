@@ -114,7 +114,7 @@ static void clipper_init(MachineState *machine)
         error_report("no palcode provided");
         exit(1);
     }
-    size = load_elf(palcode_filename, cpu_alpha_superpage_to_phys,
+    size = load_elf(palcode_filename, NULL, cpu_alpha_superpage_to_phys,
                     NULL, &palcode_entry, &palcode_low, &palcode_high,
                     0, EM_ALPHA, 0, 0);
     if (size < 0) {
@@ -133,7 +133,7 @@ static void clipper_init(MachineState *machine)
     if (kernel_filename) {
         uint64_t param_offset;
 
-        size = load_elf(kernel_filename, cpu_alpha_superpage_to_phys,
+        size = load_elf(kernel_filename, NULL, cpu_alpha_superpage_to_phys,
                         NULL, &kernel_entry, &kernel_low, &kernel_high,
                         0, EM_ALPHA, 0, 0);
         if (size < 0) {

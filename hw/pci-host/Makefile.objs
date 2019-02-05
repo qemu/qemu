@@ -1,4 +1,4 @@
-common-obj-y += pam.o
+common-obj-$(CONFIG_PAM) += pam.o
 
 # PPC devices
 common-obj-$(CONFIG_PREP_PCI) += prep.o
@@ -14,8 +14,8 @@ common-obj-$(CONFIG_VERSATILE_PCI) += versatile.o
 common-obj-$(CONFIG_PCI_SABRE) += sabre.o
 common-obj-$(CONFIG_FULONG) += bonito.o
 common-obj-$(CONFIG_PCI_PIIX) += piix.o
-common-obj-$(CONFIG_PCI_Q35) += q35.o
-common-obj-$(CONFIG_PCI_GENERIC) += gpex.o
-common-obj-$(CONFIG_PCI_XILINX) += xilinx-pcie.o
+common-obj-$(CONFIG_PCI_EXPRESS_Q35) += q35.o
+common-obj-$(CONFIG_PCI_EXPRESS_GENERIC_BRIDGE) += gpex.o
+common-obj-$(CONFIG_PCI_EXPRESS_XILINX) += xilinx-pcie.o
 
-common-obj-$(CONFIG_PCI_DESIGNWARE) += designware.o
+common-obj-$(CONFIG_PCI_EXPRESS_DESIGNWARE) += designware.o

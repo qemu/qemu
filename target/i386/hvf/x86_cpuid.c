@@ -38,16 +38,6 @@ static uint64_t xgetbv(uint32_t xcr)
     return (((uint64_t)edx) << 32) | eax;
 }
 
-static bool vmx_mpx_supported()
-{
-    uint64_t cap_exit, cap_entry;
-
-    hv_vmx_read_capability(HV_VMX_CAP_ENTRY, &cap_entry);
-    hv_vmx_read_capability(HV_VMX_CAP_EXIT, &cap_exit);
-
-    return ((cap_exit & (1 << 23)) && (cap_entry & (1 << 16)));
-}
-
 uint32_t hvf_get_supported_cpuid(uint32_t func, uint32_t idx,
                                  int reg)
 {
@@ -92,11 +82,8 @@ uint32_t hvf_get_supported_cpuid(uint32_t func, uint32_t idx,
                     CPUID_7_0_EBX_CLFLUSHOPT | CPUID_7_0_EBX_CLWB |
                     CPUID_7_0_EBX_AVX512DQ | CPUID_7_0_EBX_SHA_NI |
                     CPUID_7_0_EBX_AVX512BW | CPUID_7_0_EBX_AVX512VL |
-                    CPUID_7_0_EBX_INVPCID | CPUID_7_0_EBX_MPX;
+                    CPUID_7_0_EBX_INVPCID;
 
-            if (!vmx_mpx_supported()) {
-                ebx &= ~CPUID_7_0_EBX_MPX;
-            }
             hv_vmx_read_capability(HV_VMX_CAP_PROCBASED2, &cap);
             if (!(cap & CPU_BASED2_INVPCID)) {
                 ebx &= ~CPUID_7_0_EBX_INVPCID;
@@ -119,9 +106,6 @@ uint32_t hvf_get_supported_cpuid(uint32_t func, uint32_t idx,
                                   XSTATE_BNDCSR_MASK | XSTATE_OPMASK_MASK |
                                   XSTATE_ZMM_Hi256_MASK | XSTATE_Hi16_ZMM_MASK);
             eax &= supp_xcr0;
-            if (!vmx_mpx_supported()) {
-                eax &= ~(XSTATE_BNDREGS_MASK | XSTATE_BNDCSR_MASK);
-            }
         } else if (idx == 1) {
             hv_vmx_read_capability(HV_VMX_CAP_PROCBASED2, &cap);
             eax &= CPUID_XSAVE_XSAVEOPT | CPUID_XSAVE_XGETBV1;

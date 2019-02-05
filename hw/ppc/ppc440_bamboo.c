@@ -256,7 +256,7 @@ static void bamboo_init(MachineState *machine)
         success = load_uimage(kernel_filename, &entry, &loadaddr, NULL,
                               NULL, NULL);
         if (success < 0) {
-            success = load_elf(kernel_filename, NULL, NULL, &elf_entry,
+            success = load_elf(kernel_filename, NULL, NULL, NULL, &elf_entry,
                                &elf_lowaddr, NULL, 1, PPC_ELF_MACHINE,
                                0, 0);
             entry = elf_entry;

@@ -18,20 +18,9 @@
 #include "hw/scsi/scsi.h"
 #include "hw/scsi/emulation.h"
 #include "sysemu/block-backend.h"
+#include "trace.h"
 
 #ifdef __linux__
-
-//#define DEBUG_SCSI
-
-#ifdef DEBUG_SCSI
-#define DPRINTF(fmt, ...) \
-do { printf("scsi-generic: " fmt , ## __VA_ARGS__); } while (0)
-#else
-#define DPRINTF(fmt, ...) do {} while(0)
-#endif
-
-#define BADF(fmt, ...) \
-do { fprintf(stderr, "scsi-generic: " fmt , ## __VA_ARGS__); } while (0)
 
 #include <scsi/sg.h>
 #include "scsi/constants.h"
@@ -98,8 +87,7 @@ static void scsi_command_complete_noio(SCSIGenericReq *r, int ret)
         }
     }
 
-    DPRINTF("Command complete 0x%p tag=0x%x status=%d\n",
-            r, r->req.tag, status);
+    trace_scsi_generic_command_complete_noio(r, r->req.tag, status);
 
     scsi_req_complete(&r->req, status);
 done:
@@ -182,7 +170,7 @@ static void scsi_handle_inquiry_reply(SCSIGenericReq *r, SCSIDevice *s)
             /* Also take care of the opt xfer len. */
             stl_be_p(&r->buf[12],
                     MIN_NON_ZERO(max_transfer, ldl_be_p(&r->buf[12])));
-        } else if (s->needs_vpd_bl_emulation && page == 0x00) {
+        } else if (s->needs_vpd_bl_emulation && page == 0x00 && r->buflen >= 4) {
             /*
              * Now we're capable of supplying the VPD Block Limits
              * response if the hardware can't. Add it in the INQUIRY
@@ -193,18 +181,20 @@ static void scsi_handle_inquiry_reply(SCSIGenericReq *r, SCSIDevice *s)
              * and will use it to proper setup the SCSI device.
              *
              * VPD page numbers must be sorted, so insert 0xb0 at the
-             * right place with an in-place insert.  After the initialization
-             * part of the for loop is executed, the device response is
-             * at r[0] to r[page_idx - 1].
+             * right place with an in-place insert.  When the while loop
+             * begins the device response is at r[0] to r[page_idx - 1].
              */
-            for (page_idx = lduw_be_p(r->buf + 2) + 4;
-                 page_idx > 4 && r->buf[page_idx - 1] >= 0xb0;
-                 page_idx--) {
+            page_idx = lduw_be_p(r->buf + 2) + 4;
+            page_idx = MIN(page_idx, r->buflen);
+            while (page_idx > 4 && r->buf[page_idx - 1] >= 0xb0) {
                 if (page_idx < r->buflen) {
                     r->buf[page_idx] = r->buf[page_idx - 1];
                 }
+                page_idx--;
             }
-            r->buf[page_idx] = 0xb0;
+            if (page_idx < r->buflen) {
+                r->buf[page_idx] = 0xb0;
+            }
             stw_be_p(r->buf + 2, lduw_be_p(r->buf + 2) + 1);
         }
     }
@@ -259,7 +249,7 @@ static void scsi_read_complete(void * opaque, int ret)
     }
 
     len = r->io_header.dxfer_len - r->io_header.resid;
-    DPRINTF("Data ready tag=0x%x len=%d\n", r->req.tag, len);
+    trace_scsi_generic_read_complete(r->req.tag, len);
 
     r->len = -1;
 
@@ -335,7 +325,7 @@ static void scsi_read_data(SCSIRequest *req)
     SCSIDevice *s = r->req.dev;
     int ret;
 
-    DPRINTF("scsi_read_data tag=0x%x\n", req->tag);
+    trace_scsi_generic_read_data(req->tag);
 
     /* The request is used as the AIO opaque value, so add a ref.  */
     scsi_req_ref(&r->req);
@@ -356,7 +346,7 @@ static void scsi_write_complete(void * opaque, int ret)
     SCSIGenericReq *r = (SCSIGenericReq *)opaque;
     SCSIDevice *s = r->req.dev;
 
-    DPRINTF("scsi_write_complete() ret = %d\n", ret);
+    trace_scsi_generic_write_complete(ret);
 
     assert(r->req.aiocb != NULL);
     r->req.aiocb = NULL;
@@ -371,7 +361,7 @@ static void scsi_write_complete(void * opaque, int ret)
     if (r->req.cmd.buf[0] == MODE_SELECT && r->req.cmd.buf[4] == 12 &&
         s->type == TYPE_TAPE) {
         s->blocksize = (r->buf[9] << 16) | (r->buf[10] << 8) | r->buf[11];
-        DPRINTF("block size %d\n", s->blocksize);
+        trace_scsi_generic_write_complete_blocksize(s->blocksize);
     }
 
     scsi_command_complete_noio(r, ret);
@@ -388,7 +378,7 @@ static void scsi_write_data(SCSIRequest *req)
     SCSIDevice *s = r->req.dev;
     int ret;
 
-    DPRINTF("scsi_write_data tag=0x%x\n", req->tag);
+    trace_scsi_generic_write_data(req->tag);
     if (r->len == 0) {
         r->len = r->buflen;
         scsi_req_data(&r->req, r->len);
@@ -411,6 +401,21 @@ static uint8_t *scsi_get_buf(SCSIRequest *req)
     return r->buf;
 }
 
+static void scsi_generic_command_dump(uint8_t *cmd, int len)
+{
+    int i;
+    char *line_buffer, *p;
+
+    line_buffer = g_malloc(len * 5 + 1);
+
+    for (i = 0, p = line_buffer; i < len; i++) {
+        p += sprintf(p, " 0x%02x", cmd[i]);
+    }
+    trace_scsi_generic_send_command(line_buffer);
+
+    g_free(line_buffer);
+}
+
 /* Execute a scsi command.  Returns the length of the data expected by the
    command.  This will be Positive for data transfers from the device
    (eg. disk reads), negative for transfers to the device (eg. disk writes),
@@ -422,16 +427,9 @@ static int32_t scsi_send_command(SCSIRequest *req, uint8_t *cmd)
     SCSIDevice *s = r->req.dev;
     int ret;
 
-#ifdef DEBUG_SCSI
-    DPRINTF("Command: data=0x%02x", cmd[0]);
-    {
-        int i;
-        for (i = 1; i < r->req.cmd.len; i++) {
-            printf(" 0x%02x", cmd[i]);
-        }
-        printf("\n");
+    if (trace_event_get_state_backends(TRACE_SCSI_GENERIC_SEND_COMMAND)) {
+        scsi_generic_command_dump(cmd, r->req.cmd.len);
     }
-#endif
 
     if (r->req.cmd.xfer == 0) {
         g_free(r->buf);
@@ -693,7 +691,7 @@ static void scsi_generic_realize(SCSIDevice *s, Error **errp)
 
     /* define device state */
     s->type = scsiid.scsi_type;
-    DPRINTF("device type %d\n", s->type);
+    trace_scsi_generic_realize_type(s->type);
 
     switch (s->type) {
     case TYPE_TAPE:
@@ -716,7 +714,7 @@ static void scsi_generic_realize(SCSIDevice *s, Error **errp)
         break;
     }
 
-    DPRINTF("block size %d\n", s->blocksize);
+    trace_scsi_generic_realize_blocksize(s->blocksize);
 
     /* Only used by scsi-block, but initialize it nevertheless to be clean.  */
     s->default_scsi_version = -1;

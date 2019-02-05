@@ -97,11 +97,15 @@ static void xtensa_sim_init(MachineState *machine)
         uint64_t elf_entry;
         uint64_t elf_lowaddr;
 #ifdef TARGET_WORDS_BIGENDIAN
-        int success = load_elf(kernel_filename, translate_phys_addr, cpu,
-                &elf_entry, &elf_lowaddr, NULL, 1, EM_XTENSA, 0, 0);
+        int success = load_elf(kernel_filename, NULL,
+                               translate_phys_addr, cpu,
+                               &elf_entry, &elf_lowaddr,
+                               NULL, 1, EM_XTENSA, 0, 0);
 #else
-        int success = load_elf(kernel_filename, translate_phys_addr, cpu,
-                &elf_entry, &elf_lowaddr, NULL, 0, EM_XTENSA, 0, 0);
+        int success = load_elf(kernel_filename, NULL,
+                               translate_phys_addr, cpu,
+                               &elf_entry, &elf_lowaddr,
+                               NULL, 0, EM_XTENSA, 0, 0);
 #endif
         if (success > 0) {
             env->pc = elf_entry;

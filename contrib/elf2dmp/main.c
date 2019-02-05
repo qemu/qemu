@@ -5,6 +5,8 @@
  *
  */
 
+#include <inttypes.h>
+
 #include "qemu/osdep.h"
 #include "err.h"
 #include "addrspace.h"
@@ -41,7 +43,8 @@ static const uint64_t SharedUserData = 0xfffff78000000000;
 #define KUSD_OFFSET_PRODUCT_TYPE 0x264
 
 #define SYM_RESOLVE(base, r, s) ((s = pdb_resolve(base, r, #s)),\
-    s ? printf(#s" = 0x%016lx\n", s) : eprintf("Failed to resolve "#s"\n"), s)
+    s ? printf(#s" = 0x%016"PRIx64"\n", s) :\
+    eprintf("Failed to resolve "#s"\n"), s)
 
 static uint64_t rol(uint64_t x, uint64_t y)
 {
@@ -98,8 +101,8 @@ static KDDEBUGGER_DATA64 *get_kdbg(uint64_t KernBase, struct pdb_reader *pdb,
             return NULL;
         }
 
-        printf("[KiWaitNever] = 0x%016lx\n", kwn);
-        printf("[KiWaitAlways] = 0x%016lx\n", kwa);
+        printf("[KiWaitNever] = 0x%016"PRIx64"\n", kwn);
+        printf("[KiWaitAlways] = 0x%016"PRIx64"\n", kwa);
 
         /*
          * If KDBG header can be decoded, KDBG size is available
@@ -202,7 +205,7 @@ static int fix_dtb(struct va_space *vs, QEMU_Elf *qe)
 
         if (is_system(s)) {
             va_space_set_dtb(vs, s->cr[3]);
-            printf("DTB 0x%016lx has been found from CPU #%zu"
+            printf("DTB 0x%016"PRIx64" has been found from CPU #%zu"
                     " as system task CR3\n", vs->dtb, i);
             return !(va_space_resolve(vs, SharedUserData));
         }
@@ -222,7 +225,7 @@ static int fix_dtb(struct va_space *vs, QEMU_Elf *qe)
         }
 
         va_space_set_dtb(vs, *cr3);
-        printf("DirectoryTableBase = 0x%016lx has been found from CPU #0"
+        printf("DirectoryTableBase = 0x%016"PRIx64" has been found from CPU #0"
                 " as interrupt handling CR3\n", vs->dtb);
         return !(va_space_resolve(vs, SharedUserData));
     }
@@ -393,8 +396,8 @@ static int pe_get_pdb_symstore_hash(uint64_t base, void *start_addr,
         return 1;
     }
 
-    printf("Debug Directory RVA = 0x%016x\n",
-            data_dir[IMAGE_FILE_DEBUG_DIRECTORY].VirtualAddress);
+    printf("Debug Directory RVA = 0x%08"PRIx32"\n",
+            (uint32_t)data_dir[IMAGE_FILE_DEBUG_DIRECTORY].VirtualAddress);
 
     if (va_space_rw(vs,
                 base + data_dir[IMAGE_FILE_DEBUG_DIRECTORY].VirtualAddress,
@@ -488,7 +491,7 @@ int main(int argc, char *argv[])
     }
 
     state = qemu_elf.state[0];
-    printf("CPU #0 CR3 is 0x%016lx\n", state->cr[3]);
+    printf("CPU #0 CR3 is 0x%016"PRIx64"\n", state->cr[3]);
 
     va_space_create(&vs, &ps, state->cr[3]);
     if (fix_dtb(&vs, &qemu_elf)) {
@@ -497,7 +500,7 @@ int main(int argc, char *argv[])
         goto out_elf;
     }
 
-    printf("CPU #0 IDT is at 0x%016lx\n", state->idt.base);
+    printf("CPU #0 IDT is at 0x%016"PRIx64"\n", state->idt.base);
 
     if (va_space_rw(&vs, state->idt.base,
                 &first_idt_desc, sizeof(first_idt_desc), 0)) {
@@ -505,10 +508,10 @@ int main(int argc, char *argv[])
         err = 1;
         goto out_ps;
     }
-    printf("CPU #0 IDT[0] -> 0x%016lx\n", idt_desc_addr(first_idt_desc));
+    printf("CPU #0 IDT[0] -> 0x%016"PRIx64"\n", idt_desc_addr(first_idt_desc));
 
     KernBase = idt_desc_addr(first_idt_desc) & ~(PAGE_SIZE - 1);
-    printf("Searching kernel downwards from 0x%16lx...\n", KernBase);
+    printf("Searching kernel downwards from 0x%016"PRIx64"...\n", KernBase);
 
     for (; KernBase >= 0xfffff78000000000; KernBase -= PAGE_SIZE) {
         nt_start_addr = va_space_resolve(&vs, KernBase);
@@ -521,7 +524,7 @@ int main(int argc, char *argv[])
         }
     }
 
-    printf("KernBase = 0x%16lx, signature is \'%.2s\'\n", KernBase,
+    printf("KernBase = 0x%016"PRIx64", signature is \'%.2s\'\n", KernBase,
             (char *)nt_start_addr);
 
     if (pe_get_pdb_symstore_hash(KernBase, nt_start_addr, pdb_hash, &vs)) {
