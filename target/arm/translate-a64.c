@@ -163,6 +163,9 @@ void aarch64_cpu_dump_state(CPUState *cs, FILE *f,
                 el,
                 psr & PSTATE_SP ? 'h' : 't');
 
+    if (cpu_isar_feature(aa64_bti, cpu)) {
+        cpu_fprintf(f, "  BTYPE=%d", (psr & PSTATE_BTYPE) >> 10);
+    }
     if (!(flags & CPU_DUMP_FPU)) {
         cpu_fprintf(f, "\n");
         return;
