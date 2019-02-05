@@ -284,10 +284,10 @@ void gen_a64_set_pc_im(uint64_t val)
     tcg_gen_movi_i64(cpu_pc, val);
 }
 
-/* Load the PC from a generic TCG variable.
+/*
+ * Handle Top Byte Ignore (TBI) bits.
  *
- * If address tagging is enabled via the TCR TBI bits, then loading
- * an address into the PC will clear out any tag in it:
+ * If address tagging is enabled via the TCR TBI bits:
  *  + for EL2 and EL3 there is only one TBI bit, and if it is set
  *    then the address is zero-extended, clearing bits [63:56]
  *  + for EL0 and EL1, TBI0 controls addresses with bit 55 == 0
@@ -295,45 +295,44 @@ void gen_a64_set_pc_im(uint64_t val)
  *    If the appropriate TBI bit is set for the address then
  *    the address is sign-extended from bit 55 into bits [63:56]
  *
- * We can avoid doing this for relative-branches, because the
- * PC + offset can never overflow into the tag bits (assuming
- * that virtual addresses are less than 56 bits wide, as they
- * are currently), but we must handle it for branch-to-register.
+ * Here We have concatenated TBI{1,0} into tbi.
  */
-static void gen_a64_set_pc(DisasContext *s, TCGv_i64 src)
+static void gen_top_byte_ignore(DisasContext *s, TCGv_i64 dst,
+                                TCGv_i64 src, int tbi)
 {
-    /* Note that TBII is TBI1:TBI0.  */
-    int tbi = s->tbii;
-
-    if (s->current_el <= 1) {
-        if (tbi != 0) {
-            /* Sign-extend from bit 55.  */
-            tcg_gen_sextract_i64(cpu_pc, src, 0, 56);
-
-            if (tbi != 3) {
-                TCGv_i64 tcg_zero = tcg_const_i64(0);
-
-                /*
-                 * The two TBI bits differ.
-                 * If tbi0, then !tbi1: only use the extension if positive.
-                 * if !tbi0, then tbi1: only use the extension if negative.
-                 */
-                tcg_gen_movcond_i64(tbi == 1 ? TCG_COND_GE : TCG_COND_LT,
-                                    cpu_pc, cpu_pc, tcg_zero, cpu_pc, src);
-                tcg_temp_free_i64(tcg_zero);
-            }
-            return;
-        }
+    if (tbi == 0) {
+        /* Load unmodified address */
+        tcg_gen_mov_i64(dst, src);
+    } else if (s->current_el >= 2) {
+        /* FIXME: ARMv8.1-VHE S2 translation regime.  */
+        /* Force tag byte to all zero */
+        tcg_gen_extract_i64(dst, src, 0, 56);
     } else {
-        if (tbi != 0) {
-            /* Force tag byte to all zero */
-            tcg_gen_extract_i64(cpu_pc, src, 0, 56);
-            return;
+        /* Sign-extend from bit 55.  */
+        tcg_gen_sextract_i64(dst, src, 0, 56);
+
+        if (tbi != 3) {
+            TCGv_i64 tcg_zero = tcg_const_i64(0);
+
+            /*
+             * The two TBI bits differ.
+             * If tbi0, then !tbi1: only use the extension if positive.
+             * if !tbi0, then tbi1: only use the extension if negative.
+             */
+            tcg_gen_movcond_i64(tbi == 1 ? TCG_COND_GE : TCG_COND_LT,
+                                dst, dst, tcg_zero, dst, src);
+            tcg_temp_free_i64(tcg_zero);
         }
     }
+}
 
-    /* Load unmodified address */
-    tcg_gen_mov_i64(cpu_pc, src);
+static void gen_a64_set_pc(DisasContext *s, TCGv_i64 src)
+{
+    /*
+     * If address tagging is enabled for instructions via the TCR TBI bits,
+     * then loading an address into the PC will clear out any tag.
+     */
+    gen_top_byte_ignore(s, cpu_pc, src, s->tbii);
 }
 
 typedef struct DisasCompare64 {
@@ -14012,6 +14011,7 @@ static void aarch64_tr_init_disas_context(DisasContextBase *dcbase,
     core_mmu_idx = FIELD_EX32(tb_flags, TBFLAG_ANY, MMUIDX);
     dc->mmu_idx = core_to_arm_mmu_idx(env, core_mmu_idx);
     dc->tbii = FIELD_EX32(tb_flags, TBFLAG_A64, TBII);
+    dc->tbid = FIELD_EX32(tb_flags, TBFLAG_A64, TBID);
     dc->current_el = arm_mmu_idx_to_el(dc->mmu_idx);
 #if !defined(CONFIG_USER_ONLY)
     dc->user = (dc->current_el == 0);
