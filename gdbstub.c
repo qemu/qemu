@@ -1359,6 +1359,10 @@ static int gdb_handle_packet(GDBState *s, const char *line_buf)
 
             put_packet(s, buf);
             break;
+        } else if (strncmp(p, "Kill;", 5) == 0) {
+            /* Kill the target */
+            error_report("QEMU: Terminated via GDBstub");
+            exit(0);
         } else {
             goto unknown_command;
         }
