@@ -268,6 +268,7 @@ enum arm_exception_class {
     EC_FPIDTRAP               = 0x08,
     EC_PACTRAP                = 0x09,
     EC_CP14RRTTRAP            = 0x0c,
+    EC_BTITRAP                = 0x0d,
     EC_ILLEGALSTATE           = 0x0e,
     EC_AA32_SVC               = 0x11,
     EC_AA32_HVC               = 0x12,
@@ -437,6 +438,11 @@ static inline uint32_t syn_sve_access_trap(void)
 static inline uint32_t syn_pactrap(void)
 {
     return EC_PACTRAP << ARM_EL_EC_SHIFT;
+}
+
+static inline uint32_t syn_btitrap(int btype)
+{
+    return (EC_BTITRAP << ARM_EL_EC_SHIFT) | btype;
 }
 
 static inline uint32_t syn_insn_abort(int same_el, int ea, int s1ptw, int fsc)
@@ -957,30 +963,9 @@ typedef struct ARMVAParameters {
     bool using64k   : 1;
 } ARMVAParameters;
 
-#ifdef CONFIG_USER_ONLY
-static inline ARMVAParameters aa64_va_parameters_both(CPUARMState *env,
-                                                      uint64_t va,
-                                                      ARMMMUIdx mmu_idx)
-{
-    return (ARMVAParameters) {
-        /* 48-bit address space */
-        .tsz = 16,
-        /* We can't handle tagged addresses properly in user-only mode */
-        .tbi = false,
-    };
-}
-
-static inline ARMVAParameters aa64_va_parameters(CPUARMState *env,
-                                                 uint64_t va,
-                                                 ARMMMUIdx mmu_idx, bool data)
-{
-    return aa64_va_parameters_both(env, va, mmu_idx);
-}
-#else
 ARMVAParameters aa64_va_parameters_both(CPUARMState *env, uint64_t va,
                                         ARMMMUIdx mmu_idx);
 ARMVAParameters aa64_va_parameters(CPUARMState *env, uint64_t va,
                                    ARMMMUIdx mmu_idx, bool data);
-#endif
 
 #endif

@@ -26,7 +26,8 @@ typedef struct DisasContext {
     int user;
 #endif
     ARMMMUIdx mmu_idx; /* MMU index to use for normal loads/stores */
-    uint8_t tbii;      /* TBI1|TBI0 for EL0/1 or TBI for EL2/3 */
+    uint8_t tbii;      /* TBI1|TBI0 for insns */
+    uint8_t tbid;      /* TBI1|TBI0 for data */
     bool ns;        /* Use non-secure CPREG bank on access */
     int fp_excp_el; /* FP exception EL or 0 if enabled */
     int sve_excp_el; /* SVE exception EL or 0 if enabled */
@@ -69,6 +70,15 @@ typedef struct DisasContext {
     bool ss_same_el;
     /* True if v8.3-PAuth is active.  */
     bool pauth_active;
+    /* True with v8.5-BTI and SCTLR_ELx.BT* set.  */
+    bool bt;
+    /*
+     * >= 0, a copy of PSTATE.BTYPE, which will be 0 without v8.5-BTI.
+     *  < 0, set by the current instruction.
+     */
+    int8_t btype;
+    /* True if this page is guarded.  */
+    bool guarded_page;
     /* Bottom two bits of XScale c15_cpar coprocessor access control reg */
     int c15_cpar;
     /* TCG op of the current insn_start.  */

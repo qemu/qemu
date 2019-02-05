@@ -9691,6 +9691,42 @@ static abi_long do_syscall1(void *cpu_env, int num, abi_long arg1,
                 }
             }
             return ret;
+        case TARGET_PR_PAC_RESET_KEYS:
+            {
+                CPUARMState *env = cpu_env;
+                ARMCPU *cpu = arm_env_get_cpu(env);
+
+                if (arg3 || arg4 || arg5) {
+                    return -TARGET_EINVAL;
+                }
+                if (cpu_isar_feature(aa64_pauth, cpu)) {
+                    int all = (TARGET_PR_PAC_APIAKEY | TARGET_PR_PAC_APIBKEY |
+                               TARGET_PR_PAC_APDAKEY | TARGET_PR_PAC_APDBKEY |
+                               TARGET_PR_PAC_APGAKEY);
+                    if (arg2 == 0) {
+                        arg2 = all;
+                    } else if (arg2 & ~all) {
+                        return -TARGET_EINVAL;
+                    }
+                    if (arg2 & TARGET_PR_PAC_APIAKEY) {
+                        arm_init_pauth_key(&env->apia_key);
+                    }
+                    if (arg2 & TARGET_PR_PAC_APIBKEY) {
+                        arm_init_pauth_key(&env->apib_key);
+                    }
+                    if (arg2 & TARGET_PR_PAC_APDAKEY) {
+                        arm_init_pauth_key(&env->apda_key);
+                    }
+                    if (arg2 & TARGET_PR_PAC_APDBKEY) {
+                        arm_init_pauth_key(&env->apdb_key);
+                    }
+                    if (arg2 & TARGET_PR_PAC_APGAKEY) {
+                        arm_init_pauth_key(&env->apga_key);
+                    }
+                    return 0;
+                }
+            }
+            return -TARGET_EINVAL;
 #endif /* AARCH64 */
         case PR_GET_SECCOMP:
         case PR_SET_SECCOMP:
