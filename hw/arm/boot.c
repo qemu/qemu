@@ -949,9 +949,12 @@ static uint64_t load_aarch64_image(const char *filename, hwaddr mem_base,
     return size;
 }
 
-void arm_load_kernel(ARMCPU *cpu, struct arm_boot_info *info)
+static void arm_setup_direct_kernel_boot(ARMCPU *cpu,
+                                         struct arm_boot_info *info)
 {
+    /* Set up for a direct boot of a kernel image file. */
     CPUState *cs;
+    AddressSpace *as = arm_boot_address_space(cpu, info);
     int kernel_size;
     int initrd_size;
     int is_linux = 0;
@@ -959,75 +962,6 @@ void arm_load_kernel(ARMCPU *cpu, struct arm_boot_info *info)
     int elf_machine;
     hwaddr entry;
     static const ARMInsnFixup *primary_loader;
-    AddressSpace *as = arm_boot_address_space(cpu, info);
-
-    /*
-     * CPU objects (unlike devices) are not automatically reset on system
-     * reset, so we must always register a handler to do so. If we're
-     * actually loading a kernel, the handler is also responsible for
-     * arranging that we start it correctly.
-     */
-    for (cs = first_cpu; cs; cs = CPU_NEXT(cs)) {
-        qemu_register_reset(do_cpu_reset, ARM_CPU(cs));
-    }
-
-    /*
-     * The board code is not supposed to set secure_board_setup unless
-     * running its code in secure mode is actually possible, and KVM
-     * doesn't support secure.
-     */
-    assert(!(info->secure_board_setup && kvm_enabled()));
-
-    info->dtb_filename = qemu_opt_get(qemu_get_machine_opts(), "dtb");
-    info->dtb_limit = 0;
-
-    /* Load the kernel.  */
-    if (!info->kernel_filename || info->firmware_loaded) {
-
-        if (have_dtb(info)) {
-            /*
-             * If we have a device tree blob, but no kernel to supply it to (or
-             * the kernel is supposed to be loaded by the bootloader), copy the
-             * DTB to the base of RAM for the bootloader to pick up.
-             */
-            info->dtb_start = info->loader_start;
-        }
-
-        if (info->kernel_filename) {
-            FWCfgState *fw_cfg;
-            bool try_decompressing_kernel;
-
-            fw_cfg = fw_cfg_find();
-            try_decompressing_kernel = arm_feature(&cpu->env,
-                                                   ARM_FEATURE_AARCH64);
-
-            /*
-             * Expose the kernel, the command line, and the initrd in fw_cfg.
-             * We don't process them here at all, it's all left to the
-             * firmware.
-             */
-            load_image_to_fw_cfg(fw_cfg,
-                                 FW_CFG_KERNEL_SIZE, FW_CFG_KERNEL_DATA,
-                                 info->kernel_filename,
-                                 try_decompressing_kernel);
-            load_image_to_fw_cfg(fw_cfg,
-                                 FW_CFG_INITRD_SIZE, FW_CFG_INITRD_DATA,
-                                 info->initrd_filename, false);
-
-            if (info->kernel_cmdline) {
-                fw_cfg_add_i32(fw_cfg, FW_CFG_CMDLINE_SIZE,
-                               strlen(info->kernel_cmdline) + 1);
-                fw_cfg_add_string(fw_cfg, FW_CFG_CMDLINE_DATA,
-                                  info->kernel_cmdline);
-            }
-        }
-
-        /*
-         * We will start from address 0 (typically a boot ROM image) in the
-         * same way as hardware.
-         */
-        return;
-    }
 
     if (arm_feature(&cpu->env, ARM_FEATURE_AARCH64)) {
         primary_loader = bootloader_aarch64;
@@ -1201,6 +1135,82 @@ void arm_load_kernel(ARMCPU *cpu, struct arm_boot_info *info)
 
     for (cs = first_cpu; cs; cs = CPU_NEXT(cs)) {
         ARM_CPU(cs)->env.boot_info = info;
+    }
+}
+
+void arm_load_kernel(ARMCPU *cpu, struct arm_boot_info *info)
+{
+    CPUState *cs;
+    AddressSpace *as = arm_boot_address_space(cpu, info);
+
+    /*
+     * CPU objects (unlike devices) are not automatically reset on system
+     * reset, so we must always register a handler to do so. If we're
+     * actually loading a kernel, the handler is also responsible for
+     * arranging that we start it correctly.
+     */
+    for (cs = first_cpu; cs; cs = CPU_NEXT(cs)) {
+        qemu_register_reset(do_cpu_reset, ARM_CPU(cs));
+    }
+
+    /*
+     * The board code is not supposed to set secure_board_setup unless
+     * running its code in secure mode is actually possible, and KVM
+     * doesn't support secure.
+     */
+    assert(!(info->secure_board_setup && kvm_enabled()));
+
+    info->dtb_filename = qemu_opt_get(qemu_get_machine_opts(), "dtb");
+    info->dtb_limit = 0;
+
+    /* Load the kernel.  */
+    if (!info->kernel_filename || info->firmware_loaded) {
+
+        if (have_dtb(info)) {
+            /*
+             * If we have a device tree blob, but no kernel to supply it to (or
+             * the kernel is supposed to be loaded by the bootloader), copy the
+             * DTB to the base of RAM for the bootloader to pick up.
+             */
+            info->dtb_start = info->loader_start;
+        }
+
+        if (info->kernel_filename) {
+            FWCfgState *fw_cfg;
+            bool try_decompressing_kernel;
+
+            fw_cfg = fw_cfg_find();
+            try_decompressing_kernel = arm_feature(&cpu->env,
+                                                   ARM_FEATURE_AARCH64);
+
+            /*
+             * Expose the kernel, the command line, and the initrd in fw_cfg.
+             * We don't process them here at all, it's all left to the
+             * firmware.
+             */
+            load_image_to_fw_cfg(fw_cfg,
+                                 FW_CFG_KERNEL_SIZE, FW_CFG_KERNEL_DATA,
+                                 info->kernel_filename,
+                                 try_decompressing_kernel);
+            load_image_to_fw_cfg(fw_cfg,
+                                 FW_CFG_INITRD_SIZE, FW_CFG_INITRD_DATA,
+                                 info->initrd_filename, false);
+
+            if (info->kernel_cmdline) {
+                fw_cfg_add_i32(fw_cfg, FW_CFG_CMDLINE_SIZE,
+                               strlen(info->kernel_cmdline) + 1);
+                fw_cfg_add_string(fw_cfg, FW_CFG_CMDLINE_DATA,
+                                  info->kernel_cmdline);
+            }
+        }
+
+        /*
+         * We will start from address 0 (typically a boot ROM image) in the
+         * same way as hardware.
+         */
+        return;
+    } else {
+        arm_setup_direct_kernel_boot(cpu, info);
     }
 
     if (!info->skip_dtb_autoload && have_dtb(info)) {
