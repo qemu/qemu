@@ -220,7 +220,7 @@ static struct QEMU_PACKED
 
     char pad[232];
 
-    char kernel_cmdline[256];
+    char kernel_cmdline[256] QEMU_NONSTRING;
 } boot_params;
 
 static void r2d_init(MachineState *machine)

@@ -39,6 +39,7 @@ int msi_init(struct PCIDevice *dev, uint8_t offset,
              bool msi_per_vector_mask, Error **errp);
 void msi_uninit(struct PCIDevice *dev);
 void msi_reset(PCIDevice *dev);
+bool msi_is_masked(const PCIDevice *dev, unsigned int vector);
 void msi_notify(PCIDevice *dev, unsigned int vector);
 void msi_send_message(PCIDevice *dev, MSIMessage msg);
 void msi_write_config(PCIDevice *dev, uint32_t addr, uint32_t val, int len);

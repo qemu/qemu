@@ -118,7 +118,6 @@ static void fw_cfg_bootsplash(FWCfgState *s)
 {
     const char *boot_splash_filename = NULL;
     const char *boot_splash_time = NULL;
-    uint8_t qemu_extra_params_fw[2];
     char *filename, *file_data;
     gsize file_size;
     int file_type;
@@ -132,6 +131,8 @@ static void fw_cfg_bootsplash(FWCfgState *s)
     /* insert splash time if user configurated */
     if (boot_splash_time) {
         int64_t bst_val = qemu_opt_get_number(opts, "splash-time", -1);
+        uint16_t bst_le16;
+
         /* validate the input */
         if (bst_val < 0 || bst_val > 0xffff) {
             error_report("splash-time is invalid,"
@@ -139,9 +140,9 @@ static void fw_cfg_bootsplash(FWCfgState *s)
             exit(1);
         }
         /* use little endian format */
-        qemu_extra_params_fw[0] = (uint8_t)(bst_val & 0xff);
-        qemu_extra_params_fw[1] = (uint8_t)((bst_val >> 8) & 0xff);
-        fw_cfg_add_file(s, "etc/boot-menu-wait", qemu_extra_params_fw, 2);
+        bst_le16 = cpu_to_le16(bst_val);
+        fw_cfg_add_file(s, "etc/boot-menu-wait",
+                        g_memdup(&bst_le16, sizeof bst_le16), sizeof bst_le16);
     }
 
     /* insert splash file if user configurated */

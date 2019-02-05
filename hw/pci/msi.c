@@ -286,7 +286,7 @@ void msi_reset(PCIDevice *dev)
     MSI_DEV_PRINTF(dev, "reset\n");
 }
 
-static bool msi_is_masked(const PCIDevice *dev, unsigned int vector)
+bool msi_is_masked(const PCIDevice *dev, unsigned int vector)
 {
     uint16_t flags = pci_get_word(dev->config + msi_flags_off(dev));
     uint32_t mask, data;
