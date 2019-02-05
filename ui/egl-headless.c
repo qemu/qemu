@@ -142,7 +142,8 @@ static void egl_scanout_flush(DisplayChangeListener *dcl,
         egl_texture_blit(edpy->gls, &edpy->blit_fb, &edpy->guest_fb,
                          !edpy->y_0_top);
         egl_texture_blend(edpy->gls, &edpy->blit_fb, &edpy->cursor_fb,
-                          !edpy->y_0_top, edpy->pos_x, edpy->pos_y);
+                          !edpy->y_0_top, edpy->pos_x, edpy->pos_y,
+                          1.0, 1.0);
     } else {
         /* no cursor -> use simple framebuffer blit */
         egl_fb_blit(&edpy->blit_fb, &edpy->guest_fb, edpy->y_0_top);

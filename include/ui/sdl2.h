@@ -10,6 +10,7 @@
 # include <SDL_image.h>
 #endif
 
+#include "ui/kbd-state.h"
 #ifdef CONFIG_OPENGL
 # include "ui/egl-helpers.h"
 #endif
@@ -30,6 +31,7 @@ struct sdl2_console {
     int idle_counter;
     int ignore_hotkeys;
     SDL_GLContext winctx;
+    QKbdState *kbd;
 #ifdef CONFIG_OPENGL
     QemuGLShader *gls;
     egl_fb guest_fb;
@@ -44,7 +46,6 @@ void sdl2_window_destroy(struct sdl2_console *scon);
 void sdl2_window_resize(struct sdl2_console *scon);
 void sdl2_poll_events(struct sdl2_console *scon);
 
-void sdl2_reset_keys(struct sdl2_console *scon);
 void sdl2_process_key(struct sdl2_console *scon,
                       SDL_KeyboardEvent *ev);
 

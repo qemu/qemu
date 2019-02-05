@@ -120,14 +120,15 @@ void egl_texture_blit(QemuGLShader *gls, egl_fb *dst, egl_fb *src, bool flip)
 }
 
 void egl_texture_blend(QemuGLShader *gls, egl_fb *dst, egl_fb *src, bool flip,
-                       int x, int y)
+                       int x, int y, double scale_x, double scale_y)
 {
     glBindFramebuffer(GL_FRAMEBUFFER_EXT, dst->framebuffer);
+    int w = scale_x * src->width;
+    int h = scale_y * src->height;
     if (flip) {
-        glViewport(x, y, src->width, src->height);
+        glViewport(x, y, w, h);
     } else {
-        glViewport(x, dst->height - src->height - y,
-                   src->width, src->height);
+        glViewport(x, dst->height - h - y, w, h);
     }
     glEnable(GL_TEXTURE_2D);
     glBindTexture(GL_TEXTURE_2D, src->texture);

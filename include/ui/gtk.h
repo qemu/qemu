@@ -22,6 +22,7 @@
 #include <gdk/gdkwayland.h>
 #endif
 
+#include "ui/kbd-state.h"
 #if defined(CONFIG_OPENGL)
 #include "ui/egl-helpers.h"
 #include "ui/egl-context.h"
@@ -32,6 +33,7 @@ typedef struct GtkDisplayState GtkDisplayState;
 typedef struct VirtualGfxConsole {
     GtkWidget *drawing_area;
     DisplayChangeListener dcl;
+    QKbdState *kbd;
     DisplaySurface *ds;
     pixman_image_t *convert;
     cairo_surface_t *surface;

@@ -54,6 +54,9 @@
 #ifndef MAC_OS_X_VERSION_10_12
 #define MAC_OS_X_VERSION_10_12 101200
 #endif
+#ifndef MAC_OS_X_VERSION_10_13
+#define MAC_OS_X_VERSION_10_13 101300
+#endif
 
 /* macOS 10.12 deprecated many constants, #define the new names for older SDKs */
 #if MAC_OS_X_VERSION_MAX_ALLOWED < MAC_OS_X_VERSION_10_12
@@ -89,6 +92,14 @@
  */
 #if MAC_OS_X_VERSION_MAX_ALLOWED < MAC_OS_X_VERSION_10_9
 #define NSModalResponseOK NSFileHandlingPanelOKButton
+#endif
+/* 10.14 deprecates NSOnState and NSOffState in favor of
+ * NSControlStateValueOn/Off, which were introduced in 10.13.
+ * Define for older versions
+ */
+#if MAC_OS_X_VERSION_MAX_ALLOWED < MAC_OS_X_VERSION_10_13
+#define NSControlStateValueOn NSOnState
+#define NSControlStateValueOff NSOffState
 #endif
 
 //#define DEBUG
@@ -377,7 +388,12 @@ QemuCocoaView *cocoaView;
     COCOA_DEBUG("QemuCocoaView: drawRect\n");
 
     // get CoreGraphic context
+#if MAC_OS_X_VERSION_MAX_ALLOWED < MAC_OS_X_VERSION_10_10
     CGContextRef viewContextRef = [[NSGraphicsContext currentContext] graphicsPort];
+#else
+    CGContextRef viewContextRef = [[NSGraphicsContext currentContext] CGContext];
+#endif
+
     CGContextSetInterpolationQuality (viewContextRef, kCGInterpolationNone);
     CGContextSetShouldAntialias (viewContextRef, NO);
 
@@ -1147,9 +1163,9 @@ QemuCocoaView *cocoaView;
 {
     stretch_video = !stretch_video;
     if (stretch_video == true) {
-        [sender setState: NSOnState];
+        [sender setState: NSControlStateValueOn];
     } else {
-        [sender setState: NSOffState];
+        [sender setState: NSControlStateValueOff];
     }
 }
 
@@ -1390,15 +1406,15 @@ QemuCocoaView *cocoaView;
     {
         /* Unselect the currently selected item */
         for (NSMenuItem *item in [menu itemArray]) {
-            if (item.state == NSOnState) {
-                [item setState: NSOffState];
+            if (item.state == NSControlStateValueOn) {
+                [item setState: NSControlStateValueOff];
                 break;
             }
         }
     }
 
     // check the menu item
-    [sender setState: NSOnState];
+    [sender setState: NSControlStateValueOn];
 
     // get the throttle percentage
     throttle_pct = [sender tag];
@@ -1502,7 +1518,7 @@ int main (int argc, const char * argv[]) {
                    initWithTitle: [NSString stringWithFormat: @"%d%%", percentage] action:@selector(adjustSpeed:) keyEquivalent:@""] autorelease];
 
         if (percentage == 100) {
-            [menuItem setState: NSOnState];
+            [menuItem setState: NSControlStateValueOn];
         }
 
         /* Calculate the throttle percentage */

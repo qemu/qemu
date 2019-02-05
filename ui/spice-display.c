@@ -1090,7 +1090,7 @@ static void qemu_spice_gl_update(DisplayChangeListener *dcl,
         egl_texture_blit(ssd->gls, &ssd->blit_fb, &ssd->guest_fb,
                          !y_0_top);
         egl_texture_blend(ssd->gls, &ssd->blit_fb, &ssd->cursor_fb,
-                          !y_0_top, x, y);
+                          !y_0_top, x, y, 1.0, 1.0);
         glFlush();
     }
 

@@ -27,7 +27,7 @@ void egl_fb_read(void *dst, egl_fb *src);
 
 void egl_texture_blit(QemuGLShader *gls, egl_fb *dst, egl_fb *src, bool flip);
 void egl_texture_blend(QemuGLShader *gls, egl_fb *dst, egl_fb *src, bool flip,
-                       int x, int y);
+                       int x, int y, double scale_x, double scale_y);
 
 #ifdef CONFIG_OPENGL_DMABUF
 
