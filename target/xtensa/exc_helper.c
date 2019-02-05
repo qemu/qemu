@@ -127,6 +127,19 @@ void HELPER(check_interrupts)(CPUXtensaState *env)
     qemu_mutex_unlock_iothread();
 }
 
+void HELPER(intset)(CPUXtensaState *env, uint32_t v)
+{
+    atomic_or(&env->sregs[INTSET],
+              v & env->config->inttype_mask[INTTYPE_SOFTWARE]);
+}
+
+void HELPER(intclear)(CPUXtensaState *env, uint32_t v)
+{
+    atomic_and(&env->sregs[INTSET],
+               ~(v & (env->config->inttype_mask[INTTYPE_SOFTWARE] |
+                      env->config->inttype_mask[INTTYPE_EDGE])));
+}
+
 static uint32_t relocated_vector(CPUXtensaState *env, uint32_t vector)
 {
     if (xtensa_option_enabled(env->config,
