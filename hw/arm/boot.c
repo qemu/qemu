@@ -1138,6 +1138,54 @@ static void arm_setup_direct_kernel_boot(ARMCPU *cpu,
     }
 }
 
+static void arm_setup_firmware_boot(ARMCPU *cpu, struct arm_boot_info *info)
+{
+    /* Set up for booting firmware (which might load a kernel via fw_cfg) */
+
+    if (have_dtb(info)) {
+        /*
+         * If we have a device tree blob, but no kernel to supply it to (or
+         * the kernel is supposed to be loaded by the bootloader), copy the
+         * DTB to the base of RAM for the bootloader to pick up.
+         */
+        info->dtb_start = info->loader_start;
+    }
+
+    if (info->kernel_filename) {
+        FWCfgState *fw_cfg;
+        bool try_decompressing_kernel;
+
+        fw_cfg = fw_cfg_find();
+        try_decompressing_kernel = arm_feature(&cpu->env,
+                                               ARM_FEATURE_AARCH64);
+
+        /*
+         * Expose the kernel, the command line, and the initrd in fw_cfg.
+         * We don't process them here at all, it's all left to the
+         * firmware.
+         */
+        load_image_to_fw_cfg(fw_cfg,
+                             FW_CFG_KERNEL_SIZE, FW_CFG_KERNEL_DATA,
+                             info->kernel_filename,
+                             try_decompressing_kernel);
+        load_image_to_fw_cfg(fw_cfg,
+                             FW_CFG_INITRD_SIZE, FW_CFG_INITRD_DATA,
+                             info->initrd_filename, false);
+
+        if (info->kernel_cmdline) {
+            fw_cfg_add_i32(fw_cfg, FW_CFG_CMDLINE_SIZE,
+                           strlen(info->kernel_cmdline) + 1);
+            fw_cfg_add_string(fw_cfg, FW_CFG_CMDLINE_DATA,
+                              info->kernel_cmdline);
+        }
+    }
+
+    /*
+     * We will start from address 0 (typically a boot ROM image) in the
+     * same way as hardware.
+     */
+}
+
 void arm_load_kernel(ARMCPU *cpu, struct arm_boot_info *info)
 {
     CPUState *cs;
@@ -1165,49 +1213,7 @@ void arm_load_kernel(ARMCPU *cpu, struct arm_boot_info *info)
 
     /* Load the kernel.  */
     if (!info->kernel_filename || info->firmware_loaded) {
-
-        if (have_dtb(info)) {
-            /*
-             * If we have a device tree blob, but no kernel to supply it to (or
-             * the kernel is supposed to be loaded by the bootloader), copy the
-             * DTB to the base of RAM for the bootloader to pick up.
-             */
-            info->dtb_start = info->loader_start;
-        }
-
-        if (info->kernel_filename) {
-            FWCfgState *fw_cfg;
-            bool try_decompressing_kernel;
-
-            fw_cfg = fw_cfg_find();
-            try_decompressing_kernel = arm_feature(&cpu->env,
-                                                   ARM_FEATURE_AARCH64);
-
-            /*
-             * Expose the kernel, the command line, and the initrd in fw_cfg.
-             * We don't process them here at all, it's all left to the
-             * firmware.
-             */
-            load_image_to_fw_cfg(fw_cfg,
-                                 FW_CFG_KERNEL_SIZE, FW_CFG_KERNEL_DATA,
-                                 info->kernel_filename,
-                                 try_decompressing_kernel);
-            load_image_to_fw_cfg(fw_cfg,
-                                 FW_CFG_INITRD_SIZE, FW_CFG_INITRD_DATA,
-                                 info->initrd_filename, false);
-
-            if (info->kernel_cmdline) {
-                fw_cfg_add_i32(fw_cfg, FW_CFG_CMDLINE_SIZE,
-                               strlen(info->kernel_cmdline) + 1);
-                fw_cfg_add_string(fw_cfg, FW_CFG_CMDLINE_DATA,
-                                  info->kernel_cmdline);
-            }
-        }
-
-        /*
-         * We will start from address 0 (typically a boot ROM image) in the
-         * same way as hardware.
-         */
+        arm_setup_firmware_boot(cpu, info);
         return;
     } else {
         arm_setup_direct_kernel_boot(cpu, info);
