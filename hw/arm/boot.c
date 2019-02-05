@@ -1215,7 +1215,6 @@ void arm_load_kernel(ARMCPU *cpu, struct arm_boot_info *info)
     /* Load the kernel.  */
     if (!info->kernel_filename || info->firmware_loaded) {
         arm_setup_firmware_boot(cpu, info);
-        return;
     } else {
         arm_setup_direct_kernel_boot(cpu, info);
     }
