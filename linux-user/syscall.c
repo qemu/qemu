@@ -6768,9 +6768,15 @@ static int open_net_route(void *cpu_env, int fd)
         char iface[16];
         uint32_t dest, gw, mask;
         unsigned int flags, refcnt, use, metric, mtu, window, irtt;
-        sscanf(line, "%s\t%08x\t%08x\t%04x\t%d\t%d\t%d\t%08x\t%d\t%u\t%u\n",
-                     iface, &dest, &gw, &flags, &refcnt, &use, &metric,
-                     &mask, &mtu, &window, &irtt);
+        int fields;
+
+        fields = sscanf(line,
+                        "%s\t%08x\t%08x\t%04x\t%d\t%d\t%d\t%08x\t%d\t%u\t%u\n",
+                        iface, &dest, &gw, &flags, &refcnt, &use, &metric,
+                        &mask, &mtu, &window, &irtt);
+        if (fields != 11) {
+            continue;
+        }
         dprintf(fd, "%s\t%08x\t%08x\t%04x\t%d\t%d\t%d\t%08x\t%d\t%u\t%u\n",
                 iface, tswap32(dest), tswap32(gw), flags, refcnt, use,
                 metric, tswap32(mask), mtu, window, irtt);
