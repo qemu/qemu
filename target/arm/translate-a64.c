@@ -138,6 +138,19 @@ static void reset_btype(DisasContext *s)
     }
 }
 
+static void set_btype(DisasContext *s, int val)
+{
+    TCGv_i32 tcg_val;
+
+    /* BTYPE is a 2-bit field, and 0 should be done with reset_btype.  */
+    tcg_debug_assert(val >= 1 && val <= 3);
+
+    tcg_val = tcg_const_i32(val);
+    tcg_gen_st_i32(tcg_val, cpu_env, offsetof(CPUARMState, btype));
+    tcg_temp_free_i32(tcg_val);
+    s->btype = -1;
+}
+
 void aarch64_cpu_dump_state(CPUState *cs, FILE *f,
                             fprintf_function cpu_fprintf, int flags)
 {
@@ -1982,6 +1995,7 @@ static void disas_exc(DisasContext *s, uint32_t insn)
 static void disas_uncond_b_reg(DisasContext *s, uint32_t insn)
 {
     unsigned int opc, op2, op3, rn, op4;
+    unsigned btype_mod = 2;   /* 0: BR, 1: BLR, 2: other */
     TCGv_i64 dst;
     TCGv_i64 modifier;
 
@@ -1999,6 +2013,7 @@ static void disas_uncond_b_reg(DisasContext *s, uint32_t insn)
     case 0: /* BR */
     case 1: /* BLR */
     case 2: /* RET */
+        btype_mod = opc;
         switch (op3) {
         case 0:
             /* BR, BLR, RET */
@@ -2042,7 +2057,6 @@ static void disas_uncond_b_reg(DisasContext *s, uint32_t insn)
         default:
             goto do_unallocated;
         }
-
         gen_a64_set_pc(s, dst);
         /* BLR also needs to load return address */
         if (opc == 1) {
@@ -2058,6 +2072,7 @@ static void disas_uncond_b_reg(DisasContext *s, uint32_t insn)
         if ((op3 & ~1) != 2) {
             goto do_unallocated;
         }
+        btype_mod = opc & 1;
         if (s->pauth_active) {
             dst = new_tmp_a64(s);
             modifier = cpu_reg_sp(s, op4);
@@ -2139,6 +2154,26 @@ static void disas_uncond_b_reg(DisasContext *s, uint32_t insn)
     do_unallocated:
         unallocated_encoding(s);
         return;
+    }
+
+    switch (btype_mod) {
+    case 0: /* BR */
+        if (dc_isar_feature(aa64_bti, s)) {
+            /* BR to {x16,x17} or !guard -> 1, else 3.  */
+            set_btype(s, rn == 16 || rn == 17 || !s->guarded_page ? 1 : 3);
+        }
+        break;
+
+    case 1: /* BLR */
+        if (dc_isar_feature(aa64_bti, s)) {
+            /* BLR sets BTYPE to 2, regardless of source guarded page.  */
+            set_btype(s, 2);
+        }
+        break;
+
+    default: /* RET or none of the above.  */
+        /* BTYPE will be set to 0 by normal end-of-insn processing.  */
+        break;
     }
 
     s->base.is_jmp = DISAS_JUMP;
