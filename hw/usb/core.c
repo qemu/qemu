@@ -717,9 +717,7 @@ struct USBEndpoint *usb_ep_get(USBDevice *dev, int pid, int ep)
 {
     struct USBEndpoint *eps;
 
-    if (dev == NULL) {
-        return NULL;
-    }
+    assert(dev != NULL);
     if (ep == 0) {
         return &dev->ep_ctl;
     }
