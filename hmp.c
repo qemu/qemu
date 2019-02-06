@@ -433,8 +433,8 @@ void hmp_info_migrate_parameters(Monitor *mon, const QDict *qdict)
             MigrationParameter_str(MIGRATION_PARAMETER_BLOCK_INCREMENTAL),
             params->block_incremental ? "on" : "off");
         monitor_printf(mon, "%s: %u\n",
-            MigrationParameter_str(MIGRATION_PARAMETER_X_MULTIFD_CHANNELS),
-            params->x_multifd_channels);
+            MigrationParameter_str(MIGRATION_PARAMETER_MULTIFD_CHANNELS),
+            params->multifd_channels);
         monitor_printf(mon, "%s: %" PRIu64 "\n",
             MigrationParameter_str(MIGRATION_PARAMETER_XBZRLE_CACHE_SIZE),
             params->xbzrle_cache_size);
@@ -1809,9 +1809,9 @@ void hmp_migrate_set_parameter(Monitor *mon, const QDict *qdict)
         p->has_block_incremental = true;
         visit_type_bool(v, param, &p->block_incremental, &err);
         break;
-    case MIGRATION_PARAMETER_X_MULTIFD_CHANNELS:
-        p->has_x_multifd_channels = true;
-        visit_type_int(v, param, &p->x_multifd_channels, &err);
+    case MIGRATION_PARAMETER_MULTIFD_CHANNELS:
+        p->has_multifd_channels = true;
+        visit_type_int(v, param, &p->multifd_channels, &err);
         break;
     case MIGRATION_PARAMETER_XBZRLE_CACHE_SIZE:
         p->has_xbzrle_cache_size = true;

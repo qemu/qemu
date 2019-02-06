@@ -401,7 +401,7 @@
 # @pause-before-switchover: Pause outgoing migration before serialising device
 #          state and before disabling block IO (since 2.11)
 #
-# @x-multifd: Use more than one fd for migration (since 2.11)
+# @multifd: Use more than one fd for migration (since 4.0)
 #
 # @dirty-bitmaps: If enabled, QEMU will migrate named dirty bitmaps.
 #                 (since 2.12)
@@ -420,7 +420,7 @@
 { 'enum': 'MigrationCapability',
   'data': ['xbzrle', 'rdma-pin-all', 'auto-converge', 'zero-blocks',
            'compress', 'events', 'postcopy-ram', 'x-colo', 'release-ram',
-           'block', 'return-path', 'pause-before-switchover', 'x-multifd',
+           'block', 'return-path', 'pause-before-switchover', 'multifd',
            'dirty-bitmaps', 'postcopy-blocktime', 'late-block-activate',
            'x-ignore-shared' ] }
 
@@ -557,10 +557,10 @@
 # 	migrated and the destination must already have access to the
 # 	same backing chain as was used on the source.  (since 2.10)
 #
-# @x-multifd-channels: Number of channels used to migrate data in
-#                     parallel. This is the same number that the
-#                     number of sockets used for migration.  The
-#                     default value is 2 (since 2.11)
+# @multifd-channels: Number of channels used to migrate data in
+#                    parallel. This is the same number that the
+#                    number of sockets used for migration.  The
+#                    default value is 2 (since 4.0)
 #
 # @xbzrle-cache-size: cache size to be used by XBZRLE migration.  It
 #                     needs to be a multiple of the target page size
@@ -584,7 +584,7 @@
            'cpu-throttle-initial', 'cpu-throttle-increment',
            'tls-creds', 'tls-hostname', 'max-bandwidth',
            'downtime-limit', 'x-checkpoint-delay', 'block-incremental',
-           'x-multifd-channels',
+           'multifd-channels',
            'xbzrle-cache-size', 'max-postcopy-bandwidth',
            'max-cpu-throttle' ] }
 
@@ -659,10 +659,10 @@
 # 	migrated and the destination must already have access to the
 # 	same backing chain as was used on the source.  (since 2.10)
 #
-# @x-multifd-channels: Number of channels used to migrate data in
-#                     parallel. This is the same number that the
-#                     number of sockets used for migration.  The
-#                     default value is 2 (since 2.11)
+# @multifd-channels: Number of channels used to migrate data in
+#                    parallel. This is the same number that the
+#                    number of sockets used for migration.  The
+#                    default value is 2 (since 4.0)
 #
 # @xbzrle-cache-size: cache size to be used by XBZRLE migration.  It
 #                     needs to be a multiple of the target page size
@@ -697,7 +697,7 @@
             '*downtime-limit': 'int',
             '*x-checkpoint-delay': 'int',
             '*block-incremental': 'bool',
-            '*x-multifd-channels': 'int',
+            '*multifd-channels': 'int',
             '*xbzrle-cache-size': 'size',
             '*max-postcopy-bandwidth': 'size',
 	    '*max-cpu-throttle': 'int' } }
@@ -788,10 +788,10 @@
 # 	migrated and the destination must already have access to the
 # 	same backing chain as was used on the source.  (since 2.10)
 #
-# @x-multifd-channels: Number of channels used to migrate data in
-#                     parallel. This is the same number that the
-#                     number of sockets used for migration.
-#                     The default value is 2 (since 2.11)
+# @multifd-channels: Number of channels used to migrate data in
+#                    parallel. This is the same number that the
+#                    number of sockets used for migration.
+#                    The default value is 2 (since 4.0)
 #
 # @xbzrle-cache-size: cache size to be used by XBZRLE migration.  It
 #                     needs to be a multiple of the target page size
@@ -825,7 +825,7 @@
             '*downtime-limit': 'uint64',
             '*x-checkpoint-delay': 'uint32',
             '*block-incremental': 'bool' ,
-            '*x-multifd-channels': 'uint8',
+            '*multifd-channels': 'uint8',
             '*xbzrle-cache-size': 'size',
 	    '*max-postcopy-bandwidth': 'size',
             '*max-cpu-throttle':'uint8'} }
