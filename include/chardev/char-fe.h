@@ -184,6 +184,9 @@ void qemu_chr_fe_printf(CharBackend *be, const char *fmt, ...)
  * is active; return the #GSource's tag.  If it is disconnected,
  * or without associated Chardev, return 0.
  *
+ * Note that you are responsible to update the front-end sources if
+ * you are switching the main context with qemu_chr_fe_set_handlers().
+ *
  * Returns: the source tag
  */
 guint qemu_chr_fe_add_watch(CharBackend *be, GIOCondition cond,
