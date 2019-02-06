@@ -2607,6 +2607,7 @@ static void xhci_port_update(XHCIPort *port, int is_detach)
 {
     uint32_t pls = PLS_RX_DETECT;
 
+    assert(port);
     port->portsc = PORTSC_PP;
     if (!is_detach && xhci_port_have_device(port)) {
         port->portsc |= PORTSC_CCS;
@@ -3215,6 +3216,7 @@ static void xhci_wakeup(USBPort *usbport)
     XHCIState *xhci = usbport->opaque;
     XHCIPort *port = xhci_lookup_port(xhci, usbport);
 
+    assert(port);
     if (get_field(port->portsc, PORTSC_PLS) != PLS_U3) {
         return;
     }
