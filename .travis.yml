@@ -97,12 +97,16 @@ matrix:
         - CONFIG="--enable-modules --disable-linux-user"
 
 
+    # Alternate coroutines implementations are only really of interest to KVM users
+    # However we can't test against KVM on Travis so we can only run unit tests
     - env:
-        - CONFIG="--with-coroutine=ucontext --disable-linux-user"
+        - CONFIG="--with-coroutine=ucontext --disable-tcg"
+        - TEST_CMD="make check-unit -j3 V=1"
 
 
     - env:
-        - CONFIG="--with-coroutine=sigaltstack --disable-linux-user"
+        - CONFIG="--with-coroutine=sigaltstack --disable-tcg"
+        - TEST_CMD="make check-unit -j3 V=1"
 
 
     # Check we can build docs and tools
@@ -159,11 +163,6 @@ matrix:
 
     - env:
         - CONFIG="--enable-trace-backends=ust --target-list=x86_64-softmmu"
-        - TEST_CMD=""
-
-
-    - env:
-        - CONFIG="--disable-tcg"
         - TEST_CMD=""
 
 
