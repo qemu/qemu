@@ -3276,10 +3276,10 @@ static USBEndpoint *xhci_epid_to_usbep(XHCIEPContext *epctx)
         return NULL;
     }
     uport = epctx->xhci->slots[epctx->slotid - 1].uport;
-    token = (epctx->epid & 1) ? USB_TOKEN_IN : USB_TOKEN_OUT;
-    if (!uport) {
+    if (!uport || !uport->dev) {
         return NULL;
     }
+    token = (epctx->epid & 1) ? USB_TOKEN_IN : USB_TOKEN_OUT;
     return usb_ep_get(uport->dev, token, epctx->epid >> 1);
 }
 
