@@ -23,7 +23,7 @@ import os
 import iotests
 from iotests import qemu_img_create, qemu_io, file_path, log
 
-sys.path.append(os.path.join(os.path.dirname(__file__), '..', '..', 'scripts'))
+sys.path.append(os.path.join(os.path.dirname(__file__), '..', '..', 'python'))
 
 from qemu import QEMUMachine
 

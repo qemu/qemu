@@ -13,9 +13,8 @@ import sys
 
 import avocado
 
-SRC_ROOT_DIR = os.path.dirname(os.path.dirname(os.path.dirname(__file__)))
-SRC_ROOT_DIR = os.path.abspath(os.path.dirname(SRC_ROOT_DIR))
-sys.path.append(os.path.join(SRC_ROOT_DIR, 'scripts'))
+SRC_ROOT_DIR = os.path.join(os.path.dirname(__file__), '..', '..', '..')
+sys.path.append(os.path.join(SRC_ROOT_DIR, 'python'))
 
 from qemu import QEMUMachine
 

@@ -25,6 +25,7 @@ check for crashes and unexpected errors.
 """
 from __future__ import print_function
 
+import os
 import sys
 import glob
 import logging
@@ -34,6 +35,7 @@ import random
 import argparse
 from itertools import chain
 
+sys.path.append(os.path.join(os.path.dirname(__file__), '..', 'python'))
 from qemu import QEMUMachine
 
 logger = logging.getLogger('device-crash-test')
