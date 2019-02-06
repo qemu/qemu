@@ -278,7 +278,7 @@ static void char_mux_finalize(Object *obj)
     qemu_chr_fe_deinit(&d->chr, false);
 }
 
-void mux_chr_set_handlers(Chardev *chr, GMainContext *context)
+static void mux_chr_update_read_handlers(Chardev *chr)
 {
     MuxChardev *d = MUX_CHARDEV(chr);
 
@@ -289,7 +289,7 @@ void mux_chr_set_handlers(Chardev *chr, GMainContext *context)
                                   mux_chr_event,
                                   NULL,
                                   chr,
-                                  context, true, false);
+                                  chr->gcontext, true, false);
 }
 
 void mux_set_focus(Chardev *chr, int focus)
@@ -383,6 +383,7 @@ static void char_mux_class_init(ObjectClass *oc, void *data)
     cc->chr_add_watch = mux_chr_add_watch;
     cc->chr_be_event = mux_chr_be_event;
     cc->chr_machine_done = open_muxes;
+    cc->chr_update_read_handler = mux_chr_update_read_handlers;
 }
 
 static const TypeInfo char_mux_type_info = {

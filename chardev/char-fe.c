@@ -290,10 +290,6 @@ void qemu_chr_fe_set_handlers_full(CharBackend *b,
             qemu_chr_be_event(s, CHR_EVENT_OPENED);
         }
     }
-
-    if (CHARDEV_IS_MUX(s)) {
-        mux_chr_set_handlers(s, context);
-    }
 }
 
 void qemu_chr_fe_set_handlers(CharBackend *b,
