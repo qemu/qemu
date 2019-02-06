@@ -909,8 +909,7 @@ test-softfloat = $(call quiet-command, \
 
 # Conversion Routines:
 # FIXME: i32_to_extF80 (broken), i64_to_extF80 (broken)
-#        ui32_to_f128 (not implemented), f128_to_ui32 (not implemented)
-#        extF80_roundToInt (broken)
+#        ui32_to_f128 (not implemented), extF80_roundToInt (broken)
 #
 check-softfloat-conv: $(FP_TEST_BIN)
 	$(call test-softfloat, \
@@ -939,9 +938,11 @@ check-softfloat-conv: $(FP_TEST_BIN)
 		f16_to_ui32 f16_to_ui32_r_minMag \
 		f32_to_ui32 f32_to_ui32_r_minMag \
 		f64_to_ui32 f64_to_ui32_r_minMag \
+		f128_to_ui32 f128_to_ui32_r_minMag \
 		f16_to_ui64 f16_to_ui64_r_minMag \
 		f32_to_ui64 f32_to_ui64_r_minMag \
-		f64_to_ui64 f64_to_ui64_r_minMag, \
+		f64_to_ui64 f64_to_ui64_r_minMag \
+		f128_to_ui64 f128_to_ui64_r_minMag, \
 		float-to-uint)
 	$(call test-softfloat, \
 		f16_roundToInt f32_roundToInt \
