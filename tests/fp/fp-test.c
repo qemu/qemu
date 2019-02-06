@@ -622,7 +622,8 @@ static void do_testfloat(int op, int rmode, bool exact)
         test_ab_extF80_z_bool(true_ab_extF80M_z_bool, subj_ab_extF80M_z_bool);
         break;
     case F128_TO_UI32:
-        not_implemented();
+        test_a_f128_z_ui32_rx(slow_f128M_to_ui32, qemu_f128M_to_ui32, rmode,
+                              exact);
         break;
     case F128_TO_UI64:
         test_a_f128_z_ui64_rx(slow_f128M_to_ui64, qemu_f128M_to_ui64, rmode,

@@ -367,6 +367,7 @@ WRAP_80_TO_INT_MINMAG(qemu_extF80M_to_i64_r_minMag,
 WRAP_128_TO_INT(qemu_f128M_to_i32, float128_to_int32, int_fast32_t)
 WRAP_128_TO_INT(qemu_f128M_to_i64, float128_to_int64, int_fast64_t)
 
+WRAP_128_TO_INT(qemu_f128M_to_ui32, float128_to_uint32, uint_fast32_t)
 WRAP_128_TO_INT(qemu_f128M_to_ui64, float128_to_uint64, uint_fast64_t)
 #undef WRAP_128_TO_INT
 
