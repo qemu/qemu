@@ -2998,7 +2998,7 @@
 
 ##
 # @BlockdevQcow2EncryptionFormat:
-# @aes: AES-CBC with plain64 initialization venctors
+# @aes: AES-CBC with plain64 initialization vectors
 #
 # Since: 2.10
 ##
