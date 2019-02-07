@@ -5,9 +5,7 @@
  * terms and conditions of the copyright.
  */
 
-#include "qemu/osdep.h"
 #include "slirp.h"
-#include "qemu/main-loop.h"
 
 static void sbappendsb(struct sbuf *sb, struct mbuf *m);
 
@@ -17,7 +15,7 @@ sbfree(struct sbuf *sb)
 	free(sb->sb_data);
 }
 
-void
+bool
 sbdrop(struct sbuf *sb, int num)
 {
     int limit = sb->sb_datalen / 2;
@@ -34,8 +32,10 @@ sbdrop(struct sbuf *sb, int num)
 		sb->sb_rptr -= sb->sb_datalen;
 
     if (sb->sb_cc < limit && sb->sb_cc + num >= limit) {
-        qemu_notify_event();
+        return true;
     }
+
+    return false;
 }
 
 void

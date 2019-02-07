@@ -22,11 +22,11 @@
  * THE SOFTWARE.
  */
 
-#include "qemu/osdep.h"
 #include "slirp.h"
-#include "qemu-common.h"
-#include "qemu/cutils.h"
-#include "trace.h"
+
+#include <sys/types.h>
+#include <sys/stat.h>
+#include <fcntl.h>
 
 static inline int tftp_session_in_use(struct tftp_session *spt)
 {
@@ -205,7 +205,8 @@ static void tftp_send_error(struct tftp_session *spt,
   struct mbuf *m;
   struct tftp_t *tp;
 
-  trace_slirp_tftp_error(msg);
+  DEBUG_TFTP("tftp error msg: %s", msg);
+
   m = m_get(spt->slirp);
 
   if (!m) {
@@ -216,7 +217,7 @@ static void tftp_send_error(struct tftp_session *spt,
 
   tp->tp_op = htons(TFTP_ERROR);
   tp->x.tp_error.tp_error_code = htons(errorcode);
-  pstrcpy((char *)tp->x.tp_error.tp_msg, sizeof(tp->x.tp_error.tp_msg), msg);
+  slirp_pstrcpy((char *)tp->x.tp_error.tp_msg, sizeof(tp->x.tp_error.tp_msg), msg);
 
   m->m_len = sizeof(struct tftp_t) - (TFTP_BLOCKSIZE_MAX + 2) + 3 + strlen(msg)
              - sizeof(struct udphdr);
@@ -325,7 +326,8 @@ static void tftp_handle_rrq(Slirp *slirp, struct sockaddr_storage *srcsas,
       break;
     }
   }
-  trace_slirp_tftp_rrq(req_fname);
+
+  DEBUG_TFTP("tftp rrq file: %s", req_fname);
 
   /* check mode */
   if ((pktlen - k) < 6) {

@@ -30,7 +30,6 @@
  * tcp_timer.c,v 1.2 1994/08/02 07:49:10 davidg Exp
  */
 
-#include "qemu/osdep.h"
 #include "slirp.h"
 
 static struct tcpcb *tcp_timers(register struct tcpcb *tp, int timer);
@@ -233,7 +232,7 @@ tcp_timers(register struct tcpcb *tp, int timer)
 		 * to go below this.)
 		 */
 		{
-                u_int win = MIN(tp->snd_wnd, tp->snd_cwnd) / 2 / tp->t_maxseg;
+                unsigned win = MIN(tp->snd_wnd, tp->snd_cwnd) / 2 / tp->t_maxseg;
 		if (win < 2)
 			win = 2;
 		tp->snd_cwnd = tp->t_maxseg;

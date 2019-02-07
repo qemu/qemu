@@ -20,8 +20,6 @@
  * along with this program; if not, see <http://www.gnu.org/licenses/>.
  */
 
-#include "qemu/osdep.h"
-#include "qemu/log.h"
 #include "slirp.h"
 #include "dhcpv6.h"
 
@@ -61,7 +59,7 @@ static int dhcpv6_parse_info_request(Slirp *slirp, uint8_t *odata, int olen,
         int len = odata[2] << 8 | odata[3];
 
         if (len + 4 > olen) {
-            slirp->cb->guest_error("Guest sent bad DHCPv6 packet!");
+            slirp->cb->guest_error("Guest sent bad DHCPv6 packet!", slirp->opaque);
             return -E2BIG;
         }
 

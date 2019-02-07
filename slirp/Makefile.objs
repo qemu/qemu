@@ -20,6 +20,7 @@ slirp.mo-objs = \
 	sbuf.o \
 	slirp.o \
 	socket.o \
+	state.o \
 	tcp_input.o \
 	tcp_output.o \
 	tcp_subr.o \
@@ -27,6 +28,7 @@ slirp.mo-objs = \
 	tftp.o \
 	udp.o \
 	udp6.o \
+	util.o \
 	$(NULL)
 
-slirp.mo-cflags = -DG_LOG_DOMAIN=\"Slirp\"
+slirp.mo-cflags = -DG_LOG_DOMAIN=\"Slirp\" -DWITH_QEMU

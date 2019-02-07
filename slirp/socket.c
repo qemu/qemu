@@ -5,8 +5,6 @@
  * terms and conditions of the copyright.
  */
 
-#include "qemu/osdep.h"
-#include "qemu-common.h"
 #include "slirp.h"
 #include "ip_icmp.h"
 #ifdef __sun__
@@ -187,7 +185,7 @@ soread(struct socket *so)
 	 */
 	sopreprbuf(so, iov, &n);
 
-	nn = qemu_recv(so->s, iov[0].iov_base, iov[0].iov_len,0);
+	nn = slirp_recv(so->s, iov[0].iov_base, iov[0].iov_len,0);
 	if (nn <= 0) {
 		if (nn < 0 && (errno == EINTR || errno == EAGAIN))
 			return 0;
@@ -203,7 +201,7 @@ soread(struct socket *so)
 				if (getpeername(so->s, paddr, &alen) < 0) {
 					err = errno;
 				} else {
-					getsockopt(so->s, SOL_SOCKET, SO_ERROR,
+					slirp_getsockopt(so->s, SOL_SOCKET, SO_ERROR,
 						&err, &elen);
 				}
 			}
@@ -233,7 +231,7 @@ soread(struct socket *so)
 	 */
 	if (n == 2 && nn == iov[0].iov_len) {
             int ret;
-            ret = qemu_recv(so->s, iov[1].iov_base, iov[1].iov_len,0);
+            ret = slirp_recv(so->s, iov[1].iov_base, iov[1].iov_len,0);
             if (ret > 0)
                 nn += ret;
         }
@@ -508,7 +506,7 @@ sorecvfrom(struct socket *so)
 	  /* XXX Check if reply is "correct"? */
 
 	  if(len == -1 || len == 0) {
-	    u_char code=ICMP_UNREACH_PORT;
+	    uint8_t code=ICMP_UNREACH_PORT;
 
 	    if(errno == EHOSTUNREACH) code=ICMP_UNREACH_HOST;
 	    else if(errno == ENETUNREACH) code=ICMP_UNREACH_NET;
@@ -554,7 +552,7 @@ sorecvfrom(struct socket *so)
 	   */
 	  len = M_FREEROOM(m);
 	  /* if (so->so_fport != htons(53)) { */
-	  ioctlsocket(so->s, FIONREAD, &n);
+	  slirp_ioctlsocket(so->s, FIONREAD, &n);
 
 	  if (n > len) {
 	    n = (m->m_data - m->m_dat) + m->m_len + n + 1;
@@ -678,8 +676,8 @@ sosendto(struct socket *so, struct mbuf *m)
  * Listen for incoming TCP connections
  */
 struct socket *
-tcp_listen(Slirp *slirp, uint32_t haddr, u_int hport, uint32_t laddr,
-           u_int lport, int flags)
+tcp_listen(Slirp *slirp, uint32_t haddr, unsigned hport, uint32_t laddr,
+           unsigned lport, int flags)
 {
 	struct sockaddr_in addr;
 	struct socket *so;
@@ -719,14 +717,14 @@ tcp_listen(Slirp *slirp, uint32_t haddr, u_int hport, uint32_t laddr,
 	addr.sin_addr.s_addr = haddr;
 	addr.sin_port = hport;
 
-	if (((s = qemu_socket(AF_INET,SOCK_STREAM,0)) < 0) ||
-	    (socket_set_fast_reuse(s) < 0) ||
+	if (((s = slirp_socket(AF_INET,SOCK_STREAM,0)) < 0) ||
+	    (slirp_socket_set_fast_reuse(s) < 0) ||
 	    (bind(s,(struct sockaddr *)&addr, sizeof(addr)) < 0) ||
 	    (listen(s,1) < 0)) {
 		int tmperrno = errno; /* Don't clobber the real reason we failed */
 
                 if (s >= 0) {
-                    closesocket(s);
+                    slirp_closesocket(s);
                 }
 		sofree(so);
 		/* Restore the real errno */
@@ -737,9 +735,9 @@ tcp_listen(Slirp *slirp, uint32_t haddr, u_int hport, uint32_t laddr,
 #endif
 		return NULL;
 	}
-	qemu_setsockopt(s, SOL_SOCKET, SO_OOBINLINE, &opt, sizeof(int));
+	slirp_setsockopt(s, SOL_SOCKET, SO_OOBINLINE, &opt, sizeof(int));
 	opt = 1;
-	qemu_setsockopt(s, IPPROTO_TCP, TCP_NODELAY, &opt, sizeof(int));
+	slirp_setsockopt(s, IPPROTO_TCP, TCP_NODELAY, &opt, sizeof(int));
 
 	getsockname(s,(struct sockaddr *)&addr,&addrlen);
 	so->so_ffamily = AF_INET;
@@ -926,5 +924,12 @@ void sotranslate_accept(struct socket *so)
 
     default:
         break;
+    }
+}
+
+void sodrop(struct socket *s, int num)
+{
+    if (sbdrop(&s->so_snd, num)) {
+        s->slirp->cb->notify(s->slirp->opaque);
     }
 }

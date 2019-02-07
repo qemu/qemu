@@ -8,6 +8,8 @@
 #ifndef SLIRP_SOCKET_H
 #define SLIRP_SOCKET_H
 
+#include "misc.h"
+
 #define SO_EXPIRE 240000
 #define SO_EXPIREFAST 10000
 
@@ -25,6 +27,7 @@ struct socket {
   struct socket *so_next,*so_prev;      /* For a linked list of sockets */
 
   int s;                           /* The actual socket */
+  struct gfwd_list *guestfwd;
 
   int pollfds_idx;                 /* GPollFD GArray index */
 
@@ -58,7 +61,7 @@ struct socket {
   int32_t       so_state;       /* internal state flags SS_*, below */
 
   struct 	tcpcb *so_tcpcb;	/* pointer to TCP protocol control block */
-  u_int	so_expire;		/* When the socket will expire */
+  unsigned	so_expire;		/* When the socket will expire */
 
   int	so_queued;		/* Number of packets queued from this socket */
   int	so_nqueued;		/* Number of packets queued in a row
@@ -67,7 +70,6 @@ struct socket {
 
   struct sbuf so_rcv;		/* Receive buffer */
   struct sbuf so_snd;		/* Send buffer */
-  void * chardev;
 };
 
 
@@ -142,7 +144,7 @@ int sosendoob(struct socket *);
 int sowrite(struct socket *);
 void sorecvfrom(struct socket *);
 int sosendto(struct socket *, struct mbuf *);
-struct socket * tcp_listen(Slirp *, uint32_t, u_int, uint32_t, u_int,
+struct socket * tcp_listen(Slirp *, uint32_t, unsigned, uint32_t, unsigned,
                                int);
 void soisfconnecting(register struct socket *);
 void soisfconnected(register struct socket *);
@@ -154,6 +156,7 @@ int soreadbuf(struct socket *so, const char *buf, int size);
 void sotranslate_out(struct socket *, struct sockaddr_storage *);
 void sotranslate_in(struct socket *, struct sockaddr_storage *);
 void sotranslate_accept(struct socket *);
+void sodrop(struct socket *, int num);
 
 
 #endif /* SLIRP_SOCKET_H */

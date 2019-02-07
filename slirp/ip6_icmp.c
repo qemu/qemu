@@ -3,12 +3,8 @@
  * Guillaume Subiron, Yann Bordenave, Serigne Modou Wagne.
  */
 
-#include "qemu/osdep.h"
 #include "slirp.h"
 #include "ip6_icmp.h"
-#include "qemu/timer.h"
-#include "qemu/error-report.h"
-#include "qemu/log.h"
 
 #define NDP_Interval g_rand_int_range(slirp->grand, \
         NDP_MinRtrAdvInterval, NDP_MaxRtrAdvInterval)
@@ -16,8 +12,10 @@
 static void ra_timer_handler(void *opaque)
 {
     Slirp *slirp = opaque;
-    timer_mod(slirp->ra_timer,
-              slirp->cb->clock_get_ns() / SCALE_MS + NDP_Interval);
+
+    slirp->cb->timer_mod(slirp->ra_timer,
+        slirp->cb->clock_get_ns(slirp->opaque) / SCALE_MS + NDP_Interval,
+        slirp->opaque);
     ndp_send_ra(slirp);
 }
 
@@ -27,11 +25,10 @@ void icmp6_init(Slirp *slirp)
         return;
     }
 
-    slirp->ra_timer = timer_new_full(NULL, QEMU_CLOCK_VIRTUAL,
-                                     SCALE_MS, QEMU_TIMER_ATTR_EXTERNAL,
-                                     ra_timer_handler, slirp);
-    timer_mod(slirp->ra_timer,
-              slirp->cb->clock_get_ns() / SCALE_MS + NDP_Interval);
+    slirp->ra_timer = slirp->cb->timer_new(ra_timer_handler, slirp, slirp->opaque);
+    slirp->cb->timer_mod(slirp->ra_timer,
+        slirp->cb->clock_get_ns(slirp->opaque) / SCALE_MS + NDP_Interval,
+        slirp->opaque);
 }
 
 void icmp6_cleanup(Slirp *slirp)
@@ -40,8 +37,7 @@ void icmp6_cleanup(Slirp *slirp)
         return;
     }
 
-    timer_del(slirp->ra_timer);
-    timer_free(slirp->ra_timer);
+    slirp->cb->timer_free(slirp->ra_timer, slirp->opaque);
 }
 
 static void icmp6_send_echoreply(struct mbuf *m, Slirp *slirp, struct ip6 *ip,
@@ -340,7 +336,8 @@ static void ndp_input(struct mbuf *m, Slirp *slirp, struct ip6 *ip,
 
     case ICMP6_NDP_RA:
         DEBUG_CALL(" type = Router Advertisement");
-        slirp->cb->guest_error("Warning: guest sent NDP RA, but shouldn't");
+        slirp->cb->guest_error("Warning: guest sent NDP RA, but shouldn't",
+                               slirp->opaque);
         break;
 
     case ICMP6_NDP_NS:
@@ -374,7 +371,7 @@ static void ndp_input(struct mbuf *m, Slirp *slirp, struct ip6 *ip,
     case ICMP6_NDP_REDIRECT:
         DEBUG_CALL(" type = Redirect");
         slirp->cb->guest_error(
-            "Warning: guest sent NDP REDIRECT, but shouldn't");
+            "Warning: guest sent NDP REDIRECT, but shouldn't", slirp->opaque);
         break;
     }
 }

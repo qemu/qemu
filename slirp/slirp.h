@@ -3,10 +3,17 @@
 
 #ifdef _WIN32
 
-typedef char *caddr_t;
+/* as defined in sdkddkver.h */
+#ifndef _WIN32_WINNT
+#define _WIN32_WINNT 0x0600 /* Vista */
+#endif
+/* reduces the number of implicitly included headers */
+#ifndef WIN32_LEAN_AND_MEAN
+#define WIN32_LEAN_AND_MEAN
+#endif
 
-# include <windows.h>
 # include <winsock2.h>
+# include <windows.h>
 # include <ws2tcpip.h>
 # include <sys/timeb.h>
 # include <iphlpapi.h>
@@ -19,19 +26,10 @@ typedef char *caddr_t;
 
 #ifndef _WIN32
 #include <sys/uio.h>
-#endif
-
-#ifndef _WIN32
 #include <netinet/in.h>
 #include <arpa/inet.h>
-#endif
-
-#ifndef _WIN32
 #include <sys/socket.h>
-#endif
-
-#ifndef _WIN32
-# include <sys/ioctl.h>
+#include <sys/ioctl.h>
 #endif
 
 #ifdef __APPLE__
@@ -45,10 +43,8 @@ typedef char *caddr_t;
 #define quehead slirp_quehead
 
 #include "debug.h"
-
-#include "qemu/queue.h"
-#include "qemu/sockets.h"
-#include "net/eth.h"
+#include "util.h"
+#include "qtailq.h"
 
 #include "libslirp.h"
 #include "ip.h"
@@ -93,7 +89,7 @@ struct slirp_arphdr {
     uint32_t      ar_sip;           /* sender IP address       */
     unsigned char ar_tha[ETH_ALEN]; /* target hardware address */
     uint32_t      ar_tip;           /* target IP address       */
-} QEMU_PACKED;
+} SLIRP_PACKED;
 
 #define ARP_TABLE_SIZE 16
 
@@ -110,7 +106,7 @@ bool arp_table_search(Slirp *slirp, uint32_t ip_addr,
 struct ndpentry {
     unsigned char   eth_addr[ETH_ALEN];     /* sender hardware address */
     struct in6_addr ip_addr;                /* sender IP address       */
-} QEMU_PACKED;
+} SLIRP_PACKED;
 
 #define NDP_TABLE_SIZE 16
 
@@ -126,8 +122,8 @@ bool ndp_table_search(Slirp *slirp, struct in6_addr ip_addr,
 
 struct Slirp {
     QTAILQ_ENTRY(Slirp) entry;
-    u_int time_fasttimo;
-    u_int last_slowtimo;
+    unsigned time_fasttimo;
+    unsigned last_slowtimo;
     bool do_slowtimo;
 
     bool in_enabled, in6_enabled;
@@ -193,7 +189,7 @@ struct Slirp {
     NdpTable ndp_table;
 
     GRand *grand;
-    QEMUTimer *ra_timer;
+    void *ra_timer;
 
     const SlirpCb *cb;
     void *opaque;
@@ -247,7 +243,7 @@ int ip6_output(struct socket *, struct mbuf *, int fast);
 
 /* tcp_input.c */
 void tcp_input(register struct mbuf *, int, struct socket *, unsigned short af);
-int tcp_mss(register struct tcpcb *, u_int);
+int tcp_mss(register struct tcpcb *, unsigned);
 
 /* tcp_output.c */
 int tcp_output(register struct tcpcb *);
@@ -269,5 +265,10 @@ uint8_t tcp_tos(struct socket *);
 int tcp_emu(struct socket *, struct mbuf *);
 int tcp_ctl(struct socket *);
 struct tcpcb *tcp_drop(struct tcpcb *tp, int err);
+
+struct socket *
+slirp_find_ctl_socket(Slirp *slirp, struct in_addr guest_addr, int guest_port);
+
+void slirp_send_packet_all(Slirp *slirp, const void *buf, size_t len);
 
 #endif

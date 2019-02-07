@@ -302,4 +302,19 @@ void qemu_fd_register(int fd);
 QEMUBH *qemu_bh_new(QEMUBHFunc *cb, void *opaque);
 void qemu_bh_schedule_idle(QEMUBH *bh);
 
+enum {
+    MAIN_LOOP_POLL_FILL,
+    MAIN_LOOP_POLL_ERR,
+    MAIN_LOOP_POLL_OK,
+};
+
+typedef struct MainLoopPoll {
+    int state;
+    uint32_t timeout;
+    GArray *pollfds;
+} MainLoopPoll;
+
+void main_loop_poll_add_notifier(Notifier *notify);
+void main_loop_poll_remove_notifier(Notifier *notify);
+
 #endif

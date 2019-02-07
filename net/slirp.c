@@ -75,14 +75,23 @@ struct slirp_config_str {
     char str[1024];
 };
 
+struct GuestFwd {
+    CharBackend hd;
+    struct in_addr server;
+    int port;
+    Slirp *slirp;
+};
+
 typedef struct SlirpState {
     NetClientState nc;
     QTAILQ_ENTRY(SlirpState) entry;
     Slirp *slirp;
+    Notifier poll_notifier;
     Notifier exit_notifier;
 #ifndef _WIN32
     gchar *smb_dir;
 #endif
+    GSList *fwd;
 } SlirpState;
 
 static struct slirp_config_str *slirp_configs;
@@ -100,11 +109,12 @@ static void slirp_smb_cleanup(SlirpState *s);
 static inline void slirp_smb_cleanup(SlirpState *s) { }
 #endif
 
-static void net_slirp_output(void *opaque, const uint8_t *pkt, int pkt_len)
+static ssize_t net_slirp_send_packet(const void *pkt, size_t pkt_len,
+                                     void *opaque)
 {
     SlirpState *s = opaque;
 
-    qemu_send_packet(&s->nc, pkt, pkt_len);
+    return qemu_send_packet(&s->nc, pkt, pkt_len);
 }
 
 static ssize_t net_slirp_receive(NetClientState *nc, const uint8_t *buf, size_t size)
@@ -122,10 +132,20 @@ static void slirp_smb_exit(Notifier *n, void *data)
     slirp_smb_cleanup(s);
 }
 
+static void slirp_free_fwd(gpointer data)
+{
+    struct GuestFwd *fwd = data;
+
+    qemu_chr_fe_deinit(&fwd->hd, true);
+    g_free(data);
+}
+
 static void net_slirp_cleanup(NetClientState *nc)
 {
     SlirpState *s = DO_UPCAST(SlirpState, nc, nc);
 
+    g_slist_free_full(s->fwd, slirp_free_fwd);
+    main_loop_poll_remove_notifier(&s->poll_notifier);
     slirp_cleanup(s->slirp);
     if (s->exit_notifier.notify) {
         qemu_remove_exit_notifier(&s->exit_notifier);
@@ -141,21 +161,147 @@ static NetClientInfo net_slirp_info = {
     .cleanup = net_slirp_cleanup,
 };
 
-static void net_slirp_guest_error(const char *msg)
+static void net_slirp_guest_error(const char *msg, void *opaque)
 {
     qemu_log_mask(LOG_GUEST_ERROR, "%s", msg);
 }
 
-static int64_t net_slirp_clock_get_ns(void)
+static int64_t net_slirp_clock_get_ns(void *opaque)
 {
     return qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL);
 }
 
+static void *net_slirp_timer_new(SlirpTimerCb cb,
+                                 void *cb_opaque, void *opaque)
+{
+    return timer_new_full(NULL, QEMU_CLOCK_VIRTUAL,
+                          SCALE_MS, QEMU_TIMER_ATTR_EXTERNAL,
+                          cb, cb_opaque);
+}
+
+static void net_slirp_timer_free(void *timer, void *opaque)
+{
+    timer_del(timer);
+    timer_free(timer);
+}
+
+static void net_slirp_timer_mod(void *timer, int64_t expire_timer,
+                                void *opaque)
+{
+    timer_mod(timer, expire_timer);
+}
+
+static void net_slirp_register_poll_fd(int fd, void *opaque)
+{
+    qemu_fd_register(fd);
+}
+
+static void net_slirp_unregister_poll_fd(int fd, void *opaque)
+{
+    /* no qemu_fd_unregister */
+}
+
+static void net_slirp_notify(void *opaque)
+{
+    qemu_notify_event();
+}
+
 static const SlirpCb slirp_cb = {
-    .output = net_slirp_output,
+    .send_packet = net_slirp_send_packet,
     .guest_error = net_slirp_guest_error,
     .clock_get_ns = net_slirp_clock_get_ns,
+    .timer_new = net_slirp_timer_new,
+    .timer_free = net_slirp_timer_free,
+    .timer_mod = net_slirp_timer_mod,
+    .register_poll_fd = net_slirp_register_poll_fd,
+    .unregister_poll_fd = net_slirp_unregister_poll_fd,
+    .notify = net_slirp_notify,
 };
+
+static int slirp_poll_to_gio(int events)
+{
+    int ret = 0;
+
+    if (events & SLIRP_POLL_IN) {
+        ret |= G_IO_IN;
+    }
+    if (events & SLIRP_POLL_OUT) {
+        ret |= G_IO_OUT;
+    }
+    if (events & SLIRP_POLL_PRI) {
+        ret |= G_IO_PRI;
+    }
+    if (events & SLIRP_POLL_ERR) {
+        ret |= G_IO_ERR;
+    }
+    if (events & SLIRP_POLL_HUP) {
+        ret |= G_IO_HUP;
+    }
+
+    return ret;
+}
+
+static int net_slirp_add_poll(int fd, int events, void *opaque)
+{
+    GArray *pollfds = opaque;
+    GPollFD pfd = {
+        .fd = fd,
+        .events = slirp_poll_to_gio(events),
+    };
+    int idx = pollfds->len;
+    g_array_append_val(pollfds, pfd);
+    return idx;
+}
+
+static int slirp_gio_to_poll(int events)
+{
+    int ret = 0;
+
+    if (events & G_IO_IN) {
+        ret |= SLIRP_POLL_IN;
+    }
+    if (events & G_IO_OUT) {
+        ret |= SLIRP_POLL_OUT;
+    }
+    if (events & G_IO_PRI) {
+        ret |= SLIRP_POLL_PRI;
+    }
+    if (events & G_IO_ERR) {
+        ret |= SLIRP_POLL_ERR;
+    }
+    if (events & G_IO_HUP) {
+        ret |= SLIRP_POLL_HUP;
+    }
+
+    return ret;
+}
+
+static int net_slirp_get_revents(int idx, void *opaque)
+{
+    GArray *pollfds = opaque;
+
+    return slirp_gio_to_poll(g_array_index(pollfds, GPollFD, idx).revents);
+}
+
+static void net_slirp_poll_notify(Notifier *notifier, void *data)
+{
+    MainLoopPoll *poll = data;
+    SlirpState *s = container_of(notifier, SlirpState, poll_notifier);
+
+    switch (poll->state) {
+    case MAIN_LOOP_POLL_FILL:
+        slirp_pollfds_fill(s->slirp, &poll->timeout,
+                           net_slirp_add_poll, poll->pollfds);
+        break;
+    case MAIN_LOOP_POLL_OK:
+    case MAIN_LOOP_POLL_ERR:
+        slirp_pollfds_poll(s->slirp, poll->state == MAIN_LOOP_POLL_ERR,
+                           net_slirp_get_revents, poll->pollfds);
+        break;
+    default:
+        g_assert_not_reached();
+    }
+}
 
 static int net_slirp_init(NetClientState *peer, const char *model,
                           const char *name, int restricted,
@@ -376,6 +522,9 @@ static int net_slirp_init(NetClientState *peer, const char *model,
                           dns, ip6_dns, dnssearch, vdomainname,
                           &slirp_cb, s);
     QTAILQ_INSERT_TAIL(&slirp_stacks, s, entry);
+
+    s->poll_notifier.notify = net_slirp_poll_notify;
+    main_loop_poll_add_notifier(&s->poll_notifier);
 
     for (config = slirp_configs; config; config = config->next) {
         if (config->flags & SLIRP_CFG_HOSTFWD) {
@@ -704,8 +853,8 @@ static int slirp_smb(SlirpState* s, const char *exported_dir,
              CONFIG_SMBD_COMMAND, s->smb_dir, smb_conf);
     g_free(smb_conf);
 
-    if (slirp_add_exec(s->slirp, NULL, smb_cmdline, &vserver_addr, 139) < 0 ||
-        slirp_add_exec(s->slirp, NULL, smb_cmdline, &vserver_addr, 445) < 0) {
+    if (slirp_add_exec(s->slirp, smb_cmdline, &vserver_addr, 139) < 0 ||
+        slirp_add_exec(s->slirp, smb_cmdline, &vserver_addr, 445) < 0) {
         slirp_smb_cleanup(s);
         g_free(smb_cmdline);
         error_setg(errp, "Conflicting/invalid smbserver address");
@@ -717,13 +866,6 @@ static int slirp_smb(SlirpState* s, const char *exported_dir,
 
 #endif /* !defined(_WIN32) */
 
-struct GuestFwd {
-    CharBackend hd;
-    struct in_addr server;
-    int port;
-    Slirp *slirp;
-};
-
 static int guestfwd_can_read(void *opaque)
 {
     struct GuestFwd *fwd = opaque;
@@ -734,6 +876,11 @@ static void guestfwd_read(void *opaque, const uint8_t *buf, int size)
 {
     struct GuestFwd *fwd = opaque;
     slirp_socket_recv(fwd->slirp, fwd->server, fwd->port, buf, size);
+}
+
+static ssize_t guestfwd_write(const void *buf, size_t len, void *chr)
+{
+    return qemu_chr_fe_write_all(chr, buf, len);
 }
 
 static int slirp_guestfwd(SlirpState *s, const char *config_str, Error **errp)
@@ -768,8 +915,8 @@ static int slirp_guestfwd(SlirpState *s, const char *config_str, Error **errp)
 
     snprintf(buf, sizeof(buf), "guestfwd.tcp.%d", port);
 
-    if ((strlen(p) > 4) && !strncmp(p, "cmd:", 4)) {
-        if (slirp_add_exec(s->slirp, NULL, &p[4], &server, port) < 0) {
+    if (g_str_has_prefix(p, "cmd:")) {
+        if (slirp_add_exec(s->slirp, &p[4], &server, port) < 0) {
             error_setg(errp, "Conflicting/invalid host:port in guest "
                        "forwarding rule '%s'", config_str);
             return -1;
@@ -792,13 +939,16 @@ static int slirp_guestfwd(SlirpState *s, const char *config_str, Error **errp)
         qemu_chr_fe_init(&fwd->hd, chr, &err);
         if (err) {
             error_propagate(errp, err);
+            object_unparent(OBJECT(chr));
             g_free(fwd);
             return -1;
         }
 
-        if (slirp_add_exec(s->slirp, &fwd->hd, NULL, &server, port) < 0) {
+        if (slirp_add_guestfwd(s->slirp, guestfwd_write, &fwd->hd,
+                               &server, port) < 0) {
             error_setg(errp, "Conflicting/invalid host:port in guest "
                        "forwarding rule '%s'", config_str);
+            qemu_chr_fe_deinit(&fwd->hd, true);
             g_free(fwd);
             return -1;
         }
@@ -808,6 +958,7 @@ static int slirp_guestfwd(SlirpState *s, const char *config_str, Error **errp)
 
         qemu_chr_fe_set_handlers(&fwd->hd, guestfwd_can_read, guestfwd_read,
                                  NULL, NULL, fwd, NULL, true);
+        s->fwd = g_slist_append(s->fwd, fwd);
     }
     return 0;
 

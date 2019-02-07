@@ -38,10 +38,9 @@
  * terms and conditions of the copyright.
  */
 
-#include "qemu/osdep.h"
 #include "slirp.h"
 
-static const u_char  tcp_outflags[TCP_NSTATES] = {
+static const uint8_t  tcp_outflags[TCP_NSTATES] = {
 	TH_RST|TH_ACK, 0,      TH_SYN,        TH_SYN|TH_ACK,
 	TH_ACK,        TH_ACK, TH_FIN|TH_ACK, TH_FIN|TH_ACK,
 	TH_FIN|TH_ACK, TH_ACK, TH_ACK,
@@ -64,7 +63,7 @@ tcp_output(struct tcpcb *tp)
 	register struct tcpiphdr *ti, tcpiph_save;
 	struct ip *ip;
 	struct ip6 *ip6;
-	u_char opt[MAX_TCPOPTLEN];
+	uint8_t opt[MAX_TCPOPTLEN];
 	unsigned optlen, hdrlen;
 	int idle, sendalot;
 
@@ -272,7 +271,7 @@ send:
 			opt[0] = TCPOPT_MAXSEG;
 			opt[1] = 4;
 			mss = htons((uint16_t) tcp_mss(tp, 0));
-			memcpy((caddr_t)(opt + 2), (caddr_t)&mss, sizeof(mss));
+			memcpy((char *)(opt + 2), (char *)&mss, sizeof(mss));
 			optlen = 4;
 		}
 	}
@@ -302,7 +301,7 @@ send:
 		m->m_data += IF_MAXLINKHDR;
 		m->m_len = hdrlen;
 
-		sbcopy(&so->so_snd, off, (int) len, mtod(m, caddr_t) + hdrlen);
+		sbcopy(&so->so_snd, off, (int) len, mtod(m, char *) + hdrlen);
 		m->m_len += len;
 
 		/*
@@ -325,7 +324,7 @@ send:
 
 	ti = mtod(m, struct tcpiphdr *);
 
-	memcpy((caddr_t)ti, &tp->t_template, sizeof (struct tcpiphdr));
+	memcpy((char *)ti, &tp->t_template, sizeof (struct tcpiphdr));
 
 	/*
 	 * Fill in fields, remembering maximum advertised
@@ -354,7 +353,7 @@ send:
 		ti->ti_seq = htonl(tp->snd_max);
 	ti->ti_ack = htonl(tp->rcv_nxt);
 	if (optlen) {
-		memcpy((caddr_t)(ti + 1), (caddr_t)opt, optlen);
+		memcpy((char *)(ti + 1), (char *)opt, optlen);
 		ti->ti_off = (sizeof (struct tcphdr) + optlen) >> 2;
 	}
 	ti->ti_flags = flags;

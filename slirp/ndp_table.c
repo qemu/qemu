@@ -3,8 +3,6 @@
  * Guillaume Subiron, Yann Bordenave, Serigne Modou Wagne.
  */
 
-#include "qemu/osdep.h"
-#include "qemu-common.h"
 #include "slirp.h"
 
 void ndp_table_add(Slirp *slirp, struct in6_addr ip_addr,

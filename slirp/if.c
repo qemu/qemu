@@ -5,9 +5,7 @@
  * terms and conditions of the copyright.
  */
 
-#include "qemu/osdep.h"
 #include "slirp.h"
-#include "qemu/timer.h"
 
 static void
 ifs_insque(struct mbuf *ifm, struct mbuf *ifmhead)
@@ -148,7 +146,7 @@ diddit:
  */
 void if_start(Slirp *slirp)
 {
-    uint64_t now = slirp->cb->clock_get_ns();
+    uint64_t now = slirp->cb->clock_get_ns(slirp->opaque);
     bool from_batchq = false;
     struct mbuf *ifm, *ifm_next, *ifqt;
 

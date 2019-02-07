@@ -30,7 +30,6 @@
  * ip_icmp.c,v 1.7 1995/05/30 08:09:42 rgrimes Exp
  */
 
-#include "qemu/osdep.h"
 #include "slirp.h"
 #include "ip_icmp.h"
 
@@ -83,7 +82,7 @@ static int icmp_send(struct socket *so, struct mbuf *m, int hlen)
     struct ip *ip = mtod(m, struct ip *);
     struct sockaddr_in addr;
 
-    so->s = qemu_socket(AF_INET, SOCK_DGRAM, IPPROTO_ICMP);
+    so->s = slirp_socket(AF_INET, SOCK_DGRAM, IPPROTO_ICMP);
     if (so->s == -1) {
         return -1;
     }
@@ -114,7 +113,8 @@ static int icmp_send(struct socket *so, struct mbuf *m, int hlen)
 
 void icmp_detach(struct socket *so)
 {
-    closesocket(so->s);
+    so->slirp->cb->unregister_poll_fd(so->s, so->slirp->opaque);
+    slirp_closesocket(so->s);
     sofree(so);
 }
 
@@ -240,7 +240,7 @@ end_error:
 
 #define ICMP_MAXDATALEN (IP_MSS-28)
 void
-icmp_send_error(struct mbuf *msrc, u_char type, u_char code, int minsize,
+icmp_send_error(struct mbuf *msrc, uint8_t type, uint8_t code, int minsize,
            const char *message)
 {
   unsigned hlen, shlen, s_ip_len;
@@ -388,7 +388,7 @@ icmp_reflect(struct mbuf *m)
      * Strip out original options by copying rest of first
      * mbuf's data back, and adjust the IP length.
      */
-    memmove((caddr_t)(ip + 1), (caddr_t)ip + hlen,
+    memmove((char *)(ip + 1), (char *)ip + hlen,
 	    (unsigned )(m->m_len - hlen));
     hlen -= optlen;
     ip->ip_hl = hlen >> 2;
@@ -412,7 +412,7 @@ void icmp_receive(struct socket *so)
     struct mbuf *m = so->so_m;
     struct ip *ip = mtod(m, struct ip *);
     int hlen = ip->ip_hl << 2;
-    u_char error_code;
+    uint8_t error_code;
     struct icmp *icp;
     int id, len;
 
@@ -421,7 +421,7 @@ void icmp_receive(struct socket *so)
     icp = mtod(m, struct icmp *);
 
     id = icp->icmp_id;
-    len = qemu_recv(so->s, icp, M_ROOM(m), 0);
+    len = slirp_recv(so->s, icp, M_ROOM(m), 0);
     /*
      * The behavior of reading SOCK_DGRAM+IPPROTO_ICMP sockets is inconsistent
      * between host OSes.  On Linux, only the ICMP header and payload is

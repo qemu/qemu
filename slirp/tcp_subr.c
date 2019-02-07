@@ -38,7 +38,6 @@
  * terms and conditions of the copyright.
  */
 
-#include "qemu/osdep.h"
 #include "slirp.h"
 
 /* patchable/settable parameters for tcp */
@@ -164,7 +163,7 @@ tcp_respond(struct tcpcb *tp, struct tcpiphdr *ti, struct mbuf *m,
 		 * ti points into m so the next line is just making
 		 * the mbuf point to ti
 		 */
-		m->m_data = (caddr_t)ti;
+		m->m_data = (char *)ti;
 
 		m->m_len = sizeof (struct tcpiphdr);
 		tlen = 0;
@@ -183,7 +182,7 @@ tcp_respond(struct tcpcb *tp, struct tcpiphdr *ti, struct mbuf *m,
 		}
 #undef xchg
 	}
-	ti->ti_len = htons((u_short)(sizeof (struct tcphdr) + tlen));
+	ti->ti_len = htons((uint16_t)(sizeof (struct tcphdr) + tlen));
 	tlen += sizeof (struct tcpiphdr);
 	m->m_len = tlen;
 
@@ -337,7 +336,8 @@ tcp_close(struct tcpcb *tp)
 	/* clobber input socket cache if we're closing the cached connection */
 	if (so == slirp->tcp_last_so)
 		slirp->tcp_last_so = &slirp->tcb;
-	closesocket(so->s);
+	so->slirp->cb->unregister_poll_fd(so->s, so->slirp->opaque);
+	slirp_closesocket(so->s);
 	sbfree(&so->so_rcv);
 	sbfree(&so->so_snd);
 	sofree(so);
@@ -407,17 +407,18 @@ int tcp_fconnect(struct socket *so, unsigned short af)
   DEBUG_CALL("tcp_fconnect");
   DEBUG_ARG("so = %p", so);
 
-  ret = so->s = qemu_socket(af, SOCK_STREAM, 0);
+  ret = so->s = slirp_socket(af, SOCK_STREAM, 0);
   if (ret >= 0) {
     int opt, s=so->s;
     struct sockaddr_storage addr;
 
-    qemu_set_nonblock(s);
-    socket_set_fast_reuse(s);
+    slirp_set_nonblock(s);
+    so->slirp->cb->register_poll_fd(so->s, so->slirp->opaque);
+    slirp_socket_set_fast_reuse(s);
     opt = 1;
-    qemu_setsockopt(s, SOL_SOCKET, SO_OOBINLINE, &opt, sizeof(opt));
+    slirp_setsockopt(s, SOL_SOCKET, SO_OOBINLINE, &opt, sizeof(opt));
     opt = 1;
-    qemu_setsockopt(s, IPPROTO_TCP, TCP_NODELAY, &opt, sizeof(opt));
+    slirp_setsockopt(s, IPPROTO_TCP, TCP_NODELAY, &opt, sizeof(opt));
 
     addr = so->fhost.ss;
     DEBUG_CALL(" connect()ing");
@@ -484,11 +485,12 @@ void tcp_connect(struct socket *inso)
         tcp_close(sototcpcb(so)); /* This will sofree() as well */
         return;
     }
-    qemu_set_nonblock(s);
-    socket_set_fast_reuse(s);
+    slirp_set_nonblock(s);
+    so->slirp->cb->register_poll_fd(so->s, so->slirp->opaque);
+    slirp_socket_set_fast_reuse(s);
     opt = 1;
-    qemu_setsockopt(s, SOL_SOCKET, SO_OOBINLINE, &opt, sizeof(int));
-    socket_set_nodelay(s);
+    slirp_setsockopt(s, SOL_SOCKET, SO_OOBINLINE, &opt, sizeof(int));
+    slirp_socket_set_nodelay(s);
 
     so->fhost.ss = addr;
     sotranslate_accept(so);
@@ -496,7 +498,8 @@ void tcp_connect(struct socket *inso)
     /* Close the accept() socket, set right state */
     if (inso->so_state & SS_FACCEPTONCE) {
         /* If we only accept once, close the accept() socket */
-        closesocket(so->s);
+        so->slirp->cb->unregister_poll_fd(so->s, so->slirp->opaque);
+        slirp_closesocket(so->s);
 
         /* Don't select it yet, even though we have an FD */
         /* if it's not FACCEPTONCE, it's already NOFDREF */
@@ -610,10 +613,10 @@ int
 tcp_emu(struct socket *so, struct mbuf *m)
 {
 	Slirp *slirp = so->slirp;
-	u_int n1, n2, n3, n4, n5, n6;
+	unsigned n1, n2, n3, n4, n5, n6;
         char buff[257];
 	uint32_t laddr;
-	u_int lport;
+	unsigned lport;
 	char *bptr;
 
 	DEBUG_CALL("tcp_emu");
@@ -850,7 +853,7 @@ tcp_emu(struct socket *so, struct mbuf *m)
 
 		bptr = m->m_data;
 		while (bptr < m->m_data + m->m_len) {
-			u_short p;
+			uint16_t p;
 			static int ra = 0;
 			char ra_tbl[4];
 
@@ -906,8 +909,8 @@ tcp_emu(struct socket *so, struct mbuf *m)
 				/* This is the field containing the port
 				 * number that RA-player is listening to.
 				 */
-				lport = (((u_char*)bptr)[0] << 8)
-				+ ((u_char *)bptr)[1];
+				lport = (((uint8_t*)bptr)[0] << 8)
+				+ ((uint8_t *)bptr)[1];
 				if (lport < 6970)
 				   lport += 256;   /* don't know why */
 				if (lport < 6970 || lport > 7170)
@@ -925,8 +928,8 @@ tcp_emu(struct socket *so, struct mbuf *m)
 				}
 				if (p == 7071)
 				   p = 0;
-				*(u_char *)bptr++ = (p >> 8) & 0xff;
-                                *(u_char *)bptr = p & 0xff;
+				*(uint8_t *)bptr++ = (p >> 8) & 0xff;
+                                *(uint8_t *)bptr = p & 0xff;
 				ra = 0;
 				return 1;   /* port redirected, we're done */
 				break;
@@ -964,9 +967,9 @@ int tcp_ctl(struct socket *so)
         for (ex_ptr = slirp->guestfwd_list; ex_ptr; ex_ptr = ex_ptr->ex_next) {
             if (ex_ptr->ex_fport == so->so_fport &&
                 so->so_faddr.s_addr == ex_ptr->ex_addr.s_addr) {
-                if (ex_ptr->ex_chardev) {
+                if (ex_ptr->write_cb) {
                     so->s = -1;
-                    so->chardev = ex_ptr->ex_chardev;
+                    so->guestfwd = ex_ptr;
                     return 1;
                 }
                 DEBUG_MISC(" executing %s", ex_ptr->ex_exec);

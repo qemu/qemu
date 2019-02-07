@@ -668,9 +668,9 @@ ssize_t qemu_send_packet_async(NetClientState *sender,
                                              buf, size, sent_cb);
 }
 
-void qemu_send_packet(NetClientState *nc, const uint8_t *buf, int size)
+ssize_t qemu_send_packet(NetClientState *nc, const uint8_t *buf, int size)
 {
-    qemu_send_packet_async(nc, buf, size, NULL);
+    return qemu_send_packet_async(nc, buf, size, NULL);
 }
 
 ssize_t qemu_send_packet_raw(NetClientState *nc, const uint8_t *buf, int size)

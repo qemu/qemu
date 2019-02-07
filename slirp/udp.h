@@ -78,7 +78,7 @@ void udp_cleanup(Slirp *);
 void udp_input(register struct mbuf *, int);
 int udp_attach(struct socket *, unsigned short af);
 void udp_detach(struct socket *);
-struct socket * udp_listen(Slirp *, uint32_t, u_int, uint32_t, u_int,
+struct socket * udp_listen(Slirp *, uint32_t, unsigned, uint32_t, unsigned,
                            int);
 int udp_output(struct socket *so, struct mbuf *m,
                 struct sockaddr_in *saddr, struct sockaddr_in *daddr,

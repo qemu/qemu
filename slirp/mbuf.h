@@ -85,7 +85,7 @@ struct mbuf {
 	int	m_size;			/* Size of mbuf, from m_dat or m_ext */
 	struct	socket *m_so;
 
-	caddr_t	m_data;			/* Current location of data */
+	char *m_data;			/* Current location of data */
 	int	m_len;			/* Amount of data in this mbuf, from m_data */
 
 	Slirp *slirp;
