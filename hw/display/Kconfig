@@ -26,6 +26,7 @@ config JAZZ_LED
 
 config PL110
     bool
+    select FRAMEBUFFER
 
 config SII9022
     bool
