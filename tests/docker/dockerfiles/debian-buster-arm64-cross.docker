@@ -1,0 +1,15 @@
+#
+# Docker arm64 cross-compiler target
+#
+# This docker target builds on the Debian's Buster base image. There
+# are no QEMU pre-requistes so this image can only be used to build
+# test cases.
+#
+FROM qemu:debian10
+
+# Add the foreign architecture we want and install dependencies
+RUN dpkg --add-architecture arm64
+RUN apt update
+RUN DEBIAN_FRONTEND=noninteractive eatmydata \
+    apt-get install -y --no-install-recommends \
+        crossbuild-essential-arm64
