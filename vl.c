@@ -3735,12 +3735,6 @@ int main(int argc, char **argv, char **envp)
             case QEMU_OPTION_old_param:
                 old_param = 1;
                 break;
-            case QEMU_OPTION_clock:
-                /* Clock options no longer exist.  Keep this option for
-                 * backward compatibility.
-                 */
-                warn_report("This option is ignored and will be removed soon");
-                break;
             case QEMU_OPTION_rtc:
                 opts = qemu_opts_parse_noisily(qemu_find_opts("rtc"), optarg,
                                                false);
