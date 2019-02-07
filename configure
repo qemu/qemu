@@ -3350,10 +3350,6 @@ for drv in $audio_drv_list; do
       oss_libs="$oss_lib"
     ;;
 
-    wav)
-    # XXX: Probes for CoreAudio, DirectSound
-    ;;
-
     *)
     echo "$audio_possible_drivers" | grep -q "\<$drv\>" || {
         error_exit "Unknown driver '$drv' selected" \
