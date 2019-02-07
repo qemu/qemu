@@ -266,7 +266,7 @@ int hppa_cpu_gdb_write_register(CPUState *cs, uint8_t *mem_buf, int n)
     case 65 ... 127:
         {
             uint64_t *fr = &env->fr[(n - 64) / 2];
-            *fr = deposit64(*fr, val, (n & 1 ? 0 : 32), 32);
+            *fr = deposit64(*fr, (n & 1 ? 0 : 32), 32, val);
         }
         break;
     default:
