@@ -91,6 +91,17 @@ config REALVIEW
 
 config STELLARIS
     bool
+    select ARM_V7M
+    select CMSDK_APB_WATCHDOG
+    select I2C
+    select PL011 # UART
+    select PL022 # Serial port
+    select PL061 # GPIO
+    select SSD0303 # OLED display
+    select SSD0323 # OLED display
+    select SSI_SD
+    select STELLARIS_INPUT
+    select STELLARIS_ENET # ethernet
 
 config STRONGARM
     bool
