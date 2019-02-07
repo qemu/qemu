@@ -393,6 +393,12 @@ static void rtas_ibm_change_msi(PowerPCCPU *cpu, sPAPRMachineState *spapr,
     for (i = 0; i < req_num; i++) {
         spapr_irq_claim(spapr, irq + i, false, &err);
         if (err) {
+            if (i) {
+                spapr_irq_free(spapr, irq, i);
+            }
+            if (!smc->legacy_irq_allocation) {
+                spapr_irq_msi_free(spapr, irq, req_num);
+            }
             error_reportf_err(err, "Can't allocate MSIs for device %x: ",
                               config_addr);
             rtas_st(rets, 0, RTAS_OUT_HW_ERROR);
