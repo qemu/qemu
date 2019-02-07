@@ -5871,8 +5871,8 @@ static void decode_rcr_cond_select(CPUTriCoreState *env, DisasContext *ctx)
                       cpu_gpr_d[r3]);
         break;
     case OPC2_32_RCR_CADDN:
-        gen_condi_add(TCG_COND_EQ, cpu_gpr_d[r1], const9, cpu_gpr_d[r3],
-                      cpu_gpr_d[r4]);
+        gen_condi_add(TCG_COND_EQ, cpu_gpr_d[r1], const9, cpu_gpr_d[r4],
+                      cpu_gpr_d[r3]);
         break;
     case OPC2_32_RCR_SEL:
         temp = tcg_const_i32(0);
