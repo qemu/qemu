@@ -213,6 +213,11 @@ typedef struct PowerDevice {
 } PowerDevice;
 
 /* Power */
+static uint64_t power_mem_read(void *opaque, hwaddr addr, unsigned size)
+{
+    return 0;
+}
+
 static void power_mem_write(void *opaque, hwaddr addr,
                             uint64_t val, unsigned size)
 {
@@ -223,6 +228,7 @@ static void power_mem_write(void *opaque, hwaddr addr,
 }
 
 static const MemoryRegionOps power_mem_ops = {
+    .read = power_mem_read,
     .write = power_mem_write,
     .endianness = DEVICE_NATIVE_ENDIAN,
     .valid = {
@@ -595,7 +601,15 @@ static void sun4uv_init(MemoryRegion *address_space_mem,
     qdev_connect_gpio_out_named(DEVICE(ebus), "isa-irq", 4,
         qdev_get_gpio_in_named(DEVICE(sabre), "pbm-irq", OBIO_SER_IRQ));
 
-    pci_dev = pci_create_simple(pci_busA, PCI_DEVFN(2, 0), "VGA");
+    switch (vga_interface_type) {
+    case VGA_STD:
+        pci_create_simple(pci_busA, PCI_DEVFN(2, 0), "VGA");
+        break;
+    case VGA_NONE:
+        break;
+    default:
+        abort();   /* Should not happen - types are checked in vl.c already */
+    }
 
     memset(&macaddr, 0, sizeof(MACAddr));
     onboard_nic = false;
