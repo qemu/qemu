@@ -46,7 +46,12 @@ config MAINSTONE
 
 config MUSICPAL
     bool
+    select BITBANG_I2C
+    select MARVELL_88W8618
     select PTIMER
+    select PFLASH_CFI02
+    select SERIAL
+    select WM8750
 
 config NETDUINO2
     bool
