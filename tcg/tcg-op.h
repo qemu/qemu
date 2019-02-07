@@ -255,6 +255,7 @@ static inline void tcg_gen_op6ii_i64(TCGOpcode opc, TCGv_i64 a1, TCGv_i64 a2,
 
 static inline void gen_set_label(TCGLabel *l)
 {
+    l->present = 1;
     tcg_gen_op1(INDEX_op_set_label, label_arg(l));
 }
 
