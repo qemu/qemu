@@ -129,6 +129,8 @@ enum {
     QEMU_IFLA_CARRIER_UP_COUNT,
     QEMU_IFLA_CARRIER_DOWN_COUNT,
     QEMU_IFLA_NEW_IFINDEX,
+    QEMU_IFLA_MIN_MTU,
+    QEMU_IFLA_MAX_MTU,
     QEMU___IFLA_MAX
 };
 
@@ -166,6 +168,8 @@ enum {
     QEMU_IFLA_BRPORT_BCAST_FLOOD,
     QEMU_IFLA_BRPORT_GROUP_FWD_MASK,
     QEMU_IFLA_BRPORT_NEIGH_SUPPRESS,
+    QEMU_IFLA_BRPORT_ISOLATED,
+    QEMU_IFLA_BRPORT_BACKUP_PORT,
     QEMU___IFLA_BRPORT_MAX
 };
 
@@ -510,6 +514,7 @@ static abi_long host_to_target_slave_data_bridge_nlattr(struct nlattr *nlattr,
     case QEMU_IFLA_BRPORT_VLAN_TUNNEL:
     case QEMU_IFLA_BRPORT_BCAST_FLOOD:
     case QEMU_IFLA_BRPORT_NEIGH_SUPPRESS:
+    case QEMU_IFLA_BRPORT_ISOLATED:
         break;
     /* uint16_t */
     case QEMU_IFLA_BRPORT_PRIORITY:
@@ -523,6 +528,7 @@ static abi_long host_to_target_slave_data_bridge_nlattr(struct nlattr *nlattr,
         break;
     /* uin32_t */
     case QEMU_IFLA_BRPORT_COST:
+    case QEMU_IFLA_BRPORT_BACKUP_PORT:
         u32 = NLA_DATA(nlattr);
         *u32 = tswap32(*u32);
         break;
@@ -787,6 +793,8 @@ static abi_long host_to_target_data_link_rtattr(struct rtattr *rtattr)
     case QEMU_IFLA_GSO_MAX_SIZE:
     case QEMU_IFLA_CARRIER_UP_COUNT:
     case QEMU_IFLA_CARRIER_DOWN_COUNT:
+    case QEMU_IFLA_MIN_MTU:
+    case QEMU_IFLA_MAX_MTU:
         u32 = RTA_DATA(rtattr);
         *u32 = tswap32(*u32);
         break;
