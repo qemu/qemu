@@ -7,7 +7,7 @@ config SMBUS_EEPROM
 
 config VERSATILE_I2C
     bool
-    select I2C
+    select BITBANG_I2C
 
 config ACPI_SMBUS
     bool

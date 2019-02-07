@@ -31,6 +31,7 @@ config PL110
 config SII9022
     bool
     depends on I2C
+    select DDC
 
 config SSD0303
     bool
