@@ -1061,7 +1061,7 @@ static void slave_read(void *opaque)
                                                           fd[0]);
         break;
     default:
-        error_report("Received unexpected msg type.");
+        error_report("Received unexpected msg type: %d.", hdr.request);
         ret = -EINVAL;
     }
 
