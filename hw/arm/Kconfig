@@ -2,6 +2,11 @@ config ARM_VIRT
     bool
     imply VFIO_PLATFORM
 
+config CHEETAH
+    bool
+    select OMAP
+    select TSC210X
+
 config DIGIC
     bool
     select PTIMER
@@ -58,9 +63,25 @@ config NETDUINO2
 
 config NSERIES
     bool
+    select OMAP
+    select TMP105   # tempature sensor
+    select BLIZZARD # LCD/TV controller
+    select ONENAND
+    select TSC210X  # touchscreen/sensors/audio
+    select TSC2005  # touchscreen/sensors/keypad
+    select LM832X   # GPIO keyboard chip
+    select TWL92230 # energy-management
+    select TUSB6010
 
 config OMAP
     bool
+    select FRAMEBUFFER
+    select I2C
+    select ECC
+    select NAND
+    select PFLASH_CFI01
+    select SD
+    select SERIAL
 
 config PXA2XX
     bool
@@ -73,6 +94,10 @@ config STELLARIS
 
 config STRONGARM
     bool
+
+config SX1
+    bool
+    select OMAP
 
 config VERSATILE
     bool
