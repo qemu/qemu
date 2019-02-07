@@ -1,0 +1,9 @@
+virtiofsd-obj-y = buffer.o \
+                  fuse_opt.o \
+                  fuse_log.o \
+                  fuse_lowlevel.o \
+                  fuse_signals.o \
+                  fuse_virtio.o \
+                  helper.o \
+                  passthrough_ll.o
+
