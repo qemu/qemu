@@ -25,10 +25,6 @@
 #include <sys/statvfs.h>
 #include <sys/uio.h>
 
-#ifdef __cplusplus
-extern "C" {
-#endif
-
 /* ----------------------------------------------------------- *
  * Basic FUSE API					       *
  * ----------------------------------------------------------- */
@@ -979,44 +975,6 @@ int fuse_loop(struct fuse *f);
 void fuse_exit(struct fuse *f);
 
 /**
- * FUSE event loop with multiple threads
- *
- * Requests from the kernel are processed, and the appropriate
- * operations are called.  Request are processed in parallel by
- * distributing them between multiple threads.
- *
- * For a description of the return value and the conditions when the
- * event loop exits, refer to the documentation of
- * fuse_session_loop().
- *
- * Note: using fuse_loop() instead of fuse_loop_mt() means you are running in
- * single-threaded mode, and that you will not have to worry about reentrancy,
- * though you will have to worry about recursive lookups. In single-threaded
- * mode, FUSE will wait for one callback to return before calling another.
- *
- * Enabling multiple threads, by using fuse_loop_mt(), will cause FUSE to make
- * multiple simultaneous calls into the various callback functions given by your
- * fuse_operations record.
- *
- * If you are using multiple threads, you can enjoy all the parallel execution
- * and interactive response benefits of threads, and you get to enjoy all the
- * benefits of race conditions and locking bugs, too. Ensure that any code used
- * in the callback function of fuse_operations is also thread-safe.
- *
- * @param f the FUSE handle
- * @param config loop configuration
- * @return see fuse_session_loop()
- *
- * See also: fuse_loop()
- */
-#if FUSE_USE_VERSION < 32
-int fuse_loop_mt_31(struct fuse *f, int clone_fd);
-#define fuse_loop_mt(f, clone_fd) fuse_loop_mt_31(f, clone_fd)
-#else
-int fuse_loop_mt(struct fuse *f, struct fuse_loop_config *config);
-#endif
-
-/**
  * Get the current context
  *
  * The context is only valid for the duration of a filesystem
@@ -1267,9 +1225,5 @@ struct fuse_session *fuse_get_session(struct fuse *f);
  * @return the FUSE file descriptor or -1 upon error
  */
 int fuse_open_channel(const char *mountpoint, const char *options);
-
-#ifdef __cplusplus
-}
-#endif
 
 #endif /* FUSE_H_ */

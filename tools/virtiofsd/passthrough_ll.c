@@ -1240,7 +1240,6 @@ int main(int argc, char *argv[])
 		ret = 0;
 		goto err_out1;
 	} else if (opts.show_version) {
-		printf("FUSE library version %s\n", fuse_pkgversion());
 		fuse_lowlevel_version();
 		ret = 0;
 		goto err_out1;

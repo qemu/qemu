@@ -31,10 +31,6 @@
 #include <sys/statvfs.h>
 #include <sys/uio.h>
 
-#ifdef __cplusplus
-extern "C" {
-#endif
-
 /* ----------------------------------------------------------- *
  * Miscellaneous definitions				       *
  * ----------------------------------------------------------- */
@@ -1863,14 +1859,12 @@ void fuse_cmdline_help(void);
  * ----------------------------------------------------------- */
 
 struct fuse_cmdline_opts {
-	int singlethread;
 	int foreground;
 	int debug;
 	int nodefault_subtype;
 	char *mountpoint;
 	int show_version;
 	int show_help;
-	int clone_fd;
 	unsigned int max_idle_threads;
 };
 
@@ -1960,24 +1954,6 @@ int fuse_session_mount(struct fuse_session *se, const char *mountpoint);
  * @return 0, -errno, or a signal value
  */
 int fuse_session_loop(struct fuse_session *se);
-
-/**
- * Enter a multi-threaded event loop.
- *
- * For a description of the return value and the conditions when the
- * event loop exits, refer to the documentation of
- * fuse_session_loop().
- *
- * @param se the session
- * @param config session loop configuration 
- * @return see fuse_session_loop()
- */
-#if FUSE_USE_VERSION < 32
-int fuse_session_loop_mt_31(struct fuse_session *se, int clone_fd);
-#define fuse_session_loop_mt(se, clone_fd) fuse_session_loop_mt_31(se, clone_fd)
-#else
-int fuse_session_loop_mt(struct fuse_session *se, struct fuse_loop_config *config);
-#endif
 
 /**
  * Flag a session as terminated.
@@ -2081,9 +2057,5 @@ void fuse_session_process_buf(struct fuse_session *se,
  * @return the actual size of the raw request, or -errno on error
  */
 int fuse_session_receive_buf(struct fuse_session *se, struct fuse_buf *buf);
-
-#ifdef __cplusplus
-}
-#endif
 
 #endif /* FUSE_LOWLEVEL_H_ */

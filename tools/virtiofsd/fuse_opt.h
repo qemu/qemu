@@ -14,10 +14,6 @@
  * This file defines the option parsing interface of FUSE
  */
 
-#ifdef __cplusplus
-extern "C" {
-#endif
-
 /**
  * Option description
  *
@@ -263,9 +259,5 @@ void fuse_opt_free_args(struct fuse_args *args);
  * @return 1 if a match is found, 0 if not
  */
 int fuse_opt_match(const struct fuse_opt opts[], const char *opt);
-
-#ifdef __cplusplus
-}
-#endif
 
 #endif /* FUSE_OPT_H_ */

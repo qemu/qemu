@@ -28,10 +28,6 @@
 #define FUSE_MAKE_VERSION(maj, min)  ((maj) * 10 + (min))
 #define FUSE_VERSION FUSE_MAKE_VERSION(FUSE_MAJOR_VERSION, FUSE_MINOR_VERSION)
 
-#ifdef __cplusplus
-extern "C" {
-#endif
-
 /**
  * Information about an open file.
  *
@@ -98,30 +94,6 @@ struct fuse_file_info {
 	/** Requested poll events.  Available in ->poll.  Only set on kernels
 	    which support it.  If unsupported, this field is set to zero. */
 	uint32_t poll_events;
-};
-
-/**
- * Configuration parameters passed to fuse_session_loop_mt() and
- * fuse_loop_mt().
- */
-struct fuse_loop_config {
-	/**
-	 * whether to use separate device fds for each thread
-	 * (may increase performance)
-	 */
-	int clone_fd;
-
-	/**
-	 * The maximum number of available worker threads before they
-	 * start to get deleted when they become idle. If not
-	 * specified, the default is 10.
-	 *
-	 * Adjusting this has performance implications; a very small number
-	 * of threads in the pool will cause a lot of thread creation and
-	 * deletion overhead and performance may suffer. When set to 0, a new
-	 * thread will be created to service every operation.
-	 */
-	unsigned int max_idle_threads;
 };
 
 /**************************************************************************
@@ -800,10 +772,6 @@ void fuse_remove_signal_handlers(struct fuse_session *se);
 
 #if !defined(FUSE_USE_VERSION) || FUSE_USE_VERSION < 30
 #  error only API version 30 or greater is supported
-#endif
-
-#ifdef __cplusplus
-}
 #endif
 
 

@@ -41,14 +41,10 @@ static const struct fuse_opt fuse_helper_opts[] = {
 	FUSE_OPT_KEY("-d",		FUSE_OPT_KEY_KEEP),
 	FUSE_OPT_KEY("debug",		FUSE_OPT_KEY_KEEP),
 	FUSE_HELPER_OPT("-f",		foreground),
-	FUSE_HELPER_OPT("-s",		singlethread),
 	FUSE_HELPER_OPT("fsname=",	nodefault_subtype),
 	FUSE_OPT_KEY("fsname=",		FUSE_OPT_KEY_KEEP),
-#ifndef __FreeBSD__
 	FUSE_HELPER_OPT("subtype=",	nodefault_subtype),
 	FUSE_OPT_KEY("subtype=",	FUSE_OPT_KEY_KEEP),
-#endif
-	FUSE_HELPER_OPT("clone_fd",	clone_fd),
 	FUSE_HELPER_OPT("max_idle_threads=%u", max_idle_threads),
 	FUSE_OPT_END
 };
@@ -132,9 +128,6 @@ void fuse_cmdline_help(void)
 	       "    -V   --version         print version\n"
 	       "    -d   -o debug          enable debug output (implies -f)\n"
 	       "    -f                     foreground operation\n"
-	       "    -s                     disable multi-threaded operation\n"
-	       "    -o clone_fd            use separate fuse device fd for each thread\n"
-	       "                           (may improve performance)\n"
 	       "    -o max_idle_threads    the maximum number of idle worker threads\n"
 	       "                           allowed (default: 10)\n");
 }
@@ -171,34 +164,6 @@ static int fuse_helper_opt_proc(void *data, const char *arg, int key,
 	}
 }
 
-/* Under FreeBSD, there is no subtype option so this
-   function actually sets the fsname */
-static int add_default_subtype(const char *progname, struct fuse_args *args)
-{
-	int res;
-	char *subtype_opt;
-
-	const char *basename = strrchr(progname, '/');
-	if (basename == NULL)
-		basename = progname;
-	else if (basename[1] != '\0')
-		basename++;
-
-	subtype_opt = (char *) malloc(strlen(basename) + 64);
-	if (subtype_opt == NULL) {
-		fuse_log(FUSE_LOG_ERR, "fuse: memory allocation failed\n");
-		return -1;
-	}
-#ifdef __FreeBSD__
-	sprintf(subtype_opt, "-ofsname=%s", basename);
-#else
-	sprintf(subtype_opt, "-osubtype=%s", basename);
-#endif
-	res = fuse_opt_add_arg(args, subtype_opt);
-	free(subtype_opt);
-	return res;
-}
-
 int fuse_parse_cmdline(struct fuse_args *args,
 		       struct fuse_cmdline_opts *opts)
 {
@@ -209,14 +174,6 @@ int fuse_parse_cmdline(struct fuse_args *args,
 	if (fuse_opt_parse(args, opts, fuse_helper_opts,
 			   fuse_helper_opt_proc) == -1)
 		return -1;
-
-	/* *Linux*: if neither -o subtype nor -o fsname are specified,
-	   set subtype to program's basename.
-	   *FreeBSD*: if fsname is not specified, set to program's
-	   basename. */
-	if (!opts->nodefault_subtype)
-		if (add_default_subtype(args->argv[0], args) == -1)
-			return -1;
 
 	return 0;
 }
@@ -275,88 +232,6 @@ int fuse_daemonize(int foreground)
 	}
 	return 0;
 }
-
-int fuse_main_real(int argc, char *argv[], const struct fuse_operations *op,
-		   size_t op_size, void *user_data)
-{
-	struct fuse_args args = FUSE_ARGS_INIT(argc, argv);
-	struct fuse *fuse;
-	struct fuse_cmdline_opts opts;
-	int res;
-
-	if (fuse_parse_cmdline(&args, &opts) != 0)
-		return 1;
-
-	if (opts.show_version) {
-		printf("FUSE library version %s\n", PACKAGE_VERSION);
-		fuse_lowlevel_version();
-		res = 0;
-		goto out1;
-	}
-
-	if (opts.show_help) {
-		if(args.argv[0][0] != '\0')
-			printf("usage: %s [options] <mountpoint>\n\n",
-			       args.argv[0]);
-		printf("FUSE options:\n");
-		fuse_cmdline_help();
-		fuse_lib_help(&args);
-		res = 0;
-		goto out1;
-	}
-
-	if (!opts.show_help &&
-	    !opts.mountpoint) {
-		fuse_log(FUSE_LOG_ERR, "error: no mountpoint specified\n");
-		res = 2;
-		goto out1;
-	}
-
-
-	fuse = fuse_new_31(&args, op, op_size, user_data);
-	if (fuse == NULL) {
-		res = 3;
-		goto out1;
-	}
-
-	if (fuse_mount(fuse,opts.mountpoint) != 0) {
-		res = 4;
-		goto out2;
-	}
-
-	if (fuse_daemonize(opts.foreground) != 0) {
-		res = 5;
-		goto out3;
-	}
-
-	struct fuse_session *se = fuse_get_session(fuse);
-	if (fuse_set_signal_handlers(se) != 0) {
-		res = 6;
-		goto out3;
-	}
-
-	if (opts.singlethread)
-		res = fuse_loop(fuse);
-	else {
-		struct fuse_loop_config loop_config;
-		loop_config.clone_fd = opts.clone_fd;
-		loop_config.max_idle_threads = opts.max_idle_threads;
-		res = fuse_loop_mt_32(fuse, &loop_config);
-	}
-	if (res)
-		res = 7;
-
-	fuse_remove_signal_handlers(se);
-out3:
-	fuse_unmount(fuse);
-out2:
-	fuse_destroy(fuse);
-out1:
-	free(opts.mountpoint);
-	fuse_opt_free_args(&args);
-	return res;
-}
-
 
 void fuse_apply_conn_info_opts(struct fuse_conn_info_opts *opts,
 			       struct fuse_conn_info *conn)
@@ -419,22 +294,4 @@ struct fuse_conn_info_opts* fuse_parse_conn_info_opts(struct fuse_args *args)
 		return NULL;
 	}
 	return opts;
-}
-
-int fuse_open_channel(const char *mountpoint, const char* options)
-{
-	struct mount_opts *opts = NULL;
-	int fd = -1;
-	const char *argv[] = { "", "-o", options };
-	int argc = sizeof(argv) / sizeof(argv[0]);
-	struct fuse_args args = FUSE_ARGS_INIT(argc, (char**) argv);
-
-	opts = parse_mount_opts(&args);
-	if (opts == NULL)
-		return -1;
-
-	fd = fuse_kern_mount(mountpoint, opts);
-	destroy_mount_opts(opts);
-
-	return fd;
 }

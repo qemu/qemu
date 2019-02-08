@@ -16,10 +16,6 @@
 
 #include <stdarg.h>
 
-#ifdef __cplusplus
-extern "C" {
-#endif
-
 /**
  * Log severity level
  *
@@ -74,9 +70,5 @@ void fuse_set_log_func(fuse_log_func_t func);
  * @param fmt sprintf-style format string including newline
  */
 void fuse_log(enum fuse_log_level level, const char *fmt, ...);
-
-#ifdef __cplusplus
-}
-#endif
 
 #endif /* FUSE_LOG_H_ */
