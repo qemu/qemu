@@ -4368,14 +4368,20 @@ static int qcow2_get_info(BlockDriverState *bs, BlockDriverInfo *bdi)
     return 0;
 }
 
-static ImageInfoSpecific *qcow2_get_specific_info(BlockDriverState *bs)
+static ImageInfoSpecific *qcow2_get_specific_info(BlockDriverState *bs,
+                                                  Error **errp)
 {
     BDRVQcow2State *s = bs->opaque;
     ImageInfoSpecific *spec_info;
     QCryptoBlockInfo *encrypt_info = NULL;
+    Error *local_err = NULL;
 
     if (s->crypto != NULL) {
-        encrypt_info = qcrypto_block_get_info(s->crypto, &error_abort);
+        encrypt_info = qcrypto_block_get_info(s->crypto, &local_err);
+        if (local_err) {
+            error_propagate(errp, local_err);
+            return NULL;
+        }
     }
 
     spec_info = g_new(ImageInfoSpecific, 1);

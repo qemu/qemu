@@ -2543,7 +2543,8 @@ static int coroutine_fn vmdk_co_check(BlockDriverState *bs,
     return ret;
 }
 
-static ImageInfoSpecific *vmdk_get_specific_info(BlockDriverState *bs)
+static ImageInfoSpecific *vmdk_get_specific_info(BlockDriverState *bs,
+                                                 Error **errp)
 {
     int i;
     BDRVVmdkState *s = bs->opaque;
