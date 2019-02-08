@@ -169,6 +169,13 @@ config STELLARIS
 
 config STRONGARM
     bool
+    select PXA2XX
+
+config COLLIE
+    bool
+    select PFLASH_CFI01
+    select ZAURUS  # scoop
+    select STRONGARM
 
 config SX1
     bool
