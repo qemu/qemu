@@ -10,12 +10,10 @@
  * See the file COPYING.LIB.
  */
 
-#include "config.h"
 #include "fuse_i.h"
 #include "fuse_lowlevel.h"
 #include "fuse_misc.h"
 #include "fuse_opt.h"
-#include "mount_util.h"
 
 #include <errno.h>
 #include <limits.h>
@@ -171,6 +169,7 @@ int fuse_parse_cmdline(struct fuse_args *args, struct fuse_cmdline_opts *opts)
 
 int fuse_daemonize(int foreground)
 {
+    int ret = 0, rett;
     if (!foreground) {
         int nullfd;
         int waiter[2];
@@ -192,8 +191,8 @@ int fuse_daemonize(int foreground)
         case 0:
             break;
         default:
-            (void)read(waiter[0], &completed, sizeof(completed));
-            _exit(0);
+            _exit(read(waiter[0], &completed,
+                       sizeof(completed) != sizeof(completed)));
         }
 
         if (setsid() == -1) {
@@ -201,13 +200,22 @@ int fuse_daemonize(int foreground)
             return -1;
         }
 
-        (void)chdir("/");
+        ret = chdir("/");
 
         nullfd = open("/dev/null", O_RDWR, 0);
         if (nullfd != -1) {
-            (void)dup2(nullfd, 0);
-            (void)dup2(nullfd, 1);
-            (void)dup2(nullfd, 2);
+            rett = dup2(nullfd, 0);
+            if (!ret) {
+                ret = rett;
+            }
+            rett = dup2(nullfd, 1);
+            if (!ret) {
+                ret = rett;
+            }
+            rett = dup2(nullfd, 2);
+            if (!ret) {
+                ret = rett;
+            }
             if (nullfd > 2) {
                 close(nullfd);
             }
@@ -215,13 +223,16 @@ int fuse_daemonize(int foreground)
 
         /* Propagate completion of daemon initialization */
         completed = 1;
-        (void)write(waiter[1], &completed, sizeof(completed));
+        rett = write(waiter[1], &completed, sizeof(completed));
+        if (!ret) {
+            ret = rett;
+        }
         close(waiter[0]);
         close(waiter[1]);
     } else {
-        (void)chdir("/");
+        ret = chdir("/");
     }
-    return 0;
+    return ret;
 }
 
 void fuse_apply_conn_info_opts(struct fuse_conn_info_opts *opts,
