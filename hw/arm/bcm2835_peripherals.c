@@ -117,6 +117,11 @@ static void bcm2835_peripherals_init(Object *obj)
                                    OBJECT(&s->sdhci.sdbus), &error_abort);
     object_property_add_const_link(OBJECT(&s->gpio), "sdbus-sdhost",
                                    OBJECT(&s->sdhost.sdbus), &error_abort);
+
+    /* SP804-alike ARM Timer */
+    object_initialize(&s->bcm283xsp804, sizeof(s->bcm283xsp804), TYPE_BCM283xSP804);
+    object_property_add_child(obj, "bcm283xsp804", OBJECT(&s->bcm283xsp804), NULL);
+    qdev_set_parent_bus(DEVICE(&s->bcm283xsp804), sysbus_get_default());
 }
 
 static void bcm2835_peripherals_realize(DeviceState *dev, Error **errp)
@@ -334,6 +339,16 @@ static void bcm2835_peripherals_realize(DeviceState *dev, Error **errp)
         error_propagate(errp, err);
         return;
     }
+
+    /* SP804-alike ARM Timer */
+    object_property_set_bool(OBJECT(&s->bcm283xsp804), true, "realized", &err);
+    if (err) {
+        error_propagate(errp, err);
+        return;
+    }
+
+    memory_region_add_subregion(&s->peri_mr, ARMCTRL_TIMER0_1_OFFSET,
+                sysbus_mmio_get_region(SYS_BUS_DEVICE(&s->bcm283xsp804), 0));
 }
 
 static void bcm2835_peripherals_class_init(ObjectClass *oc, void *data)
