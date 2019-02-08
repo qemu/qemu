@@ -285,6 +285,9 @@ static int l2_allocate(BlockDriverState *bs, int l1_index)
         goto fail;
     }
 
+    /* The offset must fit in the offset field of the L1 table entry */
+    assert((l2_offset & L1E_OFFSET_MASK) == l2_offset);
+
     /* If we're allocating the table at offset 0 then something is wrong */
     if (l2_offset == 0) {
         qcow2_signal_corruption(bs, true, -1, -1, "Preventing invalid "
