@@ -5268,18 +5268,16 @@ void bdrv_attach_aio_context(BlockDriverState *bs,
     bs->walking_aio_notifiers = false;
 }
 
+/* The caller must own the AioContext lock for the old AioContext of bs, but it
+ * must not own the AioContext lock for new_context (unless new_context is
+ * the same as the current context of bs). */
 void bdrv_set_aio_context(BlockDriverState *bs, AioContext *new_context)
 {
-    AioContext *ctx = bdrv_get_aio_context(bs);
-
-    if (ctx == new_context) {
+    if (bdrv_get_aio_context(bs) == new_context) {
         return;
     }
 
-    aio_disable_external(ctx);
-    bdrv_parent_drained_begin(bs, NULL, false);
-    bdrv_drain(bs); /* ensure there are no in-flight requests */
-
+    bdrv_drained_begin(bs);
     bdrv_detach_aio_context(bs);
 
     /* This function executes in the old AioContext so acquire the new one in
@@ -5287,8 +5285,7 @@ void bdrv_set_aio_context(BlockDriverState *bs, AioContext *new_context)
      */
     aio_context_acquire(new_context);
     bdrv_attach_aio_context(bs, new_context);
-    bdrv_parent_drained_end(bs, NULL, false);
-    aio_enable_external(ctx);
+    bdrv_drained_end(bs);
     aio_context_release(new_context);
 }
 
