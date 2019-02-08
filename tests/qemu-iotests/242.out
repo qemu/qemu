@@ -1,0 +1,166 @@
+Test 1
+{"execute": "block-dirty-bitmap-add", "arguments": {"disabled": false, "granularity": 16384, "name": "bitmap-0", "node": "drive0", "persistent": false}}
+{"return": {}}
+wrote 262144/262144 bytes at offset 0
+256 KiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
+
+qemu-img info dump:
+
+image: TEST_IMG
+file format: IMGFMT
+virtual size: 1.0M (1048576 bytes)
+cluster_size: 65536
+Format specific information:
+    compat: 1.1
+    lazy refcounts: false
+    refcount bits: 16
+    corrupt: false
+
+No bitmap in JSON format output
+
+Test 2
+{"execute": "block-dirty-bitmap-add", "arguments": {"disabled": true, "granularity": 32768, "name": "bitmap-1", "node": "drive0", "persistent": true}}
+{"return": {}}
+wrote 262144/262144 bytes at offset 262144
+256 KiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
+
+qemu-img info dump:
+
+image: TEST_IMG
+file format: IMGFMT
+virtual size: 1.0M (1048576 bytes)
+cluster_size: 65536
+Format specific information:
+    compat: 1.1
+    lazy refcounts: false
+    bitmaps:
+        [0]:
+            flags:
+            name: bitmap-1
+            granularity: 32768
+    refcount bits: 16
+    corrupt: false
+
+The same bitmaps in JSON format:
+[
+  {
+    "flags": [],
+    "granularity": 32768,
+    "name": "bitmap-1"
+  }
+]
+
+Test 3
+{"execute": "block-dirty-bitmap-add", "arguments": {"disabled": false, "granularity": 65536, "name": "bitmap-2", "node": "drive0", "persistent": true}}
+{"return": {}}
+wrote 262144/262144 bytes at offset 524288
+256 KiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
+
+qemu-img info dump:
+
+image: TEST_IMG
+file format: IMGFMT
+virtual size: 1.0M (1048576 bytes)
+cluster_size: 65536
+Format specific information:
+    compat: 1.1
+    lazy refcounts: false
+    bitmaps:
+        [0]:
+            flags:
+            name: bitmap-1
+            granularity: 32768
+        [1]:
+            flags:
+                [0]: auto
+            name: bitmap-2
+            granularity: 65536
+    refcount bits: 16
+    corrupt: false
+
+The same bitmaps in JSON format:
+[
+  {
+    "flags": [],
+    "granularity": 32768,
+    "name": "bitmap-1"
+  },
+  {
+    "flags": [
+      "auto"
+    ],
+    "granularity": 65536,
+    "name": "bitmap-2"
+  }
+]
+
+Test 4
+Checking "in-use" flag...
+qemu-img info dump:
+
+image: TEST_IMG
+file format: IMGFMT
+virtual size: 1.0M (1048576 bytes)
+cluster_size: 65536
+Format specific information:
+    compat: 1.1
+    lazy refcounts: false
+    bitmaps:
+        [0]:
+            flags:
+                [0]: in-use
+            name: bitmap-1
+            granularity: 32768
+        [1]:
+            flags:
+                [0]: in-use
+                [1]: auto
+            name: bitmap-2
+            granularity: 65536
+    refcount bits: 16
+    corrupt: false
+
+The same bitmaps in JSON format:
+[
+  {
+    "flags": [
+      "in-use"
+    ],
+    "granularity": 32768,
+    "name": "bitmap-1"
+  },
+  {
+    "flags": [
+      "in-use",
+      "auto"
+    ],
+    "granularity": 65536,
+    "name": "bitmap-2"
+  }
+]
+
+Test 5
+{"execute": "block-dirty-bitmap-add", "arguments": {"disabled": false, "granularity": 16384, "name": "bitmap-0", "node": "drive0", "persistent": true}}
+{"return": {}}
+Write an unknown bitmap flag '0x4' into a new QCOW2 image at offset 327695
+qemu-img: Could not open 'TEST_IMG': Bitmap 'bitmap-0' doesn't satisfy the constraints
+
+Unset the unknown bitmap flag '0x4' in the bitmap directory entry:
+
+image: TEST_IMG
+file format: IMGFMT
+virtual size: 1.0M (1048576 bytes)
+cluster_size: 65536
+Format specific information:
+    compat: 1.1
+    lazy refcounts: false
+    bitmaps:
+        [0]:
+            flags:
+                [0]: auto
+            name: bitmap-0
+            granularity: 16384
+    refcount bits: 16
+    corrupt: false
+
+Test complete
