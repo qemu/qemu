@@ -48,6 +48,9 @@ config INTEGRATOR
 
 config MAINSTONE
     bool
+    select PXA2XX
+    select PFLASH_CFI01
+    select SMC91C111
 
 config MUSICPAL
     bool
@@ -85,6 +88,43 @@ config OMAP
 
 config PXA2XX
     bool
+    select FRAMEBUFFER
+    select I2C
+    select SERIAL
+    select SD
+    select SSI
+    select USB_OHCI
+
+config GUMSTIX
+    bool
+    select PFLASH_CFI01
+    select SMC91C111
+    select PXA2XX
+
+config TOSA
+    bool
+    select ZAURUS  # scoop
+    select MICRODRIVE
+    select PXA2XX
+
+config SPITZ
+    bool
+    select ADS7846 # display
+    select MAX111X # A/D converter
+    select WM8750  # audio codec
+    select MAX7310 # GPIO expander
+    select ZAURUS  # scoop
+    select NAND    # memory
+    select ECC     # Error-correcting for NAND
+    select MICRODRIVE
+    select PXA2XX
+
+config Z2
+    bool
+    select PFLASH_CFI01
+    select WM8750
+    select PL011 # UART
+    select PXA2XX
 
 config REALVIEW
     bool
@@ -218,6 +258,8 @@ config MSF2
 
 config ZAURUS
     bool
+    select NAND
+    select ECC
 
 config A9MPCORE
     bool
