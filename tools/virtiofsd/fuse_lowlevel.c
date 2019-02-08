@@ -9,11 +9,9 @@
  * See the file COPYING.LIB
  */
 
-#define _GNU_SOURCE
-
-#include "config.h"
+#include "qemu/osdep.h"
 #include "fuse_i.h"
-#include "fuse_kernel.h"
+#include "standard-headers/linux/fuse.h"
 #include "fuse_misc.h"
 #include "fuse_opt.h"
 

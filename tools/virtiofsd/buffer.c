@@ -9,9 +9,7 @@
  * See the file COPYING.LIB
  */
 
-#define _GNU_SOURCE
-
-#include "config.h"
+#include "qemu/osdep.h"
 #include "fuse_i.h"
 #include "fuse_lowlevel.h"
 #include <assert.h>

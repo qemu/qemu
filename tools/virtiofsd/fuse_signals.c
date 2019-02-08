@@ -8,7 +8,7 @@
  * See the file COPYING.LIB
  */
 
-#include "config.h"
+#include "qemu/osdep.h"
 #include "fuse_i.h"
 #include "fuse_lowlevel.h"
 

@@ -8,6 +8,7 @@
  * See the file COPYING.LIB
  */
 
+#include "qemu/osdep.h"
 #include "fuse_log.h"
 
 #include <stdarg.h>

@@ -35,15 +35,11 @@
  * \include passthrough_ll.c
  */
 
-#define _GNU_SOURCE
-#define FUSE_USE_VERSION 31
-
-#include "config.h"
-
+#include "qemu/osdep.h"
+#include "fuse_lowlevel.h"
 #include <assert.h>
 #include <dirent.h>
 #include <errno.h>
-#include <fuse_lowlevel.h>
 #include <inttypes.h>
 #include <limits.h>
 #include <pthread.h>
