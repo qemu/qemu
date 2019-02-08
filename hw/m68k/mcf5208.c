@@ -27,6 +27,8 @@
 
 #define SYS_FREQ 166666666
 
+#define ROM_SIZE 0x200000
+
 #define PCSR_EN         0x0001
 #define PCSR_RLD        0x0002
 #define PCSR_PIF        0x0004
@@ -227,6 +229,7 @@ static void mcf5208evb_init(MachineState *machine)
     hwaddr entry;
     qemu_irq *pic;
     MemoryRegion *address_space_mem = get_system_memory();
+    MemoryRegion *rom = g_new(MemoryRegion, 1);
     MemoryRegion *ram = g_new(MemoryRegion, 1);
     MemoryRegion *sram = g_new(MemoryRegion, 1);
 
@@ -236,6 +239,10 @@ static void mcf5208evb_init(MachineState *machine)
     /* Initialize CPU registers.  */
     env->vbr = 0;
     /* TODO: Configure BARs.  */
+
+    /* ROM at 0x00000000 */
+    memory_region_init_rom(rom, NULL, "mcf5208.rom", ROM_SIZE, &error_fatal);
+    memory_region_add_subregion(address_space_mem, 0x00000000, rom);
 
     /* DRAM at 0x40000000 */
     memory_region_allocate_system_memory(ram, NULL, "mcf5208.ram", ram_size);
@@ -285,9 +292,30 @@ static void mcf5208evb_init(MachineState *machine)
     /*  0xfc0a4000 GPIO.  */
     /* 0xfc0a8000 SDRAM controller.  */
 
+    /* Load firmware */
+    if (bios_name) {
+        char *fn;
+        uint8_t *ptr;
+
+        fn = qemu_find_file(QEMU_FILE_TYPE_BIOS, bios_name);
+        if (!fn) {
+            error_report("Could not find ROM image '%s'", bios_name);
+            exit(1);
+        }
+        if (load_image_targphys(fn, 0x0, ROM_SIZE) < 8) {
+            error_report("Could not load ROM image '%s'", bios_name);
+            exit(1);
+        }
+        g_free(fn);
+        /* Initial PC is always at offset 4 in firmware binaries */
+        ptr = rom_ptr(0x4, 4);
+        assert(ptr != NULL);
+        env->pc = ldl_p(ptr);
+    }
+
     /* Load kernel.  */
     if (!kernel_filename) {
-        if (qtest_enabled()) {
+        if (qtest_enabled() || bios_name) {
             return;
         }
         error_report("Kernel image must be specified");
