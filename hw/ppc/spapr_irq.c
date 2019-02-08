@@ -600,6 +600,19 @@ sPAPRIrq spapr_irq_dual = {
  */
 void spapr_irq_init(sPAPRMachineState *spapr, Error **errp)
 {
+    MachineState *machine = MACHINE(spapr);
+
+    if (machine_kernel_irqchip_split(machine)) {
+        error_setg(errp, "kernel_irqchip split mode not supported on pseries");
+        return;
+    }
+
+    if (!kvm_enabled() && machine_kernel_irqchip_required(machine)) {
+        error_setg(errp,
+                   "kernel_irqchip requested but only available with KVM");
+        return;
+    }
+
     /* Initialize the MSI IRQ allocator. */
     if (!SPAPR_MACHINE_GET_CLASS(spapr)->legacy_irq_allocation) {
         spapr_irq_msi_init(spapr, spapr->irq->nr_msis);
