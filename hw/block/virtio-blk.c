@@ -63,9 +63,8 @@ static void virtio_blk_req_complete(VirtIOBlockReq *req, unsigned char status)
 static int virtio_blk_handle_rw_error(VirtIOBlockReq *req, int error,
     bool is_read)
 {
-    BlockErrorAction action = blk_get_error_action(req->dev->blk,
-                                                   is_read, error);
     VirtIOBlock *s = req->dev;
+    BlockErrorAction action = blk_get_error_action(s->blk, is_read, error);
 
     if (action == BLOCK_ERROR_ACTION_STOP) {
         /* Break the link as the next request is going to be parsed from the
@@ -138,7 +137,7 @@ static void virtio_blk_flush_complete(void *opaque, int ret)
     }
 
     virtio_blk_req_complete(req, VIRTIO_BLK_S_OK);
-    block_acct_done(blk_get_stats(req->dev->blk), &req->acct);
+    block_acct_done(blk_get_stats(s->blk), &req->acct);
     virtio_blk_free_request(req);
 
 out:
@@ -513,7 +512,7 @@ static int virtio_blk_handle_request(VirtIOBlockReq *req, MultiReqBuffer *mrb)
               - sizeof(struct virtio_blk_inhdr);
     iov_discard_back(in_iov, &in_num, sizeof(struct virtio_blk_inhdr));
 
-    type = virtio_ldl_p(VIRTIO_DEVICE(req->dev), &req->out.type);
+    type = virtio_ldl_p(vdev, &req->out.type);
 
     /* VIRTIO_BLK_T_OUT defines the command direction. VIRTIO_BLK_T_BARRIER
      * is an optional flag. Although a guest should not send this flag if
@@ -522,8 +521,7 @@ static int virtio_blk_handle_request(VirtIOBlockReq *req, MultiReqBuffer *mrb)
     case VIRTIO_BLK_T_IN:
     {
         bool is_write = type & VIRTIO_BLK_T_OUT;
-        req->sector_num = virtio_ldq_p(VIRTIO_DEVICE(req->dev),
-                                       &req->out.sector);
+        req->sector_num = virtio_ldq_p(vdev, &req->out.sector);
 
         if (is_write) {
             qemu_iovec_init_external(&req->qiov, out_iov, out_num);
@@ -535,25 +533,23 @@ static int virtio_blk_handle_request(VirtIOBlockReq *req, MultiReqBuffer *mrb)
                                          req->qiov.size / BDRV_SECTOR_SIZE);
         }
 
-        if (!virtio_blk_sect_range_ok(req->dev, req->sector_num,
-                                      req->qiov.size)) {
+        if (!virtio_blk_sect_range_ok(s, req->sector_num, req->qiov.size)) {
             virtio_blk_req_complete(req, VIRTIO_BLK_S_IOERR);
-            block_acct_invalid(blk_get_stats(req->dev->blk),
+            block_acct_invalid(blk_get_stats(s->blk),
                                is_write ? BLOCK_ACCT_WRITE : BLOCK_ACCT_READ);
             virtio_blk_free_request(req);
             return 0;
         }
 
-        block_acct_start(blk_get_stats(req->dev->blk),
-                         &req->acct, req->qiov.size,
+        block_acct_start(blk_get_stats(s->blk), &req->acct, req->qiov.size,
                          is_write ? BLOCK_ACCT_WRITE : BLOCK_ACCT_READ);
 
         /* merge would exceed maximum number of requests or IO direction
          * changes */
         if (mrb->num_reqs > 0 && (mrb->num_reqs == VIRTIO_BLK_MAX_MERGE_REQS ||
                                   is_write != mrb->is_write ||
-                                  !req->dev->conf.request_merging)) {
-            virtio_blk_submit_multireq(req->dev->blk, mrb);
+                                  !s->conf.request_merging)) {
+            virtio_blk_submit_multireq(s->blk, mrb);
         }
 
         assert(mrb->num_reqs < VIRTIO_BLK_MAX_MERGE_REQS);
