@@ -27,12 +27,16 @@ import re
 iotests.verify_image_format(supported_fmts=['raw'])
 iotests.verify_protocol(supported=['ssh'])
 
-def filter_hash(msg):
-    return re.sub('"hash": "[0-9a-f]+"', '"hash": HASH', msg)
+def filter_hash(qmsg):
+    def _filter(key, value):
+        if key == 'hash' and re.match('[0-9a-f]+', value):
+            return 'HASH'
+        return value
+    return iotests.filter_qmp(qmsg, _filter)
 
 def blockdev_create(vm, options):
     result = vm.qmp_log('blockdev-create', job_id='job0', options=options,
-                        filters=[iotests.filter_testfiles, filter_hash])
+                        filters=[iotests.filter_qmp_testfiles, filter_hash])
 
     if 'return' in result:
         assert result['return'] == {}
