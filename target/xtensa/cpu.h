@@ -380,7 +380,6 @@ typedef struct XtensaOpcodeOps {
     XtensaOpcodeUintTest test_overflow;
     const uint32_t *par;
     uint32_t op_flags;
-    uint32_t windowed_register_op;
     uint32_t coprocessor;
 } XtensaOpcodeOps;
 
@@ -438,6 +437,7 @@ struct XtensaConfig {
     xtensa_isa isa;
     XtensaOpcodeOps **opcode_ops;
     const XtensaOpcodeTranslators **opcode_translators;
+    xtensa_regfile a_regfile;
 
     uint32_t clock_freq_khz;
 

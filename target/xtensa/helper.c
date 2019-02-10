@@ -88,6 +88,7 @@ static void init_libisa(XtensaConfig *config)
 #endif
         config->opcode_ops[i] = ops;
     }
+    config->a_regfile = xtensa_regfile_lookup(config->isa, "AR");
 }
 
 void xtensa_finalize_config(XtensaConfig *config)
