@@ -377,7 +377,6 @@
         static XtensaConfigList node = { \
             .config = &core, \
         }; \
-        xtensa_finalize_config(&core); \
         xtensa_register_core(&node); \
     }
 #else

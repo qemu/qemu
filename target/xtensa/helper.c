@@ -34,22 +34,6 @@
 
 static struct XtensaConfigList *xtensa_cores;
 
-static void xtensa_core_class_init(ObjectClass *oc, void *data)
-{
-    CPUClass *cc = CPU_CLASS(oc);
-    XtensaCPUClass *xcc = XTENSA_CPU_CLASS(oc);
-    const XtensaConfig *config = data;
-
-    xcc->config = config;
-
-    /* Use num_core_regs to see only non-privileged registers in an unmodified
-     * gdb. Use num_regs to see all registers. gdb modification is required
-     * for that: reset bit 0 in the 'flags' field of the registers definitions
-     * in the gdb/xtensa-config.c inside gdb source tree or inside gdb overlay.
-     */
-    cc->gdb_num_core_regs = config->gdb_regmap.num_regs;
-}
-
 static void init_libisa(XtensaConfig *config)
 {
     unsigned i, j;
@@ -91,7 +75,7 @@ static void init_libisa(XtensaConfig *config)
     config->a_regfile = xtensa_regfile_lookup(config->isa, "AR");
 }
 
-void xtensa_finalize_config(XtensaConfig *config)
+static void xtensa_finalize_config(XtensaConfig *config)
 {
     if (config->isa_internal) {
         init_libisa(config);
@@ -110,6 +94,24 @@ void xtensa_finalize_config(XtensaConfig *config)
             config->gdb_regmap.num_core_regs = n_core_regs;
         }
     }
+}
+
+static void xtensa_core_class_init(ObjectClass *oc, void *data)
+{
+    CPUClass *cc = CPU_CLASS(oc);
+    XtensaCPUClass *xcc = XTENSA_CPU_CLASS(oc);
+    XtensaConfig *config = data;
+
+    xtensa_finalize_config(config);
+    xcc->config = config;
+
+    /*
+     * Use num_core_regs to see only non-privileged registers in an unmodified
+     * gdb. Use num_regs to see all registers. gdb modification is required
+     * for that: reset bit 0 in the 'flags' field of the registers definitions
+     * in the gdb/xtensa-config.c inside gdb source tree or inside gdb overlay.
+     */
+    cc->gdb_num_core_regs = config->gdb_regmap.num_regs;
 }
 
 void xtensa_register_core(XtensaConfigList *node)
