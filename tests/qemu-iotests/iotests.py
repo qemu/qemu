@@ -76,14 +76,16 @@ def qemu_img(*args):
         sys.stderr.write('qemu-img received signal %i: %s\n' % (-exitcode, ' '.join(qemu_img_args + list(args))))
     return exitcode
 
-def ordered_qmp(qmsg):
+def ordered_qmp(qmsg, conv_keys=True):
     # Dictionaries are not ordered prior to 3.6, therefore:
     if isinstance(qmsg, list):
         return [ordered_qmp(atom) for atom in qmsg]
     if isinstance(qmsg, dict):
         od = OrderedDict()
         for k, v in sorted(qmsg.items()):
-            od[k] = ordered_qmp(v)
+            if conv_keys:
+                k = k.replace('_', '-')
+            od[k] = ordered_qmp(v, conv_keys=False)
         return od
     return qmsg
 

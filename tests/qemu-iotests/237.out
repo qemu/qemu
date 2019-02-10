@@ -1,13 +1,13 @@
 === Successful image creation (defaults) ===
 
-{"execute": "blockdev-create", "arguments": {"job_id": "job0", "options": {"driver": "file", "filename": "TEST_DIR/PID-t.vmdk", "size": 0}}}
+{"execute": "blockdev-create", "arguments": {"job-id": "job0", "options": {"driver": "file", "filename": "TEST_DIR/PID-t.vmdk", "size": 0}}}
 {"return": {}}
 {"execute": "job-dismiss", "arguments": {"id": "job0"}}
 {"return": {}}
 
-{"execute": "blockdev-add", "arguments": {"driver": "file", "filename": "TEST_DIR/PID-t.vmdk", "node_name": "imgfile"}}
+{"execute": "blockdev-add", "arguments": {"driver": "file", "filename": "TEST_DIR/PID-t.vmdk", "node-name": "imgfile"}}
 {"return": {}}
-{"execute": "blockdev-create", "arguments": {"job_id": "job0", "options": {"driver": "vmdk", "file": "imgfile", "size": 5368709120}}}
+{"execute": "blockdev-create", "arguments": {"job-id": "job0", "options": {"driver": "vmdk", "file": "imgfile", "size": 5368709120}}}
 {"return": {}}
 {"execute": "job-dismiss", "arguments": {"id": "job0"}}
 {"return": {}}
@@ -29,12 +29,12 @@ Format specific information:
 
 === Successful image creation (inline blockdev-add, explicit defaults) ===
 
-{"execute": "blockdev-create", "arguments": {"job_id": "job0", "options": {"driver": "file", "filename": "TEST_DIR/PID-t.vmdk", "size": 0}}}
+{"execute": "blockdev-create", "arguments": {"job-id": "job0", "options": {"driver": "file", "filename": "TEST_DIR/PID-t.vmdk", "size": 0}}}
 {"return": {}}
 {"execute": "job-dismiss", "arguments": {"id": "job0"}}
 {"return": {}}
 
-{"execute": "blockdev-create", "arguments": {"job_id": "job0", "options": {"adapter-type": "ide", "driver": "vmdk", "extents": [], "file": {"driver": "file", "filename": "TEST_DIR/PID-t.vmdk"}, "hwversion": "4", "size": 67108864, "subformat": "monolithicSparse", "zeroed-grain": false}}}
+{"execute": "blockdev-create", "arguments": {"job-id": "job0", "options": {"adapter-type": "ide", "driver": "vmdk", "extents": [], "file": {"driver": "file", "filename": "TEST_DIR/PID-t.vmdk"}, "hwversion": "4", "size": 67108864, "subformat": "monolithicSparse", "zeroed-grain": false}}}
 {"return": {}}
 {"execute": "job-dismiss", "arguments": {"id": "job0"}}
 {"return": {}}
@@ -56,12 +56,12 @@ Format specific information:
 
 === Successful image creation (with non-default options) ===
 
-{"execute": "blockdev-create", "arguments": {"job_id": "job0", "options": {"driver": "file", "filename": "TEST_DIR/PID-t.vmdk", "size": 0}}}
+{"execute": "blockdev-create", "arguments": {"job-id": "job0", "options": {"driver": "file", "filename": "TEST_DIR/PID-t.vmdk", "size": 0}}}
 {"return": {}}
 {"execute": "job-dismiss", "arguments": {"id": "job0"}}
 {"return": {}}
 
-{"execute": "blockdev-create", "arguments": {"job_id": "job0", "options": {"adapter-type": "buslogic", "driver": "vmdk", "extents": [], "file": {"driver": "file", "filename": "TEST_DIR/PID-t.vmdk"}, "size": 33554432, "subformat": "monolithicSparse", "zeroed-grain": true}}}
+{"execute": "blockdev-create", "arguments": {"job-id": "job0", "options": {"adapter-type": "buslogic", "driver": "vmdk", "extents": [], "file": {"driver": "file", "filename": "TEST_DIR/PID-t.vmdk"}, "size": 33554432, "subformat": "monolithicSparse", "zeroed-grain": true}}}
 {"return": {}}
 {"execute": "job-dismiss", "arguments": {"id": "job0"}}
 {"return": {}}
@@ -83,7 +83,7 @@ Format specific information:
 
 === Invalid BlockdevRef ===
 
-{"execute": "blockdev-create", "arguments": {"job_id": "job0", "options": {"driver": "vmdk", "file": "this doesn't exist", "size": 33554432}}}
+{"execute": "blockdev-create", "arguments": {"job-id": "job0", "options": {"driver": "vmdk", "file": "this doesn't exist", "size": 33554432}}}
 {"return": {}}
 Job failed: Cannot find device=this doesn't exist nor node_name=this doesn't exist
 {"execute": "job-dismiss", "arguments": {"id": "job0"}}
@@ -93,38 +93,38 @@ Job failed: Cannot find device=this doesn't exist nor node_name=this doesn't exi
 
 == Valid adapter types ==
 
-{"execute": "blockdev-create", "arguments": {"job_id": "job0", "options": {"adapter-type": "ide", "driver": "vmdk", "file": "node0", "size": 33554432}}}
+{"execute": "blockdev-create", "arguments": {"job-id": "job0", "options": {"adapter-type": "ide", "driver": "vmdk", "file": "node0", "size": 33554432}}}
 {"return": {}}
 {"execute": "job-dismiss", "arguments": {"id": "job0"}}
 {"return": {}}
 
-{"execute": "blockdev-create", "arguments": {"job_id": "job0", "options": {"adapter-type": "buslogic", "driver": "vmdk", "file": "node0", "size": 33554432}}}
+{"execute": "blockdev-create", "arguments": {"job-id": "job0", "options": {"adapter-type": "buslogic", "driver": "vmdk", "file": "node0", "size": 33554432}}}
 {"return": {}}
 {"execute": "job-dismiss", "arguments": {"id": "job0"}}
 {"return": {}}
 
-{"execute": "blockdev-create", "arguments": {"job_id": "job0", "options": {"adapter-type": "lsilogic", "driver": "vmdk", "file": "node0", "size": 33554432}}}
+{"execute": "blockdev-create", "arguments": {"job-id": "job0", "options": {"adapter-type": "lsilogic", "driver": "vmdk", "file": "node0", "size": 33554432}}}
 {"return": {}}
 {"execute": "job-dismiss", "arguments": {"id": "job0"}}
 {"return": {}}
 
-{"execute": "blockdev-create", "arguments": {"job_id": "job0", "options": {"adapter-type": "legacyESX", "driver": "vmdk", "file": "node0", "size": 33554432}}}
+{"execute": "blockdev-create", "arguments": {"job-id": "job0", "options": {"adapter-type": "legacyESX", "driver": "vmdk", "file": "node0", "size": 33554432}}}
 {"return": {}}
 {"execute": "job-dismiss", "arguments": {"id": "job0"}}
 {"return": {}}
 
 == Invalid adapter types ==
 
-{"execute": "blockdev-create", "arguments": {"job_id": "job0", "options": {"adapter-type": "foo", "driver": "vmdk", "file": "node0", "size": 33554432}}}
+{"execute": "blockdev-create", "arguments": {"job-id": "job0", "options": {"adapter-type": "foo", "driver": "vmdk", "file": "node0", "size": 33554432}}}
 {"error": {"class": "GenericError", "desc": "Invalid parameter 'foo'"}}
 
-{"execute": "blockdev-create", "arguments": {"job_id": "job0", "options": {"adapter-type": "IDE", "driver": "vmdk", "file": "node0", "size": 33554432}}}
+{"execute": "blockdev-create", "arguments": {"job-id": "job0", "options": {"adapter-type": "IDE", "driver": "vmdk", "file": "node0", "size": 33554432}}}
 {"error": {"class": "GenericError", "desc": "Invalid parameter 'IDE'"}}
 
-{"execute": "blockdev-create", "arguments": {"job_id": "job0", "options": {"adapter-type": "legacyesx", "driver": "vmdk", "file": "node0", "size": 33554432}}}
+{"execute": "blockdev-create", "arguments": {"job-id": "job0", "options": {"adapter-type": "legacyesx", "driver": "vmdk", "file": "node0", "size": 33554432}}}
 {"error": {"class": "GenericError", "desc": "Invalid parameter 'legacyesx'"}}
 
-{"execute": "blockdev-create", "arguments": {"job_id": "job0", "options": {"adapter-type": 1, "driver": "vmdk", "file": "node0", "size": 33554432}}}
+{"execute": "blockdev-create", "arguments": {"job-id": "job0", "options": {"adapter-type": 1, "driver": "vmdk", "file": "node0", "size": 33554432}}}
 {"error": {"class": "GenericError", "desc": "Invalid parameter type for 'options.adapter-type', expected: string"}}
 
 === Other subformats ===
@@ -137,7 +137,7 @@ Formatting 'TEST_DIR/PID-t.vmdk.3', fmt=vmdk size=0 compat6=off hwversion=undefi
 
 == Missing extent ==
 
-{"execute": "blockdev-create", "arguments": {"job_id": "job0", "options": {"driver": "vmdk", "file": "node0", "size": 33554432, "subformat": "monolithicFlat"}}}
+{"execute": "blockdev-create", "arguments": {"job-id": "job0", "options": {"driver": "vmdk", "file": "node0", "size": 33554432, "subformat": "monolithicFlat"}}}
 {"return": {}}
 Job failed: Extent [0] not specified
 {"execute": "job-dismiss", "arguments": {"id": "job0"}}
@@ -145,14 +145,14 @@ Job failed: Extent [0] not specified
 
 == Correct extent ==
 
-{"execute": "blockdev-create", "arguments": {"job_id": "job0", "options": {"driver": "vmdk", "extents": ["ext1"], "file": "node0", "size": 33554432, "subformat": "monolithicFlat"}}}
+{"execute": "blockdev-create", "arguments": {"job-id": "job0", "options": {"driver": "vmdk", "extents": ["ext1"], "file": "node0", "size": 33554432, "subformat": "monolithicFlat"}}}
 {"return": {}}
 {"execute": "job-dismiss", "arguments": {"id": "job0"}}
 {"return": {}}
 
 == Extra extent ==
 
-{"execute": "blockdev-create", "arguments": {"job_id": "job0", "options": {"driver": "vmdk", "extents": ["ext1", "ext2", "ext3"], "file": "node0", "size": 512, "subformat": "monolithicFlat"}}}
+{"execute": "blockdev-create", "arguments": {"job-id": "job0", "options": {"driver": "vmdk", "extents": ["ext1", "ext2", "ext3"], "file": "node0", "size": 512, "subformat": "monolithicFlat"}}}
 {"return": {}}
 Job failed: List of extents contains unused extents
 {"execute": "job-dismiss", "arguments": {"id": "job0"}}
@@ -162,7 +162,7 @@ Job failed: List of extents contains unused extents
 
 = twoGbMaxExtentFlat 512 =
 
-{"execute": "blockdev-create", "arguments": {"job_id": "job0", "options": {"driver": "vmdk", "extents": ["ext1"], "file": "node0", "size": 512, "subformat": "twoGbMaxExtentFlat"}}}
+{"execute": "blockdev-create", "arguments": {"job-id": "job0", "options": {"driver": "vmdk", "extents": ["ext1"], "file": "node0", "size": 512, "subformat": "twoGbMaxExtentFlat"}}}
 {"return": {}}
 {"execute": "job-dismiss", "arguments": {"id": "job0"}}
 {"return": {}}
@@ -182,7 +182,7 @@ Format specific information:
 
 = twoGbMaxExtentSparse 512 =
 
-{"execute": "blockdev-create", "arguments": {"job_id": "job0", "options": {"driver": "vmdk", "extents": ["ext1"], "file": "node0", "size": 512, "subformat": "twoGbMaxExtentSparse"}}}
+{"execute": "blockdev-create", "arguments": {"job-id": "job0", "options": {"driver": "vmdk", "extents": ["ext1"], "file": "node0", "size": 512, "subformat": "twoGbMaxExtentSparse"}}}
 {"return": {}}
 {"execute": "job-dismiss", "arguments": {"id": "job0"}}
 {"return": {}}
@@ -204,7 +204,7 @@ Format specific information:
 
 = twoGbMaxExtentFlat 1073741824 =
 
-{"execute": "blockdev-create", "arguments": {"job_id": "job0", "options": {"driver": "vmdk", "extents": ["ext1"], "file": "node0", "size": 1073741824, "subformat": "twoGbMaxExtentFlat"}}}
+{"execute": "blockdev-create", "arguments": {"job-id": "job0", "options": {"driver": "vmdk", "extents": ["ext1"], "file": "node0", "size": 1073741824, "subformat": "twoGbMaxExtentFlat"}}}
 {"return": {}}
 {"execute": "job-dismiss", "arguments": {"id": "job0"}}
 {"return": {}}
@@ -224,7 +224,7 @@ Format specific information:
 
 = twoGbMaxExtentSparse 1073741824 =
 
-{"execute": "blockdev-create", "arguments": {"job_id": "job0", "options": {"driver": "vmdk", "extents": ["ext1"], "file": "node0", "size": 1073741824, "subformat": "twoGbMaxExtentSparse"}}}
+{"execute": "blockdev-create", "arguments": {"job-id": "job0", "options": {"driver": "vmdk", "extents": ["ext1"], "file": "node0", "size": 1073741824, "subformat": "twoGbMaxExtentSparse"}}}
 {"return": {}}
 {"execute": "job-dismiss", "arguments": {"id": "job0"}}
 {"return": {}}
@@ -246,7 +246,7 @@ Format specific information:
 
 = twoGbMaxExtentFlat 2147483648 =
 
-{"execute": "blockdev-create", "arguments": {"job_id": "job0", "options": {"driver": "vmdk", "extents": ["ext1"], "file": "node0", "size": 2147483648, "subformat": "twoGbMaxExtentFlat"}}}
+{"execute": "blockdev-create", "arguments": {"job-id": "job0", "options": {"driver": "vmdk", "extents": ["ext1"], "file": "node0", "size": 2147483648, "subformat": "twoGbMaxExtentFlat"}}}
 {"return": {}}
 {"execute": "job-dismiss", "arguments": {"id": "job0"}}
 {"return": {}}
@@ -266,7 +266,7 @@ Format specific information:
 
 = twoGbMaxExtentSparse 2147483648 =
 
-{"execute": "blockdev-create", "arguments": {"job_id": "job0", "options": {"driver": "vmdk", "extents": ["ext1"], "file": "node0", "size": 2147483648, "subformat": "twoGbMaxExtentSparse"}}}
+{"execute": "blockdev-create", "arguments": {"job-id": "job0", "options": {"driver": "vmdk", "extents": ["ext1"], "file": "node0", "size": 2147483648, "subformat": "twoGbMaxExtentSparse"}}}
 {"return": {}}
 {"execute": "job-dismiss", "arguments": {"id": "job0"}}
 {"return": {}}
@@ -288,7 +288,7 @@ Format specific information:
 
 = twoGbMaxExtentFlat 5368709120 =
 
-{"execute": "blockdev-create", "arguments": {"job_id": "job0", "options": {"driver": "vmdk", "extents": ["ext1", "ext2", "ext3"], "file": "node0", "size": 5368709120, "subformat": "twoGbMaxExtentFlat"}}}
+{"execute": "blockdev-create", "arguments": {"job-id": "job0", "options": {"driver": "vmdk", "extents": ["ext1", "ext2", "ext3"], "file": "node0", "size": 5368709120, "subformat": "twoGbMaxExtentFlat"}}}
 {"return": {}}
 {"execute": "job-dismiss", "arguments": {"id": "job0"}}
 {"return": {}}
@@ -316,7 +316,7 @@ Format specific information:
 
 = twoGbMaxExtentSparse 5368709120 =
 
-{"execute": "blockdev-create", "arguments": {"job_id": "job0", "options": {"driver": "vmdk", "extents": ["ext1", "ext2", "ext3"], "file": "node0", "size": 5368709120, "subformat": "twoGbMaxExtentSparse"}}}
+{"execute": "blockdev-create", "arguments": {"job-id": "job0", "options": {"driver": "vmdk", "extents": ["ext1", "ext2", "ext3"], "file": "node0", "size": 5368709120, "subformat": "twoGbMaxExtentSparse"}}}
 {"return": {}}
 {"execute": "job-dismiss", "arguments": {"id": "job0"}}
 {"return": {}}
