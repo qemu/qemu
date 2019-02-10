@@ -27,7 +27,8 @@ iotests.verify_image_format(supported_fmts=['luks'])
 iotests.verify_protocol(supported=['file'])
 
 def blockdev_create(vm, options):
-    result = vm.qmp_log('blockdev-create', job_id='job0', options=options)
+    result = vm.qmp_log('blockdev-create', job_id='job0', options=options,
+                        filters=[iotests.filter_qmp_testfiles])
 
     if 'return' in result:
         assert result['return'] == {}
@@ -53,7 +54,7 @@ with iotests.FilePath('t.luks') as disk_path, \
                           'size': 0 })
 
     vm.qmp_log('blockdev-add', driver='file', filename=disk_path,
-               node_name='imgfile')
+               node_name='imgfile', filters=[iotests.filter_qmp_testfiles])
 
     blockdev_create(vm, { 'driver': imgfmt,
                           'file': 'imgfile',
