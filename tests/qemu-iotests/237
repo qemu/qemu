@@ -224,7 +224,7 @@ with iotests.FilePath('t.vmdk') as disk_path, \
             iotests.log("= %s %d =" % (subfmt, size))
             iotests.log("")
 
-            num_extents = math.ceil(size / 2.0**31)
+            num_extents = int(math.ceil(size / 2.0**31))
             extents = [ "ext%d" % (i) for i in range(1, num_extents + 1) ]
 
             vm.launch()
