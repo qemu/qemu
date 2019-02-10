@@ -69,6 +69,10 @@ size=128M
 
 _make_test_img $size
 
+if [ -n "$TEST_IMG_FILE" ]; then
+    TEST_IMG=$TEST_IMG_FILE
+fi
+
 echo
 echo "=== -drive with read-write image: read-only/auto-read-only combinations ==="
 echo
