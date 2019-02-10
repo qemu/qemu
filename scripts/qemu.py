@@ -144,10 +144,9 @@ class QEMUMachine(object):
         return False
 
     # This can be used to add an unused monitor instance.
-    def add_monitor_telnet(self, ip, port):
-        args = 'tcp:%s:%d,server,nowait,telnet' % (ip, port)
+    def add_monitor_null(self):
         self._args.append('-monitor')
-        self._args.append(args)
+        self._args.append('null')
 
     def add_fd(self, fd, fdset, opaque, opts=''):
         """
