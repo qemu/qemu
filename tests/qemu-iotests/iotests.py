@@ -289,7 +289,7 @@ def filter_testfiles(msg):
 
 def filter_qmp_testfiles(qmsg):
     def _filter(key, value):
-        if key == 'filename' or key == 'backing-file':
+        if is_str(value):
             return filter_testfiles(value)
         return value
     return filter_qmp(qmsg, _filter)
