@@ -371,10 +371,12 @@ enum {
     XTENSA_OP_CHECK_INTERRUPTS = 0x200,
     XTENSA_OP_EXIT_TB_M1 = 0x400,
     XTENSA_OP_EXIT_TB_0 = 0x800,
+
+    XTENSA_OP_NAME_ARRAY = 0x8000,
 };
 
 typedef struct XtensaOpcodeOps {
-    const char *name;
+    const void *name;
     XtensaOpcodeOp translate;
     XtensaOpcodeBoolTest test_ill;
     XtensaOpcodeUintTest test_overflow;

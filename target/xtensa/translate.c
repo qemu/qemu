@@ -2409,17 +2409,17 @@ static const XtensaOpcodeOps core_ops[] = {
         .name = "abs",
         .translate = translate_abs,
     }, {
-        .name = "add",
+        .name = (const char * const[]) {
+            "add", "add.n", NULL,
+        },
         .translate = translate_add,
+        .op_flags = XTENSA_OP_NAME_ARRAY,
     }, {
-        .name = "add.n",
-        .translate = translate_add,
-    }, {
-        .name = "addi",
+        .name = (const char * const[]) {
+            "addi", "addi.n", NULL,
+        },
         .translate = translate_addi,
-    }, {
-        .name = "addi.n",
-        .translate = translate_addi,
+        .op_flags = XTENSA_OP_NAME_ARRAY,
     }, {
         .name = "addmi",
         .translate = translate_addi,
@@ -2495,13 +2495,12 @@ static const XtensaOpcodeOps core_ops[] = {
         .translate = translate_bi,
         .par = (const uint32_t[]){TCG_COND_EQ},
     }, {
-        .name = "beqz",
+        .name = (const char * const[]) {
+            "beqz", "beqz.n", NULL,
+        },
         .translate = translate_bz,
         .par = (const uint32_t[]){TCG_COND_EQ},
-    }, {
-        .name = "beqz.n",
-        .translate = translate_bz,
-        .par = (const uint32_t[]){TCG_COND_EQ},
+        .op_flags = XTENSA_OP_NAME_ARRAY,
     }, {
         .name = "bf",
         .translate = translate_bp,
@@ -2559,13 +2558,12 @@ static const XtensaOpcodeOps core_ops[] = {
         .translate = translate_bi,
         .par = (const uint32_t[]){TCG_COND_NE},
     }, {
-        .name = "bnez",
+        .name = (const char * const[]) {
+            "bnez", "bnez.n", NULL,
+        },
         .translate = translate_bz,
         .par = (const uint32_t[]){TCG_COND_NE},
-    }, {
-        .name = "bnez.n",
-        .translate = translate_bz,
-        .par = (const uint32_t[]){TCG_COND_NE},
+        .op_flags = XTENSA_OP_NAME_ARRAY,
     }, {
         .name = "bnone",
         .translate = translate_bany,
@@ -2725,11 +2723,10 @@ static const XtensaOpcodeOps core_ops[] = {
         .translate = translate_nop,
         .op_flags = XTENSA_OP_PRIVILEGED,
     }, {
-        .name = "ill",
-        .op_flags = XTENSA_OP_ILL,
-    }, {
-        .name = "ill.n",
-        .op_flags = XTENSA_OP_ILL,
+        .name = (const char * const[]) {
+            "ill", "ill.n", NULL,
+        },
+        .op_flags = XTENSA_OP_ILL | XTENSA_OP_NAME_ARRAY,
     }, {
         .name = "ipf",
         .translate = translate_nop,
@@ -2763,13 +2760,12 @@ static const XtensaOpcodeOps core_ops[] = {
         .translate = translate_l32e,
         .op_flags = XTENSA_OP_PRIVILEGED,
     }, {
-        .name = "l32i",
+        .name = (const char * const[]) {
+            "l32i", "l32i.n", NULL,
+        },
         .translate = translate_ldst,
         .par = (const uint32_t[]){MO_TEUL, false, false},
-    }, {
-        .name = "l32i.n",
-        .translate = translate_ldst,
-        .par = (const uint32_t[]){MO_TEUL, false, false},
+        .op_flags = XTENSA_OP_NAME_ARRAY,
     }, {
         .name = "l32r",
         .translate = translate_l32r,
@@ -2816,11 +2812,11 @@ static const XtensaOpcodeOps core_ops[] = {
         .name = "minu",
         .translate = translate_umin,
     }, {
-        .name = "mov",
+        .name = (const char * const[]) {
+            "mov", "mov.n", NULL,
+        },
         .translate = translate_mov,
-    }, {
-        .name = "mov.n",
-        .translate = translate_mov,
+        .op_flags = XTENSA_OP_NAME_ARRAY,
     }, {
         .name = "moveqz",
         .translate = translate_movcond,
@@ -3134,11 +3130,11 @@ static const XtensaOpcodeOps core_ops[] = {
         .name = "neg",
         .translate = translate_neg,
     }, {
-        .name = "nop",
+        .name = (const char * const[]) {
+            "nop", "nop.n", NULL,
+        },
         .translate = translate_nop,
-    }, {
-        .name = "nop.n",
-        .translate = translate_nop,
+        .op_flags = XTENSA_OP_NAME_ARRAY,
     }, {
         .name = "nsa",
         .translate = translate_nsa,
@@ -3202,21 +3198,18 @@ static const XtensaOpcodeOps core_ops[] = {
         .translate = translate_rer,
         .op_flags = XTENSA_OP_PRIVILEGED,
     }, {
-        .name = "ret",
+        .name = (const char * const[]) {
+            "ret", "ret.n", NULL,
+        },
         .translate = translate_ret,
+        .op_flags = XTENSA_OP_NAME_ARRAY,
     }, {
-        .name = "ret.n",
-        .translate = translate_ret,
-    }, {
-        .name = "retw",
+        .name = (const char * const[]) {
+            "retw", "retw.n", NULL,
+        },
         .translate = translate_retw,
         .test_ill = test_ill_retw,
-        .op_flags = XTENSA_OP_UNDERFLOW,
-    }, {
-        .name = "retw.n",
-        .translate = translate_retw,
-        .test_ill = test_ill_retw,
-        .op_flags = XTENSA_OP_UNDERFLOW,
+        .op_flags = XTENSA_OP_UNDERFLOW | XTENSA_OP_NAME_ARRAY,
     }, {
         .name = "rfdd",
         .op_flags = XTENSA_OP_ILL,
@@ -3742,17 +3735,12 @@ static const XtensaOpcodeOps core_ops[] = {
         .translate = translate_s32e,
         .op_flags = XTENSA_OP_PRIVILEGED,
     }, {
-        .name = "s32i",
+        .name = (const char * const[]) {
+            "s32i", "s32i.n", "s32nb", NULL,
+        },
         .translate = translate_ldst,
         .par = (const uint32_t[]){MO_TEUL, false, true},
-    }, {
-        .name = "s32i.n",
-        .translate = translate_ldst,
-        .par = (const uint32_t[]){MO_TEUL, false, true},
-    }, {
-        .name = "s32nb",
-        .translate = translate_ldst,
-        .par = (const uint32_t[]){MO_TEUL, false, true},
+        .op_flags = XTENSA_OP_NAME_ARRAY,
     }, {
         .name = "s32ri",
         .translate = translate_ldst,

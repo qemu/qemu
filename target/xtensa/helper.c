@@ -51,9 +51,19 @@ static GHashTable *hash_opcode_translators(const XtensaOpcodeTranslators *t)
     GHashTable *translator = g_hash_table_new(g_str_hash, g_str_equal);
 
     for (i = 0; i < t->num_opcodes; ++i) {
-        add_translator_to_hash(translator,
-                               (void *)t->opcode[i].name,
-                               (void *)(t->opcode + i));
+        if (t->opcode[i].op_flags & XTENSA_OP_NAME_ARRAY) {
+            const char * const *name = t->opcode[i].name;
+
+            for (j = 0; name[j]; ++j) {
+                add_translator_to_hash(translator,
+                                       (void *)name[j],
+                                       (void *)(t->opcode + i));
+            }
+        } else {
+            add_translator_to_hash(translator,
+                                   (void *)t->opcode[i].name,
+                                   (void *)(t->opcode + i));
+        }
     }
     return translator;
 }
