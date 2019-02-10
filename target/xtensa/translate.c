@@ -1274,20 +1274,6 @@ void restore_state_to_opc(CPUXtensaState *env, TranslationBlock *tb,
     env->pc = data[0];
 }
 
-static int compare_opcode_ops(const void *a, const void *b)
-{
-    return strcmp((const char *)a,
-                  ((const XtensaOpcodeOps *)b)->name);
-}
-
-XtensaOpcodeOps *
-xtensa_find_opcode_ops(const XtensaOpcodeTranslators *t,
-                       const char *name)
-{
-    return bsearch(name, t->opcode, t->num_opcodes,
-                   sizeof(XtensaOpcodeOps), compare_opcode_ops);
-}
-
 static void translate_abs(DisasContext *dc, const uint32_t arg[],
                           const uint32_t par[])
 {

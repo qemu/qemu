@@ -30,9 +30,51 @@
 #include "exec/exec-all.h"
 #include "exec/gdbstub.h"
 #include "exec/helper-proto.h"
+#include "qemu/error-report.h"
 #include "qemu/host-utils.h"
 
 static struct XtensaConfigList *xtensa_cores;
+
+static void add_translator_to_hash(GHashTable *translator,
+                                   const char *name,
+                                   const XtensaOpcodeOps *opcode)
+{
+    if (!g_hash_table_insert(translator, (void *)name, (void *)opcode)) {
+        error_report("Multiple definitions of '%s' opcode in a single table",
+                     name);
+    }
+}
+
+static GHashTable *hash_opcode_translators(const XtensaOpcodeTranslators *t)
+{
+    unsigned i, j;
+    GHashTable *translator = g_hash_table_new(g_str_hash, g_str_equal);
+
+    for (i = 0; i < t->num_opcodes; ++i) {
+        add_translator_to_hash(translator,
+                               (void *)t->opcode[i].name,
+                               (void *)(t->opcode + i));
+    }
+    return translator;
+}
+
+static XtensaOpcodeOps *
+xtensa_find_opcode_ops(const XtensaOpcodeTranslators *t,
+                       const char *name)
+{
+    static GHashTable *translators;
+    GHashTable *translator;
+
+    if (translators == NULL) {
+        translators = g_hash_table_new(g_direct_hash, g_direct_equal);
+    }
+    translator = g_hash_table_lookup(translators, t);
+    if (translator == NULL) {
+        translator = hash_opcode_translators(t);
+        g_hash_table_insert(translators, (void *)t, translator);
+    }
+    return g_hash_table_lookup(translator, name);
+}
 
 static void init_libisa(XtensaConfig *config)
 {
