@@ -2227,8 +2227,13 @@ static bool test_ill_retw(DisasContext *dc, const uint32_t arg[],
 static void translate_retw(DisasContext *dc, const uint32_t arg[],
                            const uint32_t par[])
 {
-    TCGv_i32 tmp = tcg_const_i32(dc->pc);
-    gen_helper_retw(tmp, cpu_env, tmp);
+    TCGv_i32 tmp = tcg_const_i32(1);
+    tcg_gen_shl_i32(tmp, tmp, cpu_SR[WINDOW_BASE]);
+    tcg_gen_andc_i32(cpu_SR[WINDOW_START],
+                     cpu_SR[WINDOW_START], tmp);
+    tcg_gen_movi_i32(tmp, dc->pc);
+    tcg_gen_deposit_i32(tmp, tmp, cpu_R[0], 0, 30);
+    gen_helper_retw(cpu_env, cpu_R[0]);
     gen_jump(dc, tmp);
     tcg_temp_free(tmp);
 }
