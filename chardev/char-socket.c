@@ -1186,18 +1186,10 @@ error:
 static void qemu_chr_parse_socket(QemuOpts *opts, ChardevBackend *backend,
                                   Error **errp)
 {
-    bool is_listen      = qemu_opt_get_bool(opts, "server", false);
-    bool is_waitconnect = is_listen && qemu_opt_get_bool(opts, "wait", true);
-    bool is_telnet      = qemu_opt_get_bool(opts, "telnet", false);
-    bool is_tn3270      = qemu_opt_get_bool(opts, "tn3270", false);
-    bool is_websock     = qemu_opt_get_bool(opts, "websocket", false);
-    bool do_nodelay     = !qemu_opt_get_bool(opts, "delay", true);
-    int64_t reconnect   = qemu_opt_get_number(opts, "reconnect", 0);
     const char *path = qemu_opt_get(opts, "path");
     const char *host = qemu_opt_get(opts, "host");
     const char *port = qemu_opt_get(opts, "port");
     const char *fd = qemu_opt_get(opts, "fd");
-    const char *tls_creds = qemu_opt_get(opts, "tls-creds");
     SocketAddressLegacy *addr;
     ChardevSocket *sock;
 
@@ -1216,26 +1208,30 @@ static void qemu_chr_parse_socket(QemuOpts *opts, ChardevBackend *backend,
     sock = backend->u.socket.data = g_new0(ChardevSocket, 1);
     qemu_chr_parse_common(opts, qapi_ChardevSocket_base(sock));
 
-    sock->has_nodelay = true;
-    sock->nodelay = do_nodelay;
+    sock->has_nodelay = qemu_opt_get(opts, "delay");
+    sock->nodelay = !qemu_opt_get_bool(opts, "delay", true);
+    /*
+     * We have different default to QMP for 'server', hence
+     * we can't just check for existence of 'server'
+     */
     sock->has_server = true;
-    sock->server = is_listen;
-    sock->has_telnet = true;
-    sock->telnet = is_telnet;
-    sock->has_tn3270 = true;
-    sock->tn3270 = is_tn3270;
-    sock->has_websocket = true;
-    sock->websocket = is_websock;
+    sock->server = qemu_opt_get_bool(opts, "server", false);
+    sock->has_telnet = qemu_opt_get(opts, "telnet");
+    sock->telnet = qemu_opt_get_bool(opts, "telnet", false);
+    sock->has_tn3270 = qemu_opt_get(opts, "tn3270");
+    sock->tn3270 = qemu_opt_get_bool(opts, "tn3270", false);
+    sock->has_websocket = qemu_opt_get(opts, "websocket");
+    sock->websocket = qemu_opt_get_bool(opts, "websocket", false);
     /*
      * We have different default to QMP for 'wait' when 'server'
      * is set, hence we can't just check for existence of 'wait'
      */
-    sock->has_wait = qemu_opt_find(opts, "wait") || is_listen;
-    sock->wait = is_waitconnect;
+    sock->has_wait = qemu_opt_find(opts, "wait") || sock->server;
+    sock->wait = qemu_opt_get_bool(opts, "wait", true);
     sock->has_reconnect = qemu_opt_find(opts, "reconnect");
-    sock->reconnect = reconnect;
-    sock->has_tls_creds = tls_creds;
-    sock->tls_creds = g_strdup(tls_creds);
+    sock->reconnect = qemu_opt_get_number(opts, "reconnect", 0);
+    sock->has_tls_creds = qemu_opt_get(opts, "tls-creds");
+    sock->tls_creds = g_strdup(qemu_opt_get(opts, "tls-creds"));
 
     addr = g_new0(SocketAddressLegacy, 1);
     if (path) {
