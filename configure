@@ -7192,11 +7192,13 @@ case "$target_name" in
     target_compiler=$cross_cc_microblaze
   ;;
   mips|mipsel)
+    mttcg="yes"
     TARGET_ARCH=mips
     target_compiler=$cross_cc_mips
     echo "TARGET_ABI_MIPSO32=y" >> $config_target_mak
   ;;
   mipsn32|mipsn32el)
+    mttcg="yes"
     TARGET_ARCH=mips64
     TARGET_BASE_ARCH=mips
     target_compiler=$cross_cc_mipsn32
@@ -7204,6 +7206,7 @@ case "$target_name" in
     echo "TARGET_ABI32=y" >> $config_target_mak
   ;;
   mips64|mips64el)
+    mttcg="yes"
     TARGET_ARCH=mips64
     TARGET_BASE_ARCH=mips
     target_compiler=$cross_cc_mips64
