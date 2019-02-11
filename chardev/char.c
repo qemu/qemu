@@ -490,6 +490,8 @@ QemuOpts *qemu_chr_parse_compat(const char *label, const char *filename,
         return opts;
     }
 
+    error_report("'%s' is not a valid char driver", filename);
+
 fail:
     qemu_opts_del(opts);
     return NULL;
