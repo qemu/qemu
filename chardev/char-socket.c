@@ -987,6 +987,65 @@ static gboolean socket_reconnect_timeout(gpointer opaque)
     return false;
 }
 
+
+static bool qmp_chardev_validate_socket(ChardevSocket *sock,
+                                        SocketAddress *addr,
+                                        Error **errp)
+{
+    /* Validate any options which have a dependency on address type */
+    switch (addr->type) {
+    case SOCKET_ADDRESS_TYPE_FD:
+        if (sock->has_reconnect) {
+            error_setg(errp,
+                       "'reconnect' option is incompatible with "
+                       "'fd' address type");
+            return false;
+        }
+        if (sock->has_tls_creds &&
+            !(sock->has_server && sock->server)) {
+            error_setg(errp,
+                       "'tls_creds' option is incompatible with "
+                       "'fd' address type as client");
+            return false;
+        }
+        break;
+
+    case SOCKET_ADDRESS_TYPE_UNIX:
+        if (sock->has_tls_creds) {
+            error_setg(errp,
+                       "'tls_creds' option is incompatible with "
+                       "'unix' address type");
+            return false;
+        }
+        break;
+
+    case SOCKET_ADDRESS_TYPE_INET:
+        break;
+
+    case SOCKET_ADDRESS_TYPE_VSOCK:
+        if (sock->has_tls_creds) {
+            error_setg(errp,
+                       "'tls_creds' option is incompatible with "
+                       "'vsock' address type");
+            return false;
+        }
+
+    default:
+        break;
+    }
+
+    /* Validate any options which have a dependancy on client vs server */
+    if (!(sock->has_server && sock->server)) {
+        if (sock->has_websocket && sock->websocket) {
+            error_setg(errp, "%s", "Websocket client is not implemented");
+            return false;
+        }
+    }
+
+    return true;
+}
+
+
 static void qmp_chardev_open_socket(Chardev *chr,
                                     ChardevBackend *backend,
                                     bool *be_opened,
@@ -1003,11 +1062,6 @@ static void qmp_chardev_open_socket(Chardev *chr,
     int64_t reconnect   = sock->has_reconnect ? sock->reconnect : 0;
     QIOChannelSocket *sioc = NULL;
     SocketAddress *addr;
-
-    if (!is_listen && is_websock) {
-        error_setg(errp, "%s", "Websocket client is not implemented");
-        goto error;
-    }
 
     s->is_listen = is_listen;
     s->is_telnet = is_telnet;
@@ -1049,10 +1103,10 @@ static void qmp_chardev_open_socket(Chardev *chr,
 
     s->addr = addr = socket_address_flatten(sock->addr);
 
-    if (sock->has_reconnect && addr->type == SOCKET_ADDRESS_TYPE_FD) {
-        error_setg(errp, "'reconnect' option is incompatible with 'fd'");
+    if (!qmp_chardev_validate_socket(sock, addr, errp)) {
         goto error;
     }
+
     qemu_chr_set_feature(chr, QEMU_CHAR_FEATURE_RECONNECTABLE);
     /* TODO SOCKET_ADDRESS_FD where fd has AF_UNIX */
     if (addr->type == SOCKET_ADDRESS_TYPE_UNIX) {
@@ -1140,27 +1194,12 @@ static void qemu_chr_parse_socket(QemuOpts *opts, ChardevBackend *backend,
         return;
     }
 
-    backend->type = CHARDEV_BACKEND_KIND_SOCKET;
-    if (path) {
-        if (tls_creds) {
-            error_setg(errp, "TLS can only be used over TCP socket");
-            return;
-        }
-    } else if (host) {
-        if (!port) {
-            error_setg(errp, "chardev: socket: no port given");
-            return;
-        }
-    } else if (fd) {
-        /* We don't know what host to validate against when in client mode */
-        if (tls_creds && !is_listen) {
-            error_setg(errp, "TLS can not be used with pre-opened client FD");
-            return;
-        }
-    } else {
-        g_assert_not_reached();
+    if (host && !port) {
+        error_setg(errp, "chardev: socket: no port given");
+        return;
     }
 
+    backend->type = CHARDEV_BACKEND_KIND_SOCKET;
     sock = backend->u.socket.data = g_new0(ChardevSocket, 1);
     qemu_chr_parse_common(opts, qapi_ChardevSocket_base(sock));
 
@@ -1178,6 +1217,7 @@ static void qemu_chr_parse_socket(QemuOpts *opts, ChardevBackend *backend,
     sock->wait = is_waitconnect;
     sock->has_reconnect = qemu_opt_find(opts, "reconnect");
     sock->reconnect = reconnect;
+    sock->has_tls_creds = tls_creds;
     sock->tls_creds = g_strdup(tls_creds);
 
     addr = g_new0(SocketAddressLegacy, 1);
