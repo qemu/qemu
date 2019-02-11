@@ -6612,7 +6612,7 @@ static void gen_mfhc0(DisasContext *ctx, TCGv arg, int reg, int sel)
     case CP0_REGISTER_17:
         switch (sel) {
         case 0:
-            gen_mfhc0_load64(arg, offsetof(CPUMIPSState, lladdr),
+            gen_mfhc0_load64(arg, offsetof(CPUMIPSState, CP0_LLAddr),
                              ctx->CP0_LLAddr_shift);
             register_name = "LLAddr";
             break;
@@ -29795,7 +29795,7 @@ void mips_cpu_dump_state(CPUState *cs, FILE *f, fprintf_function cpu_fprintf,
                 env->CP0_Status, env->CP0_Cause, env->CP0_EPC);
     cpu_fprintf(f, "    Config0 0x%08x Config1 0x%08x LLAddr 0x%016"
                 PRIx64 "\n",
-                env->CP0_Config0, env->CP0_Config1, env->lladdr);
+                env->CP0_Config0, env->CP0_Config1, env->CP0_LLAddr);
     cpu_fprintf(f, "    Config2 0x%08x Config3 0x%08x\n",
                 env->CP0_Config2, env->CP0_Config3);
     cpu_fprintf(f, "    Config4 0x%08x Config5 0x%08x\n",

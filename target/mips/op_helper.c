@@ -349,15 +349,15 @@ static inline hwaddr do_translate_address(CPUMIPSState *env,
                                                       target_ulong address,
                                                       int rw, uintptr_t retaddr)
 {
-    hwaddr lladdr;
+    hwaddr paddr;
     CPUState *cs = CPU(mips_env_get_cpu(env));
 
-    lladdr = cpu_mips_translate_address(env, address, rw);
+    paddr = cpu_mips_translate_address(env, address, rw);
 
-    if (lladdr == -1LL) {
+    if (paddr == -1LL) {
         cpu_loop_exit_restore(cs, retaddr);
     } else {
-        return lladdr;
+        return paddr;
     }
 }
 
@@ -370,7 +370,8 @@ target_ulong helper_##name(CPUMIPSState *env, target_ulong arg, int mem_idx)  \
         }                                                                     \
         do_raise_exception(env, EXCP_AdEL, GETPC());                          \
     }                                                                         \
-    env->lladdr = do_translate_address(env, arg, 0, GETPC());                 \
+    env->CP0_LLAddr = do_translate_address(env, arg, 0, GETPC());             \
+    env->lladdr = arg;                                                        \
     env->llval = do_##insn(env, arg, mem_idx, GETPC());                       \
     return env->llval;                                                        \
 }
@@ -392,7 +393,7 @@ target_ulong helper_##name(CPUMIPSState *env, target_ulong arg1,              \
         }                                                                     \
         do_raise_exception(env, EXCP_AdES, GETPC());                          \
     }                                                                         \
-    if (do_translate_address(env, arg2, 1, GETPC()) == env->lladdr) {         \
+    if (arg2 == env->lladdr) {                                                \
         tmp = do_##ld_insn(env, arg2, mem_idx, GETPC());                      \
         if (tmp == env->llval) {                                              \
             do_##st_insn(env, arg2, arg1, mem_idx, GETPC());                  \
@@ -987,7 +988,7 @@ target_ulong helper_mftc0_status(CPUMIPSState *env)
 
 target_ulong helper_mfc0_lladdr(CPUMIPSState *env)
 {
-    return (int32_t)(env->lladdr >> env->CP0_LLAddr_shift);
+    return (int32_t)(env->CP0_LLAddr >> env->CP0_LLAddr_shift);
 }
 
 target_ulong helper_mfc0_maar(CPUMIPSState *env)
@@ -1063,7 +1064,7 @@ target_ulong helper_dmfc0_tcschefback(CPUMIPSState *env)
 
 target_ulong helper_dmfc0_lladdr(CPUMIPSState *env)
 {
-    return env->lladdr >> env->CP0_LLAddr_shift;
+    return env->CP0_LLAddr >> env->CP0_LLAddr_shift;
 }
 
 target_ulong helper_dmfc0_maar(CPUMIPSState *env)
@@ -1299,7 +1300,8 @@ void helper_mtc0_tcrestart(CPUMIPSState *env, target_ulong arg1)
 {
     env->active_tc.PC = arg1;
     env->active_tc.CP0_TCStatus &= ~(1 << CP0TCSt_TDS);
-    env->lladdr = 0ULL;
+    env->CP0_LLAddr = 0;
+    env->lladdr = 0;
     /* MIPS16 not implemented. */
 }
 
@@ -1311,12 +1313,14 @@ void helper_mttc0_tcrestart(CPUMIPSState *env, target_ulong arg1)
     if (other_tc == other->current_tc) {
         other->active_tc.PC = arg1;
         other->active_tc.CP0_TCStatus &= ~(1 << CP0TCSt_TDS);
-        other->lladdr = 0ULL;
+        other->CP0_LLAddr = 0;
+        other->lladdr = 0;
         /* MIPS16 not implemented. */
     } else {
         other->tcs[other_tc].PC = arg1;
         other->tcs[other_tc].CP0_TCStatus &= ~(1 << CP0TCSt_TDS);
-        other->lladdr = 0ULL;
+        other->CP0_LLAddr = 0;
+        other->lladdr = 0;
         /* MIPS16 not implemented. */
     }
 }
@@ -1868,7 +1872,7 @@ void helper_mtc0_lladdr(CPUMIPSState *env, target_ulong arg1)
 {
     target_long mask = env->CP0_LLAddr_rw_bitmask;
     arg1 = arg1 << env->CP0_LLAddr_shift;
-    env->lladdr = (env->lladdr & ~mask) | (arg1 & mask);
+    env->CP0_LLAddr = (env->CP0_LLAddr & ~mask) | (arg1 & mask);
 }
 
 #define MTC0_MAAR_MASK(env) \
@@ -2566,6 +2570,7 @@ static inline void exception_return(CPUMIPSState *env)
 void helper_eret(CPUMIPSState *env)
 {
     exception_return(env);
+    env->CP0_LLAddr = 1;
     env->lladdr = 1;
 }
 
