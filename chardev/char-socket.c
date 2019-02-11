@@ -886,30 +886,47 @@ static void tcp_chr_accept(QIONetListener *listener,
     tcp_chr_new_client(chr, cioc);
 }
 
-static int tcp_chr_wait_connected(Chardev *chr, Error **errp)
+
+static int tcp_chr_connect_client_sync(Chardev *chr, Error **errp)
+{
+    SocketChardev *s = SOCKET_CHARDEV(chr);
+    QIOChannelSocket *sioc = qio_channel_socket_new();
+    tcp_chr_set_client_ioc_name(chr, sioc);
+    if (qio_channel_socket_connect_sync(sioc, s->addr, errp) < 0) {
+        object_unref(OBJECT(sioc));
+        return -1;
+    }
+    tcp_chr_new_client(chr, sioc);
+    object_unref(OBJECT(sioc));
+    return 0;
+}
+
+
+static void tcp_chr_accept_server_sync(Chardev *chr)
 {
     SocketChardev *s = SOCKET_CHARDEV(chr);
     QIOChannelSocket *sioc;
+    info_report("QEMU waiting for connection on: %s",
+                chr->filename);
+    sioc = qio_net_listener_wait_client(s->listener);
+    tcp_chr_set_client_ioc_name(chr, sioc);
+    tcp_chr_new_client(chr, sioc);
+    object_unref(OBJECT(sioc));
+}
 
+
+static int tcp_chr_wait_connected(Chardev *chr, Error **errp)
+{
+    SocketChardev *s = SOCKET_CHARDEV(chr);
     /* It can't wait on s->connected, since it is set asynchronously
      * in TLS and telnet cases, only wait for an accepted socket */
     while (!s->ioc) {
         if (s->is_listen) {
-            info_report("QEMU waiting for connection on: %s",
-                        chr->filename);
-            sioc = qio_net_listener_wait_client(s->listener);
-            tcp_chr_set_client_ioc_name(chr, sioc);
-            tcp_chr_new_client(chr, sioc);
-            object_unref(OBJECT(sioc));
+            tcp_chr_accept_server_sync(chr);
         } else {
-            sioc = qio_channel_socket_new();
-            tcp_chr_set_client_ioc_name(chr, sioc);
-            if (qio_channel_socket_connect_sync(sioc, s->addr, errp) < 0) {
-                object_unref(OBJECT(sioc));
+            if (tcp_chr_connect_client_sync(chr, errp) < 0) {
                 return -1;
             }
-            tcp_chr_new_client(chr, sioc);
-            object_unref(OBJECT(sioc));
         }
     }
 
@@ -958,7 +975,7 @@ cleanup:
     object_unref(OBJECT(sioc));
 }
 
-static void tcp_chr_connect_async(Chardev *chr)
+static void tcp_chr_connect_client_async(Chardev *chr)
 {
     SocketChardev *s = SOCKET_CHARDEV(chr);
     QIOChannelSocket *sioc;
@@ -982,7 +999,7 @@ static gboolean socket_reconnect_timeout(gpointer opaque)
         return false;
     }
 
-    tcp_chr_connect_async(chr);
+    tcp_chr_connect_client_async(chr);
 
     return false;
 }
@@ -1139,7 +1156,7 @@ static void qmp_chardev_open_socket(Chardev *chr,
     }
 
     if (s->reconnect_time) {
-        tcp_chr_connect_async(chr);
+        tcp_chr_connect_client_async(chr);
     } else {
         if (s->is_listen) {
             char *name;
@@ -1159,17 +1176,15 @@ static void qmp_chardev_open_socket(Chardev *chr,
             s->addr = socket_local_address(s->listener->sioc[0]->fd, errp);
             update_disconnected_filename(s);
 
-            if (is_waitconnect &&
-                qemu_chr_wait_connected(chr, errp) < 0) {
-                return;
-            }
-            if (!s->ioc) {
+            if (is_waitconnect) {
+                tcp_chr_accept_server_sync(chr);
+            } else {
                 qio_net_listener_set_client_func_full(s->listener,
                                                       tcp_chr_accept,
                                                       chr, NULL,
                                                       chr->gcontext);
             }
-        } else if (qemu_chr_wait_connected(chr, errp) < 0) {
+        } else if (tcp_chr_connect_client_sync(chr, errp) < 0) {
             return;
         }
     }
