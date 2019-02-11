@@ -1073,7 +1073,6 @@ static void qmp_chardev_open_socket(Chardev *chr,
     bool is_waitconnect = sock->has_wait    ? sock->wait    : false;
     bool is_websock     = sock->has_websocket ? sock->websocket : false;
     int64_t reconnect   = sock->has_reconnect ? sock->reconnect : 0;
-    QIOChannelSocket *sioc = NULL;
     SocketAddress *addr;
 
     s->is_listen = is_listen;
@@ -1088,7 +1087,7 @@ static void qmp_chardev_open_socket(Chardev *chr,
         if (!creds) {
             error_setg(errp, "No TLS credentials with id '%s'",
                        sock->tls_creds);
-            goto error;
+            return;
         }
         s->tls_creds = (QCryptoTLSCreds *)
             object_dynamic_cast(creds,
@@ -1096,20 +1095,20 @@ static void qmp_chardev_open_socket(Chardev *chr,
         if (!s->tls_creds) {
             error_setg(errp, "Object with id '%s' is not TLS credentials",
                        sock->tls_creds);
-            goto error;
+            return;
         }
         object_ref(OBJECT(s->tls_creds));
         if (is_listen) {
             if (s->tls_creds->endpoint != QCRYPTO_TLS_CREDS_ENDPOINT_SERVER) {
                 error_setg(errp, "%s",
                            "Expected TLS credentials for server endpoint");
-                goto error;
+                return;
             }
         } else {
             if (s->tls_creds->endpoint != QCRYPTO_TLS_CREDS_ENDPOINT_CLIENT) {
                 error_setg(errp, "%s",
                            "Expected TLS credentials for client endpoint");
-                goto error;
+                return;
             }
         }
     }
@@ -1117,7 +1116,7 @@ static void qmp_chardev_open_socket(Chardev *chr,
     s->addr = addr = socket_address_flatten(sock->addr);
 
     if (!qmp_chardev_validate_socket(sock, addr, errp)) {
-        goto error;
+        return;
     }
 
     qemu_chr_set_feature(chr, QEMU_CHAR_FEATURE_RECONNECTABLE);
@@ -1153,7 +1152,7 @@ static void qmp_chardev_open_socket(Chardev *chr,
             if (qio_net_listener_open_sync(s->listener, s->addr, errp) < 0) {
                 object_unref(OBJECT(s->listener));
                 s->listener = NULL;
-                goto error;
+                return;
             }
 
             qapi_free_SocketAddress(s->addr);
@@ -1171,15 +1170,8 @@ static void qmp_chardev_open_socket(Chardev *chr,
                                                       chr->gcontext);
             }
         } else if (qemu_chr_wait_connected(chr, errp) < 0) {
-            goto error;
+            return;
         }
-    }
-
-    return;
-
-error:
-    if (sioc) {
-        object_unref(OBJECT(sioc));
     }
 }
 
