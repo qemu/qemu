@@ -1035,7 +1035,14 @@ static bool qmp_chardev_validate_socket(ChardevSocket *sock,
     }
 
     /* Validate any options which have a dependancy on client vs server */
-    if (!(sock->has_server && sock->server)) {
+    if (!sock->has_server || sock->server) {
+        if (sock->has_reconnect) {
+            error_setg(errp,
+                       "'reconnect' option is incompatible with "
+                       "socket in server listen mode");
+            return false;
+        }
+    } else {
         if (sock->has_websocket && sock->websocket) {
             error_setg(errp, "%s", "Websocket client is not implemented");
             return false;
