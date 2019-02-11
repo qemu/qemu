@@ -46,6 +46,12 @@ typedef struct {
     size_t buflen;
 } TCPChardevTelnetInit;
 
+typedef enum {
+    TCP_CHARDEV_STATE_DISCONNECTED,
+    TCP_CHARDEV_STATE_CONNECTING,
+    TCP_CHARDEV_STATE_CONNECTED,
+} TCPChardevState;
+
 typedef struct {
     Chardev parent;
     QIOChannel *ioc; /* Client I/O channel */
@@ -53,7 +59,7 @@ typedef struct {
     QIONetListener *listener;
     GSource *hup_source;
     QCryptoTLSCreds *tls_creds;
-    int connected;
+    TCPChardevState state;
     int max_size;
     int do_telnetopt;
     int do_nodelay;
@@ -82,6 +88,21 @@ typedef struct {
 static gboolean socket_reconnect_timeout(gpointer opaque);
 static void tcp_chr_telnet_init(Chardev *chr);
 
+static void tcp_chr_change_state(SocketChardev *s, TCPChardevState state)
+{
+    switch (state) {
+    case TCP_CHARDEV_STATE_DISCONNECTED:
+        break;
+    case TCP_CHARDEV_STATE_CONNECTING:
+        assert(s->state == TCP_CHARDEV_STATE_DISCONNECTED);
+        break;
+    case TCP_CHARDEV_STATE_CONNECTED:
+        assert(s->state == TCP_CHARDEV_STATE_CONNECTING);
+        break;
+    }
+    s->state = state;
+}
+
 static void tcp_chr_reconn_timer_cancel(SocketChardev *s)
 {
     if (s->reconnect_timer) {
@@ -96,7 +117,7 @@ static void qemu_chr_socket_restart_timer(Chardev *chr)
     SocketChardev *s = SOCKET_CHARDEV(chr);
     char *name;
 
-    assert(s->connected == 0);
+    assert(s->state == TCP_CHARDEV_STATE_DISCONNECTED);
     name = g_strdup_printf("chardev-socket-reconnect-%s", chr->label);
     s->reconnect_timer = qemu_chr_timeout_add_ms(chr,
                                                  s->reconnect_time * 1000,
@@ -131,7 +152,7 @@ static int tcp_chr_write(Chardev *chr, const uint8_t *buf, int len)
 {
     SocketChardev *s = SOCKET_CHARDEV(chr);
 
-    if (s->connected) {
+    if (s->state == TCP_CHARDEV_STATE_CONNECTED) {
         int ret =  io_channel_send_full(s->ioc, buf, len,
                                         s->write_msgfds,
                                         s->write_msgfds_num);
@@ -164,7 +185,7 @@ static int tcp_chr_read_poll(void *opaque)
 {
     Chardev *chr = CHARDEV(opaque);
     SocketChardev *s = SOCKET_CHARDEV(opaque);
-    if (!s->connected) {
+    if (s->state != TCP_CHARDEV_STATE_CONNECTED) {
         return 0;
     }
     s->max_size = qemu_chr_be_can_write(chr);
@@ -277,7 +298,7 @@ static int tcp_set_msgfds(Chardev *chr, int *fds, int num)
     s->write_msgfds = NULL;
     s->write_msgfds_num = 0;
 
-    if (!s->connected ||
+    if ((s->state != TCP_CHARDEV_STATE_CONNECTED) ||
         !qio_channel_has_feature(s->ioc,
                                  QIO_CHANNEL_FEATURE_FD_PASS)) {
         return -1;
@@ -389,7 +410,7 @@ static void tcp_chr_free_connection(Chardev *chr)
     s->ioc = NULL;
     g_free(chr->filename);
     chr->filename = NULL;
-    s->connected = 0;
+    tcp_chr_change_state(s, TCP_CHARDEV_STATE_DISCONNECTED);
 }
 
 static const char *qemu_chr_socket_protocol(SocketChardev *s)
@@ -442,12 +463,12 @@ static void update_disconnected_filename(SocketChardev *s)
 
 /* NB may be called even if tcp_chr_connect has not been
  * reached, due to TLS or telnet initialization failure,
- * so can *not* assume s->connected == true
+ * so can *not* assume s->state == TCP_CHARDEV_STATE_CONNECTED
  */
 static void tcp_chr_disconnect(Chardev *chr)
 {
     SocketChardev *s = SOCKET_CHARDEV(chr);
-    bool emit_close = s->connected;
+    bool emit_close = s->state == TCP_CHARDEV_STATE_CONNECTED;
 
     tcp_chr_free_connection(chr);
 
@@ -471,7 +492,8 @@ static gboolean tcp_chr_read(QIOChannel *chan, GIOCondition cond, void *opaque)
     uint8_t buf[CHR_READ_BUF_LEN];
     int len, size;
 
-    if (!s->connected || s->max_size <= 0) {
+    if ((s->state != TCP_CHARDEV_STATE_CONNECTED) ||
+        s->max_size <= 0) {
         return TRUE;
     }
     len = sizeof(buf);
@@ -508,7 +530,7 @@ static int tcp_chr_sync_read(Chardev *chr, const uint8_t *buf, int len)
     SocketChardev *s = SOCKET_CHARDEV(chr);
     int size;
 
-    if (!s->connected) {
+    if (s->state != TCP_CHARDEV_STATE_CONNECTED) {
         return 0;
     }
 
@@ -564,7 +586,7 @@ static void update_ioc_handlers(SocketChardev *s)
 {
     Chardev *chr = CHARDEV(s);
 
-    if (!s->connected) {
+    if (s->state != TCP_CHARDEV_STATE_CONNECTED) {
         return;
     }
 
@@ -589,7 +611,7 @@ static void tcp_chr_connect(void *opaque)
     g_free(chr->filename);
     chr->filename = qemu_chr_compute_filename(s);
 
-    s->connected = 1;
+    tcp_chr_change_state(s, TCP_CHARDEV_STATE_CONNECTED);
     update_ioc_handlers(s);
     qemu_chr_be_event(chr, CHR_EVENT_OPENED);
 }
@@ -828,7 +850,7 @@ static int tcp_chr_new_client(Chardev *chr, QIOChannelSocket *sioc)
 {
     SocketChardev *s = SOCKET_CHARDEV(chr);
 
-    if (s->ioc != NULL) {
+    if (s->state != TCP_CHARDEV_STATE_CONNECTING) {
         return -1;
     }
 
@@ -865,11 +887,17 @@ static int tcp_chr_add_client(Chardev *chr, int fd)
 {
     int ret;
     QIOChannelSocket *sioc;
+    SocketChardev *s = SOCKET_CHARDEV(chr);
+
+    if (s->state != TCP_CHARDEV_STATE_DISCONNECTED) {
+        return -1;
+    }
 
     sioc = qio_channel_socket_new_fd(fd, NULL);
     if (!sioc) {
         return -1;
     }
+    tcp_chr_change_state(s, TCP_CHARDEV_STATE_CONNECTING);
     tcp_chr_set_client_ioc_name(chr, sioc);
     ret = tcp_chr_new_client(chr, sioc);
     object_unref(OBJECT(sioc));
@@ -881,7 +909,9 @@ static void tcp_chr_accept(QIONetListener *listener,
                            void *opaque)
 {
     Chardev *chr = CHARDEV(opaque);
+    SocketChardev *s = SOCKET_CHARDEV(chr);
 
+    tcp_chr_change_state(s, TCP_CHARDEV_STATE_CONNECTING);
     tcp_chr_set_client_ioc_name(chr, cioc);
     tcp_chr_new_client(chr, cioc);
 }
@@ -891,8 +921,10 @@ static int tcp_chr_connect_client_sync(Chardev *chr, Error **errp)
 {
     SocketChardev *s = SOCKET_CHARDEV(chr);
     QIOChannelSocket *sioc = qio_channel_socket_new();
+    tcp_chr_change_state(s, TCP_CHARDEV_STATE_CONNECTING);
     tcp_chr_set_client_ioc_name(chr, sioc);
     if (qio_channel_socket_connect_sync(sioc, s->addr, errp) < 0) {
+        tcp_chr_change_state(s, TCP_CHARDEV_STATE_DISCONNECTED);
         object_unref(OBJECT(sioc));
         return -1;
     }
@@ -908,6 +940,7 @@ static void tcp_chr_accept_server_sync(Chardev *chr)
     QIOChannelSocket *sioc;
     info_report("QEMU waiting for connection on: %s",
                 chr->filename);
+    tcp_chr_change_state(s, TCP_CHARDEV_STATE_CONNECTING);
     sioc = qio_net_listener_wait_client(s->listener);
     tcp_chr_set_client_ioc_name(chr, sioc);
     tcp_chr_new_client(chr, sioc);
@@ -963,6 +996,7 @@ static void qemu_chr_socket_connected(QIOTask *task, void *opaque)
     Error *err = NULL;
 
     if (qio_task_propagate_error(task, &err)) {
+        tcp_chr_change_state(s, TCP_CHARDEV_STATE_DISCONNECTED);
         check_report_connect_error(chr, err);
         error_free(err);
         goto cleanup;
@@ -980,6 +1014,7 @@ static void tcp_chr_connect_client_async(Chardev *chr)
     SocketChardev *s = SOCKET_CHARDEV(chr);
     QIOChannelSocket *sioc;
 
+    tcp_chr_change_state(s, TCP_CHARDEV_STATE_CONNECTING);
     sioc = qio_channel_socket_new();
     tcp_chr_set_client_ioc_name(chr, sioc);
     qio_channel_socket_connect_async(sioc, s->addr,
@@ -1307,7 +1342,7 @@ char_socket_get_connected(Object *obj, Error **errp)
 {
     SocketChardev *s = SOCKET_CHARDEV(obj);
 
-    return s->connected;
+    return s->state == TCP_CHARDEV_STATE_CONNECTED;
 }
 
 static void char_socket_class_init(ObjectClass *oc, void *data)
