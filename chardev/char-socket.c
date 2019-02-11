@@ -951,8 +951,20 @@ static void tcp_chr_accept_server_sync(Chardev *chr)
 static int tcp_chr_wait_connected(Chardev *chr, Error **errp)
 {
     SocketChardev *s = SOCKET_CHARDEV(chr);
-    /* It can't wait on s->connected, since it is set asynchronously
-     * in TLS and telnet cases, only wait for an accepted socket */
+    const char *opts[] = { "telnet", "tn3270", "websock", "tls-creds" };
+    bool optset[] = { s->is_telnet, s->is_tn3270, s->is_websock, s->tls_creds };
+    size_t i;
+
+    QEMU_BUILD_BUG_ON(G_N_ELEMENTS(opts) != G_N_ELEMENTS(optset));
+    for (i = 0; i < G_N_ELEMENTS(opts); i++) {
+        if (optset[i]) {
+            error_setg(errp,
+                       "'%s' option is incompatible with waiting for "
+                       "connection completion", opts[i]);
+            return -1;
+        }
+    }
+
     while (!s->ioc) {
         if (s->is_listen) {
             tcp_chr_accept_server_sync(chr);
