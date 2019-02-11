@@ -1005,6 +1005,61 @@ static gboolean socket_reconnect_timeout(gpointer opaque)
 }
 
 
+static int qmp_chardev_open_socket_server(Chardev *chr,
+                                          bool is_telnet,
+                                          bool is_waitconnect,
+                                          Error **errp)
+{
+    SocketChardev *s = SOCKET_CHARDEV(chr);
+    char *name;
+    if (is_telnet) {
+        s->do_telnetopt = 1;
+    }
+    s->listener = qio_net_listener_new();
+
+    name = g_strdup_printf("chardev-tcp-listener-%s", chr->label);
+    qio_net_listener_set_name(s->listener, name);
+    g_free(name);
+
+    if (qio_net_listener_open_sync(s->listener, s->addr, errp) < 0) {
+        object_unref(OBJECT(s->listener));
+        s->listener = NULL;
+        return -1;
+    }
+
+    qapi_free_SocketAddress(s->addr);
+    s->addr = socket_local_address(s->listener->sioc[0]->fd, errp);
+    update_disconnected_filename(s);
+
+    if (is_waitconnect) {
+        tcp_chr_accept_server_sync(chr);
+    } else {
+        qio_net_listener_set_client_func_full(s->listener,
+                                              tcp_chr_accept,
+                                              chr, NULL,
+                                              chr->gcontext);
+    }
+
+    return 0;
+}
+
+
+static int qmp_chardev_open_socket_client(Chardev *chr,
+                                          int64_t reconnect,
+                                          Error **errp)
+{
+    SocketChardev *s = SOCKET_CHARDEV(chr);
+
+    if (reconnect > 0) {
+        s->reconnect_time = reconnect;
+        tcp_chr_connect_client_async(chr);
+        return 0;
+    } else {
+        return tcp_chr_connect_client_sync(chr, errp);
+    }
+}
+
+
 static bool qmp_chardev_validate_socket(ChardevSocket *sock,
                                         SocketAddress *addr,
                                         Error **errp)
@@ -1147,44 +1202,13 @@ static void qmp_chardev_open_socket(Chardev *chr,
 
     update_disconnected_filename(s);
 
-    if (is_listen) {
-        if (is_telnet || is_tn3270) {
-            s->do_telnetopt = 1;
+    if (s->is_listen) {
+        if (qmp_chardev_open_socket_server(chr, is_telnet || is_tn3270,
+                                           is_waitconnect, errp) < 0) {
+            return;
         }
-    } else if (reconnect > 0) {
-        s->reconnect_time = reconnect;
-    }
-
-    if (s->reconnect_time) {
-        tcp_chr_connect_client_async(chr);
     } else {
-        if (s->is_listen) {
-            char *name;
-            s->listener = qio_net_listener_new();
-
-            name = g_strdup_printf("chardev-tcp-listener-%s", chr->label);
-            qio_net_listener_set_name(s->listener, name);
-            g_free(name);
-
-            if (qio_net_listener_open_sync(s->listener, s->addr, errp) < 0) {
-                object_unref(OBJECT(s->listener));
-                s->listener = NULL;
-                return;
-            }
-
-            qapi_free_SocketAddress(s->addr);
-            s->addr = socket_local_address(s->listener->sioc[0]->fd, errp);
-            update_disconnected_filename(s);
-
-            if (is_waitconnect) {
-                tcp_chr_accept_server_sync(chr);
-            } else {
-                qio_net_listener_set_client_func_full(s->listener,
-                                                      tcp_chr_accept,
-                                                      chr, NULL,
-                                                      chr->gcontext);
-            }
-        } else if (tcp_chr_connect_client_sync(chr, errp) < 0) {
+        if (qmp_chardev_open_socket_client(chr, reconnect, errp) < 0) {
             return;
         }
     }
