@@ -244,16 +244,21 @@ typedef struct TCGRelocation {
     intptr_t addend;
 } TCGRelocation; 
 
-typedef struct TCGLabel {
+typedef struct TCGLabel TCGLabel;
+struct TCGLabel {
+    unsigned present : 1;
     unsigned has_value : 1;
-    unsigned id : 15;
+    unsigned id : 14;
     unsigned refs : 16;
     union {
         uintptr_t value;
         tcg_insn_unit *value_ptr;
         TCGRelocation *first_reloc;
     } u;
-} TCGLabel;
+#ifdef CONFIG_DEBUG_TCG
+    QSIMPLEQ_ENTRY(TCGLabel) next;
+#endif
+};
 
 typedef struct TCGPool {
     struct TCGPool *next;
@@ -685,6 +690,7 @@ struct TCGContext {
 #endif
 
 #ifdef CONFIG_DEBUG_TCG
+    QSIMPLEQ_HEAD(, TCGLabel) labels;
     int temps_in_use;
     int goto_tb_issue_mask;
 #endif

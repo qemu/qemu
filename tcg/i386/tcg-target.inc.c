@@ -2615,7 +2615,7 @@ static void tcg_out_vec_op(TCGContext *s, TCGOpcode opc,
         OPC_PADDSB, OPC_PADDSW, OPC_UD2, OPC_UD2
     };
     static int const usadd_insn[4] = {
-        OPC_PADDSB, OPC_PADDSW, OPC_UD2, OPC_UD2
+        OPC_PADDUB, OPC_PADDUW, OPC_UD2, OPC_UD2
     };
     static int const sub_insn[4] = {
         OPC_PSUBB, OPC_PSUBW, OPC_PSUBD, OPC_PSUBQ
@@ -2624,7 +2624,7 @@ static void tcg_out_vec_op(TCGContext *s, TCGOpcode opc,
         OPC_PSUBSB, OPC_PSUBSW, OPC_UD2, OPC_UD2
     };
     static int const ussub_insn[4] = {
-        OPC_PSUBSB, OPC_PSUBSW, OPC_UD2, OPC_UD2
+        OPC_PSUBUB, OPC_PSUBUW, OPC_UD2, OPC_UD2
     };
     static int const mul_insn[4] = {
         OPC_UD2, OPC_PMULLW, OPC_PMULLD, OPC_UD2
