@@ -598,7 +598,6 @@ static uint16_t qemu_MAX[] = {
     S390_FEAT_STFLE_53,
     /* generates a dependency warning, leave it out for now */
     S390_FEAT_MSA_EXT_5,
-    /* only with CONFIG_PCI */
     S390_FEAT_ZPCI,
 };
 

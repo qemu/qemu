@@ -272,10 +272,6 @@ static void ccw_init(MachineState *machine)
                       machine->initrd_filename, "s390-ccw.img",
                       "s390-netboot.img", true);
 
-    /*
-     * We cannot easily make the pci host bridge conditional as older QEMUs
-     * always created it. Doing so would break migration across QEMU versions.
-     */
     dev = qdev_create(NULL, TYPE_S390_PCI_HOST_BRIDGE);
     object_property_add_child(qdev_get_machine(), TYPE_S390_PCI_HOST_BRIDGE,
                               OBJECT(dev), NULL);
