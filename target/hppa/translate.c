@@ -2744,7 +2744,7 @@ static bool do_dcor(DisasContext *ctx, arg_rr_cf *a, bool is_i)
     }
     tcg_gen_andi_reg(tmp, tmp, 0x11111111);
     tcg_gen_muli_reg(tmp, tmp, 6);
-    do_unit(ctx, a->t, tmp, load_gpr(ctx, a->r), a->cf, false,
+    do_unit(ctx, a->t, load_gpr(ctx, a->r), tmp, a->cf, false,
             is_i ? tcg_gen_add_reg : tcg_gen_sub_reg);
     return nullify_end(ctx);
 }
