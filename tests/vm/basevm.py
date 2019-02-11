@@ -228,6 +228,8 @@ def parse_args(vmcls):
                       help="build image")
     parser.add_option("--build-qemu",
                       help="build QEMU from source in guest")
+    parser.add_option("--build-target",
+                      help="QEMU build target", default="check")
     parser.add_option("--interactive", "-I", action="store_true",
                       help="Interactively run command")
     parser.add_option("--snapshot", "-s", action="store_true",
@@ -255,6 +257,7 @@ def main(vmcls):
             cmd = [vm.BUILD_SCRIPT.format(
                    configure_opts = " ".join(argv),
                    jobs=args.jobs,
+                   target=args.build_target,
                    verbose = "V=1" if args.verbose else "")]
         else:
             cmd = argv

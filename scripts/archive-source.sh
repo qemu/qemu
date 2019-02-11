@@ -38,6 +38,13 @@ else
 fi
 git clone --shared . "$vroot_dir"
 test $? -ne 0 && error "failed to clone into '$vroot_dir'"
+for sm in $submodules; do
+    if test -d "$sm/.git"
+    then
+       git clone --shared "$sm" "$vroot_dir/$sm"
+       test $? -ne 0 && error "failed to clone submodule $sm"
+    fi
+done
 
 cd "$vroot_dir"
 test $? -ne 0 && error "failed to change into '$vroot_dir'"

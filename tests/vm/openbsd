@@ -35,8 +35,9 @@ class OpenBSDVM(basevm.BaseVM):
                 sha256sum='8c6cedc483e602cfee5e04f0406c64eb99138495e8ca580bc0293bcf0640c1bf')
         img_tmp_xz = img + ".tmp.xz"
         img_tmp = img + ".tmp"
+        sys.stderr.write("Extracting the image...\n")
         subprocess.check_call(["cp", "-f", cimg, img_tmp_xz])
-        subprocess.check_call(["xz", "-df", img_tmp_xz])
+        subprocess.check_call(["xz", "-dvf", img_tmp_xz])
         if os.path.exists(img):
             os.remove(img)
         os.rename(img_tmp, img)

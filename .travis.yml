@@ -40,8 +40,6 @@ addons:
       - gcovr
   homebrew:
     packages:
-      - libffi
-      - gettext
       - glib
       - pixman
 
@@ -61,6 +59,7 @@ env:
   global:
     - SRC_DIR="."
     - BUILD_DIR="."
+    - BASE_CONFIG="--disable-docs --disable-tools"
     - TEST_CMD="make check -j3 V=1"
 
 
@@ -71,7 +70,7 @@ git:
 
 before_script:
   - mkdir -p ${BUILD_DIR} && cd ${BUILD_DIR}
-  - ${SRC_DIR}/configure ${CONFIG} || { cat config.log && exit 1; }
+  - ${SRC_DIR}/configure ${BASE_CONFIG} ${CONFIG} || { cat config.log && exit 1; }
 script:
   - make -j3 && ${TEST_CMD}
 
@@ -98,13 +97,28 @@ matrix:
         - CONFIG="--enable-modules --disable-linux-user"
 
 
+    # Alternate coroutines implementations are only really of interest to KVM users
+    # However we can't test against KVM on Travis so we can only run unit tests
     - env:
-        - CONFIG="--with-coroutine=ucontext --disable-linux-user"
+        - CONFIG="--with-coroutine=ucontext --disable-tcg"
+        - TEST_CMD="make check-unit -j3 V=1"
 
 
     - env:
-        - CONFIG="--with-coroutine=sigaltstack --disable-linux-user"
+        - CONFIG="--with-coroutine=sigaltstack --disable-tcg"
+        - TEST_CMD="make check-unit -j3 V=1"
 
+
+    # Check we can build docs and tools
+    - env:
+        - BASE_CONFIG="--enable-tools --enable-docs"
+        - CONFIG="--target-list=x86_64-softmmu,aarch64-linux-user"
+      addons:
+        apt:
+          packages:
+            - python-sphinx
+            - texinfo
+            - perl
 
     # Test out-of-tree builds
     - env:
@@ -149,11 +163,6 @@ matrix:
 
     - env:
         - CONFIG="--enable-trace-backends=ust --target-list=x86_64-softmmu"
-        - TEST_CMD=""
-
-
-    - env:
-        - CONFIG="--disable-tcg"
         - TEST_CMD=""
 
 
@@ -243,5 +252,5 @@ matrix:
 
 
     - env:
-        - CONFIG="--disable-system --disable-docs"
+        - CONFIG="--disable-system"
         - TEST_CMD="make -j3 check-tcg V=1"

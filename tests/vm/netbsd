@@ -25,8 +25,7 @@ class NetBSDVM(basevm.BaseVM):
         cd $(mktemp -d /var/tmp/qemu-test.XXXXXX);
         tar -xf /dev/rld1a;
         ./configure --python=python2.7 {configure_opts};
-        gmake --output-sync -j{jobs} {verbose};
-        gmake --output-sync -j{jobs} check {verbose};
+        gmake --output-sync -j{jobs} {target} {verbose};
     """
 
     def build_image(self, img):
@@ -34,8 +33,9 @@ class NetBSDVM(basevm.BaseVM):
                                          sha256sum='b633d565b0eac3d02015cd0c81440bd8a7a8df8512615ac1ee05d318be015732')
         img_tmp_xz = img + ".tmp.xz"
         img_tmp = img + ".tmp"
+        sys.stderr.write("Extracting the image...\n")
         subprocess.check_call(["cp", "-f", cimg, img_tmp_xz])
-        subprocess.check_call(["xz", "-df", img_tmp_xz])
+        subprocess.check_call(["xz", "-dvf", img_tmp_xz])
         if os.path.exists(img):
             os.remove(img)
         os.rename(img_tmp, img)
