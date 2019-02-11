@@ -232,9 +232,9 @@ QTestState *qtest_init_without_qmp_handshake(const char *extra_args)
     qtest_add_abrt_handler(kill_qemu_hook_func, s);
 
     command = g_strdup_printf("exec %s "
-                              "-qtest unix:%s,nowait "
+                              "-qtest unix:%s "
                               "-qtest-log %s "
-                              "-chardev socket,path=%s,nowait,id=char0 "
+                              "-chardev socket,path=%s,id=char0 "
                               "-mon chardev=char0,mode=control "
                               "-machine accel=qtest "
                               "-display none "

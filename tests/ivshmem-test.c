@@ -295,7 +295,7 @@ static void setup_vm_with_server(IVState *s, int nvectors)
 {
     char *cmd;
 
-    cmd = g_strdup_printf("-chardev socket,id=chr0,path=%s,nowait "
+    cmd = g_strdup_printf("-chardev socket,id=chr0,path=%s "
                           "-device ivshmem-doorbell,chardev=chr0,vectors=%d",
                           tmpserver, nvectors);
 

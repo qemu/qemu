@@ -1047,6 +1047,12 @@ static bool qmp_chardev_validate_socket(ChardevSocket *sock,
             error_setg(errp, "%s", "Websocket client is not implemented");
             return false;
         }
+        if (sock->has_wait) {
+            error_setg(errp, "%s",
+                       "'wait' option is incompatible with "
+                       "socket in client connect mode");
+            return false;
+        }
     }
 
     return true;
@@ -1220,7 +1226,11 @@ static void qemu_chr_parse_socket(QemuOpts *opts, ChardevBackend *backend,
     sock->tn3270 = is_tn3270;
     sock->has_websocket = true;
     sock->websocket = is_websock;
-    sock->has_wait = true;
+    /*
+     * We have different default to QMP for 'wait' when 'server'
+     * is set, hence we can't just check for existence of 'wait'
+     */
+    sock->has_wait = qemu_opt_find(opts, "wait") || is_listen;
     sock->wait = is_waitconnect;
     sock->has_reconnect = qemu_opt_find(opts, "reconnect");
     sock->reconnect = reconnect;
