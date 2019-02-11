@@ -876,10 +876,8 @@ struct CPUMIPSState {
  */
     target_ulong lladdr; /* LL virtual address compared against SC */
     target_ulong llval;
-    target_ulong llnewval;
     uint64_t llval_wp;
     uint32_t llnewval_wp;
-    target_ulong llreg;
     uint64_t CP0_LLAddr_rw_bitmask;
     int CP0_LLAddr_shift;
 /*
@@ -1156,8 +1154,6 @@ enum {
 
     EXCP_LAST = EXCP_TLBRI,
 };
-/* Dummy exception for conditional stores.  */
-#define EXCP_SC 0x100
 
 /*
  * This is an internally generated WAKE request line.
