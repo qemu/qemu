@@ -21,6 +21,7 @@ slirp.mo-objs = \
 	slirp.o \
 	socket.o \
 	state.o \
+	stream.o \
 	tcp_input.o \
 	tcp_output.o \
 	tcp_subr.o \
@@ -29,6 +30,7 @@ slirp.mo-objs = \
 	udp.o \
 	udp6.o \
 	util.o \
+	vmstate.o \
 	$(NULL)
 
 slirp.mo-cflags = -DG_LOG_DOMAIN=\"Slirp\" -DWITH_QEMU

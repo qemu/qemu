@@ -3,6 +3,7 @@
 
 #include <stdint.h>
 #include <stdbool.h>
+#include <sys/types.h>
 
 #ifdef _WIN32
 #include <winsock2.h>
@@ -26,6 +27,7 @@ enum {
     SLIRP_POLL_HUP = 1 << 4,
 };
 
+typedef ssize_t (*SlirpReadCb)(void *buf, size_t len, void *opaque);
 typedef ssize_t (*SlirpWriteCb)(const void *buf, size_t len, void *opaque);
 typedef void (*SlirpTimerCb)(void *opaque);
 typedef int (*SlirpAddPollCb)(int fd, int events, void *opaque);
