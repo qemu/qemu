@@ -75,6 +75,8 @@ struct S390CPUModel {
 
 void s390_cpudef_featoff(uint8_t gen, uint8_t ec_ga, S390Feat feat);
 void s390_cpudef_featoff_greater(uint8_t gen, uint8_t ec_ga, S390Feat feat);
+void s390_cpudef_group_featoff_greater(uint8_t gen, uint8_t ec_ga,
+                                       S390FeatGroup group);
 uint32_t s390_get_hmfai(void);
 uint8_t s390_get_mha_pow(void);
 uint32_t s390_get_ibc_val(void);

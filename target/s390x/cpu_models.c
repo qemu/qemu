@@ -117,6 +117,30 @@ void s390_cpudef_featoff_greater(uint8_t gen, uint8_t ec_ga, S390Feat feat)
     }
 }
 
+void s390_cpudef_group_featoff_greater(uint8_t gen, uint8_t ec_ga,
+                                       S390FeatGroup group)
+{
+    const S390FeatGroupDef *group_def = s390_feat_group_def(group);
+    S390FeatBitmap group_def_off;
+    int i;
+
+    bitmap_complement(group_def_off, group_def->feat, S390_FEAT_MAX);
+
+    for (i = 0; i < ARRAY_SIZE(s390_cpu_defs); i++) {
+        const S390CPUDef *cpu_def = &s390_cpu_defs[i];
+
+        if (cpu_def->gen < gen) {
+            continue;
+        }
+        if (cpu_def->gen == gen && cpu_def->ec_ga < ec_ga) {
+            continue;
+        }
+
+        bitmap_and((unsigned long *)&cpu_def->default_feat,
+                   cpu_def->default_feat, group_def_off, S390_FEAT_MAX);
+    }
+}
+
 uint32_t s390_get_hmfai(void)
 {
     static S390CPU *cpu;
