@@ -81,21 +81,30 @@ struct iovec {
 #define ETH_P_NCSI                (0x88f8)
 #define ETH_P_UNKNOWN             (0xffff)
 
+/* FIXME: remove me when made standalone */
 #ifdef _WIN32
+#undef closesocket
+#undef getsockopt
+#undef ioctlsocket
+#undef recv
+#undef setsockopt
+#endif
+
+#ifdef _WIN32
+#define closesocket slirp_closesocket
 int slirp_closesocket(int fd);
+#define ioctlsocket slirp_ioctlsocket
 int slirp_ioctlsocket(int fd, int req, void *val);
-int inet_aton(const char *cp, struct in_addr *ia);
-#define slirp_getsockopt(sockfd, level, optname, optval, optlen) \
+#define getsockopt(sockfd, level, optname, optval, optlen) \
     getsockopt(sockfd, level, optname, (void *)optval, optlen)
-#define slirp_setsockopt(sockfd, level, optname, optval, optlen)        \
+#define setsockopt(sockfd, level, optname, optval, optlen)        \
     setsockopt(sockfd, level, optname, (const void *)optval, optlen)
-#define slirp_recv(sockfd, buf, len, flags) recv(sockfd, (void *)buf, len, flags)
+#define recv(sockfd, buf, len, flags) recv(sockfd, (void *)buf, len, flags)
+
+int inet_aton(const char *cp, struct in_addr *ia);
 #else
-#define slirp_setsockopt setsockopt
-#define slirp_getsockopt getsockopt
-#define slirp_recv recv
-#define slirp_closesocket close
-#define slirp_ioctlsocket ioctl
+#define closesocket(s) close(s)
+#define ioctlsocket(s, r, v) ioctl(s, r, v)
 #endif
 
 int slirp_socket(int domain, int type, int protocol);
@@ -104,14 +113,14 @@ void slirp_set_nonblock(int fd);
 static inline int slirp_socket_set_nodelay(int fd)
 {
     int v = 1;
-    return slirp_setsockopt(fd, IPPROTO_TCP, TCP_NODELAY, &v, sizeof(v));
+    return setsockopt(fd, IPPROTO_TCP, TCP_NODELAY, &v, sizeof(v));
 }
 
 static inline int slirp_socket_set_fast_reuse(int fd)
 {
 #ifndef _WIN32
     int v = 1;
-    return slirp_setsockopt(fd, SOL_SOCKET, SO_REUSEADDR, &v, sizeof(v));
+    return setsockopt(fd, SOL_SOCKET, SO_REUSEADDR, &v, sizeof(v));
 #else
     /* Enabling the reuse of an endpoint that was used by a socket still in
      * TIME_WAIT state is usually performed by setting SO_REUSEADDR. On Windows

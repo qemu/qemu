@@ -185,7 +185,7 @@ soread(struct socket *so)
 	 */
 	sopreprbuf(so, iov, &n);
 
-	nn = slirp_recv(so->s, iov[0].iov_base, iov[0].iov_len,0);
+	nn = recv(so->s, iov[0].iov_base, iov[0].iov_len,0);
 	if (nn <= 0) {
 		if (nn < 0 && (errno == EINTR || errno == EAGAIN))
 			return 0;
@@ -201,7 +201,7 @@ soread(struct socket *so)
 				if (getpeername(so->s, paddr, &alen) < 0) {
 					err = errno;
 				} else {
-					slirp_getsockopt(so->s, SOL_SOCKET, SO_ERROR,
+					getsockopt(so->s, SOL_SOCKET, SO_ERROR,
 						&err, &elen);
 				}
 			}
@@ -231,7 +231,7 @@ soread(struct socket *so)
 	 */
 	if (n == 2 && nn == iov[0].iov_len) {
             int ret;
-            ret = slirp_recv(so->s, iov[1].iov_base, iov[1].iov_len,0);
+            ret = recv(so->s, iov[1].iov_base, iov[1].iov_len,0);
             if (ret > 0)
                 nn += ret;
         }
@@ -552,7 +552,7 @@ sorecvfrom(struct socket *so)
 	   */
 	  len = M_FREEROOM(m);
 	  /* if (so->so_fport != htons(53)) { */
-	  slirp_ioctlsocket(so->s, FIONREAD, &n);
+	  ioctlsocket(so->s, FIONREAD, &n);
 
 	  if (n > len) {
 	    n = (m->m_data - m->m_dat) + m->m_len + n + 1;
@@ -724,7 +724,7 @@ tcp_listen(Slirp *slirp, uint32_t haddr, unsigned hport, uint32_t laddr,
 		int tmperrno = errno; /* Don't clobber the real reason we failed */
 
                 if (s >= 0) {
-                    slirp_closesocket(s);
+                    closesocket(s);
                 }
 		sofree(so);
 		/* Restore the real errno */
@@ -735,9 +735,9 @@ tcp_listen(Slirp *slirp, uint32_t haddr, unsigned hport, uint32_t laddr,
 #endif
 		return NULL;
 	}
-	slirp_setsockopt(s, SOL_SOCKET, SO_OOBINLINE, &opt, sizeof(int));
+	setsockopt(s, SOL_SOCKET, SO_OOBINLINE, &opt, sizeof(int));
 	opt = 1;
-	slirp_setsockopt(s, IPPROTO_TCP, TCP_NODELAY, &opt, sizeof(int));
+	setsockopt(s, IPPROTO_TCP, TCP_NODELAY, &opt, sizeof(int));
 
 	getsockname(s,(struct sockaddr *)&addr,&addrlen);
 	so->so_ffamily = AF_INET;
