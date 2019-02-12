@@ -30,6 +30,7 @@
 #include "exec/cpu_ldst.h"
 #include "qapi/error.h"
 #include "tcg_s390x.h"
+#include "s390-tod.h"
 
 #if !defined(CONFIG_USER_ONLY)
 #include "sysemu/cpus.h"
@@ -76,8 +77,28 @@ uint64_t HELPER(stpt)(CPUS390XState *env)
 #endif
 }
 
-#ifndef CONFIG_USER_ONLY
+/* Store Clock */
+uint64_t HELPER(stck)(CPUS390XState *env)
+{
+#ifdef CONFIG_USER_ONLY
+    struct timespec ts;
+    uint64_t ns;
 
+    clock_gettime(CLOCK_REALTIME, &ts);
+    ns = ts.tv_sec * NANOSECONDS_PER_SECOND + ts.tv_nsec;
+
+    return TOD_UNIX_EPOCH + time2tod(ns);
+#else
+    S390TODState *td = s390_get_todstate();
+    S390TODClass *tdc = S390_TOD_GET_CLASS(td);
+    S390TOD tod;
+
+    tdc->get(td, &tod, &error_abort);
+    return tod.low;
+#endif
+}
+
+#ifndef CONFIG_USER_ONLY
 /* SCLP service call */
 uint32_t HELPER(servc)(CPUS390XState *env, uint64_t r1, uint64_t r2)
 {
@@ -136,17 +157,6 @@ void HELPER(spx)(CPUS390XState *env, uint64_t a1)
     HELPER_LOG("prefix: %#x\n", prefix);
     tlb_flush_page(cs, 0);
     tlb_flush_page(cs, TARGET_PAGE_SIZE);
-}
-
-/* Store Clock */
-uint64_t HELPER(stck)(CPUS390XState *env)
-{
-    S390TODState *td = s390_get_todstate();
-    S390TODClass *tdc = S390_TOD_GET_CLASS(td);
-    S390TOD tod;
-
-    tdc->get(td, &tod, &error_abort);
-    return tod.low;
 }
 
 static void update_ckc_timer(CPUS390XState *env)
