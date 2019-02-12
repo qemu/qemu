@@ -1,0 +1,104 @@
+#!/usr/bin/env python
+#
+# Test for qcow2 bitmap printed information
+#
+# Copyright (c) 2019 Virtuozzo International GmbH
+#
+# This program is free software; you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation; either version 2 of the License, or
+# (at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with this program.  If not, see <http://www.gnu.org/licenses/>.
+#
+
+import iotests
+import json
+from iotests import qemu_img_create, qemu_io, qemu_img_pipe, \
+    file_path, img_info_log, log, filter_qemu_io
+
+iotests.verify_image_format(supported_fmts=['qcow2'])
+
+disk = file_path('disk')
+chunk = 256 * 1024
+bitmap_flag_unknown = 1 << 2
+# flag_offset = 5*cluster_size + flag_offset_in_bitmap_directory_entry
+flag_offset = 0x5000f
+
+
+def print_bitmap(extra_args):
+    log('qemu-img info dump:\n')
+    img_info_log(disk, extra_args=extra_args)
+    result = json.loads(qemu_img_pipe('info', '--force-share',
+                                      '--output=json', disk))
+    if 'bitmaps' in result['format-specific']['data']:
+        bitmaps = result['format-specific']['data']['bitmaps']
+        log('The same bitmaps in JSON format:')
+        log(bitmaps, indent=2)
+    else:
+        log('No bitmap in JSON format output')
+
+
+def add_bitmap(bitmap_number, persistent, disabled):
+    granularity = 1 << (13 + bitmap_number)
+    bitmap_name = 'bitmap-' + str(bitmap_number-1)
+    vm = iotests.VM().add_drive(disk)
+    vm.launch()
+    vm.qmp_log('block-dirty-bitmap-add', node='drive0', name=bitmap_name,
+               granularity=granularity, persistent=persistent,
+               disabled=disabled)
+    vm.shutdown()
+
+
+def write_to_disk(offset, size):
+    write = 'write {} {}'.format(offset, size)
+    log(qemu_io('-c', write, disk), filters=[filter_qemu_io])
+
+
+def toggle_flag(offset):
+    with open(disk, "r+b") as f:
+        f.seek(offset, 0)
+        c = f.read(1)
+        toggled = chr(ord(c) ^ bitmap_flag_unknown)
+        f.seek(-1, 1)
+        f.write(toggled)
+
+
+qemu_img_create('-f', iotests.imgfmt, disk, '1M')
+
+for num in range(1, 4):
+    disabled = False
+    if num == 2:
+        disabled = True
+    log('Test {}'.format(num))
+    add_bitmap(num, num > 1, disabled)
+    write_to_disk((num-1) * chunk, chunk)
+    print_bitmap([])
+    log('')
+
+vm = iotests.VM().add_drive(disk)
+vm.launch()
+num += 1
+log('Test {}\nChecking "in-use" flag...'.format(num))
+print_bitmap(['--force-share'])
+vm.shutdown()
+
+num += 1
+log('\nTest {}'.format(num))
+qemu_img_create('-f', iotests.imgfmt, disk, '1M')
+add_bitmap(1, True, False)
+log('Write an unknown bitmap flag \'{}\' into a new QCOW2 image at offset {}'
+    .format(hex(bitmap_flag_unknown), flag_offset))
+toggle_flag(flag_offset)
+img_info_log(disk)
+toggle_flag(flag_offset)
+log('Unset the unknown bitmap flag \'{}\' in the bitmap directory entry:\n'
+    .format(hex(bitmap_flag_unknown)))
+img_info_log(disk)
+log('Test complete')

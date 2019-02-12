@@ -4462,11 +4462,12 @@ int bdrv_get_info(BlockDriverState *bs, BlockDriverInfo *bdi)
     return drv->bdrv_get_info(bs, bdi);
 }
 
-ImageInfoSpecific *bdrv_get_specific_info(BlockDriverState *bs)
+ImageInfoSpecific *bdrv_get_specific_info(BlockDriverState *bs,
+                                          Error **errp)
 {
     BlockDriver *drv = bs->drv;
     if (drv && drv->bdrv_get_specific_info) {
-        return drv->bdrv_get_specific_info(bs);
+        return drv->bdrv_get_specific_info(bs, errp);
     }
     return NULL;
 }

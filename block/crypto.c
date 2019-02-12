@@ -594,20 +594,17 @@ static int block_crypto_get_info_luks(BlockDriverState *bs,
 }
 
 static ImageInfoSpecific *
-block_crypto_get_specific_info_luks(BlockDriverState *bs)
+block_crypto_get_specific_info_luks(BlockDriverState *bs, Error **errp)
 {
     BlockCrypto *crypto = bs->opaque;
     ImageInfoSpecific *spec_info;
     QCryptoBlockInfo *info;
 
-    info = qcrypto_block_get_info(crypto->block, NULL);
+    info = qcrypto_block_get_info(crypto->block, errp);
     if (!info) {
         return NULL;
     }
-    if (info->format != Q_CRYPTO_BLOCK_FORMAT_LUKS) {
-        qapi_free_QCryptoBlockInfo(info);
-        return NULL;
-    }
+    assert(info->format == Q_CRYPTO_BLOCK_FORMAT_LUKS);
 
     spec_info = g_new(ImageInfoSpecific, 1);
     spec_info->type = IMAGE_INFO_SPECIFIC_KIND_LUKS;

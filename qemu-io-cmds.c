@@ -1661,6 +1661,7 @@ static int info_f(BlockBackend *blk, int argc, char **argv)
     BlockDriverState *bs = blk_bs(blk);
     BlockDriverInfo bdi;
     ImageInfoSpecific *spec_info;
+    Error *local_err = NULL;
     char s1[64], s2[64];
     int ret;
 
@@ -1682,7 +1683,11 @@ static int info_f(BlockBackend *blk, int argc, char **argv)
     printf("cluster size: %s\n", s1);
     printf("vm state offset: %s\n", s2);
 
-    spec_info = bdrv_get_specific_info(bs);
+    spec_info = bdrv_get_specific_info(bs, &local_err);
+    if (local_err) {
+        error_report_err(local_err);
+        return -EIO;
+    }
     if (spec_info) {
         printf("Format specific information:\n");
         bdrv_image_info_specific_dump(fprintf, stdout, spec_info);

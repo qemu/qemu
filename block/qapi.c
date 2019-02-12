@@ -282,7 +282,12 @@ void bdrv_query_image_info(BlockDriverState *bs,
         info->dirty_flag = bdi.is_dirty;
         info->has_dirty_flag = true;
     }
-    info->format_specific     = bdrv_get_specific_info(bs);
+    info->format_specific = bdrv_get_specific_info(bs, &err);
+    if (err) {
+        error_propagate(errp, err);
+        qapi_free_ImageInfo(info);
+        goto out;
+    }
     info->has_format_specific = info->format_specific != NULL;
 
     backing_filename = bs->backing_file;
