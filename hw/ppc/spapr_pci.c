@@ -1686,7 +1686,7 @@ static void spapr_phb_realize(DeviceState *dev, Error **errp)
                                 &sphb->memspace, &sphb->iospace,
                                 PCI_DEVFN(0, 0), PCI_NUM_PINS, TYPE_PCI_BUS);
     phb->bus = bus;
-    qbus_set_hotplug_handler(BUS(phb->bus), DEVICE(sphb), NULL);
+    qbus_set_hotplug_handler(BUS(phb->bus), OBJECT(sphb), NULL);
 
     /*
      * Initialize PHB address space.

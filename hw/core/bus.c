@@ -22,22 +22,15 @@
 #include "hw/qdev.h"
 #include "qapi/error.h"
 
-static void qbus_set_hotplug_handler_internal(BusState *bus, Object *handler,
-                                              Error **errp)
+void qbus_set_hotplug_handler(BusState *bus, Object *handler, Error **errp)
 {
-
     object_property_set_link(OBJECT(bus), OBJECT(handler),
                              QDEV_HOTPLUG_HANDLER_PROPERTY, errp);
 }
 
-void qbus_set_hotplug_handler(BusState *bus, DeviceState *handler, Error **errp)
-{
-    qbus_set_hotplug_handler_internal(bus, OBJECT(handler), errp);
-}
-
 void qbus_set_bus_hotplug_handler(BusState *bus, Error **errp)
 {
-    qbus_set_hotplug_handler_internal(bus, OBJECT(bus), errp);
+    qbus_set_hotplug_handler(bus, OBJECT(bus), errp);
 }
 
 int qbus_walk_children(BusState *bus,
