@@ -287,26 +287,22 @@ static void gen_exception_nip(DisasContext *ctx, uint32_t excp,
     ctx->exception = (excp);
 }
 
-/* Translates the EXCP_TRACE/BRANCH exceptions used on most PowerPCs to
- * EXCP_DEBUG, if we are running on cores using the debug enable bit (e.g.
- * BookE).
+/*
+ * Tells the caller what is the appropriate exception to generate and prepares
+ * SPR registers for this exception.
+ *
+ * The exception can be either POWERPC_EXCP_TRACE (on most PowerPCs) or
+ * POWERPC_EXCP_DEBUG (on BookE).
  */
-static uint32_t gen_prep_dbgex(DisasContext *ctx, uint32_t excp)
+static uint32_t gen_prep_dbgex(DisasContext *ctx)
 {
-    if ((ctx->singlestep_enabled & CPU_SINGLE_STEP)
-        && (excp == POWERPC_EXCP_BRANCH)) {
-        /* Trace excpt. has priority */
-        excp = POWERPC_EXCP_TRACE;
-    }
     if (ctx->flags & POWERPC_FLAG_DE) {
         target_ulong dbsr = 0;
-        switch (excp) {
-        case POWERPC_EXCP_TRACE:
+        if (ctx->singlestep_enabled & CPU_SINGLE_STEP) {
             dbsr = DBCR0_ICMP;
-            break;
-        case POWERPC_EXCP_BRANCH:
+        } else {
+            /* Must have been branch */
             dbsr = DBCR0_BRT;
-            break;
         }
         TCGv t0 = tcg_temp_new();
         gen_load_spr(t0, SPR_BOOKE_DBSR);
@@ -315,7 +311,7 @@ static uint32_t gen_prep_dbgex(DisasContext *ctx, uint32_t excp)
         tcg_temp_free(t0);
         return POWERPC_EXCP_DEBUG;
     } else {
-        return excp;
+        return POWERPC_EXCP_TRACE;
     }
 }
 
@@ -3652,10 +3648,8 @@ static void gen_lookup_and_goto_ptr(DisasContext *ctx)
         if (sse & GDBSTUB_SINGLE_STEP) {
             gen_debug_exception(ctx);
         } else if (sse & (CPU_SINGLE_STEP | CPU_BRANCH_STEP)) {
-            uint32_t excp = gen_prep_dbgex(ctx, POWERPC_EXCP_BRANCH);
-            if (excp != POWERPC_EXCP_NONE) {
-                gen_exception(ctx, excp);
-            }
+            uint32_t excp = gen_prep_dbgex(ctx);
+            gen_exception(ctx, excp);
         }
         tcg_gen_exit_tb(NULL, 0);
     } else {
@@ -7790,9 +7784,8 @@ static void ppc_tr_translate_insn(DisasContextBase *dcbase, CPUState *cs)
                  ctx->exception != POWERPC_SYSCALL &&
                  ctx->exception != POWERPC_EXCP_TRAP &&
                  ctx->exception != POWERPC_EXCP_BRANCH)) {
-        uint32_t excp = gen_prep_dbgex(ctx, POWERPC_EXCP_TRACE);
-        if (excp != POWERPC_EXCP_NONE)
-            gen_exception_nip(ctx, excp, ctx->base.pc_next);
+        uint32_t excp = gen_prep_dbgex(ctx);
+        gen_exception_nip(ctx, excp, ctx->base.pc_next);
     }
 
     if (tcg_check_temp_count()) {
