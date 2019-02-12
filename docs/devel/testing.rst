@@ -633,7 +633,46 @@ instance, available at ``self.vm``.  Because many tests will tweak the
 QEMU command line, launching the QEMUMachine (by using ``self.vm.launch()``)
 is left to the test writer.
 
-At test "tear down", ``avocado_qemu.Test`` handles the QEMUMachine
+The base test class has also support for tests with more than one
+QEMUMachine. The way to get machines is through the ``self.get_vm()``
+method which will return a QEMUMachine instance. The ``self.get_vm()``
+method accepts arguments that will be passed to the QEMUMachine creation
+and also an optional `name` attribute so you can identify a specific
+machine and get it more than once through the tests methods. A simple
+and hypothetical example follows:
+
+.. code::
+
+  from avocado_qemu import Test
+
+
+  class MultipleMachines(Test):
+      """
+      :avocado: enable
+      """
+      def test_multiple_machines(self):
+          first_machine = self.get_vm()
+          second_machine = self.get_vm()
+          self.get_vm(name='third_machine').launch()
+
+          first_machine.launch()
+          second_machine.launch()
+
+          first_res = first_machine.command(
+              'human-monitor-command',
+              command_line='info version')
+
+          second_res = second_machine.command(
+              'human-monitor-command',
+              command_line='info version')
+
+          third_res = self.get_vm(name='third_machine').command(
+              'human-monitor-command',
+              command_line='info version')
+
+          self.assertEquals(first_res, second_res, third_res)
+
+At test "tear down", ``avocado_qemu.Test`` handles all the QEMUMachines
 shutdown.
 
 QEMUMachine
