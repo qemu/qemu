@@ -83,23 +83,61 @@ struct iovec {
 
 /* FIXME: remove me when made standalone */
 #ifdef _WIN32
+#undef accept
+#undef bind
 #undef closesocket
+#undef connect
+#undef getpeername
+#undef getsockname
 #undef getsockopt
 #undef ioctlsocket
+#undef listen
 #undef recv
+#undef recvfrom
+#undef send
+#undef sendto
 #undef setsockopt
+#undef shutdown
+#undef socket
 #endif
 
 #ifdef _WIN32
-#define closesocket slirp_closesocket
-int slirp_closesocket(int fd);
-#define ioctlsocket slirp_ioctlsocket
-int slirp_ioctlsocket(int fd, int req, void *val);
-#define getsockopt(sockfd, level, optname, optval, optlen) \
-    getsockopt(sockfd, level, optname, (void *)optval, optlen)
-#define setsockopt(sockfd, level, optname, optval, optlen)        \
-    setsockopt(sockfd, level, optname, (const void *)optval, optlen)
-#define recv(sockfd, buf, len, flags) recv(sockfd, (void *)buf, len, flags)
+#define connect slirp_connect_wrap
+int slirp_connect_wrap(int fd, const struct sockaddr *addr, int addrlen);
+#define listen slirp_listen_wrap
+int slirp_listen_wrap(int fd, int backlog);
+#define bind slirp_bind_wrap
+int slirp_bind_wrap(int fd, const struct sockaddr *addr, int addrlen);
+#define socket slirp_socket_wrap
+int slirp_socket_wrap(int domain, int type, int protocol);
+#define accept slirp_accept_wrap
+int slirp_accept_wrap(int fd, struct sockaddr *addr, int *addrlen);
+#define shutdown slirp_shutdown_wrap
+int slirp_shutdown_wrap(int fd, int how);
+#define getpeername slirp_getpeername_wrap
+int slirp_getpeername_wrap(int fd, struct sockaddr *addr, int *addrlen);
+#define getsockname slirp_getsockname_wrap
+int slirp_getsockname_wrap(int fd, struct sockaddr *addr, int *addrlen);
+#define send slirp_send_wrap
+ssize_t slirp_send_wrap(int fd, const void *buf, size_t len, int flags);
+#define sendto slirp_sendto_wrap
+ssize_t slirp_sendto_wrap(int fd, const void *buf, size_t len, int flags,
+                          const struct sockaddr *dest_addr, int addrlen);
+#define recv slirp_recv_wrap
+ssize_t slirp_recv_wrap(int fd, void *buf, size_t len, int flags);
+#define recvfrom slirp_recvfrom_wrap
+ssize_t slirp_recvfrom_wrap(int fd, void *buf, size_t len, int flags,
+                            struct sockaddr *src_addr, int *addrlen);
+#define closesocket slirp_closesocket_wrap
+int slirp_closesocket_wrap(int fd);
+#define ioctlsocket slirp_ioctlsocket_wrap
+int slirp_ioctlsocket_wrap(int fd, int req, void *val);
+#define getsockopt slirp_getsockopt_wrap
+int slirp_getsockopt_wrap(int sockfd, int level, int optname,
+                     void *optval, int *optlen);
+#define setsockopt slirp_setsockopt_wrap
+int slirp_setsockopt_wrap(int sockfd, int level, int optname,
+                          const void *optval, int optlen);
 
 int inet_aton(const char *cp, struct in_addr *ia);
 #else
