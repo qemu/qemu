@@ -432,6 +432,15 @@ static DisasCond cond_make_f(void)
     };
 }
 
+static DisasCond cond_make_t(void)
+{
+    return (DisasCond){
+        .c = TCG_COND_ALWAYS,
+        .a0 = NULL,
+        .a1 = NULL,
+    };
+}
+
 static DisasCond cond_make_n(void)
 {
     return (DisasCond){
@@ -930,17 +939,50 @@ static DisasCond do_sub_cond(unsigned cf, TCGv_reg res,
     return cond;
 }
 
-/* Similar, but for logicals, where the carry and overflow bits are not
-   computed, and use of them is undefined.  */
+/*
+ * Similar, but for logicals, where the carry and overflow bits are not
+ * computed, and use of them is undefined.
+ *
+ * Undefined or not, hardware does not trap.  It seems reasonable to
+ * assume hardware treats cases c={4,5,6} as if C=0 & V=0, since that's
+ * how cases c={2,3} are treated.
+ */
 
 static DisasCond do_log_cond(unsigned cf, TCGv_reg res)
 {
-    switch (cf >> 1) {
-    case 4: case 5: case 6:
-        cf &= 1;
-        break;
+    switch (cf) {
+    case 0:  /* never */
+    case 9:  /* undef, C */
+    case 11: /* undef, C & !Z */
+    case 12: /* undef, V */
+        return cond_make_f();
+
+    case 1:  /* true */
+    case 8:  /* undef, !C */
+    case 10: /* undef, !C | Z */
+    case 13: /* undef, !V */
+        return cond_make_t();
+
+    case 2:  /* == */
+        return cond_make_0(TCG_COND_EQ, res);
+    case 3:  /* <> */
+        return cond_make_0(TCG_COND_NE, res);
+    case 4:  /* < */
+        return cond_make_0(TCG_COND_LT, res);
+    case 5:  /* >= */
+        return cond_make_0(TCG_COND_GE, res);
+    case 6:  /* <= */
+        return cond_make_0(TCG_COND_LE, res);
+    case 7:  /* > */
+        return cond_make_0(TCG_COND_GT, res);
+
+    case 14: /* OD */
+    case 15: /* EV */
+        return do_cond(cf, res, NULL, NULL);
+
+    default:
+        g_assert_not_reached();
     }
-    return do_cond(cf, res, res, res);
 }
 
 /* Similar, but for shift/extract/deposit conditions.  */
