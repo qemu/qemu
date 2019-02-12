@@ -1,0 +1,7 @@
+# See docs/devel/tracing.txt for syntax documentation.
+
+# hw/gpio/sifive_gpio.c
+sifive_gpio_read(uint64_t offset, uint64_t r) "offset 0x%" PRIx64 " value 0x%" PRIx64
+sifive_gpio_write(uint64_t offset, uint64_t value) "offset 0x%" PRIx64 " value 0x%" PRIx64
+sifive_gpio_set(int64_t line, int64_t value) "line %" PRIi64 " value %" PRIi64
+sifive_gpio_update_output_irq(int64_t line, int64_t value) "line %" PRIi64 " value %" PRIi64

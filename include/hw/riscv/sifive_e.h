@@ -19,6 +19,8 @@
 #ifndef HW_SIFIVE_E_H
 #define HW_SIFIVE_E_H
 
+#include "hw/riscv/sifive_gpio.h"
+
 #define TYPE_RISCV_E_SOC "riscv.sifive.e.soc"
 #define RISCV_E_SOC(obj) \
     OBJECT_CHECK(SiFiveESoCState, (obj), TYPE_RISCV_E_SOC)
@@ -30,6 +32,7 @@ typedef struct SiFiveESoCState {
     /*< public >*/
     RISCVHartArrayState cpus;
     DeviceState *plic;
+    SIFIVEGPIOState gpio;
 } SiFiveESoCState;
 
 typedef struct SiFiveEState {
@@ -63,8 +66,9 @@ enum {
 };
 
 enum {
-    SIFIVE_E_UART0_IRQ = 3,
-    SIFIVE_E_UART1_IRQ = 4
+    SIFIVE_E_UART0_IRQ  = 3,
+    SIFIVE_E_UART1_IRQ  = 4,
+    SIFIVE_E_GPIO0_IRQ0 = 8
 };
 
 #define SIFIVE_E_PLIC_HART_CONFIG "M"
