@@ -345,14 +345,21 @@ typedef struct XtensaMemory {
     } location[MAX_NMEMORY];
 } XtensaMemory;
 
+typedef struct opcode_arg {
+    uint32_t imm;
+    uint32_t raw_imm;
+    void *in;
+    void *out;
+} OpcodeArg;
+
 typedef struct DisasContext DisasContext;
-typedef void (*XtensaOpcodeOp)(DisasContext *dc, const uint32_t arg[],
+typedef void (*XtensaOpcodeOp)(DisasContext *dc, const OpcodeArg arg[],
                                const uint32_t par[]);
 typedef bool (*XtensaOpcodeBoolTest)(DisasContext *dc,
-                                     const uint32_t arg[],
+                                     const OpcodeArg arg[],
                                      const uint32_t par[]);
 typedef uint32_t (*XtensaOpcodeUintTest)(DisasContext *dc,
-                                         const uint32_t arg[],
+                                         const OpcodeArg arg[],
                                          const uint32_t par[]);
 
 enum {
@@ -450,6 +457,7 @@ struct XtensaConfig {
     XtensaOpcodeOps **opcode_ops;
     const XtensaOpcodeTranslators **opcode_translators;
     xtensa_regfile a_regfile;
+    void ***regfile;
 
     uint32_t clock_freq_khz;
 
@@ -578,6 +586,7 @@ void xtensa_cpu_do_unaligned_access(CPUState *cpu, vaddr addr,
     XTENSA_CPU_TYPE_NAME(XTENSA_DEFAULT_CPU_NOMMU_MODEL)
 
 void xtensa_translate_init(void);
+void **xtensa_get_regfile_by_name(const char *name);
 void xtensa_breakpoint_handler(CPUState *cs);
 void xtensa_register_core(XtensaConfigList *node);
 void xtensa_sim_open_console(Chardev *chr);

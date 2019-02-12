@@ -91,11 +91,13 @@ static void init_libisa(XtensaConfig *config)
     unsigned i, j;
     unsigned opcodes;
     unsigned formats;
+    unsigned regfiles;
 
     config->isa = xtensa_isa_init(config->isa_internal, NULL, NULL);
     assert(xtensa_isa_maxlength(config->isa) <= MAX_INSN_LENGTH);
     opcodes = xtensa_isa_num_opcodes(config->isa);
     formats = xtensa_isa_num_formats(config->isa);
+    regfiles = xtensa_isa_num_regfiles(config->isa);
     config->opcode_ops = g_new(XtensaOpcodeOps *, opcodes);
 
     for (i = 0; i < formats; ++i) {
@@ -125,6 +127,19 @@ static void init_libisa(XtensaConfig *config)
         config->opcode_ops[i] = ops;
     }
     config->a_regfile = xtensa_regfile_lookup(config->isa, "AR");
+
+    config->regfile = g_new(void **, regfiles);
+    for (i = 0; i < regfiles; ++i) {
+        const char *name = xtensa_regfile_name(config->isa, i);
+
+        config->regfile[i] = xtensa_get_regfile_by_name(name);
+#ifdef DEBUG
+        if (config->regfile[i] == NULL) {
+            fprintf(stderr, "regfile '%s' not found for %s\n",
+                    name, config->name);
+        }
+#endif
+    }
 }
 
 static void xtensa_finalize_config(XtensaConfig *config)
