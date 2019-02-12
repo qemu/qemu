@@ -353,6 +353,8 @@ static uint16_t base_GEN14_GA1[] = {
     S390_FEAT_ORDER_PRESERVING_COMPRESSION,
 };
 
+#define base_GEN14_GA2 EmptyFeat
+
 /* Full features (in order of release)
  * Automatically includes corresponding base features.
  * Full features are all features this hardware supports even if kvm/QEMU do not
@@ -480,6 +482,8 @@ static uint16_t full_GEN14_GA1[] = {
     S390_FEAT_GROUP_MULTIPLE_EPOCH_PTFF,
 };
 
+#define full_GEN14_GA2 EmptyFeat
+
 /* Default features (in order of release)
  * Automatically includes corresponding base features.
  * Default features are all features this version of QEMU supports for this
@@ -553,6 +557,8 @@ static uint16_t default_GEN14_GA1[] = {
     S390_FEAT_MULTIPLE_EPOCH,
     S390_FEAT_GROUP_MULTIPLE_EPOCH_PTFF,
 };
+
+#define default_GEN14_GA2 EmptyFeat
 
 /* QEMU (CPU model) features */
 
@@ -664,6 +670,7 @@ static CpuFeatDefSpec CpuFeatDef[] = {
     CPU_FEAT_INITIALIZER(GEN13_GA1),
     CPU_FEAT_INITIALIZER(GEN13_GA2),
     CPU_FEAT_INITIALIZER(GEN14_GA1),
+    CPU_FEAT_INITIALIZER(GEN14_GA2),
 };
 
 #define FEAT_GROUP_INITIALIZER(_name)                  \
