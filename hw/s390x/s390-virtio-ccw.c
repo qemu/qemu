@@ -657,7 +657,10 @@ DEFINE_CCW_MACHINE(4_0, "4.0", true);
 
 static void ccw_machine_3_1_instance_options(MachineState *machine)
 {
+    static const S390FeatInit qemu_cpu_feat = { S390_FEAT_LIST_QEMU_V3_1 };
     ccw_machine_4_0_instance_options(machine);
+
+    s390_set_qemu_cpu_model(0x2827, 12, 2, qemu_cpu_feat);
 }
 
 static void ccw_machine_3_1_class_options(MachineClass *mc)
