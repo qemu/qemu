@@ -20,10 +20,6 @@
 #include "contrib/libvhost-user/libvhost-user-glib.h"
 #include "contrib/libvhost-user/libvhost-user.h"
 
-#if defined(__linux__)
-#include <linux/fs.h>
-#include <sys/ioctl.h>
-#endif
 
 struct virtio_blk_inhdr {
     unsigned char status;
@@ -525,7 +521,7 @@ vub_get_blocksize(int fd)
 
 #if defined(__linux__) && defined(BLKSSZGET)
     if (ioctl(fd, BLKSSZGET, &blocksize) == 0) {
-        return blocksize;
+        return blocklen;
     }
 #endif
 
