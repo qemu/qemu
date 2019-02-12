@@ -25,6 +25,8 @@
 #ifndef QEMU_FILE_H
 #define QEMU_FILE_H
 
+int qemu_file_get_error(QEMUFile *f);
+
 void qemu_put_buffer(QEMUFile *f, const uint8_t *buf, size_t size);
 void qemu_put_byte(QEMUFile *f, int v);
 

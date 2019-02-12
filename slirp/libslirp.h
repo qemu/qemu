@@ -102,6 +102,14 @@ void slirp_socket_recv(Slirp *slirp, struct in_addr guest_addr,
                        int guest_port, const uint8_t *buf, int size);
 size_t slirp_socket_can_recv(Slirp *slirp, struct in_addr guest_addr,
                              int guest_port);
+
+void slirp_state_save(Slirp *s, SlirpWriteCb write_cb, void *opaque);
+
+int slirp_state_load(Slirp *s, int version_id,
+                     SlirpReadCb read_cb, void *opaque);
+
+int slirp_state_version(void);
+
 #ifdef __cplusplus
 } /* extern "C" */
 #endif

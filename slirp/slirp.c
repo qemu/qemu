@@ -23,9 +23,6 @@
  */
 #include "slirp.h"
 
-#ifdef WITH_QEMU
-#include "state.h"
-#endif
 
 #ifndef _WIN32
 #include <net/if.h>
@@ -326,9 +323,6 @@ Slirp *slirp_init(int restricted, bool in_enabled, struct in_addr vnetwork,
         translate_dnssearch(slirp, vdnssearch);
     }
 
-#ifdef WITH_QEMU
-    slirp_state_register(slirp);
-#endif
     return slirp;
 }
 
@@ -342,9 +336,6 @@ void slirp_cleanup(Slirp *slirp)
         g_free(e);
     }
 
-#ifdef WITH_QEMU
-    slirp_state_unregister(slirp);
-#endif
     ip_cleanup(slirp);
     ip6_cleanup(slirp);
     m_cleanup(slirp);
