@@ -788,6 +788,7 @@ static void read_cache_sizes(BlockDriverState *bs, QemuOpts *opts,
     BDRVQcow2State *s = bs->opaque;
     uint64_t combined_cache_size, l2_cache_max_setting;
     bool l2_cache_size_set, refcount_cache_size_set, combined_cache_size_set;
+    bool l2_cache_entry_size_set;
     int min_refcount_cache = MIN_REFCOUNT_CACHE_SIZE * s->cluster_size;
     uint64_t virtual_disk_size = bs->total_sectors * BDRV_SECTOR_SIZE;
     uint64_t max_l2_cache = virtual_disk_size / (s->cluster_size / 8);
@@ -795,6 +796,7 @@ static void read_cache_sizes(BlockDriverState *bs, QemuOpts *opts,
     combined_cache_size_set = qemu_opt_get(opts, QCOW2_OPT_CACHE_SIZE);
     l2_cache_size_set = qemu_opt_get(opts, QCOW2_OPT_L2_CACHE_SIZE);
     refcount_cache_size_set = qemu_opt_get(opts, QCOW2_OPT_REFCOUNT_CACHE_SIZE);
+    l2_cache_entry_size_set = qemu_opt_get(opts, QCOW2_OPT_L2_CACHE_ENTRY_SIZE);
 
     combined_cache_size = qemu_opt_get_size(opts, QCOW2_OPT_CACHE_SIZE, 0);
     l2_cache_max_setting = qemu_opt_get_size(opts, QCOW2_OPT_L2_CACHE_SIZE,
@@ -841,6 +843,16 @@ static void read_cache_sizes(BlockDriverState *bs, QemuOpts *opts,
             }
         }
     }
+
+    /*
+     * If the L2 cache is not enough to cover the whole disk then
+     * default to 4KB entries. Smaller entries reduce the cost of
+     * loads and evictions and increase I/O performance.
+     */
+    if (*l2_cache_size < max_l2_cache && !l2_cache_entry_size_set) {
+        *l2_cache_entry_size = MIN(s->cluster_size, 4096);
+    }
+
     /* l2_cache_size and refcount_cache_size are ensured to have at least
      * their minimum values in qcow2_update_options_prepare() */
 
