@@ -453,17 +453,6 @@ static void spapr_irq_init_dual(sPAPRMachineState *spapr, int nr_irqs,
         return;
     }
 
-    /*
-     * Align the XICS and the XIVE IRQ number space under QEMU.
-     *
-     * However, the XICS KVM device still considers that the IRQ
-     * numbers should start at XICS_IRQ_BASE (0x1000). Either we
-     * should introduce a KVM device ioctl to set the offset or ignore
-     * the lower 4K numbers when using the get/set ioctl of the XICS
-     * KVM device. The second option seems the least intrusive.
-     */
-    spapr->ics->offset = 0;
-
     spapr_irq_xive.init(spapr, spapr_irq_xive.nr_irqs, &local_err);
     if (local_err) {
         error_propagate(errp, local_err);
@@ -500,21 +489,7 @@ static void spapr_irq_free_dual(sPAPRMachineState *spapr, int irq, int num)
 
 static qemu_irq spapr_qirq_dual(sPAPRMachineState *spapr, int irq)
 {
-    sPAPRXive *xive = spapr->xive;
-    ICSState *ics = spapr->ics;
-
-    if (irq >= spapr->irq->nr_irqs) {
-        return NULL;
-    }
-
-    /*
-     * The IRQ number should have been claimed under both interrupt
-     * controllers.
-     */
-    assert(!ICS_IRQ_FREE(ics, irq - ics->offset));
-    assert(xive_eas_is_valid(&xive->eat[irq]));
-
-    return spapr->qirqs[irq];
+    return spapr_irq_current(spapr)->qirq(spapr, irq);
 }
 
 static void spapr_irq_print_info_dual(sPAPRMachineState *spapr, Monitor *mon)
