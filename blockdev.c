@@ -3756,6 +3756,39 @@ static void blockdev_mirror_common(const char *job_id, BlockDriverState *bs,
         sync = MIRROR_SYNC_MODE_FULL;
     }
 
+    if (has_replaces) {
+        BlockDriverState *to_replace_bs;
+        AioContext *replace_aio_context;
+        int64_t bs_size, replace_size;
+
+        bs_size = bdrv_getlength(bs);
+        if (bs_size < 0) {
+            error_setg_errno(errp, -bs_size, "Failed to query device's size");
+            return;
+        }
+
+        to_replace_bs = check_to_replace_node(bs, replaces, errp);
+        if (!to_replace_bs) {
+            return;
+        }
+
+        replace_aio_context = bdrv_get_aio_context(to_replace_bs);
+        aio_context_acquire(replace_aio_context);
+        replace_size = bdrv_getlength(to_replace_bs);
+        aio_context_release(replace_aio_context);
+
+        if (replace_size < 0) {
+            error_setg_errno(errp, -replace_size,
+                             "Failed to query the replacement node's size");
+            return;
+        }
+        if (bs_size != replace_size) {
+            error_setg(errp, "cannot replace image with a mirror image of "
+                             "different size");
+            return;
+        }
+    }
+
     /* pass the node name to replace to mirror start since it's loose coupling
      * and will allow to check whether the node still exist at mirror completion
      */
@@ -3816,31 +3849,9 @@ void qmp_drive_mirror(DriveMirror *arg, Error **errp)
     }
 
     if (arg->has_replaces) {
-        BlockDriverState *to_replace_bs;
-        AioContext *replace_aio_context;
-        int64_t replace_size;
-
         if (!arg->has_node_name) {
             error_setg(errp, "a node-name must be provided when replacing a"
                              " named node of the graph");
-            goto out;
-        }
-
-        to_replace_bs = check_to_replace_node(bs, arg->replaces, &local_err);
-
-        if (!to_replace_bs) {
-            error_propagate(errp, local_err);
-            goto out;
-        }
-
-        replace_aio_context = bdrv_get_aio_context(to_replace_bs);
-        aio_context_acquire(replace_aio_context);
-        replace_size = bdrv_getlength(to_replace_bs);
-        aio_context_release(replace_aio_context);
-
-        if (size != replace_size) {
-            error_setg(errp, "cannot replace image with a mirror image of "
-                             "different size");
             goto out;
         }
     }
