@@ -146,8 +146,6 @@ static BlockDriver bdrv_copy_on_read = {
     .bdrv_eject                         = cor_eject,
     .bdrv_lock_medium                   = cor_lock_medium,
 
-    .bdrv_co_block_status               = bdrv_co_block_status_from_file,
-
     .has_variable_length                = true,
     .is_filter                          = true,
 };
