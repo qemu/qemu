@@ -22,28 +22,53 @@
 %rs2_3     2:3                !function=ex_rvc_register
 
 # Immediates:
+%imm_ci        12:s1 2:5
 %nzuimm_ciw    7:4 11:2 5:1 6:1   !function=ex_shift_2
 %uimm_cl_d     5:2 10:3           !function=ex_shift_3
 %uimm_cl_w     5:1 10:3 6:1       !function=ex_shift_2
+%imm_cb        12:s1 5:2 2:1 10:2 3:2 !function=ex_shift_1
+%imm_cj        12:s1 8:1 9:2 6:1 7:1 2:1 11:1 3:3 !function=ex_shift_1
+
+%nzuimm_6bit   12:1 2:5
+
+%imm_addi16sp  12:s1 3:2 5:1 2:1 6:1 !function=ex_shift_4
+%imm_lui       12:s1 2:5             !function=ex_shift_12
+
 
 
 # Argument sets:
 &cl               rs1 rd
 &cl_dw     uimm   rs1 rd
+&ci        imm        rd
 &ciw       nzuimm     rd
 &cs               rs1 rs2
 &cs_dw     uimm   rs1 rs2
+&cb        imm    rs1
+&cr               rd  rs2
+&cj       imm
+&c_shift   shamt      rd
 
+
+&caddi16sp_lui  imm_lui imm_addi16sp rd
 
 # Formats 16:
+@ci        ... . ..... .....  .. &ci     imm=%imm_ci                  %rd
 @ciw       ...   ........ ... .. &ciw    nzuimm=%nzuimm_ciw           rd=%rs2_3
 @cl_d      ... ... ... .. ... .. &cl_dw  uimm=%uimm_cl_d  rs1=%rs1_3  rd=%rs2_3
 @cl_w      ... ... ... .. ... .. &cl_dw  uimm=%uimm_cl_w  rs1=%rs1_3  rd=%rs2_3
 @cl        ... ... ... .. ... .. &cl                      rs1=%rs1_3  rd=%rs2_3
 @cs        ... ... ... .. ... .. &cs                      rs1=%rs1_3  rs2=%rs2_3
+@cs_2      ... ... ... .. ... .. &cr                      rd=%rs1_3   rs2=%rs2_3
 @cs_d      ... ... ... .. ... .. &cs_dw  uimm=%uimm_cl_d  rs1=%rs1_3  rs2=%rs2_3
 @cs_w      ... ... ... .. ... .. &cs_dw  uimm=%uimm_cl_w  rs1=%rs1_3  rs2=%rs2_3
+@cb        ... ... ... .. ... .. &cb     imm=%imm_cb      rs1=%rs1_3
+@cj        ...    ........... .. &cj     imm=%imm_cj
 
+@c_addi16sp_lui ... .  ..... ..... .. &caddi16sp_lui %imm_lui %imm_addi16sp %rd
+
+@c_shift        ... . .. ... ..... .. &c_shift rd=%rs1_3 shamt=%nzuimm_6bit
+
+@c_andi         ... . .. ... ..... .. &ci imm=%imm_ci rd=%rs1_3
 
 # *** RV64C Standard Extension (Quadrant 0) ***
 c_addi4spn        000    ........ ... 00 @ciw
@@ -53,3 +78,21 @@ c_flw_ld          011  --- ... -- ... 00 @cl    #Note: Must parse uimm manually
 c_fsd             101  ... ... .. ... 00 @cs_d
 c_sw              110  ... ... .. ... 00 @cs_w
 c_fsw_sd          111  --- ... -- ... 00 @cs    #Note: Must parse uimm manually
+
+# *** RV64C Standard Extension (Quadrant 1) ***
+c_addi            000 .  .....  ..... 01 @ci
+c_jal_addiw       001 .  .....  ..... 01 @ci #Note: parse rd and/or imm manually
+c_li              010 .  .....  ..... 01 @ci
+c_addi16sp_lui    011 .  .....  ..... 01 @c_addi16sp_lui # shares opc with C.LUI
+c_srli            100 . 00 ...  ..... 01 @c_shift
+c_srai            100 . 01 ...  ..... 01 @c_shift
+c_andi            100 . 10 ...  ..... 01 @c_andi
+c_sub             100 0 11 ... 00 ... 01 @cs_2
+c_xor             100 0 11 ... 01 ... 01 @cs_2
+c_or              100 0 11 ... 10 ... 01 @cs_2
+c_and             100 0 11 ... 11 ... 01 @cs_2
+c_subw            100 1 11 ... 00 ... 01 @cs_2
+c_addw            100 1 11 ... 01 ... 01 @cs_2
+c_j               101     ........... 01 @cj
+c_beqz            110  ... ...  ..... 01 @cb
+c_bnez            111  ... ...  ..... 01 @cb

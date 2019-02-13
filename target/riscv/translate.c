@@ -828,120 +828,6 @@ static void decode_RV32_64C0(DisasContext *ctx)
     }
 }
 
-static void decode_RV32_64C1(DisasContext *ctx)
-{
-    uint8_t funct3 = extract32(ctx->opcode, 13, 3);
-    uint8_t rd_rs1 = GET_C_RS1(ctx->opcode);
-    uint8_t rs1s, rs2s;
-    uint8_t funct2;
-
-    switch (funct3) {
-    case 0:
-        /* C.ADDI -> addi rd, rd, nzimm[5:0] */
-        gen_arith_imm(ctx, OPC_RISC_ADDI, rd_rs1, rd_rs1,
-                      GET_C_IMM(ctx->opcode));
-        break;
-    case 1:
-#if defined(TARGET_RISCV64)
-        /* C.ADDIW (RV64/128) -> addiw rd, rd, imm[5:0]*/
-        gen_arith_imm(ctx, OPC_RISC_ADDIW, rd_rs1, rd_rs1,
-                      GET_C_IMM(ctx->opcode));
-#else
-        /* C.JAL(RV32) -> jal x1, offset[11:1] */
-        gen_jal(ctx, 1, GET_C_J_IMM(ctx->opcode));
-#endif
-        break;
-    case 2:
-        /* C.LI -> addi rd, x0, imm[5:0]*/
-        gen_arith_imm(ctx, OPC_RISC_ADDI, rd_rs1, 0, GET_C_IMM(ctx->opcode));
-        break;
-    case 3:
-        if (rd_rs1 == 2) {
-            /* C.ADDI16SP -> addi x2, x2, nzimm[9:4]*/
-            gen_arith_imm(ctx, OPC_RISC_ADDI, 2, 2,
-                          GET_C_ADDI16SP_IMM(ctx->opcode));
-        } else if (rd_rs1 != 0) {
-            /* C.LUI (rs1/rd =/= {0,2}) -> lui rd, nzimm[17:12]*/
-            tcg_gen_movi_tl(cpu_gpr[rd_rs1],
-                            GET_C_IMM(ctx->opcode) << 12);
-        }
-        break;
-    case 4:
-        funct2 = extract32(ctx->opcode, 10, 2);
-        rs1s = GET_C_RS1S(ctx->opcode);
-        switch (funct2) {
-        case 0: /* C.SRLI(RV32) -> srli rd', rd', shamt[5:0] */
-            gen_arith_imm(ctx, OPC_RISC_SHIFT_RIGHT_I, rs1s, rs1s,
-                               GET_C_ZIMM(ctx->opcode));
-            /* C.SRLI64(RV128) */
-            break;
-        case 1:
-            /* C.SRAI -> srai rd', rd', shamt[5:0]*/
-            gen_arith_imm(ctx, OPC_RISC_SHIFT_RIGHT_I, rs1s, rs1s,
-                            GET_C_ZIMM(ctx->opcode) | 0x400);
-            /* C.SRAI64(RV128) */
-            break;
-        case 2:
-            /* C.ANDI -> andi rd', rd', imm[5:0]*/
-            gen_arith_imm(ctx, OPC_RISC_ANDI, rs1s, rs1s,
-                          GET_C_IMM(ctx->opcode));
-            break;
-        case 3:
-            funct2 = extract32(ctx->opcode, 5, 2);
-            rs2s = GET_C_RS2S(ctx->opcode);
-            switch (funct2) {
-            case 0:
-                /* C.SUB -> sub rd', rd', rs2' */
-                if (extract32(ctx->opcode, 12, 1) == 0) {
-                    gen_arith(ctx, OPC_RISC_SUB, rs1s, rs1s, rs2s);
-                }
-#if defined(TARGET_RISCV64)
-                else {
-                    gen_arith(ctx, OPC_RISC_SUBW, rs1s, rs1s, rs2s);
-                }
-#endif
-                break;
-            case 1:
-                /* C.XOR -> xor rs1', rs1', rs2' */
-                if (extract32(ctx->opcode, 12, 1) == 0) {
-                    gen_arith(ctx, OPC_RISC_XOR, rs1s, rs1s, rs2s);
-                }
-#if defined(TARGET_RISCV64)
-                else {
-                    /* C.ADDW (RV64/128) */
-                    gen_arith(ctx, OPC_RISC_ADDW, rs1s, rs1s, rs2s);
-                }
-#endif
-                break;
-            case 2:
-                /* C.OR -> or rs1', rs1', rs2' */
-                gen_arith(ctx, OPC_RISC_OR, rs1s, rs1s, rs2s);
-                break;
-            case 3:
-                /* C.AND -> and rs1', rs1', rs2' */
-                gen_arith(ctx, OPC_RISC_AND, rs1s, rs1s, rs2s);
-                break;
-            }
-            break;
-        }
-        break;
-    case 5:
-        /* C.J -> jal x0, offset[11:1]*/
-        gen_jal(ctx, 0, GET_C_J_IMM(ctx->opcode));
-        break;
-    case 6:
-        /* C.BEQZ -> beq rs1', x0, offset[8:1]*/
-        rs1s = GET_C_RS1S(ctx->opcode);
-        gen_branch(ctx, OPC_RISC_BEQ, rs1s, 0, GET_C_B_IMM(ctx->opcode));
-        break;
-    case 7:
-        /* C.BNEZ -> bne rs1', x0, offset[8:1]*/
-        rs1s = GET_C_RS1S(ctx->opcode);
-        gen_branch(ctx, OPC_RISC_BNE, rs1s, 0, GET_C_B_IMM(ctx->opcode));
-        break;
-    }
-}
-
 static void decode_RV32_64C2(DisasContext *ctx)
 {
     uint8_t rd, rs2;
@@ -1028,9 +914,6 @@ static void decode_RV32_64C(DisasContext *ctx)
     case 0:
         decode_RV32_64C0(ctx);
         break;
-    case 1:
-        decode_RV32_64C1(ctx);
-        break;
     case 2:
         decode_RV32_64C2(ctx);
         break;
@@ -1045,6 +928,7 @@ static void decode_RV32_64C(DisasContext *ctx)
 EX_SH(1)
 EX_SH(2)
 EX_SH(3)
+EX_SH(4)
 EX_SH(12)
 
 #define REQUIRE_EXT(ctx, ext) do { \
