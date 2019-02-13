@@ -1,7 +1,7 @@
 /******************************************************************************
- * console.h
+ * xen-compat.h
  *
- * Console I/O interface for Xen guest OSes.
+ * Guest OS interface to Xen.  Compatibility layer.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to
@@ -21,36 +21,26 @@
  * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
  * DEALINGS IN THE SOFTWARE.
  *
- * Copyright (c) 2005, Keir Fraser
+ * Copyright (c) 2006, Christian Limpach
  */
 
-#ifndef __XEN_PUBLIC_IO_CONSOLE_H__
-#define __XEN_PUBLIC_IO_CONSOLE_H__
+#ifndef __XEN_PUBLIC_XEN_COMPAT_H__
+#define __XEN_PUBLIC_XEN_COMPAT_H__
 
-typedef uint32_t XENCONS_RING_IDX;
+#define __XEN_LATEST_INTERFACE_VERSION__ 0x00040e00
 
-#define MASK_XENCONS_IDX(idx, ring) ((idx) & (sizeof(ring)-1))
-
-struct xencons_interface {
-    char in[1024];
-    char out[2048];
-    XENCONS_RING_IDX in_cons, in_prod;
-    XENCONS_RING_IDX out_cons, out_prod;
-};
-
-#ifdef XEN_WANT_FLEX_CONSOLE_RING
-#include "ring.h"
-DEFINE_XEN_FLEX_RING(xencons);
+#if defined(__XEN__) || defined(__XEN_TOOLS__)
+/* Xen is built with matching headers and implements the latest interface. */
+#define __XEN_INTERFACE_VERSION__ __XEN_LATEST_INTERFACE_VERSION__
+#elif !defined(__XEN_INTERFACE_VERSION__)
+/* Guests which do not specify a version get the legacy interface. */
+#define __XEN_INTERFACE_VERSION__ 0x00000000
 #endif
 
-#endif /* __XEN_PUBLIC_IO_CONSOLE_H__ */
+#if __XEN_INTERFACE_VERSION__ > __XEN_LATEST_INTERFACE_VERSION__
+#error "These header files do not support the requested interface version."
+#endif
 
-/*
- * Local variables:
- * mode: C
- * c-file-style: "BSD"
- * c-basic-offset: 4
- * tab-width: 4
- * indent-tabs-mode: nil
- * End:
- */
+#define COMPAT_FLEX_ARRAY_DIM XEN_FLEX_ARRAY_DIM
+
+#endif /* __XEN_PUBLIC_XEN_COMPAT_H__ */

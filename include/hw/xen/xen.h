@@ -1,12 +1,22 @@
-#ifndef QEMU_HW_XEN_H
-#define QEMU_HW_XEN_H
-
 /*
  * public xen header
  *   stuff needed outside xen-*.c, i.e. interfaces to qemu.
  *   must not depend on any xen headers being present in
  *   /usr/include/xen, so it can be included unconditionally.
  */
+#ifndef QEMU_HW_XEN_H
+#define QEMU_HW_XEN_H
+
+/*
+ * As a temporary measure while the headers are being untangled, define
+ * __XEN_TOOLS__ here before any Xen headers are included. Otherwise, if
+ * the Xen toolstack library headers are later included, they will find
+ * some of the "internal" definitions missing and the build will fail. In
+ * later commits, we'll end up with a rule that the native libraries have
+ * to be included first, which will ensure that the libraries get the
+ * version of Xen libraries that they expect.
+ */
+#define __XEN_TOOLS__ 1
 
 #include "exec/cpu-common.h"
 

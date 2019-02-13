@@ -153,4 +153,24 @@ struct xenfb_page
     unsigned long pd[256];
 };
 
+/*
+ * Wart: xenkbd needs to know default resolution.  Put it here until a
+ * better solution is found, but don't leak it to the backend.
+ */
+#ifdef __KERNEL__
+#define XENFB_WIDTH 800
+#define XENFB_HEIGHT 600
+#define XENFB_DEPTH 32
 #endif
+
+#endif
+
+/*
+ * Local variables:
+ * mode: C
+ * c-file-style: "BSD"
+ * c-basic-offset: 4
+ * tab-width: 4
+ * indent-tabs-mode: nil
+ * End:
+ */

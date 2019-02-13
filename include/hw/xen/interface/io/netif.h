@@ -171,7 +171,7 @@
  * The ability of the backend to use a control ring is advertised by
  * setting:
  *
- * /local/domain/X/backend/<domid>/<vif>/feature-ctrl-ring = "1"
+ * /local/domain/X/backend/vif/<domid>/<vif>/feature-ctrl-ring = "1"
  *
  * The frontend provides a control ring to the backend by setting:
  *
@@ -188,6 +188,32 @@
  * the same as a transmit or receive ring.
  * Note that there is no requirement that responses are issued in the same
  * order as requests.
+ */
+
+/*
+ * Link state
+ * ==========
+ *
+ * The backend can advertise its current link (carrier) state to the
+ * frontend using the /local/domain/X/backend/vif/<domid>/<vif>/carrier
+ * node. If this node is not present, then the frontend should assume that
+ * the link is up (for compatibility with backends that do not implement
+ * this feature). If this node is present, then a value of "0" should be
+ * interpreted by the frontend as the link being down (no carrier) and a
+ * value of "1" should be interpreted as the link being up (carrier
+ * present).
+ */
+
+/*
+ * MTU
+ * ===
+ *
+ * The toolstack may set a value of MTU for the frontend by setting the
+ * /local/domain/<domid>/device/vif/<vif>/mtu node with the MTU value in
+ * octets. If this node is absent the frontend should assume an MTU value
+ * of 1500 octets. A frontend is also at liberty to ignore this value so
+ * it is only suitable for informing the frontend that a packet payload
+ * >1500 octets is permitted.
  */
 
 /*
@@ -266,6 +292,62 @@
  */
 
 #define XEN_NETIF_CTRL_HASH_ALGORITHM_TOEPLITZ 1
+
+/*
+ * This algorithm uses a 'key' as well as the data buffer itself.
+ * (Buffer[] and Key[] are treated as shift-registers where the MSB of
+ * Buffer/Key[0] is considered 'left-most' and the LSB of Buffer/Key[N-1]
+ * is the 'right-most').
+ *
+ * Value = 0
+ * For number of bits in Buffer[]
+ *    If (left-most bit of Buffer[] is 1)
+ *        Value ^= left-most 32 bits of Key[]
+ *    Key[] << 1
+ *    Buffer[] << 1
+ *
+ * The code below is provided for convenience where an operating system
+ * does not already provide an implementation.
+ */
+#ifdef XEN_NETIF_DEFINE_TOEPLITZ
+static uint32_t xen_netif_toeplitz_hash(const uint8_t *key,
+                                        unsigned int keylen,
+                                        const uint8_t *buf,
+                                        unsigned int buflen)
+{
+    unsigned int keyi, bufi;
+    uint64_t prefix = 0;
+    uint64_t hash = 0;
+
+    /* Pre-load prefix with the first 8 bytes of the key */
+    for (keyi = 0; keyi < 8; keyi++) {
+        prefix <<= 8;
+        prefix |= (keyi < keylen) ? key[keyi] : 0;
+    }
+
+    for (bufi = 0; bufi < buflen; bufi++) {
+        uint8_t byte = buf[bufi];
+        unsigned int bit;
+
+        for (bit = 0; bit < 8; bit++) {
+            if (byte & 0x80)
+                hash ^= prefix;
+            prefix <<= 1;
+            byte <<=1;
+        }
+
+        /*
+         * 'prefix' has now been left-shifted by 8, so
+         * OR in the next byte.
+         */
+        prefix |= (keyi < keylen) ? key[keyi] : 0;
+        keyi++;
+    }
+
+    /* The valid part of the hash is in the upper 32 bits. */
+    return hash >> 32;
+}
+#endif /* XEN_NETIF_DEFINE_TOEPLITZ */
 
 /*
  * Control requests (struct xen_netif_ctrl_request)
@@ -1008,3 +1090,13 @@ DEFINE_RING_TYPES(netif_rx, struct netif_rx_request, struct netif_rx_response);
 #define NETIF_RSP_NULL             1
 
 #endif
+
+/*
+ * Local variables:
+ * mode: C
+ * c-file-style: "BSD"
+ * c-basic-offset: 4
+ * tab-width: 4
+ * indent-tabs-mode: nil
+ * End:
+ */
