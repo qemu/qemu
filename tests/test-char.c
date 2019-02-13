@@ -86,7 +86,7 @@ static void char_console_test_subprocess(void)
                             1, &error_abort);
     qemu_opt_set(opts, "backend", "console", &error_abort);
 
-    chr = qemu_chr_new_from_opts(opts, NULL);
+    chr = qemu_chr_new_from_opts(opts, NULL, NULL);
     g_assert_nonnull(chr);
 
     qemu_chr_write_all(chr, (const uint8_t *)"CONSOLE", 7);
@@ -108,7 +108,7 @@ static void char_stdio_test_subprocess(void)
     CharBackend be;
     int ret;
 
-    chr = qemu_chr_new("label", "stdio");
+    chr = qemu_chr_new("label", "stdio", NULL);
     g_assert_nonnull(chr);
 
     qemu_chr_fe_init(&be, chr, &error_abort);
@@ -139,7 +139,7 @@ static void char_ringbuf_test(void)
     qemu_opt_set(opts, "backend", "ringbuf", &error_abort);
 
     qemu_opt_set(opts, "size", "5", &error_abort);
-    chr = qemu_chr_new_from_opts(opts, NULL);
+    chr = qemu_chr_new_from_opts(opts, NULL, NULL);
     g_assert_null(chr);
     qemu_opts_del(opts);
 
@@ -147,7 +147,7 @@ static void char_ringbuf_test(void)
                             1, &error_abort);
     qemu_opt_set(opts, "backend", "ringbuf", &error_abort);
     qemu_opt_set(opts, "size", "2", &error_abort);
-    chr = qemu_chr_new_from_opts(opts, &error_abort);
+    chr = qemu_chr_new_from_opts(opts, NULL, &error_abort);
     g_assert_nonnull(chr);
     qemu_opts_del(opts);
 
@@ -170,7 +170,7 @@ static void char_ringbuf_test(void)
                             1, &error_abort);
     qemu_opt_set(opts, "backend", "memory", &error_abort);
     qemu_opt_set(opts, "size", "2", &error_abort);
-    chr = qemu_chr_new_from_opts(opts, NULL);
+    chr = qemu_chr_new_from_opts(opts, NULL, NULL);
     g_assert_nonnull(chr);
     object_unparent(OBJECT(chr));
     qemu_opts_del(opts);
@@ -189,7 +189,7 @@ static void char_mux_test(void)
     qemu_opt_set(opts, "backend", "ringbuf", &error_abort);
     qemu_opt_set(opts, "size", "128", &error_abort);
     qemu_opt_set(opts, "mux", "on", &error_abort);
-    chr = qemu_chr_new_from_opts(opts, &error_abort);
+    chr = qemu_chr_new_from_opts(opts, NULL, &error_abort);
     g_assert_nonnull(chr);
     qemu_opts_del(opts);
 
@@ -412,7 +412,7 @@ static void char_websock_test(void)
     CharBackend client_be;
     Chardev *chr_client;
     Chardev *chr = qemu_chr_new("server",
-                                "websocket:127.0.0.1:0,server,nowait");
+                                "websocket:127.0.0.1:0,server,nowait", NULL);
     const char handshake[] = "GET / HTTP/1.1\r\n"
                              "Upgrade: websocket\r\n"
                              "Connection: Upgrade\r\n"
@@ -436,7 +436,7 @@ static void char_websock_test(void)
     qemu_chr_fe_set_handlers(&be, websock_server_can_read, websock_server_read,
                              NULL, NULL, chr, NULL, true);
 
-    chr_client = qemu_chr_new("client", tmp);
+    chr_client = qemu_chr_new("client", tmp, NULL);
     qemu_chr_fe_init(&client_be, chr_client, &error_abort);
     qemu_chr_fe_set_handlers(&client_be, websock_client_can_read,
                              websock_client_read,
@@ -482,7 +482,7 @@ static void char_pipe_test(void)
     }
 
     tmp = g_strdup_printf("pipe:%s", pipe);
-    chr = qemu_chr_new("pipe", tmp);
+    chr = qemu_chr_new("pipe", tmp, NULL);
     g_assert_nonnull(chr);
     g_free(tmp);
 
@@ -586,7 +586,7 @@ static void char_udp_test_internal(Chardev *reuse_chr, int sock)
         int port;
         sock = make_udp_socket(&port);
         tmp = g_strdup_printf("udp:127.0.0.1:%d", port);
-        chr = qemu_chr_new("client", tmp);
+        chr = qemu_chr_new("client", tmp, NULL);
         g_assert_nonnull(chr);
 
         be = g_alloca(sizeof(CharBackend));
@@ -764,7 +764,7 @@ static void char_socket_server_test(gconstpointer opaque)
     opts = qemu_opts_parse_noisily(qemu_find_opts("chardev"),
                                    optstr, true);
     g_assert_nonnull(opts);
-    chr = qemu_chr_new_from_opts(opts, &error_abort);
+    chr = qemu_chr_new_from_opts(opts, NULL, &error_abort);
     qemu_opts_del(opts);
     g_assert_nonnull(chr);
     g_assert(!object_property_get_bool(OBJECT(chr), "connected", &error_abort));
@@ -914,7 +914,7 @@ static void char_socket_client_test(gconstpointer opaque)
     opts = qemu_opts_parse_noisily(qemu_find_opts("chardev"),
                                    optstr, true);
     g_assert_nonnull(opts);
-    chr = qemu_chr_new_from_opts(opts, &error_abort);
+    chr = qemu_chr_new_from_opts(opts, NULL, &error_abort);
     qemu_opts_del(opts);
     g_assert_nonnull(chr);
 
@@ -1015,14 +1015,14 @@ static void char_serial_test(void)
     qemu_opt_set(opts, "backend", "serial", &error_abort);
     qemu_opt_set(opts, "path", "/dev/null", &error_abort);
 
-    chr = qemu_chr_new_from_opts(opts, NULL);
+    chr = qemu_chr_new_from_opts(opts, NULL, NULL);
     g_assert_nonnull(chr);
     /* TODO: add more tests with a pty */
     object_unparent(OBJECT(chr));
 
     /* test tty alias */
     qemu_opt_set(opts, "backend", "tty", &error_abort);
-    chr = qemu_chr_new_from_opts(opts, NULL);
+    chr = qemu_chr_new_from_opts(opts, NULL, NULL);
     g_assert_nonnull(chr);
     object_unparent(OBJECT(chr));
 
@@ -1055,7 +1055,7 @@ static void char_file_fifo_test(void)
     g_assert_cmpint(ret, ==, 8);
 
     chr = qemu_chardev_new("label-file", TYPE_CHARDEV_FILE, &backend,
-                           &error_abort);
+                           NULL, &error_abort);
 
     qemu_chr_fe_init(&be, chr, &error_abort);
     qemu_chr_fe_set_handlers(&be,
@@ -1109,7 +1109,7 @@ static void char_file_test_internal(Chardev *ext_chr, const char *filepath)
         out = g_build_filename(tmp_path, "out", NULL);
         file.out = out;
         chr = qemu_chardev_new(NULL, TYPE_CHARDEV_FILE, &backend,
-                               &error_abort);
+                               NULL, &error_abort);
     }
     ret = qemu_chr_write_all(chr, (uint8_t *)"hello!", 6);
     g_assert_cmpint(ret, ==, 6);
@@ -1144,7 +1144,7 @@ static void char_null_test(void)
     chr = qemu_chr_find("label-null");
     g_assert_null(chr);
 
-    chr = qemu_chr_new("label-null", "null");
+    chr = qemu_chr_new("label-null", "null", NULL);
     chr = qemu_chr_find("label-null");
     g_assert_nonnull(chr);
 
@@ -1181,7 +1181,7 @@ static void char_invalid_test(void)
 {
     Chardev *chr;
     g_setenv("QTEST_SILENT_ERRORS", "1", 1);
-    chr = qemu_chr_new("label-invalid", "invalid");
+    chr = qemu_chr_new("label-invalid", "invalid", NULL);
     g_assert_null(chr);
     g_unsetenv("QTEST_SILENT_ERRORS");
 }
@@ -1215,7 +1215,7 @@ static void char_hotswap_test(void)
 
     chr_args = g_strdup_printf("udp:127.0.0.1:%d", port);
 
-    chr = qemu_chr_new("chardev", chr_args);
+    chr = qemu_chr_new("chardev", chr_args, NULL);
     qemu_chr_fe_init(&be, chr, &error_abort);
 
     /* check that chardev operates correctly */

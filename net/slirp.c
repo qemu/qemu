@@ -927,7 +927,7 @@ static int slirp_guestfwd(SlirpState *s, const char *config_str, Error **errp)
          * FIXME: sure we want to support implicit
          * muxed monitors here?
          */
-        Chardev *chr = qemu_chr_new_mux_mon(buf, p);
+        Chardev *chr = qemu_chr_new_mux_mon(buf, p, NULL);
 
         if (!chr) {
             error_setg(errp, "Could not open guest forwarding device '%s'",

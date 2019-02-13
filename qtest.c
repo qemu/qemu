@@ -763,7 +763,7 @@ void qtest_init(const char *qtest_chrdev, const char *qtest_log, Error **errp)
 {
     Chardev *chr;
 
-    chr = qemu_chr_new("qtest", qtest_chrdev);
+    chr = qemu_chr_new("qtest", qtest_chrdev, NULL);
 
     if (chr == NULL) {
         error_setg(errp, "Failed to initialize device for qtest: \"%s\"",

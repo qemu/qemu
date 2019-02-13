@@ -501,7 +501,7 @@ static const TypeInfo char_hci_type_info = {
 Chardev *uart_hci_init(void)
 {
     return qemu_chardev_new(NULL, TYPE_CHARDEV_HCI,
-                            NULL, &error_abort);
+                            NULL, NULL, &error_abort);
 }
 
 static void register_types(void)
