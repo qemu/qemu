@@ -92,5 +92,10 @@ DO_MSA__WD__WS_WT(ILVR_H, ilvr.h)
 DO_MSA__WD__WS_WT(ILVR_W, ilvr.w)
 DO_MSA__WD__WS_WT(ILVR_D, ilvr.d)
 
+DO_MSA__WD__WS_WT(AND_V, and.v)
+DO_MSA__WD__WS_WT(NOR_V, nor.v)
+DO_MSA__WD__WS_WT(OR_V, or.v)
+DO_MSA__WD__WS_WT(XOR_V, xor.v)
+
 
 #endif
