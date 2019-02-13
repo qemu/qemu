@@ -35,7 +35,7 @@ typedef struct sPAPRIrq {
     uint32_t    nr_msis;
     uint8_t     ov5;
 
-    void (*init)(sPAPRMachineState *spapr, Error **errp);
+    void (*init)(sPAPRMachineState *spapr, int nr_irqs, Error **errp);
     int (*claim)(sPAPRMachineState *spapr, int irq, bool lsi, Error **errp);
     void (*free)(sPAPRMachineState *spapr, int irq, int num);
     qemu_irq (*qirq)(sPAPRMachineState *spapr, int irq);
