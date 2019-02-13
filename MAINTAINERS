@@ -2479,6 +2479,11 @@ S: Maintained
 F: .cirrus.yml
 W: https://cirrus-ci.com/github/qemu/qemu
 
+GitLab Continuous Integration
+M: Thomas Huth <thuth@redhat.com>
+S: Maintained
+F: .gitlab-ci.yml
+
 Guest Test Compilation Support
 M: Alex Bennée <alex.bennee@linaro.org>
 R: Philippe Mathieu-Daudé <f4bug@amsat.org>
