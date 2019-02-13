@@ -20,6 +20,7 @@
 %rd        7:5
 %rs1_3     7:3                !function=ex_rvc_register
 %rs2_3     2:3                !function=ex_rvc_register
+%rs2_5     2:5
 
 # Immediates:
 %imm_ci        12:s1 2:5
@@ -30,6 +31,10 @@
 %imm_cj        12:s1 8:1 9:2 6:1 7:1 2:1 11:1 3:3 !function=ex_shift_1
 
 %nzuimm_6bit   12:1 2:5
+%uimm_6bit_ld 2:3 12:1 5:2           !function=ex_shift_3
+%uimm_6bit_lw 2:2 12:1 4:3           !function=ex_shift_2
+%uimm_6bit_sd 7:3 10:3               !function=ex_shift_3
+%uimm_6bit_sw 7:2 9:4                !function=ex_shift_2
 
 %imm_addi16sp  12:s1 3:2 5:1 2:1 6:1 !function=ex_shift_4
 %imm_lui       12:s1 2:5             !function=ex_shift_12
@@ -48,10 +53,15 @@
 &cj       imm
 &c_shift   shamt      rd
 
+&c_ld      uimm  rd
+&c_sd      uimm  rs2
 
 &caddi16sp_lui  imm_lui imm_addi16sp rd
+&cflwsp_ldsp    uimm_flwsp uimm_ldsp rd
+&cfswsp_sdsp    uimm_fswsp uimm_sdsp rs2
 
 # Formats 16:
+@cr        ....  ..... .....  .. &cr                      rs2=%rs2_5  %rd
 @ci        ... . ..... .....  .. &ci     imm=%imm_ci                  %rd
 @ciw       ...   ........ ... .. &ciw    nzuimm=%nzuimm_ciw           rd=%rs2_3
 @cl_d      ... ... ... .. ... .. &cl_dw  uimm=%uimm_cl_d  rs1=%rs1_3  rd=%rs2_3
@@ -64,9 +74,19 @@
 @cb        ... ... ... .. ... .. &cb     imm=%imm_cb      rs1=%rs1_3
 @cj        ...    ........... .. &cj     imm=%imm_cj
 
+@c_ld      ... . .....  ..... .. &c_ld     uimm=%uimm_6bit_ld  %rd
+@c_lw      ... . .....  ..... .. &c_ld     uimm=%uimm_6bit_lw  %rd
+@c_sd      ... . .....  ..... .. &c_sd     uimm=%uimm_6bit_sd  rs2=%rs2_5
+@c_sw      ... . .....  ..... .. &c_sd     uimm=%uimm_6bit_sw  rs2=%rs2_5
+
 @c_addi16sp_lui ... .  ..... ..... .. &caddi16sp_lui %imm_lui %imm_addi16sp %rd
+@c_flwsp_ldsp   ... .  ..... ..... .. &cflwsp_ldsp uimm_flwsp=%uimm_6bit_lw \
+    uimm_ldsp=%uimm_6bit_ld %rd
+@c_fswsp_sdsp   ... .  ..... ..... .. &cfswsp_sdsp uimm_fswsp=%uimm_6bit_sw \
+    uimm_sdsp=%uimm_6bit_sd rs2=%rs2_5
 
 @c_shift        ... . .. ... ..... .. &c_shift rd=%rs1_3 shamt=%nzuimm_6bit
+@c_shift2       ... . .. ... ..... .. &c_shift rd=%rd    shamt=%nzuimm_6bit
 
 @c_andi         ... . .. ... ..... .. &ci imm=%imm_ci rd=%rs1_3
 
@@ -96,3 +116,14 @@ c_addw            100 1 11 ... 01 ... 01 @cs_2
 c_j               101     ........... 01 @cj
 c_beqz            110  ... ...  ..... 01 @cb
 c_bnez            111  ... ...  ..... 01 @cb
+
+# *** RV64C Standard Extension (Quadrant 2) ***
+c_slli            000 .  .....  ..... 10 @c_shift2
+c_fldsp           001 .  .....  ..... 10 @c_ld
+c_lwsp            010 .  .....  ..... 10 @c_lw
+c_flwsp_ldsp      011 .  .....  ..... 10 @c_flwsp_ldsp #C.LDSP:RV64;C.FLWSP:RV32
+c_jr_mv           100 0  .....  ..... 10 @cr
+c_ebreak_jalr_add 100 1  .....  ..... 10 @cr
+c_fsdsp           101   ......  ..... 10 @c_sd
+c_swsp            110 .  .....  ..... 10 @c_sw
+c_fswsp_sdsp      111 .  .....  ..... 10 @c_fswsp_sdsp #C.SDSP:RV64;C.FSWSP:RV32

@@ -224,3 +224,104 @@ static bool trans_c_bnez(DisasContext *ctx, arg_c_bnez *a)
     arg_bne arg = { .rs1 = a->rs1, .rs2 = 0, .imm = a->imm };
     return trans_bne(ctx, &arg);
 }
+
+static bool trans_c_slli(DisasContext *ctx, arg_c_slli *a)
+{
+    int shamt = a->shamt;
+    if (shamt == 0) {
+        /* For RV128 a shamt of 0 means a shift by 64 */
+        shamt = 64;
+    }
+    /* Ensure, that shamt[5] is zero for RV32 */
+    if (shamt >= TARGET_LONG_BITS) {
+        return false;
+    }
+
+    arg_slli arg = { .rd = a->rd, .rs1 = a->rd, .shamt = a->shamt };
+    return trans_slli(ctx, &arg);
+}
+
+static bool trans_c_fldsp(DisasContext *ctx, arg_c_fldsp *a)
+{
+    arg_fld arg = { .rd = a->rd, .rs1 = 2, .imm = a->uimm };
+    return trans_fld(ctx, &arg);
+}
+
+static bool trans_c_lwsp(DisasContext *ctx, arg_c_lwsp *a)
+{
+    arg_lw arg = { .rd = a->rd, .rs1 = 2, .imm = a->uimm };
+    return trans_lw(ctx, &arg);
+}
+
+static bool trans_c_flwsp_ldsp(DisasContext *ctx, arg_c_flwsp_ldsp *a)
+{
+#ifdef TARGET_RISCV32
+    /* C.FLWSP */
+    arg_flw arg_flw = { .rd = a->rd, .rs1 = 2, .imm = a->uimm_flwsp };
+    return trans_flw(ctx, &arg_flw);
+#else
+    /* C.LDSP */
+    arg_ld arg_ld = { .rd = a->rd, .rs1 = 2, .imm = a->uimm_ldsp };
+    return trans_ld(ctx, &arg_ld);
+#endif
+    return false;
+}
+
+static bool trans_c_jr_mv(DisasContext *ctx, arg_c_jr_mv *a)
+{
+    if (a->rd != 0 && a->rs2 == 0) {
+        /* C.JR */
+        arg_jalr arg = { .rd = 0, .rs1 = a->rd, .imm = 0 };
+        return trans_jalr(ctx, &arg);
+    } else if (a->rd != 0 && a->rs2 != 0) {
+        /* C.MV */
+        arg_add arg = { .rd = a->rd, .rs1 = 0, .rs2 = a->rs2 };
+        return trans_add(ctx, &arg);
+    }
+    return false;
+}
+
+static bool trans_c_ebreak_jalr_add(DisasContext *ctx, arg_c_ebreak_jalr_add *a)
+{
+    if (a->rd == 0 && a->rs2 == 0) {
+        /* C.EBREAK */
+        arg_ebreak arg = { };
+        return trans_ebreak(ctx, &arg);
+    } else if (a->rd != 0) {
+        if (a->rs2 == 0) {
+            /* C.JALR */
+            arg_jalr arg = { .rd = 1, .rs1 = a->rd, .imm = 0 };
+            return trans_jalr(ctx, &arg);
+        } else {
+            /* C.ADD */
+            arg_add arg = { .rd = a->rd, .rs1 = a->rd, .rs2 = a->rs2 };
+            return trans_add(ctx, &arg);
+        }
+    }
+    return false;
+}
+
+static bool trans_c_fsdsp(DisasContext *ctx, arg_c_fsdsp *a)
+{
+    arg_fsd arg = { .rs1 = 2, .rs2 = a->rs2, .imm = a->uimm };
+    return trans_fsd(ctx, &arg);
+}
+
+static bool trans_c_swsp(DisasContext *ctx, arg_c_swsp *a)
+{
+    arg_sw arg = { .rs1 = 2, .rs2 = a->rs2, .imm = a->uimm };
+    return trans_sw(ctx, &arg);
+}
+
+static bool trans_c_fswsp_sdsp(DisasContext *ctx, arg_c_fswsp_sdsp *a)
+{
+#ifdef TARGET_RISCV32
+    /* C.FSWSP */
+    arg_fsw a_fsw = { .rs1 = a->rs2, .rs2 = 2, .imm = a->uimm_fswsp };
+    return trans_fsw(ctx, &a_fsw);
+#else
+    /* C.SDSP */
+    arg_sd a_sd = { .rs1 = 2, .rs2 = a->rs2, .imm = a->uimm_sdsp };
+    return trans_sd(ctx, &a_sd);
+#endif
+}

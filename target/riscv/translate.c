@@ -681,6 +681,7 @@ static void mark_fs_dirty(DisasContext *ctx)
 static inline void mark_fs_dirty(DisasContext *ctx) { }
 #endif
 
+#if !defined(TARGET_RISCV64)
 static void gen_fp_load(DisasContext *ctx, uint32_t opc, int rd,
         int rs1, target_long imm)
 {
@@ -755,6 +756,7 @@ static void gen_fp_store(DisasContext *ctx, uint32_t opc, int rs1,
 
     tcg_temp_free(t0);
 }
+#endif
 
 static void gen_set_rm(DisasContext *ctx, int rm)
 {
@@ -828,84 +830,6 @@ static void decode_RV32_64C0(DisasContext *ctx)
     }
 }
 
-static void decode_RV32_64C2(DisasContext *ctx)
-{
-    uint8_t rd, rs2;
-    uint8_t funct3 = extract32(ctx->opcode, 13, 3);
-
-
-    rd = GET_RD(ctx->opcode);
-
-    switch (funct3) {
-    case 0: /* C.SLLI -> slli rd, rd, shamt[5:0]
-               C.SLLI64 -> */
-        gen_arith_imm(ctx, OPC_RISC_SLLI, rd, rd, GET_C_ZIMM(ctx->opcode));
-        break;
-    case 1: /* C.FLDSP(RV32/64DC) -> fld rd, offset[8:3](x2) */
-        gen_fp_load(ctx, OPC_RISC_FLD, rd, 2, GET_C_LDSP_IMM(ctx->opcode));
-        break;
-    case 2: /* C.LWSP -> lw rd, offset[7:2](x2) */
-        gen_load(ctx, OPC_RISC_LW, rd, 2, GET_C_LWSP_IMM(ctx->opcode));
-        break;
-    case 3:
-#if defined(TARGET_RISCV64)
-        /* C.LDSP(RVC64) -> ld rd, offset[8:3](x2) */
-        gen_load(ctx, OPC_RISC_LD, rd, 2, GET_C_LDSP_IMM(ctx->opcode));
-#else
-        /* C.FLWSP(RV32FC) -> flw rd, offset[7:2](x2) */
-        gen_fp_load(ctx, OPC_RISC_FLW, rd, 2, GET_C_LWSP_IMM(ctx->opcode));
-#endif
-        break;
-    case 4:
-        rs2 = GET_C_RS2(ctx->opcode);
-
-        if (extract32(ctx->opcode, 12, 1) == 0) {
-            if (rs2 == 0) {
-                /* C.JR -> jalr x0, rs1, 0*/
-                gen_jalr(ctx, OPC_RISC_JALR, 0, rd, 0);
-            } else {
-                /* C.MV -> add rd, x0, rs2 */
-                gen_arith(ctx, OPC_RISC_ADD, rd, 0, rs2);
-            }
-        } else {
-            if (rd == 0) {
-                /* C.EBREAK -> ebreak*/
-                gen_system(ctx, OPC_RISC_ECALL, 0, 0, 0x1);
-            } else {
-                if (rs2 == 0) {
-                    /* C.JALR -> jalr x1, rs1, 0*/
-                    gen_jalr(ctx, OPC_RISC_JALR, 1, rd, 0);
-                } else {
-                    /* C.ADD -> add rd, rd, rs2 */
-                    gen_arith(ctx, OPC_RISC_ADD, rd, rd, rs2);
-                }
-            }
-        }
-        break;
-    case 5:
-        /* C.FSDSP -> fsd rs2, offset[8:3](x2)*/
-        gen_fp_store(ctx, OPC_RISC_FSD, 2, GET_C_RS2(ctx->opcode),
-                     GET_C_SDSP_IMM(ctx->opcode));
-        /* C.SQSP */
-        break;
-    case 6: /* C.SWSP -> sw rs2, offset[7:2](x2)*/
-        gen_store(ctx, OPC_RISC_SW, 2, GET_C_RS2(ctx->opcode),
-                  GET_C_SWSP_IMM(ctx->opcode));
-        break;
-    case 7:
-#if defined(TARGET_RISCV64)
-        /* C.SDSP(Rv64/128) -> sd rs2, offset[8:3](x2)*/
-        gen_store(ctx, OPC_RISC_SD, 2, GET_C_RS2(ctx->opcode),
-                  GET_C_SDSP_IMM(ctx->opcode));
-#else
-        /* C.FSWSP(RV32) -> fsw rs2, offset[7:2](x2) */
-        gen_fp_store(ctx, OPC_RISC_FSW, 2, GET_C_RS2(ctx->opcode),
-                     GET_C_SWSP_IMM(ctx->opcode));
-#endif
-        break;
-    }
-}
-
 static void decode_RV32_64C(DisasContext *ctx)
 {
     uint8_t op = extract32(ctx->opcode, 0, 2);
@@ -913,9 +837,6 @@ static void decode_RV32_64C(DisasContext *ctx)
     switch (op) {
     case 0:
         decode_RV32_64C0(ctx);
-        break;
-    case 2:
-        decode_RV32_64C2(ctx);
         break;
     }
 }
