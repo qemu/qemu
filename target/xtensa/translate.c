@@ -935,6 +935,12 @@ static int gen_postprocess(DisasContext *dc, int slot)
     return slot;
 }
 
+struct opcode_arg_copy {
+    uint32_t resource;
+    void *temp;
+    OpcodeArg *arg;
+};
+
 struct opcode_arg_info {
     uint32_t resource;
     int index;
@@ -960,6 +966,11 @@ static uint32_t encode_resource(enum resource_type r, unsigned g, unsigned n)
 {
     assert(r < RES_MAX && g < 256 && n < 65536);
     return (r << 24) | (g << 16) | n;
+}
+
+static enum resource_type get_resource_type(uint32_t resource)
+{
+    return resource >> 24;
 }
 
 /*
@@ -988,6 +999,49 @@ static bool op_depends_on(const struct slot_prop *a,
 }
 
 /*
+ * Try to break a dependency on b, append temporary register copy records
+ * to the end of copy and update n_copy in case of success.
+ * This is not always possible: e.g. control flow must always be the last,
+ * load/store must be first and state dependencies are not supported yet.
+ */
+static bool break_dependency(struct slot_prop *a,
+                             struct slot_prop *b,
+                             struct opcode_arg_copy *copy,
+                             unsigned *n_copy)
+{
+    unsigned i = 0;
+    unsigned j = 0;
+    unsigned n = *n_copy;
+    bool rv = false;
+
+    if (a->op_flags & XTENSA_OP_CONTROL_FLOW) {
+        return false;
+    }
+    while (i < a->n_out && j < b->n_in) {
+        if (a->out[i].resource < b->in[j].resource) {
+            ++i;
+        } else if (a->out[i].resource > b->in[j].resource) {
+            ++j;
+        } else {
+            int index = b->in[j].index;
+
+            if (get_resource_type(a->out[i].resource) != RES_REGFILE ||
+                index < 0) {
+                return false;
+            }
+            copy[n].resource = b->in[j].resource;
+            copy[n].arg = b->arg + index;
+            ++n;
+            ++i;
+            ++j;
+            rv = true;
+        }
+    }
+    *n_copy = n;
+    return rv;
+}
+
+/*
  * Calculate evaluation order for slot opcodes.
  * Build opcode order graph and output its nodes in topological sort order.
  * An edge a -> b in the graph means that opcode a must be followed by
@@ -995,7 +1049,9 @@ static bool op_depends_on(const struct slot_prop *a,
  */
 static bool tsort(struct slot_prop *slot,
                   struct slot_prop *sorted[],
-                  unsigned n)
+                  unsigned n,
+                  struct opcode_arg_copy *copy,
+                  unsigned *n_copy)
 {
     struct tsnode {
         unsigned n_in_edge;
@@ -1008,7 +1064,8 @@ static bool tsort(struct slot_prop *slot,
     unsigned n_in = 0;
     unsigned n_out = 0;
     unsigned n_edge = 0;
-    unsigned in_idx;
+    unsigned in_idx = 0;
+    unsigned node_idx = 0;
 
     for (i = 0; i < n; ++i) {
         node[i].n_in_edge = 0;
@@ -1036,7 +1093,8 @@ static bool tsort(struct slot_prop *slot,
         }
     }
 
-    for (in_idx = 0; in_idx < n_in; ++in_idx) {
+again:
+    for (; in_idx < n_in; ++in_idx) {
         i = in[in_idx];
         sorted[n_out] = slot + i;
         ++n_out;
@@ -1045,6 +1103,29 @@ static bool tsort(struct slot_prop *slot,
             if (--node[node[i].out_edge[j]].n_in_edge == 0) {
                 in[n_in] = node[i].out_edge[j];
                 ++n_in;
+            }
+        }
+    }
+    if (n_edge) {
+        for (; node_idx < n; ++node_idx) {
+            struct tsnode *cnode = node + node_idx;
+
+            if (cnode->n_in_edge) {
+                for (j = 0; j < cnode->n_out_edge; ++j) {
+                    unsigned k = cnode->out_edge[j];
+
+                    if (break_dependency(slot + k, slot + node_idx,
+                                         copy, n_copy) &&
+                        --node[k].n_in_edge == 0) {
+                        in[n_in] = k;
+                        ++n_in;
+                        --n_edge;
+                        cnode->out_edge[j] =
+                            cnode->out_edge[cnode->n_out_edge - 1];
+                        --cnode->n_out_edge;
+                        goto again;
+                    }
+                }
             }
         }
     }
@@ -1085,6 +1166,15 @@ static int resource_compare(const void *a, const void *b)
         -1 : (pa->resource > pb->resource ? 1 : 0);
 }
 
+static int arg_copy_compare(const void *a, const void *b)
+{
+    const struct opcode_arg_copy *pa = a;
+    const struct opcode_arg_copy *pb = b;
+
+    return pa->resource < pb->resource ?
+        -1 : (pa->resource > pb->resource ? 1 : 0);
+}
+
 static void disas_xtensa_insn(CPUXtensaState *env, DisasContext *dc)
 {
     xtensa_isa isa = dc->config->isa;
@@ -1096,6 +1186,8 @@ static void disas_xtensa_insn(CPUXtensaState *env, DisasContext *dc)
     uint32_t op_flags = 0;
     struct slot_prop slot_prop[MAX_INSN_SLOTS];
     struct slot_prop *ordered[MAX_INSN_SLOTS];
+    struct opcode_arg_copy arg_copy[MAX_INSN_SLOTS * MAX_OPCODE_ARGS];
+    unsigned n_arg_copy = 0;
     uint32_t debug_cause = 0;
     uint32_t windowed_register = 0;
     uint32_t coprocessor = 0;
@@ -1250,7 +1342,7 @@ static void disas_xtensa_insn(CPUXtensaState *env, DisasContext *dc)
     }
 
     if (slots > 1) {
-        if (!tsort(slot_prop, ordered, slots)) {
+        if (!tsort(slot_prop, ordered, slots, arg_copy, &n_arg_copy)) {
             qemu_log_mask(LOG_UNIMP,
                           "Circular resource dependencies (pc = %08x)\n",
                           dc->pc);
@@ -1298,6 +1390,29 @@ static void disas_xtensa_insn(CPUXtensaState *env, DisasContext *dc)
         return;
     }
 
+    if (n_arg_copy) {
+        uint32_t resource;
+        void *temp;
+        unsigned j;
+
+        qsort(arg_copy, n_arg_copy, sizeof(*arg_copy), arg_copy_compare);
+        for (i = j = 0; i < n_arg_copy; ++i) {
+            if (i == 0 || arg_copy[i].resource != resource) {
+                resource = arg_copy[i].resource;
+                temp = tcg_temp_local_new();
+                tcg_gen_mov_i32(temp, arg_copy[i].arg->in);
+                arg_copy[i].temp = temp;
+
+                if (i != j) {
+                    arg_copy[j] = arg_copy[i];
+                }
+                ++j;
+            }
+            arg_copy[i].arg->in = temp;
+        }
+        n_arg_copy = j;
+    }
+
     if (op_flags & XTENSA_OP_DIVIDE_BY_ZERO) {
         for (slot = 0; slot < slots; ++slot) {
             if (slot_prop[slot].ops->op_flags & XTENSA_OP_DIVIDE_BY_ZERO) {
@@ -1313,6 +1428,10 @@ static void disas_xtensa_insn(CPUXtensaState *env, DisasContext *dc)
         XtensaOpcodeOps *ops = pslot->ops;
 
         ops->translate(dc, pslot->arg, ops->par);
+    }
+
+    for (i = 0; i < n_arg_copy; ++i) {
+        tcg_temp_free(arg_copy[i].temp);
     }
 
     if (dc->base.is_jmp == DISAS_NEXT) {
