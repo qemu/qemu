@@ -675,6 +675,7 @@ static void virtio_blk_dma_restart_bh(void *opaque)
     if (mrb.num_reqs) {
         virtio_blk_submit_multireq(s->blk, &mrb);
     }
+    blk_dec_in_flight(s->conf.conf.blk);
     aio_context_release(blk_get_aio_context(s->conf.conf.blk));
 }
 
@@ -688,8 +689,11 @@ static void virtio_blk_dma_restart_cb(void *opaque, int running,
     }
 
     if (!s->bh) {
+        /* FIXME The data plane is not started yet, so these requests are
+         * processed in the main thread. */
         s->bh = aio_bh_new(blk_get_aio_context(s->conf.conf.blk),
                            virtio_blk_dma_restart_bh, s);
+        blk_inc_in_flight(s->conf.conf.blk);
         qemu_bh_schedule(s->bh);
     }
 }
