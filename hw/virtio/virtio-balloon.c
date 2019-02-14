@@ -221,17 +221,20 @@ static void virtio_balloon_handle_output(VirtIODevice *vdev, VirtQueue *vq)
         }
 
         while (iov_to_buf(elem->out_sg, elem->out_num, offset, &pfn, 4) == 4) {
-            ram_addr_t pa;
-            ram_addr_t addr;
+            hwaddr pa;
+            hwaddr addr;
             int p = virtio_ldl_p(vdev, &pfn);
 
-            pa = (ram_addr_t) p << VIRTIO_BALLOON_PFN_SHIFT;
+            pa = (hwaddr) p << VIRTIO_BALLOON_PFN_SHIFT;
             offset += 4;
 
-            /* FIXME: remove get_system_memory(), but how? */
-            section = memory_region_find(get_system_memory(), pa, 1);
-            if (!int128_nz(section.size) ||
-                !memory_region_is_ram(section.mr) ||
+            section = memory_region_find(get_system_memory(), pa,
+                                         BALLOON_PAGE_SIZE);
+            if (!section.mr) {
+                trace_virtio_balloon_bad_addr(pa);
+                continue;
+            }
+            if (!memory_region_is_ram(section.mr) ||
                 memory_region_is_rom(section.mr) ||
                 memory_region_is_romd(section.mr)) {
                 trace_virtio_balloon_bad_addr(pa);
