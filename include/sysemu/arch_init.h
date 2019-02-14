@@ -32,5 +32,4 @@ extern const uint32_t arch_type;
 int kvm_available(void);
 int xen_available(void);
 
-CpuDefinitionInfoList *arch_query_cpu_definitions(Error **errp);
 #endif

@@ -425,3 +425,67 @@
             'model': 'CpuModelInfo' },
   'returns': 'CpuModelExpansionInfo',
   'if': 'defined(TARGET_S390X) || defined(TARGET_I386)' }
+
+##
+# @CpuDefinitionInfo:
+#
+# Virtual CPU definition.
+#
+# @name: the name of the CPU definition
+#
+# @migration-safe: whether a CPU definition can be safely used for
+#                  migration in combination with a QEMU compatibility machine
+#                  when migrating between different QEMU versions and between
+#                  hosts with different sets of (hardware or software)
+#                  capabilities. If not provided, information is not available
+#                  and callers should not assume the CPU definition to be
+#                  migration-safe. (since 2.8)
+#
+# @static: whether a CPU definition is static and will not change depending on
+#          QEMU version, machine type, machine options and accelerator options.
+#          A static model is always migration-safe. (since 2.8)
+#
+# @unavailable-features: List of properties that prevent
+#                        the CPU model from running in the current
+#                        host. (since 2.8)
+# @typename: Type name that can be used as argument to @device-list-properties,
+#            to introspect properties configurable using -cpu or -global.
+#            (since 2.9)
+#
+# @unavailable-features is a list of QOM property names that
+# represent CPU model attributes that prevent the CPU from running.
+# If the QOM property is read-only, that means there's no known
+# way to make the CPU model run in the current host. Implementations
+# that choose not to provide specific information return the
+# property name "type".
+# If the property is read-write, it means that it MAY be possible
+# to run the CPU model in the current host if that property is
+# changed. Management software can use it as hints to suggest or
+# choose an alternative for the user, or just to generate meaningful
+# error messages explaining why the CPU model can't be used.
+# If @unavailable-features is an empty list, the CPU model is
+# runnable using the current host and machine-type.
+# If @unavailable-features is not present, runnability
+# information for the CPU is not available.
+#
+# Since: 1.2.0
+##
+{ 'struct': 'CpuDefinitionInfo',
+  'data': { 'name': 'str',
+            '*migration-safe': 'bool',
+            'static': 'bool',
+            '*unavailable-features': [ 'str' ],
+            'typename': 'str' },
+  'if': 'defined(TARGET_PPC) || defined(TARGET_ARM) || defined(TARGET_I386) || defined(TARGET_S390X)' }
+
+##
+# @query-cpu-definitions:
+#
+# Return a list of supported virtual CPU definitions
+#
+# Returns: a list of CpuDefInfo
+#
+# Since: 1.2.0
+##
+{ 'command': 'query-cpu-definitions', 'returns': ['CpuDefinitionInfo'],
+  'if': 'defined(TARGET_PPC) || defined(TARGET_ARM) || defined(TARGET_I386) || defined(TARGET_S390X)' }
