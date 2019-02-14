@@ -146,6 +146,9 @@ typedef struct TestServer {
     int fds_num;
     int fds[VHOST_MEMORY_MAX_NREGIONS];
     VhostUserMemory memory;
+    GMainContext *context;
+    GMainLoop *loop;
+    GThread *thread;
     GMutex data_mutex;
     GCond data_cond;
     int log_fd;
@@ -495,6 +498,12 @@ static TestServer *test_server_new(const gchar *name)
 {
     TestServer *server = g_new0(TestServer, 1);
 
+    server->context = g_main_context_new();
+    server->loop = g_main_loop_new(server->context, FALSE);
+
+    /* run the main loop thread so the chardev may operate */
+    server->thread = g_thread_new(NULL, thread_function, server->loop);
+
     server->socket_path = g_strdup_printf("%s/%s.sock", tmpfs, name);
     server->mig_path = g_strdup_printf("%s/%s.mig", tmpfs, name);
     server->chr_name = g_strdup_printf("chr-%s", name);
@@ -524,13 +533,13 @@ static void test_server_create_chr(TestServer *server, const gchar *opt)
     Chardev *chr;
 
     chr_path = g_strdup_printf("unix:%s%s", server->socket_path, opt);
-    chr = qemu_chr_new(server->chr_name, chr_path, NULL);
+    chr = qemu_chr_new(server->chr_name, chr_path, server->context);
     g_free(chr_path);
 
     g_assert_nonnull(chr);
     qemu_chr_fe_init(&server->chr, chr, &error_abort);
     qemu_chr_fe_set_handlers(&server->chr, chr_can_read, chr_read,
-                             chr_event, NULL, server, NULL, true);
+                             chr_event, NULL, server, server->context, true);
 }
 
 static void test_server_listen(TestServer *server)
@@ -538,9 +547,16 @@ static void test_server_listen(TestServer *server)
     test_server_create_chr(server, ",server,nowait");
 }
 
-static gboolean _test_server_free(TestServer *server)
+static void test_server_free(TestServer *server)
 {
     int i;
+
+    /* finish the helper thread and dispatch pending sources */
+    g_main_loop_quit(server->loop);
+    g_thread_join(server->thread);
+    while (g_main_context_pending(NULL)) {
+        g_main_context_iteration(NULL, TRUE);
+    }
 
     qemu_chr_fe_deinit(&server->chr, true);
 
@@ -562,14 +578,9 @@ static gboolean _test_server_free(TestServer *server)
     g_assert(server->bus);
     qpci_free_pc(server->bus);
 
+    g_main_loop_unref(server->loop);
+    g_main_context_unref(server->context);
     g_free(server);
-
-    return FALSE;
-}
-
-static void test_server_free(TestServer *server)
-{
-    g_idle_add((GSourceFunc)_test_server_free, server);
 }
 
 static void wait_for_log_fd(TestServer *s)
@@ -728,7 +739,7 @@ static void test_migrate(void)
                           sizeof(TestMigrateSource));
     ((TestMigrateSource *)source)->src = s;
     ((TestMigrateSource *)source)->dest = dest;
-    g_source_attach(source, NULL);
+    g_source_attach(source, s->context);
 
     /* slow down migration to have time to fiddle with log */
     /* TODO: qtest could learn to break on some places */
@@ -825,6 +836,7 @@ connect_thread(gpointer data)
 static void test_reconnect_subprocess(void)
 {
     TestServer *s = test_server_new("reconnect");
+    GSource *src;
     char *cmd;
 
     g_thread_new("connect", connect_thread, s);
@@ -842,7 +854,10 @@ static void test_reconnect_subprocess(void)
     /* reconnect */
     s->fds_num = 0;
     s->rings = 0;
-    g_idle_add(reconnect_cb, s);
+    src = g_idle_source_new();
+    g_source_set_callback(src, reconnect_cb, s, NULL);
+    g_source_attach(src, s->context);
+    g_source_unref(src);
     g_assert(wait_for_fds(s));
     wait_for_rings_started(s, 2);
 
@@ -974,8 +989,6 @@ int main(int argc, char **argv)
     const char *hugefs;
     int ret;
     char template[] = "/tmp/vhost-test-XXXXXX";
-    GMainLoop *loop;
-    GThread *thread;
 
     g_test_init(&argc, &argv, NULL);
 
@@ -996,10 +1009,6 @@ int main(int argc, char **argv)
         g_assert(root);
     }
 #endif
-
-    loop = g_main_loop_new(NULL, FALSE);
-    /* run the main loop thread so the chardev may operate */
-    thread = g_thread_new(NULL, thread_function, loop);
 
     if (qemu_memfd_check(0)) {
         qtest_add_data_func("/vhost-user/read-guest-mem/memfd",
@@ -1027,14 +1036,6 @@ int main(int argc, char **argv)
     ret = g_test_run();
 
     /* cleanup */
-
-    /* finish the helper thread and dispatch pending sources */
-    g_main_loop_quit(loop);
-    g_thread_join(thread);
-    while (g_main_context_pending(NULL)) {
-        g_main_context_iteration (NULL, TRUE);
-    }
-    g_main_loop_unref(loop);
 
     ret = rmdir(tmpfs);
     if (ret != 0) {
