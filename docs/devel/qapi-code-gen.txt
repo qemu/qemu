@@ -1381,10 +1381,14 @@ qapi_event_send_EVENT().
 
 The following files are created:
 
-$(prefix)qapi-events.h - Function prototypes for each event type, plus an
-                        enumeration of all event names
+$(prefix)qapi-events.h - Function prototypes for each event type
 
 $(prefix)qapi-events.c - Implementation of functions to send an event
+
+$(prefix)qapi-emit-events.h - Enumeration of all event names, and
+                              common event code declarations
+
+$(prefix)qapi-emit-events.c - Common event code definitions
 
 Example:
 
@@ -1397,20 +1401,7 @@ Example:
     #include "qapi/util.h"
     #include "example-qapi-types.h"
 
-
     void qapi_event_send_my_event(void);
-
-    typedef enum example_QAPIEvent {
-        EXAMPLE_QAPI_EVENT_MY_EVENT,
-        EXAMPLE_QAPI_EVENT__MAX,
-    } example_QAPIEvent;
-
-    #define example_QAPIEvent_str(val) \
-        qapi_enum_lookup(&example_QAPIEvent_lookup, (val))
-
-    extern const QEnumLookup example_QAPIEvent_lookup;
-
-    void example_qapi_event_emit(example_QAPIEvent event, QDict *qdict);
 
     #endif /* EXAMPLE_QAPI_EVENTS_H */
     $ cat qapi-generated/example-qapi-events.c
@@ -1426,6 +1417,31 @@ Example:
 
         qobject_unref(qmp);
     }
+
+[Uninteresting stuff omitted...]
+    $ cat qapi-generated/example-qapi-emit-events.h
+[Uninteresting stuff omitted...]
+
+    #ifndef EXAMPLE_QAPI_EMIT_EVENTS_H
+    #define EXAMPLE_QAPI_EMIT_EVENTS_H
+
+    #include "qapi/util.h"
+
+    typedef enum example_QAPIEvent {
+        EXAMPLE_QAPI_EVENT_MY_EVENT,
+        EXAMPLE_QAPI_EVENT__MAX,
+    } example_QAPIEvent;
+
+    #define example_QAPIEvent_str(val) \
+        qapi_enum_lookup(&example_QAPIEvent_lookup, (val))
+
+    extern const QEnumLookup example_QAPIEvent_lookup;
+
+    void example_qapi_event_emit(example_QAPIEvent event, QDict *qdict);
+
+    #endif /* EXAMPLE_QAPI_EMIT_EVENTS_H */
+    $ cat qapi-generated/example-qapi-emit-events.c
+[Uninteresting stuff omitted...]
 
     const QEnumLookup example_QAPIEvent_lookup = {
         .array = (const char *const[]) {

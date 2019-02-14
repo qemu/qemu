@@ -143,12 +143,14 @@ class QAPISchemaGenEventVisitor(QAPISchemaModularCVisitor):
         self._event_emit_name = c_name(prefix + 'qapi_event_emit')
 
     def _begin_user_module(self, name):
+        events = self._module_basename('qapi-events', name)
         types = self._module_basename('qapi-types', name)
         visit = self._module_basename('qapi-visit', name)
         self._genc.add(mcgen('''
 #include "qemu/osdep.h"
 #include "qemu-common.h"
-#include "%(prefix)sqapi-events.h"
+#include "%(prefix)sqapi-emit-events.h"
+#include "%(events)s.h"
 #include "%(visit)s.h"
 #include "qapi/error.h"
 #include "qapi/qmp/qdict.h"
@@ -156,26 +158,34 @@ class QAPISchemaGenEventVisitor(QAPISchemaModularCVisitor):
 #include "qapi/qmp-event.h"
 
 ''',
-                             visit=visit, prefix=self._prefix))
+                             events=events, visit=visit,
+                             prefix=self._prefix))
         self._genh.add(mcgen('''
 #include "qapi/util.h"
 #include "%(types)s.h"
-
 ''',
                              types=types))
 
     def visit_end(self):
-        (genc, genh) = self._module[self._main_module]
-        genh.add(gen_enum(self._event_enum_name,
-                          self._event_enum_members))
-        genc.add(gen_enum_lookup(self._event_enum_name,
-                                 self._event_enum_members))
-        genh.add(mcgen('''
+        self._add_system_module('emit', ' * QAPI Events emission')
+        self._genc.preamble_add(mcgen('''
+#include "qemu/osdep.h"
+#include "%(prefix)sqapi-emit-events.h"
+''',
+                                      prefix=self._prefix))
+        self._genh.preamble_add(mcgen('''
+#include "qapi/util.h"
+'''))
+        self._genh.add(gen_enum(self._event_enum_name,
+                                self._event_enum_members))
+        self._genc.add(gen_enum_lookup(self._event_enum_name,
+                                       self._event_enum_members))
+        self._genh.add(mcgen('''
 
 void %(event_emit)s(%(event_enum)s event, QDict *qdict);
 ''',
-                       event_emit=self._event_emit_name,
-                       event_enum=self._event_enum_name))
+                             event_emit=self._event_emit_name,
+                             event_enum=self._event_enum_name))
 
     def visit_event(self, name, info, ifcond, arg_type, boxed):
         with ifcontext(ifcond, self._genh, self._genc):

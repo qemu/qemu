@@ -12,6 +12,7 @@ util-obj-y += $(QAPI_MODULES:%=qapi/qapi-types-%.o)
 util-obj-y += qapi/qapi-builtin-visit.o
 util-obj-y += qapi/qapi-visit.o
 util-obj-y += $(QAPI_MODULES:%=qapi/qapi-visit-%.o)
+util-obj-y += qapi/qapi-emit-events.o
 util-obj-y += qapi/qapi-events.o
 util-obj-y += $(QAPI_MODULES:%=qapi/qapi-events-%.o)
 util-obj-y += qapi/qapi-introspect.o

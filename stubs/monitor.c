@@ -1,6 +1,6 @@
 #include "qemu/osdep.h"
 #include "qapi/error.h"
-#include "qapi/qapi-events.h"
+#include "qapi/qapi-emit-events.h"
 #include "qemu-common.h"
 #include "monitor/monitor.h"
 

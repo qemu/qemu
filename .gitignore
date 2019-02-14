@@ -32,6 +32,7 @@
 /qapi/qapi-builtin-visit.[ch]
 /qapi/qapi-commands-*.[ch]
 /qapi/qapi-commands.[ch]
+/qapi/qapi-emit-events.[ch]
 /qapi/qapi-events-*.[ch]
 /qapi/qapi-events.[ch]
 /qapi/qapi-introspect.[ch]
