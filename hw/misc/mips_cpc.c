@@ -30,6 +30,14 @@ static inline uint64_t cpc_vp_run_mask(MIPSCPCState *cpc)
     return (1ULL << cpc->num_vp) - 1;
 }
 
+static void mips_cpu_reset_async_work(CPUState *cs, run_on_cpu_data data)
+{
+    MIPSCPCState *cpc = (MIPSCPCState *) data.host_ptr;
+
+    cpu_reset(cs);
+    cpc->vp_running |= 1ULL << cs->cpu_index;
+}
+
 static void cpc_run_vp(MIPSCPCState *cpc, uint64_t vp_run)
 {
     CPUState *cs = first_cpu;
@@ -37,8 +45,13 @@ static void cpc_run_vp(MIPSCPCState *cpc, uint64_t vp_run)
     CPU_FOREACH(cs) {
         uint64_t i = 1ULL << cs->cpu_index;
         if (i & vp_run & ~cpc->vp_running) {
-            cpu_reset(cs);
-            cpc->vp_running |= i;
+            /*
+             * To avoid racing with a CPU we are just kicking off.
+             * We do the final bit of preparation for the work in
+             * the target CPUs context.
+             */
+            async_safe_run_on_cpu(cs, mips_cpu_reset_async_work,
+                                  RUN_ON_CPU_HOST_PTR(cpc));
         }
     }
 }
