@@ -1262,12 +1262,12 @@ int blk_make_zero(BlockBackend *blk, BdrvRequestFlags flags)
     return bdrv_make_zero(blk->root, flags);
 }
 
-static void blk_inc_in_flight(BlockBackend *blk)
+void blk_inc_in_flight(BlockBackend *blk)
 {
     atomic_inc(&blk->in_flight);
 }
 
-static void blk_dec_in_flight(BlockBackend *blk)
+void blk_dec_in_flight(BlockBackend *blk)
 {
     atomic_dec(&blk->in_flight);
     aio_wait_kick();
