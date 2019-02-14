@@ -30,14 +30,7 @@
 #include "hw/input/i8042.h"
 #include "sysemu/sysemu.h"
 
-/* debug PC keyboard */
-//#define DEBUG_KBD
-#ifdef DEBUG_KBD
-#define DPRINTF(fmt, ...)                                       \
-    do { printf("KBD: " fmt , ## __VA_ARGS__); } while (0)
-#else
-#define DPRINTF(fmt, ...)
-#endif
+#include "trace.h"
 
 /*	Keyboard Controller Commands */
 #define KBD_CCMD_READ_MODE	0x20	/* Read mode bits */
@@ -210,7 +203,7 @@ static uint64_t kbd_read_status(void *opaque, hwaddr addr,
     KBDState *s = opaque;
     int val;
     val = s->status;
-    DPRINTF("kbd: read status=0x%02x\n", val);
+    trace_pckbd_kbd_read_status(val);
     return val;
 }
 
@@ -224,7 +217,7 @@ static void kbd_queue(KBDState *s, int b, int aux)
 
 static void outport_write(KBDState *s, uint32_t val)
 {
-    DPRINTF("kbd: write outport=0x%02x\n", val);
+    trace_pckbd_outport_write(val);
     s->outport = val;
     qemu_set_irq(s->a20_out, (val >> 1) & 1);
     if (!(val & 1)) {
@@ -237,7 +230,7 @@ static void kbd_write_command(void *opaque, hwaddr addr,
 {
     KBDState *s = opaque;
 
-    DPRINTF("kbd: write cmd=0x%02" PRIx64 "\n", val);
+    trace_pckbd_kbd_write_command(val);
 
     /* Bits 3-0 of the output port P2 of the keyboard controller may be pulsed
      * low for approximately 6 micro seconds. Bits 3-0 of the KBD_CCMD_PULSE
@@ -326,7 +319,7 @@ static uint64_t kbd_read_data(void *opaque, hwaddr addr,
     else
         val = ps2_read_data(s->kbd);
 
-    DPRINTF("kbd: read data=0x%02x\n", val);
+    trace_pckbd_kbd_read_data(val);
     return val;
 }
 
@@ -335,7 +328,7 @@ static void kbd_write_data(void *opaque, hwaddr addr,
 {
     KBDState *s = opaque;
 
-    DPRINTF("kbd: write data=0x%02" PRIx64 "\n", val);
+    trace_pckbd_kbd_write_data(val);
 
     switch(s->write_cmd) {
     case 0:

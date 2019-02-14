@@ -817,6 +817,7 @@ DragonFly)
 ;;
 NetBSD)
   bsd="yes"
+  hax="yes"
   make="${MAKE-gmake}"
   audio_drv_list="oss try-sdl"
   audio_possible_drivers="oss sdl"
@@ -1768,7 +1769,7 @@ disabled with --disable-FEATURE, default is enabled if available:
   virglrenderer   virgl rendering support
   xfsctl          xfsctl support
   qom-cast-debug  cast debugging support
-  tools           build qemu-io, qemu-nbd and qemu-image tools
+  tools           build qemu-io, qemu-nbd and qemu-img tools
   vxhs            Veritas HyperScale vDisk backend support
   bochs           bochs image format support
   cloop           cloop image format support
@@ -1881,7 +1882,6 @@ gcc_flags="-Wno-missing-include-dirs -Wempty-body -Wnested-externs $gcc_flags"
 gcc_flags="-Wendif-labels -Wno-shift-negative-value $gcc_flags"
 gcc_flags="-Wno-initializer-overrides -Wexpansion-to-defined $gcc_flags"
 gcc_flags="-Wno-string-plus-int $gcc_flags"
-gcc_flags="-Wno-error=address-of-packed-member $gcc_flags"
 # Note that we do not add -Werror to gcc_flags here, because that would
 # enable it for all configure tests. If a configure test failed due
 # to -Werror this would just silently disable some features,
@@ -3350,10 +3350,6 @@ for drv in $audio_drv_list; do
       oss_libs="$oss_lib"
     ;;
 
-    wav)
-    # XXX: Probes for CoreAudio, DirectSound
-    ;;
-
     *)
     echo "$audio_possible_drivers" | grep -q "\<$drv\>" || {
         error_exit "Unknown driver '$drv' selected" \
@@ -4266,10 +4262,25 @@ fi
 # check for usbfs
 have_usbfs=no
 if test "$linux_user" = "yes"; then
-  if check_include linux/usbdevice_fs.h; then
+  cat > $TMPC << EOF
+#include <linux/usbdevice_fs.h>
+
+#ifndef USBDEVFS_GET_CAPABILITIES
+#error "USBDEVFS_GET_CAPABILITIES undefined"
+#endif
+
+#ifndef USBDEVFS_DISCONNECT_CLAIM
+#error "USBDEVFS_DISCONNECT_CLAIM undefined"
+#endif
+
+int main(void)
+{
+    return 0;
+}
+EOF
+  if compile_prog "" ""; then
     have_usbfs=yes
   fi
-  have_usbfs=yes
 fi
 
 # check for fallocate
