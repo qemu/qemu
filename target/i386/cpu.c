@@ -41,6 +41,7 @@
 #include "qapi/visitor.h"
 #include "qom/qom-qobject.h"
 #include "sysemu/arch_init.h"
+#include "qapi/qapi-commands-target.h"
 
 #include "standard-headers/asm-x86/kvm_para.h"
 
@@ -3918,6 +3919,7 @@ static void x86_cpu_load_def(X86CPU *cpu, X86CPUDefinition *def, Error **errp)
 
 }
 
+#ifndef CONFIG_USER_ONLY
 /* Return a QDict containing keys for all properties that can be included
  * in static expansion of CPU models. All properties set by x86_cpu_load_def()
  * must be included in the dictionary.
@@ -4065,7 +4067,7 @@ out:
 }
 
 CpuModelExpansionInfo *
-arch_query_cpu_model_expansion(CpuModelExpansionType type,
+qmp_query_cpu_model_expansion(CpuModelExpansionType type,
                                                       CpuModelInfo *model,
                                                       Error **errp)
 {
@@ -4120,6 +4122,7 @@ out:
     }
     return ret;
 }
+#endif  /* !CONFIG_USER_ONLY */
 
 static gchar *x86_gdb_arch_name(CPUState *cs)
 {
