@@ -1113,6 +1113,19 @@ Example:
 
 [Uninteresting stuff omitted...]
 
+For a modular QAPI schema (see section Include directives), code for
+each sub-module SUBDIR/SUBMODULE.json is actually generated into
+
+SUBDIR/$(prefix)qapi-types-SUBMODULE.h
+SUBDIR/$(prefix)qapi-types-SUBMODULE.c
+
+If qapi-gen.py is run with option --builtins, additional files are
+created:
+
+qapi-builtin-types.h - C types corresponding to built-in types
+
+qapi-builtin-types.c - Cleanup functions for the above C types
+
 === Code generated for visiting QAPI types ===
 
 These are the visitor functions used to walk through and convert
@@ -1244,6 +1257,19 @@ Example:
 
 [Uninteresting stuff omitted...]
 
+For a modular QAPI schema (see section Include directives), code for
+each sub-module SUBDIR/SUBMODULE.json is actually generated into
+
+SUBDIR/$(prefix)qapi-visit-SUBMODULE.h
+SUBDIR/$(prefix)qapi-visit-SUBMODULE.c
+
+If qapi-gen.py is run with option --builtins, additional files are
+created:
+
+qapi-builtin-visit.h - Visitor functions for built-in types
+
+qapi-builtin-visit.c - Declarations for these visitor functions
+
 === Code generated for commands ===
 
 These are the marshaling/dispatch functions for the commands defined
@@ -1342,6 +1368,12 @@ Example:
 
 [Uninteresting stuff omitted...]
 
+For a modular QAPI schema (see section Include directives), code for
+each sub-module SUBDIR/SUBMODULE.json is actually generated into
+
+SUBDIR/$(prefix)qapi-commands-SUBMODULE.h
+SUBDIR/$(prefix)qapi-commands-SUBMODULE.c
+
 === Code generated for events ===
 
 This is the code related to events defined in the schema, providing
@@ -1401,6 +1433,12 @@ Example:
     };
 
 [Uninteresting stuff omitted...]
+
+For a modular QAPI schema (see section Include directives), code for
+each sub-module SUBDIR/SUBMODULE.json is actually generated into
+
+SUBDIR/$(prefix)qapi-events-SUBMODULE.h
+SUBDIR/$(prefix)qapi-events-SUBMODULE.c
 
 === Code generated for introspection ===
 
