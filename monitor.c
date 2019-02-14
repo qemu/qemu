@@ -1099,6 +1099,11 @@ CommandInfoList *qmp_query_commands(Error **errp)
 
 EventInfoList *qmp_query_events(Error **errp)
 {
+    /*
+     * TODO This deprecated command is the only user of
+     * QAPIEvent_str() and QAPIEvent_lookup[].  When the command goes,
+     * they should go, too.
+     */
     EventInfoList *info, *ev_list = NULL;
     QAPIEvent e;
 
