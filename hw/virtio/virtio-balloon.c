@@ -37,8 +37,29 @@ static void balloon_inflate_page(VirtIOBalloon *balloon,
                                  MemoryRegion *mr, hwaddr offset)
 {
     void *addr = memory_region_get_ram_ptr(mr) + offset;
+    RAMBlock *rb;
+    size_t rb_page_size;
+    ram_addr_t ram_offset;
 
-    qemu_madvise(addr, BALLOON_PAGE_SIZE, QEMU_MADV_DONTNEED);
+    /* XXX is there a better way to get to the RAMBlock than via a
+     * host address? */
+    rb = qemu_ram_block_from_host(addr, false, &ram_offset);
+    rb_page_size = qemu_ram_pagesize(rb);
+
+    /* Silently ignore hugepage RAM blocks */
+    if (rb_page_size != getpagesize()) {
+        return;
+    }
+
+    /* Silently ignore unaligned requests */
+    if (ram_offset & (rb_page_size - 1)) {
+        return;
+    }
+
+    ram_block_discard_range(rb, ram_offset, rb_page_size);
+    /* We ignore errors from ram_block_discard_range(), because it has
+     * already reported them, and failing to discard a balloon page is
+     * not fatal */
 }
 
 static const char *balloon_stat_names[] = {
