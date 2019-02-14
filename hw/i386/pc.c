@@ -1210,6 +1210,17 @@ static void load_linux(PCMachineState *pcms,
         protocol = lduw_p(header+0x206);
     } else {
         /*
+         * This could be a multiboot kernel. If it is, let's stop treating it
+         * like a Linux kernel.
+         * Note: some multiboot images could be in the ELF format (the same of
+         * PVH), so we try multiboot first since we check the multiboot magic
+         * header before to load it.
+         */
+        if (load_multiboot(fw_cfg, f, kernel_filename, initrd_filename,
+                           kernel_cmdline, kernel_size, header)) {
+            return;
+        }
+        /*
          * Check if the file is an uncompressed kernel file (ELF) and load it,
          * saving the PVH entry point used by the x86/HVM direct boot ABI.
          * If load_elfboot() is successful, populate the fw_cfg info.
@@ -1260,12 +1271,6 @@ static void load_linux(PCMachineState *pcms,
             option_rom[nb_option_roms].name = "pvh.bin";
             nb_option_roms++;
 
-            return;
-        }
-        /* This looks like a multiboot kernel. If it is, let's stop
-           treating it like a Linux kernel. */
-        if (load_multiboot(fw_cfg, f, kernel_filename, initrd_filename,
-                           kernel_cmdline, kernel_size, header)) {
             return;
         }
         protocol = 0;
