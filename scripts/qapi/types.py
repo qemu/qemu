@@ -183,7 +183,7 @@ class QAPISchemaGenTypeVisitor(QAPISchemaModularCVisitor):
         QAPISchemaModularCVisitor.__init__(
             self, prefix, 'qapi-types', ' * Schema-defined QAPI types',
             __doc__)
-        self._add_module(None, ' * Built-in QAPI types')
+        self._add_system_module(None, ' * Built-in QAPI types')
         self._genc.preamble_add(mcgen('''
 #include "qemu/osdep.h"
 #include "qapi/dealloc-visitor.h"

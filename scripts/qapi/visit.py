@@ -284,7 +284,7 @@ class QAPISchemaGenVisitVisitor(QAPISchemaModularCVisitor):
         QAPISchemaModularCVisitor.__init__(
             self, prefix, 'qapi-visit', ' * Schema-defined QAPI visitors',
             __doc__)
-        self._add_module(None, ' * Built-in QAPI visitors')
+        self._add_system_module(None, ' * Built-in QAPI visitors')
         self._genc.preamble_add(mcgen('''
 #include "qemu/osdep.h"
 #include "qemu-common.h"
