@@ -1145,12 +1145,6 @@ static void qmp_query_qmp_schema(QDict *qdict, QObject **ret_data,
  */
 static void qmp_unregister_commands_hack(void)
 {
-#ifndef TARGET_I386
-    qmp_unregister_command(&qmp_commands, "rtc-reset-reinjection");
-    qmp_unregister_command(&qmp_commands, "query-sev");
-    qmp_unregister_command(&qmp_commands, "query-sev-launch-measure");
-    qmp_unregister_command(&qmp_commands, "query-sev-capabilities");
-#endif
 #ifndef TARGET_S390X
     qmp_unregister_command(&qmp_commands, "dump-skeys");
 #endif
@@ -4669,31 +4663,6 @@ QemuOptsList qemu_mon_opts = {
         { /* end of list */ }
     },
 };
-
-#ifndef TARGET_I386
-void qmp_rtc_reset_reinjection(Error **errp)
-{
-    error_setg(errp, QERR_FEATURE_DISABLED, "rtc-reset-reinjection");
-}
-
-SevInfo *qmp_query_sev(Error **errp)
-{
-    error_setg(errp, QERR_FEATURE_DISABLED, "query-sev");
-    return NULL;
-}
-
-SevLaunchMeasureInfo *qmp_query_sev_launch_measure(Error **errp)
-{
-    error_setg(errp, QERR_FEATURE_DISABLED, "query-sev-launch-measure");
-    return NULL;
-}
-
-SevCapability *qmp_query_sev_capabilities(Error **errp)
-{
-    error_setg(errp, QERR_FEATURE_DISABLED, "query-sev-capabilities");
-    return NULL;
-}
-#endif
 
 #ifndef TARGET_S390X
 void qmp_dump_skeys(const char *filename, Error **errp)
