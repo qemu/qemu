@@ -25,7 +25,7 @@
 #include "exec/helper-proto.h"
 
 /* Exceptions processing helpers */
-void QEMU_NORETURN do_raise_exception_err(CPURISCVState *env,
+void QEMU_NORETURN riscv_raise_exception(CPURISCVState *env,
                                           uint32_t exception, uintptr_t pc)
 {
     CPUState *cs = CPU(riscv_env_get_cpu(env));
@@ -36,7 +36,7 @@ void QEMU_NORETURN do_raise_exception_err(CPURISCVState *env,
 
 void helper_raise_exception(CPURISCVState *env, uint32_t exception)
 {
-    do_raise_exception_err(env, exception, 0);
+    riscv_raise_exception(env, exception, 0);
 }
 
 target_ulong helper_csrrw(CPURISCVState *env, target_ulong src,
@@ -44,7 +44,7 @@ target_ulong helper_csrrw(CPURISCVState *env, target_ulong src,
 {
     target_ulong val = 0;
     if (riscv_csrrw(env, csr, &val, src, -1) < 0) {
-        do_raise_exception_err(env, RISCV_EXCP_ILLEGAL_INST, GETPC());
+        riscv_raise_exception(env, RISCV_EXCP_ILLEGAL_INST, GETPC());
     }
     return val;
 }
@@ -54,7 +54,7 @@ target_ulong helper_csrrs(CPURISCVState *env, target_ulong src,
 {
     target_ulong val = 0;
     if (riscv_csrrw(env, csr, &val, -1, rs1_pass ? src : 0) < 0) {
-        do_raise_exception_err(env, RISCV_EXCP_ILLEGAL_INST, GETPC());
+        riscv_raise_exception(env, RISCV_EXCP_ILLEGAL_INST, GETPC());
     }
     return val;
 }
@@ -64,7 +64,7 @@ target_ulong helper_csrrc(CPURISCVState *env, target_ulong src,
 {
     target_ulong val = 0;
     if (riscv_csrrw(env, csr, &val, 0, rs1_pass ? src : 0) < 0) {
-        do_raise_exception_err(env, RISCV_EXCP_ILLEGAL_INST, GETPC());
+        riscv_raise_exception(env, RISCV_EXCP_ILLEGAL_INST, GETPC());
     }
     return val;
 }
@@ -74,12 +74,17 @@ target_ulong helper_csrrc(CPURISCVState *env, target_ulong src,
 target_ulong helper_sret(CPURISCVState *env, target_ulong cpu_pc_deb)
 {
     if (!(env->priv >= PRV_S)) {
-        do_raise_exception_err(env, RISCV_EXCP_ILLEGAL_INST, GETPC());
+        riscv_raise_exception(env, RISCV_EXCP_ILLEGAL_INST, GETPC());
     }
 
     target_ulong retpc = env->sepc;
     if (!riscv_has_ext(env, RVC) && (retpc & 0x3)) {
-        do_raise_exception_err(env, RISCV_EXCP_INST_ADDR_MIS, GETPC());
+        riscv_raise_exception(env, RISCV_EXCP_INST_ADDR_MIS, GETPC());
+    }
+
+    if (env->priv_ver >= PRIV_VERSION_1_10_0 &&
+        get_field(env->mstatus, MSTATUS_TSR)) {
+        riscv_raise_exception(env, RISCV_EXCP_ILLEGAL_INST, GETPC());
     }
 
     target_ulong mstatus = env->mstatus;
@@ -90,7 +95,7 @@ target_ulong helper_sret(CPURISCVState *env, target_ulong cpu_pc_deb)
         get_field(mstatus, MSTATUS_SPIE));
     mstatus = set_field(mstatus, MSTATUS_SPIE, 0);
     mstatus = set_field(mstatus, MSTATUS_SPP, PRV_U);
-    riscv_set_mode(env, prev_priv);
+    riscv_cpu_set_mode(env, prev_priv);
     env->mstatus = mstatus;
 
     return retpc;
@@ -99,12 +104,12 @@ target_ulong helper_sret(CPURISCVState *env, target_ulong cpu_pc_deb)
 target_ulong helper_mret(CPURISCVState *env, target_ulong cpu_pc_deb)
 {
     if (!(env->priv >= PRV_M)) {
-        do_raise_exception_err(env, RISCV_EXCP_ILLEGAL_INST, GETPC());
+        riscv_raise_exception(env, RISCV_EXCP_ILLEGAL_INST, GETPC());
     }
 
     target_ulong retpc = env->mepc;
     if (!riscv_has_ext(env, RVC) && (retpc & 0x3)) {
-        do_raise_exception_err(env, RISCV_EXCP_INST_ADDR_MIS, GETPC());
+        riscv_raise_exception(env, RISCV_EXCP_INST_ADDR_MIS, GETPC());
     }
 
     target_ulong mstatus = env->mstatus;
@@ -115,7 +120,7 @@ target_ulong helper_mret(CPURISCVState *env, target_ulong cpu_pc_deb)
         get_field(mstatus, MSTATUS_MPIE));
     mstatus = set_field(mstatus, MSTATUS_MPIE, 0);
     mstatus = set_field(mstatus, MSTATUS_MPP, PRV_U);
-    riscv_set_mode(env, prev_priv);
+    riscv_cpu_set_mode(env, prev_priv);
     env->mstatus = mstatus;
 
     return retpc;
@@ -125,16 +130,28 @@ void helper_wfi(CPURISCVState *env)
 {
     CPUState *cs = CPU(riscv_env_get_cpu(env));
 
-    cs->halted = 1;
-    cs->exception_index = EXCP_HLT;
-    cpu_loop_exit(cs);
+    if (env->priv == PRV_S &&
+        env->priv_ver >= PRIV_VERSION_1_10_0 &&
+        get_field(env->mstatus, MSTATUS_TW)) {
+        riscv_raise_exception(env, RISCV_EXCP_ILLEGAL_INST, GETPC());
+    } else {
+        cs->halted = 1;
+        cs->exception_index = EXCP_HLT;
+        cpu_loop_exit(cs);
+    }
 }
 
 void helper_tlb_flush(CPURISCVState *env)
 {
     RISCVCPU *cpu = riscv_env_get_cpu(env);
     CPUState *cs = CPU(cpu);
-    tlb_flush(cs);
+    if (env->priv == PRV_S &&
+        env->priv_ver >= PRIV_VERSION_1_10_0 &&
+        get_field(env->mstatus, MSTATUS_TVM)) {
+        riscv_raise_exception(env, RISCV_EXCP_ILLEGAL_INST, GETPC());
+    } else {
+        tlb_flush(cs);
+    }
 }
 
 #endif /* !CONFIG_USER_ONLY */
