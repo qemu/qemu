@@ -120,7 +120,7 @@ typedef struct RdmaRmStats {
     uint32_t missing_cqe;
 } RdmaRmStats;
 
-typedef struct RdmaDeviceResources {
+struct RdmaDeviceResources {
     RdmaRmPort port;
     RdmaRmResTbl pd_tbl;
     RdmaRmResTbl mr_tbl;
@@ -131,6 +131,6 @@ typedef struct RdmaDeviceResources {
     GHashTable *qp_hash; /* Keeps mapping between real and emulated */
     QemuMutex lock;
     RdmaRmStats stats;
-} RdmaDeviceResources;
+};
 
 #endif
