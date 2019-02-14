@@ -278,9 +278,63 @@ typedef struct DisasContext {
     bool psw_n_nonzero;
 } DisasContext;
 
-/* Target-specific return values from translate_one, indicating the
-   state of the TB.  Note that DISAS_NEXT indicates that we are not
-   exiting the TB.  */
+/* Note that ssm/rsm instructions number PSW_W and PSW_E differently.  */
+static int expand_sm_imm(int val)
+{
+    if (val & PSW_SM_E) {
+        val = (val & ~PSW_SM_E) | PSW_E;
+    }
+    if (val & PSW_SM_W) {
+        val = (val & ~PSW_SM_W) | PSW_W;
+    }
+    return val;
+}
+
+/* Inverted space register indicates 0 means sr0 not inferred from base.  */
+static int expand_sr3x(int val)
+{
+    return ~val;
+}
+
+/* Convert the M:A bits within a memory insn to the tri-state value
+   we use for the final M.  */
+static int ma_to_m(int val)
+{
+    return val & 2 ? (val & 1 ? -1 : 1) : 0;
+}
+
+/* Convert the sign of the displacement to a pre or post-modify.  */
+static int pos_to_m(int val)
+{
+    return val ? 1 : -1;
+}
+
+static int neg_to_m(int val)
+{
+    return val ? -1 : 1;
+}
+
+/* Used for branch targets and fp memory ops.  */
+static int expand_shl2(int val)
+{
+    return val << 2;
+}
+
+/* Used for fp memory ops.  */
+static int expand_shl3(int val)
+{
+    return val << 3;
+}
+
+/* Used for assemble_21.  */
+static int expand_shl11(int val)
+{
+    return val << 11;
+}
+
+
+/* Include the auto-generated decoder.  */
+#include "decode.inc.c"
 
 /* We are not using a goto_tb (for whatever reason), but have updated
    the iaq (for whatever reason), so don't do it again on exit.  */
@@ -293,21 +347,6 @@ typedef struct DisasContext {
 /* Similarly, but we want to return to the main loop immediately
    to recognize unmasked interrupts.  */
 #define DISAS_IAQ_N_STALE_EXIT      DISAS_TARGET_2
-
-typedef struct DisasInsn {
-    uint32_t insn, mask;
-    DisasJumpType (*trans)(DisasContext *ctx, uint32_t insn,
-                           const struct DisasInsn *f);
-    union {
-        void (*ttt)(TCGv_reg, TCGv_reg, TCGv_reg);
-        void (*weww)(TCGv_i32, TCGv_env, TCGv_i32, TCGv_i32);
-        void (*dedd)(TCGv_i64, TCGv_env, TCGv_i64, TCGv_i64);
-        void (*wew)(TCGv_i32, TCGv_env, TCGv_i32);
-        void (*ded)(TCGv_i64, TCGv_env, TCGv_i64);
-        void (*wed)(TCGv_i32, TCGv_env, TCGv_i64);
-        void (*dew)(TCGv_i64, TCGv_env, TCGv_i32);
-    } f;
-} DisasInsn;
 
 /* global register indexes */
 static TCGv_reg cpu_gr[32];
@@ -393,6 +432,15 @@ static DisasCond cond_make_f(void)
     };
 }
 
+static DisasCond cond_make_t(void)
+{
+    return (DisasCond){
+        .c = TCG_COND_ALWAYS,
+        .a0 = NULL,
+        .a1 = NULL,
+    };
+}
+
 static DisasCond cond_make_n(void)
 {
     return (DisasCond){
@@ -404,15 +452,19 @@ static DisasCond cond_make_n(void)
     };
 }
 
+static DisasCond cond_make_0_tmp(TCGCond c, TCGv_reg a0)
+{
+    assert (c != TCG_COND_NEVER && c != TCG_COND_ALWAYS);
+    return (DisasCond){
+        .c = c, .a0 = a0, .a1_is_0 = true
+    };
+}
+
 static DisasCond cond_make_0(TCGCond c, TCGv_reg a0)
 {
-    DisasCond r = { .c = c, .a1 = NULL, .a1_is_0 = true };
-
-    assert (c != TCG_COND_NEVER && c != TCG_COND_ALWAYS);
-    r.a0 = tcg_temp_new();
-    tcg_gen_mov_reg(r.a0, a0);
-
-    return r;
+    TCGv_reg tmp = tcg_temp_new();
+    tcg_gen_mov_reg(tmp, a0);
+    return cond_make_0_tmp(c, tmp);
 }
 
 static DisasCond cond_make(TCGCond c, TCGv_reg a0, TCGv_reg a1)
@@ -665,10 +717,12 @@ static void nullify_set(DisasContext *ctx, bool x)
 }
 
 /* Mark the end of an instruction that may have been nullified.
-   This is the pair to nullify_over.  */
-static DisasJumpType nullify_end(DisasContext *ctx, DisasJumpType status)
+   This is the pair to nullify_over.  Always returns true so that
+   it may be tail-called from a translate function.  */
+static bool nullify_end(DisasContext *ctx)
 {
     TCGLabel *null_lab = ctx->null_lab;
+    DisasJumpType status = ctx->base.is_jmp;
 
     /* For NEXT, NORETURN, STALE, we can easily continue (or exit).
        For UPDATED, we cannot update on the nullified path.  */
@@ -678,7 +732,7 @@ static DisasJumpType nullify_end(DisasContext *ctx, DisasJumpType status)
         /* The current insn wasn't conditional or handled the condition
            applied to it without a branch, so the (new) setting of
            NULL_COND can be applied directly to the next insn.  */
-        return status;
+        return true;
     }
     ctx->null_lab = NULL;
 
@@ -696,9 +750,9 @@ static DisasJumpType nullify_end(DisasContext *ctx, DisasJumpType status)
         ctx->null_cond = cond_make_n();
     }
     if (status == DISAS_NORETURN) {
-        status = DISAS_NEXT;
+        ctx->base.is_jmp = DISAS_NEXT;
     }
-    return status;
+    return true;
 }
 
 static void copy_iaoq_entry(TCGv_reg dest, target_ureg ival, TCGv_reg vval)
@@ -722,41 +776,49 @@ static void gen_excp_1(int exception)
     tcg_temp_free_i32(t);
 }
 
-static DisasJumpType gen_excp(DisasContext *ctx, int exception)
+static void gen_excp(DisasContext *ctx, int exception)
 {
     copy_iaoq_entry(cpu_iaoq_f, ctx->iaoq_f, cpu_iaoq_f);
     copy_iaoq_entry(cpu_iaoq_b, ctx->iaoq_b, cpu_iaoq_b);
     nullify_save(ctx);
     gen_excp_1(exception);
-    return DISAS_NORETURN;
+    ctx->base.is_jmp = DISAS_NORETURN;
 }
 
-static DisasJumpType gen_excp_iir(DisasContext *ctx, int exc)
+static bool gen_excp_iir(DisasContext *ctx, int exc)
 {
-    TCGv_reg tmp = tcg_const_reg(ctx->insn);
+    TCGv_reg tmp;
+
+    nullify_over(ctx);
+    tmp = tcg_const_reg(ctx->insn);
     tcg_gen_st_reg(tmp, cpu_env, offsetof(CPUHPPAState, cr[CR_IIR]));
     tcg_temp_free(tmp);
-    return gen_excp(ctx, exc);
+    gen_excp(ctx, exc);
+    return nullify_end(ctx);
 }
 
-static DisasJumpType gen_illegal(DisasContext *ctx)
+static bool gen_illegal(DisasContext *ctx)
 {
-    nullify_over(ctx);
-    return nullify_end(ctx, gen_excp_iir(ctx, EXCP_ILL));
+    return gen_excp_iir(ctx, EXCP_ILL);
 }
 
-#define CHECK_MOST_PRIVILEGED(EXCP)                               \
-    do {                                                          \
-        if (ctx->privilege != 0) {                                \
-            nullify_over(ctx);                                    \
-            return nullify_end(ctx, gen_excp_iir(ctx, EXCP));     \
-        }                                                         \
+#ifdef CONFIG_USER_ONLY
+#define CHECK_MOST_PRIVILEGED(EXCP) \
+    return gen_excp_iir(ctx, EXCP)
+#else
+#define CHECK_MOST_PRIVILEGED(EXCP) \
+    do {                                     \
+        if (ctx->privilege != 0) {           \
+            return gen_excp_iir(ctx, EXCP);  \
+        }                                    \
     } while (0)
+#endif
 
 static bool use_goto_tb(DisasContext *ctx, target_ureg dest)
 {
     /* Suppress goto_tb in the case of single-steping and IO.  */
-    if ((tb_cflags(ctx->base.tb) & CF_LAST_IO) || ctx->base.singlestep_enabled) {
+    if ((tb_cflags(ctx->base.tb) & CF_LAST_IO)
+        || ctx->base.singlestep_enabled) {
         return false;
     }
     return true;
@@ -791,111 +853,20 @@ static void gen_goto_tb(DisasContext *ctx, int which,
     }
 }
 
-/* PA has a habit of taking the LSB of a field and using that as the sign,
-   with the rest of the field becoming the least significant bits.  */
-static target_sreg low_sextract(uint32_t val, int pos, int len)
+static bool cond_need_sv(int c)
 {
-    target_ureg x = -(target_ureg)extract32(val, pos, 1);
-    x = (x << (len - 1)) | extract32(val, pos + 1, len - 1);
-    return x;
+    return c == 2 || c == 3 || c == 6;
 }
 
-static unsigned assemble_rt64(uint32_t insn)
+static bool cond_need_cb(int c)
 {
-    unsigned r1 = extract32(insn, 6, 1);
-    unsigned r0 = extract32(insn, 0, 5);
-    return r1 * 32 + r0;
+    return c == 4 || c == 5;
 }
 
-static unsigned assemble_ra64(uint32_t insn)
-{
-    unsigned r1 = extract32(insn, 7, 1);
-    unsigned r0 = extract32(insn, 21, 5);
-    return r1 * 32 + r0;
-}
-
-static unsigned assemble_rb64(uint32_t insn)
-{
-    unsigned r1 = extract32(insn, 12, 1);
-    unsigned r0 = extract32(insn, 16, 5);
-    return r1 * 32 + r0;
-}
-
-static unsigned assemble_rc64(uint32_t insn)
-{
-    unsigned r2 = extract32(insn, 8, 1);
-    unsigned r1 = extract32(insn, 13, 3);
-    unsigned r0 = extract32(insn, 9, 2);
-    return r2 * 32 + r1 * 4 + r0;
-}
-
-static unsigned assemble_sr3(uint32_t insn)
-{
-    unsigned s2 = extract32(insn, 13, 1);
-    unsigned s0 = extract32(insn, 14, 2);
-    return s2 * 4 + s0;
-}
-
-static target_sreg assemble_12(uint32_t insn)
-{
-    target_ureg x = -(target_ureg)(insn & 1);
-    x = (x <<  1) | extract32(insn, 2, 1);
-    x = (x << 10) | extract32(insn, 3, 10);
-    return x;
-}
-
-static target_sreg assemble_16(uint32_t insn)
-{
-    /* Take the name from PA2.0, which produces a 16-bit number
-       only with wide mode; otherwise a 14-bit number.  Since we don't
-       implement wide mode, this is always the 14-bit number.  */
-    return low_sextract(insn, 0, 14);
-}
-
-static target_sreg assemble_16a(uint32_t insn)
-{
-    /* Take the name from PA2.0, which produces a 14-bit shifted number
-       only with wide mode; otherwise a 12-bit shifted number.  Since we
-       don't implement wide mode, this is always the 12-bit number.  */
-    target_ureg x = -(target_ureg)(insn & 1);
-    x = (x << 11) | extract32(insn, 2, 11);
-    return x << 2;
-}
-
-static target_sreg assemble_17(uint32_t insn)
-{
-    target_ureg x = -(target_ureg)(insn & 1);
-    x = (x <<  5) | extract32(insn, 16, 5);
-    x = (x <<  1) | extract32(insn, 2, 1);
-    x = (x << 10) | extract32(insn, 3, 10);
-    return x << 2;
-}
-
-static target_sreg assemble_21(uint32_t insn)
-{
-    target_ureg x = -(target_ureg)(insn & 1);
-    x = (x << 11) | extract32(insn, 1, 11);
-    x = (x <<  2) | extract32(insn, 14, 2);
-    x = (x <<  5) | extract32(insn, 16, 5);
-    x = (x <<  2) | extract32(insn, 12, 2);
-    return x << 11;
-}
-
-static target_sreg assemble_22(uint32_t insn)
-{
-    target_ureg x = -(target_ureg)(insn & 1);
-    x = (x << 10) | extract32(insn, 16, 10);
-    x = (x <<  1) | extract32(insn, 2, 1);
-    x = (x << 10) | extract32(insn, 3, 10);
-    return x << 2;
-}
-
-/* The parisc documentation describes only the general interpretation of
-   the conditions, without describing their exact implementation.  The
-   interpretations do not stand up well when considering ADD,C and SUB,B.
-   However, considering the Addition, Subtraction and Logical conditions
-   as a whole it would appear that these relations are similar to what
-   a traditional NZCV set of flags would produce.  */
+/*
+ * Compute conditional for arithmetic.  See Page 5-3, Table 5-1, of
+ * the Parisc 1.1 Architecture Reference Manual for details.
+ */
 
 static DisasCond do_cond(unsigned cf, TCGv_reg res,
                          TCGv_reg cb_msb, TCGv_reg sv)
@@ -904,17 +875,32 @@ static DisasCond do_cond(unsigned cf, TCGv_reg res,
     TCGv_reg tmp;
 
     switch (cf >> 1) {
-    case 0: /* Never / TR */
+    case 0: /* Never / TR    (0 / 1) */
         cond = cond_make_f();
         break;
     case 1: /* = / <>        (Z / !Z) */
         cond = cond_make_0(TCG_COND_EQ, res);
         break;
-    case 2: /* < / >=        (N / !N) */
-        cond = cond_make_0(TCG_COND_LT, res);
+    case 2: /* < / >=        (N ^ V / !(N ^ V) */
+        tmp = tcg_temp_new();
+        tcg_gen_xor_reg(tmp, res, sv);
+        cond = cond_make_0_tmp(TCG_COND_LT, tmp);
         break;
-    case 3: /* <= / >        (N | Z / !N & !Z) */
-        cond = cond_make_0(TCG_COND_LE, res);
+    case 3: /* <= / >        (N ^ V) | Z / !((N ^ V) | Z) */
+        /*
+         * Simplify:
+         *   (N ^ V) | Z
+         *   ((res < 0) ^ (sv < 0)) | !res
+         *   ((res ^ sv) < 0) | !res
+         *   (~(res ^ sv) >= 0) | !res
+         *   !(~(res ^ sv) >> 31) | !res
+         *   !(~(res ^ sv) >> 31 & res)
+         */
+        tmp = tcg_temp_new();
+        tcg_gen_eqv_reg(tmp, res, sv);
+        tcg_gen_sari_reg(tmp, tmp, TARGET_REGISTER_BITS - 1);
+        tcg_gen_and_reg(tmp, tmp, res);
+        cond = cond_make_0_tmp(TCG_COND_EQ, tmp);
         break;
     case 4: /* NUV / UV      (!C / C) */
         cond = cond_make_0(TCG_COND_EQ, cb_msb);
@@ -923,8 +909,7 @@ static DisasCond do_cond(unsigned cf, TCGv_reg res,
         tmp = tcg_temp_new();
         tcg_gen_neg_reg(tmp, cb_msb);
         tcg_gen_and_reg(tmp, tmp, res);
-        cond = cond_make_0(TCG_COND_EQ, tmp);
-        tcg_temp_free(tmp);
+        cond = cond_make_0_tmp(TCG_COND_EQ, tmp);
         break;
     case 6: /* SV / NSV      (V / !V) */
         cond = cond_make_0(TCG_COND_LT, sv);
@@ -932,8 +917,7 @@ static DisasCond do_cond(unsigned cf, TCGv_reg res,
     case 7: /* OD / EV */
         tmp = tcg_temp_new();
         tcg_gen_andi_reg(tmp, res, 1);
-        cond = cond_make_0(TCG_COND_NE, tmp);
-        tcg_temp_free(tmp);
+        cond = cond_make_0_tmp(TCG_COND_NE, tmp);
         break;
     default:
         g_assert_not_reached();
@@ -971,7 +955,7 @@ static DisasCond do_sub_cond(unsigned cf, TCGv_reg res,
         cond = cond_make(TCG_COND_LEU, in1, in2);
         break;
     default:
-        return do_cond(cf, res, sv, sv);
+        return do_cond(cf, res, NULL, sv);
     }
     if (cf & 1) {
         cond.c = tcg_invert_cond(cond.c);
@@ -980,17 +964,50 @@ static DisasCond do_sub_cond(unsigned cf, TCGv_reg res,
     return cond;
 }
 
-/* Similar, but for logicals, where the carry and overflow bits are not
-   computed, and use of them is undefined.  */
+/*
+ * Similar, but for logicals, where the carry and overflow bits are not
+ * computed, and use of them is undefined.
+ *
+ * Undefined or not, hardware does not trap.  It seems reasonable to
+ * assume hardware treats cases c={4,5,6} as if C=0 & V=0, since that's
+ * how cases c={2,3} are treated.
+ */
 
 static DisasCond do_log_cond(unsigned cf, TCGv_reg res)
 {
-    switch (cf >> 1) {
-    case 4: case 5: case 6:
-        cf &= 1;
-        break;
+    switch (cf) {
+    case 0:  /* never */
+    case 9:  /* undef, C */
+    case 11: /* undef, C & !Z */
+    case 12: /* undef, V */
+        return cond_make_f();
+
+    case 1:  /* true */
+    case 8:  /* undef, !C */
+    case 10: /* undef, !C | Z */
+    case 13: /* undef, !V */
+        return cond_make_t();
+
+    case 2:  /* == */
+        return cond_make_0(TCG_COND_EQ, res);
+    case 3:  /* <> */
+        return cond_make_0(TCG_COND_NE, res);
+    case 4:  /* < */
+        return cond_make_0(TCG_COND_LT, res);
+    case 5:  /* >= */
+        return cond_make_0(TCG_COND_GE, res);
+    case 6:  /* <= */
+        return cond_make_0(TCG_COND_LE, res);
+    case 7:  /* > */
+        return cond_make_0(TCG_COND_GT, res);
+
+    case 14: /* OD */
+    case 15: /* EV */
+        return do_cond(cf, res, NULL, NULL);
+
+    default:
+        g_assert_not_reached();
     }
-    return do_cond(cf, res, res, res);
 }
 
 /* Similar, but for shift/extract/deposit conditions.  */
@@ -1119,9 +1136,9 @@ static TCGv_reg do_sub_sv(DisasContext *ctx, TCGv_reg res,
     return sv;
 }
 
-static DisasJumpType do_add(DisasContext *ctx, unsigned rt, TCGv_reg in1,
-                            TCGv_reg in2, unsigned shift, bool is_l,
-                            bool is_tsv, bool is_tc, bool is_c, unsigned cf)
+static void do_add(DisasContext *ctx, unsigned rt, TCGv_reg in1,
+                   TCGv_reg in2, unsigned shift, bool is_l,
+                   bool is_tsv, bool is_tc, bool is_c, unsigned cf)
 {
     TCGv_reg dest, cb, cb_msb, sv, tmp;
     unsigned c = cf >> 1;
@@ -1137,7 +1154,7 @@ static DisasJumpType do_add(DisasContext *ctx, unsigned rt, TCGv_reg in1,
         in1 = tmp;
     }
 
-    if (!is_l || c == 4 || c == 5) {
+    if (!is_l || cond_need_cb(c)) {
         TCGv_reg zero = tcg_const_reg(0);
         cb_msb = get_temp(ctx);
         tcg_gen_add2_reg(dest, cb_msb, in1, zero, in2, zero);
@@ -1159,7 +1176,7 @@ static DisasJumpType do_add(DisasContext *ctx, unsigned rt, TCGv_reg in1,
 
     /* Compute signed overflow if required.  */
     sv = NULL;
-    if (is_tsv || c == 6) {
+    if (is_tsv || cond_need_sv(c)) {
         sv = do_add_sv(ctx, dest, in1, in2);
         if (is_tsv) {
             /* ??? Need to include overflow from shift.  */
@@ -1188,12 +1205,39 @@ static DisasJumpType do_add(DisasContext *ctx, unsigned rt, TCGv_reg in1,
     /* Install the new nullification.  */
     cond_free(&ctx->null_cond);
     ctx->null_cond = cond;
-    return DISAS_NEXT;
 }
 
-static DisasJumpType do_sub(DisasContext *ctx, unsigned rt, TCGv_reg in1,
-                            TCGv_reg in2, bool is_tsv, bool is_b,
-                            bool is_tc, unsigned cf)
+static bool do_add_reg(DisasContext *ctx, arg_rrr_cf_sh *a,
+                       bool is_l, bool is_tsv, bool is_tc, bool is_c)
+{
+    TCGv_reg tcg_r1, tcg_r2;
+
+    if (a->cf) {
+        nullify_over(ctx);
+    }
+    tcg_r1 = load_gpr(ctx, a->r1);
+    tcg_r2 = load_gpr(ctx, a->r2);
+    do_add(ctx, a->t, tcg_r1, tcg_r2, a->sh, is_l, is_tsv, is_tc, is_c, a->cf);
+    return nullify_end(ctx);
+}
+
+static bool do_add_imm(DisasContext *ctx, arg_rri_cf *a,
+                       bool is_tsv, bool is_tc)
+{
+    TCGv_reg tcg_im, tcg_r2;
+
+    if (a->cf) {
+        nullify_over(ctx);
+    }
+    tcg_im = load_const(ctx, a->i);
+    tcg_r2 = load_gpr(ctx, a->r);
+    do_add(ctx, a->t, tcg_im, tcg_r2, 0, 0, is_tsv, is_tc, 0, a->cf);
+    return nullify_end(ctx);
+}
+
+static void do_sub(DisasContext *ctx, unsigned rt, TCGv_reg in1,
+                   TCGv_reg in2, bool is_tsv, bool is_b,
+                   bool is_tc, unsigned cf)
 {
     TCGv_reg dest, sv, cb, cb_msb, zero, tmp;
     unsigned c = cf >> 1;
@@ -1223,7 +1267,7 @@ static DisasJumpType do_sub(DisasContext *ctx, unsigned rt, TCGv_reg in1,
 
     /* Compute signed overflow if required.  */
     sv = NULL;
-    if (is_tsv || c == 6) {
+    if (is_tsv || cond_need_sv(c)) {
         sv = do_sub_sv(ctx, dest, in1, in2);
         if (is_tsv) {
             gen_helper_tsv(cpu_env, sv);
@@ -1255,11 +1299,37 @@ static DisasJumpType do_sub(DisasContext *ctx, unsigned rt, TCGv_reg in1,
     /* Install the new nullification.  */
     cond_free(&ctx->null_cond);
     ctx->null_cond = cond;
-    return DISAS_NEXT;
 }
 
-static DisasJumpType do_cmpclr(DisasContext *ctx, unsigned rt, TCGv_reg in1,
-                               TCGv_reg in2, unsigned cf)
+static bool do_sub_reg(DisasContext *ctx, arg_rrr_cf *a,
+                       bool is_tsv, bool is_b, bool is_tc)
+{
+    TCGv_reg tcg_r1, tcg_r2;
+
+    if (a->cf) {
+        nullify_over(ctx);
+    }
+    tcg_r1 = load_gpr(ctx, a->r1);
+    tcg_r2 = load_gpr(ctx, a->r2);
+    do_sub(ctx, a->t, tcg_r1, tcg_r2, is_tsv, is_b, is_tc, a->cf);
+    return nullify_end(ctx);
+}
+
+static bool do_sub_imm(DisasContext *ctx, arg_rri_cf *a, bool is_tsv)
+{
+    TCGv_reg tcg_im, tcg_r2;
+
+    if (a->cf) {
+        nullify_over(ctx);
+    }
+    tcg_im = load_const(ctx, a->i);
+    tcg_r2 = load_gpr(ctx, a->r);
+    do_sub(ctx, a->t, tcg_im, tcg_r2, is_tsv, 0, 0, a->cf);
+    return nullify_end(ctx);
+}
+
+static void do_cmpclr(DisasContext *ctx, unsigned rt, TCGv_reg in1,
+                      TCGv_reg in2, unsigned cf)
 {
     TCGv_reg dest, sv;
     DisasCond cond;
@@ -1269,7 +1339,7 @@ static DisasJumpType do_cmpclr(DisasContext *ctx, unsigned rt, TCGv_reg in1,
 
     /* Compute signed overflow if required.  */
     sv = NULL;
-    if ((cf >> 1) == 6) {
+    if (cond_need_sv(cf >> 1)) {
         sv = do_sub_sv(ctx, dest, in1, in2);
     }
 
@@ -1284,12 +1354,11 @@ static DisasJumpType do_cmpclr(DisasContext *ctx, unsigned rt, TCGv_reg in1,
     /* Install the new nullification.  */
     cond_free(&ctx->null_cond);
     ctx->null_cond = cond;
-    return DISAS_NEXT;
 }
 
-static DisasJumpType do_log(DisasContext *ctx, unsigned rt, TCGv_reg in1,
-                            TCGv_reg in2, unsigned cf,
-                            void (*fn)(TCGv_reg, TCGv_reg, TCGv_reg))
+static void do_log(DisasContext *ctx, unsigned rt, TCGv_reg in1,
+                   TCGv_reg in2, unsigned cf,
+                   void (*fn)(TCGv_reg, TCGv_reg, TCGv_reg))
 {
     TCGv_reg dest = dest_gpr(ctx, rt);
 
@@ -1302,12 +1371,25 @@ static DisasJumpType do_log(DisasContext *ctx, unsigned rt, TCGv_reg in1,
     if (cf) {
         ctx->null_cond = do_log_cond(cf, dest);
     }
-    return DISAS_NEXT;
 }
 
-static DisasJumpType do_unit(DisasContext *ctx, unsigned rt, TCGv_reg in1,
-                             TCGv_reg in2, unsigned cf, bool is_tc,
-                             void (*fn)(TCGv_reg, TCGv_reg, TCGv_reg))
+static bool do_log_reg(DisasContext *ctx, arg_rrr_cf *a,
+                       void (*fn)(TCGv_reg, TCGv_reg, TCGv_reg))
+{
+    TCGv_reg tcg_r1, tcg_r2;
+
+    if (a->cf) {
+        nullify_over(ctx);
+    }
+    tcg_r1 = load_gpr(ctx, a->r1);
+    tcg_r2 = load_gpr(ctx, a->r2);
+    do_log(ctx, a->t, tcg_r1, tcg_r2, a->cf, fn);
+    return nullify_end(ctx);
+}
+
+static void do_unit(DisasContext *ctx, unsigned rt, TCGv_reg in1,
+                    TCGv_reg in2, unsigned cf, bool is_tc,
+                    void (*fn)(TCGv_reg, TCGv_reg, TCGv_reg))
 {
     TCGv_reg dest;
     DisasCond cond;
@@ -1335,7 +1417,6 @@ static DisasJumpType do_unit(DisasContext *ctx, unsigned rt, TCGv_reg in1,
         cond_free(&ctx->null_cond);
         ctx->null_cond = cond;
     }
-    return DISAS_NEXT;
 }
 
 #ifndef CONFIG_USER_ONLY
@@ -1498,9 +1579,9 @@ static void do_store_64(DisasContext *ctx, TCGv_i64 src, unsigned rb,
 #define do_store_reg  do_store_32
 #endif
 
-static DisasJumpType do_load(DisasContext *ctx, unsigned rt, unsigned rb,
-                             unsigned rx, int scale, target_sreg disp,
-                             unsigned sp, int modify, TCGMemOp mop)
+static bool do_load(DisasContext *ctx, unsigned rt, unsigned rb,
+                    unsigned rx, int scale, target_sreg disp,
+                    unsigned sp, int modify, TCGMemOp mop)
 {
     TCGv_reg dest;
 
@@ -1516,12 +1597,12 @@ static DisasJumpType do_load(DisasContext *ctx, unsigned rt, unsigned rb,
     do_load_reg(ctx, dest, rb, rx, scale, disp, sp, modify, mop);
     save_gpr(ctx, rt, dest);
 
-    return nullify_end(ctx, DISAS_NEXT);
+    return nullify_end(ctx);
 }
 
-static DisasJumpType do_floadw(DisasContext *ctx, unsigned rt, unsigned rb,
-                               unsigned rx, int scale, target_sreg disp,
-                               unsigned sp, int modify)
+static bool do_floadw(DisasContext *ctx, unsigned rt, unsigned rb,
+                      unsigned rx, int scale, target_sreg disp,
+                      unsigned sp, int modify)
 {
     TCGv_i32 tmp;
 
@@ -1536,12 +1617,18 @@ static DisasJumpType do_floadw(DisasContext *ctx, unsigned rt, unsigned rb,
         gen_helper_loaded_fr0(cpu_env);
     }
 
-    return nullify_end(ctx, DISAS_NEXT);
+    return nullify_end(ctx);
 }
 
-static DisasJumpType do_floadd(DisasContext *ctx, unsigned rt, unsigned rb,
-                               unsigned rx, int scale, target_sreg disp,
-                               unsigned sp, int modify)
+static bool trans_fldw(DisasContext *ctx, arg_ldst *a)
+{
+    return do_floadw(ctx, a->t, a->b, a->x, a->scale ? 2 : 0,
+                     a->disp, a->sp, a->m);
+}
+
+static bool do_floadd(DisasContext *ctx, unsigned rt, unsigned rb,
+                      unsigned rx, int scale, target_sreg disp,
+                      unsigned sp, int modify)
 {
     TCGv_i64 tmp;
 
@@ -1556,21 +1643,27 @@ static DisasJumpType do_floadd(DisasContext *ctx, unsigned rt, unsigned rb,
         gen_helper_loaded_fr0(cpu_env);
     }
 
-    return nullify_end(ctx, DISAS_NEXT);
+    return nullify_end(ctx);
 }
 
-static DisasJumpType do_store(DisasContext *ctx, unsigned rt, unsigned rb,
-                              target_sreg disp, unsigned sp,
-                              int modify, TCGMemOp mop)
+static bool trans_fldd(DisasContext *ctx, arg_ldst *a)
+{
+    return do_floadd(ctx, a->t, a->b, a->x, a->scale ? 3 : 0,
+                     a->disp, a->sp, a->m);
+}
+
+static bool do_store(DisasContext *ctx, unsigned rt, unsigned rb,
+                     target_sreg disp, unsigned sp,
+                     int modify, TCGMemOp mop)
 {
     nullify_over(ctx);
     do_store_reg(ctx, load_gpr(ctx, rt), rb, 0, 0, disp, sp, modify, mop);
-    return nullify_end(ctx, DISAS_NEXT);
+    return nullify_end(ctx);
 }
 
-static DisasJumpType do_fstorew(DisasContext *ctx, unsigned rt, unsigned rb,
-                                unsigned rx, int scale, target_sreg disp,
-                                unsigned sp, int modify)
+static bool do_fstorew(DisasContext *ctx, unsigned rt, unsigned rb,
+                       unsigned rx, int scale, target_sreg disp,
+                       unsigned sp, int modify)
 {
     TCGv_i32 tmp;
 
@@ -1580,12 +1673,18 @@ static DisasJumpType do_fstorew(DisasContext *ctx, unsigned rt, unsigned rb,
     do_store_32(ctx, tmp, rb, rx, scale, disp, sp, modify, MO_TEUL);
     tcg_temp_free_i32(tmp);
 
-    return nullify_end(ctx, DISAS_NEXT);
+    return nullify_end(ctx);
 }
 
-static DisasJumpType do_fstored(DisasContext *ctx, unsigned rt, unsigned rb,
-                                unsigned rx, int scale, target_sreg disp,
-                                unsigned sp, int modify)
+static bool trans_fstw(DisasContext *ctx, arg_ldst *a)
+{
+    return do_fstorew(ctx, a->t, a->b, a->x, a->scale ? 2 : 0,
+                      a->disp, a->sp, a->m);
+}
+
+static bool do_fstored(DisasContext *ctx, unsigned rt, unsigned rb,
+                       unsigned rx, int scale, target_sreg disp,
+                       unsigned sp, int modify)
 {
     TCGv_i64 tmp;
 
@@ -1595,11 +1694,17 @@ static DisasJumpType do_fstored(DisasContext *ctx, unsigned rt, unsigned rb,
     do_store_64(ctx, tmp, rb, rx, scale, disp, sp, modify, MO_TEQ);
     tcg_temp_free_i64(tmp);
 
-    return nullify_end(ctx, DISAS_NEXT);
+    return nullify_end(ctx);
 }
 
-static DisasJumpType do_fop_wew(DisasContext *ctx, unsigned rt, unsigned ra,
-                                void (*func)(TCGv_i32, TCGv_env, TCGv_i32))
+static bool trans_fstd(DisasContext *ctx, arg_ldst *a)
+{
+    return do_fstored(ctx, a->t, a->b, a->x, a->scale ? 3 : 0,
+                      a->disp, a->sp, a->m);
+}
+
+static bool do_fop_wew(DisasContext *ctx, unsigned rt, unsigned ra,
+                       void (*func)(TCGv_i32, TCGv_env, TCGv_i32))
 {
     TCGv_i32 tmp;
 
@@ -1610,11 +1715,11 @@ static DisasJumpType do_fop_wew(DisasContext *ctx, unsigned rt, unsigned ra,
 
     save_frw_i32(rt, tmp);
     tcg_temp_free_i32(tmp);
-    return nullify_end(ctx, DISAS_NEXT);
+    return nullify_end(ctx);
 }
 
-static DisasJumpType do_fop_wed(DisasContext *ctx, unsigned rt, unsigned ra,
-                                void (*func)(TCGv_i32, TCGv_env, TCGv_i64))
+static bool do_fop_wed(DisasContext *ctx, unsigned rt, unsigned ra,
+                       void (*func)(TCGv_i32, TCGv_env, TCGv_i64))
 {
     TCGv_i32 dst;
     TCGv_i64 src;
@@ -1628,11 +1733,11 @@ static DisasJumpType do_fop_wed(DisasContext *ctx, unsigned rt, unsigned ra,
     tcg_temp_free_i64(src);
     save_frw_i32(rt, dst);
     tcg_temp_free_i32(dst);
-    return nullify_end(ctx, DISAS_NEXT);
+    return nullify_end(ctx);
 }
 
-static DisasJumpType do_fop_ded(DisasContext *ctx, unsigned rt, unsigned ra,
-                                void (*func)(TCGv_i64, TCGv_env, TCGv_i64))
+static bool do_fop_ded(DisasContext *ctx, unsigned rt, unsigned ra,
+                       void (*func)(TCGv_i64, TCGv_env, TCGv_i64))
 {
     TCGv_i64 tmp;
 
@@ -1643,11 +1748,11 @@ static DisasJumpType do_fop_ded(DisasContext *ctx, unsigned rt, unsigned ra,
 
     save_frd(rt, tmp);
     tcg_temp_free_i64(tmp);
-    return nullify_end(ctx, DISAS_NEXT);
+    return nullify_end(ctx);
 }
 
-static DisasJumpType do_fop_dew(DisasContext *ctx, unsigned rt, unsigned ra,
-                                void (*func)(TCGv_i64, TCGv_env, TCGv_i32))
+static bool do_fop_dew(DisasContext *ctx, unsigned rt, unsigned ra,
+                       void (*func)(TCGv_i64, TCGv_env, TCGv_i32))
 {
     TCGv_i32 src;
     TCGv_i64 dst;
@@ -1661,13 +1766,12 @@ static DisasJumpType do_fop_dew(DisasContext *ctx, unsigned rt, unsigned ra,
     tcg_temp_free_i32(src);
     save_frd(rt, dst);
     tcg_temp_free_i64(dst);
-    return nullify_end(ctx, DISAS_NEXT);
+    return nullify_end(ctx);
 }
 
-static DisasJumpType do_fop_weww(DisasContext *ctx, unsigned rt,
-                                 unsigned ra, unsigned rb,
-                                 void (*func)(TCGv_i32, TCGv_env,
-                                              TCGv_i32, TCGv_i32))
+static bool do_fop_weww(DisasContext *ctx, unsigned rt,
+                        unsigned ra, unsigned rb,
+                        void (*func)(TCGv_i32, TCGv_env, TCGv_i32, TCGv_i32))
 {
     TCGv_i32 a, b;
 
@@ -1680,13 +1784,12 @@ static DisasJumpType do_fop_weww(DisasContext *ctx, unsigned rt,
     tcg_temp_free_i32(b);
     save_frw_i32(rt, a);
     tcg_temp_free_i32(a);
-    return nullify_end(ctx, DISAS_NEXT);
+    return nullify_end(ctx);
 }
 
-static DisasJumpType do_fop_dedd(DisasContext *ctx, unsigned rt,
-                                 unsigned ra, unsigned rb,
-                                 void (*func)(TCGv_i64, TCGv_env,
-                                              TCGv_i64, TCGv_i64))
+static bool do_fop_dedd(DisasContext *ctx, unsigned rt,
+                        unsigned ra, unsigned rb,
+                        void (*func)(TCGv_i64, TCGv_env, TCGv_i64, TCGv_i64))
 {
     TCGv_i64 a, b;
 
@@ -1699,13 +1802,13 @@ static DisasJumpType do_fop_dedd(DisasContext *ctx, unsigned rt,
     tcg_temp_free_i64(b);
     save_frd(rt, a);
     tcg_temp_free_i64(a);
-    return nullify_end(ctx, DISAS_NEXT);
+    return nullify_end(ctx);
 }
 
 /* Emit an unconditional branch to a direct target, which may or may not
    have already had nullification handled.  */
-static DisasJumpType do_dbranch(DisasContext *ctx, target_ureg dest,
-                                unsigned link, bool is_n)
+static bool do_dbranch(DisasContext *ctx, target_ureg dest,
+                       unsigned link, bool is_n)
 {
     if (ctx->null_cond.c == TCG_COND_NEVER && ctx->null_lab == NULL) {
         if (link != 0) {
@@ -1715,7 +1818,6 @@ static DisasJumpType do_dbranch(DisasContext *ctx, target_ureg dest,
         if (is_n) {
             ctx->null_cond.c = TCG_COND_ALWAYS;
         }
-        return DISAS_NEXT;
     } else {
         nullify_over(ctx);
 
@@ -1731,18 +1833,19 @@ static DisasJumpType do_dbranch(DisasContext *ctx, target_ureg dest,
             gen_goto_tb(ctx, 0, ctx->iaoq_b, dest);
         }
 
-        nullify_end(ctx, DISAS_NEXT);
+        nullify_end(ctx);
 
         nullify_set(ctx, 0);
         gen_goto_tb(ctx, 1, ctx->iaoq_b, ctx->iaoq_n);
-        return DISAS_NORETURN;
+        ctx->base.is_jmp = DISAS_NORETURN;
     }
+    return true;
 }
 
 /* Emit a conditional branch to a direct target.  If the branch itself
    is nullified, we should have already used nullify_over.  */
-static DisasJumpType do_cbranch(DisasContext *ctx, target_sreg disp, bool is_n,
-                                DisasCond *cond)
+static bool do_cbranch(DisasContext *ctx, target_sreg disp, bool is_n,
+                       DisasCond *cond)
 {
     target_ureg dest = iaoq_dest(ctx, disp);
     TCGLabel *taken = NULL;
@@ -1799,16 +1902,17 @@ static DisasJumpType do_cbranch(DisasContext *ctx, target_sreg disp, bool is_n,
     if (ctx->null_lab) {
         gen_set_label(ctx->null_lab);
         ctx->null_lab = NULL;
-        return DISAS_IAQ_N_STALE;
+        ctx->base.is_jmp = DISAS_IAQ_N_STALE;
     } else {
-        return DISAS_NORETURN;
+        ctx->base.is_jmp = DISAS_NORETURN;
     }
+    return true;
 }
 
 /* Emit an unconditional branch to an indirect target.  This handles
    nullification of the branch itself.  */
-static DisasJumpType do_ibranch(DisasContext *ctx, TCGv_reg dest,
-                                unsigned link, bool is_n)
+static bool do_ibranch(DisasContext *ctx, TCGv_reg dest,
+                       unsigned link, bool is_n)
 {
     TCGv_reg a0, a1, next, tmp;
     TCGCond c;
@@ -1826,7 +1930,8 @@ static DisasJumpType do_ibranch(DisasContext *ctx, TCGv_reg dest,
                 tcg_gen_mov_reg(cpu_iaoq_f, next);
                 tcg_gen_addi_reg(cpu_iaoq_b, next, 4);
                 nullify_set(ctx, 0);
-                return DISAS_IAQ_N_UPDATED;
+                ctx->base.is_jmp = DISAS_IAQ_N_UPDATED;
+                return true;
             }
             ctx->null_cond.c = TCG_COND_ALWAYS;
         }
@@ -1853,7 +1958,7 @@ static DisasJumpType do_ibranch(DisasContext *ctx, TCGv_reg dest,
             tcg_gen_movi_reg(cpu_gr[link], ctx->iaoq_n);
         }
         tcg_gen_lookup_and_goto_ptr();
-        return nullify_end(ctx, DISAS_NEXT);
+        return nullify_end(ctx);
     } else {
         cond_prep(&ctx->null_cond);
         c = ctx->null_cond.c;
@@ -1884,8 +1989,7 @@ static DisasJumpType do_ibranch(DisasContext *ctx, TCGv_reg dest,
             cond_free(&ctx->null_cond);
         }
     }
-
-    return DISAS_NEXT;
+    return true;
 }
 
 /* Implement
@@ -1926,7 +2030,7 @@ static TCGv_reg do_ibranch_priv(DisasContext *ctx, TCGv_reg offset)
    in than the "be disp(sr2,r0)" instruction that probably sent us
    here, is the easiest way to handle the branch delay slot on the
    aforementioned BE.  */
-static DisasJumpType do_page_zero(DisasContext *ctx)
+static void do_page_zero(DisasContext *ctx)
 {
     /* If by some means we get here with PSW[N]=1, that implies that
        the B,GATE instruction would be skipped, and we'd fault on the
@@ -1954,71 +2058,70 @@ static DisasJumpType do_page_zero(DisasContext *ctx)
     switch (ctx->iaoq_f & -4) {
     case 0x00: /* Null pointer call */
         gen_excp_1(EXCP_IMP);
-        return DISAS_NORETURN;
+        ctx->base.is_jmp = DISAS_NORETURN;
+        break;
 
     case 0xb0: /* LWS */
         gen_excp_1(EXCP_SYSCALL_LWS);
-        return DISAS_NORETURN;
+        ctx->base.is_jmp = DISAS_NORETURN;
+        break;
 
     case 0xe0: /* SET_THREAD_POINTER */
         tcg_gen_st_reg(cpu_gr[26], cpu_env, offsetof(CPUHPPAState, cr[27]));
         tcg_gen_ori_reg(cpu_iaoq_f, cpu_gr[31], 3);
         tcg_gen_addi_reg(cpu_iaoq_b, cpu_iaoq_f, 4);
-        return DISAS_IAQ_N_UPDATED;
+        ctx->base.is_jmp = DISAS_IAQ_N_UPDATED;
+        break;
 
     case 0x100: /* SYSCALL */
         gen_excp_1(EXCP_SYSCALL);
-        return DISAS_NORETURN;
+        ctx->base.is_jmp = DISAS_NORETURN;
+        break;
 
     default:
     do_sigill:
         gen_excp_1(EXCP_ILL);
-        return DISAS_NORETURN;
+        ctx->base.is_jmp = DISAS_NORETURN;
+        break;
     }
 }
 #endif
 
-static DisasJumpType trans_nop(DisasContext *ctx, uint32_t insn,
-                               const DisasInsn *di)
+static bool trans_nop(DisasContext *ctx, arg_nop *a)
 {
     cond_free(&ctx->null_cond);
-    return DISAS_NEXT;
+    return true;
 }
 
-static DisasJumpType trans_break(DisasContext *ctx, uint32_t insn,
-                                 const DisasInsn *di)
+static bool trans_break(DisasContext *ctx, arg_break *a)
 {
-    nullify_over(ctx);
-    return nullify_end(ctx, gen_excp_iir(ctx, EXCP_BREAK));
+    return gen_excp_iir(ctx, EXCP_BREAK);
 }
 
-static DisasJumpType trans_sync(DisasContext *ctx, uint32_t insn,
-                                const DisasInsn *di)
+static bool trans_sync(DisasContext *ctx, arg_sync *a)
 {
     /* No point in nullifying the memory barrier.  */
     tcg_gen_mb(TCG_BAR_SC | TCG_MO_ALL);
 
     cond_free(&ctx->null_cond);
-    return DISAS_NEXT;
+    return true;
 }
 
-static DisasJumpType trans_mfia(DisasContext *ctx, uint32_t insn,
-                                const DisasInsn *di)
+static bool trans_mfia(DisasContext *ctx, arg_mfia *a)
 {
-    unsigned rt = extract32(insn, 0, 5);
+    unsigned rt = a->t;
     TCGv_reg tmp = dest_gpr(ctx, rt);
     tcg_gen_movi_reg(tmp, ctx->iaoq_f);
     save_gpr(ctx, rt, tmp);
 
     cond_free(&ctx->null_cond);
-    return DISAS_NEXT;
+    return true;
 }
 
-static DisasJumpType trans_mfsp(DisasContext *ctx, uint32_t insn,
-                                const DisasInsn *di)
+static bool trans_mfsp(DisasContext *ctx, arg_mfsp *a)
 {
-    unsigned rt = extract32(insn, 0, 5);
-    unsigned rs = assemble_sr3(insn);
+    unsigned rt = a->t;
+    unsigned rs = a->sp;
     TCGv_i64 t0 = tcg_temp_new_i64();
     TCGv_reg t1 = tcg_temp_new();
 
@@ -2031,21 +2134,19 @@ static DisasJumpType trans_mfsp(DisasContext *ctx, uint32_t insn,
     tcg_temp_free_i64(t0);
 
     cond_free(&ctx->null_cond);
-    return DISAS_NEXT;
+    return true;
 }
 
-static DisasJumpType trans_mfctl(DisasContext *ctx, uint32_t insn,
-                                 const DisasInsn *di)
+static bool trans_mfctl(DisasContext *ctx, arg_mfctl *a)
 {
-    unsigned rt = extract32(insn, 0, 5);
-    unsigned ctl = extract32(insn, 21, 5);
+    unsigned rt = a->t;
+    unsigned ctl = a->r;
     TCGv_reg tmp;
-    DisasJumpType ret;
 
     switch (ctl) {
     case CR_SAR:
 #ifdef TARGET_HPPA64
-        if (extract32(insn, 14, 1) == 0) {
+        if (a->e == 0) {
             /* MFSAR without ,W masks low 5 bits.  */
             tmp = dest_gpr(ctx, rt);
             tcg_gen_andi_reg(tmp, cpu_sar, 31);
@@ -2063,13 +2164,12 @@ static DisasJumpType trans_mfctl(DisasContext *ctx, uint32_t insn,
             gen_io_start();
             gen_helper_read_interval_timer(tmp);
             gen_io_end();
-            ret = DISAS_IAQ_N_STALE;
+            ctx->base.is_jmp = DISAS_IAQ_N_STALE;
         } else {
             gen_helper_read_interval_timer(tmp);
-            ret = DISAS_NEXT;
         }
         save_gpr(ctx, rt, tmp);
-        return nullify_end(ctx, ret);
+        return nullify_end(ctx);
     case 26:
     case 27:
         break;
@@ -2085,14 +2185,13 @@ static DisasJumpType trans_mfctl(DisasContext *ctx, uint32_t insn,
 
  done:
     cond_free(&ctx->null_cond);
-    return DISAS_NEXT;
+    return true;
 }
 
-static DisasJumpType trans_mtsp(DisasContext *ctx, uint32_t insn,
-                                const DisasInsn *di)
+static bool trans_mtsp(DisasContext *ctx, arg_mtsp *a)
 {
-    unsigned rr = extract32(insn, 16, 5);
-    unsigned rs = assemble_sr3(insn);
+    unsigned rr = a->r;
+    unsigned rs = a->sp;
     TCGv_i64 t64;
 
     if (rs >= 5) {
@@ -2112,15 +2211,13 @@ static DisasJumpType trans_mtsp(DisasContext *ctx, uint32_t insn,
     }
     tcg_temp_free_i64(t64);
 
-    return nullify_end(ctx, DISAS_NEXT);
+    return nullify_end(ctx);
 }
 
-static DisasJumpType trans_mtctl(DisasContext *ctx, uint32_t insn,
-                                 const DisasInsn *di)
+static bool trans_mtctl(DisasContext *ctx, arg_mtctl *a)
 {
-    unsigned rin = extract32(insn, 16, 5);
-    unsigned ctl = extract32(insn, 21, 5);
-    TCGv_reg reg = load_gpr(ctx, rin);
+    unsigned ctl = a->t;
+    TCGv_reg reg = load_gpr(ctx, a->r);
     TCGv_reg tmp;
 
     if (ctl == CR_SAR) {
@@ -2130,17 +2227,13 @@ static DisasJumpType trans_mtctl(DisasContext *ctx, uint32_t insn,
         tcg_temp_free(tmp);
 
         cond_free(&ctx->null_cond);
-        return DISAS_NEXT;
+        return true;
     }
 
     /* All other control registers are privileged or read-only.  */
     CHECK_MOST_PRIVILEGED(EXCP_PRIV_REG);
 
-#ifdef CONFIG_USER_ONLY
-    g_assert_not_reached();
-#else
-    DisasJumpType ret = DISAS_NEXT;
-
+#ifndef CONFIG_USER_ONLY
     nullify_over(ctx);
     switch (ctl) {
     case CR_IT:
@@ -2151,7 +2244,7 @@ static DisasJumpType trans_mtctl(DisasContext *ctx, uint32_t insn,
         break;
     case CR_EIEM:
         gen_helper_write_eiem(cpu_env, reg);
-        ret = DISAS_IAQ_N_STALE_EXIT;
+        ctx->base.is_jmp = DISAS_IAQ_N_STALE_EXIT;
         break;
 
     case CR_IIASQ:
@@ -2170,255 +2263,213 @@ static DisasJumpType trans_mtctl(DisasContext *ctx, uint32_t insn,
         tcg_gen_st_reg(reg, cpu_env, offsetof(CPUHPPAState, cr[ctl]));
         break;
     }
-    return nullify_end(ctx, ret);
+    return nullify_end(ctx);
 #endif
 }
 
-static DisasJumpType trans_mtsarcm(DisasContext *ctx, uint32_t insn,
-                                   const DisasInsn *di)
+static bool trans_mtsarcm(DisasContext *ctx, arg_mtsarcm *a)
 {
-    unsigned rin = extract32(insn, 16, 5);
     TCGv_reg tmp = tcg_temp_new();
 
-    tcg_gen_not_reg(tmp, load_gpr(ctx, rin));
+    tcg_gen_not_reg(tmp, load_gpr(ctx, a->r));
     tcg_gen_andi_reg(tmp, tmp, TARGET_REGISTER_BITS - 1);
     save_or_nullify(ctx, cpu_sar, tmp);
     tcg_temp_free(tmp);
 
     cond_free(&ctx->null_cond);
-    return DISAS_NEXT;
+    return true;
 }
 
-static DisasJumpType trans_ldsid(DisasContext *ctx, uint32_t insn,
-                                 const DisasInsn *di)
+static bool trans_ldsid(DisasContext *ctx, arg_ldsid *a)
 {
-    unsigned rt = extract32(insn, 0, 5);
-    TCGv_reg dest = dest_gpr(ctx, rt);
+    TCGv_reg dest = dest_gpr(ctx, a->t);
 
 #ifdef CONFIG_USER_ONLY
     /* We don't implement space registers in user mode. */
     tcg_gen_movi_reg(dest, 0);
 #else
-    unsigned rb = extract32(insn, 21, 5);
-    unsigned sp = extract32(insn, 14, 2);
     TCGv_i64 t0 = tcg_temp_new_i64();
 
-    tcg_gen_mov_i64(t0, space_select(ctx, sp, load_gpr(ctx, rb)));
+    tcg_gen_mov_i64(t0, space_select(ctx, a->sp, load_gpr(ctx, a->b)));
     tcg_gen_shri_i64(t0, t0, 32);
     tcg_gen_trunc_i64_reg(dest, t0);
 
     tcg_temp_free_i64(t0);
 #endif
-    save_gpr(ctx, rt, dest);
+    save_gpr(ctx, a->t, dest);
 
     cond_free(&ctx->null_cond);
-    return DISAS_NEXT;
+    return true;
 }
 
+static bool trans_rsm(DisasContext *ctx, arg_rsm *a)
+{
+    CHECK_MOST_PRIVILEGED(EXCP_PRIV_OPR);
 #ifndef CONFIG_USER_ONLY
-/* Note that ssm/rsm instructions number PSW_W and PSW_E differently.  */
-static target_ureg extract_sm_imm(uint32_t insn)
-{
-    target_ureg val = extract32(insn, 16, 10);
-
-    if (val & PSW_SM_E) {
-        val = (val & ~PSW_SM_E) | PSW_E;
-    }
-    if (val & PSW_SM_W) {
-        val = (val & ~PSW_SM_W) | PSW_W;
-    }
-    return val;
-}
-
-static DisasJumpType trans_rsm(DisasContext *ctx, uint32_t insn,
-                               const DisasInsn *di)
-{
-    unsigned rt = extract32(insn, 0, 5);
-    target_ureg sm = extract_sm_imm(insn);
     TCGv_reg tmp;
 
-    CHECK_MOST_PRIVILEGED(EXCP_PRIV_OPR);
     nullify_over(ctx);
 
     tmp = get_temp(ctx);
     tcg_gen_ld_reg(tmp, cpu_env, offsetof(CPUHPPAState, psw));
-    tcg_gen_andi_reg(tmp, tmp, ~sm);
+    tcg_gen_andi_reg(tmp, tmp, ~a->i);
     gen_helper_swap_system_mask(tmp, cpu_env, tmp);
-    save_gpr(ctx, rt, tmp);
+    save_gpr(ctx, a->t, tmp);
 
     /* Exit the TB to recognize new interrupts, e.g. PSW_M.  */
-    return nullify_end(ctx, DISAS_IAQ_N_STALE_EXIT);
+    ctx->base.is_jmp = DISAS_IAQ_N_STALE_EXIT;
+    return nullify_end(ctx);
+#endif
 }
 
-static DisasJumpType trans_ssm(DisasContext *ctx, uint32_t insn,
-                               const DisasInsn *di)
+static bool trans_ssm(DisasContext *ctx, arg_ssm *a)
 {
-    unsigned rt = extract32(insn, 0, 5);
-    target_ureg sm = extract_sm_imm(insn);
+    CHECK_MOST_PRIVILEGED(EXCP_PRIV_OPR);
+#ifndef CONFIG_USER_ONLY
     TCGv_reg tmp;
 
-    CHECK_MOST_PRIVILEGED(EXCP_PRIV_OPR);
     nullify_over(ctx);
 
     tmp = get_temp(ctx);
     tcg_gen_ld_reg(tmp, cpu_env, offsetof(CPUHPPAState, psw));
-    tcg_gen_ori_reg(tmp, tmp, sm);
+    tcg_gen_ori_reg(tmp, tmp, a->i);
     gen_helper_swap_system_mask(tmp, cpu_env, tmp);
-    save_gpr(ctx, rt, tmp);
+    save_gpr(ctx, a->t, tmp);
 
     /* Exit the TB to recognize new interrupts, e.g. PSW_I.  */
-    return nullify_end(ctx, DISAS_IAQ_N_STALE_EXIT);
+    ctx->base.is_jmp = DISAS_IAQ_N_STALE_EXIT;
+    return nullify_end(ctx);
+#endif
 }
 
-static DisasJumpType trans_mtsm(DisasContext *ctx, uint32_t insn,
-                                const DisasInsn *di)
+static bool trans_mtsm(DisasContext *ctx, arg_mtsm *a)
 {
-    unsigned rr = extract32(insn, 16, 5);
-    TCGv_reg tmp, reg;
-
     CHECK_MOST_PRIVILEGED(EXCP_PRIV_OPR);
+#ifndef CONFIG_USER_ONLY
+    TCGv_reg tmp, reg;
     nullify_over(ctx);
 
-    reg = load_gpr(ctx, rr);
+    reg = load_gpr(ctx, a->r);
     tmp = get_temp(ctx);
     gen_helper_swap_system_mask(tmp, cpu_env, reg);
 
     /* Exit the TB to recognize new interrupts.  */
-    return nullify_end(ctx, DISAS_IAQ_N_STALE_EXIT);
+    ctx->base.is_jmp = DISAS_IAQ_N_STALE_EXIT;
+    return nullify_end(ctx);
+#endif
 }
 
-static DisasJumpType trans_rfi(DisasContext *ctx, uint32_t insn,
-                               const DisasInsn *di)
+static bool do_rfi(DisasContext *ctx, bool rfi_r)
 {
-    unsigned comp = extract32(insn, 5, 4);
-
     CHECK_MOST_PRIVILEGED(EXCP_PRIV_OPR);
+#ifndef CONFIG_USER_ONLY
     nullify_over(ctx);
 
-    if (comp == 5) {
+    if (rfi_r) {
         gen_helper_rfi_r(cpu_env);
     } else {
         gen_helper_rfi(cpu_env);
     }
+    /* Exit the TB to recognize new interrupts.  */
     if (ctx->base.singlestep_enabled) {
         gen_excp_1(EXCP_DEBUG);
     } else {
         tcg_gen_exit_tb(NULL, 0);
     }
+    ctx->base.is_jmp = DISAS_NORETURN;
 
-    /* Exit the TB to recognize new interrupts.  */
-    return nullify_end(ctx, DISAS_NORETURN);
+    return nullify_end(ctx);
+#endif
 }
 
-static DisasJumpType gen_hlt(DisasContext *ctx, int reset)
+static bool trans_rfi(DisasContext *ctx, arg_rfi *a)
+{
+    return do_rfi(ctx, false);
+}
+
+static bool trans_rfi_r(DisasContext *ctx, arg_rfi_r *a)
+{
+    return do_rfi(ctx, true);
+}
+
+static bool trans_halt(DisasContext *ctx, arg_halt *a)
 {
     CHECK_MOST_PRIVILEGED(EXCP_PRIV_OPR);
-    nullify_over(ctx);
-    if (reset) {
-        gen_helper_reset(cpu_env);
-    } else {
-        gen_helper_halt(cpu_env);
-    }
-    return nullify_end(ctx, DISAS_NORETURN);
-}
-#endif /* !CONFIG_USER_ONLY */
-
-static const DisasInsn table_system[] = {
-    { 0x00000000u, 0xfc001fe0u, trans_break },
-    { 0x00001820u, 0xffe01fffu, trans_mtsp },
-    { 0x00001840u, 0xfc00ffffu, trans_mtctl },
-    { 0x016018c0u, 0xffe0ffffu, trans_mtsarcm },
-    { 0x000014a0u, 0xffffffe0u, trans_mfia },
-    { 0x000004a0u, 0xffff1fe0u, trans_mfsp },
-    { 0x000008a0u, 0xfc1fbfe0u, trans_mfctl },
-    { 0x00000400u, 0xffffffffu, trans_sync },  /* sync */
-    { 0x00100400u, 0xffffffffu, trans_sync },  /* syncdma */
-    { 0x000010a0u, 0xfc1f3fe0u, trans_ldsid },
 #ifndef CONFIG_USER_ONLY
-    { 0x00000e60u, 0xfc00ffe0u, trans_rsm },
-    { 0x00000d60u, 0xfc00ffe0u, trans_ssm },
-    { 0x00001860u, 0xffe0ffffu, trans_mtsm },
-    { 0x00000c00u, 0xfffffe1fu, trans_rfi },
+    nullify_over(ctx);
+    gen_helper_halt(cpu_env);
+    ctx->base.is_jmp = DISAS_NORETURN;
+    return nullify_end(ctx);
 #endif
-};
-
-static DisasJumpType trans_base_idx_mod(DisasContext *ctx, uint32_t insn,
-                                        const DisasInsn *di)
-{
-    unsigned rb = extract32(insn, 21, 5);
-    unsigned rx = extract32(insn, 16, 5);
-    TCGv_reg dest = dest_gpr(ctx, rb);
-    TCGv_reg src1 = load_gpr(ctx, rb);
-    TCGv_reg src2 = load_gpr(ctx, rx);
-
-    /* The only thing we need to do is the base register modification.  */
-    tcg_gen_add_reg(dest, src1, src2);
-    save_gpr(ctx, rb, dest);
-
-    cond_free(&ctx->null_cond);
-    return DISAS_NEXT;
 }
 
-static DisasJumpType trans_probe(DisasContext *ctx, uint32_t insn,
-                                 const DisasInsn *di)
+static bool trans_reset(DisasContext *ctx, arg_reset *a)
 {
-    unsigned rt = extract32(insn, 0, 5);
-    unsigned sp = extract32(insn, 14, 2);
-    unsigned rr = extract32(insn, 16, 5);
-    unsigned rb = extract32(insn, 21, 5);
-    unsigned is_write = extract32(insn, 6, 1);
-    unsigned is_imm = extract32(insn, 13, 1);
+    CHECK_MOST_PRIVILEGED(EXCP_PRIV_OPR);
+#ifndef CONFIG_USER_ONLY
+    nullify_over(ctx);
+    gen_helper_reset(cpu_env);
+    ctx->base.is_jmp = DISAS_NORETURN;
+    return nullify_end(ctx);
+#endif
+}
+
+static bool trans_nop_addrx(DisasContext *ctx, arg_ldst *a)
+{
+    if (a->m) {
+        TCGv_reg dest = dest_gpr(ctx, a->b);
+        TCGv_reg src1 = load_gpr(ctx, a->b);
+        TCGv_reg src2 = load_gpr(ctx, a->x);
+
+        /* The only thing we need to do is the base register modification.  */
+        tcg_gen_add_reg(dest, src1, src2);
+        save_gpr(ctx, a->b, dest);
+    }
+    cond_free(&ctx->null_cond);
+    return true;
+}
+
+static bool trans_probe(DisasContext *ctx, arg_probe *a)
+{
     TCGv_reg dest, ofs;
     TCGv_i32 level, want;
     TCGv_tl addr;
 
     nullify_over(ctx);
 
-    dest = dest_gpr(ctx, rt);
-    form_gva(ctx, &addr, &ofs, rb, 0, 0, 0, sp, 0, false);
+    dest = dest_gpr(ctx, a->t);
+    form_gva(ctx, &addr, &ofs, a->b, 0, 0, 0, a->sp, 0, false);
 
-    if (is_imm) {
-        level = tcg_const_i32(extract32(insn, 16, 2));
+    if (a->imm) {
+        level = tcg_const_i32(a->ri);
     } else {
         level = tcg_temp_new_i32();
-        tcg_gen_trunc_reg_i32(level, load_gpr(ctx, rr));
+        tcg_gen_trunc_reg_i32(level, load_gpr(ctx, a->ri));
         tcg_gen_andi_i32(level, level, 3);
     }
-    want = tcg_const_i32(is_write ? PAGE_WRITE : PAGE_READ);
+    want = tcg_const_i32(a->write ? PAGE_WRITE : PAGE_READ);
 
     gen_helper_probe(dest, cpu_env, addr, level, want);
 
     tcg_temp_free_i32(want);
     tcg_temp_free_i32(level);
 
-    save_gpr(ctx, rt, dest);
-    return nullify_end(ctx, DISAS_NEXT);
+    save_gpr(ctx, a->t, dest);
+    return nullify_end(ctx);
 }
 
-#ifndef CONFIG_USER_ONLY
-static DisasJumpType trans_ixtlbx(DisasContext *ctx, uint32_t insn,
-                                  const DisasInsn *di)
+static bool trans_ixtlbx(DisasContext *ctx, arg_ixtlbx *a)
 {
-    unsigned sp;
-    unsigned rr = extract32(insn, 16, 5);
-    unsigned rb = extract32(insn, 21, 5);
-    unsigned is_data = insn & 0x1000;
-    unsigned is_addr = insn & 0x40;
+    CHECK_MOST_PRIVILEGED(EXCP_PRIV_OPR);
+#ifndef CONFIG_USER_ONLY
     TCGv_tl addr;
     TCGv_reg ofs, reg;
 
-    if (is_data) {
-        sp = extract32(insn, 14, 2);
-    } else {
-        sp = ~assemble_sr3(insn);
-    }
-
-    CHECK_MOST_PRIVILEGED(EXCP_PRIV_OPR);
     nullify_over(ctx);
 
-    form_gva(ctx, &addr, &ofs, rb, 0, 0, 0, sp, 0, false);
-    reg = load_gpr(ctx, rr);
-    if (is_addr) {
+    form_gva(ctx, &addr, &ofs, a->b, 0, 0, 0, a->sp, 0, false);
+    reg = load_gpr(ctx, a->r);
+    if (a->addr) {
         gen_helper_itlba(cpu_env, addr, reg);
     } else {
         gen_helper_itlbp(cpu_env, addr, reg);
@@ -2426,79 +2477,67 @@ static DisasJumpType trans_ixtlbx(DisasContext *ctx, uint32_t insn,
 
     /* Exit TB for ITLB change if mmu is enabled.  This *should* not be
        the case, since the OS TLB fill handler runs with mmu disabled.  */
-    return nullify_end(ctx, !is_data && (ctx->tb_flags & PSW_C)
-                       ? DISAS_IAQ_N_STALE : DISAS_NEXT);
+    if (!a->data && (ctx->tb_flags & PSW_C)) {
+        ctx->base.is_jmp = DISAS_IAQ_N_STALE;
+    }
+    return nullify_end(ctx);
+#endif
 }
 
-static DisasJumpType trans_pxtlbx(DisasContext *ctx, uint32_t insn,
-                                  const DisasInsn *di)
+static bool trans_pxtlbx(DisasContext *ctx, arg_pxtlbx *a)
 {
-    unsigned m = extract32(insn, 5, 1);
-    unsigned sp;
-    unsigned rx = extract32(insn, 16, 5);
-    unsigned rb = extract32(insn, 21, 5);
-    unsigned is_data = insn & 0x1000;
-    unsigned is_local = insn & 0x40;
+    CHECK_MOST_PRIVILEGED(EXCP_PRIV_OPR);
+#ifndef CONFIG_USER_ONLY
     TCGv_tl addr;
     TCGv_reg ofs;
 
-    if (is_data) {
-        sp = extract32(insn, 14, 2);
-    } else {
-        sp = ~assemble_sr3(insn);
-    }
-
-    CHECK_MOST_PRIVILEGED(EXCP_PRIV_OPR);
     nullify_over(ctx);
 
-    form_gva(ctx, &addr, &ofs, rb, rx, 0, 0, sp, m, false);
-    if (m) {
-        save_gpr(ctx, rb, ofs);
+    form_gva(ctx, &addr, &ofs, a->b, a->x, 0, 0, a->sp, a->m, false);
+    if (a->m) {
+        save_gpr(ctx, a->b, ofs);
     }
-    if (is_local) {
+    if (a->local) {
         gen_helper_ptlbe(cpu_env);
     } else {
         gen_helper_ptlb(cpu_env, addr);
     }
 
     /* Exit TB for TLB change if mmu is enabled.  */
-    return nullify_end(ctx, !is_data && (ctx->tb_flags & PSW_C)
-                       ? DISAS_IAQ_N_STALE : DISAS_NEXT);
+    if (!a->data && (ctx->tb_flags & PSW_C)) {
+        ctx->base.is_jmp = DISAS_IAQ_N_STALE;
+    }
+    return nullify_end(ctx);
+#endif
 }
 
-static DisasJumpType trans_lpa(DisasContext *ctx, uint32_t insn,
-                               const DisasInsn *di)
+static bool trans_lpa(DisasContext *ctx, arg_ldst *a)
 {
-    unsigned rt = extract32(insn, 0, 5);
-    unsigned m = extract32(insn, 5, 1);
-    unsigned sp = extract32(insn, 14, 2);
-    unsigned rx = extract32(insn, 16, 5);
-    unsigned rb = extract32(insn, 21, 5);
+    CHECK_MOST_PRIVILEGED(EXCP_PRIV_OPR);
+#ifndef CONFIG_USER_ONLY
     TCGv_tl vaddr;
     TCGv_reg ofs, paddr;
 
-    CHECK_MOST_PRIVILEGED(EXCP_PRIV_OPR);
     nullify_over(ctx);
 
-    form_gva(ctx, &vaddr, &ofs, rb, rx, 0, 0, sp, m, false);
+    form_gva(ctx, &vaddr, &ofs, a->b, a->x, 0, 0, a->sp, a->m, false);
 
     paddr = tcg_temp_new();
     gen_helper_lpa(paddr, cpu_env, vaddr);
 
     /* Note that physical address result overrides base modification.  */
-    if (m) {
-        save_gpr(ctx, rb, ofs);
+    if (a->m) {
+        save_gpr(ctx, a->b, ofs);
     }
-    save_gpr(ctx, rt, paddr);
+    save_gpr(ctx, a->t, paddr);
     tcg_temp_free(paddr);
 
-    return nullify_end(ctx, DISAS_NEXT);
+    return nullify_end(ctx);
+#endif
 }
 
-static DisasJumpType trans_lci(DisasContext *ctx, uint32_t insn,
-                               const DisasInsn *di)
+static bool trans_lci(DisasContext *ctx, arg_lci *a)
 {
-    unsigned rt = extract32(insn, 0, 5);
     TCGv_reg ci;
 
     CHECK_MOST_PRIVILEGED(EXCP_PRIV_OPR);
@@ -2508,238 +2547,193 @@ static DisasJumpType trans_lci(DisasContext *ctx, uint32_t insn,
        view of the cache.  Our implementation is to return 0 for all,
        since the entire address space is coherent.  */
     ci = tcg_const_reg(0);
-    save_gpr(ctx, rt, ci);
+    save_gpr(ctx, a->t, ci);
     tcg_temp_free(ci);
 
-    return DISAS_NEXT;
-}
-#endif /* !CONFIG_USER_ONLY */
-
-static const DisasInsn table_mem_mgmt[] = {
-    { 0x04003280u, 0xfc003fffu, trans_nop },          /* fdc, disp */
-    { 0x04001280u, 0xfc003fffu, trans_nop },          /* fdc, index */
-    { 0x040012a0u, 0xfc003fffu, trans_base_idx_mod }, /* fdc, index, base mod */
-    { 0x040012c0u, 0xfc003fffu, trans_nop },          /* fdce */
-    { 0x040012e0u, 0xfc003fffu, trans_base_idx_mod }, /* fdce, base mod */
-    { 0x04000280u, 0xfc001fffu, trans_nop },          /* fic 0a */
-    { 0x040002a0u, 0xfc001fffu, trans_base_idx_mod }, /* fic 0a, base mod */
-    { 0x040013c0u, 0xfc003fffu, trans_nop },          /* fic 4f */
-    { 0x040013e0u, 0xfc003fffu, trans_base_idx_mod }, /* fic 4f, base mod */
-    { 0x040002c0u, 0xfc001fffu, trans_nop },          /* fice */
-    { 0x040002e0u, 0xfc001fffu, trans_base_idx_mod }, /* fice, base mod */
-    { 0x04002700u, 0xfc003fffu, trans_nop },          /* pdc */
-    { 0x04002720u, 0xfc003fffu, trans_base_idx_mod }, /* pdc, base mod */
-    { 0x04001180u, 0xfc003fa0u, trans_probe },        /* probe */
-    { 0x04003180u, 0xfc003fa0u, trans_probe },        /* probei */
-#ifndef CONFIG_USER_ONLY
-    { 0x04000000u, 0xfc001fffu, trans_ixtlbx },       /* iitlbp */
-    { 0x04000040u, 0xfc001fffu, trans_ixtlbx },       /* iitlba */
-    { 0x04001000u, 0xfc001fffu, trans_ixtlbx },       /* idtlbp */
-    { 0x04001040u, 0xfc001fffu, trans_ixtlbx },       /* idtlba */
-    { 0x04000200u, 0xfc001fdfu, trans_pxtlbx },       /* pitlb */
-    { 0x04000240u, 0xfc001fdfu, trans_pxtlbx },       /* pitlbe */
-    { 0x04001200u, 0xfc001fdfu, trans_pxtlbx },       /* pdtlb */
-    { 0x04001240u, 0xfc001fdfu, trans_pxtlbx },       /* pdtlbe */
-    { 0x04001340u, 0xfc003fc0u, trans_lpa },
-    { 0x04001300u, 0xfc003fe0u, trans_lci },
-#endif
-};
-
-static DisasJumpType trans_add(DisasContext *ctx, uint32_t insn,
-                               const DisasInsn *di)
-{
-    unsigned r2 = extract32(insn, 21, 5);
-    unsigned r1 = extract32(insn, 16, 5);
-    unsigned cf = extract32(insn, 12, 4);
-    unsigned ext = extract32(insn, 8, 4);
-    unsigned shift = extract32(insn, 6, 2);
-    unsigned rt = extract32(insn,  0, 5);
-    TCGv_reg tcg_r1, tcg_r2;
-    bool is_c = false;
-    bool is_l = false;
-    bool is_tc = false;
-    bool is_tsv = false;
-    DisasJumpType ret;
-
-    switch (ext) {
-    case 0x6: /* ADD, SHLADD */
-        break;
-    case 0xa: /* ADD,L, SHLADD,L */
-        is_l = true;
-        break;
-    case 0xe: /* ADD,TSV, SHLADD,TSV (1) */
-        is_tsv = true;
-        break;
-    case 0x7: /* ADD,C */
-        is_c = true;
-        break;
-    case 0xf: /* ADD,C,TSV */
-        is_c = is_tsv = true;
-        break;
-    default:
-        return gen_illegal(ctx);
-    }
-
-    if (cf) {
-        nullify_over(ctx);
-    }
-    tcg_r1 = load_gpr(ctx, r1);
-    tcg_r2 = load_gpr(ctx, r2);
-    ret = do_add(ctx, rt, tcg_r1, tcg_r2, shift, is_l, is_tsv, is_tc, is_c, cf);
-    return nullify_end(ctx, ret);
-}
-
-static DisasJumpType trans_sub(DisasContext *ctx, uint32_t insn,
-                               const DisasInsn *di)
-{
-    unsigned r2 = extract32(insn, 21, 5);
-    unsigned r1 = extract32(insn, 16, 5);
-    unsigned cf = extract32(insn, 12, 4);
-    unsigned ext = extract32(insn, 6, 6);
-    unsigned rt = extract32(insn,  0, 5);
-    TCGv_reg tcg_r1, tcg_r2;
-    bool is_b = false;
-    bool is_tc = false;
-    bool is_tsv = false;
-    DisasJumpType ret;
-
-    switch (ext) {
-    case 0x10: /* SUB */
-        break;
-    case 0x30: /* SUB,TSV */
-        is_tsv = true;
-        break;
-    case 0x14: /* SUB,B */
-        is_b = true;
-        break;
-    case 0x34: /* SUB,B,TSV */
-        is_b = is_tsv = true;
-        break;
-    case 0x13: /* SUB,TC */
-        is_tc = true;
-        break;
-    case 0x33: /* SUB,TSV,TC */
-        is_tc = is_tsv = true;
-        break;
-    default:
-        return gen_illegal(ctx);
-    }
-
-    if (cf) {
-        nullify_over(ctx);
-    }
-    tcg_r1 = load_gpr(ctx, r1);
-    tcg_r2 = load_gpr(ctx, r2);
-    ret = do_sub(ctx, rt, tcg_r1, tcg_r2, is_tsv, is_b, is_tc, cf);
-    return nullify_end(ctx, ret);
-}
-
-static DisasJumpType trans_log(DisasContext *ctx, uint32_t insn,
-                               const DisasInsn *di)
-{
-    unsigned r2 = extract32(insn, 21, 5);
-    unsigned r1 = extract32(insn, 16, 5);
-    unsigned cf = extract32(insn, 12, 4);
-    unsigned rt = extract32(insn,  0, 5);
-    TCGv_reg tcg_r1, tcg_r2;
-    DisasJumpType ret;
-
-    if (cf) {
-        nullify_over(ctx);
-    }
-    tcg_r1 = load_gpr(ctx, r1);
-    tcg_r2 = load_gpr(ctx, r2);
-    ret = do_log(ctx, rt, tcg_r1, tcg_r2, cf, di->f.ttt);
-    return nullify_end(ctx, ret);
-}
-
-/* OR r,0,t -> COPY (according to gas) */
-static DisasJumpType trans_copy(DisasContext *ctx, uint32_t insn,
-                                const DisasInsn *di)
-{
-    unsigned r1 = extract32(insn, 16, 5);
-    unsigned rt = extract32(insn,  0, 5);
-
-    if (r1 == 0) {
-        TCGv_reg dest = dest_gpr(ctx, rt);
-        tcg_gen_movi_reg(dest, 0);
-        save_gpr(ctx, rt, dest);
-    } else {
-        save_gpr(ctx, rt, cpu_gr[r1]);
-    }
     cond_free(&ctx->null_cond);
-    return DISAS_NEXT;
+    return true;
 }
 
-static DisasJumpType trans_cmpclr(DisasContext *ctx, uint32_t insn,
-                                  const DisasInsn *di)
+static bool trans_add(DisasContext *ctx, arg_rrr_cf_sh *a)
 {
-    unsigned r2 = extract32(insn, 21, 5);
-    unsigned r1 = extract32(insn, 16, 5);
-    unsigned cf = extract32(insn, 12, 4);
-    unsigned rt = extract32(insn,  0, 5);
-    TCGv_reg tcg_r1, tcg_r2;
-    DisasJumpType ret;
+    return do_add_reg(ctx, a, false, false, false, false);
+}
 
-    if (cf) {
+static bool trans_add_l(DisasContext *ctx, arg_rrr_cf_sh *a)
+{
+    return do_add_reg(ctx, a, true, false, false, false);
+}
+
+static bool trans_add_tsv(DisasContext *ctx, arg_rrr_cf_sh *a)
+{
+    return do_add_reg(ctx, a, false, true, false, false);
+}
+
+static bool trans_add_c(DisasContext *ctx, arg_rrr_cf_sh *a)
+{
+    return do_add_reg(ctx, a, false, false, false, true);
+}
+
+static bool trans_add_c_tsv(DisasContext *ctx, arg_rrr_cf_sh *a)
+{
+    return do_add_reg(ctx, a, false, true, false, true);
+}
+
+static bool trans_sub(DisasContext *ctx, arg_rrr_cf *a)
+{
+    return do_sub_reg(ctx, a, false, false, false);
+}
+
+static bool trans_sub_tsv(DisasContext *ctx, arg_rrr_cf *a)
+{
+    return do_sub_reg(ctx, a, true, false, false);
+}
+
+static bool trans_sub_tc(DisasContext *ctx, arg_rrr_cf *a)
+{
+    return do_sub_reg(ctx, a, false, false, true);
+}
+
+static bool trans_sub_tsv_tc(DisasContext *ctx, arg_rrr_cf *a)
+{
+    return do_sub_reg(ctx, a, true, false, true);
+}
+
+static bool trans_sub_b(DisasContext *ctx, arg_rrr_cf *a)
+{
+    return do_sub_reg(ctx, a, false, true, false);
+}
+
+static bool trans_sub_b_tsv(DisasContext *ctx, arg_rrr_cf *a)
+{
+    return do_sub_reg(ctx, a, true, true, false);
+}
+
+static bool trans_andcm(DisasContext *ctx, arg_rrr_cf *a)
+{
+    return do_log_reg(ctx, a, tcg_gen_andc_reg);
+}
+
+static bool trans_and(DisasContext *ctx, arg_rrr_cf *a)
+{
+    return do_log_reg(ctx, a, tcg_gen_and_reg);
+}
+
+static bool trans_or(DisasContext *ctx, arg_rrr_cf *a)
+{
+    if (a->cf == 0) {
+        unsigned r2 = a->r2;
+        unsigned r1 = a->r1;
+        unsigned rt = a->t;
+
+        if (rt == 0) { /* NOP */
+            cond_free(&ctx->null_cond);
+            return true;
+        }
+        if (r2 == 0) { /* COPY */
+            if (r1 == 0) {
+                TCGv_reg dest = dest_gpr(ctx, rt);
+                tcg_gen_movi_reg(dest, 0);
+                save_gpr(ctx, rt, dest);
+            } else {
+                save_gpr(ctx, rt, cpu_gr[r1]);
+            }
+            cond_free(&ctx->null_cond);
+            return true;
+        }
+#ifndef CONFIG_USER_ONLY
+        /* These are QEMU extensions and are nops in the real architecture:
+         *
+         * or %r10,%r10,%r10 -- idle loop; wait for interrupt
+         * or %r31,%r31,%r31 -- death loop; offline cpu
+         *                      currently implemented as idle.
+         */
+        if ((rt == 10 || rt == 31) && r1 == rt && r2 == rt) { /* PAUSE */
+            TCGv_i32 tmp;
+
+            /* No need to check for supervisor, as userland can only pause
+               until the next timer interrupt.  */
+            nullify_over(ctx);
+
+            /* Advance the instruction queue.  */
+            copy_iaoq_entry(cpu_iaoq_f, ctx->iaoq_b, cpu_iaoq_b);
+            copy_iaoq_entry(cpu_iaoq_b, ctx->iaoq_n, ctx->iaoq_n_var);
+            nullify_set(ctx, 0);
+
+            /* Tell the qemu main loop to halt until this cpu has work.  */
+            tmp = tcg_const_i32(1);
+            tcg_gen_st_i32(tmp, cpu_env, -offsetof(HPPACPU, env) +
+                                         offsetof(CPUState, halted));
+            tcg_temp_free_i32(tmp);
+            gen_excp_1(EXCP_HALTED);
+            ctx->base.is_jmp = DISAS_NORETURN;
+
+            return nullify_end(ctx);
+        }
+#endif
+    }
+    return do_log_reg(ctx, a, tcg_gen_or_reg);
+}
+
+static bool trans_xor(DisasContext *ctx, arg_rrr_cf *a)
+{
+    return do_log_reg(ctx, a, tcg_gen_xor_reg);
+}
+
+static bool trans_cmpclr(DisasContext *ctx, arg_rrr_cf *a)
+{
+    TCGv_reg tcg_r1, tcg_r2;
+
+    if (a->cf) {
         nullify_over(ctx);
     }
-    tcg_r1 = load_gpr(ctx, r1);
-    tcg_r2 = load_gpr(ctx, r2);
-    ret = do_cmpclr(ctx, rt, tcg_r1, tcg_r2, cf);
-    return nullify_end(ctx, ret);
+    tcg_r1 = load_gpr(ctx, a->r1);
+    tcg_r2 = load_gpr(ctx, a->r2);
+    do_cmpclr(ctx, a->t, tcg_r1, tcg_r2, a->cf);
+    return nullify_end(ctx);
 }
 
-static DisasJumpType trans_uxor(DisasContext *ctx, uint32_t insn,
-                                const DisasInsn *di)
+static bool trans_uxor(DisasContext *ctx, arg_rrr_cf *a)
 {
-    unsigned r2 = extract32(insn, 21, 5);
-    unsigned r1 = extract32(insn, 16, 5);
-    unsigned cf = extract32(insn, 12, 4);
-    unsigned rt = extract32(insn,  0, 5);
     TCGv_reg tcg_r1, tcg_r2;
-    DisasJumpType ret;
 
-    if (cf) {
+    if (a->cf) {
         nullify_over(ctx);
     }
-    tcg_r1 = load_gpr(ctx, r1);
-    tcg_r2 = load_gpr(ctx, r2);
-    ret = do_unit(ctx, rt, tcg_r1, tcg_r2, cf, false, tcg_gen_xor_reg);
-    return nullify_end(ctx, ret);
+    tcg_r1 = load_gpr(ctx, a->r1);
+    tcg_r2 = load_gpr(ctx, a->r2);
+    do_unit(ctx, a->t, tcg_r1, tcg_r2, a->cf, false, tcg_gen_xor_reg);
+    return nullify_end(ctx);
 }
 
-static DisasJumpType trans_uaddcm(DisasContext *ctx, uint32_t insn,
-                                  const DisasInsn *di)
+static bool do_uaddcm(DisasContext *ctx, arg_rrr_cf *a, bool is_tc)
 {
-    unsigned r2 = extract32(insn, 21, 5);
-    unsigned r1 = extract32(insn, 16, 5);
-    unsigned cf = extract32(insn, 12, 4);
-    unsigned is_tc = extract32(insn, 6, 1);
-    unsigned rt = extract32(insn,  0, 5);
     TCGv_reg tcg_r1, tcg_r2, tmp;
-    DisasJumpType ret;
 
-    if (cf) {
+    if (a->cf) {
         nullify_over(ctx);
     }
-    tcg_r1 = load_gpr(ctx, r1);
-    tcg_r2 = load_gpr(ctx, r2);
+    tcg_r1 = load_gpr(ctx, a->r1);
+    tcg_r2 = load_gpr(ctx, a->r2);
     tmp = get_temp(ctx);
     tcg_gen_not_reg(tmp, tcg_r2);
-    ret = do_unit(ctx, rt, tcg_r1, tmp, cf, is_tc, tcg_gen_add_reg);
-    return nullify_end(ctx, ret);
+    do_unit(ctx, a->t, tcg_r1, tmp, a->cf, is_tc, tcg_gen_add_reg);
+    return nullify_end(ctx);
 }
 
-static DisasJumpType trans_dcor(DisasContext *ctx, uint32_t insn,
-                                const DisasInsn *di)
+static bool trans_uaddcm(DisasContext *ctx, arg_rrr_cf *a)
 {
-    unsigned r2 = extract32(insn, 21, 5);
-    unsigned cf = extract32(insn, 12, 4);
-    unsigned is_i = extract32(insn, 6, 1);
-    unsigned rt = extract32(insn,  0, 5);
+    return do_uaddcm(ctx, a, false);
+}
+
+static bool trans_uaddcm_tc(DisasContext *ctx, arg_rrr_cf *a)
+{
+    return do_uaddcm(ctx, a, true);
+}
+
+static bool do_dcor(DisasContext *ctx, arg_rr_cf *a, bool is_i)
+{
     TCGv_reg tmp;
-    DisasJumpType ret;
 
     nullify_over(ctx);
 
@@ -2750,25 +2744,29 @@ static DisasJumpType trans_dcor(DisasContext *ctx, uint32_t insn,
     }
     tcg_gen_andi_reg(tmp, tmp, 0x11111111);
     tcg_gen_muli_reg(tmp, tmp, 6);
-    ret = do_unit(ctx, rt, tmp, load_gpr(ctx, r2), cf, false,
-                  is_i ? tcg_gen_add_reg : tcg_gen_sub_reg);
-
-    return nullify_end(ctx, ret);
+    do_unit(ctx, a->t, load_gpr(ctx, a->r), tmp, a->cf, false,
+            is_i ? tcg_gen_add_reg : tcg_gen_sub_reg);
+    return nullify_end(ctx);
 }
 
-static DisasJumpType trans_ds(DisasContext *ctx, uint32_t insn,
-                              const DisasInsn *di)
+static bool trans_dcor(DisasContext *ctx, arg_rr_cf *a)
 {
-    unsigned r2 = extract32(insn, 21, 5);
-    unsigned r1 = extract32(insn, 16, 5);
-    unsigned cf = extract32(insn, 12, 4);
-    unsigned rt = extract32(insn,  0, 5);
+    return do_dcor(ctx, a, false);
+}
+
+static bool trans_dcor_i(DisasContext *ctx, arg_rr_cf *a)
+{
+    return do_dcor(ctx, a, true);
+}
+
+static bool trans_ds(DisasContext *ctx, arg_rrr_cf *a)
+{
     TCGv_reg dest, add1, add2, addc, zero, in1, in2;
 
     nullify_over(ctx);
 
-    in1 = load_gpr(ctx, r1);
-    in2 = load_gpr(ctx, r2);
+    in1 = load_gpr(ctx, a->r1);
+    in2 = load_gpr(ctx, a->r2);
 
     add1 = tcg_temp_new();
     add2 = tcg_temp_new();
@@ -2795,7 +2793,7 @@ static DisasJumpType trans_ds(DisasContext *ctx, uint32_t insn,
     tcg_temp_free(zero);
 
     /* Write back the result register.  */
-    save_gpr(ctx, rt, dest);
+    save_gpr(ctx, a->t, dest);
 
     /* Write back PSW[CB].  */
     tcg_gen_xor_reg(cpu_psw_cb, add1, add2);
@@ -2806,251 +2804,118 @@ static DisasJumpType trans_ds(DisasContext *ctx, uint32_t insn,
     tcg_gen_xor_reg(cpu_psw_v, cpu_psw_v, in2);
 
     /* Install the new nullification.  */
-    if (cf) {
+    if (a->cf) {
         TCGv_reg sv = NULL;
-        if (cf >> 1 == 6) {
+        if (cond_need_sv(a->cf >> 1)) {
             /* ??? The lshift is supposed to contribute to overflow.  */
             sv = do_add_sv(ctx, dest, add1, add2);
         }
-        ctx->null_cond = do_cond(cf, dest, cpu_psw_cb_msb, sv);
+        ctx->null_cond = do_cond(a->cf, dest, cpu_psw_cb_msb, sv);
     }
 
     tcg_temp_free(add1);
     tcg_temp_free(add2);
     tcg_temp_free(dest);
 
-    return nullify_end(ctx, DISAS_NEXT);
+    return nullify_end(ctx);
 }
 
-#ifndef CONFIG_USER_ONLY
-/* These are QEMU extensions and are nops in the real architecture:
- *
- * or %r10,%r10,%r10 -- idle loop; wait for interrupt
- * or %r31,%r31,%r31 -- death loop; offline cpu
- *                      currently implemented as idle.
- */
-static DisasJumpType trans_pause(DisasContext *ctx, uint32_t insn,
-                                 const DisasInsn *di)
+static bool trans_addi(DisasContext *ctx, arg_rri_cf *a)
 {
-    TCGv_i32 tmp;
-
-    /* No need to check for supervisor, as userland can only pause
-       until the next timer interrupt.  */
-    nullify_over(ctx);
-
-    /* Advance the instruction queue.  */
-    copy_iaoq_entry(cpu_iaoq_f, ctx->iaoq_b, cpu_iaoq_b);
-    copy_iaoq_entry(cpu_iaoq_b, ctx->iaoq_n, ctx->iaoq_n_var);
-    nullify_set(ctx, 0);
-
-    /* Tell the qemu main loop to halt until this cpu has work.  */
-    tmp = tcg_const_i32(1);
-    tcg_gen_st_i32(tmp, cpu_env, -offsetof(HPPACPU, env) +
-                                 offsetof(CPUState, halted));
-    tcg_temp_free_i32(tmp);
-    gen_excp_1(EXCP_HALTED);
-
-    return nullify_end(ctx, DISAS_NORETURN);
+    return do_add_imm(ctx, a, false, false);
 }
-#endif
 
-static const DisasInsn table_arith_log[] = {
-    { 0x08000240u, 0xfc00ffffu, trans_nop },  /* or x,y,0 */
-    { 0x08000240u, 0xffe0ffe0u, trans_copy }, /* or x,0,t */
-#ifndef CONFIG_USER_ONLY
-    { 0x094a024au, 0xffffffffu, trans_pause }, /* or r10,r10,r10 */
-    { 0x0bff025fu, 0xffffffffu, trans_pause }, /* or r31,r31,r31 */
-#endif
-    { 0x08000000u, 0xfc000fe0u, trans_log, .f.ttt = tcg_gen_andc_reg },
-    { 0x08000200u, 0xfc000fe0u, trans_log, .f.ttt = tcg_gen_and_reg },
-    { 0x08000240u, 0xfc000fe0u, trans_log, .f.ttt = tcg_gen_or_reg },
-    { 0x08000280u, 0xfc000fe0u, trans_log, .f.ttt = tcg_gen_xor_reg },
-    { 0x08000880u, 0xfc000fe0u, trans_cmpclr },
-    { 0x08000380u, 0xfc000fe0u, trans_uxor },
-    { 0x08000980u, 0xfc000fa0u, trans_uaddcm },
-    { 0x08000b80u, 0xfc1f0fa0u, trans_dcor },
-    { 0x08000440u, 0xfc000fe0u, trans_ds },
-    { 0x08000700u, 0xfc0007e0u, trans_add }, /* add */
-    { 0x08000400u, 0xfc0006e0u, trans_sub }, /* sub; sub,b; sub,tsv */
-    { 0x080004c0u, 0xfc0007e0u, trans_sub }, /* sub,tc; sub,tsv,tc */
-    { 0x08000200u, 0xfc000320u, trans_add }, /* shladd */
-};
-
-static DisasJumpType trans_addi(DisasContext *ctx, uint32_t insn)
+static bool trans_addi_tsv(DisasContext *ctx, arg_rri_cf *a)
 {
-    target_sreg im = low_sextract(insn, 0, 11);
-    unsigned e1 = extract32(insn, 11, 1);
-    unsigned cf = extract32(insn, 12, 4);
-    unsigned rt = extract32(insn, 16, 5);
-    unsigned r2 = extract32(insn, 21, 5);
-    unsigned o1 = extract32(insn, 26, 1);
+    return do_add_imm(ctx, a, true, false);
+}
+
+static bool trans_addi_tc(DisasContext *ctx, arg_rri_cf *a)
+{
+    return do_add_imm(ctx, a, false, true);
+}
+
+static bool trans_addi_tc_tsv(DisasContext *ctx, arg_rri_cf *a)
+{
+    return do_add_imm(ctx, a, true, true);
+}
+
+static bool trans_subi(DisasContext *ctx, arg_rri_cf *a)
+{
+    return do_sub_imm(ctx, a, false);
+}
+
+static bool trans_subi_tsv(DisasContext *ctx, arg_rri_cf *a)
+{
+    return do_sub_imm(ctx, a, true);
+}
+
+static bool trans_cmpiclr(DisasContext *ctx, arg_rri_cf *a)
+{
     TCGv_reg tcg_im, tcg_r2;
-    DisasJumpType ret;
 
-    if (cf) {
+    if (a->cf) {
         nullify_over(ctx);
     }
 
-    tcg_im = load_const(ctx, im);
-    tcg_r2 = load_gpr(ctx, r2);
-    ret = do_add(ctx, rt, tcg_im, tcg_r2, 0, false, e1, !o1, false, cf);
+    tcg_im = load_const(ctx, a->i);
+    tcg_r2 = load_gpr(ctx, a->r);
+    do_cmpclr(ctx, a->t, tcg_im, tcg_r2, a->cf);
 
-    return nullify_end(ctx, ret);
+    return nullify_end(ctx);
 }
 
-static DisasJumpType trans_subi(DisasContext *ctx, uint32_t insn)
+static bool trans_ld(DisasContext *ctx, arg_ldst *a)
 {
-    target_sreg im = low_sextract(insn, 0, 11);
-    unsigned e1 = extract32(insn, 11, 1);
-    unsigned cf = extract32(insn, 12, 4);
-    unsigned rt = extract32(insn, 16, 5);
-    unsigned r2 = extract32(insn, 21, 5);
-    TCGv_reg tcg_im, tcg_r2;
-    DisasJumpType ret;
-
-    if (cf) {
-        nullify_over(ctx);
-    }
-
-    tcg_im = load_const(ctx, im);
-    tcg_r2 = load_gpr(ctx, r2);
-    ret = do_sub(ctx, rt, tcg_im, tcg_r2, e1, false, false, cf);
-
-    return nullify_end(ctx, ret);
+    return do_load(ctx, a->t, a->b, a->x, a->scale ? a->size : 0,
+                   a->disp, a->sp, a->m, a->size | MO_TE);
 }
 
-static DisasJumpType trans_cmpiclr(DisasContext *ctx, uint32_t insn)
+static bool trans_st(DisasContext *ctx, arg_ldst *a)
 {
-    target_sreg im = low_sextract(insn, 0, 11);
-    unsigned cf = extract32(insn, 12, 4);
-    unsigned rt = extract32(insn, 16, 5);
-    unsigned r2 = extract32(insn, 21, 5);
-    TCGv_reg tcg_im, tcg_r2;
-    DisasJumpType ret;
-
-    if (cf) {
-        nullify_over(ctx);
-    }
-
-    tcg_im = load_const(ctx, im);
-    tcg_r2 = load_gpr(ctx, r2);
-    ret = do_cmpclr(ctx, rt, tcg_im, tcg_r2, cf);
-
-    return nullify_end(ctx, ret);
+    assert(a->x == 0 && a->scale == 0);
+    return do_store(ctx, a->t, a->b, a->disp, a->sp, a->m, a->size | MO_TE);
 }
 
-static DisasJumpType trans_ld_idx_i(DisasContext *ctx, uint32_t insn,
-                                    const DisasInsn *di)
+static bool trans_ldc(DisasContext *ctx, arg_ldst *a)
 {
-    unsigned rt = extract32(insn, 0, 5);
-    unsigned m = extract32(insn, 5, 1);
-    unsigned sz = extract32(insn, 6, 2);
-    unsigned a = extract32(insn, 13, 1);
-    unsigned sp = extract32(insn, 14, 2);
-    int disp = low_sextract(insn, 16, 5);
-    unsigned rb = extract32(insn, 21, 5);
-    int modify = (m ? (a ? -1 : 1) : 0);
-    TCGMemOp mop = MO_TE | sz;
-
-    return do_load(ctx, rt, rb, 0, 0, disp, sp, modify, mop);
-}
-
-static DisasJumpType trans_ld_idx_x(DisasContext *ctx, uint32_t insn,
-                                    const DisasInsn *di)
-{
-    unsigned rt = extract32(insn, 0, 5);
-    unsigned m = extract32(insn, 5, 1);
-    unsigned sz = extract32(insn, 6, 2);
-    unsigned u = extract32(insn, 13, 1);
-    unsigned sp = extract32(insn, 14, 2);
-    unsigned rx = extract32(insn, 16, 5);
-    unsigned rb = extract32(insn, 21, 5);
-    TCGMemOp mop = MO_TE | sz;
-
-    return do_load(ctx, rt, rb, rx, u ? sz : 0, 0, sp, m, mop);
-}
-
-static DisasJumpType trans_st_idx_i(DisasContext *ctx, uint32_t insn,
-                                    const DisasInsn *di)
-{
-    int disp = low_sextract(insn, 0, 5);
-    unsigned m = extract32(insn, 5, 1);
-    unsigned sz = extract32(insn, 6, 2);
-    unsigned a = extract32(insn, 13, 1);
-    unsigned sp = extract32(insn, 14, 2);
-    unsigned rr = extract32(insn, 16, 5);
-    unsigned rb = extract32(insn, 21, 5);
-    int modify = (m ? (a ? -1 : 1) : 0);
-    TCGMemOp mop = MO_TE | sz;
-
-    return do_store(ctx, rr, rb, disp, sp, modify, mop);
-}
-
-static DisasJumpType trans_ldcw(DisasContext *ctx, uint32_t insn,
-                                const DisasInsn *di)
-{
-    unsigned rt = extract32(insn, 0, 5);
-    unsigned m = extract32(insn, 5, 1);
-    unsigned i = extract32(insn, 12, 1);
-    unsigned au = extract32(insn, 13, 1);
-    unsigned sp = extract32(insn, 14, 2);
-    unsigned rx = extract32(insn, 16, 5);
-    unsigned rb = extract32(insn, 21, 5);
-    TCGMemOp mop = MO_TEUL | MO_ALIGN_16;
+    TCGMemOp mop = MO_TEUL | MO_ALIGN_16 | a->size;
     TCGv_reg zero, dest, ofs;
     TCGv_tl addr;
-    int modify, disp = 0, scale = 0;
 
     nullify_over(ctx);
 
-    if (i) {
-        modify = (m ? (au ? -1 : 1) : 0);
-        disp = low_sextract(rx, 0, 5);
-        rx = 0;
-    } else {
-        modify = m;
-        if (au) {
-            scale = mop & MO_SIZE;
-        }
-    }
-    if (modify) {
+    if (a->m) {
         /* Base register modification.  Make sure if RT == RB,
            we see the result of the load.  */
         dest = get_temp(ctx);
     } else {
-        dest = dest_gpr(ctx, rt);
+        dest = dest_gpr(ctx, a->t);
     }
 
-    form_gva(ctx, &addr, &ofs, rb, rx, scale, disp, sp, modify,
-             ctx->mmu_idx == MMU_PHYS_IDX);
+    form_gva(ctx, &addr, &ofs, a->b, a->x, a->scale ? a->size : 0,
+             a->disp, a->sp, a->m, ctx->mmu_idx == MMU_PHYS_IDX);
     zero = tcg_const_reg(0);
     tcg_gen_atomic_xchg_reg(dest, addr, zero, ctx->mmu_idx, mop);
-    if (modify) {
-        save_gpr(ctx, rb, ofs);
+    if (a->m) {
+        save_gpr(ctx, a->b, ofs);
     }
-    save_gpr(ctx, rt, dest);
+    save_gpr(ctx, a->t, dest);
 
-    return nullify_end(ctx, DISAS_NEXT);
+    return nullify_end(ctx);
 }
 
-static DisasJumpType trans_stby(DisasContext *ctx, uint32_t insn,
-                                const DisasInsn *di)
+static bool trans_stby(DisasContext *ctx, arg_stby *a)
 {
-    target_sreg disp = low_sextract(insn, 0, 5);
-    unsigned m = extract32(insn, 5, 1);
-    unsigned a = extract32(insn, 13, 1);
-    unsigned sp = extract32(insn, 14, 2);
-    unsigned rt = extract32(insn, 16, 5);
-    unsigned rb = extract32(insn, 21, 5);
     TCGv_reg ofs, val;
     TCGv_tl addr;
 
     nullify_over(ctx);
 
-    form_gva(ctx, &addr, &ofs, rb, 0, 0, disp, sp, m,
+    form_gva(ctx, &addr, &ofs, a->b, 0, 0, a->disp, a->sp, a->m,
              ctx->mmu_idx == MMU_PHYS_IDX);
-    val = load_gpr(ctx, rt);
-    if (a) {
+    val = load_gpr(ctx, a->r);
+    if (a->a) {
         if (tb_cflags(ctx->base.tb) & CF_PARALLEL) {
             gen_helper_stby_e_parallel(cpu_env, addr, val);
         } else {
@@ -3063,433 +2928,222 @@ static DisasJumpType trans_stby(DisasContext *ctx, uint32_t insn,
             gen_helper_stby_b(cpu_env, addr, val);
         }
     }
-
-    if (m) {
+    if (a->m) {
         tcg_gen_andi_reg(ofs, ofs, ~3);
-        save_gpr(ctx, rb, ofs);
+        save_gpr(ctx, a->b, ofs);
     }
 
-    return nullify_end(ctx, DISAS_NEXT);
+    return nullify_end(ctx);
 }
 
-#ifndef CONFIG_USER_ONLY
-static DisasJumpType trans_ldwa_idx_i(DisasContext *ctx, uint32_t insn,
-                                      const DisasInsn *di)
+static bool trans_lda(DisasContext *ctx, arg_ldst *a)
 {
     int hold_mmu_idx = ctx->mmu_idx;
-    DisasJumpType ret;
 
     CHECK_MOST_PRIVILEGED(EXCP_PRIV_OPR);
-
-    /* ??? needs fixing for hppa64 -- ldda does not follow the same
-       format wrt the sub-opcode in bits 6:9.  */
     ctx->mmu_idx = MMU_PHYS_IDX;
-    ret = trans_ld_idx_i(ctx, insn, di);
+    trans_ld(ctx, a);
     ctx->mmu_idx = hold_mmu_idx;
-    return ret;
+    return true;
 }
 
-static DisasJumpType trans_ldwa_idx_x(DisasContext *ctx, uint32_t insn,
-                                      const DisasInsn *di)
+static bool trans_sta(DisasContext *ctx, arg_ldst *a)
 {
     int hold_mmu_idx = ctx->mmu_idx;
-    DisasJumpType ret;
 
     CHECK_MOST_PRIVILEGED(EXCP_PRIV_OPR);
-
-    /* ??? needs fixing for hppa64 -- ldda does not follow the same
-       format wrt the sub-opcode in bits 6:9.  */
     ctx->mmu_idx = MMU_PHYS_IDX;
-    ret = trans_ld_idx_x(ctx, insn, di);
+    trans_st(ctx, a);
     ctx->mmu_idx = hold_mmu_idx;
-    return ret;
+    return true;
 }
 
-static DisasJumpType trans_stwa_idx_i(DisasContext *ctx, uint32_t insn,
-                                      const DisasInsn *di)
+static bool trans_ldil(DisasContext *ctx, arg_ldil *a)
 {
-    int hold_mmu_idx = ctx->mmu_idx;
-    DisasJumpType ret;
+    TCGv_reg tcg_rt = dest_gpr(ctx, a->t);
 
-    CHECK_MOST_PRIVILEGED(EXCP_PRIV_OPR);
-
-    /* ??? needs fixing for hppa64 -- ldda does not follow the same
-       format wrt the sub-opcode in bits 6:9.  */
-    ctx->mmu_idx = MMU_PHYS_IDX;
-    ret = trans_st_idx_i(ctx, insn, di);
-    ctx->mmu_idx = hold_mmu_idx;
-    return ret;
-}
-#endif
-
-static const DisasInsn table_index_mem[] = {
-    { 0x0c001000u, 0xfc001300, trans_ld_idx_i }, /* LD[BHWD], im */
-    { 0x0c000000u, 0xfc001300, trans_ld_idx_x }, /* LD[BHWD], rx */
-    { 0x0c001200u, 0xfc001300, trans_st_idx_i }, /* ST[BHWD] */
-    { 0x0c0001c0u, 0xfc0003c0, trans_ldcw },
-    { 0x0c001300u, 0xfc0013c0, trans_stby },
-#ifndef CONFIG_USER_ONLY
-    { 0x0c000180u, 0xfc00d3c0, trans_ldwa_idx_x }, /* LDWA, rx */
-    { 0x0c001180u, 0xfc00d3c0, trans_ldwa_idx_i }, /* LDWA, im */
-    { 0x0c001380u, 0xfc00d3c0, trans_stwa_idx_i }, /* STWA, im */
-#endif
-};
-
-static DisasJumpType trans_ldil(DisasContext *ctx, uint32_t insn)
-{
-    unsigned rt = extract32(insn, 21, 5);
-    target_sreg i = assemble_21(insn);
-    TCGv_reg tcg_rt = dest_gpr(ctx, rt);
-
-    tcg_gen_movi_reg(tcg_rt, i);
-    save_gpr(ctx, rt, tcg_rt);
+    tcg_gen_movi_reg(tcg_rt, a->i);
+    save_gpr(ctx, a->t, tcg_rt);
     cond_free(&ctx->null_cond);
-
-    return DISAS_NEXT;
+    return true;
 }
 
-static DisasJumpType trans_addil(DisasContext *ctx, uint32_t insn)
+static bool trans_addil(DisasContext *ctx, arg_addil *a)
 {
-    unsigned rt = extract32(insn, 21, 5);
-    target_sreg i = assemble_21(insn);
-    TCGv_reg tcg_rt = load_gpr(ctx, rt);
+    TCGv_reg tcg_rt = load_gpr(ctx, a->r);
     TCGv_reg tcg_r1 = dest_gpr(ctx, 1);
 
-    tcg_gen_addi_reg(tcg_r1, tcg_rt, i);
+    tcg_gen_addi_reg(tcg_r1, tcg_rt, a->i);
     save_gpr(ctx, 1, tcg_r1);
     cond_free(&ctx->null_cond);
-
-    return DISAS_NEXT;
+    return true;
 }
 
-static DisasJumpType trans_ldo(DisasContext *ctx, uint32_t insn)
+static bool trans_ldo(DisasContext *ctx, arg_ldo *a)
 {
-    unsigned rb = extract32(insn, 21, 5);
-    unsigned rt = extract32(insn, 16, 5);
-    target_sreg i = assemble_16(insn);
-    TCGv_reg tcg_rt = dest_gpr(ctx, rt);
+    TCGv_reg tcg_rt = dest_gpr(ctx, a->t);
 
     /* Special case rb == 0, for the LDI pseudo-op.
        The COPY pseudo-op is handled for free within tcg_gen_addi_tl.  */
-    if (rb == 0) {
-        tcg_gen_movi_reg(tcg_rt, i);
+    if (a->b == 0) {
+        tcg_gen_movi_reg(tcg_rt, a->i);
     } else {
-        tcg_gen_addi_reg(tcg_rt, cpu_gr[rb], i);
+        tcg_gen_addi_reg(tcg_rt, cpu_gr[a->b], a->i);
     }
-    save_gpr(ctx, rt, tcg_rt);
+    save_gpr(ctx, a->t, tcg_rt);
     cond_free(&ctx->null_cond);
-
-    return DISAS_NEXT;
+    return true;
 }
 
-static DisasJumpType trans_load(DisasContext *ctx, uint32_t insn,
-                                bool is_mod, TCGMemOp mop)
+static bool do_cmpb(DisasContext *ctx, unsigned r, TCGv_reg in1,
+                    unsigned c, unsigned f, unsigned n, int disp)
 {
-    unsigned rb = extract32(insn, 21, 5);
-    unsigned rt = extract32(insn, 16, 5);
-    unsigned sp = extract32(insn, 14, 2);
-    target_sreg i = assemble_16(insn);
-
-    return do_load(ctx, rt, rb, 0, 0, i, sp,
-                   is_mod ? (i < 0 ? -1 : 1) : 0, mop);
-}
-
-static DisasJumpType trans_load_w(DisasContext *ctx, uint32_t insn)
-{
-    unsigned rb = extract32(insn, 21, 5);
-    unsigned rt = extract32(insn, 16, 5);
-    unsigned sp = extract32(insn, 14, 2);
-    target_sreg i = assemble_16a(insn);
-    unsigned ext2 = extract32(insn, 1, 2);
-
-    switch (ext2) {
-    case 0:
-    case 1:
-        /* FLDW without modification.  */
-        return do_floadw(ctx, ext2 * 32 + rt, rb, 0, 0, i, sp, 0);
-    case 2:
-        /* LDW with modification.  Note that the sign of I selects
-           post-dec vs pre-inc.  */
-        return do_load(ctx, rt, rb, 0, 0, i, sp, (i < 0 ? 1 : -1), MO_TEUL);
-    default:
-        return gen_illegal(ctx);
-    }
-}
-
-static DisasJumpType trans_fload_mod(DisasContext *ctx, uint32_t insn)
-{
-    target_sreg i = assemble_16a(insn);
-    unsigned t1 = extract32(insn, 1, 1);
-    unsigned a = extract32(insn, 2, 1);
-    unsigned sp = extract32(insn, 14, 2);
-    unsigned t0 = extract32(insn, 16, 5);
-    unsigned rb = extract32(insn, 21, 5);
-
-    /* FLDW with modification.  */
-    return do_floadw(ctx, t1 * 32 + t0, rb, 0, 0, i, sp, (a ? -1 : 1));
-}
-
-static DisasJumpType trans_store(DisasContext *ctx, uint32_t insn,
-                                 bool is_mod, TCGMemOp mop)
-{
-    unsigned rb = extract32(insn, 21, 5);
-    unsigned rt = extract32(insn, 16, 5);
-    unsigned sp = extract32(insn, 14, 2);
-    target_sreg i = assemble_16(insn);
-
-    return do_store(ctx, rt, rb, i, sp, is_mod ? (i < 0 ? -1 : 1) : 0, mop);
-}
-
-static DisasJumpType trans_store_w(DisasContext *ctx, uint32_t insn)
-{
-    unsigned rb = extract32(insn, 21, 5);
-    unsigned rt = extract32(insn, 16, 5);
-    unsigned sp = extract32(insn, 14, 2);
-    target_sreg i = assemble_16a(insn);
-    unsigned ext2 = extract32(insn, 1, 2);
-
-    switch (ext2) {
-    case 0:
-    case 1:
-        /* FSTW without modification.  */
-        return do_fstorew(ctx, ext2 * 32 + rt, rb, 0, 0, i, sp, 0);
-    case 2:
-        /* STW with modification.  */
-        return do_store(ctx, rt, rb, i, sp, (i < 0 ? 1 : -1), MO_TEUL);
-    default:
-        return gen_illegal(ctx);
-    }
-}
-
-static DisasJumpType trans_fstore_mod(DisasContext *ctx, uint32_t insn)
-{
-    target_sreg i = assemble_16a(insn);
-    unsigned t1 = extract32(insn, 1, 1);
-    unsigned a = extract32(insn, 2, 1);
-    unsigned sp = extract32(insn, 14, 2);
-    unsigned t0 = extract32(insn, 16, 5);
-    unsigned rb = extract32(insn, 21, 5);
-
-    /* FSTW with modification.  */
-    return do_fstorew(ctx, t1 * 32 + t0, rb, 0, 0, i, sp, (a ? -1 : 1));
-}
-
-static DisasJumpType trans_copr_w(DisasContext *ctx, uint32_t insn)
-{
-    unsigned t0 = extract32(insn, 0, 5);
-    unsigned m = extract32(insn, 5, 1);
-    unsigned t1 = extract32(insn, 6, 1);
-    unsigned ext3 = extract32(insn, 7, 3);
-    /* unsigned cc = extract32(insn, 10, 2); */
-    unsigned i = extract32(insn, 12, 1);
-    unsigned ua = extract32(insn, 13, 1);
-    unsigned sp = extract32(insn, 14, 2);
-    unsigned rx = extract32(insn, 16, 5);
-    unsigned rb = extract32(insn, 21, 5);
-    unsigned rt = t1 * 32 + t0;
-    int modify = (m ? (ua ? -1 : 1) : 0);
-    int disp, scale;
-
-    if (i == 0) {
-        scale = (ua ? 2 : 0);
-        disp = 0;
-        modify = m;
-    } else {
-        disp = low_sextract(rx, 0, 5);
-        scale = 0;
-        rx = 0;
-        modify = (m ? (ua ? -1 : 1) : 0);
-    }
-
-    switch (ext3) {
-    case 0: /* FLDW */
-        return do_floadw(ctx, rt, rb, rx, scale, disp, sp, modify);
-    case 4: /* FSTW */
-        return do_fstorew(ctx, rt, rb, rx, scale, disp, sp, modify);
-    }
-    return gen_illegal(ctx);
-}
-
-static DisasJumpType trans_copr_dw(DisasContext *ctx, uint32_t insn)
-{
-    unsigned rt = extract32(insn, 0, 5);
-    unsigned m = extract32(insn, 5, 1);
-    unsigned ext4 = extract32(insn, 6, 4);
-    /* unsigned cc = extract32(insn, 10, 2); */
-    unsigned i = extract32(insn, 12, 1);
-    unsigned ua = extract32(insn, 13, 1);
-    unsigned sp = extract32(insn, 14, 2);
-    unsigned rx = extract32(insn, 16, 5);
-    unsigned rb = extract32(insn, 21, 5);
-    int modify = (m ? (ua ? -1 : 1) : 0);
-    int disp, scale;
-
-    if (i == 0) {
-        scale = (ua ? 3 : 0);
-        disp = 0;
-        modify = m;
-    } else {
-        disp = low_sextract(rx, 0, 5);
-        scale = 0;
-        rx = 0;
-        modify = (m ? (ua ? -1 : 1) : 0);
-    }
-
-    switch (ext4) {
-    case 0: /* FLDD */
-        return do_floadd(ctx, rt, rb, rx, scale, disp, sp, modify);
-    case 8: /* FSTD */
-        return do_fstored(ctx, rt, rb, rx, scale, disp, sp, modify);
-    default:
-        return gen_illegal(ctx);
-    }
-}
-
-static DisasJumpType trans_cmpb(DisasContext *ctx, uint32_t insn,
-                                bool is_true, bool is_imm, bool is_dw)
-{
-    target_sreg disp = assemble_12(insn) * 4;
-    unsigned n = extract32(insn, 1, 1);
-    unsigned c = extract32(insn, 13, 3);
-    unsigned r = extract32(insn, 21, 5);
-    unsigned cf = c * 2 + !is_true;
-    TCGv_reg dest, in1, in2, sv;
+    TCGv_reg dest, in2, sv;
     DisasCond cond;
 
-    nullify_over(ctx);
-
-    if (is_imm) {
-        in1 = load_const(ctx, low_sextract(insn, 16, 5));
-    } else {
-        in1 = load_gpr(ctx, extract32(insn, 16, 5));
-    }
     in2 = load_gpr(ctx, r);
     dest = get_temp(ctx);
 
     tcg_gen_sub_reg(dest, in1, in2);
 
     sv = NULL;
-    if (c == 6) {
+    if (cond_need_sv(c)) {
         sv = do_sub_sv(ctx, dest, in1, in2);
     }
 
-    cond = do_sub_cond(cf, dest, in1, in2, sv);
+    cond = do_sub_cond(c * 2 + f, dest, in1, in2, sv);
     return do_cbranch(ctx, disp, n, &cond);
 }
 
-static DisasJumpType trans_addb(DisasContext *ctx, uint32_t insn,
-                                bool is_true, bool is_imm)
+static bool trans_cmpb(DisasContext *ctx, arg_cmpb *a)
 {
-    target_sreg disp = assemble_12(insn) * 4;
-    unsigned n = extract32(insn, 1, 1);
-    unsigned c = extract32(insn, 13, 3);
-    unsigned r = extract32(insn, 21, 5);
-    unsigned cf = c * 2 + !is_true;
-    TCGv_reg dest, in1, in2, sv, cb_msb;
+    nullify_over(ctx);
+    return do_cmpb(ctx, a->r2, load_gpr(ctx, a->r1), a->c, a->f, a->n, a->disp);
+}
+
+static bool trans_cmpbi(DisasContext *ctx, arg_cmpbi *a)
+{
+    nullify_over(ctx);
+    return do_cmpb(ctx, a->r, load_const(ctx, a->i), a->c, a->f, a->n, a->disp);
+}
+
+static bool do_addb(DisasContext *ctx, unsigned r, TCGv_reg in1,
+                    unsigned c, unsigned f, unsigned n, int disp)
+{
+    TCGv_reg dest, in2, sv, cb_msb;
     DisasCond cond;
 
-    nullify_over(ctx);
-
-    if (is_imm) {
-        in1 = load_const(ctx, low_sextract(insn, 16, 5));
-    } else {
-        in1 = load_gpr(ctx, extract32(insn, 16, 5));
-    }
     in2 = load_gpr(ctx, r);
     dest = dest_gpr(ctx, r);
     sv = NULL;
     cb_msb = NULL;
 
-    switch (c) {
-    default:
-        tcg_gen_add_reg(dest, in1, in2);
-        break;
-    case 4: case 5:
+    if (cond_need_cb(c)) {
         cb_msb = get_temp(ctx);
         tcg_gen_movi_reg(cb_msb, 0);
         tcg_gen_add2_reg(dest, cb_msb, in1, cb_msb, in2, cb_msb);
-        break;
-    case 6:
+    } else {
         tcg_gen_add_reg(dest, in1, in2);
+    }
+    if (cond_need_sv(c)) {
         sv = do_add_sv(ctx, dest, in1, in2);
-        break;
     }
 
-    cond = do_cond(cf, dest, cb_msb, sv);
+    cond = do_cond(c * 2 + f, dest, cb_msb, sv);
     return do_cbranch(ctx, disp, n, &cond);
 }
 
-static DisasJumpType trans_bb(DisasContext *ctx, uint32_t insn)
+static bool trans_addb(DisasContext *ctx, arg_addb *a)
 {
-    target_sreg disp = assemble_12(insn) * 4;
-    unsigned n = extract32(insn, 1, 1);
-    unsigned c = extract32(insn, 15, 1);
-    unsigned r = extract32(insn, 16, 5);
-    unsigned p = extract32(insn, 21, 5);
-    unsigned i = extract32(insn, 26, 1);
+    nullify_over(ctx);
+    return do_addb(ctx, a->r2, load_gpr(ctx, a->r1), a->c, a->f, a->n, a->disp);
+}
+
+static bool trans_addbi(DisasContext *ctx, arg_addbi *a)
+{
+    nullify_over(ctx);
+    return do_addb(ctx, a->r, load_const(ctx, a->i), a->c, a->f, a->n, a->disp);
+}
+
+static bool trans_bb_sar(DisasContext *ctx, arg_bb_sar *a)
+{
     TCGv_reg tmp, tcg_r;
     DisasCond cond;
 
     nullify_over(ctx);
 
     tmp = tcg_temp_new();
-    tcg_r = load_gpr(ctx, r);
-    if (i) {
-        tcg_gen_shli_reg(tmp, tcg_r, p);
-    } else {
-        tcg_gen_shl_reg(tmp, tcg_r, cpu_sar);
-    }
+    tcg_r = load_gpr(ctx, a->r);
+    tcg_gen_shl_reg(tmp, tcg_r, cpu_sar);
 
-    cond = cond_make_0(c ? TCG_COND_GE : TCG_COND_LT, tmp);
+    cond = cond_make_0(a->c ? TCG_COND_GE : TCG_COND_LT, tmp);
     tcg_temp_free(tmp);
-    return do_cbranch(ctx, disp, n, &cond);
+    return do_cbranch(ctx, a->disp, a->n, &cond);
 }
 
-static DisasJumpType trans_movb(DisasContext *ctx, uint32_t insn, bool is_imm)
+static bool trans_bb_imm(DisasContext *ctx, arg_bb_imm *a)
 {
-    target_sreg disp = assemble_12(insn) * 4;
-    unsigned n = extract32(insn, 1, 1);
-    unsigned c = extract32(insn, 13, 3);
-    unsigned t = extract32(insn, 16, 5);
-    unsigned r = extract32(insn, 21, 5);
+    TCGv_reg tmp, tcg_r;
+    DisasCond cond;
+
+    nullify_over(ctx);
+
+    tmp = tcg_temp_new();
+    tcg_r = load_gpr(ctx, a->r);
+    tcg_gen_shli_reg(tmp, tcg_r, a->p);
+
+    cond = cond_make_0(a->c ? TCG_COND_GE : TCG_COND_LT, tmp);
+    tcg_temp_free(tmp);
+    return do_cbranch(ctx, a->disp, a->n, &cond);
+}
+
+static bool trans_movb(DisasContext *ctx, arg_movb *a)
+{
     TCGv_reg dest;
     DisasCond cond;
 
     nullify_over(ctx);
 
-    dest = dest_gpr(ctx, r);
-    if (is_imm) {
-        tcg_gen_movi_reg(dest, low_sextract(t, 0, 5));
-    } else if (t == 0) {
+    dest = dest_gpr(ctx, a->r2);
+    if (a->r1 == 0) {
         tcg_gen_movi_reg(dest, 0);
     } else {
-        tcg_gen_mov_reg(dest, cpu_gr[t]);
+        tcg_gen_mov_reg(dest, cpu_gr[a->r1]);
     }
 
-    cond = do_sed_cond(c, dest);
-    return do_cbranch(ctx, disp, n, &cond);
+    cond = do_sed_cond(a->c, dest);
+    return do_cbranch(ctx, a->disp, a->n, &cond);
 }
 
-static DisasJumpType trans_shrpw_sar(DisasContext *ctx, uint32_t insn,
-                                    const DisasInsn *di)
+static bool trans_movbi(DisasContext *ctx, arg_movbi *a)
 {
-    unsigned rt = extract32(insn, 0, 5);
-    unsigned c = extract32(insn, 13, 3);
-    unsigned r1 = extract32(insn, 16, 5);
-    unsigned r2 = extract32(insn, 21, 5);
+    TCGv_reg dest;
+    DisasCond cond;
+
+    nullify_over(ctx);
+
+    dest = dest_gpr(ctx, a->r);
+    tcg_gen_movi_reg(dest, a->i);
+
+    cond = do_sed_cond(a->c, dest);
+    return do_cbranch(ctx, a->disp, a->n, &cond);
+}
+
+static bool trans_shrpw_sar(DisasContext *ctx, arg_shrpw_sar *a)
+{
     TCGv_reg dest;
 
-    if (c) {
+    if (a->c) {
         nullify_over(ctx);
     }
 
-    dest = dest_gpr(ctx, rt);
-    if (r1 == 0) {
-        tcg_gen_ext32u_reg(dest, load_gpr(ctx, r2));
+    dest = dest_gpr(ctx, a->t);
+    if (a->r1 == 0) {
+        tcg_gen_ext32u_reg(dest, load_gpr(ctx, a->r2));
         tcg_gen_shr_reg(dest, dest, cpu_sar);
-    } else if (r1 == r2) {
+    } else if (a->r1 == a->r2) {
         TCGv_i32 t32 = tcg_temp_new_i32();
-        tcg_gen_trunc_reg_i32(t32, load_gpr(ctx, r2));
+        tcg_gen_trunc_reg_i32(t32, load_gpr(ctx, a->r2));
         tcg_gen_rotr_i32(t32, t32, cpu_sar);
         tcg_gen_extu_i32_reg(dest, t32);
         tcg_temp_free_i32(t32);
@@ -3497,7 +3151,7 @@ static DisasJumpType trans_shrpw_sar(DisasContext *ctx, uint32_t insn,
         TCGv_i64 t = tcg_temp_new_i64();
         TCGv_i64 s = tcg_temp_new_i64();
 
-        tcg_gen_concat_reg_i64(t, load_gpr(ctx, r2), load_gpr(ctx, r1));
+        tcg_gen_concat_reg_i64(t, load_gpr(ctx, a->r2), load_gpr(ctx, a->r1));
         tcg_gen_extu_reg_i64(s, cpu_sar);
         tcg_gen_shr_i64(t, t, s);
         tcg_gen_trunc_i64_reg(dest, t);
@@ -3505,79 +3159,67 @@ static DisasJumpType trans_shrpw_sar(DisasContext *ctx, uint32_t insn,
         tcg_temp_free_i64(t);
         tcg_temp_free_i64(s);
     }
-    save_gpr(ctx, rt, dest);
+    save_gpr(ctx, a->t, dest);
 
     /* Install the new nullification.  */
     cond_free(&ctx->null_cond);
-    if (c) {
-        ctx->null_cond = do_sed_cond(c, dest);
+    if (a->c) {
+        ctx->null_cond = do_sed_cond(a->c, dest);
     }
-    return nullify_end(ctx, DISAS_NEXT);
+    return nullify_end(ctx);
 }
 
-static DisasJumpType trans_shrpw_imm(DisasContext *ctx, uint32_t insn,
-                                     const DisasInsn *di)
+static bool trans_shrpw_imm(DisasContext *ctx, arg_shrpw_imm *a)
 {
-    unsigned rt = extract32(insn, 0, 5);
-    unsigned cpos = extract32(insn, 5, 5);
-    unsigned c = extract32(insn, 13, 3);
-    unsigned r1 = extract32(insn, 16, 5);
-    unsigned r2 = extract32(insn, 21, 5);
-    unsigned sa = 31 - cpos;
+    unsigned sa = 31 - a->cpos;
     TCGv_reg dest, t2;
 
-    if (c) {
+    if (a->c) {
         nullify_over(ctx);
     }
 
-    dest = dest_gpr(ctx, rt);
-    t2 = load_gpr(ctx, r2);
-    if (r1 == r2) {
+    dest = dest_gpr(ctx, a->t);
+    t2 = load_gpr(ctx, a->r2);
+    if (a->r1 == a->r2) {
         TCGv_i32 t32 = tcg_temp_new_i32();
         tcg_gen_trunc_reg_i32(t32, t2);
         tcg_gen_rotri_i32(t32, t32, sa);
         tcg_gen_extu_i32_reg(dest, t32);
         tcg_temp_free_i32(t32);
-    } else if (r1 == 0) {
+    } else if (a->r1 == 0) {
         tcg_gen_extract_reg(dest, t2, sa, 32 - sa);
     } else {
         TCGv_reg t0 = tcg_temp_new();
         tcg_gen_extract_reg(t0, t2, sa, 32 - sa);
-        tcg_gen_deposit_reg(dest, t0, cpu_gr[r1], 32 - sa, sa);
+        tcg_gen_deposit_reg(dest, t0, cpu_gr[a->r1], 32 - sa, sa);
         tcg_temp_free(t0);
     }
-    save_gpr(ctx, rt, dest);
+    save_gpr(ctx, a->t, dest);
 
     /* Install the new nullification.  */
     cond_free(&ctx->null_cond);
-    if (c) {
-        ctx->null_cond = do_sed_cond(c, dest);
+    if (a->c) {
+        ctx->null_cond = do_sed_cond(a->c, dest);
     }
-    return nullify_end(ctx, DISAS_NEXT);
+    return nullify_end(ctx);
 }
 
-static DisasJumpType trans_extrw_sar(DisasContext *ctx, uint32_t insn,
-                                     const DisasInsn *di)
+static bool trans_extrw_sar(DisasContext *ctx, arg_extrw_sar *a)
 {
-    unsigned clen = extract32(insn, 0, 5);
-    unsigned is_se = extract32(insn, 10, 1);
-    unsigned c = extract32(insn, 13, 3);
-    unsigned rt = extract32(insn, 16, 5);
-    unsigned rr = extract32(insn, 21, 5);
-    unsigned len = 32 - clen;
+    unsigned len = 32 - a->clen;
     TCGv_reg dest, src, tmp;
 
-    if (c) {
+    if (a->c) {
         nullify_over(ctx);
     }
 
-    dest = dest_gpr(ctx, rt);
-    src = load_gpr(ctx, rr);
+    dest = dest_gpr(ctx, a->t);
+    src = load_gpr(ctx, a->r);
     tmp = tcg_temp_new();
 
     /* Recall that SAR is using big-endian bit numbering.  */
     tcg_gen_xori_reg(tmp, cpu_sar, TARGET_REGISTER_BITS - 1);
-    if (is_se) {
+    if (a->se) {
         tcg_gen_sar_reg(dest, src, tmp);
         tcg_gen_sextract_reg(dest, dest, 0, len);
     } else {
@@ -3585,83 +3227,62 @@ static DisasJumpType trans_extrw_sar(DisasContext *ctx, uint32_t insn,
         tcg_gen_extract_reg(dest, dest, 0, len);
     }
     tcg_temp_free(tmp);
-    save_gpr(ctx, rt, dest);
+    save_gpr(ctx, a->t, dest);
 
     /* Install the new nullification.  */
     cond_free(&ctx->null_cond);
-    if (c) {
-        ctx->null_cond = do_sed_cond(c, dest);
+    if (a->c) {
+        ctx->null_cond = do_sed_cond(a->c, dest);
     }
-    return nullify_end(ctx, DISAS_NEXT);
+    return nullify_end(ctx);
 }
 
-static DisasJumpType trans_extrw_imm(DisasContext *ctx, uint32_t insn,
-                                     const DisasInsn *di)
+static bool trans_extrw_imm(DisasContext *ctx, arg_extrw_imm *a)
 {
-    unsigned clen = extract32(insn, 0, 5);
-    unsigned pos = extract32(insn, 5, 5);
-    unsigned is_se = extract32(insn, 10, 1);
-    unsigned c = extract32(insn, 13, 3);
-    unsigned rt = extract32(insn, 16, 5);
-    unsigned rr = extract32(insn, 21, 5);
-    unsigned len = 32 - clen;
-    unsigned cpos = 31 - pos;
+    unsigned len = 32 - a->clen;
+    unsigned cpos = 31 - a->pos;
     TCGv_reg dest, src;
 
-    if (c) {
+    if (a->c) {
         nullify_over(ctx);
     }
 
-    dest = dest_gpr(ctx, rt);
-    src = load_gpr(ctx, rr);
-    if (is_se) {
+    dest = dest_gpr(ctx, a->t);
+    src = load_gpr(ctx, a->r);
+    if (a->se) {
         tcg_gen_sextract_reg(dest, src, cpos, len);
     } else {
         tcg_gen_extract_reg(dest, src, cpos, len);
     }
-    save_gpr(ctx, rt, dest);
+    save_gpr(ctx, a->t, dest);
 
     /* Install the new nullification.  */
     cond_free(&ctx->null_cond);
-    if (c) {
-        ctx->null_cond = do_sed_cond(c, dest);
+    if (a->c) {
+        ctx->null_cond = do_sed_cond(a->c, dest);
     }
-    return nullify_end(ctx, DISAS_NEXT);
+    return nullify_end(ctx);
 }
 
-static const DisasInsn table_sh_ex[] = {
-    { 0xd0000000u, 0xfc001fe0u, trans_shrpw_sar },
-    { 0xd0000800u, 0xfc001c00u, trans_shrpw_imm },
-    { 0xd0001000u, 0xfc001be0u, trans_extrw_sar },
-    { 0xd0001800u, 0xfc001800u, trans_extrw_imm },
-};
-
-static DisasJumpType trans_depw_imm_c(DisasContext *ctx, uint32_t insn,
-                                      const DisasInsn *di)
+static bool trans_depwi_imm(DisasContext *ctx, arg_depwi_imm *a)
 {
-    unsigned clen = extract32(insn, 0, 5);
-    unsigned cpos = extract32(insn, 5, 5);
-    unsigned nz = extract32(insn, 10, 1);
-    unsigned c = extract32(insn, 13, 3);
-    target_sreg val = low_sextract(insn, 16, 5);
-    unsigned rt = extract32(insn, 21, 5);
-    unsigned len = 32 - clen;
+    unsigned len = 32 - a->clen;
     target_sreg mask0, mask1;
     TCGv_reg dest;
 
-    if (c) {
+    if (a->c) {
         nullify_over(ctx);
     }
-    if (cpos + len > 32) {
-        len = 32 - cpos;
+    if (a->cpos + len > 32) {
+        len = 32 - a->cpos;
     }
 
-    dest = dest_gpr(ctx, rt);
-    mask0 = deposit64(0, cpos, len, val);
-    mask1 = deposit64(-1, cpos, len, val);
+    dest = dest_gpr(ctx, a->t);
+    mask0 = deposit64(0, a->cpos, len, a->i);
+    mask1 = deposit64(-1, a->cpos, len, a->i);
 
-    if (nz) {
-        TCGv_reg src = load_gpr(ctx, rt);
+    if (a->nz) {
+        TCGv_reg src = load_gpr(ctx, a->t);
         if (mask1 != -1) {
             tcg_gen_andi_reg(dest, src, mask1);
             src = dest;
@@ -3670,75 +3291,58 @@ static DisasJumpType trans_depw_imm_c(DisasContext *ctx, uint32_t insn,
     } else {
         tcg_gen_movi_reg(dest, mask0);
     }
-    save_gpr(ctx, rt, dest);
+    save_gpr(ctx, a->t, dest);
 
     /* Install the new nullification.  */
     cond_free(&ctx->null_cond);
-    if (c) {
-        ctx->null_cond = do_sed_cond(c, dest);
+    if (a->c) {
+        ctx->null_cond = do_sed_cond(a->c, dest);
     }
-    return nullify_end(ctx, DISAS_NEXT);
+    return nullify_end(ctx);
 }
 
-static DisasJumpType trans_depw_imm(DisasContext *ctx, uint32_t insn,
-                                    const DisasInsn *di)
+static bool trans_depw_imm(DisasContext *ctx, arg_depw_imm *a)
 {
-    unsigned clen = extract32(insn, 0, 5);
-    unsigned cpos = extract32(insn, 5, 5);
-    unsigned nz = extract32(insn, 10, 1);
-    unsigned c = extract32(insn, 13, 3);
-    unsigned rr = extract32(insn, 16, 5);
-    unsigned rt = extract32(insn, 21, 5);
-    unsigned rs = nz ? rt : 0;
-    unsigned len = 32 - clen;
+    unsigned rs = a->nz ? a->t : 0;
+    unsigned len = 32 - a->clen;
     TCGv_reg dest, val;
 
-    if (c) {
+    if (a->c) {
         nullify_over(ctx);
     }
-    if (cpos + len > 32) {
-        len = 32 - cpos;
+    if (a->cpos + len > 32) {
+        len = 32 - a->cpos;
     }
 
-    dest = dest_gpr(ctx, rt);
-    val = load_gpr(ctx, rr);
+    dest = dest_gpr(ctx, a->t);
+    val = load_gpr(ctx, a->r);
     if (rs == 0) {
-        tcg_gen_deposit_z_reg(dest, val, cpos, len);
+        tcg_gen_deposit_z_reg(dest, val, a->cpos, len);
     } else {
-        tcg_gen_deposit_reg(dest, cpu_gr[rs], val, cpos, len);
+        tcg_gen_deposit_reg(dest, cpu_gr[rs], val, a->cpos, len);
     }
-    save_gpr(ctx, rt, dest);
+    save_gpr(ctx, a->t, dest);
 
     /* Install the new nullification.  */
     cond_free(&ctx->null_cond);
-    if (c) {
-        ctx->null_cond = do_sed_cond(c, dest);
+    if (a->c) {
+        ctx->null_cond = do_sed_cond(a->c, dest);
     }
-    return nullify_end(ctx, DISAS_NEXT);
+    return nullify_end(ctx);
 }
 
-static DisasJumpType trans_depw_sar(DisasContext *ctx, uint32_t insn,
-                                    const DisasInsn *di)
+static bool do_depw_sar(DisasContext *ctx, unsigned rt, unsigned c,
+                        unsigned nz, unsigned clen, TCGv_reg val)
 {
-    unsigned clen = extract32(insn, 0, 5);
-    unsigned nz = extract32(insn, 10, 1);
-    unsigned i = extract32(insn, 12, 1);
-    unsigned c = extract32(insn, 13, 3);
-    unsigned rt = extract32(insn, 21, 5);
     unsigned rs = nz ? rt : 0;
     unsigned len = 32 - clen;
-    TCGv_reg val, mask, tmp, shift, dest;
+    TCGv_reg mask, tmp, shift, dest;
     unsigned msb = 1U << (len - 1);
 
     if (c) {
         nullify_over(ctx);
     }
 
-    if (i) {
-        val = load_const(ctx, low_sextract(insn, 16, 5));
-    } else {
-        val = load_gpr(ctx, extract32(insn, 16, 5));
-    }
     dest = dest_gpr(ctx, rt);
     shift = tcg_temp_new();
     tmp = tcg_temp_new();
@@ -3766,20 +3370,21 @@ static DisasJumpType trans_depw_sar(DisasContext *ctx, uint32_t insn,
     if (c) {
         ctx->null_cond = do_sed_cond(c, dest);
     }
-    return nullify_end(ctx, DISAS_NEXT);
+    return nullify_end(ctx);
 }
 
-static const DisasInsn table_depw[] = {
-    { 0xd4000000u, 0xfc000be0u, trans_depw_sar },
-    { 0xd4000800u, 0xfc001800u, trans_depw_imm },
-    { 0xd4001800u, 0xfc001800u, trans_depw_imm_c },
-};
-
-static DisasJumpType trans_be(DisasContext *ctx, uint32_t insn, bool is_l)
+static bool trans_depw_sar(DisasContext *ctx, arg_depw_sar *a)
 {
-    unsigned n = extract32(insn, 1, 1);
-    unsigned b = extract32(insn, 21, 5);
-    target_sreg disp = assemble_17(insn);
+    return do_depw_sar(ctx, a->t, a->c, a->nz, a->clen, load_gpr(ctx, a->r));
+}
+
+static bool trans_depwi_sar(DisasContext *ctx, arg_depwi_sar *a)
+{
+    return do_depw_sar(ctx, a->t, a->c, a->nz, a->clen, load_const(ctx, a->i));
+}
+
+static bool trans_be(DisasContext *ctx, arg_be *a)
+{
     TCGv_reg tmp;
 
 #ifdef CONFIG_USER_ONLY
@@ -3791,29 +3396,28 @@ static DisasJumpType trans_be(DisasContext *ctx, uint32_t insn, bool is_l)
     /* Since we don't implement spaces, just branch.  Do notice the special
        case of "be disp(*,r0)" using a direct branch to disp, so that we can
        goto_tb to the TB containing the syscall.  */
-    if (b == 0) {
-        return do_dbranch(ctx, disp, is_l ? 31 : 0, n);
+    if (a->b == 0) {
+        return do_dbranch(ctx, a->disp, a->l, a->n);
     }
 #else
-    int sp = assemble_sr3(insn);
     nullify_over(ctx);
 #endif
 
     tmp = get_temp(ctx);
-    tcg_gen_addi_reg(tmp, load_gpr(ctx, b), disp);
+    tcg_gen_addi_reg(tmp, load_gpr(ctx, a->b), a->disp);
     tmp = do_ibranch_priv(ctx, tmp);
 
 #ifdef CONFIG_USER_ONLY
-    return do_ibranch(ctx, tmp, is_l ? 31 : 0, n);
+    return do_ibranch(ctx, tmp, a->l, a->n);
 #else
     TCGv_i64 new_spc = tcg_temp_new_i64();
 
-    load_spr(ctx, new_spc, sp);
-    if (is_l) {
+    load_spr(ctx, new_spc, a->sp);
+    if (a->l) {
         copy_iaoq_entry(cpu_gr[31], ctx->iaoq_n, ctx->iaoq_n_var);
         tcg_gen_mov_i64(cpu_sr[0], cpu_iasq_f);
     }
-    if (n && use_nullify_skip(ctx)) {
+    if (a->n && use_nullify_skip(ctx)) {
         tcg_gen_mov_reg(cpu_iaoq_f, tmp);
         tcg_gen_addi_reg(cpu_iaoq_b, cpu_iaoq_f, 4);
         tcg_gen_mov_i64(cpu_iasq_f, new_spc);
@@ -3825,31 +3429,23 @@ static DisasJumpType trans_be(DisasContext *ctx, uint32_t insn, bool is_l)
         }
         tcg_gen_mov_reg(cpu_iaoq_b, tmp);
         tcg_gen_mov_i64(cpu_iasq_b, new_spc);
-        nullify_set(ctx, n);
+        nullify_set(ctx, a->n);
     }
     tcg_temp_free_i64(new_spc);
     tcg_gen_lookup_and_goto_ptr();
-    return nullify_end(ctx, DISAS_NORETURN);
+    ctx->base.is_jmp = DISAS_NORETURN;
+    return nullify_end(ctx);
 #endif
 }
 
-static DisasJumpType trans_bl(DisasContext *ctx, uint32_t insn,
-                              const DisasInsn *di)
+static bool trans_bl(DisasContext *ctx, arg_bl *a)
 {
-    unsigned n = extract32(insn, 1, 1);
-    unsigned link = extract32(insn, 21, 5);
-    target_sreg disp = assemble_17(insn);
-
-    return do_dbranch(ctx, iaoq_dest(ctx, disp), link, n);
+    return do_dbranch(ctx, iaoq_dest(ctx, a->disp), a->l, a->n);
 }
 
-static DisasJumpType trans_b_gate(DisasContext *ctx, uint32_t insn,
-                                  const DisasInsn *di)
+static bool trans_b_gate(DisasContext *ctx, arg_b_gate *a)
 {
-    unsigned n = extract32(insn, 1, 1);
-    unsigned link = extract32(insn, 21, 5);
-    target_sreg disp = assemble_17(insn);
-    target_ureg dest = iaoq_dest(ctx, disp);
+    target_ureg dest = iaoq_dest(ctx, a->disp);
 
     /* Make sure the caller hasn't done something weird with the queue.
      * ??? This is not quite the same as the PSW[B] bit, which would be
@@ -3876,7 +3472,8 @@ static DisasJumpType trans_b_gate(DisasContext *ctx, uint32_t insn,
            we will re-translate, at which point we *will* be able to find
            the TLB entry and determine if this is in fact a gateway page.  */
         if (type < 0) {
-            return gen_excp(ctx, EXCP_ITLB_MISS);
+            gen_excp(ctx, EXCP_ITLB_MISS);
+            return true;
         }
         /* No change for non-gateway pages or for priv decrease.  */
         if (type >= 4 && type - 4 < ctx->privilege) {
@@ -3887,65 +3484,44 @@ static DisasJumpType trans_b_gate(DisasContext *ctx, uint32_t insn,
     }
 #endif
 
-    return do_dbranch(ctx, dest, link, n);
+    return do_dbranch(ctx, dest, a->l, a->n);
 }
 
-static DisasJumpType trans_bl_long(DisasContext *ctx, uint32_t insn,
-                                   const DisasInsn *di)
+static bool trans_blr(DisasContext *ctx, arg_blr *a)
 {
-    unsigned n = extract32(insn, 1, 1);
-    target_sreg disp = assemble_22(insn);
-
-    return do_dbranch(ctx, iaoq_dest(ctx, disp), 2, n);
-}
-
-static DisasJumpType trans_blr(DisasContext *ctx, uint32_t insn,
-                               const DisasInsn *di)
-{
-    unsigned n = extract32(insn, 1, 1);
-    unsigned rx = extract32(insn, 16, 5);
-    unsigned link = extract32(insn, 21, 5);
     TCGv_reg tmp = get_temp(ctx);
 
-    tcg_gen_shli_reg(tmp, load_gpr(ctx, rx), 3);
+    tcg_gen_shli_reg(tmp, load_gpr(ctx, a->x), 3);
     tcg_gen_addi_reg(tmp, tmp, ctx->iaoq_f + 8);
     /* The computation here never changes privilege level.  */
-    return do_ibranch(ctx, tmp, link, n);
+    return do_ibranch(ctx, tmp, a->l, a->n);
 }
 
-static DisasJumpType trans_bv(DisasContext *ctx, uint32_t insn,
-                              const DisasInsn *di)
+static bool trans_bv(DisasContext *ctx, arg_bv *a)
 {
-    unsigned n = extract32(insn, 1, 1);
-    unsigned rx = extract32(insn, 16, 5);
-    unsigned rb = extract32(insn, 21, 5);
     TCGv_reg dest;
 
-    if (rx == 0) {
-        dest = load_gpr(ctx, rb);
+    if (a->x == 0) {
+        dest = load_gpr(ctx, a->b);
     } else {
         dest = get_temp(ctx);
-        tcg_gen_shli_reg(dest, load_gpr(ctx, rx), 3);
-        tcg_gen_add_reg(dest, dest, load_gpr(ctx, rb));
+        tcg_gen_shli_reg(dest, load_gpr(ctx, a->x), 3);
+        tcg_gen_add_reg(dest, dest, load_gpr(ctx, a->b));
     }
     dest = do_ibranch_priv(ctx, dest);
-    return do_ibranch(ctx, dest, 0, n);
+    return do_ibranch(ctx, dest, 0, a->n);
 }
 
-static DisasJumpType trans_bve(DisasContext *ctx, uint32_t insn,
-                               const DisasInsn *di)
+static bool trans_bve(DisasContext *ctx, arg_bve *a)
 {
-    unsigned n = extract32(insn, 1, 1);
-    unsigned rb = extract32(insn, 21, 5);
-    unsigned link = extract32(insn, 13, 1) ? 2 : 0;
     TCGv_reg dest;
 
 #ifdef CONFIG_USER_ONLY
-    dest = do_ibranch_priv(ctx, load_gpr(ctx, rb));
-    return do_ibranch(ctx, dest, link, n);
+    dest = do_ibranch_priv(ctx, load_gpr(ctx, a->b));
+    return do_ibranch(ctx, dest, a->l, a->n);
 #else
     nullify_over(ctx);
-    dest = do_ibranch_priv(ctx, load_gpr(ctx, rb));
+    dest = do_ibranch_priv(ctx, load_gpr(ctx, a->b));
 
     copy_iaoq_entry(cpu_iaoq_f, ctx->iaoq_b, cpu_iaoq_b);
     if (ctx->iaoq_b == -1) {
@@ -3953,110 +3529,28 @@ static DisasJumpType trans_bve(DisasContext *ctx, uint32_t insn,
     }
     copy_iaoq_entry(cpu_iaoq_b, -1, dest);
     tcg_gen_mov_i64(cpu_iasq_b, space_select(ctx, 0, dest));
-    if (link) {
-        copy_iaoq_entry(cpu_gr[link], ctx->iaoq_n, ctx->iaoq_n_var);
+    if (a->l) {
+        copy_iaoq_entry(cpu_gr[a->l], ctx->iaoq_n, ctx->iaoq_n_var);
     }
-    nullify_set(ctx, n);
+    nullify_set(ctx, a->n);
     tcg_gen_lookup_and_goto_ptr();
-    return nullify_end(ctx, DISAS_NORETURN);
+    ctx->base.is_jmp = DISAS_NORETURN;
+    return nullify_end(ctx);
 #endif
 }
 
-static const DisasInsn table_branch[] = {
-    { 0xe8000000u, 0xfc006000u, trans_bl }, /* B,L and B,L,PUSH */
-    { 0xe800a000u, 0xfc00e000u, trans_bl_long },
-    { 0xe8004000u, 0xfc00fffdu, trans_blr },
-    { 0xe800c000u, 0xfc00fffdu, trans_bv },
-    { 0xe800d000u, 0xfc00dffcu, trans_bve },
-    { 0xe8002000u, 0xfc00e000u, trans_b_gate },
-};
+/*
+ * Float class 0
+ */
 
-static DisasJumpType trans_fop_wew_0c(DisasContext *ctx, uint32_t insn,
-                                      const DisasInsn *di)
-{
-    unsigned rt = extract32(insn, 0, 5);
-    unsigned ra = extract32(insn, 21, 5);
-    return do_fop_wew(ctx, rt, ra, di->f.wew);
-}
-
-static DisasJumpType trans_fop_wew_0e(DisasContext *ctx, uint32_t insn,
-                                      const DisasInsn *di)
-{
-    unsigned rt = assemble_rt64(insn);
-    unsigned ra = assemble_ra64(insn);
-    return do_fop_wew(ctx, rt, ra, di->f.wew);
-}
-
-static DisasJumpType trans_fop_ded(DisasContext *ctx, uint32_t insn,
-                                   const DisasInsn *di)
-{
-    unsigned rt = extract32(insn, 0, 5);
-    unsigned ra = extract32(insn, 21, 5);
-    return do_fop_ded(ctx, rt, ra, di->f.ded);
-}
-
-static DisasJumpType trans_fop_wed_0c(DisasContext *ctx, uint32_t insn,
-                                      const DisasInsn *di)
-{
-    unsigned rt = extract32(insn, 0, 5);
-    unsigned ra = extract32(insn, 21, 5);
-    return do_fop_wed(ctx, rt, ra, di->f.wed);
-}
-
-static DisasJumpType trans_fop_wed_0e(DisasContext *ctx, uint32_t insn,
-                                      const DisasInsn *di)
-{
-    unsigned rt = assemble_rt64(insn);
-    unsigned ra = extract32(insn, 21, 5);
-    return do_fop_wed(ctx, rt, ra, di->f.wed);
-}
-
-static DisasJumpType trans_fop_dew_0c(DisasContext *ctx, uint32_t insn,
-                                      const DisasInsn *di)
-{
-    unsigned rt = extract32(insn, 0, 5);
-    unsigned ra = extract32(insn, 21, 5);
-    return do_fop_dew(ctx, rt, ra, di->f.dew);
-}
-
-static DisasJumpType trans_fop_dew_0e(DisasContext *ctx, uint32_t insn,
-                                      const DisasInsn *di)
-{
-    unsigned rt = extract32(insn, 0, 5);
-    unsigned ra = assemble_ra64(insn);
-    return do_fop_dew(ctx, rt, ra, di->f.dew);
-}
-
-static DisasJumpType trans_fop_weww_0c(DisasContext *ctx, uint32_t insn,
-                                       const DisasInsn *di)
-{
-    unsigned rt = extract32(insn, 0, 5);
-    unsigned rb = extract32(insn, 16, 5);
-    unsigned ra = extract32(insn, 21, 5);
-    return do_fop_weww(ctx, rt, ra, rb, di->f.weww);
-}
-
-static DisasJumpType trans_fop_weww_0e(DisasContext *ctx, uint32_t insn,
-                                       const DisasInsn *di)
-{
-    unsigned rt = assemble_rt64(insn);
-    unsigned rb = assemble_rb64(insn);
-    unsigned ra = assemble_ra64(insn);
-    return do_fop_weww(ctx, rt, ra, rb, di->f.weww);
-}
-
-static DisasJumpType trans_fop_dedd(DisasContext *ctx, uint32_t insn,
-                                    const DisasInsn *di)
-{
-    unsigned rt = extract32(insn, 0, 5);
-    unsigned rb = extract32(insn, 16, 5);
-    unsigned ra = extract32(insn, 21, 5);
-    return do_fop_dedd(ctx, rt, ra, rb, di->f.dedd);
-}
-
-static void gen_fcpy_s(TCGv_i32 dst, TCGv_env unused, TCGv_i32 src)
+static void gen_fcpy_f(TCGv_i32 dst, TCGv_env unused, TCGv_i32 src)
 {
     tcg_gen_mov_i32(dst, src);
+}
+
+static bool trans_fcpy_f(DisasContext *ctx, arg_fclass01 *a)
+{
+    return do_fop_wew(ctx, a->t, a->r, gen_fcpy_f);
 }
 
 static void gen_fcpy_d(TCGv_i64 dst, TCGv_env unused, TCGv_i64 src)
@@ -4064,9 +3558,19 @@ static void gen_fcpy_d(TCGv_i64 dst, TCGv_env unused, TCGv_i64 src)
     tcg_gen_mov_i64(dst, src);
 }
 
-static void gen_fabs_s(TCGv_i32 dst, TCGv_env unused, TCGv_i32 src)
+static bool trans_fcpy_d(DisasContext *ctx, arg_fclass01 *a)
+{
+    return do_fop_ded(ctx, a->t, a->r, gen_fcpy_d);
+}
+
+static void gen_fabs_f(TCGv_i32 dst, TCGv_env unused, TCGv_i32 src)
 {
     tcg_gen_andi_i32(dst, src, INT32_MAX);
+}
+
+static bool trans_fabs_f(DisasContext *ctx, arg_fclass01 *a)
+{
+    return do_fop_wew(ctx, a->t, a->r, gen_fabs_f);
 }
 
 static void gen_fabs_d(TCGv_i64 dst, TCGv_env unused, TCGv_i64 src)
@@ -4074,9 +3578,39 @@ static void gen_fabs_d(TCGv_i64 dst, TCGv_env unused, TCGv_i64 src)
     tcg_gen_andi_i64(dst, src, INT64_MAX);
 }
 
-static void gen_fneg_s(TCGv_i32 dst, TCGv_env unused, TCGv_i32 src)
+static bool trans_fabs_d(DisasContext *ctx, arg_fclass01 *a)
+{
+    return do_fop_ded(ctx, a->t, a->r, gen_fabs_d);
+}
+
+static bool trans_fsqrt_f(DisasContext *ctx, arg_fclass01 *a)
+{
+    return do_fop_wew(ctx, a->t, a->r, gen_helper_fsqrt_s);
+}
+
+static bool trans_fsqrt_d(DisasContext *ctx, arg_fclass01 *a)
+{
+    return do_fop_ded(ctx, a->t, a->r, gen_helper_fsqrt_d);
+}
+
+static bool trans_frnd_f(DisasContext *ctx, arg_fclass01 *a)
+{
+    return do_fop_wew(ctx, a->t, a->r, gen_helper_frnd_s);
+}
+
+static bool trans_frnd_d(DisasContext *ctx, arg_fclass01 *a)
+{
+    return do_fop_ded(ctx, a->t, a->r, gen_helper_frnd_d);
+}
+
+static void gen_fneg_f(TCGv_i32 dst, TCGv_env unused, TCGv_i32 src)
 {
     tcg_gen_xori_i32(dst, src, INT32_MIN);
+}
+
+static bool trans_fneg_f(DisasContext *ctx, arg_fclass01 *a)
+{
+    return do_fop_wew(ctx, a->t, a->r, gen_fneg_f);
 }
 
 static void gen_fneg_d(TCGv_i64 dst, TCGv_env unused, TCGv_i64 src)
@@ -4084,9 +3618,19 @@ static void gen_fneg_d(TCGv_i64 dst, TCGv_env unused, TCGv_i64 src)
     tcg_gen_xori_i64(dst, src, INT64_MIN);
 }
 
-static void gen_fnegabs_s(TCGv_i32 dst, TCGv_env unused, TCGv_i32 src)
+static bool trans_fneg_d(DisasContext *ctx, arg_fclass01 *a)
+{
+    return do_fop_ded(ctx, a->t, a->r, gen_fneg_d);
+}
+
+static void gen_fnegabs_f(TCGv_i32 dst, TCGv_env unused, TCGv_i32 src)
 {
     tcg_gen_ori_i32(dst, src, INT32_MIN);
+}
+
+static bool trans_fnegabs_f(DisasContext *ctx, arg_fclass01 *a)
+{
+    return do_fop_wew(ctx, a->t, a->r, gen_fnegabs_f);
 }
 
 static void gen_fnegabs_d(TCGv_i64 dst, TCGv_env unused, TCGv_i64 src)
@@ -4094,17 +3638,159 @@ static void gen_fnegabs_d(TCGv_i64 dst, TCGv_env unused, TCGv_i64 src)
     tcg_gen_ori_i64(dst, src, INT64_MIN);
 }
 
-static DisasJumpType do_fcmp_s(DisasContext *ctx, unsigned ra, unsigned rb,
-                               unsigned y, unsigned c)
+static bool trans_fnegabs_d(DisasContext *ctx, arg_fclass01 *a)
+{
+    return do_fop_ded(ctx, a->t, a->r, gen_fnegabs_d);
+}
+
+/*
+ * Float class 1
+ */
+
+static bool trans_fcnv_d_f(DisasContext *ctx, arg_fclass01 *a)
+{
+    return do_fop_wed(ctx, a->t, a->r, gen_helper_fcnv_d_s);
+}
+
+static bool trans_fcnv_f_d(DisasContext *ctx, arg_fclass01 *a)
+{
+    return do_fop_dew(ctx, a->t, a->r, gen_helper_fcnv_s_d);
+}
+
+static bool trans_fcnv_w_f(DisasContext *ctx, arg_fclass01 *a)
+{
+    return do_fop_wew(ctx, a->t, a->r, gen_helper_fcnv_w_s);
+}
+
+static bool trans_fcnv_q_f(DisasContext *ctx, arg_fclass01 *a)
+{
+    return do_fop_wed(ctx, a->t, a->r, gen_helper_fcnv_dw_s);
+}
+
+static bool trans_fcnv_w_d(DisasContext *ctx, arg_fclass01 *a)
+{
+    return do_fop_dew(ctx, a->t, a->r, gen_helper_fcnv_w_d);
+}
+
+static bool trans_fcnv_q_d(DisasContext *ctx, arg_fclass01 *a)
+{
+    return do_fop_ded(ctx, a->t, a->r, gen_helper_fcnv_dw_d);
+}
+
+static bool trans_fcnv_f_w(DisasContext *ctx, arg_fclass01 *a)
+{
+    return do_fop_wew(ctx, a->t, a->r, gen_helper_fcnv_s_w);
+}
+
+static bool trans_fcnv_d_w(DisasContext *ctx, arg_fclass01 *a)
+{
+    return do_fop_wed(ctx, a->t, a->r, gen_helper_fcnv_d_w);
+}
+
+static bool trans_fcnv_f_q(DisasContext *ctx, arg_fclass01 *a)
+{
+    return do_fop_dew(ctx, a->t, a->r, gen_helper_fcnv_s_dw);
+}
+
+static bool trans_fcnv_d_q(DisasContext *ctx, arg_fclass01 *a)
+{
+    return do_fop_ded(ctx, a->t, a->r, gen_helper_fcnv_d_dw);
+}
+
+static bool trans_fcnv_t_f_w(DisasContext *ctx, arg_fclass01 *a)
+{
+    return do_fop_wew(ctx, a->t, a->r, gen_helper_fcnv_t_s_w);
+}
+
+static bool trans_fcnv_t_d_w(DisasContext *ctx, arg_fclass01 *a)
+{
+    return do_fop_wed(ctx, a->t, a->r, gen_helper_fcnv_t_d_w);
+}
+
+static bool trans_fcnv_t_f_q(DisasContext *ctx, arg_fclass01 *a)
+{
+    return do_fop_dew(ctx, a->t, a->r, gen_helper_fcnv_t_s_dw);
+}
+
+static bool trans_fcnv_t_d_q(DisasContext *ctx, arg_fclass01 *a)
+{
+    return do_fop_ded(ctx, a->t, a->r, gen_helper_fcnv_t_d_dw);
+}
+
+static bool trans_fcnv_uw_f(DisasContext *ctx, arg_fclass01 *a)
+{
+    return do_fop_wew(ctx, a->t, a->r, gen_helper_fcnv_uw_s);
+}
+
+static bool trans_fcnv_uq_f(DisasContext *ctx, arg_fclass01 *a)
+{
+    return do_fop_wed(ctx, a->t, a->r, gen_helper_fcnv_udw_s);
+}
+
+static bool trans_fcnv_uw_d(DisasContext *ctx, arg_fclass01 *a)
+{
+    return do_fop_dew(ctx, a->t, a->r, gen_helper_fcnv_uw_d);
+}
+
+static bool trans_fcnv_uq_d(DisasContext *ctx, arg_fclass01 *a)
+{
+    return do_fop_ded(ctx, a->t, a->r, gen_helper_fcnv_udw_d);
+}
+
+static bool trans_fcnv_f_uw(DisasContext *ctx, arg_fclass01 *a)
+{
+    return do_fop_wew(ctx, a->t, a->r, gen_helper_fcnv_s_uw);
+}
+
+static bool trans_fcnv_d_uw(DisasContext *ctx, arg_fclass01 *a)
+{
+    return do_fop_wed(ctx, a->t, a->r, gen_helper_fcnv_d_uw);
+}
+
+static bool trans_fcnv_f_uq(DisasContext *ctx, arg_fclass01 *a)
+{
+    return do_fop_dew(ctx, a->t, a->r, gen_helper_fcnv_s_udw);
+}
+
+static bool trans_fcnv_d_uq(DisasContext *ctx, arg_fclass01 *a)
+{
+    return do_fop_ded(ctx, a->t, a->r, gen_helper_fcnv_d_udw);
+}
+
+static bool trans_fcnv_t_f_uw(DisasContext *ctx, arg_fclass01 *a)
+{
+    return do_fop_wew(ctx, a->t, a->r, gen_helper_fcnv_t_s_uw);
+}
+
+static bool trans_fcnv_t_d_uw(DisasContext *ctx, arg_fclass01 *a)
+{
+    return do_fop_wed(ctx, a->t, a->r, gen_helper_fcnv_t_d_uw);
+}
+
+static bool trans_fcnv_t_f_uq(DisasContext *ctx, arg_fclass01 *a)
+{
+    return do_fop_dew(ctx, a->t, a->r, gen_helper_fcnv_t_s_udw);
+}
+
+static bool trans_fcnv_t_d_uq(DisasContext *ctx, arg_fclass01 *a)
+{
+    return do_fop_ded(ctx, a->t, a->r, gen_helper_fcnv_t_d_udw);
+}
+
+/*
+ * Float class 2
+ */
+
+static bool trans_fcmp_f(DisasContext *ctx, arg_fclass2 *a)
 {
     TCGv_i32 ta, tb, tc, ty;
 
     nullify_over(ctx);
 
-    ta = load_frw0_i32(ra);
-    tb = load_frw0_i32(rb);
-    ty = tcg_const_i32(y);
-    tc = tcg_const_i32(c);
+    ta = load_frw0_i32(a->r1);
+    tb = load_frw0_i32(a->r2);
+    ty = tcg_const_i32(a->y);
+    tc = tcg_const_i32(a->c);
 
     gen_helper_fcmp_s(cpu_env, ta, tb, ty, tc);
 
@@ -4113,45 +3799,20 @@ static DisasJumpType do_fcmp_s(DisasContext *ctx, unsigned ra, unsigned rb,
     tcg_temp_free_i32(ty);
     tcg_temp_free_i32(tc);
 
-    return nullify_end(ctx, DISAS_NEXT);
+    return nullify_end(ctx);
 }
 
-static DisasJumpType trans_fcmp_s_0c(DisasContext *ctx, uint32_t insn,
-                                     const DisasInsn *di)
+static bool trans_fcmp_d(DisasContext *ctx, arg_fclass2 *a)
 {
-    unsigned c = extract32(insn, 0, 5);
-    unsigned y = extract32(insn, 13, 3);
-    unsigned rb = extract32(insn, 16, 5);
-    unsigned ra = extract32(insn, 21, 5);
-    return do_fcmp_s(ctx, ra, rb, y, c);
-}
-
-static DisasJumpType trans_fcmp_s_0e(DisasContext *ctx, uint32_t insn,
-                                     const DisasInsn *di)
-{
-    unsigned c = extract32(insn, 0, 5);
-    unsigned y = extract32(insn, 13, 3);
-    unsigned rb = assemble_rb64(insn);
-    unsigned ra = assemble_ra64(insn);
-    return do_fcmp_s(ctx, ra, rb, y, c);
-}
-
-static DisasJumpType trans_fcmp_d(DisasContext *ctx, uint32_t insn,
-                                  const DisasInsn *di)
-{
-    unsigned c = extract32(insn, 0, 5);
-    unsigned y = extract32(insn, 13, 3);
-    unsigned rb = extract32(insn, 16, 5);
-    unsigned ra = extract32(insn, 21, 5);
     TCGv_i64 ta, tb;
     TCGv_i32 tc, ty;
 
     nullify_over(ctx);
 
-    ta = load_frd0(ra);
-    tb = load_frd0(rb);
-    ty = tcg_const_i32(y);
-    tc = tcg_const_i32(c);
+    ta = load_frd0(a->r1);
+    tb = load_frd0(a->r2);
+    ty = tcg_const_i32(a->y);
+    tc = tcg_const_i32(a->c);
 
     gen_helper_fcmp_d(cpu_env, ta, tb, ty, tc);
 
@@ -4160,266 +3821,131 @@ static DisasJumpType trans_fcmp_d(DisasContext *ctx, uint32_t insn,
     tcg_temp_free_i32(ty);
     tcg_temp_free_i32(tc);
 
-    return nullify_end(ctx, DISAS_NEXT);
+    return nullify_end(ctx);
 }
 
-static DisasJumpType trans_ftest_t(DisasContext *ctx, uint32_t insn,
-                                   const DisasInsn *di)
+static bool trans_ftest(DisasContext *ctx, arg_ftest *a)
 {
-    unsigned y = extract32(insn, 13, 3);
-    unsigned cbit = (y ^ 1) - 1;
     TCGv_reg t;
 
     nullify_over(ctx);
 
-    t = tcg_temp_new();
-    tcg_gen_ld32u_reg(t, cpu_env, offsetof(CPUHPPAState, fr0_shadow));
-    tcg_gen_extract_reg(t, t, 21 - cbit, 1);
-    ctx->null_cond = cond_make_0(TCG_COND_NE, t);
-    tcg_temp_free(t);
-
-    return nullify_end(ctx, DISAS_NEXT);
-}
-
-static DisasJumpType trans_ftest_q(DisasContext *ctx, uint32_t insn,
-                                   const DisasInsn *di)
-{
-    unsigned c = extract32(insn, 0, 5);
-    int mask;
-    bool inv = false;
-    TCGv_reg t;
-
-    nullify_over(ctx);
-
-    t = tcg_temp_new();
+    t = get_temp(ctx);
     tcg_gen_ld32u_reg(t, cpu_env, offsetof(CPUHPPAState, fr0_shadow));
 
-    switch (c) {
-    case 0: /* simple */
-        tcg_gen_andi_reg(t, t, 0x4000000);
-        ctx->null_cond = cond_make_0(TCG_COND_NE, t);
-        goto done;
-    case 2: /* rej */
-        inv = true;
-        /* fallthru */
-    case 1: /* acc */
-        mask = 0x43ff800;
-        break;
-    case 6: /* rej8 */
-        inv = true;
-        /* fallthru */
-    case 5: /* acc8 */
-        mask = 0x43f8000;
-        break;
-    case 9: /* acc6 */
-        mask = 0x43e0000;
-        break;
-    case 13: /* acc4 */
-        mask = 0x4380000;
-        break;
-    case 17: /* acc2 */
-        mask = 0x4200000;
-        break;
-    default:
-        return gen_illegal(ctx);
-    }
-    if (inv) {
-        TCGv_reg c = load_const(ctx, mask);
-        tcg_gen_or_reg(t, t, c);
-        ctx->null_cond = cond_make(TCG_COND_EQ, t, c);
+    if (a->y == 1) {
+        int mask;
+        bool inv = false;
+
+        switch (a->c) {
+        case 0: /* simple */
+            tcg_gen_andi_reg(t, t, 0x4000000);
+            ctx->null_cond = cond_make_0(TCG_COND_NE, t);
+            goto done;
+        case 2: /* rej */
+            inv = true;
+            /* fallthru */
+        case 1: /* acc */
+            mask = 0x43ff800;
+            break;
+        case 6: /* rej8 */
+            inv = true;
+            /* fallthru */
+        case 5: /* acc8 */
+            mask = 0x43f8000;
+            break;
+        case 9: /* acc6 */
+            mask = 0x43e0000;
+            break;
+        case 13: /* acc4 */
+            mask = 0x4380000;
+            break;
+        case 17: /* acc2 */
+            mask = 0x4200000;
+            break;
+        default:
+            gen_illegal(ctx);
+            return true;
+        }
+        if (inv) {
+            TCGv_reg c = load_const(ctx, mask);
+            tcg_gen_or_reg(t, t, c);
+            ctx->null_cond = cond_make(TCG_COND_EQ, t, c);
+        } else {
+            tcg_gen_andi_reg(t, t, mask);
+            ctx->null_cond = cond_make_0(TCG_COND_EQ, t);
+        }
     } else {
-        tcg_gen_andi_reg(t, t, mask);
-        ctx->null_cond = cond_make_0(TCG_COND_EQ, t);
+        unsigned cbit = (a->y ^ 1) - 1;
+
+        tcg_gen_extract_reg(t, t, 21 - cbit, 1);
+        ctx->null_cond = cond_make_0(TCG_COND_NE, t);
+        tcg_temp_free(t);
     }
+
  done:
-    return nullify_end(ctx, DISAS_NEXT);
+    return nullify_end(ctx);
 }
 
-static DisasJumpType trans_xmpyu(DisasContext *ctx, uint32_t insn,
-                                 const DisasInsn *di)
+/*
+ * Float class 2
+ */
+
+static bool trans_fadd_f(DisasContext *ctx, arg_fclass3 *a)
 {
-    unsigned rt = extract32(insn, 0, 5);
-    unsigned rb = assemble_rb64(insn);
-    unsigned ra = assemble_ra64(insn);
-    TCGv_i64 a, b;
+    return do_fop_weww(ctx, a->t, a->r1, a->r2, gen_helper_fadd_s);
+}
+
+static bool trans_fadd_d(DisasContext *ctx, arg_fclass3 *a)
+{
+    return do_fop_dedd(ctx, a->t, a->r1, a->r2, gen_helper_fadd_d);
+}
+
+static bool trans_fsub_f(DisasContext *ctx, arg_fclass3 *a)
+{
+    return do_fop_weww(ctx, a->t, a->r1, a->r2, gen_helper_fsub_s);
+}
+
+static bool trans_fsub_d(DisasContext *ctx, arg_fclass3 *a)
+{
+    return do_fop_dedd(ctx, a->t, a->r1, a->r2, gen_helper_fsub_d);
+}
+
+static bool trans_fmpy_f(DisasContext *ctx, arg_fclass3 *a)
+{
+    return do_fop_weww(ctx, a->t, a->r1, a->r2, gen_helper_fmpy_s);
+}
+
+static bool trans_fmpy_d(DisasContext *ctx, arg_fclass3 *a)
+{
+    return do_fop_dedd(ctx, a->t, a->r1, a->r2, gen_helper_fmpy_d);
+}
+
+static bool trans_fdiv_f(DisasContext *ctx, arg_fclass3 *a)
+{
+    return do_fop_weww(ctx, a->t, a->r1, a->r2, gen_helper_fdiv_s);
+}
+
+static bool trans_fdiv_d(DisasContext *ctx, arg_fclass3 *a)
+{
+    return do_fop_dedd(ctx, a->t, a->r1, a->r2, gen_helper_fdiv_d);
+}
+
+static bool trans_xmpyu(DisasContext *ctx, arg_xmpyu *a)
+{
+    TCGv_i64 x, y;
 
     nullify_over(ctx);
 
-    a = load_frw0_i64(ra);
-    b = load_frw0_i64(rb);
-    tcg_gen_mul_i64(a, a, b);
-    save_frd(rt, a);
-    tcg_temp_free_i64(a);
-    tcg_temp_free_i64(b);
+    x = load_frw0_i64(a->r1);
+    y = load_frw0_i64(a->r2);
+    tcg_gen_mul_i64(x, x, y);
+    save_frd(a->t, x);
+    tcg_temp_free_i64(x);
+    tcg_temp_free_i64(y);
 
-    return nullify_end(ctx, DISAS_NEXT);
+    return nullify_end(ctx);
 }
-
-#define FOP_DED  trans_fop_ded, .f.ded
-#define FOP_DEDD trans_fop_dedd, .f.dedd
-
-#define FOP_WEW  trans_fop_wew_0c, .f.wew
-#define FOP_DEW  trans_fop_dew_0c, .f.dew
-#define FOP_WED  trans_fop_wed_0c, .f.wed
-#define FOP_WEWW trans_fop_weww_0c, .f.weww
-
-static const DisasInsn table_float_0c[] = {
-    /* floating point class zero */
-    { 0x30004000, 0xfc1fffe0, FOP_WEW = gen_fcpy_s },
-    { 0x30006000, 0xfc1fffe0, FOP_WEW = gen_fabs_s },
-    { 0x30008000, 0xfc1fffe0, FOP_WEW = gen_helper_fsqrt_s },
-    { 0x3000a000, 0xfc1fffe0, FOP_WEW = gen_helper_frnd_s },
-    { 0x3000c000, 0xfc1fffe0, FOP_WEW = gen_fneg_s },
-    { 0x3000e000, 0xfc1fffe0, FOP_WEW = gen_fnegabs_s },
-
-    { 0x30004800, 0xfc1fffe0, FOP_DED = gen_fcpy_d },
-    { 0x30006800, 0xfc1fffe0, FOP_DED = gen_fabs_d },
-    { 0x30008800, 0xfc1fffe0, FOP_DED = gen_helper_fsqrt_d },
-    { 0x3000a800, 0xfc1fffe0, FOP_DED = gen_helper_frnd_d },
-    { 0x3000c800, 0xfc1fffe0, FOP_DED = gen_fneg_d },
-    { 0x3000e800, 0xfc1fffe0, FOP_DED = gen_fnegabs_d },
-
-    /* floating point class three */
-    { 0x30000600, 0xfc00ffe0, FOP_WEWW = gen_helper_fadd_s },
-    { 0x30002600, 0xfc00ffe0, FOP_WEWW = gen_helper_fsub_s },
-    { 0x30004600, 0xfc00ffe0, FOP_WEWW = gen_helper_fmpy_s },
-    { 0x30006600, 0xfc00ffe0, FOP_WEWW = gen_helper_fdiv_s },
-
-    { 0x30000e00, 0xfc00ffe0, FOP_DEDD = gen_helper_fadd_d },
-    { 0x30002e00, 0xfc00ffe0, FOP_DEDD = gen_helper_fsub_d },
-    { 0x30004e00, 0xfc00ffe0, FOP_DEDD = gen_helper_fmpy_d },
-    { 0x30006e00, 0xfc00ffe0, FOP_DEDD = gen_helper_fdiv_d },
-
-    /* floating point class one */
-    /* float/float */
-    { 0x30000a00, 0xfc1fffe0, FOP_WED = gen_helper_fcnv_d_s },
-    { 0x30002200, 0xfc1fffe0, FOP_DEW = gen_helper_fcnv_s_d },
-    /* int/float */
-    { 0x30008200, 0xfc1fffe0, FOP_WEW = gen_helper_fcnv_w_s },
-    { 0x30008a00, 0xfc1fffe0, FOP_WED = gen_helper_fcnv_dw_s },
-    { 0x3000a200, 0xfc1fffe0, FOP_DEW = gen_helper_fcnv_w_d },
-    { 0x3000aa00, 0xfc1fffe0, FOP_DED = gen_helper_fcnv_dw_d },
-    /* float/int */
-    { 0x30010200, 0xfc1fffe0, FOP_WEW = gen_helper_fcnv_s_w },
-    { 0x30010a00, 0xfc1fffe0, FOP_WED = gen_helper_fcnv_d_w },
-    { 0x30012200, 0xfc1fffe0, FOP_DEW = gen_helper_fcnv_s_dw },
-    { 0x30012a00, 0xfc1fffe0, FOP_DED = gen_helper_fcnv_d_dw },
-    /* float/int truncate */
-    { 0x30018200, 0xfc1fffe0, FOP_WEW = gen_helper_fcnv_t_s_w },
-    { 0x30018a00, 0xfc1fffe0, FOP_WED = gen_helper_fcnv_t_d_w },
-    { 0x3001a200, 0xfc1fffe0, FOP_DEW = gen_helper_fcnv_t_s_dw },
-    { 0x3001aa00, 0xfc1fffe0, FOP_DED = gen_helper_fcnv_t_d_dw },
-    /* uint/float */
-    { 0x30028200, 0xfc1fffe0, FOP_WEW = gen_helper_fcnv_uw_s },
-    { 0x30028a00, 0xfc1fffe0, FOP_WED = gen_helper_fcnv_udw_s },
-    { 0x3002a200, 0xfc1fffe0, FOP_DEW = gen_helper_fcnv_uw_d },
-    { 0x3002aa00, 0xfc1fffe0, FOP_DED = gen_helper_fcnv_udw_d },
-    /* float/uint */
-    { 0x30030200, 0xfc1fffe0, FOP_WEW = gen_helper_fcnv_s_uw },
-    { 0x30030a00, 0xfc1fffe0, FOP_WED = gen_helper_fcnv_d_uw },
-    { 0x30032200, 0xfc1fffe0, FOP_DEW = gen_helper_fcnv_s_udw },
-    { 0x30032a00, 0xfc1fffe0, FOP_DED = gen_helper_fcnv_d_udw },
-    /* float/uint truncate */
-    { 0x30038200, 0xfc1fffe0, FOP_WEW = gen_helper_fcnv_t_s_uw },
-    { 0x30038a00, 0xfc1fffe0, FOP_WED = gen_helper_fcnv_t_d_uw },
-    { 0x3003a200, 0xfc1fffe0, FOP_DEW = gen_helper_fcnv_t_s_udw },
-    { 0x3003aa00, 0xfc1fffe0, FOP_DED = gen_helper_fcnv_t_d_udw },
-
-    /* floating point class two */
-    { 0x30000400, 0xfc001fe0, trans_fcmp_s_0c },
-    { 0x30000c00, 0xfc001fe0, trans_fcmp_d },
-    { 0x30002420, 0xffffffe0, trans_ftest_q },
-    { 0x30000420, 0xffff1fff, trans_ftest_t },
-
-    /* FID.  Note that ra == rt == 0, which via fcpy puts 0 into fr0.
-       This is machine/revision == 0, which is reserved for simulator.  */
-    { 0x30000000, 0xffffffff, FOP_WEW = gen_fcpy_s },
-};
-
-#undef FOP_WEW
-#undef FOP_DEW
-#undef FOP_WED
-#undef FOP_WEWW
-#define FOP_WEW  trans_fop_wew_0e, .f.wew
-#define FOP_DEW  trans_fop_dew_0e, .f.dew
-#define FOP_WED  trans_fop_wed_0e, .f.wed
-#define FOP_WEWW trans_fop_weww_0e, .f.weww
-
-static const DisasInsn table_float_0e[] = {
-    /* floating point class zero */
-    { 0x38004000, 0xfc1fff20, FOP_WEW = gen_fcpy_s },
-    { 0x38006000, 0xfc1fff20, FOP_WEW = gen_fabs_s },
-    { 0x38008000, 0xfc1fff20, FOP_WEW = gen_helper_fsqrt_s },
-    { 0x3800a000, 0xfc1fff20, FOP_WEW = gen_helper_frnd_s },
-    { 0x3800c000, 0xfc1fff20, FOP_WEW = gen_fneg_s },
-    { 0x3800e000, 0xfc1fff20, FOP_WEW = gen_fnegabs_s },
-
-    { 0x38004800, 0xfc1fffe0, FOP_DED = gen_fcpy_d },
-    { 0x38006800, 0xfc1fffe0, FOP_DED = gen_fabs_d },
-    { 0x38008800, 0xfc1fffe0, FOP_DED = gen_helper_fsqrt_d },
-    { 0x3800a800, 0xfc1fffe0, FOP_DED = gen_helper_frnd_d },
-    { 0x3800c800, 0xfc1fffe0, FOP_DED = gen_fneg_d },
-    { 0x3800e800, 0xfc1fffe0, FOP_DED = gen_fnegabs_d },
-
-    /* floating point class three */
-    { 0x38000600, 0xfc00ef20, FOP_WEWW = gen_helper_fadd_s },
-    { 0x38002600, 0xfc00ef20, FOP_WEWW = gen_helper_fsub_s },
-    { 0x38004600, 0xfc00ef20, FOP_WEWW = gen_helper_fmpy_s },
-    { 0x38006600, 0xfc00ef20, FOP_WEWW = gen_helper_fdiv_s },
-
-    { 0x38000e00, 0xfc00ffe0, FOP_DEDD = gen_helper_fadd_d },
-    { 0x38002e00, 0xfc00ffe0, FOP_DEDD = gen_helper_fsub_d },
-    { 0x38004e00, 0xfc00ffe0, FOP_DEDD = gen_helper_fmpy_d },
-    { 0x38006e00, 0xfc00ffe0, FOP_DEDD = gen_helper_fdiv_d },
-
-    { 0x38004700, 0xfc00ef60, trans_xmpyu },
-
-    /* floating point class one */
-    /* float/float */
-    { 0x38000a00, 0xfc1fffa0, FOP_WED = gen_helper_fcnv_d_s },
-    { 0x38002200, 0xfc1fff60, FOP_DEW = gen_helper_fcnv_s_d },
-    /* int/float */
-    { 0x38008200, 0xfc1ffe20, FOP_WEW = gen_helper_fcnv_w_s },
-    { 0x38008a00, 0xfc1fffa0, FOP_WED = gen_helper_fcnv_dw_s },
-    { 0x3800a200, 0xfc1fff60, FOP_DEW = gen_helper_fcnv_w_d },
-    { 0x3800aa00, 0xfc1fffe0, FOP_DED = gen_helper_fcnv_dw_d },
-    /* float/int */
-    { 0x38010200, 0xfc1ffe20, FOP_WEW = gen_helper_fcnv_s_w },
-    { 0x38010a00, 0xfc1fffa0, FOP_WED = gen_helper_fcnv_d_w },
-    { 0x38012200, 0xfc1fff60, FOP_DEW = gen_helper_fcnv_s_dw },
-    { 0x38012a00, 0xfc1fffe0, FOP_DED = gen_helper_fcnv_d_dw },
-    /* float/int truncate */
-    { 0x38018200, 0xfc1ffe20, FOP_WEW = gen_helper_fcnv_t_s_w },
-    { 0x38018a00, 0xfc1fffa0, FOP_WED = gen_helper_fcnv_t_d_w },
-    { 0x3801a200, 0xfc1fff60, FOP_DEW = gen_helper_fcnv_t_s_dw },
-    { 0x3801aa00, 0xfc1fffe0, FOP_DED = gen_helper_fcnv_t_d_dw },
-    /* uint/float */
-    { 0x38028200, 0xfc1ffe20, FOP_WEW = gen_helper_fcnv_uw_s },
-    { 0x38028a00, 0xfc1fffa0, FOP_WED = gen_helper_fcnv_udw_s },
-    { 0x3802a200, 0xfc1fff60, FOP_DEW = gen_helper_fcnv_uw_d },
-    { 0x3802aa00, 0xfc1fffe0, FOP_DED = gen_helper_fcnv_udw_d },
-    /* float/uint */
-    { 0x38030200, 0xfc1ffe20, FOP_WEW = gen_helper_fcnv_s_uw },
-    { 0x38030a00, 0xfc1fffa0, FOP_WED = gen_helper_fcnv_d_uw },
-    { 0x38032200, 0xfc1fff60, FOP_DEW = gen_helper_fcnv_s_udw },
-    { 0x38032a00, 0xfc1fffe0, FOP_DED = gen_helper_fcnv_d_udw },
-    /* float/uint truncate */
-    { 0x38038200, 0xfc1ffe20, FOP_WEW = gen_helper_fcnv_t_s_uw },
-    { 0x38038a00, 0xfc1fffa0, FOP_WED = gen_helper_fcnv_t_d_uw },
-    { 0x3803a200, 0xfc1fff60, FOP_DEW = gen_helper_fcnv_t_s_udw },
-    { 0x3803aa00, 0xfc1fffe0, FOP_DED = gen_helper_fcnv_t_d_udw },
-
-    /* floating point class two */
-    { 0x38000400, 0xfc000f60, trans_fcmp_s_0e },
-    { 0x38000c00, 0xfc001fe0, trans_fcmp_d },
-};
-
-#undef FOP_WEW
-#undef FOP_DEW
-#undef FOP_WED
-#undef FOP_WEWW
-#undef FOP_DED
-#undef FOP_DEDD
 
 /* Convert the fmpyadd single-precision register encodings to standard.  */
 static inline int fmpyadd_s_reg(unsigned r)
@@ -4427,246 +3953,96 @@ static inline int fmpyadd_s_reg(unsigned r)
     return (r & 16) * 2 + 16 + (r & 15);
 }
 
-static DisasJumpType trans_fmpyadd(DisasContext *ctx,
-                                   uint32_t insn, bool is_sub)
+static bool do_fmpyadd_s(DisasContext *ctx, arg_mpyadd *a, bool is_sub)
 {
-    unsigned tm = extract32(insn, 0, 5);
-    unsigned f = extract32(insn, 5, 1);
-    unsigned ra = extract32(insn, 6, 5);
-    unsigned ta = extract32(insn, 11, 5);
-    unsigned rm2 = extract32(insn, 16, 5);
-    unsigned rm1 = extract32(insn, 21, 5);
+    int tm = fmpyadd_s_reg(a->tm);
+    int ra = fmpyadd_s_reg(a->ra);
+    int ta = fmpyadd_s_reg(a->ta);
+    int rm2 = fmpyadd_s_reg(a->rm2);
+    int rm1 = fmpyadd_s_reg(a->rm1);
 
     nullify_over(ctx);
 
-    /* Independent multiply & add/sub, with undefined behaviour
-       if outputs overlap inputs.  */
-    if (f == 0) {
-        tm = fmpyadd_s_reg(tm);
-        ra = fmpyadd_s_reg(ra);
-        ta = fmpyadd_s_reg(ta);
-        rm2 = fmpyadd_s_reg(rm2);
-        rm1 = fmpyadd_s_reg(rm1);
-        do_fop_weww(ctx, tm, rm1, rm2, gen_helper_fmpy_s);
-        do_fop_weww(ctx, ta, ta, ra,
-                    is_sub ? gen_helper_fsub_s : gen_helper_fadd_s);
-    } else {
-        do_fop_dedd(ctx, tm, rm1, rm2, gen_helper_fmpy_d);
-        do_fop_dedd(ctx, ta, ta, ra,
-                    is_sub ? gen_helper_fsub_d : gen_helper_fadd_d);
-    }
+    do_fop_weww(ctx, tm, rm1, rm2, gen_helper_fmpy_s);
+    do_fop_weww(ctx, ta, ta, ra,
+                is_sub ? gen_helper_fsub_s : gen_helper_fadd_s);
 
-    return nullify_end(ctx, DISAS_NEXT);
+    return nullify_end(ctx);
 }
 
-static DisasJumpType trans_fmpyfadd_s(DisasContext *ctx, uint32_t insn,
-                                      const DisasInsn *di)
+static bool trans_fmpyadd_f(DisasContext *ctx, arg_mpyadd *a)
 {
-    unsigned rt = assemble_rt64(insn);
-    unsigned neg = extract32(insn, 5, 1);
-    unsigned rm1 = assemble_ra64(insn);
-    unsigned rm2 = assemble_rb64(insn);
-    unsigned ra3 = assemble_rc64(insn);
-    TCGv_i32 a, b, c;
+    return do_fmpyadd_s(ctx, a, false);
+}
+
+static bool trans_fmpysub_f(DisasContext *ctx, arg_mpyadd *a)
+{
+    return do_fmpyadd_s(ctx, a, true);
+}
+
+static bool do_fmpyadd_d(DisasContext *ctx, arg_mpyadd *a, bool is_sub)
+{
+    nullify_over(ctx);
+
+    do_fop_dedd(ctx, a->tm, a->rm1, a->rm2, gen_helper_fmpy_d);
+    do_fop_dedd(ctx, a->ta, a->ta, a->ra,
+                is_sub ? gen_helper_fsub_d : gen_helper_fadd_d);
+
+    return nullify_end(ctx);
+}
+
+static bool trans_fmpyadd_d(DisasContext *ctx, arg_mpyadd *a)
+{
+    return do_fmpyadd_d(ctx, a, false);
+}
+
+static bool trans_fmpysub_d(DisasContext *ctx, arg_mpyadd *a)
+{
+    return do_fmpyadd_d(ctx, a, true);
+}
+
+static bool trans_fmpyfadd_f(DisasContext *ctx, arg_fmpyfadd_f *a)
+{
+    TCGv_i32 x, y, z;
 
     nullify_over(ctx);
-    a = load_frw0_i32(rm1);
-    b = load_frw0_i32(rm2);
-    c = load_frw0_i32(ra3);
+    x = load_frw0_i32(a->rm1);
+    y = load_frw0_i32(a->rm2);
+    z = load_frw0_i32(a->ra3);
 
-    if (neg) {
-        gen_helper_fmpynfadd_s(a, cpu_env, a, b, c);
+    if (a->neg) {
+        gen_helper_fmpynfadd_s(x, cpu_env, x, y, z);
     } else {
-        gen_helper_fmpyfadd_s(a, cpu_env, a, b, c);
+        gen_helper_fmpyfadd_s(x, cpu_env, x, y, z);
     }
 
-    tcg_temp_free_i32(b);
-    tcg_temp_free_i32(c);
-    save_frw_i32(rt, a);
-    tcg_temp_free_i32(a);
-    return nullify_end(ctx, DISAS_NEXT);
+    tcg_temp_free_i32(y);
+    tcg_temp_free_i32(z);
+    save_frw_i32(a->t, x);
+    tcg_temp_free_i32(x);
+    return nullify_end(ctx);
 }
 
-static DisasJumpType trans_fmpyfadd_d(DisasContext *ctx, uint32_t insn,
-                                      const DisasInsn *di)
+static bool trans_fmpyfadd_d(DisasContext *ctx, arg_fmpyfadd_d *a)
 {
-    unsigned rt = extract32(insn, 0, 5);
-    unsigned neg = extract32(insn, 5, 1);
-    unsigned rm1 = extract32(insn, 21, 5);
-    unsigned rm2 = extract32(insn, 16, 5);
-    unsigned ra3 = assemble_rc64(insn);
-    TCGv_i64 a, b, c;
+    TCGv_i64 x, y, z;
 
     nullify_over(ctx);
-    a = load_frd0(rm1);
-    b = load_frd0(rm2);
-    c = load_frd0(ra3);
+    x = load_frd0(a->rm1);
+    y = load_frd0(a->rm2);
+    z = load_frd0(a->ra3);
 
-    if (neg) {
-        gen_helper_fmpynfadd_d(a, cpu_env, a, b, c);
+    if (a->neg) {
+        gen_helper_fmpynfadd_d(x, cpu_env, x, y, z);
     } else {
-        gen_helper_fmpyfadd_d(a, cpu_env, a, b, c);
+        gen_helper_fmpyfadd_d(x, cpu_env, x, y, z);
     }
 
-    tcg_temp_free_i64(b);
-    tcg_temp_free_i64(c);
-    save_frd(rt, a);
-    tcg_temp_free_i64(a);
-    return nullify_end(ctx, DISAS_NEXT);
-}
-
-static const DisasInsn table_fp_fused[] = {
-    { 0xb8000000u, 0xfc000800u, trans_fmpyfadd_s },
-    { 0xb8000800u, 0xfc0019c0u, trans_fmpyfadd_d }
-};
-
-static DisasJumpType translate_table_int(DisasContext *ctx, uint32_t insn,
-                                         const DisasInsn table[], size_t n)
-{
-    size_t i;
-    for (i = 0; i < n; ++i) {
-        if ((insn & table[i].mask) == table[i].insn) {
-            return table[i].trans(ctx, insn, &table[i]);
-        }
-    }
-    qemu_log_mask(LOG_UNIMP, "UNIMP insn %08x @ " TARGET_FMT_lx "\n",
-                  insn, ctx->base.pc_next);
-    return gen_illegal(ctx);
-}
-
-#define translate_table(ctx, insn, table) \
-    translate_table_int(ctx, insn, table, ARRAY_SIZE(table))
-
-static DisasJumpType translate_one(DisasContext *ctx, uint32_t insn)
-{
-    uint32_t opc = extract32(insn, 26, 6);
-
-    switch (opc) {
-    case 0x00: /* system op */
-        return translate_table(ctx, insn, table_system);
-    case 0x01:
-        return translate_table(ctx, insn, table_mem_mgmt);
-    case 0x02:
-        return translate_table(ctx, insn, table_arith_log);
-    case 0x03:
-        return translate_table(ctx, insn, table_index_mem);
-    case 0x06:
-        return trans_fmpyadd(ctx, insn, false);
-    case 0x08:
-        return trans_ldil(ctx, insn);
-    case 0x09:
-        return trans_copr_w(ctx, insn);
-    case 0x0A:
-        return trans_addil(ctx, insn);
-    case 0x0B:
-        return trans_copr_dw(ctx, insn);
-    case 0x0C:
-        return translate_table(ctx, insn, table_float_0c);
-    case 0x0D:
-        return trans_ldo(ctx, insn);
-    case 0x0E:
-        return translate_table(ctx, insn, table_float_0e);
-
-    case 0x10:
-        return trans_load(ctx, insn, false, MO_UB);
-    case 0x11:
-        return trans_load(ctx, insn, false, MO_TEUW);
-    case 0x12:
-        return trans_load(ctx, insn, false, MO_TEUL);
-    case 0x13:
-        return trans_load(ctx, insn, true, MO_TEUL);
-    case 0x16:
-        return trans_fload_mod(ctx, insn);
-    case 0x17:
-        return trans_load_w(ctx, insn);
-    case 0x18:
-        return trans_store(ctx, insn, false, MO_UB);
-    case 0x19:
-        return trans_store(ctx, insn, false, MO_TEUW);
-    case 0x1A:
-        return trans_store(ctx, insn, false, MO_TEUL);
-    case 0x1B:
-        return trans_store(ctx, insn, true, MO_TEUL);
-    case 0x1E:
-        return trans_fstore_mod(ctx, insn);
-    case 0x1F:
-        return trans_store_w(ctx, insn);
-
-    case 0x20:
-        return trans_cmpb(ctx, insn, true, false, false);
-    case 0x21:
-        return trans_cmpb(ctx, insn, true, true, false);
-    case 0x22:
-        return trans_cmpb(ctx, insn, false, false, false);
-    case 0x23:
-        return trans_cmpb(ctx, insn, false, true, false);
-    case 0x24:
-        return trans_cmpiclr(ctx, insn);
-    case 0x25:
-        return trans_subi(ctx, insn);
-    case 0x26:
-        return trans_fmpyadd(ctx, insn, true);
-    case 0x27:
-        return trans_cmpb(ctx, insn, true, false, true);
-    case 0x28:
-        return trans_addb(ctx, insn, true, false);
-    case 0x29:
-        return trans_addb(ctx, insn, true, true);
-    case 0x2A:
-        return trans_addb(ctx, insn, false, false);
-    case 0x2B:
-        return trans_addb(ctx, insn, false, true);
-    case 0x2C:
-    case 0x2D:
-        return trans_addi(ctx, insn);
-    case 0x2E:
-        return translate_table(ctx, insn, table_fp_fused);
-    case 0x2F:
-        return trans_cmpb(ctx, insn, false, false, true);
-
-    case 0x30:
-    case 0x31:
-        return trans_bb(ctx, insn);
-    case 0x32:
-        return trans_movb(ctx, insn, false);
-    case 0x33:
-        return trans_movb(ctx, insn, true);
-    case 0x34:
-        return translate_table(ctx, insn, table_sh_ex);
-    case 0x35:
-        return translate_table(ctx, insn, table_depw);
-    case 0x38:
-        return trans_be(ctx, insn, false);
-    case 0x39:
-        return trans_be(ctx, insn, true);
-    case 0x3A:
-        return translate_table(ctx, insn, table_branch);
-
-    case 0x04: /* spopn */
-    case 0x05: /* diag */
-    case 0x0F: /* product specific */
-        break;
-
-    case 0x07: /* unassigned */
-    case 0x15: /* unassigned */
-    case 0x1D: /* unassigned */
-    case 0x37: /* unassigned */
-        break;
-    case 0x3F:
-#ifndef CONFIG_USER_ONLY
-        /* Unassigned, but use as system-halt.  */
-        if (insn == 0xfffdead0) {
-            return gen_hlt(ctx, 0); /* halt system */
-        }
-        if (insn == 0xfffdead1) {
-            return gen_hlt(ctx, 1); /* reset system */
-        }
-#endif
-        break;
-    default:
-        break;
-    }
-    return gen_illegal(ctx);
+    tcg_temp_free_i64(y);
+    tcg_temp_free_i64(z);
+    save_frd(a->t, x);
+    tcg_temp_free_i64(x);
+    return nullify_end(ctx);
 }
 
 static void hppa_tr_init_disas_context(DisasContextBase *dcbase, CPUState *cs)
@@ -4733,7 +4109,7 @@ static bool hppa_tr_breakpoint_check(DisasContextBase *dcbase, CPUState *cs,
 {
     DisasContext *ctx = container_of(dcbase, DisasContext, base);
 
-    ctx->base.is_jmp = gen_excp(ctx, EXCP_DEBUG);
+    gen_excp(ctx, EXCP_DEBUG);
     ctx->base.pc_next += 4;
     return true;
 }
@@ -4748,7 +4124,8 @@ static void hppa_tr_translate_insn(DisasContextBase *dcbase, CPUState *cs)
     /* Execute one insn.  */
 #ifdef CONFIG_USER_ONLY
     if (ctx->base.pc_next < TARGET_PAGE_SIZE) {
-        ret = do_page_zero(ctx);
+        do_page_zero(ctx);
+        ret = ctx->base.is_jmp;
         assert(ret != DISAS_NEXT);
     } else
 #endif
@@ -4773,7 +4150,10 @@ static void hppa_tr_translate_insn(DisasContextBase *dcbase, CPUState *cs)
             ret = DISAS_NEXT;
         } else {
             ctx->insn = insn;
-            ret = translate_one(ctx, insn);
+            if (!decode(ctx, insn)) {
+                gen_illegal(ctx);
+            }
+            ret = ctx->base.is_jmp;
             assert(ctx->null_lab == NULL);
         }
     }
@@ -4799,14 +4179,13 @@ static void hppa_tr_translate_insn(DisasContextBase *dcbase, CPUState *cs)
                 || ctx->null_cond.c == TCG_COND_ALWAYS)) {
             nullify_set(ctx, ctx->null_cond.c == TCG_COND_ALWAYS);
             gen_goto_tb(ctx, 0, ctx->iaoq_b, ctx->iaoq_n);
-            ret = DISAS_NORETURN;
+            ctx->base.is_jmp = ret = DISAS_NORETURN;
         } else {
-            ret = DISAS_IAQ_N_STALE;
+            ctx->base.is_jmp = ret = DISAS_IAQ_N_STALE;
         }
     }
     ctx->iaoq_f = ctx->iaoq_b;
     ctx->iaoq_b = ctx->iaoq_n;
-    ctx->base.is_jmp = ret;
     ctx->base.pc_next += 4;
 
     if (ret == DISAS_NORETURN || ret == DISAS_IAQ_N_UPDATED) {

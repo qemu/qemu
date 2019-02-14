@@ -105,6 +105,7 @@ typedef struct DinoState {
     MemoryRegion bm;
     MemoryRegion bm_ram_alias;
     MemoryRegion bm_pci_alias;
+    MemoryRegion bm_cpu_alias;
 
     MemoryRegion cpu0_eir_mem;
 } DinoState;
@@ -473,12 +474,17 @@ PCIBus *dino_init(MemoryRegion *addr_space,
     memory_region_init_alias(&s->bm_pci_alias, OBJECT(s),
                              "bm-pci", &s->pci_mem,
                              0xf0000000 + DINO_MEM_CHUNK_SIZE,
-                             31 * DINO_MEM_CHUNK_SIZE);
+                             30 * DINO_MEM_CHUNK_SIZE);
+    memory_region_init_alias(&s->bm_cpu_alias, OBJECT(s),
+                             "bm-cpu", addr_space, 0xfff00000,
+                             0xfffff);
     memory_region_add_subregion(&s->bm, 0,
                                 &s->bm_ram_alias);
     memory_region_add_subregion(&s->bm,
                                 0xf0000000 + DINO_MEM_CHUNK_SIZE,
                                 &s->bm_pci_alias);
+    memory_region_add_subregion(&s->bm, 0xfff00000,
+                                &s->bm_cpu_alias);
     address_space_init(&s->bm_as, &s->bm, "pci-bm");
     pci_setup_iommu(b, dino_pcihost_set_iommu, s);
 

@@ -1,0 +1,527 @@
+#
+# HPPA instruction decode definitions.
+#
+# Copyright (c) 2018 Richard Henderson <rth@twiddle.net>
+#
+# This library is free software; you can redistribute it and/or
+# modify it under the terms of the GNU Lesser General Public
+# License as published by the Free Software Foundation; either
+# version 2 of the License, or (at your option) any later version.
+#
+# This library is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
+# Lesser General Public License for more details.
+#
+# You should have received a copy of the GNU Lesser General Public
+# License along with this library; if not, see <http://www.gnu.org/licenses/>.
+#
+
+####
+# Field definitions
+####
+
+%assemble_sr3   13:1 14:2
+%assemble_sr3x  13:1 14:2 !function=expand_sr3x
+
+%assemble_11a   0:s1 4:10            !function=expand_shl3
+%assemble_12    0:s1 2:1 3:10        !function=expand_shl2
+%assemble_12a   0:s1 3:11            !function=expand_shl2
+%assemble_17    0:s1 16:5 2:1 3:10   !function=expand_shl2
+%assemble_22    0:s1 16:10 2:1 3:10  !function=expand_shl2
+
+%assemble_21    0:s1 1:11 14:2 16:5 12:2  !function=expand_shl11
+
+%lowsign_11     0:s1 1:10
+%lowsign_14     0:s1 1:13
+
+%sm_imm         16:10 !function=expand_sm_imm
+
+%rm64           1:1 16:5
+%rt64           6:1 0:5
+%ra64           7:1 21:5
+%rb64           12:1 16:5
+%rc64           8:1 13:3 9:2
+%rc32           13:3 9:2
+
+%im5_0          0:s1 1:4
+%im5_16         16:s1 17:4
+%ma_to_m        5:1 13:1 !function=ma_to_m
+%ma2_to_m       2:2      !function=ma_to_m
+%pos_to_m       0:1      !function=pos_to_m
+%neg_to_m       0:1      !function=neg_to_m
+%a_to_m         2:1      !function=neg_to_m
+
+####
+# Argument set definitions
+####
+
+# All insns that need to form a virtual address should use this set.
+&ldst           t b x disp sp m scale size
+
+&rr_cf          t r cf
+&rrr_cf         t r1 r2 cf
+&rrr_cf_sh      t r1 r2 cf sh
+&rri_cf         t r i cf
+
+&rrb_c_f        disp n c f r1 r2
+&rib_c_f        disp n c f r i
+
+####
+# Format definitions
+####
+
+@rr_cf          ...... r:5 ..... cf:4 ....... t:5       &rr_cf
+@rrr_cf         ...... r2:5 r1:5 cf:4 ....... t:5       &rrr_cf
+@rrr_cf_sh      ...... r2:5 r1:5 cf:4 .... sh:2 . t:5   &rrr_cf_sh
+@rrr_cf_sh0     ...... r2:5 r1:5 cf:4 ....... t:5       &rrr_cf_sh sh=0
+@rri_cf         ...... r:5  t:5  cf:4 . ...........     &rri_cf i=%lowsign_11
+
+@rrb_cf         ...... r2:5 r1:5 c:3 ........... n:1 .  \
+                &rrb_c_f disp=%assemble_12
+@rib_cf         ...... r:5 ..... c:3 ........... n:1 .  \
+                &rib_c_f disp=%assemble_12 i=%im5_16
+
+####
+# System
+####
+
+break           000000 ----- ----- --- 00000000 -----
+
+mtsp            000000 ----- r:5   ... 11000001 00000   sp=%assemble_sr3
+mtctl           000000 t:5   r:5   --- 11000010 00000
+mtsarcm         000000 01011 r:5   --- 11000110 00000
+mtsm            000000 00000 r:5   000 11000011 00000
+
+mfia            000000 ----- 00000 ---   10100101 t:5
+mfsp            000000 ----- 00000 ...   00100101 t:5   sp=%assemble_sr3
+mfctl           000000 r:5   00000- e:1 -01000101 t:5
+
+sync            000000 ----- ----- 000 00100000 00000   # sync, syncdma
+
+ldsid           000000 b:5   ----- sp:2 0 10000101 t:5
+
+rsm             000000 ..........  000 01110011 t:5     i=%sm_imm
+ssm             000000 ..........  000 01101011 t:5     i=%sm_imm
+
+rfi             000000 ----- ----- --- 01100000 00000
+rfi_r           000000 ----- ----- --- 01100101 00000
+
+# These are artificial instructions used by QEMU firmware.
+# They are allocated from the unassigned instruction space.
+halt            1111 1111 1111 1101 1110 1010 1101 0000
+reset           1111 1111 1111 1101 1110 1010 1101 0001
+
+####
+# Memory Management
+####
+
+@addrx          ...... b:5 x:5 .. ........ m:1 .....    \
+                &ldst disp=0 scale=0 t=0 sp=0 size=0
+
+nop             000001 ----- ----- -- 11001010 0 -----         # fdc, disp
+nop_addrx       000001 ..... ..... -- 01001010 . -----  @addrx # fdc, index
+nop_addrx       000001 ..... ..... -- 01001011 . -----  @addrx # fdce
+nop_addrx       000001 ..... ..... --- 0001010 . -----  @addrx # fic 0x0a
+nop_addrx       000001 ..... ..... -- 01001111 . 00000  @addrx # fic 0x4f
+nop_addrx       000001 ..... ..... --- 0001011 . -----  @addrx # fice
+nop_addrx       000001 ..... ..... -- 01001110 . 00000  @addrx # pdc
+
+probe           000001 b:5 ri:5 sp:2 imm:1 100011 write:1 0 t:5
+
+ixtlbx          000001 b:5 r:5 sp:2 0100000 addr:1 0 00000      data=1
+ixtlbx          000001 b:5 r:5 ... 000000 addr:1 0 00000        \
+                sp=%assemble_sr3x data=0
+
+pxtlbx          000001 b:5 x:5 sp:2 0100100 local:1 m:1 -----   data=1
+pxtlbx          000001 b:5 x:5 ... 000100 local:1 m:1 -----     \
+                sp=%assemble_sr3x data=0
+
+lpa             000001 b:5 x:5 sp:2 01001101 m:1 t:5    \
+                &ldst disp=0 scale=0 size=0
+
+lci             000001 ----- ----- -- 01001100 0 t:5
+
+####
+# Arith/Log
+####
+
+andcm           000010 ..... ..... .... 000000 0 .....  @rrr_cf
+and             000010 ..... ..... .... 001000 0 .....  @rrr_cf
+or              000010 ..... ..... .... 001001 0 .....  @rrr_cf
+xor             000010 ..... ..... .... 001010 0 .....  @rrr_cf
+uxor            000010 ..... ..... .... 001110 0 .....  @rrr_cf
+ds              000010 ..... ..... .... 010001 0 .....  @rrr_cf
+cmpclr          000010 ..... ..... .... 100010 0 .....  @rrr_cf
+uaddcm          000010 ..... ..... .... 100110 0 .....  @rrr_cf
+uaddcm_tc       000010 ..... ..... .... 100111 0 .....  @rrr_cf
+dcor            000010 ..... 00000 .... 101110 0 .....  @rr_cf
+dcor_i          000010 ..... 00000 .... 101111 0 .....  @rr_cf
+
+add             000010 ..... ..... .... 0110.. 0 .....  @rrr_cf_sh
+add_l           000010 ..... ..... .... 1010.. 0 .....  @rrr_cf_sh
+add_tsv         000010 ..... ..... .... 1110.. 0 .....  @rrr_cf_sh
+add_c           000010 ..... ..... .... 011100 0 .....  @rrr_cf_sh0
+add_c_tsv       000010 ..... ..... .... 111100 0 .....  @rrr_cf_sh0
+
+sub             000010 ..... ..... .... 010000 0 .....  @rrr_cf
+sub_tsv         000010 ..... ..... .... 110000 0 .....  @rrr_cf
+sub_tc          000010 ..... ..... .... 010011 0 .....  @rrr_cf
+sub_tsv_tc      000010 ..... ..... .... 110011 0 .....  @rrr_cf
+sub_b           000010 ..... ..... .... 010100 0 .....  @rrr_cf
+sub_b_tsv       000010 ..... ..... .... 110100 0 .....  @rrr_cf
+
+ldil            001000 t:5 .....................        i=%assemble_21
+addil           001010 r:5 .....................        i=%assemble_21
+ldo             001101 b:5 t:5 -- ..............        i=%lowsign_14
+
+addi            101101 ..... ..... .... 0 ...........   @rri_cf
+addi_tsv        101101 ..... ..... .... 1 ...........   @rri_cf
+addi_tc         101100 ..... ..... .... 0 ...........   @rri_cf
+addi_tc_tsv     101100 ..... ..... .... 1 ...........   @rri_cf
+
+subi            100101 ..... ..... .... 0 ...........   @rri_cf
+subi_tsv        100101 ..... ..... .... 1 ...........   @rri_cf
+
+cmpiclr         100100 ..... ..... .... 0 ...........   @rri_cf
+
+####
+# Index Mem
+####
+
+@ldstx          ...... b:5 x:5 sp:2 scale:1 ....... m:1 t:5     &ldst disp=0
+@ldim5          ...... b:5 ..... sp:2 ......... t:5     \
+                &ldst disp=%im5_16 x=0 scale=0 m=%ma_to_m
+@stim5          ...... b:5 t:5 sp:2 ......... .....     \
+                &ldst disp=%im5_0 x=0 scale=0 m=%ma_to_m
+
+ld              000011 ..... ..... .. . 1 -- 00 size:2 ......   @ldim5
+ld              000011 ..... ..... .. . 0 -- 00 size:2 ......   @ldstx
+st              000011 ..... ..... .. . 1 -- 10 size:2 ......   @stim5
+ldc             000011 ..... ..... .. . 1 -- 0111      ......   @ldim5 size=2
+ldc             000011 ..... ..... .. . 0 -- 0111      ......   @ldstx size=2
+lda             000011 ..... ..... .. . 1 -- 0110      ......   @ldim5 size=2
+lda             000011 ..... ..... .. . 0 -- 0110      ......   @ldstx size=2
+sta             000011 ..... ..... .. . 1 -- 1110      ......   @stim5 size=2
+stby            000011 b:5 r:5 sp:2 a:1 1 -- 1100 m:1   .....   disp=%im5_0
+
+@fldstwx        ...... b:5 x:5   sp:2 scale:1 ....... m:1 ..... \
+                &ldst t=%rt64 disp=0 size=2
+@fldstwi        ...... b:5 ..... sp:2 .       ....... .   ..... \
+                &ldst t=%rt64 disp=%im5_16 m=%ma_to_m x=0 scale=0 size=2
+
+fldw            001001 ..... ..... .. . 0 -- 000 . . .....      @fldstwx
+fldw            001001 ..... ..... .. . 1 -- 000 . . .....      @fldstwi
+fstw            001001 ..... ..... .. . 0 -- 100 . . .....      @fldstwx
+fstw            001001 ..... ..... .. . 1 -- 100 . . .....      @fldstwi
+
+@fldstdx        ...... b:5 x:5   sp:2 scale:1 ....... m:1 t:5 \
+                &ldst disp=0 size=3
+@fldstdi        ...... b:5 ..... sp:2 .       ....... .   t:5 \
+                &ldst disp=%im5_16 m=%ma_to_m x=0 scale=0 size=3
+
+fldd            001011 ..... ..... .. . 0 -- 000 0 . .....      @fldstdx
+fldd            001011 ..... ..... .. . 1 -- 000 0 . .....      @fldstdi
+fstd            001011 ..... ..... .. . 0 -- 100 0 . .....      @fldstdx
+fstd            001011 ..... ..... .. . 1 -- 100 0 . .....      @fldstdi
+
+####
+# Offset Mem
+####
+
+@ldstim14       ...... b:5 t:5 sp:2 ..............      \
+                &ldst disp=%lowsign_14 x=0 scale=0 m=0
+@ldstim14m      ...... b:5 t:5 sp:2 ..............      \
+                &ldst disp=%lowsign_14 x=0 scale=0 m=%neg_to_m
+@ldstim12m      ...... b:5 t:5 sp:2 ..............      \
+                &ldst disp=%assemble_12a x=0 scale=0 m=%pos_to_m
+
+# LDB, LDH, LDW, LDWM
+ld              010000 ..... ..... .. ..............    @ldstim14  size=0
+ld              010001 ..... ..... .. ..............    @ldstim14  size=1
+ld              010010 ..... ..... .. ..............    @ldstim14  size=2
+ld              010011 ..... ..... .. ..............    @ldstim14m size=2
+ld              010111 ..... ..... .. ...........10.    @ldstim12m size=2
+
+# STB, STH, STW, STWM
+st              011000 ..... ..... .. ..............    @ldstim14  size=0
+st              011001 ..... ..... .. ..............    @ldstim14  size=1
+st              011010 ..... ..... .. ..............    @ldstim14  size=2
+st              011011 ..... ..... .. ..............    @ldstim14m size=2
+st              011111 ..... ..... .. ...........10.    @ldstim12m size=2
+
+fldw            010110 b:5 ..... sp:2 ..............    \
+                &ldst disp=%assemble_12a t=%rm64 m=%a_to_m x=0 scale=0 size=2
+fldw            010111 b:5 ..... sp:2 ...........0..    \
+                &ldst disp=%assemble_12a t=%rm64 m=0 x=0 scale=0 size=2
+
+fstw            011110 b:5 ..... sp:2 ..............    \
+                &ldst disp=%assemble_12a t=%rm64 m=%a_to_m x=0 scale=0 size=2
+fstw            011111 b:5 ..... sp:2 ...........0..    \
+                &ldst disp=%assemble_12a t=%rm64 m=0 x=0 scale=0 size=2
+
+fldd            010100 b:5 t:5   sp:2 .......... .. 1 . \
+                &ldst disp=%assemble_11a m=%ma2_to_m x=0 scale=0 size=3
+
+fstd            011100 b:5 t:5   sp:2 .......... .. 1 . \
+                &ldst disp=%assemble_11a m=%ma2_to_m x=0 scale=0 size=3
+
+####
+# Floating-point Multiply Add
+####
+
+&mpyadd         rm1 rm2 ta ra tm
+@mpyadd         ...... rm1:5 rm2:5 ta:5 ra:5 . tm:5     &mpyadd
+
+fmpyadd_f       000110 ..... ..... ..... ..... 0 .....  @mpyadd
+fmpyadd_d       000110 ..... ..... ..... ..... 1 .....  @mpyadd
+fmpysub_f       100110 ..... ..... ..... ..... 0 .....  @mpyadd
+fmpysub_d       100110 ..... ..... ..... ..... 1 .....  @mpyadd
+
+####
+# Conditional Branches
+####
+
+bb_sar          110000 00000 r:5 c:1 10 ........... n:1 .  disp=%assemble_12
+bb_imm          110001 p:5   r:5 c:1 10 ........... n:1 .  disp=%assemble_12
+
+movb            110010 ..... ..... ... ........... . .  @rrb_cf f=0
+movbi           110011 ..... ..... ... ........... . .  @rib_cf f=0
+
+cmpb            100000 ..... ..... ... ........... . .  @rrb_cf f=0
+cmpb            100010 ..... ..... ... ........... . .  @rrb_cf f=1
+cmpbi           100001 ..... ..... ... ........... . .  @rib_cf f=0
+cmpbi           100011 ..... ..... ... ........... . .  @rib_cf f=1
+
+addb            101000 ..... ..... ... ........... . .  @rrb_cf f=0
+addb            101010 ..... ..... ... ........... . .  @rrb_cf f=1
+addbi           101001 ..... ..... ... ........... . .  @rib_cf f=0
+addbi           101011 ..... ..... ... ........... . .  @rib_cf f=1
+
+####
+# Shift, Extract, Deposit
+####
+
+shrpw_sar       110100 r2:5 r1:5 c:3 00 0    00000  t:5
+shrpw_imm       110100 r2:5 r1:5 c:3 01 0    cpos:5 t:5
+
+extrw_sar       110100 r:5  t:5  c:3 10 se:1 00000  clen:5
+extrw_imm       110100 r:5  t:5  c:3 11 se:1 pos:5  clen:5
+
+depw_sar        110101 t:5 r:5   c:3 00 nz:1 00000  clen:5
+depw_imm        110101 t:5 r:5   c:3 01 nz:1 cpos:5 clen:5
+depwi_sar       110101 t:5 ..... c:3 10 nz:1 00000  clen:5      i=%im5_16
+depwi_imm       110101 t:5 ..... c:3 11 nz:1 cpos:5 clen:5      i=%im5_16
+
+####
+# Branch External
+####
+
+&BE             b l n disp sp
+@be             ...... b:5 ..... ... ........... n:1 .  \
+                &BE disp=%assemble_17 sp=%assemble_sr3
+
+be              111000 ..... ..... ... ........... . .  @be l=0
+be              111001 ..... ..... ... ........... . .  @be l=31
+
+####
+# Branch
+####
+
+&BL             l n disp
+@bl             ...... l:5 ..... ... ........... n:1 .  &BL disp=%assemble_17
+
+# B,L and B,L,PUSH
+bl              111010 ..... ..... 000 ........... .   .        @bl
+bl              111010 ..... ..... 100 ........... .   .        @bl
+# B,L (long displacement)
+bl              111010 ..... ..... 101 ........... n:1 .        &BL l=2 \
+                disp=%assemble_22
+b_gate          111010 ..... ..... 001 ........... .   .        @bl
+blr             111010 l:5   x:5   010 00000000000 n:1 0
+bv              111010 b:5   x:5   110 00000000000 n:1 0
+bve             111010 b:5   00000 110 10000000000 n:1 -        l=0
+bve             111010 b:5   00000 111 10000000000 n:1 -        l=2
+
+####
+# FP Fused Multiple-Add
+####
+
+fmpyfadd_f      101110 ..... ..... ... . 0 ... . . neg:1 ..... \
+                rm1=%ra64 rm2=%rb64 ra3=%rc64 t=%rt64
+fmpyfadd_d      101110 rm1:5 rm2:5 ... 0 1 ..0 0 0 neg:1 t:5    ra3=%rc32
+
+####
+# FP operations
+####
+
+&fclass01       r t
+&fclass2        r1 r2 c y
+&fclass3        r1 r2 t
+
+@f0c_0          ...... r:5  00000 ..... 00 000 0 t:5    &fclass01
+@f0c_1          ...... r:5  000.. ..... 01 000 0 t:5    &fclass01
+@f0c_2          ...... r1:5 r2:5 y:3 .. 10 000 . c:5    &fclass2
+@f0c_3          ...... r1:5 r2:5  ..... 11 000 0 t:5    &fclass3
+
+@f0e_f_0        ...... ..... 00000 ... 0 0 000 .. 0 .....  \
+                &fclass01 r=%ra64 t=%rt64
+@f0e_d_0        ...... r:5   00000 ... 0 1 000 00 0 t:5    &fclass01
+
+@f0e_ff_1       ...... ..... 000  ... 0000 010 .. 0 .....  \
+                &fclass01 r=%ra64 t=%rt64
+@f0e_fd_1       ...... ..... 000  ... 0100 010 .0 0 t:5    &fclass01 r=%ra64
+@f0e_df_1       ...... r:5   000  ... 0001 010 0. 0 .....  &fclass01 t=%rt64
+@f0e_dd_1       ...... r:5   000  ... 0101 010 00 0 t:5    &fclass01
+
+@f0e_f_2        ...... ..... ..... y:3 .0 100 .00 c:5      \
+                &fclass2 r1=%ra64 r2=%rb64
+@f0e_d_2        ...... r1:5  r2:5  y:3 01 100 000 c:5      &fclass2
+
+@f0e_f_3        ...... ..... ..... ... .0 110 ..0 .....    \
+                &fclass3 r1=%ra64 r2=%rb64 t=%rt64
+@f0e_d_3        ...... r1:5  r2:5  ... 01 110 000 t:5
+
+# Floating point class 0
+
+# FID.  With r = t = 0, which via fcpy puts 0 into fr0.
+# This is machine/revision = 0, which is reserved for simulator.
+fcpy_f          001100 00000 00000 00000 000000 00000   \
+                &fclass01 r=0 t=0
+
+fcpy_f          001100 ..... ..... 010 00 ...... .....  @f0c_0
+fabs_f          001100 ..... ..... 011 00 ...... .....  @f0c_0
+fsqrt_f         001100 ..... ..... 100 00 ...... .....  @f0c_0
+frnd_f          001100 ..... ..... 101 00 ...... .....  @f0c_0
+fneg_f          001100 ..... ..... 110 00 ...... .....  @f0c_0
+fnegabs_f       001100 ..... ..... 111 00 ...... .....  @f0c_0
+
+fcpy_d          001100 ..... ..... 010 01 ...... .....  @f0c_0
+fabs_d          001100 ..... ..... 011 01 ...... .....  @f0c_0
+fsqrt_d         001100 ..... ..... 100 01 ...... .....  @f0c_0
+frnd_d          001100 ..... ..... 101 01 ...... .....  @f0c_0
+fneg_d          001100 ..... ..... 110 01 ...... .....  @f0c_0
+fnegabs_d       001100 ..... ..... 111 01 ...... .....  @f0c_0
+
+fcpy_f          001110 ..... ..... 010 ........ .....   @f0e_f_0
+fabs_f          001110 ..... ..... 011 ........ .....   @f0e_f_0
+fsqrt_f         001110 ..... ..... 100 ........ .....   @f0e_f_0
+frnd_f          001110 ..... ..... 101 ........ .....   @f0e_f_0
+fneg_f          001110 ..... ..... 110 ........ .....   @f0e_f_0
+fnegabs_f       001110 ..... ..... 111 ........ .....   @f0e_f_0
+
+fcpy_d          001110 ..... ..... 010 ........ .....   @f0e_d_0
+fabs_d          001110 ..... ..... 011 ........ .....   @f0e_d_0
+fsqrt_d         001110 ..... ..... 100 ........ .....   @f0e_d_0
+frnd_d          001110 ..... ..... 101 ........ .....   @f0e_d_0
+fneg_d          001110 ..... ..... 110 ........ .....   @f0e_d_0
+fnegabs_d       001110 ..... ..... 111 ........ .....   @f0e_d_0
+
+# Floating point class 1
+
+# float/float
+fcnv_d_f        001100 ..... ... 000 00 01 ...... ..... @f0c_1
+fcnv_f_d        001100 ..... ... 000 01 00 ...... ..... @f0c_1
+
+fcnv_d_f        001110 ..... ... 000 .......... .....   @f0e_df_1
+fcnv_f_d        001110 ..... ... 000 .......... .....   @f0e_fd_1
+
+# int/float
+fcnv_w_f        001100 ..... ... 001 00 00 ...... ..... @f0c_1
+fcnv_q_f        001100 ..... ... 001 00 01 ...... ..... @f0c_1
+fcnv_w_d        001100 ..... ... 001 01 00 ...... ..... @f0c_1
+fcnv_q_d        001100 ..... ... 001 01 01 ...... ..... @f0c_1
+
+fcnv_w_f        001110 ..... ... 001 .......... .....   @f0e_ff_1
+fcnv_q_f        001110 ..... ... 001 .......... .....   @f0e_df_1
+fcnv_w_d        001110 ..... ... 001 .......... .....   @f0e_fd_1
+fcnv_q_d        001110 ..... ... 001 .......... .....   @f0e_dd_1
+
+# float/int
+fcnv_f_w        001100 ..... ... 010 00 00 ...... ..... @f0c_1
+fcnv_d_w        001100 ..... ... 010 00 01 ...... ..... @f0c_1
+fcnv_f_q        001100 ..... ... 010 01 00 ...... ..... @f0c_1
+fcnv_d_q        001100 ..... ... 010 01 01 ...... ..... @f0c_1
+
+fcnv_f_w        001110 ..... ... 010 .......... .....   @f0e_ff_1
+fcnv_d_w        001110 ..... ... 010 .......... .....   @f0e_df_1
+fcnv_f_q        001110 ..... ... 010 .......... .....   @f0e_fd_1
+fcnv_d_q        001110 ..... ... 010 .......... .....   @f0e_dd_1
+
+# float/int truncate
+fcnv_t_f_w      001100 ..... ... 011 00 00 ...... ..... @f0c_1
+fcnv_t_d_w      001100 ..... ... 011 00 01 ...... ..... @f0c_1
+fcnv_t_f_q      001100 ..... ... 011 01 00 ...... ..... @f0c_1
+fcnv_t_d_q      001100 ..... ... 011 01 01 ...... ..... @f0c_1
+
+fcnv_t_f_w      001110 ..... ... 011 .......... .....   @f0e_ff_1
+fcnv_t_d_w      001110 ..... ... 011 .......... .....   @f0e_df_1
+fcnv_t_f_q      001110 ..... ... 011 .......... .....   @f0e_fd_1
+fcnv_t_d_q      001110 ..... ... 011 .......... .....   @f0e_dd_1
+
+# uint/float
+fcnv_uw_f       001100 ..... ... 101 00 00 ...... ..... @f0c_1
+fcnv_uq_f       001100 ..... ... 101 00 01 ...... ..... @f0c_1
+fcnv_uw_d       001100 ..... ... 101 01 00 ...... ..... @f0c_1
+fcnv_uq_d       001100 ..... ... 101 01 01 ...... ..... @f0c_1
+
+fcnv_uw_f       001110 ..... ... 101 .......... .....   @f0e_ff_1
+fcnv_uq_f       001110 ..... ... 101 .......... .....   @f0e_df_1
+fcnv_uw_d       001110 ..... ... 101 .......... .....   @f0e_fd_1
+fcnv_uq_d       001110 ..... ... 101 .......... .....   @f0e_dd_1
+
+# float/int
+fcnv_f_uw       001100 ..... ... 110 00 00 ...... ..... @f0c_1
+fcnv_d_uw       001100 ..... ... 110 00 01 ...... ..... @f0c_1
+fcnv_f_uq       001100 ..... ... 110 01 00 ...... ..... @f0c_1
+fcnv_d_uq       001100 ..... ... 110 01 01 ...... ..... @f0c_1
+
+fcnv_f_uw       001110 ..... ... 110 .......... .....   @f0e_ff_1
+fcnv_d_uw       001110 ..... ... 110 .......... .....   @f0e_df_1
+fcnv_f_uq       001110 ..... ... 110 .......... .....   @f0e_fd_1
+fcnv_d_uq       001110 ..... ... 110 .......... .....   @f0e_dd_1
+
+# float/int truncate
+fcnv_t_f_uw     001100 ..... ... 111 00 00 ...... ..... @f0c_1
+fcnv_t_d_uw     001100 ..... ... 111 00 01 ...... ..... @f0c_1
+fcnv_t_f_uq     001100 ..... ... 111 01 00 ...... ..... @f0c_1
+fcnv_t_d_uq     001100 ..... ... 111 01 01 ...... ..... @f0c_1
+
+fcnv_t_f_uw     001110 ..... ... 111 .......... .....   @f0e_ff_1
+fcnv_t_d_uw     001110 ..... ... 111 .......... .....   @f0e_df_1
+fcnv_t_f_uq     001110 ..... ... 111 .......... .....   @f0e_fd_1
+fcnv_t_d_uq     001110 ..... ... 111 .......... .....   @f0e_dd_1
+
+# Floating point class 2
+
+ftest           001100 00000 00000 y:3 00 10000 1 c:5
+
+fcmp_f          001100 ..... ..... ... 00 ..... 0 ..... @f0c_2
+fcmp_d          001100 ..... ..... ... 01 ..... 0 ..... @f0c_2
+
+fcmp_f          001110 ..... ..... ... ..... ... .....  @f0e_f_2
+fcmp_d          001110 ..... ..... ... ..... ... .....  @f0e_d_2
+
+# Floating point class 3
+
+fadd_f          001100 ..... ..... 000 00 ...... .....  @f0c_3
+fsub_f          001100 ..... ..... 001 00 ...... .....  @f0c_3
+fmpy_f          001100 ..... ..... 010 00 ...... .....  @f0c_3
+fdiv_f          001100 ..... ..... 011 00 ...... .....  @f0c_3
+
+fadd_d          001100 ..... ..... 000 01 ...... .....  @f0c_3
+fsub_d          001100 ..... ..... 001 01 ...... .....  @f0c_3
+fmpy_d          001100 ..... ..... 010 01 ...... .....  @f0c_3
+fdiv_d          001100 ..... ..... 011 01 ...... .....  @f0c_3
+
+fadd_f          001110 ..... ..... 000 ..... ... .....  @f0e_f_3
+fsub_f          001110 ..... ..... 001 ..... ... .....  @f0e_f_3
+fmpy_f          001110 ..... ..... 010 ..... ... .....  @f0e_f_3
+fdiv_f          001110 ..... ..... 011 ..... ... .....  @f0e_f_3
+
+fadd_d          001110 ..... ..... 000 ..... ... .....  @f0e_d_3
+fsub_d          001110 ..... ..... 001 ..... ... .....  @f0e_d_3
+fmpy_d          001110 ..... ..... 010 ..... ... .....  @f0e_d_3
+fdiv_d          001110 ..... ..... 011 ..... ... .....  @f0e_d_3
+
+xmpyu           001110 ..... ..... 010 .0111 .00 t:5    r1=%ra64 r2=%rb64
