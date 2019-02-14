@@ -1,20 +1,7 @@
-QAPI_MODULES = block-core block char common crypto introspect job migration
-QAPI_MODULES += misc net rdma rocker run-state sockets tpm trace transaction
-QAPI_MODULES += ui
-
 #######################################################################
 # Common libraries for tools and emulators
 stub-obj-y = stubs/ crypto/
 util-obj-y = util/ qobject/ qapi/
-util-obj-y += qapi/qapi-builtin-types.o
-util-obj-y += qapi/qapi-types.o
-util-obj-y += $(QAPI_MODULES:%=qapi/qapi-types-%.o)
-util-obj-y += qapi/qapi-builtin-visit.o
-util-obj-y += qapi/qapi-visit.o
-util-obj-y += $(QAPI_MODULES:%=qapi/qapi-visit-%.o)
-util-obj-y += qapi/qapi-emit-events.o
-util-obj-y += qapi/qapi-events.o
-util-obj-y += $(QAPI_MODULES:%=qapi/qapi-events-%.o)
 
 chardev-obj-y = chardev/
 slirp-obj-$(CONFIG_SLIRP) = slirp/
@@ -92,9 +79,8 @@ common-obj-$(CONFIG_FDT) += device_tree.o
 ######################################################################
 # qapi
 
-common-obj-y += qapi/qapi-commands.o
-common-obj-y += $(QAPI_MODULES:%=qapi/qapi-commands-%.o)
 common-obj-y += qmp.o hmp.o
+common-obj-y += qapi/
 endif
 
 #######################################################################

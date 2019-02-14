@@ -148,6 +148,7 @@ ifdef CONFIG_SOFTMMU
 obj-y += arch_init.o cpus.o monitor.o gdbstub.o balloon.o ioport.o numa.o
 obj-y += qtest.o
 obj-y += hw/
+obj-y += qapi/
 obj-y += memory.o
 obj-y += memory_mapping.o
 obj-y += dump.o
@@ -163,8 +164,6 @@ obj-y += hw/$(TARGET_BASE_ARCH)/
 endif
 
 GENERATED_FILES += hmp-commands.h hmp-commands-info.h
-
-obj-y += qapi/qapi-introspect.o
 
 endif # CONFIG_SOFTMMU
 

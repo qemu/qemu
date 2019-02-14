@@ -89,7 +89,6 @@ include $(SRC_PATH)/rules.mak
 
 GENERATED_FILES = qemu-version.h config-host.h qemu-options.def
 
-#see Makefile.objs for the definition of QAPI_MODULES
 GENERATED_QAPI_FILES = qapi/qapi-builtin-types.h qapi/qapi-builtin-types.c
 GENERATED_QAPI_FILES += qapi/qapi-types.h qapi/qapi-types.c
 GENERATED_QAPI_FILES += $(QAPI_MODULES:%=qapi/qapi-types-%.h)
