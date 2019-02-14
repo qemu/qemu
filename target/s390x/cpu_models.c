@@ -25,6 +25,7 @@
 #include "sysemu/arch_init.h"
 #include "hw/pci/pci.h"
 #endif
+#include "qapi/qapi-commands-target.h"
 
 #define CPUDEF_INIT(_type, _gen, _ec_ga, _mha_pow, _hmfai, _name, _desc) \
     {                                                                    \
@@ -605,7 +606,7 @@ static void list_add_feat(const char *name, void *opaque)
     *last = entry;
 }
 
-CpuModelCompareInfo *arch_query_cpu_model_comparison(CpuModelInfo *infoa,
+CpuModelCompareInfo *qmp_query_cpu_model_comparison(CpuModelInfo *infoa,
                                                      CpuModelInfo *infob,
                                                      Error **errp)
 {
@@ -678,7 +679,7 @@ CpuModelCompareInfo *arch_query_cpu_model_comparison(CpuModelInfo *infoa,
     return compare_info;
 }
 
-CpuModelBaselineInfo *arch_query_cpu_model_baseline(CpuModelInfo *infoa,
+CpuModelBaselineInfo *qmp_query_cpu_model_baseline(CpuModelInfo *infoa,
                                                     CpuModelInfo *infob,
                                                     Error **errp)
 {
