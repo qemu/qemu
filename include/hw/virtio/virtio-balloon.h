@@ -30,6 +30,8 @@ typedef struct virtio_balloon_stat_modern {
        uint64_t val;
 } VirtIOBalloonStatModern;
 
+typedef struct PartiallyBalloonedPage PartiallyBalloonedPage;
+
 typedef struct VirtIOBalloon {
     VirtIODevice parent_obj;
     VirtQueue *ivq, *dvq, *svq;
@@ -42,6 +44,7 @@ typedef struct VirtIOBalloon {
     int64_t stats_last_update;
     int64_t stats_poll_interval;
     uint32_t host_features;
+    PartiallyBalloonedPage *pbp;
 } VirtIOBalloon;
 
 #endif

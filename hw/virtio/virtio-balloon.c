@@ -33,33 +33,82 @@
 
 #define BALLOON_PAGE_SIZE  (1 << VIRTIO_BALLOON_PFN_SHIFT)
 
+struct PartiallyBalloonedPage {
+    RAMBlock *rb;
+    ram_addr_t base;
+    unsigned long bitmap[];
+};
+
 static void balloon_inflate_page(VirtIOBalloon *balloon,
                                  MemoryRegion *mr, hwaddr offset)
 {
     void *addr = memory_region_get_ram_ptr(mr) + offset;
     RAMBlock *rb;
     size_t rb_page_size;
-    ram_addr_t ram_offset;
+    int subpages;
+    ram_addr_t ram_offset, host_page_base;
 
     /* XXX is there a better way to get to the RAMBlock than via a
      * host address? */
     rb = qemu_ram_block_from_host(addr, false, &ram_offset);
     rb_page_size = qemu_ram_pagesize(rb);
+    host_page_base = ram_offset & ~(rb_page_size - 1);
 
-    /* Silently ignore hugepage RAM blocks */
-    if (rb_page_size != getpagesize()) {
+    if (rb_page_size == BALLOON_PAGE_SIZE) {
+        /* Easy case */
+
+        ram_block_discard_range(rb, ram_offset, rb_page_size);
+        /* We ignore errors from ram_block_discard_range(), because it
+         * has already reported them, and failing to discard a balloon
+         * page is not fatal */
         return;
     }
 
-    /* Silently ignore unaligned requests */
-    if (ram_offset & (rb_page_size - 1)) {
-        return;
+    /* Hard case
+     *
+     * We've put a piece of a larger host page into the balloon - we
+     * need to keep track until we have a whole host page to
+     * discard
+     */
+    warn_report_once(
+"Balloon used with backing page size > 4kiB, this may not be reliable");
+
+    subpages = rb_page_size / BALLOON_PAGE_SIZE;
+
+    if (balloon->pbp
+        && (rb != balloon->pbp->rb
+            || host_page_base != balloon->pbp->base)) {
+        /* We've partially ballooned part of a host page, but now
+         * we're trying to balloon part of a different one.  Too hard,
+         * give up on the old partial page */
+        free(balloon->pbp);
+        balloon->pbp = NULL;
     }
 
-    ram_block_discard_range(rb, ram_offset, rb_page_size);
-    /* We ignore errors from ram_block_discard_range(), because it has
-     * already reported them, and failing to discard a balloon page is
-     * not fatal */
+    if (!balloon->pbp) {
+        /* Starting on a new host page */
+        size_t bitlen = BITS_TO_LONGS(subpages) * sizeof(unsigned long);
+        balloon->pbp = g_malloc0(sizeof(PartiallyBalloonedPage) + bitlen);
+        balloon->pbp->rb = rb;
+        balloon->pbp->base = host_page_base;
+    }
+
+    bitmap_set(balloon->pbp->bitmap,
+               (ram_offset - balloon->pbp->base) / BALLOON_PAGE_SIZE,
+               subpages);
+
+    if (bitmap_full(balloon->pbp->bitmap, subpages)) {
+        /* We've accumulated a full host page, we can actually discard
+         * it now */
+
+        ram_block_discard_range(rb, balloon->pbp->base, rb_page_size);
+        /* We ignore errors from ram_block_discard_range(), because it
+         * has already reported them, and failing to discard a balloon
+         * page is not fatal */
+
+        free(balloon->pbp);
+        balloon->pbp = NULL;
+    }
 }
 
 static const char *balloon_stat_names[] = {
