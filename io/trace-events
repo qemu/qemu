@@ -7,6 +7,8 @@ qio_task_thread_start(void *task, void *worker, void *opaque) "Task thread start
 qio_task_thread_run(void *task) "Task thread run task=%p"
 qio_task_thread_exit(void *task) "Task thread exit task=%p"
 qio_task_thread_result(void *task) "Task thread result task=%p"
+qio_task_thread_source_attach(void *task, void *source) "Task thread source attach task=%p source=%p"
+qio_task_thread_source_cancel(void *task, void *source) "Task thread source cancel task=%p source=%p"
 
 # io/channel-socket.c
 qio_channel_socket_new(void *ioc) "Socket new ioc=%p"

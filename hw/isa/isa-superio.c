@@ -44,7 +44,7 @@ static void isa_superio_realize(DeviceState *dev, Error **errp)
             chr = parallel_hds[i];
             if (chr == NULL) {
                 name = g_strdup_printf("discarding-parallel%d", i);
-                chr = qemu_chr_new(name, "null");
+                chr = qemu_chr_new(name, "null", NULL);
             } else {
                 name = g_strdup_printf("parallel%d", i);
             }
@@ -84,7 +84,7 @@ static void isa_superio_realize(DeviceState *dev, Error **errp)
             chr = serial_hd(i);
             if (chr == NULL) {
                 name = g_strdup_printf("discarding-serial%d", i);
-                chr = qemu_chr_new(name, "null");
+                chr = qemu_chr_new(name, "null", NULL);
             } else {
                 name = g_strdup_printf("serial%d", i);
             }

@@ -211,7 +211,8 @@ static int con_init(struct XenLegacyDevice *xendev)
                           * FIXME: sure we want to support implicit
                           * muxed monitors here?
                           */
-                         qemu_chr_new_mux_mon(label, output), &error_abort);
+                         qemu_chr_new_mux_mon(label, output, NULL),
+                         &error_abort);
     }
 
     xenstore_store_pv_console_info(con->xendev.dev,

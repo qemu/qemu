@@ -36,15 +36,12 @@ typedef struct {
     QIOChannel *ioc;
     int read_bytes;
 
-    /* Protected by the Chardev chr_write_lock.  */
     int connected;
     GSource *timer_src;
-    GSource *open_source;
 } PtyChardev;
 
 #define PTY_CHARDEV(obj) OBJECT_CHECK(PtyChardev, (obj), TYPE_CHARDEV_PTY)
 
-static void pty_chr_update_read_handler_locked(Chardev *chr);
 static void pty_chr_state(Chardev *chr, int connected);
 
 static void pty_chr_timer_cancel(PtyChardev *s)
@@ -56,32 +53,19 @@ static void pty_chr_timer_cancel(PtyChardev *s)
     }
 }
 
-static void pty_chr_open_src_cancel(PtyChardev *s)
-{
-    if (s->open_source) {
-        g_source_destroy(s->open_source);
-        g_source_unref(s->open_source);
-        s->open_source = NULL;
-    }
-}
-
 static gboolean pty_chr_timer(gpointer opaque)
 {
     struct Chardev *chr = CHARDEV(opaque);
     PtyChardev *s = PTY_CHARDEV(opaque);
 
-    qemu_mutex_lock(&chr->chr_write_lock);
     pty_chr_timer_cancel(s);
-    pty_chr_open_src_cancel(s);
     if (!s->connected) {
         /* Next poll ... */
-        pty_chr_update_read_handler_locked(chr);
+        qemu_chr_be_update_read_handlers(chr, chr->gcontext);
     }
-    qemu_mutex_unlock(&chr->chr_write_lock);
     return FALSE;
 }
 
-/* Called with chr_write_lock held.  */
 static void pty_chr_rearm_timer(Chardev *chr, int ms)
 {
     PtyChardev *s = PTY_CHARDEV(chr);
@@ -94,8 +78,7 @@ static void pty_chr_rearm_timer(Chardev *chr, int ms)
     g_free(name);
 }
 
-/* Called with chr_write_lock held.  */
-static void pty_chr_update_read_handler_locked(Chardev *chr)
+static void pty_chr_update_read_handler(Chardev *chr)
 {
     PtyChardev *s = PTY_CHARDEV(chr);
     GPollFD pfd;
@@ -117,24 +100,12 @@ static void pty_chr_update_read_handler_locked(Chardev *chr)
     }
 }
 
-static void pty_chr_update_read_handler(Chardev *chr)
-{
-    qemu_mutex_lock(&chr->chr_write_lock);
-    pty_chr_update_read_handler_locked(chr);
-    qemu_mutex_unlock(&chr->chr_write_lock);
-}
-
-/* Called with chr_write_lock held.  */
 static int char_pty_chr_write(Chardev *chr, const uint8_t *buf, int len)
 {
     PtyChardev *s = PTY_CHARDEV(chr);
 
     if (!s->connected) {
-        /* guest sends data, check for (re-)connect */
-        pty_chr_update_read_handler_locked(chr);
-        if (!s->connected) {
-            return len;
-        }
+        return len;
     }
     return io_channel_send(s->ioc, buf, len);
 }
@@ -183,23 +154,11 @@ static gboolean pty_chr_read(QIOChannel *chan, GIOCondition cond, void *opaque)
     return TRUE;
 }
 
-static gboolean qemu_chr_be_generic_open_func(gpointer opaque)
-{
-    Chardev *chr = CHARDEV(opaque);
-    PtyChardev *s = PTY_CHARDEV(opaque);
-
-    s->open_source = NULL;
-    qemu_chr_be_event(chr, CHR_EVENT_OPENED);
-    return FALSE;
-}
-
-/* Called with chr_write_lock held.  */
 static void pty_chr_state(Chardev *chr, int connected)
 {
     PtyChardev *s = PTY_CHARDEV(chr);
 
     if (!connected) {
-        pty_chr_open_src_cancel(s);
         remove_fd_in_watch(chr);
         s->connected = 0;
         /* (re-)connect poll interval for idle guests: once per second.
@@ -209,13 +168,8 @@ static void pty_chr_state(Chardev *chr, int connected)
     } else {
         pty_chr_timer_cancel(s);
         if (!s->connected) {
-            g_assert(s->open_source == NULL);
-            s->open_source = g_idle_source_new();
             s->connected = 1;
-            g_source_set_callback(s->open_source,
-                                  qemu_chr_be_generic_open_func,
-                                  chr, NULL);
-            g_source_attach(s->open_source, chr->gcontext);
+            qemu_chr_be_event(chr, CHR_EVENT_OPENED);
         }
         if (!chr->gsource) {
             chr->gsource = io_add_watch_poll(chr, s->ioc,
@@ -231,11 +185,9 @@ static void char_pty_finalize(Object *obj)
     Chardev *chr = CHARDEV(obj);
     PtyChardev *s = PTY_CHARDEV(obj);
 
-    qemu_mutex_lock(&chr->chr_write_lock);
     pty_chr_state(chr, 0);
     object_unref(OBJECT(s->ioc));
     pty_chr_timer_cancel(s);
-    qemu_mutex_unlock(&chr->chr_write_lock);
     qemu_chr_be_event(chr, CHR_EVENT_CLOSED);
 }
 
