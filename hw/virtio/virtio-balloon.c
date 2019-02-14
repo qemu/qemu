@@ -35,9 +35,8 @@
 
 static void balloon_page(void *addr, int deflate)
 {
-    if (!qemu_balloon_is_inhibited()) {
-        qemu_madvise(addr, BALLOON_PAGE_SIZE,
-                deflate ? QEMU_MADV_WILLNEED : QEMU_MADV_DONTNEED);
+    if (!qemu_balloon_is_inhibited() && !deflate) {
+        qemu_madvise(addr, BALLOON_PAGE_SIZE, QEMU_MADV_DONTNEED);
     }
 }
 
