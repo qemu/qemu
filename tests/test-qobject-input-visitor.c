@@ -1271,7 +1271,6 @@ static void test_visitor_in_qmp_introspect(TestInputVisitorData *data,
                                            const void *unused)
 {
     do_test_visitor_in_qmp_introspect(data, &test_qmp_schema_qlit);
-    do_test_visitor_in_qmp_introspect(data, &qmp_schema_qlit);
 }
 
 int main(int argc, char **argv)
