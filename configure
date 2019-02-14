@@ -6590,7 +6590,7 @@ if test "$vhost_scsi" = "yes" ; then
   echo "CONFIG_VHOST_SCSI=y" >> $config_host_mak
 fi
 if test "$vhost_net" = "yes" && test "$vhost_user" = "yes"; then
-  echo "CONFIG_VHOST_NET_USED=y" >> $config_host_mak
+  echo "CONFIG_VHOST_NET_USER=y" >> $config_host_mak
 fi
 if test "$vhost_crypto" = "yes" ; then
   echo "CONFIG_VHOST_CRYPTO=y" >> $config_host_mak
