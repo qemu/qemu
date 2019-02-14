@@ -1410,6 +1410,8 @@ Example:
 
     extern const QEnumLookup example_QAPIEvent_lookup;
 
+    void example_qapi_event_emit(example_QAPIEvent event, QDict *qdict);
+
     #endif /* EXAMPLE_QAPI_EVENTS_H */
     $ cat qapi-generated/example-qapi-events.c
 [Uninteresting stuff omitted...]
