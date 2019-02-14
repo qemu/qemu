@@ -193,7 +193,9 @@ void %(event_emit)s(%(event_enum)s event, QDict *qdict);
             self._genc.add(gen_event_send(name, arg_type, boxed,
                                           self._event_enum_name,
                                           self._event_emit_name))
-        self._event_enum_members.append(QAPISchemaMember(name, ifcond))
+        # Note: we generate the enum member regardless of @ifcond, to
+        # keep the enumeration usable in target-independent code.
+        self._event_enum_members.append(QAPISchemaMember(name))
 
 
 def gen_events(schema, output_dir, prefix):
