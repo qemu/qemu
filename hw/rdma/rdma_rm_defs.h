@@ -85,7 +85,7 @@ typedef struct RdmaRmPort {
     enum ibv_port_state state;
 } RdmaRmPort;
 
-typedef struct RdmaDeviceResources {
+struct RdmaDeviceResources {
     RdmaRmPort ports[MAX_PORTS];
     RdmaRmResTbl pd_tbl;
     RdmaRmResTbl mr_tbl;
@@ -94,6 +94,6 @@ typedef struct RdmaDeviceResources {
     RdmaRmResTbl cq_tbl;
     RdmaRmResTbl cqe_ctx_tbl;
     GHashTable *qp_hash; /* Keeps mapping between real and emulated */
-} RdmaDeviceResources;
+};
 
 #endif
