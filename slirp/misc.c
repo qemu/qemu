@@ -98,16 +98,16 @@ slirp_socketpair_with_oob(int sv[2])
         goto err;
     }
 
-    slirp_closesocket(s);
+    closesocket(s);
     return 0;
 
 err:
     g_critical("slirp_socketpair(): %s", strerror(errno));
     if (s >= 0) {
-        slirp_closesocket(s);
+        closesocket(s);
     }
     if (sv[1] >= 0) {
-        slirp_closesocket(sv[1]);
+        closesocket(sv[1]);
     }
     return -1;
 }
@@ -211,16 +211,16 @@ fork_exec(struct socket *so, const char *ex)
     if (err) {
         g_critical("fork_exec: %s", err->message);
         g_error_free(err);
-        slirp_closesocket(sp[0]);
-        slirp_closesocket(sp[1]);
+        closesocket(sp[0]);
+        closesocket(sp[1]);
         return 0;
     }
 
     so->s = sp[0];
-    slirp_closesocket(sp[1]);
+    closesocket(sp[1]);
     slirp_socket_set_fast_reuse(so->s);
     opt = 1;
-    slirp_setsockopt(so->s, SOL_SOCKET, SO_OOBINLINE, &opt, sizeof(int));
+    setsockopt(so->s, SOL_SOCKET, SO_OOBINLINE, &opt, sizeof(int));
     slirp_set_nonblock(so->s);
     so->slirp->cb->register_poll_fd(so->s, so->slirp->opaque);
     return 1;
