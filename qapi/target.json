@@ -275,6 +275,9 @@
 #          an unknown cpu definition name, unknown properties or properties
 #          with wrong types.
 #
+# Note: this command isn't specific to s390x, but is only implemented
+# on this architecture currently.
+#
 # Since: 2.8.0
 ##
 { 'command': 'query-cpu-model-comparison',
@@ -314,6 +317,9 @@
 #          not supported, if a model cannot be used, if a model contains
 #          an unknown cpu definition name, unknown properties or properties
 #          with wrong types.
+#
+# Note: this command isn't specific to s390x, but is only implemented
+# on this architecture currently.
 #
 # Since: 2.8.0
 ##
