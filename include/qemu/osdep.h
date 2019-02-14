@@ -571,6 +571,19 @@ void os_mem_prealloc(int fd, char *area, size_t sz, int smp_cpus,
                      Error **errp);
 
 /**
+ * qemu_get_pmem_size:
+ * @filename: path to a pmem file
+ * @errp: pointer to a NULL-initialized error object
+ *
+ * Determine the size of a persistent memory file.  Besides supporting files on
+ * DAX file systems, this function also supports Linux devdax character
+ * devices.
+ *
+ * Returns: the size or 0 on failure
+ */
+uint64_t qemu_get_pmem_size(const char *filename, Error **errp);
+
+/**
  * qemu_get_pid_name:
  * @pid: pid of a process
  *
