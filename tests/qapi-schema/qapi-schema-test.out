@@ -1,3 +1,4 @@
+module None
 object q_empty
 enum QType
     prefix QTYPE

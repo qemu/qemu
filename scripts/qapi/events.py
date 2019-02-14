@@ -142,7 +142,7 @@ class QAPISchemaGenEventVisitor(QAPISchemaModularCVisitor):
         self._event_enum_members = []
         self._event_emit_name = c_name(prefix + 'qapi_event_emit')
 
-    def _begin_module(self, name):
+    def _begin_user_module(self, name):
         types = self._module_basename('qapi-types', name)
         visit = self._module_basename('qapi-visit', name)
         self._genc.add(mcgen('''
