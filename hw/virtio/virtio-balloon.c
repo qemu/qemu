@@ -33,11 +33,12 @@
 
 #define BALLOON_PAGE_SIZE  (1 << VIRTIO_BALLOON_PFN_SHIFT)
 
-static void balloon_page(void *addr, int deflate)
+static void balloon_inflate_page(VirtIOBalloon *balloon,
+                                 MemoryRegion *mr, hwaddr offset)
 {
-    if (!qemu_balloon_is_inhibited() && !deflate) {
-        qemu_madvise(addr, BALLOON_PAGE_SIZE, QEMU_MADV_DONTNEED);
-    }
+    void *addr = memory_region_get_ram_ptr(mr) + offset;
+
+    qemu_madvise(addr, BALLOON_PAGE_SIZE, QEMU_MADV_DONTNEED);
 }
 
 static const char *balloon_stat_names[] = {
@@ -222,7 +223,6 @@ static void virtio_balloon_handle_output(VirtIODevice *vdev, VirtQueue *vq)
 
         while (iov_to_buf(elem->out_sg, elem->out_num, offset, &pfn, 4) == 4) {
             hwaddr pa;
-            hwaddr addr;
             int p = virtio_ldl_p(vdev, &pfn);
 
             pa = (hwaddr) p << VIRTIO_BALLOON_PFN_SHIFT;
@@ -244,11 +244,9 @@ static void virtio_balloon_handle_output(VirtIODevice *vdev, VirtQueue *vq)
 
             trace_virtio_balloon_handle_output(memory_region_name(section.mr),
                                                pa);
-            /* Using memory_region_get_ram_ptr is bending the rules a bit, but
-               should be OK because we only want a single page.  */
-            addr = section.offset_within_region;
-            balloon_page(memory_region_get_ram_ptr(section.mr) + addr,
-                         !!(vq == s->dvq));
+            if (!qemu_balloon_is_inhibited() && vq != s->dvq) {
+                balloon_inflate_page(s, section.mr, section.offset_within_region);
+            }
             memory_region_unref(section.mr);
         }
 
