@@ -80,6 +80,9 @@ static TCGv_i32 cpu_pc;
 static TCGv_i32 cpu_R[16];
 static TCGv_i32 cpu_FR[16];
 static TCGv_i32 cpu_MR[4];
+static TCGv_i32 cpu_BR[16];
+static TCGv_i32 cpu_BR4[4];
+static TCGv_i32 cpu_BR8[2];
 static TCGv_i32 cpu_SR[256];
 static TCGv_i32 cpu_UR[256];
 static TCGv_i32 cpu_windowbase_next;
@@ -227,6 +230,12 @@ void xtensa_translate_init(void)
     static const char * const mregnames[] = {
         "m0", "m1", "m2", "m3",
     };
+    static const char * const bregnames[] = {
+        "b0", "b1", "b2", "b3",
+        "b4", "b5", "b6", "b7",
+        "b8", "b9", "b10", "b11",
+        "b12", "b13", "b14", "b15",
+    };
     int i;
 
     cpu_pc = tcg_global_mem_new_i32(cpu_env,
@@ -250,6 +259,25 @@ void xtensa_translate_init(void)
                                            offsetof(CPUXtensaState,
                                                     sregs[MR + i]),
                                            mregnames[i]);
+    }
+
+    for (i = 0; i < 16; i++) {
+        cpu_BR[i] = tcg_global_mem_new_i32(cpu_env,
+                                           offsetof(CPUXtensaState,
+                                                    sregs[BR]),
+                                           bregnames[i]);
+        if (i % 4 == 0) {
+            cpu_BR4[i / 4] = tcg_global_mem_new_i32(cpu_env,
+                                                    offsetof(CPUXtensaState,
+                                                             sregs[BR]),
+                                                    bregnames[i]);
+        }
+        if (i % 8 == 0) {
+            cpu_BR8[i / 8] = tcg_global_mem_new_i32(cpu_env,
+                                                    offsetof(CPUXtensaState,
+                                                             sregs[BR]),
+                                                    bregnames[i]);
+        }
     }
 
     for (i = 0; i < 256; ++i) {
@@ -284,6 +312,12 @@ void **xtensa_get_regfile_by_name(const char *name)
                             (void *)"MR", (void *)cpu_MR);
         g_hash_table_insert(xtensa_regfile_table,
                             (void *)"FR", (void *)cpu_FR);
+        g_hash_table_insert(xtensa_regfile_table,
+                            (void *)"BR", (void *)cpu_BR);
+        g_hash_table_insert(xtensa_regfile_table,
+                            (void *)"BR4", (void *)cpu_BR4);
+        g_hash_table_insert(xtensa_regfile_table,
+                            (void *)"BR8", (void *)cpu_BR8);
     }
     return (void **)g_hash_table_lookup(xtensa_regfile_table, (void *)name);
 }
@@ -1584,14 +1618,14 @@ static void translate_all(DisasContext *dc, const OpcodeArg arg[],
     TCGv_i32 mask = tcg_const_i32(((1 << shift) - 1) << arg[1].imm);
     TCGv_i32 tmp = tcg_temp_new_i32();
 
-    tcg_gen_and_i32(tmp, cpu_SR[BR], mask);
+    tcg_gen_and_i32(tmp, arg[1].in, mask);
     if (par[0]) {
         tcg_gen_addi_i32(tmp, tmp, 1 << arg[1].imm);
     } else {
         tcg_gen_add_i32(tmp, tmp, mask);
     }
     tcg_gen_shri_i32(tmp, tmp, arg[1].imm + shift);
-    tcg_gen_deposit_i32(cpu_SR[BR], cpu_SR[BR],
+    tcg_gen_deposit_i32(arg[0].out, arg[0].out,
                         tmp, arg[0].imm, 1);
     tcg_temp_free(mask);
     tcg_temp_free(tmp);
@@ -1695,10 +1729,10 @@ static void translate_boolean(DisasContext *dc, const OpcodeArg arg[],
     TCGv_i32 tmp1 = tcg_temp_new_i32();
     TCGv_i32 tmp2 = tcg_temp_new_i32();
 
-    tcg_gen_shri_i32(tmp1, cpu_SR[BR], arg[1].imm);
-    tcg_gen_shri_i32(tmp2, cpu_SR[BR], arg[2].imm);
+    tcg_gen_shri_i32(tmp1, arg[1].in, arg[1].imm);
+    tcg_gen_shri_i32(tmp2, arg[2].in, arg[2].imm);
     op[par[0]](tmp1, tmp1, tmp2);
-    tcg_gen_deposit_i32(cpu_SR[BR], cpu_SR[BR], tmp1, arg[0].imm, 1);
+    tcg_gen_deposit_i32(arg[0].out, arg[0].out, tmp1, arg[0].imm, 1);
     tcg_temp_free(tmp1);
     tcg_temp_free(tmp2);
 }
@@ -1708,7 +1742,7 @@ static void translate_bp(DisasContext *dc, const OpcodeArg arg[],
 {
     TCGv_i32 tmp = tcg_temp_new_i32();
 
-    tcg_gen_andi_i32(tmp, cpu_SR[BR], 1 << arg[0].imm);
+    tcg_gen_andi_i32(tmp, arg[0].in, 1 << arg[0].imm);
     gen_brcondi(dc, par[0], tmp, 0, arg[1].imm);
     tcg_temp_free(tmp);
 }
@@ -2075,7 +2109,7 @@ static void translate_movp(DisasContext *dc, const OpcodeArg arg[],
     TCGv_i32 zero = tcg_const_i32(0);
     TCGv_i32 tmp = tcg_temp_new_i32();
 
-    tcg_gen_andi_i32(tmp, cpu_SR[BR], 1 << arg[2].imm);
+    tcg_gen_andi_i32(tmp, arg[2].in, 1 << arg[2].imm);
     tcg_gen_movcond_i32(par[0],
                         arg[0].out, tmp, zero,
                         arg[1].in, arg[0].in);
@@ -5297,7 +5331,7 @@ static void translate_movp_s(DisasContext *dc, const OpcodeArg arg[],
     TCGv_i32 zero = tcg_const_i32(0);
     TCGv_i32 tmp = tcg_temp_new_i32();
 
-    tcg_gen_andi_i32(tmp, cpu_SR[BR], 1 << arg[2].imm);
+    tcg_gen_andi_i32(tmp, arg[2].in, 1 << arg[2].imm);
     tcg_gen_movcond_i32(par[0],
                         arg[0].out, tmp, zero,
                         arg[1].in, arg[0].in);
