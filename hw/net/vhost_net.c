@@ -18,14 +18,13 @@
 #include "net/tap.h"
 #include "net/vhost-user.h"
 
+#include "standard-headers/linux/vhost_types.h"
 #include "hw/virtio/virtio-net.h"
 #include "net/vhost_net.h"
 #include "qemu/error-report.h"
 
 
-#include <linux/vhost.h>
 #include <sys/socket.h>
-#include <linux/kvm.h>
 #include <netpacket/packet.h>
 #include <net/ethernet.h>
 #include <net/if.h>

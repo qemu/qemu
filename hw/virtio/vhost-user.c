@@ -27,8 +27,12 @@
 #include <sys/ioctl.h>
 #include <sys/socket.h>
 #include <sys/un.h>
-#include <linux/vhost.h>
+
+#include "standard-headers/linux/vhost_types.h"
+
+#ifdef CONFIG_LINUX
 #include <linux/userfaultfd.h>
+#endif
 
 #define VHOST_MEMORY_MAX_NREGIONS    8
 #define VHOST_USER_F_PROTOCOL_FEATURES 30
@@ -1110,6 +1114,7 @@ out:
     return ret;
 }
 
+#ifdef CONFIG_LINUX
 /*
  * Called back from the postcopy fault thread when a fault is received on our
  * ufd.
@@ -1177,6 +1182,7 @@ static int vhost_user_postcopy_waker(struct PostCopyFD *pcfd, RAMBlock *rb,
     trace_vhost_user_postcopy_waker_nomatch(qemu_ram_get_idstr(rb), offset);
     return 0;
 }
+#endif
 
 /*
  * Called at the start of an inbound postcopy on reception of the
@@ -1184,6 +1190,7 @@ static int vhost_user_postcopy_waker(struct PostCopyFD *pcfd, RAMBlock *rb,
  */
 static int vhost_user_postcopy_advise(struct vhost_dev *dev, Error **errp)
 {
+#ifdef CONFIG_LINUX
     struct vhost_user *u = dev->opaque;
     CharBackend *chr = u->user->chr;
     int ufd;
@@ -1227,6 +1234,10 @@ static int vhost_user_postcopy_advise(struct vhost_dev *dev, Error **errp)
     u->postcopy_fd.idstr = "vhost-user"; /* Need to find unique name */
     postcopy_register_shared_ufd(&u->postcopy_fd);
     return 0;
+#else
+    error_setg(errp, "Postcopy not supported on non-Linux systems");
+    return -1;
+#endif
 }
 
 /*
