@@ -27,10 +27,13 @@
 #include "libqos/malloc-pc.h"
 #include "hw/virtio/virtio-net.h"
 
-#include <linux/vhost.h>
-#include <linux/virtio_ids.h>
-#include <linux/virtio_net.h>
+#include "standard-headers/linux/vhost_types.h"
+#include "standard-headers/linux/virtio_ids.h"
+#include "standard-headers/linux/virtio_net.h"
+
+#ifdef CONFIG_LINUX
 #include <sys/vfs.h>
+#endif
 
 
 #define QEMU_CMD_MEM    " -m %d -object memory-backend-file,id=mem,size=%dM," \
@@ -459,6 +462,7 @@ static void chr_read(void *opaque, const uint8_t *buf, int size)
     g_mutex_unlock(&s->data_mutex);
 }
 
+#ifdef CONFIG_LINUX
 static const char *init_hugepagefs(const char *path)
 {
     struct statfs fs;
@@ -485,6 +489,7 @@ static const char *init_hugepagefs(const char *path)
 
     return path;
 }
+#endif
 
 static TestServer *test_server_new(const gchar *name)
 {
@@ -983,13 +988,14 @@ int main(int argc, char **argv)
     }
     g_assert(tmpfs);
 
+    root = tmpfs;
+#ifdef CONFIG_LINUX
     hugefs = getenv("QTEST_HUGETLBFS_PATH");
     if (hugefs) {
         root = init_hugepagefs(hugefs);
         g_assert(root);
-    } else {
-        root = tmpfs;
     }
+#endif
 
     loop = g_main_loop_new(NULL, FALSE);
     /* run the main loop thread so the chardev may operate */

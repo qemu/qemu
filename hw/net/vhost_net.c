@@ -25,8 +25,6 @@
 
 
 #include <sys/socket.h>
-#include <netpacket/packet.h>
-#include <net/ethernet.h>
 #include <net/if.h>
 #include <netinet/in.h>
 
@@ -134,7 +132,7 @@ static int vhost_net_get_fd(NetClientState *backend)
         return tap_get_fd(backend);
     default:
         fprintf(stderr, "vhost-net requires tap backend\n");
-        return -EBADFD;
+        return -ENOSYS;
     }
 }
 
