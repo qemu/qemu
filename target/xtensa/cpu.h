@@ -390,6 +390,10 @@ enum {
     XTENSA_OP_NAME_ARRAY = 0x8000,
 
     XTENSA_OP_CONTROL_FLOW = 0x10000,
+    XTENSA_OP_STORE = 0x20000,
+    XTENSA_OP_LOAD = 0x40000,
+    XTENSA_OP_LOAD_STORE =
+        XTENSA_OP_LOAD | XTENSA_OP_STORE,
 };
 
 typedef struct XtensaOpcodeOps {

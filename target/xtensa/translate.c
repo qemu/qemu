@@ -986,6 +986,10 @@ static bool op_depends_on(const struct slot_prop *a,
     if (a->op_flags & XTENSA_OP_CONTROL_FLOW) {
         return true;
     }
+    if ((a->op_flags & XTENSA_OP_LOAD_STORE) <
+        (b->op_flags & XTENSA_OP_LOAD_STORE)) {
+        return true;
+    }
     while (i < a->n_out && j < b->n_in) {
         if (a->out[i].resource < b->in[j].resource) {
             ++i;
@@ -1015,6 +1019,10 @@ static bool break_dependency(struct slot_prop *a,
     bool rv = false;
 
     if (a->op_flags & XTENSA_OP_CONTROL_FLOW) {
+        return false;
+    }
+    if ((a->op_flags & XTENSA_OP_LOAD_STORE) <
+        (b->op_flags & XTENSA_OP_LOAD_STORE)) {
         return false;
     }
     while (i < a->n_out && j < b->n_in) {
@@ -1293,7 +1301,7 @@ static void disas_xtensa_insn(CPUXtensaState *env, DisasContext *dc)
         if (slots > 1) {
             slot_prop[slot].n_in = 0;
             slot_prop[slot].n_out = 0;
-            slot_prop[slot].op_flags = 0;
+            slot_prop[slot].op_flags = ops->op_flags & XTENSA_OP_LOAD_STORE;
 
             opnds = xtensa_opcode_num_operands(isa, opc);
 
@@ -3223,40 +3231,47 @@ static const XtensaOpcodeOps core_ops[] = {
         .name = "l16si",
         .translate = translate_ldst,
         .par = (const uint32_t[]){MO_TESW, false, false},
+        .op_flags = XTENSA_OP_LOAD,
     }, {
         .name = "l16ui",
         .translate = translate_ldst,
         .par = (const uint32_t[]){MO_TEUW, false, false},
+        .op_flags = XTENSA_OP_LOAD,
     }, {
         .name = "l32ai",
         .translate = translate_ldst,
         .par = (const uint32_t[]){MO_TEUL, true, false},
+        .op_flags = XTENSA_OP_LOAD,
     }, {
         .name = "l32e",
         .translate = translate_l32e,
-        .op_flags = XTENSA_OP_PRIVILEGED,
+        .op_flags = XTENSA_OP_PRIVILEGED | XTENSA_OP_LOAD,
     }, {
         .name = (const char * const[]) {
             "l32i", "l32i.n", NULL,
         },
         .translate = translate_ldst,
         .par = (const uint32_t[]){MO_TEUL, false, false},
-        .op_flags = XTENSA_OP_NAME_ARRAY,
+        .op_flags = XTENSA_OP_NAME_ARRAY | XTENSA_OP_LOAD,
     }, {
         .name = "l32r",
         .translate = translate_l32r,
+        .op_flags = XTENSA_OP_LOAD,
     }, {
         .name = "l8ui",
         .translate = translate_ldst,
         .par = (const uint32_t[]){MO_UB, false, false},
+        .op_flags = XTENSA_OP_LOAD,
     }, {
         .name = "lddec",
         .translate = translate_mac16,
         .par = (const uint32_t[]){MAC16_NONE, 0, -4},
+        .op_flags = XTENSA_OP_LOAD,
     }, {
         .name = "ldinc",
         .translate = translate_mac16,
         .par = (const uint32_t[]){MAC16_NONE, 0, 4},
+        .op_flags = XTENSA_OP_LOAD,
     }, {
         .name = "ldpte",
         .op_flags = XTENSA_OP_ILL,
@@ -4214,28 +4229,32 @@ static const XtensaOpcodeOps core_ops[] = {
         .name = "s16i",
         .translate = translate_ldst,
         .par = (const uint32_t[]){MO_TEUW, false, true},
+        .op_flags = XTENSA_OP_STORE,
     }, {
         .name = "s32c1i",
         .translate = translate_s32c1i,
+        .op_flags = XTENSA_OP_LOAD | XTENSA_OP_STORE,
     }, {
         .name = "s32e",
         .translate = translate_s32e,
-        .op_flags = XTENSA_OP_PRIVILEGED,
+        .op_flags = XTENSA_OP_PRIVILEGED | XTENSA_OP_STORE,
     }, {
         .name = (const char * const[]) {
             "s32i", "s32i.n", "s32nb", NULL,
         },
         .translate = translate_ldst,
         .par = (const uint32_t[]){MO_TEUL, false, true},
-        .op_flags = XTENSA_OP_NAME_ARRAY,
+        .op_flags = XTENSA_OP_NAME_ARRAY | XTENSA_OP_STORE,
     }, {
         .name = "s32ri",
         .translate = translate_ldst,
         .par = (const uint32_t[]){MO_TEUL, true, true},
+        .op_flags = XTENSA_OP_STORE,
     }, {
         .name = "s8i",
         .translate = translate_ldst,
         .par = (const uint32_t[]){MO_UB, false, true},
+        .op_flags = XTENSA_OP_STORE,
     }, {
         .name = "salt",
         .translate = translate_salt,
@@ -5525,21 +5544,25 @@ static const XtensaOpcodeOps fpu2000_ops[] = {
         .name = "lsi",
         .translate = translate_ldsti,
         .par = (const uint32_t[]){false, false},
+        .op_flags = XTENSA_OP_LOAD,
         .coprocessor = 0x1,
     }, {
         .name = "lsiu",
         .translate = translate_ldsti,
         .par = (const uint32_t[]){false, true},
+        .op_flags = XTENSA_OP_LOAD,
         .coprocessor = 0x1,
     }, {
         .name = "lsx",
         .translate = translate_ldstx,
         .par = (const uint32_t[]){false, false},
+        .op_flags = XTENSA_OP_LOAD,
         .coprocessor = 0x1,
     }, {
         .name = "lsxu",
         .translate = translate_ldstx,
         .par = (const uint32_t[]){false, true},
+        .op_flags = XTENSA_OP_LOAD,
         .coprocessor = 0x1,
     }, {
         .name = "madd.s",
@@ -5619,21 +5642,25 @@ static const XtensaOpcodeOps fpu2000_ops[] = {
         .name = "ssi",
         .translate = translate_ldsti,
         .par = (const uint32_t[]){true, false},
+        .op_flags = XTENSA_OP_STORE,
         .coprocessor = 0x1,
     }, {
         .name = "ssiu",
         .translate = translate_ldsti,
         .par = (const uint32_t[]){true, true},
+        .op_flags = XTENSA_OP_STORE,
         .coprocessor = 0x1,
     }, {
         .name = "ssx",
         .translate = translate_ldstx,
         .par = (const uint32_t[]){true, false},
+        .op_flags = XTENSA_OP_STORE,
         .coprocessor = 0x1,
     }, {
         .name = "ssxu",
         .translate = translate_ldstx,
         .par = (const uint32_t[]){true, true},
+        .op_flags = XTENSA_OP_STORE,
         .coprocessor = 0x1,
     }, {
         .name = "sub.s",
