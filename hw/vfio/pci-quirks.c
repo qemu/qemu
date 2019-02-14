@@ -526,8 +526,6 @@ static void vfio_probe_ati_bar2_quirk(VFIOPCIDevice *vdev, int nr)
  * note it for future reference.
  */
 
-#define PCI_VENDOR_ID_NVIDIA                    0x10de
-
 /*
  * Nvidia has several different methods to get to config space, the
  * nouveu project has several of these documented here:
