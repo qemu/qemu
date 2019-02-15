@@ -125,17 +125,42 @@ static void not_implemented(void)
 
 static bool blacklisted(unsigned op, int rmode)
 {
-    /* odd has only been implemented for a few 128-bit ops */
+    /* odd has not been implemented for any 80-bit ops */
     if (rmode == softfloat_round_odd) {
         switch (op) {
-        case F128_ADD:
-        case F128_SUB:
-        case F128_MUL:
-        case F128_DIV:
-        case F128_TO_F64:
-        case F128_SQRT:
-            return false;
-        default:
+        case EXTF80_TO_UI32:
+        case EXTF80_TO_UI64:
+        case EXTF80_TO_I32:
+        case EXTF80_TO_I64:
+        case EXTF80_TO_UI32_R_MINMAG:
+        case EXTF80_TO_UI64_R_MINMAG:
+        case EXTF80_TO_I32_R_MINMAG:
+        case EXTF80_TO_I64_R_MINMAG:
+        case EXTF80_TO_F16:
+        case EXTF80_TO_F32:
+        case EXTF80_TO_F64:
+        case EXTF80_TO_F128:
+        case EXTF80_ROUNDTOINT:
+        case EXTF80_ADD:
+        case EXTF80_SUB:
+        case EXTF80_MUL:
+        case EXTF80_DIV:
+        case EXTF80_REM:
+        case EXTF80_SQRT:
+        case EXTF80_EQ:
+        case EXTF80_LE:
+        case EXTF80_LT:
+        case EXTF80_EQ_SIGNALING:
+        case EXTF80_LE_QUIET:
+        case EXTF80_LT_QUIET:
+        case UI32_TO_EXTF80:
+        case UI64_TO_EXTF80:
+        case I32_TO_EXTF80:
+        case I64_TO_EXTF80:
+        case F16_TO_EXTF80:
+        case F32_TO_EXTF80:
+        case F64_TO_EXTF80:
+        case F128_TO_EXTF80:
             return true;
         }
     }
