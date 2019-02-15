@@ -4094,6 +4094,17 @@ static HotplugHandler *spapr_get_hotplug_handler(MachineState *machine,
         object_dynamic_cast(OBJECT(dev), TYPE_SPAPR_PCI_HOST_BRIDGE)) {
         return HOTPLUG_HANDLER(machine);
     }
+    if (object_dynamic_cast(OBJECT(dev), TYPE_PCI_DEVICE)) {
+        PCIDevice *pcidev = PCI_DEVICE(dev);
+        PCIBus *root = pci_device_root_bus(pcidev);
+        SpaprPhbState *phb =
+            (SpaprPhbState *)object_dynamic_cast(OBJECT(BUS(root)->parent),
+                                                 TYPE_SPAPR_PCI_HOST_BRIDGE);
+
+        if (phb) {
+            return HOTPLUG_HANDLER(phb);
+        }
+    }
     return NULL;
 }
 
