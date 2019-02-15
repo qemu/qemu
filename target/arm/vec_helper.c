@@ -638,6 +638,7 @@ void HELPER(NAME)(void *vd, void *vn, void *stat, uint32_t desc)  \
     for (i = 0; i < oprsz / sizeof(TYPE); i++) {                  \
         d[i] = FUNC(n[i], stat);                                  \
     }                                                             \
+    clear_tail(d, oprsz, simd_maxsz(desc));                       \
 }
 
 DO_2OP(gvec_frecpe_h, helper_recpe_f16, float16)
@@ -688,6 +689,7 @@ void HELPER(NAME)(void *vd, void *vn, void *vm, void *stat, uint32_t desc) \
     for (i = 0; i < oprsz / sizeof(TYPE); i++) {                           \
         d[i] = FUNC(n[i], m[i], stat);                                     \
     }                                                                      \
+    clear_tail(d, oprsz, simd_maxsz(desc));                                \
 }
 
 DO_3OP(gvec_fadd_h, float16_add, float16)
