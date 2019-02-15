@@ -113,6 +113,8 @@ enum powerpc_excp_t {
     POWERPC_EXCP_POWER7,
     /* POWER8 exception model           */
     POWERPC_EXCP_POWER8,
+    /* POWER9 exception model           */
+    POWERPC_EXCP_POWER9,
 };
 
 /*****************************************************************************/
