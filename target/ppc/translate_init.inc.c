@@ -601,10 +601,9 @@ static void spr_write_excp_vector(DisasContext *ctx, int sprn, int gprn)
 
 static inline void vscr_init(CPUPPCState *env, uint32_t val)
 {
-    env->vscr = val;
     /* Altivec always uses round-to-nearest */
     set_float_rounding_mode(float_round_nearest_even, &env->vec_status);
-    set_flush_to_zero(vscr_nj, &env->vec_status);
+    helper_mtvscr(env, val);
 }
 
 #ifdef CONFIG_USER_ONLY
@@ -9603,7 +9602,7 @@ static int gdb_set_avr_reg(CPUPPCState *env, uint8_t *mem_buf, int n)
     }
     if (n == 32) {
         ppc_maybe_bswap_register(env, mem_buf, 4);
-        env->vscr = ldl_p(mem_buf);
+        helper_mtvscr(env, ldl_p(mem_buf));
         return 4;
     }
     if (n == 33) {
