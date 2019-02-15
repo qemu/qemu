@@ -5273,10 +5273,6 @@ void bdrv_set_aio_context(BlockDriverState *bs, AioContext *new_context)
     bdrv_parent_drained_begin(bs, NULL, false);
     bdrv_drain(bs); /* ensure there are no in-flight requests */
 
-    while (aio_poll(ctx, false)) {
-        /* wait for all bottom halves to execute */
-    }
-
     bdrv_detach_aio_context(bs);
 
     /* This function executes in the old AioContext so acquire the new one in
