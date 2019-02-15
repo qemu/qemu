@@ -109,12 +109,9 @@ struct ICSStateClass {
     DeviceRealize parent_realize;
     DeviceReset parent_reset;
 
-    void (*pre_save)(ICSState *s);
-    int (*post_load)(ICSState *s, int version_id);
     void (*reject)(ICSState *s, uint32_t irq);
     void (*resend)(ICSState *s);
     void (*eoi)(ICSState *s, uint32_t irq);
-    void (*synchronize_state)(ICSState *s);
 };
 
 struct ICSState {
@@ -200,5 +197,9 @@ void icp_get_kvm_state(ICPState *icp);
 int icp_set_kvm_state(ICPState *icp);
 void icp_synchronize_state(ICPState *icp);
 void icp_kvm_realize(DeviceState *dev, Error **errp);
+
+void ics_get_kvm_state(ICSState *ics);
+int ics_set_kvm_state(ICSState *ics);
+void ics_synchronize_state(ICSState *ics);
 
 #endif /* XICS_H */

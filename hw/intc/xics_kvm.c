@@ -155,7 +155,7 @@ void icp_kvm_realize(DeviceState *dev, Error **errp)
 /*
  * ICS-KVM
  */
-static void ics_get_kvm_state(ICSState *ics)
+void ics_get_kvm_state(ICSState *ics)
 {
     uint64_t state;
     int i;
@@ -208,12 +208,12 @@ static void ics_get_kvm_state(ICSState *ics)
     }
 }
 
-static void ics_synchronize_state(ICSState *ics)
+void ics_synchronize_state(ICSState *ics)
 {
     ics_get_kvm_state(ics);
 }
 
-static int ics_set_kvm_state(ICSState *ics, int version_id)
+int ics_set_kvm_state(ICSState *ics)
 {
     uint64_t state;
     int i;
@@ -286,7 +286,7 @@ static void ics_kvm_reset(DeviceState *dev)
 
     icsc->parent_reset(dev);
 
-    ics_set_kvm_state(ICS_KVM(dev), 1);
+    ics_set_kvm_state(ICS_KVM(dev));
 }
 
 static void ics_kvm_reset_handler(void *dev)
@@ -318,10 +318,6 @@ static void ics_kvm_class_init(ObjectClass *klass, void *data)
                                     &icsc->parent_realize);
     device_class_set_parent_reset(dc, ics_kvm_reset,
                                   &icsc->parent_reset);
-
-    icsc->pre_save = ics_get_kvm_state;
-    icsc->post_load = ics_set_kvm_state;
-    icsc->synchronize_state = ics_synchronize_state;
 }
 
 static const TypeInfo ics_kvm_info = {

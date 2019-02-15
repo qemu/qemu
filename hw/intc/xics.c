@@ -58,7 +58,6 @@ void icp_pic_print_info(ICPState *icp, Monitor *mon)
 
 void ics_pic_print_info(ICSState *ics, Monitor *mon)
 {
-    ICSStateClass *icsc = ICS_BASE_GET_CLASS(ics);
     uint32_t i;
 
     monitor_printf(mon, "ICS %4x..%4x %p\n",
@@ -68,8 +67,8 @@ void ics_pic_print_info(ICSState *ics, Monitor *mon)
         return;
     }
 
-    if (icsc->synchronize_state) {
-        icsc->synchronize_state(ics);
+    if (kvm_irqchip_in_kernel()) {
+        ics_synchronize_state(ics);
     }
 
     for (i = 0; i < ics->nr_irqs; i++) {
@@ -647,25 +646,23 @@ static void ics_base_instance_init(Object *obj)
     ics->offset = XICS_IRQ_BASE;
 }
 
-static int ics_base_dispatch_pre_save(void *opaque)
+static int ics_base_pre_save(void *opaque)
 {
     ICSState *ics = opaque;
-    ICSStateClass *info = ICS_BASE_GET_CLASS(ics);
 
-    if (info->pre_save) {
-        info->pre_save(ics);
+    if (kvm_irqchip_in_kernel()) {
+        ics_get_kvm_state(ics);
     }
 
     return 0;
 }
 
-static int ics_base_dispatch_post_load(void *opaque, int version_id)
+static int ics_base_post_load(void *opaque, int version_id)
 {
     ICSState *ics = opaque;
-    ICSStateClass *info = ICS_BASE_GET_CLASS(ics);
 
-    if (info->post_load) {
-        return info->post_load(ics, version_id);
+    if (kvm_irqchip_in_kernel()) {
+        return ics_set_kvm_state(ics);
     }
 
     return 0;
@@ -689,8 +686,8 @@ static const VMStateDescription vmstate_ics_base = {
     .name = "ics",
     .version_id = 1,
     .minimum_version_id = 1,
-    .pre_save = ics_base_dispatch_pre_save,
-    .post_load = ics_base_dispatch_post_load,
+    .pre_save = ics_base_pre_save,
+    .post_load = ics_base_post_load,
     .fields = (VMStateField[]) {
         /* Sanity check */
         VMSTATE_UINT32_EQUAL(nr_irqs, ICSState, NULL),
