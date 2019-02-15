@@ -563,6 +563,7 @@ static void smbios_build_type_3_table(void)
     t->height = 0;
     t->number_of_power_cords = 0;
     t->contained_element_count = 0;
+    t->contained_element_record_length = 0;
     SMBIOS_TABLE_SET_STR(3, sku_number_str, type3.sku);
 
     SMBIOS_BUILD_TABLE_POST;
