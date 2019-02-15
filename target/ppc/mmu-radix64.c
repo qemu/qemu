@@ -31,10 +31,26 @@
 static bool ppc_radix64_get_fully_qualified_addr(CPUPPCState *env, vaddr eaddr,
                                                  uint64_t *lpid, uint64_t *pid)
 {
-    /* We don't have HV support yet and shouldn't get here with it set anyway */
-    assert(!msr_hv);
-
-    if (!msr_hv) { /* !MSR[HV] -> Guest */
+    if (msr_hv) { /* MSR[HV] -> Hypervisor/bare metal */
+        switch (eaddr & R_EADDR_QUADRANT) {
+        case R_EADDR_QUADRANT0:
+            *lpid = 0;
+            *pid = env->spr[SPR_BOOKS_PID];
+            break;
+        case R_EADDR_QUADRANT1:
+            *lpid = env->spr[SPR_LPIDR];
+            *pid = env->spr[SPR_BOOKS_PID];
+            break;
+        case R_EADDR_QUADRANT2:
+            *lpid = env->spr[SPR_LPIDR];
+            *pid = 0;
+            break;
+        case R_EADDR_QUADRANT3:
+            *lpid = 0;
+            *pid = 0;
+            break;
+        }
+    } else {  /* !MSR[HV] -> Guest */
         switch (eaddr & R_EADDR_QUADRANT) {
         case R_EADDR_QUADRANT0: /* Guest application */
             *lpid = env->spr[SPR_LPIDR];
@@ -186,21 +202,32 @@ static uint64_t ppc_radix64_walk_tree(PowerPCCPU *cpu, vaddr eaddr,
                                  raddr, psize, fault_cause, pte_addr);
 }
 
+static bool validate_pate(PowerPCCPU *cpu, uint64_t lpid, ppc_v3_pate_t *pate)
+{
+    CPUPPCState *env = &cpu->env;
+
+    if (!(pate->dw0 & PATE0_HR)) {
+        return false;
+    }
+    if (lpid == 0 && !msr_hv) {
+        return false;
+    }
+    /* More checks ... */
+    return true;
+}
+
 int ppc_radix64_handle_mmu_fault(PowerPCCPU *cpu, vaddr eaddr, int rwx,
                                  int mmu_idx)
 {
     CPUState *cs = CPU(cpu);
     CPUPPCState *env = &cpu->env;
-    PPCVirtualHypervisorClass *vhc =
-        PPC_VIRTUAL_HYPERVISOR_GET_CLASS(cpu->vhyp);
+    PPCVirtualHypervisorClass *vhc;
     hwaddr raddr, pte_addr;
     uint64_t lpid = 0, pid = 0, offset, size, prtbe0, pte;
     int page_size, prot, fault_cause = 0;
     ppc_v3_pate_t pate;
 
     assert((rwx == 0) || (rwx == 1) || (rwx == 2));
-    assert(!msr_hv); /* For now there is no Radix PowerNV Support */
-    assert(cpu->vhyp);
     assert(ppc64_use_proc_tbl(cpu));
 
     /* Real Mode Access */
@@ -221,7 +248,23 @@ int ppc_radix64_handle_mmu_fault(PowerPCCPU *cpu, vaddr eaddr, int rwx,
     }
 
     /* Get Process Table */
-    vhc->get_pate(cpu->vhyp, &pate);
+    if (cpu->vhyp) {
+        vhc = PPC_VIRTUAL_HYPERVISOR_GET_CLASS(cpu->vhyp);
+        vhc->get_pate(cpu->vhyp, &pate);
+    } else {
+        if (!ppc64_v3_get_pate(cpu, lpid, &pate)) {
+            ppc_radix64_raise_si(cpu, rwx, eaddr, DSISR_NOPTE);
+            return 1;
+        }
+        if (!validate_pate(cpu, lpid, &pate)) {
+            ppc_radix64_raise_si(cpu, rwx, eaddr, DSISR_R_BADCONFIG);
+        }
+        /* We don't support guest mode yet */
+        if (lpid != 0) {
+            error_report("PowerNV guest support Unimplemented");
+            exit(1);
+       }
+    }
 
     /* Index Process Table by PID to Find Corresponding Process Table Entry */
     offset = pid * sizeof(struct prtb_entry);
@@ -256,8 +299,7 @@ hwaddr ppc_radix64_get_phys_page_debug(PowerPCCPU *cpu, target_ulong eaddr)
 {
     CPUState *cs = CPU(cpu);
     CPUPPCState *env = &cpu->env;
-    PPCVirtualHypervisorClass *vhc =
-        PPC_VIRTUAL_HYPERVISOR_GET_CLASS(cpu->vhyp);
+    PPCVirtualHypervisorClass *vhc;
     hwaddr raddr, pte_addr;
     uint64_t lpid = 0, pid = 0, offset, size, prtbe0, pte;
     int page_size, fault_cause = 0;
@@ -275,7 +317,22 @@ hwaddr ppc_radix64_get_phys_page_debug(PowerPCCPU *cpu, target_ulong eaddr)
     }
 
     /* Get Process Table */
-    vhc->get_pate(cpu->vhyp, &pate);
+    if (cpu->vhyp) {
+        vhc = PPC_VIRTUAL_HYPERVISOR_GET_CLASS(cpu->vhyp);
+        vhc->get_pate(cpu->vhyp, &pate);
+    } else {
+        if (!ppc64_v3_get_pate(cpu, lpid, &pate)) {
+            return -1;
+        }
+        if (!validate_pate(cpu, lpid, &pate)) {
+            return -1;
+        }
+        /* We don't support guest mode yet */
+        if (lpid != 0) {
+            error_report("PowerNV guest support Unimplemented");
+            exit(1);
+       }
+    }
 
     /* Index Process Table by PID to Find Corresponding Process Table Entry */
     offset = pid * sizeof(struct prtb_entry);
