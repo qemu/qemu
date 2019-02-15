@@ -13641,7 +13641,7 @@ void arm_cpu_dump_state(CPUState *cs, FILE *f, fprintf_function cpu_fprintf,
                         i * 2 + 1, (uint32_t)(v >> 32),
                         i, v);
         }
-        cpu_fprintf(f, "FPSCR: %08x\n", (int)env->vfp.xregs[ARM_VFP_FPSCR]);
+        cpu_fprintf(f, "FPSCR: %08x\n", vfp_get_fpscr(env));
     }
 }
 
