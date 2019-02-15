@@ -408,6 +408,11 @@ static void spr_write_pidr(DisasContext *ctx, int sprn, int gprn)
     gen_helper_store_pidr(cpu_env, cpu_gpr[gprn]);
 }
 
+static void spr_write_lpidr(DisasContext *ctx, int sprn, int gprn)
+{
+    gen_helper_store_lpidr(cpu_env, cpu_gpr[gprn]);
+}
+
 static void spr_read_hior(DisasContext *ctx, int gprn, int sprn)
 {
     tcg_gen_ld_tl(cpu_gpr[gprn], cpu_env, offsetof(CPUPPCState, excp_prefix));
@@ -7885,7 +7890,7 @@ static void gen_spr_book3s_ids(CPUPPCState *env)
     spr_register_hv(env, SPR_LPIDR, "LPIDR",
                  SPR_NOACCESS, SPR_NOACCESS,
                  SPR_NOACCESS, SPR_NOACCESS,
-                 &spr_read_generic, &spr_write_generic,
+                 &spr_read_generic, &spr_write_lpidr,
                  0x00000000);
     spr_register_hv(env, SPR_HFSCR, "HFSCR",
                  SPR_NOACCESS, SPR_NOACCESS,
