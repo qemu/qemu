@@ -65,7 +65,6 @@ struct ICPStateClass {
     DeviceClass parent_class;
 
     DeviceRealize parent_realize;
-    DeviceReset parent_reset;
 };
 
 struct ICPState {

@@ -115,15 +115,6 @@ int icp_set_kvm_state(ICPState *icp)
     return 0;
 }
 
-static void icp_kvm_reset(DeviceState *dev)
-{
-    ICPStateClass *icpc = ICP_GET_CLASS(dev);
-
-    icpc->parent_reset(dev);
-
-    icp_set_kvm_state(ICP(dev));
-}
-
 static void icp_kvm_realize(DeviceState *dev, Error **errp)
 {
     ICPState *icp = ICP(dev);
@@ -176,8 +167,6 @@ static void icp_kvm_class_init(ObjectClass *klass, void *data)
 
     device_class_set_parent_realize(dc, icp_kvm_realize,
                                     &icpc->parent_realize);
-    device_class_set_parent_reset(dc, icp_kvm_reset,
-                                  &icpc->parent_reset);
 }
 
 static const TypeInfo icp_kvm_info = {

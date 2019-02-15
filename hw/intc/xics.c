@@ -289,7 +289,7 @@ static const VMStateDescription vmstate_icp_server = {
     },
 };
 
-static void icp_reset(DeviceState *dev)
+static void icp_reset_handler(void *dev)
 {
     ICPState *icp = ICP(dev);
 
@@ -299,13 +299,10 @@ static void icp_reset(DeviceState *dev)
 
     /* Make all outputs are deasserted */
     qemu_set_irq(icp->output, 0);
-}
 
-static void icp_reset_handler(void *dev)
-{
-    DeviceClass *dc = DEVICE_GET_CLASS(dev);
-
-    dc->reset(dev);
+    if (kvm_irqchip_in_kernel()) {
+        icp_set_kvm_state(ICP(dev));
+    }
 }
 
 static void icp_realize(DeviceState *dev, Error **errp)
@@ -370,7 +367,6 @@ static void icp_class_init(ObjectClass *klass, void *data)
 
     dc->realize = icp_realize;
     dc->unrealize = icp_unrealize;
-    dc->reset = icp_reset;
 }
 
 static const TypeInfo icp_info = {
