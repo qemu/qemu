@@ -43,13 +43,17 @@ static inline bool ppc64_use_proc_tbl(PowerPCCPU *cpu)
     return !!(cpu->env.spr[SPR_LPCR] & LPCR_UPRT);
 }
 
-static inline bool ppc64_radix_guest(PowerPCCPU *cpu)
+/*
+ * The LPCR:HR bit is a shortcut that avoids having to
+ * dig out the partition table in the fast path. This is
+ * also how the HW uses it.
+ */
+static inline bool ppc64_v3_radix(PowerPCCPU *cpu)
 {
-    PPCVirtualHypervisorClass *vhc =
-        PPC_VIRTUAL_HYPERVISOR_GET_CLASS(cpu->vhyp);
-
-    return !!(vhc->get_patbe(cpu->vhyp) & PATBE1_GR);
+    return !!(cpu->env.spr[SPR_LPCR] & LPCR_HR);
 }
+
+hwaddr ppc64_v3_get_phys_page_debug(PowerPCCPU *cpu, vaddr eaddr);
 
 int ppc64_v3_handle_mmu_fault(PowerPCCPU *cpu, vaddr eaddr, int rwx,
                               int mmu_idx);

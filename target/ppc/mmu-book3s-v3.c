@@ -26,9 +26,18 @@
 int ppc64_v3_handle_mmu_fault(PowerPCCPU *cpu, vaddr eaddr, int rwx,
                               int mmu_idx)
 {
-    if (ppc64_radix_guest(cpu)) { /* Guest uses radix */
+    if (ppc64_v3_radix(cpu)) { /* Guest uses radix */
         return ppc_radix64_handle_mmu_fault(cpu, eaddr, rwx, mmu_idx);
     } else { /* Guest uses hash */
         return ppc_hash64_handle_mmu_fault(cpu, eaddr, rwx, mmu_idx);
+    }
+}
+
+hwaddr ppc64_v3_get_phys_page_debug(PowerPCCPU *cpu, vaddr eaddr)
+{
+    if (ppc64_v3_radix(cpu)) {
+        return ppc_radix64_get_phys_page_debug(cpu, eaddr);
+    } else {
+        return ppc_hash64_get_phys_page_debug(cpu, eaddr);
     }
 }
