@@ -413,8 +413,7 @@ static void xen_block_set_vdev(Object *obj, Visitor *v, const char *name,
         }
 
         if (*end == 'p') {
-            p = (char *) ++end;
-            if (*end == '\0') {
+            if (*(++end) == '\0') {
                 goto invalid;
             }
         }
