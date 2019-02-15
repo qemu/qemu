@@ -827,7 +827,10 @@ static void ppc_hw_interrupt(CPUPPCState *env)
     /* External interrupt can ignore MSR:EE under some circumstances */
     if (env->pending_interrupts & (1 << PPC_INTERRUPT_EXT)) {
         bool lpes0 = !!(env->spr[SPR_LPCR] & LPCR_LPES0);
-        if (async_deliver || (env->has_hv_mode && msr_hv == 0 && !lpes0)) {
+        bool heic = !!(env->spr[SPR_LPCR] & LPCR_HEIC);
+        /* HEIC blocks delivery to the hypervisor */
+        if ((async_deliver && !(heic && msr_hv && !msr_pr)) ||
+            (env->has_hv_mode && msr_hv == 0 && !lpes0)) {
             powerpc_excp(cpu, env->excp_model, POWERPC_EXCP_EXTERNAL);
             return;
         }

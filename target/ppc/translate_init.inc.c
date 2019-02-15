@@ -8823,7 +8823,10 @@ static bool cpu_has_work_POWER9(CPUState *cs)
         /* External Exception */
         if ((env->pending_interrupts & (1u << PPC_INTERRUPT_EXT)) &&
             (env->spr[SPR_LPCR] & LPCR_EEE)) {
-            return true;
+            bool heic = !!(env->spr[SPR_LPCR] & LPCR_HEIC);
+            if (heic == 0 || !msr_hv || msr_pr) {
+                return true;
+            }
         }
         /* Decrementer Exception */
         if ((env->pending_interrupts & (1u << PPC_INTERRUPT_DECR)) &&
