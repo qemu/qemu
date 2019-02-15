@@ -65,6 +65,46 @@ static inline void dump_syscall(CPUPPCState *env)
                   ppc_dump_gpr(env, 6), env->nip);
 }
 
+static int powerpc_reset_wakeup(CPUState *cs, CPUPPCState *env, int excp,
+                                target_ulong *msr)
+{
+    /* We no longer are in a PM state */
+    env->in_pm_state = false;
+
+    /* Pretend to be returning from doze always as we don't lose state */
+    *msr |= (0x1ull << (63 - 47));
+
+    /* Machine checks are sent normally */
+    if (excp == POWERPC_EXCP_MCHECK) {
+        return excp;
+    }
+    switch (excp) {
+    case POWERPC_EXCP_RESET:
+        *msr |= 0x4ull << (63 - 45);
+        break;
+    case POWERPC_EXCP_EXTERNAL:
+        *msr |= 0x8ull << (63 - 45);
+        break;
+    case POWERPC_EXCP_DECR:
+        *msr |= 0x6ull << (63 - 45);
+        break;
+    case POWERPC_EXCP_SDOOR:
+        *msr |= 0x5ull << (63 - 45);
+        break;
+    case POWERPC_EXCP_SDOOR_HV:
+        *msr |= 0x3ull << (63 - 45);
+        break;
+    case POWERPC_EXCP_HV_MAINT:
+        *msr |= 0xaull << (63 - 45);
+        break;
+    default:
+        cpu_abort(cs, "Unsupported exception %d in Power Save mode\n",
+                  excp);
+    }
+    return POWERPC_EXCP_RESET;
+}
+
+
 /* Note that this function should be greatly optimized
  * when called with a constant excp, from ppc_hw_interrupt
  */
@@ -102,40 +142,7 @@ static inline void powerpc_excp(PowerPCCPU *cpu, int excp_model, int excp)
      * P7/P8/P9
      */
     if (env->in_pm_state) {
-        env->in_pm_state = false;
-
-        /* Pretend to be returning from doze always as we don't lose state */
-        msr |= (0x1ull << (63 - 47));
-
-        /* Non-machine check are routed to 0x100 with a wakeup cause
-         * encoded in SRR1
-         */
-        if (excp != POWERPC_EXCP_MCHECK) {
-            switch (excp) {
-            case POWERPC_EXCP_RESET:
-                msr |= 0x4ull << (63 - 45);
-                break;
-            case POWERPC_EXCP_EXTERNAL:
-                msr |= 0x8ull << (63 - 45);
-                break;
-            case POWERPC_EXCP_DECR:
-                msr |= 0x6ull << (63 - 45);
-                break;
-            case POWERPC_EXCP_SDOOR:
-                msr |= 0x5ull << (63 - 45);
-                break;
-            case POWERPC_EXCP_SDOOR_HV:
-                msr |= 0x3ull << (63 - 45);
-                break;
-            case POWERPC_EXCP_HV_MAINT:
-                msr |= 0xaull << (63 - 45);
-                break;
-            default:
-                cpu_abort(cs, "Unsupported exception %d in Power Save mode\n",
-                          excp);
-            }
-            excp = POWERPC_EXCP_RESET;
-        }
+        excp = powerpc_reset_wakeup(cs, env, excp, &msr);
     }
 
     /* Exception targetting modifiers
