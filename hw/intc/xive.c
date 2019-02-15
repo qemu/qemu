@@ -484,6 +484,9 @@ static void xive_tctx_realize(DeviceState *dev, Error **errp)
     case PPC_FLAGS_INPUT_POWER7:
         tctx->output = env->irq_inputs[POWER7_INPUT_INT];
         break;
+    case PPC_FLAGS_INPUT_POWER9:
+        tctx->output = env->irq_inputs[POWER9_INPUT_INT];
+        break;
 
     default:
         error_setg(errp, "XIVE interrupt controller does not support "

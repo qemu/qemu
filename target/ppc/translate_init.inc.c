@@ -8793,7 +8793,7 @@ static void init_proc_POWER9(CPUPPCState *env)
 
     /* Allocate hardware IRQ controller */
     init_excp_POWER9(env);
-    ppcPOWER7_irq_init(ppc_env_get_cpu(env));
+    ppcPOWER9_irq_init(ppc_env_get_cpu(env));
 }
 
 static bool ppc_pvr_match_power9(PowerPCCPUClass *pcc, uint32_t pvr)
@@ -8920,7 +8920,7 @@ POWERPC_FAMILY(POWER9)(ObjectClass *oc, void *data)
     pcc->radix_page_info = &POWER9_radix_page_info;
 #endif
     pcc->excp_model = POWERPC_EXCP_POWER9;
-    pcc->bus_model = PPC_FLAGS_INPUT_POWER7;
+    pcc->bus_model = PPC_FLAGS_INPUT_POWER9;
     pcc->bfd_mach = bfd_mach_ppc64;
     pcc->flags = POWERPC_FLAG_VRE | POWERPC_FLAG_SE |
                  POWERPC_FLAG_BE | POWERPC_FLAG_PMM |

@@ -142,6 +142,8 @@ enum powerpc_input_t {
     PPC_FLAGS_INPUT_970,
     /* PowerPC POWER7 bus               */
     PPC_FLAGS_INPUT_POWER7,
+    /* PowerPC POWER9 bus               */
+    PPC_FLAGS_INPUT_POWER9,
     /* PowerPC 401 bus                  */
     PPC_FLAGS_INPUT_401,
     /* Freescale RCPU bus               */

@@ -338,6 +338,9 @@ static void icp_realize(DeviceState *dev, Error **errp)
     case PPC_FLAGS_INPUT_POWER7:
         icp->output = env->irq_inputs[POWER7_INPUT_INT];
         break;
+    case PPC_FLAGS_INPUT_POWER9: /* For SPAPR xics emulation */
+        icp->output = env->irq_inputs[POWER9_INPUT_INT];
+        break;
 
     case PPC_FLAGS_INPUT_970:
         icp->output = env->irq_inputs[PPC970_INPUT_INT];

@@ -306,6 +306,48 @@ void ppcPOWER7_irq_init(PowerPCCPU *cpu)
     env->irq_inputs = (void **)qemu_allocate_irqs(&power7_set_irq, cpu,
                                                   POWER7_INPUT_NB);
 }
+
+/* POWER9 internal IRQ controller */
+static void power9_set_irq(void *opaque, int pin, int level)
+{
+    PowerPCCPU *cpu = opaque;
+    CPUPPCState *env = &cpu->env;
+
+    LOG_IRQ("%s: env %p pin %d level %d\n", __func__,
+                env, pin, level);
+
+    switch (pin) {
+    case POWER9_INPUT_INT:
+        /* Level sensitive - active high */
+        LOG_IRQ("%s: set the external IRQ state to %d\n",
+                __func__, level);
+        ppc_set_irq(cpu, PPC_INTERRUPT_EXT, level);
+        break;
+    case POWER9_INPUT_HINT:
+        /* Level sensitive - active high */
+        LOG_IRQ("%s: set the external IRQ state to %d\n",
+                __func__, level);
+        ppc_set_irq(cpu, PPC_INTERRUPT_HVIRT, level);
+        break;
+    default:
+        /* Unknown pin - do nothing */
+        LOG_IRQ("%s: unknown IRQ pin %d\n", __func__, pin);
+        return;
+    }
+    if (level) {
+        env->irq_input_state |= 1 << pin;
+    } else {
+        env->irq_input_state &= ~(1 << pin);
+    }
+}
+
+void ppcPOWER9_irq_init(PowerPCCPU *cpu)
+{
+    CPUPPCState *env = &cpu->env;
+
+    env->irq_inputs = (void **)qemu_allocate_irqs(&power9_set_irq, cpu,
+                                                  POWER9_INPUT_NB);
+}
 #endif /* defined(TARGET_PPC64) */
 
 void ppc40x_core_reset(PowerPCCPU *cpu)
