@@ -12871,31 +12871,40 @@ float64 VFP_HELPER(sqrt, d)(float64 a, CPUARMState *env)
     return float64_sqrt(a, &env->vfp.fp_status);
 }
 
+static void softfloat_to_vfp_compare(CPUARMState *env, int cmp)
+{
+    uint32_t flags;
+    switch (cmp) {
+    case float_relation_equal:
+        flags = 0x6;
+        break;
+    case float_relation_less:
+        flags = 0x8;
+        break;
+    case float_relation_greater:
+        flags = 0x2;
+        break;
+    case float_relation_unordered:
+        flags = 0x3;
+        break;
+    default:
+        g_assert_not_reached();
+    }
+    env->vfp.xregs[ARM_VFP_FPSCR] =
+        deposit32(env->vfp.xregs[ARM_VFP_FPSCR], 28, 4, flags);
+}
+
 /* XXX: check quiet/signaling case */
 #define DO_VFP_cmp(p, type) \
 void VFP_HELPER(cmp, p)(type a, type b, CPUARMState *env)  \
 { \
-    uint32_t flags; \
-    switch(type ## _compare_quiet(a, b, &env->vfp.fp_status)) { \
-    case 0: flags = 0x6; break; \
-    case -1: flags = 0x8; break; \
-    case 1: flags = 0x2; break; \
-    default: case 2: flags = 0x3; break; \
-    } \
-    env->vfp.xregs[ARM_VFP_FPSCR] = (flags << 28) \
-        | (env->vfp.xregs[ARM_VFP_FPSCR] & 0x0fffffff); \
+    softfloat_to_vfp_compare(env, \
+        type ## _compare_quiet(a, b, &env->vfp.fp_status)); \
 } \
 void VFP_HELPER(cmpe, p)(type a, type b, CPUARMState *env) \
 { \
-    uint32_t flags; \
-    switch(type ## _compare(a, b, &env->vfp.fp_status)) { \
-    case 0: flags = 0x6; break; \
-    case -1: flags = 0x8; break; \
-    case 1: flags = 0x2; break; \
-    default: case 2: flags = 0x3; break; \
-    } \
-    env->vfp.xregs[ARM_VFP_FPSCR] = (flags << 28) \
-        | (env->vfp.xregs[ARM_VFP_FPSCR] & 0x0fffffff); \
+    softfloat_to_vfp_compare(env, \
+        type ## _compare(a, b, &env->vfp.fp_status)); \
 }
 DO_VFP_cmp(s, float32)
 DO_VFP_cmp(d, float64)
