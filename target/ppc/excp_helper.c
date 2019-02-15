@@ -878,6 +878,22 @@ static void ppc_hw_interrupt(CPUPPCState *env)
             return;
         }
     }
+
+    if (env->resume_as_sreset) {
+        /*
+         * This is a bug ! It means that has_work took us out of halt without
+         * anything to deliver while in a PM state that requires getting
+         * out via a 0x100
+         *
+         * This means we will incorrectly execute past the power management
+         * instruction instead of triggering a reset.
+         *
+         * It generally means a discrepancy between the wakup conditions in the
+         * processor has_work implementation and the logic in this function.
+         */
+        cpu_abort(CPU(ppc_env_get_cpu(env)),
+                  "Wakeup from PM state but interrupt Undelivered");
+    }
 }
 
 void ppc_cpu_do_system_reset(CPUState *cs)
