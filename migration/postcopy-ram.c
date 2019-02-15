@@ -374,7 +374,7 @@ bool postcopy_ram_supported_by_host(MigrationIncomingState *mis)
     }
 
     /* We don't support postcopy with shared RAM yet */
-    if (qemu_ram_foreach_migratable_block(test_ramblock_postcopiable, NULL)) {
+    if (foreach_not_ignored_block(test_ramblock_postcopiable, NULL)) {
         goto out;
     }
 
@@ -508,7 +508,7 @@ static int cleanup_range(RAMBlock *rb, void *opaque)
  */
 int postcopy_ram_incoming_init(MigrationIncomingState *mis)
 {
-    if (qemu_ram_foreach_migratable_block(init_range, NULL)) {
+    if (foreach_not_ignored_block(init_range, NULL)) {
         return -1;
     }
 
@@ -550,7 +550,7 @@ int postcopy_ram_incoming_cleanup(MigrationIncomingState *mis)
             return -1;
         }
 
-        if (qemu_ram_foreach_migratable_block(cleanup_range, mis)) {
+        if (foreach_not_ignored_block(cleanup_range, mis)) {
             return -1;
         }
 
@@ -617,7 +617,7 @@ static int nhp_range(RAMBlock *rb, void *opaque)
  */
 int postcopy_ram_prepare_discard(MigrationIncomingState *mis)
 {
-    if (qemu_ram_foreach_migratable_block(nhp_range, mis)) {
+    if (foreach_not_ignored_block(nhp_range, mis)) {
         return -1;
     }
 
@@ -628,7 +628,7 @@ int postcopy_ram_prepare_discard(MigrationIncomingState *mis)
 
 /*
  * Mark the given area of RAM as requiring notification to unwritten areas
- * Used as a  callback on qemu_ram_foreach_migratable_block.
+ * Used as a  callback on foreach_not_ignored_block.
  *   host_addr: Base of area to mark
  *   offset: Offset in the whole ram arena
  *   length: Length of the section
@@ -1122,7 +1122,7 @@ int postcopy_ram_enable_notify(MigrationIncomingState *mis)
     mis->have_fault_thread = true;
 
     /* Mark so that we get notified of accesses to unwritten areas */
-    if (qemu_ram_foreach_migratable_block(ram_block_enable_notify, mis)) {
+    if (foreach_not_ignored_block(ram_block_enable_notify, mis)) {
         error_report("ram_block_enable_notify failed");
         return -1;
     }

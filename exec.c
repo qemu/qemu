@@ -3985,25 +3985,6 @@ int qemu_ram_foreach_block(RAMBlockIterFunc func, void *opaque)
     return ret;
 }
 
-int qemu_ram_foreach_migratable_block(RAMBlockIterFunc func, void *opaque)
-{
-    RAMBlock *block;
-    int ret = 0;
-
-    rcu_read_lock();
-    RAMBLOCK_FOREACH(block) {
-        if (!qemu_ram_is_migratable(block)) {
-            continue;
-        }
-        ret = func(block, opaque);
-        if (ret) {
-            break;
-        }
-    }
-    rcu_read_unlock();
-    return ret;
-}
-
 /*
  * Unmap pages of memory from start to start+length such that
  * they a) read as 0, b) Trigger whatever fault mechanism
