@@ -265,6 +265,7 @@ bool migrate_release_ram(void);
 bool migrate_postcopy_ram(void);
 bool migrate_zero_blocks(void);
 bool migrate_dirty_bitmaps(void);
+bool migrate_ignore_shared(void);
 
 bool migrate_auto_converge(void);
 bool migrate_use_multifd(void);
