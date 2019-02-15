@@ -1103,12 +1103,15 @@ M: Mark Cave-Ayland <mark.cave-ayland@ilande.co.uk>
 S: Maintained
 F: hw/sparc/sun4m.c
 F: hw/sparc/sun4m_iommu.c
+F: hw/display/cg3.c
+F: hw/display/tcx.c
 F: hw/dma/sparc32_dma.c
 F: hw/misc/eccmemctl.c
-F: hw/misc/slavio_misc.c
+F: hw/*/slavio_*.c
+F: include/hw/nvram/sun_nvram.h
 F: include/hw/sparc/sparc32_dma.h
-F: pc-bios/openbios-sparc32
 F: include/hw/sparc/sun4m_iommu.h
+F: pc-bios/openbios-sparc32
 
 Sun4u
 M: Mark Cave-Ayland <mark.cave-ayland@ilande.co.uk>
