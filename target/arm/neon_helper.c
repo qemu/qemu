@@ -581,12 +581,6 @@ NEON_VOP(cge_u32, neon_u32, 1)
 #undef NEON_FN
 
 #define NEON_FN(dest, src1, src2) dest = (src1 < src2) ? src1 : src2
-NEON_VOP(min_s8, neon_s8, 4)
-NEON_VOP(min_u8, neon_u8, 4)
-NEON_VOP(min_s16, neon_s16, 2)
-NEON_VOP(min_u16, neon_u16, 2)
-NEON_VOP(min_s32, neon_s32, 1)
-NEON_VOP(min_u32, neon_u32, 1)
 NEON_POP(pmin_s8, neon_s8, 4)
 NEON_POP(pmin_u8, neon_u8, 4)
 NEON_POP(pmin_s16, neon_s16, 2)
@@ -594,12 +588,6 @@ NEON_POP(pmin_u16, neon_u16, 2)
 #undef NEON_FN
 
 #define NEON_FN(dest, src1, src2) dest = (src1 > src2) ? src1 : src2
-NEON_VOP(max_s8, neon_s8, 4)
-NEON_VOP(max_u8, neon_u8, 4)
-NEON_VOP(max_s16, neon_s16, 2)
-NEON_VOP(max_u16, neon_u16, 2)
-NEON_VOP(max_s32, neon_s32, 1)
-NEON_VOP(max_u32, neon_u32, 1)
 NEON_POP(pmax_s8, neon_s8, 4)
 NEON_POP(pmax_u8, neon_u8, 4)
 NEON_POP(pmax_s16, neon_s16, 2)
