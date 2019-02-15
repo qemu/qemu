@@ -259,9 +259,8 @@ int ics_set_kvm_state(ICSState *ics)
     return 0;
 }
 
-void ics_kvm_set_irq(void *opaque, int srcno, int val)
+void ics_kvm_set_irq(ICSState *ics, int srcno, int val)
 {
-    ICSState *ics = opaque;
     struct kvm_irq_level args;
     int rc;
 

@@ -222,13 +222,8 @@ static int spapr_irq_post_load_xics(sPAPRMachineState *spapr, int version_id)
 static void spapr_irq_set_irq_xics(void *opaque, int srcno, int val)
 {
     sPAPRMachineState *spapr = opaque;
-    MachineState *machine = MACHINE(opaque);
 
-    if (kvm_enabled() && machine_kernel_irqchip_allowed(machine)) {
-        ics_kvm_set_irq(spapr->ics, srcno, val);
-    } else {
-        ics_simple_set_irq(spapr->ics, srcno, val);
-    }
+    ics_simple_set_irq(spapr->ics, srcno, val);
 }
 
 static void spapr_irq_reset_xics(sPAPRMachineState *spapr, Error **errp)

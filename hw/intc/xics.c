@@ -466,6 +466,11 @@ void ics_simple_set_irq(void *opaque, int srcno, int val)
 {
     ICSState *ics = (ICSState *)opaque;
 
+    if (kvm_irqchip_in_kernel()) {
+        ics_kvm_set_irq(ics, srcno, val);
+        return;
+    }
+
     if (ics->irqs[srcno].flags & XICS_FLAGS_IRQ_LSI) {
         ics_simple_set_irq_lsi(ics, srcno, val);
     } else {

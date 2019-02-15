@@ -180,7 +180,6 @@ void icp_eoi(ICPState *icp, uint32_t xirr);
 void ics_simple_write_xive(ICSState *ics, int nr, int server,
                            uint8_t priority, uint8_t saved_priority);
 void ics_simple_set_irq(void *opaque, int srcno, int val);
-void ics_kvm_set_irq(void *opaque, int srcno, int val);
 
 void ics_set_irq_type(ICSState *ics, int srcno, bool lsi);
 void icp_pic_print_info(ICPState *icp, Monitor *mon);
@@ -201,5 +200,6 @@ void icp_kvm_realize(DeviceState *dev, Error **errp);
 void ics_get_kvm_state(ICSState *ics);
 int ics_set_kvm_state(ICSState *ics);
 void ics_synchronize_state(ICSState *ics);
+void ics_kvm_set_irq(ICSState *ics, int srcno, int val);
 
 #endif /* XICS_H */
