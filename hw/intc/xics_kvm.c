@@ -280,20 +280,6 @@ void ics_kvm_set_irq(void *opaque, int srcno, int val)
     }
 }
 
-static void ics_kvm_reset(DeviceState *dev)
-{
-    ICSStateClass *icsc = ICS_BASE_GET_CLASS(dev);
-
-    icsc->parent_reset(dev);
-
-    ics_set_kvm_state(ICS_KVM(dev));
-}
-
-static void ics_kvm_reset_handler(void *dev)
-{
-    ics_kvm_reset(dev);
-}
-
 static void ics_kvm_realize(DeviceState *dev, Error **errp)
 {
     ICSState *ics = ICS_KVM(dev);
@@ -305,8 +291,6 @@ static void ics_kvm_realize(DeviceState *dev, Error **errp)
         error_propagate(errp, local_err);
         return;
     }
-
-    qemu_register_reset(ics_kvm_reset_handler, ics);
 }
 
 static void ics_kvm_class_init(ObjectClass *klass, void *data)
@@ -316,8 +300,6 @@ static void ics_kvm_class_init(ObjectClass *klass, void *data)
 
     device_class_set_parent_realize(dc, ics_kvm_realize,
                                     &icsc->parent_realize);
-    device_class_set_parent_reset(dc, ics_kvm_reset,
-                                  &icsc->parent_reset);
 }
 
 static const TypeInfo ics_kvm_info = {

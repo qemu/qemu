@@ -553,6 +553,10 @@ static void ics_simple_reset(DeviceState *dev)
     ICSStateClass *icsc = ICS_BASE_GET_CLASS(dev);
 
     icsc->parent_reset(dev);
+
+    if (kvm_irqchip_in_kernel()) {
+        ics_set_kvm_state(ICS_BASE(dev));
+    }
 }
 
 static void ics_simple_reset_handler(void *dev)
