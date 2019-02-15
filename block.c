@@ -5265,6 +5265,10 @@ void bdrv_set_aio_context(BlockDriverState *bs, AioContext *new_context)
 {
     AioContext *ctx = bdrv_get_aio_context(bs);
 
+    if (ctx == new_context) {
+        return;
+    }
+
     aio_disable_external(ctx);
     bdrv_parent_drained_begin(bs, NULL, false);
     bdrv_drain(bs); /* ensure there are no in-flight requests */
