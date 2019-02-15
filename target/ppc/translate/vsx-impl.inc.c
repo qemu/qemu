@@ -1321,40 +1321,39 @@ static void glue(gen_, name)(DisasContext * ctx)            \
 VSX_XXMRG(xxmrghw, 1)
 VSX_XXMRG(xxmrglw, 0)
 
-static void gen_xxsel(DisasContext * ctx)
+static void xxsel_i64(TCGv_i64 t, TCGv_i64 a, TCGv_i64 b, TCGv_i64 c)
 {
-    TCGv_i64 a, b, c, tmp;
+    tcg_gen_and_i64(b, b, c);
+    tcg_gen_andc_i64(a, a, c);
+    tcg_gen_or_i64(t, a, b);
+}
+
+static void xxsel_vec(unsigned vece, TCGv_vec t, TCGv_vec a,
+                      TCGv_vec b, TCGv_vec c)
+{
+    tcg_gen_and_vec(vece, b, b, c);
+    tcg_gen_andc_vec(vece, a, a, c);
+    tcg_gen_or_vec(vece, t, a, b);
+}
+
+static void gen_xxsel(DisasContext *ctx)
+{
+    static const GVecGen4 g = {
+        .fni8 = xxsel_i64,
+        .fniv = xxsel_vec,
+        .vece = MO_64,
+    };
+    int rt = xT(ctx->opcode);
+    int ra = xA(ctx->opcode);
+    int rb = xB(ctx->opcode);
+    int rc = xC(ctx->opcode);
+
     if (unlikely(!ctx->vsx_enabled)) {
         gen_exception(ctx, POWERPC_EXCP_VSXU);
         return;
     }
-    a = tcg_temp_new_i64();
-    b = tcg_temp_new_i64();
-    c = tcg_temp_new_i64();
-    tmp = tcg_temp_new_i64();
-
-    get_cpu_vsrh(a, xA(ctx->opcode));
-    get_cpu_vsrh(b, xB(ctx->opcode));
-    get_cpu_vsrh(c, xC(ctx->opcode));
-
-    tcg_gen_and_i64(b, b, c);
-    tcg_gen_andc_i64(a, a, c);
-    tcg_gen_or_i64(tmp, a, b);
-    set_cpu_vsrh(xT(ctx->opcode), tmp);
-
-    get_cpu_vsrl(a, xA(ctx->opcode));
-    get_cpu_vsrl(b, xB(ctx->opcode));
-    get_cpu_vsrl(c, xC(ctx->opcode));
-
-    tcg_gen_and_i64(b, b, c);
-    tcg_gen_andc_i64(a, a, c);
-    tcg_gen_or_i64(tmp, a, b);
-    set_cpu_vsrl(xT(ctx->opcode), tmp);
-
-    tcg_temp_free_i64(a);
-    tcg_temp_free_i64(b);
-    tcg_temp_free_i64(c);
-    tcg_temp_free_i64(tmp);
+    tcg_gen_gvec_4(vsr_full_offset(rt), vsr_full_offset(ra),
+                   vsr_full_offset(rb), vsr_full_offset(rc), 16, 16, &g);
 }
 
 static void gen_xxspltw(DisasContext *ctx)
