@@ -63,6 +63,7 @@ void ppc_hash64_filter_pagesizes(PowerPCCPU *cpu,
 #define SDR_64_HTABORG         0x0FFFFFFFFFFC0000ULL
 #define SDR_64_HTABSIZE        0x000000000000001FULL
 
+#define PATE0_HTABORG           0x0FFFFFFFFFFC0000ULL
 #define HPTES_PER_GROUP         8
 #define HASH_PTE_SIZE_64        16
 #define HASH_PTEG_SIZE_64       (HASH_PTE_SIZE_64 * HPTES_PER_GROUP)
@@ -106,24 +107,6 @@ void ppc_hash64_filter_pagesizes(PowerPCCPU *cpu,
 #define HPTE64_V_COMMON_BITS    0x000fffffffffffffULL
 #define HPTE64_R_3_0_SSIZE_SHIFT 58
 #define HPTE64_R_3_0_SSIZE_MASK (3ULL << HPTE64_R_3_0_SSIZE_SHIFT)
-
-static inline hwaddr ppc_hash64_hpt_base(PowerPCCPU *cpu)
-{
-    if (cpu->vhyp) {
-        return 0;
-    }
-    return cpu->env.spr[SPR_SDR1] & SDR_64_HTABORG;
-}
-
-static inline hwaddr ppc_hash64_hpt_mask(PowerPCCPU *cpu)
-{
-    if (cpu->vhyp) {
-        PPCVirtualHypervisorClass *vhc =
-            PPC_VIRTUAL_HYPERVISOR_GET_CLASS(cpu->vhyp);
-        return vhc->hpt_mask(cpu->vhyp);
-    }
-    return (1ULL << ((cpu->env.spr[SPR_SDR1] & SDR_64_HTABSIZE) + 18 - 7)) - 1;
-}
 
 struct ppc_hash_pte64 {
     uint64_t pte0, pte1;

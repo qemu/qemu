@@ -417,7 +417,7 @@ const ppc_hash_pte64_t *ppc_hash64_map_hptes(PowerPCCPU *cpu,
                                              hwaddr ptex, int n)
 {
     hwaddr pte_offset = ptex * HASH_PTE_SIZE_64;
-    hwaddr base = ppc_hash64_hpt_base(cpu);
+    hwaddr base;
     hwaddr plen = n * HASH_PTE_SIZE_64;
     const ppc_hash_pte64_t *hptes;
 
@@ -426,6 +426,7 @@ const ppc_hash_pte64_t *ppc_hash64_map_hptes(PowerPCCPU *cpu,
             PPC_VIRTUAL_HYPERVISOR_GET_CLASS(cpu->vhyp);
         return vhc->map_hptes(cpu->vhyp, ptex, n);
     }
+    base = ppc_hash64_hpt_base(cpu);
 
     if (!base) {
         return NULL;
@@ -941,7 +942,7 @@ hwaddr ppc_hash64_get_phys_page_debug(PowerPCCPU *cpu, target_ulong addr)
 void ppc_hash64_store_hpte(PowerPCCPU *cpu, hwaddr ptex,
                            uint64_t pte0, uint64_t pte1)
 {
-    hwaddr base = ppc_hash64_hpt_base(cpu);
+    hwaddr base;
     hwaddr offset = ptex * HASH_PTE_SIZE_64;
 
     if (cpu->vhyp) {
@@ -950,6 +951,7 @@ void ppc_hash64_store_hpte(PowerPCCPU *cpu, hwaddr ptex,
         vhc->store_hpte(cpu->vhyp, ptex, pte0, pte1);
         return;
     }
+    base = ppc_hash64_hpt_base(cpu);
 
     stq_phys(CPU(cpu)->as, base + offset, pte0);
     stq_phys(CPU(cpu)->as, base + offset + HASH_PTE_SIZE_64 / 2, pte1);
