@@ -459,18 +459,23 @@ void helper_lvsr(ppc_avr_t *r, target_ulong sh)
 
 void helper_mtvscr(CPUPPCState *env, uint32_t vscr)
 {
-    env->vscr = vscr;
+    env->vscr = vscr & ~(1u << VSCR_SAT);
+    /* Which bit we set is completely arbitrary, but clear the rest.  */
+    env->vscr_sat.u64[0] = vscr & (1u << VSCR_SAT);
+    env->vscr_sat.u64[1] = 0;
     set_flush_to_zero((vscr >> VSCR_NJ) & 1, &env->vec_status);
 }
 
 uint32_t helper_mfvscr(CPUPPCState *env)
 {
-    return env->vscr;
+    uint32_t sat = (env->vscr_sat.u64[0] | env->vscr_sat.u64[1]) != 0;
+    return env->vscr | (sat << VSCR_SAT);
 }
 
 static inline void set_vscr_sat(CPUPPCState *env)
 {
-    env->vscr |= 1 << VSCR_SAT;
+    /* The choice of non-zero value is arbitrary.  */
+    env->vscr_sat.u32[0] = 1;
 }
 
 void helper_vaddcuw(ppc_avr_t *r, ppc_avr_t *a, ppc_avr_t *b)

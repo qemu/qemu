@@ -1052,10 +1052,12 @@ struct CPUPPCState {
     /* Special purpose registers */
     target_ulong spr[1024];
     ppc_spr_t spr_cb[1024];
-    /* Vector status and control register */
+    /* Vector status and control register, minus VSCR_SAT.  */
     uint32_t vscr;
     /* VSX registers (including FP and AVR) */
     ppc_vsr_t vsr[64] QEMU_ALIGNED(16);
+    /* Non-zero if and only if VSCR_SAT should be set.  */
+    ppc_vsr_t vscr_sat QEMU_ALIGNED(16);
     /* SPE registers */
     uint64_t spe_acc;
     uint32_t spe_fscr;
