@@ -15,7 +15,7 @@
 #define SIGNBIT (uint32_t)0x80000000
 #define SIGNBIT64 ((uint64_t)1 << 63)
 
-#define SET_QC() env->vfp.xregs[ARM_VFP_FPSCR] |= CPSR_Q
+#define SET_QC() env->vfp.qc[0] = 1
 
 #define NEON_TYPE1(name, type) \
 typedef struct \

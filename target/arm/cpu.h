@@ -577,10 +577,12 @@ typedef struct CPUARMState {
         ARMPredicateReg preg_tmp;
 #endif
 
-        uint32_t xregs[16];
         /* We store these fpcsr fields separately for convenience.  */
+        uint32_t qc[4] QEMU_ALIGNED(16);
         int vec_len;
         int vec_stride;
+
+        uint32_t xregs[16];
 
         /* Scratch space for aa32 neon expansion.  */
         uint32_t scratch[8];
@@ -1427,6 +1429,7 @@ void vfp_set_fpscr(CPUARMState *env, uint32_t val);
 #define FPCR_FZ16   (1 << 19)   /* ARMv8.2+, FP16 flush-to-zero */
 #define FPCR_FZ     (1 << 24)   /* Flush-to-zero enable bit */
 #define FPCR_DN     (1 << 25)   /* Default NaN enable bit */
+#define FPCR_QC     (1 << 27)   /* Cumulative saturation bit */
 
 static inline uint32_t vfp_get_fpsr(CPUARMState *env)
 {

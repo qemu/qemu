@@ -36,7 +36,7 @@
 #define H4(x)  (x)
 #endif
 
-#define SET_QC() env->vfp.xregs[ARM_VFP_FPSCR] |= CPSR_Q
+#define SET_QC() env->vfp.qc[0] = 1
 
 static void clear_tail(void *vd, uintptr_t opr_sz, uintptr_t max_sz)
 {

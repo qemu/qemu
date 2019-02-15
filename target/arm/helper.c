@@ -12704,8 +12704,7 @@ static inline int vfp_exceptbits_from_host(int host_bits)
 
 uint32_t HELPER(vfp_get_fpscr)(CPUARMState *env)
 {
-    int i;
-    uint32_t fpscr;
+    uint32_t i, fpscr;
 
     fpscr = env->vfp.xregs[ARM_VFP_FPSCR]
             | (env->vfp.vec_len << 16)
@@ -12716,8 +12715,11 @@ uint32_t HELPER(vfp_get_fpscr)(CPUARMState *env)
     /* FZ16 does not generate an input denormal exception.  */
     i |= (get_float_exception_flags(&env->vfp.fp_status_f16)
           & ~float_flag_input_denormal);
-
     fpscr |= vfp_exceptbits_from_host(i);
+
+    i = env->vfp.qc[0] | env->vfp.qc[1] | env->vfp.qc[2] | env->vfp.qc[3];
+    fpscr |= i ? FPCR_QC : 0;
+
     return fpscr;
 }
 
@@ -12764,9 +12766,18 @@ void HELPER(vfp_set_fpscr)(CPUARMState *env, uint32_t val)
      * (which are stored in fp_status), and the other RES0 bits
      * in between, then we clear all of the low 16 bits.
      */
-    env->vfp.xregs[ARM_VFP_FPSCR] = val & 0xffc80000;
+    env->vfp.xregs[ARM_VFP_FPSCR] = val & 0xf7c80000;
     env->vfp.vec_len = (val >> 16) & 7;
     env->vfp.vec_stride = (val >> 20) & 3;
+
+    /*
+     * The bit we set within fpscr_q is arbitrary; the register as a
+     * whole being zero/non-zero is what counts.
+     */
+    env->vfp.qc[0] = val & FPCR_QC;
+    env->vfp.qc[1] = 0;
+    env->vfp.qc[2] = 0;
+    env->vfp.qc[3] = 0;
 
     changed ^= val;
     if (changed & (3 << 22)) {
