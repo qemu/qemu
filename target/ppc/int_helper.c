@@ -571,27 +571,17 @@ VARITHFPFMA(nmsubfp, float_muladd_negate_result | float_muladd_negate_c);
     }
 
 #define VARITHSAT_DO(name, op, optype, cvt, element)                    \
-    void helper_v##name(CPUPPCState *env, ppc_avr_t *r, ppc_avr_t *a,   \
-                        ppc_avr_t *b)                                   \
+    void helper_v##name(ppc_avr_t *r, ppc_avr_t *vscr_sat,              \
+                        ppc_avr_t *a, ppc_avr_t *b, uint32_t desc)      \
     {                                                                   \
         int sat = 0;                                                    \
         int i;                                                          \
                                                                         \
         for (i = 0; i < ARRAY_SIZE(r->element); i++) {                  \
-            switch (sizeof(r->element[0])) {                            \
-            case 1:                                                     \
-                VARITHSAT_CASE(optype, op, cvt, element);               \
-                break;                                                  \
-            case 2:                                                     \
-                VARITHSAT_CASE(optype, op, cvt, element);               \
-                break;                                                  \
-            case 4:                                                     \
-                VARITHSAT_CASE(optype, op, cvt, element);               \
-                break;                                                  \
-            }                                                           \
+            VARITHSAT_CASE(optype, op, cvt, element);                   \
         }                                                               \
         if (sat) {                                                      \
-            set_vscr_sat(env);                                          \
+            vscr_sat->u32[0] = 1;                                       \
         }                                                               \
     }
 #define VARITHSAT_SIGNED(suffix, element, optype, cvt)          \

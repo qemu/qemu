@@ -552,22 +552,55 @@ GEN_VXFORM(vslo, 6, 16);
 GEN_VXFORM(vsro, 6, 17);
 GEN_VXFORM(vaddcuw, 0, 6);
 GEN_VXFORM(vsubcuw, 0, 22);
-GEN_VXFORM_ENV(vaddubs, 0, 8);
+
+#define GEN_VXFORM_SAT(NAME, VECE, NORM, SAT, OPC2, OPC3)               \
+static void glue(glue(gen_, NAME), _vec)(unsigned vece, TCGv_vec t,     \
+                                         TCGv_vec sat, TCGv_vec a,      \
+                                         TCGv_vec b)                    \
+{                                                                       \
+    TCGv_vec x = tcg_temp_new_vec_matching(t);                          \
+    glue(glue(tcg_gen_, NORM), _vec)(VECE, x, a, b);                    \
+    glue(glue(tcg_gen_, SAT), _vec)(VECE, t, a, b);                     \
+    tcg_gen_cmp_vec(TCG_COND_NE, VECE, x, x, t);                        \
+    tcg_gen_or_vec(VECE, sat, sat, x);                                  \
+    tcg_temp_free_vec(x);                                               \
+}                                                                       \
+static void glue(gen_, NAME)(DisasContext *ctx)                         \
+{                                                                       \
+    static const GVecGen4 g = {                                         \
+        .fniv = glue(glue(gen_, NAME), _vec),                           \
+        .fno = glue(gen_helper_, NAME),                                 \
+        .opc = glue(glue(INDEX_op_, SAT), _vec),                        \
+        .write_aofs = true,                                             \
+        .vece = VECE,                                                   \
+    };                                                                  \
+    if (unlikely(!ctx->altivec_enabled)) {                              \
+        gen_exception(ctx, POWERPC_EXCP_VPU);                           \
+        return;                                                         \
+    }                                                                   \
+    tcg_gen_gvec_4(avr64_offset(rD(ctx->opcode), true),                 \
+                   offsetof(CPUPPCState, vscr_sat),                     \
+                   avr64_offset(rA(ctx->opcode), true),                 \
+                   avr64_offset(rB(ctx->opcode), true),                 \
+                   16, 16, &g);                                         \
+}
+
+GEN_VXFORM_SAT(vaddubs, MO_8, add, usadd, 0, 8);
 GEN_VXFORM_DUAL_EXT(vaddubs, PPC_ALTIVEC, PPC_NONE, 0,       \
                     vmul10uq, PPC_NONE, PPC2_ISA300, 0x0000F800)
-GEN_VXFORM_ENV(vadduhs, 0, 9);
+GEN_VXFORM_SAT(vadduhs, MO_16, add, usadd, 0, 9);
 GEN_VXFORM_DUAL(vadduhs, PPC_ALTIVEC, PPC_NONE, \
                 vmul10euq, PPC_NONE, PPC2_ISA300)
-GEN_VXFORM_ENV(vadduws, 0, 10);
-GEN_VXFORM_ENV(vaddsbs, 0, 12);
-GEN_VXFORM_ENV(vaddshs, 0, 13);
-GEN_VXFORM_ENV(vaddsws, 0, 14);
-GEN_VXFORM_ENV(vsububs, 0, 24);
-GEN_VXFORM_ENV(vsubuhs, 0, 25);
-GEN_VXFORM_ENV(vsubuws, 0, 26);
-GEN_VXFORM_ENV(vsubsbs, 0, 28);
-GEN_VXFORM_ENV(vsubshs, 0, 29);
-GEN_VXFORM_ENV(vsubsws, 0, 30);
+GEN_VXFORM_SAT(vadduws, MO_32, add, usadd, 0, 10);
+GEN_VXFORM_SAT(vaddsbs, MO_8, add, ssadd, 0, 12);
+GEN_VXFORM_SAT(vaddshs, MO_16, add, ssadd, 0, 13);
+GEN_VXFORM_SAT(vaddsws, MO_32, add, ssadd, 0, 14);
+GEN_VXFORM_SAT(vsububs, MO_8, sub, ussub, 0, 24);
+GEN_VXFORM_SAT(vsubuhs, MO_16, sub, ussub, 0, 25);
+GEN_VXFORM_SAT(vsubuws, MO_32, sub, ussub, 0, 26);
+GEN_VXFORM_SAT(vsubsbs, MO_8, sub, sssub, 0, 28);
+GEN_VXFORM_SAT(vsubshs, MO_16, sub, sssub, 0, 29);
+GEN_VXFORM_SAT(vsubsws, MO_32, sub, sssub, 0, 30);
 GEN_VXFORM(vadduqm, 0, 4);
 GEN_VXFORM(vaddcuq, 0, 5);
 GEN_VXFORM3(vaddeuqm, 30, 0);
