@@ -160,8 +160,10 @@ enum {
     /* Server doorbell variants */
     POWERPC_EXCP_SDOOR    = 99,
     POWERPC_EXCP_SDOOR_HV = 100,
+    /* ISA 3.00 additions */
+    POWERPC_EXCP_HVIRT    = 101,
     /* EOL                                                                   */
-    POWERPC_EXCP_NB       = 101,
+    POWERPC_EXCP_NB       = 102,
     /* QEMU exceptions: used internally during code translation              */
     POWERPC_EXCP_STOP         = 0x200, /* stop translation                   */
     POWERPC_EXCP_BRANCH       = 0x201, /* branch instruction                 */
@@ -2349,6 +2351,7 @@ enum {
     PPC_INTERRUPT_PERFM,          /* Performance monitor interrupt        */
     PPC_INTERRUPT_HMI,            /* Hypervisor Maintainance interrupt    */
     PPC_INTERRUPT_HDOORBELL,      /* Hypervisor Doorbell interrupt        */
+    PPC_INTERRUPT_HVIRT,          /* Hypervisor virtualization interrupt  */
 };
 
 /* Processor Compatibility mask (PCR) */

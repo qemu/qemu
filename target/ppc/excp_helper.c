@@ -97,6 +97,9 @@ static int powerpc_reset_wakeup(CPUState *cs, CPUPPCState *env, int excp,
     case POWERPC_EXCP_HV_MAINT:
         *msr |= 0xaull << (63 - 45);
         break;
+    case POWERPC_EXCP_HVIRT:
+        *msr |= 0x9ull << (63 - 45);
+        break;
     default:
         cpu_abort(cs, "Unsupported exception %d in Power Save mode\n",
                   excp);
@@ -427,6 +430,7 @@ static inline void powerpc_excp(PowerPCCPU *cpu, int excp_model, int excp)
     case POWERPC_EXCP_HISEG:     /* Hypervisor instruction segment exception */
     case POWERPC_EXCP_SDOOR_HV:  /* Hypervisor Doorbell interrupt            */
     case POWERPC_EXCP_HV_EMU:
+    case POWERPC_EXCP_HVIRT:     /* Hypervisor virtualization                */
         srr0 = SPR_HSRR0;
         srr1 = SPR_HSRR1;
         new_msr |= (target_ulong)MSR_HVB;
@@ -809,7 +813,18 @@ static void ppc_hw_interrupt(CPUPPCState *env)
             return;
         }
     }
-    /* Extermal interrupt can ignore MSR:EE under some circumstances */
+
+    /* Hypervisor virtualization interrupt */
+    if (env->pending_interrupts & (1 << PPC_INTERRUPT_HVIRT)) {
+        /* LPCR will be clear when not supported so this will work */
+        bool hvice = !!(env->spr[SPR_LPCR] & LPCR_HVICE);
+        if ((async_deliver || msr_hv == 0) && hvice) {
+            powerpc_excp(cpu, env->excp_model, POWERPC_EXCP_HVIRT);
+            return;
+        }
+    }
+
+    /* External interrupt can ignore MSR:EE under some circumstances */
     if (env->pending_interrupts & (1 << PPC_INTERRUPT_EXT)) {
         bool lpes0 = !!(env->spr[SPR_LPCR] & LPCR_LPES0);
         if (async_deliver || (env->has_hv_mode && msr_hv == 0 && !lpes0)) {
