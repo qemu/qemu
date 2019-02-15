@@ -6109,6 +6109,30 @@ void register_cp_regs_for_features(ARMCPU *cpu)
               .resetvalue = cpu->pmceid1 },
             REGINFO_SENTINEL
         };
+#ifdef CONFIG_USER_ONLY
+        ARMCPRegUserSpaceInfo v8_user_idregs[] = {
+            { .name = "ID_AA64PFR0_EL1",
+              .exported_bits = 0x000f000f00ff0000,
+              .fixed_bits    = 0x0000000000000011 },
+            { .name = "ID_AA64PFR1_EL1",
+              .exported_bits = 0x00000000000000f0 },
+            { .name = "ID_AA64ZFR0_EL1"           },
+            { .name = "ID_AA64MMFR0_EL1",
+              .fixed_bits    = 0x00000000ff000000 },
+            { .name = "ID_AA64MMFR1_EL1"          },
+            { .name = "ID_AA64DFR0_EL1",
+              .fixed_bits    = 0x0000000000000006 },
+            { .name = "ID_AA64DFR1_EL1"           },
+            { .name = "ID_AA64AFR0_EL1"           },
+            { .name = "ID_AA64AFR1_EL1"           },
+            { .name = "ID_AA64ISAR0_EL1",
+              .exported_bits = 0x00fffffff0fffff0 },
+            { .name = "ID_AA64ISAR1_EL1",
+              .exported_bits = 0x000000f0ffffffff },
+            REGUSERINFO_SENTINEL
+        };
+        modify_arm_cp_regs(v8_idregs, v8_user_idregs);
+#endif
         /* RVBAR_EL1 is only implemented if EL1 is the highest EL */
         if (!arm_feature(env, ARM_FEATURE_EL3) &&
             !arm_feature(env, ARM_FEATURE_EL2)) {
@@ -6385,6 +6409,15 @@ void register_cp_regs_for_features(ARMCPU *cpu)
             .opc1 = CP_ANY, .opc2 = CP_ANY, .access = PL1_W,
             .type = ARM_CP_NOP | ARM_CP_OVERRIDE
         };
+#ifdef CONFIG_USER_ONLY
+        ARMCPRegUserSpaceInfo id_v8_user_midr_cp_reginfo[] = {
+            { .name = "MIDR_EL1",
+              .exported_bits = 0x00000000ffffffff },
+            { .name = "REVIDR_EL1"                },
+            REGUSERINFO_SENTINEL
+        };
+        modify_arm_cp_regs(id_v8_midr_cp_reginfo, id_v8_user_midr_cp_reginfo);
+#endif
         if (arm_feature(env, ARM_FEATURE_OMAPCP) ||
             arm_feature(env, ARM_FEATURE_STRONGARM)) {
             ARMCPRegInfo *r;
@@ -6963,6 +6996,32 @@ void define_arm_cp_regs_with_opaque(ARMCPU *cpu,
     const ARMCPRegInfo *r;
     for (r = regs; r->type != ARM_CP_SENTINEL; r++) {
         define_one_arm_cp_reg_with_opaque(cpu, r, opaque);
+    }
+}
+
+/*
+ * Modify ARMCPRegInfo for access from userspace.
+ *
+ * This is a data driven modification directed by
+ * ARMCPRegUserSpaceInfo. All registers become ARM_CP_CONST as
+ * user-space cannot alter any values and dynamic values pertaining to
+ * execution state are hidden from user space view anyway.
+ */
+void modify_arm_cp_regs(ARMCPRegInfo *regs, const ARMCPRegUserSpaceInfo *mods)
+{
+    const ARMCPRegUserSpaceInfo *m;
+    ARMCPRegInfo *r;
+
+    for (m = mods; m->name; m++) {
+        for (r = regs; r->type != ARM_CP_SENTINEL; r++) {
+            if (strcmp(r->name, m->name) == 0) {
+                r->type = ARM_CP_CONST;
+                r->access = PL0U_R;
+                r->resetvalue &= m->exported_bits;
+                r->resetvalue |= m->fixed_bits;
+                break;
+            }
+        }
     }
 }
 
