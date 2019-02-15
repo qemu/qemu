@@ -12707,7 +12707,7 @@ uint32_t HELPER(vfp_get_fpscr)(CPUARMState *env)
     int i;
     uint32_t fpscr;
 
-    fpscr = (env->vfp.xregs[ARM_VFP_FPSCR] & 0xffc8ffff)
+    fpscr = env->vfp.xregs[ARM_VFP_FPSCR]
             | (env->vfp.vec_len << 16)
             | (env->vfp.vec_stride << 20);
 
@@ -12749,7 +12749,7 @@ static inline int vfp_exceptbits_to_host(int target_bits)
 void HELPER(vfp_set_fpscr)(CPUARMState *env, uint32_t val)
 {
     int i;
-    uint32_t changed;
+    uint32_t changed = env->vfp.xregs[ARM_VFP_FPSCR];
 
     /* When ARMv8.2-FP16 is not supported, FZ16 is RES0.  */
     if (!cpu_isar_feature(aa64_fp16, arm_env_get_cpu(env))) {
@@ -12758,12 +12758,13 @@ void HELPER(vfp_set_fpscr)(CPUARMState *env, uint32_t val)
 
     /*
      * We don't implement trapped exception handling, so the
-     * trap enable bits are all RAZ/WI (not RES0!)
+     * trap enable bits, IDE|IXE|UFE|OFE|DZE|IOE are all RAZ/WI (not RES0!)
+     *
+     * If we exclude the exception flags, IOC|DZC|OFC|UFC|IXC|IDC
+     * (which are stored in fp_status), and the other RES0 bits
+     * in between, then we clear all of the low 16 bits.
      */
-    val &= ~(FPCR_IDE | FPCR_IXE | FPCR_UFE | FPCR_OFE | FPCR_DZE | FPCR_IOE);
-
-    changed = env->vfp.xregs[ARM_VFP_FPSCR];
-    env->vfp.xregs[ARM_VFP_FPSCR] = (val & 0xffc8ffff);
+    env->vfp.xregs[ARM_VFP_FPSCR] = val & 0xffc80000;
     env->vfp.vec_len = (val >> 16) & 7;
     env->vfp.vec_stride = (val >> 20) & 3;
 
