@@ -9573,7 +9573,7 @@ static int gdb_get_avr_reg(CPUPPCState *env, uint8_t *mem_buf, int n)
         return 16;
     }
     if (n == 32) {
-        stl_p(mem_buf, env->vscr);
+        stl_p(mem_buf, helper_mfvscr(env));
         ppc_maybe_bswap_register(env, mem_buf, 4);
         return 4;
     }

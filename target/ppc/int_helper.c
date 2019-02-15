@@ -463,6 +463,11 @@ void helper_mtvscr(CPUPPCState *env, uint32_t vscr)
     set_flush_to_zero((vscr >> VSCR_NJ) & 1, &env->vec_status);
 }
 
+uint32_t helper_mfvscr(CPUPPCState *env)
+{
+    return env->vscr;
+}
+
 void helper_vaddcuw(ppc_avr_t *r, ppc_avr_t *a, ppc_avr_t *b)
 {
     int i;
