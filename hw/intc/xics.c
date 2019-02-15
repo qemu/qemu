@@ -37,18 +37,18 @@
 #include "qapi/visitor.h"
 #include "monitor/monitor.h"
 #include "hw/intc/intc.h"
+#include "sysemu/kvm.h"
 
 void icp_pic_print_info(ICPState *icp, Monitor *mon)
 {
-    ICPStateClass *icpc = ICP_GET_CLASS(icp);
     int cpu_index = icp->cs ? icp->cs->cpu_index : -1;
 
     if (!icp->output) {
         return;
     }
 
-    if (icpc->synchronize_state) {
-        icpc->synchronize_state(icp);
+    if (kvm_irqchip_in_kernel()) {
+        icp_synchronize_state(icp);
     }
 
     monitor_printf(mon, "CPU %d XIRR=%08x (%p) PP=%02x MFRR=%02x\n",
@@ -252,25 +252,23 @@ static void icp_irq(ICSState *ics, int server, int nr, uint8_t priority)
     }
 }
 
-static int icp_dispatch_pre_save(void *opaque)
+static int icp_pre_save(void *opaque)
 {
     ICPState *icp = opaque;
-    ICPStateClass *info = ICP_GET_CLASS(icp);
 
-    if (info->pre_save) {
-        info->pre_save(icp);
+    if (kvm_irqchip_in_kernel()) {
+        icp_get_kvm_state(icp);
     }
 
     return 0;
 }
 
-static int icp_dispatch_post_load(void *opaque, int version_id)
+static int icp_post_load(void *opaque, int version_id)
 {
     ICPState *icp = opaque;
-    ICPStateClass *info = ICP_GET_CLASS(icp);
 
-    if (info->post_load) {
-        return info->post_load(icp, version_id);
+    if (kvm_irqchip_in_kernel()) {
+        return icp_set_kvm_state(icp);
     }
 
     return 0;
@@ -280,8 +278,8 @@ static const VMStateDescription vmstate_icp_server = {
     .name = "icp/server",
     .version_id = 1,
     .minimum_version_id = 1,
-    .pre_save = icp_dispatch_pre_save,
-    .post_load = icp_dispatch_post_load,
+    .pre_save = icp_pre_save,
+    .post_load = icp_post_load,
     .fields = (VMStateField[]) {
         /* Sanity check */
         VMSTATE_UINT32(xirr, ICPState),

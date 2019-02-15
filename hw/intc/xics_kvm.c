@@ -54,7 +54,7 @@ static QLIST_HEAD(, KVMEnabledICP)
 /*
  * ICP-KVM
  */
-static void icp_get_kvm_state(ICPState *icp)
+void icp_get_kvm_state(ICPState *icp)
 {
     uint64_t state;
     int ret;
@@ -83,14 +83,14 @@ static void do_icp_synchronize_state(CPUState *cpu, run_on_cpu_data arg)
     icp_get_kvm_state(arg.host_ptr);
 }
 
-static void icp_synchronize_state(ICPState *icp)
+void icp_synchronize_state(ICPState *icp)
 {
     if (icp->cs) {
         run_on_cpu(icp->cs, do_icp_synchronize_state, RUN_ON_CPU_HOST_PTR(icp));
     }
 }
 
-static int icp_set_kvm_state(ICPState *icp, int version_id)
+int icp_set_kvm_state(ICPState *icp)
 {
     uint64_t state;
     int ret;
@@ -121,7 +121,7 @@ static void icp_kvm_reset(DeviceState *dev)
 
     icpc->parent_reset(dev);
 
-    icp_set_kvm_state(ICP(dev), 1);
+    icp_set_kvm_state(ICP(dev));
 }
 
 static void icp_kvm_realize(DeviceState *dev, Error **errp)
@@ -178,10 +178,6 @@ static void icp_kvm_class_init(ObjectClass *klass, void *data)
                                     &icpc->parent_realize);
     device_class_set_parent_reset(dc, icp_kvm_reset,
                                   &icpc->parent_reset);
-
-    icpc->pre_save = icp_get_kvm_state;
-    icpc->post_load = icp_set_kvm_state;
-    icpc->synchronize_state = icp_synchronize_state;
 }
 
 static const TypeInfo icp_kvm_info = {

@@ -66,10 +66,6 @@ struct ICPStateClass {
 
     DeviceRealize parent_realize;
     DeviceReset parent_reset;
-
-    void (*pre_save)(ICPState *icp);
-    int (*post_load)(ICPState *icp, int version_id);
-    void (*synchronize_state)(ICPState *icp);
 };
 
 struct ICPState {
@@ -202,5 +198,10 @@ void icp_resend(ICPState *ss);
 
 Object *icp_create(Object *cpu, const char *type, XICSFabric *xi,
                    Error **errp);
+
+/* KVM */
+void icp_get_kvm_state(ICPState *icp);
+int icp_set_kvm_state(ICPState *icp);
+void icp_synchronize_state(ICPState *icp);
 
 #endif /* XICS_H */
