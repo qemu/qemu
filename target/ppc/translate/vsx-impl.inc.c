@@ -1359,38 +1359,24 @@ static void gen_xxsel(DisasContext * ctx)
 
 static void gen_xxspltw(DisasContext *ctx)
 {
-    TCGv_i64 b, b2;
-    TCGv_i64 vsr;
+    int rt = xT(ctx->opcode);
+    int rb = xB(ctx->opcode);
+    int uim = UIM(ctx->opcode);
+    int tofs, bofs;
 
     if (unlikely(!ctx->vsx_enabled)) {
         gen_exception(ctx, POWERPC_EXCP_VSXU);
         return;
     }
 
-    vsr = tcg_temp_new_i64();
-    if (UIM(ctx->opcode) & 2) {
-        get_cpu_vsrl(vsr, xB(ctx->opcode));
-    } else {
-        get_cpu_vsrh(vsr, xB(ctx->opcode));
-    }
+    tofs = vsr_full_offset(rt);
+    bofs = vsr_full_offset(rb);
+    bofs += uim << MO_32;
+#ifndef HOST_WORDS_BIG_ENDIAN
+    bofs ^= 8 | 4;
+#endif
 
-    b = tcg_temp_new_i64();
-    b2 = tcg_temp_new_i64();
-
-    if (UIM(ctx->opcode) & 1) {
-        tcg_gen_ext32u_i64(b, vsr);
-    } else {
-        tcg_gen_shri_i64(b, vsr, 32);
-    }
-
-    tcg_gen_shli_i64(b2, b, 32);
-    tcg_gen_or_i64(vsr, b, b2);
-    set_cpu_vsrh(xT(ctx->opcode), vsr);
-    set_cpu_vsrl(xT(ctx->opcode), vsr);
-
-    tcg_temp_free_i64(vsr);
-    tcg_temp_free_i64(b);
-    tcg_temp_free_i64(b2);
+    tcg_gen_gvec_dup_mem(MO_32, tofs, bofs, 16, 16);
 }
 
 #define pattern(x) (((x) & 0xff) * (~(uint64_t)0 / 0xff))
