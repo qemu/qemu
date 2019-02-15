@@ -97,7 +97,10 @@ static inline void powerpc_excp(PowerPCCPU *cpu, int excp_model, int excp)
     asrr0 = -1;
     asrr1 = -1;
 
-    /* check for special resume at 0x100 from doze/nap/sleep/winkle on P7/P8 */
+    /*
+     * check for special resume at 0x100 from doze/nap/sleep/winkle on
+     * P7/P8/P9
+     */
     if (env->in_pm_state) {
         env->in_pm_state = false;
 
@@ -960,7 +963,8 @@ void helper_pminsn(CPUPPCState *env, powerpc_pm_insn_t insn)
     env->pending_interrupts &= ~(1 << PPC_INTERRUPT_HDECR);
 
     /* Condition for waking up at 0x100 */
-    env->in_pm_state = true;
+    env->in_pm_state = (insn != PPC_PM_STOP) ||
+        (env->spr[SPR_PSSCR] & PSSCR_EC);
 }
 #endif /* defined(TARGET_PPC64) */
 

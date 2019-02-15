@@ -122,6 +122,7 @@ typedef enum {
     PPC_PM_NAP,
     PPC_PM_SLEEP,
     PPC_PM_RVWINKLE,
+    PPC_PM_STOP,
 } powerpc_pm_insn_t;
 
 /*****************************************************************************/

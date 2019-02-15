@@ -8801,8 +8801,15 @@ static bool cpu_has_work_POWER9(CPUState *cs)
     CPUPPCState *env = &cpu->env;
 
     if (cs->halted) {
+        uint64_t psscr = env->spr[SPR_PSSCR];
+
         if (!(cs->interrupt_request & CPU_INTERRUPT_HARD)) {
             return false;
+        }
+
+        /* If EC is clear, just return true on any pending interrupt */
+        if (!(psscr & PSSCR_EC)) {
+            return true;
         }
         /* External Exception */
         if ((env->pending_interrupts & (1u << PPC_INTERRUPT_EXT)) &&
