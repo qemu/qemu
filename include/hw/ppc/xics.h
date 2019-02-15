@@ -50,9 +50,6 @@ typedef struct XICSFabric XICSFabric;
 #define TYPE_ICP "icp"
 #define ICP(obj) OBJECT_CHECK(ICPState, (obj), TYPE_ICP)
 
-#define TYPE_KVM_ICP "icp-kvm"
-#define KVM_ICP(obj) OBJECT_CHECK(ICPState, (obj), TYPE_KVM_ICP)
-
 #define TYPE_PNV_ICP "pnv-icp"
 #define PNV_ICP(obj) OBJECT_CHECK(PnvICPState, (obj), TYPE_PNV_ICP)
 

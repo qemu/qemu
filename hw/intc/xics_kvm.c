@@ -152,23 +152,6 @@ void icp_kvm_realize(DeviceState *dev, Error **errp)
     QLIST_INSERT_HEAD(&kvm_enabled_icps, enabled_icp, node);
 }
 
-static void icp_kvm_class_init(ObjectClass *klass, void *data)
-{
-    DeviceClass *dc = DEVICE_CLASS(klass);
-    ICPStateClass *icpc = ICP_CLASS(klass);
-
-    device_class_set_parent_realize(dc, icp_kvm_realize,
-                                    &icpc->parent_realize);
-}
-
-static const TypeInfo icp_kvm_info = {
-    .name = TYPE_KVM_ICP,
-    .parent = TYPE_ICP,
-    .instance_size = sizeof(ICPState),
-    .class_init = icp_kvm_class_init,
-    .class_size = sizeof(ICPStateClass),
-};
-
 /*
  * ICS-KVM
  */
@@ -425,7 +408,6 @@ fail:
 static void xics_kvm_register_types(void)
 {
     type_register_static(&ics_kvm_info);
-    type_register_static(&icp_kvm_info);
 }
 
 type_init(xics_kvm_register_types)
