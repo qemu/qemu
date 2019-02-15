@@ -1869,25 +1869,6 @@ void helper_vslo(ppc_avr_t *r, ppc_avr_t *a, ppc_avr_t *b)
 #endif
 }
 
-/* Experimental testing shows that hardware masks the immediate.  */
-#define _SPLAT_MASKED(element) (splat & (ARRAY_SIZE(r->element) - 1))
-#define SPLAT_ELEMENT(element) _SPLAT_MASKED(element)
-#define VSPLT(suffix, element, access)                                  \
-    void helper_vsplt##suffix(ppc_avr_t *r, ppc_avr_t *b, uint32_t splat) \
-    {                                                                   \
-        uint32_t s = b->access(SPLAT_ELEMENT(element));                 \
-        int i;                                                          \
-                                                                        \
-        for (i = 0; i < ARRAY_SIZE(r->element); i++) {                  \
-            r->access(i) = s;                                           \
-        }                                                               \
-    }
-VSPLT(b, u8, VsrB)
-VSPLT(h, u16, VsrH)
-VSPLT(w, u32, VsrW)
-#undef VSPLT
-#undef SPLAT_ELEMENT
-#undef _SPLAT_MASKED
 #if defined(HOST_WORDS_BIGENDIAN)
 #define VINSERT(suffix, element)                                            \
     void helper_vinsert##suffix(ppc_avr_t *r, ppc_avr_t *b, uint32_t index) \

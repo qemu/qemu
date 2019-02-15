@@ -798,23 +798,31 @@ GEN_VXFORM_NOA(vprtybw, 1, 24);
 GEN_VXFORM_NOA(vprtybd, 1, 24);
 GEN_VXFORM_NOA(vprtybq, 1, 24);
 
-#define GEN_VXFORM_UIMM(name, opc2, opc3)                               \
-static void glue(gen_, name)(DisasContext *ctx)                                 \
-    {                                                                   \
-        TCGv_ptr rb, rd;                                                \
-        TCGv_i32 uimm;                                                  \
-        if (unlikely(!ctx->altivec_enabled)) {                          \
-            gen_exception(ctx, POWERPC_EXCP_VPU);                       \
-            return;                                                     \
-        }                                                               \
-        uimm = tcg_const_i32(UIMM5(ctx->opcode));                       \
-        rb = gen_avr_ptr(rB(ctx->opcode));                              \
-        rd = gen_avr_ptr(rD(ctx->opcode));                              \
-        gen_helper_##name (rd, rb, uimm);                               \
-        tcg_temp_free_i32(uimm);                                        \
-        tcg_temp_free_ptr(rb);                                          \
-        tcg_temp_free_ptr(rd);                                          \
+static void gen_vsplt(DisasContext *ctx, int vece)
+{
+    int uimm, dofs, bofs;
+
+    if (unlikely(!ctx->altivec_enabled)) {
+        gen_exception(ctx, POWERPC_EXCP_VPU);
+        return;
     }
+
+    uimm = UIMM5(ctx->opcode);
+    bofs = avr64_offset(rB(ctx->opcode), true);
+    dofs = avr64_offset(rD(ctx->opcode), true);
+
+    /* Experimental testing shows that hardware masks the immediate.  */
+    bofs += (uimm << vece) & 15;
+#ifndef HOST_WORDS_BIGENDIAN
+    bofs ^= 15;
+    bofs &= ~((1 << vece) - 1);
+#endif
+
+    tcg_gen_gvec_dup_mem(vece, dofs, bofs, 16, 16);
+}
+
+#define GEN_VXFORM_VSPLT(name, vece, opc2, opc3) \
+static void glue(gen_, name)(DisasContext *ctx) { gen_vsplt(ctx, vece); }
 
 #define GEN_VXFORM_UIMM_ENV(name, opc2, opc3)                           \
 static void glue(gen_, name)(DisasContext *ctx)                         \
@@ -858,9 +866,9 @@ static void glue(gen_, name)(DisasContext *ctx)                         \
         tcg_temp_free_ptr(rd);                                          \
     }
 
-GEN_VXFORM_UIMM(vspltb, 6, 8);
-GEN_VXFORM_UIMM(vsplth, 6, 9);
-GEN_VXFORM_UIMM(vspltw, 6, 10);
+GEN_VXFORM_VSPLT(vspltb, MO_8, 6, 8);
+GEN_VXFORM_VSPLT(vsplth, MO_16, 6, 9);
+GEN_VXFORM_VSPLT(vspltw, MO_32, 6, 10);
 GEN_VXFORM_UIMM_SPLAT(vextractub, 6, 8, 15);
 GEN_VXFORM_UIMM_SPLAT(vextractuh, 6, 9, 14);
 GEN_VXFORM_UIMM_SPLAT(vextractuw, 6, 10, 12);
