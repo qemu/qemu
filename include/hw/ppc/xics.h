@@ -95,9 +95,6 @@ struct PnvICPState {
 #define TYPE_ICS_SIMPLE "ics"
 #define ICS_SIMPLE(obj) OBJECT_CHECK(ICSState, (obj), TYPE_ICS_SIMPLE)
 
-#define TYPE_ICS_KVM "icskvm"
-#define ICS_KVM(obj) OBJECT_CHECK(ICSState, (obj), TYPE_ICS_KVM)
-
 #define ICS_BASE_CLASS(klass) \
      OBJECT_CLASS_CHECK(ICSStateClass, (klass), TYPE_ICS_BASE)
 #define ICS_BASE_GET_CLASS(obj) \

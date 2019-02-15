@@ -208,7 +208,7 @@ static void spapr_irq_cpu_intc_create_xics(sPAPRMachineState *spapr,
 
 static int spapr_irq_post_load_xics(sPAPRMachineState *spapr, int version_id)
 {
-    if (!object_dynamic_cast(OBJECT(spapr->ics), TYPE_ICS_KVM)) {
+    if (!kvm_irqchip_in_kernel()) {
         CPUState *cs;
         CPU_FOREACH(cs) {
             PowerPCCPU *cpu = POWERPC_CPU(cs);

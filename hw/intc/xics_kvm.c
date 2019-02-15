@@ -279,39 +279,6 @@ void ics_kvm_set_irq(ICSState *ics, int srcno, int val)
     }
 }
 
-static void ics_kvm_realize(DeviceState *dev, Error **errp)
-{
-    ICSState *ics = ICS_KVM(dev);
-    ICSStateClass *icsc = ICS_BASE_GET_CLASS(ics);
-    Error *local_err = NULL;
-
-    icsc->parent_realize(dev, &local_err);
-    if (local_err) {
-        error_propagate(errp, local_err);
-        return;
-    }
-}
-
-static void ics_kvm_class_init(ObjectClass *klass, void *data)
-{
-    ICSStateClass *icsc = ICS_BASE_CLASS(klass);
-    DeviceClass *dc = DEVICE_CLASS(klass);
-
-    device_class_set_parent_realize(dc, ics_kvm_realize,
-                                    &icsc->parent_realize);
-}
-
-static const TypeInfo ics_kvm_info = {
-    .name = TYPE_ICS_KVM,
-    .parent = TYPE_ICS_BASE,
-    .instance_size = sizeof(ICSState),
-    .class_init = ics_kvm_class_init,
-};
-
-/*
- * XICS-KVM
- */
-
 static void rtas_dummy(PowerPCCPU *cpu, sPAPRMachineState *spapr,
                        uint32_t token,
                        uint32_t nargs, target_ulong args,
@@ -381,10 +348,3 @@ fail:
     kvmppc_define_rtas_kernel_token(0, "ibm,int-off");
     return -1;
 }
-
-static void xics_kvm_register_types(void)
-{
-    type_register_static(&ics_kvm_info);
-}
-
-type_init(xics_kvm_register_types)
