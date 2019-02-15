@@ -1972,6 +1972,21 @@ const char *qemu_ram_get_idstr(RAMBlock *rb)
     return rb->idstr;
 }
 
+void *qemu_ram_get_host_addr(RAMBlock *rb)
+{
+    return rb->host;
+}
+
+ram_addr_t qemu_ram_get_offset(RAMBlock *rb)
+{
+    return rb->offset;
+}
+
+ram_addr_t qemu_ram_get_used_length(RAMBlock *rb)
+{
+    return rb->used_length;
+}
+
 bool qemu_ram_is_shared(RAMBlock *rb)
 {
     return rb->flags & RAM_SHARED;
@@ -3961,8 +3976,7 @@ int qemu_ram_foreach_block(RAMBlockIterFunc func, void *opaque)
 
     rcu_read_lock();
     RAMBLOCK_FOREACH(block) {
-        ret = func(block->idstr, block->host, block->offset,
-                   block->used_length, opaque);
+        ret = func(block, opaque);
         if (ret) {
             break;
         }
@@ -3981,8 +3995,7 @@ int qemu_ram_foreach_migratable_block(RAMBlockIterFunc func, void *opaque)
         if (!qemu_ram_is_migratable(block)) {
             continue;
         }
-        ret = func(block->idstr, block->host, block->offset,
-                   block->used_length, opaque);
+        ret = func(block, opaque);
         if (ret) {
             break;
         }

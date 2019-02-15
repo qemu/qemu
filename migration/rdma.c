@@ -624,9 +624,12 @@ static int rdma_add_block(RDMAContext *rdma, const char *block_name,
  * in advanced before the migration starts. This tells us where the RAM blocks
  * are so that we can register them individually.
  */
-static int qemu_rdma_init_one_block(const char *block_name, void *host_addr,
-    ram_addr_t block_offset, ram_addr_t length, void *opaque)
+static int qemu_rdma_init_one_block(RAMBlock *rb, void *opaque)
 {
+    const char *block_name = qemu_ram_get_idstr(rb);
+    void *host_addr = qemu_ram_get_host_addr(rb);
+    ram_addr_t block_offset = qemu_ram_get_offset(rb);
+    ram_addr_t length = qemu_ram_get_used_length(rb);
     return rdma_add_block(opaque, block_name, host_addr, block_offset, length);
 }
 
