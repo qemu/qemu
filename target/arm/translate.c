@@ -6148,6 +6148,142 @@ const GVecGen3 cmtst_op[4] = {
       .vece = MO_64 },
 };
 
+static void gen_uqadd_vec(unsigned vece, TCGv_vec t, TCGv_vec sat,
+                          TCGv_vec a, TCGv_vec b)
+{
+    TCGv_vec x = tcg_temp_new_vec_matching(t);
+    tcg_gen_add_vec(vece, x, a, b);
+    tcg_gen_usadd_vec(vece, t, a, b);
+    tcg_gen_cmp_vec(TCG_COND_NE, vece, x, x, t);
+    tcg_gen_or_vec(vece, sat, sat, x);
+    tcg_temp_free_vec(x);
+}
+
+const GVecGen4 uqadd_op[4] = {
+    { .fniv = gen_uqadd_vec,
+      .fno = gen_helper_gvec_uqadd_b,
+      .opc = INDEX_op_usadd_vec,
+      .write_aofs = true,
+      .vece = MO_8 },
+    { .fniv = gen_uqadd_vec,
+      .fno = gen_helper_gvec_uqadd_h,
+      .opc = INDEX_op_usadd_vec,
+      .write_aofs = true,
+      .vece = MO_16 },
+    { .fniv = gen_uqadd_vec,
+      .fno = gen_helper_gvec_uqadd_s,
+      .opc = INDEX_op_usadd_vec,
+      .write_aofs = true,
+      .vece = MO_32 },
+    { .fniv = gen_uqadd_vec,
+      .fno = gen_helper_gvec_uqadd_d,
+      .opc = INDEX_op_usadd_vec,
+      .write_aofs = true,
+      .vece = MO_64 },
+};
+
+static void gen_sqadd_vec(unsigned vece, TCGv_vec t, TCGv_vec sat,
+                          TCGv_vec a, TCGv_vec b)
+{
+    TCGv_vec x = tcg_temp_new_vec_matching(t);
+    tcg_gen_add_vec(vece, x, a, b);
+    tcg_gen_ssadd_vec(vece, t, a, b);
+    tcg_gen_cmp_vec(TCG_COND_NE, vece, x, x, t);
+    tcg_gen_or_vec(vece, sat, sat, x);
+    tcg_temp_free_vec(x);
+}
+
+const GVecGen4 sqadd_op[4] = {
+    { .fniv = gen_sqadd_vec,
+      .fno = gen_helper_gvec_sqadd_b,
+      .opc = INDEX_op_ssadd_vec,
+      .write_aofs = true,
+      .vece = MO_8 },
+    { .fniv = gen_sqadd_vec,
+      .fno = gen_helper_gvec_sqadd_h,
+      .opc = INDEX_op_ssadd_vec,
+      .write_aofs = true,
+      .vece = MO_16 },
+    { .fniv = gen_sqadd_vec,
+      .fno = gen_helper_gvec_sqadd_s,
+      .opc = INDEX_op_ssadd_vec,
+      .write_aofs = true,
+      .vece = MO_32 },
+    { .fniv = gen_sqadd_vec,
+      .fno = gen_helper_gvec_sqadd_d,
+      .opc = INDEX_op_ssadd_vec,
+      .write_aofs = true,
+      .vece = MO_64 },
+};
+
+static void gen_uqsub_vec(unsigned vece, TCGv_vec t, TCGv_vec sat,
+                          TCGv_vec a, TCGv_vec b)
+{
+    TCGv_vec x = tcg_temp_new_vec_matching(t);
+    tcg_gen_sub_vec(vece, x, a, b);
+    tcg_gen_ussub_vec(vece, t, a, b);
+    tcg_gen_cmp_vec(TCG_COND_NE, vece, x, x, t);
+    tcg_gen_or_vec(vece, sat, sat, x);
+    tcg_temp_free_vec(x);
+}
+
+const GVecGen4 uqsub_op[4] = {
+    { .fniv = gen_uqsub_vec,
+      .fno = gen_helper_gvec_uqsub_b,
+      .opc = INDEX_op_ussub_vec,
+      .write_aofs = true,
+      .vece = MO_8 },
+    { .fniv = gen_uqsub_vec,
+      .fno = gen_helper_gvec_uqsub_h,
+      .opc = INDEX_op_ussub_vec,
+      .write_aofs = true,
+      .vece = MO_16 },
+    { .fniv = gen_uqsub_vec,
+      .fno = gen_helper_gvec_uqsub_s,
+      .opc = INDEX_op_ussub_vec,
+      .write_aofs = true,
+      .vece = MO_32 },
+    { .fniv = gen_uqsub_vec,
+      .fno = gen_helper_gvec_uqsub_d,
+      .opc = INDEX_op_ussub_vec,
+      .write_aofs = true,
+      .vece = MO_64 },
+};
+
+static void gen_sqsub_vec(unsigned vece, TCGv_vec t, TCGv_vec sat,
+                          TCGv_vec a, TCGv_vec b)
+{
+    TCGv_vec x = tcg_temp_new_vec_matching(t);
+    tcg_gen_sub_vec(vece, x, a, b);
+    tcg_gen_sssub_vec(vece, t, a, b);
+    tcg_gen_cmp_vec(TCG_COND_NE, vece, x, x, t);
+    tcg_gen_or_vec(vece, sat, sat, x);
+    tcg_temp_free_vec(x);
+}
+
+const GVecGen4 sqsub_op[4] = {
+    { .fniv = gen_sqsub_vec,
+      .fno = gen_helper_gvec_sqsub_b,
+      .opc = INDEX_op_sssub_vec,
+      .write_aofs = true,
+      .vece = MO_8 },
+    { .fniv = gen_sqsub_vec,
+      .fno = gen_helper_gvec_sqsub_h,
+      .opc = INDEX_op_sssub_vec,
+      .write_aofs = true,
+      .vece = MO_16 },
+    { .fniv = gen_sqsub_vec,
+      .fno = gen_helper_gvec_sqsub_s,
+      .opc = INDEX_op_sssub_vec,
+      .write_aofs = true,
+      .vece = MO_32 },
+    { .fniv = gen_sqsub_vec,
+      .fno = gen_helper_gvec_sqsub_d,
+      .opc = INDEX_op_sssub_vec,
+      .write_aofs = true,
+      .vece = MO_64 },
+};
+
 /* Translate a NEON data processing instruction.  Return nonzero if the
    instruction is invalid.
    We process data in a mixture of 32-bit and 64-bit chunks.
@@ -6331,6 +6467,18 @@ static int disas_neon_data_insn(DisasContext *s, uint32_t insn)
             }
             return 0;
 
+        case NEON_3R_VQADD:
+            tcg_gen_gvec_4(rd_ofs, offsetof(CPUARMState, vfp.qc),
+                           rn_ofs, rm_ofs, vec_size, vec_size,
+                           (u ? uqadd_op : sqadd_op) + size);
+            break;
+
+        case NEON_3R_VQSUB:
+            tcg_gen_gvec_4(rd_ofs, offsetof(CPUARMState, vfp.qc),
+                           rn_ofs, rm_ofs, vec_size, vec_size,
+                           (u ? uqsub_op : sqsub_op) + size);
+            break;
+
         case NEON_3R_VMUL: /* VMUL */
             if (u) {
                 /* Polynomial case allows only P8 and is handled below.  */
@@ -6395,24 +6543,6 @@ static int disas_neon_data_insn(DisasContext *s, uint32_t insn)
                 neon_load_reg64(cpu_V0, rn + pass);
                 neon_load_reg64(cpu_V1, rm + pass);
                 switch (op) {
-                case NEON_3R_VQADD:
-                    if (u) {
-                        gen_helper_neon_qadd_u64(cpu_V0, cpu_env,
-                                                 cpu_V0, cpu_V1);
-                    } else {
-                        gen_helper_neon_qadd_s64(cpu_V0, cpu_env,
-                                                 cpu_V0, cpu_V1);
-                    }
-                    break;
-                case NEON_3R_VQSUB:
-                    if (u) {
-                        gen_helper_neon_qsub_u64(cpu_V0, cpu_env,
-                                                 cpu_V0, cpu_V1);
-                    } else {
-                        gen_helper_neon_qsub_s64(cpu_V0, cpu_env,
-                                                 cpu_V0, cpu_V1);
-                    }
-                    break;
                 case NEON_3R_VSHL:
                     if (u) {
                         gen_helper_neon_shl_u64(cpu_V0, cpu_V1, cpu_V0);
@@ -6528,17 +6658,11 @@ static int disas_neon_data_insn(DisasContext *s, uint32_t insn)
         case NEON_3R_VHADD:
             GEN_NEON_INTEGER_OP(hadd);
             break;
-        case NEON_3R_VQADD:
-            GEN_NEON_INTEGER_OP_ENV(qadd);
-            break;
         case NEON_3R_VRHADD:
             GEN_NEON_INTEGER_OP(rhadd);
             break;
         case NEON_3R_VHSUB:
             GEN_NEON_INTEGER_OP(hsub);
-            break;
-        case NEON_3R_VQSUB:
-            GEN_NEON_INTEGER_OP_ENV(qsub);
             break;
         case NEON_3R_VSHL:
             GEN_NEON_INTEGER_OP(shl);

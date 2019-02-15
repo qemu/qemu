@@ -10948,6 +10948,22 @@ static void disas_simd_3same_int(DisasContext *s, uint32_t insn)
     }
 
     switch (opcode) {
+    case 0x01: /* SQADD, UQADD */
+        tcg_gen_gvec_4(vec_full_reg_offset(s, rd),
+                       offsetof(CPUARMState, vfp.qc),
+                       vec_full_reg_offset(s, rn),
+                       vec_full_reg_offset(s, rm),
+                       is_q ? 16 : 8, vec_full_reg_size(s),
+                       (u ? uqadd_op : sqadd_op) + size);
+        return;
+    case 0x05: /* SQSUB, UQSUB */
+        tcg_gen_gvec_4(vec_full_reg_offset(s, rd),
+                       offsetof(CPUARMState, vfp.qc),
+                       vec_full_reg_offset(s, rn),
+                       vec_full_reg_offset(s, rm),
+                       is_q ? 16 : 8, vec_full_reg_size(s),
+                       (u ? uqsub_op : sqsub_op) + size);
+        return;
     case 0x0c: /* SMAX, UMAX */
         if (u) {
             gen_gvec_fn3(s, is_q, rd, rn, rm, tcg_gen_gvec_umax, size);
@@ -11043,16 +11059,6 @@ static void disas_simd_3same_int(DisasContext *s, uint32_t insn)
                 genfn = fns[size][u];
                 break;
             }
-            case 0x1: /* SQADD, UQADD */
-            {
-                static NeonGenTwoOpEnvFn * const fns[3][2] = {
-                    { gen_helper_neon_qadd_s8, gen_helper_neon_qadd_u8 },
-                    { gen_helper_neon_qadd_s16, gen_helper_neon_qadd_u16 },
-                    { gen_helper_neon_qadd_s32, gen_helper_neon_qadd_u32 },
-                };
-                genenvfn = fns[size][u];
-                break;
-            }
             case 0x2: /* SRHADD, URHADD */
             {
                 static NeonGenTwoOpFn * const fns[3][2] = {
@@ -11071,16 +11077,6 @@ static void disas_simd_3same_int(DisasContext *s, uint32_t insn)
                     { gen_helper_neon_hsub_s32, gen_helper_neon_hsub_u32 },
                 };
                 genfn = fns[size][u];
-                break;
-            }
-            case 0x5: /* SQSUB, UQSUB */
-            {
-                static NeonGenTwoOpEnvFn * const fns[3][2] = {
-                    { gen_helper_neon_qsub_s8, gen_helper_neon_qsub_u8 },
-                    { gen_helper_neon_qsub_s16, gen_helper_neon_qsub_u16 },
-                    { gen_helper_neon_qsub_s32, gen_helper_neon_qsub_u32 },
-                };
-                genenvfn = fns[size][u];
                 break;
             }
             case 0x8: /* SSHL, USHL */

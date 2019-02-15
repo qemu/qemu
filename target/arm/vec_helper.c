@@ -766,3 +766,133 @@ DO_FMLA_IDX(gvec_fmla_idx_s, float32, H4)
 DO_FMLA_IDX(gvec_fmla_idx_d, float64, )
 
 #undef DO_FMLA_IDX
+
+#define DO_SAT(NAME, WTYPE, TYPEN, TYPEM, OP, MIN, MAX) \
+void HELPER(NAME)(void *vd, void *vq, void *vn, void *vm, uint32_t desc)   \
+{                                                                          \
+    intptr_t i, oprsz = simd_oprsz(desc);                                  \
+    TYPEN *d = vd, *n = vn; TYPEM *m = vm;                                 \
+    bool q = false;                                                        \
+    for (i = 0; i < oprsz / sizeof(TYPEN); i++) {                          \
+        WTYPE dd = (WTYPE)n[i] OP m[i];                                    \
+        if (dd < MIN) {                                                    \
+            dd = MIN;                                                      \
+            q = true;                                                      \
+        } else if (dd > MAX) {                                             \
+            dd = MAX;                                                      \
+            q = true;                                                      \
+        }                                                                  \
+        d[i] = dd;                                                         \
+    }                                                                      \
+    if (q) {                                                               \
+        uint32_t *qc = vq;                                                 \
+        qc[0] = 1;                                                         \
+    }                                                                      \
+    clear_tail(d, oprsz, simd_maxsz(desc));                                \
+}
+
+DO_SAT(gvec_uqadd_b, int, uint8_t, uint8_t, +, 0, UINT8_MAX)
+DO_SAT(gvec_uqadd_h, int, uint16_t, uint16_t, +, 0, UINT16_MAX)
+DO_SAT(gvec_uqadd_s, int64_t, uint32_t, uint32_t, +, 0, UINT32_MAX)
+
+DO_SAT(gvec_sqadd_b, int, int8_t, int8_t, +, INT8_MIN, INT8_MAX)
+DO_SAT(gvec_sqadd_h, int, int16_t, int16_t, +, INT16_MIN, INT16_MAX)
+DO_SAT(gvec_sqadd_s, int64_t, int32_t, int32_t, +, INT32_MIN, INT32_MAX)
+
+DO_SAT(gvec_uqsub_b, int, uint8_t, uint8_t, -, 0, UINT8_MAX)
+DO_SAT(gvec_uqsub_h, int, uint16_t, uint16_t, -, 0, UINT16_MAX)
+DO_SAT(gvec_uqsub_s, int64_t, uint32_t, uint32_t, -, 0, UINT32_MAX)
+
+DO_SAT(gvec_sqsub_b, int, int8_t, int8_t, -, INT8_MIN, INT8_MAX)
+DO_SAT(gvec_sqsub_h, int, int16_t, int16_t, -, INT16_MIN, INT16_MAX)
+DO_SAT(gvec_sqsub_s, int64_t, int32_t, int32_t, -, INT32_MIN, INT32_MAX)
+
+#undef DO_SAT
+
+void HELPER(gvec_uqadd_d)(void *vd, void *vq, void *vn,
+                          void *vm, uint32_t desc)
+{
+    intptr_t i, oprsz = simd_oprsz(desc);
+    uint64_t *d = vd, *n = vn, *m = vm;
+    bool q = false;
+
+    for (i = 0; i < oprsz / 8; i++) {
+        uint64_t nn = n[i], mm = m[i], dd = nn + mm;
+        if (dd < nn) {
+            dd = UINT64_MAX;
+            q = true;
+        }
+        d[i] = dd;
+    }
+    if (q) {
+        uint32_t *qc = vq;
+        qc[0] = 1;
+    }
+    clear_tail(d, oprsz, simd_maxsz(desc));
+}
+
+void HELPER(gvec_uqsub_d)(void *vd, void *vq, void *vn,
+                          void *vm, uint32_t desc)
+{
+    intptr_t i, oprsz = simd_oprsz(desc);
+    uint64_t *d = vd, *n = vn, *m = vm;
+    bool q = false;
+
+    for (i = 0; i < oprsz / 8; i++) {
+        uint64_t nn = n[i], mm = m[i], dd = nn - mm;
+        if (nn < mm) {
+            dd = 0;
+            q = true;
+        }
+        d[i] = dd;
+    }
+    if (q) {
+        uint32_t *qc = vq;
+        qc[0] = 1;
+    }
+    clear_tail(d, oprsz, simd_maxsz(desc));
+}
+
+void HELPER(gvec_sqadd_d)(void *vd, void *vq, void *vn,
+                          void *vm, uint32_t desc)
+{
+    intptr_t i, oprsz = simd_oprsz(desc);
+    int64_t *d = vd, *n = vn, *m = vm;
+    bool q = false;
+
+    for (i = 0; i < oprsz / 8; i++) {
+        int64_t nn = n[i], mm = m[i], dd = nn + mm;
+        if (((dd ^ nn) & ~(nn ^ mm)) & INT64_MIN) {
+            dd = (nn >> 63) ^ ~INT64_MIN;
+            q = true;
+        }
+        d[i] = dd;
+    }
+    if (q) {
+        uint32_t *qc = vq;
+        qc[0] = 1;
+    }
+    clear_tail(d, oprsz, simd_maxsz(desc));
+}
+
+void HELPER(gvec_sqsub_d)(void *vd, void *vq, void *vn,
+                          void *vm, uint32_t desc)
+{
+    intptr_t i, oprsz = simd_oprsz(desc);
+    int64_t *d = vd, *n = vn, *m = vm;
+    bool q = false;
+
+    for (i = 0; i < oprsz / 8; i++) {
+        int64_t nn = n[i], mm = m[i], dd = nn - mm;
+        if (((dd ^ nn) & (nn ^ mm)) & INT64_MIN) {
+            dd = (nn >> 63) ^ ~INT64_MIN;
+            q = true;
+        }
+        d[i] = dd;
+    }
+    if (q) {
+        uint32_t *qc = vq;
+        qc[0] = 1;
+    }
+    clear_tail(d, oprsz, simd_maxsz(desc));
+}
