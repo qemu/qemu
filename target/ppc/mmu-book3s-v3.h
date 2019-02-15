@@ -17,8 +17,8 @@
  * License along with this library; if not, see <http://www.gnu.org/licenses/>.
  */
 
-#ifndef MMU_H
-#define MMU_H
+#ifndef MMU_BOOOK3S_V3_H
+#define MMU_BOOOK3S_V3_H
 
 #ifndef CONFIG_USER_ONLY
 
@@ -62,4 +62,4 @@ int ppc64_v3_handle_mmu_fault(PowerPCCPU *cpu, vaddr eaddr, int rwx,
 
 #endif /* CONFIG_USER_ONLY */
 
-#endif /* MMU_H */
+#endif /* MMU_BOOOK3S_V3_H */
