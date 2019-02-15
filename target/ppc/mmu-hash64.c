@@ -507,6 +507,12 @@ static hwaddr ppc_hash64_pteg_search(PowerPCCPU *cpu, hwaddr hash,
     }
     for (i = 0; i < HPTES_PER_GROUP; i++) {
         pte0 = ppc_hash64_hpte0(cpu, pteg, i);
+        /*
+         * pte0 contains the valid bit and must be read before pte1,
+         * otherwise we might see an old pte1 with a new valid bit and
+         * thus an inconsistent hpte value
+         */
+        smp_rmb();
         pte1 = ppc_hash64_hpte1(cpu, pteg, i);
 
         /* This compares V, B, H (secondary) and the AVPN */
