@@ -10,6 +10,7 @@
 #include "migration/cpu.h"
 #include "qapi/error.h"
 #include "kvm_ppc.h"
+#include "exec/helper-proto.h"
 
 static int cpu_load_old(QEMUFile *f, void *opaque, int version_id)
 {
@@ -17,7 +18,7 @@ static int cpu_load_old(QEMUFile *f, void *opaque, int version_id)
     CPUPPCState *env = &cpu->env;
     unsigned int i, j;
     target_ulong sdr1;
-    uint32_t fpscr;
+    uint32_t fpscr, vscr;
 #if defined(TARGET_PPC64)
     int32_t slb_nr;
 #endif
@@ -84,7 +85,8 @@ static int cpu_load_old(QEMUFile *f, void *opaque, int version_id)
     if (!cpu->vhyp) {
         ppc_store_sdr1(env, sdr1);
     }
-    qemu_get_be32s(f, &env->vscr);
+    qemu_get_be32s(f, &vscr);
+    helper_mtvscr(env, vscr);
     qemu_get_be64s(f, &env->spe_acc);
     qemu_get_be32s(f, &env->spe_fscr);
     qemu_get_betls(f, &env->msr_mask);
@@ -429,6 +431,28 @@ static bool altivec_needed(void *opaque)
     return (cpu->env.insns_flags & PPC_ALTIVEC);
 }
 
+static int get_vscr(QEMUFile *f, void *opaque, size_t size,
+                    const VMStateField *field)
+{
+    PowerPCCPU *cpu = opaque;
+    helper_mtvscr(&cpu->env, qemu_get_be32(f));
+    return 0;
+}
+
+static int put_vscr(QEMUFile *f, void *opaque, size_t size,
+                    const VMStateField *field, QJSON *vmdesc)
+{
+    PowerPCCPU *cpu = opaque;
+    qemu_put_be32(f, helper_mfvscr(&cpu->env));
+    return 0;
+}
+
+static const VMStateInfo vmstate_vscr = {
+    .name = "cpu/altivec/vscr",
+    .get = get_vscr,
+    .put = put_vscr,
+};
+
 static const VMStateDescription vmstate_altivec = {
     .name = "cpu/altivec",
     .version_id = 1,
@@ -436,7 +460,21 @@ static const VMStateDescription vmstate_altivec = {
     .needed = altivec_needed,
     .fields = (VMStateField[]) {
         VMSTATE_AVR_ARRAY(env.vsr, PowerPCCPU, 32),
-        VMSTATE_UINT32(env.vscr, PowerPCCPU),
+        /*
+         * Save the architecture value of the vscr, not the internally
+         * expanded version.  Since this architecture value does not
+         * exist in memory to be stored, this requires a but of hoop
+         * jumping.  We want OFFSET=0 so that we effectively pass CPU
+         * to the helper functions.
+         */
+        {
+            .name = "vscr",
+            .version_id = 0,
+            .size = sizeof(uint32_t),
+            .info = &vmstate_vscr,
+            .flags = VMS_SINGLE,
+            .offset = 0
+        },
         VMSTATE_END_OF_LIST()
     },
 };
