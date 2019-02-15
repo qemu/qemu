@@ -958,7 +958,6 @@ void helper_pminsn(CPUPPCState *env, powerpc_pm_insn_t insn)
      * but this doesn't seem to be a problem.
      */
     env->msr |= (1ull << MSR_EE);
-    raise_exception(env, EXCP_HLT);
 }
 #endif /* defined(TARGET_PPC64) */
 
