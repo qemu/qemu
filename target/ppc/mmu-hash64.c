@@ -490,6 +490,18 @@ static unsigned hpte_page_shift(const PPCHash64SegmentPageSizes *sps,
     return 0; /* Bad page size encoding */
 }
 
+static void ppc64_v3_new_to_old_hpte(target_ulong *pte0, target_ulong *pte1)
+{
+    /* Insert B into pte0 */
+    *pte0 = (*pte0 & HPTE64_V_COMMON_BITS) |
+            ((*pte1 & HPTE64_R_3_0_SSIZE_MASK) <<
+             (HPTE64_V_SSIZE_SHIFT - HPTE64_R_3_0_SSIZE_SHIFT));
+
+    /* Remove B from pte1 */
+    *pte1 = *pte1 & ~HPTE64_R_3_0_SSIZE_MASK;
+}
+
+
 static hwaddr ppc_hash64_pteg_search(PowerPCCPU *cpu, hwaddr hash,
                                      const PPCHash64SegmentPageSizes *sps,
                                      target_ulong ptem,
@@ -514,6 +526,11 @@ static hwaddr ppc_hash64_pteg_search(PowerPCCPU *cpu, hwaddr hash,
          */
         smp_rmb();
         pte1 = ppc_hash64_hpte1(cpu, pteg, i);
+
+        /* Convert format if necessary */
+        if (cpu->env.mmu_model == POWERPC_MMU_3_00 && !cpu->vhyp) {
+            ppc64_v3_new_to_old_hpte(&pte0, &pte1);
+        }
 
         /* This compares V, B, H (secondary) and the AVPN */
         if (HPTE64_V_COMPARE(pte0, ptem)) {
