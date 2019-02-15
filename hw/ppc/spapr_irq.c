@@ -102,7 +102,6 @@ static void spapr_irq_init_xics(sPAPRMachineState *spapr, int nr_irqs,
     if (kvm_enabled()) {
         if (machine_kernel_irqchip_allowed(machine) &&
             !xics_kvm_init(spapr, &local_err)) {
-            spapr->icp_type = TYPE_KVM_ICP;
             spapr->ics = spapr_ics_create(spapr, TYPE_ICS_KVM, nr_irqs,
                                           &local_err);
         }
@@ -117,7 +116,6 @@ static void spapr_irq_init_xics(sPAPRMachineState *spapr, int nr_irqs,
 
     if (!spapr->ics) {
         xics_spapr_init(spapr);
-        spapr->icp_type = TYPE_ICP;
         spapr->ics = spapr_ics_create(spapr, TYPE_ICS_SIMPLE, nr_irqs,
                                       &local_err);
     }
@@ -199,7 +197,7 @@ static void spapr_irq_cpu_intc_create_xics(sPAPRMachineState *spapr,
     Object *obj;
     sPAPRCPUState *spapr_cpu = spapr_cpu_state(cpu);
 
-    obj = icp_create(OBJECT(cpu), spapr->icp_type, XICS_FABRIC(spapr),
+    obj = icp_create(OBJECT(cpu), TYPE_ICP, XICS_FABRIC(spapr),
                      &local_err);
     if (local_err) {
         error_propagate(errp, local_err);

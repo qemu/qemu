@@ -178,7 +178,6 @@ struct sPAPRMachineState {
     /*< public >*/
     char *kvm_type;
 
-    const char *icp_type;
     int32_t irq_map_nr;
     unsigned long *irq_map;
     sPAPRXive  *xive;
