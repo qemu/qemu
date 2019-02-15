@@ -776,7 +776,7 @@ static inline void cpu_ppc_hdecr_excp(PowerPCCPU *cpu)
      * interrupts in a PM state. Not only they don't cause a
      * wakeup but they also get effectively discarded.
      */
-    if (!env->in_pm_state) {
+    if (!env->resume_as_sreset) {
         ppc_set_irq(cpu, PPC_INTERRUPT_HDECR, 1);
     }
 }

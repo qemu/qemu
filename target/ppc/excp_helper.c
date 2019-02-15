@@ -69,7 +69,7 @@ static int powerpc_reset_wakeup(CPUState *cs, CPUPPCState *env, int excp,
                                 target_ulong *msr)
 {
     /* We no longer are in a PM state */
-    env->in_pm_state = false;
+    env->resume_as_sreset = false;
 
     /* Pretend to be returning from doze always as we don't lose state */
     *msr |= (0x1ull << (63 - 47));
@@ -141,7 +141,7 @@ static inline void powerpc_excp(PowerPCCPU *cpu, int excp_model, int excp)
      * check for special resume at 0x100 from doze/nap/sleep/winkle on
      * P7/P8/P9
      */
-    if (env->in_pm_state) {
+    if (env->resume_as_sreset) {
         excp = powerpc_reset_wakeup(cs, env, excp, &msr);
     }
 
@@ -787,7 +787,7 @@ static void ppc_hw_interrupt(CPUPPCState *env)
      * clear when coming out of some power management states (in order
      * for them to become a 0x100).
      */
-    async_deliver = (msr_ee != 0) || env->in_pm_state;
+    async_deliver = (msr_ee != 0) || env->resume_as_sreset;
 
     /* Hypervisor decrementer exception */
     if (env->pending_interrupts & (1 << PPC_INTERRUPT_HDECR)) {
@@ -970,7 +970,7 @@ void helper_pminsn(CPUPPCState *env, powerpc_pm_insn_t insn)
     env->pending_interrupts &= ~(1 << PPC_INTERRUPT_HDECR);
 
     /* Condition for waking up at 0x100 */
-    env->in_pm_state = (insn != PPC_PM_STOP) ||
+    env->resume_as_sreset = (insn != PPC_PM_STOP) ||
         (env->spr[SPR_PSSCR] & PSSCR_EC);
 }
 #endif /* defined(TARGET_PPC64) */

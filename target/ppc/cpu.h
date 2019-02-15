@@ -1117,10 +1117,10 @@ struct CPUPPCState {
 
     /*
      * On P7/P8/P9, set when in PM state, we need to handle resume in
-     * a special way (such as routing some resume causes to 0x100), so
-     * flag this here.
+     * a special way (such as routing some resume causes to 0x100, ie,
+     * sreset), so flag this here.
      */
-    bool in_pm_state;
+    bool resume_as_sreset;
 #endif
 
     /* Those resources are used only during code translation */
