@@ -196,14 +196,23 @@ static void gen_mfvscr(DisasContext *ctx)
 
 static void gen_mtvscr(DisasContext *ctx)
 {
-    TCGv_ptr p;
+    TCGv_i32 val;
+    int bofs;
+
     if (unlikely(!ctx->altivec_enabled)) {
         gen_exception(ctx, POWERPC_EXCP_VPU);
         return;
     }
-    p = gen_avr_ptr(rB(ctx->opcode));
-    gen_helper_mtvscr(cpu_env, p);
-    tcg_temp_free_ptr(p);
+
+    val = tcg_temp_new_i32();
+    bofs = avr64_offset(rB(ctx->opcode), true);
+#ifdef HOST_WORDS_BIGENDIAN
+    bofs += 3 * 4;
+#endif
+
+    tcg_gen_ld_i32(val, cpu_env, bofs);
+    gen_helper_mtvscr(cpu_env, val);
+    tcg_temp_free_i32(val);
 }
 
 #define GEN_VX_VMUL10(name, add_cin, ret_carry)                         \
