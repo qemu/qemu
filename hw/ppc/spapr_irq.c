@@ -67,13 +67,12 @@ void spapr_irq_msi_reset(sPAPRMachineState *spapr)
  */
 
 static ICSState *spapr_ics_create(sPAPRMachineState *spapr,
-                                  const char *type_ics,
                                   int nr_irqs, Error **errp)
 {
     Error *local_err = NULL;
     Object *obj;
 
-    obj = object_new(type_ics);
+    obj = object_new(TYPE_ICS_SIMPLE);
     object_property_add_child(OBJECT(spapr), "ics", obj, &error_abort);
     object_property_add_const_link(obj, ICS_PROP_XICS, OBJECT(spapr),
                                    &error_abort);
@@ -98,14 +97,14 @@ static void spapr_irq_init_xics(sPAPRMachineState *spapr, int nr_irqs,
 {
     MachineState *machine = MACHINE(spapr);
     Error *local_err = NULL;
+    bool xics_kvm = false;
 
     if (kvm_enabled()) {
         if (machine_kernel_irqchip_allowed(machine) &&
             !xics_kvm_init(spapr, &local_err)) {
-            spapr->ics = spapr_ics_create(spapr, TYPE_ICS_KVM, nr_irqs,
-                                          &local_err);
+            xics_kvm = true;
         }
-        if (machine_kernel_irqchip_required(machine) && !spapr->ics) {
+        if (machine_kernel_irqchip_required(machine) && !xics_kvm) {
             error_prepend(&local_err,
                           "kernel_irqchip requested but unavailable: ");
             goto error;
@@ -114,11 +113,11 @@ static void spapr_irq_init_xics(sPAPRMachineState *spapr, int nr_irqs,
         local_err = NULL;
     }
 
-    if (!spapr->ics) {
+    if (!xics_kvm) {
         xics_spapr_init(spapr);
-        spapr->ics = spapr_ics_create(spapr, TYPE_ICS_SIMPLE, nr_irqs,
-                                      &local_err);
     }
+
+    spapr->ics = spapr_ics_create(spapr, nr_irqs, &local_err);
 
 error:
     error_propagate(errp, local_err);
