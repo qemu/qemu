@@ -704,25 +704,21 @@ GEN_VXRFORM_DUAL(vcmpbfp, PPC_ALTIVEC, PPC_NONE, \
 GEN_VXRFORM_DUAL(vcmpgtfp, PPC_ALTIVEC, PPC_NONE, \
                  vcmpgtud, PPC_NONE, PPC2_ALTIVEC_207)
 
-#define GEN_VXFORM_SIMM(name, opc2, opc3)                               \
+#define GEN_VXFORM_DUPI(name, tcg_op, opc2, opc3)                       \
 static void glue(gen_, name)(DisasContext *ctx)                         \
     {                                                                   \
-        TCGv_ptr rd;                                                    \
-        TCGv_i32 simm;                                                  \
+        int simm;                                                       \
         if (unlikely(!ctx->altivec_enabled)) {                          \
             gen_exception(ctx, POWERPC_EXCP_VPU);                       \
             return;                                                     \
         }                                                               \
-        simm = tcg_const_i32(SIMM5(ctx->opcode));                       \
-        rd = gen_avr_ptr(rD(ctx->opcode));                              \
-        gen_helper_##name (rd, simm);                                   \
-        tcg_temp_free_i32(simm);                                        \
-        tcg_temp_free_ptr(rd);                                          \
+        simm = SIMM5(ctx->opcode);                                      \
+        tcg_op(avr64_offset(rD(ctx->opcode), true), 16, 16, simm);      \
     }
 
-GEN_VXFORM_SIMM(vspltisb, 6, 12);
-GEN_VXFORM_SIMM(vspltish, 6, 13);
-GEN_VXFORM_SIMM(vspltisw, 6, 14);
+GEN_VXFORM_DUPI(vspltisb, tcg_gen_gvec_dup8i, 6, 12);
+GEN_VXFORM_DUPI(vspltish, tcg_gen_gvec_dup16i, 6, 13);
+GEN_VXFORM_DUPI(vspltisw, tcg_gen_gvec_dup32i, 6, 14);
 
 #define GEN_VXFORM_NOA(name, opc2, opc3)                                \
 static void glue(gen_, name)(DisasContext *ctx)                                 \
@@ -801,22 +797,6 @@ GEN_VXFORM_NOA_ENV(vrfiz, 5, 9);
 GEN_VXFORM_NOA(vprtybw, 1, 24);
 GEN_VXFORM_NOA(vprtybd, 1, 24);
 GEN_VXFORM_NOA(vprtybq, 1, 24);
-
-#define GEN_VXFORM_SIMM(name, opc2, opc3)                               \
-static void glue(gen_, name)(DisasContext *ctx)                                 \
-    {                                                                   \
-        TCGv_ptr rd;                                                    \
-        TCGv_i32 simm;                                                  \
-        if (unlikely(!ctx->altivec_enabled)) {                          \
-            gen_exception(ctx, POWERPC_EXCP_VPU);                       \
-            return;                                                     \
-        }                                                               \
-        simm = tcg_const_i32(SIMM5(ctx->opcode));                       \
-        rd = gen_avr_ptr(rD(ctx->opcode));                              \
-        gen_helper_##name (rd, simm);                                   \
-        tcg_temp_free_i32(simm);                                        \
-        tcg_temp_free_ptr(rd);                                          \
-    }
 
 #define GEN_VXFORM_UIMM(name, opc2, opc3)                               \
 static void glue(gen_, name)(DisasContext *ctx)                                 \
@@ -1240,7 +1220,7 @@ GEN_VXFORM_DUAL(vsldoi, PPC_ALTIVEC, PPC_NONE,
 #undef GEN_VXRFORM_DUAL
 #undef GEN_VXRFORM1
 #undef GEN_VXRFORM
-#undef GEN_VXFORM_SIMM
+#undef GEN_VXFORM_DUPI
 #undef GEN_VXFORM_NOA
 #undef GEN_VXFORM_UIMM
 #undef GEN_VAFORM_PAIRED

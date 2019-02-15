@@ -1998,21 +1998,6 @@ VNEG(vnegw, s32)
 VNEG(vnegd, s64)
 #undef VNEG
 
-#define VSPLTI(suffix, element, splat_type)                     \
-    void helper_vspltis##suffix(ppc_avr_t *r, uint32_t splat)   \
-    {                                                           \
-        splat_type x = (int8_t)(splat << 3) >> 3;               \
-        int i;                                                  \
-                                                                \
-        for (i = 0; i < ARRAY_SIZE(r->element); i++) {          \
-            r->element[i] = x;                                  \
-        }                                                       \
-    }
-VSPLTI(b, s8, int8_t)
-VSPLTI(h, s16, int16_t)
-VSPLTI(w, s32, int32_t)
-#undef VSPLTI
-
 #define VSR(suffix, element, mask)                                      \
     void helper_vsr##suffix(ppc_avr_t *r, ppc_avr_t *a, ppc_avr_t *b)   \
     {                                                                   \
