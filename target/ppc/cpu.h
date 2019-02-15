@@ -388,6 +388,7 @@ struct ppc_slb_t {
 #define LPCR_AIL          (3ull << LPCR_AIL_SHIFT)
 #define LPCR_UPRT         PPC_BIT(41) /* Use Process Table */
 #define LPCR_EVIRT        PPC_BIT(42) /* Enhanced Virtualisation */
+#define LPCR_HR           PPC_BIT(43) /* Host Radix */
 #define LPCR_ONL          PPC_BIT(45)
 #define LPCR_LD           PPC_BIT(46) /* Large Decrementer */
 #define LPCR_P7_PECE0     PPC_BIT(49)

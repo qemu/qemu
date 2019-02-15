@@ -841,4 +841,5 @@ void spapr_check_pagesize(sPAPRMachineState *spapr, hwaddr pagesize,
 #define SPAPR_OV5_XIVE_EXPLOIT  0x40
 #define SPAPR_OV5_XIVE_BOTH     0x80 /* Only to advertise on the platform */
 
+void spapr_set_all_lpcrs(target_ulong value, target_ulong mask);
 #endif /* HW_SPAPR_H */

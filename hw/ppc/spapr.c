@@ -1389,6 +1389,37 @@ static void emulate_spapr_hypercall(PPCVirtualHypervisor *vhyp,
     }
 }
 
+struct LPCRSyncState {
+    target_ulong value;
+    target_ulong mask;
+};
+
+static void do_lpcr_sync(CPUState *cs, run_on_cpu_data arg)
+{
+    struct LPCRSyncState *s = arg.host_ptr;
+    PowerPCCPU *cpu = POWERPC_CPU(cs);
+    CPUPPCState *env = &cpu->env;
+    target_ulong lpcr;
+
+    cpu_synchronize_state(cs);
+    lpcr = env->spr[SPR_LPCR];
+    lpcr &= ~s->mask;
+    lpcr |= s->value;
+    ppc_store_lpcr(cpu, lpcr);
+}
+
+void spapr_set_all_lpcrs(target_ulong value, target_ulong mask)
+{
+    CPUState *cs;
+    struct LPCRSyncState s = {
+        .value = value,
+        .mask = mask
+    };
+    CPU_FOREACH(cs) {
+        run_on_cpu(cs, do_lpcr_sync, RUN_ON_CPU_HOST_PTR(&s));
+    }
+}
+
 static uint64_t spapr_get_patbe(PPCVirtualHypervisor *vhyp)
 {
     sPAPRMachineState *spapr = SPAPR_MACHINE(vhyp);
@@ -1565,7 +1596,7 @@ void spapr_reallocate_hpt(sPAPRMachineState *spapr, int shift,
         }
     }
     /* We're setting up a hash table, so that means we're not radix */
-    spapr->patb_entry = 0;
+    spapr_set_all_lpcrs(0, LPCR_HR | LPCR_UPRT);
 }
 
 void spapr_setup_hpt_and_vrma(sPAPRMachineState *spapr)
@@ -1623,6 +1654,7 @@ static void spapr_machine_reset(void)
          * without a HPT because KVM will start them in radix mode.
          * Set the GR bit in PATB so that we know there is no HPT. */
         spapr->patb_entry = PATBE1_GR;
+        spapr_set_all_lpcrs(LPCR_HR | LPCR_UPRT, LPCR_HR | LPCR_UPRT);
     } else {
         spapr_setup_hpt_and_vrma(spapr);
     }
@@ -1780,6 +1812,13 @@ static int spapr_post_load(void *opaque, int version_id)
         PowerPCCPU *cpu = POWERPC_CPU(first_cpu);
         bool radix = !!(spapr->patb_entry & PATBE1_GR);
         bool gtse = !!(cpu->env.spr[SPR_LPCR] & LPCR_GTSE);
+
+        /*
+         * Update LPCR:HR and UPRT as they may not be set properly in
+         * the stream
+         */
+        spapr_set_all_lpcrs(radix ? (LPCR_HR | LPCR_UPRT) : 0,
+                            LPCR_HR | LPCR_UPRT);
 
         err = kvmppc_configure_v3_mmu(cpu, radix, gtse, spapr->patb_entry);
         if (err) {
