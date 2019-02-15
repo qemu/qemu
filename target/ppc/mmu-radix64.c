@@ -194,8 +194,9 @@ int ppc_radix64_handle_mmu_fault(PowerPCCPU *cpu, vaddr eaddr, int rwx,
     PPCVirtualHypervisorClass *vhc =
         PPC_VIRTUAL_HYPERVISOR_GET_CLASS(cpu->vhyp);
     hwaddr raddr, pte_addr;
-    uint64_t lpid = 0, pid = 0, offset, size, patbe, prtbe0, pte;
+    uint64_t lpid = 0, pid = 0, offset, size, prtbe0, pte;
     int page_size, prot, fault_cause = 0;
+    ppc_v3_pate_t pate;
 
     assert((rwx == 0) || (rwx == 1) || (rwx == 2));
     assert(!msr_hv); /* For now there is no Radix PowerNV Support */
@@ -220,17 +221,17 @@ int ppc_radix64_handle_mmu_fault(PowerPCCPU *cpu, vaddr eaddr, int rwx,
     }
 
     /* Get Process Table */
-    patbe = vhc->get_patbe(cpu->vhyp);
+    vhc->get_pate(cpu->vhyp, &pate);
 
     /* Index Process Table by PID to Find Corresponding Process Table Entry */
     offset = pid * sizeof(struct prtb_entry);
-    size = 1ULL << ((patbe & PATBE1_R_PRTS) + 12);
+    size = 1ULL << ((pate.dw1 & PATE1_R_PRTS) + 12);
     if (offset >= size) {
         /* offset exceeds size of the process table */
         ppc_radix64_raise_si(cpu, rwx, eaddr, DSISR_NOPTE);
         return 1;
     }
-    prtbe0 = ldq_phys(cs->as, (patbe & PATBE1_R_PRTB) + offset);
+    prtbe0 = ldq_phys(cs->as, (pate.dw1 & PATE1_R_PRTB) + offset);
 
     /* Walk Radix Tree from Process Table Entry to Convert EA to RA */
     page_size = PRTBE_R_GET_RTS(prtbe0);
@@ -258,8 +259,9 @@ hwaddr ppc_radix64_get_phys_page_debug(PowerPCCPU *cpu, target_ulong eaddr)
     PPCVirtualHypervisorClass *vhc =
         PPC_VIRTUAL_HYPERVISOR_GET_CLASS(cpu->vhyp);
     hwaddr raddr, pte_addr;
-    uint64_t lpid = 0, pid = 0, offset, size, patbe, prtbe0, pte;
+    uint64_t lpid = 0, pid = 0, offset, size, prtbe0, pte;
     int page_size, fault_cause = 0;
+    ppc_v3_pate_t pate;
 
     /* Handle Real Mode */
     if (msr_dr == 0) {
@@ -273,16 +275,16 @@ hwaddr ppc_radix64_get_phys_page_debug(PowerPCCPU *cpu, target_ulong eaddr)
     }
 
     /* Get Process Table */
-    patbe = vhc->get_patbe(cpu->vhyp);
+    vhc->get_pate(cpu->vhyp, &pate);
 
     /* Index Process Table by PID to Find Corresponding Process Table Entry */
     offset = pid * sizeof(struct prtb_entry);
-    size = 1ULL << ((patbe & PATBE1_R_PRTS) + 12);
+    size = 1ULL << ((pate.dw1 & PATE1_R_PRTS) + 12);
     if (offset >= size) {
         /* offset exceeds size of the process table */
         return -1;
     }
-    prtbe0 = ldq_phys(cs->as, (patbe & PATBE1_R_PRTB) + offset);
+    prtbe0 = ldq_phys(cs->as, (pate.dw1 & PATE1_R_PRTB) + offset);
 
     /* Walk Radix Tree from Process Table Entry to Convert EA to RA */
     page_size = PRTBE_R_GET_RTS(prtbe0);

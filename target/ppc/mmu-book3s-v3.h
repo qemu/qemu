@@ -29,7 +29,16 @@
 #define PTCR_PATS               0x000000000000001FULL /* Partition Table Size */
 
 /* Partition Table Entry Fields */
-#define PATBE1_GR 0x8000000000000000
+#define PATE0_HR 0x8000000000000000
+
+/*
+ * WARNING: This field doesn't actually exist in the final version of
+ * the architecture and is unused by hardware. However, qemu uses it
+ * as an indication of a radix guest in the pseudo-PATB entry that it
+ * maintains for SPAPR guests and in the migration stream, so we need
+ * to keep it around
+ */
+#define PATE1_GR 0x8000000000000000
 
 /* Process Table Entry */
 struct prtb_entry {

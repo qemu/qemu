@@ -12,8 +12,8 @@
 #define R_EADDR_QUADRANT3       0xC000000000000000
 
 /* Radix Partition Table Entry Fields */
-#define PATBE1_R_PRTB           0x0FFFFFFFFFFFF000
-#define PATBE1_R_PRTS           0x000000000000001F
+#define PATE1_R_PRTB           0x0FFFFFFFFFFFF000
+#define PATE1_R_PRTS           0x000000000000001F
 
 /* Radix Process Table Entry Fields */
 #define PRTBE_R_GET_RTS(rts) \

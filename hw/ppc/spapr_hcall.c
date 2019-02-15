@@ -1311,12 +1311,12 @@ static void spapr_check_setup_free_hpt(sPAPRMachineState *spapr,
      *       later and so assumed radix and now it's called H_REG_PROC_TBL
      */
 
-    if ((patbe_old & PATBE1_GR) == (patbe_new & PATBE1_GR)) {
+    if ((patbe_old & PATE1_GR) == (patbe_new & PATE1_GR)) {
         /* We assume RADIX, so this catches all the "Do Nothing" cases */
-    } else if (!(patbe_old & PATBE1_GR)) {
+    } else if (!(patbe_old & PATE1_GR)) {
         /* HASH->RADIX : Free HPT */
         spapr_free_hpt(spapr);
-    } else if (!(patbe_new & PATBE1_GR)) {
+    } else if (!(patbe_new & PATE1_GR)) {
         /* RADIX->HASH || NOTHING->HASH : Allocate HPT */
         spapr_setup_hpt_and_vrma(spapr);
     }
@@ -1354,7 +1354,7 @@ static target_ulong h_register_process_table(PowerPCCPU *cpu,
                 } else if (table_size > 24) {
                     return H_P4;
                 }
-                cproc = PATBE1_GR | proc_tbl | table_size;
+                cproc = PATE1_GR | proc_tbl | table_size;
             } else { /* Register new HPT process table */
                 if (flags & FLAG_HASH_PROC_TBL) { /* Hash with Segment Tables */
                     /* TODO - Not Supported */
@@ -1373,13 +1373,15 @@ static target_ulong h_register_process_table(PowerPCCPU *cpu,
             }
 
         } else { /* Deregister current process table */
-            /* Set to benign value: (current GR) | 0. This allows
-             * deregistration in KVM to succeed even if the radix bit in flags
-             * doesn't match the radix bit in the old PATB. */
-            cproc = spapr->patb_entry & PATBE1_GR;
+            /*
+             * Set to benign value: (current GR) | 0. This allows
+             * deregistration in KVM to succeed even if the radix bit
+             * in flags doesn't match the radix bit in the old PATE.
+             */
+            cproc = spapr->patb_entry & PATE1_GR;
         }
     } else { /* Maintain current registration */
-        if (!(flags & FLAG_RADIX) != !(spapr->patb_entry & PATBE1_GR)) {
+        if (!(flags & FLAG_RADIX) != !(spapr->patb_entry & PATE1_GR)) {
             /* Technically caused by flag bits => H_PARAMETER */
             return H_PARAMETER; /* Existing Process Table Mismatch */
         }
@@ -1616,7 +1618,7 @@ static target_ulong h_client_architecture_support(PowerPCCPU *cpu,
     if (!spapr->cas_reboot) {
         /* If spapr_machine_reset() did not set up a HPT but one is necessary
          * (because the guest isn't going to use radix) then set it up here. */
-        if ((spapr->patb_entry & PATBE1_GR) && !guest_radix) {
+        if ((spapr->patb_entry & PATE1_GR) && !guest_radix) {
             /* legacy hash or new hash: */
             spapr_setup_hpt_and_vrma(spapr);
         }

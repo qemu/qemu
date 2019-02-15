@@ -320,6 +320,10 @@ struct ppc_slb_t {
 #define SEGMENT_SHIFT_1T        40
 #define SEGMENT_MASK_1T         (~((1ULL << SEGMENT_SHIFT_1T) - 1))
 
+typedef struct ppc_v3_pate_t {
+    uint64_t dw0;
+    uint64_t dw1;
+} ppc_v3_pate_t;
 
 /*****************************************************************************/
 /* Machine state register bits definition                                    */
@@ -1248,7 +1252,7 @@ struct PPCVirtualHypervisorClass {
                         hwaddr ptex, int n);
     void (*store_hpte)(PPCVirtualHypervisor *vhyp, hwaddr ptex,
                        uint64_t pte0, uint64_t pte1);
-    uint64_t (*get_patbe)(PPCVirtualHypervisor *vhyp);
+    void (*get_pate)(PPCVirtualHypervisor *vhyp, ppc_v3_pate_t *entry);
     target_ulong (*encode_hpt_for_kvm_pr)(PPCVirtualHypervisor *vhyp);
 };
 
