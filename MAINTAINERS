@@ -110,7 +110,6 @@ Guest CPU cores (TCG):
 ----------------------
 Overall
 L: qemu-devel@nongnu.org
-M: Peter Crosthwaite <crosthwaite.peter@gmail.com>
 M: Richard Henderson <rth@twiddle.net>
 R: Paolo Bonzini <pbonzini@redhat.com>
 S: Maintained
@@ -1345,7 +1344,6 @@ F: tests/virtio-scsi-test.c
 T: git https://github.com/bonzini/qemu.git scsi-next
 
 SSI
-M: Peter Crosthwaite <crosthwaite.peter@gmail.com>
 M: Alistair Francis <alistair@alistair23.me>
 S: Maintained
 F: hw/ssi/*
@@ -1356,7 +1354,6 @@ F: tests/m25p80-test.c
 
 Xilinx SPI
 M: Alistair Francis <alistair@alistair23.me>
-M: Peter Crosthwaite <crosthwaite.peter@gmail.com>
 S: Maintained
 F: hw/ssi/xilinx_*
 
@@ -1766,7 +1763,6 @@ F: qom/cpu.c
 F: include/qom/cpu.h
 
 Device Tree
-M: Peter Crosthwaite <crosthwaite.peter@gmail.com>
 M: Alexander Graf <agraf@suse.de>
 S: Maintained
 F: device_tree.c

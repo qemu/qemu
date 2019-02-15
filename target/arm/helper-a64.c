@@ -583,8 +583,8 @@ uint64_t HELPER(paired_cmpxchg64_be)(CPUARMState *env, uint64_t addr,
      * High and low need to be switched here because this is not actually a
      * 128bit store but two doublewords stored consecutively
      */
-    Int128 cmpv = int128_make128(env->exclusive_val, env->exclusive_high);
-    Int128 newv = int128_make128(new_lo, new_hi);
+    Int128 cmpv = int128_make128(env->exclusive_high, env->exclusive_val);
+    Int128 newv = int128_make128(new_hi, new_lo);
     Int128 oldv;
     uintptr_t ra = GETPC();
     uint64_t o0, o1;

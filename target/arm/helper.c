@@ -81,7 +81,7 @@ static int vfp_gdb_get_reg(CPUARMState *env, uint8_t *buf, int reg)
     }
     switch (reg - nregs) {
     case 0: stl_p(buf, env->vfp.xregs[ARM_VFP_FPSID]); return 4;
-    case 1: stl_p(buf, env->vfp.xregs[ARM_VFP_FPSCR]); return 4;
+    case 1: stl_p(buf, vfp_get_fpscr(env)); return 4;
     case 2: stl_p(buf, env->vfp.xregs[ARM_VFP_FPEXC]); return 4;
     }
     return 0;
@@ -107,7 +107,7 @@ static int vfp_gdb_set_reg(CPUARMState *env, uint8_t *buf, int reg)
     }
     switch (reg - nregs) {
     case 0: env->vfp.xregs[ARM_VFP_FPSID] = ldl_p(buf); return 4;
-    case 1: env->vfp.xregs[ARM_VFP_FPSCR] = ldl_p(buf); return 4;
+    case 1: vfp_set_fpscr(env, ldl_p(buf)); return 4;
     case 2: env->vfp.xregs[ARM_VFP_FPEXC] = ldl_p(buf) & (1 << 30); return 4;
     }
     return 0;
@@ -264,7 +264,7 @@ static bool raw_accessors_invalid(const ARMCPRegInfo *ri)
     return true;
 }
 
-bool write_cpustate_to_list(ARMCPU *cpu)
+bool write_cpustate_to_list(ARMCPU *cpu, bool kvm_sync)
 {
     /* Write the coprocessor state from cpu->env to the (index,value) list. */
     int i;
@@ -273,6 +273,7 @@ bool write_cpustate_to_list(ARMCPU *cpu)
     for (i = 0; i < cpu->cpreg_array_len; i++) {
         uint32_t regidx = kvm_to_cpreg_id(cpu->cpreg_indexes[i]);
         const ARMCPRegInfo *ri;
+        uint64_t newval;
 
         ri = get_arm_cp_reginfo(cpu->cp_regs, regidx);
         if (!ri) {
@@ -282,7 +283,29 @@ bool write_cpustate_to_list(ARMCPU *cpu)
         if (ri->type & ARM_CP_NO_RAW) {
             continue;
         }
-        cpu->cpreg_values[i] = read_raw_cp_reg(&cpu->env, ri);
+
+        newval = read_raw_cp_reg(&cpu->env, ri);
+        if (kvm_sync) {
+            /*
+             * Only sync if the previous list->cpustate sync succeeded.
+             * Rather than tracking the success/failure state for every
+             * item in the list, we just recheck "does the raw write we must
+             * have made in write_list_to_cpustate() read back OK" here.
+             */
+            uint64_t oldval = cpu->cpreg_values[i];
+
+            if (oldval == newval) {
+                continue;
+            }
+
+            write_raw_cp_reg(&cpu->env, ri, oldval);
+            if (read_raw_cp_reg(&cpu->env, ri) != oldval) {
+                continue;
+            }
+
+            write_raw_cp_reg(&cpu->env, ri, newval);
+        }
+        cpu->cpreg_values[i] = newval;
     }
     return ok;
 }
@@ -3657,13 +3680,6 @@ static uint64_t mpidr_read(CPUARMState *env, const ARMCPRegInfo *ri)
     return mpidr_read_val(env);
 }
 
-static const ARMCPRegInfo mpidr_cp_reginfo[] = {
-    { .name = "MPIDR", .state = ARM_CP_STATE_BOTH,
-      .opc0 = 3, .crn = 0, .crm = 0, .opc1 = 0, .opc2 = 5,
-      .access = PL1_R, .readfn = mpidr_read, .type = ARM_CP_NO_RAW },
-    REGINFO_SENTINEL
-};
-
 static const ARMCPRegInfo lpae_cp_reginfo[] = {
     /* NOP AMAIR0/1 */
     { .name = "AMAIR0", .state = ARM_CP_STATE_BOTH,
@@ -4434,6 +4450,9 @@ static const ARMCPRegInfo el3_no_el2_cp_reginfo[] = {
       .opc0 = 3, .opc1 = 4, .crn = 1, .crm = 1, .opc2 = 0,
       .access = PL2_RW,
       .type = ARM_CP_CONST, .resetvalue = 0 },
+    { .name = "HACR_EL2", .state = ARM_CP_STATE_BOTH,
+      .opc0 = 3, .opc1 = 4, .crn = 1, .crm = 1, .opc2 = 7,
+      .access = PL2_RW, .type = ARM_CP_CONST, .resetvalue = 0 },
     { .name = "ESR_EL2", .state = ARM_CP_STATE_BOTH,
       .opc0 = 3, .opc1 = 4, .crn = 5, .crm = 2, .opc2 = 0,
       .access = PL2_RW,
@@ -4666,6 +4685,9 @@ static const ARMCPRegInfo el2_cp_reginfo[] = {
       .cp = 15, .opc1 = 4, .crn = 1, .crm = 1, .opc2 = 0,
       .access = PL2_RW, .fieldoffset = offsetof(CPUARMState, cp15.hcr_el2),
       .writefn = hcr_writelow },
+    { .name = "HACR_EL2", .state = ARM_CP_STATE_BOTH,
+      .opc0 = 3, .opc1 = 4, .crn = 1, .crm = 1, .opc2 = 7,
+      .access = PL2_RW, .type = ARM_CP_CONST, .resetvalue = 0 },
     { .name = "ELR_EL2", .state = ARM_CP_STATE_AA64,
       .type = ARM_CP_ALIAS,
       .opc0 = 3, .opc1 = 4, .crn = 4, .crm = 0, .opc2 = 1,
@@ -5855,25 +5877,25 @@ void register_cp_regs_for_features(ARMCPU *cpu)
             char *pmevtyper_name = g_strdup_printf("PMEVTYPER%d", i);
             char *pmevtyper_el0_name = g_strdup_printf("PMEVTYPER%d_EL0", i);
             ARMCPRegInfo pmev_regs[] = {
-                { .name = pmevcntr_name, .cp = 15, .crn = 15,
+                { .name = pmevcntr_name, .cp = 15, .crn = 14,
                   .crm = 8 | (3 & (i >> 3)), .opc1 = 0, .opc2 = i & 7,
                   .access = PL0_RW, .type = ARM_CP_IO | ARM_CP_ALIAS,
                   .readfn = pmevcntr_readfn, .writefn = pmevcntr_writefn,
                   .accessfn = pmreg_access },
                 { .name = pmevcntr_el0_name, .state = ARM_CP_STATE_AA64,
-                  .opc0 = 3, .opc1 = 3, .crn = 15, .crm = 8 | (3 & (i >> 3)),
+                  .opc0 = 3, .opc1 = 3, .crn = 14, .crm = 8 | (3 & (i >> 3)),
                   .opc2 = i & 7, .access = PL0_RW, .accessfn = pmreg_access,
                   .type = ARM_CP_IO,
                   .readfn = pmevcntr_readfn, .writefn = pmevcntr_writefn,
                   .raw_readfn = pmevcntr_rawread,
                   .raw_writefn = pmevcntr_rawwrite },
-                { .name = pmevtyper_name, .cp = 15, .crn = 15,
+                { .name = pmevtyper_name, .cp = 15, .crn = 14,
                   .crm = 12 | (3 & (i >> 3)), .opc1 = 0, .opc2 = i & 7,
                   .access = PL0_RW, .type = ARM_CP_IO | ARM_CP_ALIAS,
                   .readfn = pmevtyper_readfn, .writefn = pmevtyper_writefn,
                   .accessfn = pmreg_access },
                 { .name = pmevtyper_el0_name, .state = ARM_CP_STATE_AA64,
-                  .opc0 = 3, .opc1 = 3, .crn = 15, .crm = 12 | (3 & (i >> 3)),
+                  .opc0 = 3, .opc1 = 3, .crn = 14, .crm = 12 | (3 & (i >> 3)),
                   .opc2 = i & 7, .access = PL0_RW, .accessfn = pmreg_access,
                   .type = ARM_CP_IO,
                   .readfn = pmevtyper_readfn, .writefn = pmevtyper_writefn,
@@ -6103,6 +6125,38 @@ void register_cp_regs_for_features(ARMCPU *cpu)
               .resetvalue = cpu->pmceid1 },
             REGINFO_SENTINEL
         };
+#ifdef CONFIG_USER_ONLY
+        ARMCPRegUserSpaceInfo v8_user_idregs[] = {
+            { .name = "ID_AA64PFR0_EL1",
+              .exported_bits = 0x000f000f00ff0000,
+              .fixed_bits    = 0x0000000000000011 },
+            { .name = "ID_AA64PFR1_EL1",
+              .exported_bits = 0x00000000000000f0 },
+            { .name = "ID_AA64PFR*_EL1_RESERVED",
+              .is_glob = true                     },
+            { .name = "ID_AA64ZFR0_EL1"           },
+            { .name = "ID_AA64MMFR0_EL1",
+              .fixed_bits    = 0x00000000ff000000 },
+            { .name = "ID_AA64MMFR1_EL1"          },
+            { .name = "ID_AA64MMFR*_EL1_RESERVED",
+              .is_glob = true                     },
+            { .name = "ID_AA64DFR0_EL1",
+              .fixed_bits    = 0x0000000000000006 },
+            { .name = "ID_AA64DFR1_EL1"           },
+            { .name = "ID_AA64DFR*_EL1_RESERVED",
+              .is_glob = true                     },
+            { .name = "ID_AA64AFR*",
+              .is_glob = true                     },
+            { .name = "ID_AA64ISAR0_EL1",
+              .exported_bits = 0x00fffffff0fffff0 },
+            { .name = "ID_AA64ISAR1_EL1",
+              .exported_bits = 0x000000f0ffffffff },
+            { .name = "ID_AA64ISAR*_EL1_RESERVED",
+              .is_glob = true                     },
+            REGUSERINFO_SENTINEL
+        };
+        modify_arm_cp_regs(v8_idregs, v8_user_idregs);
+#endif
         /* RVBAR_EL1 is only implemented if EL1 is the highest EL */
         if (!arm_feature(env, ARM_FEATURE_EL3) &&
             !arm_feature(env, ARM_FEATURE_EL2)) {
@@ -6379,6 +6433,15 @@ void register_cp_regs_for_features(ARMCPU *cpu)
             .opc1 = CP_ANY, .opc2 = CP_ANY, .access = PL1_W,
             .type = ARM_CP_NOP | ARM_CP_OVERRIDE
         };
+#ifdef CONFIG_USER_ONLY
+        ARMCPRegUserSpaceInfo id_v8_user_midr_cp_reginfo[] = {
+            { .name = "MIDR_EL1",
+              .exported_bits = 0x00000000ffffffff },
+            { .name = "REVIDR_EL1"                },
+            REGUSERINFO_SENTINEL
+        };
+        modify_arm_cp_regs(id_v8_midr_cp_reginfo, id_v8_user_midr_cp_reginfo);
+#endif
         if (arm_feature(env, ARM_FEATURE_OMAPCP) ||
             arm_feature(env, ARM_FEATURE_STRONGARM)) {
             ARMCPRegInfo *r;
@@ -6412,6 +6475,20 @@ void register_cp_regs_for_features(ARMCPU *cpu)
     }
 
     if (arm_feature(env, ARM_FEATURE_MPIDR)) {
+        ARMCPRegInfo mpidr_cp_reginfo[] = {
+            { .name = "MPIDR_EL1", .state = ARM_CP_STATE_BOTH,
+              .opc0 = 3, .crn = 0, .crm = 0, .opc1 = 0, .opc2 = 5,
+              .access = PL1_R, .readfn = mpidr_read, .type = ARM_CP_NO_RAW },
+            REGINFO_SENTINEL
+        };
+#ifdef CONFIG_USER_ONLY
+        ARMCPRegUserSpaceInfo mpidr_user_cp_reginfo[] = {
+            { .name = "MPIDR_EL1",
+              .fixed_bits = 0x0000000080000000 },
+            REGUSERINFO_SENTINEL
+        };
+        modify_arm_cp_regs(mpidr_cp_reginfo, mpidr_user_cp_reginfo);
+#endif
         define_arm_cp_regs(cpu, mpidr_cp_reginfo);
     }
 
@@ -6851,7 +6928,11 @@ void define_one_arm_cp_reg_with_opaque(ARMCPU *cpu,
     if (r->state != ARM_CP_STATE_AA32) {
         int mask = 0;
         switch (r->opc1) {
-        case 0: case 1: case 2:
+        case 0:
+            /* min_EL EL1, but some accessible to EL0 via kernel ABI */
+            mask = PL0U_R | PL1_RW;
+            break;
+        case 1: case 2:
             /* min_EL EL1 */
             mask = PL1_RW;
             break;
@@ -6953,6 +7034,44 @@ void define_arm_cp_regs_with_opaque(ARMCPU *cpu,
     const ARMCPRegInfo *r;
     for (r = regs; r->type != ARM_CP_SENTINEL; r++) {
         define_one_arm_cp_reg_with_opaque(cpu, r, opaque);
+    }
+}
+
+/*
+ * Modify ARMCPRegInfo for access from userspace.
+ *
+ * This is a data driven modification directed by
+ * ARMCPRegUserSpaceInfo. All registers become ARM_CP_CONST as
+ * user-space cannot alter any values and dynamic values pertaining to
+ * execution state are hidden from user space view anyway.
+ */
+void modify_arm_cp_regs(ARMCPRegInfo *regs, const ARMCPRegUserSpaceInfo *mods)
+{
+    const ARMCPRegUserSpaceInfo *m;
+    ARMCPRegInfo *r;
+
+    for (m = mods; m->name; m++) {
+        GPatternSpec *pat = NULL;
+        if (m->is_glob) {
+            pat = g_pattern_spec_new(m->name);
+        }
+        for (r = regs; r->type != ARM_CP_SENTINEL; r++) {
+            if (pat && g_pattern_match_string(pat, r->name)) {
+                r->type = ARM_CP_CONST;
+                r->access = PL0U_R;
+                r->resetvalue = 0;
+                /* continue */
+            } else if (strcmp(r->name, m->name) == 0) {
+                r->type = ARM_CP_CONST;
+                r->access = PL0U_R;
+                r->resetvalue &= m->exported_bits;
+                r->resetvalue |= m->fixed_bits;
+                break;
+            }
+        }
+        if (pat) {
+            g_pattern_spec_free(pat);
+        }
     }
 }
 
@@ -12585,10 +12704,9 @@ static inline int vfp_exceptbits_from_host(int host_bits)
 
 uint32_t HELPER(vfp_get_fpscr)(CPUARMState *env)
 {
-    int i;
-    uint32_t fpscr;
+    uint32_t i, fpscr;
 
-    fpscr = (env->vfp.xregs[ARM_VFP_FPSCR] & 0xffc8ffff)
+    fpscr = env->vfp.xregs[ARM_VFP_FPSCR]
             | (env->vfp.vec_len << 16)
             | (env->vfp.vec_stride << 20);
 
@@ -12597,8 +12715,11 @@ uint32_t HELPER(vfp_get_fpscr)(CPUARMState *env)
     /* FZ16 does not generate an input denormal exception.  */
     i |= (get_float_exception_flags(&env->vfp.fp_status_f16)
           & ~float_flag_input_denormal);
-
     fpscr |= vfp_exceptbits_from_host(i);
+
+    i = env->vfp.qc[0] | env->vfp.qc[1] | env->vfp.qc[2] | env->vfp.qc[3];
+    fpscr |= i ? FPCR_QC : 0;
+
     return fpscr;
 }
 
@@ -12630,7 +12751,7 @@ static inline int vfp_exceptbits_to_host(int target_bits)
 void HELPER(vfp_set_fpscr)(CPUARMState *env, uint32_t val)
 {
     int i;
-    uint32_t changed;
+    uint32_t changed = env->vfp.xregs[ARM_VFP_FPSCR];
 
     /* When ARMv8.2-FP16 is not supported, FZ16 is RES0.  */
     if (!cpu_isar_feature(aa64_fp16, arm_env_get_cpu(env))) {
@@ -12639,14 +12760,24 @@ void HELPER(vfp_set_fpscr)(CPUARMState *env, uint32_t val)
 
     /*
      * We don't implement trapped exception handling, so the
-     * trap enable bits are all RAZ/WI (not RES0!)
+     * trap enable bits, IDE|IXE|UFE|OFE|DZE|IOE are all RAZ/WI (not RES0!)
+     *
+     * If we exclude the exception flags, IOC|DZC|OFC|UFC|IXC|IDC
+     * (which are stored in fp_status), and the other RES0 bits
+     * in between, then we clear all of the low 16 bits.
      */
-    val &= ~(FPCR_IDE | FPCR_IXE | FPCR_UFE | FPCR_OFE | FPCR_DZE | FPCR_IOE);
-
-    changed = env->vfp.xregs[ARM_VFP_FPSCR];
-    env->vfp.xregs[ARM_VFP_FPSCR] = (val & 0xffc8ffff);
+    env->vfp.xregs[ARM_VFP_FPSCR] = val & 0xf7c80000;
     env->vfp.vec_len = (val >> 16) & 7;
     env->vfp.vec_stride = (val >> 20) & 3;
+
+    /*
+     * The bit we set within fpscr_q is arbitrary; the register as a
+     * whole being zero/non-zero is what counts.
+     */
+    env->vfp.qc[0] = val & FPCR_QC;
+    env->vfp.qc[1] = 0;
+    env->vfp.qc[2] = 0;
+    env->vfp.qc[3] = 0;
 
     changed ^= val;
     if (changed & (3 << 22)) {
@@ -12752,31 +12883,40 @@ float64 VFP_HELPER(sqrt, d)(float64 a, CPUARMState *env)
     return float64_sqrt(a, &env->vfp.fp_status);
 }
 
+static void softfloat_to_vfp_compare(CPUARMState *env, int cmp)
+{
+    uint32_t flags;
+    switch (cmp) {
+    case float_relation_equal:
+        flags = 0x6;
+        break;
+    case float_relation_less:
+        flags = 0x8;
+        break;
+    case float_relation_greater:
+        flags = 0x2;
+        break;
+    case float_relation_unordered:
+        flags = 0x3;
+        break;
+    default:
+        g_assert_not_reached();
+    }
+    env->vfp.xregs[ARM_VFP_FPSCR] =
+        deposit32(env->vfp.xregs[ARM_VFP_FPSCR], 28, 4, flags);
+}
+
 /* XXX: check quiet/signaling case */
 #define DO_VFP_cmp(p, type) \
 void VFP_HELPER(cmp, p)(type a, type b, CPUARMState *env)  \
 { \
-    uint32_t flags; \
-    switch(type ## _compare_quiet(a, b, &env->vfp.fp_status)) { \
-    case 0: flags = 0x6; break; \
-    case -1: flags = 0x8; break; \
-    case 1: flags = 0x2; break; \
-    default: case 2: flags = 0x3; break; \
-    } \
-    env->vfp.xregs[ARM_VFP_FPSCR] = (flags << 28) \
-        | (env->vfp.xregs[ARM_VFP_FPSCR] & 0x0fffffff); \
+    softfloat_to_vfp_compare(env, \
+        type ## _compare_quiet(a, b, &env->vfp.fp_status)); \
 } \
 void VFP_HELPER(cmpe, p)(type a, type b, CPUARMState *env) \
 { \
-    uint32_t flags; \
-    switch(type ## _compare(a, b, &env->vfp.fp_status)) { \
-    case 0: flags = 0x6; break; \
-    case -1: flags = 0x8; break; \
-    case 1: flags = 0x2; break; \
-    default: case 2: flags = 0x3; break; \
-    } \
-    env->vfp.xregs[ARM_VFP_FPSCR] = (flags << 28) \
-        | (env->vfp.xregs[ARM_VFP_FPSCR] & 0x0fffffff); \
+    softfloat_to_vfp_compare(env, \
+        type ## _compare(a, b, &env->vfp.fp_status)); \
 }
 DO_VFP_cmp(s, float32)
 DO_VFP_cmp(d, float64)
