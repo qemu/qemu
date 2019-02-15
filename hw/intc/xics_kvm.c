@@ -115,11 +115,9 @@ int icp_set_kvm_state(ICPState *icp)
     return 0;
 }
 
-static void icp_kvm_realize(DeviceState *dev, Error **errp)
+void icp_kvm_realize(DeviceState *dev, Error **errp)
 {
     ICPState *icp = ICP(dev);
-    ICPStateClass *icpc = ICP_GET_CLASS(icp);
-    Error *local_err = NULL;
     CPUState *cs;
     KVMEnabledICP *enabled_icp;
     unsigned long vcpu_id;
@@ -127,12 +125,6 @@ static void icp_kvm_realize(DeviceState *dev, Error **errp)
 
     if (kernel_xics_fd == -1) {
         abort();
-    }
-
-    icpc->parent_realize(dev, &local_err);
-    if (local_err) {
-        error_propagate(errp, local_err);
-        return;
     }
 
     cs = icp->cs;

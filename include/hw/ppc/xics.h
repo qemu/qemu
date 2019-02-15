@@ -202,5 +202,6 @@ Object *icp_create(Object *cpu, const char *type, XICSFabric *xi,
 void icp_get_kvm_state(ICPState *icp);
 int icp_set_kvm_state(ICPState *icp);
 void icp_synchronize_state(ICPState *icp);
+void icp_kvm_realize(DeviceState *dev, Error **errp);
 
 #endif /* XICS_H */

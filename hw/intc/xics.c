@@ -349,6 +349,14 @@ static void icp_realize(DeviceState *dev, Error **errp)
         return;
     }
 
+    if (kvm_irqchip_in_kernel()) {
+        icp_kvm_realize(dev, &err);
+        if (err) {
+            error_propagate(errp, err);
+            return;
+        }
+    }
+
     qemu_register_reset(icp_reset_handler, dev);
     vmstate_register(NULL, icp->cs->cpu_index, &vmstate_icp_server, icp);
 }
