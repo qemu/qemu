@@ -3657,13 +3657,6 @@ static uint64_t mpidr_read(CPUARMState *env, const ARMCPRegInfo *ri)
     return mpidr_read_val(env);
 }
 
-static const ARMCPRegInfo mpidr_cp_reginfo[] = {
-    { .name = "MPIDR", .state = ARM_CP_STATE_BOTH,
-      .opc0 = 3, .crn = 0, .crm = 0, .opc1 = 0, .opc2 = 5,
-      .access = PL1_R, .readfn = mpidr_read, .type = ARM_CP_NO_RAW },
-    REGINFO_SENTINEL
-};
-
 static const ARMCPRegInfo lpae_cp_reginfo[] = {
     /* NOP AMAIR0/1 */
     { .name = "AMAIR0", .state = ARM_CP_STATE_BOTH,
@@ -6451,6 +6444,20 @@ void register_cp_regs_for_features(ARMCPU *cpu)
     }
 
     if (arm_feature(env, ARM_FEATURE_MPIDR)) {
+        ARMCPRegInfo mpidr_cp_reginfo[] = {
+            { .name = "MPIDR_EL1", .state = ARM_CP_STATE_BOTH,
+              .opc0 = 3, .crn = 0, .crm = 0, .opc1 = 0, .opc2 = 5,
+              .access = PL1_R, .readfn = mpidr_read, .type = ARM_CP_NO_RAW },
+            REGINFO_SENTINEL
+        };
+#ifdef CONFIG_USER_ONLY
+        ARMCPRegUserSpaceInfo mpidr_user_cp_reginfo[] = {
+            { .name = "MPIDR_EL1",
+              .fixed_bits = 0x0000000080000000 },
+            REGUSERINFO_SENTINEL
+        };
+        modify_arm_cp_regs(mpidr_cp_reginfo, mpidr_user_cp_reginfo);
+#endif
         define_arm_cp_regs(cpu, mpidr_cp_reginfo);
     }
 
