@@ -266,45 +266,30 @@ GEN_VX_VMUL10(vmul10euq, 1, 0);
 GEN_VX_VMUL10(vmul10cuq, 0, 1);
 GEN_VX_VMUL10(vmul10ecuq, 1, 1);
 
-/* Logical operations */
-#define GEN_VX_LOGICAL(name, tcg_op, opc2, opc3)                        \
-static void glue(gen_, name)(DisasContext *ctx)                                 \
+#define GEN_VXFORM_V(name, vece, tcg_op, opc2, opc3)                    \
+static void glue(gen_, name)(DisasContext *ctx)                         \
 {                                                                       \
-    TCGv_i64 t0;                                                        \
-    TCGv_i64 t1;                                                        \
-    TCGv_i64 avr;                                                       \
-                                                                        \
     if (unlikely(!ctx->altivec_enabled)) {                              \
         gen_exception(ctx, POWERPC_EXCP_VPU);                           \
         return;                                                         \
     }                                                                   \
-    t0 = tcg_temp_new_i64();                                            \
-    t1 = tcg_temp_new_i64();                                            \
-    avr = tcg_temp_new_i64();                                           \
                                                                         \
-    get_avr64(t0, rA(ctx->opcode), true);                               \
-    get_avr64(t1, rB(ctx->opcode), true);                               \
-    tcg_op(avr, t0, t1);                                                \
-    set_avr64(rD(ctx->opcode), avr, true);                              \
-                                                                        \
-    get_avr64(t0, rA(ctx->opcode), false);                              \
-    get_avr64(t1, rB(ctx->opcode), false);                              \
-    tcg_op(avr, t0, t1);                                                \
-    set_avr64(rD(ctx->opcode), avr, false);                             \
-                                                                        \
-    tcg_temp_free_i64(t0);                                              \
-    tcg_temp_free_i64(t1);                                              \
-    tcg_temp_free_i64(avr);                                             \
+    tcg_op(vece,                                                        \
+           avr64_offset(rD(ctx->opcode), true),                         \
+           avr64_offset(rA(ctx->opcode), true),                         \
+           avr64_offset(rB(ctx->opcode), true),                         \
+           16, 16);                                                     \
 }
 
-GEN_VX_LOGICAL(vand, tcg_gen_and_i64, 2, 16);
-GEN_VX_LOGICAL(vandc, tcg_gen_andc_i64, 2, 17);
-GEN_VX_LOGICAL(vor, tcg_gen_or_i64, 2, 18);
-GEN_VX_LOGICAL(vxor, tcg_gen_xor_i64, 2, 19);
-GEN_VX_LOGICAL(vnor, tcg_gen_nor_i64, 2, 20);
-GEN_VX_LOGICAL(veqv, tcg_gen_eqv_i64, 2, 26);
-GEN_VX_LOGICAL(vnand, tcg_gen_nand_i64, 2, 22);
-GEN_VX_LOGICAL(vorc, tcg_gen_orc_i64, 2, 21);
+/* Logical operations */
+GEN_VXFORM_V(vand, MO_64, tcg_gen_gvec_and, 2, 16);
+GEN_VXFORM_V(vandc, MO_64, tcg_gen_gvec_andc, 2, 17);
+GEN_VXFORM_V(vor, MO_64, tcg_gen_gvec_or, 2, 18);
+GEN_VXFORM_V(vxor, MO_64, tcg_gen_gvec_xor, 2, 19);
+GEN_VXFORM_V(vnor, MO_64, tcg_gen_gvec_nor, 2, 20);
+GEN_VXFORM_V(veqv, MO_64, tcg_gen_gvec_eqv, 2, 26);
+GEN_VXFORM_V(vnand, MO_64, tcg_gen_gvec_nand, 2, 22);
+GEN_VXFORM_V(vorc, MO_64, tcg_gen_gvec_orc, 2, 21);
 
 #define GEN_VXFORM(name, opc2, opc3)                                    \
 static void glue(gen_, name)(DisasContext *ctx)                                 \
