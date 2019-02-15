@@ -351,21 +351,28 @@ static void xen_block_get_vdev(Object *obj, Visitor *v, const char *name,
     g_free(str);
 }
 
-static unsigned int vbd_name_to_disk(const char *name, const char **endp)
+static int vbd_name_to_disk(const char *name, const char **endp,
+                            unsigned long *disk)
 {
-    unsigned int disk = 0;
+    unsigned int n = 0;
 
     while (*name != '\0') {
         if (!g_ascii_isalpha(*name) || !g_ascii_islower(*name)) {
             break;
         }
 
-        disk *= 26;
-        disk += *name++ - 'a' + 1;
+        n *= 26;
+        n += *name++ - 'a' + 1;
     }
     *endp = name;
 
-    return disk - 1;
+    if (!n) {
+        return -1;
+    }
+
+    *disk = n - 1;
+
+    return 0;
 }
 
 static void xen_block_set_vdev(Object *obj, Visitor *v, const char *name,
@@ -418,7 +425,9 @@ static void xen_block_set_vdev(Object *obj, Visitor *v, const char *name,
             }
         }
     } else {
-        vdev->disk = vbd_name_to_disk(p, &end);
+        if (vbd_name_to_disk(p, &end, &vdev->disk)) {
+            goto invalid;
+        }
     }
 
     if (*end != '\0') {
