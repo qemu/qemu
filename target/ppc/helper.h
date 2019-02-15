@@ -108,14 +108,6 @@ DEF_HELPER_FLAGS_1(ftsqrt, TCG_CALL_NO_RWG_SE, i32, i64)
 #define dh_ctype_avr ppc_avr_t *
 #define dh_is_signed_avr dh_is_signed_ptr
 
-DEF_HELPER_3(vaddubm, void, avr, avr, avr)
-DEF_HELPER_3(vadduhm, void, avr, avr, avr)
-DEF_HELPER_3(vadduwm, void, avr, avr, avr)
-DEF_HELPER_3(vaddudm, void, avr, avr, avr)
-DEF_HELPER_3(vsububm, void, avr, avr, avr)
-DEF_HELPER_3(vsubuhm, void, avr, avr, avr)
-DEF_HELPER_3(vsubuwm, void, avr, avr, avr)
-DEF_HELPER_3(vsubudm, void, avr, avr, avr)
 DEF_HELPER_3(vavgub, void, avr, avr, avr)
 DEF_HELPER_3(vavguh, void, avr, avr, avr)
 DEF_HELPER_3(vavguw, void, avr, avr, avr)
