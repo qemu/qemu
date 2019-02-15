@@ -2474,6 +2474,9 @@ typedef struct ARMCPRegUserSpaceInfo {
     /* Name of register */
     const char *name;
 
+    /* Is the name actually a glob pattern */
+    bool is_glob;
+
     /* Only some bits are exported to user space */
     uint64_t exported_bits;
 

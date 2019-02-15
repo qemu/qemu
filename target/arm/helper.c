@@ -6109,19 +6109,27 @@ void register_cp_regs_for_features(ARMCPU *cpu)
               .fixed_bits    = 0x0000000000000011 },
             { .name = "ID_AA64PFR1_EL1",
               .exported_bits = 0x00000000000000f0 },
+            { .name = "ID_AA64PFR*_EL1_RESERVED",
+              .is_glob = true                     },
             { .name = "ID_AA64ZFR0_EL1"           },
             { .name = "ID_AA64MMFR0_EL1",
               .fixed_bits    = 0x00000000ff000000 },
             { .name = "ID_AA64MMFR1_EL1"          },
+            { .name = "ID_AA64MMFR*_EL1_RESERVED",
+              .is_glob = true                     },
             { .name = "ID_AA64DFR0_EL1",
               .fixed_bits    = 0x0000000000000006 },
             { .name = "ID_AA64DFR1_EL1"           },
-            { .name = "ID_AA64AFR0_EL1"           },
-            { .name = "ID_AA64AFR1_EL1"           },
+            { .name = "ID_AA64DFR*_EL1_RESERVED",
+              .is_glob = true                     },
+            { .name = "ID_AA64AFR*",
+              .is_glob = true                     },
             { .name = "ID_AA64ISAR0_EL1",
               .exported_bits = 0x00fffffff0fffff0 },
             { .name = "ID_AA64ISAR1_EL1",
               .exported_bits = 0x000000f0ffffffff },
+            { .name = "ID_AA64ISAR*_EL1_RESERVED",
+              .is_glob = true                     },
             REGUSERINFO_SENTINEL
         };
         modify_arm_cp_regs(v8_idregs, v8_user_idregs);
@@ -7020,14 +7028,26 @@ void modify_arm_cp_regs(ARMCPRegInfo *regs, const ARMCPRegUserSpaceInfo *mods)
     ARMCPRegInfo *r;
 
     for (m = mods; m->name; m++) {
+        GPatternSpec *pat = NULL;
+        if (m->is_glob) {
+            pat = g_pattern_spec_new(m->name);
+        }
         for (r = regs; r->type != ARM_CP_SENTINEL; r++) {
-            if (strcmp(r->name, m->name) == 0) {
+            if (pat && g_pattern_match_string(pat, r->name)) {
+                r->type = ARM_CP_CONST;
+                r->access = PL0U_R;
+                r->resetvalue = 0;
+                /* continue */
+            } else if (strcmp(r->name, m->name) == 0) {
                 r->type = ARM_CP_CONST;
                 r->access = PL0U_R;
                 r->resetvalue &= m->exported_bits;
                 r->resetvalue |= m->fixed_bits;
                 break;
             }
+        }
+        if (pat) {
+            g_pattern_spec_free(pat);
         }
     }
 }
