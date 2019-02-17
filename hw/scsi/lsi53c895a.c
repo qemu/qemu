@@ -1297,8 +1297,10 @@ again:
                 }
                 break;
             case 2: /* Wait Reselect */
-                if (!lsi_irq_on_rsl(s)) {
-                    lsi_wait_reselect(s);
+                if (s->istat0 & LSI_ISTAT0_SIGP) {
+                    s->dsp = s->dnad;
+                } else if (!lsi_irq_on_rsl(s)) {
+                        lsi_wait_reselect(s);
                 }
                 break;
             case 3: /* Set */
