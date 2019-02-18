@@ -18,6 +18,7 @@ CC      = $(CROSS)gcc
 AS      = $(CROSS)gcc -x assembler-with-cpp
 LD      = $(CROSS)ld
 
+ASFLAGS = -Wa,--no-absolute-literals
 vectors_ASFLAGS = -mtext-section-literals
 
 XTENSA_SRC_PATH = $(SRC_PATH)/tests/tcg/xtensa
