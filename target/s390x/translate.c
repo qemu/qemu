@@ -3996,41 +3996,33 @@ static DisasJumpType op_sfas(DisasContext *s, DisasOps *o)
 
 static DisasJumpType op_srnm(DisasContext *s, DisasOps *o)
 {
-    int b2 = get_field(s->fields, b2);
-    int d2 = get_field(s->fields, d2);
-    TCGv_i64 t1 = tcg_temp_new_i64();
-    TCGv_i64 t2 = tcg_temp_new_i64();
-    int mask, pos, len;
+    /* Bits other than 62 and 63 are ignored. Bit 29 is set to zero. */
+    tcg_gen_andi_i64(o->addr1, o->addr1, 0x3ull);
+    gen_helper_srnm(cpu_env, o->addr1);
+    return DISAS_NEXT;
+}
 
-    switch (s->fields->op2) {
-    case 0x99: /* SRNM */
-        pos = 0, len = 2;
-        break;
-    case 0xb8: /* SRNMB */
-        pos = 0, len = 3;
-        break;
-    case 0xb9: /* SRNMT */
-        pos = 4, len = 3;
-        break;
-    default:
-        tcg_abort();
-    }
-    mask = (1 << len) - 1;
+static DisasJumpType op_srnmb(DisasContext *s, DisasOps *o)
+{
+    /* Bits 0-55 are are ignored. */
+    tcg_gen_andi_i64(o->addr1, o->addr1, 0xffull);
+    gen_helper_srnm(cpu_env, o->addr1);
+    return DISAS_NEXT;
+}
 
-    /* Insert the value into the appropriate field of the FPC.  */
-    if (b2 == 0) {
-        tcg_gen_movi_i64(t1, d2 & mask);
-    } else {
-        tcg_gen_addi_i64(t1, regs[b2], d2);
-        tcg_gen_andi_i64(t1, t1, mask);
-    }
-    tcg_gen_ld32u_i64(t2, cpu_env, offsetof(CPUS390XState, fpc));
-    tcg_gen_deposit_i64(t2, t2, t1, pos, len);
-    tcg_temp_free_i64(t1);
+static DisasJumpType op_srnmt(DisasContext *s, DisasOps *o)
+{
+    TCGv_i64 tmp = tcg_temp_new_i64();
 
-    /* Then install the new FPC to set the rounding mode in fpu_status.  */
-    gen_helper_sfpc(cpu_env, t2);
-    tcg_temp_free_i64(t2);
+    /* Bits other than 61-63 are ignored. */
+    tcg_gen_andi_i64(o->addr1, o->addr1, 0x7ull);
+
+    /* No need to call a helper, we don't implement dfp */
+    tcg_gen_ld32u_i64(tmp, cpu_env, offsetof(CPUS390XState, fpc));
+    tcg_gen_deposit_i64(tmp, tmp, o->addr1, 4, 3);
+    tcg_gen_st32_i64(tmp, cpu_env, offsetof(CPUS390XState, fpc));
+
+    tcg_temp_free_i64(tmp);
     return DISAS_NEXT;
 }
 

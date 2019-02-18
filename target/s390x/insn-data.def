@@ -763,10 +763,10 @@
 /* SET FPC AND SIGNAL */
     F(0xb385, SFASR,   RRE,   IEEEE_SIM, 0, r1_o, 0, 0, sfas, 0, IF_DFP)
 /* SET BFP ROUNDING MODE */
-    F(0xb299, SRNM,    S,     Z,   0, 0, 0, 0, srnm, 0, IF_BFP)
-    F(0xb2b8, SRNMB,   S,     FPE, 0, 0, 0, 0, srnm, 0, IF_BFP)
+    F(0xb299, SRNM,    S,     Z,   la2, 0, 0, 0, srnm, 0, IF_BFP)
+    F(0xb2b8, SRNMB,   S,     FPE, la2, 0, 0, 0, srnmb, 0, IF_BFP)
 /* SET DFP ROUNDING MODE */
-    F(0xb2b9, SRNMT,   S,     DFPR, 0, 0, 0, 0, srnm, 0, IF_DFP)
+    F(0xb2b9, SRNMT,   S,     DFPR, la2, 0, 0, 0, srnmt, 0, IF_DFP)
 /* SET PROGRAM MASK */
     C(0x0400, SPM,     RR_a,  Z,   r1, 0, 0, 0, spm, 0)
 

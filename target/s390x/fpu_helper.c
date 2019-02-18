@@ -819,3 +819,14 @@ void HELPER(sfas)(CPUS390XState *env, uint64_t fpc)
         tcg_s390_data_exception(env, s390_exc | 3, GETPC());
     }
 }
+
+/* set bfp rounding mode */
+void HELPER(srnm)(CPUS390XState *env, uint64_t rnd)
+{
+    if (rnd > 0x7 || fpc_to_rnd[rnd & 0x7] == -1) {
+        s390_program_interrupt(env, PGM_SPECIFICATION, ILEN_AUTO, GETPC());
+    }
+
+    env->fpc = deposit32(env->fpc, 0, 3, rnd);
+    set_float_rounding_mode(fpc_to_rnd[rnd & 0x7], &env->fpu_status);
+}
