@@ -68,6 +68,11 @@ converted image file size in bytes: 458752
 required size: 1074135040
 fully allocated size: 1074135040
 
+== qcow2 input image and LUKS encryption ==
+
+required size: 2686976
+fully allocated size: 1076232192
+
 == qcow2 input image and preallocation (human) ==
 
 required size: 1074135040
@@ -113,6 +118,11 @@ converted image file size in bytes: 524288
 
 required size: 1074135040
 fully allocated size: 1074135040
+
+== raw input image and LUKS encryption ==
+
+required size: 2686976
+fully allocated size: 1076232192
 
 == raw input image and preallocation (human) ==
 
@@ -205,6 +215,13 @@ converted image file size in bytes: 458752
     "fully-allocated": 1074135040
 }
 
+== qcow2 input image and LUKS encryption ==
+
+{
+    "required": 2686976,
+    "fully-allocated": 1076232192
+}
+
 == qcow2 input image and preallocation (json) ==
 
 {
@@ -261,6 +278,13 @@ converted image file size in bytes: 524288
 {
     "required": 1074135040,
     "fully-allocated": 1074135040
+}
+
+== raw input image and LUKS encryption ==
+
+{
+    "required": 2686976,
+    "fully-allocated": 1076232192
 }
 
 == raw input image and preallocation (json) ==
