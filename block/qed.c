@@ -113,18 +113,13 @@ static int coroutine_fn qed_write_header(BDRVQEDState *s)
     int nsectors = DIV_ROUND_UP(sizeof(QEDHeader), BDRV_SECTOR_SIZE);
     size_t len = nsectors * BDRV_SECTOR_SIZE;
     uint8_t *buf;
-    struct iovec iov;
     QEMUIOVector qiov;
     int ret;
 
     assert(s->allocating_acb || s->allocating_write_reqs_plugged);
 
     buf = qemu_blockalign(s->bs, len);
-    iov = (struct iovec) {
-        .iov_base = buf,
-        .iov_len = len,
-    };
-    qemu_iovec_init_external(&qiov, &iov, 1);
+    qemu_iovec_init_buf(&qiov, buf, len);
 
     ret = bdrv_co_preadv(s->bs->file, 0, qiov.size, &qiov, 0);
     if (ret < 0) {
@@ -913,7 +908,6 @@ static int coroutine_fn qed_copy_from_backing_file(BDRVQEDState *s,
 {
     QEMUIOVector qiov;
     QEMUIOVector *backing_qiov = NULL;
-    struct iovec iov;
     int ret;
 
     /* Skip copy entirely if there is no work to do */
@@ -921,11 +915,7 @@ static int coroutine_fn qed_copy_from_backing_file(BDRVQEDState *s,
         return 0;
     }
 
-    iov = (struct iovec) {
-        .iov_base = qemu_blockalign(s->bs, len),
-        .iov_len = len,
-    };
-    qemu_iovec_init_external(&qiov, &iov, 1);
+    qemu_iovec_init_buf(&qiov, qemu_blockalign(s->bs, len), len);
 
     ret = qed_read_backing_file(s, pos, &qiov, &backing_qiov);
 
@@ -946,7 +936,7 @@ static int coroutine_fn qed_copy_from_backing_file(BDRVQEDState *s,
     }
     ret = 0;
 out:
-    qemu_vfree(iov.iov_base);
+    qemu_vfree(qemu_iovec_buf(&qiov));
     return ret;
 }
 
@@ -1447,8 +1437,12 @@ static int coroutine_fn bdrv_qed_co_pwrite_zeroes(BlockDriverState *bs,
                                                   BdrvRequestFlags flags)
 {
     BDRVQEDState *s = bs->opaque;
-    QEMUIOVector qiov;
-    struct iovec iov;
+
+    /*
+     * Zero writes start without an I/O buffer.  If a buffer becomes necessary
+     * then it will be allocated during request processing.
+     */
+    QEMUIOVector qiov = QEMU_IOVEC_INIT_BUF(qiov, NULL, bytes);
 
     /* Fall back if the request is not aligned */
     if (qed_offset_into_cluster(s, offset) ||
@@ -1456,13 +1450,6 @@ static int coroutine_fn bdrv_qed_co_pwrite_zeroes(BlockDriverState *bs,
         return -ENOTSUP;
     }
 
-    /* Zero writes start without an I/O buffer.  If a buffer becomes necessary
-     * then it will be allocated during request processing.
-     */
-    iov.iov_base = NULL;
-    iov.iov_len = bytes;
-
-    qemu_iovec_init_external(&qiov, &iov, 1);
     return qed_co_request(bs, offset >> BDRV_SECTOR_BITS, &qiov,
                           bytes >> BDRV_SECTOR_BITS,
                           QED_AIOCB_WRITE | QED_AIOCB_ZERO);
