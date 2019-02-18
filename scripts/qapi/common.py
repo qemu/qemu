@@ -1868,6 +1868,7 @@ class QAPISchema(object):
     def visit(self, visitor):
         visitor.visit_begin(self)
         module = None
+        visitor.visit_module(module)
         for entity in self._entity_list:
             if visitor.visit_needed(entity):
                 if entity.module != module:
@@ -2321,47 +2322,73 @@ class QAPISchemaModularCVisitor(QAPISchemaVisitor):
         self._what = what
         self._blurb = blurb
         self._pydoc = pydoc
+        self._genc = None
+        self._genh = None
         self._module = {}
         self._main_module = None
 
+    @staticmethod
+    def _is_user_module(name):
+        return name and not name.startswith('./')
+
+    @staticmethod
+    def _is_builtin_module(name):
+        return not name
+
     def _module_basename(self, what, name):
-        if name is None:
-            return re.sub(r'-', '-builtin-', what)
-        basename = os.path.join(os.path.dirname(name),
-                                self._prefix + what)
-        if name == self._main_module:
-            return basename
-        return basename + '-' + os.path.splitext(os.path.basename(name))[0]
+        ret = '' if self._is_builtin_module(name) else self._prefix
+        if self._is_user_module(name):
+            dirname, basename = os.path.split(name)
+            ret += what
+            if name != self._main_module:
+                ret += '-' + os.path.splitext(basename)[0]
+            ret = os.path.join(dirname, ret)
+        else:
+            name = name[2:] if name else 'builtin'
+            ret += re.sub(r'-', '-' + name + '-', what)
+        return ret
 
     def _add_module(self, name, blurb):
-        if self._main_module is None and name is not None:
-            self._main_module = name
         genc = QAPIGenC(blurb, self._pydoc)
         genh = QAPIGenH(blurb, self._pydoc)
         self._module[name] = (genc, genh)
         self._set_module(name)
+
+    def _add_user_module(self, name, blurb):
+        assert self._is_user_module(name)
+        if self._main_module is None:
+            self._main_module = name
+        self._add_module(name, blurb)
+
+    def _add_system_module(self, name, blurb):
+        self._add_module(name and './' + name, blurb)
 
     def _set_module(self, name):
         self._genc, self._genh = self._module[name]
 
     def write(self, output_dir, opt_builtins=False):
         for name in self._module:
-            if name is None and not opt_builtins:
+            if self._is_builtin_module(name) and not opt_builtins:
                 continue
             basename = self._module_basename(self._what, name)
             (genc, genh) = self._module[name]
             genc.write(output_dir, basename + '.c')
             genh.write(output_dir, basename + '.h')
 
-    def _begin_module(self, name):
+    def _begin_user_module(self, name):
         pass
 
     def visit_module(self, name):
         if name in self._module:
             self._set_module(name)
-            return
-        self._add_module(name, self._blurb)
-        self._begin_module(name)
+        elif self._is_builtin_module(name):
+            # The built-in module has not been created.  No code may
+            # be generated.
+            self._genc = None
+            self._genh = None
+        else:
+            self._add_user_module(name, self._blurb)
+            self._begin_user_module(name)
 
     def visit_include(self, name, info):
         basename = self._module_basename(self._what, name)

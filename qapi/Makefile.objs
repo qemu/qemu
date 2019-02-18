@@ -4,3 +4,28 @@ util-obj-y += string-input-visitor.o string-output-visitor.o
 util-obj-y += opts-visitor.o qapi-clone-visitor.o
 util-obj-y += qmp-event.o
 util-obj-y += qapi-util.o
+
+QAPI_COMMON_MODULES = block-core block char common crypto introspect
+QAPI_COMMON_MODULES += job migration misc net rdma rocker run-state
+QAPI_COMMON_MODULES += sockets tpm trace transaction ui
+QAPI_TARGET_MODULES = target
+QAPI_MODULES = $(QAPI_COMMON_MODULES) $(QAPI_TARGET_MODULES)
+
+util-obj-y += qapi-builtin-types.o
+util-obj-y += $(QAPI_COMMON_MODULES:%=qapi-types-%.o)
+util-obj-y += qapi-builtin-visit.o
+util-obj-y += $(QAPI_COMMON_MODULES:%=qapi-visit-%.o)
+util-obj-y += qapi-emit-events.o
+util-obj-y += $(QAPI_COMMON_MODULES:%=qapi-events-%.o)
+
+common-obj-y = $(QAPI_COMMON_MODULES:%=qapi-commands-%.o)
+
+obj-y = qapi-introspect.o
+obj-y += $(QAPI_TARGET_MODULES:%=qapi-types-%.o)
+obj-y += qapi-types.o
+obj-y += $(QAPI_TARGET_MODULES:%=qapi-visit-%.o)
+obj-y += qapi-visit.o
+obj-y += $(QAPI_TARGET_MODULES:%=qapi-events-%.o)
+obj-y += qapi-events.o
+obj-y += $(QAPI_TARGET_MODULES:%=qapi-commands-%.o)
+obj-y += qapi-commands.o

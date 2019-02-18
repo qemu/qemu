@@ -1113,6 +1113,19 @@ Example:
 
 [Uninteresting stuff omitted...]
 
+For a modular QAPI schema (see section Include directives), code for
+each sub-module SUBDIR/SUBMODULE.json is actually generated into
+
+SUBDIR/$(prefix)qapi-types-SUBMODULE.h
+SUBDIR/$(prefix)qapi-types-SUBMODULE.c
+
+If qapi-gen.py is run with option --builtins, additional files are
+created:
+
+qapi-builtin-types.h - C types corresponding to built-in types
+
+qapi-builtin-types.c - Cleanup functions for the above C types
+
 === Code generated for visiting QAPI types ===
 
 These are the visitor functions used to walk through and convert
@@ -1244,6 +1257,19 @@ Example:
 
 [Uninteresting stuff omitted...]
 
+For a modular QAPI schema (see section Include directives), code for
+each sub-module SUBDIR/SUBMODULE.json is actually generated into
+
+SUBDIR/$(prefix)qapi-visit-SUBMODULE.h
+SUBDIR/$(prefix)qapi-visit-SUBMODULE.c
+
+If qapi-gen.py is run with option --builtins, additional files are
+created:
+
+qapi-builtin-visit.h - Visitor functions for built-in types
+
+qapi-builtin-visit.c - Declarations for these visitor functions
+
 === Code generated for commands ===
 
 These are the marshaling/dispatch functions for the commands defined
@@ -1342,6 +1368,12 @@ Example:
 
 [Uninteresting stuff omitted...]
 
+For a modular QAPI schema (see section Include directives), code for
+each sub-module SUBDIR/SUBMODULE.json is actually generated into
+
+SUBDIR/$(prefix)qapi-commands-SUBMODULE.h
+SUBDIR/$(prefix)qapi-commands-SUBMODULE.c
+
 === Code generated for events ===
 
 This is the code related to events defined in the schema, providing
@@ -1349,10 +1381,14 @@ qapi_event_send_EVENT().
 
 The following files are created:
 
-$(prefix)qapi-events.h - Function prototypes for each event type, plus an
-                        enumeration of all event names
+$(prefix)qapi-events.h - Function prototypes for each event type
 
 $(prefix)qapi-events.c - Implementation of functions to send an event
+
+$(prefix)qapi-emit-events.h - Enumeration of all event names, and
+                              common event code declarations
+
+$(prefix)qapi-emit-events.c - Common event code definitions
 
 Example:
 
@@ -1365,18 +1401,7 @@ Example:
     #include "qapi/util.h"
     #include "example-qapi-types.h"
 
-
     void qapi_event_send_my_event(void);
-
-    typedef enum example_QAPIEvent {
-        EXAMPLE_QAPI_EVENT_MY_EVENT,
-        EXAMPLE_QAPI_EVENT__MAX,
-    } example_QAPIEvent;
-
-    #define example_QAPIEvent_str(val) \
-        qapi_enum_lookup(&example_QAPIEvent_lookup, (val))
-
-    extern const QEnumLookup example_QAPIEvent_lookup;
 
     #endif /* EXAMPLE_QAPI_EVENTS_H */
     $ cat qapi-generated/example-qapi-events.c
@@ -1393,6 +1418,31 @@ Example:
         qobject_unref(qmp);
     }
 
+[Uninteresting stuff omitted...]
+    $ cat qapi-generated/example-qapi-emit-events.h
+[Uninteresting stuff omitted...]
+
+    #ifndef EXAMPLE_QAPI_EMIT_EVENTS_H
+    #define EXAMPLE_QAPI_EMIT_EVENTS_H
+
+    #include "qapi/util.h"
+
+    typedef enum example_QAPIEvent {
+        EXAMPLE_QAPI_EVENT_MY_EVENT,
+        EXAMPLE_QAPI_EVENT__MAX,
+    } example_QAPIEvent;
+
+    #define example_QAPIEvent_str(val) \
+        qapi_enum_lookup(&example_QAPIEvent_lookup, (val))
+
+    extern const QEnumLookup example_QAPIEvent_lookup;
+
+    void example_qapi_event_emit(example_QAPIEvent event, QDict *qdict);
+
+    #endif /* EXAMPLE_QAPI_EMIT_EVENTS_H */
+    $ cat qapi-generated/example-qapi-emit-events.c
+[Uninteresting stuff omitted...]
+
     const QEnumLookup example_QAPIEvent_lookup = {
         .array = (const char *const[]) {
             [EXAMPLE_QAPI_EVENT_MY_EVENT] = "MY_EVENT",
@@ -1401,6 +1451,12 @@ Example:
     };
 
 [Uninteresting stuff omitted...]
+
+For a modular QAPI schema (see section Include directives), code for
+each sub-module SUBDIR/SUBMODULE.json is actually generated into
+
+SUBDIR/$(prefix)qapi-events-SUBMODULE.h
+SUBDIR/$(prefix)qapi-events-SUBMODULE.c
 
 === Code generated for introspection ===
 

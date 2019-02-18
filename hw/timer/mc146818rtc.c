@@ -31,8 +31,8 @@
 #include "sysemu/replay.h"
 #include "hw/timer/mc146818rtc.h"
 #include "qapi/error.h"
-#include "qapi/qapi-commands-misc.h"
-#include "qapi/qapi-events-misc.h"
+#include "qapi/qapi-commands-target.h"
+#include "qapi/qapi-events-target.h"
 #include "qapi/visitor.h"
 #include "exec/address-spaces.h"
 

@@ -21,6 +21,7 @@
 #include "qapi/qmp/qstring.h"
 #include "qapi/qmp-event.h"
 #include "test-qapi-events.h"
+#include "test-qapi-emit-events.h"
 
 typedef struct TestEventData {
     QDict *expect;

@@ -27,14 +27,6 @@ void qmp_register_command(QmpCommandList *cmds, const char *name,
     QTAILQ_INSERT_TAIL(cmds, cmd, node);
 }
 
-void qmp_unregister_command(QmpCommandList *cmds, const char *name)
-{
-    QmpCommand *cmd = qmp_find_command(cmds, name);
-
-    QTAILQ_REMOVE(cmds, cmd, node);
-    g_free(cmd);
-}
-
 QmpCommand *qmp_find_command(QmpCommandList *cmds, const char *name)
 {
     QmpCommand *cmd;
