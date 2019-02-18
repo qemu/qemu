@@ -397,14 +397,21 @@ uint32_t HELPER(cxb)(CPUS390XState *env, uint64_t ah, uint64_t al,
 int s390_swap_bfp_rounding_mode(CPUS390XState *env, int m3)
 {
     int ret = env->fpu_status.float_rounding_mode;
+
     switch (m3) {
     case 0:
         /* current mode */
         break;
     case 1:
-        /* biased round no nearest */
+        /* round to nearest with ties away from 0 */
+        set_float_rounding_mode(float_round_ties_away, &env->fpu_status);
+        break;
+    case 3:
+        /* round to prepare for shorter precision */
+        set_float_rounding_mode(float_round_to_odd, &env->fpu_status);
+        break;
     case 4:
-        /* round to nearest */
+        /* round to nearest with ties to even */
         set_float_rounding_mode(float_round_nearest_even, &env->fpu_status);
         break;
     case 5:
@@ -419,6 +426,8 @@ int s390_swap_bfp_rounding_mode(CPUS390XState *env, int m3)
         /* round to -inf */
         set_float_rounding_mode(float_round_down, &env->fpu_status);
         break;
+    default:
+        g_assert_not_reached();
     }
     return ret;
 }
