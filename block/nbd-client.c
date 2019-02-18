@@ -84,15 +84,9 @@ static coroutine_fn void nbd_connection_entry(void *opaque)
          *
          * Therefore we keep an additional in_flight reference all the time and
          * only drop it temporarily here.
-         *
-         * FIXME This is not safe because the QIOChannel could wake up the
-         * coroutine for a second time; it is not prepared for coroutine
-         * resumption from external code.
          */
-        bdrv_dec_in_flight(s->bs);
         assert(s->reply.handle == 0);
-        ret = nbd_receive_reply(s->ioc, &s->reply, &local_err);
-        bdrv_inc_in_flight(s->bs);
+        ret = nbd_receive_reply(s->bs, s->ioc, &s->reply, &local_err);
 
         if (local_err) {
             trace_nbd_read_reply_entry_fail(ret, error_get_pretty(local_err));

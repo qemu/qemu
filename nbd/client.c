@@ -1394,30 +1394,58 @@ static int nbd_receive_structured_reply_chunk(QIOChannel *ioc,
  *         negative errno on failure (errp is set)
  */
 static inline int coroutine_fn
-nbd_read_eof(QIOChannel *ioc, void *buffer, size_t size, Error **errp)
+nbd_read_eof(BlockDriverState *bs, QIOChannel *ioc, void *buffer, size_t size,
+             Error **errp)
 {
-    int ret;
+    bool partial = false;
 
     assert(size);
-    ret = qio_channel_read_all_eof(ioc, buffer, size, errp);
-    if (ret < 0) {
-        ret = -EIO;
+    while (size > 0) {
+        struct iovec iov = { .iov_base = buffer, .iov_len = size };
+        ssize_t len;
+
+        len = qio_channel_readv(ioc, &iov, 1, errp);
+        if (len == QIO_CHANNEL_ERR_BLOCK) {
+            bdrv_dec_in_flight(bs);
+            qio_channel_yield(ioc, G_IO_IN);
+            bdrv_inc_in_flight(bs);
+            continue;
+        } else if (len < 0) {
+            return -EIO;
+        } else if (len == 0) {
+            if (partial) {
+                error_setg(errp,
+                           "Unexpected end-of-file before all bytes were read");
+                return -EIO;
+            } else {
+                return 0;
+            }
+        }
+
+        partial = true;
+        size -= len;
+        buffer = (uint8_t*) buffer + len;
     }
-    return ret;
+    return 1;
 }
 
 /* nbd_receive_reply
+ *
+ * Decreases bs->in_flight while waiting for a new reply. This yield is where
+ * we wait indefinitely and the coroutine must be able to be safely reentered
+ * for nbd_client_attach_aio_context().
+ *
  * Returns 1 on success
  *         0 on eof, when no data was read (errp is not set)
  *         negative errno on failure (errp is set)
  */
-int coroutine_fn nbd_receive_reply(QIOChannel *ioc, NBDReply *reply,
-                                   Error **errp)
+int coroutine_fn nbd_receive_reply(BlockDriverState *bs, QIOChannel *ioc,
+                                   NBDReply *reply, Error **errp)
 {
     int ret;
     const char *type;
 
-    ret = nbd_read_eof(ioc, &reply->magic, sizeof(reply->magic), errp);
+    ret = nbd_read_eof(bs, ioc, &reply->magic, sizeof(reply->magic), errp);
     if (ret <= 0) {
         return ret;
     }
