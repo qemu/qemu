@@ -300,7 +300,8 @@ int nbd_receive_export_list(QIOChannel *ioc, QCryptoTLSCreds *tlscreds,
 int nbd_init(int fd, QIOChannelSocket *sioc, NBDExportInfo *info,
              Error **errp);
 int nbd_send_request(QIOChannel *ioc, NBDRequest *request);
-int nbd_receive_reply(QIOChannel *ioc, NBDReply *reply, Error **errp);
+int coroutine_fn nbd_receive_reply(QIOChannel *ioc, NBDReply *reply,
+                                   Error **errp);
 int nbd_client(int fd);
 int nbd_disconnect(int fd);
 int nbd_errno_to_system_errno(int err);

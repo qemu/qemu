@@ -1387,12 +1387,32 @@ static int nbd_receive_structured_reply_chunk(QIOChannel *ioc,
     return 0;
 }
 
+/* nbd_read_eof
+ * Tries to read @size bytes from @ioc.
+ * Returns 1 on success
+ *         0 on eof, when no data was read (errp is not set)
+ *         negative errno on failure (errp is set)
+ */
+static inline int coroutine_fn
+nbd_read_eof(QIOChannel *ioc, void *buffer, size_t size, Error **errp)
+{
+    int ret;
+
+    assert(size);
+    ret = qio_channel_read_all_eof(ioc, buffer, size, errp);
+    if (ret < 0) {
+        ret = -EIO;
+    }
+    return ret;
+}
+
 /* nbd_receive_reply
  * Returns 1 on success
  *         0 on eof, when no data was read (errp is not set)
  *         negative errno on failure (errp is set)
  */
-int nbd_receive_reply(QIOChannel *ioc, NBDReply *reply, Error **errp)
+int coroutine_fn nbd_receive_reply(QIOChannel *ioc, NBDReply *reply,
+                                   Error **errp)
 {
     int ret;
     const char *type;
