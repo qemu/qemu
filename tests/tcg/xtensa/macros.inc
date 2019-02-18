@@ -100,3 +100,6 @@ test_\name:
 
 #define glue(a, b) _glue(a, b)
 #define _glue(a, b) a ## b
+
+#define glue3(a, b, c) _glue3(a, b, c)
+#define _glue3(a, b, c) a ## b ## c
