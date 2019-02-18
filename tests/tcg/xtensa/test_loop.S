@@ -2,6 +2,8 @@
 
 test_suite loop
 
+#if XCHAL_HAVE_LOOPS
+
 test loop
     movi    a2, 0
     movi    a3, 5
@@ -159,5 +161,7 @@ test loopgtz
     test_fail
 1:
 test_end
+
+#endif
 
 test_suite_end

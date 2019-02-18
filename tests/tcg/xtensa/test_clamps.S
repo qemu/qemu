@@ -2,6 +2,8 @@
 
 test_suite clamps
 
+#if XCHAL_HAVE_CLAMPS
+
 test clamps
     movi    a2, 0
     movi    a3, 0
@@ -38,5 +40,7 @@ test clamps
     clamps  a2, a2, 7
     assert  eq, a3, a2
 test_end
+
+#endif
 
 test_suite_end

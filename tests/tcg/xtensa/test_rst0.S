@@ -54,6 +54,8 @@ test add
     assert  eq, a4, a6
 test_end
 
+#if XCHAL_HAVE_ADDX
+
 test addx2
     movi    a2, 0x137fa5a5
     mov     a3, a2
@@ -93,6 +95,8 @@ test addx8
     assert  eq, a4, a6
 test_end
 
+#endif
+
 test sub
     movi    a2, 0x137fa5a5
     mov     a3, a2
@@ -105,6 +109,8 @@ test sub
     sub     a4, a3, a4
     assert  eq, a4, a6
 test_end
+
+#if XCHAL_HAVE_ADDX
 
 test subx2
     movi    a2, 0x137fa5a5
@@ -144,5 +150,7 @@ test subx8
     subx8   a4, a3, a4
     assert  eq, a4, a6
 test_end
+
+#endif
 
 test_suite_end

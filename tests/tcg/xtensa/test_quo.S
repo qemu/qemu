@@ -2,6 +2,8 @@
 
 test_suite quo
 
+#if XCHAL_HAVE_DIV32
+
 test quou_pp
     movi    a2, 0x5a5a137f
     mov     a3, a2
@@ -143,5 +145,7 @@ test quos_exc
     movi    a3, 1b
     assert  eq, a2, a3
 test_end
+
+#endif
 
 test_suite_end
