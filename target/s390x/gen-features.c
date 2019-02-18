@@ -601,6 +601,11 @@ static uint16_t qemu_V3_1[] = {
 };
 
 static uint16_t qemu_LATEST[] = {
+    /*
+     * Only BFP bits are implemented (HFP, DFP, PFPO and DIVIDE TO INTEGER not
+     * implemented yet).
+     */
+    S390_FEAT_FLOATING_POINT_EXT,
     S390_FEAT_ZPCI,
 };
 
