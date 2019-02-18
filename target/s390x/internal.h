@@ -311,6 +311,13 @@ void s390x_cpu_do_unaligned_access(CPUState *cs, vaddr addr,
 uint32_t set_cc_nz_f32(float32 v);
 uint32_t set_cc_nz_f64(float64 v);
 uint32_t set_cc_nz_f128(float128 v);
+#define S390_IEEE_MASK_INVALID   0x80
+#define S390_IEEE_MASK_DIVBYZERO 0x40
+#define S390_IEEE_MASK_OVERFLOW  0x20
+#define S390_IEEE_MASK_UNDERFLOW 0x10
+#define S390_IEEE_MASK_INEXACT   0x08
+#define S390_IEEE_MASK_QUANTUM   0x04
+uint8_t s390_softfloat_exc_to_ieee(unsigned int exc);
 
 
 /* gdbstub.c */

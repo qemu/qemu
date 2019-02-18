@@ -36,10 +36,18 @@
 
 #define RET128(F) (env->retxl = F.low, F.high)
 
-#define convert_bit(mask, from, to) \
-    (to < from                      \
-     ? (mask / (from / to)) & to    \
-     : (mask & from) * (to / from))
+uint8_t s390_softfloat_exc_to_ieee(unsigned int exc)
+{
+    uint8_t s390_exc = 0;
+
+    s390_exc |= (exc & float_flag_invalid) ? S390_IEEE_MASK_INVALID : 0;
+    s390_exc |= (exc & float_flag_divbyzero) ? S390_IEEE_MASK_DIVBYZERO : 0;
+    s390_exc |= (exc & float_flag_overflow) ? S390_IEEE_MASK_OVERFLOW : 0;
+    s390_exc |= (exc & float_flag_underflow) ? S390_IEEE_MASK_UNDERFLOW : 0;
+    s390_exc |= (exc & float_flag_inexact) ? S390_IEEE_MASK_INEXACT : 0;
+
+    return s390_exc;
+}
 
 /* Should be called after any operation that may raise IEEE exceptions.  */
 static void handle_exceptions(CPUS390XState *env, uintptr_t retaddr)
@@ -53,14 +61,7 @@ static void handle_exceptions(CPUS390XState *env, uintptr_t retaddr)
         return;
     }
     env->fpu_status.float_exception_flags = 0;
-
-    /* Convert softfloat exception bits to s390 exception bits.  */
-    s390_exc = 0;
-    s390_exc |= convert_bit(qemu_exc, float_flag_invalid, 0x80);
-    s390_exc |= convert_bit(qemu_exc, float_flag_divbyzero, 0x40);
-    s390_exc |= convert_bit(qemu_exc, float_flag_overflow, 0x20);
-    s390_exc |= convert_bit(qemu_exc, float_flag_underflow, 0x10);
-    s390_exc |= convert_bit(qemu_exc, float_flag_inexact, 0x08);
+    s390_exc = s390_softfloat_exc_to_ieee(qemu_exc);
 
     /* Install the exceptions that we raised.  */
     env->fpc |= s390_exc << 16;
