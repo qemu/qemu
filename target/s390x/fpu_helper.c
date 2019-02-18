@@ -789,6 +789,19 @@ void HELPER(sfas)(CPUS390XState *env, uint64_t fpc)
      */
     s390_exc = (signalling >> 16) & (fpc >> 24);
     if (s390_exc) {
+        if (s390_exc & S390_IEEE_MASK_INVALID) {
+            s390_exc = S390_IEEE_MASK_INVALID;
+        } else if (s390_exc & S390_IEEE_MASK_DIVBYZERO) {
+            s390_exc = S390_IEEE_MASK_DIVBYZERO;
+        } else if (s390_exc & S390_IEEE_MASK_OVERFLOW) {
+            s390_exc &= (S390_IEEE_MASK_OVERFLOW | S390_IEEE_MASK_INEXACT);
+        } else if (s390_exc & S390_IEEE_MASK_UNDERFLOW) {
+            s390_exc &= (S390_IEEE_MASK_UNDERFLOW | S390_IEEE_MASK_INEXACT);
+        } else if (s390_exc & S390_IEEE_MASK_INEXACT) {
+            s390_exc = S390_IEEE_MASK_INEXACT;
+        } else if (s390_exc & S390_IEEE_MASK_QUANTUM) {
+            s390_exc = S390_IEEE_MASK_QUANTUM;
+        }
         tcg_s390_data_exception(env, s390_exc | 3, GETPC());
     }
 }
