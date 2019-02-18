@@ -346,7 +346,6 @@ extern const char *IDE_DMA_CMD_lookup[IDE_DMA__COUNT];
 
 typedef struct IDEBufferedRequest {
     QLIST_ENTRY(IDEBufferedRequest) list;
-    struct iovec iov;
     QEMUIOVector qiov;
     QEMUIOVector *original_qiov;
     BlockCompletionFunc *original_cb;

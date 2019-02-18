@@ -629,13 +629,15 @@ static void ide_buffered_readv_cb(void *opaque, int ret)
     IDEBufferedRequest *req = opaque;
     if (!req->orphaned) {
         if (!ret) {
-            qemu_iovec_from_buf(req->original_qiov, 0, req->iov.iov_base,
+            assert(req->qiov.size == req->original_qiov->size);
+            qemu_iovec_from_buf(req->original_qiov, 0,
+                                req->qiov.local_iov.iov_base,
                                 req->original_qiov->size);
         }
         req->original_cb(req->original_opaque, ret);
     }
     QLIST_REMOVE(req, list);
-    qemu_vfree(req->iov.iov_base);
+    qemu_vfree(qemu_iovec_buf(&req->qiov));
     g_free(req);
 }
 
@@ -660,9 +662,8 @@ BlockAIOCB *ide_buffered_readv(IDEState *s, int64_t sector_num,
     req->original_qiov = iov;
     req->original_cb = cb;
     req->original_opaque = opaque;
-    req->iov.iov_base = qemu_blockalign(blk_bs(s->blk), iov->size);
-    req->iov.iov_len = iov->size;
-    qemu_iovec_init_external(&req->qiov, &req->iov, 1);
+    qemu_iovec_init_buf(&req->qiov, blk_blockalign(s->blk, iov->size),
+                        iov->size);
 
     aioreq = blk_aio_preadv(s->blk, sector_num << BDRV_SECTOR_BITS,
                             &req->qiov, 0, ide_buffered_readv_cb, req);
