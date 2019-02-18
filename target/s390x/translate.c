@@ -4060,6 +4060,7 @@ static DisasJumpType op_stap(DisasContext *s, DisasOps *o)
     tcg_gen_ld32u_i64(o->out, cpu_env, offsetof(CPUS390XState, core_id));
     return DISAS_NEXT;
 }
+#endif
 
 static DisasJumpType op_stck(DisasContext *s, DisasOps *o)
 {
@@ -4096,6 +4097,7 @@ static DisasJumpType op_stcke(DisasContext *s, DisasOps *o)
     return DISAS_NEXT;
 }
 
+#ifndef CONFIG_USER_ONLY
 static DisasJumpType op_sck(DisasContext *s, DisasOps *o)
 {
     tcg_gen_qemu_ld_i64(o->in1, o->addr1, get_mem_index(s), MO_TEQ | MO_ALIGN);

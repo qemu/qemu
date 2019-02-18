@@ -79,6 +79,7 @@ static S390CPUDef s390_cpu_defs[] = {
     CPUDEF_INIT(0x2964, 13, 2, 47, 0x08000000U, "z13.2", "IBM z13 GA2"),
     CPUDEF_INIT(0x2965, 13, 2, 47, 0x08000000U, "z13s", "IBM z13s GA1"),
     CPUDEF_INIT(0x3906, 14, 1, 47, 0x08000000U, "z14", "IBM z14 GA1"),
+    CPUDEF_INIT(0x3906, 14, 2, 47, 0x08000000U, "z14.2", "IBM z14 GA2"),
     CPUDEF_INIT(0x3907, 14, 1, 47, 0x08000000U, "z14ZR1", "IBM z14 Model ZR1 GA1"),
 };
 
@@ -114,6 +115,30 @@ void s390_cpudef_featoff_greater(uint8_t gen, uint8_t ec_ga, S390Feat feat)
         }
 
         clear_bit(feat, (unsigned long *)&def->default_feat);
+    }
+}
+
+void s390_cpudef_group_featoff_greater(uint8_t gen, uint8_t ec_ga,
+                                       S390FeatGroup group)
+{
+    const S390FeatGroupDef *group_def = s390_feat_group_def(group);
+    S390FeatBitmap group_def_off;
+    int i;
+
+    bitmap_complement(group_def_off, group_def->feat, S390_FEAT_MAX);
+
+    for (i = 0; i < ARRAY_SIZE(s390_cpu_defs); i++) {
+        const S390CPUDef *cpu_def = &s390_cpu_defs[i];
+
+        if (cpu_def->gen < gen) {
+            continue;
+        }
+        if (cpu_def->gen == gen && cpu_def->ec_ga < ec_ga) {
+            continue;
+        }
+
+        bitmap_and((unsigned long *)&cpu_def->default_feat,
+                   cpu_def->default_feat, group_def_off, S390_FEAT_MAX);
     }
 }
 
@@ -788,6 +813,10 @@ static void check_consistency(const S390CPUModel *model)
         { S390_FEAT_SIE_KSS, S390_FEAT_SIE_F2 },
         { S390_FEAT_AP_QUERY_CONFIG_INFO, S390_FEAT_AP },
         { S390_FEAT_AP_FACILITIES_TEST, S390_FEAT_AP },
+        { S390_FEAT_PTFF_QSIE, S390_FEAT_MULTIPLE_EPOCH },
+        { S390_FEAT_PTFF_QTOUE, S390_FEAT_MULTIPLE_EPOCH },
+        { S390_FEAT_PTFF_STOE, S390_FEAT_MULTIPLE_EPOCH },
+        { S390_FEAT_PTFF_STOUE, S390_FEAT_MULTIPLE_EPOCH },
     };
     int i;
 
@@ -1314,11 +1343,6 @@ static void register_types(void)
 
     /* init all bitmaps from gnerated data initially */
     s390_init_feat_bitmap(qemu_max_cpu_feat_init, qemu_max_cpu_feat);
-#ifndef CONFIG_USER_ONLY
-    if (!pci_available) {
-        clear_bit(S390_FEAT_ZPCI, qemu_max_cpu_feat);
-    }
-#endif
     for (i = 0; i < ARRAY_SIZE(s390_cpu_defs); i++) {
         s390_init_feat_bitmap(s390_cpu_defs[i].base_init,
                               s390_cpu_defs[i].base_feat);

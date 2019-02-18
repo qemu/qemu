@@ -375,7 +375,7 @@ S390
 M: Halil Pasic <pasic@linux.ibm.com>
 M: Cornelia Huck <cohuck@redhat.com>
 M: Christian Borntraeger <borntraeger@de.ibm.com>
-S: Maintained
+S: Supported
 F: target/s390x/kvm.c
 F: target/s390x/kvm_s390x.h
 F: target/s390x/kvm-stub.c

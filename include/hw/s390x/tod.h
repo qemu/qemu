@@ -12,6 +12,7 @@
 #define HW_S390_TOD_H
 
 #include "hw/qdev.h"
+#include "s390-tod.h"
 
 typedef struct S390TOD {
     uint8_t high;
@@ -49,21 +50,6 @@ typedef struct S390TODClass {
     void (*get)(const S390TODState *td, S390TOD *tod, Error **errp);
     void (*set)(S390TODState *td, const S390TOD *tod, Error **errp);
 } S390TODClass;
-
-/* The value of the TOD clock for 1.1.1970. */
-#define TOD_UNIX_EPOCH 0x7d91048bca000000ULL
-
-/* Converts ns to s390's clock format */
-static inline uint64_t time2tod(uint64_t ns)
-{
-    return (ns << 9) / 125 + (((ns & 0xff80000000000000ull) / 125) << 9);
-}
-
-/* Converts s390's clock format to ns */
-static inline uint64_t tod2time(uint64_t t)
-{
-    return ((t >> 9) * 125) + (((t & 0x1ff) * 125) >> 9);
-}
 
 void s390_init_tod(void);
 S390TODState *s390_get_todstate(void);
