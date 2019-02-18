@@ -14,7 +14,6 @@ from avocado_qemu import Test
 
 class Version(Test):
     """
-    :avocado: enable
     :avocado: tags=quick
     """
     def test_qmp_human_info_version(self):

@@ -61,7 +61,6 @@ class VirtioVersionCheck(Test):
     same device tree created by `disable-modern` and
     `disable-legacy`.
 
-    :avocado: enable
     :avocado: tags=x86_64
     """
 

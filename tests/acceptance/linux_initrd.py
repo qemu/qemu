@@ -18,7 +18,6 @@ class LinuxInitrd(Test):
     """
     Checks QEMU evaluates correctly the initrd file passed as -initrd option.
 
-    :avocado: enable
     :avocado: tags=x86_64
     """
 

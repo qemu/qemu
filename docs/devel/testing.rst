@@ -600,7 +600,6 @@ the ``avocado_qemu.Test`` class.  Here's a simple usage example:
 
   class Version(Test):
       """
-      :avocado: enable
       :avocado: tags=quick
       """
       def test_qmp_human_info_version(self):
