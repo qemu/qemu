@@ -101,6 +101,21 @@ static void test_ccw_unplug(void)
     qtest_quit(qtest);
 }
 
+static void test_spapr_cpu_unplug_request(void)
+{
+    QTestState *qtest;
+
+    qtest = qtest_initf("-cpu power9_v2.0 -smp 1,maxcpus=2 "
+                        "-device power9_v2.0-spapr-cpu-core,core-id=1,id=dev0");
+
+    /* similar to test_pci_unplug_request */
+    device_del_request(qtest, "dev0");
+    system_reset(qtest);
+    wait_device_deleted_event(qtest, "dev0");
+
+    qtest_quit(qtest);
+}
+
 int main(int argc, char **argv)
 {
     const char *arch = qtest_get_arch();
@@ -118,6 +133,11 @@ int main(int argc, char **argv)
     if (!strcmp(arch, "s390x")) {
         qtest_add_func("/device-plug/ccw-unplug",
                        test_ccw_unplug);
+    }
+
+    if (!strcmp(arch, "ppc64")) {
+        qtest_add_func("/device-plug/spapr-cpu-unplug-request",
+                       test_spapr_cpu_unplug_request);
     }
 
     return g_test_run();
