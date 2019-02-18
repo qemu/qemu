@@ -1776,160 +1776,257 @@ static DisasJumpType op_cxb(DisasContext *s, DisasOps *o)
     return DISAS_NEXT;
 }
 
+static TCGv_i32 fpinst_extract_m34(DisasContext *s, bool m3_with_fpe,
+                                   bool m4_with_fpe)
+{
+    const bool fpe = s390_has_feat(S390_FEAT_FLOATING_POINT_EXT);
+    uint8_t m3 = get_field(s->fields, m3);
+    uint8_t m4 = get_field(s->fields, m4);
+
+    /* m3 field was introduced with FPE */
+    if (!fpe && m3_with_fpe) {
+        m3 = 0;
+    }
+    /* m4 field was introduced with FPE */
+    if (!fpe && m4_with_fpe) {
+        m4 = 0;
+    }
+
+    /* Check for valid rounding modes. Mode 3 was introduced later. */
+    if (m3 == 2 || m3 > 7 || (!fpe && m3 == 3)) {
+        gen_program_exception(s, PGM_SPECIFICATION);
+        return NULL;
+    }
+
+    return tcg_const_i32(deposit32(m3, 4, 4, m4));
+}
+
 static DisasJumpType op_cfeb(DisasContext *s, DisasOps *o)
 {
-    TCGv_i32 m3 = tcg_const_i32(get_field(s->fields, m3));
-    gen_helper_cfeb(o->out, cpu_env, o->in2, m3);
-    tcg_temp_free_i32(m3);
+    TCGv_i32 m34 = fpinst_extract_m34(s, false, true);
+
+    if (!m34) {
+        return DISAS_NORETURN;
+    }
+    gen_helper_cfeb(o->out, cpu_env, o->in2, m34);
+    tcg_temp_free_i32(m34);
     gen_set_cc_nz_f32(s, o->in2);
     return DISAS_NEXT;
 }
 
 static DisasJumpType op_cfdb(DisasContext *s, DisasOps *o)
 {
-    TCGv_i32 m3 = tcg_const_i32(get_field(s->fields, m3));
-    gen_helper_cfdb(o->out, cpu_env, o->in2, m3);
-    tcg_temp_free_i32(m3);
+    TCGv_i32 m34 = fpinst_extract_m34(s, false, true);
+
+    if (!m34) {
+        return DISAS_NORETURN;
+    }
+    gen_helper_cfdb(o->out, cpu_env, o->in2, m34);
+    tcg_temp_free_i32(m34);
     gen_set_cc_nz_f64(s, o->in2);
     return DISAS_NEXT;
 }
 
 static DisasJumpType op_cfxb(DisasContext *s, DisasOps *o)
 {
-    TCGv_i32 m3 = tcg_const_i32(get_field(s->fields, m3));
-    gen_helper_cfxb(o->out, cpu_env, o->in1, o->in2, m3);
-    tcg_temp_free_i32(m3);
+    TCGv_i32 m34 = fpinst_extract_m34(s, false, true);
+
+    if (!m34) {
+        return DISAS_NORETURN;
+    }
+    gen_helper_cfxb(o->out, cpu_env, o->in1, o->in2, m34);
+    tcg_temp_free_i32(m34);
     gen_set_cc_nz_f128(s, o->in1, o->in2);
     return DISAS_NEXT;
 }
 
 static DisasJumpType op_cgeb(DisasContext *s, DisasOps *o)
 {
-    TCGv_i32 m3 = tcg_const_i32(get_field(s->fields, m3));
-    gen_helper_cgeb(o->out, cpu_env, o->in2, m3);
-    tcg_temp_free_i32(m3);
+    TCGv_i32 m34 = fpinst_extract_m34(s, false, true);
+
+    if (!m34) {
+        return DISAS_NORETURN;
+    }
+    gen_helper_cgeb(o->out, cpu_env, o->in2, m34);
+    tcg_temp_free_i32(m34);
     gen_set_cc_nz_f32(s, o->in2);
     return DISAS_NEXT;
 }
 
 static DisasJumpType op_cgdb(DisasContext *s, DisasOps *o)
 {
-    TCGv_i32 m3 = tcg_const_i32(get_field(s->fields, m3));
-    gen_helper_cgdb(o->out, cpu_env, o->in2, m3);
-    tcg_temp_free_i32(m3);
+    TCGv_i32 m34 = fpinst_extract_m34(s, false, true);
+
+    if (!m34) {
+        return DISAS_NORETURN;
+    }
+    gen_helper_cgdb(o->out, cpu_env, o->in2, m34);
+    tcg_temp_free_i32(m34);
     gen_set_cc_nz_f64(s, o->in2);
     return DISAS_NEXT;
 }
 
 static DisasJumpType op_cgxb(DisasContext *s, DisasOps *o)
 {
-    TCGv_i32 m3 = tcg_const_i32(get_field(s->fields, m3));
-    gen_helper_cgxb(o->out, cpu_env, o->in1, o->in2, m3);
-    tcg_temp_free_i32(m3);
+    TCGv_i32 m34 = fpinst_extract_m34(s, false, true);
+
+    if (!m34) {
+        return DISAS_NORETURN;
+    }
+    gen_helper_cgxb(o->out, cpu_env, o->in1, o->in2, m34);
+    tcg_temp_free_i32(m34);
     gen_set_cc_nz_f128(s, o->in1, o->in2);
     return DISAS_NEXT;
 }
 
 static DisasJumpType op_clfeb(DisasContext *s, DisasOps *o)
 {
-    TCGv_i32 m3 = tcg_const_i32(get_field(s->fields, m3));
-    gen_helper_clfeb(o->out, cpu_env, o->in2, m3);
-    tcg_temp_free_i32(m3);
+    TCGv_i32 m34 = fpinst_extract_m34(s, false, false);
+
+    if (!m34) {
+        return DISAS_NORETURN;
+    }
+    gen_helper_clfeb(o->out, cpu_env, o->in2, m34);
+    tcg_temp_free_i32(m34);
     gen_set_cc_nz_f32(s, o->in2);
     return DISAS_NEXT;
 }
 
 static DisasJumpType op_clfdb(DisasContext *s, DisasOps *o)
 {
-    TCGv_i32 m3 = tcg_const_i32(get_field(s->fields, m3));
-    gen_helper_clfdb(o->out, cpu_env, o->in2, m3);
-    tcg_temp_free_i32(m3);
+    TCGv_i32 m34 = fpinst_extract_m34(s, false, false);
+
+    if (!m34) {
+        return DISAS_NORETURN;
+    }
+    gen_helper_clfdb(o->out, cpu_env, o->in2, m34);
+    tcg_temp_free_i32(m34);
     gen_set_cc_nz_f64(s, o->in2);
     return DISAS_NEXT;
 }
 
 static DisasJumpType op_clfxb(DisasContext *s, DisasOps *o)
 {
-    TCGv_i32 m3 = tcg_const_i32(get_field(s->fields, m3));
-    gen_helper_clfxb(o->out, cpu_env, o->in1, o->in2, m3);
-    tcg_temp_free_i32(m3);
+    TCGv_i32 m34 = fpinst_extract_m34(s, false, false);
+
+    if (!m34) {
+        return DISAS_NORETURN;
+    }
+    gen_helper_clfxb(o->out, cpu_env, o->in1, o->in2, m34);
+    tcg_temp_free_i32(m34);
     gen_set_cc_nz_f128(s, o->in1, o->in2);
     return DISAS_NEXT;
 }
 
 static DisasJumpType op_clgeb(DisasContext *s, DisasOps *o)
 {
-    TCGv_i32 m3 = tcg_const_i32(get_field(s->fields, m3));
-    gen_helper_clgeb(o->out, cpu_env, o->in2, m3);
-    tcg_temp_free_i32(m3);
+    TCGv_i32 m34 = fpinst_extract_m34(s, false, false);
+
+    if (!m34) {
+        return DISAS_NORETURN;
+    }
+    gen_helper_clgeb(o->out, cpu_env, o->in2, m34);
+    tcg_temp_free_i32(m34);
     gen_set_cc_nz_f32(s, o->in2);
     return DISAS_NEXT;
 }
 
 static DisasJumpType op_clgdb(DisasContext *s, DisasOps *o)
 {
-    TCGv_i32 m3 = tcg_const_i32(get_field(s->fields, m3));
-    gen_helper_clgdb(o->out, cpu_env, o->in2, m3);
-    tcg_temp_free_i32(m3);
+    TCGv_i32 m34 = fpinst_extract_m34(s, false, false);
+
+    if (!m34) {
+        return DISAS_NORETURN;
+    }
+    gen_helper_clgdb(o->out, cpu_env, o->in2, m34);
+    tcg_temp_free_i32(m34);
     gen_set_cc_nz_f64(s, o->in2);
     return DISAS_NEXT;
 }
 
 static DisasJumpType op_clgxb(DisasContext *s, DisasOps *o)
 {
-    TCGv_i32 m3 = tcg_const_i32(get_field(s->fields, m3));
-    gen_helper_clgxb(o->out, cpu_env, o->in1, o->in2, m3);
-    tcg_temp_free_i32(m3);
+    TCGv_i32 m34 = fpinst_extract_m34(s, false, false);
+
+    if (!m34) {
+        return DISAS_NORETURN;
+    }
+    gen_helper_clgxb(o->out, cpu_env, o->in1, o->in2, m34);
+    tcg_temp_free_i32(m34);
     gen_set_cc_nz_f128(s, o->in1, o->in2);
     return DISAS_NEXT;
 }
 
 static DisasJumpType op_cegb(DisasContext *s, DisasOps *o)
 {
-    TCGv_i32 m3 = tcg_const_i32(get_field(s->fields, m3));
-    gen_helper_cegb(o->out, cpu_env, o->in2, m3);
-    tcg_temp_free_i32(m3);
+    TCGv_i32 m34 = fpinst_extract_m34(s, true, true);
+
+    if (!m34) {
+        return DISAS_NORETURN;
+    }
+    gen_helper_cegb(o->out, cpu_env, o->in2, m34);
+    tcg_temp_free_i32(m34);
     return DISAS_NEXT;
 }
 
 static DisasJumpType op_cdgb(DisasContext *s, DisasOps *o)
 {
-    TCGv_i32 m3 = tcg_const_i32(get_field(s->fields, m3));
-    gen_helper_cdgb(o->out, cpu_env, o->in2, m3);
-    tcg_temp_free_i32(m3);
+    TCGv_i32 m34 = fpinst_extract_m34(s, true, true);
+
+    if (!m34) {
+        return DISAS_NORETURN;
+    }
+    gen_helper_cdgb(o->out, cpu_env, o->in2, m34);
+    tcg_temp_free_i32(m34);
     return DISAS_NEXT;
 }
 
 static DisasJumpType op_cxgb(DisasContext *s, DisasOps *o)
 {
-    TCGv_i32 m3 = tcg_const_i32(get_field(s->fields, m3));
-    gen_helper_cxgb(o->out, cpu_env, o->in2, m3);
-    tcg_temp_free_i32(m3);
+    TCGv_i32 m34 = fpinst_extract_m34(s, true, true);
+
+    if (!m34) {
+        return DISAS_NORETURN;
+    }
+    gen_helper_cxgb(o->out, cpu_env, o->in2, m34);
+    tcg_temp_free_i32(m34);
     return_low128(o->out2);
     return DISAS_NEXT;
 }
 
 static DisasJumpType op_celgb(DisasContext *s, DisasOps *o)
 {
-    TCGv_i32 m3 = tcg_const_i32(get_field(s->fields, m3));
-    gen_helper_celgb(o->out, cpu_env, o->in2, m3);
-    tcg_temp_free_i32(m3);
+    TCGv_i32 m34 = fpinst_extract_m34(s, false, false);
+
+    if (!m34) {
+        return DISAS_NORETURN;
+    }
+    gen_helper_celgb(o->out, cpu_env, o->in2, m34);
+    tcg_temp_free_i32(m34);
     return DISAS_NEXT;
 }
 
 static DisasJumpType op_cdlgb(DisasContext *s, DisasOps *o)
 {
-    TCGv_i32 m3 = tcg_const_i32(get_field(s->fields, m3));
-    gen_helper_cdlgb(o->out, cpu_env, o->in2, m3);
-    tcg_temp_free_i32(m3);
+    TCGv_i32 m34 = fpinst_extract_m34(s, false, false);
+
+    if (!m34) {
+        return DISAS_NORETURN;
+    }
+    gen_helper_cdlgb(o->out, cpu_env, o->in2, m34);
+    tcg_temp_free_i32(m34);
     return DISAS_NEXT;
 }
 
 static DisasJumpType op_cxlgb(DisasContext *s, DisasOps *o)
 {
-    TCGv_i32 m3 = tcg_const_i32(get_field(s->fields, m3));
-    gen_helper_cxlgb(o->out, cpu_env, o->in2, m3);
-    tcg_temp_free_i32(m3);
+    TCGv_i32 m34 = fpinst_extract_m34(s, false, false);
+
+    if (!m34) {
+        return DISAS_NORETURN;
+    }
+    gen_helper_cxlgb(o->out, cpu_env, o->in2, m34);
+    tcg_temp_free_i32(m34);
     return_low128(o->out2);
     return DISAS_NEXT;
 }
@@ -2408,26 +2505,38 @@ static DisasJumpType op_ex(DisasContext *s, DisasOps *o)
 
 static DisasJumpType op_fieb(DisasContext *s, DisasOps *o)
 {
-    TCGv_i32 m3 = tcg_const_i32(get_field(s->fields, m3));
-    gen_helper_fieb(o->out, cpu_env, o->in2, m3);
-    tcg_temp_free_i32(m3);
+    TCGv_i32 m34 = fpinst_extract_m34(s, false, true);
+
+    if (!m34) {
+        return DISAS_NORETURN;
+    }
+    gen_helper_fieb(o->out, cpu_env, o->in2, m34);
+    tcg_temp_free_i32(m34);
     return DISAS_NEXT;
 }
 
 static DisasJumpType op_fidb(DisasContext *s, DisasOps *o)
 {
-    TCGv_i32 m3 = tcg_const_i32(get_field(s->fields, m3));
-    gen_helper_fidb(o->out, cpu_env, o->in2, m3);
-    tcg_temp_free_i32(m3);
+    TCGv_i32 m34 = fpinst_extract_m34(s, false, true);
+
+    if (!m34) {
+        return DISAS_NORETURN;
+    }
+    gen_helper_fidb(o->out, cpu_env, o->in2, m34);
+    tcg_temp_free_i32(m34);
     return DISAS_NEXT;
 }
 
 static DisasJumpType op_fixb(DisasContext *s, DisasOps *o)
 {
-    TCGv_i32 m3 = tcg_const_i32(get_field(s->fields, m3));
-    gen_helper_fixb(o->out, cpu_env, o->in1, o->in2, m3);
+    TCGv_i32 m34 = fpinst_extract_m34(s, false, true);
+
+    if (!m34) {
+        return DISAS_NORETURN;
+    }
+    gen_helper_fixb(o->out, cpu_env, o->in1, o->in2, m34);
     return_low128(o->out2);
-    tcg_temp_free_i32(m3);
+    tcg_temp_free_i32(m34);
     return DISAS_NEXT;
 }
 
