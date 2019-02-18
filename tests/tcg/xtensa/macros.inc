@@ -49,7 +49,9 @@ main:
 .endm
 
 .macro test name
-    //print test_\name
+#ifdef DEBUG
+    print test_\name
+#endif
     test_init
 test_\name:
 .global test_\name
@@ -74,6 +76,9 @@ test_\name:
     l32i    a2, a2, 0
     movi    a3, 1
     s8i     a3, a2, 0
+#ifdef DEBUG
+    print   failed
+#endif
     j       99f
 .endm
 
