@@ -1371,7 +1371,6 @@ static int vmdk_write_extent(VmdkExtent *extent, int64_t cluster_offset,
     VmdkGrainMarker *data = NULL;
     uLongf buf_len;
     QEMUIOVector local_qiov;
-    struct iovec iov;
     int64_t write_offset;
     int64_t write_end_sector;
 
@@ -1399,11 +1398,7 @@ static int vmdk_write_extent(VmdkExtent *extent, int64_t cluster_offset,
         data->size = cpu_to_le32(buf_len);
 
         n_bytes = buf_len + sizeof(VmdkGrainMarker);
-        iov = (struct iovec) {
-            .iov_base   = data,
-            .iov_len    = n_bytes,
-        };
-        qemu_iovec_init_external(&local_qiov, &iov, 1);
+        qemu_iovec_init_buf(&local_qiov, data, n_bytes);
 
         BLKDBG_EVENT(extent->file, BLKDBG_WRITE_COMPRESSED);
     } else {
