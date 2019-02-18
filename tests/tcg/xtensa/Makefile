@@ -18,6 +18,8 @@ CC      = $(CROSS)gcc
 AS      = $(CROSS)gcc -x assembler-with-cpp
 LD      = $(CROSS)ld
 
+vectors_ASFLAGS = -mtext-section-literals
+
 XTENSA_SRC_PATH = $(SRC_PATH)/tests/tcg/xtensa
 INCLUDE_DIRS = $(XTENSA_SRC_PATH) $(SRC_PATH)/target/xtensa/core-$(CORE)
 XTENSA_INC = $(addprefix -I,$(INCLUDE_DIRS))
@@ -68,7 +70,7 @@ linker.ld: $(XTENSA_SRC_PATH)/linker.ld.S
 	$(CC) $(XTENSA_INC) $(CFLAGS) -c $< -o $@
 
 %.o: $(XTENSA_SRC_PATH)/%.S
-	$(CC) $(XTENSA_INC) $(ASFLAGS) -c $< -o $@
+	$(CC) $(XTENSA_INC) $($*_ASFLAGS) $(ASFLAGS) -c $< -o $@
 
 %.tst: %.o linker.ld $(XTENSA_SRC_PATH)/macros.inc $(CRT) Makefile
 	$(LD) $(LDFLAGS) $(NOSTDFLAGS) $(CRT) $< -o $@
