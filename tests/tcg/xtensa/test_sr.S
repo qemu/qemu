@@ -2,11 +2,23 @@
 
 test_suite sr
 
+#if XCHAL_HAVE_BE
+#define LOW__SR 0x04
+#define HI_RSR 0x30
+#define HI_WSR 0x31
+#define HI_XSR 0x16
+#else
+#define LOW__SR 0x40
+#define HI_RSR 0x03
+#define HI_WSR 0x13
+#define HI_XSR 0x61
+#endif
+
 .macro  sr_op sym, op_sym, op_byte, sr
     .if \sym
     \op_sym a4, \sr
     .else
-    .byte 0x40, \sr, \op_byte
+    .byte LOW__SR, \sr, \op_byte
     .endif
 .endm
 
@@ -32,9 +44,9 @@ test_suite sr
 
 .macro  test_sr_mask sr, sym, mask
 test \sr
-    test_sr_op \sym, \mask & 1, rsr, 0x03, \sr
-    test_sr_op \sym, \mask & 2, wsr, 0x13, \sr
-    test_sr_op \sym, \mask & 4, xsr, 0x61, \sr
+    test_sr_op \sym, \mask & 1, rsr, HI_RSR, \sr
+    test_sr_op \sym, \mask & 2, wsr, HI_WSR, \sr
+    test_sr_op \sym, \mask & 4, xsr, HI_XSR, \sr
 test_end
 .endm
 
