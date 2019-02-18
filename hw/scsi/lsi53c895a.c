@@ -2084,14 +2084,13 @@ static uint64_t lsi_mmio_read(void *opaque, hwaddr addr,
                               unsigned size)
 {
     LSIState *s = opaque;
-
     return lsi_reg_readb(s, addr & 0xff);
 }
 
 static const MemoryRegionOps lsi_mmio_ops = {
     .read = lsi_mmio_read,
     .write = lsi_mmio_write,
-    .endianness = DEVICE_NATIVE_ENDIAN,
+    .endianness = DEVICE_LITTLE_ENDIAN,
     .impl = {
         .min_access_size = 1,
         .max_access_size = 1,
@@ -2115,7 +2114,7 @@ static uint64_t lsi_ram_read(void *opaque, hwaddr addr,
 static const MemoryRegionOps lsi_ram_ops = {
     .read = lsi_ram_read,
     .write = lsi_ram_write,
-    .endianness = DEVICE_NATIVE_ENDIAN,
+    .endianness = DEVICE_LITTLE_ENDIAN,
 };
 
 static uint64_t lsi_io_read(void *opaque, hwaddr addr,
@@ -2135,7 +2134,7 @@ static void lsi_io_write(void *opaque, hwaddr addr,
 static const MemoryRegionOps lsi_io_ops = {
     .read = lsi_io_read,
     .write = lsi_io_write,
-    .endianness = DEVICE_NATIVE_ENDIAN,
+    .endianness = DEVICE_LITTLE_ENDIAN,
     .impl = {
         .min_access_size = 1,
         .max_access_size = 1,
