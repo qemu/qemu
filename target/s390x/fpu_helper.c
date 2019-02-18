@@ -753,21 +753,30 @@ uint64_t HELPER(sqxb)(CPUS390XState *env, uint64_t ah, uint64_t al)
     return RET128(ret);
 }
 
-static const int fpc_to_rnd[4] = {
+static const int fpc_to_rnd[8] = {
     float_round_nearest_even,
     float_round_to_zero,
     float_round_up,
-    float_round_down
+    float_round_down,
+    -1,
+    -1,
+    -1,
+    float_round_to_odd,
 };
 
 /* set fpc */
 void HELPER(sfpc)(CPUS390XState *env, uint64_t fpc)
 {
+    if (fpc_to_rnd[fpc & 0x7] == -1 || fpc & 0x03030088u ||
+        (!s390_has_feat(S390_FEAT_FLOATING_POINT_EXT) && fpc & 0x4)) {
+        s390_program_interrupt(env, PGM_SPECIFICATION, ILEN_AUTO, GETPC());
+    }
+
     /* Install everything in the main FPC.  */
     env->fpc = fpc;
 
     /* Install the rounding mode in the shadow fpu_status.  */
-    set_float_rounding_mode(fpc_to_rnd[fpc & 3], &env->fpu_status);
+    set_float_rounding_mode(fpc_to_rnd[fpc & 0x7], &env->fpu_status);
 }
 
 /* set fpc and signal */
@@ -776,12 +785,17 @@ void HELPER(sfas)(CPUS390XState *env, uint64_t fpc)
     uint32_t signalling = env->fpc;
     uint32_t s390_exc;
 
+    if (fpc_to_rnd[fpc & 0x7] == -1 || fpc & 0x03030088u ||
+        (!s390_has_feat(S390_FEAT_FLOATING_POINT_EXT) && fpc & 0x4)) {
+        s390_program_interrupt(env, PGM_SPECIFICATION, ILEN_AUTO, GETPC());
+    }
+
     /*
      * FPC is set to the FPC operand with a bitwise OR of the signalling
      * flags.
      */
     env->fpc = fpc | (signalling & 0x00ff0000);
-    set_float_rounding_mode(fpc_to_rnd[fpc & 3], &env->fpu_status);
+    set_float_rounding_mode(fpc_to_rnd[fpc & 0x7], &env->fpu_status);
 
     /*
      * If any signaling flag is enabled in the new FPC mask, a
