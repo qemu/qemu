@@ -457,10 +457,25 @@ void helper_lvsr(ppc_avr_t *r, target_ulong sh)
     }
 }
 
-void helper_mtvscr(CPUPPCState *env, ppc_avr_t *r)
+void helper_mtvscr(CPUPPCState *env, uint32_t vscr)
 {
-    env->vscr = r->VsrW(3);
-    set_flush_to_zero(vscr_nj, &env->vec_status);
+    env->vscr = vscr & ~(1u << VSCR_SAT);
+    /* Which bit we set is completely arbitrary, but clear the rest.  */
+    env->vscr_sat.u64[0] = vscr & (1u << VSCR_SAT);
+    env->vscr_sat.u64[1] = 0;
+    set_flush_to_zero((vscr >> VSCR_NJ) & 1, &env->vec_status);
+}
+
+uint32_t helper_mfvscr(CPUPPCState *env)
+{
+    uint32_t sat = (env->vscr_sat.u64[0] | env->vscr_sat.u64[1]) != 0;
+    return env->vscr | (sat << VSCR_SAT);
+}
+
+static inline void set_vscr_sat(CPUPPCState *env)
+{
+    /* The choice of non-zero value is arbitrary.  */
+    env->vscr_sat.u32[0] = 1;
 }
 
 void helper_vaddcuw(ppc_avr_t *r, ppc_avr_t *a, ppc_avr_t *b)
@@ -515,13 +530,6 @@ void helper_vprtybq(ppc_avr_t *r, ppc_avr_t *b)
             r->element[i] = a->element[i] op b->element[i];             \
         }                                                               \
     }
-#define VARITH(suffix, element)                 \
-    VARITH_DO(add##suffix, +, element)          \
-    VARITH_DO(sub##suffix, -, element)
-VARITH(ubm, u8)
-VARITH(uhm, u16)
-VARITH(uwm, u32)
-VARITH(udm, u64)
 VARITH_DO(muluwm, *, u32)
 #undef VARITH_DO
 #undef VARITH
@@ -563,27 +571,17 @@ VARITHFPFMA(nmsubfp, float_muladd_negate_result | float_muladd_negate_c);
     }
 
 #define VARITHSAT_DO(name, op, optype, cvt, element)                    \
-    void helper_v##name(CPUPPCState *env, ppc_avr_t *r, ppc_avr_t *a,   \
-                        ppc_avr_t *b)                                   \
+    void helper_v##name(ppc_avr_t *r, ppc_avr_t *vscr_sat,              \
+                        ppc_avr_t *a, ppc_avr_t *b, uint32_t desc)      \
     {                                                                   \
         int sat = 0;                                                    \
         int i;                                                          \
                                                                         \
         for (i = 0; i < ARRAY_SIZE(r->element); i++) {                  \
-            switch (sizeof(r->element[0])) {                            \
-            case 1:                                                     \
-                VARITHSAT_CASE(optype, op, cvt, element);               \
-                break;                                                  \
-            case 2:                                                     \
-                VARITHSAT_CASE(optype, op, cvt, element);               \
-                break;                                                  \
-            case 4:                                                     \
-                VARITHSAT_CASE(optype, op, cvt, element);               \
-                break;                                                  \
-            }                                                           \
+            VARITHSAT_CASE(optype, op, cvt, element);                   \
         }                                                               \
         if (sat) {                                                      \
-            env->vscr |= (1 << VSCR_SAT);                               \
+            vscr_sat->u32[0] = 1;                                       \
         }                                                               \
     }
 #define VARITHSAT_SIGNED(suffix, element, optype, cvt)          \
@@ -855,7 +853,7 @@ void helper_vcmpbfp_dot(CPUPPCState *env, ppc_avr_t *r, ppc_avr_t *a,
             }                                                           \
         }                                                               \
         if (sat) {                                                      \
-            env->vscr |= (1 << VSCR_SAT);                               \
+            set_vscr_sat(env);                                          \
         }                                                               \
     }
 VCT(uxs, cvtsduw, u32)
@@ -902,7 +900,7 @@ void helper_vmhaddshs(CPUPPCState *env, ppc_avr_t *r, ppc_avr_t *a,
     }
 
     if (sat) {
-        env->vscr |= (1 << VSCR_SAT);
+        set_vscr_sat(env);
     }
 }
 
@@ -919,36 +917,9 @@ void helper_vmhraddshs(CPUPPCState *env, ppc_avr_t *r, ppc_avr_t *a,
     }
 
     if (sat) {
-        env->vscr |= (1 << VSCR_SAT);
+        set_vscr_sat(env);
     }
 }
-
-#define VMINMAX_DO(name, compare, element)                              \
-    void helper_v##name(ppc_avr_t *r, ppc_avr_t *a, ppc_avr_t *b)       \
-    {                                                                   \
-        int i;                                                          \
-                                                                        \
-        for (i = 0; i < ARRAY_SIZE(r->element); i++) {                  \
-            if (a->element[i] compare b->element[i]) {                  \
-                r->element[i] = b->element[i];                          \
-            } else {                                                    \
-                r->element[i] = a->element[i];                          \
-            }                                                           \
-        }                                                               \
-    }
-#define VMINMAX(suffix, element)                \
-    VMINMAX_DO(min##suffix, >, element)         \
-    VMINMAX_DO(max##suffix, <, element)
-VMINMAX(sb, s8)
-VMINMAX(sh, s16)
-VMINMAX(sw, s32)
-VMINMAX(sd, s64)
-VMINMAX(ub, u8)
-VMINMAX(uh, u16)
-VMINMAX(uw, u32)
-VMINMAX(ud, u64)
-#undef VMINMAX_DO
-#undef VMINMAX
 
 void helper_vmladduhm(ppc_avr_t *r, ppc_avr_t *a, ppc_avr_t *b, ppc_avr_t *c)
 {
@@ -1031,7 +1002,7 @@ void helper_vmsumshs(CPUPPCState *env, ppc_avr_t *r, ppc_avr_t *a,
     }
 
     if (sat) {
-        env->vscr |= (1 << VSCR_SAT);
+        set_vscr_sat(env);
     }
 }
 
@@ -1084,7 +1055,7 @@ void helper_vmsumuhs(CPUPPCState *env, ppc_avr_t *r, ppc_avr_t *a,
     }
 
     if (sat) {
-        env->vscr |= (1 << VSCR_SAT);
+        set_vscr_sat(env);
     }
 }
 
@@ -1601,7 +1572,7 @@ void helper_vpkpx(ppc_avr_t *r, ppc_avr_t *a, ppc_avr_t *b)
         }                                                               \
         *r = result;                                                    \
         if (dosat && sat) {                                             \
-            env->vscr |= (1 << VSCR_SAT);                               \
+            set_vscr_sat(env);                                          \
         }                                                               \
     }
 #define I(x, y) (x)
@@ -1876,25 +1847,6 @@ void helper_vslo(ppc_avr_t *r, ppc_avr_t *a, ppc_avr_t *b)
 #endif
 }
 
-/* Experimental testing shows that hardware masks the immediate.  */
-#define _SPLAT_MASKED(element) (splat & (ARRAY_SIZE(r->element) - 1))
-#define SPLAT_ELEMENT(element) _SPLAT_MASKED(element)
-#define VSPLT(suffix, element, access)                                  \
-    void helper_vsplt##suffix(ppc_avr_t *r, ppc_avr_t *b, uint32_t splat) \
-    {                                                                   \
-        uint32_t s = b->access(SPLAT_ELEMENT(element));                 \
-        int i;                                                          \
-                                                                        \
-        for (i = 0; i < ARRAY_SIZE(r->element); i++) {                  \
-            r->access(i) = s;                                           \
-        }                                                               \
-    }
-VSPLT(b, u8, VsrB)
-VSPLT(h, u16, VsrH)
-VSPLT(w, u32, VsrW)
-#undef VSPLT
-#undef SPLAT_ELEMENT
-#undef _SPLAT_MASKED
 #if defined(HOST_WORDS_BIGENDIAN)
 #define VINSERT(suffix, element)                                            \
     void helper_vinsert##suffix(ppc_avr_t *r, ppc_avr_t *b, uint32_t index) \
@@ -2005,21 +1957,6 @@ VNEG(vnegw, s32)
 VNEG(vnegd, s64)
 #undef VNEG
 
-#define VSPLTI(suffix, element, splat_type)                     \
-    void helper_vspltis##suffix(ppc_avr_t *r, uint32_t splat)   \
-    {                                                           \
-        splat_type x = (int8_t)(splat << 3) >> 3;               \
-        int i;                                                  \
-                                                                \
-        for (i = 0; i < ARRAY_SIZE(r->element); i++) {          \
-            r->element[i] = x;                                  \
-        }                                                       \
-    }
-VSPLTI(b, s8, int8_t)
-VSPLTI(h, s16, int16_t)
-VSPLTI(w, s32, int32_t)
-#undef VSPLTI
-
 #define VSR(suffix, element, mask)                                      \
     void helper_vsr##suffix(ppc_avr_t *r, ppc_avr_t *a, ppc_avr_t *b)   \
     {                                                                   \
@@ -2079,7 +2016,7 @@ void helper_vsumsws(CPUPPCState *env, ppc_avr_t *r, ppc_avr_t *a, ppc_avr_t *b)
     *r = result;
 
     if (sat) {
-        env->vscr |= (1 << VSCR_SAT);
+        set_vscr_sat(env);
     }
 }
 
@@ -2102,7 +2039,7 @@ void helper_vsum2sws(CPUPPCState *env, ppc_avr_t *r, ppc_avr_t *a, ppc_avr_t *b)
 
     *r = result;
     if (sat) {
-        env->vscr |= (1 << VSCR_SAT);
+        set_vscr_sat(env);
     }
 }
 
@@ -2121,7 +2058,7 @@ void helper_vsum4sbs(CPUPPCState *env, ppc_avr_t *r, ppc_avr_t *a, ppc_avr_t *b)
     }
 
     if (sat) {
-        env->vscr |= (1 << VSCR_SAT);
+        set_vscr_sat(env);
     }
 }
 
@@ -2138,7 +2075,7 @@ void helper_vsum4shs(CPUPPCState *env, ppc_avr_t *r, ppc_avr_t *a, ppc_avr_t *b)
     }
 
     if (sat) {
-        env->vscr |= (1 << VSCR_SAT);
+        set_vscr_sat(env);
     }
 }
 
@@ -2157,7 +2094,7 @@ void helper_vsum4ubs(CPUPPCState *env, ppc_avr_t *r, ppc_avr_t *a, ppc_avr_t *b)
     }
 
     if (sat) {
-        env->vscr |= (1 << VSCR_SAT);
+        set_vscr_sat(env);
     }
 }
 

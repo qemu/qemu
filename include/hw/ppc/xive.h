@@ -283,13 +283,10 @@ static inline bool xive_source_irq_is_lsi(XiveSource *xsrc, uint32_t srcno)
     return test_bit(srcno, xsrc->lsi_map);
 }
 
-static inline void xive_source_irq_set(XiveSource *xsrc, uint32_t srcno,
-                                       bool lsi)
+static inline void xive_source_irq_set_lsi(XiveSource *xsrc, uint32_t srcno)
 {
     assert(srcno < xsrc->nr_irqs);
-    if (lsi) {
-        bitmap_set(xsrc->lsi_map, srcno, 1);
-    }
+    bitmap_set(xsrc->lsi_map, srcno, 1);
 }
 
 void xive_source_set_irq(void *opaque, int srcno, int val);

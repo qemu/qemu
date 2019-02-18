@@ -187,7 +187,7 @@ static void gen_mfvscr(DisasContext *ctx)
     tcg_gen_movi_i64(avr, 0);
     set_avr64(rD(ctx->opcode), avr, true);
     t = tcg_temp_new_i32();
-    tcg_gen_ld_i32(t, cpu_env, offsetof(CPUPPCState, vscr));
+    gen_helper_mfvscr(t, cpu_env);
     tcg_gen_extu_i32_i64(avr, t);
     set_avr64(rD(ctx->opcode), avr, false);
     tcg_temp_free_i32(t);
@@ -196,14 +196,23 @@ static void gen_mfvscr(DisasContext *ctx)
 
 static void gen_mtvscr(DisasContext *ctx)
 {
-    TCGv_ptr p;
+    TCGv_i32 val;
+    int bofs;
+
     if (unlikely(!ctx->altivec_enabled)) {
         gen_exception(ctx, POWERPC_EXCP_VPU);
         return;
     }
-    p = gen_avr_ptr(rB(ctx->opcode));
-    gen_helper_mtvscr(cpu_env, p);
-    tcg_temp_free_ptr(p);
+
+    val = tcg_temp_new_i32();
+    bofs = avr64_offset(rB(ctx->opcode), true);
+#ifdef HOST_WORDS_BIGENDIAN
+    bofs += 3 * 4;
+#endif
+
+    tcg_gen_ld_i32(val, cpu_env, bofs);
+    gen_helper_mtvscr(cpu_env, val);
+    tcg_temp_free_i32(val);
 }
 
 #define GEN_VX_VMUL10(name, add_cin, ret_carry)                         \
@@ -266,45 +275,30 @@ GEN_VX_VMUL10(vmul10euq, 1, 0);
 GEN_VX_VMUL10(vmul10cuq, 0, 1);
 GEN_VX_VMUL10(vmul10ecuq, 1, 1);
 
-/* Logical operations */
-#define GEN_VX_LOGICAL(name, tcg_op, opc2, opc3)                        \
-static void glue(gen_, name)(DisasContext *ctx)                                 \
+#define GEN_VXFORM_V(name, vece, tcg_op, opc2, opc3)                    \
+static void glue(gen_, name)(DisasContext *ctx)                         \
 {                                                                       \
-    TCGv_i64 t0;                                                        \
-    TCGv_i64 t1;                                                        \
-    TCGv_i64 avr;                                                       \
-                                                                        \
     if (unlikely(!ctx->altivec_enabled)) {                              \
         gen_exception(ctx, POWERPC_EXCP_VPU);                           \
         return;                                                         \
     }                                                                   \
-    t0 = tcg_temp_new_i64();                                            \
-    t1 = tcg_temp_new_i64();                                            \
-    avr = tcg_temp_new_i64();                                           \
                                                                         \
-    get_avr64(t0, rA(ctx->opcode), true);                               \
-    get_avr64(t1, rB(ctx->opcode), true);                               \
-    tcg_op(avr, t0, t1);                                                \
-    set_avr64(rD(ctx->opcode), avr, true);                              \
-                                                                        \
-    get_avr64(t0, rA(ctx->opcode), false);                              \
-    get_avr64(t1, rB(ctx->opcode), false);                              \
-    tcg_op(avr, t0, t1);                                                \
-    set_avr64(rD(ctx->opcode), avr, false);                             \
-                                                                        \
-    tcg_temp_free_i64(t0);                                              \
-    tcg_temp_free_i64(t1);                                              \
-    tcg_temp_free_i64(avr);                                             \
+    tcg_op(vece,                                                        \
+           avr64_offset(rD(ctx->opcode), true),                         \
+           avr64_offset(rA(ctx->opcode), true),                         \
+           avr64_offset(rB(ctx->opcode), true),                         \
+           16, 16);                                                     \
 }
 
-GEN_VX_LOGICAL(vand, tcg_gen_and_i64, 2, 16);
-GEN_VX_LOGICAL(vandc, tcg_gen_andc_i64, 2, 17);
-GEN_VX_LOGICAL(vor, tcg_gen_or_i64, 2, 18);
-GEN_VX_LOGICAL(vxor, tcg_gen_xor_i64, 2, 19);
-GEN_VX_LOGICAL(vnor, tcg_gen_nor_i64, 2, 20);
-GEN_VX_LOGICAL(veqv, tcg_gen_eqv_i64, 2, 26);
-GEN_VX_LOGICAL(vnand, tcg_gen_nand_i64, 2, 22);
-GEN_VX_LOGICAL(vorc, tcg_gen_orc_i64, 2, 21);
+/* Logical operations */
+GEN_VXFORM_V(vand, MO_64, tcg_gen_gvec_and, 2, 16);
+GEN_VXFORM_V(vandc, MO_64, tcg_gen_gvec_andc, 2, 17);
+GEN_VXFORM_V(vor, MO_64, tcg_gen_gvec_or, 2, 18);
+GEN_VXFORM_V(vxor, MO_64, tcg_gen_gvec_xor, 2, 19);
+GEN_VXFORM_V(vnor, MO_64, tcg_gen_gvec_nor, 2, 20);
+GEN_VXFORM_V(veqv, MO_64, tcg_gen_gvec_eqv, 2, 26);
+GEN_VXFORM_V(vnand, MO_64, tcg_gen_gvec_nand, 2, 22);
+GEN_VXFORM_V(vorc, MO_64, tcg_gen_gvec_orc, 2, 21);
 
 #define GEN_VXFORM(name, opc2, opc3)                                    \
 static void glue(gen_, name)(DisasContext *ctx)                                 \
@@ -410,34 +404,34 @@ static void glue(gen_, name)(DisasContext *ctx)                         \
     tcg_temp_free_ptr(rb);                                              \
 }
 
-GEN_VXFORM(vaddubm, 0, 0);
+GEN_VXFORM_V(vaddubm, MO_8, tcg_gen_gvec_add, 0, 0);
 GEN_VXFORM_DUAL_EXT(vaddubm, PPC_ALTIVEC, PPC_NONE, 0,       \
                     vmul10cuq, PPC_NONE, PPC2_ISA300, 0x0000F800)
-GEN_VXFORM(vadduhm, 0, 1);
+GEN_VXFORM_V(vadduhm, MO_16, tcg_gen_gvec_add, 0, 1);
 GEN_VXFORM_DUAL(vadduhm, PPC_ALTIVEC, PPC_NONE,  \
                 vmul10ecuq, PPC_NONE, PPC2_ISA300)
-GEN_VXFORM(vadduwm, 0, 2);
-GEN_VXFORM(vaddudm, 0, 3);
-GEN_VXFORM(vsububm, 0, 16);
-GEN_VXFORM(vsubuhm, 0, 17);
-GEN_VXFORM(vsubuwm, 0, 18);
-GEN_VXFORM(vsubudm, 0, 19);
-GEN_VXFORM(vmaxub, 1, 0);
-GEN_VXFORM(vmaxuh, 1, 1);
-GEN_VXFORM(vmaxuw, 1, 2);
-GEN_VXFORM(vmaxud, 1, 3);
-GEN_VXFORM(vmaxsb, 1, 4);
-GEN_VXFORM(vmaxsh, 1, 5);
-GEN_VXFORM(vmaxsw, 1, 6);
-GEN_VXFORM(vmaxsd, 1, 7);
-GEN_VXFORM(vminub, 1, 8);
-GEN_VXFORM(vminuh, 1, 9);
-GEN_VXFORM(vminuw, 1, 10);
-GEN_VXFORM(vminud, 1, 11);
-GEN_VXFORM(vminsb, 1, 12);
-GEN_VXFORM(vminsh, 1, 13);
-GEN_VXFORM(vminsw, 1, 14);
-GEN_VXFORM(vminsd, 1, 15);
+GEN_VXFORM_V(vadduwm, MO_32, tcg_gen_gvec_add, 0, 2);
+GEN_VXFORM_V(vaddudm, MO_64, tcg_gen_gvec_add, 0, 3);
+GEN_VXFORM_V(vsububm, MO_8, tcg_gen_gvec_sub, 0, 16);
+GEN_VXFORM_V(vsubuhm, MO_16, tcg_gen_gvec_sub, 0, 17);
+GEN_VXFORM_V(vsubuwm, MO_32, tcg_gen_gvec_sub, 0, 18);
+GEN_VXFORM_V(vsubudm, MO_64, tcg_gen_gvec_sub, 0, 19);
+GEN_VXFORM_V(vmaxub, MO_8, tcg_gen_gvec_umax, 1, 0);
+GEN_VXFORM_V(vmaxuh, MO_16, tcg_gen_gvec_umax, 1, 1);
+GEN_VXFORM_V(vmaxuw, MO_32, tcg_gen_gvec_umax, 1, 2);
+GEN_VXFORM_V(vmaxud, MO_64, tcg_gen_gvec_umax, 1, 3);
+GEN_VXFORM_V(vmaxsb, MO_8, tcg_gen_gvec_smax, 1, 4);
+GEN_VXFORM_V(vmaxsh, MO_16, tcg_gen_gvec_smax, 1, 5);
+GEN_VXFORM_V(vmaxsw, MO_32, tcg_gen_gvec_smax, 1, 6);
+GEN_VXFORM_V(vmaxsd, MO_64, tcg_gen_gvec_smax, 1, 7);
+GEN_VXFORM_V(vminub, MO_8, tcg_gen_gvec_umin, 1, 8);
+GEN_VXFORM_V(vminuh, MO_16, tcg_gen_gvec_umin, 1, 9);
+GEN_VXFORM_V(vminuw, MO_32, tcg_gen_gvec_umin, 1, 10);
+GEN_VXFORM_V(vminud, MO_64, tcg_gen_gvec_umin, 1, 11);
+GEN_VXFORM_V(vminsb, MO_8, tcg_gen_gvec_smin, 1, 12);
+GEN_VXFORM_V(vminsh, MO_16, tcg_gen_gvec_smin, 1, 13);
+GEN_VXFORM_V(vminsw, MO_32, tcg_gen_gvec_smin, 1, 14);
+GEN_VXFORM_V(vminsd, MO_64, tcg_gen_gvec_smin, 1, 15);
 GEN_VXFORM(vavgub, 1, 16);
 GEN_VXFORM(vabsdub, 1, 16);
 GEN_VXFORM_DUAL(vavgub, PPC_ALTIVEC, PPC_NONE, \
@@ -558,22 +552,55 @@ GEN_VXFORM(vslo, 6, 16);
 GEN_VXFORM(vsro, 6, 17);
 GEN_VXFORM(vaddcuw, 0, 6);
 GEN_VXFORM(vsubcuw, 0, 22);
-GEN_VXFORM_ENV(vaddubs, 0, 8);
+
+#define GEN_VXFORM_SAT(NAME, VECE, NORM, SAT, OPC2, OPC3)               \
+static void glue(glue(gen_, NAME), _vec)(unsigned vece, TCGv_vec t,     \
+                                         TCGv_vec sat, TCGv_vec a,      \
+                                         TCGv_vec b)                    \
+{                                                                       \
+    TCGv_vec x = tcg_temp_new_vec_matching(t);                          \
+    glue(glue(tcg_gen_, NORM), _vec)(VECE, x, a, b);                    \
+    glue(glue(tcg_gen_, SAT), _vec)(VECE, t, a, b);                     \
+    tcg_gen_cmp_vec(TCG_COND_NE, VECE, x, x, t);                        \
+    tcg_gen_or_vec(VECE, sat, sat, x);                                  \
+    tcg_temp_free_vec(x);                                               \
+}                                                                       \
+static void glue(gen_, NAME)(DisasContext *ctx)                         \
+{                                                                       \
+    static const GVecGen4 g = {                                         \
+        .fniv = glue(glue(gen_, NAME), _vec),                           \
+        .fno = glue(gen_helper_, NAME),                                 \
+        .opc = glue(glue(INDEX_op_, SAT), _vec),                        \
+        .write_aofs = true,                                             \
+        .vece = VECE,                                                   \
+    };                                                                  \
+    if (unlikely(!ctx->altivec_enabled)) {                              \
+        gen_exception(ctx, POWERPC_EXCP_VPU);                           \
+        return;                                                         \
+    }                                                                   \
+    tcg_gen_gvec_4(avr64_offset(rD(ctx->opcode), true),                 \
+                   offsetof(CPUPPCState, vscr_sat),                     \
+                   avr64_offset(rA(ctx->opcode), true),                 \
+                   avr64_offset(rB(ctx->opcode), true),                 \
+                   16, 16, &g);                                         \
+}
+
+GEN_VXFORM_SAT(vaddubs, MO_8, add, usadd, 0, 8);
 GEN_VXFORM_DUAL_EXT(vaddubs, PPC_ALTIVEC, PPC_NONE, 0,       \
                     vmul10uq, PPC_NONE, PPC2_ISA300, 0x0000F800)
-GEN_VXFORM_ENV(vadduhs, 0, 9);
+GEN_VXFORM_SAT(vadduhs, MO_16, add, usadd, 0, 9);
 GEN_VXFORM_DUAL(vadduhs, PPC_ALTIVEC, PPC_NONE, \
                 vmul10euq, PPC_NONE, PPC2_ISA300)
-GEN_VXFORM_ENV(vadduws, 0, 10);
-GEN_VXFORM_ENV(vaddsbs, 0, 12);
-GEN_VXFORM_ENV(vaddshs, 0, 13);
-GEN_VXFORM_ENV(vaddsws, 0, 14);
-GEN_VXFORM_ENV(vsububs, 0, 24);
-GEN_VXFORM_ENV(vsubuhs, 0, 25);
-GEN_VXFORM_ENV(vsubuws, 0, 26);
-GEN_VXFORM_ENV(vsubsbs, 0, 28);
-GEN_VXFORM_ENV(vsubshs, 0, 29);
-GEN_VXFORM_ENV(vsubsws, 0, 30);
+GEN_VXFORM_SAT(vadduws, MO_32, add, usadd, 0, 10);
+GEN_VXFORM_SAT(vaddsbs, MO_8, add, ssadd, 0, 12);
+GEN_VXFORM_SAT(vaddshs, MO_16, add, ssadd, 0, 13);
+GEN_VXFORM_SAT(vaddsws, MO_32, add, ssadd, 0, 14);
+GEN_VXFORM_SAT(vsububs, MO_8, sub, ussub, 0, 24);
+GEN_VXFORM_SAT(vsubuhs, MO_16, sub, ussub, 0, 25);
+GEN_VXFORM_SAT(vsubuws, MO_32, sub, ussub, 0, 26);
+GEN_VXFORM_SAT(vsubsbs, MO_8, sub, sssub, 0, 28);
+GEN_VXFORM_SAT(vsubshs, MO_16, sub, sssub, 0, 29);
+GEN_VXFORM_SAT(vsubsws, MO_32, sub, sssub, 0, 30);
 GEN_VXFORM(vadduqm, 0, 4);
 GEN_VXFORM(vaddcuq, 0, 5);
 GEN_VXFORM3(vaddeuqm, 30, 0);
@@ -719,25 +746,21 @@ GEN_VXRFORM_DUAL(vcmpbfp, PPC_ALTIVEC, PPC_NONE, \
 GEN_VXRFORM_DUAL(vcmpgtfp, PPC_ALTIVEC, PPC_NONE, \
                  vcmpgtud, PPC_NONE, PPC2_ALTIVEC_207)
 
-#define GEN_VXFORM_SIMM(name, opc2, opc3)                               \
+#define GEN_VXFORM_DUPI(name, tcg_op, opc2, opc3)                       \
 static void glue(gen_, name)(DisasContext *ctx)                         \
     {                                                                   \
-        TCGv_ptr rd;                                                    \
-        TCGv_i32 simm;                                                  \
+        int simm;                                                       \
         if (unlikely(!ctx->altivec_enabled)) {                          \
             gen_exception(ctx, POWERPC_EXCP_VPU);                       \
             return;                                                     \
         }                                                               \
-        simm = tcg_const_i32(SIMM5(ctx->opcode));                       \
-        rd = gen_avr_ptr(rD(ctx->opcode));                              \
-        gen_helper_##name (rd, simm);                                   \
-        tcg_temp_free_i32(simm);                                        \
-        tcg_temp_free_ptr(rd);                                          \
+        simm = SIMM5(ctx->opcode);                                      \
+        tcg_op(avr64_offset(rD(ctx->opcode), true), 16, 16, simm);      \
     }
 
-GEN_VXFORM_SIMM(vspltisb, 6, 12);
-GEN_VXFORM_SIMM(vspltish, 6, 13);
-GEN_VXFORM_SIMM(vspltisw, 6, 14);
+GEN_VXFORM_DUPI(vspltisb, tcg_gen_gvec_dup8i, 6, 12);
+GEN_VXFORM_DUPI(vspltish, tcg_gen_gvec_dup16i, 6, 13);
+GEN_VXFORM_DUPI(vspltisw, tcg_gen_gvec_dup32i, 6, 14);
 
 #define GEN_VXFORM_NOA(name, opc2, opc3)                                \
 static void glue(gen_, name)(DisasContext *ctx)                                 \
@@ -817,39 +840,31 @@ GEN_VXFORM_NOA(vprtybw, 1, 24);
 GEN_VXFORM_NOA(vprtybd, 1, 24);
 GEN_VXFORM_NOA(vprtybq, 1, 24);
 
-#define GEN_VXFORM_SIMM(name, opc2, opc3)                               \
-static void glue(gen_, name)(DisasContext *ctx)                                 \
-    {                                                                   \
-        TCGv_ptr rd;                                                    \
-        TCGv_i32 simm;                                                  \
-        if (unlikely(!ctx->altivec_enabled)) {                          \
-            gen_exception(ctx, POWERPC_EXCP_VPU);                       \
-            return;                                                     \
-        }                                                               \
-        simm = tcg_const_i32(SIMM5(ctx->opcode));                       \
-        rd = gen_avr_ptr(rD(ctx->opcode));                              \
-        gen_helper_##name (rd, simm);                                   \
-        tcg_temp_free_i32(simm);                                        \
-        tcg_temp_free_ptr(rd);                                          \
+static void gen_vsplt(DisasContext *ctx, int vece)
+{
+    int uimm, dofs, bofs;
+
+    if (unlikely(!ctx->altivec_enabled)) {
+        gen_exception(ctx, POWERPC_EXCP_VPU);
+        return;
     }
 
-#define GEN_VXFORM_UIMM(name, opc2, opc3)                               \
-static void glue(gen_, name)(DisasContext *ctx)                                 \
-    {                                                                   \
-        TCGv_ptr rb, rd;                                                \
-        TCGv_i32 uimm;                                                  \
-        if (unlikely(!ctx->altivec_enabled)) {                          \
-            gen_exception(ctx, POWERPC_EXCP_VPU);                       \
-            return;                                                     \
-        }                                                               \
-        uimm = tcg_const_i32(UIMM5(ctx->opcode));                       \
-        rb = gen_avr_ptr(rB(ctx->opcode));                              \
-        rd = gen_avr_ptr(rD(ctx->opcode));                              \
-        gen_helper_##name (rd, rb, uimm);                               \
-        tcg_temp_free_i32(uimm);                                        \
-        tcg_temp_free_ptr(rb);                                          \
-        tcg_temp_free_ptr(rd);                                          \
-    }
+    uimm = UIMM5(ctx->opcode);
+    bofs = avr64_offset(rB(ctx->opcode), true);
+    dofs = avr64_offset(rD(ctx->opcode), true);
+
+    /* Experimental testing shows that hardware masks the immediate.  */
+    bofs += (uimm << vece) & 15;
+#ifndef HOST_WORDS_BIGENDIAN
+    bofs ^= 15;
+    bofs &= ~((1 << vece) - 1);
+#endif
+
+    tcg_gen_gvec_dup_mem(vece, dofs, bofs, 16, 16);
+}
+
+#define GEN_VXFORM_VSPLT(name, vece, opc2, opc3) \
+static void glue(gen_, name)(DisasContext *ctx) { gen_vsplt(ctx, vece); }
 
 #define GEN_VXFORM_UIMM_ENV(name, opc2, opc3)                           \
 static void glue(gen_, name)(DisasContext *ctx)                         \
@@ -893,9 +908,9 @@ static void glue(gen_, name)(DisasContext *ctx)                         \
         tcg_temp_free_ptr(rd);                                          \
     }
 
-GEN_VXFORM_UIMM(vspltb, 6, 8);
-GEN_VXFORM_UIMM(vsplth, 6, 9);
-GEN_VXFORM_UIMM(vspltw, 6, 10);
+GEN_VXFORM_VSPLT(vspltb, MO_8, 6, 8);
+GEN_VXFORM_VSPLT(vsplth, MO_16, 6, 9);
+GEN_VXFORM_VSPLT(vspltw, MO_32, 6, 10);
 GEN_VXFORM_UIMM_SPLAT(vextractub, 6, 8, 15);
 GEN_VXFORM_UIMM_SPLAT(vextractuh, 6, 9, 14);
 GEN_VXFORM_UIMM_SPLAT(vextractuw, 6, 10, 12);
@@ -1255,7 +1270,7 @@ GEN_VXFORM_DUAL(vsldoi, PPC_ALTIVEC, PPC_NONE,
 #undef GEN_VXRFORM_DUAL
 #undef GEN_VXRFORM1
 #undef GEN_VXRFORM
-#undef GEN_VXFORM_SIMM
+#undef GEN_VXFORM_DUPI
 #undef GEN_VXFORM_NOA
 #undef GEN_VXFORM_UIMM
 #undef GEN_VAFORM_PAIRED

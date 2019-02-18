@@ -319,3 +319,64 @@ int ppc_cpu_gdb_write_register_apple(CPUState *cs, uint8_t *mem_buf, int n)
     }
     return r;
 }
+
+#ifndef CONFIG_USER_ONLY
+void ppc_gdb_gen_spr_xml(PowerPCCPU *cpu)
+{
+    PowerPCCPUClass *pcc = POWERPC_CPU_GET_CLASS(cpu);
+    CPUPPCState *env = &cpu->env;
+    GString *xml;
+    char *spr_name;
+    unsigned int num_regs = 0;
+    int i;
+
+    if (pcc->gdb_spr_xml) {
+        return;
+    }
+
+    xml = g_string_new("<?xml version=\"1.0\"?>");
+    g_string_append(xml, "<!DOCTYPE target SYSTEM \"gdb-target.dtd\">");
+    g_string_append(xml, "<feature name=\"org.qemu.power.spr\">");
+
+    for (i = 0; i < ARRAY_SIZE(env->spr_cb); i++) {
+        ppc_spr_t *spr = &env->spr_cb[i];
+
+        if (!spr->name) {
+            continue;
+        }
+
+        spr_name = g_ascii_strdown(spr->name, -1);
+        g_string_append_printf(xml, "<reg name=\"%s\"", spr_name);
+        g_free(spr_name);
+
+        g_string_append_printf(xml, " bitsize=\"%d\"", TARGET_LONG_BITS);
+        g_string_append(xml, " group=\"spr\"/>");
+
+        /*
+         * GDB identifies registers based on the order they are
+         * presented in the XML. These ids will not match QEMU's
+         * representation (which follows the PowerISA).
+         *
+         * Store the position of the current register description so
+         * we can make the correspondence later.
+         */
+        spr->gdb_id = num_regs;
+        num_regs++;
+    }
+
+    g_string_append(xml, "</feature>");
+
+    pcc->gdb_num_sprs = num_regs;
+    pcc->gdb_spr_xml = g_string_free(xml, false);
+}
+
+const char *ppc_gdb_get_dynamic_xml(CPUState *cs, const char *xml_name)
+{
+    PowerPCCPUClass *pcc = POWERPC_CPU_GET_CLASS(cs);
+
+    if (strcmp(xml_name, "power-spr.xml") == 0) {
+        return pcc->gdb_spr_xml;
+    }
+    return NULL;
+}
+#endif

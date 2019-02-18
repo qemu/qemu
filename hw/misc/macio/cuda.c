@@ -97,16 +97,7 @@ static void cuda_set_sr_int(void *opaque)
 
 static void cuda_delay_set_sr_int(CUDAState *s)
 {
-    MOS6522CUDAState *mcs = &s->mos6522_cuda;
-    MOS6522State *ms = MOS6522(mcs);
-    MOS6522DeviceClass *mdc = MOS6522_DEVICE_GET_CLASS(ms);
     int64_t expire;
-
-    if (ms->dirb == 0xff || s->sr_delay_ns == 0) {
-        /* Disabled or not in Mac OS, fire the IRQ directly */
-        mdc->set_sr_int(ms);
-        return;
-    }
 
     trace_cuda_delay_set_sr_int();
 
@@ -542,7 +533,7 @@ static void cuda_realize(DeviceState *dev, Error **errp)
     s->tick_offset = (uint32_t)mktimegm(&tm) + RTC_OFFSET;
 
     s->sr_delay_timer = timer_new_ns(QEMU_CLOCK_VIRTUAL, cuda_set_sr_int, s);
-    s->sr_delay_ns = 300 * SCALE_US;
+    s->sr_delay_ns = 20 * SCALE_US;
 
     s->adb_poll_timer = timer_new_ns(QEMU_CLOCK_VIRTUAL, cuda_adb_poll, s);
     s->adb_poll_mask = 0xffff;

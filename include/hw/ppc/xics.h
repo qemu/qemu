@@ -50,9 +50,6 @@ typedef struct XICSFabric XICSFabric;
 #define TYPE_ICP "icp"
 #define ICP(obj) OBJECT_CHECK(ICPState, (obj), TYPE_ICP)
 
-#define TYPE_KVM_ICP "icp-kvm"
-#define KVM_ICP(obj) OBJECT_CHECK(ICPState, (obj), TYPE_KVM_ICP)
-
 #define TYPE_PNV_ICP "pnv-icp"
 #define PNV_ICP(obj) OBJECT_CHECK(PnvICPState, (obj), TYPE_PNV_ICP)
 
@@ -65,11 +62,6 @@ struct ICPStateClass {
     DeviceClass parent_class;
 
     DeviceRealize parent_realize;
-    DeviceReset parent_reset;
-
-    void (*pre_save)(ICPState *icp);
-    int (*post_load)(ICPState *icp, int version_id);
-    void (*synchronize_state)(ICPState *icp);
 };
 
 struct ICPState {
@@ -103,9 +95,6 @@ struct PnvICPState {
 #define TYPE_ICS_SIMPLE "ics"
 #define ICS_SIMPLE(obj) OBJECT_CHECK(ICSState, (obj), TYPE_ICS_SIMPLE)
 
-#define TYPE_ICS_KVM "icskvm"
-#define ICS_KVM(obj) OBJECT_CHECK(ICSState, (obj), TYPE_ICS_KVM)
-
 #define ICS_BASE_CLASS(klass) \
      OBJECT_CLASS_CHECK(ICSStateClass, (klass), TYPE_ICS_BASE)
 #define ICS_BASE_GET_CLASS(obj) \
@@ -117,12 +106,9 @@ struct ICSStateClass {
     DeviceRealize parent_realize;
     DeviceReset parent_reset;
 
-    void (*pre_save)(ICSState *s);
-    int (*post_load)(ICSState *s, int version_id);
     void (*reject)(ICSState *s, uint32_t irq);
     void (*resend)(ICSState *s);
     void (*eoi)(ICSState *s, uint32_t irq);
-    void (*synchronize_state)(ICSState *s);
 };
 
 struct ICSState {
@@ -191,7 +177,6 @@ void icp_eoi(ICPState *icp, uint32_t xirr);
 void ics_simple_write_xive(ICSState *ics, int nr, int server,
                            uint8_t priority, uint8_t saved_priority);
 void ics_simple_set_irq(void *opaque, int srcno, int val);
-void ics_kvm_set_irq(void *opaque, int srcno, int val);
 
 void ics_set_irq_type(ICSState *ics, int srcno, bool lsi);
 void icp_pic_print_info(ICPState *icp, Monitor *mon);
@@ -202,5 +187,16 @@ void icp_resend(ICPState *ss);
 
 Object *icp_create(Object *cpu, const char *type, XICSFabric *xi,
                    Error **errp);
+
+/* KVM */
+void icp_get_kvm_state(ICPState *icp);
+int icp_set_kvm_state(ICPState *icp);
+void icp_synchronize_state(ICPState *icp);
+void icp_kvm_realize(DeviceState *dev, Error **errp);
+
+void ics_get_kvm_state(ICSState *ics);
+int ics_set_kvm_state(ICSState *ics);
+void ics_synchronize_state(ICSState *ics);
+void ics_kvm_set_irq(ICSState *ics, int srcno, int val);
 
 #endif /* XICS_H */

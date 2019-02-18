@@ -96,7 +96,7 @@
 
 #define MIN_RMA_SLOF            128UL
 
-#define PHANDLE_XICP            0x00001111
+#define PHANDLE_INTC            0x00001111
 
 /* These two functions implement the VCPU id numbering: one to compute them
  * all and one to identify thread 0 of a VCORE. Any change to the first one
@@ -687,14 +687,14 @@ static int spapr_populate_drmem_v2(sPAPRMachineState *spapr, void *fdt,
                                    int offset, MemoryDeviceInfoList *dimms)
 {
     MachineState *machine = MACHINE(spapr);
-    uint8_t *int_buf, *cur_index, buf_len;
+    uint8_t *int_buf, *cur_index;
     int ret;
     uint64_t lmb_size = SPAPR_MEMORY_BLOCK_SIZE;
     uint64_t addr, cur_addr, size;
     uint32_t nr_boot_lmbs = (machine->device_memory->base / lmb_size);
     uint64_t mem_end = machine->device_memory->base +
                        memory_region_size(&machine->device_memory->mr);
-    uint32_t node, nr_entries = 0;
+    uint32_t node, buf_len, nr_entries = 0;
     sPAPRDRConnector *drc;
     DrconfCellQueue *elem, *next;
     MemoryDeviceInfoList *info;
@@ -1274,7 +1274,7 @@ static void *spapr_build_fdt(sPAPRMachineState *spapr)
 
     /* /interrupt controller */
     spapr->irq->dt_populate(spapr, spapr_max_server_number(spapr), fdt,
-                          PHANDLE_XICP);
+                          PHANDLE_INTC);
 
     ret = spapr_populate_memory(spapr, fdt);
     if (ret < 0) {
@@ -1294,7 +1294,7 @@ static void *spapr_build_fdt(sPAPRMachineState *spapr)
     }
 
     QLIST_FOREACH(phb, &spapr->phbs, list) {
-        ret = spapr_populate_pci_dt(phb, PHANDLE_XICP, fdt,
+        ret = spapr_populate_pci_dt(phb, PHANDLE_INTC, fdt,
                                     spapr->irq->nr_msis);
         if (ret < 0) {
             error_report("couldn't setup PCI devices in fdt");

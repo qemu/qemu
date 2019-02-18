@@ -489,20 +489,19 @@ bool spapr_xive_irq_claim(sPAPRXive *xive, uint32_t lisn, bool lsi)
     }
 
     xive->eat[lisn].w |= cpu_to_be64(EAS_VALID);
-    xive_source_irq_set(xsrc, lisn, lsi);
+    if (lsi) {
+        xive_source_irq_set_lsi(xsrc, lisn);
+    }
     return true;
 }
 
 bool spapr_xive_irq_free(sPAPRXive *xive, uint32_t lisn)
 {
-    XiveSource *xsrc = &xive->source;
-
     if (lisn >= xive->nr_irqs) {
         return false;
     }
 
     xive->eat[lisn].w &= cpu_to_be64(~EAS_VALID);
-    xive_source_irq_set(xsrc, lisn, false);
     return true;
 }
 
