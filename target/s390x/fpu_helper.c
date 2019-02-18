@@ -63,13 +63,39 @@ static void handle_exceptions(CPUS390XState *env, uintptr_t retaddr)
     env->fpu_status.float_exception_flags = 0;
     s390_exc = s390_softfloat_exc_to_ieee(qemu_exc);
 
-    /* Install the exceptions that we raised.  */
-    env->fpc |= s390_exc << 16;
+    /*
+     * FIXME:
+     * 1. Right now, all inexact conditions are inidicated as
+     *    "truncated" (0) and never as "incremented" (1) in the DXC.
+     * 2. Only traps due to invalid/divbyzero are suppressing. Other traps
+     *    are completing, meaning the target register has to be written!
+     *    This, however will mean that we have to write the register before
+     *    triggering the trap - impossible right now.
+     */
 
-    /* Send signals for enabled exceptions.  */
-    s390_exc &= env->fpc >> 24;
-    if (s390_exc) {
-        tcg_s390_data_exception(env, s390_exc, retaddr);
+    /*
+     * invalid/divbyzero cannot coexist with other conditions.
+     * overflow/underflow however can coexist with inexact, we have to
+     * handle it separatly.
+     */
+    if (s390_exc & ~S390_IEEE_MASK_INEXACT) {
+        if (s390_exc & ~S390_IEEE_MASK_INEXACT & env->fpc >> 24) {
+            /* trap condition - inexact reported along */
+            tcg_s390_data_exception(env, s390_exc, retaddr);
+        }
+        /* nontrap condition - inexact handled differently */
+        env->fpc |= (s390_exc & ~S390_IEEE_MASK_INEXACT) << 16;
+    }
+
+    /* inexact handling */
+    if (s390_exc & S390_IEEE_MASK_INEXACT) {
+        /* trap condition - overflow/underflow _not_ reported along */
+        if (s390_exc & S390_IEEE_MASK_INEXACT & env->fpc >> 24) {
+            tcg_s390_data_exception(env, s390_exc & S390_IEEE_MASK_INEXACT,
+                                    retaddr);
+        }
+        /* nontrap condition */
+        env->fpc |= (s390_exc & S390_IEEE_MASK_INEXACT) << 16;
     }
 }
 
