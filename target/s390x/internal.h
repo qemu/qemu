@@ -318,6 +318,8 @@ uint32_t set_cc_nz_f128(float128 v);
 #define S390_IEEE_MASK_INEXACT   0x08
 #define S390_IEEE_MASK_QUANTUM   0x04
 uint8_t s390_softfloat_exc_to_ieee(unsigned int exc);
+int s390_swap_bfp_rounding_mode(CPUS390XState *env, int m3);
+void s390_restore_bfp_rounding_mode(CPUS390XState *env, int old_mode);
 
 
 /* gdbstub.c */
