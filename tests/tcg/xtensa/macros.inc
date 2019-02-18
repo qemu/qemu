@@ -23,11 +23,14 @@ main:
     movi    a0, result
     sub     a2, a2, a0
     movi    a3, 0
-    loopnez a2, 1f
-    l8ui    a2, a0, 0
-    or      a3, a3, a2
-    addi    a0, a0, 1
+    beqz    a2, 2f
 1:
+    l8ui    a1, a0, 0
+    or      a3, a3, a1
+    addi    a0, a0, 1
+    addi    a2, a2, -1
+    bnez    a2, 1b
+2:
     exit
 .endm
 
