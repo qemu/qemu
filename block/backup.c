@@ -107,7 +107,6 @@ static int coroutine_fn backup_cow_with_bounce_buffer(BackupBlockJob *job,
                                                       void **bounce_buffer)
 {
     int ret;
-    struct iovec iov;
     QEMUIOVector qiov;
     BlockBackend *blk = job->common.blk;
     int nbytes;
@@ -119,9 +118,7 @@ static int coroutine_fn backup_cow_with_bounce_buffer(BackupBlockJob *job,
     if (!*bounce_buffer) {
         *bounce_buffer = blk_blockalign(blk, job->cluster_size);
     }
-    iov.iov_base = *bounce_buffer;
-    iov.iov_len = nbytes;
-    qemu_iovec_init_external(&qiov, &iov, 1);
+    qemu_iovec_init_buf(&qiov, *bounce_buffer, nbytes);
 
     ret = blk_co_preadv(blk, start, qiov.size, &qiov, read_flags);
     if (ret < 0) {
