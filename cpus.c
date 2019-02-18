@@ -1333,6 +1333,7 @@ static void *qemu_dummy_cpu_thread_fn(void *arg)
         qemu_wait_io_event(cpu);
     } while (!cpu->unplug);
 
+    qemu_mutex_unlock_iothread();
     rcu_unregister_thread();
     return NULL;
 #endif
