@@ -2805,19 +2805,37 @@ static DisasJumpType op_ldeb(DisasContext *s, DisasOps *o)
 
 static DisasJumpType op_ledb(DisasContext *s, DisasOps *o)
 {
-    gen_helper_ledb(o->out, cpu_env, o->in2);
+    TCGv_i32 m34 = fpinst_extract_m34(s, true, true);
+
+    if (!m34) {
+        return DISAS_NORETURN;
+    }
+    gen_helper_ledb(o->out, cpu_env, o->in2, m34);
+    tcg_temp_free_i32(m34);
     return DISAS_NEXT;
 }
 
 static DisasJumpType op_ldxb(DisasContext *s, DisasOps *o)
 {
-    gen_helper_ldxb(o->out, cpu_env, o->in1, o->in2);
+    TCGv_i32 m34 = fpinst_extract_m34(s, true, true);
+
+    if (!m34) {
+        return DISAS_NORETURN;
+    }
+    gen_helper_ldxb(o->out, cpu_env, o->in1, o->in2, m34);
+    tcg_temp_free_i32(m34);
     return DISAS_NEXT;
 }
 
 static DisasJumpType op_lexb(DisasContext *s, DisasOps *o)
 {
-    gen_helper_lexb(o->out, cpu_env, o->in1, o->in2);
+    TCGv_i32 m34 = fpinst_extract_m34(s, true, true);
+
+    if (!m34) {
+        return DISAS_NORETURN;
+    }
+    gen_helper_lexb(o->out, cpu_env, o->in1, o->in2, m34);
+    tcg_temp_free_i32(m34);
     return DISAS_NEXT;
 }
 
