@@ -2,6 +2,8 @@
 
 test_suite phys_mem
 
+#if XCHAL_HAVE_PTP_MMU && !XCHAL_HAVE_SPANNING_WAY
+
 .purgem test_init
 
 .macro test_init
@@ -66,6 +68,8 @@ test write_get_pte_no_phys
     movi    a2, 24
     assert  eq, a2, a3
 test_end
+
+#endif
 
 test inst_fetch_no_phys
     set_vector kernel, 2f

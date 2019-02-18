@@ -2,6 +2,8 @@
 
 test_suite mmu
 
+#if XCHAL_HAVE_PTP_MMU && !XCHAL_HAVE_SPANNING_WAY
+
 .purgem test_init
 
 .macro clean_tlb_way way, page_size, n_entries
@@ -739,5 +741,7 @@ test cross_page_tb
     movi    a3, 0x00007ffc
     assert  eq, a2, a3
 test_end
+
+#endif
 
 test_suite_end
