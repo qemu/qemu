@@ -1,9 +1,12 @@
 #include "macros.inc"
 
-#define debug_level 6
-#define debug_vector level6
-
 test_suite break
+
+#if XCHAL_HAVE_DEBUG
+
+#define debug_level XCHAL_DEBUGLEVEL
+#define debug_vector glue(level, XCHAL_DEBUGLEVEL)
+#define EPC_DEBUG glue(epc, XCHAL_DEBUGLEVEL)
 
 test break
     set_vector debug_vector, 0
@@ -21,7 +24,7 @@ test break
     and     a2, a2, a3
     movi    a3, 0x10 | debug_level
     assert  eq, a2, a3
-    rsr     a2, epc6
+    rsr     a2, EPC_DEBUG
     movi    a3, 1b
     assert  eq, a2, a3
     rsr     a2, debugcause
@@ -45,7 +48,7 @@ test breakn
     and     a2, a2, a3
     movi    a3, 0x10 | debug_level
     assert  eq, a2, a3
-    rsr     a2, epc6
+    rsr     a2, EPC_DEBUG
     movi    a3, 1b
     assert  eq, a2, a3
     rsr     a2, debugcause
@@ -53,6 +56,7 @@ test breakn
     assert  eq, a2, a3
 test_end
 
+#if XCHAL_NUM_IBREAK
 test ibreak
     set_vector debug_vector, 0
     rsil    a2, debug_level
@@ -83,7 +87,7 @@ test ibreak
     and     a2, a2, a3
     movi    a3, 0x10 | debug_level
     assert  eq, a2, a3
-    rsr     a2, epc6
+    rsr     a2, EPC_DEBUG
     movi    a3, 1b
     assert  eq, a2, a3
     rsr     a2, debugcause
@@ -110,7 +114,7 @@ test ibreak_remove
     and     a2, a2, a3
     movi    a3, 0x10 | debug_level
     assert  eq, a2, a3
-    rsr     a2, epc6
+    rsr     a2, EPC_DEBUG
     movi    a3, 2b
     assert  eq, a2, a3
     rsr     a2, debugcause
@@ -141,6 +145,7 @@ test ibreak_priority
     movi    a3, 0x2
     assert  eq, a2, a3
 test_end
+#endif
 
 test icount
     set_vector debug_vector, 2f
@@ -158,7 +163,7 @@ test icount
 2:
     movi    a2, 0
     wsr     a2, icountlevel
-    rsr     a2, epc6
+    rsr     a2, EPC_DEBUG
     movi    a3, 1b
     assert  eq, a2, a3
     rsr     a2, debugcause
@@ -167,7 +172,7 @@ test icount
 test_end
 
 .macro check_dbreak dr
-    rsr     a2, epc6
+    rsr     a2, EPC_DEBUG
     movi    a3, 1b
     assert  eq, a2, a3
     rsr     a2, debugcause
@@ -194,6 +199,7 @@ test_end
     reset_ps
 .endm
 
+#if XCHAL_NUM_DBREAK
 test dbreak_exact
     dbreak_test 0, 0x4000003f, 0xd000007f, 0xd000007f, l8ui
     dbreak_test 1, 0x4000003e, 0xd000007e, 0xd000007e, l16ui
@@ -253,5 +259,8 @@ test dbreak_invalid
     dbreak_test 0, 0x40000030, 0xd0000071, 0xd0000070, l16ui
     dbreak_test 1, 0x40000035, 0xd0000072, 0xd0000070, l32i
 test_end
+#endif
+
+#endif
 
 test_suite_end

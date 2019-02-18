@@ -97,3 +97,6 @@ test_\name:
     movi    a3, \addr
     s32i    a3, a2, 0
 .endm
+
+#define glue(a, b) _glue(a, b)
+#define _glue(a, b) a ## b
