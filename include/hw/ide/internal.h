@@ -455,7 +455,6 @@ struct IDEDMAOps {
 
 struct IDEDMA {
     const struct IDEDMAOps *ops;
-    struct iovec iov;
     QEMUIOVector qiov;
     BlockAIOCB *aiocb;
 };

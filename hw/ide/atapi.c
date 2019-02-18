@@ -420,9 +420,8 @@ static void ide_atapi_cmd_read_dma_cb(void *opaque, int ret)
         data_offset = 0;
     }
     trace_ide_atapi_cmd_read_dma_cb_aio(s, s->lba, n);
-    s->bus->dma->iov.iov_base = (void *)(s->io_buffer + data_offset);
-    s->bus->dma->iov.iov_len = n * ATAPI_SECTOR_SIZE;
-    qemu_iovec_init_external(&s->bus->dma->qiov, &s->bus->dma->iov, 1);
+    qemu_iovec_init_buf(&s->bus->dma->qiov, s->io_buffer + data_offset,
+                        n * ATAPI_SECTOR_SIZE);
 
     s->bus->dma->aiocb = ide_buffered_readv(s, (int64_t)s->lba << 2,
                                             &s->bus->dma->qiov, n * 4,
