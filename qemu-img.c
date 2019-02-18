@@ -1670,7 +1670,6 @@ static int coroutine_fn convert_co_read(ImgConvertState *s, int64_t sector_num,
 {
     int n, ret;
     QEMUIOVector qiov;
-    struct iovec iov;
 
     assert(nb_sectors <= s->buf_sectors);
     while (nb_sectors > 0) {
@@ -1686,9 +1685,7 @@ static int coroutine_fn convert_co_read(ImgConvertState *s, int64_t sector_num,
         bs_sectors = s->src_sectors[src_cur];
 
         n = MIN(nb_sectors, bs_sectors - (sector_num - src_cur_offset));
-        iov.iov_base = buf;
-        iov.iov_len = n << BDRV_SECTOR_BITS;
-        qemu_iovec_init_external(&qiov, &iov, 1);
+        qemu_iovec_init_buf(&qiov, buf, n << BDRV_SECTOR_BITS);
 
         ret = blk_co_preadv(
                 blk, (sector_num - src_cur_offset) << BDRV_SECTOR_BITS,
@@ -1712,7 +1709,6 @@ static int coroutine_fn convert_co_write(ImgConvertState *s, int64_t sector_num,
 {
     int ret;
     QEMUIOVector qiov;
-    struct iovec iov;
 
     while (nb_sectors > 0) {
         int n = nb_sectors;
@@ -1740,9 +1736,7 @@ static int coroutine_fn convert_co_write(ImgConvertState *s, int64_t sector_num,
                 (s->compressed &&
                  !buffer_is_zero(buf, n * BDRV_SECTOR_SIZE)))
             {
-                iov.iov_base = buf;
-                iov.iov_len = n << BDRV_SECTOR_BITS;
-                qemu_iovec_init_external(&qiov, &iov, 1);
+                qemu_iovec_init_buf(&qiov, buf, n << BDRV_SECTOR_BITS);
 
                 ret = blk_co_pwritev(s->target, sector_num << BDRV_SECTOR_BITS,
                                      n << BDRV_SECTOR_BITS, &qiov, flags);
