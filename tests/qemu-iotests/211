@@ -32,7 +32,9 @@ def blockdev_create(vm, options):
 
     if 'return' in result:
         assert result['return'] == {}
-        vm.run_job('job0')
+        error = vm.run_job('job0')
+        if error and 'Could not allocate bmap' in error:
+            iotests.notrun('Insufficient memory')
     iotests.log("")
 
 with iotests.FilePath('t.vdi') as disk_path, \

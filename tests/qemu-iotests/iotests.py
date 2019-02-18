@@ -532,7 +532,9 @@ class VM(qtest.QEMUQtestMachine):
         log(result, filters, indent=indent)
         return result
 
+    # Returns None on success, and an error string on failure
     def run_job(self, job, auto_finalize=True, auto_dismiss=False):
+        error = None
         while True:
             for ev in self.get_qmp_events_filtered(wait=True):
                 if ev['event'] == 'JOB_STATUS_CHANGE':
@@ -541,13 +543,14 @@ class VM(qtest.QEMUQtestMachine):
                         result = self.qmp('query-jobs')
                         for j in result['return']:
                             if j['id'] == job:
+                                error = j['error']
                                 log('Job failed: %s' % (j['error']))
                     elif status == 'pending' and not auto_finalize:
                         self.qmp_log('job-finalize', id=job)
                     elif status == 'concluded' and not auto_dismiss:
                         self.qmp_log('job-dismiss', id=job)
                     elif status == 'null':
-                        return
+                        return error
                 else:
                     iotests.log(ev)
 
