@@ -64,6 +64,19 @@ static void handle_exceptions(CPUS390XState *env, uintptr_t retaddr)
     s390_exc = s390_softfloat_exc_to_ieee(qemu_exc);
 
     /*
+     * IEEE-Underflow exception recognition exists if a tininess condition
+     * (underflow) exists and
+     * - The mask bit in the FPC is zero and the result is inexact
+     * - The mask bit in the FPC is one
+     * So tininess conditions that are not inexact don't trigger any
+     * underflow action in case the mask bit is not one.
+     */
+    if (!(s390_exc & S390_IEEE_MASK_INEXACT) &&
+        !((env->fpc >> 24) & S390_IEEE_MASK_UNDERFLOW)) {
+        s390_exc &= ~S390_IEEE_MASK_UNDERFLOW;
+    }
+
+    /*
      * FIXME:
      * 1. Right now, all inexact conditions are inidicated as
      *    "truncated" (0) and never as "incremented" (1) in the DXC.
