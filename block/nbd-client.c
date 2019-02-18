@@ -977,14 +977,30 @@ void nbd_client_detach_aio_context(BlockDriverState *bs)
     qio_channel_detach_aio_context(QIO_CHANNEL(client->ioc));
 }
 
+static void nbd_client_attach_aio_context_bh(void *opaque)
+{
+    BlockDriverState *bs = opaque;
+    NBDClientSession *client = nbd_get_client_session(bs);
+
+    /* The node is still drained, so we know the coroutine has yielded in
+     * nbd_read_eof(), the only place where bs->in_flight can reach 0, or it is
+     * entered for the first time. Both places are safe for entering the
+     * coroutine.*/
+    qemu_aio_coroutine_enter(bs->aio_context, client->connection_co);
+    bdrv_dec_in_flight(bs);
+}
+
 void nbd_client_attach_aio_context(BlockDriverState *bs,
                                    AioContext *new_context)
 {
     NBDClientSession *client = nbd_get_client_session(bs);
     qio_channel_attach_aio_context(QIO_CHANNEL(client->ioc), new_context);
 
-    /* FIXME Really need a bdrv_inc_in_flight() here */
-    aio_co_schedule(new_context, client->connection_co);
+    bdrv_inc_in_flight(bs);
+
+    /* Need to wait here for the BH to run because the BH must run while the
+     * node is still drained. */
+    aio_wait_bh_oneshot(new_context, nbd_client_attach_aio_context_bh, bs);
 }
 
 void nbd_client_close(BlockDriverState *bs)
