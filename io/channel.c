@@ -469,6 +469,16 @@ void coroutine_fn qio_channel_yield(QIOChannel *ioc,
     }
     qio_channel_set_aio_fd_handlers(ioc);
     qemu_coroutine_yield();
+
+    /* Allow interrupting the operation by reentering the coroutine other than
+     * through the aio_fd_handlers. */
+    if (condition == G_IO_IN && ioc->read_coroutine) {
+        ioc->read_coroutine = NULL;
+        qio_channel_set_aio_fd_handlers(ioc);
+    } else if (condition == G_IO_OUT && ioc->write_coroutine) {
+        ioc->write_coroutine = NULL;
+        qio_channel_set_aio_fd_handlers(ioc);
+    }
 }
 
 
