@@ -774,9 +774,7 @@ static void ide_sector_read(IDEState *s)
         return;
     }
 
-    s->iov.iov_base = s->io_buffer;
-    s->iov.iov_len  = n * BDRV_SECTOR_SIZE;
-    qemu_iovec_init_external(&s->qiov, &s->iov, 1);
+    qemu_iovec_init_buf(&s->qiov, s->io_buffer, n * BDRV_SECTOR_SIZE);
 
     block_acct_start(blk_get_stats(s->blk), &s->acct,
                      n * BDRV_SECTOR_SIZE, BLOCK_ACCT_READ);
@@ -1045,9 +1043,7 @@ static void ide_sector_write(IDEState *s)
         return;
     }
 
-    s->iov.iov_base = s->io_buffer;
-    s->iov.iov_len  = n * BDRV_SECTOR_SIZE;
-    qemu_iovec_init_external(&s->qiov, &s->iov, 1);
+    qemu_iovec_init_buf(&s->qiov, s->io_buffer, n * BDRV_SECTOR_SIZE);
 
     block_acct_start(blk_get_stats(s->blk), &s->acct,
                      n * BDRV_SECTOR_SIZE, BLOCK_ACCT_WRITE);
