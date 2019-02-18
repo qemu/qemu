@@ -15,15 +15,24 @@
 #include "qapi/qmp/qdict.h"
 #include "qapi/qmp/qstring.h"
 
-static void device_del_request(QTestState *qtest, const char *id)
+static void device_del_start(QTestState *qtest, const char *id)
 {
-    QDict *resp;
+    qtest_qmp_send(qtest,
+                   "{'execute': 'device_del', 'arguments': { 'id': %s } }", id);
+}
 
-    resp = qtest_qmp(qtest,
-                     "{'execute': 'device_del', 'arguments': { 'id': %s } }",
-                     id);
+static void device_del_finish(QTestState *qtest)
+{
+    QDict *resp = qtest_qmp_receive(qtest);
+
     g_assert(qdict_haskey(resp, "return"));
     qobject_unref(resp);
+}
+
+static void device_del_request(QTestState *qtest, const char *id)
+{
+    device_del_start(qtest, id);
+    device_del_finish(qtest);
 }
 
 static void system_reset(QTestState *qtest)
@@ -77,8 +86,25 @@ static void test_pci_unplug_request(void)
     qtest_quit(qtest);
 }
 
+static void test_ccw_unplug(void)
+{
+    QTestState *qtest = qtest_initf("-device virtio-balloon-ccw,id=dev0");
+
+    /*
+     * The DEVICE_DELETED events will be sent before the command
+     * completes.
+     */
+    device_del_start(qtest, "dev0");
+    wait_device_deleted_event(qtest, "dev0");
+    device_del_finish(qtest);
+
+    qtest_quit(qtest);
+}
+
 int main(int argc, char **argv)
 {
+    const char *arch = qtest_get_arch();
+
     g_test_init(&argc, &argv, NULL);
 
     /*
@@ -88,6 +114,11 @@ int main(int argc, char **argv)
      */
     qtest_add_func("/device-plug/pci-unplug-request",
                    test_pci_unplug_request);
+
+    if (!strcmp(arch, "s390x")) {
+        qtest_add_func("/device-plug/ccw-unplug",
+                       test_ccw_unplug);
+    }
 
     return g_test_run();
 }
