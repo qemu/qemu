@@ -31,7 +31,7 @@ CRT        = crt.o vectors.o
 
 TESTCASES += test_b.tst
 TESTCASES += test_bi.tst
-#TESTCASES += test_boolean.tst
+TESTCASES += test_boolean.tst
 TESTCASES += test_break.tst
 TESTCASES += test_bz.tst
 TESTCASES += test_cache.tst
