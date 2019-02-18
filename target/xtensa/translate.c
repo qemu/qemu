@@ -134,6 +134,7 @@ static const XtensaReg sregnames[256] = {
     [MR + 1] = XTENSA_REG("MR1", XTENSA_OPTION_MAC16),
     [MR + 2] = XTENSA_REG("MR2", XTENSA_OPTION_MAC16),
     [MR + 3] = XTENSA_REG("MR3", XTENSA_OPTION_MAC16),
+    [PREFCTL] = XTENSA_REG_BITS("PREFCTL", XTENSA_OPTION_ALL),
     [WINDOW_BASE] = XTENSA_REG("WINDOW_BASE", XTENSA_OPTION_WINDOWED_REGISTER),
     [WINDOW_START] = XTENSA_REG("WINDOW_START",
             XTENSA_OPTION_WINDOWED_REGISTER),
@@ -4153,6 +4154,11 @@ static const XtensaOpcodeOps core_ops[] = {
         .par = (const uint32_t[]){MISC + 3},
         .op_flags = XTENSA_OP_PRIVILEGED,
     }, {
+        .name = "rsr.prefctl",
+        .translate = translate_rsr,
+        .test_ill = test_ill_rsr,
+        .par = (const uint32_t[]){PREFCTL},
+    }, {
         .name = "rsr.prid",
         .translate = translate_rsr,
         .test_ill = test_ill_rsr,
@@ -4778,6 +4784,11 @@ static const XtensaOpcodeOps core_ops[] = {
         .par = (const uint32_t[]){MMID},
         .op_flags = XTENSA_OP_PRIVILEGED,
     }, {
+        .name = "wsr.prefctl",
+        .translate = translate_wsr,
+        .test_ill = test_ill_wsr,
+        .par = (const uint32_t[]){PREFCTL},
+    }, {
         .name = "wsr.prid",
         .translate = translate_wsr,
         .test_ill = test_ill_wsr,
@@ -5265,6 +5276,11 @@ static const XtensaOpcodeOps core_ops[] = {
         .test_ill = test_ill_xsr,
         .par = (const uint32_t[]){MISC + 3},
         .op_flags = XTENSA_OP_PRIVILEGED,
+    }, {
+        .name = "xsr.prefctl",
+        .translate = translate_xsr,
+        .test_ill = test_ill_xsr,
+        .par = (const uint32_t[]){PREFCTL},
     }, {
         .name = "xsr.prid",
         .translate = translate_xsr,

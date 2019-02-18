@@ -131,6 +131,7 @@ enum {
     ACCLO = 16,
     ACCHI = 17,
     MR = 32,
+    PREFCTL = 40,
     WINDOW_BASE = 72,
     WINDOW_START = 73,
     PTEVADDR = 83,
