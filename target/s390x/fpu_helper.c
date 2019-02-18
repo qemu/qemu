@@ -771,21 +771,23 @@ void HELPER(sfpc)(CPUS390XState *env, uint64_t fpc)
 }
 
 /* set fpc and signal */
-void HELPER(sfas)(CPUS390XState *env, uint64_t val)
+void HELPER(sfas)(CPUS390XState *env, uint64_t fpc)
 {
     uint32_t signalling = env->fpc;
-    uint32_t source = val;
     uint32_t s390_exc;
 
-    /* The contents of the source operand are placed in the FPC register;
-       then the flags in the FPC register are set to the logical OR of the
-       signalling flags and the source flags.  */
-    env->fpc = source | (signalling & 0x00ff0000);
-    set_float_rounding_mode(fpc_to_rnd[source & 3], &env->fpu_status);
+    /*
+     * FPC is set to the FPC operand with a bitwise OR of the signalling
+     * flags.
+     */
+    env->fpc = fpc | (signalling & 0x00ff0000);
+    set_float_rounding_mode(fpc_to_rnd[fpc & 3], &env->fpu_status);
 
-    /* If any signalling flag is 1 and the corresponding source mask
-       is also 1, a simulated-iee-exception trap occurs.  */
-    s390_exc = (signalling >> 16) & (source >> 24);
+    /*
+     * If any signaling flag is enabled in the new FPC mask, a
+     * simulated-iee-exception exception occurs.
+     */
+    s390_exc = (signalling >> 16) & (fpc >> 24);
     if (s390_exc) {
         tcg_s390_data_exception(env, s390_exc | 3, GETPC());
     }
