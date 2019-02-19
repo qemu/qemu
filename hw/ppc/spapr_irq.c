@@ -638,6 +638,27 @@ void spapr_irq_reset(sPAPRMachineState *spapr, Error **errp)
     }
 }
 
+int spapr_irq_get_phandle(sPAPRMachineState *spapr, void *fdt, Error **errp)
+{
+    const char *nodename = spapr->irq->get_nodename(spapr);
+    int offset, phandle;
+
+    offset = fdt_subnode_offset(fdt, 0, nodename);
+    if (offset < 0) {
+        error_setg(errp, "Can't find node \"%s\": %s", nodename,
+                   fdt_strerror(offset));
+        return -1;
+    }
+
+    phandle = fdt_get_phandle(fdt, offset);
+    if (!phandle) {
+        error_setg(errp, "Can't get phandle of node \"%s\"", nodename);
+        return -1;
+    }
+
+    return phandle;
+}
+
 /*
  * XICS legacy routines - to deprecate one day
  */
