@@ -772,6 +772,9 @@ int spapr_core_dt_populate(sPAPRDRConnector *drc, sPAPRMachineState *spapr,
 void spapr_lmb_release(DeviceState *dev);
 int spapr_lmb_dt_populate(sPAPRDRConnector *drc, sPAPRMachineState *spapr,
                           void *fdt, int *fdt_start_offset, Error **errp);
+void spapr_phb_release(DeviceState *dev);
+int spapr_phb_dt_populate(sPAPRDRConnector *drc, sPAPRMachineState *spapr,
+                          void *fdt, int *fdt_start_offset, Error **errp);
 
 void spapr_rtc_read(sPAPRRTCState *rtc, struct tm *tm, uint32_t *ns);
 int spapr_rtc_import_offset(sPAPRRTCState *rtc, int64_t legacy_offset);
