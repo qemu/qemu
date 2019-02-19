@@ -213,45 +213,57 @@ void ics_synchronize_state(ICSState *ics)
     ics_get_kvm_state(ics);
 }
 
-int ics_set_kvm_state(ICSState *ics)
+int ics_set_kvm_state_one(ICSState *ics, int srcno)
 {
     uint64_t state;
-    int i;
     Error *local_err = NULL;
+    ICSIRQState *irq = &ics->irqs[srcno];
+    int ret;
+
+    state = irq->server;
+    state |= (uint64_t)(irq->saved_priority & KVM_XICS_PRIORITY_MASK)
+        << KVM_XICS_PRIORITY_SHIFT;
+    if (irq->priority != irq->saved_priority) {
+        assert(irq->priority == 0xff);
+        state |= KVM_XICS_MASKED;
+    }
+
+    if (irq->flags & XICS_FLAGS_IRQ_LSI) {
+        state |= KVM_XICS_LEVEL_SENSITIVE;
+        if (irq->status & XICS_STATUS_ASSERTED) {
+            state |= KVM_XICS_PENDING;
+        }
+    } else {
+        if (irq->status & XICS_STATUS_MASKED_PENDING) {
+            state |= KVM_XICS_PENDING;
+        }
+    }
+    if (irq->status & XICS_STATUS_PRESENTED) {
+        state |= KVM_XICS_PRESENTED;
+    }
+    if (irq->status & XICS_STATUS_QUEUED) {
+        state |= KVM_XICS_QUEUED;
+    }
+
+    ret = kvm_device_access(kernel_xics_fd, KVM_DEV_XICS_GRP_SOURCES,
+                            srcno + ics->offset, &state, true, &local_err);
+    if (local_err) {
+        error_report_err(local_err);
+        return ret;
+    }
+
+    return 0;
+}
+
+int ics_set_kvm_state(ICSState *ics)
+{
+    int i;
 
     for (i = 0; i < ics->nr_irqs; i++) {
-        ICSIRQState *irq = &ics->irqs[i];
         int ret;
 
-        state = irq->server;
-        state |= (uint64_t)(irq->saved_priority & KVM_XICS_PRIORITY_MASK)
-            << KVM_XICS_PRIORITY_SHIFT;
-        if (irq->priority != irq->saved_priority) {
-            assert(irq->priority == 0xff);
-            state |= KVM_XICS_MASKED;
-        }
-
-        if (ics->irqs[i].flags & XICS_FLAGS_IRQ_LSI) {
-            state |= KVM_XICS_LEVEL_SENSITIVE;
-            if (irq->status & XICS_STATUS_ASSERTED) {
-                state |= KVM_XICS_PENDING;
-            }
-        } else {
-            if (irq->status & XICS_STATUS_MASKED_PENDING) {
-                state |= KVM_XICS_PENDING;
-            }
-        }
-        if (irq->status & XICS_STATUS_PRESENTED) {
-                state |= KVM_XICS_PRESENTED;
-        }
-        if (irq->status & XICS_STATUS_QUEUED) {
-                state |= KVM_XICS_QUEUED;
-        }
-
-        ret = kvm_device_access(kernel_xics_fd, KVM_DEV_XICS_GRP_SOURCES,
-                                i + ics->offset, &state, true, &local_err);
-        if (local_err) {
-            error_report_err(local_err);
+        ret = ics_set_kvm_state_one(ics, i);
+        if (ret) {
             return ret;
         }
     }

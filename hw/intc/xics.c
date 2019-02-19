@@ -758,6 +758,10 @@ void ics_set_irq_type(ICSState *ics, int srcno, bool lsi)
 
     ics->irqs[srcno].flags |=
         lsi ? XICS_FLAGS_IRQ_LSI : XICS_FLAGS_IRQ_MSI;
+
+    if (kvm_irqchip_in_kernel()) {
+        ics_set_kvm_state_one(ics, srcno);
+    }
 }
 
 static void xics_register_types(void)
