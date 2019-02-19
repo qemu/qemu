@@ -317,6 +317,9 @@ static void spapr_xive_realize(DeviceState *dev, Error **errp)
     /* Map all regions */
     spapr_xive_map_mmio(xive);
 
+    xive->nodename = g_strdup_printf("interrupt-controller@%" PRIx64,
+                           xive->tm_base + XIVE_TM_USER_PAGE * (1 << TM_SHIFT));
+
     qemu_register_reset(spapr_xive_reset, dev);
 }
 
@@ -1448,7 +1451,6 @@ void spapr_dt_xive(sPAPRMachineState *spapr, uint32_t nr_servers, void *fdt,
         cpu_to_be32(7),    /* start */
         cpu_to_be32(0xf8), /* count */
     };
-    gchar *nodename;
 
     /* Thread Interrupt Management Area : User (ring 3) and OS (ring 2) */
     timas[0] = cpu_to_be64(xive->tm_base +
@@ -1458,10 +1460,7 @@ void spapr_dt_xive(sPAPRMachineState *spapr, uint32_t nr_servers, void *fdt,
                            XIVE_TM_OS_PAGE * (1ull << TM_SHIFT));
     timas[3] = cpu_to_be64(1ull << TM_SHIFT);
 
-    nodename = g_strdup_printf("interrupt-controller@%" PRIx64,
-                           xive->tm_base + XIVE_TM_USER_PAGE * (1 << TM_SHIFT));
-    _FDT(node = fdt_add_subnode(fdt, 0, nodename));
-    g_free(nodename);
+    _FDT(node = fdt_add_subnode(fdt, 0, xive->nodename));
 
     _FDT(fdt_setprop_string(fdt, node, "device_type", "power-ivpe"));
     _FDT(fdt_setprop(fdt, node, "reg", timas, sizeof(timas)));

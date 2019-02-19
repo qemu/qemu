@@ -254,7 +254,7 @@ void spapr_dt_xics(sPAPRMachineState *spapr, uint32_t nr_servers, void *fdt,
     };
     int node;
 
-    _FDT(node = fdt_add_subnode(fdt, 0, "interrupt-controller"));
+    _FDT(node = fdt_add_subnode(fdt, 0, XICS_NODENAME));
 
     _FDT(fdt_setprop_string(fdt, node, "device_type",
                             "PowerPC-External-Interrupt-Presentation"));

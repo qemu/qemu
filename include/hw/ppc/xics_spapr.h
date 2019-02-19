@@ -29,6 +29,8 @@
 
 #include "hw/ppc/spapr.h"
 
+#define XICS_NODENAME "interrupt-controller"
+
 void spapr_dt_xics(sPAPRMachineState *spapr, uint32_t nr_servers, void *fdt,
                    uint32_t phandle);
 int xics_kvm_init(sPAPRMachineState *spapr, Error **errp);

@@ -26,6 +26,9 @@ typedef struct sPAPRXive {
     XiveENDSource end_source;
     hwaddr        end_base;
 
+    /* DT */
+    gchar *nodename;
+
     /* Routing table */
     XiveEAS       *eat;
     uint32_t      nr_irqs;
