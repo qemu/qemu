@@ -2911,6 +2911,13 @@ static MigThrError postcopy_pause(MigrationState *s)
 static MigThrError migration_detect_error(MigrationState *s)
 {
     int ret;
+    int state = s->state;
+
+    if (state == MIGRATION_STATUS_CANCELLING ||
+        state == MIGRATION_STATUS_CANCELLED) {
+        /* End the migration, but don't set the state to failed */
+        return MIG_THR_ERR_FATAL;
+    }
 
     /* Try to detect any file errors */
     ret = qemu_file_get_error(s->to_dst_file);
@@ -2920,7 +2927,7 @@ static MigThrError migration_detect_error(MigrationState *s)
         return MIG_THR_ERR_NONE;
     }
 
-    if (s->state == MIGRATION_STATUS_POSTCOPY_ACTIVE && ret == -EIO) {
+    if (state == MIGRATION_STATUS_POSTCOPY_ACTIVE && ret == -EIO) {
         /*
          * For postcopy, we allow the network to be down for a
          * while. After that, it can be continued by a
@@ -2932,7 +2939,7 @@ static MigThrError migration_detect_error(MigrationState *s)
          * For precopy (or postcopy with error outside IO), we fail
          * with no time.
          */
-        migrate_set_state(&s->state, s->state, MIGRATION_STATUS_FAILED);
+        migrate_set_state(&s->state, state, MIGRATION_STATUS_FAILED);
         trace_migration_thread_file_err();
 
         /* Time to stop the migration, now. */
