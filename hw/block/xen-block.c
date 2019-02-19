@@ -743,12 +743,12 @@ static XenBlockDrive *xen_block_drive_create(const char *id,
         }
 
         g_strfreev(v);
-    }
-
-    if (!filename) {
-        error_setg(errp, "no filename");
+    } else {
+        error_setg(errp, "no params");
         goto done;
     }
+
+    assert(filename);
     assert(driver);
 
     drive = g_new0(XenBlockDrive, 1);
@@ -758,6 +758,7 @@ static XenBlockDrive *xen_block_drive_create(const char *id,
 
     qdict_put_str(file_layer, "driver", "file");
     qdict_put_str(file_layer, "filename", filename);
+    g_free(filename);
 
     if (mode && *mode != 'w') {
         qdict_put_bool(file_layer, "read-only", true);
@@ -793,16 +794,17 @@ static XenBlockDrive *xen_block_drive_create(const char *id,
     driver_layer = qdict_new();
 
     qdict_put_str(driver_layer, "driver", driver);
+    g_free(driver);
+
     qdict_put_obj(driver_layer, "file", QOBJECT(file_layer));
 
     g_assert(!drive->node_name);
     drive->node_name = xen_block_blockdev_add(drive->id, driver_layer,
                                               &local_err);
 
-done:
-    g_free(driver);
-    g_free(filename);
+    qobject_unref(driver_layer);
 
+done:
     if (local_err) {
         error_propagate(errp, local_err);
         xen_block_drive_destroy(drive, NULL);
