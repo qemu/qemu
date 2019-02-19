@@ -374,11 +374,8 @@ static void prop_get_fdt(Object *obj, Visitor *v, const char *name,
     } while (fdt_depth != 0);
 }
 
-void spapr_drc_attach(sPAPRDRConnector *drc, DeviceState *d, void *fdt,
-                      int fdt_start_offset, Error **errp)
+void spapr_drc_attach(sPAPRDRConnector *drc, DeviceState *d, Error **errp)
 {
-    sPAPRDRConnectorClass *drck = SPAPR_DR_CONNECTOR_GET_CLASS(drc);
-
     trace_spapr_drc_attach(spapr_drc_index(drc));
 
     if (drc->dev) {
@@ -387,14 +384,8 @@ void spapr_drc_attach(sPAPRDRConnector *drc, DeviceState *d, void *fdt,
     }
     g_assert((drc->state == SPAPR_DRC_STATE_LOGICAL_UNUSABLE)
              || (drc->state == SPAPR_DRC_STATE_PHYSICAL_POWERON));
-    g_assert(fdt || drck->dt_populate);
 
     drc->dev = d;
-
-    if (fdt) {
-        drc->fdt = fdt;
-        drc->fdt_start_offset = fdt_start_offset;
-    }
 
     object_property_add_link(OBJECT(drc), "device",
                              object_get_typename(OBJECT(drc->dev)),
@@ -1112,8 +1103,6 @@ static void rtas_ibm_configure_connector(PowerPCCPU *cpu,
     }
 
     drck = SPAPR_DR_CONNECTOR_GET_CLASS(drc);
-
-    g_assert(drc->fdt || drck->dt_populate);
 
     if (!drc->fdt) {
         Error *local_err = NULL;

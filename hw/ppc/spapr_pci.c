@@ -1457,7 +1457,7 @@ static void spapr_pci_plug(HotplugHandler *plug_handler,
         goto out;
     }
 
-    spapr_drc_attach(drc, DEVICE(pdev), NULL, 0, &local_err);
+    spapr_drc_attach(drc, DEVICE(pdev), &local_err);
     if (local_err) {
         goto out;
     }

@@ -3362,7 +3362,7 @@ static void spapr_add_lmbs(DeviceState *dev, uint64_t addr_start, uint64_t size,
                               addr / SPAPR_MEMORY_BLOCK_SIZE);
         g_assert(drc);
 
-        spapr_drc_attach(drc, dev, NULL, 0, &local_err);
+        spapr_drc_attach(drc, dev, &local_err);
         if (local_err) {
             while (addr > addr_start) {
                 addr -= SPAPR_MEMORY_BLOCK_SIZE;
@@ -3744,7 +3744,7 @@ static void spapr_core_plug(HotplugHandler *hotplug_dev, DeviceState *dev,
     g_assert(drc || !mc->has_hotpluggable_cpus);
 
     if (drc) {
-        spapr_drc_attach(drc, dev, NULL, 0, &local_err);
+        spapr_drc_attach(drc, dev, &local_err);
         if (local_err) {
             error_propagate(errp, local_err);
             return;
