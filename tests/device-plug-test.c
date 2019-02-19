@@ -132,6 +132,20 @@ static void test_spapr_memory_unplug_request(void)
     qtest_quit(qtest);
 }
 
+static void test_spapr_phb_unplug_request(void)
+{
+    QTestState *qtest;
+
+    qtest = qtest_initf("-device spapr-pci-host-bridge,index=1,id=dev0");
+
+    /* similar to test_pci_unplug_request */
+    device_del_request(qtest, "dev0");
+    system_reset(qtest);
+    wait_device_deleted_event(qtest, "dev0");
+
+    qtest_quit(qtest);
+}
+
 int main(int argc, char **argv)
 {
     const char *arch = qtest_get_arch();
@@ -156,6 +170,8 @@ int main(int argc, char **argv)
                        test_spapr_cpu_unplug_request);
         qtest_add_func("/device-plug/spapr-memory-unplug-request",
                        test_spapr_memory_unplug_request);
+        qtest_add_func("/device-plug/spapr-phb-unplug-request",
+                       test_spapr_phb_unplug_request);
     }
 
     return g_test_run();
