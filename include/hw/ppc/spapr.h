@@ -764,9 +764,11 @@ void spapr_reallocate_hpt(sPAPRMachineState *spapr, int shift,
 void spapr_clear_pending_events(sPAPRMachineState *spapr);
 int spapr_max_server_number(sPAPRMachineState *spapr);
 
-/* CPU and LMB DRC release callbacks. */
+/* DRC callbacks. */
 void spapr_core_release(DeviceState *dev);
 void spapr_lmb_release(DeviceState *dev);
+int spapr_lmb_dt_populate(sPAPRDRConnector *drc, sPAPRMachineState *spapr,
+                          void *fdt, int *fdt_start_offset, Error **errp);
 
 void spapr_rtc_read(sPAPRRTCState *rtc, struct tm *tm, uint32_t *ns);
 int spapr_rtc_import_offset(sPAPRRTCState *rtc, int64_t legacy_offset);

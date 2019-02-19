@@ -700,6 +700,7 @@ static void spapr_drc_lmb_class_init(ObjectClass *k, void *data)
     drck->typename = "MEM";
     drck->drc_name_prefix = "LMB ";
     drck->release = spapr_lmb_release;
+    drck->dt_populate = spapr_lmb_dt_populate;
 }
 
 static const TypeInfo spapr_dr_connector_info = {

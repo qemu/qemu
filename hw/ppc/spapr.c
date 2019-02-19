@@ -3333,14 +3333,26 @@ static void spapr_nmi(NMIState *n, int cpu_index, Error **errp)
     }
 }
 
+int spapr_lmb_dt_populate(sPAPRDRConnector *drc, sPAPRMachineState *spapr,
+                          void *fdt, int *fdt_start_offset, Error **errp)
+{
+    uint64_t addr;
+    uint32_t node;
+
+    addr = spapr_drc_index(drc) * SPAPR_MEMORY_BLOCK_SIZE;
+    node = object_property_get_uint(OBJECT(drc->dev), PC_DIMM_NODE_PROP,
+                                    &error_abort);
+    *fdt_start_offset = spapr_populate_memory_node(fdt, node, addr,
+                                                   SPAPR_MEMORY_BLOCK_SIZE);
+    return 0;
+}
+
 static void spapr_add_lmbs(DeviceState *dev, uint64_t addr_start, uint64_t size,
-                           uint32_t node, bool dedicated_hp_event_source,
-                           Error **errp)
+                           bool dedicated_hp_event_source, Error **errp)
 {
     sPAPRDRConnector *drc;
     uint32_t nr_lmbs = size/SPAPR_MEMORY_BLOCK_SIZE;
-    int i, fdt_offset, fdt_size;
-    void *fdt;
+    int i;
     uint64_t addr = addr_start;
     bool hotplugged = spapr_drc_hotplugged(dev);
     Error *local_err = NULL;
@@ -3350,11 +3362,7 @@ static void spapr_add_lmbs(DeviceState *dev, uint64_t addr_start, uint64_t size,
                               addr / SPAPR_MEMORY_BLOCK_SIZE);
         g_assert(drc);
 
-        fdt = create_device_tree(&fdt_size);
-        fdt_offset = spapr_populate_memory_node(fdt, node, addr,
-                                                SPAPR_MEMORY_BLOCK_SIZE);
-
-        spapr_drc_attach(drc, dev, fdt, fdt_offset, &local_err);
+        spapr_drc_attach(drc, dev, NULL, 0, &local_err);
         if (local_err) {
             while (addr > addr_start) {
                 addr -= SPAPR_MEMORY_BLOCK_SIZE;
@@ -3362,7 +3370,6 @@ static void spapr_add_lmbs(DeviceState *dev, uint64_t addr_start, uint64_t size,
                                       addr / SPAPR_MEMORY_BLOCK_SIZE);
                 spapr_drc_detach(drc);
             }
-            g_free(fdt);
             error_propagate(errp, local_err);
             return;
         }
@@ -3395,7 +3402,6 @@ static void spapr_memory_plug(HotplugHandler *hotplug_dev, DeviceState *dev,
     sPAPRMachineState *ms = SPAPR_MACHINE(hotplug_dev);
     PCDIMMDevice *dimm = PC_DIMM(dev);
     uint64_t size, addr;
-    uint32_t node;
 
     size = memory_device_get_region_size(MEMORY_DEVICE(dev), &error_abort);
 
@@ -3410,10 +3416,7 @@ static void spapr_memory_plug(HotplugHandler *hotplug_dev, DeviceState *dev,
         goto out_unplug;
     }
 
-    node = object_property_get_uint(OBJECT(dev), PC_DIMM_NODE_PROP,
-                                    &error_abort);
-    spapr_add_lmbs(dev, addr, size, node,
-                   spapr_ovec_test(ms->ov5_cas, OV5_HP_EVT),
+    spapr_add_lmbs(dev, addr, size, spapr_ovec_test(ms->ov5_cas, OV5_HP_EVT),
                    &local_err);
     if (local_err) {
         goto out_unplug;
