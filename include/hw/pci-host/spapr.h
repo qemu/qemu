@@ -113,7 +113,7 @@ static inline qemu_irq spapr_phb_lsi_qirq(struct sPAPRPHBState *phb, int pin)
 }
 
 int spapr_populate_pci_dt(sPAPRPHBState *phb, uint32_t intc_phandle, void *fdt,
-                          uint32_t nr_msis);
+                          uint32_t nr_msis, int *node_offset);
 
 void spapr_pci_rtas_init(void);
 
