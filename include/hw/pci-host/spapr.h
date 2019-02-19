@@ -165,4 +165,9 @@ static inline void spapr_phb_vfio_reset(DeviceState *qdev)
 
 void spapr_phb_dma_reset(sPAPRPHBState *sphb);
 
+static inline unsigned spapr_phb_windows_supported(sPAPRPHBState *sphb)
+{
+    return sphb->ddw_enabled ? SPAPR_PCI_DMA_MAX_WINDOWS : 1;
+}
+
 #endif /* PCI_HOST_SPAPR_H */
