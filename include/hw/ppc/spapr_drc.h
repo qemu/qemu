@@ -18,6 +18,7 @@
 #include "qom/object.h"
 #include "sysemu/sysemu.h"
 #include "hw/qdev.h"
+#include "qapi/error.h"
 
 #define TYPE_SPAPR_DR_CONNECTOR "spapr-dr-connector"
 #define SPAPR_DR_CONNECTOR_GET_CLASS(obj) \
@@ -213,6 +214,8 @@ typedef struct sPAPRDRConnector {
     int fdt_start_offset;
 } sPAPRDRConnector;
 
+struct sPAPRMachineState;
+
 typedef struct sPAPRDRConnectorClass {
     /*< private >*/
     DeviceClass parent;
@@ -228,6 +231,9 @@ typedef struct sPAPRDRConnectorClass {
     uint32_t (*isolate)(sPAPRDRConnector *drc);
     uint32_t (*unisolate)(sPAPRDRConnector *drc);
     void (*release)(DeviceState *dev);
+
+    int (*dt_populate)(sPAPRDRConnector *drc, struct sPAPRMachineState *spapr,
+                       void *fdt, int *fdt_start_offset, Error **errp);
 } sPAPRDRConnectorClass;
 
 typedef struct sPAPRDRCPhysical {

@@ -22,6 +22,7 @@
 #include "qemu/error-report.h"
 #include "hw/ppc/spapr.h" /* for RTAS return codes */
 #include "hw/pci-host/spapr.h" /* spapr_phb_remove_pci_device_cb callback */
+#include "sysemu/device_tree.h"
 #include "trace.h"
 
 #define DRC_CONTAINER_PATH "/dr-connector"
@@ -376,6 +377,8 @@ static void prop_get_fdt(Object *obj, Visitor *v, const char *name,
 void spapr_drc_attach(sPAPRDRConnector *drc, DeviceState *d, void *fdt,
                       int fdt_start_offset, Error **errp)
 {
+    sPAPRDRConnectorClass *drck = SPAPR_DR_CONNECTOR_GET_CLASS(drc);
+
     trace_spapr_drc_attach(spapr_drc_index(drc));
 
     if (drc->dev) {
@@ -384,11 +387,14 @@ void spapr_drc_attach(sPAPRDRConnector *drc, DeviceState *d, void *fdt,
     }
     g_assert((drc->state == SPAPR_DRC_STATE_LOGICAL_UNUSABLE)
              || (drc->state == SPAPR_DRC_STATE_PHYSICAL_POWERON));
-    g_assert(fdt);
+    g_assert(fdt || drck->dt_populate);
 
     drc->dev = d;
-    drc->fdt = fdt;
-    drc->fdt_start_offset = fdt_start_offset;
+
+    if (fdt) {
+        drc->fdt = fdt;
+        drc->fdt_start_offset = fdt_start_offset;
+    }
 
     object_property_add_link(OBJECT(drc), "device",
                              object_get_typename(OBJECT(drc->dev)),
@@ -1102,9 +1108,29 @@ static void rtas_ibm_configure_connector(PowerPCCPU *cpu,
         goto out;
     }
 
-    g_assert(drc->fdt);
-
     drck = SPAPR_DR_CONNECTOR_GET_CLASS(drc);
+
+    g_assert(drc->fdt || drck->dt_populate);
+
+    if (!drc->fdt) {
+        Error *local_err = NULL;
+        void *fdt;
+        int fdt_size;
+
+        fdt = create_device_tree(&fdt_size);
+
+        if (drck->dt_populate(drc, spapr, fdt, &drc->fdt_start_offset,
+                              &local_err)) {
+            g_free(fdt);
+            error_free(local_err);
+            rc = SPAPR_DR_CC_RESPONSE_ERROR;
+            goto out;
+        }
+
+        drc->fdt = fdt;
+        drc->ccs_offset = drc->fdt_start_offset;
+        drc->ccs_depth = 0;
+    }
 
     do {
         uint32_t tag;
