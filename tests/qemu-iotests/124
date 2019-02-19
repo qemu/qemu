@@ -350,6 +350,7 @@ class TestIncrementalBackup(TestIncrementalBackupBase):
         self.assert_qmp(result, 'return[0]/dirty-bitmaps[0]/count', 458752)
         self.assert_qmp(result, 'return[0]/dirty-bitmaps[0]/granularity', 65536)
         self.assert_qmp(result, 'return[0]/dirty-bitmaps[0]/status', 'active')
+        self.assert_qmp(result, 'return[0]/dirty-bitmaps[0]/persistent', False)
 
         # Prepare a cluster_size=128k backup target without a backing file.
         (target, _) = bitmap0.new_target()

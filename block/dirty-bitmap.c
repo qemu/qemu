@@ -440,6 +440,7 @@ BlockDirtyInfoList *bdrv_query_dirty_bitmaps(BlockDriverState *bs)
         info->has_name = !!bm->name;
         info->name = g_strdup(bm->name);
         info->status = bdrv_dirty_bitmap_status(bm);
+        info->persistent = bm->persistent;
         entry->value = info;
         *plist = entry;
         plist = &entry->next;
