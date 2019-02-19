@@ -3636,27 +3636,6 @@ out:
     error_propagate(errp, local_err);
 }
 
-static void *spapr_populate_hotplug_cpu_dt(CPUState *cs, int *fdt_offset,
-                                           sPAPRMachineState *spapr)
-{
-    PowerPCCPU *cpu = POWERPC_CPU(cs);
-    DeviceClass *dc = DEVICE_GET_CLASS(cs);
-    int id = spapr_get_vcpu_id(cpu);
-    void *fdt;
-    int offset, fdt_size;
-    char *nodename;
-
-    fdt = create_device_tree(&fdt_size);
-    nodename = g_strdup_printf("%s@%x", dc->fw_name, id);
-    offset = fdt_add_subnode(fdt, 0, nodename);
-
-    spapr_populate_cpu_dt(cs, fdt, offset, spapr);
-    g_free(nodename);
-
-    *fdt_offset = offset;
-    return fdt;
-}
-
 /* Callback to be called during DRC release. */
 void spapr_core_release(DeviceState *dev)
 {
@@ -3717,6 +3696,27 @@ void spapr_core_unplug_request(HotplugHandler *hotplug_dev, DeviceState *dev,
     spapr_hotplug_req_remove_by_index(drc);
 }
 
+int spapr_core_dt_populate(sPAPRDRConnector *drc, sPAPRMachineState *spapr,
+                           void *fdt, int *fdt_start_offset, Error **errp)
+{
+    sPAPRCPUCore *core = SPAPR_CPU_CORE(drc->dev);
+    CPUState *cs = CPU(core->threads[0]);
+    PowerPCCPU *cpu = POWERPC_CPU(cs);
+    DeviceClass *dc = DEVICE_GET_CLASS(cs);
+    int id = spapr_get_vcpu_id(cpu);
+    char *nodename;
+    int offset;
+
+    nodename = g_strdup_printf("%s@%x", dc->fw_name, id);
+    offset = fdt_add_subnode(fdt, 0, nodename);
+    g_free(nodename);
+
+    spapr_populate_cpu_dt(cs, fdt, offset, spapr);
+
+    *fdt_start_offset = offset;
+    return 0;
+}
+
 static void spapr_core_plug(HotplugHandler *hotplug_dev, DeviceState *dev,
                             Error **errp)
 {
@@ -3725,7 +3725,7 @@ static void spapr_core_plug(HotplugHandler *hotplug_dev, DeviceState *dev,
     sPAPRMachineClass *smc = SPAPR_MACHINE_CLASS(mc);
     sPAPRCPUCore *core = SPAPR_CPU_CORE(OBJECT(dev));
     CPUCore *cc = CPU_CORE(dev);
-    CPUState *cs = CPU(core->threads[0]);
+    CPUState *cs;
     sPAPRDRConnector *drc;
     Error *local_err = NULL;
     CPUArchId *core_slot;
@@ -3744,14 +3744,8 @@ static void spapr_core_plug(HotplugHandler *hotplug_dev, DeviceState *dev,
     g_assert(drc || !mc->has_hotpluggable_cpus);
 
     if (drc) {
-        void *fdt;
-        int fdt_offset;
-
-        fdt = spapr_populate_hotplug_cpu_dt(cs, &fdt_offset, spapr);
-
-        spapr_drc_attach(drc, dev, fdt, fdt_offset, &local_err);
+        spapr_drc_attach(drc, dev, NULL, 0, &local_err);
         if (local_err) {
-            g_free(fdt);
             error_propagate(errp, local_err);
             return;
         }

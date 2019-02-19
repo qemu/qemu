@@ -680,6 +680,7 @@ static void spapr_drc_cpu_class_init(ObjectClass *k, void *data)
     drck->typename = "CPU";
     drck->drc_name_prefix = "CPU ";
     drck->release = spapr_core_release;
+    drck->dt_populate = spapr_core_dt_populate;
 }
 
 static void spapr_drc_pci_class_init(ObjectClass *k, void *data)

@@ -766,6 +766,8 @@ int spapr_max_server_number(sPAPRMachineState *spapr);
 
 /* DRC callbacks. */
 void spapr_core_release(DeviceState *dev);
+int spapr_core_dt_populate(sPAPRDRConnector *drc, sPAPRMachineState *spapr,
+                           void *fdt, int *fdt_start_offset, Error **errp);
 void spapr_lmb_release(DeviceState *dev);
 int spapr_lmb_dt_populate(sPAPRDRConnector *drc, sPAPRMachineState *spapr,
                           void *fdt, int *fdt_start_offset, Error **errp);
