@@ -420,17 +420,27 @@
 #
 # An enumeration of possible states that a dirty bitmap can report to the user.
 #
-# @frozen: The bitmap is currently in-use by a backup operation or block job,
-#          and is immutable.
+# @frozen: The bitmap is currently in-use by some operation and is immutable.
+#          If the bitmap was @active prior to the operation, new writes by the
+#          guest are being recorded in a temporary buffer, and will not be lost.
+#          Generally, bitmaps are cleared on successful use in an operation and
+#          the temporary buffer is committed into the bitmap. On failure, the
+#          temporary buffer is merged back into the bitmap without first
+#          clearing it.
+#          Please refer to the documentation for each bitmap-using operation,
+#          See also @blockdev-backup, @drive-backup.
 #
-# @disabled: The bitmap is currently in-use by an internal operation and is
-#            read-only. It can still be deleted.
+# @disabled: The bitmap is not currently recording new writes by the guest.
+#            This is requested explicitly via @block-dirty-bitmap-disable.
+#            It can still be cleared, deleted, or used for backup operations.
 #
 # @active: The bitmap is actively monitoring for new writes, and can be cleared,
 #          deleted, or used for backup operations.
 #
-# @locked: The bitmap is currently in-use by some operation and can not be
-#          cleared, deleted, or used for backup operations. (Since 2.12)
+# @locked: The bitmap is currently in-use by some operation and is immutable.
+#          If the bitmap was @active prior to the operation, it is still
+#          recording new writes. If the bitmap was @disabled, it is not
+#          recording new writes. (Since 2.12)
 #
 # Since: 2.4
 ##
@@ -2094,8 +2104,14 @@
 # @block-dirty-bitmap-merge:
 #
 # Merge dirty bitmaps listed in @bitmaps to the @target dirty bitmap.
-# The @bitmaps dirty bitmaps are unchanged.
+# Dirty bitmaps in @bitmaps will be unchanged, except if it also appears
+# as the @target bitmap. Any bits already set in @target will still be
+# set after the merge, i.e., this operation does not clear the target.
 # On error, @target is unchanged.
+#
+# The resulting bitmap will count as dirty any clusters that were dirty in any
+# of the source bitmaps. This can be used to achieve backup checkpoints, or in
+# simpler usages, to copy bitmaps.
 #
 # Returns: nothing on success
 #          If @node is not a valid block device, DeviceNotFound
@@ -2131,7 +2147,7 @@
 ##
 # @x-debug-block-dirty-bitmap-sha256:
 #
-# Get bitmap SHA256
+# Get bitmap SHA256.
 #
 # Returns: BlockDirtyBitmapSha256 on success
 #          If @node is not a valid block device, DeviceNotFound

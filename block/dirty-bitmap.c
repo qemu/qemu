@@ -29,12 +29,20 @@
 #include "block/blockjob.h"
 
 /**
- * A BdrvDirtyBitmap can be in three possible states:
- * (1) successor is NULL and disabled is false: full r/w mode
- * (2) successor is NULL and disabled is true: read only mode ("disabled")
- * (3) successor is set: frozen mode.
- *     A frozen bitmap cannot be renamed, deleted, anonymized, cleared, set,
- *     or enabled. A frozen bitmap can only abdicate() or reclaim().
+ * A BdrvDirtyBitmap can be in four possible user-visible states:
+ * (1) Active:   successor is NULL, and disabled is false: full r/w mode
+ * (2) Disabled: successor is NULL, and disabled is true: qualified r/w mode,
+ *               guest writes are dropped, but monitor writes are possible,
+ *               through commands like merge and clear.
+ * (3) Frozen:   successor is not NULL.
+ *               A frozen bitmap cannot be renamed, deleted, cleared, set,
+ *               enabled, merged to, etc. A frozen bitmap can only abdicate()
+ *               or reclaim().
+ *               In this state, the anonymous successor bitmap may be either
+ *               Active and recording writes from the guest (e.g. backup jobs),
+ *               but it can be Disabled and not recording writes.
+ * (4) Locked:   Whether Active or Disabled, the user cannot modify this bitmap
+ *               in any way from the monitor.
  */
 struct BdrvDirtyBitmap {
     QemuMutex *mutex;
