@@ -121,8 +121,10 @@ sPAPRPHBState *spapr_pci_find_phb(sPAPRMachineState *spapr, uint64_t buid);
 PCIDevice *spapr_pci_find_dev(sPAPRMachineState *spapr, uint64_t buid,
                               uint32_t config_addr);
 
-/* PCI release callback. */
+/* DRC callbacks */
 void spapr_phb_remove_pci_device_cb(DeviceState *dev);
+int spapr_pci_dt_populate(sPAPRDRConnector *drc, sPAPRMachineState *spapr,
+                          void *fdt, int *fdt_start_offset, Error **errp);
 
 /* VFIO EEH hooks */
 #ifdef CONFIG_LINUX

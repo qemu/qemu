@@ -691,6 +691,7 @@ static void spapr_drc_pci_class_init(ObjectClass *k, void *data)
     drck->typename = "28";
     drck->drc_name_prefix = "C";
     drck->release = spapr_phb_remove_pci_device_cb;
+    drck->dt_populate = spapr_pci_dt_populate;
 }
 
 static void spapr_drc_lmb_class_init(ObjectClass *k, void *data)

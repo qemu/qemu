@@ -1408,6 +1408,17 @@ static uint32_t spapr_phb_get_pci_drc_index(sPAPRPHBState *phb,
     return spapr_drc_index(drc);
 }
 
+int spapr_pci_dt_populate(sPAPRDRConnector *drc, sPAPRMachineState *spapr,
+                          void *fdt, int *fdt_start_offset, Error **errp)
+{
+    HotplugHandler *plug_handler = qdev_get_hotplug_handler(drc->dev);
+    sPAPRPHBState *sphb = SPAPR_PCI_HOST_BRIDGE(plug_handler);
+    PCIDevice *pdev = PCI_DEVICE(drc->dev);
+
+    *fdt_start_offset = spapr_create_pci_child_dt(sphb, pdev, fdt, 0);
+    return 0;
+}
+
 static void spapr_pci_plug(HotplugHandler *plug_handler,
                            DeviceState *plugged_dev, Error **errp)
 {
@@ -1417,8 +1428,6 @@ static void spapr_pci_plug(HotplugHandler *plug_handler,
     Error *local_err = NULL;
     PCIBus *bus = PCI_BUS(qdev_get_parent_bus(DEVICE(pdev)));
     uint32_t slotnr = PCI_SLOT(pdev->devfn);
-    void *fdt = NULL;
-    int fdt_start_offset, fdt_size;
 
     /* if DR is disabled we don't need to do anything in the case of
      * hotplug or coldplug callbacks
@@ -1448,10 +1457,7 @@ static void spapr_pci_plug(HotplugHandler *plug_handler,
         goto out;
     }
 
-    fdt = create_device_tree(&fdt_size);
-    fdt_start_offset = spapr_create_pci_child_dt(phb, pdev, fdt, 0);
-
-    spapr_drc_attach(drc, DEVICE(pdev), fdt, fdt_start_offset, &local_err);
+    spapr_drc_attach(drc, DEVICE(pdev), NULL, 0, &local_err);
     if (local_err) {
         goto out;
     }
@@ -1483,7 +1489,6 @@ static void spapr_pci_plug(HotplugHandler *plug_handler,
 out:
     if (local_err) {
         error_propagate(errp, local_err);
-        g_free(fdt);
     }
 }
 
