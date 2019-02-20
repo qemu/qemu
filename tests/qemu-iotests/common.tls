@@ -29,6 +29,17 @@ tls_x509_cleanup()
 }
 
 
+tls_certtool()
+{
+    certtool "$@" 1>"${tls_dir}"/certtool.log 2>&1
+    if test "$?" = 0; then
+      head -1 "${tls_dir}"/certtool.log
+    else
+      cat "${tls_dir}"/certtool.log
+    fi
+    rm -f "${tls_dir}"/certtool.log
+}
+
 tls_x509_init()
 {
     (certtool --help) >/dev/null 2>&1 || \
@@ -71,10 +82,11 @@ ca
 cert_signing_key
 EOF
 
-    certtool --generate-self-signed \
-             --load-privkey "${tls_dir}/key.pem" \
-             --template "${tls_dir}/ca.info" \
-             --outfile "${tls_dir}/$name-cert.pem" 2>&1 | head -1
+    tls_certtool \
+        --generate-self-signed \
+        --load-privkey "${tls_dir}/key.pem" \
+        --template "${tls_dir}/ca.info" \
+        --outfile "${tls_dir}/$name-cert.pem"
 
     rm -f "${tls_dir}/ca.info"
 }
@@ -98,12 +110,14 @@ encryption_key
 signing_key
 EOF
 
-    certtool --generate-certificate \
-             --load-ca-privkey "${tls_dir}/key.pem" \
-             --load-ca-certificate "${tls_dir}/$caname-cert.pem" \
-             --load-privkey "${tls_dir}/key.pem" \
-             --template "${tls_dir}/cert.info" \
-             --outfile "${tls_dir}/$name/server-cert.pem" 2>&1 | head -1
+    tls_certtool \
+        --generate-certificate \
+        --load-ca-privkey "${tls_dir}/key.pem" \
+        --load-ca-certificate "${tls_dir}/$caname-cert.pem" \
+        --load-privkey "${tls_dir}/key.pem" \
+        --template "${tls_dir}/cert.info" \
+        --outfile "${tls_dir}/$name/server-cert.pem"
+
     ln -s "${tls_dir}/$caname-cert.pem" "${tls_dir}/$name/ca-cert.pem"
     ln -s "${tls_dir}/key.pem" "${tls_dir}/$name/server-key.pem"
 
@@ -127,12 +141,14 @@ encryption_key
 signing_key
 EOF
 
-    certtool --generate-certificate \
-             --load-ca-privkey "${tls_dir}/key.pem" \
-             --load-ca-certificate "${tls_dir}/$caname-cert.pem" \
-             --load-privkey "${tls_dir}/key.pem" \
-             --template "${tls_dir}/cert.info" \
-             --outfile "${tls_dir}/$name/client-cert.pem" 2>&1 | head -1
+    tls_certtool \
+        --generate-certificate \
+        --load-ca-privkey "${tls_dir}/key.pem" \
+        --load-ca-certificate "${tls_dir}/$caname-cert.pem" \
+        --load-privkey "${tls_dir}/key.pem" \
+        --template "${tls_dir}/cert.info" \
+        --outfile "${tls_dir}/$name/client-cert.pem"
+
     ln -s "${tls_dir}/$caname-cert.pem" "${tls_dir}/$name/ca-cert.pem"
     ln -s "${tls_dir}/key.pem" "${tls_dir}/$name/client-key.pem"
 
