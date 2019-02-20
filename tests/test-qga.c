@@ -225,18 +225,15 @@ static void test_qga_ping(gconstpointer fix)
     qobject_unref(ret);
 }
 
-static void test_qga_invalid_id(gconstpointer fix)
+static void test_qga_id(gconstpointer fix)
 {
     const TestFixture *fixture = fix;
-    QDict *ret, *error;
-    const char *class;
+    QDict *ret;
 
     ret = qmp_fd(fixture->fd, "{'execute': 'guest-ping', 'id': 1}");
     g_assert_nonnull(ret);
-
-    error = qdict_get_qdict(ret, "error");
-    class = qdict_get_try_str(error, "class");
-    g_assert_cmpstr(class, ==, "GenericError");
+    qmp_assert_no_error(ret);
+    g_assert_cmpint(qdict_get_int(ret, "id"), ==, 1);
 
     qobject_unref(ret);
 }
@@ -992,7 +989,7 @@ int main(int argc, char **argv)
     g_test_add_data_func("/qga/file-ops", &fix, test_qga_file_ops);
     g_test_add_data_func("/qga/file-write-read", &fix, test_qga_file_write_read);
     g_test_add_data_func("/qga/get-time", &fix, test_qga_get_time);
-    g_test_add_data_func("/qga/invalid-id", &fix, test_qga_invalid_id);
+    g_test_add_data_func("/qga/id", &fix, test_qga_id);
     g_test_add_data_func("/qga/invalid-oob", &fix, test_qga_invalid_oob);
     g_test_add_data_func("/qga/invalid-cmd", &fix, test_qga_invalid_cmd);
     g_test_add_data_func("/qga/invalid-args", &fix, test_qga_invalid_args);
