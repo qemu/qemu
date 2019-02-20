@@ -896,11 +896,9 @@ $(FP_TEST_BIN):
 	         "BUILD", "$(notdir $@)")
 
 # The full test suite can take a bit of time, default to a quick run
-ifeq ($(SPEED), quick)
+# "-l 2 -r all" can take more than a day for some operations and is best
+# run manually
 FP_TL=-l 1
-else
-FP_TL=-l 2 -r all
-endif
 
 # $1 = tests, $2 = description
 test-softfloat = $(call quiet-command, \
