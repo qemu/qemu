@@ -594,8 +594,9 @@ typedef struct {
     uint32_t magic;
     uint32_t version;
     uint32_t flags;
-    uint32_t size;
-    uint32_t used;
+    /* maximum number of allocated pages */
+    uint32_t pages_alloc;
+    uint32_t pages_used;
     uint64_t packet_num;
     char ramblock[256];
     uint64_t offset[];
@@ -781,8 +782,8 @@ static void multifd_send_fill_packet(MultiFDSendParams *p)
     packet->magic = cpu_to_be32(MULTIFD_MAGIC);
     packet->version = cpu_to_be32(MULTIFD_VERSION);
     packet->flags = cpu_to_be32(p->flags);
-    packet->size = cpu_to_be32(migrate_multifd_page_count());
-    packet->used = cpu_to_be32(p->pages->used);
+    packet->pages_alloc = cpu_to_be32(migrate_multifd_page_count());
+    packet->pages_used = cpu_to_be32(p->pages->used);
     packet->packet_num = cpu_to_be64(p->packet_num);
 
     if (p->pages->block) {
@@ -818,19 +819,19 @@ static int multifd_recv_unfill_packet(MultiFDRecvParams *p, Error **errp)
 
     p->flags = be32_to_cpu(packet->flags);
 
-    packet->size = be32_to_cpu(packet->size);
-    if (packet->size > migrate_multifd_page_count()) {
+    packet->pages_alloc = be32_to_cpu(packet->pages_alloc);
+    if (packet->pages_alloc > migrate_multifd_page_count()) {
         error_setg(errp, "multifd: received packet "
                    "with size %d and expected maximum size %d",
-                   packet->size, migrate_multifd_page_count()) ;
+                   packet->pages_alloc, migrate_multifd_page_count()) ;
         return -1;
     }
 
-    p->pages->used = be32_to_cpu(packet->used);
-    if (p->pages->used > packet->size) {
+    p->pages->used = be32_to_cpu(packet->pages_used);
+    if (p->pages->used > packet->pages_alloc) {
         error_setg(errp, "multifd: received packet "
-                   "with size %d and expected maximum size %d",
-                   p->pages->used, packet->size) ;
+                   "with %d pages and expected maximum pages are %d",
+                   p->pages->used, packet->pages_alloc) ;
         return -1;
     }
 
