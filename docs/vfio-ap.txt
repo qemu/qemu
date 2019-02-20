@@ -671,7 +671,7 @@ These are the steps:
       -> IOMMU Hardware Support
          select S390 AP IOMMU Support
       -> VFIO Non-Privileged userspace driver framework
-         -> Mediated device driver frramework
+         -> Mediated device driver framework
             -> VFIO driver for Mediated devices
    -> I/O subsystem
       -> VFIO support for AP devices

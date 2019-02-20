@@ -30,7 +30,7 @@ of the significantly lower latency and higher throughput over TCP/IP. This is
 because the RDMA I/O architecture reduces the number of interrupts and
 data copies by bypassing the host networking stack. In particular, a TCP-based
 migration, under certain types of memory-bound workloads, may take a more
-unpredicatable amount of time to complete the migration if the amount of
+unpredictable amount of time to complete the migration if the amount of
 memory tracked during each live migration iteration round cannot keep pace
 with the rate of dirty memory produced by the workload.
 
@@ -408,7 +408,7 @@ socket is broken during a non-RDMA based migration.
 TODO:
 =====
 1. Currently, 'ulimit -l' mlock() limits as well as cgroups swap limits
-   are not compatible with infinband memory pinning and will result in
+   are not compatible with infiniband memory pinning and will result in
    an aborted migration (but with the source VM left unaffected).
 2. Use of the recent /proc/<pid>/pagemap would likely speed up
    the use of KSM and ballooning while using RDMA.

@@ -99,7 +99,7 @@ Links to other resources
      https://gitlab.fel.cvut.cz/canbus/qemu-canbus
  (3) RTEMS page describing project
      https://devel.rtems.org/wiki/Developer/Simulators/QEMU/CANEmulation
- (4) RTLWS 2015 article about the projevt and its use with CANopen emulation
+ (4) RTLWS 2015 article about the project and its use with CANopen emulation
      http://rtime.felk.cvut.cz/publications/public/rtlws2015-qemu-can.pdf
      Slides
      http://rtime.felk.cvut.cz/publications/public/rtlws2015-qemu-can-slides.pdf

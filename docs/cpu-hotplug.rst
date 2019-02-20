@@ -137,6 +137,6 @@ From the 'qmp-shell', invoke the QMP ``device_del`` command::
     vCPU hot-unplug requires guest cooperation; so the ``device_del``
     command above does not guarantee vCPU removal -- it's a "request to
     unplug".  At this point, the guest will get a System Control
-    Interupt (SCI) and calls the ACPI handler for the affected vCPU
+    Interrupt (SCI) and calls the ACPI handler for the affected vCPU
     device.  Then the guest kernel will bring the vCPU offline and tell
     QEMU to unplug it.

@@ -55,7 +55,7 @@ value can improve the I/O performance significantly.
 
 The refcount blocks
 -------------------
-The qcow2 format also mantains a reference count for each cluster.
+The qcow2 format also maintains a reference count for each cluster.
 Reference counts are used for cluster allocation and internal
 snapshots. The data is stored in a two-level structure similar to the
 L1/L2 tables described above.
