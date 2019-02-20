@@ -1003,6 +1003,103 @@ static void char_socket_client_test(gconstpointer opaque)
     g_free(optstr);
 }
 
+static void
+count_closed_event(void *opaque, int event)
+{
+    int *count = opaque;
+    if (event == CHR_EVENT_CLOSED) {
+        (*count)++;
+    }
+}
+
+static void
+char_socket_discard_read(void *opaque, const uint8_t *buf, int size)
+{
+}
+
+static void char_socket_server_two_clients_test(gconstpointer opaque)
+{
+    SocketAddress *incoming_addr = (gpointer) opaque;
+    Chardev *chr;
+    CharBackend be = {0};
+    QObject *qaddr;
+    SocketAddress *addr;
+    Visitor *v;
+    char *optstr;
+    QemuOpts *opts;
+    QIOChannelSocket *ioc1, *ioc2;
+    int closed = 0;
+
+    g_setenv("QTEST_SILENT_ERRORS", "1", 1);
+    /*
+     * We rely on addr containing "nowait", otherwise
+     * qemu_chr_new() will block until a client connects. We
+     * can't spawn our client thread though, because until
+     * qemu_chr_new() returns we don't know what TCP port was
+     * allocated by the OS
+     */
+    optstr = char_socket_addr_to_opt_str(incoming_addr,
+                                         false,
+                                         NULL,
+                                         true);
+    opts = qemu_opts_parse_noisily(qemu_find_opts("chardev"),
+                                   optstr, true);
+    g_assert_nonnull(opts);
+    chr = qemu_chr_new_from_opts(opts, NULL, &error_abort);
+    qemu_opts_del(opts);
+    g_assert_nonnull(chr);
+    g_assert(!object_property_get_bool(OBJECT(chr), "connected", &error_abort));
+
+    qaddr = object_property_get_qobject(OBJECT(chr), "addr", &error_abort);
+    g_assert_nonnull(qaddr);
+
+    v = qobject_input_visitor_new(qaddr);
+    visit_type_SocketAddress(v, "addr", &addr, &error_abort);
+    visit_free(v);
+    qobject_unref(qaddr);
+
+    qemu_chr_fe_init(&be, chr, &error_abort);
+
+    qemu_chr_fe_set_handlers(&be, char_socket_can_read, char_socket_discard_read,
+                             count_closed_event, NULL,
+                             &closed, NULL, true);
+
+    ioc1 = qio_channel_socket_new();
+    qio_channel_socket_connect_sync(ioc1, addr, &error_abort);
+    qemu_chr_wait_connected(chr, &error_abort);
+
+    /* switch the chardev to another context */
+    GMainContext *ctx = g_main_context_new();
+    qemu_chr_fe_set_handlers(&be, char_socket_can_read, char_socket_discard_read,
+                             count_closed_event, NULL,
+                             &closed, ctx, true);
+
+    /* Start a second connection while the first is still connected.
+     * It will be placed in the listen() backlog, and connect() will
+     * succeed immediately.
+     */
+    ioc2 = qio_channel_socket_new();
+    qio_channel_socket_connect_sync(ioc2, addr, &error_abort);
+
+    object_unref(OBJECT(ioc1));
+    /* The two connections should now be processed serially.  */
+    while (g_main_context_iteration(ctx, TRUE)) {
+        if (closed == 1 && ioc2) {
+            object_unref(OBJECT(ioc2));
+            ioc2 = NULL;
+        }
+        if (closed == 2) {
+            break;
+        }
+    }
+
+    qapi_free_SocketAddress(addr);
+    object_unparent(OBJECT(chr));
+    g_main_context_unref(ctx);
+    g_free(optstr);
+    g_unsetenv("QTEST_SILENT_ERRORS");
+}
+
 
 #ifdef HAVE_CHARDEV_SERIAL
 static void char_serial_test(void)
@@ -1342,11 +1439,14 @@ int main(int argc, char **argv)
 
     SOCKET_SERVER_TEST(tcp, &tcpaddr);
     SOCKET_CLIENT_TEST(tcp, &tcpaddr);
+    g_test_add_data_func("/char/socket/server/two-clients/tcp", &tcpaddr,
+                         char_socket_server_two_clients_test);
 #ifndef WIN32
     SOCKET_SERVER_TEST(unix, &unixaddr);
     SOCKET_CLIENT_TEST(unix, &unixaddr);
+    g_test_add_data_func("/char/socket/server/two-clients/unix", &unixaddr,
+                         char_socket_server_two_clients_test);
 #endif
-
 
     g_test_add_func("/char/udp", char_udp_test);
 #ifdef HAVE_CHARDEV_SERIAL
