@@ -400,15 +400,14 @@ off_t qio_channel_io_seek(QIOChannel *ioc,
 }
 
 
-static void qio_channel_set_aio_fd_handlers(QIOChannel *ioc);
-
 static void qio_channel_restart_read(void *opaque)
 {
     QIOChannel *ioc = opaque;
     Coroutine *co = ioc->read_coroutine;
 
-    ioc->read_coroutine = NULL;
-    qio_channel_set_aio_fd_handlers(ioc);
+    /* Assert that aio_co_wake() reenters the coroutine directly */
+    assert(qemu_get_current_aio_context() ==
+           qemu_coroutine_get_aio_context(co));
     aio_co_wake(co);
 }
 
@@ -417,8 +416,9 @@ static void qio_channel_restart_write(void *opaque)
     QIOChannel *ioc = opaque;
     Coroutine *co = ioc->write_coroutine;
 
-    ioc->write_coroutine = NULL;
-    qio_channel_set_aio_fd_handlers(ioc);
+    /* Assert that aio_co_wake() reenters the coroutine directly */
+    assert(qemu_get_current_aio_context() ==
+           qemu_coroutine_get_aio_context(co));
     aio_co_wake(co);
 }
 
