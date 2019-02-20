@@ -562,9 +562,6 @@
 #                     number of sockets used for migration.  The
 #                     default value is 2 (since 2.11)
 #
-# @x-multifd-page-count: Number of pages sent together to a thread.
-#                        The default value is 16 (since 2.11)
-#
 # @xbzrle-cache-size: cache size to be used by XBZRLE migration.  It
 #                     needs to be a multiple of the target page size
 #                     and a power of 2
@@ -587,7 +584,7 @@
            'cpu-throttle-initial', 'cpu-throttle-increment',
            'tls-creds', 'tls-hostname', 'max-bandwidth',
            'downtime-limit', 'x-checkpoint-delay', 'block-incremental',
-           'x-multifd-channels', 'x-multifd-page-count',
+           'x-multifd-channels',
            'xbzrle-cache-size', 'max-postcopy-bandwidth',
            'max-cpu-throttle' ] }
 
@@ -667,9 +664,6 @@
 #                     number of sockets used for migration.  The
 #                     default value is 2 (since 2.11)
 #
-# @x-multifd-page-count: Number of pages sent together to a thread.
-#                        The default value is 16 (since 2.11)
-#
 # @xbzrle-cache-size: cache size to be used by XBZRLE migration.  It
 #                     needs to be a multiple of the target page size
 #                     and a power of 2
@@ -704,7 +698,6 @@
             '*x-checkpoint-delay': 'int',
             '*block-incremental': 'bool',
             '*x-multifd-channels': 'int',
-            '*x-multifd-page-count': 'int',
             '*xbzrle-cache-size': 'size',
             '*max-postcopy-bandwidth': 'size',
 	    '*max-cpu-throttle': 'int' } }
@@ -800,9 +793,6 @@
 #                     number of sockets used for migration.
 #                     The default value is 2 (since 2.11)
 #
-# @x-multifd-page-count: Number of pages sent together to a thread.
-#                        The default value is 16 (since 2.11)
-#
 # @xbzrle-cache-size: cache size to be used by XBZRLE migration.  It
 #                     needs to be a multiple of the target page size
 #                     and a power of 2
@@ -836,7 +826,6 @@
             '*x-checkpoint-delay': 'uint32',
             '*block-incremental': 'bool' ,
             '*x-multifd-channels': 'uint8',
-            '*x-multifd-page-count': 'uint32',
             '*xbzrle-cache-size': 'size',
 	    '*max-postcopy-bandwidth': 'size',
             '*max-cpu-throttle':'uint8'} }

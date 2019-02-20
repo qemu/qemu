@@ -583,6 +583,9 @@ exit:
 
 #define MULTIFD_FLAG_SYNC (1 << 0)
 
+/* This value needs to be a multiple of qemu_target_page_size() */
+#define MULTIFD_PACKET_SIZE (64 * 1024)
+
 typedef struct {
     uint32_t magic;
     uint32_t version;
@@ -783,12 +786,13 @@ static void multifd_pages_clear(MultiFDPages_t *pages)
 static void multifd_send_fill_packet(MultiFDSendParams *p)
 {
     MultiFDPacket_t *packet = p->packet;
+    uint32_t page_count = MULTIFD_PACKET_SIZE / qemu_target_page_size();
     int i;
 
     packet->magic = cpu_to_be32(MULTIFD_MAGIC);
     packet->version = cpu_to_be32(MULTIFD_VERSION);
     packet->flags = cpu_to_be32(p->flags);
-    packet->pages_alloc = cpu_to_be32(migrate_multifd_page_count());
+    packet->pages_alloc = cpu_to_be32(page_count);
     packet->pages_used = cpu_to_be32(p->pages->used);
     packet->next_packet_size = cpu_to_be32(p->next_packet_size);
     packet->packet_num = cpu_to_be64(p->packet_num);
@@ -805,6 +809,7 @@ static void multifd_send_fill_packet(MultiFDSendParams *p)
 static int multifd_recv_unfill_packet(MultiFDRecvParams *p, Error **errp)
 {
     MultiFDPacket_t *packet = p->packet;
+    uint32_t page_count = MULTIFD_PACKET_SIZE / qemu_target_page_size();
     RAMBlock *block;
     int i;
 
@@ -827,10 +832,10 @@ static int multifd_recv_unfill_packet(MultiFDRecvParams *p, Error **errp)
     p->flags = be32_to_cpu(packet->flags);
 
     packet->pages_alloc = be32_to_cpu(packet->pages_alloc);
-    if (packet->pages_alloc > migrate_multifd_page_count()) {
+    if (packet->pages_alloc > page_count) {
         error_setg(errp, "multifd: received packet "
                    "with size %d and expected maximum size %d",
-                   packet->pages_alloc, migrate_multifd_page_count()) ;
+                   packet->pages_alloc, page_count) ;
         return -1;
     }
 
@@ -1162,7 +1167,7 @@ static void multifd_new_send_channel_async(QIOTask *task, gpointer opaque)
 int multifd_save_setup(void)
 {
     int thread_count;
-    uint32_t page_count = migrate_multifd_page_count();
+    uint32_t page_count = MULTIFD_PACKET_SIZE / qemu_target_page_size();
     uint8_t i;
 
     if (!migrate_use_multifd()) {
@@ -1362,7 +1367,7 @@ static void *multifd_recv_thread(void *opaque)
 int multifd_load_setup(void)
 {
     int thread_count;
-    uint32_t page_count = migrate_multifd_page_count();
+    uint32_t page_count = MULTIFD_PACKET_SIZE / qemu_target_page_size();
     uint8_t i;
 
     if (!migrate_use_multifd()) {
