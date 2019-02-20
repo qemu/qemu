@@ -523,15 +523,15 @@ fail:
 #endif
 }
 
-static int send_response(GAState *s, QDict *payload)
+static int send_response(GAState *s, const QDict *rsp)
 {
     const char *buf;
     QString *payload_qstr, *response_qstr;
     GIOStatus status;
 
-    g_assert(payload && s->channel);
+    g_assert(rsp && s->channel);
 
-    payload_qstr = qobject_to_json(QOBJECT(payload));
+    payload_qstr = qobject_to_json(QOBJECT(rsp));
     if (!payload_qstr) {
         return -EINVAL;
     }
@@ -557,53 +557,24 @@ static int send_response(GAState *s, QDict *payload)
     return 0;
 }
 
-static void process_command(GAState *s, QDict *req)
-{
-    QDict *rsp;
-    int ret;
-
-    g_assert(req);
-    g_debug("processing command");
-    rsp = qmp_dispatch(&ga_commands, QOBJECT(req), false);
-    if (rsp) {
-        ret = send_response(s, rsp);
-        if (ret < 0) {
-            g_warning("error sending response: %s", strerror(-ret));
-        }
-        qobject_unref(rsp);
-    }
-}
-
 /* handle requests/control events coming in over the channel */
 static void process_event(void *opaque, QObject *obj, Error *err)
 {
     GAState *s = opaque;
-    QDict *req, *rsp;
+    QDict *rsp;
     int ret;
 
     g_debug("process_event: called");
     assert(!obj != !err);
     if (err) {
-        goto err;
-    }
-    req = qobject_to(QDict, obj);
-    if (!req) {
-        error_setg(&err, "Input must be a JSON object");
-        goto err;
-    }
-    if (!qdict_haskey(req, "execute")) {
-        g_warning("unrecognized payload format");
-        error_setg(&err, QERR_UNSUPPORTED);
-        goto err;
+        rsp = qmp_error_response(err);
+        goto end;
     }
 
-    process_command(s, req);
-    qobject_unref(obj);
-    return;
+    g_debug("processing command");
+    rsp = qmp_dispatch(&ga_commands, obj, false);
 
-err:
-    g_warning("failed to parse event: %s", error_get_pretty(err));
-    rsp = qmp_error_response(err);
+end:
     ret = send_response(s, rsp);
     if (ret < 0) {
         g_warning("error sending error response: %s", strerror(-ret));
