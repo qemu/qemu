@@ -86,7 +86,12 @@ matrix:
 
 
     - env:
-        - CONFIG="--enable-debug --enable-debug-tcg"
+        - CONFIG="--enable-debug --enable-debug-tcg --disable-user"
+
+
+    # TCG debug can be run just on it's own and is mostly agnostic to user/softmmu distinctions
+    - env:
+        - CONFIG="--enable-debug-tcg --disable-system"
 
 
     - env:
