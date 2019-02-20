@@ -584,7 +584,7 @@ exit:
 #define MULTIFD_FLAG_SYNC (1 << 0)
 
 /* This value needs to be a multiple of qemu_target_page_size() */
-#define MULTIFD_PACKET_SIZE (64 * 1024)
+#define MULTIFD_PACKET_SIZE (512 * 1024)
 
 typedef struct {
     uint32_t magic;
