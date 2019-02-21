@@ -148,8 +148,13 @@ static void vmc_unregister_interface(SpiceChardev *scd)
 static gboolean spice_char_source_prepare(GSource *source, gint *timeout)
 {
     SpiceCharSource *src = (SpiceCharSource *)source;
+    Chardev *chr = CHARDEV(src->scd);
 
     *timeout = -1;
+
+    if (!chr->be_open) {
+        return true;
+    }
 
     return !src->scd->blocked;
 }
@@ -157,6 +162,11 @@ static gboolean spice_char_source_prepare(GSource *source, gint *timeout)
 static gboolean spice_char_source_check(GSource *source)
 {
     SpiceCharSource *src = (SpiceCharSource *)source;
+    Chardev *chr = CHARDEV(src->scd);
+
+    if (!chr->be_open) {
+        return true;
+    }
 
     return !src->scd->blocked;
 }
@@ -164,9 +174,12 @@ static gboolean spice_char_source_check(GSource *source)
 static gboolean spice_char_source_dispatch(GSource *source,
     GSourceFunc callback, gpointer user_data)
 {
+    SpiceCharSource *src = (SpiceCharSource *)source;
+    Chardev *chr = CHARDEV(src->scd);
     GIOFunc func = (GIOFunc)callback;
+    GIOCondition cond = chr->be_open ? G_IO_OUT : G_IO_HUP;
 
-    return func(NULL, G_IO_OUT, user_data);
+    return func(NULL, cond, user_data);
 }
 
 static GSourceFuncs SpiceCharSourceFuncs = {
