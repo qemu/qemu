@@ -628,7 +628,7 @@ static void vm_change_state_handler(void *opaque, int running,
 {
     if (running) {
         qemu_spice_display_start();
-    } else {
+    } else if (state != RUN_STATE_PAUSED) {
         qemu_spice_display_stop();
     }
 }
