@@ -1110,12 +1110,17 @@
 #
 # @cocoa: The Cocoa user interface.
 #
+# @spice-app: Set up a Spice server and run the default associated
+#             application to connect to it. The server will redirect
+#             the serial console and QEMU monitors. (Since 4.0)
+#
 # Since: 2.12
 #
 ##
 { 'enum'    : 'DisplayType',
   'data'    : [ 'default', 'none', 'gtk', 'sdl',
-                'egl-headless', 'curses', 'cocoa' ] }
+                'egl-headless', 'curses', 'cocoa',
+                'spice-app'] }
 
 ##
 # @DisplayOptions:
