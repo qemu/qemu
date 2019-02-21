@@ -3503,6 +3503,14 @@ for i in $glib_modules; do
     fi
 done
 
+if $pkg_config --atleast-version=$glib_req_ver gio-2.0; then
+    gio=yes
+    gio_cflags=$($pkg_config --cflags gio-2.0)
+    gio_libs=$($pkg_config --libs gio-2.0)
+else
+    gio=no
+fi
+
 # Sanity check that the current size_t matches the
 # size that glib thinks it should be. This catches
 # problems on multi-arch where people try to build
@@ -6519,6 +6527,11 @@ if test "$gtk" = "yes" ; then
   if test "$gtk_gl" = "yes" ; then
     echo "CONFIG_GTK_GL=y" >> $config_host_mak
   fi
+fi
+if test "$gio" = "yes" ; then
+    echo "CONFIG_GIO=y" >> $config_host_mak
+    echo "GIO_CFLAGS=$gio_cflags" >> $config_host_mak
+    echo "GIO_LIBS=$gio_libs" >> $config_host_mak
 fi
 echo "CONFIG_TLS_PRIORITY=\"$tls_priority\"" >> $config_host_mak
 if test "$gnutls" = "yes" ; then
