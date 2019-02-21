@@ -61,12 +61,15 @@ struct virtio_gpu_requested_state {
 enum virtio_gpu_conf_flags {
     VIRTIO_GPU_FLAG_VIRGL_ENABLED = 1,
     VIRTIO_GPU_FLAG_STATS_ENABLED,
+    VIRTIO_GPU_FLAG_EDID_ENABLED,
 };
 
 #define virtio_gpu_virgl_enabled(_cfg) \
     (_cfg.flags & (1 << VIRTIO_GPU_FLAG_VIRGL_ENABLED))
 #define virtio_gpu_stats_enabled(_cfg) \
     (_cfg.flags & (1 << VIRTIO_GPU_FLAG_STATS_ENABLED))
+#define virtio_gpu_edid_enabled(_cfg) \
+    (_cfg.flags & (1 << VIRTIO_GPU_FLAG_EDID_ENABLED))
 
 struct virtio_gpu_conf {
     uint64_t max_hostmem;
@@ -155,6 +158,8 @@ void virtio_gpu_ctrl_response_nodata(VirtIOGPU *g,
                                      enum virtio_gpu_ctrl_type type);
 void virtio_gpu_get_display_info(VirtIOGPU *g,
                                  struct virtio_gpu_ctrl_command *cmd);
+void virtio_gpu_get_edid(VirtIOGPU *g,
+                         struct virtio_gpu_ctrl_command *cmd);
 int virtio_gpu_create_mapping_iov(VirtIOGPU *g,
                                   struct virtio_gpu_resource_attach_backing *ab,
                                   struct virtio_gpu_ctrl_command *cmd,
