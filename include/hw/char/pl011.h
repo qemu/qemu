@@ -45,7 +45,7 @@ typedef struct PL011State {
     int read_count;
     int read_trigger;
     CharBackend chr;
-    qemu_irq irq;
+    qemu_irq irq[6];
     const unsigned char *id;
 } PL011State;
 
