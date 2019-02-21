@@ -181,6 +181,21 @@ static const MemoryRegionOps tz_ppc_ops = {
     .endianness = DEVICE_LITTLE_ENDIAN,
 };
 
+static bool tz_ppc_dummy_accepts(void *opaque, hwaddr addr,
+                                 unsigned size, bool is_write,
+                                 MemTxAttrs attrs)
+{
+    /*
+     * Board code should never map the upstream end of an unused port,
+     * so we should never try to make a memory access to it.
+     */
+    g_assert_not_reached();
+}
+
+static const MemoryRegionOps tz_ppc_dummy_ops = {
+    .valid.accepts = tz_ppc_dummy_accepts,
+};
+
 static void tz_ppc_reset(DeviceState *dev)
 {
     TZPPC *s = TZ_PPC(dev);
@@ -210,16 +225,33 @@ static void tz_ppc_realize(DeviceState *dev, Error **errp)
     SysBusDevice *sbd = SYS_BUS_DEVICE(dev);
     TZPPC *s = TZ_PPC(dev);
     int i;
+    int max_port = 0;
 
     /* We can't create the upstream end of the port until realize,
      * as we don't know the size of the MR used as the downstream until then.
      */
     for (i = 0; i < TZ_NUM_PORTS; i++) {
+        if (s->port[i].downstream) {
+            max_port = i;
+        }
+    }
+
+    for (i = 0; i <= max_port; i++) {
         TZPPCPort *port = &s->port[i];
         char *name;
         uint64_t size;
 
         if (!port->downstream) {
+            /*
+             * Create dummy sysbus MMIO region so the sysbus region
+             * numbering doesn't get out of sync with the port numbers.
+             * The size is entirely arbitrary.
+             */
+            name = g_strdup_printf("tz-ppc-dummy-port[%d]", i);
+            memory_region_init_io(&port->upstream, obj, &tz_ppc_dummy_ops,
+                                  port, name, 0x10000);
+            sysbus_init_mmio(sbd, &port->upstream);
+            g_free(name);
             continue;
         }
 

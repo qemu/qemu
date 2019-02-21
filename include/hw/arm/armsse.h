@@ -46,6 +46,10 @@
  *    being the same for both, to avoid having to have separate Property
  *    lists for different variants. This restriction can be relaxed later
  *    if necessary.)
+ *  + QOM property "SRAM_ADDR_WIDTH" sets the number of bits used for the
+ *    address of each SRAM bank (and thus the total amount of internal SRAM)
+ *  + QOM property "init-svtor" sets the initial value of the CPU SVTOR register
+ *    (where it expects to load the PC and SP from the vector table on reset)
  *  + Named GPIO inputs "EXP_IRQ" 0..n are the expansion interrupts for CPU 0,
  *    which are wired to its NVIC lines 32 .. n+32
  *  + Named GPIO inputs "EXP_CPU1_IRQ" 0..n are the expansion interrupts for
@@ -182,7 +186,7 @@ typedef struct ARMSSE {
     MemoryRegion cpu_container[SSE_MAX_CPUS];
     MemoryRegion alias1;
     MemoryRegion alias2;
-    MemoryRegion alias3;
+    MemoryRegion alias3[SSE_MAX_CPUS];
     MemoryRegion sram[MAX_SRAM_BANKS];
 
     qemu_irq *exp_irqs[SSE_MAX_CPUS];
@@ -202,6 +206,7 @@ typedef struct ARMSSE {
     uint32_t exp_numirq;
     uint32_t mainclk_frq;
     uint32_t sram_addr_width;
+    uint32_t init_svtor;
 } ARMSSE;
 
 typedef struct ARMSSEInfo ARMSSEInfo;

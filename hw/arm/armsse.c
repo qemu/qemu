@@ -110,15 +110,16 @@ static bool irq_is_common[32] = {
     /* 30, 31: reserved */
 };
 
-/* Create an alias region of @size bytes starting at @base
+/*
+ * Create an alias region in @container of @size bytes starting at @base
  * which mirrors the memory starting at @orig.
  */
-static void make_alias(ARMSSE *s, MemoryRegion *mr, const char *name,
-                       hwaddr base, hwaddr size, hwaddr orig)
+static void make_alias(ARMSSE *s, MemoryRegion *mr, MemoryRegion *container,
+                       const char *name, hwaddr base, hwaddr size, hwaddr orig)
 {
-    memory_region_init_alias(mr, NULL, name, &s->container, orig, size);
+    memory_region_init_alias(mr, NULL, name, container, orig, size);
     /* The alias is even lower priority than unimplemented_device regions */
-    memory_region_add_subregion_overlap(&s->container, base, mr, -1500);
+    memory_region_add_subregion_overlap(container, base, mr, -1500);
 }
 
 static void irq_status_forwarder(void *opaque, int n, int level)
@@ -505,11 +506,10 @@ static void armsse_realize(DeviceState *dev, Error **errp)
          * the INITSVTOR* registers before powering up the CPUs in any case,
          * so the hardware's default value doesn't matter. QEMU doesn't emulate
          * the control processor, so instead we behave in the way that the
-         * firmware does. All boards currently known about have firmware that
-         * sets the INITSVTOR0 and INITSVTOR1 registers to 0x10000000, like the
-         * IoTKit default. We can make this more configurable if necessary.
+         * firmware does. The initial value is configurable by the board code
+         * to match whatever its firmware does.
          */
-        qdev_prop_set_uint32(cpudev, "init-svtor", 0x10000000);
+        qdev_prop_set_uint32(cpudev, "init-svtor", s->init_svtor);
         /*
          * Start all CPUs except CPU0 powered down. In real hardware it is
          * a configurable property of the SSE-200 which CPUs start powered up
@@ -608,16 +608,21 @@ static void armsse_realize(DeviceState *dev, Error **errp)
     }
 
     /* Set up the big aliases first */
-    make_alias(s, &s->alias1, "alias 1", 0x10000000, 0x10000000, 0x00000000);
-    make_alias(s, &s->alias2, "alias 2", 0x30000000, 0x10000000, 0x20000000);
+    make_alias(s, &s->alias1, &s->container, "alias 1",
+               0x10000000, 0x10000000, 0x00000000);
+    make_alias(s, &s->alias2, &s->container,
+               "alias 2", 0x30000000, 0x10000000, 0x20000000);
     /* The 0x50000000..0x5fffffff region is not a pure alias: it has
      * a few extra devices that only appear there (generally the
      * control interfaces for the protection controllers).
      * We implement this by mapping those devices over the top of this
-     * alias MR at a higher priority.
+     * alias MR at a higher priority. Some of the devices in this range
+     * are per-CPU, so we must put this alias in the per-cpu containers.
      */
-    make_alias(s, &s->alias3, "alias 3", 0x50000000, 0x10000000, 0x40000000);
-
+    for (i = 0; i < info->num_cpus; i++) {
+        make_alias(s, &s->alias3[i], &s->cpu_container[i],
+                   "alias 3", 0x50000000, 0x10000000, 0x40000000);
+    }
 
     /* Security controller */
     object_property_set_bool(OBJECT(&s->secctl), true, "realized", &err);
@@ -762,26 +767,28 @@ static void armsse_realize(DeviceState *dev, Error **errp)
 
     if (info->has_mhus) {
         for (i = 0; i < ARRAY_SIZE(s->mhu); i++) {
-            char *name = g_strdup_printf("MHU%d", i);
-            char *port = g_strdup_printf("port[%d]", i + 3);
+            char *name;
+            char *port;
 
+            name = g_strdup_printf("MHU%d", i);
             qdev_prop_set_string(DEVICE(&s->mhu[i]), "name", name);
             qdev_prop_set_uint64(DEVICE(&s->mhu[i]), "size", 0x1000);
             object_property_set_bool(OBJECT(&s->mhu[i]), true,
                                      "realized", &err);
+            g_free(name);
             if (err) {
                 error_propagate(errp, err);
                 return;
             }
+            port = g_strdup_printf("port[%d]", i + 3);
             mr = sysbus_mmio_get_region(SYS_BUS_DEVICE(&s->mhu[i]), 0);
             object_property_set_link(OBJECT(&s->apb_ppc0), OBJECT(mr),
                                      port, &err);
+            g_free(port);
             if (err) {
                 error_propagate(errp, err);
                 return;
             }
-            g_free(name);
-            g_free(port);
         }
     }
 
@@ -1185,6 +1192,7 @@ static Property armsse_properties[] = {
     DEFINE_PROP_UINT32("EXP_NUMIRQ", ARMSSE, exp_numirq, 64),
     DEFINE_PROP_UINT32("MAINCLK", ARMSSE, mainclk_frq, 0),
     DEFINE_PROP_UINT32("SRAM_ADDR_WIDTH", ARMSSE, sram_addr_width, 15),
+    DEFINE_PROP_UINT32("init-svtor", ARMSSE, init_svtor, 0x10000000),
     DEFINE_PROP_END_OF_LIST()
 };
 

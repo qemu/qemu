@@ -12,20 +12,13 @@
  */
 
 #include "qemu/osdep.h"
+#include "hw/timer/pl031.h"
 #include "hw/sysbus.h"
 #include "qemu/timer.h"
 #include "sysemu/sysemu.h"
 #include "qemu/cutils.h"
 #include "qemu/log.h"
-
-//#define DEBUG_PL031
-
-#ifdef DEBUG_PL031
-#define DPRINTF(fmt, ...) \
-do { printf("pl031: " fmt , ## __VA_ARGS__); } while (0)
-#else
-#define DPRINTF(fmt, ...) do {} while(0)
-#endif
+#include "trace.h"
 
 #define RTC_DR      0x00    /* Data read register */
 #define RTC_MR      0x04    /* Match register */
@@ -36,30 +29,6 @@ do { printf("pl031: " fmt , ## __VA_ARGS__); } while (0)
 #define RTC_MIS     0x18    /* Masked interrupt status register */
 #define RTC_ICR     0x1c    /* Interrupt clear register */
 
-#define TYPE_PL031 "pl031"
-#define PL031(obj) OBJECT_CHECK(PL031State, (obj), TYPE_PL031)
-
-typedef struct PL031State {
-    SysBusDevice parent_obj;
-
-    MemoryRegion iomem;
-    QEMUTimer *timer;
-    qemu_irq irq;
-
-    /* Needed to preserve the tick_count across migration, even if the
-     * absolute value of the rtc_clock is different on the source and
-     * destination.
-     */
-    uint32_t tick_offset_vmstate;
-    uint32_t tick_offset;
-
-    uint32_t mr;
-    uint32_t lr;
-    uint32_t cr;
-    uint32_t im;
-    uint32_t is;
-} PL031State;
-
 static const unsigned char pl031_id[] = {
     0x31, 0x10, 0x14, 0x00,         /* Device ID        */
     0x0d, 0xf0, 0x05, 0xb1          /* Cell ID      */
@@ -67,7 +36,10 @@ static const unsigned char pl031_id[] = {
 
 static void pl031_update(PL031State *s)
 {
-    qemu_set_irq(s->irq, s->is & s->im);
+    uint32_t flags = s->is & s->im;
+
+    trace_pl031_irq_state(flags);
+    qemu_set_irq(s->irq, flags);
 }
 
 static void pl031_interrupt(void * opaque)
@@ -75,7 +47,7 @@ static void pl031_interrupt(void * opaque)
     PL031State *s = (PL031State *)opaque;
 
     s->is = 1;
-    DPRINTF("Alarm raised\n");
+    trace_pl031_alarm_raised();
     pl031_update(s);
 }
 
@@ -92,7 +64,7 @@ static void pl031_set_alarm(PL031State *s)
     /* The timer wraps around.  This subtraction also wraps in the same way,
        and gives correct results when alarm < now_ticks.  */
     ticks = s->mr - pl031_get_count(s);
-    DPRINTF("Alarm set in %ud ticks\n", ticks);
+    trace_pl031_set_alarm(ticks);
     if (ticks == 0) {
         timer_del(s->timer);
         pl031_interrupt(s);
@@ -106,38 +78,49 @@ static uint64_t pl031_read(void *opaque, hwaddr offset,
                            unsigned size)
 {
     PL031State *s = (PL031State *)opaque;
-
-    if (offset >= 0xfe0  &&  offset < 0x1000)
-        return pl031_id[(offset - 0xfe0) >> 2];
+    uint64_t r;
 
     switch (offset) {
     case RTC_DR:
-        return pl031_get_count(s);
+        r = pl031_get_count(s);
+        break;
     case RTC_MR:
-        return s->mr;
+        r = s->mr;
+        break;
     case RTC_IMSC:
-        return s->im;
+        r = s->im;
+        break;
     case RTC_RIS:
-        return s->is;
+        r = s->is;
+        break;
     case RTC_LR:
-        return s->lr;
+        r = s->lr;
+        break;
     case RTC_CR:
         /* RTC is permanently enabled.  */
-        return 1;
+        r = 1;
+        break;
     case RTC_MIS:
-        return s->is & s->im;
+        r = s->is & s->im;
+        break;
+    case 0xfe0 ... 0xfff:
+        r = pl031_id[(offset - 0xfe0) >> 2];
+        break;
     case RTC_ICR:
         qemu_log_mask(LOG_GUEST_ERROR,
                       "pl031: read of write-only register at offset 0x%x\n",
                       (int)offset);
+        r = 0;
         break;
     default:
         qemu_log_mask(LOG_GUEST_ERROR,
                       "pl031_read: Bad offset 0x%x\n", (int)offset);
+        r = 0;
         break;
     }
 
-    return 0;
+    trace_pl031_read(offset, r);
+    return r;
 }
 
 static void pl031_write(void * opaque, hwaddr offset,
@@ -145,6 +128,7 @@ static void pl031_write(void * opaque, hwaddr offset,
 {
     PL031State *s = (PL031State *)opaque;
 
+    trace_pl031_write(offset, value);
 
     switch (offset) {
     case RTC_LR:
@@ -157,7 +141,6 @@ static void pl031_write(void * opaque, hwaddr offset,
         break;
     case RTC_IMSC:
         s->im = value & 1;
-        DPRINTF("Interrupt mask %d\n", s->im);
         pl031_update(s);
         break;
     case RTC_ICR:
@@ -165,7 +148,6 @@ static void pl031_write(void * opaque, hwaddr offset,
            cleared when bit 0 of the written value is set.  However the
            arm926e documentation (DDI0287B) states that the interrupt is
            cleared when any value is written.  */
-        DPRINTF("Interrupt cleared");
         s->is = 0;
         pl031_update(s);
         break;
