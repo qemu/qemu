@@ -3718,6 +3718,13 @@ static int disas_vfp_insn(DisasContext *s, uint32_t insn)
                     rm_is_dp = false;
                     break;
 
+                case 0x13: /* vjcvt */
+                    if (!dp || !dc_isar_feature(aa32_jscvt, s)) {
+                        return 1;
+                    }
+                    rd_is_dp = false;
+                    break;
+
                 default:
                     return 1;
                 }
@@ -4087,6 +4094,9 @@ static int disas_vfp_insn(DisasContext *s, uint32_t insn)
                         break;
                     case 17: /* fsito */
                         gen_vfp_sito(dp, 0);
+                        break;
+                    case 19: /* vjcvt */
+                        gen_helper_vjcvt(cpu_F0s, cpu_F0d, cpu_env);
                         break;
                     case 20: /* fshto */
                         gen_vfp_shto(dp, 16 - rm, 0);

@@ -311,6 +311,7 @@ static void aarch64_max_initfn(Object *obj)
         cpu->isar.id_aa64isar0 = t;
 
         t = cpu->isar.id_aa64isar1;
+        t = FIELD_DP64(t, ID_AA64ISAR1, JSCVT, 1);
         t = FIELD_DP64(t, ID_AA64ISAR1, FCMA, 1);
         t = FIELD_DP64(t, ID_AA64ISAR1, APA, 1); /* PAuth, architected only */
         t = FIELD_DP64(t, ID_AA64ISAR1, API, 0);
@@ -344,6 +345,7 @@ static void aarch64_max_initfn(Object *obj)
         cpu->isar.id_isar5 = u;
 
         u = cpu->isar.id_isar6;
+        u = FIELD_DP32(u, ID_ISAR6, JSCVT, 1);
         u = FIELD_DP32(u, ID_ISAR6, DP, 1);
         cpu->isar.id_isar6 = u;
 
