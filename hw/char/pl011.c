@@ -8,38 +8,11 @@
  */
 
 #include "qemu/osdep.h"
+#include "hw/char/pl011.h"
 #include "hw/sysbus.h"
 #include "chardev/char-fe.h"
 #include "qemu/log.h"
 #include "trace.h"
-
-#define TYPE_PL011 "pl011"
-#define PL011(obj) OBJECT_CHECK(PL011State, (obj), TYPE_PL011)
-
-typedef struct PL011State {
-    SysBusDevice parent_obj;
-
-    MemoryRegion iomem;
-    uint32_t readbuff;
-    uint32_t flags;
-    uint32_t lcr;
-    uint32_t rsr;
-    uint32_t cr;
-    uint32_t dmacr;
-    uint32_t int_enabled;
-    uint32_t int_level;
-    uint32_t read_fifo[16];
-    uint32_t ilpr;
-    uint32_t ibrd;
-    uint32_t fbrd;
-    uint32_t ifl;
-    int read_pos;
-    int read_count;
-    int read_trigger;
-    CharBackend chr;
-    qemu_irq irq;
-    const unsigned char *id;
-} PL011State;
 
 #define PL011_INT_TX 0x20
 #define PL011_INT_RX 0x10
@@ -357,7 +330,7 @@ static void pl011_luminary_init(Object *obj)
 }
 
 static const TypeInfo pl011_luminary_info = {
-    .name          = "pl011_luminary",
+    .name          = TYPE_PL011_LUMINARY,
     .parent        = TYPE_PL011,
     .instance_init = pl011_luminary_init,
 };
