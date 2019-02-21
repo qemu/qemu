@@ -1167,7 +1167,7 @@ void pmu_init(ARMCPU *cpu)
 
         if (cnt->supported(&cpu->env)) {
             supported_event_map[cnt->number] = i;
-            uint64_t event_mask = 1 << (cnt->number & 0x1f);
+            uint64_t event_mask = 1ULL << (cnt->number & 0x1f);
             if (cnt->number & 0x20) {
                 cpu->pmceid1 |= event_mask;
             } else {
