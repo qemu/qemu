@@ -972,12 +972,20 @@ int qemu_spice_display_add_client(int csock, int skipauth, int tls)
 
 void qemu_spice_display_start(void)
 {
+    if (spice_display_is_running) {
+        return;
+    }
+
     spice_display_is_running = true;
     spice_server_vm_start(spice_server);
 }
 
 void qemu_spice_display_stop(void)
 {
+    if (!spice_display_is_running) {
+        return;
+    }
+
     spice_server_vm_stop(spice_server);
     spice_display_is_running = false;
 }
