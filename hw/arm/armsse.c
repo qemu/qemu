@@ -762,26 +762,28 @@ static void armsse_realize(DeviceState *dev, Error **errp)
 
     if (info->has_mhus) {
         for (i = 0; i < ARRAY_SIZE(s->mhu); i++) {
-            char *name = g_strdup_printf("MHU%d", i);
-            char *port = g_strdup_printf("port[%d]", i + 3);
+            char *name;
+            char *port;
 
+            name = g_strdup_printf("MHU%d", i);
             qdev_prop_set_string(DEVICE(&s->mhu[i]), "name", name);
             qdev_prop_set_uint64(DEVICE(&s->mhu[i]), "size", 0x1000);
             object_property_set_bool(OBJECT(&s->mhu[i]), true,
                                      "realized", &err);
+            g_free(name);
             if (err) {
                 error_propagate(errp, err);
                 return;
             }
+            port = g_strdup_printf("port[%d]", i + 3);
             mr = sysbus_mmio_get_region(SYS_BUS_DEVICE(&s->mhu[i]), 0);
             object_property_set_link(OBJECT(&s->apb_ppc0), OBJECT(mr),
                                      port, &err);
+            g_free(port);
             if (err) {
                 error_propagate(errp, err);
                 return;
             }
-            g_free(name);
-            g_free(port);
         }
     }
 
