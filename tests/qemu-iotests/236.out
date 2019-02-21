@@ -25,12 +25,14 @@ write -P0xcd 0x3ff0000 64k
         "count": 262144,
         "granularity": 65536,
         "name": "bitmapB",
+        "persistent": false,
         "status": "active"
       },
       {
         "count": 262144,
         "granularity": 65536,
         "name": "bitmapA",
+        "persistent": false,
         "status": "active"
       }
     ]
@@ -85,12 +87,14 @@ write -P0xcd 0x3ff0000 64k
         "count": 262144,
         "granularity": 65536,
         "name": "bitmapB",
+        "persistent": false,
         "status": "active"
       },
       {
         "count": 262144,
         "granularity": 65536,
         "name": "bitmapA",
+        "persistent": false,
         "status": "active"
       }
     ]
@@ -183,18 +187,21 @@ write -P0xea 0x3fe0000 64k
         "count": 393216,
         "granularity": 65536,
         "name": "bitmapC",
+        "persistent": false,
         "status": "disabled"
       },
       {
         "count": 262144,
         "granularity": 65536,
         "name": "bitmapB",
+        "persistent": false,
         "status": "disabled"
       },
       {
         "count": 458752,
         "granularity": 65536,
         "name": "bitmapA",
+        "persistent": false,
         "status": "disabled"
       }
     ]
@@ -247,18 +254,21 @@ write -P0xea 0x3fe0000 64k
         "count": 393216,
         "granularity": 65536,
         "name": "bitmapC",
+        "persistent": false,
         "status": "disabled"
       },
       {
         "count": 262144,
         "granularity": 65536,
         "name": "bitmapB",
+        "persistent": false,
         "status": "disabled"
       },
       {
         "count": 458752,
         "granularity": 65536,
         "name": "bitmapA",
+        "persistent": false,
         "status": "disabled"
       }
     ]
@@ -304,24 +314,28 @@ write -P0xea 0x3fe0000 64k
         "count": 458752,
         "granularity": 65536,
         "name": "bitmapD",
+        "persistent": false,
         "status": "disabled"
       },
       {
         "count": 393216,
         "granularity": 65536,
         "name": "bitmapC",
+        "persistent": false,
         "status": "disabled"
       },
       {
         "count": 262144,
         "granularity": 65536,
         "name": "bitmapB",
+        "persistent": false,
         "status": "disabled"
       },
       {
         "count": 458752,
         "granularity": 65536,
         "name": "bitmapA",
+        "persistent": false,
         "status": "disabled"
       }
     ]
