@@ -46,6 +46,12 @@ typedef struct QVirtioBlkReq {
     uint8_t status;
 } QVirtioBlkReq;
 
+#ifdef HOST_WORDS_BIGENDIAN
+const bool host_is_big_endian = true;
+#else
+const bool host_is_big_endian; /* false */
+#endif
+
 static char *drive_create(void)
 {
     int fd, ret;
@@ -125,16 +131,21 @@ static QVirtioPCIDevice *virtio_blk_pci_init(QPCIBus *bus, int slot)
 
 static inline void virtio_blk_fix_request(QVirtioDevice *d, QVirtioBlkReq *req)
 {
-#ifdef HOST_WORDS_BIGENDIAN
-    const bool host_is_big_endian = true;
-#else
-    const bool host_is_big_endian = false;
-#endif
-
     if (qvirtio_is_big_endian(d) != host_is_big_endian) {
         req->type = bswap32(req->type);
         req->ioprio = bswap32(req->ioprio);
         req->sector = bswap64(req->sector);
+    }
+}
+
+
+static inline void virtio_blk_fix_dwz_hdr(QVirtioDevice *d,
+    struct virtio_blk_discard_write_zeroes *dwz_hdr)
+{
+    if (qvirtio_is_big_endian(d) != host_is_big_endian) {
+        dwz_hdr->sector = bswap64(dwz_hdr->sector);
+        dwz_hdr->num_sectors = bswap32(dwz_hdr->num_sectors);
+        dwz_hdr->flags = bswap32(dwz_hdr->flags);
     }
 }
 
