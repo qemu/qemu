@@ -12,6 +12,7 @@
  */
 
 #include "qemu/osdep.h"
+#include "hw/timer/pl031.h"
 #include "hw/sysbus.h"
 #include "qemu/timer.h"
 #include "sysemu/sysemu.h"
@@ -35,30 +36,6 @@ do { printf("pl031: " fmt , ## __VA_ARGS__); } while (0)
 #define RTC_RIS     0x14    /* Raw interrupt status register */
 #define RTC_MIS     0x18    /* Masked interrupt status register */
 #define RTC_ICR     0x1c    /* Interrupt clear register */
-
-#define TYPE_PL031 "pl031"
-#define PL031(obj) OBJECT_CHECK(PL031State, (obj), TYPE_PL031)
-
-typedef struct PL031State {
-    SysBusDevice parent_obj;
-
-    MemoryRegion iomem;
-    QEMUTimer *timer;
-    qemu_irq irq;
-
-    /* Needed to preserve the tick_count across migration, even if the
-     * absolute value of the rtc_clock is different on the source and
-     * destination.
-     */
-    uint32_t tick_offset_vmstate;
-    uint32_t tick_offset;
-
-    uint32_t mr;
-    uint32_t lr;
-    uint32_t cr;
-    uint32_t im;
-    uint32_t is;
-} PL031State;
 
 static const unsigned char pl031_id[] = {
     0x31, 0x10, 0x14, 0x00,         /* Device ID        */
