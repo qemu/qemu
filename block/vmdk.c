@@ -2267,7 +2267,7 @@ static int coroutine_fn vmdk_co_create_opts(const char *filename, QemuOpts *opts
     compat6 = qemu_opt_get_bool_del(opts, BLOCK_OPT_COMPAT6, false);
     if (strcmp(hw_version, "undefined") == 0) {
         g_free(hw_version);
-        hw_version = g_strdup("4");
+        hw_version = NULL;
     }
     fmt = qemu_opt_get_del(opts, BLOCK_OPT_SUBFMT);
     zeroed_grain = qemu_opt_get_bool_del(opts, BLOCK_OPT_ZEROED_GRAIN, false);
