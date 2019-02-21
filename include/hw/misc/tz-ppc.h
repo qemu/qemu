@@ -38,7 +38,13 @@
  *
  * QEMU interface:
  * + sysbus MMIO regions 0..15: MemoryRegions defining the upstream end
- *   of each of the 16 ports of the PPC
+ *   of each of the 16 ports of the PPC. When a port is unused (i.e. no
+ *   downstream MemoryRegion is connected to it) at the end of the 0..15
+ *   range then no sysbus MMIO region is created for its upstream. When an
+ *   unused port lies in the middle of the range with other used ports at
+ *   higher port numbers, a dummy MMIO region is created to ensure that
+ *   port N's upstream is always sysbus MMIO region N. Dummy regions should
+ *   not be mapped, and will assert if any access is made to them.
  * + Property "port[0..15]": MemoryRegion defining the downstream device(s)
  *   for each of the 16 ports of the PPC
  * + Named GPIO inputs "cfg_nonsec[0..15]": set to 1 if the port should be
