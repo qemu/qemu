@@ -208,6 +208,12 @@ static int spice_chr_write(Chardev *chr, const uint8_t *buf, int len)
     int read_bytes;
 
     assert(s->datalen == 0);
+
+    if (!chr->be_open) {
+        trace_spice_chr_discard_write(len);
+        return len;
+    }
+
     s->datapos = buf;
     s->datalen = len;
     spice_server_char_device_wakeup(&s->sin);
@@ -300,6 +306,12 @@ static void qemu_chr_open_spice_vmc(Chardev *chr,
     }
 
     *be_opened = false;
+#if SPICE_SERVER_VERSION < 0x000e02
+    /* Spice < 0.14.2 doesn't explicitly open smartcard chardev */
+    if (strcmp(type, "smartcard") == 0) {
+        *be_opened = true;
+    }
+#endif
     chr_open(chr, type);
 }
 
