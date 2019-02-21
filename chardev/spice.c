@@ -316,6 +316,11 @@ void qemu_chr_open_spice_port(Chardev *chr,
     *be_opened = false;
     s = SPICE_CHARDEV(chr);
     s->sin.portname = g_strdup(name);
+
+    if (using_spice) {
+        /* spice server already created */
+        vmc_register_interface(s);
+    }
 }
 
 void qemu_spice_register_ports(void)
