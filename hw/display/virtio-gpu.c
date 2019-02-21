@@ -1268,7 +1268,6 @@ static void virtio_gpu_device_realize(DeviceState *qdev, Error **errp)
     QTAILQ_INIT(&g->fenceq);
 
     g->enabled_output_bitmask = 1;
-    g->qdev = qdev;
 
     for (i = 0; i < g->conf.max_outputs; i++) {
         g->scanout[i].con =

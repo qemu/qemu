@@ -97,7 +97,6 @@ typedef struct VirtIOGPU {
     int enable;
 
     int config_size;
-    DeviceState *qdev;
 
     QTAILQ_HEAD(, virtio_gpu_simple_resource) reslist;
     QTAILQ_HEAD(, virtio_gpu_ctrl_command) cmdq;
