@@ -2036,6 +2036,21 @@ int virtio_set_features(VirtIODevice *vdev, uint64_t val)
     return ret;
 }
 
+size_t virtio_feature_get_config_size(VirtIOFeature *feature_sizes,
+                                      uint64_t host_features)
+{
+    size_t config_size = 0;
+    int i;
+
+    for (i = 0; feature_sizes[i].flags != 0; i++) {
+        if (host_features & feature_sizes[i].flags) {
+            config_size = MAX(feature_sizes[i].end, config_size);
+        }
+    }
+
+    return config_size;
+}
+
 int virtio_load(VirtIODevice *vdev, QEMUFile *f, int version_id)
 {
     int i, ret;
