@@ -38,6 +38,8 @@ struct VirtIOBlkConf
     uint32_t request_merging;
     uint16_t num_queues;
     uint16_t queue_size;
+    uint32_t max_discard_sectors;
+    uint32_t max_write_zeroes_sectors;
 };
 
 struct VirtIOBlockDataPlane;
