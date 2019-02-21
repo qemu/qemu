@@ -398,6 +398,7 @@ static SpiceChannelList *qmp_query_spice_channels(void)
 static QemuOptsList qemu_spice_opts = {
     .name = "spice",
     .head = QTAILQ_HEAD_INITIALIZER(qemu_spice_opts.head),
+    .merge_lists = true,
     .desc = {
         {
             .name = "port",
