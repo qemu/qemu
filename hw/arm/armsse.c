@@ -505,11 +505,10 @@ static void armsse_realize(DeviceState *dev, Error **errp)
          * the INITSVTOR* registers before powering up the CPUs in any case,
          * so the hardware's default value doesn't matter. QEMU doesn't emulate
          * the control processor, so instead we behave in the way that the
-         * firmware does. All boards currently known about have firmware that
-         * sets the INITSVTOR0 and INITSVTOR1 registers to 0x10000000, like the
-         * IoTKit default. We can make this more configurable if necessary.
+         * firmware does. The initial value is configurable by the board code
+         * to match whatever its firmware does.
          */
-        qdev_prop_set_uint32(cpudev, "init-svtor", 0x10000000);
+        qdev_prop_set_uint32(cpudev, "init-svtor", s->init_svtor);
         /*
          * Start all CPUs except CPU0 powered down. In real hardware it is
          * a configurable property of the SSE-200 which CPUs start powered up
@@ -1187,6 +1186,7 @@ static Property armsse_properties[] = {
     DEFINE_PROP_UINT32("EXP_NUMIRQ", ARMSSE, exp_numirq, 64),
     DEFINE_PROP_UINT32("MAINCLK", ARMSSE, mainclk_frq, 0),
     DEFINE_PROP_UINT32("SRAM_ADDR_WIDTH", ARMSSE, sram_addr_width, 15),
+    DEFINE_PROP_UINT32("init-svtor", ARMSSE, init_svtor, 0x10000000),
     DEFINE_PROP_END_OF_LIST()
 };
 
