@@ -2952,19 +2952,6 @@ qcow2_co_create(BlockdevCreateOptions *create_options, Error **errp)
         goto out;
     }
 
-    if (qcow2_opts->preallocation == PREALLOC_MODE_FULL ||
-        qcow2_opts->preallocation == PREALLOC_MODE_FALLOC)
-    {
-        int64_t prealloc_size =
-            qcow2_calc_prealloc_size(qcow2_opts->size, cluster_size,
-                                     refcount_order);
-
-        ret = blk_truncate(blk, prealloc_size, qcow2_opts->preallocation, errp);
-        if (ret < 0) {
-            goto out;
-        }
-    }
-
     /* Write the header */
     QEMU_BUILD_BUG_ON((1 << MIN_CLUSTER_BITS) < sizeof(*header));
     header = g_malloc0(cluster_size);
@@ -3046,7 +3033,7 @@ qcow2_co_create(BlockdevCreateOptions *create_options, Error **errp)
     }
 
     /* Okay, now that we have a valid image, let's give it the right size */
-    ret = blk_truncate(blk, qcow2_opts->size, PREALLOC_MODE_OFF, errp);
+    ret = blk_truncate(blk, qcow2_opts->size, qcow2_opts->preallocation, errp);
     if (ret < 0) {
         error_prepend(errp, "Could not resize image: ");
         goto out;
@@ -3074,19 +3061,6 @@ qcow2_co_create(BlockdevCreateOptions *create_options, Error **errp)
     if (qcow2_opts->has_encrypt) {
         ret = qcow2_set_up_encryption(blk_bs(blk), qcow2_opts->encrypt, errp);
         if (ret < 0) {
-            goto out;
-        }
-    }
-
-    /* And if we're supposed to preallocate metadata, do that now */
-    if (qcow2_opts->preallocation != PREALLOC_MODE_OFF) {
-        BDRVQcow2State *s = blk_bs(blk)->opaque;
-        qemu_co_mutex_lock(&s->lock);
-        ret = preallocate_co(blk_bs(blk), 0, qcow2_opts->size);
-        qemu_co_mutex_unlock(&s->lock);
-
-        if (ret < 0) {
-            error_setg_errno(errp, -ret, "Could not preallocate metadata");
             goto out;
         }
     }
