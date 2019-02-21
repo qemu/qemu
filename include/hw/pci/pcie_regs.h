@@ -175,4 +175,8 @@ typedef enum PCIExpLinkWidth {
                                          PCI_ERR_COR_INTERNAL |         \
                                          PCI_ERR_COR_HL_OVERFLOW)
 
+/* ACS */
+#define PCI_ACS_VER                     0x1
+#define PCI_ACS_SIZEOF                  8
+
 #endif /* QEMU_PCIE_REGS_H */
