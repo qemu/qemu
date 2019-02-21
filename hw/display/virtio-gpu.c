@@ -1238,10 +1238,9 @@ static void virtio_gpu_device_realize(DeviceState *qdev, Error **errp)
         }
     }
 
-    g->config_size = sizeof(struct virtio_gpu_config);
     g->virtio_config.num_scanouts = cpu_to_le32(g->conf.max_outputs);
     virtio_init(VIRTIO_DEVICE(g), "virtio-gpu", VIRTIO_ID_GPU,
-                g->config_size);
+                sizeof(struct virtio_gpu_config));
 
     g->req_state[0].width = g->conf.xres;
     g->req_state[0].height = g->conf.yres;
