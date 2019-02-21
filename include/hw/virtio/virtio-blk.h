@@ -56,6 +56,7 @@ typedef struct VirtIOBlock {
     bool dataplane_started;
     struct VirtIOBlockDataPlane *dataplane;
     uint64_t host_features;
+    size_t config_size;
 } VirtIOBlock;
 
 typedef struct VirtIOBlockReq {

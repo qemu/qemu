@@ -28,9 +28,28 @@
 #include "hw/virtio/virtio-bus.h"
 #include "hw/virtio/virtio-access.h"
 
-/* We don't support discard yet, hide associated config fields. */
+/* Config size before the discard support (hide associated config fields) */
 #define VIRTIO_BLK_CFG_SIZE offsetof(struct virtio_blk_config, \
                                      max_discard_sectors)
+/*
+ * Starting from the discard feature, we can use this array to properly
+ * set the config size depending on the features enabled.
+ */
+static VirtIOFeature feature_sizes[] = {
+    {.flags = 1ULL << VIRTIO_BLK_F_DISCARD,
+     .end = virtio_endof(struct virtio_blk_config, discard_sector_alignment)},
+    {.flags = 1ULL << VIRTIO_BLK_F_WRITE_ZEROES,
+     .end = virtio_endof(struct virtio_blk_config, write_zeroes_may_unmap)},
+    {}
+};
+
+static void virtio_blk_set_config_size(VirtIOBlock *s, uint64_t host_features)
+{
+    s->config_size = MAX(VIRTIO_BLK_CFG_SIZE,
+        virtio_feature_get_config_size(feature_sizes, host_features));
+
+    assert(s->config_size <= sizeof(struct virtio_blk_config));
+}
 
 static void virtio_blk_init_request(VirtIOBlock *s, VirtQueue *vq,
                                     VirtIOBlockReq *req)
@@ -763,8 +782,7 @@ static void virtio_blk_update_config(VirtIODevice *vdev, uint8_t *config)
     blkcfg.alignment_offset = 0;
     blkcfg.wce = blk_enable_write_cache(s->blk);
     virtio_stw_p(vdev, &blkcfg.num_queues, s->conf.num_queues);
-    memcpy(config, &blkcfg, VIRTIO_BLK_CFG_SIZE);
-    QEMU_BUILD_BUG_ON(VIRTIO_BLK_CFG_SIZE > sizeof(blkcfg));
+    memcpy(config, &blkcfg, s->config_size);
 }
 
 static void virtio_blk_set_config(VirtIODevice *vdev, const uint8_t *config)
@@ -772,8 +790,7 @@ static void virtio_blk_set_config(VirtIODevice *vdev, const uint8_t *config)
     VirtIOBlock *s = VIRTIO_BLK(vdev);
     struct virtio_blk_config blkcfg;
 
-    memcpy(&blkcfg, config, VIRTIO_BLK_CFG_SIZE);
-    QEMU_BUILD_BUG_ON(VIRTIO_BLK_CFG_SIZE > sizeof(blkcfg));
+    memcpy(&blkcfg, config, s->config_size);
 
     aio_context_acquire(blk_get_aio_context(s->blk));
     blk_set_enable_write_cache(s->blk, blkcfg.wce != 0);
@@ -956,7 +973,9 @@ static void virtio_blk_device_realize(DeviceState *dev, Error **errp)
         return;
     }
 
-    virtio_init(vdev, "virtio-blk", VIRTIO_ID_BLOCK, VIRTIO_BLK_CFG_SIZE);
+    virtio_blk_set_config_size(s, s->host_features);
+
+    virtio_init(vdev, "virtio-blk", VIRTIO_ID_BLOCK, s->config_size);
 
     s->blk = conf->conf.blk;
     s->rq = NULL;
