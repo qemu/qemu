@@ -217,6 +217,7 @@ struct BonitoState {
     PCIHostState parent_obj;
     qemu_irq *pic;
     PCIBonitoState *pci_dev;
+    MemoryRegion pci_mem;
 };
 
 #define TYPE_BONITO_PCI_HOST_BRIDGE "Bonito-pcihost"
@@ -598,11 +599,15 @@ static const VMStateDescription vmstate_bonito = {
 static void bonito_pcihost_realize(DeviceState *dev, Error **errp)
 {
     PCIHostState *phb = PCI_HOST_BRIDGE(dev);
+    BonitoState *bs = BONITO_PCI_HOST_BRIDGE(dev);
 
+    memory_region_init(&bs->pci_mem, OBJECT(dev), "pci.mem", BONITO_PCILO_SIZE);
     phb->bus = pci_register_root_bus(DEVICE(dev), "pci",
                                      pci_bonito_set_irq, pci_bonito_map_irq,
-                                     dev, get_system_memory(), get_system_io(),
+                                     dev, &bs->pci_mem, get_system_io(),
                                      0x28, 32, TYPE_PCI_BUS);
+    memory_region_add_subregion(get_system_memory(), BONITO_PCILO_BASE,
+                                &bs->pci_mem);
 }
 
 static void bonito_realize(PCIDevice *dev, Error **errp)
