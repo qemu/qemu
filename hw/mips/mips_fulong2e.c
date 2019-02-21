@@ -21,6 +21,7 @@
 #include "qemu/osdep.h"
 #include "qemu/units.h"
 #include "qapi/error.h"
+#include "cpu.h"
 #include "hw/hw.h"
 #include "hw/i386/pc.h"
 #include "hw/dma/i8257.h"
@@ -35,7 +36,6 @@
 #include "audio/audio.h"
 #include "qemu/log.h"
 #include "hw/loader.h"
-#include "hw/mips/bios.h"
 #include "hw/ide.h"
 #include "elf.h"
 #include "hw/isa/vt82c686.h"
@@ -51,6 +51,8 @@
 #define ENVP_NB_ENTRIES	 	16
 #define ENVP_ENTRY_SIZE	 	256
 
+/* fulong 2e has a 512k flash: Winbond W39L040AP70Z */
+#define BIOS_SIZE (512 * KiB)
 #define MAX_IDE_BUS 2
 
 /*
@@ -307,12 +309,9 @@ static void mips_fulong2e_init(MachineState *machine)
     /* fulong 2e has 256M ram. */
     ram_size = 256 * MiB;
 
-    /* fulong 2e has a 1M flash.Winbond W39L040AP70Z */
-    bios_size = 1 * MiB;
-
     /* allocate RAM */
     memory_region_allocate_system_memory(ram, NULL, "fulong2e.ram", ram_size);
-    memory_region_init_ram(bios, NULL, "fulong2e.bios", bios_size,
+    memory_region_init_ram(bios, NULL, "fulong2e.bios", BIOS_SIZE,
                            &error_fatal);
     memory_region_set_readonly(bios, true);
 
