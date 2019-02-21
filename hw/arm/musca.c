@@ -23,9 +23,11 @@
 #include "qemu/error-report.h"
 #include "qapi/error.h"
 #include "exec/address-spaces.h"
+#include "sysemu/sysemu.h"
 #include "hw/arm/arm.h"
 #include "hw/arm/armsse.h"
 #include "hw/boards.h"
+#include "hw/char/pl011.h"
 #include "hw/core/split-irq.h"
 #include "hw/misc/tz-mpc.h"
 #include "hw/misc/tz-ppc.h"
@@ -69,7 +71,7 @@ typedef struct {
     UnimplementedDeviceState mhu[2];
     UnimplementedDeviceState pwm[3];
     UnimplementedDeviceState i2s;
-    UnimplementedDeviceState uart[2];
+    PL011State uart[2];
     UnimplementedDeviceState i2c[2];
     UnimplementedDeviceState spi;
     UnimplementedDeviceState scc;
@@ -285,6 +287,28 @@ static MemoryRegion *make_rtc(MuscaMachineState *mms, void *opaque,
     return sysbus_mmio_get_region(SYS_BUS_DEVICE(rtc), 0);
 }
 
+static MemoryRegion *make_uart(MuscaMachineState *mms, void *opaque,
+                               const char *name, hwaddr size)
+{
+    PL011State *uart = opaque;
+    int i = uart - &mms->uart[0];
+    int irqbase = 7 + i * 6;
+    SysBusDevice *s;
+
+    sysbus_init_child_obj(OBJECT(mms), name, uart, sizeof(mms->uart[0]),
+                          TYPE_PL011);
+    qdev_prop_set_chr(DEVICE(uart), "chardev", serial_hd(i));
+    object_property_set_bool(OBJECT(uart), true, "realized", &error_fatal);
+    s = SYS_BUS_DEVICE(uart);
+    sysbus_connect_irq(s, 0, get_sse_irq_in(mms, irqbase + 5)); /* combined */
+    sysbus_connect_irq(s, 1, get_sse_irq_in(mms, irqbase + 0)); /* RX */
+    sysbus_connect_irq(s, 2, get_sse_irq_in(mms, irqbase + 1)); /* TX */
+    sysbus_connect_irq(s, 3, get_sse_irq_in(mms, irqbase + 2)); /* RT */
+    sysbus_connect_irq(s, 4, get_sse_irq_in(mms, irqbase + 3)); /* MS */
+    sysbus_connect_irq(s, 5, get_sse_irq_in(mms, irqbase + 4)); /* E */
+    return sysbus_mmio_get_region(SYS_BUS_DEVICE(uart), 0);
+}
+
 static MemoryRegion *make_musca_a_devs(MuscaMachineState *mms, void *opaque,
                                        const char *name, hwaddr size)
 {
@@ -300,8 +324,8 @@ static MemoryRegion *make_musca_a_devs(MuscaMachineState *mms, void *opaque,
     MemoryRegion *container = &mms->container;
 
     const PPCPortInfo devices[] = {
-        { "uart0", make_unimp_dev, &mms->uart[0], 0x1000, 0x1000 },
-        { "uart1", make_unimp_dev, &mms->uart[1], 0x2000, 0x1000 },
+        { "uart0", make_uart, &mms->uart[0], 0x1000, 0x1000 },
+        { "uart1", make_uart, &mms->uart[1], 0x2000, 0x1000 },
         { "spi", make_unimp_dev, &mms->spi, 0x3000, 0x1000 },
         { "i2c0", make_unimp_dev, &mms->i2c[0], 0x4000, 0x1000 },
         { "i2c1", make_unimp_dev, &mms->i2c[1], 0x5000, 0x1000 },
@@ -460,8 +484,8 @@ static void musca_init(MachineState *machine)
                 { "pwm1", make_unimp_dev, &mms->pwm[1], 0x40102000, 0x1000 },
                 { "pwm2", make_unimp_dev, &mms->pwm[2], 0x40103000, 0x1000 },
                 { "i2s", make_unimp_dev, &mms->i2s, 0x40104000, 0x1000 },
-                { "uart0", make_unimp_dev, &mms->uart[0], 0x40105000, 0x1000 },
-                { "uart1", make_unimp_dev, &mms->uart[1], 0x40106000, 0x1000 },
+                { "uart0", make_uart, &mms->uart[0], 0x40105000, 0x1000 },
+                { "uart1", make_uart, &mms->uart[1], 0x40106000, 0x1000 },
                 { "i2c0", make_unimp_dev, &mms->i2c[0], 0x40108000, 0x1000 },
                 { "i2c1", make_unimp_dev, &mms->i2c[1], 0x40109000, 0x1000 },
                 { "spi", make_unimp_dev, &mms->spi, 0x4010a000, 0x1000 },
