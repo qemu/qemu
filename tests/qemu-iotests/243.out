@@ -1,0 +1,26 @@
+QA output created by 243
+
+=== preallocation=off ===
+
+Formatting 'TEST_DIR/t.IMGFMT', fmt=IMGFMT size=67108864 preallocation=off
+File size: 196616
+Disk usage: low
+
+=== preallocation=metadata ===
+
+Formatting 'TEST_DIR/t.IMGFMT', fmt=IMGFMT size=67108864 preallocation=metadata
+File size: 67436544
+Disk usage: low
+
+=== preallocation=falloc ===
+
+Formatting 'TEST_DIR/t.IMGFMT', fmt=IMGFMT size=67108864 preallocation=falloc
+File size: 67436544
+Disk usage: high
+
+=== preallocation=full ===
+
+Formatting 'TEST_DIR/t.IMGFMT', fmt=IMGFMT size=67108864 preallocation=full
+File size: 67436544
+Disk usage: high
+*** done
