@@ -143,7 +143,7 @@ static uint64_t pl011_read(void *opaque, hwaddr offset,
         break;
     default:
         qemu_log_mask(LOG_GUEST_ERROR,
-                      "pl011_read: Bad offset %x\n", (int)offset);
+                      "pl011_read: Bad offset 0x%x\n", (int)offset);
         r = 0;
         break;
     }
@@ -232,7 +232,7 @@ static void pl011_write(void *opaque, hwaddr offset,
         break;
     default:
         qemu_log_mask(LOG_GUEST_ERROR,
-                      "pl011_write: Bad offset %x\n", (int)offset);
+                      "pl011_write: Bad offset 0x%x\n", (int)offset);
     }
 }
 
