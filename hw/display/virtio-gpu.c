@@ -889,12 +889,15 @@ void virtio_gpu_process_cmdq(VirtIOGPU *g)
     while (!QTAILQ_EMPTY(&g->cmdq)) {
         cmd = QTAILQ_FIRST(&g->cmdq);
 
-        /* process command */
-        VIRGL(g, virtio_gpu_virgl_process_cmd, virtio_gpu_simple_process_cmd,
-              g, cmd);
+        cmd->waiting = g->renderer_blocked;
         if (cmd->waiting) {
             break;
         }
+
+        /* process command */
+        VIRGL(g, virtio_gpu_virgl_process_cmd, virtio_gpu_simple_process_cmd,
+              g, cmd);
+
         QTAILQ_REMOVE(&g->cmdq, cmd, next);
         if (virtio_gpu_stats_enabled(g->conf)) {
             g->stats.requests++;
@@ -1030,14 +1033,28 @@ static int virtio_gpu_ui_info(void *opaque, uint32_t idx, QemuUIInfo *info)
     return 0;
 }
 
+static void virtio_gpu_gl_block(void *opaque, bool block)
+{
+    VirtIOGPU *g = opaque;
+
+    if (block) {
+        g->renderer_blocked++;
+    } else {
+        g->renderer_blocked--;
+    }
+    assert(g->renderer_blocked >= 0);
+
+    if (g->renderer_blocked == 0) {
+        virtio_gpu_process_cmdq(g);
+    }
+}
+
 const GraphicHwOps virtio_gpu_ops = {
     .invalidate = virtio_gpu_invalidate_display,
     .gfx_update = virtio_gpu_update_display,
     .text_update = virtio_gpu_text_update,
     .ui_info = virtio_gpu_ui_info,
-#ifdef CONFIG_VIRGL
     .gl_block = virtio_gpu_gl_block,
-#endif
 };
 
 static const VMStateDescription vmstate_virtio_gpu_scanout = {
