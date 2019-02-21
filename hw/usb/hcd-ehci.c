@@ -1439,9 +1439,12 @@ static int ehci_process_itd(EHCIState *ehci,
                 qemu_sglist_add(&ehci->isgl, ptr1 + off, len);
             }
 
-            pid = dir ? USB_TOKEN_IN : USB_TOKEN_OUT;
-
             dev = ehci_find_device(ehci, devaddr);
+            if (dev == NULL) {
+                ehci_trace_guest_bug(ehci, "no device found");
+                return -1;
+            }
+            pid = dir ? USB_TOKEN_IN : USB_TOKEN_OUT;
             ep = usb_ep_get(dev, pid, endp);
             if (ep && ep->type == USB_ENDPOINT_XFER_ISOC) {
                 usb_packet_setup(&ehci->ipacket, pid, ep, 0, addr, false,

@@ -2607,6 +2607,7 @@ static void xhci_port_update(XHCIPort *port, int is_detach)
 {
     uint32_t pls = PLS_RX_DETECT;
 
+    assert(port);
     port->portsc = PORTSC_PP;
     if (!is_detach && xhci_port_have_device(port)) {
         port->portsc |= PORTSC_CCS;
@@ -3215,6 +3216,7 @@ static void xhci_wakeup(USBPort *usbport)
     XHCIState *xhci = usbport->opaque;
     XHCIPort *port = xhci_lookup_port(xhci, usbport);
 
+    assert(port);
     if (get_field(port->portsc, PORTSC_PLS) != PLS_U3) {
         return;
     }
@@ -3274,10 +3276,10 @@ static USBEndpoint *xhci_epid_to_usbep(XHCIEPContext *epctx)
         return NULL;
     }
     uport = epctx->xhci->slots[epctx->slotid - 1].uport;
-    token = (epctx->epid & 1) ? USB_TOKEN_IN : USB_TOKEN_OUT;
-    if (!uport) {
+    if (!uport || !uport->dev) {
         return NULL;
     }
+    token = (epctx->epid & 1) ? USB_TOKEN_IN : USB_TOKEN_OUT;
     return usb_ep_get(uport->dev, token, epctx->epid >> 1);
 }
 

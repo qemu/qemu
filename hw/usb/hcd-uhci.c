@@ -858,13 +858,15 @@ static int uhci_handle_td(UHCIState *s, UHCIQueue *q, uint32_t qh_addr,
 
     /* Allocate new packet */
     if (q == NULL) {
-        USBDevice *dev = uhci_find_device(s, (td->token >> 8) & 0x7f);
-        USBEndpoint *ep = usb_ep_get(dev, pid, (td->token >> 15) & 0xf);
+        USBDevice *dev;
+        USBEndpoint *ep;
 
-        if (ep == NULL) {
+        dev = uhci_find_device(s, (td->token >> 8) & 0x7f);
+        if (dev == NULL) {
             return uhci_handle_td_error(s, td, td_addr, USB_RET_NODEV,
                                         int_mask);
         }
+        ep = usb_ep_get(dev, pid, (td->token >> 15) & 0xf);
         q = uhci_queue_new(s, qh_addr, td, ep);
     }
     async = uhci_async_alloc(q, td_addr);
