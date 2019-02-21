@@ -30,6 +30,7 @@
 #include "hw/misc/tz-mpc.h"
 #include "hw/misc/tz-ppc.h"
 #include "hw/misc/unimp.h"
+#include "hw/timer/pl031.h"
 
 #define MUSCA_NUMIRQ_MAX 96
 #define MUSCA_PPC_MAX 3
@@ -73,7 +74,7 @@ typedef struct {
     UnimplementedDeviceState spi;
     UnimplementedDeviceState scc;
     UnimplementedDeviceState timer;
-    UnimplementedDeviceState rtc;
+    PL031State rtc;
     UnimplementedDeviceState pvt;
     UnimplementedDeviceState sdio;
     UnimplementedDeviceState gpio;
@@ -97,6 +98,14 @@ typedef struct {
  * don't model that in our SSE-200 model yet.
  */
 #define SYSCLK_FRQ 40000000
+
+static qemu_irq get_sse_irq_in(MuscaMachineState *mms, int irqno)
+{
+    /* Return a qemu_irq which will signal IRQ n to all CPUs in the SSE. */
+    assert(irqno < MUSCA_NUMIRQ_MAX);
+
+    return qdev_get_gpio_in(DEVICE(&mms->cpu_irq_splitter[irqno]), 0);
+}
 
 /*
  * Most of the devices in the Musca board sit behind Peripheral Protection
@@ -265,6 +274,17 @@ static MemoryRegion *make_mpc(MuscaMachineState *mms, void *opaque,
     return sysbus_mmio_get_region(SYS_BUS_DEVICE(mpc), 0);
 }
 
+static MemoryRegion *make_rtc(MuscaMachineState *mms, void *opaque,
+                              const char *name, hwaddr size)
+{
+    PL031State *rtc = opaque;
+
+    sysbus_init_child_obj(OBJECT(mms), name, rtc, sizeof(mms->rtc), TYPE_PL031);
+    object_property_set_bool(OBJECT(rtc), true, "realized", &error_fatal);
+    sysbus_connect_irq(SYS_BUS_DEVICE(rtc), 0, get_sse_irq_in(mms, 39));
+    return sysbus_mmio_get_region(SYS_BUS_DEVICE(rtc), 0);
+}
+
 static MemoryRegion *make_musca_a_devs(MuscaMachineState *mms, void *opaque,
                                        const char *name, hwaddr size)
 {
@@ -287,7 +307,7 @@ static MemoryRegion *make_musca_a_devs(MuscaMachineState *mms, void *opaque,
         { "i2c1", make_unimp_dev, &mms->i2c[1], 0x5000, 0x1000 },
         { "i2s", make_unimp_dev, &mms->i2s, 0x6000, 0x1000 },
         { "pwm0", make_unimp_dev, &mms->pwm[0], 0x7000, 0x1000 },
-        { "rtc", make_unimp_dev, &mms->rtc, 0x8000, 0x1000 },
+        { "rtc", make_rtc, &mms->rtc, 0x8000, 0x1000 },
         { "qspi", make_unimp_dev, &mms->qspi, 0xa000, 0x1000 },
         { "timer", make_unimp_dev, &mms->timer, 0xb000, 0x1000 },
         { "scc", make_unimp_dev, &mms->scc, 0xc000, 0x1000 },
@@ -447,7 +467,7 @@ static void musca_init(MachineState *machine)
                 { "spi", make_unimp_dev, &mms->spi, 0x4010a000, 0x1000 },
                 { "scc", make_unimp_dev, &mms->scc, 0x5010b000, 0x1000 },
                 { "timer", make_unimp_dev, &mms->timer, 0x4010c000, 0x1000 },
-                { "rtc", make_unimp_dev, &mms->rtc, 0x4010d000, 0x1000 },
+                { "rtc", make_rtc, &mms->rtc, 0x4010d000, 0x1000 },
                 { "pvt", make_unimp_dev, &mms->pvt, 0x4010e000, 0x1000 },
                 { "sdio", make_unimp_dev, &mms->sdio, 0x4010f000, 0x1000 },
             },
