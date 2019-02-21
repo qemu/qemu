@@ -29,6 +29,7 @@ status=1	# failure is the default!
 _cleanup()
 {
     _cleanup_test_img
+    rm -f $TEST_IMG.data
 }
 trap "_cleanup; exit \$status" 0 1 2 3 15
 
@@ -54,6 +55,27 @@ for mode in off metadata falloc full; do
     # Can't use precise numbers here because they differ between filesystems
     printf "Disk usage: "
     [ $(du -B1 $TEST_IMG | cut -f1) -lt 1048576 ] && echo "low" || echo "high"
+
+done
+
+for mode in off metadata falloc full; do
+
+    echo
+    echo "=== External data file: preallocation=$mode ==="
+    echo
+
+    IMGOPTS="data_file=$TEST_IMG.data,preallocation=$mode" _make_test_img 64M
+
+    echo -n "qcow2 file size: "
+    du -b $TEST_IMG | cut -f1
+    echo -n "data file size:  "
+    du -b $TEST_IMG.data | cut -f1
+
+    # Can't use precise numbers here because they differ between filesystems
+    echo -n "qcow2 disk usage: "
+    [ $(du -B1 $TEST_IMG | cut -f1) -lt 1048576 ] && echo "low" || echo "high"
+    echo -n "data disk usage:  "
+    [ $(du -B1 $TEST_IMG.data | cut -f1) -lt 1048576 ] && echo "low" || echo "high"
 
 done
 
