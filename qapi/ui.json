@@ -1085,6 +1085,31 @@
 #
 # Display (user interface) type.
 #
+# @default: The default user interface, selecting from the first available
+#           of gtk, sdl, cocoa, and vnc.
+#
+# @none: No user interface or video output display. The guest will
+#        still see an emulated graphics card, but its output will not
+#        be displayed to the QEMU user.
+#
+# @gtk: The GTK user interface.
+#
+# @sdl: The SDL user interface.
+#
+# @egl-headless: No user interface, offload GL operations to a local
+#                DRI device. Graphical display need to be paired with
+#                VNC or Spice. (Since 3.1)
+#
+# @curses: Display video output via curses.  For graphics device
+#          models which support a text mode, QEMU can display this
+#          output using a curses/ncurses interface. Nothing is
+#          displayed when the graphics device is in graphical mode or
+#          if the graphics device does not support a text
+#          mode. Generally only the VGA device models support text
+#          mode.
+#
+# @cocoa: The Cocoa user interface.
+#
 # Since: 2.12
 #
 ##
