@@ -2007,16 +2007,15 @@ static TCGv_reg do_ibranch_priv(DisasContext *ctx, TCGv_reg offset)
         /* Privilege 0 is maximum and is allowed to decrease.  */
         return offset;
     case 3:
-        /* Privilege 3 is minimum and is never allowed increase.  */
+        /* Privilege 3 is minimum and is never allowed to increase.  */
         dest = get_temp(ctx);
         tcg_gen_ori_reg(dest, offset, 3);
         break;
     default:
-        dest = tcg_temp_new();
+        dest = get_temp(ctx);
         tcg_gen_andi_reg(dest, offset, -4);
         tcg_gen_ori_reg(dest, dest, ctx->privilege);
         tcg_gen_movcond_reg(TCG_COND_GTU, dest, dest, offset, dest, offset);
-        tcg_temp_free(dest);
         break;
     }
     return dest;
