@@ -444,8 +444,8 @@ static void pnv_psi_init(Object *obj)
 {
     PnvPsi *psi = PNV_PSI(obj);
 
-    object_initialize(&psi->ics, sizeof(psi->ics), TYPE_ICS_SIMPLE);
-    object_property_add_child(obj, "ics-psi", OBJECT(&psi->ics), NULL);
+    object_initialize_child(obj, "ics-psi",  &psi->ics, sizeof(psi->ics),
+                            TYPE_ICS_SIMPLE, &error_abort, NULL);
 }
 
 static const uint8_t irq_to_xivr[] = {

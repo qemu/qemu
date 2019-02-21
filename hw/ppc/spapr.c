@@ -1776,9 +1776,9 @@ static void spapr_create_nvram(sPAPRMachineState *spapr)
 
 static void spapr_rtc_create(sPAPRMachineState *spapr)
 {
-    object_initialize(&spapr->rtc, sizeof(spapr->rtc), TYPE_SPAPR_RTC);
-    object_property_add_child(OBJECT(spapr), "rtc", OBJECT(&spapr->rtc),
-                              &error_fatal);
+    object_initialize_child(OBJECT(spapr), "rtc",
+                            &spapr->rtc, sizeof(spapr->rtc), TYPE_SPAPR_RTC,
+                            &error_fatal, NULL);
     object_property_set_bool(OBJECT(&spapr->rtc), true, "realized",
                               &error_fatal);
     object_property_add_alias(OBJECT(spapr), "rtc-time", OBJECT(&spapr->rtc),

@@ -244,13 +244,12 @@ static void spapr_xive_instance_init(Object *obj)
 {
     sPAPRXive *xive = SPAPR_XIVE(obj);
 
-    object_initialize(&xive->source, sizeof(xive->source), TYPE_XIVE_SOURCE);
-    object_property_add_child(obj, "source", OBJECT(&xive->source), NULL);
+    object_initialize_child(obj, "source", &xive->source, sizeof(xive->source),
+                            TYPE_XIVE_SOURCE, &error_abort, NULL);
 
-    object_initialize(&xive->end_source, sizeof(xive->end_source),
-                      TYPE_XIVE_END_SOURCE);
-    object_property_add_child(obj, "end_source", OBJECT(&xive->end_source),
-                              NULL);
+    object_initialize_child(obj, "end_source", &xive->end_source,
+                            sizeof(xive->end_source), TYPE_XIVE_END_SOURCE,
+                            &error_abort, NULL);
 }
 
 static void spapr_xive_realize(DeviceState *dev, Error **errp)
