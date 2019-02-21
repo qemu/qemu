@@ -11387,9 +11387,11 @@ static bool pmsav8_mpu_lookup(CPUARMState *env, uint32_t address,
         hit = true;
     } else if (m_is_ppb_region(env, address)) {
         hit = true;
-    } else if (pmsav7_use_background_region(cpu, mmu_idx, is_user)) {
-        hit = true;
     } else {
+        if (pmsav7_use_background_region(cpu, mmu_idx, is_user)) {
+            hit = true;
+        }
+
         for (n = (int)cpu->pmsav7_dregion - 1; n >= 0; n--) {
             /* region search */
             /* Note that the base address is bits [31:5] from the register
@@ -11427,7 +11429,7 @@ static bool pmsav8_mpu_lookup(CPUARMState *env, uint32_t address,
                 *is_subpage = true;
             }
 
-            if (hit) {
+            if (matchregion != -1) {
                 /* Multiple regions match -- always a failure (unlike
                  * PMSAv7 where highest-numbered-region wins)
                  */
