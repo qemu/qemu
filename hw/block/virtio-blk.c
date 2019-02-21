@@ -245,7 +245,7 @@ static int virtio_blk_handle_scsi_req(VirtIOBlockReq *req)
      */
     scsi = (void *)elem->in_sg[elem->in_num - 2].iov_base;
 
-    if (!blk->conf.scsi) {
+    if (!virtio_has_feature(blk->host_features, VIRTIO_BLK_F_SCSI)) {
         status = VIRTIO_BLK_S_UNSUPP;
         goto fail;
     }
@@ -785,12 +785,15 @@ static uint64_t virtio_blk_get_features(VirtIODevice *vdev, uint64_t features,
 {
     VirtIOBlock *s = VIRTIO_BLK(vdev);
 
+    /* Firstly sync all virtio-blk possible supported features */
+    features |= s->host_features;
+
     virtio_add_feature(&features, VIRTIO_BLK_F_SEG_MAX);
     virtio_add_feature(&features, VIRTIO_BLK_F_GEOMETRY);
     virtio_add_feature(&features, VIRTIO_BLK_F_TOPOLOGY);
     virtio_add_feature(&features, VIRTIO_BLK_F_BLK_SIZE);
     if (virtio_has_feature(features, VIRTIO_F_VERSION_1)) {
-        if (s->conf.scsi) {
+        if (virtio_has_feature(s->host_features, VIRTIO_BLK_F_SCSI)) {
             error_setg(errp, "Please set scsi=off for virtio-blk devices in order to use virtio 1.0");
             return 0;
         }
@@ -799,9 +802,6 @@ static uint64_t virtio_blk_get_features(VirtIODevice *vdev, uint64_t features,
         virtio_add_feature(&features, VIRTIO_BLK_F_SCSI);
     }
 
-    if (s->conf.config_wce) {
-        virtio_add_feature(&features, VIRTIO_BLK_F_CONFIG_WCE);
-    }
     if (blk_enable_write_cache(s->blk)) {
         virtio_add_feature(&features, VIRTIO_BLK_F_WCE);
     }
@@ -1015,9 +1015,11 @@ static Property virtio_blk_properties[] = {
     DEFINE_BLOCK_ERROR_PROPERTIES(VirtIOBlock, conf.conf),
     DEFINE_BLOCK_CHS_PROPERTIES(VirtIOBlock, conf.conf),
     DEFINE_PROP_STRING("serial", VirtIOBlock, conf.serial),
-    DEFINE_PROP_BIT("config-wce", VirtIOBlock, conf.config_wce, 0, true),
+    DEFINE_PROP_BIT64("config-wce", VirtIOBlock, host_features,
+                      VIRTIO_BLK_F_CONFIG_WCE, true),
 #ifdef __linux__
-    DEFINE_PROP_BIT("scsi", VirtIOBlock, conf.scsi, 0, false),
+    DEFINE_PROP_BIT64("scsi", VirtIOBlock, host_features,
+                      VIRTIO_BLK_F_SCSI, false),
 #endif
     DEFINE_PROP_BIT("request-merging", VirtIOBlock, conf.request_merging, 0,
                     true),
