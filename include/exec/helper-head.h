@@ -30,6 +30,7 @@
 #define dh_alias_f32 i32
 #define dh_alias_f64 i64
 #define dh_alias_ptr ptr
+#define dh_alias_cptr ptr
 #define dh_alias_void void
 #define dh_alias_noreturn noreturn
 #define dh_alias(t) glue(dh_alias_, t)
@@ -43,6 +44,7 @@
 #define dh_ctype_f32 float32
 #define dh_ctype_f64 float64
 #define dh_ctype_ptr void *
+#define dh_ctype_cptr const void *
 #define dh_ctype_void void
 #define dh_ctype_noreturn void QEMU_NORETURN
 #define dh_ctype(t) dh_ctype_##t
@@ -88,6 +90,7 @@
 #define dh_is_64bit_i32 0
 #define dh_is_64bit_i64 1
 #define dh_is_64bit_ptr (sizeof(void *) == 8)
+#define dh_is_64bit_cptr dh_is_64bit_ptr
 #define dh_is_64bit(t) glue(dh_is_64bit_, dh_alias(t))
 
 #define dh_is_signed_void 0
@@ -105,6 +108,7 @@
    extension instructions that may be required, e.g. ia64's addp4.  But
    for now we don't support any 64-bit targets with 32-bit pointers.  */
 #define dh_is_signed_ptr 0
+#define dh_is_signed_cptr dh_is_signed_ptr
 #define dh_is_signed_env dh_is_signed_ptr
 #define dh_is_signed(t) dh_is_signed_##t
 
@@ -117,6 +121,7 @@
 #define dh_callflag_f32  0
 #define dh_callflag_f64  0
 #define dh_callflag_ptr  0
+#define dh_callflag_cptr dh_callflag_ptr
 #define dh_callflag_void 0
 #define dh_callflag_noreturn TCG_CALL_NO_RETURN
 #define dh_callflag(t) glue(dh_callflag_, dh_alias(t))
