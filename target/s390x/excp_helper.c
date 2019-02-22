@@ -347,10 +347,41 @@ static void do_io_interrupt(CPUS390XState *env)
     load_psw(env, mask, addr);
 }
 
+typedef struct MchkExtSaveArea {
+    uint64_t    vregs[32][2];                     /* 0x0000 */
+    uint8_t     pad_0x0200[0x0400 - 0x0200];      /* 0x0200 */
+} MchkExtSaveArea;
+QEMU_BUILD_BUG_ON(sizeof(MchkExtSaveArea) != 1024);
+
+static int mchk_store_vregs(CPUS390XState *env, uint64_t mcesao)
+{
+    hwaddr len = sizeof(MchkExtSaveArea);
+    MchkExtSaveArea *sa;
+    int i;
+
+    sa = cpu_physical_memory_map(mcesao, &len, 1);
+    if (!sa) {
+        return -EFAULT;
+    }
+    if (len != sizeof(MchkExtSaveArea)) {
+        cpu_physical_memory_unmap(sa, len, 1, 0);
+        return -EFAULT;
+    }
+
+    for (i = 0; i < 32; i++) {
+        sa->vregs[i][0] = cpu_to_be64(env->vregs[i][0].ll);
+        sa->vregs[i][1] = cpu_to_be64(env->vregs[i][1].ll);
+    }
+
+    cpu_physical_memory_unmap(sa, len, 1, len);
+    return 0;
+}
+
 static void do_mchk_interrupt(CPUS390XState *env)
 {
     QEMUS390FLICState *flic = QEMU_S390_FLIC(s390_get_flic());
-    uint64_t mask, addr;
+    uint64_t mcic = s390_build_validity_mcic() | MCIC_SC_CP;
+    uint64_t mask, addr, mcesao = 0;
     LowCore *lowcore;
     int i;
 
@@ -361,6 +392,17 @@ static void do_mchk_interrupt(CPUS390XState *env)
     qemu_s390_flic_dequeue_crw_mchk(flic);
 
     lowcore = cpu_map_lowcore(env);
+
+    /* extended save area */
+    if (mcic & MCIC_VB_VR) {
+        /* length and alignment is 1024 bytes */
+        mcesao = be64_to_cpu(lowcore->mcesad) & ~0x3ffull;
+    }
+
+    /* try to store vector registers */
+    if (!mcesao || mchk_store_vregs(env, mcesao)) {
+        mcic &= ~MCIC_VB_VR;
+    }
 
     /* we are always in z/Architecture mode */
     lowcore->ar_access_id = 1;
@@ -377,7 +419,7 @@ static void do_mchk_interrupt(CPUS390XState *env)
     lowcore->cpu_timer_save_area = cpu_to_be64(env->cputm);
     lowcore->clock_comp_save_area = cpu_to_be64(env->ckc >> 8);
 
-    lowcore->mcic = cpu_to_be64(s390_build_validity_mcic() | MCIC_SC_CP);
+    lowcore->mcic = cpu_to_be64(mcic);
     lowcore->mcck_old_psw.mask = cpu_to_be64(get_psw_mask(env));
     lowcore->mcck_old_psw.addr = cpu_to_be64(env->psw.addr);
     mask = be64_to_cpu(lowcore->mcck_new_psw.mask);

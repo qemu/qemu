@@ -101,7 +101,9 @@ typedef struct LowCore {
     /* whether the kernel died with panic() or not */
     uint32_t        panic_magic;              /* 0xe00 */
 
-    uint8_t         pad13[0x11b8 - 0xe04];    /* 0xe04 */
+    uint8_t         pad13[0x11b0 - 0xe04];    /* 0xe04 */
+
+    uint64_t        mcesad;                    /* 0x11B0 */
 
     /* 64 bit extparam used for pfault, diag 250 etc  */
     uint64_t        ext_params2;               /* 0x11B8 */
