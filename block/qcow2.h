@@ -225,7 +225,8 @@ enum {
     QCOW2_AUTOCLEAR_BITMAPS             = 1 << QCOW2_AUTOCLEAR_BITMAPS_BITNR,
     QCOW2_AUTOCLEAR_DATA_FILE_RAW       = 1 << QCOW2_AUTOCLEAR_DATA_FILE_RAW_BITNR,
 
-    QCOW2_AUTOCLEAR_MASK                = QCOW2_AUTOCLEAR_BITMAPS,
+    QCOW2_AUTOCLEAR_MASK                = QCOW2_AUTOCLEAR_BITMAPS
+                                        | QCOW2_AUTOCLEAR_DATA_FILE_RAW,
 };
 
 enum qcow2_discard_type {
@@ -472,6 +473,12 @@ static inline bool has_data_file(BlockDriverState *bs)
 {
     BDRVQcow2State *s = bs->opaque;
     return (s->data_file != bs->file);
+}
+
+static inline bool data_file_is_raw(BlockDriverState *bs)
+{
+    BDRVQcow2State *s = bs->opaque;
+    return !!(s->autoclear_features & QCOW2_AUTOCLEAR_DATA_FILE_RAW);
 }
 
 static inline int64_t start_of_cluster(BDRVQcow2State *s, int64_t offset)

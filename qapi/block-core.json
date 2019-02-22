@@ -62,6 +62,10 @@
 # @data-file: the filename of the external data file that is stored in the
 #             image and used as a default for opening the image (since: 4.0)
 #
+# @data-file-raw: True if the external data file must stay valid as a
+#                 standalone (read-only) raw image without looking at qcow2
+#                 metadata (since: 4.0)
+#
 # @lazy-refcounts: on or off; only valid for compat >= 1.1
 #
 # @corrupt: true if the image has been marked corrupt; only valid for
@@ -80,6 +84,7 @@
   'data': {
       'compat': 'str',
       '*data-file': 'str',
+      '*data-file-raw': 'bool',
       '*lazy-refcounts': 'bool',
       '*corrupt': 'bool',
       'refcount-bits': 'int',
@@ -4144,6 +4149,9 @@
 # @data-file        Node to use as an external data file in which all guest
 #                   data is stored so that only metadata remains in the qcow2
 #                   file (since: 4.0)
+# @data-file-raw    True if the external data file must stay valid as a
+#                   standalone (read-only) raw image without looking at qcow2
+#                   metadata (default: false; since: 4.0)
 # @size             Size of the virtual disk in bytes
 # @version          Compatibility level (default: v3)
 # @backing-file     File name of the backing file if a backing file
@@ -4160,6 +4168,7 @@
 { 'struct': 'BlockdevCreateOptionsQcow2',
   'data': { 'file':             'BlockdevRef',
             '*data-file':       'BlockdevRef',
+            '*data-file-raw':   'bool',
             'size':             'size',
             '*version':         'BlockdevQcow2Version',
             '*backing-file':    'str',

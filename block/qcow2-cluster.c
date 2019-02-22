@@ -1783,6 +1783,16 @@ int qcow2_cluster_zeroize(BlockDriverState *bs, uint64_t offset,
     int64_t cleared;
     int ret;
 
+    /* If we have to stay in sync with an external data file, zero out
+     * s->data_file first. */
+    if (data_file_is_raw(bs)) {
+        assert(has_data_file(bs));
+        ret = bdrv_co_pwrite_zeroes(s->data_file, offset, bytes, flags);
+        if (ret < 0) {
+            return ret;
+        }
+    }
+
     /* Caller must pass aligned values, except at image end */
     assert(QEMU_IS_ALIGNED(offset, s->cluster_size));
     assert(QEMU_IS_ALIGNED(end_offset, s->cluster_size) ||

@@ -1498,8 +1498,14 @@ static int coroutine_fn qcow2_do_open(BlockDriverState *bs, QDict *options,
                              "external data file");
             ret = -EINVAL;
             goto fail;
-        } else {
-            s->data_file = bs->file;
+        }
+
+        s->data_file = bs->file;
+
+        if (data_file_is_raw(bs)) {
+            error_setg(errp, "data-file-raw requires a data file");
+            ret = -EINVAL;
+            goto fail;
         }
     }
 
@@ -2606,6 +2612,12 @@ static int qcow2_change_backing_file(BlockDriverState *bs,
 {
     BDRVQcow2State *s = bs->opaque;
 
+    /* Adding a backing file means that the external data file alone won't be
+     * enough to make sense of the content */
+    if (backing_file && data_file_is_raw(bs)) {
+        return -EINVAL;
+    }
+
     if (backing_file && strlen(backing_file) > 1023) {
         return -EINVAL;
     }
@@ -3016,6 +3028,18 @@ qcow2_co_create(BlockdevCreateOptions *create_options, Error **errp)
     }
     refcount_order = ctz32(qcow2_opts->refcount_bits);
 
+    if (qcow2_opts->data_file_raw && !qcow2_opts->data_file) {
+        error_setg(errp, "data-file-raw requires data-file");
+        ret = -EINVAL;
+        goto out;
+    }
+    if (qcow2_opts->data_file_raw && qcow2_opts->has_backing_file) {
+        error_setg(errp, "Backing file and data-file-raw cannot be used at "
+                   "the same time");
+        ret = -EINVAL;
+        goto out;
+    }
+
     if (qcow2_opts->data_file) {
         if (version < 3) {
             error_setg(errp, "External data files are only supported with "
@@ -3071,6 +3095,10 @@ qcow2_co_create(BlockdevCreateOptions *create_options, Error **errp)
     if (data_bs) {
         header->incompatible_features |=
             cpu_to_be64(QCOW2_INCOMPAT_DATA_FILE);
+    }
+    if (qcow2_opts->data_file_raw) {
+        header->autoclear_features |=
+            cpu_to_be64(QCOW2_AUTOCLEAR_DATA_FILE_RAW);
     }
 
     ret = blk_pwrite(blk, 0, header, cluster_size, 0);
@@ -3253,6 +3281,7 @@ static int coroutine_fn qcow2_co_create_opts(const char *filename, QemuOpts *opt
         { BLOCK_OPT_REFCOUNT_BITS,      "refcount-bits" },
         { BLOCK_OPT_ENCRYPT,            BLOCK_OPT_ENCRYPT_FORMAT },
         { BLOCK_OPT_COMPAT_LEVEL,       "version" },
+        { BLOCK_OPT_DATA_FILE_RAW,      "data-file-raw" },
         { NULL, NULL },
     };
 
@@ -4621,6 +4650,8 @@ static ImageInfoSpecific *qcow2_get_specific_info(BlockDriverState *bs,
             .bitmaps            = bitmaps,
             .has_data_file      = !!s->image_data_file,
             .data_file          = g_strdup(s->image_data_file),
+            .has_data_file_raw  = has_data_file(bs),
+            .data_file_raw      = data_file_is_raw(bs),
         };
     } else {
         /* if this assertion fails, this probably means a new version was
@@ -4825,6 +4856,7 @@ static int qcow2_amend_options(BlockDriverState *bs, QemuOpts *opts,
     uint64_t new_size = 0;
     const char *backing_file = NULL, *backing_format = NULL, *data_file = NULL;
     bool lazy_refcounts = s->use_lazy_refcounts;
+    bool data_file_raw = data_file_is_raw(bs);
     const char *compat = NULL;
     uint64_t cluster_size = s->cluster_size;
     bool encrypt;
@@ -4912,6 +4944,14 @@ static int qcow2_amend_options(BlockDriverState *bs, QemuOpts *opts,
                                  "use an external data file");
                 return -EINVAL;
             }
+        } else if (!strcmp(desc->name, BLOCK_OPT_DATA_FILE_RAW)) {
+            data_file_raw = qemu_opt_get_bool(opts, BLOCK_OPT_DATA_FILE_RAW,
+                                              data_file_raw);
+            if (data_file_raw && !data_file_is_raw(bs)) {
+                error_setg(errp, "data-file-raw cannot be set on existing "
+                                 "images");
+                return -EINVAL;
+            }
         } else {
             /* if this point is reached, this probably means a new option was
              * added without having it covered here */
@@ -4956,6 +4996,13 @@ static int qcow2_amend_options(BlockDriverState *bs, QemuOpts *opts,
         if (ret < 0) {
             return ret;
         }
+    }
+
+    /* data-file-raw blocks backing files, so clear it first if requested */
+    if (data_file_raw) {
+        s->autoclear_features |= QCOW2_AUTOCLEAR_DATA_FILE_RAW;
+    } else {
+        s->autoclear_features &= ~QCOW2_AUTOCLEAR_DATA_FILE_RAW;
     }
 
     if (data_file) {
@@ -5120,6 +5167,11 @@ static QemuOptsList qcow2_create_opts = {
             .name = BLOCK_OPT_DATA_FILE,
             .type = QEMU_OPT_STRING,
             .help = "File name of an external data file"
+        },
+        {
+            .name = BLOCK_OPT_DATA_FILE_RAW,
+            .type = QEMU_OPT_BOOL,
+            .help = "The external data file must stay valid as a raw image"
         },
         {
             .name = BLOCK_OPT_ENCRYPT,
