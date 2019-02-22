@@ -62,6 +62,21 @@ void QEMU_NORETURN tcg_s390_data_exception(CPUS390XState *env, uint32_t dxc,
     tcg_s390_program_interrupt(env, PGM_DATA, ILEN_AUTO, ra);
 }
 
+void QEMU_NORETURN tcg_s390_vector_exception(CPUS390XState *env, uint32_t vxc,
+                                             uintptr_t ra)
+{
+    g_assert(vxc <= 0xff);
+#if !defined(CONFIG_USER_ONLY)
+    /* Always store the VXC into the lowcore, without AFP it is undefined */
+    stl_phys(CPU(s390_env_get_cpu(env))->as,
+             env->psa + offsetof(LowCore, data_exc_code), vxc);
+#endif
+
+    /* Always store the VXC into the FPC, without AFP it is undefined */
+    env->fpc = deposit32(env->fpc, 8, 8, vxc);
+    tcg_s390_program_interrupt(env, PGM_VECTOR_PROCESSING, ILEN_AUTO, ra);
+}
+
 void HELPER(data_exception)(CPUS390XState *env, uint32_t dxc)
 {
     tcg_s390_data_exception(env, dxc, GETPC());

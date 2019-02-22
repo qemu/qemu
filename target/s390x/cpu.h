@@ -215,6 +215,7 @@ extern const struct VMStateDescription vmstate_s390_cpu;
 #define PGM_SPECIAL_OP                  0x0013
 #define PGM_OPERAND                     0x0015
 #define PGM_TRACE_TABLE                 0x0016
+#define PGM_VECTOR_PROCESSING           0x001b
 #define PGM_SPACE_SWITCH                0x001c
 #define PGM_HFP_SQRT                    0x001d
 #define PGM_PC_TRANS_SPEC               0x001f

@@ -18,5 +18,7 @@ void QEMU_NORETURN tcg_s390_program_interrupt(CPUS390XState *env, uint32_t code,
                                               int ilen, uintptr_t ra);
 void QEMU_NORETURN tcg_s390_data_exception(CPUS390XState *env, uint32_t dxc,
                                            uintptr_t ra);
+void QEMU_NORETURN tcg_s390_vector_exception(CPUS390XState *env, uint32_t vxc,
+                                             uintptr_t ra);
 
 #endif /* TCG_S390X_H */
