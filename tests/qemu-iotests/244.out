@@ -1,0 +1,125 @@
+QA output created by 244
+
+=== Create and open image with external data file ===
+
+With data file name in the image:
+Formatting 'TEST_DIR/t.IMGFMT', fmt=IMGFMT size=67108864 data_file=TEST_DIR/t.IMGFMT.data
+No errors were found on the image.
+read 65536/65536 bytes at offset 0
+64 KiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
+read 65536/65536 bytes at offset 0
+64 KiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
+can't open device TEST_DIR/t.qcow2: Could not open 'inexistent': No such file or directory
+no file open, try 'help open'
+
+Data file required, but without data file name in the image:
+can't open device TEST_DIR/t.qcow2: 'data-file' is required for this image
+no file open, try 'help open'
+read 65536/65536 bytes at offset 0
+64 KiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
+can't open device TEST_DIR/t.qcow2: Could not open 'inexistent': No such file or directory
+no file open, try 'help open'
+
+Setting data-file for an image with internal data:
+Formatting 'TEST_DIR/t.IMGFMT', fmt=IMGFMT size=67108864
+can't open device TEST_DIR/t.qcow2: 'data-file' can only be set for images with an external data file
+no file open, try 'help open'
+can't open device TEST_DIR/t.qcow2: Could not open 'inexistent': No such file or directory
+no file open, try 'help open'
+
+=== Conflicting features ===
+
+Convert to compressed target with data file:
+Formatting 'TEST_DIR/t.IMGFMT.src', fmt=IMGFMT size=67108864
+wrote 1048576/1048576 bytes at offset 0
+1 MiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
+qemu-img: error while writing sector 0: Operation not supported
+
+Convert uncompressed, then write compressed data manually:
+Images are identical.
+write failed: Operation not supported
+No errors were found on the image.
+
+Take an internal snapshot:
+qemu-img: Could not create snapshot 'test': -95 (Operation not supported)
+No errors were found on the image.
+
+=== Standalone image with external data file (efficient) ===
+
+Formatting 'TEST_DIR/t.IMGFMT', fmt=IMGFMT size=67108864 data_file=TEST_DIR/t.IMGFMT.data
+qcow2 file size before I/O: 196616
+
+wrote 4194304/4194304 bytes at offset 1048576
+4 MiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
+discard 2097152/2097152 bytes at offset 2097152
+2 MiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
+wrote 3145728/3145728 bytes at offset 3145728
+3 MiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
+No errors were found on the image.
+
+[{ "start": 0, "length": 1048576, "depth": 0, "zero": true, "data": false},
+{ "start": 1048576, "length": 1048576, "depth": 0, "zero": false, "data": true, "offset": 1048576},
+{ "start": 2097152, "length": 2097152, "depth": 0, "zero": true, "data": false},
+{ "start": 4194304, "length": 1048576, "depth": 0, "zero": true, "data": false, "offset": 4194304},
+{ "start": 5242880, "length": 61865984, "depth": 0, "zero": true, "data": false}]
+
+read 1048576/1048576 bytes at offset 0
+1 MiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
+read 1048576/1048576 bytes at offset 1048576
+1 MiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
+read 4194304/4194304 bytes at offset 2097152
+4 MiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
+
+read 1048576/1048576 bytes at offset 0
+1 MiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
+read 1048576/1048576 bytes at offset 1048576
+1 MiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
+read 2097152/2097152 bytes at offset 2097152
+2 MiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
+read 1048576/1048576 bytes at offset 4194304
+1 MiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
+read 1048576/1048576 bytes at offset 5242880
+1 MiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
+qcow2 file size after I/O: 327680
+
+=== Standalone image with external data file (valid raw) ===
+
+Formatting 'TEST_DIR/t.IMGFMT', fmt=IMGFMT size=67108864 data_file=TEST_DIR/t.IMGFMT.data data_file_raw=on
+qcow2 file size before I/O: 196616
+
+wrote 4194304/4194304 bytes at offset 1048576
+4 MiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
+discard 2097152/2097152 bytes at offset 2097152
+2 MiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
+wrote 3145728/3145728 bytes at offset 3145728
+3 MiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
+No errors were found on the image.
+
+[{ "start": 0, "length": 1048576, "depth": 0, "zero": true, "data": false},
+{ "start": 1048576, "length": 1048576, "depth": 0, "zero": false, "data": true, "offset": 1048576},
+{ "start": 2097152, "length": 2097152, "depth": 0, "zero": true, "data": false},
+{ "start": 4194304, "length": 1048576, "depth": 0, "zero": true, "data": false, "offset": 4194304},
+{ "start": 5242880, "length": 61865984, "depth": 0, "zero": true, "data": false}]
+
+read 1048576/1048576 bytes at offset 0
+1 MiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
+read 1048576/1048576 bytes at offset 1048576
+1 MiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
+read 4194304/4194304 bytes at offset 2097152
+4 MiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
+
+Images are identical.
+qcow2 file size after I/O: 327680
+
+=== bdrv_co_block_status test for file and offset=0 ===
+
+Formatting 'TEST_DIR/t.IMGFMT', fmt=IMGFMT size=67108864 data_file=TEST_DIR/t.IMGFMT.data
+wrote 1048576/1048576 bytes at offset 0
+1 MiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
+read 1048576/1048576 bytes at offset 0
+1 MiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
+Offset          Length          Mapped to       File
+0               0x100000        0               TEST_DIR/t.qcow2.data
+[{ "start": 0, "length": 1048576, "depth": 0, "zero": false, "data": true, "offset": 0},
+{ "start": 1048576, "length": 66060288, "depth": 0, "zero": true, "data": false}]
+*** done
