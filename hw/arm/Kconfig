@@ -75,6 +75,12 @@ config MAINSTONE
     select PFLASH_CFI01
     select SMC91C111
 
+config MUSCA
+    bool
+    select ARMSSE
+    select PL011
+    select PL031
+
 config MUSICPAL
     bool
     select BITBANG_I2C
@@ -426,7 +432,4 @@ config ARMSSE_CPUID
     bool
 
 config ARMSSE_MHU
-    bool
-
-config MUSCA
     bool
