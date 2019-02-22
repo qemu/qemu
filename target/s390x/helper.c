@@ -272,32 +272,43 @@ int s390_store_status(S390CPU *cpu, hwaddr addr, bool store_arch)
     return 0;
 }
 
-#define ADTL_GS_OFFSET   1024 /* offset of GS data in adtl save area */
+typedef struct SigpAdtlSaveArea {
+    uint64_t    vregs[32][2];                     /* 0x0000 */
+    uint8_t     pad_0x0200[0x0400 - 0x0200];      /* 0x0200 */
+    uint64_t    gscb[4];                          /* 0x0400 */
+    uint8_t     pad_0x0420[0x1000 - 0x0420];      /* 0x0420 */
+} SigpAdtlSaveArea;
+QEMU_BUILD_BUG_ON(sizeof(SigpAdtlSaveArea) != 4096);
+
 #define ADTL_GS_MIN_SIZE 2048 /* minimal size of adtl save area for GS */
 int s390_store_adtl_status(S390CPU *cpu, hwaddr addr, hwaddr len)
 {
+    SigpAdtlSaveArea *sa;
     hwaddr save = len;
-    void *mem;
+    int i;
 
-    mem = cpu_physical_memory_map(addr, &save, 1);
-    if (!mem) {
+    sa = cpu_physical_memory_map(addr, &save, 1);
+    if (!sa) {
         return -EFAULT;
     }
     if (save != len) {
-        cpu_physical_memory_unmap(mem, len, 1, 0);
+        cpu_physical_memory_unmap(sa, len, 1, 0);
         return -EFAULT;
     }
 
-    /* FIXME: as soon as TCG supports these features, convert cpu->be */
     if (s390_has_feat(S390_FEAT_VECTOR)) {
-        memcpy(mem, &cpu->env.vregs, 512);
+        for (i = 0; i < 32; i++) {
+            sa->vregs[i][0] = cpu_to_be64(cpu->env.vregs[i][0].ll);
+            sa->vregs[i][1] = cpu_to_be64(cpu->env.vregs[i][1].ll);
+        }
     }
     if (s390_has_feat(S390_FEAT_GUARDED_STORAGE) && len >= ADTL_GS_MIN_SIZE) {
-        memcpy(mem + ADTL_GS_OFFSET, &cpu->env.gscb, 32);
+        for (i = 0; i < 4; i++) {
+            sa->gscb[i] = cpu_to_be64(cpu->env.gscb[i]);
+        }
     }
 
-    cpu_physical_memory_unmap(mem, len, 1, len);
-
+    cpu_physical_memory_unmap(sa, len, 1, len);
     return 0;
 }
 #endif /* CONFIG_USER_ONLY */
