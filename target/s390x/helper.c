@@ -211,7 +211,7 @@ void s390_cpu_recompute_watchpoints(CPUState *cs)
     }
 }
 
-struct sigp_save_area {
+typedef struct SigpSaveArea {
     uint64_t    fprs[16];                       /* 0x0000 */
     uint64_t    grs[16];                        /* 0x0080 */
     PSW         psw;                            /* 0x0100 */
@@ -225,13 +225,13 @@ struct sigp_save_area {
     uint8_t     pad_0x0138[0x0140 - 0x0138];    /* 0x0138 */
     uint32_t    ars[16];                        /* 0x0140 */
     uint64_t    crs[16];                        /* 0x0384 */
-};
-QEMU_BUILD_BUG_ON(sizeof(struct sigp_save_area) != 512);
+} SigpSaveArea;
+QEMU_BUILD_BUG_ON(sizeof(SigpSaveArea) != 512);
 
 int s390_store_status(S390CPU *cpu, hwaddr addr, bool store_arch)
 {
     static const uint8_t ar_id = 1;
-    struct sigp_save_area *sa;
+    SigpSaveArea *sa;
     hwaddr len = sizeof(*sa);
     int i;
 
