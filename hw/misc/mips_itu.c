@@ -94,7 +94,7 @@ void itc_reconfigure(MIPSITUState *tag)
 
     if (tag->saar_present) {
         address = ((*(uint64_t *) tag->saar) & 0xFFFFFFFFE000ULL) << 4;
-        size = 1 << ((*(uint64_t *) tag->saar >> 1) & 0x1f);
+        size = 1ULL << ((*(uint64_t *) tag->saar >> 1) & 0x1f);
         is_enabled = *(uint64_t *) tag->saar & 1;
     }
 
