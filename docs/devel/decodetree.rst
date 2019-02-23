@@ -161,3 +161,61 @@ which will, in part, invoke::
 and::
 
   trans_addl_i(ctx, &arg_opi, insn)
+
+Pattern Groups
+==============
+
+Syntax::
+
+  group    := '{' ( pat_def | group )+ '}'
+
+A *group* begins with a lone open-brace, with all subsequent lines
+indented two spaces, and ending with a lone close-brace.  Groups
+may be nested, increasing the required indentation of the lines
+within the nested group to two spaces per nesting level.
+
+Unlike ungrouped patterns, grouped patterns are allowed to overlap.
+Conflicts are resolved by selecting the patterns in order.  If all
+of the fixedbits for a pattern match, its translate function will
+be called.  If the translate function returns false, then subsequent
+patterns within the group will be matched.
+
+The following example from PA-RISC shows specialization of the *or*
+instruction::
+
+  {
+    {
+      nop   000010 ----- ----- 0000 001001 0 00000
+      copy  000010 00000 r1:5  0000 001001 0 rt:5
+    }
+    or      000010 rt2:5 r1:5  cf:4 001001 0 rt:5
+  }
+
+When the *cf* field is zero, the instruction has no side effects,
+and may be specialized.  When the *rt* field is zero, the output
+is discarded and so the instruction has no effect.  When the *rt2*
+field is zero, the operation is ``reg[rt] | 0`` and so encodes
+the canonical register copy operation.
+
+The output from the generator might look like::
+
+  switch (insn & 0xfc000fe0) {
+  case 0x08000240:
+    /* 000010.. ........ ....0010 010..... */
+    if ((insn & 0x0000f000) == 0x00000000) {
+        /* 000010.. ........ 00000010 010..... */
+        if ((insn & 0x0000001f) == 0x00000000) {
+            /* 000010.. ........ 00000010 01000000 */
+            extract_decode_Fmt_0(&u.f_decode0, insn);
+            if (trans_nop(ctx, &u.f_decode0)) return true;
+        }
+        if ((insn & 0x03e00000) == 0x00000000) {
+            /* 00001000 000..... 00000010 010..... */
+            extract_decode_Fmt_1(&u.f_decode1, insn);
+            if (trans_copy(ctx, &u.f_decode1)) return true;
+        }
+    }
+    extract_decode_Fmt_2(&u.f_decode2, insn);
+    if (trans_or(ctx, &u.f_decode2)) return true;
+    return false;
+  }
