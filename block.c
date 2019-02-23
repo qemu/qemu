@@ -3542,7 +3542,9 @@ void bdrv_close_all(void)
 
 static bool should_update_child(BdrvChild *c, BlockDriverState *to)
 {
-    BdrvChild *to_c;
+    GQueue *queue;
+    GHashTable *found;
+    bool ret;
 
     if (c->role->stay_at_node) {
         return false;
@@ -3578,14 +3580,43 @@ static bool should_update_child(BdrvChild *c, BlockDriverState *to)
      * if A is a child of B, that means we cannot replace A by B there
      * because that would create a loop.  Silently detaching A from B
      * is also not really an option.  So overall just leaving A in
-     * place there is the most sensible choice. */
-    QLIST_FOREACH(to_c, &to->children, next) {
-        if (to_c == c) {
-            return false;
+     * place there is the most sensible choice.
+     *
+     * We would also create a loop in any cases where @c is only
+     * indirectly referenced by @to. Prevent this by returning false
+     * if @c is found (by breadth-first search) anywhere in the whole
+     * subtree of @to.
+     */
+
+    ret = true;
+    found = g_hash_table_new(NULL, NULL);
+    g_hash_table_add(found, to);
+    queue = g_queue_new();
+    g_queue_push_tail(queue, to);
+
+    while (!g_queue_is_empty(queue)) {
+        BlockDriverState *v = g_queue_pop_head(queue);
+        BdrvChild *c2;
+
+        QLIST_FOREACH(c2, &v->children, next) {
+            if (c2 == c) {
+                ret = false;
+                break;
+            }
+
+            if (g_hash_table_contains(found, c2->bs)) {
+                continue;
+            }
+
+            g_queue_push_tail(queue, c2->bs);
+            g_hash_table_add(found, c2->bs);
         }
     }
 
-    return true;
+    g_queue_free(queue);
+    g_hash_table_destroy(found);
+
+    return ret;
 }
 
 void bdrv_replace_node(BlockDriverState *from, BlockDriverState *to,
