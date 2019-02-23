@@ -1954,12 +1954,31 @@ static int bdrv_child_check_perm(BdrvChild *c, BlockReopenQueue *q,
     ret = bdrv_check_update_perm(c->bs, q, perm, shared, ignore_children, errp);
     g_slist_free(ignore_children);
 
-    return ret;
+    if (ret < 0) {
+        return ret;
+    }
+
+    if (!c->has_backup_perm) {
+        c->has_backup_perm = true;
+        c->backup_perm = c->perm;
+        c->backup_shared_perm = c->shared_perm;
+    }
+    /*
+     * Note: it's OK if c->has_backup_perm was already set, as we can find the
+     * same child twice during check_perm procedure
+     */
+
+    c->perm = perm;
+    c->shared_perm = shared;
+
+    return 0;
 }
 
 static void bdrv_child_set_perm(BdrvChild *c, uint64_t perm, uint64_t shared)
 {
     uint64_t cumulative_perms, cumulative_shared_perms;
+
+    c->has_backup_perm = false;
 
     c->perm = perm;
     c->shared_perm = shared;
@@ -1971,6 +1990,12 @@ static void bdrv_child_set_perm(BdrvChild *c, uint64_t perm, uint64_t shared)
 
 static void bdrv_child_abort_perm_update(BdrvChild *c)
 {
+    if (c->has_backup_perm) {
+        c->perm = c->backup_perm;
+        c->shared_perm = c->backup_shared_perm;
+        c->has_backup_perm = false;
+    }
+
     bdrv_abort_perm_update(c->bs);
 }
 

@@ -662,6 +662,11 @@ struct BdrvChild {
      */
     uint64_t shared_perm;
 
+    /* backup of permissions during permission update procedure */
+    bool has_backup_perm;
+    uint64_t backup_perm;
+    uint64_t backup_shared_perm;
+
     QLIST_ENTRY(BdrvChild) next;
     QLIST_ENTRY(BdrvChild) next_parent;
 };
