@@ -2725,6 +2725,12 @@ static DisasJumpType op_lxeb(DisasContext *s, DisasOps *o)
     return DISAS_NEXT;
 }
 
+static DisasJumpType op_lde(DisasContext *s, DisasOps *o)
+{
+    tcg_gen_shli_i64(o->out, o->in2, 32);
+    return DISAS_NEXT;
+}
+
 static DisasJumpType op_llgt(DisasContext *s, DisasOps *o)
 {
     tcg_gen_andi_i64(o->out, o->in2, 0x7fffffff);
