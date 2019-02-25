@@ -3894,7 +3894,6 @@ qcow2_co_pwritev_compressed(BlockDriverState *bs, uint64_t offset,
 {
     BDRVQcow2State *s = bs->opaque;
     QEMUIOVector hd_qiov;
-    struct iovec iov;
     int ret;
     size_t out_len;
     uint8_t *buf, *out_buf;
@@ -3960,11 +3959,7 @@ qcow2_co_pwritev_compressed(BlockDriverState *bs, uint64_t offset,
         goto fail;
     }
 
-    iov = (struct iovec) {
-        .iov_base   = out_buf,
-        .iov_len    = out_len,
-    };
-    qemu_iovec_init_external(&hd_qiov, &iov, 1);
+    qemu_iovec_init_buf(&hd_qiov, out_buf, out_len);
 
     BLKDBG_EVENT(bs->file, BLKDBG_WRITE_COMPRESSED);
     ret = bdrv_co_pwritev(bs->file, cluster_offset, out_len, &hd_qiov, 0);
@@ -3990,7 +3985,6 @@ qcow2_co_preadv_compressed(BlockDriverState *bs,
     int ret = 0, csize, nb_csectors;
     uint64_t coffset;
     uint8_t *buf, *out_buf;
-    struct iovec iov;
     QEMUIOVector local_qiov;
     int offset_in_cluster = offset_into_cluster(s, offset);
 
@@ -4002,9 +3996,7 @@ qcow2_co_preadv_compressed(BlockDriverState *bs,
     if (!buf) {
         return -ENOMEM;
     }
-    iov.iov_base = buf;
-    iov.iov_len = csize;
-    qemu_iovec_init_external(&local_qiov, &iov, 1);
+    qemu_iovec_init_buf(&local_qiov, buf, csize);
 
     out_buf = qemu_blockalign(bs, s->cluster_size);
 

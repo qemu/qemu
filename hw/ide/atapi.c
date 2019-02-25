@@ -174,16 +174,15 @@ static void cd_read_sector_cb(void *opaque, int ret)
 
 static int cd_read_sector(IDEState *s)
 {
+    void *buf;
+
     if (s->cd_sector_size != 2048 && s->cd_sector_size != 2352) {
         block_acct_invalid(blk_get_stats(s->blk), BLOCK_ACCT_READ);
         return -EINVAL;
     }
 
-    s->iov.iov_base = (s->cd_sector_size == 2352) ?
-                      s->io_buffer + 16 : s->io_buffer;
-
-    s->iov.iov_len = ATAPI_SECTOR_SIZE;
-    qemu_iovec_init_external(&s->qiov, &s->iov, 1);
+    buf = (s->cd_sector_size == 2352) ? s->io_buffer + 16 : s->io_buffer;
+    qemu_iovec_init_buf(&s->qiov, buf, ATAPI_SECTOR_SIZE);
 
     trace_cd_read_sector(s->lba);
 
@@ -421,9 +420,8 @@ static void ide_atapi_cmd_read_dma_cb(void *opaque, int ret)
         data_offset = 0;
     }
     trace_ide_atapi_cmd_read_dma_cb_aio(s, s->lba, n);
-    s->bus->dma->iov.iov_base = (void *)(s->io_buffer + data_offset);
-    s->bus->dma->iov.iov_len = n * ATAPI_SECTOR_SIZE;
-    qemu_iovec_init_external(&s->bus->dma->qiov, &s->bus->dma->iov, 1);
+    qemu_iovec_init_buf(&s->bus->dma->qiov, s->io_buffer + data_offset,
+                        n * ATAPI_SECTOR_SIZE);
 
     s->bus->dma->aiocb = ide_buffered_readv(s, (int64_t)s->lba << 2,
                                             &s->bus->dma->qiov, n * 4,

@@ -83,7 +83,6 @@ typedef struct BlkMigBlock {
     BlkMigDevState *bmds;
     int64_t sector;
     int nr_sectors;
-    struct iovec iov;
     QEMUIOVector qiov;
     BlockAIOCB *aiocb;
 
@@ -314,9 +313,7 @@ static int mig_save_device_bulk(QEMUFile *f, BlkMigDevState *bmds)
     blk->sector = cur_sector;
     blk->nr_sectors = nr_sectors;
 
-    blk->iov.iov_base = blk->buf;
-    blk->iov.iov_len = nr_sectors * BDRV_SECTOR_SIZE;
-    qemu_iovec_init_external(&blk->qiov, &blk->iov, 1);
+    qemu_iovec_init_buf(&blk->qiov, blk->buf, nr_sectors * BDRV_SECTOR_SIZE);
 
     blk_mig_lock();
     block_mig_state.submitted++;
@@ -556,9 +553,8 @@ static int mig_save_device_dirty(QEMUFile *f, BlkMigDevState *bmds,
             blk->nr_sectors = nr_sectors;
 
             if (is_async) {
-                blk->iov.iov_base = blk->buf;
-                blk->iov.iov_len = nr_sectors * BDRV_SECTOR_SIZE;
-                qemu_iovec_init_external(&blk->qiov, &blk->iov, 1);
+                qemu_iovec_init_buf(&blk->qiov, blk->buf,
+                                    nr_sectors * BDRV_SECTOR_SIZE);
 
                 blk->aiocb = blk_aio_preadv(bmds->blk,
                                             sector * BDRV_SECTOR_SIZE,

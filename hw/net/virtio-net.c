@@ -82,29 +82,17 @@ static inline __virtio16 *virtio_net_rsc_ext_num_dupacks(
 
 #endif
 
-/*
- * Calculate the number of bytes up to and including the given 'field' of
- * 'container'.
- */
-#define endof(container, field) \
-    (offsetof(container, field) + sizeof_field(container, field))
-
-typedef struct VirtIOFeature {
-    uint64_t flags;
-    size_t end;
-} VirtIOFeature;
-
 static VirtIOFeature feature_sizes[] = {
     {.flags = 1ULL << VIRTIO_NET_F_MAC,
-     .end = endof(struct virtio_net_config, mac)},
+     .end = virtio_endof(struct virtio_net_config, mac)},
     {.flags = 1ULL << VIRTIO_NET_F_STATUS,
-     .end = endof(struct virtio_net_config, status)},
+     .end = virtio_endof(struct virtio_net_config, status)},
     {.flags = 1ULL << VIRTIO_NET_F_MQ,
-     .end = endof(struct virtio_net_config, max_virtqueue_pairs)},
+     .end = virtio_endof(struct virtio_net_config, max_virtqueue_pairs)},
     {.flags = 1ULL << VIRTIO_NET_F_MTU,
-     .end = endof(struct virtio_net_config, mtu)},
+     .end = virtio_endof(struct virtio_net_config, mtu)},
     {.flags = 1ULL << VIRTIO_NET_F_SPEED_DUPLEX,
-     .end = endof(struct virtio_net_config, duplex)},
+     .end = virtio_endof(struct virtio_net_config, duplex)},
     {}
 };
 
@@ -2580,15 +2568,10 @@ static void virtio_net_guest_notifier_mask(VirtIODevice *vdev, int idx,
 
 static void virtio_net_set_config_size(VirtIONet *n, uint64_t host_features)
 {
-    int i, config_size = 0;
     virtio_add_feature(&host_features, VIRTIO_NET_F_MAC);
 
-    for (i = 0; feature_sizes[i].flags != 0; i++) {
-        if (host_features & feature_sizes[i].flags) {
-            config_size = MAX(feature_sizes[i].end, config_size);
-        }
-    }
-    n->config_size = config_size;
+    n->config_size = virtio_feature_get_config_size(feature_sizes,
+                                                    host_features);
 }
 
 void virtio_net_set_netclient_name(VirtIONet *n, const char *name,

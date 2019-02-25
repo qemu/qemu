@@ -346,7 +346,6 @@ extern const char *IDE_DMA_CMD_lookup[IDE_DMA__COUNT];
 
 typedef struct IDEBufferedRequest {
     QLIST_ENTRY(IDEBufferedRequest) list;
-    struct iovec iov;
     QEMUIOVector qiov;
     QEMUIOVector *original_qiov;
     BlockCompletionFunc *original_cb;
@@ -405,7 +404,6 @@ struct IDEState {
     int atapi_dma; /* true if dma is requested for the packet cmd */
     BlockAcctCookie acct;
     BlockAIOCB *pio_aiocb;
-    struct iovec iov;
     QEMUIOVector qiov;
     QLIST_HEAD(, IDEBufferedRequest) buffered_requests;
     /* ATA DMA state */
@@ -457,7 +455,6 @@ struct IDEDMAOps {
 
 struct IDEDMA {
     const struct IDEDMAOps *ops;
-    struct iovec iov;
     QEMUIOVector qiov;
     BlockAIOCB *aiocb;
 };
