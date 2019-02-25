@@ -145,10 +145,11 @@ void s390x_translate_init(void)
     }
 }
 
-static inline int vec_reg_offset(uint8_t reg, uint8_t enr, TCGMemOp size)
+static inline int vec_reg_offset(uint8_t reg, uint8_t enr, TCGMemOp es)
 {
-    const uint8_t es = 1 << size;
-    int offs = enr * es;
+    /* Convert element size (es) - e.g. MO_8 - to bytes */
+    const uint8_t bytes = 1 << es;
+    int offs = enr * bytes;
 
     g_assert(reg < 32);
     /*
@@ -173,9 +174,9 @@ static inline int vec_reg_offset(uint8_t reg, uint8_t enr, TCGMemOp size)
      * the two 8 byte elements have to be loaded separately. Let's force all
      * 16 byte operations to handle it in a special way.
      */
-    g_assert(size <= MO_64);
+    g_assert(es <= MO_64);
 #ifndef HOST_WORDS_BIGENDIAN
-    offs ^= (8 - es);
+    offs ^= (8 - bytes);
 #endif
     return offs + offsetof(CPUS390XState, vregs[reg][0].d);
 }
