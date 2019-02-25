@@ -6091,7 +6091,7 @@ static DisasJumpType translate_one(CPUS390XState *env, DisasContext *s)
     const DisasInsn *insn;
     DisasJumpType ret = DISAS_NEXT;
     DisasFields f;
-    DisasOps o;
+    DisasOps o = {};
 
     /* Search for the insn in the table.  */
     insn = extract_insn(env, s, &f);
@@ -6161,12 +6161,6 @@ static DisasJumpType translate_one(CPUS390XState *env, DisasContext *s)
     /* Set up the strutures we use to communicate with the helpers. */
     s->insn = insn;
     s->fields = &f;
-    o.g_out = o.g_out2 = o.g_in1 = o.g_in2 = false;
-    o.out = NULL;
-    o.out2 = NULL;
-    o.in1 = NULL;
-    o.in2 = NULL;
-    o.addr1 = NULL;
 
     /* Implement the instruction.  */
     if (insn->help_in1) {
