@@ -54,6 +54,7 @@
 #define FW_MAX_SIZE             0x00400000
 
 #define KERNEL_LOAD_ADDR        0x20000000
+#define KERNEL_MAX_SIZE         (256 * MiB)
 #define INITRD_LOAD_ADDR        0x60000000
 
 static const char *pnv_chip_core_typename(const PnvChip *o)
@@ -588,7 +589,7 @@ static void pnv_init(MachineState *machine)
         long kernel_size;
 
         kernel_size = load_image_targphys(machine->kernel_filename,
-                                          KERNEL_LOAD_ADDR, 0x2000000);
+                                          KERNEL_LOAD_ADDR, KERNEL_MAX_SIZE);
         if (kernel_size < 0) {
             error_report("Could not load kernel '%s'",
                          machine->kernel_filename);
