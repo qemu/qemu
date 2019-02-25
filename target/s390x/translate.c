@@ -145,13 +145,18 @@ void s390x_translate_init(void)
     }
 }
 
+static inline int vec_full_reg_offset(uint8_t reg)
+{
+    g_assert(reg < 32);
+    return offsetof(CPUS390XState, vregs[reg][0].d);
+}
+
 static inline int vec_reg_offset(uint8_t reg, uint8_t enr, TCGMemOp es)
 {
     /* Convert element size (es) - e.g. MO_8 - to bytes */
     const uint8_t bytes = 1 << es;
     int offs = enr * bytes;
 
-    g_assert(reg < 32);
     /*
      * vregs[n][0] is the lowest 8 byte and vregs[n][1] the highest 8 byte
      * of the 16 byte vector, on both, little and big endian systems.
@@ -178,7 +183,7 @@ static inline int vec_reg_offset(uint8_t reg, uint8_t enr, TCGMemOp es)
 #ifndef HOST_WORDS_BIGENDIAN
     offs ^= (8 - bytes);
 #endif
-    return offs + offsetof(CPUS390XState, vregs[reg][0].d);
+    return offs + vec_full_reg_offset(reg);
 }
 
 static inline int freg64_offset(uint8_t reg)
