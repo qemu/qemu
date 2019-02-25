@@ -82,7 +82,7 @@ typedef volatile struct {
     uint8_t  reserved1[0xec0];
     uint8_t  cmd_set_specfic[0x100];
     uint32_t doorbells[];
-} QEMU_PACKED NVMeRegs;
+} NVMeRegs;
 
 QEMU_BUILD_BUG_ON(offsetof(NVMeRegs, doorbells) != 0x1000);
 
