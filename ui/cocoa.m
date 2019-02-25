@@ -1482,6 +1482,17 @@ QemuCocoaView *cocoaView;
 
 @end
 
+@interface QemuApplication : NSApplication
+@end
+
+@implementation QemuApplication
+- (void)sendEvent:(NSEvent *)event
+{
+    COCOA_DEBUG("QemuApplication: sendEvent\n");
+    [super sendEvent: event];
+}
+@end
+
 static void create_initial_menus(void)
 {
     // Add menus
@@ -1695,7 +1706,7 @@ int main (int argc, const char * argv[]) {
     ProcessSerialNumber psn = { 0, kCurrentProcess };
     TransformProcessType(&psn, kProcessTransformToForegroundApplication);
 
-    [NSApplication sharedApplication];
+    [QemuApplication sharedApplication];
 
     create_initial_menus();
 
