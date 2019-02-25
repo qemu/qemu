@@ -86,11 +86,16 @@ matrix:
 
 
     - env:
-        - CONFIG="--enable-debug --enable-debug-tcg"
+        - CONFIG="--enable-debug --enable-debug-tcg --disable-user"
+
+
+    # TCG debug can be run just on it's own and is mostly agnostic to user/softmmu distinctions
+    - env:
+        - CONFIG="--enable-debug-tcg --disable-system"
 
 
     - env:
-        - CONFIG="--disable-linux-aio --disable-cap-ng --disable-attr --disable-brlapi --disable-uuid --disable-libusb --disable-user"
+        - CONFIG="--disable-linux-aio --disable-cap-ng --disable-attr --disable-brlapi --disable-libusb --disable-user --disable-replication"
 
 
     - env:
@@ -171,13 +176,6 @@ matrix:
         - CONFIG="--target-list=aarch64-softmmu,arm-softmmu,i386-softmmu,mips-softmmu,mips64-softmmu,ppc64-softmmu,riscv64-softmmu,s390x-softmmu,x86_64-softmmu"
       os: osx
       osx_image: xcode9.4
-      compiler: clang
-
-
-    - env:
-        - CONFIG="--target-list=i386-softmmu,ppc-softmmu,ppc64-softmmu,m68k-softmmu,x86_64-softmmu"
-      os: osx
-      osx_image: xcode10
       compiler: clang
 
 

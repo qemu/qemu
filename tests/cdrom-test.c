@@ -132,8 +132,14 @@ static void add_x86_tests(void)
     qtest_add_data_func("cdrom/boot/virtio-scsi",
                         "-device virtio-scsi -device scsi-cd,drive=cdr "
                         "-blockdev file,node-name=cdr,filename=", test_cdboot);
-    qtest_add_data_func("cdrom/boot/isapc", "-M isapc "
-                        "-drive if=ide,media=cdrom,file=", test_cdboot);
+    /*
+     * Unstable CI test under load
+     * See https://lists.gnu.org/archive/html/qemu-devel/2019-02/msg05509.html
+     */
+    if (g_test_slow()) {
+        qtest_add_data_func("cdrom/boot/isapc", "-M isapc "
+                            "-drive if=ide,media=cdrom,file=", test_cdboot);
+    }
     qtest_add_data_func("cdrom/boot/am53c974",
                         "-device am53c974 -device scsi-cd,drive=cd1 "
                         "-drive if=none,id=cd1,format=raw,file=", test_cdboot);
