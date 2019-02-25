@@ -477,12 +477,9 @@ static void nbd_attach_aio_context(BlockDriverState *bs,
     nbd_client_attach_aio_context(bs, new_context);
 }
 
-static void nbd_refresh_filename(BlockDriverState *bs, QDict *options)
+static void nbd_refresh_filename(BlockDriverState *bs)
 {
     BDRVNBDState *s = bs->opaque;
-    QDict *opts = qdict_new();
-    QObject *saddr_qdict;
-    Visitor *ov;
     const char *host = NULL, *port = NULL, *path = NULL;
 
     if (s->saddr->type == SOCKET_ADDRESS_TYPE_INET) {
@@ -494,8 +491,6 @@ static void nbd_refresh_filename(BlockDriverState *bs, QDict *options)
     } else if (s->saddr->type == SOCKET_ADDRESS_TYPE_UNIX) {
         path = s->saddr->u.q_unix.path;
     } /* else can't represent as pseudo-filename */
-
-    qdict_put_str(opts, "driver", "nbd");
 
     if (path && s->export) {
         snprintf(bs->exact_filename, sizeof(bs->exact_filename),
@@ -510,23 +505,28 @@ static void nbd_refresh_filename(BlockDriverState *bs, QDict *options)
         snprintf(bs->exact_filename, sizeof(bs->exact_filename),
                  "nbd://%s:%s", host, port);
     }
-
-    ov = qobject_output_visitor_new(&saddr_qdict);
-    visit_type_SocketAddress(ov, NULL, &s->saddr, &error_abort);
-    visit_complete(ov, &saddr_qdict);
-    visit_free(ov);
-    qdict_put_obj(opts, "server", saddr_qdict);
-
-    if (s->export) {
-        qdict_put_str(opts, "export", s->export);
-    }
-    if (s->tlscredsid) {
-        qdict_put_str(opts, "tls-creds", s->tlscredsid);
-    }
-
-    qdict_flatten(opts);
-    bs->full_open_options = opts;
 }
+
+static char *nbd_dirname(BlockDriverState *bs, Error **errp)
+{
+    /* The generic bdrv_dirname() implementation is able to work out some
+     * directory name for NBD nodes, but that would be wrong. So far there is no
+     * specification for how "export paths" would work, so NBD does not have
+     * directory names. */
+    error_setg(errp, "Cannot generate a base directory for NBD nodes");
+    return NULL;
+}
+
+static const char *const nbd_strong_runtime_opts[] = {
+    "path",
+    "host",
+    "port",
+    "export",
+    "tls-creds",
+    "server.",
+
+    NULL
+};
 
 static BlockDriver bdrv_nbd = {
     .format_name                = "nbd",
@@ -546,6 +546,8 @@ static BlockDriver bdrv_nbd = {
     .bdrv_attach_aio_context    = nbd_attach_aio_context,
     .bdrv_refresh_filename      = nbd_refresh_filename,
     .bdrv_co_block_status       = nbd_client_co_block_status,
+    .bdrv_dirname               = nbd_dirname,
+    .strong_runtime_opts        = nbd_strong_runtime_opts,
 };
 
 static BlockDriver bdrv_nbd_tcp = {
@@ -566,6 +568,8 @@ static BlockDriver bdrv_nbd_tcp = {
     .bdrv_attach_aio_context    = nbd_attach_aio_context,
     .bdrv_refresh_filename      = nbd_refresh_filename,
     .bdrv_co_block_status       = nbd_client_co_block_status,
+    .bdrv_dirname               = nbd_dirname,
+    .strong_runtime_opts        = nbd_strong_runtime_opts,
 };
 
 static BlockDriver bdrv_nbd_unix = {
@@ -586,6 +590,8 @@ static BlockDriver bdrv_nbd_unix = {
     .bdrv_attach_aio_context    = nbd_attach_aio_context,
     .bdrv_refresh_filename      = nbd_refresh_filename,
     .bdrv_co_block_status       = nbd_client_co_block_status,
+    .bdrv_dirname               = nbd_dirname,
+    .strong_runtime_opts        = nbd_strong_runtime_opts,
 };
 
 static void bdrv_nbd_init(void)

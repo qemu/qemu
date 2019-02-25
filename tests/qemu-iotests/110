@@ -29,6 +29,7 @@ status=1	# failure is the default!
 _cleanup()
 {
 	_cleanup_test_img
+        rm -f "$TEST_IMG.copy"
 }
 trap "_cleanup; exit \$status" 0 1 2 3 15
 
@@ -60,7 +61,8 @@ echo '=== Non-reconstructable filename ==='
 echo
 
 # Across blkdebug without a config file, you cannot reconstruct filenames, so
-# qemu is incapable of knowing the directory of the top image
+# qemu is incapable of knowing the directory of the top image from the filename
+# alone. However, using bdrv_dirname(), it should still work.
 TEST_IMG="json:{
     'driver': '$IMGFMT',
     'file': {
@@ -84,6 +86,31 @@ echo
 
 # omit the image size; it should work anyway
 _make_test_img -b "$TEST_IMG_REL.base"
+
+echo
+echo '=== Nodes without a common directory ==='
+echo
+
+cp "$TEST_IMG" "$TEST_IMG.copy"
+
+# Should inform us that the actual path of the backing file cannot be determined
+TEST_IMG="json:{
+    'driver': '$IMGFMT',
+    'file': {
+        'driver': 'quorum',
+        'vote-threshold': 1,
+        'children': [
+            {
+                'driver': 'file',
+                'filename': '$TEST_IMG'
+            },
+            {
+                'driver': 'file',
+                'filename': '$TEST_IMG.copy'
+            }
+        ]
+    }
+}" _img_info | _filter_img_info
 
 
 # success, all done

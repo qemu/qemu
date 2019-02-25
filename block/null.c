@@ -239,18 +239,32 @@ static int coroutine_fn null_co_block_status(BlockDriverState *bs,
     return ret;
 }
 
-static void null_refresh_filename(BlockDriverState *bs, QDict *opts)
+static void null_refresh_filename(BlockDriverState *bs)
 {
-    qdict_del(opts, "filename");
+    const QDictEntry *e;
 
-    if (!qdict_size(opts)) {
-        snprintf(bs->exact_filename, sizeof(bs->exact_filename), "%s://",
-                 bs->drv->format_name);
+    for (e = qdict_first(bs->full_open_options); e;
+         e = qdict_next(bs->full_open_options, e))
+    {
+        /* These options can be ignored */
+        if (strcmp(qdict_entry_key(e), "filename") &&
+            strcmp(qdict_entry_key(e), "driver") &&
+            strcmp(qdict_entry_key(e), NULL_OPT_LATENCY))
+        {
+            return;
+        }
     }
 
-    qdict_put_str(opts, "driver", bs->drv->format_name);
-    bs->full_open_options = qobject_ref(opts);
+    snprintf(bs->exact_filename, sizeof(bs->exact_filename), "%s://",
+             bs->drv->format_name);
 }
+
+static const char *const null_strong_runtime_opts[] = {
+    BLOCK_OPT_SIZE,
+    NULL_OPT_ZEROES,
+
+    NULL
+};
 
 static BlockDriver bdrv_null_co = {
     .format_name            = "null-co",
@@ -269,6 +283,7 @@ static BlockDriver bdrv_null_co = {
     .bdrv_co_block_status   = null_co_block_status,
 
     .bdrv_refresh_filename  = null_refresh_filename,
+    .strong_runtime_opts    = null_strong_runtime_opts,
 };
 
 static BlockDriver bdrv_null_aio = {
@@ -288,6 +303,7 @@ static BlockDriver bdrv_null_aio = {
     .bdrv_co_block_status   = null_co_block_status,
 
     .bdrv_refresh_filename  = null_refresh_filename,
+    .strong_runtime_opts    = null_strong_runtime_opts,
 };
 
 static void bdrv_null_init(void)

@@ -436,6 +436,7 @@ static int raw_open(BlockDriverState *bs, QDict *options, int flags,
             bs->file->bs->supported_zero_flags);
 
     if (bs->probed && !bdrv_is_read_only(bs)) {
+        bdrv_refresh_filename(bs->file->bs);
         fprintf(stderr,
                 "WARNING: Image format was not specified for '%s' and probing "
                 "guessed raw.\n"
@@ -531,6 +532,13 @@ static int coroutine_fn raw_co_copy_range_to(BlockDriverState *bs,
                                  read_flags, write_flags);
 }
 
+static const char *const raw_strong_runtime_opts[] = {
+    "offset",
+    "size",
+
+    NULL
+};
+
 BlockDriver bdrv_raw = {
     .format_name          = "raw",
     .instance_size        = sizeof(BDRVRawState),
@@ -560,7 +568,8 @@ BlockDriver bdrv_raw = {
     .bdrv_lock_medium     = &raw_lock_medium,
     .bdrv_co_ioctl        = &raw_co_ioctl,
     .create_opts          = &raw_create_opts,
-    .bdrv_has_zero_init   = &raw_has_zero_init
+    .bdrv_has_zero_init   = &raw_has_zero_init,
+    .strong_runtime_opts  = raw_strong_runtime_opts,
 };
 
 static void bdrv_raw_init(void)

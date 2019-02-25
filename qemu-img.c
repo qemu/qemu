@@ -2790,6 +2790,7 @@ static int get_block_status(BlockDriverState *bs, int64_t offset,
     BlockDriverState *file;
     bool has_offset;
     int64_t map;
+    char *filename = NULL;
 
     /* As an optimization, we could cache the current range of unallocated
      * clusters in each file of the chain, and avoid querying the same
@@ -2817,6 +2818,11 @@ static int get_block_status(BlockDriverState *bs, int64_t offset,
 
     has_offset = !!(ret & BDRV_BLOCK_OFFSET_VALID);
 
+    if (file && has_offset) {
+        bdrv_refresh_filename(file);
+        filename = file->filename;
+    }
+
     *e = (MapEntry) {
         .start = offset,
         .length = bytes,
@@ -2825,8 +2831,8 @@ static int get_block_status(BlockDriverState *bs, int64_t offset,
         .offset = map,
         .has_offset = has_offset,
         .depth = depth,
-        .has_filename = file && has_offset,
-        .filename = file && has_offset ? file->filename : NULL,
+        .has_filename = filename,
+        .filename = filename,
     };
 
     return 0;
@@ -3334,20 +3340,17 @@ static int img_rebase(int argc, char **argv)
                 qdict_put_bool(options, BDRV_OPT_FORCE_SHARE, true);
             }
 
+            bdrv_refresh_filename(bs);
             overlay_filename = bs->exact_filename[0] ? bs->exact_filename
                                                      : bs->filename;
-            out_real_path = g_malloc(PATH_MAX);
-
-            bdrv_get_full_backing_filename_from_filename(overlay_filename,
-                                                         out_baseimg,
-                                                         out_real_path,
-                                                         PATH_MAX,
-                                                         &local_err);
+            out_real_path =
+                bdrv_get_full_backing_filename_from_filename(overlay_filename,
+                                                             out_baseimg,
+                                                             &local_err);
             if (local_err) {
                 error_reportf_err(local_err,
                                   "Could not resolve backing filename: ");
                 ret = -1;
-                g_free(out_real_path);
                 goto out;
             }
 

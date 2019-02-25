@@ -1,0 +1,84 @@
+--- Implicit backing file ---
+
+{"execute": "blockdev-add", "arguments": {"driver": "IMGFMT", "file": {"driver": "file", "filename": "TEST_DIR/PID-top.img"}, "node-name": "node0"}}
+{"return": {}}
+
+bs->filename: TEST_DIR/PID-top.img
+bs->backing_file: TEST_DIR/PID-base.img
+bs->backing->bs->filename: TEST_DIR/PID-base.img
+
+{"execute": "blockdev-del", "arguments": {"node-name": "node0"}}
+{"return": {}}
+
+--- change-backing-file ---
+
+{"execute": "blockdev-add", "arguments": {"driver": "IMGFMT", "file": {"driver": "file", "filename": "TEST_DIR/PID-top.img"}, "node-name": "node0"}}
+{"return": {}}
+{"execute": "change-backing-file", "arguments": {"backing-file": "null-co://", "device": "node0", "image-node-name": "node0"}}
+{"return": {}}
+
+bs->filename: json:{"backing": {"driver": "IMGFMT", "file": {"driver": "file", "filename": "TEST_DIR/PID-base.img"}}, "driver": "IMGFMT", "file": {"driver": "file", "filename": "TEST_DIR/PID-top.img"}}
+bs->backing_file: null-co://
+bs->backing->bs->filename: TEST_DIR/PID-base.img
+
+{"execute": "change-backing-file", "arguments": {"backing-file": "TEST_DIR/PID-base.img", "device": "node0", "image-node-name": "node0"}}
+{"return": {}}
+
+bs->filename: TEST_DIR/PID-top.img
+bs->backing_file: TEST_DIR/PID-base.img
+bs->backing->bs->filename: TEST_DIR/PID-base.img
+
+{"execute": "change-backing-file", "arguments": {"backing-file": "file:TEST_DIR/PID-base.img", "device": "node0", "image-node-name": "node0"}}
+{"return": {}}
+
+bs->filename: json:{"backing": {"driver": "IMGFMT", "file": {"driver": "file", "filename": "TEST_DIR/PID-base.img"}}, "driver": "IMGFMT", "file": {"driver": "file", "filename": "TEST_DIR/PID-top.img"}}
+bs->backing_file: file:TEST_DIR/PID-base.img
+bs->backing->bs->filename: TEST_DIR/PID-base.img
+
+{"execute": "blockdev-del", "arguments": {"node-name": "node0"}}
+{"return": {}}
+{"execute": "blockdev-add", "arguments": {"driver": "IMGFMT", "file": {"driver": "file", "filename": "TEST_DIR/PID-top.img"}, "node-name": "node0"}}
+{"return": {}}
+
+bs->filename: TEST_DIR/PID-top.img
+bs->backing_file: TEST_DIR/PID-base.img
+bs->backing->bs->filename: TEST_DIR/PID-base.img
+
+{"execute": "blockdev-del", "arguments": {"node-name": "node0"}}
+{"return": {}}
+
+--- Override backing file ---
+
+{"execute": "blockdev-add", "arguments": {"driver": "null-co", "node-name": "null"}}
+{"return": {}}
+{"execute": "blockdev-add", "arguments": {"backing": "null", "driver": "IMGFMT", "file": {"driver": "file", "filename": "TEST_DIR/PID-top.img"}, "node-name": "node0"}}
+{"return": {}}
+
+bs->filename: json:{"backing": {"driver": "null-co"}, "driver": "IMGFMT", "file": {"driver": "file", "filename": "TEST_DIR/PID-top.img"}}
+bs->backing_file: null-co://
+bs->backing->bs->filename: null-co://
+
+{"execute": "blockdev-del", "arguments": {"node-name": "node0"}}
+{"return": {}}
+{"execute": "blockdev-del", "arguments": {"node-name": "null"}}
+{"return": {}}
+{"execute": "blockdev-add", "arguments": {"backing": null, "driver": "IMGFMT", "file": {"driver": "file", "filename": "TEST_DIR/PID-top.img"}, "node-name": "node0"}}
+{"return": {}}
+
+bs->filename: json:{"backing": null, "driver": "IMGFMT", "file": {"driver": "file", "filename": "TEST_DIR/PID-top.img"}}
+bs->backing_file: TEST_DIR/PID-base.img
+bs->backing: (none)
+
+{"execute": "blockdev-add", "arguments": {"driver": "IMGFMT", "file": {"driver": "file", "filename": "TEST_DIR/PID-base.img"}, "node-name": "original-backing"}}
+{"return": {}}
+{"execute": "blockdev-snapshot", "arguments": {"node": "original-backing", "overlay": "node0"}}
+{"return": {}}
+
+bs->filename: TEST_DIR/PID-top.img
+bs->backing_file: TEST_DIR/PID-base.img
+bs->backing->bs->filename: TEST_DIR/PID-base.img
+
+{"execute": "blockdev-del", "arguments": {"node-name": "node0"}}
+{"return": {}}
+{"execute": "blockdev-del", "arguments": {"node-name": "original-backing"}}
+{"return": {}}

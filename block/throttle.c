@@ -227,6 +227,12 @@ static void coroutine_fn throttle_co_drain_end(BlockDriverState *bs)
     atomic_dec(&tgm->io_limits_disabled);
 }
 
+static const char *const throttle_strong_runtime_opts[] = {
+    QEMU_OPT_THROTTLE_GROUP_NAME,
+
+    NULL
+};
+
 static BlockDriver bdrv_throttle = {
     .format_name                        =   "throttle",
     .instance_size                      =   sizeof(ThrottleGroupMember),
@@ -259,6 +265,7 @@ static BlockDriver bdrv_throttle = {
     .bdrv_co_drain_end                  =   throttle_co_drain_end,
 
     .is_filter                          =   true,
+    .strong_runtime_opts                =   throttle_strong_runtime_opts,
 };
 
 static void bdrv_throttle_init(void)

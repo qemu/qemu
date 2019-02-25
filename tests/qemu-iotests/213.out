@@ -1,13 +1,13 @@
 === Successful image creation (defaults) ===
 
-{"execute": "blockdev-create", "arguments": {"job_id": "job0", "options": {"driver": "file", "filename": "TEST_DIR/PID-t.vhdx", "size": 0}}}
+{"execute": "blockdev-create", "arguments": {"job-id": "job0", "options": {"driver": "file", "filename": "TEST_DIR/PID-t.vhdx", "size": 0}}}
 {"return": {}}
 {"execute": "job-dismiss", "arguments": {"id": "job0"}}
 {"return": {}}
 
-{"execute": "blockdev-add", "arguments": {"driver": "file", "filename": "TEST_DIR/PID-t.vhdx", "node_name": "imgfile"}}
+{"execute": "blockdev-add", "arguments": {"driver": "file", "filename": "TEST_DIR/PID-t.vhdx", "node-name": "imgfile"}}
 {"return": {}}
-{"execute": "blockdev-create", "arguments": {"job_id": "job0", "options": {"driver": "vhdx", "file": "imgfile", "size": 134217728}}}
+{"execute": "blockdev-create", "arguments": {"job-id": "job0", "options": {"driver": "vhdx", "file": "imgfile", "size": 134217728}}}
 {"return": {}}
 {"execute": "job-dismiss", "arguments": {"id": "job0"}}
 {"return": {}}
@@ -19,12 +19,12 @@ cluster_size: 8388608
 
 === Successful image creation (explicit defaults) ===
 
-{"execute": "blockdev-create", "arguments": {"job_id": "job0", "options": {"driver": "file", "filename": "TEST_DIR/PID-t.vhdx", "size": 0}}}
+{"execute": "blockdev-create", "arguments": {"job-id": "job0", "options": {"driver": "file", "filename": "TEST_DIR/PID-t.vhdx", "size": 0}}}
 {"return": {}}
 {"execute": "job-dismiss", "arguments": {"id": "job0"}}
 {"return": {}}
 
-{"execute": "blockdev-create", "arguments": {"job_id": "job0", "options": {"block-size": 8388608, "block-state-zero": true, "driver": "vhdx", "file": {"driver": "file", "filename": "TEST_DIR/PID-t.vhdx"}, "log-size": 1048576, "size": 67108864, "subformat": "dynamic"}}}
+{"execute": "blockdev-create", "arguments": {"job-id": "job0", "options": {"block-size": 8388608, "block-state-zero": true, "driver": "vhdx", "file": {"driver": "file", "filename": "TEST_DIR/PID-t.vhdx"}, "log-size": 1048576, "size": 67108864, "subformat": "dynamic"}}}
 {"return": {}}
 {"execute": "job-dismiss", "arguments": {"id": "job0"}}
 {"return": {}}
@@ -36,12 +36,12 @@ cluster_size: 8388608
 
 === Successful image creation (with non-default options) ===
 
-{"execute": "blockdev-create", "arguments": {"job_id": "job0", "options": {"driver": "file", "filename": "TEST_DIR/PID-t.vhdx", "size": 0}}}
+{"execute": "blockdev-create", "arguments": {"job-id": "job0", "options": {"driver": "file", "filename": "TEST_DIR/PID-t.vhdx", "size": 0}}}
 {"return": {}}
 {"execute": "job-dismiss", "arguments": {"id": "job0"}}
 {"return": {}}
 
-{"execute": "blockdev-create", "arguments": {"job_id": "job0", "options": {"block-size": 268435456, "block-state-zero": false, "driver": "vhdx", "file": {"driver": "file", "filename": "TEST_DIR/PID-t.vhdx"}, "log-size": 8388608, "size": 33554432, "subformat": "fixed"}}}
+{"execute": "blockdev-create", "arguments": {"job-id": "job0", "options": {"block-size": 268435456, "block-state-zero": false, "driver": "vhdx", "file": {"driver": "file", "filename": "TEST_DIR/PID-t.vhdx"}, "log-size": 8388608, "size": 33554432, "subformat": "fixed"}}}
 {"return": {}}
 {"execute": "job-dismiss", "arguments": {"id": "job0"}}
 {"return": {}}
@@ -53,7 +53,7 @@ cluster_size: 268435456
 
 === Invalid BlockdevRef ===
 
-{"execute": "blockdev-create", "arguments": {"job_id": "job0", "options": {"driver": "vhdx", "file": "this doesn't exist", "size": 33554432}}}
+{"execute": "blockdev-create", "arguments": {"job-id": "job0", "options": {"driver": "vhdx", "file": "this doesn't exist", "size": 33554432}}}
 {"return": {}}
 Job failed: Cannot find device=this doesn't exist nor node_name=this doesn't exist
 {"execute": "job-dismiss", "arguments": {"id": "job0"}}
@@ -61,7 +61,7 @@ Job failed: Cannot find device=this doesn't exist nor node_name=this doesn't exi
 
 === Zero size ===
 
-{"execute": "blockdev-create", "arguments": {"job_id": "job0", "options": {"driver": "vhdx", "file": "node0", "size": 0}}}
+{"execute": "blockdev-create", "arguments": {"job-id": "job0", "options": {"driver": "vhdx", "file": "node0", "size": 0}}}
 {"return": {}}
 {"execute": "job-dismiss", "arguments": {"id": "job0"}}
 {"return": {}}
@@ -73,7 +73,7 @@ cluster_size: 8388608
 
 === Maximum size ===
 
-{"execute": "blockdev-create", "arguments": {"job_id": "job0", "options": {"driver": "vhdx", "file": "node0", "size": 70368744177664}}}
+{"execute": "blockdev-create", "arguments": {"job-id": "job0", "options": {"driver": "vhdx", "file": "node0", "size": 70368744177664}}}
 {"return": {}}
 {"execute": "job-dismiss", "arguments": {"id": "job0"}}
 {"return": {}}
@@ -85,25 +85,25 @@ cluster_size: 67108864
 
 === Invalid sizes ===
 
-{"execute": "blockdev-create", "arguments": {"job_id": "job0", "options": {"driver": "vhdx", "file": "node0", "size": 18446744073709551104}}}
+{"execute": "blockdev-create", "arguments": {"job-id": "job0", "options": {"driver": "vhdx", "file": "node0", "size": 18446744073709551104}}}
 {"return": {}}
 Job failed: Image size too large; max of 64TB
 {"execute": "job-dismiss", "arguments": {"id": "job0"}}
 {"return": {}}
 
-{"execute": "blockdev-create", "arguments": {"job_id": "job0", "options": {"driver": "vhdx", "file": "node0", "size": 9223372036854775808}}}
+{"execute": "blockdev-create", "arguments": {"job-id": "job0", "options": {"driver": "vhdx", "file": "node0", "size": 9223372036854775808}}}
 {"return": {}}
 Job failed: Image size too large; max of 64TB
 {"execute": "job-dismiss", "arguments": {"id": "job0"}}
 {"return": {}}
 
-{"execute": "blockdev-create", "arguments": {"job_id": "job0", "options": {"driver": "vhdx", "file": "node0", "size": 9223372036854775296}}}
+{"execute": "blockdev-create", "arguments": {"job-id": "job0", "options": {"driver": "vhdx", "file": "node0", "size": 9223372036854775296}}}
 {"return": {}}
 Job failed: Image size too large; max of 64TB
 {"execute": "job-dismiss", "arguments": {"id": "job0"}}
 {"return": {}}
 
-{"execute": "blockdev-create", "arguments": {"job_id": "job0", "options": {"driver": "vhdx", "file": "node0", "size": 70368744177665}}}
+{"execute": "blockdev-create", "arguments": {"job-id": "job0", "options": {"driver": "vhdx", "file": "node0", "size": 70368744177665}}}
 {"return": {}}
 Job failed: Image size too large; max of 64TB
 {"execute": "job-dismiss", "arguments": {"id": "job0"}}
@@ -111,31 +111,31 @@ Job failed: Image size too large; max of 64TB
 
 === Invalid block size ===
 
-{"execute": "blockdev-create", "arguments": {"job_id": "job0", "options": {"block-size": 1234567, "driver": "vhdx", "file": "node0", "size": 67108864}}}
+{"execute": "blockdev-create", "arguments": {"job-id": "job0", "options": {"block-size": 1234567, "driver": "vhdx", "file": "node0", "size": 67108864}}}
 {"return": {}}
 Job failed: Block size must be a multiple of 1 MB
 {"execute": "job-dismiss", "arguments": {"id": "job0"}}
 {"return": {}}
 
-{"execute": "blockdev-create", "arguments": {"job_id": "job0", "options": {"block-size": 128, "driver": "vhdx", "file": "node0", "size": 67108864}}}
+{"execute": "blockdev-create", "arguments": {"job-id": "job0", "options": {"block-size": 128, "driver": "vhdx", "file": "node0", "size": 67108864}}}
 {"return": {}}
 Job failed: Block size must be a multiple of 1 MB
 {"execute": "job-dismiss", "arguments": {"id": "job0"}}
 {"return": {}}
 
-{"execute": "blockdev-create", "arguments": {"job_id": "job0", "options": {"block-size": 3145728, "driver": "vhdx", "file": "node0", "size": 67108864}}}
+{"execute": "blockdev-create", "arguments": {"job-id": "job0", "options": {"block-size": 3145728, "driver": "vhdx", "file": "node0", "size": 67108864}}}
 {"return": {}}
 Job failed: Block size must be a power of two
 {"execute": "job-dismiss", "arguments": {"id": "job0"}}
 {"return": {}}
 
-{"execute": "blockdev-create", "arguments": {"job_id": "job0", "options": {"block-size": 536870912, "driver": "vhdx", "file": "node0", "size": 67108864}}}
+{"execute": "blockdev-create", "arguments": {"job-id": "job0", "options": {"block-size": 536870912, "driver": "vhdx", "file": "node0", "size": 67108864}}}
 {"return": {}}
 Job failed: Block size must not exceed 268435456
 {"execute": "job-dismiss", "arguments": {"id": "job0"}}
 {"return": {}}
 
-{"execute": "blockdev-create", "arguments": {"job_id": "job0", "options": {"block-size": 0, "driver": "vhdx", "file": "node0", "size": 67108864}}}
+{"execute": "blockdev-create", "arguments": {"job-id": "job0", "options": {"block-size": 0, "driver": "vhdx", "file": "node0", "size": 67108864}}}
 {"return": {}}
 Job failed: Block size must be a multiple of 1 MB
 {"execute": "job-dismiss", "arguments": {"id": "job0"}}
@@ -143,25 +143,25 @@ Job failed: Block size must be a multiple of 1 MB
 
 === Invalid log size ===
 
-{"execute": "blockdev-create", "arguments": {"job_id": "job0", "options": {"driver": "vhdx", "file": "node0", "log-size": 1234567, "size": 67108864}}}
+{"execute": "blockdev-create", "arguments": {"job-id": "job0", "options": {"driver": "vhdx", "file": "node0", "log-size": 1234567, "size": 67108864}}}
 {"return": {}}
 Job failed: Log size must be a multiple of 1 MB
 {"execute": "job-dismiss", "arguments": {"id": "job0"}}
 {"return": {}}
 
-{"execute": "blockdev-create", "arguments": {"job_id": "job0", "options": {"driver": "vhdx", "file": "node0", "log-size": 128, "size": 67108864}}}
+{"execute": "blockdev-create", "arguments": {"job-id": "job0", "options": {"driver": "vhdx", "file": "node0", "log-size": 128, "size": 67108864}}}
 {"return": {}}
 Job failed: Log size must be a multiple of 1 MB
 {"execute": "job-dismiss", "arguments": {"id": "job0"}}
 {"return": {}}
 
-{"execute": "blockdev-create", "arguments": {"job_id": "job0", "options": {"driver": "vhdx", "file": "node0", "log-size": 4294967296, "size": 67108864}}}
+{"execute": "blockdev-create", "arguments": {"job-id": "job0", "options": {"driver": "vhdx", "file": "node0", "log-size": 4294967296, "size": 67108864}}}
 {"return": {}}
 Job failed: Log size must be smaller than 4 GB
 {"execute": "job-dismiss", "arguments": {"id": "job0"}}
 {"return": {}}
 
-{"execute": "blockdev-create", "arguments": {"job_id": "job0", "options": {"driver": "vhdx", "file": "node0", "log-size": 0, "size": 67108864}}}
+{"execute": "blockdev-create", "arguments": {"job-id": "job0", "options": {"driver": "vhdx", "file": "node0", "log-size": 0, "size": 67108864}}}
 {"return": {}}
 Job failed: Log size must be a multiple of 1 MB
 {"execute": "job-dismiss", "arguments": {"id": "job0"}}

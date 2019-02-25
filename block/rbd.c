@@ -1228,6 +1228,18 @@ static QemuOptsList qemu_rbd_create_opts = {
     }
 };
 
+static const char *const qemu_rbd_strong_runtime_opts[] = {
+    "pool",
+    "image",
+    "conf",
+    "snapshot",
+    "user",
+    "server.",
+    "password-secret",
+
+    NULL
+};
+
 static BlockDriver bdrv_rbd = {
     .format_name            = "rbd",
     .instance_size          = sizeof(BDRVRBDState),
@@ -1265,6 +1277,8 @@ static BlockDriver bdrv_rbd = {
 #ifdef LIBRBD_SUPPORTS_INVALIDATE
     .bdrv_co_invalidate_cache = qemu_rbd_co_invalidate_cache,
 #endif
+
+    .strong_runtime_opts    = qemu_rbd_strong_runtime_opts,
 };
 
 static void bdrv_rbd_init(void)

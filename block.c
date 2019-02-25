@@ -152,53 +152,53 @@ int path_is_absolute(const char *path)
 #endif
 }
 
-/* if filename is absolute, just copy it to dest. Otherwise, build a
+/* if filename is absolute, just return its duplicate. Otherwise, build a
    path to it by considering it is relative to base_path. URL are
    supported. */
-void path_combine(char *dest, int dest_size,
-                  const char *base_path,
-                  const char *filename)
+char *path_combine(const char *base_path, const char *filename)
 {
+    const char *protocol_stripped = NULL;
     const char *p, *p1;
+    char *result;
     int len;
 
-    if (dest_size <= 0)
-        return;
     if (path_is_absolute(filename)) {
-        pstrcpy(dest, dest_size, filename);
-    } else {
-        const char *protocol_stripped = NULL;
-
-        if (path_has_protocol(base_path)) {
-            protocol_stripped = strchr(base_path, ':');
-            if (protocol_stripped) {
-                protocol_stripped++;
-            }
-        }
-        p = protocol_stripped ?: base_path;
-
-        p1 = strrchr(base_path, '/');
-#ifdef _WIN32
-        {
-            const char *p2;
-            p2 = strrchr(base_path, '\\');
-            if (!p1 || p2 > p1)
-                p1 = p2;
-        }
-#endif
-        if (p1)
-            p1++;
-        else
-            p1 = base_path;
-        if (p1 > p)
-            p = p1;
-        len = p - base_path;
-        if (len > dest_size - 1)
-            len = dest_size - 1;
-        memcpy(dest, base_path, len);
-        dest[len] = '\0';
-        pstrcat(dest, dest_size, filename);
+        return g_strdup(filename);
     }
+
+    if (path_has_protocol(base_path)) {
+        protocol_stripped = strchr(base_path, ':');
+        if (protocol_stripped) {
+            protocol_stripped++;
+        }
+    }
+    p = protocol_stripped ?: base_path;
+
+    p1 = strrchr(base_path, '/');
+#ifdef _WIN32
+    {
+        const char *p2;
+        p2 = strrchr(base_path, '\\');
+        if (!p1 || p2 > p1) {
+            p1 = p2;
+        }
+    }
+#endif
+    if (p1) {
+        p1++;
+    } else {
+        p1 = base_path;
+    }
+    if (p1 > p) {
+        p = p1;
+    }
+    len = p - base_path;
+
+    result = g_malloc(len + strlen(filename) + 1);
+    memcpy(result, base_path, len);
+    strcpy(result + len, filename);
+
+    return result;
 }
 
 /*
@@ -303,30 +303,61 @@ fail:
     return -EACCES;
 }
 
-void bdrv_get_full_backing_filename_from_filename(const char *backed,
-                                                  const char *backing,
-                                                  char *dest, size_t sz,
-                                                  Error **errp)
+/*
+ * If @backing is empty, this function returns NULL without setting
+ * @errp.  In all other cases, NULL will only be returned with @errp
+ * set.
+ *
+ * Therefore, a return value of NULL without @errp set means that
+ * there is no backing file; if @errp is set, there is one but its
+ * absolute filename cannot be generated.
+ */
+char *bdrv_get_full_backing_filename_from_filename(const char *backed,
+                                                   const char *backing,
+                                                   Error **errp)
 {
-    if (backing[0] == '\0' || path_has_protocol(backing) ||
-        path_is_absolute(backing))
-    {
-        pstrcpy(dest, sz, backing);
+    if (backing[0] == '\0') {
+        return NULL;
+    } else if (path_has_protocol(backing) || path_is_absolute(backing)) {
+        return g_strdup(backing);
     } else if (backed[0] == '\0' || strstart(backed, "json:", NULL)) {
         error_setg(errp, "Cannot use relative backing file names for '%s'",
                    backed);
+        return NULL;
     } else {
-        path_combine(dest, sz, backed, backing);
+        return path_combine(backed, backing);
     }
 }
 
-void bdrv_get_full_backing_filename(BlockDriverState *bs, char *dest, size_t sz,
-                                    Error **errp)
+/*
+ * If @filename is empty or NULL, this function returns NULL without
+ * setting @errp.  In all other cases, NULL will only be returned with
+ * @errp set.
+ */
+static char *bdrv_make_absolute_filename(BlockDriverState *relative_to,
+                                         const char *filename, Error **errp)
 {
-    char *backed = bs->exact_filename[0] ? bs->exact_filename : bs->filename;
+    char *dir, *full_name;
 
-    bdrv_get_full_backing_filename_from_filename(backed, bs->backing_file,
-                                                 dest, sz, errp);
+    if (!filename || filename[0] == '\0') {
+        return NULL;
+    } else if (path_has_protocol(filename) || path_is_absolute(filename)) {
+        return g_strdup(filename);
+    }
+
+    dir = bdrv_dirname(relative_to, errp);
+    if (!dir) {
+        return NULL;
+    }
+
+    full_name = g_strconcat(dir, filename, NULL);
+    g_free(dir);
+    return full_name;
+}
+
+char *bdrv_get_full_backing_filename(BlockDriverState *bs, Error **errp)
+{
+    return bdrv_make_absolute_filename(bs, bs->backing_file, errp);
 }
 
 void bdrv_register(BlockDriver *bdrv)
@@ -1004,6 +1035,8 @@ static void bdrv_backing_attach(BdrvChild *c)
                "node is used as backing hd of '%s'",
                bdrv_get_device_or_node_name(parent));
 
+    bdrv_refresh_filename(backing_hd);
+
     parent->open_flags &= ~BDRV_O_NO_BACKING;
     pstrcpy(parent->backing_file, sizeof(parent->backing_file),
             backing_hd->filename);
@@ -1413,6 +1446,7 @@ static int bdrv_open_common(BlockDriverState *bs, BlockBackend *file,
     }
 
     if (file != NULL) {
+        bdrv_refresh_filename(blk_bs(file));
         filename = blk_bs(file)->filename;
     } else {
         /*
@@ -2334,8 +2368,6 @@ void bdrv_set_backing_hd(BlockDriverState *bs, BlockDriverState *backing_hd,
         bdrv_unref(backing_hd);
     }
 
-    bdrv_refresh_filename(bs);
-
 out:
     bdrv_refresh_limits(bs, NULL);
 }
@@ -2353,10 +2385,11 @@ out:
 int bdrv_open_backing_file(BlockDriverState *bs, QDict *parent_options,
                            const char *bdref_key, Error **errp)
 {
-    char *backing_filename = g_malloc0(PATH_MAX);
+    char *backing_filename = NULL;
     char *bdref_key_dot;
     const char *reference = NULL;
     int ret = 0;
+    bool implicit_backing = false;
     BlockDriverState *backing_hd;
     QDict *options;
     QDict *tmp_parent_options = NULL;
@@ -2387,13 +2420,22 @@ int bdrv_open_backing_file(BlockDriverState *bs, QDict *parent_options,
      */
     reference = qdict_get_try_str(parent_options, bdref_key);
     if (reference || qdict_haskey(options, "file.filename")) {
-        backing_filename[0] = '\0';
+        /* keep backing_filename NULL */
     } else if (bs->backing_file[0] == '\0' && qdict_size(options) == 0) {
         qobject_unref(options);
         goto free_exit;
     } else {
-        bdrv_get_full_backing_filename(bs, backing_filename, PATH_MAX,
-                                       &local_err);
+        if (qdict_size(options) == 0) {
+            /* If the user specifies options that do not modify the
+             * backing file's behavior, we might still consider it the
+             * implicit backing file.  But it's easier this way, and
+             * just specifying some of the backing BDS's options is
+             * only possible with -drive anyway (otherwise the QAPI
+             * schema forces the user to specify everything). */
+            implicit_backing = !strcmp(bs->auto_backing_file, bs->backing_file);
+        }
+
+        backing_filename = bdrv_get_full_backing_filename(bs, &local_err);
         if (local_err) {
             ret = -EINVAL;
             error_propagate(errp, local_err);
@@ -2414,9 +2456,8 @@ int bdrv_open_backing_file(BlockDriverState *bs, QDict *parent_options,
         qdict_put_str(options, "driver", bs->backing_format);
     }
 
-    backing_hd = bdrv_open_inherit(*backing_filename ? backing_filename : NULL,
-                                   reference, options, 0, bs, &child_backing,
-                                   errp);
+    backing_hd = bdrv_open_inherit(backing_filename, reference, options, 0, bs,
+                                   &child_backing, errp);
     if (!backing_hd) {
         bs->open_flags |= BDRV_O_NO_BACKING;
         error_prepend(errp, "Could not open backing file: ");
@@ -2424,6 +2465,12 @@ int bdrv_open_backing_file(BlockDriverState *bs, QDict *parent_options,
         goto free_exit;
     }
     bdrv_set_aio_context(backing_hd, bdrv_get_aio_context(bs));
+
+    if (implicit_backing) {
+        bdrv_refresh_filename(backing_hd);
+        pstrcpy(bs->auto_backing_file, sizeof(bs->auto_backing_file),
+                backing_hd->filename);
+    }
 
     /* Hook up the backing file link; drop our reference, bs owns the
      * backing_hd reference now */
@@ -2863,8 +2910,6 @@ static BlockDriverState *bdrv_open_inherit(const char *filename,
         qdict_del(bs->options, child->name);
         g_free(child_key_dot);
     }
-
-    bdrv_refresh_filename(bs);
 
     /* Check if any unknown options were used */
     if (qdict_size(options) != 0) {
@@ -3310,6 +3355,7 @@ int bdrv_reopen_prepare(BDRVReopenState *reopen_state, BlockReopenQueue *queue,
             if (local_err != NULL) {
                 error_propagate(errp, local_err);
             } else {
+                bdrv_refresh_filename(reopen_state->bs);
                 error_setg(errp, "failed while preparing to reopen image '%s'",
                            reopen_state->bs->filename);
             }
@@ -3845,6 +3891,8 @@ int bdrv_change_backing_file(BlockDriverState *bs,
     if (ret == 0) {
         pstrcpy(bs->backing_file, sizeof(bs->backing_file), backing_file ?: "");
         pstrcpy(bs->backing_format, sizeof(bs->backing_format), backing_fmt ?: "");
+        pstrcpy(bs->auto_backing_file, sizeof(bs->auto_backing_file),
+                backing_file ?: "");
     }
     return ret;
 }
@@ -3937,7 +3985,10 @@ int bdrv_drop_intermediate(BlockDriverState *top, BlockDriverState *base,
     /* success - we can delete the intermediate states, and link top->base */
     /* TODO Check graph modification op blockers (BLK_PERM_GRAPH_MOD) once
      * we've figured out how they should work. */
-    backing_file_str = backing_file_str ? backing_file_str : base->filename;
+    if (!backing_file_str) {
+        bdrv_refresh_filename(base);
+        backing_file_str = base->filename;
+    }
 
     QLIST_FOREACH_SAFE(c, &top->parents, next_parent, next) {
         /* Check whether we are allowed to switch c from top to base */
@@ -4485,16 +4536,6 @@ bool bdrv_can_write_zeroes_with_unmap(BlockDriverState *bs)
     return bs->supported_zero_flags & BDRV_REQ_MAY_UNMAP;
 }
 
-const char *bdrv_get_encrypted_filename(BlockDriverState *bs)
-{
-    if (bs->backing && bs->backing->bs->encrypted)
-        return bs->backing_file;
-    else if (bs->encrypted)
-        return bs->filename;
-    else
-        return NULL;
-}
-
 void bdrv_get_backing_filename(BlockDriverState *bs,
                                char *filename, int filename_size)
 {
@@ -4603,7 +4644,6 @@ BlockDriverState *bdrv_find_backing_image(BlockDriverState *bs,
     int is_protocol = 0;
     BlockDriverState *curr_bs = NULL;
     BlockDriverState *retval = NULL;
-    Error *local_error = NULL;
 
     if (!bs || !bs->drv || !backing_file) {
         return NULL;
@@ -4611,7 +4651,6 @@ BlockDriverState *bdrv_find_backing_image(BlockDriverState *bs,
 
     filename_full     = g_malloc(PATH_MAX);
     backing_file_full = g_malloc(PATH_MAX);
-    filename_tmp      = g_malloc(PATH_MAX);
 
     is_protocol = path_has_protocol(backing_file);
 
@@ -4620,41 +4659,43 @@ BlockDriverState *bdrv_find_backing_image(BlockDriverState *bs,
         /* If either of the filename paths is actually a protocol, then
          * compare unmodified paths; otherwise make paths relative */
         if (is_protocol || path_has_protocol(curr_bs->backing_file)) {
+            char *backing_file_full_ret;
+
             if (strcmp(backing_file, curr_bs->backing_file) == 0) {
                 retval = curr_bs->backing->bs;
                 break;
             }
             /* Also check against the full backing filename for the image */
-            bdrv_get_full_backing_filename(curr_bs, backing_file_full, PATH_MAX,
-                                           &local_error);
-            if (local_error == NULL) {
-                if (strcmp(backing_file, backing_file_full) == 0) {
+            backing_file_full_ret = bdrv_get_full_backing_filename(curr_bs,
+                                                                   NULL);
+            if (backing_file_full_ret) {
+                bool equal = strcmp(backing_file, backing_file_full_ret) == 0;
+                g_free(backing_file_full_ret);
+                if (equal) {
                     retval = curr_bs->backing->bs;
                     break;
                 }
-            } else {
-                error_free(local_error);
-                local_error = NULL;
             }
         } else {
             /* If not an absolute filename path, make it relative to the current
              * image's filename path */
-            path_combine(filename_tmp, PATH_MAX, curr_bs->filename,
-                         backing_file);
-
-            /* We are going to compare absolute pathnames */
-            if (!realpath(filename_tmp, filename_full)) {
+            filename_tmp = bdrv_make_absolute_filename(curr_bs, backing_file,
+                                                       NULL);
+            /* We are going to compare canonicalized absolute pathnames */
+            if (!filename_tmp || !realpath(filename_tmp, filename_full)) {
+                g_free(filename_tmp);
                 continue;
             }
+            g_free(filename_tmp);
 
             /* We need to make sure the backing filename we are comparing against
              * is relative to the current image filename (or absolute) */
-            path_combine(filename_tmp, PATH_MAX, curr_bs->filename,
-                         curr_bs->backing_file);
-
-            if (!realpath(filename_tmp, backing_file_full)) {
+            filename_tmp = bdrv_get_full_backing_filename(curr_bs, NULL);
+            if (!filename_tmp || !realpath(filename_tmp, backing_file_full)) {
+                g_free(filename_tmp);
                 continue;
             }
+            g_free(filename_tmp);
 
             if (strcmp(backing_file_full, filename_full) == 0) {
                 retval = curr_bs->backing->bs;
@@ -4665,7 +4706,6 @@ BlockDriverState *bdrv_find_backing_image(BlockDriverState *bs,
 
     g_free(filename_full);
     g_free(backing_file_full);
-    g_free(filename_tmp);
     return retval;
 }
 
@@ -5152,17 +5192,17 @@ void bdrv_img_create(const char *filename, const char *fmt,
     size = qemu_opt_get_size(opts, BLOCK_OPT_SIZE, img_size);
     if (backing_file && !(flags & BDRV_O_NO_BACKING)) {
         BlockDriverState *bs;
-        char *full_backing = g_new0(char, PATH_MAX);
+        char *full_backing;
         int back_flags;
         QDict *backing_options = NULL;
 
-        bdrv_get_full_backing_filename_from_filename(filename, backing_file,
-                                                     full_backing, PATH_MAX,
-                                                     &local_err);
+        full_backing =
+            bdrv_get_full_backing_filename_from_filename(filename, backing_file,
+                                                         &local_err);
         if (local_err) {
-            g_free(full_backing);
             goto out;
         }
+        assert(full_backing);
 
         /* backing files always opened read-only */
         back_flags = flags;
@@ -5495,31 +5535,111 @@ out:
     return to_replace_bs;
 }
 
-static bool append_open_options(QDict *d, BlockDriverState *bs)
+/**
+ * Iterates through the list of runtime option keys that are said to
+ * be "strong" for a BDS.  An option is called "strong" if it changes
+ * a BDS's data.  For example, the null block driver's "size" and
+ * "read-zeroes" options are strong, but its "latency-ns" option is
+ * not.
+ *
+ * If a key returned by this function ends with a dot, all options
+ * starting with that prefix are strong.
+ */
+static const char *const *strong_options(BlockDriverState *bs,
+                                         const char *const *curopt)
 {
-    const QDictEntry *entry;
-    QemuOptDesc *desc;
-    bool found_any = false;
+    static const char *const global_options[] = {
+        "driver", "filename", NULL
+    };
 
-    for (entry = qdict_first(bs->options); entry;
-         entry = qdict_next(bs->options, entry))
-    {
-        /* Exclude all non-driver-specific options */
-        for (desc = bdrv_runtime_opts.desc; desc->name; desc++) {
-            if (!strcmp(qdict_entry_key(entry), desc->name)) {
-                break;
+    if (!curopt) {
+        return &global_options[0];
+    }
+
+    curopt++;
+    if (curopt == &global_options[ARRAY_SIZE(global_options) - 1] && bs->drv) {
+        curopt = bs->drv->strong_runtime_opts;
+    }
+
+    return (curopt && *curopt) ? curopt : NULL;
+}
+
+/**
+ * Copies all strong runtime options from bs->options to the given
+ * QDict.  The set of strong option keys is determined by invoking
+ * strong_options().
+ *
+ * Returns true iff any strong option was present in bs->options (and
+ * thus copied to the target QDict) with the exception of "filename"
+ * and "driver".  The caller is expected to use this value to decide
+ * whether the existence of strong options prevents the generation of
+ * a plain filename.
+ */
+static bool append_strong_runtime_options(QDict *d, BlockDriverState *bs)
+{
+    bool found_any = false;
+    const char *const *option_name = NULL;
+
+    if (!bs->drv) {
+        return false;
+    }
+
+    while ((option_name = strong_options(bs, option_name))) {
+        bool option_given = false;
+
+        assert(strlen(*option_name) > 0);
+        if ((*option_name)[strlen(*option_name) - 1] != '.') {
+            QObject *entry = qdict_get(bs->options, *option_name);
+            if (!entry) {
+                continue;
+            }
+
+            qdict_put_obj(d, *option_name, qobject_ref(entry));
+            option_given = true;
+        } else {
+            const QDictEntry *entry;
+            for (entry = qdict_first(bs->options); entry;
+                 entry = qdict_next(bs->options, entry))
+            {
+                if (strstart(qdict_entry_key(entry), *option_name, NULL)) {
+                    qdict_put_obj(d, qdict_entry_key(entry),
+                                  qobject_ref(qdict_entry_value(entry)));
+                    option_given = true;
+                }
             }
         }
-        if (desc->name) {
-            continue;
-        }
 
-        qdict_put_obj(d, qdict_entry_key(entry),
-                      qobject_ref(qdict_entry_value(entry)));
-        found_any = true;
+        /* While "driver" and "filename" need to be included in a JSON filename,
+         * their existence does not prohibit generation of a plain filename. */
+        if (!found_any && option_given &&
+            strcmp(*option_name, "driver") && strcmp(*option_name, "filename"))
+        {
+            found_any = true;
+        }
+    }
+
+    if (!qdict_haskey(d, "driver")) {
+        /* Drivers created with bdrv_new_open_driver() may not have a
+         * @driver option.  Add it here. */
+        qdict_put_str(d, "driver", bs->drv->format_name);
     }
 
     return found_any;
+}
+
+/* Note: This function may return false positives; it may return true
+ * even if opening the backing file specified by bs's image header
+ * would result in exactly bs->backing. */
+static bool bdrv_backing_overridden(BlockDriverState *bs)
+{
+    if (bs->backing) {
+        return strcmp(bs->auto_backing_file,
+                      bs->backing->bs->filename);
+    } else {
+        /* No backing BDS, so if the image header reports any backing
+         * file, it must have been suppressed */
+        return bs->auto_backing_file[0] != '\0';
+    }
 }
 
 /* Updates the following BDS fields:
@@ -5537,97 +5657,140 @@ static bool append_open_options(QDict *d, BlockDriverState *bs)
 void bdrv_refresh_filename(BlockDriverState *bs)
 {
     BlockDriver *drv = bs->drv;
+    BdrvChild *child;
     QDict *opts;
+    bool backing_overridden;
+    bool generate_json_filename; /* Whether our default implementation should
+                                    fill exact_filename (false) or not (true) */
 
     if (!drv) {
         return;
     }
 
-    /* This BDS's file name will most probably depend on its file's name, so
-     * refresh that first */
-    if (bs->file) {
-        bdrv_refresh_filename(bs->file->bs);
+    /* This BDS's file name may depend on any of its children's file names, so
+     * refresh those first */
+    QLIST_FOREACH(child, &bs->children, next) {
+        bdrv_refresh_filename(child->bs);
     }
+
+    if (bs->implicit) {
+        /* For implicit nodes, just copy everything from the single child */
+        child = QLIST_FIRST(&bs->children);
+        assert(QLIST_NEXT(child, next) == NULL);
+
+        pstrcpy(bs->exact_filename, sizeof(bs->exact_filename),
+                child->bs->exact_filename);
+        pstrcpy(bs->filename, sizeof(bs->filename), child->bs->filename);
+
+        bs->full_open_options = qobject_ref(child->bs->full_open_options);
+
+        return;
+    }
+
+    backing_overridden = bdrv_backing_overridden(bs);
+
+    if (bs->open_flags & BDRV_O_NO_IO) {
+        /* Without I/O, the backing file does not change anything.
+         * Therefore, in such a case (primarily qemu-img), we can
+         * pretend the backing file has not been overridden even if
+         * it technically has been. */
+        backing_overridden = false;
+    }
+
+    /* Gather the options QDict */
+    opts = qdict_new();
+    generate_json_filename = append_strong_runtime_options(opts, bs);
+    generate_json_filename |= backing_overridden;
+
+    if (drv->bdrv_gather_child_options) {
+        /* Some block drivers may not want to present all of their children's
+         * options, or name them differently from BdrvChild.name */
+        drv->bdrv_gather_child_options(bs, opts, backing_overridden);
+    } else {
+        QLIST_FOREACH(child, &bs->children, next) {
+            if (child->role == &child_backing && !backing_overridden) {
+                /* We can skip the backing BDS if it has not been overridden */
+                continue;
+            }
+
+            qdict_put(opts, child->name,
+                      qobject_ref(child->bs->full_open_options));
+        }
+
+        if (backing_overridden && !bs->backing) {
+            /* Force no backing file */
+            qdict_put_null(opts, "backing");
+        }
+    }
+
+    qobject_unref(bs->full_open_options);
+    bs->full_open_options = opts;
 
     if (drv->bdrv_refresh_filename) {
         /* Obsolete information is of no use here, so drop the old file name
          * information before refreshing it */
         bs->exact_filename[0] = '\0';
-        if (bs->full_open_options) {
-            qobject_unref(bs->full_open_options);
-            bs->full_open_options = NULL;
-        }
 
-        opts = qdict_new();
-        append_open_options(opts, bs);
-        drv->bdrv_refresh_filename(bs, opts);
-        qobject_unref(opts);
+        drv->bdrv_refresh_filename(bs);
     } else if (bs->file) {
         /* Try to reconstruct valid information from the underlying file */
-        bool has_open_options;
 
         bs->exact_filename[0] = '\0';
-        if (bs->full_open_options) {
-            qobject_unref(bs->full_open_options);
-            bs->full_open_options = NULL;
-        }
 
-        opts = qdict_new();
-        has_open_options = append_open_options(opts, bs);
-
-        /* If no specific options have been given for this BDS, the filename of
-         * the underlying file should suffice for this one as well */
-        if (bs->file->bs->exact_filename[0] && !has_open_options) {
+        /*
+         * We can use the underlying file's filename if:
+         * - it has a filename,
+         * - the file is a protocol BDS, and
+         * - opening that file (as this BDS's format) will automatically create
+         *   the BDS tree we have right now, that is:
+         *   - the user did not significantly change this BDS's behavior with
+         *     some explicit (strong) options
+         *   - no non-file child of this BDS has been overridden by the user
+         *   Both of these conditions are represented by generate_json_filename.
+         */
+        if (bs->file->bs->exact_filename[0] &&
+            bs->file->bs->drv->bdrv_file_open &&
+            !generate_json_filename)
+        {
             strcpy(bs->exact_filename, bs->file->bs->exact_filename);
         }
-        /* Reconstructing the full options QDict is simple for most format block
-         * drivers, as long as the full options are known for the underlying
-         * file BDS. The full options QDict of that file BDS should somehow
-         * contain a representation of the filename, therefore the following
-         * suffices without querying the (exact_)filename of this BDS. */
-        if (bs->file->bs->full_open_options) {
-            qdict_put_str(opts, "driver", drv->format_name);
-            qdict_put(opts, "file",
-                      qobject_ref(bs->file->bs->full_open_options));
-
-            bs->full_open_options = opts;
-        } else {
-            qobject_unref(opts);
-        }
-    } else if (!bs->full_open_options && qdict_size(bs->options)) {
-        /* There is no underlying file BDS (at least referenced by BDS.file),
-         * so the full options QDict should be equal to the options given
-         * specifically for this block device when it was opened (plus the
-         * driver specification).
-         * Because those options don't change, there is no need to update
-         * full_open_options when it's already set. */
-
-        opts = qdict_new();
-        append_open_options(opts, bs);
-        qdict_put_str(opts, "driver", drv->format_name);
-
-        if (bs->exact_filename[0]) {
-            /* This may not work for all block protocol drivers (some may
-             * require this filename to be parsed), but we have to find some
-             * default solution here, so just include it. If some block driver
-             * does not support pure options without any filename at all or
-             * needs some special format of the options QDict, it needs to
-             * implement the driver-specific bdrv_refresh_filename() function.
-             */
-            qdict_put_str(opts, "filename", bs->exact_filename);
-        }
-
-        bs->full_open_options = opts;
     }
 
     if (bs->exact_filename[0]) {
         pstrcpy(bs->filename, sizeof(bs->filename), bs->exact_filename);
-    } else if (bs->full_open_options) {
+    } else {
         QString *json = qobject_to_json(QOBJECT(bs->full_open_options));
         snprintf(bs->filename, sizeof(bs->filename), "json:%s",
                  qstring_get_str(json));
         qobject_unref(json);
     }
+}
+
+char *bdrv_dirname(BlockDriverState *bs, Error **errp)
+{
+    BlockDriver *drv = bs->drv;
+
+    if (!drv) {
+        error_setg(errp, "Node '%s' is ejected", bs->node_name);
+        return NULL;
+    }
+
+    if (drv->bdrv_dirname) {
+        return drv->bdrv_dirname(bs, errp);
+    }
+
+    if (bs->file) {
+        return bdrv_dirname(bs->file->bs, errp);
+    }
+
+    bdrv_refresh_filename(bs);
+    if (bs->exact_filename[0] != '\0') {
+        return path_combine(bs->exact_filename, "");
+    }
+
+    error_setg(errp, "Cannot generate a base directory for %s nodes",
+               drv->format_name);
+    return NULL;
 }
 
 /*
