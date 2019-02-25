@@ -129,8 +129,9 @@ bool stretch_video;
 NSTextField *pauseLabel;
 NSArray * supportedImageFileTypes;
 
-// Utility function to run specified code block with iothread lock held
+// Utility functions to run specified code block with iothread lock held
 typedef void (^CodeBlock)(void);
+typedef bool (^BoolCodeBlock)(void);
 
 static void with_iothread_lock(CodeBlock block)
 {
@@ -142,6 +143,21 @@ static void with_iothread_lock(CodeBlock block)
     if (!locked) {
         qemu_mutex_unlock_iothread();
     }
+}
+
+static bool bool_with_iothread_lock(BoolCodeBlock block)
+{
+    bool locked = qemu_mutex_iothread_locked();
+    bool val;
+
+    if (!locked) {
+        qemu_mutex_lock_iothread();
+    }
+    val = block();
+    if (!locked) {
+        qemu_mutex_unlock_iothread();
+    }
+    return val;
 }
 
 // Mac to QKeyCode conversion
@@ -320,8 +336,8 @@ static void handleAnyDeviceErrors(Error * err)
 - (void) ungrabMouse;
 - (void) toggleFullScreen:(id)sender;
 - (void) handleMonitorInput:(NSEvent *)event;
-- (void) handleEvent:(NSEvent *)event;
-- (void) handleEventLocked:(NSEvent *)event;
+- (bool) handleEvent:(NSEvent *)event;
+- (bool) handleEventLocked:(NSEvent *)event;
 - (void) setAbsoluteEnabled:(BOOL)tIsAbsoluteEnabled;
 /* The state surrounding mouse grabbing is potentially confusing.
  * isAbsoluteEnabled tracks qemu_input_is_absolute() [ie "is the emulated
@@ -664,15 +680,16 @@ QemuCocoaView *cocoaView;
     }
 }
 
-- (void) handleEvent:(NSEvent *)event
+- (bool) handleEvent:(NSEvent *)event
 {
-    with_iothread_lock(^{
-        [self handleEventLocked:event];
+    return bool_with_iothread_lock(^{
+        return [self handleEventLocked:event];
     });
 }
 
-- (void) handleEventLocked:(NSEvent *)event
+- (bool) handleEventLocked:(NSEvent *)event
 {
+    /* Return true if we handled the event, false if it should be given to OSX */
     COCOA_DEBUG("QemuCocoaView: handleEvent\n");
     int buttons = 0;
     int keycode = 0;
@@ -743,8 +760,7 @@ QemuCocoaView *cocoaView;
                 if (keycode == Q_KEY_CODE_F) {
                     switched_to_fullscreen = true;
                 }
-                [NSApp sendEvent:event];
-                return;
+                return false;
             }
 
             // default
@@ -759,12 +775,12 @@ QemuCocoaView *cocoaView;
                         // enable graphic console
                         case '1' ... '9':
                             console_select(key - '0' - 1); /* ascii math */
-                            return;
+                            return true;
 
                         // release the mouse grab
                         case 'g':
                             [self ungrabMouse];
-                            return;
+                            return true;
                     }
                 }
             }
@@ -781,7 +797,7 @@ QemuCocoaView *cocoaView;
             // don't pass the guest a spurious key-up if we treated this
             // command-key combo as a host UI action
             if (!isMouseGrabbed && ([event modifierFlags] & NSEventModifierFlagCommand)) {
-                return;
+                return true;
             }
 
             if (qemu_console_is_graphic(NULL)) {
@@ -875,7 +891,7 @@ QemuCocoaView *cocoaView;
             mouse_event = false;
             break;
         default:
-            [NSApp sendEvent:event];
+            return false;
     }
 
     if (mouse_event) {
@@ -911,10 +927,11 @@ QemuCocoaView *cocoaView;
                 qemu_input_queue_rel(dcl->con, INPUT_AXIS_Y, (int)[event deltaY]);
             }
         } else {
-            [NSApp sendEvent:event];
+            return false;
         }
         qemu_input_event_sync();
     }
+    return true;
 }
 
 - (void) grabMouse
@@ -1753,7 +1770,9 @@ static void cocoa_refresh(DisplayChangeListener *dcl)
         event = [NSApp nextEventMatchingMask:NSEventMaskAny untilDate:distantPast
                         inMode: NSDefaultRunLoopMode dequeue:YES];
         if (event != nil) {
-            [cocoaView handleEvent:event];
+            if (![cocoaView handleEvent:event]) {
+                [NSApp sendEvent:event];
+            }
         }
     } while(event != nil);
     [pool release];
