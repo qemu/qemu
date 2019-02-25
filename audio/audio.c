@@ -454,9 +454,7 @@ static void audio_print_options (const char *prefix,
 static void audio_process_options (const char *prefix,
                                    struct audio_option *opt)
 {
-    char *optname;
-    const char qemu_prefix[] = "QEMU_";
-    size_t preflen, optlen;
+    gchar *prefix_upper;
 
     if (audio_bug(__func__, !prefix)) {
         dolog ("prefix = NULL\n");
@@ -468,10 +466,10 @@ static void audio_process_options (const char *prefix,
         return;
     }
 
-    preflen = strlen (prefix);
+    prefix_upper = g_utf8_strup(prefix, -1);
 
     for (; opt->name; opt++) {
-        size_t len, i;
+        char *optname;
         int def;
 
         if (!opt->valp) {
@@ -480,21 +478,7 @@ static void audio_process_options (const char *prefix,
             continue;
         }
 
-        len = strlen (opt->name);
-        /* len of opt->name + len of prefix + size of qemu_prefix
-         * (includes trailing zero) + zero + underscore (on behalf of
-         * sizeof) */
-        optlen = len + preflen + sizeof (qemu_prefix) + 1;
-        optname = g_malloc (optlen);
-
-        pstrcpy (optname, optlen, qemu_prefix);
-
-        /* copy while upper-casing, including trailing zero */
-        for (i = 0; i <= preflen; ++i) {
-            optname[i + sizeof (qemu_prefix) - 1] = qemu_toupper(prefix[i]);
-        }
-        pstrcat (optname, optlen, "_");
-        pstrcat (optname, optlen, opt->name);
+        optname = g_strdup_printf("QEMU_%s_%s", prefix_upper, opt->name);
 
         def = 1;
         switch (opt->tag) {
@@ -532,6 +516,7 @@ static void audio_process_options (const char *prefix,
         *opt->overriddenp = !def;
         g_free (optname);
     }
+    g_free(prefix_upper);
 }
 
 static void audio_print_settings (struct audsettings *as)
