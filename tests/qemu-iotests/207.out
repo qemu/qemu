@@ -5,7 +5,7 @@
 {"execute": "job-dismiss", "arguments": {"id": "job0"}}
 {"return": {}}
 
-image: json:{"driver": "IMGFMT", "file": {"server.host": "127.0.0.1", "server.port": "22", "driver": "ssh", "path": "TEST_IMG"}}
+image: TEST_IMG
 file format: IMGFMT
 virtual size: 4 MiB (4194304 bytes)
 
@@ -21,7 +21,7 @@ virtual size: 4 MiB (4194304 bytes)
 {"execute": "job-dismiss", "arguments": {"id": "job0"}}
 {"return": {}}
 
-image: json:{"driver": "IMGFMT", "file": {"server.host": "127.0.0.1", "server.port": "22", "driver": "ssh", "path": "TEST_IMG"}}
+image: TEST_IMG
 file format: IMGFMT
 virtual size: 8 MiB (8388608 bytes)
 
@@ -30,7 +30,7 @@ virtual size: 8 MiB (8388608 bytes)
 {"execute": "job-dismiss", "arguments": {"id": "job0"}}
 {"return": {}}
 
-image: json:{"driver": "IMGFMT", "file": {"server.host": "127.0.0.1", "server.port": "22", "driver": "ssh", "path": "TEST_IMG"}}
+image: TEST_IMG
 file format: IMGFMT
 virtual size: 4 MiB (4194304 bytes)
 
@@ -45,7 +45,7 @@ Job failed: remote host key does not match host_key_check 'wrong'
 {"execute": "job-dismiss", "arguments": {"id": "job0"}}
 {"return": {}}
 
-image: json:{"driver": "IMGFMT", "file": {"server.host": "127.0.0.1", "server.port": "22", "driver": "ssh", "path": "TEST_IMG"}}
+image: TEST_IMG
 file format: IMGFMT
 virtual size: 8 MiB (8388608 bytes)
 
@@ -60,7 +60,7 @@ Job failed: remote host key does not match host_key_check 'wrong'
 {"execute": "job-dismiss", "arguments": {"id": "job0"}}
 {"return": {}}
 
-image: json:{"driver": "IMGFMT", "file": {"server.host": "127.0.0.1", "server.port": "22", "driver": "ssh", "path": "TEST_IMG"}}
+image: TEST_IMG
 file format: IMGFMT
 virtual size: 4 MiB (4194304 bytes)
 

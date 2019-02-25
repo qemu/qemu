@@ -66,7 +66,7 @@ with iotests.FilePath('t.img') as disk_path, \
                           'size': 4194304 })
     vm.shutdown()
 
-    iotests.img_info_log(remote_path, filter_path=disk_path)
+    iotests.img_info_log(remote_path)
     iotests.log("")
     iotests.img_info_log(disk_path)
 
@@ -91,7 +91,7 @@ with iotests.FilePath('t.img') as disk_path, \
                           'size': 8388608 })
     vm.shutdown()
 
-    iotests.img_info_log(remote_path, filter_path=disk_path)
+    iotests.img_info_log(remote_path)
 
     vm.launch()
     blockdev_create(vm, { 'driver': 'ssh',
@@ -108,7 +108,7 @@ with iotests.FilePath('t.img') as disk_path, \
                           'size': 4194304 })
     vm.shutdown()
 
-    iotests.img_info_log(remote_path, filter_path=disk_path)
+    iotests.img_info_log(remote_path)
 
     md5_key = subprocess.check_output(
         'ssh-keyscan -t rsa 127.0.0.1 2>/dev/null | grep -v "\\^#" | ' +
@@ -146,7 +146,7 @@ with iotests.FilePath('t.img') as disk_path, \
                           'size': 8388608 })
     vm.shutdown()
 
-    iotests.img_info_log(remote_path, filter_path=disk_path)
+    iotests.img_info_log(remote_path)
 
     sha1_key = subprocess.check_output(
         'ssh-keyscan -t rsa 127.0.0.1 2>/dev/null | grep -v "\\^#" | ' +
@@ -184,7 +184,7 @@ with iotests.FilePath('t.img') as disk_path, \
                           'size': 4194304 })
     vm.shutdown()
 
-    iotests.img_info_log(remote_path, filter_path=disk_path)
+    iotests.img_info_log(remote_path)
 
     #
     # Invalid path and user
