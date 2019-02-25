@@ -10,6 +10,7 @@ wct_cmd_other(const char *cmd) "%s"
 wct_speed(int speed) "%d"
 
 # chardev/spice.c
+spice_chr_discard_write(int len) "spice chr write discarded %d"
 spice_vmc_write(ssize_t out, int len) "spice wrote %zd of requested %d"
 spice_vmc_read(int bytes, int len) "spice read %d of requested %d"
 spice_vmc_register_interface(void *scd) "spice vmc registered interface %p"

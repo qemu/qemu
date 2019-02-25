@@ -49,6 +49,11 @@ curses.mo-objs := curses.o
 curses.mo-cflags := $(CURSES_CFLAGS)
 curses.mo-libs := $(CURSES_LIBS)
 
+common-obj-$(call land,$(CONFIG_SPICE),$(CONFIG_GIO)) += spice-app.mo
+spice-app.mo-objs := spice-app.o
+spice-app.mo-cflags := $(GIO_CFLAGS)
+spice-app.mo-libs := $(GIO_LIBS)
+
 common-obj-$(CONFIG_OPENGL) += shader.o
 common-obj-$(CONFIG_OPENGL) += console-gl.o
 common-obj-$(CONFIG_OPENGL) += egl-helpers.o

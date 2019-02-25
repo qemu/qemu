@@ -54,8 +54,5 @@ void sdl2_process_key(struct sdl2_console *scon,
                 break;
             }
         }
-    } else {
-        qemu_input_event_send_key_qcode(con, qcode,
-                                        ev->type == SDL_KEYDOWN);
     }
 }

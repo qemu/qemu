@@ -2,29 +2,11 @@
 #include "trace.h"
 #include "ui/qemu-spice.h"
 #include "chardev/char.h"
+#include "chardev/spice.h"
 #include "qapi/error.h"
 #include "qemu/error-report.h"
 #include "qemu/option.h"
-#include <spice.h>
 #include <spice/protocol.h>
-
-
-typedef struct SpiceChardev {
-    Chardev               parent;
-
-    SpiceCharDeviceInstance sin;
-    bool                  active;
-    bool                  blocked;
-    const uint8_t         *datapos;
-    int                   datalen;
-    QLIST_ENTRY(SpiceChardev) next;
-} SpiceChardev;
-
-#define TYPE_CHARDEV_SPICE "chardev-spice"
-#define TYPE_CHARDEV_SPICEVMC "chardev-spicevmc"
-#define TYPE_CHARDEV_SPICEPORT "chardev-spiceport"
-
-#define SPICE_CHARDEV(obj) OBJECT_CHECK(SpiceChardev, (obj), TYPE_CHARDEV_SPICE)
 
 typedef struct SpiceCharSource {
     GSource               source;
@@ -148,8 +130,13 @@ static void vmc_unregister_interface(SpiceChardev *scd)
 static gboolean spice_char_source_prepare(GSource *source, gint *timeout)
 {
     SpiceCharSource *src = (SpiceCharSource *)source;
+    Chardev *chr = CHARDEV(src->scd);
 
     *timeout = -1;
+
+    if (!chr->be_open) {
+        return true;
+    }
 
     return !src->scd->blocked;
 }
@@ -157,6 +144,11 @@ static gboolean spice_char_source_prepare(GSource *source, gint *timeout)
 static gboolean spice_char_source_check(GSource *source)
 {
     SpiceCharSource *src = (SpiceCharSource *)source;
+    Chardev *chr = CHARDEV(src->scd);
+
+    if (!chr->be_open) {
+        return true;
+    }
 
     return !src->scd->blocked;
 }
@@ -164,9 +156,12 @@ static gboolean spice_char_source_check(GSource *source)
 static gboolean spice_char_source_dispatch(GSource *source,
     GSourceFunc callback, gpointer user_data)
 {
+    SpiceCharSource *src = (SpiceCharSource *)source;
+    Chardev *chr = CHARDEV(src->scd);
     GIOFunc func = (GIOFunc)callback;
+    GIOCondition cond = chr->be_open ? G_IO_OUT : G_IO_HUP;
 
-    return func(NULL, G_IO_OUT, user_data);
+    return func(NULL, cond, user_data);
 }
 
 static GSourceFuncs SpiceCharSourceFuncs = {
@@ -195,6 +190,12 @@ static int spice_chr_write(Chardev *chr, const uint8_t *buf, int len)
     int read_bytes;
 
     assert(s->datalen == 0);
+
+    if (!chr->be_open) {
+        trace_spice_chr_discard_write(len);
+        return len;
+    }
+
     s->datapos = buf;
     s->datalen = len;
     spice_server_char_device_wakeup(&s->sin);
@@ -287,13 +288,19 @@ static void qemu_chr_open_spice_vmc(Chardev *chr,
     }
 
     *be_opened = false;
+#if SPICE_SERVER_VERSION < 0x000e02
+    /* Spice < 0.14.2 doesn't explicitly open smartcard chardev */
+    if (strcmp(type, "smartcard") == 0) {
+        *be_opened = true;
+    }
+#endif
     chr_open(chr, type);
 }
 
-static void qemu_chr_open_spice_port(Chardev *chr,
-                                     ChardevBackend *backend,
-                                     bool *be_opened,
-                                     Error **errp)
+void qemu_chr_open_spice_port(Chardev *chr,
+                              ChardevBackend *backend,
+                              bool *be_opened,
+                              Error **errp)
 {
     ChardevSpicePort *spiceport = backend->u.spiceport.data;
     const char *name = spiceport->fqdn;
@@ -309,6 +316,11 @@ static void qemu_chr_open_spice_port(Chardev *chr,
     *be_opened = false;
     s = SPICE_CHARDEV(chr);
     s->sin.portname = g_strdup(name);
+
+    if (using_spice) {
+        /* spice server already created */
+        vmc_register_interface(s);
+    }
 }
 
 void qemu_spice_register_ports(void)
