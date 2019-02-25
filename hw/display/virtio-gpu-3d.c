@@ -404,11 +404,6 @@ void virtio_gpu_virgl_process_cmd(VirtIOGPU *g,
 {
     VIRTIO_GPU_FILL_CMD(cmd->cmd_hdr);
 
-    cmd->waiting = g->renderer_blocked;
-    if (cmd->waiting) {
-        return;
-    }
-
     virgl_renderer_force_ctx_0();
     switch (cmd->cmd_hdr.type) {
     case VIRTIO_GPU_CMD_CTX_CREATE:
@@ -467,6 +462,9 @@ void virtio_gpu_virgl_process_cmd(VirtIOGPU *g,
 
     case VIRTIO_GPU_CMD_GET_DISPLAY_INFO:
         virtio_gpu_get_display_info(g, cmd);
+        break;
+    case VIRTIO_GPU_CMD_GET_EDID:
+        virtio_gpu_get_edid(g, cmd);
         break;
     default:
         cmd->error = VIRTIO_GPU_RESP_ERR_UNSPEC;
@@ -601,22 +599,6 @@ void virtio_gpu_virgl_reset(VirtIOGPU *g)
             dpy_gfx_replace_surface(g->scanout[i].con, NULL);
         }
         dpy_gl_scanout_disable(g->scanout[i].con);
-    }
-}
-
-void virtio_gpu_gl_block(void *opaque, bool block)
-{
-    VirtIOGPU *g = opaque;
-
-    if (block) {
-        g->renderer_blocked++;
-    } else {
-        g->renderer_blocked--;
-    }
-    assert(g->renderer_blocked >= 0);
-
-    if (g->renderer_blocked == 0) {
-        virtio_gpu_process_cmdq(g);
     }
 }
 
