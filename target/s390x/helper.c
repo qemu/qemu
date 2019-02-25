@@ -417,6 +417,7 @@ const char *cc_name(enum cc_op cc_op)
         [CC_OP_SLA_32]    = "CC_OP_SLA_32",
         [CC_OP_SLA_64]    = "CC_OP_SLA_64",
         [CC_OP_FLOGR]     = "CC_OP_FLOGR",
+        [CC_OP_LCBB]      = "CC_OP_LCBB",
     };
 
     return cc_names[cc_op];

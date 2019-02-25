@@ -557,6 +557,7 @@ static void gen_op_calc_cc(DisasContext *s)
     case CC_OP_NZ_F32:
     case CC_OP_NZ_F64:
     case CC_OP_FLOGR:
+    case CC_OP_LCBB:
         /* 1 argument */
         gen_helper_calc_cc(cc_op, cpu_env, local_cc_op, dummy, cc_dst, dummy);
         break;
@@ -3139,6 +3140,23 @@ static DisasJumpType op_lurag(DisasContext *s, DisasOps *o)
 static DisasJumpType op_lzrb(DisasContext *s, DisasOps *o)
 {
     tcg_gen_andi_i64(o->out, o->in2, -256);
+    return DISAS_NEXT;
+}
+
+static DisasJumpType op_lcbb(DisasContext *s, DisasOps *o)
+{
+    const int64_t block_size = (1ull << (get_field(s->fields, m3) + 6));
+
+    if (get_field(s->fields, m3) > 6) {
+        gen_program_exception(s, PGM_SPECIFICATION);
+        return DISAS_NORETURN;
+    }
+
+    tcg_gen_ori_i64(o->addr1, o->addr1, -block_size);
+    tcg_gen_neg_i64(o->addr1, o->addr1);
+    tcg_gen_movi_i64(o->out, 16);
+    tcg_gen_umin_i64(o->out, o->out, o->addr1);
+    gen_op_update1_cc_i64(s, CC_OP_LCBB, o->out);
     return DISAS_NEXT;
 }
 
@@ -5931,6 +5949,7 @@ enum DisasInsnEnum {
 #define FAC_ECT         S390_FEAT_EXTRACT_CPU_TIME
 #define FAC_PCI         S390_FEAT_ZPCI /* z/PCI facility */
 #define FAC_AIS         S390_FEAT_ADAPTER_INT_SUPPRESSION
+#define FAC_V           S390_FEAT_VECTOR /* vector facility */
 
 static const DisasInsn insn_info[] = {
 #include "insn-data.def"
