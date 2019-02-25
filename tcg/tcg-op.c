@@ -809,6 +809,28 @@ void tcg_gen_sextract_i32(TCGv_i32 ret, TCGv_i32 arg,
     tcg_gen_sari_i32(ret, ret, 32 - len);
 }
 
+/*
+ * Extract 32-bits from a 64-bit input, ah:al, starting from ofs.
+ * Unlike tcg_gen_extract_i32 above, len is fixed at 32.
+ */
+void tcg_gen_extract2_i32(TCGv_i32 ret, TCGv_i32 al, TCGv_i32 ah,
+                          unsigned int ofs)
+{
+    tcg_debug_assert(ofs <= 32);
+    if (ofs == 0) {
+        tcg_gen_mov_i32(ret, al);
+    } else if (ofs == 32) {
+        tcg_gen_mov_i32(ret, ah);
+    } else if (al == ah) {
+        tcg_gen_rotri_i32(ret, al, ofs);
+    } else {
+        TCGv_i32 t0 = tcg_temp_new_i32();
+        tcg_gen_shri_i32(t0, al, ofs);
+        tcg_gen_deposit_i32(ret, t0, ah, 32 - ofs, ofs);
+        tcg_temp_free_i32(t0);
+    }
+}
+
 void tcg_gen_movcond_i32(TCGCond cond, TCGv_i32 ret, TCGv_i32 c1,
                          TCGv_i32 c2, TCGv_i32 v1, TCGv_i32 v2)
 {
@@ -2295,6 +2317,28 @@ void tcg_gen_sextract_i64(TCGv_i64 ret, TCGv_i64 arg,
     }
     tcg_gen_shli_i64(ret, arg, 64 - len - ofs);
     tcg_gen_sari_i64(ret, ret, 64 - len);
+}
+
+/*
+ * Extract 64 bits from a 128-bit input, ah:al, starting from ofs.
+ * Unlike tcg_gen_extract_i64 above, len is fixed at 64.
+ */
+void tcg_gen_extract2_i64(TCGv_i64 ret, TCGv_i64 al, TCGv_i64 ah,
+                          unsigned int ofs)
+{
+    tcg_debug_assert(ofs <= 64);
+    if (ofs == 0) {
+        tcg_gen_mov_i64(ret, al);
+    } else if (ofs == 64) {
+        tcg_gen_mov_i64(ret, ah);
+    } else if (al == ah) {
+        tcg_gen_rotri_i64(ret, al, ofs);
+    } else {
+        TCGv_i64 t0 = tcg_temp_new_i64();
+        tcg_gen_shri_i64(t0, al, ofs);
+        tcg_gen_deposit_i64(ret, t0, ah, 64 - ofs, ofs);
+        tcg_temp_free_i64(t0);
+    }
 }
 
 void tcg_gen_movcond_i64(TCGCond cond, TCGv_i64 ret, TCGv_i64 c1,
