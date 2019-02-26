@@ -463,6 +463,7 @@ gnutls=""
 nettle=""
 gcrypt=""
 gcrypt_hmac="no"
+auth_pam=""
 vte=""
 virglrenderer=""
 tpm="yes"
@@ -1381,6 +1382,10 @@ for opt do
   ;;
   --enable-gcrypt) gcrypt="yes"
   ;;
+  --disable-auth-pam) auth_pam="no"
+  ;;
+  --enable-auth-pam) auth_pam="yes"
+  ;;
   --enable-rdma) rdma="yes"
   ;;
   --disable-rdma) rdma="no"
@@ -1707,6 +1712,7 @@ disabled with --disable-FEATURE, default is enabled if available:
   gnutls          GNUTLS cryptography support
   nettle          nettle cryptography support
   gcrypt          libgcrypt cryptography support
+  auth-pam        PAM access control
   sdl             SDL UI
   sdl_image       SDL Image support for icons
   gtk             gtk UI
@@ -2865,6 +2871,33 @@ fi
 
 
 ##########################################
+# PAM probe
+
+if test "$auth_pam" != "no"; then
+    cat > $TMPC <<EOF
+#include <security/pam_appl.h>
+#include <stdio.h>
+int main(void) {
+   const char *service_name = "qemu";
+   const char *user = "frank";
+   const struct pam_conv *pam_conv = NULL;
+   pam_handle_t *pamh = NULL;
+   pam_start(service_name, user, pam_conv, &pamh);
+   return 0;
+}
+EOF
+    if compile_prog "" "-lpam" ; then
+        auth_pam=yes
+    else
+        if test "$auth_pam" = "yes"; then
+            feature_not_found "PAM" "Install PAM development package"
+        else
+            auth_pam=no
+        fi
+    fi
+fi
+
+##########################################
 # getifaddrs (for tests/test-io-channel-socket )
 
 have_ifaddrs_h=yes
@@ -3172,20 +3205,6 @@ if test "$xkbcommon" != "no" ; then
   fi
 fi
 
-##########################################
-# fnmatch() probe, used for ACL routines
-fnmatch="no"
-cat > $TMPC << EOF
-#include <fnmatch.h>
-int main(void)
-{
-    fnmatch("foo", "foo", 0);
-    return 0;
-}
-EOF
-if compile_prog "" "" ; then
-   fnmatch="yes"
-fi
 
 ##########################################
 # xfsctl() probe, used for file-posix.c
@@ -6091,6 +6110,7 @@ echo "GNUTLS support    $gnutls"
 echo "libgcrypt         $gcrypt"
 echo "nettle            $nettle $(echo_version $nettle $nettle_version)"
 echo "libtasn1          $tasn1"
+echo "PAM               $auth_pam"
 echo "curses support    $curses"
 echo "virgl support     $virglrenderer $(echo_version $virglrenderer $virgl_version)"
 echo "curl support      $curl"
@@ -6382,9 +6402,6 @@ if test "$xkbcommon" = "yes" ; then
   echo "XKBCOMMON_CFLAGS=$xkbcommon_cflags" >> $config_host_mak
   echo "XKBCOMMON_LIBS=$xkbcommon_libs" >> $config_host_mak
 fi
-if test "$fnmatch" = "yes" ; then
-  echo "CONFIG_FNMATCH=y" >> $config_host_mak
-fi
 if test "$xfs" = "yes" ; then
   echo "CONFIG_XFS=y" >> $config_host_mak
 fi
@@ -6549,6 +6566,9 @@ if test "$nettle" = "yes" ; then
 fi
 if test "$tasn1" = "yes" ; then
   echo "CONFIG_TASN1=y" >> $config_host_mak
+fi
+if test "$auth_pam" = "yes" ; then
+    echo "CONFIG_AUTH_PAM=y" >> $config_host_mak
 fi
 if test "$have_ifaddrs_h" = "yes" ; then
     echo "HAVE_IFADDRS_H=y" >> $config_host_mak

@@ -1,0 +1,58 @@
+# -*- Mode: Python -*-
+#
+# QAPI authz definitions
+
+##
+# @QAuthZListPolicy:
+#
+# The authorization policy result
+#
+# @deny: deny access
+# @allow: allow access
+#
+# Since: 4.0
+##
+{ 'enum': 'QAuthZListPolicy',
+  'prefix': 'QAUTHZ_LIST_POLICY',
+  'data': ['deny', 'allow']}
+
+##
+# @QAuthZListFormat:
+#
+# The authorization policy match format
+#
+# @exact: an exact string match
+# @glob: string with ? and * shell wildcard support
+#
+# Since: 4.0
+##
+{ 'enum': 'QAuthZListFormat',
+  'prefix': 'QAUTHZ_LIST_FORMAT',
+  'data': ['exact', 'glob']}
+
+##
+# @QAuthZListRule:
+#
+# A single authorization rule.
+#
+# @match: a string or glob to match against a user identity
+# @policy: the result to return if @match evaluates to true
+# @format: the format of the @match rule (default 'exact')
+#
+# Since: 4.0
+##
+{ 'struct': 'QAuthZListRule',
+  'data': {'match': 'str',
+           'policy': 'QAuthZListPolicy',
+           '*format': 'QAuthZListFormat'}}
+
+##
+# @QAuthZListRuleListHack:
+#
+# Not exposed via QMP; hack to generate QAuthZListRuleList
+# for use internally by the code.
+#
+# Since: 4.0
+##
+{ 'struct': 'QAuthZListRuleListHack',
+  'data': { 'unused': ['QAuthZListRule'] } }

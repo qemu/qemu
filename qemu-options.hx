@@ -4365,6 +4365,111 @@ e.g to launch a SEV guest
      .....
 
 @end example
+
+
+@item -object authz-simple,id=@var{id},identity=@var{string}
+
+Create an authorization object that will control access to network services.
+
+The @option{identity} parameter is identifies the user and its format
+depends on the network service that authorization object is associated
+with. For authorizing based on TLS x509 certificates, the identity must
+be the x509 distinguished name. Note that care must be taken to escape
+any commas in the distinguished name.
+
+An example authorization object to validate a x509 distinguished name
+would look like:
+@example
+ # $QEMU \
+     ...
+     -object 'authz-simple,id=auth0,identity=CN=laptop.example.com,,O=Example Org,,L=London,,ST=London,,C=GB' \
+     ...
+@end example
+
+Note the use of quotes due to the x509 distinguished name containing
+whitespace, and escaping of ','.
+
+@item -object authz-listfile,id=@var{id},filename=@var{path},refresh=@var{yes|no}
+
+Create an authorization object that will control access to network services.
+
+The @option{filename} parameter is the fully qualified path to a file
+containing the access control list rules in JSON format.
+
+An example set of rules that match against SASL usernames might look
+like:
+
+@example
+  @{
+    "rules": [
+       @{ "match": "fred", "policy": "allow", "format": "exact" @},
+       @{ "match": "bob", "policy": "allow", "format": "exact" @},
+       @{ "match": "danb", "policy": "deny", "format": "glob" @},
+       @{ "match": "dan*", "policy": "allow", "format": "exact" @},
+    ],
+    "policy": "deny"
+  @}
+@end example
+
+When checking access the object will iterate over all the rules and
+the first rule to match will have its @option{policy} value returned
+as the result. If no rules match, then the default @option{policy}
+value is returned.
+
+The rules can either be an exact string match, or they can use the
+simple UNIX glob pattern matching to allow wildcards to be used.
+
+If @option{refresh} is set to true the file will be monitored
+and automatically reloaded whenever its content changes.
+
+As with the @code{authz-simple} object, the format of the identity
+strings being matched depends on the network service, but is usually
+a TLS x509 distinguished name, or a SASL username.
+
+An example authorization object to validate a SASL username
+would look like:
+@example
+ # $QEMU \
+     ...
+     -object authz-simple,id=auth0,filename=/etc/qemu/vnc-sasl.acl,refresh=yes
+     ...
+@end example
+
+@item -object authz-pam,id=@var{id},service=@var{string}
+
+Create an authorization object that will control access to network services.
+
+The @option{service} parameter provides the name of a PAM service to use
+for authorization. It requires that a file @code{/etc/pam.d/@var{service}}
+exist to provide the configuration for the @code{account} subsystem.
+
+An example authorization object to validate a TLS x509 distinguished
+name would look like:
+
+@example
+ # $QEMU \
+     ...
+     -object authz-pam,id=auth0,service=qemu-vnc
+     ...
+@end example
+
+There would then be a corresponding config file for PAM at
+@code{/etc/pam.d/qemu-vnc} that contains:
+
+@example
+account requisite  pam_listfile.so item=user sense=allow \
+           file=/etc/qemu/vnc.allow
+@end example
+
+Finally the @code{/etc/qemu/vnc.allow} file would contain
+the list of x509 distingished names that are permitted
+access
+
+@example
+CN=laptop.example.com,O=Example Home,L=London,ST=London,C=GB
+@end example
+
+
 @end table
 
 ETEXI

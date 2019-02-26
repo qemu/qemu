@@ -2079,6 +2079,14 @@ F: io/
 F: include/io/
 F: tests/test-io-*
 
+User authorization
+M: Daniel P. Berrange <berrange@redhat.com>
+S: Maintained
+F: authz/
+F: qapi/authz.json
+F: include/authz/
+F: tests/test-authz-*
+
 Sockets
 M: Daniel P. Berrange <berrange@redhat.com>
 M: Gerd Hoffmann <kraxel@redhat.com>
@@ -2086,6 +2094,13 @@ S: Maintained
 F: include/qemu/sockets.h
 F: util/qemu-sockets.c
 F: qapi/sockets.json
+
+File monitor
+M: Daniel P. Berrange <berrange@redhat.com>
+S: Odd fixes
+F: util/filemonitor*.c
+F: include/qemu/filemonitor.h
+F: tests/test-util-filemonitor.c
 
 Throttling infrastructure
 M: Alberto Garcia <berto@igalia.com>

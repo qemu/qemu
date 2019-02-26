@@ -237,7 +237,7 @@ usb_mtp_op_unknown(int dev, uint32_t code) "dev %d, command code 0x%x"
 usb_mtp_object_alloc(int dev, uint32_t handle, const char *path) "dev %d, handle 0x%x, path %s"
 usb_mtp_object_free(int dev, uint32_t handle, const char *path) "dev %d, handle 0x%x, path %s"
 usb_mtp_add_child(int dev, uint32_t handle, const char *path) "dev %d, handle 0x%x, path %s"
-usb_mtp_inotify_event(int dev, const char *path, uint32_t mask, const char *s) "dev %d, path %s mask 0x%x event %s"
+usb_mtp_file_monitor_event(int dev, const char *path, const char *s) "dev %d, path %s event %s"
 
 # hw/usb/host-libusb.c
 usb_host_open_started(int bus, int addr) "dev %d:%d"
