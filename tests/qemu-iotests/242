@@ -20,6 +20,7 @@
 
 import iotests
 import json
+import struct
 from iotests import qemu_img_create, qemu_io, qemu_img_pipe, \
     file_path, img_info_log, log, filter_qemu_io
 
@@ -64,10 +65,11 @@ def write_to_disk(offset, size):
 def toggle_flag(offset):
     with open(disk, "r+b") as f:
         f.seek(offset, 0)
-        c = f.read(1)
-        toggled = chr(ord(c) ^ bitmap_flag_unknown)
+        # Read one byte in a way compatible with Python 2
+        flags = struct.unpack("B", f.read(1))
+        toggled = flags[0] ^ bitmap_flag_unknown
         f.seek(-1, 1)
-        f.write(toggled)
+        f.write(struct.pack("B", toggled))
 
 
 qemu_img_create('-f', iotests.imgfmt, disk, '1M')
