@@ -4362,6 +4362,7 @@ static void gen_shift(DisasContext *ctx, uint32_t opc,
     tcg_temp_free(t1);
 }
 
+#if defined(TARGET_MIPS64)
 /* Copy GPR to and from TX79 HI1/LO1 register. */
 static void gen_HILO1_tx79(DisasContext *ctx, uint32_t opc, int reg)
 {
@@ -4397,6 +4398,7 @@ static void gen_HILO1_tx79(DisasContext *ctx, uint32_t opc, int reg)
         break;
     }
 }
+#endif
 
 /* Arithmetic on HI/LO registers */
 static void gen_HILO(DisasContext *ctx, uint32_t opc, int acc, int reg)
@@ -4746,6 +4748,7 @@ static void gen_r6_muldiv(DisasContext *ctx, int opc, int rd, int rs, int rt)
     tcg_temp_free(t1);
 }
 
+#if defined(TARGET_MIPS64)
 static void gen_div1_tx79(DisasContext *ctx, uint32_t opc, int rs, int rt)
 {
     TCGv t0, t1;
@@ -4802,6 +4805,7 @@ static void gen_div1_tx79(DisasContext *ctx, uint32_t opc, int rs, int rt)
     tcg_temp_free(t0);
     tcg_temp_free(t1);
 }
+#endif
 
 static void gen_muldiv(DisasContext *ctx, uint32_t opc,
                        int acc, int rs, int rt)
@@ -24324,6 +24328,29 @@ static void decode_opc_special(CPUMIPSState *env, DisasContext *ctx)
 }
 
 
+#if defined(TARGET_MIPS64)
+
+/*
+ *
+ *           MMI (MultiMedia Interface) ASE instructions
+ *           ===========================================
+ */
+
+/*
+ *          MMI instructions category: data communication
+ *          ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+ *
+ *   PCPYH    PEXCH    PEXTLB   PINTH    PPACB    PEXT5    PREVH
+ *   PCPYLD   PEXCW    PEXTLH   PINTEH   PPACH    PPAC5    PROT3W
+ *   PCPYUD   PEXEH    PEXTLW            PPACW
+ *            PEXEW    PEXTUB
+ *                     PEXTUH
+ *                     PEXTUW
+ */
+
+#endif
+
+
 #if !defined(TARGET_MIPS64)
 
 /* MXU accumulate add/subtract 1-bit pattern 'aptn1' */
@@ -27247,6 +27274,9 @@ static void decode_opc_special3_legacy(CPUMIPSState *env, DisasContext *ctx)
     }
 }
 
+
+#if defined(TARGET_MIPS64)
+
 static void decode_mmi0(CPUMIPSState *env, DisasContext *ctx)
 {
     uint32_t opc = MASK_MMI0(ctx->opcode);
@@ -27490,6 +27520,8 @@ static void decode_mmi_sq(CPUMIPSState *env, DisasContext *ctx)
 
     gen_mmi_sq(ctx, base, rt, offset);
 }
+
+#endif
 
 static void decode_opc_special3(CPUMIPSState *env, DisasContext *ctx)
 {
@@ -28796,10 +28828,11 @@ static void decode_opc(CPUMIPSState *env, DisasContext *ctx)
         decode_opc_special(env, ctx);
         break;
     case OPC_SPECIAL2:
+#if defined(TARGET_MIPS64)
         if ((ctx->insn_flags & INSN_R5900) && (ctx->insn_flags & ASE_MMI)) {
             decode_mmi(env, ctx);
-#if !defined(TARGET_MIPS64)
-        } else if (ctx->insn_flags & ASE_MXU) {
+#else
+        if (ctx->insn_flags & ASE_MXU) {
             decode_opc_mxu(env, ctx);
 #endif
         } else {
@@ -28807,11 +28840,15 @@ static void decode_opc(CPUMIPSState *env, DisasContext *ctx)
         }
         break;
     case OPC_SPECIAL3:
+#if defined(TARGET_MIPS64)
         if (ctx->insn_flags & INSN_R5900) {
             decode_mmi_sq(env, ctx);    /* MMI_OPC_SQ */
         } else {
             decode_opc_special3(env, ctx);
         }
+#else
+        decode_opc_special3(env, ctx);
+#endif
         break;
     case OPC_REGIMM:
         op1 = MASK_REGIMM(ctx->opcode);
@@ -29483,7 +29520,9 @@ static void decode_opc(CPUMIPSState *env, DisasContext *ctx)
         break;
     case OPC_MSA: /* OPC_MDMX */
         if (ctx->insn_flags & INSN_R5900) {
+#if defined(TARGET_MIPS64)
             gen_mmi_lq(env, ctx);    /* MMI_OPC_LQ */
+#endif
         } else {
             /* MDMX: Not implemented. */
             gen_msa(env, ctx);
