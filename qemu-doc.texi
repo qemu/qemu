@@ -2062,19 +2062,6 @@ PC Keyboard
 IDE controller
 @end itemize
 
-The mipssim pseudo board emulation provides an environment similar
-to what the proprietary MIPS emulator uses for running Linux.
-It supports:
-
-@itemize @minus
-@item
-A range of MIPS CPUs, default is the 24Kf
-@item
-PC style serial port
-@item
-MIPSnet network emulation
-@end itemize
-
 The MIPS Magnum R4000 emulation supports:
 
 @itemize @minus
@@ -2088,6 +2075,19 @@ PC Keyboard
 SCSI controller
 @item
 G364 framebuffer
+@end itemize
+
+The mipssim pseudo board emulation provides an environment similar
+to what the proprietary MIPS emulator uses for running Linux.
+It supports:
+
+@itemize @minus
+@item
+A range of MIPS CPUs, default is the 24Kf
+@item
+PC style serial port
+@item
+MIPSnet network emulation
 @end itemize
 
 @node nanoMIPS System emulator
