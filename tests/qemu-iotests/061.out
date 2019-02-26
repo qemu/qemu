@@ -488,4 +488,93 @@ wrote 65536/65536 bytes at offset 3221225472
 64 KiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
     (0.00/100%)    (6.25/100%)    (12.50/100%)    (18.75/100%)    (25.00/100%)    (31.25/100%)    (37.50/100%)    (43.75/100%)    (50.00/100%)    (56.25/100%)    (62.50/100%)    (68.75/100%)    (75.00/100%)    (81.25/100%)    (87.50/100%)    (93.75/100%)    (100.00/100%)    (100.00/100%)
 No errors were found on the image.
+
+=== Testing version downgrade with external data file ===
+
+Formatting 'TEST_DIR/t.IMGFMT', fmt=IMGFMT size=67108864 data_file=TEST_DIR/t.IMGFMT.data
+qemu-img: Cannot downgrade an image with a data file
+image: TEST_DIR/t.IMGFMT
+file format: IMGFMT
+virtual size: 64M (67108864 bytes)
+cluster_size: 65536
+Format specific information:
+    compat: 1.1
+    lazy refcounts: false
+    refcount bits: 16
+    data file: TEST_DIR/t.IMGFMT.data
+    data file raw: false
+    corrupt: false
+No errors were found on the image.
+
+=== Try changing the external data file ===
+
+Formatting 'TEST_DIR/t.IMGFMT', fmt=IMGFMT size=67108864
+qemu-img: data-file can only be set for images that use an external data file
+
+Formatting 'TEST_DIR/t.IMGFMT', fmt=IMGFMT size=67108864 data_file=TEST_DIR/t.IMGFMT.data
+qemu-img: Could not open 'TEST_DIR/t.IMGFMT': Could not open 'foo': No such file or directory
+image: TEST_DIR/t.IMGFMT
+file format: IMGFMT
+virtual size: 64M (67108864 bytes)
+cluster_size: 65536
+Format specific information:
+    compat: 1.1
+    lazy refcounts: false
+    refcount bits: 16
+    data file: foo
+    data file raw: false
+    corrupt: false
+
+qemu-img: Could not open 'TEST_DIR/t.IMGFMT': 'data-file' is required for this image
+image: TEST_DIR/t.IMGFMT
+file format: IMGFMT
+virtual size: 64M (67108864 bytes)
+cluster_size: 65536
+Format specific information:
+    compat: 1.1
+    lazy refcounts: false
+    refcount bits: 16
+    data file raw: false
+    corrupt: false
+
+=== Clearing and setting data-file-raw ===
+
+Formatting 'TEST_DIR/t.IMGFMT', fmt=IMGFMT size=67108864 data_file=TEST_DIR/t.IMGFMT.data data_file_raw=on
+image: TEST_DIR/t.IMGFMT
+file format: IMGFMT
+virtual size: 64M (67108864 bytes)
+cluster_size: 65536
+Format specific information:
+    compat: 1.1
+    lazy refcounts: false
+    refcount bits: 16
+    data file: TEST_DIR/t.IMGFMT.data
+    data file raw: true
+    corrupt: false
+No errors were found on the image.
+image: TEST_DIR/t.IMGFMT
+file format: IMGFMT
+virtual size: 64M (67108864 bytes)
+cluster_size: 65536
+Format specific information:
+    compat: 1.1
+    lazy refcounts: false
+    refcount bits: 16
+    data file: TEST_DIR/t.IMGFMT.data
+    data file raw: false
+    corrupt: false
+No errors were found on the image.
+qemu-img: data-file-raw cannot be set on existing images
+image: TEST_DIR/t.IMGFMT
+file format: IMGFMT
+virtual size: 64M (67108864 bytes)
+cluster_size: 65536
+Format specific information:
+    compat: 1.1
+    lazy refcounts: false
+    refcount bits: 16
+    data file: TEST_DIR/t.IMGFMT.data
+    data file raw: false
+    corrupt: false
+No errors were found on the image.
 *** done
