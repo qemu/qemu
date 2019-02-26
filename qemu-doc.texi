@@ -2049,6 +2049,15 @@ Malta FPGA serial device
 Cirrus (default) or any other PCI VGA graphics card
 @end itemize
 
+The Boston board emulation supports the following devices:
+
+@itemize @minus
+@item
+Xilinx FPGA, which includes a PCIe root port and an UART
+@item
+Intel EG20T PCH connects the I/O peripherals, but only the SATA bus is emulated
+@end itemize
+
 The ACER Pica emulation supports:
 
 @itemize @minus
