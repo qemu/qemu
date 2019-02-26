@@ -2077,6 +2077,19 @@ SCSI controller
 G364 framebuffer
 @end itemize
 
+The Fulong 2E emulation supports:
+
+@itemize @minus
+@item
+Loongson 2E CPU
+@item
+Bonito64 system controller as North Bridge
+@item
+VT82C686 chipset as South Bridge
+@item
+RTL8139D as a network card chipset
+@end itemize
+
 The mipssim pseudo board emulation provides an environment similar
 to what the proprietary MIPS emulator uses for running Linux.
 It supports:
