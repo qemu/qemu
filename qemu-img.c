@@ -503,7 +503,7 @@ static int img_create(int argc, char **argv)
 
     if (qemu_opts_foreach(&qemu_object_opts,
                           user_creatable_add_opts_foreach,
-                          NULL, NULL)) {
+                          NULL, &error_fatal)) {
         goto fail;
     }
 
@@ -753,7 +753,7 @@ static int img_check(int argc, char **argv)
 
     if (qemu_opts_foreach(&qemu_object_opts,
                           user_creatable_add_opts_foreach,
-                          NULL, NULL)) {
+                          NULL, &error_fatal)) {
         return 1;
     }
 
@@ -966,7 +966,7 @@ static int img_commit(int argc, char **argv)
 
     if (qemu_opts_foreach(&qemu_object_opts,
                           user_creatable_add_opts_foreach,
-                          NULL, NULL)) {
+                          NULL, &error_fatal)) {
         return 1;
     }
 
@@ -1349,7 +1349,7 @@ static int img_compare(int argc, char **argv)
 
     if (qemu_opts_foreach(&qemu_object_opts,
                           user_creatable_add_opts_foreach,
-                          NULL, NULL)) {
+                          NULL, &error_fatal)) {
         ret = 2;
         goto out4;
     }
@@ -2153,7 +2153,7 @@ static int img_convert(int argc, char **argv)
 
     if (qemu_opts_foreach(&qemu_object_opts,
                           user_creatable_add_opts_foreach,
-                          NULL, NULL)) {
+                          NULL, &error_fatal)) {
         goto fail_getopt;
     }
 
@@ -2707,7 +2707,7 @@ static int img_info(int argc, char **argv)
 
     if (qemu_opts_foreach(&qemu_object_opts,
                           user_creatable_add_opts_foreach,
-                          NULL, NULL)) {
+                          NULL, &error_fatal)) {
         return 1;
     }
 
@@ -2784,6 +2784,7 @@ static int get_block_status(BlockDriverState *bs, int64_t offset,
     BlockDriverState *file;
     bool has_offset;
     int64_t map;
+    char *filename = NULL;
 
     /* As an optimization, we could cache the current range of unallocated
      * clusters in each file of the chain, and avoid querying the same
@@ -2811,6 +2812,11 @@ static int get_block_status(BlockDriverState *bs, int64_t offset,
 
     has_offset = !!(ret & BDRV_BLOCK_OFFSET_VALID);
 
+    if (file && has_offset) {
+        bdrv_refresh_filename(file);
+        filename = file->filename;
+    }
+
     *e = (MapEntry) {
         .start = offset,
         .length = bytes,
@@ -2819,8 +2825,8 @@ static int get_block_status(BlockDriverState *bs, int64_t offset,
         .offset = map,
         .has_offset = has_offset,
         .depth = depth,
-        .has_filename = file && has_offset,
-        .filename = file && has_offset ? file->filename : NULL,
+        .has_filename = filename,
+        .filename = filename,
     };
 
     return 0;
@@ -2926,7 +2932,7 @@ static int img_map(int argc, char **argv)
 
     if (qemu_opts_foreach(&qemu_object_opts,
                           user_creatable_add_opts_foreach,
-                          NULL, NULL)) {
+                          NULL, &error_fatal)) {
         return 1;
     }
 
@@ -3075,7 +3081,7 @@ static int img_snapshot(int argc, char **argv)
 
     if (qemu_opts_foreach(&qemu_object_opts,
                           user_creatable_add_opts_foreach,
-                          NULL, NULL)) {
+                          NULL, &error_fatal)) {
         return 1;
     }
 
@@ -3117,11 +3123,18 @@ static int img_snapshot(int argc, char **argv)
         break;
 
     case SNAPSHOT_DELETE:
-        bdrv_snapshot_delete_by_id_or_name(bs, snapshot_name, &err);
-        if (err) {
-            error_reportf_err(err, "Could not delete snapshot '%s': ",
-                              snapshot_name);
+        ret = bdrv_snapshot_find(bs, &sn, snapshot_name);
+        if (ret < 0) {
+            error_report("Could not delete snapshot '%s': snapshot not "
+                         "found", snapshot_name);
             ret = 1;
+        } else {
+            ret = bdrv_snapshot_delete(bs, sn.id_str, sn.name, &err);
+            if (ret < 0) {
+                error_reportf_err(err, "Could not delete snapshot '%s': ",
+                                  snapshot_name);
+                ret = 1;
+            }
         }
         break;
     }
@@ -3235,7 +3248,7 @@ static int img_rebase(int argc, char **argv)
 
     if (qemu_opts_foreach(&qemu_object_opts,
                           user_creatable_add_opts_foreach,
-                          NULL, NULL)) {
+                          NULL, &error_fatal)) {
         return 1;
     }
 
@@ -3321,20 +3334,17 @@ static int img_rebase(int argc, char **argv)
                 qdict_put_bool(options, BDRV_OPT_FORCE_SHARE, true);
             }
 
+            bdrv_refresh_filename(bs);
             overlay_filename = bs->exact_filename[0] ? bs->exact_filename
                                                      : bs->filename;
-            out_real_path = g_malloc(PATH_MAX);
-
-            bdrv_get_full_backing_filename_from_filename(overlay_filename,
-                                                         out_baseimg,
-                                                         out_real_path,
-                                                         PATH_MAX,
-                                                         &local_err);
+            out_real_path =
+                bdrv_get_full_backing_filename_from_filename(overlay_filename,
+                                                             out_baseimg,
+                                                             &local_err);
             if (local_err) {
                 error_reportf_err(local_err,
                                   "Could not resolve backing filename: ");
                 ret = -1;
-                g_free(out_real_path);
                 goto out;
             }
 
@@ -3615,7 +3625,7 @@ static int img_resize(int argc, char **argv)
 
     if (qemu_opts_foreach(&qemu_object_opts,
                           user_creatable_add_opts_foreach,
-                          NULL, NULL)) {
+                          NULL, &error_fatal)) {
         return 1;
     }
 
@@ -3859,7 +3869,7 @@ static int img_amend(int argc, char **argv)
 
     if (qemu_opts_foreach(&qemu_object_opts,
                           user_creatable_add_opts_foreach,
-                          NULL, NULL)) {
+                          NULL, &error_fatal)) {
         ret = -1;
         goto out_no_progress;
     }
@@ -4503,7 +4513,7 @@ static int img_dd(int argc, char **argv)
 
     if (qemu_opts_foreach(&qemu_object_opts,
                           user_creatable_add_opts_foreach,
-                          NULL, NULL)) {
+                          NULL, &error_fatal)) {
         ret = -1;
         goto out;
     }
@@ -4780,7 +4790,7 @@ static int img_measure(int argc, char **argv)
 
     if (qemu_opts_foreach(&qemu_object_opts,
                           user_creatable_add_opts_foreach,
-                          NULL, NULL)) {
+                          NULL, &error_fatal)) {
         goto out;
     }
 

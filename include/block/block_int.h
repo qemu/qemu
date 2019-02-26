@@ -139,7 +139,42 @@ struct BlockDriver {
                                             Error **errp);
     int (*bdrv_make_empty)(BlockDriverState *bs);
 
-    void (*bdrv_refresh_filename)(BlockDriverState *bs, QDict *options);
+    /*
+     * Refreshes the bs->exact_filename field. If that is impossible,
+     * bs->exact_filename has to be left empty.
+     */
+    void (*bdrv_refresh_filename)(BlockDriverState *bs);
+
+    /*
+     * Gathers the open options for all children into @target.
+     * A simple format driver (without backing file support) might
+     * implement this function like this:
+     *
+     *     QINCREF(bs->file->bs->full_open_options);
+     *     qdict_put(target, "file", bs->file->bs->full_open_options);
+     *
+     * If not specified, the generic implementation will simply put
+     * all children's options under their respective name.
+     *
+     * @backing_overridden is true when bs->backing seems not to be
+     * the child that would result from opening bs->backing_file.
+     * Therefore, if it is true, the backing child's options should be
+     * gathered; otherwise, there is no need since the backing child
+     * is the one implied by the image header.
+     *
+     * Note that ideally this function would not be needed.  Every
+     * block driver which implements it is probably doing something
+     * shady regarding its runtime option structure.
+     */
+    void (*bdrv_gather_child_options)(BlockDriverState *bs, QDict *target,
+                                      bool backing_overridden);
+
+    /*
+     * Returns an allocated string which is the directory name of this BDS: It
+     * will be used to make relative filenames absolute by prepending this
+     * function's return value to them.
+     */
+    char *(*bdrv_dirname)(BlockDriverState *bs, Error **errp);
 
     /* aio */
     BlockAIOCB *(*bdrv_aio_preadv)(BlockDriverState *bs,
@@ -510,6 +545,13 @@ struct BlockDriver {
     void (*bdrv_register_buf)(BlockDriverState *bs, void *host, size_t size);
     void (*bdrv_unregister_buf)(BlockDriverState *bs, void *host);
     QLIST_ENTRY(BlockDriver) list;
+
+    /* Pointer to a NULL-terminated array of names of strong options
+     * that can be specified for bdrv_open(). A strong option is one
+     * that changes the data of a BDS.
+     * If this pointer is NULL, the array is considered empty.
+     * "filename" and "driver" are always considered strong. */
+    const char *const *strong_runtime_opts;
 };
 
 typedef struct BlockLimits {
@@ -662,6 +704,11 @@ struct BdrvChild {
      */
     uint64_t shared_perm;
 
+    /* backup of permissions during permission update procedure */
+    bool has_backup_perm;
+    uint64_t backup_perm;
+    uint64_t backup_shared_perm;
+
     QLIST_ENTRY(BdrvChild) next;
     QLIST_ENTRY(BdrvChild) next_parent;
 };
@@ -697,6 +744,10 @@ struct BlockDriverState {
     char filename[PATH_MAX];
     char backing_file[PATH_MAX]; /* if non zero, the image is a diff of
                                     this file image */
+    /* The backing filename indicated by the image header; if we ever
+     * open this file, then this is replaced by the resulting BDS's
+     * filename (i.e. after a bdrv_refresh_filename() run). */
+    char auto_backing_file[PATH_MAX];
     char backing_format[16]; /* if non-zero and backing_file exists */
 
     QDict *full_open_options;

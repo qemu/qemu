@@ -449,11 +449,14 @@ static int coroutine_fn bdrv_qed_do_open(BlockDriverState *bs, QDict *options,
         }
 
         ret = qed_read_string(bs->file, s->header.backing_filename_offset,
-                              s->header.backing_filename_size, bs->backing_file,
-                              sizeof(bs->backing_file));
+                              s->header.backing_filename_size,
+                              bs->auto_backing_file,
+                              sizeof(bs->auto_backing_file));
         if (ret < 0) {
             return ret;
         }
+        pstrcpy(bs->backing_file, sizeof(bs->backing_file),
+                bs->auto_backing_file);
 
         if (s->header.features & QED_F_BACKING_FORMAT_NO_PROBE) {
             pstrcpy(bs->backing_format, sizeof(bs->backing_format), "raw");

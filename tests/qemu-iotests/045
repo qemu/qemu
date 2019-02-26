@@ -132,7 +132,7 @@ class TestSCMFd(iotests.QMPTestCase):
         qemu_img('create', '-f', iotests.imgfmt, image0, '128K')
         # Add an unused monitor, to verify it works fine when two monitor
         # instances present
-        self.vm.add_monitor_telnet("0",4445)
+        self.vm.add_monitor_null()
         self.vm.launch()
 
     def tearDown(self):

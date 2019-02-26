@@ -31,6 +31,7 @@
 #include "qemu/module.h"
 #include "qemu/option.h"
 #include "qemu/bswap.h"
+#include "qemu/cutils.h"
 #include <zlib.h>
 #include "qapi/qmp/qdict.h"
 #include "qapi/qmp/qstring.h"
@@ -295,11 +296,13 @@ static int qcow_open(BlockDriverState *bs, QDict *options, int flags,
             goto fail;
         }
         ret = bdrv_pread(bs->file, header.backing_file_offset,
-                   bs->backing_file, len);
+                   bs->auto_backing_file, len);
         if (ret < 0) {
             goto fail;
         }
-        bs->backing_file[len] = '\0';
+        bs->auto_backing_file[len] = '\0';
+        pstrcpy(bs->backing_file, sizeof(bs->backing_file),
+                bs->auto_backing_file);
     }
 
     /* Disable migration when qcow images are used */
@@ -1170,6 +1173,12 @@ static QemuOptsList qcow_create_opts = {
     }
 };
 
+static const char *const qcow_strong_runtime_opts[] = {
+    "encrypt." BLOCK_CRYPTO_OPT_QCOW_KEY_SECRET,
+
+    NULL
+};
+
 static BlockDriver bdrv_qcow = {
     .format_name	= "qcow",
     .instance_size	= sizeof(BDRVQcowState),
@@ -1193,6 +1202,7 @@ static BlockDriver bdrv_qcow = {
     .bdrv_get_info          = qcow_get_info,
 
     .create_opts            = &qcow_create_opts,
+    .strong_runtime_opts    = qcow_strong_runtime_opts,
 };
 
 static void bdrv_qcow_init(void)

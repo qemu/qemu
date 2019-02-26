@@ -1501,6 +1501,36 @@ static void test_append_to_drained(void)
     blk_unref(blk);
 }
 
+static void test_set_aio_context(void)
+{
+    BlockDriverState *bs;
+    IOThread *a = iothread_new();
+    IOThread *b = iothread_new();
+    AioContext *ctx_a = iothread_get_aio_context(a);
+    AioContext *ctx_b = iothread_get_aio_context(b);
+
+    bs = bdrv_new_open_driver(&bdrv_test, "test-node", BDRV_O_RDWR,
+                              &error_abort);
+
+    bdrv_drained_begin(bs);
+    bdrv_set_aio_context(bs, ctx_a);
+
+    aio_context_acquire(ctx_a);
+    bdrv_drained_end(bs);
+
+    bdrv_drained_begin(bs);
+    bdrv_set_aio_context(bs, ctx_b);
+    aio_context_release(ctx_a);
+    aio_context_acquire(ctx_b);
+    bdrv_set_aio_context(bs, qemu_get_aio_context());
+    aio_context_release(ctx_b);
+    bdrv_drained_end(bs);
+
+    bdrv_unref(bs);
+    iothread_join(a);
+    iothread_join(b);
+}
+
 int main(int argc, char **argv)
 {
     int ret;
@@ -1581,6 +1611,8 @@ int main(int argc, char **argv)
     g_test_add_func("/bdrv-drain/detach/driver_cb", test_detach_by_driver_cb);
 
     g_test_add_func("/bdrv-drain/attach/drain", test_append_to_drained);
+
+    g_test_add_func("/bdrv-drain/set_aio_context", test_set_aio_context);
 
     ret = g_test_run();
     qemu_event_destroy(&done_event);

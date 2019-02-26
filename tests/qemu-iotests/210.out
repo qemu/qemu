@@ -1,13 +1,13 @@
 === Successful image creation (defaults) ===
 
-{"execute": "blockdev-create", "arguments": {"job_id": "job0", "options": {"driver": "file", "filename": "TEST_DIR/PID-t.luks", "size": 0}}}
+{"execute": "blockdev-create", "arguments": {"job-id": "job0", "options": {"driver": "file", "filename": "TEST_DIR/PID-t.luks", "size": 0}}}
 {"return": {}}
 {"execute": "job-dismiss", "arguments": {"id": "job0"}}
 {"return": {}}
 
-{"execute": "blockdev-add", "arguments": {"driver": "file", "filename": "TEST_DIR/PID-t.luks", "node_name": "imgfile"}}
+{"execute": "blockdev-add", "arguments": {"driver": "file", "filename": "TEST_DIR/PID-t.luks", "node-name": "imgfile"}}
 {"return": {}}
-{"execute": "blockdev-create", "arguments": {"job_id": "job0", "options": {"driver": "luks", "file": "imgfile", "iter-time": 10, "key-secret": "keysec0", "size": 134217728}}}
+{"execute": "blockdev-create", "arguments": {"job-id": "job0", "options": {"driver": "luks", "file": "imgfile", "iter-time": 10, "key-secret": "keysec0", "size": 134217728}}}
 {"return": {}}
 {"execute": "job-dismiss", "arguments": {"id": "job0"}}
 {"return": {}}
@@ -54,12 +54,12 @@ Format specific information:
 
 === Successful image creation (with non-default options) ===
 
-{"execute": "blockdev-create", "arguments": {"job_id": "job0", "options": {"driver": "file", "filename": "TEST_DIR/PID-t.luks", "size": 0}}}
+{"execute": "blockdev-create", "arguments": {"job-id": "job0", "options": {"driver": "file", "filename": "TEST_DIR/PID-t.luks", "size": 0}}}
 {"return": {}}
 {"execute": "job-dismiss", "arguments": {"id": "job0"}}
 {"return": {}}
 
-{"execute": "blockdev-create", "arguments": {"job_id": "job0", "options": {"cipher-alg": "twofish-128", "cipher-mode": "ctr", "driver": "luks", "file": {"driver": "file", "filename": "TEST_DIR/PID-t.luks"}, "hash-alg": "sha1", "iter-time": 10, "ivgen-alg": "plain64", "ivgen-hash-alg": "md5", "key-secret": "keysec0", "size": 67108864}}}
+{"execute": "blockdev-create", "arguments": {"job-id": "job0", "options": {"cipher-alg": "twofish-128", "cipher-mode": "ctr", "driver": "luks", "file": {"driver": "file", "filename": "TEST_DIR/PID-t.luks"}, "hash-alg": "sha1", "iter-time": 10, "ivgen-alg": "plain64", "ivgen-hash-alg": "md5", "key-secret": "keysec0", "size": 67108864}}}
 {"return": {}}
 {"execute": "job-dismiss", "arguments": {"id": "job0"}}
 {"return": {}}
@@ -106,7 +106,7 @@ Format specific information:
 
 === Invalid BlockdevRef ===
 
-{"execute": "blockdev-create", "arguments": {"job_id": "job0", "options": {"driver": "luks", "file": "this doesn't exist", "size": 67108864}}}
+{"execute": "blockdev-create", "arguments": {"job-id": "job0", "options": {"driver": "luks", "file": "this doesn't exist", "size": 67108864}}}
 {"return": {}}
 Job failed: Cannot find device=this doesn't exist nor node_name=this doesn't exist
 {"execute": "job-dismiss", "arguments": {"id": "job0"}}
@@ -114,7 +114,7 @@ Job failed: Cannot find device=this doesn't exist nor node_name=this doesn't exi
 
 === Zero size ===
 
-{"execute": "blockdev-create", "arguments": {"job_id": "job0", "options": {"driver": "luks", "file": "node0", "iter-time": 10, "key-secret": "keysec0", "size": 0}}}
+{"execute": "blockdev-create", "arguments": {"job-id": "job0", "options": {"driver": "luks", "file": "node0", "iter-time": 10, "key-secret": "keysec0", "size": 0}}}
 {"return": {}}
 {"execute": "job-dismiss", "arguments": {"id": "job0"}}
 {"return": {}}
@@ -161,19 +161,19 @@ Format specific information:
 
 === Invalid sizes ===
 
-{"execute": "blockdev-create", "arguments": {"job_id": "job0", "options": {"driver": "luks", "file": "node0", "key-secret": "keysec0", "size": 18446744073709551104}}}
+{"execute": "blockdev-create", "arguments": {"job-id": "job0", "options": {"driver": "luks", "file": "node0", "key-secret": "keysec0", "size": 18446744073709551104}}}
 {"return": {}}
 Job failed: The requested file size is too large
 {"execute": "job-dismiss", "arguments": {"id": "job0"}}
 {"return": {}}
 
-{"execute": "blockdev-create", "arguments": {"job_id": "job0", "options": {"driver": "luks", "file": "node0", "key-secret": "keysec0", "size": 9223372036854775808}}}
+{"execute": "blockdev-create", "arguments": {"job-id": "job0", "options": {"driver": "luks", "file": "node0", "key-secret": "keysec0", "size": 9223372036854775808}}}
 {"return": {}}
 Job failed: The requested file size is too large
 {"execute": "job-dismiss", "arguments": {"id": "job0"}}
 {"return": {}}
 
-{"execute": "blockdev-create", "arguments": {"job_id": "job0", "options": {"driver": "luks", "file": "node0", "key-secret": "keysec0", "size": 9223372036854775296}}}
+{"execute": "blockdev-create", "arguments": {"job-id": "job0", "options": {"driver": "luks", "file": "node0", "key-secret": "keysec0", "size": 9223372036854775296}}}
 {"return": {}}
 Job failed: The requested file size is too large
 {"execute": "job-dismiss", "arguments": {"id": "job0"}}
@@ -181,13 +181,13 @@ Job failed: The requested file size is too large
 
 === Resize image with invalid sizes ===
 
-{"execute": "block_resize", "arguments": {"node_name": "node1", "size": 9223372036854775296}}
+{"execute": "block_resize", "arguments": {"node-name": "node1", "size": 9223372036854775296}}
 {"error": {"class": "GenericError", "desc": "The requested file size is too large"}}
-{"execute": "block_resize", "arguments": {"node_name": "node1", "size": 9223372036854775808}}
+{"execute": "block_resize", "arguments": {"node-name": "node1", "size": 9223372036854775808}}
 {"error": {"class": "GenericError", "desc": "Invalid parameter type for 'size', expected: integer"}}
-{"execute": "block_resize", "arguments": {"node_name": "node1", "size": 18446744073709551104}}
+{"execute": "block_resize", "arguments": {"node-name": "node1", "size": 18446744073709551104}}
 {"error": {"class": "GenericError", "desc": "Invalid parameter type for 'size', expected: integer"}}
-{"execute": "block_resize", "arguments": {"node_name": "node1", "size": -9223372036854775808}}
+{"execute": "block_resize", "arguments": {"node-name": "node1", "size": -9223372036854775808}}
 {"error": {"class": "GenericError", "desc": "Parameter 'size' expects a >0 size"}}
 image: json:{"driver": "IMGFMT", "file": {"driver": "file", "filename": "TEST_IMG"}, "key-secret": "keysec0"}
 file format: IMGFMT

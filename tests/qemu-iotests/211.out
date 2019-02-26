@@ -1,13 +1,13 @@
 === Successful image creation (defaults) ===
 
-{"execute": "blockdev-create", "arguments": {"job_id": "job0", "options": {"driver": "file", "filename": "TEST_DIR/PID-t.vdi", "size": 0}}}
+{"execute": "blockdev-create", "arguments": {"job-id": "job0", "options": {"driver": "file", "filename": "TEST_DIR/PID-t.vdi", "size": 0}}}
 {"return": {}}
 {"execute": "job-dismiss", "arguments": {"id": "job0"}}
 {"return": {}}
 
-{"execute": "blockdev-add", "arguments": {"driver": "file", "filename": "TEST_DIR/PID-t.vdi", "node_name": "imgfile"}}
+{"execute": "blockdev-add", "arguments": {"driver": "file", "filename": "TEST_DIR/PID-t.vdi", "node-name": "imgfile"}}
 {"return": {}}
-{"execute": "blockdev-create", "arguments": {"job_id": "job0", "options": {"driver": "vdi", "file": "imgfile", "size": 134217728}}}
+{"execute": "blockdev-create", "arguments": {"job-id": "job0", "options": {"driver": "vdi", "file": "imgfile", "size": 134217728}}}
 {"return": {}}
 {"execute": "job-dismiss", "arguments": {"id": "job0"}}
 {"return": {}}
@@ -21,12 +21,12 @@ cluster_size: 1048576
 
 === Successful image creation (explicit defaults) ===
 
-{"execute": "blockdev-create", "arguments": {"job_id": "job0", "options": {"driver": "file", "filename": "TEST_DIR/PID-t.vdi", "size": 0}}}
+{"execute": "blockdev-create", "arguments": {"job-id": "job0", "options": {"driver": "file", "filename": "TEST_DIR/PID-t.vdi", "size": 0}}}
 {"return": {}}
 {"execute": "job-dismiss", "arguments": {"id": "job0"}}
 {"return": {}}
 
-{"execute": "blockdev-create", "arguments": {"job_id": "job0", "options": {"driver": "vdi", "file": {"driver": "file", "filename": "TEST_DIR/PID-t.vdi"}, "preallocation": "off", "size": 67108864}}}
+{"execute": "blockdev-create", "arguments": {"job-id": "job0", "options": {"driver": "vdi", "file": {"driver": "file", "filename": "TEST_DIR/PID-t.vdi"}, "preallocation": "off", "size": 67108864}}}
 {"return": {}}
 {"execute": "job-dismiss", "arguments": {"id": "job0"}}
 {"return": {}}
@@ -40,12 +40,12 @@ cluster_size: 1048576
 
 === Successful image creation (with non-default options) ===
 
-{"execute": "blockdev-create", "arguments": {"job_id": "job0", "options": {"driver": "file", "filename": "TEST_DIR/PID-t.vdi", "size": 0}}}
+{"execute": "blockdev-create", "arguments": {"job-id": "job0", "options": {"driver": "file", "filename": "TEST_DIR/PID-t.vdi", "size": 0}}}
 {"return": {}}
 {"execute": "job-dismiss", "arguments": {"id": "job0"}}
 {"return": {}}
 
-{"execute": "blockdev-create", "arguments": {"job_id": "job0", "options": {"driver": "vdi", "file": {"driver": "file", "filename": "TEST_DIR/PID-t.vdi"}, "preallocation": "metadata", "size": 33554432}}}
+{"execute": "blockdev-create", "arguments": {"job-id": "job0", "options": {"driver": "vdi", "file": {"driver": "file", "filename": "TEST_DIR/PID-t.vdi"}, "preallocation": "metadata", "size": 33554432}}}
 {"return": {}}
 {"execute": "job-dismiss", "arguments": {"id": "job0"}}
 {"return": {}}
@@ -60,7 +60,7 @@ cluster_size: 1048576
 
 === Invalid BlockdevRef ===
 
-{"execute": "blockdev-create", "arguments": {"job_id": "job0", "options": {"driver": "vdi", "file": "this doesn't exist", "size": 33554432}}}
+{"execute": "blockdev-create", "arguments": {"job-id": "job0", "options": {"driver": "vdi", "file": "this doesn't exist", "size": 33554432}}}
 {"return": {}}
 Job failed: Cannot find device=this doesn't exist nor node_name=this doesn't exist
 {"execute": "job-dismiss", "arguments": {"id": "job0"}}
@@ -68,7 +68,7 @@ Job failed: Cannot find device=this doesn't exist nor node_name=this doesn't exi
 
 === Zero size ===
 
-{"execute": "blockdev-create", "arguments": {"job_id": "job0", "options": {"driver": "vdi", "file": "node0", "size": 0}}}
+{"execute": "blockdev-create", "arguments": {"job-id": "job0", "options": {"driver": "vdi", "file": "node0", "size": 0}}}
 {"return": {}}
 {"execute": "job-dismiss", "arguments": {"id": "job0"}}
 {"return": {}}
@@ -80,7 +80,7 @@ cluster_size: 1048576
 
 === Maximum size ===
 
-{"execute": "blockdev-create", "arguments": {"job_id": "job0", "options": {"driver": "vdi", "file": "node0", "size": 562949819203584}}}
+{"execute": "blockdev-create", "arguments": {"job-id": "job0", "options": {"driver": "vdi", "file": "node0", "size": 562949819203584}}}
 {"return": {}}
 {"execute": "job-dismiss", "arguments": {"id": "job0"}}
 {"return": {}}
@@ -92,19 +92,19 @@ cluster_size: 1048576
 
 === Invalid sizes ===
 
-{"execute": "blockdev-create", "arguments": {"job_id": "job0", "options": {"driver": "vdi", "file": "node0", "size": 18446744073709551104}}}
+{"execute": "blockdev-create", "arguments": {"job-id": "job0", "options": {"driver": "vdi", "file": "node0", "size": 18446744073709551104}}}
 {"return": {}}
 Job failed: Unsupported VDI image size (size is 0xfffffffffffffe00, max supported is 0x1fffff8000000)
 {"execute": "job-dismiss", "arguments": {"id": "job0"}}
 {"return": {}}
 
-{"execute": "blockdev-create", "arguments": {"job_id": "job0", "options": {"driver": "vdi", "file": "node0", "size": 9223372036854775808}}}
+{"execute": "blockdev-create", "arguments": {"job-id": "job0", "options": {"driver": "vdi", "file": "node0", "size": 9223372036854775808}}}
 {"return": {}}
 Job failed: Unsupported VDI image size (size is 0x8000000000000000, max supported is 0x1fffff8000000)
 {"execute": "job-dismiss", "arguments": {"id": "job0"}}
 {"return": {}}
 
-{"execute": "blockdev-create", "arguments": {"job_id": "job0", "options": {"driver": "vdi", "file": "node0", "size": 562949819203585}}}
+{"execute": "blockdev-create", "arguments": {"job-id": "job0", "options": {"driver": "vdi", "file": "node0", "size": 562949819203585}}}
 {"return": {}}
 Job failed: Unsupported VDI image size (size is 0x1fffff8000001, max supported is 0x1fffff8000000)
 {"execute": "job-dismiss", "arguments": {"id": "job0"}}

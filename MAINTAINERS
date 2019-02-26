@@ -1698,7 +1698,7 @@ F: include/scsi/*
 F: scsi/*
 
 Block Jobs
-M: Jeff Cody <jcody@redhat.com>
+M: John Snow <jsnow@redhat.com>
 L: qemu-block@nongnu.org
 S: Supported
 F: blockjob.c
@@ -1711,7 +1711,7 @@ F: block/commit.c
 F: block/stream.c
 F: block/mirror.c
 F: qapi/job.json
-T: git https://github.com/codyprime/qemu-kvm-jtc.git block
+T: git https://github.com/jnsnow/qemu.git jobs
 
 Block QAPI, monitor, command line
 M: Markus Armbruster <armbru@redhat.com>
@@ -2261,26 +2261,22 @@ F: block/vmdk.c
 
 RBD
 M: Josh Durgin <jdurgin@redhat.com>
-M: Jeff Cody <jcody@redhat.com>
 L: qemu-block@nongnu.org
 S: Supported
 F: block/rbd.c
-T: git https://github.com/codyprime/qemu-kvm-jtc.git block
 
 Sheepdog
 M: Liu Yuan <namei.unix@gmail.com>
-M: Jeff Cody <jcody@redhat.com>
 L: qemu-block@nongnu.org
-S: Supported
+L: sheepdog@lists.wpkg.org
+S: Odd Fixes
 F: block/sheepdog.c
-T: git https://github.com/codyprime/qemu-kvm-jtc.git block
 
 VHDX
-M: Jeff Cody <jcody@redhat.com>
+M: Jeff Cody <codyprime@gmail.com>
 L: qemu-block@nongnu.org
 S: Supported
 F: block/vhdx*
-T: git https://github.com/codyprime/qemu-kvm-jtc.git block
 
 VDI
 M: Stefan Weil <sw@weilnetz.de>
@@ -2310,34 +2306,26 @@ F: docs/interop/nbd.txt
 T: git https://repo.or.cz/qemu/ericb.git nbd
 
 NFS
-M: Jeff Cody <jcody@redhat.com>
 M: Peter Lieven <pl@kamp.de>
 L: qemu-block@nongnu.org
 S: Maintained
 F: block/nfs.c
-T: git https://github.com/codyprime/qemu-kvm-jtc.git block
 
 SSH
 M: Richard W.M. Jones <rjones@redhat.com>
-M: Jeff Cody <jcody@redhat.com>
 L: qemu-block@nongnu.org
 S: Supported
 F: block/ssh.c
-T: git https://github.com/codyprime/qemu-kvm-jtc.git block
 
 CURL
-M: Jeff Cody <jcody@redhat.com>
 L: qemu-block@nongnu.org
 S: Supported
 F: block/curl.c
-T: git https://github.com/codyprime/qemu-kvm-jtc.git block
 
 GLUSTER
-M: Jeff Cody <jcody@redhat.com>
 L: qemu-block@nongnu.org
 S: Supported
 F: block/gluster.c
-T: git https://github.com/codyprime/qemu-kvm-jtc.git block
 
 Null Block Driver
 M: Fam Zheng <fam@euphon.net>

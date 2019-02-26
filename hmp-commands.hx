@@ -350,49 +350,57 @@ ETEXI
     {
         .name       = "savevm",
         .args_type  = "name:s?",
-        .params     = "[tag|id]",
-        .help       = "save a VM snapshot. If no tag or id are provided, a new snapshot is created",
+        .params     = "tag",
+        .help       = "save a VM snapshot. If no tag is provided, a new snapshot is created",
         .cmd        = hmp_savevm,
     },
 
 STEXI
-@item savevm [@var{tag}|@var{id}]
+@item savevm @var{tag}
 @findex savevm
 Create a snapshot of the whole virtual machine. If @var{tag} is
 provided, it is used as human readable identifier. If there is already
-a snapshot with the same tag or ID, it is replaced. More info at
+a snapshot with the same tag, it is replaced. More info at
 @ref{vm_snapshots}.
+
+Since 4.0, savevm stopped allowing the snapshot id to be set, accepting
+only @var{tag} as parameter.
 ETEXI
 
     {
         .name       = "loadvm",
         .args_type  = "name:s",
-        .params     = "tag|id",
-        .help       = "restore a VM snapshot from its tag or id",
+        .params     = "tag",
+        .help       = "restore a VM snapshot from its tag",
         .cmd        = hmp_loadvm,
         .command_completion = loadvm_completion,
     },
 
 STEXI
-@item loadvm @var{tag}|@var{id}
+@item loadvm @var{tag}
 @findex loadvm
 Set the whole virtual machine to the snapshot identified by the tag
-@var{tag} or the unique snapshot ID @var{id}.
+@var{tag}.
+
+Since 4.0, loadvm stopped accepting snapshot id as parameter.
 ETEXI
 
     {
         .name       = "delvm",
         .args_type  = "name:s",
-        .params     = "tag|id",
-        .help       = "delete a VM snapshot from its tag or id",
+        .params     = "tag",
+        .help       = "delete a VM snapshot from its tag",
         .cmd        = hmp_delvm,
         .command_completion = delvm_completion,
     },
 
 STEXI
-@item delvm @var{tag}|@var{id}
+@item delvm @var{tag}
 @findex delvm
-Delete the snapshot identified by @var{tag} or @var{id}.
+Delete the snapshot identified by @var{tag}.
+
+Since 4.0, delvm stopped deleting snapshots by snapshot id, accepting
+only @var{tag} as parameter.
 ETEXI
 
     {

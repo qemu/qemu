@@ -145,6 +145,7 @@ else
         TEST_IMG="nbd:127.0.0.1:10810"
     elif [ "$IMGPROTO" = "ssh" ]; then
         TEST_IMG_FILE=$TEST_DIR/t.$IMGFMT
+        REMOTE_TEST_DIR="ssh://127.0.0.1$TEST_DIR"
         TEST_IMG="ssh://127.0.0.1$TEST_IMG_FILE"
     elif [ "$IMGPROTO" = "nfs" ]; then
         TEST_IMG_FILE=$TEST_DIR/t.$IMGFMT

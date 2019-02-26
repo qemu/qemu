@@ -142,6 +142,14 @@ for ofmt in human json; do
             # The backing file doesn't need to exist :)
             $QEMU_IMG measure --output=$ofmt -o backing_file=x \
                               -f "$fmt" -O "$IMGFMT" "$TEST_IMG"
+
+            echo
+            echo "== $fmt input image and LUKS encryption =="
+            echo
+            $QEMU_IMG measure --output=$ofmt \
+                              --object secret,id=sec0,data=base \
+                              -o encrypt.format=luks,encrypt.key-secret=sec0,encrypt.iter-time=10 \
+                              -f "$fmt" -O "$IMGFMT" "$TEST_IMG"
         fi
 
         echo

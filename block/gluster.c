@@ -1495,6 +1495,21 @@ static int coroutine_fn qemu_gluster_co_block_status(BlockDriverState *bs,
 }
 
 
+static const char *const gluster_strong_open_opts[] = {
+    GLUSTER_OPT_VOLUME,
+    GLUSTER_OPT_PATH,
+    GLUSTER_OPT_TYPE,
+    GLUSTER_OPT_SERVER_PATTERN,
+    GLUSTER_OPT_HOST,
+    GLUSTER_OPT_PORT,
+    GLUSTER_OPT_TO,
+    GLUSTER_OPT_IPV4,
+    GLUSTER_OPT_IPV6,
+    GLUSTER_OPT_SOCKET,
+
+    NULL
+};
+
 static BlockDriver bdrv_gluster = {
     .format_name                  = "gluster",
     .protocol_name                = "gluster",
@@ -1522,6 +1537,7 @@ static BlockDriver bdrv_gluster = {
 #endif
     .bdrv_co_block_status         = qemu_gluster_co_block_status,
     .create_opts                  = &qemu_gluster_create_opts,
+    .strong_runtime_opts          = gluster_strong_open_opts,
 };
 
 static BlockDriver bdrv_gluster_tcp = {
@@ -1551,6 +1567,7 @@ static BlockDriver bdrv_gluster_tcp = {
 #endif
     .bdrv_co_block_status         = qemu_gluster_co_block_status,
     .create_opts                  = &qemu_gluster_create_opts,
+    .strong_runtime_opts          = gluster_strong_open_opts,
 };
 
 static BlockDriver bdrv_gluster_unix = {
@@ -1580,6 +1597,7 @@ static BlockDriver bdrv_gluster_unix = {
 #endif
     .bdrv_co_block_status         = qemu_gluster_co_block_status,
     .create_opts                  = &qemu_gluster_create_opts,
+    .strong_runtime_opts          = gluster_strong_open_opts,
 };
 
 /* rdma is deprecated (actually never supported for volfile fetch).
@@ -1615,6 +1633,7 @@ static BlockDriver bdrv_gluster_rdma = {
 #endif
     .bdrv_co_block_status         = qemu_gluster_co_block_status,
     .create_opts                  = &qemu_gluster_create_opts,
+    .strong_runtime_opts          = gluster_strong_open_opts,
 };
 
 static void bdrv_gluster_init(void)

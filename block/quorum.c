@@ -1065,35 +1065,63 @@ static void quorum_del_child(BlockDriverState *bs, BdrvChild *child,
     bdrv_drained_end(bs);
 }
 
-static void quorum_refresh_filename(BlockDriverState *bs, QDict *options)
+static void quorum_gather_child_options(BlockDriverState *bs, QDict *target,
+                                        bool backing_overridden)
 {
     BDRVQuorumState *s = bs->opaque;
-    QDict *opts;
-    QList *children;
+    QList *children_list;
     int i;
 
-    for (i = 0; i < s->num_children; i++) {
-        bdrv_refresh_filename(s->children[i]->bs);
-        if (!s->children[i]->bs->full_open_options) {
-            return;
-        }
-    }
+    /*
+     * The generic implementation for gathering child options in
+     * bdrv_refresh_filename() would use the names of the children
+     * as specified for bdrv_open_child() or bdrv_attach_child(),
+     * which is "children.%u" with %u being a value
+     * (s->next_child_index) that is incremented each time a new child
+     * is added (and never decremented).  Since children can be
+     * deleted at runtime, there may be gaps in that enumeration.
+     * When creating a new quorum BDS and specifying the children for
+     * it through runtime options, the enumeration used there may not
+     * have any gaps, though.
+     *
+     * Therefore, we have to create a new gap-less enumeration here
+     * (which we can achieve by simply putting all of the children's
+     * full_open_options into a QList).
+     *
+     * XXX: Note that there are issues with the current child option
+     *      structure quorum uses (such as the fact that children do
+     *      not really have unique permanent names).  Therefore, this
+     *      is going to have to change in the future and ideally we
+     *      want quorum to be covered by the generic implementation.
+     */
 
-    children = qlist_new();
+    children_list = qlist_new();
+    qdict_put(target, "children", children_list);
+
     for (i = 0; i < s->num_children; i++) {
-        qlist_append(children,
+        qlist_append(children_list,
                      qobject_ref(s->children[i]->bs->full_open_options));
     }
-
-    opts = qdict_new();
-    qdict_put_str(opts, "driver", "quorum");
-    qdict_put_int(opts, QUORUM_OPT_VOTE_THRESHOLD, s->threshold);
-    qdict_put_bool(opts, QUORUM_OPT_BLKVERIFY, s->is_blkverify);
-    qdict_put_bool(opts, QUORUM_OPT_REWRITE, s->rewrite_corrupted);
-    qdict_put(opts, "children", children);
-
-    bs->full_open_options = opts;
 }
+
+static char *quorum_dirname(BlockDriverState *bs, Error **errp)
+{
+    /* In general, there are multiple BDSs with different dirnames below this
+     * one; so there is no unique dirname we could return (unless all are equal
+     * by chance, or there is only one). Therefore, to be consistent, just
+     * always return NULL. */
+    error_setg(errp, "Cannot generate a base directory for quorum nodes");
+    return NULL;
+}
+
+static const char *const quorum_strong_runtime_opts[] = {
+    QUORUM_OPT_VOTE_THRESHOLD,
+    QUORUM_OPT_BLKVERIFY,
+    QUORUM_OPT_REWRITE,
+    QUORUM_OPT_READ_PATTERN,
+
+    NULL
+};
 
 static BlockDriver bdrv_quorum = {
     .format_name                        = "quorum",
@@ -1102,7 +1130,8 @@ static BlockDriver bdrv_quorum = {
 
     .bdrv_open                          = quorum_open,
     .bdrv_close                         = quorum_close,
-    .bdrv_refresh_filename              = quorum_refresh_filename,
+    .bdrv_gather_child_options          = quorum_gather_child_options,
+    .bdrv_dirname                       = quorum_dirname,
 
     .bdrv_co_flush_to_disk              = quorum_co_flush,
 
@@ -1118,6 +1147,8 @@ static BlockDriver bdrv_quorum = {
 
     .is_filter                          = true,
     .bdrv_recurse_is_first_non_filter   = quorum_recurse_is_first_non_filter,
+
+    .strong_runtime_opts                = quorum_strong_runtime_opts,
 };
 
 static void bdrv_quorum_init(void)
