@@ -150,15 +150,42 @@ static bool virtio_net_started(VirtIONet *n, uint8_t status)
         (n->status & VIRTIO_NET_S_LINK_UP) && vdev->vm_running;
 }
 
+static void virtio_net_announce_notify(VirtIONet *net)
+{
+    VirtIODevice *vdev = VIRTIO_DEVICE(net);
+    trace_virtio_net_announce_notify();
+
+    net->status |= VIRTIO_NET_S_ANNOUNCE;
+    virtio_notify_config(vdev);
+}
+
 static void virtio_net_announce_timer(void *opaque)
 {
     VirtIONet *n = opaque;
-    VirtIODevice *vdev = VIRTIO_DEVICE(n);
     trace_virtio_net_announce_timer(n->announce_timer.round);
 
     n->announce_timer.round--;
-    n->status |= VIRTIO_NET_S_ANNOUNCE;
-    virtio_notify_config(vdev);
+    virtio_net_announce_notify(n);
+}
+
+static void virtio_net_announce(NetClientState *nc)
+{
+    VirtIONet *n = qemu_get_nic_opaque(nc);
+    VirtIODevice *vdev = VIRTIO_DEVICE(n);
+
+    /*
+     * Make sure the virtio migration announcement timer isn't running
+     * If it is, let it trigger announcement so that we do not cause
+     * confusion.
+     */
+    if (n->announce_timer.round) {
+        return;
+    }
+
+    if (virtio_vdev_has_feature(vdev, VIRTIO_NET_F_GUEST_ANNOUNCE) &&
+        virtio_vdev_has_feature(vdev, VIRTIO_NET_F_CTRL_VQ)) {
+            virtio_net_announce_notify(n);
+    }
 }
 
 static void virtio_net_vhost_status(VirtIONet *n, uint8_t status)
@@ -2556,6 +2583,7 @@ static NetClientInfo net_virtio_info = {
     .receive = virtio_net_receive,
     .link_status_changed = virtio_net_set_link_status,
     .query_rx_filter = virtio_net_query_rxfilter,
+    .announce = virtio_net_announce,
 };
 
 static bool virtio_net_guest_notifier_pending(VirtIODevice *vdev, int idx)
@@ -2692,6 +2720,7 @@ static void virtio_net_device_realize(DeviceState *dev, Error **errp)
     qemu_announce_timer_reset(&n->announce_timer, migrate_announce_params(),
                               QEMU_CLOCK_VIRTUAL,
                               virtio_net_announce_timer, n);
+    n->announce_timer.round = 0;
 
     if (n->netclient_type) {
         /*
