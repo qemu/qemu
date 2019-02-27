@@ -3896,17 +3896,16 @@ qcow2_co_pwritev_compressed(BlockDriverState *bs, uint64_t offset,
     int ret;
     size_t out_len;
     uint8_t *buf, *out_buf;
-    int64_t cluster_offset;
+    uint64_t cluster_offset;
 
     if (bytes == 0) {
         /* align end of file to a sector boundary to ease reading with
            sector based I/Os */
-        cluster_offset = bdrv_getlength(bs->file->bs);
-        if (cluster_offset < 0) {
-            return cluster_offset;
+        int64_t len = bdrv_getlength(bs->file->bs);
+        if (len < 0) {
+            return len;
         }
-        return bdrv_co_truncate(bs->file, cluster_offset, PREALLOC_MODE_OFF,
-                                NULL);
+        return bdrv_co_truncate(bs->file, len, PREALLOC_MODE_OFF, NULL);
     }
 
     if (offset_into_cluster(s, offset)) {
@@ -3943,14 +3942,12 @@ qcow2_co_pwritev_compressed(BlockDriverState *bs, uint64_t offset,
     }
 
     qemu_co_mutex_lock(&s->lock);
-    cluster_offset =
-        qcow2_alloc_compressed_cluster_offset(bs, offset, out_len);
-    if (!cluster_offset) {
+    ret = qcow2_alloc_compressed_cluster_offset(bs, offset, out_len,
+                                                &cluster_offset);
+    if (ret < 0) {
         qemu_co_mutex_unlock(&s->lock);
-        ret = -EIO;
         goto fail;
     }
-    cluster_offset &= s->cluster_offset_mask;
 
     ret = qcow2_pre_write_overlap_check(bs, 0, cluster_offset, out_len);
     qemu_co_mutex_unlock(&s->lock);

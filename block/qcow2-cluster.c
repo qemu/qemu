@@ -736,19 +736,16 @@ static int get_cluster_table(BlockDriverState *bs, uint64_t offset,
 /*
  * alloc_compressed_cluster_offset
  *
- * For a given offset of the disk image, return cluster offset in
- * qcow2 file.
+ * For a given offset on the virtual disk, allocate a new compressed cluster
+ * and put the host offset of the cluster into *host_offset. If a cluster is
+ * already allocated at the offset, return an error.
  *
- * If the offset is not found, allocate a new compressed cluster.
- *
- * Return the cluster offset if successful,
- * Return 0, otherwise.
- *
+ * Return 0 on success and -errno in error cases
  */
-
-uint64_t qcow2_alloc_compressed_cluster_offset(BlockDriverState *bs,
-                                               uint64_t offset,
-                                               int compressed_size)
+int qcow2_alloc_compressed_cluster_offset(BlockDriverState *bs,
+                                          uint64_t offset,
+                                          int compressed_size,
+                                          uint64_t *host_offset)
 {
     BDRVQcow2State *s = bs->opaque;
     int l2_index, ret;
@@ -758,7 +755,7 @@ uint64_t qcow2_alloc_compressed_cluster_offset(BlockDriverState *bs,
 
     ret = get_cluster_table(bs, offset, &l2_slice, &l2_index);
     if (ret < 0) {
-        return 0;
+        return ret;
     }
 
     /* Compression can't overwrite anything. Fail if the cluster was already
@@ -766,13 +763,13 @@ uint64_t qcow2_alloc_compressed_cluster_offset(BlockDriverState *bs,
     cluster_offset = be64_to_cpu(l2_slice[l2_index]);
     if (cluster_offset & L2E_OFFSET_MASK) {
         qcow2_cache_put(s->l2_table_cache, (void **) &l2_slice);
-        return 0;
+        return -EIO;
     }
 
     cluster_offset = qcow2_alloc_bytes(bs, compressed_size);
     if (cluster_offset < 0) {
         qcow2_cache_put(s->l2_table_cache, (void **) &l2_slice);
-        return 0;
+        return cluster_offset;
     }
 
     nb_csectors = ((cluster_offset + compressed_size - 1) >> 9) -
@@ -790,7 +787,8 @@ uint64_t qcow2_alloc_compressed_cluster_offset(BlockDriverState *bs,
     l2_slice[l2_index] = cpu_to_be64(cluster_offset);
     qcow2_cache_put(s->l2_table_cache, (void **) &l2_slice);
 
-    return cluster_offset;
+    *host_offset = cluster_offset & s->cluster_offset_mask;
+    return 0;
 }
 
 static int perform_cow(BlockDriverState *bs, QCowL2Meta *m)

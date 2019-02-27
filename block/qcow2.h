@@ -647,9 +647,10 @@ int qcow2_get_cluster_offset(BlockDriverState *bs, uint64_t offset,
 int qcow2_alloc_cluster_offset(BlockDriverState *bs, uint64_t offset,
                                unsigned int *bytes, uint64_t *host_offset,
                                QCowL2Meta **m);
-uint64_t qcow2_alloc_compressed_cluster_offset(BlockDriverState *bs,
-                                         uint64_t offset,
-                                         int compressed_size);
+int qcow2_alloc_compressed_cluster_offset(BlockDriverState *bs,
+                                          uint64_t offset,
+                                          int compressed_size,
+                                          uint64_t *host_offset);
 
 int qcow2_alloc_cluster_link_l2(BlockDriverState *bs, QCowL2Meta *m);
 void qcow2_alloc_cluster_abort(BlockDriverState *bs, QCowL2Meta *m);
