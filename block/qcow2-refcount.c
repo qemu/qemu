@@ -1605,6 +1605,13 @@ static int check_refcounts_l2(BlockDriverState *bs, BdrvCheckResult *res,
                 res->corruptions++;
             }
 
+            if (has_data_file(bs)) {
+                fprintf(stderr, "ERROR compressed cluster %d with data file, "
+                        "entry=0x%" PRIx64 "\n", i, l2_entry);
+                res->corruptions++;
+                break;
+            }
+
             /* Mark cluster as used */
             nb_csectors = ((l2_entry >> s->csize_shift) &
                            s->csize_mask) + 1;
@@ -1695,11 +1702,13 @@ static int check_refcounts_l2(BlockDriverState *bs, BdrvCheckResult *res,
             }
 
             /* Mark cluster as used */
-            ret = qcow2_inc_refcounts_imrt(bs, res,
-                                           refcount_table, refcount_table_size,
-                                           offset, s->cluster_size);
-            if (ret < 0) {
-                goto fail;
+            if (!has_data_file(bs)) {
+                ret = qcow2_inc_refcounts_imrt(bs, res, refcount_table,
+                                               refcount_table_size,
+                                               offset, s->cluster_size);
+                if (ret < 0) {
+                    goto fail;
+                }
             }
             break;
         }
@@ -1884,12 +1893,16 @@ static int check_oflag_copied(BlockDriverState *bs, BdrvCheckResult *res,
 
             if (cluster_type == QCOW2_CLUSTER_NORMAL ||
                 cluster_type == QCOW2_CLUSTER_ZERO_ALLOC) {
-                ret = qcow2_get_refcount(bs,
-                                         data_offset >> s->cluster_bits,
-                                         &refcount);
-                if (ret < 0) {
-                    /* don't print message nor increment check_errors */
-                    continue;
+                if (has_data_file(bs)) {
+                    refcount = 1;
+                } else {
+                    ret = qcow2_get_refcount(bs,
+                                             data_offset >> s->cluster_bits,
+                                             &refcount);
+                    if (ret < 0) {
+                        /* don't print message nor increment check_errors */
+                        continue;
+                    }
                 }
                 if ((refcount == 1) != ((l2_entry & QCOW_OFLAG_COPIED) != 0)) {
                     fprintf(stderr, "%s OFLAG_COPIED data cluster: "
@@ -2083,6 +2096,12 @@ static int calculate_refcounts(BlockDriverState *bs, BdrvCheckResult *res,
     }
 
     /* snapshots */
+    if (has_data_file(bs) && s->nb_snapshots) {
+        fprintf(stderr, "ERROR %d snapshots in image with data file\n",
+                s->nb_snapshots);
+        res->corruptions++;
+    }
+
     for (i = 0; i < s->nb_snapshots; i++) {
         sn = s->snapshots + i;
         if (offset_into_cluster(s, sn->l1_table_offset)) {
