@@ -992,7 +992,7 @@ static void nvdimm_build_common_dsm(Aml *dev)
     field = aml_field(NVDIMM_DSM_IOPORT, AML_DWORD_ACC, AML_NOLOCK,
                       AML_PRESERVE);
     aml_append(field, aml_named_field(NVDIMM_DSM_NOTIFY,
-               sizeof(uint32_t) * BITS_PER_BYTE));
+               NVDIMM_ACPI_IO_LEN * BITS_PER_BYTE));
     aml_append(method, field);
 
     /*
