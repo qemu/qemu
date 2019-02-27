@@ -143,10 +143,10 @@ int vfio_spapr_create_window(VFIOContainer *container,
                              MemoryRegionSection *section,
                              hwaddr *pgsize)
 {
-    int ret;
+    int ret = 0;
     IOMMUMemoryRegion *iommu_mr = IOMMU_MEMORY_REGION(section->mr);
     uint64_t pagesize = memory_region_iommu_get_min_page_size(iommu_mr);
-    unsigned entries, pages;
+    unsigned entries, bits_total, bits_per_level, max_levels;
     struct vfio_iommu_spapr_tce_create create = { .argsz = sizeof(create) };
     long systempagesize = qemu_getrampagesize();
 
@@ -176,16 +176,38 @@ int vfio_spapr_create_window(VFIOContainer *container,
     create.window_size = int128_get64(section->size);
     create.page_shift = ctz64(pagesize);
     /*
-     * SPAPR host supports multilevel TCE tables, there is some
-     * heuristic to decide how many levels we want for our table:
-     * 0..64 = 1; 65..4096 = 2; 4097..262144 = 3; 262145.. = 4
+     * SPAPR host supports multilevel TCE tables. We try to guess optimal
+     * levels number and if this fails (for example due to the host memory
+     * fragmentation), we increase levels. The DMA address structure is:
+     * rrrrrrrr rxxxxxxx xxxxxxxx xxxxxxxx  xxxxxxxx xxxxxxxx xxxxxxxx iiiiiiii
+     * where:
+     *   r = reserved (bits >= 55 are reserved in the existing hardware)
+     *   i = IOMMU page offset (64K in this example)
+     *   x = bits to index a TCE which can be split to equal chunks to index
+     *      within the level.
+     * The aim is to split "x" to smaller possible number of levels.
      */
     entries = create.window_size >> create.page_shift;
-    pages = MAX((entries * sizeof(uint64_t)) / getpagesize(), 1);
-    pages = MAX(pow2ceil(pages), 1); /* Round up */
-    create.levels = ctz64(pages) / 6 + 1;
-
-    ret = ioctl(container->fd, VFIO_IOMMU_SPAPR_TCE_CREATE, &create);
+    /* bits_total is number of "x" needed */
+    bits_total = ctz64(entries * sizeof(uint64_t));
+    /*
+     * bits_per_level is a safe guess of how much we can allocate per level:
+     * 8 is the current minimum for CONFIG_FORCE_MAX_ZONEORDER and MAX_ORDER
+     * is usually bigger than that.
+     * Below we look at getpagesize() as TCEs are allocated from system pages.
+     */
+    bits_per_level = ctz64(getpagesize()) + 8;
+    create.levels = bits_total / bits_per_level;
+    if (bits_total % bits_per_level) {
+        ++create.levels;
+    }
+    max_levels = (64 - create.page_shift) / ctz64(getpagesize());
+    for ( ; create.levels <= max_levels; ++create.levels) {
+        ret = ioctl(container->fd, VFIO_IOMMU_SPAPR_TCE_CREATE, &create);
+        if (!ret) {
+            break;
+        }
+    }
     if (ret) {
         error_report("Failed to create a window, ret = %d (%m)", ret);
         return -errno;
@@ -200,6 +222,7 @@ int vfio_spapr_create_window(VFIOContainer *container,
         return -EINVAL;
     }
     trace_vfio_spapr_create_window(create.page_shift,
+                                   create.levels,
                                    create.window_size,
                                    create.start_addr);
     *pgsize = pagesize;
