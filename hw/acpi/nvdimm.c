@@ -1086,7 +1086,7 @@ static void nvdimm_build_common_dsm(Aml *dev)
      */
     aml_append(method, aml_store(handle, aml_name(NVDIMM_DSM_HANDLE)));
     aml_append(method, aml_store(aml_arg(1), aml_name(NVDIMM_DSM_REVISION)));
-    aml_append(method, aml_store(aml_arg(2), aml_name(NVDIMM_DSM_FUNCTION)));
+    aml_append(method, aml_store(function, aml_name(NVDIMM_DSM_FUNCTION)));
 
     /*
      * The fourth parameter (Arg3) of _DSM is a package which contains
