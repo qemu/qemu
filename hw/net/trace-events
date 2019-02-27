@@ -359,3 +359,8 @@ sunhme_rx_filter_reject(void) "rejecting incoming frame"
 sunhme_rx_filter_accept(void) "accepting incoming frame"
 sunhme_rx_desc(uint32_t addr, int offset, uint32_t status, int len, int cr, int nr) "addr 0x%"PRIx32"(+0x%x) status 0x%"PRIx32 " len %d (ring %d/%d)"
 sunhme_rx_xsum_calc(uint16_t xsum) "calculated incoming xsum as 0x%x"
+
+# hw/net/virtio-net.c
+virtio_net_announce_timer(int round) "%d"
+virtio_net_handle_announce(int round) "%d"
+virtio_net_post_load_device(void)
