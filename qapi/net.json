@@ -684,3 +684,26 @@
 ##
 { 'event': 'NIC_RX_FILTER_CHANGED',
   'data': { '*name': 'str', 'path': 'str' } }
+
+##
+# @AnnounceParameters:
+#
+# Parameters for self-announce timers
+#
+# @initial: Initial delay (in ms) before sending the first GARP/RARP
+#       announcement
+#
+# @max: Maximum delay (in ms) between GARP/RARP announcement packets
+#
+# @rounds: Number of self-announcement attempts
+#
+# @step: Delay increase (in ms) after each self-announcement attempt
+#
+# Since: 4.0
+##
+
+{ 'struct': 'AnnounceParameters',
+  'data': { 'initial': 'int',
+            'max': 'int',
+            'rounds': 'int',
+            'step': 'int' } }
