@@ -1829,11 +1829,11 @@ static int coroutine_fn qcow2_co_block_status(BlockDriverState *bs,
 
     *pnum = bytes;
 
-    if (cluster_offset != 0 && ret != QCOW2_CLUSTER_COMPRESSED &&
+    if ((ret == QCOW2_CLUSTER_NORMAL || ret == QCOW2_CLUSTER_ZERO_ALLOC) &&
         !s->crypto) {
         index_in_cluster = offset & (s->cluster_size - 1);
         *map = cluster_offset | index_in_cluster;
-        *file = bs->file->bs;
+        *file = s->data_file->bs;
         status |= BDRV_BLOCK_OFFSET_VALID;
     }
     if (ret == QCOW2_CLUSTER_ZERO_PLAIN || ret == QCOW2_CLUSTER_ZERO_ALLOC) {
