@@ -374,13 +374,13 @@ static int create_qp_rings(PCIDevice *pci_dev, uint64_t pdir_dma,
 
     dir = rdma_pci_dma_map(pci_dev, pdir_dma, TARGET_PAGE_SIZE);
     if (!dir) {
-        rdma_error_report("Failed to map to CQ page directory");
+        rdma_error_report("Failed to map to QP page directory");
         goto out;
     }
 
     tbl = rdma_pci_dma_map(pci_dev, dir[0], TARGET_PAGE_SIZE);
     if (!tbl) {
-        rdma_error_report("Failed to map to CQ page table");
+        rdma_error_report("Failed to map to QP page table");
         goto out;
     }
 
@@ -393,7 +393,7 @@ static int create_qp_rings(PCIDevice *pci_dev, uint64_t pdir_dma,
     sr->ring_state = (struct pvrdma_ring *)
         rdma_pci_dma_map(pci_dev, tbl[0], TARGET_PAGE_SIZE);
     if (!sr->ring_state) {
-        rdma_error_report("Failed to map to CQ ring state");
+        rdma_error_report("Failed to map to QP ring state");
         goto out_free_sr_mem;
     }
 
