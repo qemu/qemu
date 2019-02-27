@@ -6,6 +6,7 @@
 ##
 
 { 'include': 'common.json' }
+{ 'include': 'sockets.json' }
 
 ##
 # @MigrationStats:
@@ -199,6 +200,8 @@
 # @compression: migration compression statistics, only returned if compression
 #           feature is on and status is 'active' or 'completed' (Since 3.1)
 #
+# @socket-address: Only used for tcp, to know what the real port is (Since 4.0)
+#
 # Since: 0.14.0
 ##
 { 'struct': 'MigrationInfo',
@@ -213,7 +216,8 @@
            '*error-desc': 'str',
            '*postcopy-blocktime' : 'uint32',
            '*postcopy-vcpu-blocktime': ['uint32'],
-           '*compression': 'CompressionStats'} }
+           '*compression': 'CompressionStats',
+           '*socket-address': ['SocketAddress'] } }
 
 ##
 # @query-migrate:

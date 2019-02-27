@@ -31,6 +31,8 @@
 #include "migration/vmstate.h"
 #include "block/block.h"
 #include "qapi/error.h"
+#include "qapi/clone-visitor.h"
+#include "qapi/qapi-visit-sockets.h"
 #include "qapi/qapi-commands-migration.h"
 #include "qapi/qapi-events-migration.h"
 #include "qapi/qmp/qerror.h"
@@ -213,6 +215,11 @@ void migration_incoming_state_destroy(void)
     }
 
     qemu_event_reset(&mis->main_thread_load_event);
+
+    if (mis->socket_address_list) {
+        qapi_free_SocketAddressList(mis->socket_address_list);
+        mis->socket_address_list = NULL;
+    }
 }
 
 static void migrate_generate_event(int new_state)
@@ -326,6 +333,17 @@ void migration_incoming_disable_colo(void)
 void migration_incoming_enable_colo(void)
 {
     migration_colo_enabled = true;
+}
+
+void migrate_add_address(SocketAddress *address)
+{
+    MigrationIncomingState *mis = migration_incoming_get_current();
+    SocketAddressList *addrs;
+
+    addrs = g_new0(SocketAddressList, 1);
+    addrs->next = mis->socket_address_list;
+    mis->socket_address_list = addrs;
+    addrs->value = QAPI_CLONE(SocketAddress, address);
 }
 
 void qemu_start_incoming_migration(const char *uri, Error **errp)
@@ -1008,6 +1026,12 @@ static bool migrate_caps_check(bool *cap_list,
 static void fill_destination_migration_info(MigrationInfo *info)
 {
     MigrationIncomingState *mis = migration_incoming_get_current();
+
+    if (mis->socket_address_list) {
+        info->has_socket_address = true;
+        info->socket_address =
+            QAPI_CLONE(SocketAddressList, mis->socket_address_list);
+    }
 
     switch (mis->state) {
     case MIGRATION_STATUS_NONE:
