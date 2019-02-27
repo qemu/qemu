@@ -23,17 +23,12 @@ import os
 import iotests
 from iotests import log
 
-sys.path.append(os.path.join(os.path.dirname(__file__), '..', '..', 'python'))
-
-from qemu import QEMUMachine
-
 if iotests.qemu_default_machine == 's390-ccw-virtio':
     virtio_scsi_device = 'virtio-scsi-ccw'
 else:
     virtio_scsi_device = 'virtio-scsi-pci'
 
-vm = QEMUMachine(iotests.qemu_prog)
-vm.add_args('-machine', 'accel=kvm')
+vm = iotests.VM()
 vm.launch()
 
 log(vm.qmp('blockdev-add', node_name='hd0', driver='null-co'))
