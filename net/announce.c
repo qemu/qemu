@@ -12,6 +12,7 @@
 #include "net/net.h"
 #include "qapi/clone-visitor.h"
 #include "qapi/qapi-visit-net.h"
+#include "qapi/qapi-commands-net.h"
 #include "trace.h"
 
 int64_t qemu_announce_timer_step(AnnounceTimer *timer)
@@ -130,4 +131,10 @@ void qemu_announce_self(AnnounceTimer *timer, AnnounceParameters *params)
     } else {
         qemu_announce_timer_del(timer);
     }
+}
+
+void qmp_announce_self(AnnounceParameters *params, Error **errp)
+{
+    static AnnounceTimer announce_timer;
+    qemu_announce_self(&announce_timer, params);
 }
