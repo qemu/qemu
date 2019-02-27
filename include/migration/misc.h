@@ -15,6 +15,7 @@
 #define MIGRATION_MISC_H
 
 #include "qemu/notify.h"
+#include "qapi/qapi-types-net.h"
 
 /* migration/ram.c */
 
@@ -38,6 +39,7 @@ int64_t self_announce_delay(int round)
     return 50 + (SELF_ANNOUNCE_ROUNDS - round - 1) * 100;
 }
 
+AnnounceParameters *migrate_announce_params(void);
 /* migration/savevm.c */
 
 void dump_vmstate_json_to_file(FILE *out_fp);

@@ -480,6 +480,18 @@
 #
 # Migration parameters enumeration
 #
+# @announce-initial: Initial delay (in milliseconds) before sending the first
+#          announce (Since 4.0)
+#
+# @announce-max: Maximum delay (in milliseconds) between packets in the
+#          announcement (Since 4.0)
+#
+# @announce-rounds: Number of self-announce packets sent after migration
+#          (Since 4.0)
+#
+# @announce-step: Increase in delay (in milliseconds) between subsequent
+#          packets in the announcement (Since 4.0)
+#
 # @compress-level: Set the compression level to be used in live migration,
 #          the compression level is an integer between 0 and 9, where 0 means
 #          no compression, 1 means the best compression speed, and 9 means best
@@ -557,10 +569,13 @@
 #
 # @max-cpu-throttle: maximum cpu throttle percentage.
 #                    Defaults to 99. (Since 3.1)
+#
 # Since: 2.4
 ##
 { 'enum': 'MigrationParameter',
-  'data': ['compress-level', 'compress-threads', 'decompress-threads',
+  'data': ['announce-initial', 'announce-max',
+           'announce-rounds', 'announce-step',
+           'compress-level', 'compress-threads', 'decompress-threads',
            'compress-wait-thread',
            'cpu-throttle-initial', 'cpu-throttle-increment',
            'tls-creds', 'tls-hostname', 'max-bandwidth',
@@ -571,6 +586,18 @@
 
 ##
 # @MigrateSetParameters:
+#
+# @announce-initial: Initial delay (in milliseconds) before sending the first
+#          announce (Since 4.0)
+#
+# @announce-max: Maximum delay (in milliseconds) between packets in the
+#          announcement (Since 4.0)
+#
+# @announce-rounds: Number of self-announce packets sent after migration
+#          (Since 4.0)
+#
+# @announce-step: Increase in delay (in milliseconds) between subsequent
+#          packets in the announcement (Since 4.0)
 #
 # @compress-level: compression level
 #
@@ -653,7 +680,11 @@
 # TODO either fuse back into MigrationParameters, or make
 # MigrationParameters members mandatory
 { 'struct': 'MigrateSetParameters',
-  'data': { '*compress-level': 'int',
+  'data': { '*announce-initial': 'size',
+            '*announce-max': 'size',
+            '*announce-rounds': 'size',
+            '*announce-step': 'size',
+            '*compress-level': 'int',
             '*compress-threads': 'int',
             '*compress-wait-thread': 'bool',
             '*decompress-threads': 'int',
@@ -691,6 +722,18 @@
 # @MigrationParameters:
 #
 # The optional members aren't actually optional.
+#
+# @announce-initial: Initial delay (in milliseconds) before sending the
+#          first announce (Since 4.0)
+#
+# @announce-max: Maximum delay (in milliseconds) between packets in the
+#          announcement (Since 4.0)
+#
+# @announce-rounds: Number of self-announce packets sent after migration
+#          (Since 4.0)
+#
+# @announce-step: Increase in delay (in milliseconds) between subsequent
+#          packets in the announcement (Since 4.0)
 #
 # @compress-level: compression level
 #
@@ -769,7 +812,11 @@
 # Since: 2.4
 ##
 { 'struct': 'MigrationParameters',
-  'data': { '*compress-level': 'uint8',
+  'data': { '*announce-initial': 'size',
+            '*announce-max': 'size',
+            '*announce-rounds': 'size',
+            '*announce-step': 'size',
+            '*compress-level': 'uint8',
             '*compress-threads': 'uint8',
             '*compress-wait-thread': 'bool',
             '*decompress-threads': 'uint8',

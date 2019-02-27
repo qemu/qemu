@@ -334,6 +334,18 @@ void hmp_info_migrate_parameters(Monitor *mon, const QDict *qdict)
     params = qmp_query_migrate_parameters(NULL);
 
     if (params) {
+        monitor_printf(mon, "%s: %" PRIu64 " ms\n",
+            MigrationParameter_str(MIGRATION_PARAMETER_ANNOUNCE_INITIAL),
+            params->announce_initial);
+        monitor_printf(mon, "%s: %" PRIu64 " ms\n",
+            MigrationParameter_str(MIGRATION_PARAMETER_ANNOUNCE_MAX),
+            params->announce_max);
+        monitor_printf(mon, "%s: %" PRIu64 "\n",
+            MigrationParameter_str(MIGRATION_PARAMETER_ANNOUNCE_ROUNDS),
+            params->announce_rounds);
+        monitor_printf(mon, "%s: %" PRIu64 " ms\n",
+            MigrationParameter_str(MIGRATION_PARAMETER_ANNOUNCE_STEP),
+            params->announce_step);
         assert(params->has_compress_level);
         monitor_printf(mon, "%s: %u\n",
             MigrationParameter_str(MIGRATION_PARAMETER_COMPRESS_LEVEL),
@@ -1756,6 +1768,22 @@ void hmp_migrate_set_parameter(Monitor *mon, const QDict *qdict)
     case MIGRATION_PARAMETER_MAX_POSTCOPY_BANDWIDTH:
         p->has_max_postcopy_bandwidth = true;
         visit_type_size(v, param, &p->max_postcopy_bandwidth, &err);
+        break;
+    case MIGRATION_PARAMETER_ANNOUNCE_INITIAL:
+        p->has_announce_initial = true;
+        visit_type_size(v, param, &p->announce_initial, &err);
+        break;
+    case MIGRATION_PARAMETER_ANNOUNCE_MAX:
+        p->has_announce_max = true;
+        visit_type_size(v, param, &p->announce_max, &err);
+        break;
+    case MIGRATION_PARAMETER_ANNOUNCE_ROUNDS:
+        p->has_announce_rounds = true;
+        visit_type_size(v, param, &p->announce_rounds, &err);
+        break;
+    case MIGRATION_PARAMETER_ANNOUNCE_STEP:
+        p->has_announce_step = true;
+        visit_type_size(v, param, &p->announce_step, &err);
         break;
     default:
         assert(0);
