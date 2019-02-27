@@ -21,6 +21,7 @@
 #include "qemu/coroutine_int.h"
 #include "hw/qdev.h"
 #include "io/channel.h"
+#include "net/announce.h"
 
 struct PostcopyBlocktimeContext;
 
@@ -35,6 +36,9 @@ struct MigrationIncomingState {
      * loading state.
      */
     QemuEvent main_thread_load_event;
+
+    /* For network announces */
+    AnnounceTimer  announce_timer;
 
     size_t         largest_page_size;
     bool           have_fault_thread;

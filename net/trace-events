@@ -1,5 +1,8 @@
 # See docs/devel/tracing.txt for syntax documentation.
 
+# net/announce.c
+qemu_announce_self_iter(const char *mac) "%s"
+
 # net/vhost-user.c
 vhost_user_event(const char *chr, int event) "chr: %s got event: %d"
 

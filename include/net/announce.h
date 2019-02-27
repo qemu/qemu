@@ -36,4 +36,6 @@ void qemu_announce_timer_reset(AnnounceTimer *timer,
                                QEMUTimerCB *cb,
                                void *opaque);
 
+void qemu_announce_self(AnnounceTimer *timer, AnnounceParameters *params);
+
 #endif
