@@ -1520,9 +1520,28 @@ int qcow2_inc_refcounts_imrt(BlockDriverState *bs, BdrvCheckResult *res,
 {
     BDRVQcow2State *s = bs->opaque;
     uint64_t start, last, cluster_offset, k, refcount;
+    int64_t file_len;
     int ret;
 
     if (size <= 0) {
+        return 0;
+    }
+
+    file_len = bdrv_getlength(bs->file->bs);
+    if (file_len < 0) {
+        return file_len;
+    }
+
+    /*
+     * Last cluster of qcow2 image may be semi-allocated, so it may be OK to
+     * reference some space after file end but it should be less than one
+     * cluster.
+     */
+    if (offset + size - file_len >= s->cluster_size) {
+        fprintf(stderr, "ERROR: counting reference for region exceeding the "
+                "end of the file by one cluster or more: offset 0x%" PRIx64
+                " size 0x%" PRIx64 "\n", offset, size);
+        res->corruptions++;
         return 0;
     }
 
