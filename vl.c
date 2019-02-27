@@ -4579,6 +4579,12 @@ int main(int argc, char **argv, char **envp)
 
     gdbserver_cleanup();
 
+    /*
+     * cleaning up the migration object cancels any existing migration
+     * try to do this early so that it also stops using devices.
+     */
+    migration_shutdown();
+
     /* No more vcpu or device emulation activity beyond this point */
     vm_shutdown();
 
@@ -4594,7 +4600,6 @@ int main(int argc, char **argv, char **envp)
     monitor_cleanup();
     qemu_chr_cleanup();
     user_creatable_cleanup();
-    migration_object_finalize();
     /* TODO: unref root container, check all devices are ok */
 
     return 0;
