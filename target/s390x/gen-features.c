@@ -689,7 +689,7 @@ static uint16_t qemu_V3_1[] = {
     S390_FEAT_MSA_EXT_4,
 };
 
-static uint16_t qemu_LATEST[] = {
+static uint16_t qemu_V4_0[] = {
     /*
      * Only BFP bits are implemented (HFP, DFP, PFPO and DIVIDE TO INTEGER not
      * implemented yet).
@@ -698,11 +698,13 @@ static uint16_t qemu_LATEST[] = {
     S390_FEAT_ZPCI,
 };
 
-/* add all new definitions before this point */
-static uint16_t qemu_MAX[] = {
-    /* z13+ features */
+static uint16_t qemu_LATEST[] = {
     S390_FEAT_STFLE_53,
     S390_FEAT_VECTOR,
+};
+
+/* add all new definitions before this point */
+static uint16_t qemu_MAX[] = {
     /* generates a dependency warning, leave it out for now */
     S390_FEAT_MSA_EXT_5,
 };
@@ -821,6 +823,7 @@ static FeatGroupDefSpec FeatGroupDef[] = {
 static FeatGroupDefSpec QemuFeatDef[] = {
     QEMU_FEAT_INITIALIZER(V2_11),
     QEMU_FEAT_INITIALIZER(V3_1),
+    QEMU_FEAT_INITIALIZER(V4_0),
     QEMU_FEAT_INITIALIZER(LATEST),
     QEMU_FEAT_INITIALIZER(MAX),
 };
