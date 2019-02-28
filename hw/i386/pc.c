@@ -2154,8 +2154,7 @@ static void pc_memory_unplug(HotplugHandler *hotplug_dev,
     }
 
     pc_dimm_unplug(PC_DIMM(dev), MACHINE(pcms));
-    object_unparent(OBJECT(dev));
-
+    object_property_set_bool(OBJECT(dev), false, "realized", NULL);
  out:
     error_propagate(errp, local_err);
 }
@@ -2261,7 +2260,7 @@ static void pc_cpu_unplug_cb(HotplugHandler *hotplug_dev,
 
     found_cpu = pc_find_cpu_slot(MACHINE(pcms), cpu->apic_id, NULL);
     found_cpu->cpu = NULL;
-    object_unparent(OBJECT(dev));
+    object_property_set_bool(OBJECT(dev), false, "realized", NULL);
 
     /* decrement the number of CPUs */
     pcms->boot_cpus--;

@@ -428,7 +428,8 @@ PCIBus *pci_root_bus_new(DeviceState *parent, const char *name,
 void pci_root_bus_cleanup(PCIBus *bus)
 {
     pci_bus_uninit(bus);
-    object_unparent(OBJECT(bus));
+    /* the caller of the unplug hotplug handler will delete this device */
+    object_property_set_bool(OBJECT(bus), false, "realized", NULL);
 }
 
 void pci_bus_irqs(PCIBus *bus, pci_set_irq_fn set_irq, pci_map_irq_fn map_irq,

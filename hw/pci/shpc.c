@@ -249,6 +249,7 @@ static void shpc_free_devices_in_slot(SHPCDevice *shpc, int slot)
             hotplug_ctrl = qdev_get_hotplug_handler(DEVICE(affected_dev));
             hotplug_handler_unplug(hotplug_ctrl, DEVICE(affected_dev),
                                    &error_abort);
+            object_unparent(OBJECT(affected_dev));
         }
     }
 }
@@ -546,7 +547,7 @@ void shpc_device_plug_cb(HotplugHandler *hotplug_dev, DeviceState *dev,
 void shpc_device_unplug_cb(HotplugHandler *hotplug_dev, DeviceState *dev,
                            Error **errp)
 {
-    object_unparent(OBJECT(dev));
+    object_property_set_bool(OBJECT(dev), false, "realized", NULL);
 }
 
 void shpc_device_unplug_request_cb(HotplugHandler *hotplug_dev,

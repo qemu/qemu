@@ -126,6 +126,7 @@ static void cpu_hotplug_wr(void *opaque, hwaddr addr, uint64_t data,
             dev = DEVICE(cdev->cpu);
             hotplug_ctrl = qdev_get_hotplug_handler(dev);
             hotplug_handler_unplug(hotplug_ctrl, dev, NULL);
+            object_unparent(OBJECT(dev));
         }
         break;
     case ACPI_CPU_CMD_OFFSET_WR:

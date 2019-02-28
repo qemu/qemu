@@ -1379,6 +1379,7 @@ void spapr_phb_remove_pci_device_cb(DeviceState *dev)
     HotplugHandler *hotplug_ctrl = qdev_get_hotplug_handler(dev);
 
     hotplug_handler_unplug(hotplug_ctrl, dev, &error_abort);
+    object_unparent(OBJECT(dev));
 }
 
 static sPAPRDRConnector *spapr_phb_get_pci_func_drc(sPAPRPHBState *phb,
@@ -1506,7 +1507,7 @@ static void spapr_pci_unplug(HotplugHandler *plug_handler,
      * an 'idle' state, as the device cleanup code expects.
      */
     pci_device_reset(PCI_DEVICE(plugged_dev));
-    object_unparent(OBJECT(plugged_dev));
+    object_property_set_bool(OBJECT(plugged_dev), false, "realized", NULL);
 }
 
 static void spapr_pci_unplug_request(HotplugHandler *plug_handler,

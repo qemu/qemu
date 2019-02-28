@@ -154,14 +154,17 @@ static void s390_pci_perform_unplug(S390PCIBusDevice *pbdev)
 
     /* Unplug the PCI device */
     if (pbdev->pdev) {
-        hotplug_ctrl = qdev_get_hotplug_handler(DEVICE(pbdev->pdev));
-        hotplug_handler_unplug(hotplug_ctrl, DEVICE(pbdev->pdev),
-                               &error_abort);
+        DeviceState *pdev = DEVICE(pbdev->pdev);
+
+        hotplug_ctrl = qdev_get_hotplug_handler(pdev);
+        hotplug_handler_unplug(hotplug_ctrl, pdev, &error_abort);
+        object_unparent(OBJECT(pdev));
     }
 
     /* Unplug the zPCI device */
     hotplug_ctrl = qdev_get_hotplug_handler(DEVICE(pbdev));
     hotplug_handler_unplug(hotplug_ctrl, DEVICE(pbdev), &error_abort);
+    object_unparent(OBJECT(pbdev));
 }
 
 void s390_pci_sclp_deconfigure(SCCB *sccb)
@@ -994,7 +997,7 @@ static void s390_pcihost_unplug(HotplugHandler *hotplug_dev, DeviceState *dev,
                                      pbdev->fh, pbdev->fid);
         bus = pci_get_bus(pci_dev);
         devfn = pci_dev->devfn;
-        object_unparent(OBJECT(pci_dev));
+        object_property_set_bool(OBJECT(dev), false, "realized", NULL);
 
         s390_pci_msix_free(pbdev);
         s390_pci_iommu_free(s, bus, devfn);
@@ -1005,7 +1008,7 @@ static void s390_pcihost_unplug(HotplugHandler *hotplug_dev, DeviceState *dev,
         pbdev->fid = 0;
         QTAILQ_REMOVE(&s->zpci_devs, pbdev, link);
         g_hash_table_remove(s->zpci_table, &pbdev->idx);
-        object_unparent(OBJECT(pbdev));
+        object_property_set_bool(OBJECT(dev), false, "realized", NULL);
     }
 }
 
