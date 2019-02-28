@@ -25,6 +25,8 @@
 #include "hw/sysbus.h"
 #include "hw/registerfields.h"
 #include "hw/misc/iotkit-sysctl.h"
+#include "target/arm/arm-powerctl.h"
+#include "target/arm/cpu.h"
 
 REG32(SECDBGSTAT, 0x0)
 REG32(SECDBGSET, 0x4)
@@ -68,6 +70,21 @@ static const int sysctl_id[] = {
     0x54, 0xb8, 0x0b, 0x00, /* PID0..PID3 */
     0x0d, 0xf0, 0x05, 0xb1, /* CID0..CID3 */
 };
+
+/*
+ * Set the initial secure vector table offset address for the core.
+ * This will take effect when the CPU next resets.
+ */
+static void set_init_vtor(uint64_t cpuid, uint32_t vtor)
+{
+    Object *cpuobj = OBJECT(arm_get_cpu_by_id(cpuid));
+
+    if (cpuobj) {
+        if (object_property_find(cpuobj, "init-svtor", NULL)) {
+            object_property_set_uint(cpuobj, vtor, "init-svtor", &error_abort);
+        }
+    }
+}
 
 static uint64_t iotkit_sysctl_read(void *opaque, hwaddr offset,
                                     unsigned size)
@@ -229,11 +246,18 @@ static void iotkit_sysctl_write(void *opaque, hwaddr offset,
         s->gretreg = value;
         break;
     case A_INITSVTOR0:
-        qemu_log_mask(LOG_UNIMP, "IoTKit SysCtl INITSVTOR0 unimplemented\n");
         s->initsvtor0 = value;
+        set_init_vtor(0, s->initsvtor0);
         break;
     case A_CPUWAIT:
-        qemu_log_mask(LOG_UNIMP, "IoTKit SysCtl CPUWAIT unimplemented\n");
+        if ((s->cpuwait & 1) && !(value & 1)) {
+            /* Powering up CPU 0 */
+            arm_set_cpu_on_and_reset(0);
+        }
+        if ((s->cpuwait & 2) && !(value & 2)) {
+            /* Powering up CPU 1 */
+            arm_set_cpu_on_and_reset(1);
+        }
         s->cpuwait = value;
         break;
     case A_WICCTRL:
@@ -287,8 +311,8 @@ static void iotkit_sysctl_write(void *opaque, hwaddr offset,
         if (!s->is_sse200) {
             goto bad_offset;
         }
-        qemu_log_mask(LOG_UNIMP, "IoTKit SysCtl INITSVTOR1 unimplemented\n");
         s->initsvtor1 = value;
+        set_init_vtor(1, s->initsvtor1);
         break;
     case A_EWCTRL:
         if (!s->is_sse200) {
@@ -382,7 +406,16 @@ static void iotkit_sysctl_reset(DeviceState *dev)
     s->gretreg = 0;
     s->initsvtor0 = 0x10000000;
     s->initsvtor1 = 0x10000000;
-    s->cpuwait = 0;
+    if (s->is_sse200) {
+        /*
+         * CPU 0 starts on, CPU 1 starts off. In real hardware this is
+         * configurable by the SoC integrator as a verilog parameter.
+         */
+        s->cpuwait = 2;
+    } else {
+        /* CPU 0 starts on */
+        s->cpuwait = 0;
+    }
     s->wicctrl = 0;
     s->scsecctrl = 0;
     s->fclk_div = 0;
