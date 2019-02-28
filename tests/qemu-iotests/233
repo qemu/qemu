@@ -30,6 +30,8 @@ _cleanup()
 {
     nbd_server_stop
     _cleanup_test_img
+    # If we aborted early we want to see this log for diagnosis
+    test -f "$TEST_DIR/server.log" && cat "$TEST_DIR/server.log"
     rm -f "$TEST_DIR/server.log"
     tls_x509_cleanup
 }
@@ -120,6 +122,7 @@ $QEMU_IO -f $IMGFMT -r -U -c 'r -P 0x22 1m 1m' "$TEST_IMG" | _filter_qemu_io
 echo
 echo "== final server log =="
 cat "$TEST_DIR/server.log"
+rm -f "$TEST_DIR/server.log"
 
 # success, all done
 echo "*** done"
