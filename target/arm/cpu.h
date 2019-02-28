@@ -1730,6 +1730,27 @@ FIELD(ID_DFR0, MPROFDBG, 20, 4)
 FIELD(ID_DFR0, PERFMON, 24, 4)
 FIELD(ID_DFR0, TRACEFILT, 28, 4)
 
+FIELD(MVFR0, SIMDREG, 0, 4)
+FIELD(MVFR0, FPSP, 4, 4)
+FIELD(MVFR0, FPDP, 8, 4)
+FIELD(MVFR0, FPTRAP, 12, 4)
+FIELD(MVFR0, FPDIVIDE, 16, 4)
+FIELD(MVFR0, FPSQRT, 20, 4)
+FIELD(MVFR0, FPSHVEC, 24, 4)
+FIELD(MVFR0, FPROUND, 28, 4)
+
+FIELD(MVFR1, FPFTZ, 0, 4)
+FIELD(MVFR1, FPDNAN, 4, 4)
+FIELD(MVFR1, SIMDLS, 8, 4)
+FIELD(MVFR1, SIMDINT, 12, 4)
+FIELD(MVFR1, SIMDSP, 16, 4)
+FIELD(MVFR1, SIMDHP, 20, 4)
+FIELD(MVFR1, FPHP, 24, 4)
+FIELD(MVFR1, SIMDFMAC, 28, 4)
+
+FIELD(MVFR2, SIMDMISC, 0, 4)
+FIELD(MVFR2, FPMISC, 4, 4)
+
 QEMU_BUILD_BUG_ON(ARRAY_SIZE(((ARMCPU *)0)->ccsidr) <= R_V7M_CSSELR_INDEX_MASK);
 
 /* If adding a feature bit which corresponds to a Linux ELF
@@ -1747,7 +1768,6 @@ enum arm_features {
     ARM_FEATURE_THUMB2,
     ARM_FEATURE_PMSA,   /* no MMU; may have Memory Protection Unit */
     ARM_FEATURE_VFP3,
-    ARM_FEATURE_VFP_FP16,
     ARM_FEATURE_NEON,
     ARM_FEATURE_M, /* Microcontroller profile.  */
     ARM_FEATURE_OMAPCP, /* OMAP specific CP15 ops handling.  */
@@ -3291,6 +3311,21 @@ static inline bool isar_feature_aa32_fp16_arith(const ARMISARegisters *id)
      * At which point we can properly set and check MVFR1.FPHP.
      */
     return FIELD_EX64(id->id_aa64pfr0, ID_AA64PFR0, FP) == 1;
+}
+
+/*
+ * We always set the FP and SIMD FP16 fields to indicate identical
+ * levels of support (assuming SIMD is implemented at all), so
+ * we only need one set of accessors.
+ */
+static inline bool isar_feature_aa32_fp16_spconv(const ARMISARegisters *id)
+{
+    return FIELD_EX64(id->mvfr1, MVFR1, FPHP) > 0;
+}
+
+static inline bool isar_feature_aa32_fp16_dpconv(const ARMISARegisters *id)
+{
+    return FIELD_EX64(id->mvfr1, MVFR1, FPHP) > 1;
 }
 
 /*

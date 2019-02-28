@@ -3663,17 +3663,27 @@ static int disas_vfp_insn(DisasContext *s, uint32_t insn)
                      * UNPREDICTABLE if bit 8 is set prior to ARMv8
                      * (we choose to UNDEF)
                      */
-                    if ((dp && !arm_dc_feature(s, ARM_FEATURE_V8)) ||
-                        !arm_dc_feature(s, ARM_FEATURE_VFP_FP16)) {
-                        return 1;
+                    if (dp) {
+                        if (!dc_isar_feature(aa32_fp16_dpconv, s)) {
+                            return 1;
+                        }
+                    } else {
+                        if (!dc_isar_feature(aa32_fp16_spconv, s)) {
+                            return 1;
+                        }
                     }
                     rm_is_dp = false;
                     break;
                 case 0x06: /* vcvtb.f16.f32, vcvtb.f16.f64 */
                 case 0x07: /* vcvtt.f16.f32, vcvtt.f16.f64 */
-                    if ((dp && !arm_dc_feature(s, ARM_FEATURE_V8)) ||
-                        !arm_dc_feature(s, ARM_FEATURE_VFP_FP16)) {
-                        return 1;
+                    if (dp) {
+                        if (!dc_isar_feature(aa32_fp16_dpconv, s)) {
+                            return 1;
+                        }
+                    } else {
+                        if (!dc_isar_feature(aa32_fp16_spconv, s)) {
+                            return 1;
+                        }
                     }
                     rd_is_dp = false;
                     break;
@@ -7876,7 +7886,7 @@ static int disas_neon_data_insn(DisasContext *s, uint32_t insn)
                     TCGv_ptr fpst;
                     TCGv_i32 ahp;
 
-                    if (!arm_dc_feature(s, ARM_FEATURE_VFP_FP16) ||
+                    if (!dc_isar_feature(aa32_fp16_spconv, s) ||
                         q || (rm & 1)) {
                         return 1;
                     }
@@ -7908,7 +7918,7 @@ static int disas_neon_data_insn(DisasContext *s, uint32_t insn)
                 {
                     TCGv_ptr fpst;
                     TCGv_i32 ahp;
-                    if (!arm_dc_feature(s, ARM_FEATURE_VFP_FP16) ||
+                    if (!dc_isar_feature(aa32_fp16_spconv, s) ||
                         q || (rd & 1)) {
                         return 1;
                     }
