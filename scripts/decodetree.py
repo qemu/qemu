@@ -1049,15 +1049,16 @@ def main():
            '(DisasContext *ctx, ', insntype, ' insn)\n{\n')
 
     i4 = str_indent(4)
-    output(i4, 'union {\n')
-    for n in sorted(arguments.keys()):
-        f = arguments[n]
-        output(i4, i4, f.struct_name(), ' f_', f.name, ';\n')
-    output(i4, '} u;\n\n')
 
-    t.output_code(4, False, 0, 0)
+    if len(allpatterns) != 0:
+        output(i4, 'union {\n')
+        for n in sorted(arguments.keys()):
+            f = arguments[n]
+            output(i4, i4, f.struct_name(), ' f_', f.name, ';\n')
+        output(i4, '} u;\n\n')
+        t.output_code(4, False, 0, 0)
+
     output(i4, 'return false;\n')
-
     output('}\n')
 
     if output_file:
