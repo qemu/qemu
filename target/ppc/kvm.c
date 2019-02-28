@@ -1624,52 +1624,66 @@ static int kvm_handle_hw_breakpoint(CPUState *cs,
     return handle;
 }
 
+static int kvm_handle_singlestep(void)
+{
+    return 1;
+}
+
+static int kvm_handle_sw_breakpoint(void)
+{
+    return 1;
+}
+
 static int kvm_handle_debug(PowerPCCPU *cpu, struct kvm_run *run)
 {
     CPUState *cs = CPU(cpu);
     CPUPPCState *env = &cpu->env;
     struct kvm_debug_exit_arch *arch_info = &run->debug.arch;
-    int handle = 0;
 
     if (cs->singlestep_enabled) {
-        handle = 1;
-    } else if (arch_info->status) {
-        handle = kvm_handle_hw_breakpoint(cs, arch_info);
-    } else if (kvm_find_sw_breakpoint(cs, arch_info->address)) {
-        handle = 1;
-    } else {
-        /* QEMU is not able to handle debug exception, so inject
-         * program exception to guest;
-         * Yes program exception NOT debug exception !!
-         * When QEMU is using debug resources then debug exception must
-         * be always set. To achieve this we set MSR_DE and also set
-         * MSRP_DEP so guest cannot change MSR_DE.
-         * When emulating debug resource for guest we want guest
-         * to control MSR_DE (enable/disable debug interrupt on need).
-         * Supporting both configurations are NOT possible.
-         * So the result is that we cannot share debug resources
-         * between QEMU and Guest on BOOKE architecture.
-         * In the current design QEMU gets the priority over guest,
-         * this means that if QEMU is using debug resources then guest
-         * cannot use them;
-         * For software breakpoint QEMU uses a privileged instruction;
-         * So there cannot be any reason that we are here for guest
-         * set debug exception, only possibility is guest executed a
-         * privileged / illegal instruction and that's why we are
-         * injecting a program interrupt.
-         */
-
-        cpu_synchronize_state(cs);
-        /* env->nip is PC, so increment this by 4 to use
-         * ppc_cpu_do_interrupt(), which set srr0 = env->nip - 4.
-         */
-        env->nip += 4;
-        cs->exception_index = POWERPC_EXCP_PROGRAM;
-        env->error_code = POWERPC_EXCP_INVAL;
-        ppc_cpu_do_interrupt(cs);
+        return kvm_handle_singlestep();
     }
 
-    return handle;
+    if (arch_info->status) {
+        return kvm_handle_hw_breakpoint(cs, arch_info);
+    }
+
+    if (kvm_find_sw_breakpoint(cs, arch_info->address)) {
+        return kvm_handle_sw_breakpoint();
+    }
+
+    /*
+     * QEMU is not able to handle debug exception, so inject
+     * program exception to guest;
+     * Yes program exception NOT debug exception !!
+     * When QEMU is using debug resources then debug exception must
+     * be always set. To achieve this we set MSR_DE and also set
+     * MSRP_DEP so guest cannot change MSR_DE.
+     * When emulating debug resource for guest we want guest
+     * to control MSR_DE (enable/disable debug interrupt on need).
+     * Supporting both configurations are NOT possible.
+     * So the result is that we cannot share debug resources
+     * between QEMU and Guest on BOOKE architecture.
+     * In the current design QEMU gets the priority over guest,
+     * this means that if QEMU is using debug resources then guest
+     * cannot use them;
+     * For software breakpoint QEMU uses a privileged instruction;
+     * So there cannot be any reason that we are here for guest
+     * set debug exception, only possibility is guest executed a
+     * privileged / illegal instruction and that's why we are
+     * injecting a program interrupt.
+     */
+    cpu_synchronize_state(cs);
+    /*
+     * env->nip is PC, so increment this by 4 to use
+     * ppc_cpu_do_interrupt(), which set srr0 = env->nip - 4.
+     */
+    env->nip += 4;
+    cs->exception_index = POWERPC_EXCP_PROGRAM;
+    env->error_code = POWERPC_EXCP_INVAL;
+    ppc_cpu_do_interrupt(cs);
+
+    return 0;
 }
 
 int kvm_arch_handle_exit(CPUState *cs, struct kvm_run *run)
