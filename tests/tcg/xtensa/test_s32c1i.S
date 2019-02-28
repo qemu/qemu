@@ -2,7 +2,13 @@
 
 test_suite s32c1i
 
+#if XCHAL_HAVE_S32C1I
+
 test s32c1i_nowrite
+#if XCHAL_HW_VERSION >= 230000
+    movi    a2, 0x29
+    wsr     a2, atomctl
+#endif
     movi    a2, 1f
     movi    a3, 1
     wsr     a3, scompare1
@@ -20,6 +26,10 @@ test s32c1i_nowrite
 test_end
 
 test s32c1i_write
+#if XCHAL_HW_VERSION >= 230000
+    movi    a2, 0x29
+    wsr     a2, atomctl
+#endif
     movi    a2, 1f
     movi    a3, 3
     wsr     a3, scompare1
@@ -35,5 +45,7 @@ test s32c1i_write
     .word   3
 .text
 test_end
+
+#endif
 
 test_suite_end

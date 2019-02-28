@@ -2,6 +2,8 @@
 
 test_suite mul16
 
+#if XCHAL_HAVE_MUL16
+
 test mul16u_pp
     movi    a2, 0x137f5a5a
     mov     a3, a2
@@ -79,5 +81,7 @@ test mul16s_nn
     mul16s  a3, a4, a3
     assert  eq, a3, a6
 test_end
+
+#endif
 
 test_suite_end

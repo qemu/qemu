@@ -18,6 +18,9 @@ CC      = $(CROSS)gcc
 AS      = $(CROSS)gcc -x assembler-with-cpp
 LD      = $(CROSS)ld
 
+ASFLAGS = -Wa,--no-absolute-literals
+vectors_ASFLAGS = -mtext-section-literals
+
 XTENSA_SRC_PATH = $(SRC_PATH)/tests/tcg/xtensa
 INCLUDE_DIRS = $(XTENSA_SRC_PATH) $(SRC_PATH)/target/xtensa/core-$(CORE)
 XTENSA_INC = $(addprefix -I,$(INCLUDE_DIRS))
@@ -28,15 +31,21 @@ CRT        = crt.o vectors.o
 
 TESTCASES += test_b.tst
 TESTCASES += test_bi.tst
-#TESTCASES += test_boolean.tst
+TESTCASES += test_boolean.tst
 TESTCASES += test_break.tst
 TESTCASES += test_bz.tst
 TESTCASES += test_cache.tst
 TESTCASES += test_clamps.tst
 TESTCASES += test_extui.tst
 TESTCASES += test_fail.tst
+TESTCASES += test_flix.tst
+TESTCASES += test_fp0_arith.tst
+TESTCASES += test_fp0_conv.tst
+TESTCASES += test_fp1.tst
+TESTCASES += test_fp_cpenable.tst
 TESTCASES += test_interrupt.tst
 TESTCASES += test_loop.tst
+TESTCASES += test_lsc.tst
 TESTCASES += test_mac16.tst
 TESTCASES += test_max.tst
 TESTCASES += test_min.tst
@@ -68,7 +77,7 @@ linker.ld: $(XTENSA_SRC_PATH)/linker.ld.S
 	$(CC) $(XTENSA_INC) $(CFLAGS) -c $< -o $@
 
 %.o: $(XTENSA_SRC_PATH)/%.S
-	$(CC) $(XTENSA_INC) $(ASFLAGS) -c $< -o $@
+	$(CC) $(XTENSA_INC) $($*_ASFLAGS) $(ASFLAGS) -c $< -o $@
 
 %.tst: %.o linker.ld $(XTENSA_SRC_PATH)/macros.inc $(CRT) Makefile
 	$(LD) $(LDFLAGS) $(NOSTDFLAGS) $(CRT) $< -o $@

@@ -30,24 +30,60 @@
 #include "exec/exec-all.h"
 #include "exec/gdbstub.h"
 #include "exec/helper-proto.h"
+#include "qemu/error-report.h"
 #include "qemu/host-utils.h"
 
 static struct XtensaConfigList *xtensa_cores;
 
-static void xtensa_core_class_init(ObjectClass *oc, void *data)
+static void add_translator_to_hash(GHashTable *translator,
+                                   const char *name,
+                                   const XtensaOpcodeOps *opcode)
 {
-    CPUClass *cc = CPU_CLASS(oc);
-    XtensaCPUClass *xcc = XTENSA_CPU_CLASS(oc);
-    const XtensaConfig *config = data;
+    if (!g_hash_table_insert(translator, (void *)name, (void *)opcode)) {
+        error_report("Multiple definitions of '%s' opcode in a single table",
+                     name);
+    }
+}
 
-    xcc->config = config;
+static GHashTable *hash_opcode_translators(const XtensaOpcodeTranslators *t)
+{
+    unsigned i, j;
+    GHashTable *translator = g_hash_table_new(g_str_hash, g_str_equal);
 
-    /* Use num_core_regs to see only non-privileged registers in an unmodified
-     * gdb. Use num_regs to see all registers. gdb modification is required
-     * for that: reset bit 0 in the 'flags' field of the registers definitions
-     * in the gdb/xtensa-config.c inside gdb source tree or inside gdb overlay.
-     */
-    cc->gdb_num_core_regs = config->gdb_regmap.num_regs;
+    for (i = 0; i < t->num_opcodes; ++i) {
+        if (t->opcode[i].op_flags & XTENSA_OP_NAME_ARRAY) {
+            const char * const *name = t->opcode[i].name;
+
+            for (j = 0; name[j]; ++j) {
+                add_translator_to_hash(translator,
+                                       (void *)name[j],
+                                       (void *)(t->opcode + i));
+            }
+        } else {
+            add_translator_to_hash(translator,
+                                   (void *)t->opcode[i].name,
+                                   (void *)(t->opcode + i));
+        }
+    }
+    return translator;
+}
+
+static XtensaOpcodeOps *
+xtensa_find_opcode_ops(const XtensaOpcodeTranslators *t,
+                       const char *name)
+{
+    static GHashTable *translators;
+    GHashTable *translator;
+
+    if (translators == NULL) {
+        translators = g_hash_table_new(g_direct_hash, g_direct_equal);
+    }
+    translator = g_hash_table_lookup(translators, t);
+    if (translator == NULL) {
+        translator = hash_opcode_translators(t);
+        g_hash_table_insert(translators, (void *)t, translator);
+    }
+    return g_hash_table_lookup(translator, name);
 }
 
 static void init_libisa(XtensaConfig *config)
@@ -55,11 +91,13 @@ static void init_libisa(XtensaConfig *config)
     unsigned i, j;
     unsigned opcodes;
     unsigned formats;
+    unsigned regfiles;
 
     config->isa = xtensa_isa_init(config->isa_internal, NULL, NULL);
     assert(xtensa_isa_maxlength(config->isa) <= MAX_INSN_LENGTH);
     opcodes = xtensa_isa_num_opcodes(config->isa);
     formats = xtensa_isa_num_formats(config->isa);
+    regfiles = xtensa_isa_num_regfiles(config->isa);
     config->opcode_ops = g_new(XtensaOpcodeOps *, opcodes);
 
     for (i = 0; i < formats; ++i) {
@@ -88,9 +126,23 @@ static void init_libisa(XtensaConfig *config)
 #endif
         config->opcode_ops[i] = ops;
     }
+    config->a_regfile = xtensa_regfile_lookup(config->isa, "AR");
+
+    config->regfile = g_new(void **, regfiles);
+    for (i = 0; i < regfiles; ++i) {
+        const char *name = xtensa_regfile_name(config->isa, i);
+
+        config->regfile[i] = xtensa_get_regfile_by_name(name);
+#ifdef DEBUG
+        if (config->regfile[i] == NULL) {
+            fprintf(stderr, "regfile '%s' not found for %s\n",
+                    name, config->name);
+        }
+#endif
+    }
 }
 
-void xtensa_finalize_config(XtensaConfig *config)
+static void xtensa_finalize_config(XtensaConfig *config)
 {
     if (config->isa_internal) {
         init_libisa(config);
@@ -109,6 +161,24 @@ void xtensa_finalize_config(XtensaConfig *config)
             config->gdb_regmap.num_core_regs = n_core_regs;
         }
     }
+}
+
+static void xtensa_core_class_init(ObjectClass *oc, void *data)
+{
+    CPUClass *cc = CPU_CLASS(oc);
+    XtensaCPUClass *xcc = XTENSA_CPU_CLASS(oc);
+    XtensaConfig *config = data;
+
+    xtensa_finalize_config(config);
+    xcc->config = config;
+
+    /*
+     * Use num_core_regs to see only non-privileged registers in an unmodified
+     * gdb. Use num_regs to see all registers. gdb modification is required
+     * for that: reset bit 0 in the 'flags' field of the registers definitions
+     * in the gdb/xtensa-config.c inside gdb source tree or inside gdb overlay.
+     */
+    cc->gdb_num_core_regs = config->gdb_regmap.num_regs;
 }
 
 void xtensa_register_core(XtensaConfigList *node)

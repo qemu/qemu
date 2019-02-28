@@ -2,6 +2,8 @@
 
 test_suite mul32
 
+#if XCHAL_HAVE_MUL32
+
 test mull
     movi    a2, 0x137f5a5a
     mov     a3, a2
@@ -14,6 +16,8 @@ test mull
     mull    a3, a4, a3
     assert  eq, a3, a6
 test_end
+
+#endif
 
 /* unfortunately dc232b doesn't have muluh/mulsh*/
 

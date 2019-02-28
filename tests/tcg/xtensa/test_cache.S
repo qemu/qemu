@@ -7,6 +7,8 @@
 
 test_suite cache
 
+#if XCHAL_HAVE_PTP_MMU
+
 .macro      pf_op op
     \op     a2, 0
     \op     a3, 0
@@ -18,14 +20,23 @@ test prefetch
     movi    a3, 0xd8000000 /* non-cacheable */
     movi    a4, 0x00001235 /* unmapped */
 
+#if XCHAL_DCACHE_SIZE
     pf_op   dpfr
     pf_op   dpfro
     pf_op   dpfw
     pf_op   dpfwo
+#endif
+#ifdef XCHAL_ICACHE_SIZE
     pf_op   ipf
-
+#endif
+#if XCHAL_HAVE_PTP_MMU && !XCHAL_HAVE_SPANNING_WAY
+#if XCHAL_DCACHE_LINE_LOCKABLE
     dpfl    a2, 0
+#endif
+#if XCHAL_ICACHE_LINE_LOCKABLE
     ipfl    a2, 0
+#endif
+#endif
 test_end
 
 .macro cache_fault op, addr, exc_code
@@ -46,10 +57,16 @@ test_end
     assert  eq, a2, a3
 .endm
 
+#if XCHAL_HAVE_PTP_MMU && !XCHAL_HAVE_SPANNING_WAY
+
+#if XCHAL_DCACHE_LINE_LOCKABLE
 test dpfl_tlb_miss
     cache_fault dpfl, 0x00002345, 24
 test_end
+#endif
 
+#if XCHAL_DCACHE_SIZE
+#if XCHAL_DCACHE_IS_WRITEBACK
 test dhwb_tlb_miss
     cache_fault dhwb, 0x00002345, 24
 test_end
@@ -57,16 +74,21 @@ test_end
 test dhwbi_tlb_miss
     cache_fault dhwbi, 0x00002345, 24
 test_end
+#endif
 
 test dhi_tlb_miss
     cache_fault dhi, 0x00002345, 24
 test_end
 
+#if XCHAL_DCACHE_LINE_LOCKABLE
 test dhu_tlb_miss
     cache_fault dhu, 0x00002345, 24
 test_end
+#endif
+#endif
 
-
+#if XCHAL_ICACHE_SIZE
+#if XCHAL_ICACHE_LINE_LOCKABLE
 test ipfl_tlb_miss
     cache_fault ipfl, 0x00002345, 16
 test_end
@@ -74,24 +96,40 @@ test_end
 test ihu_tlb_miss
     cache_fault ihu, 0x00002345, 16
 test_end
+#endif
 
 test ihi_tlb_miss
     cache_fault ihi, 0x00002345, 16
 test_end
+#endif
+
+#endif
+
+#endif
 
 test_suite_end
 
-.macro cache_all op1, op2, size, linesize
-    movi    a2, 0
-    movi    a3, \size
-1:
-    \op1    a2, 0
-    \op2    a2, 0
-    addi    a2, a2, \linesize
-    bltu    a2, a3, 1b
-.endm
-
 cache_unlock_invalidate:
-    cache_all diu, dii, XCHAL_DCACHE_SIZE, XCHAL_DCACHE_LINESIZE
-    cache_all iiu, iii, XCHAL_ICACHE_SIZE, XCHAL_ICACHE_LINESIZE
+#if XCHAL_DCACHE_SIZE
+    movi    a2, 0
+    movi    a3, XCHAL_DCACHE_SIZE
+1:
+#if XCHAL_DCACHE_LINE_LOCKABLE
+    diu     a2, 0
+#endif
+    dii     a2, 0
+    addi    a2, a2, XCHAL_DCACHE_LINESIZE
+    bltu    a2, a3, 1b
+#endif
+#if XCHAL_ICACHE_SIZE
+    movi    a2, 0
+    movi    a3, XCHAL_ICACHE_SIZE
+1:
+#if XCHAL_ICACHE_LINE_LOCKABLE
+    iiu     a2, 0
+#endif
+    iii     a2, 0
+    addi    a2, a2, XCHAL_ICACHE_LINESIZE
+    bltu    a2, a3, 1b
+#endif
     ret
