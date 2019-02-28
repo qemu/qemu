@@ -85,6 +85,12 @@ matrix:
         - CONFIG="--disable-user"
 
 
+    # Just build tools and run minimal unit and softfloat checks
+    - env:
+        - BASE_CONFIG="--enable-tools"
+        - CONFIG="--disable-user --disable-system"
+        - TEST_CMD="make check-unit check-softfloat -j3"
+
     - env:
         - CONFIG="--enable-debug --enable-debug-tcg --disable-user"
 
