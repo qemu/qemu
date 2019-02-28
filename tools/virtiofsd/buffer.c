@@ -267,3 +267,31 @@ ssize_t fuse_buf_copy(struct fuse_bufvec *dstv, struct fuse_bufvec *srcv)
 
     return copied;
 }
+
+void *fuse_mbuf_iter_advance(struct fuse_mbuf_iter *iter, size_t len)
+{
+    void *ptr;
+
+    if (len > iter->size - iter->pos) {
+        return NULL;
+    }
+
+    ptr = iter->mem + iter->pos;
+    iter->pos += len;
+    return ptr;
+}
+
+const char *fuse_mbuf_iter_advance_str(struct fuse_mbuf_iter *iter)
+{
+    const char *str = iter->mem + iter->pos;
+    size_t remaining = iter->size - iter->pos;
+    size_t i;
+
+    for (i = 0; i < remaining; i++) {
+        if (str[i] == '\0') {
+            iter->pos += i + 1;
+            return str;
+        }
+    }
+    return NULL;
+}

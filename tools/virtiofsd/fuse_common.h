@@ -703,10 +703,57 @@ size_t fuse_buf_size(const struct fuse_bufvec *bufv);
  */
 ssize_t fuse_buf_copy(struct fuse_bufvec *dst, struct fuse_bufvec *src);
 
+/**
+ * Memory buffer iterator
+ *
+ */
+struct fuse_mbuf_iter {
+    /**
+     * Data pointer
+     */
+    void *mem;
+
+    /**
+     * Total length, in bytes
+     */
+    size_t size;
+
+    /**
+     * Offset from start of buffer
+     */
+    size_t pos;
+};
+
+/* Initialize memory buffer iterator from a fuse_buf */
+#define FUSE_MBUF_ITER_INIT(fbuf) \
+    ((struct fuse_mbuf_iter){     \
+        .mem = fbuf->mem,         \
+        .size = fbuf->size,       \
+        .pos = 0,                 \
+    })
+
+/**
+ * Consume bytes from a memory buffer iterator
+ *
+ * @param iter memory buffer iterator
+ * @param len number of bytes to consume
+ * @return pointer to start of consumed bytes or
+ *         NULL if advancing beyond end of buffer
+ */
+void *fuse_mbuf_iter_advance(struct fuse_mbuf_iter *iter, size_t len);
+
+/**
+ * Consume a NUL-terminated string from a memory buffer iterator
+ *
+ * @param iter memory buffer iterator
+ * @return pointer to the string or
+ *         NULL if advancing beyond end of buffer or there is no NUL-terminator
+ */
+const char *fuse_mbuf_iter_advance_str(struct fuse_mbuf_iter *iter);
+
 /*
  * Signal handling
  */
-
 /**
  * Exit session on HUP, TERM and INT signals and ignore PIPE signal
  *
