@@ -312,7 +312,8 @@ class Format(General):
     """Class representing an instruction format"""
 
     def extract_name(self):
-        return 'extract_' + self.name
+        global decode_function
+        return decode_function + '_extract_' + self.name
 
     def output_extract(self):
         output('static void ', self.extract_name(), '(',
