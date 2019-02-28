@@ -41,7 +41,7 @@ typedef struct IoTKitSysCtl {
     uint32_t reset_syndrome;
     uint32_t reset_mask;
     uint32_t gretreg;
-    uint32_t initsvrtor0;
+    uint32_t initsvtor0;
     uint32_t cpuwait;
     uint32_t wicctrl;
 } IoTKitSysCtl;

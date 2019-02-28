@@ -33,7 +33,7 @@ REG32(RESET_MASK, 0x104)
 REG32(SWRESET, 0x108)
     FIELD(SWRESET, SWRESETREQ, 9, 1)
 REG32(GRETREG, 0x10c)
-REG32(INITSVRTOR0, 0x110)
+REG32(INITSVTOR0, 0x110)
 REG32(CPUWAIT, 0x118)
 REG32(BUSWAIT, 0x11c)
 REG32(WICCTRL, 0x120)
@@ -76,8 +76,8 @@ static uint64_t iotkit_sysctl_read(void *opaque, hwaddr offset,
     case A_GRETREG:
         r = s->gretreg;
         break;
-    case A_INITSVRTOR0:
-        r = s->initsvrtor0;
+    case A_INITSVTOR0:
+        r = s->initsvtor0;
         break;
     case A_CPUWAIT:
         r = s->cpuwait;
@@ -145,9 +145,9 @@ static void iotkit_sysctl_write(void *opaque, hwaddr offset,
          */
         s->gretreg = value;
         break;
-    case A_INITSVRTOR0:
-        qemu_log_mask(LOG_UNIMP, "IoTKit SysCtl INITSVRTOR0 unimplemented\n");
-        s->initsvrtor0 = value;
+    case A_INITSVTOR0:
+        qemu_log_mask(LOG_UNIMP, "IoTKit SysCtl INITSVTOR0 unimplemented\n");
+        s->initsvtor0 = value;
         break;
     case A_CPUWAIT:
         qemu_log_mask(LOG_UNIMP, "IoTKit SysCtl CPUWAIT unimplemented\n");
@@ -206,7 +206,7 @@ static void iotkit_sysctl_reset(DeviceState *dev)
     s->reset_syndrome = 1;
     s->reset_mask = 0;
     s->gretreg = 0;
-    s->initsvrtor0 = 0x10000000;
+    s->initsvtor0 = 0x10000000;
     s->cpuwait = 0;
     s->wicctrl = 0;
 }
@@ -230,7 +230,7 @@ static const VMStateDescription iotkit_sysctl_vmstate = {
         VMSTATE_UINT32(reset_syndrome, IoTKitSysCtl),
         VMSTATE_UINT32(reset_mask, IoTKitSysCtl),
         VMSTATE_UINT32(gretreg, IoTKitSysCtl),
-        VMSTATE_UINT32(initsvrtor0, IoTKitSysCtl),
+        VMSTATE_UINT32(initsvtor0, IoTKitSysCtl),
         VMSTATE_UINT32(cpuwait, IoTKitSysCtl),
         VMSTATE_UINT32(wicctrl, IoTKitSysCtl),
         VMSTATE_END_OF_LIST()
