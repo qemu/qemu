@@ -69,6 +69,13 @@ with each of the fields being one of the member arguments.
 If ``!extern`` is specified, the backing structure is assumed
 to have been already declared, typically via a second decoder.
 
+Argument sets are useful when one wants to define helper functions
+for the translator functions that can perform operations on a common
+set of arguments.  This can ensure, for instance, that the ``AND``
+pattern and the ``OR`` pattern put their operands into the same named
+structure, so that a common ``gen_logic_insn`` may be able to handle
+the operations common between the two.
+
 Argument set examples::
 
   &reg3       ra rb rc
