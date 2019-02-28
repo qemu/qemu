@@ -907,10 +907,8 @@ vu_set_vring_kick_exec(VuDev *dev, VhostUserMsg *vmsg)
         dev->vq[index].kick_fd = -1;
     }
 
-    if (!(vmsg->payload.u64 & VHOST_USER_VRING_NOFD_MASK)) {
-        dev->vq[index].kick_fd = vmsg->fds[0];
-        DPRINT("Got kick_fd: %d for vq: %d\n", vmsg->fds[0], index);
-    }
+    dev->vq[index].kick_fd = vmsg->fds[0];
+    DPRINT("Got kick_fd: %d for vq: %d\n", vmsg->fds[0], index);
 
     dev->vq[index].started = true;
     if (dev->iface->queue_set_started) {
@@ -995,9 +993,7 @@ vu_set_vring_call_exec(VuDev *dev, VhostUserMsg *vmsg)
         dev->vq[index].call_fd = -1;
     }
 
-    if (!(vmsg->payload.u64 & VHOST_USER_VRING_NOFD_MASK)) {
-        dev->vq[index].call_fd = vmsg->fds[0];
-    }
+    dev->vq[index].call_fd = vmsg->fds[0];
 
     DPRINT("Got call_fd: %d for vq: %d\n", vmsg->fds[0], index);
 
@@ -1020,9 +1016,7 @@ vu_set_vring_err_exec(VuDev *dev, VhostUserMsg *vmsg)
         dev->vq[index].err_fd = -1;
     }
 
-    if (!(vmsg->payload.u64 & VHOST_USER_VRING_NOFD_MASK)) {
-        dev->vq[index].err_fd = vmsg->fds[0];
-    }
+    dev->vq[index].err_fd = vmsg->fds[0];
 
     return false;
 }
