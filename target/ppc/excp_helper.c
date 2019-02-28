@@ -107,6 +107,24 @@ static int powerpc_reset_wakeup(CPUState *cs, CPUPPCState *env, int excp,
     return POWERPC_EXCP_RESET;
 }
 
+static uint64_t ppc_excp_vector_offset(CPUState *cs, int ail)
+{
+    uint64_t offset = 0;
+
+    switch (ail) {
+    case AIL_0001_8000:
+        offset = 0x18000;
+        break;
+    case AIL_C000_0000_0000_4000:
+        offset = 0xc000000000004000ull;
+        break;
+    default:
+        cpu_abort(cs, "Invalid AIL combination %d\n", ail);
+        break;
+    }
+
+    return offset;
+}
 
 /* Note that this function should be greatly optimized
  * when called with a constant excp, from ppc_hw_interrupt
@@ -708,17 +726,7 @@ static inline void powerpc_excp(PowerPCCPU *cpu, int excp_model, int excp)
     /* Handle AIL */
     if (ail) {
         new_msr |= (1 << MSR_IR) | (1 << MSR_DR);
-        switch(ail) {
-        case AIL_0001_8000:
-            vector |= 0x18000;
-            break;
-        case AIL_C000_0000_0000_4000:
-            vector |= 0xc000000000004000ull;
-            break;
-        default:
-            cpu_abort(cs, "Invalid AIL combination %d\n", ail);
-            break;
-        }
+        vector |= ppc_excp_vector_offset(cs, ail);
     }
 
 #if defined(TARGET_PPC64)
