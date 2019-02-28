@@ -466,7 +466,7 @@ static inline int float32_is_zero_or_denormal(float32 a)
 
 static inline bool float32_is_normal(float32 a)
 {
-    return ((float32_val(a) + 0x00800000) & 0x7fffffff) >= 0x01000000;
+    return (((float32_val(a) >> 23) + 1) & 0xff) >= 2;
 }
 
 static inline bool float32_is_denormal(float32 a)
@@ -622,7 +622,7 @@ static inline int float64_is_zero_or_denormal(float64 a)
 
 static inline bool float64_is_normal(float64 a)
 {
-    return ((float64_val(a) + (1ULL << 52)) & -1ULL >> 1) >= 1ULL << 53;
+    return (((float64_val(a) >> 52) + 1) & 0x7ff) >= 2;
 }
 
 static inline bool float64_is_denormal(float64 a)
@@ -878,6 +878,7 @@ int64_t float128_to_int64(float128, float_status *status);
 int64_t float128_to_int64_round_to_zero(float128, float_status *status);
 uint64_t float128_to_uint64(float128, float_status *status);
 uint64_t float128_to_uint64_round_to_zero(float128, float_status *status);
+uint32_t float128_to_uint32(float128, float_status *status);
 uint32_t float128_to_uint32_round_to_zero(float128, float_status *status);
 float32 float128_to_float32(float128, float_status *status);
 float64 float128_to_float64(float128, float_status *status);
@@ -938,6 +939,16 @@ static inline int float128_is_zero(float128 a)
 static inline int float128_is_zero_or_denormal(float128 a)
 {
     return (a.high & 0x7fff000000000000LL) == 0;
+}
+
+static inline bool float128_is_normal(float128 a)
+{
+    return (((a.high >> 48) + 1) & 0x7fff) >= 2;
+}
+
+static inline bool float128_is_denormal(float128 a)
+{
+    return float128_is_zero_or_denormal(a) && !float128_is_zero(a);
 }
 
 static inline int float128_is_any_nan(float128 a)

@@ -916,19 +916,18 @@ $(FP_TEST_BIN):
 # The full test suite can take a bit of time, default to a quick run
 # "-l 2 -r all" can take more than a day for some operations and is best
 # run manually
-FP_TL=-l 1
+FP_TL=-l 1 -r all
 
-# $1 = tests, $2 = description
+# $1 = tests, $2 = description, $3 = test flags
 test-softfloat = $(call quiet-command, \
 			cd $(BUILD_DIR)/tests/fp && \
-			./fp-test -s $(FP_TL) $1 > $2.out 2>&1 || \
+			./fp-test -s $(if $3,$3,$(FP_TL)) $1 > $2.out 2>&1 || \
 			(cat $2.out && exit 1;), \
 			"FLOAT TEST", $2)
 
 # Conversion Routines:
 # FIXME: i32_to_extF80 (broken), i64_to_extF80 (broken)
-#        ui32_to_f128 (not implemented), f128_to_ui32 (not implemented)
-#        extF80_roundToInt (broken)
+#        ui32_to_f128 (not implemented), extF80_roundToInt (broken)
 #
 check-softfloat-conv: $(FP_TEST_BIN)
 	$(call test-softfloat, \
@@ -957,9 +956,11 @@ check-softfloat-conv: $(FP_TEST_BIN)
 		f16_to_ui32 f16_to_ui32_r_minMag \
 		f32_to_ui32 f32_to_ui32_r_minMag \
 		f64_to_ui32 f64_to_ui32_r_minMag \
+		f128_to_ui32 f128_to_ui32_r_minMag \
 		f16_to_ui64 f16_to_ui64_r_minMag \
 		f32_to_ui64 f32_to_ui64_r_minMag \
-		f64_to_ui64 f64_to_ui64_r_minMag, \
+		f64_to_ui64 f64_to_ui64_r_minMag \
+		f128_to_ui64 f128_to_ui64_r_minMag, \
 		float-to-uint)
 	$(call test-softfloat, \
 		f16_roundToInt f32_roundToInt \
@@ -1001,7 +1002,7 @@ check-softfloat-compare: $(SF_COMPARE_RULES)
 check-softfloat-mulAdd: $(FP_TEST_BIN)
 	$(call test-softfloat, \
 		f16_mulAdd f32_mulAdd f64_mulAdd f128_mulAdd, \
-		mulAdd)
+		mulAdd,-l 1)
 
 # FIXME: extF80_rem (broken)
 check-softfloat-rem: $(FP_TEST_BIN)

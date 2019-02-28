@@ -696,6 +696,7 @@ static FloatParts sf_canonicalize(FloatParts part, const FloatFmt *parm,
 static FloatParts round_canonical(FloatParts p, float_status *s,
                                   const FloatFmt *parm)
 {
+    const uint64_t frac_lsb = parm->frac_lsb;
     const uint64_t frac_lsbm1 = parm->frac_lsbm1;
     const uint64_t round_mask = parm->round_mask;
     const uint64_t roundeven_mask = parm->roundeven_mask;
@@ -730,6 +731,10 @@ static FloatParts round_canonical(FloatParts p, float_status *s,
         case float_round_down:
             inc = p.sign ? round_mask : 0;
             overflow_norm = !p.sign;
+            break;
+        case float_round_to_odd:
+            overflow_norm = true;
+            inc = frac & frac_lsb ? 0 : round_mask;
             break;
         default:
             g_assert_not_reached();
@@ -778,9 +783,14 @@ static FloatParts round_canonical(FloatParts p, float_status *s,
             shift64RightJamming(frac, 1 - exp, &frac);
             if (frac & round_mask) {
                 /* Need to recompute round-to-even.  */
-                if (s->float_rounding_mode == float_round_nearest_even) {
+                switch (s->float_rounding_mode) {
+                case float_round_nearest_even:
                     inc = ((frac & roundeven_mask) != frac_lsbm1
                            ? frac_lsbm1 : 0);
+                    break;
+                case float_round_to_odd:
+                    inc = frac & frac_lsb ? 0 : round_mask;
+                    break;
                 }
                 flags |= float_flag_inexact;
                 frac += inc;
@@ -1988,6 +1998,9 @@ static FloatParts round_to_int(FloatParts a, int rmode,
             case float_round_down:
                 one = a.sign;
                 break;
+            case float_round_to_odd:
+                one = true;
+                break;
             default:
                 g_assert_not_reached();
             }
@@ -2020,6 +2033,9 @@ static FloatParts round_to_int(FloatParts a, int rmode,
                 break;
             case float_round_down:
                 inc = a.sign ? rnd_mask : 0;
+                break;
+            case float_round_to_odd:
+                inc = a.frac & frac_lsb ? 0 : rnd_mask;
                 break;
             default:
                 g_assert_not_reached();
@@ -3314,6 +3330,9 @@ static int32_t roundAndPackInt32(flag zSign, uint64_t absZ, float_status *status
     case float_round_down:
         roundIncrement = zSign ? 0x7f : 0;
         break;
+    case float_round_to_odd:
+        roundIncrement = absZ & 0x80 ? 0 : 0x7f;
+        break;
     default:
         abort();
     }
@@ -3367,6 +3386,9 @@ static int64_t roundAndPackInt64(flag zSign, uint64_t absZ0, uint64_t absZ1,
         break;
     case float_round_down:
         increment = zSign && absZ1;
+        break;
+    case float_round_to_odd:
+        increment = !(absZ0 & 1) && absZ1;
         break;
     default:
         abort();
@@ -3423,6 +3445,9 @@ static int64_t roundAndPackUint64(flag zSign, uint64_t absZ0,
         break;
     case float_round_down:
         increment = zSign && absZ1;
+        break;
+    case float_round_to_odd:
+        increment = !(absZ0 & 1) && absZ1;
         break;
     default:
         abort();
@@ -3526,6 +3551,9 @@ static float32 roundAndPackFloat32(flag zSign, int zExp, uint32_t zSig,
     case float_round_down:
         roundIncrement = zSign ? 0x7f : 0;
         break;
+    case float_round_to_odd:
+        roundIncrement = zSig & 0x80 ? 0 : 0x7f;
+        break;
     default:
         abort();
         break;
@@ -3536,8 +3564,10 @@ static float32 roundAndPackFloat32(flag zSign, int zExp, uint32_t zSig,
              || (    ( zExp == 0xFD )
                   && ( (int32_t) ( zSig + roundIncrement ) < 0 ) )
            ) {
+            bool overflow_to_inf = roundingMode != float_round_to_odd &&
+                                   roundIncrement != 0;
             float_raise(float_flag_overflow | float_flag_inexact, status);
-            return packFloat32( zSign, 0xFF, - ( roundIncrement == 0 ));
+            return packFloat32(zSign, 0xFF, -!overflow_to_inf);
         }
         if ( zExp < 0 ) {
             if (status->flush_to_zero) {
@@ -3554,6 +3584,13 @@ static float32 roundAndPackFloat32(flag zSign, int zExp, uint32_t zSig,
             roundBits = zSig & 0x7F;
             if (isTiny && roundBits) {
                 float_raise(float_flag_underflow, status);
+            }
+            if (roundingMode == float_round_to_odd) {
+                /*
+                 * For round-to-odd case, the roundIncrement depends on
+                 * zSig which just changed.
+                 */
+                roundIncrement = zSig & 0x80 ? 0 : 0x7f;
             }
         }
     }
@@ -6793,6 +6830,35 @@ uint32_t float128_to_uint32_round_to_zero(float128 a, float_status *status)
 }
 
 /*----------------------------------------------------------------------------
+| Returns the result of converting the quadruple-precision floating-point value
+| `a' to the 32-bit unsigned integer format.  The conversion is
+| performed according to the IEC/IEEE Standard for Binary Floating-Point
+| Arithmetic---which means in particular that the conversion is rounded
+| according to the current rounding mode.  If `a' is a NaN, the largest
+| positive integer is returned.  If the conversion overflows, the
+| largest unsigned integer is returned.  If 'a' is negative, the value is
+| rounded and zero is returned; negative values that do not round to zero
+| will raise the inexact exception.
+*----------------------------------------------------------------------------*/
+
+uint32_t float128_to_uint32(float128 a, float_status *status)
+{
+    uint64_t v;
+    uint32_t res;
+    int old_exc_flags = get_float_exception_flags(status);
+
+    v = float128_to_uint64(a, status);
+    if (v > 0xffffffff) {
+        res = 0xffffffff;
+    } else {
+        return v;
+    }
+    set_float_exception_flags(old_exc_flags, status);
+    float_raise(float_flag_invalid, status);
+    return res;
+}
+
+/*----------------------------------------------------------------------------
 | Returns the result of converting the quadruple-precision floating-point
 | value `a' to the single-precision floating-point format.  The conversion
 | is performed according to the IEC/IEEE Standard for Binary Floating-Point
@@ -6958,6 +7024,15 @@ float128 float128_round_to_int(float128 a, float_status *status)
                 add128(z.high, z.low, 0, roundBitsMask, &z.high, &z.low);
             }
             break;
+        case float_round_to_odd:
+            /*
+             * Note that if lastBitMask == 0, the last bit is the lsb
+             * of high, and roundBitsMask == -1.
+             */
+            if ((lastBitMask ? z.low & lastBitMask : z.high & 1) == 0) {
+                add128(z.high, z.low, 0, roundBitsMask, &z.high, &z.low);
+            }
+            break;
         default:
             abort();
         }
@@ -6969,7 +7044,7 @@ float128 float128_round_to_int(float128 a, float_status *status)
             status->float_exception_flags |= float_flag_inexact;
             aSign = extractFloat128Sign( a );
             switch (status->float_rounding_mode) {
-             case float_round_nearest_even:
+            case float_round_nearest_even:
                 if (    ( aExp == 0x3FFE )
                      && (   extractFloat128Frac0( a )
                           | extractFloat128Frac1( a ) )
@@ -6982,14 +7057,17 @@ float128 float128_round_to_int(float128 a, float_status *status)
                     return packFloat128(aSign, 0x3FFF, 0, 0);
                 }
                 break;
-             case float_round_down:
+            case float_round_down:
                 return
                       aSign ? packFloat128( 1, 0x3FFF, 0, 0 )
                     : packFloat128( 0, 0, 0, 0 );
-             case float_round_up:
+            case float_round_up:
                 return
                       aSign ? packFloat128( 1, 0, 0, 0 )
                     : packFloat128( 0, 0x3FFF, 0, 0 );
+
+            case float_round_to_odd:
+                return packFloat128(aSign, 0x3FFF, 0, 0);
             }
             return packFloat128( aSign, 0, 0, 0 );
         }
@@ -7018,6 +7096,12 @@ float128 float128_round_to_int(float128 a, float_status *status)
             break;
         case float_round_down:
             if (extractFloat128Sign(z)) {
+                z.high |= (a.low != 0);
+                z.high += roundBitsMask;
+            }
+            break;
+        case float_round_to_odd:
+            if ((z.high & lastBitMask) == 0) {
                 z.high |= (a.low != 0);
                 z.high += roundBitsMask;
             }
