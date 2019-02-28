@@ -265,6 +265,12 @@ matrix:
         - ./configure ${CONFIG} --extra-cflags="-g3 -O0 -fsanitize=thread -fuse-ld=gold" || { cat config.log && exit 1; }
 
 
+    # Run check-tcg against linux-user
     - env:
         - CONFIG="--disable-system"
+        - TEST_CMD="make -j3 check-tcg V=1"
+
+    # Run check-tcg against softmmu targets
+    - env:
+        - CONFIG="--target-list=xtensa-softmmu,arm-softmmu"
         - TEST_CMD="make -j3 check-tcg V=1"
