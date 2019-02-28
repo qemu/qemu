@@ -202,7 +202,7 @@ static void clear_bitmap_table(BlockDriverState *bs, uint64_t *bitmap_table,
             continue;
         }
 
-        qcow2_free_clusters(bs, addr, s->cluster_size, QCOW2_DISCARD_OTHER);
+        qcow2_free_clusters(bs, addr, s->cluster_size, QCOW2_DISCARD_ALWAYS);
         bitmap_table[i] = 0;
     }
 }
