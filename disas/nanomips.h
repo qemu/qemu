@@ -159,7 +159,7 @@ private:
     int64 extract_s__se31_0_11_to_2_20_to_12_s12(uint64 instruction);
     int64 extract_shift__se5_21_20_19_18_17_16(uint64 instruction);
 
-    uint64 extract_ac_13_12(uint64 instruction);
+    uint64 extract_ac_15_14(uint64 instruction);
     uint64 extract_bit_16_15_14_13_12_11(uint64 instruction);
     uint64 extract_bit_23_22_21(uint64 instruction);
     uint64 extract_c0s_20_19_18_17_16(uint64 instruction);
