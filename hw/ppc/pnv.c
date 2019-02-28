@@ -47,14 +47,16 @@
 
 #include <libfdt.h>
 
-#define FDT_MAX_SIZE            0x00100000
+#define FDT_MAX_SIZE            (1 * MiB)
 
 #define FW_FILE_NAME            "skiboot.lid"
 #define FW_LOAD_ADDR            0x0
-#define FW_MAX_SIZE             0x00400000
+#define FW_MAX_SIZE             (4 * MiB)
 
 #define KERNEL_LOAD_ADDR        0x20000000
+#define KERNEL_MAX_SIZE         (256 * MiB)
 #define INITRD_LOAD_ADDR        0x60000000
+#define INITRD_MAX_SIZE         (256 * MiB)
 
 static const char *pnv_chip_core_typename(const PnvChip *o)
 {
@@ -588,7 +590,7 @@ static void pnv_init(MachineState *machine)
         long kernel_size;
 
         kernel_size = load_image_targphys(machine->kernel_filename,
-                                          KERNEL_LOAD_ADDR, 0x2000000);
+                                          KERNEL_LOAD_ADDR, KERNEL_MAX_SIZE);
         if (kernel_size < 0) {
             error_report("Could not load kernel '%s'",
                          machine->kernel_filename);
@@ -600,7 +602,7 @@ static void pnv_init(MachineState *machine)
     if (machine->initrd_filename) {
         pnv->initrd_base = INITRD_LOAD_ADDR;
         pnv->initrd_size = load_image_targphys(machine->initrd_filename,
-                                  pnv->initrd_base, 0x10000000); /* 128MB max */
+                                  pnv->initrd_base, INITRD_MAX_SIZE);
         if (pnv->initrd_size < 0) {
             error_report("Could not load initial ram disk '%s'",
                          machine->initrd_filename);
@@ -736,18 +738,18 @@ static void pnv_chip_power8_instance_init(Object *obj)
 {
     Pnv8Chip *chip8 = PNV8_CHIP(obj);
 
-    object_initialize(&chip8->psi, sizeof(chip8->psi), TYPE_PNV_PSI);
-    object_property_add_child(obj, "psi", OBJECT(&chip8->psi), NULL);
+    object_initialize_child(obj, "psi",  &chip8->psi, sizeof(chip8->psi),
+                            TYPE_PNV_PSI, &error_abort, NULL);
     object_property_add_const_link(OBJECT(&chip8->psi), "xics",
                                    OBJECT(qdev_get_machine()), &error_abort);
 
-    object_initialize(&chip8->lpc, sizeof(chip8->lpc), TYPE_PNV_LPC);
-    object_property_add_child(obj, "lpc", OBJECT(&chip8->lpc), NULL);
+    object_initialize_child(obj, "lpc",  &chip8->lpc, sizeof(chip8->lpc),
+                            TYPE_PNV_LPC, &error_abort, NULL);
     object_property_add_const_link(OBJECT(&chip8->lpc), "psi",
                                    OBJECT(&chip8->psi), &error_abort);
 
-    object_initialize(&chip8->occ, sizeof(chip8->occ), TYPE_PNV_OCC);
-    object_property_add_child(obj, "occ", OBJECT(&chip8->occ), NULL);
+    object_initialize_child(obj, "occ",  &chip8->occ, sizeof(chip8->occ),
+                            TYPE_PNV_OCC, &error_abort, NULL);
     object_property_add_const_link(OBJECT(&chip8->occ), "psi",
                                    OBJECT(&chip8->psi), &error_abort);
 }

@@ -338,6 +338,9 @@ static void icp_realize(DeviceState *dev, Error **errp)
     case PPC_FLAGS_INPUT_POWER7:
         icp->output = env->irq_inputs[POWER7_INPUT_INT];
         break;
+    case PPC_FLAGS_INPUT_POWER9: /* For SPAPR xics emulation */
+        icp->output = env->irq_inputs[POWER9_INPUT_INT];
+        break;
 
     case PPC_FLAGS_INPUT_970:
         icp->output = env->irq_inputs[PPC970_INPUT_INT];
@@ -755,6 +758,10 @@ void ics_set_irq_type(ICSState *ics, int srcno, bool lsi)
 
     ics->irqs[srcno].flags |=
         lsi ? XICS_FLAGS_IRQ_LSI : XICS_FLAGS_IRQ_MSI;
+
+    if (kvm_irqchip_in_kernel()) {
+        ics_set_kvm_state_one(ics, srcno);
+    }
 }
 
 static void xics_register_types(void)

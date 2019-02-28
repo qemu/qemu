@@ -160,8 +160,10 @@ enum {
     /* Server doorbell variants */
     POWERPC_EXCP_SDOOR    = 99,
     POWERPC_EXCP_SDOOR_HV = 100,
+    /* ISA 3.00 additions */
+    POWERPC_EXCP_HVIRT    = 101,
     /* EOL                                                                   */
-    POWERPC_EXCP_NB       = 101,
+    POWERPC_EXCP_NB       = 102,
     /* QEMU exceptions: used internally during code translation              */
     POWERPC_EXCP_STOP         = 0x200, /* stop translation                   */
     POWERPC_EXCP_BRANCH       = 0x201, /* branch instruction                 */
@@ -318,6 +320,10 @@ struct ppc_slb_t {
 #define SEGMENT_SHIFT_1T        40
 #define SEGMENT_MASK_1T         (~((1ULL << SEGMENT_SHIFT_1T) - 1))
 
+typedef struct ppc_v3_pate_t {
+    uint64_t dw0;
+    uint64_t dw1;
+} ppc_v3_pate_t;
 
 /*****************************************************************************/
 /* Machine state register bits definition                                    */
@@ -386,6 +392,7 @@ struct ppc_slb_t {
 #define LPCR_AIL          (3ull << LPCR_AIL_SHIFT)
 #define LPCR_UPRT         PPC_BIT(41) /* Use Process Table */
 #define LPCR_EVIRT        PPC_BIT(42) /* Enhanced Virtualisation */
+#define LPCR_HR           PPC_BIT(43) /* Host Radix */
 #define LPCR_ONL          PPC_BIT(45)
 #define LPCR_LD           PPC_BIT(46) /* Large Decrementer */
 #define LPCR_P7_PECE0     PPC_BIT(49)
@@ -413,6 +420,10 @@ struct ppc_slb_t {
 #define LPCR_RMI          PPC_BIT(62)
 #define LPCR_HVICE        PPC_BIT(62) /* HV Virtualisation Int Enable */
 #define LPCR_HDICE        PPC_BIT(63)
+
+/* PSSCR bits */
+#define PSSCR_ESL         PPC_BIT(42) /* Enable State Loss */
+#define PSSCR_EC          PPC_BIT(43) /* Exit Criterion */
 
 #define msr_sf   ((env->msr >> MSR_SF)   & 1)
 #define msr_isf  ((env->msr >> MSR_ISF)  & 1)
@@ -1110,11 +1121,13 @@ struct CPUPPCState {
      * instructions and SPRs are diallowed if MSR:HV is 0
      */
     bool has_hv_mode;
-    /* On P7/P8, set when in PM state, we need to handle resume
-     * in a special way (such as routing some resume causes to
-     * 0x100), so flag this here.
+
+    /*
+     * On P7/P8/P9, set when in PM state, we need to handle resume in
+     * a special way (such as routing some resume causes to 0x100, ie,
+     * sreset), so flag this here.
      */
-    bool in_pm_state;
+    bool resume_as_sreset;
 #endif
 
     /* Those resources are used only during code translation */
@@ -1239,7 +1252,7 @@ struct PPCVirtualHypervisorClass {
                         hwaddr ptex, int n);
     void (*store_hpte)(PPCVirtualHypervisor *vhyp, hwaddr ptex,
                        uint64_t pte0, uint64_t pte1);
-    uint64_t (*get_patbe)(PPCVirtualHypervisor *vhyp);
+    void (*get_pate)(PPCVirtualHypervisor *vhyp, ppc_v3_pate_t *entry);
     target_ulong (*encode_hpt_for_kvm_pr)(PPCVirtualHypervisor *vhyp);
 };
 
@@ -2319,6 +2332,13 @@ enum {
      * them */
     POWER7_INPUT_NB,
 };
+
+enum {
+    /* POWER9 input pins */
+    POWER9_INPUT_INT        = 0,
+    POWER9_INPUT_HINT       = 1,
+    POWER9_INPUT_NB,
+};
 #endif
 
 /* Hardware exceptions definitions */
@@ -2343,6 +2363,7 @@ enum {
     PPC_INTERRUPT_PERFM,          /* Performance monitor interrupt        */
     PPC_INTERRUPT_HMI,            /* Hypervisor Maintainance interrupt    */
     PPC_INTERRUPT_HDOORBELL,      /* Hypervisor Doorbell interrupt        */
+    PPC_INTERRUPT_HVIRT,          /* Hypervisor virtualization interrupt  */
 };
 
 /* Processor Compatibility mask (PCR) */

@@ -117,6 +117,21 @@ void helper_store_pidr(CPUPPCState *env, target_ulong val)
     tlb_flush(CPU(cpu));
 }
 
+void helper_store_lpidr(CPUPPCState *env, target_ulong val)
+{
+    PowerPCCPU *cpu = ppc_env_get_cpu(env);
+
+    env->spr[SPR_LPIDR] = val;
+
+    /*
+     * We need to flush the TLB on LPID changes as we only tag HV vs
+     * guest in TCG TLB. Also the quadrants means the HV will
+     * potentially access and cache entries for the current LPID as
+     * well.
+     */
+    tlb_flush(CPU(cpu));
+}
+
 void helper_store_hid0_601(CPUPPCState *env, target_ulong val)
 {
     target_ulong hid0;

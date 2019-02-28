@@ -113,7 +113,7 @@ static inline qemu_irq spapr_phb_lsi_qirq(struct sPAPRPHBState *phb, int pin)
 }
 
 int spapr_populate_pci_dt(sPAPRPHBState *phb, uint32_t intc_phandle, void *fdt,
-                          uint32_t nr_msis);
+                          uint32_t nr_msis, int *node_offset);
 
 void spapr_pci_rtas_init(void);
 
@@ -121,8 +121,10 @@ sPAPRPHBState *spapr_pci_find_phb(sPAPRMachineState *spapr, uint64_t buid);
 PCIDevice *spapr_pci_find_dev(sPAPRMachineState *spapr, uint64_t buid,
                               uint32_t config_addr);
 
-/* PCI release callback. */
+/* DRC callbacks */
 void spapr_phb_remove_pci_device_cb(DeviceState *dev);
+int spapr_pci_dt_populate(sPAPRDRConnector *drc, sPAPRMachineState *spapr,
+                          void *fdt, int *fdt_start_offset, Error **errp);
 
 /* VFIO EEH hooks */
 #ifdef CONFIG_LINUX
@@ -162,5 +164,10 @@ static inline void spapr_phb_vfio_reset(DeviceState *qdev)
 #endif
 
 void spapr_phb_dma_reset(sPAPRPHBState *sphb);
+
+static inline unsigned spapr_phb_windows_supported(sPAPRPHBState *sphb)
+{
+    return sphb->ddw_enabled ? SPAPR_PCI_DMA_MAX_WINDOWS : 1;
+}
 
 #endif /* PCI_HOST_SPAPR_H */

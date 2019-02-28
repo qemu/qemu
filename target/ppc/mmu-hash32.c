@@ -319,6 +319,12 @@ static hwaddr ppc_hash32_pteg_search(PowerPCCPU *cpu, hwaddr pteg_off,
 
     for (i = 0; i < HPTES_PER_GROUP; i++) {
         pte0 = ppc_hash32_load_hpte0(cpu, pte_offset);
+        /*
+         * pte0 contains the valid bit and must be read before pte1,
+         * otherwise we might see an old pte1 with a new valid bit and
+         * thus an inconsistent hpte value
+         */
+        smp_rmb();
         pte1 = ppc_hash32_load_hpte1(cpu, pte_offset);
 
         if ((pte0 & HPTE32_V_VALID)

@@ -417,7 +417,7 @@ const ppc_hash_pte64_t *ppc_hash64_map_hptes(PowerPCCPU *cpu,
                                              hwaddr ptex, int n)
 {
     hwaddr pte_offset = ptex * HASH_PTE_SIZE_64;
-    hwaddr base = ppc_hash64_hpt_base(cpu);
+    hwaddr base;
     hwaddr plen = n * HASH_PTE_SIZE_64;
     const ppc_hash_pte64_t *hptes;
 
@@ -426,6 +426,7 @@ const ppc_hash_pte64_t *ppc_hash64_map_hptes(PowerPCCPU *cpu,
             PPC_VIRTUAL_HYPERVISOR_GET_CLASS(cpu->vhyp);
         return vhc->map_hptes(cpu->vhyp, ptex, n);
     }
+    base = ppc_hash64_hpt_base(cpu);
 
     if (!base) {
         return NULL;
@@ -490,6 +491,18 @@ static unsigned hpte_page_shift(const PPCHash64SegmentPageSizes *sps,
     return 0; /* Bad page size encoding */
 }
 
+static void ppc64_v3_new_to_old_hpte(target_ulong *pte0, target_ulong *pte1)
+{
+    /* Insert B into pte0 */
+    *pte0 = (*pte0 & HPTE64_V_COMMON_BITS) |
+            ((*pte1 & HPTE64_R_3_0_SSIZE_MASK) <<
+             (HPTE64_V_SSIZE_SHIFT - HPTE64_R_3_0_SSIZE_SHIFT));
+
+    /* Remove B from pte1 */
+    *pte1 = *pte1 & ~HPTE64_R_3_0_SSIZE_MASK;
+}
+
+
 static hwaddr ppc_hash64_pteg_search(PowerPCCPU *cpu, hwaddr hash,
                                      const PPCHash64SegmentPageSizes *sps,
                                      target_ulong ptem,
@@ -507,7 +520,18 @@ static hwaddr ppc_hash64_pteg_search(PowerPCCPU *cpu, hwaddr hash,
     }
     for (i = 0; i < HPTES_PER_GROUP; i++) {
         pte0 = ppc_hash64_hpte0(cpu, pteg, i);
+        /*
+         * pte0 contains the valid bit and must be read before pte1,
+         * otherwise we might see an old pte1 with a new valid bit and
+         * thus an inconsistent hpte value
+         */
+        smp_rmb();
         pte1 = ppc_hash64_hpte1(cpu, pteg, i);
+
+        /* Convert format if necessary */
+        if (cpu->env.mmu_model == POWERPC_MMU_3_00 && !cpu->vhyp) {
+            ppc64_v3_new_to_old_hpte(&pte0, &pte1);
+        }
 
         /* This compares V, B, H (secondary) and the AVPN */
         if (HPTE64_V_COMPARE(pte0, ptem)) {
@@ -918,7 +942,7 @@ hwaddr ppc_hash64_get_phys_page_debug(PowerPCCPU *cpu, target_ulong addr)
 void ppc_hash64_store_hpte(PowerPCCPU *cpu, hwaddr ptex,
                            uint64_t pte0, uint64_t pte1)
 {
-    hwaddr base = ppc_hash64_hpt_base(cpu);
+    hwaddr base;
     hwaddr offset = ptex * HASH_PTE_SIZE_64;
 
     if (cpu->vhyp) {
@@ -927,6 +951,7 @@ void ppc_hash64_store_hpte(PowerPCCPU *cpu, hwaddr ptex,
         vhc->store_hpte(cpu->vhyp, ptex, pte0, pte1);
         return;
     }
+    base = ppc_hash64_hpt_base(cpu);
 
     stq_phys(CPU(cpu)->as, base + offset, pte0);
     stq_phys(CPU(cpu)->as, base + offset + HASH_PTE_SIZE_64 / 2, pte1);
@@ -1084,10 +1109,18 @@ void ppc_store_lpcr(PowerPCCPU *cpu, target_ulong val)
     case POWERPC_MMU_3_00: /* P9 */
         lpcr = val & (LPCR_VPM1 | LPCR_ISL | LPCR_KBV | LPCR_DPFD |
                       (LPCR_PECE_U_MASK & LPCR_HVEE) | LPCR_ILE | LPCR_AIL |
-                      LPCR_UPRT | LPCR_EVIRT | LPCR_ONL |
+                      LPCR_UPRT | LPCR_EVIRT | LPCR_ONL | LPCR_HR |
                       (LPCR_PECE_L_MASK & (LPCR_PDEE | LPCR_HDEE | LPCR_EEE |
                       LPCR_DEE | LPCR_OEE)) | LPCR_MER | LPCR_GTSE | LPCR_TC |
                       LPCR_HEIC | LPCR_LPES0 | LPCR_HVICE | LPCR_HDICE);
+        /*
+         * If we have a virtual hypervisor, we need to bring back RMLS. It
+         * doesn't exist on an actual P9 but that's all we know how to
+         * configure with softmmu at the moment
+         */
+        if (cpu->vhyp) {
+            lpcr |= (val & LPCR_RMLS);
+        }
         break;
     default:
         ;

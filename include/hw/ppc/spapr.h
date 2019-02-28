@@ -104,6 +104,7 @@ struct sPAPRMachineClass {
 
     /*< public >*/
     bool dr_lmb_enabled;       /* enable dynamic-reconfig/hotplug of LMBs */
+    bool dr_phb_enabled;       /* enable dynamic-reconfig/hotplug of PHBs */
     bool update_dt_enabled;    /* enable KVMPPC_H_UPDATE_DT */
     bool use_ohci_by_default;  /* use USB-OHCI instead of XHCI */
     bool pre_2_10_has_unused_icps;
@@ -177,6 +178,8 @@ struct sPAPRMachineState {
 
     /*< public >*/
     char *kvm_type;
+    char *host_model;
+    char *host_serial;
 
     int32_t irq_map_nr;
     unsigned long *irq_map;
@@ -762,9 +765,16 @@ void spapr_reallocate_hpt(sPAPRMachineState *spapr, int shift,
 void spapr_clear_pending_events(sPAPRMachineState *spapr);
 int spapr_max_server_number(sPAPRMachineState *spapr);
 
-/* CPU and LMB DRC release callbacks. */
+/* DRC callbacks. */
 void spapr_core_release(DeviceState *dev);
+int spapr_core_dt_populate(sPAPRDRConnector *drc, sPAPRMachineState *spapr,
+                           void *fdt, int *fdt_start_offset, Error **errp);
 void spapr_lmb_release(DeviceState *dev);
+int spapr_lmb_dt_populate(sPAPRDRConnector *drc, sPAPRMachineState *spapr,
+                          void *fdt, int *fdt_start_offset, Error **errp);
+void spapr_phb_release(DeviceState *dev);
+int spapr_phb_dt_populate(sPAPRDRConnector *drc, sPAPRMachineState *spapr,
+                          void *fdt, int *fdt_start_offset, Error **errp);
 
 void spapr_rtc_read(sPAPRRTCState *rtc, struct tm *tm, uint32_t *ns);
 int spapr_rtc_import_offset(sPAPRRTCState *rtc, int64_t legacy_offset);
@@ -839,4 +849,5 @@ void spapr_check_pagesize(sPAPRMachineState *spapr, hwaddr pagesize,
 #define SPAPR_OV5_XIVE_EXPLOIT  0x40
 #define SPAPR_OV5_XIVE_BOTH     0x80 /* Only to advertise on the platform */
 
+void spapr_set_all_lpcrs(target_ulong value, target_ulong mask);
 #endif /* HW_SPAPR_H */

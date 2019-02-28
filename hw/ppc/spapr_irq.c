@@ -230,6 +230,11 @@ static void spapr_irq_reset_xics(sPAPRMachineState *spapr, Error **errp)
     /* TODO: create the KVM XICS device */
 }
 
+static const char *spapr_irq_get_nodename_xics(sPAPRMachineState *spapr)
+{
+    return XICS_NODENAME;
+}
+
 #define SPAPR_IRQ_XICS_NR_IRQS     0x1000
 #define SPAPR_IRQ_XICS_NR_MSIS     \
     (XICS_IRQ_BASE + SPAPR_IRQ_XICS_NR_IRQS - SPAPR_IRQ_MSI)
@@ -249,6 +254,7 @@ sPAPRIrq spapr_irq_xics = {
     .post_load   = spapr_irq_post_load_xics,
     .reset       = spapr_irq_reset_xics,
     .set_irq     = spapr_irq_set_irq_xics,
+    .get_nodename = spapr_irq_get_nodename_xics,
 };
 
 /*
@@ -384,6 +390,11 @@ static void spapr_irq_set_irq_xive(void *opaque, int srcno, int val)
     xive_source_set_irq(&spapr->xive->source, srcno, val);
 }
 
+static const char *spapr_irq_get_nodename_xive(sPAPRMachineState *spapr)
+{
+    return spapr->xive->nodename;
+}
+
 /*
  * XIVE uses the full IRQ number space. Set it to 8K to be compatible
  * with XICS.
@@ -407,6 +418,7 @@ sPAPRIrq spapr_irq_xive = {
     .post_load   = spapr_irq_post_load_xive,
     .reset       = spapr_irq_reset_xive,
     .set_irq     = spapr_irq_set_irq_xive,
+    .get_nodename = spapr_irq_get_nodename_xive,
 };
 
 /*
@@ -541,6 +553,11 @@ static void spapr_irq_set_irq_dual(void *opaque, int srcno, int val)
     spapr_irq_current(spapr)->set_irq(spapr, srcno, val);
 }
 
+static const char *spapr_irq_get_nodename_dual(sPAPRMachineState *spapr)
+{
+    return spapr_irq_current(spapr)->get_nodename(spapr);
+}
+
 /*
  * Define values in sync with the XIVE and XICS backend
  */
@@ -561,7 +578,8 @@ sPAPRIrq spapr_irq_dual = {
     .cpu_intc_create = spapr_irq_cpu_intc_create_dual,
     .post_load   = spapr_irq_post_load_dual,
     .reset       = spapr_irq_reset_dual,
-    .set_irq     = spapr_irq_set_irq_dual
+    .set_irq     = spapr_irq_set_irq_dual,
+    .get_nodename = spapr_irq_get_nodename_dual,
 };
 
 /*
@@ -618,6 +636,27 @@ void spapr_irq_reset(sPAPRMachineState *spapr, Error **errp)
     if (spapr->irq->reset) {
         spapr->irq->reset(spapr, errp);
     }
+}
+
+int spapr_irq_get_phandle(sPAPRMachineState *spapr, void *fdt, Error **errp)
+{
+    const char *nodename = spapr->irq->get_nodename(spapr);
+    int offset, phandle;
+
+    offset = fdt_subnode_offset(fdt, 0, nodename);
+    if (offset < 0) {
+        error_setg(errp, "Can't find node \"%s\": %s", nodename,
+                   fdt_strerror(offset));
+        return -1;
+    }
+
+    phandle = fdt_get_phandle(fdt, offset);
+    if (!phandle) {
+        error_setg(errp, "Can't get phandle of node \"%s\"", nodename);
+        return -1;
+    }
+
+    return phandle;
 }
 
 /*
@@ -691,4 +730,5 @@ sPAPRIrq spapr_irq_xics_legacy = {
     .cpu_intc_create = spapr_irq_cpu_intc_create_xics,
     .post_load   = spapr_irq_post_load_xics,
     .set_irq     = spapr_irq_set_irq_xics,
+    .get_nodename = spapr_irq_get_nodename_xics,
 };

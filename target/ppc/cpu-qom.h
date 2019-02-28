@@ -113,6 +113,8 @@ enum powerpc_excp_t {
     POWERPC_EXCP_POWER7,
     /* POWER8 exception model           */
     POWERPC_EXCP_POWER8,
+    /* POWER9 exception model           */
+    POWERPC_EXCP_POWER9,
 };
 
 /*****************************************************************************/
@@ -122,6 +124,7 @@ typedef enum {
     PPC_PM_NAP,
     PPC_PM_SLEEP,
     PPC_PM_RVWINKLE,
+    PPC_PM_STOP,
 } powerpc_pm_insn_t;
 
 /*****************************************************************************/
@@ -139,6 +142,8 @@ enum powerpc_input_t {
     PPC_FLAGS_INPUT_970,
     /* PowerPC POWER7 bus               */
     PPC_FLAGS_INPUT_POWER7,
+    /* PowerPC POWER9 bus               */
+    PPC_FLAGS_INPUT_POWER9,
     /* PowerPC 401 bus                  */
     PPC_FLAGS_INPUT_401,
     /* Freescale RCPU bus               */

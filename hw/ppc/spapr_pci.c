@@ -1408,6 +1408,17 @@ static uint32_t spapr_phb_get_pci_drc_index(sPAPRPHBState *phb,
     return spapr_drc_index(drc);
 }
 
+int spapr_pci_dt_populate(sPAPRDRConnector *drc, sPAPRMachineState *spapr,
+                          void *fdt, int *fdt_start_offset, Error **errp)
+{
+    HotplugHandler *plug_handler = qdev_get_hotplug_handler(drc->dev);
+    sPAPRPHBState *sphb = SPAPR_PCI_HOST_BRIDGE(plug_handler);
+    PCIDevice *pdev = PCI_DEVICE(drc->dev);
+
+    *fdt_start_offset = spapr_create_pci_child_dt(sphb, pdev, fdt, 0);
+    return 0;
+}
+
 static void spapr_pci_plug(HotplugHandler *plug_handler,
                            DeviceState *plugged_dev, Error **errp)
 {
@@ -1417,8 +1428,6 @@ static void spapr_pci_plug(HotplugHandler *plug_handler,
     Error *local_err = NULL;
     PCIBus *bus = PCI_BUS(qdev_get_parent_bus(DEVICE(pdev)));
     uint32_t slotnr = PCI_SLOT(pdev->devfn);
-    void *fdt = NULL;
-    int fdt_start_offset, fdt_size;
 
     /* if DR is disabled we don't need to do anything in the case of
      * hotplug or coldplug callbacks
@@ -1448,10 +1457,7 @@ static void spapr_pci_plug(HotplugHandler *plug_handler,
         goto out;
     }
 
-    fdt = create_device_tree(&fdt_size);
-    fdt_start_offset = spapr_create_pci_child_dt(phb, pdev, fdt, 0);
-
-    spapr_drc_attach(drc, DEVICE(pdev), fdt, fdt_start_offset, &local_err);
+    spapr_drc_attach(drc, DEVICE(pdev), &local_err);
     if (local_err) {
         goto out;
     }
@@ -1483,7 +1489,6 @@ static void spapr_pci_plug(HotplugHandler *plug_handler,
 out:
     if (local_err) {
         error_propagate(errp, local_err);
-        g_free(fdt);
     }
 }
 
@@ -1565,6 +1570,75 @@ static void spapr_pci_unplug_request(HotplugHandler *plug_handler,
     }
 }
 
+static void spapr_phb_finalizefn(Object *obj)
+{
+    sPAPRPHBState *sphb = SPAPR_PCI_HOST_BRIDGE(obj);
+
+    g_free(sphb->dtbusname);
+    sphb->dtbusname = NULL;
+}
+
+static void spapr_phb_unrealize(DeviceState *dev, Error **errp)
+{
+    sPAPRMachineState *spapr = SPAPR_MACHINE(qdev_get_machine());
+    SysBusDevice *s = SYS_BUS_DEVICE(dev);
+    PCIHostState *phb = PCI_HOST_BRIDGE(s);
+    sPAPRPHBState *sphb = SPAPR_PCI_HOST_BRIDGE(phb);
+    sPAPRTCETable *tcet;
+    int i;
+    const unsigned windows_supported = spapr_phb_windows_supported(sphb);
+
+    if (sphb->msi) {
+        g_hash_table_unref(sphb->msi);
+        sphb->msi = NULL;
+    }
+
+    /*
+     * Remove IO/MMIO subregions and aliases, rest should get cleaned
+     * via PHB's unrealize->object_finalize
+     */
+    for (i = windows_supported - 1; i >= 0; i--) {
+        tcet = spapr_tce_find_by_liobn(sphb->dma_liobn[i]);
+        if (tcet) {
+            memory_region_del_subregion(&sphb->iommu_root,
+                                        spapr_tce_get_iommu(tcet));
+        }
+    }
+
+    if (sphb->dr_enabled) {
+        for (i = PCI_SLOT_MAX * 8 - 1; i >= 0; i--) {
+            sPAPRDRConnector *drc = spapr_drc_by_id(TYPE_SPAPR_DRC_PCI,
+                                                    (sphb->index << 16) | i);
+
+            if (drc) {
+                object_unparent(OBJECT(drc));
+            }
+        }
+    }
+
+    for (i = PCI_NUM_PINS - 1; i >= 0; i--) {
+        if (sphb->lsi_table[i].irq) {
+            spapr_irq_free(spapr, sphb->lsi_table[i].irq, 1);
+            sphb->lsi_table[i].irq = 0;
+        }
+    }
+
+    QLIST_REMOVE(sphb, list);
+
+    memory_region_del_subregion(&sphb->iommu_root, &sphb->msiwindow);
+
+    address_space_destroy(&sphb->iommu_as);
+
+    qbus_set_hotplug_handler(BUS(phb->bus), NULL, &error_abort);
+    pci_unregister_root_bus(phb->bus);
+
+    memory_region_del_subregion(get_system_memory(), &sphb->iowindow);
+    if (sphb->mem64_win_pciaddr != (hwaddr)-1) {
+        memory_region_del_subregion(get_system_memory(), &sphb->mem64window);
+    }
+    memory_region_del_subregion(get_system_memory(), &sphb->mem32window);
+}
+
 static void spapr_phb_realize(DeviceState *dev, Error **errp)
 {
     /* We don't use SPAPR_MACHINE() in order to exit gracefully if the user
@@ -1582,29 +1656,14 @@ static void spapr_phb_realize(DeviceState *dev, Error **errp)
     PCIBus *bus;
     uint64_t msi_window_size = 4096;
     sPAPRTCETable *tcet;
-    const unsigned windows_supported =
-        sphb->ddw_enabled ? SPAPR_PCI_DMA_MAX_WINDOWS : 1;
+    const unsigned windows_supported = spapr_phb_windows_supported(sphb);
 
     if (!spapr) {
         error_setg(errp, TYPE_SPAPR_PCI_HOST_BRIDGE " needs a pseries machine");
         return;
     }
 
-    if (sphb->index != (uint32_t)-1) {
-        Error *local_err = NULL;
-
-        smc->phb_placement(spapr, sphb->index,
-                           &sphb->buid, &sphb->io_win_addr,
-                           &sphb->mem_win_addr, &sphb->mem64_win_addr,
-                           windows_supported, sphb->dma_liobn, &local_err);
-        if (local_err) {
-            error_propagate(errp, local_err);
-            return;
-        }
-    } else {
-        error_setg(errp, "\"index\" for PAPR PHB is mandatory");
-        return;
-    }
+    assert(sphb->index != (uint32_t)-1); /* checked in spapr_phb_pre_plug() */
 
     if (sphb->mem64_win_size != 0) {
         if (sphb->mem_win_size > SPAPR_PCI_MEM32_WIN_SIZE) {
@@ -1740,6 +1799,10 @@ static void spapr_phb_realize(DeviceState *dev, Error **errp)
             if (local_err) {
                 error_propagate_prepend(errp, local_err,
                                         "can't allocate LSIs: ");
+                /*
+                 * Older machines will never support PHB hotplug, ie, this is an
+                 * init only path and QEMU will terminate. No need to rollback.
+                 */
                 return;
             }
         }
@@ -1747,7 +1810,7 @@ static void spapr_phb_realize(DeviceState *dev, Error **errp)
         spapr_irq_claim(spapr, irq, true, &local_err);
         if (local_err) {
             error_propagate_prepend(errp, local_err, "can't allocate LSIs: ");
-            return;
+            goto unrealize;
         }
 
         sphb->lsi_table[i].irq = irq;
@@ -1767,13 +1830,17 @@ static void spapr_phb_realize(DeviceState *dev, Error **errp)
         if (!tcet) {
             error_setg(errp, "Creating window#%d failed for %s",
                        i, sphb->dtbusname);
-            return;
+            goto unrealize;
         }
         memory_region_add_subregion(&sphb->iommu_root, 0,
                                     spapr_tce_get_iommu(tcet));
     }
 
     sphb->msi = g_hash_table_new_full(g_int_hash, g_int_equal, g_free, g_free);
+    return;
+
+unrealize:
+    spapr_phb_unrealize(dev, NULL);
 }
 
 static int spapr_phb_children_reset(Object *child, void *opaque)
@@ -1972,6 +2039,7 @@ static void spapr_phb_class_init(ObjectClass *klass, void *data)
 
     hc->root_bus_path = spapr_phb_root_bus_path;
     dc->realize = spapr_phb_realize;
+    dc->unrealize = spapr_phb_unrealize;
     dc->props = spapr_phb_properties;
     dc->reset = spapr_phb_reset;
     dc->vmsd = &vmstate_spapr_pci;
@@ -1987,6 +2055,7 @@ static const TypeInfo spapr_phb_info = {
     .name          = TYPE_SPAPR_PCI_HOST_BRIDGE,
     .parent        = TYPE_PCI_HOST_BRIDGE,
     .instance_size = sizeof(sPAPRPHBState),
+    .instance_finalize = spapr_phb_finalizefn,
     .class_init    = spapr_phb_class_init,
     .interfaces    = (InterfaceInfo[]) {
         { TYPE_HOTPLUG_HANDLER },
@@ -2070,7 +2139,7 @@ static void spapr_phb_pci_enumerate(sPAPRPHBState *phb)
 }
 
 int spapr_populate_pci_dt(sPAPRPHBState *phb, uint32_t intc_phandle, void *fdt,
-                          uint32_t nr_msis)
+                          uint32_t nr_msis, int *node_offset)
 {
     int bus_off, i, j, ret;
     gchar *nodename;
@@ -2120,11 +2189,15 @@ int spapr_populate_pci_dt(sPAPRPHBState *phb, uint32_t intc_phandle, void *fdt,
     sPAPRTCETable *tcet;
     PCIBus *bus = PCI_HOST_BRIDGE(phb)->bus;
     sPAPRFDT s_fdt;
+    sPAPRDRConnector *drc;
 
     /* Start populating the FDT */
     nodename = g_strdup_printf("pci@%" PRIx64, phb->buid);
     _FDT(bus_off = fdt_add_subnode(fdt, 0, nodename));
     g_free(nodename);
+    if (node_offset) {
+        *node_offset = bus_off;
+    }
 
     /* Write PHB properties */
     _FDT(fdt_setprop_string(fdt, bus_off, "device_type", "pci"));
@@ -2182,6 +2255,14 @@ int spapr_populate_pci_dt(sPAPRPHBState *phb, uint32_t intc_phandle, void *fdt,
     spapr_dma_dt(fdt, bus_off, "ibm,dma-window",
                  tcet->liobn, tcet->bus_offset,
                  tcet->nb_table << tcet->page_shift);
+
+    drc = spapr_drc_by_id(TYPE_SPAPR_DRC_PHB, phb->index);
+    if (drc) {
+        uint32_t drc_index = cpu_to_be32(spapr_drc_index(drc));
+
+        _FDT(fdt_setprop(fdt, bus_off, "ibm,my-drc-index", &drc_index,
+                         sizeof(drc_index)));
+    }
 
     /* Walk the bridges and program the bus numbers*/
     spapr_phb_pci_enumerate(phb);

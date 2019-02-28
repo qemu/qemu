@@ -18,6 +18,7 @@
 #include "qom/object.h"
 #include "sysemu/sysemu.h"
 #include "hw/qdev.h"
+#include "qapi/error.h"
 
 #define TYPE_SPAPR_DR_CONNECTOR "spapr-dr-connector"
 #define SPAPR_DR_CONNECTOR_GET_CLASS(obj) \
@@ -69,6 +70,14 @@
         OBJECT_CLASS_CHECK(sPAPRDRConnectorClass, klass, TYPE_SPAPR_DRC_LMB)
 #define SPAPR_DRC_LMB(obj) OBJECT_CHECK(sPAPRDRConnector, (obj), \
                                         TYPE_SPAPR_DRC_LMB)
+
+#define TYPE_SPAPR_DRC_PHB "spapr-drc-phb"
+#define SPAPR_DRC_PHB_GET_CLASS(obj) \
+        OBJECT_GET_CLASS(sPAPRDRConnectorClass, obj, TYPE_SPAPR_DRC_PHB)
+#define SPAPR_DRC_PHB_CLASS(klass) \
+        OBJECT_CLASS_CHECK(sPAPRDRConnectorClass, klass, TYPE_SPAPR_DRC_PHB)
+#define SPAPR_DRC_PHB(obj) OBJECT_CHECK(sPAPRDRConnector, (obj), \
+                                        TYPE_SPAPR_DRC_PHB)
 
 /*
  * Various hotplug types managed by sPAPRDRConnector
@@ -213,6 +222,8 @@ typedef struct sPAPRDRConnector {
     int fdt_start_offset;
 } sPAPRDRConnector;
 
+struct sPAPRMachineState;
+
 typedef struct sPAPRDRConnectorClass {
     /*< private >*/
     DeviceClass parent;
@@ -228,6 +239,9 @@ typedef struct sPAPRDRConnectorClass {
     uint32_t (*isolate)(sPAPRDRConnector *drc);
     uint32_t (*unisolate)(sPAPRDRConnector *drc);
     void (*release)(DeviceState *dev);
+
+    int (*dt_populate)(sPAPRDRConnector *drc, struct sPAPRMachineState *spapr,
+                       void *fdt, int *fdt_start_offset, Error **errp);
 } sPAPRDRConnectorClass;
 
 typedef struct sPAPRDRCPhysical {
@@ -255,8 +269,7 @@ sPAPRDRConnector *spapr_drc_by_id(const char *type, uint32_t id);
 int spapr_drc_populate_dt(void *fdt, int fdt_offset, Object *owner,
                           uint32_t drc_type_mask);
 
-void spapr_drc_attach(sPAPRDRConnector *drc, DeviceState *d, void *fdt,
-                      int fdt_start_offset, Error **errp);
+void spapr_drc_attach(sPAPRDRConnector *drc, DeviceState *d, Error **errp);
 void spapr_drc_detach(sPAPRDRConnector *drc);
 bool spapr_drc_needed(void *opaque);
 
