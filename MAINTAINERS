@@ -633,6 +633,8 @@ F: hw/misc/iotkit-sysinfo.c
 F: include/hw/misc/iotkit-sysinfo.h
 F: hw/misc/armsse-cpuid.c
 F: include/hw/misc/armsse-cpuid.h
+F: hw/misc/armsse-mhu.c
+F: include/hw/misc/armsse-mhu.h
 
 Musca
 M: Peter Maydell <peter.maydell@linaro.org>

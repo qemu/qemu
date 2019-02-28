@@ -228,6 +228,62 @@ int arm_set_cpu_on(uint64_t cpuid, uint64_t entry, uint64_t context_id,
     return QEMU_ARM_POWERCTL_RET_SUCCESS;
 }
 
+static void arm_set_cpu_on_and_reset_async_work(CPUState *target_cpu_state,
+                                                run_on_cpu_data data)
+{
+    ARMCPU *target_cpu = ARM_CPU(target_cpu_state);
+
+    /* Initialize the cpu we are turning on */
+    cpu_reset(target_cpu_state);
+    target_cpu_state->halted = 0;
+
+    /* Finally set the power status */
+    assert(qemu_mutex_iothread_locked());
+    target_cpu->power_state = PSCI_ON;
+}
+
+int arm_set_cpu_on_and_reset(uint64_t cpuid)
+{
+    CPUState *target_cpu_state;
+    ARMCPU *target_cpu;
+
+    assert(qemu_mutex_iothread_locked());
+
+    /* Retrieve the cpu we are powering up */
+    target_cpu_state = arm_get_cpu_by_id(cpuid);
+    if (!target_cpu_state) {
+        /* The cpu was not found */
+        return QEMU_ARM_POWERCTL_INVALID_PARAM;
+    }
+
+    target_cpu = ARM_CPU(target_cpu_state);
+    if (target_cpu->power_state == PSCI_ON) {
+        qemu_log_mask(LOG_GUEST_ERROR,
+                      "[ARM]%s: CPU %" PRId64 " is already on\n",
+                      __func__, cpuid);
+        return QEMU_ARM_POWERCTL_ALREADY_ON;
+    }
+
+    /*
+     * If another CPU has powered the target on we are in the state
+     * ON_PENDING and additional attempts to power on the CPU should
+     * fail (see 6.6 Implementation CPU_ON/CPU_OFF races in the PSCI
+     * spec)
+     */
+    if (target_cpu->power_state == PSCI_ON_PENDING) {
+        qemu_log_mask(LOG_GUEST_ERROR,
+                      "[ARM]%s: CPU %" PRId64 " is already powering on\n",
+                      __func__, cpuid);
+        return QEMU_ARM_POWERCTL_ON_PENDING;
+    }
+
+    async_run_on_cpu(target_cpu_state, arm_set_cpu_on_and_reset_async_work,
+                     RUN_ON_CPU_NULL);
+
+    /* We are good to go */
+    return QEMU_ARM_POWERCTL_RET_SUCCESS;
+}
+
 static void arm_set_cpu_off_async_work(CPUState *target_cpu_state,
                                        run_on_cpu_data data)
 {

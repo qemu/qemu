@@ -22,6 +22,7 @@
 #include "target/arm/idau.h"
 #include "qemu/error-report.h"
 #include "qapi/error.h"
+#include "qapi/visitor.h"
 #include "cpu.h"
 #include "internals.h"
 #include "qemu-common.h"
@@ -771,9 +772,21 @@ static Property arm_cpu_pmsav7_dregion_property =
                                            pmsav7_dregion,
                                            qdev_prop_uint32, uint32_t);
 
-/* M profile: initial value of the Secure VTOR */
-static Property arm_cpu_initsvtor_property =
-            DEFINE_PROP_UINT32("init-svtor", ARMCPU, init_svtor, 0);
+static void arm_get_init_svtor(Object *obj, Visitor *v, const char *name,
+                               void *opaque, Error **errp)
+{
+    ARMCPU *cpu = ARM_CPU(obj);
+
+    visit_type_uint32(v, name, &cpu->init_svtor, errp);
+}
+
+static void arm_set_init_svtor(Object *obj, Visitor *v, const char *name,
+                               void *opaque, Error **errp)
+{
+    ARMCPU *cpu = ARM_CPU(obj);
+
+    visit_type_uint32(v, name, &cpu->init_svtor, errp);
+}
 
 void arm_cpu_post_init(Object *obj)
 {
@@ -845,8 +858,14 @@ void arm_cpu_post_init(Object *obj)
                                  qdev_prop_allow_set_link_before_realize,
                                  OBJ_PROP_LINK_STRONG,
                                  &error_abort);
-        qdev_property_add_static(DEVICE(obj), &arm_cpu_initsvtor_property,
-                                 &error_abort);
+        /*
+         * M profile: initial value of the Secure VTOR. We can't just use
+         * a simple DEFINE_PROP_UINT32 for this because we want to permit
+         * the property to be set after realize.
+         */
+        object_property_add(obj, "init-svtor", "uint32",
+                            arm_get_init_svtor, arm_set_init_svtor,
+                            NULL, NULL, &error_abort);
     }
 
     qdev_property_add_static(DEVICE(obj), &arm_cpu_cfgend_property,
@@ -995,7 +1014,6 @@ static void arm_cpu_realizefn(DeviceState *dev, Error **errp)
     }
     if (arm_feature(env, ARM_FEATURE_VFP4)) {
         set_feature(env, ARM_FEATURE_VFP3);
-        set_feature(env, ARM_FEATURE_VFP_FP16);
     }
     if (arm_feature(env, ARM_FEATURE_VFP3)) {
         set_feature(env, ARM_FEATURE_VFP);
@@ -1656,7 +1674,6 @@ static void cortex_a9_initfn(Object *obj)
     cpu->dtb_compatible = "arm,cortex-a9";
     set_feature(&cpu->env, ARM_FEATURE_V7);
     set_feature(&cpu->env, ARM_FEATURE_VFP3);
-    set_feature(&cpu->env, ARM_FEATURE_VFP_FP16);
     set_feature(&cpu->env, ARM_FEATURE_NEON);
     set_feature(&cpu->env, ARM_FEATURE_THUMB2EE);
     set_feature(&cpu->env, ARM_FEATURE_EL3);
@@ -2003,6 +2020,7 @@ static void arm_max_initfn(Object *obj)
             t = cpu->isar.id_isar6;
             t = FIELD_DP32(t, ID_ISAR6, JSCVT, 1);
             t = FIELD_DP32(t, ID_ISAR6, DP, 1);
+            t = FIELD_DP32(t, ID_ISAR6, FHM, 1);
             cpu->isar.id_isar6 = t;
 
             t = cpu->id_mmfr4;

@@ -74,4 +74,20 @@ int arm_set_cpu_off(uint64_t cpuid);
  */
 int arm_reset_cpu(uint64_t cpuid);
 
+/*
+ * arm_set_cpu_on_and_reset:
+ * @cpuid: the id of the CPU we want to star
+ *
+ * Start the cpu designated by @cpuid and put it through its normal
+ * CPU reset process. The CPU will start in the way it is architected
+ * to start after a power-on reset.
+ *
+ * Returns: QEMU_ARM_POWERCTL_RET_SUCCESS on success.
+ * QEMU_ARM_POWERCTL_INVALID_PARAM if there is no CPU with that ID.
+ * QEMU_ARM_POWERCTL_ALREADY_ON if the CPU is already on.
+ * QEMU_ARM_POWERCTL_ON_PENDING if the CPU is already partway through
+ * powering on.
+ */
+int arm_set_cpu_on_and_reset(uint64_t cpuid);
+
 #endif
