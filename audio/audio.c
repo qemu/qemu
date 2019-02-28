@@ -454,9 +454,7 @@ static void audio_print_options (const char *prefix,
 static void audio_process_options (const char *prefix,
                                    struct audio_option *opt)
 {
-    char *optname;
-    const char qemu_prefix[] = "QEMU_";
-    size_t preflen, optlen;
+    gchar *prefix_upper;
 
     if (audio_bug(__func__, !prefix)) {
         dolog ("prefix = NULL\n");
@@ -468,10 +466,10 @@ static void audio_process_options (const char *prefix,
         return;
     }
 
-    preflen = strlen (prefix);
+    prefix_upper = g_utf8_strup(prefix, -1);
 
     for (; opt->name; opt++) {
-        size_t len, i;
+        char *optname;
         int def;
 
         if (!opt->valp) {
@@ -480,21 +478,7 @@ static void audio_process_options (const char *prefix,
             continue;
         }
 
-        len = strlen (opt->name);
-        /* len of opt->name + len of prefix + size of qemu_prefix
-         * (includes trailing zero) + zero + underscore (on behalf of
-         * sizeof) */
-        optlen = len + preflen + sizeof (qemu_prefix) + 1;
-        optname = g_malloc (optlen);
-
-        pstrcpy (optname, optlen, qemu_prefix);
-
-        /* copy while upper-casing, including trailing zero */
-        for (i = 0; i <= preflen; ++i) {
-            optname[i + sizeof (qemu_prefix) - 1] = qemu_toupper(prefix[i]);
-        }
-        pstrcat (optname, optlen, "_");
-        pstrcat (optname, optlen, opt->name);
+        optname = g_strdup_printf("QEMU_%s_%s", prefix_upper, opt->name);
 
         def = 1;
         switch (opt->tag) {
@@ -532,6 +516,7 @@ static void audio_process_options (const char *prefix,
         *opt->overriddenp = !def;
         g_free (optname);
     }
+    g_free(prefix_upper);
 }
 
 static void audio_print_settings (struct audsettings *as)
@@ -826,12 +811,7 @@ static int audio_attach_capture (HWVoiceOut *hw)
         SWVoiceOut *sw;
         HWVoiceOut *hw_cap = &cap->hw;
 
-        sc = audio_calloc(__func__, 1, sizeof(*sc));
-        if (!sc) {
-            dolog ("Could not allocate soft capture voice (%zu bytes)\n",
-                   sizeof (*sc));
-            return -1;
-        }
+        sc = g_malloc0(sizeof(*sc));
 
         sc->cap = cap;
         sw = &sc->sw;
@@ -1975,15 +1955,10 @@ CaptureVoiceOut *AUD_add_capture (
     if (audio_validate_settings (as)) {
         dolog ("Invalid settings were passed when trying to add capture\n");
         audio_print_settings (as);
-        goto err0;
+        return NULL;
     }
 
-    cb = audio_calloc(__func__, 1, sizeof(*cb));
-    if (!cb) {
-        dolog ("Could not allocate capture callback information, size %zu\n",
-               sizeof (*cb));
-        goto err0;
-    }
+    cb = g_malloc0(sizeof(*cb));
     cb->ops = *ops;
     cb->opaque = cb_opaque;
 
@@ -1996,12 +1971,7 @@ CaptureVoiceOut *AUD_add_capture (
         HWVoiceOut *hw;
         CaptureVoiceOut *cap;
 
-        cap = audio_calloc(__func__, 1, sizeof(*cap));
-        if (!cap) {
-            dolog ("Could not allocate capture voice, size %zu\n",
-                   sizeof (*cap));
-            goto err1;
-        }
+        cap = g_malloc0(sizeof(*cap));
 
         hw = &cap->hw;
         QLIST_INIT (&hw->sw_head);
@@ -2009,23 +1979,11 @@ CaptureVoiceOut *AUD_add_capture (
 
         /* XXX find a more elegant way */
         hw->samples = 4096 * 4;
-        hw->mix_buf = audio_calloc(__func__, hw->samples,
-                                   sizeof(struct st_sample));
-        if (!hw->mix_buf) {
-            dolog ("Could not allocate capture mix buffer (%d samples)\n",
-                   hw->samples);
-            goto err2;
-        }
+        hw->mix_buf = g_new0(struct st_sample, hw->samples);
 
         audio_pcm_init_info (&hw->info, as);
 
-        cap->buf = audio_calloc(__func__, hw->samples, 1 << hw->info.shift);
-        if (!cap->buf) {
-            dolog ("Could not allocate capture buffer "
-                   "(%d samples, each %d bytes)\n",
-                   hw->samples, 1 << hw->info.shift);
-            goto err3;
-        }
+        cap->buf = g_malloc0_n(hw->samples, 1 << hw->info.shift);
 
         hw->clip = mixeng_clip
             [hw->info.nchannels == 2]
@@ -2040,15 +1998,6 @@ CaptureVoiceOut *AUD_add_capture (
             audio_attach_capture (hw);
         }
         return cap;
-
-    err3:
-        g_free (cap->hw.mix_buf);
-    err2:
-        g_free (cap);
-    err1:
-        g_free (cb);
-    err0:
-        return NULL;
     }
 }
 

@@ -38,14 +38,9 @@
 #define AUDIO_CAP "sdl"
 #include "audio_int.h"
 
-#define USE_SEMAPHORE (SDL_MAJOR_VERSION < 2)
-
 typedef struct SDLVoiceOut {
     HWVoiceOut hw;
     int live;
-#if USE_SEMAPHORE
-    int rpos;
-#endif
     int decr;
 } SDLVoiceOut;
 
@@ -57,10 +52,6 @@ static struct {
 
 static struct SDLAudioState {
     int exit;
-#if USE_SEMAPHORE
-    SDL_mutex *mutex;
-    SDL_sem *sem;
-#endif
     int initialized;
     bool driver_created;
 } glob_sdl;
@@ -75,66 +66,6 @@ static void GCC_FMT_ATTR (1, 2) sdl_logerr (const char *fmt, ...)
     va_end (ap);
 
     AUD_log (AUDIO_CAP, "Reason: %s\n", SDL_GetError ());
-}
-
-static int sdl_lock (SDLAudioState *s, const char *forfn)
-{
-#if USE_SEMAPHORE
-    if (SDL_LockMutex (s->mutex)) {
-        sdl_logerr ("SDL_LockMutex for %s failed\n", forfn);
-        return -1;
-    }
-#else
-    SDL_LockAudio();
-#endif
-
-    return 0;
-}
-
-static int sdl_unlock (SDLAudioState *s, const char *forfn)
-{
-#if USE_SEMAPHORE
-    if (SDL_UnlockMutex (s->mutex)) {
-        sdl_logerr ("SDL_UnlockMutex for %s failed\n", forfn);
-        return -1;
-    }
-#else
-    SDL_UnlockAudio();
-#endif
-
-    return 0;
-}
-
-static int sdl_post (SDLAudioState *s, const char *forfn)
-{
-#if USE_SEMAPHORE
-    if (SDL_SemPost (s->sem)) {
-        sdl_logerr ("SDL_SemPost for %s failed\n", forfn);
-        return -1;
-    }
-#endif
-
-    return 0;
-}
-
-#if USE_SEMAPHORE
-static int sdl_wait (SDLAudioState *s, const char *forfn)
-{
-    if (SDL_SemWait (s->sem)) {
-        sdl_logerr ("SDL_SemWait for %s failed\n", forfn);
-        return -1;
-    }
-    return 0;
-}
-#endif
-
-static int sdl_unlock_and_post (SDLAudioState *s, const char *forfn)
-{
-    if (sdl_unlock (s, forfn)) {
-        return -1;
-    }
-
-    return sdl_post (s, forfn);
 }
 
 static int aud_to_sdlfmt (audfmt_e fmt)
@@ -243,9 +174,9 @@ static int sdl_open (SDL_AudioSpec *req, SDL_AudioSpec *obt)
 static void sdl_close (SDLAudioState *s)
 {
     if (s->initialized) {
-        sdl_lock (s, "sdl_close");
+        SDL_LockAudio();
         s->exit = 1;
-        sdl_unlock_and_post (s, "sdl_close");
+        SDL_UnlockAudio();
         SDL_PauseAudio (1);
         SDL_CloseAudio ();
         s->initialized = 0;
@@ -258,76 +189,36 @@ static void sdl_callback (void *opaque, Uint8 *buf, int len)
     SDLAudioState *s = &glob_sdl;
     HWVoiceOut *hw = &sdl->hw;
     int samples = len >> hw->info.shift;
+    int to_mix, decr;
 
-    if (s->exit) {
+    if (s->exit || !sdl->live) {
         return;
     }
 
-    while (samples) {
-        int to_mix, decr;
+    /* dolog ("in callback samples=%d live=%d\n", samples, sdl->live); */
 
-        /* dolog ("in callback samples=%d\n", samples); */
-#if USE_SEMAPHORE
-        sdl_wait (s, "sdl_callback");
-        if (s->exit) {
-            return;
-        }
+    to_mix = audio_MIN(samples, sdl->live);
+    decr = to_mix;
+    while (to_mix) {
+        int chunk = audio_MIN(to_mix, hw->samples - hw->rpos);
+        struct st_sample *src = hw->mix_buf + hw->rpos;
 
-        if (sdl_lock (s, "sdl_callback")) {
-            return;
-        }
-
-        if (audio_bug(__func__, sdl->live < 0 || sdl->live > hw->samples)) {
-            dolog ("sdl->live=%d hw->samples=%d\n",
-                   sdl->live, hw->samples);
-            return;
-        }
-
-        if (!sdl->live) {
-            goto again;
-        }
-#else
-        if (s->exit || !sdl->live) {
-            break;
-        }
-#endif
-
-        /* dolog ("in callback live=%d\n", live); */
-        to_mix = audio_MIN (samples, sdl->live);
-        decr = to_mix;
-        while (to_mix) {
-            int chunk = audio_MIN (to_mix, hw->samples - hw->rpos);
-            struct st_sample *src = hw->mix_buf + hw->rpos;
-
-            /* dolog ("in callback to_mix %d, chunk %d\n", to_mix, chunk); */
-            hw->clip (buf, src, chunk);
-#if USE_SEMAPHORE
-            sdl->rpos = (sdl->rpos + chunk) % hw->samples;
-#else
-            hw->rpos = (hw->rpos + chunk) % hw->samples;
-#endif
-            to_mix -= chunk;
-            buf += chunk << hw->info.shift;
-        }
-        samples -= decr;
-        sdl->live -= decr;
-        sdl->decr += decr;
-
-#if USE_SEMAPHORE
-    again:
-        if (sdl_unlock (s, "sdl_callback")) {
-            return;
-        }
-#endif
+        /* dolog ("in callback to_mix %d, chunk %d\n", to_mix, chunk); */
+        hw->clip(buf, src, chunk);
+        hw->rpos = (hw->rpos + chunk) % hw->samples;
+        to_mix -= chunk;
+        buf += chunk << hw->info.shift;
     }
+    samples -= decr;
+    sdl->live -= decr;
+    sdl->decr += decr;
+
     /* dolog ("done len=%d\n", len); */
 
-#if (SDL_MAJOR_VERSION >= 2)
     /* SDL2 does not clear the remaining buffer for us, so do it on our own */
     if (samples) {
         memset(buf, 0, samples << hw->info.shift);
     }
-#endif
 }
 
 static int sdl_write_out (SWVoiceOut *sw, void *buf, int len)
@@ -339,11 +230,8 @@ static int sdl_run_out (HWVoiceOut *hw, int live)
 {
     int decr;
     SDLVoiceOut *sdl = (SDLVoiceOut *) hw;
-    SDLAudioState *s = &glob_sdl;
 
-    if (sdl_lock (s, "sdl_run_out")) {
-        return 0;
-    }
+    SDL_LockAudio();
 
     if (sdl->decr > live) {
         ldebug ("sdl->decr %d live %d sdl->live %d\n",
@@ -355,19 +243,10 @@ static int sdl_run_out (HWVoiceOut *hw, int live)
     decr = audio_MIN (sdl->decr, live);
     sdl->decr -= decr;
 
-#if USE_SEMAPHORE
-    sdl->live = live - decr;
-    hw->rpos = sdl->rpos;
-#else
     sdl->live = live;
-#endif
 
-    if (sdl->live > 0) {
-        sdl_unlock_and_post (s, "sdl_run_out");
-    }
-    else {
-        sdl_unlock (s, "sdl_run_out");
-    }
+    SDL_UnlockAudio();
+
     return decr;
 }
 
@@ -449,23 +328,6 @@ static void *sdl_audio_init (void)
         return NULL;
     }
 
-#if USE_SEMAPHORE
-    s->mutex = SDL_CreateMutex ();
-    if (!s->mutex) {
-        sdl_logerr ("Failed to create SDL mutex\n");
-        SDL_QuitSubSystem (SDL_INIT_AUDIO);
-        return NULL;
-    }
-
-    s->sem = SDL_CreateSemaphore (0);
-    if (!s->sem) {
-        sdl_logerr ("Failed to create SDL semaphore\n");
-        SDL_DestroyMutex (s->mutex);
-        SDL_QuitSubSystem (SDL_INIT_AUDIO);
-        return NULL;
-    }
-#endif
-
     s->driver_created = true;
     return s;
 }
@@ -474,10 +336,6 @@ static void sdl_audio_fini (void *opaque)
 {
     SDLAudioState *s = opaque;
     sdl_close (s);
-#if USE_SEMAPHORE
-    SDL_DestroySemaphore (s->sem);
-    SDL_DestroyMutex (s->mutex);
-#endif
     SDL_QuitSubSystem (SDL_INIT_AUDIO);
     s->driver_created = false;
 }
