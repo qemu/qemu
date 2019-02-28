@@ -1848,49 +1848,20 @@ virtqueue_alloc_element(size_t sz,
     return elem;
 }
 
-void *
-vu_queue_pop(VuDev *dev, VuVirtq *vq, size_t sz)
+static void *
+vu_queue_map_desc(VuDev *dev, VuVirtq *vq, unsigned int idx, size_t sz)
 {
-    unsigned int i, head, max, desc_len;
+    struct vring_desc *desc = vq->vring.desc;
     uint64_t desc_addr, read_len;
+    unsigned int desc_len;
+    unsigned int max = vq->vring.num;
+    unsigned int i = idx;
     VuVirtqElement *elem;
-    unsigned out_num, in_num;
+    unsigned int out_num = 0, in_num = 0;
     struct iovec iov[VIRTQUEUE_MAX_SIZE];
     struct vring_desc desc_buf[VIRTQUEUE_MAX_SIZE];
-    struct vring_desc *desc;
     int rc;
 
-    if (unlikely(dev->broken) ||
-        unlikely(!vq->vring.avail)) {
-        return NULL;
-    }
-
-    if (vu_queue_empty(dev, vq)) {
-        return NULL;
-    }
-    /* Needed after virtio_queue_empty(), see comment in
-     * virtqueue_num_heads(). */
-    smp_rmb();
-
-    /* When we start there are none of either input nor output. */
-    out_num = in_num = 0;
-
-    max = vq->vring.num;
-    if (vq->inuse >= vq->vring.num) {
-        vu_panic(dev, "Virtqueue size exceeded");
-        return NULL;
-    }
-
-    if (!virtqueue_get_head(dev, vq, vq->last_avail_idx++, &head)) {
-        return NULL;
-    }
-
-    if (vu_has_feature(dev, VIRTIO_RING_F_EVENT_IDX)) {
-        vring_set_avail_event(vq, vq->last_avail_idx);
-    }
-
-    i = head;
-    desc = vq->vring.desc;
     if (desc[i].flags & VRING_DESC_F_INDIRECT) {
         if (desc[i].len % sizeof(struct vring_desc)) {
             vu_panic(dev, "Invalid size for indirect buffer table");
@@ -1942,17 +1913,60 @@ vu_queue_pop(VuDev *dev, VuVirtq *vq, size_t sz)
     } while (rc == VIRTQUEUE_READ_DESC_MORE);
 
     if (rc == VIRTQUEUE_READ_DESC_ERROR) {
+        vu_panic(dev, "read descriptor error");
         return NULL;
     }
 
     /* Now copy what we have collected and mapped */
     elem = virtqueue_alloc_element(sz, out_num, in_num);
-    elem->index = head;
+    elem->index = idx;
     for (i = 0; i < out_num; i++) {
         elem->out_sg[i] = iov[i];
     }
     for (i = 0; i < in_num; i++) {
         elem->in_sg[i] = iov[out_num + i];
+    }
+
+    return elem;
+}
+
+void *
+vu_queue_pop(VuDev *dev, VuVirtq *vq, size_t sz)
+{
+    unsigned int head;
+    VuVirtqElement *elem;
+
+    if (unlikely(dev->broken) ||
+        unlikely(!vq->vring.avail)) {
+        return NULL;
+    }
+
+    if (vu_queue_empty(dev, vq)) {
+        return NULL;
+    }
+    /*
+     * Needed after virtio_queue_empty(), see comment in
+     * virtqueue_num_heads().
+     */
+    smp_rmb();
+
+    if (vq->inuse >= vq->vring.num) {
+        vu_panic(dev, "Virtqueue size exceeded");
+        return NULL;
+    }
+
+    if (!virtqueue_get_head(dev, vq, vq->last_avail_idx++, &head)) {
+        return NULL;
+    }
+
+    if (vu_has_feature(dev, VIRTIO_RING_F_EVENT_IDX)) {
+        vring_set_avail_event(vq, vq->last_avail_idx);
+    }
+
+    elem = vu_queue_map_desc(dev, vq, head, sz);
+
+    if (!elem) {
+        return NULL;
     }
 
     vq->inuse++;
