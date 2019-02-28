@@ -404,18 +404,9 @@ static void iotkit_sysctl_reset(DeviceState *dev)
     s->reset_syndrome = 1;
     s->reset_mask = 0;
     s->gretreg = 0;
-    s->initsvtor0 = 0x10000000;
-    s->initsvtor1 = 0x10000000;
-    if (s->is_sse200) {
-        /*
-         * CPU 0 starts on, CPU 1 starts off. In real hardware this is
-         * configurable by the SoC integrator as a verilog parameter.
-         */
-        s->cpuwait = 2;
-    } else {
-        /* CPU 0 starts on */
-        s->cpuwait = 0;
-    }
+    s->initsvtor0 = s->initsvtor0_rst;
+    s->initsvtor1 = s->initsvtor1_rst;
+    s->cpuwait = s->cpuwait_rst;
     s->wicctrl = 0;
     s->scsecctrl = 0;
     s->fclk_div = 0;
@@ -500,6 +491,11 @@ static const VMStateDescription iotkit_sysctl_vmstate = {
 
 static Property iotkit_sysctl_props[] = {
     DEFINE_PROP_UINT32("SYS_VERSION", IoTKitSysCtl, sys_version, 0),
+    DEFINE_PROP_UINT32("CPUWAIT_RST", IoTKitSysCtl, cpuwait_rst, 0),
+    DEFINE_PROP_UINT32("INITSVTOR0_RST", IoTKitSysCtl, initsvtor0_rst,
+                       0x10000000),
+    DEFINE_PROP_UINT32("INITSVTOR1_RST", IoTKitSysCtl, initsvtor1_rst,
+                       0x10000000),
     DEFINE_PROP_END_OF_LIST()
 };
 

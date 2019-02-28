@@ -11,6 +11,7 @@
 
 #include "qemu/osdep.h"
 #include "qemu/log.h"
+#include "qemu/bitops.h"
 #include "qapi/error.h"
 #include "trace.h"
 #include "hw/sysbus.h"
@@ -29,6 +30,7 @@ struct ARMSSEInfo {
     int sram_banks;
     int num_cpus;
     uint32_t sys_version;
+    uint32_t cpuwait_rst;
     SysConfigFormat sys_config_format;
     bool has_mhus;
     bool has_ppus;
@@ -43,6 +45,7 @@ static const ARMSSEInfo armsse_variants[] = {
         .sram_banks = 1,
         .num_cpus = 1,
         .sys_version = 0x41743,
+        .cpuwait_rst = 0,
         .sys_config_format = IoTKitFormat,
         .has_mhus = false,
         .has_ppus = false,
@@ -55,6 +58,7 @@ static const ARMSSEInfo armsse_variants[] = {
         .sram_banks = 4,
         .num_cpus = 2,
         .sys_version = 0x22041743,
+        .cpuwait_rst = 2,
         .sys_config_format = SSE200Format,
         .has_mhus = true,
         .has_ppus = true,
@@ -495,30 +499,33 @@ static void armsse_realize(DeviceState *dev, Error **errp)
 
         qdev_prop_set_uint32(cpudev, "num-irq", s->exp_numirq + 32);
         /*
-         * In real hardware the initial Secure VTOR is set from the INITSVTOR0
-         * register in the IoT Kit System Control Register block, and the
-         * initial value of that is in turn specifiable by the FPGA that
-         * instantiates the IoT Kit. In QEMU we don't implement this wrinkle,
-         * and simply set the CPU's init-svtor to the IoT Kit default value.
-         * In SSE-200 the situation is similar, except that the default value
-         * is a reset-time signal input. Typically a board using the SSE-200
-         * will have a system control processor whose boot firmware initializes
-         * the INITSVTOR* registers before powering up the CPUs in any case,
-         * so the hardware's default value doesn't matter. QEMU doesn't emulate
+         * In real hardware the initial Secure VTOR is set from the INITSVTOR*
+         * registers in the IoT Kit System Control Register block. In QEMU
+         * we set the initial value here, and also the reset value of the
+         * sysctl register, from this object's QOM init-svtor property.
+         * If the guest changes the INITSVTOR* registers at runtime then the
+         * code in iotkit-sysctl.c will update the CPU init-svtor property
+         * (which will then take effect on the next CPU warm-reset).
+         *
+         * Note that typically a board using the SSE-200 will have a system
+         * control processor whose boot firmware initializes the INITSVTOR*
+         * registers before powering up the CPUs. QEMU doesn't emulate
          * the control processor, so instead we behave in the way that the
-         * firmware does. The initial value is configurable by the board code
-         * to match whatever its firmware does.
+         * firmware does: the initial value should be set by the board code
+         * (using the init-svtor property on the ARMSSE object) to match
+         * whatever its firmware does.
          */
         qdev_prop_set_uint32(cpudev, "init-svtor", s->init_svtor);
         /*
-         * Start all CPUs except CPU0 powered down. In real hardware it is
-         * a configurable property of the SSE-200 which CPUs start powered up
-         * (via the CPUWAIT0_RST and CPUWAIT1_RST parameters), but since all
-         * the boards we care about start CPU0 and leave CPU1 powered off,
-         * we hard-code that for now. We can add QOM properties for this
+         * CPUs start powered down if the corresponding bit in the CPUWAIT
+         * register is 1. In real hardware the CPUWAIT register reset value is
+         * a configurable property of the SSE-200 (via the CPUWAIT0_RST and
+         * CPUWAIT1_RST parameters), but since all the boards we care about
+         * start CPU0 and leave CPU1 powered off, we hard-code that in
+         * info->cpuwait_rst for now. We can add QOM properties for this
          * later if necessary.
          */
-        if (i > 0) {
+        if (extract32(info->cpuwait_rst, i, 1)) {
             object_property_set_bool(cpuobj, true, "start-powered-off", &err);
             if (err) {
                 error_propagate(errp, err);
@@ -999,6 +1006,12 @@ static void armsse_realize(DeviceState *dev, Error **errp)
     /* System control registers */
     object_property_set_int(OBJECT(&s->sysctl), info->sys_version,
                             "SYS_VERSION", &err);
+    object_property_set_int(OBJECT(&s->sysctl), info->cpuwait_rst,
+                            "CPUWAIT_RST", &err);
+    object_property_set_int(OBJECT(&s->sysctl), s->init_svtor,
+                            "INITSVTOR0_RST", &err);
+    object_property_set_int(OBJECT(&s->sysctl), s->init_svtor,
+                            "INITSVTOR1_RST", &err);
     object_property_set_bool(OBJECT(&s->sysctl), true, "realized", &err);
     if (err) {
         error_propagate(errp, err);

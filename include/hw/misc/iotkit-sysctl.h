@@ -62,6 +62,9 @@ typedef struct IoTKitSysCtl {
 
     /* Properties */
     uint32_t sys_version;
+    uint32_t cpuwait_rst;
+    uint32_t initsvtor0_rst;
+    uint32_t initsvtor1_rst;
 
     bool is_sse200;
 } IoTKitSysCtl;
