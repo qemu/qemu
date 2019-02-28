@@ -997,6 +997,8 @@ static void armsse_realize(DeviceState *dev, Error **errp)
     /* System information registers */
     sysbus_mmio_map(SYS_BUS_DEVICE(&s->sysinfo), 0, 0x40020000);
     /* System control registers */
+    object_property_set_int(OBJECT(&s->sysctl), info->sys_version,
+                            "SYS_VERSION", &err);
     object_property_set_bool(OBJECT(&s->sysctl), true, "realized", &err);
     if (err) {
         error_propagate(errp, err);
