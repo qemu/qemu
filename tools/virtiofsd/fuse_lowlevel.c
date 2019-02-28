@@ -31,12 +31,6 @@
 #define PARAM(inarg) (((char *)(inarg)) + sizeof(*(inarg)))
 #define OFFSET_MAX 0x7fffffffffffffffLL
 
-#define container_of(ptr, type, member)                    \
-    ({                                                     \
-        const typeof(((type *)0)->member) *__mptr = (ptr); \
-        (type *)((char *)__mptr - offsetof(type, member)); \
-    })
-
 struct fuse_pollhandle {
     uint64_t kh;
     struct fuse_session *se;
@@ -1862,52 +1856,6 @@ static void do_destroy(fuse_req_t req, fuse_ino_t nodeid, const void *inarg)
     send_reply_ok(req, NULL, 0);
 }
 
-static void list_del_nreq(struct fuse_notify_req *nreq)
-{
-    struct fuse_notify_req *prev = nreq->prev;
-    struct fuse_notify_req *next = nreq->next;
-    prev->next = next;
-    next->prev = prev;
-}
-
-static void list_add_nreq(struct fuse_notify_req *nreq,
-                          struct fuse_notify_req *next)
-{
-    struct fuse_notify_req *prev = next->prev;
-    nreq->next = next;
-    nreq->prev = prev;
-    prev->next = nreq;
-    next->prev = nreq;
-}
-
-static void list_init_nreq(struct fuse_notify_req *nreq)
-{
-    nreq->next = nreq;
-    nreq->prev = nreq;
-}
-
-static void do_notify_reply(fuse_req_t req, fuse_ino_t nodeid,
-                            const void *inarg, const struct fuse_buf *buf)
-{
-    struct fuse_session *se = req->se;
-    struct fuse_notify_req *nreq;
-    struct fuse_notify_req *head;
-
-    pthread_mutex_lock(&se->lock);
-    head = &se->notify_list;
-    for (nreq = head->next; nreq != head; nreq = nreq->next) {
-        if (nreq->unique == req->unique) {
-            list_del_nreq(nreq);
-            break;
-        }
-    }
-    pthread_mutex_unlock(&se->lock);
-
-    if (nreq != head) {
-        nreq->reply(nreq, req, nodeid, inarg, buf);
-    }
-}
-
 static int send_notify_iov(struct fuse_session *se, int notify_code,
                            struct iovec *iov, int count)
 {
@@ -2059,95 +2007,6 @@ int fuse_lowlevel_notify_store(struct fuse_session *se, fuse_ino_t ino,
     return res;
 }
 
-struct fuse_retrieve_req {
-    struct fuse_notify_req nreq;
-    void *cookie;
-};
-
-static void fuse_ll_retrieve_reply(struct fuse_notify_req *nreq, fuse_req_t req,
-                                   fuse_ino_t ino, const void *inarg,
-                                   const struct fuse_buf *ibuf)
-{
-    struct fuse_session *se = req->se;
-    struct fuse_retrieve_req *rreq =
-        container_of(nreq, struct fuse_retrieve_req, nreq);
-    const struct fuse_notify_retrieve_in *arg = inarg;
-    struct fuse_bufvec bufv = {
-        .buf[0] = *ibuf,
-        .count = 1,
-    };
-
-    if (!(bufv.buf[0].flags & FUSE_BUF_IS_FD)) {
-        bufv.buf[0].mem = PARAM(arg);
-    }
-
-    bufv.buf[0].size -=
-        sizeof(struct fuse_in_header) + sizeof(struct fuse_notify_retrieve_in);
-
-    if (bufv.buf[0].size < arg->size) {
-        fuse_log(FUSE_LOG_ERR, "fuse: retrieve reply: buffer size too small\n");
-        fuse_reply_none(req);
-        goto out;
-    }
-    bufv.buf[0].size = arg->size;
-
-    if (se->op.retrieve_reply) {
-        se->op.retrieve_reply(req, rreq->cookie, ino, arg->offset, &bufv);
-    } else {
-        fuse_reply_none(req);
-    }
-out:
-    free(rreq);
-}
-
-int fuse_lowlevel_notify_retrieve(struct fuse_session *se, fuse_ino_t ino,
-                                  size_t size, off_t offset, void *cookie)
-{
-    struct fuse_notify_retrieve_out outarg;
-    struct iovec iov[2];
-    struct fuse_retrieve_req *rreq;
-    int err;
-
-    if (!se) {
-        return -EINVAL;
-    }
-
-    if (se->conn.proto_major < 6 || se->conn.proto_minor < 15) {
-        return -ENOSYS;
-    }
-
-    rreq = malloc(sizeof(*rreq));
-    if (rreq == NULL) {
-        return -ENOMEM;
-    }
-
-    pthread_mutex_lock(&se->lock);
-    rreq->cookie = cookie;
-    rreq->nreq.unique = se->notify_ctr++;
-    rreq->nreq.reply = fuse_ll_retrieve_reply;
-    list_add_nreq(&rreq->nreq, &se->notify_list);
-    pthread_mutex_unlock(&se->lock);
-
-    outarg.notify_unique = rreq->nreq.unique;
-    outarg.nodeid = ino;
-    outarg.offset = offset;
-    outarg.size = size;
-    outarg.padding = 0;
-
-    iov[1].iov_base = &outarg;
-    iov[1].iov_len = sizeof(outarg);
-
-    err = send_notify_iov(se, FUSE_NOTIFY_RETRIEVE, iov, 2);
-    if (err) {
-        pthread_mutex_lock(&se->lock);
-        list_del_nreq(&rreq->nreq);
-        pthread_mutex_unlock(&se->lock);
-        free(rreq);
-    }
-
-    return err;
-}
-
 void *fuse_req_userdata(fuse_req_t req)
 {
     return req->se->userdata;
@@ -2226,7 +2085,7 @@ static struct {
     [FUSE_POLL] = { do_poll, "POLL" },
     [FUSE_FALLOCATE] = { do_fallocate, "FALLOCATE" },
     [FUSE_DESTROY] = { do_destroy, "DESTROY" },
-    [FUSE_NOTIFY_REPLY] = { (void *)1, "NOTIFY_REPLY" },
+    [FUSE_NOTIFY_REPLY] = { NULL, "NOTIFY_REPLY" },
     [FUSE_BATCH_FORGET] = { do_batch_forget, "BATCH_FORGET" },
     [FUSE_READDIRPLUS] = { do_readdirplus, "READDIRPLUS" },
     [FUSE_RENAME2] = { do_rename2, "RENAME2" },
@@ -2333,8 +2192,6 @@ void fuse_session_process_buf_int(struct fuse_session *se,
     inarg = (void *)&in[1];
     if (in->opcode == FUSE_WRITE && se->op.write_buf) {
         do_write_buf(req, in->nodeid, inarg, buf);
-    } else if (in->opcode == FUSE_NOTIFY_REPLY) {
-        do_notify_reply(req, in->nodeid, inarg, buf);
     } else {
         fuse_ll_ops[in->opcode].func(req, in->nodeid, inarg);
     }
@@ -2437,8 +2294,6 @@ struct fuse_session *fuse_session_new(struct fuse_args *args,
 
     list_init_req(&se->list);
     list_init_req(&se->interrupts);
-    list_init_nreq(&se->notify_list);
-    se->notify_ctr = 1;
     fuse_mutex_init(&se->lock);
 
     memcpy(&se->op, op, op_size);
