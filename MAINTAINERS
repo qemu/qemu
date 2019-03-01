@@ -425,15 +425,20 @@ Hosts:
 ------
 
 LINUX
-L: qemu-devel@nongnu.org
+M: Michael S. Tsirkin <mst@redhat.com>
+M: Cornelia Huck <cohuck@redhat.com>
+M: Paolo Bonzini <pbonzini@redhat.com>
 S: Maintained
-F: linux-*
 F: linux-headers/
+F: scripts/update-linux-headers.sh
 
 POSIX
-L: qemu-devel@nongnu.org
+M: Paolo Bonzini <pbonzini@redhat.com>
 S: Maintained
-F: *posix*
+F: os-posix.c
+F: include/sysemu/os-posix.h
+F: util/*posix*.c
+F: include/qemu/*posix*.h
 
 NETBSD
 L: qemu-devel@nongnu.org
@@ -853,6 +858,15 @@ S: Maintained
 F: hw/cris/axis_dev88.c
 F: hw/*/etraxfs_*.c
 
+HP-PARISC Machines
+------------------
+Dino
+M: Richard Henderson <rth@twiddle.net>
+R: Helge Deller <deller@gmx.de>
+S: Odd Fixes
+F: hw/hppa/
+F: pc-bios/hppa-firmware.img
+
 LM32 Machines
 -------------
 EVR32 and uclinux BSP
@@ -1091,20 +1105,27 @@ M: Mark Cave-Ayland <mark.cave-ayland@ilande.co.uk>
 S: Maintained
 F: hw/sparc/sun4m.c
 F: hw/sparc/sun4m_iommu.c
+F: hw/display/cg3.c
+F: hw/display/tcx.c
 F: hw/dma/sparc32_dma.c
 F: hw/misc/eccmemctl.c
-F: hw/misc/slavio_misc.c
+F: hw/*/slavio_*.c
+F: include/hw/nvram/sun_nvram.h
 F: include/hw/sparc/sparc32_dma.h
-F: pc-bios/openbios-sparc32
 F: include/hw/sparc/sun4m_iommu.h
+F: pc-bios/openbios-sparc32
 
 Sun4u
 M: Mark Cave-Ayland <mark.cave-ayland@ilande.co.uk>
 S: Maintained
 F: hw/sparc64/sun4u.c
-F: pc-bios/openbios-sparc64
+F: hw/sparc64/sun4u_iommu.c
+F: include/hw/sparc/sun4u_iommu.h
 F: hw/pci-host/sabre.c
 F: include/hw/pci-host/sabre.h
+F: hw/pci-bridge/simba.c
+F: include/hw/pci-bridge/simba.h
+F: pc-bios/openbios-sparc64
 
 Sun4v
 M: Artyom Tarasenko <atar4qemu@gmail.com>
@@ -1183,6 +1204,10 @@ F: hw/acpi/ich9.c
 F: include/hw/acpi/ich9.h
 F: include/hw/acpi/piix4.h
 F: hw/misc/sga.c
+F: hw/isa/apm.c
+F: include/hw/isa/apm.h
+F: tests/test-x86-cpuid.c
+F: tests/test-x86-cpuid-compat.c
 
 PC Chipset
 M: Michael S. Tsirkin <mst@redhat.com>
@@ -1797,8 +1822,7 @@ F: util/error.c
 F: util/qemu-error.c
 
 GDB stub
-L: qemu-devel@nongnu.org
-S: Odd Fixes
+S: Orphan
 F: gdbstub*
 F: gdb-xml/
 
@@ -1934,10 +1958,14 @@ F: include/qapi/qmp/
 X: include/qapi/qmp/dispatch.h
 F: scripts/coccinelle/qobject.cocci
 F: tests/check-qdict.c
-F: tests/check-qnum.c
 F: tests/check-qjson.c
 F: tests/check-qlist.c
+F: tests/check-qlit.c
+F: tests/check-qnull.c
+F: tests/check-qnum.c
+F: tests/check-qobject.c
 F: tests/check-qstring.c
+F: qdict-test-data.txt
 T: git https://repo.or.cz/qemu/armbru.git qapi-next
 
 QEMU Guest Agent
@@ -2059,6 +2087,8 @@ F: crypto/
 F: include/crypto/
 F: tests/test-crypto-*
 F: tests/benchmark-crypto-*
+F: tests/crypto-tls-*
+F: tests/pkix_asn1_tab.c
 F: qemu.sasl
 
 Coroutines
@@ -2207,7 +2237,7 @@ F: tcg/arm/
 F: disas/arm.c
 
 i386 target
-L: qemu-devel@nongnu.org
+M: Richard Henderson <rth@twiddle.net>
 S: Maintained
 F: tcg/i386/
 F: disas/i386.c
@@ -2226,7 +2256,6 @@ F: tcg/ppc/
 F: disas/ppc.c
 
 RISC-V
-M: Michael Clark <mjc@sifive.com>
 M: Palmer Dabbelt <palmer@sifive.com>
 M: Alistair Francis <Alistair.Francis@wdc.com>
 L: qemu-riscv@nongnu.org
