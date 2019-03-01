@@ -106,7 +106,7 @@ bool arp_table_search(Slirp *slirp, uint32_t ip_addr,
 struct ndpentry {
     unsigned char   eth_addr[ETH_ALEN];     /* sender hardware address */
     struct in6_addr ip_addr;                /* sender IP address       */
-} SLIRP_PACKED;
+};
 
 #define NDP_TABLE_SIZE 16
 
