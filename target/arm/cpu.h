@@ -1060,7 +1060,8 @@ void pmu_init(ARMCPU *cpu);
 #define SCTLR_R       (1U << 9) /* up to v6; RAZ in v7 */
 #define SCTLR_UMA     (1U << 9) /* v8 onward, AArch64 only */
 #define SCTLR_F       (1U << 10) /* up to v6 */
-#define SCTLR_SW      (1U << 10) /* v7, RES0 in v8 */
+#define SCTLR_SW      (1U << 10) /* v7 */
+#define SCTLR_EnRCTX  (1U << 10) /* in v8.0-PredInv */
 #define SCTLR_Z       (1U << 11) /* in v7, RES1 in v8 */
 #define SCTLR_EOS     (1U << 11) /* v8.5-ExS */
 #define SCTLR_I       (1U << 12)
@@ -3312,6 +3313,11 @@ static inline bool isar_feature_aa32_sb(const ARMISARegisters *id)
     return FIELD_EX32(id->id_isar6, ID_ISAR6, SB) != 0;
 }
 
+static inline bool isar_feature_aa32_predinv(const ARMISARegisters *id)
+{
+    return FIELD_EX32(id->id_isar6, ID_ISAR6, SPECRES) != 0;
+}
+
 static inline bool isar_feature_aa32_fp16_arith(const ARMISARegisters *id)
 {
     /*
@@ -3453,6 +3459,11 @@ static inline bool isar_feature_aa64_pauth(const ARMISARegisters *id)
 static inline bool isar_feature_aa64_sb(const ARMISARegisters *id)
 {
     return FIELD_EX64(id->id_aa64isar1, ID_AA64ISAR1, SB) != 0;
+}
+
+static inline bool isar_feature_aa64_predinv(const ARMISARegisters *id)
+{
+    return FIELD_EX64(id->id_aa64isar1, ID_AA64ISAR1, SPECRES) != 0;
 }
 
 static inline bool isar_feature_aa64_fp16(const ARMISARegisters *id)
