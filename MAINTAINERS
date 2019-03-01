@@ -338,6 +338,7 @@ F: include/hw/tricore/
 
 Multiarch Linux User Tests
 M: Alex Bennée <alex.bennee@linaro.org>
+S: Maintained
 F: tests/tcg/multiarch/
 
 Guest CPU Cores (KVM):
@@ -2094,6 +2095,7 @@ F: qemu.sasl
 Coroutines
 M: Stefan Hajnoczi <stefanha@redhat.com>
 M: Kevin Wolf <kwolf@redhat.com>
+S: Maintained
 F: util/*coroutine*
 F: include/qemu/coroutine*
 F: tests/test-coroutine.c
@@ -2540,6 +2542,7 @@ F: .gitlab-ci.yml
 Guest Test Compilation Support
 M: Alex Bennée <alex.bennee@linaro.org>
 R: Philippe Mathieu-Daudé <f4bug@amsat.org>
+S: Maintained
 F: tests/tcg/Makefile
 F: tests/tcg/Makefile.include
 L: qemu-devel@nongnu.org
