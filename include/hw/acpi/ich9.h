@@ -74,6 +74,8 @@ extern const VMStateDescription vmstate_ich9_pm;
 
 void ich9_pm_add_properties(Object *obj, ICH9LPCPMRegs *pm, Error **errp);
 
+void ich9_pm_device_pre_plug_cb(HotplugHandler *hotplug_dev, DeviceState *dev,
+                                Error **errp);
 void ich9_pm_device_plug_cb(HotplugHandler *hotplug_dev, DeviceState *dev,
                             Error **errp);
 void ich9_pm_device_unplug_request_cb(HotplugHandler *hotplug_dev,
