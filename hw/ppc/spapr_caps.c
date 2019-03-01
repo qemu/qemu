@@ -390,6 +390,14 @@ static void cap_nested_kvm_hv_apply(sPAPRMachineState *spapr,
     }
 }
 
+static void cap_large_decr_apply(sPAPRMachineState *spapr,
+                                 uint8_t val, Error **errp)
+{
+    if (val)
+        error_setg(errp,
+                   "No large decrementer support, try cap-large-decr=off");
+}
+
 sPAPRCapabilityInfo capability_table[SPAPR_CAP_NUM] = {
     [SPAPR_CAP_HTM] = {
         .name = "htm",
@@ -467,6 +475,15 @@ sPAPRCapabilityInfo capability_table[SPAPR_CAP_NUM] = {
         .set = spapr_cap_set_bool,
         .type = "bool",
         .apply = cap_nested_kvm_hv_apply,
+    },
+    [SPAPR_CAP_LARGE_DECREMENTER] = {
+        .name = "large-decr",
+        .description = "Allow Large Decrementer",
+        .index = SPAPR_CAP_LARGE_DECREMENTER,
+        .get = spapr_cap_get_bool,
+        .set = spapr_cap_set_bool,
+        .type = "bool",
+        .apply = cap_large_decr_apply,
     },
 };
 
@@ -596,6 +613,7 @@ SPAPR_CAP_MIG_STATE(cfpc, SPAPR_CAP_CFPC);
 SPAPR_CAP_MIG_STATE(sbbc, SPAPR_CAP_SBBC);
 SPAPR_CAP_MIG_STATE(ibs, SPAPR_CAP_IBS);
 SPAPR_CAP_MIG_STATE(nested_kvm_hv, SPAPR_CAP_NESTED_KVM_HV);
+SPAPR_CAP_MIG_STATE(large_decr, SPAPR_CAP_LARGE_DECREMENTER);
 
 void spapr_caps_init(sPAPRMachineState *spapr)
 {

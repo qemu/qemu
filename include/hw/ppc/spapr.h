@@ -74,8 +74,10 @@ typedef enum {
 #define SPAPR_CAP_HPT_MAXPAGESIZE       0x06
 /* Nested KVM-HV */
 #define SPAPR_CAP_NESTED_KVM_HV         0x07
+/* Large Decrementer */
+#define SPAPR_CAP_LARGE_DECREMENTER     0x08
 /* Num Caps */
-#define SPAPR_CAP_NUM                   (SPAPR_CAP_NESTED_KVM_HV + 1)
+#define SPAPR_CAP_NUM                   (SPAPR_CAP_LARGE_DECREMENTER + 1)
 
 /*
  * Capability Values
@@ -828,6 +830,7 @@ extern const VMStateDescription vmstate_spapr_cap_cfpc;
 extern const VMStateDescription vmstate_spapr_cap_sbbc;
 extern const VMStateDescription vmstate_spapr_cap_ibs;
 extern const VMStateDescription vmstate_spapr_cap_nested_kvm_hv;
+extern const VMStateDescription vmstate_spapr_cap_large_decr;
 
 static inline uint8_t spapr_get_cap(sPAPRMachineState *spapr, int cap)
 {
