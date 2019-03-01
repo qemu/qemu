@@ -281,10 +281,6 @@ static void xen_block_complete_aio(void *opaque, int ret)
         break;
     case BLKIF_OP_WRITE:
     case BLKIF_OP_FLUSH_DISKCACHE:
-        if (!request->req.nr_segments) {
-            break;
-        }
-        break;
     default:
         break;
     }
@@ -298,6 +294,7 @@ static void xen_block_complete_aio(void *opaque, int ret)
         if (!request->req.nr_segments) {
             break;
         }
+        /* fall through */
     case BLKIF_OP_READ:
         if (request->status == BLKIF_RSP_OKAY) {
             block_acct_done(blk_get_stats(dataplane->blk), &request->acct);
