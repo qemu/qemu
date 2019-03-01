@@ -62,6 +62,7 @@ bool kvmppc_has_cap_mmu_hash_v3(void);
 int kvmppc_get_cap_safe_cache(void);
 int kvmppc_get_cap_safe_bounds_check(void);
 int kvmppc_get_cap_safe_indirect_branch(void);
+int kvmppc_get_cap_count_cache_flush_assist(void);
 bool kvmppc_has_cap_nested_kvm_hv(void);
 int kvmppc_set_cap_nested_kvm_hv(int enable);
 int kvmppc_get_cap_large_decr(void);
@@ -320,6 +321,11 @@ static inline int kvmppc_get_cap_safe_bounds_check(void)
 }
 
 static inline int kvmppc_get_cap_safe_indirect_branch(void)
+{
+    return 0;
+}
+
+static inline int kvmppc_get_cap_count_cache_flush_assist(void)
 {
     return 0;
 }

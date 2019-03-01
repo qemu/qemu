@@ -1693,6 +1693,8 @@ static target_ulong h_get_cpu_characteristics(PowerPCCPU *cpu,
     uint8_t safe_cache = spapr_get_cap(spapr, SPAPR_CAP_CFPC);
     uint8_t safe_bounds_check = spapr_get_cap(spapr, SPAPR_CAP_SBBC);
     uint8_t safe_indirect_branch = spapr_get_cap(spapr, SPAPR_CAP_IBS);
+    uint8_t count_cache_flush_assist = spapr_get_cap(spapr,
+                                                     SPAPR_CAP_CCF_ASSIST);
 
     switch (safe_cache) {
     case SPAPR_CAP_WORKAROUND:
@@ -1733,6 +1735,9 @@ static target_ulong h_get_cpu_characteristics(PowerPCCPU *cpu,
         break;
     case SPAPR_CAP_WORKAROUND:
         behaviour |= H_CPU_BEHAV_FLUSH_COUNT_CACHE;
+        if (count_cache_flush_assist) {
+            characteristics |= H_CPU_CHAR_BCCTR_FLUSH_ASSIST;
+        }
         break;
     default: /* broken */
         assert(safe_indirect_branch == SPAPR_CAP_BROKEN);
