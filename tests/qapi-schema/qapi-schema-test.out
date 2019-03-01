@@ -52,6 +52,9 @@ object UserDefTwo
     member dict1: UserDefTwoDict optional=False
 object UserDefThree
     member string0: str optional=False
+array UserDefOneList UserDefOne
+array UserDefTwoList UserDefTwo
+array TestStructList TestStruct
 object ForceArrays
     member unused1: UserDefOneList optional=False
     member unused2: UserDefTwoList optional=False
@@ -248,6 +251,7 @@ object __org.qemu_x-Union1
     member type: __org.qemu_x-Union1Kind optional=False
     tag type
     case __org.qemu_x-branch: q_obj_str-wrapper
+array __org.qemu_x-Union1List __org.qemu_x-Union1
 object __org.qemu_x-Struct2
     member array: __org.qemu_x-Union1List optional=False
 object __org.qemu_x-Union2
@@ -260,6 +264,8 @@ alternate __org.qemu_x-Alt
     case b: __org.qemu_x-Base
 event __ORG.QEMU_X-EVENT __org.qemu_x-Struct
    boxed=False
+array __org.qemu_x-EnumList __org.qemu_x-Enum
+array __org.qemu_x-StructList __org.qemu_x-Struct
 object q_obj___org.qemu_x-command-arg
     member a: __org.qemu_x-EnumList optional=False
     member b: __org.qemu_x-StructList optional=False
