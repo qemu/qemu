@@ -1657,6 +1657,14 @@ static void handle_msr_i(DisasContext *s, uint32_t insn,
     s->base.is_jmp = DISAS_TOO_MANY;
 
     switch (op) {
+    case 0x00: /* CFINV */
+        if (crm != 0 || !dc_isar_feature(aa64_condm_4, s)) {
+            goto do_unallocated;
+        }
+        tcg_gen_xori_i32(cpu_CF, cpu_CF, 1);
+        s->base.is_jmp = DISAS_NEXT;
+        break;
+
     case 0x05: /* SPSel */
         if (s->current_el == 0) {
             goto do_unallocated;
@@ -1710,7 +1718,6 @@ static void gen_get_nzcv(TCGv_i64 tcg_rt)
 }
 
 static void gen_set_nzcv(TCGv_i64 tcg_rt)
-
 {
     TCGv_i32 nzcv = tcg_temp_new_i32();
 
@@ -4529,6 +4536,84 @@ static void disas_adc_sbc(DisasContext *s, uint32_t insn)
     }
 }
 
+/*
+ * Rotate right into flags
+ *  31 30 29                21       15          10      5  4      0
+ * +--+--+--+-----------------+--------+-----------+------+--+------+
+ * |sf|op| S| 1 1 0 1 0 0 0 0 |  imm6  | 0 0 0 0 1 |  Rn  |o2| mask |
+ * +--+--+--+-----------------+--------+-----------+------+--+------+
+ */
+static void disas_rotate_right_into_flags(DisasContext *s, uint32_t insn)
+{
+    int mask = extract32(insn, 0, 4);
+    int o2 = extract32(insn, 4, 1);
+    int rn = extract32(insn, 5, 5);
+    int imm6 = extract32(insn, 15, 6);
+    int sf_op_s = extract32(insn, 29, 3);
+    TCGv_i64 tcg_rn;
+    TCGv_i32 nzcv;
+
+    if (sf_op_s != 5 || o2 != 0 || !dc_isar_feature(aa64_condm_4, s)) {
+        unallocated_encoding(s);
+        return;
+    }
+
+    tcg_rn = read_cpu_reg(s, rn, 1);
+    tcg_gen_rotri_i64(tcg_rn, tcg_rn, imm6);
+
+    nzcv = tcg_temp_new_i32();
+    tcg_gen_extrl_i64_i32(nzcv, tcg_rn);
+
+    if (mask & 8) { /* N */
+        tcg_gen_shli_i32(cpu_NF, nzcv, 31 - 3);
+    }
+    if (mask & 4) { /* Z */
+        tcg_gen_not_i32(cpu_ZF, nzcv);
+        tcg_gen_andi_i32(cpu_ZF, cpu_ZF, 4);
+    }
+    if (mask & 2) { /* C */
+        tcg_gen_extract_i32(cpu_CF, nzcv, 1, 1);
+    }
+    if (mask & 1) { /* V */
+        tcg_gen_shli_i32(cpu_VF, nzcv, 31 - 0);
+    }
+
+    tcg_temp_free_i32(nzcv);
+}
+
+/*
+ * Evaluate into flags
+ *  31 30 29                21        15   14        10      5  4      0
+ * +--+--+--+-----------------+---------+----+---------+------+--+------+
+ * |sf|op| S| 1 1 0 1 0 0 0 0 | opcode2 | sz | 0 0 1 0 |  Rn  |o3| mask |
+ * +--+--+--+-----------------+---------+----+---------+------+--+------+
+ */
+static void disas_evaluate_into_flags(DisasContext *s, uint32_t insn)
+{
+    int o3_mask = extract32(insn, 0, 5);
+    int rn = extract32(insn, 5, 5);
+    int o2 = extract32(insn, 15, 6);
+    int sz = extract32(insn, 14, 1);
+    int sf_op_s = extract32(insn, 29, 3);
+    TCGv_i32 tmp;
+    int shift;
+
+    if (sf_op_s != 1 || o2 != 0 || o3_mask != 0xd ||
+        !dc_isar_feature(aa64_condm_4, s)) {
+        unallocated_encoding(s);
+        return;
+    }
+    shift = sz ? 16 : 24;  /* SETF16 or SETF8 */
+
+    tmp = tcg_temp_new_i32();
+    tcg_gen_extrl_i64_i32(tmp, cpu_reg(s, rn));
+    tcg_gen_shli_i32(cpu_NF, tmp, shift);
+    tcg_gen_shli_i32(cpu_VF, tmp, shift - 1);
+    tcg_gen_mov_i32(cpu_ZF, cpu_NF);
+    tcg_gen_xor_i32(cpu_VF, cpu_VF, cpu_NF);
+    tcg_temp_free_i32(tmp);
+}
+
 /* Conditional compare (immediate / register)
  *  31 30 29 28 27 26 25 24 23 22 21  20    16 15  12  11  10  9   5  4 3   0
  * +--+--+--+------------------------+--------+------+----+--+------+--+-----+
@@ -5193,6 +5278,18 @@ static void disas_data_proc_reg(DisasContext *s, uint32_t insn)
         switch (op3) {
         case 0x00: /* Add/subtract (with carry) */
             disas_adc_sbc(s, insn);
+            break;
+
+        case 0x01: /* Rotate right into flags */
+        case 0x21:
+            disas_rotate_right_into_flags(s, insn);
+            break;
+
+        case 0x02: /* Evaluate into flags */
+        case 0x12:
+        case 0x22:
+        case 0x32:
+            disas_evaluate_into_flags(s, insn);
             break;
 
         default:
