@@ -842,6 +842,62 @@ static int raw_handle_perm_lock(BlockDriverState *bs,
     return ret;
 }
 
+static int raw_reconfigure_getfd(BlockDriverState *bs, int flags,
+                                 int *open_flags, Error **errp)
+{
+    BDRVRawState *s = bs->opaque;
+    int fd = -1;
+    int ret;
+    int fcntl_flags = O_APPEND | O_NONBLOCK;
+#ifdef O_NOATIME
+    fcntl_flags |= O_NOATIME;
+#endif
+
+    *open_flags = 0;
+    if (s->type == FTYPE_CD) {
+        *open_flags |= O_NONBLOCK;
+    }
+
+    raw_parse_flags(flags, open_flags);
+
+#ifdef O_ASYNC
+    /* Not all operating systems have O_ASYNC, and those that don't
+     * will not let us track the state into rs->open_flags (typically
+     * you achieve the same effect with an ioctl, for example I_SETSIG
+     * on Solaris). But we do not use O_ASYNC, so that's fine.
+     */
+    assert((s->open_flags & O_ASYNC) == 0);
+#endif
+
+    if ((*open_flags & ~fcntl_flags) == (s->open_flags & ~fcntl_flags)) {
+        /* dup the original fd */
+        fd = qemu_dup(s->fd);
+        if (fd >= 0) {
+            ret = fcntl_setfl(fd, *open_flags);
+            if (ret) {
+                qemu_close(fd);
+                fd = -1;
+            }
+        }
+    }
+
+    /* If we cannot use fcntl, or fcntl failed, fall back to qemu_open() */
+    if (fd == -1) {
+        const char *normalized_filename = bs->filename;
+        ret = raw_normalize_devicepath(&normalized_filename, errp);
+        if (ret >= 0) {
+            assert(!(*open_flags & O_CREAT));
+            fd = qemu_open(normalized_filename, *open_flags);
+            if (fd == -1) {
+                error_setg_errno(errp, errno, "Could not reopen file");
+                return -1;
+            }
+        }
+    }
+
+    return fd;
+}
+
 static int raw_reopen_prepare(BDRVReopenState *state,
                               BlockReopenQueue *queue, Error **errp)
 {
@@ -858,7 +914,6 @@ static int raw_reopen_prepare(BDRVReopenState *state,
 
     state->opaque = g_new0(BDRVRawReopenState, 1);
     rs = state->opaque;
-    rs->fd = -1;
 
     /* Handle options changes */
     opts = qemu_opts_create(&raw_runtime_opts, NULL, 0, &error_abort);
@@ -877,50 +932,12 @@ static int raw_reopen_prepare(BDRVReopenState *state,
      * bdrv_reopen_prepare() will detect changes and complain. */
     qemu_opts_to_qdict(opts, state->options);
 
-    if (s->type == FTYPE_CD) {
-        rs->open_flags |= O_NONBLOCK;
-    }
-
-    raw_parse_flags(state->flags, &rs->open_flags);
-
-    int fcntl_flags = O_APPEND | O_NONBLOCK;
-#ifdef O_NOATIME
-    fcntl_flags |= O_NOATIME;
-#endif
-
-#ifdef O_ASYNC
-    /* Not all operating systems have O_ASYNC, and those that don't
-     * will not let us track the state into rs->open_flags (typically
-     * you achieve the same effect with an ioctl, for example I_SETSIG
-     * on Solaris). But we do not use O_ASYNC, so that's fine.
-     */
-    assert((s->open_flags & O_ASYNC) == 0);
-#endif
-
-    if ((rs->open_flags & ~fcntl_flags) == (s->open_flags & ~fcntl_flags)) {
-        /* dup the original fd */
-        rs->fd = qemu_dup(s->fd);
-        if (rs->fd >= 0) {
-            ret = fcntl_setfl(rs->fd, rs->open_flags);
-            if (ret) {
-                qemu_close(rs->fd);
-                rs->fd = -1;
-            }
-        }
-    }
-
-    /* If we cannot use fcntl, or fcntl failed, fall back to qemu_open() */
-    if (rs->fd == -1) {
-        const char *normalized_filename = state->bs->filename;
-        ret = raw_normalize_devicepath(&normalized_filename, errp);
-        if (ret >= 0) {
-            assert(!(rs->open_flags & O_CREAT));
-            rs->fd = qemu_open(normalized_filename, rs->open_flags);
-            if (rs->fd == -1) {
-                error_setg_errno(errp, errno, "Could not reopen file");
-                ret = -1;
-            }
-        }
+    rs->fd = raw_reconfigure_getfd(state->bs, state->flags, &rs->open_flags,
+                                   &local_err);
+    if (local_err) {
+        error_propagate(errp, local_err);
+        ret = -1;
+        goto out;
     }
 
     /* Fail already reopen_prepare() if we can't get a working O_DIRECT
