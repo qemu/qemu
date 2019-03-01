@@ -392,26 +392,37 @@ vu_send_reply(VuDev *dev, int conn_fd, VhostUserMsg *vmsg)
     return vu_message_write(dev, conn_fd, vmsg);
 }
 
+/*
+ * Processes a reply on the slave channel.
+ * Entered with slave_mutex held and releases it before exit.
+ * Returns true on success.
+ */
 static bool
 vu_process_message_reply(VuDev *dev, const VhostUserMsg *vmsg)
 {
     VhostUserMsg msg_reply;
+    bool result = false;
 
     if ((vmsg->flags & VHOST_USER_NEED_REPLY_MASK) == 0) {
-        return true;
+        result = true;
+        goto out;
     }
 
     if (!vu_message_read(dev, dev->slave_fd, &msg_reply)) {
-        return false;
+        goto out;
     }
 
     if (msg_reply.request != vmsg->request) {
         DPRINT("Received unexpected msg type. Expected %d received %d",
                vmsg->request, msg_reply.request);
-        return false;
+        goto out;
     }
 
-    return msg_reply.payload.u64 == 0;
+    result = msg_reply.payload.u64 == 0;
+
+out:
+    pthread_mutex_unlock(&dev->slave_mutex);
+    return result;
 }
 
 /* Kick the log_call_fd if required. */
@@ -1105,10 +1116,13 @@ bool vu_set_queue_host_notifier(VuDev *dev, VuVirtq *vq, int fd,
         return false;
     }
 
+    pthread_mutex_lock(&dev->slave_mutex);
     if (!vu_message_write(dev, dev->slave_fd, &vmsg)) {
+        pthread_mutex_unlock(&dev->slave_mutex);
         return false;
     }
 
+    /* Also unlocks the slave_mutex */
     return vu_process_message_reply(dev, &vmsg);
 }
 
@@ -1628,6 +1642,7 @@ vu_deinit(VuDev *dev)
         close(dev->slave_fd);
         dev->slave_fd = -1;
     }
+    pthread_mutex_destroy(&dev->slave_mutex);
 
     if (dev->sock != -1) {
         close(dev->sock);
@@ -1663,6 +1678,7 @@ vu_init(VuDev *dev,
     dev->remove_watch = remove_watch;
     dev->iface = iface;
     dev->log_call_fd = -1;
+    pthread_mutex_init(&dev->slave_mutex, NULL);
     dev->slave_fd = -1;
     dev->max_queues = max_queues;
 
