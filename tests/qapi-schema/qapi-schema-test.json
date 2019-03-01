@@ -113,8 +113,8 @@
 # for testing use of 'str' within alternates
 { 'alternate': 'AltStrObj', 'data': { 's': 'str', 'o': 'TestStruct' } }
 
-# for testing native lists
-{ 'union': 'UserDefNativeListUnion',
+# for testing lists
+{ 'union': 'UserDefListUnion',
   'data': { 'integer': ['int'],
             's8': ['int8'],
             's16': ['int16'],
@@ -147,7 +147,7 @@
   'returns': 'int' }
 { 'command': 'guest-sync', 'data': { 'arg': 'any' }, 'returns': 'any' }
 { 'command': 'boxed-struct', 'boxed': true, 'data': 'UserDefZero' }
-{ 'command': 'boxed-union', 'data': 'UserDefNativeListUnion', 'boxed': true }
+{ 'command': 'boxed-union', 'data': 'UserDefListUnion', 'boxed': true }
 
 # Smoke test on out-of-band and allow-preconfig-test
 { 'command': 'test-flags-command', 'allow-oob': true, 'allow-preconfig': true }

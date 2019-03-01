@@ -87,7 +87,7 @@ void qmp_boxed_struct(UserDefZero *arg, Error **errp)
 {
 }
 
-void qmp_boxed_union(UserDefNativeListUnion *arg, Error **errp)
+void qmp_boxed_union(UserDefListUnion *arg, Error **errp)
 {
 }
 

@@ -686,11 +686,11 @@ static void test_visitor_in_alternate_number(TestInputVisitorData *data,
     qapi_free_AltEnumInt(asi);
 }
 
-static void test_native_list_integer_helper(TestInputVisitorData *data,
-                                            const void *unused,
-                                            UserDefNativeListUnionKind kind)
+static void test_list_union_integer_helper(TestInputVisitorData *data,
+                                           const void *unused,
+                                           UserDefListUnionKind kind)
 {
-    UserDefNativeListUnion *cvalue = NULL;
+    UserDefListUnion *cvalue = NULL;
     Visitor *v;
     GString *gstr_list = g_string_new("");
     GString *gstr_union = g_string_new("");
@@ -703,16 +703,16 @@ static void test_native_list_integer_helper(TestInputVisitorData *data,
         }
     }
     g_string_append_printf(gstr_union,  "{ 'type': '%s', 'data': [ %s ] }",
-                           UserDefNativeListUnionKind_str(kind),
+                           UserDefListUnionKind_str(kind),
                            gstr_list->str);
     v = visitor_input_test_init_raw(data,  gstr_union->str);
 
-    visit_type_UserDefNativeListUnion(v, NULL, &cvalue, &error_abort);
+    visit_type_UserDefListUnion(v, NULL, &cvalue, &error_abort);
     g_assert(cvalue != NULL);
     g_assert_cmpint(cvalue->type, ==, kind);
 
     switch (kind) {
-    case USER_DEF_NATIVE_LIST_UNION_KIND_INTEGER: {
+    case USER_DEF_LIST_UNION_KIND_INTEGER: {
         intList *elem = NULL;
         for (i = 0, elem = cvalue->u.integer.data;
              elem; elem = elem->next, i++) {
@@ -720,56 +720,56 @@ static void test_native_list_integer_helper(TestInputVisitorData *data,
         }
         break;
     }
-    case USER_DEF_NATIVE_LIST_UNION_KIND_S8: {
+    case USER_DEF_LIST_UNION_KIND_S8: {
         int8List *elem = NULL;
         for (i = 0, elem = cvalue->u.s8.data; elem; elem = elem->next, i++) {
             g_assert_cmpint(elem->value, ==, i);
         }
         break;
     }
-    case USER_DEF_NATIVE_LIST_UNION_KIND_S16: {
+    case USER_DEF_LIST_UNION_KIND_S16: {
         int16List *elem = NULL;
         for (i = 0, elem = cvalue->u.s16.data; elem; elem = elem->next, i++) {
             g_assert_cmpint(elem->value, ==, i);
         }
         break;
     }
-    case USER_DEF_NATIVE_LIST_UNION_KIND_S32: {
+    case USER_DEF_LIST_UNION_KIND_S32: {
         int32List *elem = NULL;
         for (i = 0, elem = cvalue->u.s32.data; elem; elem = elem->next, i++) {
             g_assert_cmpint(elem->value, ==, i);
         }
         break;
     }
-    case USER_DEF_NATIVE_LIST_UNION_KIND_S64: {
+    case USER_DEF_LIST_UNION_KIND_S64: {
         int64List *elem = NULL;
         for (i = 0, elem = cvalue->u.s64.data; elem; elem = elem->next, i++) {
             g_assert_cmpint(elem->value, ==, i);
         }
         break;
     }
-    case USER_DEF_NATIVE_LIST_UNION_KIND_U8: {
+    case USER_DEF_LIST_UNION_KIND_U8: {
         uint8List *elem = NULL;
         for (i = 0, elem = cvalue->u.u8.data; elem; elem = elem->next, i++) {
             g_assert_cmpint(elem->value, ==, i);
         }
         break;
     }
-    case USER_DEF_NATIVE_LIST_UNION_KIND_U16: {
+    case USER_DEF_LIST_UNION_KIND_U16: {
         uint16List *elem = NULL;
         for (i = 0, elem = cvalue->u.u16.data; elem; elem = elem->next, i++) {
             g_assert_cmpint(elem->value, ==, i);
         }
         break;
     }
-    case USER_DEF_NATIVE_LIST_UNION_KIND_U32: {
+    case USER_DEF_LIST_UNION_KIND_U32: {
         uint32List *elem = NULL;
         for (i = 0, elem = cvalue->u.u32.data; elem; elem = elem->next, i++) {
             g_assert_cmpint(elem->value, ==, i);
         }
         break;
     }
-    case USER_DEF_NATIVE_LIST_UNION_KIND_U64: {
+    case USER_DEF_LIST_UNION_KIND_U64: {
         uint64List *elem = NULL;
         for (i = 0, elem = cvalue->u.u64.data; elem; elem = elem->next, i++) {
             g_assert_cmpint(elem->value, ==, i);
@@ -782,76 +782,76 @@ static void test_native_list_integer_helper(TestInputVisitorData *data,
 
     g_string_free(gstr_union, true);
     g_string_free(gstr_list, true);
-    qapi_free_UserDefNativeListUnion(cvalue);
+    qapi_free_UserDefListUnion(cvalue);
 }
 
-static void test_visitor_in_native_list_int(TestInputVisitorData *data,
+static void test_visitor_in_list_union_int(TestInputVisitorData *data,
+                                           const void *unused)
+{
+    test_list_union_integer_helper(data, unused,
+                                   USER_DEF_LIST_UNION_KIND_INTEGER);
+}
+
+static void test_visitor_in_list_union_int8(TestInputVisitorData *data,
                                             const void *unused)
 {
-    test_native_list_integer_helper(data, unused,
-                                    USER_DEF_NATIVE_LIST_UNION_KIND_INTEGER);
+    test_list_union_integer_helper(data, unused,
+                                   USER_DEF_LIST_UNION_KIND_S8);
 }
 
-static void test_visitor_in_native_list_int8(TestInputVisitorData *data,
+static void test_visitor_in_list_union_int16(TestInputVisitorData *data,
                                              const void *unused)
 {
-    test_native_list_integer_helper(data, unused,
-                                    USER_DEF_NATIVE_LIST_UNION_KIND_S8);
+    test_list_union_integer_helper(data, unused,
+                                   USER_DEF_LIST_UNION_KIND_S16);
 }
 
-static void test_visitor_in_native_list_int16(TestInputVisitorData *data,
-                                              const void *unused)
-{
-    test_native_list_integer_helper(data, unused,
-                                    USER_DEF_NATIVE_LIST_UNION_KIND_S16);
-}
-
-static void test_visitor_in_native_list_int32(TestInputVisitorData *data,
-                                              const void *unused)
-{
-    test_native_list_integer_helper(data, unused,
-                                    USER_DEF_NATIVE_LIST_UNION_KIND_S32);
-}
-
-static void test_visitor_in_native_list_int64(TestInputVisitorData *data,
-                                              const void *unused)
-{
-    test_native_list_integer_helper(data, unused,
-                                    USER_DEF_NATIVE_LIST_UNION_KIND_S64);
-}
-
-static void test_visitor_in_native_list_uint8(TestInputVisitorData *data,
+static void test_visitor_in_list_union_int32(TestInputVisitorData *data,
                                              const void *unused)
 {
-    test_native_list_integer_helper(data, unused,
-                                    USER_DEF_NATIVE_LIST_UNION_KIND_U8);
+    test_list_union_integer_helper(data, unused,
+                                   USER_DEF_LIST_UNION_KIND_S32);
 }
 
-static void test_visitor_in_native_list_uint16(TestInputVisitorData *data,
-                                               const void *unused)
+static void test_visitor_in_list_union_int64(TestInputVisitorData *data,
+                                             const void *unused)
 {
-    test_native_list_integer_helper(data, unused,
-                                    USER_DEF_NATIVE_LIST_UNION_KIND_U16);
+    test_list_union_integer_helper(data, unused,
+                                   USER_DEF_LIST_UNION_KIND_S64);
 }
 
-static void test_visitor_in_native_list_uint32(TestInputVisitorData *data,
-                                               const void *unused)
+static void test_visitor_in_list_union_uint8(TestInputVisitorData *data,
+                                             const void *unused)
 {
-    test_native_list_integer_helper(data, unused,
-                                    USER_DEF_NATIVE_LIST_UNION_KIND_U32);
+    test_list_union_integer_helper(data, unused,
+                                   USER_DEF_LIST_UNION_KIND_U8);
 }
 
-static void test_visitor_in_native_list_uint64(TestInputVisitorData *data,
-                                               const void *unused)
+static void test_visitor_in_list_union_uint16(TestInputVisitorData *data,
+                                              const void *unused)
 {
-    test_native_list_integer_helper(data, unused,
-                                    USER_DEF_NATIVE_LIST_UNION_KIND_U64);
+    test_list_union_integer_helper(data, unused,
+                                   USER_DEF_LIST_UNION_KIND_U16);
 }
 
-static void test_visitor_in_native_list_bool(TestInputVisitorData *data,
+static void test_visitor_in_list_union_uint32(TestInputVisitorData *data,
+                                              const void *unused)
+{
+    test_list_union_integer_helper(data, unused,
+                                   USER_DEF_LIST_UNION_KIND_U32);
+}
+
+static void test_visitor_in_list_union_uint64(TestInputVisitorData *data,
+                                              const void *unused)
+{
+    test_list_union_integer_helper(data, unused,
+                                   USER_DEF_LIST_UNION_KIND_U64);
+}
+
+static void test_visitor_in_list_union_bool(TestInputVisitorData *data,
                                             const void *unused)
 {
-    UserDefNativeListUnion *cvalue = NULL;
+    UserDefListUnion *cvalue = NULL;
     boolList *elem = NULL;
     Visitor *v;
     GString *gstr_list = g_string_new("");
@@ -869,9 +869,9 @@ static void test_visitor_in_native_list_bool(TestInputVisitorData *data,
                            gstr_list->str);
     v = visitor_input_test_init_raw(data,  gstr_union->str);
 
-    visit_type_UserDefNativeListUnion(v, NULL, &cvalue, &error_abort);
+    visit_type_UserDefListUnion(v, NULL, &cvalue, &error_abort);
     g_assert(cvalue != NULL);
-    g_assert_cmpint(cvalue->type, ==, USER_DEF_NATIVE_LIST_UNION_KIND_BOOLEAN);
+    g_assert_cmpint(cvalue->type, ==, USER_DEF_LIST_UNION_KIND_BOOLEAN);
 
     for (i = 0, elem = cvalue->u.boolean.data; elem; elem = elem->next, i++) {
         g_assert_cmpint(elem->value, ==, (i % 3 == 0) ? 1 : 0);
@@ -879,13 +879,13 @@ static void test_visitor_in_native_list_bool(TestInputVisitorData *data,
 
     g_string_free(gstr_union, true);
     g_string_free(gstr_list, true);
-    qapi_free_UserDefNativeListUnion(cvalue);
+    qapi_free_UserDefListUnion(cvalue);
 }
 
-static void test_visitor_in_native_list_string(TestInputVisitorData *data,
-                                               const void *unused)
+static void test_visitor_in_list_union_string(TestInputVisitorData *data,
+                                              const void *unused)
 {
-    UserDefNativeListUnion *cvalue = NULL;
+    UserDefListUnion *cvalue = NULL;
     strList *elem = NULL;
     Visitor *v;
     GString *gstr_list = g_string_new("");
@@ -902,9 +902,9 @@ static void test_visitor_in_native_list_string(TestInputVisitorData *data,
                            gstr_list->str);
     v = visitor_input_test_init_raw(data,  gstr_union->str);
 
-    visit_type_UserDefNativeListUnion(v, NULL, &cvalue, &error_abort);
+    visit_type_UserDefListUnion(v, NULL, &cvalue, &error_abort);
     g_assert(cvalue != NULL);
-    g_assert_cmpint(cvalue->type, ==, USER_DEF_NATIVE_LIST_UNION_KIND_STRING);
+    g_assert_cmpint(cvalue->type, ==, USER_DEF_LIST_UNION_KIND_STRING);
 
     for (i = 0, elem = cvalue->u.string.data; elem; elem = elem->next, i++) {
         gchar str[8];
@@ -914,15 +914,15 @@ static void test_visitor_in_native_list_string(TestInputVisitorData *data,
 
     g_string_free(gstr_union, true);
     g_string_free(gstr_list, true);
-    qapi_free_UserDefNativeListUnion(cvalue);
+    qapi_free_UserDefListUnion(cvalue);
 }
 
 #define DOUBLE_STR_MAX 16
 
-static void test_visitor_in_native_list_number(TestInputVisitorData *data,
-                                               const void *unused)
+static void test_visitor_in_list_union_number(TestInputVisitorData *data,
+                                              const void *unused)
 {
-    UserDefNativeListUnion *cvalue = NULL;
+    UserDefListUnion *cvalue = NULL;
     numberList *elem = NULL;
     Visitor *v;
     GString *gstr_list = g_string_new("");
@@ -939,9 +939,9 @@ static void test_visitor_in_native_list_number(TestInputVisitorData *data,
                            gstr_list->str);
     v = visitor_input_test_init_raw(data,  gstr_union->str);
 
-    visit_type_UserDefNativeListUnion(v, NULL, &cvalue, &error_abort);
+    visit_type_UserDefListUnion(v, NULL, &cvalue, &error_abort);
     g_assert(cvalue != NULL);
-    g_assert_cmpint(cvalue->type, ==, USER_DEF_NATIVE_LIST_UNION_KIND_NUMBER);
+    g_assert_cmpint(cvalue->type, ==, USER_DEF_LIST_UNION_KIND_NUMBER);
 
     for (i = 0, elem = cvalue->u.number.data; elem; elem = elem->next, i++) {
         GString *double_expected = g_string_new("");
@@ -957,7 +957,7 @@ static void test_visitor_in_native_list_number(TestInputVisitorData *data,
 
     g_string_free(gstr_union, true);
     g_string_free(gstr_list, true);
-    qapi_free_UserDefNativeListUnion(cvalue);
+    qapi_free_UserDefListUnion(cvalue);
 }
 
 static void input_visitor_test_add(const char *testpath,
@@ -1192,17 +1192,17 @@ static void test_visitor_in_fail_list_nested(TestInputVisitorData *data,
     visit_end_list(v, NULL);
 }
 
-static void test_visitor_in_fail_union_native_list(TestInputVisitorData *data,
-                                                   const void *unused)
+static void test_visitor_in_fail_union_list(TestInputVisitorData *data,
+                                            const void *unused)
 {
-    UserDefNativeListUnion *tmp = NULL;
+    UserDefListUnion *tmp = NULL;
     Error *err = NULL;
     Visitor *v;
 
     v = visitor_input_test_init(data,
                                 "{ 'type': 'integer', 'data' : [ 'string' ] }");
 
-    visit_type_UserDefNativeListUnion(v, NULL, &tmp, &err);
+    visit_type_UserDefListUnion(v, NULL, &tmp, &err);
     error_free_or_abort(&err);
     g_assert(!tmp);
 }
@@ -1335,30 +1335,30 @@ int main(int argc, char **argv)
                            NULL, test_visitor_in_wrong_type);
     input_visitor_test_add("/visitor/input/alternate-number",
                            NULL, test_visitor_in_alternate_number);
-    input_visitor_test_add("/visitor/input/native_list/int",
-                           NULL, test_visitor_in_native_list_int);
-    input_visitor_test_add("/visitor/input/native_list/int8",
-                           NULL, test_visitor_in_native_list_int8);
-    input_visitor_test_add("/visitor/input/native_list/int16",
-                           NULL, test_visitor_in_native_list_int16);
-    input_visitor_test_add("/visitor/input/native_list/int32",
-                           NULL, test_visitor_in_native_list_int32);
-    input_visitor_test_add("/visitor/input/native_list/int64",
-                           NULL, test_visitor_in_native_list_int64);
-    input_visitor_test_add("/visitor/input/native_list/uint8",
-                           NULL, test_visitor_in_native_list_uint8);
-    input_visitor_test_add("/visitor/input/native_list/uint16",
-                           NULL, test_visitor_in_native_list_uint16);
-    input_visitor_test_add("/visitor/input/native_list/uint32",
-                           NULL, test_visitor_in_native_list_uint32);
-    input_visitor_test_add("/visitor/input/native_list/uint64",
-                           NULL, test_visitor_in_native_list_uint64);
-    input_visitor_test_add("/visitor/input/native_list/bool",
-                           NULL, test_visitor_in_native_list_bool);
-    input_visitor_test_add("/visitor/input/native_list/str",
-                           NULL, test_visitor_in_native_list_string);
-    input_visitor_test_add("/visitor/input/native_list/number",
-                           NULL, test_visitor_in_native_list_number);
+    input_visitor_test_add("/visitor/input/list_union/int",
+                           NULL, test_visitor_in_list_union_int);
+    input_visitor_test_add("/visitor/input/list_union/int8",
+                           NULL, test_visitor_in_list_union_int8);
+    input_visitor_test_add("/visitor/input/list_union/int16",
+                           NULL, test_visitor_in_list_union_int16);
+    input_visitor_test_add("/visitor/input/list_union/int32",
+                           NULL, test_visitor_in_list_union_int32);
+    input_visitor_test_add("/visitor/input/list_union/int64",
+                           NULL, test_visitor_in_list_union_int64);
+    input_visitor_test_add("/visitor/input/list_union/uint8",
+                           NULL, test_visitor_in_list_union_uint8);
+    input_visitor_test_add("/visitor/input/list_union/uint16",
+                           NULL, test_visitor_in_list_union_uint16);
+    input_visitor_test_add("/visitor/input/list_union/uint32",
+                           NULL, test_visitor_in_list_union_uint32);
+    input_visitor_test_add("/visitor/input/list_union/uint64",
+                           NULL, test_visitor_in_list_union_uint64);
+    input_visitor_test_add("/visitor/input/list_union/bool",
+                           NULL, test_visitor_in_list_union_bool);
+    input_visitor_test_add("/visitor/input/list_union/str",
+                           NULL, test_visitor_in_list_union_string);
+    input_visitor_test_add("/visitor/input/list_union/number",
+                           NULL, test_visitor_in_list_union_number);
     input_visitor_test_add("/visitor/input/fail/struct",
                            NULL, test_visitor_in_fail_struct);
     input_visitor_test_add("/visitor/input/fail/struct-nested",
@@ -1377,8 +1377,8 @@ int main(int argc, char **argv)
                            NULL, test_visitor_in_fail_union_flat_no_discrim);
     input_visitor_test_add("/visitor/input/fail/alternate",
                            NULL, test_visitor_in_fail_alternate);
-    input_visitor_test_add("/visitor/input/fail/union-native-list",
-                           NULL, test_visitor_in_fail_union_native_list);
+    input_visitor_test_add("/visitor/input/fail/union-list",
+                           NULL, test_visitor_in_fail_union_list);
     input_visitor_test_add("/visitor/input/qapi-introspect",
                            NULL, test_visitor_in_qmp_introspect);
 

@@ -144,7 +144,7 @@ object q_obj_sizeList-wrapper
     member data: sizeList optional=False
 object q_obj_anyList-wrapper
     member data: anyList optional=False
-enum UserDefNativeListUnionKind
+enum UserDefListUnionKind
     member integer
     member s8
     member s16
@@ -159,8 +159,8 @@ enum UserDefNativeListUnionKind
     member string
     member sizes
     member any
-object UserDefNativeListUnion
-    member type: UserDefNativeListUnionKind optional=False
+object UserDefListUnion
+    member type: UserDefListUnionKind optional=False
     tag type
     case integer: q_obj_intList-wrapper
     case s8: q_obj_int8List-wrapper
@@ -209,7 +209,7 @@ command guest-sync q_obj_guest-sync-arg -> any
    gen=True success_response=True boxed=False oob=False preconfig=False
 command boxed-struct UserDefZero -> None
    gen=True success_response=True boxed=True oob=False preconfig=False
-command boxed-union UserDefNativeListUnion -> None
+command boxed-union UserDefListUnion -> None
    gen=True success_response=True boxed=True oob=False preconfig=False
 command test-flags-command None -> None
    gen=True success_response=True boxed=False oob=True preconfig=True
