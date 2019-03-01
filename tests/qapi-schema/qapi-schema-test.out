@@ -325,9 +325,11 @@ command TestIfCmd q_obj_TestIfCmd-arg -> UserDefThree
     if ['defined(TEST_IF_CMD)', 'defined(TEST_IF_STRUCT)']
 command TestCmdReturnDefThree None -> UserDefThree
    gen=True success_response=True boxed=False oob=False preconfig=False
+array TestIfEnumList TestIfEnum
+    if ['defined(TEST_IF_ENUM)']
 object q_obj_TestIfEvent-arg
     member foo: TestIfStruct optional=False
-    member bar: TestIfEnum optional=False
+    member bar: TestIfEnumList optional=False
         if ['defined(TEST_IF_EVT_BAR)']
     if ['defined(TEST_IF_EVT) && defined(TEST_IF_STRUCT)']
 event TestIfEvent q_obj_TestIfEvent-arg
