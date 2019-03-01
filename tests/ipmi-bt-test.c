@@ -400,14 +400,7 @@ static void open_socket(void)
 
 int main(int argc, char **argv)
 {
-    const char *arch = qtest_get_arch();
     int ret;
-
-    /* Check architecture */
-    if (strcmp(arch, "i386") && strcmp(arch, "x86_64")) {
-        g_test_message("Skipping test for non-x86\n");
-        return 0;
-    }
 
     open_socket();
 
