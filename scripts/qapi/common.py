@@ -2017,8 +2017,8 @@ def mcgen(code, **kwds):
     return cgen(code, **kwds)
 
 
-def guardname(filename):
-    return re.sub(r'[^A-Za-z0-9_]', '_', filename).upper()
+def c_fname(filename):
+    return re.sub(r'[^A-Za-z0-9_]', '_', filename)
 
 
 def guardstart(name):
@@ -2027,7 +2027,7 @@ def guardstart(name):
 #define %(name)s
 
 ''',
-                 name=guardname(name))
+                 name=c_fname(name).upper())
 
 
 def guardend(name):
@@ -2035,7 +2035,7 @@ def guardend(name):
 
 #endif /* %(name)s */
 ''',
-                 name=guardname(name))
+                 name=c_fname(name).upper())
 
 
 def gen_if(ifcond):
@@ -2281,9 +2281,9 @@ class QAPIGenC(QAPIGenCCode):
         return mcgen('''
 
 /* Dummy declaration to prevent empty .o file */
-char dummy_%(name)s;
+char qapi_dummy_%(name)s;
 ''',
-                     name=c_name(self.fname))
+                     name=c_fname(self.fname))
 
 
 class QAPIGenH(QAPIGenC):
@@ -2337,21 +2337,29 @@ class QAPISchemaModularCVisitor(QAPISchemaVisitor):
     def _is_builtin_module(name):
         return not name
 
+    def _module_dirname(self, what, name):
+        if self._is_user_module(name):
+            return os.path.dirname(name)
+        return ''
+
     def _module_basename(self, what, name):
         ret = '' if self._is_builtin_module(name) else self._prefix
         if self._is_user_module(name):
-            dirname, basename = os.path.split(name)
+            basename = os.path.basename(name)
             ret += what
             if name != self._main_module:
                 ret += '-' + os.path.splitext(basename)[0]
-            ret = os.path.join(dirname, ret)
         else:
             name = name[2:] if name else 'builtin'
             ret += re.sub(r'-', '-' + name + '-', what)
         return ret
 
+    def _module_filename(self, what, name):
+        return os.path.join(self._module_dirname(what, name),
+                            self._module_basename(what, name))
+
     def _add_module(self, name, blurb):
-        basename = self._module_basename(self._what, name)
+        basename = self._module_filename(self._what, name)
         genc = QAPIGenC(basename + '.c', blurb, self._pydoc)
         genh = QAPIGenH(basename + '.h', blurb, self._pydoc)
         self._module[name] = (genc, genh)
@@ -2393,8 +2401,9 @@ class QAPISchemaModularCVisitor(QAPISchemaVisitor):
             self._begin_user_module(name)
 
     def visit_include(self, name, info):
-        basename = self._module_basename(self._what, name)
+        relname = os.path.relpath(self._module_filename(self._what, name),
+                                  os.path.dirname(self._genh.fname))
         self._genh.preamble_add(mcgen('''
-#include "%(basename)s.h"
+#include "%(relname)s.h"
 ''',
-                                      basename=basename))
+                                      relname=relname))

@@ -176,6 +176,15 @@ object UserDefNativeListUnion
     case string: q_obj_strList-wrapper
     case sizes: q_obj_sizeList-wrapper
     case any: q_obj_anyList-wrapper
+include include/sub-module.json
+module include/sub-module.json
+include sub-sub-module.json
+module sub-sub-module.json
+enum Status
+    member good
+    member bad
+    member ugly
+module qapi-schema-test.json
 command user_def_cmd None -> None
    gen=True success_response=True boxed=False oob=False preconfig=False
 object q_obj_user_def_cmd1-arg

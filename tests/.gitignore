@@ -12,9 +12,17 @@ test-*
 !test-*.c
 !docker/test-*
 test-qapi-commands.[ch]
+include/test-qapi-commands-sub-module.[ch]
+test-qapi-commands-sub-sub-module.[ch]
 test-qapi-events.[ch]
+include/test-qapi-events-sub-module.[ch]
+test-qapi-events-sub-sub-module.[ch]
 test-qapi-types.[ch]
+include/test-qapi-types-sub-module.[ch]
+test-qapi-types-sub-sub-module.[ch]
 test-qapi-visit.[ch]
+include/test-qapi-visit-sub-module.[ch]
+test-qapi-visit-sub-sub-module.[ch]
 test-qapi-introspect.[ch]
 *-test
 qapi-schema/*.test.*
