@@ -5688,55 +5688,59 @@ static void handle_fp_1src_half(DisasContext *s, int opcode, int rd, int rn)
 /* Floating-point data-processing (1 source) - single precision */
 static void handle_fp_1src_single(DisasContext *s, int opcode, int rd, int rn)
 {
+    void (*gen_fpst)(TCGv_i32, TCGv_i32, TCGv_ptr);
+    TCGv_i32 tcg_op, tcg_res;
     TCGv_ptr fpst;
-    TCGv_i32 tcg_op;
-    TCGv_i32 tcg_res;
+    int rmode = -1;
 
-    fpst = get_fpstatus_ptr(false);
     tcg_op = read_fp_sreg(s, rn);
     tcg_res = tcg_temp_new_i32();
 
     switch (opcode) {
     case 0x0: /* FMOV */
         tcg_gen_mov_i32(tcg_res, tcg_op);
-        break;
+        goto done;
     case 0x1: /* FABS */
         gen_helper_vfp_abss(tcg_res, tcg_op);
-        break;
+        goto done;
     case 0x2: /* FNEG */
         gen_helper_vfp_negs(tcg_res, tcg_op);
-        break;
+        goto done;
     case 0x3: /* FSQRT */
         gen_helper_vfp_sqrts(tcg_res, tcg_op, cpu_env);
-        break;
+        goto done;
     case 0x8: /* FRINTN */
     case 0x9: /* FRINTP */
     case 0xa: /* FRINTM */
     case 0xb: /* FRINTZ */
     case 0xc: /* FRINTA */
-    {
-        TCGv_i32 tcg_rmode = tcg_const_i32(arm_rmode_to_sf(opcode & 7));
-
-        gen_helper_set_rmode(tcg_rmode, tcg_rmode, fpst);
-        gen_helper_rints(tcg_res, tcg_op, fpst);
-
-        gen_helper_set_rmode(tcg_rmode, tcg_rmode, fpst);
-        tcg_temp_free_i32(tcg_rmode);
+        rmode = arm_rmode_to_sf(opcode & 7);
+        gen_fpst = gen_helper_rints;
         break;
-    }
     case 0xe: /* FRINTX */
-        gen_helper_rints_exact(tcg_res, tcg_op, fpst);
+        gen_fpst = gen_helper_rints_exact;
         break;
     case 0xf: /* FRINTI */
-        gen_helper_rints(tcg_res, tcg_op, fpst);
+        gen_fpst = gen_helper_rints;
         break;
     default:
-        abort();
+        g_assert_not_reached();
     }
 
-    write_fp_sreg(s, rd, tcg_res);
-
+    fpst = get_fpstatus_ptr(false);
+    if (rmode >= 0) {
+        TCGv_i32 tcg_rmode = tcg_const_i32(rmode);
+        gen_helper_set_rmode(tcg_rmode, tcg_rmode, fpst);
+        gen_fpst(tcg_res, tcg_op, fpst);
+        gen_helper_set_rmode(tcg_rmode, tcg_rmode, fpst);
+        tcg_temp_free_i32(tcg_rmode);
+    } else {
+        gen_fpst(tcg_res, tcg_op, fpst);
+    }
     tcg_temp_free_ptr(fpst);
+
+ done:
+    write_fp_sreg(s, rd, tcg_res);
     tcg_temp_free_i32(tcg_op);
     tcg_temp_free_i32(tcg_res);
 }
@@ -5744,9 +5748,10 @@ static void handle_fp_1src_single(DisasContext *s, int opcode, int rd, int rn)
 /* Floating-point data-processing (1 source) - double precision */
 static void handle_fp_1src_double(DisasContext *s, int opcode, int rd, int rn)
 {
+    void (*gen_fpst)(TCGv_i64, TCGv_i64, TCGv_ptr);
+    TCGv_i64 tcg_op, tcg_res;
     TCGv_ptr fpst;
-    TCGv_i64 tcg_op;
-    TCGv_i64 tcg_res;
+    int rmode = -1;
 
     switch (opcode) {
     case 0x0: /* FMOV */
@@ -5754,48 +5759,51 @@ static void handle_fp_1src_double(DisasContext *s, int opcode, int rd, int rn)
         return;
     }
 
-    fpst = get_fpstatus_ptr(false);
     tcg_op = read_fp_dreg(s, rn);
     tcg_res = tcg_temp_new_i64();
 
     switch (opcode) {
     case 0x1: /* FABS */
         gen_helper_vfp_absd(tcg_res, tcg_op);
-        break;
+        goto done;
     case 0x2: /* FNEG */
         gen_helper_vfp_negd(tcg_res, tcg_op);
-        break;
+        goto done;
     case 0x3: /* FSQRT */
         gen_helper_vfp_sqrtd(tcg_res, tcg_op, cpu_env);
-        break;
+        goto done;
     case 0x8: /* FRINTN */
     case 0x9: /* FRINTP */
     case 0xa: /* FRINTM */
     case 0xb: /* FRINTZ */
     case 0xc: /* FRINTA */
-    {
-        TCGv_i32 tcg_rmode = tcg_const_i32(arm_rmode_to_sf(opcode & 7));
-
-        gen_helper_set_rmode(tcg_rmode, tcg_rmode, fpst);
-        gen_helper_rintd(tcg_res, tcg_op, fpst);
-
-        gen_helper_set_rmode(tcg_rmode, tcg_rmode, fpst);
-        tcg_temp_free_i32(tcg_rmode);
+        rmode = arm_rmode_to_sf(opcode & 7);
+        gen_fpst = gen_helper_rintd;
         break;
-    }
     case 0xe: /* FRINTX */
-        gen_helper_rintd_exact(tcg_res, tcg_op, fpst);
+        gen_fpst = gen_helper_rintd_exact;
         break;
     case 0xf: /* FRINTI */
-        gen_helper_rintd(tcg_res, tcg_op, fpst);
+        gen_fpst = gen_helper_rintd;
         break;
     default:
-        abort();
+        g_assert_not_reached();
     }
 
-    write_fp_dreg(s, rd, tcg_res);
-
+    fpst = get_fpstatus_ptr(false);
+    if (rmode >= 0) {
+        TCGv_i32 tcg_rmode = tcg_const_i32(rmode);
+        gen_helper_set_rmode(tcg_rmode, tcg_rmode, fpst);
+        gen_fpst(tcg_res, tcg_op, fpst);
+        gen_helper_set_rmode(tcg_rmode, tcg_rmode, fpst);
+        tcg_temp_free_i32(tcg_rmode);
+    } else {
+        gen_fpst(tcg_res, tcg_op, fpst);
+    }
     tcg_temp_free_ptr(fpst);
+
+ done:
+    write_fp_dreg(s, rd, tcg_res);
     tcg_temp_free_i64(tcg_op);
     tcg_temp_free_i64(tcg_res);
 }
