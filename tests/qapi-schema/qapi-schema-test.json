@@ -128,7 +128,8 @@
             'boolean': ['bool'],
             'string': ['str'],
             'sizes': ['size'],
-            'any': ['any'] } }
+            'any': ['any'],
+            'user': ['Status'] } } # intentional forward ref. to sub-module
 
 # for testing sub-modules
 { 'include': 'include/sub-module.json' }

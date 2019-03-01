@@ -144,6 +144,9 @@ object q_obj_sizeList-wrapper
     member data: sizeList optional=False
 object q_obj_anyList-wrapper
     member data: anyList optional=False
+array StatusList Status
+object q_obj_StatusList-wrapper
+    member data: StatusList optional=False
 enum UserDefListUnionKind
     member integer
     member s8
@@ -159,6 +162,7 @@ enum UserDefListUnionKind
     member string
     member sizes
     member any
+    member user
 object UserDefListUnion
     member type: UserDefListUnionKind optional=False
     tag type
@@ -176,6 +180,7 @@ object UserDefListUnion
     case string: q_obj_strList-wrapper
     case sizes: q_obj_sizeList-wrapper
     case any: q_obj_anyList-wrapper
+    case user: q_obj_StatusList-wrapper
 include include/sub-module.json
 module include/sub-module.json
 include sub-sub-module.json
