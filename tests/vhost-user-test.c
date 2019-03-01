@@ -337,7 +337,7 @@ static void chr_read(void *opaque, const uint8_t *buf, int size)
     }
 
     if (size != VHOST_USER_HDR_SIZE) {
-        g_test_message("Wrong message size received %d\n", size);
+        g_test_message("Wrong message size received %d", size);
         return;
     }
 
@@ -348,7 +348,7 @@ static void chr_read(void *opaque, const uint8_t *buf, int size)
         p += VHOST_USER_HDR_SIZE;
         size = qemu_chr_fe_read_all(chr, p, msg.size);
         if (size != msg.size) {
-            g_test_message("Wrong message size received %d != %d\n",
+            g_test_message("Wrong message size received %d != %d",
                            size, msg.size);
             return;
         }
@@ -476,7 +476,7 @@ static const char *init_hugepagefs(void)
     }
 
     if (access(path, R_OK | W_OK | X_OK)) {
-        g_test_message("access on path (%s): %s\n", path, strerror(errno));
+        g_test_message("access on path (%s): %s", path, strerror(errno));
         abort();
         return NULL;
     }
@@ -486,13 +486,13 @@ static const char *init_hugepagefs(void)
     } while (ret != 0 && errno == EINTR);
 
     if (ret != 0) {
-        g_test_message("statfs on path (%s): %s\n", path, strerror(errno));
+        g_test_message("statfs on path (%s): %s", path, strerror(errno));
         abort();
         return NULL;
     }
 
     if (fs.f_type != HUGETLBFS_MAGIC) {
-        g_test_message("Warning: path not on HugeTLBFS: %s\n", path);
+        g_test_message("Warning: path not on HugeTLBFS: %s", path);
         abort();
         return NULL;
     }

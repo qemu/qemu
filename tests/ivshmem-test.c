@@ -74,7 +74,7 @@ static inline unsigned in_reg(IVState *s, enum Reg reg)
     unsigned res;
 
     res = qpci_io_readl(s->dev, s->reg_bar, reg);
-    g_test_message("*%s -> %x\n", name, res);
+    g_test_message("*%s -> %x", name, res);
 
     return res;
 }
@@ -83,7 +83,7 @@ static inline void out_reg(IVState *s, enum Reg reg, unsigned v)
 {
     const char *name = reg2str(reg);
 
-    g_test_message("%x -> *%s\n", v, name);
+    g_test_message("%x -> *%s", v, name);
     qpci_io_writel(s->dev, s->reg_bar, reg, v);
 }
 

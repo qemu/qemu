@@ -46,12 +46,12 @@ static QPCIDevice *get_device(void)
 static unsigned __attribute__((unused)) in_##name(void) \
 { \
     unsigned res = qpci_io_read##len(dev, dev_bar, (val));     \
-    g_test_message("*%s -> %x\n", #name, res); \
+    g_test_message("*%s -> %x", #name, res); \
     return res; \
 } \
 static void out_##name(unsigned v) \
 { \
-    g_test_message("%x -> *%s\n", v, #name); \
+    g_test_message("%x -> *%s", v, #name); \
     qpci_io_write##len(dev, dev_bar, (val), v);        \
 }
 
@@ -176,7 +176,7 @@ static void test_timer(void)
         }
     }
 
-    g_test_message("Everythink is ok!\n");
+    g_test_message("Everythink is ok!");
 }
 
 

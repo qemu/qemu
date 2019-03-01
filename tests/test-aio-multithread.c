@@ -178,7 +178,7 @@ static void test_multi_co_schedule(int seconds)
     }
 
     join_aio_contexts();
-    g_test_message("scheduled %d, queued %d, retry %d, total %d\n",
+    g_test_message("scheduled %d, queued %d, retry %d, total %d",
                   count_other, count_here, count_retry,
                   count_here + count_other + count_retry);
 }
@@ -242,7 +242,7 @@ static void test_multi_co_mutex(int threads, int seconds)
     }
 
     join_aio_contexts();
-    g_test_message("%d iterations/second\n", counter / seconds);
+    g_test_message("%d iterations/second", counter / seconds);
     g_assert_cmpint(counter, ==, atomic_counter);
 }
 
@@ -361,7 +361,7 @@ static void test_multi_fair_mutex(int threads, int seconds)
     }
 
     join_aio_contexts();
-    g_test_message("%d iterations/second\n", counter / seconds);
+    g_test_message("%d iterations/second", counter / seconds);
     g_assert_cmpint(counter, ==, atomic_counter);
 }
 
@@ -417,7 +417,7 @@ static void test_multi_mutex(int threads, int seconds)
     }
 
     join_aio_contexts();
-    g_test_message("%d iterations/second\n", counter / seconds);
+    g_test_message("%d iterations/second", counter / seconds);
     g_assert_cmpint(counter, ==, atomic_counter);
 }
 
