@@ -1174,3 +1174,99 @@ uint32_t HELPER(vjcvt)(float64 value, CPUARMState *env)
 
     return result;
 }
+
+/* Round a float32 to an integer that fits in int32_t or int64_t.  */
+static float32 frint_s(float32 f, float_status *fpst, int intsize)
+{
+    int old_flags = get_float_exception_flags(fpst);
+    uint32_t exp = extract32(f, 23, 8);
+
+    if (unlikely(exp == 0xff)) {
+        /* NaN or Inf.  */
+        goto overflow;
+    }
+
+    /* Round and re-extract the exponent.  */
+    f = float32_round_to_int(f, fpst);
+    exp = extract32(f, 23, 8);
+
+    /* Validate the range of the result.  */
+    if (exp < 126 + intsize) {
+        /* abs(F) <= INT{N}_MAX */
+        return f;
+    }
+    if (exp == 126 + intsize) {
+        uint32_t sign = extract32(f, 31, 1);
+        uint32_t frac = extract32(f, 0, 23);
+        if (sign && frac == 0) {
+            /* F == INT{N}_MIN */
+            return f;
+        }
+    }
+
+ overflow:
+    /*
+     * Raise Invalid and return INT{N}_MIN as a float.  Revert any
+     * inexact exception float32_round_to_int may have raised.
+     */
+    set_float_exception_flags(old_flags | float_flag_invalid, fpst);
+    return (0x100u + 126u + intsize) << 23;
+}
+
+float32 HELPER(frint32_s)(float32 f, void *fpst)
+{
+    return frint_s(f, fpst, 32);
+}
+
+float32 HELPER(frint64_s)(float32 f, void *fpst)
+{
+    return frint_s(f, fpst, 64);
+}
+
+/* Round a float64 to an integer that fits in int32_t or int64_t.  */
+static float64 frint_d(float64 f, float_status *fpst, int intsize)
+{
+    int old_flags = get_float_exception_flags(fpst);
+    uint32_t exp = extract64(f, 52, 11);
+
+    if (unlikely(exp == 0x7ff)) {
+        /* NaN or Inf.  */
+        goto overflow;
+    }
+
+    /* Round and re-extract the exponent.  */
+    f = float64_round_to_int(f, fpst);
+    exp = extract64(f, 52, 11);
+
+    /* Validate the range of the result.  */
+    if (exp < 1022 + intsize) {
+        /* abs(F) <= INT{N}_MAX */
+        return f;
+    }
+    if (exp == 1022 + intsize) {
+        uint64_t sign = extract64(f, 63, 1);
+        uint64_t frac = extract64(f, 0, 52);
+        if (sign && frac == 0) {
+            /* F == INT{N}_MIN */
+            return f;
+        }
+    }
+
+ overflow:
+    /*
+     * Raise Invalid and return INT{N}_MIN as a float.  Revert any
+     * inexact exception float64_round_to_int may have raised.
+     */
+    set_float_exception_flags(old_flags | float_flag_invalid, fpst);
+    return (uint64_t)(0x800 + 1022 + intsize) << 52;
+}
+
+float64 HELPER(frint32_d)(float64 f, void *fpst)
+{
+    return frint_d(f, fpst, 32);
+}
+
+float64 HELPER(frint64_d)(float64 f, void *fpst)
+{
+    return frint_d(f, fpst, 64);
+}

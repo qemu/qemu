@@ -5723,6 +5723,20 @@ static void handle_fp_1src_single(DisasContext *s, int opcode, int rd, int rn)
     case 0xf: /* FRINTI */
         gen_fpst = gen_helper_rints;
         break;
+    case 0x10: /* FRINT32Z */
+        rmode = float_round_to_zero;
+        gen_fpst = gen_helper_frint32_s;
+        break;
+    case 0x11: /* FRINT32X */
+        gen_fpst = gen_helper_frint32_s;
+        break;
+    case 0x12: /* FRINT64Z */
+        rmode = float_round_to_zero;
+        gen_fpst = gen_helper_frint64_s;
+        break;
+    case 0x13: /* FRINT64X */
+        gen_fpst = gen_helper_frint64_s;
+        break;
     default:
         g_assert_not_reached();
     }
@@ -5785,6 +5799,20 @@ static void handle_fp_1src_double(DisasContext *s, int opcode, int rd, int rn)
         break;
     case 0xf: /* FRINTI */
         gen_fpst = gen_helper_rintd;
+        break;
+    case 0x10: /* FRINT32Z */
+        rmode = float_round_to_zero;
+        gen_fpst = gen_helper_frint32_d;
+        break;
+    case 0x11: /* FRINT32X */
+        gen_fpst = gen_helper_frint32_d;
+        break;
+    case 0x12: /* FRINT64Z */
+        rmode = float_round_to_zero;
+        gen_fpst = gen_helper_frint64_d;
+        break;
+    case 0x13: /* FRINT64X */
+        gen_fpst = gen_helper_frint64_d;
         break;
     default:
         g_assert_not_reached();
@@ -5922,6 +5950,13 @@ static void disas_fp_1src(DisasContext *s, uint32_t insn)
         handle_fp_fcvt(s, opcode, rd, rn, dtype, type);
         break;
     }
+
+    case 0x10 ... 0x13: /* FRINT{32,64}{X,Z} */
+        if (type > 1 || !dc_isar_feature(aa64_frint, s)) {
+            unallocated_encoding(s);
+            return;
+        }
+        /* fall through */
     case 0x0 ... 0x3:
     case 0x8 ... 0xc:
     case 0xe ... 0xf:
@@ -5931,14 +5966,12 @@ static void disas_fp_1src(DisasContext *s, uint32_t insn)
             if (!fp_access_check(s)) {
                 return;
             }
-
             handle_fp_1src_single(s, opcode, rd, rn);
             break;
         case 1:
             if (!fp_access_check(s)) {
                 return;
             }
-
             handle_fp_1src_double(s, opcode, rd, rn);
             break;
         case 3:
@@ -5950,13 +5983,13 @@ static void disas_fp_1src(DisasContext *s, uint32_t insn)
             if (!fp_access_check(s)) {
                 return;
             }
-
             handle_fp_1src_half(s, opcode, rd, rn);
             break;
         default:
             unallocated_encoding(s);
         }
         break;
+
     default:
         unallocated_encoding(s);
         break;
@@ -9484,6 +9517,14 @@ static void handle_2misc_64(DisasContext *s, int opcode, bool u,
     case 0x59: /* FRINTX */
         gen_helper_rintd_exact(tcg_rd, tcg_rn, tcg_fpstatus);
         break;
+    case 0x1e: /* FRINT32Z */
+    case 0x5e: /* FRINT32X */
+        gen_helper_frint32_d(tcg_rd, tcg_rn, tcg_fpstatus);
+        break;
+    case 0x1f: /* FRINT64Z */
+    case 0x5f: /* FRINT64X */
+        gen_helper_frint64_d(tcg_rd, tcg_rn, tcg_fpstatus);
+        break;
     default:
         g_assert_not_reached();
     }
@@ -12134,8 +12175,7 @@ static void disas_simd_two_reg_misc(DisasContext *s, uint32_t insn)
         }
         break;
     case 0xc ... 0xf:
-    case 0x16 ... 0x1d:
-    case 0x1f:
+    case 0x16 ... 0x1f:
     {
         /* Floating point: U, size[1] and opcode indicate operation;
          * size[0] indicates single or double precision.
@@ -12277,6 +12317,19 @@ static void disas_simd_two_reg_misc(DisasContext *s, uint32_t insn)
                 return;
             }
             need_fpstatus = true;
+            break;
+        case 0x1e: /* FRINT32Z */
+        case 0x1f: /* FRINT64Z */
+            need_rmode = true;
+            rmode = FPROUNDING_ZERO;
+            /* fall through */
+        case 0x5e: /* FRINT32X */
+        case 0x5f: /* FRINT64X */
+            need_fpstatus = true;
+            if ((size == 3 && !is_q) || !dc_isar_feature(aa64_frint, s)) {
+                unallocated_encoding(s);
+                return;
+            }
             break;
         default:
             unallocated_encoding(s);
@@ -12442,6 +12495,14 @@ static void disas_simd_two_reg_misc(DisasContext *s, uint32_t insn)
                     break;
                 case 0x7c: /* URSQRTE */
                     gen_helper_rsqrte_u32(tcg_res, tcg_op, tcg_fpstatus);
+                    break;
+                case 0x1e: /* FRINT32Z */
+                case 0x5e: /* FRINT32X */
+                    gen_helper_frint32_s(tcg_res, tcg_op, tcg_fpstatus);
+                    break;
+                case 0x1f: /* FRINT64Z */
+                case 0x5f: /* FRINT64X */
+                    gen_helper_frint64_s(tcg_res, tcg_op, tcg_fpstatus);
                     break;
                 default:
                     g_assert_not_reached();
