@@ -1646,6 +1646,48 @@ static void handle_sync(DisasContext *s, uint32_t insn,
     }
 }
 
+static void gen_xaflag(void)
+{
+    TCGv_i32 z = tcg_temp_new_i32();
+
+    tcg_gen_setcondi_i32(TCG_COND_EQ, z, cpu_ZF, 0);
+
+    /*
+     * (!C & !Z) << 31
+     * (!(C | Z)) << 31
+     * ~((C | Z) << 31)
+     * ~-(C | Z)
+     * (C | Z) - 1
+     */
+    tcg_gen_or_i32(cpu_NF, cpu_CF, z);
+    tcg_gen_subi_i32(cpu_NF, cpu_NF, 1);
+
+    /* !(Z & C) */
+    tcg_gen_and_i32(cpu_ZF, z, cpu_CF);
+    tcg_gen_xori_i32(cpu_ZF, cpu_ZF, 1);
+
+    /* (!C & Z) << 31 -> -(Z & ~C) */
+    tcg_gen_andc_i32(cpu_VF, z, cpu_CF);
+    tcg_gen_neg_i32(cpu_VF, cpu_VF);
+
+    /* C | Z */
+    tcg_gen_or_i32(cpu_CF, cpu_CF, z);
+
+    tcg_temp_free_i32(z);
+}
+
+static void gen_axflag(void)
+{
+    tcg_gen_sari_i32(cpu_VF, cpu_VF, 31);         /* V ? -1 : 0 */
+    tcg_gen_andc_i32(cpu_CF, cpu_CF, cpu_VF);     /* C & !V */
+
+    /* !(Z | V) -> !(!ZF | V) -> ZF & !V -> ZF & ~VF */
+    tcg_gen_andc_i32(cpu_ZF, cpu_ZF, cpu_VF);
+
+    tcg_gen_movi_i32(cpu_NF, 0);
+    tcg_gen_movi_i32(cpu_VF, 0);
+}
+
 /* MSR (immediate) - move immediate to processor state field */
 static void handle_msr_i(DisasContext *s, uint32_t insn,
                          unsigned int op1, unsigned int op2, unsigned int crm)
@@ -1662,6 +1704,22 @@ static void handle_msr_i(DisasContext *s, uint32_t insn,
             goto do_unallocated;
         }
         tcg_gen_xori_i32(cpu_CF, cpu_CF, 1);
+        s->base.is_jmp = DISAS_NEXT;
+        break;
+
+    case 0x01: /* XAFlag */
+        if (crm != 0 || !dc_isar_feature(aa64_condm_5, s)) {
+            goto do_unallocated;
+        }
+        gen_xaflag();
+        s->base.is_jmp = DISAS_NEXT;
+        break;
+
+    case 0x02: /* AXFlag */
+        if (crm != 0 || !dc_isar_feature(aa64_condm_5, s)) {
+            goto do_unallocated;
+        }
+        gen_axflag();
         s->base.is_jmp = DISAS_NEXT;
         break;
 
