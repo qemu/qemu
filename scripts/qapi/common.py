@@ -1089,6 +1089,9 @@ class QAPISchemaEntity(object):
             self.ifcond = typ.ifcond
         else:
             self.ifcond = listify_cond(self._ifcond)
+        if self.info:
+            self.module = os.path.relpath(self.info['file'],
+                                          os.path.dirname(schema.fname))
 
     def is_implicit(self):
         return not self.info
@@ -1262,6 +1265,7 @@ class QAPISchemaArrayType(QAPISchemaType):
         self.element_type = schema.lookup_type(self._element_type_name)
         assert self.element_type
         self.element_type.check(schema)
+        self.module = self.element_type.module
         self.ifcond = self.element_type.ifcond
 
     def is_implicit(self):
@@ -1603,7 +1607,7 @@ class QAPISchemaEvent(QAPISchemaEntity):
 
 class QAPISchema(object):
     def __init__(self, fname):
-        self._fname = fname
+        self.fname = fname
         if sys.version_info[0] >= 3:
             f = open(fname, 'r', encoding='utf-8')
         else:
@@ -1626,9 +1630,6 @@ class QAPISchema(object):
         self._entity_list.append(ent)
         if ent.name is not None:
             self._entity_dict[ent.name] = ent
-        if ent.info:
-            ent.module = os.path.relpath(ent.info['file'],
-                                         os.path.dirname(self._fname))
 
     def lookup_entity(self, name, typ=None):
         ent = self._entity_dict.get(name)

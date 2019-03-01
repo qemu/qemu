@@ -144,7 +144,9 @@ object q_obj_sizeList-wrapper
     member data: sizeList optional=False
 object q_obj_anyList-wrapper
     member data: anyList optional=False
+module sub-sub-module.json
 array StatusList Status
+module qapi-schema-test.json
 object q_obj_StatusList-wrapper
     member data: StatusList optional=False
 enum UserDefListUnionKind
@@ -189,6 +191,9 @@ enum Status
     member good
     member bad
     member ugly
+module include/sub-module.json
+object SecondArrayRef
+    member s: StatusList optional=False
 module qapi-schema-test.json
 command user_def_cmd None -> None
    gen=True success_response=True boxed=False oob=False preconfig=False
