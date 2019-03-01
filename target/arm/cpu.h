@@ -3307,6 +3307,11 @@ static inline bool isar_feature_aa32_fhm(const ARMISARegisters *id)
     return FIELD_EX32(id->id_isar6, ID_ISAR6, FHM) != 0;
 }
 
+static inline bool isar_feature_aa32_sb(const ARMISARegisters *id)
+{
+    return FIELD_EX32(id->id_isar6, ID_ISAR6, SB) != 0;
+}
+
 static inline bool isar_feature_aa32_fp16_arith(const ARMISARegisters *id)
 {
     /*
@@ -3443,6 +3448,11 @@ static inline bool isar_feature_aa64_pauth(const ARMISARegisters *id)
              FIELD_DP64(0, ID_AA64ISAR1, API, 0xf) |
              FIELD_DP64(0, ID_AA64ISAR1, GPA, 0xf) |
              FIELD_DP64(0, ID_AA64ISAR1, GPI, 0xf))) != 0;
+}
+
+static inline bool isar_feature_aa64_sb(const ARMISARegisters *id)
+{
+    return FIELD_EX64(id->id_aa64isar1, ID_AA64ISAR1, SB) != 0;
 }
 
 static inline bool isar_feature_aa64_fp16(const ARMISARegisters *id)
