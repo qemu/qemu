@@ -2392,7 +2392,13 @@ static int parse_cap_ppc_safe_bounds_check(struct kvm_ppc_cpu_char c)
 
 static int parse_cap_ppc_safe_indirect_branch(struct kvm_ppc_cpu_char c)
 {
-    if (c.character & c.character_mask & H_CPU_CHAR_CACHE_COUNT_DIS) {
+    if ((~c.behaviour & c.behaviour_mask & H_CPU_BEHAV_FLUSH_COUNT_CACHE) &&
+        (~c.character & c.character_mask & H_CPU_CHAR_CACHE_COUNT_DIS) &&
+        (~c.character & c.character_mask & H_CPU_CHAR_BCCTRL_SERIALISED)) {
+        return SPAPR_CAP_FIXED_NA;
+    } else if (c.behaviour & c.behaviour_mask & H_CPU_BEHAV_FLUSH_COUNT_CACHE) {
+        return SPAPR_CAP_WORKAROUND;
+    } else if (c.character & c.character_mask & H_CPU_CHAR_CACHE_COUNT_DIS) {
         return  SPAPR_CAP_FIXED_CCD;
     } else if (c.character & c.character_mask & H_CPU_CHAR_BCCTRL_SERIALISED) {
         return SPAPR_CAP_FIXED_IBS;

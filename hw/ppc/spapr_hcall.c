@@ -1723,11 +1723,16 @@ static target_ulong h_get_cpu_characteristics(PowerPCCPU *cpu,
     }
 
     switch (safe_indirect_branch) {
+    case SPAPR_CAP_FIXED_NA:
+        break;
     case SPAPR_CAP_FIXED_CCD:
         characteristics |= H_CPU_CHAR_CACHE_COUNT_DIS;
         break;
     case SPAPR_CAP_FIXED_IBS:
         characteristics |= H_CPU_CHAR_BCCTRL_SERIALISED;
+        break;
+    case SPAPR_CAP_WORKAROUND:
+        behaviour |= H_CPU_BEHAV_FLUSH_COUNT_CACHE;
         break;
     default: /* broken */
         assert(safe_indirect_branch == SPAPR_CAP_BROKEN);

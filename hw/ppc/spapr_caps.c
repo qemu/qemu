@@ -276,11 +276,13 @@ static void cap_safe_bounds_check_apply(sPAPRMachineState *spapr, uint8_t val,
 }
 
 sPAPRCapPossible cap_ibs_possible = {
-    .num = 4,
+    .num = 5,
     /* Note workaround only maintained for compatibility */
-    .vals = {"broken", "workaround", "fixed-ibs", "fixed-ccd"},
-    .help = "broken - no protection, fixed-ibs - indirect branch serialisation,"
-            " fixed-ccd - cache count disabled",
+    .vals = {"broken", "workaround", "fixed-ibs", "fixed-ccd", "fixed-na"},
+    .help = "broken - no protection, workaround - count cache flush"
+            ", fixed-ibs - indirect branch serialisation,"
+            " fixed-ccd - cache count disabled,"
+            " fixed-na - fixed in hardware (no longer applicable)",
 };
 
 static void cap_safe_indirect_branch_apply(sPAPRMachineState *spapr,
@@ -288,15 +290,11 @@ static void cap_safe_indirect_branch_apply(sPAPRMachineState *spapr,
 {
     uint8_t kvm_val = kvmppc_get_cap_safe_indirect_branch();
 
-    if (val == SPAPR_CAP_WORKAROUND) { /* Can only be Broken or Fixed */
-        error_setg(errp,
-"Requested safe indirect branch capability level \"workaround\" not valid, try cap-ibs=%s",
-                   cap_ibs_possible.vals[kvm_val]);
-    } else if (tcg_enabled() && val) {
+    if (tcg_enabled() && val) {
         /* TODO - for now only allow broken for TCG */
         error_setg(errp,
 "Requested safe indirect branch capability level not supported by tcg, try a different value for cap-ibs");
-    } else if (kvm_enabled() && val && (val != kvm_val)) {
+    } else if (kvm_enabled() && (val > kvm_val)) {
         error_setg(errp,
 "Requested safe indirect branch capability level not supported by kvm, try cap-ibs=%s",
                    cap_ibs_possible.vals[kvm_val]);
@@ -494,7 +492,8 @@ sPAPRCapabilityInfo capability_table[SPAPR_CAP_NUM] = {
     [SPAPR_CAP_IBS] = {
         .name = "ibs",
         .description =
-            "Indirect Branch Speculation (broken, fixed-ibs, fixed-ccd)",
+            "Indirect Branch Speculation (broken, workaround, fixed-ibs,"
+            "fixed-ccd, fixed-na)",
         .index = SPAPR_CAP_IBS,
         .get = spapr_cap_get_string,
         .set = spapr_cap_set_string,
