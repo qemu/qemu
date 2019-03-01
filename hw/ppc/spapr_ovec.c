@@ -16,7 +16,6 @@
 #include "qemu/bitmap.h"
 #include "exec/address-spaces.h"
 #include "qemu/error-report.h"
-#include "sysemu/qtest.h"
 #include "trace.h"
 #include <libfdt.h>
 
@@ -131,11 +130,6 @@ bool spapr_ovec_test(sPAPROptionVector *ov, long bitnr)
 {
     g_assert(ov);
     g_assert(bitnr < OV_MAXBITS);
-
-    /* support memory unplug for qtest */
-    if (qtest_enabled() && bitnr == OV5_HP_EVT) {
-        return true;
-    }
 
     return test_bit(bitnr, ov->bitmap) ? true : false;
 }
