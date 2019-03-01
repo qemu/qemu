@@ -393,9 +393,38 @@ static void cap_nested_kvm_hv_apply(sPAPRMachineState *spapr,
 static void cap_large_decr_apply(sPAPRMachineState *spapr,
                                  uint8_t val, Error **errp)
 {
-    if (val)
+    PowerPCCPU *cpu = POWERPC_CPU(first_cpu);
+
+    if (!val) {
+        return; /* Disabled by default */
+    }
+
+    if (tcg_enabled()) {
+        if (!ppc_check_compat(cpu, CPU_POWERPC_LOGICAL_3_00, 0,
+                              spapr->max_compat_pvr)) {
+            error_setg(errp,
+                "Large decrementer only supported on POWER9, try -cpu POWER9");
+            return;
+        }
+    } else {
         error_setg(errp,
                    "No large decrementer support, try cap-large-decr=off");
+    }
+}
+
+static void cap_large_decr_cpu_apply(sPAPRMachineState *spapr,
+                                     PowerPCCPU *cpu,
+                                     uint8_t val, Error **errp)
+{
+    CPUPPCState *env = &cpu->env;
+    target_ulong lpcr = env->spr[SPR_LPCR];
+
+    if (val) {
+        lpcr |= LPCR_LD;
+    } else {
+        lpcr &= ~LPCR_LD;
+    }
+    ppc_store_lpcr(cpu, lpcr);
 }
 
 sPAPRCapabilityInfo capability_table[SPAPR_CAP_NUM] = {
@@ -484,6 +513,7 @@ sPAPRCapabilityInfo capability_table[SPAPR_CAP_NUM] = {
         .set = spapr_cap_set_bool,
         .type = "bool",
         .apply = cap_large_decr_apply,
+        .cpu_apply = cap_large_decr_cpu_apply,
     },
 };
 
