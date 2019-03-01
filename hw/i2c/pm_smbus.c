@@ -19,8 +19,9 @@
  */
 #include "qemu/osdep.h"
 #include "hw/hw.h"
+#include "hw/boards.h"
 #include "hw/i2c/pm_smbus.h"
-#include "hw/i2c/smbus.h"
+#include "hw/i2c/smbus_master.h"
 
 #define SMBHSTSTS       0x00
 #define SMBHSTCNT       0x02
@@ -118,19 +119,30 @@ static void smb_transaction(PMSMBus *s)
         }
         break;
     case PROT_I2C_BLOCK_READ:
-        if (read) {
-            int xfersize = s->smb_data0;
-            if (xfersize > sizeof(s->smb_data)) {
-                xfersize = sizeof(s->smb_data);
-            }
-            ret = smbus_read_block(bus, addr, s->smb_data1, s->smb_data,
-                                   xfersize, false, true);
-            goto data8;
-        } else {
-            /* The manual says the behavior is undefined, just set DEV_ERR. */
+        /* According to the Linux i2c-i801 driver:
+         *   NB: page 240 of ICH5 datasheet shows that the R/#W
+         *   bit should be cleared here, even when reading.
+         *   However if SPD Write Disable is set (Lynx Point and later),
+         *   the read will fail if we don't set the R/#W bit.
+         * So at least Linux may or may not set the read bit here.
+         * So just ignore the read bit for this command.
+         */
+        if (i2c_start_transfer(bus, addr, 0)) {
             goto error;
         }
-        break;
+        ret = i2c_send(bus, s->smb_data1);
+        if (ret) {
+            goto error;
+        }
+        if (i2c_start_transfer(bus, addr, 1)) {
+            goto error;
+        }
+        s->in_i2c_block_read = true;
+        s->smb_blkdata = i2c_recv(s->smbus);
+        s->op_done = false;
+        s->smb_stat |= STS_HOST_BUSY | STS_BYTE_DONE;
+        goto out;
+
     case PROT_BLOCK_DATA:
         if (read) {
             ret = smbus_read_block(bus, addr, cmd, s->smb_data,
@@ -208,6 +220,7 @@ static void smb_transaction_start(PMSMBus *s)
 {
     if (s->smb_ctl & CTL_INTREN) {
         smb_transaction(s);
+        s->start_transaction_on_status_read = false;
     } else {
         /* Do not execute immediately the command; it will be
          * executed when guest will read SMB_STAT register.  This
@@ -217,6 +230,7 @@ static void smb_transaction_start(PMSMBus *s)
          * checking for status.  If STS_HOST_BUSY doesn't get
          * set, it gets stuck. */
         s->smb_stat |= STS_HOST_BUSY;
+        s->start_transaction_on_status_read = true;
     }
 }
 
@@ -226,18 +240,37 @@ smb_irq_value(PMSMBus *s)
     return ((s->smb_stat & ~STS_HOST_BUSY) != 0) && (s->smb_ctl & CTL_INTREN);
 }
 
+static bool
+smb_byte_by_byte(PMSMBus *s)
+{
+    if (s->op_done) {
+        return false;
+    }
+    if (s->in_i2c_block_read) {
+        return true;
+    }
+    return !(s->smb_auxctl & AUX_BLK);
+}
+
 static void smb_ioport_writeb(void *opaque, hwaddr addr, uint64_t val,
                               unsigned width)
 {
     PMSMBus *s = opaque;
+    uint8_t clear_byte_done;
 
     SMBUS_DPRINTF("SMB writeb port=0x%04" HWADDR_PRIx
                   " val=0x%02" PRIx64 "\n", addr, val);
     switch(addr) {
     case SMBHSTSTS:
+        clear_byte_done = s->smb_stat & val & STS_BYTE_DONE;
         s->smb_stat &= ~(val & ~STS_HOST_BUSY);
-        if (!s->op_done && !(s->smb_auxctl & AUX_BLK)) {
+        if (clear_byte_done && smb_byte_by_byte(s)) {
             uint8_t read = s->smb_addr & 0x01;
+
+            if (s->in_i2c_block_read) {
+                /* See comment below PROT_I2C_BLOCK_READ above. */
+                read = 1;
+            }
 
             s->smb_index++;
             if (s->smb_index >= PM_SMBUS_MAX_MSG_SIZE) {
@@ -268,12 +301,23 @@ static void smb_ioport_writeb(void *opaque, hwaddr addr, uint64_t val,
                 s->smb_stat |= STS_BYTE_DONE;
             } else if (s->smb_ctl & CTL_LAST_BYTE) {
                 s->op_done = true;
-                s->smb_blkdata = s->smb_data[s->smb_index];
+                if (s->in_i2c_block_read) {
+                    s->in_i2c_block_read = false;
+                    s->smb_blkdata = i2c_recv(s->smbus);
+                    i2c_nack(s->smbus);
+                    i2c_end_transfer(s->smbus);
+                } else {
+                    s->smb_blkdata = s->smb_data[s->smb_index];
+                }
                 s->smb_index = 0;
                 s->smb_stat |= STS_INTR;
                 s->smb_stat &= ~STS_HOST_BUSY;
             } else {
-                s->smb_blkdata = s->smb_data[s->smb_index];
+                if (s->in_i2c_block_read) {
+                    s->smb_blkdata = i2c_recv(s->smbus);
+                } else {
+                    s->smb_blkdata = s->smb_data[s->smb_index];
+                }
                 s->smb_stat |= STS_BYTE_DONE;
             }
         }
@@ -284,6 +328,10 @@ static void smb_ioport_writeb(void *opaque, hwaddr addr, uint64_t val,
             if (!s->op_done) {
                 s->smb_index = 0;
                 s->op_done = true;
+                if (s->in_i2c_block_read) {
+                    s->in_i2c_block_read = false;
+                    i2c_end_transfer(s->smbus);
+                }
             }
             smb_transaction_start(s);
         }
@@ -337,8 +385,9 @@ static uint64_t smb_ioport_readb(void *opaque, hwaddr addr, unsigned width)
     switch(addr) {
     case SMBHSTSTS:
         val = s->smb_stat;
-        if (s->smb_stat & STS_HOST_BUSY) {
+        if (s->start_transaction_on_status_read) {
             /* execute command now */
+            s->start_transaction_on_status_read = false;
             s->smb_stat &= ~STS_HOST_BUSY;
             smb_transaction(s);
         }
@@ -359,10 +408,10 @@ static uint64_t smb_ioport_readb(void *opaque, hwaddr addr, unsigned width)
         val = s->smb_data1;
         break;
     case SMBBLKDAT:
-        if (s->smb_index >= PM_SMBUS_MAX_MSG_SIZE) {
-            s->smb_index = 0;
-        }
-        if (s->smb_auxctl & AUX_BLK) {
+        if (s->smb_auxctl & AUX_BLK && !s->in_i2c_block_read) {
+            if (s->smb_index >= PM_SMBUS_MAX_MSG_SIZE) {
+                s->smb_index = 0;
+            }
             val = s->smb_data[s->smb_index++];
             if (!s->op_done && s->smb_index == s->smb_data0) {
                 s->op_done = true;
@@ -403,6 +452,36 @@ static const MemoryRegionOps pm_smbus_ops = {
     .valid.min_access_size = 1,
     .valid.max_access_size = 1,
     .endianness = DEVICE_LITTLE_ENDIAN,
+};
+
+bool pm_smbus_vmstate_needed(void)
+{
+    MachineClass *mc = MACHINE_GET_CLASS(qdev_get_machine());
+
+    return !mc->smbus_no_migration_support;
+}
+
+const VMStateDescription pmsmb_vmstate = {
+    .name = "pmsmb",
+    .version_id = 1,
+    .minimum_version_id = 1,
+    .fields = (VMStateField[]) {
+        VMSTATE_UINT8(smb_stat, PMSMBus),
+        VMSTATE_UINT8(smb_ctl, PMSMBus),
+        VMSTATE_UINT8(smb_cmd, PMSMBus),
+        VMSTATE_UINT8(smb_addr, PMSMBus),
+        VMSTATE_UINT8(smb_data0, PMSMBus),
+        VMSTATE_UINT8(smb_data1, PMSMBus),
+        VMSTATE_UINT32(smb_index, PMSMBus),
+        VMSTATE_UINT8_ARRAY(smb_data, PMSMBus, PM_SMBUS_MAX_MSG_SIZE),
+        VMSTATE_UINT8(smb_auxctl, PMSMBus),
+        VMSTATE_UINT8(smb_blkdata, PMSMBus),
+        VMSTATE_BOOL(i2c_enable, PMSMBus),
+        VMSTATE_BOOL(op_done, PMSMBus),
+        VMSTATE_BOOL(in_i2c_block_read, PMSMBus),
+        VMSTATE_BOOL(start_transaction_on_status_read, PMSMBus),
+        VMSTATE_END_OF_LIST()
+    }
 };
 
 void pm_smbus_init(DeviceState *parent, PMSMBus *smb, bool force_aux_blk)

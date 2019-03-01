@@ -2192,6 +2192,18 @@ M: Viktor Prutyanov <viktor.prutyanov@phystech.edu>
 S: Maintained
 F: contrib/elf2dmp/
 
+I2C and SMBus
+M: Corey Minyard <cminyard@mvista.com>
+S: Maintained
+F: hw/i2c/core.c
+F: hw/i2c/smbus_slave.c
+F: hw/i2c/smbus_master.c
+F: hw/i2c/smbus_eeprom.c
+F: include/hw/i2c/i2c.h
+F: include/hw/i2c/smbus_master.h
+F: include/hw/i2c/smbus_slave.h
+F: include/hw/i2c/smbus_eeprom.h
+
 Usermode Emulation
 ------------------
 Overall

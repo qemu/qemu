@@ -74,10 +74,10 @@ int at24c_eeprom_event(I2CSlave *s, enum i2c_event event)
 }
 
 static
-int at24c_eeprom_recv(I2CSlave *s)
+uint8_t at24c_eeprom_recv(I2CSlave *s)
 {
     EEPROMState *ee = AT24C_EE(s);
-    int ret;
+    uint8_t ret;
 
     ret = ee->mem[ee->cur];
 

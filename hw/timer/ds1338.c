@@ -117,7 +117,7 @@ static int ds1338_event(I2CSlave *i2c, enum i2c_event event)
     return 0;
 }
 
-static int ds1338_recv(I2CSlave *i2c)
+static uint8_t ds1338_recv(I2CSlave *i2c)
 {
     DS1338State *s = DS1338(i2c);
     uint8_t res;

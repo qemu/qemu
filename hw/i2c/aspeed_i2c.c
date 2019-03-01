@@ -189,16 +189,11 @@ static uint8_t aspeed_i2c_get_state(AspeedI2CBus *bus)
 
 static void aspeed_i2c_handle_rx_cmd(AspeedI2CBus *bus)
 {
-    int ret;
+    uint8_t ret;
 
     aspeed_i2c_set_state(bus, I2CD_MRXD);
     ret = i2c_recv(bus->bus);
-    if (ret < 0) {
-        qemu_log_mask(LOG_GUEST_ERROR, "%s: read failed\n", __func__);
-        ret = 0xff;
-    } else {
-        bus->intr_status |= I2CD_INTR_RX_DONE;
-    }
+    bus->intr_status |= I2CD_INTR_RX_DONE;
     bus->buf = (ret & I2CD_BYTE_BUF_RX_MASK) << I2CD_BYTE_BUF_RX_SHIFT;
     if (bus->cmd & I2CD_M_S_RX_CMD_LAST) {
         i2c_nack(bus->bus);

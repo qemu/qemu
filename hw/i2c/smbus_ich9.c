@@ -29,8 +29,6 @@
 #include "hw/i2c/pm_smbus.h"
 #include "hw/pci/pci.h"
 #include "sysemu/sysemu.h"
-#include "hw/i2c/i2c.h"
-#include "hw/i2c/smbus.h"
 
 #include "hw/i386/ich9.h"
 
@@ -45,12 +43,20 @@ typedef struct ICH9SMBState {
     PMSMBus smb;
 } ICH9SMBState;
 
+static bool ich9_vmstate_need_smbus(void *opaque, int version_id)
+{
+    return pm_smbus_vmstate_needed();
+}
+
 static const VMStateDescription vmstate_ich9_smbus = {
     .name = "ich9_smb",
     .version_id = 1,
     .minimum_version_id = 1,
     .fields = (VMStateField[]) {
-        VMSTATE_PCI_DEVICE(dev, struct ICH9SMBState),
+        VMSTATE_PCI_DEVICE(dev, ICH9SMBState),
+        VMSTATE_BOOL_TEST(irq_enabled, ICH9SMBState, ich9_vmstate_need_smbus),
+        VMSTATE_STRUCT_TEST(smb, ICH9SMBState, ich9_vmstate_need_smbus, 1,
+                            pmsmb_vmstate, PMSMBus),
         VMSTATE_END_OF_LIST()
     }
 };

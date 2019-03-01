@@ -737,7 +737,7 @@ static int menelaus_tx(I2CSlave *i2c, uint8_t data)
     return 0;
 }
 
-static int menelaus_rx(I2CSlave *i2c)
+static uint8_t menelaus_rx(I2CSlave *i2c)
 {
     MenelausState *s = TWL92230(i2c);
 

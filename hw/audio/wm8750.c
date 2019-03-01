@@ -561,7 +561,7 @@ static int wm8750_tx(I2CSlave *i2c, uint8_t data)
     return 0;
 }
 
-static int wm8750_rx(I2CSlave *i2c)
+static uint8_t wm8750_rx(I2CSlave *i2c)
 {
     return 0x00;
 }

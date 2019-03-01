@@ -26,39 +26,35 @@
 #include "qemu/units.h"
 #include "qapi/error.h"
 #include "hw/hw.h"
+#include "hw/boards.h"
 #include "hw/i2c/i2c.h"
-#include "hw/i2c/smbus.h"
+#include "hw/i2c/smbus_slave.h"
+#include "hw/i2c/smbus_eeprom.h"
 
 //#define DEBUG
 
+#define TYPE_SMBUS_EEPROM "smbus-eeprom"
+
+#define SMBUS_EEPROM(obj) \
+    OBJECT_CHECK(SMBusEEPROMDevice, (obj), TYPE_SMBUS_EEPROM)
+
+#define SMBUS_EEPROM_SIZE 256
+
 typedef struct SMBusEEPROMDevice {
     SMBusDevice smbusdev;
-    void *data;
+    uint8_t data[SMBUS_EEPROM_SIZE];
+    void *init_data;
     uint8_t offset;
+    bool accessed;
 } SMBusEEPROMDevice;
-
-static void eeprom_quick_cmd(SMBusDevice *dev, uint8_t read)
-{
-#ifdef DEBUG
-    printf("eeprom_quick_cmd: addr=0x%02x read=%d\n", dev->i2c.address, read);
-#endif
-}
-
-static void eeprom_send_byte(SMBusDevice *dev, uint8_t val)
-{
-    SMBusEEPROMDevice *eeprom = (SMBusEEPROMDevice *) dev;
-#ifdef DEBUG
-    printf("eeprom_send_byte: addr=0x%02x val=0x%02x\n",
-           dev->i2c.address, val);
-#endif
-    eeprom->offset = val;
-}
 
 static uint8_t eeprom_receive_byte(SMBusDevice *dev)
 {
-    SMBusEEPROMDevice *eeprom = (SMBusEEPROMDevice *) dev;
+    SMBusEEPROMDevice *eeprom = SMBUS_EEPROM(dev);
     uint8_t *data = eeprom->data;
     uint8_t val = data[eeprom->offset++];
+
+    eeprom->accessed = true;
 #ifdef DEBUG
     printf("eeprom_receive_byte: addr=0x%02x val=0x%02x\n",
            dev->i2c.address, val);
@@ -66,48 +62,77 @@ static uint8_t eeprom_receive_byte(SMBusDevice *dev)
     return val;
 }
 
-static void eeprom_write_data(SMBusDevice *dev, uint8_t cmd, uint8_t *buf, int len)
+static int eeprom_write_data(SMBusDevice *dev, uint8_t *buf, uint8_t len)
 {
-    SMBusEEPROMDevice *eeprom = (SMBusEEPROMDevice *) dev;
-    int n;
+    SMBusEEPROMDevice *eeprom = SMBUS_EEPROM(dev);
+    uint8_t *data = eeprom->data;
+
+    eeprom->accessed = true;
 #ifdef DEBUG
     printf("eeprom_write_byte: addr=0x%02x cmd=0x%02x val=0x%02x\n",
-           dev->i2c.address, cmd, buf[0]);
+           dev->i2c.address, buf[0], buf[1]);
 #endif
-    /* A page write operation is not a valid SMBus command.
-       It is a block write without a length byte.  Fortunately we
-       get the full block anyway.  */
-    /* TODO: Should this set the current location?  */
-    if (cmd + len > 256)
-        n = 256 - cmd;
-    else
-        n = len;
-    memcpy(eeprom->data + cmd, buf, n);
-    len -= n;
-    if (len)
-        memcpy(eeprom->data, buf + n, len);
+    /* len is guaranteed to be > 0 */
+    eeprom->offset = buf[0];
+    buf++;
+    len--;
+
+    for (; len > 0; len--) {
+        data[eeprom->offset] = *buf++;
+        eeprom->offset = (eeprom->offset + 1) % SMBUS_EEPROM_SIZE;
+    }
+
+    return 0;
 }
 
-static uint8_t eeprom_read_data(SMBusDevice *dev, uint8_t cmd, int n)
+static bool smbus_eeprom_vmstate_needed(void *opaque)
 {
-    SMBusEEPROMDevice *eeprom = (SMBusEEPROMDevice *) dev;
-    /* If this is the first byte then set the current position.  */
-    if (n == 0)
-        eeprom->offset = cmd;
-    /* As with writes, we implement block reads without the
-       SMBus length byte.  */
-    return eeprom_receive_byte(dev);
+    MachineClass *mc = MACHINE_GET_CLASS(qdev_get_machine());
+    SMBusEEPROMDevice *eeprom = opaque;
+
+    return (eeprom->accessed || smbus_vmstate_needed(&eeprom->smbusdev)) &&
+        !mc->smbus_no_migration_support;
+}
+
+static const VMStateDescription vmstate_smbus_eeprom = {
+    .name = "smbus-eeprom",
+    .version_id = 1,
+    .minimum_version_id = 1,
+    .needed = smbus_eeprom_vmstate_needed,
+    .fields      = (VMStateField[]) {
+        VMSTATE_SMBUS_DEVICE(smbusdev, SMBusEEPROMDevice),
+        VMSTATE_UINT8_ARRAY(data, SMBusEEPROMDevice, SMBUS_EEPROM_SIZE),
+        VMSTATE_UINT8(offset, SMBusEEPROMDevice),
+        VMSTATE_BOOL(accessed, SMBusEEPROMDevice),
+        VMSTATE_END_OF_LIST()
+    }
+};
+
+/*
+ * Reset the EEPROM contents to the initial state on a reset.  This
+ * isn't really how an EEPROM works, of course, but the general
+ * principle of QEMU is to restore function on reset to what it would
+ * be if QEMU was stopped and started.
+ *
+ * The proper thing to do would be to have a backing blockdev to hold
+ * the contents and restore that on startup, and not do this on reset.
+ * But until that time, act as if we had been stopped and restarted.
+ */
+static void smbus_eeprom_reset(DeviceState *dev)
+{
+    SMBusEEPROMDevice *eeprom = SMBUS_EEPROM(dev);
+
+    memcpy(eeprom->data, eeprom->init_data, SMBUS_EEPROM_SIZE);
+    eeprom->offset = 0;
 }
 
 static void smbus_eeprom_realize(DeviceState *dev, Error **errp)
 {
-    SMBusEEPROMDevice *eeprom = (SMBusEEPROMDevice *)dev;
-
-    eeprom->offset = 0;
+    smbus_eeprom_reset(dev);
 }
 
 static Property smbus_eeprom_properties[] = {
-    DEFINE_PROP_PTR("data", SMBusEEPROMDevice, data),
+    DEFINE_PROP_PTR("data", SMBusEEPROMDevice, init_data),
     DEFINE_PROP_END_OF_LIST(),
 };
 
@@ -117,18 +142,17 @@ static void smbus_eeprom_class_initfn(ObjectClass *klass, void *data)
     SMBusDeviceClass *sc = SMBUS_DEVICE_CLASS(klass);
 
     dc->realize = smbus_eeprom_realize;
-    sc->quick_cmd = eeprom_quick_cmd;
-    sc->send_byte = eeprom_send_byte;
+    dc->reset = smbus_eeprom_reset;
     sc->receive_byte = eeprom_receive_byte;
     sc->write_data = eeprom_write_data;
-    sc->read_data = eeprom_read_data;
     dc->props = smbus_eeprom_properties;
+    dc->vmsd = &vmstate_smbus_eeprom;
     /* Reason: pointer property "data" */
     dc->user_creatable = false;
 }
 
 static const TypeInfo smbus_eeprom_info = {
-    .name          = "smbus-eeprom",
+    .name          = TYPE_SMBUS_EEPROM,
     .parent        = TYPE_SMBUS_DEVICE,
     .instance_size = sizeof(SMBusEEPROMDevice),
     .class_init    = smbus_eeprom_class_initfn,
@@ -145,7 +169,7 @@ void smbus_eeprom_init_one(I2CBus *smbus, uint8_t address, uint8_t *eeprom_buf)
 {
     DeviceState *dev;
 
-    dev = qdev_create((BusState *) smbus, "smbus-eeprom");
+    dev = qdev_create((BusState *) smbus, TYPE_SMBUS_EEPROM);
     qdev_prop_set_uint8(dev, "address", address);
     qdev_prop_set_ptr(dev, "data", eeprom_buf);
     qdev_init_nofail(dev);
@@ -155,13 +179,17 @@ void smbus_eeprom_init(I2CBus *smbus, int nb_eeprom,
                        const uint8_t *eeprom_spd, int eeprom_spd_size)
 {
     int i;
-    uint8_t *eeprom_buf = g_malloc0(8 * 256); /* XXX: make this persistent */
+     /* XXX: make this persistent */
+
+    assert(nb_eeprom <= 8);
+    uint8_t *eeprom_buf = g_malloc0(8 * SMBUS_EEPROM_SIZE);
     if (eeprom_spd_size > 0) {
         memcpy(eeprom_buf, eeprom_spd, eeprom_spd_size);
     }
 
     for (i = 0; i < nb_eeprom; i++) {
-        smbus_eeprom_init_one(smbus, 0x50 + i, eeprom_buf + (i * 256));
+        smbus_eeprom_init_one(smbus, 0x50 + i,
+                              eeprom_buf + (i * SMBUS_EEPROM_SIZE));
     }
 }
 

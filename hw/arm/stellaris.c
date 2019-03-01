@@ -811,7 +811,7 @@ static void stellaris_i2c_write(void *opaque, hwaddr offset,
             /* TODO: Handle errors.  */
             if (s->msa & 1) {
                 /* Recv */
-                s->mdr = i2c_recv(s->bus) & 0xff;
+                s->mdr = i2c_recv(s->bus);
             } else {
                 /* Send */
                 i2c_send(s->bus, s->mdr);

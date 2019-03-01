@@ -1,8 +1,5 @@
-#ifndef QEMU_SMBUS_H
-#define QEMU_SMBUS_H
-
 /*
- * QEMU SMBus API
+ * QEMU SMBus host (master) API
  *
  * Copyright (c) 2007 Arastra, Inc.
  *
@@ -25,46 +22,10 @@
  * THE SOFTWARE.
  */
 
+#ifndef HW_SMBUS_MASTER_H
+#define HW_SMBUS_MASTER_H
+
 #include "hw/i2c/i2c.h"
-
-#define TYPE_SMBUS_DEVICE "smbus-device"
-#define SMBUS_DEVICE(obj) \
-     OBJECT_CHECK(SMBusDevice, (obj), TYPE_SMBUS_DEVICE)
-#define SMBUS_DEVICE_CLASS(klass) \
-     OBJECT_CLASS_CHECK(SMBusDeviceClass, (klass), TYPE_SMBUS_DEVICE)
-#define SMBUS_DEVICE_GET_CLASS(obj) \
-     OBJECT_GET_CLASS(SMBusDeviceClass, (obj), TYPE_SMBUS_DEVICE)
-
-typedef struct SMBusDevice SMBusDevice;
-
-typedef struct SMBusDeviceClass
-{
-    I2CSlaveClass parent_class;
-    void (*quick_cmd)(SMBusDevice *dev, uint8_t read);
-    void (*send_byte)(SMBusDevice *dev, uint8_t val);
-    uint8_t (*receive_byte)(SMBusDevice *dev);
-    /* We can't distinguish between a word write and a block write with
-       length 1, so pass the whole data block including the length byte
-       (if present).  The device is responsible figuring out what type of
-       command  this is.  */
-    void (*write_data)(SMBusDevice *dev, uint8_t cmd, uint8_t *buf, int len);
-    /* Likewise we can't distinguish between different reads, or even know
-       the length of the read until the read is complete, so read data a
-       byte at a time.  The device is responsible for adding the length
-       byte on block reads.  */
-    uint8_t (*read_data)(SMBusDevice *dev, uint8_t cmd, int n);
-} SMBusDeviceClass;
-
-struct SMBusDevice {
-    /* The SMBus protocol is implemented on top of I2C.  */
-    I2CSlave i2c;
-
-    /* Remaining fields for internal use only.  */
-    int mode;
-    int data_len;
-    uint8_t data_buf[34]; /* command + len + 32 bytes of data.  */
-    uint8_t command;
-};
 
 /* Master device commands.  */
 int smbus_quick_command(I2CBus *bus, uint8_t addr, int read);
@@ -90,12 +51,5 @@ int smbus_read_block(I2CBus *bus, uint8_t addr, uint8_t command, uint8_t *data,
  */
 int smbus_write_block(I2CBus *bus, uint8_t addr, uint8_t command, uint8_t *data,
                       int len, bool send_len);
-
-void smbus_eeprom_init_one(I2CBus *smbus, uint8_t address, uint8_t *eeprom_buf);
-void smbus_eeprom_init(I2CBus *smbus, int nb_eeprom,
-                       const uint8_t *eeprom_spd, int size);
-
-enum sdram_type { SDR = 0x4, DDR = 0x7, DDR2 = 0x8 };
-uint8_t *spd_data_generate(enum sdram_type type, ram_addr_t size, Error **errp);
 
 #endif
