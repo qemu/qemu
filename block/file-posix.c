@@ -376,13 +376,21 @@ static void raw_probe_alignment(BlockDriverState *bs, int fd, Error **errp)
     }
 }
 
-static void raw_parse_flags(int bdrv_flags, int *open_flags)
+static void raw_parse_flags(int bdrv_flags, int *open_flags, bool has_writers)
 {
+    bool read_write = false;
     assert(open_flags != NULL);
 
     *open_flags |= O_BINARY;
     *open_flags &= ~O_ACCMODE;
-    if (bdrv_flags & BDRV_O_RDWR) {
+
+    if (bdrv_flags & BDRV_O_AUTO_RDONLY) {
+        read_write = has_writers;
+    } else if (bdrv_flags & BDRV_O_RDWR) {
+        read_write = true;
+    }
+
+    if (read_write) {
         *open_flags |= O_RDWR;
     } else {
         *open_flags |= O_RDONLY;
@@ -518,23 +526,11 @@ static int raw_open_common(BlockDriverState *bs, QDict *options,
                                                false);
 
     s->open_flags = open_flags;
-    raw_parse_flags(bdrv_flags, &s->open_flags);
+    raw_parse_flags(bdrv_flags, &s->open_flags, false);
 
     s->fd = -1;
     fd = qemu_open(filename, s->open_flags, 0644);
     ret = fd < 0 ? -errno : 0;
-
-    if (ret == -EACCES || ret == -EROFS) {
-        /* Try to degrade to read-only, but if it doesn't work, still use the
-         * normal error message. */
-        if (bdrv_apply_auto_read_only(bs, NULL, NULL) == 0) {
-            bdrv_flags &= ~BDRV_O_RDWR;
-            raw_parse_flags(bdrv_flags, &s->open_flags);
-            assert(!(s->open_flags & O_CREAT));
-            fd = qemu_open(filename, s->open_flags);
-            ret = fd < 0 ? -errno : 0;
-        }
-    }
 
     if (ret < 0) {
         error_setg_errno(errp, -ret, "Could not open '%s'", filename);
@@ -846,12 +842,14 @@ static int raw_handle_perm_lock(BlockDriverState *bs,
 }
 
 static int raw_reconfigure_getfd(BlockDriverState *bs, int flags,
-                                 int *open_flags, bool force_dup,
+                                 int *open_flags, uint64_t perm, bool force_dup,
                                  Error **errp)
 {
     BDRVRawState *s = bs->opaque;
     int fd = -1;
     int ret;
+    bool has_writers = perm &
+        (BLK_PERM_WRITE | BLK_PERM_WRITE_UNCHANGED | BLK_PERM_RESIZE);
     int fcntl_flags = O_APPEND | O_NONBLOCK;
 #ifdef O_NOATIME
     fcntl_flags |= O_NOATIME;
@@ -862,7 +860,7 @@ static int raw_reconfigure_getfd(BlockDriverState *bs, int flags,
         *open_flags |= O_NONBLOCK;
     }
 
-    raw_parse_flags(flags, open_flags);
+    raw_parse_flags(flags, open_flags, has_writers);
 
 #ifdef O_ASYNC
     /* Not all operating systems have O_ASYNC, and those that don't
@@ -942,7 +940,7 @@ static int raw_reopen_prepare(BDRVReopenState *state,
     qemu_opts_to_qdict(opts, state->options);
 
     rs->fd = raw_reconfigure_getfd(state->bs, state->flags, &rs->open_flags,
-                                   true, &local_err);
+                                   state->perm, true, &local_err);
     if (local_err) {
         error_propagate(errp, local_err);
         ret = -1;
@@ -2720,7 +2718,7 @@ static int raw_check_perm(BlockDriverState *bs, uint64_t perm, uint64_t shared,
         s->perm_change_fd = rs->fd;
     } else {
         /* We may need a new fd if auto-read-only switches the mode */
-        ret = raw_reconfigure_getfd(bs, bs->open_flags, &open_flags,
+        ret = raw_reconfigure_getfd(bs, bs->open_flags, &open_flags, perm,
                                     false, errp);
         if (ret < 0) {
             return ret;
