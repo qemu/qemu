@@ -1661,29 +1661,38 @@ static void handle_sync(DisasContext *s, uint32_t insn,
 static void handle_msr_i(DisasContext *s, uint32_t insn,
                          unsigned int op1, unsigned int op2, unsigned int crm)
 {
+    TCGv_i32 t1;
     int op = op1 << 3 | op2;
+
+    /* End the TB by default, chaining is ok.  */
+    s->base.is_jmp = DISAS_TOO_MANY;
+
     switch (op) {
     case 0x05: /* SPSel */
         if (s->current_el == 0) {
-            unallocated_encoding(s);
-            return;
+            goto do_unallocated;
         }
-        /* fall through */
-    case 0x1e: /* DAIFSet */
-    case 0x1f: /* DAIFClear */
-    {
-        TCGv_i32 tcg_imm = tcg_const_i32(crm);
-        TCGv_i32 tcg_op = tcg_const_i32(op);
-        gen_a64_set_pc_im(s->pc - 4);
-        gen_helper_msr_i_pstate(cpu_env, tcg_op, tcg_imm);
-        tcg_temp_free_i32(tcg_imm);
-        tcg_temp_free_i32(tcg_op);
-        /* For DAIFClear, exit the cpu loop to re-evaluate pending IRQs.  */
-        gen_a64_set_pc_im(s->pc);
-        s->base.is_jmp = (op == 0x1f ? DISAS_EXIT : DISAS_JUMP);
+        t1 = tcg_const_i32(crm & PSTATE_SP);
+        gen_helper_msr_i_spsel(cpu_env, t1);
+        tcg_temp_free_i32(t1);
         break;
-    }
+
+    case 0x1e: /* DAIFSet */
+        t1 = tcg_const_i32(crm);
+        gen_helper_msr_i_daifset(cpu_env, t1);
+        tcg_temp_free_i32(t1);
+        break;
+
+    case 0x1f: /* DAIFClear */
+        t1 = tcg_const_i32(crm);
+        gen_helper_msr_i_daifclear(cpu_env, t1);
+        tcg_temp_free_i32(t1);
+        /* For DAIFClear, exit the cpu loop to re-evaluate pending IRQs.  */
+        s->base.is_jmp = DISAS_UPDATE;
+        break;
+
     default:
+    do_unallocated:
         unallocated_encoding(s);
         return;
     }
