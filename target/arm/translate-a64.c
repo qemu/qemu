@@ -4494,22 +4494,16 @@ static void disas_data_proc_3src(DisasContext *s, uint32_t insn)
 }
 
 /* Add/subtract (with carry)
- *  31 30 29 28 27 26 25 24 23 22 21  20  16  15   10  9    5 4   0
- * +--+--+--+------------------------+------+---------+------+-----+
- * |sf|op| S| 1  1  0  1  0  0  0  0 |  rm  | opcode2 |  Rn  |  Rd |
- * +--+--+--+------------------------+------+---------+------+-----+
- *                                            [000000]
+ *  31 30 29 28 27 26 25 24 23 22 21  20  16  15       10  9    5 4   0
+ * +--+--+--+------------------------+------+-------------+------+-----+
+ * |sf|op| S| 1  1  0  1  0  0  0  0 |  rm  | 0 0 0 0 0 0 |  Rn  |  Rd |
+ * +--+--+--+------------------------+------+-------------+------+-----+
  */
 
 static void disas_adc_sbc(DisasContext *s, uint32_t insn)
 {
     unsigned int sf, op, setflags, rm, rn, rd;
     TCGv_i64 tcg_y, tcg_rn, tcg_rd;
-
-    if (extract32(insn, 10, 6) != 0) {
-        unallocated_encoding(s);
-        return;
-    }
 
     sf = extract32(insn, 31, 1);
     op = extract32(insn, 30, 1);
@@ -5164,47 +5158,69 @@ static void disas_data_proc_2src(DisasContext *s, uint32_t insn)
     }
 }
 
-/* Data processing - register */
+/*
+ * Data processing - register
+ *  31  30 29  28      25    21  20  16      10         0
+ * +--+---+--+---+-------+-----+-------+-------+---------+
+ * |  |op0|  |op1| 1 0 1 | op2 |       |  op3  |         |
+ * +--+---+--+---+-------+-----+-------+-------+---------+
+ */
 static void disas_data_proc_reg(DisasContext *s, uint32_t insn)
 {
-    switch (extract32(insn, 24, 5)) {
-    case 0x0a: /* Logical (shifted register) */
-        disas_logic_reg(s, insn);
-        break;
-    case 0x0b: /* Add/subtract */
-        if (insn & (1 << 21)) { /* (extended register) */
-            disas_add_sub_ext_reg(s, insn);
+    int op0 = extract32(insn, 30, 1);
+    int op1 = extract32(insn, 28, 1);
+    int op2 = extract32(insn, 21, 4);
+    int op3 = extract32(insn, 10, 6);
+
+    if (!op1) {
+        if (op2 & 8) {
+            if (op2 & 1) {
+                /* Add/sub (extended register) */
+                disas_add_sub_ext_reg(s, insn);
+            } else {
+                /* Add/sub (shifted register) */
+                disas_add_sub_reg(s, insn);
+            }
         } else {
-            disas_add_sub_reg(s, insn);
+            /* Logical (shifted register) */
+            disas_logic_reg(s, insn);
         }
-        break;
-    case 0x1b: /* Data-processing (3 source) */
-        disas_data_proc_3src(s, insn);
-        break;
-    case 0x1a:
-        switch (extract32(insn, 21, 3)) {
-        case 0x0: /* Add/subtract (with carry) */
+        return;
+    }
+
+    switch (op2) {
+    case 0x0:
+        switch (op3) {
+        case 0x00: /* Add/subtract (with carry) */
             disas_adc_sbc(s, insn);
             break;
-        case 0x2: /* Conditional compare */
-            disas_cc(s, insn); /* both imm and reg forms */
-            break;
-        case 0x4: /* Conditional select */
-            disas_cond_select(s, insn);
-            break;
-        case 0x6: /* Data-processing */
-            if (insn & (1 << 30)) { /* (1 source) */
-                disas_data_proc_1src(s, insn);
-            } else {            /* (2 source) */
-                disas_data_proc_2src(s, insn);
-            }
-            break;
+
         default:
-            unallocated_encoding(s);
-            break;
+            goto do_unallocated;
         }
         break;
+
+    case 0x2: /* Conditional compare */
+        disas_cc(s, insn); /* both imm and reg forms */
+        break;
+
+    case 0x4: /* Conditional select */
+        disas_cond_select(s, insn);
+        break;
+
+    case 0x6: /* Data-processing */
+        if (op0) {    /* (1 source) */
+            disas_data_proc_1src(s, insn);
+        } else {      /* (2 source) */
+            disas_data_proc_2src(s, insn);
+        }
+        break;
+    case 0x8 ... 0xf: /* (3 source) */
+        disas_data_proc_3src(s, insn);
+        break;
+
     default:
+    do_unallocated:
         unallocated_encoding(s);
         break;
     }
