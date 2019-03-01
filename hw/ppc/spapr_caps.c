@@ -394,6 +394,7 @@ static void cap_large_decr_apply(sPAPRMachineState *spapr,
                                  uint8_t val, Error **errp)
 {
     PowerPCCPU *cpu = POWERPC_CPU(first_cpu);
+    PowerPCCPUClass *pcc = POWERPC_CPU_GET_CLASS(cpu);
 
     if (!val) {
         return; /* Disabled by default */
@@ -406,9 +407,17 @@ static void cap_large_decr_apply(sPAPRMachineState *spapr,
                 "Large decrementer only supported on POWER9, try -cpu POWER9");
             return;
         }
-    } else {
-        error_setg(errp,
-                   "No large decrementer support, try cap-large-decr=off");
+    } else if (kvm_enabled()) {
+        int kvm_nr_bits = kvmppc_get_cap_large_decr();
+
+        if (!kvm_nr_bits) {
+            error_setg(errp,
+                       "No large decrementer support, try cap-large-decr=off");
+        } else if (pcc->lrg_decr_bits != kvm_nr_bits) {
+            error_setg(errp,
+"KVM large decrementer size (%d) differs to model (%d), try -cap-large-decr=off",
+                kvm_nr_bits, pcc->lrg_decr_bits);
+        }
     }
 }
 
@@ -418,6 +427,13 @@ static void cap_large_decr_cpu_apply(sPAPRMachineState *spapr,
 {
     CPUPPCState *env = &cpu->env;
     target_ulong lpcr = env->spr[SPR_LPCR];
+
+    if (kvm_enabled()) {
+        if (kvmppc_enable_cap_large_decr(cpu, val)) {
+            error_setg(errp,
+                       "No large decrementer support, try cap-large-decr=off");
+        }
+    }
 
     if (val) {
         lpcr |= LPCR_LD;

@@ -91,6 +91,7 @@ static int cap_ppc_safe_cache;
 static int cap_ppc_safe_bounds_check;
 static int cap_ppc_safe_indirect_branch;
 static int cap_ppc_nested_kvm_hv;
+static int cap_large_decr;
 
 static uint32_t debug_inst_opcode;
 
@@ -124,6 +125,7 @@ static bool kvmppc_is_pr(KVMState *ks)
 
 static int kvm_ppc_register_host_cpu_type(MachineState *ms);
 static void kvmppc_get_cpu_characteristics(KVMState *s);
+static int kvmppc_get_dec_bits(void);
 
 int kvm_arch_init(MachineState *ms, KVMState *s)
 {
@@ -151,6 +153,7 @@ int kvm_arch_init(MachineState *ms, KVMState *s)
     cap_resize_hpt = kvm_vm_check_extension(s, KVM_CAP_SPAPR_RESIZE_HPT);
     kvmppc_get_cpu_characteristics(s);
     cap_ppc_nested_kvm_hv = kvm_vm_check_extension(s, KVM_CAP_PPC_NESTED_HV);
+    cap_large_decr = kvmppc_get_dec_bits();
     /*
      * Note: setting it to false because there is not such capability
      * in KVM at this moment.
@@ -1927,6 +1930,16 @@ uint64_t kvmppc_get_clockfreq(void)
     return kvmppc_read_int_cpu_dt("clock-frequency");
 }
 
+static int kvmppc_get_dec_bits(void)
+{
+    int nr_bits = kvmppc_read_int_cpu_dt("ibm,dec-bits");
+
+    if (nr_bits > 0) {
+        return nr_bits;
+    }
+    return 0;
+}
+
 static int kvmppc_get_pvinfo(CPUPPCState *env, struct kvm_ppc_pvinfo *pvinfo)
  {
      PowerPCCPU *cpu = ppc_env_get_cpu(env);
@@ -2440,6 +2453,35 @@ int kvmppc_set_cap_nested_kvm_hv(int enable)
 bool kvmppc_has_cap_spapr_vfio(void)
 {
     return cap_spapr_vfio;
+}
+
+int kvmppc_get_cap_large_decr(void)
+{
+    return cap_large_decr;
+}
+
+int kvmppc_enable_cap_large_decr(PowerPCCPU *cpu, int enable)
+{
+    CPUState *cs = CPU(cpu);
+    uint64_t lpcr;
+
+    kvm_get_one_reg(cs, KVM_REG_PPC_LPCR_64, &lpcr);
+    /* Do we need to modify the LPCR? */
+    if (!!(lpcr & LPCR_LD) != !!enable) {
+        if (enable) {
+            lpcr |= LPCR_LD;
+        } else {
+            lpcr &= ~LPCR_LD;
+        }
+        kvm_set_one_reg(cs, KVM_REG_PPC_LPCR_64, &lpcr);
+        kvm_get_one_reg(cs, KVM_REG_PPC_LPCR_64, &lpcr);
+
+        if (!!(lpcr & LPCR_LD) != !!enable) {
+            return -1;
+        }
+    }
+
+    return 0;
 }
 
 PowerPCCPUClass *kvm_ppc_get_host_cpu_class(void)
