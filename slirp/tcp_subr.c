@@ -660,10 +660,12 @@ tcp_emu(struct socket *so, struct mbuf *m)
 						    tmpso->so_fport == n1) {
 							if (getsockname(tmpso->s,
 								(struct sockaddr *)&addr, &addrlen) == 0)
-							   n2 = ntohs(addr.sin_port);
+							   n2 = addr.sin_port;
 							break;
 						}
 					}
+					NTOHS(n1);
+					NTOHS(n2);
 					so_rcv->sb_cc = snprintf(so_rcv->sb_data,
 								 so_rcv->sb_datalen,
 								 "%d,%d\r\n", n1, n2);
