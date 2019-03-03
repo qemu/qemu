@@ -231,7 +231,7 @@ static void curses_refresh(DisplayChangeListener *dcl)
         keycode = curses2keycode[chr];
         keycode_alt = 0;
 
-        /* alt key */
+        /* alt or esc key */
         if (keycode == 1) {
             int nextchr = getch();
 
@@ -361,6 +361,7 @@ static void curses_setup(void)
     initscr(); noecho(); intrflush(stdscr, FALSE);
     nodelay(stdscr, TRUE); nonl(); keypad(stdscr, TRUE);
     start_color(); raw(); scrollok(stdscr, FALSE);
+    set_escdelay(25);
 
     /* Make color pair to match color format (3bits bg:3bits fg) */
     for (i = 0; i < 64; i++) {
