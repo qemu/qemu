@@ -101,7 +101,9 @@ typedef struct LowCore {
     /* whether the kernel died with panic() or not */
     uint32_t        panic_magic;              /* 0xe00 */
 
-    uint8_t         pad13[0x11b8 - 0xe04];    /* 0xe04 */
+    uint8_t         pad13[0x11b0 - 0xe04];    /* 0xe04 */
+
+    uint64_t        mcesad;                    /* 0x11B0 */
 
     /* 64 bit extparam used for pfault, diag 250 etc  */
     uint64_t        ext_params2;               /* 0x11B8 */
@@ -234,6 +236,7 @@ enum cc_op {
     CC_OP_SLA_32,               /* Calculate shift left signed (32bit) */
     CC_OP_SLA_64,               /* Calculate shift left signed (64bit) */
     CC_OP_FLOGR,                /* find leftmost one */
+    CC_OP_LCBB,                 /* load count to block boundary */
     CC_OP_MAX
 };
 
@@ -308,6 +311,15 @@ void s390x_cpu_do_unaligned_access(CPUState *cs, vaddr addr,
 uint32_t set_cc_nz_f32(float32 v);
 uint32_t set_cc_nz_f64(float64 v);
 uint32_t set_cc_nz_f128(float128 v);
+#define S390_IEEE_MASK_INVALID   0x80
+#define S390_IEEE_MASK_DIVBYZERO 0x40
+#define S390_IEEE_MASK_OVERFLOW  0x20
+#define S390_IEEE_MASK_UNDERFLOW 0x10
+#define S390_IEEE_MASK_INEXACT   0x08
+#define S390_IEEE_MASK_QUANTUM   0x04
+uint8_t s390_softfloat_exc_to_ieee(unsigned int exc);
+int s390_swap_bfp_rounding_mode(CPUS390XState *env, int m3);
+void s390_restore_bfp_rounding_mode(CPUS390XState *env, int old_mode);
 
 
 /* gdbstub.c */
