@@ -624,11 +624,16 @@ static int lo_do_lookup(fuse_req_t req, fuse_ino_t parent, const char *name,
     int res;
     int saverr;
     struct lo_data *lo = lo_data(req);
-    struct lo_inode *inode;
+    struct lo_inode *inode, *dir = lo_inode(req, parent);
 
     memset(e, 0, sizeof(*e));
     e->attr_timeout = lo->timeout;
     e->entry_timeout = lo->timeout;
+
+    /* Do not allow escaping root directory */
+    if (dir == &lo->root && strcmp(name, "..") == 0) {
+        name = ".";
+    }
 
     newfd = openat(lo_fd(req, parent), name, O_PATH | O_NOFOLLOW);
     if (newfd == -1) {
