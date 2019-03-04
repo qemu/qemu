@@ -38,6 +38,12 @@
 #define CMSDK_APB_WATCHDOG(obj) OBJECT_CHECK(CMSDKAPBWatchdog, (obj), \
                                               TYPE_CMSDK_APB_WATCHDOG)
 
+/*
+ * This shares the same struct (and cast macro) as the base
+ * cmsdk-apb-watchdog device.
+ */
+#define TYPE_LUMINARY_WATCHDOG "luminary-watchdog"
+
 typedef struct CMSDKAPBWatchdog {
     /*< private >*/
     SysBusDevice parent_obj;
@@ -46,6 +52,7 @@ typedef struct CMSDKAPBWatchdog {
     MemoryRegion iomem;
     qemu_irq wdogint;
     uint32_t wdogclk_frq;
+    bool is_luminary;
     struct ptimer_state *timer;
 
     uint32_t control;
@@ -54,6 +61,7 @@ typedef struct CMSDKAPBWatchdog {
     uint32_t itcr;
     uint32_t itop;
     uint32_t resetstatus;
+    const uint32_t *id;
 } CMSDKAPBWatchdog;
 
 #endif

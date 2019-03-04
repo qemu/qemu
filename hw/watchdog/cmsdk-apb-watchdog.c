@@ -14,6 +14,10 @@
  * System Design Kit (CMSDK) and documented in the Cortex-M System
  * Design Kit Technical Reference Manual (ARM DDI0479C):
  * https://developer.arm.com/products/system-design/system-design-kits/cortex-m-system-design-kit
+ *
+ * We also support the variant of this device found in the TI
+ * Stellaris/Luminary boards and documented in:
+ * http://www.ti.com/lit/ds/symlink/lm3s6965.pdf
  */
 
 #include "qemu/osdep.h"
@@ -37,6 +41,7 @@ REG32(WDOGINTCLR, 0xc)
 REG32(WDOGRIS, 0x10)
     FIELD(WDOGRIS, INT, 0, 1)
 REG32(WDOGMIS, 0x14)
+REG32(WDOGTEST, 0x418) /* only in Stellaris/Luminary version of the device */
 REG32(WDOGLOCK, 0xc00)
 #define WDOG_UNLOCK_VALUE 0x1ACCE551
 REG32(WDOGITCR, 0xf00)
@@ -61,9 +66,15 @@ REG32(CID2, 0xff8)
 REG32(CID3, 0xffc)
 
 /* PID/CID values */
-static const int watchdog_id[] = {
+static const uint32_t cmsdk_apb_watchdog_id[] = {
     0x04, 0x00, 0x00, 0x00, /* PID4..PID7 */
     0x24, 0xb8, 0x1b, 0x00, /* PID0..PID3 */
+    0x0d, 0xf0, 0x05, 0xb1, /* CID0..CID3 */
+};
+
+static const uint32_t luminary_watchdog_id[] = {
+    0x00, 0x00, 0x00, 0x00, /* PID4..PID7 */
+    0x05, 0x18, 0x18, 0x01, /* PID0..PID3 */
     0x0d, 0xf0, 0x05, 0xb1, /* CID0..CID3 */
 };
 
@@ -85,6 +96,10 @@ static void cmsdk_apb_watchdog_update(CMSDKAPBWatchdog *s)
     bool wdogres;
 
     if (s->itcr) {
+        /*
+         * Not checking that !s->is_luminary since s->itcr can't be written
+         * when s->is_luminary in the first place.
+         */
         wdogint = s->itop & R_WDOGITOP_WDOGINT_MASK;
         wdogres = s->itop & R_WDOGITOP_WDOGRES_MASK;
     } else {
@@ -124,19 +139,34 @@ static uint64_t cmsdk_apb_watchdog_read(void *opaque, hwaddr offset,
         r = s->lock;
         break;
     case A_WDOGITCR:
+        if (s->is_luminary) {
+            goto bad_offset;
+        }
         r = s->itcr;
         break;
     case A_PID4 ... A_CID3:
-        r = watchdog_id[(offset - A_PID4) / 4];
+        r = s->id[(offset - A_PID4) / 4];
         break;
     case A_WDOGINTCLR:
     case A_WDOGITOP:
+        if (s->is_luminary) {
+            goto bad_offset;
+        }
         qemu_log_mask(LOG_GUEST_ERROR,
                       "CMSDK APB watchdog read: read of WO offset %x\n",
                       (int)offset);
         r = 0;
         break;
+    case A_WDOGTEST:
+        if (!s->is_luminary) {
+            goto bad_offset;
+        }
+        qemu_log_mask(LOG_UNIMP,
+                      "Luminary watchdog read: stall not implemented\n");
+        r = 0;
+        break;
     default:
+bad_offset:
         qemu_log_mask(LOG_GUEST_ERROR,
                       "CMSDK APB watchdog read: bad offset %x\n", (int)offset);
         r = 0;
@@ -170,6 +200,14 @@ static void cmsdk_apb_watchdog_write(void *opaque, hwaddr offset,
         ptimer_run(s->timer, 0);
         break;
     case A_WDOGCONTROL:
+        if (s->is_luminary && 0 != (R_WDOGCONTROL_INTEN_MASK & s->control)) {
+            /*
+             * The Luminary version of this device ignores writes to
+             * this register after the guest has enabled interrupts
+             * (so they can only be disabled again via reset).
+             */
+            break;
+        }
         s->control = value & R_WDOGCONTROL_VALID_MASK;
         cmsdk_apb_watchdog_update(s);
         break;
@@ -182,10 +220,16 @@ static void cmsdk_apb_watchdog_write(void *opaque, hwaddr offset,
         s->lock = (value != WDOG_UNLOCK_VALUE);
         break;
     case A_WDOGITCR:
+        if (s->is_luminary) {
+            goto bad_offset;
+        }
         s->itcr = value & R_WDOGITCR_VALID_MASK;
         cmsdk_apb_watchdog_update(s);
         break;
     case A_WDOGITOP:
+        if (s->is_luminary) {
+            goto bad_offset;
+        }
         s->itop = value & R_WDOGITOP_VALID_MASK;
         cmsdk_apb_watchdog_update(s);
         break;
@@ -197,7 +241,15 @@ static void cmsdk_apb_watchdog_write(void *opaque, hwaddr offset,
                       "CMSDK APB watchdog write: write to RO offset 0x%x\n",
                       (int)offset);
         break;
+    case A_WDOGTEST:
+        if (!s->is_luminary) {
+            goto bad_offset;
+        }
+        qemu_log_mask(LOG_UNIMP,
+                      "Luminary watchdog write: stall not implemented\n");
+        break;
     default:
+bad_offset:
         qemu_log_mask(LOG_GUEST_ERROR,
                       "CMSDK APB watchdog write: bad offset 0x%x\n",
                       (int)offset);
@@ -256,6 +308,9 @@ static void cmsdk_apb_watchdog_init(Object *obj)
                           s, "cmsdk-apb-watchdog", 0x1000);
     sysbus_init_mmio(sbd, &s->iomem);
     sysbus_init_irq(sbd, &s->wdogint);
+
+    s->is_luminary = false;
+    s->id = cmsdk_apb_watchdog_id;
 }
 
 static void cmsdk_apb_watchdog_realize(DeviceState *dev, Error **errp)
@@ -318,9 +373,24 @@ static const TypeInfo cmsdk_apb_watchdog_info = {
     .class_init = cmsdk_apb_watchdog_class_init,
 };
 
+static void luminary_watchdog_init(Object *obj)
+{
+    CMSDKAPBWatchdog *s = CMSDK_APB_WATCHDOG(obj);
+
+    s->is_luminary = true;
+    s->id = luminary_watchdog_id;
+}
+
+static const TypeInfo luminary_watchdog_info = {
+    .name = TYPE_LUMINARY_WATCHDOG,
+    .parent = TYPE_CMSDK_APB_WATCHDOG,
+    .instance_init = luminary_watchdog_init
+};
+
 static void cmsdk_apb_watchdog_register_types(void)
 {
     type_register_static(&cmsdk_apb_watchdog_info);
+    type_register_static(&luminary_watchdog_info);
 }
 
 type_init(cmsdk_apb_watchdog_register_types);
