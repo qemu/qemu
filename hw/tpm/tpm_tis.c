@@ -106,17 +106,26 @@ static uint8_t tpm_tis_locality_from_addr(hwaddr addr)
 static void tpm_tis_show_buffer(const unsigned char *buffer,
                                 size_t buffer_size, const char *string)
 {
-    uint32_t len, i;
+    size_t len, i;
+    char *line_buffer, *p;
 
     len = MIN(tpm_cmd_get_size(buffer), buffer_size);
-    printf("tpm_tis: %s length = %d\n", string, len);
-    for (i = 0; i < len; i++) {
+
+    /*
+     * allocate enough room for 3 chars per buffer entry plus a
+     * newline after every 16 chars and a final null terminator.
+     */
+    line_buffer = g_malloc(len * 3 + (len / 16) + 1);
+
+    for (i = 0, p = line_buffer; i < len; i++) {
         if (i && !(i % 16)) {
-            printf("\n");
+            p += sprintf(p, "\n");
         }
-        printf("%.2X ", buffer[i]);
+        p += sprintf(p, "%.2X ", buffer[i]);
     }
-    printf("\n");
+    trace_tpm_tis_show_buffer(string, len, line_buffer);
+
+    g_free(line_buffer);
 }
 
 /*
@@ -143,9 +152,8 @@ static void tpm_tis_sts_set(TPMLocality *l, uint32_t flags)
  */
 static void tpm_tis_tpm_send(TPMState *s, uint8_t locty)
 {
-    if (DEBUG_TIS) {
-        tpm_tis_show_buffer(s->buffer, s->be_buffer_size,
-                            "tpm_tis: To TPM");
+    if (trace_event_get_state_backends(TRACE_TPM_TIS_SHOW_BUFFER)) {
+        tpm_tis_show_buffer(s->buffer, s->be_buffer_size, "To TPM");
     }
 
     /*
@@ -313,9 +321,8 @@ static void tpm_tis_request_completed(TPMIf *ti, int ret)
     s->loc[locty].state = TPM_TIS_STATE_COMPLETION;
     s->rw_offset = 0;
 
-    if (DEBUG_TIS) {
-        tpm_tis_show_buffer(s->buffer, s->be_buffer_size,
-                            "tpm_tis: From TPM");
+    if (trace_event_get_state_backends(TRACE_TPM_TIS_SHOW_BUFFER)) {
+        tpm_tis_show_buffer(s->buffer, s->be_buffer_size, "From TPM");
     }
 
     if (TPM_TIS_IS_VALID_LOCTY(s->next_locty)) {
@@ -624,7 +631,7 @@ static void tpm_tis_mmio_write(void *opaque, hwaddr addr,
                 }
 
                 /* cancel any seize by a lower locality */
-                for (l = 0; l < locty - 1; l++) {
+                for (l = 0; l < locty; l++) {
                     s->loc[l].access &= ~TPM_TIS_ACCESS_SEIZE;
                 }
 
