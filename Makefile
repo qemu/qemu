@@ -609,7 +609,11 @@ clean:
 	rm -f config.mak op-i386.h opc-i386.h gen-op-i386.h op-arm.h opc-arm.h gen-op-arm.h
 	rm -f qemu-options.def
 	rm -f *.msi
-	find . \( -name '*.so' -o -name '*.dll' -o -name '*.mo' -o -name '*.[oda]' \) -type f -exec rm {} +
+	find . \( -name '*.so' -o -name '*.dll' -o -name '*.mo' -o -name '*.[oda]' \) -type f \
+		! -path ./roms/edk2/ArmPkg/Library/GccLto/liblto-aarch64.a \
+		! -path ./roms/edk2/ArmPkg/Library/GccLto/liblto-arm.a \
+		! -path ./roms/edk2/BaseTools/Source/Python/UPT/Dll/sqlite3.dll \
+		-exec rm {} +
 	rm -f $(filter-out %.tlb,$(TOOLS)) $(HELPERS-y) qemu-ga TAGS cscope.* *.pod *~ */*~
 	rm -f fsdev/*.pod scsi/*.pod
 	rm -f qemu-img-cmds.h

@@ -204,9 +204,7 @@ static MemoryRegion *pc_dimm_get_memory_region(PCDIMMDevice *dimm, Error **errp)
 
 static uint64_t pc_dimm_md_get_addr(const MemoryDeviceState *md)
 {
-    const PCDIMMDevice *dimm = PC_DIMM(md);
-
-    return dimm->addr;
+    return object_property_get_uint(OBJECT(md), PC_DIMM_ADDR_PROP, &error_abort);
 }
 
 static void pc_dimm_md_set_addr(MemoryDeviceState *md, uint64_t addr,

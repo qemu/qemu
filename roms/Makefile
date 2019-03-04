@@ -47,10 +47,7 @@ SEABIOS_EXTRAVERSION="-prebuilt.qemu.org"
 # We need that to combine multiple images (legacy bios,
 # efi ia32, efi x64) into a single rom binary.
 #
-# We try to find it in the path.  You can also pass the location on
-# the command line, i.e. "make EFIROM=/path/to/EfiRom efirom"
-#
-EFIROM ?= $(shell which EfiRom 2>/dev/null)
+EFIROM = edk2/BaseTools/Source/C/bin/EfiRom
 
 default:
 	@echo "nothing is build by default"
@@ -59,8 +56,7 @@ default:
 	@echo "  vgabios        -- update vgabios binaries (seabios)"
 	@echo "  sgabios        -- update sgabios binaries"
 	@echo "  pxerom         -- update nic roms (bios only)"
-	@echo "  efirom         -- update nic roms (bios+efi, this needs"
-	@echo "                    the EfiRom utility from edk2 / tianocore)"
+	@echo "  efirom         -- update nic roms (bios+efi)"
 	@echo "  slof           -- update slof.bin"
 	@echo "  skiboot        -- update skiboot.lid"
 	@echo "  u-boot.e500    -- update u-boot.e500"
@@ -106,7 +102,7 @@ pxe-rom-%: build-pxe-roms
 
 efirom: $(patsubst %,efi-rom-%,$(pxerom_variants))
 
-efi-rom-%: build-pxe-roms build-efi-roms
+efi-rom-%: build-pxe-roms build-efi-roms $(EFIROM)
 	$(EFIROM) -f "0x$(VID)" -i "0x$(DID)" -l 0x02 \
 		-b ipxe/src/bin/$(VID)$(DID).rom \
 		-ec ipxe/src/bin-i386-efi/$(VID)$(DID).efidrv \
@@ -124,6 +120,8 @@ build-efi-roms: build-pxe-roms
 		$(patsubst %,bin-i386-efi/%.efidrv,$(pxerom_targets)) \
 		$(patsubst %,bin-x86_64-efi/%.efidrv,$(pxerom_targets))
 
+$(EFIROM):
+	$(MAKE) -C edk2/BaseTools
 
 slof:
 	$(MAKE) -C SLOF CROSS=$(powerpc64_cross_prefix) qemu
@@ -150,6 +148,7 @@ clean:
 	$(MAKE) -C sgabios clean
 	rm -f sgabios/.depend
 	$(MAKE) -C ipxe/src veryclean
+	$(MAKE) -C edk2/BaseTools clean
 	$(MAKE) -C SLOF clean
 	rm -rf u-boot/build.e500
 	$(MAKE) -C u-boot-sam460ex distclean

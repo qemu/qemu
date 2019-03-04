@@ -9,10 +9,9 @@ common-obj-$(CONFIG_POSIX) += hostmem-file.o
 common-obj-y += cryptodev.o
 common-obj-y += cryptodev-builtin.o
 
-ifeq ($(CONFIG_VIRTIO),y)
+ifeq ($(CONFIG_VIRTIO_CRYPTO),y)
 common-obj-y += cryptodev-vhost.o
-common-obj-$(call land,$(CONFIG_VHOST_USER),$(CONFIG_LINUX)) += \
-    cryptodev-vhost-user.o
+common-obj-$(CONFIG_VHOST_CRYPTO) += cryptodev-vhost-user.o
 endif
 
 common-obj-$(CONFIG_LINUX) += hostmem-memfd.o

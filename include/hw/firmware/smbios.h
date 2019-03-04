@@ -162,6 +162,7 @@ struct smbios_type_3 {
     uint8_t height;
     uint8_t number_of_power_cords;
     uint8_t contained_element_count;
+    uint8_t contained_element_record_length;
     uint8_t sku_number_str;
     /* contained elements follow */
 } QEMU_PACKED;
