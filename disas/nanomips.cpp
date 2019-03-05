@@ -16603,6 +16603,108 @@ std::string NMD::YIELD(uint64 instruction)
 
 
 
+/*
+ *                nanoMIPS instruction pool organization
+ *                ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+ *
+ *
+ *                 ┌─ P.ADDIU ─── P.RI ─── P.SYSCALL
+ *                 │
+ *                 │                                      ┌─ P.TRAP
+ *                 │                                      │
+ *                 │                      ┌─ _POOL32A0_0 ─┼─ P.CMOVE
+ *                 │                      │               │
+ *                 │                      │               └─ P.SLTU
+ *                 │        ┌─ _POOL32A0 ─┤
+ *                 │        │             │
+ *                 │        │             │
+ *                 │        │             └─ _POOL32A0_1 ─── CRC32
+ *                 │        │
+ *                 ├─ P32A ─┤
+ *                 │        │                           ┌─ PP.LSX
+ *                 │        │             ┌─ P.LSX ─────┤
+ *                 │        │             │             └─ PP.LSXS
+ *                 │        └─ _POOL32A7 ─┤
+ *                 │                      │             ┌─ POOL32Axf_4
+ *                 │                      └─ POOL32Axf ─┤
+ *                 │                                    └─ POOL32Axf_5
+ *                 │
+ *                 ├─ PBAL
+ *                 │
+ *                 ├─ P.GP.W   ┌─ PP.LSX
+ *         ┌─ P32 ─┤           │
+ *         │       ├─ P.GP.BH ─┴─ PP.LSXS
+ *         │       │
+ *         │       ├─ P.J ─────── PP.BALRSC
+ *         │       │
+ *         │       ├─ P48I
+ *         │       │           ┌─ P.SR
+ *         │       │           │
+ *         │       │           ├─ P.SHIFT
+ *         │       │           │
+ *         │       ├─ P.U12 ───┼─ P.ROTX
+ *         │       │           │
+ *         │       │           ├─ P.INS
+ *         │       │           │
+ *         │       │           └─ P.EXT
+ *         │       │
+ *         │       ├─ P.LS.U12 ── P.PREF.U12
+ *         │       │
+ *         │       ├─ P.BR1 ───── P.BR3A
+ *         │       │
+ *         │       │           ┌─ P.LS.S0 ─── P16.SYSCALL
+ *         │       │           │
+ *         │       │           │           ┌─ P.LL
+ *         │       │           ├─ P.LS.S1 ─┤
+ *         │       │           │           └─ P.SC
+ *         │       │           │
+ *         │       │           │           ┌─ P.PREFE
+ *  MAJOR ─┤       ├─ P.LS.S9 ─┤           │
+ *         │       │           ├─ P.LS.E0 ─┼─ P.LLE
+ *         │       │           │           │
+ *         │       │           │           └─ P.SCE
+ *         │       │           │
+ *         │       │           ├─ P.LS.WM
+ *         │       │           │
+ *         │       │           └─ P.LS.UAWM
+ *         │       │
+ *         │       │
+ *         │       ├─ P.BR2
+ *         │       │
+ *         │       ├─ P.BRI
+ *         │       │
+ *         │       └─ P.LUI
+ *         │
+ *         │
+ *         │       ┌─ P16.MV ──── P16.RI ─── P16.SYSCALL
+ *         │       │
+ *         │       ├─ P16.SR
+ *         │       │
+ *         │       ├─ P16.SHIFT
+ *         │       │
+ *         │       ├─ P16.4x4
+ *         │       │
+ *         │       ├─ P16C ────── POOL16C_0 ── POOL16C_00
+ *         │       │
+ *         └─ P16 ─┼─ P16.LB
+ *                 │
+ *                 ├─ P16.A1
+ *                 │
+ *                 ├─ P16.LH
+ *                 │
+ *                 ├─ P16.A2 ──── P.ADDIU[RS5]
+ *                 │
+ *                 ├─ P16.ADDU
+ *                 │
+ *                 └─ P16.BR ──┬─ P16.JRC
+ *                             │
+ *                             └─ P16.BR1
+ *
+ *
+ *  (FP, DPS, and some minor instruction pools are omitted from the diagram)
+ *
+ */
+
 NMD::Pool NMD::P_SYSCALL[2] = {
     { instruction         , 0                   , 0   , 32,
        0xfffc0000, 0x00080000, &NMD::SYSCALL_32_      , 0,
