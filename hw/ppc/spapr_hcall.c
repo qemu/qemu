@@ -1339,6 +1339,7 @@ static target_ulong h_register_process_table(PowerPCCPU *cpu,
     target_ulong proc_tbl = args[1];
     target_ulong page_size = args[2];
     target_ulong table_size = args[3];
+    target_ulong update_lpcr = 0;
     uint64_t cproc;
 
     if (flags & ~FLAGS_MASK) { /* Check no reserved bits are set */
@@ -1394,10 +1395,13 @@ static target_ulong h_register_process_table(PowerPCCPU *cpu,
     spapr->patb_entry = cproc; /* Save new process table */
 
     /* Update the UPRT, HR and GTSE bits in the LPCR for all cpus */
-    spapr_set_all_lpcrs(((flags & (FLAG_RADIX | FLAG_HASH_PROC_TBL)) ?
-                         (LPCR_UPRT | LPCR_HR) : 0) |
-                        ((flags & FLAG_GTSE) ? LPCR_GTSE : 0),
-                        LPCR_UPRT | LPCR_HR | LPCR_GTSE);
+    if (flags & FLAG_RADIX)     /* Radix must use process tables, also set HR */
+        update_lpcr |= (LPCR_UPRT | LPCR_HR);
+    else if (flags & FLAG_HASH_PROC_TBL) /* Hash with process tables */
+        update_lpcr |= LPCR_UPRT;
+    if (flags & FLAG_GTSE)      /* Guest translation shootdown enable */
+        update_lpcr |= FLAG_GTSE;
+    spapr_set_all_lpcrs(update_lpcr, LPCR_UPRT | LPCR_HR | LPCR_GTSE);
 
     if (kvm_enabled()) {
         return kvmppc_configure_v3_mmu(cpu, flags & FLAG_RADIX,

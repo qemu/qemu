@@ -1632,6 +1632,7 @@ void spapr_reallocate_hpt(sPAPRMachineState *spapr, int shift,
         }
     }
     /* We're setting up a hash table, so that means we're not radix */
+    spapr->patb_entry = 0;
     spapr_set_all_lpcrs(0, LPCR_HR | LPCR_UPRT);
 }
 
