@@ -622,6 +622,8 @@ def parse_generic(lineno, is_format, name, toks):
                 sign = True
                 flen = flen[1:]
             shift = int(flen, 10)
+            if shift + width > insnwidth:
+                error(lineno, 'field {0} exceeds insnwidth'.format(fname))
             f = Field(sign, insnwidth - width - shift, shift)
             flds = add_field(lineno, flds, fname, f)
             fixedbits <<= shift
