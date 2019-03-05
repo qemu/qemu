@@ -684,3 +684,46 @@
 ##
 { 'event': 'NIC_RX_FILTER_CHANGED',
   'data': { '*name': 'str', 'path': 'str' } }
+
+##
+# @AnnounceParameters:
+#
+# Parameters for self-announce timers
+#
+# @initial: Initial delay (in ms) before sending the first GARP/RARP
+#       announcement
+#
+# @max: Maximum delay (in ms) between GARP/RARP announcement packets
+#
+# @rounds: Number of self-announcement attempts
+#
+# @step: Delay increase (in ms) after each self-announcement attempt
+#
+# Since: 4.0
+##
+
+{ 'struct': 'AnnounceParameters',
+  'data': { 'initial': 'int',
+            'max': 'int',
+            'rounds': 'int',
+            'step': 'int' } }
+
+##
+# @announce-self:
+#
+# Trigger generation of broadcast RARP frames to update network switches.
+# This can be useful when network bonds fail-over the active slave.
+#
+# @params: AnnounceParameters giving timing and repetition count of announce
+#
+# Example:
+#
+# -> { "execute": "announce-self"
+#      "arguments": {
+#          "initial": 50, "max": 550, "rounds": 10, "step": 50 } }
+# <- { "return": {} }
+#
+# Since: 4.0
+##
+{ 'command': 'announce-self', 'boxed': true,
+  'data' : 'AnnounceParameters'}

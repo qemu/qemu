@@ -154,65 +154,27 @@ static void netmap_writable(void *opaque)
     qemu_flush_queued_packets(&s->nc);
 }
 
-static ssize_t netmap_receive(NetClientState *nc,
-      const uint8_t *buf, size_t size)
-{
-    NetmapState *s = DO_UPCAST(NetmapState, nc, nc);
-    struct netmap_ring *ring = s->tx;
-    uint32_t i;
-    uint32_t idx;
-    uint8_t *dst;
-
-    if (unlikely(!ring)) {
-        /* Drop. */
-        return size;
-    }
-
-    if (unlikely(size > ring->nr_buf_size)) {
-        RD(5, "[netmap_receive] drop packet of size %d > %d\n",
-                                    (int)size, ring->nr_buf_size);
-        return size;
-    }
-
-    if (nm_ring_empty(ring)) {
-        /* No available slots in the netmap TX ring. */
-        netmap_write_poll(s, true);
-        return 0;
-    }
-
-    i = ring->cur;
-    idx = ring->slot[i].buf_idx;
-    dst = (uint8_t *)NETMAP_BUF(ring, idx);
-
-    ring->slot[i].len = size;
-    ring->slot[i].flags = 0;
-    pkt_copy(buf, dst, size);
-    ring->cur = ring->head = nm_ring_next(ring, i);
-    ioctl(s->nmd->fd, NIOCTXSYNC, NULL);
-
-    return size;
-}
-
 static ssize_t netmap_receive_iov(NetClientState *nc,
                     const struct iovec *iov, int iovcnt)
 {
     NetmapState *s = DO_UPCAST(NetmapState, nc, nc);
     struct netmap_ring *ring = s->tx;
+    unsigned int tail = ring->tail;
+    ssize_t totlen = 0;
     uint32_t last;
     uint32_t idx;
     uint8_t *dst;
     int j;
     uint32_t i;
 
-    if (unlikely(!ring)) {
-        /* Drop the packet. */
-        return iov_size(iov, iovcnt);
-    }
-
-    last = i = ring->cur;
+    last = i = ring->head;
 
     if (nm_ring_space(ring) < iovcnt) {
-        /* Not enough netmap slots. */
+        /* Not enough netmap slots. Tell the kernel that we have seen the new
+         * available slots (so that it notifies us again when it has more
+         * ones), but without publishing any new slots to be processed
+         * (e.g., we don't advance ring->head). */
+        ring->cur = tail;
         netmap_write_poll(s, true);
         return 0;
     }
@@ -222,14 +184,17 @@ static ssize_t netmap_receive_iov(NetClientState *nc,
         int offset = 0;
         int nm_frag_size;
 
+        totlen += iov_frag_size;
+
         /* Split each iovec fragment over more netmap slots, if
            necessary. */
         while (iov_frag_size) {
             nm_frag_size = MIN(iov_frag_size, ring->nr_buf_size);
 
-            if (unlikely(nm_ring_empty(ring))) {
-                /* We run out of netmap slots while splitting the
+            if (unlikely(i == tail)) {
+                /* We ran out of netmap slots while splitting the
                    iovec fragments. */
+                ring->cur = tail;
                 netmap_write_poll(s, true);
                 return 0;
             }
@@ -251,12 +216,24 @@ static ssize_t netmap_receive_iov(NetClientState *nc,
     /* The last slot must not have NS_MOREFRAG set. */
     ring->slot[last].flags &= ~NS_MOREFRAG;
 
-    /* Now update ring->cur and ring->head. */
-    ring->cur = ring->head = i;
+    /* Now update ring->head and ring->cur to publish the new slots and
+     * the new wakeup point. */
+    ring->head = ring->cur = i;
 
     ioctl(s->nmd->fd, NIOCTXSYNC, NULL);
 
-    return iov_size(iov, iovcnt);
+    return totlen;
+}
+
+static ssize_t netmap_receive(NetClientState *nc,
+      const uint8_t *buf, size_t size)
+{
+    struct iovec iov;
+
+    iov.iov_base = (void *)buf;
+    iov.iov_len = size;
+
+    return netmap_receive_iov(nc, &iov, 1);
 }
 
 /* Complete a previous send (backend --> guest) and enable the
@@ -272,39 +249,46 @@ static void netmap_send(void *opaque)
 {
     NetmapState *s = opaque;
     struct netmap_ring *ring = s->rx;
+    unsigned int tail = ring->tail;
 
-    /* Keep sending while there are available packets into the netmap
+    /* Keep sending while there are available slots in the netmap
        RX ring and the forwarding path towards the peer is open. */
-    while (!nm_ring_empty(ring)) {
-        uint32_t i;
+    while (ring->head != tail) {
+        uint32_t i = ring->head;
         uint32_t idx;
         bool morefrag;
         int iovcnt = 0;
         int iovsize;
 
+        /* Get a (possibly multi-slot) packet. */
         do {
-            i = ring->cur;
             idx = ring->slot[i].buf_idx;
             morefrag = (ring->slot[i].flags & NS_MOREFRAG);
-            s->iov[iovcnt].iov_base = (u_char *)NETMAP_BUF(ring, idx);
+            s->iov[iovcnt].iov_base = (void *)NETMAP_BUF(ring, idx);
             s->iov[iovcnt].iov_len = ring->slot[i].len;
             iovcnt++;
+            i = nm_ring_next(ring, i);
+        } while (i != tail && morefrag);
 
-            ring->cur = ring->head = nm_ring_next(ring, i);
-        } while (!nm_ring_empty(ring) && morefrag);
+        /* Advance ring->cur to tell the kernel that we have seen the slots. */
+        ring->cur = i;
 
-        if (unlikely(nm_ring_empty(ring) && morefrag)) {
-            RD(5, "[netmap_send] ran out of slots, with a pending"
-                   "incomplete packet\n");
+        if (unlikely(morefrag)) {
+            /* This is a truncated packet, so we can stop without releasing the
+             * incomplete slots by updating ring->head. We will hopefully
+             * re-read the complete packet the next time we are called. */
+            break;
         }
 
         iovsize = qemu_sendv_packet_async(&s->nc, s->iov, iovcnt,
                                             netmap_send_completed);
 
+        /* Release the slots to the kernel. */
+        ring->head = i;
+
         if (iovsize == 0) {
             /* The peer does not receive anymore. Packet is queued, stop
-             * reading from the backend until netmap_send_completed()
-             */
+             * reading from the backend until netmap_send_completed(). */
             netmap_read_poll(s, false);
             break;
         }

@@ -20,6 +20,7 @@
 static int verbose;
 
 static const char *hmp_cmds[] = {
+    "announce_self",
     "boot_set ndc",
     "chardev-add null,id=testchardev1",
     "chardev-send-break testchardev1",

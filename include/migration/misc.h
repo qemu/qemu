@@ -15,6 +15,7 @@
 #define MIGRATION_MISC_H
 
 #include "qemu/notify.h"
+#include "qapi/qapi-types-net.h"
 
 /* migration/ram.c */
 
@@ -28,16 +29,7 @@ void blk_mig_init(void);
 static inline void blk_mig_init(void) {}
 #endif
 
-#define SELF_ANNOUNCE_ROUNDS 5
-
-static inline
-int64_t self_announce_delay(int round)
-{
-    assert(round < SELF_ANNOUNCE_ROUNDS && round > 0);
-    /* delay 50ms, 150ms, 250ms, ... */
-    return 50 + (SELF_ANNOUNCE_ROUNDS - round - 1) * 100;
-}
-
+AnnounceParameters *migrate_announce_params(void);
 /* migration/savevm.c */
 
 void dump_vmstate_json_to_file(FILE *out_fp);

@@ -939,6 +939,22 @@ stops because the size limit is reached.
 ETEXI
 
     {
+        .name       = "announce_self",
+        .args_type  = "",
+        .params     = "",
+        .help       = "Trigger GARP/RARP announcements",
+        .cmd        = hmp_announce_self,
+    },
+
+STEXI
+@item announce_self
+@findex announce_self
+Trigger a round of GARP/RARP broadcasts; this is useful for explicitly updating the
+network infrastructure after a reconfiguration or some forms of migration.
+The timings of the round are set by the migration announce parameters.
+ETEXI
+
+    {
         .name       = "migrate",
         .args_type  = "detach:-d,blk:-b,inc:-i,resume:-r,uri:s",
         .params     = "[-d] [-b] [-i] [-r] uri",

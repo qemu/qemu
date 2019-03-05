@@ -81,8 +81,6 @@ extern bool machine_init_done;
 void qemu_add_machine_init_done_notifier(Notifier *notify);
 void qemu_remove_machine_init_done_notifier(Notifier *notify);
 
-void qemu_announce_self(void);
-
 extern int autostart;
 
 typedef enum {
