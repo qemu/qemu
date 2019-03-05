@@ -1698,6 +1698,7 @@ static void bdrv_child_set_perm(BdrvChild *c, uint64_t perm, uint64_t shared);
 
 typedef struct BlockReopenQueueEntry {
      bool prepared;
+     bool perms_checked;
      BDRVReopenState state;
      QSIMPLEQ_ENTRY(BlockReopenQueueEntry) entry;
 } BlockReopenQueueEntry;
@@ -3166,6 +3167,16 @@ int bdrv_reopen_multiple(AioContext *ctx, BlockReopenQueue *bs_queue, Error **er
         bs_entry->prepared = true;
     }
 
+    QSIMPLEQ_FOREACH(bs_entry, bs_queue, entry) {
+        BDRVReopenState *state = &bs_entry->state;
+        ret = bdrv_check_perm(state->bs, bs_queue, state->perm,
+                              state->shared_perm, NULL, errp);
+        if (ret < 0) {
+            goto cleanup_perm;
+        }
+        bs_entry->perms_checked = true;
+    }
+
     /* If we reach this point, we have success and just need to apply the
      * changes
      */
@@ -3174,7 +3185,20 @@ int bdrv_reopen_multiple(AioContext *ctx, BlockReopenQueue *bs_queue, Error **er
     }
 
     ret = 0;
+cleanup_perm:
+    QSIMPLEQ_FOREACH_SAFE(bs_entry, bs_queue, entry, next) {
+        BDRVReopenState *state = &bs_entry->state;
 
+        if (!bs_entry->perms_checked) {
+            continue;
+        }
+
+        if (ret == 0) {
+            bdrv_set_perm(state->bs, state->perm, state->shared_perm);
+        } else {
+            bdrv_abort_perm_update(state->bs);
+        }
+    }
 cleanup:
     QSIMPLEQ_FOREACH_SAFE(bs_entry, bs_queue, entry, next) {
         if (ret) {
@@ -3428,12 +3452,6 @@ int bdrv_reopen_prepare(BDRVReopenState *reopen_state, BlockReopenQueue *queue,
         } while ((entry = qdict_next(reopen_state->options, entry)));
     }
 
-    ret = bdrv_check_perm(reopen_state->bs, queue, reopen_state->perm,
-                          reopen_state->shared_perm, NULL, errp);
-    if (ret < 0) {
-        goto error;
-    }
-
     ret = 0;
 
     /* Restore the original reopen_state->options QDict */
@@ -3500,9 +3518,6 @@ void bdrv_reopen_commit(BDRVReopenState *reopen_state)
 
     bdrv_refresh_limits(bs, NULL);
 
-    bdrv_set_perm(reopen_state->bs, reopen_state->perm,
-                  reopen_state->shared_perm);
-
     new_can_write =
         !bdrv_is_read_only(bs) && !(bdrv_get_flags(bs) & BDRV_O_INACTIVE);
     if (!old_can_write && new_can_write && drv->bdrv_reopen_bitmaps_rw) {
@@ -3534,8 +3549,6 @@ void bdrv_reopen_abort(BDRVReopenState *reopen_state)
     if (drv->bdrv_reopen_abort) {
         drv->bdrv_reopen_abort(reopen_state);
     }
-
-    bdrv_abort_perm_update(reopen_state->bs);
 }
 
 
