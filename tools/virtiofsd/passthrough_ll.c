@@ -1149,19 +1149,25 @@ out_err:
 static void lo_do_readdir(fuse_req_t req, fuse_ino_t ino, size_t size,
                           off_t offset, struct fuse_file_info *fi, int plus)
 {
+    struct lo_data *lo = lo_data(req);
     struct lo_dirp *d;
+    struct lo_inode *dinode;
     char *buf = NULL;
     char *p;
     size_t rem = size;
-    int err = ENOMEM;
+    int err = EBADF;
 
-    (void)ino;
+    dinode = lo_inode(req, ino);
+    if (!dinode) {
+        goto error;
+    }
 
     d = lo_dirp(req, fi);
     if (!d) {
         goto error;
     }
 
+    err = ENOMEM;
     buf = calloc(1, size);
     if (!buf) {
         goto error;
@@ -1192,15 +1198,21 @@ static void lo_do_readdir(fuse_req_t req, fuse_ino_t ino, size_t size,
         }
         nextoff = d->entry->d_off;
         name = d->entry->d_name;
+
         fuse_ino_t entry_ino = 0;
+        struct fuse_entry_param e = (struct fuse_entry_param){
+            .attr.st_ino = d->entry->d_ino,
+            .attr.st_mode = d->entry->d_type << 12,
+        };
+
+        /* Hide root's parent directory */
+        if (dinode == &lo->root && strcmp(name, "..") == 0) {
+            e.attr.st_ino = lo->root.ino;
+            e.attr.st_mode = DT_DIR << 12;
+        }
+
         if (plus) {
-            struct fuse_entry_param e;
-            if (is_dot_or_dotdot(name)) {
-                e = (struct fuse_entry_param){
-                    .attr.st_ino = d->entry->d_ino,
-                    .attr.st_mode = d->entry->d_type << 12,
-                };
-            } else {
+            if (!is_dot_or_dotdot(name)) {
                 err = lo_do_lookup(req, ino, name, &e);
                 if (err) {
                     goto error;
@@ -1210,11 +1222,7 @@ static void lo_do_readdir(fuse_req_t req, fuse_ino_t ino, size_t size,
 
             entsize = fuse_add_direntry_plus(req, p, rem, name, &e, nextoff);
         } else {
-            struct stat st = {
-                .st_ino = d->entry->d_ino,
-                .st_mode = d->entry->d_type << 12,
-            };
-            entsize = fuse_add_direntry(req, p, rem, name, &st, nextoff);
+            entsize = fuse_add_direntry(req, p, rem, name, &e.attr, nextoff);
         }
         if (entsize > rem) {
             if (entry_ino != 0) {
