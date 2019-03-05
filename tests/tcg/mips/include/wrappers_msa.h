@@ -38,6 +38,21 @@ static inline void do_msa_##suffix(void *input, void *output)          \
    );                                                                  \
 }
 
+#define DO_MSA__WD__WD(suffix, mnemonic)                               \
+static inline void do_msa_##suffix(void *input, void *output)          \
+{                                                                      \
+   __asm__ volatile (                                                  \
+      "move $t0, %0\n\t"                                               \
+      "ld.d $w11, 0($t0)\n\t"                                          \
+      #mnemonic " $w10, $w10\n\t"                                      \
+      "move $t0, %1\n\t"                                               \
+      "st.d $w10, 0($t0)\n\t"                                          \
+      :                                                                \
+      : "r" (input), "r" (output)                                      \
+      : "t0", "memory"                                                 \
+   );                                                                  \
+}
+
 DO_MSA__WD__WS(NLOC_B, nloc.b)
 DO_MSA__WD__WS(NLOC_H, nloc.h)
 DO_MSA__WD__WS(NLOC_W, nloc.w)
@@ -64,6 +79,42 @@ static inline void do_msa_##suffix(void *input1, void *input2,         \
       "move $t0, %1\n\t"                                               \
       "ld.d $w12, 0($t0)\n\t"                                          \
       #mnemonic " $w10, $w11, $w12\n\t"                                \
+      "move $t0, %2\n\t"                                               \
+      "st.d $w10, 0($t0)\n\t"                                          \
+      :                                                                \
+      : "r" (input1), "r" (input2), "r" (output)                       \
+      : "t0", "memory"                                                 \
+   );                                                                  \
+}
+
+#define DO_MSA__WD__WD_WT(suffix, mnemonic)                            \
+static inline void do_msa_##suffix(void *input1, void *input2,         \
+                                   void *output)                       \
+{                                                                      \
+   __asm__ volatile (                                                  \
+      "move $t0, %0\n\t"                                               \
+      "ld.d $w11, 0($t0)\n\t"                                          \
+      "move $t0, %1\n\t"                                               \
+      "ld.d $w12, 0($t0)\n\t"                                          \
+      #mnemonic " $w10, $w10, $w12\n\t"                                \
+      "move $t0, %2\n\t"                                               \
+      "st.d $w10, 0($t0)\n\t"                                          \
+      :                                                                \
+      : "r" (input1), "r" (input2), "r" (output)                       \
+      : "t0", "memory"                                                 \
+   );                                                                  \
+}
+
+#define DO_MSA__WD__WS_WD(suffix, mnemonic)                            \
+static inline void do_msa_##suffix(void *input1, void *input2,         \
+                                   void *output)                       \
+{                                                                      \
+   __asm__ volatile (                                                  \
+      "move $t0, %0\n\t"                                               \
+      "ld.d $w11, 0($t0)\n\t"                                          \
+      "move $t0, %1\n\t"                                               \
+      "ld.d $w12, 0($t0)\n\t"                                          \
+      #mnemonic " $w10, $w11, $w10\n\t"                                \
       "move $t0, %2\n\t"                                               \
       "st.d $w10, 0($t0)\n\t"                                          \
       :                                                                \
