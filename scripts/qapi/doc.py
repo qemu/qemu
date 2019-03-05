@@ -207,11 +207,11 @@ def texi_entity(doc, what, ifcond, base=None, variants=None,
 class QAPISchemaGenDocVisitor(qapi.common.QAPISchemaVisitor):
     def __init__(self, prefix):
         self._prefix = prefix
-        self._gen = qapi.common.QAPIGenDoc()
+        self._gen = qapi.common.QAPIGenDoc(self._prefix + 'qapi-doc.texi')
         self.cur_doc = None
 
     def write(self, output_dir):
-        self._gen.write(output_dir, self._prefix + 'qapi-doc.texi')
+        self._gen.write(output_dir)
 
     def visit_enum_type(self, name, info, ifcond, members, prefix):
         doc = self.cur_doc

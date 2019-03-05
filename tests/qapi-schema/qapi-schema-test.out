@@ -52,6 +52,9 @@ object UserDefTwo
     member dict1: UserDefTwoDict optional=False
 object UserDefThree
     member string0: str optional=False
+array UserDefOneList UserDefOne
+array UserDefTwoList UserDefTwo
+array TestStructList TestStruct
 object ForceArrays
     member unused1: UserDefOneList optional=False
     member unused2: UserDefTwoList optional=False
@@ -141,7 +144,12 @@ object q_obj_sizeList-wrapper
     member data: sizeList optional=False
 object q_obj_anyList-wrapper
     member data: anyList optional=False
-enum UserDefNativeListUnionKind
+module sub-sub-module.json
+array StatusList Status
+module qapi-schema-test.json
+object q_obj_StatusList-wrapper
+    member data: StatusList optional=False
+enum UserDefListUnionKind
     member integer
     member s8
     member s16
@@ -156,8 +164,9 @@ enum UserDefNativeListUnionKind
     member string
     member sizes
     member any
-object UserDefNativeListUnion
-    member type: UserDefNativeListUnionKind optional=False
+    member user
+object UserDefListUnion
+    member type: UserDefListUnionKind optional=False
     tag type
     case integer: q_obj_intList-wrapper
     case s8: q_obj_int8List-wrapper
@@ -173,6 +182,19 @@ object UserDefNativeListUnion
     case string: q_obj_strList-wrapper
     case sizes: q_obj_sizeList-wrapper
     case any: q_obj_anyList-wrapper
+    case user: q_obj_StatusList-wrapper
+include include/sub-module.json
+module include/sub-module.json
+include sub-sub-module.json
+module sub-sub-module.json
+enum Status
+    member good
+    member bad
+    member ugly
+module include/sub-module.json
+object SecondArrayRef
+    member s: StatusList optional=False
+module qapi-schema-test.json
 command user_def_cmd None -> None
    gen=True success_response=True boxed=False oob=False preconfig=False
 object q_obj_user_def_cmd1-arg
@@ -197,7 +219,7 @@ command guest-sync q_obj_guest-sync-arg -> any
    gen=True success_response=True boxed=False oob=False preconfig=False
 command boxed-struct UserDefZero -> None
    gen=True success_response=True boxed=True oob=False preconfig=False
-command boxed-union UserDefNativeListUnion -> None
+command boxed-union UserDefListUnion -> None
    gen=True success_response=True boxed=True oob=False preconfig=False
 command test-flags-command None -> None
    gen=True success_response=True boxed=False oob=True preconfig=True
@@ -248,6 +270,7 @@ object __org.qemu_x-Union1
     member type: __org.qemu_x-Union1Kind optional=False
     tag type
     case __org.qemu_x-branch: q_obj_str-wrapper
+array __org.qemu_x-Union1List __org.qemu_x-Union1
 object __org.qemu_x-Struct2
     member array: __org.qemu_x-Union1List optional=False
 object __org.qemu_x-Union2
@@ -260,6 +283,8 @@ alternate __org.qemu_x-Alt
     case b: __org.qemu_x-Base
 event __ORG.QEMU_X-EVENT __org.qemu_x-Struct
    boxed=False
+array __org.qemu_x-EnumList __org.qemu_x-Enum
+array __org.qemu_x-StructList __org.qemu_x-Struct
 object q_obj___org.qemu_x-command-arg
     member a: __org.qemu_x-EnumList optional=False
     member b: __org.qemu_x-StructList optional=False
@@ -319,9 +344,11 @@ command TestIfCmd q_obj_TestIfCmd-arg -> UserDefThree
     if ['defined(TEST_IF_CMD)', 'defined(TEST_IF_STRUCT)']
 command TestCmdReturnDefThree None -> UserDefThree
    gen=True success_response=True boxed=False oob=False preconfig=False
+array TestIfEnumList TestIfEnum
+    if ['defined(TEST_IF_ENUM)']
 object q_obj_TestIfEvent-arg
     member foo: TestIfStruct optional=False
-    member bar: TestIfEnum optional=False
+    member bar: TestIfEnumList optional=False
         if ['defined(TEST_IF_EVT_BAR)']
     if ['defined(TEST_IF_EVT) && defined(TEST_IF_STRUCT)']
 event TestIfEvent q_obj_TestIfEvent-arg

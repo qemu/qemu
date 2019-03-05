@@ -32,6 +32,12 @@ class QAPISchemaTestVisitor(QAPISchemaVisitor):
             self._print_if(m.ifcond, indent=8)
         self._print_if(ifcond)
 
+    def visit_array_type(self, name, info, ifcond, element_type):
+        if not info:
+            return              # suppress built-in arrays
+        print('array %s %s' % (name, element_type.name))
+        self._print_if(ifcond)
+
     def visit_object_type(self, name, info, ifcond, base, members, variants):
         print('object %s' % name)
         if base:

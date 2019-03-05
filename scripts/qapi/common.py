@@ -1089,6 +1089,9 @@ class QAPISchemaEntity(object):
             self.ifcond = typ.ifcond
         else:
             self.ifcond = listify_cond(self._ifcond)
+        if self.info:
+            self.module = os.path.relpath(self.info['file'],
+                                          os.path.dirname(schema.fname))
 
     def is_implicit(self):
         return not self.info
@@ -1262,6 +1265,7 @@ class QAPISchemaArrayType(QAPISchemaType):
         self.element_type = schema.lookup_type(self._element_type_name)
         assert self.element_type
         self.element_type.check(schema)
+        self.module = self.element_type.module
         self.ifcond = self.element_type.ifcond
 
     def is_implicit(self):
@@ -1603,7 +1607,7 @@ class QAPISchemaEvent(QAPISchemaEntity):
 
 class QAPISchema(object):
     def __init__(self, fname):
-        self._fname = fname
+        self.fname = fname
         if sys.version_info[0] >= 3:
             f = open(fname, 'r', encoding='utf-8')
         else:
@@ -1626,9 +1630,6 @@ class QAPISchema(object):
         self._entity_list.append(ent)
         if ent.name is not None:
             self._entity_dict[ent.name] = ent
-        if ent.info:
-            ent.module = os.path.relpath(ent.info['file'],
-                                         os.path.dirname(self._fname))
 
     def lookup_entity(self, name, typ=None):
         ent = self._entity_dict.get(name)
@@ -2017,8 +2018,8 @@ def mcgen(code, **kwds):
     return cgen(code, **kwds)
 
 
-def guardname(filename):
-    return re.sub(r'[^A-Za-z0-9_]', '_', filename).upper()
+def c_fname(filename):
+    return re.sub(r'[^A-Za-z0-9_]', '_', filename)
 
 
 def guardstart(name):
@@ -2027,7 +2028,7 @@ def guardstart(name):
 #define %(name)s
 
 ''',
-                 name=guardname(name))
+                 name=c_fname(name).upper())
 
 
 def guardend(name):
@@ -2035,7 +2036,7 @@ def guardend(name):
 
 #endif /* %(name)s */
 ''',
-                 name=guardname(name))
+                 name=c_fname(name).upper())
 
 
 def gen_if(ifcond):
@@ -2158,7 +2159,8 @@ def build_params(arg_type, boxed, extra=None):
 
 class QAPIGen(object):
 
-    def __init__(self):
+    def __init__(self, fname):
+        self.fname = fname
         self._preamble = ''
         self._body = ''
 
@@ -2168,18 +2170,17 @@ class QAPIGen(object):
     def add(self, text):
         self._body += text
 
-    def get_content(self, fname=None):
-        return (self._top(fname) + self._preamble + self._body
-                + self._bottom(fname))
+    def get_content(self):
+        return self._top() + self._preamble + self._body + self._bottom()
 
-    def _top(self, fname):
+    def _top(self):
         return ''
 
-    def _bottom(self, fname):
+    def _bottom(self):
         return ''
 
-    def write(self, output_dir, fname):
-        pathname = os.path.join(output_dir, fname)
+    def write(self, output_dir):
+        pathname = os.path.join(output_dir, self.fname)
         dir = os.path.dirname(pathname)
         if dir:
             try:
@@ -2192,7 +2193,7 @@ class QAPIGen(object):
             f = open(fd, 'r+', encoding='utf-8')
         else:
             f = os.fdopen(fd, 'r+')
-        text = self.get_content(fname)
+        text = self.get_content()
         oldtext = f.read(len(text) + 1)
         if text != oldtext:
             f.seek(0)
@@ -2229,8 +2230,8 @@ def ifcontext(ifcond, *args):
 
 class QAPIGenCCode(QAPIGen):
 
-    def __init__(self):
-        QAPIGen.__init__(self)
+    def __init__(self, fname):
+        QAPIGen.__init__(self, fname)
         self._start_if = None
 
     def start_if(self, ifcond):
@@ -2248,20 +2249,20 @@ class QAPIGenCCode(QAPIGen):
         self._preamble = _wrap_ifcond(self._start_if[0],
                                       self._start_if[2], self._preamble)
 
-    def get_content(self, fname=None):
+    def get_content(self):
         assert self._start_if is None
-        return QAPIGen.get_content(self, fname)
+        return QAPIGen.get_content(self)
 
 
 class QAPIGenC(QAPIGenCCode):
 
-    def __init__(self, blurb, pydoc):
-        QAPIGenCCode.__init__(self)
+    def __init__(self, fname, blurb, pydoc):
+        QAPIGenCCode.__init__(self, fname)
         self._blurb = blurb
         self._copyright = '\n * '.join(re.findall(r'^Copyright .*', pydoc,
                                                   re.MULTILINE))
 
-    def _top(self, fname):
+    def _top(self):
         return mcgen('''
 /* AUTOMATICALLY GENERATED, DO NOT MODIFY */
 
@@ -2277,28 +2278,28 @@ class QAPIGenC(QAPIGenCCode):
 ''',
                      blurb=self._blurb, copyright=self._copyright)
 
-    def _bottom(self, fname):
+    def _bottom(self):
         return mcgen('''
 
 /* Dummy declaration to prevent empty .o file */
-char dummy_%(name)s;
+char qapi_dummy_%(name)s;
 ''',
-                     name=c_name(fname))
+                     name=c_fname(self.fname))
 
 
 class QAPIGenH(QAPIGenC):
 
-    def _top(self, fname):
-        return QAPIGenC._top(self, fname) + guardstart(fname)
+    def _top(self):
+        return QAPIGenC._top(self) + guardstart(self.fname)
 
-    def _bottom(self, fname):
-        return guardend(fname)
+    def _bottom(self):
+        return guardend(self.fname)
 
 
 class QAPIGenDoc(QAPIGen):
 
-    def _top(self, fname):
-        return (QAPIGen._top(self, fname)
+    def _top(self):
+        return (QAPIGen._top(self)
                 + '@c AUTOMATICALLY GENERATED, DO NOT MODIFY\n\n')
 
 
@@ -2307,12 +2308,14 @@ class QAPISchemaMonolithicCVisitor(QAPISchemaVisitor):
     def __init__(self, prefix, what, blurb, pydoc):
         self._prefix = prefix
         self._what = what
-        self._genc = QAPIGenC(blurb, pydoc)
-        self._genh = QAPIGenH(blurb, pydoc)
+        self._genc = QAPIGenC(self._prefix + self._what + '.c',
+                              blurb, pydoc)
+        self._genh = QAPIGenH(self._prefix + self._what + '.h',
+                              blurb, pydoc)
 
     def write(self, output_dir):
-        self._genc.write(output_dir, self._prefix + self._what + '.c')
-        self._genh.write(output_dir, self._prefix + self._what + '.h')
+        self._genc.write(output_dir)
+        self._genh.write(output_dir)
 
 
 class QAPISchemaModularCVisitor(QAPISchemaVisitor):
@@ -2335,22 +2338,31 @@ class QAPISchemaModularCVisitor(QAPISchemaVisitor):
     def _is_builtin_module(name):
         return not name
 
+    def _module_dirname(self, what, name):
+        if self._is_user_module(name):
+            return os.path.dirname(name)
+        return ''
+
     def _module_basename(self, what, name):
         ret = '' if self._is_builtin_module(name) else self._prefix
         if self._is_user_module(name):
-            dirname, basename = os.path.split(name)
+            basename = os.path.basename(name)
             ret += what
             if name != self._main_module:
                 ret += '-' + os.path.splitext(basename)[0]
-            ret = os.path.join(dirname, ret)
         else:
             name = name[2:] if name else 'builtin'
             ret += re.sub(r'-', '-' + name + '-', what)
         return ret
 
+    def _module_filename(self, what, name):
+        return os.path.join(self._module_dirname(what, name),
+                            self._module_basename(what, name))
+
     def _add_module(self, name, blurb):
-        genc = QAPIGenC(blurb, self._pydoc)
-        genh = QAPIGenH(blurb, self._pydoc)
+        basename = self._module_filename(self._what, name)
+        genc = QAPIGenC(basename + '.c', blurb, self._pydoc)
+        genh = QAPIGenH(basename + '.h', blurb, self._pydoc)
         self._module[name] = (genc, genh)
         self._set_module(name)
 
@@ -2370,10 +2382,9 @@ class QAPISchemaModularCVisitor(QAPISchemaVisitor):
         for name in self._module:
             if self._is_builtin_module(name) and not opt_builtins:
                 continue
-            basename = self._module_basename(self._what, name)
             (genc, genh) = self._module[name]
-            genc.write(output_dir, basename + '.c')
-            genh.write(output_dir, basename + '.h')
+            genc.write(output_dir)
+            genh.write(output_dir)
 
     def _begin_user_module(self, name):
         pass
@@ -2391,8 +2402,9 @@ class QAPISchemaModularCVisitor(QAPISchemaVisitor):
             self._begin_user_module(name)
 
     def visit_include(self, name, info):
-        basename = self._module_basename(self._what, name)
+        relname = os.path.relpath(self._module_filename(self._what, name),
+                                  os.path.dirname(self._genh.fname))
         self._genh.preamble_add(mcgen('''
-#include "%(basename)s.h"
+#include "%(relname)s.h"
 ''',
-                                      basename=basename))
+                                      relname=relname))

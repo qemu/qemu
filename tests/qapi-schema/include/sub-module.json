@@ -1,0 +1,7 @@
+# *-*- Mode: Python -*-*
+
+# Sub-module of ../qapi-schema-test.json
+
+{ 'include': '../sub-sub-module.json' }
+
+{ 'struct': 'SecondArrayRef', 'data': { 's': ['Status'] } }

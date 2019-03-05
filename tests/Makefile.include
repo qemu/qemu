@@ -441,7 +441,6 @@ qapi-schema += include-format-err.json
 qapi-schema += include-nested-err.json
 qapi-schema += include-no-file.json
 qapi-schema += include-non-file.json
-qapi-schema += include-relpath.json
 qapi-schema += include-repetition.json
 qapi-schema += include-self-cycle.json
 qapi-schema += include-simple.json
@@ -508,8 +507,18 @@ qapi-schema += unknown-expr-key.json
 
 check-qapi-schema-y := $(addprefix tests/qapi-schema/, $(qapi-schema))
 
-GENERATED_FILES += tests/test-qapi-types.h tests/test-qapi-visit.h \
-	tests/test-qapi-commands.h tests/test-qapi-events.h \
+GENERATED_FILES += tests/test-qapi-types.h \
+	tests/include/test-qapi-types-sub-module.h \
+	tests/test-qapi-types-sub-sub-module.h \
+	tests/test-qapi-visit.h \
+	tests/include/test-qapi-visit-sub-module.h \
+	tests/test-qapi-visit-sub-sub-module.h \
+	tests/test-qapi-commands.h \
+	tests/include/test-qapi-commands-sub-module.h \
+	tests/test-qapi-commands-sub-sub-module.h \
+	tests/test-qapi-events.h \
+	tests/include/test-qapi-events-sub-module.h \
+	tests/test-qapi-events-sub-sub-module.h \
 	tests/test-qapi-introspect.h
 
 test-obj-y = tests/check-qnum.o tests/check-qstring.o tests/check-qdict.o \
@@ -537,7 +546,12 @@ QEMU_CFLAGS += -I$(SRC_PATH)/tests
 # Deps that are common to various different sets of tests below
 test-util-obj-y = libqemuutil.a
 test-qom-obj-y = $(qom-obj-y) $(test-util-obj-y)
-test-qapi-obj-y = tests/test-qapi-visit.o tests/test-qapi-types.o \
+test-qapi-obj-y = tests/test-qapi-types.o \
+	tests/include/test-qapi-types-sub-module.o \
+	tests/test-qapi-types-sub-sub-module.o \
+	tests/test-qapi-visit.o \
+	tests/include/test-qapi-visit-sub-module.o \
+	tests/test-qapi-visit-sub-sub-module.o \
 	tests/test-qapi-introspect.o \
 	$(test-qom-obj-y)
 benchmark-crypto-obj-y = $(authz-obj-y) $(crypto-obj-y) $(test-qom-obj-y)
@@ -613,12 +627,32 @@ tests/test-replication$(EXESUF): tests/test-replication.o $(test-util-obj-y) \
 	$(test-block-obj-y)
 
 tests/test-qapi-types.c tests/test-qapi-types.h \
+tests/include/test-qapi-types-sub-module.c \
+tests/include/test-qapi-types-sub-module.h \
+tests/test-qapi-types-sub-sub-module.c \
+tests/test-qapi-types-sub-sub-module.h \
 tests/test-qapi-visit.c tests/test-qapi-visit.h \
+tests/include/test-qapi-visit-sub-module.c \
+tests/include/test-qapi-visit-sub-module.h \
+tests/test-qapi-visit-sub-sub-module.c \
+tests/test-qapi-visit-sub-sub-module.h \
 tests/test-qapi-commands.h tests/test-qapi-commands.c \
+tests/include/test-qapi-commands-sub-module.h \
+tests/include/test-qapi-commands-sub-module.c \
+tests/test-qapi-commands-sub-sub-module.h \
+tests/test-qapi-commands-sub-sub-module.c \
 tests/test-qapi-events.c tests/test-qapi-events.h \
+tests/include/test-qapi-events-sub-module.c \
+tests/include/test-qapi-events-sub-module.h \
+tests/test-qapi-events-sub-sub-module.c \
+tests/test-qapi-events-sub-sub-module.h \
 tests/test-qapi-introspect.c tests/test-qapi-introspect.h: \
 tests/test-qapi-gen-timestamp ;
-tests/test-qapi-gen-timestamp: $(SRC_PATH)/tests/qapi-schema/qapi-schema-test.json $(qapi-py)
+tests/test-qapi-gen-timestamp: \
+		$(SRC_PATH)/tests/qapi-schema/qapi-schema-test.json \
+		$(SRC_PATH)/tests/qapi-schema/include/sub-module.json \
+		$(SRC_PATH)/tests/qapi-schema/sub-sub-module.json \
+		$(qapi-py)
 	$(call quiet-command,$(PYTHON) $(SRC_PATH)/scripts/qapi-gen.py \
 		-o tests -p "test-" $<, \
 		"GEN","$(@:%-timestamp=%)")
