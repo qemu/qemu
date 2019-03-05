@@ -537,13 +537,13 @@
 #         +------------------
 #             10   50   100
 #
-# Since: 2.12
+# Since: 4.0
 ##
 { 'struct': 'BlockLatencyHistogramInfo',
   'data': {'boundaries': ['uint64'], 'bins': ['uint64'] } }
 
 ##
-# @x-block-latency-histogram-set:
+# @block-latency-histogram-set:
 #
 # Manage read, write and flush latency histograms for the device.
 #
@@ -573,7 +573,7 @@
 #
 # Returns: error if device is not found or any boundary arrays are invalid.
 #
-# Since: 2.12
+# Since: 4.0
 #
 # Example: set new histograms for all io types with intervals
 # [0, 10), [10, 50), [50, 100), [100, +inf):
@@ -607,7 +607,7 @@
 #      "arguments": { "device": "drive0" } }
 # <- { "return": {} }
 ##
-{ 'command': 'x-block-latency-histogram-set',
+{ 'command': 'block-latency-histogram-set',
   'data': {'id': 'str',
            '*boundaries': ['uint64'],
            '*boundaries-read': ['uint64'],
@@ -894,11 +894,11 @@
 # @timed_stats: Statistics specific to the set of previously defined
 #               intervals of time (Since 2.5)
 #
-# @x_rd_latency_histogram: @BlockLatencyHistogramInfo. (Since 2.12)
+# @rd_latency_histogram: @BlockLatencyHistogramInfo. (Since 4.0)
 #
-# @x_wr_latency_histogram: @BlockLatencyHistogramInfo. (Since 2.12)
+# @wr_latency_histogram: @BlockLatencyHistogramInfo. (Since 4.0)
 #
-# @x_flush_latency_histogram: @BlockLatencyHistogramInfo. (Since 2.12)
+# @flush_latency_histogram: @BlockLatencyHistogramInfo. (Since 4.0)
 #
 # Since: 0.14.0
 ##
@@ -913,9 +913,9 @@
            'invalid_wr_operations': 'int', 'invalid_flush_operations': 'int',
            'account_invalid': 'bool', 'account_failed': 'bool',
            'timed_stats': ['BlockDeviceTimedStats'],
-           '*x_rd_latency_histogram': 'BlockLatencyHistogramInfo',
-           '*x_wr_latency_histogram': 'BlockLatencyHistogramInfo',
-           '*x_flush_latency_histogram': 'BlockLatencyHistogramInfo' } }
+           '*rd_latency_histogram': 'BlockLatencyHistogramInfo',
+           '*wr_latency_histogram': 'BlockLatencyHistogramInfo',
+           '*flush_latency_histogram': 'BlockLatencyHistogramInfo' } }
 
 ##
 # @BlockStats:

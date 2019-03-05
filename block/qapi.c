@@ -493,14 +493,14 @@ static void bdrv_query_blk_stats(BlockDeviceStats *ds, BlockBackend *blk)
     }
 
     bdrv_latency_histogram_stats(&stats->latency_histogram[BLOCK_ACCT_READ],
-                                 &ds->has_x_rd_latency_histogram,
-                                 &ds->x_rd_latency_histogram);
+                                 &ds->has_rd_latency_histogram,
+                                 &ds->rd_latency_histogram);
     bdrv_latency_histogram_stats(&stats->latency_histogram[BLOCK_ACCT_WRITE],
-                                 &ds->has_x_wr_latency_histogram,
-                                 &ds->x_wr_latency_histogram);
+                                 &ds->has_wr_latency_histogram,
+                                 &ds->wr_latency_histogram);
     bdrv_latency_histogram_stats(&stats->latency_histogram[BLOCK_ACCT_FLUSH],
-                                 &ds->has_x_flush_latency_histogram,
-                                 &ds->x_flush_latency_histogram);
+                                 &ds->has_flush_latency_histogram,
+                                 &ds->flush_latency_histogram);
 }
 
 static BlockStats *bdrv_query_bds_stats(BlockDriverState *bs,
