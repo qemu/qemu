@@ -165,6 +165,20 @@ and also assign them to the correct bus can be done this way:
         -device usb-host,bus=usb-bus.0,hostbus=3,hostport=1  \
         -device usb-host,bus=ehci.0,hostbus=1,hostport=1
 
+When using vendorid+productid obtain these from lsusb, this method is
+preferred for devices that regularly disconnect and obtain new hostport
+values on each connection such as the Brother ADS-2000 scanner note the
+addition of 0x before both vendorid and productid:
+
+Bus 001 Device 006: ID 04f9:60a0 Brother Industries, Ltd ADS-2000
+
+They are then entered on the command line as so:
+
+    qemu -M pc ${otheroptions}                               \
+        -usb                                                 \
+        -device usb-ehci,id=ehci                             \ 
+        -device usb-host,vendorid=0x04f9,productid=0x60a0
+        
 enjoy,
   Gerd
 
