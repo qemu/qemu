@@ -27,14 +27,14 @@
 #include <inttypes.h>
 #include <string.h>
 
-#define PRINT_RESULTS 1
+#define PRINT_RESULTS 0
 
 
-static inline int32_t check_results(char *instruction_name,
-                                    uint32_t test_count,
-                                    double elapsed_time,
-                                    uint64_t *b128_result,
-                                    uint64_t *b128_expect)
+static inline int32_t check_results(const char *instruction_name,
+                                    const uint32_t test_count,
+                                    const double elapsed_time,
+                                    const uint64_t *b128_result,
+                                    const uint64_t *b128_expect)
 {
 #if PRINT_RESULTS
     uint32_t ii;
@@ -58,7 +58,8 @@ static inline int32_t check_results(char *instruction_name,
 
     printf("%s:   ", instruction_name);
     for (i = 0; i < test_count; i++) {
-        if (b128_result[i] == b128_expect[i]) {
+        if ((b128_result[2 * i] == b128_expect[2 * i]) &&
+            (b128_result[2 * i + 1] == b128_expect[2 * i + 1])) {
             pass_count++;
         } else {
             fail_count++;
