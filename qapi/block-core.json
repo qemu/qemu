@@ -550,7 +550,7 @@
 # If only @device parameter is specified, remove all present latency histograms
 # for the device. Otherwise, add/reset some of (or all) latency histograms.
 #
-# @device: device name to set latency histogram for.
+# @id: The name or QOM path of the guest device.
 #
 # @boundaries: list of interval boundary values (see description in
 #              BlockLatencyHistogramInfo definition). If specified, all
@@ -608,7 +608,7 @@
 # <- { "return": {} }
 ##
 { 'command': 'x-block-latency-histogram-set',
-  'data': {'device': 'str',
+  'data': {'id': 'str',
            '*boundaries': ['uint64'],
            '*boundaries-read': ['uint64'],
            '*boundaries-write': ['uint64'],
