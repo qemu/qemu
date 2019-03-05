@@ -68,20 +68,6 @@ void raise_exception_ra(CPUARMState *env, uint32_t excp, uint32_t syndrome,
     cpu_loop_exit_restore(cs, ra);
 }
 
-static int exception_target_el(CPUARMState *env)
-{
-    int target_el = MAX(1, arm_current_el(env));
-
-    /* No such thing as secure EL1 if EL3 is aarch32, so update the target EL
-     * to EL3 in this case.
-     */
-    if (arm_is_secure(env) && !arm_el_is_aa64(env, 3) && target_el == 1) {
-        target_el = 3;
-    }
-
-    return target_el;
-}
-
 uint32_t HELPER(neon_tbl)(uint32_t ireg, uint32_t def, void *vn,
                           uint32_t maxindex)
 {
@@ -873,39 +859,6 @@ uint64_t HELPER(get_cp_reg64)(CPUARMState *env, void *rip)
     }
 
     return res;
-}
-
-void HELPER(msr_i_pstate)(CPUARMState *env, uint32_t op, uint32_t imm)
-{
-    /* MSR_i to update PSTATE. This is OK from EL0 only if UMA is set.
-     * Note that SPSel is never OK from EL0; we rely on handle_msr_i()
-     * to catch that case at translate time.
-     */
-    if (arm_current_el(env) == 0 && !(env->cp15.sctlr_el[1] & SCTLR_UMA)) {
-        uint32_t syndrome = syn_aa64_sysregtrap(0, extract32(op, 0, 3),
-                                                extract32(op, 3, 3), 4,
-                                                imm, 0x1f, 0);
-        raise_exception(env, EXCP_UDEF, syndrome, exception_target_el(env));
-    }
-
-    switch (op) {
-    case 0x05: /* SPSel */
-        update_spsel(env, imm);
-        break;
-    case 0x1e: /* DAIFSet */
-        env->daif |= (imm << 6) & PSTATE_DAIF;
-        break;
-    case 0x1f: /* DAIFClear */
-        env->daif &= ~((imm << 6) & PSTATE_DAIF);
-        break;
-    default:
-        g_assert_not_reached();
-    }
-}
-
-void HELPER(clear_pstate_ss)(CPUARMState *env)
-{
-    env->pstate &= ~PSTATE_SS;
 }
 
 void HELPER(pre_hvc)(CPUARMState *env)
