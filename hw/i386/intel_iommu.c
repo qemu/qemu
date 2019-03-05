@@ -2005,7 +2005,7 @@ static void vtd_handle_gcmd_qie(IntelIOMMUState *s, bool en)
     if (en) {
         s->iq = iqa_val & VTD_IQA_IQA_MASK(s->aw_bits);
         /* 2^(x+8) entries */
-        s->iq_size = 1UL << ((iqa_val & VTD_IQA_QS) + 8);
+        s->iq_size = 1UL << ((iqa_val & VTD_IQA_QS) + 8 - (s->iq_dw ? 1 : 0));
         s->qi_enabled = true;
         trace_vtd_inv_qi_setup(s->iq, s->iq_size);
         /* Ok - report back to driver */
@@ -2172,19 +2172,24 @@ static void vtd_handle_iotlb_write(IntelIOMMUState *s)
 }
 
 /* Fetch an Invalidation Descriptor from the Invalidation Queue */
-static bool vtd_get_inv_desc(dma_addr_t base_addr, uint32_t offset,
+static bool vtd_get_inv_desc(IntelIOMMUState *s,
                              VTDInvDesc *inv_desc)
 {
-    dma_addr_t addr = base_addr + offset * sizeof(*inv_desc);
-    if (dma_memory_read(&address_space_memory, addr, inv_desc,
-        sizeof(*inv_desc))) {
-        error_report_once("Read INV DESC failed");
-        inv_desc->lo = 0;
-        inv_desc->hi = 0;
+    dma_addr_t base_addr = s->iq;
+    uint32_t offset = s->iq_head;
+    uint32_t dw = s->iq_dw ? 32 : 16;
+    dma_addr_t addr = base_addr + offset * dw;
+
+    if (dma_memory_read(&address_space_memory, addr, inv_desc, dw)) {
+        error_report_once("Read INV DESC failed.");
         return false;
     }
     inv_desc->lo = le64_to_cpu(inv_desc->lo);
     inv_desc->hi = le64_to_cpu(inv_desc->hi);
+    if (dw == 32) {
+        inv_desc->val[2] = le64_to_cpu(inv_desc->val[2]);
+        inv_desc->val[3] = le64_to_cpu(inv_desc->val[3]);
+    }
     return true;
 }
 
@@ -2390,10 +2395,11 @@ static bool vtd_process_inv_desc(IntelIOMMUState *s)
     uint8_t desc_type;
 
     trace_vtd_inv_qi_head(s->iq_head);
-    if (!vtd_get_inv_desc(s->iq, s->iq_head, &inv_desc)) {
+    if (!vtd_get_inv_desc(s, &inv_desc)) {
         s->iq_last_desc_type = VTD_INV_DESC_NONE;
         return false;
     }
+
     desc_type = inv_desc.lo & VTD_INV_DESC_TYPE;
     /* FIXME: should update at first or at last? */
     s->iq_last_desc_type = desc_type;
@@ -2478,7 +2484,12 @@ static void vtd_handle_iqt_write(IntelIOMMUState *s)
 {
     uint64_t val = vtd_get_quad_raw(s, DMAR_IQT_REG);
 
-    s->iq_tail = VTD_IQT_QT(val);
+    if (s->iq_dw && (val & VTD_IQT_QT_256_RSV_BIT)) {
+        error_report_once("%s: RSV bit is set: val=0x%"PRIx64,
+                          __func__, val);
+        return;
+    }
+    s->iq_tail = VTD_IQT_QT(s->iq_dw, val);
     trace_vtd_inv_qi_tail(s->iq_tail);
 
     if (s->qi_enabled && !(vtd_get_long_raw(s, DMAR_FSTS_REG) & VTD_FSTS_IQE)) {
@@ -2746,6 +2757,12 @@ static void vtd_mem_write(void *opaque, hwaddr addr,
             vtd_set_long(s, addr, val);
         } else {
             vtd_set_quad(s, addr, val);
+        }
+        if (s->ecap & VTD_ECAP_SMTS &&
+            val & VTD_IQA_DW_MASK) {
+            s->iq_dw = true;
+        } else {
+            s->iq_dw = false;
         }
         break;
 
@@ -3455,6 +3472,7 @@ static void vtd_init(IntelIOMMUState *s)
     s->iq_size = 0;
     s->qi_enabled = false;
     s->iq_last_desc_type = VTD_INV_DESC_NONE;
+    s->iq_dw = false;
     s->next_frcd_reg = 0;
     s->cap = VTD_CAP_FRO | VTD_CAP_NFR | VTD_CAP_ND |
              VTD_CAP_MAMV | VTD_CAP_PSI | VTD_CAP_SLLPS |
@@ -3532,7 +3550,7 @@ static void vtd_init(IntelIOMMUState *s)
 
     vtd_define_quad(s, DMAR_IQH_REG, 0, 0, 0);
     vtd_define_quad(s, DMAR_IQT_REG, 0, 0x7fff0ULL, 0);
-    vtd_define_quad(s, DMAR_IQA_REG, 0, 0xfffffffffffff007ULL, 0);
+    vtd_define_quad(s, DMAR_IQA_REG, 0, 0xfffffffffffff807ULL, 0);
     vtd_define_long(s, DMAR_ICS_REG, 0, 0, 0x1UL);
     vtd_define_long(s, DMAR_IECTL_REG, 0x80000000UL, 0x80000000UL, 0);
     vtd_define_long(s, DMAR_IEDATA_REG, 0, 0xffffffffUL, 0);
