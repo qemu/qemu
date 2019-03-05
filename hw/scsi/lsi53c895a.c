@@ -1688,7 +1688,7 @@ static uint8_t lsi_reg_readb(LSIState *s, int offset)
         break;
     CASE_GET_REG32(temp, 0x1c)
     case 0x20: /* DFIFO */
-        ret = 0;
+        ret = s->dfifo;
         break;
     case 0x21: /* CTEST4 */
         ret = s->ctest4;
