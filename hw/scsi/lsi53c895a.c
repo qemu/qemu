@@ -306,6 +306,22 @@ typedef struct {
 #define LSI53C895A(obj) \
     OBJECT_CHECK(LSIState, (obj), TYPE_LSI53C895A)
 
+static const char *scsi_phases[] = {
+    "DOUT",
+    "DIN",
+    "CMD",
+    "STATUS",
+    "RSVOUT",
+    "RSVIN",
+    "MSGOUT",
+    "MSGIN"
+};
+
+static const char *scsi_phase_name(int phase)
+{
+    return scsi_phases[phase & PHASE_MASK];
+}
+
 static inline int lsi_irq_on_rsl(LSIState *s)
 {
     return (s->sien0 & LSI_SIST0_RSL) && (s->scid & LSI_SCID_RRE);
@@ -1201,8 +1217,9 @@ again:
             s->ia = s->dsp - 12;
         }
         if ((s->sstat1 & PHASE_MASK) != ((insn >> 24) & 7)) {
-            trace_lsi_execute_script_blockmove_badphase(s->sstat1 & PHASE_MASK,
-                                                        (insn >> 24) & 7);
+            trace_lsi_execute_script_blockmove_badphase(
+                    scsi_phase_name(s->sstat1),
+                    scsi_phase_name(insn >> 24));
             lsi_script_scsi_interrupt(s, LSI_SIST0_MA, 0);
             break;
         }
@@ -1234,8 +1251,8 @@ again:
             lsi_do_msgin(s);
             break;
         default:
-            qemu_log_mask(LOG_UNIMP, "lsi_scsi: Unimplemented phase %d\n",
-                          s->sstat1 & PHASE_MASK);
+            qemu_log_mask(LOG_UNIMP, "lsi_scsi: Unimplemented phase %s\n",
+                          scsi_phase_name(s->sstat1));
         }
         s->dfifo = s->dbc & 0xff;
         s->ctest5 = (s->ctest5 & 0xfc) | ((s->dbc >> 8) & 3);
@@ -1463,10 +1480,8 @@ again:
                 cond = s->carry != 0;
             }
             if (cond == jmp && (insn & (1 << 17))) {
-                trace_lsi_execute_script_tc_compp(
-                        (s->sstat1 & PHASE_MASK),
-                        jmp ? '=' : '!',
-                        ((insn >> 24) & 7));
+                trace_lsi_execute_script_tc_compp(scsi_phase_name(s->sstat1),
+                        jmp ? '=' : '!', scsi_phase_name(insn >> 24));
                 cond = (s->sstat1 & PHASE_MASK) == ((insn >> 24) & 7);
             }
             if (cond == jmp && (insn & (1 << 18))) {

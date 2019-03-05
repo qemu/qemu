@@ -268,7 +268,7 @@ lsi_memcpy(uint32_t dest, uint32_t src, int count) "memcpy dest 0x%"PRIx32" src 
 lsi_wait_reselect(void) "Wait Reselect"
 lsi_execute_script(uint32_t dsp, uint32_t insn, uint32_t addr) "SCRIPTS dsp=0x%"PRIx32" opcode 0x%"PRIx32" arg 0x%"PRIx32
 lsi_execute_script_blockmove_delayed(void) "Delayed select timeout"
-lsi_execute_script_blockmove_badphase(uint8_t phase, uint8_t expected) "Wrong phase got %d expected %d"
+lsi_execute_script_blockmove_badphase(const char *phase, const char *expected) "Wrong phase got %s expected %s"
 lsi_execute_script_io_alreadyreselected(void) "Already reselected, jumping to alternative address"
 lsi_execute_script_io_selected(uint8_t id, const char *atn) "Selected target %d%s"
 lsi_execute_script_io_disconnect(void) "Wait Disconnect"
@@ -278,8 +278,8 @@ lsi_execute_script_io_opcode(const char *opcode, int reg, const char *opname, ui
 lsi_execute_script_tc_nop(void) "NOP"
 lsi_execute_script_tc_delayedselect_timeout(void) "Delayed select timeout"
 lsi_execute_script_tc_compc(int result) "Compare carry %d"
-lsi_execute_script_tc_compp(uint8_t phase, int op, uint8_t insn_phase) "Compare phase %d %c= %d"
-lsi_execute_script_tc_compd(uint32_t sfbr, uint8_t mask, int op, int result) "Compare data 0x%"PRIx32" & 0x%x %c= 0x%x"
+lsi_execute_script_tc_compp(const char *phase, char op, const char *insn_phase) "Compare phase %s %c= %s"
+lsi_execute_script_tc_compd(uint32_t sfbr, uint8_t mask, char op, int result) "Compare data 0x%"PRIx32" & 0x%x %c= 0x%x"
 lsi_execute_script_tc_jump(uint32_t addr) "Jump to 0x%"PRIx32
 lsi_execute_script_tc_call(uint32_t addr) "Call 0x%"PRIx32
 lsi_execute_script_tc_return(uint32_t addr) "Return to 0x%"PRIx32
