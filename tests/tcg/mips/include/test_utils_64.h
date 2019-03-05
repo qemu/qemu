@@ -1,8 +1,8 @@
 /*
  *  Header file for test utilities
  *
- *  Copyright (C) 2018  Wave Computing, Inc.
- *  Copyright (C) 2018  Aleksandar Markovic <amarkovic@wavecomp.com>
+ *  Copyright (C) 2019  Wave Computing, Inc.
+ *  Copyright (C) 2019  Aleksandar Markovic <amarkovic@wavecomp.com>
  *
  *  This program is free software: you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -19,8 +19,8 @@
  *
  */
 
-#ifndef TEST_UTILS_H
-#define TEST_UTILS_H
+#ifndef TEST_UTILS_64_H
+#define TEST_UTILS_64_H
 
 #include <stdio.h>
 #include <stdint.h>
@@ -30,24 +30,23 @@
 #define PRINT_RESULTS 0
 
 
-static inline int32_t check_results(const char *instruction_name,
-                                    const uint32_t test_count,
-                                    const double elapsed_time,
-                                    const uint64_t *b128_result,
-                                    const uint64_t *b128_expect)
+static inline int32_t check_results_64(const char *instruction_name,
+                                       const uint32_t test_count,
+                                       const double elapsed_time,
+                                       const uint64_t *b64_result,
+                                       const uint64_t *b64_expect)
 {
 #if PRINT_RESULTS
     uint32_t ii;
     printf("\n");
     for (ii = 0; ii < test_count; ii++) {
-        uint64_t a, b;
-        memcpy(&a, (b128_result + 2 * ii), 8);
-        memcpy(&b, (b128_result + 2 * ii + 1), 8);
+        uint64_t a;
+        memcpy(&a, (b64_result + ii), 8);
         if (ii % 8 != 0) {
-            printf("        { 0x%016llxULL, 0x%016llxULL, },\n", a, b);
+            printf("        0x%016llxULL,\n", a);
         } else {
-            printf("        { 0x%016llxULL, 0x%016llxULL, },    /* %3d  */\n",
-                   a, b, ii);
+            printf("        0x%016llxULL,                    /* %3d  */\n",
+                   a, ii);
         }
     }
     printf("\n");
@@ -58,8 +57,7 @@ static inline int32_t check_results(const char *instruction_name,
 
     printf("%s:   ", instruction_name);
     for (i = 0; i < test_count; i++) {
-        if ((b128_result[2 * i] == b128_expect[2 * i]) &&
-            (b128_result[2 * i + 1] == b128_expect[2 * i + 1])) {
+        if (b64_result[i] == b64_expect[i]) {
             pass_count++;
         } else {
             fail_count++;
@@ -75,5 +73,6 @@ static inline int32_t check_results(const char *instruction_name,
         return 0;
     }
 }
+
 
 #endif
