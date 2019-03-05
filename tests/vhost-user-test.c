@@ -588,6 +588,7 @@ static void test_server_free(TestServer *server)
         g_test_message("unable to rmdir: path (%s): %s",
                        server->tmpfs, strerror(errno));
     }
+    g_free(server->tmpfs);
 
     qemu_chr_fe_deinit(&server->chr, true);
 
@@ -605,6 +606,8 @@ static void test_server_free(TestServer *server)
 
     g_main_loop_unref(server->loop);
     g_main_context_unref(server->context);
+    g_cond_clear(&server->data_cond);
+    g_mutex_clear(&server->data_mutex);
     g_free(server);
 }
 
