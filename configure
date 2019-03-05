@@ -457,6 +457,7 @@ glusterfs_discard="no"
 glusterfs_fallocate="no"
 glusterfs_zerofill="no"
 glusterfs_ftruncate_has_stat="no"
+glusterfs_iocb_has_stat="no"
 gtk=""
 gtk_gl="no"
 tls_priority="NORMAL"
@@ -4105,6 +4106,25 @@ EOF
     if compile_prog "$glusterfs_cflags" "$glusterfs_libs" ; then
       glusterfs_ftruncate_has_stat="yes"
     fi
+    cat > $TMPC << EOF
+#include <glusterfs/api/glfs.h>
+
+/* new glfs_io_cbk() passes two additional glfs_stat structs */
+static void
+glusterfs_iocb(glfs_fd_t *fd, ssize_t ret, struct glfs_stat *prestat, struct glfs_stat *poststat, void *data)
+{}
+
+int
+main(void)
+{
+	glfs_io_cbk iocb = &glusterfs_iocb;
+	iocb(NULL, 0 , NULL, NULL, NULL);
+	return 0;
+}
+EOF
+    if compile_prog "$glusterfs_cflags" "$glusterfs_libs" ; then
+      glusterfs_iocb_has_stat="yes"
+    fi
   else
     if test "$glusterfs" = "yes" ; then
       feature_not_found "GlusterFS backend support" \
@@ -6992,6 +7012,10 @@ fi
 
 if test "$glusterfs_ftruncate_has_stat" = "yes" ; then
   echo "CONFIG_GLUSTERFS_FTRUNCATE_HAS_STAT=y" >> $config_host_mak
+fi
+
+if test "$glusterfs_iocb_has_stat" = "yes" ; then
+  echo "CONFIG_GLUSTERFS_IOCB_HAS_STAT=y" >> $config_host_mak
 fi
 
 if test "$libssh2" = "yes" ; then
