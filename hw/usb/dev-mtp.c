@@ -1591,14 +1591,18 @@ done:
         return ret;
 }
 
-static void usb_mtp_update_object(MTPObject *parent, char *name)
+static int usb_mtp_update_object(MTPObject *parent, char *name)
 {
+    int ret = -1;
+
     MTPObject *o =
         usb_mtp_object_lookup_name(parent, name, strlen(name));
 
     if (o) {
-        lstat(o->path, &o->stat);
+        ret = lstat(o->path, &o->stat);
     }
+
+    return ret;
 }
 
 static void usb_mtp_write_data(MTPState *s)
@@ -1655,13 +1659,18 @@ static void usb_mtp_write_data(MTPState *s)
         if (d->write_status != WRITE_END) {
             return;
         } else {
-            /* Only for < 4G file sizes */
-            if (s->dataset.size != 0xFFFFFFFF && d->offset != s->dataset.size) {
+            /*
+             * Return an incomplete transfer if file size doesn't match
+             * for < 4G file or if lstat fails which will result in an incorrect
+             * file size
+             */
+            if ((s->dataset.size != 0xFFFFFFFF &&
+                 d->offset != s->dataset.size) ||
+                usb_mtp_update_object(parent, s->dataset.filename)) {
                 usb_mtp_queue_result(s, RES_INCOMPLETE_TRANSFER, d->trans,
                                      0, 0, 0, 0);
                 goto done;
             }
-            usb_mtp_update_object(parent, s->dataset.filename);
         }
     }
 
