@@ -84,7 +84,7 @@ typedef uint64_t vlan_bd_t;
 
 #define TYPE_VIO_SPAPR_VLAN_DEVICE "spapr-vlan"
 #define VIO_SPAPR_VLAN_DEVICE(obj) \
-     OBJECT_CHECK(VIOsPAPRVLANDevice, (obj), TYPE_VIO_SPAPR_VLAN_DEVICE)
+     OBJECT_CHECK(SpaprVioVlan, (obj), TYPE_VIO_SPAPR_VLAN_DEVICE)
 
 #define RX_POOL_MAX_BDS 4096
 #define RX_MAX_POOLS 5
@@ -95,8 +95,8 @@ typedef struct {
     vlan_bd_t bds[RX_POOL_MAX_BDS];
 } RxBufPool;
 
-typedef struct VIOsPAPRVLANDevice {
-    VIOsPAPRDevice sdev;
+typedef struct SpaprVioVlan {
+    SpaprVioDevice sdev;
     NICConf nicconf;
     NICState *nic;
     MACAddr perm_mac;
@@ -107,11 +107,11 @@ typedef struct VIOsPAPRVLANDevice {
     QEMUTimer *rxp_timer;
     uint32_t compat_flags;             /* Compatibility flags for migration */
     RxBufPool *rx_pool[RX_MAX_POOLS];  /* Receive buffer descriptor pools */
-} VIOsPAPRVLANDevice;
+} SpaprVioVlan;
 
 static int spapr_vlan_can_receive(NetClientState *nc)
 {
-    VIOsPAPRVLANDevice *dev = qemu_get_nic_opaque(nc);
+    SpaprVioVlan *dev = qemu_get_nic_opaque(nc);
 
     return (dev->isopen && dev->rx_bufs > 0);
 }
@@ -123,7 +123,7 @@ static int spapr_vlan_can_receive(NetClientState *nc)
  * suitable receive buffer available. This function is used to increase
  * this counter by one.
  */
-static void spapr_vlan_record_dropped_rx_frame(VIOsPAPRVLANDevice *dev)
+static void spapr_vlan_record_dropped_rx_frame(SpaprVioVlan *dev)
 {
     uint64_t cnt;
 
@@ -134,7 +134,7 @@ static void spapr_vlan_record_dropped_rx_frame(VIOsPAPRVLANDevice *dev)
 /**
  * Get buffer descriptor from one of our receive buffer pools
  */
-static vlan_bd_t spapr_vlan_get_rx_bd_from_pool(VIOsPAPRVLANDevice *dev,
+static vlan_bd_t spapr_vlan_get_rx_bd_from_pool(SpaprVioVlan *dev,
                                                 size_t size)
 {
     vlan_bd_t bd;
@@ -168,7 +168,7 @@ static vlan_bd_t spapr_vlan_get_rx_bd_from_pool(VIOsPAPRVLANDevice *dev,
  * Get buffer descriptor from the receive buffer list page that has been
  * supplied by the guest with the H_REGISTER_LOGICAL_LAN call
  */
-static vlan_bd_t spapr_vlan_get_rx_bd_from_page(VIOsPAPRVLANDevice *dev,
+static vlan_bd_t spapr_vlan_get_rx_bd_from_page(SpaprVioVlan *dev,
                                                 size_t size)
 {
     int buf_ptr = dev->use_buf_ptr;
@@ -203,8 +203,8 @@ static vlan_bd_t spapr_vlan_get_rx_bd_from_page(VIOsPAPRVLANDevice *dev,
 static ssize_t spapr_vlan_receive(NetClientState *nc, const uint8_t *buf,
                                   size_t size)
 {
-    VIOsPAPRVLANDevice *dev = qemu_get_nic_opaque(nc);
-    VIOsPAPRDevice *sdev = VIO_SPAPR_DEVICE(dev);
+    SpaprVioVlan *dev = qemu_get_nic_opaque(nc);
+    SpaprVioDevice *sdev = VIO_SPAPR_DEVICE(dev);
     vlan_bd_t rxq_bd = vio_ldq(sdev, dev->buf_list + VLAN_RXQ_BD_OFF);
     vlan_bd_t bd;
     uint64_t handle;
@@ -280,7 +280,7 @@ static NetClientInfo net_spapr_vlan_info = {
 
 static void spapr_vlan_flush_rx_queue(void *opaque)
 {
-    VIOsPAPRVLANDevice *dev = opaque;
+    SpaprVioVlan *dev = opaque;
 
     qemu_flush_queued_packets(qemu_get_queue(dev->nic));
 }
@@ -296,9 +296,9 @@ static void spapr_vlan_reset_rx_pool(RxBufPool *rxp)
     memset(rxp->bds, 0, sizeof(rxp->bds));
 }
 
-static void spapr_vlan_reset(VIOsPAPRDevice *sdev)
+static void spapr_vlan_reset(SpaprVioDevice *sdev)
 {
-    VIOsPAPRVLANDevice *dev = VIO_SPAPR_VLAN_DEVICE(sdev);
+    SpaprVioVlan *dev = VIO_SPAPR_VLAN_DEVICE(sdev);
     int i;
 
     dev->buf_list = 0;
@@ -316,9 +316,9 @@ static void spapr_vlan_reset(VIOsPAPRDevice *sdev)
     qemu_format_nic_info_str(qemu_get_queue(dev->nic), dev->nicconf.macaddr.a);
 }
 
-static void spapr_vlan_realize(VIOsPAPRDevice *sdev, Error **errp)
+static void spapr_vlan_realize(SpaprVioDevice *sdev, Error **errp)
 {
-    VIOsPAPRVLANDevice *dev = VIO_SPAPR_VLAN_DEVICE(sdev);
+    SpaprVioVlan *dev = VIO_SPAPR_VLAN_DEVICE(sdev);
 
     qemu_macaddr_default_if_unset(&dev->nicconf.macaddr);
 
@@ -334,7 +334,7 @@ static void spapr_vlan_realize(VIOsPAPRDevice *sdev, Error **errp)
 
 static void spapr_vlan_instance_init(Object *obj)
 {
-    VIOsPAPRVLANDevice *dev = VIO_SPAPR_VLAN_DEVICE(obj);
+    SpaprVioVlan *dev = VIO_SPAPR_VLAN_DEVICE(obj);
     int i;
 
     device_add_bootindex_property(obj, &dev->nicconf.bootindex,
@@ -351,7 +351,7 @@ static void spapr_vlan_instance_init(Object *obj)
 
 static void spapr_vlan_instance_finalize(Object *obj)
 {
-    VIOsPAPRVLANDevice *dev = VIO_SPAPR_VLAN_DEVICE(obj);
+    SpaprVioVlan *dev = VIO_SPAPR_VLAN_DEVICE(obj);
     int i;
 
     if (dev->compat_flags & SPAPRVLAN_FLAG_RX_BUF_POOLS) {
@@ -367,7 +367,7 @@ static void spapr_vlan_instance_finalize(Object *obj)
     }
 }
 
-void spapr_vlan_create(VIOsPAPRBus *bus, NICInfo *nd)
+void spapr_vlan_create(SpaprVioBus *bus, NICInfo *nd)
 {
     DeviceState *dev;
 
@@ -378,9 +378,9 @@ void spapr_vlan_create(VIOsPAPRBus *bus, NICInfo *nd)
     qdev_init_nofail(dev);
 }
 
-static int spapr_vlan_devnode(VIOsPAPRDevice *dev, void *fdt, int node_off)
+static int spapr_vlan_devnode(SpaprVioDevice *dev, void *fdt, int node_off)
 {
-    VIOsPAPRVLANDevice *vdev = VIO_SPAPR_VLAN_DEVICE(dev);
+    SpaprVioVlan *vdev = VIO_SPAPR_VLAN_DEVICE(dev);
     uint8_t padded_mac[8] = {0, 0};
     int ret;
 
@@ -415,7 +415,7 @@ static int spapr_vlan_devnode(VIOsPAPRDevice *dev, void *fdt, int node_off)
     return 0;
 }
 
-static int check_bd(VIOsPAPRVLANDevice *dev, vlan_bd_t bd,
+static int check_bd(SpaprVioVlan *dev, vlan_bd_t bd,
                     target_ulong alignment)
 {
     if ((VLAN_BD_ADDR(bd) % alignment)
@@ -434,7 +434,7 @@ static int check_bd(VIOsPAPRVLANDevice *dev, vlan_bd_t bd,
 }
 
 static target_ulong h_register_logical_lan(PowerPCCPU *cpu,
-                                           sPAPRMachineState *spapr,
+                                           SpaprMachineState *spapr,
                                            target_ulong opcode,
                                            target_ulong *args)
 {
@@ -442,8 +442,8 @@ static target_ulong h_register_logical_lan(PowerPCCPU *cpu,
     target_ulong buf_list = args[1];
     target_ulong rec_queue = args[2];
     target_ulong filter_list = args[3];
-    VIOsPAPRDevice *sdev = spapr_vio_find_by_reg(spapr->vio_bus, reg);
-    VIOsPAPRVLANDevice *dev = VIO_SPAPR_VLAN_DEVICE(sdev);
+    SpaprVioDevice *sdev = spapr_vio_find_by_reg(spapr->vio_bus, reg);
+    SpaprVioVlan *dev = VIO_SPAPR_VLAN_DEVICE(sdev);
     vlan_bd_t filter_list_bd;
 
     if (!dev) {
@@ -500,12 +500,12 @@ static target_ulong h_register_logical_lan(PowerPCCPU *cpu,
 
 
 static target_ulong h_free_logical_lan(PowerPCCPU *cpu,
-                                       sPAPRMachineState *spapr,
+                                       SpaprMachineState *spapr,
                                        target_ulong opcode, target_ulong *args)
 {
     target_ulong reg = args[0];
-    VIOsPAPRDevice *sdev = spapr_vio_find_by_reg(spapr->vio_bus, reg);
-    VIOsPAPRVLANDevice *dev = VIO_SPAPR_VLAN_DEVICE(sdev);
+    SpaprVioDevice *sdev = spapr_vio_find_by_reg(spapr->vio_bus, reg);
+    SpaprVioVlan *dev = VIO_SPAPR_VLAN_DEVICE(sdev);
 
     if (!dev) {
         return H_PARAMETER;
@@ -539,7 +539,7 @@ static int rx_pool_size_compare(const void *p1, const void *p2)
  * Search for a matching buffer pool with exact matching size,
  * or return -1 if no matching pool has been found.
  */
-static int spapr_vlan_get_rx_pool_id(VIOsPAPRVLANDevice *dev, int size)
+static int spapr_vlan_get_rx_pool_id(SpaprVioVlan *dev, int size)
 {
     int pool;
 
@@ -555,7 +555,7 @@ static int spapr_vlan_get_rx_pool_id(VIOsPAPRVLANDevice *dev, int size)
 /**
  * Enqueuing receive buffer by adding it to one of our receive buffer pools
  */
-static target_long spapr_vlan_add_rxbuf_to_pool(VIOsPAPRVLANDevice *dev,
+static target_long spapr_vlan_add_rxbuf_to_pool(SpaprVioVlan *dev,
                                                 target_ulong buf)
 {
     int size = VLAN_BD_LEN(buf);
@@ -602,7 +602,7 @@ static target_long spapr_vlan_add_rxbuf_to_pool(VIOsPAPRVLANDevice *dev,
  * This is the old way of enqueuing receive buffers: Add it to the rx queue
  * page that has been supplied by the guest (which is quite limited in size).
  */
-static target_long spapr_vlan_add_rxbuf_to_page(VIOsPAPRVLANDevice *dev,
+static target_long spapr_vlan_add_rxbuf_to_page(SpaprVioVlan *dev,
                                                 target_ulong buf)
 {
     vlan_bd_t bd;
@@ -628,14 +628,14 @@ static target_long spapr_vlan_add_rxbuf_to_page(VIOsPAPRVLANDevice *dev,
 }
 
 static target_ulong h_add_logical_lan_buffer(PowerPCCPU *cpu,
-                                             sPAPRMachineState *spapr,
+                                             SpaprMachineState *spapr,
                                              target_ulong opcode,
                                              target_ulong *args)
 {
     target_ulong reg = args[0];
     target_ulong buf = args[1];
-    VIOsPAPRDevice *sdev = spapr_vio_find_by_reg(spapr->vio_bus, reg);
-    VIOsPAPRVLANDevice *dev = VIO_SPAPR_VLAN_DEVICE(sdev);
+    SpaprVioDevice *sdev = spapr_vio_find_by_reg(spapr->vio_bus, reg);
+    SpaprVioVlan *dev = VIO_SPAPR_VLAN_DEVICE(sdev);
     target_long ret;
 
     trace_spapr_vlan_h_add_logical_lan_buffer(reg, buf);
@@ -678,14 +678,14 @@ static target_ulong h_add_logical_lan_buffer(PowerPCCPU *cpu,
 }
 
 static target_ulong h_send_logical_lan(PowerPCCPU *cpu,
-                                       sPAPRMachineState *spapr,
+                                       SpaprMachineState *spapr,
                                        target_ulong opcode, target_ulong *args)
 {
     target_ulong reg = args[0];
     target_ulong *bufs = args + 1;
     target_ulong continue_token = args[7];
-    VIOsPAPRDevice *sdev = spapr_vio_find_by_reg(spapr->vio_bus, reg);
-    VIOsPAPRVLANDevice *dev = VIO_SPAPR_VLAN_DEVICE(sdev);
+    SpaprVioDevice *sdev = spapr_vio_find_by_reg(spapr->vio_bus, reg);
+    SpaprVioVlan *dev = VIO_SPAPR_VLAN_DEVICE(sdev);
     unsigned total_len;
     uint8_t *lbuf, *p;
     int i, nbufs;
@@ -745,11 +745,11 @@ static target_ulong h_send_logical_lan(PowerPCCPU *cpu,
     return H_SUCCESS;
 }
 
-static target_ulong h_multicast_ctrl(PowerPCCPU *cpu, sPAPRMachineState *spapr,
+static target_ulong h_multicast_ctrl(PowerPCCPU *cpu, SpaprMachineState *spapr,
                                      target_ulong opcode, target_ulong *args)
 {
     target_ulong reg = args[0];
-    VIOsPAPRDevice *dev = spapr_vio_find_by_reg(spapr->vio_bus, reg);
+    SpaprVioDevice *dev = spapr_vio_find_by_reg(spapr->vio_bus, reg);
 
     if (!dev) {
         return H_PARAMETER;
@@ -759,14 +759,14 @@ static target_ulong h_multicast_ctrl(PowerPCCPU *cpu, sPAPRMachineState *spapr,
 }
 
 static target_ulong h_change_logical_lan_mac(PowerPCCPU *cpu,
-                                             sPAPRMachineState *spapr,
+                                             SpaprMachineState *spapr,
                                              target_ulong opcode,
                                              target_ulong *args)
 {
     target_ulong reg = args[0];
     target_ulong macaddr = args[1];
-    VIOsPAPRDevice *sdev = spapr_vio_find_by_reg(spapr->vio_bus, reg);
-    VIOsPAPRVLANDevice *dev = VIO_SPAPR_VLAN_DEVICE(sdev);
+    SpaprVioDevice *sdev = spapr_vio_find_by_reg(spapr->vio_bus, reg);
+    SpaprVioVlan *dev = VIO_SPAPR_VLAN_DEVICE(sdev);
     int i;
 
     for (i = 0; i < ETH_ALEN; i++) {
@@ -780,16 +780,16 @@ static target_ulong h_change_logical_lan_mac(PowerPCCPU *cpu,
 }
 
 static Property spapr_vlan_properties[] = {
-    DEFINE_SPAPR_PROPERTIES(VIOsPAPRVLANDevice, sdev),
-    DEFINE_NIC_PROPERTIES(VIOsPAPRVLANDevice, nicconf),
-    DEFINE_PROP_BIT("use-rx-buffer-pools", VIOsPAPRVLANDevice,
+    DEFINE_SPAPR_PROPERTIES(SpaprVioVlan, sdev),
+    DEFINE_NIC_PROPERTIES(SpaprVioVlan, nicconf),
+    DEFINE_PROP_BIT("use-rx-buffer-pools", SpaprVioVlan,
                     compat_flags, SPAPRVLAN_FLAG_RX_BUF_POOLS_BIT, true),
     DEFINE_PROP_END_OF_LIST(),
 };
 
 static bool spapr_vlan_rx_buffer_pools_needed(void *opaque)
 {
-    VIOsPAPRVLANDevice *dev = opaque;
+    SpaprVioVlan *dev = opaque;
 
     return (dev->compat_flags & SPAPRVLAN_FLAG_RX_BUF_POOLS) != 0;
 }
@@ -813,7 +813,7 @@ static const VMStateDescription vmstate_rx_pools = {
     .minimum_version_id = 1,
     .needed = spapr_vlan_rx_buffer_pools_needed,
     .fields = (VMStateField[]) {
-        VMSTATE_ARRAY_OF_POINTER_TO_STRUCT(rx_pool, VIOsPAPRVLANDevice,
+        VMSTATE_ARRAY_OF_POINTER_TO_STRUCT(rx_pool, SpaprVioVlan,
                                            RX_MAX_POOLS, 1,
                                            vmstate_rx_buffer_pool, RxBufPool),
         VMSTATE_END_OF_LIST()
@@ -825,14 +825,14 @@ static const VMStateDescription vmstate_spapr_llan = {
     .version_id = 1,
     .minimum_version_id = 1,
     .fields = (VMStateField[]) {
-        VMSTATE_SPAPR_VIO(sdev, VIOsPAPRVLANDevice),
+        VMSTATE_SPAPR_VIO(sdev, SpaprVioVlan),
         /* LLAN state */
-        VMSTATE_BOOL(isopen, VIOsPAPRVLANDevice),
-        VMSTATE_UINT64(buf_list, VIOsPAPRVLANDevice),
-        VMSTATE_UINT32(add_buf_ptr, VIOsPAPRVLANDevice),
-        VMSTATE_UINT32(use_buf_ptr, VIOsPAPRVLANDevice),
-        VMSTATE_UINT32(rx_bufs, VIOsPAPRVLANDevice),
-        VMSTATE_UINT64(rxq_ptr, VIOsPAPRVLANDevice),
+        VMSTATE_BOOL(isopen, SpaprVioVlan),
+        VMSTATE_UINT64(buf_list, SpaprVioVlan),
+        VMSTATE_UINT32(add_buf_ptr, SpaprVioVlan),
+        VMSTATE_UINT32(use_buf_ptr, SpaprVioVlan),
+        VMSTATE_UINT32(rx_bufs, SpaprVioVlan),
+        VMSTATE_UINT64(rxq_ptr, SpaprVioVlan),
 
         VMSTATE_END_OF_LIST()
     },
@@ -845,7 +845,7 @@ static const VMStateDescription vmstate_spapr_llan = {
 static void spapr_vlan_class_init(ObjectClass *klass, void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
-    VIOsPAPRDeviceClass *k = VIO_SPAPR_DEVICE_CLASS(klass);
+    SpaprVioDeviceClass *k = VIO_SPAPR_DEVICE_CLASS(klass);
 
     k->realize = spapr_vlan_realize;
     k->reset = spapr_vlan_reset;
@@ -863,7 +863,7 @@ static void spapr_vlan_class_init(ObjectClass *klass, void *data)
 static const TypeInfo spapr_vlan_info = {
     .name          = TYPE_VIO_SPAPR_VLAN_DEVICE,
     .parent        = TYPE_VIO_SPAPR_DEVICE,
-    .instance_size = sizeof(VIOsPAPRVLANDevice),
+    .instance_size = sizeof(SpaprVioVlan),
     .class_init    = spapr_vlan_class_init,
     .instance_init = spapr_vlan_instance_init,
     .instance_finalize = spapr_vlan_instance_finalize,

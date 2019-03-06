@@ -117,7 +117,7 @@ static int spapr_xive_target_to_end(uint32_t target, uint8_t prio,
  * On sPAPR machines, use a simplified output for the XIVE END
  * structure dumping only the information related to the OS EQ.
  */
-static void spapr_xive_end_pic_print_info(sPAPRXive *xive, XiveEND *end,
+static void spapr_xive_end_pic_print_info(SpaprXive *xive, XiveEND *end,
                                           Monitor *mon)
 {
     uint32_t qindex = xive_get_field32(END_W1_PAGE_OFF, end->w1);
@@ -135,7 +135,7 @@ static void spapr_xive_end_pic_print_info(sPAPRXive *xive, XiveEND *end,
     monitor_printf(mon, "]");
 }
 
-void spapr_xive_pic_print_info(sPAPRXive *xive, Monitor *mon)
+void spapr_xive_pic_print_info(SpaprXive *xive, Monitor *mon)
 {
     XiveSource *xsrc = &xive->source;
     int i;
@@ -173,14 +173,14 @@ void spapr_xive_pic_print_info(sPAPRXive *xive, Monitor *mon)
     }
 }
 
-static void spapr_xive_map_mmio(sPAPRXive *xive)
+static void spapr_xive_map_mmio(SpaprXive *xive)
 {
     sysbus_mmio_map(SYS_BUS_DEVICE(xive), 0, xive->vc_base);
     sysbus_mmio_map(SYS_BUS_DEVICE(xive), 1, xive->end_base);
     sysbus_mmio_map(SYS_BUS_DEVICE(xive), 2, xive->tm_base);
 }
 
-void spapr_xive_mmio_set_enabled(sPAPRXive *xive, bool enable)
+void spapr_xive_mmio_set_enabled(SpaprXive *xive, bool enable)
 {
     memory_region_set_enabled(&xive->source.esb_mmio, enable);
     memory_region_set_enabled(&xive->tm_mmio, enable);
@@ -216,7 +216,7 @@ static void spapr_xive_end_reset(XiveEND *end)
 
 static void spapr_xive_reset(void *dev)
 {
-    sPAPRXive *xive = SPAPR_XIVE(dev);
+    SpaprXive *xive = SPAPR_XIVE(dev);
     int i;
 
     /*
@@ -242,7 +242,7 @@ static void spapr_xive_reset(void *dev)
 
 static void spapr_xive_instance_init(Object *obj)
 {
-    sPAPRXive *xive = SPAPR_XIVE(obj);
+    SpaprXive *xive = SPAPR_XIVE(obj);
 
     object_initialize_child(obj, "source", &xive->source, sizeof(xive->source),
                             TYPE_XIVE_SOURCE, &error_abort, NULL);
@@ -254,7 +254,7 @@ static void spapr_xive_instance_init(Object *obj)
 
 static void spapr_xive_realize(DeviceState *dev, Error **errp)
 {
-    sPAPRXive *xive = SPAPR_XIVE(dev);
+    SpaprXive *xive = SPAPR_XIVE(dev);
     XiveSource *xsrc = &xive->source;
     XiveENDSource *end_xsrc = &xive->end_source;
     Error *local_err = NULL;
@@ -325,7 +325,7 @@ static void spapr_xive_realize(DeviceState *dev, Error **errp)
 static int spapr_xive_get_eas(XiveRouter *xrtr, uint8_t eas_blk,
                               uint32_t eas_idx, XiveEAS *eas)
 {
-    sPAPRXive *xive = SPAPR_XIVE(xrtr);
+    SpaprXive *xive = SPAPR_XIVE(xrtr);
 
     if (eas_idx >= xive->nr_irqs) {
         return -1;
@@ -338,7 +338,7 @@ static int spapr_xive_get_eas(XiveRouter *xrtr, uint8_t eas_blk,
 static int spapr_xive_get_end(XiveRouter *xrtr,
                               uint8_t end_blk, uint32_t end_idx, XiveEND *end)
 {
-    sPAPRXive *xive = SPAPR_XIVE(xrtr);
+    SpaprXive *xive = SPAPR_XIVE(xrtr);
 
     if (end_idx >= xive->nr_ends) {
         return -1;
@@ -352,7 +352,7 @@ static int spapr_xive_write_end(XiveRouter *xrtr, uint8_t end_blk,
                                 uint32_t end_idx, XiveEND *end,
                                 uint8_t word_number)
 {
-    sPAPRXive *xive = SPAPR_XIVE(xrtr);
+    SpaprXive *xive = SPAPR_XIVE(xrtr);
 
     if (end_idx >= xive->nr_ends) {
         return -1;
@@ -432,20 +432,20 @@ static const VMStateDescription vmstate_spapr_xive = {
     .version_id = 1,
     .minimum_version_id = 1,
     .fields = (VMStateField[]) {
-        VMSTATE_UINT32_EQUAL(nr_irqs, sPAPRXive, NULL),
-        VMSTATE_STRUCT_VARRAY_POINTER_UINT32(eat, sPAPRXive, nr_irqs,
+        VMSTATE_UINT32_EQUAL(nr_irqs, SpaprXive, NULL),
+        VMSTATE_STRUCT_VARRAY_POINTER_UINT32(eat, SpaprXive, nr_irqs,
                                      vmstate_spapr_xive_eas, XiveEAS),
-        VMSTATE_STRUCT_VARRAY_POINTER_UINT32(endt, sPAPRXive, nr_ends,
+        VMSTATE_STRUCT_VARRAY_POINTER_UINT32(endt, SpaprXive, nr_ends,
                                              vmstate_spapr_xive_end, XiveEND),
         VMSTATE_END_OF_LIST()
     },
 };
 
 static Property spapr_xive_properties[] = {
-    DEFINE_PROP_UINT32("nr-irqs", sPAPRXive, nr_irqs, 0),
-    DEFINE_PROP_UINT32("nr-ends", sPAPRXive, nr_ends, 0),
-    DEFINE_PROP_UINT64("vc-base", sPAPRXive, vc_base, SPAPR_XIVE_VC_BASE),
-    DEFINE_PROP_UINT64("tm-base", sPAPRXive, tm_base, SPAPR_XIVE_TM_BASE),
+    DEFINE_PROP_UINT32("nr-irqs", SpaprXive, nr_irqs, 0),
+    DEFINE_PROP_UINT32("nr-ends", SpaprXive, nr_ends, 0),
+    DEFINE_PROP_UINT64("vc-base", SpaprXive, vc_base, SPAPR_XIVE_VC_BASE),
+    DEFINE_PROP_UINT64("tm-base", SpaprXive, tm_base, SPAPR_XIVE_TM_BASE),
     DEFINE_PROP_END_OF_LIST(),
 };
 
@@ -471,7 +471,7 @@ static const TypeInfo spapr_xive_info = {
     .name = TYPE_SPAPR_XIVE,
     .parent = TYPE_XIVE_ROUTER,
     .instance_init = spapr_xive_instance_init,
-    .instance_size = sizeof(sPAPRXive),
+    .instance_size = sizeof(SpaprXive),
     .class_init = spapr_xive_class_init,
 };
 
@@ -482,7 +482,7 @@ static void spapr_xive_register_types(void)
 
 type_init(spapr_xive_register_types)
 
-bool spapr_xive_irq_claim(sPAPRXive *xive, uint32_t lisn, bool lsi)
+bool spapr_xive_irq_claim(SpaprXive *xive, uint32_t lisn, bool lsi)
 {
     XiveSource *xsrc = &xive->source;
 
@@ -497,7 +497,7 @@ bool spapr_xive_irq_claim(sPAPRXive *xive, uint32_t lisn, bool lsi)
     return true;
 }
 
-bool spapr_xive_irq_free(sPAPRXive *xive, uint32_t lisn)
+bool spapr_xive_irq_free(SpaprXive *xive, uint32_t lisn)
 {
     if (lisn >= xive->nr_irqs) {
         return false;
@@ -576,11 +576,11 @@ static bool spapr_xive_priority_is_reserved(uint8_t priority)
 #define SPAPR_XIVE_SRC_STORE_EOI     PPC_BIT(63) /* Store EOI support */
 
 static target_ulong h_int_get_source_info(PowerPCCPU *cpu,
-                                          sPAPRMachineState *spapr,
+                                          SpaprMachineState *spapr,
                                           target_ulong opcode,
                                           target_ulong *args)
 {
-    sPAPRXive *xive = spapr->xive;
+    SpaprXive *xive = spapr->xive;
     XiveSource *xsrc = &xive->source;
     target_ulong flags  = args[0];
     target_ulong lisn   = args[1];
@@ -686,11 +686,11 @@ static target_ulong h_int_get_source_info(PowerPCCPU *cpu,
 #define SPAPR_XIVE_SRC_MASK     PPC_BIT(63)
 
 static target_ulong h_int_set_source_config(PowerPCCPU *cpu,
-                                            sPAPRMachineState *spapr,
+                                            SpaprMachineState *spapr,
                                             target_ulong opcode,
                                             target_ulong *args)
 {
-    sPAPRXive *xive = spapr->xive;
+    SpaprXive *xive = spapr->xive;
     XiveEAS eas, new_eas;
     target_ulong flags    = args[0];
     target_ulong lisn     = args[1];
@@ -783,11 +783,11 @@ out:
  *       equivalent to the LISN if not changed by H_INT_SET_SOURCE_CONFIG)
  */
 static target_ulong h_int_get_source_config(PowerPCCPU *cpu,
-                                            sPAPRMachineState *spapr,
+                                            SpaprMachineState *spapr,
                                             target_ulong opcode,
                                             target_ulong *args)
 {
-    sPAPRXive *xive = spapr->xive;
+    SpaprXive *xive = spapr->xive;
     target_ulong flags = args[0];
     target_ulong lisn = args[1];
     XiveEAS eas;
@@ -856,11 +856,11 @@ static target_ulong h_int_get_source_config(PowerPCCPU *cpu,
  * - R5: Power of 2 page size of the notification page
  */
 static target_ulong h_int_get_queue_info(PowerPCCPU *cpu,
-                                         sPAPRMachineState *spapr,
+                                         SpaprMachineState *spapr,
                                          target_ulong opcode,
                                          target_ulong *args)
 {
-    sPAPRXive *xive = spapr->xive;
+    SpaprXive *xive = spapr->xive;
     XiveENDSource *end_xsrc = &xive->end_source;
     target_ulong flags = args[0];
     target_ulong target = args[1];
@@ -942,11 +942,11 @@ static target_ulong h_int_get_queue_info(PowerPCCPU *cpu,
 #define SPAPR_XIVE_END_ALWAYS_NOTIFY PPC_BIT(63)
 
 static target_ulong h_int_set_queue_config(PowerPCCPU *cpu,
-                                           sPAPRMachineState *spapr,
+                                           SpaprMachineState *spapr,
                                            target_ulong opcode,
                                            target_ulong *args)
 {
-    sPAPRXive *xive = spapr->xive;
+    SpaprXive *xive = spapr->xive;
     target_ulong flags = args[0];
     target_ulong target = args[1];
     target_ulong priority = args[2];
@@ -1095,11 +1095,11 @@ out:
 #define SPAPR_XIVE_END_DEBUG     PPC_BIT(63)
 
 static target_ulong h_int_get_queue_config(PowerPCCPU *cpu,
-                                           sPAPRMachineState *spapr,
+                                           SpaprMachineState *spapr,
                                            target_ulong opcode,
                                            target_ulong *args)
 {
-    sPAPRXive *xive = spapr->xive;
+    SpaprXive *xive = spapr->xive;
     target_ulong flags = args[0];
     target_ulong target = args[1];
     target_ulong priority = args[2];
@@ -1187,7 +1187,7 @@ static target_ulong h_int_get_queue_config(PowerPCCPU *cpu,
  * - None
  */
 static target_ulong h_int_set_os_reporting_line(PowerPCCPU *cpu,
-                                                sPAPRMachineState *spapr,
+                                                SpaprMachineState *spapr,
                                                 target_ulong opcode,
                                                 target_ulong *args)
 {
@@ -1223,7 +1223,7 @@ static target_ulong h_int_set_os_reporting_line(PowerPCCPU *cpu,
  * - R4: The logical real address of the reporting line if set, else -1
  */
 static target_ulong h_int_get_os_reporting_line(PowerPCCPU *cpu,
-                                                sPAPRMachineState *spapr,
+                                                SpaprMachineState *spapr,
                                                 target_ulong opcode,
                                                 target_ulong *args)
 {
@@ -1266,11 +1266,11 @@ static target_ulong h_int_get_os_reporting_line(PowerPCCPU *cpu,
 #define SPAPR_XIVE_ESB_STORE PPC_BIT(63)
 
 static target_ulong h_int_esb(PowerPCCPU *cpu,
-                              sPAPRMachineState *spapr,
+                              SpaprMachineState *spapr,
                               target_ulong opcode,
                               target_ulong *args)
 {
-    sPAPRXive *xive = spapr->xive;
+    SpaprXive *xive = spapr->xive;
     XiveEAS eas;
     target_ulong flags  = args[0];
     target_ulong lisn   = args[1];
@@ -1334,11 +1334,11 @@ static target_ulong h_int_esb(PowerPCCPU *cpu,
  * - None
  */
 static target_ulong h_int_sync(PowerPCCPU *cpu,
-                               sPAPRMachineState *spapr,
+                               SpaprMachineState *spapr,
                                target_ulong opcode,
                                target_ulong *args)
 {
-    sPAPRXive *xive = spapr->xive;
+    SpaprXive *xive = spapr->xive;
     XiveEAS eas;
     target_ulong flags = args[0];
     target_ulong lisn = args[1];
@@ -1388,11 +1388,11 @@ static target_ulong h_int_sync(PowerPCCPU *cpu,
  * - None
  */
 static target_ulong h_int_reset(PowerPCCPU *cpu,
-                                sPAPRMachineState *spapr,
+                                SpaprMachineState *spapr,
                                 target_ulong opcode,
                                 target_ulong *args)
 {
-    sPAPRXive *xive = spapr->xive;
+    SpaprXive *xive = spapr->xive;
     target_ulong flags   = args[0];
 
     if (!spapr_ovec_test(spapr->ov5_cas, OV5_XIVE_EXPLOIT)) {
@@ -1407,7 +1407,7 @@ static target_ulong h_int_reset(PowerPCCPU *cpu,
     return H_SUCCESS;
 }
 
-void spapr_xive_hcall_init(sPAPRMachineState *spapr)
+void spapr_xive_hcall_init(SpaprMachineState *spapr)
 {
     spapr_register_hypercall(H_INT_GET_SOURCE_INFO, h_int_get_source_info);
     spapr_register_hypercall(H_INT_SET_SOURCE_CONFIG, h_int_set_source_config);
@@ -1424,10 +1424,10 @@ void spapr_xive_hcall_init(sPAPRMachineState *spapr)
     spapr_register_hypercall(H_INT_RESET, h_int_reset);
 }
 
-void spapr_dt_xive(sPAPRMachineState *spapr, uint32_t nr_servers, void *fdt,
+void spapr_dt_xive(SpaprMachineState *spapr, uint32_t nr_servers, void *fdt,
                    uint32_t phandle)
 {
-    sPAPRXive *xive = spapr->xive;
+    SpaprXive *xive = spapr->xive;
     int node;
     uint64_t timas[2 * 2];
     /* Interrupt number ranges for the IPIs */

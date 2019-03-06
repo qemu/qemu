@@ -35,7 +35,7 @@
 
 #include "hw/ppc/spapr.h"
 
-typedef struct sPAPRCapPossible {
+typedef struct SpaprCapPossible {
     int num;            /* size of vals array below */
     const char *help;   /* help text for vals */
     /*
@@ -47,9 +47,9 @@ typedef struct sPAPRCapPossible {
      *   point is observed
      */
     const char *vals[];
-} sPAPRCapPossible;
+} SpaprCapPossible;
 
-typedef struct sPAPRCapabilityInfo {
+typedef struct SpaprCapabilityInfo {
     const char *name;
     const char *description;
     int index;
@@ -59,18 +59,18 @@ typedef struct sPAPRCapabilityInfo {
     ObjectPropertyAccessor *set;
     const char *type;
     /* Possible values if this is a custom string type */
-    sPAPRCapPossible *possible;
+    SpaprCapPossible *possible;
     /* Make sure the virtual hardware can support this capability */
-    void (*apply)(sPAPRMachineState *spapr, uint8_t val, Error **errp);
-    void (*cpu_apply)(sPAPRMachineState *spapr, PowerPCCPU *cpu,
+    void (*apply)(SpaprMachineState *spapr, uint8_t val, Error **errp);
+    void (*cpu_apply)(SpaprMachineState *spapr, PowerPCCPU *cpu,
                       uint8_t val, Error **errp);
-} sPAPRCapabilityInfo;
+} SpaprCapabilityInfo;
 
 static void spapr_cap_get_bool(Object *obj, Visitor *v, const char *name,
                                void *opaque, Error **errp)
 {
-    sPAPRCapabilityInfo *cap = opaque;
-    sPAPRMachineState *spapr = SPAPR_MACHINE(obj);
+    SpaprCapabilityInfo *cap = opaque;
+    SpaprMachineState *spapr = SPAPR_MACHINE(obj);
     bool value = spapr_get_cap(spapr, cap->index) == SPAPR_CAP_ON;
 
     visit_type_bool(v, name, &value, errp);
@@ -79,8 +79,8 @@ static void spapr_cap_get_bool(Object *obj, Visitor *v, const char *name,
 static void spapr_cap_set_bool(Object *obj, Visitor *v, const char *name,
                                void *opaque, Error **errp)
 {
-    sPAPRCapabilityInfo *cap = opaque;
-    sPAPRMachineState *spapr = SPAPR_MACHINE(obj);
+    SpaprCapabilityInfo *cap = opaque;
+    SpaprMachineState *spapr = SPAPR_MACHINE(obj);
     bool value;
     Error *local_err = NULL;
 
@@ -98,8 +98,8 @@ static void spapr_cap_set_bool(Object *obj, Visitor *v, const char *name,
 static void  spapr_cap_get_string(Object *obj, Visitor *v, const char *name,
                                   void *opaque, Error **errp)
 {
-    sPAPRCapabilityInfo *cap = opaque;
-    sPAPRMachineState *spapr = SPAPR_MACHINE(obj);
+    SpaprCapabilityInfo *cap = opaque;
+    SpaprMachineState *spapr = SPAPR_MACHINE(obj);
     char *val = NULL;
     uint8_t value = spapr_get_cap(spapr, cap->index);
 
@@ -117,8 +117,8 @@ static void  spapr_cap_get_string(Object *obj, Visitor *v, const char *name,
 static void spapr_cap_set_string(Object *obj, Visitor *v, const char *name,
                                  void *opaque, Error **errp)
 {
-    sPAPRCapabilityInfo *cap = opaque;
-    sPAPRMachineState *spapr = SPAPR_MACHINE(obj);
+    SpaprCapabilityInfo *cap = opaque;
+    SpaprMachineState *spapr = SPAPR_MACHINE(obj);
     Error *local_err = NULL;
     uint8_t i;
     char *val;
@@ -150,8 +150,8 @@ out:
 static void spapr_cap_get_pagesize(Object *obj, Visitor *v, const char *name,
                                    void *opaque, Error **errp)
 {
-    sPAPRCapabilityInfo *cap = opaque;
-    sPAPRMachineState *spapr = SPAPR_MACHINE(obj);
+    SpaprCapabilityInfo *cap = opaque;
+    SpaprMachineState *spapr = SPAPR_MACHINE(obj);
     uint8_t val = spapr_get_cap(spapr, cap->index);
     uint64_t pagesize = (1ULL << val);
 
@@ -161,8 +161,8 @@ static void spapr_cap_get_pagesize(Object *obj, Visitor *v, const char *name,
 static void spapr_cap_set_pagesize(Object *obj, Visitor *v, const char *name,
                                    void *opaque, Error **errp)
 {
-    sPAPRCapabilityInfo *cap = opaque;
-    sPAPRMachineState *spapr = SPAPR_MACHINE(obj);
+    SpaprCapabilityInfo *cap = opaque;
+    SpaprMachineState *spapr = SPAPR_MACHINE(obj);
     uint64_t pagesize;
     uint8_t val;
     Error *local_err = NULL;
@@ -183,7 +183,7 @@ static void spapr_cap_set_pagesize(Object *obj, Visitor *v, const char *name,
     spapr->eff.caps[cap->index] = val;
 }
 
-static void cap_htm_apply(sPAPRMachineState *spapr, uint8_t val, Error **errp)
+static void cap_htm_apply(SpaprMachineState *spapr, uint8_t val, Error **errp)
 {
     if (!val) {
         /* TODO: We don't support disabling htm yet */
@@ -199,7 +199,7 @@ static void cap_htm_apply(sPAPRMachineState *spapr, uint8_t val, Error **errp)
     }
 }
 
-static void cap_vsx_apply(sPAPRMachineState *spapr, uint8_t val, Error **errp)
+static void cap_vsx_apply(SpaprMachineState *spapr, uint8_t val, Error **errp)
 {
     PowerPCCPU *cpu = POWERPC_CPU(first_cpu);
     CPUPPCState *env = &cpu->env;
@@ -216,7 +216,7 @@ static void cap_vsx_apply(sPAPRMachineState *spapr, uint8_t val, Error **errp)
     }
 }
 
-static void cap_dfp_apply(sPAPRMachineState *spapr, uint8_t val, Error **errp)
+static void cap_dfp_apply(SpaprMachineState *spapr, uint8_t val, Error **errp)
 {
     PowerPCCPU *cpu = POWERPC_CPU(first_cpu);
     CPUPPCState *env = &cpu->env;
@@ -230,14 +230,14 @@ static void cap_dfp_apply(sPAPRMachineState *spapr, uint8_t val, Error **errp)
     }
 }
 
-sPAPRCapPossible cap_cfpc_possible = {
+SpaprCapPossible cap_cfpc_possible = {
     .num = 3,
     .vals = {"broken", "workaround", "fixed"},
     .help = "broken - no protection, workaround - workaround available,"
             " fixed - fixed in hardware",
 };
 
-static void cap_safe_cache_apply(sPAPRMachineState *spapr, uint8_t val,
+static void cap_safe_cache_apply(SpaprMachineState *spapr, uint8_t val,
                                  Error **errp)
 {
     Error *local_err = NULL;
@@ -258,14 +258,14 @@ static void cap_safe_cache_apply(sPAPRMachineState *spapr, uint8_t val,
         warn_report_err(local_err);
 }
 
-sPAPRCapPossible cap_sbbc_possible = {
+SpaprCapPossible cap_sbbc_possible = {
     .num = 3,
     .vals = {"broken", "workaround", "fixed"},
     .help = "broken - no protection, workaround - workaround available,"
             " fixed - fixed in hardware",
 };
 
-static void cap_safe_bounds_check_apply(sPAPRMachineState *spapr, uint8_t val,
+static void cap_safe_bounds_check_apply(SpaprMachineState *spapr, uint8_t val,
                                         Error **errp)
 {
     Error *local_err = NULL;
@@ -286,7 +286,7 @@ static void cap_safe_bounds_check_apply(sPAPRMachineState *spapr, uint8_t val,
         warn_report_err(local_err);
 }
 
-sPAPRCapPossible cap_ibs_possible = {
+SpaprCapPossible cap_ibs_possible = {
     .num = 5,
     /* Note workaround only maintained for compatibility */
     .vals = {"broken", "workaround", "fixed-ibs", "fixed-ccd", "fixed-na"},
@@ -296,7 +296,7 @@ sPAPRCapPossible cap_ibs_possible = {
             " fixed-na - fixed in hardware (no longer applicable)",
 };
 
-static void cap_safe_indirect_branch_apply(sPAPRMachineState *spapr,
+static void cap_safe_indirect_branch_apply(SpaprMachineState *spapr,
                                            uint8_t val, Error **errp)
 {
     Error *local_err = NULL;
@@ -320,7 +320,7 @@ static void cap_safe_indirect_branch_apply(sPAPRMachineState *spapr,
 
 #define VALUE_DESC_TRISTATE     " (broken, workaround, fixed)"
 
-void spapr_check_pagesize(sPAPRMachineState *spapr, hwaddr pagesize,
+void spapr_check_pagesize(SpaprMachineState *spapr, hwaddr pagesize,
                           Error **errp)
 {
     hwaddr maxpagesize = (1ULL << spapr->eff.caps[SPAPR_CAP_HPT_MAXPAGESIZE]);
@@ -337,7 +337,7 @@ void spapr_check_pagesize(sPAPRMachineState *spapr, hwaddr pagesize,
     }
 }
 
-static void cap_hpt_maxpagesize_apply(sPAPRMachineState *spapr,
+static void cap_hpt_maxpagesize_apply(SpaprMachineState *spapr,
                                       uint8_t val, Error **errp)
 {
     if (val < 12) {
@@ -374,7 +374,7 @@ static bool spapr_pagesize_cb(void *opaque, uint32_t seg_pshift,
     return true;
 }
 
-static void cap_hpt_maxpagesize_cpu_apply(sPAPRMachineState *spapr,
+static void cap_hpt_maxpagesize_cpu_apply(SpaprMachineState *spapr,
                                           PowerPCCPU *cpu,
                                           uint8_t val, Error **errp)
 {
@@ -383,7 +383,7 @@ static void cap_hpt_maxpagesize_cpu_apply(sPAPRMachineState *spapr,
     ppc_hash64_filter_pagesizes(cpu, spapr_pagesize_cb, &maxshift);
 }
 
-static void cap_nested_kvm_hv_apply(sPAPRMachineState *spapr,
+static void cap_nested_kvm_hv_apply(SpaprMachineState *spapr,
                                     uint8_t val, Error **errp)
 {
     if (!val) {
@@ -405,7 +405,7 @@ static void cap_nested_kvm_hv_apply(sPAPRMachineState *spapr,
     }
 }
 
-static void cap_large_decr_apply(sPAPRMachineState *spapr,
+static void cap_large_decr_apply(SpaprMachineState *spapr,
                                  uint8_t val, Error **errp)
 {
     PowerPCCPU *cpu = POWERPC_CPU(first_cpu);
@@ -436,7 +436,7 @@ static void cap_large_decr_apply(sPAPRMachineState *spapr,
     }
 }
 
-static void cap_large_decr_cpu_apply(sPAPRMachineState *spapr,
+static void cap_large_decr_cpu_apply(SpaprMachineState *spapr,
                                      PowerPCCPU *cpu,
                                      uint8_t val, Error **errp)
 {
@@ -458,7 +458,7 @@ static void cap_large_decr_cpu_apply(sPAPRMachineState *spapr,
     ppc_store_lpcr(cpu, lpcr);
 }
 
-static void cap_ccf_assist_apply(sPAPRMachineState *spapr, uint8_t val,
+static void cap_ccf_assist_apply(SpaprMachineState *spapr, uint8_t val,
                                  Error **errp)
 {
     uint8_t kvm_val = kvmppc_get_cap_count_cache_flush_assist();
@@ -473,7 +473,7 @@ static void cap_ccf_assist_apply(sPAPRMachineState *spapr, uint8_t val,
     }
 }
 
-sPAPRCapabilityInfo capability_table[SPAPR_CAP_NUM] = {
+SpaprCapabilityInfo capability_table[SPAPR_CAP_NUM] = {
     [SPAPR_CAP_HTM] = {
         .name = "htm",
         .description = "Allow Hardware Transactional Memory (HTM)",
@@ -573,11 +573,11 @@ sPAPRCapabilityInfo capability_table[SPAPR_CAP_NUM] = {
     },
 };
 
-static sPAPRCapabilities default_caps_with_cpu(sPAPRMachineState *spapr,
+static SpaprCapabilities default_caps_with_cpu(SpaprMachineState *spapr,
                                                const char *cputype)
 {
-    sPAPRMachineClass *smc = SPAPR_MACHINE_GET_CLASS(spapr);
-    sPAPRCapabilities caps;
+    SpaprMachineClass *smc = SPAPR_MACHINE_GET_CLASS(spapr);
+    SpaprCapabilities caps;
 
     caps = smc->default_caps;
 
@@ -622,7 +622,7 @@ static sPAPRCapabilities default_caps_with_cpu(sPAPRMachineState *spapr,
 
 int spapr_caps_pre_load(void *opaque)
 {
-    sPAPRMachineState *spapr = opaque;
+    SpaprMachineState *spapr = opaque;
 
     /* Set to default so we can tell if this came in with the migration */
     spapr->mig = spapr->def;
@@ -631,7 +631,7 @@ int spapr_caps_pre_load(void *opaque)
 
 int spapr_caps_pre_save(void *opaque)
 {
-    sPAPRMachineState *spapr = opaque;
+    SpaprMachineState *spapr = opaque;
 
     spapr->mig = spapr->eff;
     return 0;
@@ -641,12 +641,12 @@ int spapr_caps_pre_save(void *opaque)
  * caps specific one.  Otherwise it wouldn't be called when the source
  * caps are all defaults, which could still conflict with overridden
  * caps on the destination */
-int spapr_caps_post_migration(sPAPRMachineState *spapr)
+int spapr_caps_post_migration(SpaprMachineState *spapr)
 {
     int i;
     bool ok = true;
-    sPAPRCapabilities dstcaps = spapr->eff;
-    sPAPRCapabilities srccaps;
+    SpaprCapabilities dstcaps = spapr->eff;
+    SpaprCapabilities srccaps;
 
     srccaps = default_caps_with_cpu(spapr, MACHINE(spapr)->cpu_type);
     for (i = 0; i < SPAPR_CAP_NUM; i++) {
@@ -657,7 +657,7 @@ int spapr_caps_post_migration(sPAPRMachineState *spapr)
     }
 
     for (i = 0; i < SPAPR_CAP_NUM; i++) {
-        sPAPRCapabilityInfo *info = &capability_table[i];
+        SpaprCapabilityInfo *info = &capability_table[i];
 
         if (srccaps.caps[i] > dstcaps.caps[i]) {
             error_report("cap-%s higher level (%d) in incoming stream than on destination (%d)",
@@ -678,7 +678,7 @@ int spapr_caps_post_migration(sPAPRMachineState *spapr)
 #define SPAPR_CAP_MIG_STATE(sname, cap)                 \
 static bool spapr_cap_##sname##_needed(void *opaque)    \
 {                                                       \
-    sPAPRMachineState *spapr = opaque;                  \
+    SpaprMachineState *spapr = opaque;                  \
                                                         \
     return spapr->cmd_line_caps[cap] &&                 \
            (spapr->eff.caps[cap] !=                     \
@@ -692,7 +692,7 @@ const VMStateDescription vmstate_spapr_cap_##sname = {  \
     .needed = spapr_cap_##sname##_needed,               \
     .fields = (VMStateField[]) {                        \
         VMSTATE_UINT8(mig.caps[cap],                    \
-                      sPAPRMachineState),               \
+                      SpaprMachineState),               \
         VMSTATE_END_OF_LIST()                           \
     },                                                  \
 }
@@ -707,9 +707,9 @@ SPAPR_CAP_MIG_STATE(nested_kvm_hv, SPAPR_CAP_NESTED_KVM_HV);
 SPAPR_CAP_MIG_STATE(large_decr, SPAPR_CAP_LARGE_DECREMENTER);
 SPAPR_CAP_MIG_STATE(ccf_assist, SPAPR_CAP_CCF_ASSIST);
 
-void spapr_caps_init(sPAPRMachineState *spapr)
+void spapr_caps_init(SpaprMachineState *spapr)
 {
-    sPAPRCapabilities default_caps;
+    SpaprCapabilities default_caps;
     int i;
 
     /* Compute the actual set of caps we should run with */
@@ -725,12 +725,12 @@ void spapr_caps_init(sPAPRMachineState *spapr)
     }
 }
 
-void spapr_caps_apply(sPAPRMachineState *spapr)
+void spapr_caps_apply(SpaprMachineState *spapr)
 {
     int i;
 
     for (i = 0; i < SPAPR_CAP_NUM; i++) {
-        sPAPRCapabilityInfo *info = &capability_table[i];
+        SpaprCapabilityInfo *info = &capability_table[i];
 
         /*
          * If the apply function can't set the desired level and thinks it's
@@ -740,12 +740,12 @@ void spapr_caps_apply(sPAPRMachineState *spapr)
     }
 }
 
-void spapr_caps_cpu_apply(sPAPRMachineState *spapr, PowerPCCPU *cpu)
+void spapr_caps_cpu_apply(SpaprMachineState *spapr, PowerPCCPU *cpu)
 {
     int i;
 
     for (i = 0; i < SPAPR_CAP_NUM; i++) {
-        sPAPRCapabilityInfo *info = &capability_table[i];
+        SpaprCapabilityInfo *info = &capability_table[i];
 
         /*
          * If the apply function can't set the desired level and thinks it's
@@ -757,14 +757,14 @@ void spapr_caps_cpu_apply(sPAPRMachineState *spapr, PowerPCCPU *cpu)
     }
 }
 
-void spapr_caps_add_properties(sPAPRMachineClass *smc, Error **errp)
+void spapr_caps_add_properties(SpaprMachineClass *smc, Error **errp)
 {
     Error *local_err = NULL;
     ObjectClass *klass = OBJECT_CLASS(smc);
     int i;
 
     for (i = 0; i < ARRAY_SIZE(capability_table); i++) {
-        sPAPRCapabilityInfo *cap = &capability_table[i];
+        SpaprCapabilityInfo *cap = &capability_table[i];
         const char *name = g_strdup_printf("cap-%s", cap->name);
         char *desc;
 

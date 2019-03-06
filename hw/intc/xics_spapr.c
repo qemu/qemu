@@ -41,7 +41,7 @@
  * Guest interfaces
  */
 
-static target_ulong h_cppr(PowerPCCPU *cpu, sPAPRMachineState *spapr,
+static target_ulong h_cppr(PowerPCCPU *cpu, SpaprMachineState *spapr,
                            target_ulong opcode, target_ulong *args)
 {
     target_ulong cppr = args[0];
@@ -50,7 +50,7 @@ static target_ulong h_cppr(PowerPCCPU *cpu, sPAPRMachineState *spapr,
     return H_SUCCESS;
 }
 
-static target_ulong h_ipi(PowerPCCPU *cpu, sPAPRMachineState *spapr,
+static target_ulong h_ipi(PowerPCCPU *cpu, SpaprMachineState *spapr,
                           target_ulong opcode, target_ulong *args)
 {
     target_ulong mfrr = args[1];
@@ -64,7 +64,7 @@ static target_ulong h_ipi(PowerPCCPU *cpu, sPAPRMachineState *spapr,
     return H_SUCCESS;
 }
 
-static target_ulong h_xirr(PowerPCCPU *cpu, sPAPRMachineState *spapr,
+static target_ulong h_xirr(PowerPCCPU *cpu, SpaprMachineState *spapr,
                            target_ulong opcode, target_ulong *args)
 {
     uint32_t xirr = icp_accept(spapr_cpu_state(cpu)->icp);
@@ -73,7 +73,7 @@ static target_ulong h_xirr(PowerPCCPU *cpu, sPAPRMachineState *spapr,
     return H_SUCCESS;
 }
 
-static target_ulong h_xirr_x(PowerPCCPU *cpu, sPAPRMachineState *spapr,
+static target_ulong h_xirr_x(PowerPCCPU *cpu, SpaprMachineState *spapr,
                              target_ulong opcode, target_ulong *args)
 {
     uint32_t xirr = icp_accept(spapr_cpu_state(cpu)->icp);
@@ -83,7 +83,7 @@ static target_ulong h_xirr_x(PowerPCCPU *cpu, sPAPRMachineState *spapr,
     return H_SUCCESS;
 }
 
-static target_ulong h_eoi(PowerPCCPU *cpu, sPAPRMachineState *spapr,
+static target_ulong h_eoi(PowerPCCPU *cpu, SpaprMachineState *spapr,
                           target_ulong opcode, target_ulong *args)
 {
     target_ulong xirr = args[0];
@@ -92,7 +92,7 @@ static target_ulong h_eoi(PowerPCCPU *cpu, sPAPRMachineState *spapr,
     return H_SUCCESS;
 }
 
-static target_ulong h_ipoll(PowerPCCPU *cpu, sPAPRMachineState *spapr,
+static target_ulong h_ipoll(PowerPCCPU *cpu, SpaprMachineState *spapr,
                             target_ulong opcode, target_ulong *args)
 {
     uint32_t mfrr;
@@ -104,7 +104,7 @@ static target_ulong h_ipoll(PowerPCCPU *cpu, sPAPRMachineState *spapr,
     return H_SUCCESS;
 }
 
-static void rtas_set_xive(PowerPCCPU *cpu, sPAPRMachineState *spapr,
+static void rtas_set_xive(PowerPCCPU *cpu, SpaprMachineState *spapr,
                           uint32_t token,
                           uint32_t nargs, target_ulong args,
                           uint32_t nret, target_ulong rets)
@@ -137,7 +137,7 @@ static void rtas_set_xive(PowerPCCPU *cpu, sPAPRMachineState *spapr,
     rtas_st(rets, 0, RTAS_OUT_SUCCESS);
 }
 
-static void rtas_get_xive(PowerPCCPU *cpu, sPAPRMachineState *spapr,
+static void rtas_get_xive(PowerPCCPU *cpu, SpaprMachineState *spapr,
                           uint32_t token,
                           uint32_t nargs, target_ulong args,
                           uint32_t nret, target_ulong rets)
@@ -167,7 +167,7 @@ static void rtas_get_xive(PowerPCCPU *cpu, sPAPRMachineState *spapr,
     rtas_st(rets, 2, ics->irqs[srcno].priority);
 }
 
-static void rtas_int_off(PowerPCCPU *cpu, sPAPRMachineState *spapr,
+static void rtas_int_off(PowerPCCPU *cpu, SpaprMachineState *spapr,
                          uint32_t token,
                          uint32_t nargs, target_ulong args,
                          uint32_t nret, target_ulong rets)
@@ -198,7 +198,7 @@ static void rtas_int_off(PowerPCCPU *cpu, sPAPRMachineState *spapr,
     rtas_st(rets, 0, RTAS_OUT_SUCCESS);
 }
 
-static void rtas_int_on(PowerPCCPU *cpu, sPAPRMachineState *spapr,
+static void rtas_int_on(PowerPCCPU *cpu, SpaprMachineState *spapr,
                         uint32_t token,
                         uint32_t nargs, target_ulong args,
                         uint32_t nret, target_ulong rets)
@@ -230,7 +230,7 @@ static void rtas_int_on(PowerPCCPU *cpu, sPAPRMachineState *spapr,
     rtas_st(rets, 0, RTAS_OUT_SUCCESS);
 }
 
-void xics_spapr_init(sPAPRMachineState *spapr)
+void xics_spapr_init(SpaprMachineState *spapr)
 {
     /* Registration of global state belongs into realize */
     spapr_rtas_register(RTAS_IBM_SET_XIVE, "ibm,set-xive", rtas_set_xive);
@@ -246,7 +246,7 @@ void xics_spapr_init(sPAPRMachineState *spapr)
     spapr_register_hypercall(H_IPOLL, h_ipoll);
 }
 
-void spapr_dt_xics(sPAPRMachineState *spapr, uint32_t nr_servers, void *fdt,
+void spapr_dt_xics(SpaprMachineState *spapr, uint32_t nr_servers, void *fdt,
                    uint32_t phandle)
 {
     uint32_t interrupt_server_ranges_prop[] = {

@@ -756,7 +756,7 @@ static int kvm_get_fp(CPUState *cs)
 static int kvm_get_vpa(CPUState *cs)
 {
     PowerPCCPU *cpu = POWERPC_CPU(cs);
-    sPAPRCPUState *spapr_cpu = spapr_cpu_state(cpu);
+    SpaprCpuState *spapr_cpu = spapr_cpu_state(cpu);
     struct kvm_one_reg reg;
     int ret;
 
@@ -796,7 +796,7 @@ static int kvm_get_vpa(CPUState *cs)
 static int kvm_put_vpa(CPUState *cs)
 {
     PowerPCCPU *cpu = POWERPC_CPU(cs);
-    sPAPRCPUState *spapr_cpu = spapr_cpu_state(cpu);
+    SpaprCpuState *spapr_cpu = spapr_cpu_state(cpu);
     struct kvm_one_reg reg;
     int ret;
 
