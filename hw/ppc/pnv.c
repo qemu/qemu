@@ -1082,22 +1082,6 @@ static void pnv_ics_resend(XICSFabric *xi)
     }
 }
 
-static PowerPCCPU *ppc_get_vcpu_by_pir(int pir)
-{
-    CPUState *cs;
-
-    CPU_FOREACH(cs) {
-        PowerPCCPU *cpu = POWERPC_CPU(cs);
-        CPUPPCState *env = &cpu->env;
-
-        if (env->spr_cb[SPR_PIR].default_value == pir) {
-            return cpu;
-        }
-    }
-
-    return NULL;
-}
-
 static ICPState *pnv_icp_get(XICSFabric *xi, int pir)
 {
     PowerPCCPU *cpu = ppc_get_vcpu_by_pir(pir);
