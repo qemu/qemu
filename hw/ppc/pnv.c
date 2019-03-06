@@ -684,7 +684,7 @@ static void pnv_chip_power8_intc_create(PnvChip *chip, PowerPCCPU *cpu,
         return;
     }
 
-    pnv_cpu->icp = ICP(obj);
+    pnv_cpu->intc = obj;
 }
 
 /*
@@ -1086,7 +1086,7 @@ static ICPState *pnv_icp_get(XICSFabric *xi, int pir)
 {
     PowerPCCPU *cpu = ppc_get_vcpu_by_pir(pir);
 
-    return cpu ? pnv_cpu_state(cpu)->icp : NULL;
+    return cpu ? ICP(pnv_cpu_state(cpu)->intc) : NULL;
 }
 
 static void pnv_pic_print_info(InterruptStatsProvider *obj,
@@ -1099,7 +1099,7 @@ static void pnv_pic_print_info(InterruptStatsProvider *obj,
     CPU_FOREACH(cs) {
         PowerPCCPU *cpu = POWERPC_CPU(cs);
 
-        icp_pic_print_info(pnv_cpu_state(cpu)->icp, mon);
+        icp_pic_print_info(ICP(pnv_cpu_state(cpu)->intc), mon);
     }
 
     for (i = 0; i < pnv->num_chips; i++) {

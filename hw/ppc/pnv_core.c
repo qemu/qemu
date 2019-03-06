@@ -198,7 +198,7 @@ static void pnv_unrealize_vcpu(PowerPCCPU *cpu)
     PnvCPUState *pnv_cpu = pnv_cpu_state(cpu);
 
     qemu_unregister_reset(pnv_cpu_reset, cpu);
-    object_unparent(OBJECT(pnv_cpu_state(cpu)->icp));
+    object_unparent(OBJECT(pnv_cpu_state(cpu)->intc));
     cpu_remove_sync(CPU(cpu));
     cpu->machine_data = NULL;
     g_free(pnv_cpu);
