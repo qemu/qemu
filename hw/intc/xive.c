@@ -1404,7 +1404,7 @@ static void xive_router_end_notify(XiveRouter *xrtr, uint8_t end_blk,
     /* TODO: Auto EOI. */
 }
 
-static void xive_router_notify(XiveNotifier *xn, uint32_t lisn)
+void xive_router_notify(XiveNotifier *xn, uint32_t lisn)
 {
     XiveRouter *xrtr = XIVE_ROUTER(xn);
     uint8_t eas_blk = XIVE_SRCNO_BLOCK(lisn);
