@@ -25,6 +25,7 @@
 #include "hw/ppc/pnv_lpc.h"
 #include "hw/ppc/pnv_psi.h"
 #include "hw/ppc/pnv_occ.h"
+#include "hw/ppc/pnv_xive.h"
 
 #define TYPE_PNV_CHIP "pnv-chip"
 #define PNV_CHIP(obj) OBJECT_CHECK(PnvChip, (obj), TYPE_PNV_CHIP)
@@ -82,6 +83,7 @@ typedef struct Pnv9Chip {
     PnvChip      parent_obj;
 
     /*< public >*/
+    PnvXive      xive;
 } Pnv9Chip;
 
 typedef struct PnvChipClass {
@@ -214,5 +216,24 @@ void pnv_bmc_powerdown(IPMIBmc *bmc);
 #define PNV_PSIHB_FSP_BASE(chip) \
     (0x0003ffe000000000ull + (uint64_t)PNV_CHIP_INDEX(chip) * \
      PNV_PSIHB_FSP_SIZE)
+
+/*
+ * POWER9 MMIO base addresses
+ */
+#define PNV9_CHIP_BASE(chip, base)   \
+    ((base) + ((uint64_t) (chip)->chip_id << 42))
+
+#define PNV9_XIVE_VC_SIZE            0x0000008000000000ull
+#define PNV9_XIVE_VC_BASE(chip)      PNV9_CHIP_BASE(chip, 0x0006010000000000ull)
+
+#define PNV9_XIVE_PC_SIZE            0x0000001000000000ull
+#define PNV9_XIVE_PC_BASE(chip)      PNV9_CHIP_BASE(chip, 0x0006018000000000ull)
+
+#define PNV9_XIVE_IC_SIZE            0x0000000000080000ull
+#define PNV9_XIVE_IC_BASE(chip)      PNV9_CHIP_BASE(chip, 0x0006030203100000ull)
+
+#define PNV9_XIVE_TM_SIZE            0x0000000000040000ull
+#define PNV9_XIVE_TM_BASE(chip)      PNV9_CHIP_BASE(chip, 0x0006030203180000ull)
+
 
 #endif /* _PPC_PNV_H */

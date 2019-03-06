@@ -705,7 +705,23 @@ static uint32_t pnv_chip_core_pir_p9(PnvChip *chip, uint32_t core_id)
 static void pnv_chip_power9_intc_create(PnvChip *chip, PowerPCCPU *cpu,
                                         Error **errp)
 {
-    return;
+    Pnv9Chip *chip9 = PNV9_CHIP(chip);
+    Error *local_err = NULL;
+    Object *obj;
+    PnvCPUState *pnv_cpu = pnv_cpu_state(cpu);
+
+    /*
+     * The core creates its interrupt presenter but the XIVE interrupt
+     * controller object is initialized afterwards. Hopefully, it's
+     * only used at runtime.
+     */
+    obj = xive_tctx_create(OBJECT(cpu), XIVE_ROUTER(&chip9->xive), errp);
+    if (local_err) {
+        error_propagate(errp, local_err);
+        return;
+    }
+
+    pnv_cpu->intc = obj;
 }
 
 /* Allowed core identifiers on a POWER8 Processor Chip :
@@ -887,11 +903,19 @@ static void pnv_chip_power8nvl_class_init(ObjectClass *klass, void *data)
 
 static void pnv_chip_power9_instance_init(Object *obj)
 {
+    Pnv9Chip *chip9 = PNV9_CHIP(obj);
+
+    object_initialize_child(obj, "xive", &chip9->xive, sizeof(chip9->xive),
+                            TYPE_PNV_XIVE, &error_abort, NULL);
+    object_property_add_const_link(OBJECT(&chip9->xive), "chip", obj,
+                                   &error_abort);
 }
 
 static void pnv_chip_power9_realize(DeviceState *dev, Error **errp)
 {
     PnvChipClass *pcc = PNV_CHIP_GET_CLASS(dev);
+    Pnv9Chip *chip9 = PNV9_CHIP(dev);
+    PnvChip *chip = PNV_CHIP(dev);
     Error *local_err = NULL;
 
     pcc->parent_realize(dev, &local_err);
@@ -899,6 +923,24 @@ static void pnv_chip_power9_realize(DeviceState *dev, Error **errp)
         error_propagate(errp, local_err);
         return;
     }
+
+    /* XIVE interrupt controller (POWER9) */
+    object_property_set_int(OBJECT(&chip9->xive), PNV9_XIVE_IC_BASE(chip),
+                            "ic-bar", &error_fatal);
+    object_property_set_int(OBJECT(&chip9->xive), PNV9_XIVE_VC_BASE(chip),
+                            "vc-bar", &error_fatal);
+    object_property_set_int(OBJECT(&chip9->xive), PNV9_XIVE_PC_BASE(chip),
+                            "pc-bar", &error_fatal);
+    object_property_set_int(OBJECT(&chip9->xive), PNV9_XIVE_TM_BASE(chip),
+                            "tm-bar", &error_fatal);
+    object_property_set_bool(OBJECT(&chip9->xive), true, "realized",
+                             &local_err);
+    if (local_err) {
+        error_propagate(errp, local_err);
+        return;
+    }
+    pnv_xscom_add_subregion(chip, PNV9_XSCOM_XIVE_BASE,
+                            &chip9->xive.xscom_regs);
 }
 
 static void pnv_chip_power9_class_init(ObjectClass *klass, void *data)
