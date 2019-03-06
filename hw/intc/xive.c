@@ -317,10 +317,9 @@ static const XiveTmOp *xive_tm_find_op(hwaddr offset, unsigned size, bool write)
 /*
  * TIMA MMIO handlers
  */
-static void xive_tm_write(void *opaque, hwaddr offset,
-                          uint64_t value, unsigned size)
+void xive_tctx_tm_write(XiveTCTX *tctx, hwaddr offset, uint64_t value,
+                        unsigned size)
 {
-    XiveTCTX *tctx = xive_router_get_tctx(XIVE_ROUTER(opaque), current_cpu);
     const XiveTmOp *xto;
 
     /*
@@ -356,9 +355,8 @@ static void xive_tm_write(void *opaque, hwaddr offset,
     xive_tm_raw_write(tctx, offset, value, size);
 }
 
-static uint64_t xive_tm_read(void *opaque, hwaddr offset, unsigned size)
+uint64_t xive_tctx_tm_read(XiveTCTX *tctx, hwaddr offset, unsigned size)
 {
-    XiveTCTX *tctx = xive_router_get_tctx(XIVE_ROUTER(opaque), current_cpu);
     const XiveTmOp *xto;
 
     /*
@@ -390,6 +388,21 @@ static uint64_t xive_tm_read(void *opaque, hwaddr offset, unsigned size)
      * Finish with raw access to the register values
      */
     return xive_tm_raw_read(tctx, offset, size);
+}
+
+static void xive_tm_write(void *opaque, hwaddr offset,
+                          uint64_t value, unsigned size)
+{
+    XiveTCTX *tctx = xive_router_get_tctx(XIVE_ROUTER(opaque), current_cpu);
+
+    xive_tctx_tm_write(tctx, offset, value, size);
+}
+
+static uint64_t xive_tm_read(void *opaque, hwaddr offset, unsigned size)
+{
+    XiveTCTX *tctx = xive_router_get_tctx(XIVE_ROUTER(opaque), current_cpu);
+
+    return xive_tctx_tm_read(tctx, offset, size);
 }
 
 const MemoryRegionOps xive_tm_ops = {
