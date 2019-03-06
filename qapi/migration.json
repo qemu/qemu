@@ -6,6 +6,7 @@
 ##
 
 { 'include': 'common.json' }
+{ 'include': 'sockets.json' }
 
 ##
 # @MigrationStats:
@@ -199,6 +200,8 @@
 # @compression: migration compression statistics, only returned if compression
 #           feature is on and status is 'active' or 'completed' (Since 3.1)
 #
+# @socket-address: Only used for tcp, to know what the real port is (Since 4.0)
+#
 # Since: 0.14.0
 ##
 { 'struct': 'MigrationInfo',
@@ -213,7 +216,8 @@
            '*error-desc': 'str',
            '*postcopy-blocktime' : 'uint32',
            '*postcopy-vcpu-blocktime': ['uint32'],
-           '*compression': 'CompressionStats'} }
+           '*compression': 'CompressionStats',
+           '*socket-address': ['SocketAddress'] } }
 
 ##
 # @query-migrate:
@@ -409,13 +413,16 @@
 #           devices (and thus take locks) immediately at the end of migration.
 #           (since 3.0)
 #
+# @x-ignore-shared: If enabled, QEMU will not migrate shared memory (since 4.0)
+#
 # Since: 1.2
 ##
 { 'enum': 'MigrationCapability',
   'data': ['xbzrle', 'rdma-pin-all', 'auto-converge', 'zero-blocks',
            'compress', 'events', 'postcopy-ram', 'x-colo', 'release-ram',
            'block', 'return-path', 'pause-before-switchover', 'x-multifd',
-           'dirty-bitmaps', 'postcopy-blocktime', 'late-block-activate' ] }
+           'dirty-bitmaps', 'postcopy-blocktime', 'late-block-activate',
+           'x-ignore-shared' ] }
 
 ##
 # @MigrationCapabilityStatus:
@@ -1386,7 +1393,7 @@
 # Example:
 #
 # -> { "execute": "query-colo-status" }
-# <- { "return": { "mode": "primary", "active": true, "reason": "request" } }
+# <- { "return": { "mode": "primary", "reason": "request" } }
 #
 # Since: 3.1
 ##

@@ -872,8 +872,8 @@ out:
     /* Must be called after failover BH is completed */
     if (mis->to_src_file) {
         qemu_fclose(mis->to_src_file);
+        mis->to_src_file = NULL;
     }
-    migration_incoming_disable_colo();
 
     rcu_unregister_thread();
     return NULL;

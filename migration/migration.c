@@ -31,6 +31,8 @@
 #include "migration/vmstate.h"
 #include "block/block.h"
 #include "qapi/error.h"
+#include "qapi/clone-visitor.h"
+#include "qapi/qapi-visit-sockets.h"
 #include "qapi/qapi-commands-migration.h"
 #include "qapi/qapi-events-migration.h"
 #include "qapi/qmp/qerror.h"
@@ -126,6 +128,7 @@ static bool migration_object_check(MigrationState *ms, Error **errp);
 static int migration_maybe_pause(MigrationState *s,
                                  int *current_active_state,
                                  int new_state);
+static void migrate_fd_cancel(MigrationState *s);
 
 void migration_object_init(void)
 {
@@ -167,8 +170,13 @@ void migration_object_init(void)
     }
 }
 
-void migration_object_finalize(void)
+void migration_shutdown(void)
 {
+    /*
+     * Cancel the current migration - that will (eventually)
+     * stop the migration using this structure
+     */
+    migrate_fd_cancel(current_migration);
     object_unref(OBJECT(current_migration));
 }
 
@@ -207,6 +215,11 @@ void migration_incoming_state_destroy(void)
     }
 
     qemu_event_reset(&mis->main_thread_load_event);
+
+    if (mis->socket_address_list) {
+        qapi_free_SocketAddressList(mis->socket_address_list);
+        mis->socket_address_list = NULL;
+    }
 }
 
 static void migrate_generate_event(int new_state)
@@ -322,6 +335,17 @@ void migration_incoming_enable_colo(void)
     migration_colo_enabled = true;
 }
 
+void migrate_add_address(SocketAddress *address)
+{
+    MigrationIncomingState *mis = migration_incoming_get_current();
+    SocketAddressList *addrs;
+
+    addrs = g_new0(SocketAddressList, 1);
+    addrs->next = mis->socket_address_list;
+    mis->socket_address_list = addrs;
+    addrs->value = QAPI_CLONE(SocketAddress, address);
+}
+
 void qemu_start_incoming_migration(const char *uri, Error **errp)
 {
     const char *p;
@@ -393,6 +417,9 @@ static void process_incoming_migration_bh(void *opaque)
         } else {
             runstate_set(RUN_STATE_PAUSED);
         }
+    } else if (migration_incoming_colo_enabled()) {
+        migration_incoming_disable_colo();
+        vm_start();
     } else {
         runstate_set(global_state_get_runstate());
     }
@@ -989,6 +1016,11 @@ static bool migrate_caps_check(bool *cap_list,
             error_setg(errp, "Postcopy is not supported");
             return false;
         }
+
+        if (cap_list[MIGRATION_CAPABILITY_X_IGNORE_SHARED]) {
+            error_setg(errp, "Postcopy is not compatible with ignore-shared");
+            return false;
+        }
     }
 
     return true;
@@ -997,6 +1029,12 @@ static bool migrate_caps_check(bool *cap_list,
 static void fill_destination_migration_info(MigrationInfo *info)
 {
     MigrationIncomingState *mis = migration_incoming_get_current();
+
+    if (mis->socket_address_list) {
+        info->has_socket_address = true;
+        info->socket_address =
+            QAPI_CLONE(SocketAddressList, mis->socket_address_list);
+    }
 
     switch (mis->state) {
     case MIGRATION_STATUS_NONE:
@@ -2068,6 +2106,15 @@ bool migrate_dirty_bitmaps(void)
     return s->enabled_capabilities[MIGRATION_CAPABILITY_DIRTY_BITMAPS];
 }
 
+bool migrate_ignore_shared(void)
+{
+    MigrationState *s;
+
+    s = migrate_get_current();
+
+    return s->enabled_capabilities[MIGRATION_CAPABILITY_X_IGNORE_SHARED];
+}
+
 bool migrate_use_events(void)
 {
     MigrationState *s;
@@ -2911,6 +2958,13 @@ static MigThrError postcopy_pause(MigrationState *s)
 static MigThrError migration_detect_error(MigrationState *s)
 {
     int ret;
+    int state = s->state;
+
+    if (state == MIGRATION_STATUS_CANCELLING ||
+        state == MIGRATION_STATUS_CANCELLED) {
+        /* End the migration, but don't set the state to failed */
+        return MIG_THR_ERR_FATAL;
+    }
 
     /* Try to detect any file errors */
     ret = qemu_file_get_error(s->to_dst_file);
@@ -2920,7 +2974,7 @@ static MigThrError migration_detect_error(MigrationState *s)
         return MIG_THR_ERR_NONE;
     }
 
-    if (s->state == MIGRATION_STATUS_POSTCOPY_ACTIVE && ret == -EIO) {
+    if (state == MIGRATION_STATUS_POSTCOPY_ACTIVE && ret == -EIO) {
         /*
          * For postcopy, we allow the network to be down for a
          * while. After that, it can be continued by a
@@ -2932,7 +2986,7 @@ static MigThrError migration_detect_error(MigrationState *s)
          * For precopy (or postcopy with error outside IO), we fail
          * with no time.
          */
-        migrate_set_state(&s->state, s->state, MIGRATION_STATUS_FAILED);
+        migrate_set_state(&s->state, state, MIGRATION_STATUS_FAILED);
         trace_migration_thread_file_err();
 
         /* Time to stop the migration, now. */
@@ -3127,6 +3181,7 @@ static void *migration_thread(void *opaque)
 
     rcu_register_thread();
 
+    object_ref(OBJECT(s));
     s->iteration_start_time = qemu_clock_get_ms(QEMU_CLOCK_REALTIME);
 
     qemu_savevm_state_header(s->to_dst_file);
@@ -3223,6 +3278,7 @@ static void *migration_thread(void *opaque)
 
     trace_migration_thread_after_loop();
     migration_iteration_finish(s);
+    object_unref(OBJECT(s));
     rcu_unregister_thread();
     return NULL;
 }

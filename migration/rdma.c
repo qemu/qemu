@@ -624,9 +624,12 @@ static int rdma_add_block(RDMAContext *rdma, const char *block_name,
  * in advanced before the migration starts. This tells us where the RAM blocks
  * are so that we can register them individually.
  */
-static int qemu_rdma_init_one_block(const char *block_name, void *host_addr,
-    ram_addr_t block_offset, ram_addr_t length, void *opaque)
+static int qemu_rdma_init_one_block(RAMBlock *rb, void *opaque)
 {
+    const char *block_name = qemu_ram_get_idstr(rb);
+    void *host_addr = qemu_ram_get_host_addr(rb);
+    ram_addr_t block_offset = qemu_ram_get_offset(rb);
+    ram_addr_t length = qemu_ram_get_used_length(rb);
     return rdma_add_block(opaque, block_name, host_addr, block_offset, length);
 }
 
@@ -641,7 +644,7 @@ static int qemu_rdma_init_ram_blocks(RDMAContext *rdma)
 
     assert(rdma->blockmap == NULL);
     memset(local, 0, sizeof *local);
-    qemu_ram_foreach_migratable_block(qemu_rdma_init_one_block, rdma);
+    foreach_not_ignored_block(qemu_rdma_init_one_block, rdma);
     trace_qemu_rdma_init_ram_blocks(local->nb_blocks);
     rdma->dest_blocks = g_new0(RDMADestBlock,
                                rdma->local_ram_blocks.nb_blocks);
@@ -2321,7 +2324,9 @@ static void qemu_rdma_cleanup(RDMAContext *rdma)
         rdma->connected = false;
     }
 
-    qemu_set_fd_handler(rdma->channel->fd, NULL, NULL, NULL);
+    if (rdma->channel) {
+        qemu_set_fd_handler(rdma->channel->fd, NULL, NULL, NULL);
+    }
     g_free(rdma->dest_blocks);
     rdma->dest_blocks = NULL;
 
@@ -3611,13 +3616,16 @@ static int qemu_rdma_registration_handle(QEMUFile *f, void *opaque)
                 }
                 chunk_start = ram_chunk_start(block, chunk);
                 chunk_end = ram_chunk_end(block, chunk + reg->chunks);
+                /* avoid "-Waddress-of-packed-member" warning */
+                uint32_t tmp_rkey = 0;
                 if (qemu_rdma_register_and_get_keys(rdma, block,
-                            (uintptr_t)host_addr, NULL, &reg_result->rkey,
+                            (uintptr_t)host_addr, NULL, &tmp_rkey,
                             chunk, chunk_start, chunk_end)) {
                     error_report("cannot get rkey");
                     ret = -EINVAL;
                     goto out;
                 }
+                reg_result->rkey = tmp_rkey;
 
                 reg_result->host_addr = (uintptr_t)block->local_host_addr;
 
