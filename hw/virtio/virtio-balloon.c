@@ -82,7 +82,7 @@ static void balloon_inflate_page(VirtIOBalloon *balloon,
         /* We've partially ballooned part of a host page, but now
          * we're trying to balloon part of a different one.  Too hard,
          * give up on the old partial page */
-        free(balloon->pbp);
+        g_free(balloon->pbp);
         balloon->pbp = NULL;
     }
 
@@ -107,7 +107,7 @@ static void balloon_inflate_page(VirtIOBalloon *balloon,
          * has already reported them, and failing to discard a balloon
          * page is not fatal */
 
-        free(balloon->pbp);
+        g_free(balloon->pbp);
         balloon->pbp = NULL;
     }
 }
