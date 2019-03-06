@@ -294,7 +294,7 @@ static uint64_t lpc_hc_read(void *opaque, hwaddr addr, unsigned size)
         val =  lpc->lpc_hc_error_addr;
         break;
     default:
-        qemu_log_mask(LOG_UNIMP, "LPC HC Unimplemented register: Ox%"
+        qemu_log_mask(LOG_UNIMP, "LPC HC Unimplemented register: 0x%"
                       HWADDR_PRIx "\n", addr);
     }
     return val;
@@ -332,7 +332,7 @@ static void lpc_hc_write(void *opaque, hwaddr addr, uint64_t val,
     case LPC_HC_ERROR_ADDRESS:
         break;
     default:
-        qemu_log_mask(LOG_UNIMP, "LPC HC Unimplemented register: Ox%"
+        qemu_log_mask(LOG_UNIMP, "LPC HC Unimplemented register: 0x%"
                       HWADDR_PRIx "\n", addr);
     }
 }
@@ -370,7 +370,7 @@ static uint64_t opb_master_read(void *opaque, hwaddr addr, unsigned size)
         val = lpc->opb_irq_input;
         break;
     default:
-        qemu_log_mask(LOG_UNIMP, "OPB MASTER Unimplemented register: Ox%"
+        qemu_log_mask(LOG_UNIMP, "OPBM: read on unimplemented register: 0x%"
                       HWADDR_PRIx "\n", addr);
     }
 
@@ -399,8 +399,8 @@ static void opb_master_write(void *opaque, hwaddr addr,
         /* Read only */
         break;
     default:
-        qemu_log_mask(LOG_UNIMP, "OPB MASTER Unimplemented register: Ox%"
-                      HWADDR_PRIx "\n", addr);
+        qemu_log_mask(LOG_UNIMP, "OPBM: write on unimplemented register: 0x%"
+                      HWADDR_PRIx " val=0x%08"PRIx64"\n", addr, val);
     }
 }
 

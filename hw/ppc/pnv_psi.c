@@ -323,7 +323,7 @@ static uint64_t pnv_psi_reg_read(PnvPsi *psi, uint32_t offset, bool mmio)
         val = psi->regs[offset];
         break;
     default:
-        qemu_log_mask(LOG_UNIMP, "PSI: read at Ox%" PRIx32 "\n", offset);
+        qemu_log_mask(LOG_UNIMP, "PSI: read at 0x%" PRIx32 "\n", offset);
     }
     return val;
 }
@@ -382,7 +382,7 @@ static void pnv_psi_reg_write(PnvPsi *psi, uint32_t offset, uint64_t val,
         pnv_psi_set_irsn(psi, val);
         break;
     default:
-        qemu_log_mask(LOG_UNIMP, "PSI: write at Ox%" PRIx32 "\n", offset);
+        qemu_log_mask(LOG_UNIMP, "PSI: write at 0x%" PRIx32 "\n", offset);
     }
 }
 
