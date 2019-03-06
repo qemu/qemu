@@ -1605,7 +1605,7 @@ static int usb_mtp_update_object(MTPObject *parent, char *name)
     return ret;
 }
 
-static void usb_mtp_write_data(MTPState *s)
+static int usb_mtp_write_data(MTPState *s)
 {
     MTPData *d = s->data_out;
     MTPObject *parent =
@@ -1613,6 +1613,7 @@ static void usb_mtp_write_data(MTPState *s)
     char *path = NULL;
     uint64_t rc;
     mode_t mask = 0644;
+    int ret = 0;
 
     assert(d != NULL);
 
@@ -1621,13 +1622,13 @@ static void usb_mtp_write_data(MTPState *s)
         if (!parent || !s->write_pending) {
             usb_mtp_queue_result(s, RES_INVALID_OBJECTINFO, d->trans,
                 0, 0, 0, 0);
-        return;
+        return 1;
         }
 
         if (s->dataset.filename) {
             path = g_strdup_printf("%s/%s", parent->path, s->dataset.filename);
             if (s->dataset.format == FMT_ASSOCIATION) {
-                d->fd = mkdir(path, mask);
+                ret = mkdir(path, mask);
                 goto free;
             }
             d->fd = open(path, O_CREAT | O_WRONLY |
@@ -1657,7 +1658,8 @@ static void usb_mtp_write_data(MTPState *s)
             goto done;
         }
         if (d->write_status != WRITE_END) {
-            return;
+            g_free(path);
+            return ret;
         } else {
             /*
              * Return an incomplete transfer if file size doesn't match
@@ -1685,12 +1687,14 @@ done:
      */
     if (d->fd != -1) {
         close(d->fd);
+        d->fd = -1;
     }
 free:
     g_free(s->dataset.filename);
     s->dataset.size = 0;
     g_free(path);
     s->write_pending = false;
+    return ret;
 }
 
 static void usb_mtp_write_metadata(MTPState *s, uint64_t dlen)
@@ -1727,14 +1731,12 @@ static void usb_mtp_write_metadata(MTPState *s, uint64_t dlen)
     s->write_pending = true;
 
     if (s->dataset.format == FMT_ASSOCIATION) {
-        usb_mtp_write_data(s);
-        /* next_handle will be allocated to the newly created dir */
-        if (d->fd == -1) {
+        if (usb_mtp_write_data(s)) {
+            /* next_handle will be allocated to the newly created dir */
             usb_mtp_queue_result(s, RES_STORE_FULL, d->trans,
                                  0, 0, 0, 0);
             return;
         }
-        d->fd = -1;
     }
 
     usb_mtp_queue_result(s, RES_OK, d->trans, 3, QEMU_STORAGE_ID,
