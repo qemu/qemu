@@ -112,6 +112,43 @@ static void balloon_inflate_page(VirtIOBalloon *balloon,
     }
 }
 
+static void balloon_deflate_page(VirtIOBalloon *balloon,
+                                 MemoryRegion *mr, hwaddr offset)
+{
+    void *addr = memory_region_get_ram_ptr(mr) + offset;
+    RAMBlock *rb;
+    size_t rb_page_size;
+    ram_addr_t ram_offset, host_page_base;
+
+    /* XXX is there a better way to get to the RAMBlock than via a
+     * host address? */
+    rb = qemu_ram_block_from_host(addr, false, &ram_offset);
+    rb_page_size = qemu_ram_pagesize(rb);
+    host_page_base = ram_offset & ~(rb_page_size - 1);
+
+    if (balloon->pbp
+        && rb == balloon->pbp->rb
+        && host_page_base == balloon->pbp->base) {
+        int subpages = rb_page_size / BALLOON_PAGE_SIZE;
+
+        /*
+         * This means the guest has asked to discard some of the 4kiB
+         * subpages of a host page, but then changed its mind and
+         * asked to keep them after all.  It's exceedingly unlikely
+         * for a guest to do this in practice, but handle it anyway,
+         * since getting it wrong could mean discarding memory the
+         * guest is still using. */
+        bitmap_clear(balloon->pbp->bitmap,
+                     (ram_offset - balloon->pbp->base) / BALLOON_PAGE_SIZE,
+                     subpages);
+
+        if (bitmap_empty(balloon->pbp->bitmap, subpages)) {
+            g_free(balloon->pbp);
+            balloon->pbp = NULL;
+        }
+    }
+}
+
 static const char *balloon_stat_names[] = {
    [VIRTIO_BALLOON_S_SWAP_IN] = "stat-swap-in",
    [VIRTIO_BALLOON_S_SWAP_OUT] = "stat-swap-out",
@@ -315,8 +352,15 @@ static void virtio_balloon_handle_output(VirtIODevice *vdev, VirtQueue *vq)
 
             trace_virtio_balloon_handle_output(memory_region_name(section.mr),
                                                pa);
-            if (!qemu_balloon_is_inhibited() && vq != s->dvq) {
-                balloon_inflate_page(s, section.mr, section.offset_within_region);
+            if (!qemu_balloon_is_inhibited()) {
+                if (vq == s->ivq) {
+                    balloon_inflate_page(s, section.mr,
+                                         section.offset_within_region);
+                } else if (vq == s->dvq) {
+                    balloon_deflate_page(s, section.mr, section.offset_within_region);
+                } else {
+                    g_assert_not_reached();
+                }
             }
             memory_region_unref(section.mr);
         }
