@@ -1177,9 +1177,7 @@ static int usb_mtp_deletefn(MTPState *s, MTPObject *o, uint32_t trans)
             usb_mtp_object_free_one(s, o);
             success = true;
         }
-    }
-
-    if (o->format == FMT_ASSOCIATION) {
+    } else if (o->format == FMT_ASSOCIATION) {
         if (rmdir(o->path)) {
             partial_delete = true;
         } else {
