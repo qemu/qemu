@@ -55,10 +55,8 @@ static void *iothread_run(void *opaque)
     rcu_register_thread();
 
     my_iothread = iothread;
-    qemu_mutex_lock(&iothread->init_done_lock);
     iothread->thread_id = qemu_get_thread_id();
-    qemu_cond_signal(&iothread->init_done_cond);
-    qemu_mutex_unlock(&iothread->init_done_lock);
+    qemu_sem_post(&iothread->init_done_sem);
 
     while (iothread->running) {
         aio_poll(iothread->ctx, true);
@@ -115,6 +113,7 @@ static void iothread_instance_init(Object *obj)
 
     iothread->poll_max_ns = IOTHREAD_POLL_MAX_NS_DEFAULT;
     iothread->thread_id = -1;
+    qemu_sem_init(&iothread->init_done_sem, 0);
 }
 
 static void iothread_instance_finalize(Object *obj)
@@ -123,10 +122,6 @@ static void iothread_instance_finalize(Object *obj)
 
     iothread_stop(iothread);
 
-    if (iothread->thread_id != -1) {
-        qemu_cond_destroy(&iothread->init_done_cond);
-        qemu_mutex_destroy(&iothread->init_done_lock);
-    }
     /*
      * Before glib2 2.33.10, there is a glib2 bug that GSource context
      * pointer may not be cleared even if the context has already been
@@ -145,6 +140,7 @@ static void iothread_instance_finalize(Object *obj)
         g_main_context_unref(iothread->worker_context);
         iothread->worker_context = NULL;
     }
+    qemu_sem_destroy(&iothread->init_done_sem);
 }
 
 static void iothread_complete(UserCreatable *obj, Error **errp)
@@ -173,8 +169,6 @@ static void iothread_complete(UserCreatable *obj, Error **errp)
         return;
     }
 
-    qemu_mutex_init(&iothread->init_done_lock);
-    qemu_cond_init(&iothread->init_done_cond);
     iothread->once = (GOnce) G_ONCE_INIT;
 
     /* This assumes we are called from a thread with useful CPU affinity for us
@@ -188,12 +182,9 @@ static void iothread_complete(UserCreatable *obj, Error **errp)
     g_free(name);
 
     /* Wait for initialization to complete */
-    qemu_mutex_lock(&iothread->init_done_lock);
     while (iothread->thread_id == -1) {
-        qemu_cond_wait(&iothread->init_done_cond,
-                       &iothread->init_done_lock);
+        qemu_sem_wait(&iothread->init_done_sem);
     }
-    qemu_mutex_unlock(&iothread->init_done_lock);
 }
 
 typedef struct {
