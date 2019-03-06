@@ -63,6 +63,15 @@ static void *iothread_run(void *opaque)
     qemu_sem_post(&iothread->init_done_sem);
 
     while (iothread->running) {
+        /*
+         * Note: from functional-wise the g_main_loop_run() below can
+         * already cover the aio_poll() events, but we can't run the
+         * main loop unconditionally because explicit aio_poll() here
+         * is faster than g_main_loop_run() when we do not need the
+         * gcontext at all (e.g., pure block layer iothreads).  In
+         * other words, when we want to run the gcontext with the
+         * iothread we need to pay some performance for functionality.
+         */
         aio_poll(iothread->ctx, true);
 
         /*
