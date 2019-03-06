@@ -189,6 +189,7 @@ static void acpi_memory_hotplug_write(void *opaque, hwaddr addr, uint64_t data,
                 error_free(local_err);
                 break;
             }
+            object_unparent(OBJECT(dev));
             trace_mhp_acpi_pc_dimm_deleted(mem_st->selector);
         }
         break;

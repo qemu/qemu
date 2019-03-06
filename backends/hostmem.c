@@ -88,7 +88,7 @@ host_memory_backend_get_host_nodes(Object *obj, Visitor *v, const char *name,
 
     value = find_first_bit(backend->host_nodes, MAX_NODES);
     if (value == MAX_NODES) {
-        return;
+        goto ret;
     }
 
     *node = g_malloc0(sizeof(**node));
@@ -106,6 +106,7 @@ host_memory_backend_get_host_nodes(Object *obj, Visitor *v, const char *name,
         node = &(*node)->next;
     } while (true);
 
+ret:
     visit_type_uint16List(v, name, &host_nodes, errp);
 }
 
