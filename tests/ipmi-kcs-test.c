@@ -263,15 +263,8 @@ static void test_enable_irq(void)
 
 int main(int argc, char **argv)
 {
-    const char *arch = qtest_get_arch();
     char *cmdline;
     int ret;
-
-    /* Check architecture */
-    if (strcmp(arch, "i386") && strcmp(arch, "x86_64")) {
-        g_test_message("Skipping test for non-x86\n");
-        return 0;
-    }
 
     /* Run the tests */
     g_test_init(&argc, &argv, NULL);

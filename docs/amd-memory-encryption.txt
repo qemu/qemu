@@ -97,7 +97,7 @@ References
 AMD Memory Encryption whitepaper:
 http://amd-dev.wpengine.netdna-cdn.com/wordpress/media/2013/12/AMD_Memory_Encryption_Whitepaper_v7-Public.pdf
 
-Secure Encrypted Virutualization Key Management:
+Secure Encrypted Virtualization Key Management:
 [1] http://support.amd.com/TechDocs/55766_SEV-KM API_Specification.pdf
 
 KVM Forum slides:

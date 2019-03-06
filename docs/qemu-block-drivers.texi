@@ -632,7 +632,7 @@ qemu-system-i386 -drive file=iscsi://127.0.0.1/iqn.qemu.test/1 \
 @end example
 
 
-Howto set up a simple iSCSI target on loopback and accessing it via QEMU:
+How to set up a simple iSCSI target on loopback and access it via QEMU:
 @example
 This example shows how to set up an iSCSI target with one CDROM and one DISK
 using the Linux STGT software target. This target is available on Red Hat based

@@ -290,7 +290,7 @@ E.g., '-serial stdio' in record mode, and '-serial null' in replay mode.
 Replay log format
 -----------------
 
-Record/replay log consits of the header and the sequence of execution
+Record/replay log consists of the header and the sequence of execution
 events. The header includes 4-byte replay version id and 8-byte reserved
 field. Version is updated every time replay log format changes to prevent
 using replay log created by another build of qemu.

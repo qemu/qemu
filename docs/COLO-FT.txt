@@ -102,7 +102,7 @@ to make sure the state of VM in Secondary side is always consistent with VM in
 Primary side.
 
 COLO Proxy:
-Delivers packets to Primary and Seconday, and then compare the responses from
+Delivers packets to Primary and Secondary, and then compare the responses from
 both side. Then decide whether to start a checkpoint according to some rules.
 Please refer to docs/colo-proxy.txt for more information.
 

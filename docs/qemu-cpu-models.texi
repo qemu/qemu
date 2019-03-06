@@ -49,7 +49,7 @@ live migration safe.
 The information that follows provides recommendations for configuring
 CPU models on x86 hosts. The goals are to maximise performance, while
 protecting guest OS against various CPU hardware flaws, and optionally
-enabling live migration between hosts with hetergeneous CPU models.
+enabling live migration between hosts with heterogeneous CPU models.
 
 @menu
 * preferred_cpu_models_intel_x86::       Preferred CPU models for Intel x86 hosts
@@ -287,7 +287,7 @@ Must be explicitly turned on for all AMD CPU models.
 This provides higher performance than virt-ssbd so should be
 exposed to guests whenever available in the host. virt-ssbd
 should none the less also be exposed for maximum guest
-compatability as some kernels only know about virt-ssbd.
+compatibility as some kernels only know about virt-ssbd.
 
 
 @item @code{amd-no-ssb}
@@ -296,7 +296,7 @@ Recommended to indicate the host is not vulnerable CVE-2018-3639
 
 Not included by default in any AMD CPU model.
 
-Future hardware genarations of CPU will not be vulnerable to
+Future hardware generations of CPU will not be vulnerable to
 CVE-2018-3639, and thus the guest should be told not to enable
 its mitigations, by exposing amd-no-ssb. This is mutually
 exclusive with virt-ssbd and amd-ssbd.
@@ -451,7 +451,7 @@ MIPS64 Processor (Release 6, 2014)
 
 @item @code{Loongson-2F}
 
-MIPS64 Processor (Longsoon 2, 2008)
+MIPS64 Processor (Loongson 2, 2008)
 
 
 @item @code{Loongson-2E}

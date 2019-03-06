@@ -41,7 +41,7 @@ Below is a COLO proxy ascii figure:
 |         |  +------------------------------------------------------+  |                        |        |                              |
 |netfilter|  |                       |                         |    |  |   netfilter            |        |                              |
 | +----------+ +----------------------------+                  |    |  |  +-----------------------------------------------------------+ |
-| |       |  |                       |      |        out       |    |  |  |                     |        |  filter excute order       | |
+| |       |  |                       |      |        out       |    |  |  |                     |        |  filter execute order      | |
 | |       |  |          +-----------------------------+        |    |  |  |                     |        | +------------------->      | |
 | |       |  |          |            |      |         |        |    |  |  |                     |        |   TCP                      | |
 | | +-----+--+-+  +-----v----+ +-----v----+ |pri +----+----+sec|    |  |  | +------------+  +---+----+---v+rewriter++  +------------+ | |
@@ -53,7 +53,7 @@ Below is a COLO proxy ascii figure:
 | |      |   tx        |   rx           rx  |                  |  |    |  |            tx                        all       |  rx      | |
 | |      |             |                    |                  |  |    |  +-----------------------------------------------------------+ |
 | |      |             +--------------+     |                  |  |    |                                                   |            |
-| |      |   filter excute order      |     |                  |  |    |                                                   |            |
+| |      |   filter execute order     |     |                  |  |    |                                                   |            |
 | |      |  +---------------->        |     |                  |  +--------------------------------------------------------+            |
 | +-----------------------------------------+                  |       |                                                                |
 |        |                            |                        |       |                                                                |
@@ -92,7 +92,7 @@ but do nothing, just pass to next filter.
 
 Redirect Server Filter --> COLO-Compare
 COLO-compare receive primary guest packet then
-waiting scondary redirect packet to compare it.
+waiting secondary redirect packet to compare it.
 If packet same,send queued primary packet and clear
 queued secondary packet, Otherwise send primary packet
 and do checkpoint.

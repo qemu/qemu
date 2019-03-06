@@ -255,9 +255,9 @@ typedef union {
 /*
  * the generic syntax is:
  *
- * load: ld{type}{sign}{size}{endian}_p(ptr)
+ * load: ld{type}{sign}{size}_{endian}_p(ptr)
  *
- * store: st{type}{size}{endian}_p(ptr, val)
+ * store: st{type}{size}_{endian}_p(ptr, val)
  *
  * Note there are small differences with the softmmu access API!
  *
@@ -293,10 +293,10 @@ typedef union {
  *
  * For cases where the size to be used is not fixed at compile time,
  * there are
- *  stn{endian}_p(ptr, sz, val)
+ *  stn_{endian}_p(ptr, sz, val)
  * which stores @val to @ptr as an @endian-order number @sz bytes in size
  * and
- *  ldn{endian}_p(ptr, sz)
+ *  ldn_{endian}_p(ptr, sz)
  * which loads @sz bytes from @ptr as an unsigned @endian-order number
  * and returns it in a uint64_t.
  */
