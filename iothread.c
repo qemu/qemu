@@ -65,7 +65,7 @@ static void *iothread_run(void *opaque)
          * We must check the running state again in case it was
          * changed in previous aio_poll()
          */
-        if (iothread->running && atomic_read(&iothread->worker_context)) {
+        if (iothread->running && atomic_read(&iothread->run_gcontext)) {
             GMainLoop *loop;
 
             g_main_context_push_thread_default(iothread->worker_context);
@@ -114,6 +114,8 @@ static void iothread_instance_init(Object *obj)
     iothread->poll_max_ns = IOTHREAD_POLL_MAX_NS_DEFAULT;
     iothread->thread_id = -1;
     qemu_sem_init(&iothread->init_done_sem, 0);
+    /* By default, we don't run gcontext */
+    atomic_set(&iothread->run_gcontext, 0);
 }
 
 static void iothread_instance_finalize(Object *obj)
@@ -143,6 +145,16 @@ static void iothread_instance_finalize(Object *obj)
     qemu_sem_destroy(&iothread->init_done_sem);
 }
 
+static void iothread_init_gcontext(IOThread *iothread)
+{
+    GSource *source;
+
+    iothread->worker_context = g_main_context_new();
+    source = aio_get_g_source(iothread_get_aio_context(iothread));
+    g_source_attach(source, iothread->worker_context);
+    g_source_unref(source);
+}
+
 static void iothread_complete(UserCreatable *obj, Error **errp)
 {
     Error *local_error = NULL;
@@ -157,6 +169,12 @@ static void iothread_complete(UserCreatable *obj, Error **errp)
         return;
     }
 
+    /*
+     * Init one GMainContext for the iothread unconditionally, even if
+     * it's not used
+     */
+    iothread_init_gcontext(iothread);
+
     aio_context_set_poll_params(iothread->ctx,
                                 iothread->poll_max_ns,
                                 iothread->poll_grow,
@@ -168,8 +186,6 @@ static void iothread_complete(UserCreatable *obj, Error **errp)
         iothread->ctx = NULL;
         return;
     }
-
-    iothread->once = (GOnce) G_ONCE_INIT;
 
     /* This assumes we are called from a thread with useful CPU affinity for us
      * to inherit.
@@ -333,27 +349,10 @@ IOThreadInfoList *qmp_query_iothreads(Error **errp)
     return head;
 }
 
-static gpointer iothread_g_main_context_init(gpointer opaque)
-{
-    AioContext *ctx;
-    IOThread *iothread = opaque;
-    GSource *source;
-
-    iothread->worker_context = g_main_context_new();
-
-    ctx = iothread_get_aio_context(iothread);
-    source = aio_get_g_source(ctx);
-    g_source_attach(source, iothread->worker_context);
-    g_source_unref(source);
-
-    aio_notify(iothread->ctx);
-    return NULL;
-}
-
 GMainContext *iothread_get_g_main_context(IOThread *iothread)
 {
-    g_once(&iothread->once, iothread_g_main_context_init, iothread);
-
+    atomic_set(&iothread->run_gcontext, 1);
+    aio_notify(iothread->ctx);
     return iothread->worker_context;
 }
 
