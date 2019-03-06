@@ -14,6 +14,7 @@ CRT_OBJS=boot.o
 
 ifeq ($(TARGET_X86_64), y)
 CRT_PATH=$(X64_SYSTEM_SRC)
+CFLAGS=-march=x86-64
 LINK_SCRIPT=$(X64_SYSTEM_SRC)/kernel.ld
 LDFLAGS=-Wl,-T$(LINK_SCRIPT) -Wl,-melf_x86_64
 else
