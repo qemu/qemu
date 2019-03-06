@@ -2822,6 +2822,9 @@ static void spapr_machine_init(MachineState *machine)
 
         /* H_CLEAR_MOD/_REF are mandatory in PAPR, but off by default */
         kvmppc_enable_clear_ref_mod_hcalls();
+
+        /* Enable H_PAGE_INIT */
+        kvmppc_enable_h_page_init();
     }
 
     /* allocate RAM */

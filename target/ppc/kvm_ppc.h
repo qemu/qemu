@@ -23,6 +23,7 @@ int kvmppc_set_interrupt(PowerPCCPU *cpu, int irq, int level);
 void kvmppc_enable_logical_ci_hcalls(void);
 void kvmppc_enable_set_mode_hcall(void);
 void kvmppc_enable_clear_ref_mod_hcalls(void);
+void kvmppc_enable_h_page_init(void);
 void kvmppc_set_papr(PowerPCCPU *cpu);
 int kvmppc_set_compat(PowerPCCPU *cpu, uint32_t compat_pvr);
 void kvmppc_set_mpic_proxy(PowerPCCPU *cpu, int mpic_proxy);
@@ -135,6 +136,10 @@ static inline void kvmppc_enable_set_mode_hcall(void)
 }
 
 static inline void kvmppc_enable_clear_ref_mod_hcalls(void)
+{
+}
+
+static inline void kvmppc_enable_h_page_init(void)
 {
 }
 

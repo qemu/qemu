@@ -2044,6 +2044,11 @@ void kvmppc_enable_clear_ref_mod_hcalls(void)
     kvmppc_enable_hcall(kvm_state, H_CLEAR_MOD);
 }
 
+void kvmppc_enable_h_page_init(void)
+{
+    kvmppc_enable_hcall(kvm_state, H_PAGE_INIT);
+}
+
 void kvmppc_set_papr(PowerPCCPU *cpu)
 {
     CPUState *cs = CPU(cpu);
