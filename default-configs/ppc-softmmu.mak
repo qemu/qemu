@@ -1,6 +1,8 @@
 # Default configuration for ppc-softmmu
 
 # For embedded PPCs:
+CONFIG_MPC_I2C=y
+CONFIG_DS1338=y
 CONFIG_E500=y
 CONFIG_PPC405=y
 CONFIG_PPC440=y

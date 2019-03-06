@@ -984,6 +984,7 @@ L: qemu-ppc@nongnu.org
 S: Odd Fixes
 F: hw/ppc/e500*
 F: hw/gpio/mpc8xxx.c
+F: hw/i2c/mpc_i2c.c
 F: hw/net/fsl_etsec/
 F: hw/pci-host/ppce500.c
 F: include/hw/ppc/ppc_e500.h

@@ -25,3 +25,7 @@ config BITBANG_I2C
 config IMX_I2C
     bool
     select I2C
+
+config MPC_I2C
+    bool
+    select I2C
