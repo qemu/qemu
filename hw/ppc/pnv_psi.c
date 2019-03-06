@@ -442,6 +442,15 @@ static const MemoryRegionOps pnv_psi_xscom_ops = {
     }
 };
 
+static void pnv_psi_reset(void *dev)
+{
+    PnvPsi *psi = PNV_PSI(dev);
+
+    memset(psi->regs, 0x0, sizeof(psi->regs));
+
+    psi->regs[PSIHB_XSCOM_BAR] = psi->bar | PSIHB_BAR_EN;
+}
+
 static void pnv_psi_init(Object *obj)
 {
     PnvPsi *psi = PNV_PSI(obj);
@@ -511,6 +520,8 @@ static void pnv_psi_realize(DeviceState *dev, Error **errp)
         psi->regs[xivr] = PSIHB_XIVR_PRIO_MSK |
             ((uint64_t) i << PSIHB_XIVR_SRC_SH);
     }
+
+    qemu_register_reset(pnv_psi_reset, dev);
 }
 
 static int pnv_psi_dt_xscom(PnvXScomInterface *dev, void *fdt, int xscom_offset)
