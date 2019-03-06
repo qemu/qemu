@@ -114,6 +114,8 @@
 #define PSIHB_BAR_MASK                  0x0003fffffff00000ull
 #define PSIHB_FSPBAR_MASK               0x0003ffff00000000ull
 
+#define PSIHB_REG(addr) (((addr) >> 3) + PSIHB_XSCOM_BAR)
+
 static void pnv_psi_set_bar(PnvPsi *psi, uint64_t bar)
 {
     MemoryRegion *sysmem = get_system_memory();
@@ -392,13 +394,13 @@ static void pnv_psi_reg_write(PnvPsi *psi, uint32_t offset, uint64_t val,
  */
 static uint64_t pnv_psi_mmio_read(void *opaque, hwaddr addr, unsigned size)
 {
-    return pnv_psi_reg_read(opaque, (addr >> 3) + PSIHB_XSCOM_BAR, true);
+    return pnv_psi_reg_read(opaque, PSIHB_REG(addr), true);
 }
 
 static void pnv_psi_mmio_write(void *opaque, hwaddr addr,
                               uint64_t val, unsigned size)
 {
-    pnv_psi_reg_write(opaque, (addr >> 3) + PSIHB_XSCOM_BAR, val, true);
+    pnv_psi_reg_write(opaque, PSIHB_REG(addr), val, true);
 }
 
 static const MemoryRegionOps psi_mmio_ops = {
