@@ -38,97 +38,12 @@ if [ $ret -ne 0 ]; then
   exit $ret
 fi
 
-# Map the QEMU system emulation target to the following types of architecture
-# identifiers:
-# - edk2,
-# - gcc cross-compilation.
-# Cover only those targets that are supported by the UEFI spec and edk2.
-case "$emulation_target" in
-  (arm)
-    edk2_arch=ARM
-    gcc_arch=arm
-    ;;
-  (aarch64)
-    edk2_arch=AARCH64
-    gcc_arch=aarch64
-    ;;
-  (i386)
-    edk2_arch=IA32
-    gcc_arch=i686
-    ;;
-  (x86_64)
-    edk2_arch=X64
-    gcc_arch=x86_64
-    ;;
-  (*)
-    printf '%s: unknown/unsupported QEMU system emulation target "%s"\n' \
-      "$program_name" "$emulation_target" >&2
-    exit 1
-    ;;
-esac
-
-# Check if cross-compilation is needed.
-host_arch=$(uname -m)
-if [ "$gcc_arch" == "$host_arch" ] ||
-   ( [ "$gcc_arch" == i686 ] && [ "$host_arch" == x86_64 ] ); then
-  cross_prefix=
-else
-  cross_prefix=${gcc_arch}-linux-gnu-
-fi
-
-# Expose cross_prefix (which is possibly empty) to the edk2 tools. While at it,
-# determine the suitable edk2 toolchain as well.
-# - For ARM and AARCH64, edk2 only offers the GCC5 toolchain tag, which covers
-#   the gcc-5+ releases.
-# - For IA32 and X64, edk2 offers the GCC44 through GCC49 toolchain tags, in
-#   addition to GCC5. Unfortunately, the mapping between the toolchain tags and
-#   the actual gcc releases isn't entirely trivial. Run "git-blame" on
-#   "OvmfPkg/build.sh" in edk2 for more information.
-# And, because the above is too simple, we have to assign cross_prefix to an
-# edk2 build variable that is specific to both the toolchain tag and the target
-# architecture.
-case "$edk2_arch" in
-  (ARM)
-    edk2_toolchain=GCC5
-    export GCC5_ARM_PREFIX=$cross_prefix
-    ;;
-  (AARCH64)
-    edk2_toolchain=GCC5
-    export GCC5_AARCH64_PREFIX=$cross_prefix
-    ;;
-  (IA32|X64)
-    gcc_version=$("${cross_prefix}gcc" -v 2>&1 | tail -1 | awk '{print $3}')
-    case "$gcc_version" in
-      ([1-3].*|4.[0-3].*)
-        printf '%s: unsupported gcc version "%s"\n' \
-          "$program_name" "$gcc_version" >&2
-        exit 1
-        ;;
-      (4.4.*)
-        edk2_toolchain=GCC44
-        ;;
-      (4.5.*)
-        edk2_toolchain=GCC45
-        ;;
-      (4.6.*)
-        edk2_toolchain=GCC46
-        ;;
-      (4.7.*)
-        edk2_toolchain=GCC47
-        ;;
-      (4.8.*)
-        edk2_toolchain=GCC48
-        ;;
-      (4.9.*|6.[0-2].*)
-        edk2_toolchain=GCC49
-        ;;
-      (*)
-        edk2_toolchain=GCC5
-        ;;
-    esac
-    eval "export ${edk2_toolchain}_BIN=\$cross_prefix"
-    ;;
-esac
+# Fetch some option arguments, and set the cross-compilation environment (if
+# any), for the edk2 "build" utility.
+source "$edk2_dir/../edk2-funcs.sh"
+edk2_arch=$(qemu_edk2_get_arch "$emulation_target")
+edk2_toolchain=$(qemu_edk2_get_toolchain "$emulation_target")
+qemu_edk2_set_cross_env "$emulation_target"
 
 # Build the UEFI binary
 mkdir -p log
