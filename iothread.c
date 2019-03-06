@@ -66,17 +66,8 @@ static void *iothread_run(void *opaque)
          * changed in previous aio_poll()
          */
         if (iothread->running && atomic_read(&iothread->run_gcontext)) {
-            GMainLoop *loop;
-
             g_main_context_push_thread_default(iothread->worker_context);
-            iothread->main_loop =
-                g_main_loop_new(iothread->worker_context, TRUE);
-            loop = iothread->main_loop;
-
             g_main_loop_run(iothread->main_loop);
-            iothread->main_loop = NULL;
-            g_main_loop_unref(loop);
-
             g_main_context_pop_thread_default(iothread->worker_context);
         }
     }
@@ -141,6 +132,8 @@ static void iothread_instance_finalize(Object *obj)
     if (iothread->worker_context) {
         g_main_context_unref(iothread->worker_context);
         iothread->worker_context = NULL;
+        g_main_loop_unref(iothread->main_loop);
+        iothread->main_loop = NULL;
     }
     qemu_sem_destroy(&iothread->init_done_sem);
 }
@@ -153,6 +146,7 @@ static void iothread_init_gcontext(IOThread *iothread)
     source = aio_get_g_source(iothread_get_aio_context(iothread));
     g_source_attach(source, iothread->worker_context);
     g_source_unref(source);
+    iothread->main_loop = g_main_loop_new(iothread->worker_context, TRUE);
 }
 
 static void iothread_complete(UserCreatable *obj, Error **errp)
