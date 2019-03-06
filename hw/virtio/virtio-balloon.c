@@ -119,6 +119,8 @@ static void balloon_deflate_page(VirtIOBalloon *balloon,
     RAMBlock *rb;
     size_t rb_page_size;
     ram_addr_t ram_offset, host_page_base;
+    void *host_addr;
+    int ret;
 
     /* XXX is there a better way to get to the RAMBlock than via a
      * host address? */
@@ -146,6 +148,17 @@ static void balloon_deflate_page(VirtIOBalloon *balloon,
             g_free(balloon->pbp);
             balloon->pbp = NULL;
         }
+    }
+
+    host_addr = (void *)((uintptr_t)addr & ~(rb_page_size - 1));
+
+    /* When a page is deflated, we hint the whole host page it lives
+     * on, since we can't do anything smaller */
+    ret = qemu_madvise(host_addr, rb_page_size, QEMU_MADV_WILLNEED);
+    if (ret != 0) {
+        warn_report("Couldn't MADV_WILLNEED on balloon deflate: %s",
+                    strerror(errno));
+        /* Otherwise ignore, failing to page hint shouldn't be fatal */
     }
 }
 
