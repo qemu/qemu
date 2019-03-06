@@ -267,7 +267,7 @@ static void pnv_dt_icp(PnvChip *chip, void *fdt, uint32_t pir,
     g_free(reg);
 }
 
-static void pnv_dt_chip(PnvChip *chip, void *fdt)
+static void pnv_chip_power8_dt_populate(PnvChip *chip, void *fdt)
 {
     const char *typename = pnv_chip_core_typename(chip);
     size_t typesize = object_type_get_instance_size(typename);
@@ -282,6 +282,25 @@ static void pnv_dt_chip(PnvChip *chip, void *fdt)
 
         /* Interrupt Control Presenters (ICP). One per core. */
         pnv_dt_icp(chip, fdt, pnv_core->pir, CPU_CORE(pnv_core)->nr_threads);
+    }
+
+    if (chip->ram_size) {
+        pnv_dt_memory(fdt, chip->chip_id, chip->ram_start, chip->ram_size);
+    }
+}
+
+static void pnv_chip_power9_dt_populate(PnvChip *chip, void *fdt)
+{
+    const char *typename = pnv_chip_core_typename(chip);
+    size_t typesize = object_type_get_instance_size(typename);
+    int i;
+
+    pnv_dt_xscom(chip, fdt, 0);
+
+    for (i = 0; i < chip->nr_cores; i++) {
+        PnvCore *pnv_core = PNV_CORE(chip->cores + i * typesize);
+
+        pnv_dt_core(chip, pnv_core, fdt);
     }
 
     if (chip->ram_size) {
@@ -474,7 +493,7 @@ static void *pnv_dt_create(MachineState *machine)
 
     /* Populate device tree for each chip */
     for (i = 0; i < pnv->num_chips; i++) {
-        pnv_dt_chip(pnv->chips[i], fdt);
+        PNV_CHIP_GET_CLASS(pnv->chips[i])->dt_populate(pnv->chips[i], fdt);
     }
 
     /* Populate ISA devices on chip 0 */
@@ -858,6 +877,7 @@ static void pnv_chip_power8e_class_init(ObjectClass *klass, void *data)
     k->core_pir = pnv_chip_core_pir_p8;
     k->intc_create = pnv_chip_power8_intc_create;
     k->isa_create = pnv_chip_power8_isa_create;
+    k->dt_populate = pnv_chip_power8_dt_populate;
     k->xscom_base = 0x003fc0000000000ull;
     dc->desc = "PowerNV Chip POWER8E";
 
@@ -876,6 +896,7 @@ static void pnv_chip_power8_class_init(ObjectClass *klass, void *data)
     k->core_pir = pnv_chip_core_pir_p8;
     k->intc_create = pnv_chip_power8_intc_create;
     k->isa_create = pnv_chip_power8_isa_create;
+    k->dt_populate = pnv_chip_power8_dt_populate;
     k->xscom_base = 0x003fc0000000000ull;
     dc->desc = "PowerNV Chip POWER8";
 
@@ -894,6 +915,7 @@ static void pnv_chip_power8nvl_class_init(ObjectClass *klass, void *data)
     k->core_pir = pnv_chip_core_pir_p8;
     k->intc_create = pnv_chip_power8_intc_create;
     k->isa_create = pnv_chip_power8nvl_isa_create;
+    k->dt_populate = pnv_chip_power8_dt_populate;
     k->xscom_base = 0x003fc0000000000ull;
     dc->desc = "PowerNV Chip POWER8NVL";
 
@@ -954,6 +976,7 @@ static void pnv_chip_power9_class_init(ObjectClass *klass, void *data)
     k->core_pir = pnv_chip_core_pir_p9;
     k->intc_create = pnv_chip_power9_intc_create;
     k->isa_create = pnv_chip_power9_isa_create;
+    k->dt_populate = pnv_chip_power9_dt_populate;
     k->xscom_base = 0x00603fc00000000ull;
     dc->desc = "PowerNV Chip POWER9";
 
