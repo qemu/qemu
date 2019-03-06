@@ -567,6 +567,20 @@ static ISABus *pnv_isa_create(PnvChip *chip, Error **errp)
     return PNV_CHIP_GET_CLASS(chip)->isa_create(chip, errp);
 }
 
+static void pnv_chip_power8_pic_print_info(PnvChip *chip, Monitor *mon)
+{
+    Pnv8Chip *chip8 = PNV8_CHIP(chip);
+
+    ics_pic_print_info(&chip8->psi.ics, mon);
+}
+
+static void pnv_chip_power9_pic_print_info(PnvChip *chip, Monitor *mon)
+{
+    Pnv9Chip *chip9 = PNV9_CHIP(chip);
+
+    pnv_xive_pic_print_info(&chip9->xive, mon);
+}
+
 static void pnv_init(MachineState *machine)
 {
     PnvMachineState *pnv = PNV_MACHINE(machine);
@@ -878,6 +892,7 @@ static void pnv_chip_power8e_class_init(ObjectClass *klass, void *data)
     k->intc_create = pnv_chip_power8_intc_create;
     k->isa_create = pnv_chip_power8_isa_create;
     k->dt_populate = pnv_chip_power8_dt_populate;
+    k->pic_print_info = pnv_chip_power8_pic_print_info;
     k->xscom_base = 0x003fc0000000000ull;
     dc->desc = "PowerNV Chip POWER8E";
 
@@ -897,6 +912,7 @@ static void pnv_chip_power8_class_init(ObjectClass *klass, void *data)
     k->intc_create = pnv_chip_power8_intc_create;
     k->isa_create = pnv_chip_power8_isa_create;
     k->dt_populate = pnv_chip_power8_dt_populate;
+    k->pic_print_info = pnv_chip_power8_pic_print_info;
     k->xscom_base = 0x003fc0000000000ull;
     dc->desc = "PowerNV Chip POWER8";
 
@@ -916,6 +932,7 @@ static void pnv_chip_power8nvl_class_init(ObjectClass *klass, void *data)
     k->intc_create = pnv_chip_power8_intc_create;
     k->isa_create = pnv_chip_power8nvl_isa_create;
     k->dt_populate = pnv_chip_power8_dt_populate;
+    k->pic_print_info = pnv_chip_power8_pic_print_info;
     k->xscom_base = 0x003fc0000000000ull;
     dc->desc = "PowerNV Chip POWER8NVL";
 
@@ -977,6 +994,7 @@ static void pnv_chip_power9_class_init(ObjectClass *klass, void *data)
     k->intc_create = pnv_chip_power9_intc_create;
     k->isa_create = pnv_chip_power9_isa_create;
     k->dt_populate = pnv_chip_power9_dt_populate;
+    k->pic_print_info = pnv_chip_power9_pic_print_info;
     k->xscom_base = 0x00603fc00000000ull;
     dc->desc = "PowerNV Chip POWER9";
 
@@ -1164,12 +1182,15 @@ static void pnv_pic_print_info(InterruptStatsProvider *obj,
     CPU_FOREACH(cs) {
         PowerPCCPU *cpu = POWERPC_CPU(cs);
 
-        icp_pic_print_info(ICP(pnv_cpu_state(cpu)->intc), mon);
+        if (pnv_chip_is_power9(pnv->chips[0])) {
+            xive_tctx_pic_print_info(XIVE_TCTX(pnv_cpu_state(cpu)->intc), mon);
+        } else {
+            icp_pic_print_info(ICP(pnv_cpu_state(cpu)->intc), mon);
+        }
     }
 
     for (i = 0; i < pnv->num_chips; i++) {
-        Pnv8Chip *chip8 = PNV8_CHIP(pnv->chips[i]);
-        ics_pic_print_info(&chip8->psi.ics, mon);
+        PNV_CHIP_GET_CLASS(pnv->chips[i])->pic_print_info(pnv->chips[i], mon);
     }
 }
 
