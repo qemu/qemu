@@ -93,7 +93,11 @@ html_theme = 'alabaster'
 # Add any paths that contain custom static files (such as style sheets) here,
 # relative to this directory. They are copied after the builtin static files,
 # so a file named "default.css" will overwrite the builtin "default.css".
-html_static_path = ['_static']
+# QEMU doesn't yet have any static files, so comment this out so we don't
+# get a warning about a missing directory.
+# If we do ever add this then it would probably be better to call the
+# subdirectory sphinx_static, as the Linux kernel does.
+# html_static_path = ['_static']
 
 # Custom sidebar templates, must be a dictionary that maps document names
 # to template names.
