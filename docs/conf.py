@@ -113,6 +113,9 @@ html_sidebars = {
     ]
 }
 
+# Don't copy the rST source files to the HTML output directory,
+# and don't put links to the sources into the output HTML.
+html_copy_source = False
 
 # -- Options for HTMLHelp output ------------------------------------------
 
