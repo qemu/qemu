@@ -158,8 +158,7 @@ support this feature.
 
 @item @code{spec-ctrl}
 
-Required to enable the Spectre (CVE-2017-5753 and CVE-2017-5715) fix,
-in cases where retpolines are not sufficient.
+Required to enable the Spectre v2 (CVE-2017-5715) fix.
 
 Included by default in Intel CPU models with -IBRS suffix.
 
@@ -249,8 +248,7 @@ included if using "Host passthrough" or "Host model".
 
 @item @code{ibpb}
 
-Required to enable the Spectre (CVE-2017-5753 and CVE-2017-5715) fix,
-in cases where retpolines are not sufficient.
+Required to enable the Spectre v2 (CVE-2017-5715) fix.
 
 Included by default in AMD CPU models with -IBPB suffix.
 
