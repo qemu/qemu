@@ -1235,6 +1235,18 @@ print_chdir(const struct syscallname *name,
 }
 #endif
 
+#ifdef TARGET_NR_chroot
+static void
+print_chroot(const struct syscallname *name,
+    abi_long arg0, abi_long arg1, abi_long arg2,
+    abi_long arg3, abi_long arg4, abi_long arg5)
+{
+    print_syscall_prologue(name);
+    print_string(arg0, 1);
+    print_syscall_epilogue(name);
+}
+#endif
+
 #ifdef TARGET_NR_chmod
 static void
 print_chmod(const struct syscallname *name,

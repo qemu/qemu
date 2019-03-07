@@ -77,7 +77,7 @@
 { TARGET_NR_chown32, "chown32" , NULL, NULL, NULL },
 #endif
 #ifdef TARGET_NR_chroot
-{ TARGET_NR_chroot, "chroot" , NULL, NULL, NULL },
+{ TARGET_NR_chroot, "chroot" , NULL, print_chroot, NULL },
 #endif
 #ifdef TARGET_NR_clock_adjtime
 { TARGET_NR_clock_adjtime, "clock_adjtime" , NULL, print_clock_adjtime, NULL },
