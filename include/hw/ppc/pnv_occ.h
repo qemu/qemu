@@ -23,6 +23,8 @@
 
 #define TYPE_PNV_OCC "pnv-occ"
 #define PNV_OCC(obj) OBJECT_CHECK(PnvOCC, (obj), TYPE_PNV_OCC)
+#define TYPE_PNV8_OCC TYPE_PNV_OCC "-POWER8"
+#define PNV8_OCC(obj) OBJECT_CHECK(PnvOCC, (obj), TYPE_PNV8_OCC)
 
 typedef struct PnvOCC {
     DeviceState xd;
@@ -34,5 +36,18 @@ typedef struct PnvOCC {
 
     MemoryRegion xscom_regs;
 } PnvOCC;
+
+#define PNV_OCC_CLASS(klass) \
+     OBJECT_CLASS_CHECK(PnvOCCClass, (klass), TYPE_PNV_OCC)
+#define PNV_OCC_GET_CLASS(obj) \
+     OBJECT_GET_CLASS(PnvOCCClass, (obj), TYPE_PNV_OCC)
+
+typedef struct PnvOCCClass {
+    DeviceClass parent_class;
+
+    int xscom_size;
+    const MemoryRegionOps *xscom_ops;
+    int psi_irq;
+} PnvOCCClass;
 
 #endif /* _PPC_PNV_OCC_H */

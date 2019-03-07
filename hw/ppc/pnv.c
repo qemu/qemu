@@ -790,7 +790,7 @@ static void pnv_chip_power8_instance_init(Object *obj)
                                    OBJECT(&chip8->psi), &error_abort);
 
     object_initialize_child(obj, "occ",  &chip8->occ, sizeof(chip8->occ),
-                            TYPE_PNV_OCC, &error_abort, NULL);
+                            TYPE_PNV8_OCC, &error_abort, NULL);
     object_property_add_const_link(OBJECT(&chip8->occ), "psi",
                                    OBJECT(&chip8->psi), &error_abort);
 }
