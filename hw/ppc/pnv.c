@@ -438,6 +438,16 @@ static void pnv_dt_isa(PnvMachineState *pnv, void *fdt)
                        &args);
 }
 
+static void pnv_dt_power_mgt(void *fdt)
+{
+    int off;
+
+    off = fdt_add_subnode(fdt, 0, "ibm,opal");
+    off = fdt_add_subnode(fdt, off, "power-mgt");
+
+    _FDT(fdt_setprop_cell(fdt, off, "ibm,enabled-stop-levels", 0xc0000000));
+}
+
 static void *pnv_dt_create(MachineState *machine)
 {
     const char plat_compat[] = "qemu,powernv\0ibm,powernv";
@@ -491,6 +501,11 @@ static void *pnv_dt_create(MachineState *machine)
 
     if (pnv->bmc) {
         pnv_dt_bmc_sensors(pnv->bmc, fdt);
+    }
+
+    /* Create an extra node for power management on Power9 */
+    if (pnv_is_power9(pnv)) {
+        pnv_dt_power_mgt(fdt);
     }
 
     return fdt;
