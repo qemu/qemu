@@ -245,6 +245,7 @@ static const MemoryRegionOps pnv_lpc_xscom_ops = {
 static void pnv_lpc_eval_irqs(PnvLpcController *lpc)
 {
     bool lpc_to_opb_irq = false;
+    PnvLpcClass *plc = PNV_LPC_GET_CLASS(lpc);
 
     /* Update LPC controller to OPB line */
     if (lpc->lpc_hc_irqser_ctrl & LPC_HC_IRQSER_EN) {
@@ -267,7 +268,7 @@ static void pnv_lpc_eval_irqs(PnvLpcController *lpc)
     lpc->opb_irq_stat |= lpc->opb_irq_input & lpc->opb_irq_mask;
 
     /* Reflect the interrupt */
-    pnv_psi_irq_set(lpc->psi, PSIHB_IRQ_LPC_I2C, lpc->opb_irq_stat != 0);
+    pnv_psi_irq_set(lpc->psi, plc->psi_irq, lpc->opb_irq_stat != 0);
 }
 
 static uint64_t lpc_hc_read(void *opaque, hwaddr addr, unsigned size)
@@ -419,11 +420,65 @@ static const MemoryRegionOps opb_master_ops = {
     },
 };
 
+static void pnv_lpc_power8_realize(DeviceState *dev, Error **errp)
+{
+    PnvLpcController *lpc = PNV_LPC(dev);
+    PnvLpcClass *plc = PNV_LPC_GET_CLASS(dev);
+    Error *local_err = NULL;
+
+    plc->parent_realize(dev, &local_err);
+    if (local_err) {
+        error_propagate(errp, local_err);
+        return;
+    }
+
+    /* P8 uses a XSCOM region for LPC registers */
+    pnv_xscom_region_init(&lpc->xscom_regs, OBJECT(lpc),
+                          &pnv_lpc_xscom_ops, lpc, "xscom-lpc",
+                          PNV_XSCOM_LPC_SIZE);
+}
+
+static void pnv_lpc_power8_class_init(ObjectClass *klass, void *data)
+{
+    DeviceClass *dc = DEVICE_CLASS(klass);
+    PnvXScomInterfaceClass *xdc = PNV_XSCOM_INTERFACE_CLASS(klass);
+    PnvLpcClass *plc = PNV_LPC_CLASS(klass);
+
+    dc->desc = "PowerNV LPC Controller POWER8";
+
+    xdc->dt_xscom = pnv_lpc_dt_xscom;
+
+    plc->psi_irq = PSIHB_IRQ_LPC_I2C;
+
+    device_class_set_parent_realize(dc, pnv_lpc_power8_realize,
+                                    &plc->parent_realize);
+}
+
+static const TypeInfo pnv_lpc_power8_info = {
+    .name          = TYPE_PNV8_LPC,
+    .parent        = TYPE_PNV_LPC,
+    .instance_size = sizeof(PnvLpcController),
+    .class_init    = pnv_lpc_power8_class_init,
+    .interfaces = (InterfaceInfo[]) {
+        { TYPE_PNV_XSCOM_INTERFACE },
+        { }
+    }
+};
+
 static void pnv_lpc_realize(DeviceState *dev, Error **errp)
 {
     PnvLpcController *lpc = PNV_LPC(dev);
     Object *obj;
-    Error *error = NULL;
+    Error *local_err = NULL;
+
+    obj = object_property_get_link(OBJECT(dev), "psi", &local_err);
+    if (!obj) {
+        error_propagate(errp, local_err);
+        error_prepend(errp, "required link 'psi' not found: ");
+        return;
+    }
+    /* The LPC controller needs PSI to generate interrupts  */
+    lpc->psi = PNV_PSI(obj);
 
     /* Reg inits */
     lpc->lpc_hc_fw_rd_acc_size = LPC_HC_FW_RD_4B;
@@ -463,46 +518,28 @@ static void pnv_lpc_realize(DeviceState *dev, Error **errp)
                           "lpc-hc", LPC_HC_REGS_OPB_SIZE);
     memory_region_add_subregion(&lpc->opb_mr, LPC_HC_REGS_OPB_ADDR,
                                 &lpc->lpc_hc_regs);
-
-    /* XScom region for LPC registers */
-    pnv_xscom_region_init(&lpc->xscom_regs, OBJECT(dev),
-                          &pnv_lpc_xscom_ops, lpc, "xscom-lpc",
-                          PNV_XSCOM_LPC_SIZE);
-
-    /* get PSI object from chip */
-    obj = object_property_get_link(OBJECT(dev), "psi", &error);
-    if (!obj) {
-        error_setg(errp, "%s: required link 'psi' not found: %s",
-                   __func__, error_get_pretty(error));
-        return;
-    }
-    lpc->psi = PNV_PSI(obj);
 }
 
 static void pnv_lpc_class_init(ObjectClass *klass, void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
-    PnvXScomInterfaceClass *xdc = PNV_XSCOM_INTERFACE_CLASS(klass);
-
-    xdc->dt_xscom = pnv_lpc_dt_xscom;
 
     dc->realize = pnv_lpc_realize;
+    dc->desc = "PowerNV LPC Controller";
 }
 
 static const TypeInfo pnv_lpc_info = {
     .name          = TYPE_PNV_LPC,
     .parent        = TYPE_DEVICE,
-    .instance_size = sizeof(PnvLpcController),
     .class_init    = pnv_lpc_class_init,
-    .interfaces = (InterfaceInfo[]) {
-        { TYPE_PNV_XSCOM_INTERFACE },
-        { }
-    }
+    .class_size    = sizeof(PnvLpcClass),
+    .abstract      = true,
 };
 
 static void pnv_lpc_register_types(void)
 {
     type_register_static(&pnv_lpc_info);
+    type_register_static(&pnv_lpc_power8_info);
 }
 
 type_init(pnv_lpc_register_types)

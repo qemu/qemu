@@ -24,6 +24,8 @@
 #define TYPE_PNV_LPC "pnv-lpc"
 #define PNV_LPC(obj) \
      OBJECT_CHECK(PnvLpcController, (obj), TYPE_PNV_LPC)
+#define TYPE_PNV8_LPC TYPE_PNV_LPC "-POWER8"
+#define PNV8_LPC(obj) OBJECT_CHECK(PnvLpcController, (obj), TYPE_PNV8_LPC)
 
 typedef struct PnvLpcController {
     DeviceState parent;
@@ -69,6 +71,19 @@ typedef struct PnvLpcController {
     /* PSI to generate interrupts */
     PnvPsi *psi;
 } PnvLpcController;
+
+#define PNV_LPC_CLASS(klass) \
+     OBJECT_CLASS_CHECK(PnvLpcClass, (klass), TYPE_PNV_LPC)
+#define PNV_LPC_GET_CLASS(obj) \
+     OBJECT_GET_CLASS(PnvLpcClass, (obj), TYPE_PNV_LPC)
+
+typedef struct PnvLpcClass {
+    DeviceClass parent_class;
+
+    int psi_irq;
+
+    DeviceRealize parent_realize;
+} PnvLpcClass;
 
 ISABus *pnv_lpc_isa_create(PnvLpcController *lpc, bool use_cpld, Error **errp);
 
