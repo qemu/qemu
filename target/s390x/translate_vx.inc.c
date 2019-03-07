@@ -512,3 +512,10 @@ static DisasJumpType op_vlvg(DisasContext *s, DisasOps *o)
 
     return DISAS_NEXT;
 }
+
+static DisasJumpType op_vlvgp(DisasContext *s, DisasOps *o)
+{
+    write_vec_element_i64(o->in1, get_field(s->fields, v1), 0, ES_64);
+    write_vec_element_i64(o->in2, get_field(s->fields, v1), 1, ES_64);
+    return DISAS_NEXT;
+}
