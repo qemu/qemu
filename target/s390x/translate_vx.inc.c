@@ -406,3 +406,43 @@ static DisasJumpType op_vllez(DisasContext *s, DisasOps *o)
     tcg_temp_free_i64(t);
     return DISAS_NEXT;
 }
+
+static DisasJumpType op_vlm(DisasContext *s, DisasOps *o)
+{
+    const uint8_t v3 = get_field(s->fields, v3);
+    uint8_t v1 = get_field(s->fields, v1);
+    TCGv_i64 t0, t1;
+
+    if (v3 < v1 || (v3 - v1 + 1) > 16) {
+        gen_program_exception(s, PGM_SPECIFICATION);
+        return DISAS_NORETURN;
+    }
+
+    /*
+     * Check for possible access exceptions by trying to load the last
+     * element. The first element will be checked first next.
+     */
+    t0 = tcg_temp_new_i64();
+    t1 = tcg_temp_new_i64();
+    gen_addi_and_wrap_i64(s, t0, o->addr1, (v3 - v1) * 16 + 8);
+    tcg_gen_qemu_ld_i64(t0, t0, get_mem_index(s), MO_TEQ);
+
+    for (;; v1++) {
+        tcg_gen_qemu_ld_i64(t1, o->addr1, get_mem_index(s), MO_TEQ);
+        write_vec_element_i64(t1, v1, 0, ES_64);
+        if (v1 == v3) {
+            break;
+        }
+        gen_addi_and_wrap_i64(s, o->addr1, o->addr1, 8);
+        tcg_gen_qemu_ld_i64(t1, o->addr1, get_mem_index(s), MO_TEQ);
+        write_vec_element_i64(t1, v1, 1, ES_64);
+        gen_addi_and_wrap_i64(s, o->addr1, o->addr1, 8);
+    }
+
+    /* Store the last element, loaded first */
+    write_vec_element_i64(t0, v1, 1, ES_64);
+
+    tcg_temp_free_i64(t0);
+    tcg_temp_free_i64(t1);
+    return DISAS_NEXT;
+}
