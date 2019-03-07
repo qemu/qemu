@@ -21,6 +21,7 @@
 
 #include "hw/sysbus.h"
 #include "hw/ppc/xics.h"
+#include "hw/ppc/xive.h"
 
 #define TYPE_PNV_PSI "pnv-psi"
 #define PNV_PSI(obj) \
@@ -57,6 +58,16 @@ typedef struct Pnv8Psi {
     ICSState ics;
 } Pnv8Psi;
 
+#define TYPE_PNV9_PSI TYPE_PNV_PSI "-POWER9"
+#define PNV9_PSI(obj) \
+    OBJECT_CHECK(Pnv9Psi, (obj), TYPE_PNV9_PSI)
+
+typedef struct Pnv9Psi {
+    PnvPsi   parent;
+
+    XiveSource source;
+} Pnv9Psi;
+
 #define PNV_PSI_CLASS(klass) \
      OBJECT_CLASS_CHECK(PnvPsiClass, (klass), TYPE_PNV_PSI)
 #define PNV_PSI_GET_CLASS(obj) \
@@ -87,5 +98,24 @@ typedef enum PnvPsiIrq {
 #define PSI_NUM_INTERRUPTS 6
 
 void pnv_psi_irq_set(PnvPsi *psi, int irq, bool state);
+
+/* P9 PSI Interrupts */
+#define PSIHB9_IRQ_PSI          0
+#define PSIHB9_IRQ_OCC          1
+#define PSIHB9_IRQ_FSI          2
+#define PSIHB9_IRQ_LPCHC        3
+#define PSIHB9_IRQ_LOCAL_ERR    4
+#define PSIHB9_IRQ_GLOBAL_ERR   5
+#define PSIHB9_IRQ_TPM          6
+#define PSIHB9_IRQ_LPC_SIRQ0    7
+#define PSIHB9_IRQ_LPC_SIRQ1    8
+#define PSIHB9_IRQ_LPC_SIRQ2    9
+#define PSIHB9_IRQ_LPC_SIRQ3    10
+#define PSIHB9_IRQ_SBE_I2C      11
+#define PSIHB9_IRQ_DIO          12
+#define PSIHB9_IRQ_PSU          13
+#define PSIHB9_NUM_IRQS         14
+
+void pnv_psi_pic_print_info(Pnv9Psi *psi, Monitor *mon);
 
 #endif /* _PPC_PNV_PSI_H */

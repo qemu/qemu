@@ -84,6 +84,7 @@ typedef struct Pnv9Chip {
 
     /*< public >*/
     PnvXive      xive;
+    Pnv9Psi      psi;
 } Pnv9Chip;
 
 typedef struct PnvChipClass {
@@ -231,11 +232,16 @@ void pnv_bmc_powerdown(IPMIBmc *bmc);
 #define PNV9_XIVE_PC_SIZE            0x0000001000000000ull
 #define PNV9_XIVE_PC_BASE(chip)      PNV9_CHIP_BASE(chip, 0x0006018000000000ull)
 
+#define PNV9_PSIHB_SIZE              0x0000000000100000ull
+#define PNV9_PSIHB_BASE(chip)        PNV9_CHIP_BASE(chip, 0x0006030203000000ull)
+
 #define PNV9_XIVE_IC_SIZE            0x0000000000080000ull
 #define PNV9_XIVE_IC_BASE(chip)      PNV9_CHIP_BASE(chip, 0x0006030203100000ull)
 
 #define PNV9_XIVE_TM_SIZE            0x0000000000040000ull
 #define PNV9_XIVE_TM_BASE(chip)      PNV9_CHIP_BASE(chip, 0x0006030203180000ull)
 
+#define PNV9_PSIHB_ESB_SIZE          0x0000000000010000ull
+#define PNV9_PSIHB_ESB_BASE(chip)    PNV9_CHIP_BASE(chip, 0x00060302031c0000ull)
 
 #endif /* _PPC_PNV_H */
