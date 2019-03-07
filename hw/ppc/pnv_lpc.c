@@ -89,10 +89,11 @@ enum {
 #define LPC_FW_OPB_SIZE         0x10000000
 
 #define LPC_OPB_REGS_OPB_ADDR   0xc0010000
-#define LPC_OPB_REGS_OPB_SIZE   0x00002000
+#define LPC_OPB_REGS_OPB_SIZE   0x00000060
+#define LPC_OPB_REGS_OPBA_ADDR  0xc0011000
+#define LPC_OPB_REGS_OPBA_SIZE  0x00000008
 #define LPC_HC_REGS_OPB_ADDR    0xc0012000
-#define LPC_HC_REGS_OPB_SIZE    0x00001000
-
+#define LPC_HC_REGS_OPB_SIZE    0x00000100
 
 static int pnv_lpc_dt_xscom(PnvXScomInterface *dev, void *fdt, int xscom_offset)
 {
