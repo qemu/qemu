@@ -1014,6 +1014,12 @@
     F(0xe761, VMRH,    VRR_c, V,   0, 0, 0, 0, vmr, 0, IF_VEC)
 /* VECTOR MERGE LOW */
     F(0xe760, VMRL,    VRR_c, V,   0, 0, 0, 0, vmr, 0, IF_VEC)
+/* VECTOR PACK */
+    F(0xe794, VPK,     VRR_c, V,   0, 0, 0, 0, vpk, 0, IF_VEC)
+/* VECTOR PACK SATURATE */
+    F(0xe797, VPKS,    VRR_b, V,   0, 0, 0, 0, vpk, 0, IF_VEC)
+/* VECTOR PACK LOGICAL SATURATE */
+    F(0xe795, VPKLS,   VRR_b, V,   0, 0, 0, 0, vpk, 0, IF_VEC)
 
 #ifndef CONFIG_USER_ONLY
 /* COMPARE AND SWAP AND PURGE */

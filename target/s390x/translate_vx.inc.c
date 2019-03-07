@@ -135,6 +135,12 @@ static void get_vec_element_ptr_i64(TCGv_ptr ptr, uint8_t reg, TCGv_i64 enr,
     tcg_temp_free_i64(tmp);
 }
 
+#define gen_gvec_3_ool(v1, v2, v3, data, fn) \
+    tcg_gen_gvec_3_ool(vec_full_reg_offset(v1), vec_full_reg_offset(v2), \
+                       vec_full_reg_offset(v3), 16, 16, data, fn)
+#define gen_gvec_3_ptr(v1, v2, v3, ptr, data, fn) \
+    tcg_gen_gvec_3_ptr(vec_full_reg_offset(v1), vec_full_reg_offset(v2), \
+                       vec_full_reg_offset(v3), ptr, 16, 16, data, fn)
 #define gen_gvec_dup_i64(es, v1, c) \
     tcg_gen_gvec_dup_i64(es, vec_full_reg_offset(v1), 16, 16, c)
 #define gen_gvec_mov(v1, v2) \
@@ -572,5 +578,88 @@ static DisasJumpType op_vmr(DisasContext *s, DisasOps *o)
         }
     }
     tcg_temp_free_i64(tmp);
+    return DISAS_NEXT;
+}
+
+static DisasJumpType op_vpk(DisasContext *s, DisasOps *o)
+{
+    const uint8_t v1 = get_field(s->fields, v1);
+    const uint8_t v2 = get_field(s->fields, v2);
+    const uint8_t v3 = get_field(s->fields, v3);
+    const uint8_t es = get_field(s->fields, m4);
+    static gen_helper_gvec_3 * const vpk[3] = {
+        gen_helper_gvec_vpk16,
+        gen_helper_gvec_vpk32,
+        gen_helper_gvec_vpk64,
+    };
+     static gen_helper_gvec_3 * const vpks[3] = {
+        gen_helper_gvec_vpks16,
+        gen_helper_gvec_vpks32,
+        gen_helper_gvec_vpks64,
+    };
+    static gen_helper_gvec_3_ptr * const vpks_cc[3] = {
+        gen_helper_gvec_vpks_cc16,
+        gen_helper_gvec_vpks_cc32,
+        gen_helper_gvec_vpks_cc64,
+    };
+    static gen_helper_gvec_3 * const vpkls[3] = {
+        gen_helper_gvec_vpkls16,
+        gen_helper_gvec_vpkls32,
+        gen_helper_gvec_vpkls64,
+    };
+    static gen_helper_gvec_3_ptr * const vpkls_cc[3] = {
+        gen_helper_gvec_vpkls_cc16,
+        gen_helper_gvec_vpkls_cc32,
+        gen_helper_gvec_vpkls_cc64,
+    };
+
+    if (es == ES_8 || es > ES_64) {
+        gen_program_exception(s, PGM_SPECIFICATION);
+        return DISAS_NORETURN;
+    }
+
+    switch (s->fields->op2) {
+    case 0x97:
+        if (get_field(s->fields, m5) & 0x1) {
+            gen_gvec_3_ptr(v1, v2, v3, cpu_env, 0, vpks_cc[es - 1]);
+            set_cc_static(s);
+        } else {
+            gen_gvec_3_ool(v1, v2, v3, 0, vpks[es - 1]);
+        }
+        break;
+    case 0x95:
+        if (get_field(s->fields, m5) & 0x1) {
+            gen_gvec_3_ptr(v1, v2, v3, cpu_env, 0, vpkls_cc[es - 1]);
+            set_cc_static(s);
+        } else {
+            gen_gvec_3_ool(v1, v2, v3, 0, vpkls[es - 1]);
+        }
+        break;
+    case 0x94:
+        /* If sources and destination dont't overlap -> fast path */
+        if (v1 != v2 && v1 != v3) {
+            const uint8_t src_es = get_field(s->fields, m4);
+            const uint8_t dst_es = src_es - 1;
+            TCGv_i64 tmp = tcg_temp_new_i64();
+            int dst_idx, src_idx;
+
+            for (dst_idx = 0; dst_idx < NUM_VEC_ELEMENTS(dst_es); dst_idx++) {
+                src_idx = dst_idx;
+                if (src_idx < NUM_VEC_ELEMENTS(src_es)) {
+                    read_vec_element_i64(tmp, v2, src_idx, src_es);
+                } else {
+                    src_idx -= NUM_VEC_ELEMENTS(src_es);
+                    read_vec_element_i64(tmp, v3, src_idx, src_es);
+                }
+                write_vec_element_i64(tmp, v1, dst_idx, dst_es);
+            }
+            tcg_temp_free_i64(tmp);
+        } else {
+            gen_gvec_3_ool(v1, v2, v3, 0, vpk[es - 1]);
+        }
+        break;
+    default:
+        g_assert_not_reached();
+    }
     return DISAS_NEXT;
 }
