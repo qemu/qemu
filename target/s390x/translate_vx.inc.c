@@ -112,6 +112,9 @@ static void write_vec_element_i64(TCGv_i64 src, int reg, uint8_t enr,
     }
 }
 
+#define gen_gvec_dup64i(v1, c) \
+    tcg_gen_gvec_dup64i(vec_full_reg_offset(v1), 16, 16, c)
+
 static DisasJumpType op_vge(DisasContext *s, DisasOps *o)
 {
     const uint8_t es = s->insn->data;
@@ -131,5 +134,41 @@ static DisasJumpType op_vge(DisasContext *s, DisasOps *o)
     tcg_gen_qemu_ld_i64(tmp, o->addr1, get_mem_index(s), MO_TE | es);
     write_vec_element_i64(tmp, get_field(s->fields, v1), enr, es);
     tcg_temp_free_i64(tmp);
+    return DISAS_NEXT;
+}
+
+static uint64_t generate_byte_mask(uint8_t mask)
+{
+    uint64_t r = 0;
+    int i;
+
+    for (i = 0; i < 8; i++) {
+        if ((mask >> i) & 1) {
+            r |= 0xffull << (i * 8);
+        }
+    }
+    return r;
+}
+
+static DisasJumpType op_vgbm(DisasContext *s, DisasOps *o)
+{
+    const uint16_t i2 = get_field(s->fields, i2);
+
+    if (i2 == (i2 & 0xff) * 0x0101) {
+        /*
+         * Masks for both 64 bit elements of the vector are the same.
+         * Trust tcg to produce a good constant loading.
+         */
+        gen_gvec_dup64i(get_field(s->fields, v1),
+                        generate_byte_mask(i2 & 0xff));
+    } else {
+        TCGv_i64 t = tcg_temp_new_i64();
+
+        tcg_gen_movi_i64(t, generate_byte_mask(i2 >> 8));
+        write_vec_element_i64(t, get_field(s->fields, v1), 0, ES_64);
+        tcg_gen_movi_i64(t, generate_byte_mask(i2));
+        write_vec_element_i64(t, get_field(s->fields, v1), 1, ES_64);
+        tcg_temp_free_i64(t);
+    }
     return DISAS_NEXT;
 }
