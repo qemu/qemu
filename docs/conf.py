@@ -77,6 +77,9 @@ pygments_style = 'sphinx'
 # If true, `todo` and `todoList` produce output, else they produce nothing.
 todo_include_todos = False
 
+# Sphinx defaults to warning about use of :option: for options not defined
+# with "option::" in the document being processed. Turn that off.
+suppress_warnings = ["ref.option"]
 
 # -- Options for HTML output ----------------------------------------------
 
