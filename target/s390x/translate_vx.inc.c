@@ -471,3 +471,44 @@ static DisasJumpType op_vlbb(DisasContext *s, DisasOps *o)
     tcg_temp_free_ptr(a0);
     return DISAS_NEXT;
 }
+
+static DisasJumpType op_vlvg(DisasContext *s, DisasOps *o)
+{
+    const uint8_t es = get_field(s->fields, m4);
+    TCGv_ptr ptr;
+
+    if (es > ES_64) {
+        gen_program_exception(s, PGM_SPECIFICATION);
+        return DISAS_NORETURN;
+    }
+
+    /* fast path if we don't need the register content */
+    if (!get_field(s->fields, b2)) {
+        uint8_t enr = get_field(s->fields, d2) & (NUM_VEC_ELEMENTS(es) - 1);
+
+        write_vec_element_i64(o->in2, get_field(s->fields, v1), enr, es);
+        return DISAS_NEXT;
+    }
+
+    ptr = tcg_temp_new_ptr();
+    get_vec_element_ptr_i64(ptr, get_field(s->fields, v1), o->addr1, es);
+    switch (es) {
+    case ES_8:
+        tcg_gen_st8_i64(o->in2, ptr, 0);
+        break;
+    case ES_16:
+        tcg_gen_st16_i64(o->in2, ptr, 0);
+        break;
+    case ES_32:
+        tcg_gen_st32_i64(o->in2, ptr, 0);
+        break;
+    case ES_64:
+        tcg_gen_st_i64(o->in2, ptr, 0);
+        break;
+    default:
+        g_assert_not_reached();
+    }
+    tcg_temp_free_ptr(ptr);
+
+    return DISAS_NEXT;
+}
