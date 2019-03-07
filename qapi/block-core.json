@@ -2816,6 +2816,10 @@
 # @locking:     whether to enable file locking. If set to 'auto', only enable
 #               when Open File Descriptor (OFD) locking API is available
 #               (default: auto, since 2.10)
+# @drop-cache:  invalidate page cache during live migration.  This prevents
+#               stale data on the migration destination with cache.direct=off.
+#               Currently only supported on Linux hosts.
+#               (default: on, since: 4.0)
 # @x-check-cache-dropped: whether to check that page cache was dropped on live
 #                         migration.  May cause noticeable delays if the image
 #                         file is large, do not use in production.
@@ -2828,6 +2832,8 @@
             '*pr-manager': 'str',
             '*locking': 'OnOffAuto',
             '*aio': 'BlockdevAioOptions',
+	    '*drop-cache': {'type': 'bool',
+	                    'if': 'defined(CONFIG_LINUX)'},
             '*x-check-cache-dropped': 'bool' } }
 
 ##
