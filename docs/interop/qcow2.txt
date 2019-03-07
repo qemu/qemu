@@ -170,11 +170,11 @@ be stored. Each extension has a structure like the following:
 
     Byte  0 -  3:   Header extension type:
                         0x00000000 - End of the header extension area
-                        0xE2792ACA - Backing file format name
+                        0xE2792ACA - Backing file format name string
                         0x6803f857 - Feature name table
                         0x23852875 - Bitmaps extension
                         0x0537be77 - Full disk encryption header pointer
-                        0x44415441 - External data file name
+                        0x44415441 - External data file name string
                         other      - Unknown header extension, can be safely
                                      ignored
 
@@ -194,6 +194,16 @@ the first cluster. It is not allowed to store other data here, so that an
 implementation can safely modify the header and add extensions without harming
 data of compatible features that it doesn't support. Compatible features that
 need space for additional data can use a header extension.
+
+
+== String header extensions ==
+
+Some header extensions (such as the backing file format name and the external
+data file name) are just a single string. In this case, the header extension
+length is the string length and the string is not '\0' terminated. (The header
+extension padding can make it look like a string is '\0' terminated, but
+neither is padding always necessary nor is there a guarantee that zero bytes
+are used for padding.)
 
 
 == Feature name table ==
