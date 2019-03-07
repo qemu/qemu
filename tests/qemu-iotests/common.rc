@@ -17,6 +17,19 @@
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #
 
+SED=
+for sed in sed gsed; do
+    ($sed --version | grep 'GNU sed') > /dev/null 2>&1
+    if [ "$?" -eq 0 ]; then
+        SED=$sed
+        break
+    fi
+done
+if [ -z "$SED" ]; then
+    echo "$0: GNU sed not found"
+    exit 1
+fi
+
 dd()
 {
    if [ "$HOSTOS" == "Linux" ]
