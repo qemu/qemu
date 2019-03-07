@@ -784,3 +784,36 @@ static DisasJumpType op_vsel(DisasContext *s, DisasOps *o)
                get_field(s->fields, v3), get_field(s->fields, v4), &gvec_op);
     return DISAS_NEXT;
 }
+
+static DisasJumpType op_vseg(DisasContext *s, DisasOps *o)
+{
+    const uint8_t es = get_field(s->fields, m3);
+    int idx1, idx2;
+    TCGv_i64 tmp;
+
+    switch (es) {
+    case ES_8:
+        idx1 = 7;
+        idx2 = 15;
+        break;
+    case ES_16:
+        idx1 = 3;
+        idx2 = 7;
+        break;
+    case ES_32:
+        idx1 = 1;
+        idx2 = 3;
+        break;
+    default:
+        gen_program_exception(s, PGM_SPECIFICATION);
+        return DISAS_NORETURN;
+    }
+
+    tmp = tcg_temp_new_i64();
+    read_vec_element_i64(tmp, get_field(s->fields, v2), idx1, es | MO_SIGN);
+    write_vec_element_i64(tmp, get_field(s->fields, v1), 0, ES_64);
+    read_vec_element_i64(tmp, get_field(s->fields, v2), idx2, es | MO_SIGN);
+    write_vec_element_i64(tmp, get_field(s->fields, v1), 1, ES_64);
+    tcg_temp_free_i64(tmp);
+    return DISAS_NEXT;
+}
