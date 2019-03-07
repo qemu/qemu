@@ -42,6 +42,8 @@ typedef struct PnvCore {
 
 typedef struct PnvCoreClass {
     DeviceClass parent_class;
+
+    const MemoryRegionOps *xscom_ops;
 } PnvCoreClass;
 
 #define PNV_CORE_TYPE_SUFFIX "-" TYPE_PNV_CORE
