@@ -2563,9 +2563,14 @@ static inline bool lsw_reg_in_range(int start, int nregs, int rx)
 }
 
 /* Accessors for FP, VMX and VSX registers */
+static inline int fpr_offset(int i)
+{
+    return offsetof(CPUPPCState, vsr[i].u64[0]);
+}
+
 static inline uint64_t *cpu_fpr_ptr(CPUPPCState *env, int i)
 {
-    return &env->vsr[i].u64[0];
+    return (uint64_t *)((uintptr_t)env + fpr_offset(i));
 }
 
 static inline uint64_t *cpu_vsrl_ptr(CPUPPCState *env, int i)

@@ -6677,12 +6677,12 @@ GEN_TM_PRIV_NOOP(trechkpt);
 
 static inline void get_fpr(TCGv_i64 dst, int regno)
 {
-    tcg_gen_ld_i64(dst, cpu_env, offsetof(CPUPPCState, vsr[regno].u64[0]));
+    tcg_gen_ld_i64(dst, cpu_env, fpr_offset(regno));
 }
 
 static inline void set_fpr(int regno, TCGv_i64 src)
 {
-    tcg_gen_st_i64(src, cpu_env, offsetof(CPUPPCState, vsr[regno].u64[0]));
+    tcg_gen_st_i64(src, cpu_env, fpr_offset(regno));
 }
 
 static inline void get_avr64(TCGv_i64 dst, int regno, bool high)
