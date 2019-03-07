@@ -44,6 +44,7 @@
 
 #define NUM_VEC_ELEMENT_BYTES(es) (1 << (es))
 #define NUM_VEC_ELEMENTS(es) (16 / NUM_VEC_ELEMENT_BYTES(es))
+#define NUM_VEC_ELEMENT_BITS(es) (NUM_VEC_ELEMENT_BYTES(es) * BITS_PER_BYTE)
 
 #define ES_8    MO_8
 #define ES_16   MO_16
@@ -115,6 +116,26 @@ static void write_vec_element_i64(TCGv_i64 src, int reg, uint8_t enr,
 #define gen_gvec_dup64i(v1, c) \
     tcg_gen_gvec_dup64i(vec_full_reg_offset(v1), 16, 16, c)
 
+static void gen_gvec_dupi(uint8_t es, uint8_t reg, uint64_t c)
+{
+    switch (es) {
+    case ES_8:
+        tcg_gen_gvec_dup8i(vec_full_reg_offset(reg), 16, 16, c);
+        break;
+    case ES_16:
+        tcg_gen_gvec_dup16i(vec_full_reg_offset(reg), 16, 16, c);
+        break;
+    case ES_32:
+        tcg_gen_gvec_dup32i(vec_full_reg_offset(reg), 16, 16, c);
+        break;
+    case ES_64:
+        gen_gvec_dup64i(reg, c);
+        break;
+    default:
+        g_assert_not_reached();
+    }
+}
+
 static DisasJumpType op_vge(DisasContext *s, DisasOps *o)
 {
     const uint8_t es = s->insn->data;
@@ -170,5 +191,31 @@ static DisasJumpType op_vgbm(DisasContext *s, DisasOps *o)
         write_vec_element_i64(t, get_field(s->fields, v1), 1, ES_64);
         tcg_temp_free_i64(t);
     }
+    return DISAS_NEXT;
+}
+
+static DisasJumpType op_vgm(DisasContext *s, DisasOps *o)
+{
+    const uint8_t es = get_field(s->fields, m4);
+    const uint8_t bits = NUM_VEC_ELEMENT_BITS(es);
+    const uint8_t i2 = get_field(s->fields, i2) & (bits - 1);
+    const uint8_t i3 = get_field(s->fields, i3) & (bits - 1);
+    uint64_t mask = 0;
+    int i;
+
+    if (es > ES_64) {
+        gen_program_exception(s, PGM_SPECIFICATION);
+        return DISAS_NORETURN;
+    }
+
+    /* generate the mask - take care of wrapping */
+    for (i = i2; ; i = (i + 1) % bits) {
+        mask |= 1ull << (bits - i - 1);
+        if (i == i3) {
+            break;
+        }
+    }
+
+    gen_gvec_dupi(es, get_field(s->fields, v1), mask);
     return DISAS_NEXT;
 }
