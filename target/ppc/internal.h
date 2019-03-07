@@ -206,14 +206,14 @@ EXTRACT_HELPER_SPLIT_3(DCMX_XV, 5, 16, 0, 1, 2, 5, 1, 6, 6);
 
 static inline void getVSR(int n, ppc_vsr_t *vsr, CPUPPCState *env)
 {
-    vsr->VsrD(0) = env->vsr[n].u64[0];
-    vsr->VsrD(1) = env->vsr[n].u64[1];
+    vsr->VsrD(0) = env->vsr[n].VsrD(0);
+    vsr->VsrD(1) = env->vsr[n].VsrD(1);
 }
 
 static inline void putVSR(int n, ppc_vsr_t *vsr, CPUPPCState *env)
 {
-    env->vsr[n].u64[0] = vsr->VsrD(0);
-    env->vsr[n].u64[1] = vsr->VsrD(1);
+    env->vsr[n].VsrD(0) = vsr->VsrD(0);
+    env->vsr[n].VsrD(1) = vsr->VsrD(1);
 }
 
 void helper_compute_fprf_float16(CPUPPCState *env, float16 arg);

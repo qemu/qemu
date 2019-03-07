@@ -150,7 +150,7 @@ static int get_fpr(QEMUFile *f, void *pv, size_t size,
 {
     ppc_vsr_t *v = pv;
 
-    v->u64[0] = qemu_get_be64(f);
+    v->VsrD(0) = qemu_get_be64(f);
 
     return 0;
 }
@@ -160,7 +160,7 @@ static int put_fpr(QEMUFile *f, void *pv, size_t size,
 {
     ppc_vsr_t *v = pv;
 
-    qemu_put_be64(f, v->u64[0]);
+    qemu_put_be64(f, v->VsrD(0));
     return 0;
 }
 
@@ -181,7 +181,7 @@ static int get_vsr(QEMUFile *f, void *pv, size_t size,
 {
     ppc_vsr_t *v = pv;
 
-    v->u64[1] = qemu_get_be64(f);
+    v->VsrD(1) = qemu_get_be64(f);
 
     return 0;
 }
@@ -191,7 +191,7 @@ static int put_vsr(QEMUFile *f, void *pv, size_t size,
 {
     ppc_vsr_t *v = pv;
 
-    qemu_put_be64(f, v->u64[1]);
+    qemu_put_be64(f, v->VsrD(1));
     return 0;
 }
 

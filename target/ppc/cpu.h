@@ -2585,7 +2585,7 @@ static inline bool lsw_reg_in_range(int start, int nregs, int rx)
 
 static inline int fpr_offset(int i)
 {
-    return offsetof(CPUPPCState, vsr[i].u64[0]);
+    return offsetof(CPUPPCState, vsr[i].VsrD(0));
 }
 
 static inline uint64_t *cpu_fpr_ptr(CPUPPCState *env, int i)
@@ -2595,7 +2595,7 @@ static inline uint64_t *cpu_fpr_ptr(CPUPPCState *env, int i)
 
 static inline int vsrl_offset(int i)
 {
-    return offsetof(CPUPPCState, vsr[i].u64[1]);
+    return offsetof(CPUPPCState, vsr[i].VsrD(1));
 }
 
 static inline int vsr_full_offset(int i)
