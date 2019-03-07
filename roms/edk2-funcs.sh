@@ -226,3 +226,28 @@ qemu_edk2_set_cross_env()
 
   eval "export $cross_prefix_var=\$cross_prefix"
 }
+
+
+# Determine the "-n" option argument (that is, the number of modules to build
+# in parallel) for the edk2 "build" utility. Print the result to the standard
+# output.
+#
+# Parameters:
+#   $1: the value of the MAKEFLAGS variable
+qemu_edk2_get_thread_count()
+{
+  local makeflags="$1"
+
+  if [[ "$makeflags" == *--jobserver-auth=* ]] ||
+     [[ "$makeflags" == *--jobserver-fds=* ]]; then
+    # If there is a job server, allow the edk2 "build" utility to parallelize
+    # as many module builds as there are logical CPUs in the system. The "make"
+    # instances forked by "build" are supposed to limit themselves through the
+    # job server. The zero value below causes the edk2 "build" utility to fetch
+    # the logical CPU count with Python's multiprocessing.cpu_count() method.
+    printf '0\n'
+  else
+    # Build a single module at a time.
+    printf '1\n'
+  fi
+}
