@@ -1177,9 +1177,7 @@ static int usb_mtp_deletefn(MTPState *s, MTPObject *o, uint32_t trans)
             usb_mtp_object_free_one(s, o);
             success = true;
         }
-    }
-
-    if (o->format == FMT_ASSOCIATION) {
+    } else if (o->format == FMT_ASSOCIATION) {
         if (rmdir(o->path)) {
             partial_delete = true;
         } else {
@@ -1591,17 +1589,21 @@ done:
         return ret;
 }
 
-static void usb_mtp_update_object(MTPObject *parent, char *name)
+static int usb_mtp_update_object(MTPObject *parent, char *name)
 {
+    int ret = -1;
+
     MTPObject *o =
         usb_mtp_object_lookup_name(parent, name, strlen(name));
 
     if (o) {
-        lstat(o->path, &o->stat);
+        ret = lstat(o->path, &o->stat);
     }
+
+    return ret;
 }
 
-static void usb_mtp_write_data(MTPState *s)
+static int usb_mtp_write_data(MTPState *s)
 {
     MTPData *d = s->data_out;
     MTPObject *parent =
@@ -1609,6 +1611,7 @@ static void usb_mtp_write_data(MTPState *s)
     char *path = NULL;
     uint64_t rc;
     mode_t mask = 0644;
+    int ret = 0;
 
     assert(d != NULL);
 
@@ -1617,13 +1620,13 @@ static void usb_mtp_write_data(MTPState *s)
         if (!parent || !s->write_pending) {
             usb_mtp_queue_result(s, RES_INVALID_OBJECTINFO, d->trans,
                 0, 0, 0, 0);
-        return;
+        return 1;
         }
 
         if (s->dataset.filename) {
             path = g_strdup_printf("%s/%s", parent->path, s->dataset.filename);
             if (s->dataset.format == FMT_ASSOCIATION) {
-                d->fd = mkdir(path, mask);
+                ret = mkdir(path, mask);
                 goto free;
             }
             d->fd = open(path, O_CREAT | O_WRONLY |
@@ -1653,15 +1656,21 @@ static void usb_mtp_write_data(MTPState *s)
             goto done;
         }
         if (d->write_status != WRITE_END) {
-            return;
+            g_free(path);
+            return ret;
         } else {
-            /* Only for < 4G file sizes */
-            if (s->dataset.size != 0xFFFFFFFF && d->offset != s->dataset.size) {
+            /*
+             * Return an incomplete transfer if file size doesn't match
+             * for < 4G file or if lstat fails which will result in an incorrect
+             * file size
+             */
+            if ((s->dataset.size != 0xFFFFFFFF &&
+                 d->offset != s->dataset.size) ||
+                usb_mtp_update_object(parent, s->dataset.filename)) {
                 usb_mtp_queue_result(s, RES_INCOMPLETE_TRANSFER, d->trans,
                                      0, 0, 0, 0);
                 goto done;
             }
-            usb_mtp_update_object(parent, s->dataset.filename);
         }
     }
 
@@ -1676,12 +1685,14 @@ done:
      */
     if (d->fd != -1) {
         close(d->fd);
+        d->fd = -1;
     }
 free:
     g_free(s->dataset.filename);
     s->dataset.size = 0;
     g_free(path);
     s->write_pending = false;
+    return ret;
 }
 
 static void usb_mtp_write_metadata(MTPState *s, uint64_t dlen)
@@ -1718,14 +1729,12 @@ static void usb_mtp_write_metadata(MTPState *s, uint64_t dlen)
     s->write_pending = true;
 
     if (s->dataset.format == FMT_ASSOCIATION) {
-        usb_mtp_write_data(s);
-        /* next_handle will be allocated to the newly created dir */
-        if (d->fd == -1) {
+        if (usb_mtp_write_data(s)) {
+            /* next_handle will be allocated to the newly created dir */
             usb_mtp_queue_result(s, RES_STORE_FULL, d->trans,
                                  0, 0, 0, 0);
             return;
         }
-        d->fd = -1;
     }
 
     usb_mtp_queue_result(s, RES_OK, d->trans, 3, QEMU_STORAGE_ID,
