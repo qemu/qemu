@@ -113,6 +113,7 @@ static void write_vec_element_i64(TCGv_i64 src, int reg, uint8_t enr,
     }
 }
 
+
 static void get_vec_element_ptr_i64(TCGv_ptr ptr, uint8_t reg, TCGv_i64 enr,
                                     uint8_t es)
 {
@@ -814,6 +815,22 @@ static DisasJumpType op_vseg(DisasContext *s, DisasOps *o)
     write_vec_element_i64(tmp, get_field(s->fields, v1), 0, ES_64);
     read_vec_element_i64(tmp, get_field(s->fields, v2), idx2, es | MO_SIGN);
     write_vec_element_i64(tmp, get_field(s->fields, v1), 1, ES_64);
+    tcg_temp_free_i64(tmp);
+    return DISAS_NEXT;
+}
+
+static DisasJumpType op_vst(DisasContext *s, DisasOps *o)
+{
+    TCGv_i64 tmp = tcg_const_i64(16);
+
+    /* Probe write access before actually modifying memory */
+    gen_helper_probe_write_access(cpu_env, o->addr1, tmp);
+
+    read_vec_element_i64(tmp,  get_field(s->fields, v1), 0, ES_64);
+    tcg_gen_qemu_st_i64(tmp, o->addr1, get_mem_index(s), MO_TEQ);
+    gen_addi_and_wrap_i64(s, o->addr1, o->addr1, 8);
+    read_vec_element_i64(tmp,  get_field(s->fields, v1), 1, ES_64);
+    tcg_gen_qemu_st_i64(tmp, o->addr1, get_mem_index(s), MO_TEQ);
     tcg_temp_free_i64(tmp);
     return DISAS_NEXT;
 }
