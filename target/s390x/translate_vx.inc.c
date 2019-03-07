@@ -675,3 +675,19 @@ static DisasJumpType op_vperm(DisasContext *s, DisasOps *o)
                    0, gen_helper_gvec_vperm);
     return DISAS_NEXT;
 }
+
+static DisasJumpType op_vpdi(DisasContext *s, DisasOps *o)
+{
+    const uint8_t i2 = extract32(get_field(s->fields, m4), 2, 1);
+    const uint8_t i3 = extract32(get_field(s->fields, m4), 0, 1);
+    TCGv_i64 t0 = tcg_temp_new_i64();
+    TCGv_i64 t1 = tcg_temp_new_i64();
+
+    read_vec_element_i64(t0, get_field(s->fields, v2), i2, ES_64);
+    read_vec_element_i64(t1, get_field(s->fields, v3), i3, ES_64);
+    write_vec_element_i64(t0, get_field(s->fields, v1), 0, ES_64);
+    write_vec_element_i64(t1, get_field(s->fields, v1), 1, ES_64);
+    tcg_temp_free_i64(t0);
+    tcg_temp_free_i64(t1);
+    return DISAS_NEXT;
+}
