@@ -519,3 +519,16 @@ static DisasJumpType op_vlvgp(DisasContext *s, DisasOps *o)
     write_vec_element_i64(o->in2, get_field(s->fields, v1), 1, ES_64);
     return DISAS_NEXT;
 }
+
+static DisasJumpType op_vll(DisasContext *s, DisasOps *o)
+{
+    const int v1_offs = vec_full_reg_offset(get_field(s->fields, v1));
+    TCGv_ptr a0 = tcg_temp_new_ptr();
+
+    /* convert highest index into an actual length */
+    tcg_gen_addi_i64(o->in2, o->in2, 1);
+    tcg_gen_addi_ptr(a0, cpu_env, v1_offs);
+    gen_helper_vll(cpu_env, a0, o->addr1, o->in2);
+    tcg_temp_free_ptr(a0);
+    return DISAS_NEXT;
+}

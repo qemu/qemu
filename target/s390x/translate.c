@@ -5794,6 +5794,13 @@ static void in2_r3_sr32(DisasContext *s, DisasFields *f, DisasOps *o)
 }
 #define SPEC_in2_r3_sr32 0
 
+static void in2_r3_32u(DisasContext *s, DisasFields *f, DisasOps *o)
+{
+    o->in2 = tcg_temp_new_i64();
+    tcg_gen_ext32u_i64(o->in2, regs[get_field(f, r3)]);
+}
+#define SPEC_in2_r3_32u 0
+
 static void in2_r2_32s(DisasContext *s, DisasFields *f, DisasOps *o)
 {
     o->in2 = tcg_temp_new_i64();
