@@ -446,3 +446,28 @@ static DisasJumpType op_vlm(DisasContext *s, DisasOps *o)
     tcg_temp_free_i64(t1);
     return DISAS_NEXT;
 }
+
+static DisasJumpType op_vlbb(DisasContext *s, DisasOps *o)
+{
+    const int64_t block_size = (1ull << (get_field(s->fields, m3) + 6));
+    const int v1_offs = vec_full_reg_offset(get_field(s->fields, v1));
+    TCGv_ptr a0;
+    TCGv_i64 bytes;
+
+    if (get_field(s->fields, m3) > 6) {
+        gen_program_exception(s, PGM_SPECIFICATION);
+        return DISAS_NORETURN;
+    }
+
+    bytes = tcg_temp_new_i64();
+    a0 = tcg_temp_new_ptr();
+    /* calculate the number of bytes until the next block boundary */
+    tcg_gen_ori_i64(bytes, o->addr1, -block_size);
+    tcg_gen_neg_i64(bytes, bytes);
+
+    tcg_gen_addi_ptr(a0, cpu_env, v1_offs);
+    gen_helper_vll(cpu_env, a0, o->addr1, bytes);
+    tcg_temp_free_i64(bytes);
+    tcg_temp_free_ptr(a0);
+    return DISAS_NEXT;
+}
