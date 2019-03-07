@@ -426,7 +426,7 @@ BlockDriver *bdrv_find_format(const char *format_name)
     return bdrv_do_find_format(format_name);
 }
 
-int bdrv_is_whitelisted(BlockDriver *drv, bool read_only)
+static int bdrv_format_is_whitelisted(const char *format_name, bool read_only)
 {
     static const char *whitelist_rw[] = {
         CONFIG_BDRV_RW_WHITELIST
@@ -441,18 +441,23 @@ int bdrv_is_whitelisted(BlockDriver *drv, bool read_only)
     }
 
     for (p = whitelist_rw; *p; p++) {
-        if (!strcmp(drv->format_name, *p)) {
+        if (!strcmp(format_name, *p)) {
             return 1;
         }
     }
     if (read_only) {
         for (p = whitelist_ro; *p; p++) {
-            if (!strcmp(drv->format_name, *p)) {
+            if (!strcmp(format_name, *p)) {
                 return 1;
             }
         }
     }
     return 0;
+}
+
+int bdrv_is_whitelisted(BlockDriver *drv, bool read_only)
+{
+    return bdrv_format_is_whitelisted(drv->format_name, read_only);
 }
 
 bool bdrv_uses_whitelist(void)
@@ -4147,7 +4152,7 @@ static int qsort_strcmp(const void *a, const void *b)
 }
 
 void bdrv_iterate_format(void (*it)(void *opaque, const char *name),
-                         void *opaque)
+                         void *opaque, bool read_only)
 {
     BlockDriver *drv;
     int count = 0;
@@ -4158,6 +4163,11 @@ void bdrv_iterate_format(void (*it)(void *opaque, const char *name),
         if (drv->format_name) {
             bool found = false;
             int i = count;
+
+            if (use_bdrv_whitelist && !bdrv_is_whitelisted(drv, read_only)) {
+                continue;
+            }
+
             while (formats && i && !found) {
                 found = !strcmp(formats[--i], drv->format_name);
             }
@@ -4175,6 +4185,11 @@ void bdrv_iterate_format(void (*it)(void *opaque, const char *name),
         if (format_name) {
             bool found = false;
             int j = count;
+
+            if (use_bdrv_whitelist &&
+                !bdrv_format_is_whitelisted(format_name, read_only)) {
+                continue;
+            }
 
             while (formats && j && !found) {
                 found = !strcmp(formats[--j], format_name);
