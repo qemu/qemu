@@ -10,11 +10,6 @@ static inline void set_vsrl(int n, TCGv_i64 src)
     tcg_gen_st_i64(src, cpu_env, vsrl_offset(n));
 }
 
-static inline int vsr_full_offset(int n)
-{
-    return offsetof(CPUPPCState, vsr[n].u64[0]);
-}
-
 static inline void get_cpu_vsrh(TCGv_i64 dst, int n)
 {
     if (n < 32) {
