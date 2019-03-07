@@ -141,6 +141,10 @@ static void get_vec_element_ptr_i64(TCGv_ptr ptr, uint8_t reg, TCGv_i64 enr,
 #define gen_gvec_3_ptr(v1, v2, v3, ptr, data, fn) \
     tcg_gen_gvec_3_ptr(vec_full_reg_offset(v1), vec_full_reg_offset(v2), \
                        vec_full_reg_offset(v3), ptr, 16, 16, data, fn)
+#define gen_gvec_4(v1, v2, v3, v4, gen) \
+    tcg_gen_gvec_4(vec_full_reg_offset(v1), vec_full_reg_offset(v2), \
+                   vec_full_reg_offset(v3), vec_full_reg_offset(v4), \
+                   16, 16, gen)
 #define gen_gvec_4_ool(v1, v2, v3, v4, data, fn) \
     tcg_gen_gvec_4_ool(vec_full_reg_offset(v1), vec_full_reg_offset(v2), \
                        vec_full_reg_offset(v3), vec_full_reg_offset(v4), \
@@ -741,5 +745,42 @@ static DisasJumpType op_vsce(DisasContext *s, DisasOps *o)
     read_vec_element_i64(tmp, get_field(s->fields, v1), enr, es);
     tcg_gen_qemu_st_i64(tmp, o->addr1, get_mem_index(s), MO_TE | es);
     tcg_temp_free_i64(tmp);
+    return DISAS_NEXT;
+}
+
+static void gen_sel_i64(TCGv_i64 d, TCGv_i64 a, TCGv_i64 b, TCGv_i64 c)
+{
+    TCGv_i64 t = tcg_temp_new_i64();
+
+    /* bit in c not set -> copy bit from b */
+    tcg_gen_andc_i64(t, b, c);
+    /* bit in c set -> copy bit from a */
+    tcg_gen_and_i64(d, a, c);
+    /* merge the results */
+    tcg_gen_or_i64(d, d, t);
+    tcg_temp_free_i64(t);
+}
+
+static void gen_sel_vec(unsigned vece, TCGv_vec d, TCGv_vec a, TCGv_vec b,
+                        TCGv_vec c)
+{
+    TCGv_vec t = tcg_temp_new_vec_matching(d);
+
+    tcg_gen_andc_vec(vece, t, b, c);
+    tcg_gen_and_vec(vece, d, a, c);
+    tcg_gen_or_vec(vece, d, d, t);
+    tcg_temp_free_vec(t);
+}
+
+static DisasJumpType op_vsel(DisasContext *s, DisasOps *o)
+{
+    static const GVecGen4 gvec_op = {
+        .fni8 = gen_sel_i64,
+        .fniv = gen_sel_vec,
+        .prefer_i64 = TCG_TARGET_REG_BITS == 64,
+    };
+
+    gen_gvec_4(get_field(s->fields, v1), get_field(s->fields, v2),
+               get_field(s->fields, v3), get_field(s->fields, v4), &gvec_op);
     return DISAS_NEXT;
 }
