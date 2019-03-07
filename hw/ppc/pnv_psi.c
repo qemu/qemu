@@ -118,10 +118,11 @@
 
 static void pnv_psi_set_bar(PnvPsi *psi, uint64_t bar)
 {
+    PnvPsiClass *ppc = PNV_PSI_GET_CLASS(psi);
     MemoryRegion *sysmem = get_system_memory();
     uint64_t old = psi->regs[PSIHB_XSCOM_BAR];
 
-    psi->regs[PSIHB_XSCOM_BAR] = bar & (PSIHB_BAR_MASK | PSIHB_BAR_EN);
+    psi->regs[PSIHB_XSCOM_BAR] = bar & (ppc->bar_mask | PSIHB_BAR_EN);
 
     /* Update MR, always remove it first */
     if (old & PSIHB_BAR_EN) {
@@ -130,7 +131,7 @@ static void pnv_psi_set_bar(PnvPsi *psi, uint64_t bar)
 
     /* Then add it back if needed */
     if (bar & PSIHB_BAR_EN) {
-        uint64_t addr = bar & PSIHB_BAR_MASK;
+        uint64_t addr = bar & ppc->bar_mask;
         memory_region_add_subregion(sysmem, addr, &psi->regs_mr);
     }
 }
@@ -154,7 +155,7 @@ static void pnv_psi_set_cr(PnvPsi *psi, uint64_t cr)
 
 static void pnv_psi_set_irsn(PnvPsi *psi, uint64_t val)
 {
-    ICSState *ics = &psi->ics;
+    ICSState *ics = &PNV8_PSI(psi)->ics;
 
     /* In this model we ignore the up/down enable bits for now
      * as SW doesn't use them (other than setting them at boot).
@@ -207,7 +208,12 @@ static const uint64_t stat_bits[] = {
     [PSIHB_IRQ_EXTERNAL]  = PSIHB_IRQ_STAT_EXT,
 };
 
-void pnv_psi_irq_set(PnvPsi *psi, PnvPsiIrq irq, bool state)
+void pnv_psi_irq_set(PnvPsi *psi, int irq, bool state)
+{
+    PNV_PSI_GET_CLASS(psi)->irq_set(psi, irq, state);
+}
+
+static void pnv_psi_power8_irq_set(PnvPsi *psi, int irq, bool state)
 {
     uint32_t xivr_reg;
     uint32_t stat_reg;
@@ -262,7 +268,7 @@ void pnv_psi_irq_set(PnvPsi *psi, PnvPsiIrq irq, bool state)
 
 static void pnv_psi_set_xivr(PnvPsi *psi, uint32_t reg, uint64_t val)
 {
-    ICSState *ics = &psi->ics;
+    ICSState *ics = &PNV8_PSI(psi)->ics;
     uint16_t server;
     uint8_t prio;
     uint8_t src;
@@ -451,11 +457,11 @@ static void pnv_psi_reset(void *dev)
     psi->regs[PSIHB_XSCOM_BAR] = psi->bar | PSIHB_BAR_EN;
 }
 
-static void pnv_psi_init(Object *obj)
+static void pnv_psi_power8_instance_init(Object *obj)
 {
-    PnvPsi *psi = PNV_PSI(obj);
+    Pnv8Psi *psi8 = PNV8_PSI(obj);
 
-    object_initialize_child(obj, "ics-psi",  &psi->ics, sizeof(psi->ics),
+    object_initialize_child(obj, "ics-psi",  &psi8->ics, sizeof(psi8->ics),
                             TYPE_ICS_SIMPLE, &error_abort, NULL);
 }
 
@@ -468,10 +474,10 @@ static const uint8_t irq_to_xivr[] = {
     PSIHB_XSCOM_XIVR_EXT,
 };
 
-static void pnv_psi_realize(DeviceState *dev, Error **errp)
+static void pnv_psi_power8_realize(DeviceState *dev, Error **errp)
 {
     PnvPsi *psi = PNV_PSI(dev);
-    ICSState *ics = &psi->ics;
+    ICSState *ics = &PNV8_PSI(psi)->ics;
     Object *obj;
     Error *err = NULL;
     unsigned int i;
@@ -524,28 +530,28 @@ static void pnv_psi_realize(DeviceState *dev, Error **errp)
     qemu_register_reset(pnv_psi_reset, dev);
 }
 
+static const char compat_p8[] = "ibm,power8-psihb-x\0ibm,psihb-x";
+
 static int pnv_psi_dt_xscom(PnvXScomInterface *dev, void *fdt, int xscom_offset)
 {
-    const char compat[] = "ibm,power8-psihb-x\0ibm,psihb-x";
+    PnvPsiClass *ppc = PNV_PSI_GET_CLASS(dev);
     char *name;
     int offset;
-    uint32_t lpc_pcba = PNV_XSCOM_PSIHB_BASE;
     uint32_t reg[] = {
-        cpu_to_be32(lpc_pcba),
-        cpu_to_be32(PNV_XSCOM_PSIHB_SIZE)
+        cpu_to_be32(ppc->xscom_pcba),
+        cpu_to_be32(ppc->xscom_size)
     };
 
-    name = g_strdup_printf("psihb@%x", lpc_pcba);
+    name = g_strdup_printf("psihb@%x", ppc->xscom_pcba);
     offset = fdt_add_subnode(fdt, xscom_offset, name);
     _FDT(offset);
     g_free(name);
 
-    _FDT((fdt_setprop(fdt, offset, "reg", reg, sizeof(reg))));
-
-    _FDT((fdt_setprop_cell(fdt, offset, "#address-cells", 2)));
-    _FDT((fdt_setprop_cell(fdt, offset, "#size-cells", 1)));
-    _FDT((fdt_setprop(fdt, offset, "compatible", compat,
-                      sizeof(compat))));
+    _FDT(fdt_setprop(fdt, offset, "reg", reg, sizeof(reg)));
+    _FDT(fdt_setprop_cell(fdt, offset, "#address-cells", 2));
+    _FDT(fdt_setprop_cell(fdt, offset, "#size-cells", 1));
+    _FDT(fdt_setprop(fdt, offset, "compatible", compat_p8,
+                     sizeof(compat_p8)));
     return 0;
 }
 
@@ -555,6 +561,29 @@ static Property pnv_psi_properties[] = {
     DEFINE_PROP_END_OF_LIST(),
 };
 
+static void pnv_psi_power8_class_init(ObjectClass *klass, void *data)
+{
+    DeviceClass *dc = DEVICE_CLASS(klass);
+    PnvPsiClass *ppc = PNV_PSI_CLASS(klass);
+
+    dc->desc    = "PowerNV PSI Controller POWER8";
+    dc->realize = pnv_psi_power8_realize;
+
+    ppc->chip_type =  PNV_CHIP_POWER8;
+    ppc->xscom_pcba = PNV_XSCOM_PSIHB_BASE;
+    ppc->xscom_size = PNV_XSCOM_PSIHB_SIZE;
+    ppc->bar_mask   = PSIHB_BAR_MASK;
+    ppc->irq_set    = pnv_psi_power8_irq_set;
+}
+
+static const TypeInfo pnv_psi_power8_info = {
+    .name          = TYPE_PNV8_PSI,
+    .parent        = TYPE_PNV_PSI,
+    .instance_size = sizeof(Pnv8Psi),
+    .instance_init = pnv_psi_power8_instance_init,
+    .class_init    = pnv_psi_power8_class_init,
+};
+
 static void pnv_psi_class_init(ObjectClass *klass, void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
@@ -562,7 +591,7 @@ static void pnv_psi_class_init(ObjectClass *klass, void *data)
 
     xdc->dt_xscom = pnv_psi_dt_xscom;
 
-    dc->realize = pnv_psi_realize;
+    dc->desc = "PowerNV PSI Controller";
     dc->props = pnv_psi_properties;
 }
 
@@ -570,8 +599,9 @@ static const TypeInfo pnv_psi_info = {
     .name          = TYPE_PNV_PSI,
     .parent        = TYPE_SYS_BUS_DEVICE,
     .instance_size = sizeof(PnvPsi),
-    .instance_init = pnv_psi_init,
     .class_init    = pnv_psi_class_init,
+    .class_size    = sizeof(PnvPsiClass),
+    .abstract      = true,
     .interfaces    = (InterfaceInfo[]) {
         { TYPE_PNV_XSCOM_INTERFACE },
         { }
@@ -581,6 +611,7 @@ static const TypeInfo pnv_psi_info = {
 static void pnv_psi_register_types(void)
 {
     type_register_static(&pnv_psi_info);
+    type_register_static(&pnv_psi_power8_info);
 }
 
-type_init(pnv_psi_register_types)
+type_init(pnv_psi_register_types);

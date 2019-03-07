@@ -788,7 +788,7 @@ static void pnv_chip_power8_instance_init(Object *obj)
     Pnv8Chip *chip8 = PNV8_CHIP(obj);
 
     object_initialize_child(obj, "psi",  &chip8->psi, sizeof(chip8->psi),
-                            TYPE_PNV_PSI, &error_abort, NULL);
+                            TYPE_PNV8_PSI, &error_abort, NULL);
     object_property_add_const_link(OBJECT(&chip8->psi), "xics",
                                    OBJECT(qdev_get_machine()), &error_abort);
 
@@ -840,6 +840,7 @@ static void pnv_chip_power8_realize(DeviceState *dev, Error **errp)
     PnvChipClass *pcc = PNV_CHIP_GET_CLASS(dev);
     PnvChip *chip = PNV_CHIP(dev);
     Pnv8Chip *chip8 = PNV8_CHIP(dev);
+    Pnv8Psi *psi8 = &chip8->psi;
     Error *local_err = NULL;
 
     pcc->parent_realize(dev, &local_err);
@@ -856,7 +857,8 @@ static void pnv_chip_power8_realize(DeviceState *dev, Error **errp)
         error_propagate(errp, local_err);
         return;
     }
-    pnv_xscom_add_subregion(chip, PNV_XSCOM_PSIHB_BASE, &chip8->psi.xscom_regs);
+    pnv_xscom_add_subregion(chip, PNV_XSCOM_PSIHB_BASE,
+                            &PNV_PSI(psi8)->xscom_regs);
 
     /* Create LPC controller */
     object_property_set_bool(OBJECT(&chip8->lpc), true, "realized",

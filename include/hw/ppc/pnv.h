@@ -71,7 +71,7 @@ typedef struct Pnv8Chip {
     MemoryRegion icp_mmio;
 
     PnvLpcController lpc;
-    PnvPsi       psi;
+    Pnv8Psi      psi;
     PnvOCC       occ;
 } Pnv8Chip;
 
