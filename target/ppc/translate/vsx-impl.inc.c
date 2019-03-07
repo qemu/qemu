@@ -1,49 +1,23 @@
 /***                           VSX extension                               ***/
 
-static inline void get_vsrl(TCGv_i64 dst, int n)
-{
-    tcg_gen_ld_i64(dst, cpu_env, vsrl_offset(n));
-}
-
-static inline void set_vsrl(int n, TCGv_i64 src)
-{
-    tcg_gen_st_i64(src, cpu_env, vsrl_offset(n));
-}
-
 static inline void get_cpu_vsrh(TCGv_i64 dst, int n)
 {
-    if (n < 32) {
-        get_fpr(dst, n);
-    } else {
-        get_avr64(dst, n - 32, true);
-    }
+    tcg_gen_ld_i64(dst, cpu_env, vsr64_offset(n, true));
 }
 
 static inline void get_cpu_vsrl(TCGv_i64 dst, int n)
 {
-    if (n < 32) {
-        get_vsrl(dst, n);
-    } else {
-        get_avr64(dst, n - 32, false);
-    }
+    tcg_gen_ld_i64(dst, cpu_env, vsr64_offset(n, false));
 }
 
 static inline void set_cpu_vsrh(int n, TCGv_i64 src)
 {
-    if (n < 32) {
-        set_fpr(n, src);
-    } else {
-        set_avr64(n - 32, src, true);
-    }
+    tcg_gen_st_i64(src, cpu_env, vsr64_offset(n, true));
 }
 
 static inline void set_cpu_vsrl(int n, TCGv_i64 src)
 {
-    if (n < 32) {
-        set_vsrl(n, src);
-    } else {
-        set_avr64(n - 32, src, false);
-    }
+    tcg_gen_st_i64(src, cpu_env, vsr64_offset(n, false));
 }
 
 #define VSX_LOAD_SCALAR(name, operation)                      \
