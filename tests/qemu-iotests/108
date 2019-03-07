@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/usr/bin/env bash
 #
 # Test case for repairing qcow2 images which cannot be repaired using
 # the on-disk refcount structures

@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/usr/bin/env bash
 #
 # Test savevm and loadvm after live migration with postcopy flag
 #

@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/usr/bin/env bash
 #
 # This test covers expected filetypes for the file, host_cdrom and
 # host_device drivers.

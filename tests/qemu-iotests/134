@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/usr/bin/env bash
 #
 # Test encrypted read/write using plain bdrv_read/bdrv_write
 #

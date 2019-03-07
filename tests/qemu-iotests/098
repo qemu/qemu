@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/usr/bin/env bash
 #
 # Test qcow2's bdrv_make_empty for images without internal snapshots
 #

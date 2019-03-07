@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/usr/bin/env bash
 #
 # Combined test to grow the refcount table and test snapshots.
 #

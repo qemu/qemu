@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/usr/bin/env bash
 #
 # This allows for launching of multiple QEMU instances, with independent
 # communication possible to each instance.

@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/usr/bin/env bash
 #
 # Tests handling of colons in filenames (which may be confused with protocol
 # prefixes)

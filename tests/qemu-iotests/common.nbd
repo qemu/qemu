@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/usr/bin/env bash
 # -*- shell-script-mode -*-
 #
 # Helpers for NBD server related config

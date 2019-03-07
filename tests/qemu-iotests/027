@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/usr/bin/env bash
 #
 # Test that sub-cluster allocating writes zero the rest of the cluster
 #

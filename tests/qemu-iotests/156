@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/usr/bin/env bash
 #
 # Tests oVirt-like storage migration:
 #  - Create snapshot

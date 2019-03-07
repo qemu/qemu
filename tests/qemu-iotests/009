@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/usr/bin/env bash
 #
 # Nolan I qcow2 corruption - incorrectly reports free clusters
 #

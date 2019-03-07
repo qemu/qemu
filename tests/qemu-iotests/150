@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/usr/bin/env bash
 #
 # Test that qemu-img convert -S 0 fully allocates the target image
 #

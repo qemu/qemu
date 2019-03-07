@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/usr/bin/env bash
 #
 # Test automatic deletion of BDSes created by -drive/drive_add
 #

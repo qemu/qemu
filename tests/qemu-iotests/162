@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/usr/bin/env bash
 #
 # Test case for specifying runtime options of the wrong type to some
 # block drivers

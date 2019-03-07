@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/usr/bin/env bash
 #
 # qcow2 pattern test, empty and compressed image - 4k cluster patterns
 #

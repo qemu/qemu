@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/usr/bin/env bash
 #
 # Test export internal snapshot by qemu-nbd, convert it by qemu-img.
 #

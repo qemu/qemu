@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/usr/bin/env bash
 #
 # Test for configuring cache modes of arbitrary nodes (requires O_DIRECT)
 #
