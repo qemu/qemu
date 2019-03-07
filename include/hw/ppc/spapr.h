@@ -723,6 +723,7 @@ struct sPAPRTCETable {
     uint64_t *mig_table;
     bool bypass;
     bool need_vfio;
+    bool skipping_replay;
     int fd;
     MemoryRegion root;
     IOMMUMemoryRegion iommu;

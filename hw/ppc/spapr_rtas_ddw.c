@@ -171,8 +171,18 @@ static void rtas_ibm_create_pe_dma_window(PowerPCCPU *cpu,
     }
 
     win_addr = (windows == 0) ? sphb->dma_win_addr : sphb->dma64_win_addr;
+    /*
+     * We have just created a window, we know for the fact that it is empty,
+     * use a hack to avoid iterating over the table as it is quite possible
+     * to have billions of TCEs, all empty.
+     * Note that we cannot delay this to the first H_PUT_TCE as this hcall is
+     * mostly likely to be handled in KVM so QEMU just does not know if it
+     * happened.
+     */
+    tcet->skipping_replay = true;
     spapr_tce_table_enable(tcet, page_shift, win_addr,
                            1ULL << (window_shift - page_shift));
+    tcet->skipping_replay = false;
     if (!tcet->nb_table) {
         goto hw_error_exit;
     }

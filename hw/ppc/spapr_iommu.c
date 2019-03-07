@@ -141,6 +141,36 @@ static IOMMUTLBEntry spapr_tce_translate_iommu(IOMMUMemoryRegion *iommu,
     return ret;
 }
 
+static void spapr_tce_replay(IOMMUMemoryRegion *iommu_mr, IOMMUNotifier *n)
+{
+    MemoryRegion *mr = MEMORY_REGION(iommu_mr);
+    IOMMUMemoryRegionClass *imrc = IOMMU_MEMORY_REGION_GET_CLASS(iommu_mr);
+    hwaddr addr, granularity;
+    IOMMUTLBEntry iotlb;
+    sPAPRTCETable *tcet = container_of(iommu_mr, sPAPRTCETable, iommu);
+
+    if (tcet->skipping_replay) {
+        return;
+    }
+
+    granularity = memory_region_iommu_get_min_page_size(iommu_mr);
+
+    for (addr = 0; addr < memory_region_size(mr); addr += granularity) {
+        iotlb = imrc->translate(iommu_mr, addr, IOMMU_NONE, n->iommu_idx);
+        if (iotlb.perm != IOMMU_NONE) {
+            n->notify(n, &iotlb);
+        }
+
+        /*
+         * if (2^64 - MR size) < granularity, it's possible to get an
+         * infinite loop here.  This should catch such a wraparound.
+         */
+        if ((addr + granularity) < addr) {
+            break;
+        }
+    }
+}
+
 static int spapr_tce_table_pre_save(void *opaque)
 {
     sPAPRTCETable *tcet = SPAPR_TCE_TABLE(opaque);
@@ -659,6 +689,7 @@ static void spapr_iommu_memory_region_class_init(ObjectClass *klass, void *data)
     IOMMUMemoryRegionClass *imrc = IOMMU_MEMORY_REGION_CLASS(klass);
 
     imrc->translate = spapr_tce_translate_iommu;
+    imrc->replay = spapr_tce_replay;
     imrc->get_min_page_size = spapr_tce_get_min_page_size;
     imrc->notify_flag_changed = spapr_tce_notify_flag_changed;
     imrc->get_attr = spapr_tce_get_attr;
