@@ -39,7 +39,6 @@ static const PnvChip pnv_chips[] = {
         .cfam_id    = 0x120d304980000000ull,
         .first_core = 0x1,
     },
-#if 0 /* POWER9 support is not ready yet */
     {
         .chip_type  = PNV_CHIP_POWER9,
         .cpu_model  = "POWER9",
@@ -47,7 +46,6 @@ static const PnvChip pnv_chips[] = {
         .cfam_id    = 0x220d104900008000ull,
         .first_core = 0x0,
     },
-#endif
 };
 
 static uint64_t pnv_xscom_addr(const PnvChip *chip, uint32_t pcba)
