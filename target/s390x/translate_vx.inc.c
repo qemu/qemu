@@ -113,6 +113,8 @@ static void write_vec_element_i64(TCGv_i64 src, int reg, uint8_t enr,
     }
 }
 
+#define gen_gvec_dup_i64(es, v1, c) \
+    tcg_gen_gvec_dup_i64(es, vec_full_reg_offset(v1), 16, 16, c)
 #define gen_gvec_mov(v1, v2) \
     tcg_gen_gvec_mov(0, vec_full_reg_offset(v1), vec_full_reg_offset(v2), 16, \
                      16)
@@ -241,5 +243,22 @@ static DisasJumpType op_vl(DisasContext *s, DisasOps *o)
 static DisasJumpType op_vlr(DisasContext *s, DisasOps *o)
 {
     gen_gvec_mov(get_field(s->fields, v1), get_field(s->fields, v2));
+    return DISAS_NEXT;
+}
+
+static DisasJumpType op_vlrep(DisasContext *s, DisasOps *o)
+{
+    const uint8_t es = get_field(s->fields, m3);
+    TCGv_i64 tmp;
+
+    if (es > ES_64) {
+        gen_program_exception(s, PGM_SPECIFICATION);
+        return DISAS_NORETURN;
+    }
+
+    tmp = tcg_temp_new_i64();
+    tcg_gen_qemu_ld_i64(tmp, o->addr1, get_mem_index(s), MO_TE | es);
+    gen_gvec_dup_i64(es, get_field(s->fields, v1), tmp);
+    tcg_temp_free_i64(tmp);
     return DISAS_NEXT;
 }
