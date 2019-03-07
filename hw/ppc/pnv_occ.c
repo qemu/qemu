@@ -109,6 +109,77 @@ static const TypeInfo pnv_occ_power8_type_info = {
     .class_init    = pnv_occ_power8_class_init,
 };
 
+#define P9_OCB_OCI_OCCMISC              0x6080
+#define P9_OCB_OCI_OCCMISC_CLEAR        0x6081
+#define P9_OCB_OCI_OCCMISC_OR           0x6082
+
+
+static uint64_t pnv_occ_power9_xscom_read(void *opaque, hwaddr addr,
+                                          unsigned size)
+{
+    PnvOCC *occ = PNV_OCC(opaque);
+    uint32_t offset = addr >> 3;
+    uint64_t val = 0;
+
+    switch (offset) {
+    case P9_OCB_OCI_OCCMISC:
+        val = occ->occmisc;
+        break;
+    default:
+        qemu_log_mask(LOG_UNIMP, "OCC Unimplemented register: Ox%"
+                      HWADDR_PRIx "\n", addr >> 3);
+    }
+    return val;
+}
+
+static void pnv_occ_power9_xscom_write(void *opaque, hwaddr addr,
+                                       uint64_t val, unsigned size)
+{
+    PnvOCC *occ = PNV_OCC(opaque);
+    uint32_t offset = addr >> 3;
+
+    switch (offset) {
+    case P9_OCB_OCI_OCCMISC_CLEAR:
+        pnv_occ_set_misc(occ, 0);
+        break;
+    case P9_OCB_OCI_OCCMISC_OR:
+        pnv_occ_set_misc(occ, occ->occmisc | val);
+        break;
+    case P9_OCB_OCI_OCCMISC:
+        pnv_occ_set_misc(occ, val);
+       break;
+    default:
+        qemu_log_mask(LOG_UNIMP, "OCC Unimplemented register: Ox%"
+                      HWADDR_PRIx "\n", addr >> 3);
+    }
+}
+
+static const MemoryRegionOps pnv_occ_power9_xscom_ops = {
+    .read = pnv_occ_power9_xscom_read,
+    .write = pnv_occ_power9_xscom_write,
+    .valid.min_access_size = 8,
+    .valid.max_access_size = 8,
+    .impl.min_access_size = 8,
+    .impl.max_access_size = 8,
+    .endianness = DEVICE_BIG_ENDIAN,
+};
+
+static void pnv_occ_power9_class_init(ObjectClass *klass, void *data)
+{
+    PnvOCCClass *poc = PNV_OCC_CLASS(klass);
+
+    poc->xscom_size = PNV9_XSCOM_OCC_SIZE;
+    poc->xscom_ops = &pnv_occ_power9_xscom_ops;
+    poc->psi_irq = PSIHB9_IRQ_OCC;
+}
+
+static const TypeInfo pnv_occ_power9_type_info = {
+    .name          = TYPE_PNV9_OCC,
+    .parent        = TYPE_PNV_OCC,
+    .instance_size = sizeof(PnvOCC),
+    .class_init    = pnv_occ_power9_class_init,
+};
+
 static void pnv_occ_realize(DeviceState *dev, Error **errp)
 {
     PnvOCC *occ = PNV_OCC(dev);
@@ -152,6 +223,7 @@ static void pnv_occ_register_types(void)
 {
     type_register_static(&pnv_occ_type_info);
     type_register_static(&pnv_occ_power8_type_info);
+    type_register_static(&pnv_occ_power9_type_info);
 }
 
 type_init(pnv_occ_register_types);
