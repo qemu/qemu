@@ -61,6 +61,7 @@ default:
 	@echo "  skiboot        -- update skiboot.lid"
 	@echo "  u-boot.e500    -- update u-boot.e500"
 	@echo "  u-boot.sam460  -- update u-boot.sam460"
+	@echo "  efi            -- update UEFI (edk2) platform firmware"
 
 bios: build-seabios-config-seabios-128k build-seabios-config-seabios-256k
 	cp seabios/builds/seabios-128k/bios.bin ../pc-bios/bios.bin
@@ -156,6 +157,9 @@ skiboot:
 	$(MAKE) -C skiboot CROSS=$(powerpc64_cross_prefix)
 	cp skiboot/skiboot.lid ../pc-bios/skiboot.lid
 
+efi: edk2-basetools
+	$(MAKE) -f Makefile.edk2
+
 clean:
 	rm -rf seabios/.config seabios/out seabios/builds
 	$(MAKE) -C sgabios clean
@@ -166,3 +170,4 @@ clean:
 	rm -rf u-boot/build.e500
 	$(MAKE) -C u-boot-sam460ex distclean
 	$(MAKE) -C skiboot clean
+	$(MAKE) -f Makefile.edk2 clean
