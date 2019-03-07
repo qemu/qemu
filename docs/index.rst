@@ -10,11 +10,6 @@ Welcome to QEMU's documentation!
    :maxdepth: 2
    :caption: Contents:
 
+   interop/index
+   devel/index
 
-
-Indices and tables
-==================
-
-* :ref:`genindex`
-* :ref:`modindex`
-* :ref:`search`

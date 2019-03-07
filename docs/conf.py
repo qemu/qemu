@@ -3,6 +3,20 @@
 # QEMU documentation build configuration file, created by
 # sphinx-quickstart on Thu Jan 31 16:40:14 2019.
 #
+# This config file can be used in one of two ways:
+# (1) as a common config file which is included by the conf.py
+# for each of QEMU's manuals: in this case sphinx-build is run multiple
+# times, once per subdirectory.
+# (2) as a top level conf file which will result in building all
+# the manuals into a single document: in this case sphinx-build is
+# run once, on the top-level docs directory.
+#
+# QEMU's makefiles take option (1), which allows us to install
+# only the ones the user cares about (in particular we don't want
+# to ship the 'devel' manual to end-users).
+# Third-party sites such as readthedocs.org will take option (2).
+#
+#
 # This file is execfile()d with the current directory set to its
 # containing dir.
 #
@@ -12,13 +26,22 @@
 # All configuration values have a default; values that are commented out
 # serve to show the default.
 
+import os
+import sys
+
+# The per-manual conf.py will set qemu_docdir for a single-manual build;
+# otherwise set it here if this is an entire-manual-set build.
+# This is always the absolute path of the docs/ directory in the source tree.
+try:
+    qemu_docdir
+except NameError:
+    qemu_docdir = os.path.abspath(".")
+
 # If extensions (or modules to document with autodoc) are in another directory,
 # add these directories to sys.path here. If the directory is relative to the
-# documentation root, use os.path.abspath to make it absolute, like shown here.
+# documentation root, use an absolute path starting from qemu_docdir.
 #
-# import os
-# import sys
-# sys.path.insert(0, os.path.abspath('.'))
+# sys.path.insert(0, os.path.join(qemu_docdir, "my_subdir"))
 
 
 # -- General configuration ------------------------------------------------
@@ -91,8 +114,10 @@ html_theme = 'alabaster'
 # Theme options are theme-specific and customize the look and feel of a theme
 # further.  For a list of options available for each theme, see the
 # documentation.
-#
-# html_theme_options = {}
+# We initialize this to empty here, so the per-manual conf.py can just
+# add individual key/value entries.
+html_theme_options = {
+}
 
 # Add any paths that contain custom static files (such as style sheets) here,
 # relative to this directory. They are copied after the builtin static files,
