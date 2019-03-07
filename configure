@@ -5903,6 +5903,17 @@ if test "$mingw32" = "yes" ; then
     done
 fi
 
+# Disable OpenBSD W^X if available
+if test "$tcg" = "yes" && test "$targetos" = "OpenBSD"; then
+    cat > $TMPC <<EOF
+    int main(void) { return 0; }
+EOF
+    wx_ldflags="-Wl,-z,wxneeded"
+    if compile_prog "" "$wx_ldflags"; then
+        QEMU_LDFLAGS="$QEMU_LDFLAGS $wx_ldflags"
+    fi
+fi
+
 qemu_confdir=$sysconfdir$confsuffix
 qemu_moddir=$libdir$confsuffix
 qemu_datadir=$datadir$confsuffix
