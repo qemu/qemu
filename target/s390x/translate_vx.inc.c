@@ -691,3 +691,19 @@ static DisasJumpType op_vpdi(DisasContext *s, DisasOps *o)
     tcg_temp_free_i64(t1);
     return DISAS_NEXT;
 }
+
+static DisasJumpType op_vrep(DisasContext *s, DisasOps *o)
+{
+    const uint8_t enr = get_field(s->fields, i2);
+    const uint8_t es = get_field(s->fields, m4);
+
+    if (es > ES_64 || !valid_vec_element(enr, es)) {
+        gen_program_exception(s, PGM_SPECIFICATION);
+        return DISAS_NORETURN;
+    }
+
+    tcg_gen_gvec_dup_mem(es, vec_full_reg_offset(get_field(s->fields, v1)),
+                         vec_reg_offset(get_field(s->fields, v3), enr, es),
+                         16, 16);
+    return DISAS_NEXT;
+}
