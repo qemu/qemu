@@ -55,6 +55,8 @@ typedef struct PnvLpcController {
     MemoryRegion opb_master_regs;
 
     /* OPB Master LS registers */
+    uint32_t opb_irq_route0;
+    uint32_t opb_irq_route1;
     uint32_t opb_irq_stat;
     uint32_t opb_irq_mask;
     uint32_t opb_irq_pol;

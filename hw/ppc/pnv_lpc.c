@@ -39,6 +39,8 @@ enum {
 };
 
 /* OPB Master LS registers */
+#define OPB_MASTER_LS_ROUTE0    0x8
+#define OPB_MASTER_LS_ROUTE1    0xC
 #define OPB_MASTER_LS_IRQ_STAT  0x50
 #define   OPB_MASTER_IRQ_LPC            0x00000800
 #define OPB_MASTER_LS_IRQ_MASK  0x54
@@ -521,6 +523,12 @@ static uint64_t opb_master_read(void *opaque, hwaddr addr, unsigned size)
     uint64_t val = 0xfffffffffffffffful;
 
     switch (addr) {
+    case OPB_MASTER_LS_ROUTE0: /* TODO */
+        val = lpc->opb_irq_route0;
+        break;
+    case OPB_MASTER_LS_ROUTE1: /* TODO */
+        val = lpc->opb_irq_route1;
+        break;
     case OPB_MASTER_LS_IRQ_STAT:
         val = lpc->opb_irq_stat;
         break;
@@ -547,6 +555,12 @@ static void opb_master_write(void *opaque, hwaddr addr,
     PnvLpcController *lpc = opaque;
 
     switch (addr) {
+    case OPB_MASTER_LS_ROUTE0: /* TODO */
+        lpc->opb_irq_route0 = val;
+        break;
+    case OPB_MASTER_LS_ROUTE1: /* TODO */
+        lpc->opb_irq_route1 = val;
+        break;
     case OPB_MASTER_LS_IRQ_STAT:
         lpc->opb_irq_stat &= ~val;
         pnv_lpc_eval_irqs(lpc);
