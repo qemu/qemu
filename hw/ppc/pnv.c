@@ -963,6 +963,36 @@ static void pnv_chip_power9_instance_init(Object *obj)
                                    OBJECT(&chip9->psi), &error_abort);
 }
 
+static void pnv_chip_quad_realize(Pnv9Chip *chip9, Error **errp)
+{
+    PnvChip *chip = PNV_CHIP(chip9);
+    const char *typename = pnv_chip_core_typename(chip);
+    size_t typesize = object_type_get_instance_size(typename);
+    int i;
+
+    chip9->nr_quads = DIV_ROUND_UP(chip->nr_cores, 4);
+    chip9->quads = g_new0(PnvQuad, chip9->nr_quads);
+
+    for (i = 0; i < chip9->nr_quads; i++) {
+        char eq_name[32];
+        PnvQuad *eq = &chip9->quads[i];
+        PnvCore *pnv_core = PNV_CORE(chip->cores + (i * 4) * typesize);
+        int core_id = CPU_CORE(pnv_core)->core_id;
+
+        object_initialize(eq, sizeof(*eq), TYPE_PNV_QUAD);
+        snprintf(eq_name, sizeof(eq_name), "eq[%d]", core_id);
+
+        object_property_add_child(OBJECT(chip), eq_name, OBJECT(eq),
+                                  &error_fatal);
+        object_property_set_int(OBJECT(eq), core_id, "id", &error_fatal);
+        object_property_set_bool(OBJECT(eq), true, "realized", &error_fatal);
+        object_unref(OBJECT(eq));
+
+        pnv_xscom_add_subregion(chip, PNV9_XSCOM_EQ_BASE(eq->id),
+                                &eq->xscom_regs);
+    }
+}
+
 static void pnv_chip_power9_realize(DeviceState *dev, Error **errp)
 {
     PnvChipClass *pcc = PNV_CHIP_GET_CLASS(dev);
@@ -972,6 +1002,12 @@ static void pnv_chip_power9_realize(DeviceState *dev, Error **errp)
     Error *local_err = NULL;
 
     pcc->parent_realize(dev, &local_err);
+    if (local_err) {
+        error_propagate(errp, local_err);
+        return;
+    }
+
+    pnv_chip_quad_realize(chip9, &local_err);
     if (local_err) {
         error_propagate(errp, local_err);
         return;
@@ -1135,7 +1171,7 @@ static void pnv_chip_core_realize(PnvChip *chip, Error **errp)
         if (!pnv_chip_is_power9(chip)) {
             xscom_core_base = PNV_XSCOM_EX_BASE(core_hwid);
         } else {
-            xscom_core_base = PNV_XSCOM_P9_EC_BASE(core_hwid);
+            xscom_core_base = PNV9_XSCOM_EC_BASE(core_hwid);
         }
 
         pnv_xscom_add_subregion(chip, xscom_core_base,

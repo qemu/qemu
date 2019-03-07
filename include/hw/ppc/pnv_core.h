@@ -58,4 +58,14 @@ static inline PnvCPUState *pnv_cpu_state(PowerPCCPU *cpu)
     return (PnvCPUState *)cpu->machine_data;
 }
 
+#define TYPE_PNV_QUAD "powernv-cpu-quad"
+#define PNV_QUAD(obj) \
+    OBJECT_CHECK(PnvQuad, (obj), TYPE_PNV_QUAD)
+
+typedef struct PnvQuad {
+    DeviceState parent_obj;
+
+    uint32_t id;
+    MemoryRegion xscom_regs;
+} PnvQuad;
 #endif /* _PPC_PNV_CORE_H */

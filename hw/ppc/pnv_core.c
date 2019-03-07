@@ -327,3 +327,90 @@ static const TypeInfo pnv_core_infos[] = {
 };
 
 DEFINE_TYPES(pnv_core_infos)
+
+/*
+ * POWER9 Quads
+ */
+
+#define P9X_EX_NCU_SPEC_BAR                     0x11010
+
+static uint64_t pnv_quad_xscom_read(void *opaque, hwaddr addr,
+                                    unsigned int width)
+{
+    uint32_t offset = addr >> 3;
+    uint64_t val = -1;
+
+    switch (offset) {
+    case P9X_EX_NCU_SPEC_BAR:
+    case P9X_EX_NCU_SPEC_BAR + 0x400: /* Second EX */
+        val = 0;
+        break;
+    default:
+        qemu_log_mask(LOG_UNIMP, "%s: writing @0x%08x\n", __func__,
+                      offset);
+    }
+
+    return val;
+}
+
+static void pnv_quad_xscom_write(void *opaque, hwaddr addr, uint64_t val,
+                                 unsigned int width)
+{
+    uint32_t offset = addr >> 3;
+
+    switch (offset) {
+    case P9X_EX_NCU_SPEC_BAR:
+    case P9X_EX_NCU_SPEC_BAR + 0x400: /* Second EX */
+        break;
+    default:
+        qemu_log_mask(LOG_UNIMP, "%s: writing @0x%08x\n", __func__,
+                  offset);
+    }
+}
+
+static const MemoryRegionOps pnv_quad_xscom_ops = {
+    .read = pnv_quad_xscom_read,
+    .write = pnv_quad_xscom_write,
+    .valid.min_access_size = 8,
+    .valid.max_access_size = 8,
+    .impl.min_access_size = 8,
+    .impl.max_access_size = 8,
+    .endianness = DEVICE_BIG_ENDIAN,
+};
+
+static void pnv_quad_realize(DeviceState *dev, Error **errp)
+{
+    PnvQuad *eq = PNV_QUAD(dev);
+    char name[32];
+
+    snprintf(name, sizeof(name), "xscom-quad.%d", eq->id);
+    pnv_xscom_region_init(&eq->xscom_regs, OBJECT(dev), &pnv_quad_xscom_ops,
+                          eq, name, PNV9_XSCOM_EQ_SIZE);
+}
+
+static Property pnv_quad_properties[] = {
+    DEFINE_PROP_UINT32("id", PnvQuad, id, 0),
+    DEFINE_PROP_END_OF_LIST(),
+};
+
+static void pnv_quad_class_init(ObjectClass *oc, void *data)
+{
+    DeviceClass *dc = DEVICE_CLASS(oc);
+
+    dc->realize = pnv_quad_realize;
+    dc->props = pnv_quad_properties;
+}
+
+static const TypeInfo pnv_quad_info = {
+    .name          = TYPE_PNV_QUAD,
+    .parent        = TYPE_DEVICE,
+    .instance_size = sizeof(PnvQuad),
+    .class_init    = pnv_quad_class_init,
+};
+
+static void pnv_core_register_types(void)
+{
+    type_register_static(&pnv_quad_info);
+}
+
+type_init(pnv_core_register_types)

@@ -26,6 +26,7 @@
 #include "hw/ppc/pnv_psi.h"
 #include "hw/ppc/pnv_occ.h"
 #include "hw/ppc/pnv_xive.h"
+#include "hw/ppc/pnv_core.h"
 
 #define TYPE_PNV_CHIP "pnv-chip"
 #define PNV_CHIP(obj) OBJECT_CHECK(PnvChip, (obj), TYPE_PNV_CHIP)
@@ -89,6 +90,9 @@ typedef struct Pnv9Chip {
     Pnv9Psi      psi;
     PnvLpcController lpc;
     PnvOCC       occ;
+
+    uint32_t     nr_quads;
+    PnvQuad      *quads;
 } Pnv9Chip;
 
 typedef struct PnvChipClass {
