@@ -2608,6 +2608,11 @@ static inline uint64_t *cpu_vsrl_ptr(CPUPPCState *env, int i)
     return (uint64_t *)((uintptr_t)env + vsrl_offset(i));
 }
 
+static inline long avr64_offset(int i, bool high)
+{
+    return offsetof(CPUPPCState, vsr[32 + i].VsrD(high ? 0 : 1));
+}
+
 static inline int avr_full_offset(int i)
 {
     return vsr_full_offset(i + 32);

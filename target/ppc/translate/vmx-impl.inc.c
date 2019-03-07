@@ -14,11 +14,6 @@ static inline TCGv_ptr gen_avr_ptr(int reg)
     return r;
 }
 
-static inline long avr64_offset(int reg, bool high)
-{
-    return offsetof(CPUPPCState, vsr[32 + reg].u64[(high ? 0 : 1)]);
-}
-
 #define GEN_VR_LDX(name, opc2, opc3)                                          \
 static void glue(gen_, name)(DisasContext *ctx)                                       \
 {                                                                             \
