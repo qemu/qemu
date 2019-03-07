@@ -163,6 +163,11 @@ static void gen_gvec_dupi(uint8_t es, uint8_t reg, uint64_t c)
     }
 }
 
+static void zero_vec(uint8_t reg)
+{
+    tcg_gen_gvec_dup8i(vec_full_reg_offset(reg), 16, 16, 0);
+}
+
 static DisasJumpType op_vge(DisasContext *s, DisasOps *o)
 {
     const uint8_t es = s->insn->data;
@@ -358,5 +363,46 @@ static DisasJumpType op_vlgv(DisasContext *s, DisasOps *o)
     }
     tcg_temp_free_ptr(ptr);
 
+    return DISAS_NEXT;
+}
+
+static DisasJumpType op_vllez(DisasContext *s, DisasOps *o)
+{
+    uint8_t es = get_field(s->fields, m3);
+    uint8_t enr;
+    TCGv_i64 t;
+
+    switch (es) {
+    /* rightmost sub-element of leftmost doubleword */
+    case ES_8:
+        enr = 7;
+        break;
+    case ES_16:
+        enr = 3;
+        break;
+    case ES_32:
+        enr = 1;
+        break;
+    case ES_64:
+        enr = 0;
+        break;
+    /* leftmost sub-element of leftmost doubleword */
+    case 6:
+        if (s390_has_feat(S390_FEAT_VECTOR_ENH)) {
+            es = ES_32;
+            enr = 0;
+            break;
+        }
+    default:
+        /* fallthrough */
+        gen_program_exception(s, PGM_SPECIFICATION);
+        return DISAS_NORETURN;
+    }
+
+    t = tcg_temp_new_i64();
+    tcg_gen_qemu_ld_i64(t, o->addr1, get_mem_index(s), MO_TE | es);
+    zero_vec(get_field(s->fields, v1));
+    write_vec_element_i64(t, get_field(s->fields, v1), enr, es);
+    tcg_temp_free_i64(t);
     return DISAS_NEXT;
 }
