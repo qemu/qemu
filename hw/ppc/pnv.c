@@ -417,24 +417,12 @@ static int pnv_dt_isa_device(DeviceState *dev, void *opaque)
     return 0;
 }
 
-static int pnv_chip_isa_offset(PnvChip *chip, void *fdt)
-{
-    char *name;
-    int offset;
-
-    name = g_strdup_printf("/xscom@%" PRIx64 "/isa@%x",
-                           (uint64_t) PNV_XSCOM_BASE(chip), PNV_XSCOM_LPC_BASE);
-    offset = fdt_path_offset(fdt, name);
-    g_free(name);
-    return offset;
-}
-
 /* The default LPC bus of a multichip system is on chip 0. It's
  * recognized by the firmware (skiboot) using a "primary" property.
  */
 static void pnv_dt_isa(PnvMachineState *pnv, void *fdt)
 {
-    int isa_offset = pnv_chip_isa_offset(pnv->chips[0], fdt);
+    int isa_offset = fdt_path_offset(fdt, pnv->chips[0]->dt_isa_nodename);
     ForeachPopulateArgs args = {
         .fdt = fdt,
         .offset = isa_offset,
@@ -865,6 +853,10 @@ static void pnv_chip_power8_realize(DeviceState *dev, Error **errp)
     object_property_set_bool(OBJECT(&chip8->lpc), true, "realized",
                              &error_fatal);
     pnv_xscom_add_subregion(chip, PNV_XSCOM_LPC_BASE, &chip8->lpc.xscom_regs);
+
+    chip->dt_isa_nodename = g_strdup_printf("/xscom@%" PRIx64 "/isa@%x",
+                                            (uint64_t) PNV_XSCOM_BASE(chip),
+                                            PNV_XSCOM_LPC_BASE);
 
     /* Interrupt Management Area. This is the memory region holding
      * all the Interrupt Control Presenter (ICP) registers */
