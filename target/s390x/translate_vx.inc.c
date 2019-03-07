@@ -141,6 +141,10 @@ static void get_vec_element_ptr_i64(TCGv_ptr ptr, uint8_t reg, TCGv_i64 enr,
 #define gen_gvec_3_ptr(v1, v2, v3, ptr, data, fn) \
     tcg_gen_gvec_3_ptr(vec_full_reg_offset(v1), vec_full_reg_offset(v2), \
                        vec_full_reg_offset(v3), ptr, 16, 16, data, fn)
+#define gen_gvec_4_ool(v1, v2, v3, v4, data, fn) \
+    tcg_gen_gvec_4_ool(vec_full_reg_offset(v1), vec_full_reg_offset(v2), \
+                       vec_full_reg_offset(v3), vec_full_reg_offset(v4), \
+                       16, 16, data, fn)
 #define gen_gvec_dup_i64(es, v1, c) \
     tcg_gen_gvec_dup_i64(es, vec_full_reg_offset(v1), 16, 16, c)
 #define gen_gvec_mov(v1, v2) \
@@ -661,5 +665,13 @@ static DisasJumpType op_vpk(DisasContext *s, DisasOps *o)
     default:
         g_assert_not_reached();
     }
+    return DISAS_NEXT;
+}
+
+static DisasJumpType op_vperm(DisasContext *s, DisasOps *o)
+{
+    gen_gvec_4_ool(get_field(s->fields, v1), get_field(s->fields, v2),
+                   get_field(s->fields, v3), get_field(s->fields, v4),
+                   0, gen_helper_gvec_vperm);
     return DISAS_NEXT;
 }

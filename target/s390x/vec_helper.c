@@ -147,3 +147,23 @@ void HELPER(gvec_vpkls_cc##BITS)(void *v1, const void *v2, const void *v3,     \
 DEF_VPKLS(64, 32)
 DEF_VPKLS(32, 16)
 DEF_VPKLS(16, 8)
+
+void HELPER(gvec_vperm)(void *v1, const void *v2, const void *v3,
+                        const void *v4, uint32_t desc)
+{
+    S390Vector tmp;
+    int i;
+
+    for (i = 0; i < 16; i++) {
+        const uint8_t selector = s390_vec_read_element8(v4, i) & 0x1f;
+        uint8_t byte;
+
+        if (selector < 16) {
+            byte = s390_vec_read_element8(v2, selector);
+        } else {
+            byte = s390_vec_read_element8(v3, selector - 16);
+        }
+        s390_vec_write_element8(&tmp, i, byte);
+    }
+    *(S390Vector *)v1 = tmp;
+}
