@@ -113,6 +113,28 @@ static void write_vec_element_i64(TCGv_i64 src, int reg, uint8_t enr,
     }
 }
 
+static void get_vec_element_ptr_i64(TCGv_ptr ptr, uint8_t reg, TCGv_i64 enr,
+                                    uint8_t es)
+{
+    TCGv_i64 tmp = tcg_temp_new_i64();
+
+    /* mask off invalid parts from the element nr */
+    tcg_gen_andi_i64(tmp, enr, NUM_VEC_ELEMENTS(es) - 1);
+
+    /* convert it to an element offset relative to cpu_env (vec_reg_offset() */
+    tcg_gen_shli_i64(tmp, tmp, es);
+#ifndef HOST_WORDS_BIGENDIAN
+    tcg_gen_xori_i64(tmp, tmp, 8 - NUM_VEC_ELEMENT_BYTES(es));
+#endif
+    tcg_gen_addi_i64(tmp, tmp, vec_full_reg_offset(reg));
+
+    /* generate the final ptr by adding cpu_env */
+    tcg_gen_trunc_i64_ptr(ptr, tmp);
+    tcg_gen_add_ptr(ptr, ptr, cpu_env);
+
+    tcg_temp_free_i64(tmp);
+}
+
 #define gen_gvec_dup_i64(es, v1, c) \
     tcg_gen_gvec_dup_i64(es, vec_full_reg_offset(v1), 16, 16, c)
 #define gen_gvec_mov(v1, v2) \
@@ -295,5 +317,46 @@ static DisasJumpType op_vlei(DisasContext *s, DisasOps *o)
     tmp = tcg_const_i64((int16_t)get_field(s->fields, i2));
     write_vec_element_i64(tmp, get_field(s->fields, v1), enr, es);
     tcg_temp_free_i64(tmp);
+    return DISAS_NEXT;
+}
+
+static DisasJumpType op_vlgv(DisasContext *s, DisasOps *o)
+{
+    const uint8_t es = get_field(s->fields, m4);
+    TCGv_ptr ptr;
+
+    if (es > ES_64) {
+        gen_program_exception(s, PGM_SPECIFICATION);
+        return DISAS_NORETURN;
+    }
+
+    /* fast path if we don't need the register content */
+    if (!get_field(s->fields, b2)) {
+        uint8_t enr = get_field(s->fields, d2) & (NUM_VEC_ELEMENTS(es) - 1);
+
+        read_vec_element_i64(o->out, get_field(s->fields, v3), enr, es);
+        return DISAS_NEXT;
+    }
+
+    ptr = tcg_temp_new_ptr();
+    get_vec_element_ptr_i64(ptr, get_field(s->fields, v3), o->addr1, es);
+    switch (es) {
+    case ES_8:
+        tcg_gen_ld8u_i64(o->out, ptr, 0);
+        break;
+    case ES_16:
+        tcg_gen_ld16u_i64(o->out, ptr, 0);
+        break;
+    case ES_32:
+        tcg_gen_ld32u_i64(o->out, ptr, 0);
+        break;
+    case ES_64:
+        tcg_gen_ld_i64(o->out, ptr, 0);
+        break;
+    default:
+        g_assert_not_reached();
+    }
+    tcg_temp_free_ptr(ptr);
+
     return DISAS_NEXT;
 }
