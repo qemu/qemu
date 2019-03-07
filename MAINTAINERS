@@ -2567,3 +2567,9 @@ GIT submodules
 M: Daniel P. Berrange <berrange@redhat.com>
 S: Odd Fixes
 F: scripts/git-submodule.sh
+
+Sphinx documentation configuration and build machinery
+M: Peter Maydell <peter.maydell@linaro.org>
+S: Maintained
+F: docs/conf.py
+F: docs/*/conf.py
