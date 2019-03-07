@@ -168,6 +168,17 @@ Requires the host CPU microcode to support this feature before it
 can be used for guest CPUs.
 
 
+@item @code{stibp}
+
+Required to enable stronger Spectre v2 (CVE-2017-5715) fixes in some
+operating systems.
+
+Must be explicitly turned on for all Intel CPU models.
+
+Requires the host CPU microcode to support this feature before it
+can be used for guest CPUs.
+
+
 @item @code{ssbd}
 
 Required to enable the CVE-2018-3639 fix
@@ -253,6 +264,17 @@ Required to enable the Spectre v2 (CVE-2017-5715) fix.
 Included by default in AMD CPU models with -IBPB suffix.
 
 Must be explicitly turned on for AMD CPU models without -IBPB suffix.
+
+Requires the host CPU microcode to support this feature before it
+can be used for guest CPUs.
+
+
+@item @code{stibp}
+
+Required to enable stronger Spectre v2 (CVE-2017-5715) fixes in some
+operating systems.
+
+Must be explicitly turned on for all AMD CPU models.
 
 Requires the host CPU microcode to support this feature before it
 can be used for guest CPUs.
