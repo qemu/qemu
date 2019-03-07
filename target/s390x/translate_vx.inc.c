@@ -532,3 +532,45 @@ static DisasJumpType op_vll(DisasContext *s, DisasOps *o)
     tcg_temp_free_ptr(a0);
     return DISAS_NEXT;
 }
+
+static DisasJumpType op_vmr(DisasContext *s, DisasOps *o)
+{
+    const uint8_t v1 = get_field(s->fields, v1);
+    const uint8_t v2 = get_field(s->fields, v2);
+    const uint8_t v3 = get_field(s->fields, v3);
+    const uint8_t es = get_field(s->fields, m4);
+    int dst_idx, src_idx;
+    TCGv_i64 tmp;
+
+    if (es > ES_64) {
+        gen_program_exception(s, PGM_SPECIFICATION);
+        return DISAS_NORETURN;
+    }
+
+    tmp = tcg_temp_new_i64();
+    if (s->fields->op2 == 0x61) {
+        /* iterate backwards to avoid overwriting data we might need later */
+        for (dst_idx = NUM_VEC_ELEMENTS(es) - 1; dst_idx >= 0; dst_idx--) {
+            src_idx = dst_idx / 2;
+            if (dst_idx % 2 == 0) {
+                read_vec_element_i64(tmp, v2, src_idx, es);
+            } else {
+                read_vec_element_i64(tmp, v3, src_idx, es);
+            }
+            write_vec_element_i64(tmp, v1, dst_idx, es);
+        }
+    } else {
+        /* iterate forward to avoid overwriting data we might need later */
+        for (dst_idx = 0; dst_idx < NUM_VEC_ELEMENTS(es); dst_idx++) {
+            src_idx = (dst_idx + NUM_VEC_ELEMENTS(es)) / 2;
+            if (dst_idx % 2 == 0) {
+                read_vec_element_i64(tmp, v2, src_idx, es);
+            } else {
+                read_vec_element_i64(tmp, v3, src_idx, es);
+            }
+            write_vec_element_i64(tmp, v1, dst_idx, es);
+        }
+    }
+    tcg_temp_free_i64(tmp);
+    return DISAS_NEXT;
+}
