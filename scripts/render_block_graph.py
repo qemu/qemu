@@ -23,6 +23,8 @@ import sys
 import subprocess
 import json
 from graphviz import Digraph
+
+sys.path.append(os.path.join(os.path.dirname(__file__), '..', 'python'))
 from qemu import MonitorResponseError
 
 

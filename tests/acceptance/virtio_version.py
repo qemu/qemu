@@ -11,7 +11,7 @@ Check compatibility of virtio device types
 import sys
 import os
 
-sys.path.append(os.path.join(os.path.dirname(__file__), "..", "..", "scripts"))
+sys.path.append(os.path.join(os.path.dirname(__file__), '..', '..', 'python'))
 from qemu import QEMUMachine
 from avocado_qemu import Test
 
@@ -61,7 +61,6 @@ class VirtioVersionCheck(Test):
     same device tree created by `disable-modern` and
     `disable-legacy`.
 
-    :avocado: enable
     :avocado: tags=x86_64
     """
 

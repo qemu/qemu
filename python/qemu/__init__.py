@@ -16,11 +16,12 @@ import errno
 import logging
 import os
 import subprocess
-import qmp.qmp
 import re
 import shutil
 import socket
 import tempfile
+
+from . import qmp
 
 
 LOG = logging.getLogger(__name__)
@@ -66,7 +67,7 @@ class QEMUMachineAddDeviceError(QEMUMachineError):
     failures reported by the QEMU binary itself.
     """
 
-class MonitorResponseError(qmp.qmp.QMPError):
+class MonitorResponseError(qmp.QMPError):
     """
     Represents erroneous QMP monitor reply
     """
@@ -266,8 +267,8 @@ class QEMUMachine(object):
         self._qemu_log_path = os.path.join(self._temp_dir, self._name + ".log")
         self._qemu_log_file = open(self._qemu_log_path, 'wb')
 
-        self._qmp = qmp.qmp.QEMUMonitorProtocol(self._vm_monitor,
-                                                server=True)
+        self._qmp = qmp.QEMUMonitorProtocol(self._vm_monitor,
+                                            server=True)
 
     def _post_launch(self):
         self._qmp.accept()
@@ -319,6 +320,7 @@ class QEMUMachine(object):
         self._pre_launch()
         self._qemu_full_args = (self._wrapper + [self._binary] +
                                 self._base_args() + self._args)
+        LOG.debug('VM launch command: %r', ' '.join(self._qemu_full_args))
         self._popen = subprocess.Popen(self._qemu_full_args,
                                        stdin=devnull,
                                        stdout=self._qemu_log_file,
@@ -383,7 +385,7 @@ class QEMUMachine(object):
         """
         reply = self.qmp(cmd, conv_keys, **args)
         if reply is None:
-            raise qmp.qmp.QMPError("Monitor is closed")
+            raise qmp.QMPError("Monitor is closed")
         if "error" in reply:
             raise MonitorResponseError(reply)
         return reply["return"]

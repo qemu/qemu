@@ -13,7 +13,6 @@ from avocado_qemu import Test
 
 class Vnc(Test):
     """
-    :avocado: enable
     :avocado: tags=vnc,quick
     """
     def test_no_vnc(self):

@@ -10,12 +10,12 @@
 
 import os
 import sys
+import uuid
 
 import avocado
 
-SRC_ROOT_DIR = os.path.dirname(os.path.dirname(os.path.dirname(__file__)))
-SRC_ROOT_DIR = os.path.abspath(os.path.dirname(SRC_ROOT_DIR))
-sys.path.append(os.path.join(SRC_ROOT_DIR, 'scripts'))
+SRC_ROOT_DIR = os.path.join(os.path.dirname(__file__), '..', '..', '..')
+sys.path.append(os.path.join(SRC_ROOT_DIR, 'python'))
 
 from qemu import QEMUMachine
 
@@ -42,13 +42,29 @@ def pick_default_qemu_bin():
 
 class Test(avocado.Test):
     def setUp(self):
-        self.vm = None
+        self._vms = {}
         self.qemu_bin = self.params.get('qemu_bin',
                                         default=pick_default_qemu_bin())
         if self.qemu_bin is None:
             self.cancel("No QEMU binary defined or found in the source tree")
-        self.vm = QEMUMachine(self.qemu_bin)
+
+    def _new_vm(self, *args):
+        vm = QEMUMachine(self.qemu_bin)
+        if args:
+            vm.add_args(*args)
+        return vm
+
+    @property
+    def vm(self):
+        return self.get_vm(name='default')
+
+    def get_vm(self, *args, name=None):
+        if not name:
+            name = str(uuid.uuid4())
+        if self._vms.get(name) is None:
+            self._vms[name] = self._new_vm(*args)
+        return self._vms[name]
 
     def tearDown(self):
-        if self.vm is not None:
-            self.vm.shutdown()
+        for vm in self._vms.values():
+            vm.shutdown()

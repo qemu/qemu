@@ -66,7 +66,6 @@
 # sent to QEMU, which is useful for debugging and documentation generation.
 
 from __future__ import print_function
-import qmp
 import json
 import ast
 import readline
@@ -75,6 +74,9 @@ import os
 import errno
 import atexit
 import shlex
+
+sys.path.append(os.path.join(os.path.dirname(__file__), '..', '..', 'python'))
+from qemu import qmp
 
 class QMPCompleter(list):
     def complete(self, text, state):
