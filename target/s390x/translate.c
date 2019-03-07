@@ -1203,6 +1203,7 @@ typedef struct {
 #define IF_BFP      0x0008      /* binary floating point instruction */
 #define IF_DFP      0x0010      /* decimal floating point instruction */
 #define IF_PRIV     0x0020      /* privileged instruction */
+#define IF_VEC      0x0040      /* vector instruction */
 
 struct DisasInsn {
     unsigned opc:16;
@@ -6337,8 +6338,19 @@ static DisasJumpType translate_one(CPUS390XState *env, DisasContext *s)
             if (insn->flags & IF_DFP) {
                 dxc = 3;
             }
+            if (insn->flags & IF_VEC) {
+                dxc = 0xfe;
+            }
             if (dxc) {
                 gen_data_exception(dxc);
+                return DISAS_NORETURN;
+            }
+        }
+
+        /* if vector instructions not enabled, executing them is forbidden */
+        if (insn->flags & IF_VEC) {
+            if (!((s->base.tb->flags & FLAG_MASK_VECTOR))) {
+                gen_data_exception(0xfe);
                 return DISAS_NORETURN;
             }
         }
