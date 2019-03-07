@@ -60,7 +60,7 @@ vCPU hotplug
     hot-plugged (no "qom-path" member).  From its output in step (3), we
     can see that ``IvyBridge-IBRS-x86_64-cpu`` is present in socket 0,
     while hot-plugging a CPU into socket 1 requires passing the listed
-    properties to QMP ``device_add``:
+    properties to QMP ``device_add``::
 
       (QEMU) device_add id=cpu-2 driver=IvyBridge-IBRS-x86_64-cpu socket-id=1 core-id=0 thread-id=0
       {
