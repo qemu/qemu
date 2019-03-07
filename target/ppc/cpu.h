@@ -2563,6 +2563,26 @@ static inline bool lsw_reg_in_range(int start, int nregs, int rx)
 }
 
 /* Accessors for FP, VMX and VSX registers */
+#if defined(HOST_WORDS_BIGENDIAN)
+#define VsrB(i) u8[i]
+#define VsrSB(i) s8[i]
+#define VsrH(i) u16[i]
+#define VsrSH(i) s16[i]
+#define VsrW(i) u32[i]
+#define VsrSW(i) s32[i]
+#define VsrD(i) u64[i]
+#define VsrSD(i) s64[i]
+#else
+#define VsrB(i) u8[15 - (i)]
+#define VsrSB(i) s8[15 - (i)]
+#define VsrH(i) u16[7 - (i)]
+#define VsrSH(i) s16[7 - (i)]
+#define VsrW(i) u32[3 - (i)]
+#define VsrSW(i) s32[3 - (i)]
+#define VsrD(i) u64[1 - (i)]
+#define VsrSD(i) s64[1 - (i)]
+#endif
+
 static inline int fpr_offset(int i)
 {
     return offsetof(CPUPPCState, vsr[i].u64[0]);
