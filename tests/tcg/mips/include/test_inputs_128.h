@@ -19,8 +19,8 @@
  *
  */
 
-#ifndef TEST_INPUTS_H
-#define TEST_INPUTS_H
+#ifndef TEST_INPUTS_128_H
+#define TEST_INPUTS_128_H
 
 #include <stdint.h>
 

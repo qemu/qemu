@@ -19,8 +19,8 @@
  *
  */
 
-#ifndef TEST_UTILS_H
-#define TEST_UTILS_H
+#ifndef TEST_UTILS_128_H
+#define TEST_UTILS_128_H
 
 #include <stdio.h>
 #include <stdint.h>
