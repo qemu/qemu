@@ -9,23 +9,49 @@
 
 #include "qemu/osdep.h"
 #include "libqtest.h"
+#include "libqos/qgraph.h"
+#include "libqos/pci.h"
 
-/* Tests only initialization so far. TODO: Replace with functional tests */
-static void nop(void)
+typedef struct QVmxnet3 QVmxnet3;
+
+struct QVmxnet3 {
+    QOSGraphObject obj;
+    QPCIDevice dev;
+};
+
+static void *vmxnet3_get_driver(void *obj, const char *interface)
 {
+    QVmxnet3 *vmxnet3 = obj;
+
+    if (!g_strcmp0(interface, "pci-device")) {
+        return &vmxnet3->dev;
+    }
+
+    fprintf(stderr, "%s not present in vmxnet3\n", interface);
+    g_assert_not_reached();
 }
 
-int main(int argc, char **argv)
+static void *vmxnet3_create(void *pci_bus, QGuestAllocator *alloc, void *addr)
 {
-    int ret;
+    QVmxnet3 *vmxnet3 = g_new0(QVmxnet3, 1);
+    QPCIBus *bus = pci_bus;
 
-    g_test_init(&argc, &argv, NULL);
-    qtest_add_func("/vmxnet3/nop", nop);
+    qpci_device_init(&vmxnet3->dev, bus, addr);
+    vmxnet3->obj.get_driver = vmxnet3_get_driver;
 
-    qtest_start("-device vmxnet3");
-    ret = g_test_run();
-
-    qtest_end();
-
-    return ret;
+    return &vmxnet3->obj;
 }
+
+static void vmxnet3_register_nodes(void)
+{
+    QOSGraphEdgeOptions opts = {
+        .extra_device_opts = "addr=04.0",
+    };
+    add_qpci_address(&opts, &(QPCIAddress) { .devfn = QPCI_DEVFN(4, 0) });
+
+    qos_node_create_driver("vmxnet3", vmxnet3_create);
+    qos_node_consumes("vmxnet3", "pci-bus", &opts);
+    qos_node_produces("vmxnet3", "pci-device");
+}
+
+libqos_init(vmxnet3_register_nodes);

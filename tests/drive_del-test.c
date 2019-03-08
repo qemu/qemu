@@ -63,6 +63,24 @@ static void test_drive_without_dev(void)
     qtest_end();
 }
 
+/*
+ * qvirtio_get_dev_type:
+ * Returns: the preferred virtio bus/device type for the current architecture.
+ * TODO: delete this
+ */
+static const char *qvirtio_get_dev_type(void)
+{
+    const char *arch = qtest_get_arch();
+
+    if (g_str_equal(arch, "arm") || g_str_equal(arch, "aarch64")) {
+        return "device";  /* for virtio-mmio */
+    } else if (g_str_equal(arch, "s390x")) {
+        return "ccw";
+    } else {
+        return "pci";
+    }
+}
+
 static void test_after_failed_device_add(void)
 {
     char driver[32];
@@ -119,16 +137,11 @@ static void test_drive_del_device_del(void)
 
 int main(int argc, char **argv)
 {
-    const char *arch = qtest_get_arch();
-
     g_test_init(&argc, &argv, NULL);
 
     qtest_add_func("/drive_del/without-dev", test_drive_without_dev);
 
-    /* TODO I guess any arch with a hot-pluggable virtio bus would do */
-    if (!strcmp(arch, "i386") || !strcmp(arch, "x86_64") ||
-        !strcmp(arch, "ppc") || !strcmp(arch, "ppc64") ||
-        !strcmp(arch, "s390x")) {
+    if (qvirtio_get_dev_type() != NULL) {
         qtest_add_func("/drive_del/after_failed_device_add",
                        test_after_failed_device_add);
         qtest_add_func("/blockdev/drive_del_device_del",

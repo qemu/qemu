@@ -10,48 +10,46 @@
 #include "qemu/osdep.h"
 #include "qemu/units.h"
 #include "libqtest.h"
-#include "libqos/libqos-pc.h"
+#include "libqos/qgraph.h"
+#include "libqos/pci.h"
 
-static QOSState *qnvme_start(const char *extra_opts)
+typedef struct QNvme QNvme;
+
+struct QNvme {
+    QOSGraphObject obj;
+    QPCIDevice dev;
+};
+
+static void *nvme_get_driver(void *obj, const char *interface)
 {
-    QOSState *qs;
-    const char *arch = qtest_get_arch();
-    const char *cmd = "-drive id=drv0,if=none,file=null-co://,format=raw "
-                      "-device nvme,addr=0x4.0,serial=foo,drive=drv0 %s";
+    QNvme *nvme = obj;
 
-    if (strcmp(arch, "i386") == 0 || strcmp(arch, "x86_64") == 0) {
-        qs = qtest_pc_boot(cmd, extra_opts ? : "");
-        global_qtest = qs->qts;
-        return qs;
+    if (!g_strcmp0(interface, "pci-device")) {
+        return &nvme->dev;
     }
 
-    g_printerr("nvme tests are only available on x86\n");
-    exit(EXIT_FAILURE);
+    fprintf(stderr, "%s not present in nvme\n", interface);
+    g_assert_not_reached();
 }
 
-static void qnvme_stop(QOSState *qs)
+static void *nvme_create(void *pci_bus, QGuestAllocator *alloc, void *addr)
 {
-    qtest_shutdown(qs);
+    QNvme *nvme = g_new0(QNvme, 1);
+    QPCIBus *bus = pci_bus;
+
+    qpci_device_init(&nvme->dev, bus, addr);
+    nvme->obj.get_driver = nvme_get_driver;
+
+    return &nvme->obj;
 }
 
-static void nop(void)
-{
-    QOSState *qs;
-
-    qs = qnvme_start(NULL);
-    qnvme_stop(qs);
-}
-
-static void nvmetest_cmb_test(void)
+/* This used to cause a NULL pointer dereference.  */
+static void nvmetest_oob_cmb_test(void *obj, void *data, QGuestAllocator *alloc)
 {
     const int cmb_bar_size = 2 * MiB;
-    QOSState *qs;
-    QPCIDevice *pdev;
+    QNvme *nvme = obj;
+    QPCIDevice *pdev = &nvme->dev;
     QPCIBar bar;
-
-    qs = qnvme_start("-global nvme.cmb_size_mb=2");
-    pdev = qpci_device_find(qs->pcibus, QPCI_DEVFN(4,0));
-    g_assert(pdev != NULL);
 
     qpci_device_enable(pdev);
     bar = qpci_iomap(pdev, 2, NULL);
@@ -65,16 +63,24 @@ static void nvmetest_cmb_test(void)
     g_assert_cmpint(qpci_io_readb(pdev, bar, cmb_bar_size - 1), ==, 0x11);
     g_assert_cmpint(qpci_io_readw(pdev, bar, cmb_bar_size - 1), !=, 0x2211);
     g_assert_cmpint(qpci_io_readl(pdev, bar, cmb_bar_size - 1), !=, 0x44332211);
-    g_free(pdev);
-
-    qnvme_stop(qs);
 }
 
-int main(int argc, char **argv)
+static void nvme_register_nodes(void)
 {
-    g_test_init(&argc, &argv, NULL);
-    qtest_add_func("/nvme/nop", nop);
-    qtest_add_func("/nvme/cmb_test", nvmetest_cmb_test);
+    QOSGraphEdgeOptions opts = {
+        .extra_device_opts = "addr=04.0,drive=drv0,serial=foo",
+        .before_cmd_line = "-drive id=drv0,if=none,file=null-co://,format=raw",
+    };
 
-    return g_test_run();
+    add_qpci_address(&opts, &(QPCIAddress) { .devfn = QPCI_DEVFN(4, 0) });
+
+    qos_node_create_driver("nvme", nvme_create);
+    qos_node_consumes("nvme", "pci-bus", &opts);
+    qos_node_produces("nvme", "pci-device");
+
+    qos_add_test("oob-cmb-access", "nvme", nvmetest_oob_cmb_test, &(QOSGraphTestOptions) {
+        .edge.extra_device_opts = "cmb_size_mb=2"
+    });
 }
+
+libqos_init(nvme_register_nodes);

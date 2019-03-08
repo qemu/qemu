@@ -38,7 +38,7 @@ static QPCIBus *test_start_get_bus(const TestData *s)
     cmdline = g_strdup_printf("-smp %d", s->num_cpus);
     qtest_start(cmdline);
     g_free(cmdline);
-    return qpci_init_pc(global_qtest, NULL);
+    return qpci_new_pc(global_qtest, NULL);
 }
 
 static void test_i440fx_defaults(gconstpointer opaque)

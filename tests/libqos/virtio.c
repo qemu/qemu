@@ -40,6 +40,7 @@ uint32_t qvirtio_get_features(QVirtioDevice *d)
 
 void qvirtio_set_features(QVirtioDevice *d, uint32_t features)
 {
+    d->features = features;
     d->bus->set_features(d, features);
 }
 
@@ -349,19 +350,14 @@ void qvirtqueue_set_used_event(QVirtQueue *vq, uint16_t idx)
     writew(vq->avail + 4 + (2 * vq->size), idx);
 }
 
-/*
- * qvirtio_get_dev_type:
- * Returns: the preferred virtio bus/device type for the current architecture.
- */
-const char *qvirtio_get_dev_type(void)
+void qvirtio_start_device(QVirtioDevice *vdev)
 {
-    const char *arch = qtest_get_arch();
+    qvirtio_reset(vdev);
+    qvirtio_set_acknowledge(vdev);
+    qvirtio_set_driver(vdev);
+}
 
-    if (g_str_equal(arch, "arm") || g_str_equal(arch, "aarch64")) {
-        return "device";  /* for virtio-mmio */
-    } else if (g_str_equal(arch, "s390x")) {
-        return "ccw";
-    } else {
-        return "pci";
-    }
+bool qvirtio_is_big_endian(QVirtioDevice *d)
+{
+    return d->big_endian;
 }

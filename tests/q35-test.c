@@ -87,7 +87,7 @@ static void test_smram_lock(void)
 
     qtest_start("-M q35");
 
-    pcibus = qpci_init_pc(global_qtest, NULL);
+    pcibus = qpci_new_pc(global_qtest, NULL);
     g_assert(pcibus != NULL);
 
     pcidev = qpci_device_find(pcibus, 0);
@@ -146,7 +146,7 @@ static void test_tseg_size(const void *data)
     g_free(cmdline);
 
     /* locate the DRAM controller */
-    pcibus = qpci_init_pc(global_qtest, NULL);
+    pcibus = qpci_new_pc(global_qtest, NULL);
     g_assert(pcibus != NULL);
     pcidev = qpci_device_find(pcibus, 0);
     g_assert(pcidev != NULL);

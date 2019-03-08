@@ -120,7 +120,7 @@ enum {
 #define assert_bit_clear(data, mask) g_assert_cmphex((data) & (mask), ==, 0)
 
 static QPCIBus *pcibus = NULL;
-static QGuestAllocator *guest_malloc;
+static QGuestAllocator guest_malloc;
 
 static char tmp_path[] = "/tmp/qtest.XXXXXX";
 static char debug_path[] = "/tmp/qtest-blkdebug.XXXXXX";
@@ -135,7 +135,7 @@ static void ide_test_start(const char *cmdline_fmt, ...)
     va_end(ap);
 
     qtest_start(cmdline);
-    guest_malloc = pc_alloc_init(global_qtest);
+    pc_alloc_init(&guest_malloc, global_qtest, 0);
 
     g_free(cmdline);
 }
@@ -146,8 +146,7 @@ static void ide_test_quit(void)
         qpci_free_pc(pcibus);
         pcibus = NULL;
     }
-    pc_alloc_uninit(guest_malloc);
-    guest_malloc = NULL;
+    alloc_destroy(&guest_malloc);
     qtest_end();
 }
 
@@ -157,7 +156,7 @@ static QPCIDevice *get_pci_device(QPCIBar *bmdma_bar, QPCIBar *ide_bar)
     uint16_t vendor_id, device_id;
 
     if (!pcibus) {
-        pcibus = qpci_init_pc(global_qtest, NULL);
+        pcibus = qpci_new_pc(global_qtest, NULL);
     }
 
     /* Find PCI device and verify it's the right one */
@@ -246,7 +245,7 @@ static int send_dma_request(int cmd, uint64_t sector, int nb_sectors,
 
     /* Setup PRDT */
     len = sizeof(*prdt) * prdt_entries;
-    guest_prdt = guest_alloc(guest_malloc, len);
+    guest_prdt = guest_alloc(&guest_malloc, len);
     memwrite(guest_prdt, prdt, len);
     qpci_io_writel(dev, bmdma_bar, bmreg_prdt, guest_prdt);
 
@@ -311,7 +310,7 @@ static void test_bmdma_simple_rw(void)
     uint8_t *buf;
     uint8_t *cmpbuf;
     size_t len = 512;
-    uintptr_t guest_buf = guest_alloc(guest_malloc, len);
+    uintptr_t guest_buf = guest_alloc(&guest_malloc, len);
 
     PrdtEntry prdt[] = {
         {
@@ -381,7 +380,7 @@ static void test_bmdma_trim(void)
     const uint64_t bad_range = trim_range_le(TEST_IMAGE_SIZE / 512 - 1, 2);
     size_t len = 512;
     uint8_t *buf;
-    uintptr_t guest_buf = guest_alloc(guest_malloc, len);
+    uintptr_t guest_buf = guest_alloc(&guest_malloc, len);
 
     PrdtEntry prdt[] = {
         {
@@ -625,7 +624,7 @@ static void make_dirty(uint8_t device)
 
     dev = get_pci_device(&bmdma_bar, &ide_bar);
 
-    guest_buf = guest_alloc(guest_malloc, len);
+    guest_buf = guest_alloc(&guest_malloc, len);
     buf = g_malloc(len);
     memset(buf, rand() % 255 + 1, len);
     g_assert(guest_buf);
@@ -986,7 +985,7 @@ static void test_cdrom_dma(void)
                    "-device ide-cd,drive=sr0,bus=ide.0", tmp_path);
     qtest_irq_intercept_in(global_qtest, "ioapic");
 
-    guest_buf = guest_alloc(guest_malloc, len);
+    guest_buf = guest_alloc(&guest_malloc, len);
     prdt[0].addr = cpu_to_le32(guest_buf);
     prdt[0].size = cpu_to_le32(len | PRDT_EOT);
 

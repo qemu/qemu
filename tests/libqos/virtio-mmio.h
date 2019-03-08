@@ -11,6 +11,7 @@
 #define LIBQOS_VIRTIO_MMIO_H
 
 #include "libqos/virtio.h"
+#include "libqos/qgraph.h"
 
 #define QVIRTIO_MMIO_MAGIC_VALUE        0x000
 #define QVIRTIO_MMIO_VERSION            0x004
@@ -33,7 +34,9 @@
 #define QVIRTIO_MMIO_DEVICE_SPECIFIC    0x100
 
 typedef struct QVirtioMMIODevice {
+    QOSGraphObject obj;
     QVirtioDevice vdev;
+    QTestState *qts;
     uint64_t addr;
     uint32_t page_size;
     uint32_t features; /* As it cannot be read later, save it */
@@ -41,6 +44,7 @@ typedef struct QVirtioMMIODevice {
 
 extern const QVirtioBus qvirtio_mmio;
 
-QVirtioMMIODevice *qvirtio_mmio_init_device(uint64_t addr, uint32_t page_size);
+void qvirtio_mmio_init_device(QVirtioMMIODevice *dev, QTestState *qts,
+                              uint64_t addr, uint32_t page_size);
 
 #endif

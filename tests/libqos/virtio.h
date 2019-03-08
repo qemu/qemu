@@ -21,6 +21,8 @@ typedef struct QVirtioDevice {
     const QVirtioBus *bus;
     /* Device type */
     uint16_t device_type;
+    uint64_t features;
+    bool big_endian;
 } QVirtioDevice;
 
 typedef struct QVirtQueue {
@@ -90,12 +92,6 @@ struct QVirtioBus {
     void (*virtqueue_kick)(QVirtioDevice *d, QVirtQueue *vq);
 };
 
-static inline bool qvirtio_is_big_endian(QVirtioDevice *d)
-{
-    /* FIXME: virtio 1.0 is always little-endian */
-    return qtest_big_endian(global_qtest);
-}
-
 static inline uint32_t qvring_size(uint32_t num, uint32_t align)
 {
     return ((sizeof(struct vring_desc) * num + sizeof(uint16_t) * (3 + num)
@@ -109,6 +105,7 @@ uint32_t qvirtio_config_readl(QVirtioDevice *d, uint64_t addr);
 uint64_t qvirtio_config_readq(QVirtioDevice *d, uint64_t addr);
 uint32_t qvirtio_get_features(QVirtioDevice *d);
 void qvirtio_set_features(QVirtioDevice *d, uint32_t features);
+bool qvirtio_is_big_endian(QVirtioDevice *d);
 
 void qvirtio_reset(QVirtioDevice *d);
 void qvirtio_set_acknowledge(QVirtioDevice *d);
@@ -145,6 +142,6 @@ bool qvirtqueue_get_buf(QVirtQueue *vq, uint32_t *desc_idx, uint32_t *len);
 
 void qvirtqueue_set_used_event(QVirtQueue *vq, uint16_t idx);
 
-const char *qvirtio_get_dev_type(void);
+void qvirtio_start_device(QVirtioDevice *vdev);
 
 #endif

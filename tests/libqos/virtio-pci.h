@@ -12,8 +12,10 @@
 
 #include "libqos/virtio.h"
 #include "libqos/pci.h"
+#include "libqos/qgraph.h"
 
 typedef struct QVirtioPCIDevice {
+    QOSGraphObject obj;
     QVirtioDevice vdev;
     QPCIDevice *pdev;
     QPCIBar bar;
@@ -31,10 +33,18 @@ typedef struct QVirtQueuePCI {
 
 extern const QVirtioBus qvirtio_pci;
 
-QVirtioPCIDevice *qvirtio_pci_device_find(QPCIBus *bus, uint16_t device_type);
-QVirtioPCIDevice *qvirtio_pci_device_find_slot(QPCIBus *bus,
-                                               uint16_t device_type, int slot);
-void qvirtio_pci_device_free(QVirtioPCIDevice *dev);
+void virtio_pci_init(QVirtioPCIDevice *dev, QPCIBus *bus, QPCIAddress * addr);
+QVirtioPCIDevice *virtio_pci_new(QPCIBus *bus, QPCIAddress * addr);
+
+/* virtio-pci object functions available for subclasses that
+ * override the original start_hw and destroy
+ * function. All virtio-xxx-pci subclass that override must
+ * take care of calling these two functions in the respective
+ * places
+ */
+void qvirtio_pci_destructor(QOSGraphObject *obj);
+void qvirtio_pci_start_hw(QOSGraphObject *obj);
+
 
 void qvirtio_pci_device_enable(QVirtioPCIDevice *d);
 void qvirtio_pci_device_disable(QVirtioPCIDevice *d);

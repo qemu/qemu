@@ -9,23 +9,40 @@
 
 #include "qemu/osdep.h"
 #include "libqtest.h"
+#include "libqos/qgraph.h"
+
+typedef struct QIpoctal232 QIpoctal232;
+
+struct QIpoctal232 {
+    QOSGraphObject obj;
+};
 
 /* Tests only initialization so far. TODO: Replace with functional tests */
-static void nop(void)
+static void nop(void *obj, void *data, QGuestAllocator *alloc)
 {
 }
 
-int main(int argc, char **argv)
+static void *ipoctal232_create(void *pci_bus, QGuestAllocator *alloc,
+                               void *addr)
 {
-    int ret;
+    QIpoctal232 *ipoctal232 = g_new0(QIpoctal232, 1);
 
-    g_test_init(&argc, &argv, NULL);
-    qtest_add_func("/ipoctal232/tpci200/nop", nop);
-
-    qtest_start("-device tpci200,id=ipack0 -device ipoctal232,bus=ipack0.0");
-    ret = g_test_run();
-
-    qtest_end();
-
-    return ret;
+    return &ipoctal232->obj;
 }
+
+static void ipoctal232_register_nodes(void)
+{
+    qos_node_create_driver("ipoctal232", ipoctal232_create);
+    qos_node_consumes("ipoctal232", "ipack", &(QOSGraphEdgeOptions) {
+        .extra_device_opts = "bus=ipack0.0",
+    });
+}
+
+libqos_init(ipoctal232_register_nodes);
+
+static void register_ipoctal232_test(void)
+{
+    qos_add_test("nop", "ipoctal232", nop, NULL);
+}
+
+libqos_init(register_ipoctal232_test);

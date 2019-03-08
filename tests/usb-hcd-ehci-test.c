@@ -52,7 +52,7 @@ static void ehci_port_test(struct qhc *hc, int port, uint32_t expect)
 
 static void test_init(void)
 {
-    pcibus = qpci_init_pc(global_qtest, NULL);
+    pcibus = qpci_new_pc(global_qtest, NULL);
     g_assert(pcibus != NULL);
 
     qusb_pci_init_one(pcibus, &uhci1, QPCI_DEVFN(0x1d, 0), 4);

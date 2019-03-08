@@ -10,8 +10,6 @@
 
 #include "libqos/malloc.h"
 
-QGuestAllocator *spapr_alloc_init(void);
-QGuestAllocator *spapr_alloc_init_flags(QTestState *qts, QAllocOpts flags);
-void spapr_alloc_uninit(QGuestAllocator *allocator);
+void spapr_alloc_init(QGuestAllocator *s, QTestState *qts, QAllocOpts flags);
 
 #endif

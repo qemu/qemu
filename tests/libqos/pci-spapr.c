@@ -9,32 +9,12 @@
 #include "libqtest.h"
 #include "libqos/pci-spapr.h"
 #include "libqos/rtas.h"
+#include "libqos/qgraph.h"
 
 #include "hw/pci/pci_regs.h"
 
 #include "qemu-common.h"
 #include "qemu/host-utils.h"
-
-
-/* From include/hw/pci-host/spapr.h */
-
-typedef struct QPCIWindow {
-    uint64_t pci_base;    /* window address in PCI space */
-    uint64_t size;        /* window size */
-} QPCIWindow;
-
-typedef struct QPCIBusSPAPR {
-    QPCIBus bus;
-    QGuestAllocator *alloc;
-
-    uint64_t buid;
-
-    uint64_t pio_cpu_base;
-    QPCIWindow pio;
-
-    uint64_t mmio32_cpu_base;
-    QPCIWindow mmio32;
-} QPCIBusSPAPR;
 
 /*
  * PCI devices are always little-endian
@@ -160,60 +140,93 @@ static void qpci_spapr_config_writel(QPCIBus *bus, int devfn, uint8_t offset,
 #define SPAPR_PCI_MMIO32_WIN_SIZE    0x80000000 /* 2 GiB */
 #define SPAPR_PCI_IO_WIN_SIZE        0x10000
 
-QPCIBus *qpci_init_spapr(QTestState *qts, QGuestAllocator *alloc)
+static void *qpci_spapr_get_driver(void *obj, const char *interface)
 {
-    QPCIBusSPAPR *ret = g_new0(QPCIBusSPAPR, 1);
+    QPCIBusSPAPR *qpci = obj;
+    if (!g_strcmp0(interface, "pci-bus")) {
+        return &qpci->bus;
+    }
+    fprintf(stderr, "%s not present in pci-bus-spapr", interface);
+    g_assert_not_reached();
+}
 
+void qpci_init_spapr(QPCIBusSPAPR *qpci, QTestState *qts,
+                     QGuestAllocator *alloc)
+{
     assert(qts);
 
-    ret->alloc = alloc;
+    /* tests cannot use spapr, needs to be fixed first */
+    qpci->bus.has_buggy_msi = TRUE;
 
-    ret->bus.pio_readb = qpci_spapr_pio_readb;
-    ret->bus.pio_readw = qpci_spapr_pio_readw;
-    ret->bus.pio_readl = qpci_spapr_pio_readl;
-    ret->bus.pio_readq = qpci_spapr_pio_readq;
+    qpci->alloc = alloc;
 
-    ret->bus.pio_writeb = qpci_spapr_pio_writeb;
-    ret->bus.pio_writew = qpci_spapr_pio_writew;
-    ret->bus.pio_writel = qpci_spapr_pio_writel;
-    ret->bus.pio_writeq = qpci_spapr_pio_writeq;
+    qpci->bus.pio_readb = qpci_spapr_pio_readb;
+    qpci->bus.pio_readw = qpci_spapr_pio_readw;
+    qpci->bus.pio_readl = qpci_spapr_pio_readl;
+    qpci->bus.pio_readq = qpci_spapr_pio_readq;
 
-    ret->bus.memread = qpci_spapr_memread;
-    ret->bus.memwrite = qpci_spapr_memwrite;
+    qpci->bus.pio_writeb = qpci_spapr_pio_writeb;
+    qpci->bus.pio_writew = qpci_spapr_pio_writew;
+    qpci->bus.pio_writel = qpci_spapr_pio_writel;
+    qpci->bus.pio_writeq = qpci_spapr_pio_writeq;
 
-    ret->bus.config_readb = qpci_spapr_config_readb;
-    ret->bus.config_readw = qpci_spapr_config_readw;
-    ret->bus.config_readl = qpci_spapr_config_readl;
+    qpci->bus.memread = qpci_spapr_memread;
+    qpci->bus.memwrite = qpci_spapr_memwrite;
 
-    ret->bus.config_writeb = qpci_spapr_config_writeb;
-    ret->bus.config_writew = qpci_spapr_config_writew;
-    ret->bus.config_writel = qpci_spapr_config_writel;
+    qpci->bus.config_readb = qpci_spapr_config_readb;
+    qpci->bus.config_readw = qpci_spapr_config_readw;
+    qpci->bus.config_readl = qpci_spapr_config_readl;
+
+    qpci->bus.config_writeb = qpci_spapr_config_writeb;
+    qpci->bus.config_writew = qpci_spapr_config_writew;
+    qpci->bus.config_writel = qpci_spapr_config_writel;
 
     /* FIXME: We assume the default location of the PHB for now.
      * Ideally we'd parse the device tree deposited in the guest to
      * get the window locations */
-    ret->buid = 0x800000020000000ULL;
+    qpci->buid = 0x800000020000000ULL;
 
-    ret->pio_cpu_base = SPAPR_PCI_BASE;
-    ret->pio.pci_base = 0;
-    ret->pio.size = SPAPR_PCI_IO_WIN_SIZE;
+    qpci->pio_cpu_base = SPAPR_PCI_BASE;
+    qpci->pio.pci_base = 0;
+    qpci->pio.size = SPAPR_PCI_IO_WIN_SIZE;
 
     /* 32-bit portion of the MMIO window is at PCI address 2..4 GiB */
-    ret->mmio32_cpu_base = SPAPR_PCI_BASE;
-    ret->mmio32.pci_base = SPAPR_PCI_MMIO32_WIN_SIZE;
-    ret->mmio32.size = SPAPR_PCI_MMIO32_WIN_SIZE;
+    qpci->mmio32_cpu_base = SPAPR_PCI_BASE;
+    qpci->mmio32.pci_base = SPAPR_PCI_MMIO32_WIN_SIZE;
+    qpci->mmio32.size = SPAPR_PCI_MMIO32_WIN_SIZE;
 
-    ret->bus.qts = qts;
-    ret->bus.pio_alloc_ptr = 0xc000;
-    ret->bus.mmio_alloc_ptr = ret->mmio32.pci_base;
-    ret->bus.mmio_limit = ret->mmio32.pci_base + ret->mmio32.size;
+    qpci->bus.qts = qts;
+    qpci->bus.pio_alloc_ptr = 0xc000;
+    qpci->bus.mmio_alloc_ptr = qpci->mmio32.pci_base;
+    qpci->bus.mmio_limit = qpci->mmio32.pci_base + qpci->mmio32.size;
 
-    return &ret->bus;
+    qpci->obj.get_driver = qpci_spapr_get_driver;
+}
+
+QPCIBus *qpci_new_spapr(QTestState *qts, QGuestAllocator *alloc)
+{
+    QPCIBusSPAPR *qpci = g_new0(QPCIBusSPAPR, 1);
+    qpci_init_spapr(qpci, qts, alloc);
+
+    return &qpci->bus;
 }
 
 void qpci_free_spapr(QPCIBus *bus)
 {
-    QPCIBusSPAPR *s = container_of(bus, QPCIBusSPAPR, bus);
+    QPCIBusSPAPR *s;
+
+    if (!bus) {
+        return;
+    }
+    s = container_of(bus, QPCIBusSPAPR, bus);
 
     g_free(s);
 }
+
+static void qpci_spapr_register_nodes(void)
+{
+    qos_node_create_driver("pci-bus-spapr", NULL);
+    qos_node_produces("pci-bus-spapr", "pci-bus");
+}
+
+libqos_init(qpci_spapr_register_nodes);

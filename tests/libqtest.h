@@ -17,6 +17,9 @@
 #ifndef LIBQTEST_H
 #define LIBQTEST_H
 
+#include "qapi/qmp/qobject.h"
+#include "qapi/qmp/qdict.h"
+
 typedef struct QTestState QTestState;
 
 extern QTestState *global_qtest;
@@ -598,6 +601,9 @@ static inline QTestState *qtest_start(const char *args)
  */
 static inline void qtest_end(void)
 {
+    if (!global_qtest) {
+        return;
+    }
     qtest_quit(global_qtest);
     global_qtest = NULL;
 }
