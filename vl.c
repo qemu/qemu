@@ -4274,6 +4274,13 @@ int main(int argc, char **argv, char **envp)
         exit(0);
     }
 
+    /*
+     * Note: we need to create block backends before
+     * machine_set_property(), so machine properties can refer to
+     * them.
+     */
+    configure_blockdev(&bdo_queue, machine_class, snapshot);
+
     machine_opts = qemu_get_machine_opts();
     qemu_opt_foreach(machine_opts, machine_set_property, current_machine,
                      &error_fatal);
@@ -4399,8 +4406,6 @@ int main(int argc, char **argv, char **envp)
     blk_mig_init();
     ram_mig_init();
     dirty_bitmap_mig_init();
-
-    configure_blockdev(&bdo_queue, machine_class, snapshot);
 
     qemu_opts_foreach(qemu_find_opts("mon"),
                       mon_init_func, NULL, &error_fatal);
