@@ -144,6 +144,7 @@ typedef struct BDRVRawState {
     uint64_t locked_perm;
     uint64_t locked_shared_perm;
 
+    int perm_change_fd;
     BDRVReopenState *reopen_state;
 
 #ifdef CONFIG_XFS
@@ -845,7 +846,8 @@ static int raw_handle_perm_lock(BlockDriverState *bs,
 }
 
 static int raw_reconfigure_getfd(BlockDriverState *bs, int flags,
-                                 int *open_flags, Error **errp)
+                                 int *open_flags, bool force_dup,
+                                 Error **errp)
 {
     BDRVRawState *s = bs->opaque;
     int fd = -1;
@@ -870,6 +872,11 @@ static int raw_reconfigure_getfd(BlockDriverState *bs, int flags,
      */
     assert((s->open_flags & O_ASYNC) == 0);
 #endif
+
+    if (!force_dup && *open_flags == s->open_flags) {
+        /* We're lucky, the existing fd is fine */
+        return s->fd;
+    }
 
     if ((*open_flags & ~fcntl_flags) == (s->open_flags & ~fcntl_flags)) {
         /* dup the original fd */
@@ -935,7 +942,7 @@ static int raw_reopen_prepare(BDRVReopenState *state,
     qemu_opts_to_qdict(opts, state->options);
 
     rs->fd = raw_reconfigure_getfd(state->bs, state->flags, &rs->open_flags,
-                                   &local_err);
+                                   true, &local_err);
     if (local_err) {
         error_propagate(errp, local_err);
         ret = -1;
@@ -948,14 +955,6 @@ static int raw_reopen_prepare(BDRVReopenState *state,
         raw_probe_alignment(state->bs, rs->fd, &local_err);
         if (local_err) {
             error_propagate(errp, local_err);
-            ret = -EINVAL;
-            goto out_fd;
-        }
-
-        /* Copy locks to the new fd */
-        ret = raw_apply_lock_bytes(NULL, rs->fd, s->locked_perm,
-                                   s->locked_shared_perm, false, errp);
-        if (ret < 0) {
             ret = -EINVAL;
             goto out_fd;
         }
@@ -2696,12 +2695,78 @@ static QemuOptsList raw_create_opts = {
 static int raw_check_perm(BlockDriverState *bs, uint64_t perm, uint64_t shared,
                           Error **errp)
 {
-    return raw_handle_perm_lock(bs, RAW_PL_PREPARE, perm, shared, errp);
+    BDRVRawState *s = bs->opaque;
+    BDRVRawReopenState *rs = NULL;
+    int open_flags;
+    int ret;
+
+    if (s->perm_change_fd) {
+        /*
+         * In the context of reopen, this function may be called several times
+         * (directly and recursively while change permissions of the parent).
+         * This is even true for children that don't inherit from the original
+         * reopen node, so s->reopen_state is not set.
+         *
+         * Ignore all but the first call.
+         */
+        return 0;
+    }
+
+    if (s->reopen_state) {
+        /* We already have a new file descriptor to set permissions for */
+        assert(s->reopen_state->perm == perm);
+        assert(s->reopen_state->shared_perm == shared);
+        rs = s->reopen_state->opaque;
+        s->perm_change_fd = rs->fd;
+    } else {
+        /* We may need a new fd if auto-read-only switches the mode */
+        ret = raw_reconfigure_getfd(bs, bs->open_flags, &open_flags,
+                                    false, errp);
+        if (ret < 0) {
+            return ret;
+        } else if (ret != s->fd) {
+            s->perm_change_fd = ret;
+        }
+    }
+
+    /* Prepare permissions on old fd to avoid conflicts between old and new,
+     * but keep everything locked that new will need. */
+    ret = raw_handle_perm_lock(bs, RAW_PL_PREPARE, perm, shared, errp);
+    if (ret < 0) {
+        goto fail;
+    }
+
+    /* Copy locks to the new fd */
+    if (s->perm_change_fd) {
+        ret = raw_apply_lock_bytes(NULL, s->perm_change_fd, perm, ~shared,
+                                   false, errp);
+        if (ret < 0) {
+            raw_handle_perm_lock(bs, RAW_PL_ABORT, 0, 0, NULL);
+            goto fail;
+        }
+    }
+    return 0;
+
+fail:
+    if (s->perm_change_fd && !s->reopen_state) {
+        qemu_close(s->perm_change_fd);
+    }
+    s->perm_change_fd = 0;
+    return ret;
 }
 
 static void raw_set_perm(BlockDriverState *bs, uint64_t perm, uint64_t shared)
 {
     BDRVRawState *s = bs->opaque;
+
+    /* For reopen, we have already switched to the new fd (.bdrv_set_perm is
+     * called after .bdrv_reopen_commit) */
+    if (s->perm_change_fd && s->fd != s->perm_change_fd) {
+        qemu_close(s->fd);
+        s->fd = s->perm_change_fd;
+    }
+    s->perm_change_fd = 0;
+
     raw_handle_perm_lock(bs, RAW_PL_COMMIT, perm, shared, NULL);
     s->perm = perm;
     s->shared_perm = shared;
@@ -2709,6 +2774,15 @@ static void raw_set_perm(BlockDriverState *bs, uint64_t perm, uint64_t shared)
 
 static void raw_abort_perm_update(BlockDriverState *bs)
 {
+    BDRVRawState *s = bs->opaque;
+
+    /* For reopen, .bdrv_reopen_abort is called afterwards and will close
+     * the file descriptor. */
+    if (s->perm_change_fd && !s->reopen_state) {
+        qemu_close(s->perm_change_fd);
+    }
+    s->perm_change_fd = 0;
+
     raw_handle_perm_lock(bs, RAW_PL_ABORT, 0, 0, NULL);
 }
 
