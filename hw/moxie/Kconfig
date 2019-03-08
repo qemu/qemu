@@ -1,0 +1,3 @@
+config MOXIESIM
+    bool
+    select SERIAL

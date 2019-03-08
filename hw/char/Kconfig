@@ -1,0 +1,42 @@
+config ESCC
+    bool
+
+config PARALLEL
+    bool
+    default y
+    depends on ISA_BUS
+
+config PL011
+    bool
+
+config SERIAL
+    bool
+
+config SERIAL_ISA
+    bool
+    default y
+    depends on ISA_BUS
+    select SERIAL
+
+config SERIAL_PCI
+    bool
+    default y if PCI_DEVICES
+    depends on PCI
+    select SERIAL
+
+config VIRTIO_SERIAL
+    bool
+    default y
+    depends on VIRTIO
+
+config STM32F2XX_USART
+    bool
+
+config CMSDK_APB_UART
+    bool
+
+config SCLPCONSOLE
+    bool
+
+config TERMINAL3270
+    bool

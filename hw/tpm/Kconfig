@@ -1,0 +1,24 @@
+config TPMDEV
+    bool
+    depends on TPM
+
+config TPM_TIS
+    bool
+    depends on TPM && ISA_BUS
+    select TPMDEV
+
+config TPM_CRB
+    bool
+    depends on TPM && PC
+    select TPMDEV
+
+config TPM_PASSTHROUGH
+    bool
+    default y
+    # FIXME: should check for x86 host as well
+    depends on TPMDEV && LINUX
+
+config TPM_EMULATOR
+    bool
+    default y
+    depends on TPMDEV

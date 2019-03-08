@@ -1,0 +1,5 @@
+config PUV3
+    bool
+    select ISA_BUS
+    select PCKBD
+    select PTIMER

@@ -1,0 +1,31 @@
+config VIRTIO
+    bool
+
+config VIRTIO_RNG
+    bool
+    default y
+    depends on VIRTIO
+
+config VIRTIO_PCI
+    bool
+    default y if PCI_DEVICES
+    depends on PCI
+    select VIRTIO
+
+config VIRTIO_MMIO
+    bool
+    select VIRTIO
+
+config VIRTIO_CCW
+    bool
+    select VIRTIO
+
+config VIRTIO_BALLOON
+    bool
+    default y
+    depends on VIRTIO
+
+config VIRTIO_CRYPTO
+    bool
+    default y
+    depends on VIRTIO

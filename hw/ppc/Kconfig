@@ -1,0 +1,121 @@
+config PSERIES
+    bool
+    imply PCI_DEVICES
+    imply TEST_DEVICES
+    select DIMM
+    select PCI
+    select SPAPR_VSCSI
+    select VFIO if LINUX   # needed by spapr_pci_vfio.c
+    select XICS_SPAPR
+    select XIVE_SPAPR
+
+config SPAPR_RNG
+    bool
+    default y
+    depends on PSERIES
+
+config POWERNV
+    bool
+    imply PCI_DEVICES
+    imply TEST_DEVICES
+    select ISA_IPMI_BT
+    select IPMI_LOCAL
+    select ISA_BUS
+    select MC146818RTC
+    select XICS
+    select XIVE
+
+config PPC405
+    bool
+    select M48T59
+    select PFLASH_CFI02
+    select PPC4XX
+    select SERIAL
+
+config PPC440
+    bool
+    imply PCI_DEVICES
+    imply TEST_DEVICES
+    select PCI_EXPRESS
+    select PPC4XX
+    select SERIAL
+
+config PPC4XX
+    bool
+    select BITBANG_I2C
+    select PCI
+
+config SAM460EX
+    bool
+    select PFLASH_CFI01
+    select IDE_SII3112
+    select M41T80
+    select PPC440
+    select SERIAL
+    select SM501
+    select SMBUS_EEPROM
+    select USB_EHCI_SYSBUS
+    select USB_OHCI
+
+config PREP
+    bool
+    imply PCI_DEVICES
+    imply TEST_DEVICES
+    select CS4231A
+    select PREP_PCI
+    select I82374
+    select I82378
+    select LSI_SCSI_PCI
+    select M48T59
+    select PC87312
+    select RS6000_MC
+
+config RS6000_MC
+    bool
+
+config MAC_OLDWORLD
+    bool
+    imply PCI_DEVICES
+    imply SUNGEM
+    imply TEST_DEVICES
+    select ADB
+    select GRACKLE_PCI
+    select HEATHROW_PIC
+    select MACIO
+
+config MAC_NEWWORLD
+    bool
+    imply PCI_DEVICES
+    imply SUNGEM
+    imply TEST_DEVICES
+    select ADB
+    select MACIO
+    select MACIO_GPIO
+    select MAC_PMU
+    select UNIN_PCI
+
+config E500
+    bool
+    imply AT24C
+    select ETSEC
+    select OPENPIC
+    select PLATFORM_BUS
+    select PPCE500_PCI
+    select SERIAL
+
+config VIRTEX
+    bool
+    select PFLASH_CFI01
+    select SERIAL
+    select XILINX
+    select XILINX_ETHLITE
+
+config XIVE
+    bool
+    depends on POWERNV || PSERIES
+
+config XIVE_SPAPR
+    bool
+    default y
+    depends on PSERIES
+    select XIVE

@@ -1,0 +1,16 @@
+config CMSDK_APB_WATCHDOG
+    bool
+    select PTIMER
+
+config WDT_IB6300ESB
+    bool
+    default y if PCI_DEVICES
+    depends on PCI
+
+config WDT_IB700
+    bool
+    default y
+    depends on ISA_BUS
+
+config WDT_DIAG288
+    bool

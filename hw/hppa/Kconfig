@@ -1,0 +1,10 @@
+config DINO
+    bool
+    imply PCI_DEVICES
+    select PCI
+    select SERIAL
+    select ISA_BUS
+    select I8259
+    select IDE_CMD646
+    select MC146818RTC
+    select LSI_SCSI_PCI

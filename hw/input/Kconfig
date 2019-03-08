@@ -1,0 +1,33 @@
+config ADB
+    bool
+
+config LM832X
+    bool
+    depends on I2C
+
+config PCKBD
+    bool
+    default y
+    depends on ISA_BUS
+
+config PL050
+    bool
+
+config STELLARIS_INPUT
+    bool
+
+config TSC2005
+    bool
+
+config VIRTIO_INPUT
+    bool
+    default y
+    depends on VIRTIO
+
+config VIRTIO_INPUT_HOST
+    bool
+    default y
+    depends on VIRTIO && LINUX
+
+config TSC210X
+    bool

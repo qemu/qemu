@@ -1,0 +1,11 @@
+config EMPTY_SLOT
+    bool
+
+config PTIMER
+    bool
+
+config FITLOADER
+    bool
+
+config PLATFORM_BUS
+    bool

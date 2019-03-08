@@ -1,0 +1,118 @@
+config APPLESMC
+    bool
+    depends on ISA_BUS
+
+config MAX111X
+    bool
+
+config TMP105
+    bool
+    depends on I2C
+
+config TMP421
+    bool
+    depends on I2C
+
+config ISA_DEBUG
+    bool
+    depends on ISA_BUS
+
+config SGA
+    bool
+    depends on ISA_BUS
+
+config ISA_TESTDEV
+    bool
+    default y if TEST_DEVICES
+    depends on ISA_BUS
+
+config PCI_TESTDEV
+    bool
+    default y if TEST_DEVICES
+    depends on PCI
+
+config EDU
+    bool
+    default y if TEST_DEVICES
+    depends on PCI
+
+config PCA9552
+    bool
+    depends on I2C
+
+config PL310
+    bool
+
+config INTEGRATOR_DEBUG
+    bool
+
+config A9SCU
+    bool
+
+config ARM11SCU
+    bool
+
+config MOS6522
+    bool
+
+config MACIO
+    bool
+    select CUDA
+    select ESCC
+    select IDE_MACIO
+    select MAC_DBDMA
+    select MAC_NVRAM
+    select MOS6522
+
+config IVSHMEM_DEVICE
+    bool
+    default y if PCI_DEVICES
+    depends on PCI && LINUX && IVSHMEM
+
+config ECCMEMCTL
+    bool
+    select ECC
+
+config IMX
+    bool
+    select PTIMER
+
+config STM32F2XX_SYSCFG
+    bool
+
+config MIPS_ITU
+    bool
+
+config MPS2_FPGAIO
+    bool
+
+config MPS2_SCC
+    bool
+
+config TZ_MPC
+    bool
+
+config TZ_MSC
+    bool
+
+config TZ_PPC
+    bool
+
+config IOTKIT_SECCTL
+    bool
+
+config IOTKIT_SYSCTL
+    bool
+
+config IOTKIT_SYSINFO
+    bool
+
+config PVPANIC
+    bool
+    depends on ISA_BUS
+
+config AUX
+    bool
+    select I2C
+
+source macio/Kconfig

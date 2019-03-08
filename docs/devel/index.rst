@@ -13,6 +13,7 @@ Contents:
 .. toctree::
    :maxdepth: 2
 
+   kconfig
    loads-stores
    memory
    migration

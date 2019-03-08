@@ -151,6 +151,12 @@ matrix:
 
     # We manually include builds which we disable "make check" for
     - env:
+        - CONFIG="--without-default-devices"
+        - TEST_CMD=""
+
+
+    # We manually include builds which we disable "make check" for
+    - env:
         - CONFIG="--enable-debug --enable-tcg-interpreter"
         - TEST_CMD=""
 

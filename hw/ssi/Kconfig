@@ -1,0 +1,18 @@
+config PL022
+    bool
+    select SSI
+
+config SSI
+    bool
+
+config XILINX_SPI
+    bool
+    select SSI
+
+config XILINX_SPIPS
+    bool
+    select SSI
+
+config STM32F2XX_SPI
+    bool
+    select SSI

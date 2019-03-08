@@ -1,0 +1,52 @@
+config SB16
+    bool
+    default y
+    depends on ISA_BUS
+
+config ES1370
+    bool
+    default y if PCI_DEVICES
+    depends on PCI
+
+config AC97
+    bool
+    default y if PCI_DEVICES
+    depends on PCI
+
+config ADLIB
+    bool
+    default y
+    depends on ISA_BUS
+
+config GUS
+    bool
+    default y
+    depends on ISA_BUS
+
+config CS4231A
+    bool
+    default y
+    depends on ISA_BUS
+
+config HDA
+    bool
+    default y if PCI_DEVICES
+    depends on PCI
+
+config PCSPK
+    bool
+    default y
+    depends on I8254
+
+config WM8750
+    bool
+    depends on I2C
+
+config PL041
+    bool
+
+config CS4231
+    bool
+
+config MARVELL_88W8618
+    bool

@@ -1,0 +1,124 @@
+config ARM_VIRT
+    bool
+    imply VFIO_PLATFORM
+
+config DIGIC
+    bool
+    select PTIMER
+
+config EXYNOS4
+    bool
+    select PTIMER
+
+config HIGHBANK
+    bool
+
+config INTEGRATOR
+    bool
+
+config MAINSTONE
+    bool
+
+config MUSICPAL
+    bool
+    select PTIMER
+
+config NETDUINO2
+    bool
+
+config NSERIES
+    bool
+
+config OMAP
+    bool
+
+config PXA2XX
+    bool
+
+config REALVIEW
+    bool
+
+config STELLARIS
+    bool
+
+config STRONGARM
+    bool
+
+config VERSATILE
+    bool
+
+config ZYNQ
+    bool
+
+config ARM_V7M
+    bool
+
+config ALLWINNER_A10
+    bool
+
+config RASPI
+    bool
+
+config STM32F205_SOC
+    bool
+
+config XLNX_ZYNQMP_ARM
+    bool
+
+config XLNX_VERSAL
+    bool
+
+config FSL_IMX25
+    bool
+
+config FSL_IMX31
+    bool
+
+config FSL_IMX6
+    bool
+
+config ASPEED_SOC
+    bool
+
+config MPS2
+    bool
+
+config FSL_IMX7
+    bool
+
+config ARM_SMMUV3
+    bool
+
+config FSL_IMX6UL
+    bool
+
+config NRF51_SOC
+    bool
+
+config MSF2
+    bool
+    select PTIMER
+
+config ZAURUS
+    bool
+
+config A9MPCORE
+    bool
+
+config A15MPCORE
+    bool
+
+config ARM11MPCORE
+    bool
+
+config ARMSSE
+    bool
+
+config ARMSSE_CPUID
+    bool
+
+config ARMSSE_MHU
+    bool
+
+config MUSCA
+    bool

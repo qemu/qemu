@@ -1,0 +1,21 @@
+config R4K
+    bool
+
+config MALTA
+    bool
+
+config MIPSSIM
+    bool
+
+config JAZZ
+    bool
+
+config FULONG
+    bool
+
+config MIPS_CPS
+    bool
+    select PTIMER
+
+config MIPS_BOSTON
+    bool

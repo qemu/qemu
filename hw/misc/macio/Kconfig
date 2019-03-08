@@ -1,0 +1,11 @@
+config CUDA
+    bool
+
+config MAC_PMU
+    bool
+
+config MAC_DBDMA
+    bool
+
+config MACIO_GPIO
+    bool

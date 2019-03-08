@@ -466,7 +466,7 @@ gcrypt_hmac="no"
 auth_pam=""
 vte=""
 virglrenderer=""
-tpm="yes"
+tpm=""
 libssh2=""
 live_block_migration="yes"
 numa=""
@@ -487,7 +487,7 @@ libxml2=""
 docker="no"
 debug_mutex="no"
 libpmem=""
-libudev="no"
+default_devices="yes"
 
 # cross compilers defaults, can be overridden with --cross-cc-ARCH
 cross_cc_aarch64="aarch64-linux-gnu-gcc"
@@ -995,6 +995,10 @@ for opt do
   --enable-trace-backend=*) trace_backends="$optarg"
   ;;
   --with-trace-file=*) trace_file="$optarg"
+  ;;
+  --with-default-devices) default_devices="yes"
+  ;;
+  --without-default-devices) default_devices="no"
   ;;
   --enable-gprof) gprof="yes"
   ;;
@@ -3873,20 +3877,20 @@ EOF
 fi
 
 ##########################################
-# TPM passthrough is only on x86 Linux
+# TPM emulation is only on POSIX
 
-if test "$targetos" = Linux && { test "$cpu" = i386 || test "$cpu" = x86_64; }; then
-  tpm_passthrough=$tpm
-else
-  tpm_passthrough=no
+if test "$tpm" = ""; then
+  if test "$mingw32" = "yes"; then
+    tpm=no
+  else
+    tpm=yes
+  fi
+elif test "$tpm" = "yes"; then
+  if test "$mingw32" = "yes" ; then
+    error_exit "TPM emulation only available on POSIX systems"
+  fi
 fi
 
-# TPM emulator is for all posix systems
-if test "$mingw32" != "yes"; then
-  tpm_emulator=$tpm
-else
-  tpm_emulator=no
-fi
 ##########################################
 # attr probe
 
@@ -6261,6 +6265,7 @@ echo "capstone          $capstone"
 echo "docker            $docker"
 echo "libpmem support   $libpmem"
 echo "libudev           $libudev"
+echo "default devices   $default_devices"
 
 if test "$supported_cpu" = "no"; then
     echo
@@ -6322,6 +6327,11 @@ echo "GIT_UPDATE=$git_update" >> $config_host_mak
 
 echo "ARCH=$ARCH" >> $config_host_mak
 
+if test "$default_devices" = "yes" ; then
+  echo "CONFIG_MINIKCONF_MODE=--defconfig" >> $config_host_mak
+else
+  echo "CONFIG_MINIKCONF_MODE=--allnoconfig" >> $config_host_mak
+fi
 if test "$debug_tcg" = "yes" ; then
   echo "CONFIG_DEBUG_TCG=y" >> $config_host_mak
 fi
@@ -7438,12 +7448,18 @@ fi
 
 if supported_xen_target $target; then
     echo "CONFIG_XEN=y" >> $config_target_mak
+    echo "$target/config-devices.mak: CONFIG_XEN=y" >> $config_host_mak
     if test "$xen_pci_passthrough" = yes; then
         echo "CONFIG_XEN_PCI_PASSTHROUGH=y" >> "$config_target_mak"
     fi
+else
+    echo "$target/config-devices.mak: CONFIG_XEN=n" >> $config_host_mak
 fi
 if supported_kvm_target $target; then
     echo "CONFIG_KVM=y" >> $config_target_mak
+    echo "$target/config-devices.mak: CONFIG_KVM=y" >> $config_host_mak
+else
+    echo "$target/config-devices.mak: CONFIG_KVM=n" >> $config_host_mak
 fi
 if supported_hax_target $target; then
     echo "CONFIG_HAX=y" >> $config_target_mak

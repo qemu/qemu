@@ -1,0 +1,11 @@
+config DIMM
+    bool
+    select MEM_DEVICE
+
+config MEM_DEVICE
+    bool
+
+config NVDIMM
+    bool
+    default y
+    depends on PC

@@ -1,10 +1,10 @@
 # Default configuration for lm32-softmmu
 
+# Uncomment the following lines to disable these optional devices:
+#
+#CONFIG_MILKYMIST_TMU2=n        # disabling it actually causes compile-time failures
+
+# Boards:
+#
 CONFIG_LM32=y
 CONFIG_MILKYMIST=y
-CONFIG_MILKYMIST_TMU2=$(call land,$(CONFIG_X11),$(CONFIG_OPENGL))
-CONFIG_FRAMEBUFFER=y
-CONFIG_PTIMER=y
-CONFIG_PFLASH_CFI01=y
-CONFIG_PFLASH_CFI02=y
-CONFIG_SD=y

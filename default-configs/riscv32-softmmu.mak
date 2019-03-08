@@ -1,21 +1,12 @@
-# Default configuration for riscv-softmmu
+# Default configuration for riscv32-softmmu
 
-include pci.mak
-include usb.mak
+# Uncomment the following lines to disable these optional devices:
+#
+#CONFIG_PCI_DEVICES=n
 
-CONFIG_SERIAL=y
-CONFIG_VIRTIO_MMIO=y
-
-CONFIG_CADENCE=y
-
-CONFIG_PCI_EXPRESS_GENERIC_BRIDGE=y
-
-CONFIG_VGA=y
-CONFIG_VGA_PCI=y
-
+# Boards:
+#
 CONFIG_SPIKE=y
-CONFIG_HART=y
 CONFIG_SIFIVE_E=y
-CONFIG_SIFIVE=y
 CONFIG_SIFIVE_U=y
 CONFIG_RISCV_VIRT=y

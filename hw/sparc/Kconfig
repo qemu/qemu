@@ -1,0 +1,26 @@
+config SUN4M
+    bool
+    imply TCX
+    imply CG3
+    select CS4231
+    select ECCMEMCTL
+    select EMPTY_SLOT
+    select ESCC
+    select ESP
+    select FDC
+    select SLAVIO
+    select LANCE
+    select M48T59
+    select STP2000
+
+config LEON3
+    bool
+    select GRLIB
+
+config GRLIB
+    bool
+    select PTIMER
+
+config SLAVIO
+    bool
+    select PTIMER

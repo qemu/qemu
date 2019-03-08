@@ -327,8 +327,8 @@ DOCS=
 endif
 
 SUBDIR_MAKEFLAGS=$(if $(V),,--no-print-directory --quiet) BUILD_DIR=$(BUILD_DIR)
-SUBDIR_DEVICES_MAK=$(patsubst %, %/config-devices.mak, $(TARGET_DIRS))
-SUBDIR_DEVICES_MAK_DEP=$(patsubst %, %-config-devices.mak.d, $(TARGET_DIRS))
+SUBDIR_DEVICES_MAK=$(patsubst %, %/config-devices.mak, $(filter %-softmmu, $(TARGET_DIRS)))
+SUBDIR_DEVICES_MAK_DEP=$(patsubst %, %.d, $(SUBDIR_DEVICES_MAK))
 
 ifeq ($(SUBDIR_DEVICES_MAK),)
 config-all-devices.mak:
@@ -343,9 +343,26 @@ endif
 
 -include $(SUBDIR_DEVICES_MAK_DEP)
 
-%/config-devices.mak: default-configs/%.mak $(SRC_PATH)/scripts/make_device_config.sh
-	$(call quiet-command, \
-            $(SHELL) $(SRC_PATH)/scripts/make_device_config.sh $< $*-config-devices.mak.d $@ > $@.tmp,"GEN","$@.tmp")
+# This has to be kept in sync with Kconfig.host.
+MINIKCONF_ARGS = \
+    $(CONFIG_MINIKCONF_MODE) \
+    $@ $*-config.devices.mak.d $< $(MINIKCONF_INPUTS) \
+    CONFIG_KVM=$(CONFIG_KVM) \
+    CONFIG_SPICE=$(CONFIG_SPICE) \
+    CONFIG_IVSHMEM=$(CONFIG_IVSHMEM) \
+    CONFIG_TPM=$(CONFIG_TPM) \
+    CONFIG_XEN=$(CONFIG_XEN) \
+    CONFIG_OPENGL=$(CONFIG_OPENGL) \
+    CONFIG_X11=$(CONFIG_X11) \
+    CONFIG_VHOST_USER=$(CONFIG_VHOST_USER) \
+    CONFIG_VIRTFS=$(CONFIG_VIRTFS) \
+    CONFIG_LINUX=$(CONFIG_LINUX)
+
+MINIKCONF_INPUTS = $(SRC_PATH)/Kconfig.host $(SRC_PATH)/hw/Kconfig
+MINIKCONF = $(PYTHON) $(SRC_PATH)/scripts/minikconf.py \
+
+$(SUBDIR_DEVICES_MAK): %/config-devices.mak: default-configs/%.mak $(MINIKCONF_INPUTS) $(BUILD_DIR)/config-host.mak
+	$(call quiet-command, $(MINIKCONF) $(MINIKCONF_ARGS) > $@.tmp, "GEN", "$@.tmp")
 	$(call quiet-command, if test -f $@; then \
 	  if cmp -s $@.old $@; then \
 	    mv $@.tmp $@; \

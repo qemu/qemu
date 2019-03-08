@@ -1,0 +1,99 @@
+config SEV
+    bool
+    depends on KVM
+
+config PC
+    bool
+    imply APPLESMC
+    imply HYPERV
+    imply ISA_IPMI_KCS
+    imply ISA_IPMI_BT
+    imply ISA_DEBUG
+    imply PCI_DEVICES
+    imply PVPANIC
+    imply QXL
+    imply SEV
+    imply SGA
+    imply TEST_DEVICES
+    imply TPM_CRB
+    imply TPM_TIS
+    select FDC
+    select I8259
+    select I8254
+    select PCKBD
+    select PCSPK
+    select I82374
+    select I8257
+    select MC146818RTC
+    # Needed by the board code:
+    select PARALLEL
+    # For ACPI builder:
+    select SERIAL_ISA
+    select ACPI_VMGENID
+
+config PC_PCI
+    bool
+    select APIC
+    select IOAPIC
+    select APM
+    select PC
+
+config PC_ACPI
+    bool
+    select ACPI_X86
+    select ACPI_CPU_HOTPLUG
+    select ACPI_MEMORY_HOTPLUG
+    select SMBUS_EEPROM
+    select PFLASH_CFI01
+    depends on ACPI_SMBUS
+
+config I440FX
+    bool
+    select PC_PCI
+    select PC_ACPI
+    select ACPI_SMBUS
+    select PCI_PIIX
+    select IDE_PIIX
+    select DIMM
+    select SMBIOS
+    select VMPORT
+    select VMMOUSE
+    select FW_CFG_DMA
+
+config ISAPC
+    bool
+    select ISA_BUS
+    select PC
+    select IDE_ISA
+    select VGA_ISA
+    # FIXME: it is in the same file as i440fx, and does not compile
+    # if separated
+    depends on I440FX
+
+config Q35
+    bool
+    imply VTD
+    imply AMD_IOMMU
+    select PC_PCI
+    select PC_ACPI
+    select PCI_EXPRESS_Q35
+    select LPC_ICH9
+    select AHCI
+    select DIMM
+    select SMBIOS
+    select VMPORT
+    select VMMOUSE
+    select FW_CFG_DMA
+
+config VTD
+    bool
+
+config AMD_IOMMU
+    bool
+
+config VMPORT
+    bool
+
+config VMMOUSE
+    bool
+    depends on VMPORT

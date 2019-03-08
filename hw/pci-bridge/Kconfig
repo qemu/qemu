@@ -1,0 +1,29 @@
+config PCIE_PORT
+    bool
+    default y if PCI_DEVICES
+    depends on PCI_EXPRESS
+
+config PXB
+    bool
+    default y if Q35
+
+config XIO3130
+    bool
+    default y if PCI_DEVICES
+    depends on PCI_EXPRESS
+
+config IOH3420
+    bool
+    default y if PCI_DEVICES
+    depends on PCI_EXPRESS
+
+config I82801B11
+    bool
+    default y if PCI_DEVICES
+    depends on PCI_EXPRESS
+
+config DEC_PCI
+    bool
+
+config SIMBA
+    bool

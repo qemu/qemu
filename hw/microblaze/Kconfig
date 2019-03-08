@@ -1,0 +1,20 @@
+config PETALOGIX_S3ADSP1800
+    bool
+    select PFLASH_CFI01
+    select XILINX
+    select XILINX_AXI
+    select XILINX_ETHLITE
+
+config PETALOGIX_ML605
+    bool
+    select PFLASH_CFI01
+    select SERIAL
+    select SSI_M25P80
+    select XILINX
+    select XILINX_AXI
+    select XILINX_ETHLITE
+    select XILINX_SPI
+
+config XLNX_ZYNQMP_PMU
+    bool
+    select XLNX_ZYNQMP

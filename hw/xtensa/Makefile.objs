@@ -2,4 +2,4 @@ obj-y += mx_pic.o
 obj-y += pic_cpu.o
 obj-y += xtensa_memory.o
 obj-$(CONFIG_XTENSA_SIM) += sim.o
-obj-$(CONFIG_XTENSA_FPGA) += xtfpga.o
+obj-$(CONFIG_XTENSA_XTFPGA) += xtfpga.o

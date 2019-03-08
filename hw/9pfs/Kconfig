@@ -1,0 +1,4 @@
+config VIRTIO_9P
+    bool
+    default y
+    depends on VIRTFS && VIRTIO

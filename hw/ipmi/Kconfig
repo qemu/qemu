@@ -1,0 +1,22 @@
+config IPMI
+    bool
+
+config IPMI_LOCAL
+    bool
+    default y
+    depends on IPMI
+
+config IPMI_EXTERN
+    bool
+    default y
+    depends on IPMI
+
+config ISA_IPMI_KCS
+    bool
+    depends on ISA_BUS
+    select IPMI
+
+config ISA_IPMI_BT
+    bool
+    depends on ISA_BUS
+    select IPMI

@@ -1,0 +1,8 @@
+config NIOS2_10M50
+    bool
+    select NIOS2
+    select SERIAL
+    select ALTERA_TIMER
+
+config NIOS2
+    bool

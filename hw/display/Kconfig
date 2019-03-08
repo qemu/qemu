@@ -1,0 +1,108 @@
+config EDID
+    bool
+
+config FW_CFG_DMA
+    bool
+
+config ADS7846
+    bool
+
+config VGA_CIRRUS
+    bool
+    default y if PCI_DEVICES
+    depends on PCI
+    select VGA
+
+config G364FB
+    bool
+
+config JAZZ_LED
+    bool
+
+config PL110
+    bool
+
+config SII9022
+    bool
+    depends on I2C
+
+config SSD0303
+    bool
+    depends on I2C
+
+config SSD0323
+    bool
+
+config VGA_PCI
+    bool
+    default y if PCI_DEVICES
+    depends on PCI
+    select VGA
+    select EDID
+
+config VGA_ISA
+    bool
+    depends on ISA_BUS
+    select VGA
+
+config VGA_ISA_MM
+    bool
+    select VGA
+
+config VMWARE_VGA
+    bool
+    default y if PCI_DEVICES
+    depends on PCI
+    select VGA
+
+config BOCHS_DISPLAY
+    bool
+    default y if PCI_DEVICES
+    depends on PCI
+    select VGA
+    select EDID
+
+config BLIZZARD
+    bool
+
+config FRAMEBUFFER
+    bool
+
+config MILKYMIST_TMU2
+    bool
+    depends on OPENGL && X11
+
+config SM501
+    bool
+    select I2C
+    select DDC
+    select SERIAL
+
+config TCX
+    bool
+
+config CG3
+    bool
+
+config VGA
+    bool
+
+config QXL
+    bool
+    depends on SPICE && PCI
+    select VGA
+
+config VIRTIO_GPU
+    bool
+    default y
+    depends on VIRTIO
+    select EDID
+
+config VIRTIO_VGA
+    bool
+    default y if PCI_DEVICES
+    depends on VIRTIO_PCI
+    select VGA
+
+config DPCD
+    bool

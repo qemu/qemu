@@ -1,0 +1,91 @@
+config USB
+    bool
+
+config USB_UHCI
+    bool
+    default y if PCI_DEVICES
+    depends on PCI
+    select USB
+
+config USB_OHCI
+    bool
+    default y if PCI_DEVICES
+    depends on PCI
+    select USB
+
+config USB_EHCI
+    bool
+    default y if PCI_DEVICES
+    depends on PCI
+    select USB
+
+config USB_EHCI_SYSBUS
+    bool
+    select USB
+
+config USB_XHCI
+    bool
+    default y if PCI_DEVICES
+    depends on PCI
+    select USB
+
+config USB_XHCI_NEC
+    bool
+    default y if PCI_DEVICES
+    depends on PCI
+    select USB
+
+config USB_MUSB
+    bool
+    select USB
+
+config TUSB6010
+    bool
+    select USB_MUSB
+
+config USB_TABLET_WACOM
+    bool
+    default y
+    depends on USB
+
+config USB_STORAGE_BOT
+    bool
+    default y
+    depends on USB
+    select SCSI
+
+config USB_STORAGE_UAS
+    bool
+    default y
+    depends on USB
+    select SCSI
+
+config USB_AUDIO
+    bool
+    default y
+    depends on USB
+
+config USB_SERIAL
+    bool
+    default y
+    depends on USB
+
+config USB_NETWORK
+    bool
+    default y
+    depends on USB
+
+config USB_BLUETOOTH
+    bool
+    default y
+    depends on USB
+
+config USB_SMARTCARD
+    bool
+    default y
+    depends on USB
+
+config USB_STORAGE_MTP
+    bool
+    default y
+    depends on USB

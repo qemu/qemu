@@ -1,0 +1,19 @@
+config SUN4U
+    bool
+    imply PCI_DEVICES
+    imply SUNHME
+    imply TEST_DEVICES
+    select M48T59
+    select ISA_BUS
+    select FDC
+    select SERIAL_ISA
+    select PCI_SABRE
+    select IDE_CMD646
+    select PARALLEL
+    select PCKBD
+    select SIMBA
+
+config NIAGARA
+    bool
+    select EMPTY_SLOT
+    select SUN4V_RTC

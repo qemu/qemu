@@ -1,0 +1,2 @@
+config STM32F2XX_ADC
+    bool
