@@ -1191,6 +1191,14 @@ static void default_drive(int enable, int snapshot, BlockInterfaceType type,
 
 }
 
+typedef struct BlockdevOptionsQueueEntry {
+    BlockdevOptions *bdo;
+    Location loc;
+    QSIMPLEQ_ENTRY(BlockdevOptionsQueueEntry) entry;
+} BlockdevOptionsQueueEntry;
+
+typedef QSIMPLEQ_HEAD(, BlockdevOptionsQueueEntry) BlockdevOptionsQueue;
+
 static QemuOptsList qemu_smp_opts = {
     .name = "smp-opts",
     .implied_opt_name = "cpus",
@@ -2971,13 +2979,7 @@ int main(int argc, char **argv, char **envp)
     Error *err = NULL;
     bool list_data_dirs = false;
     char *dir, **dirs;
-    typedef struct BlockdevOptions_queue {
-        BlockdevOptions *bdo;
-        Location loc;
-        QSIMPLEQ_ENTRY(BlockdevOptions_queue) entry;
-    } BlockdevOptions_queue;
-    QSIMPLEQ_HEAD(, BlockdevOptions_queue) bdo_queue
-        = QSIMPLEQ_HEAD_INITIALIZER(bdo_queue);
+    BlockdevOptionsQueue bdo_queue = QSIMPLEQ_HEAD_INITIALIZER(bdo_queue);
 
     module_call_init(MODULE_INIT_TRACE);
 
@@ -3101,12 +3103,12 @@ int main(int argc, char **argv, char **envp)
             case QEMU_OPTION_blockdev:
                 {
                     Visitor *v;
-                    BlockdevOptions_queue *bdo;
+                    BlockdevOptionsQueueEntry *bdo;
 
                     v = qobject_input_visitor_new_str(optarg, "driver",
                                                       &error_fatal);
 
-                    bdo = g_new(BlockdevOptions_queue, 1);
+                    bdo = g_new(BlockdevOptionsQueueEntry, 1);
                     visit_type_BlockdevOptions(v, NULL, &bdo->bdo,
                                                &error_fatal);
                     visit_free(v);
@@ -4366,7 +4368,7 @@ int main(int argc, char **argv, char **envp)
 
     /* open the virtual block devices */
     while (!QSIMPLEQ_EMPTY(&bdo_queue)) {
-        BlockdevOptions_queue *bdo = QSIMPLEQ_FIRST(&bdo_queue);
+        BlockdevOptionsQueueEntry *bdo = QSIMPLEQ_FIRST(&bdo_queue);
 
         QSIMPLEQ_REMOVE_HEAD(&bdo_queue, entry);
         loc_push_restore(&bdo->loc);
