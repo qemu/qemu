@@ -127,6 +127,16 @@ static uint32_t samples_to_usecs(uint32_t samples,
     return frames_to_usecs(samples / channels, pdo);
 }
 
+static void get_samples_to_usecs(const char *env, uint32_t *dst, bool *has_dst,
+                                 AudiodevPerDirectionOptions *pdo)
+{
+    const char *val = getenv(env);
+    if (val) {
+        *dst = samples_to_usecs(toui32(val), pdo);
+        *has_dst = true;
+    }
+}
+
 static uint32_t bytes_to_usecs(uint32_t bytes, AudiodevPerDirectionOptions *pdo)
 {
     AudioFormat fmt = pdo->has_format ? pdo->format : AUDIO_FORMAT_S16;
@@ -247,6 +257,30 @@ static void handle_oss(Audiodev *dev)
     get_int("QEMU_OSS_POLICY", &oopt->dsp_policy, &oopt->has_dsp_policy);
 }
 
+/* pulseaudio */
+static void handle_pa_per_direction(
+    AudiodevPaPerDirectionOptions *ppdo, const char *env)
+{
+    get_str(env, &ppdo->name, &ppdo->has_name);
+}
+
+static void handle_pa(Audiodev *dev)
+{
+    handle_pa_per_direction(dev->u.pa.in, "QEMU_PA_SOURCE");
+    handle_pa_per_direction(dev->u.pa.out, "QEMU_PA_SINK");
+
+    get_samples_to_usecs(
+        "QEMU_PA_SAMPLES", &dev->u.pa.in->buffer_length,
+        &dev->u.pa.in->has_buffer_length,
+        qapi_AudiodevPaPerDirectionOptions_base(dev->u.pa.in));
+    get_samples_to_usecs(
+        "QEMU_PA_SAMPLES", &dev->u.pa.out->buffer_length,
+        &dev->u.pa.out->has_buffer_length,
+        qapi_AudiodevPaPerDirectionOptions_base(dev->u.pa.out));
+
+    get_str("QEMU_PA_SERVER", &dev->u.pa.server, &dev->u.pa.has_server);
+}
+
 /* general */
 static void handle_per_direction(
     AudiodevPerDirectionOptions *pdo, const char *prefix)
@@ -302,6 +336,10 @@ static AudiodevListEntry *legacy_opt(const char *drvname)
 
     case AUDIODEV_DRIVER_OSS:
         handle_oss(e->dev);
+        break;
+
+    case AUDIODEV_DRIVER_PA:
+        handle_pa(e->dev);
         break;
 
     default:
