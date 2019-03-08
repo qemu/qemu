@@ -373,10 +373,6 @@ static int line_in_ctl (HWVoiceIn *hw, int cmd, ...)
     return 0;
 }
 
-static struct audio_option audio_options[] = {
-    { /* end of list */ },
-};
-
 static struct audio_pcm_ops audio_callbacks = {
     .init_out = line_out_init,
     .fini_out = line_out_fini,
@@ -394,7 +390,6 @@ static struct audio_pcm_ops audio_callbacks = {
 static struct audio_driver spice_audio_driver = {
     .name           = "spice",
     .descr          = "spice audio driver",
-    .options        = audio_options,
     .init           = spice_audio_init,
     .fini           = spice_audio_fini,
     .pcm_ops        = &audio_callbacks,
