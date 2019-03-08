@@ -281,6 +281,14 @@ static void handle_pa(Audiodev *dev)
     get_str("QEMU_PA_SERVER", &dev->u.pa.server, &dev->u.pa.has_server);
 }
 
+/* SDL */
+static void handle_sdl(Audiodev *dev)
+{
+    /* SDL is output only */
+    get_samples_to_usecs("QEMU_SDL_SAMPLES", &dev->u.sdl.out->buffer_length,
+                         &dev->u.sdl.out->has_buffer_length, dev->u.sdl.out);
+}
+
 /* general */
 static void handle_per_direction(
     AudiodevPerDirectionOptions *pdo, const char *prefix)
@@ -340,6 +348,10 @@ static AudiodevListEntry *legacy_opt(const char *drvname)
 
     case AUDIODEV_DRIVER_PA:
         handle_pa(e->dev);
+        break;
+
+    case AUDIODEV_DRIVER_SDL:
+        handle_sdl(e->dev);
         break;
 
     default:
