@@ -512,8 +512,8 @@ static void vexpress_modify_dtb(const struct arm_boot_info *info, void *fdt)
 /* Open code a private version of pflash registration since we
  * need to set non-default device width for VExpress platform.
  */
-static pflash_t *ve_pflash_cfi01_register(hwaddr base, const char *name,
-                                          DriveInfo *di)
+static PFlashCFI01 *ve_pflash_cfi01_register(hwaddr base, const char *name,
+                                             DriveInfo *di)
 {
     DeviceState *dev = qdev_create(NULL, "cfi.pflash01");
 
@@ -536,7 +536,7 @@ static pflash_t *ve_pflash_cfi01_register(hwaddr base, const char *name,
     qdev_init_nofail(dev);
 
     sysbus_mmio_map(SYS_BUS_DEVICE(dev), 0, base);
-    return OBJECT_CHECK(pflash_t, (dev), "cfi.pflash01");
+    return OBJECT_CHECK(PFlashCFI01, (dev), "cfi.pflash01");
 }
 
 static void vexpress_common_init(MachineState *machine)
@@ -548,7 +548,7 @@ static void vexpress_common_init(MachineState *machine)
     qemu_irq pic[64];
     uint32_t sys_id;
     DriveInfo *dinfo;
-    pflash_t *pflash0;
+    PFlashCFI01 *pflash0;
     I2CBus *i2c;
     ram_addr_t vram_size, sram_size;
     MemoryRegion *sysmem = get_system_memory();
