@@ -113,7 +113,7 @@ static int sam460ex_load_uboot(void)
 
     dinfo = drive_get(IF_PFLASH, 0, 0);
     if (!pflash_cfi01_register(FLASH_BASE | ((hwaddr)FLASH_BASE_H << 32),
-                               NULL, "sam460ex.flash", FLASH_SIZE,
+                               "sam460ex.flash", FLASH_SIZE,
                                dinfo ? blk_by_legacy_dinfo(dinfo) : NULL,
                                64 * KiB, FLASH_SIZE / (64 * KiB),
                                1, 0x89, 0x18, 0x0000, 0x0, 1)) {

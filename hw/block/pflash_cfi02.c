@@ -724,7 +724,7 @@ static void pflash_cfi02_register_types(void)
 type_init(pflash_cfi02_register_types)
 
 PFlashCFI02 *pflash_cfi02_register(hwaddr base,
-                                   DeviceState *qdev, const char *name,
+                                   const char *name,
                                    hwaddr size,
                                    BlockBackend *blk,
                                    uint32_t sector_len, int nb_blocs,

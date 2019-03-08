@@ -323,8 +323,7 @@ static void z2_init(MachineState *machine)
         exit(1);
     }
 
-    if (!pflash_cfi01_register(Z2_FLASH_BASE,
-                               NULL, "z2.flash0", Z2_FLASH_SIZE,
+    if (!pflash_cfi01_register(Z2_FLASH_BASE, "z2.flash0", Z2_FLASH_SIZE,
                                dinfo ? blk_by_legacy_dinfo(dinfo) : NULL,
                                sector_len, Z2_FLASH_SIZE / sector_len,
                                4, 0, 0, 0, 0, be)) {

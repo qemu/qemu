@@ -14,7 +14,7 @@
 typedef struct PFlashCFI01 PFlashCFI01;
 
 PFlashCFI01 *pflash_cfi01_register(hwaddr base,
-                                   DeviceState *qdev, const char *name,
+                                   const char *name,
                                    hwaddr size,
                                    BlockBackend *blk,
                                    uint32_t sector_len, int nb_blocs,
@@ -33,7 +33,7 @@ MemoryRegion *pflash_cfi01_get_memory(PFlashCFI01 *fl);
 typedef struct PFlashCFI02 PFlashCFI02;
 
 PFlashCFI02 *pflash_cfi02_register(hwaddr base,
-                                   DeviceState *qdev, const char *name,
+                                   const char *name,
                                    hwaddr size,
                                    BlockBackend *blk,
                                    uint32_t sector_len, int nb_blocs,

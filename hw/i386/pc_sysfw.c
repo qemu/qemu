@@ -160,7 +160,7 @@ static void pc_system_flash_init(MemoryRegion *rom_memory)
 
         /* pflash_cfi01_register() creates a deep copy of the name */
         snprintf(name, sizeof name, "system.flash%d", unit);
-        system_flash = pflash_cfi01_register(phys_addr, NULL /* qdev */, name,
+        system_flash = pflash_cfi01_register(phys_addr, name,
                                              size, blk, sector_size,
                                              size >> sector_bits,
                                              1      /* width */,
