@@ -3253,8 +3253,11 @@ int main(int argc, char **argv, char **envp)
                 add_device_config(DEV_BT, optarg);
                 break;
             case QEMU_OPTION_audio_help:
-                AUD_help ();
+                audio_legacy_help();
                 exit (0);
+                break;
+            case QEMU_OPTION_audiodev:
+                audio_parse_option(optarg);
                 break;
             case QEMU_OPTION_soundhw:
                 select_soundhw (optarg);
@@ -4446,6 +4449,8 @@ int main(int argc, char **argv, char **envp)
 
     /* do monitor/qmp handling at preconfig state if requested */
     main_loop();
+
+    audio_init_audiodevs();
 
     /* from here on runstate is RUN_STATE_PRELAUNCH */
     machine_run_board_init(current_machine);

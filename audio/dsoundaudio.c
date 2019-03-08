@@ -783,7 +783,7 @@ static void dsound_audio_fini (void *opaque)
     g_free(s);
 }
 
-static void *dsound_audio_init (void)
+static void *dsound_audio_init(Audiodev *dev)
 {
     int err;
     HRESULT hr;

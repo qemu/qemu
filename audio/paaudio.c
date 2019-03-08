@@ -812,7 +812,7 @@ static PAConf glob_conf = {
     .samples = 4096,
 };
 
-static void *qpa_audio_init (void)
+static void *qpa_audio_init(Audiodev *dev)
 {
     if (glob_conf.server == NULL) {
         char pidfile[64];

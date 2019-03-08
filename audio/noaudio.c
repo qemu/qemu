@@ -136,7 +136,7 @@ static int no_ctl_in (HWVoiceIn *hw, int cmd, ...)
     return 0;
 }
 
-static void *no_audio_init (void)
+static void *no_audio_init(Audiodev *dev)
 {
     return &no_audio_init;
 }

@@ -685,7 +685,7 @@ static CoreaudioConf glob_conf = {
     .nbuffers = 4,
 };
 
-static void *coreaudio_audio_init (void)
+static void *coreaudio_audio_init(Audiodev *dev)
 {
     CoreaudioConf *conf = g_malloc(sizeof(CoreaudioConf));
     *conf = glob_conf;

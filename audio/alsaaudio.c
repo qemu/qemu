@@ -1125,7 +1125,7 @@ static ALSAConf glob_conf = {
     .pcm_name_in = "default",
 };
 
-static void *alsa_audio_init (void)
+static void *alsa_audio_init(Audiodev *dev)
 {
     ALSAConf *conf = g_malloc(sizeof(ALSAConf));
     *conf = glob_conf;

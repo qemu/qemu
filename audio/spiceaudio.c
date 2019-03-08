@@ -77,7 +77,7 @@ static const SpiceRecordInterface record_sif = {
     .base.minor_version = SPICE_INTERFACE_RECORD_MINOR,
 };
 
-static void *spice_audio_init (void)
+static void *spice_audio_init(Audiodev *dev)
 {
     if (!using_spice) {
         return NULL;

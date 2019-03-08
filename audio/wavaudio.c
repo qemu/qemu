@@ -232,7 +232,7 @@ static WAVConf glob_conf = {
     .wav_path           = "qemu.wav"
 };
 
-static void *wav_audio_init (void)
+static void *wav_audio_init(Audiodev *dev)
 {
     WAVConf *conf = g_malloc(sizeof(WAVConf));
     *conf = glob_conf;

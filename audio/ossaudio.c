@@ -842,7 +842,7 @@ static OSSConf glob_conf = {
     .policy = 5
 };
 
-static void *oss_audio_init (void)
+static void *oss_audio_init(Audiodev *dev)
 {
     OSSConf *conf = g_malloc(sizeof(OSSConf));
     *conf = glob_conf;
