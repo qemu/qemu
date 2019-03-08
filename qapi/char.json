@@ -248,6 +248,11 @@
 # @addr: socket address to listen on (server=true)
 #        or connect to (server=false)
 # @tls-creds: the ID of the TLS credentials object (since 2.6)
+# @tls-authz: the ID of the QAuthZ authorization object against which
+#             the client's x509 distinguished name will be validated. This
+#             object is only resolved at time of use, so can be deleted
+#             and recreated on the fly while the chardev server is active.
+#             If missing, it will default to denying access (since 4.0)
 # @server: create server socket (default: true)
 # @wait: wait for incoming connection on server
 #        sockets (default: false).
@@ -268,6 +273,7 @@
 { 'struct': 'ChardevSocket',
   'data': { 'addr': 'SocketAddressLegacy',
             '*tls-creds': 'str',
+            '*tls-authz'  : 'str',
             '*server': 'bool',
             '*wait': 'bool',
             '*nodelay': 'bool',
