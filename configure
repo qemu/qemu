@@ -406,7 +406,7 @@ includedir="\${prefix}/include"
 sysconfdir="\${prefix}/etc"
 local_statedir="\${prefix}/var"
 confsuffix="/qemu"
-slirp="yes"
+slirp=""
 oss_lib=""
 bsd="no"
 linux="no"
@@ -1108,6 +1108,10 @@ for opt do
   --enable-vnc-png) vnc_png="yes"
   ;;
   --disable-slirp) slirp="no"
+  ;;
+  --enable-slirp=git) slirp="git"
+  ;;
+  --enable-slirp=system) slirp="system"
   ;;
   --disable-vde) vde="no"
   ;;
@@ -5770,6 +5774,55 @@ if test "$libpmem" != "no"; then
 fi
 
 ##########################################
+# check for slirp
+
+case "$slirp" in
+  "" | yes)
+    if $pkg_config slirp; then
+      slirp=system
+    elif test -e "${source_path}/.git" && test $git_update = 'yes' ; then
+      slirp=git
+    elif test -e "${source_path}/slirp/Makefile" ; then
+      slirp=internal
+    elif test -z "$slirp" ; then
+      slirp=no
+    else
+      feature_not_found "slirp" "Install slirp devel or git submodule"
+    fi
+    ;;
+
+  system)
+    if ! $pkg_config slirp; then
+      feature_not_found "slirp" "Install slirp devel"
+    fi
+    ;;
+esac
+
+case "$slirp" in
+  git | internal)
+    if test "$slirp" = git; then
+      git_submodules="${git_submodules} slirp"
+    fi
+    mkdir -p slirp
+    slirp_cflags="-I\$(SRC_PATH)/slirp/src -I\$(BUILD_DIR)/slirp/src"
+    slirp_libs="-L\$(BUILD_DIR)/slirp -lslirp"
+    ;;
+
+  system)
+    slirp_version=$($pkg_config --modversion slirp 2>/dev/null)
+    slirp_cflags=$($pkg_config --cflags slirp 2>/dev/null)
+    slirp_libs=$($pkg_config --libs slirp 2>/dev/null)
+    ;;
+
+  no)
+    ;;
+  *)
+    error_exit "Unknown state for slirp: $slirp"
+    ;;
+esac
+
+
+##########################################
 # End of CC checks
 # After here, no more $cc or $ld runs
 
@@ -6126,7 +6179,8 @@ echo "QEMU_LDFLAGS      $QEMU_LDFLAGS"
 echo "make              $make"
 echo "install           $install"
 echo "python            $python ($python_version)"
-if test "$slirp" = "yes" ; then
+echo "slirp support     $slirp $(echo_version $slirp $slirp_version)"
+if test "$slirp" != "no" ; then
     echo "smbd              $smbd"
 fi
 echo "module support    $modules"
@@ -6393,9 +6447,14 @@ fi
 if test "$profiler" = "yes" ; then
   echo "CONFIG_PROFILER=y" >> $config_host_mak
 fi
-if test "$slirp" = "yes" ; then
+if test "$slirp" != "no"; then
   echo "CONFIG_SLIRP=y" >> $config_host_mak
   echo "CONFIG_SMBD_COMMAND=\"$smbd\"" >> $config_host_mak
+  echo "SLIRP_CFLAGS=$slirp_cflags" >> $config_host_mak
+  echo "SLIRP_LIBS=$slirp_libs" >> $config_host_mak
+fi
+if [ "$slirp" = "git" -o "$slirp" = "internal" ]; then
+    echo "config-host.h: subdir-slirp" >> $config_host_mak
 fi
 if test "$vde" = "yes" ; then
   echo "CONFIG_VDE=y" >> $config_host_mak

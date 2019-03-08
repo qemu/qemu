@@ -28,6 +28,7 @@ remque(void *a)
   element->qh_rlink = NULL;
 }
 
+/* TODO: IPv6 */
 struct gfwd_list *
 add_guestfwd(struct gfwd_list **ex_ptr,
              SlirpWriteCb write_cb, void *opaque,
@@ -253,6 +254,8 @@ char *slirp_connection_info(Slirp *slirp)
     g_string_append_printf(str,
         "  Protocol[State]    FD  Source Address  Port   "
         "Dest. Address  Port RecvQ SendQ\n");
+
+    /* TODO: IPv6 */
 
     for (so = slirp->tcb.so_next; so != &slirp->tcb; so = so->so_next) {
         if (so->so_state & SS_HOSTFWD) {

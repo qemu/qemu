@@ -626,6 +626,7 @@ tcp_emu(struct socket *so, struct mbuf *m)
 	switch(so->so_emu) {
 		int x, i;
 
+        /* TODO: IPv6 */
 	 case EMU_IDENT:
 		/*
 		 * Identification protocol as per rfc-1413
@@ -660,16 +661,18 @@ tcp_emu(struct socket *so, struct mbuf *m)
 						    tmpso->so_fport == n1) {
 							if (getsockname(tmpso->s,
 								(struct sockaddr *)&addr, &addrlen) == 0)
-							   n2 = ntohs(addr.sin_port);
+							   n2 = addr.sin_port;
 							break;
 						}
 					}
+					NTOHS(n1);
+					NTOHS(n2);
+					so_rcv->sb_cc = snprintf(so_rcv->sb_data,
+								 so_rcv->sb_datalen,
+								 "%d,%d\r\n", n1, n2);
+					so_rcv->sb_rptr = so_rcv->sb_data;
+					so_rcv->sb_wptr = so_rcv->sb_data + so_rcv->sb_cc;
 				}
-                                so_rcv->sb_cc = snprintf(so_rcv->sb_data,
-                                                         so_rcv->sb_datalen,
-                                                         "%d,%d\r\n", n1, n2);
-				so_rcv->sb_rptr = so_rcv->sb_data;
-				so_rcv->sb_wptr = so_rcv->sb_data + so_rcv->sb_cc;
 			}
 			m_free(m);
 			return 0;
@@ -962,6 +965,7 @@ int tcp_ctl(struct socket *so)
     DEBUG_CALL("tcp_ctl");
     DEBUG_ARG("so = %p", so);
 
+    /* TODO: IPv6 */
     if (so->so_faddr.s_addr != slirp->vhost_addr.s_addr) {
         /* Check if it's pty_exec */
         for (ex_ptr = slirp->guestfwd_list; ex_ptr; ex_ptr = ex_ptr->ex_next) {

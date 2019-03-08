@@ -529,6 +529,15 @@ sorecvfrom(struct socket *so)
           int n;
 #endif
 
+	  if (ioctlsocket(so->s, FIONREAD, &n) != 0) {
+	      DEBUG_MISC(" ioctlsocket errno = %d-%s\n",
+			 errno,strerror(errno));
+	      return;
+	  }
+	  if (n == 0) {
+	      return;
+	  }
+
 	  m = m_get(so->slirp);
 	  if (!m) {
 	      return;
@@ -552,7 +561,6 @@ sorecvfrom(struct socket *so)
 	   */
 	  len = M_FREEROOM(m);
 	  /* if (so->so_fport != htons(53)) { */
-	  ioctlsocket(so->s, FIONREAD, &n);
 
 	  if (n > len) {
 	    n = (m->m_data - m->m_dat) + m->m_len + n + 1;
@@ -679,6 +687,7 @@ struct socket *
 tcp_listen(Slirp *slirp, uint32_t haddr, unsigned hport, uint32_t laddr,
            unsigned lport, int flags)
 {
+        /* TODO: IPv6 */
 	struct sockaddr_in addr;
 	struct socket *so;
 	int s, opt = 1;

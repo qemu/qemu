@@ -31,8 +31,8 @@
 #include <fcntl.h>
 #include <stdint.h>
 
-#if defined(_WIN32) && !defined(WITH_QEMU)
-int inet_aton(const char *cp, struct in_addr *ia)
+#if defined(_WIN32)
+int slirp_inet_aton(const char *cp, struct in_addr *ia)
 {
     uint32_t addr = inet_addr(cp);
     if (addr == 0xffffffff) {

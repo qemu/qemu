@@ -388,6 +388,7 @@ findso:
 	 * as if it was LISTENING, and continue...
 	 */
         if (so == NULL) {
+          /* TODO: IPv6 */
           if (slirp->restricted) {
             /* Any hostfwds will have an existing socket, so we only get here
              * for non-hostfwd connections. These should be dropped, unless it
@@ -609,6 +610,7 @@ findso:
 	   * If this is destined for the control address, then flag to
 	   * tcp_ctl once connected, otherwise connect
 	   */
+          /* TODO: IPv6 */
 	  if (af == AF_INET &&
 	         (so->so_faddr.s_addr & slirp->vnetwork_mask.s_addr) ==
 	         slirp->vnetwork_addr.s_addr) {

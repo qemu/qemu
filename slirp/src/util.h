@@ -138,8 +138,8 @@ int slirp_getsockopt_wrap(int sockfd, int level, int optname,
 #define setsockopt slirp_setsockopt_wrap
 int slirp_setsockopt_wrap(int sockfd, int level, int optname,
                           const void *optval, int optlen);
-
-int inet_aton(const char *cp, struct in_addr *ia);
+#define inet_aton slirp_inet_aton
+int slirp_inet_aton(const char *cp, struct in_addr *ia);
 #else
 #define closesocket(s) close(s)
 #define ioctlsocket(s, r, v) ioctl(s, r, v)

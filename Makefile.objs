@@ -4,7 +4,6 @@ stub-obj-y = stubs/ util/ crypto/
 util-obj-y = util/ qobject/ qapi/
 
 chardev-obj-y = chardev/
-slirp-obj-$(CONFIG_SLIRP) = slirp/
 
 #######################################################################
 # authz-obj-y is code used by both qemu system emulation and qemu-img
