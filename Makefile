@@ -691,7 +691,7 @@ distclean: clean
 	rm -f docs/interop/qemu-qmp-ref.html docs/interop/qemu-ga-ref.html
 	rm -f docs/qemu-block-drivers.7
 	rm -f docs/qemu-cpu-models.7
-	rm -f .doctrees
+	rm -rf .doctrees
 	$(call clean-manual,devel)
 	$(call clean-manual,interop)
 	for d in $(TARGET_DIRS); do \
