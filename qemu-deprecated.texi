@@ -60,6 +60,13 @@ Support for invalid topologies will be removed, the user must ensure
 topologies described with -smp include all possible cpus, i.e.
   @math{@var{sockets} * @var{cores} * @var{threads} = @var{maxcpus}}.
 
+@subsection QEMU_AUDIO_ environment variables and -audio-help (since 4.0)
+
+The ``-audiodev'' argument is now the preferred way to specify audio
+backend settings instead of environment variables.  To ease migration to
+the new format, the ``-audiodev-help'' option can be used to convert
+the current values of the environment variables to ``-audiodev'' options.
+
 @section QEMU Machine Protocol (QMP) commands
 
 @subsection block-dirty-bitmap-add "autoload" parameter (since 2.12.0)
