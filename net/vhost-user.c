@@ -304,19 +304,14 @@ static int net_vhost_user_init(NetClientState *peer, const char *device,
 {
     Error *err = NULL;
     NetClientState *nc, *nc0 = NULL;
-    VhostUserState *user = NULL;
     NetVhostUserState *s = NULL;
+    VhostUserState *user;
     int i;
 
     assert(name);
     assert(queues > 0);
 
-    user = vhost_user_init();
-    if (!user) {
-        error_report("failed to init vhost_user");
-        goto err;
-    }
-
+    user = g_new0(struct VhostUserState, 1);
     for (i = 0; i < queues; i++) {
         nc = qemu_new_net_client(&net_vhost_user_info, peer, device, name);
         snprintf(nc->info_str, sizeof(nc->info_str), "vhost-user%d to %s",
@@ -325,11 +320,11 @@ static int net_vhost_user_init(NetClientState *peer, const char *device,
         if (!nc0) {
             nc0 = nc;
             s = DO_UPCAST(NetVhostUserState, nc, nc);
-            if (!qemu_chr_fe_init(&s->chr, chr, &err)) {
+            if (!qemu_chr_fe_init(&s->chr, chr, &err) ||
+                !vhost_user_init(user, &s->chr, &err)) {
                 error_report_err(err);
                 goto err;
             }
-            user->chr = &s->chr;
         }
         s = DO_UPCAST(NetVhostUserState, nc, nc);
         s->vhost_user = user;

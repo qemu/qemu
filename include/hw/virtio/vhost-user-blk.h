@@ -36,7 +36,7 @@ typedef struct VHostUserBlk {
     uint32_t queue_size;
     uint32_t config_wce;
     struct vhost_dev dev;
-    VhostUserState *vhost_user;
+    VhostUserState vhost_user;
 } VHostUserBlk;
 
 #endif
