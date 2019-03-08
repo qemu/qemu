@@ -167,7 +167,7 @@ static PFlashCFI01 *xtfpga_flash_init(MemoryRegion *address_space,
                                       DriveInfo *dinfo, int be)
 {
     SysBusDevice *s;
-    DeviceState *dev = qdev_create(NULL, "cfi.pflash01");
+    DeviceState *dev = qdev_create(NULL, TYPE_PFLASH_CFI01);
 
     qdev_prop_set_drive(dev, "drive", blk_by_legacy_dinfo(dinfo),
                         &error_abort);
@@ -181,7 +181,7 @@ static PFlashCFI01 *xtfpga_flash_init(MemoryRegion *address_space,
     s = SYS_BUS_DEVICE(dev);
     memory_region_add_subregion(address_space, board->flash->base,
                                 sysbus_mmio_get_region(s, 0));
-    return OBJECT_CHECK(PFlashCFI01, (dev), "cfi.pflash01");
+    return PFLASH_CFI01(dev);
 }
 
 static uint64_t translate_phys_addr(void *opaque, uint64_t addr)

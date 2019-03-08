@@ -515,7 +515,7 @@ static void vexpress_modify_dtb(const struct arm_boot_info *info, void *fdt)
 static PFlashCFI01 *ve_pflash_cfi01_register(hwaddr base, const char *name,
                                              DriveInfo *di)
 {
-    DeviceState *dev = qdev_create(NULL, "cfi.pflash01");
+    DeviceState *dev = qdev_create(NULL, TYPE_PFLASH_CFI01);
 
     if (di) {
         qdev_prop_set_drive(dev, "drive", blk_by_legacy_dinfo(di),
@@ -536,7 +536,7 @@ static PFlashCFI01 *ve_pflash_cfi01_register(hwaddr base, const char *name,
     qdev_init_nofail(dev);
 
     sysbus_mmio_map(SYS_BUS_DEVICE(dev), 0, base);
-    return OBJECT_CHECK(PFlashCFI01, (dev), "cfi.pflash01");
+    return PFLASH_CFI01(dev);
 }
 
 static void vexpress_common_init(MachineState *machine)
