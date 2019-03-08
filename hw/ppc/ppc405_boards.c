@@ -48,8 +48,6 @@
 
 #define USE_FLASH_BIOS
 
-//#define DEBUG_BOARD_INIT
-
 /*****************************************************************************/
 /* PPC405EP reference board (IBM) */
 /* Standalone board with:
@@ -171,9 +169,6 @@ static void ref405ep_init(MachineState *machine)
     ram_bases[1] = 0x00000000;
     ram_sizes[1] = 0x00000000;
     ram_size = 128 * MiB;
-#ifdef DEBUG_BOARD_INIT
-    printf("%s: register cpu\n", __func__);
-#endif
     env = ppc405ep_init(sysmem, ram_memories, ram_bases, ram_sizes,
                         33333333, &pic, kernel_filename == NULL ? 0 : 1);
     /* allocate SRAM */
@@ -182,9 +177,6 @@ static void ref405ep_init(MachineState *machine)
                            &error_fatal);
     memory_region_add_subregion(sysmem, 0xFFF00000, sram);
     /* allocate and load BIOS */
-#ifdef DEBUG_BOARD_INIT
-    printf("%s: register BIOS\n", __func__);
-#endif
     fl_idx = 0;
 #ifdef USE_FLASH_BIOS
     dinfo = drive_get(IF_PFLASH, 0, fl_idx);
@@ -193,12 +185,6 @@ static void ref405ep_init(MachineState *machine)
 
         bios_size = blk_getlength(blk);
         fl_sectors = (bios_size + 65535) >> 16;
-#ifdef DEBUG_BOARD_INIT
-        printf("Register parallel flash %d size %lx"
-               " at addr %lx '%s' %d\n",
-               fl_idx, bios_size, -bios_size,
-               blk_name(blk), fl_sectors);
-#endif
         pflash_cfi02_register((uint32_t)(-bios_size),
                               NULL, "ef405ep.bios", bios_size,
                               blk, 65536, fl_sectors, 1,
@@ -208,9 +194,6 @@ static void ref405ep_init(MachineState *machine)
     } else
 #endif
     {
-#ifdef DEBUG_BOARD_INIT
-        printf("Load BIOS from file\n");
-#endif
         bios = g_new(MemoryRegion, 1);
         memory_region_init_ram(bios, NULL, "ef405ep.bios", BIOS_SIZE,
                                &error_fatal);
@@ -239,21 +222,12 @@ static void ref405ep_init(MachineState *machine)
         memory_region_set_readonly(bios, true);
     }
     /* Register FPGA */
-#ifdef DEBUG_BOARD_INIT
-    printf("%s: register FPGA\n", __func__);
-#endif
     ref405ep_fpga_init(sysmem, 0xF0300000);
     /* Register NVRAM */
-#ifdef DEBUG_BOARD_INIT
-    printf("%s: register NVRAM\n", __func__);
-#endif
     m48t59_init(NULL, 0xF0000000, 0, 8192, 1968, 8);
     /* Load kernel */
     linux_boot = (kernel_filename != NULL);
     if (linux_boot) {
-#ifdef DEBUG_BOARD_INIT
-        printf("%s: load kernel\n", __func__);
-#endif
         memset(&bd, 0, sizeof(bd));
         bd.bi_memstart = 0x00000000;
         bd.bi_memsize = ram_size;
@@ -325,10 +299,6 @@ static void ref405ep_init(MachineState *machine)
         initrd_size = 0;
         bdloc = 0;
     }
-#ifdef DEBUG_BOARD_INIT
-    printf("bdloc " RAM_ADDR_FMT "\n", bdloc);
-    printf("%s: Done\n", __func__);
-#endif
 }
 
 static void ref405ep_class_init(ObjectClass *oc, void *data)
@@ -473,15 +443,9 @@ static void taihu_405ep_init(MachineState *machine)
     memory_region_init_alias(&ram_memories[1], NULL,
                              "taihu_405ep.ram-1", ram, ram_bases[1],
                              ram_sizes[1]);
-#ifdef DEBUG_BOARD_INIT
-    printf("%s: register cpu\n", __func__);
-#endif
     ppc405ep_init(sysmem, ram_memories, ram_bases, ram_sizes,
                   33333333, &pic, kernel_filename == NULL ? 0 : 1);
     /* allocate and load BIOS */
-#ifdef DEBUG_BOARD_INIT
-    printf("%s: register BIOS\n", __func__);
-#endif
     fl_idx = 0;
 #if defined(USE_FLASH_BIOS)
     dinfo = drive_get(IF_PFLASH, 0, fl_idx);
@@ -492,12 +456,6 @@ static void taihu_405ep_init(MachineState *machine)
         /* XXX: should check that size is 2MB */
         //        bios_size = 2 * 1024 * 1024;
         fl_sectors = (bios_size + 65535) >> 16;
-#ifdef DEBUG_BOARD_INIT
-        printf("Register parallel flash %d size %lx"
-               " at addr %lx '%s' %d\n",
-               fl_idx, bios_size, -bios_size,
-               blk_name(blk), fl_sectors);
-#endif
         pflash_cfi02_register((uint32_t)(-bios_size),
                               NULL, "taihu_405ep.bios", bios_size,
                               blk, 65536, fl_sectors, 1,
@@ -507,9 +465,6 @@ static void taihu_405ep_init(MachineState *machine)
     } else
 #endif
     {
-#ifdef DEBUG_BOARD_INIT
-        printf("Load BIOS from file\n");
-#endif
         if (bios_name == NULL)
             bios_name = BIOS_FILENAME;
         bios = g_new(MemoryRegion, 1);
@@ -542,12 +497,6 @@ static void taihu_405ep_init(MachineState *machine)
         /* XXX: should check that size is 32MB */
         bios_size = 32 * MiB;
         fl_sectors = (bios_size + 65535) >> 16;
-#ifdef DEBUG_BOARD_INIT
-        printf("Register parallel flash %d size %lx"
-               " at addr " TARGET_FMT_lx " '%s'\n",
-               fl_idx, bios_size, (target_ulong)0xfc000000,
-               blk_name(blk));
-#endif
         pflash_cfi02_register(0xfc000000, NULL, "taihu_405ep.flash", bios_size,
                               blk, 65536, fl_sectors, 1,
                               4, 0x0001, 0x22DA, 0x0000, 0x0000, 0x555, 0x2AA,
@@ -555,16 +504,10 @@ static void taihu_405ep_init(MachineState *machine)
         fl_idx++;
     }
     /* Register CLPD & LCD display */
-#ifdef DEBUG_BOARD_INIT
-    printf("%s: register CPLD\n", __func__);
-#endif
     taihu_cpld_init(sysmem, 0x50100000);
     /* Load kernel */
     linux_boot = (kernel_filename != NULL);
     if (linux_boot) {
-#ifdef DEBUG_BOARD_INIT
-        printf("%s: load kernel\n", __func__);
-#endif
         kernel_base = KERNEL_LOAD_ADDR;
         /* now we can load the kernel */
         kernel_size = load_image_targphys(kernel_filename, kernel_base,
@@ -593,9 +536,6 @@ static void taihu_405ep_init(MachineState *machine)
         initrd_base = 0;
         initrd_size = 0;
     }
-#ifdef DEBUG_BOARD_INIT
-    printf("%s: Done\n", __func__);
-#endif
 }
 
 static void taihu_class_init(ObjectClass *oc, void *data)
