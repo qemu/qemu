@@ -114,8 +114,9 @@ matrix:
         - TEST_CMD="make check-unit -j3 V=1"
 
 
-    # Check we can build docs and tools
+    # Check we can build docs and tools (out of tree)
     - env:
+        - BUILD_DIR="out-of-tree/build/dir" SRC_DIR="../../.."
         - BASE_CONFIG="--enable-tools --enable-docs"
         - CONFIG="--target-list=x86_64-softmmu,aarch64-linux-user"
       addons:
@@ -124,11 +125,6 @@ matrix:
             - python-sphinx
             - texinfo
             - perl
-
-    # Test out-of-tree builds
-    - env:
-        - CONFIG="--enable-debug --enable-debug-tcg"
-        - BUILD_DIR="out-of-tree/build/dir" SRC_DIR="../../.."
 
 
     # Test with Clang for compile portability (Travis uses clang-5.0)
