@@ -163,7 +163,6 @@ static struct audio_pcm_ops no_pcm_ops = {
 static struct audio_driver no_audio_driver = {
     .name           = "none",
     .descr          = "Timer based audio emulation",
-    .options        = NULL,
     .init           = no_audio_init,
     .fini           = no_audio_fini,
     .pcm_ops        = &no_pcm_ops,
