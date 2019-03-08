@@ -120,6 +120,30 @@ static void get_frames_to_usecs(const char *env, uint32_t *dst, bool *has_dst,
     }
 }
 
+static uint32_t samples_to_usecs(uint32_t samples,
+                                 AudiodevPerDirectionOptions *pdo)
+{
+    uint32_t channels = pdo->has_channels ? pdo->channels : 2;
+    return frames_to_usecs(samples / channels, pdo);
+}
+
+static uint32_t bytes_to_usecs(uint32_t bytes, AudiodevPerDirectionOptions *pdo)
+{
+    AudioFormat fmt = pdo->has_format ? pdo->format : AUDIO_FORMAT_S16;
+    uint32_t bytes_per_sample = audioformat_bytes_per_sample(fmt);
+    return samples_to_usecs(bytes / bytes_per_sample, pdo);
+}
+
+static void get_bytes_to_usecs(const char *env, uint32_t *dst, bool *has_dst,
+                               AudiodevPerDirectionOptions *pdo)
+{
+    const char *val = getenv(env);
+    if (val) {
+        *dst = bytes_to_usecs(toui32(val), pdo);
+        *has_dst = true;
+    }
+}
+
 /* backend specific functions */
 /* ALSA */
 static void handle_alsa_per_direction(
@@ -180,6 +204,21 @@ static void handle_coreaudio(Audiodev *dev)
             &dev->u.coreaudio.out->has_buffer_count);
 }
 
+/* dsound */
+static void handle_dsound(Audiodev *dev)
+{
+    get_millis_to_usecs("QEMU_DSOUND_LATENCY_MILLIS",
+                        &dev->u.dsound.latency, &dev->u.dsound.has_latency);
+    get_bytes_to_usecs("QEMU_DSOUND_BUFSIZE_OUT",
+                       &dev->u.dsound.out->buffer_length,
+                       &dev->u.dsound.out->has_buffer_length,
+                       dev->u.dsound.out);
+    get_bytes_to_usecs("QEMU_DSOUND_BUFSIZE_IN",
+                       &dev->u.dsound.in->buffer_length,
+                       &dev->u.dsound.in->has_buffer_length,
+                       dev->u.dsound.in);
+}
+
 /* general */
 static void handle_per_direction(
     AudiodevPerDirectionOptions *pdo, const char *prefix)
@@ -227,6 +266,10 @@ static AudiodevListEntry *legacy_opt(const char *drvname)
 
     case AUDIODEV_DRIVER_COREAUDIO:
         handle_coreaudio(e->dev);
+        break;
+
+    case AUDIODEV_DRIVER_DSOUND:
+        handle_dsound(e->dev);
         break;
 
     default:
