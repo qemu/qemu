@@ -385,21 +385,21 @@ static int qpa_read (SWVoiceIn *sw, void *buf, int len)
     return audio_pcm_sw_read (sw, buf, len);
 }
 
-static pa_sample_format_t audfmt_to_pa (audfmt_e afmt, int endianness)
+static pa_sample_format_t audfmt_to_pa (AudioFormat afmt, int endianness)
 {
     int format;
 
     switch (afmt) {
-    case AUD_FMT_S8:
-    case AUD_FMT_U8:
+    case AUDIO_FORMAT_S8:
+    case AUDIO_FORMAT_U8:
         format = PA_SAMPLE_U8;
         break;
-    case AUD_FMT_S16:
-    case AUD_FMT_U16:
+    case AUDIO_FORMAT_S16:
+    case AUDIO_FORMAT_U16:
         format = endianness ? PA_SAMPLE_S16BE : PA_SAMPLE_S16LE;
         break;
-    case AUD_FMT_S32:
-    case AUD_FMT_U32:
+    case AUDIO_FORMAT_S32:
+    case AUDIO_FORMAT_U32:
         format = endianness ? PA_SAMPLE_S32BE : PA_SAMPLE_S32LE;
         break;
     default:
@@ -410,26 +410,26 @@ static pa_sample_format_t audfmt_to_pa (audfmt_e afmt, int endianness)
     return format;
 }
 
-static audfmt_e pa_to_audfmt (pa_sample_format_t fmt, int *endianness)
+static AudioFormat pa_to_audfmt (pa_sample_format_t fmt, int *endianness)
 {
     switch (fmt) {
     case PA_SAMPLE_U8:
-        return AUD_FMT_U8;
+        return AUDIO_FORMAT_U8;
     case PA_SAMPLE_S16BE:
         *endianness = 1;
-        return AUD_FMT_S16;
+        return AUDIO_FORMAT_S16;
     case PA_SAMPLE_S16LE:
         *endianness = 0;
-        return AUD_FMT_S16;
+        return AUDIO_FORMAT_S16;
     case PA_SAMPLE_S32BE:
         *endianness = 1;
-        return AUD_FMT_S32;
+        return AUDIO_FORMAT_S32;
     case PA_SAMPLE_S32LE:
         *endianness = 0;
-        return AUD_FMT_S32;
+        return AUDIO_FORMAT_S32;
     default:
         dolog ("Internal logic error: Bad pa_sample_format %d\n", fmt);
-        return AUD_FMT_U8;
+        return AUDIO_FORMAT_U8;
     }
 }
 

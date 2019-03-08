@@ -87,7 +87,7 @@ struct alsa_params_req {
 
 struct alsa_params_obt {
     int freq;
-    audfmt_e fmt;
+    AudioFormat fmt;
     int endianness;
     int nchannels;
     snd_pcm_uframes_t samples;
@@ -294,16 +294,16 @@ static int alsa_write (SWVoiceOut *sw, void *buf, int len)
     return audio_pcm_sw_write (sw, buf, len);
 }
 
-static snd_pcm_format_t aud_to_alsafmt (audfmt_e fmt, int endianness)
+static snd_pcm_format_t aud_to_alsafmt (AudioFormat fmt, int endianness)
 {
     switch (fmt) {
-    case AUD_FMT_S8:
+    case AUDIO_FORMAT_S8:
         return SND_PCM_FORMAT_S8;
 
-    case AUD_FMT_U8:
+    case AUDIO_FORMAT_U8:
         return SND_PCM_FORMAT_U8;
 
-    case AUD_FMT_S16:
+    case AUDIO_FORMAT_S16:
         if (endianness) {
             return SND_PCM_FORMAT_S16_BE;
         }
@@ -311,7 +311,7 @@ static snd_pcm_format_t aud_to_alsafmt (audfmt_e fmt, int endianness)
             return SND_PCM_FORMAT_S16_LE;
         }
 
-    case AUD_FMT_U16:
+    case AUDIO_FORMAT_U16:
         if (endianness) {
             return SND_PCM_FORMAT_U16_BE;
         }
@@ -319,7 +319,7 @@ static snd_pcm_format_t aud_to_alsafmt (audfmt_e fmt, int endianness)
             return SND_PCM_FORMAT_U16_LE;
         }
 
-    case AUD_FMT_S32:
+    case AUDIO_FORMAT_S32:
         if (endianness) {
             return SND_PCM_FORMAT_S32_BE;
         }
@@ -327,7 +327,7 @@ static snd_pcm_format_t aud_to_alsafmt (audfmt_e fmt, int endianness)
             return SND_PCM_FORMAT_S32_LE;
         }
 
-    case AUD_FMT_U32:
+    case AUDIO_FORMAT_U32:
         if (endianness) {
             return SND_PCM_FORMAT_U32_BE;
         }
@@ -344,58 +344,58 @@ static snd_pcm_format_t aud_to_alsafmt (audfmt_e fmt, int endianness)
     }
 }
 
-static int alsa_to_audfmt (snd_pcm_format_t alsafmt, audfmt_e *fmt,
+static int alsa_to_audfmt (snd_pcm_format_t alsafmt, AudioFormat *fmt,
                            int *endianness)
 {
     switch (alsafmt) {
     case SND_PCM_FORMAT_S8:
         *endianness = 0;
-        *fmt = AUD_FMT_S8;
+        *fmt = AUDIO_FORMAT_S8;
         break;
 
     case SND_PCM_FORMAT_U8:
         *endianness = 0;
-        *fmt = AUD_FMT_U8;
+        *fmt = AUDIO_FORMAT_U8;
         break;
 
     case SND_PCM_FORMAT_S16_LE:
         *endianness = 0;
-        *fmt = AUD_FMT_S16;
+        *fmt = AUDIO_FORMAT_S16;
         break;
 
     case SND_PCM_FORMAT_U16_LE:
         *endianness = 0;
-        *fmt = AUD_FMT_U16;
+        *fmt = AUDIO_FORMAT_U16;
         break;
 
     case SND_PCM_FORMAT_S16_BE:
         *endianness = 1;
-        *fmt = AUD_FMT_S16;
+        *fmt = AUDIO_FORMAT_S16;
         break;
 
     case SND_PCM_FORMAT_U16_BE:
         *endianness = 1;
-        *fmt = AUD_FMT_U16;
+        *fmt = AUDIO_FORMAT_U16;
         break;
 
     case SND_PCM_FORMAT_S32_LE:
         *endianness = 0;
-        *fmt = AUD_FMT_S32;
+        *fmt = AUDIO_FORMAT_S32;
         break;
 
     case SND_PCM_FORMAT_U32_LE:
         *endianness = 0;
-        *fmt = AUD_FMT_U32;
+        *fmt = AUDIO_FORMAT_U32;
         break;
 
     case SND_PCM_FORMAT_S32_BE:
         *endianness = 1;
-        *fmt = AUD_FMT_S32;
+        *fmt = AUDIO_FORMAT_S32;
         break;
 
     case SND_PCM_FORMAT_U32_BE:
         *endianness = 1;
-        *fmt = AUD_FMT_U32;
+        *fmt = AUDIO_FORMAT_U32;
         break;
 
     default:
@@ -638,19 +638,22 @@ static int alsa_open (int in, struct alsa_params_req *req,
         bytes_per_sec = freq << (nchannels == 2);
 
         switch (obt->fmt) {
-        case AUD_FMT_S8:
-        case AUD_FMT_U8:
+        case AUDIO_FORMAT_S8:
+        case AUDIO_FORMAT_U8:
             break;
 
-        case AUD_FMT_S16:
-        case AUD_FMT_U16:
+        case AUDIO_FORMAT_S16:
+        case AUDIO_FORMAT_U16:
             bytes_per_sec <<= 1;
             break;
 
-        case AUD_FMT_S32:
-        case AUD_FMT_U32:
+        case AUDIO_FORMAT_S32:
+        case AUDIO_FORMAT_U32:
             bytes_per_sec <<= 2;
             break;
+
+        default:
+            abort();
         }
 
         threshold = (conf->threshold * bytes_per_sec) / 1000;

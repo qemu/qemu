@@ -201,7 +201,7 @@ static void wm8750_set_format(WM8750State *s)
     in_fmt.endianness = 0;
     in_fmt.nchannels = 2;
     in_fmt.freq = s->adc_hz;
-    in_fmt.fmt = AUD_FMT_S16;
+    in_fmt.fmt = AUDIO_FORMAT_S16;
 
     s->adc_voice[0] = AUD_open_in(&s->card, s->adc_voice[0],
                     CODEC ".input1", s, wm8750_audio_in_cb, &in_fmt);
@@ -214,7 +214,7 @@ static void wm8750_set_format(WM8750State *s)
     out_fmt.endianness = 0;
     out_fmt.nchannels = 2;
     out_fmt.freq = s->dac_hz;
-    out_fmt.fmt = AUD_FMT_S16;
+    out_fmt.fmt = AUDIO_FORMAT_S16;
 
     s->dac_voice[0] = AUD_open_out(&s->card, s->dac_voice[0],
                     CODEC ".speaker", s, wm8750_audio_out_cb, &out_fmt);
@@ -681,7 +681,7 @@ uint32_t wm8750_adc_dat(void *opaque)
     if (s->idx_in >= sizeof(s->data_in)) {
         wm8750_in_load(s);
         if (s->idx_in >= sizeof(s->data_in)) {
-            return 0x80008000; /* silence in AUD_FMT_S16 sample format */
+            return 0x80008000; /* silence in AUDIO_FORMAT_S16 sample format */
         }
     }
 

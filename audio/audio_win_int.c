@@ -24,20 +24,20 @@ int waveformat_from_audio_settings (WAVEFORMATEX *wfx,
     wfx->cbSize = 0;
 
     switch (as->fmt) {
-    case AUD_FMT_S8:
-    case AUD_FMT_U8:
+    case AUDIO_FORMAT_S8:
+    case AUDIO_FORMAT_U8:
         wfx->wBitsPerSample = 8;
         break;
 
-    case AUD_FMT_S16:
-    case AUD_FMT_U16:
+    case AUDIO_FORMAT_S16:
+    case AUDIO_FORMAT_U16:
         wfx->wBitsPerSample = 16;
         wfx->nAvgBytesPerSec <<= 1;
         wfx->nBlockAlign <<= 1;
         break;
 
-    case AUD_FMT_S32:
-    case AUD_FMT_U32:
+    case AUDIO_FORMAT_S32:
+    case AUDIO_FORMAT_U32:
         wfx->wBitsPerSample = 32;
         wfx->nAvgBytesPerSec <<= 2;
         wfx->nBlockAlign <<= 2;
@@ -85,15 +85,15 @@ int waveformat_to_audio_settings (WAVEFORMATEX *wfx,
 
     switch (wfx->wBitsPerSample) {
     case 8:
-        as->fmt = AUD_FMT_U8;
+        as->fmt = AUDIO_FORMAT_U8;
         break;
 
     case 16:
-        as->fmt = AUD_FMT_S16;
+        as->fmt = AUDIO_FORMAT_S16;
         break;
 
     case 32:
-        as->fmt = AUD_FMT_S32;
+        as->fmt = AUDIO_FORMAT_S32;
         break;
 
     default:

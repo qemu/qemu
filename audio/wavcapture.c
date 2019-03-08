@@ -136,7 +136,7 @@ int wav_start_capture (CaptureState *s, const char *path, int freq,
 
     as.freq = freq;
     as.nchannels = 1 << stereo;
-    as.fmt = bits16 ? AUD_FMT_S16 : AUD_FMT_U8;
+    as.fmt = bits16 ? AUDIO_FORMAT_S16 : AUDIO_FORMAT_U8;
     as.endianness = 0;
 
     ops.notify = wav_notify;

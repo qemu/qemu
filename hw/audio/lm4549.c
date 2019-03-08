@@ -185,7 +185,7 @@ void lm4549_write(lm4549_state *s,
         struct audsettings as;
         as.freq = value;
         as.nchannels = 2;
-        as.fmt = AUD_FMT_S16;
+        as.fmt = AUDIO_FORMAT_S16;
         as.endianness = 0;
 
         s->voice = AUD_open_out(
@@ -255,7 +255,7 @@ static int lm4549_post_load(void *opaque, int version_id)
     struct audsettings as;
     as.freq = freq;
     as.nchannels = 2;
-    as.fmt = AUD_FMT_S16;
+    as.fmt = AUDIO_FORMAT_S16;
     as.endianness = 0;
 
     s->voice = AUD_open_out(
@@ -292,7 +292,7 @@ void lm4549_init(lm4549_state *s, lm4549_callback data_req_cb, void* opaque)
     /* Open a default voice */
     as.freq = 48000;
     as.nchannels = 2;
-    as.fmt = AUD_FMT_S16;
+    as.fmt = AUDIO_FORMAT_S16;
     as.endianness = 0;
 
     s->voice = AUD_open_out(

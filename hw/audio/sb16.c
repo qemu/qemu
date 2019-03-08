@@ -66,7 +66,7 @@ typedef struct SB16State {
     int fmt_stereo;
     int fmt_signed;
     int fmt_bits;
-    audfmt_e fmt;
+    AudioFormat fmt;
     int dma_auto;
     int block_size;
     int fifo;
@@ -224,7 +224,7 @@ static void continue_dma8 (SB16State *s)
 
 static void dma_cmd8 (SB16State *s, int mask, int dma_len)
 {
-    s->fmt = AUD_FMT_U8;
+    s->fmt = AUDIO_FORMAT_U8;
     s->use_hdma = 0;
     s->fmt_bits = 8;
     s->fmt_signed = 0;
@@ -319,18 +319,18 @@ static void dma_cmd (SB16State *s, uint8_t cmd, uint8_t d0, int dma_len)
 
     if (16 == s->fmt_bits) {
         if (s->fmt_signed) {
-            s->fmt = AUD_FMT_S16;
+            s->fmt = AUDIO_FORMAT_S16;
         }
         else {
-            s->fmt = AUD_FMT_U16;
+            s->fmt = AUDIO_FORMAT_U16;
         }
     }
     else {
         if (s->fmt_signed) {
-            s->fmt = AUD_FMT_S8;
+            s->fmt = AUDIO_FORMAT_S8;
         }
         else {
-            s->fmt = AUD_FMT_U8;
+            s->fmt = AUDIO_FORMAT_U8;
         }
     }
 
@@ -852,7 +852,7 @@ static void legacy_reset (SB16State *s)
 
     as.freq = s->freq;
     as.nchannels = 1;
-    as.fmt = AUD_FMT_U8;
+    as.fmt = AUDIO_FORMAT_U8;
     as.endianness = 0;
 
     s->voice = AUD_open_out (

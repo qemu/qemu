@@ -273,7 +273,7 @@ static void omap_eac_format_update(struct omap_eac_s *s)
      * does I2S specify it?  */
     /* All register writes are 16 bits so we we store 16-bit samples
      * in the buffers regardless of AGCFR[B8_16] value.  */
-    fmt.fmt = AUD_FMT_U16;
+    fmt.fmt = AUDIO_FORMAT_U16;
 
     s->codec.in_voice = AUD_open_in(&s->codec.card, s->codec.in_voice,
                     "eac.codec.in", s, omap_eac_in_cb, &fmt);

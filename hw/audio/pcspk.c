@@ -162,7 +162,7 @@ static void pcspk_initfn(Object *obj)
 
 static void pcspk_realizefn(DeviceState *dev, Error **errp)
 {
-    struct audsettings as = {PCSPK_SAMPLE_RATE, 1, AUD_FMT_U8, 0};
+    struct audsettings as = {PCSPK_SAMPLE_RATE, 1, AUDIO_FORMAT_U8, 0};
     ISADevice *isadev = ISA_DEVICE(dev);
     PCSpkState *s = PC_SPEAKER(dev);
 

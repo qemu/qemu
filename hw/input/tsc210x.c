@@ -318,7 +318,7 @@ static void tsc2102_audio_output_update(TSC210xState *s)
     fmt.endianness = 0;
     fmt.nchannels = 2;
     fmt.freq = s->codec.tx_rate;
-    fmt.fmt = AUD_FMT_S16;
+    fmt.fmt = AUDIO_FORMAT_S16;
 
     s->dac_voice[0] = AUD_open_out(&s->card, s->dac_voice[0],
                     "tsc2102.sink", s, (void *) tsc210x_audio_out_cb, &fmt);

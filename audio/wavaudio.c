@@ -117,20 +117,23 @@ static int wav_init_out(HWVoiceOut *hw, struct audsettings *as,
 
     stereo = wav_as.nchannels == 2;
     switch (wav_as.fmt) {
-    case AUD_FMT_S8:
-    case AUD_FMT_U8:
+    case AUDIO_FORMAT_S8:
+    case AUDIO_FORMAT_U8:
         bits16 = 0;
         break;
 
-    case AUD_FMT_S16:
-    case AUD_FMT_U16:
+    case AUDIO_FORMAT_S16:
+    case AUDIO_FORMAT_U16:
         bits16 = 1;
         break;
 
-    case AUD_FMT_S32:
-    case AUD_FMT_U32:
+    case AUDIO_FORMAT_S32:
+    case AUDIO_FORMAT_U32:
         dolog ("WAVE files can not handle 32bit formats\n");
         return -1;
+
+    default:
+        abort();
     }
 
     hdr[34] = bits16 ? 0x10 : 0x08;
@@ -225,7 +228,7 @@ static int wav_ctl_out (HWVoiceOut *hw, int cmd, ...)
 static WAVConf glob_conf = {
     .settings.freq      = 44100,
     .settings.nchannels = 2,
-    .settings.fmt       = AUD_FMT_S16,
+    .settings.fmt       = AUDIO_FORMAT_S16,
     .wav_path           = "qemu.wav"
 };
 

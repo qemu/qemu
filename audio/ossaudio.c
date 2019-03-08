@@ -70,7 +70,7 @@ typedef struct OSSVoiceIn {
 
 struct oss_params {
     int freq;
-    audfmt_e fmt;
+    AudioFormat fmt;
     int nchannels;
     int nfrags;
     int fragsize;
@@ -148,16 +148,16 @@ static int oss_write (SWVoiceOut *sw, void *buf, int len)
     return audio_pcm_sw_write (sw, buf, len);
 }
 
-static int aud_to_ossfmt (audfmt_e fmt, int endianness)
+static int aud_to_ossfmt (AudioFormat fmt, int endianness)
 {
     switch (fmt) {
-    case AUD_FMT_S8:
+    case AUDIO_FORMAT_S8:
         return AFMT_S8;
 
-    case AUD_FMT_U8:
+    case AUDIO_FORMAT_U8:
         return AFMT_U8;
 
-    case AUD_FMT_S16:
+    case AUDIO_FORMAT_S16:
         if (endianness) {
             return AFMT_S16_BE;
         }
@@ -165,7 +165,7 @@ static int aud_to_ossfmt (audfmt_e fmt, int endianness)
             return AFMT_S16_LE;
         }
 
-    case AUD_FMT_U16:
+    case AUDIO_FORMAT_U16:
         if (endianness) {
             return AFMT_U16_BE;
         }
@@ -182,37 +182,37 @@ static int aud_to_ossfmt (audfmt_e fmt, int endianness)
     }
 }
 
-static int oss_to_audfmt (int ossfmt, audfmt_e *fmt, int *endianness)
+static int oss_to_audfmt (int ossfmt, AudioFormat *fmt, int *endianness)
 {
     switch (ossfmt) {
     case AFMT_S8:
         *endianness = 0;
-        *fmt = AUD_FMT_S8;
+        *fmt = AUDIO_FORMAT_S8;
         break;
 
     case AFMT_U8:
         *endianness = 0;
-        *fmt = AUD_FMT_U8;
+        *fmt = AUDIO_FORMAT_U8;
         break;
 
     case AFMT_S16_LE:
         *endianness = 0;
-        *fmt = AUD_FMT_S16;
+        *fmt = AUDIO_FORMAT_S16;
         break;
 
     case AFMT_U16_LE:
         *endianness = 0;
-        *fmt = AUD_FMT_U16;
+        *fmt = AUDIO_FORMAT_U16;
         break;
 
     case AFMT_S16_BE:
         *endianness = 1;
-        *fmt = AUD_FMT_S16;
+        *fmt = AUDIO_FORMAT_S16;
         break;
 
     case AFMT_U16_BE:
         *endianness = 1;
-        *fmt = AUD_FMT_U16;
+        *fmt = AUDIO_FORMAT_U16;
         break;
 
     default:
@@ -500,7 +500,7 @@ static int oss_init_out(HWVoiceOut *hw, struct audsettings *as,
     int endianness;
     int err;
     int fd;
-    audfmt_e effective_fmt;
+    AudioFormat effective_fmt;
     struct audsettings obt_as;
     OSSConf *conf = drv_opaque;
 
@@ -667,7 +667,7 @@ static int oss_init_in(HWVoiceIn *hw, struct audsettings *as, void *drv_opaque)
     int endianness;
     int err;
     int fd;
-    audfmt_e effective_fmt;
+    AudioFormat effective_fmt;
     struct audsettings obt_as;
     OSSConf *conf = drv_opaque;
 

@@ -130,7 +130,7 @@ static int line_out_init(HWVoiceOut *hw, struct audsettings *as,
     settings.freq       = SPICE_INTERFACE_PLAYBACK_FREQ;
 #endif
     settings.nchannels  = SPICE_INTERFACE_PLAYBACK_CHAN;
-    settings.fmt        = AUD_FMT_S16;
+    settings.fmt        = AUDIO_FORMAT_S16;
     settings.endianness = AUDIO_HOST_ENDIANNESS;
 
     audio_pcm_init_info (&hw->info, &settings);
@@ -258,7 +258,7 @@ static int line_in_init(HWVoiceIn *hw, struct audsettings *as, void *drv_opaque)
     settings.freq       = SPICE_INTERFACE_RECORD_FREQ;
 #endif
     settings.nchannels  = SPICE_INTERFACE_RECORD_CHAN;
-    settings.fmt        = AUD_FMT_S16;
+    settings.fmt        = AUDIO_FORMAT_S16;
     settings.endianness = AUDIO_HOST_ENDIANNESS;
 
     audio_pcm_init_info (&hw->info, &settings);

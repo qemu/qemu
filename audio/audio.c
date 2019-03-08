@@ -113,7 +113,7 @@ static struct {
         .settings = {
             .freq = 44100,
             .nchannels = 2,
-            .fmt = AUD_FMT_S16,
+            .fmt = AUDIO_FORMAT_S16,
             .endianness =  AUDIO_HOST_ENDIANNESS,
         }
     },
@@ -125,7 +125,7 @@ static struct {
         .settings = {
             .freq = 44100,
             .nchannels = 2,
-            .fmt = AUD_FMT_S16,
+            .fmt = AUDIO_FORMAT_S16,
             .endianness = AUDIO_HOST_ENDIANNESS,
         }
     },
@@ -257,58 +257,61 @@ static char *audio_alloc_prefix (const char *s)
     return r;
 }
 
-static const char *audio_audfmt_to_string (audfmt_e fmt)
+static const char *audio_audfmt_to_string (AudioFormat fmt)
 {
     switch (fmt) {
-    case AUD_FMT_U8:
+    case AUDIO_FORMAT_U8:
         return "U8";
 
-    case AUD_FMT_U16:
+    case AUDIO_FORMAT_U16:
         return "U16";
 
-    case AUD_FMT_S8:
+    case AUDIO_FORMAT_S8:
         return "S8";
 
-    case AUD_FMT_S16:
+    case AUDIO_FORMAT_S16:
         return "S16";
 
-    case AUD_FMT_U32:
+    case AUDIO_FORMAT_U32:
         return "U32";
 
-    case AUD_FMT_S32:
+    case AUDIO_FORMAT_S32:
         return "S32";
+
+    default:
+        abort();
     }
 
     dolog ("Bogus audfmt %d returning S16\n", fmt);
     return "S16";
 }
 
-static audfmt_e audio_string_to_audfmt (const char *s, audfmt_e defval,
+static AudioFormat audio_string_to_audfmt (const char *s, AudioFormat defval,
                                         int *defaultp)
 {
     if (!strcasecmp (s, "u8")) {
         *defaultp = 0;
-        return AUD_FMT_U8;
+        return AUDIO_FORMAT_U8;
     }
     else if (!strcasecmp (s, "u16")) {
         *defaultp = 0;
-        return AUD_FMT_U16;
+        return AUDIO_FORMAT_U16;
     }
     else if (!strcasecmp (s, "u32")) {
         *defaultp = 0;
-        return AUD_FMT_U32;
+        return AUDIO_FORMAT_U32;
     }
     else if (!strcasecmp (s, "s8")) {
         *defaultp = 0;
-        return AUD_FMT_S8;
+        return AUDIO_FORMAT_S8;
     }
     else if (!strcasecmp (s, "s16")) {
         *defaultp = 0;
-        return AUD_FMT_S16;
+        return AUDIO_FORMAT_S16;
     }
     else if (!strcasecmp (s, "s32")) {
         *defaultp = 0;
-        return AUD_FMT_S32;
+        return AUDIO_FORMAT_S32;
     }
     else {
         dolog ("Bogus audio format `%s' using %s\n",
@@ -318,8 +321,8 @@ static audfmt_e audio_string_to_audfmt (const char *s, audfmt_e defval,
     }
 }
 
-static audfmt_e audio_get_conf_fmt (const char *envname,
-                                    audfmt_e defval,
+static AudioFormat audio_get_conf_fmt (const char *envname,
+                                    AudioFormat defval,
                                     int *defaultp)
 {
     const char *var = getenv (envname);
@@ -421,7 +424,7 @@ static void audio_print_options (const char *prefix,
 
         case AUD_OPT_FMT:
             {
-                audfmt_e *fmtp = opt->valp;
+                AudioFormat *fmtp = opt->valp;
                 printf (
                     "format, %s = %s, (one of: U8 S8 U16 S16 U32 S32)\n",
                     state,
@@ -492,7 +495,7 @@ static void audio_process_options (const char *prefix,
 
         case AUD_OPT_FMT:
             {
-                audfmt_e *fmtp = opt->valp;
+                AudioFormat *fmtp = opt->valp;
                 *fmtp = audio_get_conf_fmt (optname, *fmtp, &def);
             }
             break;
@@ -524,22 +527,22 @@ static void audio_print_settings (struct audsettings *as)
     dolog ("frequency=%d nchannels=%d fmt=", as->freq, as->nchannels);
 
     switch (as->fmt) {
-    case AUD_FMT_S8:
+    case AUDIO_FORMAT_S8:
         AUD_log (NULL, "S8");
         break;
-    case AUD_FMT_U8:
+    case AUDIO_FORMAT_U8:
         AUD_log (NULL, "U8");
         break;
-    case AUD_FMT_S16:
+    case AUDIO_FORMAT_S16:
         AUD_log (NULL, "S16");
         break;
-    case AUD_FMT_U16:
+    case AUDIO_FORMAT_U16:
         AUD_log (NULL, "U16");
         break;
-    case AUD_FMT_S32:
+    case AUDIO_FORMAT_S32:
         AUD_log (NULL, "S32");
         break;
-    case AUD_FMT_U32:
+    case AUDIO_FORMAT_U32:
         AUD_log (NULL, "U32");
         break;
     default:
@@ -570,12 +573,12 @@ static int audio_validate_settings (struct audsettings *as)
     invalid |= as->endianness != 0 && as->endianness != 1;
 
     switch (as->fmt) {
-    case AUD_FMT_S8:
-    case AUD_FMT_U8:
-    case AUD_FMT_S16:
-    case AUD_FMT_U16:
-    case AUD_FMT_S32:
-    case AUD_FMT_U32:
+    case AUDIO_FORMAT_S8:
+    case AUDIO_FORMAT_U8:
+    case AUDIO_FORMAT_S16:
+    case AUDIO_FORMAT_U16:
+    case AUDIO_FORMAT_S32:
+    case AUDIO_FORMAT_U32:
         break;
     default:
         invalid = 1;
@@ -591,25 +594,28 @@ static int audio_pcm_info_eq (struct audio_pcm_info *info, struct audsettings *a
     int bits = 8, sign = 0;
 
     switch (as->fmt) {
-    case AUD_FMT_S8:
+    case AUDIO_FORMAT_S8:
         sign = 1;
         /* fall through */
-    case AUD_FMT_U8:
+    case AUDIO_FORMAT_U8:
         break;
 
-    case AUD_FMT_S16:
+    case AUDIO_FORMAT_S16:
         sign = 1;
         /* fall through */
-    case AUD_FMT_U16:
+    case AUDIO_FORMAT_U16:
         bits = 16;
         break;
 
-    case AUD_FMT_S32:
+    case AUDIO_FORMAT_S32:
         sign = 1;
         /* fall through */
-    case AUD_FMT_U32:
+    case AUDIO_FORMAT_U32:
         bits = 32;
         break;
+
+    default:
+        abort();
     }
     return info->freq == as->freq
         && info->nchannels == as->nchannels
@@ -623,24 +629,27 @@ void audio_pcm_init_info (struct audio_pcm_info *info, struct audsettings *as)
     int bits = 8, sign = 0, shift = 0;
 
     switch (as->fmt) {
-    case AUD_FMT_S8:
+    case AUDIO_FORMAT_S8:
         sign = 1;
-    case AUD_FMT_U8:
+    case AUDIO_FORMAT_U8:
         break;
 
-    case AUD_FMT_S16:
+    case AUDIO_FORMAT_S16:
         sign = 1;
-    case AUD_FMT_U16:
+    case AUDIO_FORMAT_U16:
         bits = 16;
         shift = 1;
         break;
 
-    case AUD_FMT_S32:
+    case AUDIO_FORMAT_S32:
         sign = 1;
-    case AUD_FMT_U32:
+    case AUDIO_FORMAT_U32:
         bits = 32;
         shift = 2;
         break;
+
+    default:
+        abort();
     }
 
     info->freq = as->freq;
