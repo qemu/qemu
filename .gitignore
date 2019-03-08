@@ -97,6 +97,7 @@
 *.gcno
 *.gcov
 /pc-bios/bios-pq/status
+/pc-bios/edk2-*.fd
 /pc-bios/vgabios-pq/status
 /pc-bios/optionrom/linuxboot.asm
 /pc-bios/optionrom/linuxboot.bin
