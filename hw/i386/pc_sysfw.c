@@ -231,8 +231,11 @@ static void old_pc_system_rom_init(MemoryRegion *rom_memory, bool isapc_ram_fw)
                                 bios);
 }
 
-void pc_system_firmware_init(MemoryRegion *rom_memory, bool isapc_ram_fw)
+void pc_system_firmware_init(PCMachineState *pcms,
+                             MemoryRegion *rom_memory)
 {
+    PCMachineClass *pcmc = PC_MACHINE_GET_CLASS(pcms);
+    bool isapc_ram_fw = !pcmc->pci_enabled;
     DriveInfo *pflash_drv;
 
     pflash_drv = drive_get(IF_PFLASH, 0, 0);
