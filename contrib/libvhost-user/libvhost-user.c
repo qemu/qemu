@@ -1966,6 +1966,22 @@ vu_queue_pop(VuDev *dev, VuVirtq *vq, size_t sz)
     return elem;
 }
 
+static void
+vu_queue_detach_element(VuDev *dev, VuVirtq *vq, VuVirtqElement *elem,
+                        size_t len)
+{
+    vq->inuse--;
+    /* unmap, when DMA support is added */
+}
+
+void
+vu_queue_unpop(VuDev *dev, VuVirtq *vq, VuVirtqElement *elem,
+               size_t len)
+{
+    vq->last_avail_idx--;
+    vu_queue_detach_element(dev, vq, elem, len);
+}
+
 bool
 vu_queue_rewind(VuDev *dev, VuVirtq *vq, unsigned int num)
 {

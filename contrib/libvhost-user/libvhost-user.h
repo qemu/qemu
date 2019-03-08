@@ -458,6 +458,20 @@ void vu_queue_notify(VuDev *dev, VuVirtq *vq);
  */
 void *vu_queue_pop(VuDev *dev, VuVirtq *vq, size_t sz);
 
+
+/**
+ * vu_queue_unpop:
+ * @dev: a VuDev context
+ * @vq: a VuVirtq queue
+ * @elem: The #VuVirtqElement
+ * @len: number of bytes written
+ *
+ * Pretend the most recent element wasn't popped from the virtqueue.  The next
+ * call to vu_queue_pop() will refetch the element.
+ */
+void vu_queue_unpop(VuDev *dev, VuVirtq *vq, VuVirtqElement *elem,
+                    size_t len);
+
 /**
  * vu_queue_rewind:
  * @dev: a VuDev context
