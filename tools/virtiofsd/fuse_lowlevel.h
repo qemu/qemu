@@ -1863,7 +1863,6 @@ struct fuse_cmdline_opts {
     int foreground;
     int debug;
     int nodefault_subtype;
-    char *mountpoint;
     int show_version;
     int show_help;
     unsigned int max_idle_threads;
@@ -1924,12 +1923,11 @@ struct fuse_session *fuse_session_new(struct fuse_args *args,
 /**
  * Mount a FUSE file system.
  *
- * @param mountpoint the mount point path
  * @param se session object
  *
  * @return 0 on success, -1 on failure.
  **/
-int fuse_session_mount(struct fuse_session *se, const char *mountpoint);
+int fuse_session_mount(struct fuse_session *se);
 
 /**
  * Enter a single threaded, blocking event loop.

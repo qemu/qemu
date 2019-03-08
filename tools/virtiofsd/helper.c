@@ -140,27 +140,13 @@ void fuse_cmdline_help(void)
 static int fuse_helper_opt_proc(void *data, const char *arg, int key,
                                 struct fuse_args *outargs)
 {
+    (void)data;
     (void)outargs;
-    struct fuse_cmdline_opts *opts = data;
 
     switch (key) {
     case FUSE_OPT_KEY_NONOPT:
-        if (!opts->mountpoint) {
-            if (fuse_mnt_parse_fuse_fd(arg) != -1) {
-                return fuse_opt_add_opt(&opts->mountpoint, arg);
-            }
-
-            char mountpoint[PATH_MAX] = "";
-            if (realpath(arg, mountpoint) == NULL) {
-                fuse_log(FUSE_LOG_ERR, "fuse: bad mount point `%s': %s\n", arg,
-                         strerror(errno));
-                return -1;
-            }
-            return fuse_opt_add_opt(&opts->mountpoint, mountpoint);
-        } else {
-            fuse_log(FUSE_LOG_ERR, "fuse: invalid argument `%s'\n", arg);
-            return -1;
-        }
+        fuse_log(FUSE_LOG_ERR, "fuse: invalid argument `%s'\n", arg);
+        return -1;
 
     default:
         /* Pass through unknown options */
