@@ -212,9 +212,13 @@
 #
 # @executable: Identifies the firmware executable. The firmware
 #              executable may be shared by multiple virtual machine
-#              definitions. The corresponding QEMU command line option
-#              is "-drive
-#              if=pflash,unit=0,readonly=on,file=@executable.@filename,format=@executable.@format".
+#              definitions. The preferred corresponding QEMU command
+#              line options are
+#                  -drive if=none,id=pflash0,readonly=on,file=@executable.@filename,format=@executable.@format
+#                  -machine pflash0=pflash0
+#              or equivalent -blockdev instead of -drive.
+#              With QEMU versions older than 4.0, you have to use
+#                  -drive if=pflash,unit=0,readonly=on,file=@executable.@filename,format=@executable.@format
 #
 # @nvram-template: Identifies the NVRAM template compatible with
 #                  @executable. Management software instantiates an
@@ -225,9 +229,13 @@
 #                  individual copies of it are. An NVRAM file is
 #                  typically used for persistently storing the
 #                  non-volatile UEFI variables of a virtual machine
-#                  definition. The corresponding QEMU command line
-#                  option is "-drive
-#                  if=pflash,unit=1,readonly=off,file=FILENAME_OF_PRIVATE_NVRAM_FILE,format=@nvram-template.@format".
+#                  definition. The preferred corresponding QEMU
+#                  command line options are
+#                      -drive if=none,id=pflash1,readonly=off,file=FILENAME_OF_PRIVATE_NVRAM_FILE,format=@nvram-template.@format
+#                      -machine pflash1=pflash1
+#                  or equivalent -blockdev instead of -drive.
+#                  With QEMU versions older than 4.0, you have to use
+#                      -drive if=pflash,unit=1,readonly=off,file=FILENAME_OF_PRIVATE_NVRAM_FILE,format=@nvram-template.@format
 #
 # Since: 3.0
 ##
