@@ -111,7 +111,7 @@ static void pc_system_flash_init(MemoryRegion *rom_memory)
     char *fatal_errmsg = NULL;
     hwaddr phys_addr = 0x100000000ULL;
     int sector_bits, sector_size;
-    pflash_t *system_flash;
+    PFlashCFI01 *system_flash;
     MemoryRegion *flash_mem;
     char name[64];
     void *flash_ptr;
