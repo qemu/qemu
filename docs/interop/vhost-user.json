@@ -1,0 +1,232 @@
+# -*- Mode: Python -*-
+#
+# Copyright (C) 2018 Red Hat, Inc.
+#
+# Authors:
+#  Marc-André Lureau <marcandre.lureau@redhat.com>
+#
+# This work is licensed under the terms of the GNU GPL, version 2 or
+# later. See the COPYING file in the top-level directory.
+
+##
+# = vhost user backend discovery & capabilities
+##
+
+##
+# @VHostUserBackendType:
+#
+# List the various vhost user backend types.
+#
+# @9p: 9p virtio console
+# @balloon: virtio balloon
+# @block: virtio block
+# @caif: virtio caif
+# @console: virtio console
+# @crypto: virtio crypto
+# @gpu: virtio gpu
+# @input: virtio input
+# @net: virtio net
+# @rng: virtio rng
+# @rpmsg: virtio remote processor messaging
+# @rproc-serial: virtio remoteproc serial link
+# @scsi: virtio scsi
+# @vsock: virtio vsock transport
+#
+# Since: 4.0
+##
+{
+  'enum': 'VHostUserBackendType',
+  'data': [
+      '9p',
+      'balloon',
+      'block',
+      'caif',
+      'console',
+      'crypto',
+      'gpu',
+      'input',
+      'net',
+      'rng',
+      'rpmsg',
+      'rproc-serial',
+      'scsi',
+      'vsock'
+  ]
+}
+
+##
+# @VHostUserBackendInputFeature:
+#
+# List of vhost user "input" features.
+#
+# @evdev-path: The --evdev-path command line option is supported.
+# @no-grab: The --no-grab command line option is supported.
+#
+# Since: 4.0
+##
+{
+  'enum': 'VHostUserBackendInputFeature',
+  'data': [ 'evdev-path', 'no-grab' ]
+}
+
+##
+# @VHostUserBackendCapabilitiesInput:
+#
+# Capabilities reported by vhost user "input" backends
+#
+# @features: list of supported features.
+#
+# Since: 4.0
+##
+{
+  'struct': 'VHostUserBackendCapabilitiesInput',
+  'data': {
+    'features': [ 'VHostUserBackendInputFeature' ]
+  }
+}
+
+##
+# @VHostUserBackendGPUFeature:
+#
+# List of vhost user "gpu" features.
+#
+# @render-node: The --render-node command line option is supported.
+# @virgl: The --virgl command line option is supported.
+#
+# Since: 4.0
+##
+{
+  'enum': 'VHostUserBackendGPUFeature',
+  'data': [ 'render-node', 'virgl' ]
+}
+
+##
+# @VHostUserBackendCapabilitiesGPU:
+#
+# Capabilities reported by vhost user "gpu" backends.
+#
+# @features: list of supported features.
+#
+# Since: 4.0
+##
+{
+  'struct': 'VHostUserBackendCapabilitiesGPU',
+  'data': {
+    'features': [ 'VHostUserBackendGPUFeature' ]
+  }
+}
+
+##
+# @VHostUserBackendCapabilities:
+#
+# Capabilities reported by vhost user backends.
+#
+# @type: The vhost user backend type.
+#
+# Since: 4.0
+##
+{
+  'union': 'VHostUserBackendCapabilities',
+  'base': { 'type': 'VHostUserBackendType' },
+  'discriminator': 'type',
+  'data': {
+    'input': 'VHostUserBackendCapabilitiesInput',
+    'gpu': 'VHostUserBackendCapabilitiesGPU'
+  }
+}
+
+##
+# @VhostUserBackend:
+#
+# Describes a vhost user backend to management software.
+#
+# It is possible for multiple @VhostUserBackend elements to match the
+# search criteria of management software. Applications thus need rules
+# to pick one of the many matches, and users need the ability to
+# override distro defaults.
+#
+# It is recommended to create vhost user backend JSON files (each
+# containing a single @VhostUserBackend root element) with a
+# double-digit prefix, for example "50-qemu-gpu.json",
+# "50-crosvm-gpu.json", etc, so they can be sorted in predictable
+# order. The backend JSON files should be searched for in three
+# directories:
+#
+#   - /usr/share/qemu/vhost-user -- populated by distro-provided
+#                                   packages (XDG_DATA_DIRS covers
+#                                   /usr/share by default),
+#
+#   - /etc/qemu/vhost-user -- exclusively for sysadmins' local additions,
+#
+#   - $XDG_CONFIG_HOME/qemu/vhost-user -- exclusively for per-user local
+#                                         additions (XDG_CONFIG_HOME
+#                                         defaults to $HOME/.config).
+#
+# Top-down, the list of directories goes from general to specific.
+#
+# Management software should build a list of files from all three
+# locations, then sort the list by filename (i.e., basename
+# component). Management software should choose the first JSON file on
+# the sorted list that matches the search criteria. If a more specific
+# directory has a file with same name as a less specific directory,
+# then the file in the more specific directory takes effect. If the
+# more specific file is zero length, it hides the less specific one.
+#
+# For example, if a distro ships
+#
+#   - /usr/share/qemu/vhost-user/50-qemu-gpu.json
+#
+#   - /usr/share/qemu/vhost-user/50-crosvm-gpu.json
+#
+# then the sysadmin can prevent the default QEMU being used at all with
+#
+#   $ touch /etc/qemu/vhost-user/50-qemu-gpu.json
+#
+# The sysadmin can replace/alter the distro default OVMF with
+#
+#   $ vim /etc/qemu/vhost-user/50-qemu-gpu.json
+#
+# or they can provide a parallel QEMU GPU with higher priority
+#
+#   $ vim /etc/qemu/vhost-user/10-qemu-gpu.json
+#
+# or they can provide a parallel OVMF with lower priority
+#
+#   $ vim /etc/qemu/vhost-user/99-qemu-gpu.json
+#
+# @type: The vhost user backend type.
+#
+# @description: Provides a human-readable description of the backend.
+#               Management software may or may not display @description.
+#
+# @binary: Absolute path to the backend binary.
+#
+# @tags: An optional list of auxiliary strings associated with the
+#        backend for which @description is not appropriate, due to the
+#        latter's possible exposure to the end-user. @tags serves
+#        development and debugging purposes only, and management
+#        software shall explicitly ignore it.
+#
+# Since: 4.0
+#
+# Example:
+#
+# {
+#   "description": "QEMU vhost-user-gpu",
+#   "type": "gpu",
+#   "binary": "/usr/libexec/qemu/vhost-user-gpu",
+#   "tags": [
+#     "CONFIG_OPENGL_DMABUF=y"
+#   ]
+# }
+#
+##
+{
+  'struct' : 'VhostUserBackend',
+  'data'   : {
+    'description': 'str',
+    'type': 'VHostUserBackendType',
+    'binary': 'str',
+    '*tags': [ 'str' ]
+  }
+}

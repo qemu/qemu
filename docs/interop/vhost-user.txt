@@ -17,8 +17,13 @@ The protocol defines 2 sides of the communication, master and slave. Master is
 the application that shares its virtqueues, in our case QEMU. Slave is the
 consumer of the virtqueues.
 
-In the current implementation QEMU is the Master, and the Slave is intended to
-be a software Ethernet switch running in user space, such as Snabbswitch.
+In the current implementation QEMU is the Master, and the Slave is the
+external process consuming the virtio queues, for example a software
+Ethernet switch running in user space, such as Snabbswitch, or a block
+device backend processing read & write to a virtual disk. In order to
+facilitate interoperability between various backend implementations,
+it is recommended to follow the "Backend program conventions"
+described in this document.
 
 Master and slave can be either a client (i.e. connecting) or server (listening)
 in the socket communication.
@@ -835,3 +840,95 @@ resilient for selective requests.
 For the message types that already solicit a reply from the client, the
 presence of VHOST_USER_PROTOCOL_F_REPLY_ACK or need_reply bit being set brings
 no behavioural change. (See the 'Communication' section for details.)
+
+Backend program conventions
+---------------------------
+
+vhost-user backends can provide various devices & services and may
+need to be configured manually depending on the use case. However, it
+is a good idea to follow the conventions listed here when
+possible. Users, QEMU or libvirt, can then rely on some common
+behaviour to avoid heterogenous configuration and management of the
+backend programs and facilitate interoperability.
+
+Each backend installed on a host system should come with at least one
+JSON file that conforms to the vhost-user.json schema. Each file
+informs the management applications about the backend type, and binary
+location. In addition, it defines rules for management apps for
+picking the highest priority backend when multiple match the search
+criteria (see @VhostUserBackend documentation in the schema file).
+
+If the backend is not capable of enabling a requested feature on the
+host (such as 3D acceleration with virgl), or the initialization
+failed, the backend should fail to start early and exit with a status
+!= 0. It may also print a message to stderr for further details.
+
+The backend program must not daemonize itself, but it may be
+daemonized by the management layer. It may also have a restricted
+access to the system.
+
+File descriptors 0, 1 and 2 will exist, and have regular
+stdin/stdout/stderr usage (they may have been redirected to /dev/null
+by the management layer, or to a log handler).
+
+The backend program must end (as quickly and cleanly as possible) when
+the SIGTERM signal is received. Eventually, it may receive SIGKILL by
+the management layer after a few seconds.
+
+The following command line options have an expected behaviour. They
+are mandatory, unless explicitly said differently:
+
+* --socket-path=PATH
+
+This option specify the location of the vhost-user Unix domain socket.
+It is incompatible with --fd.
+
+* --fd=FDNUM
+
+When this argument is given, the backend program is started with the
+vhost-user socket as file descriptor FDNUM. It is incompatible with
+--socket-path.
+
+* --print-capabilities
+
+Output to stdout the backend capabilities in JSON format, and then
+exit successfully. Other options and arguments should be ignored, and
+the backend program should not perform its normal function.  The
+capabilities can be reported dynamically depending on the host
+capabilities.
+
+The JSON output is described in the vhost-user.json schema, by
+@VHostUserBackendCapabilities.  Example:
+{
+  "type": "foo",
+  "features": [
+    "feature-a",
+    "feature-b"
+  ]
+}
+
+vhost-user-input
+----------------
+
+Command line options:
+
+* --evdev-path=PATH (optional)
+
+Specify the linux input device.
+
+* --no-grab (optional)
+
+Do no request exclusive access to the input device.
+
+vhost-user-gpu
+--------------
+
+Command line options:
+
+* --render-node=PATH (optional)
+
+Specify the GPU DRM render node.
+
+* --virgl (optional)
+
+Enable virgl rendering support.
