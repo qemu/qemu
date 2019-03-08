@@ -2007,16 +2007,15 @@ static TCGv_reg do_ibranch_priv(DisasContext *ctx, TCGv_reg offset)
         /* Privilege 0 is maximum and is allowed to decrease.  */
         return offset;
     case 3:
-        /* Privilege 3 is minimum and is never allowed increase.  */
+        /* Privilege 3 is minimum and is never allowed to increase.  */
         dest = get_temp(ctx);
         tcg_gen_ori_reg(dest, offset, 3);
         break;
     default:
-        dest = tcg_temp_new();
+        dest = get_temp(ctx);
         tcg_gen_andi_reg(dest, offset, -4);
         tcg_gen_ori_reg(dest, dest, ctx->privilege);
         tcg_gen_movcond_reg(TCG_COND_GTU, dest, dest, offset, dest, offset);
-        tcg_temp_free(dest);
         break;
     }
     return dest;
@@ -3489,12 +3488,16 @@ static bool trans_b_gate(DisasContext *ctx, arg_b_gate *a)
 
 static bool trans_blr(DisasContext *ctx, arg_blr *a)
 {
-    TCGv_reg tmp = get_temp(ctx);
-
-    tcg_gen_shli_reg(tmp, load_gpr(ctx, a->x), 3);
-    tcg_gen_addi_reg(tmp, tmp, ctx->iaoq_f + 8);
-    /* The computation here never changes privilege level.  */
-    return do_ibranch(ctx, tmp, a->l, a->n);
+    if (a->x) {
+        TCGv_reg tmp = get_temp(ctx);
+        tcg_gen_shli_reg(tmp, load_gpr(ctx, a->x), 3);
+        tcg_gen_addi_reg(tmp, tmp, ctx->iaoq_f + 8);
+        /* The computation here never changes privilege level.  */
+        return do_ibranch(ctx, tmp, a->l, a->n);
+    } else {
+        /* BLR R0,RX is a good way to load PC+8 into RX.  */
+        return do_dbranch(ctx, ctx->iaoq_f + 8, a->l, a->n);
+    }
 }
 
 static bool trans_bv(DisasContext *ctx, arg_bv *a)
