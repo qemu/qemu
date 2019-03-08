@@ -3953,6 +3953,7 @@ int main(int argc, char **argv, char **envp)
     configure_rtc(qemu_find_opts_singleton("rtc"));
 
     machine_class = select_machine();
+    object_set_machine_compat_props(machine_class->compat_props);
 
     set_memory_options(&ram_slots, &maxram_size, machine_class);
 

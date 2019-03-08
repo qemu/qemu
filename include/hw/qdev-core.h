@@ -431,6 +431,8 @@ const char *qdev_fw_name(DeviceState *dev);
 
 Object *qdev_get_machine(void);
 
+void object_set_machine_compat_props(GPtrArray *compat_props);
+void object_set_accelerator_compat_props(GPtrArray *compat_props);
 void object_apply_compat_props(Object *obj);
 
 /* FIXME: make this a link<> */
