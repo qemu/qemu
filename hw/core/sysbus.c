@@ -357,9 +357,6 @@ static void main_system_bus_create(void)
     qbus_create_inplace(main_system_bus, system_bus_info.instance_size,
                         TYPE_SYSTEM_BUS, NULL, "main-system-bus");
     OBJECT(main_system_bus)->free = g_free;
-    object_property_add_child(container_get(qdev_get_machine(),
-                                            "/unattached"),
-                              "sysbus", OBJECT(main_system_bus), NULL);
 }
 
 BusState *sysbus_get_default(void)
