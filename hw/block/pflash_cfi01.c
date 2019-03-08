@@ -502,6 +502,10 @@ static void pflash_write(PFlashCFI01 *pfl, hwaddr offset,
             break;
         case 0xe8: /* Write to buffer */
             DPRINTF("%s: Write to buffer\n", __func__);
+            /* FIXME should save @offset, @width for case 1+ */
+            qemu_log_mask(LOG_UNIMP,
+                          "%s: Write to buffer emulation is flawed\n",
+                          __func__);
             pfl->status |= 0x80; /* Ready! */
             break;
         case 0xf0: /* Probe for AMD flash */
@@ -545,6 +549,7 @@ static void pflash_write(PFlashCFI01 *pfl, hwaddr offset,
             /* Mask writeblock size based on device width, or bank width if
              * device width not specified.
              */
+            /* FIXME check @offset, @width */
             if (pfl->device_width) {
                 value = extract32(value, 0, pfl->device_width * 8);
             } else {
@@ -582,7 +587,13 @@ static void pflash_write(PFlashCFI01 *pfl, hwaddr offset,
     case 2:
         switch (pfl->cmd) {
         case 0xe8: /* Block write */
+            /* FIXME check @offset, @width */
             if (!pfl->ro) {
+                /*
+                 * FIXME writing straight to memory is *wrong*.  We
+                 * should write to a buffer, and flush it to memory
+                 * only on confirm command (see below).
+                 */
                 pflash_data_write(pfl, offset, value, width, be);
             } else {
                 pfl->status |= 0x10; /* Programming error */
@@ -598,6 +609,7 @@ static void pflash_write(PFlashCFI01 *pfl, hwaddr offset,
                 pfl->wcycle++;
                 if (!pfl->ro) {
                     /* Flush the entire write buffer onto backing storage.  */
+                    /* FIXME premature! */
                     pflash_update(pfl, offset & mask, pfl->writeblock_size);
                 } else {
                     pfl->status |= 0x10; /* Programming error */
@@ -614,6 +626,7 @@ static void pflash_write(PFlashCFI01 *pfl, hwaddr offset,
         switch (pfl->cmd) {
         case 0xe8: /* Block write */
             if (cmd == 0xd0) {
+                /* FIXME this is where we should write out the buffer */
                 pfl->wcycle = 0;
                 pfl->status |= 0x80;
             } else {
