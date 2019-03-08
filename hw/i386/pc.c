@@ -2571,7 +2571,7 @@ static void pc_machine_set_nvdimm_persistence(Object *obj, const char *value,
                                                Error **errp)
 {
     PCMachineState *pcms = PC_MACHINE(obj);
-    AcpiNVDIMMState *nvdimm_state = &pcms->acpi_nvdimm_state;
+    NVDIMMState *nvdimm_state = &pcms->acpi_nvdimm_state;
 
     if (strcmp(value, "cpu") == 0)
         nvdimm_state->persistence = 3;

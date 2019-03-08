@@ -45,7 +45,7 @@ struct PCMachineState {
     OnOffAuto vmport;
     OnOffAuto smm;
 
-    AcpiNVDIMMState acpi_nvdimm_state;
+    NVDIMMState acpi_nvdimm_state;
 
     bool acpi_build_enabled;
     bool smbus_enabled;

@@ -123,7 +123,7 @@ struct NvdimmFitBuffer {
 };
 typedef struct NvdimmFitBuffer NvdimmFitBuffer;
 
-struct AcpiNVDIMMState {
+struct NVDIMMState {
     /* detect if NVDIMM support is enabled. */
     bool is_enabled;
 
@@ -141,13 +141,13 @@ struct AcpiNVDIMMState {
     int32_t persistence;
     char    *persistence_string;
 };
-typedef struct AcpiNVDIMMState AcpiNVDIMMState;
+typedef struct NVDIMMState NVDIMMState;
 
-void nvdimm_init_acpi_state(AcpiNVDIMMState *state, MemoryRegion *io,
+void nvdimm_init_acpi_state(NVDIMMState *state, MemoryRegion *io,
                             FWCfgState *fw_cfg, Object *owner);
 void nvdimm_build_acpi(GArray *table_offsets, GArray *table_data,
-                       BIOSLinker *linker, AcpiNVDIMMState *state,
+                       BIOSLinker *linker, NVDIMMState *state,
                        uint32_t ram_slots);
-void nvdimm_plug(AcpiNVDIMMState *state);
+void nvdimm_plug(NVDIMMState *state);
 void nvdimm_acpi_plug_cb(HotplugHandler *hotplug_dev, DeviceState *dev);
 #endif
