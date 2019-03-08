@@ -29,6 +29,9 @@ export PACKAGES_PATH=$(realpath -- "$edk2_dir")
 export WORKSPACE=$PWD
 mkdir -p Conf
 
+# Work around <https://bugzilla.tianocore.org/show_bug.cgi?id=1607>.
+export PYTHON_COMMAND=python2
+
 # Source "edksetup.sh" carefully.
 set +e +u +C
 source "$PACKAGES_PATH/edksetup.sh"
