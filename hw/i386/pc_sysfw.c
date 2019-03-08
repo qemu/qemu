@@ -40,11 +40,6 @@
 
 #define BIOS_FILENAME "bios.bin"
 
-typedef struct PcSysFwDevice {
-    SysBusDevice busdev;
-    uint8_t isapc_ram_fw;
-} PcSysFwDevice;
-
 static void pc_isa_bios_init(MemoryRegion *rom_memory,
                              MemoryRegion *flash_mem,
                              int ram_size)
