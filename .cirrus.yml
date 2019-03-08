@@ -1,10 +1,11 @@
+env:
+  CIRRUS_CLONE_DEPTH: 1
+
 freebsd_12_task:
   freebsd_instance:
     image: freebsd-12-0-release-amd64
     cpu: 8
     memory: 8G
-  env:
-    CIRRUS_CLONE_DEPTH: 1
   install_script: pkg install -y
     bison curl cyrus-sasl git glib gmake gnutls
     nettle perl5 pixman pkgconf png usbredir
@@ -14,3 +15,13 @@ freebsd_12_task:
     - ../configure || { cat config.log; exit 1; }
     - gmake -j8
     - gmake -j8 V=1 check
+
+macos_task:
+  osx_instance:
+    image: mojave-base
+  install_script:
+    - brew install pkg-config python glib pixman make sdl2
+  script:
+    - ./configure --python=/usr/local/bin/python3 || { cat config.log; exit 1; }
+    - gmake -j$(sysctl -n hw.ncpu)
+    - gmake check -j$(sysctl -n hw.ncpu)

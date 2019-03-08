@@ -165,9 +165,9 @@ static void check_time(int wiggle)
         t = (long)mktime(datep);
         s = (long)mktime(&start);
         if (t < s) {
-            g_test_message("RTC is %ld second(s) behind wall-clock\n", (s - t));
+            g_test_message("RTC is %ld second(s) behind wall-clock", (s - t));
         } else {
-            g_test_message("RTC is %ld second(s) ahead of wall-clock\n", (t - s));
+            g_test_message("RTC is %ld second(s) ahead of wall-clock", (t - s));
         }
 
         g_assert_cmpint(ABS(t - s), <=, wiggle);

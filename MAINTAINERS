@@ -1965,7 +1965,7 @@ F: tests/check-qnull.c
 F: tests/check-qnum.c
 F: tests/check-qobject.c
 F: tests/check-qstring.c
-F: qdict-test-data.txt
+F: tests/data/qobject/qdict.txt
 T: git https://repo.or.cz/qemu/armbru.git qapi-next
 
 QEMU Guest Agent
