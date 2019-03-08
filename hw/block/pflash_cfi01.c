@@ -49,12 +49,6 @@
 #include "sysemu/sysemu.h"
 #include "trace.h"
 
-#define PFLASH_BUG(fmt, ...) \
-do { \
-    fprintf(stderr, "PFLASH: Possible BUG - " fmt, ## __VA_ARGS__); \
-    exit(1); \
-} while(0)
-
 /* #define PFLASH_DEBUG */
 #ifdef PFLASH_DEBUG
 #define DPRINTF(fmt, ...)                                   \
@@ -623,8 +617,11 @@ static void pflash_write(PFlashCFI01 *pfl, hwaddr offset,
                 pfl->wcycle = 0;
                 pfl->status |= 0x80;
             } else {
-                DPRINTF("%s: unknown command for \"write block\"\n", __func__);
-                PFLASH_BUG("Write block confirm");
+                qemu_log_mask(LOG_UNIMP,
+                    "%s: Aborting write to buffer not implemented,"
+                    " the data is already written to storage!\n"
+                    "Flash device reset into READ mode.\n",
+                    __func__);
                 goto reset_flash;
             }
             break;
