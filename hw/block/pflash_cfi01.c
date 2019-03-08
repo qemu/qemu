@@ -967,6 +967,11 @@ PFlashCFI01 *pflash_cfi01_register(hwaddr base,
     return PFLASH_CFI01(dev);
 }
 
+BlockBackend *pflash_cfi01_get_blk(PFlashCFI01 *fl)
+{
+    return fl->blk;
+}
+
 MemoryRegion *pflash_cfi01_get_memory(PFlashCFI01 *fl)
 {
     return &fl->mem;
