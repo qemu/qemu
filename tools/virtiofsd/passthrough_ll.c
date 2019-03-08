@@ -1319,6 +1319,7 @@ int main(int argc, char *argv[])
     if (opts.show_help) {
         printf("usage: %s [options]\n\n", argv[0]);
         fuse_cmdline_help();
+        printf("    -o source=PATH             shared directory tree\n");
         fuse_lowlevel_help();
         ret = 0;
         goto err_out1;
