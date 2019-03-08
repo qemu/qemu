@@ -62,6 +62,18 @@ static void get_int(const char *env, uint32_t *dst, bool *has_dst)
     }
 }
 
+static void get_str(const char *env, char **dst, bool *has_dst)
+{
+    const char *val = getenv(env);
+    if (val) {
+        if (*has_dst) {
+            g_free(*dst);
+        }
+        *dst = g_strdup(val);
+        *has_dst = true;
+    }
+}
+
 static void get_fmt(const char *env, AudioFormat *dst, bool *has_dst)
 {
     const char *val = getenv(env);
@@ -80,8 +92,69 @@ static void get_fmt(const char *env, AudioFormat *dst, bool *has_dst)
     }
 }
 
+
+static void get_millis_to_usecs(const char *env, uint32_t *dst, bool *has_dst)
+{
+    const char *val = getenv(env);
+    if (val) {
+        *dst = toui32(val) * 1000;
+        *has_dst = true;
+    }
+}
+
+static uint32_t frames_to_usecs(uint32_t frames,
+                                AudiodevPerDirectionOptions *pdo)
+{
+    uint32_t freq = pdo->has_frequency ? pdo->frequency : 44100;
+    return (frames * 1000000 + freq / 2) / freq;
+}
+
 /* backend specific functions */
-/* todo */
+/* ALSA */
+static void handle_alsa_per_direction(
+    AudiodevAlsaPerDirectionOptions *apdo, const char *prefix)
+{
+    char buf[64];
+    size_t len = strlen(prefix);
+    bool size_in_usecs = false;
+    bool dummy;
+
+    memcpy(buf, prefix, len);
+    strcpy(buf + len, "TRY_POLL");
+    get_bool(buf, &apdo->try_poll, &apdo->has_try_poll);
+
+    strcpy(buf + len, "DEV");
+    get_str(buf, &apdo->dev, &apdo->has_dev);
+
+    strcpy(buf + len, "SIZE_IN_USEC");
+    get_bool(buf, &size_in_usecs, &dummy);
+
+    strcpy(buf + len, "PERIOD_SIZE");
+    get_int(buf, &apdo->period_length, &apdo->has_period_length);
+    if (apdo->has_period_length && !size_in_usecs) {
+        apdo->period_length = frames_to_usecs(
+            apdo->period_length,
+            qapi_AudiodevAlsaPerDirectionOptions_base(apdo));
+    }
+
+    strcpy(buf + len, "BUFFER_SIZE");
+    get_int(buf, &apdo->buffer_length, &apdo->has_buffer_length);
+    if (apdo->has_buffer_length && !size_in_usecs) {
+        apdo->buffer_length = frames_to_usecs(
+            apdo->buffer_length,
+            qapi_AudiodevAlsaPerDirectionOptions_base(apdo));
+    }
+}
+
+static void handle_alsa(Audiodev *dev)
+{
+    AudiodevAlsaOptions *aopt = &dev->u.alsa;
+    handle_alsa_per_direction(aopt->in, "QEMU_ALSA_ADC_");
+    handle_alsa_per_direction(aopt->out, "QEMU_ALSA_DAC_");
+
+    get_millis_to_usecs("QEMU_ALSA_THRESHOLD",
+                        &aopt->threshold, &aopt->has_threshold);
+}
 
 /* general */
 static void handle_per_direction(
@@ -122,6 +195,15 @@ static AudiodevListEntry *legacy_opt(const char *drvname)
 
     get_int("QEMU_AUDIO_TIMER_PERIOD",
             &e->dev->timer_period, &e->dev->has_timer_period);
+
+    switch (e->dev->driver) {
+    case AUDIODEV_DRIVER_ALSA:
+        handle_alsa(e->dev);
+        break;
+
+    default:
+        break;
+    }
 
     return e;
 }
