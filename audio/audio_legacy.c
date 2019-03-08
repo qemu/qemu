@@ -219,6 +219,34 @@ static void handle_dsound(Audiodev *dev)
                        dev->u.dsound.in);
 }
 
+/* OSS */
+static void handle_oss_per_direction(
+    AudiodevOssPerDirectionOptions *opdo, const char *try_poll_env,
+    const char *dev_env)
+{
+    get_bool(try_poll_env, &opdo->try_poll, &opdo->has_try_poll);
+    get_str(dev_env, &opdo->dev, &opdo->has_dev);
+
+    get_bytes_to_usecs("QEMU_OSS_FRAGSIZE",
+                       &opdo->buffer_length, &opdo->has_buffer_length,
+                       qapi_AudiodevOssPerDirectionOptions_base(opdo));
+    get_int("QEMU_OSS_NFRAGS", &opdo->buffer_count,
+            &opdo->has_buffer_count);
+}
+
+static void handle_oss(Audiodev *dev)
+{
+    AudiodevOssOptions *oopt = &dev->u.oss;
+    handle_oss_per_direction(oopt->in, "QEMU_AUDIO_ADC_TRY_POLL",
+                             "QEMU_OSS_ADC_DEV");
+    handle_oss_per_direction(oopt->out, "QEMU_AUDIO_DAC_TRY_POLL",
+                             "QEMU_OSS_DAC_DEV");
+
+    get_bool("QEMU_OSS_MMAP", &oopt->try_mmap, &oopt->has_try_mmap);
+    get_bool("QEMU_OSS_EXCLUSIVE", &oopt->exclusive, &oopt->has_exclusive);
+    get_int("QEMU_OSS_POLICY", &oopt->dsp_policy, &oopt->has_dsp_policy);
+}
+
 /* general */
 static void handle_per_direction(
     AudiodevPerDirectionOptions *pdo, const char *prefix)
@@ -270,6 +298,10 @@ static AudiodevListEntry *legacy_opt(const char *drvname)
 
     case AUDIODEV_DRIVER_DSOUND:
         handle_dsound(e->dev);
+        break;
+
+    case AUDIODEV_DRIVER_OSS:
+        handle_oss(e->dev);
         break;
 
     default:
