@@ -237,8 +237,7 @@ void mips_r4k_init(MachineState *machine)
         uint32_t mips_rom = 0x00400000;
         if (!pflash_cfi01_register(0x1fc00000, "mips_r4k.bios", mips_rom,
                                    blk_by_legacy_dinfo(dinfo),
-                                   sector_len, mips_rom / sector_len,
-                                   4, 0, 0, 0, 0, be)) {
+                                   sector_len, 4, 0, 0, 0, 0, be)) {
             fprintf(stderr, "qemu: Error registering flash memory.\n");
         }
     } else if (!qtest_enabled()) {

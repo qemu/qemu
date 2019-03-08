@@ -89,8 +89,7 @@ petalogix_s3adsp1800_init(MachineState *machine)
     pflash_cfi01_register(FLASH_BASEADDR,
                           "petalogix_s3adsp1800.flash", FLASH_SIZE,
                           dinfo ? blk_by_legacy_dinfo(dinfo) : NULL,
-                          64 * KiB, FLASH_SIZE >> 16,
-                          1, 0x89, 0x18, 0x0000, 0x0, 1);
+                          64 * KiB, 1, 0x89, 0x18, 0x0000, 0x0, 1);
 
     dev = qdev_create(NULL, "xlnx.xps-intc");
     qdev_prop_set_uint32(dev, "kind-of-intr",

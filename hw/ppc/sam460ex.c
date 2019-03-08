@@ -115,8 +115,7 @@ static int sam460ex_load_uboot(void)
     if (!pflash_cfi01_register(FLASH_BASE | ((hwaddr)FLASH_BASE_H << 32),
                                "sam460ex.flash", FLASH_SIZE,
                                dinfo ? blk_by_legacy_dinfo(dinfo) : NULL,
-                               64 * KiB, FLASH_SIZE / (64 * KiB),
-                               1, 0x89, 0x18, 0x0000, 0x0, 1)) {
+                               64 * KiB, 1, 0x89, 0x18, 0x0000, 0x0, 1)) {
         error_report("Error registering flash memory");
         /* XXX: return an error instead? */
         exit(1);

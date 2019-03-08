@@ -228,8 +228,7 @@ static void virtex_init(MachineState *machine)
     dinfo = drive_get(IF_PFLASH, 0, 0);
     pflash_cfi01_register(PFLASH_BASEADDR, "virtex.flash", FLASH_SIZE,
                           dinfo ? blk_by_legacy_dinfo(dinfo) : NULL,
-                          64 * KiB, FLASH_SIZE >> 16,
-                          1, 0x89, 0x18, 0x0000, 0x0, 1);
+                          64 * KiB, 1, 0x89, 0x18, 0x0000, 0x0, 1);
 
     cpu_irq = (qemu_irq *) &env->irq_inputs[PPC40x_INPUT_INT];
     dev = qdev_create(NULL, "xlnx.xps-intc");

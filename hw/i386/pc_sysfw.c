@@ -110,15 +110,12 @@ static void pc_system_flash_init(MemoryRegion *rom_memory)
     int64_t size;
     char *fatal_errmsg = NULL;
     hwaddr phys_addr = 0x100000000ULL;
-    int sector_bits, sector_size;
+    uint32_t sector_size = 4096;
     PFlashCFI01 *system_flash;
     MemoryRegion *flash_mem;
     char name[64];
     void *flash_ptr;
     int ret, flash_size;
-
-    sector_bits = 12;
-    sector_size = 1 << sector_bits;
 
     for (unit = 0;
          (unit < FLASH_MAP_UNIT_MAX &&
@@ -162,7 +159,6 @@ static void pc_system_flash_init(MemoryRegion *rom_memory)
         snprintf(name, sizeof name, "system.flash%d", unit);
         system_flash = pflash_cfi01_register(phys_addr, name,
                                              size, blk, sector_size,
-                                             size >> sector_bits,
                                              1      /* width */,
                                              0x0000 /* id0 */,
                                              0x0000 /* id1 */,

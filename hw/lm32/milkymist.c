@@ -122,8 +122,7 @@ milkymist_init(MachineState *machine)
     /* Numonyx JS28F256J3F105 */
     pflash_cfi01_register(flash_base, "milkymist.flash", flash_size,
                           dinfo ? blk_by_legacy_dinfo(dinfo) : NULL,
-                          flash_sector_size, flash_size / flash_sector_size,
-                          2, 0x00, 0x89, 0x00, 0x1d, 1);
+                          flash_sector_size, 2, 0x00, 0x89, 0x00, 0x1d, 1);
 
     /* create irq lines */
     env->pic_state = lm32_pic_init(qemu_allocate_irq(cpu_irq_handler, cpu, 0));

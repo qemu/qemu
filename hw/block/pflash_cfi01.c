@@ -940,7 +940,7 @@ PFlashCFI01 *pflash_cfi01_register(hwaddr base,
                                    const char *name,
                                    hwaddr size,
                                    BlockBackend *blk,
-                                   uint32_t sector_len, int nb_blocs,
+                                   uint32_t sector_len,
                                    int bank_width,
                                    uint16_t id0, uint16_t id1,
                                    uint16_t id2, uint16_t id3,
@@ -951,7 +951,8 @@ PFlashCFI01 *pflash_cfi01_register(hwaddr base,
     if (blk) {
         qdev_prop_set_drive(dev, "drive", blk, &error_abort);
     }
-    qdev_prop_set_uint32(dev, "num-blocks", nb_blocs);
+    assert(size % sector_len == 0);
+    qdev_prop_set_uint32(dev, "num-blocks", size / sector_len);
     qdev_prop_set_uint64(dev, "sector-length", sector_len);
     qdev_prop_set_uint8(dev, "width", bank_width);
     qdev_prop_set_bit(dev, "big-endian", !!be);

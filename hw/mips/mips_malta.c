@@ -1264,7 +1264,7 @@ void mips_malta_init(MachineState *machine)
     fl = pflash_cfi01_register(FLASH_ADDRESS, "mips_malta.bios",
                                FLASH_SIZE,
                                dinfo ? blk_by_legacy_dinfo(dinfo) : NULL,
-                               65536, FLASH_SIZE >> 16,
+                               65536,
                                4, 0x0000, 0x0000, 0x0000, 0x0000, be);
     bios = pflash_cfi01_get_memory(fl);
     fl_idx++;
