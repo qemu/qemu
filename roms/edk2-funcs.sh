@@ -149,22 +149,10 @@ qemu_edk2_get_toolchain()
       # Run "git-blame" on "OvmfPkg/build.sh" in edk2 for more information on
       # the mapping below.
       case "$gcc_version" in
-        ([1-3].*|4.[0-3].*)
+        ([1-3].*|4.[0-7].*)
           printf '%s: unsupported gcc version "%s"\n' \
             "$program_name" "$gcc_version" >&2
           return 1
-          ;;
-        (4.4.*)
-          printf 'GCC44\n'
-          ;;
-        (4.5.*)
-          printf 'GCC45\n'
-          ;;
-        (4.6.*)
-          printf 'GCC46\n'
-          ;;
-        (4.7.*)
-          printf 'GCC47\n'
           ;;
         (4.8.*)
           printf 'GCC48\n'
