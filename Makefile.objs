@@ -101,7 +101,6 @@ version-obj-$(CONFIG_WIN32) += $(BUILD_DIR)/version.o
 ######################################################################
 # tracing
 util-obj-y +=  trace/
-target-obj-y += trace/
 
 ######################################################################
 # guest agent
