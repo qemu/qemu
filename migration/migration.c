@@ -1341,7 +1341,7 @@ static void migrate_params_apply(MigrateSetParameters *params, Error **errp)
 
     if (params->has_max_bandwidth) {
         s->parameters.max_bandwidth = params->max_bandwidth;
-        if (s->to_dst_file) {
+        if (s->to_dst_file && !migration_in_postcopy()) {
             qemu_file_set_rate_limit(s->to_dst_file,
                                 s->parameters.max_bandwidth / XFER_LIMIT_RATIO);
         }
@@ -1370,6 +1370,10 @@ static void migrate_params_apply(MigrateSetParameters *params, Error **errp)
     }
     if (params->has_max_postcopy_bandwidth) {
         s->parameters.max_postcopy_bandwidth = params->max_postcopy_bandwidth;
+        if (s->to_dst_file && migration_in_postcopy()) {
+            qemu_file_set_rate_limit(s->to_dst_file,
+                    s->parameters.max_postcopy_bandwidth / XFER_LIMIT_RATIO);
+        }
     }
     if (params->has_max_cpu_throttle) {
         s->parameters.max_cpu_throttle = params->max_cpu_throttle;
