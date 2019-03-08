@@ -7,7 +7,7 @@
 
 /* pflash_cfi01.c */
 
-#define TYPE_CFI_PFLASH01 "cfi.pflash01"
+#define TYPE_PFLASH_CFI01 "cfi.pflash01"
 
 typedef struct PFlashCFI01 PFlashCFI01;
 
@@ -24,7 +24,7 @@ MemoryRegion *pflash_cfi01_get_memory(PFlashCFI01 *fl);
 
 /* pflash_cfi02.c */
 
-#define TYPE_CFI_PFLASH02 "cfi.pflash02"
+#define TYPE_PFLASH_CFI02 "cfi.pflash02"
 
 typedef struct PFlashCFI02 PFlashCFI02;
 

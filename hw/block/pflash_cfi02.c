@@ -57,8 +57,8 @@ do {                                                       \
 
 #define PFLASH_LAZY_ROMD_THRESHOLD 42
 
-#define CFI_PFLASH02(obj) \
-    OBJECT_CHECK(PFlashCFI02, (obj), TYPE_CFI_PFLASH02)
+#define PFLASH_CFI02(obj) \
+    OBJECT_CHECK(PFlashCFI02, (obj), TYPE_PFLASH_CFI02)
 
 struct PFlashCFI02 {
     /*< private >*/
@@ -534,7 +534,7 @@ static const MemoryRegionOps pflash_cfi02_ops_le = {
 
 static void pflash_cfi02_realize(DeviceState *dev, Error **errp)
 {
-    PFlashCFI02 *pfl = CFI_PFLASH02(dev);
+    PFlashCFI02 *pfl = PFLASH_CFI02(dev);
     uint32_t chip_len;
     int ret;
     Error *local_err = NULL;
@@ -698,7 +698,7 @@ static Property pflash_cfi02_properties[] = {
 
 static void pflash_cfi02_unrealize(DeviceState *dev, Error **errp)
 {
-    PFlashCFI02 *pfl = CFI_PFLASH02(dev);
+    PFlashCFI02 *pfl = PFLASH_CFI02(dev);
     timer_del(&pfl->timer);
 }
 
@@ -713,7 +713,7 @@ static void pflash_cfi02_class_init(ObjectClass *klass, void *data)
 }
 
 static const TypeInfo pflash_cfi02_info = {
-    .name           = TYPE_CFI_PFLASH02,
+    .name           = TYPE_PFLASH_CFI02,
     .parent         = TYPE_SYS_BUS_DEVICE,
     .instance_size  = sizeof(PFlashCFI02),
     .class_init     = pflash_cfi02_class_init,
@@ -738,7 +738,7 @@ PFlashCFI02 *pflash_cfi02_register(hwaddr base,
                                    uint16_t unlock_addr1,
                                    int be)
 {
-    DeviceState *dev = qdev_create(NULL, TYPE_CFI_PFLASH02);
+    DeviceState *dev = qdev_create(NULL, TYPE_PFLASH_CFI02);
 
     if (blk) {
         qdev_prop_set_drive(dev, "drive", blk, &error_abort);
@@ -758,5 +758,5 @@ PFlashCFI02 *pflash_cfi02_register(hwaddr base,
     qdev_init_nofail(dev);
 
     sysbus_mmio_map(SYS_BUS_DEVICE(dev), 0, base);
-    return CFI_PFLASH02(dev);
+    return PFLASH_CFI02(dev);
 }
