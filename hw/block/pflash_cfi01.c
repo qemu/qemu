@@ -59,8 +59,8 @@ do {                                                        \
 #define DPRINTF(fmt, ...) do { } while (0)
 #endif
 
-#define CFI_PFLASH01(obj) \
-    OBJECT_CHECK(PFlashCFI01, (obj), TYPE_CFI_PFLASH01)
+#define PFLASH_CFI01(obj) \
+    OBJECT_CHECK(PFlashCFI01, (obj), TYPE_PFLASH_CFI01)
 
 #define PFLASH_BE          0
 #define PFLASH_SECURE      1
@@ -698,7 +698,7 @@ static const MemoryRegionOps pflash_cfi01_ops = {
 
 static void pflash_cfi01_realize(DeviceState *dev, Error **errp)
 {
-    PFlashCFI01 *pfl = CFI_PFLASH01(dev);
+    PFlashCFI01 *pfl = PFLASH_CFI01(dev);
     uint64_t total_len;
     int ret;
     uint64_t blocks_per_device, sector_len_per_device, device_len;
@@ -926,7 +926,7 @@ static void pflash_cfi01_class_init(ObjectClass *klass, void *data)
 
 
 static const TypeInfo pflash_cfi01_info = {
-    .name           = TYPE_CFI_PFLASH01,
+    .name           = TYPE_PFLASH_CFI01,
     .parent         = TYPE_SYS_BUS_DEVICE,
     .instance_size  = sizeof(PFlashCFI01),
     .class_init     = pflash_cfi01_class_init,
@@ -949,7 +949,7 @@ PFlashCFI01 *pflash_cfi01_register(hwaddr base,
                                    uint16_t id2, uint16_t id3,
                                    int be)
 {
-    DeviceState *dev = qdev_create(NULL, TYPE_CFI_PFLASH01);
+    DeviceState *dev = qdev_create(NULL, TYPE_PFLASH_CFI01);
 
     if (blk) {
         qdev_prop_set_drive(dev, "drive", blk, &error_abort);
@@ -966,7 +966,7 @@ PFlashCFI01 *pflash_cfi01_register(hwaddr base,
     qdev_init_nofail(dev);
 
     sysbus_mmio_map(SYS_BUS_DEVICE(dev), 0, base);
-    return CFI_PFLASH01(dev);
+    return PFLASH_CFI01(dev);
 }
 
 MemoryRegion *pflash_cfi01_get_memory(PFlashCFI01 *fl)
