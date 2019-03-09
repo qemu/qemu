@@ -85,7 +85,7 @@ static char *read_splashfile(char *filename, gsize *file_sizep,
     }
 
     /* check magic ID */
-    filehead = ((content[0] & 0xff) + (content[1] << 8)) & 0xffff;
+    filehead = lduw_le_p(content);
     if (filehead == 0xd8ff) {
         file_type = JPG_FILE;
     } else if (filehead == 0x4d42) {
@@ -96,7 +96,7 @@ static char *read_splashfile(char *filename, gsize *file_sizep,
 
     /* check BMP bpp */
     if (file_type == BMP_FILE) {
-        bmp_bpp = (content[28] + (content[29] << 8)) & 0xffff;
+        bmp_bpp = lduw_le_p(&content[28]);
         if (bmp_bpp != 24) {
             goto error;
         }
