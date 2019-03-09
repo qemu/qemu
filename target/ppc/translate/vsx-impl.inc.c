@@ -1695,7 +1695,6 @@ static void gen_xviexpdp(DisasContext *ctx)
     TCGv_i64 xal;
     TCGv_i64 xbh;
     TCGv_i64 xbl;
-    TCGv_i64 t0;
 
     if (unlikely(!ctx->vsx_enabled)) {
         gen_exception(ctx, POWERPC_EXCP_VSXU);
@@ -1711,20 +1710,13 @@ static void gen_xviexpdp(DisasContext *ctx)
     get_cpu_vsrl(xal, xA(ctx->opcode));
     get_cpu_vsrh(xbh, xB(ctx->opcode));
     get_cpu_vsrl(xbl, xB(ctx->opcode));
-    t0 = tcg_temp_new_i64();
 
-    tcg_gen_andi_i64(xth, xah, 0x800FFFFFFFFFFFFF);
-    tcg_gen_andi_i64(t0, xbh, 0x7FF);
-    tcg_gen_shli_i64(t0, t0, 52);
-    tcg_gen_or_i64(xth, xth, t0);
+    tcg_gen_deposit_i64(xth, xah, xbh, 52, 11);
     set_cpu_vsrh(xT(ctx->opcode), xth);
-    tcg_gen_andi_i64(xtl, xal, 0x800FFFFFFFFFFFFF);
-    tcg_gen_andi_i64(t0, xbl, 0x7FF);
-    tcg_gen_shli_i64(t0, t0, 52);
-    tcg_gen_or_i64(xtl, xtl, t0);
+
+    tcg_gen_deposit_i64(xtl, xal, xbl, 52, 11);
     set_cpu_vsrl(xT(ctx->opcode), xtl);
 
-    tcg_temp_free_i64(t0);
     tcg_temp_free_i64(xth);
     tcg_temp_free_i64(xtl);
     tcg_temp_free_i64(xah);
