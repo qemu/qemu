@@ -127,7 +127,7 @@ static void virtio_blk_rw_complete(void *opaque, int ret)
         }
 
         if (ret) {
-            int p = virtio_ldl_p(VIRTIO_DEVICE(req->dev), &req->out.type);
+            int p = virtio_ldl_p(VIRTIO_DEVICE(s), &req->out.type);
             bool is_read = !(p & VIRTIO_BLK_T_OUT);
             /* Note that memory may be dirtied on read failure.  If the
              * virtio request is not completed here, as is the case for
@@ -143,7 +143,7 @@ static void virtio_blk_rw_complete(void *opaque, int ret)
         }
 
         virtio_blk_req_complete(req, VIRTIO_BLK_S_OK);
-        block_acct_done(blk_get_stats(req->dev->blk), &req->acct);
+        block_acct_done(blk_get_stats(s->blk), &req->acct);
         virtio_blk_free_request(req);
     }
     aio_context_release(blk_get_aio_context(s->conf.conf.blk));
@@ -260,9 +260,9 @@ static int virtio_blk_handle_scsi_req(VirtIOBlockReq *req)
 {
     int status = VIRTIO_BLK_S_OK;
     struct virtio_scsi_inhdr *scsi = NULL;
-    VirtIODevice *vdev = VIRTIO_DEVICE(req->dev);
-    VirtQueueElement *elem = &req->elem;
     VirtIOBlock *blk = req->dev;
+    VirtIODevice *vdev = VIRTIO_DEVICE(blk);
+    VirtQueueElement *elem = &req->elem;
 
 #ifdef __linux__
     int i;
@@ -492,16 +492,18 @@ static void virtio_blk_submit_multireq(BlockBackend *blk, MultiReqBuffer *mrb)
 
 static void virtio_blk_handle_flush(VirtIOBlockReq *req, MultiReqBuffer *mrb)
 {
-    block_acct_start(blk_get_stats(req->dev->blk), &req->acct, 0,
+    VirtIOBlock *s = req->dev;
+
+    block_acct_start(blk_get_stats(s->blk), &req->acct, 0,
                      BLOCK_ACCT_FLUSH);
 
     /*
      * Make sure all outstanding writes are posted to the backing device.
      */
     if (mrb->is_write && mrb->num_reqs > 0) {
-        virtio_blk_submit_multireq(req->dev->blk, mrb);
+        virtio_blk_submit_multireq(s->blk, mrb);
     }
-    blk_aio_flush(req->dev->blk, virtio_blk_flush_complete, req);
+    blk_aio_flush(s->blk, virtio_blk_flush_complete, req);
 }
 
 static bool virtio_blk_sect_range_ok(VirtIOBlock *dev,
