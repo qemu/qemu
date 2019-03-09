@@ -1156,8 +1156,20 @@ void qcow2_free_any_clusters(BlockDriverState *bs, uint64_t l2_entry,
                              int nb_clusters, enum qcow2_discard_type type)
 {
     BDRVQcow2State *s = bs->opaque;
+    QCow2ClusterType ctype = qcow2_get_cluster_type(bs, l2_entry);
 
-    switch (qcow2_get_cluster_type(l2_entry)) {
+    if (has_data_file(bs)) {
+        if (s->discard_passthrough[type] &&
+            (ctype == QCOW2_CLUSTER_NORMAL ||
+             ctype == QCOW2_CLUSTER_ZERO_ALLOC))
+        {
+            bdrv_pdiscard(s->data_file, l2_entry & L2E_OFFSET_MASK,
+                          nb_clusters << s->cluster_bits);
+        }
+        return;
+    }
+
+    switch (ctype) {
     case QCOW2_CLUSTER_COMPRESSED:
         {
             int nb_csectors;
@@ -1300,7 +1312,7 @@ int qcow2_update_snapshot_refcount(BlockDriverState *bs,
                     entry &= ~QCOW_OFLAG_COPIED;
                     offset = entry & L2E_OFFSET_MASK;
 
-                    switch (qcow2_get_cluster_type(entry)) {
+                    switch (qcow2_get_cluster_type(bs, entry)) {
                     case QCOW2_CLUSTER_COMPRESSED:
                         nb_csectors = ((entry >> s->csize_shift) &
                                        s->csize_mask) + 1;
@@ -1582,7 +1594,7 @@ static int check_refcounts_l2(BlockDriverState *bs, BdrvCheckResult *res,
     for(i = 0; i < s->l2_size; i++) {
         l2_entry = be64_to_cpu(l2_table[i]);
 
-        switch (qcow2_get_cluster_type(l2_entry)) {
+        switch (qcow2_get_cluster_type(bs, l2_entry)) {
         case QCOW2_CLUSTER_COMPRESSED:
             /* Compressed clusters don't have QCOW_OFLAG_COPIED */
             if (l2_entry & QCOW_OFLAG_COPIED) {
@@ -1591,6 +1603,13 @@ static int check_refcounts_l2(BlockDriverState *bs, BdrvCheckResult *res,
                     "clusters\n", l2_entry & s->cluster_offset_mask);
                 l2_entry &= ~QCOW_OFLAG_COPIED;
                 res->corruptions++;
+            }
+
+            if (has_data_file(bs)) {
+                fprintf(stderr, "ERROR compressed cluster %d with data file, "
+                        "entry=0x%" PRIx64 "\n", i, l2_entry);
+                res->corruptions++;
+                break;
             }
 
             /* Mark cluster as used */
@@ -1633,7 +1652,7 @@ static int check_refcounts_l2(BlockDriverState *bs, BdrvCheckResult *res,
 
             /* Correct offsets are cluster aligned */
             if (offset_into_cluster(s, offset)) {
-                if (qcow2_get_cluster_type(l2_entry) ==
+                if (qcow2_get_cluster_type(bs, l2_entry) ==
                     QCOW2_CLUSTER_ZERO_ALLOC)
                 {
                     fprintf(stderr, "%s offset=%" PRIx64 ": Preallocated zero "
@@ -1649,7 +1668,7 @@ static int check_refcounts_l2(BlockDriverState *bs, BdrvCheckResult *res,
                         l2_table[i] = cpu_to_be64(l2_entry);
                         ret = qcow2_pre_write_overlap_check(bs,
                                 QCOW2_OL_ACTIVE_L2 | QCOW2_OL_INACTIVE_L2,
-                                l2e_offset, sizeof(uint64_t));
+                                l2e_offset, sizeof(uint64_t), false);
                         if (ret < 0) {
                             fprintf(stderr, "ERROR: Overlap check failed\n");
                             res->check_errors++;
@@ -1683,11 +1702,13 @@ static int check_refcounts_l2(BlockDriverState *bs, BdrvCheckResult *res,
             }
 
             /* Mark cluster as used */
-            ret = qcow2_inc_refcounts_imrt(bs, res,
-                                           refcount_table, refcount_table_size,
-                                           offset, s->cluster_size);
-            if (ret < 0) {
-                goto fail;
+            if (!has_data_file(bs)) {
+                ret = qcow2_inc_refcounts_imrt(bs, res, refcount_table,
+                                               refcount_table_size,
+                                               offset, s->cluster_size);
+                if (ret < 0) {
+                    goto fail;
+                }
             }
             break;
         }
@@ -1868,16 +1889,20 @@ static int check_oflag_copied(BlockDriverState *bs, BdrvCheckResult *res,
         for (j = 0; j < s->l2_size; j++) {
             uint64_t l2_entry = be64_to_cpu(l2_table[j]);
             uint64_t data_offset = l2_entry & L2E_OFFSET_MASK;
-            QCow2ClusterType cluster_type = qcow2_get_cluster_type(l2_entry);
+            QCow2ClusterType cluster_type = qcow2_get_cluster_type(bs, l2_entry);
 
             if (cluster_type == QCOW2_CLUSTER_NORMAL ||
                 cluster_type == QCOW2_CLUSTER_ZERO_ALLOC) {
-                ret = qcow2_get_refcount(bs,
-                                         data_offset >> s->cluster_bits,
-                                         &refcount);
-                if (ret < 0) {
-                    /* don't print message nor increment check_errors */
-                    continue;
+                if (has_data_file(bs)) {
+                    refcount = 1;
+                } else {
+                    ret = qcow2_get_refcount(bs,
+                                             data_offset >> s->cluster_bits,
+                                             &refcount);
+                    if (ret < 0) {
+                        /* don't print message nor increment check_errors */
+                        continue;
+                    }
                 }
                 if ((refcount == 1) != ((l2_entry & QCOW_OFLAG_COPIED) != 0)) {
                     fprintf(stderr, "%s OFLAG_COPIED data cluster: "
@@ -1898,7 +1923,8 @@ static int check_oflag_copied(BlockDriverState *bs, BdrvCheckResult *res,
 
         if (l2_dirty) {
             ret = qcow2_pre_write_overlap_check(bs, QCOW2_OL_ACTIVE_L2,
-                                                l2_offset, s->cluster_size);
+                                                l2_offset, s->cluster_size,
+                                                false);
             if (ret < 0) {
                 fprintf(stderr, "ERROR: Could not write L2 table; metadata "
                         "overlap check failed: %s\n", strerror(-ret));
@@ -2070,6 +2096,12 @@ static int calculate_refcounts(BlockDriverState *bs, BdrvCheckResult *res,
     }
 
     /* snapshots */
+    if (has_data_file(bs) && s->nb_snapshots) {
+        fprintf(stderr, "ERROR %d snapshots in image with data file\n",
+                s->nb_snapshots);
+        res->corruptions++;
+    }
+
     for (i = 0; i < s->nb_snapshots; i++) {
         sn = s->snapshots + i;
         if (offset_into_cluster(s, sn->l1_table_offset)) {
@@ -2366,7 +2398,7 @@ write_refblocks:
         }
 
         ret = qcow2_pre_write_overlap_check(bs, 0, refblock_offset,
-                                            s->cluster_size);
+                                            s->cluster_size, false);
         if (ret < 0) {
             fprintf(stderr, "ERROR writing refblock: %s\n", strerror(-ret));
             goto fail;
@@ -2417,7 +2449,8 @@ write_refblocks:
     }
 
     ret = qcow2_pre_write_overlap_check(bs, 0, reftable_offset,
-                                        reftable_size * sizeof(uint64_t));
+                                        reftable_size * sizeof(uint64_t),
+                                        false);
     if (ret < 0) {
         fprintf(stderr, "ERROR writing reftable: %s\n", strerror(-ret));
         goto fail;
@@ -2751,10 +2784,15 @@ QEMU_BUILD_BUG_ON(QCOW2_OL_MAX_BITNR != ARRAY_SIZE(metadata_ol_names));
  * overlaps; or a negative value (-errno) on error.
  */
 int qcow2_pre_write_overlap_check(BlockDriverState *bs, int ign, int64_t offset,
-                                  int64_t size)
+                                  int64_t size, bool data_file)
 {
-    int ret = qcow2_check_metadata_overlap(bs, ign, offset, size);
+    int ret;
 
+    if (data_file && has_data_file(bs)) {
+        return 0;
+    }
+
+    ret = qcow2_check_metadata_overlap(bs, ign, offset, size);
     if (ret < 0) {
         return ret;
     } else if (ret > 0) {
@@ -2855,7 +2893,8 @@ static int flush_refblock(BlockDriverState *bs, uint64_t **reftable,
     if (reftable_index < *reftable_size && (*reftable)[reftable_index]) {
         offset = (*reftable)[reftable_index];
 
-        ret = qcow2_pre_write_overlap_check(bs, 0, offset, s->cluster_size);
+        ret = qcow2_pre_write_overlap_check(bs, 0, offset, s->cluster_size,
+                                            false);
         if (ret < 0) {
             error_setg_errno(errp, -ret, "Overlap check failed");
             return ret;
@@ -3121,7 +3160,8 @@ int qcow2_change_refcount_order(BlockDriverState *bs, int refcount_order,
 
     /* Write the new reftable */
     ret = qcow2_pre_write_overlap_check(bs, 0, new_reftable_offset,
-                                        new_reftable_size * sizeof(uint64_t));
+                                        new_reftable_size * sizeof(uint64_t),
+                                        false);
     if (ret < 0) {
         error_setg_errno(errp, -ret, "Overlap check failed");
         goto done;

@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/usr/bin/env bash
 #
 # Test that all qcow2 header extensions survive a header rewrite
 #

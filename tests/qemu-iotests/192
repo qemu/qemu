@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/usr/bin/env bash
 #
 # Test NBD export with -incoming (non-shared storage migration use case from
 # libvirt)

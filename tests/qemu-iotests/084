@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/usr/bin/env bash
 #
 # Test case for VDI header corruption; image too large, and too many blocks.
 # Also simple test for creating dynamic and static VDI images.

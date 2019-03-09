@@ -712,9 +712,17 @@ def notrun(reason):
     # Each test in qemu-iotests has a number ("seq")
     seq = os.path.basename(sys.argv[0])
 
-    open('%s/%s.notrun' % (output_dir, seq), 'wb').write(reason + '\n')
+    open('%s/%s.notrun' % (output_dir, seq), 'w').write(reason + '\n')
     print('%s not run: %s' % (seq, reason))
     sys.exit(0)
+
+def case_notrun(reason):
+    '''Skip this test case'''
+    # Each test in qemu-iotests has a number ("seq")
+    seq = os.path.basename(sys.argv[0])
+
+    open('%s/%s.casenotrun' % (output_dir, seq), 'a').write(
+        '    [case not run] ' + reason + '\n')
 
 def verify_image_format(supported_fmts=[], unsupported_fmts=[]):
     assert not (supported_fmts and unsupported_fmts)
@@ -755,6 +763,41 @@ def verify_quorum():
     '''Skip test suite if quorum support is not available'''
     if not supports_quorum():
         notrun('quorum support missing')
+
+def qemu_pipe(*args):
+    '''Run qemu with an option to print something and exit (e.g. a help option),
+    and return its output'''
+    args = [qemu_prog] + qemu_opts + list(args)
+    subp = subprocess.Popen(args, stdout=subprocess.PIPE,
+                            stderr=subprocess.STDOUT,
+                            universal_newlines=True)
+    exitcode = subp.wait()
+    if exitcode < 0:
+        sys.stderr.write('qemu received signal %i: %s\n' % (-exitcode,
+                         ' '.join(args)))
+    return subp.communicate()[0]
+
+def supported_formats(read_only=False):
+    '''Set 'read_only' to True to check ro-whitelist
+       Otherwise, rw-whitelist is checked'''
+    format_message = qemu_pipe("-drive", "format=help")
+    line = 1 if read_only else 0
+    return format_message.splitlines()[line].split(":")[1].split()
+
+def skip_if_unsupported(required_formats=[], read_only=False):
+    '''Skip Test Decorator
+       Runs the test if all the required formats are whitelisted'''
+    def skip_test_decorator(func):
+        def func_wrapper(*args, **kwargs):
+            usf_list = list(set(required_formats) -
+                            set(supported_formats(read_only)))
+            if usf_list:
+                case_notrun('{}: formats {} are not whitelisted'.format(
+                    args[0], usf_list))
+            else:
+                return func(*args, **kwargs)
+        return func_wrapper
+    return skip_test_decorator
 
 def main(supported_fmts=[], supported_oses=['linux'], supported_cache_modes=[],
          unsupported_fmts=[]):

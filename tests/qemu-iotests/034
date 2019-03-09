@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/usr/bin/env bash
 #
 # Test bdrv_pwrite_zeroes with backing files (see also 154)
 #

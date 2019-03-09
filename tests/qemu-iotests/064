@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/usr/bin/env bash
 #
 # Test VHDX read/write from a sample image created with Hyper-V
 #

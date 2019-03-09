@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/usr/bin/env bash
 #
 # Test bdrv_load/save_vmstate using the usual patterns
 #

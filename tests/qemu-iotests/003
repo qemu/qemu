@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/usr/bin/env bash
 #
 # Test simple read/write using bdrv_aio_readv/bdrv_aio_writev
 #

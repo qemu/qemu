@@ -158,10 +158,10 @@ refcount cache is as small as possible unless overridden by the user.
 
 Using smaller cache entries
 ---------------------------
-The qcow2 L2 cache stores complete tables by default. This means that
-if QEMU needs an entry from an L2 table then the whole table is read
-from disk and is kept in the cache. If the cache is full then a
-complete table needs to be evicted first.
+The qcow2 L2 cache can store complete tables. This means that if QEMU
+needs an entry from an L2 table then the whole table is read from disk
+and is kept in the cache. If the cache is full then a complete table
+needs to be evicted first.
 
 This can be inefficient with large cluster sizes since it results in
 more disk I/O and wastes more cache memory.
@@ -171,6 +171,9 @@ it smaller than the cluster size. This can be configured using the
 "l2-cache-entry-size" parameter:
 
    -drive file=hd.qcow2,l2-cache-size=2097152,l2-cache-entry-size=4096
+
+Since QEMU 4.0 the value of l2-cache-entry-size defaults to 4KB (or
+the cluster size if it's smaller).
 
 Some things to take into account:
 
@@ -185,7 +188,8 @@ Some things to take into account:
 
  - Try different entry sizes to see which one gives faster performance
    in your case. The block size of the host filesystem is generally a
-   good default (usually 4096 bytes in the case of ext4).
+   good default (usually 4096 bytes in the case of ext4, hence the
+   default).
 
  - Only the L2 cache can be configured this way. The refcount cache
    always uses the cluster size as the entry size.
@@ -194,7 +198,8 @@ Some things to take into account:
    (as explained in the "Choosing the right cache sizes" and "How to
    configure the cache sizes" sections in this document) then none of
    this is necessary and you can omit the "l2-cache-entry-size"
-   parameter altogether.
+   parameter altogether. In this case QEMU makes the entry size
+   equal to the cluster size by default.
 
 
 Reducing the memory usage

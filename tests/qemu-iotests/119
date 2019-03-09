@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/usr/bin/env bash
 #
 # NBD test case for overriding BDRV_O_PROTOCOL by explicitly specifying
 # a driver

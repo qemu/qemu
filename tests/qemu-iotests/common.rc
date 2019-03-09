@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/usr/bin/env bash
 #
 # Copyright (C) 2009 Red Hat, Inc.
 # Copyright (c) 2000-2006 Silicon Graphics, Inc.  All Rights Reserved.
@@ -16,6 +16,19 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #
+
+SED=
+for sed in sed gsed; do
+    ($sed --version | grep 'GNU sed') > /dev/null 2>&1
+    if [ "$?" -eq 0 ]; then
+        SED=$sed
+        break
+    fi
+done
+if [ -z "$SED" ]; then
+    echo "$0: GNU sed not found"
+    exit 1
+fi
 
 dd()
 {

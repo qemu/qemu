@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/usr/bin/env bash
 #
 # Test bdrv_read/bdrv_write using BDRV_O_SNAPSHOT
 #

@@ -56,6 +56,8 @@
 #define BLOCK_OPT_NOCOW             "nocow"
 #define BLOCK_OPT_OBJECT_SIZE       "object_size"
 #define BLOCK_OPT_REFCOUNT_BITS     "refcount_bits"
+#define BLOCK_OPT_DATA_FILE         "data_file"
+#define BLOCK_OPT_DATA_FILE_RAW     "data_file_raw"
 
 #define BLOCK_PROBE_BUF_SIZE        512
 

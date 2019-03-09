@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/usr/bin/env bash
 #
 # Test handling of invalid patterns arguments to qemu-io
 #

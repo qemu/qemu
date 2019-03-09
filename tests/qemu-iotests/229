@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/usr/bin/env bash
 #
 # Test for force canceling a running blockjob that is paused in
 # an error state.

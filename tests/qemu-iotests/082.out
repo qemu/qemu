@@ -48,6 +48,8 @@ Supported options:
   backing_fmt=<str>      - Image format of the base image
   cluster_size=<size>    - qcow2 cluster size
   compat=<str>           - Compatibility level (0.10 or 1.1)
+  data_file=<str>        - File name of an external data file
+  data_file_raw=<bool (on/off)> - The external data file must stay valid as a raw image
   encrypt.cipher-alg=<str> - Name of encryption cipher algorithm
   encrypt.cipher-mode=<str> - Name of encryption cipher mode
   encrypt.format=<str>   - Encrypt the image, format choices: 'aes', 'luks'
@@ -69,6 +71,8 @@ Supported options:
   backing_fmt=<str>      - Image format of the base image
   cluster_size=<size>    - qcow2 cluster size
   compat=<str>           - Compatibility level (0.10 or 1.1)
+  data_file=<str>        - File name of an external data file
+  data_file_raw=<bool (on/off)> - The external data file must stay valid as a raw image
   encrypt.cipher-alg=<str> - Name of encryption cipher algorithm
   encrypt.cipher-mode=<str> - Name of encryption cipher mode
   encrypt.format=<str>   - Encrypt the image, format choices: 'aes', 'luks'
@@ -90,6 +94,8 @@ Supported options:
   backing_fmt=<str>      - Image format of the base image
   cluster_size=<size>    - qcow2 cluster size
   compat=<str>           - Compatibility level (0.10 or 1.1)
+  data_file=<str>        - File name of an external data file
+  data_file_raw=<bool (on/off)> - The external data file must stay valid as a raw image
   encrypt.cipher-alg=<str> - Name of encryption cipher algorithm
   encrypt.cipher-mode=<str> - Name of encryption cipher mode
   encrypt.format=<str>   - Encrypt the image, format choices: 'aes', 'luks'
@@ -111,6 +117,8 @@ Supported options:
   backing_fmt=<str>      - Image format of the base image
   cluster_size=<size>    - qcow2 cluster size
   compat=<str>           - Compatibility level (0.10 or 1.1)
+  data_file=<str>        - File name of an external data file
+  data_file_raw=<bool (on/off)> - The external data file must stay valid as a raw image
   encrypt.cipher-alg=<str> - Name of encryption cipher algorithm
   encrypt.cipher-mode=<str> - Name of encryption cipher mode
   encrypt.format=<str>   - Encrypt the image, format choices: 'aes', 'luks'
@@ -132,6 +140,8 @@ Supported options:
   backing_fmt=<str>      - Image format of the base image
   cluster_size=<size>    - qcow2 cluster size
   compat=<str>           - Compatibility level (0.10 or 1.1)
+  data_file=<str>        - File name of an external data file
+  data_file_raw=<bool (on/off)> - The external data file must stay valid as a raw image
   encrypt.cipher-alg=<str> - Name of encryption cipher algorithm
   encrypt.cipher-mode=<str> - Name of encryption cipher mode
   encrypt.format=<str>   - Encrypt the image, format choices: 'aes', 'luks'
@@ -153,6 +163,8 @@ Supported options:
   backing_fmt=<str>      - Image format of the base image
   cluster_size=<size>    - qcow2 cluster size
   compat=<str>           - Compatibility level (0.10 or 1.1)
+  data_file=<str>        - File name of an external data file
+  data_file_raw=<bool (on/off)> - The external data file must stay valid as a raw image
   encrypt.cipher-alg=<str> - Name of encryption cipher algorithm
   encrypt.cipher-mode=<str> - Name of encryption cipher mode
   encrypt.format=<str>   - Encrypt the image, format choices: 'aes', 'luks'
@@ -174,6 +186,8 @@ Supported options:
   backing_fmt=<str>      - Image format of the base image
   cluster_size=<size>    - qcow2 cluster size
   compat=<str>           - Compatibility level (0.10 or 1.1)
+  data_file=<str>        - File name of an external data file
+  data_file_raw=<bool (on/off)> - The external data file must stay valid as a raw image
   encrypt.cipher-alg=<str> - Name of encryption cipher algorithm
   encrypt.cipher-mode=<str> - Name of encryption cipher mode
   encrypt.format=<str>   - Encrypt the image, format choices: 'aes', 'luks'
@@ -195,6 +209,8 @@ Supported options:
   backing_fmt=<str>      - Image format of the base image
   cluster_size=<size>    - qcow2 cluster size
   compat=<str>           - Compatibility level (0.10 or 1.1)
+  data_file=<str>        - File name of an external data file
+  data_file_raw=<bool (on/off)> - The external data file must stay valid as a raw image
   encrypt.cipher-alg=<str> - Name of encryption cipher algorithm
   encrypt.cipher-mode=<str> - Name of encryption cipher mode
   encrypt.format=<str>   - Encrypt the image, format choices: 'aes', 'luks'
@@ -231,6 +247,8 @@ Supported options:
   backing_fmt=<str>      - Image format of the base image
   cluster_size=<size>    - qcow2 cluster size
   compat=<str>           - Compatibility level (0.10 or 1.1)
+  data_file=<str>        - File name of an external data file
+  data_file_raw=<bool (on/off)> - The external data file must stay valid as a raw image
   encrypt.cipher-alg=<str> - Name of encryption cipher algorithm
   encrypt.cipher-mode=<str> - Name of encryption cipher mode
   encrypt.format=<str>   - Encrypt the image, format choices: 'aes', 'luks'
@@ -304,6 +322,8 @@ Supported options:
   backing_fmt=<str>      - Image format of the base image
   cluster_size=<size>    - qcow2 cluster size
   compat=<str>           - Compatibility level (0.10 or 1.1)
+  data_file=<str>        - File name of an external data file
+  data_file_raw=<bool (on/off)> - The external data file must stay valid as a raw image
   encrypt.cipher-alg=<str> - Name of encryption cipher algorithm
   encrypt.cipher-mode=<str> - Name of encryption cipher mode
   encrypt.format=<str>   - Encrypt the image, format choices: 'aes', 'luks'
@@ -325,6 +345,8 @@ Supported options:
   backing_fmt=<str>      - Image format of the base image
   cluster_size=<size>    - qcow2 cluster size
   compat=<str>           - Compatibility level (0.10 or 1.1)
+  data_file=<str>        - File name of an external data file
+  data_file_raw=<bool (on/off)> - The external data file must stay valid as a raw image
   encrypt.cipher-alg=<str> - Name of encryption cipher algorithm
   encrypt.cipher-mode=<str> - Name of encryption cipher mode
   encrypt.format=<str>   - Encrypt the image, format choices: 'aes', 'luks'
@@ -346,6 +368,8 @@ Supported options:
   backing_fmt=<str>      - Image format of the base image
   cluster_size=<size>    - qcow2 cluster size
   compat=<str>           - Compatibility level (0.10 or 1.1)
+  data_file=<str>        - File name of an external data file
+  data_file_raw=<bool (on/off)> - The external data file must stay valid as a raw image
   encrypt.cipher-alg=<str> - Name of encryption cipher algorithm
   encrypt.cipher-mode=<str> - Name of encryption cipher mode
   encrypt.format=<str>   - Encrypt the image, format choices: 'aes', 'luks'
@@ -367,6 +391,8 @@ Supported options:
   backing_fmt=<str>      - Image format of the base image
   cluster_size=<size>    - qcow2 cluster size
   compat=<str>           - Compatibility level (0.10 or 1.1)
+  data_file=<str>        - File name of an external data file
+  data_file_raw=<bool (on/off)> - The external data file must stay valid as a raw image
   encrypt.cipher-alg=<str> - Name of encryption cipher algorithm
   encrypt.cipher-mode=<str> - Name of encryption cipher mode
   encrypt.format=<str>   - Encrypt the image, format choices: 'aes', 'luks'
@@ -388,6 +414,8 @@ Supported options:
   backing_fmt=<str>      - Image format of the base image
   cluster_size=<size>    - qcow2 cluster size
   compat=<str>           - Compatibility level (0.10 or 1.1)
+  data_file=<str>        - File name of an external data file
+  data_file_raw=<bool (on/off)> - The external data file must stay valid as a raw image
   encrypt.cipher-alg=<str> - Name of encryption cipher algorithm
   encrypt.cipher-mode=<str> - Name of encryption cipher mode
   encrypt.format=<str>   - Encrypt the image, format choices: 'aes', 'luks'
@@ -409,6 +437,8 @@ Supported options:
   backing_fmt=<str>      - Image format of the base image
   cluster_size=<size>    - qcow2 cluster size
   compat=<str>           - Compatibility level (0.10 or 1.1)
+  data_file=<str>        - File name of an external data file
+  data_file_raw=<bool (on/off)> - The external data file must stay valid as a raw image
   encrypt.cipher-alg=<str> - Name of encryption cipher algorithm
   encrypt.cipher-mode=<str> - Name of encryption cipher mode
   encrypt.format=<str>   - Encrypt the image, format choices: 'aes', 'luks'
@@ -430,6 +460,8 @@ Supported options:
   backing_fmt=<str>      - Image format of the base image
   cluster_size=<size>    - qcow2 cluster size
   compat=<str>           - Compatibility level (0.10 or 1.1)
+  data_file=<str>        - File name of an external data file
+  data_file_raw=<bool (on/off)> - The external data file must stay valid as a raw image
   encrypt.cipher-alg=<str> - Name of encryption cipher algorithm
   encrypt.cipher-mode=<str> - Name of encryption cipher mode
   encrypt.format=<str>   - Encrypt the image, format choices: 'aes', 'luks'
@@ -451,6 +483,8 @@ Supported options:
   backing_fmt=<str>      - Image format of the base image
   cluster_size=<size>    - qcow2 cluster size
   compat=<str>           - Compatibility level (0.10 or 1.1)
+  data_file=<str>        - File name of an external data file
+  data_file_raw=<bool (on/off)> - The external data file must stay valid as a raw image
   encrypt.cipher-alg=<str> - Name of encryption cipher algorithm
   encrypt.cipher-mode=<str> - Name of encryption cipher mode
   encrypt.format=<str>   - Encrypt the image, format choices: 'aes', 'luks'
@@ -487,6 +521,8 @@ Supported options:
   backing_fmt=<str>      - Image format of the base image
   cluster_size=<size>    - qcow2 cluster size
   compat=<str>           - Compatibility level (0.10 or 1.1)
+  data_file=<str>        - File name of an external data file
+  data_file_raw=<bool (on/off)> - The external data file must stay valid as a raw image
   encrypt.cipher-alg=<str> - Name of encryption cipher algorithm
   encrypt.cipher-mode=<str> - Name of encryption cipher mode
   encrypt.format=<str>   - Encrypt the image, format choices: 'aes', 'luks'
@@ -568,6 +604,8 @@ Creation options for 'qcow2':
   backing_fmt=<str>      - Image format of the base image
   cluster_size=<size>    - qcow2 cluster size
   compat=<str>           - Compatibility level (0.10 or 1.1)
+  data_file=<str>        - File name of an external data file
+  data_file_raw=<bool (on/off)> - The external data file must stay valid as a raw image
   encrypt.cipher-alg=<str> - Name of encryption cipher algorithm
   encrypt.cipher-mode=<str> - Name of encryption cipher mode
   encrypt.format=<str>   - Encrypt the image, format choices: 'aes', 'luks'
@@ -590,6 +628,8 @@ Creation options for 'qcow2':
   backing_fmt=<str>      - Image format of the base image
   cluster_size=<size>    - qcow2 cluster size
   compat=<str>           - Compatibility level (0.10 or 1.1)
+  data_file=<str>        - File name of an external data file
+  data_file_raw=<bool (on/off)> - The external data file must stay valid as a raw image
   encrypt.cipher-alg=<str> - Name of encryption cipher algorithm
   encrypt.cipher-mode=<str> - Name of encryption cipher mode
   encrypt.format=<str>   - Encrypt the image, format choices: 'aes', 'luks'
@@ -612,6 +652,8 @@ Creation options for 'qcow2':
   backing_fmt=<str>      - Image format of the base image
   cluster_size=<size>    - qcow2 cluster size
   compat=<str>           - Compatibility level (0.10 or 1.1)
+  data_file=<str>        - File name of an external data file
+  data_file_raw=<bool (on/off)> - The external data file must stay valid as a raw image
   encrypt.cipher-alg=<str> - Name of encryption cipher algorithm
   encrypt.cipher-mode=<str> - Name of encryption cipher mode
   encrypt.format=<str>   - Encrypt the image, format choices: 'aes', 'luks'
@@ -634,6 +676,8 @@ Creation options for 'qcow2':
   backing_fmt=<str>      - Image format of the base image
   cluster_size=<size>    - qcow2 cluster size
   compat=<str>           - Compatibility level (0.10 or 1.1)
+  data_file=<str>        - File name of an external data file
+  data_file_raw=<bool (on/off)> - The external data file must stay valid as a raw image
   encrypt.cipher-alg=<str> - Name of encryption cipher algorithm
   encrypt.cipher-mode=<str> - Name of encryption cipher mode
   encrypt.format=<str>   - Encrypt the image, format choices: 'aes', 'luks'
@@ -656,6 +700,8 @@ Creation options for 'qcow2':
   backing_fmt=<str>      - Image format of the base image
   cluster_size=<size>    - qcow2 cluster size
   compat=<str>           - Compatibility level (0.10 or 1.1)
+  data_file=<str>        - File name of an external data file
+  data_file_raw=<bool (on/off)> - The external data file must stay valid as a raw image
   encrypt.cipher-alg=<str> - Name of encryption cipher algorithm
   encrypt.cipher-mode=<str> - Name of encryption cipher mode
   encrypt.format=<str>   - Encrypt the image, format choices: 'aes', 'luks'
@@ -678,6 +724,8 @@ Creation options for 'qcow2':
   backing_fmt=<str>      - Image format of the base image
   cluster_size=<size>    - qcow2 cluster size
   compat=<str>           - Compatibility level (0.10 or 1.1)
+  data_file=<str>        - File name of an external data file
+  data_file_raw=<bool (on/off)> - The external data file must stay valid as a raw image
   encrypt.cipher-alg=<str> - Name of encryption cipher algorithm
   encrypt.cipher-mode=<str> - Name of encryption cipher mode
   encrypt.format=<str>   - Encrypt the image, format choices: 'aes', 'luks'
@@ -700,6 +748,8 @@ Creation options for 'qcow2':
   backing_fmt=<str>      - Image format of the base image
   cluster_size=<size>    - qcow2 cluster size
   compat=<str>           - Compatibility level (0.10 or 1.1)
+  data_file=<str>        - File name of an external data file
+  data_file_raw=<bool (on/off)> - The external data file must stay valid as a raw image
   encrypt.cipher-alg=<str> - Name of encryption cipher algorithm
   encrypt.cipher-mode=<str> - Name of encryption cipher mode
   encrypt.format=<str>   - Encrypt the image, format choices: 'aes', 'luks'
@@ -722,6 +772,8 @@ Creation options for 'qcow2':
   backing_fmt=<str>      - Image format of the base image
   cluster_size=<size>    - qcow2 cluster size
   compat=<str>           - Compatibility level (0.10 or 1.1)
+  data_file=<str>        - File name of an external data file
+  data_file_raw=<bool (on/off)> - The external data file must stay valid as a raw image
   encrypt.cipher-alg=<str> - Name of encryption cipher algorithm
   encrypt.cipher-mode=<str> - Name of encryption cipher mode
   encrypt.format=<str>   - Encrypt the image, format choices: 'aes', 'luks'
@@ -761,6 +813,8 @@ Creation options for 'qcow2':
   backing_fmt=<str>      - Image format of the base image
   cluster_size=<size>    - qcow2 cluster size
   compat=<str>           - Compatibility level (0.10 or 1.1)
+  data_file=<str>        - File name of an external data file
+  data_file_raw=<bool (on/off)> - The external data file must stay valid as a raw image
   encrypt.cipher-alg=<str> - Name of encryption cipher algorithm
   encrypt.cipher-mode=<str> - Name of encryption cipher mode
   encrypt.format=<str>   - Encrypt the image, format choices: 'aes', 'luks'

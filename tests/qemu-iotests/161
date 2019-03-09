@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/usr/bin/env bash
 #
 # Test reopening a backing image after block-stream and block-commit
 #

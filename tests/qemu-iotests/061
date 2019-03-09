@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/usr/bin/env bash
 #
 # Test case for image option amendment in qcow2.
 #
@@ -28,7 +28,8 @@ status=1	# failure is the default!
 
 _cleanup()
 {
-	_cleanup_test_img
+    _cleanup_test_img
+    rm -f $TEST_IMG.data
 }
 trap "_cleanup; exit \$status" 0 1 2 3 15
 
@@ -249,6 +250,48 @@ $QEMU_IO -c "write -z 0  64k" \
 $QEMU_IMG snapshot -c foo "$TEST_IMG"
 $QEMU_IMG amend -p -o "compat=0.10" "$TEST_IMG"
 _check_test_img
+
+echo
+echo "=== Testing version downgrade with external data file ==="
+echo
+IMGOPTS="compat=1.1,data_file=$TEST_IMG.data" _make_test_img 64M
+$QEMU_IMG amend -o "compat=0.10" "$TEST_IMG"
+_img_info --format-specific
+_check_test_img
+
+echo
+echo "=== Try changing the external data file ==="
+echo
+IMGOPTS="compat=1.1" _make_test_img 64M
+$QEMU_IMG amend -o "data_file=foo" "$TEST_IMG"
+
+echo
+IMGOPTS="compat=1.1,data_file=$TEST_IMG.data" _make_test_img 64M
+$QEMU_IMG amend -o "data_file=foo" "$TEST_IMG"
+_img_info --format-specific
+TEST_IMG="data-file.filename=$TEST_IMG.data,file.filename=$TEST_IMG" _img_info --format-specific --image-opts
+
+echo
+$QEMU_IMG amend -o "data_file=" --image-opts "data-file.filename=$TEST_IMG.data,file.filename=$TEST_IMG"
+_img_info --format-specific
+TEST_IMG="data-file.filename=$TEST_IMG.data,file.filename=$TEST_IMG" _img_info --format-specific --image-opts
+
+echo
+echo "=== Clearing and setting data-file-raw ==="
+echo
+IMGOPTS="compat=1.1,data_file=$TEST_IMG.data,data_file_raw=on" _make_test_img 64M
+$QEMU_IMG amend -o "data_file_raw=on" "$TEST_IMG"
+_img_info --format-specific
+_check_test_img
+
+$QEMU_IMG amend -o "data_file_raw=off" "$TEST_IMG"
+_img_info --format-specific
+_check_test_img
+
+$QEMU_IMG amend -o "data_file_raw=on" "$TEST_IMG"
+_img_info --format-specific
+_check_test_img
+
 
 # success, all done
 echo "*** done"

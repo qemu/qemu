@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/usr/bin/env bash
 #
 # Nolan II qcow2 corruption - wrong used cluster
 #

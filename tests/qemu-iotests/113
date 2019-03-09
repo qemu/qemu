@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/usr/bin/env bash
 #
 # Test case for accessing creation options on image formats and
 # protocols not supporting image creation

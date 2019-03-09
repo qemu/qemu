@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/usr/bin/env bash
 #
 # I/O errors when working with internal qcow2 snapshots, and repairing
 # the result

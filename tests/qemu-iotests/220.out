@@ -38,7 +38,7 @@ wrote 2097152/2097152 bytes at offset 37748736
 No errors were found on the image.
 image size 39845888
 == Trying to write compressed cluster ==
-write failed: Input/output error
+write failed: File too large
 image size 562949957615616
 == Writing normal cluster ==
 wrote 2097152/2097152 bytes at offset 0

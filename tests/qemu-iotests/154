@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/usr/bin/env bash
 #
 # qcow2 specific bdrv_pwrite_zeroes tests with backing files (complements 034)
 #

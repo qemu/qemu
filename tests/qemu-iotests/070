@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/usr/bin/env bash
 #
 # Test VHDX log replay from an image with a journal that needs to be
 # replayed

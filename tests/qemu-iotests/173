@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/usr/bin/env bash
 #
 # Test QAPI commands looking up protocol based images with relative
 # filename backing strings

@@ -117,7 +117,7 @@ header_length             104
 
 Header extension:
 magic                     0x6803f857
-length                    144
+length                    192
 data                      <binary>
 
 Header extension:
@@ -150,7 +150,7 @@ header_length             104
 
 Header extension:
 magic                     0x6803f857
-length                    144
+length                    192
 data                      <binary>
 
 Header extension:
@@ -164,7 +164,7 @@ No errors were found on the image.
 
 magic                     0x514649fb
 version                   3
-backing_file_offset       0x148
+backing_file_offset       0x178
 backing_file_size         0x17
 cluster_bits              16
 size                      67108864
@@ -188,7 +188,7 @@ data                      'host_device'
 
 Header extension:
 magic                     0x6803f857
-length                    144
+length                    192
 data                      <binary>
 
 Header extension:

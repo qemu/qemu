@@ -1,0 +1,58 @@
+QA output created by 243
+
+=== preallocation=off ===
+
+Formatting 'TEST_DIR/t.IMGFMT', fmt=IMGFMT size=67108864 preallocation=off
+File size: 196616
+Disk usage: low
+
+=== preallocation=metadata ===
+
+Formatting 'TEST_DIR/t.IMGFMT', fmt=IMGFMT size=67108864 preallocation=metadata
+File size: 67436544
+Disk usage: low
+
+=== preallocation=falloc ===
+
+Formatting 'TEST_DIR/t.IMGFMT', fmt=IMGFMT size=67108864 preallocation=falloc
+File size: 67436544
+Disk usage: high
+
+=== preallocation=full ===
+
+Formatting 'TEST_DIR/t.IMGFMT', fmt=IMGFMT size=67108864 preallocation=full
+File size: 67436544
+Disk usage: high
+
+=== External data file: preallocation=off ===
+
+Formatting 'TEST_DIR/t.IMGFMT', fmt=IMGFMT size=67108864 data_file=TEST_DIR/t.IMGFMT.data preallocation=off
+qcow2 file size: 196616
+data file size:  67108864
+qcow2 disk usage: low
+data disk usage:  low
+
+=== External data file: preallocation=metadata ===
+
+Formatting 'TEST_DIR/t.IMGFMT', fmt=IMGFMT size=67108864 data_file=TEST_DIR/t.IMGFMT.data preallocation=metadata
+qcow2 file size: 327680
+data file size:  67108864
+qcow2 disk usage: low
+data disk usage:  low
+
+=== External data file: preallocation=falloc ===
+
+Formatting 'TEST_DIR/t.IMGFMT', fmt=IMGFMT size=67108864 data_file=TEST_DIR/t.IMGFMT.data preallocation=falloc
+qcow2 file size: 327680
+data file size:  67108864
+qcow2 disk usage: low
+data disk usage:  high
+
+=== External data file: preallocation=full ===
+
+Formatting 'TEST_DIR/t.IMGFMT', fmt=IMGFMT size=67108864 data_file=TEST_DIR/t.IMGFMT.data preallocation=full
+qcow2 file size: 327680
+data file size:  67108864
+qcow2 disk usage: low
+data disk usage:  high
+*** done

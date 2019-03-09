@@ -184,7 +184,7 @@ static int qcow2_write_snapshots(BlockDriverState *bs)
 
     /* The snapshot list position has not yet been updated, so these clusters
      * must indeed be completely free */
-    ret = qcow2_pre_write_overlap_check(bs, 0, offset, snapshots_size);
+    ret = qcow2_pre_write_overlap_check(bs, 0, offset, snapshots_size, false);
     if (ret < 0) {
         goto fail;
     }
@@ -353,6 +353,10 @@ int qcow2_snapshot_create(BlockDriverState *bs, QEMUSnapshotInfo *sn_info)
         return -EFBIG;
     }
 
+    if (has_data_file(bs)) {
+        return -ENOTSUP;
+    }
+
     memset(sn, 0, sizeof(*sn));
 
     /* Generate an ID */
@@ -389,7 +393,7 @@ int qcow2_snapshot_create(BlockDriverState *bs, QEMUSnapshotInfo *sn_info)
     }
 
     ret = qcow2_pre_write_overlap_check(bs, 0, sn->l1_table_offset,
-                                        s->l1_size * sizeof(uint64_t));
+                                        s->l1_size * sizeof(uint64_t), false);
     if (ret < 0) {
         goto fail;
     }
@@ -466,6 +470,10 @@ int qcow2_snapshot_goto(BlockDriverState *bs, const char *snapshot_id)
     int ret;
     uint64_t *sn_l1_table = NULL;
 
+    if (has_data_file(bs)) {
+        return -ENOTSUP;
+    }
+
     /* Search the snapshot */
     snapshot_index = find_snapshot_by_id_or_name(bs, snapshot_id);
     if (snapshot_index < 0) {
@@ -528,7 +536,8 @@ int qcow2_snapshot_goto(BlockDriverState *bs, const char *snapshot_id)
     }
 
     ret = qcow2_pre_write_overlap_check(bs, QCOW2_OL_ACTIVE_L1,
-                                        s->l1_table_offset, cur_l1_bytes);
+                                        s->l1_table_offset, cur_l1_bytes,
+                                        false);
     if (ret < 0) {
         goto fail;
     }
@@ -597,6 +606,10 @@ int qcow2_snapshot_delete(BlockDriverState *bs,
     BDRVQcow2State *s = bs->opaque;
     QCowSnapshot sn;
     int snapshot_index, ret;
+
+    if (has_data_file(bs)) {
+        return -ENOTSUP;
+    }
 
     /* Search the snapshot */
     snapshot_index = find_snapshot_by_id_and_name(bs, snapshot_id, name);
@@ -669,6 +682,9 @@ int qcow2_snapshot_list(BlockDriverState *bs, QEMUSnapshotInfo **psn_tab)
     QCowSnapshot *sn;
     int i;
 
+    if (has_data_file(bs)) {
+        return -ENOTSUP;
+    }
     if (!s->nb_snapshots) {
         *psn_tab = NULL;
         return s->nb_snapshots;

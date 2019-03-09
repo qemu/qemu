@@ -1,0 +1,200 @@
+#!/bin/bash
+#
+# Test qcow2 with external data files
+#
+# Copyright (C) 2019 Red Hat, Inc.
+#
+# This program is free software; you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation; either version 2 of the License, or
+# (at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with this program.  If not, see <http://www.gnu.org/licenses/>.
+#
+
+# creator
+owner=kwolf@redhat.com
+
+seq=$(basename $0)
+echo "QA output created by $seq"
+
+status=1	# failure is the default!
+
+_cleanup()
+{
+    _cleanup_test_img
+    rm -f $TEST_IMG.data
+    rm -f $TEST_IMG.src
+}
+trap "_cleanup; exit \$status" 0 1 2 3 15
+
+# get standard environment, filters and checks
+. ./common.rc
+. ./common.filter
+
+_supported_fmt qcow2
+_supported_proto file
+_supported_os Linux
+
+echo
+echo "=== Create and open image with external data file ==="
+echo
+
+echo "With data file name in the image:"
+IMGOPTS="data_file=$TEST_IMG.data" _make_test_img 64M
+_check_test_img
+
+$QEMU_IO -c "open $TEST_IMG" -c "read -P 0 0 64k" 2>&1 | _filter_qemu_io | _filter_testdir
+$QEMU_IO -c "open -odata-file.filename=$TEST_IMG.data $TEST_IMG" -c "read -P 0 0 64k" 2>&1 | _filter_qemu_io | _filter_testdir
+$QEMU_IO -c "open -odata-file.filename=inexistent $TEST_IMG" -c "read -P 0 0 64k" 2>&1 | _filter_qemu_io | _filter_testdir
+
+echo
+echo "Data file required, but without data file name in the image:"
+$QEMU_IMG amend -odata_file= $TEST_IMG
+
+$QEMU_IO -c "open $TEST_IMG" -c "read -P 0 0 64k" 2>&1 | _filter_qemu_io | _filter_testdir
+$QEMU_IO -c "open -odata-file.filename=$TEST_IMG.data $TEST_IMG" -c "read -P 0 0 64k" 2>&1 | _filter_qemu_io | _filter_testdir
+$QEMU_IO -c "open -odata-file.filename=inexistent $TEST_IMG" -c "read -P 0 0 64k" 2>&1 | _filter_qemu_io | _filter_testdir
+
+echo
+echo "Setting data-file for an image with internal data:"
+_make_test_img 64M
+
+$QEMU_IO -c "open -odata-file.filename=$TEST_IMG.data $TEST_IMG" -c "read -P 0 0 64k" 2>&1 | _filter_qemu_io | _filter_testdir
+$QEMU_IO -c "open -odata-file.filename=inexistent $TEST_IMG" -c "read -P 0 0 64k" 2>&1 | _filter_qemu_io | _filter_testdir
+
+echo
+echo "=== Conflicting features ==="
+echo
+
+echo "Convert to compressed target with data file:"
+TEST_IMG="$TEST_IMG.src" _make_test_img 64M
+
+$QEMU_IO -c 'write -P 0x11 0 1M' \
+         -f $IMGFMT "$TEST_IMG.src" |
+         _filter_qemu_io
+
+$QEMU_IMG convert -f $IMGFMT -O $IMGFMT -c -odata_file="$TEST_IMG.data" \
+    "$TEST_IMG.src" "$TEST_IMG"
+
+echo
+echo "Convert uncompressed, then write compressed data manually:"
+$QEMU_IMG convert -f $IMGFMT -O $IMGFMT -odata_file="$TEST_IMG.data" \
+    "$TEST_IMG.src" "$TEST_IMG"
+$QEMU_IMG compare "$TEST_IMG.src" "$TEST_IMG"
+
+$QEMU_IO -c 'write -c -P 0x22 0 1M' \
+         -f $IMGFMT "$TEST_IMG" |
+         _filter_qemu_io
+_check_test_img
+
+echo
+echo "Take an internal snapshot:"
+
+$QEMU_IMG snapshot -c test "$TEST_IMG"
+_check_test_img
+
+echo
+echo "=== Standalone image with external data file (efficient) ==="
+echo
+
+IMGOPTS="data_file=$TEST_IMG.data" _make_test_img 64M
+
+echo -n "qcow2 file size before I/O: "
+du -b $TEST_IMG | cut -f1
+
+# Create image with the following layout
+# 0-1 MB: Unallocated
+# 1-2 MB: Written (pattern 0x11)
+# 2-3 MB: Discarded
+# 3-4 MB: Zero write over discarded space
+# 4-5 MB: Zero write over written space
+# 5-6 MB: Zero write over unallocated space
+
+echo
+$QEMU_IO -c 'write -P 0x11 1M 4M' \
+         -c 'discard 2M 2M' \
+         -c 'write -z 3M 3M' \
+         -f $IMGFMT "$TEST_IMG" |
+         _filter_qemu_io
+_check_test_img
+
+echo
+$QEMU_IMG map --output=json "$TEST_IMG"
+
+echo
+$QEMU_IO -c 'read -P 0 0 1M' \
+         -c 'read -P 0x11 1M 1M' \
+         -c 'read -P 0 2M 4M' \
+         -f $IMGFMT "$TEST_IMG" |
+         _filter_qemu_io
+
+# Zero clusters are only marked as such in the qcow2 metadata, but contain
+# stale data in the external data file
+echo
+$QEMU_IO -c 'read -P 0 0 1M' \
+         -c 'read -P 0x11 1M 1M' \
+         -c 'read -P 0 2M 2M' \
+         -c 'read -P 0x11 4M 1M' \
+         -c 'read -P 0 5M 1M' \
+         -f raw "$TEST_IMG.data" |
+         _filter_qemu_io
+
+
+echo -n "qcow2 file size after I/O: "
+du -b $TEST_IMG | cut -f1
+
+echo
+echo "=== Standalone image with external data file (valid raw) ==="
+echo
+
+IMGOPTS="data_file=$TEST_IMG.data,data_file_raw=on" _make_test_img 64M
+
+echo -n "qcow2 file size before I/O: "
+du -b $TEST_IMG | cut -f1
+
+echo
+$QEMU_IO -c 'write -P 0x11 1M 4M' \
+         -c 'discard 2M 2M' \
+         -c 'write -z 3M 3M' \
+         -f $IMGFMT "$TEST_IMG" |
+         _filter_qemu_io
+_check_test_img
+
+echo
+$QEMU_IMG map --output=json "$TEST_IMG"
+
+echo
+$QEMU_IO -c 'read -P 0 0 1M' \
+         -c 'read -P 0x11 1M 1M' \
+         -c 'read -P 0 2M 4M' \
+         -f $IMGFMT "$TEST_IMG" |
+         _filter_qemu_io
+
+echo
+$QEMU_IMG compare "$TEST_IMG" "$TEST_IMG.data"
+
+echo -n "qcow2 file size after I/O: "
+du -b $TEST_IMG | cut -f1
+
+echo
+echo "=== bdrv_co_block_status test for file and offset=0 ==="
+echo
+
+IMGOPTS="data_file=$TEST_IMG.data" _make_test_img 64M
+
+$QEMU_IO -c 'write -P 0x11 0 1M' -f $IMGFMT "$TEST_IMG" | _filter_qemu_io
+$QEMU_IO -c 'read -P 0x11 0 1M' -f $IMGFMT "$TEST_IMG" | _filter_qemu_io
+$QEMU_IMG map --output=human "$TEST_IMG" | _filter_testdir
+$QEMU_IMG map --output=json "$TEST_IMG"
+
+# success, all done
+echo "*** done"
+rm -f $seq.full
+status=0

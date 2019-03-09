@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/usr/bin/env bash
 #
 # Commit changes into backing chains and empty the top image if the
 # backing image is not explicitly specified.

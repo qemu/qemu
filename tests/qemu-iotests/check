@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/usr/bin/env bash
 #
 # Copyright (C) 2009 Red Hat, Inc.
 # Copyright (c) 2000-2002,2006 Silicon Graphics, Inc.  All Rights Reserved.
@@ -25,6 +25,7 @@ try=0
 n_bad=0
 bad=""
 notrun=""
+casenotrun=""
 interrupt=true
 
 # by default don't output timestamps
@@ -664,6 +665,11 @@ END        { if (NR > 0) {
             echo "Not run:$notrun"
             echo "Not run:$notrun" >>check.log
         fi
+        if [ ! -z "$casenotrun" ]
+        then
+            echo "Some cases not run in:$casenotrun"
+            echo "Some cases not run in:$casenotrun" >>check.log
+        fi
         if [ ! -z "$n_bad" -a $n_bad != 0 ]
         then
             echo "Failures:$bad"
@@ -743,6 +749,7 @@ do
                 printf "        "        # prettier output with timestamps.
         fi
         rm -f core $seq.notrun
+        rm -f $seq.casenotrun
 
         start=$(_wallclock)
         $timestamp && printf %s "        [$(date "+%T")]"
@@ -823,7 +830,11 @@ do
                 fi
             fi
         fi
-
+        if [ -f $seq.casenotrun ]
+        then
+            cat $seq.casenotrun
+            casenotrun="$casenotrun $seq"
+        fi
     fi
 
     # come here for each test, except when $showme is true

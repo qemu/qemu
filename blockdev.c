@@ -531,7 +531,9 @@ static BlockBackend *blockdev_init(const char *file, QDict *bs_opts,
     if ((buf = qemu_opt_get(opts, "format")) != NULL) {
         if (is_help_option(buf)) {
             error_printf("Supported formats:");
-            bdrv_iterate_format(bdrv_format_print, NULL);
+            bdrv_iterate_format(bdrv_format_print, NULL, false);
+            error_printf("\nSupported formats (read-only):");
+            bdrv_iterate_format(bdrv_format_print, NULL, true);
             error_printf("\n");
             goto early_err;
         }

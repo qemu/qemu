@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/usr/bin/env bash
 #
 # Test that opening O_DIRECT succeeds when image file I/O produces EIO
 #
