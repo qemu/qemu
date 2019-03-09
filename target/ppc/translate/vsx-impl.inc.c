@@ -1587,8 +1587,7 @@ static void gen_xsxsigdp(DisasContext *ctx)
     tcg_gen_movcond_i64(TCG_COND_EQ, t0, exp, zr, zr, t0);
     tcg_gen_movcond_i64(TCG_COND_EQ, t0, exp, nan, zr, t0);
     get_cpu_vsrh(t1, xB(ctx->opcode));
-    tcg_gen_andi_i64(rt, t1, 0x000FFFFFFFFFFFFF);
-    tcg_gen_or_i64(rt, rt, t0);
+    tcg_gen_deposit_i64(rt, t0, t1, 0, 52);
 
     tcg_temp_free_i64(t0);
     tcg_temp_free_i64(t1);
@@ -1624,8 +1623,7 @@ static void gen_xsxsigqp(DisasContext *ctx)
     tcg_gen_movi_i64(t0, 0x0001000000000000);
     tcg_gen_movcond_i64(TCG_COND_EQ, t0, exp, zr, zr, t0);
     tcg_gen_movcond_i64(TCG_COND_EQ, t0, exp, nan, zr, t0);
-    tcg_gen_andi_i64(xth, xbh, 0x0000FFFFFFFFFFFF);
-    tcg_gen_or_i64(xth, xth, t0);
+    tcg_gen_deposit_i64(xth, t0, xbh, 0, 48);
     set_cpu_vsrh(rD(ctx->opcode) + 32, xth);
     tcg_gen_mov_i64(xtl, xbl);
     set_cpu_vsrl(rD(ctx->opcode) + 32, xtl);
@@ -1814,16 +1812,14 @@ static void gen_xvxsigdp(DisasContext *ctx)
     tcg_gen_movi_i64(t0, 0x0010000000000000);
     tcg_gen_movcond_i64(TCG_COND_EQ, t0, exp, zr, zr, t0);
     tcg_gen_movcond_i64(TCG_COND_EQ, t0, exp, nan, zr, t0);
-    tcg_gen_andi_i64(xth, xbh, 0x000FFFFFFFFFFFFF);
-    tcg_gen_or_i64(xth, xth, t0);
+    tcg_gen_deposit_i64(xth, t0, xbh, 0, 52);
     set_cpu_vsrh(xT(ctx->opcode), xth);
 
     tcg_gen_extract_i64(exp, xbl, 52, 11);
     tcg_gen_movi_i64(t0, 0x0010000000000000);
     tcg_gen_movcond_i64(TCG_COND_EQ, t0, exp, zr, zr, t0);
     tcg_gen_movcond_i64(TCG_COND_EQ, t0, exp, nan, zr, t0);
-    tcg_gen_andi_i64(xtl, xbl, 0x000FFFFFFFFFFFFF);
-    tcg_gen_or_i64(xtl, xtl, t0);
+    tcg_gen_deposit_i64(xth, t0, xbl, 0, 52);
     set_cpu_vsrl(xT(ctx->opcode), xtl);
 
     tcg_temp_free_i64(t0);
