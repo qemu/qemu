@@ -224,7 +224,12 @@
 # QEMU instance could refer to them as "nbd:HOST:PORT:exportname=NAME".
 #
 # @addr: Address on which to listen.
-# @tls-creds: (optional) ID of the TLS credentials object. Since 2.6
+# @tls-creds: ID of the TLS credentials object (since 2.6).
+# @tls-authz: ID of the QAuthZ authorization object used to validate
+#             the client's x509 distinguished name. This object is
+#             is only resolved at time of use, so can be deleted and
+#             recreated on the fly while the NBD server is active.
+#             If missing, it will default to denying access (since 4.0).
 #
 # Returns: error if the server is already running.
 #
@@ -232,7 +237,8 @@
 ##
 { 'command': 'nbd-server-start',
   'data': { 'addr': 'SocketAddressLegacy',
-            '*tls-creds': 'str'} }
+            '*tls-creds': 'str',
+            '*tls-authz': 'str'} }
 
 ##
 # @nbd-server-add:

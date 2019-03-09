@@ -117,6 +117,10 @@ option; or provide the credentials needed for connecting as a client
 in list mode.
 @item --fork
 Fork off the server process and exit the parent once the server is running.
+@item --tls-authz=ID
+Specify the ID of a qauthz object previously created with the
+--object option. This will be used to authorize connecting users
+against their x509 distinguished name.
 @item -v, --verbose
 Display extra debugging information.
 @item -h, --help
@@ -142,13 +146,16 @@ qemu-nbd -f qcow2 file.qcow2
 @end example
 
 Start a long-running server listening with encryption on port 10810,
-and require clients to have a correct X.509 certificate to connect to
+and whitelist clients with a specific X.509 certificate to connect to
 a 1 megabyte subset of a raw file, using the export name 'subset':
 
 @example
 qemu-nbd \
   --object tls-creds-x509,id=tls0,endpoint=server,dir=/path/to/qemutls \
-  --tls-creds tls0 -t -x subset -p 10810 \
+  --object 'authz-simple,id=auth0,identity=CN=laptop.example.com,,\
+            O=Example Org,,L=London,,ST=London,,C=GB' \
+  --tls-creds tls0 --tls-authz auth0 \
+  -t -x subset -p 10810 \
   --image-opts driver=raw,offset=1M,size=1M,file.driver=file,file.filename=file.raw
 @end example
 

@@ -6,6 +6,7 @@ Generating a self signed certificate...
 Generating a signed certificate...
 Generating a signed certificate...
 Generating a signed certificate...
+Generating a signed certificate...
 
 == preparing image ==
 Formatting 'TEST_DIR/t.IMGFMT', fmt=IMGFMT size=67108864
@@ -25,6 +26,10 @@ qemu-nbd: TLS negotiation required before option 8 (structured reply)
 server reported: Option 0x8 not permitted before TLS
 
 == check TLS works ==
+image: nbd://127.0.0.1:PORT
+file format: nbd
+virtual size: 64M (67108864 bytes)
+disk size: unavailable
 image: nbd://127.0.0.1:PORT
 file format: nbd
 virtual size: 64M (67108864 bytes)
@@ -51,7 +56,13 @@ wrote 1048576/1048576 bytes at offset 1048576
 read 1048576/1048576 bytes at offset 1048576
 1 MiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
 
+== check TLS with authorization ==
+qemu-img: Could not open 'driver=nbd,host=127.0.0.1,port=10809,tls-creds=tls0': Failed to read option reply: Cannot read from TLS channel: Software caused connection abort
+qemu-img: Could not open 'driver=nbd,host=127.0.0.1,port=10809,tls-creds=tls0': Failed to read option reply: Cannot read from TLS channel: Software caused connection abort
+
 == final server log ==
 qemu-nbd: option negotiation failed: Verify failed: No certificate was found.
 qemu-nbd: option negotiation failed: Verify failed: No certificate was found.
+qemu-nbd: option negotiation failed: TLS x509 authz check for CN=localhost,O=Cthulhu Dark Lord Enterprises client1,L=R'lyeh,C=South Pacific is denied
+qemu-nbd: option negotiation failed: TLS x509 authz check for CN=localhost,O=Cthulhu Dark Lord Enterprises client3,L=R'lyeh,C=South Pacific is denied
 *** done

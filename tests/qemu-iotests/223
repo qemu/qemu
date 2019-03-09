@@ -179,6 +179,7 @@ _send_qemu_cmd $QEMU_HANDLE '{"execute":"nbd-server-remove",
 _send_qemu_cmd $QEMU_HANDLE '{"execute":"nbd-server-stop"}' "return"
 _send_qemu_cmd $QEMU_HANDLE '{"execute":"nbd-server-stop"}' "error" # Again
 _send_qemu_cmd $QEMU_HANDLE '{"execute":"quit"}' "return"
+wait=yes _cleanup_qemu
 
 echo
 echo "=== Use qemu-nbd as server ==="

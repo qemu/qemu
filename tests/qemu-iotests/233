@@ -61,6 +61,7 @@ tls_x509_create_root_ca "ca2"
 tls_x509_create_server "ca1" "server1"
 tls_x509_create_client "ca1" "client1"
 tls_x509_create_client "ca2" "client2"
+tls_x509_create_client "ca1" "client3"
 
 echo
 echo "== preparing image =="
@@ -93,11 +94,15 @@ $QEMU_NBD_PROG -L -b $nbd_tcp_addr -p $nbd_tcp_port
 
 echo
 echo "== check TLS works =="
-obj=tls-creds-x509,dir=${tls_dir}/client1,endpoint=client,id=tls0
-$QEMU_IMG info --image-opts --object $obj \
+obj1=tls-creds-x509,dir=${tls_dir}/client1,endpoint=client,id=tls0
+obj2=tls-creds-x509,dir=${tls_dir}/client3,endpoint=client,id=tls0
+$QEMU_IMG info --image-opts --object $obj1 \
     driver=nbd,host=$nbd_tcp_addr,port=$nbd_tcp_port,tls-creds=tls0 \
     2>&1 | sed "s/$nbd_tcp_port/PORT/g"
-$QEMU_NBD_PROG -L -b $nbd_tcp_addr -p $nbd_tcp_port --object $obj \
+$QEMU_IMG info --image-opts --object $obj2 \
+    driver=nbd,host=$nbd_tcp_addr,port=$nbd_tcp_port,tls-creds=tls0 \
+    2>&1 | sed "s/$nbd_tcp_port/PORT/g"
+$QEMU_NBD_PROG -L -b $nbd_tcp_addr -p $nbd_tcp_port --object $obj1 \
     --tls-creds=tls0
 
 echo
@@ -118,6 +123,27 @@ $QEMU_IO -c 'r -P 0x11 1m 1m' -c 'w -P 0x22 1m 1m' --image-opts \
     2>&1 | _filter_qemu_io
 
 $QEMU_IO -f $IMGFMT -r -U -c 'r -P 0x22 1m 1m' "$TEST_IMG" | _filter_qemu_io
+
+echo
+echo "== check TLS with authorization =="
+
+nbd_server_stop
+
+nbd_server_start_tcp_socket \
+    --object tls-creds-x509,dir=${tls_dir}/server1,endpoint=server,id=tls0,verify-peer=yes \
+    --object "authz-simple,id=authz0,identity=CN=localhost,, \
+      O=Cthulu Dark Lord Enterprises client1,,L=R'lyeh,,C=South Pacific" \
+    --tls-authz authz0 \
+    --tls-creds tls0 \
+    -f $IMGFMT "$TEST_IMG" 2>> "$TEST_DIR/server.log"
+
+$QEMU_IMG info --image-opts \
+    --object tls-creds-x509,dir=${tls_dir}/client1,endpoint=client,id=tls0 \
+    driver=nbd,host=$nbd_tcp_addr,port=$nbd_tcp_port,tls-creds=tls0
+
+$QEMU_IMG info --image-opts \
+    --object tls-creds-x509,dir=${tls_dir}/client3,endpoint=client,id=tls0 \
+    driver=nbd,host=$nbd_tcp_addr,port=$nbd_tcp_port,tls-creds=tls0
 
 echo
 echo "== final server log =="

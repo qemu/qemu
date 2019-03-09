@@ -58,6 +58,7 @@
 #define QEMU_NBD_OPT_TLSCREDS      261
 #define QEMU_NBD_OPT_IMAGE_OPTS    262
 #define QEMU_NBD_OPT_FORK          263
+#define QEMU_NBD_OPT_TLSAUTHZ      264
 
 #define MBR_SIZE 512
 
@@ -71,6 +72,7 @@ static int shared = 1;
 static int nb_fds;
 static QIONetListener *server;
 static QCryptoTLSCreds *tlscreds;
+static const char *tlsauthz;
 
 static void usage(const char *name)
 {
@@ -103,6 +105,8 @@ static void usage(const char *name)
 "  --object type,id=ID,...   define an object such as 'secret' for providing\n"
 "                            passwords and/or encryption keys\n"
 "  --tls-creds=ID            use id of an earlier --object to provide TLS\n"
+"  --tls-authz=ID            use id of an earlier --object to provide\n"
+"                            authorization\n"
 "  -T, --trace [[enable=]<pattern>][,events=<file>][,file=<file>]\n"
 "                            specify tracing options\n"
 "  --fork                    fork off the server process and exit the parent\n"
@@ -452,7 +456,7 @@ static void nbd_accept(QIONetListener *listener, QIOChannelSocket *cioc,
 
     nb_fds++;
     nbd_update_server_watch();
-    nbd_client_new(cioc, tlscreds, NULL, nbd_client_closed);
+    nbd_client_new(cioc, tlscreds, tlsauthz, nbd_client_closed);
 }
 
 static void nbd_update_server_watch(void)
@@ -643,6 +647,7 @@ int main(int argc, char **argv)
         { "export-name", required_argument, NULL, 'x' },
         { "description", required_argument, NULL, 'D' },
         { "tls-creds", required_argument, NULL, QEMU_NBD_OPT_TLSCREDS },
+        { "tls-authz", required_argument, NULL, QEMU_NBD_OPT_TLSAUTHZ },
         { "image-opts", no_argument, NULL, QEMU_NBD_OPT_IMAGE_OPTS },
         { "trace", required_argument, NULL, 'T' },
         { "fork", no_argument, NULL, QEMU_NBD_OPT_FORK },
@@ -862,6 +867,9 @@ int main(int argc, char **argv)
             g_free(trace_file);
             trace_file = trace_opt_parse(optarg);
             break;
+        case QEMU_NBD_OPT_TLSAUTHZ:
+            tlsauthz = optarg;
+            break;
         case QEMU_NBD_OPT_FORK:
             fork_process = true;
             break;
@@ -934,10 +942,19 @@ int main(int argc, char **argv)
             error_report("TLS is not supported with a host device");
             exit(EXIT_FAILURE);
         }
+        if (tlsauthz && list) {
+            error_report("TLS authorization is incompatible with export list");
+            exit(EXIT_FAILURE);
+        }
         tlscreds = nbd_get_tls_creds(tlscredsid, list, &local_err);
         if (local_err) {
             error_report("Failed to get TLS creds %s",
                          error_get_pretty(local_err));
+            exit(EXIT_FAILURE);
+        }
+    } else {
+        if (tlsauthz) {
+            error_report("--tls-authz is not permitted without --tls-creds");
             exit(EXIT_FAILURE);
         }
     }
