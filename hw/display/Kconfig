@@ -106,3 +106,9 @@ config VIRTIO_VGA
 
 config DPCD
     bool
+
+config ATI_VGA
+    bool
+    default y if PCI_DEVICES
+    depends on PCI
+    select VGA
