@@ -47,6 +47,7 @@ config LOONGSON3V
 config MIPS_CPS
     bool
     select PTIMER
+    select MIPS_ITU
 
 config MIPS_BOSTON
     bool
