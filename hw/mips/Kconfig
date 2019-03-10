@@ -1,5 +1,6 @@
 config MALTA
     bool
+    select GT64120
     select ISA_SUPERIO
 
 config MIPSSIM
@@ -59,3 +60,8 @@ config MIPS_BOSTON
 
 config FW_CFG_MIPS
     bool
+
+config GT64120
+    bool
+    select PCI
+    select I8259
