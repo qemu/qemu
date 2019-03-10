@@ -2227,6 +2227,7 @@ static TCGv gen_get_sr(DisasContext *s)
     sr = tcg_temp_new();
     tcg_gen_andi_i32(sr, QREG_SR, 0xffe0);
     tcg_gen_or_i32(sr, sr, ccr);
+    tcg_temp_free(ccr);
     return sr;
 }
 
