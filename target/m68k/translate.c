@@ -3020,7 +3020,6 @@ DISAS_INSN(branch)
     int32_t offset;
     uint32_t base;
     int op;
-    TCGLabel *l1;
 
     base = s->pc;
     op = (insn >> 8) & 0xf;
@@ -3036,7 +3035,7 @@ DISAS_INSN(branch)
     }
     if (op > 1) {
         /* Bcc */
-        l1 = gen_new_label();
+        TCGLabel *l1 = gen_new_label();
         gen_jmpcc(s, ((insn >> 8) & 0xf) ^ 1, l1);
         gen_jmp_tb(s, 1, base + offset);
         gen_set_label(l1);
