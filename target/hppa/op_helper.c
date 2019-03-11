@@ -25,6 +25,7 @@
 #include "sysemu/sysemu.h"
 #include "qemu/timer.h"
 #include "fpu/softfloat.h"
+#include "trace.h"
 
 void QEMU_NORETURN HELPER(excp)(CPUHPPAState *env, int excp)
 {
@@ -165,6 +166,7 @@ target_ureg HELPER(probe)(CPUHPPAState *env, target_ulong addr,
     int prot, excp;
     hwaddr phys;
 
+    trace_hppa_tlb_probe(addr, level, want);
     /* Fail if the requested privilege level is higher than current.  */
     if (level < (env->iaoq_f & 3)) {
         return 0;

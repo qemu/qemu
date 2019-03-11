@@ -182,6 +182,7 @@ trace-events-subdirs += qapi
 trace-events-subdirs += qom
 trace-events-subdirs += scsi
 trace-events-subdirs += target/arm
+trace-events-subdirs += target/hppa
 trace-events-subdirs += target/i386
 trace-events-subdirs += target/mips
 trace-events-subdirs += target/ppc
