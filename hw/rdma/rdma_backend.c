@@ -594,7 +594,6 @@ static unsigned int save_mad_recv_buffer(RdmaBackendDev *backend_dev,
 }
 
 void rdma_backend_post_recv(RdmaBackendDev *backend_dev,
-                            RdmaDeviceResources *rdma_dev_res,
                             RdmaBackendQP *qp, uint8_t qp_type,
                             struct ibv_sge *sge, uint32_t num_sge, void *ctx)
 {
@@ -613,9 +612,9 @@ void rdma_backend_post_recv(RdmaBackendDev *backend_dev,
             rc = save_mad_recv_buffer(backend_dev, sge, num_sge, ctx);
             if (rc) {
                 complete_work(IBV_WC_GENERAL_ERR, rc, ctx);
-                rdma_dev_res->stats.mad_rx_bufs_err++;
+                backend_dev->rdma_dev_res->stats.mad_rx_bufs_err++;
             } else {
-                rdma_dev_res->stats.mad_rx_bufs++;
+                backend_dev->rdma_dev_res->stats.mad_rx_bufs++;
             }
         }
         return;
@@ -625,7 +624,7 @@ void rdma_backend_post_recv(RdmaBackendDev *backend_dev,
     bctx->up_ctx = ctx;
     bctx->backend_qp = qp;
 
-    rc = rdma_rm_alloc_cqe_ctx(rdma_dev_res, &bctx_id, bctx);
+    rc = rdma_rm_alloc_cqe_ctx(backend_dev->rdma_dev_res, &bctx_id, bctx);
     if (unlikely(rc)) {
         complete_work(IBV_WC_GENERAL_ERR, VENDOR_ERR_NOMEM, ctx);
         goto err_free_bctx;
@@ -633,7 +632,7 @@ void rdma_backend_post_recv(RdmaBackendDev *backend_dev,
 
     rdma_protected_gslist_append_int32(&qp->cqe_ctx_list, bctx_id);
 
-    rc = build_host_sge_array(rdma_dev_res, new_sge, sge, num_sge,
+    rc = build_host_sge_array(backend_dev->rdma_dev_res, new_sge, sge, num_sge,
                               &backend_dev->rdma_dev_res->stats.rx_bufs_len);
     if (rc) {
         complete_work(IBV_WC_GENERAL_ERR, rc, ctx);
@@ -652,13 +651,13 @@ void rdma_backend_post_recv(RdmaBackendDev *backend_dev,
     }
 
     atomic_inc(&backend_dev->rdma_dev_res->stats.missing_cqe);
-    rdma_dev_res->stats.rx_bufs++;
+    backend_dev->rdma_dev_res->stats.rx_bufs++;
 
     return;
 
 err_dealloc_cqe_ctx:
     backend_dev->rdma_dev_res->stats.rx_bufs_err++;
-    rdma_rm_dealloc_cqe_ctx(rdma_dev_res, bctx_id);
+    rdma_rm_dealloc_cqe_ctx(backend_dev->rdma_dev_res, bctx_id);
 
 err_free_bctx:
     g_free(bctx);

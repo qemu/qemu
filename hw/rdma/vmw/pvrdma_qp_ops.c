@@ -231,8 +231,7 @@ void pvrdma_qp_recv(PVRDMADev *dev, uint32_t qp_handle)
             continue;
         }
 
-        rdma_backend_post_recv(&dev->backend_dev, &dev->rdma_dev_res,
-                               &qp->backend_qp, qp->qp_type,
+        rdma_backend_post_recv(&dev->backend_dev, &qp->backend_qp, qp->qp_type,
                                (struct ibv_sge *)&wqe->sge[0], wqe->hdr.num_sge,
                                comp_ctx);
 
