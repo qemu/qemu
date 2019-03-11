@@ -4048,6 +4048,13 @@ static bool trans_fmpyfadd_d(DisasContext *ctx, arg_fmpyfadd_d *a)
     return nullify_end(ctx);
 }
 
+static bool trans_diag(DisasContext *ctx, arg_diag *a)
+{
+    qemu_log_mask(LOG_UNIMP, "DIAG opcode ignored\n");
+    cond_free(&ctx->null_cond);
+    return true;
+}
+
 static void hppa_tr_init_disas_context(DisasContextBase *dcbase, CPUState *cs)
 {
     DisasContext *ctx = container_of(dcbase, DisasContext, base);
