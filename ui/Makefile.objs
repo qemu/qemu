@@ -46,8 +46,8 @@ endif
 
 common-obj-$(CONFIG_CURSES) += curses.mo
 curses.mo-objs := curses.o
-curses.mo-cflags := $(CURSES_CFLAGS)
-curses.mo-libs := $(CURSES_LIBS)
+curses.mo-cflags := $(CURSES_CFLAGS) $(ICONV_CFLAGS)
+curses.mo-libs := $(CURSES_LIBS) $(ICONV_LIBS)
 
 common-obj-$(call land,$(CONFIG_SPICE),$(CONFIG_GIO)) += spice-app.mo
 spice-app.mo-objs := spice-app.o

@@ -1222,6 +1222,10 @@ for opt do
   ;;
   --enable-curses) curses="yes"
   ;;
+  --disable-iconv) iconv="no"
+  ;;
+  --enable-iconv) iconv="yes"
+  ;;
   --disable-curl) curl="no"
   ;;
   --enable-curl) curl="yes"
@@ -1711,6 +1715,7 @@ disabled with --disable-FEATURE, default is enabled if available:
   gtk             gtk UI
   vte             vte support for the gtk UI
   curses          curses UI
+  iconv           font glyph conversion support
   vnc             VNC UI support
   vnc-sasl        SASL encryption for VNC server
   vnc-jpeg        JPEG lossy compression for VNC server
@@ -3433,7 +3438,51 @@ EOF
 fi
 
 ##########################################
+# iconv probe
+if test "$iconv" != "no" ; then
+  cat > $TMPC << EOF
+#include <iconv.h>
+int main(void) {
+  iconv_t conv = iconv_open("WCHAR_T", "UCS-2");
+  return conv != (iconv_t) -1;
+}
+EOF
+  iconv_prefix_list="/usr/local:/usr"
+  iconv_lib_list=":-liconv"
+  IFS=:
+  for iconv_prefix in $iconv_prefix_list; do
+    IFS=:
+    iconv_cflags="-I$iconv_prefix/include"
+    iconv_ldflags="-L$iconv_prefix/lib"
+    for iconv_link in $iconv_lib_list; do
+      unset IFS
+      iconv_lib="$iconv_ldflags $iconv_link"
+      echo "looking at iconv in '$iconv_cflags' '$iconv_lib'" >> config.log
+      if compile_prog "$iconv_cflags" "$iconv_lib" ; then
+        iconv_found=yes
+        break
+      fi
+    done
+    if test "$iconv_found" = yes ; then
+      break
+    fi
+  done
+  if test "$iconv_found" = "yes" ; then
+    iconv=yes
+  else
+    if test "$iconv" = "yes" ; then
+      feature_not_found "iconv" "Install iconv devel"
+    fi
+    iconv=no
+  fi
+fi
+
+##########################################
 # curses probe
+if test "$iconv" = "no" ; then
+  # curses will need iconv
+  curses=no
+fi
 if test "$curses" != "no" ; then
   if test "$mingw32" = "yes" ; then
     curses_inc_list="$($pkg_config --cflags ncurses 2>/dev/null):"
@@ -6217,6 +6266,7 @@ echo "libgcrypt         $gcrypt"
 echo "nettle            $nettle $(echo_version $nettle $nettle_version)"
 echo "libtasn1          $tasn1"
 echo "PAM               $auth_pam"
+echo "iconv support     $iconv"
 echo "curses support    $curses"
 echo "virgl support     $virglrenderer $(echo_version $virglrenderer $virgl_version)"
 echo "curl support      $curl"
@@ -6551,6 +6601,11 @@ if test "$sdl" = "yes" ; then
 fi
 if test "$cocoa" = "yes" ; then
   echo "CONFIG_COCOA=y" >> $config_host_mak
+fi
+if test "$iconv" = "yes" ; then
+  echo "CONFIG_ICONV=y" >> $config_host_mak
+  echo "ICONV_CFLAGS=$iconv_cflags" >> $config_host_mak
+  echo "ICONV_LIBS=$iconv_lib" >> $config_host_mak
 fi
 if test "$curses" = "yes" ; then
   echo "CONFIG_CURSES=m" >> $config_host_mak
