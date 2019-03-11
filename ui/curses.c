@@ -42,6 +42,12 @@
 #define FONT_HEIGHT 16
 #define FONT_WIDTH 8
 
+enum maybe_keycode {
+    CURSES_KEYCODE,
+    CURSES_CHAR,
+    CURSES_CHAR_OR_KEYCODE,
+};
+
 static DisplayChangeListener *dcl;
 static console_ch_t screen[160 * 100];
 static WINDOW *screenpad = NULL;
@@ -194,9 +200,54 @@ static void curses_cursor_position(DisplayChangeListener *dcl,
 
 static kbd_layout_t *kbd_layout = NULL;
 
+static wint_t console_getch(enum maybe_keycode *maybe_keycode)
+{
+    wint_t ret;
+    switch (get_wch(&ret)) {
+    case KEY_CODE_YES:
+        *maybe_keycode = CURSES_KEYCODE;
+        break;
+    case OK:
+        *maybe_keycode = CURSES_CHAR;
+        break;
+    case ERR:
+        ret = -1;
+        break;
+    }
+    return ret;
+}
+
+static int curses2foo(const int _curses2foo[], const int _curseskey2foo[],
+                      int chr, enum maybe_keycode maybe_keycode)
+{
+    int ret = -1;
+    if (maybe_keycode == CURSES_CHAR) {
+        if (chr < CURSES_CHARS) {
+            ret = _curses2foo[chr];
+        }
+    } else {
+        if (chr < CURSES_KEYS) {
+            ret = _curseskey2foo[chr];
+        }
+        if (ret == -1 && maybe_keycode == CURSES_CHAR_OR_KEYCODE &&
+            chr < CURSES_CHARS) {
+            ret = _curses2foo[chr];
+        }
+    }
+    return ret;
+}
+
+#define curses2keycode(chr, maybe_keycode) \
+    curses2foo(_curses2keycode, _curseskey2keycode, chr, maybe_keycode)
+#define curses2keysym(chr, maybe_keycode) \
+    curses2foo(_curses2keysym, _curseskey2keysym, chr, maybe_keycode)
+#define curses2qemu(chr, maybe_keycode) \
+    curses2foo(_curses2qemu, _curseskey2qemu, chr, maybe_keycode)
+
 static void curses_refresh(DisplayChangeListener *dcl)
 {
     int chr, keysym, keycode, keycode_alt;
+    enum maybe_keycode maybe_keycode;
 
     curses_winch_check();
 
@@ -212,14 +263,14 @@ static void curses_refresh(DisplayChangeListener *dcl)
 
     while (1) {
         /* while there are any pending key strokes to process */
-        chr = getch();
+        chr = console_getch(&maybe_keycode);
 
-        if (chr == ERR)
+        if (chr == -1)
             break;
 
 #ifdef KEY_RESIZE
         /* this shouldn't occur when we use a custom SIGWINCH handler */
-        if (chr == KEY_RESIZE) {
+        if (maybe_keycode != CURSES_CHAR && chr == KEY_RESIZE) {
             clear();
             refresh();
             curses_calc_pad();
@@ -228,17 +279,19 @@ static void curses_refresh(DisplayChangeListener *dcl)
         }
 #endif
 
-        keycode = curses2keycode[chr];
+        keycode = curses2keycode(chr, maybe_keycode);
         keycode_alt = 0;
 
-        /* alt key */
+        /* alt or esc key */
         if (keycode == 1) {
-            int nextchr = getch();
+            enum maybe_keycode next_maybe_keycode;
+            int nextchr = console_getch(&next_maybe_keycode);
 
-            if (nextchr != ERR) {
+            if (nextchr != -1) {
                 chr = nextchr;
+                maybe_keycode = next_maybe_keycode;
                 keycode_alt = ALT;
-                keycode = curses2keycode[chr];
+                keycode = curses2keycode(chr, maybe_keycode);
 
                 if (keycode != -1) {
                     keycode |= ALT;
@@ -258,9 +311,7 @@ static void curses_refresh(DisplayChangeListener *dcl)
         }
 
         if (kbd_layout) {
-            keysym = -1;
-            if (chr < CURSES_KEYS)
-                keysym = curses2keysym[chr];
+            keysym = curses2keysym(chr, maybe_keycode);
 
             if (keysym == -1) {
                 if (chr < ' ') {
@@ -326,10 +377,7 @@ static void curses_refresh(DisplayChangeListener *dcl)
                 qemu_input_event_send_key_delay(0);
             }
         } else {
-            keysym = -1;
-            if (chr < CURSES_KEYS) {
-                keysym = curses2qemu[chr];
-            }
+            keysym = curses2qemu(chr, maybe_keycode);
             if (keysym == -1)
                 keysym = chr;
 
@@ -361,6 +409,7 @@ static void curses_setup(void)
     initscr(); noecho(); intrflush(stdscr, FALSE);
     nodelay(stdscr, TRUE); nonl(); keypad(stdscr, TRUE);
     start_color(); raw(); scrollok(stdscr, FALSE);
+    set_escdelay(25);
 
     /* Make color pair to match color format (3bits bg:3bits fg) */
     for (i = 0; i < 64; i++) {

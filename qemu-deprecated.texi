@@ -60,6 +60,11 @@ Support for invalid topologies will be removed, the user must ensure
 topologies described with -smp include all possible cpus, i.e.
   @math{@var{sockets} * @var{cores} * @var{threads} = @var{maxcpus}}.
 
+@subsection -vnc acl (since 4.0.0)
+
+The @code{acl} option to the @code{-vnc} argument has been replaced
+by the @code{tls-authz} and @code{sasl-authz} options.
+
 @section QEMU Machine Protocol (QMP) commands
 
 @subsection block-dirty-bitmap-add "autoload" parameter (since 2.12.0)
@@ -98,6 +103,12 @@ The @option{[hub_id name]} parameter tuple of the 'hostfwd_add' and
 
 Use ``device_add'' for hotplugging vCPUs instead of ``cpu-add''.  See
 documentation of ``query-hotpluggable-cpus'' for additional details.
+
+@subsection acl_show, acl_reset, acl_policy, acl_add, acl_remove (since 4.0.0)
+
+The ``acl_show'', ``acl_reset'', ``acl_policy'', ``acl_add'', and
+``acl_remove'' commands are deprecated with no replacement. Authorization
+for VNC should be performed using the pluggable QAuthZ objects.
 
 @section System emulator devices
 
