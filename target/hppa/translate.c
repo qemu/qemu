@@ -3031,7 +3031,7 @@ static bool do_addb(DisasContext *ctx, unsigned r, TCGv_reg in1,
     DisasCond cond;
 
     in2 = load_gpr(ctx, r);
-    dest = dest_gpr(ctx, r);
+    dest = tcg_temp_new();
     sv = NULL;
     cb_msb = NULL;
 
@@ -3047,6 +3047,8 @@ static bool do_addb(DisasContext *ctx, unsigned r, TCGv_reg in1,
     }
 
     cond = do_cond(c * 2 + f, dest, cb_msb, sv);
+    save_gpr(ctx, r, dest);
+    tcg_temp_free(dest);
     return do_cbranch(ctx, disp, n, &cond);
 }
 
