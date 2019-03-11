@@ -151,6 +151,7 @@ typedef struct VFIODisplay {
     struct vfio_region_info *edid_info;
     struct vfio_region_gfx_edid *edid_regs;
     uint8_t *edid_blob;
+    QEMUTimer *edid_link_timer;
     struct {
         VFIORegion buffer;
         DisplaySurface *surface;
