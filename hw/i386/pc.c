@@ -2649,6 +2649,8 @@ static void pc_machine_initfn(Object *obj)
     pcms->smbus_enabled = true;
     pcms->sata_enabled = true;
     pcms->pit_enabled = true;
+
+    pc_system_flash_create(pcms);
 }
 
 static void pc_machine_reset(void)

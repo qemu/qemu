@@ -40,6 +40,17 @@
 
 #define BIOS_FILENAME "bios.bin"
 
+/*
+ * We don't have a theoretically justifiable exact lower bound on the base
+ * address of any flash mapping. In practice, the IO-APIC MMIO range is
+ * [0xFEE00000..0xFEE01000] -- see IO_APIC_DEFAULT_ADDRESS --, leaving free
+ * only 18MB-4KB below 4G. For now, restrict the cumulative mapping to 8MB in
+ * size.
+ */
+#define FLASH_SIZE_LIMIT (8 * MiB)
+
+#define FLASH_SECTOR_SIZE 4096
+
 static void pc_isa_bios_init(MemoryRegion *rom_memory,
                              MemoryRegion *flash_mem,
                              int ram_size)
@@ -71,96 +82,118 @@ static void pc_isa_bios_init(MemoryRegion *rom_memory,
     memory_region_set_readonly(isa_bios, true);
 }
 
-#define FLASH_MAP_UNIT_MAX 2
+static PFlashCFI01 *pc_pflash_create(PCMachineState *pcms,
+                                     const char *name,
+                                     const char *alias_prop_name)
+{
+    DeviceState *dev = qdev_create(NULL, TYPE_PFLASH_CFI01);
 
-/* We don't have a theoretically justifiable exact lower bound on the base
- * address of any flash mapping. In practice, the IO-APIC MMIO range is
- * [0xFEE00000..0xFEE01000[ -- see IO_APIC_DEFAULT_ADDRESS --, leaving free
- * only 18MB-4KB below 4G. For now, restrict the cumulative mapping to 8MB in
- * size.
- */
-#define FLASH_MAP_BASE_MIN ((hwaddr)(4 * GiB - 8 * MiB))
+    qdev_prop_set_uint64(dev, "sector-length", FLASH_SECTOR_SIZE);
+    qdev_prop_set_uint8(dev, "width", 1);
+    qdev_prop_set_string(dev, "name", name);
+    object_property_add_child(OBJECT(pcms), name, OBJECT(dev),
+                              &error_abort);
+    object_property_add_alias(OBJECT(pcms), alias_prop_name,
+                              OBJECT(dev), "drive", &error_abort);
+    return PFLASH_CFI01(dev);
+}
 
-/* This function maps flash drives from 4G downward, in order of their unit
- * numbers. The mapping starts at unit#0, with unit number increments of 1, and
- * stops before the first missing flash drive, or before
- * unit#FLASH_MAP_UNIT_MAX, whichever is reached first.
+void pc_system_flash_create(PCMachineState *pcms)
+{
+    PCMachineClass *pcmc = PC_MACHINE_GET_CLASS(pcms);
+
+    if (pcmc->pci_enabled) {
+        pcms->flash[0] = pc_pflash_create(pcms, "system.flash0",
+                                          "pflash0");
+        pcms->flash[1] = pc_pflash_create(pcms, "system.flash1",
+                                          "pflash1");
+    }
+}
+
+static void pc_system_flash_cleanup_unused(PCMachineState *pcms)
+{
+    char *prop_name;
+    int i;
+    Object *dev_obj;
+
+    assert(PC_MACHINE_GET_CLASS(pcms)->pci_enabled);
+
+    for (i = 0; i < ARRAY_SIZE(pcms->flash); i++) {
+        dev_obj = OBJECT(pcms->flash[i]);
+        if (!object_property_get_bool(dev_obj, "realized", &error_abort)) {
+            prop_name = g_strdup_printf("pflash%d", i);
+            object_property_del(OBJECT(pcms), prop_name, &error_abort);
+            g_free(prop_name);
+            object_unparent(dev_obj);
+            pcms->flash[i] = NULL;
+        }
+    }
+}
+
+/*
+ * Map the pcms->flash[] from 4GiB downward, and realize.
+ * Map them in descending order, i.e. pcms->flash[0] at the top,
+ * without gaps.
+ * Stop at the first pcms->flash[0] lacking a block backend.
+ * Set each flash's size from its block backend.  Fatal error if the
+ * size isn't a non-zero multiple of 4KiB, or the total size exceeds
+ * FLASH_SIZE_LIMIT.
  *
- * Addressing within one flash drive is of course not reversed.
- *
- * An error message is printed and the process exits if:
- * - the size of the backing file for a flash drive is non-positive, or not a
- *   multiple of the required sector size, or
- * - the current mapping's base address would fall below FLASH_MAP_BASE_MIN.
- *
- * The drive with unit#0 (if available) is mapped at the highest address, and
- * it is passed to pc_isa_bios_init(). Merging several drives for isa-bios is
+ * If pcms->flash[0] has a block backend, its memory is passed to
+ * pc_isa_bios_init().  Merging several flash devices for isa-bios is
  * not supported.
  */
-static void pc_system_flash_init(MemoryRegion *rom_memory)
+static void pc_system_flash_map(PCMachineState *pcms,
+                                MemoryRegion *rom_memory)
 {
-    int unit;
-    DriveInfo *pflash_drv;
+    hwaddr total_size = 0;
+    int i;
     BlockBackend *blk;
     int64_t size;
-    char *fatal_errmsg = NULL;
-    hwaddr phys_addr = 0x100000000ULL;
-    uint32_t sector_size = 4096;
     PFlashCFI01 *system_flash;
     MemoryRegion *flash_mem;
-    char name[64];
     void *flash_ptr;
     int ret, flash_size;
 
-    for (unit = 0;
-         (unit < FLASH_MAP_UNIT_MAX &&
-          (pflash_drv = drive_get(IF_PFLASH, 0, unit)) != NULL);
-         ++unit) {
-        blk = blk_by_legacy_dinfo(pflash_drv);
+    assert(PC_MACHINE_GET_CLASS(pcms)->pci_enabled);
+
+    for (i = 0; i < ARRAY_SIZE(pcms->flash); i++) {
+        system_flash = pcms->flash[i];
+        blk = pflash_cfi01_get_blk(system_flash);
+        if (!blk) {
+            break;
+        }
         size = blk_getlength(blk);
         if (size < 0) {
-            fatal_errmsg = g_strdup_printf("failed to get backing file size");
-        } else if (size == 0) {
-            fatal_errmsg = g_strdup_printf("PC system firmware (pflash) "
-                               "cannot have zero size");
-        } else if ((size % sector_size) != 0) {
-            fatal_errmsg = g_strdup_printf("PC system firmware (pflash) "
-                               "must be a multiple of 0x%x", sector_size);
-        } else if (phys_addr < size || phys_addr - size < FLASH_MAP_BASE_MIN) {
-            fatal_errmsg = g_strdup_printf("oversized backing file, pflash "
-                               "segments cannot be mapped under "
-                               TARGET_FMT_plx, FLASH_MAP_BASE_MIN);
+            error_report("can't get size of block device %s: %s",
+                         blk_name(blk), strerror(-size));
+            exit(1);
         }
-        if (fatal_errmsg != NULL) {
-            Location loc;
-
-            /* push a new, "none" location on the location stack; overwrite its
-             * contents with the location saved in the option; print the error
-             * (includes location); pop the top
-             */
-            loc_push_none(&loc);
-            if (pflash_drv->opts != NULL) {
-                qemu_opts_loc_restore(pflash_drv->opts);
-            }
-            error_report("%s", fatal_errmsg);
-            loc_pop(&loc);
-            g_free(fatal_errmsg);
+        if (size == 0 || size % FLASH_SECTOR_SIZE != 0) {
+            error_report("system firmware block device %s has invalid size "
+                         "%" PRId64,
+                         blk_name(blk), size);
+            info_report("its size must be a non-zero multiple of 0x%x",
+                        FLASH_SECTOR_SIZE);
+            exit(1);
+        }
+        if ((hwaddr)size != size
+            || total_size > HWADDR_MAX - size
+            || total_size + size > FLASH_SIZE_LIMIT) {
+            error_report("combined size of system firmware exceeds "
+                         "%" PRIu64 " bytes",
+                         FLASH_SIZE_LIMIT);
             exit(1);
         }
 
-        phys_addr -= size;
+        total_size += size;
+        qdev_prop_set_uint32(DEVICE(system_flash), "num-blocks",
+                             size / FLASH_SECTOR_SIZE);
+        qdev_init_nofail(DEVICE(system_flash));
+        sysbus_mmio_map(SYS_BUS_DEVICE(system_flash), 0,
+                        0x100000000ULL - total_size);
 
-        /* pflash_cfi01_register() creates a deep copy of the name */
-        snprintf(name, sizeof name, "system.flash%d", unit);
-        system_flash = pflash_cfi01_register(phys_addr, name,
-                                             size, blk, sector_size,
-                                             1      /* width */,
-                                             0x0000 /* id0 */,
-                                             0x0000 /* id1 */,
-                                             0x0000 /* id2 */,
-                                             0x0000 /* id3 */,
-                                             0      /* be */);
-        if (unit == 0) {
+        if (i == 0) {
             flash_mem = pflash_cfi01_get_memory(system_flash);
             pc_isa_bios_init(rom_memory, flash_mem, size);
 
@@ -235,23 +268,59 @@ void pc_system_firmware_init(PCMachineState *pcms,
                              MemoryRegion *rom_memory)
 {
     PCMachineClass *pcmc = PC_MACHINE_GET_CLASS(pcms);
-    bool isapc_ram_fw = !pcmc->pci_enabled;
+    int i;
     DriveInfo *pflash_drv;
+    BlockBackend *pflash_blk[ARRAY_SIZE(pcms->flash)];
+    Location loc;
 
-    pflash_drv = drive_get(IF_PFLASH, 0, 0);
-
-    if (isapc_ram_fw || pflash_drv == NULL) {
-        /* When a pflash drive is not found, use rom-mode */
-        old_pc_system_rom_init(rom_memory, isapc_ram_fw);
+    if (!pcmc->pci_enabled) {
+        old_pc_system_rom_init(rom_memory, true);
         return;
     }
 
-    if (kvm_enabled() && !kvm_readonly_mem_enabled()) {
-        /* Older KVM cannot execute from device memory. So, flash memory
-         * cannot be used unless the readonly memory kvm capability is present. */
-        fprintf(stderr, "qemu: pflash with kvm requires KVM readonly memory support\n");
-        exit(1);
+    /* Map legacy -drive if=pflash to machine properties */
+    for (i = 0; i < ARRAY_SIZE(pcms->flash); i++) {
+        pflash_blk[i] = pflash_cfi01_get_blk(pcms->flash[i]);
+        pflash_drv = drive_get(IF_PFLASH, 0, i);
+        if (!pflash_drv) {
+            continue;
+        }
+        loc_push_none(&loc);
+        qemu_opts_loc_restore(pflash_drv->opts);
+        if (pflash_blk[i]) {
+            error_report("clashes with -machine");
+            exit(1);
+        }
+        pflash_blk[i] = blk_by_legacy_dinfo(pflash_drv);
+        qdev_prop_set_drive(DEVICE(pcms->flash[i]),
+                            "drive", pflash_blk[i], &error_fatal);
+        loc_pop(&loc);
     }
 
-    pc_system_flash_init(rom_memory);
+    /* Reject gaps */
+    for (i = 1; i < ARRAY_SIZE(pcms->flash); i++) {
+        if (pflash_blk[i] && !pflash_blk[i - 1]) {
+            error_report("pflash%d requires pflash%d", i, i - 1);
+            exit(1);
+        }
+    }
+
+    if (!pflash_blk[0]) {
+        /* Machine property pflash0 not set, use ROM mode */
+        old_pc_system_rom_init(rom_memory, false);
+    } else {
+        if (kvm_enabled() && !kvm_readonly_mem_enabled()) {
+            /*
+             * Older KVM cannot execute from device memory. So, flash
+             * memory cannot be used unless the readonly memory kvm
+             * capability is present.
+             */
+            error_report("pflash with kvm requires KVM readonly memory support");
+            exit(1);
+        }
+
+        pc_system_flash_map(pcms, rom_memory);
+    }
+
+    pc_system_flash_cleanup_unused(pcms);
 }
