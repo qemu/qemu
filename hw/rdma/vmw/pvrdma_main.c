@@ -25,6 +25,8 @@
 #include "cpu.h"
 #include "trace.h"
 #include "sysemu/sysemu.h"
+#include "monitor/monitor.h"
+#include "hw/rdma/rdma.h"
 
 #include "../rdma_rm.h"
 #include "../rdma_backend.h"
@@ -54,6 +56,26 @@ static Property pvrdma_dev_properties[] = {
     DEFINE_PROP_CHR("mad-chardev", PVRDMADev, mad_chr),
     DEFINE_PROP_END_OF_LIST(),
 };
+
+static void pvrdma_print_statistics(Monitor *mon, RdmaProvider *obj)
+{
+    PVRDMADev *dev = PVRDMA_DEV(obj);
+    PCIDevice *pdev = PCI_DEVICE(dev);
+
+    monitor_printf(mon, "%s, %x.%x\n", pdev->name, PCI_SLOT(pdev->devfn),
+                   PCI_FUNC(pdev->devfn));
+    monitor_printf(mon, "\tcommands         : %" PRId64 "\n",
+                   dev->stats.commands);
+    monitor_printf(mon, "\tregs_reads       : %" PRId64 "\n",
+                   dev->stats.regs_reads);
+    monitor_printf(mon, "\tregs_writes      : %" PRId64 "\n",
+                   dev->stats.regs_writes);
+    monitor_printf(mon, "\tuar_writes       : %" PRId64 "\n",
+                   dev->stats.uar_writes);
+    monitor_printf(mon, "\tinterrupts       : %" PRId64 "\n",
+                   dev->stats.interrupts);
+    rdma_dump_device_counters(mon, &dev->rdma_dev_res);
+}
 
 static void free_dev_ring(PCIDevice *pci_dev, PvrdmaRing *ring,
                           void *ring_state)
@@ -639,6 +661,7 @@ static void pvrdma_class_init(ObjectClass *klass, void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
     PCIDeviceClass *k = PCI_DEVICE_CLASS(klass);
+    RdmaProviderClass *ir = INTERFACE_RDMA_PROVIDER_CLASS(klass);
 
     k->realize = pvrdma_realize;
     k->exit = pvrdma_exit;
@@ -650,6 +673,8 @@ static void pvrdma_class_init(ObjectClass *klass, void *data)
     dc->desc = "RDMA Device";
     dc->props = pvrdma_dev_properties;
     set_bit(DEVICE_CATEGORY_NETWORK, dc->categories);
+
+    ir->print_statistics = pvrdma_print_statistics;
 }
 
 static const TypeInfo pvrdma_info = {
@@ -659,6 +684,7 @@ static const TypeInfo pvrdma_info = {
     .class_init = pvrdma_class_init,
     .interfaces = (InterfaceInfo[]) {
         { INTERFACE_CONVENTIONAL_PCI_DEVICE },
+        { INTERFACE_RDMA_PROVIDER },
         { }
     }
 };
