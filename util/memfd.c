@@ -71,14 +71,18 @@ int qemu_memfd_create(const char *name, size_t size, bool hugetlb,
     }
     mfd = memfd_create(name, flags);
     if (mfd < 0) {
+        error_setg_errno(errp, errno,
+                         "failed to create memfd with flags 0x%x", flags);
         goto err;
     }
 
     if (ftruncate(mfd, size) == -1) {
+        error_setg_errno(errp, errno, "failed to resize memfd to %zu", size);
         goto err;
     }
 
     if (seals && fcntl(mfd, F_ADD_SEALS, seals) == -1) {
+        error_setg_errno(errp, errno, "failed to add seals 0x%x", seals);
         goto err;
     }
 
@@ -88,8 +92,9 @@ err:
     if (mfd >= 0) {
         close(mfd);
     }
+#else
+    error_setg_errno(errp, ENOSYS, "failed to create memfd");
 #endif
-    error_setg_errno(errp, errno, "failed to create memfd");
     return -1;
 }
 
