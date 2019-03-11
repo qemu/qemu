@@ -26,7 +26,6 @@ typedef struct RdmaDeviceResources RdmaDeviceResources;
 
 typedef struct RdmaBackendThread {
     QemuThread thread;
-    QemuMutex mutex;
     bool run; /* Set by thread manager to let thread know it should exit */
     bool is_running; /* Set by the thread to report its status */
 } RdmaBackendThread;
@@ -66,6 +65,7 @@ typedef struct RdmaBackendQP {
     struct ibv_pd *ibpd;
     struct ibv_qp *ibqp;
     uint8_t sgid_idx;
+    RdmaProtectedGSList cqe_ctx_list;
 } RdmaBackendQP;
 
 #endif

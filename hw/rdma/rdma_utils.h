@@ -34,12 +34,23 @@ typedef struct RdmaProtectedQList {
     QList *list;
 } RdmaProtectedQList;
 
+typedef struct RdmaProtectedGSList {
+    QemuMutex lock;
+    GSList *list;
+} RdmaProtectedGSList;
+
 void *rdma_pci_dma_map(PCIDevice *dev, dma_addr_t addr, dma_addr_t plen);
 void rdma_pci_dma_unmap(PCIDevice *dev, void *buffer, dma_addr_t len);
 void rdma_protected_qlist_init(RdmaProtectedQList *list);
 void rdma_protected_qlist_destroy(RdmaProtectedQList *list);
 void rdma_protected_qlist_append_int64(RdmaProtectedQList *list, int64_t value);
 int64_t rdma_protected_qlist_pop_int64(RdmaProtectedQList *list);
+void rdma_protected_gslist_init(RdmaProtectedGSList *list);
+void rdma_protected_gslist_destroy(RdmaProtectedGSList *list);
+void rdma_protected_gslist_append_int32(RdmaProtectedGSList *list,
+                                        int32_t value);
+void rdma_protected_gslist_remove_int32(RdmaProtectedGSList *list,
+                                        int32_t value);
 
 static inline void addrconf_addr_eui48(uint8_t *eui, const char *addr)
 {

@@ -90,3 +90,32 @@ int64_t rdma_protected_qlist_pop_int64(RdmaProtectedQList *list)
 
     return qnum_get_uint(qobject_to(QNum, obj));
 }
+
+void rdma_protected_gslist_init(RdmaProtectedGSList *list)
+{
+    qemu_mutex_init(&list->lock);
+}
+
+void rdma_protected_gslist_destroy(RdmaProtectedGSList *list)
+{
+    if (list->list) {
+        g_slist_free(list->list);
+        list->list = NULL;
+    }
+}
+
+void rdma_protected_gslist_append_int32(RdmaProtectedGSList *list,
+                                        int32_t value)
+{
+    qemu_mutex_lock(&list->lock);
+    list->list = g_slist_prepend(list->list, GINT_TO_POINTER(value));
+    qemu_mutex_unlock(&list->lock);
+}
+
+void rdma_protected_gslist_remove_int32(RdmaProtectedGSList *list,
+                                        int32_t value)
+{
+    qemu_mutex_lock(&list->lock);
+    list->list = g_slist_remove(list->list, GINT_TO_POINTER(value));
+    qemu_mutex_unlock(&list->lock);
+}

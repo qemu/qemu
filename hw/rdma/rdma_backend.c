@@ -39,6 +39,7 @@
 typedef struct BackendCtx {
     void *up_ctx;
     struct ibv_sge sge; /* Used to save MAD recv buffer */
+    RdmaBackendQP *backend_qp; /* To maintain recv buffers */
 } BackendCtx;
 
 struct backend_umad {
@@ -73,6 +74,7 @@ static void free_cqe_ctx(gpointer data, gpointer user_data)
     bctx = rdma_rm_get_cqe_ctx(rdma_dev_res, cqe_ctx_id);
     if (bctx) {
         rdma_rm_dealloc_cqe_ctx(rdma_dev_res, cqe_ctx_id);
+        atomic_dec(&rdma_dev_res->stats.missing_cqe);
     }
     g_free(bctx);
 }
@@ -85,13 +87,15 @@ static void clean_recv_mads(RdmaBackendDev *backend_dev)
         cqe_ctx_id = rdma_protected_qlist_pop_int64(&backend_dev->
                                                     recv_mads_list);
         if (cqe_ctx_id != -ENOENT) {
+            atomic_inc(&backend_dev->rdma_dev_res->stats.missing_cqe);
             free_cqe_ctx(GINT_TO_POINTER(cqe_ctx_id),
                          backend_dev->rdma_dev_res);
         }
     } while (cqe_ctx_id != -ENOENT);
 }
 
-static int rdma_poll_cq(RdmaDeviceResources *rdma_dev_res, struct ibv_cq *ibcq)
+static int rdma_poll_cq(RdmaBackendDev *backend_dev,
+                        RdmaDeviceResources *rdma_dev_res, struct ibv_cq *ibcq)
 {
     int i, ne, total_ne = 0;
     BackendCtx *bctx;
@@ -113,6 +117,8 @@ static int rdma_poll_cq(RdmaDeviceResources *rdma_dev_res, struct ibv_cq *ibcq)
 
             comp_handler(bctx->up_ctx, &wc[i]);
 
+            rdma_protected_gslist_remove_int32(&bctx->backend_qp->cqe_ctx_list,
+                                               wc[i].wr_id);
             rdma_rm_dealloc_cqe_ctx(rdma_dev_res, wc[i].wr_id);
             g_free(bctx);
         }
@@ -175,13 +181,11 @@ static void *comp_handler_thread(void *arg)
             }
 
             backend_dev->rdma_dev_res->stats.poll_cq_from_bk++;
-            rdma_poll_cq(backend_dev->rdma_dev_res, ev_cq);
+            rdma_poll_cq(backend_dev, backend_dev->rdma_dev_res, ev_cq);
 
             ibv_ack_cq_events(ev_cq, 1);
         }
     }
-
-    /* TODO: Post cqe for all remaining buffs that were posted */
 
     backend_dev->comp_thread.is_running = false;
 
@@ -311,7 +315,7 @@ void rdma_backend_poll_cq(RdmaDeviceResources *rdma_dev_res, RdmaBackendCQ *cq)
     int polled;
 
     rdma_dev_res->stats.poll_cq_from_guest++;
-    polled = rdma_poll_cq(rdma_dev_res, cq->ibcq);
+    polled = rdma_poll_cq(cq->backend_dev, rdma_dev_res, cq->ibcq);
     if (!polled) {
         rdma_dev_res->stats.poll_cq_from_guest_empty++;
     }
@@ -501,12 +505,15 @@ void rdma_backend_post_send(RdmaBackendDev *backend_dev,
 
     bctx = g_malloc0(sizeof(*bctx));
     bctx->up_ctx = ctx;
+    bctx->backend_qp = qp;
 
     rc = rdma_rm_alloc_cqe_ctx(backend_dev->rdma_dev_res, &bctx_id, bctx);
     if (unlikely(rc)) {
         complete_work(IBV_WC_GENERAL_ERR, VENDOR_ERR_NOMEM, ctx);
         goto err_free_bctx;
     }
+
+    rdma_protected_gslist_append_int32(&qp->cqe_ctx_list, bctx_id);
 
     rc = build_host_sge_array(backend_dev->rdma_dev_res, new_sge, sge, num_sge,
                               &backend_dev->rdma_dev_res->stats.tx_len);
@@ -616,12 +623,15 @@ void rdma_backend_post_recv(RdmaBackendDev *backend_dev,
 
     bctx = g_malloc0(sizeof(*bctx));
     bctx->up_ctx = ctx;
+    bctx->backend_qp = qp;
 
     rc = rdma_rm_alloc_cqe_ctx(rdma_dev_res, &bctx_id, bctx);
     if (unlikely(rc)) {
         complete_work(IBV_WC_GENERAL_ERR, VENDOR_ERR_NOMEM, ctx);
         goto err_free_bctx;
     }
+
+    rdma_protected_gslist_append_int32(&qp->cqe_ctx_list, bctx_id);
 
     rc = build_host_sge_array(rdma_dev_res, new_sge, sge, num_sge,
                               &backend_dev->rdma_dev_res->stats.rx_bufs_len);
@@ -761,6 +771,8 @@ int rdma_backend_create_qp(RdmaBackendQP *qp, uint8_t qp_type,
         rdma_error_report("ibv_create_qp fail, errno=%d", errno);
         return -EIO;
     }
+
+    rdma_protected_gslist_init(&qp->cqe_ctx_list);
 
     qp->ibpd = pd->ibpd;
 
@@ -919,11 +931,13 @@ int rdma_backend_query_qp(RdmaBackendQP *qp, struct ibv_qp_attr *attr,
     return ibv_query_qp(qp->ibqp, attr, attr_mask, init_attr);
 }
 
-void rdma_backend_destroy_qp(RdmaBackendQP *qp)
+void rdma_backend_destroy_qp(RdmaBackendQP *qp, RdmaDeviceResources *dev_res)
 {
     if (qp->ibqp) {
         ibv_destroy_qp(qp->ibqp);
     }
+    g_slist_foreach(qp->cqe_ctx_list.list, free_cqe_ctx, dev_res);
+    rdma_protected_gslist_destroy(&qp->cqe_ctx_list);
 }
 
 #define CHK_ATTR(req, dev, member, fmt) ({ \
