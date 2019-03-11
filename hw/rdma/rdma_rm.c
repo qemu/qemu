@@ -617,12 +617,16 @@ int rdma_rm_init(RdmaDeviceResources *dev_res, struct ibv_device_attr *dev_attr)
 
     init_ports(dev_res);
 
+    qemu_mutex_init(&dev_res->lock);
+
     return 0;
 }
 
 void rdma_rm_fini(RdmaDeviceResources *dev_res, RdmaBackendDev *backend_dev,
                   const char *ifname)
 {
+    qemu_mutex_destroy(&dev_res->lock);
+
     fini_ports(dev_res, backend_dev, ifname);
 
     res_tbl_free(&dev_res->uc_tbl);

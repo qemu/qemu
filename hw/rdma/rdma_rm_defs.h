@@ -105,6 +105,7 @@ typedef struct RdmaDeviceResources {
     RdmaRmResTbl cq_tbl;
     RdmaRmResTbl cqe_ctx_tbl;
     GHashTable *qp_hash; /* Keeps mapping between real and emulated */
+    QemuMutex lock;
 } RdmaDeviceResources;
 
 #endif
