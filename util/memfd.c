@@ -40,6 +40,7 @@ static int memfd_create(const char *name, unsigned int flags)
 #ifdef __NR_memfd_create
     return syscall(__NR_memfd_create, name, flags);
 #else
+    errno = ENOSYS;
     return -1;
 #endif
 }
