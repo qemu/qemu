@@ -29,6 +29,7 @@ status=1	# failure is the default!
 _cleanup()
 {
     _cleanup_test_img
+    rm -f $TEST_IMG.[01234]
 }
 trap "_cleanup; exit \$status" 0 1 2 3 15
 
@@ -142,6 +143,36 @@ echo
 run_qemu_info_block -blockdev driver=file,filename="$TEST_IMG",node-name=node0,auto-read-only=off
 run_qemu_info_block -blockdev driver=file,filename="$TEST_IMG",node-name=node0,auto-read-only=on
 run_qemu_info_block -blockdev driver=file,filename="$TEST_IMG",node-name=node0
+
+echo
+echo "=== Try commit to backing file with auto-read-only ==="
+echo
+
+TEST_IMG="$TEST_IMG.0" _make_test_img $size
+TEST_IMG="$TEST_IMG.1" _make_test_img $size
+TEST_IMG="$TEST_IMG.2" _make_test_img $size
+TEST_IMG="$TEST_IMG.3" _make_test_img $size
+TEST_IMG="$TEST_IMG.4" _make_test_img $size
+
+(cat <<EOF
+{"execute":"qmp_capabilities"}
+{"execute":"block-commit",
+ "arguments":{"device":"format-4", "top-node": "format-2", "base-node":"format-0", "job-id":"job0"}}
+EOF
+sleep 1
+echo '{"execute":"quit"}'
+) | $QEMU -qmp stdio -nographic -nodefaults \
+    -blockdev file,node-name=file-0,filename=$TEST_IMG.0,auto-read-only=on \
+    -blockdev qcow2,node-name=format-0,file=file-0,read-only=on \
+    -blockdev file,node-name=file-1,filename=$TEST_IMG.1,auto-read-only=on \
+    -blockdev qcow2,node-name=format-1,file=file-1,read-only=on,backing=format-0 \
+    -blockdev file,node-name=file-2,filename=$TEST_IMG.2,auto-read-only=on \
+    -blockdev qcow2,node-name=format-2,file=file-2,read-only=on,backing=format-1 \
+    -blockdev file,node-name=file-3,filename=$TEST_IMG.3,auto-read-only=on \
+    -blockdev qcow2,node-name=format-3,file=file-3,read-only=on,backing=format-2 \
+    -blockdev file,node-name=file-4,filename=$TEST_IMG.4,auto-read-only=on \
+    -blockdev qcow2,node-name=format-4,file=file-4,read-only=on,backing=format-3 |
+    _filter_qmp
 
 # success, all done
 echo "*** done"
