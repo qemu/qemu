@@ -530,4 +530,13 @@ read 4096/4096 bytes at offset 0
 Testing: -drive driver=null-co,snapshot=on
 QEMU_PROG: -drive driver=null-co,snapshot=on: Could not get temporary filename: No such file or directory
 
+Testing: -drive file=TEST_DIR/t.qcow2,snapshot=on,read-only=on,if=none,id=drive0
+QEMU X.Y.Z monitor - type 'help' for more information
+(qemu) info block
+drive0 (NODE_NAME): json:{"backing": {"driver": "qcow2", "file": {"driver": "file", "filename": "TEST_DIR/t.qcow2"}}, "driver": "qcow2", "file": {"driver": "file", "filename": SNAPSHOT_PATH}} (qcow2, read-only)
+    Removable device: not locked, tray closed
+    Cache mode:       writeback, ignore flushes
+    Backing file:     TEST_DIR/t.qcow2 (chain depth: 1)
+(qemu) quit
+
 *** done

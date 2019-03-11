@@ -356,6 +356,13 @@ $QEMU_IO -c "read -P 0x33 0 4k" "$TEST_IMG" | _filter_qemu_io
 # Using snapshot=on with a non-existent TMPDIR
 TMPDIR=/nonexistent run_qemu -drive driver=null-co,snapshot=on
 
+# Using snapshot=on together with read-only=on
+echo "info block" |
+    run_qemu -drive file="$TEST_IMG",snapshot=on,read-only=on,if=none,id=$device_id |
+    _filter_qemu_io |
+    sed -e 's#"/[^"]*/vl\.[A-Za-z0-9]\{6\}"#SNAPSHOT_PATH#g'
+
+
 # success, all done
 echo "*** done"
 rm -f $seq.full
