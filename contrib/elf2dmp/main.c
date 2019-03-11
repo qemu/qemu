@@ -524,6 +524,12 @@ int main(int argc, char *argv[])
         }
     }
 
+    if (!nt_start_addr) {
+        eprintf("Failed to find NT kernel image\n");
+        err = 1;
+        goto out_ps;
+    }
+
     printf("KernBase = 0x%016"PRIx64", signature is \'%.2s\'\n", KernBase,
             (char *)nt_start_addr);
 

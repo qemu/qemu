@@ -4,8 +4,9 @@ config VFIO
 
 config VFIO_PCI
     bool
+    default y
     select VFIO
-    depends on LINUX
+    depends on LINUX && PCI
 
 config VFIO_CCW
     bool

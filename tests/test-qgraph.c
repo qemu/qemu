@@ -122,7 +122,7 @@ static void check_driver(const char *driver)
 static void check_test(const char *test, const char *interface)
 {
     QOSGraphEdge *edge;
-    const char *full_name = g_strdup_printf("%s-tests/%s", interface, test);
+    char *full_name = g_strdup_printf("%s-tests/%s", interface, test);
 
     qos_add_test(test, interface, testfunct, NULL);
     g_assert_cmpint(qos_graph_has_machine(test), ==, FALSE);
@@ -138,6 +138,7 @@ static void check_test(const char *test, const char *interface)
     g_assert_cmpint(qos_graph_get_node_availability(full_name), ==, TRUE);
     qos_graph_node_set_availability(full_name, FALSE);
     g_assert_cmpint(qos_graph_get_node_availability(full_name), ==, FALSE);
+    g_free(full_name);
 }
 
 static void count_each_test(QOSGraphNode *path, int len)

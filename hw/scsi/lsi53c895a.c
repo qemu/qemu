@@ -160,6 +160,11 @@ static const char *names[] = {
 #define LSI_CCNTL1_DDAC      0x08
 #define LSI_CCNTL1_ZMOD      0x80
 
+#define LSI_SBCL_ATN         0x08
+#define LSI_SBCL_BSY         0x20
+#define LSI_SBCL_ACK         0x40
+#define LSI_SBCL_REQ         0x80
+
 /* Enable Response to Reselection */
 #define LSI_SCID_RRE      0x60
 
@@ -189,6 +194,20 @@ typedef struct lsi_request {
     QTAILQ_ENTRY(lsi_request) next;
 } lsi_request;
 
+enum {
+    LSI_NOWAIT, /* SCRIPTS are running or stopped */
+    LSI_WAIT_RESELECT, /* Wait Reselect instruction has been issued */
+    LSI_DMA_SCRIPTS, /* processing DMA from lsi_execute_script */
+    LSI_DMA_IN_PROGRESS, /* DMA operation is in progress */
+};
+
+enum {
+    LSI_MSG_ACTION_COMMAND = 0,
+    LSI_MSG_ACTION_DISCONNECT = 1,
+    LSI_MSG_ACTION_DOUT = 2,
+    LSI_MSG_ACTION_DIN = 3,
+};
+
 typedef struct {
     /*< private >*/
     PCIDevice parent_obj;
@@ -202,15 +221,9 @@ typedef struct {
 
     int carry; /* ??? Should this be an a visible register somewhere?  */
     int status;
-    /* Action to take at the end of a MSG IN phase.
-       0 = COMMAND, 1 = disconnect, 2 = DATA OUT, 3 = DATA IN.  */
     int msg_action;
     int msg_len;
     uint8_t msg[LSI_MAX_MSGIN_LEN];
-    /* 0 if SCRIPTS are running or stopped.
-     * 1 if a Wait Reselect instruction has been issued.
-     * 2 if processing DMA from lsi_execute_script.
-     * 3 if a DMA operation is in progress.  */
     int waiting;
     SCSIBus bus;
     int current_lun;
@@ -258,6 +271,7 @@ typedef struct {
     uint8_t sdid;
     uint8_t ssid;
     uint8_t sfbr;
+    uint8_t sbcl;
     uint8_t stest1;
     uint8_t stest2;
     uint8_t stest3;
@@ -283,8 +297,7 @@ typedef struct {
     uint8_t sbr;
     uint32_t adder;
 
-    /* Script ram is stored as 32-bit words in host byteorder.  */
-    uint32_t script_ram[2048];
+    uint8_t script_ram[2048 * sizeof(uint32_t)];
 } LSIState;
 
 #define TYPE_LSI53C810  "lsi53c810"
@@ -292,6 +305,22 @@ typedef struct {
 
 #define LSI53C895A(obj) \
     OBJECT_CHECK(LSIState, (obj), TYPE_LSI53C895A)
+
+static const char *scsi_phases[] = {
+    "DOUT",
+    "DIN",
+    "CMD",
+    "STATUS",
+    "RSVOUT",
+    "RSVIN",
+    "MSGOUT",
+    "MSGIN"
+};
+
+static const char *scsi_phase_name(int phase)
+{
+    return scsi_phases[phase & PHASE_MASK];
+}
 
 static inline int lsi_irq_on_rsl(LSIState *s)
 {
@@ -315,9 +344,9 @@ static void lsi_soft_reset(LSIState *s)
     trace_lsi_reset();
     s->carry = 0;
 
-    s->msg_action = 0;
+    s->msg_action = LSI_MSG_ACTION_COMMAND;
     s->msg_len = 0;
-    s->waiting = 0;
+    s->waiting = LSI_NOWAIT;
     s->dsa = 0;
     s->dnad = 0;
     s->dbc = 0;
@@ -356,6 +385,7 @@ static void lsi_soft_reset(LSIState *s)
     s->socl = 0;
     s->sdid = 0;
     s->ssid = 0;
+    s->sbcl = 0;
     s->stest1 = 0;
     s->stest2 = 0;
     s->stest3 = 0;
@@ -530,6 +560,8 @@ static void lsi_script_dma_interrupt(LSIState *s, int stat)
 
 static inline void lsi_set_phase(LSIState *s, int phase)
 {
+    s->sbcl &= ~PHASE_MASK;
+    s->sbcl |= phase | LSI_SBCL_REQ;
     s->sstat1 = (s->sstat1 & ~PHASE_MASK) | phase;
 }
 
@@ -556,10 +588,10 @@ static void lsi_bad_phase(LSIState *s, int out, int new_phase)
 static void lsi_resume_script(LSIState *s)
 {
     if (s->waiting != 2) {
-        s->waiting = 0;
+        s->waiting = LSI_NOWAIT;
         lsi_execute_script(s);
     } else {
-        s->waiting = 0;
+        s->waiting = LSI_NOWAIT;
     }
 }
 
@@ -567,6 +599,7 @@ static void lsi_disconnect(LSIState *s)
 {
     s->scntl1 &= ~LSI_SCNTL1_CON;
     s->sstat1 &= ~PHASE_MASK;
+    s->sbcl = 0;
 }
 
 static void lsi_bad_selection(LSIState *s, uint32_t id)
@@ -674,7 +707,7 @@ static void lsi_reselect(LSIState *s, lsi_request *p)
     trace_lsi_reselect(id);
     s->scntl1 |= LSI_SCNTL1_CON;
     lsi_set_phase(s, PHASE_MI);
-    s->msg_action = p->out ? 2 : 3;
+    s->msg_action = p->out ? LSI_MSG_ACTION_DOUT : LSI_MSG_ACTION_DIN;
     s->current->dma_len = p->pending;
     lsi_add_msg_byte(s, 0x80);
     if (s->current->tag & LSI_TAG_VALID) {
@@ -735,7 +768,7 @@ static int lsi_queue_req(LSIState *s, SCSIRequest *req, uint32_t len)
        Since no interrupt stacking is implemented in the emulation, it
        is also required that there are no pending interrupts waiting
        for service from the device driver. */
-    if (s->waiting == 1 ||
+    if (s->waiting == LSI_WAIT_RESELECT ||
         (lsi_irq_on_rsl(s) && !(s->scntl1 & LSI_SCNTL1_CON) &&
          !(s->istat0 & (LSI_ISTAT0_SIP | LSI_ISTAT0_DIP)))) {
         /* Reselect device.  */
@@ -780,7 +813,7 @@ static void lsi_transfer_data(SCSIRequest *req, uint32_t len)
     int out;
 
     assert(req->hba_private);
-    if (s->waiting == 1 || req->hba_private != s->current ||
+    if (s->waiting == LSI_WAIT_RESELECT || req->hba_private != s->current ||
         (lsi_irq_on_rsl(s) && !(s->scntl1 & LSI_SCNTL1_CON))) {
         if (lsi_queue_req(s, req, len)) {
             return;
@@ -794,7 +827,7 @@ static void lsi_transfer_data(SCSIRequest *req, uint32_t len)
     s->current->dma_len = len;
     s->command_complete = 1;
     if (s->waiting) {
-        if (s->waiting == 1 || s->dbc == 0) {
+        if (s->waiting == LSI_WAIT_RESELECT || s->dbc == 0) {
             lsi_resume_script(s);
         } else {
             lsi_do_dma(s, out);
@@ -845,7 +878,7 @@ static void lsi_do_command(LSIState *s)
             lsi_add_msg_byte(s, 4); /* DISCONNECT */
             /* wait data */
             lsi_set_phase(s, PHASE_MI);
-            s->msg_action = 1;
+            s->msg_action = LSI_MSG_ACTION_DISCONNECT;
             lsi_queue_command(s);
         } else {
             /* wait command complete */
@@ -866,7 +899,7 @@ static void lsi_do_status(LSIState *s)
     s->sfbr = status;
     pci_dma_write(PCI_DEVICE(s), s->dnad, &status, 1);
     lsi_set_phase(s, PHASE_MI);
-    s->msg_action = 1;
+    s->msg_action = LSI_MSG_ACTION_DISCONNECT;
     lsi_add_msg_byte(s, 0); /* COMMAND COMPLETE */
 }
 
@@ -889,16 +922,16 @@ static void lsi_do_msgin(LSIState *s)
         /* ??? Check if ATN (not yet implemented) is asserted and maybe
            switch to PHASE_MO.  */
         switch (s->msg_action) {
-        case 0:
+        case LSI_MSG_ACTION_COMMAND:
             lsi_set_phase(s, PHASE_CMD);
             break;
-        case 1:
+        case LSI_MSG_ACTION_DISCONNECT:
             lsi_disconnect(s);
             break;
-        case 2:
+        case LSI_MSG_ACTION_DOUT:
             lsi_set_phase(s, PHASE_DO);
             break;
-        case 3:
+        case LSI_MSG_ACTION_DIN:
             lsi_set_phase(s, PHASE_DI);
             break;
         default:
@@ -1050,7 +1083,7 @@ bad:
     qemu_log_mask(LOG_UNIMP, "Unimplemented message 0x%02x\n", msg);
     lsi_set_phase(s, PHASE_MI);
     lsi_add_msg_byte(s, 7); /* MESSAGE REJECT */
-    s->msg_action = 0;
+    s->msg_action = LSI_MSG_ACTION_COMMAND;
 }
 
 #define LSI_BUF_SIZE 4096
@@ -1084,7 +1117,7 @@ static void lsi_wait_reselect(LSIState *s)
         lsi_reselect(s, p);
     }
     if (s->current == NULL) {
-        s->waiting = 1;
+        s->waiting = LSI_WAIT_RESELECT;
     }
 }
 
@@ -1184,8 +1217,9 @@ again:
             s->ia = s->dsp - 12;
         }
         if ((s->sstat1 & PHASE_MASK) != ((insn >> 24) & 7)) {
-            trace_lsi_execute_script_blockmove_badphase(s->sstat1 & PHASE_MASK,
-                                                        (insn >> 24) & 7);
+            trace_lsi_execute_script_blockmove_badphase(
+                    scsi_phase_name(s->sstat1),
+                    scsi_phase_name(insn >> 24));
             lsi_script_scsi_interrupt(s, LSI_SIST0_MA, 0);
             break;
         }
@@ -1193,16 +1227,16 @@ again:
         s->dnad64 = addr_high;
         switch (s->sstat1 & 0x7) {
         case PHASE_DO:
-            s->waiting = 2;
+            s->waiting = LSI_DMA_SCRIPTS;
             lsi_do_dma(s, 1);
             if (s->waiting)
-                s->waiting = 3;
+                s->waiting = LSI_DMA_IN_PROGRESS;
             break;
         case PHASE_DI:
-            s->waiting = 2;
+            s->waiting = LSI_DMA_SCRIPTS;
             lsi_do_dma(s, 0);
             if (s->waiting)
-                s->waiting = 3;
+                s->waiting = LSI_DMA_IN_PROGRESS;
             break;
         case PHASE_CMD:
             lsi_do_command(s);
@@ -1217,8 +1251,8 @@ again:
             lsi_do_msgin(s);
             break;
         default:
-            qemu_log_mask(LOG_UNIMP, "lsi_scsi: Unimplemented phase %d\n",
-                          s->sstat1 & PHASE_MASK);
+            qemu_log_mask(LOG_UNIMP, "lsi_scsi: Unimplemented phase %s\n",
+                          scsi_phase_name(s->sstat1));
         }
         s->dfifo = s->dbc & 0xff;
         s->ctest5 = (s->ctest5 & 0xfc) | ((s->dbc >> 8) & 3);
@@ -1265,8 +1299,11 @@ again:
                 s->scntl1 |= LSI_SCNTL1_CON;
                 if (insn & (1 << 3)) {
                     s->socl |= LSI_SOCL_ATN;
+                    s->sbcl |= LSI_SBCL_ATN;
                 }
+                s->sbcl |= LSI_SBCL_BSY;
                 lsi_set_phase(s, PHASE_MO);
+                s->waiting = LSI_NOWAIT;
                 break;
             case 1: /* Disconnect */
                 trace_lsi_execute_script_io_disconnect();
@@ -1285,8 +1322,10 @@ again:
                 }
                 break;
             case 2: /* Wait Reselect */
-                if (!lsi_irq_on_rsl(s)) {
-                    lsi_wait_reselect(s);
+                if (s->istat0 & LSI_ISTAT0_SIGP) {
+                    s->dsp = s->dnad;
+                } else if (!lsi_irq_on_rsl(s)) {
+                        lsi_wait_reselect(s);
                 }
                 break;
             case 3: /* Set */
@@ -1297,8 +1336,14 @@ again:
                         insn & (1 << 10) ? " CC" : "");
                 if (insn & (1 << 3)) {
                     s->socl |= LSI_SOCL_ATN;
+                    s->sbcl |= LSI_SBCL_ATN;
                     lsi_set_phase(s, PHASE_MO);
                 }
+
+                if (insn & (1 << 6)) {
+                    s->sbcl |= LSI_SBCL_ACK;
+                }
+
                 if (insn & (1 << 9)) {
                     qemu_log_mask(LOG_UNIMP,
                         "lsi_scsi: Target mode not implemented\n");
@@ -1314,7 +1359,13 @@ again:
                         insn & (1 << 10) ? " CC" : "");
                 if (insn & (1 << 3)) {
                     s->socl &= ~LSI_SOCL_ATN;
+                    s->sbcl &= ~LSI_SBCL_ATN;
                 }
+
+                if (insn & (1 << 6)) {
+                    s->sbcl &= ~LSI_SBCL_ACK;
+                }
+
                 if (insn & (1 << 10))
                     s->carry = 0;
                 break;
@@ -1429,10 +1480,8 @@ again:
                 cond = s->carry != 0;
             }
             if (cond == jmp && (insn & (1 << 17))) {
-                trace_lsi_execute_script_tc_compp(
-                        (s->sstat1 & PHASE_MASK),
-                        jmp ? '=' : '!',
-                        ((insn >> 24) & 7));
+                trace_lsi_execute_script_tc_compp(scsi_phase_name(s->sstat1),
+                        jmp ? '=' : '!', scsi_phase_name(insn >> 24));
                 cond = (s->sstat1 & PHASE_MASK) == ((insn >> 24) & 7);
             }
             if (cond == jmp && (insn & (1 << 18))) {
@@ -1519,7 +1568,7 @@ again:
             }
         }
     }
-    if (insn_processed > 10000 && !s->waiting) {
+    if (insn_processed > 10000 && s->waiting == LSI_NOWAIT) {
         /* Some windows drivers make the device spin waiting for a memory
            location to change.  If we have been executed a lot of code then
            assume this is the case and force an unexpected device disconnect.
@@ -1531,7 +1580,7 @@ again:
         }
         lsi_script_scsi_interrupt(s, LSI_SIST0_UDC, 0);
         lsi_disconnect(s);
-    } else if (s->istat1 & LSI_ISTAT1_SRUN && !s->waiting) {
+    } else if (s->istat1 & LSI_ISTAT1_SRUN && s->waiting == LSI_NOWAIT) {
         if (s->dcntl & LSI_DCNTL_SSM) {
             lsi_script_dma_interrupt(s, LSI_DSTAT_SSI);
         } else {
@@ -1591,9 +1640,7 @@ static uint8_t lsi_reg_readb(LSIState *s, int offset)
         ret = s->ssid;
         break;
     case 0xb: /* SBCL */
-        /* ??? This is not correct. However it's (hopefully) only
-           used for diagnostics, so should be ok.  */
-        ret = 0;
+        ret = s->sbcl;
         break;
     case 0xc: /* DSTAT */
         ret = s->dstat | LSI_DSTAT_DFE;
@@ -1641,7 +1688,7 @@ static uint8_t lsi_reg_readb(LSIState *s, int offset)
         break;
     CASE_GET_REG32(temp, 0x1c)
     case 0x20: /* DFIFO */
-        ret = 0;
+        ret = s->dfifo;
         break;
     case 0x21: /* CTEST4 */
         ret = s->ctest4;
@@ -1864,9 +1911,9 @@ static void lsi_reg_writeb(LSIState *s, int offset, uint8_t val)
             s->istat0 &= ~LSI_ISTAT0_INTF;
             lsi_update_irq(s);
         }
-        if (s->waiting == 1 && val & LSI_ISTAT0_SIGP) {
+        if (s->waiting == LSI_WAIT_RESELECT && val & LSI_ISTAT0_SIGP) {
             trace_lsi_awoken();
-            s->waiting = 0;
+            s->waiting = LSI_NOWAIT;
             s->dsp = s->dnad;
             lsi_execute_script(s);
         }
@@ -2037,14 +2084,13 @@ static uint64_t lsi_mmio_read(void *opaque, hwaddr addr,
                               unsigned size)
 {
     LSIState *s = opaque;
-
     return lsi_reg_readb(s, addr & 0xff);
 }
 
 static const MemoryRegionOps lsi_mmio_ops = {
     .read = lsi_mmio_read,
     .write = lsi_mmio_write,
-    .endianness = DEVICE_NATIVE_ENDIAN,
+    .endianness = DEVICE_LITTLE_ENDIAN,
     .impl = {
         .min_access_size = 1,
         .max_access_size = 1,
@@ -2055,35 +2101,20 @@ static void lsi_ram_write(void *opaque, hwaddr addr,
                           uint64_t val, unsigned size)
 {
     LSIState *s = opaque;
-    uint32_t newval;
-    uint32_t mask;
-    int shift;
-
-    newval = s->script_ram[addr >> 2];
-    shift = (addr & 3) * 8;
-    mask = ((uint64_t)1 << (size * 8)) - 1;
-    newval &= ~(mask << shift);
-    newval |= val << shift;
-    s->script_ram[addr >> 2] = newval;
+    stn_le_p(s->script_ram + addr, size, val);
 }
 
 static uint64_t lsi_ram_read(void *opaque, hwaddr addr,
                              unsigned size)
 {
     LSIState *s = opaque;
-    uint32_t val;
-    uint32_t mask;
-
-    val = s->script_ram[addr >> 2];
-    mask = ((uint64_t)1 << (size * 8)) - 1;
-    val >>= (addr & 3) * 8;
-    return val & mask;
+    return ldn_le_p(s->script_ram + addr, size);
 }
 
 static const MemoryRegionOps lsi_ram_ops = {
     .read = lsi_ram_read,
     .write = lsi_ram_write,
-    .endianness = DEVICE_NATIVE_ENDIAN,
+    .endianness = DEVICE_LITTLE_ENDIAN,
 };
 
 static uint64_t lsi_io_read(void *opaque, hwaddr addr,
@@ -2103,7 +2134,7 @@ static void lsi_io_write(void *opaque, hwaddr addr,
 static const MemoryRegionOps lsi_io_ops = {
     .read = lsi_io_read,
     .write = lsi_io_write,
-    .endianness = DEVICE_NATIVE_ENDIAN,
+    .endianness = DEVICE_LITTLE_ENDIAN,
     .impl = {
         .min_access_size = 1,
         .max_access_size = 1,
@@ -2143,7 +2174,7 @@ static int lsi_post_load(void *opaque, int version_id)
 
 static const VMStateDescription vmstate_lsi_scsi = {
     .name = "lsiscsi",
-    .version_id = 0,
+    .version_id = 1,
     .minimum_version_id = 0,
     .pre_save = lsi_pre_save,
     .post_load = lsi_post_load,
@@ -2202,6 +2233,7 @@ static const VMStateDescription vmstate_lsi_scsi = {
         VMSTATE_UINT8(stime0, LSIState),
         VMSTATE_UINT8(respid0, LSIState),
         VMSTATE_UINT8(respid1, LSIState),
+        VMSTATE_UINT8_V(sbcl, LSIState, 1),
         VMSTATE_UINT32(mmrs, LSIState),
         VMSTATE_UINT32(mmws, LSIState),
         VMSTATE_UINT32(sfs, LSIState),
@@ -2219,7 +2251,7 @@ static const VMStateDescription vmstate_lsi_scsi = {
         VMSTATE_BUFFER_UNSAFE(scratch, LSIState, 0, 18 * sizeof(uint32_t)),
         VMSTATE_UINT8(sbr, LSIState),
 
-        VMSTATE_BUFFER_UNSAFE(script_ram, LSIState, 0, 2048 * sizeof(uint32_t)),
+        VMSTATE_BUFFER_UNSAFE(script_ram, LSIState, 0, 8192),
         VMSTATE_END_OF_LIST()
     }
 };

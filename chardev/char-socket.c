@@ -59,6 +59,7 @@ typedef struct {
     QIONetListener *listener;
     GSource *hup_source;
     QCryptoTLSCreds *tls_creds;
+    char *tls_authz;
     TCPChardevState state;
     int max_size;
     int do_telnetopt;
@@ -807,7 +808,7 @@ static void tcp_chr_tls_init(Chardev *chr)
     if (s->is_listen) {
         tioc = qio_channel_tls_new_server(
             s->ioc, s->tls_creds,
-            NULL, /* XXX Use an ACL */
+            s->tls_authz,
             &err);
     } else {
         tioc = qio_channel_tls_new_client(
@@ -1055,6 +1056,7 @@ static void char_socket_finalize(Object *obj)
     if (s->tls_creds) {
         object_unref(OBJECT(s->tls_creds));
     }
+    g_free(s->tls_authz);
 
     qemu_chr_be_event(chr, CHR_EVENT_CLOSED);
 }
@@ -1242,6 +1244,11 @@ static bool qmp_chardev_validate_socket(ChardevSocket *sock,
         break;
     }
 
+    if (sock->has_tls_authz && !sock->has_tls_creds) {
+        error_setg(errp, "'tls_authz' option requires 'tls_creds' option");
+        return false;
+    }
+
     /* Validate any options which have a dependancy on client vs server */
     if (!sock->has_server || sock->server) {
         if (sock->has_reconnect) {
@@ -1320,6 +1327,7 @@ static void qmp_chardev_open_socket(Chardev *chr,
             }
         }
     }
+    s->tls_authz = g_strdup(sock->tls_authz);
 
     s->addr = addr = socket_address_flatten(sock->addr);
 
@@ -1399,6 +1407,8 @@ static void qemu_chr_parse_socket(QemuOpts *opts, ChardevBackend *backend,
     sock->reconnect = qemu_opt_get_number(opts, "reconnect", 0);
     sock->has_tls_creds = qemu_opt_get(opts, "tls-creds");
     sock->tls_creds = g_strdup(qemu_opt_get(opts, "tls-creds"));
+    sock->has_tls_authz = qemu_opt_get(opts, "tls-authz");
+    sock->tls_authz = g_strdup(qemu_opt_get(opts, "tls-authz"));
 
     addr = g_new0(SocketAddressLegacy, 1);
     if (path) {
