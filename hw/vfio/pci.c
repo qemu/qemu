@@ -3068,6 +3068,16 @@ static void vfio_realize(PCIDevice *pdev, Error **errp)
         error_setg(errp, "ramfb=on requires display=on");
         goto out_teardown;
     }
+    if (vdev->display_xres || vdev->display_yres) {
+        if (vdev->dpy == NULL) {
+            error_setg(errp, "xres and yres properties require display=on");
+            goto out_teardown;
+        }
+        if (vdev->dpy->edid_regs == NULL) {
+            error_setg(errp, "xres and yres properties need edid support");
+            goto out_teardown;
+        }
+    }
 
     vfio_register_err_notifier(vdev);
     vfio_register_req_notifier(vdev);
@@ -3182,6 +3192,8 @@ static Property vfio_pci_dev_properties[] = {
     DEFINE_PROP_STRING("sysfsdev", VFIOPCIDevice, vbasedev.sysfsdev),
     DEFINE_PROP_ON_OFF_AUTO("display", VFIOPCIDevice,
                             display, ON_OFF_AUTO_OFF),
+    DEFINE_PROP_UINT32("xres", VFIOPCIDevice, display_xres, 0),
+    DEFINE_PROP_UINT32("yres", VFIOPCIDevice, display_yres, 0),
     DEFINE_PROP_UINT32("x-intx-mmap-timeout-ms", VFIOPCIDevice,
                        intx.mmap_timeout, 1100),
     DEFINE_PROP_BIT("x-vga", VFIOPCIDevice, features,

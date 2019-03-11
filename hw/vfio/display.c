@@ -45,8 +45,8 @@ static void vfio_display_edid_update(VFIOPCIDevice *vdev, bool enabled,
     qemu_edid_info edid = {
         .maxx  = dpy->edid_regs->max_xres,
         .maxy  = dpy->edid_regs->max_yres,
-        .prefx = prefx,
-        .prefy = prefy,
+        .prefx = prefx ?: vdev->display_xres,
+        .prefy = prefy ?: vdev->display_yres,
     };
 
     dpy->edid_regs->link_state = VFIO_DEVICE_GFX_LINK_STATE_DOWN;
@@ -141,6 +141,14 @@ static void vfio_display_edid_init(VFIOPCIDevice *vdev)
     }
 
     dpy->edid_blob = g_malloc0(dpy->edid_regs->edid_max_size);
+
+    /* if xres + yres properties are unset use the maximum resolution */
+    if (!vdev->display_xres) {
+        vdev->display_xres = dpy->edid_regs->max_xres;
+    }
+    if (!vdev->display_yres) {
+        vdev->display_yres = dpy->edid_regs->max_yres;
+    }
 
     vfio_display_edid_update(vdev, true, 0, 0);
     return;
