@@ -462,10 +462,25 @@ static int check_dir_entry(BlockDriverState *bs, Qcow2BitmapDirEntry *entry)
         return len;
     }
 
-    fail = (phys_bitmap_bytes > BME_MAX_PHYS_SIZE) ||
-           (len > ((phys_bitmap_bytes * 8) << entry->granularity_bits));
+    if (phys_bitmap_bytes > BME_MAX_PHYS_SIZE) {
+        return -EINVAL;
+    }
 
-    return fail ? -EINVAL : 0;
+    if (!(entry->flags & BME_FLAG_IN_USE) &&
+        (len > ((phys_bitmap_bytes * 8) << entry->granularity_bits)))
+    {
+        /*
+         * We've loaded a valid bitmap (IN_USE not set) or we are going to
+         * store a valid bitmap, but the allocated bitmap table size is not
+         * enough to store this bitmap.
+         *
+         * Note, that it's OK to have an invalid bitmap with invalid size due
+         * to a bitmap that was not correctly saved after image resize.
+         */
+        return -EINVAL;
+    }
+
+    return 0;
 }
 
 static inline void bitmap_directory_to_be(uint8_t *dir, size_t size)
