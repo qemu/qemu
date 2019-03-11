@@ -527,9 +527,7 @@ static unsigned int save_mad_recv_buffer(RdmaBackendDev *backend_dev,
     bctx->up_ctx = ctx;
     bctx->sge = *sge;
 
-    qemu_mutex_lock(&backend_dev->recv_mads_list.lock);
-    qlist_append_int(backend_dev->recv_mads_list.list, bctx_id);
-    qemu_mutex_unlock(&backend_dev->recv_mads_list.lock);
+    rdma_protected_qlist_append_int64(&backend_dev->recv_mads_list, bctx_id);
 
     return 0;
 }
@@ -913,23 +911,19 @@ static inline void build_mad_hdr(struct ibv_grh *grh, union ibv_gid *sgid,
 static void process_incoming_mad_req(RdmaBackendDev *backend_dev,
                                      RdmaCmMuxMsg *msg)
 {
-    QObject *o_ctx_id;
     unsigned long cqe_ctx_id;
     BackendCtx *bctx;
     char *mad;
 
     trace_mad_message("recv", msg->umad.mad, msg->umad_len);
 
-    qemu_mutex_lock(&backend_dev->recv_mads_list.lock);
-    o_ctx_id = qlist_pop(backend_dev->recv_mads_list.list);
-    qemu_mutex_unlock(&backend_dev->recv_mads_list.lock);
-    if (!o_ctx_id) {
+    cqe_ctx_id = rdma_protected_qlist_pop_int64(&backend_dev->recv_mads_list);
+    if (cqe_ctx_id == -ENOENT) {
         rdma_warn_report("No more free MADs buffers, waiting for a while");
         sleep(THR_POLL_TO);
         return;
     }
 
-    cqe_ctx_id = qnum_get_uint(qobject_to(QNum, o_ctx_id));
     bctx = rdma_rm_get_cqe_ctx(backend_dev->rdma_dev_res, cqe_ctx_id);
     if (unlikely(!bctx)) {
         rdma_error_report("No matching ctx for req %ld", cqe_ctx_id);
@@ -994,8 +988,7 @@ static int mad_init(RdmaBackendDev *backend_dev, CharBackend *mad_chr_be)
         return -EIO;
     }
 
-    qemu_mutex_init(&backend_dev->recv_mads_list.lock);
-    backend_dev->recv_mads_list.list = qlist_new();
+    rdma_protected_qlist_init(&backend_dev->recv_mads_list);
 
     enable_rdmacm_mux_async(backend_dev);
 
@@ -1010,10 +1003,7 @@ static void mad_fini(RdmaBackendDev *backend_dev)
 {
     disable_rdmacm_mux_async(backend_dev);
     qemu_chr_fe_disconnect(backend_dev->rdmacm_mux.chr_be);
-    if (backend_dev->recv_mads_list.list) {
-        qlist_destroy_obj(QOBJECT(backend_dev->recv_mads_list.list));
-        qemu_mutex_destroy(&backend_dev->recv_mads_list.lock);
-    }
+    rdma_protected_qlist_destroy(&backend_dev->recv_mads_list);
 }
 
 int rdma_backend_get_gid_index(RdmaBackendDev *backend_dev,

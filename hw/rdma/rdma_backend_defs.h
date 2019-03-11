@@ -20,6 +20,7 @@
 #include "chardev/char-fe.h"
 #include <infiniband/verbs.h>
 #include "contrib/rdmacm-mux/rdmacm-mux.h"
+#include "rdma_utils.h"
 
 typedef struct RdmaDeviceResources RdmaDeviceResources;
 
@@ -29,11 +30,6 @@ typedef struct RdmaBackendThread {
     bool run; /* Set by thread manager to let thread know it should exit */
     bool is_running; /* Set by the thread to report its status */
 } RdmaBackendThread;
-
-typedef struct RecvMadList {
-    QemuMutex lock;
-    QList *list;
-} RecvMadList;
 
 typedef struct RdmaCmMux {
     CharBackend *chr_be;
@@ -48,7 +44,7 @@ typedef struct RdmaBackendDev {
     struct ibv_context *context;
     struct ibv_comp_channel *channel;
     uint8_t port_num;
-    RecvMadList recv_mads_list;
+    RdmaProtectedQList recv_mads_list;
     RdmaCmMux rdmacm_mux;
 } RdmaBackendDev;
 
