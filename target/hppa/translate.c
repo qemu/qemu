@@ -3446,6 +3446,8 @@ static bool trans_b_gate(DisasContext *ctx, arg_b_gate *a)
 {
     target_ureg dest = iaoq_dest(ctx, a->disp);
 
+    nullify_over(ctx);
+
     /* Make sure the caller hasn't done something weird with the queue.
      * ??? This is not quite the same as the PSW[B] bit, which would be
      * expensive to track.  Real hardware will trap for
@@ -3483,7 +3485,16 @@ static bool trans_b_gate(DisasContext *ctx, arg_b_gate *a)
     }
 #endif
 
-    return do_dbranch(ctx, dest, a->l, a->n);
+    if (a->l) {
+        TCGv_reg tmp = dest_gpr(ctx, a->l);
+        if (ctx->privilege < 3) {
+            tcg_gen_andi_reg(tmp, tmp, -4);
+        }
+        tcg_gen_ori_reg(tmp, tmp, ctx->privilege);
+        save_gpr(ctx, a->l, tmp);
+    }
+
+    return do_dbranch(ctx, dest, 0, a->n);
 }
 
 static bool trans_blr(DisasContext *ctx, arg_blr *a)
