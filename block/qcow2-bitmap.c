@@ -1175,6 +1175,52 @@ int qcow2_reopen_bitmaps_rw(BlockDriverState *bs, Error **errp)
     return qcow2_reopen_bitmaps_rw_hint(bs, NULL, errp);
 }
 
+/* Checks to see if it's safe to resize bitmaps */
+int qcow2_truncate_bitmaps_check(BlockDriverState *bs, Error **errp)
+{
+    BDRVQcow2State *s = bs->opaque;
+    Qcow2BitmapList *bm_list;
+    Qcow2Bitmap *bm;
+    int ret = 0;
+
+    if (s->nb_bitmaps == 0) {
+        return 0;
+    }
+
+    bm_list = bitmap_list_load(bs, s->bitmap_directory_offset,
+                               s->bitmap_directory_size, errp);
+    if (bm_list == NULL) {
+        return -EINVAL;
+    }
+
+    QSIMPLEQ_FOREACH(bm, bm_list, entry) {
+        BdrvDirtyBitmap *bitmap = bdrv_find_dirty_bitmap(bs, bm->name);
+        if (bitmap == NULL) {
+            /*
+             * We rely on all bitmaps being in-memory to be able to resize them,
+             * Otherwise, we'd need to resize them on disk explicitly
+             */
+            error_setg(errp, "Cannot resize qcow2 with persistent bitmaps that "
+                       "were not loaded into memory");
+            ret = -ENOTSUP;
+            goto out;
+        }
+
+        /*
+         * The checks against readonly and busy are redundant, but certainly
+         * do no harm. checks against inconsistent are crucial:
+         */
+        if (bdrv_dirty_bitmap_check(bitmap, BDRV_BITMAP_DEFAULT, errp)) {
+            ret = -ENOTSUP;
+            goto out;
+        }
+    }
+
+out:
+    bitmap_list_free(bm_list);
+    return ret;
+}
+
 /* store_bitmap_data()
  * Store bitmap to image, filling bitmap table accordingly.
  */
