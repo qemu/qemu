@@ -127,6 +127,6 @@ static inline void post_interrupt(PVRDMADev *dev, unsigned vector)
     }
 }
 
-int execute_command(PVRDMADev *dev);
+int pvrdma_exec_cmd(PVRDMADev *dev);
 
 #endif

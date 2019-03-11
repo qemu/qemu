@@ -20,8 +20,8 @@
 #include "rdma_backend_defs.h"
 #include "rdma_rm_defs.h"
 
-int rdma_rm_init(RdmaDeviceResources *dev_res, struct ibv_device_attr *dev_attr,
-                 Error **errp);
+int rdma_rm_init(RdmaDeviceResources *dev_res,
+                 struct ibv_device_attr *dev_attr);
 void rdma_rm_fini(RdmaDeviceResources *dev_res, RdmaBackendDev *backend_dev,
                   const char *ifname);
 
@@ -31,9 +31,9 @@ RdmaRmPD *rdma_rm_get_pd(RdmaDeviceResources *dev_res, uint32_t pd_handle);
 void rdma_rm_dealloc_pd(RdmaDeviceResources *dev_res, uint32_t pd_handle);
 
 int rdma_rm_alloc_mr(RdmaDeviceResources *dev_res, uint32_t pd_handle,
-                     uint64_t guest_start, size_t guest_length, void *host_virt,
-                     int access_flags, uint32_t *mr_handle, uint32_t *lkey,
-                     uint32_t *rkey);
+                     uint64_t guest_start, uint64_t guest_length,
+                     void *host_virt, int access_flags, uint32_t *mr_handle,
+                     uint32_t *lkey, uint32_t *rkey);
 RdmaRmMR *rdma_rm_get_mr(RdmaDeviceResources *dev_res, uint32_t mr_handle);
 void rdma_rm_dealloc_mr(RdmaDeviceResources *dev_res, uint32_t mr_handle);
 

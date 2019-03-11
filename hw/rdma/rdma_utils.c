@@ -14,11 +14,8 @@
  */
 
 #include "qemu/osdep.h"
+#include "trace.h"
 #include "rdma_utils.h"
-
-#ifdef PVRDMA_DEBUG
-unsigned long pr_dbg_cnt;
-#endif
 
 void *rdma_pci_dma_map(PCIDevice *dev, dma_addr_t addr, dma_addr_t plen)
 {
@@ -26,14 +23,14 @@ void *rdma_pci_dma_map(PCIDevice *dev, dma_addr_t addr, dma_addr_t plen)
     hwaddr len = plen;
 
     if (!addr) {
-        pr_dbg("addr is NULL\n");
+        rdma_error_report("addr is NULL");
         return NULL;
     }
 
     p = pci_dma_map(dev, addr, &len, DMA_DIRECTION_TO_DEVICE);
     if (!p) {
-        pr_dbg("Fail in pci_dma_map, addr=0x%" PRIx64 ", len=%" PRId64 "\n",
-               addr, len);
+        rdma_error_report("pci_dma_map fail, addr=0x%"PRIx64", len=%"PRId64,
+                          addr, len);
         return NULL;
     }
 
@@ -42,14 +39,14 @@ void *rdma_pci_dma_map(PCIDevice *dev, dma_addr_t addr, dma_addr_t plen)
         return NULL;
     }
 
-    pr_dbg("0x%" PRIx64 " -> %p (len=% " PRId64 ")\n", addr, p, len);
+    trace_rdma_pci_dma_map(addr, p, len);
 
     return p;
 }
 
 void rdma_pci_dma_unmap(PCIDevice *dev, void *buffer, dma_addr_t len)
 {
-    pr_dbg("%p\n", buffer);
+    trace_rdma_pci_dma_unmap(buffer);
     if (buffer) {
         pci_dma_unmap(dev, buffer, len, DMA_DIRECTION_TO_DEVICE, 0);
     }
