@@ -34,6 +34,7 @@
 #include "disas/disas.h"
 #include "exec/exec-all.h"
 #include "tcg-op.h"
+#include "tcg-op-gvec.h"
 #include "qemu/log.h"
 #include "qemu/host-utils.h"
 #include "exec/cpu_ldst.h"
@@ -985,6 +986,7 @@ static void free_compare(DisasCompare *c)
 #define F3(N, X1, X2, X3)             F0(N)
 #define F4(N, X1, X2, X3, X4)         F0(N)
 #define F5(N, X1, X2, X3, X4, X5)     F0(N)
+#define F6(N, X1, X2, X3, X4, X5, X6) F0(N)
 
 typedef enum {
 #include "insn-format.def"
@@ -996,6 +998,7 @@ typedef enum {
 #undef F3
 #undef F4
 #undef F5
+#undef F6
 
 /* Define a structure to hold the decoded fields.  We'll store each inside
    an array indexed by an enum.  In order to conserve memory, we'll arrange
@@ -1010,6 +1013,8 @@ enum DisasFieldIndexO {
     FLD_O_m1,
     FLD_O_m3,
     FLD_O_m4,
+    FLD_O_m5,
+    FLD_O_m6,
     FLD_O_b1,
     FLD_O_b2,
     FLD_O_b4,
@@ -1023,7 +1028,11 @@ enum DisasFieldIndexO {
     FLD_O_i2,
     FLD_O_i3,
     FLD_O_i4,
-    FLD_O_i5
+    FLD_O_i5,
+    FLD_O_v1,
+    FLD_O_v2,
+    FLD_O_v3,
+    FLD_O_v4,
 };
 
 enum DisasFieldIndexC {
@@ -1031,6 +1040,7 @@ enum DisasFieldIndexC {
     FLD_C_m1 = 0,
     FLD_C_b1 = 0,
     FLD_C_i1 = 0,
+    FLD_C_v1 = 0,
 
     FLD_C_r2 = 1,
     FLD_C_b2 = 1,
@@ -1039,20 +1049,25 @@ enum DisasFieldIndexC {
     FLD_C_r3 = 2,
     FLD_C_m3 = 2,
     FLD_C_i3 = 2,
+    FLD_C_v3 = 2,
 
     FLD_C_m4 = 3,
     FLD_C_b4 = 3,
     FLD_C_i4 = 3,
     FLD_C_l1 = 3,
+    FLD_C_v4 = 3,
 
     FLD_C_i5 = 4,
     FLD_C_d1 = 4,
+    FLD_C_m5 = 4,
 
     FLD_C_d2 = 5,
+    FLD_C_m6 = 5,
 
     FLD_C_d4 = 6,
     FLD_C_x2 = 6,
     FLD_C_l2 = 6,
+    FLD_C_v2 = 6,
 
     NUM_C_FIELD = 7
 };
@@ -1097,6 +1112,7 @@ typedef struct DisasFormatInfo {
 
 #define R(N, B)       {  B,  4, 0, FLD_C_r##N, FLD_O_r##N }
 #define M(N, B)       {  B,  4, 0, FLD_C_m##N, FLD_O_m##N }
+#define V(N, B)       {  B,  4, 3, FLD_C_v##N, FLD_O_v##N }
 #define BD(N, BB, BD) { BB,  4, 0, FLD_C_b##N, FLD_O_b##N }, \
                       { BD, 12, 0, FLD_C_d##N, FLD_O_d##N }
 #define BXD(N)        { 16,  4, 0, FLD_C_b##N, FLD_O_b##N }, \
@@ -1116,6 +1132,7 @@ typedef struct DisasFormatInfo {
 #define F3(N, X1, X2, X3)         { { X1, X2, X3 } },
 #define F4(N, X1, X2, X3, X4)     { { X1, X2, X3, X4 } },
 #define F5(N, X1, X2, X3, X4, X5) { { X1, X2, X3, X4, X5 } },
+#define F6(N, X1, X2, X3, X4, X5, X6)       { { X1, X2, X3, X4, X5, X6 } },
 
 static const DisasFormatInfo format_info[] = {
 #include "insn-format.def"
@@ -1127,8 +1144,10 @@ static const DisasFormatInfo format_info[] = {
 #undef F3
 #undef F4
 #undef F5
+#undef F6
 #undef R
 #undef M
+#undef V
 #undef BD
 #undef BXD
 #undef BDL
@@ -1185,6 +1204,7 @@ typedef struct {
 #define IF_BFP      0x0008      /* binary floating point instruction */
 #define IF_DFP      0x0010      /* decimal floating point instruction */
 #define IF_PRIV     0x0020      /* privileged instruction */
+#define IF_VEC      0x0040      /* vector instruction */
 
 struct DisasInsn {
     unsigned opc:16;
@@ -5101,6 +5121,8 @@ static DisasJumpType op_mpcifc(DisasContext *s, DisasOps *o)
 }
 #endif
 
+#include "translate_vx.inc.c"
+
 /* ====================================================================== */
 /* The "Cc OUTput" generators.  Given the generated output (and in some cases
    the original inputs), update the various cc data structures in order to
@@ -5772,6 +5794,13 @@ static void in2_r3_sr32(DisasContext *s, DisasFields *f, DisasOps *o)
 }
 #define SPEC_in2_r3_sr32 0
 
+static void in2_r3_32u(DisasContext *s, DisasFields *f, DisasOps *o)
+{
+    o->in2 = tcg_temp_new_i64();
+    tcg_gen_ext32u_i64(o->in2, regs[get_field(f, r3)]);
+}
+#define SPEC_in2_r3_32u 0
+
 static void in2_r2_32s(DisasContext *s, DisasFields *f, DisasOps *o)
 {
     o->in2 = tcg_temp_new_i64();
@@ -6119,6 +6148,25 @@ static void extract_field(DisasFields *o, const DisasField *f, uint64_t insn)
     case 2: /* dl+dh split, signed 20 bit. */
         r = ((int8_t)r << 12) | (r >> 8);
         break;
+    case 3: /* MSB stored in RXB */
+        g_assert(f->size == 4);
+        switch (f->beg) {
+        case 8:
+            r |= extract64(insn, 63 - 36, 1) << 4;
+            break;
+        case 12:
+            r |= extract64(insn, 63 - 37, 1) << 4;
+            break;
+        case 16:
+            r |= extract64(insn, 63 - 38, 1) << 4;
+            break;
+        case 32:
+            r |= extract64(insn, 63 - 39, 1) << 4;
+            break;
+        default:
+            g_assert_not_reached();
+        }
+        break;
     default:
         abort();
     }
@@ -6300,8 +6348,19 @@ static DisasJumpType translate_one(CPUS390XState *env, DisasContext *s)
             if (insn->flags & IF_DFP) {
                 dxc = 3;
             }
+            if (insn->flags & IF_VEC) {
+                dxc = 0xfe;
+            }
             if (dxc) {
                 gen_data_exception(dxc);
+                return DISAS_NORETURN;
+            }
+        }
+
+        /* if vector instructions not enabled, executing them is forbidden */
+        if (insn->flags & IF_VEC) {
+            if (!((s->base.tb->flags & FLAG_MASK_VECTOR))) {
+                gen_data_exception(0xfe);
                 return DISAS_NORETURN;
             }
         }
