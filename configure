@@ -1818,6 +1818,9 @@ EOF
 exit 0
 fi
 
+# Remove old dependency files to make sure that they get properly regenerated
+rm -f *-config-devices.mak.d
+
 if ! has $python; then
   error_exit "Python not found. Use --python=/path/to/python"
 fi
