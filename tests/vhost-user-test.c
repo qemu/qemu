@@ -178,7 +178,8 @@ static void append_mem_opts(TestServer *server, GString *cmd_line,
                             int size, enum test_memfd memfd)
 {
     if (memfd == TEST_MEMFD_AUTO) {
-        memfd = qemu_memfd_check(0) ? TEST_MEMFD_YES : TEST_MEMFD_NO;
+        memfd = qemu_memfd_check(MFD_ALLOW_SEALING) ? TEST_MEMFD_YES
+                                                    : TEST_MEMFD_NO;
     }
 
     if (memfd == TEST_MEMFD_YES) {
@@ -930,7 +931,7 @@ static void register_vhost_user_test(void)
                  "virtio-net",
                  test_read_guest_mem, &opts);
 
-    if (qemu_memfd_check(0)) {
+    if (qemu_memfd_check(MFD_ALLOW_SEALING)) {
         opts.before = vhost_user_test_setup_memfd;
         qos_add_test("vhost-user/read-guest-mem/memfd",
                      "virtio-net",
