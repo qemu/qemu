@@ -242,11 +242,13 @@ void HELPER(itlba)(CPUHPPAState *env, target_ulong addr, target_ureg reg)
     /* Zap any old entries covering ADDR; notice empty entries on the way.  */
     for (i = 0; i < ARRAY_SIZE(env->tlb); ++i) {
         hppa_tlb_entry *ent = &env->tlb[i];
-        if (!ent->entry_valid) {
-            empty = ent;
-        } else if (ent->va_b <= addr && addr <= ent->va_e) {
-            hppa_flush_tlb_ent(env, ent);
-            empty = ent;
+        if (ent->va_b <= addr && addr <= ent->va_e) {
+            if (ent->entry_valid) {
+                hppa_flush_tlb_ent(env, ent);
+            }
+            if (!empty) {
+                empty = ent;
+            }
         }
     }
 
