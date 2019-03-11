@@ -26,6 +26,9 @@ config SPIKE
 
 config RISCV_VIRT
     bool
+    imply PCI_DEVICES
+    imply TEST_DEVICES
+    select PCI
     select HART
     select SERIAL
     select VIRTIO_MMIO
