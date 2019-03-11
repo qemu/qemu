@@ -278,7 +278,7 @@ void HELPER(itlbp)(CPUHPPAState *env, target_ulong addr, target_ureg reg)
 {
     hppa_tlb_entry *ent = hppa_find_tlb(env, addr);
 
-    if (unlikely(ent == NULL || ent->entry_valid)) {
+    if (unlikely(ent == NULL)) {
         qemu_log_mask(LOG_GUEST_ERROR, "ITLBP not following ITLBA\n");
         return;
     }
