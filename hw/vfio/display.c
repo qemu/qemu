@@ -15,14 +15,152 @@
 #include <sys/ioctl.h>
 
 #include "sysemu/sysemu.h"
+#include "hw/display/edid.h"
 #include "ui/console.h"
 #include "qapi/error.h"
 #include "pci.h"
+#include "trace.h"
 
 #ifndef DRM_PLANE_TYPE_PRIMARY
 # define DRM_PLANE_TYPE_PRIMARY 1
 # define DRM_PLANE_TYPE_CURSOR  2
 #endif
+
+#define pread_field(_fd, _reg, _ptr, _fld)                              \
+    (sizeof(_ptr->_fld) !=                                              \
+     pread(_fd, &(_ptr->_fld), sizeof(_ptr->_fld),                      \
+           _reg->offset + offsetof(typeof(*_ptr), _fld)))
+
+#define pwrite_field(_fd, _reg, _ptr, _fld)                             \
+    (sizeof(_ptr->_fld) !=                                              \
+     pwrite(_fd, &(_ptr->_fld), sizeof(_ptr->_fld),                     \
+            _reg->offset + offsetof(typeof(*_ptr), _fld)))
+
+
+static void vfio_display_edid_update(VFIOPCIDevice *vdev, bool enabled,
+                                     int prefx, int prefy)
+{
+    VFIODisplay *dpy = vdev->dpy;
+    int fd = vdev->vbasedev.fd;
+    qemu_edid_info edid = {
+        .maxx  = dpy->edid_regs->max_xres,
+        .maxy  = dpy->edid_regs->max_yres,
+        .prefx = prefx,
+        .prefy = prefy,
+    };
+
+    dpy->edid_regs->link_state = VFIO_DEVICE_GFX_LINK_STATE_DOWN;
+    if (pwrite_field(fd, dpy->edid_info, dpy->edid_regs, link_state)) {
+        goto err;
+    }
+    trace_vfio_display_edid_link_down();
+
+    if (!enabled) {
+        return;
+    }
+
+    if (edid.maxx && edid.prefx > edid.maxx) {
+        edid.prefx = edid.maxx;
+    }
+    if (edid.maxy && edid.prefy > edid.maxy) {
+        edid.prefy = edid.maxy;
+    }
+    qemu_edid_generate(dpy->edid_blob,
+                       dpy->edid_regs->edid_max_size,
+                       &edid);
+    trace_vfio_display_edid_update(edid.prefx, edid.prefy);
+
+    dpy->edid_regs->edid_size = qemu_edid_size(dpy->edid_blob);
+    if (pwrite_field(fd, dpy->edid_info, dpy->edid_regs, edid_size)) {
+        goto err;
+    }
+    if (pwrite(fd, dpy->edid_blob, dpy->edid_regs->edid_size,
+               dpy->edid_info->offset + dpy->edid_regs->edid_offset)
+        != dpy->edid_regs->edid_size) {
+        goto err;
+    }
+
+    dpy->edid_regs->link_state = VFIO_DEVICE_GFX_LINK_STATE_UP;
+    if (pwrite_field(fd, dpy->edid_info, dpy->edid_regs, link_state)) {
+        goto err;
+    }
+    trace_vfio_display_edid_link_up();
+    return;
+
+err:
+    trace_vfio_display_edid_write_error();
+    return;
+}
+
+static int vfio_display_edid_ui_info(void *opaque, uint32_t idx,
+                                     QemuUIInfo *info)
+{
+    VFIOPCIDevice *vdev = opaque;
+    VFIODisplay *dpy = vdev->dpy;
+
+    if (!dpy->edid_regs) {
+        return 0;
+    }
+
+    if (info->width && info->height) {
+        vfio_display_edid_update(vdev, true, info->width, info->height);
+    } else {
+        vfio_display_edid_update(vdev, false, 0, 0);
+    }
+
+    return 0;
+}
+
+static void vfio_display_edid_init(VFIOPCIDevice *vdev)
+{
+    VFIODisplay *dpy = vdev->dpy;
+    int fd = vdev->vbasedev.fd;
+    int ret;
+
+    ret = vfio_get_dev_region_info(&vdev->vbasedev,
+                                   VFIO_REGION_TYPE_GFX,
+                                   VFIO_REGION_SUBTYPE_GFX_EDID,
+                                   &dpy->edid_info);
+    if (ret) {
+        return;
+    }
+
+    trace_vfio_display_edid_available();
+    dpy->edid_regs = g_new0(struct vfio_region_gfx_edid, 1);
+    if (pread_field(fd, dpy->edid_info, dpy->edid_regs, edid_offset)) {
+        goto err;
+    }
+    if (pread_field(fd, dpy->edid_info, dpy->edid_regs, edid_max_size)) {
+        goto err;
+    }
+    if (pread_field(fd, dpy->edid_info, dpy->edid_regs, max_xres)) {
+        goto err;
+    }
+    if (pread_field(fd, dpy->edid_info, dpy->edid_regs, max_yres)) {
+        goto err;
+    }
+
+    dpy->edid_blob = g_malloc0(dpy->edid_regs->edid_max_size);
+
+    vfio_display_edid_update(vdev, true, 0, 0);
+    return;
+
+err:
+    trace_vfio_display_edid_write_error();
+    g_free(dpy->edid_regs);
+    dpy->edid_regs = NULL;
+    return;
+}
+
+static void vfio_display_edid_exit(VFIODisplay *dpy)
+{
+    if (!dpy->edid_regs) {
+        return;
+    }
+
+    g_free(dpy->edid_regs);
+    g_free(dpy->edid_blob);
+}
 
 static void vfio_display_update_cursor(VFIODMABuf *dmabuf,
                                        struct vfio_device_gfx_plane_info *plane)
@@ -171,6 +309,7 @@ static void vfio_display_dmabuf_update(void *opaque)
 
 static const GraphicHwOps vfio_display_dmabuf_ops = {
     .gfx_update = vfio_display_dmabuf_update,
+    .ui_info    = vfio_display_edid_ui_info,
 };
 
 static int vfio_display_dmabuf_init(VFIOPCIDevice *vdev, Error **errp)
@@ -187,6 +326,7 @@ static int vfio_display_dmabuf_init(VFIOPCIDevice *vdev, Error **errp)
     if (vdev->enable_ramfb) {
         vdev->dpy->ramfb = ramfb_setup(errp);
     }
+    vfio_display_edid_init(vdev);
     return 0;
 }
 
@@ -366,5 +506,6 @@ void vfio_display_finalize(VFIOPCIDevice *vdev)
     graphic_console_close(vdev->dpy->con);
     vfio_display_dmabuf_exit(vdev->dpy);
     vfio_display_region_exit(vdev->dpy);
+    vfio_display_edid_exit(vdev->dpy);
     g_free(vdev->dpy);
 }

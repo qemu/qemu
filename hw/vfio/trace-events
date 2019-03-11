@@ -132,3 +132,10 @@ vfio_prereg_unregister(uint64_t va, uint64_t size, int ret) "va=0x%"PRIx64" size
 vfio_spapr_create_window(int ps, uint64_t ws, uint64_t off) "pageshift=0x%x winsize=0x%"PRIx64" offset=0x%"PRIx64
 vfio_spapr_remove_window(uint64_t off) "offset=0x%"PRIx64
 vfio_spapr_group_attach(int groupfd, int tablefd) "Attached groupfd %d to liobn fd %d"
+
+# hw/vfio/display.c
+vfio_display_edid_available(void) ""
+vfio_display_edid_link_up(void) ""
+vfio_display_edid_link_down(void) ""
+vfio_display_edid_update(uint32_t prefx, uint32_t prefy) "%ux%u"
+vfio_display_edid_write_error(void) ""

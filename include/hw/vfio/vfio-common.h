@@ -148,6 +148,9 @@ typedef struct VFIODMABuf {
 typedef struct VFIODisplay {
     QemuConsole *con;
     RAMFBState *ramfb;
+    struct vfio_region_info *edid_info;
+    struct vfio_region_gfx_edid *edid_regs;
+    uint8_t *edid_blob;
     struct {
         VFIORegion buffer;
         DisplaySurface *surface;
