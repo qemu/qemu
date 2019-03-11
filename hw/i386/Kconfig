@@ -9,6 +9,7 @@ config PC
     imply ISA_IPMI_KCS
     imply ISA_IPMI_BT
     imply ISA_DEBUG
+    imply PARALLEL
     imply PCI_DEVICES
     imply PVPANIC
     imply QXL
@@ -25,8 +26,6 @@ config PC
     select I82374
     select I8257
     select MC146818RTC
-    # Needed by the board code:
-    select PARALLEL
     # For ACPI builder:
     select SERIAL_ISA
     select ACPI_VMGENID
