@@ -2482,9 +2482,8 @@ static bool trans_ixtlbx(DisasContext *ctx, arg_ixtlbx *a)
         gen_helper_itlbp(cpu_env, addr, reg);
     }
 
-    /* Exit TB for ITLB change if mmu is enabled.  This *should* not be
-       the case, since the OS TLB fill handler runs with mmu disabled.  */
-    if (!a->data && (ctx->tb_flags & PSW_C)) {
+    /* Exit TB for TLB change if mmu is enabled.  */
+    if (ctx->tb_flags & PSW_C) {
         ctx->base.is_jmp = DISAS_IAQ_N_STALE;
     }
     return nullify_end(ctx);
@@ -2511,7 +2510,7 @@ static bool trans_pxtlbx(DisasContext *ctx, arg_pxtlbx *a)
     }
 
     /* Exit TB for TLB change if mmu is enabled.  */
-    if (!a->data && (ctx->tb_flags & PSW_C)) {
+    if (ctx->tb_flags & PSW_C) {
         ctx->base.is_jmp = DISAS_IAQ_N_STALE;
     }
     return nullify_end(ctx);
