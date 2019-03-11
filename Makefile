@@ -964,7 +964,7 @@ $(filter %.1 %.7 %.8,$(DOCS)): scripts/texi2pod.pl
 %/coverage-report.html:
 	@mkdir -p $*
 	$(call quiet-command,\
-		gcovr -p --html --html-details -o $@, \
+		gcovr -r $(SRC_PATH) -p --html --html-details -o $@, \
 		"GEN", "coverage-report.html")
 
 .PHONY: coverage-report
