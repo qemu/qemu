@@ -313,6 +313,8 @@ static void pvrdma_fini(PCIDevice *pdev)
 
     pvrdma_qp_ops_fini();
 
+    rdma_backend_stop(&dev->backend_dev);
+
     rdma_rm_fini(&dev->rdma_dev_res, &dev->backend_dev,
                  dev->backend_eth_device_name);
 

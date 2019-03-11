@@ -64,6 +64,33 @@ static inline void complete_work(enum ibv_wc_status status, uint32_t vendor_err,
     comp_handler(ctx, &wc);
 }
 
+static void free_cqe_ctx(gpointer data, gpointer user_data)
+{
+    BackendCtx *bctx;
+    RdmaDeviceResources *rdma_dev_res = user_data;
+    unsigned long cqe_ctx_id = GPOINTER_TO_INT(data);
+
+    bctx = rdma_rm_get_cqe_ctx(rdma_dev_res, cqe_ctx_id);
+    if (bctx) {
+        rdma_rm_dealloc_cqe_ctx(rdma_dev_res, cqe_ctx_id);
+    }
+    g_free(bctx);
+}
+
+static void clean_recv_mads(RdmaBackendDev *backend_dev)
+{
+    unsigned long cqe_ctx_id;
+
+    do {
+        cqe_ctx_id = rdma_protected_qlist_pop_int64(&backend_dev->
+                                                    recv_mads_list);
+        if (cqe_ctx_id != -ENOENT) {
+            free_cqe_ctx(GINT_TO_POINTER(cqe_ctx_id),
+                         backend_dev->rdma_dev_res);
+        }
+    } while (cqe_ctx_id != -ENOENT);
+}
+
 static int rdma_poll_cq(RdmaDeviceResources *rdma_dev_res, struct ibv_cq *ibcq)
 {
     int i, ne, total_ne = 0;
@@ -1037,6 +1064,11 @@ static int mad_init(RdmaBackendDev *backend_dev, CharBackend *mad_chr_be)
     return 0;
 }
 
+static void mad_stop(RdmaBackendDev *backend_dev)
+{
+    clean_recv_mads(backend_dev);
+}
+
 static void mad_fini(RdmaBackendDev *backend_dev)
 {
     disable_rdmacm_mux_async(backend_dev);
@@ -1224,12 +1256,12 @@ void rdma_backend_start(RdmaBackendDev *backend_dev)
 
 void rdma_backend_stop(RdmaBackendDev *backend_dev)
 {
+    mad_stop(backend_dev);
     stop_backend_thread(&backend_dev->comp_thread);
 }
 
 void rdma_backend_fini(RdmaBackendDev *backend_dev)
 {
-    rdma_backend_stop(backend_dev);
     mad_fini(backend_dev);
     g_hash_table_destroy(ah_hash);
     ibv_destroy_comp_channel(backend_dev->channel);
