@@ -188,7 +188,7 @@ bool qemu_memfd_alloc_check(void)
 bool qemu_memfd_check(unsigned int flags)
 {
 #ifdef CONFIG_LINUX
-    int mfd = memfd_create("test", flags);
+    int mfd = memfd_create("test", flags | MFD_CLOEXEC);
 
     if (mfd >= 0) {
         close(mfd);
