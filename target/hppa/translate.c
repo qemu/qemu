@@ -2256,6 +2256,16 @@ static bool trans_mtctl(DisasContext *ctx, arg_mtctl *a)
                        offsetof(CPUHPPAState, cr_back[ctl - CR_IIASQ]));
         break;
 
+    case CR_PID1:
+    case CR_PID2:
+    case CR_PID3:
+    case CR_PID4:
+        tcg_gen_st_reg(reg, cpu_env, offsetof(CPUHPPAState, cr[ctl]));
+#ifndef CONFIG_USER_ONLY
+        gen_helper_change_prot_id(cpu_env);
+#endif
+        break;
+
     default:
         tcg_gen_st_reg(reg, cpu_env, offsetof(CPUHPPAState, cr[ctl]));
         break;

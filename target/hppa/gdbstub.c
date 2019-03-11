@@ -93,19 +93,19 @@ int hppa_cpu_gdb_read_register(CPUState *cs, uint8_t *mem_buf, int n)
         val = env->cr[CR_RC];
         break;
     case 52:
-        val = env->cr[8];
+        val = env->cr[CR_PID1];
         break;
     case 53:
-        val = env->cr[9];
+        val = env->cr[CR_PID2];
         break;
     case 54:
         val = env->cr[CR_SCRCCR];
         break;
     case 55:
-        val = env->cr[12];
+        val = env->cr[CR_PID3];
         break;
     case 56:
-        val = env->cr[13];
+        val = env->cr[CR_PID4];
         break;
     case 57:
         val = env->cr[24];
@@ -224,19 +224,23 @@ int hppa_cpu_gdb_write_register(CPUState *cs, uint8_t *mem_buf, int n)
         env->cr[CR_RC] = val;
         break;
     case 52:
-        env->cr[8] = val;
+        env->cr[CR_PID1] = val;
+        cpu_hppa_change_prot_id(env);
         break;
     case 53:
-        env->cr[9] = val;
+        env->cr[CR_PID2] = val;
+        cpu_hppa_change_prot_id(env);
         break;
     case 54:
         env->cr[CR_SCRCCR] = val;
         break;
     case 55:
-        env->cr[12] = val;
+        env->cr[CR_PID3] = val;
+        cpu_hppa_change_prot_id(env);
         break;
     case 56:
-        env->cr[13] = val;
+        env->cr[CR_PID4] = val;
+        cpu_hppa_change_prot_id(env);
         break;
     case 57:
         env->cr[24] = val;

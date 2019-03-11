@@ -143,6 +143,10 @@
 #endif
 
 #define CR_RC            0
+#define CR_PID1          8
+#define CR_PID2          9
+#define CR_PID3          12
+#define CR_PID4          13
 #define CR_SCRCCR        10
 #define CR_SAR           11
 #define CR_IVA           14
@@ -340,6 +344,12 @@ static inline void cpu_get_tb_cpu_state(CPUHPPAState *env, target_ulong *pc,
 target_ureg cpu_hppa_get_psw(CPUHPPAState *env);
 void cpu_hppa_put_psw(CPUHPPAState *env, target_ureg);
 void cpu_hppa_loaded_fr0(CPUHPPAState *env);
+
+#ifdef CONFIG_USER_ONLY
+static inline void cpu_hppa_change_prot_id(CPUHPPAState *env) { }
+#else
+void cpu_hppa_change_prot_id(CPUHPPAState *env);
+#endif
 
 #define cpu_signal_handler cpu_hppa_signal_handler
 

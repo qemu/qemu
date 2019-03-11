@@ -131,7 +131,20 @@ int hppa_get_physical_address(CPUHPPAState *env, vaddr addr, int mmu_idx,
         break;
     }
 
-    /* ??? Check PSW_P and ent->access_prot.  This can remove PAGE_WRITE.  */
+    /* access_id == 0 means public page and no check is performed */
+    if ((env->psw & PSW_P) && ent->access_id) {
+        /* If bits [31:1] match, and bit 0 is set, suppress write.  */
+        int match = ent->access_id * 2 + 1;
+
+        if (match == env->cr[CR_PID1] || match == env->cr[CR_PID2] ||
+            match == env->cr[CR_PID3] || match == env->cr[CR_PID4]) {
+            prot &= PAGE_READ | PAGE_EXEC;
+            if (type == PAGE_WRITE) {
+                ret = EXCP_DMPI;
+                goto egress;
+            }
+        }
+    }
 
     /* No guest access type indicates a non-architectural access from
        within QEMU.  Bypass checks for access, D, B and T bits.  */
@@ -332,6 +345,19 @@ void HELPER(ptlbe)(CPUHPPAState *env)
     trace_hppa_tlb_ptlbe(env);
     memset(env->tlb, 0, sizeof(env->tlb));
     tlb_flush_by_mmuidx(src, 0xf);
+}
+
+void cpu_hppa_change_prot_id(CPUHPPAState *env)
+{
+    if (env->psw & PSW_P) {
+        CPUState *src = CPU(hppa_env_get_cpu(env));
+        tlb_flush_by_mmuidx(src, 0xf);
+    }
+}
+
+void HELPER(change_prot_id)(CPUHPPAState *env)
+{
+    cpu_hppa_change_prot_id(env);
 }
 
 target_ureg HELPER(lpa)(CPUHPPAState *env, target_ulong addr)
