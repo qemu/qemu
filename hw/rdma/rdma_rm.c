@@ -37,6 +37,7 @@ static inline void res_tbl_init(const char *name, RdmaRmResTbl *tbl,
     tbl->bitmap = bitmap_new(tbl_sz);
     tbl->tbl_sz = tbl_sz;
     tbl->res_sz = res_sz;
+    tbl->used = 0;
     qemu_mutex_init(&tbl->lock);
 }
 
@@ -76,6 +77,8 @@ static inline void *rdma_res_tbl_alloc(RdmaRmResTbl *tbl, uint32_t *handle)
 
     set_bit(*handle, tbl->bitmap);
 
+    tbl->used++;
+
     qemu_mutex_unlock(&tbl->lock);
 
     memset(tbl->tbl + *handle * tbl->res_sz, 0, tbl->res_sz);
@@ -93,6 +96,7 @@ static inline void rdma_res_tbl_dealloc(RdmaRmResTbl *tbl, uint32_t handle)
 
     if (handle < tbl->tbl_sz) {
         clear_bit(handle, tbl->bitmap);
+        tbl->used--;
     }
 
     qemu_mutex_unlock(&tbl->lock);
@@ -618,6 +622,9 @@ int rdma_rm_init(RdmaDeviceResources *dev_res, struct ibv_device_attr *dev_attr)
     init_ports(dev_res);
 
     qemu_mutex_init(&dev_res->lock);
+
+    memset(&dev_res->stats, 0, sizeof(dev_res->stats));
+    atomic_set(&dev_res->stats.missing_cqe, 0);
 
     return 0;
 }

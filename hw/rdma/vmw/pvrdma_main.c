@@ -337,6 +337,8 @@ static uint64_t pvrdma_regs_read(void *opaque, hwaddr addr, unsigned size)
     PVRDMADev *dev = opaque;
     uint32_t val;
 
+    dev->stats.regs_reads++;
+
     if (get_reg_val(dev, addr, &val)) {
         rdma_error_report("Failed to read REG value from address 0x%x",
                           (uint32_t)addr);
@@ -352,6 +354,8 @@ static void pvrdma_regs_write(void *opaque, hwaddr addr, uint64_t val,
                               unsigned size)
 {
     PVRDMADev *dev = opaque;
+
+    dev->stats.regs_writes++;
 
     if (set_reg_val(dev, addr, val)) {
         rdma_error_report("Failed to set REG value, addr=0x%"PRIx64 ", val=0x%"PRIx64,
@@ -420,6 +424,8 @@ static void pvrdma_uar_write(void *opaque, hwaddr addr, uint64_t val,
                              unsigned size)
 {
     PVRDMADev *dev = opaque;
+
+    dev->stats.uar_writes++;
 
     switch (addr & 0xFFF) { /* Mask with 0xFFF as each UC gets page */
     case PVRDMA_UAR_QP_OFFSET:
@@ -611,6 +617,8 @@ static void pvrdma_realize(PCIDevice *pdev, Error **errp)
     if (rc) {
         goto out;
     }
+
+    memset(&dev->stats, 0, sizeof(dev->stats));
 
     dev->shutdown_notifier.notify = pvrdma_shutdown_notifier;
     qemu_register_shutdown_notifier(&dev->shutdown_notifier);

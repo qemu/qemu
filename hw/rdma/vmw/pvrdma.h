@@ -70,6 +70,14 @@ typedef struct DSRInfo {
     PvrdmaRing cq;
 } DSRInfo;
 
+typedef struct PVRDMADevStats {
+    uint64_t commands;
+    uint64_t regs_reads;
+    uint64_t regs_writes;
+    uint64_t uar_writes;
+    uint64_t interrupts;
+} PVRDMADevStats;
+
 typedef struct PVRDMADev {
     PCIDevice parent_obj;
     MemoryRegion msix;
@@ -89,6 +97,7 @@ typedef struct PVRDMADev {
     CharBackend mad_chr;
     VMXNET3State *func0;
     Notifier shutdown_notifier;
+    PVRDMADevStats stats;
 } PVRDMADev;
 #define PVRDMA_DEV(dev) OBJECT_CHECK(PVRDMADev, (dev), PVRDMA_HW_NAME)
 
@@ -123,6 +132,7 @@ static inline void post_interrupt(PVRDMADev *dev, unsigned vector)
     PCIDevice *pci_dev = PCI_DEVICE(dev);
 
     if (likely(!dev->interrupt_mask)) {
+        dev->stats.interrupts++;
         msix_notify(pci_dev, vector);
     }
 }

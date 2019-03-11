@@ -651,6 +651,8 @@ int pvrdma_exec_cmd(PVRDMADev *dev)
 
     trace_pvrdma_exec_cmd(dsr_info->req->hdr.cmd, dsr_info->rsp->hdr.err);
 
+    dev->stats.commands++;
+
 out:
     set_reg_val(dev, PVRDMA_REG_ERR, err);
     post_interrupt(dev, INTR_VEC_CMD_RING);
