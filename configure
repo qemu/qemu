@@ -3496,14 +3496,17 @@ if test "$curses" != "no" ; then
 #include <locale.h>
 #include <curses.h>
 #include <wchar.h>
+#include <langinfo.h>
 int main(void) {
+  const char *codeset;
   wchar_t wch = L'w';
   setlocale(LC_ALL, "");
   resize_term(0, 0);
   addwstr(L"wide chars\n");
   addnwstr(&wch, 1);
   add_wch(WACS_DEGREE);
-  return 0;
+  codeset = nl_langinfo(CODESET);
+  return codeset != 0;
 }
 EOF
   IFS=:
