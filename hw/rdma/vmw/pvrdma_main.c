@@ -593,7 +593,7 @@ static void pvrdma_realize(PCIDevice *pdev, Error **errp)
 
     func0 = pci_get_function_0(pdev);
     /* Break if not vmxnet3 device in slot 0 */
-    if (strcmp(object_get_typename(&func0->qdev.parent_obj), TYPE_VMXNET3)) {
+    if (strcmp(object_get_typename(OBJECT(func0)), TYPE_VMXNET3)) {
         error_setg(errp, "Device on %x.0 must be %s", PCI_SLOT(pdev->devfn),
                    TYPE_VMXNET3);
         return;
