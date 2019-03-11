@@ -148,7 +148,6 @@ extern const GraphicHwOps virtio_gpu_ops;
     } while (0)
 
 /* virtio-gpu.c */
-void virtio_gpu_reset(VirtIODevice *vdev);
 void virtio_gpu_ctrl_response(VirtIOGPU *g,
                               struct virtio_gpu_ctrl_command *cmd,
                               struct virtio_gpu_ctrl_hdr *resp,
