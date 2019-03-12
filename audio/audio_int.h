@@ -33,22 +33,6 @@
 
 struct audio_pcm_ops;
 
-typedef enum {
-    AUD_OPT_INT,
-    AUD_OPT_FMT,
-    AUD_OPT_STR,
-    AUD_OPT_BOOL
-} audio_option_tag_e;
-
-struct audio_option {
-    const char *name;
-    audio_option_tag_e tag;
-    void *valp;
-    const char *descr;
-    int *overriddenp;
-    int overridden;
-};
-
 struct audio_callback {
     void *opaque;
     audio_callback_fn fn;
@@ -145,8 +129,7 @@ typedef struct audio_driver audio_driver;
 struct audio_driver {
     const char *name;
     const char *descr;
-    struct audio_option *options;
-    void *(*init) (void);
+    void *(*init) (Audiodev *);
     void (*fini) (void *);
     struct audio_pcm_ops *pcm_ops;
     int can_be_default;
@@ -193,6 +176,7 @@ struct SWVoiceCap {
 
 typedef struct AudioState {
     struct audio_driver *drv;
+    Audiodev *dev;
     void *drv_opaque;
 
     QEMUTimer *ts;
@@ -203,9 +187,12 @@ typedef struct AudioState {
     int nb_hw_voices_out;
     int nb_hw_voices_in;
     int vm_running;
+    int64_t period_ticks;
 } AudioState;
 
 extern const struct mixeng_volume nominal_volume;
+
+extern const char *audio_prio_list[];
 
 void audio_driver_register(audio_driver *drv);
 audio_driver *audio_driver_lookup(const char *name);
@@ -247,5 +234,19 @@ static inline int audio_ring_dist (int dst, int src, int len)
 
 #define AUDIO_STRINGIFY_(n) #n
 #define AUDIO_STRINGIFY(n) AUDIO_STRINGIFY_(n)
+
+typedef struct AudiodevListEntry {
+    Audiodev *dev;
+    QSIMPLEQ_ENTRY(AudiodevListEntry) next;
+} AudiodevListEntry;
+
+typedef QSIMPLEQ_HEAD(, AudiodevListEntry) AudiodevListHead;
+AudiodevListHead audio_handle_legacy_opts(void);
+
+void audio_free_audiodev_list(AudiodevListHead *head);
+
+void audio_create_pdos(Audiodev *dev);
+AudiodevPerDirectionOptions *audio_get_pdo_in(Audiodev *dev);
+AudiodevPerDirectionOptions *audio_get_pdo_out(Audiodev *dev);
 
 #endif /* QEMU_AUDIO_INT_H */

@@ -5,9 +5,9 @@ util-obj-y += opts-visitor.o qapi-clone-visitor.o
 util-obj-y += qmp-event.o
 util-obj-y += qapi-util.o
 
-QAPI_COMMON_MODULES = authz block-core block char common crypto introspect
-QAPI_COMMON_MODULES += job migration misc net rdma rocker run-state
-QAPI_COMMON_MODULES += sockets tpm trace transaction ui
+QAPI_COMMON_MODULES = audio authz block-core block char common crypto
+QAPI_COMMON_MODULES += introspect job migration misc net rdma rocker
+QAPI_COMMON_MODULES += run-state sockets tpm trace transaction ui
 QAPI_TARGET_MODULES = target
 QAPI_MODULES = $(QAPI_COMMON_MODULES) $(QAPI_TARGET_MODULES)
 

@@ -167,17 +167,18 @@ static int dsound_init_out(HWVoiceOut *hw, struct audsettings *as,
     dsound *s = drv_opaque;
     WAVEFORMATEX wfx;
     struct audsettings obt_as;
-    DSoundConf *conf = &s->conf;
 #ifdef DSBTYPE_IN
     const char *typ = "ADC";
     DSoundVoiceIn *ds = (DSoundVoiceIn *) hw;
     DSCBUFFERDESC bd;
     DSCBCAPS bc;
+    AudiodevPerDirectionOptions *pdo = s->dev->u.dsound.in;
 #else
     const char *typ = "DAC";
     DSoundVoiceOut *ds = (DSoundVoiceOut *) hw;
     DSBUFFERDESC bd;
     DSBCAPS bc;
+    AudiodevPerDirectionOptions *pdo = s->dev->u.dsound.out;
 #endif
 
     if (!s->FIELD2) {
@@ -193,8 +194,8 @@ static int dsound_init_out(HWVoiceOut *hw, struct audsettings *as,
     memset (&bd, 0, sizeof (bd));
     bd.dwSize = sizeof (bd);
     bd.lpwfxFormat = &wfx;
+    bd.dwBufferBytes = audio_buffer_bytes(pdo, as, 92880);
 #ifdef DSBTYPE_IN
-    bd.dwBufferBytes = conf->bufsize_in;
     hr = IDirectSoundCapture_CreateCaptureBuffer (
         s->dsound_capture,
         &bd,
@@ -203,7 +204,6 @@ static int dsound_init_out(HWVoiceOut *hw, struct audsettings *as,
         );
 #else
     bd.dwFlags = DSBCAPS_STICKYFOCUS | DSBCAPS_GETCURRENTPOSITION2;
-    bd.dwBufferBytes = conf->bufsize_out;
     hr = IDirectSound_CreateSoundBuffer (
         s->dsound,
         &bd,

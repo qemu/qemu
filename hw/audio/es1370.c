@@ -414,14 +414,14 @@ static void es1370_update_voices (ES1370State *s, uint32_t ctl, uint32_t sctl)
                     i,
                     new_freq,
                     1 << (new_fmt & 1),
-                    (new_fmt & 2) ? AUD_FMT_S16 : AUD_FMT_U8,
+                    (new_fmt & 2) ? AUDIO_FORMAT_S16 : AUDIO_FORMAT_U8,
                     d->shift);
             if (new_freq) {
                 struct audsettings as;
 
                 as.freq = new_freq;
                 as.nchannels = 1 << (new_fmt & 1);
-                as.fmt = (new_fmt & 2) ? AUD_FMT_S16 : AUD_FMT_U8;
+                as.fmt = (new_fmt & 2) ? AUDIO_FORMAT_S16 : AUDIO_FORMAT_U8;
                 as.endianness = 0;
 
                 if (i == ADC_CHANNEL) {

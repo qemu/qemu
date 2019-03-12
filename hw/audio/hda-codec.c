@@ -99,9 +99,9 @@ static void hda_codec_parse_fmt(uint32_t format, struct audsettings *as)
     }
 
     switch (format & AC_FMT_BITS_MASK) {
-    case AC_FMT_BITS_8:  as->fmt = AUD_FMT_S8;  break;
-    case AC_FMT_BITS_16: as->fmt = AUD_FMT_S16; break;
-    case AC_FMT_BITS_32: as->fmt = AUD_FMT_S32; break;
+    case AC_FMT_BITS_8:  as->fmt = AUDIO_FORMAT_S8;  break;
+    case AC_FMT_BITS_16: as->fmt = AUDIO_FORMAT_S16; break;
+    case AC_FMT_BITS_32: as->fmt = AUDIO_FORMAT_S32; break;
     }
 
     as->nchannels = ((format & AC_FMT_CHAN_MASK) >> AC_FMT_CHAN_SHIFT) + 1;
@@ -134,12 +134,12 @@ static void hda_codec_parse_fmt(uint32_t format, struct audsettings *as)
 /* -------------------------------------------------------------------------- */
 
 static const char *fmt2name[] = {
-    [ AUD_FMT_U8  ] = "PCM-U8",
-    [ AUD_FMT_S8  ] = "PCM-S8",
-    [ AUD_FMT_U16 ] = "PCM-U16",
-    [ AUD_FMT_S16 ] = "PCM-S16",
-    [ AUD_FMT_U32 ] = "PCM-U32",
-    [ AUD_FMT_S32 ] = "PCM-S32",
+    [ AUDIO_FORMAT_U8  ] = "PCM-U8",
+    [ AUDIO_FORMAT_S8  ] = "PCM-S8",
+    [ AUDIO_FORMAT_U16 ] = "PCM-U16",
+    [ AUDIO_FORMAT_S16 ] = "PCM-S16",
+    [ AUDIO_FORMAT_U32 ] = "PCM-U32",
+    [ AUDIO_FORMAT_S32 ] = "PCM-S32",
 };
 
 typedef struct HDAAudioState HDAAudioState;

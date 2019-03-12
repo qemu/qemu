@@ -44,16 +44,11 @@ typedef struct SDLVoiceOut {
     int decr;
 } SDLVoiceOut;
 
-static struct {
-    int nb_samples;
-} conf = {
-    .nb_samples = 1024
-};
-
 static struct SDLAudioState {
     int exit;
     int initialized;
     bool driver_created;
+    Audiodev *dev;
 } glob_sdl;
 typedef struct SDLAudioState SDLAudioState;
 
@@ -68,19 +63,19 @@ static void GCC_FMT_ATTR (1, 2) sdl_logerr (const char *fmt, ...)
     AUD_log (AUDIO_CAP, "Reason: %s\n", SDL_GetError ());
 }
 
-static int aud_to_sdlfmt (audfmt_e fmt)
+static int aud_to_sdlfmt (AudioFormat fmt)
 {
     switch (fmt) {
-    case AUD_FMT_S8:
+    case AUDIO_FORMAT_S8:
         return AUDIO_S8;
 
-    case AUD_FMT_U8:
+    case AUDIO_FORMAT_U8:
         return AUDIO_U8;
 
-    case AUD_FMT_S16:
+    case AUDIO_FORMAT_S16:
         return AUDIO_S16LSB;
 
-    case AUD_FMT_U16:
+    case AUDIO_FORMAT_U16:
         return AUDIO_U16LSB;
 
     default:
@@ -92,37 +87,37 @@ static int aud_to_sdlfmt (audfmt_e fmt)
     }
 }
 
-static int sdl_to_audfmt(int sdlfmt, audfmt_e *fmt, int *endianness)
+static int sdl_to_audfmt(int sdlfmt, AudioFormat *fmt, int *endianness)
 {
     switch (sdlfmt) {
     case AUDIO_S8:
         *endianness = 0;
-        *fmt = AUD_FMT_S8;
+        *fmt = AUDIO_FORMAT_S8;
         break;
 
     case AUDIO_U8:
         *endianness = 0;
-        *fmt = AUD_FMT_U8;
+        *fmt = AUDIO_FORMAT_U8;
         break;
 
     case AUDIO_S16LSB:
         *endianness = 0;
-        *fmt = AUD_FMT_S16;
+        *fmt = AUDIO_FORMAT_S16;
         break;
 
     case AUDIO_U16LSB:
         *endianness = 0;
-        *fmt = AUD_FMT_U16;
+        *fmt = AUDIO_FORMAT_U16;
         break;
 
     case AUDIO_S16MSB:
         *endianness = 1;
-        *fmt = AUD_FMT_S16;
+        *fmt = AUDIO_FORMAT_S16;
         break;
 
     case AUDIO_U16MSB:
         *endianness = 1;
-        *fmt = AUD_FMT_U16;
+        *fmt = AUDIO_FORMAT_U16;
         break;
 
     default:
@@ -265,13 +260,13 @@ static int sdl_init_out(HWVoiceOut *hw, struct audsettings *as,
     SDL_AudioSpec req, obt;
     int endianness;
     int err;
-    audfmt_e effective_fmt;
+    AudioFormat effective_fmt;
     struct audsettings obt_as;
 
     req.freq = as->freq;
     req.format = aud_to_sdlfmt (as->fmt);
     req.channels = as->nchannels;
-    req.samples = conf.nb_samples;
+    req.samples = audio_buffer_samples(s->dev->u.sdl.out, as, 11610);
     req.callback = sdl_callback;
     req.userdata = sdl;
 
@@ -315,7 +310,7 @@ static int sdl_ctl_out (HWVoiceOut *hw, int cmd, ...)
     return 0;
 }
 
-static void *sdl_audio_init (void)
+static void *sdl_audio_init(Audiodev *dev)
 {
     SDLAudioState *s = &glob_sdl;
     if (s->driver_created) {
@@ -329,6 +324,7 @@ static void *sdl_audio_init (void)
     }
 
     s->driver_created = true;
+    s->dev = dev;
     return s;
 }
 
@@ -338,17 +334,8 @@ static void sdl_audio_fini (void *opaque)
     sdl_close (s);
     SDL_QuitSubSystem (SDL_INIT_AUDIO);
     s->driver_created = false;
+    s->dev = NULL;
 }
-
-static struct audio_option sdl_options[] = {
-    {
-        .name  = "SAMPLES",
-        .tag   = AUD_OPT_INT,
-        .valp  = &conf.nb_samples,
-        .descr = "Size of SDL buffer in samples"
-    },
-    { /* End of list */ }
-};
 
 static struct audio_pcm_ops sdl_pcm_ops = {
     .init_out = sdl_init_out,
@@ -361,7 +348,6 @@ static struct audio_pcm_ops sdl_pcm_ops = {
 static struct audio_driver sdl_audio_driver = {
     .name           = "sdl",
     .descr          = "SDL http://www.libsdl.org",
-    .options        = sdl_options,
     .init           = sdl_audio_init,
     .fini           = sdl_audio_fini,
     .pcm_ops        = &sdl_pcm_ops,

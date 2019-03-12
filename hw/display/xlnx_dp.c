@@ -1260,7 +1260,7 @@ static void xlnx_dp_realize(DeviceState *dev, Error **errp)
 
     as.freq = 44100;
     as.nchannels = 2;
-    as.fmt = AUD_FMT_S16;
+    as.fmt = AUDIO_FORMAT_S16;
     as.endianness = 0;
 
     AUD_register_card("xlnx_dp.audio", &s->aud_card);

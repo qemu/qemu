@@ -1,0 +1,304 @@
+# -*- mode: python -*-
+#
+# Copyright (C) 2015-2019 Zoltán Kővágó <DirtY.iCE.hu@gmail.com>
+#
+# This work is licensed under the terms of the GNU GPL, version 2 or later.
+# See the COPYING file in the top-level directory.
+
+##
+# @AudiodevPerDirectionOptions:
+#
+# General audio backend options that are used for both playback and
+# recording.
+#
+# @fixed-settings: use fixed settings for host input/output. When off,
+#                  frequency, channels and format must not be
+#                  specified (default true)
+#
+# @frequency: frequency to use when using fixed settings
+#             (default 44100)
+#
+# @channels: number of channels when using fixed settings (default 2)
+#
+# @voices: number of voices to use (default 1)
+#
+# @format: sample format to use when using fixed settings
+#          (default s16)
+#
+# @buffer-length: the buffer length in microseconds
+#
+# Since: 4.0
+##
+{ 'struct': 'AudiodevPerDirectionOptions',
+  'data': {
+    '*fixed-settings': 'bool',
+    '*frequency':      'uint32',
+    '*channels':       'uint32',
+    '*voices':         'uint32',
+    '*format':         'AudioFormat',
+    '*buffer-length':  'uint32' } }
+
+##
+# @AudiodevGenericOptions:
+#
+# Generic driver-specific options.
+#
+# @in: options of the capture stream
+#
+# @out: options of the playback stream
+#
+# Since: 4.0
+##
+{ 'struct': 'AudiodevGenericOptions',
+  'data': {
+    '*in':  'AudiodevPerDirectionOptions',
+    '*out': 'AudiodevPerDirectionOptions' } }
+
+##
+# @AudiodevAlsaPerDirectionOptions:
+#
+# Options of the ALSA backend that are used for both playback and
+# recording.
+#
+# @dev: the name of the ALSA device to use (default 'default')
+#
+# @period-length: the period length in microseconds
+#
+# @try-poll: attempt to use poll mode, falling back to non-polling
+#            access on failure (default true)
+#
+# Since: 4.0
+##
+{ 'struct': 'AudiodevAlsaPerDirectionOptions',
+  'base': 'AudiodevPerDirectionOptions',
+  'data': {
+    '*dev':           'str',
+    '*period-length': 'uint32',
+    '*try-poll':      'bool' } }
+
+##
+# @AudiodevAlsaOptions:
+#
+# Options of the ALSA audio backend.
+#
+# @in: options of the capture stream
+#
+# @out: options of the playback stream
+#
+# @threshold: set the threshold (in microseconds) when playback starts
+#
+# Since: 4.0
+##
+{ 'struct': 'AudiodevAlsaOptions',
+  'data': {
+    '*in':        'AudiodevAlsaPerDirectionOptions',
+    '*out':       'AudiodevAlsaPerDirectionOptions',
+    '*threshold': 'uint32' } }
+
+##
+# @AudiodevCoreaudioPerDirectionOptions:
+#
+# Options of the Core Audio backend that are used for both playback and
+# recording.
+#
+# @buffer-count: number of buffers
+#
+# Since: 4.0
+##
+{ 'struct': 'AudiodevCoreaudioPerDirectionOptions',
+  'base': 'AudiodevPerDirectionOptions',
+  'data': {
+    '*buffer-count': 'uint32' } }
+
+##
+# @AudiodevCoreaudioOptions:
+#
+# Options of the coreaudio audio backend.
+#
+# @in: options of the capture stream
+#
+# @out: options of the playback stream
+#
+# Since: 4.0
+##
+{ 'struct': 'AudiodevCoreaudioOptions',
+  'data': {
+    '*in':  'AudiodevCoreaudioPerDirectionOptions',
+    '*out': 'AudiodevCoreaudioPerDirectionOptions' } }
+
+##
+# @AudiodevDsoundOptions:
+#
+# Options of the DirectSound audio backend.
+#
+# @in: options of the capture stream
+#
+# @out: options of the playback stream
+#
+# @latency: add extra latency to playback in microseconds
+#           (default 10000)
+#
+# Since: 4.0
+##
+{ 'struct': 'AudiodevDsoundOptions',
+  'data': {
+    '*in':      'AudiodevPerDirectionOptions',
+    '*out':     'AudiodevPerDirectionOptions',
+    '*latency': 'uint32' } }
+
+##
+# @AudiodevOssPerDirectionOptions:
+#
+# Options of the OSS backend that are used for both playback and
+# recording.
+#
+# @dev: file name of the OSS device (default '/dev/dsp')
+#
+# @buffer-count: number of buffers
+#
+# @try-poll: attempt to use poll mode, falling back to non-polling
+#            access on failure (default true)
+#
+# Since: 4.0
+##
+{ 'struct': 'AudiodevOssPerDirectionOptions',
+  'base': 'AudiodevPerDirectionOptions',
+  'data': {
+    '*dev':          'str',
+    '*buffer-count': 'uint32',
+    '*try-poll':     'bool' } }
+
+##
+# @AudiodevOssOptions:
+#
+# Options of the OSS audio backend.
+#
+# @in: options of the capture stream
+#
+# @out: options of the playback stream
+#
+# @try-mmap: try using memory-mapped access, falling back to
+#            non-memory-mapped access on failure (default true)
+#
+# @exclusive: open device in exclusive mode (vmix won't work)
+#             (default false)
+#
+# @dsp-policy: set the timing policy of the device (between 0 and 10,
+#              where smaller number means smaller latency but higher
+#              CPU usage) or -1 to use fragment mode (option ignored
+#              on some platforms) (default 5)
+#
+# Since: 4.0
+##
+{ 'struct': 'AudiodevOssOptions',
+  'data': {
+    '*in':         'AudiodevOssPerDirectionOptions',
+    '*out':        'AudiodevOssPerDirectionOptions',
+    '*try-mmap':   'bool',
+    '*exclusive':  'bool',
+    '*dsp-policy': 'uint32' } }
+
+##
+# @AudiodevPaPerDirectionOptions:
+#
+# Options of the Pulseaudio backend that are used for both playback and
+# recording.
+#
+# @name: name of the sink/source to use
+#
+# Since: 4.0
+##
+{ 'struct': 'AudiodevPaPerDirectionOptions',
+  'base': 'AudiodevPerDirectionOptions',
+  'data': {
+    '*name': 'str' } }
+
+##
+# @AudiodevPaOptions:
+#
+# Options of the PulseAudio audio backend.
+#
+# @in: options of the capture stream
+#
+# @out: options of the playback stream
+#
+# @server: PulseAudio server address (default: let PulseAudio choose)
+#
+# Since: 4.0
+##
+{ 'struct': 'AudiodevPaOptions',
+  'data': {
+    '*in':     'AudiodevPaPerDirectionOptions',
+    '*out':    'AudiodevPaPerDirectionOptions',
+    '*server': 'str' } }
+
+##
+# @AudiodevWavOptions:
+#
+# Options of the wav audio backend.
+#
+# @in: options of the capture stream
+#
+# @out: options of the playback stream
+#
+# @path: name of the wav file to record (default 'qemu.wav')
+#
+# Since: 4.0
+##
+{ 'struct': 'AudiodevWavOptions',
+  'data': {
+    '*in':   'AudiodevPerDirectionOptions',
+    '*out':  'AudiodevPerDirectionOptions',
+    '*path': 'str' } }
+
+
+##
+# @AudioFormat:
+#
+# An enumeration of possible audio formats.
+#
+# Since: 4.0
+##
+{ 'enum': 'AudioFormat',
+  'data': [ 'u8', 's8', 'u16', 's16', 'u32', 's32' ] }
+
+##
+# @AudiodevDriver:
+#
+# An enumeration of possible audio backend drivers.
+#
+# Since: 4.0
+##
+{ 'enum': 'AudiodevDriver',
+  'data': [ 'none', 'alsa', 'coreaudio', 'dsound', 'oss', 'pa', 'sdl',
+            'spice', 'wav' ] }
+
+##
+# @Audiodev:
+#
+# Options of an audio backend.
+#
+# @id: identifier of the backend
+#
+# @driver: the backend driver to use
+#
+# @timer-period: timer period (in microseconds, 0: use lowest possible)
+#
+# Since: 4.0
+##
+{ 'union': 'Audiodev',
+  'base': {
+    'id':            'str',
+    'driver':        'AudiodevDriver',
+    '*timer-period': 'uint32' },
+  'discriminator': 'driver',
+  'data': {
+    'none':      'AudiodevGenericOptions',
+    'alsa':      'AudiodevAlsaOptions',
+    'coreaudio': 'AudiodevCoreaudioOptions',
+    'dsound':    'AudiodevDsoundOptions',
+    'oss':       'AudiodevOssOptions',
+    'pa':        'AudiodevPaOptions',
+    'sdl':       'AudiodevGenericOptions',
+    'spice':     'AudiodevGenericOptions',
+    'wav':       'AudiodevWavOptions' } }

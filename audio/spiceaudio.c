@@ -77,7 +77,7 @@ static const SpiceRecordInterface record_sif = {
     .base.minor_version = SPICE_INTERFACE_RECORD_MINOR,
 };
 
-static void *spice_audio_init (void)
+static void *spice_audio_init(Audiodev *dev)
 {
     if (!using_spice) {
         return NULL;
@@ -130,7 +130,7 @@ static int line_out_init(HWVoiceOut *hw, struct audsettings *as,
     settings.freq       = SPICE_INTERFACE_PLAYBACK_FREQ;
 #endif
     settings.nchannels  = SPICE_INTERFACE_PLAYBACK_CHAN;
-    settings.fmt        = AUD_FMT_S16;
+    settings.fmt        = AUDIO_FORMAT_S16;
     settings.endianness = AUDIO_HOST_ENDIANNESS;
 
     audio_pcm_init_info (&hw->info, &settings);
@@ -258,7 +258,7 @@ static int line_in_init(HWVoiceIn *hw, struct audsettings *as, void *drv_opaque)
     settings.freq       = SPICE_INTERFACE_RECORD_FREQ;
 #endif
     settings.nchannels  = SPICE_INTERFACE_RECORD_CHAN;
-    settings.fmt        = AUD_FMT_S16;
+    settings.fmt        = AUDIO_FORMAT_S16;
     settings.endianness = AUDIO_HOST_ENDIANNESS;
 
     audio_pcm_init_info (&hw->info, &settings);
@@ -373,10 +373,6 @@ static int line_in_ctl (HWVoiceIn *hw, int cmd, ...)
     return 0;
 }
 
-static struct audio_option audio_options[] = {
-    { /* end of list */ },
-};
-
 static struct audio_pcm_ops audio_callbacks = {
     .init_out = line_out_init,
     .fini_out = line_out_fini,
@@ -394,7 +390,6 @@ static struct audio_pcm_ops audio_callbacks = {
 static struct audio_driver spice_audio_driver = {
     .name           = "spice",
     .descr          = "spice audio driver",
-    .options        = audio_options,
     .init           = spice_audio_init,
     .fini           = spice_audio_fini,
     .pcm_ops        = &audio_callbacks,

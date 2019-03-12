@@ -99,3 +99,4 @@
 { 'include': 'introspect.json' }
 { 'include': 'misc.json' }
 { 'include': 'target.json' }
+{ 'include': 'audio.json' }
