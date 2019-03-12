@@ -347,6 +347,7 @@ static int expand_shl11(int val)
 /* Similarly, but we want to return to the main loop immediately
    to recognize unmasked interrupts.  */
 #define DISAS_IAQ_N_STALE_EXIT      DISAS_TARGET_2
+#define DISAS_EXIT                  DISAS_TARGET_3
 
 /* global register indexes */
 static TCGv_reg cpu_gr[32];
@@ -4218,19 +4219,31 @@ static void hppa_tr_translate_insn(DisasContextBase *dcbase, CPUState *cs)
     ctx->iaoq_b = ctx->iaoq_n;
     ctx->base.pc_next += 4;
 
-    if (ret == DISAS_NORETURN || ret == DISAS_IAQ_N_UPDATED) {
-        return;
-    }
-    if (ctx->iaoq_f == -1) {
-        tcg_gen_mov_reg(cpu_iaoq_f, cpu_iaoq_b);
-        copy_iaoq_entry(cpu_iaoq_b, ctx->iaoq_n, ctx->iaoq_n_var);
+    switch (ret) {
+    case DISAS_NORETURN:
+    case DISAS_IAQ_N_UPDATED:
+        break;
+
+    case DISAS_NEXT:
+    case DISAS_IAQ_N_STALE:
+    case DISAS_IAQ_N_STALE_EXIT:
+        if (ctx->iaoq_f == -1) {
+            tcg_gen_mov_reg(cpu_iaoq_f, cpu_iaoq_b);
+            copy_iaoq_entry(cpu_iaoq_b, ctx->iaoq_n, ctx->iaoq_n_var);
 #ifndef CONFIG_USER_ONLY
-        tcg_gen_mov_i64(cpu_iasq_f, cpu_iasq_b);
+            tcg_gen_mov_i64(cpu_iasq_f, cpu_iasq_b);
 #endif
-        nullify_save(ctx);
-        ctx->base.is_jmp = DISAS_IAQ_N_UPDATED;
-    } else if (ctx->iaoq_b == -1) {
-        tcg_gen_mov_reg(cpu_iaoq_b, ctx->iaoq_n_var);
+            nullify_save(ctx);
+            ctx->base.is_jmp = (ret == DISAS_IAQ_N_STALE_EXIT
+                                ? DISAS_EXIT
+                                : DISAS_IAQ_N_UPDATED);
+        } else if (ctx->iaoq_b == -1) {
+            tcg_gen_mov_reg(cpu_iaoq_b, ctx->iaoq_n_var);
+        }
+        break;
+
+    default:
+        g_assert_not_reached();
     }
 }
 
@@ -4252,11 +4265,12 @@ static void hppa_tr_tb_stop(DisasContextBase *dcbase, CPUState *cs)
     case DISAS_IAQ_N_UPDATED:
         if (ctx->base.singlestep_enabled) {
             gen_excp_1(EXCP_DEBUG);
-        } else if (is_jmp == DISAS_IAQ_N_STALE_EXIT) {
-            tcg_gen_exit_tb(NULL, 0);
-        } else {
+        } else if (is_jmp != DISAS_IAQ_N_STALE_EXIT) {
             tcg_gen_lookup_and_goto_ptr();
         }
+        /* FALLTHRU */
+    case DISAS_EXIT:
+        tcg_gen_exit_tb(NULL, 0);
         break;
     default:
         g_assert_not_reached();
