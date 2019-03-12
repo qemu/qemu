@@ -740,7 +740,7 @@ bool bdrv_has_readonly_bitmaps(BlockDriverState *bs)
 }
 
 /* Called with BQL taken. */
-void bdrv_dirty_bitmap_set_persistance(BdrvDirtyBitmap *bitmap, bool persistent)
+void bdrv_dirty_bitmap_set_persistence(BdrvDirtyBitmap *bitmap, bool persistent)
 {
     qemu_mutex_lock(bitmap->mutex);
     bitmap->persistent = persistent;
@@ -765,7 +765,7 @@ void bdrv_dirty_bitmap_set_migration(BdrvDirtyBitmap *bitmap, bool migration)
     qemu_mutex_unlock(bitmap->mutex);
 }
 
-bool bdrv_dirty_bitmap_get_persistance(BdrvDirtyBitmap *bitmap)
+bool bdrv_dirty_bitmap_get_persistence(BdrvDirtyBitmap *bitmap)
 {
     return bitmap->persistent && !bitmap->migration;
 }

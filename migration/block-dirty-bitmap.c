@@ -321,7 +321,7 @@ static int init_dirty_bitmap_migration(void)
             if (bdrv_dirty_bitmap_enabled(bitmap)) {
                 dbms->flags |= DIRTY_BITMAP_MIG_START_FLAG_ENABLED;
             }
-            if (bdrv_dirty_bitmap_get_persistance(bitmap)) {
+            if (bdrv_dirty_bitmap_get_persistence(bitmap)) {
                 dbms->flags |= DIRTY_BITMAP_MIG_START_FLAG_PERSISTENT;
             }
 
@@ -473,7 +473,7 @@ static int dirty_bitmap_load_start(QEMUFile *f, DirtyBitmapLoadState *s)
     }
 
     if (flags & DIRTY_BITMAP_MIG_START_FLAG_PERSISTENT) {
-        bdrv_dirty_bitmap_set_persistance(s->bitmap, true);
+        bdrv_dirty_bitmap_set_persistence(s->bitmap, true);
     }
 
     bdrv_disable_dirty_bitmap(s->bitmap);

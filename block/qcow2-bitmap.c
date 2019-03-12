@@ -969,7 +969,7 @@ bool qcow2_load_dirty_bitmaps(BlockDriverState *bs, Error **errp)
             goto fail;
         }
 
-        bdrv_dirty_bitmap_set_persistance(bitmap, true);
+        bdrv_dirty_bitmap_set_persistence(bitmap, true);
         if (bm->flags & BME_FLAG_IN_USE) {
             bdrv_dirty_bitmap_set_inconsistent(bitmap);
         } else {
@@ -1427,7 +1427,7 @@ void qcow2_store_persistent_dirty_bitmaps(BlockDriverState *bs, Error **errp)
         uint32_t granularity = bdrv_dirty_bitmap_granularity(bitmap);
         Qcow2Bitmap *bm;
 
-        if (!bdrv_dirty_bitmap_get_persistance(bitmap) ||
+        if (!bdrv_dirty_bitmap_get_persistence(bitmap) ||
             bdrv_dirty_bitmap_readonly(bitmap) ||
             bdrv_dirty_bitmap_inconsistent(bitmap)) {
             continue;
@@ -1545,7 +1545,7 @@ int qcow2_reopen_bitmaps_ro(BlockDriverState *bs, Error **errp)
     for (bitmap = bdrv_dirty_bitmap_next(bs, NULL); bitmap != NULL;
          bitmap = bdrv_dirty_bitmap_next(bs, bitmap))
     {
-        if (bdrv_dirty_bitmap_get_persistance(bitmap)) {
+        if (bdrv_dirty_bitmap_get_persistence(bitmap)) {
             bdrv_dirty_bitmap_set_readonly(bitmap, true);
         }
     }

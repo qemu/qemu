@@ -2864,7 +2864,7 @@ void qmp_block_dirty_bitmap_add(const char *node, const char *name,
         bdrv_disable_dirty_bitmap(bitmap);
     }
 
-    bdrv_dirty_bitmap_set_persistance(bitmap, persistent);
+    bdrv_dirty_bitmap_set_persistence(bitmap, persistent);
  out:
     if (aio_context) {
         aio_context_release(aio_context);
@@ -2889,7 +2889,7 @@ void qmp_block_dirty_bitmap_remove(const char *node, const char *name,
         return;
     }
 
-    if (bdrv_dirty_bitmap_get_persistance(bitmap)) {
+    if (bdrv_dirty_bitmap_get_persistence(bitmap)) {
         aio_context = bdrv_get_aio_context(bs);
         aio_context_acquire(aio_context);
         bdrv_remove_persistent_dirty_bitmap(bs, name, &local_err);
