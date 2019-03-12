@@ -542,7 +542,7 @@ static void dirty_bitmap_load_complete(QEMUFile *f, DirtyBitmapLoadState *s)
         }
     }
 
-    if (bdrv_dirty_bitmap_frozen(s->bitmap)) {
+    if (bdrv_dirty_bitmap_has_successor(s->bitmap)) {
         bdrv_dirty_bitmap_lock(s->bitmap);
         if (enabled_bitmaps == NULL) {
             /* in postcopy */
