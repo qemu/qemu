@@ -23,6 +23,25 @@ class BootLinuxConsole(Test):
 
     KERNEL_COMMON_COMMAND_LINE = 'printk.time=0 '
 
+    def wait_for_console_pattern(self, success_message,
+                                 failure_message='Kernel panic - not syncing'):
+        """
+        Waits for messages to appear on the console, while logging the content
+
+        :param success_message: if this message appears, test succeeds
+        :param failure_message: if this message appears, test fails
+        """
+        console = self.vm.console_socket.makefile()
+        console_logger = logging.getLogger('console')
+        while True:
+            msg = console.readline()
+            console_logger.debug(msg.strip())
+            if success_message in msg:
+                break
+            if failure_message in msg:
+                fail = 'Failure message found in console: %s' % failure_message
+                self.fail(fail)
+
     def test_x86_64_pc(self):
         """
         :avocado: tags=arch:x86_64
@@ -39,12 +58,5 @@ class BootLinuxConsole(Test):
         self.vm.add_args('-kernel', kernel_path,
                          '-append', kernel_command_line)
         self.vm.launch()
-        console = self.vm.console_socket.makefile()
-        console_logger = logging.getLogger('console')
-        while True:
-            msg = console.readline()
-            console_logger.debug(msg.strip())
-            if 'Kernel command line: %s' % kernel_command_line in msg:
-                break
-            if 'Kernel panic - not syncing' in msg:
-                self.fail("Kernel panic reached")
+        console_pattern = 'Kernel command line: %s' % kernel_command_line
+        self.wait_for_console_pattern(console_pattern)
