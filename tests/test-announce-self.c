@@ -21,18 +21,8 @@
 #define ETH_P_RARP 0x8035
 #endif
 
-static QTestState *test_init(int socket)
-{
-    char *args;
 
-    args = g_strdup_printf("-netdev socket,fd=%d,id=hs0 -device "
-                           "virtio-net-pci,netdev=hs0", socket);
-
-    return qtest_start(args);
-}
-
-
-static void test_announce(int socket)
+static void test_announce(QTestState *qs, int socket)
 {
     char buffer[60];
     int len;
@@ -40,7 +30,7 @@ static void test_announce(int socket)
     int ret;
     uint16_t *proto = (uint16_t *)&buffer[12];
 
-    rsp = qmp("{ 'execute' : 'announce-self', "
+    rsp = qtest_qmp(qs, "{ 'execute' : 'announce-self', "
                   " 'arguments': {"
                       " 'initial': 50, 'max': 550,"
                       " 'rounds': 10, 'step': 50 } }");
@@ -59,14 +49,15 @@ static void test_announce(int socket)
 static void setup(gconstpointer data)
 {
     QTestState *qs;
-    void (*func) (int socket) = data;
+    void (*func) (QTestState *qs, int socket) = data;
     int sv[2], ret;
 
     ret = socketpair(PF_UNIX, SOCK_STREAM, 0, sv);
     g_assert_cmpint(ret, !=, -1);
 
-    qs = test_init(sv[1]);
-    func(sv[0]);
+    qs = qtest_initf("-netdev socket,fd=%d,id=hs0 -device "
+                     "virtio-net-pci,netdev=hs0", sv[1]);
+    func(qs, sv[0]);
 
     /* End test */
     close(sv[0]);

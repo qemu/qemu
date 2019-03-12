@@ -304,4 +304,38 @@ extern const VMStateDescription sdhci_vmstate;
 
 #define ESDHC_PRNSTS_SDSTB              (1 << 3)
 
+/*
+ * Default SD/MMC host controller features information, which will be
+ * presented in CAPABILITIES register of generic SD host controller at reset.
+ *
+ * support:
+ * - 3.3v and 1.8v voltages
+ * - SDMA/ADMA1/ADMA2
+ * - high-speed
+ * max host controller R/W buffers size: 512B
+ * max clock frequency for SDclock: 52 MHz
+ * timeout clock frequency: 52 MHz
+ *
+ * does not support:
+ * - 3.0v voltage
+ * - 64-bit system bus
+ * - suspend/resume
+ */
+#define SDHC_CAPAB_REG_DEFAULT 0x057834b4
+
+#define DEFINE_SDHCI_COMMON_PROPERTIES(_state) \
+    DEFINE_PROP_UINT8("sd-spec-version", _state, sd_spec_version, 2), \
+    DEFINE_PROP_UINT8("uhs", _state, uhs_mode, UHS_NOT_SUPPORTED), \
+    \
+    /* Capabilities registers provide information on supported
+     * features of this specific host controller implementation */ \
+    DEFINE_PROP_UINT64("capareg", _state, capareg, SDHC_CAPAB_REG_DEFAULT), \
+    DEFINE_PROP_UINT64("maxcurr", _state, maxcurr, 0)
+
+void sdhci_initfn(SDHCIState *s);
+void sdhci_uninitfn(SDHCIState *s);
+void sdhci_common_realize(SDHCIState *s, Error **errp);
+void sdhci_common_unrealize(SDHCIState *s, Error **errp);
+void sdhci_common_class_init(ObjectClass *klass, void *data);
+
 #endif
