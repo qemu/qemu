@@ -187,6 +187,7 @@ typedef struct BDRVReopenState {
     BlockDriverState *bs;
     int flags;
     BlockdevDetectZeroesOptions detect_zeroes;
+    bool backing_missing;
     uint64_t perm, shared_perm;
     QDict *options;
     QDict *explicit_options;

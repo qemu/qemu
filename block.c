@@ -3107,9 +3107,21 @@ static BlockReopenQueue *bdrv_reopen_queue_child(BlockReopenQueue *bs_queue,
     bs_entry->state.perm = UINT64_MAX;
     bs_entry->state.shared_perm = 0;
 
+    /*
+     * If keep_old_opts is false then it means that unspecified
+     * options must be reset to their original value. We don't allow
+     * resetting 'backing' but we need to know if the option is
+     * missing in order to decide if we have to return an error.
+     */
+    if (!keep_old_opts) {
+        bs_entry->state.backing_missing =
+            !qdict_haskey(options, "backing") &&
+            !qdict_haskey(options, "backing.driver");
+    }
+
     QLIST_FOREACH(child, &bs->children, next) {
-        QDict *new_child_options;
-        char *child_key_dot;
+        QDict *new_child_options = NULL;
+        bool child_keep_old = keep_old_opts;
 
         /* reopen can only change the options of block devices that were
          * implicitly created and inherited options. For other (referenced)
@@ -3118,13 +3130,32 @@ static BlockReopenQueue *bdrv_reopen_queue_child(BlockReopenQueue *bs_queue,
             continue;
         }
 
-        child_key_dot = g_strdup_printf("%s.", child->name);
-        qdict_extract_subqdict(explicit_options, NULL, child_key_dot);
-        qdict_extract_subqdict(options, &new_child_options, child_key_dot);
-        g_free(child_key_dot);
+        /* Check if the options contain a child reference */
+        if (qdict_haskey(options, child->name)) {
+            const char *childref = qdict_get_try_str(options, child->name);
+            /*
+             * The current child must not be reopened if the child
+             * reference is null or points to a different node.
+             */
+            if (g_strcmp0(childref, child->bs->node_name)) {
+                continue;
+            }
+            /*
+             * If the child reference points to the current child then
+             * reopen it with its existing set of options (note that
+             * it can still inherit new options from the parent).
+             */
+            child_keep_old = true;
+        } else {
+            /* Extract child options ("child-name.*") */
+            char *child_key_dot = g_strdup_printf("%s.", child->name);
+            qdict_extract_subqdict(explicit_options, NULL, child_key_dot);
+            qdict_extract_subqdict(options, &new_child_options, child_key_dot);
+            g_free(child_key_dot);
+        }
 
         bdrv_reopen_queue_child(bs_queue, child->bs, new_child_options,
-                                child->role, options, flags, keep_old_opts);
+                                child->role, options, flags, child_keep_old);
     }
 
     return bs_queue;
@@ -3402,6 +3433,13 @@ int bdrv_reopen_prepare(BDRVReopenState *reopen_state, BlockReopenQueue *queue,
     }
 
     drv_prepared = true;
+
+    if (drv->supports_backing && reopen_state->backing_missing) {
+        error_setg(errp, "backing is missing for '%s'",
+                   reopen_state->bs->node_name);
+        ret = -EINVAL;
+        goto error;
+    }
 
     /* Options that are not handled are only okay if they are unchanged
      * compared to the old state. It is expected that some options are only
