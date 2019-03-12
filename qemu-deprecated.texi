@@ -72,6 +72,12 @@ by the @code{tls-authz} and @code{sasl-authz} options.
 "autoload" parameter is now ignored. All bitmaps are automatically loaded
 from qcow2 images.
 
+@subsection query-block result field dirty-bitmaps[i].status (since 4.0)
+
+The ``status'' field of the ``BlockDirtyInfo'' structure, returned by
+the query-block command is deprecated. Two new boolean fields,
+``recording'' and ``busy'' effectively replace it.
+
 @subsection query-cpus (since 2.12.0)
 
 The ``query-cpus'' command is replaced by the ``query-cpus-fast'' command.

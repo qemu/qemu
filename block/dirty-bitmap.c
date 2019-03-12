@@ -226,6 +226,13 @@ DirtyBitmapStatus bdrv_dirty_bitmap_status(BdrvDirtyBitmap *bitmap)
     }
 }
 
+/* Called with BQL taken.  */
+static bool bdrv_dirty_bitmap_recording(BdrvDirtyBitmap *bitmap)
+{
+    return !bitmap->disabled || (bitmap->successor &&
+                                 !bitmap->successor->disabled);
+}
+
 /**
  * Create a successor bitmap destined to replace this bitmap after an operation.
  * Requires that the bitmap is not frozen and has no successor.
@@ -448,6 +455,8 @@ BlockDirtyInfoList *bdrv_query_dirty_bitmaps(BlockDriverState *bs)
         info->has_name = !!bm->name;
         info->name = g_strdup(bm->name);
         info->status = bdrv_dirty_bitmap_status(bm);
+        info->recording = bdrv_dirty_bitmap_recording(bm);
+        info->busy = bdrv_dirty_bitmap_user_locked(bm);
         info->persistent = bm->persistent;
         entry->value = info;
         *plist = entry;

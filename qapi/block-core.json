@@ -467,7 +467,14 @@
 #
 # @granularity: granularity of the dirty bitmap in bytes (since 1.4)
 #
-# @status: current status of the dirty bitmap (since 2.4)
+# @status: Deprecated in favor of @recording and @locked. (since 2.4)
+#
+# @recording: true if the bitmap is recording new writes from the guest.
+#             Replaces `active` and `disabled` statuses. (since 4.0)
+#
+# @busy: true if the bitmap is in-use by some operation (NBD or jobs)
+#        and cannot be modified via QMP or used by another operation.
+#        Replaces `locked` and `frozen` statuses. (since 4.0)
 #
 # @persistent: true if the bitmap will eventually be flushed to persistent
 #              storage (since 4.0)
@@ -476,6 +483,7 @@
 ##
 { 'struct': 'BlockDirtyInfo',
   'data': {'*name': 'str', 'count': 'int', 'granularity': 'uint32',
+           'recording': 'bool', 'busy': 'bool',
            'status': 'DirtyBitmapStatus', 'persistent': 'bool' } }
 
 ##
