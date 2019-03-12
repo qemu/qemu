@@ -53,7 +53,12 @@ def pick_default_qemu_bin(arch=None):
 class Test(avocado.Test):
     def setUp(self):
         self._vms = {}
-        self.arch = self.params.get('arch')
+        arches = self.tags.get('arch', [])
+        if len(arches) == 1:
+            arch = arches.pop()
+        else:
+            arch = None
+        self.arch = self.params.get('arch', default=arch)
         default_qemu_bin = pick_default_qemu_bin(arch=self.arch)
         self.qemu_bin = self.params.get('qemu_bin',
                                         default=default_qemu_bin)

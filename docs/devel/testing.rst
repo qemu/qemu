@@ -740,7 +740,9 @@ A test may, for instance, use the same value when selecting the
 architecture of a kernel or disk image to boot a VM with.
 
 The ``arch`` attribute will be set to the test parameter of the same
-name, and if one is not given explicitly, it will be set to ``None``.
+name.  If one is not given explicitly, it will either be set to
+``None``, or, if the test is tagged with one (and only one)
+``:avocado: tags=arch:VALUE`` tag, it will be set to ``VALUE``.
 
 qemu_bin
 ~~~~~~~~
