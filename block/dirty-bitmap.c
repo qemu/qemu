@@ -209,7 +209,7 @@ bool bdrv_dirty_bitmap_qmp_locked(BdrvDirtyBitmap *bitmap)
 /* Called with BQL taken.  */
 bool bdrv_dirty_bitmap_enabled(BdrvDirtyBitmap *bitmap)
 {
-    return !(bitmap->disabled || bitmap->successor);
+    return !bitmap->disabled;
 }
 
 /* Called with BQL taken.  */
@@ -236,6 +236,7 @@ static bool bdrv_dirty_bitmap_recording(BdrvDirtyBitmap *bitmap)
 /**
  * Create a successor bitmap destined to replace this bitmap after an operation.
  * Requires that the bitmap is not user_locked and has no successor.
+ * The successor will be enabled if the parent bitmap was.
  * Called with BQL taken.
  */
 int bdrv_dirty_bitmap_create_successor(BlockDriverState *bs,
@@ -264,6 +265,7 @@ int bdrv_dirty_bitmap_create_successor(BlockDriverState *bs,
 
     /* Successor will be on or off based on our current state. */
     child->disabled = bitmap->disabled;
+    bitmap->disabled = true;
 
     /* Install the successor and freeze the parent */
     bitmap->successor = child;
@@ -329,7 +331,8 @@ BdrvDirtyBitmap *bdrv_dirty_bitmap_abdicate(BlockDriverState *bs,
 /**
  * In cases of failure where we can no longer safely delete the parent,
  * we may wish to re-join the parent and child/successor.
- * The merged parent will not be user_locked, nor explicitly re-enabled.
+ * The merged parent will not be user_locked.
+ * The marged parent will be enabled if and only if the successor was enabled.
  * Called within bdrv_dirty_bitmap_lock..unlock and with BQL taken.
  */
 BdrvDirtyBitmap *bdrv_reclaim_dirty_bitmap_locked(BlockDriverState *bs,
@@ -347,6 +350,8 @@ BdrvDirtyBitmap *bdrv_reclaim_dirty_bitmap_locked(BlockDriverState *bs,
         error_setg(errp, "Merging of parent and successor bitmap failed");
         return NULL;
     }
+
+    parent->disabled = successor->disabled;
     bdrv_release_dirty_bitmap_locked(successor);
     parent->successor = NULL;
 
