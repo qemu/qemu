@@ -385,8 +385,7 @@ static void reopen_backing_file(BlockDriverState *bs, bool writable,
     }
 
     if (reopen_queue) {
-        bdrv_reopen_multiple(bdrv_get_aio_context(bs),
-                             reopen_queue, &local_err);
+        bdrv_reopen_multiple(reopen_queue, &local_err);
         error_propagate(errp, local_err);
     }
 

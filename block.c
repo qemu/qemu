@@ -3254,7 +3254,7 @@ BlockReopenQueue *bdrv_reopen_queue(BlockReopenQueue *bs_queue,
  * All affected nodes must be drained between bdrv_reopen_queue() and
  * bdrv_reopen_multiple().
  */
-int bdrv_reopen_multiple(AioContext *ctx, BlockReopenQueue *bs_queue, Error **errp)
+int bdrv_reopen_multiple(BlockReopenQueue *bs_queue, Error **errp)
 {
     int ret = -1;
     BlockReopenQueueEntry *bs_entry, *next;
@@ -3347,7 +3347,7 @@ int bdrv_reopen_set_read_only(BlockDriverState *bs, bool read_only,
 
     bdrv_subtree_drained_begin(bs);
     queue = bdrv_reopen_queue(NULL, bs, opts, true);
-    ret = bdrv_reopen_multiple(bdrv_get_aio_context(bs), queue, errp);
+    ret = bdrv_reopen_multiple(queue, errp);
     bdrv_subtree_drained_end(bs);
 
     return ret;
