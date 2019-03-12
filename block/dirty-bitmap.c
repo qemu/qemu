@@ -50,7 +50,7 @@ struct BdrvDirtyBitmap {
     HBitmap *meta;              /* Meta dirty bitmap */
     bool qmp_locked;            /* Bitmap is locked, it can't be modified
                                    through QMP */
-    BdrvDirtyBitmap *successor; /* Anonymous child; implies user_locked state */
+    BdrvDirtyBitmap *successor; /* Anonymous child, if any. */
     char *name;                 /* Optional non-empty unique ID */
     int64_t size;               /* Size of the bitmap, in bytes */
     bool disabled;              /* Bitmap is disabled. It ignores all writes to
@@ -188,10 +188,8 @@ bool bdrv_dirty_bitmap_has_successor(BdrvDirtyBitmap *bitmap)
     return bitmap->successor;
 }
 
-/* Both conditions disallow user-modification via QMP. */
 bool bdrv_dirty_bitmap_user_locked(BdrvDirtyBitmap *bitmap) {
-    return bdrv_dirty_bitmap_has_successor(bitmap) ||
-           bdrv_dirty_bitmap_qmp_locked(bitmap);
+    return bdrv_dirty_bitmap_qmp_locked(bitmap);
 }
 
 void bdrv_dirty_bitmap_set_qmp_locked(BdrvDirtyBitmap *bitmap, bool qmp_locked)
@@ -267,8 +265,9 @@ int bdrv_dirty_bitmap_create_successor(BlockDriverState *bs,
     child->disabled = bitmap->disabled;
     bitmap->disabled = true;
 
-    /* Install the successor and freeze the parent */
+    /* Install the successor and lock the parent */
     bitmap->successor = child;
+    bitmap->qmp_locked = true;
     return 0;
 }
 
@@ -323,6 +322,7 @@ BdrvDirtyBitmap *bdrv_dirty_bitmap_abdicate(BlockDriverState *bs,
     bitmap->successor = NULL;
     successor->persistent = bitmap->persistent;
     bitmap->persistent = false;
+    bitmap->qmp_locked = false;
     bdrv_release_dirty_bitmap(bs, bitmap);
 
     return successor;
@@ -352,6 +352,7 @@ BdrvDirtyBitmap *bdrv_reclaim_dirty_bitmap_locked(BlockDriverState *bs,
     }
 
     parent->disabled = successor->disabled;
+    parent->qmp_locked = false;
     bdrv_release_dirty_bitmap_locked(successor);
     parent->successor = NULL;
 
