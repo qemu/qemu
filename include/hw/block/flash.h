@@ -5,32 +5,46 @@
 
 #include "exec/memory.h"
 
-#define TYPE_CFI_PFLASH01 "cfi.pflash01"
-#define TYPE_CFI_PFLASH02 "cfi.pflash02"
-
-typedef struct pflash_t pflash_t;
-
 /* pflash_cfi01.c */
-pflash_t *pflash_cfi01_register(hwaddr base,
-                                DeviceState *qdev, const char *name,
-                                hwaddr size,
-                                BlockBackend *blk,
-                                uint32_t sector_len, int nb_blocs, int width,
-                                uint16_t id0, uint16_t id1,
-                                uint16_t id2, uint16_t id3, int be);
+
+#define TYPE_PFLASH_CFI01 "cfi.pflash01"
+#define PFLASH_CFI01(obj) \
+    OBJECT_CHECK(PFlashCFI01, (obj), TYPE_PFLASH_CFI01)
+
+typedef struct PFlashCFI01 PFlashCFI01;
+
+PFlashCFI01 *pflash_cfi01_register(hwaddr base,
+                                   const char *name,
+                                   hwaddr size,
+                                   BlockBackend *blk,
+                                   uint32_t sector_len,
+                                   int width,
+                                   uint16_t id0, uint16_t id1,
+                                   uint16_t id2, uint16_t id3,
+                                   int be);
+BlockBackend *pflash_cfi01_get_blk(PFlashCFI01 *fl);
+MemoryRegion *pflash_cfi01_get_memory(PFlashCFI01 *fl);
 
 /* pflash_cfi02.c */
-pflash_t *pflash_cfi02_register(hwaddr base,
-                                DeviceState *qdev, const char *name,
-                                hwaddr size,
-                                BlockBackend *blk, uint32_t sector_len,
-                                int nb_blocs, int nb_mappings, int width,
-                                uint16_t id0, uint16_t id1,
-                                uint16_t id2, uint16_t id3,
-                                uint16_t unlock_addr0, uint16_t unlock_addr1,
-                                int be);
 
-MemoryRegion *pflash_cfi01_get_memory(pflash_t *fl);
+#define TYPE_PFLASH_CFI02 "cfi.pflash02"
+#define PFLASH_CFI02(obj) \
+    OBJECT_CHECK(PFlashCFI02, (obj), TYPE_PFLASH_CFI02)
+
+typedef struct PFlashCFI02 PFlashCFI02;
+
+PFlashCFI02 *pflash_cfi02_register(hwaddr base,
+                                   const char *name,
+                                   hwaddr size,
+                                   BlockBackend *blk,
+                                   uint32_t sector_len,
+                                   int nb_mappings,
+                                   int width,
+                                   uint16_t id0, uint16_t id1,
+                                   uint16_t id2, uint16_t id3,
+                                   uint16_t unlock_addr0,
+                                   uint16_t unlock_addr1,
+                                   int be);
 
 /* nand.c */
 DeviceState *nand_init(BlockBackend *blk, int manf_id, int chip_id);

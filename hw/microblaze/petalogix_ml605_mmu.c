@@ -106,11 +106,9 @@ petalogix_ml605_init(MachineState *machine)
     dinfo = drive_get(IF_PFLASH, 0, 0);
     /* 5th parameter 2 means bank-width
      * 10th paremeter 0 means little-endian */
-    pflash_cfi01_register(FLASH_BASEADDR,
-                          NULL, "petalogix_ml605.flash", FLASH_SIZE,
+    pflash_cfi01_register(FLASH_BASEADDR, "petalogix_ml605.flash", FLASH_SIZE,
                           dinfo ? blk_by_legacy_dinfo(dinfo) : NULL,
-                          64 * KiB, FLASH_SIZE >> 16,
-                          2, 0x89, 0x18, 0x0000, 0x0, 0);
+                          64 * KiB, 2, 0x89, 0x18, 0x0000, 0x0, 0);
 
 
     dev = qdev_create(NULL, "xlnx.xps-intc");

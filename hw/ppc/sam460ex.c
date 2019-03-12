@@ -91,32 +91,42 @@ struct boot_info {
 
 static int sam460ex_load_uboot(void)
 {
+    /*
+     * This first creates 1MiB of flash memory mapped at the end of
+     * the 32-bit address space (0xFFF00000..0xFFFFFFFF).
+     *
+     * If_PFLASH unit 0 is defined, the flash memory is initialized
+     * from that block backend.
+     *
+     * Else, it's initialized to zero.  And then 512KiB of ROM get
+     * mapped on top of its second half (0xFFF80000..0xFFFFFFFF),
+     * initialized from u-boot-sam460-20100605.bin.
+     *
+     * This doesn't smell right.
+     *
+     * The physical hardware appears to have 512KiB flash memory.
+     *
+     * TODO Figure out what we really need here, and clean this up.
+     */
+
     DriveInfo *dinfo;
-    BlockBackend *blk = NULL;
-    hwaddr base = FLASH_BASE | ((hwaddr)FLASH_BASE_H << 32);
-    long bios_size = FLASH_SIZE;
-    int fl_sectors;
 
     dinfo = drive_get(IF_PFLASH, 0, 0);
-    if (dinfo) {
-        blk = blk_by_legacy_dinfo(dinfo);
-        bios_size = blk_getlength(blk);
-    }
-    fl_sectors = (bios_size + 65535) >> 16;
-
-    if (!pflash_cfi01_register(base, NULL, "sam460ex.flash", bios_size,
-                               blk, 64 * KiB, fl_sectors,
-                               1, 0x89, 0x18, 0x0000, 0x0, 1)) {
+    if (!pflash_cfi01_register(FLASH_BASE | ((hwaddr)FLASH_BASE_H << 32),
+                               "sam460ex.flash", FLASH_SIZE,
+                               dinfo ? blk_by_legacy_dinfo(dinfo) : NULL,
+                               64 * KiB, 1, 0x89, 0x18, 0x0000, 0x0, 1)) {
         error_report("Error registering flash memory");
         /* XXX: return an error instead? */
         exit(1);
     }
 
-    if (!blk) {
+    if (!dinfo) {
         /*error_report("No flash image given with the 'pflash' parameter,"
                 " using default u-boot image");*/
-        base = UBOOT_LOAD_BASE | ((hwaddr)FLASH_BASE_H << 32);
-        rom_add_file_fixed(UBOOT_FILENAME, base, -1);
+        rom_add_file_fixed(UBOOT_FILENAME,
+                           UBOOT_LOAD_BASE | ((hwaddr)FLASH_BASE_H << 32),
+                           -1);
     }
 
     return 0;

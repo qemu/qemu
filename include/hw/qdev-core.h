@@ -431,8 +431,6 @@ const char *qdev_fw_name(DeviceState *dev);
 
 Object *qdev_get_machine(void);
 
-void object_apply_compat_props(Object *obj);
-
 /* FIXME: make this a link<> */
 void qdev_set_parent_bus(DeviceState *dev, BusState *bus);
 

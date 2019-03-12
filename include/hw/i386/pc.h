@@ -6,6 +6,7 @@
 #include "hw/boards.h"
 #include "hw/isa/isa.h"
 #include "hw/block/fdc.h"
+#include "hw/block/flash.h"
 #include "net/net.h"
 #include "hw/i386/ioapic.h"
 
@@ -39,6 +40,7 @@ struct PCMachineState {
     PCIBus *bus;
     FWCfgState *fw_cfg;
     qemu_irq *gsi;
+    PFlashCFI01 *flash[2];
 
     /* Configuration options: */
     uint64_t max_ram_below_4g;
@@ -277,8 +279,8 @@ extern PCIDevice *piix4_dev;
 int piix4_init(PCIBus *bus, ISABus **isa_bus, int devfn);
 
 /* pc_sysfw.c */
-void pc_system_firmware_init(MemoryRegion *rom_memory,
-                             bool isapc_ram_fw);
+void pc_system_flash_create(PCMachineState *pcms);
+void pc_system_firmware_init(PCMachineState *pcms, MemoryRegion *rom_memory);
 
 /* acpi-build.c */
 void pc_madt_cpu_entry(AcpiDeviceIf *adev, int uid,
