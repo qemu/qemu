@@ -353,6 +353,11 @@ int bdrv_drop_intermediate(BlockDriverState *top, BlockDriverState *base,
 BlockDriverState *bdrv_find_overlay(BlockDriverState *active,
                                     BlockDriverState *bs);
 BlockDriverState *bdrv_find_base(BlockDriverState *bs);
+bool bdrv_is_backing_chain_frozen(BlockDriverState *bs, BlockDriverState *base,
+                                  Error **errp);
+int bdrv_freeze_backing_chain(BlockDriverState *bs, BlockDriverState *base,
+                              Error **errp);
+void bdrv_unfreeze_backing_chain(BlockDriverState *bs, BlockDriverState *base);
 
 
 typedef struct BdrvCheckResult {

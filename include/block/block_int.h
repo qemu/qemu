@@ -711,6 +711,12 @@ struct BdrvChild {
     uint64_t backup_perm;
     uint64_t backup_shared_perm;
 
+    /*
+     * This link is frozen: the child can neither be replaced nor
+     * detached from the parent.
+     */
+    bool frozen;
+
     QLIST_ENTRY(BdrvChild) next;
     QLIST_ENTRY(BdrvChild) next_parent;
 };
