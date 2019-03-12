@@ -1510,8 +1510,7 @@ NBDExport *nbd_export_new(BlockDriverState *bs, uint64_t dev_offset,
             goto fail;
         }
 
-        if (bdrv_dirty_bitmap_busy(bm)) {
-            error_setg(errp, "Bitmap '%s' is in use", bitmap);
+        if (bdrv_dirty_bitmap_check(bm, BDRV_BITMAP_ALLOW_RO, errp)) {
             goto fail;
         }
 

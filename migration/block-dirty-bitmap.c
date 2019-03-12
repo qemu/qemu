@@ -274,6 +274,7 @@ static int init_dirty_bitmap_migration(void)
     BdrvDirtyBitmap *bitmap;
     DirtyBitmapMigBitmapState *dbms;
     BdrvNextIterator it;
+    Error *local_err = NULL;
 
     dirty_bitmap_mig_state.bulk_completed = false;
     dirty_bitmap_mig_state.prev_bs = NULL;
@@ -301,15 +302,9 @@ static int init_dirty_bitmap_migration(void)
                 goto fail;
             }
 
-            if (bdrv_dirty_bitmap_busy(bitmap)) {
-                error_report("Can't migrate a bitmap that is in use by another operation: '%s'",
-                             bdrv_dirty_bitmap_name(bitmap));
-                goto fail;
-            }
-
-            if (bdrv_dirty_bitmap_readonly(bitmap)) {
-                error_report("Can't migrate read-only dirty bitmap: '%s",
-                             bdrv_dirty_bitmap_name(bitmap));
+            if (bdrv_dirty_bitmap_check(bitmap, BDRV_BITMAP_DEFAULT,
+                                        &local_err)) {
+                error_report_err(local_err);
                 goto fail;
             }
 

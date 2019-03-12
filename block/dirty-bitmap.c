@@ -174,7 +174,7 @@ bool bdrv_dirty_bitmap_has_successor(BdrvDirtyBitmap *bitmap)
     return bitmap->successor;
 }
 
-bool bdrv_dirty_bitmap_busy(BdrvDirtyBitmap *bitmap)
+static bool bdrv_dirty_bitmap_busy(const BdrvDirtyBitmap *bitmap)
 {
     return bitmap->busy;
 }
@@ -236,6 +236,33 @@ static bool bdrv_dirty_bitmap_recording(BdrvDirtyBitmap *bitmap)
                                  !bitmap->successor->disabled);
 }
 
+int bdrv_dirty_bitmap_check(const BdrvDirtyBitmap *bitmap, uint32_t flags,
+                            Error **errp)
+{
+    if ((flags & BDRV_BITMAP_BUSY) && bdrv_dirty_bitmap_busy(bitmap)) {
+        error_setg(errp, "Bitmap '%s' is currently in use by another"
+                   " operation and cannot be used", bitmap->name);
+        return -1;
+    }
+
+    if ((flags & BDRV_BITMAP_RO) && bdrv_dirty_bitmap_readonly(bitmap)) {
+        error_setg(errp, "Bitmap '%s' is readonly and cannot be modified",
+                   bitmap->name);
+        return -1;
+    }
+
+    if ((flags & BDRV_BITMAP_INCONSISTENT) &&
+        bdrv_dirty_bitmap_inconsistent(bitmap)) {
+        error_setg(errp, "Bitmap '%s' is inconsistent and cannot be used",
+                   bitmap->name);
+        error_append_hint(errp, "Try block-dirty-bitmap-remove to delete"
+                          " this bitmap from disk");
+        return -1;
+    }
+
+    return 0;
+}
+
 /**
  * Create a successor bitmap destined to replace this bitmap after an operation.
  * Requires that the bitmap is not marked busy and has no successor.
@@ -248,9 +275,7 @@ int bdrv_dirty_bitmap_create_successor(BlockDriverState *bs,
     uint64_t granularity;
     BdrvDirtyBitmap *child;
 
-    if (bdrv_dirty_bitmap_busy(bitmap)) {
-        error_setg(errp, "Cannot create a successor for a bitmap that is "
-                   "in-use by an operation");
+    if (bdrv_dirty_bitmap_check(bitmap, BDRV_BITMAP_BUSY, errp)) {
         return -1;
     }
     if (bdrv_dirty_bitmap_has_successor(bitmap)) {
@@ -796,17 +821,10 @@ void bdrv_merge_dirty_bitmap(BdrvDirtyBitmap *dest, const BdrvDirtyBitmap *src,
 
     qemu_mutex_lock(dest->mutex);
 
-    if (bdrv_dirty_bitmap_busy(dest)) {
-        error_setg(errp, "Bitmap '%s' is currently in use by another"
-        " operation and cannot be modified", dest->name);
+    if (bdrv_dirty_bitmap_check(dest, BDRV_BITMAP_DEFAULT, errp)) {
         goto out;
     }
 
-    if (bdrv_dirty_bitmap_readonly(dest)) {
-        error_setg(errp, "Bitmap '%s' is readonly and cannot be modified",
-                   dest->name);
-        goto out;
-    }
 
     if (!hbitmap_can_merge(dest->bitmap, src->bitmap)) {
         error_setg(errp, "Bitmaps are incompatible and can't be merged");
