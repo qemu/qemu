@@ -727,6 +727,21 @@ vm
 A QEMUMachine instance, initially configured according to the given
 ``qemu_bin`` parameter.
 
+arch
+~~~~
+
+The architecture can be used on different levels of the stack, e.g. by
+the framework or by the test itself.  At the framework level, it will
+currently influence the selection of a QEMU binary (when one is not
+explicitly given).
+
+Tests are also free to use this attribute value, for their own needs.
+A test may, for instance, use the same value when selecting the
+architecture of a kernel or disk image to boot a VM with.
+
+The ``arch`` attribute will be set to the test parameter of the same
+name, and if one is not given explicitly, it will be set to ``None``.
+
 qemu_bin
 ~~~~~~~~
 
@@ -748,6 +763,19 @@ like the following:
 .. code::
 
   PARAMS (key=qemu_bin, path=*, default=x86_64-softmmu/qemu-system-x86_64) => 'x86_64-softmmu/qemu-system-x86_64
+
+arch
+~~~~
+
+The architecture that will influence the selection of a QEMU binary
+(when one is not explicitly given).
+
+Tests are also free to use this parameter value, for their own needs.
+A test may, for instance, use the same value when selecting the
+architecture of a kernel or disk image to boot a VM with.
+
+This parameter has a direct relation with the ``arch`` attribute.  If
+not given, it will default to None.
 
 qemu_bin
 ~~~~~~~~

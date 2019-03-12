@@ -23,16 +23,22 @@ def is_readable_executable_file(path):
     return os.path.isfile(path) and os.access(path, os.R_OK | os.X_OK)
 
 
-def pick_default_qemu_bin():
+def pick_default_qemu_bin(arch=None):
     """
     Picks the path of a QEMU binary, starting either in the current working
     directory or in the source tree root directory.
 
+    :param arch: the arch to use when looking for a QEMU binary (the target
+                 will match the arch given).  If None (the default), arch
+                 will be the current host system arch (as given by
+                 :func:`os.uname`).
+    :type arch: str
     :returns: the path to the default QEMU binary or None if one could not
               be found
     :rtype: str or None
     """
-    arch = os.uname()[4]
+    if arch is None:
+        arch = os.uname()[4]
     qemu_bin_relative_path = os.path.join("%s-softmmu" % arch,
                                           "qemu-system-%s" % arch)
     if is_readable_executable_file(qemu_bin_relative_path):
@@ -47,8 +53,10 @@ def pick_default_qemu_bin():
 class Test(avocado.Test):
     def setUp(self):
         self._vms = {}
+        self.arch = self.params.get('arch')
+        default_qemu_bin = pick_default_qemu_bin(arch=self.arch)
         self.qemu_bin = self.params.get('qemu_bin',
-                                        default=pick_default_qemu_bin())
+                                        default=default_qemu_bin)
         if self.qemu_bin is None:
             self.cancel("No QEMU binary defined or found in the source tree")
 
