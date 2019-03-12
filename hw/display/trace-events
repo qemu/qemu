@@ -140,5 +140,5 @@ sii9022_write_reg(uint8_t addr, uint8_t val) "addr 0x%02x, val 0x%02x"
 sii9022_switch_mode(const char *mode) "mode: %s"
 
 # hw/display/ati*.c
-ati_mm_read(unsigned int size, uint64_t addr, const char *name, uint64_t val) "%u 0x%"HWADDR_PRIx " %s -> 0x%"PRIx64
-ati_mm_write(unsigned int size, uint64_t addr, const char *name, uint64_t val) "%u 0x%"HWADDR_PRIx " %s <- 0x%"PRIx64
+ati_mm_read(unsigned int size, uint64_t addr, const char *name, uint64_t val) "%u 0x%"PRIx64 " %s -> 0x%"PRIx64
+ati_mm_write(unsigned int size, uint64_t addr, const char *name, uint64_t val) "%u 0x%"PRIx64 " %s <- 0x%"PRIx64
