@@ -15,6 +15,10 @@
 #include "libqos/qgraph.h"
 #include "libqos/virtio-net.h"
 
+#ifndef ETH_P_RARP
+#define ETH_P_RARP 0x8035
+#endif
+
 #define PCI_SLOT_HP             0x06
 #define PCI_SLOT                0x04
 
@@ -168,6 +172,31 @@ static void hotplug(void *obj, void *data, QGuestAllocator *t_alloc)
     }
 }
 
+static void announce_self(void *obj, void *data, QGuestAllocator *t_alloc)
+{
+    int *sv = data;
+    char buffer[60];
+    int len;
+    QDict *rsp;
+    int ret;
+    uint16_t *proto = (uint16_t *)&buffer[12];
+
+    rsp = qmp("{ 'execute' : 'announce-self', "
+                  " 'arguments': {"
+                      " 'initial': 50, 'max': 550,"
+                      " 'rounds': 10, 'step': 50 } }");
+    assert(!qdict_haskey(rsp, "error"));
+    qobject_unref(rsp);
+
+    /* Catch the packet and make sure it's a RARP */
+    ret = qemu_recv(sv[0], &len, sizeof(len), 0);
+    g_assert_cmpint(ret, ==,  sizeof(len));
+    len = ntohl(len);
+
+    ret = qemu_recv(sv[0], buffer, len, 0);
+    g_assert_cmpint(*proto, ==, htons(ETH_P_RARP));
+}
+
 static void virtio_net_test_cleanup(void *sockets)
 {
     int *sv = sockets;
@@ -233,6 +262,7 @@ static void register_virtio_net_test(void)
     qos_add_test("basic", "virtio-net", send_recv_test, &opts);
     qos_add_test("rx_stop_cont", "virtio-net", stop_cont_test, &opts);
 #endif
+    qos_add_test("announce-self", "virtio-net", announce_self, &opts);
 
     /* These tests do not need a loopback backend.  */
     opts.before = virtio_net_test_setup_nosocket;
