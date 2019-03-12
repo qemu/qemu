@@ -1510,16 +1510,16 @@ NBDExport *nbd_export_new(BlockDriverState *bs, uint64_t dev_offset,
             goto fail;
         }
 
+        if (bdrv_dirty_bitmap_user_locked(bm)) {
+            error_setg(errp, "Bitmap '%s' is in use", bitmap);
+            goto fail;
+        }
+
         if ((nbdflags & NBD_FLAG_READ_ONLY) && bdrv_is_writable(bs) &&
             bdrv_dirty_bitmap_enabled(bm)) {
             error_setg(errp,
                        "Enabled bitmap '%s' incompatible with readonly export",
                        bitmap);
-            goto fail;
-        }
-
-        if (bdrv_dirty_bitmap_user_locked(bm)) {
-            error_setg(errp, "Bitmap '%s' is in use", bitmap);
             goto fail;
         }
 
