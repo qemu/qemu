@@ -15,15 +15,17 @@ from avocado_qemu import Test
 
 class BootLinuxConsole(Test):
     """
-    Boots a x86_64 Linux kernel and checks that the console is operational
-    and the kernel command line is properly passed from QEMU to the kernel
-
-    :avocado: tags=arch:x86_64
+    Boots a Linux kernel and checks that the console is operational and the
+    kernel command line is properly passed from QEMU to the kernel
     """
 
     timeout = 60
 
-    def test(self):
+    def test_x86_64_pc(self):
+        """
+        :avocado: tags=arch:x86_64
+        :avocado: tags=machine:pc
+        """
         kernel_url = ('https://mirrors.kernel.org/fedora/releases/28/'
                       'Everything/x86_64/os/images/pxeboot/vmlinuz')
         kernel_hash = '238e083e114c48200f80d889f7e32eeb2793e02a'
