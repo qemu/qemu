@@ -44,11 +44,18 @@ static void check_guest_memory(QTestState *qts)
 
 static void test_machine(const void *machine)
 {
-    const char *extra_args;
+    const char *extra_args = "";
     QTestState *qts;
 
-    /* The pseries firmware boots much faster without the default devices */
-    extra_args = strcmp(machine, "pseries") == 0 ? "-nodefaults" : "";
+    /*
+     * The pseries firmware boots much faster without the default
+     * devices, it also needs Spectre/Meltdown workarounds disabled to
+     * avoid warnings with TCG
+     */
+    if (strcmp(machine, "pseries") == 0) {
+        extra_args = "-nodefaults"
+            " -machine cap-cfpc=broken,cap-sbbc=broken,cap-ibs=broken";
+    }
 
     qts = qtest_initf("-M %s,accel=tcg %s -prom-env 'use-nvramrc?=true' "
                       "-prom-env 'nvramrc=%x %x l!' ", (const char *)machine,

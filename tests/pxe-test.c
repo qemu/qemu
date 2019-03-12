@@ -25,6 +25,7 @@ static char disk[] = "tests/pxe-test-disk-XXXXXX";
 typedef struct testdef {
     const char *machine;    /* Machine type */
     const char *model;      /* NIC device model */
+    const char *extra;      /* Any additional parameters */
 } testdef_t;
 
 static testdef_t x86_tests[] = {
@@ -44,13 +45,16 @@ static testdef_t x86_tests_slow[] = {
 };
 
 static testdef_t ppc64_tests[] = {
-    { "pseries", "spapr-vlan" },
-    { "pseries", "virtio-net-pci", },
+    { "pseries", "spapr-vlan",
+      "-machine cap-cfpc=broken,cap-sbbc=broken,cap-ibs=broken" },
+    { "pseries", "virtio-net-pci",
+      "-machine cap-cfpc=broken,cap-sbbc=broken,cap-ibs=broken" },
     { NULL },
 };
 
 static testdef_t ppc64_tests_slow[] = {
-    { "pseries", "e1000" },
+    { "pseries", "e1000",
+      "-machine cap-cfpc=broken,cap-sbbc=broken,cap-ibs=broken" },
     { NULL },
 };
 
@@ -63,13 +67,18 @@ static void test_pxe_one(const testdef_t *test, bool ipv6)
 {
     QTestState *qts;
     char *args;
+    const char *extra = test->extra;
+
+    if (!extra) {
+        extra = "";
+    }
 
     args = g_strdup_printf(
         "-machine %s,accel=kvm:tcg -nodefaults -boot order=n "
         "-netdev user,id=" NETNAME ",tftp=./,bootfile=%s,ipv4=%s,ipv6=%s "
-        "-device %s,bootindex=1,netdev=" NETNAME,
+        "-device %s,bootindex=1,netdev=" NETNAME " %s",
         test->machine, disk, ipv6 ? "off" : "on", ipv6 ? "on" : "off",
-        test->model);
+        test->model, extra);
 
     qts = qtest_init(args);
     boot_sector_test(qts);
