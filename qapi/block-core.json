@@ -451,10 +451,15 @@
 #          recording new writes. If the bitmap was @disabled, it is not
 #          recording new writes. (Since 2.12)
 #
+# @inconsistent: This is a persistent dirty bitmap that was marked in-use on
+#                disk, and is unusable by QEMU. It can only be deleted.
+#                Please rely on the inconsistent field in @BlockDirtyInfo
+#                instead, as the status field is deprecated. (Since 4.0)
+#
 # Since: 2.4
 ##
 { 'enum': 'DirtyBitmapStatus',
-  'data': ['active', 'disabled', 'frozen', 'locked'] }
+  'data': ['active', 'disabled', 'frozen', 'locked', 'inconsistent'] }
 
 ##
 # @BlockDirtyInfo:

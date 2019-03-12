@@ -210,10 +210,15 @@ bool bdrv_dirty_bitmap_enabled(BdrvDirtyBitmap *bitmap)
  *               or it can be Disabled and not recording writes.
  * (4) Locked:   Whether Active or Disabled, the user cannot modify this bitmap
  *               in any way from the monitor.
+ * (5) Inconsistent: This is a persistent bitmap whose "in use" bit is set, and
+ *                   is unusable by QEMU. It can be deleted to remove it from
+ *                   the qcow2.
  */
 DirtyBitmapStatus bdrv_dirty_bitmap_status(BdrvDirtyBitmap *bitmap)
 {
-    if (bdrv_dirty_bitmap_has_successor(bitmap)) {
+    if (bdrv_dirty_bitmap_inconsistent(bitmap)) {
+        return DIRTY_BITMAP_STATUS_INCONSISTENT;
+    } else if (bdrv_dirty_bitmap_has_successor(bitmap)) {
         return DIRTY_BITMAP_STATUS_FROZEN;
     } else if (bdrv_dirty_bitmap_busy(bitmap)) {
         return DIRTY_BITMAP_STATUS_LOCKED;
