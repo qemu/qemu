@@ -32,7 +32,7 @@
 
 #include <libfdt.h>
 
-enum sPAPRTCEAccess {
+enum SpaprTceAccess {
     SPAPR_TCE_FAULT = 0,
     SPAPR_TCE_RO = 1,
     SPAPR_TCE_WO = 2,
@@ -42,11 +42,11 @@ enum sPAPRTCEAccess {
 #define IOMMU_PAGE_SIZE(shift)      (1ULL << (shift))
 #define IOMMU_PAGE_MASK(shift)      (~(IOMMU_PAGE_SIZE(shift) - 1))
 
-static QLIST_HEAD(, sPAPRTCETable) spapr_tce_tables;
+static QLIST_HEAD(, SpaprTceTable) spapr_tce_tables;
 
-sPAPRTCETable *spapr_tce_find_by_liobn(target_ulong liobn)
+SpaprTceTable *spapr_tce_find_by_liobn(target_ulong liobn)
 {
-    sPAPRTCETable *tcet;
+    SpaprTceTable *tcet;
 
     if (liobn & 0xFFFFFFFF00000000ULL) {
         hcall_dprintf("Request for out-of-bounds LIOBN 0x" TARGET_FMT_lx "\n",
@@ -115,7 +115,7 @@ static IOMMUTLBEntry spapr_tce_translate_iommu(IOMMUMemoryRegion *iommu,
                                                IOMMUAccessFlags flag,
                                                int iommu_idx)
 {
-    sPAPRTCETable *tcet = container_of(iommu, sPAPRTCETable, iommu);
+    SpaprTceTable *tcet = container_of(iommu, SpaprTceTable, iommu);
     uint64_t tce;
     IOMMUTLBEntry ret = {
         .target_as = &address_space_memory,
@@ -141,9 +141,39 @@ static IOMMUTLBEntry spapr_tce_translate_iommu(IOMMUMemoryRegion *iommu,
     return ret;
 }
 
+static void spapr_tce_replay(IOMMUMemoryRegion *iommu_mr, IOMMUNotifier *n)
+{
+    MemoryRegion *mr = MEMORY_REGION(iommu_mr);
+    IOMMUMemoryRegionClass *imrc = IOMMU_MEMORY_REGION_GET_CLASS(iommu_mr);
+    hwaddr addr, granularity;
+    IOMMUTLBEntry iotlb;
+    SpaprTceTable *tcet = container_of(iommu_mr, SpaprTceTable, iommu);
+
+    if (tcet->skipping_replay) {
+        return;
+    }
+
+    granularity = memory_region_iommu_get_min_page_size(iommu_mr);
+
+    for (addr = 0; addr < memory_region_size(mr); addr += granularity) {
+        iotlb = imrc->translate(iommu_mr, addr, IOMMU_NONE, n->iommu_idx);
+        if (iotlb.perm != IOMMU_NONE) {
+            n->notify(n, &iotlb);
+        }
+
+        /*
+         * if (2^64 - MR size) < granularity, it's possible to get an
+         * infinite loop here.  This should catch such a wraparound.
+         */
+        if ((addr + granularity) < addr) {
+            break;
+        }
+    }
+}
+
 static int spapr_tce_table_pre_save(void *opaque)
 {
-    sPAPRTCETable *tcet = SPAPR_TCE_TABLE(opaque);
+    SpaprTceTable *tcet = SPAPR_TCE_TABLE(opaque);
 
     tcet->mig_table = tcet->table;
     tcet->mig_nb_table = tcet->nb_table;
@@ -156,7 +186,7 @@ static int spapr_tce_table_pre_save(void *opaque)
 
 static uint64_t spapr_tce_get_min_page_size(IOMMUMemoryRegion *iommu)
 {
-    sPAPRTCETable *tcet = container_of(iommu, sPAPRTCETable, iommu);
+    SpaprTceTable *tcet = container_of(iommu, SpaprTceTable, iommu);
 
     return 1ULL << tcet->page_shift;
 }
@@ -164,7 +194,7 @@ static uint64_t spapr_tce_get_min_page_size(IOMMUMemoryRegion *iommu)
 static int spapr_tce_get_attr(IOMMUMemoryRegion *iommu,
                               enum IOMMUMemoryRegionAttr attr, void *data)
 {
-    sPAPRTCETable *tcet = container_of(iommu, sPAPRTCETable, iommu);
+    SpaprTceTable *tcet = container_of(iommu, SpaprTceTable, iommu);
 
     if (attr == IOMMU_ATTR_SPAPR_TCE_FD && kvmppc_has_cap_spapr_vfio()) {
         *(int *) data = tcet->fd;
@@ -178,7 +208,7 @@ static void spapr_tce_notify_flag_changed(IOMMUMemoryRegion *iommu,
                                           IOMMUNotifierFlag old,
                                           IOMMUNotifierFlag new)
 {
-    struct sPAPRTCETable *tbl = container_of(iommu, sPAPRTCETable, iommu);
+    struct SpaprTceTable *tbl = container_of(iommu, SpaprTceTable, iommu);
 
     if (old == IOMMU_NOTIFIER_NONE && new != IOMMU_NOTIFIER_NONE) {
         spapr_tce_set_need_vfio(tbl, true);
@@ -189,7 +219,7 @@ static void spapr_tce_notify_flag_changed(IOMMUMemoryRegion *iommu,
 
 static int spapr_tce_table_post_load(void *opaque, int version_id)
 {
-    sPAPRTCETable *tcet = SPAPR_TCE_TABLE(opaque);
+    SpaprTceTable *tcet = SPAPR_TCE_TABLE(opaque);
     uint32_t old_nb_table = tcet->nb_table;
     uint64_t old_bus_offset = tcet->bus_offset;
     uint32_t old_page_shift = tcet->page_shift;
@@ -223,7 +253,7 @@ static int spapr_tce_table_post_load(void *opaque, int version_id)
 
 static bool spapr_tce_table_ex_needed(void *opaque)
 {
-    sPAPRTCETable *tcet = opaque;
+    SpaprTceTable *tcet = opaque;
 
     return tcet->bus_offset || tcet->page_shift != 0xC;
 }
@@ -234,8 +264,8 @@ static const VMStateDescription vmstate_spapr_tce_table_ex = {
     .minimum_version_id = 1,
     .needed = spapr_tce_table_ex_needed,
     .fields = (VMStateField[]) {
-        VMSTATE_UINT64(bus_offset, sPAPRTCETable),
-        VMSTATE_UINT32(page_shift, sPAPRTCETable),
+        VMSTATE_UINT64(bus_offset, SpaprTceTable),
+        VMSTATE_UINT32(page_shift, SpaprTceTable),
         VMSTATE_END_OF_LIST()
     },
 };
@@ -248,12 +278,12 @@ static const VMStateDescription vmstate_spapr_tce_table = {
     .post_load = spapr_tce_table_post_load,
     .fields      = (VMStateField []) {
         /* Sanity check */
-        VMSTATE_UINT32_EQUAL(liobn, sPAPRTCETable, NULL),
+        VMSTATE_UINT32_EQUAL(liobn, SpaprTceTable, NULL),
 
         /* IOMMU state */
-        VMSTATE_UINT32(mig_nb_table, sPAPRTCETable),
-        VMSTATE_BOOL(bypass, sPAPRTCETable),
-        VMSTATE_VARRAY_UINT32_ALLOC(mig_table, sPAPRTCETable, mig_nb_table, 0,
+        VMSTATE_UINT32(mig_nb_table, SpaprTceTable),
+        VMSTATE_BOOL(bypass, SpaprTceTable),
+        VMSTATE_VARRAY_UINT32_ALLOC(mig_table, SpaprTceTable, mig_nb_table, 0,
                                     vmstate_info_uint64, uint64_t),
 
         VMSTATE_END_OF_LIST()
@@ -266,7 +296,7 @@ static const VMStateDescription vmstate_spapr_tce_table = {
 
 static void spapr_tce_table_realize(DeviceState *dev, Error **errp)
 {
-    sPAPRTCETable *tcet = SPAPR_TCE_TABLE(dev);
+    SpaprTceTable *tcet = SPAPR_TCE_TABLE(dev);
     Object *tcetobj = OBJECT(tcet);
     gchar *tmp;
 
@@ -288,7 +318,7 @@ static void spapr_tce_table_realize(DeviceState *dev, Error **errp)
                      tcet);
 }
 
-void spapr_tce_set_need_vfio(sPAPRTCETable *tcet, bool need_vfio)
+void spapr_tce_set_need_vfio(SpaprTceTable *tcet, bool need_vfio)
 {
     size_t table_size = tcet->nb_table * sizeof(uint64_t);
     uint64_t *oldtable;
@@ -317,9 +347,9 @@ void spapr_tce_set_need_vfio(sPAPRTCETable *tcet, bool need_vfio)
     tcet->fd = newfd;
 }
 
-sPAPRTCETable *spapr_tce_new_table(DeviceState *owner, uint32_t liobn)
+SpaprTceTable *spapr_tce_new_table(DeviceState *owner, uint32_t liobn)
 {
-    sPAPRTCETable *tcet;
+    SpaprTceTable *tcet;
     gchar *tmp;
 
     if (spapr_tce_find_by_liobn(liobn)) {
@@ -341,7 +371,7 @@ sPAPRTCETable *spapr_tce_new_table(DeviceState *owner, uint32_t liobn)
     return tcet;
 }
 
-void spapr_tce_table_enable(sPAPRTCETable *tcet,
+void spapr_tce_table_enable(SpaprTceTable *tcet,
                             uint32_t page_shift, uint64_t bus_offset,
                             uint32_t nb_table)
 {
@@ -366,7 +396,7 @@ void spapr_tce_table_enable(sPAPRTCETable *tcet,
                                 MEMORY_REGION(&tcet->iommu));
 }
 
-void spapr_tce_table_disable(sPAPRTCETable *tcet)
+void spapr_tce_table_disable(SpaprTceTable *tcet)
 {
     if (!tcet->nb_table) {
         return;
@@ -385,7 +415,7 @@ void spapr_tce_table_disable(sPAPRTCETable *tcet)
 
 static void spapr_tce_table_unrealize(DeviceState *dev, Error **errp)
 {
-    sPAPRTCETable *tcet = SPAPR_TCE_TABLE(dev);
+    SpaprTceTable *tcet = SPAPR_TCE_TABLE(dev);
 
     vmstate_unregister(DEVICE(tcet), &vmstate_spapr_tce_table, tcet);
 
@@ -394,14 +424,14 @@ static void spapr_tce_table_unrealize(DeviceState *dev, Error **errp)
     spapr_tce_table_disable(tcet);
 }
 
-MemoryRegion *spapr_tce_get_iommu(sPAPRTCETable *tcet)
+MemoryRegion *spapr_tce_get_iommu(SpaprTceTable *tcet)
 {
     return &tcet->root;
 }
 
 static void spapr_tce_reset(DeviceState *dev)
 {
-    sPAPRTCETable *tcet = SPAPR_TCE_TABLE(dev);
+    SpaprTceTable *tcet = SPAPR_TCE_TABLE(dev);
     size_t table_size = tcet->nb_table * sizeof(uint64_t);
 
     if (tcet->nb_table) {
@@ -409,7 +439,7 @@ static void spapr_tce_reset(DeviceState *dev)
     }
 }
 
-static target_ulong put_tce_emu(sPAPRTCETable *tcet, target_ulong ioba,
+static target_ulong put_tce_emu(SpaprTceTable *tcet, target_ulong ioba,
                                 target_ulong tce)
 {
     IOMMUTLBEntry entry;
@@ -435,7 +465,7 @@ static target_ulong put_tce_emu(sPAPRTCETable *tcet, target_ulong ioba,
 }
 
 static target_ulong h_put_tce_indirect(PowerPCCPU *cpu,
-                                       sPAPRMachineState *spapr,
+                                       SpaprMachineState *spapr,
                                        target_ulong opcode, target_ulong *args)
 {
     int i;
@@ -445,7 +475,7 @@ static target_ulong h_put_tce_indirect(PowerPCCPU *cpu,
     target_ulong tce_list = args[2];
     target_ulong npages = args[3];
     target_ulong ret = H_PARAMETER, tce = 0;
-    sPAPRTCETable *tcet = spapr_tce_find_by_liobn(liobn);
+    SpaprTceTable *tcet = spapr_tce_find_by_liobn(liobn);
     CPUState *cs = CPU(cpu);
     hwaddr page_mask, page_size;
 
@@ -480,7 +510,7 @@ static target_ulong h_put_tce_indirect(PowerPCCPU *cpu,
     return ret;
 }
 
-static target_ulong h_stuff_tce(PowerPCCPU *cpu, sPAPRMachineState *spapr,
+static target_ulong h_stuff_tce(PowerPCCPU *cpu, SpaprMachineState *spapr,
                               target_ulong opcode, target_ulong *args)
 {
     int i;
@@ -489,7 +519,7 @@ static target_ulong h_stuff_tce(PowerPCCPU *cpu, sPAPRMachineState *spapr,
     target_ulong tce_value = args[2];
     target_ulong npages = args[3];
     target_ulong ret = H_PARAMETER;
-    sPAPRTCETable *tcet = spapr_tce_find_by_liobn(liobn);
+    SpaprTceTable *tcet = spapr_tce_find_by_liobn(liobn);
     hwaddr page_mask, page_size;
 
     if (!tcet) {
@@ -519,14 +549,14 @@ static target_ulong h_stuff_tce(PowerPCCPU *cpu, sPAPRMachineState *spapr,
     return ret;
 }
 
-static target_ulong h_put_tce(PowerPCCPU *cpu, sPAPRMachineState *spapr,
+static target_ulong h_put_tce(PowerPCCPU *cpu, SpaprMachineState *spapr,
                               target_ulong opcode, target_ulong *args)
 {
     target_ulong liobn = args[0];
     target_ulong ioba = args[1];
     target_ulong tce = args[2];
     target_ulong ret = H_PARAMETER;
-    sPAPRTCETable *tcet = spapr_tce_find_by_liobn(liobn);
+    SpaprTceTable *tcet = spapr_tce_find_by_liobn(liobn);
 
     if (tcet) {
         hwaddr page_mask = IOMMU_PAGE_MASK(tcet->page_shift);
@@ -544,7 +574,7 @@ static target_ulong h_put_tce(PowerPCCPU *cpu, sPAPRMachineState *spapr,
     return ret;
 }
 
-static target_ulong get_tce_emu(sPAPRTCETable *tcet, target_ulong ioba,
+static target_ulong get_tce_emu(SpaprTceTable *tcet, target_ulong ioba,
                                 target_ulong *tce)
 {
     unsigned long index = (ioba - tcet->bus_offset) >> tcet->page_shift;
@@ -560,14 +590,14 @@ static target_ulong get_tce_emu(sPAPRTCETable *tcet, target_ulong ioba,
     return H_SUCCESS;
 }
 
-static target_ulong h_get_tce(PowerPCCPU *cpu, sPAPRMachineState *spapr,
+static target_ulong h_get_tce(PowerPCCPU *cpu, SpaprMachineState *spapr,
                               target_ulong opcode, target_ulong *args)
 {
     target_ulong liobn = args[0];
     target_ulong ioba = args[1];
     target_ulong tce = 0;
     target_ulong ret = H_PARAMETER;
-    sPAPRTCETable *tcet = spapr_tce_find_by_liobn(liobn);
+    SpaprTceTable *tcet = spapr_tce_find_by_liobn(liobn);
 
     if (tcet) {
         hwaddr page_mask = IOMMU_PAGE_MASK(tcet->page_shift);
@@ -619,7 +649,7 @@ int spapr_dma_dt(void *fdt, int node_off, const char *propname,
 }
 
 int spapr_tcet_dma_dt(void *fdt, int node_off, const char *propname,
-                      sPAPRTCETable *tcet)
+                      SpaprTceTable *tcet)
 {
     if (!tcet) {
         return 0;
@@ -650,7 +680,7 @@ static void spapr_tce_table_class_init(ObjectClass *klass, void *data)
 static TypeInfo spapr_tce_table_info = {
     .name = TYPE_SPAPR_TCE_TABLE,
     .parent = TYPE_DEVICE,
-    .instance_size = sizeof(sPAPRTCETable),
+    .instance_size = sizeof(SpaprTceTable),
     .class_init = spapr_tce_table_class_init,
 };
 
@@ -659,6 +689,7 @@ static void spapr_iommu_memory_region_class_init(ObjectClass *klass, void *data)
     IOMMUMemoryRegionClass *imrc = IOMMU_MEMORY_REGION_CLASS(klass);
 
     imrc->translate = spapr_tce_translate_iommu;
+    imrc->replay = spapr_tce_replay;
     imrc->get_min_page_size = spapr_tce_get_min_page_size;
     imrc->notify_flag_changed = spapr_tce_notify_flag_changed;
     imrc->get_attr = spapr_tce_get_attr;

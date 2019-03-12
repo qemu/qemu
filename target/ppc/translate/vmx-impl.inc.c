@@ -10,13 +10,8 @@
 static inline TCGv_ptr gen_avr_ptr(int reg)
 {
     TCGv_ptr r = tcg_temp_new_ptr();
-    tcg_gen_addi_ptr(r, cpu_env, offsetof(CPUPPCState, vsr[32 + reg].u64[0]));
+    tcg_gen_addi_ptr(r, cpu_env, avr_full_offset(reg));
     return r;
-}
-
-static inline long avr64_offset(int reg, bool high)
-{
-    return offsetof(CPUPPCState, vsr[32 + reg].u64[(high ? 0 : 1)]);
 }
 
 #define GEN_VR_LDX(name, opc2, opc3)                                          \
@@ -205,7 +200,7 @@ static void gen_mtvscr(DisasContext *ctx)
     }
 
     val = tcg_temp_new_i32();
-    bofs = avr64_offset(rB(ctx->opcode), true);
+    bofs = avr_full_offset(rB(ctx->opcode));
 #ifdef HOST_WORDS_BIGENDIAN
     bofs += 3 * 4;
 #endif
@@ -284,9 +279,9 @@ static void glue(gen_, name)(DisasContext *ctx)                         \
     }                                                                   \
                                                                         \
     tcg_op(vece,                                                        \
-           avr64_offset(rD(ctx->opcode), true),                         \
-           avr64_offset(rA(ctx->opcode), true),                         \
-           avr64_offset(rB(ctx->opcode), true),                         \
+           avr_full_offset(rD(ctx->opcode)),                            \
+           avr_full_offset(rA(ctx->opcode)),                            \
+           avr_full_offset(rB(ctx->opcode)),                            \
            16, 16);                                                     \
 }
 
@@ -578,10 +573,10 @@ static void glue(gen_, NAME)(DisasContext *ctx)                         \
         gen_exception(ctx, POWERPC_EXCP_VPU);                           \
         return;                                                         \
     }                                                                   \
-    tcg_gen_gvec_4(avr64_offset(rD(ctx->opcode), true),                 \
+    tcg_gen_gvec_4(avr_full_offset(rD(ctx->opcode)),                    \
                    offsetof(CPUPPCState, vscr_sat),                     \
-                   avr64_offset(rA(ctx->opcode), true),                 \
-                   avr64_offset(rB(ctx->opcode), true),                 \
+                   avr_full_offset(rA(ctx->opcode)),                    \
+                   avr_full_offset(rB(ctx->opcode)),                    \
                    16, 16, &g);                                         \
 }
 
@@ -755,7 +750,7 @@ static void glue(gen_, name)(DisasContext *ctx)                         \
             return;                                                     \
         }                                                               \
         simm = SIMM5(ctx->opcode);                                      \
-        tcg_op(avr64_offset(rD(ctx->opcode), true), 16, 16, simm);      \
+        tcg_op(avr_full_offset(rD(ctx->opcode)), 16, 16, simm);         \
     }
 
 GEN_VXFORM_DUPI(vspltisb, tcg_gen_gvec_dup8i, 6, 12);
@@ -850,8 +845,8 @@ static void gen_vsplt(DisasContext *ctx, int vece)
     }
 
     uimm = UIMM5(ctx->opcode);
-    bofs = avr64_offset(rB(ctx->opcode), true);
-    dofs = avr64_offset(rD(ctx->opcode), true);
+    bofs = avr_full_offset(rB(ctx->opcode));
+    dofs = avr_full_offset(rD(ctx->opcode));
 
     /* Experimental testing shows that hardware masks the immediate.  */
     bofs += (uimm << vece) & 15;

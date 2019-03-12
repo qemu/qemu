@@ -1321,10 +1321,10 @@ uint32_t cpu_ppc_load_atbu (CPUPPCState *env);
 void cpu_ppc_store_atbl (CPUPPCState *env, uint32_t value);
 void cpu_ppc_store_atbu (CPUPPCState *env, uint32_t value);
 bool ppc_decr_clear_on_delivery(CPUPPCState *env);
-uint32_t cpu_ppc_load_decr (CPUPPCState *env);
-void cpu_ppc_store_decr (CPUPPCState *env, uint32_t value);
-uint32_t cpu_ppc_load_hdecr (CPUPPCState *env);
-void cpu_ppc_store_hdecr (CPUPPCState *env, uint32_t value);
+target_ulong cpu_ppc_load_decr(CPUPPCState *env);
+void cpu_ppc_store_decr(CPUPPCState *env, target_ulong value);
+target_ulong cpu_ppc_load_hdecr(CPUPPCState *env);
+void cpu_ppc_store_hdecr(CPUPPCState *env, target_ulong value);
 uint64_t cpu_ppc_load_purr (CPUPPCState *env);
 uint32_t cpu_ppc601_load_rtcl (CPUPPCState *env);
 uint32_t cpu_ppc601_load_rtcu (CPUPPCState *env);
@@ -2563,19 +2563,64 @@ static inline bool lsw_reg_in_range(int start, int nregs, int rx)
 }
 
 /* Accessors for FP, VMX and VSX registers */
+#if defined(HOST_WORDS_BIGENDIAN)
+#define VsrB(i) u8[i]
+#define VsrSB(i) s8[i]
+#define VsrH(i) u16[i]
+#define VsrSH(i) s16[i]
+#define VsrW(i) u32[i]
+#define VsrSW(i) s32[i]
+#define VsrD(i) u64[i]
+#define VsrSD(i) s64[i]
+#else
+#define VsrB(i) u8[15 - (i)]
+#define VsrSB(i) s8[15 - (i)]
+#define VsrH(i) u16[7 - (i)]
+#define VsrSH(i) s16[7 - (i)]
+#define VsrW(i) u32[3 - (i)]
+#define VsrSW(i) s32[3 - (i)]
+#define VsrD(i) u64[1 - (i)]
+#define VsrSD(i) s64[1 - (i)]
+#endif
+
+static inline int vsr64_offset(int i, bool high)
+{
+    return offsetof(CPUPPCState, vsr[i].VsrD(high ? 0 : 1));
+}
+
+static inline int vsr_full_offset(int i)
+{
+    return offsetof(CPUPPCState, vsr[i].u64[0]);
+}
+
+static inline int fpr_offset(int i)
+{
+    return vsr64_offset(i, true);
+}
+
 static inline uint64_t *cpu_fpr_ptr(CPUPPCState *env, int i)
 {
-    return &env->vsr[i].u64[0];
+    return (uint64_t *)((uintptr_t)env + fpr_offset(i));
 }
 
 static inline uint64_t *cpu_vsrl_ptr(CPUPPCState *env, int i)
 {
-    return &env->vsr[i].u64[1];
+    return (uint64_t *)((uintptr_t)env + vsr64_offset(i, false));
+}
+
+static inline long avr64_offset(int i, bool high)
+{
+    return vsr64_offset(i + 32, high);
+}
+
+static inline int avr_full_offset(int i)
+{
+    return vsr_full_offset(i + 32);
 }
 
 static inline ppc_avr_t *cpu_avr_ptr(CPUPPCState *env, int i)
 {
-    return &env->vsr[32 + i];
+    return (ppc_avr_t *)((uintptr_t)env + avr_full_offset(i));
 }
 
 void dump_mmu(FILE *f, fprintf_function cpu_fprintf, CPUPPCState *env);

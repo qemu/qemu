@@ -25,6 +25,8 @@
 #include "hw/ppc/pnv_lpc.h"
 #include "hw/ppc/pnv_psi.h"
 #include "hw/ppc/pnv_occ.h"
+#include "hw/ppc/pnv_xive.h"
+#include "hw/ppc/pnv_core.h"
 
 #define TYPE_PNV_CHIP "pnv-chip"
 #define PNV_CHIP(obj) OBJECT_CHECK(PnvChip, (obj), TYPE_PNV_CHIP)
@@ -57,6 +59,8 @@ typedef struct PnvChip {
     MemoryRegion xscom_mmio;
     MemoryRegion xscom;
     AddressSpace xscom_as;
+
+    gchar        *dt_isa_nodename;
 } PnvChip;
 
 #define TYPE_PNV8_CHIP "pnv8-chip"
@@ -70,7 +74,7 @@ typedef struct Pnv8Chip {
     MemoryRegion icp_mmio;
 
     PnvLpcController lpc;
-    PnvPsi       psi;
+    Pnv8Psi      psi;
     PnvOCC       occ;
 } Pnv8Chip;
 
@@ -82,6 +86,13 @@ typedef struct Pnv9Chip {
     PnvChip      parent_obj;
 
     /*< public >*/
+    PnvXive      xive;
+    Pnv9Psi      psi;
+    PnvLpcController lpc;
+    PnvOCC       occ;
+
+    uint32_t     nr_quads;
+    PnvQuad      *quads;
 } Pnv9Chip;
 
 typedef struct PnvChipClass {
@@ -100,6 +111,8 @@ typedef struct PnvChipClass {
     uint32_t (*core_pir)(PnvChip *chip, uint32_t core_id);
     void (*intc_create)(PnvChip *chip, PowerPCCPU *cpu, Error **errp);
     ISABus *(*isa_create)(PnvChip *chip, Error **errp);
+    void (*dt_populate)(PnvChip *chip, void *fdt);
+    void (*pic_print_info)(PnvChip *chip, Monitor *mon);
 } PnvChipClass;
 
 #define PNV_CHIP_TYPE_SUFFIX "-" TYPE_PNV_CHIP
@@ -214,5 +227,32 @@ void pnv_bmc_powerdown(IPMIBmc *bmc);
 #define PNV_PSIHB_FSP_BASE(chip) \
     (0x0003ffe000000000ull + (uint64_t)PNV_CHIP_INDEX(chip) * \
      PNV_PSIHB_FSP_SIZE)
+
+/*
+ * POWER9 MMIO base addresses
+ */
+#define PNV9_CHIP_BASE(chip, base)   \
+    ((base) + ((uint64_t) (chip)->chip_id << 42))
+
+#define PNV9_XIVE_VC_SIZE            0x0000008000000000ull
+#define PNV9_XIVE_VC_BASE(chip)      PNV9_CHIP_BASE(chip, 0x0006010000000000ull)
+
+#define PNV9_XIVE_PC_SIZE            0x0000001000000000ull
+#define PNV9_XIVE_PC_BASE(chip)      PNV9_CHIP_BASE(chip, 0x0006018000000000ull)
+
+#define PNV9_LPCM_SIZE               0x0000000100000000ull
+#define PNV9_LPCM_BASE(chip)         PNV9_CHIP_BASE(chip, 0x0006030000000000ull)
+
+#define PNV9_PSIHB_SIZE              0x0000000000100000ull
+#define PNV9_PSIHB_BASE(chip)        PNV9_CHIP_BASE(chip, 0x0006030203000000ull)
+
+#define PNV9_XIVE_IC_SIZE            0x0000000000080000ull
+#define PNV9_XIVE_IC_BASE(chip)      PNV9_CHIP_BASE(chip, 0x0006030203100000ull)
+
+#define PNV9_XIVE_TM_SIZE            0x0000000000040000ull
+#define PNV9_XIVE_TM_BASE(chip)      PNV9_CHIP_BASE(chip, 0x0006030203180000ull)
+
+#define PNV9_PSIHB_ESB_SIZE          0x0000000000010000ull
+#define PNV9_PSIHB_ESB_BASE(chip)    PNV9_CHIP_BASE(chip, 0x00060302031c0000ull)
 
 #endif /* _PPC_PNV_H */

@@ -64,11 +64,21 @@ static uint64_t xscom_read_default(PnvChip *chip, uint32_t pcba)
     switch (pcba) {
     case 0xf000f:
         return PNV_CHIP_GET_CLASS(chip)->chip_cfam_id;
+    case 0x18002:       /* ECID2 */
+        return 0;
+
     case 0x1010c00:     /* PIBAM FIR */
     case 0x1010c03:     /* PIBAM FIR MASK */
-    case 0x2020007:     /* ADU stuff */
-    case 0x2020009:     /* ADU stuff */
-    case 0x202000f:     /* ADU stuff */
+
+        /* P9 xscom reset */
+    case 0x0090018:     /* Receive status reg */
+    case 0x0090012:     /* log register */
+    case 0x0090013:     /* error register */
+
+        /* P8 xscom reset */
+    case 0x2020007:     /* ADU stuff, log register */
+    case 0x2020009:     /* ADU stuff, error register */
+    case 0x202000f:     /* ADU stuff, receive status register*/
         return 0;
     case 0x2013f00:     /* PBA stuff */
     case 0x2013f01:     /* PBA stuff */
@@ -100,9 +110,20 @@ static bool xscom_write_default(PnvChip *chip, uint32_t pcba, uint64_t val)
     case 0x1010c03:     /* PIBAM FIR MASK */
     case 0x1010c04:     /* PIBAM FIR MASK */
     case 0x1010c05:     /* PIBAM FIR MASK */
-    case 0x2020007:     /* ADU stuff */
-    case 0x2020009:     /* ADU stuff */
-    case 0x202000f:     /* ADU stuff */
+        /* P9 xscom reset */
+    case 0x0090018:     /* Receive status reg */
+    case 0x0090012:     /* log register */
+    case 0x0090013:     /* error register */
+
+        /* P8 xscom reset */
+    case 0x2020007:     /* ADU stuff, log register */
+    case 0x2020009:     /* ADU stuff, error register */
+    case 0x202000f:     /* ADU stuff, receive status register*/
+
+    case 0x2013028:     /* CAPP stuff */
+    case 0x201302a:     /* CAPP stuff */
+    case 0x2013801:     /* CAPP stuff */
+    case 0x2013802:     /* CAPP stuff */
         return true;
     default:
         return false;

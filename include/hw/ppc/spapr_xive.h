@@ -13,9 +13,9 @@
 #include "hw/ppc/xive.h"
 
 #define TYPE_SPAPR_XIVE "spapr-xive"
-#define SPAPR_XIVE(obj) OBJECT_CHECK(sPAPRXive, (obj), TYPE_SPAPR_XIVE)
+#define SPAPR_XIVE(obj) OBJECT_CHECK(SpaprXive, (obj), TYPE_SPAPR_XIVE)
 
-typedef struct sPAPRXive {
+typedef struct SpaprXive {
     XiveRouter    parent;
 
     /* Internal interrupt source for IPIs and virtual devices */
@@ -38,16 +38,16 @@ typedef struct sPAPRXive {
     /* TIMA mapping address */
     hwaddr        tm_base;
     MemoryRegion  tm_mmio;
-} sPAPRXive;
+} SpaprXive;
 
-bool spapr_xive_irq_claim(sPAPRXive *xive, uint32_t lisn, bool lsi);
-bool spapr_xive_irq_free(sPAPRXive *xive, uint32_t lisn);
-void spapr_xive_pic_print_info(sPAPRXive *xive, Monitor *mon);
+bool spapr_xive_irq_claim(SpaprXive *xive, uint32_t lisn, bool lsi);
+bool spapr_xive_irq_free(SpaprXive *xive, uint32_t lisn);
+void spapr_xive_pic_print_info(SpaprXive *xive, Monitor *mon);
 
-void spapr_xive_hcall_init(sPAPRMachineState *spapr);
-void spapr_dt_xive(sPAPRMachineState *spapr, uint32_t nr_servers, void *fdt,
+void spapr_xive_hcall_init(SpaprMachineState *spapr);
+void spapr_dt_xive(SpaprMachineState *spapr, uint32_t nr_servers, void *fdt,
                    uint32_t phandle);
 void spapr_xive_set_tctx_os_cam(XiveTCTX *tctx);
-void spapr_xive_mmio_set_enabled(sPAPRXive *xive, bool enable);
+void spapr_xive_mmio_set_enabled(SpaprXive *xive, bool enable);
 
 #endif /* PPC_SPAPR_XIVE_H */

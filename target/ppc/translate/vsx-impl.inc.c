@@ -1,54 +1,23 @@
 /***                           VSX extension                               ***/
 
-static inline void get_vsr(TCGv_i64 dst, int n)
-{
-    tcg_gen_ld_i64(dst, cpu_env, offsetof(CPUPPCState, vsr[n].u64[1]));
-}
-
-static inline void set_vsr(int n, TCGv_i64 src)
-{
-    tcg_gen_st_i64(src, cpu_env, offsetof(CPUPPCState, vsr[n].u64[1]));
-}
-
-static inline int vsr_full_offset(int n)
-{
-    return offsetof(CPUPPCState, vsr[n].u64[0]);
-}
-
 static inline void get_cpu_vsrh(TCGv_i64 dst, int n)
 {
-    if (n < 32) {
-        get_fpr(dst, n);
-    } else {
-        get_avr64(dst, n - 32, true);
-    }
+    tcg_gen_ld_i64(dst, cpu_env, vsr64_offset(n, true));
 }
 
 static inline void get_cpu_vsrl(TCGv_i64 dst, int n)
 {
-    if (n < 32) {
-        get_vsr(dst, n);
-    } else {
-        get_avr64(dst, n - 32, false);
-    }
+    tcg_gen_ld_i64(dst, cpu_env, vsr64_offset(n, false));
 }
 
 static inline void set_cpu_vsrh(int n, TCGv_i64 src)
 {
-    if (n < 32) {
-        set_fpr(n, src);
-    } else {
-        set_avr64(n - 32, src, true);
-    }
+    tcg_gen_st_i64(src, cpu_env, vsr64_offset(n, true));
 }
 
 static inline void set_cpu_vsrl(int n, TCGv_i64 src)
 {
-    if (n < 32) {
-        set_vsr(n, src);
-    } else {
-        set_avr64(n - 32, src, false);
-    }
+    tcg_gen_st_i64(src, cpu_env, vsr64_offset(n, false));
 }
 
 #define VSX_LOAD_SCALAR(name, operation)                      \
@@ -1618,8 +1587,7 @@ static void gen_xsxsigdp(DisasContext *ctx)
     tcg_gen_movcond_i64(TCG_COND_EQ, t0, exp, zr, zr, t0);
     tcg_gen_movcond_i64(TCG_COND_EQ, t0, exp, nan, zr, t0);
     get_cpu_vsrh(t1, xB(ctx->opcode));
-    tcg_gen_andi_i64(rt, t1, 0x000FFFFFFFFFFFFF);
-    tcg_gen_or_i64(rt, rt, t0);
+    tcg_gen_deposit_i64(rt, t0, t1, 0, 52);
 
     tcg_temp_free_i64(t0);
     tcg_temp_free_i64(t1);
@@ -1655,8 +1623,7 @@ static void gen_xsxsigqp(DisasContext *ctx)
     tcg_gen_movi_i64(t0, 0x0001000000000000);
     tcg_gen_movcond_i64(TCG_COND_EQ, t0, exp, zr, zr, t0);
     tcg_gen_movcond_i64(TCG_COND_EQ, t0, exp, nan, zr, t0);
-    tcg_gen_andi_i64(xth, xbh, 0x0000FFFFFFFFFFFF);
-    tcg_gen_or_i64(xth, xth, t0);
+    tcg_gen_deposit_i64(xth, t0, xbh, 0, 48);
     set_cpu_vsrh(rD(ctx->opcode) + 32, xth);
     tcg_gen_mov_i64(xtl, xbl);
     set_cpu_vsrl(rD(ctx->opcode) + 32, xtl);
@@ -1726,7 +1693,6 @@ static void gen_xviexpdp(DisasContext *ctx)
     TCGv_i64 xal;
     TCGv_i64 xbh;
     TCGv_i64 xbl;
-    TCGv_i64 t0;
 
     if (unlikely(!ctx->vsx_enabled)) {
         gen_exception(ctx, POWERPC_EXCP_VSXU);
@@ -1742,20 +1708,13 @@ static void gen_xviexpdp(DisasContext *ctx)
     get_cpu_vsrl(xal, xA(ctx->opcode));
     get_cpu_vsrh(xbh, xB(ctx->opcode));
     get_cpu_vsrl(xbl, xB(ctx->opcode));
-    t0 = tcg_temp_new_i64();
 
-    tcg_gen_andi_i64(xth, xah, 0x800FFFFFFFFFFFFF);
-    tcg_gen_andi_i64(t0, xbh, 0x7FF);
-    tcg_gen_shli_i64(t0, t0, 52);
-    tcg_gen_or_i64(xth, xth, t0);
+    tcg_gen_deposit_i64(xth, xah, xbh, 52, 11);
     set_cpu_vsrh(xT(ctx->opcode), xth);
-    tcg_gen_andi_i64(xtl, xal, 0x800FFFFFFFFFFFFF);
-    tcg_gen_andi_i64(t0, xbl, 0x7FF);
-    tcg_gen_shli_i64(t0, t0, 52);
-    tcg_gen_or_i64(xtl, xtl, t0);
+
+    tcg_gen_deposit_i64(xtl, xal, xbl, 52, 11);
     set_cpu_vsrl(xT(ctx->opcode), xtl);
 
-    tcg_temp_free_i64(t0);
     tcg_temp_free_i64(xth);
     tcg_temp_free_i64(xtl);
     tcg_temp_free_i64(xah);
@@ -1853,16 +1812,14 @@ static void gen_xvxsigdp(DisasContext *ctx)
     tcg_gen_movi_i64(t0, 0x0010000000000000);
     tcg_gen_movcond_i64(TCG_COND_EQ, t0, exp, zr, zr, t0);
     tcg_gen_movcond_i64(TCG_COND_EQ, t0, exp, nan, zr, t0);
-    tcg_gen_andi_i64(xth, xbh, 0x000FFFFFFFFFFFFF);
-    tcg_gen_or_i64(xth, xth, t0);
+    tcg_gen_deposit_i64(xth, t0, xbh, 0, 52);
     set_cpu_vsrh(xT(ctx->opcode), xth);
 
     tcg_gen_extract_i64(exp, xbl, 52, 11);
     tcg_gen_movi_i64(t0, 0x0010000000000000);
     tcg_gen_movcond_i64(TCG_COND_EQ, t0, exp, zr, zr, t0);
     tcg_gen_movcond_i64(TCG_COND_EQ, t0, exp, nan, zr, t0);
-    tcg_gen_andi_i64(xtl, xbl, 0x000FFFFFFFFFFFFF);
-    tcg_gen_or_i64(xtl, xtl, t0);
+    tcg_gen_deposit_i64(xth, t0, xbl, 0, 52);
     set_cpu_vsrl(xT(ctx->opcode), xtl);
 
     tcg_temp_free_i64(t0);

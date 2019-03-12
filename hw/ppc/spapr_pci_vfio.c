@@ -28,12 +28,12 @@
 #include "qemu/error-report.h"
 #include "sysemu/qtest.h"
 
-bool spapr_phb_eeh_available(sPAPRPHBState *sphb)
+bool spapr_phb_eeh_available(SpaprPhbState *sphb)
 {
     return vfio_eeh_as_ok(&sphb->iommu_as);
 }
 
-static void spapr_phb_vfio_eeh_reenable(sPAPRPHBState *sphb)
+static void spapr_phb_vfio_eeh_reenable(SpaprPhbState *sphb)
 {
     vfio_eeh_as_op(&sphb->iommu_as, VFIO_EEH_PE_ENABLE);
 }
@@ -49,7 +49,7 @@ void spapr_phb_vfio_reset(DeviceState *qdev)
     spapr_phb_vfio_eeh_reenable(SPAPR_PCI_HOST_BRIDGE(qdev));
 }
 
-int spapr_phb_vfio_eeh_set_option(sPAPRPHBState *sphb,
+int spapr_phb_vfio_eeh_set_option(SpaprPhbState *sphb,
                                   unsigned int addr, int option)
 {
     uint32_t op;
@@ -96,7 +96,7 @@ int spapr_phb_vfio_eeh_set_option(sPAPRPHBState *sphb,
     return RTAS_OUT_SUCCESS;
 }
 
-int spapr_phb_vfio_eeh_get_state(sPAPRPHBState *sphb, int *state)
+int spapr_phb_vfio_eeh_get_state(SpaprPhbState *sphb, int *state)
 {
     int ret;
 
@@ -145,14 +145,14 @@ static void spapr_phb_vfio_eeh_clear_bus_msix(PCIBus *bus, void *opaque)
                            spapr_phb_vfio_eeh_clear_dev_msix, NULL);
 }
 
-static void spapr_phb_vfio_eeh_pre_reset(sPAPRPHBState *sphb)
+static void spapr_phb_vfio_eeh_pre_reset(SpaprPhbState *sphb)
 {
        PCIHostState *phb = PCI_HOST_BRIDGE(sphb);
 
        pci_for_each_bus(phb->bus, spapr_phb_vfio_eeh_clear_bus_msix, NULL);
 }
 
-int spapr_phb_vfio_eeh_reset(sPAPRPHBState *sphb, int option)
+int spapr_phb_vfio_eeh_reset(SpaprPhbState *sphb, int option)
 {
     uint32_t op;
     int ret;
@@ -181,7 +181,7 @@ int spapr_phb_vfio_eeh_reset(sPAPRPHBState *sphb, int option)
     return RTAS_OUT_SUCCESS;
 }
 
-int spapr_phb_vfio_eeh_configure(sPAPRPHBState *sphb)
+int spapr_phb_vfio_eeh_configure(SpaprPhbState *sphb)
 {
     int ret;
 

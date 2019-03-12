@@ -26,16 +26,16 @@
 
 static int spapr_phb_get_active_win_num_cb(Object *child, void *opaque)
 {
-    sPAPRTCETable *tcet;
+    SpaprTceTable *tcet;
 
-    tcet = (sPAPRTCETable *) object_dynamic_cast(child, TYPE_SPAPR_TCE_TABLE);
+    tcet = (SpaprTceTable *) object_dynamic_cast(child, TYPE_SPAPR_TCE_TABLE);
     if (tcet && tcet->nb_table) {
         ++*(unsigned *)opaque;
     }
     return 0;
 }
 
-static unsigned spapr_phb_get_active_win_num(sPAPRPHBState *sphb)
+static unsigned spapr_phb_get_active_win_num(SpaprPhbState *sphb)
 {
     unsigned ret = 0;
 
@@ -46,9 +46,9 @@ static unsigned spapr_phb_get_active_win_num(sPAPRPHBState *sphb)
 
 static int spapr_phb_get_free_liobn_cb(Object *child, void *opaque)
 {
-    sPAPRTCETable *tcet;
+    SpaprTceTable *tcet;
 
-    tcet = (sPAPRTCETable *) object_dynamic_cast(child, TYPE_SPAPR_TCE_TABLE);
+    tcet = (SpaprTceTable *) object_dynamic_cast(child, TYPE_SPAPR_TCE_TABLE);
     if (tcet && !tcet->nb_table) {
         *(uint32_t *)opaque = tcet->liobn;
         return 1;
@@ -56,7 +56,7 @@ static int spapr_phb_get_free_liobn_cb(Object *child, void *opaque)
     return 0;
 }
 
-static unsigned spapr_phb_get_free_liobn(sPAPRPHBState *sphb)
+static unsigned spapr_phb_get_free_liobn(SpaprPhbState *sphb)
 {
     uint32_t liobn = 0;
 
@@ -90,12 +90,12 @@ static uint32_t spapr_page_mask_to_query_mask(uint64_t page_mask)
 }
 
 static void rtas_ibm_query_pe_dma_window(PowerPCCPU *cpu,
-                                         sPAPRMachineState *spapr,
+                                         SpaprMachineState *spapr,
                                          uint32_t token, uint32_t nargs,
                                          target_ulong args,
                                          uint32_t nret, target_ulong rets)
 {
-    sPAPRPHBState *sphb;
+    SpaprPhbState *sphb;
     uint64_t buid;
     uint32_t avail, addr, pgmask = 0;
 
@@ -129,13 +129,13 @@ param_error_exit:
 }
 
 static void rtas_ibm_create_pe_dma_window(PowerPCCPU *cpu,
-                                          sPAPRMachineState *spapr,
+                                          SpaprMachineState *spapr,
                                           uint32_t token, uint32_t nargs,
                                           target_ulong args,
                                           uint32_t nret, target_ulong rets)
 {
-    sPAPRPHBState *sphb;
-    sPAPRTCETable *tcet = NULL;
+    SpaprPhbState *sphb;
+    SpaprTceTable *tcet = NULL;
     uint32_t addr, page_shift, window_shift, liobn;
     uint64_t buid, win_addr;
     int windows;
@@ -171,8 +171,18 @@ static void rtas_ibm_create_pe_dma_window(PowerPCCPU *cpu,
     }
 
     win_addr = (windows == 0) ? sphb->dma_win_addr : sphb->dma64_win_addr;
+    /*
+     * We have just created a window, we know for the fact that it is empty,
+     * use a hack to avoid iterating over the table as it is quite possible
+     * to have billions of TCEs, all empty.
+     * Note that we cannot delay this to the first H_PUT_TCE as this hcall is
+     * mostly likely to be handled in KVM so QEMU just does not know if it
+     * happened.
+     */
+    tcet->skipping_replay = true;
     spapr_tce_table_enable(tcet, page_shift, win_addr,
                            1ULL << (window_shift - page_shift));
+    tcet->skipping_replay = false;
     if (!tcet->nb_table) {
         goto hw_error_exit;
     }
@@ -196,13 +206,13 @@ param_error_exit:
 }
 
 static void rtas_ibm_remove_pe_dma_window(PowerPCCPU *cpu,
-                                          sPAPRMachineState *spapr,
+                                          SpaprMachineState *spapr,
                                           uint32_t token, uint32_t nargs,
                                           target_ulong args,
                                           uint32_t nret, target_ulong rets)
 {
-    sPAPRPHBState *sphb;
-    sPAPRTCETable *tcet;
+    SpaprPhbState *sphb;
+    SpaprTceTable *tcet;
     uint32_t liobn;
 
     if ((nargs != 1) || (nret != 1)) {
@@ -231,12 +241,12 @@ param_error_exit:
 }
 
 static void rtas_ibm_reset_pe_dma_window(PowerPCCPU *cpu,
-                                         sPAPRMachineState *spapr,
+                                         SpaprMachineState *spapr,
                                          uint32_t token, uint32_t nargs,
                                          target_ulong args,
                                          uint32_t nret, target_ulong rets)
 {
-    sPAPRPHBState *sphb;
+    SpaprPhbState *sphb;
     uint64_t buid;
     uint32_t addr;
 

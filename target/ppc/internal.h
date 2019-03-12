@@ -204,35 +204,16 @@ EXTRACT_HELPER(IMM8, 11, 8);
 EXTRACT_HELPER(DCMX, 16, 7);
 EXTRACT_HELPER_SPLIT_3(DCMX_XV, 5, 16, 0, 1, 2, 5, 1, 6, 6);
 
-#if defined(HOST_WORDS_BIGENDIAN)
-#define VsrB(i) u8[i]
-#define VsrSB(i) s8[i]
-#define VsrH(i) u16[i]
-#define VsrSH(i) s16[i]
-#define VsrW(i) u32[i]
-#define VsrSW(i) s32[i]
-#define VsrD(i) u64[i]
-#define VsrSD(i) s64[i]
-#else
-#define VsrB(i) u8[15 - (i)]
-#define VsrSB(i) s8[15 - (i)]
-#define VsrH(i) u16[7 - (i)]
-#define VsrSH(i) s16[7 - (i)]
-#define VsrW(i) u32[3 - (i)]
-#define VsrSW(i) s32[3 - (i)]
-#define VsrD(i) u64[1 - (i)]
-#define VsrSD(i) s64[1 - (i)]
-#endif
 static inline void getVSR(int n, ppc_vsr_t *vsr, CPUPPCState *env)
 {
-    vsr->VsrD(0) = env->vsr[n].u64[0];
-    vsr->VsrD(1) = env->vsr[n].u64[1];
+    vsr->VsrD(0) = env->vsr[n].VsrD(0);
+    vsr->VsrD(1) = env->vsr[n].VsrD(1);
 }
 
 static inline void putVSR(int n, ppc_vsr_t *vsr, CPUPPCState *env)
 {
-    env->vsr[n].u64[0] = vsr->VsrD(0);
-    env->vsr[n].u64[1] = vsr->VsrD(1);
+    env->vsr[n].VsrD(0) = vsr->VsrD(0);
+    env->vsr[n].VsrD(1) = vsr->VsrD(1);
 }
 
 void helper_compute_fprf_float16(CPUPPCState *env, float16 arg);
