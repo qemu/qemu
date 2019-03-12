@@ -630,6 +630,10 @@ static int mirror_exit_common(Job *job)
     }
     s->prepared = true;
 
+    if (bdrv_chain_contains(src, target_bs)) {
+        bdrv_unfreeze_backing_chain(mirror_top_bs, target_bs);
+    }
+
     bdrv_release_dirty_bitmap(src, s->dirty_bitmap);
 
     /* Make sure that the source BDS doesn't go away during bdrv_replace_node,
@@ -1638,6 +1642,10 @@ static void mirror_start_job(const char *job_id, BlockDriverState *bs,
             if (ret < 0) {
                 goto fail;
             }
+        }
+
+        if (bdrv_freeze_backing_chain(mirror_top_bs, target, errp) < 0) {
+            goto fail;
         }
     }
 
