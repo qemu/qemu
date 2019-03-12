@@ -21,6 +21,8 @@ class BootLinuxConsole(Test):
 
     timeout = 60
 
+    KERNEL_COMMON_COMMAND_LINE = 'printk.time=0 '
+
     def test_x86_64_pc(self):
         """
         :avocado: tags=arch:x86_64
@@ -33,7 +35,7 @@ class BootLinuxConsole(Test):
 
         self.vm.set_machine('pc')
         self.vm.set_console()
-        kernel_command_line = 'console=ttyS0'
+        kernel_command_line = self.KERNEL_COMMON_COMMAND_LINE + 'console=ttyS0'
         self.vm.add_args('-kernel', kernel_path,
                          '-append', kernel_command_line)
         self.vm.launch()
