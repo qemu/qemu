@@ -55,8 +55,9 @@ class BootLinuxConsole(Test):
         """
         cwd = os.getcwd()
         os.chdir(self.workdir)
-        process.run("ar x %s data.tar.gz" % deb)
-        archive.extract("data.tar.gz", self.workdir)
+        file_path = process.run("ar t %s" % deb).stdout_text.split()[2]
+        process.run("ar x %s %s" % (deb, file_path))
+        archive.extract(file_path, self.workdir)
         os.chdir(cwd)
         return self.workdir + path
 
