@@ -22,6 +22,7 @@
 #include "qemu/error-report.h"
 #include "sysemu/qtest.h"
 #include "hw/pci/pci.h"
+#include "hw/mem/nvdimm.h"
 
 GlobalProperty hw_compat_3_1[] = {
     { "pcie-root-port", "x-speed", "2_5" },
@@ -481,6 +482,47 @@ static void machine_set_memory_encryption(Object *obj, const char *value,
     ms->memory_encryption = g_strdup(value);
 }
 
+static bool machine_get_nvdimm(Object *obj, Error **errp)
+{
+    MachineState *ms = MACHINE(obj);
+
+    return ms->nvdimms_state->is_enabled;
+}
+
+static void machine_set_nvdimm(Object *obj, bool value, Error **errp)
+{
+    MachineState *ms = MACHINE(obj);
+
+    ms->nvdimms_state->is_enabled = value;
+}
+
+static char *machine_get_nvdimm_persistence(Object *obj, Error **errp)
+{
+    MachineState *ms = MACHINE(obj);
+
+    return g_strdup(ms->nvdimms_state->persistence_string);
+}
+
+static void machine_set_nvdimm_persistence(Object *obj, const char *value,
+                                           Error **errp)
+{
+    MachineState *ms = MACHINE(obj);
+    NVDIMMState *nvdimms_state = ms->nvdimms_state;
+
+    if (strcmp(value, "cpu") == 0) {
+        nvdimms_state->persistence = 3;
+    } else if (strcmp(value, "mem-ctrl") == 0) {
+        nvdimms_state->persistence = 2;
+    } else {
+        error_setg(errp, "-machine nvdimm-persistence=%s: unsupported option",
+                   value);
+        return;
+    }
+
+    g_free(nvdimms_state->persistence_string);
+    nvdimms_state->persistence_string = g_strdup(value);
+}
+
 void machine_class_allow_dynamic_sysbus_dev(MachineClass *mc, const char *type)
 {
     strList *item = g_new0(strList, 1);
@@ -791,6 +833,28 @@ static void machine_initfn(Object *obj)
     ms->mem_merge = true;
     ms->enable_graphics = true;
 
+    if (mc->nvdimm_supported) {
+        Object *obj = OBJECT(ms);
+
+        ms->nvdimms_state = g_new0(NVDIMMState, 1);
+        object_property_add_bool(obj, "nvdimm",
+                                 machine_get_nvdimm, machine_set_nvdimm,
+                                 &error_abort);
+        object_property_set_description(obj, "nvdimm",
+                                        "Set on/off to enable/disable "
+                                        "NVDIMM instantiation", NULL);
+
+        object_property_add_str(obj, "nvdimm-persistence",
+                                machine_get_nvdimm_persistence,
+                                machine_set_nvdimm_persistence,
+                                &error_abort);
+        object_property_set_description(obj, "nvdimm-persistence",
+                                        "Set NVDIMM persistence"
+                                        "Valid values are cpu, mem-ctrl",
+                                        NULL);
+    }
+
+
     /* Register notifier when init is done for sysbus sanity checks */
     ms->sysbus_notifier.notify = machine_init_notify;
     qemu_add_machine_init_done_notifier(&ms->sysbus_notifier);
@@ -809,6 +873,7 @@ static void machine_finalize(Object *obj)
     g_free(ms->dt_compatible);
     g_free(ms->firmware);
     g_free(ms->device_memory);
+    g_free(ms->nvdimms_state);
 }
 
 bool machine_usb(MachineState *machine)

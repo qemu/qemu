@@ -560,6 +560,11 @@ void os_mem_prealloc(int fd, char *area, size_t memory, int smp_cpus,
     }
 }
 
+uint64_t qemu_get_pmem_size(const char *filename, Error **errp)
+{
+    error_setg(errp, "pmem support not available");
+    return 0;
+}
 
 char *qemu_get_pid_name(pid_t pid)
 {
