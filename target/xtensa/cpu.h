@@ -298,6 +298,9 @@ typedef enum {
     INTTYPE_DEBUG,
     INTTYPE_WRITE_ERR,
     INTTYPE_PROFILING,
+    INTTYPE_IDMA_DONE,
+    INTTYPE_IDMA_ERR,
+    INTTYPE_GS_ERR,
     INTTYPE_MAX
 } interrupt_type;
 
