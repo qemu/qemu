@@ -1510,7 +1510,7 @@ NBDExport *nbd_export_new(BlockDriverState *bs, uint64_t dev_offset,
             goto fail;
         }
 
-        if (bdrv_dirty_bitmap_user_locked(bm)) {
+        if (bdrv_dirty_bitmap_busy(bm)) {
             error_setg(errp, "Bitmap '%s' is in use", bitmap);
             goto fail;
         }
@@ -1523,7 +1523,7 @@ NBDExport *nbd_export_new(BlockDriverState *bs, uint64_t dev_offset,
             goto fail;
         }
 
-        bdrv_dirty_bitmap_set_qmp_locked(bm, true);
+        bdrv_dirty_bitmap_set_busy(bm, true);
         exp->export_bitmap = bm;
         exp->export_bitmap_context = g_strdup_printf("qemu:dirty-bitmap:%s",
                                                      bitmap);
@@ -1641,7 +1641,7 @@ void nbd_export_put(NBDExport *exp)
         }
 
         if (exp->export_bitmap) {
-            bdrv_dirty_bitmap_set_qmp_locked(exp->export_bitmap, false);
+            bdrv_dirty_bitmap_set_busy(exp->export_bitmap, false);
             g_free(exp->export_bitmap_context);
         }
 

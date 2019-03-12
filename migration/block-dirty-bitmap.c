@@ -261,7 +261,7 @@ static void dirty_bitmap_mig_cleanup(void)
 
     while ((dbms = QSIMPLEQ_FIRST(&dirty_bitmap_mig_state.dbms_list)) != NULL) {
         QSIMPLEQ_REMOVE_HEAD(&dirty_bitmap_mig_state.dbms_list, entry);
-        bdrv_dirty_bitmap_set_qmp_locked(dbms->bitmap, false);
+        bdrv_dirty_bitmap_set_busy(dbms->bitmap, false);
         bdrv_unref(dbms->bs);
         g_free(dbms);
     }
@@ -301,7 +301,7 @@ static int init_dirty_bitmap_migration(void)
                 goto fail;
             }
 
-            if (bdrv_dirty_bitmap_user_locked(bitmap)) {
+            if (bdrv_dirty_bitmap_busy(bitmap)) {
                 error_report("Can't migrate a bitmap that is in use by another operation: '%s'",
                              bdrv_dirty_bitmap_name(bitmap));
                 goto fail;
@@ -314,7 +314,7 @@ static int init_dirty_bitmap_migration(void)
             }
 
             bdrv_ref(bs);
-            bdrv_dirty_bitmap_set_qmp_locked(bitmap, true);
+            bdrv_dirty_bitmap_set_busy(bitmap, true);
 
             dbms = g_new0(DirtyBitmapMigBitmapState, 1);
             dbms->bs = bs;

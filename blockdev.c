@@ -2011,7 +2011,7 @@ static void block_dirty_bitmap_clear_prepare(BlkActionState *common,
         return;
     }
 
-    if (bdrv_dirty_bitmap_user_locked(state->bitmap)) {
+    if (bdrv_dirty_bitmap_busy(state->bitmap)) {
         error_setg(errp, "Cannot modify a bitmap in use by another operation");
         return;
     } else if (bdrv_dirty_bitmap_readonly(state->bitmap)) {
@@ -2060,7 +2060,7 @@ static void block_dirty_bitmap_enable_prepare(BlkActionState *common,
         return;
     }
 
-    if (bdrv_dirty_bitmap_user_locked(state->bitmap)) {
+    if (bdrv_dirty_bitmap_busy(state->bitmap)) {
         error_setg(errp,
                    "Bitmap '%s' is currently in use by another operation"
                    " and cannot be enabled", action->name);
@@ -2101,7 +2101,7 @@ static void block_dirty_bitmap_disable_prepare(BlkActionState *common,
         return;
     }
 
-    if (bdrv_dirty_bitmap_user_locked(state->bitmap)) {
+    if (bdrv_dirty_bitmap_busy(state->bitmap)) {
         error_setg(errp,
                    "Bitmap '%s' is currently in use by another operation"
                    " and cannot be disabled", action->name);
@@ -2895,7 +2895,7 @@ void qmp_block_dirty_bitmap_remove(const char *node, const char *name,
         return;
     }
 
-    if (bdrv_dirty_bitmap_user_locked(bitmap)) {
+    if (bdrv_dirty_bitmap_busy(bitmap)) {
         error_setg(errp,
                    "Bitmap '%s' is currently in use by another operation and"
                    " cannot be removed", name);
@@ -2934,7 +2934,7 @@ void qmp_block_dirty_bitmap_clear(const char *node, const char *name,
         return;
     }
 
-    if (bdrv_dirty_bitmap_user_locked(bitmap)) {
+    if (bdrv_dirty_bitmap_busy(bitmap)) {
         error_setg(errp,
                    "Bitmap '%s' is currently in use by another operation"
                    " and cannot be cleared", name);
@@ -2958,7 +2958,7 @@ void qmp_block_dirty_bitmap_enable(const char *node, const char *name,
         return;
     }
 
-    if (bdrv_dirty_bitmap_user_locked(bitmap)) {
+    if (bdrv_dirty_bitmap_busy(bitmap)) {
         error_setg(errp,
                    "Bitmap '%s' is currently in use by another operation"
                    " and cannot be enabled", name);
@@ -2979,7 +2979,7 @@ void qmp_block_dirty_bitmap_disable(const char *node, const char *name,
         return;
     }
 
-    if (bdrv_dirty_bitmap_user_locked(bitmap)) {
+    if (bdrv_dirty_bitmap_busy(bitmap)) {
         error_setg(errp,
                    "Bitmap '%s' is currently in use by another operation"
                    " and cannot be disabled", name);
@@ -3561,7 +3561,7 @@ static BlockJob *do_drive_backup(DriveBackup *backup, JobTxn *txn,
             bdrv_unref(target_bs);
             goto out;
         }
-        if (bdrv_dirty_bitmap_user_locked(bmap)) {
+        if (bdrv_dirty_bitmap_busy(bmap)) {
             error_setg(errp,
                        "Bitmap '%s' is currently in use by another operation"
                        " and cannot be used for backup", backup->bitmap);
@@ -3674,7 +3674,7 @@ BlockJob *do_blockdev_backup(BlockdevBackup *backup, JobTxn *txn,
             error_setg(errp, "Bitmap '%s' could not be found", backup->bitmap);
             goto out;
         }
-        if (bdrv_dirty_bitmap_user_locked(bmap)) {
+        if (bdrv_dirty_bitmap_busy(bmap)) {
             error_setg(errp,
                        "Bitmap '%s' is currently in use by another operation"
                        " and cannot be used for backup", backup->bitmap);
