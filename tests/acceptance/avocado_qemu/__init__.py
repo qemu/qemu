@@ -27,6 +27,10 @@ def pick_default_qemu_bin():
     """
     Picks the path of a QEMU binary, starting either in the current working
     directory or in the source tree root directory.
+
+    :returns: the path to the default QEMU binary or None if one could not
+              be found
+    :rtype: str or None
     """
     arch = os.uname()[4]
     qemu_bin_relative_path = os.path.join("%s-softmmu" % arch,
