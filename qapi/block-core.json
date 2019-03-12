@@ -476,15 +476,20 @@
 #        and cannot be modified via QMP or used by another operation.
 #        Replaces `locked` and `frozen` statuses. (since 4.0)
 #
-# @persistent: true if the bitmap will eventually be flushed to persistent
-#              storage (since 4.0)
+# @persistent: true if the bitmap was stored on disk, is scheduled to be stored
+#              on disk, or both. (since 4.0)
+#
+# @inconsistent: true if this is a persistent bitmap that was improperly
+#                stored. Implies @persistent to be true; @recording and
+#                @busy to be false. This bitmap cannot be used. To remove
+#                it, use @block-dirty-bitmap-remove. (Since 4.0)
 #
 # Since: 1.3
 ##
 { 'struct': 'BlockDirtyInfo',
   'data': {'*name': 'str', 'count': 'int', 'granularity': 'uint32',
-           'recording': 'bool', 'busy': 'bool',
-           'status': 'DirtyBitmapStatus', 'persistent': 'bool' } }
+           'recording': 'bool', 'busy': 'bool', 'status': 'DirtyBitmapStatus',
+           'persistent': 'bool', '*inconsistent': 'bool' } }
 
 ##
 # @Qcow2BitmapInfoFlags:
