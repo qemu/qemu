@@ -39,6 +39,7 @@ typedef struct CommitBlockJob {
     BlockDriverState *base_bs;
     BlockdevOnError on_error;
     bool base_read_only;
+    bool chain_frozen;
     char *backing_file_str;
 } CommitBlockJob;
 
@@ -68,6 +69,9 @@ static int commit_prepare(Job *job)
 {
     CommitBlockJob *s = container_of(job, CommitBlockJob, common.job);
 
+    bdrv_unfreeze_backing_chain(s->commit_top_bs, s->base_bs);
+    s->chain_frozen = false;
+
     /* Remove base node parent that still uses BLK_PERM_WRITE/RESIZE before
      * the normal backing chain can be restored. */
     blk_unref(s->base);
@@ -83,6 +87,10 @@ static void commit_abort(Job *job)
 {
     CommitBlockJob *s = container_of(job, CommitBlockJob, common.job);
     BlockDriverState *top_bs = blk_bs(s->top);
+
+    if (s->chain_frozen) {
+        bdrv_unfreeze_backing_chain(s->commit_top_bs, s->base_bs);
+    }
 
     /* Make sure commit_top_bs and top stay around until bdrv_replace_node() */
     bdrv_ref(top_bs);
@@ -330,6 +338,11 @@ void commit_start(const char *job_id, BlockDriverState *bs,
         }
     }
 
+    if (bdrv_freeze_backing_chain(commit_top_bs, base, errp) < 0) {
+        goto fail;
+    }
+    s->chain_frozen = true;
+
     ret = block_job_add_bdrv(&s->common, "base", base, 0, BLK_PERM_ALL, errp);
     if (ret < 0) {
         goto fail;
@@ -362,6 +375,9 @@ void commit_start(const char *job_id, BlockDriverState *bs,
     return;
 
 fail:
+    if (s->chain_frozen) {
+        bdrv_unfreeze_backing_chain(commit_top_bs, base);
+    }
     if (s->base) {
         blk_unref(s->base);
     }
