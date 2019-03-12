@@ -19,7 +19,7 @@ class LinuxInitrd(Test):
     """
     Checks QEMU evaluates correctly the initrd file passed as -initrd option.
 
-    :avocado: tags=x86_64
+    :avocado: tags=arch:x86_64
     """
 
     timeout = 300

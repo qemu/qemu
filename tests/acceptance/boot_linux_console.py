@@ -18,7 +18,7 @@ class BootLinuxConsole(Test):
     Boots a x86_64 Linux kernel and checks that the console is operational
     and the kernel command line is properly passed from QEMU to the kernel
 
-    :avocado: tags=x86_64
+    :avocado: tags=arch:x86_64
     """
 
     timeout = 60
