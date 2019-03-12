@@ -3998,6 +3998,48 @@
 { 'command': 'blockdev-add', 'data': 'BlockdevOptions', 'boxed': true }
 
 ##
+# @x-blockdev-reopen:
+#
+# Reopens a block device using the given set of options. Any option
+# not specified will be reset to its default value regardless of its
+# previous status. If an option cannot be changed or a particular
+# driver does not support reopening then the command will return an
+# error.
+#
+# The top-level @node-name option (from BlockdevOptions) must be
+# specified and is used to select the block device to be reopened.
+# Other @node-name options must be either omitted or set to the
+# current name of the appropriate node. This command won't change any
+# node name and any attempt to do it will result in an error.
+#
+# In the case of options that refer to child nodes, the behavior of
+# this command depends on the value:
+#
+#  1) A set of options (BlockdevOptions): the child is reopened with
+#     the specified set of options.
+#
+#  2) A reference to the current child: the child is reopened using
+#     its existing set of options.
+#
+#  3) A reference to a different node: the current child is replaced
+#     with the specified one.
+#
+#  4) NULL: the current child (if any) is detached.
+#
+# Options (1) and (2) are supported in all cases, but at the moment
+# only @backing allows replacing or detaching an existing child.
+#
+# Unlike with blockdev-add, the @backing option must always be present
+# unless the node being reopened does not have a backing file and its
+# image does not have a default backing file name as part of its
+# metadata.
+#
+# Since: 4.0
+##
+{ 'command': 'x-blockdev-reopen',
+  'data': 'BlockdevOptions', 'boxed': true }
+
+##
 # @blockdev-del:
 #
 # Deletes a block device that has been added using blockdev-add.
