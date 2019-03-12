@@ -199,6 +199,7 @@ static void socket_start_incoming_migration(SocketAddress *saddr,
             return;
         }
         migrate_add_address(address);
+        qapi_free_SocketAddress(address);
     }
 }
 
