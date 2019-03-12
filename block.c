@@ -2983,6 +2983,53 @@ BlockDriverState *bdrv_open(const char *filename, const char *reference,
                              NULL, errp);
 }
 
+/* Return true if the NULL-terminated @list contains @str */
+static bool is_str_in_list(const char *str, const char *const *list)
+{
+    if (str && list) {
+        int i;
+        for (i = 0; list[i] != NULL; i++) {
+            if (!strcmp(str, list[i])) {
+                return true;
+            }
+        }
+    }
+    return false;
+}
+
+/*
+ * Check that every option set in @bs->options is also set in
+ * @new_opts.
+ *
+ * Options listed in the common_options list and in
+ * @bs->drv->mutable_opts are skipped.
+ *
+ * Return 0 on success, otherwise return -EINVAL and set @errp.
+ */
+static int bdrv_reset_options_allowed(BlockDriverState *bs,
+                                      const QDict *new_opts, Error **errp)
+{
+    const QDictEntry *e;
+    /* These options are common to all block drivers and are handled
+     * in bdrv_reopen_prepare() so they can be left out of @new_opts */
+    const char *const common_options[] = {
+        "node-name", "discard", "cache.direct", "cache.no-flush",
+        "read-only", "auto-read-only", "detect-zeroes", NULL
+    };
+
+    for (e = qdict_first(bs->options); e; e = qdict_next(bs->options, e)) {
+        if (!qdict_haskey(new_opts, e->key) &&
+            !is_str_in_list(e->key, common_options) &&
+            !is_str_in_list(e->key, bs->drv->mutable_opts)) {
+            error_setg(errp, "Option '%s' cannot be reset "
+                       "to its default value", e->key);
+            return -EINVAL;
+        }
+    }
+
+    return 0;
+}
+
 /*
  * Returns true if @child can be reached recursively from @bs
  */
@@ -3546,6 +3593,17 @@ int bdrv_reopen_prepare(BDRVReopenState *reopen_state, BlockReopenQueue *queue,
     }
 
     if (drv->bdrv_reopen_prepare) {
+        /*
+         * If a driver-specific option is missing, it means that we
+         * should reset it to its default value.
+         * But not all options allow that, so we need to check it first.
+         */
+        ret = bdrv_reset_options_allowed(reopen_state->bs,
+                                         reopen_state->options, errp);
+        if (ret) {
+            goto error;
+        }
+
         ret = drv->bdrv_reopen_prepare(reopen_state, queue, &local_err);
         if (ret) {
             if (local_err != NULL) {
