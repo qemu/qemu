@@ -19,7 +19,7 @@ class BootLinuxConsole(Test):
     kernel command line is properly passed from QEMU to the kernel
     """
 
-    timeout = 60
+    timeout = 90
 
     KERNEL_COMMON_COMMAND_LINE = 'printk.time=0 '
 
