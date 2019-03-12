@@ -391,6 +391,7 @@ static bool get_free_page_hints(VirtIOBalloon *dev)
     VirtQueueElement *elem;
     VirtIODevice *vdev = VIRTIO_DEVICE(dev);
     VirtQueue *vq = dev->free_page_vq;
+    bool ret = true;
 
     while (dev->block_iothread) {
         qemu_cond_wait(&dev->free_page_cond, &dev->free_page_lock);
@@ -405,13 +406,12 @@ static bool get_free_page_hints(VirtIOBalloon *dev)
         uint32_t id;
         size_t size = iov_to_buf(elem->out_sg, elem->out_num, 0,
                                  &id, sizeof(id));
-        virtqueue_push(vq, elem, size);
-        g_free(elem);
 
         virtio_tswap32s(vdev, &id);
         if (unlikely(size != sizeof(id))) {
             virtio_error(vdev, "received an incorrect cmd id");
-            return false;
+            ret = false;
+            goto out;
         }
         if (id == dev->free_page_report_cmd_id) {
             dev->free_page_report_status = FREE_PAGE_REPORT_S_START;
@@ -431,11 +431,12 @@ static bool get_free_page_hints(VirtIOBalloon *dev)
             qemu_guest_free_page_hint(elem->in_sg[0].iov_base,
                                       elem->in_sg[0].iov_len);
         }
-        virtqueue_push(vq, elem, 1);
-        g_free(elem);
     }
 
-    return true;
+out:
+    virtqueue_push(vq, elem, 1);
+    g_free(elem);
+    return ret;
 }
 
 static void virtio_ballloon_get_free_page_hints(void *opaque)
