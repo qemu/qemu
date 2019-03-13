@@ -1400,7 +1400,8 @@ static target_ulong h_register_process_table(PowerPCCPU *cpu,
     else if (flags & FLAG_HASH_PROC_TBL) /* Hash with process tables */
         update_lpcr |= LPCR_UPRT;
     if (flags & FLAG_GTSE)      /* Guest translation shootdown enable */
-        update_lpcr |= FLAG_GTSE;
+        update_lpcr |= LPCR_GTSE;
+
     spapr_set_all_lpcrs(update_lpcr, LPCR_UPRT | LPCR_HR | LPCR_GTSE);
 
     if (kvm_enabled()) {
