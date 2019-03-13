@@ -35,6 +35,31 @@
 #include "exec/exec-all.h"
 #include "exec/cpu_ldst.h"
 
+#define XTENSA_MPU_SEGMENT_MASK 0x0000001f
+#define XTENSA_MPU_ACC_RIGHTS_MASK 0x00000f00
+#define XTENSA_MPU_ACC_RIGHTS_SHIFT 8
+#define XTENSA_MPU_MEM_TYPE_MASK 0x001ff000
+#define XTENSA_MPU_MEM_TYPE_SHIFT 12
+#define XTENSA_MPU_ATTR_MASK 0x001fff00
+
+#define XTENSA_MPU_PROBE_B 0x40000000
+#define XTENSA_MPU_PROBE_V 0x80000000
+
+#define XTENSA_MPU_SYSTEM_TYPE_DEVICE 0x0001
+#define XTENSA_MPU_SYSTEM_TYPE_NC     0x0002
+#define XTENSA_MPU_SYSTEM_TYPE_C      0x0003
+#define XTENSA_MPU_SYSTEM_TYPE_MASK   0x0003
+
+#define XTENSA_MPU_TYPE_SYS_C     0x0010
+#define XTENSA_MPU_TYPE_SYS_W     0x0020
+#define XTENSA_MPU_TYPE_SYS_R     0x0040
+#define XTENSA_MPU_TYPE_CPU_C     0x0100
+#define XTENSA_MPU_TYPE_CPU_W     0x0200
+#define XTENSA_MPU_TYPE_CPU_R     0x0400
+#define XTENSA_MPU_TYPE_CPU_CACHE 0x0800
+#define XTENSA_MPU_TYPE_B         0x1000
+#define XTENSA_MPU_TYPE_INT       0x2000
+
 void HELPER(itlb_hit_test)(CPUXtensaState *env, uint32_t vaddr)
 {
     /*
@@ -382,7 +407,20 @@ void reset_mmu(CPUXtensaState *env)
         reset_tlb_mmu_all_ways(env, &env->config->dtlb, env->dtlb);
         reset_tlb_mmu_ways56(env, &env->config->itlb, env->itlb);
         reset_tlb_mmu_ways56(env, &env->config->dtlb, env->dtlb);
+    } else if (xtensa_option_enabled(env->config, XTENSA_OPTION_MPU)) {
+        unsigned i;
+
+        env->sregs[MPUENB] = 0;
+        env->sregs[MPUCFG] = env->config->n_mpu_fg_segments;
+        env->sregs[CACHEADRDIS] = 0;
+        assert(env->config->n_mpu_bg_segments > 0 &&
+               env->config->mpu_bg[0].vaddr == 0);
+        for (i = 1; i < env->config->n_mpu_bg_segments; ++i) {
+            assert(env->config->mpu_bg[i].vaddr >=
+                   env->config->mpu_bg[i - 1].vaddr);
+        }
     } else {
+        env->sregs[CACHEATTR] = 0x22222222;
         reset_tlb_region_way0(env, env->itlb);
         reset_tlb_region_way0(env, env->dtlb);
     }
@@ -579,6 +617,149 @@ static unsigned cacheattr_attr_to_access(uint32_t attr)
     return access[attr & 0xf];
 }
 
+struct attr_pattern {
+    uint32_t mask;
+    uint32_t value;
+};
+
+static int attr_pattern_match(uint32_t attr,
+                              const struct attr_pattern *pattern,
+                              size_t n)
+{
+    size_t i;
+
+    for (i = 0; i < n; ++i) {
+        if ((attr & pattern[i].mask) == pattern[i].value) {
+            return 1;
+        }
+    }
+    return 0;
+}
+
+static unsigned mpu_attr_to_cpu_cache(uint32_t attr)
+{
+    static const struct attr_pattern cpu_c[] = {
+        { .mask = 0x18f, .value = 0x089 },
+        { .mask = 0x188, .value = 0x080 },
+        { .mask = 0x180, .value = 0x180 },
+    };
+
+    unsigned type = 0;
+
+    if (attr_pattern_match(attr, cpu_c, ARRAY_SIZE(cpu_c))) {
+        type |= XTENSA_MPU_TYPE_CPU_CACHE;
+        if (attr & 0x10) {
+            type |= XTENSA_MPU_TYPE_CPU_C;
+        }
+        if (attr & 0x20) {
+            type |= XTENSA_MPU_TYPE_CPU_W;
+        }
+        if (attr & 0x40) {
+            type |= XTENSA_MPU_TYPE_CPU_R;
+        }
+    }
+    return type;
+}
+
+static unsigned mpu_attr_to_type(uint32_t attr)
+{
+    static const struct attr_pattern device_type[] = {
+        { .mask = 0x1f6, .value = 0x000 },
+        { .mask = 0x1f6, .value = 0x006 },
+    };
+    static const struct attr_pattern sys_nc_type[] = {
+        { .mask = 0x1fe, .value = 0x018 },
+        { .mask = 0x1fe, .value = 0x01e },
+        { .mask = 0x18f, .value = 0x089 },
+    };
+    static const struct attr_pattern sys_c_type[] = {
+        { .mask = 0x1f8, .value = 0x010 },
+        { .mask = 0x188, .value = 0x080 },
+        { .mask = 0x1f0, .value = 0x030 },
+        { .mask = 0x180, .value = 0x180 },
+    };
+    static const struct attr_pattern b[] = {
+        { .mask = 0x1f7, .value = 0x001 },
+        { .mask = 0x1f7, .value = 0x007 },
+        { .mask = 0x1ff, .value = 0x019 },
+        { .mask = 0x1ff, .value = 0x01f },
+    };
+
+    unsigned type = 0;
+
+    attr = (attr & XTENSA_MPU_MEM_TYPE_MASK) >> XTENSA_MPU_MEM_TYPE_SHIFT;
+    if (attr_pattern_match(attr, device_type, ARRAY_SIZE(device_type))) {
+        type |= XTENSA_MPU_SYSTEM_TYPE_DEVICE;
+        if (attr & 0x80) {
+            type |= XTENSA_MPU_TYPE_INT;
+        }
+    }
+    if (attr_pattern_match(attr, sys_nc_type, ARRAY_SIZE(sys_nc_type))) {
+        type |= XTENSA_MPU_SYSTEM_TYPE_NC;
+    }
+    if (attr_pattern_match(attr, sys_c_type, ARRAY_SIZE(sys_c_type))) {
+        type |= XTENSA_MPU_SYSTEM_TYPE_C;
+        if (attr & 0x1) {
+            type |= XTENSA_MPU_TYPE_SYS_C;
+        }
+        if (attr & 0x2) {
+            type |= XTENSA_MPU_TYPE_SYS_W;
+        }
+        if (attr & 0x4) {
+            type |= XTENSA_MPU_TYPE_SYS_R;
+        }
+    }
+    if (attr_pattern_match(attr, b, ARRAY_SIZE(b))) {
+        type |= XTENSA_MPU_TYPE_B;
+    }
+    type |= mpu_attr_to_cpu_cache(attr);
+
+    return type;
+}
+
+static unsigned mpu_attr_to_access(uint32_t attr, unsigned ring)
+{
+    static const unsigned access[2][16] = {
+        [0] = {
+             [4] = PAGE_READ,
+             [5] = PAGE_READ              | PAGE_EXEC,
+             [6] = PAGE_READ | PAGE_WRITE,
+             [7] = PAGE_READ | PAGE_WRITE | PAGE_EXEC,
+             [8] =             PAGE_WRITE,
+             [9] = PAGE_READ | PAGE_WRITE,
+            [10] = PAGE_READ | PAGE_WRITE,
+            [11] = PAGE_READ | PAGE_WRITE | PAGE_EXEC,
+            [12] = PAGE_READ,
+            [13] = PAGE_READ              | PAGE_EXEC,
+            [14] = PAGE_READ | PAGE_WRITE,
+            [15] = PAGE_READ | PAGE_WRITE | PAGE_EXEC,
+        },
+        [1] = {
+             [8] =             PAGE_WRITE,
+             [9] = PAGE_READ | PAGE_WRITE | PAGE_EXEC,
+            [10] = PAGE_READ,
+            [11] = PAGE_READ              | PAGE_EXEC,
+            [12] = PAGE_READ,
+            [13] = PAGE_READ              | PAGE_EXEC,
+            [14] = PAGE_READ | PAGE_WRITE,
+            [15] = PAGE_READ | PAGE_WRITE | PAGE_EXEC,
+        },
+    };
+    unsigned rv;
+    unsigned type;
+
+    type = mpu_attr_to_cpu_cache(attr);
+    rv = access[ring != 0][(attr & XTENSA_MPU_ACC_RIGHTS_MASK) >>
+        XTENSA_MPU_ACC_RIGHTS_SHIFT];
+
+    if (type & XTENSA_MPU_TYPE_CPU_CACHE) {
+        rv |= (type & XTENSA_MPU_TYPE_CPU_C) ? PAGE_CACHE_WB : PAGE_CACHE_WT;
+    } else {
+        rv |= PAGE_CACHE_BYPASS;
+    }
+    return rv;
+}
+
 static bool is_access_granted(unsigned access, int is_write)
 {
     switch (is_write) {
@@ -723,6 +904,129 @@ static int get_physical_addr_region(CPUXtensaState *env,
     return 0;
 }
 
+static int xtensa_mpu_lookup(const xtensa_mpu_entry *entry, unsigned n,
+                             uint32_t vaddr, unsigned *segment)
+{
+    unsigned nhits = 0;
+    unsigned i;
+
+    for (i = 0; i < n; ++i) {
+        if (vaddr >= entry[i].vaddr &&
+            (i == n - 1 || vaddr < entry[i + 1].vaddr)) {
+            if (nhits++) {
+                break;
+            }
+            *segment = i;
+        }
+    }
+    return nhits;
+}
+
+void HELPER(wsr_mpuenb)(CPUXtensaState *env, uint32_t v)
+{
+    XtensaCPU *cpu = xtensa_env_get_cpu(env);
+
+    v &= (2u << (env->config->n_mpu_fg_segments - 1)) - 1;
+
+    if (v != env->sregs[MPUENB]) {
+        env->sregs[MPUENB] = v;
+        tlb_flush(CPU(cpu));
+    }
+}
+
+void HELPER(wptlb)(CPUXtensaState *env, uint32_t p, uint32_t v)
+{
+    unsigned segment = p & XTENSA_MPU_SEGMENT_MASK;
+
+    if (segment < env->config->n_mpu_fg_segments) {
+        env->mpu_fg[segment].vaddr = v & -env->config->mpu_align;
+        env->mpu_fg[segment].attr = p & XTENSA_MPU_ATTR_MASK;
+        env->sregs[MPUENB] = deposit32(env->sregs[MPUENB], segment, 1, v);
+        tlb_flush(CPU(xtensa_env_get_cpu(env)));
+    }
+}
+
+uint32_t HELPER(rptlb0)(CPUXtensaState *env, uint32_t s)
+{
+    unsigned segment = s & XTENSA_MPU_SEGMENT_MASK;
+
+    if (segment < env->config->n_mpu_fg_segments) {
+        return env->mpu_fg[segment].vaddr |
+            extract32(env->sregs[MPUENB], segment, 1);
+    } else {
+        return 0;
+    }
+}
+
+uint32_t HELPER(rptlb1)(CPUXtensaState *env, uint32_t s)
+{
+    unsigned segment = s & XTENSA_MPU_SEGMENT_MASK;
+
+    if (segment < env->config->n_mpu_fg_segments) {
+        return env->mpu_fg[segment].attr;
+    } else {
+        return 0;
+    }
+}
+
+uint32_t HELPER(pptlb)(CPUXtensaState *env, uint32_t v)
+{
+    unsigned nhits;
+    unsigned segment = XTENSA_MPU_PROBE_B;
+    unsigned bg_segment;
+
+    nhits = xtensa_mpu_lookup(env->mpu_fg, env->config->n_mpu_fg_segments,
+                              v, &segment);
+    if (nhits > 1) {
+        HELPER(exception_cause_vaddr)(env, env->pc,
+                                      LOAD_STORE_TLB_MULTI_HIT_CAUSE, v);
+    } else if (nhits == 1 && (env->sregs[MPUENB] & (1u << segment))) {
+        return env->mpu_fg[segment].attr | segment | XTENSA_MPU_PROBE_V;
+    } else {
+        xtensa_mpu_lookup(env->config->mpu_bg,
+                          env->config->n_mpu_bg_segments,
+                          v, &bg_segment);
+        return env->config->mpu_bg[bg_segment].attr | segment;
+    }
+}
+
+static int get_physical_addr_mpu(CPUXtensaState *env,
+                                 uint32_t vaddr, int is_write, int mmu_idx,
+                                 uint32_t *paddr, uint32_t *page_size,
+                                 unsigned *access)
+{
+    unsigned nhits;
+    unsigned segment;
+    uint32_t attr;
+
+    nhits = xtensa_mpu_lookup(env->mpu_fg, env->config->n_mpu_fg_segments,
+                              vaddr, &segment);
+    if (nhits > 1) {
+        return is_write < 2 ?
+            LOAD_STORE_TLB_MULTI_HIT_CAUSE :
+            INST_TLB_MULTI_HIT_CAUSE;
+    } else if (nhits == 1 && (env->sregs[MPUENB] & (1u << segment))) {
+        attr = env->mpu_fg[segment].attr;
+    } else {
+        xtensa_mpu_lookup(env->config->mpu_bg,
+                          env->config->n_mpu_bg_segments,
+                          vaddr, &segment);
+        attr = env->config->mpu_bg[segment].attr;
+    }
+
+    *access = mpu_attr_to_access(attr, mmu_idx);
+    if (!is_access_granted(*access, is_write)) {
+        return is_write < 2 ?
+            (is_write ?
+             STORE_PROHIBITED_CAUSE :
+             LOAD_PROHIBITED_CAUSE) :
+            INST_FETCH_PROHIBITED_CAUSE;
+    }
+    *paddr = vaddr;
+    *page_size = env->config->mpu_align;
+    return 0;
+}
+
 /*!
  * Convert virtual address to physical addr.
  * MMU may issue pagewalk and change xtensa autorefill TLB way entry.
@@ -743,6 +1047,9 @@ int xtensa_get_physical_addr(CPUXtensaState *env, bool update_tlb,
                 XTENSA_OPTION_BIT(XTENSA_OPTION_REGION_TRANSLATION))) {
         return get_physical_addr_region(env, vaddr, is_write, mmu_idx,
                                         paddr, page_size, access);
+    } else if (xtensa_option_enabled(env->config, XTENSA_OPTION_MPU)) {
+        return get_physical_addr_mpu(env, vaddr, is_write, mmu_idx,
+                                     paddr, page_size, access);
     } else {
         *paddr = vaddr;
         *page_size = TARGET_PAGE_SIZE;
@@ -810,6 +1117,63 @@ static void dump_tlb(CPUXtensaState *env, bool dtlb)
     }
 }
 
+static void dump_mpu(CPUXtensaState *env,
+                     const xtensa_mpu_entry *entry, unsigned n)
+{
+    unsigned i;
+
+    qemu_printf("\t%s  Vaddr       Attr        Ring0  Ring1  System Type    CPU cache\n"
+                "\t%s  ----------  ----------  -----  -----  -------------  ---------\n",
+                env ? "En" : "  ",
+                env ? "--" : "  ");
+
+    for (i = 0; i < n; ++i) {
+        uint32_t attr = entry[i].attr;
+        unsigned access0 = mpu_attr_to_access(attr, 0);
+        unsigned access1 = mpu_attr_to_access(attr, 1);
+        unsigned type = mpu_attr_to_type(attr);
+        char cpu_cache = (type & XTENSA_MPU_TYPE_CPU_CACHE) ? '-' : ' ';
+
+        qemu_printf("\t %c  0x%08x  0x%08x   %c%c%c    %c%c%c   ",
+                    env ?
+                    ((env->sregs[MPUENB] & (1u << i)) ? '+' : '-') : ' ',
+                    entry[i].vaddr, attr,
+                    (access0 & PAGE_READ) ? 'R' : '-',
+                    (access0 & PAGE_WRITE) ? 'W' : '-',
+                    (access0 & PAGE_EXEC) ? 'X' : '-',
+                    (access1 & PAGE_READ) ? 'R' : '-',
+                    (access1 & PAGE_WRITE) ? 'W' : '-',
+                    (access1 & PAGE_EXEC) ? 'X' : '-');
+
+        switch (type & XTENSA_MPU_SYSTEM_TYPE_MASK) {
+        case XTENSA_MPU_SYSTEM_TYPE_DEVICE:
+            qemu_printf("Device %cB %3s\n",
+                        (type & XTENSA_MPU_TYPE_B) ? ' ' : 'n',
+                        (type & XTENSA_MPU_TYPE_INT) ? "int" : "");
+            break;
+        case XTENSA_MPU_SYSTEM_TYPE_NC:
+            qemu_printf("Sys NC %cB      %c%c%c\n",
+                        (type & XTENSA_MPU_TYPE_B) ? ' ' : 'n',
+                        (type & XTENSA_MPU_TYPE_CPU_R) ? 'r' : cpu_cache,
+                        (type & XTENSA_MPU_TYPE_CPU_W) ? 'w' : cpu_cache,
+                        (type & XTENSA_MPU_TYPE_CPU_C) ? 'c' : cpu_cache);
+            break;
+        case XTENSA_MPU_SYSTEM_TYPE_C:
+            qemu_printf("Sys  C %c%c%c     %c%c%c\n",
+                        (type & XTENSA_MPU_TYPE_SYS_R) ? 'R' : '-',
+                        (type & XTENSA_MPU_TYPE_SYS_W) ? 'W' : '-',
+                        (type & XTENSA_MPU_TYPE_SYS_C) ? 'C' : '-',
+                        (type & XTENSA_MPU_TYPE_CPU_R) ? 'r' : cpu_cache,
+                        (type & XTENSA_MPU_TYPE_CPU_W) ? 'w' : cpu_cache,
+                        (type & XTENSA_MPU_TYPE_CPU_C) ? 'c' : cpu_cache);
+            break;
+        default:
+            qemu_printf("Unknown\n");
+            break;
+        }
+    }
+}
+
 void dump_mmu(CPUXtensaState *env)
 {
     if (xtensa_option_bits_enabled(env->config,
@@ -821,6 +1185,11 @@ void dump_mmu(CPUXtensaState *env)
         dump_tlb(env, false);
         qemu_printf("\nDTLB:\n");
         dump_tlb(env, true);
+    } else if (xtensa_option_enabled(env->config, XTENSA_OPTION_MPU)) {
+        qemu_printf("Foreground map:\n");
+        dump_mpu(env, env->mpu_fg, env->config->n_mpu_fg_segments);
+        qemu_printf("\nBackground map:\n");
+        dump_mpu(NULL, env->config->mpu_bg, env->config->n_mpu_bg_segments);
     } else {
         qemu_printf("No TLB for this CPU core\n");
     }

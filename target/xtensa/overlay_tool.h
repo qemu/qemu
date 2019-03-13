@@ -72,6 +72,10 @@
 #define XCHAL_HAVE_EXTERN_REGS 0
 #endif
 
+#ifndef XCHAL_HAVE_MPU
+#define XCHAL_HAVE_MPU 0
+#endif
+
 #define XCHAL_OPTION(xchal, qemu) ((xchal) ? XTENSA_OPTION_BIT(qemu) : 0)
 
 #define XTENSA_OPTIONS ( \
@@ -119,6 +123,7 @@
             XTENSA_OPTION_REGION_PROTECTION) | \
     XCHAL_OPTION(XCHAL_HAVE_XLT_CACHEATTR, \
             XTENSA_OPTION_REGION_TRANSLATION) | \
+    XCHAL_OPTION(XCHAL_HAVE_MPU, XTENSA_OPTION_MPU) | \
     XCHAL_OPTION(XCHAL_HAVE_PTP_MMU, XTENSA_OPTION_MMU) | \
     XCHAL_OPTION(XCHAL_HAVE_CACHEATTR, XTENSA_OPTION_CACHEATTR) | \
     /* Other, TODO */ \
@@ -350,6 +355,30 @@
 #define TLB_SECTION \
     .itlb = TLB_TEMPLATE, \
     .dtlb = TLB_TEMPLATE
+
+#ifndef XCHAL_SYSROM0_PADDR
+#define XCHAL_SYSROM0_PADDR 0x50000000
+#define XCHAL_SYSROM0_SIZE  0x04000000
+#endif
+
+#ifndef XCHAL_SYSRAM0_PADDR
+#define XCHAL_SYSRAM0_PADDR 0x60000000
+#define XCHAL_SYSRAM0_SIZE  0x04000000
+#endif
+
+#elif XCHAL_HAVE_MPU
+
+#ifndef XTENSA_MPU_BG_MAP
+#define XTENSA_MPU_BG_MAP (xtensa_mpu_entry []){\
+    { .vaddr = 0, .attr = 0x00006700, }, \
+}
+#endif
+
+#define TLB_SECTION \
+    .mpu_align = XCHAL_MPU_ALIGN, \
+    .n_mpu_fg_segments = XCHAL_MPU_ENTRIES, \
+    .n_mpu_bg_segments = 1, \
+    .mpu_bg = XTENSA_MPU_BG_MAP
 
 #ifndef XCHAL_SYSROM0_PADDR
 #define XCHAL_SYSROM0_PADDR 0x50000000

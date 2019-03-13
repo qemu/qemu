@@ -1992,6 +1992,15 @@ static void translate_ptlb(DisasContext *dc, const OpcodeArg arg[],
 #endif
 }
 
+static void translate_pptlb(DisasContext *dc, const OpcodeArg arg[],
+                            const uint32_t par[])
+{
+#ifndef CONFIG_USER_ONLY
+    tcg_gen_movi_i32(cpu_pc, dc->pc);
+    gen_helper_pptlb(arg[0].out, cpu_env, arg[1].in);
+#endif
+}
+
 static void translate_quos(DisasContext *dc, const OpcodeArg arg[],
                            const uint32_t par[])
 {
@@ -2181,6 +2190,22 @@ static void translate_rtlb(DisasContext *dc, const OpcodeArg arg[],
 
     helper[par[1]](arg[0].out, cpu_env, arg[1].in, dtlb);
     tcg_temp_free(dtlb);
+#endif
+}
+
+static void translate_rptlb0(DisasContext *dc, const OpcodeArg arg[],
+                             const uint32_t par[])
+{
+#ifndef CONFIG_USER_ONLY
+    gen_helper_rptlb0(arg[0].out, cpu_env, arg[1].in);
+#endif
+}
+
+static void translate_rptlb1(DisasContext *dc, const OpcodeArg arg[],
+                             const uint32_t par[])
+{
+#ifndef CONFIG_USER_ONLY
+    gen_helper_rptlb1(arg[0].out, cpu_env, arg[1].in);
 #endif
 }
 
@@ -2445,6 +2470,14 @@ static void translate_wtlb(DisasContext *dc, const OpcodeArg arg[],
 #endif
 }
 
+static void translate_wptlb(DisasContext *dc, const OpcodeArg arg[],
+                            const uint32_t par[])
+{
+#ifndef CONFIG_USER_ONLY
+    gen_helper_wptlb(cpu_env, arg[0].in, arg[1].in);
+#endif
+}
+
 static void translate_wer(DisasContext *dc, const OpcodeArg arg[],
                           const uint32_t par[])
 {
@@ -2593,6 +2626,14 @@ static void translate_wsr_memctl(DisasContext *dc, const OpcodeArg arg[],
 #endif
 }
 
+static void translate_wsr_mpuenb(DisasContext *dc, const OpcodeArg arg[],
+                                 const uint32_t par[])
+{
+#ifndef CONFIG_USER_ONLY
+    gen_helper_wsr_mpuenb(cpu_env, arg[0].in);
+#endif
+}
+
 static void translate_wsr_ps(DisasContext *dc, const OpcodeArg arg[],
                              const uint32_t par[])
 {
@@ -2731,6 +2772,7 @@ gen_translate_xsr(ibreaka)
 gen_translate_xsr(ibreakenable)
 gen_translate_xsr(icount)
 gen_translate_xsr(memctl)
+gen_translate_xsr(mpuenb)
 gen_translate_xsr(ps)
 gen_translate_xsr(rasid)
 gen_translate_xsr(sar)
@@ -3581,6 +3623,10 @@ static const XtensaOpcodeOps core_ops[] = {
         .par = (const uint32_t[]){false},
         .op_flags = XTENSA_OP_PRIVILEGED,
     }, {
+        .name = "pptlb",
+        .translate = translate_pptlb,
+        .op_flags = XTENSA_OP_PRIVILEGED,
+    }, {
         .name = "quos",
         .translate = translate_quos,
         .par = (const uint32_t[]){true},
@@ -3667,6 +3713,14 @@ static const XtensaOpcodeOps core_ops[] = {
         .par = (const uint32_t[]){false, 1},
         .op_flags = XTENSA_OP_PRIVILEGED,
     }, {
+        .name = "rptlb0",
+        .translate = translate_rptlb0,
+        .op_flags = XTENSA_OP_PRIVILEGED,
+    }, {
+        .name = "rptlb1",
+        .translate = translate_rptlb1,
+        .op_flags = XTENSA_OP_PRIVILEGED,
+    }, {
         .name = "rotw",
         .translate = translate_rotw,
         .op_flags = XTENSA_OP_PRIVILEGED |
@@ -3722,6 +3776,15 @@ static const XtensaOpcodeOps core_ops[] = {
             BR,
             XTENSA_OPTION_BOOLEAN,
         },
+    }, {
+        .name = "rsr.cacheadrdis",
+        .translate = translate_rsr,
+        .test_ill = test_ill_sr,
+        .par = (const uint32_t[]){
+            CACHEADRDIS,
+            XTENSA_OPTION_MPU,
+        },
+        .op_flags = XTENSA_OP_PRIVILEGED,
     }, {
         .name = "rsr.cacheattr",
         .translate = translate_rsr,
@@ -3974,6 +4037,11 @@ static const XtensaOpcodeOps core_ops[] = {
             EPS2 + 5,
             XTENSA_OPTION_HIGH_PRIORITY_INTERRUPT,
         },
+        .op_flags = XTENSA_OP_PRIVILEGED,
+    }, {
+        .name = "rsr.eraccess",
+        .translate = translate_rsr,
+        .par = (const uint32_t[]){ERACCESS},
         .op_flags = XTENSA_OP_PRIVILEGED,
     }, {
         .name = "rsr.exccause",
@@ -4306,6 +4374,24 @@ static const XtensaOpcodeOps core_ops[] = {
         },
         .op_flags = XTENSA_OP_PRIVILEGED,
     }, {
+        .name = "rsr.mpucfg",
+        .translate = translate_rsr,
+        .test_ill = test_ill_sr,
+        .par = (const uint32_t[]){
+            MPUCFG,
+            XTENSA_OPTION_MPU,
+        },
+        .op_flags = XTENSA_OP_PRIVILEGED,
+    }, {
+        .name = "rsr.mpuenb",
+        .translate = translate_rsr,
+        .test_ill = test_ill_sr,
+        .par = (const uint32_t[]){
+            MPUENB,
+            XTENSA_OPTION_MPU,
+        },
+        .op_flags = XTENSA_OP_PRIVILEGED,
+    }, {
         .name = "rsr.prefctl",
         .translate = translate_rsr,
         .par = (const uint32_t[]){PREFCTL},
@@ -4543,6 +4629,10 @@ static const XtensaOpcodeOps core_ops[] = {
         .par = (const uint32_t[]){false},
         .op_flags = XTENSA_OP_PRIVILEGED | XTENSA_OP_EXIT_TB_M1,
     }, {
+        .name = "wptlb",
+        .translate = translate_wptlb,
+        .op_flags = XTENSA_OP_PRIVILEGED | XTENSA_OP_EXIT_TB_M1,
+    }, {
         .name = "wrmsk_expstate",
         .translate = translate_wrmsk_expstate,
     }, {
@@ -4586,6 +4676,16 @@ static const XtensaOpcodeOps core_ops[] = {
             XTENSA_OPTION_BOOLEAN,
             0xffff,
         },
+    }, {
+        .name = "wsr.cacheadrdis",
+        .translate = translate_wsr_mask,
+        .test_ill = test_ill_sr,
+        .par = (const uint32_t[]){
+            CACHEADRDIS,
+            XTENSA_OPTION_MPU,
+            0xff,
+        },
+        .op_flags = XTENSA_OP_PRIVILEGED,
     }, {
         .name = "wsr.cacheattr",
         .translate = translate_wsr,
@@ -4829,6 +4929,15 @@ static const XtensaOpcodeOps core_ops[] = {
         .par = (const uint32_t[]){
             EPS2 + 5,
             XTENSA_OPTION_HIGH_PRIORITY_INTERRUPT,
+        },
+        .op_flags = XTENSA_OP_PRIVILEGED,
+    }, {
+        .name = "wsr.eraccess",
+        .translate = translate_wsr_mask,
+        .par = (const uint32_t[]){
+            ERACCESS,
+            0,
+            0xffff,
         },
         .op_flags = XTENSA_OP_PRIVILEGED,
     }, {
@@ -5189,6 +5298,15 @@ static const XtensaOpcodeOps core_ops[] = {
         },
         .op_flags = XTENSA_OP_PRIVILEGED,
     }, {
+        .name = "wsr.mpuenb",
+        .translate = translate_wsr_mpuenb,
+        .test_ill = test_ill_sr,
+        .par = (const uint32_t[]){
+            MPUENB,
+            XTENSA_OPTION_MPU,
+        },
+        .op_flags = XTENSA_OP_PRIVILEGED | XTENSA_OP_EXIT_TB_M1,
+    }, {
         .name = "wsr.prefctl",
         .translate = translate_wsr,
         .par = (const uint32_t[]){PREFCTL},
@@ -5333,6 +5451,16 @@ static const XtensaOpcodeOps core_ops[] = {
             XTENSA_OPTION_BOOLEAN,
             0xffff,
         },
+    }, {
+        .name = "xsr.cacheadrdis",
+        .translate = translate_xsr_mask,
+        .test_ill = test_ill_sr,
+        .par = (const uint32_t[]){
+            CACHEADRDIS,
+            XTENSA_OPTION_MPU,
+            0xff,
+        },
+        .op_flags = XTENSA_OP_PRIVILEGED,
     }, {
         .name = "xsr.cacheattr",
         .translate = translate_xsr,
@@ -5576,6 +5704,15 @@ static const XtensaOpcodeOps core_ops[] = {
         .par = (const uint32_t[]){
             EPS2 + 5,
             XTENSA_OPTION_HIGH_PRIORITY_INTERRUPT,
+        },
+        .op_flags = XTENSA_OP_PRIVILEGED,
+    }, {
+        .name = "xsr.eraccess",
+        .translate = translate_xsr_mask,
+        .par = (const uint32_t[]){
+            ERACCESS,
+            0,
+            0xffff,
         },
         .op_flags = XTENSA_OP_PRIVILEGED,
     }, {
@@ -5899,6 +6036,15 @@ static const XtensaOpcodeOps core_ops[] = {
             XTENSA_OPTION_MISC_SR,
         },
         .op_flags = XTENSA_OP_PRIVILEGED,
+    }, {
+        .name = "xsr.mpuenb",
+        .translate = translate_xsr_mpuenb,
+        .test_ill = test_ill_sr,
+        .par = (const uint32_t[]){
+            MPUENB,
+            XTENSA_OPTION_MPU,
+        },
+        .op_flags = XTENSA_OP_PRIVILEGED | XTENSA_OP_EXIT_TB_M1,
     }, {
         .name = "xsr.prefctl",
         .translate = translate_xsr,

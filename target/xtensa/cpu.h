@@ -99,6 +99,7 @@ enum {
     /* Memory protection and translation */
     XTENSA_OPTION_REGION_PROTECTION,
     XTENSA_OPTION_REGION_TRANSLATION,
+    XTENSA_OPTION_MPU,
     XTENSA_OPTION_MMU,
     XTENSA_OPTION_CACHEATTR,
 
@@ -137,11 +138,15 @@ enum {
     PTEVADDR = 83,
     MMID = 89,
     RASID = 90,
+    MPUENB = 90,
     ITLBCFG = 91,
     DTLBCFG = 92,
+    MPUCFG = 92,
+    ERACCESS = 95,
     IBREAKENABLE = 96,
     MEMCTL = 97,
     CACHEATTR = 98,
+    CACHEADRDIS = 98,
     ATOMCTL = 99,
     DDR = 104,
     MEPC = 106,
@@ -234,6 +239,7 @@ enum {
 #define MAX_TLB_WAY_SIZE 8
 #define MAX_NDBREAK 2
 #define MAX_NMEMORY 4
+#define MAX_MPU_FOREGROUND_SEGMENTS 32
 
 #define REGION_PAGE_MASK 0xe0000000
 
@@ -326,6 +332,11 @@ typedef struct xtensa_tlb {
     bool varway56;
     unsigned nrefillentries;
 } xtensa_tlb;
+
+typedef struct xtensa_mpu_entry {
+    uint32_t vaddr;
+    uint32_t attr;
+} xtensa_mpu_entry;
 
 typedef struct XtensaGdbReg {
     int targno;
@@ -477,6 +488,11 @@ struct XtensaConfig {
 
     xtensa_tlb itlb;
     xtensa_tlb dtlb;
+
+    uint32_t mpu_align;
+    unsigned n_mpu_fg_segments;
+    unsigned n_mpu_bg_segments;
+    const xtensa_mpu_entry *mpu_bg;
 };
 
 typedef struct XtensaConfigList {
@@ -513,6 +529,7 @@ typedef struct CPUXtensaState {
 #ifndef CONFIG_USER_ONLY
     xtensa_tlb_entry itlb[7][MAX_TLB_WAY_SIZE];
     xtensa_tlb_entry dtlb[10][MAX_TLB_WAY_SIZE];
+    xtensa_mpu_entry mpu_fg[MAX_MPU_FOREGROUND_SEGMENTS];
     unsigned autorefill_idx;
     bool runstall;
     AddressSpace *address_space_er;
