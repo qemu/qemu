@@ -6,6 +6,7 @@
 /config-target.*
 /config.status
 /config-temp
+/elf2dmp
 /trace-events-all
 /trace/generated-events.h
 /trace/generated-events.c
