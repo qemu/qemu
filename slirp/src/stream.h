@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: BSD-3-Clause */
 #ifndef STREAM_H_
 #define STREAM_H_
 

@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: BSD-3-Clause */
 #ifndef LIBSLIRP_H
 #define LIBSLIRP_H
 

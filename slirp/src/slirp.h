@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: BSD-3-Clause */
 #ifndef SLIRP_H
 #define SLIRP_H
 
