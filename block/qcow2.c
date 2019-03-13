@@ -3073,7 +3073,7 @@ qcow2_co_create(BlockdevCreateOptions *create_options, Error **errp)
             goto out;
         }
         data_bs = bdrv_open_blockdev_ref(qcow2_opts->data_file, errp);
-        if (bs == NULL) {
+        if (data_bs == NULL) {
             ret = -EIO;
             goto out;
         }
