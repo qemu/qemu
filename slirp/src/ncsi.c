@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: BSD-3-Clause */
 /*
  * NC-SI (Network Controller Sideband Interface) "echo" model
  *

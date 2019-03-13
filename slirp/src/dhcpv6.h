@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: BSD-3-Clause */
 /*
  * Definitions and prototypes for SLIRP stateless DHCPv6
  *
