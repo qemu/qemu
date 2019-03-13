@@ -121,20 +121,37 @@ qemu_seccomp(unsigned int operation, unsigned int flags, void *args)
 #endif
 }
 
-static uint32_t qemu_seccomp_get_kill_action(void)
+static uint32_t qemu_seccomp_get_action(int set)
 {
+    switch (set) {
+    case QEMU_SECCOMP_SET_DEFAULT:
+    case QEMU_SECCOMP_SET_OBSOLETE:
+    case QEMU_SECCOMP_SET_PRIVILEGED:
+    case QEMU_SECCOMP_SET_SPAWN: {
 #if defined(SECCOMP_GET_ACTION_AVAIL) && defined(SCMP_ACT_KILL_PROCESS) && \
     defined(SECCOMP_RET_KILL_PROCESS)
-    {
-        uint32_t action = SECCOMP_RET_KILL_PROCESS;
+        static int kill_process = -1;
+        if (kill_process == -1) {
+            uint32_t action = SECCOMP_RET_KILL_PROCESS;
 
-        if (qemu_seccomp(SECCOMP_GET_ACTION_AVAIL, 0, &action) == 0) {
+            if (qemu_seccomp(SECCOMP_GET_ACTION_AVAIL, 0, &action) == 0) {
+                kill_process = 1;
+            }
+            kill_process = 0;
+        }
+        if (kill_process == 1) {
             return SCMP_ACT_KILL_PROCESS;
         }
-    }
 #endif
+        return SCMP_ACT_TRAP;
+    }
 
-    return SCMP_ACT_TRAP;
+    case QEMU_SECCOMP_SET_RESOURCECTL:
+        return SCMP_ACT_ERRNO(EPERM);
+
+    default:
+        g_assert_not_reached();
+    }
 }
 
 
@@ -143,7 +160,6 @@ static int seccomp_start(uint32_t seccomp_opts)
     int rc = 0;
     unsigned int i = 0;
     scmp_filter_ctx ctx;
-    uint32_t action = qemu_seccomp_get_kill_action();
 
     ctx = seccomp_init(SCMP_ACT_ALLOW);
     if (ctx == NULL) {
@@ -157,10 +173,12 @@ static int seccomp_start(uint32_t seccomp_opts)
     }
 
     for (i = 0; i < ARRAY_SIZE(blacklist); i++) {
+        uint32_t action;
         if (!(seccomp_opts & blacklist[i].set)) {
             continue;
         }
 
+        action = qemu_seccomp_get_action(blacklist[i].set);
         rc = seccomp_rule_add_array(ctx, action, blacklist[i].num,
                                     blacklist[i].narg, blacklist[i].arg_cmp);
         if (rc < 0) {
