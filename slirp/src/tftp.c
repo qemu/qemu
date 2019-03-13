@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: MIT */
 /*
  * tftp.c - a simple, read-only tftp server for qemu
  *

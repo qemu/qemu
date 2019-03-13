@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: MIT */
 /*
  * util.c (mostly based on QEMU os-win32.c)
  *

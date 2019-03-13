@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: MIT */
 /*
  * Copyright (c) 2003-2008 Fabrice Bellard
  * Copyright (c) 2010-2019 Red Hat, Inc.

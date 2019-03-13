@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: MIT */
 /*
  * Domain search option for DHCP (RFC 3397)
  *

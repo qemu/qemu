@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: MIT */
 /*
  * libslirp io streams
  *
