@@ -1446,7 +1446,7 @@ DEF("display", HAS_ARG, QEMU_OPTION_display,
     "            [,window_close=on|off][,gl=on|core|es|off]\n"
     "-display gtk[,grab_on_hover=on|off][,gl=on|off]|\n"
     "-display vnc=<display>[,<optargs>]\n"
-    "-display curses\n"
+    "-display curses[,charset=<encoding>]\n"
     "-display none\n"
     "-display egl-headless[,rendernode=<file>]"
     "                select display type\n"
@@ -1478,6 +1478,9 @@ support a text mode, QEMU can display this output using a
 curses/ncurses interface. Nothing is displayed when the graphics
 device is in graphical mode or if the graphics device does not support
 a text mode. Generally only the VGA device models support text mode.
+The font charset used by the guest can be specified with the
+@code{charset} option, for example @code{charset=CP850} for IBM CP850
+encoding. The default is @code{CP437}.
 @item none
 Do not display video output. The guest will still see an emulated
 graphics card, but its output will not be displayed to the QEMU

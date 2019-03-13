@@ -1081,6 +1081,19 @@
    'data'    : [ 'off', 'on', 'core', 'es' ] }
 
 ##
+# @DisplayCurses:
+#
+# Curses display options.
+#
+# @charset:       Font charset used by guest (default: CP437).
+#
+# Since: 4.0
+#
+##
+{ 'struct'  : 'DisplayCurses',
+  'data'    : { '*charset'       : 'str' } }
+
+##
 # @DisplayType:
 #
 # Display (user interface) type.
@@ -1142,6 +1155,7 @@
                 '*gl'            : 'DisplayGLMode' },
   'discriminator' : 'type',
   'data'    : { 'gtk'            : 'DisplayGTK',
+                'curses'         : 'DisplayCurses',
                 'egl-headless'   : 'DisplayEGLHeadless'} }
 
 ##
