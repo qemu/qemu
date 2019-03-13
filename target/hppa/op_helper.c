@@ -25,6 +25,7 @@
 #include "sysemu/sysemu.h"
 #include "qemu/timer.h"
 #include "fpu/softfloat.h"
+#include "trace.h"
 
 void QEMU_NORETURN HELPER(excp)(CPUHPPAState *env, int excp)
 {
@@ -165,6 +166,7 @@ target_ureg HELPER(probe)(CPUHPPAState *env, target_ulong addr,
     int prot, excp;
     hwaddr phys;
 
+    trace_hppa_tlb_probe(addr, level, want);
     /* Fail if the requested privilege level is higher than current.  */
     if (level < (env->iaoq_f & 3)) {
         return 0;
@@ -676,11 +678,6 @@ target_ureg HELPER(swap_system_mask)(CPUHPPAState *env, target_ureg nsm)
 
 void HELPER(rfi)(CPUHPPAState *env)
 {
-    /* ??? On second reading this condition simply seems
-       to be undefined rather than a diagnosed trap.  */
-    if (env->psw & (PSW_I | PSW_R | PSW_Q)) {
-        helper_excp(env, EXCP_ILL);
-    }
     env->iasq_f = (uint64_t)env->cr[CR_IIASQ] << 32;
     env->iasq_b = (uint64_t)env->cr_back[0] << 32;
     env->iaoq_f = env->cr[CR_IIAOQ];

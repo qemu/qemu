@@ -21,6 +21,7 @@
 
 #include "cpu.h"
 #include "fpu/softfloat.h"
+#include "exec/exec-all.h"
 #include "exec/helper-proto.h"
 
 target_ureg cpu_hppa_get_psw(CPUHPPAState *env)
@@ -49,6 +50,7 @@ target_ureg cpu_hppa_get_psw(CPUHPPAState *env)
 
 void cpu_hppa_put_psw(CPUHPPAState *env, target_ureg psw)
 {
+    target_ureg old_psw = env->psw;
     target_ureg cb = 0;
 
     env->psw = psw & ~(PSW_N | PSW_V | PSW_CB);
@@ -64,6 +66,14 @@ void cpu_hppa_put_psw(CPUHPPAState *env, target_ureg psw)
     cb |= ((psw >>  9) & 1) <<  8;
     cb |= ((psw >>  8) & 1) <<  4;
     env->psw_cb = cb;
+
+    /* If PSW_P changes, it affects how we translate addresses.  */
+    if ((psw ^ old_psw) & PSW_P) {
+#ifndef CONFIG_USER_ONLY
+        CPUState *src = CPU(hppa_env_get_cpu(env));
+        tlb_flush_by_mmuidx(src, 0xf);
+#endif
+    }
 }
 
 void hppa_cpu_dump_state(CPUState *cs, FILE *f,
