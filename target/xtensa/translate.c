@@ -4216,6 +4216,60 @@ static const XtensaOpcodeOps core_ops[] = {
         .par = (const uint32_t[]){MEMCTL},
         .op_flags = XTENSA_OP_PRIVILEGED,
     }, {
+        .name = "rsr.mecr",
+        .translate = translate_rsr,
+        .test_ill = test_ill_sr,
+        .par = (const uint32_t[]){
+            MECR,
+            XTENSA_OPTION_MEMORY_ECC_PARITY,
+        },
+        .op_flags = XTENSA_OP_PRIVILEGED,
+    }, {
+        .name = "rsr.mepc",
+        .translate = translate_rsr,
+        .test_ill = test_ill_sr,
+        .par = (const uint32_t[]){
+            MEPC,
+            XTENSA_OPTION_MEMORY_ECC_PARITY,
+        },
+        .op_flags = XTENSA_OP_PRIVILEGED,
+    }, {
+        .name = "rsr.meps",
+        .translate = translate_rsr,
+        .test_ill = test_ill_sr,
+        .par = (const uint32_t[]){
+            MEPS,
+            XTENSA_OPTION_MEMORY_ECC_PARITY,
+        },
+        .op_flags = XTENSA_OP_PRIVILEGED,
+    }, {
+        .name = "rsr.mesave",
+        .translate = translate_rsr,
+        .test_ill = test_ill_sr,
+        .par = (const uint32_t[]){
+            MESAVE,
+            XTENSA_OPTION_MEMORY_ECC_PARITY,
+        },
+        .op_flags = XTENSA_OP_PRIVILEGED,
+    }, {
+        .name = "rsr.mesr",
+        .translate = translate_rsr,
+        .test_ill = test_ill_sr,
+        .par = (const uint32_t[]){
+            MESR,
+            XTENSA_OPTION_MEMORY_ECC_PARITY,
+        },
+        .op_flags = XTENSA_OP_PRIVILEGED,
+    }, {
+        .name = "rsr.mevaddr",
+        .translate = translate_rsr,
+        .test_ill = test_ill_sr,
+        .par = (const uint32_t[]){
+            MESR,
+            XTENSA_OPTION_MEMORY_ECC_PARITY,
+        },
+        .op_flags = XTENSA_OP_PRIVILEGED,
+    }, {
         .name = "rsr.misc0",
         .translate = translate_rsr,
         .test_ill = test_ill_sr,
@@ -5036,6 +5090,60 @@ static const XtensaOpcodeOps core_ops[] = {
         .par = (const uint32_t[]){MEMCTL},
         .op_flags = XTENSA_OP_PRIVILEGED,
     }, {
+        .name = "wsr.mecr",
+        .translate = translate_wsr,
+        .test_ill = test_ill_sr,
+        .par = (const uint32_t[]){
+            MECR,
+            XTENSA_OPTION_MEMORY_ECC_PARITY,
+        },
+        .op_flags = XTENSA_OP_PRIVILEGED,
+    }, {
+        .name = "wsr.mepc",
+        .translate = translate_wsr,
+        .test_ill = test_ill_sr,
+        .par = (const uint32_t[]){
+            MEPC,
+            XTENSA_OPTION_MEMORY_ECC_PARITY,
+        },
+        .op_flags = XTENSA_OP_PRIVILEGED,
+    }, {
+        .name = "wsr.meps",
+        .translate = translate_wsr,
+        .test_ill = test_ill_sr,
+        .par = (const uint32_t[]){
+            MEPS,
+            XTENSA_OPTION_MEMORY_ECC_PARITY,
+        },
+        .op_flags = XTENSA_OP_PRIVILEGED,
+    }, {
+        .name = "wsr.mesave",
+        .translate = translate_wsr,
+        .test_ill = test_ill_sr,
+        .par = (const uint32_t[]){
+            MESAVE,
+            XTENSA_OPTION_MEMORY_ECC_PARITY,
+        },
+        .op_flags = XTENSA_OP_PRIVILEGED,
+    }, {
+        .name = "wsr.mesr",
+        .translate = translate_wsr,
+        .test_ill = test_ill_sr,
+        .par = (const uint32_t[]){
+            MESR,
+            XTENSA_OPTION_MEMORY_ECC_PARITY,
+        },
+        .op_flags = XTENSA_OP_PRIVILEGED,
+    }, {
+        .name = "wsr.mevaddr",
+        .translate = translate_wsr,
+        .test_ill = test_ill_sr,
+        .par = (const uint32_t[]){
+            MESR,
+            XTENSA_OPTION_MEMORY_ECC_PARITY,
+        },
+        .op_flags = XTENSA_OP_PRIVILEGED,
+    }, {
         .name = "wsr.misc0",
         .translate = translate_wsr,
         .test_ill = test_ill_sr,
@@ -5700,6 +5808,60 @@ static const XtensaOpcodeOps core_ops[] = {
         .name = "xsr.memctl",
         .translate = translate_xsr_memctl,
         .par = (const uint32_t[]){MEMCTL},
+        .op_flags = XTENSA_OP_PRIVILEGED,
+    }, {
+        .name = "xsr.mecr",
+        .translate = translate_xsr,
+        .test_ill = test_ill_sr,
+        .par = (const uint32_t[]){
+            MECR,
+            XTENSA_OPTION_MEMORY_ECC_PARITY,
+        },
+        .op_flags = XTENSA_OP_PRIVILEGED,
+    }, {
+        .name = "xsr.mepc",
+        .translate = translate_xsr,
+        .test_ill = test_ill_sr,
+        .par = (const uint32_t[]){
+            MEPC,
+            XTENSA_OPTION_MEMORY_ECC_PARITY,
+        },
+        .op_flags = XTENSA_OP_PRIVILEGED,
+    }, {
+        .name = "xsr.meps",
+        .translate = translate_xsr,
+        .test_ill = test_ill_sr,
+        .par = (const uint32_t[]){
+            MEPS,
+            XTENSA_OPTION_MEMORY_ECC_PARITY,
+        },
+        .op_flags = XTENSA_OP_PRIVILEGED,
+    }, {
+        .name = "xsr.mesave",
+        .translate = translate_xsr,
+        .test_ill = test_ill_sr,
+        .par = (const uint32_t[]){
+            MESAVE,
+            XTENSA_OPTION_MEMORY_ECC_PARITY,
+        },
+        .op_flags = XTENSA_OP_PRIVILEGED,
+    }, {
+        .name = "xsr.mesr",
+        .translate = translate_xsr,
+        .test_ill = test_ill_sr,
+        .par = (const uint32_t[]){
+            MESR,
+            XTENSA_OPTION_MEMORY_ECC_PARITY,
+        },
+        .op_flags = XTENSA_OP_PRIVILEGED,
+    }, {
+        .name = "xsr.mevaddr",
+        .translate = translate_xsr,
+        .test_ill = test_ill_sr,
+        .par = (const uint32_t[]){
+            MESR,
+            XTENSA_OPTION_MEMORY_ECC_PARITY,
+        },
         .op_flags = XTENSA_OP_PRIVILEGED,
     }, {
         .name = "xsr.misc0",
