@@ -383,6 +383,14 @@ struct BlockDriver {
 
     /* List of options for creating images, terminated by name == NULL */
     QemuOptsList *create_opts;
+    /*
+     * If this driver supports reopening images this contains a
+     * NULL-terminated list of the runtime options that can be
+     * modified. If an option in this list is unspecified during
+     * reopen then it _must_ be reset to its default value or return
+     * an error.
+     */
+    const char *const *mutable_opts;
 
     /*
      * Returns 0 for completed check, -errno for internal errors.
@@ -710,6 +718,12 @@ struct BdrvChild {
     bool has_backup_perm;
     uint64_t backup_perm;
     uint64_t backup_shared_perm;
+
+    /*
+     * This link is frozen: the child can neither be replaced nor
+     * detached from the parent.
+     */
+    bool frozen;
 
     QLIST_ENTRY(BdrvChild) next;
     QLIST_ENTRY(BdrvChild) next_parent;

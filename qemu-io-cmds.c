@@ -2080,8 +2080,8 @@ static int reopen_f(BlockBackend *blk, int argc, char **argv)
     }
 
     bdrv_subtree_drained_begin(bs);
-    brq = bdrv_reopen_queue(NULL, bs, opts);
-    bdrv_reopen_multiple(bdrv_get_aio_context(bs), brq, &local_err);
+    brq = bdrv_reopen_queue(NULL, bs, opts, true);
+    bdrv_reopen_multiple(brq, &local_err);
     bdrv_subtree_drained_end(bs);
 
     if (local_err) {

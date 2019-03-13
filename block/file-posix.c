@@ -144,6 +144,9 @@ typedef struct BDRVRawState {
     uint64_t locked_perm;
     uint64_t locked_shared_perm;
 
+    int perm_change_fd;
+    BDRVReopenState *reopen_state;
+
 #ifdef CONFIG_XFS
     bool is_xfs:1;
 #endif
@@ -373,13 +376,21 @@ static void raw_probe_alignment(BlockDriverState *bs, int fd, Error **errp)
     }
 }
 
-static void raw_parse_flags(int bdrv_flags, int *open_flags)
+static void raw_parse_flags(int bdrv_flags, int *open_flags, bool has_writers)
 {
+    bool read_write = false;
     assert(open_flags != NULL);
 
     *open_flags |= O_BINARY;
     *open_flags &= ~O_ACCMODE;
-    if (bdrv_flags & BDRV_O_RDWR) {
+
+    if (bdrv_flags & BDRV_O_AUTO_RDONLY) {
+        read_write = has_writers;
+    } else if (bdrv_flags & BDRV_O_RDWR) {
+        read_write = true;
+    }
+
+    if (read_write) {
         *open_flags |= O_RDWR;
     } else {
         *open_flags |= O_RDONLY;
@@ -430,6 +441,8 @@ static QemuOptsList raw_runtime_opts = {
         { /* end of list */ }
     },
 };
+
+static const char *const mutable_opts[] = { "x-check-cache-dropped", NULL };
 
 static int raw_open_common(BlockDriverState *bs, QDict *options,
                            int bdrv_flags, int open_flags,
@@ -515,23 +528,11 @@ static int raw_open_common(BlockDriverState *bs, QDict *options,
                                                false);
 
     s->open_flags = open_flags;
-    raw_parse_flags(bdrv_flags, &s->open_flags);
+    raw_parse_flags(bdrv_flags, &s->open_flags, false);
 
     s->fd = -1;
     fd = qemu_open(filename, s->open_flags, 0644);
     ret = fd < 0 ? -errno : 0;
-
-    if (ret == -EACCES || ret == -EROFS) {
-        /* Try to degrade to read-only, but if it doesn't work, still use the
-         * normal error message. */
-        if (bdrv_apply_auto_read_only(bs, NULL, NULL) == 0) {
-            bdrv_flags &= ~BDRV_O_RDWR;
-            raw_parse_flags(bdrv_flags, &s->open_flags);
-            assert(!(s->open_flags & O_CREAT));
-            fd = qemu_open(filename, s->open_flags);
-            ret = fd < 0 ? -errno : 0;
-        }
-    }
 
     if (ret < 0) {
         error_setg_errno(errp, -ret, "Could not open '%s'", filename);
@@ -842,13 +843,77 @@ static int raw_handle_perm_lock(BlockDriverState *bs,
     return ret;
 }
 
+static int raw_reconfigure_getfd(BlockDriverState *bs, int flags,
+                                 int *open_flags, uint64_t perm, bool force_dup,
+                                 Error **errp)
+{
+    BDRVRawState *s = bs->opaque;
+    int fd = -1;
+    int ret;
+    bool has_writers = perm &
+        (BLK_PERM_WRITE | BLK_PERM_WRITE_UNCHANGED | BLK_PERM_RESIZE);
+    int fcntl_flags = O_APPEND | O_NONBLOCK;
+#ifdef O_NOATIME
+    fcntl_flags |= O_NOATIME;
+#endif
+
+    *open_flags = 0;
+    if (s->type == FTYPE_CD) {
+        *open_flags |= O_NONBLOCK;
+    }
+
+    raw_parse_flags(flags, open_flags, has_writers);
+
+#ifdef O_ASYNC
+    /* Not all operating systems have O_ASYNC, and those that don't
+     * will not let us track the state into rs->open_flags (typically
+     * you achieve the same effect with an ioctl, for example I_SETSIG
+     * on Solaris). But we do not use O_ASYNC, so that's fine.
+     */
+    assert((s->open_flags & O_ASYNC) == 0);
+#endif
+
+    if (!force_dup && *open_flags == s->open_flags) {
+        /* We're lucky, the existing fd is fine */
+        return s->fd;
+    }
+
+    if ((*open_flags & ~fcntl_flags) == (s->open_flags & ~fcntl_flags)) {
+        /* dup the original fd */
+        fd = qemu_dup(s->fd);
+        if (fd >= 0) {
+            ret = fcntl_setfl(fd, *open_flags);
+            if (ret) {
+                qemu_close(fd);
+                fd = -1;
+            }
+        }
+    }
+
+    /* If we cannot use fcntl, or fcntl failed, fall back to qemu_open() */
+    if (fd == -1) {
+        const char *normalized_filename = bs->filename;
+        ret = raw_normalize_devicepath(&normalized_filename, errp);
+        if (ret >= 0) {
+            assert(!(*open_flags & O_CREAT));
+            fd = qemu_open(normalized_filename, *open_flags);
+            if (fd == -1) {
+                error_setg_errno(errp, errno, "Could not reopen file");
+                return -1;
+            }
+        }
+    }
+
+    return fd;
+}
+
 static int raw_reopen_prepare(BDRVReopenState *state,
                               BlockReopenQueue *queue, Error **errp)
 {
     BDRVRawState *s;
     BDRVRawReopenState *rs;
     QemuOpts *opts;
-    int ret = 0;
+    int ret;
     Error *local_err = NULL;
 
     assert(state != NULL);
@@ -858,7 +923,6 @@ static int raw_reopen_prepare(BDRVReopenState *state,
 
     state->opaque = g_new0(BDRVRawReopenState, 1);
     rs = state->opaque;
-    rs->fd = -1;
 
     /* Handle options changes */
     opts = qemu_opts_create(&raw_runtime_opts, NULL, 0, &error_abort);
@@ -877,50 +941,12 @@ static int raw_reopen_prepare(BDRVReopenState *state,
      * bdrv_reopen_prepare() will detect changes and complain. */
     qemu_opts_to_qdict(opts, state->options);
 
-    if (s->type == FTYPE_CD) {
-        rs->open_flags |= O_NONBLOCK;
-    }
-
-    raw_parse_flags(state->flags, &rs->open_flags);
-
-    int fcntl_flags = O_APPEND | O_NONBLOCK;
-#ifdef O_NOATIME
-    fcntl_flags |= O_NOATIME;
-#endif
-
-#ifdef O_ASYNC
-    /* Not all operating systems have O_ASYNC, and those that don't
-     * will not let us track the state into rs->open_flags (typically
-     * you achieve the same effect with an ioctl, for example I_SETSIG
-     * on Solaris). But we do not use O_ASYNC, so that's fine.
-     */
-    assert((s->open_flags & O_ASYNC) == 0);
-#endif
-
-    if ((rs->open_flags & ~fcntl_flags) == (s->open_flags & ~fcntl_flags)) {
-        /* dup the original fd */
-        rs->fd = qemu_dup(s->fd);
-        if (rs->fd >= 0) {
-            ret = fcntl_setfl(rs->fd, rs->open_flags);
-            if (ret) {
-                qemu_close(rs->fd);
-                rs->fd = -1;
-            }
-        }
-    }
-
-    /* If we cannot use fcntl, or fcntl failed, fall back to qemu_open() */
-    if (rs->fd == -1) {
-        const char *normalized_filename = state->bs->filename;
-        ret = raw_normalize_devicepath(&normalized_filename, errp);
-        if (ret >= 0) {
-            assert(!(rs->open_flags & O_CREAT));
-            rs->fd = qemu_open(normalized_filename, rs->open_flags);
-            if (rs->fd == -1) {
-                error_setg_errno(errp, errno, "Could not reopen file");
-                ret = -1;
-            }
-        }
+    rs->fd = raw_reconfigure_getfd(state->bs, state->flags, &rs->open_flags,
+                                   state->perm, true, &local_err);
+    if (local_err) {
+        error_propagate(errp, local_err);
+        ret = -1;
+        goto out;
     }
 
     /* Fail already reopen_prepare() if we can't get a working O_DIRECT
@@ -928,13 +954,19 @@ static int raw_reopen_prepare(BDRVReopenState *state,
     if (rs->fd != -1) {
         raw_probe_alignment(state->bs, rs->fd, &local_err);
         if (local_err) {
-            qemu_close(rs->fd);
-            rs->fd = -1;
             error_propagate(errp, local_err);
             ret = -EINVAL;
+            goto out_fd;
         }
     }
 
+    s->reopen_state = state;
+    ret = 0;
+out_fd:
+    if (ret < 0) {
+        qemu_close(rs->fd);
+        rs->fd = -1;
+    }
 out:
     qemu_opts_del(opts);
     return ret;
@@ -944,29 +976,25 @@ static void raw_reopen_commit(BDRVReopenState *state)
 {
     BDRVRawReopenState *rs = state->opaque;
     BDRVRawState *s = state->bs->opaque;
-    Error *local_err = NULL;
 
     s->check_cache_dropped = rs->check_cache_dropped;
     s->open_flags = rs->open_flags;
 
-    /* Copy locks to the new fd before closing the old one. */
-    raw_apply_lock_bytes(NULL, rs->fd, s->locked_perm,
-                         s->locked_shared_perm, false, &local_err);
-    if (local_err) {
-        /* shouldn't fail in a sane host, but report it just in case. */
-        error_report_err(local_err);
-    }
     qemu_close(s->fd);
     s->fd = rs->fd;
 
     g_free(state->opaque);
     state->opaque = NULL;
+
+    assert(s->reopen_state == state);
+    s->reopen_state = NULL;
 }
 
 
 static void raw_reopen_abort(BDRVReopenState *state)
 {
     BDRVRawReopenState *rs = state->opaque;
+    BDRVRawState *s = state->bs->opaque;
 
      /* nothing to do if NULL, we didn't get far enough */
     if (rs == NULL) {
@@ -979,6 +1007,9 @@ static void raw_reopen_abort(BDRVReopenState *state)
     }
     g_free(state->opaque);
     state->opaque = NULL;
+
+    assert(s->reopen_state == state);
+    s->reopen_state = NULL;
 }
 
 static int hdev_get_max_transfer_length(BlockDriverState *bs, int fd)
@@ -2664,12 +2695,78 @@ static QemuOptsList raw_create_opts = {
 static int raw_check_perm(BlockDriverState *bs, uint64_t perm, uint64_t shared,
                           Error **errp)
 {
-    return raw_handle_perm_lock(bs, RAW_PL_PREPARE, perm, shared, errp);
+    BDRVRawState *s = bs->opaque;
+    BDRVRawReopenState *rs = NULL;
+    int open_flags;
+    int ret;
+
+    if (s->perm_change_fd) {
+        /*
+         * In the context of reopen, this function may be called several times
+         * (directly and recursively while change permissions of the parent).
+         * This is even true for children that don't inherit from the original
+         * reopen node, so s->reopen_state is not set.
+         *
+         * Ignore all but the first call.
+         */
+        return 0;
+    }
+
+    if (s->reopen_state) {
+        /* We already have a new file descriptor to set permissions for */
+        assert(s->reopen_state->perm == perm);
+        assert(s->reopen_state->shared_perm == shared);
+        rs = s->reopen_state->opaque;
+        s->perm_change_fd = rs->fd;
+    } else {
+        /* We may need a new fd if auto-read-only switches the mode */
+        ret = raw_reconfigure_getfd(bs, bs->open_flags, &open_flags, perm,
+                                    false, errp);
+        if (ret < 0) {
+            return ret;
+        } else if (ret != s->fd) {
+            s->perm_change_fd = ret;
+        }
+    }
+
+    /* Prepare permissions on old fd to avoid conflicts between old and new,
+     * but keep everything locked that new will need. */
+    ret = raw_handle_perm_lock(bs, RAW_PL_PREPARE, perm, shared, errp);
+    if (ret < 0) {
+        goto fail;
+    }
+
+    /* Copy locks to the new fd */
+    if (s->perm_change_fd) {
+        ret = raw_apply_lock_bytes(NULL, s->perm_change_fd, perm, ~shared,
+                                   false, errp);
+        if (ret < 0) {
+            raw_handle_perm_lock(bs, RAW_PL_ABORT, 0, 0, NULL);
+            goto fail;
+        }
+    }
+    return 0;
+
+fail:
+    if (s->perm_change_fd && !s->reopen_state) {
+        qemu_close(s->perm_change_fd);
+    }
+    s->perm_change_fd = 0;
+    return ret;
 }
 
 static void raw_set_perm(BlockDriverState *bs, uint64_t perm, uint64_t shared)
 {
     BDRVRawState *s = bs->opaque;
+
+    /* For reopen, we have already switched to the new fd (.bdrv_set_perm is
+     * called after .bdrv_reopen_commit) */
+    if (s->perm_change_fd && s->fd != s->perm_change_fd) {
+        qemu_close(s->fd);
+        s->fd = s->perm_change_fd;
+    }
+    s->perm_change_fd = 0;
+
     raw_handle_perm_lock(bs, RAW_PL_COMMIT, perm, shared, NULL);
     s->perm = perm;
     s->shared_perm = shared;
@@ -2677,6 +2774,15 @@ static void raw_set_perm(BlockDriverState *bs, uint64_t perm, uint64_t shared)
 
 static void raw_abort_perm_update(BlockDriverState *bs)
 {
+    BDRVRawState *s = bs->opaque;
+
+    /* For reopen, .bdrv_reopen_abort is called afterwards and will close
+     * the file descriptor. */
+    if (s->perm_change_fd && !s->reopen_state) {
+        qemu_close(s->perm_change_fd);
+    }
+    s->perm_change_fd = 0;
+
     raw_handle_perm_lock(bs, RAW_PL_ABORT, 0, 0, NULL);
 }
 
@@ -2766,6 +2872,7 @@ BlockDriver bdrv_file = {
     .bdrv_set_perm   = raw_set_perm,
     .bdrv_abort_perm_update = raw_abort_perm_update,
     .create_opts = &raw_create_opts,
+    .mutable_opts = mutable_opts,
 };
 
 /***********************************************/
@@ -3217,6 +3324,7 @@ static BlockDriver bdrv_host_device = {
     .bdrv_reopen_abort   = raw_reopen_abort,
     .bdrv_co_create_opts = hdev_co_create_opts,
     .create_opts         = &raw_create_opts,
+    .mutable_opts        = mutable_opts,
     .bdrv_co_invalidate_cache = raw_co_invalidate_cache,
     .bdrv_co_pwrite_zeroes = hdev_co_pwrite_zeroes,
 
@@ -3343,6 +3451,7 @@ static BlockDriver bdrv_host_cdrom = {
     .bdrv_reopen_abort   = raw_reopen_abort,
     .bdrv_co_create_opts = hdev_co_create_opts,
     .create_opts         = &raw_create_opts,
+    .mutable_opts        = mutable_opts,
     .bdrv_co_invalidate_cache = raw_co_invalidate_cache,
 
 
@@ -3476,6 +3585,7 @@ static BlockDriver bdrv_host_cdrom = {
     .bdrv_reopen_abort   = raw_reopen_abort,
     .bdrv_co_create_opts = hdev_co_create_opts,
     .create_opts        = &raw_create_opts,
+    .mutable_opts       = mutable_opts,
 
     .bdrv_co_preadv         = raw_co_preadv,
     .bdrv_co_pwritev        = raw_co_pwritev,

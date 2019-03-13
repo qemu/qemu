@@ -1163,13 +1163,6 @@ static int bdrv_open_flags(BlockDriverState *bs, int flags)
      */
     open_flags &= ~(BDRV_O_SNAPSHOT | BDRV_O_NO_BACKING | BDRV_O_PROTOCOL);
 
-    /*
-     * Snapshots should be writable.
-     */
-    if (flags & BDRV_O_TEMPORARY) {
-        open_flags |= BDRV_O_RDWR;
-    }
-
     return open_flags;
 }
 
@@ -1698,6 +1691,7 @@ static void bdrv_child_set_perm(BdrvChild *c, uint64_t perm, uint64_t shared);
 
 typedef struct BlockReopenQueueEntry {
      bool prepared;
+     bool perms_checked;
      BDRVReopenState state;
      QSIMPLEQ_ENTRY(BlockReopenQueueEntry) entry;
 } BlockReopenQueueEntry;
@@ -2132,6 +2126,8 @@ static void bdrv_replace_child_noperm(BdrvChild *child,
     BlockDriverState *old_bs = child->bs;
     int i;
 
+    assert(!child->frozen);
+
     if (old_bs && new_bs) {
         assert(bdrv_get_aio_context(old_bs) == bdrv_get_aio_context(new_bs));
     }
@@ -2347,6 +2343,10 @@ void bdrv_set_backing_hd(BlockDriverState *bs, BlockDriverState *backing_hd,
 {
     bool update_inherits_from = bdrv_chain_contains(bs, backing_hd) &&
         bdrv_inherits_from_recursive(backing_hd, bs);
+
+    if (bdrv_is_backing_chain_frozen(bs, backing_bs(bs), errp)) {
+        return;
+    }
 
     if (backing_hd) {
         bdrv_ref(backing_hd);
@@ -2983,6 +2983,74 @@ BlockDriverState *bdrv_open(const char *filename, const char *reference,
                              NULL, errp);
 }
 
+/* Return true if the NULL-terminated @list contains @str */
+static bool is_str_in_list(const char *str, const char *const *list)
+{
+    if (str && list) {
+        int i;
+        for (i = 0; list[i] != NULL; i++) {
+            if (!strcmp(str, list[i])) {
+                return true;
+            }
+        }
+    }
+    return false;
+}
+
+/*
+ * Check that every option set in @bs->options is also set in
+ * @new_opts.
+ *
+ * Options listed in the common_options list and in
+ * @bs->drv->mutable_opts are skipped.
+ *
+ * Return 0 on success, otherwise return -EINVAL and set @errp.
+ */
+static int bdrv_reset_options_allowed(BlockDriverState *bs,
+                                      const QDict *new_opts, Error **errp)
+{
+    const QDictEntry *e;
+    /* These options are common to all block drivers and are handled
+     * in bdrv_reopen_prepare() so they can be left out of @new_opts */
+    const char *const common_options[] = {
+        "node-name", "discard", "cache.direct", "cache.no-flush",
+        "read-only", "auto-read-only", "detect-zeroes", NULL
+    };
+
+    for (e = qdict_first(bs->options); e; e = qdict_next(bs->options, e)) {
+        if (!qdict_haskey(new_opts, e->key) &&
+            !is_str_in_list(e->key, common_options) &&
+            !is_str_in_list(e->key, bs->drv->mutable_opts)) {
+            error_setg(errp, "Option '%s' cannot be reset "
+                       "to its default value", e->key);
+            return -EINVAL;
+        }
+    }
+
+    return 0;
+}
+
+/*
+ * Returns true if @child can be reached recursively from @bs
+ */
+static bool bdrv_recurse_has_child(BlockDriverState *bs,
+                                   BlockDriverState *child)
+{
+    BdrvChild *c;
+
+    if (bs == child) {
+        return true;
+    }
+
+    QLIST_FOREACH(c, &bs->children, next) {
+        if (bdrv_recurse_has_child(c->bs, child)) {
+            return true;
+        }
+    }
+
+    return false;
+}
+
 /*
  * Adds a BlockDriverState to a simple queue for an atomic, transactional
  * reopen of multiple devices.
@@ -3010,7 +3078,8 @@ static BlockReopenQueue *bdrv_reopen_queue_child(BlockReopenQueue *bs_queue,
                                                  QDict *options,
                                                  const BdrvChildRole *role,
                                                  QDict *parent_options,
-                                                 int parent_flags)
+                                                 int parent_flags,
+                                                 bool keep_old_opts)
 {
     assert(bs != NULL);
 
@@ -3050,13 +3119,13 @@ static BlockReopenQueue *bdrv_reopen_queue_child(BlockReopenQueue *bs_queue,
      */
 
     /* Old explicitly set values (don't overwrite by inherited value) */
-    if (bs_entry) {
-        old_options = qdict_clone_shallow(bs_entry->state.explicit_options);
-    } else {
-        old_options = qdict_clone_shallow(bs->explicit_options);
+    if (bs_entry || keep_old_opts) {
+        old_options = qdict_clone_shallow(bs_entry ?
+                                          bs_entry->state.explicit_options :
+                                          bs->explicit_options);
+        bdrv_join_options(bs, options, old_options);
+        qobject_unref(old_options);
     }
-    bdrv_join_options(bs, options, old_options);
-    qobject_unref(old_options);
 
     explicit_options = qdict_clone_shallow(options);
 
@@ -3068,10 +3137,12 @@ static BlockReopenQueue *bdrv_reopen_queue_child(BlockReopenQueue *bs_queue,
         flags = bdrv_get_flags(bs);
     }
 
-    /* Old values are used for options that aren't set yet */
-    old_options = qdict_clone_shallow(bs->options);
-    bdrv_join_options(bs, options, old_options);
-    qobject_unref(old_options);
+    if (keep_old_opts) {
+        /* Old values are used for options that aren't set yet */
+        old_options = qdict_clone_shallow(bs->options);
+        bdrv_join_options(bs, options, old_options);
+        qobject_unref(old_options);
+    }
 
     /* We have the final set of options so let's update the flags */
     options_copy = qdict_clone_shallow(options);
@@ -3104,9 +3175,21 @@ static BlockReopenQueue *bdrv_reopen_queue_child(BlockReopenQueue *bs_queue,
     bs_entry->state.perm = UINT64_MAX;
     bs_entry->state.shared_perm = 0;
 
+    /*
+     * If keep_old_opts is false then it means that unspecified
+     * options must be reset to their original value. We don't allow
+     * resetting 'backing' but we need to know if the option is
+     * missing in order to decide if we have to return an error.
+     */
+    if (!keep_old_opts) {
+        bs_entry->state.backing_missing =
+            !qdict_haskey(options, "backing") &&
+            !qdict_haskey(options, "backing.driver");
+    }
+
     QLIST_FOREACH(child, &bs->children, next) {
-        QDict *new_child_options;
-        char *child_key_dot;
+        QDict *new_child_options = NULL;
+        bool child_keep_old = keep_old_opts;
 
         /* reopen can only change the options of block devices that were
          * implicitly created and inherited options. For other (referenced)
@@ -3115,13 +3198,32 @@ static BlockReopenQueue *bdrv_reopen_queue_child(BlockReopenQueue *bs_queue,
             continue;
         }
 
-        child_key_dot = g_strdup_printf("%s.", child->name);
-        qdict_extract_subqdict(explicit_options, NULL, child_key_dot);
-        qdict_extract_subqdict(options, &new_child_options, child_key_dot);
-        g_free(child_key_dot);
+        /* Check if the options contain a child reference */
+        if (qdict_haskey(options, child->name)) {
+            const char *childref = qdict_get_try_str(options, child->name);
+            /*
+             * The current child must not be reopened if the child
+             * reference is null or points to a different node.
+             */
+            if (g_strcmp0(childref, child->bs->node_name)) {
+                continue;
+            }
+            /*
+             * If the child reference points to the current child then
+             * reopen it with its existing set of options (note that
+             * it can still inherit new options from the parent).
+             */
+            child_keep_old = true;
+        } else {
+            /* Extract child options ("child-name.*") */
+            char *child_key_dot = g_strdup_printf("%s.", child->name);
+            qdict_extract_subqdict(explicit_options, NULL, child_key_dot);
+            qdict_extract_subqdict(options, &new_child_options, child_key_dot);
+            g_free(child_key_dot);
+        }
 
         bdrv_reopen_queue_child(bs_queue, child->bs, new_child_options,
-                                child->role, options, flags);
+                                child->role, options, flags, child_keep_old);
     }
 
     return bs_queue;
@@ -3129,9 +3231,10 @@ static BlockReopenQueue *bdrv_reopen_queue_child(BlockReopenQueue *bs_queue,
 
 BlockReopenQueue *bdrv_reopen_queue(BlockReopenQueue *bs_queue,
                                     BlockDriverState *bs,
-                                    QDict *options)
+                                    QDict *options, bool keep_old_opts)
 {
-    return bdrv_reopen_queue_child(bs_queue, bs, options, NULL, NULL, 0);
+    return bdrv_reopen_queue_child(bs_queue, bs, options, NULL, NULL, 0,
+                                   keep_old_opts);
 }
 
 /*
@@ -3151,21 +3254,42 @@ BlockReopenQueue *bdrv_reopen_queue(BlockReopenQueue *bs_queue,
  * All affected nodes must be drained between bdrv_reopen_queue() and
  * bdrv_reopen_multiple().
  */
-int bdrv_reopen_multiple(AioContext *ctx, BlockReopenQueue *bs_queue, Error **errp)
+int bdrv_reopen_multiple(BlockReopenQueue *bs_queue, Error **errp)
 {
     int ret = -1;
     BlockReopenQueueEntry *bs_entry, *next;
-    Error *local_err = NULL;
 
     assert(bs_queue != NULL);
 
     QSIMPLEQ_FOREACH(bs_entry, bs_queue, entry) {
         assert(bs_entry->state.bs->quiesce_counter > 0);
-        if (bdrv_reopen_prepare(&bs_entry->state, bs_queue, &local_err)) {
-            error_propagate(errp, local_err);
+        if (bdrv_reopen_prepare(&bs_entry->state, bs_queue, errp)) {
             goto cleanup;
         }
         bs_entry->prepared = true;
+    }
+
+    QSIMPLEQ_FOREACH(bs_entry, bs_queue, entry) {
+        BDRVReopenState *state = &bs_entry->state;
+        ret = bdrv_check_perm(state->bs, bs_queue, state->perm,
+                              state->shared_perm, NULL, errp);
+        if (ret < 0) {
+            goto cleanup_perm;
+        }
+        /* Check if new_backing_bs would accept the new permissions */
+        if (state->replace_backing_bs && state->new_backing_bs) {
+            uint64_t nperm, nshared;
+            bdrv_child_perm(state->bs, state->new_backing_bs,
+                            NULL, &child_backing, bs_queue,
+                            state->perm, state->shared_perm,
+                            &nperm, &nshared);
+            ret = bdrv_check_update_perm(state->new_backing_bs, NULL,
+                                         nperm, nshared, NULL, errp);
+            if (ret < 0) {
+                goto cleanup_perm;
+            }
+        }
+        bs_entry->perms_checked = true;
     }
 
     /* If we reach this point, we have success and just need to apply the
@@ -3176,7 +3300,23 @@ int bdrv_reopen_multiple(AioContext *ctx, BlockReopenQueue *bs_queue, Error **er
     }
 
     ret = 0;
+cleanup_perm:
+    QSIMPLEQ_FOREACH_SAFE(bs_entry, bs_queue, entry, next) {
+        BDRVReopenState *state = &bs_entry->state;
 
+        if (!bs_entry->perms_checked) {
+            continue;
+        }
+
+        if (ret == 0) {
+            bdrv_set_perm(state->bs, state->perm, state->shared_perm);
+        } else {
+            bdrv_abort_perm_update(state->bs);
+            if (state->replace_backing_bs && state->new_backing_bs) {
+                bdrv_abort_perm_update(state->new_backing_bs);
+            }
+        }
+    }
 cleanup:
     QSIMPLEQ_FOREACH_SAFE(bs_entry, bs_queue, entry, next) {
         if (ret) {
@@ -3185,6 +3325,9 @@ cleanup:
             }
             qobject_unref(bs_entry->state.explicit_options);
             qobject_unref(bs_entry->state.options);
+        }
+        if (bs_entry->state.new_backing_bs) {
+            bdrv_unref(bs_entry->state.new_backing_bs);
         }
         g_free(bs_entry);
     }
@@ -3203,8 +3346,8 @@ int bdrv_reopen_set_read_only(BlockDriverState *bs, bool read_only,
     qdict_put_bool(opts, BDRV_OPT_READ_ONLY, read_only);
 
     bdrv_subtree_drained_begin(bs);
-    queue = bdrv_reopen_queue(NULL, bs, opts);
-    ret = bdrv_reopen_multiple(bdrv_get_aio_context(bs), queue, errp);
+    queue = bdrv_reopen_queue(NULL, bs, opts, true);
+    ret = bdrv_reopen_multiple(queue, errp);
     bdrv_subtree_drained_end(bs);
 
     return ret;
@@ -3255,6 +3398,101 @@ static void bdrv_reopen_perm(BlockReopenQueue *q, BlockDriverState *bs,
     }
     *perm = cumulative_perms;
     *shared = cumulative_shared_perms;
+}
+
+/*
+ * Take a BDRVReopenState and check if the value of 'backing' in the
+ * reopen_state->options QDict is valid or not.
+ *
+ * If 'backing' is missing from the QDict then return 0.
+ *
+ * If 'backing' contains the node name of the backing file of
+ * reopen_state->bs then return 0.
+ *
+ * If 'backing' contains a different node name (or is null) then check
+ * whether the current backing file can be replaced with the new one.
+ * If that's the case then reopen_state->replace_backing_bs is set to
+ * true and reopen_state->new_backing_bs contains a pointer to the new
+ * backing BlockDriverState (or NULL).
+ *
+ * Return 0 on success, otherwise return < 0 and set @errp.
+ */
+static int bdrv_reopen_parse_backing(BDRVReopenState *reopen_state,
+                                     Error **errp)
+{
+    BlockDriverState *bs = reopen_state->bs;
+    BlockDriverState *overlay_bs, *new_backing_bs;
+    QObject *value;
+    const char *str;
+
+    value = qdict_get(reopen_state->options, "backing");
+    if (value == NULL) {
+        return 0;
+    }
+
+    switch (qobject_type(value)) {
+    case QTYPE_QNULL:
+        new_backing_bs = NULL;
+        break;
+    case QTYPE_QSTRING:
+        str = qobject_get_try_str(value);
+        new_backing_bs = bdrv_lookup_bs(NULL, str, errp);
+        if (new_backing_bs == NULL) {
+            return -EINVAL;
+        } else if (bdrv_recurse_has_child(new_backing_bs, bs)) {
+            error_setg(errp, "Making '%s' a backing file of '%s' "
+                       "would create a cycle", str, bs->node_name);
+            return -EINVAL;
+        }
+        break;
+    default:
+        /* 'backing' does not allow any other data type */
+        g_assert_not_reached();
+    }
+
+    /*
+     * TODO: before removing the x- prefix from x-blockdev-reopen we
+     * should move the new backing file into the right AioContext
+     * instead of returning an error.
+     */
+    if (new_backing_bs) {
+        if (bdrv_get_aio_context(new_backing_bs) != bdrv_get_aio_context(bs)) {
+            error_setg(errp, "Cannot use a new backing file "
+                       "with a different AioContext");
+            return -EINVAL;
+        }
+    }
+
+    /*
+     * Find the "actual" backing file by skipping all links that point
+     * to an implicit node, if any (e.g. a commit filter node).
+     */
+    overlay_bs = bs;
+    while (backing_bs(overlay_bs) && backing_bs(overlay_bs)->implicit) {
+        overlay_bs = backing_bs(overlay_bs);
+    }
+
+    /* If we want to replace the backing file we need some extra checks */
+    if (new_backing_bs != backing_bs(overlay_bs)) {
+        /* Check for implicit nodes between bs and its backing file */
+        if (bs != overlay_bs) {
+            error_setg(errp, "Cannot change backing link if '%s' has "
+                       "an implicit backing file", bs->node_name);
+            return -EPERM;
+        }
+        /* Check if the backing link that we want to replace is frozen */
+        if (bdrv_is_backing_chain_frozen(overlay_bs, backing_bs(overlay_bs),
+                                         errp)) {
+            return -EPERM;
+        }
+        reopen_state->replace_backing_bs = true;
+        if (new_backing_bs) {
+            bdrv_ref(new_backing_bs);
+            reopen_state->new_backing_bs = new_backing_bs;
+        }
+    }
+
+    return 0;
 }
 
 /*
@@ -3355,6 +3593,17 @@ int bdrv_reopen_prepare(BDRVReopenState *reopen_state, BlockReopenQueue *queue,
     }
 
     if (drv->bdrv_reopen_prepare) {
+        /*
+         * If a driver-specific option is missing, it means that we
+         * should reset it to its default value.
+         * But not all options allow that, so we need to check it first.
+         */
+        ret = bdrv_reset_options_allowed(reopen_state->bs,
+                                         reopen_state->options, errp);
+        if (ret) {
+            goto error;
+        }
+
         ret = drv->bdrv_reopen_prepare(reopen_state, queue, &local_err);
         if (ret) {
             if (local_err != NULL) {
@@ -3377,6 +3626,30 @@ int bdrv_reopen_prepare(BDRVReopenState *reopen_state, BlockReopenQueue *queue,
     }
 
     drv_prepared = true;
+
+    /*
+     * We must provide the 'backing' option if the BDS has a backing
+     * file or if the image file has a backing file name as part of
+     * its metadata. Otherwise the 'backing' option can be omitted.
+     */
+    if (drv->supports_backing && reopen_state->backing_missing &&
+        (backing_bs(reopen_state->bs) || reopen_state->bs->backing_file[0])) {
+        error_setg(errp, "backing is missing for '%s'",
+                   reopen_state->bs->node_name);
+        ret = -EINVAL;
+        goto error;
+    }
+
+    /*
+     * Allow changing the 'backing' option. The new value can be
+     * either a reference to an existing node (using its node name)
+     * or NULL to simply detach the current backing file.
+     */
+    ret = bdrv_reopen_parse_backing(reopen_state, errp);
+    if (ret < 0) {
+        goto error;
+    }
+    qdict_del(reopen_state->options, "backing");
 
     /* Options that are not handled are only okay if they are unchanged
      * compared to the old state. It is expected that some options are only
@@ -3428,12 +3701,6 @@ int bdrv_reopen_prepare(BDRVReopenState *reopen_state, BlockReopenQueue *queue,
                 goto error;
             }
         } while ((entry = qdict_next(reopen_state->options, entry)));
-    }
-
-    ret = bdrv_check_perm(reopen_state->bs, queue, reopen_state->perm,
-                          reopen_state->shared_perm, NULL, errp);
-    if (ret < 0) {
-        goto error;
     }
 
     ret = 0;
@@ -3493,6 +3760,11 @@ void bdrv_reopen_commit(BDRVReopenState *reopen_state)
     bs->read_only = !(reopen_state->flags & BDRV_O_RDWR);
     bs->detect_zeroes      = reopen_state->detect_zeroes;
 
+    if (reopen_state->replace_backing_bs) {
+        qdict_del(bs->explicit_options, "backing");
+        qdict_del(bs->options, "backing");
+    }
+
     /* Remove child references from bs->options and bs->explicit_options.
      * Child options were already removed in bdrv_reopen_queue_child() */
     QLIST_FOREACH(child, &bs->children, next) {
@@ -3500,10 +3772,22 @@ void bdrv_reopen_commit(BDRVReopenState *reopen_state)
         qdict_del(bs->options, child->name);
     }
 
-    bdrv_refresh_limits(bs, NULL);
+    /*
+     * Change the backing file if a new one was specified. We do this
+     * after updating bs->options, so bdrv_refresh_filename() (called
+     * from bdrv_set_backing_hd()) has the new values.
+     */
+    if (reopen_state->replace_backing_bs) {
+        BlockDriverState *old_backing_bs = backing_bs(bs);
+        assert(!old_backing_bs || !old_backing_bs->implicit);
+        /* Abort the permission update on the backing bs we're detaching */
+        if (old_backing_bs) {
+            bdrv_abort_perm_update(old_backing_bs);
+        }
+        bdrv_set_backing_hd(bs, reopen_state->new_backing_bs, &error_abort);
+    }
 
-    bdrv_set_perm(reopen_state->bs, reopen_state->perm,
-                  reopen_state->shared_perm);
+    bdrv_refresh_limits(bs, NULL);
 
     new_can_write =
         !bdrv_is_read_only(bs) && !(bdrv_get_flags(bs) & BDRV_O_INACTIVE);
@@ -3536,8 +3820,6 @@ void bdrv_reopen_abort(BDRVReopenState *reopen_state)
     if (drv->bdrv_reopen_abort) {
         drv->bdrv_reopen_abort(reopen_state);
     }
-
-    bdrv_abort_perm_update(reopen_state->bs);
 }
 
 
@@ -3716,6 +3998,11 @@ void bdrv_replace_node(BlockDriverState *from, BlockDriverState *to,
         assert(c->bs == from);
         if (!should_update_child(c, to)) {
             continue;
+        }
+        if (c->frozen) {
+            error_setg(errp, "Cannot change '%s' link to '%s'",
+                       c->name, from->node_name);
+            goto out;
         }
         list = g_slist_prepend(list, c);
         perm |= c->perm;
@@ -3929,6 +4216,63 @@ BlockDriverState *bdrv_find_base(BlockDriverState *bs)
 }
 
 /*
+ * Return true if at least one of the backing links between @bs and
+ * @base is frozen. @errp is set if that's the case.
+ */
+bool bdrv_is_backing_chain_frozen(BlockDriverState *bs, BlockDriverState *base,
+                                  Error **errp)
+{
+    BlockDriverState *i;
+
+    for (i = bs; i != base && i->backing; i = backing_bs(i)) {
+        if (i->backing->frozen) {
+            error_setg(errp, "Cannot change '%s' link from '%s' to '%s'",
+                       i->backing->name, i->node_name,
+                       backing_bs(i)->node_name);
+            return true;
+        }
+    }
+
+    return false;
+}
+
+/*
+ * Freeze all backing links between @bs and @base.
+ * If any of the links is already frozen the operation is aborted and
+ * none of the links are modified.
+ * Returns 0 on success. On failure returns < 0 and sets @errp.
+ */
+int bdrv_freeze_backing_chain(BlockDriverState *bs, BlockDriverState *base,
+                              Error **errp)
+{
+    BlockDriverState *i;
+
+    if (bdrv_is_backing_chain_frozen(bs, base, errp)) {
+        return -EPERM;
+    }
+
+    for (i = bs; i != base && i->backing; i = backing_bs(i)) {
+        i->backing->frozen = true;
+    }
+
+    return 0;
+}
+
+/*
+ * Unfreeze all backing links between @bs and @base. The caller must
+ * ensure that all links are frozen before using this function.
+ */
+void bdrv_unfreeze_backing_chain(BlockDriverState *bs, BlockDriverState *base)
+{
+    BlockDriverState *i;
+
+    for (i = bs; i != base && i->backing; i = backing_bs(i)) {
+        assert(i->backing->frozen);
+        i->backing->frozen = false;
+    }
+}
+
+/*
  * Drops images above 'base' up to and including 'top', and sets the image
  * above 'top' to have base as its backing file.
  *
@@ -3975,6 +4319,14 @@ int bdrv_drop_intermediate(BlockDriverState *top, BlockDriverState *base,
     /* Make sure that base is in the backing chain of top */
     if (!bdrv_chain_contains(top, base)) {
         goto exit;
+    }
+
+    /* This function changes all links that point to top and makes
+     * them point to base. Check that none of them is frozen. */
+    QLIST_FOREACH(c, &top->parents, next_parent) {
+        if (c->frozen) {
+            goto exit;
+        }
     }
 
     /* If 'base' recursively inherits from 'top' then we should set

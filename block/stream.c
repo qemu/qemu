@@ -35,6 +35,7 @@ typedef struct StreamBlockJob {
     BlockdevOnError on_error;
     char *backing_file_str;
     bool bs_read_only;
+    bool chain_frozen;
 } StreamBlockJob;
 
 static int coroutine_fn stream_populate(BlockBackend *blk,
@@ -49,6 +50,16 @@ static int coroutine_fn stream_populate(BlockBackend *blk,
     return blk_co_preadv(blk, offset, qiov.size, &qiov, BDRV_REQ_COPY_ON_READ);
 }
 
+static void stream_abort(Job *job)
+{
+    StreamBlockJob *s = container_of(job, StreamBlockJob, common.job);
+
+    if (s->chain_frozen) {
+        BlockJob *bjob = &s->common;
+        bdrv_unfreeze_backing_chain(blk_bs(bjob->blk), s->base);
+    }
+}
+
 static int stream_prepare(Job *job)
 {
     StreamBlockJob *s = container_of(job, StreamBlockJob, common.job);
@@ -57,6 +68,9 @@ static int stream_prepare(Job *job)
     BlockDriverState *base = s->base;
     Error *local_err = NULL;
     int ret = 0;
+
+    bdrv_unfreeze_backing_chain(bs, base);
+    s->chain_frozen = false;
 
     if (bs->backing) {
         const char *base_id = NULL, *base_fmt = NULL;
@@ -208,6 +222,7 @@ static const BlockJobDriver stream_job_driver = {
         .free          = block_job_free,
         .run           = stream_run,
         .prepare       = stream_prepare,
+        .abort         = stream_abort,
         .clean         = stream_clean,
         .user_resume   = block_job_user_resume,
         .drain         = block_job_drain,
@@ -254,9 +269,15 @@ void stream_start(const char *job_id, BlockDriverState *bs,
                            &error_abort);
     }
 
+    if (bdrv_freeze_backing_chain(bs, base, errp) < 0) {
+        job_early_fail(&s->common.job);
+        goto fail;
+    }
+
     s->base = base;
     s->backing_file_str = g_strdup(backing_file_str);
     s->bs_read_only = bs_read_only;
+    s->chain_frozen = true;
 
     s->on_error = on_error;
     trace_stream_start(bs, base, s);

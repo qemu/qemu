@@ -37,6 +37,8 @@ typedef struct BDRVRawState {
     bool has_size;
 } BDRVRawState;
 
+static const char *const mutable_opts[] = { "offset", "size", NULL };
+
 static QemuOptsList raw_runtime_opts = {
     .name = "raw",
     .head = QTAILQ_HEAD_INITIALIZER(raw_runtime_opts.head),
@@ -570,6 +572,7 @@ BlockDriver bdrv_raw = {
     .create_opts          = &raw_create_opts,
     .bdrv_has_zero_init   = &raw_has_zero_init,
     .strong_runtime_opts  = raw_strong_runtime_opts,
+    .mutable_opts         = mutable_opts,
 };
 
 static void bdrv_raw_init(void)

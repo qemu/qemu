@@ -20,6 +20,10 @@
 #include "qemu/option.h"
 #include "qemu/cutils.h"
 
+#ifdef CONFIG_GLUSTERFS_FTRUNCATE_HAS_STAT
+# define glfs_ftruncate(fd, offset) glfs_ftruncate(fd, offset, NULL, NULL)
+#endif
+
 #define GLUSTER_OPT_FILENAME        "filename"
 #define GLUSTER_OPT_VOLUME          "volume"
 #define GLUSTER_OPT_PATH            "path"
@@ -725,7 +729,11 @@ static struct glfs *qemu_gluster_init(BlockdevOptionsGluster *gconf,
 /*
  * AIO callback routine called from GlusterFS thread.
  */
-static void gluster_finish_aiocb(struct glfs_fd *fd, ssize_t ret, void *arg)
+static void gluster_finish_aiocb(struct glfs_fd *fd, ssize_t ret,
+#ifdef CONFIG_GLUSTERFS_IOCB_HAS_STAT
+                                 struct glfs_stat *pre, struct glfs_stat *post,
+#endif
+                                 void *arg)
 {
     GlusterAIOCB *acb = (GlusterAIOCB *)arg;
 

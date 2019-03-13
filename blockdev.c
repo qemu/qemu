@@ -4287,6 +4287,53 @@ fail:
     visit_free(v);
 }
 
+void qmp_x_blockdev_reopen(BlockdevOptions *options, Error **errp)
+{
+    BlockDriverState *bs;
+    AioContext *ctx;
+    QObject *obj;
+    Visitor *v = qobject_output_visitor_new(&obj);
+    Error *local_err = NULL;
+    BlockReopenQueue *queue;
+    QDict *qdict;
+
+    /* Check for the selected node name */
+    if (!options->has_node_name) {
+        error_setg(errp, "Node name not specified");
+        goto fail;
+    }
+
+    bs = bdrv_find_node(options->node_name);
+    if (!bs) {
+        error_setg(errp, "Cannot find node named '%s'", options->node_name);
+        goto fail;
+    }
+
+    /* Put all options in a QDict and flatten it */
+    visit_type_BlockdevOptions(v, NULL, &options, &local_err);
+    if (local_err) {
+        error_propagate(errp, local_err);
+        goto fail;
+    }
+
+    visit_complete(v, &obj);
+    qdict = qobject_to(QDict, obj);
+
+    qdict_flatten(qdict);
+
+    /* Perform the reopen operation */
+    ctx = bdrv_get_aio_context(bs);
+    aio_context_acquire(ctx);
+    bdrv_subtree_drained_begin(bs);
+    queue = bdrv_reopen_queue(NULL, bs, qdict, false);
+    bdrv_reopen_multiple(queue, errp);
+    bdrv_subtree_drained_end(bs);
+    aio_context_release(ctx);
+
+fail:
+    visit_free(v);
+}
+
 void qmp_blockdev_del(const char *node_name, Error **errp)
 {
     AioContext *aio_context;
@@ -4452,22 +4499,22 @@ void qmp_x_blockdev_set_iothread(const char *node_name, StrOrNull *iothread,
     aio_context_release(old_context);
 }
 
-void qmp_x_block_latency_histogram_set(
-    const char *device,
+void qmp_block_latency_histogram_set(
+    const char *id,
     bool has_boundaries, uint64List *boundaries,
     bool has_boundaries_read, uint64List *boundaries_read,
     bool has_boundaries_write, uint64List *boundaries_write,
     bool has_boundaries_flush, uint64List *boundaries_flush,
     Error **errp)
 {
-    BlockBackend *blk = blk_by_name(device);
+    BlockBackend *blk = qmp_get_blk(NULL, id, errp);
     BlockAcctStats *stats;
     int ret;
 
     if (!blk) {
-        error_setg(errp, "Device '%s' not found", device);
         return;
     }
+
     stats = blk_get_stats(blk);
 
     if (!has_boundaries && !has_boundaries_read && !has_boundaries_write &&
@@ -4482,7 +4529,7 @@ void qmp_x_block_latency_histogram_set(
             stats, BLOCK_ACCT_READ,
             has_boundaries_read ? boundaries_read : boundaries);
         if (ret) {
-            error_setg(errp, "Device '%s' set read boundaries fail", device);
+            error_setg(errp, "Device '%s' set read boundaries fail", id);
             return;
         }
     }
@@ -4492,7 +4539,7 @@ void qmp_x_block_latency_histogram_set(
             stats, BLOCK_ACCT_WRITE,
             has_boundaries_write ? boundaries_write : boundaries);
         if (ret) {
-            error_setg(errp, "Device '%s' set write boundaries fail", device);
+            error_setg(errp, "Device '%s' set write boundaries fail", id);
             return;
         }
     }
@@ -4502,7 +4549,7 @@ void qmp_x_block_latency_histogram_set(
             stats, BLOCK_ACCT_FLUSH,
             has_boundaries_flush ? boundaries_flush : boundaries);
         if (ret) {
-            error_setg(errp, "Device '%s' set flush boundaries fail", device);
+            error_setg(errp, "Device '%s' set flush boundaries fail", id);
             return;
         }
     }

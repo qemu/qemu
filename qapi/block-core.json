@@ -537,20 +537,20 @@
 #         +------------------
 #             10   50   100
 #
-# Since: 2.12
+# Since: 4.0
 ##
 { 'struct': 'BlockLatencyHistogramInfo',
   'data': {'boundaries': ['uint64'], 'bins': ['uint64'] } }
 
 ##
-# @x-block-latency-histogram-set:
+# @block-latency-histogram-set:
 #
 # Manage read, write and flush latency histograms for the device.
 #
 # If only @device parameter is specified, remove all present latency histograms
 # for the device. Otherwise, add/reset some of (or all) latency histograms.
 #
-# @device: device name to set latency histogram for.
+# @id: The name or QOM path of the guest device.
 #
 # @boundaries: list of interval boundary values (see description in
 #              BlockLatencyHistogramInfo definition). If specified, all
@@ -573,7 +573,7 @@
 #
 # Returns: error if device is not found or any boundary arrays are invalid.
 #
-# Since: 2.12
+# Since: 4.0
 #
 # Example: set new histograms for all io types with intervals
 # [0, 10), [10, 50), [50, 100), [100, +inf):
@@ -607,8 +607,8 @@
 #      "arguments": { "device": "drive0" } }
 # <- { "return": {} }
 ##
-{ 'command': 'x-block-latency-histogram-set',
-  'data': {'device': 'str',
+{ 'command': 'block-latency-histogram-set',
+  'data': {'id': 'str',
            '*boundaries': ['uint64'],
            '*boundaries-read': ['uint64'],
            '*boundaries-write': ['uint64'],
@@ -894,11 +894,11 @@
 # @timed_stats: Statistics specific to the set of previously defined
 #               intervals of time (Since 2.5)
 #
-# @x_rd_latency_histogram: @BlockLatencyHistogramInfo. (Since 2.12)
+# @rd_latency_histogram: @BlockLatencyHistogramInfo. (Since 4.0)
 #
-# @x_wr_latency_histogram: @BlockLatencyHistogramInfo. (Since 2.12)
+# @wr_latency_histogram: @BlockLatencyHistogramInfo. (Since 4.0)
 #
-# @x_flush_latency_histogram: @BlockLatencyHistogramInfo. (Since 2.12)
+# @flush_latency_histogram: @BlockLatencyHistogramInfo. (Since 4.0)
 #
 # Since: 0.14.0
 ##
@@ -913,9 +913,9 @@
            'invalid_wr_operations': 'int', 'invalid_flush_operations': 'int',
            'account_invalid': 'bool', 'account_failed': 'bool',
            'timed_stats': ['BlockDeviceTimedStats'],
-           '*x_rd_latency_histogram': 'BlockLatencyHistogramInfo',
-           '*x_wr_latency_histogram': 'BlockLatencyHistogramInfo',
-           '*x_flush_latency_histogram': 'BlockLatencyHistogramInfo' } }
+           '*rd_latency_histogram': 'BlockLatencyHistogramInfo',
+           '*wr_latency_histogram': 'BlockLatencyHistogramInfo',
+           '*flush_latency_histogram': 'BlockLatencyHistogramInfo' } }
 
 ##
 # @BlockStats:
@@ -3996,6 +3996,48 @@
 #
 ##
 { 'command': 'blockdev-add', 'data': 'BlockdevOptions', 'boxed': true }
+
+##
+# @x-blockdev-reopen:
+#
+# Reopens a block device using the given set of options. Any option
+# not specified will be reset to its default value regardless of its
+# previous status. If an option cannot be changed or a particular
+# driver does not support reopening then the command will return an
+# error.
+#
+# The top-level @node-name option (from BlockdevOptions) must be
+# specified and is used to select the block device to be reopened.
+# Other @node-name options must be either omitted or set to the
+# current name of the appropriate node. This command won't change any
+# node name and any attempt to do it will result in an error.
+#
+# In the case of options that refer to child nodes, the behavior of
+# this command depends on the value:
+#
+#  1) A set of options (BlockdevOptions): the child is reopened with
+#     the specified set of options.
+#
+#  2) A reference to the current child: the child is reopened using
+#     its existing set of options.
+#
+#  3) A reference to a different node: the current child is replaced
+#     with the specified one.
+#
+#  4) NULL: the current child (if any) is detached.
+#
+# Options (1) and (2) are supported in all cases, but at the moment
+# only @backing allows replacing or detaching an existing child.
+#
+# Unlike with blockdev-add, the @backing option must always be present
+# unless the node being reopened does not have a backing file and its
+# image does not have a default backing file name as part of its
+# metadata.
+#
+# Since: 4.0
+##
+{ 'command': 'x-blockdev-reopen',
+  'data': 'BlockdevOptions', 'boxed': true }
 
 ##
 # @blockdev-del:
