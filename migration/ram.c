@@ -591,6 +591,8 @@ typedef struct {
     uint32_t version;
     unsigned char uuid[16]; /* QemuUUID */
     uint8_t id;
+    uint8_t unused1[7];     /* Reserved for future use */
+    uint64_t unused2[4];    /* Reserved for future use */
 } __attribute__((packed)) MultiFDInit_t;
 
 typedef struct {
@@ -603,6 +605,7 @@ typedef struct {
     /* size of the next packet that contains pages */
     uint32_t next_packet_size;
     uint64_t packet_num;
+    uint64_t unused[4];    /* Reserved for future use */
     char ramblock[256];
     uint64_t offset[];
 } __attribute__((packed)) MultiFDPacket_t;
