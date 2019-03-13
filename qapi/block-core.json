@@ -451,10 +451,15 @@
 #          recording new writes. If the bitmap was @disabled, it is not
 #          recording new writes. (Since 2.12)
 #
+# @inconsistent: This is a persistent dirty bitmap that was marked in-use on
+#                disk, and is unusable by QEMU. It can only be deleted.
+#                Please rely on the inconsistent field in @BlockDirtyInfo
+#                instead, as the status field is deprecated. (Since 4.0)
+#
 # Since: 2.4
 ##
 { 'enum': 'DirtyBitmapStatus',
-  'data': ['active', 'disabled', 'frozen', 'locked'] }
+  'data': ['active', 'disabled', 'frozen', 'locked', 'inconsistent'] }
 
 ##
 # @BlockDirtyInfo:
@@ -467,16 +472,29 @@
 #
 # @granularity: granularity of the dirty bitmap in bytes (since 1.4)
 #
-# @status: current status of the dirty bitmap (since 2.4)
+# @status: Deprecated in favor of @recording and @locked. (since 2.4)
 #
-# @persistent: true if the bitmap will eventually be flushed to persistent
-#              storage (since 4.0)
+# @recording: true if the bitmap is recording new writes from the guest.
+#             Replaces `active` and `disabled` statuses. (since 4.0)
+#
+# @busy: true if the bitmap is in-use by some operation (NBD or jobs)
+#        and cannot be modified via QMP or used by another operation.
+#        Replaces `locked` and `frozen` statuses. (since 4.0)
+#
+# @persistent: true if the bitmap was stored on disk, is scheduled to be stored
+#              on disk, or both. (since 4.0)
+#
+# @inconsistent: true if this is a persistent bitmap that was improperly
+#                stored. Implies @persistent to be true; @recording and
+#                @busy to be false. This bitmap cannot be used. To remove
+#                it, use @block-dirty-bitmap-remove. (Since 4.0)
 #
 # Since: 1.3
 ##
 { 'struct': 'BlockDirtyInfo',
   'data': {'*name': 'str', 'count': 'int', 'granularity': 'uint32',
-           'status': 'DirtyBitmapStatus', 'persistent': 'bool' } }
+           'recording': 'bool', 'busy': 'bool', 'status': 'DirtyBitmapStatus',
+           'persistent': 'bool', '*inconsistent': 'bool' } }
 
 ##
 # @Qcow2BitmapInfoFlags:

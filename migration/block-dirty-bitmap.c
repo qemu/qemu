@@ -261,7 +261,7 @@ static void dirty_bitmap_mig_cleanup(void)
 
     while ((dbms = QSIMPLEQ_FIRST(&dirty_bitmap_mig_state.dbms_list)) != NULL) {
         QSIMPLEQ_REMOVE_HEAD(&dirty_bitmap_mig_state.dbms_list, entry);
-        bdrv_dirty_bitmap_set_qmp_locked(dbms->bitmap, false);
+        bdrv_dirty_bitmap_set_busy(dbms->bitmap, false);
         bdrv_unref(dbms->bs);
         g_free(dbms);
     }
@@ -274,6 +274,7 @@ static int init_dirty_bitmap_migration(void)
     BdrvDirtyBitmap *bitmap;
     DirtyBitmapMigBitmapState *dbms;
     BdrvNextIterator it;
+    Error *local_err = NULL;
 
     dirty_bitmap_mig_state.bulk_completed = false;
     dirty_bitmap_mig_state.prev_bs = NULL;
@@ -301,20 +302,14 @@ static int init_dirty_bitmap_migration(void)
                 goto fail;
             }
 
-            if (bdrv_dirty_bitmap_user_locked(bitmap)) {
-                error_report("Can't migrate a bitmap that is in use by another operation: '%s'",
-                             bdrv_dirty_bitmap_name(bitmap));
-                goto fail;
-            }
-
-            if (bdrv_dirty_bitmap_readonly(bitmap)) {
-                error_report("Can't migrate read-only dirty bitmap: '%s",
-                             bdrv_dirty_bitmap_name(bitmap));
+            if (bdrv_dirty_bitmap_check(bitmap, BDRV_BITMAP_DEFAULT,
+                                        &local_err)) {
+                error_report_err(local_err);
                 goto fail;
             }
 
             bdrv_ref(bs);
-            bdrv_dirty_bitmap_set_qmp_locked(bitmap, true);
+            bdrv_dirty_bitmap_set_busy(bitmap, true);
 
             dbms = g_new0(DirtyBitmapMigBitmapState, 1);
             dbms->bs = bs;
@@ -326,7 +321,7 @@ static int init_dirty_bitmap_migration(void)
             if (bdrv_dirty_bitmap_enabled(bitmap)) {
                 dbms->flags |= DIRTY_BITMAP_MIG_START_FLAG_ENABLED;
             }
-            if (bdrv_dirty_bitmap_get_persistance(bitmap)) {
+            if (bdrv_dirty_bitmap_get_persistence(bitmap)) {
                 dbms->flags |= DIRTY_BITMAP_MIG_START_FLAG_PERSISTENT;
             }
 
@@ -478,7 +473,7 @@ static int dirty_bitmap_load_start(QEMUFile *f, DirtyBitmapLoadState *s)
     }
 
     if (flags & DIRTY_BITMAP_MIG_START_FLAG_PERSISTENT) {
-        bdrv_dirty_bitmap_set_persistance(s->bitmap, true);
+        bdrv_dirty_bitmap_set_persistence(s->bitmap, true);
     }
 
     bdrv_disable_dirty_bitmap(s->bitmap);
@@ -542,7 +537,7 @@ static void dirty_bitmap_load_complete(QEMUFile *f, DirtyBitmapLoadState *s)
         }
     }
 
-    if (bdrv_dirty_bitmap_frozen(s->bitmap)) {
+    if (bdrv_dirty_bitmap_has_successor(s->bitmap)) {
         bdrv_dirty_bitmap_lock(s->bitmap);
         if (enabled_bitmaps == NULL) {
             /* in postcopy */

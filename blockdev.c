@@ -1257,7 +1257,6 @@ out_aio_context:
  * @node: The name of the BDS node to search for bitmaps
  * @name: The name of the bitmap to search for
  * @pbs: Output pointer for BDS lookup, if desired. Can be NULL.
- * @paio: Output pointer for aio_context acquisition, if desired. Can be NULL.
  * @errp: Output pointer for error information. Can be NULL.
  *
  * @return: A bitmap object on success, or NULL on failure.
@@ -2011,11 +2010,7 @@ static void block_dirty_bitmap_clear_prepare(BlkActionState *common,
         return;
     }
 
-    if (bdrv_dirty_bitmap_user_locked(state->bitmap)) {
-        error_setg(errp, "Cannot modify a bitmap in use by another operation");
-        return;
-    } else if (bdrv_dirty_bitmap_readonly(state->bitmap)) {
-        error_setg(errp, "Cannot clear a readonly bitmap");
+    if (bdrv_dirty_bitmap_check(state->bitmap, BDRV_BITMAP_DEFAULT, errp)) {
         return;
     }
 
@@ -2060,10 +2055,7 @@ static void block_dirty_bitmap_enable_prepare(BlkActionState *common,
         return;
     }
 
-    if (bdrv_dirty_bitmap_user_locked(state->bitmap)) {
-        error_setg(errp,
-                   "Bitmap '%s' is currently in use by another operation"
-                   " and cannot be enabled", action->name);
+    if (bdrv_dirty_bitmap_check(state->bitmap, BDRV_BITMAP_ALLOW_RO, errp)) {
         return;
     }
 
@@ -2101,10 +2093,7 @@ static void block_dirty_bitmap_disable_prepare(BlkActionState *common,
         return;
     }
 
-    if (bdrv_dirty_bitmap_user_locked(state->bitmap)) {
-        error_setg(errp,
-                   "Bitmap '%s' is currently in use by another operation"
-                   " and cannot be disabled", action->name);
+    if (bdrv_dirty_bitmap_check(state->bitmap, BDRV_BITMAP_ALLOW_RO, errp)) {
         return;
     }
 
@@ -2875,7 +2864,7 @@ void qmp_block_dirty_bitmap_add(const char *node, const char *name,
         bdrv_disable_dirty_bitmap(bitmap);
     }
 
-    bdrv_dirty_bitmap_set_persistance(bitmap, persistent);
+    bdrv_dirty_bitmap_set_persistence(bitmap, persistent);
  out:
     if (aio_context) {
         aio_context_release(aio_context);
@@ -2895,14 +2884,12 @@ void qmp_block_dirty_bitmap_remove(const char *node, const char *name,
         return;
     }
 
-    if (bdrv_dirty_bitmap_user_locked(bitmap)) {
-        error_setg(errp,
-                   "Bitmap '%s' is currently in use by another operation and"
-                   " cannot be removed", name);
+    if (bdrv_dirty_bitmap_check(bitmap, BDRV_BITMAP_BUSY | BDRV_BITMAP_RO,
+                                errp)) {
         return;
     }
 
-    if (bdrv_dirty_bitmap_get_persistance(bitmap)) {
+    if (bdrv_dirty_bitmap_get_persistence(bitmap)) {
         aio_context = bdrv_get_aio_context(bs);
         aio_context_acquire(aio_context);
         bdrv_remove_persistent_dirty_bitmap(bs, name, &local_err);
@@ -2934,13 +2921,7 @@ void qmp_block_dirty_bitmap_clear(const char *node, const char *name,
         return;
     }
 
-    if (bdrv_dirty_bitmap_user_locked(bitmap)) {
-        error_setg(errp,
-                   "Bitmap '%s' is currently in use by another operation"
-                   " and cannot be cleared", name);
-        return;
-    } else if (bdrv_dirty_bitmap_readonly(bitmap)) {
-        error_setg(errp, "Bitmap '%s' is readonly and cannot be cleared", name);
+    if (bdrv_dirty_bitmap_check(bitmap, BDRV_BITMAP_DEFAULT, errp)) {
         return;
     }
 
@@ -2958,10 +2939,7 @@ void qmp_block_dirty_bitmap_enable(const char *node, const char *name,
         return;
     }
 
-    if (bdrv_dirty_bitmap_user_locked(bitmap)) {
-        error_setg(errp,
-                   "Bitmap '%s' is currently in use by another operation"
-                   " and cannot be enabled", name);
+    if (bdrv_dirty_bitmap_check(bitmap, BDRV_BITMAP_ALLOW_RO, errp)) {
         return;
     }
 
@@ -2979,10 +2957,7 @@ void qmp_block_dirty_bitmap_disable(const char *node, const char *name,
         return;
     }
 
-    if (bdrv_dirty_bitmap_user_locked(bitmap)) {
-        error_setg(errp,
-                   "Bitmap '%s' is currently in use by another operation"
-                   " and cannot be disabled", name);
+    if (bdrv_dirty_bitmap_check(bitmap, BDRV_BITMAP_ALLOW_RO, errp)) {
         return;
     }
 
@@ -3561,10 +3536,7 @@ static BlockJob *do_drive_backup(DriveBackup *backup, JobTxn *txn,
             bdrv_unref(target_bs);
             goto out;
         }
-        if (bdrv_dirty_bitmap_user_locked(bmap)) {
-            error_setg(errp,
-                       "Bitmap '%s' is currently in use by another operation"
-                       " and cannot be used for backup", backup->bitmap);
+        if (bdrv_dirty_bitmap_check(bmap, BDRV_BITMAP_DEFAULT, errp)) {
             goto out;
         }
     }
@@ -3674,10 +3646,7 @@ BlockJob *do_blockdev_backup(BlockdevBackup *backup, JobTxn *txn,
             error_setg(errp, "Bitmap '%s' could not be found", backup->bitmap);
             goto out;
         }
-        if (bdrv_dirty_bitmap_user_locked(bmap)) {
-            error_setg(errp,
-                       "Bitmap '%s' is currently in use by another operation"
-                       " and cannot be used for backup", backup->bitmap);
+        if (bdrv_dirty_bitmap_check(bmap, BDRV_BITMAP_DEFAULT, errp)) {
             goto out;
         }
     }

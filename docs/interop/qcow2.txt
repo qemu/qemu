@@ -633,7 +633,10 @@ Structure of a bitmap directory entry:
                     Bit
                       0: in_use
                          The bitmap was not saved correctly and may be
-                         inconsistent.
+                         inconsistent. Although the bitmap metadata is still
+                         well-formed from a qcow2 perspective, the metadata
+                         (such as the auto flag or bitmap size) or data
+                         contents may be outdated.
 
                       1: auto
                          The bitmap must reflect all changes of the virtual
@@ -761,8 +764,8 @@ corresponding range of the virtual disk (see above) was written to while the
 bitmap was 'enabled'. An unset bit means that this range was not written to.
 
 The software doesn't have to sync the bitmap in the image file with its
-representation in RAM after each write. Flag 'in_use' should be set while the
-bitmap is not synced.
+representation in RAM after each write or metadata change. Flag 'in_use'
+should be set while the bitmap is not synced.
 
 In the image file the 'enabled' state is reflected by the 'auto' flag. If this
 flag is set, the software must consider the bitmap as 'enabled' and start
