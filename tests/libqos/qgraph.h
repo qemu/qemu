@@ -19,11 +19,7 @@
 #ifndef QGRAPH_H
 #define QGRAPH_H
 
-#include <stdio.h>
-#include <stdlib.h>
-#include <stdbool.h>
 #include <gmodule.h>
-#include <glib.h>
 #include "qemu/module.h"
 #include "malloc.h"
 
