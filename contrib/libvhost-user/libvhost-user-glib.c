@@ -68,15 +68,16 @@ static GSourceFuncs vug_src_funcs = {
     NULL
 };
 
-static GSource *
-vug_source_new(VuDev *dev, int fd, GIOCondition cond,
+GSource *
+vug_source_new(VugDev *gdev, int fd, GIOCondition cond,
                vu_watch_cb vu_cb, gpointer data)
 {
+    VuDev *dev = &gdev->parent;
     GSource *gsrc;
     VugSrc *src;
     guint id;
 
-    g_assert(dev);
+    g_assert(gdev);
     g_assert(fd >= 0);
     g_assert(vu_cb);
 
@@ -106,7 +107,7 @@ set_watch(VuDev *vu_dev, int fd, int vu_evt, vu_watch_cb cb, void *pvt)
     g_assert(cb);
 
     dev = container_of(vu_dev, VugDev, parent);
-    src = vug_source_new(vu_dev, fd, vu_evt, cb, pvt);
+    src = vug_source_new(dev, fd, vu_evt, cb, pvt);
     g_hash_table_replace(dev->fdmap, GINT_TO_POINTER(fd), src);
 }
 
@@ -141,7 +142,7 @@ vug_init(VugDev *dev, int socket,
     dev->fdmap = g_hash_table_new_full(NULL, NULL, NULL,
                                        (GDestroyNotify) g_source_destroy);
 
-    dev->src = vug_source_new(&dev->parent, socket, G_IO_IN, vug_watch, NULL);
+    dev->src = vug_source_new(dev, socket, G_IO_IN, vug_watch, NULL);
 }
 
 void

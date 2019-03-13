@@ -914,3 +914,41 @@ void pcie_ats_init(PCIDevice *dev, uint16_t offset)
 
     pci_set_word(dev->wmask + dev->exp.ats_cap + PCI_ATS_CTRL, 0x800f);
 }
+
+/* ACS (Access Control Services) */
+void pcie_acs_init(PCIDevice *dev, uint16_t offset)
+{
+    bool is_downstream = pci_is_express_downstream_port(dev);
+    uint16_t cap_bits = 0;
+
+    /* For endpoints, only multifunction devs may have an ACS capability: */
+    assert(is_downstream ||
+           (dev->cap_present & QEMU_PCI_CAP_MULTIFUNCTION) ||
+           PCI_FUNC(dev->devfn));
+
+    pcie_add_capability(dev, PCI_EXT_CAP_ID_ACS, PCI_ACS_VER, offset,
+                        PCI_ACS_SIZEOF);
+    dev->exp.acs_cap = offset;
+
+    if (is_downstream) {
+        /*
+         * Downstream ports must implement SV, TB, RR, CR, UF, and DT (with
+         * caveats on the latter four that we ignore for simplicity).
+         * Endpoints may also implement a subset of ACS capabilities,
+         * but these are optional if the endpoint does not support
+         * peer-to-peer between functions and thus omitted here.
+         */
+        cap_bits = PCI_ACS_SV | PCI_ACS_TB | PCI_ACS_RR |
+            PCI_ACS_CR | PCI_ACS_UF | PCI_ACS_DT;
+    }
+
+    pci_set_word(dev->config + offset + PCI_ACS_CAP, cap_bits);
+    pci_set_word(dev->wmask + offset + PCI_ACS_CTRL, cap_bits);
+}
+
+void pcie_acs_reset(PCIDevice *dev)
+{
+    if (dev->exp.acs_cap) {
+        pci_set_word(dev->config + dev->exp.acs_cap + PCI_ACS_CTRL, 0);
+    }
+}

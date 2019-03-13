@@ -78,6 +78,7 @@ typedef struct PCIERootPortClass {
     int exp_offset;
     int aer_offset;
     int ssvid_offset;
+    int acs_offset;    /* If nonzero, optional ACS capability offset */
     int ssid;
 } PCIERootPortClass;
 

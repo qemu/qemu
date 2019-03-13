@@ -56,6 +56,7 @@ enum VhostUserProtocolFeature {
     VHOST_USER_PROTOCOL_F_CONFIG = 9,
     VHOST_USER_PROTOCOL_F_SLAVE_SEND_FD = 10,
     VHOST_USER_PROTOCOL_F_HOST_NOTIFIER = 11,
+    VHOST_USER_PROTOCOL_F_INFLIGHT_SHMFD = 12,
     VHOST_USER_PROTOCOL_F_MAX
 };
 
@@ -93,6 +94,8 @@ typedef enum VhostUserRequest {
     VHOST_USER_POSTCOPY_ADVISE  = 28,
     VHOST_USER_POSTCOPY_LISTEN  = 29,
     VHOST_USER_POSTCOPY_END     = 30,
+    VHOST_USER_GET_INFLIGHT_FD = 31,
+    VHOST_USER_SET_INFLIGHT_FD = 32,
     VHOST_USER_MAX
 } VhostUserRequest;
 
@@ -151,6 +154,13 @@ typedef struct VhostUserVringArea {
     uint64_t offset;
 } VhostUserVringArea;
 
+typedef struct VhostUserInflight {
+    uint64_t mmap_size;
+    uint64_t mmap_offset;
+    uint16_t num_queues;
+    uint16_t queue_size;
+} VhostUserInflight;
+
 typedef struct {
     VhostUserRequest request;
 
@@ -173,6 +183,7 @@ typedef union {
         VhostUserConfig config;
         VhostUserCryptoSession session;
         VhostUserVringArea area;
+        VhostUserInflight inflight;
 } VhostUserPayload;
 
 typedef struct VhostUserMsg {
@@ -214,7 +225,7 @@ static bool ioeventfd_enabled(void)
     return !kvm_enabled() || kvm_eventfds_enabled();
 }
 
-static int vhost_user_read(struct vhost_dev *dev, VhostUserMsg *msg)
+static int vhost_user_read_header(struct vhost_dev *dev, VhostUserMsg *msg)
 {
     struct vhost_user *u = dev->opaque;
     CharBackend *chr = u->user->chr;
@@ -225,7 +236,7 @@ static int vhost_user_read(struct vhost_dev *dev, VhostUserMsg *msg)
     if (r != size) {
         error_report("Failed to read msg header. Read %d instead of %d."
                      " Original request %d.", r, size, msg->hdr.request);
-        goto fail;
+        return -1;
     }
 
     /* validate received flags */
@@ -233,7 +244,21 @@ static int vhost_user_read(struct vhost_dev *dev, VhostUserMsg *msg)
         error_report("Failed to read msg header."
                 " Flags 0x%x instead of 0x%x.", msg->hdr.flags,
                 VHOST_USER_REPLY_MASK | VHOST_USER_VERSION);
-        goto fail;
+        return -1;
+    }
+
+    return 0;
+}
+
+static int vhost_user_read(struct vhost_dev *dev, VhostUserMsg *msg)
+{
+    struct vhost_user *u = dev->opaque;
+    CharBackend *chr = u->user->chr;
+    uint8_t *p = (uint8_t *) msg;
+    int r, size;
+
+    if (vhost_user_read_header(dev, msg) < 0) {
+        return -1;
     }
 
     /* validate message size is sane */
@@ -241,7 +266,7 @@ static int vhost_user_read(struct vhost_dev *dev, VhostUserMsg *msg)
         error_report("Failed to read msg header."
                 " Size %d exceeds the maximum %zu.", msg->hdr.size,
                 VHOST_USER_PAYLOAD_SIZE);
-        goto fail;
+        return -1;
     }
 
     if (msg->hdr.size) {
@@ -251,14 +276,11 @@ static int vhost_user_read(struct vhost_dev *dev, VhostUserMsg *msg)
         if (r != size) {
             error_report("Failed to read msg payload."
                          " Read %d instead of %d.", r, msg->hdr.size);
-            goto fail;
+            return -1;
         }
     }
 
     return 0;
-
-fail:
-    return -1;
 }
 
 static int process_message_reply(struct vhost_dev *dev,
@@ -968,7 +990,10 @@ static void slave_read(void *opaque)
     iov.iov_base = &hdr;
     iov.iov_len = VHOST_USER_HDR_SIZE;
 
-    size = recvmsg(u->slave_fd, &msgh, 0);
+    do {
+        size = recvmsg(u->slave_fd, &msgh, 0);
+    } while (size < 0 && (errno == EINTR || errno == EAGAIN));
+
     if (size != VHOST_USER_HDR_SIZE) {
         error_report("Failed to read from slave.");
         goto err;
@@ -997,7 +1022,10 @@ static void slave_read(void *opaque)
     }
 
     /* Read payload */
-    size = read(u->slave_fd, &payload, hdr.size);
+    do {
+        size = read(u->slave_fd, &payload, hdr.size);
+    } while (size < 0 && (errno == EINTR || errno == EAGAIN));
+
     if (size != hdr.size) {
         error_report("Failed to read payload from slave.");
         goto err;
@@ -1045,7 +1073,10 @@ static void slave_read(void *opaque)
         iovec[1].iov_base = &payload;
         iovec[1].iov_len = hdr.size;
 
-        size = writev(u->slave_fd, iovec, ARRAY_SIZE(iovec));
+        do {
+            size = writev(u->slave_fd, iovec, ARRAY_SIZE(iovec));
+        } while (size < 0 && (errno == EINTR || errno == EAGAIN));
+
         if (size != VHOST_USER_HDR_SIZE + hdr.size) {
             error_report("Failed to send msg reply to slave.");
             goto err;
@@ -1750,16 +1781,117 @@ static bool vhost_user_mem_section_filter(struct vhost_dev *dev,
     return result;
 }
 
-VhostUserState *vhost_user_init(void)
+static int vhost_user_get_inflight_fd(struct vhost_dev *dev,
+                                      uint16_t queue_size,
+                                      struct vhost_inflight *inflight)
 {
-    VhostUserState *user = g_new0(struct VhostUserState, 1);
+    void *addr;
+    int fd;
+    struct vhost_user *u = dev->opaque;
+    CharBackend *chr = u->user->chr;
+    VhostUserMsg msg = {
+        .hdr.request = VHOST_USER_GET_INFLIGHT_FD,
+        .hdr.flags = VHOST_USER_VERSION,
+        .payload.inflight.num_queues = dev->nvqs,
+        .payload.inflight.queue_size = queue_size,
+        .hdr.size = sizeof(msg.payload.inflight),
+    };
 
-    return user;
+    if (!virtio_has_feature(dev->protocol_features,
+                            VHOST_USER_PROTOCOL_F_INFLIGHT_SHMFD)) {
+        return 0;
+    }
+
+    if (vhost_user_write(dev, &msg, NULL, 0) < 0) {
+        return -1;
+    }
+
+    if (vhost_user_read(dev, &msg) < 0) {
+        return -1;
+    }
+
+    if (msg.hdr.request != VHOST_USER_GET_INFLIGHT_FD) {
+        error_report("Received unexpected msg type. "
+                     "Expected %d received %d",
+                     VHOST_USER_GET_INFLIGHT_FD, msg.hdr.request);
+        return -1;
+    }
+
+    if (msg.hdr.size != sizeof(msg.payload.inflight)) {
+        error_report("Received bad msg size.");
+        return -1;
+    }
+
+    if (!msg.payload.inflight.mmap_size) {
+        return 0;
+    }
+
+    fd = qemu_chr_fe_get_msgfd(chr);
+    if (fd < 0) {
+        error_report("Failed to get mem fd");
+        return -1;
+    }
+
+    addr = mmap(0, msg.payload.inflight.mmap_size, PROT_READ | PROT_WRITE,
+                MAP_SHARED, fd, msg.payload.inflight.mmap_offset);
+
+    if (addr == MAP_FAILED) {
+        error_report("Failed to mmap mem fd");
+        close(fd);
+        return -1;
+    }
+
+    inflight->addr = addr;
+    inflight->fd = fd;
+    inflight->size = msg.payload.inflight.mmap_size;
+    inflight->offset = msg.payload.inflight.mmap_offset;
+    inflight->queue_size = queue_size;
+
+    return 0;
+}
+
+static int vhost_user_set_inflight_fd(struct vhost_dev *dev,
+                                      struct vhost_inflight *inflight)
+{
+    VhostUserMsg msg = {
+        .hdr.request = VHOST_USER_SET_INFLIGHT_FD,
+        .hdr.flags = VHOST_USER_VERSION,
+        .payload.inflight.mmap_size = inflight->size,
+        .payload.inflight.mmap_offset = inflight->offset,
+        .payload.inflight.num_queues = dev->nvqs,
+        .payload.inflight.queue_size = inflight->queue_size,
+        .hdr.size = sizeof(msg.payload.inflight),
+    };
+
+    if (!virtio_has_feature(dev->protocol_features,
+                            VHOST_USER_PROTOCOL_F_INFLIGHT_SHMFD)) {
+        return 0;
+    }
+
+    if (vhost_user_write(dev, &msg, &inflight->fd, 1) < 0) {
+        return -1;
+    }
+
+    return 0;
+}
+
+bool vhost_user_init(VhostUserState *user, CharBackend *chr, Error **errp)
+{
+    if (user->chr) {
+        error_setg(errp, "Cannot initialize vhost-user state");
+        return false;
+    }
+    user->chr = chr;
+    return true;
 }
 
 void vhost_user_cleanup(VhostUserState *user)
 {
     int i;
+
+    if (!user->chr) {
+        return;
+    }
 
     for (i = 0; i < VIRTIO_QUEUE_MAX; i++) {
         if (user->notifier[i].addr) {
@@ -1768,6 +1900,7 @@ void vhost_user_cleanup(VhostUserState *user)
             user->notifier[i].addr = NULL;
         }
     }
+    user->chr = NULL;
 }
 
 const VhostOps user_ops = {
@@ -1801,4 +1934,6 @@ const VhostOps user_ops = {
         .vhost_crypto_create_session = vhost_user_crypto_create_session,
         .vhost_crypto_close_session = vhost_user_crypto_close_session,
         .vhost_backend_mem_section_filter = vhost_user_mem_section_filter,
+        .vhost_get_inflight_fd = vhost_user_get_inflight_fd,
+        .vhost_set_inflight_fd = vhost_user_set_inflight_fd,
 };

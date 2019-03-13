@@ -17,8 +17,13 @@ The protocol defines 2 sides of the communication, master and slave. Master is
 the application that shares its virtqueues, in our case QEMU. Slave is the
 consumer of the virtqueues.
 
-In the current implementation QEMU is the Master, and the Slave is intended to
-be a software Ethernet switch running in user space, such as Snabbswitch.
+In the current implementation QEMU is the Master, and the Slave is the
+external process consuming the virtio queues, for example a software
+Ethernet switch running in user space, such as Snabbswitch, or a block
+device backend processing read & write to a virtual disk. In order to
+facilitate interoperability between various backend implementations,
+it is recommended to follow the "Backend program conventions"
+described in this document.
 
 Master and slave can be either a client (i.e. connecting) or server (listening)
 in the socket communication.
@@ -142,6 +147,17 @@ Depending on the request type, payload can be:
    Offset: a 64-bit offset of this area from the start of the
        supplied file descriptor
 
+ * Inflight description
+   -----------------------------------------------------
+   | mmap size | mmap offset | num queues | queue size |
+   -----------------------------------------------------
+
+   mmap size: a 64-bit size of area to track inflight I/O
+   mmap offset: a 64-bit offset of this area from the start
+                of the supplied file descriptor
+   num queues: a 16-bit number of virtqueues
+   queue size: a 16-bit size of virtqueues
+
 In QEMU the vhost-user message is implemented with the following struct:
 
 typedef struct VhostUserMsg {
@@ -157,6 +173,7 @@ typedef struct VhostUserMsg {
         struct vhost_iotlb_msg iotlb;
         VhostUserConfig config;
         VhostUserVringArea area;
+        VhostUserInflight inflight;
     };
 } QEMU_PACKED VhostUserMsg;
 
@@ -175,6 +192,7 @@ the ones that do:
  * VHOST_USER_GET_PROTOCOL_FEATURES
  * VHOST_USER_GET_VRING_BASE
  * VHOST_USER_SET_LOG_BASE (if VHOST_USER_PROTOCOL_F_LOG_SHMFD)
+ * VHOST_USER_GET_INFLIGHT_FD (if VHOST_USER_PROTOCOL_F_INFLIGHT_SHMFD)
 
 [ Also see the section on REPLY_ACK protocol extension. ]
 
@@ -188,6 +206,7 @@ in the ancillary data:
  * VHOST_USER_SET_VRING_CALL
  * VHOST_USER_SET_VRING_ERR
  * VHOST_USER_SET_SLAVE_REQ_FD
+ * VHOST_USER_SET_INFLIGHT_FD (if VHOST_USER_PROTOCOL_F_INFLIGHT_SHMFD)
 
 If Master is unable to send the full message or receives a wrong reply it will
 close the connection. An optional reconnection mechanism can be implemented.
@@ -382,6 +401,256 @@ If VHOST_USER_PROTOCOL_F_SLAVE_SEND_FD protocol feature is negotiated,
 slave can send file descriptors (at most 8 descriptors in each message)
 to master via ancillary data using this fd communication channel.
 
+Inflight I/O tracking
+---------------------
+
+To support reconnecting after restart or crash, slave may need to resubmit
+inflight I/Os. If virtqueue is processed in order, we can easily achieve
+that by getting the inflight descriptors from descriptor table (split virtqueue)
+or descriptor ring (packed virtqueue). However, it can't work when we process
+descriptors out-of-order because some entries which store the information of
+inflight descriptors in available ring (split virtqueue) or descriptor
+ring (packed virtqueue) might be overrided by new entries. To solve this
+problem, slave need to allocate an extra buffer to store this information of inflight
+descriptors and share it with master for persistent. VHOST_USER_GET_INFLIGHT_FD and
+VHOST_USER_SET_INFLIGHT_FD are used to transfer this buffer between master
+and slave. And the format of this buffer is described below:
+
+-------------------------------------------------------
+| queue0 region | queue1 region | ... | queueN region |
+-------------------------------------------------------
+
+N is the number of available virtqueues. Slave could get it from num queues
+field of VhostUserInflight.
+
+For split virtqueue, queue region can be implemented as:
+
+typedef struct DescStateSplit {
+    /* Indicate whether this descriptor is inflight or not.
+     * Only available for head-descriptor. */
+    uint8_t inflight;
+
+    /* Padding */
+    uint8_t padding[5];
+
+    /* Maintain a list for the last batch of used descriptors.
+     * Only available when batching is used for submitting */
+    uint16_t next;
+
+    /* Used to preserve the order of fetching available descriptors.
+     * Only available for head-descriptor. */
+    uint64_t counter;
+} DescStateSplit;
+
+typedef struct QueueRegionSplit {
+    /* The feature flags of this region. Now it's initialized to 0. */
+    uint64_t features;
+
+    /* The version of this region. It's 1 currently.
+     * Zero value indicates an uninitialized buffer */
+    uint16_t version;
+
+    /* The size of DescStateSplit array. It's equal to the virtqueue
+     * size. Slave could get it from queue size field of VhostUserInflight. */
+    uint16_t desc_num;
+
+    /* The head of list that track the last batch of used descriptors. */
+    uint16_t last_batch_head;
+
+    /* Store the idx value of used ring */
+    uint16_t used_idx;
+
+    /* Used to track the state of each descriptor in descriptor table */
+    DescStateSplit desc[0];
+} QueueRegionSplit;
+
+To track inflight I/O, the queue region should be processed as follows:
+
+When receiving available buffers from the driver:
+
+    1. Get the next available head-descriptor index from available ring, i
+
+    2. Set desc[i].counter to the value of global counter
+
+    3. Increase global counter by 1
+
+    4. Set desc[i].inflight to 1
+
+When supplying used buffers to the driver:
+
+    1. Get corresponding used head-descriptor index, i
+
+    2. Set desc[i].next to last_batch_head
+
+    3. Set last_batch_head to i
+
+    4. Steps 1,2,3 may be performed repeatedly if batching is possible
+
+    5. Increase the idx value of used ring by the size of the batch
+
+    6. Set the inflight field of each DescStateSplit entry in the batch to 0
+
+    7. Set used_idx to the idx value of used ring
+
+When reconnecting:
+
+    1. If the value of used_idx does not match the idx value of used ring (means
+    the inflight field of DescStateSplit entries in last batch may be incorrect),
+
+        (a) Subtract the value of used_idx from the idx value of used ring to get
+        last batch size of DescStateSplit entries
+
+        (b) Set the inflight field of each DescStateSplit entry to 0 in last batch
+        list which starts from last_batch_head
+
+        (c) Set used_idx to the idx value of used ring
+
+    2. Resubmit inflight DescStateSplit entries in order of their counter value
+
+For packed virtqueue, queue region can be implemented as:
+
+typedef struct DescStatePacked {
+    /* Indicate whether this descriptor is inflight or not.
+     * Only available for head-descriptor. */
+    uint8_t inflight;
+
+    /* Padding */
+    uint8_t padding;
+
+    /* Link to the next free entry */
+    uint16_t next;
+
+    /* Link to the last entry of descriptor list.
+     * Only available for head-descriptor. */
+    uint16_t last;
+
+    /* The length of descriptor list.
+     * Only available for head-descriptor. */
+    uint16_t num;
+
+    /* Used to preserve the order of fetching available descriptors.
+     * Only available for head-descriptor. */
+    uint64_t counter;
+
+    /* The buffer id */
+    uint16_t id;
+
+    /* The descriptor flags */
+    uint16_t flags;
+
+    /* The buffer length */
+    uint32_t len;
+
+    /* The buffer address */
+    uint64_t addr;
+} DescStatePacked;
+
+typedef struct QueueRegionPacked {
+    /* The feature flags of this region. Now it's initialized to 0. */
+    uint64_t features;
+
+    /* The version of this region. It's 1 currently.
+     * Zero value indicates an uninitialized buffer */
+    uint16_t version;
+
+    /* The size of DescStatePacked array. It's equal to the virtqueue
+     * size. Slave could get it from queue size field of VhostUserInflight. */
+    uint16_t desc_num;
+
+    /* The head of free DescStatePacked entry list */
+    uint16_t free_head;
+
+    /* The old head of free DescStatePacked entry list */
+    uint16_t old_free_head;
+
+    /* The used index of descriptor ring */
+    uint16_t used_idx;
+
+    /* The old used index of descriptor ring */
+    uint16_t old_used_idx;
+
+    /* Device ring wrap counter */
+    uint8_t used_wrap_counter;
+
+    /* The old device ring wrap counter */
+    uint8_t old_used_wrap_counter;
+
+    /* Padding */
+    uint8_t padding[7];
+
+    /* Used to track the state of each descriptor fetched from descriptor ring */
+    DescStatePacked desc[0];
+} QueueRegionPacked;
+
+To track inflight I/O, the queue region should be processed as follows:
+
+When receiving available buffers from the driver:
+
+    1. Get the next available descriptor entry from descriptor ring, d
+
+    2. If d is head descriptor,
+
+        (a) Set desc[old_free_head].num to 0
+
+        (b) Set desc[old_free_head].counter to the value of global counter
+
+        (c) Increase global counter by 1
+
+        (d) Set desc[old_free_head].inflight to 1
+
+    3. If d is last descriptor, set desc[old_free_head].last to free_head
+
+    4. Increase desc[old_free_head].num by 1
+
+    5. Set desc[free_head].addr, desc[free_head].len, desc[free_head].flags,
+    desc[free_head].id to d.addr, d.len, d.flags, d.id
+
+    6. Set free_head to desc[free_head].next
+
+    7. If d is last descriptor, set old_free_head to free_head
+
+When supplying used buffers to the driver:
+
+    1. Get corresponding used head-descriptor entry from descriptor ring, d
+
+    2. Get corresponding DescStatePacked entry, e
+
+    3. Set desc[e.last].next to free_head
+
+    4. Set free_head to the index of e
+
+    5. Steps 1,2,3,4 may be performed repeatedly if batching is possible
+
+    6. Increase used_idx by the size of the batch and update used_wrap_counter if needed
+
+    7. Update d.flags
+
+    8. Set the inflight field of each head DescStatePacked entry in the batch to 0
+
+    9. Set old_free_head, old_used_idx, old_used_wrap_counter to free_head, used_idx,
+    used_wrap_counter
+
+When reconnecting:
+
+    1. If used_idx does not match old_used_idx (means the inflight field of DescStatePacked
+    entries in last batch may be incorrect),
+
+        (a) Get the next descriptor ring entry through old_used_idx, d
+
+        (b) Use old_used_wrap_counter to calculate the available flags
+
+        (c) If d.flags is not equal to the calculated flags value (means slave has
+        submitted the buffer to guest driver before crash, so it has to commit the
+        in-progres update), set old_free_head, old_used_idx, old_used_wrap_counter
+        to free_head, used_idx, used_wrap_counter
+
+    2. Set free_head, used_idx, used_wrap_counter to old_free_head, old_used_idx,
+    old_used_wrap_counter (roll back any in-progress update)
+
+    3. Set the inflight field of each DescStatePacked entry in free list to 0
+
+    4. Resubmit inflight DescStatePacked entries in order of their counter value
+
 Protocol features
 -----------------
 
@@ -397,6 +666,7 @@ Protocol features
 #define VHOST_USER_PROTOCOL_F_CONFIG         9
 #define VHOST_USER_PROTOCOL_F_SLAVE_SEND_FD  10
 #define VHOST_USER_PROTOCOL_F_HOST_NOTIFIER  11
+#define VHOST_USER_PROTOCOL_F_INFLIGHT_SHMFD 12
 
 Master message types
 --------------------
@@ -761,6 +1031,26 @@ Master message types
       was previously sent.
       The value returned is an error indication; 0 is success.
 
+ * VHOST_USER_GET_INFLIGHT_FD
+      Id: 31
+      Equivalent ioctl: N/A
+      Master payload: inflight description
+
+      When VHOST_USER_PROTOCOL_F_INFLIGHT_SHMFD protocol feature has been
+      successfully negotiated, this message is submitted by master to get
+      a shared buffer from slave. The shared buffer will be used to track
+      inflight I/O by slave. QEMU should retrieve a new one when vm reset.
+
+ * VHOST_USER_SET_INFLIGHT_FD
+      Id: 32
+      Equivalent ioctl: N/A
+      Master payload: inflight description
+
+      When VHOST_USER_PROTOCOL_F_INFLIGHT_SHMFD protocol feature has been
+      successfully negotiated, this message is submitted by master to send
+      the shared inflight buffer back to slave so that slave could get
+      inflight I/O after a crash or restart.
+
 Slave message types
 -------------------
 
@@ -835,3 +1125,95 @@ resilient for selective requests.
 For the message types that already solicit a reply from the client, the
 presence of VHOST_USER_PROTOCOL_F_REPLY_ACK or need_reply bit being set brings
 no behavioural change. (See the 'Communication' section for details.)
+
+Backend program conventions
+---------------------------
+
+vhost-user backends can provide various devices & services and may
+need to be configured manually depending on the use case. However, it
+is a good idea to follow the conventions listed here when
+possible. Users, QEMU or libvirt, can then rely on some common
+behaviour to avoid heterogenous configuration and management of the
+backend programs and facilitate interoperability.
+
+Each backend installed on a host system should come with at least one
+JSON file that conforms to the vhost-user.json schema. Each file
+informs the management applications about the backend type, and binary
+location. In addition, it defines rules for management apps for
+picking the highest priority backend when multiple match the search
+criteria (see @VhostUserBackend documentation in the schema file).
+
+If the backend is not capable of enabling a requested feature on the
+host (such as 3D acceleration with virgl), or the initialization
+failed, the backend should fail to start early and exit with a status
+!= 0. It may also print a message to stderr for further details.
+
+The backend program must not daemonize itself, but it may be
+daemonized by the management layer. It may also have a restricted
+access to the system.
+
+File descriptors 0, 1 and 2 will exist, and have regular
+stdin/stdout/stderr usage (they may have been redirected to /dev/null
+by the management layer, or to a log handler).
+
+The backend program must end (as quickly and cleanly as possible) when
+the SIGTERM signal is received. Eventually, it may receive SIGKILL by
+the management layer after a few seconds.
+
+The following command line options have an expected behaviour. They
+are mandatory, unless explicitly said differently:
+
+* --socket-path=PATH
+
+This option specify the location of the vhost-user Unix domain socket.
+It is incompatible with --fd.
+
+* --fd=FDNUM
+
+When this argument is given, the backend program is started with the
+vhost-user socket as file descriptor FDNUM. It is incompatible with
+--socket-path.
+
+* --print-capabilities
+
+Output to stdout the backend capabilities in JSON format, and then
+exit successfully. Other options and arguments should be ignored, and
+the backend program should not perform its normal function.  The
+capabilities can be reported dynamically depending on the host
+capabilities.
+
+The JSON output is described in the vhost-user.json schema, by
+@VHostUserBackendCapabilities.  Example:
+{
+  "type": "foo",
+  "features": [
+    "feature-a",
+    "feature-b"
+  ]
+}
+
+vhost-user-input
+----------------
+
+Command line options:
+
+* --evdev-path=PATH (optional)
+
+Specify the linux input device.
+
+* --no-grab (optional)
+
+Do no request exclusive access to the input device.
+
+vhost-user-gpu
+--------------
+
+Command line options:
+
+* --render-node=PATH (optional)
+
+Specify the GPU DRM render node.
+
+* --virgl (optional)
+
+Enable virgl rendering support.

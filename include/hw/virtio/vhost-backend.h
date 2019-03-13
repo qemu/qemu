@@ -25,6 +25,7 @@ typedef enum VhostSetConfigType {
     VHOST_SET_CONFIG_TYPE_MIGRATION = 1,
 } VhostSetConfigType;
 
+struct vhost_inflight;
 struct vhost_dev;
 struct vhost_log;
 struct vhost_memory;
@@ -104,6 +105,13 @@ typedef int (*vhost_crypto_close_session_op)(struct vhost_dev *dev,
 typedef bool (*vhost_backend_mem_section_filter_op)(struct vhost_dev *dev,
                                                 MemoryRegionSection *section);
 
+typedef int (*vhost_get_inflight_fd_op)(struct vhost_dev *dev,
+                                        uint16_t queue_size,
+                                        struct vhost_inflight *inflight);
+
+typedef int (*vhost_set_inflight_fd_op)(struct vhost_dev *dev,
+                                        struct vhost_inflight *inflight);
+
 typedef struct VhostOps {
     VhostBackendType backend_type;
     vhost_backend_init vhost_backend_init;
@@ -142,6 +150,8 @@ typedef struct VhostOps {
     vhost_crypto_create_session_op vhost_crypto_create_session;
     vhost_crypto_close_session_op vhost_crypto_close_session;
     vhost_backend_mem_section_filter_op vhost_backend_mem_section_filter;
+    vhost_get_inflight_fd_op vhost_get_inflight_fd;
+    vhost_set_inflight_fd_op vhost_set_inflight_fd;
 } VhostOps;
 
 extern const VhostOps user_ops;

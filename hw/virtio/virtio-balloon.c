@@ -82,7 +82,7 @@ static void balloon_inflate_page(VirtIOBalloon *balloon,
         /* We've partially ballooned part of a host page, but now
          * we're trying to balloon part of a different one.  Too hard,
          * give up on the old partial page */
-        free(balloon->pbp);
+        g_free(balloon->pbp);
         balloon->pbp = NULL;
     }
 
@@ -107,8 +107,58 @@ static void balloon_inflate_page(VirtIOBalloon *balloon,
          * has already reported them, and failing to discard a balloon
          * page is not fatal */
 
-        free(balloon->pbp);
+        g_free(balloon->pbp);
         balloon->pbp = NULL;
+    }
+}
+
+static void balloon_deflate_page(VirtIOBalloon *balloon,
+                                 MemoryRegion *mr, hwaddr offset)
+{
+    void *addr = memory_region_get_ram_ptr(mr) + offset;
+    RAMBlock *rb;
+    size_t rb_page_size;
+    ram_addr_t ram_offset, host_page_base;
+    void *host_addr;
+    int ret;
+
+    /* XXX is there a better way to get to the RAMBlock than via a
+     * host address? */
+    rb = qemu_ram_block_from_host(addr, false, &ram_offset);
+    rb_page_size = qemu_ram_pagesize(rb);
+    host_page_base = ram_offset & ~(rb_page_size - 1);
+
+    if (balloon->pbp
+        && rb == balloon->pbp->rb
+        && host_page_base == balloon->pbp->base) {
+        int subpages = rb_page_size / BALLOON_PAGE_SIZE;
+
+        /*
+         * This means the guest has asked to discard some of the 4kiB
+         * subpages of a host page, but then changed its mind and
+         * asked to keep them after all.  It's exceedingly unlikely
+         * for a guest to do this in practice, but handle it anyway,
+         * since getting it wrong could mean discarding memory the
+         * guest is still using. */
+        bitmap_clear(balloon->pbp->bitmap,
+                     (ram_offset - balloon->pbp->base) / BALLOON_PAGE_SIZE,
+                     subpages);
+
+        if (bitmap_empty(balloon->pbp->bitmap, subpages)) {
+            g_free(balloon->pbp);
+            balloon->pbp = NULL;
+        }
+    }
+
+    host_addr = (void *)((uintptr_t)addr & ~(rb_page_size - 1));
+
+    /* When a page is deflated, we hint the whole host page it lives
+     * on, since we can't do anything smaller */
+    ret = qemu_madvise(host_addr, rb_page_size, QEMU_MADV_WILLNEED);
+    if (ret != 0) {
+        warn_report("Couldn't MADV_WILLNEED on balloon deflate: %s",
+                    strerror(errno));
+        /* Otherwise ignore, failing to page hint shouldn't be fatal */
     }
 }
 
@@ -315,8 +365,15 @@ static void virtio_balloon_handle_output(VirtIODevice *vdev, VirtQueue *vq)
 
             trace_virtio_balloon_handle_output(memory_region_name(section.mr),
                                                pa);
-            if (!qemu_balloon_is_inhibited() && vq != s->dvq) {
-                balloon_inflate_page(s, section.mr, section.offset_within_region);
+            if (!qemu_balloon_is_inhibited()) {
+                if (vq == s->ivq) {
+                    balloon_inflate_page(s, section.mr,
+                                         section.offset_within_region);
+                } else if (vq == s->dvq) {
+                    balloon_deflate_page(s, section.mr, section.offset_within_region);
+                } else {
+                    g_assert_not_reached();
+                }
             }
             memory_region_unref(section.mr);
         }
@@ -391,6 +448,7 @@ static bool get_free_page_hints(VirtIOBalloon *dev)
     VirtQueueElement *elem;
     VirtIODevice *vdev = VIRTIO_DEVICE(dev);
     VirtQueue *vq = dev->free_page_vq;
+    bool ret = true;
 
     while (dev->block_iothread) {
         qemu_cond_wait(&dev->free_page_cond, &dev->free_page_lock);
@@ -405,13 +463,12 @@ static bool get_free_page_hints(VirtIOBalloon *dev)
         uint32_t id;
         size_t size = iov_to_buf(elem->out_sg, elem->out_num, 0,
                                  &id, sizeof(id));
-        virtqueue_push(vq, elem, size);
-        g_free(elem);
 
         virtio_tswap32s(vdev, &id);
         if (unlikely(size != sizeof(id))) {
             virtio_error(vdev, "received an incorrect cmd id");
-            return false;
+            ret = false;
+            goto out;
         }
         if (id == dev->free_page_report_cmd_id) {
             dev->free_page_report_status = FREE_PAGE_REPORT_S_START;
@@ -431,11 +488,12 @@ static bool get_free_page_hints(VirtIOBalloon *dev)
             qemu_guest_free_page_hint(elem->in_sg[0].iov_base,
                                       elem->in_sg[0].iov_len);
         }
-        virtqueue_push(vq, elem, 1);
-        g_free(elem);
     }
 
-    return true;
+out:
+    virtqueue_push(vq, elem, 1);
+    g_free(elem);
+    return ret;
 }
 
 static void virtio_ballloon_get_free_page_hints(void *opaque)

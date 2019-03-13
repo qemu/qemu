@@ -30,7 +30,7 @@
 
 typedef struct VHostUserSCSI {
     VHostSCSICommon parent_obj;
-    VhostUserState *vhost_user;
+    VhostUserState vhost_user;
 } VHostUserSCSI;
 
 #endif /* VHOST_USER_SCSI_H */

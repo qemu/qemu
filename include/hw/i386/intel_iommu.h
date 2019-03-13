@@ -66,11 +66,20 @@ typedef struct VTDIOTLBEntry VTDIOTLBEntry;
 typedef struct VTDBus VTDBus;
 typedef union VTD_IR_TableEntry VTD_IR_TableEntry;
 typedef union VTD_IR_MSIAddress VTD_IR_MSIAddress;
+typedef struct VTDPASIDDirEntry VTDPASIDDirEntry;
+typedef struct VTDPASIDEntry VTDPASIDEntry;
 
 /* Context-Entry */
 struct VTDContextEntry {
-    uint64_t lo;
-    uint64_t hi;
+    union {
+        struct {
+            uint64_t lo;
+            uint64_t hi;
+        };
+        struct {
+            uint64_t val[4];
+        };
+    };
 };
 
 struct VTDContextCacheEntry {
@@ -79,6 +88,16 @@ struct VTDContextCacheEntry {
      */
     uint32_t context_cache_gen;
     struct VTDContextEntry context_entry;
+};
+
+/* PASID Directory Entry */
+struct VTDPASIDDirEntry {
+    uint64_t val;
+};
+
+/* PASID Table Entry */
+struct VTDPASIDEntry {
+    uint64_t val[8];
 };
 
 struct VTDAddressSpace {
@@ -208,16 +227,19 @@ struct IntelIOMMUState {
     uint8_t womask[DMAR_REG_SIZE];  /* WO (write only - read returns 0) */
     uint32_t version;
 
-    bool caching_mode;          /* RO - is cap CM enabled? */
+    bool caching_mode;              /* RO - is cap CM enabled? */
+    bool scalable_mode;             /* RO - is Scalable Mode supported? */
 
     dma_addr_t root;                /* Current root table pointer */
     bool root_extended;             /* Type of root table (extended or not) */
+    bool root_scalable;             /* Type of root table (scalable or not) */
     bool dmar_enabled;              /* Set if DMA remapping is enabled */
 
     uint16_t iq_head;               /* Current invalidation queue head */
     uint16_t iq_tail;               /* Current invalidation queue tail */
     dma_addr_t iq;                  /* Current invalidation queue pointer */
     uint16_t iq_size;               /* IQ Size in number of entries */
+    bool iq_dw;                     /* IQ descriptor width 256bit or not */
     bool qi_enabled;                /* Set if the QI is enabled */
     uint8_t iq_last_desc_type;      /* The type of last completed descriptor */
 
