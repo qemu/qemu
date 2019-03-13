@@ -35,6 +35,8 @@ enum {
     QFILE_MONITOR_TEST_OP_RENAME,
     QFILE_MONITOR_TEST_OP_TOUCH,
     QFILE_MONITOR_TEST_OP_UNLINK,
+    QFILE_MONITOR_TEST_OP_MKDIR,
+    QFILE_MONITOR_TEST_OP_RMDIR,
 };
 
 typedef struct {
@@ -298,6 +300,54 @@ test_file_monitor_events(void)
           .eventid = QFILE_MONITOR_EVENT_DELETED },
 
 
+        { .type = QFILE_MONITOR_TEST_OP_MKDIR,
+          .filesrc = "fish", },
+        { .type = QFILE_MONITOR_TEST_OP_EVENT,
+          .filesrc = "fish", .watchid = 0,
+          .eventid = QFILE_MONITOR_EVENT_CREATED },
+
+
+        { .type = QFILE_MONITOR_TEST_OP_ADD_WATCH,
+          .filesrc = "fish/", .watchid = 4 },
+        { .type = QFILE_MONITOR_TEST_OP_ADD_WATCH,
+          .filesrc = "fish/one.txt", .watchid = 5 },
+        { .type = QFILE_MONITOR_TEST_OP_CREATE,
+          .filesrc = "fish/one.txt", },
+        { .type = QFILE_MONITOR_TEST_OP_EVENT,
+          .filesrc = "one.txt", .watchid = 4,
+          .eventid = QFILE_MONITOR_EVENT_CREATED },
+        { .type = QFILE_MONITOR_TEST_OP_EVENT,
+          .filesrc = "one.txt", .watchid = 5,
+          .eventid = QFILE_MONITOR_EVENT_CREATED },
+
+
+        { .type = QFILE_MONITOR_TEST_OP_DEL_WATCH,
+          .filesrc = "fish/one.txt", .watchid = 5 },
+        { .type = QFILE_MONITOR_TEST_OP_RENAME,
+          .filesrc = "fish/one.txt", .filedst = "two.txt", },
+        { .type = QFILE_MONITOR_TEST_OP_EVENT,
+          .filesrc = "one.txt", .watchid = 4,
+          .eventid = QFILE_MONITOR_EVENT_DELETED },
+        { .type = QFILE_MONITOR_TEST_OP_EVENT,
+          .filesrc = "two.txt", .watchid = 0,
+          .eventid = QFILE_MONITOR_EVENT_CREATED },
+        { .type = QFILE_MONITOR_TEST_OP_EVENT,
+          .filesrc = "two.txt", .watchid = 2,
+          .eventid = QFILE_MONITOR_EVENT_CREATED },
+
+
+        { .type = QFILE_MONITOR_TEST_OP_RMDIR,
+          .filesrc = "fish", },
+        { .type = QFILE_MONITOR_TEST_OP_EVENT,
+          .filesrc = "", .watchid = 4,
+          .eventid = QFILE_MONITOR_EVENT_IGNORED },
+        { .type = QFILE_MONITOR_TEST_OP_EVENT,
+          .filesrc = "fish", .watchid = 0,
+          .eventid = QFILE_MONITOR_EVENT_DELETED },
+        { .type = QFILE_MONITOR_TEST_OP_DEL_WATCH,
+          .filesrc = "fish", .watchid = 4 },
+
+
         { .type = QFILE_MONITOR_TEST_OP_UNLINK,
           .filesrc = "two.txt", },
         { .type = QFILE_MONITOR_TEST_OP_EVENT,
@@ -366,6 +416,8 @@ test_file_monitor_events(void)
         int fd;
         int watchid;
         struct utimbuf ubuf;
+        char *watchdir;
+        const char *watchfile;
 
         pathsrc = g_strdup_printf("%s/%s", dir, op->filesrc);
         if (op->filedst) {
@@ -378,13 +430,26 @@ test_file_monitor_events(void)
                 g_printerr("Add watch %s %s %d\n",
                            dir, op->filesrc, op->watchid);
             }
+            if (op->filesrc && strchr(op->filesrc, '/')) {
+                watchdir = g_strdup_printf("%s/%s", dir, op->filesrc);
+                watchfile = strrchr(watchdir, '/');
+                *(char *)watchfile = '\0';
+                watchfile++;
+                if (*watchfile == '\0') {
+                    watchfile = NULL;
+                }
+            } else {
+                watchdir = g_strdup(dir);
+                watchfile = op->filesrc;
+            }
             watchid =
                 qemu_file_monitor_add_watch(mon,
-                                            dir,
-                                            op->filesrc,
+                                            watchdir,
+                                            watchfile,
                                             qemu_file_monitor_test_handler,
                                             &data,
                                             &local_err);
+            g_free(watchdir);
             if (watchid < 0) {
                 g_printerr("Unable to add watch %s",
                            error_get_pretty(local_err));
@@ -400,9 +465,17 @@ test_file_monitor_events(void)
             if (debug) {
                 g_printerr("Del watch %s %d\n", dir, op->watchid);
             }
+            if (op->filesrc && strchr(op->filesrc, '/')) {
+                watchdir = g_strdup_printf("%s/%s", dir, op->filesrc);
+                watchfile = strrchr(watchdir, '/');
+                *(char *)watchfile = '\0';
+            } else {
+                watchdir = g_strdup(dir);
+            }
             qemu_file_monitor_remove_watch(mon,
-                                           dir,
+                                           watchdir,
                                            op->watchid);
+            g_free(watchdir);
             break;
         case QFILE_MONITOR_TEST_OP_EVENT:
             if (debug) {
@@ -492,6 +565,28 @@ test_file_monitor_events(void)
             }
             break;
 
+        case QFILE_MONITOR_TEST_OP_MKDIR:
+            if (debug) {
+                g_printerr("Mkdir %s\n", pathsrc);
+            }
+            if (mkdir(pathsrc, 0700) < 0) {
+                g_printerr("Unable to mkdir %s: %s",
+                           pathsrc, strerror(errno));
+                goto cleanup;
+            }
+            break;
+
+        case QFILE_MONITOR_TEST_OP_RMDIR:
+            if (debug) {
+                g_printerr("Rmdir %s\n", pathsrc);
+            }
+            if (rmdir(pathsrc) < 0) {
+                g_printerr("Unable to rmdir %s: %s",
+                           pathsrc, strerror(errno));
+                goto cleanup;
+            }
+            break;
+
         default:
             g_assert_not_reached();
         }
@@ -532,13 +627,18 @@ test_file_monitor_events(void)
             const QFileMonitorTestOp *op = &(ops[i]);
             char *path = g_strdup_printf("%s/%s",
                                          dir, op->filesrc);
-            unlink(path);
-            g_free(path);
-            if (op->filedst) {
-                path = g_strdup_printf("%s/%s",
-                                       dir, op->filedst);
+            if (op->type == QFILE_MONITOR_TEST_OP_MKDIR) {
+                rmdir(path);
+                g_free(path);
+            } else {
                 unlink(path);
                 g_free(path);
+                if (op->filedst) {
+                    path = g_strdup_printf("%s/%s",
+                                           dir, op->filedst);
+                    unlink(path);
+                    g_free(path);
+                }
             }
         }
         if (rmdir(dir) < 0) {

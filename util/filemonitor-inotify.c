@@ -29,7 +29,7 @@
 
 struct QFileMonitor {
     int fd;
-
+    int nextid; /* watch ID counter */
     QemuMutex lock; /* protects dirs & idmap */
     GHashTable *dirs; /* dirname => QFileMonitorDir */
     GHashTable *idmap; /* inotify ID => dirname */
@@ -47,7 +47,6 @@ typedef struct {
 typedef struct {
     char *path;
     int id; /* inotify ID */
-    int nextid; /* watch ID counter */
     GArray *watches; /* QFileMonitorWatch elements */
 } QFileMonitorDir;
 
@@ -277,7 +276,7 @@ qemu_file_monitor_add_watch(QFileMonitor *mon,
         }
     }
 
-    watch.id = dir->nextid++;
+    watch.id = mon->nextid++;
     watch.filename = g_strdup(filename);
     watch.cb = cb;
     watch.opaque = opaque;
