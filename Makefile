@@ -331,10 +331,10 @@ SUBDIR_DEVICES_MAK=$(patsubst %, %/config-devices.mak, $(filter %-softmmu, $(TAR
 SUBDIR_DEVICES_MAK_DEP=$(patsubst %, %.d, $(SUBDIR_DEVICES_MAK))
 
 ifeq ($(SUBDIR_DEVICES_MAK),)
-config-all-devices.mak:
+config-all-devices.mak: config-host.mak
 	$(call quiet-command,echo '# no devices' > $@,"GEN","$@")
 else
-config-all-devices.mak: $(SUBDIR_DEVICES_MAK)
+config-all-devices.mak: $(SUBDIR_DEVICES_MAK) config-host.mak
 	$(call quiet-command, sed -n \
              's|^\([^=]*\)=\(.*\)$$|\1:=$$(findstring y,$$(\1)\2)|p' \
              $(SUBDIR_DEVICES_MAK) | sort -u > $@, \
