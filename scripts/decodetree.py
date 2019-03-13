@@ -17,139 +17,7 @@
 
 #
 # Generate a decoding tree from a specification file.
-#
-# The tree is built from instruction "patterns".  A pattern may represent
-# a single architectural instruction or a group of same, depending on what
-# is convenient for further processing.
-#
-# Each pattern has "fixedbits" & "fixedmask", the combination of which
-# describes the condition under which the pattern is matched:
-#
-#   (insn & fixedmask) == fixedbits
-#
-# Each pattern may have "fields", which are extracted from the insn and
-# passed along to the translator.  Examples of such are registers,
-# immediates, and sub-opcodes.
-#
-# In support of patterns, one may declare fields, argument sets, and
-# formats, each of which may be re-used to simplify further definitions.
-#
-# *** Field syntax:
-#
-# field_def     := '%' identifier ( unnamed_field )+ ( !function=identifier )?
-# unnamed_field := number ':' ( 's' ) number
-#
-# For unnamed_field, the first number is the least-significant bit position of
-# the field and the second number is the length of the field.  If the 's' is
-# present, the field is considered signed.  If multiple unnamed_fields are
-# present, they are concatenated.  In this way one can define disjoint fields.
-#
-# If !function is specified, the concatenated result is passed through the
-# named function, taking and returning an integral value.
-#
-# FIXME: the fields of the structure into which this result will be stored
-# is restricted to "int".  Which means that we cannot expand 64-bit items.
-#
-# Field examples:
-#
-#   %disp   0:s16          -- sextract(i, 0, 16)
-#   %imm9   16:6 10:3      -- extract(i, 16, 6) << 3 | extract(i, 10, 3)
-#   %disp12 0:s1 1:1 2:10  -- sextract(i, 0, 1) << 11
-#                             | extract(i, 1, 1) << 10
-#                             | extract(i, 2, 10)
-#   %shimm8 5:s8 13:1 !function=expand_shimm8
-#                          -- expand_shimm8(sextract(i, 5, 8) << 1
-#                                           | extract(i, 13, 1))
-#
-# *** Argument set syntax:
-#
-# args_def    := '&' identifier ( args_elt )+ ( !extern )?
-# args_elt    := identifier
-#
-# Each args_elt defines an argument within the argument set.
-# Each argument set will be rendered as a C structure "arg_$name"
-# with each of the fields being one of the member arguments.
-#
-# If !extern is specified, the backing structure is assumed to
-# have been already declared, typically via a second decoder.
-#
-# Argument set examples:
-#
-#   &reg3       ra rb rc
-#   &loadstore  reg base offset
-#
-# *** Format syntax:
-#
-# fmt_def      := '@' identifier ( fmt_elt )+
-# fmt_elt      := fixedbit_elt | field_elt | field_ref | args_ref
-# fixedbit_elt := [01.-]+
-# field_elt    := identifier ':' 's'? number
-# field_ref    := '%' identifier | identifier '=' '%' identifier
-# args_ref     := '&' identifier
-#
-# Defining a format is a handy way to avoid replicating groups of fields
-# across many instruction patterns.
-#
-# A fixedbit_elt describes a contiguous sequence of bits that must
-# be 1, 0, [.-] for don't care.  The difference between '.' and '-'
-# is that '.' means that the bit will be covered with a field or a
-# final [01] from the pattern, and '-' means that the bit is really
-# ignored by the cpu and will not be specified.
-#
-# A field_elt describes a simple field only given a width; the position of
-# the field is implied by its position with respect to other fixedbit_elt
-# and field_elt.
-#
-# If any fixedbit_elt or field_elt appear then all bits must be defined.
-# Padding with a fixedbit_elt of all '.' is an easy way to accomplish that.
-#
-# A field_ref incorporates a field by reference.  This is the only way to
-# add a complex field to a format.  A field may be renamed in the process
-# via assignment to another identifier.  This is intended to allow the
-# same argument set be used with disjoint named fields.
-#
-# A single args_ref may specify an argument set to use for the format.
-# The set of fields in the format must be a subset of the arguments in
-# the argument set.  If an argument set is not specified, one will be
-# inferred from the set of fields.
-#
-# It is recommended, but not required, that all field_ref and args_ref
-# appear at the end of the line, not interleaving with fixedbit_elf or
-# field_elt.
-#
-# Format examples:
-#
-#   @opr    ...... ra:5 rb:5 ... 0 ....... rc:5
-#   @opi    ...... ra:5 lit:8    1 ....... rc:5
-#
-# *** Pattern syntax:
-#
-# pat_def      := identifier ( pat_elt )+
-# pat_elt      := fixedbit_elt | field_elt | field_ref
-#               | args_ref | fmt_ref | const_elt
-# fmt_ref      := '@' identifier
-# const_elt    := identifier '=' number
-#
-# The fixedbit_elt and field_elt specifiers are unchanged from formats.
-# A pattern that does not specify a named format will have one inferred
-# from a referenced argument set (if present) and the set of fields.
-#
-# A const_elt allows a argument to be set to a constant value.  This may
-# come in handy when fields overlap between patterns and one has to
-# include the values in the fixedbit_elt instead.
-#
-# The decoder will call a translator function for each pattern matched.
-#
-# Pattern examples:
-#
-#   addl_r   010000 ..... ..... .... 0000000 ..... @opr
-#   addl_i   010000 ..... ..... .... 0000000 ..... @opi
-#
-# which will, in part, invoke
-#
-#   trans_addl_r(ctx, &arg_opr, insn)
-# and
-#   trans_addl_i(ctx, &arg_opi, insn)
+# See the syntax and semantics in docs/devel/decodetree.rst.
 #
 
 import os
@@ -163,6 +31,7 @@ fields = {}
 arguments = {}
 formats = {}
 patterns = []
+allpatterns = []
 
 translate_prefix = 'trans'
 translate_scope = 'static '
@@ -432,13 +301,7 @@ class General:
         self.fields = flds
 
     def __str__(self):
-        r = self.name
-        if self.base:
-            r = r + ' ' + self.base.name
-        else:
-            r = r + ' ' + str(self.fields)
-        r = r + ' ' + str_match_bits(self.fixedbits, self.fixedmask)
-        return r
+        return self.name + ' ' + str_match_bits(self.fixedbits, self.fixedmask)
 
     def str1(self, i):
         return str_indent(i) + self.__str__()
@@ -449,7 +312,8 @@ class Format(General):
     """Class representing an instruction format"""
 
     def extract_name(self):
-        return 'extract_' + self.name
+        global decode_function
+        return decode_function + '_extract_' + self.name
 
     def output_extract(self):
         output('static void ', self.extract_name(), '(',
@@ -480,9 +344,50 @@ class Pattern(General):
             output(ind, self.base.extract_name(), '(&u.f_', arg, ', insn);\n')
         for n, f in self.fields.items():
             output(ind, 'u.f_', arg, '.', n, ' = ', f.str_extract(), ';\n')
-        output(ind, 'return ', translate_prefix, '_', self.name,
-               '(ctx, &u.f_', arg, ');\n')
+        output(ind, 'if (', translate_prefix, '_', self.name,
+               '(ctx, &u.f_', arg, ')) return true;\n')
 # end Pattern
+
+
+class MultiPattern(General):
+    """Class representing an overlapping set of instruction patterns"""
+
+    def __init__(self, lineno, pats, fixb, fixm, udfm):
+        self.file = input_file
+        self.lineno = lineno
+        self.pats = pats
+        self.base = None
+        self.fixedbits = fixb
+        self.fixedmask = fixm
+        self.undefmask = udfm
+
+    def __str__(self):
+        r = "{"
+        for p in self.pats:
+           r = r + ' ' + str(p)
+        return r + "}"
+
+    def output_decl(self):
+        for p in self.pats:
+            p.output_decl()
+
+    def output_code(self, i, extracted, outerbits, outermask):
+        global translate_prefix
+        ind = str_indent(i)
+        for p in self.pats:
+            if outermask != p.fixedmask:
+                innermask = p.fixedmask & ~outermask
+                innerbits = p.fixedbits & ~outermask
+                output(ind, 'if ((insn & ',
+                       '0x{0:08x}) == 0x{1:08x}'.format(innermask, innerbits),
+                       ') {\n')
+                output(ind, '    /* ',
+                       str_match_bits(p.fixedbits, p.fixedmask), ' */\n')
+                p.output_code(i + 4, extracted, p.fixedbits, p.fixedmask)
+                output(ind, '}\n')
+            else:
+                p.output_code(i, extracted, p.fixedbits, p.fixedmask)
+#end MultiPattern
 
 
 def parse_field(lineno, name, toks):
@@ -637,6 +542,7 @@ def parse_generic(lineno, is_format, name, toks):
     global arguments
     global formats
     global patterns
+    global allpatterns
     global re_ident
     global insnwidth
     global insnmask
@@ -684,7 +590,7 @@ def parse_generic(lineno, is_format, name, toks):
             continue
 
         # 'Foo=number' sets an argument field to a constant value
-        if re_fullmatch(re_ident + '=[0-9]+', t):
+        if re_fullmatch(re_ident + '=[+-]?[0-9]+', t):
             (fname, value) = t.split('=')
             value = int(value)
             flds = add_field(lineno, flds, fname, ConstField(value))
@@ -716,6 +622,8 @@ def parse_generic(lineno, is_format, name, toks):
                 sign = True
                 flen = flen[1:]
             shift = int(flen, 10)
+            if shift + width > insnwidth:
+                error(lineno, 'field {0} exceeds insnwidth'.format(fname))
             f = Field(sign, insnwidth - width - shift, shift)
             flds = add_field(lineno, flds, fname, f)
             fixedbits <<= shift
@@ -781,6 +689,7 @@ def parse_generic(lineno, is_format, name, toks):
         pat = Pattern(name, lineno, fmt, fixedbits, fixedmask,
                       undefmask, fieldmask, flds)
         patterns.append(pat)
+        allpatterns.append(pat)
 
     # Validate the masks that we have assembled.
     if fieldmask & fixedmask:
@@ -799,16 +708,65 @@ def parse_generic(lineno, is_format, name, toks):
                           .format(allbits ^ insnmask))
 # end parse_general
 
+def build_multi_pattern(lineno, pats):
+    """Validate the Patterns going into a MultiPattern."""
+    global patterns
+    global insnmask
+
+    if len(pats) < 2:
+        error(lineno, 'less than two patterns within braces')
+
+    fixedmask = insnmask
+    undefmask = insnmask
+
+    # Collect fixed/undefmask for all of the children.
+    # Move the defining lineno back to that of the first child.
+    for p in pats:
+        fixedmask &= p.fixedmask
+        undefmask &= p.undefmask
+        if p.lineno < lineno:
+            lineno = p.lineno
+
+    repeat = True
+    while repeat:
+        if fixedmask == 0:
+            error(lineno, 'no overlap in patterns within braces')
+        fixedbits = None
+        for p in pats:
+            thisbits = p.fixedbits & fixedmask
+            if fixedbits is None:
+                fixedbits = thisbits
+            elif fixedbits != thisbits:
+                fixedmask &= ~(fixedbits ^ thisbits)
+                break
+        else:
+            repeat = False
+
+    mp = MultiPattern(lineno, pats, fixedbits, fixedmask, undefmask)
+    patterns.append(mp)
+# end build_multi_pattern
 
 def parse_file(f):
     """Parse all of the patterns within a file"""
+
+    global patterns
 
     # Read all of the lines of the file.  Concatenate lines
     # ending in backslash; discard empty lines and comments.
     toks = []
     lineno = 0
+    nesting = 0
+    saved_pats = []
+
     for line in f:
         lineno += 1
+
+        # Expand and strip spaces, to find indent.
+        line = line.rstrip()
+        line = line.expandtabs()
+        len1 = len(line)
+        line = line.lstrip()
+        len2 = len(line)
 
         # Discard comments
         end = line.find('#')
@@ -819,10 +777,18 @@ def parse_file(f):
         if len(toks) != 0:
             # Next line after continuation
             toks.extend(t)
-        elif len(t) == 0:
-            # Empty line
-            continue
         else:
+            # Allow completely blank lines.
+            if len1 == 0:
+                continue
+            indent = len1 - len2
+            # Empty line due to comment.
+            if len(t) == 0:
+                # Indentation must be correct, even for comment lines.
+                if indent != nesting:
+                    error(lineno, 'indentation ', indent, ' != ', nesting)
+                continue
+            start_lineno = lineno
             toks = t
 
         # Continuation?
@@ -830,21 +796,47 @@ def parse_file(f):
             toks.pop()
             continue
 
-        if len(toks) < 2:
-            error(lineno, 'short line')
-
         name = toks[0]
         del toks[0]
 
+        # End nesting?
+        if name == '}':
+            if nesting == 0:
+                error(start_lineno, 'mismatched close brace')
+            if len(toks) != 0:
+                error(start_lineno, 'extra tokens after close brace')
+            nesting -= 2
+            if indent != nesting:
+                error(start_lineno, 'indentation ', indent, ' != ', nesting)
+            pats = patterns
+            patterns = saved_pats.pop()
+            build_multi_pattern(lineno, pats)
+            toks = []
+            continue
+
+        # Everything else should have current indentation.
+        if indent != nesting:
+            error(start_lineno, 'indentation ', indent, ' != ', nesting)
+
+        # Start nesting?
+        if name == '{':
+            if len(toks) != 0:
+                error(start_lineno, 'extra tokens after open brace')
+            saved_pats.append(patterns)
+            patterns = []
+            nesting += 2
+            toks = []
+            continue
+
         # Determine the type of object needing to be parsed.
         if name[0] == '%':
-            parse_field(lineno, name[1:], toks)
+            parse_field(start_lineno, name[1:], toks)
         elif name[0] == '&':
-            parse_arguments(lineno, name[1:], toks)
+            parse_arguments(start_lineno, name[1:], toks)
         elif name[0] == '@':
-            parse_generic(lineno, True, name[1:], toks)
+            parse_generic(start_lineno, True, name[1:], toks)
         else:
-            parse_generic(lineno, False, name, toks)
+            parse_generic(start_lineno, False, name, toks)
         toks = []
 # end parse_file
 
@@ -909,23 +901,22 @@ class Tree:
             output(ind, '    /* ',
                    str_match_bits(innerbits, innermask), ' */\n')
             s.output_code(i + 4, extracted, innerbits, innermask)
+            output(ind, '    return false;\n')
         output(ind, '}\n')
-        output(ind, 'return false;\n')
 # end Tree
 
 
 def build_tree(pats, outerbits, outermask):
     # Find the intersection of all remaining fixedmask.
-    innermask = ~outermask
+    innermask = ~outermask & insnmask
     for i in pats:
         innermask &= i.fixedmask
 
     if innermask == 0:
-        pnames = []
+        text = 'overlapping patterns:'
         for p in pats:
-            pnames.append(p.name + ':' + p.file + ':' + str(p.lineno))
-        error_with_file(pats[0].file, pats[0].lineno,
-                        'overlapping patterns:', pnames)
+            text += '\n' + p.file + ':' + str(p.lineno) + ': ' + str(p)
+        error_with_file(pats[0].file, pats[0].lineno, text)
 
     fullmask = outermask | innermask
 
@@ -978,6 +969,7 @@ def main():
     global arguments
     global formats
     global patterns
+    global allpatterns
     global translate_scope
     global translate_prefix
     global output_fd
@@ -990,7 +982,8 @@ def main():
 
     decode_scope = 'static '
 
-    long_opts = ['decode=', 'translate=', 'output=', 'insnwidth=']
+    long_opts = ['decode=', 'translate=', 'output=', 'insnwidth=',
+                 'static-decode=']
     try:
         (opts, args) = getopt.getopt(sys.argv[1:], 'o:w:', long_opts)
     except getopt.GetoptError as err:
@@ -1001,6 +994,8 @@ def main():
         elif o == '--decode':
             decode_function = a
             decode_scope = ''
+        elif o == '--static-decode':
+            decode_function = a
         elif o == '--translate':
             translate_prefix = a
             translate_scope = ''
@@ -1039,7 +1034,7 @@ def main():
     # Make sure that the argument sets are the same, and declare the
     # function only once.
     out_pats = {}
-    for i in patterns:
+    for i in allpatterns:
         if i.name in out_pats:
             p = out_pats[i.name]
             if i.base.base != p.base.base:
@@ -1057,14 +1052,16 @@ def main():
            '(DisasContext *ctx, ', insntype, ' insn)\n{\n')
 
     i4 = str_indent(4)
-    output(i4, 'union {\n')
-    for n in sorted(arguments.keys()):
-        f = arguments[n]
-        output(i4, i4, f.struct_name(), ' f_', f.name, ';\n')
-    output(i4, '} u;\n\n')
 
-    t.output_code(4, False, 0, 0)
+    if len(allpatterns) != 0:
+        output(i4, 'union {\n')
+        for n in sorted(arguments.keys()):
+            f = arguments[n]
+            output(i4, i4, f.struct_name(), ' f_', f.name, ';\n')
+        output(i4, '} u;\n\n')
+        t.output_code(4, False, 0, 0)
 
+    output(i4, 'return false;\n')
     output('}\n')
 
     if output_file:
