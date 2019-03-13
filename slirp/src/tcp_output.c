@@ -34,9 +34,6 @@
 /*
  * Changes and additions relating to SLiRP
  * Copyright (c) 1995 Danny Gasparovski.
- *
- * Please read the file COPYRIGHT for the
- * terms and conditions of the copyright.
  */
 
 #include "slirp.h"
