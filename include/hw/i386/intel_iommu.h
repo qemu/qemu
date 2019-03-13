@@ -105,8 +105,8 @@ struct VTDAddressSpace {
     uint8_t devfn;
     AddressSpace as;
     IOMMUMemoryRegion iommu;
-    MemoryRegion root;
-    MemoryRegion sys_alias;
+    MemoryRegion root;          /* The root container of the device */
+    MemoryRegion nodmar;        /* The alias of shared nodmar MR */
     MemoryRegion iommu_ir;      /* Interrupt region: 0xfeeXXXXX */
     IntelIOMMUState *iommu_state;
     VTDContextCacheEntry context_cache_entry;
@@ -221,6 +221,9 @@ union VTD_IR_MSIAddress {
 struct IntelIOMMUState {
     X86IOMMUState x86_iommu;
     MemoryRegion csrmem;
+    MemoryRegion mr_nodmar;
+    MemoryRegion mr_ir;
+    MemoryRegion mr_sys_alias;
     uint8_t csr[DMAR_REG_SIZE];     /* register values */
     uint8_t wmask[DMAR_REG_SIZE];   /* R/W bytes */
     uint8_t w1cmask[DMAR_REG_SIZE]; /* RW1C(Write 1 to Clear) bytes */

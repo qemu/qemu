@@ -1485,11 +1485,11 @@ static bool vtd_switch_address_space(VTDAddressSpace *as)
 
     /* Turn off first then on the other */
     if (use_iommu) {
-        memory_region_set_enabled(&as->sys_alias, false);
+        memory_region_set_enabled(&as->nodmar, false);
         memory_region_set_enabled(MEMORY_REGION(&as->iommu), true);
     } else {
         memory_region_set_enabled(MEMORY_REGION(&as->iommu), false);
-        memory_region_set_enabled(&as->sys_alias, true);
+        memory_region_set_enabled(&as->nodmar, true);
     }
 
     if (take_bql) {
@@ -3286,7 +3286,8 @@ VTDAddressSpace *vtd_find_add_as(IntelIOMMUState *s, PCIBus *bus, int devfn)
     vtd_dev_as = vtd_bus->dev_as[devfn];
 
     if (!vtd_dev_as) {
-        snprintf(name, sizeof(name), "intel_iommu_devfn_%d", devfn);
+        snprintf(name, sizeof(name), "vtd-%02x.%x", PCI_SLOT(devfn),
+                 PCI_FUNC(devfn));
         vtd_bus->dev_as[devfn] = vtd_dev_as = g_malloc0(sizeof(VTDAddressSpace));
 
         vtd_dev_as->bus = bus;
@@ -3295,44 +3296,53 @@ VTDAddressSpace *vtd_find_add_as(IntelIOMMUState *s, PCIBus *bus, int devfn)
         vtd_dev_as->context_cache_entry.context_cache_gen = 0;
         vtd_dev_as->iova_tree = iova_tree_new();
 
+        memory_region_init(&vtd_dev_as->root, OBJECT(s), name, UINT64_MAX);
+        address_space_init(&vtd_dev_as->as, &vtd_dev_as->root, "vtd-root");
+
         /*
-         * Memory region relationships looks like (Address range shows
-         * only lower 32 bits to make it short in length...):
-         *
-         * |-----------------+-------------------+----------|
-         * | Name            | Address range     | Priority |
-         * |-----------------+-------------------+----------+
-         * | vtd_root        | 00000000-ffffffff |        0 |
-         * |  intel_iommu    | 00000000-ffffffff |        1 |
-         * |  vtd_sys_alias  | 00000000-ffffffff |        1 |
-         * |  intel_iommu_ir | fee00000-feefffff |       64 |
-         * |-----------------+-------------------+----------|
-         *
-         * We enable/disable DMAR by switching enablement for
-         * vtd_sys_alias and intel_iommu regions. IR region is always
-         * enabled.
+         * Build the DMAR-disabled container with aliases to the
+         * shared MRs.  Note that aliasing to a shared memory region
+         * could help the memory API to detect same FlatViews so we
+         * can have devices to share the same FlatView when DMAR is
+         * disabled (either by not providing "intel_iommu=on" or with
+         * "iommu=pt").  It will greatly reduce the total number of
+         * FlatViews of the system hence VM runs faster.
          */
+        memory_region_init_alias(&vtd_dev_as->nodmar, OBJECT(s),
+                                 "vtd-nodmar", &s->mr_nodmar, 0,
+                                 memory_region_size(&s->mr_nodmar));
+
+        /*
+         * Build the per-device DMAR-enabled container.
+         *
+         * TODO: currently we have per-device IOMMU memory region only
+         * because we have per-device IOMMU notifiers for devices.  If
+         * one day we can abstract the IOMMU notifiers out of the
+         * memory regions then we can also share the same memory
+         * region here just like what we've done above with the nodmar
+         * region.
+         */
+        strcat(name, "-dmar");
         memory_region_init_iommu(&vtd_dev_as->iommu, sizeof(vtd_dev_as->iommu),
                                  TYPE_INTEL_IOMMU_MEMORY_REGION, OBJECT(s),
-                                 "intel_iommu_dmar",
-                                 UINT64_MAX);
-        memory_region_init_alias(&vtd_dev_as->sys_alias, OBJECT(s),
-                                 "vtd_sys_alias", get_system_memory(),
-                                 0, memory_region_size(get_system_memory()));
-        memory_region_init_io(&vtd_dev_as->iommu_ir, OBJECT(s),
-                              &vtd_mem_ir_ops, s, "intel_iommu_ir",
-                              VTD_INTERRUPT_ADDR_SIZE);
-        memory_region_init(&vtd_dev_as->root, OBJECT(s),
-                           "vtd_root", UINT64_MAX);
-        memory_region_add_subregion_overlap(&vtd_dev_as->root,
+                                 name, UINT64_MAX);
+        memory_region_init_alias(&vtd_dev_as->iommu_ir, OBJECT(s), "vtd-ir",
+                                 &s->mr_ir, 0, memory_region_size(&s->mr_ir));
+        memory_region_add_subregion_overlap(MEMORY_REGION(&vtd_dev_as->iommu),
                                             VTD_INTERRUPT_ADDR_FIRST,
-                                            &vtd_dev_as->iommu_ir, 64);
-        address_space_init(&vtd_dev_as->as, &vtd_dev_as->root, name);
-        memory_region_add_subregion_overlap(&vtd_dev_as->root, 0,
-                                            &vtd_dev_as->sys_alias, 1);
+                                            &vtd_dev_as->iommu_ir, 1);
+
+        /*
+         * Hook both the containers under the root container, we
+         * switch between DMAR & noDMAR by enable/disable
+         * corresponding sub-containers
+         */
         memory_region_add_subregion_overlap(&vtd_dev_as->root, 0,
                                             MEMORY_REGION(&vtd_dev_as->iommu),
-                                            1);
+                                            0);
+        memory_region_add_subregion_overlap(&vtd_dev_as->root, 0,
+                                            &vtd_dev_as->nodmar, 0);
+
         vtd_switch_address_space(vtd_dev_as);
     }
     return vtd_dev_as;
@@ -3676,6 +3686,21 @@ static void vtd_realize(DeviceState *dev, Error **errp)
     memset(s->vtd_as_by_bus_num, 0, sizeof(s->vtd_as_by_bus_num));
     memory_region_init_io(&s->csrmem, OBJECT(s), &vtd_mem_ops, s,
                           "intel_iommu", DMAR_REG_SIZE);
+
+    /* Create the shared memory regions by all devices */
+    memory_region_init(&s->mr_nodmar, OBJECT(s), "vtd-nodmar",
+                       UINT64_MAX);
+    memory_region_init_io(&s->mr_ir, OBJECT(s), &vtd_mem_ir_ops,
+                          s, "vtd-ir", VTD_INTERRUPT_ADDR_SIZE);
+    memory_region_init_alias(&s->mr_sys_alias, OBJECT(s),
+                             "vtd-sys-alias", get_system_memory(), 0,
+                             memory_region_size(get_system_memory()));
+    memory_region_add_subregion_overlap(&s->mr_nodmar, 0,
+                                        &s->mr_sys_alias, 0);
+    memory_region_add_subregion_overlap(&s->mr_nodmar,
+                                        VTD_INTERRUPT_ADDR_FIRST,
+                                        &s->mr_ir, 1);
+
     sysbus_init_mmio(SYS_BUS_DEVICE(s), &s->csrmem);
     /* No corresponding destroy */
     s->iotlb = g_hash_table_new_full(vtd_uint64_hash, vtd_uint64_equal,
