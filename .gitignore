@@ -6,6 +6,7 @@
 /config-target.*
 /config.status
 /config-temp
+/elf2dmp
 /trace-events-all
 /trace/generated-events.h
 /trace/generated-events.c
@@ -119,6 +120,7 @@
 /pc-bios/optionrom/kvmvapic.img
 /pc-bios/s390-ccw/s390-ccw.elf
 /pc-bios/s390-ccw/s390-ccw.img
+/docs/built
 /docs/interop/qemu-ga-qapi.texi
 /docs/interop/qemu-ga-ref.html
 /docs/interop/qemu-ga-ref.info*
