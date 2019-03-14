@@ -57,7 +57,7 @@ static void dummy_comp_handler(void *ctx, struct ibv_wc *wc)
 static inline void complete_work(enum ibv_wc_status status, uint32_t vendor_err,
                                  void *ctx)
 {
-    struct ibv_wc wc = {0};
+    struct ibv_wc wc = {};
 
     wc.status = status;
     wc.vendor_err = vendor_err;
@@ -273,7 +273,7 @@ static void stop_backend_thread(RdmaBackendThread *thread)
 
 static void start_comp_thread(RdmaBackendDev *backend_dev)
 {
-    char thread_name[THR_NAME_LEN] = {0};
+    char thread_name[THR_NAME_LEN] = {};
 
     stop_backend_thread(&backend_dev->comp_thread);
 
@@ -483,7 +483,7 @@ void rdma_backend_post_send(RdmaBackendDev *backend_dev,
     struct ibv_sge new_sge[MAX_SGE];
     uint32_t bctx_id;
     int rc;
-    struct ibv_send_wr wr = {0}, *bad_wr;
+    struct ibv_send_wr wr = {}, *bad_wr;
 
     if (!qp->ibqp) { /* This field is not initialized for QP0 and QP1 */
         if (qp_type == IBV_QPT_SMI) {
@@ -600,7 +600,7 @@ void rdma_backend_post_recv(RdmaBackendDev *backend_dev,
     struct ibv_sge new_sge[MAX_SGE];
     uint32_t bctx_id;
     int rc;
-    struct ibv_recv_wr wr = {0}, *bad_wr;
+    struct ibv_recv_wr wr = {}, *bad_wr;
 
     if (!qp->ibqp) { /* This field does not get initialized for QP0 and QP1 */
         if (qp_type == IBV_QPT_SMI) {
@@ -737,7 +737,7 @@ int rdma_backend_create_qp(RdmaBackendQP *qp, uint8_t qp_type,
                            uint32_t max_recv_wr, uint32_t max_send_sge,
                            uint32_t max_recv_sge)
 {
-    struct ibv_qp_init_attr attr = {0};
+    struct ibv_qp_init_attr attr = {};
 
     qp->ibqp = 0;
 
@@ -782,7 +782,7 @@ int rdma_backend_create_qp(RdmaBackendQP *qp, uint8_t qp_type,
 int rdma_backend_qp_state_init(RdmaBackendDev *backend_dev, RdmaBackendQP *qp,
                                uint8_t qp_type, uint32_t qkey)
 {
-    struct ibv_qp_attr attr = {0};
+    struct ibv_qp_attr attr = {};
     int rc, attr_mask;
 
     attr_mask = IBV_QP_STATE | IBV_QP_PKEY_INDEX | IBV_QP_PORT;
@@ -821,7 +821,7 @@ int rdma_backend_qp_state_rtr(RdmaBackendDev *backend_dev, RdmaBackendQP *qp,
                               union ibv_gid *dgid, uint32_t dqpn,
                               uint32_t rq_psn, uint32_t qkey, bool use_qkey)
 {
-    struct ibv_qp_attr attr = {0};
+    struct ibv_qp_attr attr = {};
     union ibv_gid ibv_gid = {
         .global.interface_id = dgid->global.interface_id,
         .global.subnet_prefix = dgid->global.subnet_prefix
@@ -880,7 +880,7 @@ int rdma_backend_qp_state_rtr(RdmaBackendDev *backend_dev, RdmaBackendQP *qp,
 int rdma_backend_qp_state_rts(RdmaBackendQP *qp, uint8_t qp_type,
                               uint32_t sq_psn, uint32_t qkey, bool use_qkey)
 {
-    struct ibv_qp_attr attr = {0};
+    struct ibv_qp_attr attr = {};
     int rc, attr_mask;
 
     attr.qp_state = IBV_QPS_RTS;
@@ -1012,7 +1012,7 @@ static void process_incoming_mad_req(RdmaBackendDev *backend_dev,
         complete_work(IBV_WC_GENERAL_ERR, VENDOR_ERR_INV_MAD_BUFF,
                       bctx->up_ctx);
     } else {
-        struct ibv_wc wc = {0};
+        struct ibv_wc wc = {};
         memset(mad, 0, bctx->sge.length);
         build_mad_hdr((struct ibv_grh *)mad,
                       (union ibv_gid *)&msg->umad.hdr.addr.gid, &msg->hdr.sgid,

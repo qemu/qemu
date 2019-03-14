@@ -114,7 +114,7 @@ static void pvrdma_qp_ops_comp_handler(void *ctx, struct ibv_wc *wc)
 
 static void complete_with_error(uint32_t vendor_err, void *ctx)
 {
-    struct ibv_wc wc = {0};
+    struct ibv_wc wc = {};
 
     wc.status = IBV_WC_GENERAL_ERR;
     wc.vendor_err = vendor_err;
