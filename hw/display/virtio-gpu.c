@@ -1084,6 +1084,12 @@ static void virtio_gpu_gl_block(void *opaque, bool block)
     assert(g->renderer_blocked >= 0);
 
     if (g->renderer_blocked == 0) {
+#ifdef CONFIG_VIRGL
+        if (g->renderer_reset) {
+            g->renderer_reset = false;
+            virtio_gpu_virgl_reset(g);
+        }
+#endif
         virtio_gpu_process_cmdq(g);
     }
 }
@@ -1368,7 +1374,11 @@ static void virtio_gpu_reset(VirtIODevice *vdev)
 
 #ifdef CONFIG_VIRGL
     if (g->use_virgl_renderer) {
-        virtio_gpu_virgl_reset(g);
+        if (g->renderer_blocked) {
+            g->renderer_reset = true;
+        } else {
+            virtio_gpu_virgl_reset(g);
+        }
         g->use_virgl_renderer = 0;
     }
 #endif
