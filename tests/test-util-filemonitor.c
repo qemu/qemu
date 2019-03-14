@@ -26,6 +26,9 @@
 #include <utime.h>
 
 enum {
+    QFILE_MONITOR_TEST_OP_ADD_WATCH,
+    QFILE_MONITOR_TEST_OP_DEL_WATCH,
+    QFILE_MONITOR_TEST_OP_EVENT,
     QFILE_MONITOR_TEST_OP_CREATE,
     QFILE_MONITOR_TEST_OP_APPEND,
     QFILE_MONITOR_TEST_OP_TRUNC,
@@ -38,19 +41,9 @@ typedef struct {
     int type;
     const char *filesrc;
     const char *filedst;
+    int watchid;
+    int eventid;
 } QFileMonitorTestOp;
-
-typedef struct {
-    const char *file;
-} QFileMonitorTestWatch;
-
-typedef struct {
-    gsize nwatches;
-    const QFileMonitorTestWatch *watches;
-
-    gsize nops;
-    const QFileMonitorTestOp *ops;
-} QFileMonitorTestPlan;
 
 typedef struct {
     int id;
@@ -67,6 +60,7 @@ typedef struct {
 static QemuMutex evlock;
 static bool evstopping;
 static bool evrunning;
+static bool debug;
 
 /*
  * Main function for a background thread that is
@@ -200,9 +194,125 @@ qemu_file_monitor_test_expect(QFileMonitorTestData *data,
 
 
 static void
-test_file_monitor_events(const void *opaque)
+test_file_monitor_events(void)
 {
-    const QFileMonitorTestPlan *plan = opaque;
+    QFileMonitorTestOp ops[] = {
+        { .type = QFILE_MONITOR_TEST_OP_ADD_WATCH,
+          .filesrc = NULL, .watchid = 0 },
+        { .type = QFILE_MONITOR_TEST_OP_ADD_WATCH,
+          .filesrc = "one.txt", .watchid = 1 },
+        { .type = QFILE_MONITOR_TEST_OP_ADD_WATCH,
+          .filesrc = "two.txt", .watchid = 2 },
+
+
+        { .type = QFILE_MONITOR_TEST_OP_CREATE,
+          .filesrc = "one.txt", },
+        { .type = QFILE_MONITOR_TEST_OP_EVENT,
+          .filesrc = "one.txt", .watchid = 0,
+          .eventid = QFILE_MONITOR_EVENT_CREATED },
+        { .type = QFILE_MONITOR_TEST_OP_EVENT,
+          .filesrc = "one.txt", .watchid = 1,
+          .eventid = QFILE_MONITOR_EVENT_CREATED },
+
+
+        { .type = QFILE_MONITOR_TEST_OP_CREATE,
+          .filesrc = "two.txt", },
+        { .type = QFILE_MONITOR_TEST_OP_EVENT,
+          .filesrc = "two.txt", .watchid = 0,
+          .eventid = QFILE_MONITOR_EVENT_CREATED },
+        { .type = QFILE_MONITOR_TEST_OP_EVENT,
+          .filesrc = "two.txt", .watchid = 2,
+          .eventid = QFILE_MONITOR_EVENT_CREATED },
+
+
+        { .type = QFILE_MONITOR_TEST_OP_CREATE,
+          .filesrc = "three.txt", },
+        { .type = QFILE_MONITOR_TEST_OP_EVENT,
+          .filesrc = "three.txt", .watchid = 0,
+          .eventid = QFILE_MONITOR_EVENT_CREATED },
+
+
+        { .type = QFILE_MONITOR_TEST_OP_UNLINK,
+          .filesrc = "three.txt", },
+        { .type = QFILE_MONITOR_TEST_OP_EVENT,
+          .filesrc = "three.txt", .watchid = 0,
+          .eventid = QFILE_MONITOR_EVENT_DELETED },
+
+
+        { .type = QFILE_MONITOR_TEST_OP_RENAME,
+          .filesrc = "one.txt", .filedst = "two.txt" },
+        { .type = QFILE_MONITOR_TEST_OP_EVENT,
+          .filesrc = "one.txt", .watchid = 0,
+          .eventid = QFILE_MONITOR_EVENT_DELETED },
+        { .type = QFILE_MONITOR_TEST_OP_EVENT,
+          .filesrc = "one.txt", .watchid = 1,
+          .eventid = QFILE_MONITOR_EVENT_DELETED },
+        { .type = QFILE_MONITOR_TEST_OP_EVENT,
+          .filesrc = "two.txt", .watchid = 0,
+          .eventid = QFILE_MONITOR_EVENT_CREATED },
+        { .type = QFILE_MONITOR_TEST_OP_EVENT,
+          .filesrc = "two.txt", .watchid = 2,
+          .eventid = QFILE_MONITOR_EVENT_CREATED },
+
+
+        { .type = QFILE_MONITOR_TEST_OP_APPEND,
+          .filesrc = "two.txt", },
+        { .type = QFILE_MONITOR_TEST_OP_EVENT,
+          .filesrc = "two.txt", .watchid = 0,
+          .eventid = QFILE_MONITOR_EVENT_MODIFIED },
+        { .type = QFILE_MONITOR_TEST_OP_EVENT,
+          .filesrc = "two.txt", .watchid = 2,
+          .eventid = QFILE_MONITOR_EVENT_MODIFIED },
+
+
+        { .type = QFILE_MONITOR_TEST_OP_TOUCH,
+          .filesrc = "two.txt", },
+        { .type = QFILE_MONITOR_TEST_OP_EVENT,
+          .filesrc = "two.txt", .watchid = 0,
+          .eventid = QFILE_MONITOR_EVENT_ATTRIBUTES },
+        { .type = QFILE_MONITOR_TEST_OP_EVENT,
+          .filesrc = "two.txt", .watchid = 2,
+          .eventid = QFILE_MONITOR_EVENT_ATTRIBUTES },
+
+
+        { .type = QFILE_MONITOR_TEST_OP_DEL_WATCH,
+          .filesrc = "one.txt", .watchid = 1 },
+        { .type = QFILE_MONITOR_TEST_OP_ADD_WATCH,
+          .filesrc = "one.txt", .watchid = 3 },
+        { .type = QFILE_MONITOR_TEST_OP_CREATE,
+          .filesrc = "one.txt", },
+        { .type = QFILE_MONITOR_TEST_OP_EVENT,
+          .filesrc = "one.txt", .watchid = 0,
+          .eventid = QFILE_MONITOR_EVENT_CREATED },
+        { .type = QFILE_MONITOR_TEST_OP_EVENT,
+          .filesrc = "one.txt", .watchid = 3,
+          .eventid = QFILE_MONITOR_EVENT_CREATED },
+
+
+        { .type = QFILE_MONITOR_TEST_OP_DEL_WATCH,
+          .filesrc = "one.txt", .watchid = 3 },
+        { .type = QFILE_MONITOR_TEST_OP_UNLINK,
+          .filesrc = "one.txt", },
+        { .type = QFILE_MONITOR_TEST_OP_EVENT,
+          .filesrc = "one.txt", .watchid = 0,
+          .eventid = QFILE_MONITOR_EVENT_DELETED },
+
+
+        { .type = QFILE_MONITOR_TEST_OP_UNLINK,
+          .filesrc = "two.txt", },
+        { .type = QFILE_MONITOR_TEST_OP_EVENT,
+          .filesrc = "two.txt", .watchid = 0,
+          .eventid = QFILE_MONITOR_EVENT_DELETED },
+        { .type = QFILE_MONITOR_TEST_OP_EVENT,
+          .filesrc = "two.txt", .watchid = 2,
+          .eventid = QFILE_MONITOR_EVENT_DELETED },
+
+
+        { .type = QFILE_MONITOR_TEST_OP_DEL_WATCH,
+          .filesrc = "two.txt", .watchid = 2 },
+        { .type = QFILE_MONITOR_TEST_OP_DEL_WATCH,
+          .filesrc = NULL, .watchid = 0 },
+    };
     Error *local_err = NULL;
     GError *gerr = NULL;
     QFileMonitor *mon = qemu_file_monitor_new(&local_err);
@@ -210,7 +320,7 @@ test_file_monitor_events(const void *opaque)
     GTimer *timer;
     gchar *dir = NULL;
     int err = -1;
-    gsize i, j;
+    gsize i;
     char *pathsrc = NULL;
     char *pathdst = NULL;
     QFileMonitorTestData data;
@@ -248,33 +358,13 @@ test_file_monitor_events(const void *opaque)
     }
 
     /*
-     * First register all the directory / file watches
-     * we're interested in seeing events against
+     * Run through the operation sequence validating events
+     * as we go
      */
-    for (i = 0; i < plan->nwatches; i++) {
-        int watchid;
-        watchid = qemu_file_monitor_add_watch(mon,
-                                              dir,
-                                              plan->watches[i].file,
-                                              qemu_file_monitor_test_handler,
-                                              &data,
-                                              &local_err);
-        if (watchid < 0) {
-            g_printerr("Unable to add watch %s",
-                       error_get_pretty(local_err));
-            goto cleanup;
-        }
-    }
-
-
-    /*
-     * Now invoke all the file operations (create,
-     * delete, rename, chmod, etc). These operations
-     * will trigger the various file monitor events
-     */
-    for (i = 0; i < plan->nops; i++) {
-        const QFileMonitorTestOp *op = &(plan->ops[i]);
+    for (i = 0; i < G_N_ELEMENTS(ops); i++) {
+        const QFileMonitorTestOp *op = &(ops[i]);
         int fd;
+        int watchid;
         struct utimbuf ubuf;
 
         pathsrc = g_strdup_printf("%s/%s", dir, op->filesrc);
@@ -283,7 +373,50 @@ test_file_monitor_events(const void *opaque)
         }
 
         switch (op->type) {
+        case QFILE_MONITOR_TEST_OP_ADD_WATCH:
+            if (debug) {
+                g_printerr("Add watch %s %s %d\n",
+                           dir, op->filesrc, op->watchid);
+            }
+            watchid =
+                qemu_file_monitor_add_watch(mon,
+                                            dir,
+                                            op->filesrc,
+                                            qemu_file_monitor_test_handler,
+                                            &data,
+                                            &local_err);
+            if (watchid < 0) {
+                g_printerr("Unable to add watch %s",
+                           error_get_pretty(local_err));
+                goto cleanup;
+            }
+            if (watchid != op->watchid) {
+                g_printerr("Unexpected watch ID %d, wanted %d\n",
+                           watchid, op->watchid);
+                goto cleanup;
+            }
+            break;
+        case QFILE_MONITOR_TEST_OP_DEL_WATCH:
+            if (debug) {
+                g_printerr("Del watch %s %d\n", dir, op->watchid);
+            }
+            qemu_file_monitor_remove_watch(mon,
+                                           dir,
+                                           op->watchid);
+            break;
+        case QFILE_MONITOR_TEST_OP_EVENT:
+            if (debug) {
+                g_printerr("Event id=%d event=%d file=%s\n",
+                           op->watchid, op->eventid, op->filesrc);
+            }
+            if (!qemu_file_monitor_test_expect(
+                    &data, op->watchid, op->eventid, op->filesrc))
+                goto cleanup;
+            break;
         case QFILE_MONITOR_TEST_OP_CREATE:
+            if (debug) {
+                g_printerr("Create %s\n", pathsrc);
+            }
             fd = open(pathsrc, O_WRONLY | O_CREAT, 0700);
             if (fd < 0) {
                 g_printerr("Unable to create %s: %s",
@@ -294,6 +427,9 @@ test_file_monitor_events(const void *opaque)
             break;
 
         case QFILE_MONITOR_TEST_OP_APPEND:
+            if (debug) {
+                g_printerr("Append %s\n", pathsrc);
+            }
             fd = open(pathsrc, O_WRONLY | O_APPEND, 0700);
             if (fd < 0) {
                 g_printerr("Unable to open %s: %s",
@@ -311,6 +447,9 @@ test_file_monitor_events(const void *opaque)
             break;
 
         case QFILE_MONITOR_TEST_OP_TRUNC:
+            if (debug) {
+                g_printerr("Truncate %s\n", pathsrc);
+            }
             if (truncate(pathsrc, 4) < 0) {
                 g_printerr("Unable to truncate %s: %s",
                            pathsrc, strerror(errno));
@@ -319,6 +458,9 @@ test_file_monitor_events(const void *opaque)
             break;
 
         case QFILE_MONITOR_TEST_OP_RENAME:
+            if (debug) {
+                g_printerr("Rename %s -> %s\n", pathsrc, pathdst);
+            }
             if (rename(pathsrc, pathdst) < 0) {
                 g_printerr("Unable to rename %s to %s: %s",
                            pathsrc, pathdst, strerror(errno));
@@ -327,6 +469,9 @@ test_file_monitor_events(const void *opaque)
             break;
 
         case QFILE_MONITOR_TEST_OP_UNLINK:
+            if (debug) {
+                g_printerr("Unlink %s\n", pathsrc);
+            }
             if (unlink(pathsrc) < 0) {
                 g_printerr("Unable to unlink %s: %s",
                            pathsrc, strerror(errno));
@@ -335,6 +480,9 @@ test_file_monitor_events(const void *opaque)
             break;
 
         case QFILE_MONITOR_TEST_OP_TOUCH:
+            if (debug) {
+                g_printerr("Touch %s\n", pathsrc);
+            }
             ubuf.actime = 1024;
             ubuf.modtime = 1025;
             if (utime(pathsrc, &ubuf) < 0) {
@@ -351,92 +499,6 @@ test_file_monitor_events(const void *opaque)
         g_free(pathsrc);
         g_free(pathdst);
         pathsrc = pathdst = NULL;
-    }
-
-
-    /*
-     * Finally validate that we have received all the events
-     * we expect to see for the combination of watches and
-     * file operations
-     */
-    for (i = 0; i < plan->nops; i++) {
-        const QFileMonitorTestOp *op = &(plan->ops[i]);
-
-        switch (op->type) {
-        case QFILE_MONITOR_TEST_OP_CREATE:
-            for (j = 0; j < plan->nwatches; j++) {
-                if (plan->watches[j].file &&
-                    !g_str_equal(plan->watches[j].file, op->filesrc))
-                    continue;
-
-                if (!qemu_file_monitor_test_expect(
-                        &data, j, QFILE_MONITOR_EVENT_CREATED, op->filesrc))
-                    goto cleanup;
-            }
-            break;
-
-        case QFILE_MONITOR_TEST_OP_APPEND:
-        case QFILE_MONITOR_TEST_OP_TRUNC:
-            for (j = 0; j < plan->nwatches; j++) {
-                if (plan->watches[j].file &&
-                    !g_str_equal(plan->watches[j].file, op->filesrc))
-                    continue;
-
-                if (!qemu_file_monitor_test_expect(
-                        &data, j, QFILE_MONITOR_EVENT_MODIFIED, op->filesrc))
-                    goto cleanup;
-            }
-            break;
-
-        case QFILE_MONITOR_TEST_OP_RENAME:
-            for (j = 0; j < plan->nwatches; j++) {
-                if (plan->watches[j].file &&
-                    !g_str_equal(plan->watches[j].file, op->filesrc))
-                    continue;
-
-                if (!qemu_file_monitor_test_expect(
-                        &data, j, QFILE_MONITOR_EVENT_DELETED, op->filesrc))
-                    goto cleanup;
-            }
-
-            for (j = 0; j < plan->nwatches; j++) {
-                if (plan->watches[j].file &&
-                    !g_str_equal(plan->watches[j].file, op->filedst))
-                    continue;
-
-                if (!qemu_file_monitor_test_expect(
-                        &data, j, QFILE_MONITOR_EVENT_CREATED, op->filedst))
-                    goto cleanup;
-            }
-            break;
-
-        case QFILE_MONITOR_TEST_OP_TOUCH:
-            for (j = 0; j < plan->nwatches; j++) {
-                if (plan->watches[j].file &&
-                    !g_str_equal(plan->watches[j].file, op->filesrc))
-                    continue;
-
-                if (!qemu_file_monitor_test_expect(
-                        &data, j, QFILE_MONITOR_EVENT_ATTRIBUTES, op->filesrc))
-                    goto cleanup;
-            }
-            break;
-
-        case QFILE_MONITOR_TEST_OP_UNLINK:
-            for (j = 0; j < plan->nwatches; j++) {
-                if (plan->watches[j].file &&
-                    !g_str_equal(plan->watches[j].file, op->filesrc))
-                    continue;
-
-                if (!qemu_file_monitor_test_expect(
-                        &data, j, QFILE_MONITOR_EVENT_DELETED, op->filesrc))
-                    goto cleanup;
-            }
-            break;
-
-        default:
-            g_assert_not_reached();
-        }
     }
 
     err = 0;
@@ -460,169 +522,34 @@ test_file_monitor_events(const void *opaque)
     }
     g_timer_destroy(timer);
 
-    for (i = 0; i < plan->nops; i++) {
-        const QFileMonitorTestOp *op = &(plan->ops[i]);
-        pathsrc = g_strdup_printf("%s/%s", dir, op->filesrc);
-        unlink(pathsrc);
-        g_free(pathsrc);
-        if (op->filedst) {
-            pathdst = g_strdup_printf("%s/%s", dir, op->filedst);
-            unlink(pathdst);
-            g_free(pathdst);
-        }
-    }
-
     qemu_file_monitor_free(mon);
     g_list_foreach(data.records,
                    (GFunc)qemu_file_monitor_test_record_free, NULL);
     g_list_free(data.records);
     qemu_mutex_destroy(&data.lock);
     if (dir) {
-        rmdir(dir);
+        for (i = 0; i < G_N_ELEMENTS(ops); i++) {
+            const QFileMonitorTestOp *op = &(ops[i]);
+            char *path = g_strdup_printf("%s/%s",
+                                         dir, op->filesrc);
+            unlink(path);
+            g_free(path);
+            if (op->filedst) {
+                path = g_strdup_printf("%s/%s",
+                                       dir, op->filedst);
+                unlink(path);
+                g_free(path);
+            }
+        }
+        if (rmdir(dir) < 0) {
+            g_printerr("Failed to remove %s: %s\n",
+                       dir, strerror(errno));
+            abort();
+        }
     }
     g_free(dir);
     g_assert(err == 0);
 }
-
-
-/*
- * Set of structs which define which file name patterns
- * we're trying to watch against. NULL, means all files
- * in the directory
- */
-static const QFileMonitorTestWatch watches_any[] = {
-    { NULL },
-};
-
-static const QFileMonitorTestWatch watches_one[] = {
-    { "one.txt" },
-};
-
-static const QFileMonitorTestWatch watches_two[] = {
-    { "two.txt" },
-};
-
-static const QFileMonitorTestWatch watches_many[] = {
-    { NULL },
-    { "one.txt" },
-    { "two.txt" },
-};
-
-
-/*
- * Various sets of file operations we're going to
- * trigger and validate events for
- */
-static const QFileMonitorTestOp ops_create_one[] = {
-    { .type = QFILE_MONITOR_TEST_OP_CREATE,
-      .filesrc = "one.txt", }
-};
-
-static const QFileMonitorTestOp ops_delete_one[] = {
-    { .type = QFILE_MONITOR_TEST_OP_CREATE,
-      .filesrc = "one.txt", },
-    { .type = QFILE_MONITOR_TEST_OP_UNLINK,
-      .filesrc = "one.txt", }
-};
-
-static const QFileMonitorTestOp ops_create_many[] = {
-    { .type = QFILE_MONITOR_TEST_OP_CREATE,
-      .filesrc = "one.txt", },
-    { .type = QFILE_MONITOR_TEST_OP_CREATE,
-      .filesrc = "two.txt", },
-    { .type = QFILE_MONITOR_TEST_OP_CREATE,
-      .filesrc = "three.txt", }
-};
-
-static const QFileMonitorTestOp ops_rename_one[] = {
-    { .type = QFILE_MONITOR_TEST_OP_CREATE,
-      .filesrc = "one.txt", },
-    { .type = QFILE_MONITOR_TEST_OP_RENAME,
-      .filesrc = "one.txt", .filedst = "two.txt" }
-};
-
-static const QFileMonitorTestOp ops_rename_many[] = {
-    { .type = QFILE_MONITOR_TEST_OP_CREATE,
-      .filesrc = "one.txt", },
-    { .type = QFILE_MONITOR_TEST_OP_CREATE,
-      .filesrc = "two.txt", },
-    { .type = QFILE_MONITOR_TEST_OP_RENAME,
-      .filesrc = "one.txt", .filedst = "two.txt" }
-};
-
-static const QFileMonitorTestOp ops_append_one[] = {
-    { .type = QFILE_MONITOR_TEST_OP_CREATE,
-      .filesrc = "one.txt", },
-    { .type = QFILE_MONITOR_TEST_OP_APPEND,
-      .filesrc = "one.txt", },
-};
-
-static const QFileMonitorTestOp ops_trunc_one[] = {
-    { .type = QFILE_MONITOR_TEST_OP_CREATE,
-      .filesrc = "one.txt", },
-    { .type = QFILE_MONITOR_TEST_OP_TRUNC,
-      .filesrc = "one.txt", },
-};
-
-static const QFileMonitorTestOp ops_touch_one[] = {
-    { .type = QFILE_MONITOR_TEST_OP_CREATE,
-      .filesrc = "one.txt", },
-    { .type = QFILE_MONITOR_TEST_OP_TOUCH,
-      .filesrc = "one.txt", },
-};
-
-
-/*
- * No we define data sets for the combinatorial
- * expansion of file watches and operation sets
- */
-#define PLAN_DATA(o, w) \
-    static const QFileMonitorTestPlan plan_ ## o ## _ ## w = { \
-        .nops = G_N_ELEMENTS(ops_ ##o), \
-        .ops = ops_ ##o, \
-        .nwatches = G_N_ELEMENTS(watches_ ##w), \
-        .watches = watches_ ## w, \
-    }
-
-PLAN_DATA(create_one, any);
-PLAN_DATA(create_one, one);
-PLAN_DATA(create_one, two);
-PLAN_DATA(create_one, many);
-
-PLAN_DATA(delete_one, any);
-PLAN_DATA(delete_one, one);
-PLAN_DATA(delete_one, two);
-PLAN_DATA(delete_one, many);
-
-PLAN_DATA(create_many, any);
-PLAN_DATA(create_many, one);
-PLAN_DATA(create_many, two);
-PLAN_DATA(create_many, many);
-
-PLAN_DATA(rename_one, any);
-PLAN_DATA(rename_one, one);
-PLAN_DATA(rename_one, two);
-PLAN_DATA(rename_one, many);
-
-PLAN_DATA(rename_many, any);
-PLAN_DATA(rename_many, one);
-PLAN_DATA(rename_many, two);
-PLAN_DATA(rename_many, many);
-
-PLAN_DATA(append_one, any);
-PLAN_DATA(append_one, one);
-PLAN_DATA(append_one, two);
-PLAN_DATA(append_one, many);
-
-PLAN_DATA(trunc_one, any);
-PLAN_DATA(trunc_one, one);
-PLAN_DATA(trunc_one, two);
-PLAN_DATA(trunc_one, many);
-
-PLAN_DATA(touch_one, any);
-PLAN_DATA(touch_one, one);
-PLAN_DATA(touch_one, two);
-PLAN_DATA(touch_one, many);
 
 
 int main(int argc, char **argv)
@@ -633,53 +560,8 @@ int main(int argc, char **argv)
 
     qemu_mutex_init(&evlock);
 
-    /*
-     * Register test cases for the combinatorial
-     * expansion of file watches and operation sets
-     */
-    #define PLAN_REGISTER(o, w)                                         \
-        g_test_add_data_func("/util/filemonitor/" # o "/" # w,          \
-                             &plan_ ## o ## _ ## w, test_file_monitor_events)
-
-    PLAN_REGISTER(create_one, any);
-    PLAN_REGISTER(create_one, one);
-    PLAN_REGISTER(create_one, two);
-    PLAN_REGISTER(create_one, many);
-
-    PLAN_REGISTER(delete_one, any);
-    PLAN_REGISTER(delete_one, one);
-    PLAN_REGISTER(delete_one, two);
-    PLAN_REGISTER(delete_one, many);
-
-    PLAN_REGISTER(create_many, any);
-    PLAN_REGISTER(create_many, one);
-    PLAN_REGISTER(create_many, two);
-    PLAN_REGISTER(create_many, many);
-
-    PLAN_REGISTER(rename_one, any);
-    PLAN_REGISTER(rename_one, one);
-    PLAN_REGISTER(rename_one, two);
-    PLAN_REGISTER(rename_one, many);
-
-    PLAN_REGISTER(rename_many, any);
-    PLAN_REGISTER(rename_many, one);
-    PLAN_REGISTER(rename_many, two);
-    PLAN_REGISTER(rename_many, many);
-
-    PLAN_REGISTER(append_one, any);
-    PLAN_REGISTER(append_one, one);
-    PLAN_REGISTER(append_one, two);
-    PLAN_REGISTER(append_one, many);
-
-    PLAN_REGISTER(trunc_one, any);
-    PLAN_REGISTER(trunc_one, one);
-    PLAN_REGISTER(trunc_one, two);
-    PLAN_REGISTER(trunc_one, many);
-
-    PLAN_REGISTER(touch_one, any);
-    PLAN_REGISTER(touch_one, one);
-    PLAN_REGISTER(touch_one, two);
-    PLAN_REGISTER(touch_one, many);
+    debug = getenv("FILEMONITOR_DEBUG") != NULL;
+    g_test_add_func("/util/filemonitor", test_file_monitor_events);
 
     return g_test_run();
 }
