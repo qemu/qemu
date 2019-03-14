@@ -1,4 +1,4 @@
-# Trace events for debugging and performance instrumentation
+# See docs/devel/tracing.txt for syntax documentation.
 #
 # This file is processed by the tracetool script during the build.
 #

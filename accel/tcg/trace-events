@@ -1,4 +1,4 @@
-# Trace events for debugging and performance instrumentation
+# See docs/devel/tracing.txt for syntax documentation.
 
 # TCG related tracing (mostly disabled by default)
 # cpu-exec.c
