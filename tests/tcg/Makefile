@@ -26,16 +26,23 @@
 #
 # We also accept SPEED=slow to enable slower running tests
 #
-# We also expect to be in the tests build dir for the FOO-linux-user.
+# We also expect to be in the tests build dir for the FOO-(linux-user|softmmu).
 #
 
 -include ../../config-host.mak
 -include ../config-target.mak
 
+# for including , in command strings
+COMMA := ,
+
 quiet-command = $(if $(V),$1,$(if $(2),@printf "  %-7s %s\n" $2 $3 && $1, @$1))
 
 # $1 = test name, $2 = cmd, $3 = desc
+ifdef CONFIG_USER_ONLY
 run-test = $(call quiet-command, timeout $(TIMEOUT) $2 > $1.out,"TEST",$3)
+else
+run-test = $(call quiet-command, timeout $(TIMEOUT) $2,"TEST",$3)
+endif
 
 # $1 = test name, $2 = reference
 diff-out = $(call quiet-command, diff -u $1.out $2 | head -n 10,"DIFF","$1.out with $2")
@@ -52,7 +59,13 @@ QEMU_CFLAGS=
 LDFLAGS=
 
 # The QEMU for this TARGET
+ifdef CONFIG_USER_ONLY
 QEMU=../qemu-$(TARGET_NAME)
+else
+QEMU=../qemu-system-$(TARGET_NAME)
+endif
+QEMU_OPTS=
+
 
 # If TCG debugging is enabled things are a lot slower
 ifeq ($(CONFIG_DEBUG_TCG),y)
@@ -61,6 +74,7 @@ else
 TIMEOUT=15
 endif
 
+ifdef CONFIG_USER_ONLY
 # The order we include is important. We include multiarch, base arch
 # and finally arch if it's not the same as base arch.
 -include $(SRC_PATH)/tests/tcg/multiarch/Makefile.target
@@ -77,6 +91,17 @@ endif
 
 %: %.c
 	$(CC) $(CFLAGS) $(EXTRA_CFLAGS) $< -o $@ $(LDFLAGS)
+else
+# For softmmu targets we include a different Makefile fragement as the
+# build options for bare programs are usually pretty different. They
+# are expected to provide their own build recipes.
+-include $(SRC_PATH)/tests/tcg/minilib/Makefile.target
+-include $(SRC_PATH)/tests/tcg/$(TARGET_BASE_ARCH)/Makefile.softmmu-target
+ifneq ($(TARGET_BASE_ARCH),$(TARGET_NAME))
+-include $(SRC_PATH)/tests/tcg/$(TARGET_NAME)/Makefile.softmmu-target
+endif
+
+endif
 
 all: $(TESTS)
 
@@ -92,8 +117,20 @@ all: $(TESTS)
 RUN_TESTS=$(patsubst %,run-%, $(TESTS))
 RUN_TESTS+=$(EXTRA_RUNS)
 
+ifdef CONFIG_USER_ONLY
 run-%: %
-	$(call run-test, $<, $(QEMU) $<, "$< on $(TARGET_NAME)")
+	$(call run-test, $<, $(QEMU) $(QEMU_OPTS) $<, "$< on $(TARGET_NAME)")
+else
+run-%: %
+	$(call run-test, $<, \
+	  $(QEMU) -monitor none -display none \
+		  -chardev file$(COMMA)path=$<.out$(COMMA)id=output \
+	   	  $(QEMU_OPTS) $<, \
+	  "$< on $(TARGET_NAME)")
+endif
+
+gdb-%: %
+	gdb --args $(QEMU) $(QEMU_OPTS) $<
 
 .PHONY: run
 run: $(RUN_TESTS)

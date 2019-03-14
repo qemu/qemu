@@ -67,7 +67,7 @@ endif
 ifneq ($(GUEST_BUILD),)
 guest-tests: $(GUEST_BUILD)
 
-run-guest-tests: guest-tests qemu-$(TARGET_NAME)
+run-guest-tests: guest-tests qemu-$(subst y,system-,$(CONFIG_SOFTMMU))$(TARGET_NAME)
 	$(call quiet-command, \
 	(cd tests && $(MAKE) -f $(TCG_MAKE) SPEED=$(SPEED) run), \
 	"RUN", "tests for $(TARGET_NAME)")

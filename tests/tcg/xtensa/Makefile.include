@@ -1,0 +1,11 @@
+# Makefile.include for xtensa targets
+#
+# The compilers can only be used for building system tests
+
+ifeq ($(CONFIG_SOFTMMU),y)
+DOCKER_IMAGE=debian-xtensa-cross
+
+# default to the dc232b cpu
+DOCKER_CROSS_COMPILER=/opt/2018.02/xtensa-dc232b-elf/bin/xtensa-dc232b-elf-gcc
+DOCKER_CROSS_LINKER=/opt/2018.02/xtensa-dc232b-elf/bin/xtensa-dc232b-elf-ld
+endif

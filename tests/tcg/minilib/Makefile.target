@@ -1,0 +1,21 @@
+#
+# System test minilib objects
+#
+# The system tests are very constrained in terms of the library they
+# support but we are not savages. We provide a few helpful routines
+# that can be shared with the tests for basic I/O.
+#
+# They assume each arch has provided a putc function.
+#
+
+SYSTEM_MINILIB_SRC=$(SRC_PATH)/tests/tcg/minilib
+MINILIB_SRCS=$(wildcard $(SYSTEM_MINILIB_SRC)/*.c)
+MINILIB_OBJS=$(patsubst $(SYSTEM_MINILIB_SRC)/%.c, %.o, $(MINILIB_SRCS))
+
+MINILIB_CFLAGS+=-nostdlib -ggdb -O0
+MINILIB_INC=-isystem $(SYSTEM_MINILIB_SRC)
+
+.PRECIOUS: $(MINILIB_OBJS)
+
+%.o: $(SYSTEM_MINILIB_SRC)/%.c
+	$(CC) $(CFLAGS) -c $< -o $@

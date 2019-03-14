@@ -60,5 +60,5 @@ static inline int write(int fd, const char *buf, int len)
 void __start(void)
 {
     write (1, "Hello, World!\n", 14);
-    exit1 (42);
+    exit1(0);
 }

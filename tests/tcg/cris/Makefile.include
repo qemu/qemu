@@ -1,0 +1,6 @@
+#
+# Makefile.include for all CRIS targets
+#
+
+DOCKER_IMAGE=fedora-cris-cross
+DOCKER_CROSS_COMPILER=cris-linux-gnu-gcc
