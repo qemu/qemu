@@ -26,6 +26,7 @@ source pci-bridge/Kconfig
 source pci-host/Kconfig
 source pcmcia/Kconfig
 source pci/Kconfig
+source rdma/Kconfig
 source scsi/Kconfig
 source sd/Kconfig
 source smbios/Kconfig

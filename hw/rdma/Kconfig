@@ -1,0 +1,3 @@
+config VMW_PVRDMA
+    default y if PCI_DEVICES
+    depends on PVRDMA && PCI && MSI_NONBROKEN
