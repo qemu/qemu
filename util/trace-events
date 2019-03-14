@@ -21,7 +21,7 @@ buffer_move_empty(const char *buf, size_t len, const char *from) "%s: %zd bytes 
 buffer_move(const char *buf, size_t len, const char *from) "%s: %zd bytes from %s"
 buffer_free(const char *buf, size_t len) "%s: capacity %zd"
 
-# filemonitor.c
+# filemonitor-inotify.c
 qemu_file_monitor_add_watch(void *mon, const char *dirpath, const char *filename, void *cb, void *opaque, int id) "File monitor %p add watch dir='%s' file='%s' cb=%p opaque=%p id=%u"
 qemu_file_monitor_remove_watch(void *mon, const char *dirpath, int id) "File monitor %p remove watch dir='%s' id=%u"
 qemu_file_monitor_new(void *mon, int fd) "File monitor %p created fd=%d"
@@ -42,8 +42,8 @@ qemu_co_mutex_lock_return(void *mutex, void *self) "mutex %p self %p"
 qemu_co_mutex_unlock_entry(void *mutex, void *self) "mutex %p self %p"
 qemu_co_mutex_unlock_return(void *mutex, void *self) "mutex %p self %p"
 
-# oslib-posix.c
 # oslib-win32.c
+# oslib-posix.c
 qemu_memalign(size_t alignment, size_t size, void *ptr) "alignment %zu size %zu ptr %p"
 qemu_anon_ram_alloc(size_t size, void *ptr) "size %zu ptr %p"
 qemu_vfree(void *ptr) "ptr %p"
@@ -64,7 +64,7 @@ lockcnt_futex_wait(const void *lockcnt, int val) "lockcnt %p waiting on %d"
 lockcnt_futex_wait_resume(const void *lockcnt, int new) "lockcnt %p after wait: %d"
 lockcnt_futex_wake(const void *lockcnt) "lockcnt %p waking up one waiter"
 
-# qemu-thread.c
+# qemu-thread-common.h
 qemu_mutex_lock(void *mutex, const char *file, const int line) "waiting on mutex %p (%s:%d)"
 qemu_mutex_locked(void *mutex, const char *file, const int line) "taken mutex %p (%s:%d)"
 qemu_mutex_unlock(void *mutex, const char *file, const int line) "released mutex %p (%s:%d)"

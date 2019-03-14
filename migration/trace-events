@@ -46,12 +46,9 @@ savevm_state_iterate(void) ""
 savevm_state_cleanup(void) ""
 savevm_state_complete_precopy(void) ""
 vmstate_save(const char *idstr, const char *vmsd_name) "%s, %s"
-vmstate_save_state_pre_save_res(const char *name, int res) "%s/%d"
-vmstate_save_state_loop(const char *name, const char *field, int n_elems) "%s/%s[%d]"
-vmstate_save_state_top(const char *idstr) "%s"
-vmstate_subsection_save_loop(const char *name, const char *sub) "%s/%s"
-vmstate_subsection_save_top(const char *idstr) "%s"
 vmstate_load(const char *idstr, const char *vmsd_name) "%s, %s"
+postcopy_pause_incoming(void) ""
+postcopy_pause_incoming_continued(void) ""
 
 # vmstate.c
 vmstate_load_field_error(const char *field, int ret) "field \"%s\" load failed, ret = %d"
@@ -62,6 +59,13 @@ vmstate_n_elems(const char *name, int n_elems) "%s: %d"
 vmstate_subsection_load(const char *parent) "%s"
 vmstate_subsection_load_bad(const char *parent,  const char *sub, const char *sub2) "%s: %s/%s"
 vmstate_subsection_load_good(const char *parent) "%s"
+vmstate_save_state_pre_save_res(const char *name, int res) "%s/%d"
+vmstate_save_state_loop(const char *name, const char *field, int n_elems) "%s/%s[%d]"
+vmstate_save_state_top(const char *idstr) "%s"
+vmstate_subsection_save_loop(const char *name, const char *sub) "%s/%s"
+vmstate_subsection_save_top(const char *idstr) "%s"
+
+# vmstate-types.c
 get_qtailq(const char *name, int version_id) "%s v%d"
 get_qtailq_end(const char *name, const char *reason, int val) "%s %s/%d"
 put_qtailq(const char *name, int version_id) "%s v%d"
@@ -103,6 +107,10 @@ ram_dirty_bitmap_sync_complete(void) ""
 ram_state_resume_prepare(uint64_t v) "%" PRId64
 colo_flush_ram_cache_begin(uint64_t dirty_pages) "dirty_pages %" PRIu64
 colo_flush_ram_cache_end(void) ""
+save_xbzrle_page_skipping(void) ""
+save_xbzrle_page_overflow(void) ""
+ram_save_iterate_big_wait(uint64_t milliconds, int iterations) "big wait: %" PRIu64 " milliseconds, %d iterations"
+ram_load_complete(int ret, uint64_t seq_iter) "exit_code %d seq iteration %" PRIu64
 
 # migration.c
 await_return_path_close_on_source_close(void) ""
@@ -130,11 +138,7 @@ open_return_path_on_source_continue(void) ""
 postcopy_start(void) ""
 postcopy_pause_return_path(void) ""
 postcopy_pause_return_path_continued(void) ""
-postcopy_pause_fault_thread(void) ""
-postcopy_pause_fault_thread_continued(void) ""
 postcopy_pause_continued(void) ""
-postcopy_pause_incoming(void) ""
-postcopy_pause_incoming_continued(void) ""
 postcopy_start_set_run(void) ""
 source_return_path_thread_bad_end(void) ""
 source_return_path_thread_end(void) ""
@@ -143,17 +147,19 @@ source_return_path_thread_loop_top(void) ""
 source_return_path_thread_pong(uint32_t val) "0x%x"
 source_return_path_thread_shut(uint32_t val) "0x%x"
 source_return_path_thread_resume_ack(uint32_t v) "%"PRIu32
-migrate_global_state_post_load(const char *state) "loaded state: %s"
-migrate_global_state_pre_save(const char *state) "saved state: %s"
 migration_thread_low_pending(uint64_t pending) "%" PRIu64
-migrate_state_too_big(void) ""
 migrate_transferred(uint64_t tranferred, uint64_t time_spent, uint64_t bandwidth, uint64_t size) "transferred %" PRIu64 " time_spent %" PRIu64 " bandwidth %" PRIu64 " max_size %" PRId64
 process_incoming_migration_co_end(int ret, int ps) "ret=%d postcopy-state=%d"
 process_incoming_migration_co_postcopy_end_main(void) ""
+
+# channel.c
 migration_set_incoming_channel(void *ioc, const char *ioctype) "ioc=%p ioctype=%s"
 migration_set_outgoing_channel(void *ioc, const char *ioctype, const char *hostname, void *err)  "ioc=%p ioctype=%s hostname=%s err=%p"
-mark_postcopy_blocktime_begin(uint64_t addr, void *dd, uint32_t time, int cpu, int received) "addr: 0x%" PRIx64 ", dd: %p, time: %u, cpu: %d, already_received: %d"
-mark_postcopy_blocktime_end(uint64_t addr, void *dd, uint32_t time, int affected_cpu) "addr: 0x%" PRIx64 ", dd: %p, time: %u, affected_cpu: %d"
+
+# global_state.c
+migrate_state_too_big(void) ""
+migrate_global_state_post_load(const char *state) "loaded state: %s"
+migrate_global_state_pre_save(const char *state) "saved state: %s"
 
 # rdma.c
 qemu_rdma_accept_incoming_migration(void) ""
@@ -226,6 +232,10 @@ postcopy_nhp_range(const char *ramblock, void *host_addr, size_t offset, size_t 
 postcopy_place_page(void *host_addr) "host=%p"
 postcopy_place_page_zero(void *host_addr) "host=%p"
 postcopy_ram_enable_notify(void) ""
+mark_postcopy_blocktime_begin(uint64_t addr, void *dd, uint32_t time, int cpu, int received) "addr: 0x%" PRIx64 ", dd: %p, time: %u, cpu: %d, already_received: %d"
+mark_postcopy_blocktime_end(uint64_t addr, void *dd, uint32_t time, int affected_cpu) "addr: 0x%" PRIx64 ", dd: %p, time: %u, affected_cpu: %d"
+postcopy_pause_fault_thread(void) ""
+postcopy_pause_fault_thread_continued(void) ""
 postcopy_ram_fault_thread_entry(void) ""
 postcopy_ram_fault_thread_exit(void) ""
 postcopy_ram_fault_thread_fds_core(int baseufd, int quitfd) "ufd: %d quitfd: %d"
@@ -241,10 +251,6 @@ postcopy_request_shared_page(const char *sharer, const char *rb, uint64_t rb_off
 postcopy_request_shared_page_present(const char *sharer, const char *rb, uint64_t rb_offset) "%s already %s offset 0x%"PRIx64
 postcopy_wake_shared(uint64_t client_addr, const char *rb) "at 0x%"PRIx64" in %s"
 
-save_xbzrle_page_skipping(void) ""
-save_xbzrle_page_overflow(void) ""
-ram_save_iterate_big_wait(uint64_t milliconds, int iterations) "big wait: %" PRIu64 " milliseconds, %d iterations"
-ram_load_complete(int ret, uint64_t seq_iter) "exit_code %d seq iteration %" PRIu64
 get_mem_fault_cpu_index(int cpu, uint32_t pid) "cpu: %d, pid: %u"
 
 # exec.c
@@ -272,6 +278,8 @@ migration_tls_incoming_handshake_complete(void) ""
 colo_vm_state_change(const char *old, const char *new) "Change '%s' => '%s'"
 colo_send_message(const char *msg) "Send '%s' message"
 colo_receive_message(const char *msg) "Receive '%s' message"
+
+# colo-failover.c
 colo_failover_set_state(const char *new_state) "new state %s"
 
 # block-dirty-bitmap.c

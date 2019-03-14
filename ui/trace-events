@@ -18,6 +18,8 @@ displaychangelistener_unregister(void *dcl, const char *name) "%p [ %s ]"
 ppm_save(const char *filename, void *display_surface) "%s surface=%p"
 
 # gtk.c
+# gtk-gl-area.c
+# gtk-egl.c
 gd_switch(const char *tab, int width, int height) "tab=%s, width=%d, height=%d"
 gd_update(const char *tab, int x, int y, int w, int h) "tab=%s, x=%d, y=%d, w=%d, h=%d"
 gd_key_event(const char *tab, int gdk_keycode, int qkeycode, const char *action) "tab=%s, translated GDK keycode %d to QKeyCode %d (%s)"
@@ -25,6 +27,9 @@ gd_grab(const char *tab, const char *device, const char *reason) "tab=%s, dev=%s
 gd_ungrab(const char *tab, const char *device) "tab=%s, dev=%s"
 gd_keymap_windowing(const char *name) "backend=%s"
 
+# vnc-auth-sasl.c
+# vnc-ws.c
+# vnc-auth-vencrypt.c
 # vnc.c
 vnc_key_guest_leds(bool caps, bool num, bool scroll) "caps %d, num %d, scroll %d"
 vnc_key_map_init(const char *layout) "%s"

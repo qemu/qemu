@@ -12,6 +12,8 @@ spapr_pci_msi_retry(unsigned config_addr, unsigned req_num, unsigned max_irqs) "
 # spapr.c
 spapr_cas_failed(unsigned long n) "DT diff buffer is too small: %ld bytes"
 spapr_cas_continue(unsigned long n) "Copy changes to the guest: %ld bytes"
+
+# spapr_irq.c
 spapr_irq_free(int src, int irq, int num) "Source#%d, first irq %d, %d irqs"
 spapr_irq_free_warn(int src, int irq) "Source#%d, irq %d is already free"
 
@@ -36,6 +38,8 @@ spapr_iommu_xlate(uint64_t liobn, uint64_t ioba, uint64_t tce, unsigned perm, un
 spapr_iommu_new_table(uint64_t liobn, void *table, int fd) "liobn=0x%"PRIx64" table=%p fd=%d"
 spapr_iommu_pre_save(uint64_t liobn, uint32_t nb, uint64_t offs, uint32_t ps) "liobn=%"PRIx64" %"PRIx32" bus_offset=0x%"PRIx64" ps=%"PRIu32
 spapr_iommu_post_load(uint64_t liobn, uint32_t pre_nb, uint32_t post_nb, uint64_t offs, uint32_t ps) "liobn=%"PRIx64" %"PRIx32" => 0x%"PRIx32" bus_offset=0x%"PRIx64" ps=%"PRIu32
+
+# spapr_rtas_ddw.c
 spapr_iommu_ddw_query(uint64_t buid, uint32_t cfgaddr, unsigned wa, uint64_t win_size, uint32_t pgmask) "buid=0x%"PRIx64" addr=0x%"PRIx32", %u windows available, max window size=0x%"PRIx64", mask=0x%"PRIx32
 spapr_iommu_ddw_create(uint64_t buid, uint32_t cfgaddr, uint64_t pg_size, uint64_t req_size, uint64_t start, uint32_t liobn) "buid=0x%"PRIx64" addr=0x%"PRIx32", page size=0x%"PRIx64", requested=0x%"PRIx64", start addr=0x%"PRIx64", liobn=0x%"PRIx32
 spapr_iommu_ddw_remove(uint32_t liobn) "liobn=0x%"PRIx32
@@ -61,7 +65,7 @@ spapr_drc_unrealize(uint32_t index) "drc: 0x%"PRIx32
 spapr_ovec_parse_vector(int vector, int byte, uint16_t vec_len, uint8_t entry) "read guest vector %2d, byte %3d / %3d: 0x%.2x"
 spapr_ovec_populate_dt(int byte, uint16_t vec_len, uint8_t entry) "encoding guest vector byte %3d / %3d: 0x%.2x"
 
-# spapr_rtas.c
+# spapr_drc.c
 spapr_rtas_get_sensor_state_not_supported(uint32_t index, uint32_t type) "sensor index: 0x%"PRIx32", type: %"PRIu32
 spapr_rtas_get_sensor_state_invalid(uint32_t index) "sensor index: 0x%"PRIx32
 spapr_rtas_ibm_configure_connector_invalid(uint32_t index) "DRC index: 0x%"PRIx32

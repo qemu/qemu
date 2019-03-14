@@ -114,9 +114,11 @@ ahci_dma_prepare_buf_fail(void *s, int port) "ahci(%p)[%d]: sglist population fa
 ahci_dma_rw_buf(void *s, int port, int l) "ahci(%p)[%d] len=0x%x"
 ahci_cmd_done(void *s, int port) "ahci(%p)[%d]: cmd done"
 ahci_reset(void *s) "ahci(%p): HBA reset"
-allwinner_ahci_mem_read(void *s, void *a, uint64_t addr, uint64_t val, unsigned size) "ahci(%p): read a=%p addr=0x%"PRIx64" val=0x%"PRIx64", size=%d"
-allwinner_ahci_mem_write(void *s, void *a, uint64_t addr, uint64_t val, unsigned size) "ahci(%p): write a=%p addr=0x%"PRIx64" val=0x%"PRIx64", size=%d"
 
 # Warning: Verbose
 handle_reg_h2d_fis_dump(void *s, int port, const char *fis) "ahci(%p)[%d]: %s"
 handle_cmd_fis_dump(void *s, int port, const char *fis) "ahci(%p)[%d]: %s"
+
+# ahci-allwinner.c
+allwinner_ahci_mem_read(void *s, void *a, uint64_t addr, uint64_t val, unsigned size) "ahci(%p): read a=%p addr=0x%"PRIx64" val=0x%"PRIx64", size=%d"
+allwinner_ahci_mem_write(void *s, void *a, uint64_t addr, uint64_t val, unsigned size) "ahci(%p): write a=%p addr=0x%"PRIx64" val=0x%"PRIx64", size=%d"

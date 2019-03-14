@@ -51,5 +51,5 @@ hid_kbd_queue_empty(void) "queue empty"
 # tsc2005.c
 tsc2005_sense(const char *state) "touchscreen sense %s"
 
-# virtio
+# virtio-input.c
 virtio_input_queue_full(void) "queue full"

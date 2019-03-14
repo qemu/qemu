@@ -242,8 +242,10 @@ e1000e_irq_msix_pending_clearing(uint32_t cause, uint32_t int_cfg, uint32_t vec)
 e1000e_wrn_msix_vec_wrong(uint32_t cause, uint32_t cfg) "Invalid configuration for cause 0x%x: 0x%x"
 e1000e_wrn_msix_invalid(uint32_t cause, uint32_t cfg) "Invalid entry for cause 0x%x: 0x%x"
 
-e1000e_mac_set_permanent(uint8_t b0, uint8_t b1, uint8_t b2, uint8_t b3, uint8_t b4, uint8_t b5) "Set permanent MAC: %02x:%02x:%02x:%02x:%02x:%02x"
 e1000e_mac_set_sw(uint8_t b0, uint8_t b1, uint8_t b2, uint8_t b3, uint8_t b4, uint8_t b5) "Set SW MAC: %02x:%02x:%02x:%02x:%02x:%02x"
+
+e1000e_vm_state_running(void) "VM state is running"
+e1000e_vm_state_stopped(void) "VM state is stopped"
 
 # e1000e.c
 e1000e_cb_pci_realize(void) "E1000E PCI realize entry"
@@ -266,10 +268,8 @@ e1000e_msi_init_fail(int32_t res) "Failed to initialize MSI, error %d"
 e1000e_msix_init_fail(int32_t res) "Failed to initialize MSI-X, error %d"
 e1000e_msix_use_vector_fail(uint32_t vec, int32_t res) "Failed to use MSI-X vector %d, error %d"
 
+e1000e_mac_set_permanent(uint8_t b0, uint8_t b1, uint8_t b2, uint8_t b3, uint8_t b4, uint8_t b5) "Set permanent MAC: %02x:%02x:%02x:%02x:%02x:%02x"
 e1000e_cfg_support_virtio(bool support) "Virtio header supported: %d"
-
-e1000e_vm_state_running(void) "VM state is running"
-e1000e_vm_state_stopped(void) "VM state is stopped"
 
 # spapr_llan.c
 spapr_vlan_get_rx_bd_from_pool_found(int pool, int32_t count, uint32_t rx_bufs) "pool=%d count=%"PRId32" rxbufs=%"PRIu32

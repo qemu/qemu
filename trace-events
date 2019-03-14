@@ -123,11 +123,15 @@ qmp_job_dismiss(void *job) "job %p"
 
 ## vCPU
 
+# trace/control-target.c
+
 # Hot-plug a new virtual (guest) CPU
 #
 # Mode: user, softmmu
 # Targets: all
 vcpu guest_cpu_enter(void)
+
+# trace/control.c
 
 # Hot-unplug a virtual (guest) CPU
 #
@@ -135,11 +139,15 @@ vcpu guest_cpu_enter(void)
 # Targets: all
 vcpu guest_cpu_exit(void)
 
+# qom/cpu.c
+
 # Reset the state of a virtual (guest) CPU
 #
 # Mode: user, softmmu
 # Targets: all
 vcpu guest_cpu_reset(void)
+
+# tcg/tcg-op.c
 
 # @vaddr: Access' virtual address.
 # @info : Access' information (see below).
@@ -160,6 +168,9 @@ vcpu guest_cpu_reset(void)
 # Mode: user, softmmu
 # Targets: TCG(all)
 vcpu tcg guest_mem_before(TCGv vaddr, uint8_t info) "info=%d", "vaddr=0x%016"PRIx64" info=%d"
+
+# linux-user/syscall.c
+# bsd-user/syscall.c
 
 # @num: System call number.
 # @arg*: System call argument value.
