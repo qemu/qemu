@@ -57,7 +57,6 @@ qmp_block_stream(void *bs, void *job) "bs %p job %p"
 
 # file-posix.c
 # file-win32.c
-file_paio_submit_co(int64_t offset, int count, int type) "offset %"PRId64" count %d type %d"
 file_paio_submit(void *acb, void *opaque, int64_t offset, int count, int type) "acb %p opaque %p offset %"PRId64" count %d type %d"
 file_copy_file_range(void *bs, int src, int64_t src_off, int dst, int64_t dst_off, int64_t bytes, int flags, int64_t ret) "bs %p src_fd %d offset %"PRIu64" dst_fd %d offset %"PRIu64" bytes %"PRIu64" flags %d ret %"PRId64
 

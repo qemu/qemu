@@ -96,7 +96,6 @@ tz_mpc_iommu_notify(uint64_t addr) "TZ MPC iommu: notifying UNMAP/MAP for 0x%" P
 tz_msc_reset(void) "TZ MSC: reset"
 tz_msc_cfg_nonsec(int level) "TZ MSC: cfg_nonsec = %d"
 tz_msc_cfg_sec_resp(int level) "TZ MSC: cfg_sec_resp = %d"
-tz_msc_irq_enable(int level) "TZ MSC: int_enable = %d"
 tz_msc_irq_clear(int level) "TZ MSC: int_clear = %d"
 tz_msc_update_irq(int level) "TZ MSC: setting irq line to %d"
 tz_msc_access_blocked(uint64_t offset) "TZ MSC: offset 0x%" PRIx64 " access blocked"
@@ -117,7 +116,6 @@ iotkit_secctl_s_read(uint32_t offset, uint64_t data, unsigned size) "IoTKit SecC
 iotkit_secctl_s_write(uint32_t offset, uint64_t data, unsigned size) "IoTKit SecCtl S regs write: offset 0x%x data 0x%" PRIx64 " size %u"
 iotkit_secctl_ns_read(uint32_t offset, uint64_t data, unsigned size) "IoTKit SecCtl NS regs read: offset 0x%x data 0x%" PRIx64 " size %u"
 iotkit_secctl_ns_write(uint32_t offset, uint64_t data, unsigned size) "IoTKit SecCtl NS regs write: offset 0x%x data 0x%" PRIx64 " size %u"
-iotkit_secctl_reset(void) "IoTKit SecCtl: reset"
 
 # imx6ul_ccm.c
 ccm_entry(void) "\n"

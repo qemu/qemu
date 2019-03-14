@@ -36,7 +36,6 @@ qemu_coroutine_yield(void *from, void *to) "from %p to %p"
 qemu_coroutine_terminate(void *co) "self %p"
 
 # qemu-coroutine-lock.c
-qemu_co_queue_run_restart(void *co) "co %p"
 qemu_co_mutex_lock_uncontended(void *mutex, void *self) "mutex %p self %p"
 qemu_co_mutex_lock_entry(void *mutex, void *self) "mutex %p self %p"
 qemu_co_mutex_lock_return(void *mutex, void *self) "mutex %p self %p"
@@ -78,5 +77,4 @@ qemu_vfio_find_mapping(void *s, void *p) "s %p host %p"
 qemu_vfio_new_mapping(void *s, void *host, size_t size, int index, uint64_t iova) "s %p host %p size %zu index %d iova 0x%"PRIx64
 qemu_vfio_do_mapping(void *s, void *host, size_t size, uint64_t iova) "s %p host %p size %zu iova 0x%"PRIx64
 qemu_vfio_dma_map(void *s, void *host, size_t size, bool temporary, uint64_t *iova) "s %p host %p size %zu temporary %d iova %p"
-qemu_vfio_dma_map_invalid(void *s, void *mapping_host, size_t mapping_size, void *host, size_t size) "s %p mapping %p %zu requested %p %zu"
 qemu_vfio_dma_unmap(void *s, void *host) "s %p host %p"
