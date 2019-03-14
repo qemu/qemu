@@ -745,7 +745,7 @@ static void char_socket_server_test(gconstpointer opaque)
     Visitor *v;
     QemuThread thread;
     int ret;
-    bool reconnected;
+    bool reconnected = false;
     char *optstr;
     QemuOpts *opts;
 

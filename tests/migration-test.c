@@ -382,9 +382,10 @@ static char *migrate_get_socket_address(QTestState *who, const char *parameter)
 
     iv = qobject_input_visitor_new(object);
     visit_type_SocketAddressList(iv, NULL, &addrs, &local_err);
+    visit_free(iv);
 
     /* we are only using a single address */
-    result = g_strdup_printf("%s", SocketAddress_to_str(addrs->value));
+    result = SocketAddress_to_str(addrs->value);
 
     qapi_free_SocketAddressList(addrs);
     qobject_unref(rsp);
