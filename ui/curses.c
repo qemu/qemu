@@ -519,6 +519,7 @@ static void font_setup(void)
 
     wchar_to_ucs_conv = iconv_open("UCS-2", "WCHAR_T");
     if (wchar_to_ucs_conv == (iconv_t) -1) {
+        iconv_close(ucs_to_wchar_conv);
         fprintf(stderr, "Could not convert font glyphs to UCS-2: '%s'\n",
                         strerror(errno));
         exit(1);
@@ -526,6 +527,8 @@ static void font_setup(void)
 
     font_conv = iconv_open("WCHAR_T", font_charset);
     if (font_conv == (iconv_t) -1) {
+        iconv_close(ucs_to_wchar_conv);
+        iconv_close(wchar_to_ucs_conv);
         fprintf(stderr, "Could not convert font glyphs from %s: '%s'\n",
                         font_charset, strerror(errno));
         exit(1);
@@ -646,6 +649,9 @@ static void font_setup(void)
             }
         }
     }
+    iconv_close(ucs_to_wchar_conv);
+    iconv_close(wchar_to_ucs_conv);
+    iconv_close(font_conv);
 }
 
 static void curses_setup(void)
