@@ -1,5 +1,5 @@
 # See docs/devel/tracing.txt for syntax documentation.
 
-# hw/block/dataplane/virtio-blk.c
+# virtio-blk.c
 virtio_blk_data_plane_start(void *s) "dataplane %p"
 virtio_blk_data_plane_stop(void *s) "dataplane %p"

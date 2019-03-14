@@ -1,6 +1,6 @@
 # See docs/devel/tracing.txt for syntax documentation.
 
-# qapi/qapi-visit-core.c
+# qapi-visit-core.c
 visit_free(void *v) "v=%p"
 visit_complete(void *v, void *opaque) "v=%p opaque=%p"
 

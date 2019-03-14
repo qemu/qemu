@@ -1,6 +1,6 @@
 # See docs/devel/tracing.txt for syntax documentation.
 
-# audio/alsaaudio.c
+# alsaaudio.c
 alsa_revents(int revents) "revents = %d"
 alsa_pollout(int i, int fd) "i = %d fd = %d"
 alsa_set_handler(int events, int index, int fd, int err) "events=0x%x index=%d fd=%d err=%d"
@@ -12,11 +12,11 @@ alsa_resume_out(void) "Resuming suspended output stream"
 alsa_resume_in(void) "Resuming suspended input stream"
 alsa_no_frames(int state) "No frames available and ALSA state is %d"
 
-# audio/ossaudio.c
+# ossaudio.c
 oss_version(int version) "OSS version = 0x%x"
 oss_invalid_available_size(int size, int bufsize) "Invalid available size, size=%d bufsize=%d"
 
-# audio/audio.c
+# audio.c
 audio_timer_start(int interval) "interval %d ms"
 audio_timer_stop(void) ""
 audio_timer_delayed(int interval) "interval %d ms"

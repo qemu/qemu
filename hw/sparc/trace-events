@@ -1,12 +1,12 @@
 # See docs/devel/tracing.txt for syntax documentation.
 
-# hw/sparc/sun4m.c
+# sun4m.c
 sun4m_cpu_interrupt(unsigned int level) "Set CPU IRQ %d"
 sun4m_cpu_reset_interrupt(unsigned int level) "Reset CPU IRQ %d"
 sun4m_cpu_set_irq_raise(int level) "Raise CPU IRQ %d"
 sun4m_cpu_set_irq_lower(int level) "Lower CPU IRQ %d"
 
-# hw/sparc/sun4m_iommu.c
+# sun4m_iommu.c
 sun4m_iommu_mem_readl(uint64_t addr, uint32_t ret) "read reg[0x%"PRIx64"] = 0x%x"
 sun4m_iommu_mem_writel(uint64_t addr, uint32_t val) "write reg[0x%"PRIx64"] = 0x%x"
 sun4m_iommu_mem_writel_ctrl(uint64_t iostart) "iostart = 0x%"PRIx64
@@ -16,6 +16,6 @@ sun4m_iommu_page_get_flags(uint64_t pa, uint64_t iopte, uint32_t ret) "get flags
 sun4m_iommu_translate_pa(uint64_t addr, uint64_t pa, uint32_t iopte) "xlate dva 0x%"PRIx64" => pa 0x%"PRIx64" iopte = 0x%x"
 sun4m_iommu_bad_addr(uint64_t addr) "bad addr 0x%"PRIx64
 
-# hw/sparc/leon3.c
+# leon3.c
 leon3_set_irq(int intno) "Set CPU IRQ %d"
 leon3_reset_irq(int intno) "Reset CPU IRQ %d"

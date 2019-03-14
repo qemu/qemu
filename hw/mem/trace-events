@@ -1,8 +1,8 @@
 # See docs/devel/tracing.txt for syntax documentation.
 
-# hw/mem/pc-dimm.c
+# pc-dimm.c
 mhp_pc_dimm_assigned_slot(int slot) "%d"
-# hw/mem/memory-device.c
+# memory-device.c
 memory_device_pre_plug(const char *id, uint64_t addr) "id=%s addr=0x%"PRIx64
 memory_device_plug(const char *id, uint64_t addr) "id=%s addr=0x%"PRIx64
 memory_device_unplug(const char *id, uint64_t addr) "id=%s addr=0x%"PRIx64

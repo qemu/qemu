@@ -1,15 +1,15 @@
 # See docs/devel/tracing.txt for syntax documentation.
 
-# hw/net/etraxfs_eth.c
+# etraxfs_eth.c
 mdio_phy_read(int regnum, uint16_t value) "read phy_reg:%d value:0x%04x"
 mdio_phy_write(int regnum, uint16_t value) "write phy_reg:%d value:0x%04x"
 mdio_bitbang(bool mdc, bool mdio, int state, uint16_t cnt, unsigned int drive) "bitbang mdc=%u mdio=%u state=%d cnt=%u drv=%d"
 
-# hw/net/lance.c
+# lance.c
 lance_mem_readw(uint64_t addr, uint32_t ret) "addr=0x%"PRIx64"val=0x%04x"
 lance_mem_writew(uint64_t addr, uint32_t val) "addr=0x%"PRIx64"val=0x%04x"
 
-# hw/net/milkymist-minimac2.c
+# milkymist-minimac2.c
 milkymist_minimac2_memory_read(uint32_t addr, uint32_t value) "addr 0x%08x value 0x%08x"
 milkymist_minimac2_memory_write(uint32_t addr, uint32_t value) "addr 0x%08x value 0x%08x"
 milkymist_minimac2_mdio_write(uint8_t phy_addr, uint8_t addr, uint16_t value) "phy_addr 0x%02x addr 0x%02x value 0x%04x"
@@ -21,20 +21,20 @@ milkymist_minimac2_raise_irq_rx(void) "Raise IRQ RX"
 milkymist_minimac2_lower_irq_rx(void) "Lower IRQ RX"
 milkymist_minimac2_pulse_irq_tx(void) "Pulse IRQ TX"
 
-# hw/net/mipsnet.c
+# mipsnet.c
 mipsnet_send(uint32_t size) "sending len=%u"
 mipsnet_receive(uint32_t size) "receiving len=%u"
 mipsnet_read(uint64_t addr, uint32_t val) "read addr=0x%" PRIx64 " val=0x%x"
 mipsnet_write(uint64_t addr, uint64_t val) "write addr=0x%" PRIx64 " val=0x%" PRIx64
 mipsnet_irq(uint32_t isr, uint32_t intctl) "set irq to %d (0x%02x)"
 
-# hw/net/ne2000.c
+# ne2000.c
 ne2000_read(uint64_t addr, uint64_t val) "read addr=0x%" PRIx64 " val=0x%" PRIx64
 ne2000_write(uint64_t addr, uint64_t val) "write addr=0x%" PRIx64 " val=0x%" PRIx64
 ne2000_ioport_read(uint64_t addr, uint64_t val) "io read addr=0x%02" PRIx64 " val=0x%02" PRIx64
 ne2000_ioport_write(uint64_t addr, uint64_t val) "io write addr=0x%02" PRIx64 " val=0x%02" PRIx64
 
-# hw/net/opencores_eth.c
+# opencores_eth.c
 open_eth_mii_write(unsigned idx, uint16_t v) "MII[0x%02x] <- 0x%04x"
 open_eth_mii_read(unsigned idx, uint16_t v) "MII[0x%02x] -> 0x%04x"
 open_eth_update_irq(uint32_t v) "IRQ <- 0x%x"
@@ -48,7 +48,7 @@ open_eth_reg_write(uint32_t addr, uint32_t v) "MAC[0x%02x] <- 0x%08x"
 open_eth_desc_read(uint32_t addr, uint32_t v) "DESC[0x%04x] -> 0x%08x"
 open_eth_desc_write(uint32_t addr, uint32_t v) "DESC[0x%04x] <- 0x%08x"
 
-# hw/net/pcnet.c
+# pcnet.c
 pcnet_s_reset(void *s) "s=%p"
 pcnet_user_int(void *s) "s=%p"
 pcnet_isr_change(void *s, uint32_t isr, uint32_t isr_old) "s=%p INTA=%d<=%d"
@@ -56,13 +56,13 @@ pcnet_init(void *s, uint64_t init_addr) "s=%p init_addr=0x%"PRIx64
 pcnet_rlen_tlen(void *s, uint32_t rlen, uint32_t tlen) "s=%p rlen=%d tlen=%d"
 pcnet_ss32_rdra_tdra(void *s, uint32_t ss32, uint32_t rdra, uint32_t rcvrl, uint32_t tdra, uint32_t xmtrl) "s=%p ss32=%d rdra=0x%08x[%d] tdra=0x%08x[%d]"
 
-# hw/net/pcnet-pci.c
+# pcnet-pci.c
 pcnet_aprom_writeb(void *opaque, uint32_t addr, uint32_t val) "opaque=%p addr=0x%08x val=0x%02x"
 pcnet_aprom_readb(void *opaque, uint32_t addr, uint32_t val) "opaque=%p addr=0x%08x val=0x%02x"
 pcnet_ioport_read(void *opaque, uint64_t addr, unsigned size) "opaque=%p addr=0x%"PRIx64" size=%d"
 pcnet_ioport_write(void *opaque, uint64_t addr, uint64_t data, unsigned size) "opaque=%p addr=0x%"PRIx64" data=0x%"PRIx64" size=%d"
 
-# hw/net/net_rx_pkt.c
+# net_rx_pkt.c
 net_rx_pkt_parsed(bool ip4, bool ip6, bool udp, bool tcp, size_t l3o, size_t l4o, size_t l5o) "RX packet parsed: ip4: %d, ip6: %d, udp: %d, tcp: %d, l3 offset: %zu, l4 offset: %zu, l5 offset: %zu"
 net_rx_pkt_l4_csum_validate_entry(void) "Starting L4 checksum validation"
 net_rx_pkt_l4_csum_validate_not_xxp(void) "Not a TCP/UDP packet"
@@ -98,10 +98,10 @@ net_rx_pkt_rss_ip6_ex(void) "Calculating IPv6/EX RSS  hash"
 net_rx_pkt_rss_hash(size_t rss_length, uint32_t rss_hash) "RSS hash for %zu bytes: 0x%X"
 net_rx_pkt_rss_add_chunk(void* ptr, size_t size, size_t input_offset) "Add RSS chunk %p, %zu bytes, RSS input offset %zu bytes"
 
-# hw/net/e1000.c
+# e1000.c
 e1000_receiver_overrun(size_t s, uint32_t rdh, uint32_t rdt) "Receiver overrun: dropped packet of %zu bytes, RDH=%u, RDT=%u"
 
-# hw/net/e1000x_common.c
+# e1000x_common.c
 e1000x_rx_can_recv_disabled(bool link_up, bool rx_enabled, bool pci_master) "link_up: %d, rx_enabled %d, pci_master %d"
 e1000x_vlan_is_vlan_pkt(bool is_vlan_pkt, uint16_t eth_proto, uint16_t vet) "Is VLAN packet: %d, ETH proto: 0x%X, VET: 0x%X"
 e1000x_rx_flt_ucast_match(uint32_t idx, uint8_t b0, uint8_t b1, uint8_t b2, uint8_t b3, uint8_t b4, uint8_t b5) "unicast match[%d]: %02x:%02x:%02x:%02x:%02x:%02x"
@@ -114,7 +114,7 @@ e1000x_mac_indicate(uint8_t b0, uint8_t b1, uint8_t b2, uint8_t b3, uint8_t b4, 
 e1000x_link_negotiation_start(void) "Start link auto negotiation"
 e1000x_link_negotiation_done(void) "Auto negotiation is completed"
 
-# hw/net/e1000e_core.c
+# e1000e_core.c
 e1000e_core_write(uint64_t index, uint32_t size, uint64_t val) "Write to register 0x%"PRIx64", %d byte(s), value: 0x%"PRIx64
 e1000e_core_read(uint64_t index, uint32_t size, uint64_t val) "Read from register 0x%"PRIx64", %d byte(s), value: 0x%"PRIx64
 e1000e_core_mdic_read(uint8_t page, uint32_t addr, uint32_t data) "MDIC READ: PHY[%u][%u] = 0x%x"
@@ -245,7 +245,7 @@ e1000e_wrn_msix_invalid(uint32_t cause, uint32_t cfg) "Invalid entry for cause 0
 e1000e_mac_set_permanent(uint8_t b0, uint8_t b1, uint8_t b2, uint8_t b3, uint8_t b4, uint8_t b5) "Set permanent MAC: %02x:%02x:%02x:%02x:%02x:%02x"
 e1000e_mac_set_sw(uint8_t b0, uint8_t b1, uint8_t b2, uint8_t b3, uint8_t b4, uint8_t b5) "Set SW MAC: %02x:%02x:%02x:%02x:%02x:%02x"
 
-# hw/net/e1000e.c
+# e1000e.c
 e1000e_cb_pci_realize(void) "E1000E PCI realize entry"
 e1000e_cb_pci_uninit(void) "E1000E PCI unit entry"
 e1000e_cb_qdev_reset(void) "E1000E qdev reset entry"
@@ -271,7 +271,7 @@ e1000e_cfg_support_virtio(bool support) "Virtio header supported: %d"
 e1000e_vm_state_running(void) "VM state is running"
 e1000e_vm_state_stopped(void) "VM state is stopped"
 
-# hw/net/spapr_llan.c
+# spapr_llan.c
 spapr_vlan_get_rx_bd_from_pool_found(int pool, int32_t count, uint32_t rx_bufs) "pool=%d count=%"PRId32" rxbufs=%"PRIu32
 spapr_vlan_get_rx_bd_from_page(int buf_ptr, uint64_t bd) "use_buf_ptr=%d bd=0x%016"PRIx64
 spapr_vlan_get_rx_bd_from_page_found(uint32_t use_buf_ptr, uint32_t rx_bufs) "ptr=%"PRIu32" rxbufs=%"PRIu32
@@ -287,7 +287,7 @@ spapr_vlan_h_send_logical_lan_rxbufs(uint32_t rx_bufs) "rxbufs = %"PRIu32
 spapr_vlan_h_send_logical_lan_buf_desc(uint64_t buf) "   buf desc: 0x%"PRIx64
 spapr_vlan_h_send_logical_lan_total(int nbufs, unsigned total_len) "%d buffers, total length 0x%x"
 
-# hw/net/sungem.c
+# sungem.c
 sungem_tx_checksum(uint16_t start, uint16_t off) "TX checksumming from byte %d, inserting at %d"
 sungem_tx_checksum_oob(void) "TX checksum out of packet bounds"
 sungem_tx_unfinished(void) "TX packet started without finishing the previous one"
@@ -331,7 +331,7 @@ sungem_mmio_mif_read(uint64_t addr, uint64_t val) "MMIO mif read from 0x%"PRIx64
 sungem_mmio_pcs_write(uint64_t addr, uint64_t val) "MMIO pcs write to 0x%"PRIx64" val=0x%"PRIx64
 sungem_mmio_pcs_read(uint64_t addr, uint64_t val) "MMIO pcs read from 0x%"PRIx64" val=0x%"PRIx64
 
-# hw/net/sunhme.c
+# sunhme.c
 sunhme_seb_write(uint64_t addr, uint64_t value) "addr 0x%"PRIx64" value 0x%"PRIx64
 sunhme_seb_read(uint64_t addr, uint64_t value) "addr 0x%"PRIx64" value 0x%"PRIx64
 sunhme_etx_write(uint64_t addr, uint64_t value) "addr 0x%"PRIx64" value 0x%"PRIx64
@@ -360,7 +360,7 @@ sunhme_rx_filter_accept(void) "accepting incoming frame"
 sunhme_rx_desc(uint32_t addr, int offset, uint32_t status, int len, int cr, int nr) "addr 0x%"PRIx32"(+0x%x) status 0x%"PRIx32 " len %d (ring %d/%d)"
 sunhme_rx_xsum_calc(uint16_t xsum) "calculated incoming xsum as 0x%x"
 
-# hw/net/virtio-net.c
+# virtio-net.c
 virtio_net_announce_notify(void) ""
 virtio_net_announce_timer(int round) "%d"
 virtio_net_handle_announce(int round) "%d"

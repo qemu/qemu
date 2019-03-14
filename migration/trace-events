@@ -1,6 +1,6 @@
 # See docs/devel/tracing.txt for syntax documentation.
 
-# migration/savevm.c
+# savevm.c
 qemu_loadvm_state_section(unsigned int section_type) "%d"
 qemu_loadvm_state_section_command(int ret) "%d"
 qemu_loadvm_state_section_partend(uint32_t section_id) "%u"
@@ -53,7 +53,7 @@ vmstate_subsection_save_loop(const char *name, const char *sub) "%s/%s"
 vmstate_subsection_save_top(const char *idstr) "%s"
 vmstate_load(const char *idstr, const char *vmsd_name) "%s, %s"
 
-# migration/vmstate.c
+# vmstate.c
 vmstate_load_field_error(const char *field, int ret) "field \"%s\" load failed, ret = %d"
 vmstate_load_state(const char *name, int version_id) "%s v%d"
 vmstate_load_state_end(const char *name, const char *reason, int val) "%s %s/%d"
@@ -67,10 +67,10 @@ get_qtailq_end(const char *name, const char *reason, int val) "%s %s/%d"
 put_qtailq(const char *name, int version_id) "%s v%d"
 put_qtailq_end(const char *name, const char *reason) "%s %s"
 
-# migration/qemu-file.c
+# qemu-file.c
 qemu_file_fclose(void) ""
 
-# migration/ram.c
+# ram.c
 get_queued_page(const char *block_name, uint64_t tmp_offset, unsigned long page_abs) "%s/0x%" PRIx64 " page_abs=0x%lx"
 get_queued_page_not_dirty(const char *block_name, uint64_t tmp_offset, unsigned long page_abs, int sent) "%s/0x%" PRIx64 " page_abs=0x%lx (sent=%d)"
 migration_bitmap_sync_start(void) ""
@@ -104,7 +104,7 @@ ram_state_resume_prepare(uint64_t v) "%" PRId64
 colo_flush_ram_cache_begin(uint64_t dirty_pages) "dirty_pages %" PRIu64
 colo_flush_ram_cache_end(void) ""
 
-# migration/migration.c
+# migration.c
 await_return_path_close_on_source_close(void) ""
 await_return_path_close_on_source_joining(void) ""
 migrate_set_state(const char *new_state) "new state %s"
@@ -155,7 +155,7 @@ migration_set_outgoing_channel(void *ioc, const char *ioctype, const char *hostn
 mark_postcopy_blocktime_begin(uint64_t addr, void *dd, uint32_t time, int cpu, int received) "addr: 0x%" PRIx64 ", dd: %p, time: %u, cpu: %d, already_received: %d"
 mark_postcopy_blocktime_end(uint64_t addr, void *dd, uint32_t time, int affected_cpu) "addr: 0x%" PRIx64 ", dd: %p, time: %u, affected_cpu: %d"
 
-# migration/rdma.c
+# rdma.c
 qemu_rdma_accept_incoming_migration(void) ""
 qemu_rdma_accept_incoming_migration_accepted(void) ""
 qemu_rdma_accept_pin_state(bool pin) "%d"
@@ -217,7 +217,7 @@ rdma_start_incoming_migration_after_rdma_listen(void) ""
 rdma_start_outgoing_migration_after_rdma_connect(void) ""
 rdma_start_outgoing_migration_after_rdma_source_init(void) ""
 
-# migration/postcopy-ram.c
+# postcopy-ram.c
 postcopy_discard_send_finish(const char *ramblock, int nwords, int ncmds) "%s mask words sent=%d in %d commands"
 postcopy_discard_send_range(const char *ramblock, unsigned long start, unsigned long length) "%s:%lx/%lx"
 postcopy_cleanup_range(const char *ramblock, void *host_addr, size_t offset, size_t length) "%s: %p offset=0x%zx length=0x%zx"
@@ -247,20 +247,20 @@ ram_save_iterate_big_wait(uint64_t milliconds, int iterations) "big wait: %" PRI
 ram_load_complete(int ret, uint64_t seq_iter) "exit_code %d seq iteration %" PRIu64
 get_mem_fault_cpu_index(int cpu, uint32_t pid) "cpu: %d, pid: %u"
 
-# migration/exec.c
+# exec.c
 migration_exec_outgoing(const char *cmd) "cmd=%s"
 migration_exec_incoming(const char *cmd) "cmd=%s"
 
-# migration/fd.c
+# fd.c
 migration_fd_outgoing(int fd) "fd=%d"
 migration_fd_incoming(int fd) "fd=%d"
 
-# migration/socket.c
+# socket.c
 migration_socket_incoming_accepted(void) ""
 migration_socket_outgoing_connected(const char *hostname) "hostname=%s"
 migration_socket_outgoing_error(const char *err) "error=%s"
 
-# migration/tls.c
+# tls.c
 migration_tls_outgoing_handshake_start(const char *hostname) "hostname=%s"
 migration_tls_outgoing_handshake_error(const char *err) "err=%s"
 migration_tls_outgoing_handshake_complete(void) ""
@@ -268,13 +268,13 @@ migration_tls_incoming_handshake_start(void) ""
 migration_tls_incoming_handshake_error(const char *err) "err=%s"
 migration_tls_incoming_handshake_complete(void) ""
 
-# migration/colo.c
+# colo.c
 colo_vm_state_change(const char *old, const char *new) "Change '%s' => '%s'"
 colo_send_message(const char *msg) "Send '%s' message"
 colo_receive_message(const char *msg) "Receive '%s' message"
 colo_failover_set_state(const char *new_state) "new state %s"
 
-# migration/block-dirty-bitmap.c
+# block-dirty-bitmap.c
 send_bitmap_header_enter(void) ""
 send_bitmap_bits(uint32_t flags, uint64_t start_sector, uint32_t nr_sectors, uint64_t data_size) "flags: 0x%x, start_sector: %" PRIu64 ", nr_sectors: %" PRIu32 ", data_size: %" PRIu64
 dirty_bitmap_save_iterate(int in_postcopy) "in postcopy: %d"

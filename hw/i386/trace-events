@@ -1,9 +1,9 @@
 # See docs/devel/tracing.txt for syntax documentation.
 
-# hw/i386/x86-iommu.c
+# x86-iommu.c
 x86_iommu_iec_notify(bool global, uint32_t index, uint32_t mask) "Notify IEC invalidation: global=%d index=%" PRIu32 " mask=%" PRIu32
 
-# hw/i386/intel_iommu.c
+# intel_iommu.c
 vtd_inv_desc(const char *type, uint64_t hi, uint64_t lo) "invalidate desc type %s high 0x%"PRIx64" low 0x%"PRIx64
 vtd_inv_desc_cc_domain(uint16_t domain) "context invalidate domain 0x%"PRIx16
 vtd_inv_desc_cc_global(void) "context invalidate globally"
@@ -67,7 +67,7 @@ vtd_warn_invalid_qi_tail(uint16_t tail) "tail 0x%"PRIx16
 vtd_warn_ir_vector(uint16_t sid, int index, int vec, int target) "sid 0x%"PRIx16" index %d vec %d (should be: %d)"
 vtd_warn_ir_trigger(uint16_t sid, int index, int trig, int target) "sid 0x%"PRIx16" index %d trigger %d (should be: %d)"
 
-# hw/i386/amd_iommu.c
+# amd_iommu.c
 amdvi_evntlog_fail(uint64_t addr, uint32_t head) "error: fail to write at addr 0x%"PRIx64" +  offset 0x%"PRIx32
 amdvi_cache_update(uint16_t domid, uint8_t bus, uint8_t slot, uint8_t func, uint64_t gpa, uint64_t txaddr) " update iotlb domid 0x%"PRIx16" devid: %02x:%02x.%x gpa 0x%"PRIx64" hpa 0x%"PRIx64
 amdvi_completion_wait_fail(uint64_t addr) "error: fail to write at address 0x%"PRIx64
@@ -110,6 +110,6 @@ amdvi_ir_generate_msi_message(uint8_t vector, uint8_t delivery_mode, uint8_t des
 amdvi_ir_irte_ga(uint64_t addr, uint64_t data) "addr 0x%"PRIx64" offset 0x%"PRIx64
 amdvi_ir_irte_ga_val(uint64_t hi, uint64_t lo) "hi 0x%"PRIx64" lo 0x%"PRIx64
 
-# hw/i386/vmport.c
+# vmport.c
 vmport_register(unsigned char command, void *func, void *opaque) "command: 0x%02x func: %p opaque: %p"
 vmport_command(unsigned char command) "command: 0x%02x"
