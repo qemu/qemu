@@ -157,6 +157,7 @@ typedef struct BDRVRawState {
     bool page_cache_inconsistent:1;
     bool has_fallocate;
     bool needs_alignment;
+    bool drop_cache;
     bool check_cache_dropped;
 
     PRManager *pr_mgr;
@@ -165,6 +166,7 @@ typedef struct BDRVRawState {
 typedef struct BDRVRawReopenState {
     int fd;
     int open_flags;
+    bool drop_cache;
     bool check_cache_dropped;
 } BDRVRawReopenState;
 
@@ -433,6 +435,13 @@ static QemuOptsList raw_runtime_opts = {
             .type = QEMU_OPT_STRING,
             .help = "id of persistent reservation manager object (default: none)",
         },
+#if defined(__linux__)
+        {
+            .name = "drop-cache",
+            .type = QEMU_OPT_BOOL,
+            .help = "invalidate page cache during live migration (default: on)",
+        },
+#endif
         {
             .name = "x-check-cache-dropped",
             .type = QEMU_OPT_BOOL,
@@ -524,6 +533,7 @@ static int raw_open_common(BlockDriverState *bs, QDict *options,
         }
     }
 
+    s->drop_cache = qemu_opt_get_bool(opts, "drop-cache", true);
     s->check_cache_dropped = qemu_opt_get_bool(opts, "x-check-cache-dropped",
                                                false);
 
@@ -933,6 +943,7 @@ static int raw_reopen_prepare(BDRVReopenState *state,
         goto out;
     }
 
+    rs->drop_cache = qemu_opt_get_bool_del(opts, "drop-cache", true);
     rs->check_cache_dropped =
         qemu_opt_get_bool_del(opts, "x-check-cache-dropped", false);
 
@@ -977,6 +988,7 @@ static void raw_reopen_commit(BDRVReopenState *state)
     BDRVRawReopenState *rs = state->opaque;
     BDRVRawState *s = state->bs->opaque;
 
+    s->drop_cache = rs->drop_cache;
     s->check_cache_dropped = rs->check_cache_dropped;
     s->open_flags = rs->open_flags;
 
@@ -2559,6 +2571,10 @@ static void coroutine_fn raw_co_invalidate_cache(BlockDriverState *bs,
     ret = fd_open(bs);
     if (ret < 0) {
         error_setg_errno(errp, -ret, "The file descriptor is not open");
+        return;
+    }
+
+    if (!s->drop_cache) {
         return;
     }
 
