@@ -9,3 +9,4 @@ config S390_CCW_VIRTIO
     select S390_FLIC
     select SCLPCONSOLE
     select VIRTIO_CCW
+    select MSI_NONBROKEN

@@ -8,6 +8,7 @@ config PSERIES
     select VFIO if LINUX   # needed by spapr_pci_vfio.c
     select XICS_SPAPR
     select XIVE_SPAPR
+    select MSI_NONBROKEN
 
 config SPAPR_RNG
     bool
