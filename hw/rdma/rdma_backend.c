@@ -94,8 +94,7 @@ static void clean_recv_mads(RdmaBackendDev *backend_dev)
     } while (cqe_ctx_id != -ENOENT);
 }
 
-static int rdma_poll_cq(RdmaBackendDev *backend_dev,
-                        RdmaDeviceResources *rdma_dev_res, struct ibv_cq *ibcq)
+static int rdma_poll_cq(RdmaDeviceResources *rdma_dev_res, struct ibv_cq *ibcq)
 {
     int i, ne, total_ne = 0;
     BackendCtx *bctx;
@@ -181,7 +180,7 @@ static void *comp_handler_thread(void *arg)
             }
 
             backend_dev->rdma_dev_res->stats.poll_cq_from_bk++;
-            rdma_poll_cq(backend_dev, backend_dev->rdma_dev_res, ev_cq);
+            rdma_poll_cq(backend_dev->rdma_dev_res, ev_cq);
 
             ibv_ack_cq_events(ev_cq, 1);
         }
@@ -315,7 +314,7 @@ void rdma_backend_poll_cq(RdmaDeviceResources *rdma_dev_res, RdmaBackendCQ *cq)
     int polled;
 
     rdma_dev_res->stats.poll_cq_from_guest++;
-    polled = rdma_poll_cq(cq->backend_dev, rdma_dev_res, cq->ibcq);
+    polled = rdma_poll_cq(rdma_dev_res, cq->ibcq);
     if (!polled) {
         rdma_dev_res->stats.poll_cq_from_guest_empty++;
     }
