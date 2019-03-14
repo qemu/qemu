@@ -1356,6 +1356,7 @@ static void virtio_gpu_reset(VirtIODevice *vdev)
 {
     VirtIOGPU *g = VIRTIO_GPU(vdev);
     struct virtio_gpu_simple_resource *res, *tmp;
+    struct virtio_gpu_ctrl_command *cmd;
     int i;
 
     g->enable = 0;
@@ -1370,6 +1371,19 @@ static void virtio_gpu_reset(VirtIODevice *vdev)
         g->scanout[i].x = 0;
         g->scanout[i].y = 0;
         g->scanout[i].ds = NULL;
+    }
+
+    while (!QTAILQ_EMPTY(&g->cmdq)) {
+        cmd = QTAILQ_FIRST(&g->cmdq);
+        QTAILQ_REMOVE(&g->cmdq, cmd, next);
+        g_free(cmd);
+    }
+
+    while (!QTAILQ_EMPTY(&g->fenceq)) {
+        cmd = QTAILQ_FIRST(&g->fenceq);
+        QTAILQ_REMOVE(&g->fenceq, cmd, next);
+        g->inflight--;
+        g_free(cmd);
     }
 
 #ifdef CONFIG_VIRGL
