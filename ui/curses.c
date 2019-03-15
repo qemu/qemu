@@ -75,9 +75,9 @@ static void curses_update(DisplayChangeListener *dcl,
             if (vga_to_curses[ch].chars[0]) {
                 curses_line[x] = vga_to_curses[ch];
             } else {
-                curses_line[x].chars[0] = ch;
-                curses_line[x].chars[1] = 0;
-                curses_line[x].attr = 0;
+                curses_line[x] = (cchar_t) {
+                    .chars[0] = ch,
+                };
             }
             curses_line[x].attr |= at;
         }
