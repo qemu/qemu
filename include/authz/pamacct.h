@@ -33,8 +33,8 @@
      OBJECT_GET_CLASS(QAuthZPAMClass, (obj), \
                       TYPE_QAUTHZ_PAM)
 #define QAUTHZ_PAM(obj) \
-     INTERFACE_CHECK(QAuthZPAM, (obj), \
-                     TYPE_QAUTHZ_PAM)
+     OBJECT_CHECK(QAuthZPAM, (obj), \
+                  TYPE_QAUTHZ_PAM)
 
 typedef struct QAuthZPAM QAuthZPAM;
 typedef struct QAuthZPAMClass QAuthZPAMClass;
