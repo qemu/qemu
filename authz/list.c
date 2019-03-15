@@ -20,7 +20,7 @@
 
 #include "qemu/osdep.h"
 #include "authz/list.h"
-#include "authz/trace.h"
+#include "trace.h"
 #include "qom/object_interfaces.h"
 #include "qapi/qapi-visit-authz.h"
 

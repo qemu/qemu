@@ -20,7 +20,7 @@
 
 #include "qemu/osdep.h"
 #include "authz/pamacct.h"
-#include "authz/trace.h"
+#include "trace.h"
 #include "qom/object_interfaces.h"
 
 #include <security/pam_appl.h>
