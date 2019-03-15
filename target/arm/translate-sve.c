@@ -943,24 +943,30 @@ static bool trans_INDEX_rr(DisasContext *s, arg_INDEX_rr *a)
 
 static bool trans_ADDVL(DisasContext *s, arg_ADDVL *a)
 {
-    TCGv_i64 rd = cpu_reg_sp(s, a->rd);
-    TCGv_i64 rn = cpu_reg_sp(s, a->rn);
-    tcg_gen_addi_i64(rd, rn, a->imm * vec_full_reg_size(s));
+    if (sve_access_check(s)) {
+        TCGv_i64 rd = cpu_reg_sp(s, a->rd);
+        TCGv_i64 rn = cpu_reg_sp(s, a->rn);
+        tcg_gen_addi_i64(rd, rn, a->imm * vec_full_reg_size(s));
+    }
     return true;
 }
 
 static bool trans_ADDPL(DisasContext *s, arg_ADDPL *a)
 {
-    TCGv_i64 rd = cpu_reg_sp(s, a->rd);
-    TCGv_i64 rn = cpu_reg_sp(s, a->rn);
-    tcg_gen_addi_i64(rd, rn, a->imm * pred_full_reg_size(s));
+    if (sve_access_check(s)) {
+        TCGv_i64 rd = cpu_reg_sp(s, a->rd);
+        TCGv_i64 rn = cpu_reg_sp(s, a->rn);
+        tcg_gen_addi_i64(rd, rn, a->imm * pred_full_reg_size(s));
+    }
     return true;
 }
 
 static bool trans_RDVL(DisasContext *s, arg_RDVL *a)
 {
-    TCGv_i64 reg = cpu_reg(s, a->rd);
-    tcg_gen_movi_i64(reg, a->imm * vec_full_reg_size(s));
+    if (sve_access_check(s)) {
+        TCGv_i64 reg = cpu_reg(s, a->rd);
+        tcg_gen_movi_i64(reg, a->imm * vec_full_reg_size(s));
+    }
     return true;
 }
 
