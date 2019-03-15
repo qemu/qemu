@@ -80,4 +80,3 @@ DeviceState *sifive_plic_create(hwaddr addr, char *hart_config,
     uint32_t aperture_size);
 
 #endif
-

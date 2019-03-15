@@ -36,4 +36,4 @@ typedef struct TestState {
 void tpm_emu_test_wait_cond(TestState *s);
 void *tpm_emu_ctrl_thread(void *data);
 
-#endif /* TEST_TPM_EMU_H */
+#endif /* TESTS_TPM_EMU_H */

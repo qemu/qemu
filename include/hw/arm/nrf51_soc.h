@@ -53,4 +53,3 @@ typedef struct NRF51State {
 } NRF51State;
 
 #endif
-

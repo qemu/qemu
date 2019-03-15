@@ -142,4 +142,4 @@ void translator_loop(const TranslatorOps *ops, DisasContextBase *db,
 
 void translator_loop_temp_check(DisasContextBase *db);
 
-#endif  /* EXEC__TRANSLATOR_H */
+#endif /* EXEC__TRANSLATOR_H */

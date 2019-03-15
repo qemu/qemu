@@ -99,4 +99,4 @@ typedef struct DesignwarePCIEHost {
     MemoryRegion mmio;
 } DesignwarePCIEHost;
 
-#endif  /* DESIGNWARE_H */
+#endif /* DESIGNWARE_H */

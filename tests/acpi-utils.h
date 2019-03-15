@@ -52,4 +52,4 @@ void acpi_fetch_table(QTestState *qts, uint8_t **aml, uint32_t *aml_len,
                       const uint8_t *addr_ptr, const char *sig,
                       bool verify_checksum);
 
-#endif  /* TEST_ACPI_UTILS_H */
+#endif /* TEST_ACPI_UTILS_H */

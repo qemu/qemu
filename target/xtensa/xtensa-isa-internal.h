@@ -228,4 +228,4 @@ int xtensa_isa_name_compare(const void *, const void *);
 extern xtensa_isa_status xtisa_errno;
 extern char xtisa_error_msg[];
 
-#endif /* !XTENSA_ISA_INTERNAL_H */
+#endif /* XTENSA_ISA_INTERNAL_H */

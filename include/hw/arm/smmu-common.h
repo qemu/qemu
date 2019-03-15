@@ -163,4 +163,4 @@ void smmu_inv_notifiers_all(SMMUState *s);
 /* Unmap the range of all the notifiers registered to @mr */
 void smmu_inv_notifiers_mr(IOMMUMemoryRegion *mr);
 
-#endif  /* HW_ARM_SMMU_COMMON */
+#endif /* HW_ARM_SMMU_COMMON_H */

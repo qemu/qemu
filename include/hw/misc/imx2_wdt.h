@@ -30,4 +30,4 @@ typedef struct IMX2WdtState {
     MemoryRegion mmio;
 } IMX2WdtState;
 
-#endif /* IMX7_SNVS_H */
+#endif /* IMX2_WDT_H */
