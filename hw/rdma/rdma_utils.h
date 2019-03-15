@@ -20,7 +20,6 @@
 #include "qemu/error-report.h"
 #include "hw/pci/pci.h"
 #include "sysemu/dma.h"
-#include "stdio.h"
 
 #define rdma_error_report(fmt, ...) \
     error_report("%s: " fmt, "rdma", ## __VA_ARGS__)

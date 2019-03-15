@@ -14,16 +14,16 @@
  */
 
 #include "qemu/osdep.h"
-#include "sys/poll.h"
-#include "sys/ioctl.h"
-#include "pthread.h"
-#include "syslog.h"
+#include <sys/poll.h>
+#include <sys/ioctl.h>
+#include <pthread.h>
+#include <syslog.h>
 
-#include "infiniband/verbs.h"
-#include "infiniband/umad.h"
-#include "infiniband/umad_types.h"
-#include "infiniband/umad_sa.h"
-#include "infiniband/umad_cm.h"
+#include <infiniband/verbs.h>
+#include <infiniband/umad.h>
+#include <infiniband/umad_types.h>
+#include <infiniband/umad_sa.h>
+#include <infiniband/umad_cm.h>
 
 #include "rdmacm-mux.h"
 
