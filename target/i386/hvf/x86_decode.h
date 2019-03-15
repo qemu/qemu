@@ -16,7 +16,7 @@
  */
 
 #ifndef HVF_X86_DECODE_H
-#define HVF_X86_DECODE_H 1
+#define HVF_X86_DECODE_H
 
 #include "cpu.h"
 #include "x86.h"

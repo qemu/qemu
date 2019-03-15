@@ -1,5 +1,5 @@
 #ifndef QEMU_CAPSTONE_H
-#define QEMU_CAPSTONE_H 1
+#define QEMU_CAPSTONE_H
 
 #ifdef CONFIG_CAPSTONE
 

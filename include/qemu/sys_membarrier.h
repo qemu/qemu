@@ -7,7 +7,7 @@
  */
 
 #ifndef QEMU_SYS_MEMBARRIER_H
-#define QEMU_SYS_MEMBARRIER_H 1
+#define QEMU_SYS_MEMBARRIER_H
 
 #ifdef CONFIG_MEMBARRIER
 /* Only block reordering at the compiler level in the performance-critical

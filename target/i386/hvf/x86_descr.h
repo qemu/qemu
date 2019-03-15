@@ -17,7 +17,7 @@
  */
 
 #ifndef HVF_X86_DESCR_H
-#define HVF_X86_DESCR_H 1
+#define HVF_X86_DESCR_H
 
 #include "x86.h"
 
