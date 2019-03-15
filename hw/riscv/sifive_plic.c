@@ -22,6 +22,7 @@
 #include "qemu/log.h"
 #include "qemu/error-report.h"
 #include "hw/sysbus.h"
+#include "hw/pci/msi.h"
 #include "target/riscv/cpu.h"
 #include "hw/riscv/sifive_plic.h"
 
@@ -443,6 +444,8 @@ static void sifive_plic_realize(DeviceState *dev, Error **errp)
     plic->enable = g_new0(uint32_t, plic->bitfield_words * plic->num_addrs);
     sysbus_init_mmio(SYS_BUS_DEVICE(dev), &plic->mmio);
     qdev_init_gpio_in(dev, sifive_plic_irq_request, plic->num_sources);
+
+    msi_nonbroken = true;
 }
 
 static void sifive_plic_class_init(ObjectClass *klass, void *data)
