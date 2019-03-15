@@ -549,12 +549,8 @@ static int qpa_init_out(HWVoiceOut *hw, struct audsettings *as,
     ss.channels = as->nchannels;
     ss.rate = as->freq;
 
-    /*
-     * qemu audio tick runs at 100 Hz (by default), so processing
-     * data chunks worth 10 ms of sound should be a good fit.
-     */
-    ba.tlength = pa_usec_to_bytes (10 * 1000, &ss);
-    ba.minreq = pa_usec_to_bytes (5 * 1000, &ss);
+    ba.tlength = pa_usec_to_bytes(ppdo->latency, &ss);
+    ba.minreq = -1;
     ba.maxlength = -1;
     ba.prebuf = -1;
 
@@ -817,6 +813,10 @@ static int qpa_validate_per_direction_opts(Audiodev *dev,
     if (!pdo->has_buffer_length) {
         pdo->has_buffer_length = true;
         pdo->buffer_length = 46440;
+    }
+    if (!pdo->has_latency) {
+        pdo->has_latency = true;
+        pdo->latency = 15000;
     }
     return 1;
 }

@@ -206,12 +206,16 @@
 #
 # @name: name of the sink/source to use
 #
+# @latency: latency you want PulseAudio to achieve in microseconds
+#           (default 15000)
+#
 # Since: 4.0
 ##
 { 'struct': 'AudiodevPaPerDirectionOptions',
   'base': 'AudiodevPerDirectionOptions',
   'data': {
-    '*name': 'str' } }
+    '*name': 'str',
+    '*latency': 'uint32' } }
 
 ##
 # @AudiodevPaOptions:
