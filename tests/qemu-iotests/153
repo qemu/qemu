@@ -155,7 +155,7 @@ for opts1 in "" "read-only=on" "read-only=on,force-share=on"; do
             _img_info -U | grep 'file format'
         fi
     done
-    _send_qemu_cmd $h "{ 'execute': 'quit', }" ""
+    _send_qemu_cmd $h "{ 'execute': 'quit' }" ''
     echo
     echo "Round done"
     _cleanup_qemu
@@ -219,7 +219,7 @@ echo "Adding drive"
 _send_qemu_cmd $QEMU_HANDLE \
     "{ 'execute': 'human-monitor-command',
        'arguments': { 'command-line': 'drive_add 0 if=none,id=d0,file=${TEST_IMG}' } }" \
-    ""
+    'return'
 
 _run_cmd $QEMU_IO "${TEST_IMG}" -c 'write 0 512'
 
@@ -230,7 +230,7 @@ echo "== Closing an image should unlock it =="
 _send_qemu_cmd $QEMU_HANDLE \
     "{ 'execute': 'human-monitor-command',
        'arguments': { 'command-line': 'drive_del d0' } }" \
-    ""
+    'return'
 
 _run_cmd $QEMU_IO "${TEST_IMG}" -c 'write 0 512'
 
@@ -239,7 +239,7 @@ for d in d0 d1; do
     _send_qemu_cmd $QEMU_HANDLE \
         "{ 'execute': 'human-monitor-command',
            'arguments': { 'command-line': 'drive_add 0 if=none,id=$d,file=${TEST_IMG},readonly=on' } }" \
-        ""
+        'return'
 done
 
 _run_cmd $QEMU_IMG info "${TEST_IMG}"
@@ -247,7 +247,7 @@ _run_cmd $QEMU_IMG info "${TEST_IMG}"
 _send_qemu_cmd $QEMU_HANDLE \
     "{ 'execute': 'human-monitor-command',
        'arguments': { 'command-line': 'drive_del d0' } }" \
-    ""
+    'return'
 
 _run_cmd $QEMU_IO "${TEST_IMG}" -c 'write 0 512'
 
@@ -255,7 +255,7 @@ echo "Closing the other"
 _send_qemu_cmd $QEMU_HANDLE \
     "{ 'execute': 'human-monitor-command',
        'arguments': { 'command-line': 'drive_del d1' } }" \
-    ""
+    'return'
 
 _run_cmd $QEMU_IO "${TEST_IMG}" -c 'write 0 512'
 
