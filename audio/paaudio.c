@@ -605,6 +605,7 @@ static int qpa_init_in(HWVoiceIn *hw, struct audsettings *as, void *drv_opaque)
 {
     int error;
     pa_sample_spec ss;
+    pa_buffer_attr ba;
     struct audsettings obt_as = *as;
     PAVoiceIn *pa = (PAVoiceIn *) hw;
     paaudio *g = pa->g = drv_opaque;
@@ -615,6 +616,11 @@ static int qpa_init_in(HWVoiceIn *hw, struct audsettings *as, void *drv_opaque)
     ss.channels = as->nchannels;
     ss.rate = as->freq;
 
+    ba.fragsize = pa_usec_to_bytes(ppdo->latency, &ss);
+    ba.maxlength = -1;
+    ba.minreq = -1;
+    ba.prebuf = -1;
+
     obt_as.fmt = pa_to_audfmt (ss.format, &obt_as.endianness);
 
     pa->stream = qpa_simple_new (
@@ -624,7 +630,7 @@ static int qpa_init_in(HWVoiceIn *hw, struct audsettings *as, void *drv_opaque)
         ppdo->has_name ? ppdo->name : NULL,
         &ss,
         NULL,                   /* channel map */
-        NULL,                   /* buffering attributes */
+        &ba,                    /* buffering attributes */
         &error
         );
     if (!pa->stream) {
