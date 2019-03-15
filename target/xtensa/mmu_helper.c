@@ -78,8 +78,8 @@ static uint32_t get_page_size(const CPUXtensaState *env,
 /*!
  * Get bit mask for the virtual address bits translated by the TLB way
  */
-uint32_t xtensa_tlb_get_addr_mask(const CPUXtensaState *env,
-                                  bool dtlb, uint32_t way)
+static uint32_t xtensa_tlb_get_addr_mask(const CPUXtensaState *env,
+                                         bool dtlb, uint32_t way)
 {
     if (xtensa_option_enabled(env->config, XTENSA_OPTION_MMU)) {
         bool varway56 = dtlb ?
@@ -145,8 +145,9 @@ static uint32_t get_vpn_mask(const CPUXtensaState *env, bool dtlb, uint32_t way)
  * Split virtual address into VPN (with index) and entry index
  * for the given TLB way
  */
-void split_tlb_entry_spec_way(const CPUXtensaState *env, uint32_t v, bool dtlb,
-        uint32_t *vpn, uint32_t wi, uint32_t *ei)
+static void split_tlb_entry_spec_way(const CPUXtensaState *env, uint32_t v,
+                                     bool dtlb, uint32_t *vpn,
+                                     uint32_t wi, uint32_t *ei)
 {
     bool varway56 = dtlb ?
         env->config->dtlb.varway56 :
@@ -213,6 +214,14 @@ static void split_tlb_entry_spec(CPUXtensaState *env, uint32_t v, bool dtlb,
     }
 }
 
+static xtensa_tlb_entry *xtensa_tlb_get_entry(CPUXtensaState *env, bool dtlb,
+                                              unsigned wi, unsigned ei)
+{
+    return dtlb ?
+        env->dtlb[wi] + ei :
+        env->itlb[wi] + ei;
+}
+
 static xtensa_tlb_entry *get_tlb_entry(CPUXtensaState *env,
         uint32_t v, bool dtlb, uint32_t *pwi)
 {
@@ -227,65 +236,10 @@ static xtensa_tlb_entry *get_tlb_entry(CPUXtensaState *env,
     return xtensa_tlb_get_entry(env, dtlb, wi, ei);
 }
 
-uint32_t HELPER(rtlb0)(CPUXtensaState *env, uint32_t v, uint32_t dtlb)
-{
-    if (xtensa_option_enabled(env->config, XTENSA_OPTION_MMU)) {
-        uint32_t wi;
-        const xtensa_tlb_entry *entry = get_tlb_entry(env, v, dtlb, &wi);
-        return (entry->vaddr & get_vpn_mask(env, dtlb, wi)) | entry->asid;
-    } else {
-        return v & REGION_PAGE_MASK;
-    }
-}
-
-uint32_t HELPER(rtlb1)(CPUXtensaState *env, uint32_t v, uint32_t dtlb)
-{
-    const xtensa_tlb_entry *entry = get_tlb_entry(env, v, dtlb, NULL);
-    return entry->paddr | entry->attr;
-}
-
-void HELPER(itlb)(CPUXtensaState *env, uint32_t v, uint32_t dtlb)
-{
-    if (xtensa_option_enabled(env->config, XTENSA_OPTION_MMU)) {
-        uint32_t wi;
-        xtensa_tlb_entry *entry = get_tlb_entry(env, v, dtlb, &wi);
-        if (entry->variable && entry->asid) {
-            tlb_flush_page(CPU(xtensa_env_get_cpu(env)), entry->vaddr);
-            entry->asid = 0;
-        }
-    }
-}
-
-uint32_t HELPER(ptlb)(CPUXtensaState *env, uint32_t v, uint32_t dtlb)
-{
-    if (xtensa_option_enabled(env->config, XTENSA_OPTION_MMU)) {
-        uint32_t wi;
-        uint32_t ei;
-        uint8_t ring;
-        int res = xtensa_tlb_lookup(env, v, dtlb, &wi, &ei, &ring);
-
-        switch (res) {
-        case 0:
-            if (ring >= xtensa_get_ring(env)) {
-                return (v & 0xfffff000) | wi | (dtlb ? 0x10 : 0x8);
-            }
-            break;
-
-        case INST_TLB_MULTI_HIT_CAUSE:
-        case LOAD_STORE_TLB_MULTI_HIT_CAUSE:
-            HELPER(exception_cause_vaddr)(env, env->pc, res, v);
-            break;
-        }
-        return 0;
-    } else {
-        return (v & REGION_PAGE_MASK) | 0x1;
-    }
-}
-
-void xtensa_tlb_set_entry_mmu(const CPUXtensaState *env,
-                              xtensa_tlb_entry *entry, bool dtlb,
-                              unsigned wi, unsigned ei, uint32_t vpn,
-                              uint32_t pte)
+static void xtensa_tlb_set_entry_mmu(const CPUXtensaState *env,
+                                     xtensa_tlb_entry *entry, bool dtlb,
+                                     unsigned wi, unsigned ei, uint32_t vpn,
+                                     uint32_t pte)
 {
     entry->vaddr = vpn;
     entry->paddr = pte & xtensa_tlb_get_addr_mask(env, dtlb, wi);
@@ -293,8 +247,9 @@ void xtensa_tlb_set_entry_mmu(const CPUXtensaState *env,
     entry->attr = pte & 0xf;
 }
 
-void xtensa_tlb_set_entry(CPUXtensaState *env, bool dtlb,
-                          unsigned wi, unsigned ei, uint32_t vpn, uint32_t pte)
+static void xtensa_tlb_set_entry(CPUXtensaState *env, bool dtlb,
+                                 unsigned wi, unsigned ei,
+                                 uint32_t vpn, uint32_t pte)
 {
     XtensaCPU *cpu = xtensa_env_get_cpu(env);
     CPUState *cs = CPU(cpu);
@@ -320,15 +275,6 @@ void xtensa_tlb_set_entry(CPUXtensaState *env, bool dtlb,
         }
         entry->attr = pte & 0xf;
     }
-}
-
-void HELPER(wtlb)(CPUXtensaState *env, uint32_t p, uint32_t v, uint32_t dtlb)
-{
-    uint32_t vpn;
-    uint32_t wi;
-    uint32_t ei;
-    split_tlb_entry_spec(env, v, dtlb, &vpn, &wi, &ei);
-    xtensa_tlb_set_entry(env, dtlb, wi, ei, vpn, p);
 }
 
 hwaddr xtensa_cpu_get_phys_page_debug(CPUState *cs, vaddr addr)
@@ -462,8 +408,9 @@ static unsigned get_ring(const CPUXtensaState *env, uint8_t asid)
  * \param pring: [out] access ring
  * \return 0 if ok, exception cause code otherwise
  */
-int xtensa_tlb_lookup(const CPUXtensaState *env, uint32_t addr, bool dtlb,
-                      uint32_t *pwi, uint32_t *pei, uint8_t *pring)
+static int xtensa_tlb_lookup(const CPUXtensaState *env,
+                             uint32_t addr, bool dtlb,
+                             uint32_t *pwi, uint32_t *pei, uint8_t *pring)
 {
     const xtensa_tlb *tlb = dtlb ?
         &env->config->dtlb : &env->config->itlb;
@@ -493,6 +440,70 @@ int xtensa_tlb_lookup(const CPUXtensaState *env, uint32_t addr, bool dtlb,
     }
     return nhits ? 0 :
         (dtlb ? LOAD_STORE_TLB_MISS_CAUSE : INST_TLB_MISS_CAUSE);
+}
+
+uint32_t HELPER(rtlb0)(CPUXtensaState *env, uint32_t v, uint32_t dtlb)
+{
+    if (xtensa_option_enabled(env->config, XTENSA_OPTION_MMU)) {
+        uint32_t wi;
+        const xtensa_tlb_entry *entry = get_tlb_entry(env, v, dtlb, &wi);
+        return (entry->vaddr & get_vpn_mask(env, dtlb, wi)) | entry->asid;
+    } else {
+        return v & REGION_PAGE_MASK;
+    }
+}
+
+uint32_t HELPER(rtlb1)(CPUXtensaState *env, uint32_t v, uint32_t dtlb)
+{
+    const xtensa_tlb_entry *entry = get_tlb_entry(env, v, dtlb, NULL);
+    return entry->paddr | entry->attr;
+}
+
+void HELPER(itlb)(CPUXtensaState *env, uint32_t v, uint32_t dtlb)
+{
+    if (xtensa_option_enabled(env->config, XTENSA_OPTION_MMU)) {
+        uint32_t wi;
+        xtensa_tlb_entry *entry = get_tlb_entry(env, v, dtlb, &wi);
+        if (entry->variable && entry->asid) {
+            tlb_flush_page(CPU(xtensa_env_get_cpu(env)), entry->vaddr);
+            entry->asid = 0;
+        }
+    }
+}
+
+uint32_t HELPER(ptlb)(CPUXtensaState *env, uint32_t v, uint32_t dtlb)
+{
+    if (xtensa_option_enabled(env->config, XTENSA_OPTION_MMU)) {
+        uint32_t wi;
+        uint32_t ei;
+        uint8_t ring;
+        int res = xtensa_tlb_lookup(env, v, dtlb, &wi, &ei, &ring);
+
+        switch (res) {
+        case 0:
+            if (ring >= xtensa_get_ring(env)) {
+                return (v & 0xfffff000) | wi | (dtlb ? 0x10 : 0x8);
+            }
+            break;
+
+        case INST_TLB_MULTI_HIT_CAUSE:
+        case LOAD_STORE_TLB_MULTI_HIT_CAUSE:
+            HELPER(exception_cause_vaddr)(env, env->pc, res, v);
+            break;
+        }
+        return 0;
+    } else {
+        return (v & REGION_PAGE_MASK) | 0x1;
+    }
+}
+
+void HELPER(wtlb)(CPUXtensaState *env, uint32_t p, uint32_t v, uint32_t dtlb)
+{
+    uint32_t vpn;
+    uint32_t wi;
+    uint32_t ei;
+    split_tlb_entry_spec(env, v, dtlb, &vpn, &wi, &ei);
+    xtensa_tlb_set_entry(env, dtlb, wi, ei, vpn, p);
 }
 
 /*!
