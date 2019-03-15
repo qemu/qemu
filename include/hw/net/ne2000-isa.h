@@ -7,8 +7,8 @@
  * See the COPYING file in the top-level directory.
  */
 
-#ifndef HW_NET_NE2K_ISA_H
-#define HW_NET_NE2K_ISA_H
+#ifndef HW_NET_NE2000_ISA_H
+#define HW_NET_NE2000_ISA_H
 
 #include "hw/hw.h"
 #include "hw/qdev.h"

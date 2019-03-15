@@ -13,8 +13,8 @@
  *
  */
 
-#ifndef PVRDMA_QP_H
-#define PVRDMA_QP_H
+#ifndef PVRDMA_QP_OPS_H
+#define PVRDMA_QP_OPS_H
 
 #include "pvrdma.h"
 

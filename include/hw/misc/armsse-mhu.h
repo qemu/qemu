@@ -20,8 +20,8 @@
  *  + sysbus IRQ 1: interrupt for CPU 1
  */
 
-#ifndef HW_MISC_SSE_MHU_H
-#define HW_MISC_SSE_MHU_H
+#ifndef HW_MISC_ARMSSE_MHU_H
+#define HW_MISC_ARMSSE_MHU_H
 
 #include "hw/sysbus.h"
 

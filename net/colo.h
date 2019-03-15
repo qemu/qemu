@@ -12,8 +12,8 @@
  * later.  See the COPYING file in the top-level directory.
  */
 
-#ifndef QEMU_COLO_PROXY_H
-#define QEMU_COLO_PROXY_H
+#ifndef NET_COLO_H
+#define NET_COLO_H
 
 #include "qemu/jhash.h"
 #include "qemu/timer.h"
@@ -103,4 +103,4 @@ void connection_hashtable_reset(GHashTable *connection_track_table);
 Packet *packet_new(const void *data, int size, int vnet_hdr_len);
 void packet_destroy(void *opaque, void *user_data);
 
-#endif /* QEMU_COLO_PROXY_H */
+#endif /* NET_COLO_H */

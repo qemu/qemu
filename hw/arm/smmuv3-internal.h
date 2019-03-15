@@ -18,8 +18,8 @@
  * with this program; if not, see <http://www.gnu.org/licenses/>.
  */
 
-#ifndef HW_ARM_SMMU_V3_INTERNAL_H
-#define HW_ARM_SMMU_V3_INTERNAL_H
+#ifndef HW_ARM_SMMUV3_INTERNAL_H
+#define HW_ARM_SMMUV3_INTERNAL_H
 
 #include "hw/arm/smmu-common.h"
 

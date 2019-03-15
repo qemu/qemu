@@ -14,8 +14,8 @@
  *
  */
 
-#ifndef LINUX_VIDEO_VGA_H
-#define LINUX_VIDEO_VGA_H
+#ifndef HW_VGA_REGS_H
+#define HW_VGA_REGS_H
 
 /* Some of the code below is taken from SVGAlib.  The original,
    unmodified copyright notice for that code is below. */
@@ -156,4 +156,4 @@
 /* VGA graphics controller bit masks */
 #define VGA_GR06_GRAPHICS_MODE  0x01
 
-#endif /* LINUX_VIDEO_VGA_H */
+#endif /* HW_VGA_REGS_H */

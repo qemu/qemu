@@ -22,8 +22,8 @@
  * SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
 
-#ifndef XTENSA_LIBISA_H
-#define XTENSA_LIBISA_H
+#ifndef HW_XTENSA_XTENSA_ISA_H
+#define HW_XTENSA_XTENSA_ISA_H
 
 #ifdef __cplusplus
 extern "C" {
@@ -833,4 +833,4 @@ int xtensa_funcUnit_num_copies(xtensa_isa isa, xtensa_funcUnit fun);
 #ifdef __cplusplus
 }
 #endif
-#endif /* XTENSA_LIBISA_H */
+#endif /* HW_XTENSA_XTENSA_ISA_H */

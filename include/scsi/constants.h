@@ -20,8 +20,8 @@
  * the scsi code for linux.
  */
 
-#ifndef BLOCK_SCSI_H
-#define BLOCK_SCSI_H
+#ifndef SCSI_CONSTANTS_H
+#define SCSI_CONSTANTS_H
 
 /*
  *      SCSI opcodes

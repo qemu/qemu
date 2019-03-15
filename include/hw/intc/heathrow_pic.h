@@ -23,8 +23,8 @@
  * THE SOFTWARE.
  */
 
-#ifndef HEATHROW_H
-#define HEATHROW_H
+#ifndef HW_INTC_HEATHROW_PIC_H
+#define HW_INTC_HEATHROW_PIC_H
 
 #define TYPE_HEATHROW "heathrow"
 #define HEATHROW(obj) OBJECT_CHECK(HeathrowState, (obj), TYPE_HEATHROW)
@@ -46,4 +46,4 @@ typedef struct HeathrowState {
 
 #define HEATHROW_NUM_IRQS 64
 
-#endif /* HEATHROW_H */
+#endif /* HW_INTC_HEATHROW_PIC_H */

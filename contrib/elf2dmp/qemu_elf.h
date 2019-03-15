@@ -5,8 +5,8 @@
  *
  */
 
-#ifndef ELF2DMP_ELF_H
-#define ELF2DMP_ELF_H
+#ifndef EMPF2DMP_QEMU_ELF_H
+#define EMPF2DMP_QEMU_ELF_H
 
 #include "elf.h"
 
@@ -47,4 +47,4 @@ void QEMU_Elf_exit(QEMU_Elf *qe);
 Elf64_Phdr *elf64_getphdr(void *map);
 Elf64_Half elf_getphdrnum(void *map);
 
-#endif /* ELF2DMP_ELF_H */
+#endif /* ELF2DMP_QEMU_ELF_H */
