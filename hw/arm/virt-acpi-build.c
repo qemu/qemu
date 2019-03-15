@@ -405,7 +405,7 @@ build_iort(GArray *table_data, BIOSLinker *linker, VirtMachineState *vms)
     its->identifiers[0] = 0; /* MADT translation_id */
 
     if (vms->iommu == VIRT_IOMMU_SMMUV3) {
-        int irq =  vms->irqmap[VIRT_SMMU];
+        int irq =  vms->irqmap[VIRT_SMMU] + ARM_SPI_BASE;
 
         /* SMMUv3 node */
         smmu_offset = iort_node_offset + node_size;
