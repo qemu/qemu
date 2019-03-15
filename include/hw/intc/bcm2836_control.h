@@ -5,6 +5,9 @@
  * Rasperry Pi 2 emulation and refactoring Copyright (c) 2015, Microsoft
  * Written by Andrew Baumann
  *
+ * ARM Local Timer IRQ Copyright (c) 2019. Zoltán Baldaszti
+ * Added basic IRQ_TIMER interrupt support
+ *
  * This code is licensed under the GNU GPLv2 and later.
  */
 
@@ -12,6 +15,7 @@
 #define BCM2836_CONTROL_H
 
 #include "hw/sysbus.h"
+#include "qemu/timer.h"
 
 /* 4 mailboxes per core, for 16 total */
 #define BCM2836_NCORES 4
@@ -38,6 +42,11 @@ typedef struct BCM2836ControlState {
     /* interrupt status regs (derived from input pins; not visible to user) */
     bool gpu_irq, gpu_fiq;
     uint8_t timerirqs[BCM2836_NCORES];
+
+    /* local timer */
+    QEMUTimer timer;
+    uint32_t local_timer_control;
+    uint8_t route_localtimer;
 
     /* interrupt source registers, post-routing (also input-derived; visible) */
     uint32_t irqsrc[BCM2836_NCORES];

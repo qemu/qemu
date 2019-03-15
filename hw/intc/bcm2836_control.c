@@ -7,7 +7,9 @@
  * This code is licensed under the GNU GPLv2 and later.
  *
  * At present, only implements interrupt routing, and mailboxes (i.e.,
- * not local timer, PMU interrupt, or AXI counters).
+ * not PMU interrupt, or AXI counters).
+ *
+ * ARM Local Timer IRQ Copyright (c) 2019. Zoltán Baldaszti
  *
  * Ref:
  * https://www.raspberrypi.org/documentation/hardware/raspberrypi/bcm2836/QA7_rev3.4.pdf
@@ -18,6 +20,9 @@
 #include "qemu/log.h"
 
 #define REG_GPU_ROUTE           0x0c
+#define REG_LOCALTIMERROUTING   0x24
+#define REG_LOCALTIMERCONTROL   0x34
+#define REG_LOCALTIMERACK       0x38
 #define REG_TIMERCONTROL        0x40
 #define REG_MBOXCONTROL         0x50
 #define REG_IRQSRC              0x60
@@ -42,6 +47,13 @@
 #define IRQ_AXI         10
 #define IRQ_TIMER       11
 #define IRQ_MAX         IRQ_TIMER
+
+#define LOCALTIMER_FREQ      38400000
+#define LOCALTIMER_INTFLAG   (1 << 31)
+#define LOCALTIMER_RELOAD    (1 << 30)
+#define LOCALTIMER_INTENABLE (1 << 29)
+#define LOCALTIMER_ENABLE    (1 << 28)
+#define LOCALTIMER_VALUE(x)  ((x) & 0xfffffff)
 
 static void deliver_local(BCM2836ControlState *s, uint8_t core, uint8_t irq,
                           uint32_t controlreg, uint8_t controlidx)
@@ -76,6 +88,20 @@ static void bcm2836_control_update(BCM2836ControlState *s)
     if (s->gpu_fiq) {
         assert(s->route_gpu_fiq < BCM2836_NCORES);
         s->fiqsrc[s->route_gpu_fiq] |= (uint32_t)1 << IRQ_GPU;
+    }
+
+    /*
+     * handle the control module 'local timer' interrupt for one of the
+     * cores' IRQ/FIQ;  this is distinct from the per-CPU timer
+     * interrupts handled below.
+     */
+    if ((s->local_timer_control & LOCALTIMER_INTENABLE) &&
+        (s->local_timer_control & LOCALTIMER_INTFLAG)) {
+        if (s->route_localtimer & 4) {
+            s->fiqsrc[(s->route_localtimer & 3)] |= (uint32_t)1 << IRQ_TIMER;
+        } else {
+            s->irqsrc[(s->route_localtimer & 3)] |= (uint32_t)1 << IRQ_TIMER;
+        }
     }
 
     for (i = 0; i < BCM2836_NCORES; i++) {
@@ -162,6 +188,54 @@ static void bcm2836_control_set_gpu_fiq(void *opaque, int irq, int level)
     bcm2836_control_update(s);
 }
 
+static void bcm2836_control_local_timer_set_next(void *opaque)
+{
+    BCM2836ControlState *s = opaque;
+    uint64_t next_event;
+
+    assert(LOCALTIMER_VALUE(s->local_timer_control) > 0);
+
+    next_event = qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL) +
+        muldiv64(LOCALTIMER_VALUE(s->local_timer_control),
+            NANOSECONDS_PER_SECOND, LOCALTIMER_FREQ);
+    timer_mod(&s->timer, next_event);
+}
+
+static void bcm2836_control_local_timer_tick(void *opaque)
+{
+    BCM2836ControlState *s = opaque;
+
+    bcm2836_control_local_timer_set_next(s);
+
+    s->local_timer_control |= LOCALTIMER_INTFLAG;
+    bcm2836_control_update(s);
+}
+
+static void bcm2836_control_local_timer_control(void *opaque, uint32_t val)
+{
+    BCM2836ControlState *s = opaque;
+
+    s->local_timer_control = val;
+    if (val & LOCALTIMER_ENABLE) {
+        bcm2836_control_local_timer_set_next(s);
+    } else {
+        timer_del(&s->timer);
+    }
+}
+
+static void bcm2836_control_local_timer_ack(void *opaque, uint32_t val)
+{
+    BCM2836ControlState *s = opaque;
+
+    if (val & LOCALTIMER_INTFLAG) {
+        s->local_timer_control &= ~LOCALTIMER_INTFLAG;
+    }
+    if ((val & LOCALTIMER_RELOAD) &&
+        (s->local_timer_control & LOCALTIMER_ENABLE)) {
+            bcm2836_control_local_timer_set_next(s);
+    }
+}
+
 static uint64_t bcm2836_control_read(void *opaque, hwaddr offset, unsigned size)
 {
     BCM2836ControlState *s = opaque;
@@ -170,6 +244,12 @@ static uint64_t bcm2836_control_read(void *opaque, hwaddr offset, unsigned size)
         assert(s->route_gpu_fiq < BCM2836_NCORES
                && s->route_gpu_irq < BCM2836_NCORES);
         return ((uint32_t)s->route_gpu_fiq << 2) | s->route_gpu_irq;
+    } else if (offset == REG_LOCALTIMERROUTING) {
+        return s->route_localtimer;
+    } else if (offset == REG_LOCALTIMERCONTROL) {
+        return s->local_timer_control;
+    } else if (offset == REG_LOCALTIMERACK) {
+        return 0;
     } else if (offset >= REG_TIMERCONTROL && offset < REG_MBOXCONTROL) {
         return s->timercontrol[(offset - REG_TIMERCONTROL) >> 2];
     } else if (offset >= REG_MBOXCONTROL && offset < REG_IRQSRC) {
@@ -195,6 +275,12 @@ static void bcm2836_control_write(void *opaque, hwaddr offset,
     if (offset == REG_GPU_ROUTE) {
         s->route_gpu_irq = val & 0x3;
         s->route_gpu_fiq = (val >> 2) & 0x3;
+    } else if (offset == REG_LOCALTIMERROUTING) {
+        s->route_localtimer = val & 7;
+    } else if (offset == REG_LOCALTIMERCONTROL) {
+        bcm2836_control_local_timer_control(s, val);
+    } else if (offset == REG_LOCALTIMERACK) {
+        bcm2836_control_local_timer_ack(s, val);
     } else if (offset >= REG_TIMERCONTROL && offset < REG_MBOXCONTROL) {
         s->timercontrol[(offset - REG_TIMERCONTROL) >> 2] = val & 0xff;
     } else if (offset >= REG_MBOXCONTROL && offset < REG_IRQSRC) {
@@ -226,6 +312,10 @@ static void bcm2836_control_reset(DeviceState *d)
     int i;
 
     s->route_gpu_irq = s->route_gpu_fiq = 0;
+
+    timer_del(&s->timer);
+    s->route_localtimer = 0;
+    s->local_timer_control = 0;
 
     for (i = 0; i < BCM2836_NCORES; i++) {
         s->timercontrol[i] = 0;
@@ -263,11 +353,15 @@ static void bcm2836_control_init(Object *obj)
     /* outputs to CPU cores */
     qdev_init_gpio_out_named(dev, s->irq, "irq", BCM2836_NCORES);
     qdev_init_gpio_out_named(dev, s->fiq, "fiq", BCM2836_NCORES);
+
+    /* create a qemu virtual timer */
+    timer_init_ns(&s->timer, QEMU_CLOCK_VIRTUAL,
+                  bcm2836_control_local_timer_tick, s);
 }
 
 static const VMStateDescription vmstate_bcm2836_control = {
     .name = TYPE_BCM2836_CONTROL,
-    .version_id = 1,
+    .version_id = 2,
     .minimum_version_id = 1,
     .fields = (VMStateField[]) {
         VMSTATE_UINT32_ARRAY(mailboxes, BCM2836ControlState,
@@ -277,6 +371,9 @@ static const VMStateDescription vmstate_bcm2836_control = {
         VMSTATE_UINT32_ARRAY(timercontrol, BCM2836ControlState, BCM2836_NCORES),
         VMSTATE_UINT32_ARRAY(mailboxcontrol, BCM2836ControlState,
                              BCM2836_NCORES),
+        VMSTATE_TIMER_V(timer, BCM2836ControlState, 2),
+        VMSTATE_UINT32_V(local_timer_control, BCM2836ControlState, 2),
+        VMSTATE_UINT8_V(route_localtimer, BCM2836ControlState, 2),
         VMSTATE_END_OF_LIST()
     }
 };
