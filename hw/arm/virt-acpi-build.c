@@ -560,8 +560,8 @@ build_mcfg(GArray *table_data, BIOSLinker *linker, VirtMachineState *vms)
     /* Only a single allocation so no need to play with segments */
     mcfg->allocation[0].pci_segment = cpu_to_le16(0);
     mcfg->allocation[0].start_bus_number = 0;
-    mcfg->allocation[0].end_bus_number = (memmap[ecam_id].size
-                                          / PCIE_MMCFG_SIZE_MIN) - 1;
+    mcfg->allocation[0].end_bus_number =
+        PCIE_MMCFG_BUS(memmap[ecam_id].size - 1);
 
     build_header(linker, table_data, (void *)(table_data->data + mcfg_start),
                  "MCFG", table_data->len - mcfg_start, 1, NULL, NULL);
