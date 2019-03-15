@@ -4,8 +4,8 @@
  * This is a copy of ../aarch64/target_structs.h atm.
  *
  */
-#ifndef TARGET_STRUCTS_H
-#define TARGET_STRUCTS_H
+#ifndef RISCV_TARGET_STRUCTS_H
+#define RISCV_TARGET_STRUCTS_H
 
 struct target_ipc_perm {
     abi_int __key;                      /* Key.  */
