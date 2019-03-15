@@ -19,8 +19,8 @@
  * this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#ifndef _RISCV_PMP_H_
-#define _RISCV_PMP_H_
+#ifndef RISCV_PMP_H
+#define RISCV_PMP_H
 
 typedef enum {
     PMP_READ  = 1 << 0,

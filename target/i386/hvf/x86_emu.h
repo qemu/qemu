@@ -15,8 +15,9 @@
  * You should have received a copy of the GNU Lesser General Public
  * License along with this program; if not, see <http://www.gnu.org/licenses/>.
  */
-#ifndef __X86_EMU_H__
-#define __X86_EMU_H__
+
+#ifndef X86_EMU_H
+#define X86_EMU_H
 
 #include "x86.h"
 #include "x86_decode.h"

@@ -11,8 +11,8 @@
  * GNU GPL, version 2 or (at your option) any later version.
  */
 
-#ifndef HW_TIMER_PL031
-#define HW_TIMER_PL031
+#ifndef HW_TIMER_PL031_H
+#define HW_TIMER_PL031_H
 
 #include "hw/sysbus.h"
 

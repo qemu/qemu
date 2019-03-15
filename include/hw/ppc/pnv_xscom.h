@@ -16,8 +16,9 @@
  * You should have received a copy of the GNU Lesser General Public
  * License along with this library; if not, see <http://www.gnu.org/licenses/>.
  */
-#ifndef _PPC_PNV_XSCOM_H
-#define _PPC_PNV_XSCOM_H
+
+#ifndef PPC_PNV_XSCOM_H
+#define PPC_PNV_XSCOM_H
 
 #include "qom/object.h"
 
@@ -98,4 +99,4 @@ extern void pnv_xscom_region_init(MemoryRegion *mr,
                                   const char *name,
                                   uint64_t size);
 
-#endif /* _PPC_PNV_XSCOM_H */
+#endif /* PPC_PNV_XSCOM_H */

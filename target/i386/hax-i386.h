@@ -10,8 +10,8 @@
  *
  */
 
-#ifndef _HAX_I386_H
-#define _HAX_I386_H
+#ifndef HAX_I386_H
+#define HAX_I386_H
 
 #include "cpu.h"
 #include "sysemu/hax.h"

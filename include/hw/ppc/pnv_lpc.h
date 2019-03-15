@@ -16,8 +16,9 @@
  * You should have received a copy of the GNU Lesser General Public
  * License along with this library; if not, see <http://www.gnu.org/licenses/>.
  */
-#ifndef _PPC_PNV_LPC_H
-#define _PPC_PNV_LPC_H
+
+#ifndef PPC_PNV_LPC_H
+#define PPC_PNV_LPC_H
 
 #include "hw/ppc/pnv_psi.h"
 
@@ -98,4 +99,4 @@ struct PnvChip;
 ISABus *pnv_lpc_isa_create(PnvLpcController *lpc, bool use_cpld, Error **errp);
 int pnv_dt_lpc(struct PnvChip *chip, void *fdt, int root_offset);
 
-#endif /* _PPC_PNV_LPC_H */
+#endif /* PPC_PNV_LPC_H */

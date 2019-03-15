@@ -16,8 +16,8 @@
  * License along with this library; if not, see <http://www.gnu.org/licenses/>
  */
 
-#ifndef QGRAPH_QSDHCI
-#define QGRAPH_QSDHCI
+#ifndef QGRAPH_QSDHCI_H
+#define QGRAPH_QSDHCI_H
 
 #include "libqos/qgraph.h"
 #include "pci.h"

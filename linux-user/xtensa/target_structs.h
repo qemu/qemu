@@ -1,5 +1,5 @@
-#ifndef XTENSA_TARGET_STRUCTS_T
-#define XTENSA_TARGET_STRUCTS_T
+#ifndef XTENSA_TARGET_STRUCTS_H
+#define XTENSA_TARGET_STRUCTS_H
 
 struct target_ipc_perm {
     abi_int __key;                      /* Key.  */

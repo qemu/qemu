@@ -10,8 +10,8 @@
  * Copyright (C) 2001 - 2005 Tensilica Inc.
  */
 
-#ifndef _XTENSA_TERMBITS_H
-#define _XTENSA_TERMBITS_H
+#ifndef XTENSA_TERMBITS_H
+#define XTENSA_TERMBITS_H
 
 #include <linux/posix_types.h>
 
@@ -325,4 +325,4 @@ struct target_ktermios {
 
 #define TARGET_TIOCMIWAIT  _IO('T', 92) /* wait for a change on serial input line(s) */
 #define TARGET_TIOCGICOUNT 0x545D  /* read serial port inline interrupt counts */
-#endif  /* _XTENSA_TERMBITS_H */
+#endif /* XTENSA_TERMBITS_H */

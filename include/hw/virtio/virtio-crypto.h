@@ -11,8 +11,8 @@
  * top-level directory.
  */
 
-#ifndef _QEMU_VIRTIO_CRYPTO_H
-#define _QEMU_VIRTIO_CRYPTO_H
+#ifndef QEMU_VIRTIO_CRYPTO_H
+#define QEMU_VIRTIO_CRYPTO_H
 
 #include "standard-headers/linux/virtio_crypto.h"
 #include "hw/virtio/virtio.h"
@@ -99,4 +99,4 @@ typedef struct VirtIOCrypto {
     uint8_t vhost_started;
 } VirtIOCrypto;
 
-#endif /* _QEMU_VIRTIO_CRYPTO_H */
+#endif /* QEMU_VIRTIO_CRYPTO_H */
