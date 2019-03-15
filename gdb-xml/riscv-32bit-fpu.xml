@@ -44,7 +44,7 @@
   <reg name="ft10" bitsize="32" type="ieee_single"/>
   <reg name="ft11" bitsize="32" type="ieee_single"/>
 
-  <reg name="fflags" bitsize="32" type="int"/>
-  <reg name="frm" bitsize="32" type="int"/>
-  <reg name="fcsr" bitsize="32" type="int"/>
+  <reg name="fflags" bitsize="32" type="int" regnum="66"/>
+  <reg name="frm" bitsize="32" type="int" regnum="67"/>
+  <reg name="fcsr" bitsize="32" type="int" regnum="68"/>
 </feature>
