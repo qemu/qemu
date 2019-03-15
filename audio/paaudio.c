@@ -577,7 +577,8 @@ static int qpa_init_out(HWVoiceOut *hw, struct audsettings *as,
 
     audio_pcm_init_info (&hw->info, &obt_as);
     hw->samples = pa->samples = audio_buffer_samples(
-        qapi_AudiodevPaPerDirectionOptions_base(ppdo), &obt_as, 46440);
+        qapi_AudiodevPaPerDirectionOptions_base(ppdo),
+        &obt_as, ppdo->buffer_length);
     pa->pcm_buf = audio_calloc(__func__, hw->samples, 1 << hw->info.shift);
     pa->rpos = hw->rpos;
     if (!pa->pcm_buf) {
@@ -637,7 +638,8 @@ static int qpa_init_in(HWVoiceIn *hw, struct audsettings *as, void *drv_opaque)
 
     audio_pcm_init_info (&hw->info, &obt_as);
     hw->samples = pa->samples = audio_buffer_samples(
-        qapi_AudiodevPaPerDirectionOptions_base(ppdo), &obt_as, 46440);
+        qapi_AudiodevPaPerDirectionOptions_base(ppdo),
+        &obt_as, ppdo->buffer_length);
     pa->pcm_buf = audio_calloc(__func__, hw->samples, 1 << hw->info.shift);
     pa->wpos = hw->wpos;
     if (!pa->pcm_buf) {
@@ -809,7 +811,16 @@ static int qpa_ctl_in (HWVoiceIn *hw, int cmd, ...)
     return 0;
 }
 
-/* common */
+static int qpa_validate_per_direction_opts(Audiodev *dev,
+                                           AudiodevPaPerDirectionOptions *pdo)
+{
+    if (!pdo->has_buffer_length) {
+        pdo->has_buffer_length = true;
+        pdo->buffer_length = 46440;
+    }
+    return 1;
+}
+
 static void *qpa_audio_init(Audiodev *dev)
 {
     paaudio *g;
@@ -835,6 +846,13 @@ static void *qpa_audio_init(Audiodev *dev)
 
     g = g_malloc(sizeof(paaudio));
     server = popts->has_server ? popts->server : NULL;
+
+    if (!qpa_validate_per_direction_opts(dev, popts->in)) {
+        goto fail;
+    }
+    if (!qpa_validate_per_direction_opts(dev, popts->out)) {
+        goto fail;
+    }
 
     g->dev = dev;
     g->mainloop = NULL;
