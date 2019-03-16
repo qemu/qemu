@@ -383,7 +383,7 @@ static void parse_hart_config(SiFivePLICState *plic)
     p = plic->hart_config;
     while ((c = *p++)) {
         if (c == ',') {
-            addrid += __builtin_popcount(modes);
+            addrid += ctpop8(modes);
             modes = 0;
             hartid++;
         } else {
@@ -397,7 +397,7 @@ static void parse_hart_config(SiFivePLICState *plic)
         }
     }
     if (modes) {
-        addrid += __builtin_popcount(modes);
+        addrid += ctpop8(modes);
     }
     hartid++;
 
