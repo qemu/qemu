@@ -123,6 +123,10 @@ struct CPURISCVState {
 
     uint32_t features;
 
+#ifdef CONFIG_USER_ONLY
+    uint32_t elf_flags;
+#endif
+
 #ifndef CONFIG_USER_ONLY
     target_ulong priv;
     target_ulong resetvec;
