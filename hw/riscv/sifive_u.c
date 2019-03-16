@@ -398,7 +398,10 @@ static void riscv_sifive_u_machine_init(MachineClass *mc)
 {
     mc->desc = "RISC-V Board compatible with SiFive U SDK";
     mc->init = riscv_sifive_u_init;
-    mc->max_cpus = 1;
+    /* The real hardware has 5 CPUs, but one of them is a small embedded power
+     * management CPU.
+     */
+    mc->max_cpus = 4;
 }
 
 DEFINE_MACHINE("sifive_u", riscv_sifive_u_machine_init)
