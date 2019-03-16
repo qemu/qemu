@@ -550,15 +550,9 @@ static int rmw_mip(CPURISCVState *env, int csrno, target_ulong *ret_value,
                    target_ulong new_value, target_ulong write_mask)
 {
     RISCVCPU *cpu = riscv_env_get_cpu(env);
-    target_ulong mask = write_mask & delegable_ints;
+    /* Allow software control of delegable interrupts not claimed by hardware */
+    target_ulong mask = write_mask & delegable_ints & ~env->miclaim;
     uint32_t old_mip;
-
-    /* We can't allow the supervisor to control SEIP as this would allow the
-     * supervisor to clear a pending external interrupt which will result in
-     * lost a interrupt in the case a PLIC is attached. The SEIP bit must be
-     * hardware controlled when a PLIC is attached. This should be an option
-     * for CPUs with software-delegated Supervisor External Interrupts. */
-    mask &= ~MIP_SEIP;
 
     if (mask) {
         qemu_mutex_lock_iothread();
