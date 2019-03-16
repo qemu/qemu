@@ -205,6 +205,20 @@ Show PIC state.
 ETEXI
 
     {
+        .name       = "rdma",
+        .args_type  = "",
+        .params     = "",
+        .help       = "show RDMA state",
+        .cmd        = hmp_info_rdma,
+    },
+
+STEXI
+@item info rdma
+@findex info rdma
+Show RDMA state.
+ETEXI
+
+    {
         .name       = "pci",
         .args_type  = "",
         .params     = "",

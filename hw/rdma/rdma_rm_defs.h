@@ -34,7 +34,9 @@
 #define MAX_QP_INIT_RD_ATOM   16
 #define MAX_AH                64
 
-#define MAX_RM_TBL_NAME 16
+#define MAX_RM_TBL_NAME             16
+#define MAX_CONSEQ_EMPTY_POLL_CQ    4096 /* considered as error above this */
+
 typedef struct RdmaRmResTbl {
     char name[MAX_RM_TBL_NAME];
     QemuMutex lock;
@@ -42,6 +44,7 @@ typedef struct RdmaRmResTbl {
     size_t tbl_sz;
     size_t res_sz;
     void *tbl;
+    uint32_t used; /* number of used entries in the table */
 } RdmaRmResTbl;
 
 typedef struct RdmaRmPD {
@@ -96,7 +99,28 @@ typedef struct RdmaRmPort {
     enum ibv_port_state state;
 } RdmaRmPort;
 
-typedef struct RdmaDeviceResources {
+typedef struct RdmaRmStats {
+    uint64_t tx;
+    uint64_t tx_len;
+    uint64_t tx_err;
+    uint64_t rx_bufs;
+    uint64_t rx_bufs_len;
+    uint64_t rx_bufs_err;
+    uint64_t completions;
+    uint64_t mad_tx;
+    uint64_t mad_tx_err;
+    uint64_t mad_rx;
+    uint64_t mad_rx_err;
+    uint64_t mad_rx_bufs;
+    uint64_t mad_rx_bufs_err;
+    uint64_t poll_cq_from_bk;
+    uint64_t poll_cq_from_guest;
+    uint64_t poll_cq_from_guest_empty;
+    uint64_t poll_cq_ppoll_to;
+    uint32_t missing_cqe;
+} RdmaRmStats;
+
+struct RdmaDeviceResources {
     RdmaRmPort port;
     RdmaRmResTbl pd_tbl;
     RdmaRmResTbl mr_tbl;
@@ -105,6 +129,8 @@ typedef struct RdmaDeviceResources {
     RdmaRmResTbl cq_tbl;
     RdmaRmResTbl cqe_ctx_tbl;
     GHashTable *qp_hash; /* Keeps mapping between real and emulated */
-} RdmaDeviceResources;
+    QemuMutex lock;
+    RdmaRmStats stats;
+};
 
 #endif

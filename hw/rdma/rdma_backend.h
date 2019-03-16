@@ -58,8 +58,8 @@ static inline uint32_t rdma_backend_mr_rkey(const RdmaBackendMR *mr)
 int rdma_backend_init(RdmaBackendDev *backend_dev, PCIDevice *pdev,
                       RdmaDeviceResources *rdma_dev_res,
                       const char *backend_device_name, uint8_t port_num,
-                      struct ibv_device_attr *dev_attr, CharBackend *mad_chr_be,
-                      Error **errp);
+                      struct ibv_device_attr *dev_attr,
+                      CharBackend *mad_chr_be);
 void rdma_backend_fini(RdmaBackendDev *backend_dev);
 int rdma_backend_add_gid(RdmaBackendDev *backend_dev, const char *ifname,
                          union ibv_gid *gid);
@@ -102,7 +102,7 @@ int rdma_backend_qp_state_rts(RdmaBackendQP *qp, uint8_t qp_type,
                               uint32_t sq_psn, uint32_t qkey, bool use_qkey);
 int rdma_backend_query_qp(RdmaBackendQP *qp, struct ibv_qp_attr *attr,
                           int attr_mask, struct ibv_qp_init_attr *init_attr);
-void rdma_backend_destroy_qp(RdmaBackendQP *qp);
+void rdma_backend_destroy_qp(RdmaBackendQP *qp, RdmaDeviceResources *dev_res);
 
 void rdma_backend_post_send(RdmaBackendDev *backend_dev,
                             RdmaBackendQP *qp, uint8_t qp_type,
@@ -111,7 +111,6 @@ void rdma_backend_post_send(RdmaBackendDev *backend_dev,
                             union ibv_gid *dgid, uint32_t dqpn, uint32_t dqkey,
                             void *ctx);
 void rdma_backend_post_recv(RdmaBackendDev *backend_dev,
-                            RdmaDeviceResources *rdma_dev_res,
                             RdmaBackendQP *qp, uint8_t qp_type,
                             struct ibv_sge *sge, uint32_t num_sge, void *ctx);
 

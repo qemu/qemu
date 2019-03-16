@@ -17,51 +17,40 @@
 #ifndef RDMA_UTILS_H
 #define RDMA_UTILS_H
 
+#include "qemu/error-report.h"
 #include "hw/pci/pci.h"
 #include "sysemu/dma.h"
 #include "stdio.h"
 
-#define pr_info(fmt, ...) \
-    fprintf(stdout, "%s: %-20s (%3d): " fmt, "rdma",  __func__, __LINE__,\
-           ## __VA_ARGS__)
+#define rdma_error_report(fmt, ...) \
+    error_report("%s: " fmt, "rdma", ## __VA_ARGS__)
+#define rdma_warn_report(fmt, ...) \
+    warn_report("%s: " fmt, "rdma", ## __VA_ARGS__)
+#define rdma_info_report(fmt, ...) \
+    info_report("%s: " fmt, "rdma", ## __VA_ARGS__)
 
-#define pr_err(fmt, ...) \
-    fprintf(stderr, "%s: Error at %-20s (%3d): " fmt, "rdma", __func__, \
-        __LINE__, ## __VA_ARGS__)
+typedef struct RdmaProtectedQList {
+    QemuMutex lock;
+    QList *list;
+} RdmaProtectedQList;
 
-#ifdef PVRDMA_DEBUG
-extern unsigned long pr_dbg_cnt;
-
-#define init_pr_dbg(void) \
-{ \
-    pr_dbg_cnt = 0; \
-}
-
-#define pr_dbg(fmt, ...) \
-    fprintf(stdout, "%lx %ld: %-20s (%3d): " fmt, pthread_self(), pr_dbg_cnt++, \
-            __func__, __LINE__, ## __VA_ARGS__)
-
-#define pr_dbg_buf(title, buf, len) \
-{ \
-    int i; \
-    char *b = g_malloc0(len * 3 + 1); \
-    char b1[4]; \
-    for (i = 0; i < len; i++) { \
-        sprintf(b1, "%.2X ", buf[i] & 0x000000FF); \
-        strcat(b, b1); \
-    } \
-    pr_dbg("%s (%d): %s\n", title, len, b); \
-    g_free(b); \
-}
-
-#else
-#define init_pr_dbg(void)
-#define pr_dbg(fmt, ...)
-#define pr_dbg_buf(title, buf, len)
-#endif
+typedef struct RdmaProtectedGSList {
+    QemuMutex lock;
+    GSList *list;
+} RdmaProtectedGSList;
 
 void *rdma_pci_dma_map(PCIDevice *dev, dma_addr_t addr, dma_addr_t plen);
 void rdma_pci_dma_unmap(PCIDevice *dev, void *buffer, dma_addr_t len);
+void rdma_protected_qlist_init(RdmaProtectedQList *list);
+void rdma_protected_qlist_destroy(RdmaProtectedQList *list);
+void rdma_protected_qlist_append_int64(RdmaProtectedQList *list, int64_t value);
+int64_t rdma_protected_qlist_pop_int64(RdmaProtectedQList *list);
+void rdma_protected_gslist_init(RdmaProtectedGSList *list);
+void rdma_protected_gslist_destroy(RdmaProtectedGSList *list);
+void rdma_protected_gslist_append_int32(RdmaProtectedGSList *list,
+                                        int32_t value);
+void rdma_protected_gslist_remove_int32(RdmaProtectedGSList *list,
+                                        int32_t value);
 
 static inline void addrconf_addr_eui48(uint8_t *eui, const char *addr)
 {
