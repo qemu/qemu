@@ -30,6 +30,7 @@ config PIIX4
     # For historical reasons, SuperIO devices are created in the board
     # for PIIX4.
     select ISA_BUS
+    select USB_UHCI
 
 config VT82C686
     bool
