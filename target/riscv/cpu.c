@@ -80,12 +80,6 @@ const char * const riscv_intr_names[] = {
     "reserved"
 };
 
-typedef struct RISCVCPUInfo {
-    const int bit_widths;
-    const char *name;
-    void (*initfn)(Object *obj);
-} RISCVCPUInfo;
-
 static void set_misa(CPURISCVState *env, target_ulong misa)
 {
     env->misa_mask = env->misa = misa;
