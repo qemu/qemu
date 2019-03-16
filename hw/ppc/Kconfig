@@ -98,6 +98,7 @@ config MAC_NEWWORLD
 config E500
     bool
     imply AT24C
+    imply VIRTIO_PCI
     select ETSEC
     select OPENPIC
     select PLATFORM_BUS
