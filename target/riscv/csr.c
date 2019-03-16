@@ -435,10 +435,10 @@ static int read_mtvec(CPURISCVState *env, int csrno, target_ulong *val)
 static int write_mtvec(CPURISCVState *env, int csrno, target_ulong val)
 {
     /* bits [1:0] encode mode; 0 = direct, 1 = vectored, 2 >= reserved */
-    if ((val & 3) == 0) {
-        env->mtvec = val >> 2 << 2;
+    if ((val & 3) < 2) {
+        env->mtvec = val;
     } else {
-        qemu_log_mask(LOG_UNIMP, "CSR_MTVEC: vectored traps not supported");
+        qemu_log_mask(LOG_UNIMP, "CSR_MTVEC: reserved mode not supported\n");
     }
     return 0;
 }
@@ -607,10 +607,10 @@ static int read_stvec(CPURISCVState *env, int csrno, target_ulong *val)
 static int write_stvec(CPURISCVState *env, int csrno, target_ulong val)
 {
     /* bits [1:0] encode mode; 0 = direct, 1 = vectored, 2 >= reserved */
-    if ((val & 3) == 0) {
-        env->stvec = val >> 2 << 2;
+    if ((val & 3) < 2) {
+        env->stvec = val;
     } else {
-        qemu_log_mask(LOG_UNIMP, "CSR_STVEC: vectored traps not supported");
+        qemu_log_mask(LOG_UNIMP, "CSR_STVEC: reserved mode not supported\n");
     }
     return 0;
 }

@@ -454,118 +454,81 @@ void riscv_cpu_do_interrupt(CPUState *cs)
     RISCVCPU *cpu = RISCV_CPU(cs);
     CPURISCVState *env = &cpu->env;
 
+    /* cs->exception is 32-bits wide unlike mcause which is XLEN-bits wide
+     * so we mask off the MSB and separate into trap type and cause.
+     */
+    bool async = !!(cs->exception_index & RISCV_EXCP_INT_FLAG);
+    target_ulong cause = cs->exception_index & RISCV_EXCP_INT_MASK;
+    target_ulong deleg = async ? env->mideleg : env->medeleg;
+    target_ulong tval = 0;
+
+    static const int ecall_cause_map[] = {
+        [PRV_U] = RISCV_EXCP_U_ECALL,
+        [PRV_S] = RISCV_EXCP_S_ECALL,
+        [PRV_H] = RISCV_EXCP_H_ECALL,
+        [PRV_M] = RISCV_EXCP_M_ECALL
+    };
+
+    if (!async) {
+        /* set tval to badaddr for traps with address information */
+        switch (cause) {
+        case RISCV_EXCP_INST_ADDR_MIS:
+        case RISCV_EXCP_INST_ACCESS_FAULT:
+        case RISCV_EXCP_LOAD_ADDR_MIS:
+        case RISCV_EXCP_STORE_AMO_ADDR_MIS:
+        case RISCV_EXCP_LOAD_ACCESS_FAULT:
+        case RISCV_EXCP_STORE_AMO_ACCESS_FAULT:
+        case RISCV_EXCP_INST_PAGE_FAULT:
+        case RISCV_EXCP_LOAD_PAGE_FAULT:
+        case RISCV_EXCP_STORE_PAGE_FAULT:
+            tval = env->badaddr;
+            break;
+        default:
+            break;
+        }
+        /* ecall is dispatched as one cause so translate based on mode */
+        if (cause == RISCV_EXCP_U_ECALL) {
+            assert(env->priv <= 3);
+            cause = ecall_cause_map[env->priv];
+        }
+    }
+
     if (RISCV_DEBUG_INTERRUPT) {
-        int log_cause = cs->exception_index & RISCV_EXCP_INT_MASK;
-        if (cs->exception_index & RISCV_EXCP_INT_FLAG) {
-            qemu_log_mask(LOG_TRACE, "core "
-                TARGET_FMT_ld ": trap %s, epc 0x" TARGET_FMT_lx "\n",
-                env->mhartid, riscv_intr_names[log_cause], env->pc);
-        } else {
-            qemu_log_mask(LOG_TRACE, "core "
-                TARGET_FMT_ld ": intr %s, epc 0x" TARGET_FMT_lx "\n",
-                env->mhartid, riscv_excp_names[log_cause], env->pc);
-        }
+        qemu_log_mask(LOG_TRACE, "core " TARGET_FMT_ld ": %s %s, "
+            "epc 0x" TARGET_FMT_lx ": tval 0x" TARGET_FMT_lx "\n",
+            env->mhartid, async ? "intr" : "trap",
+            (async ? riscv_intr_names : riscv_excp_names)[cause],
+            env->pc, tval);
     }
 
-    target_ulong fixed_cause = 0;
-    if (cs->exception_index & (RISCV_EXCP_INT_FLAG)) {
-        /* hacky for now. the MSB (bit 63) indicates interrupt but cs->exception
-           index is only 32 bits wide */
-        fixed_cause = cs->exception_index & RISCV_EXCP_INT_MASK;
-        fixed_cause |= ((target_ulong)1) << (TARGET_LONG_BITS - 1);
-    } else {
-        /* fixup User ECALL -> correct priv ECALL */
-        if (cs->exception_index == RISCV_EXCP_U_ECALL) {
-            switch (env->priv) {
-            case PRV_U:
-                fixed_cause = RISCV_EXCP_U_ECALL;
-                break;
-            case PRV_S:
-                fixed_cause = RISCV_EXCP_S_ECALL;
-                break;
-            case PRV_H:
-                fixed_cause = RISCV_EXCP_H_ECALL;
-                break;
-            case PRV_M:
-                fixed_cause = RISCV_EXCP_M_ECALL;
-                break;
-            }
-        } else {
-            fixed_cause = cs->exception_index;
-        }
-    }
-
-    target_ulong backup_epc = env->pc;
-
-    target_ulong bit = fixed_cause;
-    target_ulong deleg = env->medeleg;
-
-    int hasbadaddr =
-        (fixed_cause == RISCV_EXCP_INST_ADDR_MIS) ||
-        (fixed_cause == RISCV_EXCP_INST_ACCESS_FAULT) ||
-        (fixed_cause == RISCV_EXCP_LOAD_ADDR_MIS) ||
-        (fixed_cause == RISCV_EXCP_STORE_AMO_ADDR_MIS) ||
-        (fixed_cause == RISCV_EXCP_LOAD_ACCESS_FAULT) ||
-        (fixed_cause == RISCV_EXCP_STORE_AMO_ACCESS_FAULT) ||
-        (fixed_cause == RISCV_EXCP_INST_PAGE_FAULT) ||
-        (fixed_cause == RISCV_EXCP_LOAD_PAGE_FAULT) ||
-        (fixed_cause == RISCV_EXCP_STORE_PAGE_FAULT);
-
-    if (bit & ((target_ulong)1 << (TARGET_LONG_BITS - 1))) {
-        deleg = env->mideleg;
-        bit &= ~((target_ulong)1 << (TARGET_LONG_BITS - 1));
-    }
-
-    if (env->priv <= PRV_S && bit < 64 && ((deleg >> bit) & 1)) {
+    if (env->priv <= PRV_S &&
+            cause < TARGET_LONG_BITS && ((deleg >> cause) & 1)) {
         /* handle the trap in S-mode */
-        /* No need to check STVEC for misaligned - lower 2 bits cannot be set */
-        env->pc = env->stvec;
-        env->scause = fixed_cause;
-        env->sepc = backup_epc;
-
-        if (hasbadaddr) {
-            if (RISCV_DEBUG_INTERRUPT) {
-                qemu_log_mask(LOG_TRACE, "core " TARGET_FMT_ld ": badaddr 0x"
-                    TARGET_FMT_lx "\n", env->mhartid, env->badaddr);
-            }
-            env->sbadaddr = env->badaddr;
-        } else {
-            /* otherwise we must clear sbadaddr/stval
-             * todo: support populating stval on illegal instructions */
-            env->sbadaddr = 0;
-        }
-
         target_ulong s = env->mstatus;
         s = set_field(s, MSTATUS_SPIE, env->priv_ver >= PRIV_VERSION_1_10_0 ?
             get_field(s, MSTATUS_SIE) : get_field(s, MSTATUS_UIE << env->priv));
         s = set_field(s, MSTATUS_SPP, env->priv);
         s = set_field(s, MSTATUS_SIE, 0);
         env->mstatus = s;
+        env->scause = cause | ~(((target_ulong)-1) >> async);
+        env->sepc = env->pc;
+        env->sbadaddr = tval;
+        env->pc = (env->stvec >> 2 << 2) +
+            ((async && (env->stvec & 3) == 1) ? cause * 4 : 0);
         riscv_cpu_set_mode(env, PRV_S);
     } else {
-        /* No need to check MTVEC for misaligned - lower 2 bits cannot be set */
-        env->pc = env->mtvec;
-        env->mepc = backup_epc;
-        env->mcause = fixed_cause;
-
-        if (hasbadaddr) {
-            if (RISCV_DEBUG_INTERRUPT) {
-                qemu_log_mask(LOG_TRACE, "core " TARGET_FMT_ld ": badaddr 0x"
-                    TARGET_FMT_lx "\n", env->mhartid, env->badaddr);
-            }
-            env->mbadaddr = env->badaddr;
-        } else {
-            /* otherwise we must clear mbadaddr/mtval
-             * todo: support populating mtval on illegal instructions */
-            env->mbadaddr = 0;
-        }
-
+        /* handle the trap in M-mode */
         target_ulong s = env->mstatus;
         s = set_field(s, MSTATUS_MPIE, env->priv_ver >= PRIV_VERSION_1_10_0 ?
             get_field(s, MSTATUS_MIE) : get_field(s, MSTATUS_UIE << env->priv));
         s = set_field(s, MSTATUS_MPP, env->priv);
         s = set_field(s, MSTATUS_MIE, 0);
         env->mstatus = s;
+        env->mcause = cause | ~(((target_ulong)-1) >> async);
+        env->mepc = env->pc;
+        env->mbadaddr = tval;
+        env->pc = (env->mtvec >> 2 << 2) +
+            ((async && (env->mtvec & 3) == 1) ? cause * 4 : 0);
         riscv_cpu_set_mode(env, PRV_M);
     }
     /* TODO yield load reservation  */
