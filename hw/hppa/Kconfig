@@ -1,6 +1,7 @@
 config DINO
     bool
     imply PCI_DEVICES
+    imply E1000_PCI
     select PCI
     select SERIAL
     select ISA_BUS
