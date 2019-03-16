@@ -2264,10 +2264,11 @@ static inline bool tcg_out_sti(TCGContext *s, TCGType type, TCGArg val,
     return false;
 }
 
-static inline void tcg_out_mov(TCGContext *s, TCGType type,
+static inline bool tcg_out_mov(TCGContext *s, TCGType type,
                                TCGReg ret, TCGReg arg)
 {
     tcg_out_mov_reg(s, COND_AL, ret, arg);
+    return true;
 }
 
 static inline void tcg_out_movi(TCGContext *s, TCGType type,
