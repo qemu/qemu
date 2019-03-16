@@ -186,6 +186,7 @@ trace-events-subdirs += target/hppa
 trace-events-subdirs += target/i386
 trace-events-subdirs += target/mips
 trace-events-subdirs += target/ppc
+trace-events-subdirs += target/riscv
 trace-events-subdirs += target/s390x
 trace-events-subdirs += target/sparc
 trace-events-subdirs += ui
