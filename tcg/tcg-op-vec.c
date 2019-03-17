@@ -34,6 +34,90 @@ extern TCGv_i32 TCGV_HIGH_link_error(TCGv_i64);
 #define TCGV_HIGH TCGV_HIGH_link_error
 #endif
 
+/*
+ * Vector optional opcode tracking.
+ * Except for the basic logical operations (and, or, xor), and
+ * data movement (mov, ld, st, dupi), many vector opcodes are
+ * optional and may not be supported on the host.  Thank Intel
+ * for the irregularity in their instruction set.
+ *
+ * The gvec expanders allow custom vector operations to be composed,
+ * generally via the .fniv callback in the GVecGen* structures.  At
+ * the same time, in deciding whether to use this hook we need to
+ * know if the host supports the required operations.  This is
+ * presented as an array of opcodes, terminated by 0.  Each opcode
+ * is assumed to be expanded with the given VECE.
+ *
+ * For debugging, we want to validate this array.  Therefore, when
+ * tcg_ctx->vec_opt_opc is non-NULL, the tcg_gen_*_vec expanders
+ * will validate that their opcode is present in the list.
+ */
+#ifdef CONFIG_DEBUG_TCG
+void tcg_assert_listed_vecop(TCGOpcode op)
+{
+    const TCGOpcode *p = tcg_ctx->vecop_list;
+    if (p) {
+        for (; *p; ++p) {
+            if (*p == op) {
+                return;
+            }
+        }
+        g_assert_not_reached();
+    }
+}
+#endif
+
+bool tcg_can_emit_vecop_list(const TCGOpcode *list,
+                             TCGType type, unsigned vece)
+{
+    if (list == NULL) {
+        return true;
+    }
+
+    for (; *list; ++list) {
+        TCGOpcode opc = *list;
+
+#ifdef CONFIG_DEBUG_TCG
+        switch (opc) {
+        case INDEX_op_and_vec:
+        case INDEX_op_or_vec:
+        case INDEX_op_xor_vec:
+        case INDEX_op_mov_vec:
+        case INDEX_op_dup_vec:
+        case INDEX_op_dupi_vec:
+        case INDEX_op_dup2_vec:
+        case INDEX_op_ld_vec:
+        case INDEX_op_st_vec:
+            /* These opcodes are mandatory and should not be listed.  */
+            g_assert_not_reached();
+        default:
+            break;
+        }
+#endif
+
+        if (tcg_can_emit_vec_op(opc, type, vece)) {
+            continue;
+        }
+
+        /*
+         * The opcode list is created by front ends based on what they
+         * actually invoke.  We must mirror the logic in the routines
+         * below for generic expansions using other opcodes.
+         */
+        switch (opc) {
+        case INDEX_op_neg_vec:
+            if (tcg_can_emit_vec_op(INDEX_op_sub_vec, type, vece)) {
+                continue;
+            }
+            break;
+        default:
+            break;
+        }
+        return false;
+    }
+    return true;
+}
+
 void vec_gen_2(TCGOpcode opc, TCGType type, unsigned vece, TCGArg r, TCGArg a)
 {
     TCGOp *op = tcg_emit_op(opc);
@@ -296,11 +380,14 @@ static bool do_op2(unsigned vece, TCGv_vec r, TCGv_vec a, TCGOpcode opc)
     int can;
 
     tcg_debug_assert(at->base_type >= type);
+    tcg_assert_listed_vecop(opc);
     can = tcg_can_emit_vec_op(opc, type, vece);
     if (can > 0) {
         vec_gen_2(opc, type, vece, ri, ai);
     } else if (can < 0) {
+        const TCGOpcode *hold_list = tcg_swap_vecop_list(NULL);
         tcg_expand_vec_op(opc, type, vece, ri, ai);
+        tcg_swap_vecop_list(hold_list);
     } else {
         return false;
     }
@@ -318,11 +405,17 @@ void tcg_gen_not_vec(unsigned vece, TCGv_vec r, TCGv_vec a)
 
 void tcg_gen_neg_vec(unsigned vece, TCGv_vec r, TCGv_vec a)
 {
+    const TCGOpcode *hold_list;
+
+    tcg_assert_listed_vecop(INDEX_op_neg_vec);
+    hold_list = tcg_swap_vecop_list(NULL);
+
     if (!TCG_TARGET_HAS_neg_vec || !do_op2(vece, r, a, INDEX_op_neg_vec)) {
         TCGv_vec t = tcg_const_zeros_vec_matching(r);
         tcg_gen_sub_vec(vece, r, t, a);
         tcg_temp_free_vec(t);
     }
+    tcg_swap_vecop_list(hold_list);
 }
 
 static void do_shifti(TCGOpcode opc, unsigned vece,
@@ -337,6 +430,7 @@ static void do_shifti(TCGOpcode opc, unsigned vece,
 
     tcg_debug_assert(at->base_type == type);
     tcg_debug_assert(i >= 0 && i < (8 << vece));
+    tcg_assert_listed_vecop(opc);
 
     if (i == 0) {
         tcg_gen_mov_vec(r, a);
@@ -350,8 +444,10 @@ static void do_shifti(TCGOpcode opc, unsigned vece,
         /* We leave the choice of expansion via scalar or vector shift
            to the target.  Often, but not always, dupi can feed a vector
            shift easier than a scalar.  */
+        const TCGOpcode *hold_list = tcg_swap_vecop_list(NULL);
         tcg_debug_assert(can < 0);
         tcg_expand_vec_op(opc, type, vece, ri, ai, i);
+        tcg_swap_vecop_list(hold_list);
     }
 }
 
@@ -384,12 +480,15 @@ void tcg_gen_cmp_vec(TCGCond cond, unsigned vece,
 
     tcg_debug_assert(at->base_type >= type);
     tcg_debug_assert(bt->base_type >= type);
+    tcg_assert_listed_vecop(INDEX_op_cmp_vec);
     can = tcg_can_emit_vec_op(INDEX_op_cmp_vec, type, vece);
     if (can > 0) {
         vec_gen_4(INDEX_op_cmp_vec, type, vece, ri, ai, bi, cond);
     } else {
+        const TCGOpcode *hold_list = tcg_swap_vecop_list(NULL);
         tcg_debug_assert(can < 0);
         tcg_expand_vec_op(INDEX_op_cmp_vec, type, vece, ri, ai, bi, cond);
+        tcg_swap_vecop_list(hold_list);
     }
 }
 
@@ -407,12 +506,15 @@ static void do_op3(unsigned vece, TCGv_vec r, TCGv_vec a,
 
     tcg_debug_assert(at->base_type >= type);
     tcg_debug_assert(bt->base_type >= type);
+    tcg_assert_listed_vecop(opc);
     can = tcg_can_emit_vec_op(opc, type, vece);
     if (can > 0) {
         vec_gen_3(opc, type, vece, ri, ai, bi);
     } else {
+        const TCGOpcode *hold_list = tcg_swap_vecop_list(NULL);
         tcg_debug_assert(can < 0);
         tcg_expand_vec_op(opc, type, vece, ri, ai, bi);
+        tcg_swap_vecop_list(hold_list);
     }
 }
 

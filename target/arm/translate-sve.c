@@ -3302,29 +3302,30 @@ static bool trans_SUB_zzi(DisasContext *s, arg_rri_esz *a)
 
 static bool trans_SUBR_zzi(DisasContext *s, arg_rri_esz *a)
 {
+    static const TCGOpcode vecop_list[] = { INDEX_op_sub_vec, 0 };
     static const GVecGen2s op[4] = {
         { .fni8 = tcg_gen_vec_sub8_i64,
           .fniv = tcg_gen_sub_vec,
           .fno = gen_helper_sve_subri_b,
-          .opc = INDEX_op_sub_vec,
+          .opt_opc = vecop_list,
           .vece = MO_8,
           .scalar_first = true },
         { .fni8 = tcg_gen_vec_sub16_i64,
           .fniv = tcg_gen_sub_vec,
           .fno = gen_helper_sve_subri_h,
-          .opc = INDEX_op_sub_vec,
+          .opt_opc = vecop_list,
           .vece = MO_16,
           .scalar_first = true },
         { .fni4 = tcg_gen_sub_i32,
           .fniv = tcg_gen_sub_vec,
           .fno = gen_helper_sve_subri_s,
-          .opc = INDEX_op_sub_vec,
+          .opt_opc = vecop_list,
           .vece = MO_32,
           .scalar_first = true },
         { .fni8 = tcg_gen_sub_i64,
           .fniv = tcg_gen_sub_vec,
           .fno = gen_helper_sve_subri_d,
-          .opc = INDEX_op_sub_vec,
+          .opt_opc = vecop_list,
           .prefer_i64 = TCG_TARGET_REG_BITS == 64,
           .vece = MO_64,
           .scalar_first = true }

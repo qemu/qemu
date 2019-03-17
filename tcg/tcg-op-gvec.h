@@ -91,8 +91,8 @@ typedef struct {
     void (*fniv)(unsigned, TCGv_vec, TCGv_vec);
     /* Expand out-of-line helper w/descriptor.  */
     gen_helper_gvec_2 *fno;
-    /* The opcode, if any, to which this corresponds.  */
-    TCGOpcode opc;
+    /* The optional opcodes, if any, utilized by .fniv.  */
+    const TCGOpcode *opt_opc;
     /* The data argument to the out-of-line helper.  */
     int32_t data;
     /* The vector element size, if applicable.  */
@@ -112,8 +112,8 @@ typedef struct {
     gen_helper_gvec_2 *fno;
     /* Expand out-of-line helper w/descriptor, data as argument.  */
     gen_helper_gvec_2i *fnoi;
-    /* The opcode, if any, to which this corresponds.  */
-    TCGOpcode opc;
+    /* The optional opcodes, if any, utilized by .fniv.  */
+    const TCGOpcode *opt_opc;
     /* The vector element size, if applicable.  */
     uint8_t vece;
     /* Prefer i64 to v64.  */
@@ -131,8 +131,8 @@ typedef struct {
     void (*fniv)(unsigned, TCGv_vec, TCGv_vec, TCGv_vec);
     /* Expand out-of-line helper w/descriptor.  */
     gen_helper_gvec_2i *fno;
-    /* The opcode, if any, to which this corresponds.  */
-    TCGOpcode opc;
+    /* The optional opcodes, if any, utilized by .fniv.  */
+    const TCGOpcode *opt_opc;
     /* The data argument to the out-of-line helper.  */
     uint32_t data;
     /* The vector element size, if applicable.  */
@@ -152,8 +152,8 @@ typedef struct {
     void (*fniv)(unsigned, TCGv_vec, TCGv_vec, TCGv_vec);
     /* Expand out-of-line helper w/descriptor.  */
     gen_helper_gvec_3 *fno;
-    /* The opcode, if any, to which this corresponds.  */
-    TCGOpcode opc;
+    /* The optional opcodes, if any, utilized by .fniv.  */
+    const TCGOpcode *opt_opc;
     /* The data argument to the out-of-line helper.  */
     int32_t data;
     /* The vector element size, if applicable.  */
@@ -175,8 +175,8 @@ typedef struct {
     void (*fniv)(unsigned, TCGv_vec, TCGv_vec, TCGv_vec, int64_t);
     /* Expand out-of-line helper w/descriptor, data in descriptor.  */
     gen_helper_gvec_3 *fno;
-    /* The opcode, if any, to which this corresponds.  */
-    TCGOpcode opc;
+    /* The optional opcodes, if any, utilized by .fniv.  */
+    const TCGOpcode *opt_opc;
     /* The vector element size, if applicable.  */
     uint8_t vece;
     /* Prefer i64 to v64.  */
@@ -194,8 +194,8 @@ typedef struct {
     void (*fniv)(unsigned, TCGv_vec, TCGv_vec, TCGv_vec, TCGv_vec);
     /* Expand out-of-line helper w/descriptor.  */
     gen_helper_gvec_4 *fno;
-    /* The opcode, if any, to which this corresponds.  */
-    TCGOpcode opc;
+    /* The optional opcodes, if any, utilized by .fniv.  */
+    const TCGOpcode *opt_opc;
     /* The data argument to the out-of-line helper.  */
     int32_t data;
     /* The vector element size, if applicable.  */
