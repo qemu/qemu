@@ -51,7 +51,8 @@ static uint64_t uart_ip(SiFiveUARTState *s)
 static void update_irq(SiFiveUARTState *s)
 {
     int cond = 0;
-    if ((s->ie & SIFIVE_UART_IE_RXWM) && s->rx_fifo_len) {
+    if ((s->ie & SIFIVE_UART_IE_TXWM) ||
+        ((s->ie & SIFIVE_UART_IE_RXWM) && s->rx_fifo_len)) {
         cond = 1;
     }
     if (cond) {
@@ -108,6 +109,7 @@ uart_write(void *opaque, hwaddr addr,
     switch (addr) {
     case SIFIVE_UART_TXFIFO:
         qemu_chr_fe_write(&s->chr, &ch, 1);
+        update_irq(s);
         return;
     case SIFIVE_UART_IE:
         s->ie = val64;
