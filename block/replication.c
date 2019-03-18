@@ -682,7 +682,7 @@ static const char *const replication_strong_runtime_opts[] = {
     NULL
 };
 
-BlockDriver bdrv_replication = {
+static BlockDriver bdrv_replication = {
     .format_name                = "replication",
     .instance_size              = sizeof(BDRVReplicationState),
 
