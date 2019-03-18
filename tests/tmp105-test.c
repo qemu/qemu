@@ -10,14 +10,13 @@
 #include "qemu/osdep.h"
 
 #include "libqtest.h"
+#include "libqos/qgraph.h"
 #include "libqos/i2c.h"
 #include "qapi/qmp/qdict.h"
 #include "hw/misc/tmp105_regs.h"
 
 #define TMP105_TEST_ID   "tmp105-test"
 #define TMP105_TEST_ADDR 0x49
-
-static I2CAdapter *i2c;
 
 static int qmp_tmp105_get_temperature(const char *id)
 {
@@ -43,9 +42,11 @@ static void qmp_tmp105_set_temperature(const char *id, int value)
 }
 
 #define TMP105_PRECISION (1000/16)
-static void send_and_receive(void)
+static void send_and_receive(void *obj, void *data, QGuestAllocator *alloc)
 {
     uint16_t value;
+    QI2CDevice *i2cdev = (QI2CDevice *)obj;
+    I2CAdapter *i2c = i2cdev->bus;
 
     value = qmp_tmp105_get_temperature(TMP105_TEST_ID);
     g_assert_cmpuint(value, ==, 0);
@@ -105,24 +106,15 @@ static void send_and_receive(void)
     g_assert_cmphex(i2c_get16(i2c, TMP105_TEST_ADDR, TMP105_REG_T_HIGH), ==, 0x4231);
 }
 
-int main(int argc, char **argv)
+static void tmp105_register_nodes(void)
 {
-    QTestState *s = NULL;
-    int ret;
+    QOSGraphEdgeOptions opts = {
+        .extra_device_opts = "id=" TMP105_TEST_ID ",address=0x49"
+    };
 
-    g_test_init(&argc, &argv, NULL);
+    qos_node_create_driver("tmp105", i2c_device_create);
+    qos_node_consumes("tmp105", "i2c-bus", &opts);
 
-    s = qtest_start("-machine n800 "
-                    "-device tmp105,bus=i2c-bus.0,id=" TMP105_TEST_ID
-                    ",address=0x49");
-    i2c = omap_i2c_create(s, OMAP2_I2C_1_BASE);
-
-    qtest_add_func("/tmp105/tx-rx", send_and_receive);
-
-    ret = g_test_run();
-
-    qtest_quit(s);
-    omap_i2c_free(i2c);
-
-    return ret;
+    qos_add_test("tx-rx", "tmp105", send_and_receive, NULL);
 }
+libqos_init(tmp105_register_nodes);

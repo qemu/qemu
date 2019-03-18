@@ -10,23 +10,26 @@
 #include "qemu/osdep.h"
 
 #include "libqtest.h"
+#include "libqos/qgraph.h"
 #include "libqos/i2c.h"
 #include "hw/misc/pca9552_regs.h"
 
 #define PCA9552_TEST_ID   "pca9552-test"
 #define PCA9552_TEST_ADDR 0x60
 
-static I2CAdapter *i2c;
-
-static void pca9552_init(I2CAdapter *i2c)
+static void pca9552_init(QI2CDevice *i2cdev)
 {
+    I2CAdapter *i2c = i2cdev->bus;
+
     /* Switch on LEDs 0 and 12 */
     i2c_set8(i2c, PCA9552_TEST_ADDR, PCA9552_LS0, 0x54);
     i2c_set8(i2c, PCA9552_TEST_ADDR, PCA9552_LS3, 0x54);
 }
 
-static void receive_autoinc(void)
+static void receive_autoinc(void *obj, void *data, QGuestAllocator *alloc)
 {
+    QI2CDevice *i2cdev = (QI2CDevice *)obj;
+    I2CAdapter *i2c = i2cdev->bus;
     uint8_t resp;
     uint8_t reg = PCA9552_LS0 | PCA9552_AUTOINC;
 
@@ -51,8 +54,10 @@ static void receive_autoinc(void)
     g_assert_cmphex(resp, ==, 0x54);
 }
 
-static void send_and_receive(void)
+static void send_and_receive(void *obj, void *data, QGuestAllocator *alloc)
 {
+    QI2CDevice *i2cdev = (QI2CDevice *)obj;
+    I2CAdapter *i2c = i2cdev->bus;
     uint8_t value;
 
     value = i2c_get8(i2c, PCA9552_TEST_ADDR, PCA9552_LS0);
@@ -76,27 +81,16 @@ static void send_and_receive(void)
     g_assert_cmphex(value, ==, 0x10);
 }
 
-int main(int argc, char **argv)
+static void pca9552_register_nodes(void)
 {
-    QTestState *s = NULL;
-    int ret;
+    QOSGraphEdgeOptions opts = {
+        .extra_device_opts = "address=0x60"
+    };
 
-    g_test_init(&argc, &argv, NULL);
+    qos_node_create_driver("pca9552", i2c_device_create);
+    qos_node_consumes("pca9552", "i2c-bus", &opts);
 
-    s = qtest_start("-machine n800 "
-                    "-device pca9552,bus=i2c-bus.0,id=" PCA9552_TEST_ID
-                    ",address=0x60");
-    i2c = omap_i2c_create(s, OMAP2_I2C_1_BASE);
-
-    qtest_add_func("/pca9552/tx-rx", send_and_receive);
-    qtest_add_func("/pca9552/rx-autoinc", receive_autoinc);
-
-    ret = g_test_run();
-
-    if (s) {
-        qtest_quit(s);
-    }
-    omap_i2c_free(i2c);
-
-    return ret;
+    qos_add_test("tx-rx", "pca9552", send_and_receive, NULL);
+    qos_add_test("rx-autoinc", "pca9552", receive_autoinc, NULL);
 }
+libqos_init(pca9552_register_nodes);

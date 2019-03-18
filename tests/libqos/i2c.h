@@ -38,8 +38,6 @@ struct QI2CDevice {
     I2CAdapter *bus;
 };
 
-#define OMAP2_I2C_1_BASE 0x48070000
-
 void *i2c_device_create(void *i2c_bus, QGuestAllocator *alloc, void *addr);
 
 void i2c_send(I2CAdapter *i2c, uint8_t addr,
@@ -67,8 +65,6 @@ typedef struct OMAPI2C {
 } OMAPI2C;
 
 void omap_i2c_init(OMAPI2C *s, QTestState *qts, uint64_t addr);
-I2CAdapter *omap_i2c_create(QTestState *qts, uint64_t addr);
-void omap_i2c_free(I2CAdapter *i2c);
 
 /* i2c-imx.c */
 typedef struct IMXI2C {
