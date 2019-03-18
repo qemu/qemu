@@ -18,10 +18,19 @@
 
 static I2CAdapter *i2c;
 
+static void pca9552_init(I2CAdapter *i2c)
+{
+    /* Switch on LEDs 0 and 12 */
+    i2c_set8(i2c, PCA9552_TEST_ADDR, PCA9552_LS0, 0x54);
+    i2c_set8(i2c, PCA9552_TEST_ADDR, PCA9552_LS3, 0x54);
+}
+
 static void receive_autoinc(void)
 {
     uint8_t resp;
     uint8_t reg = PCA9552_LS0 | PCA9552_AUTOINC;
+
+    pca9552_init(i2cdev);
 
     i2c_send(i2c, PCA9552_TEST_ADDR, &reg, 1);
 
@@ -52,16 +61,14 @@ static void send_and_receive(void)
     value = i2c_get8(i2c, PCA9552_TEST_ADDR, PCA9552_INPUT0);
     g_assert_cmphex(value, ==, 0x0);
 
-    /* Switch on LED 0 */
-    i2c_set8(i2c, PCA9552_TEST_ADDR, PCA9552_LS0, 0x54);
+    pca9552_init(i2cdev);
+
     value = i2c_get8(i2c, PCA9552_TEST_ADDR, PCA9552_LS0);
     g_assert_cmphex(value, ==, 0x54);
 
     value = i2c_get8(i2c, PCA9552_TEST_ADDR, PCA9552_INPUT0);
     g_assert_cmphex(value, ==, 0x01);
 
-    /* Switch on LED 12 */
-    i2c_set8(i2c, PCA9552_TEST_ADDR, PCA9552_LS3, 0x54);
     value = i2c_get8(i2c, PCA9552_TEST_ADDR, PCA9552_LS3);
     g_assert_cmphex(value, ==, 0x54);
 
