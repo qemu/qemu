@@ -235,12 +235,9 @@ static uint64_t ati_mm_read(void *opaque, hwaddr addr, unsigned int size)
     case MM_DATA ... MM_DATA + 3:
         /* indexed access to regs or memory */
         if (s->regs.mm_index & BIT(31)) {
-            if (s->regs.mm_index <= s->vga.vram_size - size) {
-                int i = size - 1;
-                while (i >= 0) {
-                    val <<= 8;
-                    val |= s->vga.vram_ptr[s->regs.mm_index + i--];
-                }
+            uint32_t idx = s->regs.mm_index & ~BIT(31);
+            if (idx <= s->vga.vram_size - size) {
+                val = ldn_le_p(s->vga.vram_ptr + idx, size);
             }
         } else {
             val = ati_mm_read(s, s->regs.mm_index + addr - MM_DATA, size);
@@ -434,12 +431,9 @@ static void ati_mm_write(void *opaque, hwaddr addr,
     case MM_DATA ... MM_DATA + 3:
         /* indexed access to regs or memory */
         if (s->regs.mm_index & BIT(31)) {
-            if (s->regs.mm_index <= s->vga.vram_size - size) {
-                int i = 0;
-                while (i < size) {
-                    s->vga.vram_ptr[s->regs.mm_index + i] = data & 0xff;
-                    data >>= 8;
-                }
+            uint32_t idx = s->regs.mm_index & ~BIT(31);
+            if (idx <= s->vga.vram_size - size) {
+                stn_le_p(s->vga.vram_ptr + idx, size, data);
             }
         } else {
             ati_mm_write(s, s->regs.mm_index + addr - MM_DATA, data, size);
