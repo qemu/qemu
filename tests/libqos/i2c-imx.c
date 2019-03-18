@@ -186,9 +186,21 @@ static void imx_i2c_recv(I2CAdapter *i2c, uint8_t addr,
     g_assert((status & I2SR_IBB) == 0);
 }
 
+static void *imx_i2c_get_driver(void *obj, const char *interface)
+{
+    IMXI2C *s = obj;
+    if (!g_strcmp0(interface, "i2c-bus")) {
+        return &s->parent;
+    }
+    fprintf(stderr, "%s not present in imx-i2c\n", interface);
+    g_assert_not_reached();
+}
+
 void imx_i2c_init(IMXI2C *s, QTestState *qts, uint64_t addr)
 {
     s->addr = addr;
+
+    s->obj.get_driver = imx_i2c_get_driver;
 
     s->parent.send = imx_i2c_send;
     s->parent.recv = imx_i2c_recv;
@@ -213,3 +225,11 @@ void imx_i2c_free(I2CAdapter *i2c)
     s = container_of(i2c, IMXI2C, parent);
     g_free(s);
 }
+
+static void imx_i2c_register_nodes(void)
+{
+    qos_node_create_driver("imx.i2c", NULL);
+    qos_node_produces("imx.i2c", "i2c-bus");
+}
+
+libqos_init(imx_i2c_register_nodes);

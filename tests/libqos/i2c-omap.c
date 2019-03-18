@@ -155,20 +155,36 @@ static void omap_i2c_recv(I2CAdapter *i2c, uint8_t addr,
     g_assert((data & OMAP_I2C_CON_STP) == 0);
 }
 
-void omap_i2c_init(OMAPI2C *s, QTestState *qts, uint64_t addr)
+static void *omap_i2c_get_driver(void *obj, const char *interface)
 {
-    I2CAdapter *i2c = (I2CAdapter *)s;
+    OMAPI2C *s = obj;
+    if (!g_strcmp0(interface, "i2c-bus")) {
+        return &s->parent;
+    }
+    fprintf(stderr, "%s not present in omap_i2c\n", interface);
+    g_assert_not_reached();
+}
+
+static void omap_i2c_start_hw(QOSGraphObject *object)
+{
+    OMAPI2C *s = (OMAPI2C *) object;
     uint16_t data;
 
+    /* verify the mmio address by looking for a known signature */
+    data = qtest_readw(s->parent.qts, s->addr + OMAP_I2C_REV);
+    g_assert_cmphex(data, ==, 0x34);
+}
+
+void omap_i2c_init(OMAPI2C *s, QTestState *qts, uint64_t addr)
+{
     s->addr = addr;
 
-    i2c->send = omap_i2c_send;
-    i2c->recv = omap_i2c_recv;
-    i2c->qts = qts;
+    s->obj.get_driver = omap_i2c_get_driver;
+    s->obj.start_hw = omap_i2c_start_hw;
 
-    /* verify the mmio address by looking for a known signature */
-    data = qtest_readw(qts, addr + OMAP_I2C_REV);
-    g_assert_cmphex(data, ==, 0x34);
+    s->parent.send = omap_i2c_send;
+    s->parent.recv = omap_i2c_recv;
+    s->parent.qts = qts;
 }
 
 I2CAdapter *omap_i2c_create(QTestState *qts, uint64_t addr)
@@ -189,3 +205,11 @@ void omap_i2c_free(I2CAdapter *i2c)
     s = container_of(i2c, OMAPI2C, parent);
     g_free(s);
 }
+
+static void omap_i2c_register_nodes(void)
+{
+    qos_node_create_driver("omap_i2c", NULL);
+    qos_node_produces("omap_i2c", "i2c-bus");
+}
+
+libqos_init(omap_i2c_register_nodes);

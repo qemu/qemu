@@ -68,3 +68,11 @@ void i2c_set16(I2CAdapter *i2c, uint8_t addr, uint8_t reg,
     data[1] = value & 255;
     i2c_write_block(i2c, addr, reg, data, sizeof(data));
 }
+
+void *i2c_device_create(void *i2c_bus, QGuestAllocator *alloc, void *addr)
+{
+    QI2CDevice *i2cdev = g_new0(QI2CDevice, 1);
+
+    i2cdev->bus = i2c_bus;
+    return &i2cdev->obj;
+}

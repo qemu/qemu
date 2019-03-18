@@ -10,6 +10,7 @@
 #define LIBQOS_I2C_H
 
 #include "libqtest.h"
+#include "libqos/qgraph.h"
 
 typedef struct I2CAdapter I2CAdapter;
 struct I2CAdapter {
@@ -21,7 +22,25 @@ struct I2CAdapter {
     QTestState *qts;
 };
 
+typedef struct QI2CDevice QI2CDevice;
+struct QI2CDevice {
+    /*
+     * For now, all devices are simple enough that there is no need for
+     * them to define their own constructor and get_driver functions.
+     * Therefore, QOSGraphObject is included directly in QI2CDevice;
+     * the tests expect to get a QI2CDevice rather than doing something
+     * like obj->get_driver("i2c-device").
+     *
+     * In fact there is no i2c-device interface even, because there are
+     * no generic I2C tests).
+     */
+    QOSGraphObject obj;
+    I2CAdapter *bus;
+};
+
 #define OMAP2_I2C_1_BASE 0x48070000
+
+void *i2c_device_create(void *i2c_bus, QGuestAllocator *alloc, void *addr);
 
 void i2c_send(I2CAdapter *i2c, uint8_t addr,
               const uint8_t *buf, uint16_t len);
@@ -41,6 +60,7 @@ void i2c_set16(I2CAdapter *i2c, uint8_t addr, uint8_t reg,
 
 /* i2c-omap.c */
 typedef struct OMAPI2C {
+    QOSGraphObject obj;
     I2CAdapter parent;
 
     uint64_t addr;
@@ -52,6 +72,7 @@ void omap_i2c_free(I2CAdapter *i2c);
 
 /* i2c-imx.c */
 typedef struct IMXI2C {
+    QOSGraphObject obj;
     I2CAdapter parent;
 
     uint64_t addr;
