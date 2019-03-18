@@ -131,15 +131,6 @@ static void imx25_pdk_init(MachineState *machine)
      */
     if (!qtest_enabled()) {
         arm_load_kernel(&s->soc.cpu, &imx25_pdk_binfo);
-    } else {
-        /*
-         * This I2C device doesn't exist on the real board.
-         * We add it here (only on qtest usage) to be able to do a bit
-         * of simple qtest. See "make check" for details.
-         */
-        i2c_create_slave((I2CBus *)qdev_get_child_bus(DEVICE(&s->soc.i2c[0]),
-                                                      "i2c-bus.0"),
-                         "ds1338", 0x68);
     }
 }
 
