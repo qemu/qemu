@@ -105,6 +105,7 @@ static void omap_i2c_recv(I2CAdapter *i2c, uint8_t addr,
 {
     OMAPI2C *s = (OMAPI2C *)i2c;
     uint16_t data, stat;
+    uint16_t orig_len = len;
 
     omap_i2c_set_slave_addr(s, addr);
 
@@ -116,16 +117,24 @@ static void omap_i2c_recv(I2CAdapter *i2c, uint8_t addr,
            OMAP_I2C_CON_STT |
            OMAP_I2C_CON_STP;
     qtest_writew(i2c->qts, s->addr + OMAP_I2C_CON, data);
-    data = qtest_readw(i2c->qts, s->addr + OMAP_I2C_CON);
-    g_assert((data & OMAP_I2C_CON_STP) == 0);
 
     data = qtest_readw(i2c->qts, s->addr + OMAP_I2C_STAT);
     g_assert((data & OMAP_I2C_STAT_NACK) == 0);
 
-    data = qtest_readw(i2c->qts, s->addr + OMAP_I2C_CNT);
-    g_assert_cmpuint(data, ==, len);
-
     while (len > 0) {
+        data = qtest_readw(i2c->qts, s->addr + OMAP_I2C_CON);
+        if (len <= 4) {
+            g_assert((data & OMAP_I2C_CON_STP) == 0);
+
+            data = qtest_readw(i2c->qts, s->addr + OMAP_I2C_CNT);
+            g_assert_cmpuint(data, ==, orig_len);
+        } else {
+            g_assert((data & OMAP_I2C_CON_STP) != 0);
+
+            data = qtest_readw(i2c->qts, s->addr + OMAP_I2C_CNT);
+            g_assert_cmpuint(data, ==, len - 4);
+        }
+
         data = qtest_readw(i2c->qts, s->addr + OMAP_I2C_STAT);
         g_assert((data & OMAP_I2C_STAT_RRDY) != 0);
         g_assert((data & OMAP_I2C_STAT_ROVR) == 0);
