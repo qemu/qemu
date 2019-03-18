@@ -453,14 +453,16 @@ void qos_node_create_machine_args(const char *name,
 void qos_node_create_driver(const char *name, QOSCreateDriverFunc function);
 
 /**
- * qos_node_contains(): creates an edge of type QEDGE_CONTAINS and
- * adds it to the edge list mapped to @container in the
+ * qos_node_contains(): creates one or more edges of type QEDGE_CONTAINS
+ * and adds them to the edge list mapped to @container in the
  * edge hash table.
  *
- * This edge will have @container as source and @contained as destination.
+ * The edges will have @container as source and @contained as destination.
  *
- * It also has the possibility to add optional NULL-terminated
- * @opts parameters (see %QOSGraphEdgeOptions)
+ * If @opts is NULL, a single edge will be added with no options.
+ * If @opts is non-NULL, the arguments after @contained represent a
+ * NULL-terminated list of %QOSGraphEdgeOptions structs, and an
+ * edge will be added for each of them.
  *
  * This function can be useful when there are multiple devices
  * with the same node name contained in a machine/other node
@@ -480,7 +482,8 @@ void qos_node_create_driver(const char *name, QOSCreateDriverFunc function);
  * For contains, op1.arg and op1.size_arg represent the arg to pass
  * to @contained constructor to properly initialize it.
  */
-void qos_node_contains(const char *container, const char *contained, ...);
+void qos_node_contains(const char *container, const char *contained,
+                       QOSGraphEdgeOptions *opts, ...);
 
 /**
  * qos_node_produces(): creates an edge of type QEDGE_PRODUCES and
