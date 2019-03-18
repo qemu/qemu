@@ -1084,6 +1084,12 @@ static void virtio_gpu_gl_block(void *opaque, bool block)
     assert(g->renderer_blocked >= 0);
 
     if (g->renderer_blocked == 0) {
+#ifdef CONFIG_VIRGL
+        if (g->renderer_reset) {
+            g->renderer_reset = false;
+            virtio_gpu_virgl_reset(g);
+        }
+#endif
         virtio_gpu_process_cmdq(g);
     }
 }
@@ -1350,6 +1356,7 @@ static void virtio_gpu_reset(VirtIODevice *vdev)
 {
     VirtIOGPU *g = VIRTIO_GPU(vdev);
     struct virtio_gpu_simple_resource *res, *tmp;
+    struct virtio_gpu_ctrl_command *cmd;
     int i;
 
     g->enable = 0;
@@ -1366,9 +1373,26 @@ static void virtio_gpu_reset(VirtIODevice *vdev)
         g->scanout[i].ds = NULL;
     }
 
+    while (!QTAILQ_EMPTY(&g->cmdq)) {
+        cmd = QTAILQ_FIRST(&g->cmdq);
+        QTAILQ_REMOVE(&g->cmdq, cmd, next);
+        g_free(cmd);
+    }
+
+    while (!QTAILQ_EMPTY(&g->fenceq)) {
+        cmd = QTAILQ_FIRST(&g->fenceq);
+        QTAILQ_REMOVE(&g->fenceq, cmd, next);
+        g->inflight--;
+        g_free(cmd);
+    }
+
 #ifdef CONFIG_VIRGL
     if (g->use_virgl_renderer) {
-        virtio_gpu_virgl_reset(g);
+        if (g->renderer_blocked) {
+            g->renderer_reset = true;
+        } else {
+            virtio_gpu_virgl_reset(g);
+        }
         g->use_virgl_renderer = 0;
     }
 #endif
