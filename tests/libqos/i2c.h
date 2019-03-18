@@ -39,10 +39,26 @@ void i2c_set8(I2CAdapter *i2c, uint8_t addr, uint8_t reg,
 void i2c_set16(I2CAdapter *i2c, uint8_t addr, uint8_t reg,
                uint16_t value);
 
-/* libi2c-omap.c */
-I2CAdapter *omap_i2c_create(QTestState *qts, uint64_t addr);
+/* i2c-omap.c */
+typedef struct OMAPI2C {
+    I2CAdapter parent;
 
-/* libi2c-imx.c */
+    uint64_t addr;
+} OMAPI2C;
+
+void omap_i2c_init(OMAPI2C *s, QTestState *qts, uint64_t addr);
+I2CAdapter *omap_i2c_create(QTestState *qts, uint64_t addr);
+void omap_i2c_free(I2CAdapter *i2c);
+
+/* i2c-imx.c */
+typedef struct IMXI2C {
+    I2CAdapter parent;
+
+    uint64_t addr;
+} IMXI2C;
+
+void imx_i2c_init(IMXI2C *s, QTestState *qts, uint64_t addr);
 I2CAdapter *imx_i2c_create(QTestState *qts, uint64_t addr);
+void imx_i2c_free(I2CAdapter *i2c);
 
 #endif

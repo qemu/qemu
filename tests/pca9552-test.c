@@ -96,7 +96,7 @@ int main(int argc, char **argv)
     if (s) {
         qtest_quit(s);
     }
-    g_free(i2c);
+    omap_i2c_free(i2c);
 
     return ret;
 }

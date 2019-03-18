@@ -30,13 +30,6 @@ enum IMXI2CDirection {
     IMX_I2C_WRITE,
 };
 
-typedef struct IMXI2C {
-    I2CAdapter parent;
-
-    uint64_t addr;
-} IMXI2C;
-
-
 static void imx_i2c_set_slave_addr(IMXI2C *s, uint8_t addr,
                                    enum IMXI2CDirection direction)
 {
@@ -47,7 +40,7 @@ static void imx_i2c_set_slave_addr(IMXI2C *s, uint8_t addr,
 static void imx_i2c_send(I2CAdapter *i2c, uint8_t addr,
                          const uint8_t *buf, uint16_t len)
 {
-    IMXI2C *s = (IMXI2C *)i2c;
+    IMXI2C *s = container_of(i2c, IMXI2C, parent);
     uint8_t data;
     uint8_t status;
     uint16_t size = 0;
@@ -107,7 +100,7 @@ static void imx_i2c_send(I2CAdapter *i2c, uint8_t addr,
 static void imx_i2c_recv(I2CAdapter *i2c, uint8_t addr,
                          uint8_t *buf, uint16_t len)
 {
-    IMXI2C *s = (IMXI2C *)i2c;
+    IMXI2C *s = container_of(i2c, IMXI2C, parent);
     uint8_t data;
     uint8_t status;
     uint16_t size = 0;
@@ -193,16 +186,30 @@ static void imx_i2c_recv(I2CAdapter *i2c, uint8_t addr,
     g_assert((status & I2SR_IBB) == 0);
 }
 
+void imx_i2c_init(IMXI2C *s, QTestState *qts, uint64_t addr)
+{
+    s->addr = addr;
+
+    s->parent.send = imx_i2c_send;
+    s->parent.recv = imx_i2c_recv;
+    s->parent.qts = qts;
+}
+
 I2CAdapter *imx_i2c_create(QTestState *qts, uint64_t addr)
 {
     IMXI2C *s = g_malloc0(sizeof(*s));
-    I2CAdapter *i2c = (I2CAdapter *)s;
 
-    s->addr = addr;
+    imx_i2c_init(s, qts, addr);
+    return &s->parent;
+}
 
-    i2c->send = imx_i2c_send;
-    i2c->recv = imx_i2c_recv;
-    i2c->qts = qts;
+void imx_i2c_free(I2CAdapter *i2c)
+{
+    IMXI2C *s;
 
-    return i2c;
+    if (!i2c) {
+        return;
+    }
+    s = container_of(i2c, IMXI2C, parent);
+    g_free(s);
 }

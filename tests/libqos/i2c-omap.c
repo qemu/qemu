@@ -40,12 +40,6 @@ enum OMAPI2CCONBits {
     OMAP_I2C_CON_I2C_EN = 1 << 15,
 };
 
-typedef struct OMAPI2C {
-    I2CAdapter parent;
-
-    uint64_t addr;
-} OMAPI2C;
-
 
 static void omap_i2c_set_slave_addr(OMAPI2C *s, uint8_t addr)
 {
@@ -59,7 +53,7 @@ static void omap_i2c_set_slave_addr(OMAPI2C *s, uint8_t addr)
 static void omap_i2c_send(I2CAdapter *i2c, uint8_t addr,
                           const uint8_t *buf, uint16_t len)
 {
-    OMAPI2C *s = (OMAPI2C *)i2c;
+    OMAPI2C *s = container_of(i2c, OMAPI2C, parent);
     uint16_t data;
 
     omap_i2c_set_slave_addr(s, addr);
@@ -103,7 +97,7 @@ static void omap_i2c_send(I2CAdapter *i2c, uint8_t addr,
 static void omap_i2c_recv(I2CAdapter *i2c, uint8_t addr,
                           uint8_t *buf, uint16_t len)
 {
-    OMAPI2C *s = (OMAPI2C *)i2c;
+    OMAPI2C *s = container_of(i2c, OMAPI2C, parent);
     uint16_t data, stat;
     uint16_t orig_len = len;
 
@@ -161,9 +155,8 @@ static void omap_i2c_recv(I2CAdapter *i2c, uint8_t addr,
     g_assert((data & OMAP_I2C_CON_STP) == 0);
 }
 
-I2CAdapter *omap_i2c_create(QTestState *qts, uint64_t addr)
+void omap_i2c_init(OMAPI2C *s, QTestState *qts, uint64_t addr)
 {
-    OMAPI2C *s = g_malloc0(sizeof(*s));
     I2CAdapter *i2c = (I2CAdapter *)s;
     uint16_t data;
 
@@ -176,6 +169,23 @@ I2CAdapter *omap_i2c_create(QTestState *qts, uint64_t addr)
     /* verify the mmio address by looking for a known signature */
     data = qtest_readw(qts, addr + OMAP_I2C_REV);
     g_assert_cmphex(data, ==, 0x34);
+}
 
-    return i2c;
+I2CAdapter *omap_i2c_create(QTestState *qts, uint64_t addr)
+{
+    OMAPI2C *s = g_malloc0(sizeof(*s));
+
+    omap_i2c_init(s, qts, addr);
+    return &s->parent;
+}
+
+void omap_i2c_free(I2CAdapter *i2c)
+{
+    OMAPI2C *s;
+
+    if (!i2c) {
+        return;
+    }
+    s = container_of(i2c, OMAPI2C, parent);
+    g_free(s);
 }
