@@ -455,9 +455,11 @@ Hiragana 0x77
 # evdev 92 (0x5c), QKeyCode "henkan", number 0x79
 Henkan_Mode 0x79
 
-# evdev 93 (0x5d): no evdev -> QKeyCode mapping (xkb keysym Hiragana_Katakana)
+# evdev 93 (0x5d), QKeyCode "katakanahiragana", number 0x70
+Hiragana_Katakana 0x70
 
-# evdev 94 (0x5e): no evdev -> QKeyCode mapping (xkb keysym Muhenkan)
+# evdev 94 (0x5e), QKeyCode "muhenkan", number 0x7b
+Muhenkan 0x7b
 
 # evdev 95 (0x5f): no evdev -> QKeyCode mapping (xkb keysym NoSymbol)
 
@@ -815,6 +817,10 @@ XF86AudioMedia 0xed
 # evdev 244 (0xf4): no evdev -> QKeyCode mapping (xkb keysym NoSymbol)
 
 # evdev 245 (0xf5): no evdev -> QKeyCode mapping (xkb keysym NoSymbol)
+
+# evdev 246 (0xf6): no evdev -> QKeyCode mapping (xkb keysym Invalid)
+
+# evdev 247 (0xf7): no evdev -> QKeyCode mapping (xkb keysym Invalid)
 
 #
 # quirks section start

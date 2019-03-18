@@ -36,50 +36,65 @@ Escape 0x01
 # evdev 2 (0x2), QKeyCode "1", number 0x2
 1 0x02
 exclam 0x02 shift
+Arabic_1 0x02 altgr
 
 # evdev 3 (0x3), QKeyCode "2", number 0x3
 2 0x03
 at 0x03 shift
+Arabic_2 0x03 altgr
 
 # evdev 4 (0x4), QKeyCode "3", number 0x4
 3 0x04
 numbersign 0x04 shift
+Arabic_3 0x04 altgr
 
 # evdev 5 (0x5), QKeyCode "4", number 0x5
 4 0x05
 dollar 0x05 shift
+Arabic_4 0x05 altgr
 
 # evdev 6 (0x6), QKeyCode "5", number 0x6
 5 0x06
 percent 0x06 shift
+Arabic_5 0x06 altgr
+U2030 0x06 shift altgr
 
 # evdev 7 (0x7), QKeyCode "6", number 0x7
 6 0x07
 asciicircum 0x07 shift
+Arabic_6 0x07 altgr
 
 # evdev 8 (0x8), QKeyCode "7", number 0x8
 7 0x08
 ampersand 0x08 shift
+Arabic_7 0x08 altgr
 
 # evdev 9 (0x9), QKeyCode "8", number 0x9
 8 0x09
 asterisk 0x09 shift
+Arabic_8 0x09 altgr
 
 # evdev 10 (0xa), QKeyCode "9", number 0xa
 9 0x0a
 parenright 0x0a shift
+Arabic_9 0x0a altgr
 
 # evdev 11 (0xb), QKeyCode "0", number 0xb
 0 0x0b
 parenleft 0x0b shift
+Arabic_0 0x0b altgr
 
 # evdev 12 (0xc), QKeyCode "minus", number 0xc
 minus 0x0c
 underscore 0x0c shift
+endash 0x0c altgr
+U2011 0x0c shift altgr
 
 # evdev 13 (0xd), QKeyCode "equal", number 0xd
 equal 0x0d
 plus 0x0d shift
+notequal 0x0d altgr
+approxeq 0x0d shift altgr
 
 # evdev 14 (0xe), QKeyCode "backspace", number 0xe
 BackSpace 0x0e
@@ -91,18 +106,22 @@ ISO_Left_Tab 0x0f shift
 # evdev 16 (0x10), QKeyCode "q", number 0x10
 Arabic_dad 0x10
 Arabic_fatha 0x10 shift
+U2066 0x10 shift altgr
 
 # evdev 17 (0x11), QKeyCode "w", number 0x11
 Arabic_sad 0x11
 Arabic_fathatan 0x11 shift
+U2067 0x11 shift altgr
 
 # evdev 18 (0x12), QKeyCode "e", number 0x12
 Arabic_theh 0x12
 Arabic_damma 0x12 shift
+U2068 0x12 shift altgr
 
 # evdev 19 (0x13), QKeyCode "r", number 0x13
 Arabic_qaf 0x13
 Arabic_dammatan 0x13 shift
+U2069 0x13 shift altgr
 
 # evdev 20 (0x14), QKeyCode "t", number 0x14
 Arabic_feh 0x14
@@ -112,14 +131,17 @@ Arabic_veh 0x14 altgr
 # evdev 21 (0x15), QKeyCode "y", number 0x15
 Arabic_ghain 0x15
 Arabic_hamzaunderalef 0x15 shift
+U202A 0x15 shift altgr
 
 # evdev 22 (0x16), QKeyCode "u", number 0x16
 Arabic_ain 0x16
 grave 0x16 shift
+U202B 0x16 shift altgr
 
 # evdev 23 (0x17), QKeyCode "i", number 0x17
 Arabic_ha 0x17
 division 0x17 shift
+U202C 0x17 shift altgr
 
 # evdev 24 (0x18), QKeyCode "o", number 0x18
 Arabic_khah 0x18
@@ -128,15 +150,18 @@ multiply 0x18 shift
 # evdev 25 (0x19), QKeyCode "p", number 0x19
 Arabic_hah 0x19
 Arabic_semicolon 0x19 shift
+U200E 0x19 shift altgr
 
 # evdev 26 (0x1a), QKeyCode "bracket_left", number 0x1a
 Arabic_jeem 0x1a
 less 0x1a shift
 Arabic_tcheh 0x1a altgr
+U200F 0x1a shift altgr
 
 # evdev 27 (0x1b), QKeyCode "bracket_right", number 0x1b
 Arabic_dal 0x1b
 greater 0x1b shift
+U061C 0x1b shift altgr
 
 # evdev 28 (0x1c), QKeyCode "ret", number 0x1c
 Return 0x1c
@@ -177,6 +202,7 @@ Arabic_tatweel 0x24 shift
 # evdev 37 (0x25), QKeyCode "k", number 0x25
 Arabic_noon 0x25
 Arabic_comma 0x25 shift
+U066B 0x25 altgr
 
 # evdev 38 (0x26), QKeyCode "l", number 0x26
 Arabic_meem 0x26
@@ -190,27 +216,35 @@ Arabic_gaf 0x27 altgr
 # evdev 40 (0x28), QKeyCode "apostrophe", number 0x28
 Arabic_tah 0x28
 quotedbl 0x28 shift
+U27E9 0x28 altgr
+U200D 0x28 shift altgr
 
 # evdev 41 (0x29), QKeyCode "grave_accent", number 0x29
 Arabic_thal 0x29
 Arabic_shadda 0x29 shift
+Arabic_percent 0x29 altgr
+U0609 0x29 shift altgr
 
 # evdev 42 (0x2a), QKeyCode "shift", number 0x2a
 Shift_L 0x2a
 
 # evdev 43 (0x2b), QKeyCode "backslash", number 0x2b
 backslash 0x2b
-bar 0x2b shift
+ellipsis 0x2b shift
+U27E8 0x2b altgr
+U202F 0x2b shift altgr
 
 # evdev 44 (0x2c), QKeyCode "z", number 0x2c
 Arabic_hamzaonyeh 0x2c
 asciitilde 0x2c shift
 guillemotright 0x2c altgr
+U203A 0x2c shift altgr
 
 # evdev 45 (0x2d), QKeyCode "x", number 0x2d
 Arabic_hamza 0x2d
 Arabic_sukun 0x2d shift
 guillemotleft 0x2d altgr
+U2039 0x2d shift altgr
 
 # evdev 46 (0x2e), QKeyCode "c", number 0x2e
 Arabic_hamzaonwaw 0x2e
@@ -236,14 +270,18 @@ apostrophe 0x32 shift
 # evdev 51 (0x33), QKeyCode "comma", number 0x33
 Arabic_waw 0x33
 comma 0x33 shift
+U066C 0x33 altgr
 
 # evdev 52 (0x34), QKeyCode "dot", number 0x34
 Arabic_zain 0x34
 period 0x34 shift
+Arabic_jeh 0x34 altgr
 
 # evdev 53 (0x35), QKeyCode "slash", number 0x35
 Arabic_zah 0x35
 Arabic_question_mark 0x35 shift
+U066D 0x35 altgr
+U200C 0x35 shift altgr
 
 # evdev 54 (0x36), QKeyCode "shift_r", number 0x36
 Shift_R 0x36
@@ -371,9 +409,11 @@ Hiragana 0x77
 # evdev 92 (0x5c), QKeyCode "henkan", number 0x79
 Henkan_Mode 0x79
 
-# evdev 93 (0x5d): no evdev -> QKeyCode mapping (xkb keysym Hiragana_Katakana)
+# evdev 93 (0x5d), QKeyCode "katakanahiragana", number 0x70
+Hiragana_Katakana 0x70
 
-# evdev 94 (0x5e): no evdev -> QKeyCode mapping (xkb keysym Muhenkan)
+# evdev 94 (0x5e), QKeyCode "muhenkan", number 0x7b
+Muhenkan 0x7b
 
 # evdev 95 (0x5f): no evdev -> QKeyCode mapping (xkb keysym NoSymbol)
 
@@ -390,8 +430,7 @@ KP_Divide 0xb5
 Print 0x54
 
 # evdev 100 (0x64), QKeyCode "alt_r", number 0xb8
-Alt_R 0xb8
-Meta_R 0xb8 shift
+ISO_Level3_Shift 0xb8
 
 # evdev 101 (0x65), QKeyCode "lf", number 0x5b
 Linefeed 0x5b
@@ -732,6 +771,10 @@ XF86AudioMedia 0xed
 # evdev 244 (0xf4): no evdev -> QKeyCode mapping (xkb keysym NoSymbol)
 
 # evdev 245 (0xf5): no evdev -> QKeyCode mapping (xkb keysym NoSymbol)
+
+# evdev 246 (0xf6): no evdev -> QKeyCode mapping (xkb keysym Invalid)
+
+# evdev 247 (0xf7): no evdev -> QKeyCode mapping (xkb keysym Invalid)
 
 #
 # quirks section start
