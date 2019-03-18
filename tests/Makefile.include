@@ -711,6 +711,7 @@ qos-test-obj-y += tests/libqos/virtio-serial.o
 
 # Machines
 qos-test-obj-y += tests/libqos/aarch64-xlnx-zcu102-machine.o
+qos-test-obj-y += tests/libqos/arm-n800-machine.o
 qos-test-obj-y += tests/libqos/arm-raspi2-machine.o
 qos-test-obj-y += tests/libqos/arm-sabrelite-machine.o
 qos-test-obj-y += tests/libqos/arm-smdkc210-machine.o
