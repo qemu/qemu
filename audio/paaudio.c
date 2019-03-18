@@ -549,12 +549,8 @@ static int qpa_init_out(HWVoiceOut *hw, struct audsettings *as,
     ss.channels = as->nchannels;
     ss.rate = as->freq;
 
-    /*
-     * qemu audio tick runs at 100 Hz (by default), so processing
-     * data chunks worth 10 ms of sound should be a good fit.
-     */
-    ba.tlength = pa_usec_to_bytes (10 * 1000, &ss);
-    ba.minreq = pa_usec_to_bytes (5 * 1000, &ss);
+    ba.tlength = pa_usec_to_bytes(ppdo->latency, &ss);
+    ba.minreq = -1;
     ba.maxlength = -1;
     ba.prebuf = -1;
 
@@ -577,7 +573,8 @@ static int qpa_init_out(HWVoiceOut *hw, struct audsettings *as,
 
     audio_pcm_init_info (&hw->info, &obt_as);
     hw->samples = pa->samples = audio_buffer_samples(
-        qapi_AudiodevPaPerDirectionOptions_base(ppdo), &obt_as, 46440);
+        qapi_AudiodevPaPerDirectionOptions_base(ppdo),
+        &obt_as, ppdo->buffer_length);
     pa->pcm_buf = audio_calloc(__func__, hw->samples, 1 << hw->info.shift);
     pa->rpos = hw->rpos;
     if (!pa->pcm_buf) {
@@ -608,6 +605,7 @@ static int qpa_init_in(HWVoiceIn *hw, struct audsettings *as, void *drv_opaque)
 {
     int error;
     pa_sample_spec ss;
+    pa_buffer_attr ba;
     struct audsettings obt_as = *as;
     PAVoiceIn *pa = (PAVoiceIn *) hw;
     paaudio *g = pa->g = drv_opaque;
@@ -618,6 +616,11 @@ static int qpa_init_in(HWVoiceIn *hw, struct audsettings *as, void *drv_opaque)
     ss.channels = as->nchannels;
     ss.rate = as->freq;
 
+    ba.fragsize = pa_usec_to_bytes(ppdo->latency, &ss);
+    ba.maxlength = -1;
+    ba.minreq = -1;
+    ba.prebuf = -1;
+
     obt_as.fmt = pa_to_audfmt (ss.format, &obt_as.endianness);
 
     pa->stream = qpa_simple_new (
@@ -627,7 +630,7 @@ static int qpa_init_in(HWVoiceIn *hw, struct audsettings *as, void *drv_opaque)
         ppdo->has_name ? ppdo->name : NULL,
         &ss,
         NULL,                   /* channel map */
-        NULL,                   /* buffering attributes */
+        &ba,                    /* buffering attributes */
         &error
         );
     if (!pa->stream) {
@@ -637,7 +640,8 @@ static int qpa_init_in(HWVoiceIn *hw, struct audsettings *as, void *drv_opaque)
 
     audio_pcm_init_info (&hw->info, &obt_as);
     hw->samples = pa->samples = audio_buffer_samples(
-        qapi_AudiodevPaPerDirectionOptions_base(ppdo), &obt_as, 46440);
+        qapi_AudiodevPaPerDirectionOptions_base(ppdo),
+        &obt_as, ppdo->buffer_length);
     pa->pcm_buf = audio_calloc(__func__, hw->samples, 1 << hw->info.shift);
     pa->wpos = hw->wpos;
     if (!pa->pcm_buf) {
@@ -809,7 +813,20 @@ static int qpa_ctl_in (HWVoiceIn *hw, int cmd, ...)
     return 0;
 }
 
-/* common */
+static int qpa_validate_per_direction_opts(Audiodev *dev,
+                                           AudiodevPaPerDirectionOptions *pdo)
+{
+    if (!pdo->has_buffer_length) {
+        pdo->has_buffer_length = true;
+        pdo->buffer_length = 46440;
+    }
+    if (!pdo->has_latency) {
+        pdo->has_latency = true;
+        pdo->latency = 15000;
+    }
+    return 1;
+}
+
 static void *qpa_audio_init(Audiodev *dev)
 {
     paaudio *g;
@@ -835,6 +852,13 @@ static void *qpa_audio_init(Audiodev *dev)
 
     g = g_malloc(sizeof(paaudio));
     server = popts->has_server ? popts->server : NULL;
+
+    if (!qpa_validate_per_direction_opts(dev, popts->in)) {
+        goto fail;
+    }
+    if (!qpa_validate_per_direction_opts(dev, popts->out)) {
+        goto fail;
+    }
 
     g->dev = dev;
     g->mainloop = NULL;
