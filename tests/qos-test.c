@@ -340,7 +340,8 @@ static void walk_path(QOSGraphNode *orig_path, int len)
     char **path_vec = g_new0(char *, (QOS_PATH_MAX_ELEMENT_SIZE * 2));
     int path_vec_size = 0;
 
-    char *after_cmd = NULL, *before_cmd = NULL, *after_device = NULL;
+    char *after_cmd, *before_cmd, *after_device;
+    GString *after_device_str = g_string_new("");
     char *node_name = orig_path->name, *path_str;
 
     GString *cmd_line = g_string_new("");
@@ -363,9 +364,8 @@ static void walk_path(QOSGraphNode *orig_path, int len)
         /* append node command line + previous edge command line */
         if (path->command_line && etype == QEDGE_CONSUMED_BY) {
             g_string_append(cmd_line, path->command_line);
-            if (after_device) {
-                g_string_append(cmd_line, after_device);
-            }
+            g_string_append(cmd_line, after_device_str->str);
+            g_string_truncate(after_device_str, 0);
         }
 
         path_vec[path_vec_size++] = qos_graph_edge_get_name(path->path_edge);
@@ -382,12 +382,15 @@ static void walk_path(QOSGraphNode *orig_path, int len)
         if (after_cmd) {
             g_string_append(cmd_line2, after_cmd);
         }
+        if (after_device) {
+            g_string_append(after_device_str, after_device);
+        }
     }
 
     path_vec[path_vec_size++] = NULL;
-    if (after_device) {
-        g_string_append(cmd_line, after_device);
-    }
+    g_string_append(cmd_line, after_device_str->str);
+    g_string_free(after_device_str, true);
+
     g_string_append(cmd_line, cmd_line2->str);
     g_string_free(cmd_line2, true);
 
