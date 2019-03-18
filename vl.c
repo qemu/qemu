@@ -3119,6 +3119,7 @@ int main(int argc, char **argv, char **envp)
         if (optind >= argc)
             break;
         if (argv[optind][0] != '-') {
+            loc_set_cmdline(argv, optind, 1);
             drive_add(IF_DEFAULT, 0, argv[optind++], HD_OPTS);
         } else {
             const QEMUOption *popt;
