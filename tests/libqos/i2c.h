@@ -28,6 +28,17 @@ void i2c_send(I2CAdapter *i2c, uint8_t addr,
 void i2c_recv(I2CAdapter *i2c, uint8_t addr,
               uint8_t *buf, uint16_t len);
 
+void i2c_read_block(I2CAdapter *i2c, uint8_t addr, uint8_t reg,
+                    uint8_t *buf, uint16_t len);
+void i2c_write_block(I2CAdapter *i2c, uint8_t addr, uint8_t reg,
+                     const uint8_t *buf, uint16_t len);
+uint8_t i2c_get8(I2CAdapter *i2c, uint8_t addr, uint8_t reg);
+uint16_t i2c_get16(I2CAdapter *i2c, uint8_t addr, uint8_t reg);
+void i2c_set8(I2CAdapter *i2c, uint8_t addr, uint8_t reg,
+              uint8_t value);
+void i2c_set16(I2CAdapter *i2c, uint8_t addr, uint8_t reg,
+               uint16_t value);
+
 /* libi2c-omap.c */
 I2CAdapter *omap_i2c_create(QTestState *qts, uint64_t addr);
 
