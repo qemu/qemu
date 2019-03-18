@@ -31,13 +31,12 @@ static inline uint8_t bcd2bin(uint8_t x)
 static void send_and_receive(void *obj, void *data, QGuestAllocator *alloc)
 {
     QI2CDevice *i2cdev = (QI2CDevice *)obj;
-    I2CAdapter *i2c = i2cdev->bus;
 
     uint8_t resp[7];
     time_t now = time(NULL);
     struct tm *tm_ptr = gmtime(&now);
 
-    i2c_read_block(i2c, DS1338_ADDR, 0, resp, sizeof(resp));
+    i2c_read_block(i2cdev, 0, resp, sizeof(resp));
 
     /* check retrieved time againt local time */
     g_assert_cmpuint(bcd2bin(resp[4]), == , tm_ptr->tm_mday);
@@ -50,6 +49,7 @@ static void ds1338_register_nodes(void)
     QOSGraphEdgeOptions opts = {
         .extra_device_opts = "address=0x68"
     };
+    add_qi2c_address(&opts, &(QI2CAddress) { DS1338_ADDR });
 
     qos_node_create_driver("ds1338", i2c_device_create);
     qos_node_consumes("ds1338", "i2c-bus", &opts);
