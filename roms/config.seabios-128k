@@ -2,7 +2,7 @@
 # need to turn off features (xhci,uas) to make it fit into 128k
 CONFIG_QEMU=y
 CONFIG_ROM_SIZE=128
-CONFIG_ATA_DMA=y
+CONFIG_ATA_DMA=n
 CONFIG_BOOTSPLASH=n
 CONFIG_XEN=n
 CONFIG_USB_OHCI=n
