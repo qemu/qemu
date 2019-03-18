@@ -207,25 +207,6 @@ void imx_i2c_init(IMXI2C *s, QTestState *qts, uint64_t addr)
     s->parent.qts = qts;
 }
 
-I2CAdapter *imx_i2c_create(QTestState *qts, uint64_t addr)
-{
-    IMXI2C *s = g_malloc0(sizeof(*s));
-
-    imx_i2c_init(s, qts, addr);
-    return &s->parent;
-}
-
-void imx_i2c_free(I2CAdapter *i2c)
-{
-    IMXI2C *s;
-
-    if (!i2c) {
-        return;
-    }
-    s = container_of(i2c, IMXI2C, parent);
-    g_free(s);
-}
-
 static void imx_i2c_register_nodes(void)
 {
     qos_node_create_driver("imx.i2c", NULL);

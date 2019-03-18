@@ -21,25 +21,23 @@
 #include "libqtest.h"
 #include "libqos/i2c.h"
 
-#define IMX25_I2C_0_BASE 0x43F80000
-
 #define DS1338_ADDR 0x68
-
-static I2CAdapter *i2c;
-static uint8_t addr;
 
 static inline uint8_t bcd2bin(uint8_t x)
 {
     return ((x) & 0x0f) + ((x) >> 4) * 10;
 }
 
-static void send_and_receive(void)
+static void send_and_receive(void *obj, void *data, QGuestAllocator *alloc)
 {
+    QI2CDevice *i2cdev = (QI2CDevice *)obj;
+    I2CAdapter *i2c = i2cdev->bus;
+
     uint8_t resp[7];
     time_t now = time(NULL);
     struct tm *tm_ptr = gmtime(&now);
 
-    i2c_read_block(i2c, addr, 0, resp, sizeof(resp));
+    i2c_read_block(i2c, DS1338_ADDR, 0, resp, sizeof(resp));
 
     /* check retrieved time againt local time */
     g_assert_cmpuint(bcd2bin(resp[4]), == , tm_ptr->tm_mday);
@@ -47,23 +45,14 @@ static void send_and_receive(void)
     g_assert_cmpuint(2000 + bcd2bin(resp[6]), == , 1900 + tm_ptr->tm_year);
 }
 
-int main(int argc, char **argv)
+static void ds1338_register_nodes(void)
 {
-    QTestState *s = NULL;
-    int ret;
+    QOSGraphEdgeOptions opts = {
+        .extra_device_opts = "address=0x68"
+    };
 
-    g_test_init(&argc, &argv, NULL);
-
-    s = qtest_start("-display none -machine imx25-pdk -device ds1338,address=0x68");
-    i2c = imx_i2c_create(s, IMX25_I2C_0_BASE);
-    addr = DS1338_ADDR;
-
-    qtest_add_func("/ds1338/tx-rx", send_and_receive);
-
-    ret = g_test_run();
-
-    qtest_quit(s);
-    g_free(i2c);
-
-    return ret;
+    qos_node_create_driver("ds1338", i2c_device_create);
+    qos_node_consumes("ds1338", "i2c-bus", &opts);
+    qos_add_test("tx-rx", "ds1338", send_and_receive, NULL);
 }
+libqos_init(ds1338_register_nodes);

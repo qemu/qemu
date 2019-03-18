@@ -75,7 +75,5 @@ typedef struct IMXI2C {
 } IMXI2C;
 
 void imx_i2c_init(IMXI2C *s, QTestState *qts, uint64_t addr);
-I2CAdapter *imx_i2c_create(QTestState *qts, uint64_t addr);
-void imx_i2c_free(I2CAdapter *i2c);
 
 #endif
