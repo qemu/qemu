@@ -786,7 +786,7 @@ static const MemoryRegionOps pnv_psi_p9_xscom_ops = {
 
 static void pnv_psi_power9_irq_set(PnvPsi *psi, int irq, bool state)
 {
-    uint32_t irq_method = psi->regs[PSIHB_REG(PSIHB9_INTERRUPT_CONTROL)];
+    uint64_t irq_method = psi->regs[PSIHB_REG(PSIHB9_INTERRUPT_CONTROL)];
 
     if (irq > PSIHB9_NUM_IRQS) {
         qemu_log_mask(LOG_GUEST_ERROR, "PSI: Unsupported irq %d\n", irq);

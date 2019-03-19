@@ -1061,13 +1061,24 @@ F: include/hw/*/xics*
 F: pc-bios/spapr-rtas/*
 F: pc-bios/spapr-rtas.bin
 F: pc-bios/slof.bin
-F: pc-bios/skiboot.lid
 F: docs/specs/ppc-spapr-hcalls.txt
 F: docs/specs/ppc-spapr-hotplug.txt
 F: tests/spapr*
 F: tests/libqos/*spapr*
 F: tests/rtas*
 F: tests/libqos/rtas*
+
+PowerNV (Non-Virtualized)
+M: Cédric Le Goater <clg@kaod.org>
+M: David Gibson <david@gibson.dropbear.id.au>
+L: qemu-ppc@nongnu.org
+S: Maintained
+F: hw/ppc/pnv*
+F: hw/intc/pnv*
+F: hw/intc/xics_pnv.c
+F: include/hw/ppc/pnv*
+F: pc-bios/skiboot.lid
+F: tests/pnv*
 
 virtex_ml507
 M: Edgar E. Iglesias <edgar.iglesias@gmail.com>

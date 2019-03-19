@@ -1488,9 +1488,7 @@ static void spapr_pci_plug(HotplugHandler *plug_handler,
     }
 
 out:
-    if (local_err) {
-        error_propagate(errp, local_err);
-    }
+    error_propagate(errp, local_err);
 }
 
 static void spapr_pci_unplug(HotplugHandler *plug_handler,
