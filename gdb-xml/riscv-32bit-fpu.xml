@@ -1,0 +1,50 @@
+<?xml version="1.0"?>
+<!-- Copyright (C) 2018-2019 Free Software Foundation, Inc.
+
+     Copying and distribution of this file, with or without modification,
+     are permitted in any medium without royalty provided the copyright
+     notice and this notice are preserved.  -->
+
+<!-- Register numbers are hard-coded in order to maintain backward
+     compatibility with older versions of tools that didn't use xml
+     register descriptions.  -->
+
+<!DOCTYPE feature SYSTEM "gdb-target.dtd">
+<feature name="org.gnu.gdb.riscv.fpu">
+  <reg name="ft0" bitsize="32" type="ieee_single" regnum="33"/>
+  <reg name="ft1" bitsize="32" type="ieee_single"/>
+  <reg name="ft2" bitsize="32" type="ieee_single"/>
+  <reg name="ft3" bitsize="32" type="ieee_single"/>
+  <reg name="ft4" bitsize="32" type="ieee_single"/>
+  <reg name="ft5" bitsize="32" type="ieee_single"/>
+  <reg name="ft6" bitsize="32" type="ieee_single"/>
+  <reg name="ft7" bitsize="32" type="ieee_single"/>
+  <reg name="fs0" bitsize="32" type="ieee_single"/>
+  <reg name="fs1" bitsize="32" type="ieee_single"/>
+  <reg name="fa0" bitsize="32" type="ieee_single"/>
+  <reg name="fa1" bitsize="32" type="ieee_single"/>
+  <reg name="fa2" bitsize="32" type="ieee_single"/>
+  <reg name="fa3" bitsize="32" type="ieee_single"/>
+  <reg name="fa4" bitsize="32" type="ieee_single"/>
+  <reg name="fa5" bitsize="32" type="ieee_single"/>
+  <reg name="fa6" bitsize="32" type="ieee_single"/>
+  <reg name="fa7" bitsize="32" type="ieee_single"/>
+  <reg name="fs2" bitsize="32" type="ieee_single"/>
+  <reg name="fs3" bitsize="32" type="ieee_single"/>
+  <reg name="fs4" bitsize="32" type="ieee_single"/>
+  <reg name="fs5" bitsize="32" type="ieee_single"/>
+  <reg name="fs6" bitsize="32" type="ieee_single"/>
+  <reg name="fs7" bitsize="32" type="ieee_single"/>
+  <reg name="fs8" bitsize="32" type="ieee_single"/>
+  <reg name="fs9" bitsize="32" type="ieee_single"/>
+  <reg name="fs10" bitsize="32" type="ieee_single"/>
+  <reg name="fs11" bitsize="32" type="ieee_single"/>
+  <reg name="ft8" bitsize="32" type="ieee_single"/>
+  <reg name="ft9" bitsize="32" type="ieee_single"/>
+  <reg name="ft10" bitsize="32" type="ieee_single"/>
+  <reg name="ft11" bitsize="32" type="ieee_single"/>
+
+  <reg name="fflags" bitsize="32" type="int" regnum="66"/>
+  <reg name="frm" bitsize="32" type="int" regnum="67"/>
+  <reg name="fcsr" bitsize="32" type="int" regnum="68"/>
+</feature>

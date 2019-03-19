@@ -87,33 +87,10 @@ typedef enum {
 
 typedef enum {
     rvc_end,
-    rvc_simm_6,
-    rvc_imm_6,
-    rvc_imm_7,
-    rvc_imm_8,
-    rvc_imm_9,
-    rvc_imm_10,
-    rvc_imm_12,
-    rvc_imm_18,
-    rvc_imm_nz,
-    rvc_imm_x2,
-    rvc_imm_x4,
-    rvc_imm_x8,
-    rvc_imm_x16,
-    rvc_rd_b3,
-    rvc_rs1_b3,
-    rvc_rs2_b3,
-    rvc_rd_eq_rs1,
     rvc_rd_eq_ra,
-    rvc_rd_eq_sp,
     rvc_rd_eq_x0,
-    rvc_rs1_eq_sp,
     rvc_rs1_eq_x0,
     rvc_rs2_eq_x0,
-    rvc_rd_ne_x0_x2,
-    rvc_rd_ne_x0,
-    rvc_rs1_ne_x0,
-    rvc_rs2_ne_x0,
     rvc_rs2_eq_rs1,
     rvc_rs1_eq_ra,
     rvc_imm_eq_zero,
@@ -2522,108 +2499,13 @@ static bool check_constraints(rv_decode *dec, const rvc_constraint *c)
     uint8_t rd = dec->rd, rs1 = dec->rs1, rs2 = dec->rs2;
     while (*c != rvc_end) {
         switch (*c) {
-        case rvc_simm_6:
-            if (!(imm >= -32 && imm < 32)) {
-                return false;
-            }
-            break;
-        case rvc_imm_6:
-            if (!(imm <= 63)) {
-                return false;
-            }
-            break;
-        case rvc_imm_7:
-            if (!(imm <= 127)) {
-                return false;
-            }
-            break;
-        case rvc_imm_8:
-            if (!(imm <= 255)) {
-                return false;
-            }
-            break;
-        case rvc_imm_9:
-            if (!(imm <= 511)) {
-                return false;
-            }
-            break;
-        case rvc_imm_10:
-            if (!(imm <= 1023)) {
-                return false;
-            }
-            break;
-        case rvc_imm_12:
-            if (!(imm <= 4095)) {
-                return false;
-            }
-            break;
-        case rvc_imm_18:
-            if (!(imm <= 262143)) {
-                return false;
-            }
-            break;
-        case rvc_imm_nz:
-            if (!(imm != 0)) {
-                return false;
-            }
-            break;
-        case rvc_imm_x2:
-            if (!((imm & 0b1) == 0)) {
-                return false;
-            }
-            break;
-        case rvc_imm_x4:
-            if (!((imm & 0b11) == 0)) {
-                return false;
-            }
-            break;
-        case rvc_imm_x8:
-            if (!((imm & 0b111) == 0)) {
-                return false;
-            }
-            break;
-        case rvc_imm_x16:
-            if (!((imm & 0b1111) == 0)) {
-                return false;
-            }
-            break;
-        case rvc_rd_b3:
-            if (!(rd  >= 8 && rd  <= 15)) {
-                return false;
-            }
-            break;
-        case rvc_rs1_b3:
-            if (!(rs1 >= 8 && rs1 <= 15)) {
-                return false;
-            }
-            break;
-        case rvc_rs2_b3:
-            if (!(rs2 >= 8 && rs2 <= 15)) {
-                return false;
-            }
-            break;
-        case rvc_rd_eq_rs1:
-            if (!(rd == rs1)) {
-                return false;
-            }
-            break;
         case rvc_rd_eq_ra:
             if (!(rd == 1)) {
                 return false;
             }
             break;
-        case rvc_rd_eq_sp:
-            if (!(rd == 2)) {
-                return false;
-            }
-            break;
         case rvc_rd_eq_x0:
             if (!(rd == 0)) {
-                return false;
-            }
-            break;
-        case rvc_rs1_eq_sp:
-            if (!(rs1 == 2)) {
                 return false;
             }
             break;
@@ -2634,26 +2516,6 @@ static bool check_constraints(rv_decode *dec, const rvc_constraint *c)
             break;
         case rvc_rs2_eq_x0:
             if (!(rs2 == 0)) {
-                return false;
-            }
-            break;
-        case rvc_rd_ne_x0_x2:
-            if (!(rd != 0 && rd != 2)) {
-                return false;
-            }
-            break;
-        case rvc_rd_ne_x0:
-            if (!(rd != 0)) {
-                return false;
-            }
-            break;
-        case rvc_rs1_ne_x0:
-            if (!(rs1 != 0)) {
-                return false;
-            }
-            break;
-        case rvc_rs2_ne_x0:
-            if (!(rs2 != 0)) {
                 return false;
             }
             break;
