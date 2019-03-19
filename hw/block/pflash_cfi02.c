@@ -37,6 +37,7 @@
 
 #include "qemu/osdep.h"
 #include "hw/hw.h"
+#include "hw/block/block.h"
 #include "hw/block/flash.h"
 #include "qapi/error.h"
 #include "qemu/timer.h"
@@ -581,11 +582,9 @@ static void pflash_cfi02_realize(DeviceState *dev, Error **errp)
     }
 
     if (pfl->blk) {
-        /* read the initial flash content */
-        ret = blk_pread(pfl->blk, 0, pfl->storage, chip_len);
-        if (ret < 0) {
+        if (!blk_check_size_and_read_all(pfl->blk, pfl->storage, chip_len,
+                                         errp)) {
             vmstate_unregister_ram(&pfl->orig_mem, DEVICE(pfl));
-            error_setg(errp, "failed to read the initial flash content");
             return;
         }
     }
