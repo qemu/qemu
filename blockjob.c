@@ -501,9 +501,11 @@ BlockErrorAction block_job_error_action(BlockJob *job, BlockdevOnError on_err,
                                         action);
     }
     if (action == BLOCK_ERROR_ACTION_STOP) {
-        job_pause(&job->job);
-        /* make the pause user visible, which will be resumed from QMP. */
-        job->job.user_paused = true;
+        if (!job->job.user_paused) {
+            job_pause(&job->job);
+            /* make the pause user visible, which will be resumed from QMP. */
+            job->job.user_paused = true;
+        }
         block_job_iostatus_set_err(job, error);
     }
     return action;
