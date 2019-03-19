@@ -29,7 +29,6 @@
 
 struct QFileMonitor {
     int fd;
-    int nextid; /* watch ID counter */
     QemuMutex lock; /* protects dirs & idmap */
     GHashTable *dirs; /* dirname => QFileMonitorDir */
     GHashTable *idmap; /* inotify ID => dirname */
@@ -37,7 +36,7 @@ struct QFileMonitor {
 
 
 typedef struct {
-    int id; /* watch ID */
+    int64_t id; /* watch ID */
     char *filename; /* optional filter */
     QFileMonitorHandler cb;
     void *opaque;
@@ -46,7 +45,8 @@ typedef struct {
 
 typedef struct {
     char *path;
-    int id; /* inotify ID */
+    int inotify_id; /* inotify ID */
+    int next_file_id; /* file ID counter */
     GArray *watches; /* QFileMonitorWatch elements */
 } QFileMonitorDir;
 
@@ -126,7 +126,8 @@ static void qemu_file_monitor_watch(void *arg)
             g_assert_not_reached();
         }
 
-        trace_qemu_file_monitor_event(mon, dir->path, name, ev->mask, dir->id);
+        trace_qemu_file_monitor_event(mon, dir->path, name, ev->mask,
+                                      dir->inotify_id);
         for (i = 0; i < dir->watches->len; i++) {
             QFileMonitorWatch *watch = &g_array_index(dir->watches,
                                                       QFileMonitorWatch,
@@ -237,7 +238,7 @@ qemu_file_monitor_free(QFileMonitor *mon)
     g_idle_add((GSourceFunc)qemu_file_monitor_free_idle, mon);
 }
 
-int
+int64_t
 qemu_file_monitor_add_watch(QFileMonitor *mon,
                             const char *dirpath,
                             const char *filename,
@@ -247,7 +248,7 @@ qemu_file_monitor_add_watch(QFileMonitor *mon,
 {
     QFileMonitorDir *dir;
     QFileMonitorWatch watch;
-    int ret = -1;
+    int64_t ret = -1;
 
     qemu_mutex_lock(&mon->lock);
     dir = g_hash_table_lookup(mon->dirs, dirpath);
@@ -265,7 +266,7 @@ qemu_file_monitor_add_watch(QFileMonitor *mon,
 
         dir = g_new0(QFileMonitorDir, 1);
         dir->path = g_strdup(dirpath);
-        dir->id = rv;
+        dir->inotify_id = rv;
         dir->watches = g_array_new(FALSE, TRUE, sizeof(QFileMonitorWatch));
 
         g_hash_table_insert(mon->dirs, dir->path, dir);
@@ -276,7 +277,7 @@ qemu_file_monitor_add_watch(QFileMonitor *mon,
         }
     }
 
-    watch.id = mon->nextid++;
+    watch.id = (((int64_t)dir->inotify_id) << 32) | dir->next_file_id++;
     watch.filename = g_strdup(filename);
     watch.cb = cb;
     watch.opaque = opaque;
@@ -297,7 +298,7 @@ qemu_file_monitor_add_watch(QFileMonitor *mon,
 
 void qemu_file_monitor_remove_watch(QFileMonitor *mon,
                                     const char *dirpath,
-                                    int id)
+                                    int64_t id)
 {
     QFileMonitorDir *dir;
     gsize i;
@@ -322,10 +323,10 @@ void qemu_file_monitor_remove_watch(QFileMonitor *mon,
     }
 
     if (dir->watches->len == 0) {
-        inotify_rm_watch(mon->fd, dir->id);
-        trace_qemu_file_monitor_disable_watch(mon, dir->path, dir->id);
+        inotify_rm_watch(mon->fd, dir->inotify_id);
+        trace_qemu_file_monitor_disable_watch(mon, dir->path, dir->inotify_id);
 
-        g_hash_table_remove(mon->idmap, GINT_TO_POINTER(dir->id));
+        g_hash_table_remove(mon->idmap, GINT_TO_POINTER(dir->inotify_id));
         g_hash_table_remove(mon->dirs, dir->path);
 
         if (g_hash_table_size(mon->dirs) == 0) {

@@ -43,12 +43,12 @@ typedef struct {
     int type;
     const char *filesrc;
     const char *filedst;
-    int watchid;
+    int64_t *watchid;
     int eventid;
 } QFileMonitorTestOp;
 
 typedef struct {
-    int id;
+    int64_t id;
     QFileMonitorEvent event;
     char *filename;
 } QFileMonitorTestRecord;
@@ -90,7 +90,7 @@ qemu_file_monitor_test_event_loop(void *opaque G_GNUC_UNUSED)
  * an ordered list of all events that it receives
  */
 static void
-qemu_file_monitor_test_handler(int id,
+qemu_file_monitor_test_handler(int64_t id,
                                QFileMonitorEvent event,
                                const char *filename,
                                void *opaque)
@@ -156,7 +156,7 @@ qemu_file_monitor_test_next_record(QFileMonitorTestData *data)
  */
 static bool
 qemu_file_monitor_test_expect(QFileMonitorTestData *data,
-                              int id,
+                              int64_t id,
                               QFileMonitorEvent event,
                               const char *filename)
 {
@@ -166,13 +166,14 @@ qemu_file_monitor_test_expect(QFileMonitorTestData *data,
     rec = qemu_file_monitor_test_next_record(data);
 
     if (!rec) {
-        g_printerr("Missing event watch id %d event %d file %s\n",
+        g_printerr("Missing event watch id %" PRIx64 " event %d file %s\n",
                    id, event, filename);
         return false;
     }
 
     if (id != rec->id) {
-        g_printerr("Expected watch id %d but got %d\n", id, rec->id);
+        g_printerr("Expected watch id %" PRIx64 " but got %" PRIx64 "\n",
+                   id, rec->id);
         goto cleanup;
     }
 
@@ -198,170 +199,176 @@ qemu_file_monitor_test_expect(QFileMonitorTestData *data,
 static void
 test_file_monitor_events(void)
 {
+    int64_t watch0 = 0;
+    int64_t watch1 = 0;
+    int64_t watch2 = 0;
+    int64_t watch3 = 0;
+    int64_t watch4 = 0;
+    int64_t watch5 = 0;
     QFileMonitorTestOp ops[] = {
         { .type = QFILE_MONITOR_TEST_OP_ADD_WATCH,
-          .filesrc = NULL, .watchid = 0 },
+          .filesrc = NULL, .watchid = &watch0 },
         { .type = QFILE_MONITOR_TEST_OP_ADD_WATCH,
-          .filesrc = "one.txt", .watchid = 1 },
+          .filesrc = "one.txt", .watchid = &watch1 },
         { .type = QFILE_MONITOR_TEST_OP_ADD_WATCH,
-          .filesrc = "two.txt", .watchid = 2 },
+          .filesrc = "two.txt", .watchid = &watch2 },
 
 
         { .type = QFILE_MONITOR_TEST_OP_CREATE,
           .filesrc = "one.txt", },
         { .type = QFILE_MONITOR_TEST_OP_EVENT,
-          .filesrc = "one.txt", .watchid = 0,
+          .filesrc = "one.txt", .watchid = &watch0,
           .eventid = QFILE_MONITOR_EVENT_CREATED },
         { .type = QFILE_MONITOR_TEST_OP_EVENT,
-          .filesrc = "one.txt", .watchid = 1,
+          .filesrc = "one.txt", .watchid = &watch1,
           .eventid = QFILE_MONITOR_EVENT_CREATED },
 
 
         { .type = QFILE_MONITOR_TEST_OP_CREATE,
           .filesrc = "two.txt", },
         { .type = QFILE_MONITOR_TEST_OP_EVENT,
-          .filesrc = "two.txt", .watchid = 0,
+          .filesrc = "two.txt", .watchid = &watch0,
           .eventid = QFILE_MONITOR_EVENT_CREATED },
         { .type = QFILE_MONITOR_TEST_OP_EVENT,
-          .filesrc = "two.txt", .watchid = 2,
+          .filesrc = "two.txt", .watchid = &watch2,
           .eventid = QFILE_MONITOR_EVENT_CREATED },
 
 
         { .type = QFILE_MONITOR_TEST_OP_CREATE,
           .filesrc = "three.txt", },
         { .type = QFILE_MONITOR_TEST_OP_EVENT,
-          .filesrc = "three.txt", .watchid = 0,
+          .filesrc = "three.txt", .watchid = &watch0,
           .eventid = QFILE_MONITOR_EVENT_CREATED },
 
 
         { .type = QFILE_MONITOR_TEST_OP_UNLINK,
           .filesrc = "three.txt", },
         { .type = QFILE_MONITOR_TEST_OP_EVENT,
-          .filesrc = "three.txt", .watchid = 0,
+          .filesrc = "three.txt", .watchid = &watch0,
           .eventid = QFILE_MONITOR_EVENT_DELETED },
 
 
         { .type = QFILE_MONITOR_TEST_OP_RENAME,
           .filesrc = "one.txt", .filedst = "two.txt" },
         { .type = QFILE_MONITOR_TEST_OP_EVENT,
-          .filesrc = "one.txt", .watchid = 0,
+          .filesrc = "one.txt", .watchid = &watch0,
           .eventid = QFILE_MONITOR_EVENT_DELETED },
         { .type = QFILE_MONITOR_TEST_OP_EVENT,
-          .filesrc = "one.txt", .watchid = 1,
+          .filesrc = "one.txt", .watchid = &watch1,
           .eventid = QFILE_MONITOR_EVENT_DELETED },
         { .type = QFILE_MONITOR_TEST_OP_EVENT,
-          .filesrc = "two.txt", .watchid = 0,
+          .filesrc = "two.txt", .watchid = &watch0,
           .eventid = QFILE_MONITOR_EVENT_CREATED },
         { .type = QFILE_MONITOR_TEST_OP_EVENT,
-          .filesrc = "two.txt", .watchid = 2,
+          .filesrc = "two.txt", .watchid = &watch2,
           .eventid = QFILE_MONITOR_EVENT_CREATED },
 
 
         { .type = QFILE_MONITOR_TEST_OP_APPEND,
           .filesrc = "two.txt", },
         { .type = QFILE_MONITOR_TEST_OP_EVENT,
-          .filesrc = "two.txt", .watchid = 0,
+          .filesrc = "two.txt", .watchid = &watch0,
           .eventid = QFILE_MONITOR_EVENT_MODIFIED },
         { .type = QFILE_MONITOR_TEST_OP_EVENT,
-          .filesrc = "two.txt", .watchid = 2,
+          .filesrc = "two.txt", .watchid = &watch2,
           .eventid = QFILE_MONITOR_EVENT_MODIFIED },
 
 
         { .type = QFILE_MONITOR_TEST_OP_TOUCH,
           .filesrc = "two.txt", },
         { .type = QFILE_MONITOR_TEST_OP_EVENT,
-          .filesrc = "two.txt", .watchid = 0,
+          .filesrc = "two.txt", .watchid = &watch0,
           .eventid = QFILE_MONITOR_EVENT_ATTRIBUTES },
         { .type = QFILE_MONITOR_TEST_OP_EVENT,
-          .filesrc = "two.txt", .watchid = 2,
+          .filesrc = "two.txt", .watchid = &watch2,
           .eventid = QFILE_MONITOR_EVENT_ATTRIBUTES },
 
 
         { .type = QFILE_MONITOR_TEST_OP_DEL_WATCH,
-          .filesrc = "one.txt", .watchid = 1 },
+          .filesrc = "one.txt", .watchid = &watch1 },
         { .type = QFILE_MONITOR_TEST_OP_ADD_WATCH,
-          .filesrc = "one.txt", .watchid = 3 },
+          .filesrc = "one.txt", .watchid = &watch3 },
         { .type = QFILE_MONITOR_TEST_OP_CREATE,
           .filesrc = "one.txt", },
         { .type = QFILE_MONITOR_TEST_OP_EVENT,
-          .filesrc = "one.txt", .watchid = 0,
+          .filesrc = "one.txt", .watchid = &watch0,
           .eventid = QFILE_MONITOR_EVENT_CREATED },
         { .type = QFILE_MONITOR_TEST_OP_EVENT,
-          .filesrc = "one.txt", .watchid = 3,
+          .filesrc = "one.txt", .watchid = &watch3,
           .eventid = QFILE_MONITOR_EVENT_CREATED },
 
 
         { .type = QFILE_MONITOR_TEST_OP_DEL_WATCH,
-          .filesrc = "one.txt", .watchid = 3 },
+          .filesrc = "one.txt", .watchid = &watch3 },
         { .type = QFILE_MONITOR_TEST_OP_UNLINK,
           .filesrc = "one.txt", },
         { .type = QFILE_MONITOR_TEST_OP_EVENT,
-          .filesrc = "one.txt", .watchid = 0,
+          .filesrc = "one.txt", .watchid = &watch0,
           .eventid = QFILE_MONITOR_EVENT_DELETED },
 
 
         { .type = QFILE_MONITOR_TEST_OP_MKDIR,
           .filesrc = "fish", },
         { .type = QFILE_MONITOR_TEST_OP_EVENT,
-          .filesrc = "fish", .watchid = 0,
+          .filesrc = "fish", .watchid = &watch0,
           .eventid = QFILE_MONITOR_EVENT_CREATED },
 
 
         { .type = QFILE_MONITOR_TEST_OP_ADD_WATCH,
-          .filesrc = "fish/", .watchid = 4 },
+          .filesrc = "fish/", .watchid = &watch4 },
         { .type = QFILE_MONITOR_TEST_OP_ADD_WATCH,
-          .filesrc = "fish/one.txt", .watchid = 5 },
+          .filesrc = "fish/one.txt", .watchid = &watch5 },
         { .type = QFILE_MONITOR_TEST_OP_CREATE,
           .filesrc = "fish/one.txt", },
         { .type = QFILE_MONITOR_TEST_OP_EVENT,
-          .filesrc = "one.txt", .watchid = 4,
+          .filesrc = "one.txt", .watchid = &watch4,
           .eventid = QFILE_MONITOR_EVENT_CREATED },
         { .type = QFILE_MONITOR_TEST_OP_EVENT,
-          .filesrc = "one.txt", .watchid = 5,
+          .filesrc = "one.txt", .watchid = &watch5,
           .eventid = QFILE_MONITOR_EVENT_CREATED },
 
 
         { .type = QFILE_MONITOR_TEST_OP_DEL_WATCH,
-          .filesrc = "fish/one.txt", .watchid = 5 },
+          .filesrc = "fish/one.txt", .watchid = &watch5 },
         { .type = QFILE_MONITOR_TEST_OP_RENAME,
           .filesrc = "fish/one.txt", .filedst = "two.txt", },
         { .type = QFILE_MONITOR_TEST_OP_EVENT,
-          .filesrc = "one.txt", .watchid = 4,
+          .filesrc = "one.txt", .watchid = &watch4,
           .eventid = QFILE_MONITOR_EVENT_DELETED },
         { .type = QFILE_MONITOR_TEST_OP_EVENT,
-          .filesrc = "two.txt", .watchid = 0,
+          .filesrc = "two.txt", .watchid = &watch0,
           .eventid = QFILE_MONITOR_EVENT_CREATED },
         { .type = QFILE_MONITOR_TEST_OP_EVENT,
-          .filesrc = "two.txt", .watchid = 2,
+          .filesrc = "two.txt", .watchid = &watch2,
           .eventid = QFILE_MONITOR_EVENT_CREATED },
 
 
         { .type = QFILE_MONITOR_TEST_OP_RMDIR,
           .filesrc = "fish", },
         { .type = QFILE_MONITOR_TEST_OP_EVENT,
-          .filesrc = "", .watchid = 4,
+          .filesrc = "", .watchid = &watch4,
           .eventid = QFILE_MONITOR_EVENT_IGNORED },
         { .type = QFILE_MONITOR_TEST_OP_EVENT,
-          .filesrc = "fish", .watchid = 0,
+          .filesrc = "fish", .watchid = &watch0,
           .eventid = QFILE_MONITOR_EVENT_DELETED },
         { .type = QFILE_MONITOR_TEST_OP_DEL_WATCH,
-          .filesrc = "fish", .watchid = 4 },
+          .filesrc = "fish", .watchid = &watch4 },
 
 
         { .type = QFILE_MONITOR_TEST_OP_UNLINK,
           .filesrc = "two.txt", },
         { .type = QFILE_MONITOR_TEST_OP_EVENT,
-          .filesrc = "two.txt", .watchid = 0,
+          .filesrc = "two.txt", .watchid = &watch0,
           .eventid = QFILE_MONITOR_EVENT_DELETED },
         { .type = QFILE_MONITOR_TEST_OP_EVENT,
-          .filesrc = "two.txt", .watchid = 2,
+          .filesrc = "two.txt", .watchid = &watch2,
           .eventid = QFILE_MONITOR_EVENT_DELETED },
 
 
         { .type = QFILE_MONITOR_TEST_OP_DEL_WATCH,
-          .filesrc = "two.txt", .watchid = 2 },
+          .filesrc = "two.txt", .watchid = &watch2 },
         { .type = QFILE_MONITOR_TEST_OP_DEL_WATCH,
-          .filesrc = NULL, .watchid = 0 },
+          .filesrc = NULL, .watchid = &watch0 },
     };
     Error *local_err = NULL;
     GError *gerr = NULL;
@@ -374,6 +381,7 @@ test_file_monitor_events(void)
     char *pathsrc = NULL;
     char *pathdst = NULL;
     QFileMonitorTestData data;
+    GHashTable *ids = g_hash_table_new(g_int64_hash, g_int64_equal);
 
     qemu_mutex_init(&data.lock);
     data.records = NULL;
@@ -414,7 +422,6 @@ test_file_monitor_events(void)
     for (i = 0; i < G_N_ELEMENTS(ops); i++) {
         const QFileMonitorTestOp *op = &(ops[i]);
         int fd;
-        int watchid;
         struct utimbuf ubuf;
         char *watchdir;
         const char *watchfile;
@@ -427,8 +434,8 @@ test_file_monitor_events(void)
         switch (op->type) {
         case QFILE_MONITOR_TEST_OP_ADD_WATCH:
             if (debug) {
-                g_printerr("Add watch %s %s %d\n",
-                           dir, op->filesrc, op->watchid);
+                g_printerr("Add watch %s %s\n",
+                           dir, op->filesrc);
             }
             if (op->filesrc && strchr(op->filesrc, '/')) {
                 watchdir = g_strdup_printf("%s/%s", dir, op->filesrc);
@@ -442,7 +449,7 @@ test_file_monitor_events(void)
                 watchdir = g_strdup(dir);
                 watchfile = op->filesrc;
             }
-            watchid =
+            *op->watchid =
                 qemu_file_monitor_add_watch(mon,
                                             watchdir,
                                             watchfile,
@@ -450,20 +457,23 @@ test_file_monitor_events(void)
                                             &data,
                                             &local_err);
             g_free(watchdir);
-            if (watchid < 0) {
+            if (*op->watchid < 0) {
                 g_printerr("Unable to add watch %s",
                            error_get_pretty(local_err));
                 goto cleanup;
             }
-            if (watchid != op->watchid) {
-                g_printerr("Unexpected watch ID %d, wanted %d\n",
-                           watchid, op->watchid);
+            if (debug) {
+                g_printerr("Watch ID %" PRIx64 "\n", *op->watchid);
+            }
+            if (g_hash_table_contains(ids, op->watchid)) {
+                g_printerr("Watch ID %" PRIx64 "already exists", *op->watchid);
                 goto cleanup;
             }
+            g_hash_table_add(ids, op->watchid);
             break;
         case QFILE_MONITOR_TEST_OP_DEL_WATCH:
             if (debug) {
-                g_printerr("Del watch %s %d\n", dir, op->watchid);
+                g_printerr("Del watch %s %" PRIx64 "\n", dir, *op->watchid);
             }
             if (op->filesrc && strchr(op->filesrc, '/')) {
                 watchdir = g_strdup_printf("%s/%s", dir, op->filesrc);
@@ -472,18 +482,19 @@ test_file_monitor_events(void)
             } else {
                 watchdir = g_strdup(dir);
             }
+            g_hash_table_remove(ids, op->watchid);
             qemu_file_monitor_remove_watch(mon,
                                            watchdir,
-                                           op->watchid);
+                                           *op->watchid);
             g_free(watchdir);
             break;
         case QFILE_MONITOR_TEST_OP_EVENT:
             if (debug) {
-                g_printerr("Event id=%d event=%d file=%s\n",
-                           op->watchid, op->eventid, op->filesrc);
+                g_printerr("Event id=%" PRIx64 " event=%d file=%s\n",
+                           *op->watchid, op->eventid, op->filesrc);
             }
             if (!qemu_file_monitor_test_expect(
-                    &data, op->watchid, op->eventid, op->filesrc))
+                    &data, *op->watchid, op->eventid, op->filesrc))
                 goto cleanup;
             break;
         case QFILE_MONITOR_TEST_OP_CREATE:
@@ -596,6 +607,8 @@ test_file_monitor_events(void)
         pathsrc = pathdst = NULL;
     }
 
+    g_assert_cmpint(g_hash_table_size(ids), ==, 0);
+
     err = 0;
 
  cleanup:
@@ -647,6 +660,7 @@ test_file_monitor_events(void)
             abort();
         }
     }
+    g_hash_table_unref(ids);
     g_free(dir);
     g_assert(err == 0);
 }

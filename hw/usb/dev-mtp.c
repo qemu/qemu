@@ -170,7 +170,7 @@ struct MTPObject {
     char         *path;
     struct stat  stat;
     /* file monitor watch id */
-    int          watchid;
+    int64_t      watchid;
     MTPObject    *parent;
     uint32_t     nchildren;
     QLIST_HEAD(, MTPObject) children;
@@ -498,7 +498,7 @@ static MTPObject *usb_mtp_object_lookup_name(MTPObject *parent,
     return NULL;
 }
 
-static MTPObject *usb_mtp_object_lookup_id(MTPState *s, int id)
+static MTPObject *usb_mtp_object_lookup_id(MTPState *s, int64_t id)
 {
     MTPObject *iter;
 
@@ -511,7 +511,7 @@ static MTPObject *usb_mtp_object_lookup_id(MTPState *s, int id)
     return NULL;
 }
 
-static void file_monitor_event(int id,
+static void file_monitor_event(int64_t id,
                                QFileMonitorEvent ev,
                                const char *name,
                                void *opaque)
@@ -625,8 +625,8 @@ static void usb_mtp_object_readdir(MTPState *s, MTPObject *o)
     }
 
     if (s->file_monitor) {
-        int id = qemu_file_monitor_add_watch(s->file_monitor, o->path, NULL,
-                                             file_monitor_event, s, &err);
+        int64_t id = qemu_file_monitor_add_watch(s->file_monitor, o->path, NULL,
+                                                 file_monitor_event, s, &err);
         if (id == -1) {
             error_report("usb-mtp: failed to add watch for %s: %s", o->path,
                          error_get_pretty(err));
