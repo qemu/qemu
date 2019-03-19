@@ -134,7 +134,7 @@ static bool cor_recurse_is_first_non_filter(BlockDriverState *bs,
 }
 
 
-BlockDriver bdrv_copy_on_read = {
+static BlockDriver bdrv_copy_on_read = {
     .format_name                        = "copy-on-read",
 
     .bdrv_open                          = cor_open,

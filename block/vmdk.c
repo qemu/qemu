@@ -195,13 +195,15 @@ static int vmdk_probe(const uint8_t *buf, int buf_size, const char *filename)
             }
             if (end - p >= strlen("version=X\n")) {
                 if (strncmp("version=1\n", p, strlen("version=1\n")) == 0 ||
-                    strncmp("version=2\n", p, strlen("version=2\n")) == 0) {
+                    strncmp("version=2\n", p, strlen("version=2\n")) == 0 ||
+                    strncmp("version=3\n", p, strlen("version=3\n")) == 0) {
                     return 100;
                 }
             }
             if (end - p >= strlen("version=X\r\n")) {
                 if (strncmp("version=1\r\n", p, strlen("version=1\r\n")) == 0 ||
-                    strncmp("version=2\r\n", p, strlen("version=2\r\n")) == 0) {
+                    strncmp("version=2\r\n", p, strlen("version=2\r\n")) == 0 ||
+                    strncmp("version=3\r\n", p, strlen("version=3\r\n")) == 0) {
                     return 100;
                 }
             }

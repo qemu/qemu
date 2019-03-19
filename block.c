@@ -4350,11 +4350,10 @@ int bdrv_drop_intermediate(BlockDriverState *top, BlockDriverState *base,
     QLIST_FOREACH_SAFE(c, &top->parents, next_parent, next) {
         /* Check whether we are allowed to switch c from top to base */
         GSList *ignore_children = g_slist_prepend(NULL, c);
-        bdrv_check_update_perm(base, NULL, c->perm, c->shared_perm,
-                               ignore_children, &local_err);
+        ret = bdrv_check_update_perm(base, NULL, c->perm, c->shared_perm,
+                                     ignore_children, &local_err);
         g_slist_free(ignore_children);
-        if (local_err) {
-            ret = -EPERM;
+        if (ret < 0) {
             error_report_err(local_err);
             goto exit;
         }

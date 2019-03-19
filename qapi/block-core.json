@@ -565,7 +565,7 @@
 #
 # Manage read, write and flush latency histograms for the device.
 #
-# If only @device parameter is specified, remove all present latency histograms
+# If only @id parameter is specified, remove all present latency histograms
 # for the device. Otherwise, add/reset some of (or all) latency histograms.
 #
 # @id: The name or QOM path of the guest device.
@@ -597,7 +597,7 @@
 # [0, 10), [10, 50), [50, 100), [100, +inf):
 #
 # -> { "execute": "block-latency-histogram-set",
-#      "arguments": { "device": "drive0",
+#      "arguments": { "id": "drive0",
 #                     "boundaries": [10, 50, 100] } }
 # <- { "return": {} }
 #
@@ -605,7 +605,7 @@
 # not changed (or not created):
 #
 # -> { "execute": "block-latency-histogram-set",
-#      "arguments": { "device": "drive0",
+#      "arguments": { "id": "drive0",
 #                     "boundaries-write": [10, 50, 100] } }
 # <- { "return": {} }
 #
@@ -614,7 +614,7 @@
 #   write: [0, 1000), [1000, 5000), [5000, +inf)
 #
 # -> { "execute": "block-latency-histogram-set",
-#      "arguments": { "device": "drive0",
+#      "arguments": { "id": "drive0",
 #                     "boundaries": [10, 50, 100],
 #                     "boundaries-write": [1000, 5000] } }
 # <- { "return": {} }
@@ -622,7 +622,7 @@
 # Example: remove all latency histograms:
 #
 # -> { "execute": "block-latency-histogram-set",
-#      "arguments": { "device": "drive0" } }
+#      "arguments": { "id": "drive0" } }
 # <- { "return": {} }
 ##
 { 'command': 'block-latency-histogram-set',

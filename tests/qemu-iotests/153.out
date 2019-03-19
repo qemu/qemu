@@ -417,6 +417,7 @@ Is another process using the image [TEST_DIR/t.qcow2]?
 _qemu_img_wrapper commit -b TEST_DIR/t.qcow2.b TEST_DIR/t.qcow2.c
 {"return": {}}
 Adding drive
+{"return": "OKrn"}
 
 _qemu_io_wrapper TEST_DIR/t.qcow2 -c write 0 512
 can't open device TEST_DIR/t.qcow2: Failed to get "write" lock
@@ -425,16 +426,21 @@ Creating overlay with qemu-img when the guest is running should be allowed
 
 _qemu_img_wrapper create -f qcow2 -b TEST_DIR/t.qcow2 TEST_DIR/t.qcow2.overlay
 == Closing an image should unlock it ==
+{"return": ""}
 
 _qemu_io_wrapper TEST_DIR/t.qcow2 -c write 0 512
 Adding two and closing one
+{"return": "OKrn"}
+{"return": "OKrn"}
 
 _qemu_img_wrapper info TEST_DIR/t.qcow2
+{"return": ""}
 
 _qemu_io_wrapper TEST_DIR/t.qcow2 -c write 0 512
 can't open device TEST_DIR/t.qcow2: Failed to get "write" lock
 Is another process using the image [TEST_DIR/t.qcow2]?
 Closing the other
+{"return": ""}
 
 _qemu_io_wrapper TEST_DIR/t.qcow2 -c write 0 512
 
