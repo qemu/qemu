@@ -141,6 +141,7 @@ static void init_libisa(XtensaConfig *config)
         }
 #endif
     }
+    xtensa_collect_sr_names(config);
 }
 
 static void xtensa_finalize_config(XtensaConfig *config)

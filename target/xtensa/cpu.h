@@ -589,6 +589,7 @@ void xtensa_cpu_do_unaligned_access(CPUState *cpu, vaddr addr,
 #define XTENSA_DEFAULT_CPU_NOMMU_TYPE \
     XTENSA_CPU_TYPE_NAME(XTENSA_DEFAULT_CPU_NOMMU_MODEL)
 
+void xtensa_collect_sr_names(const XtensaConfig *config);
 void xtensa_translate_init(void);
 void **xtensa_get_regfile_by_name(const char *name);
 void xtensa_breakpoint_handler(CPUState *cs);
