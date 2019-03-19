@@ -184,9 +184,14 @@ static void xen_remap_bucket(MapCacheEntry *entry,
         pfns[i] = (address_index << (MCACHE_BUCKET_SHIFT-XC_PAGE_SHIFT)) + i;
     }
 
+    /*
+     * If the caller has requested the mapping at a specific address use
+     * MAP_FIXED to make sure it's honored.
+     */
     if (!dummy) {
         vaddr_base = xenforeignmemory_map2(xen_fmem, xen_domid, vaddr,
-                                           PROT_READ | PROT_WRITE, 0,
+                                           PROT_READ | PROT_WRITE,
+                                           vaddr ? MAP_FIXED : 0,
                                            nb_pfn, pfns, err);
         if (vaddr_base == NULL) {
             perror("xenforeignmemory_map2");
@@ -198,7 +203,8 @@ static void xen_remap_bucket(MapCacheEntry *entry,
          * mapping immediately due to certain circumstances (i.e. on resume now)
          */
         vaddr_base = mmap(vaddr, size, PROT_READ | PROT_WRITE,
-                          MAP_ANON | MAP_SHARED, -1, 0);
+                          MAP_ANON | MAP_SHARED | (vaddr ? MAP_FIXED : 0),
+                          -1, 0);
         if (vaddr_base == MAP_FAILED) {
             perror("mmap");
             exit(-1);
