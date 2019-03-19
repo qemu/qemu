@@ -349,10 +349,12 @@ static void mips_fulong2e_init(MachineState *machine)
                                &smbus, &isa_bus);
 
     /* GPU */
-    dev = DEVICE(pci_create(pci_bus, -1, "ati-vga"));
-    qdev_prop_set_uint32(dev, "vgamem_mb", 16);
-    qdev_prop_set_uint16(dev, "x-device-id", 0x5159);
-    qdev_init_nofail(dev);
+    if (vga_interface_type != VGA_NONE) {
+        dev = DEVICE(pci_create(pci_bus, -1, "ati-vga"));
+        qdev_prop_set_uint32(dev, "vgamem_mb", 16);
+        qdev_prop_set_uint16(dev, "x-device-id", 0x5159);
+        qdev_init_nofail(dev);
+    }
 
     /* Populate SPD eeprom data */
     spd_data = spd_data_generate(DDR, ram_size, &err);
