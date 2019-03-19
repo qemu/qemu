@@ -551,12 +551,6 @@ static void pflash_cfi02_realize(DeviceState *dev, Error **errp)
     }
 
     chip_len = pfl->sector_len * pfl->nb_blocs;
-    /* XXX: to be fixed */
-#if 0
-    if (total_len != (8 * 1024 * 1024) && total_len != (16 * 1024 * 1024) &&
-        total_len != (32 * 1024 * 1024) && total_len != (64 * 1024 * 1024))
-        return NULL;
-#endif
 
     memory_region_init_rom_device(&pfl->orig_mem, OBJECT(pfl), pfl->be ?
                                   &pflash_cfi02_ops_be : &pflash_cfi02_ops_le,
