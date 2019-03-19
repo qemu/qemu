@@ -360,7 +360,7 @@ TMPDIR=/nonexistent run_qemu -drive driver=null-co,snapshot=on
 echo "info block" |
     run_qemu -drive file="$TEST_IMG",snapshot=on,read-only=on,if=none,id=$device_id |
     _filter_qemu_io |
-    sed -e 's#"/[^"]*/vl\.[A-Za-z0-9]\{6\}"#SNAPSHOT_PATH#g'
+    sed -e 's#"[^"]*/vl\.[A-Za-z0-9]\{6\}"#SNAPSHOT_PATH#g'
 
 
 # success, all done
