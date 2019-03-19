@@ -165,7 +165,7 @@ matrix:
 
     # We manually include builds which we disable "make check" for
     - env:
-        - CONFIG="--without-default-devices"
+        - CONFIG="--without-default-devices --disable-user"
         - TEST_CMD=""
 
 
