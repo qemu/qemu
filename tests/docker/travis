@@ -18,4 +18,5 @@ cmdfile=/tmp/travis_cmd_list.sh
 $QEMU_SRC/tests/docker/travis.py $QEMU_SRC/.travis.yml > $cmdfile
 chmod +x $cmdfile
 cd "$QEMU_SRC"
+unset BUILD_DIR SRC_DIR
 $cmdfile
