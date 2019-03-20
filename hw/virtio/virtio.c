@@ -2291,7 +2291,7 @@ static void virtio_vmstate_change(void *opaque, int running, RunState state)
     VirtIODevice *vdev = opaque;
     BusState *qbus = qdev_get_parent_bus(DEVICE(vdev));
     VirtioBusClass *k = VIRTIO_BUS_GET_CLASS(qbus);
-    bool backend_run = running && (vdev->status & VIRTIO_CONFIG_S_DRIVER_OK);
+    bool backend_run = running && vdev->started;
     vdev->vm_running = running;
 
     if (backend_run) {
