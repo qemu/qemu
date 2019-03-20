@@ -190,7 +190,7 @@ static void vhost_user_blk_stop(VirtIODevice *vdev)
 static void vhost_user_blk_set_status(VirtIODevice *vdev, uint8_t status)
 {
     VHostUserBlk *s = VHOST_USER_BLK(vdev);
-    bool should_start = status & VIRTIO_CONFIG_S_DRIVER_OK;
+    bool should_start = vdev->started;
 
     if (!vdev->vm_running) {
         should_start = false;
@@ -350,7 +350,7 @@ static void vhost_user_blk_device_unrealize(DeviceState *dev, Error **errp)
     VHostUserBlk *s = VHOST_USER_BLK(dev);
     struct vhost_virtqueue *vqs = s->dev.vqs;
 
-    vhost_user_blk_set_status(vdev, 0);
+    virtio_set_status(vdev, 0);
     vhost_dev_cleanup(&s->dev);
     vhost_dev_free_inflight(s->inflight);
     g_free(vqs);
