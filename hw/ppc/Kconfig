@@ -64,7 +64,6 @@ config PREP
     imply TEST_DEVICES
     select CS4231A
     select PREP_PCI
-    select I82374
     select I82378
     select LSI_SCSI_PCI
     select M48T59
