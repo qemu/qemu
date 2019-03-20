@@ -38,3 +38,6 @@ config CMSDK_APB_DUALTIMER
 
 config RENESAS_TMR
     bool
+
+config RENESAS_CMT
+    bool
