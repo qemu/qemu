@@ -239,8 +239,7 @@ static void vhost_user_blk_handle_output(VirtIODevice *vdev, VirtQueue *vq)
     VHostUserBlk *s = VHOST_USER_BLK(vdev);
     int i;
 
-    if (!(virtio_host_has_feature(vdev, VIRTIO_F_VERSION_1) &&
-        !virtio_vdev_has_feature(vdev, VIRTIO_F_VERSION_1))) {
+    if (!vdev->start_on_kick) {
         return;
     }
 
