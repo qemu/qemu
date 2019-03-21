@@ -1448,3 +1448,31 @@ static DisasJumpType op_vclz(DisasContext *s, DisasOps *o)
     gen_gvec_2(get_field(s->fields, v1), get_field(s->fields, v2), &g[es]);
     return DISAS_NEXT;
 }
+
+static void gen_ctz_i32(TCGv_i32 d, TCGv_i32 a)
+{
+    tcg_gen_ctzi_i32(d, a, 32);
+}
+
+static void gen_ctz_i64(TCGv_i64 d, TCGv_i64 a)
+{
+    tcg_gen_ctzi_i64(d, a, 64);
+}
+
+static DisasJumpType op_vctz(DisasContext *s, DisasOps *o)
+{
+    const uint8_t es = get_field(s->fields, m3);
+    static const GVecGen2 g[4] = {
+        { .fno = gen_helper_gvec_vctz8, },
+        { .fno = gen_helper_gvec_vctz16, },
+        { .fni4 = gen_ctz_i32, },
+        { .fni8 = gen_ctz_i64, },
+    };
+
+    if (es > ES_64) {
+        gen_program_exception(s, PGM_SPECIFICATION);
+        return DISAS_NORETURN;
+    }
+    gen_gvec_2(get_field(s->fields, v1), get_field(s->fields, v2), &g[es]);
+    return DISAS_NEXT;
+}
