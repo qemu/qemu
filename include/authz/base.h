@@ -35,8 +35,8 @@
      OBJECT_GET_CLASS(QAuthZClass, (obj), \
                       TYPE_QAUTHZ)
 #define QAUTHZ(obj) \
-     INTERFACE_CHECK(QAuthZ, (obj), \
-                     TYPE_QAUTHZ)
+     OBJECT_CHECK(QAuthZ, (obj), \
+                  TYPE_QAUTHZ)
 
 typedef struct QAuthZ QAuthZ;
 typedef struct QAuthZClass QAuthZClass;

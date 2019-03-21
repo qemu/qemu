@@ -33,8 +33,8 @@
     OBJECT_GET_CLASS(QAuthZListClass, (obj),    \
                       TYPE_QAUTHZ_LIST)
 #define QAUTHZ_LIST(obj) \
-    INTERFACE_CHECK(QAuthZList, (obj),          \
-                    TYPE_QAUTHZ_LIST)
+    OBJECT_CHECK(QAuthZList, (obj), \
+                 TYPE_QAUTHZ_LIST)
 
 typedef struct QAuthZList QAuthZList;
 typedef struct QAuthZListClass QAuthZListClass;
