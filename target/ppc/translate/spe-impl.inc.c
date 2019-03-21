@@ -18,7 +18,8 @@ static inline void gen_evmra(DisasContext *ctx)
     TCGv_i64 tmp = tcg_temp_new_i64();
 
     /* tmp := rA_lo + rA_hi << 32 */
-    tcg_gen_concat_tl_i64(tmp, cpu_gpr[rA(ctx->opcode)], cpu_gprh[rA(ctx->opcode)]);
+    tcg_gen_concat_tl_i64(tmp, cpu_gpr[rA(ctx->opcode)],
+                          cpu_gprh[rA(ctx->opcode)]);
 
     /* spe_acc := tmp */
     tcg_gen_st_i64(tmp, cpu_env, offsetof(CPUPPCState, spe_acc));
@@ -780,7 +781,7 @@ static inline void gen_op_evstwwo(DisasContext *ctx, TCGv addr)
 }
 
 #define GEN_SPEOP_LDST(name, opc2, sh)                                        \
-static void glue(gen_, name)(DisasContext *ctx)                                       \
+static void glue(gen_, name)(DisasContext *ctx)                               \
 {                                                                             \
     TCGv t0;                                                                  \
     if (unlikely(!ctx->spe_enabled)) {                                        \
@@ -1089,7 +1090,8 @@ static inline void gen_efsabs(DisasContext *ctx)
         gen_exception(ctx, POWERPC_EXCP_SPEU);
         return;
     }
-    tcg_gen_andi_tl(cpu_gpr[rD(ctx->opcode)], cpu_gpr[rA(ctx->opcode)], (target_long)~0x80000000LL);
+    tcg_gen_andi_tl(cpu_gpr[rD(ctx->opcode)], cpu_gpr[rA(ctx->opcode)],
+                    (target_long)~0x80000000LL);
 }
 static inline void gen_efsnabs(DisasContext *ctx)
 {
@@ -1097,7 +1099,8 @@ static inline void gen_efsnabs(DisasContext *ctx)
         gen_exception(ctx, POWERPC_EXCP_SPEU);
         return;
     }
-    tcg_gen_ori_tl(cpu_gpr[rD(ctx->opcode)], cpu_gpr[rA(ctx->opcode)], 0x80000000);
+    tcg_gen_ori_tl(cpu_gpr[rD(ctx->opcode)], cpu_gpr[rA(ctx->opcode)],
+                   0x80000000);
 }
 static inline void gen_efsneg(DisasContext *ctx)
 {
@@ -1105,7 +1108,8 @@ static inline void gen_efsneg(DisasContext *ctx)
         gen_exception(ctx, POWERPC_EXCP_SPEU);
         return;
     }
-    tcg_gen_xori_tl(cpu_gpr[rD(ctx->opcode)], cpu_gpr[rA(ctx->opcode)], 0x80000000);
+    tcg_gen_xori_tl(cpu_gpr[rD(ctx->opcode)], cpu_gpr[rA(ctx->opcode)],
+                    0x80000000);
 }
 
 /* Conversion */
