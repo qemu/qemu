@@ -15,7 +15,7 @@ static inline TCGv_ptr gen_avr_ptr(int reg)
 }
 
 #define GEN_VR_LDX(name, opc2, opc3)                                          \
-static void glue(gen_, name)(DisasContext *ctx)                                       \
+static void glue(gen_, name)(DisasContext *ctx)                               \
 {                                                                             \
     TCGv EA;                                                                  \
     TCGv_i64 avr;                                                             \
@@ -28,8 +28,10 @@ static void glue(gen_, name)(DisasContext *ctx)                                 
     EA = tcg_temp_new();                                                      \
     gen_addr_reg_index(ctx, EA);                                              \
     tcg_gen_andi_tl(EA, EA, ~0xf);                                            \
-    /* We only need to swap high and low halves. gen_qemu_ld64_i64 does       \
-       necessary 64-bit byteswap already. */                                  \
+    /*                                                                        \
+     * We only need to swap high and low halves. gen_qemu_ld64_i64            \
+     * does necessary 64-bit byteswap already.                                \
+     */                                                                       \
     if (ctx->le_mode) {                                                       \
         gen_qemu_ld64_i64(ctx, avr, EA);                                      \
         set_avr64(rD(ctx->opcode), avr, false);                               \
@@ -61,8 +63,10 @@ static void gen_st##name(DisasContext *ctx)                                   \
     EA = tcg_temp_new();                                                      \
     gen_addr_reg_index(ctx, EA);                                              \
     tcg_gen_andi_tl(EA, EA, ~0xf);                                            \
-    /* We only need to swap high and low halves. gen_qemu_st64_i64 does       \
-       necessary 64-bit byteswap already. */                                  \
+    /*                                                                        \
+     * We only need to swap high and low halves. gen_qemu_st64_i64            \
+     * does necessary 64-bit byteswap already.                                \
+     */                                                                       \
     if (ctx->le_mode) {                                                       \
         get_avr64(avr, rD(ctx->opcode), false);                               \
         gen_qemu_st64_i64(ctx, avr, EA);                                      \
@@ -296,7 +300,7 @@ GEN_VXFORM_V(vnand, MO_64, tcg_gen_gvec_nand, 2, 22);
 GEN_VXFORM_V(vorc, MO_64, tcg_gen_gvec_orc, 2, 21);
 
 #define GEN_VXFORM(name, opc2, opc3)                                    \
-static void glue(gen_, name)(DisasContext *ctx)                                 \
+static void glue(gen_, name)(DisasContext *ctx)                         \
 {                                                                       \
     TCGv_ptr ra, rb, rd;                                                \
     if (unlikely(!ctx->altivec_enabled)) {                              \
@@ -306,7 +310,7 @@ static void glue(gen_, name)(DisasContext *ctx)                                 
     ra = gen_avr_ptr(rA(ctx->opcode));                                  \
     rb = gen_avr_ptr(rB(ctx->opcode));                                  \
     rd = gen_avr_ptr(rD(ctx->opcode));                                  \
-    gen_helper_##name (rd, ra, rb);                                     \
+    gen_helper_##name(rd, ra, rb);                                      \
     tcg_temp_free_ptr(ra);                                              \
     tcg_temp_free_ptr(rb);                                              \
     tcg_temp_free_ptr(rd);                                              \
@@ -758,7 +762,7 @@ GEN_VXFORM_DUPI(vspltish, tcg_gen_gvec_dup16i, 6, 13);
 GEN_VXFORM_DUPI(vspltisw, tcg_gen_gvec_dup32i, 6, 14);
 
 #define GEN_VXFORM_NOA(name, opc2, opc3)                                \
-static void glue(gen_, name)(DisasContext *ctx)                                 \
+static void glue(gen_, name)(DisasContext *ctx)                         \
     {                                                                   \
         TCGv_ptr rb, rd;                                                \
         if (unlikely(!ctx->altivec_enabled)) {                          \
@@ -767,9 +771,9 @@ static void glue(gen_, name)(DisasContext *ctx)                                 
         }                                                               \
         rb = gen_avr_ptr(rB(ctx->opcode));                              \
         rd = gen_avr_ptr(rD(ctx->opcode));                              \
-        gen_helper_##name (rd, rb);                                     \
+        gen_helper_##name(rd, rb);                                      \
         tcg_temp_free_ptr(rb);                                          \
-        tcg_temp_free_ptr(rd);                                         \
+        tcg_temp_free_ptr(rd);                                          \
     }
 
 #define GEN_VXFORM_NOA_ENV(name, opc2, opc3)                            \
@@ -943,7 +947,7 @@ static void gen_vsldoi(DisasContext *ctx)
     rb = gen_avr_ptr(rB(ctx->opcode));
     rd = gen_avr_ptr(rD(ctx->opcode));
     sh = tcg_const_i32(VSH(ctx->opcode));
-    gen_helper_vsldoi (rd, ra, rb, sh);
+    gen_helper_vsldoi(rd, ra, rb, sh);
     tcg_temp_free_ptr(ra);
     tcg_temp_free_ptr(rb);
     tcg_temp_free_ptr(rd);
