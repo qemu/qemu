@@ -67,36 +67,11 @@ void spapr_irq_msi_reset(SpaprMachineState *spapr)
  * XICS IRQ backend.
  */
 
-static ICSState *spapr_ics_create(SpaprMachineState *spapr,
-                                  int nr_irqs, Error **errp)
-{
-    Error *local_err = NULL;
-    Object *obj;
-
-    obj = object_new(TYPE_ICS_SIMPLE);
-    object_property_add_child(OBJECT(spapr), "ics", obj, &error_abort);
-    object_property_add_const_link(obj, ICS_PROP_XICS, OBJECT(spapr),
-                                   &error_abort);
-    object_property_set_int(obj, nr_irqs, "nr-irqs", &local_err);
-    if (local_err) {
-        goto error;
-    }
-    object_property_set_bool(obj, true, "realized", &local_err);
-    if (local_err) {
-        goto error;
-    }
-
-    return ICS_BASE(obj);
-
-error:
-    error_propagate(errp, local_err);
-    return NULL;
-}
-
 static void spapr_irq_init_xics(SpaprMachineState *spapr, int nr_irqs,
                                 Error **errp)
 {
     MachineState *machine = MACHINE(spapr);
+    Object *obj;
     Error *local_err = NULL;
     bool xics_kvm = false;
 
@@ -108,7 +83,8 @@ static void spapr_irq_init_xics(SpaprMachineState *spapr, int nr_irqs,
         if (machine_kernel_irqchip_required(machine) && !xics_kvm) {
             error_prepend(&local_err,
                           "kernel_irqchip requested but unavailable: ");
-            goto error;
+            error_propagate(errp, local_err);
+            return;
         }
         error_free(local_err);
         local_err = NULL;
@@ -118,10 +94,18 @@ static void spapr_irq_init_xics(SpaprMachineState *spapr, int nr_irqs,
         xics_spapr_init(spapr);
     }
 
-    spapr->ics = spapr_ics_create(spapr, nr_irqs, &local_err);
+    obj = object_new(TYPE_ICS_SIMPLE);
+    object_property_add_child(OBJECT(spapr), "ics", obj, &error_abort);
+    object_property_add_const_link(obj, ICS_PROP_XICS, OBJECT(spapr),
+                                   &error_fatal);
+    object_property_set_int(obj, nr_irqs, "nr-irqs",  &error_fatal);
+    object_property_set_bool(obj, true, "realized", &local_err);
+    if (local_err) {
+        error_propagate(errp, local_err);
+        return;
+    }
 
-error:
-    error_propagate(errp, local_err);
+    spapr->ics = ICS_BASE(obj);
 }
 
 #define ICS_IRQ_FREE(ics, srcno)   \
