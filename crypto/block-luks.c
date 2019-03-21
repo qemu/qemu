@@ -146,7 +146,7 @@ struct QCryptoBlockLUKSKeySlot {
     uint32_t key_offset;
     /* number of anti-forensic stripes */
     uint32_t stripes;
-} QEMU_PACKED;
+};
 
 QEMU_BUILD_BUG_ON(sizeof(struct QCryptoBlockLUKSKeySlot) != 48);
 
@@ -191,7 +191,7 @@ struct QCryptoBlockLUKSHeader {
 
     /* key slots */
     QCryptoBlockLUKSKeySlot key_slots[QCRYPTO_BLOCK_LUKS_NUM_KEY_SLOTS];
-} QEMU_PACKED;
+};
 
 QEMU_BUILD_BUG_ON(sizeof(struct QCryptoBlockLUKSHeader) != 592);
 
