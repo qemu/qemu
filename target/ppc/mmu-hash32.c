@@ -27,7 +27,7 @@
 #include "mmu-hash32.h"
 #include "exec/log.h"
 
-//#define DEBUG_BAT
+/* #define DEBUG_BAT */
 
 #ifdef DEBUG_BATS
 #  define LOG_BATS(...) qemu_log_mask(CPU_LOG_MMU, __VA_ARGS__)
@@ -228,8 +228,10 @@ static int ppc_hash32_direct_store(PowerPCCPU *cpu, target_ulong sr,
     qemu_log_mask(CPU_LOG_MMU, "direct store...\n");
 
     if ((sr & 0x1FF00000) >> 20 == 0x07f) {
-        /* Memory-forced I/O controller interface access */
-        /* If T=1 and BUID=x'07F', the 601 performs a memory access
+        /*
+         * Memory-forced I/O controller interface access
+         *
+         * If T=1 and BUID=x'07F', the 601 performs a memory access
          * to SR[28-31] LA[4-31], bypassing all protection mechanisms.
          */
         *raddr = ((sr & 0xF) << 28) | (eaddr & 0x0FFFFFFF);
@@ -265,9 +267,11 @@ static int ppc_hash32_direct_store(PowerPCCPU *cpu, target_ulong sr,
         }
         return 1;
     case ACCESS_CACHE:
-        /* dcba, dcbt, dcbtst, dcbf, dcbi, dcbst, dcbz, or icbi */
-        /* Should make the instruction do no-op.
-         * As it already do no-op, it's quite easy :-)
+        /*
+         * dcba, dcbt, dcbtst, dcbf, dcbi, dcbst, dcbz, or icbi
+         *
+         * Should make the instruction do no-op.  As it already do
+         * no-op, it's quite easy :-)
          */
         *raddr = eaddr;
         return 0;
@@ -519,8 +523,10 @@ int ppc_hash32_handle_mmu_fault(PowerPCCPU *cpu, vaddr eaddr, int rwx,
     if (rwx == 1) {
         new_pte1 |= HPTE32_R_C; /* set changed (dirty) bit */
     } else {
-        /* Treat the page as read-only for now, so that a later write
-         * will pass through this function again to set the C bit */
+        /*
+         * Treat the page as read-only for now, so that a later write
+         * will pass through this function again to set the C bit
+         */
         prot &= ~PAGE_WRITE;
     }
 
