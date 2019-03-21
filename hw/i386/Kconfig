@@ -19,6 +19,7 @@ config PC
     imply TPM_CRB
     imply TPM_TIS
     imply VGA_PCI
+    imply VIRTIO_VGA
     select FDC
     select I8259
     select I8254
