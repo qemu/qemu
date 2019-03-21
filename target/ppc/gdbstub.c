@@ -33,14 +33,14 @@ static int ppc_gdb_register_len_apple(int n)
         return 8;
     case 64 ... 95:
         return 16;
-    case 64+32: /* nip */
-    case 65+32: /* msr */
-    case 67+32: /* lr */
-    case 68+32: /* ctr */
-    case 70+32: /* fpscr */
+    case 64 + 32: /* nip */
+    case 65 + 32: /* msr */
+    case 67 + 32: /* lr */
+    case 68 + 32: /* ctr */
+    case 70 + 32: /* fpscr */
         return 8;
-    case 66+32: /* cr */
-    case 69+32: /* xer */
+    case 66 + 32: /* cr */
+    case 69 + 32: /* xer */
         return 4;
     default:
         return 0;
@@ -84,11 +84,14 @@ static int ppc_gdb_register_len(int n)
     }
 }
 
-/* We need to present the registers to gdb in the "current" memory ordering.
-   For user-only mode we get this for free; TARGET_WORDS_BIGENDIAN is set to
-   the proper ordering for the binary, and cannot be changed.
-   For system mode, TARGET_WORDS_BIGENDIAN is always set, and we must check
-   the current mode of the chip to see if we're running in little-endian.  */
+/*
+ * We need to present the registers to gdb in the "current" memory
+ * ordering.  For user-only mode we get this for free;
+ * TARGET_WORDS_BIGENDIAN is set to the proper ordering for the
+ * binary, and cannot be changed.  For system mode,
+ * TARGET_WORDS_BIGENDIAN is always set, and we must check the current
+ * mode of the chip to see if we're running in little-endian.
+ */
 void ppc_maybe_bswap_register(CPUPPCState *env, uint8_t *mem_buf, int len)
 {
 #ifndef CONFIG_USER_ONLY
@@ -104,11 +107,12 @@ void ppc_maybe_bswap_register(CPUPPCState *env, uint8_t *mem_buf, int len)
 #endif
 }
 
-/* Old gdb always expects FP registers.  Newer (xml-aware) gdb only
+/*
+ * Old gdb always expects FP registers.  Newer (xml-aware) gdb only
  * expects whatever the target description contains.  Due to a
  * historical mishap the FP registers appear in between core integer
- * regs and PC, MSR, CR, and so forth.  We hack round this by giving the
- * FP regs zero size when talking to a newer gdb.
+ * regs and PC, MSR, CR, and so forth.  We hack round this by giving
+ * the FP regs zero size when talking to a newer gdb.
  */
 
 int ppc_cpu_gdb_read_register(CPUState *cs, uint8_t *mem_buf, int n)
