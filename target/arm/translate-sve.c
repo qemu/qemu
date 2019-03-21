@@ -54,35 +54,35 @@ typedef void gen_helper_gvec_mem_scatter(TCGv_env, TCGv_ptr, TCGv_ptr,
 /* See e.g. ASR (immediate, predicated).
  * Returns -1 for unallocated encoding; diagnose later.
  */
-static int tszimm_esz(int x)
+static int tszimm_esz(DisasContext *s, int x)
 {
     x >>= 3;  /* discard imm3 */
     return 31 - clz32(x);
 }
 
-static int tszimm_shr(int x)
+static int tszimm_shr(DisasContext *s, int x)
 {
-    return (16 << tszimm_esz(x)) - x;
+    return (16 << tszimm_esz(s, x)) - x;
 }
 
 /* See e.g. LSL (immediate, predicated).  */
-static int tszimm_shl(int x)
+static int tszimm_shl(DisasContext *s, int x)
 {
-    return x - (8 << tszimm_esz(x));
+    return x - (8 << tszimm_esz(s, x));
 }
 
-static inline int plus1(int x)
+static inline int plus1(DisasContext *s, int x)
 {
     return x + 1;
 }
 
 /* The SH bit is in bit 8.  Extract the low 8 and shift.  */
-static inline int expand_imm_sh8s(int x)
+static inline int expand_imm_sh8s(DisasContext *s, int x)
 {
     return (int8_t)x << (x & 0x100 ? 8 : 0);
 }
 
-static inline int expand_imm_sh8u(int x)
+static inline int expand_imm_sh8u(DisasContext *s, int x)
 {
     return (uint8_t)x << (x & 0x100 ? 8 : 0);
 }
@@ -90,7 +90,7 @@ static inline int expand_imm_sh8u(int x)
 /* Convert a 2-bit memory size (msz) to a 4-bit data type (dtype)
  * with unsigned data.  C.f. SVE Memory Contiguous Load Group.
  */
-static inline int msz_dtype(int msz)
+static inline int msz_dtype(DisasContext *s, int msz)
 {
     static const uint8_t dtype[4] = { 0, 5, 10, 15 };
     return dtype[msz];
@@ -4834,7 +4834,7 @@ static void do_ldrq(DisasContext *s, int zt, int pg, TCGv_i64 addr, int msz)
     int desc, poff;
 
     /* Load the first quadword using the normal predicated load helpers.  */
-    desc = sve_memopidx(s, msz_dtype(msz));
+    desc = sve_memopidx(s, msz_dtype(s, msz));
     desc |= zt << MEMOPIDX_SHIFT;
     desc = simd_desc(16, 16, desc);
     t_desc = tcg_const_i32(desc);
@@ -5016,7 +5016,7 @@ static void do_st_zpa(DisasContext *s, int zt, int pg, TCGv_i64 addr,
         fn = fn_multiple[be][nreg - 1][msz];
     }
     assert(fn != NULL);
-    do_mem_zpa(s, zt, pg, addr, msz_dtype(msz), fn);
+    do_mem_zpa(s, zt, pg, addr, msz_dtype(s, msz), fn);
 }
 
 static bool trans_ST_zprr(DisasContext *s, arg_rprr_store *a)
@@ -5065,7 +5065,7 @@ static void do_mem_zpz(DisasContext *s, int zt, int pg, int zm,
     TCGv_i32 t_desc;
     int desc;
 
-    desc = sve_memopidx(s, msz_dtype(msz));
+    desc = sve_memopidx(s, msz_dtype(s, msz));
     desc |= scale << MEMOPIDX_SHIFT;
     desc = simd_desc(vsz, vsz, desc);
     t_desc = tcg_const_i32(desc);

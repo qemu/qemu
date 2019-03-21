@@ -256,7 +256,7 @@ class FunctionField:
         return self.func + '(' + str(self.base) + ')'
 
     def str_extract(self):
-        return self.func + '(' + self.base.str_extract() + ')'
+        return self.func + '(ctx, ' + self.base.str_extract() + ')'
 
     def __eq__(self, other):
         return self.func == other.func and self.base == other.base
@@ -318,7 +318,7 @@ class Format(General):
         return decode_function + '_extract_' + self.name
 
     def output_extract(self):
-        output('static void ', self.extract_name(), '(',
+        output('static void ', self.extract_name(), '(DisasContext *ctx, ',
                self.base.struct_name(), ' *a, ', insntype, ' insn)\n{\n')
         for n, f in self.fields.items():
             output('    a->', n, ' = ', f.str_extract(), ';\n')
@@ -343,7 +343,8 @@ class Pattern(General):
         arg = self.base.base.name
         output(ind, '/* ', self.file, ':', str(self.lineno), ' */\n')
         if not extracted:
-            output(ind, self.base.extract_name(), '(&u.f_', arg, ', insn);\n')
+            output(ind, self.base.extract_name(),
+                   '(ctx, &u.f_', arg, ', insn);\n')
         for n, f in self.fields.items():
             output(ind, 'u.f_', arg, '.', n, ' = ', f.str_extract(), ';\n')
         output(ind, 'if (', translate_prefix, '_', self.name,
@@ -894,7 +895,7 @@ class Tree:
         # extract the fields now.
         if not extracted and self.base:
             output(ind, self.base.extract_name(),
-                   '(&u.f_', self.base.base.name, ', insn);\n')
+                   '(ctx, &u.f_', self.base.base.name, ', insn);\n')
             extracted = True
 
         # Attempt to aid the compiler in producing compact switch statements.

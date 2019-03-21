@@ -517,7 +517,7 @@ static void decode_RV32_64C(DisasContext *ctx)
 }
 
 #define EX_SH(amount) \
-    static int ex_shift_##amount(int imm) \
+    static int ex_shift_##amount(DisasContext *ctx, int imm) \
     {                                         \
         return imm << amount;                 \
     }
@@ -533,7 +533,7 @@ EX_SH(12)
     }                              \
 } while (0)
 
-static int ex_rvc_register(int reg)
+static int ex_rvc_register(DisasContext *ctx, int reg)
 {
     return 8 + reg;
 }
