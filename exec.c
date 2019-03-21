@@ -324,7 +324,8 @@ static void phys_page_compact(PhysPageEntry *lp, Node *nodes)
     assert(valid_ptr < P_L2_SIZE);
 
     /* Don't compress if it won't fit in the # of bits we have. */
-    if (lp->skip + p[valid_ptr].skip >= (1 << 6)) {
+    if (P_L2_LEVELS >= (1 << 6) &&
+        lp->skip + p[valid_ptr].skip >= (1 << 6)) {
         return;
     }
 
