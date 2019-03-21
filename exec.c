@@ -255,7 +255,7 @@ static uint32_t phys_map_node_alloc(PhysPageMap *map, bool leaf)
 }
 
 static void phys_page_set_level(PhysPageMap *map, PhysPageEntry *lp,
-                                hwaddr *index, hwaddr *nb, uint16_t leaf,
+                                hwaddr *index, uint64_t *nb, uint16_t leaf,
                                 int level)
 {
     PhysPageEntry *p;
@@ -281,7 +281,7 @@ static void phys_page_set_level(PhysPageMap *map, PhysPageEntry *lp,
 }
 
 static void phys_page_set(AddressSpaceDispatch *d,
-                          hwaddr index, hwaddr nb,
+                          hwaddr index, uint64_t nb,
                           uint16_t leaf)
 {
     /* Wildly overreserve - it doesn't matter much. */
