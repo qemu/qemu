@@ -1200,7 +1200,7 @@ static int ohci_service_ed_list(OHCIState *ohci, uint32_t head, int completion)
     if (head == 0)
         return 0;
 
-    for (cur = head; cur; cur = next_ed) {
+    for (cur = head; cur && link_cnt++ < ED_LINK_LIMIT; cur = next_ed) {
         if (ohci_read_ed(ohci, cur, &ed)) {
             trace_usb_ohci_ed_read_error(cur);
             ohci_die(ohci);
@@ -1208,11 +1208,6 @@ static int ohci_service_ed_list(OHCIState *ohci, uint32_t head, int completion)
         }
 
         next_ed = ed.next & OHCI_DPTR_MASK;
-
-        if (++link_cnt > ED_LINK_LIMIT) {
-            ohci_die(ohci);
-            return 0;
-        }
 
         if ((ed.head & OHCI_ED_H) || (ed.flags & OHCI_ED_K)) {
             uint32_t addr;
