@@ -27,7 +27,7 @@
 #include "internal.h"
 #include "qemu/atomic128.h"
 
-//#define DEBUG_OP
+/* #define DEBUG_OP */
 
 static inline bool needs_byteswap(const CPUPPCState *env)
 {
@@ -103,10 +103,11 @@ void helper_lsw(CPUPPCState *env, target_ulong addr, uint32_t nb, uint32_t reg)
     do_lsw(env, addr, nb, reg, GETPC());
 }
 
-/* PPC32 specification says we must generate an exception if
- * rA is in the range of registers to be loaded.
- * In an other hand, IBM says this is valid, but rA won't be loaded.
- * For now, I'll follow the spec...
+/*
+ * PPC32 specification says we must generate an exception if rA is in
+ * the range of registers to be loaded.  In an other hand, IBM says
+ * this is valid, but rA won't be loaded.  For now, I'll follow the
+ * spec...
  */
 void helper_lswx(CPUPPCState *env, target_ulong addr, uint32_t reg,
                  uint32_t ra, uint32_t rb)
@@ -199,7 +200,8 @@ void helper_dcbzep(CPUPPCState *env, target_ulong addr, uint32_t opcode)
 void helper_icbi(CPUPPCState *env, target_ulong addr)
 {
     addr &= ~(env->dcache_line_size - 1);
-    /* Invalidate one cache line :
+    /*
+     * Invalidate one cache line :
      * PowerPC specification says this is to be treated like a load
      * (not a fetch) by the MMU. To be sure it will be so,
      * do the load "by hand".
@@ -346,17 +348,19 @@ uint32_t helper_stqcx_be_parallel(CPUPPCState *env, target_ulong addr,
 #define LO_IDX 0
 #endif
 
-/* We use msr_le to determine index ordering in a vector.  However,
-   byteswapping is not simply controlled by msr_le.  We also need to take
-   into account endianness of the target.  This is done for the little-endian
-   PPC64 user-mode target. */
+/*
+ * We use msr_le to determine index ordering in a vector.  However,
+ * byteswapping is not simply controlled by msr_le.  We also need to
+ * take into account endianness of the target.  This is done for the
+ * little-endian PPC64 user-mode target.
+ */
 
 #define LVE(name, access, swap, element)                        \
     void helper_##name(CPUPPCState *env, ppc_avr_t *r,          \
                        target_ulong addr)                       \
     {                                                           \
         size_t n_elems = ARRAY_SIZE(r->element);                \
-        int adjust = HI_IDX*(n_elems - 1);                      \
+        int adjust = HI_IDX * (n_elems - 1);                    \
         int sh = sizeof(r->element[0]) >> 1;                    \
         int index = (addr & 0xf) >> sh;                         \
         if (msr_le) {                                           \
@@ -476,12 +480,13 @@ VSX_STXVL(stxvll, 1)
 
 void helper_tbegin(CPUPPCState *env)
 {
-    /* As a degenerate implementation, always fail tbegin.  The reason
+    /*
+     * As a degenerate implementation, always fail tbegin.  The reason
      * given is "Nesting overflow".  The "persistent" bit is set,
      * providing a hint to the error handler to not retry.  The TFIAR
      * captures the address of the failure, which is this tbegin
-     * instruction.  Instruction execution will continue with the
-     * next instruction in memory, which is precisely what we want.
+     * instruction.  Instruction execution will continue with the next
+     * instruction in memory, which is precisely what we want.
      */
 
     env->spr[SPR_TEXASR] =
