@@ -2,7 +2,7 @@
 #include "qemu/osdep.h"
 #include <math.h>
 
-int main (void)
+int main(void)
 {
     double d;
     uint8_t n;
@@ -10,7 +10,8 @@ int main (void)
 
     printf("static const uint8_t mfrom_ROM_table[602] =\n{\n    ");
     for (i = 0; i < 602; i++) {
-        /* Extremely decomposed:
+        /*
+         * Extremely decomposed:
          *                    -T0 / 256
          * T0 = 256 * log10(10          + 1.0) + 0.5
          */
@@ -23,8 +24,9 @@ int main (void)
         d += 0.5;
         n = d;
         printf("%3d, ", n);
-        if ((i & 7) == 7)
+        if ((i & 7) == 7) {
             printf("\n    ");
+        }
     }
     printf("\n};\n");
 
