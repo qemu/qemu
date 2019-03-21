@@ -266,7 +266,7 @@ static inline uint8_t next_state(JSONLexer *lexer, char ch, bool flush,
 {
     uint8_t next;
 
-    assert(lexer->state <= ARRAY_SIZE(json_lexer));
+    assert(lexer->state < ARRAY_SIZE(json_lexer));
     next = json_lexer[lexer->state][(uint8_t)ch];
     *char_consumed = !flush && !(next & LOOKAHEAD);
     return next & ~LOOKAHEAD;
