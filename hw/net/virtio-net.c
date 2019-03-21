@@ -2281,7 +2281,7 @@ static void virtio_net_change_num_queues(VirtIONet *n, int new_max_queues)
     /*
      * We always need to remove and add ctrl vq if
      * old_num_queues != new_num_queues. Remove ctrl_vq first,
-     * and then we only enter one of the following too loops.
+     * and then we only enter one of the following two loops.
      */
     virtio_del_queue(vdev, old_num_queues - 1);
 
