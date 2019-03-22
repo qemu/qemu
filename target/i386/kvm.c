@@ -389,6 +389,15 @@ uint32_t kvm_arch_get_supported_cpuid(KVMState *s, uint32_t function,
         if (host_tsx_blacklisted()) {
             ret &= ~(CPUID_7_0_EBX_RTM | CPUID_7_0_EBX_HLE);
         }
+    } else if (function == 7 && index == 0 && reg == R_EDX) {
+        /*
+         * Linux v4.17-v4.20 incorrectly return ARCH_CAPABILITIES on SVM hosts.
+         * We can detect the bug by checking if MSR_IA32_ARCH_CAPABILITIES is
+         * returned by KVM_GET_MSR_INDEX_LIST.
+         */
+        if (!has_msr_arch_capabs) {
+            ret &= ~CPUID_7_0_EDX_ARCH_CAPABILITIES;
+        }
     } else if (function == 0x80000001 && reg == R_ECX) {
         /*
          * It's safe to enable TOPOEXT even if it's not returned by
