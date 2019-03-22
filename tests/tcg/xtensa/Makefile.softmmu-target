@@ -8,7 +8,7 @@ XTENSA_SRC = $(SRC_PATH)/tests/tcg/xtensa
 XTENSA_ALL = $(filter-out $(XTENSA_SRC)/linker.ld.S,$(wildcard $(XTENSA_SRC)/*.S))
 XTENSA_TESTS = $(patsubst $(XTENSA_SRC)/%.S, %, $(XTENSA_ALL))
 # Filter out common blobs and broken tests
-XTENSA_BROKEN_TESTS  = crt vectors test_boolean test_pipeline test_fail
+XTENSA_BROKEN_TESTS  = crt vectors
 XTENSA_USABLE_TESTS = $(filter-out $(XTENSA_BROKEN_TESTS), $(XTENSA_TESTS))
 
 # add to the list of tests
