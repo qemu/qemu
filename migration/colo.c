@@ -121,6 +121,7 @@ static void secondary_vm_do_failover(void)
     }
     /* Notify COLO incoming thread that failover work is finished */
     qemu_sem_post(&mis->colo_incoming_sem);
+
     /* For Secondary VM, jump to incoming co */
     if (mis->migration_incoming_co) {
         qemu_coroutine_enter(mis->migration_incoming_co);
@@ -262,7 +263,7 @@ COLOStatus *qmp_query_colo_status(Error **errp)
     case FAILOVER_STATUS_NONE:
         s->reason = COLO_EXIT_REASON_NONE;
         break;
-    case FAILOVER_STATUS_REQUIRE:
+    case FAILOVER_STATUS_COMPLETED:
         s->reason = COLO_EXIT_REASON_REQUEST;
         break;
     default:
@@ -582,7 +583,7 @@ out:
         qapi_event_send_colo_exit(COLO_MODE_PRIMARY,
                                   COLO_EXIT_REASON_ERROR);
         break;
-    case FAILOVER_STATUS_REQUIRE:
+    case FAILOVER_STATUS_COMPLETED:
         qapi_event_send_colo_exit(COLO_MODE_PRIMARY,
                                   COLO_EXIT_REASON_REQUEST);
         break;
@@ -854,7 +855,7 @@ out:
         qapi_event_send_colo_exit(COLO_MODE_SECONDARY,
                                   COLO_EXIT_REASON_ERROR);
         break;
-    case FAILOVER_STATUS_REQUIRE:
+    case FAILOVER_STATUS_COMPLETED:
         qapi_event_send_colo_exit(COLO_MODE_SECONDARY,
                                   COLO_EXIT_REASON_REQUEST);
         break;
