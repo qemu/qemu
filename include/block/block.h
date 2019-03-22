@@ -83,8 +83,13 @@ typedef enum {
      */
     BDRV_REQ_SERIALISING        = 0x80,
 
+    /* Execute the request only if the operation can be offloaded or otherwise
+     * be executed efficiently, but return an error instead of using a slow
+     * fallback. */
+    BDRV_REQ_NO_FALLBACK        = 0x100,
+
     /* Mask of valid flags */
-    BDRV_REQ_MASK               = 0xff,
+    BDRV_REQ_MASK               = 0x1ff,
 } BdrvRequestFlags;
 
 typedef struct BlockSizes {

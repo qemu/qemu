@@ -1015,6 +1015,7 @@ static int coroutine_fn bdrv_driver_preadv(BlockDriverState *bs,
     unsigned int nb_sectors;
 
     assert(!(flags & ~BDRV_REQ_MASK));
+    assert(!(flags & BDRV_REQ_NO_FALLBACK));
 
     if (!drv) {
         return -ENOMEDIUM;
@@ -1061,6 +1062,7 @@ static int coroutine_fn bdrv_driver_pwritev(BlockDriverState *bs,
     int ret;
 
     assert(!(flags & ~BDRV_REQ_MASK));
+    assert(!(flags & BDRV_REQ_NO_FALLBACK));
 
     if (!drv) {
         return -ENOMEDIUM;
@@ -1467,6 +1469,10 @@ static int coroutine_fn bdrv_co_do_pwrite_zeroes(BlockDriverState *bs,
         return -ENOMEDIUM;
     }
 
+    if ((flags & ~bs->supported_zero_flags) & BDRV_REQ_NO_FALLBACK) {
+        return -ENOTSUP;
+    }
+
     assert(alignment % bs->bl.request_alignment == 0);
     head = offset % alignment;
     tail = (offset + bytes) % alignment;
@@ -1510,7 +1516,7 @@ static int coroutine_fn bdrv_co_do_pwrite_zeroes(BlockDriverState *bs,
             assert(!bs->supported_zero_flags);
         }
 
-        if (ret == -ENOTSUP) {
+        if (ret == -ENOTSUP && !(flags & BDRV_REQ_NO_FALLBACK)) {
             /* Fall back to bounce buffer if write zeroes is unsupported */
             BdrvRequestFlags write_flags = flags & ~BDRV_REQ_ZERO_WRITE;
 
@@ -2948,6 +2954,10 @@ static int coroutine_fn bdrv_co_copy_range_internal(
 {
     BdrvTrackedRequest req;
     int ret;
+
+    /* TODO We can support BDRV_REQ_NO_FALLBACK here */
+    assert(!(read_flags & BDRV_REQ_NO_FALLBACK));
+    assert(!(write_flags & BDRV_REQ_NO_FALLBACK));
 
     if (!dst || !dst->bs) {
         return -ENOMEDIUM;
