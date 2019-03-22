@@ -795,6 +795,7 @@ void s390_init_sigp(void);
 S390CPU *s390_cpu_addr2state(uint16_t cpu_addr);
 
 typedef CPUS390XState CPUArchState;
+typedef S390CPU ArchCPU;
 
 #include "exec/cpu-all.h"
 

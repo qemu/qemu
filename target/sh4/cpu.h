@@ -281,6 +281,7 @@ static inline int cpu_mmu_index (CPUSH4State *env, bool ifetch)
 }
 
 typedef CPUSH4State CPUArchState;
+typedef SuperHCPU ArchCPU;
 
 #include "exec/cpu-all.h"
 

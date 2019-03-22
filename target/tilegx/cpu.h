@@ -151,6 +151,7 @@ static inline TileGXCPU *tilegx_env_get_cpu(CPUTLGState *env)
 #define MMU_USER_IDX    0  /* Current memory operation is in user mode */
 
 typedef CPUTLGState CPUArchState;
+typedef TileGXCPU ArchCPU;
 
 #include "exec/cpu-all.h"
 

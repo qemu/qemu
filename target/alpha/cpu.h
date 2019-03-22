@@ -305,6 +305,7 @@ void alpha_cpu_do_unaligned_access(CPUState *cpu, vaddr addr,
 #define cpu_signal_handler cpu_alpha_signal_handler
 
 typedef CPUAlphaState CPUArchState;
+typedef AlphaCPU ArchCPU;
 
 #include "exec/cpu-all.h"
 

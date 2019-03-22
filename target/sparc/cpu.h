@@ -730,6 +730,7 @@ static inline int cpu_pil_allowed(CPUSPARCState *env1, int pil)
 }
 
 typedef CPUSPARCState CPUArchState;
+typedef SPARCCPU ArchCPU;
 
 #include "exec/cpu-all.h"
 

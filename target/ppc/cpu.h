@@ -1376,6 +1376,7 @@ void ppc_compat_add_property(Object *obj, const char *name,
 #endif /* defined(TARGET_PPC64) */
 
 typedef CPUPPCState CPUArchState;
+typedef PowerPCCPU ArchCPU;
 
 #include "exec/cpu-all.h"
 

@@ -364,6 +364,7 @@ void cpu_openrisc_count_stop(OpenRISCCPU *cpu);
 #define CPU_RESOLVING_TYPE TYPE_OPENRISC_CPU
 
 typedef CPUOpenRISCState CPUArchState;
+typedef OpenRISCCPU ArchCPU;
 
 #include "exec/cpu-all.h"
 

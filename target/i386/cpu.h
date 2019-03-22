@@ -1753,6 +1753,7 @@ static inline target_long lshift(target_long x, int n)
 void tcg_x86_init(void);
 
 typedef CPUX86State CPUArchState;
+typedef X86CPU ArchCPU;
 
 #include "exec/cpu-all.h"
 #include "svm.h"

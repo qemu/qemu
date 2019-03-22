@@ -118,6 +118,7 @@ static inline int cpu_mmu_index(CPUMoxieState *env, bool ifetch)
 }
 
 typedef CPUMoxieState CPUArchState;
+typedef MoxieCPU ArchCPU;
 
 #include "exec/cpu-all.h"
 

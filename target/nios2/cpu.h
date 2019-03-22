@@ -247,6 +247,7 @@ static inline int cpu_interrupts_enabled(CPUNios2State *env)
 }
 
 typedef CPUNios2State CPUArchState;
+typedef Nios2CPU ArchCPU;
 
 #include "exec/cpu-all.h"
 

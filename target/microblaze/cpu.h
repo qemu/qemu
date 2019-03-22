@@ -366,6 +366,7 @@ bool mb_cpu_tlb_fill(CPUState *cs, vaddr address, int size,
                      bool probe, uintptr_t retaddr);
 
 typedef CPUMBState CPUArchState;
+typedef MicroBlazeCPU ArchCPU;
 
 #include "exec/cpu-all.h"
 

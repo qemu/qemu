@@ -152,6 +152,7 @@ static inline int cpu_mmu_index(CPUUniCore32State *env, bool ifetch)
 }
 
 typedef CPUUniCore32State CPUArchState;
+typedef UniCore32CPU ArchCPU;
 
 #include "exec/cpu-all.h"
 

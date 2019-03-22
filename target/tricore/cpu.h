@@ -379,6 +379,7 @@ static inline int cpu_mmu_index(CPUTriCoreState *env, bool ifetch)
 }
 
 typedef CPUTriCoreState CPUArchState;
+typedef TriCoreCPU ArchCPU;
 
 #include "exec/cpu-all.h"
 

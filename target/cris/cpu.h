@@ -285,6 +285,7 @@ bool cris_cpu_tlb_fill(CPUState *cs, vaddr address, int size,
 #define SFR_RW_MM_TLB_HI   env->pregs[PR_SRS]][6
 
 typedef CPUCRISState CPUArchState;
+typedef CRISCPU ArchCPU;
 
 #include "exec/cpu-all.h"
 
