@@ -1041,7 +1041,6 @@ static bool break_dependency(struct slot_prop *a,
             copy[n].resource = b->in[j].resource;
             copy[n].arg = b->arg + index;
             ++n;
-            ++i;
             ++j;
             rv = true;
         }

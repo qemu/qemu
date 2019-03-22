@@ -55,6 +55,23 @@ test sum
     .previous
 test_end
 
+test rep_dependency
+
+    {
+        movi    a2, 1
+        movi    a3, 2
+        nop
+    }
+    {
+        or      a2, a3, a3
+        or      a3, a2, a2
+        nop
+    }
+    assert  eqi, a2, 2
+    assert  eqi, a3, 1
+
+test_end
+
 #endif
 
 test_suite_end
