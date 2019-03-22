@@ -3749,6 +3749,8 @@ static void gen_bcond(DisasContext *ctx, int type)
         TCGv temp = tcg_temp_new();
         if (unlikely(type == BCOND_CTR)) {
             gen_inval_exception(ctx, POWERPC_EXCP_INVAL_INVAL);
+            tcg_temp_free(temp);
+            tcg_temp_free(target);
             return;
         }
         tcg_gen_subi_tl(cpu_ctr, cpu_ctr, 1);
