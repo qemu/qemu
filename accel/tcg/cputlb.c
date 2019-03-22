@@ -79,11 +79,11 @@ static inline size_t sizeof_tlb(CPUArchState *env, uintptr_t mmu_idx)
     return env->tlb_mask[mmu_idx] + (1 << CPU_TLB_ENTRY_BITS);
 }
 
-static void tlb_window_reset(CPUTLBWindow *window, int64_t ns,
+static void tlb_window_reset(CPUTLBDesc *desc, int64_t ns,
                              size_t max_entries)
 {
-    window->begin_ns = ns;
-    window->max_entries = max_entries;
+    desc->window_begin_ns = ns;
+    desc->window_max_entries = max_entries;
 }
 
 static void tlb_dyn_init(CPUArchState *env)
@@ -94,7 +94,7 @@ static void tlb_dyn_init(CPUArchState *env)
         CPUTLBDesc *desc = &env->tlb_d[i];
         size_t n_entries = 1 << CPU_TLB_DYN_DEFAULT_BITS;
 
-        tlb_window_reset(&desc->window, get_clock_realtime(), 0);
+        tlb_window_reset(desc, get_clock_realtime(), 0);
         desc->n_used_entries = 0;
         env->tlb_mask[i] = (n_entries - 1) << CPU_TLB_ENTRY_BITS;
         env->tlb_table[i] = g_new(CPUTLBEntry, n_entries);
@@ -151,18 +151,18 @@ static void tlb_mmu_resize_locked(CPUArchState *env, int mmu_idx)
     int64_t now = get_clock_realtime();
     int64_t window_len_ms = 100;
     int64_t window_len_ns = window_len_ms * 1000 * 1000;
-    bool window_expired = now > desc->window.begin_ns + window_len_ns;
+    bool window_expired = now > desc->window_begin_ns + window_len_ns;
 
-    if (desc->n_used_entries > desc->window.max_entries) {
-        desc->window.max_entries = desc->n_used_entries;
+    if (desc->n_used_entries > desc->window_max_entries) {
+        desc->window_max_entries = desc->n_used_entries;
     }
-    rate = desc->window.max_entries * 100 / old_size;
+    rate = desc->window_max_entries * 100 / old_size;
 
     if (rate > 70) {
         new_size = MIN(old_size << 1, 1 << CPU_TLB_DYN_MAX_BITS);
     } else if (rate < 30 && window_expired) {
-        size_t ceil = pow2ceil(desc->window.max_entries);
-        size_t expected_rate = desc->window.max_entries * 100 / ceil;
+        size_t ceil = pow2ceil(desc->window_max_entries);
+        size_t expected_rate = desc->window_max_entries * 100 / ceil;
 
         /*
          * Avoid undersizing when the max number of entries seen is just below
@@ -182,7 +182,7 @@ static void tlb_mmu_resize_locked(CPUArchState *env, int mmu_idx)
 
     if (new_size == old_size) {
         if (window_expired) {
-            tlb_window_reset(&desc->window, now, desc->n_used_entries);
+            tlb_window_reset(desc, now, desc->n_used_entries);
         }
         return;
     }
@@ -190,7 +190,7 @@ static void tlb_mmu_resize_locked(CPUArchState *env, int mmu_idx)
     g_free(env->tlb_table[mmu_idx]);
     g_free(env->iotlb[mmu_idx]);
 
-    tlb_window_reset(&desc->window, now, 0);
+    tlb_window_reset(desc, now, 0);
     /* desc->n_used_entries is cleared by the caller */
     env->tlb_mask[mmu_idx] = (new_size - 1) << CPU_TLB_ENTRY_BITS;
     env->tlb_table[mmu_idx] = g_try_new(CPUTLBEntry, new_size);

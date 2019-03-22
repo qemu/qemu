@@ -127,18 +127,6 @@ typedef struct CPUIOTLBEntry {
     MemTxAttrs attrs;
 } CPUIOTLBEntry;
 
-/**
- * struct CPUTLBWindow
- * @begin_ns: host time (in ns) at the beginning of the time window
- * @max_entries: maximum number of entries observed in the window
- *
- * See also: tlb_mmu_resize_locked()
- */
-typedef struct CPUTLBWindow {
-    int64_t begin_ns;
-    size_t max_entries;
-} CPUTLBWindow;
-
 typedef struct CPUTLBDesc {
     /*
      * Describe a region covering all of the large pages allocated
@@ -148,9 +136,12 @@ typedef struct CPUTLBDesc {
      */
     target_ulong large_page_addr;
     target_ulong large_page_mask;
+    /* host time (in ns) at the beginning of the time window */
+    int64_t window_begin_ns;
+    /* maximum number of entries observed in the window */
+    size_t window_max_entries;
     /* The next index to use in the tlb victim table.  */
     size_t vindex;
-    CPUTLBWindow window;
     size_t n_used_entries;
 } CPUTLBDesc;
 
