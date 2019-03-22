@@ -1173,8 +1173,8 @@ static const PCIClass pci_classes[] = {
     { "data-processing-controller", spc_subclass },
 };
 
-static const char *pci_find_device_name(uint8_t class, uint8_t subclass,
-                                        uint8_t iface)
+static const char *dt_name_from_class(uint8_t class, uint8_t subclass,
+                                      uint8_t iface)
 {
     const PCIClass *pclass;
     const PCISubClass *psubclass;
@@ -1214,23 +1214,6 @@ static const char *pci_find_device_name(uint8_t class, uint8_t subclass,
     }
 
     return name;
-}
-
-static gchar *pci_get_node_name(PCIDevice *dev)
-{
-    int slot = PCI_SLOT(dev->devfn);
-    int func = PCI_FUNC(dev->devfn);
-    uint32_t ccode = pci_default_read_config(dev, PCI_CLASS_PROG, 3);
-    const char *name;
-
-    name = pci_find_device_name((ccode >> 16) & 0xff, (ccode >> 8) & 0xff,
-                                ccode & 0xff);
-
-    if (func != 0) {
-        return g_strdup_printf("%s@%x,%x", name, slot, func);
-    } else {
-        return g_strdup_printf("%s@%x", name, slot);
-    }
 }
 
 static uint32_t spapr_phb_get_pci_drc_index(SpaprPhbState *phb,
@@ -1300,11 +1283,6 @@ static void spapr_populate_pci_child_dt(PCIDevice *dev, void *fdt, int offset,
         _FDT(fdt_setprop(fdt, offset, "udf-supported", NULL, 0));
     }
 
-    _FDT(fdt_setprop_string(fdt, offset, "name",
-                            pci_find_device_name((ccode >> 16) & 0xff,
-                                                 (ccode >> 8) & 0xff,
-                                                 ccode & 0xff)));
-
     buf = spapr_phb_get_loc_code(sphb, dev);
     _FDT(fdt_setprop_string(fdt, offset, "ibm,loc-code", buf));
     g_free(buf);
@@ -1348,10 +1326,23 @@ static int spapr_create_pci_child_dt(SpaprPhbState *phb, PCIDevice *dev,
                                      void *fdt, int node_offset)
 {
     int offset;
+    const gchar *basename;
     gchar *nodename;
+    int slot = PCI_SLOT(dev->devfn);
+    int func = PCI_FUNC(dev->devfn);
+    uint32_t ccode = pci_default_read_config(dev, PCI_CLASS_PROG, 3);
 
-    nodename = pci_get_node_name(dev);
+    basename = dt_name_from_class((ccode >> 16) & 0xff, (ccode >> 8) & 0xff,
+                                  ccode & 0xff);
+
+    if (func != 0) {
+        nodename = g_strdup_printf("%s@%x,%x", basename, slot, func);
+    } else {
+        nodename = g_strdup_printf("%s@%x", basename, slot);
+    }
+
     _FDT(offset = fdt_add_subnode(fdt, node_offset, nodename));
+
     g_free(nodename);
 
     spapr_populate_pci_child_dt(dev, fdt, offset, phb);
