@@ -1101,7 +1101,7 @@ clk_setup_cb cpu_ppc_tb_init (CPUPPCState *env, uint32_t freq)
     tb_env = g_malloc0(sizeof(ppc_tb_t));
     env->tb_env = tb_env;
     tb_env->flags = PPC_DECR_UNDERFLOW_TRIGGERED;
-    if (env->insns_flags & PPC_SEGMENT_64B) {
+    if (is_book3s_arch2x(env)) {
         /* All Book3S 64bit CPUs implement level based DEC logic */
         tb_env->flags |= PPC_DECR_UNDERFLOW_LEVEL;
     }

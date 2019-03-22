@@ -152,7 +152,7 @@ static inline int hreg_store_msr(CPUPPCState *env, target_ulong value,
      * - 64-bit embedded implementations do not need any operation to be
      *   performed when PR is set.
      */
-    if ((env->insns_flags & PPC_SEGMENT_64B) && ((value >> MSR_PR) & 1)) {
+    if (is_book3s_arch2x(env) && ((value >> MSR_PR) & 1)) {
         value |= (1 << MSR_EE) | (1 << MSR_DR) | (1 << MSR_IR);
     }
 #endif

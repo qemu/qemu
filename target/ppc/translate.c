@@ -3755,7 +3755,7 @@ static void gen_bcond(DisasContext *ctx, int type)
              * arch 2.x, do implement a "test and decrement" logic instead,
              * as described in their respective UMs.
              */
-            if (unlikely(!(ctx->insns_flags & PPC_SEGMENT_64B))) {
+            if (unlikely(!is_book3s_arch2x(ctx))) {
                 gen_inval_exception(ctx, POWERPC_EXCP_INVAL_INVAL);
                 tcg_temp_free(temp);
                 tcg_temp_free(target);
@@ -3913,7 +3913,7 @@ static void gen_rfi(DisasContext *ctx)
     /* This instruction doesn't exist anymore on 64-bit server
      * processors compliant with arch 2.x
      */
-    if (ctx->insns_flags & PPC_SEGMENT_64B) {
+    if (is_book3s_arch2x(ctx)) {
         gen_inval_exception(ctx, POWERPC_EXCP_INVAL_INVAL);
         return;
     }
@@ -6535,8 +6535,7 @@ static void gen_msgclr(DisasContext *ctx)
     GEN_PRIV;
 #else
     CHK_HV;
-    /* 64-bit server processors compliant with arch 2.x */
-    if (ctx->insns_flags & PPC_SEGMENT_64B) {
+    if (is_book3s_arch2x(ctx)) {
         gen_helper_book3s_msgclr(cpu_env, cpu_gpr[rB(ctx->opcode)]);
     } else {
         gen_helper_msgclr(cpu_env, cpu_gpr[rB(ctx->opcode)]);
@@ -6550,8 +6549,7 @@ static void gen_msgsnd(DisasContext *ctx)
     GEN_PRIV;
 #else
     CHK_HV;
-    /* 64-bit server processors compliant with arch 2.x */
-    if (ctx->insns_flags & PPC_SEGMENT_64B) {
+    if (is_book3s_arch2x(ctx)) {
         gen_helper_book3s_msgsnd(cpu_gpr[rB(ctx->opcode)]);
     } else {
         gen_helper_msgsnd(cpu_gpr[rB(ctx->opcode)]);
