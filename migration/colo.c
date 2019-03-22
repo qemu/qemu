@@ -197,10 +197,16 @@ void colo_do_failover(MigrationState *s)
         vm_stop_force_state(RUN_STATE_COLO);
     }
 
-    if (get_colo_mode() == COLO_MODE_PRIMARY) {
+    switch (get_colo_mode()) {
+    case COLO_MODE_PRIMARY:
         primary_vm_do_failover();
-    } else {
+        break;
+    case COLO_MODE_SECONDARY:
         secondary_vm_do_failover();
+        break;
+    default:
+        error_report("colo_do_failover failed because the colo mode"
+                     " could not be obtained");
     }
 }
 
