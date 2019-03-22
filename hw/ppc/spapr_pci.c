@@ -1219,57 +1219,75 @@ static const char *dt_name_from_class(uint8_t class, uint8_t subclass,
 static uint32_t spapr_phb_get_pci_drc_index(SpaprPhbState *phb,
                                             PCIDevice *pdev);
 
-static void spapr_populate_pci_child_dt(PCIDevice *dev, void *fdt, int offset,
-                                       SpaprPhbState *sphb)
+/* create OF node for pci device and required OF DT properties */
+static int spapr_dt_pci_device(SpaprPhbState *sphb, PCIDevice *dev,
+                               void *fdt, int parent_offset)
 {
+    int offset;
+    const gchar *basename;
+    gchar *nodename;
+    int slot = PCI_SLOT(dev->devfn);
+    int func = PCI_FUNC(dev->devfn);
     ResourceProps rp;
-    bool is_bridge = false;
-    int pci_status;
-    char *buf = NULL;
     uint32_t drc_index = spapr_phb_get_pci_drc_index(sphb, dev);
+    uint32_t header_type = pci_default_read_config(dev, PCI_HEADER_TYPE, 1);
+    bool is_bridge = (header_type == PCI_HEADER_TYPE_BRIDGE);
+    uint32_t vendor_id = pci_default_read_config(dev, PCI_VENDOR_ID, 2);
+    uint32_t device_id = pci_default_read_config(dev, PCI_DEVICE_ID, 2);
+    uint32_t revision_id = pci_default_read_config(dev, PCI_REVISION_ID, 1);
     uint32_t ccode = pci_default_read_config(dev, PCI_CLASS_PROG, 3);
-    uint32_t max_msi, max_msix;
+    uint32_t irq_pin = pci_default_read_config(dev, PCI_INTERRUPT_PIN, 1);
+    uint32_t subsystem_id = pci_default_read_config(dev, PCI_SUBSYSTEM_ID, 2);
+    uint32_t subsystem_vendor_id =
+        pci_default_read_config(dev, PCI_SUBSYSTEM_VENDOR_ID, 2);
+    uint32_t cache_line_size =
+        pci_default_read_config(dev, PCI_CACHE_LINE_SIZE, 1);
+    uint32_t pci_status = pci_default_read_config(dev, PCI_STATUS, 2);
+    gchar *loc_code;
 
-    if (pci_default_read_config(dev, PCI_HEADER_TYPE, 1) ==
-        PCI_HEADER_TYPE_BRIDGE) {
-        is_bridge = true;
+    basename = dt_name_from_class((ccode >> 16) & 0xff, (ccode >> 8) & 0xff,
+                                  ccode & 0xff);
+
+    if (func != 0) {
+        nodename = g_strdup_printf("%s@%x,%x", basename, slot, func);
+    } else {
+        nodename = g_strdup_printf("%s@%x", basename, slot);
     }
 
+    _FDT(offset = fdt_add_subnode(fdt, parent_offset, nodename));
+
+    g_free(nodename);
+
     /* in accordance with PAPR+ v2.7 13.6.3, Table 181 */
-    _FDT(fdt_setprop_cell(fdt, offset, "vendor-id",
-                          pci_default_read_config(dev, PCI_VENDOR_ID, 2)));
-    _FDT(fdt_setprop_cell(fdt, offset, "device-id",
-                          pci_default_read_config(dev, PCI_DEVICE_ID, 2)));
-    _FDT(fdt_setprop_cell(fdt, offset, "revision-id",
-                          pci_default_read_config(dev, PCI_REVISION_ID, 1)));
+    _FDT(fdt_setprop_cell(fdt, offset, "vendor-id", vendor_id));
+    _FDT(fdt_setprop_cell(fdt, offset, "device-id", device_id));
+    _FDT(fdt_setprop_cell(fdt, offset, "revision-id", revision_id));
+
     _FDT(fdt_setprop_cell(fdt, offset, "class-code", ccode));
-    if (pci_default_read_config(dev, PCI_INTERRUPT_PIN, 1)) {
-        _FDT(fdt_setprop_cell(fdt, offset, "interrupts",
-                 pci_default_read_config(dev, PCI_INTERRUPT_PIN, 1)));
+    if (irq_pin) {
+        _FDT(fdt_setprop_cell(fdt, offset, "interrupts", irq_pin));
     }
 
     if (!is_bridge) {
-        _FDT(fdt_setprop_cell(fdt, offset, "min-grant",
-            pci_default_read_config(dev, PCI_MIN_GNT, 1)));
-        _FDT(fdt_setprop_cell(fdt, offset, "max-latency",
-            pci_default_read_config(dev, PCI_MAX_LAT, 1)));
+        uint32_t min_grant = pci_default_read_config(dev, PCI_MIN_GNT, 1);
+        uint32_t max_latency = pci_default_read_config(dev, PCI_MAX_LAT, 1);
+        _FDT(fdt_setprop_cell(fdt, offset, "min-grant", min_grant));
+        _FDT(fdt_setprop_cell(fdt, offset, "max-latency", max_latency));
     }
 
-    if (pci_default_read_config(dev, PCI_SUBSYSTEM_ID, 2)) {
-        _FDT(fdt_setprop_cell(fdt, offset, "subsystem-id",
-                 pci_default_read_config(dev, PCI_SUBSYSTEM_ID, 2)));
+    if (subsystem_id) {
+        _FDT(fdt_setprop_cell(fdt, offset, "subsystem-id", subsystem_id));
     }
 
-    if (pci_default_read_config(dev, PCI_SUBSYSTEM_VENDOR_ID, 2)) {
+    if (subsystem_vendor_id) {
         _FDT(fdt_setprop_cell(fdt, offset, "subsystem-vendor-id",
-                 pci_default_read_config(dev, PCI_SUBSYSTEM_VENDOR_ID, 2)));
+                              subsystem_vendor_id));
     }
 
-    _FDT(fdt_setprop_cell(fdt, offset, "cache-line-size",
-        pci_default_read_config(dev, PCI_CACHE_LINE_SIZE, 1)));
+    _FDT(fdt_setprop_cell(fdt, offset, "cache-line-size", cache_line_size));
+
 
     /* the following fdt cells are masked off the pci status register */
-    pci_status = pci_default_read_config(dev, PCI_STATUS, 2);
     _FDT(fdt_setprop_cell(fdt, offset, "devsel-speed",
                           PCI_STATUS_DEVSEL_MASK & pci_status));
 
@@ -1283,9 +1301,9 @@ static void spapr_populate_pci_child_dt(PCIDevice *dev, void *fdt, int offset,
         _FDT(fdt_setprop(fdt, offset, "udf-supported", NULL, 0));
     }
 
-    buf = spapr_phb_get_loc_code(sphb, dev);
-    _FDT(fdt_setprop_string(fdt, offset, "ibm,loc-code", buf));
-    g_free(buf);
+    loc_code = spapr_phb_get_loc_code(sphb, dev);
+    _FDT(fdt_setprop_string(fdt, offset, "ibm,loc-code", loc_code));
+    g_free(loc_code);
 
     if (drc_index) {
         _FDT(fdt_setprop_cell(fdt, offset, "ibm,my-drc-index", drc_index));
@@ -1297,13 +1315,13 @@ static void spapr_populate_pci_child_dt(PCIDevice *dev, void *fdt, int offset,
                           RESOURCE_CELLS_SIZE));
 
     if (msi_present(dev)) {
-        max_msi = msi_nr_vectors_allocated(dev);
+        uint32_t max_msi = msi_nr_vectors_allocated(dev);
         if (max_msi) {
             _FDT(fdt_setprop_cell(fdt, offset, "ibm,req#msi", max_msi));
         }
     }
     if (msix_present(dev)) {
-        max_msix = dev->msix_entries_nr;
+        uint32_t max_msix = dev->msix_entries_nr;
         if (max_msix) {
             _FDT(fdt_setprop_cell(fdt, offset, "ibm,req#msi-x", max_msix));
         }
@@ -1319,33 +1337,6 @@ static void spapr_populate_pci_child_dt(PCIDevice *dev, void *fdt, int offset,
     }
 
     spapr_phb_nvgpu_populate_pcidev_dt(dev, fdt, offset, sphb);
-}
-
-/* create OF node for pci device and required OF DT properties */
-static int spapr_create_pci_child_dt(SpaprPhbState *phb, PCIDevice *dev,
-                                     void *fdt, int node_offset)
-{
-    int offset;
-    const gchar *basename;
-    gchar *nodename;
-    int slot = PCI_SLOT(dev->devfn);
-    int func = PCI_FUNC(dev->devfn);
-    uint32_t ccode = pci_default_read_config(dev, PCI_CLASS_PROG, 3);
-
-    basename = dt_name_from_class((ccode >> 16) & 0xff, (ccode >> 8) & 0xff,
-                                  ccode & 0xff);
-
-    if (func != 0) {
-        nodename = g_strdup_printf("%s@%x,%x", basename, slot, func);
-    } else {
-        nodename = g_strdup_printf("%s@%x", basename, slot);
-    }
-
-    _FDT(offset = fdt_add_subnode(fdt, node_offset, nodename));
-
-    g_free(nodename);
-
-    spapr_populate_pci_child_dt(dev, fdt, offset, phb);
 
     return offset;
 }
@@ -1393,7 +1384,7 @@ int spapr_pci_dt_populate(SpaprDrc *drc, SpaprMachineState *spapr,
     SpaprPhbState *sphb = SPAPR_PCI_HOST_BRIDGE(plug_handler);
     PCIDevice *pdev = PCI_DEVICE(drc->dev);
 
-    *fdt_start_offset = spapr_create_pci_child_dt(sphb, pdev, fdt, 0);
+    *fdt_start_offset = spapr_dt_pci_device(sphb, pdev, fdt, 0);
     return 0;
 }
 
@@ -2080,7 +2071,7 @@ static void spapr_populate_pci_devices_dt(PCIBus *bus, PCIDevice *pdev,
     int offset;
     SpaprFdt s_fdt;
 
-    offset = spapr_create_pci_child_dt(p->sphb, pdev, p->fdt, p->node_off);
+    offset = spapr_dt_pci_device(p->sphb, pdev, p->fdt, p->node_off);
     if (!offset) {
         error_report("Failed to create pci child device tree node");
         return;
