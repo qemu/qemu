@@ -909,8 +909,6 @@ int bdrv_make_zero(BdrvChild *child, BdrvRequestFlags flags)
         }
         ret = bdrv_block_status(bs, offset, bytes, &bytes, NULL, NULL);
         if (ret < 0) {
-            error_report("error getting block status at offset %" PRId64 ": %s",
-                         offset, strerror(-ret));
             return ret;
         }
         if (ret & BDRV_BLOCK_ZERO) {
@@ -919,8 +917,6 @@ int bdrv_make_zero(BdrvChild *child, BdrvRequestFlags flags)
         }
         ret = bdrv_pwrite_zeroes(child, offset, bytes, flags);
         if (ret < 0) {
-            error_report("error writing zeroes at offset %" PRId64 ": %s",
-                         offset, strerror(-ret));
             return ret;
         }
         offset += bytes;
