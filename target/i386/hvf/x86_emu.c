@@ -182,12 +182,12 @@ void write_val_ext(struct CPUX86State *env, target_ulong ptr, target_ulong val, 
         write_val_to_reg(ptr, val, size);
         return;
     }
-    vmx_write_mem(ENV_GET_CPU(env), ptr, &val, size);
+    vmx_write_mem(env_cpu(env), ptr, &val, size);
 }
 
 uint8_t *read_mmio(struct CPUX86State *env, target_ulong ptr, int bytes)
 {
-    vmx_read_mem(ENV_GET_CPU(env), env->hvf_emul->mmio_buf, ptr, bytes);
+    vmx_read_mem(env_cpu(env), env->hvf_emul->mmio_buf, ptr, bytes);
     return env->hvf_emul->mmio_buf;
 }
 
@@ -399,17 +399,18 @@ static void exec_out(struct CPUX86State *env, struct x86_decode *decode)
 {
     switch (decode->opcode[0]) {
     case 0xe6:
-        hvf_handle_io(ENV_GET_CPU(env), decode->op[0].val, &AL(env), 1, 1, 1);
+        hvf_handle_io(env_cpu(env), decode->op[0].val, &AL(env), 1, 1, 1);
         break;
     case 0xe7:
-        hvf_handle_io(ENV_GET_CPU(env), decode->op[0].val, &RAX(env), 1,
+        hvf_handle_io(env_cpu(env), decode->op[0].val, &RAX(env), 1,
                       decode->operand_size, 1);
         break;
     case 0xee:
-        hvf_handle_io(ENV_GET_CPU(env), DX(env), &AL(env), 1, 1, 1);
+        hvf_handle_io(env_cpu(env), DX(env), &AL(env), 1, 1, 1);
         break;
     case 0xef:
-        hvf_handle_io(ENV_GET_CPU(env), DX(env), &RAX(env), 1, decode->operand_size, 1);
+        hvf_handle_io(env_cpu(env), DX(env), &RAX(env), 1,
+                      decode->operand_size, 1);
         break;
     default:
         VM_PANIC("Bad out opcode\n");
@@ -423,10 +424,11 @@ static void exec_in(struct CPUX86State *env, struct x86_decode *decode)
     target_ulong val = 0;
     switch (decode->opcode[0]) {
     case 0xe4:
-        hvf_handle_io(ENV_GET_CPU(env), decode->op[0].val, &AL(env), 0, 1, 1);
+        hvf_handle_io(env_cpu(env), decode->op[0].val, &AL(env), 0, 1, 1);
         break;
     case 0xe5:
-        hvf_handle_io(ENV_GET_CPU(env), decode->op[0].val, &val, 0, decode->operand_size, 1);
+        hvf_handle_io(env_cpu(env), decode->op[0].val, &val, 0,
+                      decode->operand_size, 1);
         if (decode->operand_size == 2) {
             AX(env) = val;
         } else {
@@ -434,10 +436,10 @@ static void exec_in(struct CPUX86State *env, struct x86_decode *decode)
         }
         break;
     case 0xec:
-        hvf_handle_io(ENV_GET_CPU(env), DX(env), &AL(env), 0, 1, 1);
+        hvf_handle_io(env_cpu(env), DX(env), &AL(env), 0, 1, 1);
         break;
     case 0xed:
-        hvf_handle_io(ENV_GET_CPU(env), DX(env), &val, 0, decode->operand_size, 1);
+        hvf_handle_io(env_cpu(env), DX(env), &val, 0, decode->operand_size, 1);
         if (decode->operand_size == 2) {
             AX(env) = val;
         } else {
@@ -484,12 +486,13 @@ static inline void string_rep(struct CPUX86State *env, struct x86_decode *decode
 
 static void exec_ins_single(struct CPUX86State *env, struct x86_decode *decode)
 {
-    target_ulong addr = linear_addr_size(ENV_GET_CPU(env), RDI(env), decode->addressing_size,
-                                   R_ES);
+    target_ulong addr = linear_addr_size(env_cpu(env), RDI(env),
+                                         decode->addressing_size, R_ES);
 
-    hvf_handle_io(ENV_GET_CPU(env), DX(env), env->hvf_emul->mmio_buf, 0,
+    hvf_handle_io(env_cpu(env), DX(env), env->hvf_emul->mmio_buf, 0,
                   decode->operand_size, 1);
-    vmx_write_mem(ENV_GET_CPU(env), addr, env->hvf_emul->mmio_buf, decode->operand_size);
+    vmx_write_mem(env_cpu(env), addr, env->hvf_emul->mmio_buf,
+                  decode->operand_size);
 
     string_increment_reg(env, R_EDI, decode);
 }
@@ -509,8 +512,9 @@ static void exec_outs_single(struct CPUX86State *env, struct x86_decode *decode)
 {
     target_ulong addr = decode_linear_addr(env, decode, RSI(env), R_DS);
 
-    vmx_read_mem(ENV_GET_CPU(env), env->hvf_emul->mmio_buf, addr, decode->operand_size);
-    hvf_handle_io(ENV_GET_CPU(env), DX(env), env->hvf_emul->mmio_buf, 1,
+    vmx_read_mem(env_cpu(env), env->hvf_emul->mmio_buf, addr,
+                 decode->operand_size);
+    hvf_handle_io(env_cpu(env), DX(env), env->hvf_emul->mmio_buf, 1,
                   decode->operand_size, 1);
 
     string_increment_reg(env, R_ESI, decode);
@@ -534,8 +538,8 @@ static void exec_movs_single(struct CPUX86State *env, struct x86_decode *decode)
     target_ulong val;
 
     src_addr = decode_linear_addr(env, decode, RSI(env), R_DS);
-    dst_addr = linear_addr_size(ENV_GET_CPU(env), RDI(env), decode->addressing_size,
-                                R_ES);
+    dst_addr = linear_addr_size(env_cpu(env), RDI(env),
+                                decode->addressing_size, R_ES);
 
     val = read_val_ext(env, src_addr, decode->operand_size);
     write_val_ext(env, dst_addr, val, decode->operand_size);
@@ -561,8 +565,8 @@ static void exec_cmps_single(struct CPUX86State *env, struct x86_decode *decode)
     target_ulong dst_addr;
 
     src_addr = decode_linear_addr(env, decode, RSI(env), R_DS);
-    dst_addr = linear_addr_size(ENV_GET_CPU(env), RDI(env), decode->addressing_size,
-                                R_ES);
+    dst_addr = linear_addr_size(env_cpu(env), RDI(env),
+                                decode->addressing_size, R_ES);
 
     decode->op[0].type = X86_VAR_IMMEDIATE;
     decode->op[0].val = read_val_ext(env, src_addr, decode->operand_size);
@@ -591,9 +595,10 @@ static void exec_stos_single(struct CPUX86State *env, struct x86_decode *decode)
     target_ulong addr;
     target_ulong val;
 
-    addr = linear_addr_size(ENV_GET_CPU(env), RDI(env), decode->addressing_size, R_ES);
+    addr = linear_addr_size(env_cpu(env), RDI(env),
+                            decode->addressing_size, R_ES);
     val = read_reg(env, R_EAX, decode->operand_size);
-    vmx_write_mem(ENV_GET_CPU(env), addr, &val, decode->operand_size);
+    vmx_write_mem(env_cpu(env), addr, &val, decode->operand_size);
 
     string_increment_reg(env, R_EDI, decode);
 }
@@ -614,9 +619,10 @@ static void exec_scas_single(struct CPUX86State *env, struct x86_decode *decode)
 {
     target_ulong addr;
 
-    addr = linear_addr_size(ENV_GET_CPU(env), RDI(env), decode->addressing_size, R_ES);
+    addr = linear_addr_size(env_cpu(env), RDI(env),
+                            decode->addressing_size, R_ES);
     decode->op[1].type = X86_VAR_IMMEDIATE;
-    vmx_read_mem(ENV_GET_CPU(env), &decode->op[1].val, addr, decode->operand_size);
+    vmx_read_mem(env_cpu(env), &decode->op[1].val, addr, decode->operand_size);
 
     EXEC_2OP_FLAGS_CMD(env, decode, -, SET_FLAGS_OSZAPC_SUB, false);
     string_increment_reg(env, R_EDI, decode);
@@ -641,7 +647,7 @@ static void exec_lods_single(struct CPUX86State *env, struct x86_decode *decode)
     target_ulong val = 0;
 
     addr = decode_linear_addr(env, decode, RSI(env), R_DS);
-    vmx_read_mem(ENV_GET_CPU(env), &val, addr,  decode->operand_size);
+    vmx_read_mem(env_cpu(env), &val, addr,  decode->operand_size);
     write_reg(env, R_EAX, val, decode->operand_size);
 
     string_increment_reg(env, R_ESI, decode);
@@ -753,7 +759,7 @@ void simulate_rdmsr(struct CPUState *cpu)
 
 static void exec_rdmsr(struct CPUX86State *env, struct x86_decode *decode)
 {
-    simulate_rdmsr(ENV_GET_CPU(env));
+    simulate_rdmsr(env_cpu(env));
     RIP(env) += decode->len;
 }
 
@@ -851,7 +857,7 @@ void simulate_wrmsr(struct CPUState *cpu)
 
 static void exec_wrmsr(struct CPUX86State *env, struct x86_decode *decode)
 {
-    simulate_wrmsr(ENV_GET_CPU(env));
+    simulate_wrmsr(env_cpu(env));
     RIP(env) += decode->len;
 }
 

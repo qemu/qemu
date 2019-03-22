@@ -96,7 +96,7 @@ static int cpu_write_ac_reg(CPUS390XState *env, uint8_t *mem_buf, int n)
     switch (n) {
     case S390_A0_REGNUM ... S390_A15_REGNUM:
         env->aregs[n] = ldl_p(mem_buf);
-        cpu_synchronize_post_init(ENV_GET_CPU(env));
+        cpu_synchronize_post_init(env_cpu(env));
         return 4;
     default:
         return 0;
@@ -201,9 +201,9 @@ static int cpu_write_c_reg(CPUS390XState *env, uint8_t *mem_buf, int n)
     case S390_C0_REGNUM ... S390_C15_REGNUM:
         env->cregs[n] = ldtul_p(mem_buf);
         if (tcg_enabled()) {
-            tlb_flush(ENV_GET_CPU(env));
+            tlb_flush(env_cpu(env));
         }
-        cpu_synchronize_post_init(ENV_GET_CPU(env));
+        cpu_synchronize_post_init(env_cpu(env));
         return 8;
     default:
         return 0;
@@ -251,35 +251,35 @@ static int cpu_write_virt_reg(CPUS390XState *env, uint8_t *mem_buf, int n)
     switch (n) {
     case S390_VIRT_CKC_REGNUM:
         env->ckc = ldtul_p(mem_buf);
-        cpu_synchronize_post_init(ENV_GET_CPU(env));
+        cpu_synchronize_post_init(env_cpu(env));
         return 8;
     case S390_VIRT_CPUTM_REGNUM:
         env->cputm = ldtul_p(mem_buf);
-        cpu_synchronize_post_init(ENV_GET_CPU(env));
+        cpu_synchronize_post_init(env_cpu(env));
         return 8;
     case S390_VIRT_BEA_REGNUM:
         env->gbea = ldtul_p(mem_buf);
-        cpu_synchronize_post_init(ENV_GET_CPU(env));
+        cpu_synchronize_post_init(env_cpu(env));
         return 8;
     case S390_VIRT_PREFIX_REGNUM:
         env->psa = ldtul_p(mem_buf);
-        cpu_synchronize_post_init(ENV_GET_CPU(env));
+        cpu_synchronize_post_init(env_cpu(env));
         return 8;
     case S390_VIRT_PP_REGNUM:
         env->pp = ldtul_p(mem_buf);
-        cpu_synchronize_post_init(ENV_GET_CPU(env));
+        cpu_synchronize_post_init(env_cpu(env));
         return 8;
     case S390_VIRT_PFT_REGNUM:
         env->pfault_token = ldtul_p(mem_buf);
-        cpu_synchronize_post_init(ENV_GET_CPU(env));
+        cpu_synchronize_post_init(env_cpu(env));
         return 8;
     case S390_VIRT_PFS_REGNUM:
         env->pfault_select = ldtul_p(mem_buf);
-        cpu_synchronize_post_init(ENV_GET_CPU(env));
+        cpu_synchronize_post_init(env_cpu(env));
         return 8;
     case S390_VIRT_PFC_REGNUM:
         env->pfault_compare = ldtul_p(mem_buf);
-        cpu_synchronize_post_init(ENV_GET_CPU(env));
+        cpu_synchronize_post_init(env_cpu(env));
         return 8;
     default:
         return 0;
@@ -303,7 +303,7 @@ static int cpu_read_gs_reg(CPUS390XState *env, uint8_t *mem_buf, int n)
 static int cpu_write_gs_reg(CPUS390XState *env, uint8_t *mem_buf, int n)
 {
     env->gscb[n] = ldtul_p(mem_buf);
-    cpu_synchronize_post_init(ENV_GET_CPU(env));
+    cpu_synchronize_post_init(env_cpu(env));
     return 8;
 }
 

@@ -89,7 +89,7 @@ glue(glue(glue(cpu_ld, USUFFIX), MEMSUFFIX), _ra)(CPUArchState *env,
 
 #if !defined(SOFTMMU_CODE_ACCESS)
     trace_guest_mem_before_exec(
-        ENV_GET_CPU(env), ptr,
+        env_cpu(env), ptr,
         trace_mem_build_info(SHIFT, false, MO_TE, false));
 #endif
 
@@ -128,7 +128,7 @@ glue(glue(glue(cpu_lds, SUFFIX), MEMSUFFIX), _ra)(CPUArchState *env,
 
 #if !defined(SOFTMMU_CODE_ACCESS)
     trace_guest_mem_before_exec(
-        ENV_GET_CPU(env), ptr,
+        env_cpu(env), ptr,
         trace_mem_build_info(SHIFT, true, MO_TE, false));
 #endif
 
@@ -170,7 +170,7 @@ glue(glue(glue(cpu_st, SUFFIX), MEMSUFFIX), _ra)(CPUArchState *env,
 
 #if !defined(SOFTMMU_CODE_ACCESS)
     trace_guest_mem_before_exec(
-        ENV_GET_CPU(env), ptr,
+        env_cpu(env), ptr,
         trace_mem_build_info(SHIFT, false, MO_TE, true));
 #endif
 

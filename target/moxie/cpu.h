@@ -95,8 +95,6 @@ static inline MoxieCPU *moxie_env_get_cpu(CPUMoxieState *env)
     return container_of(env, MoxieCPU, env);
 }
 
-#define ENV_GET_CPU(e) CPU(moxie_env_get_cpu(e))
-
 #define ENV_OFFSET offsetof(MoxieCPU, env)
 
 void moxie_cpu_do_interrupt(CPUState *cs);

@@ -168,8 +168,6 @@ static inline M68kCPU *m68k_env_get_cpu(CPUM68KState *env)
     return container_of(env, M68kCPU, env);
 }
 
-#define ENV_GET_CPU(e) CPU(m68k_env_get_cpu(e))
-
 #define ENV_OFFSET offsetof(M68kCPU, env)
 
 void m68k_cpu_do_interrupt(CPUState *cpu);

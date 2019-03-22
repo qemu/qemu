@@ -283,8 +283,6 @@ static inline AlphaCPU *alpha_env_get_cpu(CPUAlphaState *env)
     return container_of(env, AlphaCPU, env);
 }
 
-#define ENV_GET_CPU(e) CPU(alpha_env_get_cpu(e))
-
 #define ENV_OFFSET offsetof(AlphaCPU, env)
 
 #ifndef CONFIG_USER_ONLY

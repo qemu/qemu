@@ -315,8 +315,6 @@ static inline MicroBlazeCPU *mb_env_get_cpu(CPUMBState *env)
     return container_of(env, MicroBlazeCPU, env);
 }
 
-#define ENV_GET_CPU(e) CPU(mb_env_get_cpu(e))
-
 #define ENV_OFFSET offsetof(MicroBlazeCPU, env)
 
 void mb_cpu_do_interrupt(CPUState *cs);

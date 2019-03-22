@@ -102,7 +102,7 @@ unsigned int mmu_translate(CPUNios2State *env,
 
 static void mmu_flush_pid(CPUNios2State *env, uint32_t pid)
 {
-    CPUState *cs = ENV_GET_CPU(env);
+    CPUState *cs = env_cpu(env);
     Nios2CPU *cpu = nios2_env_get_cpu(env);
     int idx;
     MMU_LOG(qemu_log("TLB Flush PID %d\n", pid));
@@ -126,7 +126,7 @@ static void mmu_flush_pid(CPUNios2State *env, uint32_t pid)
 
 void mmu_write(CPUNios2State *env, uint32_t rn, uint32_t v)
 {
-    CPUState *cs = ENV_GET_CPU(env);
+    CPUState *cs = env_cpu(env);
     Nios2CPU *cpu = nios2_env_get_cpu(env);
 
     MMU_LOG(qemu_log("mmu_write %08X = %08X\n", rn, v));

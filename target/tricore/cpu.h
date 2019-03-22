@@ -213,8 +213,6 @@ static inline TriCoreCPU *tricore_env_get_cpu(CPUTriCoreState *env)
     return TRICORE_CPU(container_of(env, TriCoreCPU, env));
 }
 
-#define ENV_GET_CPU(e) CPU(tricore_env_get_cpu(e))
-
 #define ENV_OFFSET offsetof(TriCoreCPU, env)
 
 hwaddr tricore_cpu_get_phys_page_debug(CPUState *cpu, vaddr addr);

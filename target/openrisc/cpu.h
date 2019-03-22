@@ -322,8 +322,6 @@ static inline OpenRISCCPU *openrisc_env_get_cpu(CPUOpenRISCState *env)
     return container_of(env, OpenRISCCPU, env);
 }
 
-#define ENV_GET_CPU(e) CPU(openrisc_env_get_cpu(e))
-
 #define ENV_OFFSET offsetof(OpenRISCCPU, env)
 
 void cpu_openrisc_list(void);

@@ -522,7 +522,7 @@ static inline int get_segment_6xx_tlb(CPUPPCState *env, mmu_ctx_t *ctx,
             ret = ppc6xx_tlb_check(env, ctx, eaddr, rw, type);
 #if defined(DUMP_PAGE_TABLES)
             if (qemu_loglevel_mask(CPU_LOG_MMU)) {
-                CPUState *cs = ENV_GET_CPU(env);
+                CPUState *cs = env_cpu(env);
                 hwaddr curaddr;
                 uint32_t a0, a1, a2, a3;
 

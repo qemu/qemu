@@ -77,7 +77,7 @@ static void atomic_store_3(CPUHPPAState *env, target_ulong addr, uint32_t val,
     }
 #else
     /* FIXME -- we can do better.  */
-    cpu_loop_exit_atomic(ENV_GET_CPU(env), ra);
+    cpu_loop_exit_atomic(env_cpu(env), ra);
 #endif
 }
 

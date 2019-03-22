@@ -626,7 +626,7 @@ static void QEMU_NORETURN dump_core_and_abort(int target_sig)
 int queue_signal(CPUArchState *env, int sig, int si_type,
                  target_siginfo_t *info)
 {
-    CPUState *cpu = ENV_GET_CPU(env);
+    CPUState *cpu = env_cpu(env);
     TaskState *ts = cpu->opaque;
 
     trace_user_queue_signal(env, sig);
@@ -651,7 +651,7 @@ static void host_signal_handler(int host_signum, siginfo_t *info,
                                 void *puc)
 {
     CPUArchState *env = thread_cpu->env_ptr;
-    CPUState *cpu = ENV_GET_CPU(env);
+    CPUState *cpu = env_cpu(env);
     TaskState *ts = cpu->opaque;
 
     int sig;
@@ -842,7 +842,7 @@ int do_sigaction(int sig, const struct target_sigaction *act,
 static void handle_pending_signal(CPUArchState *cpu_env, int sig,
                                   struct emulated_sigtable *k)
 {
-    CPUState *cpu = ENV_GET_CPU(cpu_env);
+    CPUState *cpu = env_cpu(cpu_env);
     abi_ulong handler;
     sigset_t set;
     target_sigset_t target_old_set;
@@ -927,7 +927,7 @@ static void handle_pending_signal(CPUArchState *cpu_env, int sig,
 
 void process_pending_signals(CPUArchState *cpu_env)
 {
-    CPUState *cpu = ENV_GET_CPU(cpu_env);
+    CPUState *cpu = env_cpu(cpu_env);
     int sig;
     TaskState *ts = cpu->opaque;
     sigset_t set;

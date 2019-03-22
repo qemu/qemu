@@ -24,7 +24,7 @@
 
 #define EXCP_DUMP(env, fmt, ...)                                        \
 do {                                                                    \
-    CPUState *cs = ENV_GET_CPU(env);                                    \
+    CPUState *cs = env_cpu(env);                                        \
     fprintf(stderr, fmt , ## __VA_ARGS__);                              \
     cpu_dump_state(cs, stderr, 0);                                      \
     if (qemu_log_separate()) {                                          \

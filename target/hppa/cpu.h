@@ -227,7 +227,6 @@ static inline HPPACPU *hppa_env_get_cpu(CPUHPPAState *env)
     return container_of(env, HPPACPU, env);
 }
 
-#define ENV_GET_CPU(e)  CPU(hppa_env_get_cpu(e))
 #define ENV_OFFSET      offsetof(HPPACPU, env)
 
 typedef CPUHPPAState CPUArchState;

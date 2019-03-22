@@ -781,7 +781,7 @@ static void do_cas2l(CPUM68KState *env, uint32_t regs, uint32_t a1, uint32_t a2,
 #endif
         {
             /* Tell the main loop we need to serialize this insn.  */
-            cpu_loop_exit_atomic(ENV_GET_CPU(env), ra);
+            cpu_loop_exit_atomic(env_cpu(env), ra);
         }
     } else {
         /* We're executing in a serial context -- no need to be atomic.  */

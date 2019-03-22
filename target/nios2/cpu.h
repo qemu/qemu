@@ -199,8 +199,6 @@ static inline Nios2CPU *nios2_env_get_cpu(CPUNios2State *env)
     return NIOS2_CPU(container_of(env, Nios2CPU, env));
 }
 
-#define ENV_GET_CPU(e) CPU(nios2_env_get_cpu(e))
-
 #define ENV_OFFSET offsetof(Nios2CPU, env)
 
 void nios2_tcg_init(void);

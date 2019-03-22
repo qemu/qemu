@@ -107,7 +107,7 @@ void helper_trapa(CPUSH4State *env, uint32_t tra)
 void helper_exclusive(CPUSH4State *env)
 {
     /* We do not want cpu_restore_state to run.  */
-    cpu_loop_exit_atomic(ENV_GET_CPU(env), 0);
+    cpu_loop_exit_atomic(env_cpu(env), 0);
 }
 
 void helper_movcal(CPUSH4State *env, uint32_t address, uint32_t value)

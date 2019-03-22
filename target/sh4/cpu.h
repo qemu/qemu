@@ -212,8 +212,6 @@ static inline SuperHCPU *sh_env_get_cpu(CPUSH4State *env)
     return container_of(env, SuperHCPU, env);
 }
 
-#define ENV_GET_CPU(e) CPU(sh_env_get_cpu(e))
-
 #define ENV_OFFSET offsetof(SuperHCPU, env)
 
 void superh_cpu_do_interrupt(CPUState *cpu);

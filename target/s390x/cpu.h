@@ -168,8 +168,6 @@ static inline S390CPU *s390_env_get_cpu(CPUS390XState *env)
     return container_of(env, S390CPU, env);
 }
 
-#define ENV_GET_CPU(e) CPU(s390_env_get_cpu(e))
-
 #define ENV_OFFSET offsetof(S390CPU, env)
 
 #ifndef CONFIG_USER_ONLY
