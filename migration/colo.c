@@ -267,7 +267,11 @@ COLOStatus *qmp_query_colo_status(Error **errp)
         s->reason = COLO_EXIT_REASON_REQUEST;
         break;
     default:
-        s->reason = COLO_EXIT_REASON_ERROR;
+        if (migration_in_colo_state()) {
+            s->reason = COLO_EXIT_REASON_PROCESSING;
+        } else {
+            s->reason = COLO_EXIT_REASON_ERROR;
+        }
     }
 
     return s;
@@ -579,16 +583,13 @@ out:
      * or the user triggered failover.
      */
     switch (failover_get_state()) {
-    case FAILOVER_STATUS_NONE:
-        qapi_event_send_colo_exit(COLO_MODE_PRIMARY,
-                                  COLO_EXIT_REASON_ERROR);
-        break;
     case FAILOVER_STATUS_COMPLETED:
         qapi_event_send_colo_exit(COLO_MODE_PRIMARY,
                                   COLO_EXIT_REASON_REQUEST);
         break;
     default:
-        abort();
+        qapi_event_send_colo_exit(COLO_MODE_PRIMARY,
+                                  COLO_EXIT_REASON_ERROR);
     }
 
     /* Hope this not to be too long to wait here */
@@ -850,17 +851,18 @@ out:
         error_report_err(local_err);
     }
 
+    /*
+     * There are only two reasons we can get here, some error happened
+     * or the user triggered failover.
+     */
     switch (failover_get_state()) {
-    case FAILOVER_STATUS_NONE:
-        qapi_event_send_colo_exit(COLO_MODE_SECONDARY,
-                                  COLO_EXIT_REASON_ERROR);
-        break;
     case FAILOVER_STATUS_COMPLETED:
         qapi_event_send_colo_exit(COLO_MODE_SECONDARY,
                                   COLO_EXIT_REASON_REQUEST);
         break;
     default:
-        abort();
+        qapi_event_send_colo_exit(COLO_MODE_SECONDARY,
+                                  COLO_EXIT_REASON_ERROR);
     }
 
     if (fb) {
