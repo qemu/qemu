@@ -26,8 +26,6 @@
 
 #define ALIGNED_ONLY
 
-#define CPUArchState struct CPUAlphaState
-
 /* Alpha processors have a weak memory model */
 #define TCG_GUEST_DEFAULT_MO      (0)
 
@@ -305,6 +303,8 @@ void alpha_cpu_do_unaligned_access(CPUState *cpu, vaddr addr,
 
 #define cpu_list alpha_cpu_list
 #define cpu_signal_handler cpu_alpha_signal_handler
+
+typedef CPUAlphaState CPUArchState;
 
 #include "exec/cpu-all.h"
 

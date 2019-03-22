@@ -16,8 +16,6 @@
 #include "cpu-qom.h"
 #include "exec/cpu-defs.h"
 
-#define CPUArchState                struct CPUUniCore32State
-
 typedef struct CPUUniCore32State {
     /* Regs for current mode.  */
     uint32_t regs[32];
@@ -152,6 +150,8 @@ static inline int cpu_mmu_index(CPUUniCore32State *env, bool ifetch)
 {
     return (env->uncached_asr & ASR_M) == ASR_MODE_USER ? 1 : 0;
 }
+
+typedef CPUUniCore32State CPUArchState;
 
 #include "exec/cpu-all.h"
 

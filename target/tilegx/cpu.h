@@ -23,8 +23,6 @@
 #include "qemu-common.h"
 #include "exec/cpu-defs.h"
 
-#define CPUArchState struct CPUTLGState
-
 /* TILE-Gx common register alias */
 #define TILEGX_R_RE    0   /*  0 register, for function/syscall return value */
 #define TILEGX_R_ERR   1   /*  1 register, for syscall errno flag */
@@ -151,6 +149,8 @@ static inline TileGXCPU *tilegx_env_get_cpu(CPUTLGState *env)
 
 /* TILE-Gx memory attributes */
 #define MMU_USER_IDX    0  /* Current memory operation is in user mode */
+
+typedef CPUTLGState CPUArchState;
 
 #include "exec/cpu-all.h"
 

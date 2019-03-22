@@ -24,8 +24,6 @@
 #include "exec/cpu-defs.h"
 #include "qom/cpu.h"
 
-#define CPUArchState struct CPUOpenRISCState
-
 /* cpu_openrisc_map_address_* in CPUOpenRISCTLBContext need this decl.  */
 struct OpenRISCCPU;
 
@@ -364,6 +362,8 @@ void cpu_openrisc_count_stop(OpenRISCCPU *cpu);
 #define OPENRISC_CPU_TYPE_SUFFIX "-" TYPE_OPENRISC_CPU
 #define OPENRISC_CPU_TYPE_NAME(model) model OPENRISC_CPU_TYPE_SUFFIX
 #define CPU_RESOLVING_TYPE TYPE_OPENRISC_CPU
+
+typedef CPUOpenRISCState CPUArchState;
 
 #include "exec/cpu-all.h"
 

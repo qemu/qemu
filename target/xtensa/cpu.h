@@ -38,8 +38,6 @@
 /* Xtensa processors have a weak memory model */
 #define TCG_GUEST_DEFAULT_MO      (0)
 
-#define CPUArchState struct CPUXtensaState
-
 enum {
     /* Additional instructions */
     XTENSA_OPTION_CODE_DENSITY,
@@ -800,6 +798,8 @@ static inline void cpu_get_tb_cpu_state(CPUXtensaState *env, target_ulong *pc,
         *flags |= XTENSA_TBFLAG_YIELD;
     }
 }
+
+typedef CPUXtensaState CPUArchState;
 
 #include "exec/cpu-all.h"
 

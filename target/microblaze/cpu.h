@@ -25,9 +25,6 @@
 #include "exec/cpu-defs.h"
 #include "fpu/softfloat-types.h"
 
-#define CPUArchState struct CPUMBState
-
-struct CPUMBState;
 typedef struct CPUMBState CPUMBState;
 #if !defined(CONFIG_USER_ONLY)
 #include "mmu.h"
@@ -367,6 +364,8 @@ static inline int cpu_mmu_index (CPUMBState *env, bool ifetch)
 bool mb_cpu_tlb_fill(CPUState *cs, vaddr address, int size,
                      MMUAccessType access_type, int mmu_idx,
                      bool probe, uintptr_t retaddr);
+
+typedef CPUMBState CPUArchState;
 
 #include "exec/cpu-all.h"
 

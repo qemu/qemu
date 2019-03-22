@@ -25,9 +25,6 @@
 #include "exec/cpu-defs.h"
 #include "qom/cpu.h"
 
-#define CPUArchState struct CPUNios2State
-
-struct CPUNios2State;
 typedef struct CPUNios2State CPUNios2State;
 #if !defined(CONFIG_USER_ONLY)
 #include "mmu.h"
@@ -248,6 +245,8 @@ static inline int cpu_interrupts_enabled(CPUNios2State *env)
 {
     return env->regs[CR_STATUS] & CR_STATUS_PIE;
 }
+
+typedef CPUNios2State CPUArchState;
 
 #include "exec/cpu-all.h"
 

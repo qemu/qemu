@@ -27,8 +27,6 @@
 
 #define TCG_GUEST_DEFAULT_MO 0
 
-#define CPUArchState struct CPURISCVState
-
 #define TYPE_RISCV_CPU "riscv-cpu"
 
 #define RISCV_CPU_TYPE_SUFFIX "-" TYPE_RISCV_CPU
@@ -335,6 +333,8 @@ void riscv_get_csr_ops(int csrno, riscv_csr_operations *ops);
 void riscv_set_csr_ops(int csrno, riscv_csr_operations *ops);
 
 void riscv_cpu_register_gdb_regs_for_features(CPUState *cs);
+
+typedef CPURISCVState CPUArchState;
 
 #include "exec/cpu-all.h"
 

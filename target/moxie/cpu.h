@@ -23,8 +23,6 @@
 #include "qemu-common.h"
 #include "exec/cpu-defs.h"
 
-#define CPUArchState struct CPUMoxieState
-
 #define MOXIE_EX_DIV0        0
 #define MOXIE_EX_BAD         1
 #define MOXIE_EX_IRQ         2
@@ -118,6 +116,8 @@ static inline int cpu_mmu_index(CPUMoxieState *env, bool ifetch)
 {
     return 0;
 }
+
+typedef CPUMoxieState CPUArchState;
 
 #include "exec/cpu-all.h"
 

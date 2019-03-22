@@ -29,8 +29,6 @@
 /* ARM processors have a weak memory model */
 #define TCG_GUEST_DEFAULT_MO      (0)
 
-#define CPUArchState struct CPUARMState
-
 #define EXCP_UDEF            1   /* undefined instruction */
 #define EXCP_SWI             2   /* software interrupt */
 #define EXCP_PREFETCH_ABORT  3
@@ -3126,6 +3124,8 @@ static inline bool arm_cpu_data_is_big_endian(CPUARMState *env)
         return (sctlr & (cur_el ? SCTLR_EE : SCTLR_E0E)) != 0;
     }
 }
+
+typedef CPUARMState CPUArchState;
 
 #include "exec/cpu-all.h"
 

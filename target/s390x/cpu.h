@@ -28,12 +28,8 @@
 
 #define ELF_MACHINE_UNAME "S390X"
 
-#define CPUArchState struct CPUS390XState
-
 /* The z/Architecture has a strong memory model with some store-after-load re-ordering */
 #define TCG_GUEST_DEFAULT_MO      (TCG_MO_ALL & ~TCG_MO_ST_LD)
-
-#include "exec/cpu-all.h"
 
 #define TARGET_INSN_START_EXTRA_WORDS 1
 
@@ -797,5 +793,9 @@ void s390_init_sigp(void);
 
 /* outside of target/s390x/ */
 S390CPU *s390_cpu_addr2state(uint16_t cpu_addr);
+
+typedef CPUS390XState CPUArchState;
+
+#include "exec/cpu-all.h"
 
 #endif

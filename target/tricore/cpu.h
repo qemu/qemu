@@ -25,10 +25,6 @@
 #include "exec/cpu-defs.h"
 #include "tricore-defs.h"
 
-#define CPUArchState struct CPUTriCoreState
-
-struct CPUTriCoreState;
-
 struct tricore_boot_info;
 
 typedef struct tricore_def_t tricore_def_t;
@@ -382,7 +378,7 @@ static inline int cpu_mmu_index(CPUTriCoreState *env, bool ifetch)
     return 0;
 }
 
-
+typedef CPUTriCoreState CPUArchState;
 
 #include "exec/cpu-all.h"
 

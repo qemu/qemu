@@ -1,4 +1,3 @@
-
 /*
  * i386 virtual CPU header
  *
@@ -43,8 +42,6 @@
 #define I386_ELF_MACHINE  EM_386
 #define ELF_MACHINE_UNAME "i686"
 #endif
-
-#define CPUArchState struct CPUX86State
 
 enum {
     R_EAX = 0,
@@ -1754,6 +1751,8 @@ static inline target_long lshift(target_long x, int n)
 
 /* translate.c */
 void tcg_x86_init(void);
+
+typedef CPUX86State CPUArchState;
 
 #include "exec/cpu-all.h"
 #include "svm.h"

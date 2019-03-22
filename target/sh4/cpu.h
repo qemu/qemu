@@ -36,8 +36,6 @@
 #define SH_CPU_SH7750_ALL (SH_CPU_SH7750 | SH_CPU_SH7750S | SH_CPU_SH7750R)
 #define SH_CPU_SH7751_ALL (SH_CPU_SH7751 | SH_CPU_SH7751R)
 
-#define CPUArchState struct CPUSH4State
-
 #define SR_MD 30
 #define SR_RB 29
 #define SR_BL 28
@@ -281,6 +279,8 @@ static inline int cpu_mmu_index (CPUSH4State *env, bool ifetch)
         return (env->sr & (1u << SR_MD)) == 0 ? 1 : 0;
     }
 }
+
+typedef CPUSH4State CPUArchState;
 
 #include "exec/cpu-all.h"
 

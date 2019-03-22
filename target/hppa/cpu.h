@@ -31,8 +31,6 @@
    basis.  It's probably easier to fall back to a strong memory model.  */
 #define TCG_GUEST_DEFAULT_MO        TCG_MO_ALL
 
-#define CPUArchState struct CPUHPPAState
-
 #define ALIGNED_ONLY
 #define MMU_KERNEL_IDX   0
 #define MMU_USER_IDX     3
@@ -231,6 +229,8 @@ static inline HPPACPU *hppa_env_get_cpu(CPUHPPAState *env)
 
 #define ENV_GET_CPU(e)  CPU(hppa_env_get_cpu(e))
 #define ENV_OFFSET      offsetof(HPPACPU, env)
+
+typedef CPUHPPAState CPUArchState;
 
 #include "exec/cpu-all.h"
 

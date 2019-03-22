@@ -34,8 +34,6 @@
 #define TARGET_PAGE_BITS_64K 16
 #define TARGET_PAGE_BITS_16M 24
 
-#define CPUArchState struct CPUPPCState
-
 #if defined(TARGET_PPC64)
 #define PPC_ELF_MACHINE     EM_PPC64
 #else
@@ -1376,6 +1374,8 @@ void ppc_compat_add_property(Object *obj, const char *name,
                              uint32_t *compat_pvr, const char *basedesc,
                              Error **errp);
 #endif /* defined(TARGET_PPC64) */
+
+typedef CPUPPCState CPUArchState;
 
 #include "exec/cpu-all.h"
 

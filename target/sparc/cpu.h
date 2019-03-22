@@ -14,8 +14,6 @@
 #define TARGET_DPREGS 32
 #endif
 
-#define CPUArchState struct CPUSPARCState
-
 /*#define EXCP_INTERRUPT 0x100*/
 
 /* trap definitions */
@@ -730,6 +728,8 @@ static inline int cpu_pil_allowed(CPUSPARCState *env1, int pil)
     return pil > env1->psrpil;
 #endif
 }
+
+typedef CPUSPARCState CPUArchState;
 
 #include "exec/cpu-all.h"
 

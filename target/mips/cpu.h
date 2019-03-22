@@ -3,8 +3,6 @@
 
 #define ALIGNED_ONLY
 
-#define CPUArchState struct CPUMIPSState
-
 #include "qemu-common.h"
 #include "cpu-qom.h"
 #include "exec/cpu-defs.h"
@@ -12,8 +10,6 @@
 #include "mips-defs.h"
 
 #define TCG_GUEST_DEFAULT_MO (0)
-
-struct CPUMIPSState;
 
 typedef struct CPUMIPSTLBContext CPUMIPSTLBContext;
 
@@ -1115,6 +1111,8 @@ static inline int cpu_mmu_index(CPUMIPSState *env, bool ifetch)
 {
     return hflags_mmu_index(env->hflags);
 }
+
+typedef CPUMIPSState CPUArchState;
 
 #include "exec/cpu-all.h"
 
