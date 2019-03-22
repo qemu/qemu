@@ -21,13 +21,9 @@
 #define TILEGX_CPU_H
 
 #include "qemu-common.h"
-
-#define TARGET_LONG_BITS 64
-
-#define CPUArchState struct CPUTLGState
-
 #include "exec/cpu-defs.h"
 
+#define CPUArchState struct CPUTLGState
 
 /* TILE-Gx common register alias */
 #define TILEGX_R_RE    0   /*  0 register, for function/syscall return value */
@@ -154,9 +150,6 @@ static inline TileGXCPU *tilegx_env_get_cpu(CPUTLGState *env)
 #define ENV_OFFSET offsetof(TileGXCPU, env)
 
 /* TILE-Gx memory attributes */
-#define TARGET_PAGE_BITS 16  /* TILE-Gx uses 64KB page size */
-#define TARGET_PHYS_ADDR_SPACE_BITS 42
-#define TARGET_VIRT_ADDR_SPACE_BITS 64
 #define MMU_USER_IDX    0  /* Current memory operation is in user mode */
 
 #include "exec/cpu-all.h"

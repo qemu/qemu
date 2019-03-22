@@ -22,13 +22,11 @@
 
 #include "qemu-common.h"
 #include "cpu-qom.h"
-
-#define TARGET_LONG_BITS 64
+#include "exec/cpu-defs.h"
+#include "fpu/softfloat-types.h"
 
 #define CPUArchState struct CPUMBState
 
-#include "exec/cpu-defs.h"
-#include "fpu/softfloat-types.h"
 struct CPUMBState;
 typedef struct CPUMBState CPUMBState;
 #if !defined(CONFIG_USER_ONLY)
@@ -228,8 +226,6 @@ typedef struct CPUMBState CPUMBState;
 #define CC_NE  1
 #define CC_EQ  0
 
-#define NB_MMU_MODES    3
-
 #define STREAM_EXCEPTION (1 << 0)
 #define STREAM_ATOMIC    (1 << 1)
 #define STREAM_TEST      (1 << 2)
@@ -339,12 +335,6 @@ void mb_tcg_init(void);
    is returned if the signal was handled by the virtual CPU.  */
 int cpu_mb_signal_handler(int host_signum, void *pinfo,
                           void *puc);
-
-/* FIXME: MB uses variable pages down to 1K but linux only uses 4k.  */
-#define TARGET_PAGE_BITS 12
-
-#define TARGET_PHYS_ADDR_SPACE_BITS 64
-#define TARGET_VIRT_ADDR_SPACE_BITS 64
 
 #define CPU_RESOLVING_TYPE TYPE_MICROBLAZE_CPU
 

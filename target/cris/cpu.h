@@ -23,12 +23,9 @@
 
 #include "qemu-common.h"
 #include "cpu-qom.h"
-
-#define TARGET_LONG_BITS 32
+#include "exec/cpu-defs.h"
 
 #define CPUArchState struct CPUCRISState
-
-#include "exec/cpu-defs.h"
 
 #define EXCP_NMI        1
 #define EXCP_GURU       2
@@ -104,8 +101,6 @@
 #define CC_LE  13
 #define CC_A   14
 #define CC_P   15
-
-#define NB_MMU_MODES 2
 
 typedef struct {
     uint32_t hi;
@@ -260,11 +255,7 @@ enum {
 };
 
 /* CRIS uses 8k pages.  */
-#define TARGET_PAGE_BITS 13
 #define MMAP_SHIFT TARGET_PAGE_BITS
-
-#define TARGET_PHYS_ADDR_SPACE_BITS 32
-#define TARGET_VIRT_ADDR_SPACE_BITS 32
 
 #define CRIS_CPU_TYPE_SUFFIX "-" TYPE_CRIS_CPU
 #define CRIS_CPU_TYPE_NAME(name) (name CRIS_CPU_TYPE_SUFFIX)

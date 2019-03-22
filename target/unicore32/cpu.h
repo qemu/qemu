@@ -12,19 +12,11 @@
 #ifndef UNICORE32_CPU_H
 #define UNICORE32_CPU_H
 
-#define TARGET_LONG_BITS                32
-#define TARGET_PAGE_BITS                12
-
-#define TARGET_PHYS_ADDR_SPACE_BITS     32
-#define TARGET_VIRT_ADDR_SPACE_BITS     32
-
-#define CPUArchState                struct CPUUniCore32State
-
 #include "qemu-common.h"
 #include "cpu-qom.h"
 #include "exec/cpu-defs.h"
 
-#define NB_MMU_MODES            2
+#define CPUArchState                struct CPUUniCore32State
 
 typedef struct CPUUniCore32State {
     /* Regs for current mode.  */

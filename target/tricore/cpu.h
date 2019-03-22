@@ -20,18 +20,16 @@
 #ifndef TRICORE_CPU_H
 #define TRICORE_CPU_H
 
-#include "tricore-defs.h"
 #include "qemu-common.h"
 #include "cpu-qom.h"
 #include "exec/cpu-defs.h"
+#include "tricore-defs.h"
 
 #define CPUArchState struct CPUTriCoreState
 
 struct CPUTriCoreState;
 
 struct tricore_boot_info;
-
-#define NB_MMU_MODES 3
 
 typedef struct tricore_def_t tricore_def_t;
 

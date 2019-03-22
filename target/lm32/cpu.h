@@ -20,25 +20,19 @@
 #ifndef LM32_CPU_H
 #define LM32_CPU_H
 
-#define TARGET_LONG_BITS 32
-
-#define CPUArchState struct CPULM32State
-
 #include "qemu-common.h"
 #include "cpu-qom.h"
 #include "exec/cpu-defs.h"
+
+#define CPUArchState struct CPULM32State
+
 struct CPULM32State;
 typedef struct CPULM32State CPULM32State;
 
-#define NB_MMU_MODES 1
-#define TARGET_PAGE_BITS 12
 static inline int cpu_mmu_index(CPULM32State *env, bool ifetch)
 {
     return 0;
 }
-
-#define TARGET_PHYS_ADDR_SPACE_BITS 32
-#define TARGET_VIRT_ADDR_SPACE_BITS 32
 
 /* Exceptions indices */
 enum {

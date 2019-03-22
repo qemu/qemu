@@ -21,8 +21,7 @@
 #define MOXIE_CPU_H
 
 #include "qemu-common.h"
-
-#define TARGET_LONG_BITS 32
+#include "exec/cpu-defs.h"
 
 #define CPUArchState struct CPUMoxieState
 
@@ -32,15 +31,6 @@
 #define MOXIE_EX_SWI         3
 #define MOXIE_EX_MMU_MISS    4
 #define MOXIE_EX_BREAK      16
-
-#include "exec/cpu-defs.h"
-
-#define TARGET_PAGE_BITS 12     /* 4k */
-
-#define TARGET_PHYS_ADDR_SPACE_BITS 32
-#define TARGET_VIRT_ADDR_SPACE_BITS 32
-
-#define NB_MMU_MODES 1
 
 typedef struct CPUMoxieState {
 

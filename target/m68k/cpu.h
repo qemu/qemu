@@ -21,13 +21,11 @@
 #ifndef M68K_CPU_H
 #define M68K_CPU_H
 
-#define TARGET_LONG_BITS 32
-
-#define CPUArchState struct CPUM68KState
-
 #include "qemu-common.h"
 #include "exec/cpu-defs.h"
 #include "cpu-qom.h"
+
+#define CPUArchState struct CPUM68KState
 
 #define OS_BYTE     0
 #define OS_WORD     1
@@ -82,7 +80,6 @@
 #define M68K_MAX_TTR 2
 #define TTR(type, index) ttr[((type & ACCESS_CODE) == ACCESS_CODE) * 2 + index]
 
-#define NB_MMU_MODES 2
 #define TARGET_INSN_START_EXTRA_WORDS 1
 
 typedef CPU_LDoubleU FPReg;
@@ -502,12 +499,6 @@ void m68k_cpu_list(void);
 
 void register_m68k_insns (CPUM68KState *env);
 
-/* Coldfire Linux uses 8k pages
- * and m68k linux uses 4k pages
- * use the smallest one
- */
-#define TARGET_PAGE_BITS 12
-
 enum {
     /* 1 bit to define user level / supervisor access */
     ACCESS_SUPER = 0x01,
@@ -521,9 +512,6 @@ enum {
     ACCESS_CODE  = 0x10, /* Code fetch access                */
     ACCESS_DATA  = 0x20, /* Data load/store access        */
 };
-
-#define TARGET_PHYS_ADDR_SPACE_BITS 32
-#define TARGET_VIRT_ADDR_SPACE_BITS 32
 
 #define M68K_CPU_TYPE_SUFFIX "-" TYPE_M68K_CPU
 #define M68K_CPU_TYPE_NAME(model) model M68K_CPU_TYPE_SUFFIX

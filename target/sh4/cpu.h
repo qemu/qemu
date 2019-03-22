@@ -22,8 +22,8 @@
 
 #include "qemu-common.h"
 #include "cpu-qom.h"
+#include "exec/cpu-defs.h"
 
-#define TARGET_LONG_BITS 32
 #define ALIGNED_ONLY
 
 /* CPU Subtypes */
@@ -37,17 +37,6 @@
 #define SH_CPU_SH7751_ALL (SH_CPU_SH7751 | SH_CPU_SH7751R)
 
 #define CPUArchState struct CPUSH4State
-
-#include "exec/cpu-defs.h"
-
-#define TARGET_PAGE_BITS 12	/* 4k XXXXX */
-
-#define TARGET_PHYS_ADDR_SPACE_BITS 32
-#ifdef CONFIG_USER_ONLY
-# define TARGET_VIRT_ADDR_SPACE_BITS 31
-#else
-# define TARGET_VIRT_ADDR_SPACE_BITS 32
-#endif
 
 #define SR_MD 30
 #define SR_RB 29
@@ -132,7 +121,6 @@ typedef struct tlb_t {
 #define UTLB_SIZE 64
 #define ITLB_SIZE 4
 
-#define NB_MMU_MODES 2
 #define TARGET_INSN_START_EXTRA_WORDS 1
 
 enum sh_features {

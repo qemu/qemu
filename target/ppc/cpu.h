@@ -22,52 +22,19 @@
 
 #include "qemu-common.h"
 #include "qemu/int128.h"
+#include "exec/cpu-defs.h"
+#include "cpu-qom.h"
+#include "exec/cpu-defs.h"
+#include "cpu-qom.h"
 
 /* #define PPC_EMULATE_32BITS_HYPV */
 
-#if defined(TARGET_PPC64)
-/* PowerPC 64 definitions */
-#define TARGET_LONG_BITS 64
-#define TARGET_PAGE_BITS 12
-
 #define TCG_GUEST_DEFAULT_MO 0
-
-/*
- * Note that the official physical address space bits is 62-M where M
- * is implementation dependent.  I've not looked up M for the set of
- * cpus we emulate at the system level.
- */
-#define TARGET_PHYS_ADDR_SPACE_BITS 62
-
-/*
- * Note that the PPC environment architecture talks about 80 bit
- * virtual addresses, with segmentation.  Obviously that's not all
- * visible to a single process, which is all we're concerned with
- * here.
- */
-#ifdef TARGET_ABI32
-# define TARGET_VIRT_ADDR_SPACE_BITS 32
-#else
-# define TARGET_VIRT_ADDR_SPACE_BITS 64
-#endif
 
 #define TARGET_PAGE_BITS_64K 16
 #define TARGET_PAGE_BITS_16M 24
 
-#else /* defined(TARGET_PPC64) */
-/* PowerPC 32 definitions */
-#define TARGET_LONG_BITS 32
-#define TARGET_PAGE_BITS 12
-
-#define TARGET_PHYS_ADDR_SPACE_BITS 36
-#define TARGET_VIRT_ADDR_SPACE_BITS 32
-
-#endif /* defined(TARGET_PPC64) */
-
 #define CPUArchState struct CPUPPCState
-
-#include "exec/cpu-defs.h"
-#include "cpu-qom.h"
 
 #if defined(TARGET_PPC64)
 #define PPC_ELF_MACHINE     EM_PPC64
@@ -974,7 +941,6 @@ struct ppc_radix_page_info {
  * + real/paged mode combinations. The other two modes are for
  * external PID load/store.
  */
-#define NB_MMU_MODES    10
 #define MMU_MODE8_SUFFIX _epl
 #define MMU_MODE9_SUFFIX _eps
 #define PPC_TLB_EPID_LOAD 8

@@ -5,22 +5,7 @@
 //#define USE_HOST_FLOAT_REGS
 
 /* Real pages are variable size... */
-#define TARGET_PAGE_BITS 12
 #define MIPS_TLB_MAX 128
-
-#if defined(TARGET_MIPS64)
-#define TARGET_LONG_BITS 64
-#define TARGET_PHYS_ADDR_SPACE_BITS 48
-#define TARGET_VIRT_ADDR_SPACE_BITS 48
-#else
-#define TARGET_LONG_BITS 32
-#define TARGET_PHYS_ADDR_SPACE_BITS 40
-# ifdef CONFIG_USER_ONLY
-#  define TARGET_VIRT_ADDR_SPACE_BITS 31
-# else
-#  define TARGET_VIRT_ADDR_SPACE_BITS 32
-#endif
-#endif
 
 /*
  * bit definitions for insn_flags (ISAs/ASEs flags)

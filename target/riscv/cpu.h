@@ -20,26 +20,14 @@
 #ifndef RISCV_CPU_H
 #define RISCV_CPU_H
 
-/* QEMU addressing/paging config */
-#define TARGET_PAGE_BITS 12 /* 4 KiB Pages */
-#if defined(TARGET_RISCV64)
-#define TARGET_LONG_BITS 64
-#define TARGET_PHYS_ADDR_SPACE_BITS 56 /* 44-bit PPN */
-#define TARGET_VIRT_ADDR_SPACE_BITS 48 /* sv48 */
-#elif defined(TARGET_RISCV32)
-#define TARGET_LONG_BITS 32
-#define TARGET_PHYS_ADDR_SPACE_BITS 34 /* 22-bit PPN */
-#define TARGET_VIRT_ADDR_SPACE_BITS 32 /* sv32 */
-#endif
-
-#define TCG_GUEST_DEFAULT_MO 0
-
-#define CPUArchState struct CPURISCVState
-
 #include "qemu-common.h"
 #include "qom/cpu.h"
 #include "exec/cpu-defs.h"
 #include "fpu/softfloat.h"
+
+#define TCG_GUEST_DEFAULT_MO 0
+
+#define CPUArchState struct CPURISCVState
 
 #define TYPE_RISCV_CPU "riscv-cpu"
 
@@ -98,7 +86,6 @@ enum {
 
 #define TRANSLATE_FAIL 1
 #define TRANSLATE_SUCCESS 0
-#define NB_MMU_MODES 4
 #define MMU_USER_IDX 3
 
 #define MAX_RISCV_PMPS (16)

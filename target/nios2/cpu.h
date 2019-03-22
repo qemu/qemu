@@ -22,13 +22,11 @@
 #define NIOS2_CPU_H
 
 #include "qemu-common.h"
-
-#define TARGET_LONG_BITS 32
+#include "exec/cpu-defs.h"
+#include "qom/cpu.h"
 
 #define CPUArchState struct CPUNios2State
 
-#include "exec/cpu-defs.h"
-#include "qom/cpu.h"
 struct CPUNios2State;
 typedef struct CPUNios2State CPUNios2State;
 #if !defined(CONFIG_USER_ONLY)
@@ -164,8 +162,6 @@ typedef struct Nios2CPUClass {
 
 #define CPU_INTERRUPT_NMI       CPU_INTERRUPT_TGT_EXT_3
 
-#define NB_MMU_MODES 2
-
 struct CPUNios2State {
     uint32_t regs[NUM_CORE_REGS];
 
@@ -225,21 +221,12 @@ void nios2_check_interrupts(CPUNios2State *env);
 
 void do_nios2_semihosting(CPUNios2State *env);
 
-#define TARGET_PHYS_ADDR_SPACE_BITS 32
-#ifdef CONFIG_USER_ONLY
-# define TARGET_VIRT_ADDR_SPACE_BITS 31
-#else
-# define TARGET_VIRT_ADDR_SPACE_BITS 32
-#endif
-
 #define CPU_RESOLVING_TYPE TYPE_NIOS2_CPU
 
 #define cpu_gen_code cpu_nios2_gen_code
 #define cpu_signal_handler cpu_nios2_signal_handler
 
 #define CPU_SAVE_VERSION 1
-
-#define TARGET_PAGE_BITS 12
 
 /* MMU modes definitions */
 #define MMU_MODE0_SUFFIX _kernel
