@@ -3747,22 +3747,44 @@ static void gen_bcond(DisasContext *ctx, int type)
     if ((bo & 0x4) == 0) {
         /* Decrement and test CTR */
         TCGv temp = tcg_temp_new();
-        if (unlikely(type == BCOND_CTR)) {
-            gen_inval_exception(ctx, POWERPC_EXCP_INVAL_INVAL);
-            tcg_temp_free(temp);
-            tcg_temp_free(target);
-            return;
-        }
-        tcg_gen_subi_tl(cpu_ctr, cpu_ctr, 1);
-        if (NARROW_MODE(ctx)) {
-            tcg_gen_ext32u_tl(temp, cpu_ctr);
+
+        if (type == BCOND_CTR) {
+            /*
+             * All ISAs up to v3 describe this form of bcctr as invalid but
+             * some processors, ie. 64-bit server processors compliant with
+             * arch 2.x, do implement a "test and decrement" logic instead,
+             * as described in their respective UMs.
+             */
+            if (unlikely(!(ctx->insns_flags & PPC_SEGMENT_64B))) {
+                gen_inval_exception(ctx, POWERPC_EXCP_INVAL_INVAL);
+                tcg_temp_free(temp);
+                tcg_temp_free(target);
+                return;
+            }
+
+            if (NARROW_MODE(ctx)) {
+                tcg_gen_ext32u_tl(temp, cpu_ctr);
+            } else {
+                tcg_gen_mov_tl(temp, cpu_ctr);
+            }
+            if (bo & 0x2) {
+                tcg_gen_brcondi_tl(TCG_COND_NE, temp, 0, l1);
+            } else {
+                tcg_gen_brcondi_tl(TCG_COND_EQ, temp, 0, l1);
+            }
+            tcg_gen_subi_tl(cpu_ctr, cpu_ctr, 1);
         } else {
-            tcg_gen_mov_tl(temp, cpu_ctr);
-        }
-        if (bo & 0x2) {
-            tcg_gen_brcondi_tl(TCG_COND_NE, temp, 0, l1);
-        } else {
-            tcg_gen_brcondi_tl(TCG_COND_EQ, temp, 0, l1);
+            tcg_gen_subi_tl(cpu_ctr, cpu_ctr, 1);
+            if (NARROW_MODE(ctx)) {
+                tcg_gen_ext32u_tl(temp, cpu_ctr);
+            } else {
+                tcg_gen_mov_tl(temp, cpu_ctr);
+            }
+            if (bo & 0x2) {
+                tcg_gen_brcondi_tl(TCG_COND_NE, temp, 0, l1);
+            } else {
+                tcg_gen_brcondi_tl(TCG_COND_EQ, temp, 0, l1);
+            }
         }
         tcg_temp_free(temp);
     }
