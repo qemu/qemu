@@ -1075,19 +1075,11 @@ static void tcg_out_nop_fill(tcg_insn_unit *p, int count)
    The result of the TLB comparison is in %[ix]cc.  The sanitized address
    is in the returned register, maybe %o0.  The TLB addend is in %o1.  */
 
-/* We expect tlb_mask to be before tlb_table.  */
-QEMU_BUILD_BUG_ON(offsetof(CPUArchState, tlb_table) <
-                  offsetof(CPUArchState, tlb_mask));
-
-/* We expect tlb_mask to be "near" tlb_table.  */
-QEMU_BUILD_BUG_ON(offsetof(CPUArchState, tlb_table) -
-                  offsetof(CPUArchState, tlb_mask) >= (1 << 13));
-
 static TCGReg tcg_out_tlb_load(TCGContext *s, TCGReg addr, int mem_index,
                                TCGMemOp opc, int which)
 {
-    int mask_off = offsetof(CPUArchState, tlb_mask[mem_index]);
-    int table_off = offsetof(CPUArchState, tlb_table[mem_index]);
+    int mask_off = offsetof(CPUArchState, tlb_.f[mem_index].mask);
+    int table_off = offsetof(CPUArchState, tlb_.f[mem_index].table);
     TCGReg base = TCG_AREG0;
     const TCGReg r0 = TCG_REG_O0;
     const TCGReg r1 = TCG_REG_O1;

@@ -14134,7 +14134,7 @@ static bool is_guarded_page(CPUARMState *env, DisasContext *s)
      * table entry even for that case.
      */
     return (tlb_hit(entry->addr_code, addr) &&
-            env->iotlb[mmu_idx][index].attrs.target_tlb_bit0);
+            env_tlb(env)->d[mmu_idx].iotlb[index].attrs.target_tlb_bit0);
 #endif
 }
 

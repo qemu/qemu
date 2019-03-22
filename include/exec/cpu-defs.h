@@ -78,6 +78,7 @@ typedef uint64_t target_ulong;
 #endif
 
 #if !defined(CONFIG_USER_ONLY) && defined(CONFIG_TCG)
+
 /* use a fully associative victim tlb of 8 entries */
 #define CPU_VTLB_SIZE 8
 
@@ -147,6 +148,10 @@ typedef struct CPUIOTLBEntry {
     MemTxAttrs attrs;
 } CPUIOTLBEntry;
 
+/*
+ * Data elements that are per MMU mode, minus the bits accessed by
+ * the TCG fast path.
+ */
 typedef struct CPUTLBDesc {
     /*
      * Describe a region covering all of the large pages allocated
@@ -160,16 +165,31 @@ typedef struct CPUTLBDesc {
     int64_t window_begin_ns;
     /* maximum number of entries observed in the window */
     size_t window_max_entries;
+    size_t n_used_entries;
     /* The next index to use in the tlb victim table.  */
     size_t vindex;
-    size_t n_used_entries;
+    /* The tlb victim table, in two parts.  */
+    CPUTLBEntry vtable[CPU_VTLB_SIZE];
+    CPUIOTLBEntry viotlb[CPU_VTLB_SIZE];
+    /* The iotlb.  */
+    CPUIOTLBEntry *iotlb;
 } CPUTLBDesc;
+
+/*
+ * Data elements that are per MMU mode, accessed by the fast path.
+ */
+typedef struct CPUTLBDescFast {
+    /* Contains (n_entries - 1) << CPU_TLB_ENTRY_BITS */
+    uintptr_t mask;
+    /* The array of tlb entries itself. */
+    CPUTLBEntry *table;
+} CPUTLBDescFast;
 
 /*
  * Data elements that are shared between all MMU modes.
  */
 typedef struct CPUTLBCommon {
-    /* Serialize updates to tlb_table and tlb_v_table, and others as noted. */
+    /* Serialize updates to f.table and d.vtable, and others as noted. */
     QemuSpin lock;
     /*
      * Within dirty, for each bit N, modifications have been made to
@@ -187,35 +207,24 @@ typedef struct CPUTLBCommon {
     size_t elide_flush_count;
 } CPUTLBCommon;
 
-# define CPU_TLB                                                        \
-    /* tlb_mask[i] contains (n_entries - 1) << CPU_TLB_ENTRY_BITS */    \
-    uintptr_t tlb_mask[NB_MMU_MODES];                                   \
-    CPUTLBEntry *tlb_table[NB_MMU_MODES];
-# define CPU_IOTLB                              \
-    CPUIOTLBEntry *iotlb[NB_MMU_MODES];
-
 /*
+ * The entire softmmu tlb, for all MMU modes.
  * The meaning of each of the MMU modes is defined in the target code.
- * Note that NB_MMU_MODES is not yet defined; we can only reference it
- * within preprocessor defines that will be expanded later.
  */
-#define CPU_COMMON_TLB \
-    CPUTLBCommon tlb_c;                                                 \
-    CPUTLBDesc tlb_d[NB_MMU_MODES];                                     \
-    CPU_TLB                                                             \
-    CPUTLBEntry tlb_v_table[NB_MMU_MODES][CPU_VTLB_SIZE];               \
-    CPU_IOTLB                                                           \
-    CPUIOTLBEntry iotlb_v[NB_MMU_MODES][CPU_VTLB_SIZE];
+typedef struct CPUTLB {
+    CPUTLBDescFast f[NB_MMU_MODES];
+    CPUTLBDesc d[NB_MMU_MODES];
+    CPUTLBCommon c;
+} CPUTLB;
+
+/* There are target-specific members named "tlb".  This is temporary.  */
+#define CPU_COMMON    CPUTLB tlb_;
+#define env_tlb(ENV)  (&(ENV)->tlb_)
 
 #else
 
-#define CPU_COMMON_TLB
+#define CPU_COMMON  /* Nothing */
 
-#endif
-
-
-#define CPU_COMMON                                                      \
-    /* soft mmu support */                                              \
-    CPU_COMMON_TLB                                                      \
+#endif  /* !CONFIG_USER_ONLY && CONFIG_TCG */
 
 #endif

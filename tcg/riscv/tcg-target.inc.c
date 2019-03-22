@@ -962,14 +962,6 @@ static void * const qemu_st_helpers[16] = {
 /* We don't support oversize guests */
 QEMU_BUILD_BUG_ON(TCG_TARGET_REG_BITS < TARGET_LONG_BITS);
 
-/* We expect tlb_mask to be before tlb_table.  */
-QEMU_BUILD_BUG_ON(offsetof(CPUArchState, tlb_table) <
-                  offsetof(CPUArchState, tlb_mask));
-
-/* We expect tlb_mask to be "near" tlb_table.  */
-QEMU_BUILD_BUG_ON(offsetof(CPUArchState, tlb_table) -
-                  offsetof(CPUArchState, tlb_mask) >= 0x800);
-
 static void tcg_out_tlb_load(TCGContext *s, TCGReg addrl,
                              TCGReg addrh, TCGMemOpIdx oi,
                              tcg_insn_unit **label_ptr, bool is_load)
@@ -982,8 +974,8 @@ static void tcg_out_tlb_load(TCGContext *s, TCGReg addrl,
     int mask_off, table_off;
     TCGReg mask_base = TCG_AREG0, table_base = TCG_AREG0;
 
-    mask_off = offsetof(CPUArchState, tlb_mask[mem_index]);
-    table_off = offsetof(CPUArchState, tlb_table[mem_index]);
+    mask_off = offsetof(CPUArchState, tlb_.f[mem_index].mask);
+    table_off = offsetof(CPUArchState, tlb_.f[mem_index].table);
     if (table_off > 0x7ff) {
         int mask_hi = mask_off - sextreg(mask_off, 0, 12);
         int table_hi = table_off - sextreg(table_off, 0, 12);
