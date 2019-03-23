@@ -1630,6 +1630,8 @@ static int convert_iteration_sectors(ImgConvertState *s, int64_t sector_num)
                                           count, &count, NULL, NULL);
         }
         if (ret < 0) {
+            error_report("error while reading block status of sector %" PRId64
+                         ": %s", sector_num, strerror(-ret));
             return ret;
         }
         n = DIV_ROUND_UP(count, BDRV_SECTOR_SIZE);
