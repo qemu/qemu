@@ -78,7 +78,7 @@ static inline int ucf64_exceptbits_to_host(int target_bits)
 
 void HELPER(ucf64_set_fpscr)(CPUUniCore32State *env, uint32_t val)
 {
-    UniCore32CPU *cpu = uc32_env_get_cpu(env);
+    UniCore32CPU *cpu = env_archcpu(env);
     int i;
     uint32_t changed;
 
