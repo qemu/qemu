@@ -317,11 +317,6 @@ typedef struct OpenRISCCPU {
 
 } OpenRISCCPU;
 
-static inline OpenRISCCPU *openrisc_env_get_cpu(CPUOpenRISCState *env)
-{
-    return container_of(env, OpenRISCCPU, env);
-}
-
 #define ENV_OFFSET offsetof(OpenRISCCPU, env)
 
 void cpu_openrisc_list(void);

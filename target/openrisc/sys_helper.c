@@ -30,8 +30,8 @@
 void HELPER(mtspr)(CPUOpenRISCState *env, target_ulong spr, target_ulong rb)
 {
 #ifndef CONFIG_USER_ONLY
-    OpenRISCCPU *cpu = openrisc_env_get_cpu(env);
-    CPUState *cs = CPU(cpu);
+    OpenRISCCPU *cpu = env_archcpu(env);
+    CPUState *cs = env_cpu(env);
     target_ulong mr;
     int idx;
 
@@ -194,8 +194,8 @@ target_ulong HELPER(mfspr)(CPUOpenRISCState *env, target_ulong rd,
                            target_ulong spr)
 {
 #ifndef CONFIG_USER_ONLY
-    OpenRISCCPU *cpu = openrisc_env_get_cpu(env);
-    CPUState *cs = CPU(cpu);
+    OpenRISCCPU *cpu = env_archcpu(env);
+    CPUState *cs = env_cpu(env);
     int idx;
 
     switch (spr) {

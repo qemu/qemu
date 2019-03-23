@@ -25,15 +25,14 @@
 
 void HELPER(exception)(CPUOpenRISCState *env, uint32_t excp)
 {
-    OpenRISCCPU *cpu = openrisc_env_get_cpu(env);
+    OpenRISCCPU *cpu = env_archcpu(env);
 
     raise_exception(cpu, excp);
 }
 
 static void QEMU_NORETURN do_range(CPUOpenRISCState *env, uintptr_t pc)
 {
-    OpenRISCCPU *cpu = openrisc_env_get_cpu(env);
-    CPUState *cs = CPU(cpu);
+    CPUState *cs = env_cpu(env);
 
     cs->exception_index = EXCP_RANGE;
     cpu_loop_exit_restore(cs, pc);
