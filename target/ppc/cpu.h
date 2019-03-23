@@ -1203,11 +1203,6 @@ struct PowerPCCPU {
     int32_t mig_slb_nr;
 };
 
-static inline PowerPCCPU *ppc_env_get_cpu(CPUPPCState *env)
-{
-    return container_of(env, PowerPCCPU, env);
-}
-
 #define ENV_OFFSET offsetof(PowerPCCPU, env)
 
 PowerPCCPUClass *ppc_cpu_class_by_pvr(uint32_t pvr);
@@ -2450,7 +2445,7 @@ static inline int booke206_tlbm_to_tlbn(CPUPPCState *env, ppcmas_tlb_t *tlbm)
         }
     }
 
-    cpu_abort(CPU(ppc_env_get_cpu(env)), "Unknown TLBe: %d\n", id);
+    cpu_abort(env_cpu(env), "Unknown TLBe: %d\n", id);
     return 0;
 }
 

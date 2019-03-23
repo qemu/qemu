@@ -96,7 +96,7 @@ void dump_slb(PowerPCCPU *cpu)
 
 void helper_slbia(CPUPPCState *env)
 {
-    PowerPCCPU *cpu = ppc_env_get_cpu(env);
+    PowerPCCPU *cpu = env_archcpu(env);
     int n;
 
     /* XXX: Warning: slbia never invalidates the first segment */
@@ -118,7 +118,7 @@ void helper_slbia(CPUPPCState *env)
 static void __helper_slbie(CPUPPCState *env, target_ulong addr,
                            target_ulong global)
 {
-    PowerPCCPU *cpu = ppc_env_get_cpu(env);
+    PowerPCCPU *cpu = env_archcpu(env);
     ppc_slb_t *slb;
 
     slb = slb_lookup(cpu, addr);
@@ -251,7 +251,7 @@ static int ppc_find_slb_vsid(PowerPCCPU *cpu, target_ulong rb,
 
 void helper_store_slb(CPUPPCState *env, target_ulong rb, target_ulong rs)
 {
-    PowerPCCPU *cpu = ppc_env_get_cpu(env);
+    PowerPCCPU *cpu = env_archcpu(env);
 
     if (ppc_store_slb(cpu, rb & 0xfff, rb & ~0xfffULL, rs) < 0) {
         raise_exception_err_ra(env, POWERPC_EXCP_PROGRAM,
@@ -261,7 +261,7 @@ void helper_store_slb(CPUPPCState *env, target_ulong rb, target_ulong rs)
 
 target_ulong helper_load_slb_esid(CPUPPCState *env, target_ulong rb)
 {
-    PowerPCCPU *cpu = ppc_env_get_cpu(env);
+    PowerPCCPU *cpu = env_archcpu(env);
     target_ulong rt = 0;
 
     if (ppc_load_slb_esid(cpu, rb, &rt) < 0) {
@@ -273,7 +273,7 @@ target_ulong helper_load_slb_esid(CPUPPCState *env, target_ulong rb)
 
 target_ulong helper_find_slb_vsid(CPUPPCState *env, target_ulong rb)
 {
-    PowerPCCPU *cpu = ppc_env_get_cpu(env);
+    PowerPCCPU *cpu = env_archcpu(env);
     target_ulong rt = 0;
 
     if (ppc_find_slb_vsid(cpu, rb, &rt) < 0) {
@@ -285,7 +285,7 @@ target_ulong helper_find_slb_vsid(CPUPPCState *env, target_ulong rb)
 
 target_ulong helper_load_slb_vsid(CPUPPCState *env, target_ulong rb)
 {
-    PowerPCCPU *cpu = ppc_env_get_cpu(env);
+    PowerPCCPU *cpu = env_archcpu(env);
     target_ulong rt = 0;
 
     if (ppc_load_slb_vsid(cpu, rb, &rt) < 0) {
@@ -1163,7 +1163,7 @@ void ppc_store_lpcr(PowerPCCPU *cpu, target_ulong val)
 
 void helper_store_lpcr(CPUPPCState *env, target_ulong val)
 {
-    PowerPCCPU *cpu = ppc_env_get_cpu(env);
+    PowerPCCPU *cpu = env_archcpu(env);
 
     ppc_store_lpcr(cpu, val);
 }

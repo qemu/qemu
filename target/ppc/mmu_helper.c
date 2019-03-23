@@ -239,7 +239,6 @@ static inline int ppc6xx_tlb_getnum(CPUPPCState *env, target_ulong eaddr,
 
 static inline void ppc6xx_tlb_invalidate_all(CPUPPCState *env)
 {
-    PowerPCCPU *cpu = ppc_env_get_cpu(env);
     ppc6xx_tlb_t *tlb;
     int nr, max;
 
@@ -253,7 +252,7 @@ static inline void ppc6xx_tlb_invalidate_all(CPUPPCState *env)
         tlb = &env->tlb.tlb6[nr];
         pte_invalidate(&tlb->pte0);
     }
-    tlb_flush(CPU(cpu));
+    tlb_flush(env_cpu(env));
 }
 
 static inline void ppc6xx_tlb_invalidate_virt2(CPUPPCState *env,
@@ -261,7 +260,7 @@ static inline void ppc6xx_tlb_invalidate_virt2(CPUPPCState *env,
                                                int is_code, int match_epn)
 {
 #if !defined(FLUSH_ALL_TLBS)
-    CPUState *cs = CPU(ppc_env_get_cpu(env));
+    CPUState *cs = env_cpu(env);
     ppc6xx_tlb_t *tlb;
     int way, nr;
 
@@ -474,7 +473,7 @@ static int get_bat_6xx_tlb(CPUPPCState *env, mmu_ctx_t *ctx,
 static inline int get_segment_6xx_tlb(CPUPPCState *env, mmu_ctx_t *ctx,
                                       target_ulong eaddr, int rw, int type)
 {
-    PowerPCCPU *cpu = ppc_env_get_cpu(env);
+    PowerPCCPU *cpu = env_archcpu(env);
     hwaddr hash;
     target_ulong vsid;
     int ds, pr, target_page_bits;
@@ -670,7 +669,6 @@ static int ppcemb_tlb_search(CPUPPCState *env, target_ulong address,
 /* Helpers specific to PowerPC 40x implementations */
 static inline void ppc4xx_tlb_invalidate_all(CPUPPCState *env)
 {
-    PowerPCCPU *cpu = ppc_env_get_cpu(env);
     ppcemb_tlb_t *tlb;
     int i;
 
@@ -678,7 +676,7 @@ static inline void ppc4xx_tlb_invalidate_all(CPUPPCState *env)
         tlb = &env->tlb.tlbe[i];
         tlb->prot &= ~PAGE_VALID;
     }
-    tlb_flush(CPU(cpu));
+    tlb_flush(env_cpu(env));
 }
 
 static int mmu40x_get_physical_address(CPUPPCState *env, mmu_ctx_t *ctx,
@@ -749,11 +747,10 @@ static int mmu40x_get_physical_address(CPUPPCState *env, mmu_ctx_t *ctx,
 
 void store_40x_sler(CPUPPCState *env, uint32_t val)
 {
-    PowerPCCPU *cpu = ppc_env_get_cpu(env);
-
     /* XXX: TO BE FIXED */
     if (val != 0x00000000) {
-        cpu_abort(CPU(cpu), "Little-endian regions are not supported by now\n");
+        cpu_abort(env_cpu(env),
+                  "Little-endian regions are not supported by now\n");
     }
     env->spr[SPR_405_SLER] = val;
 }
@@ -863,7 +860,6 @@ static int mmubooke_get_physical_address(CPUPPCState *env, mmu_ctx_t *ctx,
 static void booke206_flush_tlb(CPUPPCState *env, int flags,
                                const int check_iprot)
 {
-    PowerPCCPU *cpu = ppc_env_get_cpu(env);
     int tlb_size;
     int i, j;
     ppcmas_tlb_t *tlb = env->tlb.tlbm;
@@ -880,7 +876,7 @@ static void booke206_flush_tlb(CPUPPCState *env, int flags,
         tlb += booke206_tlb_size(env, i);
     }
 
-    tlb_flush(CPU(cpu));
+    tlb_flush(env_cpu(env));
 }
 
 static hwaddr booke206_tlb_to_page_size(CPUPPCState *env,
@@ -1275,7 +1271,7 @@ static void mmu6xx_dump_BATs(CPUPPCState *env, int type)
 
 static void mmu6xx_dump_mmu(CPUPPCState *env)
 {
-    PowerPCCPU *cpu = ppc_env_get_cpu(env);
+    PowerPCCPU *cpu = env_archcpu(env);
     ppc6xx_tlb_t *tlb;
     target_ulong sr;
     int type, way, entry, i;
@@ -1347,13 +1343,13 @@ void dump_mmu(CPUPPCState *env)
     case POWERPC_MMU_2_03:
     case POWERPC_MMU_2_06:
     case POWERPC_MMU_2_07:
-        dump_slb(ppc_env_get_cpu(env));
+        dump_slb(env_archcpu(env));
         break;
     case POWERPC_MMU_3_00:
-        if (ppc64_v3_radix(ppc_env_get_cpu(env))) {
+        if (ppc64_v3_radix(env_archcpu(env))) {
             /* TODO - Unsupported */
         } else {
-            dump_slb(ppc_env_get_cpu(env));
+            dump_slb(env_archcpu(env));
             break;
         }
 #endif
@@ -1419,7 +1415,6 @@ static int get_physical_address_wtlb(
     target_ulong eaddr, int rw, int access_type,
     int mmu_idx)
 {
-    PowerPCCPU *cpu = ppc_env_get_cpu(env);
     int ret = -1;
     bool real_mode = (access_type == ACCESS_CODE && msr_ir == 0)
         || (access_type != ACCESS_CODE && msr_dr == 0);
@@ -1460,18 +1455,18 @@ static int get_physical_address_wtlb(
         break;
     case POWERPC_MMU_MPC8xx:
         /* XXX: TODO */
-        cpu_abort(CPU(cpu), "MPC8xx MMU model is not implemented\n");
+        cpu_abort(env_cpu(env), "MPC8xx MMU model is not implemented\n");
         break;
     case POWERPC_MMU_REAL:
         if (real_mode) {
             ret = check_physical(env, ctx, eaddr, rw);
         } else {
-            cpu_abort(CPU(cpu),
+            cpu_abort(env_cpu(env),
                       "PowerPC in real mode do not do any translation\n");
         }
         return -1;
     default:
-        cpu_abort(CPU(cpu), "Unknown or invalid MMU model\n");
+        cpu_abort(env_cpu(env), "Unknown or invalid MMU model\n");
         return -1;
     }
 
@@ -1583,7 +1578,7 @@ static void booke206_update_mas_tlb_miss(CPUPPCState *env, target_ulong address,
 static int cpu_ppc_handle_mmu_fault(CPUPPCState *env, target_ulong address,
                                     int rw, int mmu_idx)
 {
-    CPUState *cs = CPU(ppc_env_get_cpu(env));
+    CPUState *cs = env_cpu(env);
     PowerPCCPU *cpu = POWERPC_CPU(cs);
     mmu_ctx_t ctx;
     int access_type;
@@ -1815,7 +1810,7 @@ static int cpu_ppc_handle_mmu_fault(CPUPPCState *env, target_ulong address,
 static inline void do_invalidate_BAT(CPUPPCState *env, target_ulong BATu,
                                      target_ulong mask)
 {
-    CPUState *cs = CPU(ppc_env_get_cpu(env));
+    CPUState *cs = env_cpu(env);
     target_ulong base, end, page;
 
     base = BATu & ~0x0001FFFF;
@@ -1847,7 +1842,7 @@ void helper_store_ibatu(CPUPPCState *env, uint32_t nr, target_ulong value)
 {
     target_ulong mask;
 #if defined(FLUSH_ALL_TLBS)
-    PowerPCCPU *cpu = ppc_env_get_cpu(env);
+    PowerPCCPU *cpu = env_archcpu(env);
 #endif
 
     dump_store_bat(env, 'I', 0, nr, value);
@@ -1868,7 +1863,7 @@ void helper_store_ibatu(CPUPPCState *env, uint32_t nr, target_ulong value)
 #if !defined(FLUSH_ALL_TLBS)
         do_invalidate_BAT(env, env->IBAT[0][nr], mask);
 #else
-        tlb_flush(CPU(cpu));
+        tlb_flush(env_cpu(env));
 #endif
     }
 }
@@ -1883,7 +1878,7 @@ void helper_store_dbatu(CPUPPCState *env, uint32_t nr, target_ulong value)
 {
     target_ulong mask;
 #if defined(FLUSH_ALL_TLBS)
-    PowerPCCPU *cpu = ppc_env_get_cpu(env);
+    PowerPCCPU *cpu = env_archcpu(env);
 #endif
 
     dump_store_bat(env, 'D', 0, nr, value);
@@ -1904,7 +1899,7 @@ void helper_store_dbatu(CPUPPCState *env, uint32_t nr, target_ulong value)
 #if !defined(FLUSH_ALL_TLBS)
         do_invalidate_BAT(env, env->DBAT[0][nr], mask);
 #else
-        tlb_flush(CPU(cpu));
+        tlb_flush(env_cpu(env));
 #endif
     }
 }
@@ -1919,7 +1914,7 @@ void helper_store_601_batu(CPUPPCState *env, uint32_t nr, target_ulong value)
 {
     target_ulong mask;
 #if defined(FLUSH_ALL_TLBS)
-    PowerPCCPU *cpu = ppc_env_get_cpu(env);
+    PowerPCCPU *cpu = env_archcpu(env);
     int do_inval;
 #endif
 
@@ -1953,7 +1948,7 @@ void helper_store_601_batu(CPUPPCState *env, uint32_t nr, target_ulong value)
         }
 #if defined(FLUSH_ALL_TLBS)
         if (do_inval) {
-            tlb_flush(CPU(cpu));
+            tlb_flush(env_cpu(env));
         }
 #endif
     }
@@ -1964,7 +1959,7 @@ void helper_store_601_batl(CPUPPCState *env, uint32_t nr, target_ulong value)
 #if !defined(FLUSH_ALL_TLBS)
     target_ulong mask;
 #else
-    PowerPCCPU *cpu = ppc_env_get_cpu(env);
+    PowerPCCPU *cpu = env_archcpu(env);
     int do_inval;
 #endif
 
@@ -1993,7 +1988,7 @@ void helper_store_601_batl(CPUPPCState *env, uint32_t nr, target_ulong value)
         env->DBAT[1][nr] = value;
 #if defined(FLUSH_ALL_TLBS)
         if (do_inval) {
-            tlb_flush(CPU(cpu));
+            tlb_flush(env_cpu(env));
         }
 #endif
     }
@@ -2003,12 +1998,10 @@ void helper_store_601_batl(CPUPPCState *env, uint32_t nr, target_ulong value)
 /* TLB management */
 void ppc_tlb_invalidate_all(CPUPPCState *env)
 {
-    PowerPCCPU *cpu = ppc_env_get_cpu(env);
-
 #if defined(TARGET_PPC64)
     if (env->mmu_model & POWERPC_MMU_64) {
         env->tlb_need_flush = 0;
-        tlb_flush(CPU(cpu));
+        tlb_flush(env_cpu(env));
     } else
 #endif /* defined(TARGET_PPC64) */
     switch (env->mmu_model) {
@@ -2021,14 +2014,14 @@ void ppc_tlb_invalidate_all(CPUPPCState *env)
         ppc4xx_tlb_invalidate_all(env);
         break;
     case POWERPC_MMU_REAL:
-        cpu_abort(CPU(cpu), "No TLB for PowerPC 4xx in real mode\n");
+        cpu_abort(env_cpu(env), "No TLB for PowerPC 4xx in real mode\n");
         break;
     case POWERPC_MMU_MPC8xx:
         /* XXX: TODO */
-        cpu_abort(CPU(cpu), "MPC8xx MMU model is not implemented\n");
+        cpu_abort(env_cpu(env), "MPC8xx MMU model is not implemented\n");
         break;
     case POWERPC_MMU_BOOKE:
-        tlb_flush(CPU(cpu));
+        tlb_flush(env_cpu(env));
         break;
     case POWERPC_MMU_BOOKE206:
         booke206_flush_tlb(env, -1, 0);
@@ -2036,11 +2029,11 @@ void ppc_tlb_invalidate_all(CPUPPCState *env)
     case POWERPC_MMU_32B:
     case POWERPC_MMU_601:
         env->tlb_need_flush = 0;
-        tlb_flush(CPU(cpu));
+        tlb_flush(env_cpu(env));
         break;
     default:
         /* XXX: TODO */
-        cpu_abort(CPU(cpu), "Unknown MMU model %x\n", env->mmu_model);
+        cpu_abort(env_cpu(env), "Unknown MMU model %x\n", env->mmu_model);
         break;
     }
 }
@@ -2091,7 +2084,7 @@ void ppc_tlb_invalidate_one(CPUPPCState *env, target_ulong addr)
 /* Special registers manipulation */
 void ppc_store_sdr1(CPUPPCState *env, target_ulong value)
 {
-    PowerPCCPU *cpu = ppc_env_get_cpu(env);
+    PowerPCCPU *cpu = env_archcpu(env);
     qemu_log_mask(CPU_LOG_MMU, "%s: " TARGET_FMT_lx "\n", __func__, value);
     assert(!cpu->vhyp);
 #if defined(TARGET_PPC64)
@@ -2118,7 +2111,7 @@ void ppc_store_sdr1(CPUPPCState *env, target_ulong value)
 #if defined(TARGET_PPC64)
 void ppc_store_ptcr(CPUPPCState *env, target_ulong value)
 {
-    PowerPCCPU *cpu = ppc_env_get_cpu(env);
+    PowerPCCPU *cpu = env_archcpu(env);
     target_ulong ptcr_mask = PTCR_PATB | PTCR_PATS;
     target_ulong patbsize = value & PTCR_PATS;
 
@@ -2163,7 +2156,7 @@ void helper_store_sr(CPUPPCState *env, target_ulong srnum, target_ulong value)
             (int)srnum, value, env->sr[srnum]);
 #if defined(TARGET_PPC64)
     if (env->mmu_model & POWERPC_MMU_64) {
-        PowerPCCPU *cpu = ppc_env_get_cpu(env);
+        PowerPCCPU *cpu = env_archcpu(env);
         uint64_t esid, vsid;
 
         /* ESID = srnum */
@@ -2190,7 +2183,7 @@ void helper_store_sr(CPUPPCState *env, target_ulong srnum, target_ulong value)
             page = (16 << 20) * srnum;
             end = page + (16 << 20);
             for (; page != end; page += TARGET_PAGE_SIZE) {
-                tlb_flush_page(CPU(cpu), page);
+                tlb_flush_page(env_cpu(env), page);
             }
         }
 #else
@@ -2212,12 +2205,10 @@ void helper_tlbie(CPUPPCState *env, target_ulong addr)
 
 void helper_tlbiva(CPUPPCState *env, target_ulong addr)
 {
-    PowerPCCPU *cpu = ppc_env_get_cpu(env);
-
     /* tlbiva instruction only exists on BookE */
     assert(env->mmu_model == POWERPC_MMU_BOOKE);
     /* XXX: TODO */
-    cpu_abort(CPU(cpu), "BookE MMU model is not implemented\n");
+    cpu_abort(env_cpu(env), "BookE MMU model is not implemented\n");
 }
 
 /* Software driven TLBs management */
@@ -2433,8 +2424,7 @@ target_ulong helper_4xx_tlbre_lo(CPUPPCState *env, target_ulong entry)
 void helper_4xx_tlbwe_hi(CPUPPCState *env, target_ulong entry,
                          target_ulong val)
 {
-    PowerPCCPU *cpu = ppc_env_get_cpu(env);
-    CPUState *cs = CPU(cpu);
+    CPUState *cs = env_cpu(env);
     ppcemb_tlb_t *tlb;
     target_ulong page, end;
 
@@ -2529,7 +2519,6 @@ target_ulong helper_4xx_tlbsx(CPUPPCState *env, target_ulong address)
 void helper_440_tlbwe(CPUPPCState *env, uint32_t word, target_ulong entry,
                       target_ulong value)
 {
-    PowerPCCPU *cpu = ppc_env_get_cpu(env);
     ppcemb_tlb_t *tlb;
     target_ulong EPN, RPN, size;
     int do_flush_tlbs;
@@ -2565,13 +2554,13 @@ void helper_440_tlbwe(CPUPPCState *env, uint32_t word, target_ulong entry,
         }
         tlb->PID = env->spr[SPR_440_MMUCR] & 0x000000FF;
         if (do_flush_tlbs) {
-            tlb_flush(CPU(cpu));
+            tlb_flush(env_cpu(env));
         }
         break;
     case 1:
         RPN = value & 0xFFFFFC0F;
         if ((tlb->prot & PAGE_VALID) && tlb->RPN != RPN) {
-            tlb_flush(CPU(cpu));
+            tlb_flush(env_cpu(env));
         }
         tlb->RPN = RPN;
         break;
@@ -2665,7 +2654,6 @@ target_ulong helper_440_tlbsx(CPUPPCState *env, target_ulong address)
 
 static ppcmas_tlb_t *booke206_cur_tlb(CPUPPCState *env)
 {
-    PowerPCCPU *cpu = ppc_env_get_cpu(env);
     uint32_t tlbncfg = 0;
     int esel = (env->spr[SPR_BOOKE_MAS0] & MAS0_ESEL_MASK) >> MAS0_ESEL_SHIFT;
     int ea = (env->spr[SPR_BOOKE_MAS2] & MAS2_EPN_MASK);
@@ -2675,7 +2663,7 @@ static ppcmas_tlb_t *booke206_cur_tlb(CPUPPCState *env)
     tlbncfg = env->spr[SPR_BOOKE_TLB0CFG + tlb];
 
     if ((tlbncfg & TLBnCFG_HES) && (env->spr[SPR_BOOKE_MAS0] & MAS0_HES)) {
-        cpu_abort(CPU(cpu), "we don't support HES yet\n");
+        cpu_abort(env_cpu(env), "we don't support HES yet\n");
     }
 
     return booke206_get_tlbm(env, tlb, ea, esel);
@@ -2683,40 +2671,33 @@ static ppcmas_tlb_t *booke206_cur_tlb(CPUPPCState *env)
 
 void helper_booke_setpid(CPUPPCState *env, uint32_t pidn, target_ulong pid)
 {
-    PowerPCCPU *cpu = ppc_env_get_cpu(env);
-
     env->spr[pidn] = pid;
     /* changing PIDs mean we're in a different address space now */
-    tlb_flush(CPU(cpu));
+    tlb_flush(env_cpu(env));
 }
 
 void helper_booke_set_eplc(CPUPPCState *env, target_ulong val)
 {
-    PowerPCCPU *cpu = ppc_env_get_cpu(env);
     env->spr[SPR_BOOKE_EPLC] = val & EPID_MASK;
-    tlb_flush_by_mmuidx(CPU(cpu), 1 << PPC_TLB_EPID_LOAD);
+    tlb_flush_by_mmuidx(env_cpu(env), 1 << PPC_TLB_EPID_LOAD);
 }
 void helper_booke_set_epsc(CPUPPCState *env, target_ulong val)
 {
-    PowerPCCPU *cpu = ppc_env_get_cpu(env);
     env->spr[SPR_BOOKE_EPSC] = val & EPID_MASK;
-    tlb_flush_by_mmuidx(CPU(cpu), 1 << PPC_TLB_EPID_STORE);
+    tlb_flush_by_mmuidx(env_cpu(env), 1 << PPC_TLB_EPID_STORE);
 }
 
 static inline void flush_page(CPUPPCState *env, ppcmas_tlb_t *tlb)
 {
-    PowerPCCPU *cpu = ppc_env_get_cpu(env);
-
     if (booke206_tlb_to_page_size(env, tlb) == TARGET_PAGE_SIZE) {
-        tlb_flush_page(CPU(cpu), tlb->mas2 & MAS2_EPN_MASK);
+        tlb_flush_page(env_cpu(env), tlb->mas2 & MAS2_EPN_MASK);
     } else {
-        tlb_flush(CPU(cpu));
+        tlb_flush(env_cpu(env));
     }
 }
 
 void helper_booke206_tlbwe(CPUPPCState *env)
 {
-    PowerPCCPU *cpu = ppc_env_get_cpu(env);
     uint32_t tlbncfg, tlbn;
     ppcmas_tlb_t *tlb;
     uint32_t size_tlb, size_ps;
@@ -2770,7 +2751,7 @@ void helper_booke206_tlbwe(CPUPPCState *env)
     }
 
     if (msr_gs) {
-        cpu_abort(CPU(cpu), "missing HV implementation\n");
+        cpu_abort(env_cpu(env), "missing HV implementation\n");
     }
 
     if (tlb->mas1 & MAS1_VALID) {
@@ -2968,7 +2949,6 @@ void helper_booke206_tlbilx0(CPUPPCState *env, target_ulong address)
 
 void helper_booke206_tlbilx1(CPUPPCState *env, target_ulong address)
 {
-    PowerPCCPU *cpu = ppc_env_get_cpu(env);
     int i, j;
     int tid = (env->spr[SPR_BOOKE_MAS6] & MAS6_SPID);
     ppcmas_tlb_t *tlb = env->tlb.tlbm;
@@ -2985,12 +2965,11 @@ void helper_booke206_tlbilx1(CPUPPCState *env, target_ulong address)
         }
         tlb += booke206_tlb_size(env, i);
     }
-    tlb_flush(CPU(cpu));
+    tlb_flush(env_cpu(env));
 }
 
 void helper_booke206_tlbilx3(CPUPPCState *env, target_ulong address)
 {
-    PowerPCCPU *cpu = ppc_env_get_cpu(env);
     int i, j;
     ppcmas_tlb_t *tlb;
     int tid = (env->spr[SPR_BOOKE_MAS6] & MAS6_SPID);
@@ -3026,7 +3005,7 @@ void helper_booke206_tlbilx3(CPUPPCState *env, target_ulong address)
             tlb->mas1 &= ~MAS1_VALID;
         }
     }
-    tlb_flush(CPU(cpu));
+    tlb_flush(env_cpu(env));
 }
 
 void helper_booke206_tlbflush(CPUPPCState *env, target_ulong type)

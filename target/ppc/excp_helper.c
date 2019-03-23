@@ -49,7 +49,7 @@ void ppc_cpu_do_interrupt(CPUState *cs)
 
 static void ppc_hw_interrupt(CPUPPCState *env)
 {
-    CPUState *cs = CPU(ppc_env_get_cpu(env));
+    CPUState *cs = env_cpu(env);
 
     cs->exception_index = POWERPC_EXCP_NONE;
     env->error_code = 0;
@@ -792,7 +792,7 @@ void ppc_cpu_do_interrupt(CPUState *cs)
 
 static void ppc_hw_interrupt(CPUPPCState *env)
 {
-    PowerPCCPU *cpu = ppc_env_get_cpu(env);
+    PowerPCCPU *cpu = env_archcpu(env);
     bool async_deliver;
 
     /* External reset */
@@ -931,7 +931,7 @@ static void ppc_hw_interrupt(CPUPPCState *env)
          * It generally means a discrepancy between the wakup conditions in the
          * processor has_work implementation and the logic in this function.
          */
-        cpu_abort(CPU(ppc_env_get_cpu(env)),
+        cpu_abort(env_cpu(env),
                   "Wakeup from PM state but interrupt Undelivered");
     }
 }
@@ -974,7 +974,7 @@ static void cpu_dump_rfi(target_ulong RA, target_ulong msr)
 void raise_exception_err_ra(CPUPPCState *env, uint32_t exception,
                             uint32_t error_code, uintptr_t raddr)
 {
-    CPUState *cs = CPU(ppc_env_get_cpu(env));
+    CPUState *cs = env_cpu(env);
 
     cs->exception_index = exception;
     env->error_code = error_code;
@@ -1015,7 +1015,7 @@ void helper_store_msr(CPUPPCState *env, target_ulong val)
     uint32_t excp = hreg_store_msr(env, val, 0);
 
     if (excp != 0) {
-        CPUState *cs = CPU(ppc_env_get_cpu(env));
+        CPUState *cs = env_cpu(env);
         cpu_interrupt_exittb(cs);
         raise_exception(env, excp);
     }
@@ -1026,7 +1026,7 @@ void helper_pminsn(CPUPPCState *env, powerpc_pm_insn_t insn)
 {
     CPUState *cs;
 
-    cs = CPU(ppc_env_get_cpu(env));
+    cs = env_cpu(env);
     cs->halted = 1;
 
     /*
@@ -1043,7 +1043,7 @@ void helper_pminsn(CPUPPCState *env, powerpc_pm_insn_t insn)
 
 static inline void do_rfi(CPUPPCState *env, target_ulong nip, target_ulong msr)
 {
-    CPUState *cs = CPU(ppc_env_get_cpu(env));
+    CPUState *cs = env_cpu(env);
 
     /* MSR:POW cannot be set by any form of rfi */
     msr &= ~(1ULL << MSR_POW);
