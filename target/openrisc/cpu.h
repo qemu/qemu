@@ -317,7 +317,6 @@ typedef struct OpenRISCCPU {
 
 } OpenRISCCPU;
 
-#define ENV_OFFSET offsetof(OpenRISCCPU, env)
 
 void cpu_openrisc_list(void);
 void openrisc_cpu_do_interrupt(CPUState *cpu);

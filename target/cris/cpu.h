@@ -183,7 +183,6 @@ struct CRISCPU {
     CPUCRISState env;
 };
 
-#define ENV_OFFSET offsetof(CRISCPU, env)
 
 #ifndef CONFIG_USER_ONLY
 extern const struct VMStateDescription vmstate_cris_cpu;

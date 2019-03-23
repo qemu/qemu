@@ -532,7 +532,6 @@ struct SPARCCPU {
     CPUSPARCState env;
 };
 
-#define ENV_OFFSET offsetof(SPARCCPU, env)
 
 #ifndef CONFIG_USER_ONLY
 extern const struct VMStateDescription vmstate_sparc_cpu;

@@ -1203,7 +1203,6 @@ struct PowerPCCPU {
     int32_t mig_slb_nr;
 };
 
-#define ENV_OFFSET offsetof(PowerPCCPU, env)
 
 PowerPCCPUClass *ppc_cpu_class_by_pvr(uint32_t pvr);
 PowerPCCPUClass *ppc_cpu_class_by_pvr_mask(uint32_t pvr);

@@ -76,7 +76,6 @@ struct UniCore32CPU {
     CPUUniCore32State env;
 };
 
-#define ENV_OFFSET offsetof(UniCore32CPU, env)
 
 void uc32_cpu_do_interrupt(CPUState *cpu);
 bool uc32_cpu_exec_interrupt(CPUState *cpu, int int_req);

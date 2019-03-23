@@ -195,7 +195,6 @@ struct LM32CPU {
     uint32_t features;
 };
 
-#define ENV_OFFSET offsetof(LM32CPU, env)
 
 #ifndef CONFIG_USER_ONLY
 extern const struct VMStateDescription vmstate_lm32_cpu;

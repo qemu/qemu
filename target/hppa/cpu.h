@@ -222,7 +222,6 @@ struct HPPACPU {
     QEMUTimer *alarm_timer;
 };
 
-#define ENV_OFFSET      offsetof(HPPACPU, env)
 
 typedef CPUHPPAState CPUArchState;
 typedef HPPACPU ArchCPU;

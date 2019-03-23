@@ -310,7 +310,6 @@ struct MicroBlazeCPU {
     CPUMBState env;
 };
 
-#define ENV_OFFSET offsetof(MicroBlazeCPU, env)
 
 void mb_cpu_do_interrupt(CPUState *cs);
 bool mb_cpu_exec_interrupt(CPUState *cs, int int_req);

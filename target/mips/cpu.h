@@ -1071,7 +1071,6 @@ struct MIPSCPU {
     CPUMIPSState env;
 };
 
-#define ENV_OFFSET offsetof(MIPSCPU, env)
 
 void mips_cpu_list(void);
 

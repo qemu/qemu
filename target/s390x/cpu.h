@@ -163,7 +163,6 @@ struct S390CPU {
     uint32_t irqstate_saved_size;
 };
 
-#define ENV_OFFSET offsetof(S390CPU, env)
 
 #ifndef CONFIG_USER_ONLY
 extern const struct VMStateDescription vmstate_s390_cpu;

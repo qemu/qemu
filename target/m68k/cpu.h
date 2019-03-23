@@ -163,7 +163,6 @@ struct M68kCPU {
     CPUM68KState env;
 };
 
-#define ENV_OFFSET offsetof(M68kCPU, env)
 
 void m68k_cpu_do_interrupt(CPUState *cpu);
 bool m68k_cpu_exec_interrupt(CPUState *cpu, int int_req);

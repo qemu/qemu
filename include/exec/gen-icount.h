@@ -5,6 +5,8 @@
 
 /* Helpers for instruction counting code generation.  */
 
+#define ENV_OFFSET   offsetof(ArchCPU, env)
+
 static TCGOp *icount_start_insn;
 
 static inline void gen_tb_start(TranslationBlock *tb)

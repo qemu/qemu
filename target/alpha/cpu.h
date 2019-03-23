@@ -278,7 +278,6 @@ struct AlphaCPU {
     QEMUTimer *alarm_timer;
 };
 
-#define ENV_OFFSET offsetof(AlphaCPU, env)
 
 #ifndef CONFIG_USER_ONLY
 extern const struct VMStateDescription vmstate_alpha_cpu;

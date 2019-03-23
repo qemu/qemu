@@ -559,8 +559,6 @@ struct XtensaCPU {
     CPUXtensaState env;
 };
 
-#define ENV_OFFSET offsetof(XtensaCPU, env)
-
 
 bool xtensa_cpu_tlb_fill(CPUState *cs, vaddr address, int size,
                          MMUAccessType access_type, int mmu_idx,
