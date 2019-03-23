@@ -310,11 +310,6 @@ struct MicroBlazeCPU {
     CPUMBState env;
 };
 
-static inline MicroBlazeCPU *mb_env_get_cpu(CPUMBState *env)
-{
-    return container_of(env, MicroBlazeCPU, env);
-}
-
 #define ENV_OFFSET offsetof(MicroBlazeCPU, env)
 
 void mb_cpu_do_interrupt(CPUState *cs);
@@ -344,21 +339,6 @@ int cpu_mb_signal_handler(int host_signum, void *pinfo,
 #define MMU_USER_IDX    2
 /* See NB_MMU_MODES further up the file.  */
 
-static inline int cpu_mmu_index (CPUMBState *env, bool ifetch)
-{
-    MicroBlazeCPU *cpu = mb_env_get_cpu(env);
-
-    /* Are we in nommu mode?.  */
-    if (!(env->sregs[SR_MSR] & MSR_VM) || !cpu->cfg.use_mmu) {
-        return MMU_NOMMU_IDX;
-    }
-
-    if (env->sregs[SR_MSR] & MSR_UM) {
-        return MMU_USER_IDX;
-    }
-    return MMU_KERNEL_IDX;
-}
-
 bool mb_cpu_tlb_fill(CPUState *cs, vaddr address, int size,
                      MMUAccessType access_type, int mmu_idx,
                      bool probe, uintptr_t retaddr);
@@ -383,5 +363,20 @@ void mb_cpu_transaction_failed(CPUState *cs, hwaddr physaddr, vaddr addr,
                                int mmu_idx, MemTxAttrs attrs,
                                MemTxResult response, uintptr_t retaddr);
 #endif
+
+static inline int cpu_mmu_index(CPUMBState *env, bool ifetch)
+{
+    MicroBlazeCPU *cpu = env_archcpu(env);
+
+    /* Are we in nommu mode?.  */
+    if (!(env->sregs[SR_MSR] & MSR_VM) || !cpu->cfg.use_mmu) {
+        return MMU_NOMMU_IDX;
+    }
+
+    if (env->sregs[SR_MSR] & MSR_UM) {
+        return MMU_USER_IDX;
+    }
+    return MMU_KERNEL_IDX;
+}
 
 #endif

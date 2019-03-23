@@ -23,7 +23,7 @@
 
 void cpu_loop(CPUMBState *env)
 {
-    CPUState *cs = CPU(mb_env_get_cpu(env));
+    CPUState *cs = env_cpu(env);
     int trapnr, ret;
     target_siginfo_t info;
     

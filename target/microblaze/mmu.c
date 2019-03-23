@@ -34,7 +34,7 @@ static unsigned int tlb_decode_size(unsigned int f)
 
 static void mmu_flush_idx(CPUMBState *env, unsigned int idx)
 {
-    CPUState *cs = CPU(mb_env_get_cpu(env));
+    CPUState *cs = env_cpu(env);
     struct microblaze_mmu *mmu = &env->mmu;
     unsigned int tlb_size;
     uint32_t tlb_tag, end, t;
@@ -228,7 +228,6 @@ uint32_t mmu_read(CPUMBState *env, bool ext, uint32_t rn)
 
 void mmu_write(CPUMBState *env, bool ext, uint32_t rn, uint32_t v)
 {
-    MicroBlazeCPU *cpu = mb_env_get_cpu(env);
     uint64_t tmp64;
     unsigned int i;
     qemu_log_mask(CPU_LOG_MMU,
@@ -269,7 +268,7 @@ void mmu_write(CPUMBState *env, bool ext, uint32_t rn, uint32_t v)
             /* Changes to the zone protection reg flush the QEMU TLB.
                Fortunately, these are very uncommon.  */
             if (v != env->mmu.regs[rn]) {
-                tlb_flush(CPU(cpu));
+                tlb_flush(env_cpu(env));
             }
             env->mmu.regs[rn] = v;
             break;
