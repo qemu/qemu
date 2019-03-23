@@ -240,8 +240,8 @@ static int nbd_parse_offset_hole_payload(NBDStructuredReplyChunk *chunk,
 }
 
 /* nbd_parse_blockstatus_payload
- * support only one extent in reply and only for
- * base:allocation context
+ * Based on our request, we expect only one extent in reply, for the
+ * base:allocation context.
  */
 static int nbd_parse_blockstatus_payload(NBDClientSession *client,
                                          NBDStructuredReplyChunk *chunk,
@@ -250,7 +250,8 @@ static int nbd_parse_blockstatus_payload(NBDClientSession *client,
 {
     uint32_t context_id;
 
-    if (chunk->length != sizeof(context_id) + sizeof(*extent)) {
+    /* The server succeeded, so it must have sent [at least] one extent */
+    if (chunk->length < sizeof(context_id) + sizeof(*extent)) {
         error_setg(errp, "Protocol error: invalid payload for "
                          "NBD_REPLY_TYPE_BLOCK_STATUS");
         return -EINVAL;
@@ -276,10 +277,20 @@ static int nbd_parse_blockstatus_payload(NBDClientSession *client,
         return -EINVAL;
     }
 
-    /* The server is allowed to send us extra information on the final
-     * extent; just clamp it to the length we requested. */
+    /*
+     * We used NBD_CMD_FLAG_REQ_ONE, so the server should not have
+     * sent us any more than one extent, nor should it have included
+     * status beyond our request in that extent. However, it's easy
+     * enough to ignore the server's noncompliance without killing the
+     * connection; just ignore trailing extents, and clamp things to
+     * the length of our request.
+     */
+    if (chunk->length > sizeof(context_id) + sizeof(*extent)) {
+        trace_nbd_parse_blockstatus_compliance("more than one extent");
+    }
     if (extent->length > orig_length) {
         extent->length = orig_length;
+        trace_nbd_parse_blockstatus_compliance("extent length too large");
     }
 
     return 0;
