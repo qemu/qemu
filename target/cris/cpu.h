@@ -183,11 +183,6 @@ struct CRISCPU {
     CPUCRISState env;
 };
 
-static inline CRISCPU *cris_env_get_cpu(CPUCRISState *env)
-{
-    return container_of(env, CRISCPU, env);
-}
-
 #define ENV_OFFSET offsetof(CRISCPU, env)
 
 #ifndef CONFIG_USER_ONLY

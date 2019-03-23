@@ -288,7 +288,6 @@ static int cris_mmu_translate_page(struct cris_mmu_result *res,
 
 void cris_mmu_flush_pid(CPUCRISState *env, uint32_t pid)
 {
-    CRISCPU *cpu = cris_env_get_cpu(env);
     target_ulong vaddr;
     unsigned int idx;
     uint32_t lo, hi;
@@ -312,7 +311,7 @@ void cris_mmu_flush_pid(CPUCRISState *env, uint32_t pid)
                 if (tlb_v && !tlb_g && (tlb_pid == pid)) {
                     vaddr = tlb_vpn << TARGET_PAGE_BITS;
                     D_LOG("flush pid=%x vaddr=%x\n", pid, vaddr);
-                    tlb_flush_page(CPU(cpu), vaddr);
+                    tlb_flush_page(env_cpu(env), vaddr);
                 }
             }
         }
