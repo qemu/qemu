@@ -71,8 +71,7 @@ void cpu_hppa_put_psw(CPUHPPAState *env, target_ureg psw)
     /* If PSW_P changes, it affects how we translate addresses.  */
     if ((psw ^ old_psw) & PSW_P) {
 #ifndef CONFIG_USER_ONLY
-        CPUState *src = CPU(hppa_env_get_cpu(env));
-        tlb_flush_by_mmuidx(src, 0xf);
+        tlb_flush_by_mmuidx(env_cpu(env), 0xf);
 #endif
     }
 }

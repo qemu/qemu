@@ -105,7 +105,7 @@ static abi_ulong hppa_lws(CPUHPPAState *env)
 
 void cpu_loop(CPUHPPAState *env)
 {
-    CPUState *cs = CPU(hppa_env_get_cpu(env));
+    CPUState *cs = env_cpu(env);
     target_siginfo_t info;
     abi_ulong ret;
     int trapnr;

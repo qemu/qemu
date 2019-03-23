@@ -222,11 +222,6 @@ struct HPPACPU {
     QEMUTimer *alarm_timer;
 };
 
-static inline HPPACPU *hppa_env_get_cpu(CPUHPPAState *env)
-{
-    return container_of(env, HPPACPU, env);
-}
-
 #define ENV_OFFSET      offsetof(HPPACPU, env)
 
 typedef CPUHPPAState CPUArchState;
