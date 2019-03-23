@@ -239,7 +239,7 @@ qauthz_list_file_init(Object *obj)
 
     authz->file_watch = -1;
 #ifdef CONFIG_INOTIFY1
-    authz->refresh = TRUE;
+    authz->refresh = true;
 #endif
 }
 
