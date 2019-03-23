@@ -156,7 +156,7 @@ void qpci_init_spapr(QPCIBusSPAPR *qpci, QTestState *qts,
     assert(qts);
 
     /* tests cannot use spapr, needs to be fixed first */
-    qpci->bus.has_buggy_msi = TRUE;
+    qpci->bus.has_buggy_msi = true;
 
     qpci->alloc = alloc;
 
