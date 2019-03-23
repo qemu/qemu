@@ -227,7 +227,7 @@ static void write_raw_cp_reg(CPUARMState *env, const ARMCPRegInfo *ri,
 
 static int arm_gdb_get_sysreg(CPUARMState *env, uint8_t *buf, int reg)
 {
-    ARMCPU *cpu = arm_env_get_cpu(env);
+    ARMCPU *cpu = env_archcpu(env);
     const ARMCPRegInfo *ri;
     uint32_t key;
 
@@ -548,7 +548,7 @@ static CPAccessResult access_tpm(CPUARMState *env, const ARMCPRegInfo *ri,
 
 static void dacr_write(CPUARMState *env, const ARMCPRegInfo *ri, uint64_t value)
 {
-    ARMCPU *cpu = arm_env_get_cpu(env);
+    ARMCPU *cpu = env_archcpu(env);
 
     raw_write(env, ri, value);
     tlb_flush(CPU(cpu)); /* Flush TLB as domain not tracked in TLB */
@@ -556,7 +556,7 @@ static void dacr_write(CPUARMState *env, const ARMCPRegInfo *ri, uint64_t value)
 
 static void fcse_write(CPUARMState *env, const ARMCPRegInfo *ri, uint64_t value)
 {
-    ARMCPU *cpu = arm_env_get_cpu(env);
+    ARMCPU *cpu = env_archcpu(env);
 
     if (raw_read(env, ri) != value) {
         /* Unlike real hardware the qemu TLB uses virtual addresses,
@@ -570,7 +570,7 @@ static void fcse_write(CPUARMState *env, const ARMCPRegInfo *ri, uint64_t value)
 static void contextidr_write(CPUARMState *env, const ARMCPRegInfo *ri,
                              uint64_t value)
 {
-    ARMCPU *cpu = arm_env_get_cpu(env);
+    ARMCPU *cpu = env_archcpu(env);
 
     if (raw_read(env, ri) != value && !arm_feature(env, ARM_FEATURE_PMSA)
         && !extended_addresses_enabled(env)) {
@@ -631,7 +631,7 @@ static void tlbiall_write(CPUARMState *env, const ARMCPRegInfo *ri,
                           uint64_t value)
 {
     /* Invalidate all (TLBIALL) */
-    ARMCPU *cpu = arm_env_get_cpu(env);
+    ARMCPU *cpu = env_archcpu(env);
 
     if (tlb_force_broadcast(env)) {
         tlbiall_is_write(env, NULL, value);
@@ -645,7 +645,7 @@ static void tlbimva_write(CPUARMState *env, const ARMCPRegInfo *ri,
                           uint64_t value)
 {
     /* Invalidate single TLB entry by MVA and ASID (TLBIMVA) */
-    ARMCPU *cpu = arm_env_get_cpu(env);
+    ARMCPU *cpu = env_archcpu(env);
 
     if (tlb_force_broadcast(env)) {
         tlbimva_is_write(env, NULL, value);
@@ -659,7 +659,7 @@ static void tlbiasid_write(CPUARMState *env, const ARMCPRegInfo *ri,
                            uint64_t value)
 {
     /* Invalidate by ASID (TLBIASID) */
-    ARMCPU *cpu = arm_env_get_cpu(env);
+    ARMCPU *cpu = env_archcpu(env);
 
     if (tlb_force_broadcast(env)) {
         tlbiasid_is_write(env, NULL, value);
@@ -673,7 +673,7 @@ static void tlbimvaa_write(CPUARMState *env, const ARMCPRegInfo *ri,
                            uint64_t value)
 {
     /* Invalidate single entry by MVA, all ASIDs (TLBIMVAA) */
-    ARMCPU *cpu = arm_env_get_cpu(env);
+    ARMCPU *cpu = env_archcpu(env);
 
     if (tlb_force_broadcast(env)) {
         tlbimvaa_is_write(env, NULL, value);
@@ -1353,7 +1353,7 @@ static bool pmu_counter_enabled(CPUARMState *env, uint8_t counter)
 
 static void pmu_update_irq(CPUARMState *env)
 {
-    ARMCPU *cpu = arm_env_get_cpu(env);
+    ARMCPU *cpu = env_archcpu(env);
     qemu_set_irq(cpu->pmu_interrupt, (env->cp15.c9_pmcr & PMCRE) &&
             (env->cp15.c9_pminten & env->cp15.c9_pmovsr));
 }
@@ -1408,7 +1408,7 @@ static void pmccntr_op_finish(CPUARMState *env)
         if (overflow_in > 0) {
             int64_t overflow_at = qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL) +
                 overflow_in;
-            ARMCPU *cpu = arm_env_get_cpu(env);
+            ARMCPU *cpu = env_archcpu(env);
             timer_mod_anticipate_ns(cpu->pmu_timer, overflow_at);
         }
 #endif
@@ -1457,7 +1457,7 @@ static void pmevcntr_op_finish(CPUARMState *env, uint8_t counter)
         if (overflow_in > 0) {
             int64_t overflow_at = qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL) +
                 overflow_in;
-            ARMCPU *cpu = arm_env_get_cpu(env);
+            ARMCPU *cpu = env_archcpu(env);
             timer_mod_anticipate_ns(cpu->pmu_timer, overflow_at);
         }
 #endif
@@ -1865,7 +1865,7 @@ static void scr_write(CPUARMState *env, const ARMCPRegInfo *ri, uint64_t value)
 {
     /* Begin with base v8.0 state.  */
     uint32_t valid_mask = 0x3fff;
-    ARMCPU *cpu = arm_env_get_cpu(env);
+    ARMCPU *cpu = env_archcpu(env);
 
     if (arm_el_is_aa64(env, 3)) {
         value |= SCR_FW | SCR_AW;   /* these two bits are RES1.  */
@@ -1902,7 +1902,7 @@ static void scr_write(CPUARMState *env, const ARMCPRegInfo *ri, uint64_t value)
 
 static uint64_t ccsidr_read(CPUARMState *env, const ARMCPRegInfo *ri)
 {
-    ARMCPU *cpu = arm_env_get_cpu(env);
+    ARMCPU *cpu = env_archcpu(env);
 
     /* Acquire the CSSELR index from the bank corresponding to the CCSIDR
      * bank
@@ -2452,7 +2452,7 @@ static void gt_recalc_timer(ARMCPU *cpu, int timeridx)
 static void gt_timer_reset(CPUARMState *env, const ARMCPRegInfo *ri,
                            int timeridx)
 {
-    ARMCPU *cpu = arm_env_get_cpu(env);
+    ARMCPU *cpu = env_archcpu(env);
 
     timer_del(cpu->gt_timer[timeridx]);
 }
@@ -2473,7 +2473,7 @@ static void gt_cval_write(CPUARMState *env, const ARMCPRegInfo *ri,
 {
     trace_arm_gt_cval_write(timeridx, value);
     env->cp15.c14_timer[timeridx].cval = value;
-    gt_recalc_timer(arm_env_get_cpu(env), timeridx);
+    gt_recalc_timer(env_archcpu(env), timeridx);
 }
 
 static uint64_t gt_tval_read(CPUARMState *env, const ARMCPRegInfo *ri,
@@ -2494,14 +2494,14 @@ static void gt_tval_write(CPUARMState *env, const ARMCPRegInfo *ri,
     trace_arm_gt_tval_write(timeridx, value);
     env->cp15.c14_timer[timeridx].cval = gt_get_countervalue(env) - offset +
                                          sextract64(value, 0, 32);
-    gt_recalc_timer(arm_env_get_cpu(env), timeridx);
+    gt_recalc_timer(env_archcpu(env), timeridx);
 }
 
 static void gt_ctl_write(CPUARMState *env, const ARMCPRegInfo *ri,
                          int timeridx,
                          uint64_t value)
 {
-    ARMCPU *cpu = arm_env_get_cpu(env);
+    ARMCPU *cpu = env_archcpu(env);
     uint32_t oldval = env->cp15.c14_timer[timeridx].ctl;
 
     trace_arm_gt_ctl_write(timeridx, value);
@@ -2579,7 +2579,7 @@ static void gt_virt_ctl_write(CPUARMState *env, const ARMCPRegInfo *ri,
 static void gt_cntvoff_write(CPUARMState *env, const ARMCPRegInfo *ri,
                               uint64_t value)
 {
-    ARMCPU *cpu = arm_env_get_cpu(env);
+    ARMCPU *cpu = env_archcpu(env);
 
     trace_arm_gt_cntvoff_write(value);
     raw_write(env, ri, value);
@@ -3212,7 +3212,7 @@ static uint64_t pmsav7_read(CPUARMState *env, const ARMCPRegInfo *ri)
 static void pmsav7_write(CPUARMState *env, const ARMCPRegInfo *ri,
                          uint64_t value)
 {
-    ARMCPU *cpu = arm_env_get_cpu(env);
+    ARMCPU *cpu = env_archcpu(env);
     uint32_t *u32p = *(uint32_t **)raw_ptr(env, ri);
 
     if (!u32p) {
@@ -3227,7 +3227,7 @@ static void pmsav7_write(CPUARMState *env, const ARMCPRegInfo *ri,
 static void pmsav7_rgnr_write(CPUARMState *env, const ARMCPRegInfo *ri,
                               uint64_t value)
 {
-    ARMCPU *cpu = arm_env_get_cpu(env);
+    ARMCPU *cpu = env_archcpu(env);
     uint32_t nrgs = cpu->pmsav7_dregion;
 
     if (value >= nrgs) {
@@ -3355,7 +3355,7 @@ static void vmsa_ttbcr_raw_write(CPUARMState *env, const ARMCPRegInfo *ri,
 static void vmsa_ttbcr_write(CPUARMState *env, const ARMCPRegInfo *ri,
                              uint64_t value)
 {
-    ARMCPU *cpu = arm_env_get_cpu(env);
+    ARMCPU *cpu = env_archcpu(env);
     TCR *tcr = raw_ptr(env, ri);
 
     if (arm_feature(env, ARM_FEATURE_LPAE)) {
@@ -3384,7 +3384,7 @@ static void vmsa_ttbcr_reset(CPUARMState *env, const ARMCPRegInfo *ri)
 static void vmsa_tcr_el1_write(CPUARMState *env, const ARMCPRegInfo *ri,
                                uint64_t value)
 {
-    ARMCPU *cpu = arm_env_get_cpu(env);
+    ARMCPU *cpu = env_archcpu(env);
     TCR *tcr = raw_ptr(env, ri);
 
     /* For AArch64 the A1 bit could result in a change of ASID, so TLB flush. */
@@ -3398,7 +3398,7 @@ static void vmsa_ttbr_write(CPUARMState *env, const ARMCPRegInfo *ri,
     /* If the ASID changes (with a 64-bit write), we must flush the TLB.  */
     if (cpreg_field_is_64bit(ri) &&
         extract64(raw_read(env, ri) ^ value, 48, 16) != 0) {
-        ARMCPU *cpu = arm_env_get_cpu(env);
+        ARMCPU *cpu = env_archcpu(env);
         tlb_flush(CPU(cpu));
     }
     raw_write(env, ri, value);
@@ -3407,7 +3407,7 @@ static void vmsa_ttbr_write(CPUARMState *env, const ARMCPRegInfo *ri,
 static void vttbr_write(CPUARMState *env, const ARMCPRegInfo *ri,
                         uint64_t value)
 {
-    ARMCPU *cpu = arm_env_get_cpu(env);
+    ARMCPU *cpu = env_archcpu(env);
     CPUState *cs = CPU(cpu);
 
     /* Accesses to VTTBR may change the VMID so we must flush the TLB.  */
@@ -3497,7 +3497,7 @@ static void omap_wfi_write(CPUARMState *env, const ARMCPRegInfo *ri,
                            uint64_t value)
 {
     /* Wait-for-interrupt (deprecated) */
-    cpu_interrupt(CPU(arm_env_get_cpu(env)), CPU_INTERRUPT_HALT);
+    cpu_interrupt(env_cpu(env), CPU_INTERRUPT_HALT);
 }
 
 static void omap_cachemaint_write(CPUARMState *env, const ARMCPRegInfo *ri,
@@ -3650,7 +3650,7 @@ static const ARMCPRegInfo strongarm_cp_reginfo[] = {
 
 static uint64_t midr_read(CPUARMState *env, const ARMCPRegInfo *ri)
 {
-    ARMCPU *cpu = arm_env_get_cpu(env);
+    ARMCPU *cpu = env_archcpu(env);
     unsigned int cur_el = arm_current_el(env);
     bool secure = arm_is_secure(env);
 
@@ -3662,7 +3662,7 @@ static uint64_t midr_read(CPUARMState *env, const ARMCPRegInfo *ri)
 
 static uint64_t mpidr_read_val(CPUARMState *env)
 {
-    ARMCPU *cpu = ARM_CPU(arm_env_get_cpu(env));
+    ARMCPU *cpu = env_archcpu(env);
     uint64_t mpidr = cpu->mp_affinity;
 
     if (arm_feature(env, ARM_FEATURE_V7MP)) {
@@ -3815,7 +3815,7 @@ static void tlbi_aa64_alle1_write(CPUARMState *env, const ARMCPRegInfo *ri,
      * stage 2 translations, whereas most other scopes only invalidate
      * stage 1 translations.
      */
-    ARMCPU *cpu = arm_env_get_cpu(env);
+    ARMCPU *cpu = env_archcpu(env);
     CPUState *cs = CPU(cpu);
 
     if (arm_is_secure_below_el3(env)) {
@@ -3839,7 +3839,7 @@ static void tlbi_aa64_alle1_write(CPUARMState *env, const ARMCPRegInfo *ri,
 static void tlbi_aa64_alle2_write(CPUARMState *env, const ARMCPRegInfo *ri,
                                   uint64_t value)
 {
-    ARMCPU *cpu = arm_env_get_cpu(env);
+    ARMCPU *cpu = env_archcpu(env);
     CPUState *cs = CPU(cpu);
 
     tlb_flush_by_mmuidx(cs, ARMMMUIdxBit_S1E2);
@@ -3848,7 +3848,7 @@ static void tlbi_aa64_alle2_write(CPUARMState *env, const ARMCPRegInfo *ri,
 static void tlbi_aa64_alle3_write(CPUARMState *env, const ARMCPRegInfo *ri,
                                   uint64_t value)
 {
-    ARMCPU *cpu = arm_env_get_cpu(env);
+    ARMCPU *cpu = env_archcpu(env);
     CPUState *cs = CPU(cpu);
 
     tlb_flush_by_mmuidx(cs, ARMMMUIdxBit_S1E3);
@@ -3904,7 +3904,7 @@ static void tlbi_aa64_vae2_write(CPUARMState *env, const ARMCPRegInfo *ri,
      * Currently handles both VAE2 and VALE2, since we don't support
      * flush-last-level-only.
      */
-    ARMCPU *cpu = arm_env_get_cpu(env);
+    ARMCPU *cpu = env_archcpu(env);
     CPUState *cs = CPU(cpu);
     uint64_t pageaddr = sextract64(value << 12, 0, 56);
 
@@ -3918,7 +3918,7 @@ static void tlbi_aa64_vae3_write(CPUARMState *env, const ARMCPRegInfo *ri,
      * Currently handles both VAE3 and VALE3, since we don't support
      * flush-last-level-only.
      */
-    ARMCPU *cpu = arm_env_get_cpu(env);
+    ARMCPU *cpu = env_archcpu(env);
     CPUState *cs = CPU(cpu);
     uint64_t pageaddr = sextract64(value << 12, 0, 56);
 
@@ -3928,7 +3928,7 @@ static void tlbi_aa64_vae3_write(CPUARMState *env, const ARMCPRegInfo *ri,
 static void tlbi_aa64_vae1is_write(CPUARMState *env, const ARMCPRegInfo *ri,
                                    uint64_t value)
 {
-    ARMCPU *cpu = arm_env_get_cpu(env);
+    ARMCPU *cpu = env_archcpu(env);
     CPUState *cs = CPU(cpu);
     bool sec = arm_is_secure_below_el3(env);
     uint64_t pageaddr = sextract64(value << 12, 0, 56);
@@ -3952,7 +3952,7 @@ static void tlbi_aa64_vae1_write(CPUARMState *env, const ARMCPRegInfo *ri,
      * since we don't support flush-for-specific-ASID-only or
      * flush-last-level-only.
      */
-    ARMCPU *cpu = arm_env_get_cpu(env);
+    ARMCPU *cpu = env_archcpu(env);
     CPUState *cs = CPU(cpu);
     uint64_t pageaddr = sextract64(value << 12, 0, 56);
 
@@ -4001,7 +4001,7 @@ static void tlbi_aa64_ipas2e1_write(CPUARMState *env, const ARMCPRegInfo *ri,
      * translation information.
      * This must NOP if EL2 isn't implemented or SCR_EL3.NS is zero.
      */
-    ARMCPU *cpu = arm_env_get_cpu(env);
+    ARMCPU *cpu = env_archcpu(env);
     CPUState *cs = CPU(cpu);
     uint64_t pageaddr;
 
@@ -4044,7 +4044,7 @@ static CPAccessResult aa64_zva_access(CPUARMState *env, const ARMCPRegInfo *ri,
 
 static uint64_t aa64_dczid_read(CPUARMState *env, const ARMCPRegInfo *ri)
 {
-    ARMCPU *cpu = arm_env_get_cpu(env);
+    ARMCPU *cpu = env_archcpu(env);
     int dzp_bit = 1 << 4;
 
     /* DZP indicates whether DC ZVA access is allowed */
@@ -4079,7 +4079,7 @@ static void spsel_write(CPUARMState *env, const ARMCPRegInfo *ri, uint64_t val)
 static void sctlr_write(CPUARMState *env, const ARMCPRegInfo *ri,
                         uint64_t value)
 {
-    ARMCPU *cpu = arm_env_get_cpu(env);
+    ARMCPU *cpu = env_archcpu(env);
 
     if (raw_read(env, ri) == value) {
         /* Skip the TLB flush if nothing actually changed; Linux likes
@@ -4571,7 +4571,7 @@ static const ARMCPRegInfo el3_no_el2_v8_cp_reginfo[] = {
 
 static void hcr_write(CPUARMState *env, const ARMCPRegInfo *ri, uint64_t value)
 {
-    ARMCPU *cpu = arm_env_get_cpu(env);
+    ARMCPU *cpu = env_archcpu(env);
     uint64_t valid_mask = HCR_MASK;
 
     if (arm_feature(env, ARM_FEATURE_EL3)) {
@@ -5238,7 +5238,7 @@ int sve_exception_el(CPUARMState *env, int el)
  */
 uint32_t sve_zcr_len_for_el(CPUARMState *env, int el)
 {
-    ARMCPU *cpu = arm_env_get_cpu(env);
+    ARMCPU *cpu = env_archcpu(env);
     uint32_t zcr_len = cpu->sve_max_vq - 1;
 
     if (el <= 1) {
@@ -5406,7 +5406,7 @@ void hw_watchpoint_update_all(ARMCPU *cpu)
 static void dbgwvr_write(CPUARMState *env, const ARMCPRegInfo *ri,
                          uint64_t value)
 {
-    ARMCPU *cpu = arm_env_get_cpu(env);
+    ARMCPU *cpu = env_archcpu(env);
     int i = ri->crm;
 
     /* Bits [63:49] are hardwired to the value of bit [48]; that is, the
@@ -5422,7 +5422,7 @@ static void dbgwvr_write(CPUARMState *env, const ARMCPRegInfo *ri,
 static void dbgwcr_write(CPUARMState *env, const ARMCPRegInfo *ri,
                          uint64_t value)
 {
-    ARMCPU *cpu = arm_env_get_cpu(env);
+    ARMCPU *cpu = env_archcpu(env);
     int i = ri->crm;
 
     raw_write(env, ri, value);
@@ -5524,7 +5524,7 @@ void hw_breakpoint_update_all(ARMCPU *cpu)
 static void dbgbvr_write(CPUARMState *env, const ARMCPRegInfo *ri,
                          uint64_t value)
 {
-    ARMCPU *cpu = arm_env_get_cpu(env);
+    ARMCPU *cpu = env_archcpu(env);
     int i = ri->crm;
 
     raw_write(env, ri, value);
@@ -5534,7 +5534,7 @@ static void dbgbvr_write(CPUARMState *env, const ARMCPRegInfo *ri,
 static void dbgbcr_write(CPUARMState *env, const ARMCPRegInfo *ri,
                          uint64_t value)
 {
-    ARMCPU *cpu = arm_env_get_cpu(env);
+    ARMCPU *cpu = env_archcpu(env);
     int i = ri->crm;
 
     /* BAS[3] is a read-only copy of BAS[2], and BAS[1] a read-only
@@ -5630,7 +5630,7 @@ static void define_debug_regs(ARMCPU *cpu)
  */
 static uint64_t id_pfr1_read(CPUARMState *env, const ARMCPRegInfo *ri)
 {
-    ARMCPU *cpu = arm_env_get_cpu(env);
+    ARMCPU *cpu = env_archcpu(env);
     uint64_t pfr1 = cpu->id_pfr1;
 
     if (env->gicv3state) {
@@ -5641,7 +5641,7 @@ static uint64_t id_pfr1_read(CPUARMState *env, const ARMCPRegInfo *ri)
 
 static uint64_t id_aa64pfr0_read(CPUARMState *env, const ARMCPRegInfo *ri)
 {
-    ARMCPU *cpu = arm_env_get_cpu(env);
+    ARMCPU *cpu = env_archcpu(env);
     uint64_t pfr0 = cpu->isar.id_aa64pfr0;
 
     if (env->gicv3state) {
@@ -7421,14 +7421,14 @@ uint32_t HELPER(rbit)(uint32_t x)
 /* These should probably raise undefined insn exceptions.  */
 void HELPER(v7m_msr)(CPUARMState *env, uint32_t reg, uint32_t val)
 {
-    ARMCPU *cpu = arm_env_get_cpu(env);
+    ARMCPU *cpu = env_archcpu(env);
 
     cpu_abort(CPU(cpu), "v7m_msr %d\n", reg);
 }
 
 uint32_t HELPER(v7m_mrs)(CPUARMState *env, uint32_t reg)
 {
-    ARMCPU *cpu = arm_env_get_cpu(env);
+    ARMCPU *cpu = env_archcpu(env);
 
     cpu_abort(CPU(cpu), "v7m_mrs %d\n", reg);
     return 0;
@@ -7488,7 +7488,7 @@ uint32_t HELPER(v7m_tt)(CPUARMState *env, uint32_t addr, uint32_t op)
 
 static void switch_mode(CPUARMState *env, int mode)
 {
-    ARMCPU *cpu = arm_env_get_cpu(env);
+    ARMCPU *cpu = env_archcpu(env);
 
     if (mode != ARM_CPU_MODE_USR) {
         cpu_abort(CPU(cpu), "Tried to switch out of user mode\n");
@@ -7831,7 +7831,7 @@ void HELPER(v7m_preserve_fp_state)(CPUARMState *env)
      * PreserveFPState() pseudocode.
      * We may throw an exception if the stacking fails.
      */
-    ARMCPU *cpu = arm_env_get_cpu(env);
+    ARMCPU *cpu = env_archcpu(env);
     bool is_secure = env->v7m.fpccr[M_REG_S] & R_V7M_FPCCR_S_MASK;
     bool negpri = !(env->v7m.fpccr[M_REG_S] & R_V7M_FPCCR_HFRDY_MASK);
     bool is_priv = !(env->v7m.fpccr[is_secure] & R_V7M_FPCCR_USER_MASK);
@@ -10938,7 +10938,7 @@ static bool get_phys_addr_v5(CPUARMState *env, uint32_t address,
                              target_ulong *page_size,
                              ARMMMUFaultInfo *fi)
 {
-    CPUState *cs = CPU(arm_env_get_cpu(env));
+    CPUState *cs = env_cpu(env);
     int level = 1;
     uint32_t table;
     uint32_t desc;
@@ -11059,7 +11059,7 @@ static bool get_phys_addr_v6(CPUARMState *env, uint32_t address,
                              hwaddr *phys_ptr, MemTxAttrs *attrs, int *prot,
                              target_ulong *page_size, ARMMMUFaultInfo *fi)
 {
-    CPUState *cs = CPU(arm_env_get_cpu(env));
+    CPUState *cs = env_cpu(env);
     int level = 1;
     uint32_t table;
     uint32_t desc;
@@ -11444,7 +11444,7 @@ static bool get_phys_addr_lpae(CPUARMState *env, target_ulong address,
                                target_ulong *page_size_ptr,
                                ARMMMUFaultInfo *fi, ARMCacheAttrs *cacheattrs)
 {
-    ARMCPU *cpu = arm_env_get_cpu(env);
+    ARMCPU *cpu = env_archcpu(env);
     CPUState *cs = CPU(cpu);
     /* Read an LPAE long-descriptor translation table. */
     ARMFaultType fault_type = ARMFault_Translation;
@@ -11802,7 +11802,7 @@ static bool get_phys_addr_pmsav7(CPUARMState *env, uint32_t address,
                                  target_ulong *page_size,
                                  ARMMMUFaultInfo *fi)
 {
-    ARMCPU *cpu = arm_env_get_cpu(env);
+    ARMCPU *cpu = env_archcpu(env);
     int n;
     bool is_user = regime_is_user(env, mmu_idx);
 
@@ -12006,7 +12006,7 @@ static void v8m_security_lookup(CPUARMState *env, uint32_t address,
      * pseudocode SecurityCheck() function.
      * We assume the caller has zero-initialized *sattrs.
      */
-    ARMCPU *cpu = arm_env_get_cpu(env);
+    ARMCPU *cpu = env_archcpu(env);
     int r;
     bool idau_exempt = false, idau_ns = true, idau_nsc = true;
     int idau_region = IREGION_NOTVALID;
@@ -12119,7 +12119,7 @@ static bool pmsav8_mpu_lookup(CPUARMState *env, uint32_t address,
      * We set is_subpage to true if the region hit doesn't cover the
      * entire TARGET_PAGE the address is within.
      */
-    ARMCPU *cpu = arm_env_get_cpu(env);
+    ARMCPU *cpu = env_archcpu(env);
     bool is_user = regime_is_user(env, mmu_idx);
     uint32_t secure = regime_is_secure(env, mmu_idx);
     int n;
@@ -12899,7 +12899,7 @@ void HELPER(v7m_msr)(CPUARMState *env, uint32_t maskreg, uint32_t val)
             limit = is_psp ? env->v7m.psplim[false] : env->v7m.msplim[false];
 
             if (val < limit) {
-                CPUState *cs = CPU(arm_env_get_cpu(env));
+                CPUState *cs = env_cpu(env);
 
                 cpu_restore_state(cs, GETPC(), true);
                 raise_exception(env, EXCP_STKOF, 0, 1);
@@ -13180,7 +13180,7 @@ void HELPER(dc_zva)(CPUARMState *env, uint64_t vaddr_in)
      * alignment faults or any memory attribute handling).
      */
 
-    ARMCPU *cpu = arm_env_get_cpu(env);
+    ARMCPU *cpu = env_archcpu(env);
     uint64_t blocklen = 4 << cpu->dcz_blocksize;
     uint64_t vaddr = vaddr_in & ~(blocklen - 1);
 
@@ -13680,7 +13680,7 @@ void cpu_get_tb_cpu_state(CPUARMState *env, target_ulong *pc,
     uint32_t flags = 0;
 
     if (is_a64(env)) {
-        ARMCPU *cpu = arm_env_get_cpu(env);
+        ARMCPU *cpu = env_archcpu(env);
         uint64_t sctlr;
 
         *pc = env->pc;
@@ -13853,7 +13853,7 @@ void aarch64_sve_narrow_vq(CPUARMState *env, unsigned vq)
     uint64_t pmask;
 
     assert(vq >= 1 && vq <= ARM_MAX_VQ);
-    assert(vq <= arm_env_get_cpu(env)->sve_max_vq);
+    assert(vq <= env_archcpu(env)->sve_max_vq);
 
     /* Zap the high bits of the zregs.  */
     for (i = 0; i < 32; i++) {
@@ -13879,7 +13879,7 @@ void aarch64_sve_narrow_vq(CPUARMState *env, unsigned vq)
 void aarch64_sve_change_el(CPUARMState *env, int old_el,
                            int new_el, bool el0_a64)
 {
-    ARMCPU *cpu = arm_env_get_cpu(env);
+    ARMCPU *cpu = env_archcpu(env);
     int old_len, new_len;
     bool old_a64, new_a64;
 

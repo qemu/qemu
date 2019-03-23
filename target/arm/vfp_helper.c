@@ -101,7 +101,7 @@ void HELPER(vfp_set_fpscr)(CPUARMState *env, uint32_t val)
     uint32_t changed = env->vfp.xregs[ARM_VFP_FPSCR];
 
     /* When ARMv8.2-FP16 is not supported, FZ16 is RES0.  */
-    if (!cpu_isar_feature(aa64_fp16, arm_env_get_cpu(env))) {
+    if (!cpu_isar_feature(aa64_fp16, env_archcpu(env))) {
         val &= ~FPCR_FZ16;
     }
 

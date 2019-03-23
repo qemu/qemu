@@ -14289,7 +14289,7 @@ static void aarch64_tr_init_disas_context(DisasContextBase *dcbase,
 {
     DisasContext *dc = container_of(dcbase, DisasContext, base);
     CPUARMState *env = cpu->env_ptr;
-    ARMCPU *arm_cpu = arm_env_get_cpu(env);
+    ARMCPU *arm_cpu = env_archcpu(env);
     uint32_t tb_flags = dc->base.tb->flags;
     int bound, core_mmu_idx;
 

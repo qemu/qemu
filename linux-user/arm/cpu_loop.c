@@ -206,7 +206,7 @@ do_kernel_trap(CPUARMState *env)
 
 void cpu_loop(CPUARMState *env)
 {
-    CPUState *cs = CPU(arm_env_get_cpu(env));
+    CPUState *cs = env_cpu(env);
     int trapnr;
     unsigned int n, insn;
     target_siginfo_t info;
