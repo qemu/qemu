@@ -186,6 +186,7 @@ struct LM32CPU {
     CPUState parent_obj;
     /*< public >*/
 
+    CPUNegativeOffsetState neg;
     CPULM32State env;
 
     uint32_t revision;

@@ -87,6 +87,7 @@ typedef struct MoxieCPU {
     CPUState parent_obj;
     /*< public >*/
 
+    CPUNegativeOffsetState neg;
     CPUMoxieState env;
 } MoxieCPU;
 

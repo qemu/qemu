@@ -287,6 +287,9 @@ struct MicroBlazeCPU {
 
     /*< public >*/
 
+    CPUNegativeOffsetState neg;
+    CPUMBState env;
+
     /* Microblaze Configuration Settings */
     struct {
         bool stackprot;
@@ -306,8 +309,6 @@ struct MicroBlazeCPU {
         char *version;
         uint8_t pvr;
     } cfg;
-
-    CPUMBState env;
 };
 
 

@@ -73,6 +73,7 @@ struct UniCore32CPU {
     CPUState parent_obj;
     /*< public >*/
 
+    CPUNegativeOffsetState neg;
     CPUUniCore32State env;
 };
 

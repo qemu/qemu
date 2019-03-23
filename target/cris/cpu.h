@@ -180,6 +180,7 @@ struct CRISCPU {
     CPUState parent_obj;
     /*< public >*/
 
+    CPUNegativeOffsetState neg;
     CPUCRISState env;
 };
 

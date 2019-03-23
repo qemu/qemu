@@ -210,6 +210,7 @@ typedef struct RISCVCPU {
     /*< private >*/
     CPUState parent_obj;
     /*< public >*/
+    CPUNegativeOffsetState neg;
     CPURISCVState env;
 
     /* Configuration Settings */

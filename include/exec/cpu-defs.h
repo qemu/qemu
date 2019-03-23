@@ -227,4 +227,12 @@ typedef struct CPUTLB {
 
 #endif  /* !CONFIG_USER_ONLY && CONFIG_TCG */
 
+/*
+ * This structure must be placed in ArchCPU immedately
+ * before CPUArchState, as a field named "neg".
+ */
+typedef struct CPUNegativeOffsetState {
+    /* Empty */
+} CPUNegativeOffsetState;
+
 #endif

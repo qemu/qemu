@@ -556,6 +556,7 @@ struct XtensaCPU {
     CPUState parent_obj;
     /*< public >*/
 
+    CPUNegativeOffsetState neg;
     CPUXtensaState env;
 };
 

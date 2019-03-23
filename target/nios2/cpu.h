@@ -182,7 +182,9 @@ typedef struct Nios2CPU {
     CPUState parent_obj;
     /*< public >*/
 
+    CPUNegativeOffsetState neg;
     CPUNios2State env;
+
     bool mmu_present;
     uint32_t pid_num_bits;
     uint32_t tlb_num_ways;

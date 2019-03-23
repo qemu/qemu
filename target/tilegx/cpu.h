@@ -135,6 +135,7 @@ typedef struct TileGXCPU {
     CPUState parent_obj;
     /*< public >*/
 
+    CPUNegativeOffsetState neg;
     CPUTLGState env;
 } TileGXCPU;
 

@@ -205,6 +205,7 @@ struct TriCoreCPU {
     CPUState parent_obj;
     /*< public >*/
 
+    CPUNegativeOffsetState neg;
     CPUTriCoreState env;
 };
 

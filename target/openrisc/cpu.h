@@ -313,8 +313,8 @@ typedef struct OpenRISCCPU {
     CPUState parent_obj;
     /*< public >*/
 
+    CPUNegativeOffsetState neg;
     CPUOpenRISCState env;
-
 } OpenRISCCPU;
 
 

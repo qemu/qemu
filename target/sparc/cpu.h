@@ -529,6 +529,7 @@ struct SPARCCPU {
     CPUState parent_obj;
     /*< public >*/
 
+    CPUNegativeOffsetState neg;
     CPUSPARCState env;
 };
 
