@@ -4777,14 +4777,12 @@ DISAS_INSN(wddata)
 
 DISAS_INSN(wdebug)
 {
-    M68kCPU *cpu = m68k_env_get_cpu(env);
-
     if (IS_USER(s)) {
         gen_exception(s, s->base.pc_next, EXCP_PRIVILEGE);
         return;
     }
     /* TODO: Implement wdebug.  */
-    cpu_abort(CPU(cpu), "WDEBUG not implemented");
+    cpu_abort(env_cpu(env), "WDEBUG not implemented");
 }
 #endif
 

@@ -23,7 +23,7 @@
 
 void cpu_loop(CPUM68KState *env)
 {
-    CPUState *cs = CPU(m68k_env_get_cpu(env));
+    CPUState *cs = env_cpu(env);
     int trapnr;
     unsigned int n;
     target_siginfo_t info;
