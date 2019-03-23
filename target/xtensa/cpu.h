@@ -559,11 +559,6 @@ struct XtensaCPU {
     CPUXtensaState env;
 };
 
-static inline XtensaCPU *xtensa_env_get_cpu(const CPUXtensaState *env)
-{
-    return container_of(env, XtensaCPU, env);
-}
-
 #define ENV_OFFSET offsetof(XtensaCPU, env)
 
 
@@ -724,10 +719,15 @@ static inline int cpu_mmu_index(CPUXtensaState *env, bool ifetch)
 #define XTENSA_CSBASE_LBEG_OFF_MASK 0x00ff0000
 #define XTENSA_CSBASE_LBEG_OFF_SHIFT 16
 
+typedef CPUXtensaState CPUArchState;
+typedef XtensaCPU ArchCPU;
+
+#include "exec/cpu-all.h"
+
 static inline void cpu_get_tb_cpu_state(CPUXtensaState *env, target_ulong *pc,
         target_ulong *cs_base, uint32_t *flags)
 {
-    CPUState *cs = CPU(xtensa_env_get_cpu(env));
+    CPUState *cs = env_cpu(env);
 
     *pc = env->pc;
     *cs_base = 0;
@@ -796,10 +796,5 @@ static inline void cpu_get_tb_cpu_state(CPUXtensaState *env, target_ulong *pc,
         *flags |= XTENSA_TBFLAG_YIELD;
     }
 }
-
-typedef CPUXtensaState CPUArchState;
-typedef XtensaCPU ArchCPU;
-
-#include "exec/cpu-all.h"
 
 #endif

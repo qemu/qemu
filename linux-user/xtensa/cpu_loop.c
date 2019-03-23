@@ -123,7 +123,7 @@ static void xtensa_underflow12(CPUXtensaState *env)
 
 void cpu_loop(CPUXtensaState *env)
 {
-    CPUState *cs = CPU(xtensa_env_get_cpu(env));
+    CPUState *cs = env_cpu(env);
     target_siginfo_t info;
     abi_ulong ret;
     int trapnr;

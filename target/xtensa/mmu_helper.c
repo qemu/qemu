@@ -71,12 +71,10 @@ void HELPER(itlb_hit_test)(CPUXtensaState *env, uint32_t vaddr)
 
 void HELPER(wsr_rasid)(CPUXtensaState *env, uint32_t v)
 {
-    XtensaCPU *cpu = xtensa_env_get_cpu(env);
-
     v = (v & 0xffffff00) | 0x1;
     if (v != env->sregs[RASID]) {
         env->sregs[RASID] = v;
-        tlb_flush(CPU(cpu));
+        tlb_flush(env_cpu(env));
     }
 }
 
@@ -276,8 +274,7 @@ static void xtensa_tlb_set_entry(CPUXtensaState *env, bool dtlb,
                                  unsigned wi, unsigned ei,
                                  uint32_t vpn, uint32_t pte)
 {
-    XtensaCPU *cpu = xtensa_env_get_cpu(env);
-    CPUState *cs = CPU(cpu);
+    CPUState *cs = env_cpu(env);
     xtensa_tlb_entry *entry = xtensa_tlb_get_entry(env, dtlb, wi, ei);
 
     if (xtensa_option_enabled(env->config, XTENSA_OPTION_MMU)) {
@@ -503,7 +500,7 @@ void HELPER(itlb)(CPUXtensaState *env, uint32_t v, uint32_t dtlb)
         uint32_t wi;
         xtensa_tlb_entry *entry = get_tlb_entry(env, v, dtlb, &wi);
         if (entry->variable && entry->asid) {
-            tlb_flush_page(CPU(xtensa_env_get_cpu(env)), entry->vaddr);
+            tlb_flush_page(env_cpu(env), entry->vaddr);
             entry->asid = 0;
         }
     }
@@ -844,7 +841,7 @@ static int get_physical_addr_mmu(CPUXtensaState *env, bool update_tlb,
 
 static bool get_pte(CPUXtensaState *env, uint32_t vaddr, uint32_t *pte)
 {
-    CPUState *cs = CPU(xtensa_env_get_cpu(env));
+    CPUState *cs = env_cpu(env);
     uint32_t paddr;
     uint32_t page_size;
     unsigned access;
@@ -924,13 +921,11 @@ static int xtensa_mpu_lookup(const xtensa_mpu_entry *entry, unsigned n,
 
 void HELPER(wsr_mpuenb)(CPUXtensaState *env, uint32_t v)
 {
-    XtensaCPU *cpu = xtensa_env_get_cpu(env);
-
     v &= (2u << (env->config->n_mpu_fg_segments - 1)) - 1;
 
     if (v != env->sregs[MPUENB]) {
         env->sregs[MPUENB] = v;
-        tlb_flush(CPU(cpu));
+        tlb_flush(env_cpu(env));
     }
 }
 
@@ -942,7 +937,7 @@ void HELPER(wptlb)(CPUXtensaState *env, uint32_t p, uint32_t v)
         env->mpu_fg[segment].vaddr = v & -env->config->mpu_align;
         env->mpu_fg[segment].attr = p & XTENSA_MPU_ATTR_MASK;
         env->sregs[MPUENB] = deposit32(env->sregs[MPUENB], segment, 1, v);
-        tlb_flush(CPU(xtensa_env_get_cpu(env)));
+        tlb_flush(env_cpu(env));
     }
 }
 
