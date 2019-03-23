@@ -1498,6 +1498,10 @@ static void * const qemu_st_helpers[16] = {
     [MO_BEQ]  = helper_be_stq_mmu,
 };
 
+/* We expect to use a 16-bit negative offset from ENV.  */
+QEMU_BUILD_BUG_ON(TLB_MASK_TABLE_OFS(0) > 0);
+QEMU_BUILD_BUG_ON(TLB_MASK_TABLE_OFS(0) < -32768);
+
 /* Perform the TLB load and compare.  Places the result of the comparison
    in CR7, loads the addend of the TLB into R3, and returns the register
    containing the guest address (zero-extended into R4).  Clobbers R0 and R2. */
@@ -1510,31 +1514,15 @@ static TCGReg tcg_out_tlb_read(TCGContext *s, TCGMemOp opc,
         = (is_read
            ? offsetof(CPUTLBEntry, addr_read)
            : offsetof(CPUTLBEntry, addr_write));
-    int mask_off = offsetof(CPUArchState, tlb_.f[mem_index].mask);
-    int table_off = offsetof(CPUArchState, tlb_.f[mem_index].table);
-    TCGReg mask_base = TCG_AREG0, table_base = TCG_AREG0;
+    int fast_off = TLB_MASK_TABLE_OFS(mem_index);
+    int mask_off = fast_off + offsetof(CPUTLBDescFast, mask);
+    int table_off = fast_off + offsetof(CPUTLBDescFast, table);
     unsigned s_bits = opc & MO_SIZE;
     unsigned a_bits = get_alignment_bits(opc);
 
-    if (table_off > 0x7fff) {
-        int mask_hi = mask_off - (int16_t)mask_off;
-        int table_hi = table_off - (int16_t)table_off;
-
-        table_base = TCG_REG_R4;
-        if (mask_hi == table_hi) {
-            mask_base = table_base;
-        } else if (mask_hi) {
-            mask_base = TCG_REG_R3;
-            tcg_out32(s, ADDIS | TAI(mask_base, TCG_AREG0, mask_hi >> 16));
-        }
-        tcg_out32(s, ADDIS | TAI(table_base, TCG_AREG0, table_hi >> 16));
-        mask_off -= mask_hi;
-        table_off -= table_hi;
-    }
-
     /* Load tlb_mask[mmu_idx] and tlb_table[mmu_idx].  */
-    tcg_out_ld(s, TCG_TYPE_PTR, TCG_REG_R3, mask_base, mask_off);
-    tcg_out_ld(s, TCG_TYPE_PTR, TCG_REG_R4, table_base, table_off);
+    tcg_out_ld(s, TCG_TYPE_PTR, TCG_REG_R3, TCG_AREG0, mask_off);
+    tcg_out_ld(s, TCG_TYPE_PTR, TCG_REG_R4, TCG_AREG0, table_off);
 
     /* Extract the page index, shifted into place for tlb index.  */
     if (TCG_TARGET_REG_BITS == 32) {

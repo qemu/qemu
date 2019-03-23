@@ -1637,9 +1637,9 @@ static void add_qemu_ldst_label(TCGContext *s, bool is_ld, TCGMemOpIdx oi,
     label->label_ptr[0] = label_ptr;
 }
 
-/* We expect to use a 24-bit unsigned offset from ENV.  */
-QEMU_BUILD_BUG_ON(offsetof(CPUArchState, tlb_.f[NB_MMU_MODES - 1].table)
-                  > 0xffffff);
+/* We expect to use a 7-bit scaled negative offset from ENV.  */
+QEMU_BUILD_BUG_ON(TLB_MASK_TABLE_OFS(0) > 0);
+QEMU_BUILD_BUG_ON(TLB_MASK_TABLE_OFS(0) < -512);
 
 /* Load and compare a TLB entry, emitting the conditional jump to the
    slow path for the failure case, which will be patched later when finalizing
@@ -1649,8 +1649,9 @@ static void tcg_out_tlb_read(TCGContext *s, TCGReg addr_reg, TCGMemOp opc,
                              tcg_insn_unit **label_ptr, int mem_index,
                              bool is_read)
 {
-    int mask_ofs = offsetof(CPUArchState, tlb_.f[mem_index].mask);
-    int table_ofs = offsetof(CPUArchState, tlb_.f[mem_index].table);
+    int fast_ofs = TLB_MASK_TABLE_OFS(mem_index);
+    int mask_ofs = fast_ofs + offsetof(CPUTLBDescFast, mask);
+    int table_ofs = fast_ofs + offsetof(CPUTLBDescFast, table);
     unsigned a_bits = get_alignment_bits(opc);
     unsigned s_bits = opc & MO_SIZE;
     unsigned a_mask = (1u << a_bits) - 1;
@@ -1658,24 +1659,6 @@ static void tcg_out_tlb_read(TCGContext *s, TCGReg addr_reg, TCGMemOp opc,
     TCGReg mask_base = TCG_AREG0, table_base = TCG_AREG0, x3;
     TCGType mask_type;
     uint64_t compare_mask;
-
-    if (table_ofs > 0xfff) {
-        int table_hi = table_ofs & ~0xfff;
-        int mask_hi = mask_ofs & ~0xfff;
-
-        table_base = TCG_REG_X1;
-        if (mask_hi == table_hi) {
-            mask_base = table_base;
-        } else if (mask_hi) {
-            mask_base = TCG_REG_X0;
-            tcg_out_insn(s, 3401, ADDI, TCG_TYPE_I64,
-                         mask_base, TCG_AREG0, mask_hi);
-        }
-        tcg_out_insn(s, 3401, ADDI, TCG_TYPE_I64,
-                     table_base, TCG_AREG0, table_hi);
-        mask_ofs -= mask_hi;
-        table_ofs -= table_hi;
-    }
 
     mask_type = (TARGET_PAGE_BITS + CPU_TLB_DYN_MAX_BITS > 32
                  ? TCG_TYPE_I64 : TCG_TYPE_I32);

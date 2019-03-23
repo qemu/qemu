@@ -962,6 +962,10 @@ static void * const qemu_st_helpers[16] = {
 /* We don't support oversize guests */
 QEMU_BUILD_BUG_ON(TCG_TARGET_REG_BITS < TARGET_LONG_BITS);
 
+/* We expect to use a 12-bit negative offset from ENV.  */
+QEMU_BUILD_BUG_ON(TLB_MASK_TABLE_OFS(0) > 0);
+QEMU_BUILD_BUG_ON(TLB_MASK_TABLE_OFS(0) < -(1 << 11));
+
 static void tcg_out_tlb_load(TCGContext *s, TCGReg addrl,
                              TCGReg addrh, TCGMemOpIdx oi,
                              tcg_insn_unit **label_ptr, bool is_load)
@@ -971,31 +975,10 @@ static void tcg_out_tlb_load(TCGContext *s, TCGReg addrl,
     unsigned a_bits = get_alignment_bits(opc);
     tcg_target_long compare_mask;
     int mem_index = get_mmuidx(oi);
-    int mask_off, table_off;
+    int fast_ofs = TLB_MASK_TABLE_OFS(mem_index);
+    int mask_ofs = fast_ofs + offsetof(CPUTLBDescFast, mask);
+    int table_ofs = fast_ofs + offsetof(CPUTLBDescFast, table);
     TCGReg mask_base = TCG_AREG0, table_base = TCG_AREG0;
-
-    mask_off = offsetof(CPUArchState, tlb_.f[mem_index].mask);
-    table_off = offsetof(CPUArchState, tlb_.f[mem_index].table);
-    if (table_off > 0x7ff) {
-        int mask_hi = mask_off - sextreg(mask_off, 0, 12);
-        int table_hi = table_off - sextreg(table_off, 0, 12);
-
-        if (likely(mask_hi == table_hi)) {
-            mask_base = table_base = TCG_REG_TMP1;
-            tcg_out_opc_upper(s, OPC_LUI, mask_base, mask_hi);
-            tcg_out_opc_reg(s, OPC_ADD, mask_base, mask_base, TCG_AREG0);
-            mask_off -= mask_hi;
-            table_off -= mask_hi;
-        } else {
-            mask_base = TCG_REG_TMP0;
-            table_base = TCG_REG_TMP1;
-            tcg_out_opc_upper(s, OPC_LUI, mask_base, mask_hi);
-            tcg_out_opc_reg(s, OPC_ADD, mask_base, mask_base, TCG_AREG0);
-            table_off -= mask_off;
-            mask_off -= mask_hi;
-            tcg_out_opc_imm(s, OPC_ADDI, table_base, mask_base, mask_off);
-        }
-    }
 
     tcg_out_ld(s, TCG_TYPE_PTR, TCG_REG_TMP0, mask_base, mask_off);
     tcg_out_ld(s, TCG_TYPE_PTR, TCG_REG_TMP1, table_base, table_off);

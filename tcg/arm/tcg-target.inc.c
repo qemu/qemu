@@ -1220,9 +1220,9 @@ static TCGReg tcg_out_arg_reg64(TCGContext *s, TCGReg argreg,
 
 #define TLB_SHIFT	(CPU_TLB_ENTRY_BITS + CPU_TLB_BITS)
 
-/* We expect to use a 20-bit unsigned offset from ENV.  */
-QEMU_BUILD_BUG_ON(offsetof(CPUArchState, tlb_.f[NB_MMU_MODES - 1].table)
-                  > 0xfffff);
+/* We expect to use an 9-bit sign-magnitude negative offset from ENV.  */
+QEMU_BUILD_BUG_ON(TLB_MASK_TABLE_OFS(0) > 0);
+QEMU_BUILD_BUG_ON(TLB_MASK_TABLE_OFS(0) < -256);
 
 /* Load and compare a TLB entry, leaving the flags set.  Returns the register
    containing the addend of the tlb entry.  Clobbers R0, R1, R2, TMP.  */
@@ -1232,39 +1232,15 @@ static TCGReg tcg_out_tlb_read(TCGContext *s, TCGReg addrlo, TCGReg addrhi,
 {
     int cmp_off = (is_load ? offsetof(CPUTLBEntry, addr_read)
                    : offsetof(CPUTLBEntry, addr_write));
-    int mask_off = offsetof(CPUArchState, tlb_.f[mem_index].mask);
-    int table_off = offsetof(CPUArchState, tlb_.f[mem_index].table);
-    TCGReg mask_base = TCG_AREG0, table_base = TCG_AREG0;
+    int fast_off = TLB_MASK_TABLE_OFS(mem_index);
+    int mask_off = fast_off + offsetof(CPUTLBDescFast, mask);
+    int table_off = fast_off + offsetof(CPUTLBDescFast, table);
     unsigned s_bits = opc & MO_SIZE;
     unsigned a_bits = get_alignment_bits(opc);
 
-    if (table_off > 0xfff) {
-        int mask_hi = mask_off & ~0xfff;
-        int table_hi = table_off & ~0xfff;
-        int rot;
-
-        table_base = TCG_REG_R2;
-        if (mask_hi == table_hi) {
-            mask_base = table_base;
-        } else if (mask_hi) {
-            mask_base = TCG_REG_TMP;
-            rot = encode_imm(mask_hi);
-            assert(rot >= 0);
-            tcg_out_dat_imm(s, COND_AL, ARITH_ADD, mask_base, TCG_AREG0,
-                            rotl(mask_hi, rot) | (rot << 7));
-        }
-        rot = encode_imm(table_hi);
-        assert(rot >= 0);
-        tcg_out_dat_imm(s, COND_AL, ARITH_ADD, table_base, TCG_AREG0,
-                        rotl(table_hi, rot) | (rot << 7));
-
-        mask_off -= mask_hi;
-        table_off -= table_hi;
-    }
-
     /* Load tlb_mask[mmu_idx] and tlb_table[mmu_idx].  */
-    tcg_out_ld(s, TCG_TYPE_I32, TCG_REG_TMP, mask_base, mask_off);
-    tcg_out_ld(s, TCG_TYPE_I32, TCG_REG_R2, table_base, table_off);
+    tcg_out_ld(s, TCG_TYPE_I32, TCG_REG_TMP, TCG_AREG0, mask_off);
+    tcg_out_ld(s, TCG_TYPE_I32, TCG_REG_R2, TCG_AREG0, table_off);
 
     /* Extract the tlb index from the address into TMP.  */
     tcg_out_dat_reg(s, COND_AL, ARITH_AND, TCG_REG_TMP, TCG_REG_TMP, addrlo,

@@ -1062,6 +1062,11 @@ static void tcg_out_nop_fill(tcg_insn_unit *p, int count)
 }
 
 #if defined(CONFIG_SOFTMMU)
+
+/* We expect to use a 13-bit negative offset from ENV.  */
+QEMU_BUILD_BUG_ON(TLB_MASK_TABLE_OFS(0) > 0);
+QEMU_BUILD_BUG_ON(TLB_MASK_TABLE_OFS(0) < -(1 << 12));
+
 /* Perform the TLB load and compare.
 
    Inputs:
@@ -1078,9 +1083,9 @@ static void tcg_out_nop_fill(tcg_insn_unit *p, int count)
 static TCGReg tcg_out_tlb_load(TCGContext *s, TCGReg addr, int mem_index,
                                TCGMemOp opc, int which)
 {
-    int mask_off = offsetof(CPUArchState, tlb_.f[mem_index].mask);
-    int table_off = offsetof(CPUArchState, tlb_.f[mem_index].table);
-    TCGReg base = TCG_AREG0;
+    int fast_off = TLB_MASK_TABLE_OFS(mem_index);
+    int mask_off = fast_off + offsetof(CPUTLBDescFast, mask);
+    int table_off = fast_off + offsetof(CPUTLBDescFast, table);
     const TCGReg r0 = TCG_REG_O0;
     const TCGReg r1 = TCG_REG_O1;
     const TCGReg r2 = TCG_REG_O2;
@@ -1088,26 +1093,9 @@ static TCGReg tcg_out_tlb_load(TCGContext *s, TCGReg addr, int mem_index,
     unsigned a_bits = get_alignment_bits(opc);
     tcg_target_long compare_mask;
 
-    if (!check_fit_i32(table_off, 13)) {
-        int table_hi;
-
-        base = r1;
-        if (table_off <= 2 * 0xfff) {
-            table_hi = 0xfff;
-            tcg_out_arithi(s, base, TCG_AREG0, table_hi, ARITH_ADD);
-        } else {
-            table_hi = table_off & ~0x3ff;
-            tcg_out_sethi(s, base, table_hi);
-            tcg_out_arith(s, base, TCG_AREG0, base, ARITH_ADD);
-        }
-        mask_off -= table_hi;
-        table_off -= table_hi;
-        tcg_debug_assert(check_fit_i32(mask_off, 13));
-    }
-
     /* Load tlb_mask[mmu_idx] and tlb_table[mmu_idx].  */
-    tcg_out_ld(s, TCG_TYPE_PTR, r0, base, mask_off);
-    tcg_out_ld(s, TCG_TYPE_PTR, r1, base, table_off);
+    tcg_out_ld(s, TCG_TYPE_PTR, r0, TCG_AREG0, mask_off);
+    tcg_out_ld(s, TCG_TYPE_PTR, r1, TCG_AREG0, table_off);
 
     /* Extract the page index, shifted into place for tlb index.  */
     tcg_out_arithi(s, r2, addr, TARGET_PAGE_BITS - CPU_TLB_ENTRY_BITS,

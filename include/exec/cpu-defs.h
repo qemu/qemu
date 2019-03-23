@@ -178,13 +178,14 @@ typedef struct CPUTLBDesc {
 
 /*
  * Data elements that are per MMU mode, accessed by the fast path.
+ * The structure is aligned to aid loading the pair with one insn.
  */
 typedef struct CPUTLBDescFast {
     /* Contains (n_entries - 1) << CPU_TLB_ENTRY_BITS */
     uintptr_t mask;
     /* The array of tlb entries itself. */
     CPUTLBEntry *table;
-} CPUTLBDescFast;
+} CPUTLBDescFast QEMU_ALIGNED(2 * sizeof(void *));
 
 /*
  * Data elements that are shared between all MMU modes.
@@ -211,28 +212,33 @@ typedef struct CPUTLBCommon {
 /*
  * The entire softmmu tlb, for all MMU modes.
  * The meaning of each of the MMU modes is defined in the target code.
+ * Since this is placed within CPUNegativeOffsetState, the smallest
+ * negative offsets are at the end of the struct.
  */
 typedef struct CPUTLB {
-    CPUTLBDescFast f[NB_MMU_MODES];
-    CPUTLBDesc d[NB_MMU_MODES];
     CPUTLBCommon c;
+    CPUTLBDesc d[NB_MMU_MODES];
+    CPUTLBDescFast f[NB_MMU_MODES];
 } CPUTLB;
 
-/* There are target-specific members named "tlb".  This is temporary.  */
-#define CPU_COMMON    CPUTLB tlb_;
-#define env_tlb(ENV)  (&(ENV)->tlb_)
+/* This will be used by TCG backends to compute offsets.  */
+#define TLB_MASK_TABLE_OFS(IDX) \
+    ((int)offsetof(ArchCPU, neg.tlb.f[IDX]) - (int)offsetof(ArchCPU, env))
 
 #else
 
-#define CPU_COMMON  /* Nothing */
+typedef struct CPUTLB { } CPUTLB;
 
 #endif  /* !CONFIG_USER_ONLY && CONFIG_TCG */
+
+#define CPU_COMMON  /* Nothing */
 
 /*
  * This structure must be placed in ArchCPU immedately
  * before CPUArchState, as a field named "neg".
  */
 typedef struct CPUNegativeOffsetState {
+    CPUTLB tlb;
     IcountDecr icount_decr;
 } CPUNegativeOffsetState;
 
