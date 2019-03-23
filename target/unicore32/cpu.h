@@ -55,8 +55,6 @@ typedef struct CPUUniCore32State {
         float_status fp_status;
     } ucf64;
 
-    CPU_COMMON
-
     /* Internal CPU feature flags.  */
     uint32_t features;
 

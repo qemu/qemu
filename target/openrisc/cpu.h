@@ -286,8 +286,6 @@ typedef struct CPUOpenRISCState {
     /* Fields up to this point are cleared by a CPU reset */
     struct {} end_reset_fields;
 
-    CPU_COMMON
-
     /* Fields from here on are preserved across CPU reset. */
     uint32_t cpucfgr;         /* CPU configure register */
 

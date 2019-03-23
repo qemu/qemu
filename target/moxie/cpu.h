@@ -45,9 +45,6 @@ typedef struct CPUMoxieState {
 
     /* Fields up to this point are cleared by a CPU reset */
     struct {} end_reset_fields;
-
-    CPU_COMMON
-
 } CPUMoxieState;
 
 #include "qom/cpu.h"

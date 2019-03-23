@@ -251,9 +251,6 @@ struct CPUAlphaState {
     /* This alarm doesn't exist in real hardware; we wish it did.  */
     uint64_t alarm_expire;
 
-    /* Those resources are used only in QEMU core */
-    CPU_COMMON
-
     int error_code;
 
     uint32_t features;

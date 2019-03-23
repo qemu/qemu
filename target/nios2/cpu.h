@@ -167,8 +167,6 @@ struct CPUNios2State {
 
     uint32_t irq_pending;
 #endif
-
-    CPU_COMMON
 };
 
 /**

@@ -197,9 +197,6 @@ struct CPUHPPAState {
     target_ureg cr_back[2];  /* back of cr17/cr18 */
     target_ureg shadow[7];   /* shadow registers */
 
-    /* Those resources are used only in QEMU core */
-    CPU_COMMON
-
     /* ??? The number of entries isn't specified by the architecture.  */
     /* ??? Implement a unified itlb/dtlb for the moment.  */
     /* ??? We should use a more intelligent data structure.  */

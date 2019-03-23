@@ -184,8 +184,6 @@ struct CPUTriCoreState {
     int error_code;
     uint32_t hflags;    /* CPU State */
 
-    CPU_COMMON
-
     /* Internal CPU feature flags.  */
     uint64_t features;
 

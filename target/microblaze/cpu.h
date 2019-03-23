@@ -266,8 +266,6 @@ struct CPUMBState {
     /* Fields up to this point are cleared by a CPU reset */
     struct {} end_reset_fields;
 
-    CPU_COMMON
-
     /* These fields are preserved on reset.  */
 
     struct {

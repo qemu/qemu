@@ -163,8 +163,6 @@ typedef struct CPUCRISState {
         /* Fields up to this point are cleared by a CPU reset */
         struct {} end_reset_fields;
 
-        CPU_COMMON
-
         /* Members from load_info on are preserved across resets.  */
         void *load_info;
 } CPUCRISState;
