@@ -406,7 +406,7 @@ uint64_t cpu_get_tsc(CPUX86State *env)
 /* IRQ handling */
 int cpu_get_pic_interrupt(CPUX86State *env)
 {
-    X86CPU *cpu = x86_env_get_cpu(env);
+    X86CPU *cpu = env_archcpu(env);
     int intno;
 
     if (!kvm_irqchip_in_kernel()) {

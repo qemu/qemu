@@ -204,8 +204,8 @@ void do_smm_enter(X86CPU *cpu)
 
 void helper_rsm(CPUX86State *env)
 {
-    X86CPU *cpu = x86_env_get_cpu(env);
-    CPUState *cs = CPU(cpu);
+    X86CPU *cpu = env_archcpu(env);
+    CPUState *cs = env_cpu(env);
     target_ulong sm_state;
     int i, offset;
     uint32_t val;

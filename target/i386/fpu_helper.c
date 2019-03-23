@@ -1477,7 +1477,7 @@ void helper_xrstor(CPUX86State *env, target_ulong ptr, uint64_t rfbm)
             env->pkru = 0;
         }
         if (env->pkru != old_pkru) {
-            CPUState *cs = CPU(x86_env_get_cpu(env));
+            CPUState *cs = env_cpu(env);
             tlb_flush(cs);
         }
     }
