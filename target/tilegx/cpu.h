@@ -138,11 +138,6 @@ typedef struct TileGXCPU {
     CPUTLGState env;
 } TileGXCPU;
 
-static inline TileGXCPU *tilegx_env_get_cpu(CPUTLGState *env)
-{
-    return container_of(env, TileGXCPU, env);
-}
-
 #define ENV_OFFSET offsetof(TileGXCPU, env)
 
 /* TILE-Gx memory attributes */
