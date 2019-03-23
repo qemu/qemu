@@ -350,7 +350,7 @@ static inline hwaddr do_translate_address(CPUMIPSState *env,
                                                       int rw, uintptr_t retaddr)
 {
     hwaddr paddr;
-    CPUState *cs = CPU(mips_env_get_cpu(env));
+    CPUState *cs = env_cpu(env);
 
     paddr = cpu_mips_translate_address(env, address, rw);
 
@@ -699,7 +699,7 @@ static CPUMIPSState *mips_cpu_map_tc(CPUMIPSState *env, int *tc)
         return env;
     }
 
-    cs = CPU(mips_env_get_cpu(env));
+    cs = env_cpu(env);
     vpe_idx = tc_idx / cs->nr_threads;
     *tc = tc_idx % cs->nr_threads;
     other_cs = qemu_get_cpu(vpe_idx);
@@ -1298,7 +1298,7 @@ void helper_mttc0_tcrestart(CPUMIPSState *env, target_ulong arg1)
 
 void helper_mtc0_tchalt(CPUMIPSState *env, target_ulong arg1)
 {
-    MIPSCPU *cpu = mips_env_get_cpu(env);
+    MIPSCPU *cpu = env_archcpu(env);
 
     env->active_tc.CP0_TCHalt = arg1 & 0x1;
 
@@ -1314,7 +1314,7 @@ void helper_mttc0_tchalt(CPUMIPSState *env, target_ulong arg1)
 {
     int other_tc = env->CP0_VPEControl & (0xff << CP0VPECo_TargTC);
     CPUMIPSState *other = mips_cpu_map_tc(env, &other_tc);
-    MIPSCPU *other_cpu = mips_env_get_cpu(other);
+    MIPSCPU *other_cpu = env_archcpu(other);
 
     // TODO: Halt TC / Restart (if allocated+active) TC.
 
@@ -1427,7 +1427,7 @@ void helper_mtc0_pagegrain(CPUMIPSState *env, target_ulong arg1)
 
 void helper_mtc0_segctl0(CPUMIPSState *env, target_ulong arg1)
 {
-    CPUState *cs = CPU(mips_env_get_cpu(env));
+    CPUState *cs = env_cpu(env);
 
     env->CP0_SegCtl0 = arg1 & CP0SC0_MASK;
     tlb_flush(cs);
@@ -1435,7 +1435,7 @@ void helper_mtc0_segctl0(CPUMIPSState *env, target_ulong arg1)
 
 void helper_mtc0_segctl1(CPUMIPSState *env, target_ulong arg1)
 {
-    CPUState *cs = CPU(mips_env_get_cpu(env));
+    CPUState *cs = env_cpu(env);
 
     env->CP0_SegCtl1 = arg1 & CP0SC1_MASK;
     tlb_flush(cs);
@@ -1443,7 +1443,7 @@ void helper_mtc0_segctl1(CPUMIPSState *env, target_ulong arg1)
 
 void helper_mtc0_segctl2(CPUMIPSState *env, target_ulong arg1)
 {
-    CPUState *cs = CPU(mips_env_get_cpu(env));
+    CPUState *cs = env_cpu(env);
 
     env->CP0_SegCtl2 = arg1 & CP0SC2_MASK;
     tlb_flush(cs);
@@ -1666,7 +1666,7 @@ void helper_mtc0_entryhi(CPUMIPSState *env, target_ulong arg1)
     /* If the ASID changes, flush qemu's TLB.  */
     if ((old & env->CP0_EntryHi_ASID_mask) !=
         (val & env->CP0_EntryHi_ASID_mask)) {
-        tlb_flush(CPU(mips_env_get_cpu(env)));
+        tlb_flush(env_cpu(env));
     }
 }
 
@@ -1686,7 +1686,6 @@ void helper_mtc0_compare(CPUMIPSState *env, target_ulong arg1)
 
 void helper_mtc0_status(CPUMIPSState *env, target_ulong arg1)
 {
-    MIPSCPU *cpu = mips_env_get_cpu(env);
     uint32_t val, old;
 
     old = env->CP0_Status;
@@ -1706,7 +1705,7 @@ void helper_mtc0_status(CPUMIPSState *env, target_ulong arg1)
         case MIPS_HFLAG_SM: qemu_log(", SM\n"); break;
         case MIPS_HFLAG_KM: qemu_log("\n"); break;
         default:
-            cpu_abort(CPU(cpu), "Invalid MMU mode!\n");
+            cpu_abort(env_cpu(env), "Invalid MMU mode!\n");
             break;
         }
     }
@@ -2485,8 +2484,6 @@ static void debug_pre_eret(CPUMIPSState *env)
 
 static void debug_post_eret(CPUMIPSState *env)
 {
-    MIPSCPU *cpu = mips_env_get_cpu(env);
-
     if (qemu_loglevel_mask(CPU_LOG_EXEC)) {
         qemu_log("  =>  PC " TARGET_FMT_lx " EPC " TARGET_FMT_lx,
                 env->active_tc.PC, env->CP0_EPC);
@@ -2502,7 +2499,7 @@ static void debug_post_eret(CPUMIPSState *env)
         case MIPS_HFLAG_SM: qemu_log(", SM\n"); break;
         case MIPS_HFLAG_KM: qemu_log("\n"); break;
         default:
-            cpu_abort(CPU(cpu), "Invalid MMU mode!\n");
+            cpu_abort(env_cpu(env), "Invalid MMU mode!\n");
             break;
         }
     }
@@ -2633,7 +2630,7 @@ void helper_pmon(CPUMIPSState *env, int function)
 
 void helper_wait(CPUMIPSState *env)
 {
-    CPUState *cs = CPU(mips_env_get_cpu(env));
+    CPUState *cs = env_cpu(env);
 
     cs->halted = 1;
     cpu_reset_interrupt(cs, CPU_INTERRUPT_WAKE);

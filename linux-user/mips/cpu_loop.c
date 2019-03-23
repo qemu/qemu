@@ -425,7 +425,7 @@ static int do_break(CPUMIPSState *env, target_siginfo_t *info,
 
 void cpu_loop(CPUMIPSState *env)
 {
-    CPUState *cs = CPU(mips_env_get_cpu(env));
+    CPUState *cs = env_cpu(env);
     target_siginfo_t info;
     int trapnr;
     abi_long ret;

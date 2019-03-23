@@ -30119,8 +30119,7 @@ void cpu_set_exception_base(int vp_index, target_ulong address)
 
 void cpu_state_reset(CPUMIPSState *env)
 {
-    MIPSCPU *cpu = mips_env_get_cpu(env);
-    CPUState *cs = CPU(cpu);
+    CPUState *cs = env_cpu(env);
 
     /* Reset registers to their default values */
     env->CP0_PRid = env->cpu_model->CP0_PRid;
