@@ -89,14 +89,12 @@ struct CpuAsyncInfo {
 static void riscv_cpu_update_mip_irqs_async(CPUState *target_cpu_state,
                                             run_on_cpu_data data)
 {
-    CPURISCVState *env = &RISCV_CPU(target_cpu_state)->env;
-    RISCVCPU *cpu = riscv_env_get_cpu(env);
     struct CpuAsyncInfo *info = (struct CpuAsyncInfo *) data.host_ptr;
 
     if (info->new_mip) {
-        cpu_interrupt(CPU(cpu), CPU_INTERRUPT_HARD);
+        cpu_interrupt(target_cpu_state, CPU_INTERRUPT_HARD);
     } else {
-        cpu_reset_interrupt(CPU(cpu), CPU_INTERRUPT_HARD);
+        cpu_reset_interrupt(target_cpu_state, CPU_INTERRUPT_HARD);
     }
 
     g_free(info);
@@ -212,7 +210,7 @@ static int get_physical_address(CPURISCVState *env, hwaddr *physical,
         }
     }
 
-    CPUState *cs = CPU(riscv_env_get_cpu(env));
+    CPUState *cs = env_cpu(env);
     int va_bits = PGSHIFT + levels * ptidxbits;
     target_ulong mask = (1L << (TARGET_LONG_BITS - (va_bits - 1))) - 1;
     target_ulong masked_msbs = (addr >> (va_bits - 1)) & mask;
@@ -341,7 +339,7 @@ restart:
 static void raise_mmu_exception(CPURISCVState *env, target_ulong address,
                                 MMUAccessType access_type)
 {
-    CPUState *cs = CPU(riscv_env_get_cpu(env));
+    CPUState *cs = env_cpu(env);
     int page_fault_exceptions =
         (env->priv_ver >= PRIV_VERSION_1_10_0) &&
         get_field(env->satp, SATP_MODE) != VM_1_10_MBARE;

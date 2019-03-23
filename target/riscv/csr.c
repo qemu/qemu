@@ -296,7 +296,7 @@ static int write_mstatus(CPURISCVState *env, int csrno, target_ulong val)
     if (env->priv_ver <= PRIV_VERSION_1_09_1) {
         if ((val ^ mstatus) & (MSTATUS_MXR | MSTATUS_MPP |
                 MSTATUS_MPRV | MSTATUS_SUM | MSTATUS_VM)) {
-            tlb_flush(CPU(riscv_env_get_cpu(env)));
+            tlb_flush(env_cpu(env));
         }
         mask = MSTATUS_SIE | MSTATUS_SPIE | MSTATUS_MIE | MSTATUS_MPIE |
             MSTATUS_SPP | MSTATUS_FS | MSTATUS_MPRV | MSTATUS_SUM |
@@ -307,7 +307,7 @@ static int write_mstatus(CPURISCVState *env, int csrno, target_ulong val)
     if (env->priv_ver >= PRIV_VERSION_1_10_0) {
         if ((val ^ mstatus) & (MSTATUS_MXR | MSTATUS_MPP | MSTATUS_MPV |
                 MSTATUS_MPRV | MSTATUS_SUM)) {
-            tlb_flush(CPU(riscv_env_get_cpu(env)));
+            tlb_flush(env_cpu(env));
         }
         mask = MSTATUS_SIE | MSTATUS_SPIE | MSTATUS_MIE | MSTATUS_MPIE |
             MSTATUS_SPP | MSTATUS_FS | MSTATUS_MPRV | MSTATUS_SUM |
@@ -382,7 +382,7 @@ static int write_misa(CPURISCVState *env, int csrno, target_ulong val)
 
     /* flush translation cache */
     if (val != env->misa) {
-        tb_flush(CPU(riscv_env_get_cpu(env)));
+        tb_flush(env_cpu(env));
     }
 
     env->misa = val;
@@ -549,7 +549,7 @@ static int write_mbadaddr(CPURISCVState *env, int csrno, target_ulong val)
 static int rmw_mip(CPURISCVState *env, int csrno, target_ulong *ret_value,
                    target_ulong new_value, target_ulong write_mask)
 {
-    RISCVCPU *cpu = riscv_env_get_cpu(env);
+    RISCVCPU *cpu = env_archcpu(env);
     /* Allow software control of delegable interrupts not claimed by hardware */
     target_ulong mask = write_mask & delegable_ints & ~env->miclaim;
     uint32_t old_mip;
@@ -712,7 +712,7 @@ static int write_satp(CPURISCVState *env, int csrno, target_ulong val)
         return 0;
     }
     if (env->priv_ver <= PRIV_VERSION_1_09_1 && (val ^ env->sptbr)) {
-        tlb_flush(CPU(riscv_env_get_cpu(env)));
+        tlb_flush(env_cpu(env));
         env->sptbr = val & (((target_ulong)
             1 << (TARGET_PHYS_ADDR_SPACE_BITS - PGSHIFT)) - 1);
     }
@@ -724,7 +724,7 @@ static int write_satp(CPURISCVState *env, int csrno, target_ulong val)
             return -1;
         } else {
             if((val ^ env->satp) & SATP_ASID) {
-                tlb_flush(CPU(riscv_env_get_cpu(env)));
+                tlb_flush(env_cpu(env));
             }
             env->satp = val;
         }

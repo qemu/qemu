@@ -221,11 +221,6 @@ typedef struct RISCVCPU {
     } cfg;
 } RISCVCPU;
 
-static inline RISCVCPU *riscv_env_get_cpu(CPURISCVState *env)
-{
-    return container_of(env, RISCVCPU, env);
-}
-
 static inline int riscv_has_ext(CPURISCVState *env, target_ulong ext)
 {
     return (env->misa & ext) != 0;
