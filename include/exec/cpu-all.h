@@ -372,6 +372,17 @@ int cpu_memory_rw_debug(CPUState *cpu, target_ulong addr,
 int cpu_exec(CPUState *cpu);
 
 /**
+ * env_archcpu(env)
+ * @env: The architecture environment
+ *
+ * Return the ArchCPU associated with the environment.
+ */
+static inline ArchCPU *env_archcpu(CPUArchState *env)
+{
+    return container_of(env, ArchCPU, env);
+}
+
+/**
  * env_cpu(env)
  * @env: The architecture environment
  *
@@ -379,8 +390,7 @@ int cpu_exec(CPUState *cpu);
  */
 static inline CPUState *env_cpu(CPUArchState *env)
 {
-    ArchCPU *arch_cpu = container_of(env, ArchCPU, env);
-    return &arch_cpu->parent_obj;
+    return &env_archcpu(env)->parent_obj;
 }
 
 #endif /* CPU_ALL_H */
