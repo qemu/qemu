@@ -111,11 +111,11 @@ void load_psw(CPUS390XState *env, uint64_t mask, uint64_t addr)
     env->cc_op = (mask >> 44) & 3;
 
     if ((old_mask ^ mask) & PSW_MASK_PER) {
-        s390_cpu_recompute_watchpoints(CPU(s390_env_get_cpu(env)));
+        s390_cpu_recompute_watchpoints(env_cpu(env));
     }
 
     if (mask & PSW_MASK_WAIT) {
-        s390_handle_wait(s390_env_get_cpu(env));
+        s390_handle_wait(env_archcpu(env));
     }
 }
 
@@ -137,14 +137,13 @@ uint64_t get_psw_mask(CPUS390XState *env)
 
 LowCore *cpu_map_lowcore(CPUS390XState *env)
 {
-    S390CPU *cpu = s390_env_get_cpu(env);
     LowCore *lowcore;
     hwaddr len = sizeof(LowCore);
 
     lowcore = cpu_physical_memory_map(env->psa, &len, 1);
 
     if (len < sizeof(LowCore)) {
-        cpu_abort(CPU(cpu), "Could not map lowcore\n");
+        cpu_abort(env_cpu(env), "Could not map lowcore\n");
     }
 
     return lowcore;

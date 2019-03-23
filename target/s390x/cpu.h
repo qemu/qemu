@@ -163,11 +163,6 @@ struct S390CPU {
     uint32_t irqstate_saved_size;
 };
 
-static inline S390CPU *s390_env_get_cpu(CPUS390XState *env)
-{
-    return container_of(env, S390CPU, env);
-}
-
 #define ENV_OFFSET offsetof(S390CPU, env)
 
 #ifndef CONFIG_USER_ONLY

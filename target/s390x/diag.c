@@ -55,7 +55,7 @@ int handle_diag_288(CPUS390XState *env, uint64_t r1, uint64_t r3)
 
 void handle_diag_308(CPUS390XState *env, uint64_t r1, uint64_t r3, uintptr_t ra)
 {
-    CPUState *cs = CPU(s390_env_get_cpu(env));
+    CPUState *cs = env_cpu(env);
     uint64_t addr =  env->regs[r1];
     uint64_t subcode = env->regs[r3];
     IplParameterBlock *iplb;
