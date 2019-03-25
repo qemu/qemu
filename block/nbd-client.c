@@ -729,9 +729,7 @@ static int nbd_co_receive_blockstatus_reply(NBDClientSession *s,
     bool received = false;
 
     assert(!extent->length);
-    NBD_FOREACH_REPLY_CHUNK(s, iter, handle, s->info.structured_reply,
-                            NULL, &reply, &payload)
-    {
+    NBD_FOREACH_REPLY_CHUNK(s, iter, handle, false, NULL, &reply, &payload) {
         int ret;
         NBDStructuredReplyChunk *chunk = &reply.structured;
 
