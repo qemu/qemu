@@ -1259,6 +1259,10 @@ static bool pmu_counter_enabled(CPUARMState *env, uint8_t counter)
     int el = arm_current_el(env);
     uint8_t hpmn = env->cp15.mdcr_el2 & MDCR_HPMN;
 
+    if (!arm_feature(env, ARM_FEATURE_PMU)) {
+        return false;
+    }
+
     if (!arm_feature(env, ARM_FEATURE_EL2) ||
             (counter < hpmn || counter == 31)) {
         e = env->cp15.c9_pmcr & PMCRE;
@@ -1333,7 +1337,7 @@ static void pmu_update_irq(CPUARMState *env)
  * etc. can be done logically. This is essentially a no-op if the counter is
  * not enabled at the time of the call.
  */
-void pmccntr_op_start(CPUARMState *env)
+static void pmccntr_op_start(CPUARMState *env)
 {
     uint64_t cycles = cycles_get_count(env);
 
@@ -1363,7 +1367,7 @@ void pmccntr_op_start(CPUARMState *env)
  * guest-visible count. A call to pmccntr_op_finish should follow every call to
  * pmccntr_op_start.
  */
-void pmccntr_op_finish(CPUARMState *env)
+static void pmccntr_op_finish(CPUARMState *env)
 {
     if (pmu_counter_enabled(env, 31)) {
 #ifndef CONFIG_USER_ONLY

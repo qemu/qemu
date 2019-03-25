@@ -43,6 +43,17 @@ static bool is_connected(uint32_t config, uint32_t level)
     return state;
 }
 
+static int pull_value(uint32_t config)
+{
+    int pull = extract32(config, 2, 2);
+    if (pull == NRF51_GPIO_PULLDOWN) {
+        return 0;
+    } else if (pull == NRF51_GPIO_PULLUP) {
+        return 1;
+    }
+    return -1;
+}
+
 static void update_output_irq(NRF51GPIOState *s, size_t i,
                               bool connected, bool level)
 {
@@ -61,43 +72,47 @@ static void update_output_irq(NRF51GPIOState *s, size_t i,
 
 static void update_state(NRF51GPIOState *s)
 {
-    uint32_t pull;
+    int pull;
     size_t i;
-    bool connected_out, dir, connected_in, out, input;
+    bool connected_out, dir, connected_in, out, in, input;
 
     for (i = 0; i < NRF51_GPIO_PINS; i++) {
-        pull = extract32(s->cnf[i], 2, 2);
+        pull = pull_value(s->cnf[i]);
         dir = extract32(s->cnf[i], 0, 1);
         connected_in = extract32(s->in_mask, i, 1);
         out = extract32(s->out, i, 1);
+        in = extract32(s->in, i, 1);
         input = !extract32(s->cnf[i], 1, 1);
         connected_out = is_connected(s->cnf[i], out) && dir;
 
-        update_output_irq(s, i, connected_out, out);
-
-        /* Pin both driven externally and internally */
-        if (connected_out && connected_in) {
-            qemu_log_mask(LOG_GUEST_ERROR, "GPIO pin %zu short circuited\n", i);
-        }
-
-        /*
-         * Input buffer disconnected from internal/external drives, so
-         * pull-up/pull-down becomes relevant
-         */
-        if (!input || (input && !connected_in && !connected_out)) {
-            if (pull == NRF51_GPIO_PULLDOWN) {
-                s->in = deposit32(s->in, i, 1, 0);
-            } else if (pull == NRF51_GPIO_PULLUP) {
-                s->in = deposit32(s->in, i, 1, 1);
+        if (!input) {
+            if (pull >= 0) {
+                /* Input buffer disconnected from external drives */
+                s->in = deposit32(s->in, i, 1, pull);
+            }
+        } else {
+            if (connected_out && connected_in && out != in) {
+                /* Pin both driven externally and internally */
+                qemu_log_mask(LOG_GUEST_ERROR,
+                              "GPIO pin %zu short circuited\n", i);
+            }
+            if (!connected_in) {
+                /*
+                 * Floating input: the output stimulates IN if connected,
+                 * otherwise pull-up/pull-down resistors put a value on both
+                 * IN and OUT.
+                 */
+                if (pull >= 0 && !connected_out) {
+                    connected_out = true;
+                    out = pull;
+                }
+                if (connected_out) {
+                    s->in = deposit32(s->in, i, 1, out);
+                }
             }
         }
-
-        /* Self stimulation through internal output driver */
-        if (connected_out && !connected_in && input) {
-            s->in = deposit32(s->in, i, 1, out);
-        }
+        update_output_irq(s, i, connected_out, out);
     }
-
 }
 
 /*

@@ -993,17 +993,6 @@ int cpu_arm_signal_handler(int host_signum, void *pinfo,
                            void *puc);
 
 /**
- * pmccntr_op_start/finish
- * @env: CPUARMState
- *
- * Convert the counter in the PMCCNTR between its delta form (the typical mode
- * when it's enabled) and the guest-visible value. These two calls must always
- * surround any action which might affect the counter.
- */
-void pmccntr_op_start(CPUARMState *env);
-void pmccntr_op_finish(CPUARMState *env);
-
-/**
  * pmu_op_start/finish
  * @env: CPUARMState
  *
