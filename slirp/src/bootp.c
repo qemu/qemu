@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: MIT */
 /*
  * QEMU BOOTP/DHCP server
  *

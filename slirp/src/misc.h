@@ -1,8 +1,6 @@
+/* SPDX-License-Identifier: BSD-3-Clause */
 /*
  * Copyright (c) 1995 Danny Gasparovski.
- *
- * Please read the file COPYRIGHT for the
- * terms and conditions of the copyright.
  */
 
 #ifndef MISC_H

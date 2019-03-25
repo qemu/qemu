@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: BSD-3-Clause */
 /*
  * Copyright (c) 2013
  * Guillaume Subiron, Yann Bordenave, Serigne Modou Wagne.

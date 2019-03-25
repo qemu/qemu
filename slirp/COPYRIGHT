@@ -1,8 +1,6 @@
 Slirp was written by Danny Gasparovski.
 Copyright (c), 1995,1996 All Rights Reserved.
 
-Slirp is maintained by Kelly Price <tygris+slirp@erols.com>
-
 Slirp is free software; "free" as in you don't have to pay for it, and you
 are free to do whatever you want with it.  I do not accept any donations,
 monetary or otherwise, for Slirp.  Instead, I would ask you to pass this
@@ -25,6 +23,9 @@ The copyright terms and conditions:
  2. Redistributions in binary form must reproduce the above copyright
     notice, this list of conditions and the following disclaimer in the
     documentation and/or other materials provided with the distribution.
+ 3. Neither the name of the copyright holder nor the names of its
+    contributors may be used to endorse or promote products derived
+    from this software without specific prior written permission.
 
  THIS SOFTWARE IS PROVIDED ``AS IS'' AND ANY EXPRESS OR IMPLIED WARRANTIES,
  INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY

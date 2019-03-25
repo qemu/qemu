@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: BSD-3-Clause */
 /* bootp/dhcp defines */
 
 #ifndef SLIRP_BOOTP_H

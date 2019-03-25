@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: BSD-3-Clause */
 /*
  * Copyright (c) 1982, 1986, 1988, 1990, 1993
  *	The Regents of the University of California.  All rights reserved.
@@ -33,9 +34,6 @@
 /*
  * Changes and additions relating to SLiRP are
  * Copyright (c) 1995 Danny Gasparovski.
- *
- * Please read the file COPYRIGHT for the
- * terms and conditions of the copyright.
  */
 
 #include "slirp.h"
