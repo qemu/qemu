@@ -1,6 +1,6 @@
 # See docs/devel/tracing.txt for syntax documentation.
 
-# ui/console.c
+# console.c
 console_gfx_new(void) ""
 console_gfx_reuse(int index) "%d"
 console_gfx_close(int index) "%d"
@@ -17,7 +17,9 @@ displaychangelistener_register(void *dcl, const char *name) "%p [ %s ]"
 displaychangelistener_unregister(void *dcl, const char *name) "%p [ %s ]"
 ppm_save(const char *filename, void *display_surface) "%s surface=%p"
 
-# ui/gtk.c
+# gtk.c
+# gtk-gl-area.c
+# gtk-egl.c
 gd_switch(const char *tab, int width, int height) "tab=%s, width=%d, height=%d"
 gd_update(const char *tab, int x, int y, int w, int h) "tab=%s, x=%d, y=%d, w=%d, h=%d"
 gd_key_event(const char *tab, int gdk_keycode, int qkeycode, const char *action) "tab=%s, translated GDK keycode %d to QKeyCode %d (%s)"
@@ -25,7 +27,10 @@ gd_grab(const char *tab, const char *device, const char *reason) "tab=%s, dev=%s
 gd_ungrab(const char *tab, const char *device) "tab=%s, dev=%s"
 gd_keymap_windowing(const char *name) "backend=%s"
 
-# ui/vnc.c
+# vnc-auth-sasl.c
+# vnc-ws.c
+# vnc-auth-vencrypt.c
+# vnc.c
 vnc_key_guest_leds(bool caps, bool num, bool scroll) "caps %d, num %d, scroll %d"
 vnc_key_map_init(const char *layout) "%s"
 vnc_key_event_ext(bool down, int sym, int keycode, const char *name) "down %d, sym 0x%x, keycode 0x%x [%s]"
@@ -61,7 +66,7 @@ vnc_auth_sasl_username(void *state, const char *name) "VNC client auth SASL user
 vnc_auth_sasl_acl(void *state, int allow) "VNC client auth SASL ACL state=%p allow=%d"
 
 
-# ui/input.c
+# input.c
 input_event_key_number(int conidx, int number, const char *qcode, bool down) "con %d, key number 0x%x [%s], down %d"
 input_event_key_qcode(int conidx, const char *qcode, bool down) "con %d, key qcode %s, down %d"
 input_event_btn(int conidx, const char *btn, bool down) "con %d, button %s, down %d"
@@ -70,7 +75,7 @@ input_event_abs(int conidx, const char *axis, int value) "con %d, axis %s, value
 input_event_sync(void) ""
 input_mouse_mode(int absolute) "absolute %d"
 
-# ui/spice-display.c
+# spice-display.c
 qemu_spice_add_memslot(int qid, uint32_t slot_id, unsigned long virt_start, unsigned long virt_end, int async) "%d %u: host virt 0x%lx - 0x%lx async=%d"
 qemu_spice_del_memslot(int qid, uint32_t gid, uint32_t slot_id) "%d gid=%u sid=%u"
 qemu_spice_create_primary_surface(int qid, uint32_t sid, void *surface, int async) "%d sid=%u surface=%p async=%d"
@@ -90,12 +95,12 @@ qemu_spice_gl_forward_dmabuf(int qid, uint32_t width, uint32_t height) "%d %dx%d
 qemu_spice_gl_render_dmabuf(int qid, uint32_t width, uint32_t height) "%d %dx%d"
 qemu_spice_gl_update(int qid, uint32_t x, uint32_t y, uint32_t w, uint32_t h) "%d +%d+%d %dx%d"
 
-# ui/keymaps.c
+# keymaps.c
 keymap_parse(const char *file) "file %s"
 keymap_add(int sym, int code, const char *line) "sym=0x%04x code=0x%04x (line: %s)"
 keymap_unmapped(int sym) "sym=0x%04x"
 
-# ui/x_keymap.c
+# x_keymap.c
 xkeymap_extension(const char *name) "extension '%s'"
 xkeymap_vendor(const char *name) "vendor '%s'"
 xkeymap_keycodes(const char *name) "keycodes '%s'"

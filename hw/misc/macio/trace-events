@@ -1,6 +1,6 @@
 # See docs/devel/tracing.txt for syntax documentation.
 
-# hw/misc/macio/cuda.c
+# cuda.c
 cuda_delay_set_sr_int(void) ""
 cuda_data_send(uint8_t data) "send: 0x%02x"
 cuda_data_recv(uint8_t data) "recv: 0x%02x"
@@ -10,18 +10,17 @@ cuda_packet_receive_data(int i, const uint8_t data) "[%d] 0x%02x"
 cuda_packet_send(int len) "length %d"
 cuda_packet_send_data(int i, const uint8_t data) "[%d] 0x%02x"
 
-# hw/misc/macio/macio.c
+# macio.c
 macio_timer_write(uint64_t addr, unsigned len, uint64_t val) "write addr 0x%"PRIx64 " len %d val 0x%"PRIx64
 macio_timer_read(uint64_t addr, unsigned len, uint32_t val) "read addr 0x%"PRIx64 " len %d val 0x%"PRIx32
 
-# hw/misc/macio/gpio.c
+# gpio.c
 macio_set_gpio(int gpio, bool state) "setting GPIO %d to %d"
 macio_gpio_irq_assert(int gpio) "asserting GPIO %d"
 macio_gpio_irq_deassert(int gpio) "deasserting GPIO %d"
 macio_gpio_write(uint64_t addr, uint64_t val) "addr: 0x%"PRIx64" value: 0x%"PRIx64
-macio_gpio_read(uint64_t addr, uint64_t val) "addr: 0x%"PRIx64" value: 0x%"PRIx64
 
-# hw/misc/macio/pmu.c
+# pmu.c
 pmu_adb_poll(int olen) "ADB autopoll, olen=%d"
 pmu_one_sec_timer(void) "PMU one sec..."
 pmu_cmd_set_int_mask(int intmask) "Setting PMU int mask to 0x%02x"

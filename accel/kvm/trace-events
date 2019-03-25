@@ -1,4 +1,4 @@
-# Trace events for debugging and performance instrumentation
+# See docs/devel/tracing.txt for syntax documentation.
 
 # kvm-all.c
 kvm_ioctl(int type, void *arg) "type 0x%x, arg %p"

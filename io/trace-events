@@ -1,6 +1,6 @@
 # See docs/devel/tracing.txt for syntax documentation.
 
-# io/task.c
+# task.c
 qio_task_new(void *task, void *source, void *func, void *opaque) "Task new task=%p source=%p func=%p opaque=%p"
 qio_task_complete(void *task) "Task complete task=%p"
 qio_task_thread_start(void *task, void *worker, void *opaque) "Task thread start task=%p worker=%p opaque=%p"
@@ -10,7 +10,7 @@ qio_task_thread_result(void *task) "Task thread result task=%p"
 qio_task_thread_source_attach(void *task, void *source) "Task thread source attach task=%p source=%p"
 qio_task_thread_source_cancel(void *task, void *source) "Task thread source cancel task=%p source=%p"
 
-# io/channel-socket.c
+# channel-socket.c
 qio_channel_socket_new(void *ioc) "Socket new ioc=%p"
 qio_channel_socket_new_fd(void *ioc, int fd) "Socket new ioc=%p fd=%d"
 qio_channel_socket_connect_sync(void *ioc, void *addr) "Socket connect sync ioc=%p addr=%p"
@@ -29,11 +29,11 @@ qio_channel_socket_accept(void *ioc) "Socket accept start ioc=%p"
 qio_channel_socket_accept_fail(void *ioc) "Socket accept fail ioc=%p"
 qio_channel_socket_accept_complete(void *ioc, void *cioc, int fd) "Socket accept complete ioc=%p cioc=%p fd=%d"
 
-# io/channel-file.c
+# channel-file.c
 qio_channel_file_new_fd(void *ioc, int fd) "File new fd ioc=%p fd=%d"
 qio_channel_file_new_path(void *ioc, const char *path, int flags, int mode, int fd) "File new fd ioc=%p path=%s flags=%d mode=%d fd=%d"
 
-# io/channel-tls.c
+# channel-tls.c
 qio_channel_tls_new_client(void *ioc, void *master, void *creds, const char *hostname) "TLS new client ioc=%p master=%p creds=%p hostname=%s"
 qio_channel_tls_new_server(void *ioc, void *master, void *creds, const char *aclname) "TLS new client ioc=%p master=%p creds=%p acltname=%s"
 qio_channel_tls_handshake_start(void *ioc) "TLS handshake start ioc=%p"
@@ -43,7 +43,7 @@ qio_channel_tls_handshake_complete(void *ioc) "TLS handshake complete ioc=%p"
 qio_channel_tls_credentials_allow(void *ioc) "TLS credentials allow ioc=%p"
 qio_channel_tls_credentials_deny(void *ioc) "TLS credentials deny ioc=%p"
 
-# io/channel-websock.c
+# channel-websock.c
 qio_channel_websock_new_server(void *ioc, void *master) "Websock new client ioc=%p master=%p"
 qio_channel_websock_handshake_start(void *ioc) "Websock handshake start ioc=%p"
 qio_channel_websock_handshake_pending(void *ioc, int status) "Websock handshake pending ioc=%p status=%d"
@@ -58,7 +58,7 @@ qio_channel_websock_payload_decode(void *ioc, uint8_t opcode, size_t payload_rem
 qio_channel_websock_encode(void *ioc, uint8_t opcode, size_t payloadlen, size_t headerlen) "Websocket encoded ioc=%p opcode=0x%x header-len=%zu payload-len=%zu"
 qio_channel_websock_close(void *ioc) "Websocket close ioc=%p"
 
-# io/channel-command.c
+# channel-command.c
 qio_channel_command_new_pid(void *ioc, int writefd, int readfd, int pid) "Command new pid ioc=%p writefd=%d readfd=%d pid=%d"
 qio_channel_command_new_spawn(void *ioc, const char *binary, int flags) "Command new spawn ioc=%p binary=%s flags=%d"
 qio_channel_command_abort(void *ioc, int pid) "Command abort ioc=%p pid=%d"

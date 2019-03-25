@@ -1,12 +1,12 @@
 # See docs/devel/tracing.txt for syntax documentation.
 
-# hw/dma/rc4030.c
+# rc4030.c
 jazzio_read(uint64_t addr, uint32_t ret) "read reg[0x%"PRIx64"] = 0x%x"
 jazzio_write(uint64_t addr, uint32_t val) "write reg[0x%"PRIx64"] = 0x%x"
 rc4030_read(uint64_t addr, uint32_t ret) "read reg[0x%"PRIx64"] = 0x%x"
 rc4030_write(uint64_t addr, uint32_t val) "write reg[0x%"PRIx64"] = 0x%x"
 
-# hw/dma/sparc32_dma.c
+# sparc32_dma.c
 ledma_memory_read(uint64_t addr, int len) "DMA read addr 0x%"PRIx64 " len %d"
 ledma_memory_write(uint64_t addr, int len) "DMA write addr 0x%"PRIx64 " len %d"
 sparc32_dma_set_irq_raise(void) "Raise IRQ"
@@ -18,5 +18,5 @@ sparc32_dma_mem_writel(uint64_t addr, uint32_t old, uint32_t val) "write dmareg 
 sparc32_dma_enable_raise(void) "Raise DMA enable"
 sparc32_dma_enable_lower(void) "Lower DMA enable"
 
-# hw/dma/i8257.c
+# i8257.c
 i8257_unregistered_dma(int nchan, int dma_pos, int dma_len) "unregistered DMA channel used nchan=%d dma_pos=%d dma_len=%d"

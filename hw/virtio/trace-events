@@ -1,6 +1,6 @@
 # See docs/devel/tracing.txt for syntax documentation.
 
-# hw/virtio/vhost.c
+# vhost.c
 vhost_commit(bool started, bool changed) "Started: %d Changed: %d"
 vhost_region_add_section(const char *name, uint64_t gpa, uint64_t size, uint64_t host) "%s: 0x%"PRIx64"+0x%"PRIx64" @ 0x%"PRIx64
 vhost_region_add_section_merge(const char *name, uint64_t new_size, uint64_t gpa, uint64_t owr) "%s: size: 0x%"PRIx64 " gpa: 0x%"PRIx64 " owr: 0x%"PRIx64
@@ -8,7 +8,7 @@ vhost_region_add_section_aligned(const char *name, uint64_t gpa, uint64_t size, 
 vhost_section(const char *name, int r) "%s:%d"
 vhost_iotlb_miss(void *dev, int step) "%p step %d"
 
-# hw/virtio/vhost-user.c
+# vhost-user.c
 vhost_user_postcopy_end_entry(void) ""
 vhost_user_postcopy_end_exit(void) ""
 vhost_user_postcopy_fault_handler(const char *name, uint64_t fault_address, int nregions) "%s: @0x%"PRIx64" nregions:%d"
@@ -21,7 +21,7 @@ vhost_user_postcopy_waker(const char *rb, uint64_t rb_offset) "%s + 0x%"PRIx64
 vhost_user_postcopy_waker_found(uint64_t client_addr) "0x%"PRIx64
 vhost_user_postcopy_waker_nomatch(const char *rb, uint64_t rb_offset) "%s + 0x%"PRIx64
 
-# hw/virtio/virtio.c
+# virtio.c
 virtqueue_alloc_element(void *elem, size_t sz, unsigned in_num, unsigned out_num) "elem %p size %zd in_num %u out_num %u"
 virtqueue_fill(void *vq, const void *elem, unsigned int len, unsigned int idx) "vq %p elem %p len %u idx %u"
 virtqueue_flush(void *vq, unsigned int count) "vq %p count %u"
@@ -31,7 +31,7 @@ virtio_notify_irqfd(void *vdev, void *vq) "vdev %p vq %p"
 virtio_notify(void *vdev, void *vq) "vdev %p vq %p"
 virtio_set_status(void *vdev, uint8_t val) "vdev %p val %u"
 
-# hw/virtio/virtio-rng.c
+# virtio-rng.c
 virtio_rng_guest_not_ready(void *rng) "rng %p: guest not ready"
 virtio_rng_cpu_is_stopped(void *rng, int size) "rng %p: cpu is stopped, dropping %d bytes"
 virtio_rng_popped(void *rng) "rng %p: elem popped"
@@ -39,7 +39,7 @@ virtio_rng_pushed(void *rng, size_t len) "rng %p: %zd bytes pushed"
 virtio_rng_request(void *rng, size_t size, unsigned quota) "rng %p: %zd bytes requested, %u bytes quota left"
 virtio_rng_vm_state_change(void *rng, int running, int state) "rng %p: state change to running %d state %d"
 
-# hw/virtio/virtio-balloon.c
+# virtio-balloon.c
 #
 virtio_balloon_bad_addr(uint64_t gpa) "0x%"PRIx64
 virtio_balloon_handle_output(const char *name, uint64_t gpa) "section name: %s gpa: 0x%"PRIx64

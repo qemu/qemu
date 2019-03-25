@@ -1,9 +1,9 @@
 # See docs/devel/tracing.txt for syntax documentation.
 
-# hw/pci-host/grackle.c
+# grackle.c
 grackle_set_irq(int irq_num, int level) "set_irq num %d level %d"
 
-# hw/pci-host/sabre.c
+# sabre.c
 sabre_set_request(int irq_num) "request irq %d"
 sabre_clear_request(int irq_num) "clear request irq %d"
 sabre_config_write(uint64_t addr, uint64_t val) "addr 0x%"PRIx64" val 0x%"PRIx64
@@ -13,7 +13,7 @@ sabre_pci_config_read(uint64_t addr, uint64_t val) "addr 0x%"PRIx64" val 0x%"PRI
 sabre_pci_set_irq(int irq_num, int level) "set irq_in %d level %d"
 sabre_pci_set_obio_irq(int irq_num, int level) "set irq %d level %d"
 
-# hw/pci-host/uninorth.c
+# uninorth.c
 unin_set_irq(int irq_num, int level) "setting INT %d = %d"
 unin_get_config_reg(uint32_t reg, uint32_t addr, uint32_t retval) "converted config space accessor 0x%"PRIx32 "/0x%"PRIx32 " -> 0x%"PRIx32
 unin_data_write(uint64_t addr, unsigned len, uint64_t val) "write addr 0x%"PRIx64 " len %d val 0x%"PRIx64

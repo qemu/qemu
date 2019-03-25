@@ -1,6 +1,6 @@
 # See docs/devel/tracing.txt for syntax documentation.
 
-# hw/scsi/scsi-bus.c
+# scsi-bus.c
 scsi_req_alloc(int target, int lun, int tag) "target %d lun %d tag %d"
 scsi_req_cancel(int target, int lun, int tag) "target %d lun %d tag %d"
 scsi_req_data(int target, int lun, int tag, int len) "target %d lun %d tag %d len %d"
@@ -18,7 +18,7 @@ scsi_inquiry(int target, int lun, int tag, int cdb1, int cdb2) "target %d lun %d
 scsi_test_unit_ready(int target, int lun, int tag) "target %d lun %d tag %d"
 scsi_request_sense(int target, int lun, int tag) "target %d lun %d tag %d"
 
-# hw/scsi/mptsas.c
+# mptsas.c
 mptsas_command_complete(void *dev, uint32_t ctx, uint32_t status, uint32_t resid) "dev %p context 0x%08x status 0x%x resid %d"
 mptsas_diag_read(void *dev, uint32_t addr, uint32_t val) "dev %p addr 0x%08x value 0x%08x"
 mptsas_diag_write(void *dev, uint32_t addr, uint32_t val) "dev %p addr 0x%08x value 0x%08x"
@@ -36,11 +36,11 @@ mptsas_sgl_overflow(void *dev, uint32_t ctx, uint64_t req, uint64_t found) "dev 
 mptsas_unhandled_cmd(void *dev, uint32_t ctx, uint8_t msg_cmd) "dev %p context 0x%08x: Unhandled cmd 0x%x"
 mptsas_unhandled_doorbell_cmd(void *dev, int cmd) "dev %p value 0x%08x"
 
-# hw/scsi/mptconfig.c
+# mptconfig.c
 mptsas_config_sas_device(void *dev, int address, int port, int phy_handle, int dev_handle, int page) "dev %p address %d (port %d, handles: phy %d dev %d) page %d"
 mptsas_config_sas_phy(void *dev, int address, int port, int phy_handle, int dev_handle, int page) "dev %p address %d (port %d, handles: phy %d dev %d) page %d"
 
-# hw/scsi/megasas.c
+# megasas.c
 megasas_init_firmware(uint64_t pa) "pa 0x%" PRIx64 " "
 megasas_init_queue(uint64_t queue_pa, int queue_len, uint64_t head, uint64_t tail, uint32_t flags) "queue at 0x%" PRIx64 " len %d head 0x%" PRIx64 " tail 0x%" PRIx64 " flags 0x%x"
 megasas_initq_map_failed(int frame) "scmd %d: failed to map queue"
@@ -118,7 +118,7 @@ megasas_mmio_invalid_readl(unsigned long addr) "addr 0x%lx"
 megasas_mmio_writel(const char *reg, uint32_t val) "reg %s: 0x%x"
 megasas_mmio_invalid_writel(uint32_t addr, uint32_t val) "addr 0x%x: 0x%x"
 
-# hw/scsi/vmw_pvscsi.c
+# vmw_pvscsi.c
 pvscsi_ring_init_data(uint32_t txr_len_log2, uint32_t rxr_len_log2) "TX/RX rings logarithms set to %d/%d"
 pvscsi_ring_init_msg(uint32_t len_log2) "MSG ring logarithm set to %d"
 pvscsi_ring_flush_cmp(uint64_t filled_cmp_ptr) "new production counter of completion ring is 0x%"PRIx64
@@ -153,7 +153,7 @@ pvscsi_state(const char* state) "starting %s ..."
 pvscsi_tx_rings_ppn(const char* label, uint64_t ppn) "%s page: 0x%"PRIx64
 pvscsi_tx_rings_num_pages(const char* label, uint32_t num) "Number of %s pages: %u"
 
-# hw/scsi/esp.c
+# esp.c
 esp_error_fifo_overrun(void) "FIFO overrun"
 esp_error_unhandled_command(uint32_t val) "unhandled command (0x%2.2x)"
 esp_error_invalid_write(uint32_t val, uint32_t addr) "invalid write of 0x%02x at [0x%x]"
@@ -190,7 +190,7 @@ esp_mem_writeb_cmd_selatns(uint32_t val) "Select with ATN & stop (0x%2.2x)"
 esp_mem_writeb_cmd_ensel(uint32_t val) "Enable selection (0x%2.2x)"
 esp_mem_writeb_cmd_dissel(uint32_t val) "Disable selection (0x%2.2x)"
 
-# hw/scsi/esp-pci.c
+# esp-pci.c
 esp_pci_error_invalid_dma_direction(void) "invalid DMA transfer direction"
 esp_pci_error_invalid_read(uint32_t reg) "read access outside bounds (reg 0x%x)"
 esp_pci_error_invalid_write(uint32_t reg) "write access outside bounds (reg 0x%x)"
@@ -204,7 +204,7 @@ esp_pci_dma_start(uint32_t val) "START (0x%.8x)"
 esp_pci_sbac_read(uint32_t reg) "sbac: 0x%8.8x"
 esp_pci_sbac_write(uint32_t reg, uint32_t val) "sbac: 0x%8.8x -> 0x%8.8x"
 
-# hw/scsi/spapr_vscsi.c
+# spapr_vscsi.c
 spapr_vscsi_send_rsp(uint8_t status, int32_t res_in, int32_t res_out) "status: 0x%x, res_in: %"PRId32", res_out: %"PRId32
 spapr_vscsi_fetch_desc_no_data(void) "no data descriptor"
 spapr_vscsi_fetch_desc_direct(void) "direct segment"
@@ -231,7 +231,7 @@ spapr_vscsi_queue_cmd_no_drive(uint64_t lun) "Command for lun 0x%08" PRIx64 " wi
 spapr_vscsi_queue_cmd(uint32_t qtag, unsigned cdb, const char *cmd, int lun, int ret) "Queued command tag 0x%"PRIx32" CMD 0x%x=%s LUN %d ret: %d"
 spapr_vscsi_do_crq(unsigned c0, unsigned c1) "crq: %02x %02x ..."
 
-# hw/scsi/lsi53c895a.c
+# lsi53c895a.c
 lsi_reset(void) "Reset"
 lsi_update_irq(int level, uint8_t dstat, uint8_t sist1, uint8_t sist0) "Update IRQ level %d dstat 0x%02x sist 0x%02x0x%02x"
 lsi_update_irq_disconnected(void) "Handled IRQs & disconnected, looking for pending processes"
@@ -293,7 +293,7 @@ lsi_awoken(void) "Woken by SIGP"
 lsi_reg_read(const char *name, int offset, uint8_t ret) "Read reg %s 0x%x = 0x%02x"
 lsi_reg_write(const char *name, int offset, uint8_t val) "Write reg %s 0x%x = 0x%02x"
 
-# hw/scsi/scsi-disk.c
+# scsi-disk.c
 scsi_disk_check_condition(uint32_t tag, uint8_t key, uint8_t asc, uint8_t ascq) "Command complete tag=0x%x sense=%d/%d/%d"
 scsi_disk_read_complete(uint32_t tag, size_t size) "Data ready tag=0x%x len=%zd"
 scsi_disk_read_data_count(uint32_t sector_count) "Read sector_count=%d"
@@ -322,7 +322,7 @@ scsi_disk_dma_command_READ(uint64_t lba, uint32_t len) "Read (sector %" PRId64 "
 scsi_disk_dma_command_WRITE(const char *cmd, uint64_t lba, int len) "Write %s(sector %" PRId64 ", count %u)"
 scsi_disk_new_request(uint32_t lun, uint32_t tag, const char *line) "Command: lun=%d tag=0x%x data=%s"
 
-# hw/scsi/scsi-generic.c
+# scsi-generic.c
 scsi_generic_command_complete_noio(void *req, uint32_t tag, int statuc) "Command complete %p tag=0x%x status=%d"
 scsi_generic_read_complete(uint32_t tag, int len) "Data ready tag=0x%x len=%d"
 scsi_generic_read_data(uint32_t tag) "scsi_read_data tag=0x%x"

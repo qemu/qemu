@@ -1,16 +1,16 @@
 # See docs/devel/tracing.txt for syntax documentation.
 
-# hw/usb/core.c
+# core.c
 usb_packet_state_change(int bus, const char *port, int ep, void *p, const char *o, const char *n) "bus %d, port %s, ep %d, packet %p, state %s -> %s"
 usb_packet_state_fault(int bus, const char *port, int ep, void *p, const char *o, const char *n) "bus %d, port %s, ep %d, packet %p, state %s, expected %s"
 
-# hw/usb/bus.c
+# bus.c
 usb_port_claim(int bus, const char *port) "bus %d, port %s"
 usb_port_attach(int bus, const char *port, const char *devspeed, const char *portspeed) "bus %d, port %s, devspeed %s, portspeed %s"
 usb_port_detach(int bus, const char *port) "bus %d, port %s"
 usb_port_release(int bus, const char *port) "bus %d, port %s"
 
-# hw/usb/hcd-ohci.c
+# hcd-ohci.c
 usb_ohci_iso_td_read_failed(uint32_t addr) "ISO_TD read error at 0x%x"
 usb_ohci_iso_td_head(uint32_t head, uint32_t tail, uint32_t flags, uint32_t bp, uint32_t next, uint32_t be, uint32_t framenum, uint32_t startframe, uint32_t framecount, int rel_frame_num) "ISO_TD ED head 0x%.8x tailp 0x%.8x\n0x%.8x 0x%.8x 0x%.8x 0x%.8x\nframe_number 0x%.8x starting_frame 0x%.8x\nframe_count  0x%.8x relative %d"
 usb_ohci_iso_td_head_offset(uint32_t o0, uint32_t o1, uint32_t o2, uint32_t o3, uint32_t o4, uint32_t o5, uint32_t o6, uint32_t o7) "0x%.8x 0x%.8x 0x%.8x 0x%.8x 0x%.8x 0x%.8x 0x%.8x 0x%.8x"
@@ -67,7 +67,7 @@ usb_ohci_init_time(int64_t frametime, int64_t bittime) "usb_bit_time=%" PRId64 "
 usb_ohci_die(void) ""
 usb_ohci_async_complete(void) ""
 
-# hw/usb/hcd-ehci.c
+# hcd-ehci.c
 usb_ehci_reset(void) "=== RESET ==="
 usb_ehci_unrealize(void) "=== UNREALIZE ==="
 usb_ehci_opreg_read(uint32_t addr, const char *str, uint32_t val) "rd mmio 0x%04x [%s] = 0x%x"
@@ -100,7 +100,7 @@ usb_ehci_doorbell_ring(void) ""
 usb_ehci_doorbell_ack(void) ""
 usb_ehci_dma_error(void) ""
 
-# hw/usb/hcd-uhci.c
+# hcd-uhci.c
 usb_uhci_reset(void) "=== RESET ==="
 usb_uhci_exit(void) "=== EXIT ==="
 usb_uhci_schedule_start(void) ""
@@ -130,7 +130,7 @@ usb_uhci_td_nextqh(uint32_t qh, uint32_t td) "qh 0x%x, td 0x%x"
 usb_uhci_td_async(uint32_t qh, uint32_t td) "qh 0x%x, td 0x%x"
 usb_uhci_td_complete(uint32_t qh, uint32_t td) "qh 0x%x, td 0x%x"
 
-# hw/usb/hcd-xhci.c
+# hcd-xhci.c
 usb_xhci_reset(void) "=== RESET ==="
 usb_xhci_exit(void) "=== EXIT ==="
 usb_xhci_run(void) ""
@@ -176,7 +176,7 @@ usb_xhci_xfer_error(void *xfer, uint32_t ret) "%p: ret %d"
 usb_xhci_unimplemented(const char *item, int nr) "%s (0x%x)"
 usb_xhci_enforced_limit(const char *item) "%s"
 
-# hw/usb/desc.c
+# desc.c
 usb_desc_device(int addr, int len, int ret) "dev %d query device, len %d, ret %d"
 usb_desc_device_qualifier(int addr, int len, int ret) "dev %d query device qualifier, len %d, ret %d"
 usb_desc_config(int addr, int index, int len, int ret) "dev %d query config %d, len %d, ret %d"
@@ -190,7 +190,7 @@ usb_set_interface(int addr, int iface, int alt, int ret) "dev %d, interface %d, 
 usb_clear_device_feature(int addr, int feature, int ret) "dev %d, feature %d, ret %d"
 usb_set_device_feature(int addr, int feature, int ret) "dev %d, feature %d, ret %d"
 
-# hw/usb/dev-hub.c
+# dev-hub.c
 usb_hub_reset(int addr) "dev %d"
 usb_hub_control(int addr, int request, int value, int index, int length) "dev %d, req 0x%x, value %d, index %d, langth %d"
 usb_hub_get_port_status(int addr, int nr, int status, int changed) "dev %d, port %d, status 0x%x, changed 0x%x"
@@ -200,7 +200,7 @@ usb_hub_attach(int addr, int nr) "dev %d, port %d"
 usb_hub_detach(int addr, int nr) "dev %d, port %d"
 usb_hub_status_report(int addr, int status) "dev %d, status 0x%x"
 
-# hw/usb/dev-uas.c
+# dev-uas.c
 usb_uas_reset(int addr) "dev %d"
 usb_uas_command(int addr, uint16_t tag, int lun, uint32_t lun64_1, uint32_t lun64_2) "dev %d, tag 0x%x, lun %d, lun64 0x%08x-0x%08x"
 usb_uas_response(int addr, uint16_t tag, uint8_t code) "dev %d, tag 0x%x, code 0x%x"
@@ -214,7 +214,7 @@ usb_uas_tmf_abort_task(int addr, uint16_t tag, uint16_t task_tag) "dev %d, tag 0
 usb_uas_tmf_logical_unit_reset(int addr, uint16_t tag, int lun) "dev %d, tag 0x%x, lun %d"
 usb_uas_tmf_unsupported(int addr, uint16_t tag, uint32_t function) "dev %d, tag 0x%x, function 0x%x"
 
-# hw/usb/dev-mtp.c
+# dev-mtp.c
 usb_mtp_reset(int addr) "dev %d"
 usb_mtp_command(int dev, uint16_t code, uint32_t trans, uint32_t arg0, uint32_t arg1, uint32_t arg2, uint32_t arg3, uint32_t arg4) "dev %d, code 0x%x, trans 0x%x, args 0x%x, 0x%x, 0x%x, 0x%x, 0x%x"
 usb_mtp_success(int dev, uint32_t trans, uint32_t arg0, uint32_t arg1) "dev %d, trans 0x%x, args 0x%x, 0x%x"
@@ -239,7 +239,7 @@ usb_mtp_object_free(int dev, uint32_t handle, const char *path) "dev %d, handle 
 usb_mtp_add_child(int dev, uint32_t handle, const char *path) "dev %d, handle 0x%x, path %s"
 usb_mtp_file_monitor_event(int dev, const char *path, const char *s) "dev %d, path %s event %s"
 
-# hw/usb/host-libusb.c
+# host-libusb.c
 usb_host_open_started(int bus, int addr) "dev %d:%d"
 usb_host_open_success(int bus, int addr) "dev %d:%d"
 usb_host_open_failure(int bus, int addr) "dev %d:%d"

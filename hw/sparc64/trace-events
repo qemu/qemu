@@ -1,14 +1,14 @@
 # See docs/devel/tracing.txt for syntax documentation.
 
-# hw/sparc64/sun4u.c
+# sun4u.c
 ebus_isa_irq_handler(int n, int level) "Set ISA IRQ %d level %d"
 
-# hw/sparc64/sun4u_iommu.c
+# sun4u_iommu.c
 sun4u_iommu_mem_read(uint64_t addr, uint64_t val, int size) "addr: 0x%"PRIx64" val: 0x%"PRIx64" size: %d"
 sun4u_iommu_mem_write(uint64_t addr, uint64_t val, int size) "addr: 0x%"PRIx64" val: 0x%"PRIx64" size: %d"
 sun4u_iommu_translate(uint64_t addr, uint64_t trans_addr, uint64_t tte) "xlate 0x%"PRIx64" => pa 0x%"PRIx64" tte: 0x%"PRIx64
 
-# hw/sparc64/sparc64.c
+# sparc64.c
 sparc64_cpu_check_irqs_reset_irq(int intno) "Reset CPU IRQ (current interrupt 0x%x)"
 sparc64_cpu_check_irqs_noset_irq(uint32_t tl, uint32_t tt, int intno) "Not setting CPU IRQ: TL=%d current 0x%x >= pending 0x%x"
 sparc64_cpu_check_irqs_set_irq(unsigned int i, int old, int new) "Set CPU IRQ %d old=0x%x new=0x%x"

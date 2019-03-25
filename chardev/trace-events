@@ -1,6 +1,6 @@
 # See docs/devel/tracing.txt for syntax documentation.
 
-# chardev/wctablet.c
+# wctablet.c
 wct_init(void) ""
 wct_cmd_re(void) ""
 wct_cmd_st(void) ""
@@ -9,7 +9,7 @@ wct_cmd_ts(int input) "0x%02x"
 wct_cmd_other(const char *cmd) "%s"
 wct_speed(int speed) "%d"
 
-# chardev/spice.c
+# spice.c
 spice_chr_discard_write(int len) "spice chr write discarded %d"
 spice_vmc_write(ssize_t out, int len) "spice wrote %zd of requested %d"
 spice_vmc_read(int bytes, int len) "spice read %d of requested %d"

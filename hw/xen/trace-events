@@ -1,6 +1,6 @@
 # See docs/devel/tracing.txt for syntax documentation.
 
-# include/hw/xen/xen_common.h
+# ../../include/hw/xen/xen_common.h
 xen_default_ioreq_server(void) ""
 xen_ioreq_server_create(uint32_t id) "id: %u"
 xen_ioreq_server_destroy(uint32_t id) "id: %u"
@@ -13,7 +13,7 @@ xen_map_pcidev(uint32_t id, uint8_t bus, uint8_t dev, uint8_t func) "id: %u bdf:
 xen_unmap_pcidev(uint32_t id, uint8_t bus, uint8_t dev, uint8_t func) "id: %u bdf: %02x.%02x.%02x"
 xen_domid_restrict(int err) "err: %u"
 
-# include/hw/xen/xen-bus.c
+# xen-bus.c
 xen_bus_realize(void) ""
 xen_bus_unrealize(void) ""
 xen_bus_enumerate(void) ""
@@ -31,7 +31,7 @@ xen_device_frontend_state(const char *type, char *name, const char *state) "type
 xen_device_frontend_changed(const char *type, char *name) "type: %s name: %s"
 xen_device_unplug(const char *type, char *name) "type: %s name: %s"
 
-# include/hw/xen/xen-bus-helper.c
+# xen-bus-helper.c
 xs_node_create(const char *node) "%s"
 xs_node_destroy(const char *node) "%s"
 xs_node_vprintf(char *path, char *value) "%s %s"

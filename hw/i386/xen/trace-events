@@ -1,7 +1,9 @@
-# hw/i386/xen/xen_platform.c
+# See docs/devel/tracing.txt for syntax documentation.
+
+# xen_platform.c
 xen_platform_log(char *s) "xen platform: %s"
 
-# hw/i386/xen/xen_pvdevice.c
+# xen_pvdevice.c
 xen_pv_mmio_read(uint64_t addr) "WARNING: read from Xen PV Device MMIO space (address 0x%"PRIx64")"
 xen_pv_mmio_write(uint64_t addr) "WARNING: write to Xen PV Device MMIO space (address 0x%"PRIx64")"
 

@@ -1,15 +1,15 @@
 # See docs/devel/tracing.txt for syntax documentation.
 
-# net/announce.c
+# announce.c
 qemu_announce_self_iter(const char *mac) "%s"
 
-# net/vhost-user.c
+# vhost-user.c
 vhost_user_event(const char *chr, int event) "chr: %s got event: %d"
 
-# net/colo.c
+# colo.c
 colo_proxy_main(const char *chr) ": %s"
 
-# net/colo-compare.c
+# colo-compare.c
 colo_compare_main(const char *chr) ": %s"
 colo_compare_udp_miscompare(const char *sta, int size) ": %s = %d"
 colo_compare_icmp_miscompare(const char *sta, int size) ": %s = %d"
@@ -18,7 +18,7 @@ colo_old_packet_check_found(int64_t old_time) "%" PRId64
 colo_compare_miscompare(void) ""
 colo_compare_tcp_info(const char *pkt, uint32_t seq, uint32_t ack, int hdlen, int pdlen, int offset, int flags) "%s: seq/ack= %u/%u hdlen= %d pdlen= %d offset= %d flags=%d\n"
 
-# net/filter-rewriter.c
+# filter-rewriter.c
 colo_filter_rewriter_debug(void) ""
 colo_filter_rewriter_pkt_info(const char *func, const char *src, const char *dst, uint32_t seq, uint32_t ack, uint32_t flag) "%s: src/dst: %s/%s p: seq/ack=%u/%u  flags=0x%x\n"
 colo_filter_rewriter_conn_offset(uint32_t offset) ": offset=%u\n"
