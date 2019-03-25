@@ -111,7 +111,7 @@ static QObject *do_qmp_dispatch(QmpCommandList *cmds, QObject *request,
     if (oob && !(cmd->options & QCO_ALLOW_OOB)) {
         error_setg(errp, "The command %s does not support OOB",
                    command);
-        return false;
+        return NULL;
     }
 
     if (runstate_check(RUN_STATE_PRECONFIG) &&
