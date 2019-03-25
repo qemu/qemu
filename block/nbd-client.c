@@ -769,12 +769,9 @@ static int nbd_co_receive_blockstatus_reply(NBDClientSession *s,
         payload = NULL;
     }
 
-    if (!extent->length && !iter.err) {
-        error_setg(&iter.err,
-                   "Server did not reply with any status extents");
-        if (!iter.ret) {
-            iter.ret = -EIO;
-        }
+    if (!extent->length && !iter.request_ret) {
+        error_setg(&local_err, "Server did not reply with any status extents");
+        nbd_iter_channel_error(&iter, -EIO, &local_err);
     }
 
     error_propagate(errp, iter.err);
