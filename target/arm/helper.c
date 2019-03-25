@@ -1259,6 +1259,10 @@ static bool pmu_counter_enabled(CPUARMState *env, uint8_t counter)
     int el = arm_current_el(env);
     uint8_t hpmn = env->cp15.mdcr_el2 & MDCR_HPMN;
 
+    if (!arm_feature(env, ARM_FEATURE_PMU)) {
+        return false;
+    }
+
     if (!arm_feature(env, ARM_FEATURE_EL2) ||
             (counter < hpmn || counter == 31)) {
         e = env->cp15.c9_pmcr & PMCRE;
