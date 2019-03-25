@@ -1337,7 +1337,7 @@ static void pmu_update_irq(CPUARMState *env)
  * etc. can be done logically. This is essentially a no-op if the counter is
  * not enabled at the time of the call.
  */
-void pmccntr_op_start(CPUARMState *env)
+static void pmccntr_op_start(CPUARMState *env)
 {
     uint64_t cycles = cycles_get_count(env);
 
@@ -1367,7 +1367,7 @@ void pmccntr_op_start(CPUARMState *env)
  * guest-visible count. A call to pmccntr_op_finish should follow every call to
  * pmccntr_op_start.
  */
-void pmccntr_op_finish(CPUARMState *env)
+static void pmccntr_op_finish(CPUARMState *env)
 {
     if (pmu_counter_enabled(env, 31)) {
 #ifndef CONFIG_USER_ONLY
