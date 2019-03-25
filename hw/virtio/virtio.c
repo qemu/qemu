@@ -2318,6 +2318,11 @@ hwaddr virtio_queue_get_desc_addr(VirtIODevice *vdev, int n)
     return vdev->vq[n].vring.desc;
 }
 
+bool virtio_queue_enabled(VirtIODevice *vdev, int n)
+{
+    return virtio_queue_get_desc_addr(vdev, n) != 0;
+}
+
 hwaddr virtio_queue_get_avail_addr(VirtIODevice *vdev, int n)
 {
     return vdev->vq[n].vring.avail;

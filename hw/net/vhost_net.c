@@ -244,6 +244,11 @@ static int vhost_net_start_one(struct vhost_net *net,
         qemu_set_fd_handler(net->backend, NULL, NULL, NULL);
         file.fd = net->backend;
         for (file.index = 0; file.index < net->dev.nvqs; ++file.index) {
+            if (!virtio_queue_enabled(dev, net->dev.vq_index +
+                                      file.index)) {
+                /* Queue might not be ready for start */
+                continue;
+            }
             r = vhost_net_set_backend(&net->dev, &file);
             if (r < 0) {
                 r = -errno;
@@ -256,6 +261,11 @@ fail:
     file.fd = -1;
     if (net->nc->info->type == NET_CLIENT_DRIVER_TAP) {
         while (file.index-- > 0) {
+            if (!virtio_queue_enabled(dev, net->dev.vq_index +
+                                      file.index)) {
+                /* Queue might not be ready for start */
+                continue;
+            }
             int r = vhost_net_set_backend(&net->dev, &file);
             assert(r >= 0);
         }
