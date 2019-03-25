@@ -151,15 +151,15 @@ docker:
 	@echo
 	@echo '    docker:              Print this help.'
 	@echo '    docker-all-tests:    Run all image/test combinations.'
-	@echo '    docker-TEST:         Run TEST on all image combinations.'
+	@echo '    docker-TEST:         Run "TEST" on all image combinations.'
 	@echo '    docker-clean:        Kill and remove residual docker testing containers.'
 	@echo '    docker-TEST@IMAGE:   Run "TEST" in container "IMAGE".'
 	@echo '                         Note: "TEST" is one of the listed test name,'
 	@echo '                         or a script name under $$QEMU_SRC/tests/docker/;'
-	@echo '                         "IMAGE" is one of the listed container name."'
+	@echo '                         "IMAGE" is one of the listed container name.'
 	@echo '    docker-image:        Build all images.'
 	@echo '    docker-image-IMAGE:  Build image "IMAGE".'
-	@echo '    docker-run:          For manually running a "TEST" with "IMAGE"'
+	@echo '    docker-run:          For manually running a "TEST" with "IMAGE".'
 	@echo
 	@echo 'Available container images:'
 	@echo '    $(DOCKER_IMAGES)'

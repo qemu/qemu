@@ -1596,6 +1596,9 @@ float32_muladd(float32 xa, float32 xb, float32 xc, int flags, float_status *s)
         }
         ur.h = up.h + uc.h;
     } else {
+        union_float32 ua_orig = ua;
+        union_float32 uc_orig = uc;
+
         if (flags & float_muladd_negate_product) {
             ua.h = -ua.h;
         }
@@ -1608,6 +1611,8 @@ float32_muladd(float32 xa, float32 xb, float32 xc, int flags, float_status *s)
         if (unlikely(f32_is_inf(ur))) {
             s->float_exception_flags |= float_flag_overflow;
         } else if (unlikely(fabsf(ur.h) <= FLT_MIN)) {
+            ua = ua_orig;
+            uc = uc_orig;
             goto soft;
         }
     }
@@ -1662,6 +1667,9 @@ float64_muladd(float64 xa, float64 xb, float64 xc, int flags, float_status *s)
         }
         ur.h = up.h + uc.h;
     } else {
+        union_float64 ua_orig = ua;
+        union_float64 uc_orig = uc;
+
         if (flags & float_muladd_negate_product) {
             ua.h = -ua.h;
         }
@@ -1674,6 +1682,8 @@ float64_muladd(float64 xa, float64 xb, float64 xc, int flags, float_status *s)
         if (unlikely(f64_is_inf(ur))) {
             s->float_exception_flags |= float_flag_overflow;
         } else if (unlikely(fabs(ur.h) <= FLT_MIN)) {
+            ua = ua_orig;
+            uc = uc_orig;
             goto soft;
         }
     }

@@ -327,6 +327,7 @@ git="git"
 
 # Don't accept a target_list environment variable.
 unset target_list
+unset target_list_exclude
 
 # Default value for a variable defining feature "foo".
 #  * foo="no"  feature will only be used if --enable-foo arg is given
@@ -990,6 +991,14 @@ for opt do
   --cpu=*)
   ;;
   --target-list=*) target_list="$optarg"
+                   if test "$target_list_exclude"; then
+                       error_exit "Can't mix --target-list with --target-list-exclude"
+                   fi
+  ;;
+  --target-list-exclude=*) target_list_exclude="$optarg"
+                   if test "$target_list"; then
+                       error_exit "Can't mix --target-list-exclude with --target-list"
+                   fi
   ;;
   --enable-trace-backends=*) trace_backends="$optarg"
   ;;
@@ -1601,9 +1610,26 @@ if [ "$bsd_user" = "yes" ]; then
     mak_wilds="${mak_wilds} $source_path/default-configs/*-bsd-user.mak"
 fi
 
-for config in $mak_wilds; do
-    default_target_list="${default_target_list} $(basename "$config" .mak)"
-done
+if test -z "$target_list_exclude"; then
+    for config in $mak_wilds; do
+        default_target_list="${default_target_list} $(basename "$config" .mak)"
+    done
+else
+    exclude_list=$(echo "$target_list_exclude" | sed -e 's/,/ /g')
+    for config in $mak_wilds; do
+        target="$(basename "$config" .mak)"
+        exclude="no"
+        for excl in $exclude_list; do
+            if test "$excl" = "$target"; then
+                exclude="yes"
+                break;
+            fi
+        done
+        if test "$exclude" = "no"; then
+            default_target_list="${default_target_list} $target"
+        fi
+    done
+fi
 
 # Enumerate public trace backends for --help output
 trace_backend_list=$(echo $(grep -le '^PUBLIC = True$' "$source_path"/scripts/tracetool/backend/*.py | sed -e 's/^.*\/\(.*\)\.py$/\1/'))
@@ -1622,6 +1648,7 @@ Standard options:
   --target-list=LIST       set target list (default: build everything)
 $(echo Available targets: $default_target_list | \
   fold -s -w 53 | sed -e 's/^/                           /')
+  --target-list-exclude=LIST exclude a set of targets from the default target-list
 
 Advanced options (experts only):
   --source-path=PATH       path of source code [$source_path]

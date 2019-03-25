@@ -495,15 +495,15 @@ static int pickNaNMulAdd(FloatClass a_cls, FloatClass b_cls, FloatClass c_cls,
         return 1;
     }
 #elif defined(TARGET_MIPS)
-    /* For MIPS, the (inf,zero,qnan) case sets InvalidOp and returns
-     * the default NaN
-     */
-    if (infzero) {
-        float_raise(float_flag_invalid, status);
-        return 3;
-    }
-
     if (snan_bit_is_one(status)) {
+        /*
+         * For MIPS systems that conform to IEEE754-1985, the (inf,zero,nan)
+         * case sets InvalidOp and returns the default NaN
+         */
+        if (infzero) {
+            float_raise(float_flag_invalid, status);
+            return 3;
+        }
         /* Prefer sNaN over qNaN, in the a, b, c order. */
         if (is_snan(a_cls)) {
             return 0;
@@ -519,6 +519,14 @@ static int pickNaNMulAdd(FloatClass a_cls, FloatClass b_cls, FloatClass c_cls,
             return 2;
         }
     } else {
+        /*
+         * For MIPS systems that conform to IEEE754-2008, the (inf,zero,nan)
+         * case sets InvalidOp and returns the input value 'c'
+         */
+        if (infzero) {
+            float_raise(float_flag_invalid, status);
+            return 2;
+        }
         /* Prefer sNaN over qNaN, in the c, a, b order. */
         if (is_snan(c_cls)) {
             return 2;
