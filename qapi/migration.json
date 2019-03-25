@@ -401,7 +401,7 @@
 # @pause-before-switchover: Pause outgoing migration before serialising device
 #          state and before disabling block IO (since 2.11)
 #
-# @x-multifd: Use more than one fd for migration (since 2.11)
+# @multifd: Use more than one fd for migration (since 4.0)
 #
 # @dirty-bitmaps: If enabled, QEMU will migrate named dirty bitmaps.
 #                 (since 2.12)
@@ -420,7 +420,7 @@
 { 'enum': 'MigrationCapability',
   'data': ['xbzrle', 'rdma-pin-all', 'auto-converge', 'zero-blocks',
            'compress', 'events', 'postcopy-ram', 'x-colo', 'release-ram',
-           'block', 'return-path', 'pause-before-switchover', 'x-multifd',
+           'block', 'return-path', 'pause-before-switchover', 'multifd',
            'dirty-bitmaps', 'postcopy-blocktime', 'late-block-activate',
            'x-ignore-shared' ] }
 
@@ -541,6 +541,12 @@
 #                hostname must be provided so that the server's x509
 #                certificate identity can be validated. (Since 2.7)
 #
+# @tls-authz: ID of the 'authz' object subclass that provides access control
+#             checking of the TLS x509 certificate distinguished name.
+#             This object is only resolved at time of use, so can be deleted
+#             and recreated on the fly while the migration server is active.
+#             If missing, it will default to denying access (Since 4.0)
+#
 # @max-bandwidth: to set maximum speed for migration. maximum speed in
 #                 bytes per second. (Since 2.8)
 #
@@ -557,13 +563,10 @@
 # 	migrated and the destination must already have access to the
 # 	same backing chain as was used on the source.  (since 2.10)
 #
-# @x-multifd-channels: Number of channels used to migrate data in
-#                     parallel. This is the same number that the
-#                     number of sockets used for migration.  The
-#                     default value is 2 (since 2.11)
-#
-# @x-multifd-page-count: Number of pages sent together to a thread.
-#                        The default value is 16 (since 2.11)
+# @multifd-channels: Number of channels used to migrate data in
+#                    parallel. This is the same number that the
+#                    number of sockets used for migration.  The
+#                    default value is 2 (since 4.0)
 #
 # @xbzrle-cache-size: cache size to be used by XBZRLE migration.  It
 #                     needs to be a multiple of the target page size
@@ -585,9 +588,9 @@
            'compress-level', 'compress-threads', 'decompress-threads',
            'compress-wait-thread',
            'cpu-throttle-initial', 'cpu-throttle-increment',
-           'tls-creds', 'tls-hostname', 'max-bandwidth',
+           'tls-creds', 'tls-hostname', 'tls-authz', 'max-bandwidth',
            'downtime-limit', 'x-checkpoint-delay', 'block-incremental',
-           'x-multifd-channels', 'x-multifd-page-count',
+           'multifd-channels',
            'xbzrle-cache-size', 'max-postcopy-bandwidth',
            'max-cpu-throttle' ] }
 
@@ -662,13 +665,10 @@
 # 	migrated and the destination must already have access to the
 # 	same backing chain as was used on the source.  (since 2.10)
 #
-# @x-multifd-channels: Number of channels used to migrate data in
-#                     parallel. This is the same number that the
-#                     number of sockets used for migration.  The
-#                     default value is 2 (since 2.11)
-#
-# @x-multifd-page-count: Number of pages sent together to a thread.
-#                        The default value is 16 (since 2.11)
+# @multifd-channels: Number of channels used to migrate data in
+#                    parallel. This is the same number that the
+#                    number of sockets used for migration.  The
+#                    default value is 2 (since 4.0)
 #
 # @xbzrle-cache-size: cache size to be used by XBZRLE migration.  It
 #                     needs to be a multiple of the target page size
@@ -699,12 +699,12 @@
             '*cpu-throttle-increment': 'int',
             '*tls-creds': 'StrOrNull',
             '*tls-hostname': 'StrOrNull',
+            '*tls-authz': 'StrOrNull',
             '*max-bandwidth': 'int',
             '*downtime-limit': 'int',
             '*x-checkpoint-delay': 'int',
             '*block-incremental': 'bool',
-            '*x-multifd-channels': 'int',
-            '*x-multifd-page-count': 'int',
+            '*multifd-channels': 'int',
             '*xbzrle-cache-size': 'size',
             '*max-postcopy-bandwidth': 'size',
 	    '*max-cpu-throttle': 'int' } }
@@ -780,6 +780,10 @@
 #                associated with the migration URI, if any. (Since 2.9)
 #                Note: 2.8 reports this by omitting tls-hostname instead.
 #
+# @tls-authz: ID of the 'authz' object subclass that provides access control
+#             checking of the TLS x509 certificate distinguished name. (Since
+#             4.0)
+#
 # @max-bandwidth: to set maximum speed for migration. maximum speed in
 #                 bytes per second. (Since 2.8)
 #
@@ -795,13 +799,10 @@
 # 	migrated and the destination must already have access to the
 # 	same backing chain as was used on the source.  (since 2.10)
 #
-# @x-multifd-channels: Number of channels used to migrate data in
-#                     parallel. This is the same number that the
-#                     number of sockets used for migration.
-#                     The default value is 2 (since 2.11)
-#
-# @x-multifd-page-count: Number of pages sent together to a thread.
-#                        The default value is 16 (since 2.11)
+# @multifd-channels: Number of channels used to migrate data in
+#                    parallel. This is the same number that the
+#                    number of sockets used for migration.
+#                    The default value is 2 (since 4.0)
 #
 # @xbzrle-cache-size: cache size to be used by XBZRLE migration.  It
 #                     needs to be a multiple of the target page size
@@ -831,12 +832,12 @@
             '*cpu-throttle-increment': 'uint8',
             '*tls-creds': 'str',
             '*tls-hostname': 'str',
+            '*tls-authz': 'str',
             '*max-bandwidth': 'size',
             '*downtime-limit': 'uint64',
             '*x-checkpoint-delay': 'uint32',
             '*block-incremental': 'bool' ,
-            '*x-multifd-channels': 'uint8',
-            '*x-multifd-page-count': 'uint32',
+            '*multifd-channels': 'uint8',
             '*xbzrle-cache-size': 'size',
 	    '*max-postcopy-bandwidth': 'size',
             '*max-cpu-throttle':'uint8'} }
@@ -1037,19 +1038,22 @@
 ##
 # @COLOExitReason:
 #
-# The reason for a COLO exit
+# The reason for a COLO exit.
 #
-# @none: no failover has ever happened. This can't occur in the
-# COLO_EXIT event, only in the result of query-colo-status.
+# @none: failover has never happened. This state does not occur
+# in the COLO_EXIT event, and is only visible in the result of
+# query-colo-status.
 #
-# @request: COLO exit is due to an external request
+# @request: COLO exit is due to an external request.
 #
-# @error: COLO exit is due to an internal error
+# @error: COLO exit is due to an internal error.
+#
+# @processing: COLO is currently handling a failover (since 4.0).
 #
 # Since: 3.1
 ##
 { 'enum': 'COLOExitReason',
-  'data': [ 'none', 'request', 'error' ] }
+  'data': [ 'none', 'request', 'error' , 'processing' ] }
 
 ##
 # @x-colo-lost-heartbeat:
@@ -1376,12 +1380,17 @@
 # @mode: COLO running mode. If COLO is running, this field will return
 #        'primary' or 'secondary'.
 #
+# @last_mode: COLO last running mode. If COLO is running, this field
+#             will return same like mode field, after failover we can
+#             use this field to get last colo mode. (since 4.1)
+#
 # @reason: describes the reason for the COLO exit.
 #
 # Since: 3.1
 ##
 { 'struct': 'COLOStatus',
-  'data': { 'mode': 'COLOMode', 'reason': 'COLOExitReason' } }
+  'data': { 'mode': 'COLOMode', 'last_mode': 'COLOMode',
+            'reason': 'COLOExitReason' } }
 
 ##
 # @query-colo-status:

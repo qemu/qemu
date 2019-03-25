@@ -38,6 +38,9 @@
 static bool vmstate_loading;
 static Notifier packets_compare_notifier;
 
+/* User need to know colo mode after COLO failover */
+static COLOMode last_colo_mode;
+
 #define COLO_BUFFER_BASE_SIZE (4 * 1024 * 1024)
 
 bool migration_in_colo_state(void)
@@ -121,6 +124,7 @@ static void secondary_vm_do_failover(void)
     }
     /* Notify COLO incoming thread that failover work is finished */
     qemu_sem_post(&mis->colo_incoming_sem);
+
     /* For Secondary VM, jump to incoming co */
     if (mis->migration_incoming_co) {
         qemu_coroutine_enter(mis->migration_incoming_co);
@@ -196,10 +200,16 @@ void colo_do_failover(MigrationState *s)
         vm_stop_force_state(RUN_STATE_COLO);
     }
 
-    if (get_colo_mode() == COLO_MODE_PRIMARY) {
+    switch (get_colo_mode()) {
+    case COLO_MODE_PRIMARY:
         primary_vm_do_failover();
-    } else {
+        break;
+    case COLO_MODE_SECONDARY:
         secondary_vm_do_failover();
+        break;
+    default:
+        error_report("colo_do_failover failed because the colo mode"
+                     " could not be obtained");
     }
 }
 
@@ -257,16 +267,21 @@ COLOStatus *qmp_query_colo_status(Error **errp)
     COLOStatus *s = g_new0(COLOStatus, 1);
 
     s->mode = get_colo_mode();
+    s->last_mode = last_colo_mode;
 
     switch (failover_get_state()) {
     case FAILOVER_STATUS_NONE:
         s->reason = COLO_EXIT_REASON_NONE;
         break;
-    case FAILOVER_STATUS_REQUIRE:
+    case FAILOVER_STATUS_COMPLETED:
         s->reason = COLO_EXIT_REASON_REQUEST;
         break;
     default:
-        s->reason = COLO_EXIT_REASON_ERROR;
+        if (migration_in_colo_state()) {
+            s->reason = COLO_EXIT_REASON_PROCESSING;
+        } else {
+            s->reason = COLO_EXIT_REASON_ERROR;
+        }
     }
 
     return s;
@@ -504,6 +519,12 @@ static void colo_process_checkpoint(MigrationState *s)
     Error *local_err = NULL;
     int ret;
 
+    last_colo_mode = get_colo_mode();
+    if (last_colo_mode != COLO_MODE_PRIMARY) {
+        error_report("COLO mode must be COLO_MODE_PRIMARY");
+        return;
+    }
+
     failover_init_state();
 
     s->rp_state.from_dst_file = qemu_file_get_return_path(s->to_dst_file);
@@ -578,16 +599,13 @@ out:
      * or the user triggered failover.
      */
     switch (failover_get_state()) {
-    case FAILOVER_STATUS_NONE:
-        qapi_event_send_colo_exit(COLO_MODE_PRIMARY,
-                                  COLO_EXIT_REASON_ERROR);
-        break;
-    case FAILOVER_STATUS_REQUIRE:
+    case FAILOVER_STATUS_COMPLETED:
         qapi_event_send_colo_exit(COLO_MODE_PRIMARY,
                                   COLO_EXIT_REASON_REQUEST);
         break;
     default:
-        abort();
+        qapi_event_send_colo_exit(COLO_MODE_PRIMARY,
+                                  COLO_EXIT_REASON_ERROR);
     }
 
     /* Hope this not to be too long to wait here */
@@ -679,6 +697,12 @@ void *colo_process_incoming_thread(void *opaque)
 
     migrate_set_state(&mis->state, MIGRATION_STATUS_ACTIVE,
                       MIGRATION_STATUS_COLO);
+
+    last_colo_mode = get_colo_mode();
+    if (last_colo_mode != COLO_MODE_SECONDARY) {
+        error_report("COLO mode must be COLO_MODE_SECONDARY");
+        return NULL;
+    }
 
     failover_init_state();
 
@@ -849,17 +873,18 @@ out:
         error_report_err(local_err);
     }
 
+    /*
+     * There are only two reasons we can get here, some error happened
+     * or the user triggered failover.
+     */
     switch (failover_get_state()) {
-    case FAILOVER_STATUS_NONE:
-        qapi_event_send_colo_exit(COLO_MODE_SECONDARY,
-                                  COLO_EXIT_REASON_ERROR);
-        break;
-    case FAILOVER_STATUS_REQUIRE:
+    case FAILOVER_STATUS_COMPLETED:
         qapi_event_send_colo_exit(COLO_MODE_SECONDARY,
                                   COLO_EXIT_REASON_REQUEST);
         break;
     default:
-        abort();
+        qapi_event_send_colo_exit(COLO_MODE_SECONDARY,
+                                  COLO_EXIT_REASON_ERROR);
     }
 
     if (fb) {

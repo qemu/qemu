@@ -82,7 +82,6 @@
 /* The delay time (in ms) between two COLO checkpoints */
 #define DEFAULT_MIGRATE_X_CHECKPOINT_DELAY (200 * 100)
 #define DEFAULT_MIGRATE_MULTIFD_CHANNELS 2
-#define DEFAULT_MIGRATE_MULTIFD_PAGE_COUNT 16
 
 /* Background transfer rate for postcopy, 0 means unlimited, note
  * that page requests can still exceed this limit.
@@ -758,6 +757,8 @@ MigrationParameters *qmp_query_migrate_parameters(Error **errp)
     params->tls_creds = g_strdup(s->parameters.tls_creds);
     params->has_tls_hostname = true;
     params->tls_hostname = g_strdup(s->parameters.tls_hostname);
+    params->has_tls_authz = true;
+    params->tls_authz = g_strdup(s->parameters.tls_authz);
     params->has_max_bandwidth = true;
     params->max_bandwidth = s->parameters.max_bandwidth;
     params->has_downtime_limit = true;
@@ -766,10 +767,8 @@ MigrationParameters *qmp_query_migrate_parameters(Error **errp)
     params->x_checkpoint_delay = s->parameters.x_checkpoint_delay;
     params->has_block_incremental = true;
     params->block_incremental = s->parameters.block_incremental;
-    params->has_x_multifd_channels = true;
-    params->x_multifd_channels = s->parameters.x_multifd_channels;
-    params->has_x_multifd_page_count = true;
-    params->x_multifd_page_count = s->parameters.x_multifd_page_count;
+    params->has_multifd_channels = true;
+    params->multifd_channels = s->parameters.multifd_channels;
     params->has_xbzrle_cache_size = true;
     params->xbzrle_cache_size = s->parameters.xbzrle_cache_size;
     params->has_max_postcopy_bandwidth = true;
@@ -1152,18 +1151,10 @@ static bool migrate_params_check(MigrationParameters *params, Error **errp)
 
     /* x_checkpoint_delay is now always positive */
 
-    if (params->has_x_multifd_channels && (params->x_multifd_channels < 1)) {
+    if (params->has_multifd_channels && (params->multifd_channels < 1)) {
         error_setg(errp, QERR_INVALID_PARAMETER_VALUE,
                    "multifd_channels",
                    "is invalid, it should be in the range of 1 to 255");
-        return false;
-    }
-    if (params->has_x_multifd_page_count &&
-        (params->x_multifd_page_count < 1 ||
-         params->x_multifd_page_count > 10000)) {
-        error_setg(errp, QERR_INVALID_PARAMETER_VALUE,
-                   "multifd_page_count",
-                   "is invalid, it should be in the range of 1 to 10000");
         return false;
     }
 
@@ -1274,11 +1265,8 @@ static void migrate_params_test_apply(MigrateSetParameters *params,
     if (params->has_block_incremental) {
         dest->block_incremental = params->block_incremental;
     }
-    if (params->has_x_multifd_channels) {
-        dest->x_multifd_channels = params->x_multifd_channels;
-    }
-    if (params->has_x_multifd_page_count) {
-        dest->x_multifd_page_count = params->x_multifd_page_count;
+    if (params->has_multifd_channels) {
+        dest->multifd_channels = params->multifd_channels;
     }
     if (params->has_xbzrle_cache_size) {
         dest->xbzrle_cache_size = params->xbzrle_cache_size;
@@ -1345,9 +1333,15 @@ static void migrate_params_apply(MigrateSetParameters *params, Error **errp)
         s->parameters.tls_hostname = g_strdup(params->tls_hostname->u.s);
     }
 
+    if (params->has_tls_authz) {
+        g_free(s->parameters.tls_authz);
+        assert(params->tls_authz->type == QTYPE_QSTRING);
+        s->parameters.tls_authz = g_strdup(params->tls_authz->u.s);
+    }
+
     if (params->has_max_bandwidth) {
         s->parameters.max_bandwidth = params->max_bandwidth;
-        if (s->to_dst_file) {
+        if (s->to_dst_file && !migration_in_postcopy()) {
             qemu_file_set_rate_limit(s->to_dst_file,
                                 s->parameters.max_bandwidth / XFER_LIMIT_RATIO);
         }
@@ -1367,11 +1361,8 @@ static void migrate_params_apply(MigrateSetParameters *params, Error **errp)
     if (params->has_block_incremental) {
         s->parameters.block_incremental = params->block_incremental;
     }
-    if (params->has_x_multifd_channels) {
-        s->parameters.x_multifd_channels = params->x_multifd_channels;
-    }
-    if (params->has_x_multifd_page_count) {
-        s->parameters.x_multifd_page_count = params->x_multifd_page_count;
+    if (params->has_multifd_channels) {
+        s->parameters.multifd_channels = params->multifd_channels;
     }
     if (params->has_xbzrle_cache_size) {
         s->parameters.xbzrle_cache_size = params->xbzrle_cache_size;
@@ -1379,6 +1370,10 @@ static void migrate_params_apply(MigrateSetParameters *params, Error **errp)
     }
     if (params->has_max_postcopy_bandwidth) {
         s->parameters.max_postcopy_bandwidth = params->max_postcopy_bandwidth;
+        if (s->to_dst_file && migration_in_postcopy()) {
+            qemu_file_set_rate_limit(s->to_dst_file,
+                    s->parameters.max_postcopy_bandwidth / XFER_LIMIT_RATIO);
+        }
     }
     if (params->has_max_cpu_throttle) {
         s->parameters.max_cpu_throttle = params->max_cpu_throttle;
@@ -2130,7 +2125,7 @@ bool migrate_use_multifd(void)
 
     s = migrate_get_current();
 
-    return s->enabled_capabilities[MIGRATION_CAPABILITY_X_MULTIFD];
+    return s->enabled_capabilities[MIGRATION_CAPABILITY_MULTIFD];
 }
 
 bool migrate_pause_before_switchover(void)
@@ -2149,16 +2144,7 @@ int migrate_multifd_channels(void)
 
     s = migrate_get_current();
 
-    return s->parameters.x_multifd_channels;
-}
-
-int migrate_multifd_page_count(void)
-{
-    MigrationState *s;
-
-    s = migrate_get_current();
-
-    return s->parameters.x_multifd_page_count;
+    return s->parameters.multifd_channels;
 }
 
 int migrate_use_xbzrle(void)
@@ -3400,12 +3386,9 @@ static Property migration_properties[] = {
     DEFINE_PROP_UINT32("x-checkpoint-delay", MigrationState,
                       parameters.x_checkpoint_delay,
                       DEFAULT_MIGRATE_X_CHECKPOINT_DELAY),
-    DEFINE_PROP_UINT8("x-multifd-channels", MigrationState,
-                      parameters.x_multifd_channels,
+    DEFINE_PROP_UINT8("multifd-channels", MigrationState,
+                      parameters.multifd_channels,
                       DEFAULT_MIGRATE_MULTIFD_CHANNELS),
-    DEFINE_PROP_UINT32("x-multifd-page-count", MigrationState,
-                      parameters.x_multifd_page_count,
-                      DEFAULT_MIGRATE_MULTIFD_PAGE_COUNT),
     DEFINE_PROP_SIZE("xbzrle-cache-size", MigrationState,
                       parameters.xbzrle_cache_size,
                       DEFAULT_MIGRATE_XBZRLE_CACHE_SIZE),
@@ -3440,7 +3423,7 @@ static Property migration_properties[] = {
     DEFINE_PROP_MIG_CAP("x-release-ram", MIGRATION_CAPABILITY_RELEASE_RAM),
     DEFINE_PROP_MIG_CAP("x-block", MIGRATION_CAPABILITY_BLOCK),
     DEFINE_PROP_MIG_CAP("x-return-path", MIGRATION_CAPABILITY_RETURN_PATH),
-    DEFINE_PROP_MIG_CAP("x-multifd", MIGRATION_CAPABILITY_X_MULTIFD),
+    DEFINE_PROP_MIG_CAP("x-multifd", MIGRATION_CAPABILITY_MULTIFD),
 
     DEFINE_PROP_END_OF_LIST(),
 };
@@ -3494,8 +3477,7 @@ static void migration_instance_init(Object *obj)
     params->has_downtime_limit = true;
     params->has_x_checkpoint_delay = true;
     params->has_block_incremental = true;
-    params->has_x_multifd_channels = true;
-    params->has_x_multifd_page_count = true;
+    params->has_multifd_channels = true;
     params->has_xbzrle_cache_size = true;
     params->has_max_postcopy_bandwidth = true;
     params->has_max_cpu_throttle = true;
