@@ -20,7 +20,7 @@
 #include "qemu-common.h"
 #include "qemu/log.h"
 #include "hw/i2c/i2c.h"
-#include "hw/i2c/i2c-ddc.h"
+#include "hw/display/i2c-ddc.h"
 
 #ifndef DEBUG_I2CDDC
 #define DEBUG_I2CDDC 0

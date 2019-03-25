@@ -27,7 +27,7 @@
 #include "hw/misc/auxbus.h"
 #include "hw/i2c/i2c.h"
 #include "hw/display/dpcd.h"
-#include "hw/i2c/i2c-ddc.h"
+#include "hw/display/i2c-ddc.h"
 #include "qemu/fifo8.h"
 #include "qemu/units.h"
 #include "hw/dma/xlnx_dpdma.h"
