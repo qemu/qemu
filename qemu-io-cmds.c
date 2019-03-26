@@ -946,6 +946,7 @@ static void write_help(void)
 " -b, -- write to the VM state rather than the virtual disk\n"
 " -c, -- write compressed data with blk_write_compressed\n"
 " -f, -- use Force Unit Access semantics\n"
+" -n, -- with -z, don't allow slow fallback\n"
 " -p, -- ignored for backwards compatibility\n"
 " -P, -- use different pattern to fill file\n"
 " -C, -- report statistics in a machine parsable format\n"
@@ -964,7 +965,7 @@ static const cmdinfo_t write_cmd = {
     .perm       = BLK_PERM_WRITE,
     .argmin     = 2,
     .argmax     = -1,
-    .args       = "[-bcCfquz] [-P pattern] off len",
+    .args       = "[-bcCfnquz] [-P pattern] off len",
     .oneline    = "writes a number of bytes at a specified offset",
     .help       = write_help,
 };
@@ -983,7 +984,7 @@ static int write_f(BlockBackend *blk, int argc, char **argv)
     int64_t total = 0;
     int pattern = 0xcd;
 
-    while ((c = getopt(argc, argv, "bcCfpP:quz")) != -1) {
+    while ((c = getopt(argc, argv, "bcCfnpP:quz")) != -1) {
         switch (c) {
         case 'b':
             bflag = true;
@@ -996,6 +997,9 @@ static int write_f(BlockBackend *blk, int argc, char **argv)
             break;
         case 'f':
             flags |= BDRV_REQ_FUA;
+            break;
+        case 'n':
+            flags |= BDRV_REQ_NO_FALLBACK;
             break;
         case 'p':
             /* Ignored for backwards compatibility */
@@ -1034,6 +1038,11 @@ static int write_f(BlockBackend *blk, int argc, char **argv)
 
     if ((flags & BDRV_REQ_FUA) && (bflag || cflag)) {
         printf("-f and -b or -c cannot be specified at the same time\n");
+        return -EINVAL;
+    }
+
+    if ((flags & BDRV_REQ_NO_FALLBACK) && !zflag) {
+        printf("-n requires -z to be specified\n");
         return -EINVAL;
     }
 

@@ -1,0 +1,71 @@
+#!/usr/bin/env python
+#
+# Test resume mirror after auto pause on ENOSPC
+#
+# Copyright (c) 2019 Virtuozzo International GmbH. All rights reserved.
+#
+# This program is free software; you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation; either version 2 of the License, or
+# (at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with this program.  If not, see <http://www.gnu.org/licenses/>.
+#
+
+import iotests
+from iotests import qemu_img_create, qemu_io, file_path, filter_qmp_testfiles
+
+iotests.verify_image_format(supported_fmts=['qcow2'])
+
+source, target = file_path('source', 'target')
+size = 5 * 1024 * 1024
+limit = 2 * 1024 * 1024
+
+qemu_img_create('-f', iotests.imgfmt, source, str(size))
+qemu_img_create('-f', iotests.imgfmt, target, str(size))
+qemu_io('-c', 'write 0 {}'.format(size), source)
+
+# raw format don't like empty files
+qemu_io('-c', 'write 0 {}'.format(size), target)
+
+vm = iotests.VM().add_drive(source)
+vm.launch()
+
+blockdev_opts = {
+    'driver': iotests.imgfmt,
+    'node-name': 'target',
+    'file': {
+        'driver': 'raw',
+        'size': limit,
+        'file': {
+            'driver': 'file',
+            'filename': target
+        }
+    }
+}
+vm.qmp_log('blockdev-add', filters=[filter_qmp_testfiles], **blockdev_opts)
+
+vm.qmp_log('blockdev-mirror', device='drive0', sync='full', target='target',
+           on_target_error='enospc')
+
+vm.event_wait('JOB_STATUS_CHANGE', timeout=3.0,
+              match={'data': {'status': 'paused'}})
+
+# drop other cached events, to not interfere with further wait for 'running'
+vm.get_qmp_events()
+
+del blockdev_opts['file']['size']
+vm.qmp_log('x-blockdev-reopen', filters=[filter_qmp_testfiles],
+           **blockdev_opts)
+
+vm.qmp_log('block-job-resume', device='drive0')
+vm.event_wait('JOB_STATUS_CHANGE', timeout=1.0,
+              match={'data': {'status': 'running'}})
+
+vm.shutdown()

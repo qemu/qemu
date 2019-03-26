@@ -1932,7 +1932,7 @@ static int convert_do_copy(ImgConvertState *s)
     if (!s->has_zero_init && !s->target_has_backing &&
         bdrv_can_write_zeroes_with_unmap(blk_bs(s->target)))
     {
-        ret = blk_make_zero(s->target, BDRV_REQ_MAY_UNMAP);
+        ret = blk_make_zero(s->target, BDRV_REQ_MAY_UNMAP | BDRV_REQ_NO_FALLBACK);
         if (ret == 0) {
             s->has_zero_init = true;
         }

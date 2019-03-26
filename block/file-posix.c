@@ -652,7 +652,7 @@ static int raw_open_common(BlockDriverState *bs, QDict *options,
     }
 #endif
 
-    bs->supported_zero_flags = BDRV_REQ_MAY_UNMAP;
+    bs->supported_zero_flags = BDRV_REQ_MAY_UNMAP | BDRV_REQ_NO_FALLBACK;
     ret = 0;
 fail:
     if (filename && (bdrv_flags & BDRV_O_TEMPORARY)) {
@@ -1500,14 +1500,19 @@ static ssize_t handle_aiocb_write_zeroes_block(RawPosixAIOData *aiocb)
     }
 
 #ifdef BLKZEROOUT
-    do {
-        uint64_t range[2] = { aiocb->aio_offset, aiocb->aio_nbytes };
-        if (ioctl(aiocb->aio_fildes, BLKZEROOUT, range) == 0) {
-            return 0;
-        }
-    } while (errno == EINTR);
+    /* The BLKZEROOUT implementation in the kernel doesn't set
+     * BLKDEV_ZERO_NOFALLBACK, so we can't call this if we have to avoid slow
+     * fallbacks. */
+    if (!(aiocb->aio_type & QEMU_AIO_NO_FALLBACK)) {
+        do {
+            uint64_t range[2] = { aiocb->aio_offset, aiocb->aio_nbytes };
+            if (ioctl(aiocb->aio_fildes, BLKZEROOUT, range) == 0) {
+                return 0;
+            }
+        } while (errno == EINTR);
 
-    ret = translate_err(-errno);
+        ret = translate_err(-errno);
+    }
 #endif
 
     if (ret == -ENOTSUP) {
@@ -2658,6 +2663,9 @@ raw_do_pwrite_zeroes(BlockDriverState *bs, int64_t offset, int bytes,
 
     if (blkdev) {
         acb.aio_type |= QEMU_AIO_BLKDEV;
+    }
+    if (flags & BDRV_REQ_NO_FALLBACK) {
+        acb.aio_type |= QEMU_AIO_NO_FALLBACK;
     }
 
     if (flags & BDRV_REQ_MAY_UNMAP) {

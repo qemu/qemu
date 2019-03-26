@@ -40,6 +40,7 @@
 /* AIO flags */
 #define QEMU_AIO_MISALIGNED   0x1000
 #define QEMU_AIO_BLKDEV       0x2000
+#define QEMU_AIO_NO_FALLBACK  0x4000
 
 
 /* linux-aio.c - Linux native implementation */

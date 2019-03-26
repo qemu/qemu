@@ -401,7 +401,7 @@ static int blkdebug_open(BlockDriverState *bs, QDict *options, int flags,
     bs->supported_write_flags = BDRV_REQ_WRITE_UNCHANGED |
         (BDRV_REQ_FUA & bs->file->bs->supported_write_flags);
     bs->supported_zero_flags = BDRV_REQ_WRITE_UNCHANGED |
-        ((BDRV_REQ_FUA | BDRV_REQ_MAY_UNMAP) &
+        ((BDRV_REQ_FUA | BDRV_REQ_MAY_UNMAP | BDRV_REQ_NO_FALLBACK) &
             bs->file->bs->supported_zero_flags);
     ret = -EINVAL;
 

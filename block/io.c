@@ -909,8 +909,6 @@ int bdrv_make_zero(BdrvChild *child, BdrvRequestFlags flags)
         }
         ret = bdrv_block_status(bs, offset, bytes, &bytes, NULL, NULL);
         if (ret < 0) {
-            error_report("error getting block status at offset %" PRId64 ": %s",
-                         offset, strerror(-ret));
             return ret;
         }
         if (ret & BDRV_BLOCK_ZERO) {
@@ -919,8 +917,6 @@ int bdrv_make_zero(BdrvChild *child, BdrvRequestFlags flags)
         }
         ret = bdrv_pwrite_zeroes(child, offset, bytes, flags);
         if (ret < 0) {
-            error_report("error writing zeroes at offset %" PRId64 ": %s",
-                         offset, strerror(-ret));
             return ret;
         }
         offset += bytes;
@@ -1019,6 +1015,7 @@ static int coroutine_fn bdrv_driver_preadv(BlockDriverState *bs,
     unsigned int nb_sectors;
 
     assert(!(flags & ~BDRV_REQ_MASK));
+    assert(!(flags & BDRV_REQ_NO_FALLBACK));
 
     if (!drv) {
         return -ENOMEDIUM;
@@ -1065,6 +1062,7 @@ static int coroutine_fn bdrv_driver_pwritev(BlockDriverState *bs,
     int ret;
 
     assert(!(flags & ~BDRV_REQ_MASK));
+    assert(!(flags & BDRV_REQ_NO_FALLBACK));
 
     if (!drv) {
         return -ENOMEDIUM;
@@ -1471,6 +1469,10 @@ static int coroutine_fn bdrv_co_do_pwrite_zeroes(BlockDriverState *bs,
         return -ENOMEDIUM;
     }
 
+    if ((flags & ~bs->supported_zero_flags) & BDRV_REQ_NO_FALLBACK) {
+        return -ENOTSUP;
+    }
+
     assert(alignment % bs->bl.request_alignment == 0);
     head = offset % alignment;
     tail = (offset + bytes) % alignment;
@@ -1514,7 +1516,7 @@ static int coroutine_fn bdrv_co_do_pwrite_zeroes(BlockDriverState *bs,
             assert(!bs->supported_zero_flags);
         }
 
-        if (ret == -ENOTSUP) {
+        if (ret == -ENOTSUP && !(flags & BDRV_REQ_NO_FALLBACK)) {
             /* Fall back to bounce buffer if write zeroes is unsupported */
             BdrvRequestFlags write_flags = flags & ~BDRV_REQ_ZERO_WRITE;
 
@@ -2952,6 +2954,10 @@ static int coroutine_fn bdrv_co_copy_range_internal(
 {
     BdrvTrackedRequest req;
     int ret;
+
+    /* TODO We can support BDRV_REQ_NO_FALLBACK here */
+    assert(!(read_flags & BDRV_REQ_NO_FALLBACK));
+    assert(!(write_flags & BDRV_REQ_NO_FALLBACK));
 
     if (!dst || !dst->bs) {
         return -ENOMEDIUM;
