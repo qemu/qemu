@@ -2919,7 +2919,7 @@ static void vtd_iommu_notify_flag_changed(IOMMUMemoryRegion *iommu,
     IntelIOMMUState *s = vtd_as->iommu_state;
 
     if (!s->caching_mode && new & IOMMU_NOTIFIER_MAP) {
-        error_report("We need to set caching-mode=1 for intel-iommu to enable "
+        error_report("We need to set caching-mode=on for intel-iommu to enable "
                      "device assignment with IOMMU protection.");
         exit(1);
     }
