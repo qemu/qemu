@@ -103,10 +103,6 @@ void error_setg_errno_internal(Error **errp,
     va_list ap;
     int saved_errno = errno;
 
-    if (errp == NULL) {
-        return;
-    }
-
     va_start(ap, fmt);
     error_setv(errp, src, line, func, ERROR_CLASS_GENERIC_ERROR, fmt, ap,
                os_errno != 0 ? strerror(os_errno) : NULL);

@@ -771,7 +771,7 @@ static XenBlockDrive *xen_block_drive_create(const char *id,
             QDict *cache_qdict = qdict_new();
 
             qdict_put_bool(cache_qdict, "direct", true);
-            qdict_put_obj(file_layer, "cache", QOBJECT(cache_qdict));
+            qdict_put(file_layer, "cache", cache_qdict);
 
             qdict_put_str(file_layer, "aio", "native");
         }
@@ -796,7 +796,7 @@ static XenBlockDrive *xen_block_drive_create(const char *id,
     qdict_put_str(driver_layer, "driver", driver);
     g_free(driver);
 
-    qdict_put_obj(driver_layer, "file", QOBJECT(file_layer));
+    qdict_put(driver_layer, "file", file_layer);
 
     g_assert(!drive->node_name);
     drive->node_name = xen_block_blockdev_add(drive->id, driver_layer,
