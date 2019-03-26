@@ -269,12 +269,34 @@ static int nbd_parse_blockstatus_payload(NBDClientSession *client,
     extent->length = payload_advance32(&payload);
     extent->flags = payload_advance32(&payload);
 
-    if (extent->length == 0 ||
-        (client->info.min_block && !QEMU_IS_ALIGNED(extent->length,
-                                                    client->info.min_block))) {
+    if (extent->length == 0) {
         error_setg(errp, "Protocol error: server sent status chunk with "
-                   "invalid length");
+                   "zero length");
         return -EINVAL;
+    }
+
+    /*
+     * A server sending unaligned block status is in violation of the
+     * protocol, but as qemu-nbd 3.1 is such a server (at least for
+     * POSIX files that are not a multiple of 512 bytes, since qemu
+     * rounds files up to 512-byte multiples but lseek(SEEK_HOLE)
+     * still sees an implicit hole beyond the real EOF), it's nicer to
+     * work around the misbehaving server. If the request included
+     * more than the final unaligned block, truncate it back to an
+     * aligned result; if the request was only the final block, round
+     * up to the full block and change the status to fully-allocated
+     * (always a safe status, even if it loses information).
+     */
+    if (client->info.min_block && !QEMU_IS_ALIGNED(extent->length,
+                                                   client->info.min_block)) {
+        trace_nbd_parse_blockstatus_compliance("extent length is unaligned");
+        if (extent->length > client->info.min_block) {
+            extent->length = QEMU_ALIGN_DOWN(extent->length,
+                                             client->info.min_block);
+        } else {
+            extent->length = client->info.min_block;
+            extent->flags = 0;
+        }
     }
 
     /*
