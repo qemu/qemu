@@ -3753,7 +3753,15 @@ static void gen_bcond(DisasContext *ctx, int type)
              * All ISAs up to v3 describe this form of bcctr as invalid but
              * some processors, ie. 64-bit server processors compliant with
              * arch 2.x, do implement a "test and decrement" logic instead,
-             * as described in their respective UMs.
+             * as described in their respective UMs. This logic involves CTR
+             * to act as both the branch target and a counter, which makes
+             * it basically useless and thus never used in real code.
+             *
+             * This form was hence chosen to trigger extra micro-architectural
+             * side-effect on real HW needed for the Spectre v2 workaround.
+             * It is up to guests that implement such workaround, ie. linux, to
+             * use this form in a way it just triggers the side-effect without
+             * doing anything else harmful.
              */
             if (unlikely(!is_book3s_arch2x(ctx))) {
                 gen_inval_exception(ctx, POWERPC_EXCP_INVAL_INVAL);
