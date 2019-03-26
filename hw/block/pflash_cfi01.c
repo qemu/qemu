@@ -38,6 +38,7 @@
 
 #include "qemu/osdep.h"
 #include "hw/hw.h"
+#include "hw/block/block.h"
 #include "hw/block/flash.h"
 #include "sysemu/block-backend.h"
 #include "qapi/error.h"
@@ -730,13 +731,6 @@ static void pflash_cfi01_realize(DeviceState *dev, Error **errp)
     }
     device_len = sector_len_per_device * blocks_per_device;
 
-    /* XXX: to be fixed */
-#if 0
-    if (total_len != (8 * 1024 * 1024) && total_len != (16 * 1024 * 1024) &&
-        total_len != (32 * 1024 * 1024) && total_len != (64 * 1024 * 1024))
-        return NULL;
-#endif
-
     memory_region_init_rom_device(
         &pfl->mem, OBJECT(dev),
         &pflash_cfi01_ops,
@@ -763,12 +757,9 @@ static void pflash_cfi01_realize(DeviceState *dev, Error **errp)
     }
 
     if (pfl->blk) {
-        /* read the initial flash content */
-        ret = blk_pread(pfl->blk, 0, pfl->storage, total_len);
-
-        if (ret < 0) {
+        if (!blk_check_size_and_read_all(pfl->blk, pfl->storage, total_len,
+                                         errp)) {
             vmstate_unregister_ram(&pfl->mem, DEVICE(pfl));
-            error_setg(errp, "failed to read the initial flash content");
             return;
         }
     }

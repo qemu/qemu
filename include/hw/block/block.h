@@ -11,7 +11,7 @@
 #ifndef HW_BLOCK_H
 #define HW_BLOCK_H
 
-#include "qemu-common.h"
+#include "exec/hwaddr.h"
 #include "qapi/qapi-types-block-core.h"
 
 /* Configuration */
@@ -69,6 +69,11 @@ static inline unsigned int get_physical_block_exp(BlockConf *conf)
                                   BLOCKDEV_ON_ERROR_AUTO),              \
     DEFINE_PROP_BLOCKDEV_ON_ERROR("werror", _state, _conf.werror,       \
                                   BLOCKDEV_ON_ERROR_AUTO)
+
+/* Backend access helpers */
+
+bool blk_check_size_and_read_all(BlockBackend *blk, void *buf, hwaddr size,
+                                 Error **errp);
 
 /* Configuration helpers */
 
