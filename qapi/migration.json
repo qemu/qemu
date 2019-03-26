@@ -1382,7 +1382,7 @@
 #
 # @last_mode: COLO last running mode. If COLO is running, this field
 #             will return same like mode field, after failover we can
-#             use this field to get last colo mode. (since 4.1)
+#             use this field to get last colo mode. (since 4.0)
 #
 # @reason: describes the reason for the COLO exit.
 #
