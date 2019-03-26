@@ -1692,9 +1692,10 @@ static int find_max_supported_pagesize(Object *obj, void *opaque)
     long *hpsize_min = opaque;
 
     if (object_dynamic_cast(obj, TYPE_MEMORY_BACKEND)) {
-        long hpsize = host_memory_backend_pagesize(MEMORY_BACKEND(obj));
+        HostMemoryBackend *backend = MEMORY_BACKEND(obj);
+        long hpsize = host_memory_backend_pagesize(backend);
 
-        if (hpsize < *hpsize_min) {
+        if (host_memory_backend_is_mapped(backend) && (hpsize < *hpsize_min)) {
             *hpsize_min = hpsize;
         }
     }
