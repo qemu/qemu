@@ -1681,7 +1681,6 @@ void migrate_init(MigrationState *s)
      * locks.
      */
     s->bytes_xfer = 0;
-    s->xfer_limit = 0;
     s->cleanup_bh = 0;
     s->to_dst_file = NULL;
     s->state = MIGRATION_STATUS_NONE;

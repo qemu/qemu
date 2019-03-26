@@ -117,7 +117,6 @@ struct MigrationState
 
     /*< public >*/
     size_t bytes_xfer;
-    size_t xfer_limit;
     QemuThread thread;
     QEMUBH *cleanup_bh;
     QEMUFile *to_dst_file;
