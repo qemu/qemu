@@ -2028,6 +2028,11 @@ static void arm_max_initfn(Object *obj)
             t = FIELD_DP32(t, ID_ISAR6, SPECRES, 1);
             cpu->isar.id_isar6 = t;
 
+            t = cpu->isar.mvfr2;
+            t = FIELD_DP32(t, MVFR2, SIMDMISC, 3); /* SIMD MaxNum */
+            t = FIELD_DP32(t, MVFR2, FPMISC, 4);   /* FP MaxNum */
+            cpu->isar.mvfr2 = t;
+
             t = cpu->id_mmfr4;
             t = FIELD_DP32(t, ID_MMFR4, HPDS, 1); /* AA32HPD */
             cpu->id_mmfr4 = t;
