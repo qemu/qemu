@@ -1813,7 +1813,8 @@ F: qom/cpu.c
 F: include/qom/cpu.h
 
 Device Tree
-M: Alexander Graf <agraf@suse.de>
+M: Alistair Francis <alistair.francis@wdc.com>
+R: David Gibson <david@gibson.dropbear.id.au>
 S: Maintained
 F: device_tree.c
 F: include/sysemu/device_tree.h
