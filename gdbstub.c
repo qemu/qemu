@@ -1152,6 +1152,7 @@ static int gdb_handle_vcont(GDBState *s, const char *p)
     uint32_t pid, tid;
     GDBProcess *process;
     CPUState *cpu;
+    GDBThreadIdKind kind;
 #ifdef CONFIG_USER_ONLY
     int max_cpus = 1; /* global variable max_cpus exists only in system mode */
 
@@ -1194,12 +1195,21 @@ static int gdb_handle_vcont(GDBState *s, const char *p)
             goto out;
         }
 
-        if (*p++ != ':') {
+        if (*p == '\0' || *p == ';') {
+            /*
+             * No thread specifier, action is on "all threads". The
+             * specification is unclear regarding the process to act on. We
+             * choose all processes.
+             */
+            kind = GDB_ALL_PROCESSES;
+        } else if (*p++ == ':') {
+            kind = read_thread_id(p, &p, &pid, &tid);
+        } else {
             res = -ENOTSUP;
             goto out;
         }
 
-        switch (read_thread_id(p, &p, &pid, &tid)) {
+        switch (kind) {
         case GDB_READ_THREAD_ERR:
             res = -EINVAL;
             goto out;
