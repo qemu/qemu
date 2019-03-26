@@ -103,7 +103,7 @@ static bool trans_divw(DisasContext *ctx, arg_divw *a)
 static bool trans_divuw(DisasContext *ctx, arg_divuw *a)
 {
     REQUIRE_EXT(ctx, RVM);
-    return gen_arith_div_w(ctx, a, &gen_divu);
+    return gen_arith_div_uw(ctx, a, &gen_divu);
 }
 
 static bool trans_remw(DisasContext *ctx, arg_remw *a)
@@ -115,6 +115,6 @@ static bool trans_remw(DisasContext *ctx, arg_remw *a)
 static bool trans_remuw(DisasContext *ctx, arg_remuw *a)
 {
     REQUIRE_EXT(ctx, RVM);
-    return gen_arith_div_w(ctx, a, &gen_remu);
+    return gen_arith_div_uw(ctx, a, &gen_remu);
 }
 #endif
