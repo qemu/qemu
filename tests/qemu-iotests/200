@@ -52,13 +52,21 @@ ${QEMU_IMG} create -f $IMGFMT -F $IMGFMT "${TEST_IMG}" -b "${BACKING_IMG}" 512M 
 
 ${QEMU_IO} -c "write -P 0xa5 512 300M" "${BACKING_IMG}" | _filter_qemu_io
 
+case "$QEMU_DEFAULT_MACHINE" in
+  s390-ccw-virtio)
+      virtio_scsi="-device virtio-scsi-ccw,id=scsi0,iothread=iothread0"
+      ;;
+  *)
+      virtio_scsi="-device pci-bridge,id=bridge1,chassis_nr=1,bus=pci.0
+          -device virtio-scsi-pci,bus=bridge1,addr=0x1f,id=scsi0,iothread=iothread0"
+      ;;
+esac
+
 echo
 echo === Starting QEMU VM ===
 echo
 qemu_comm_method="qmp"
-_launch_qemu -device pci-bridge,id=bridge1,chassis_nr=1,bus=pci.0 \
-             -object iothread,id=iothread0 \
-             -device virtio-scsi-pci,bus=bridge1,addr=0x1f,id=scsi0,iothread=iothread0 \
+_launch_qemu -object iothread,id=iothread0 $virtio_scsi \
              -drive file="${TEST_IMG}",media=disk,if=none,cache=$CACHEMODE,id=drive_sysdisk,format=$IMGFMT \
              -device scsi-hd,drive=drive_sysdisk,bus=scsi0.0,id=sysdisk,bootindex=0
 h1=$QEMU_HANDLE
