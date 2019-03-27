@@ -17,11 +17,7 @@
 
 #ifndef BLOCK_VHDX_H
 #define BLOCK_VHDX_H
-
-#define KiB              (1 * 1024)
-#define MiB            (KiB * 1024)
-#define GiB            (MiB * 1024)
-#define TiB ((uint64_t) GiB * 1024)
+#include "qemu/units.h"
 
 #define DEFAULT_LOG_SIZE 1048576 /* 1MiB */
 /* Structures and fields present in the VHDX file */
