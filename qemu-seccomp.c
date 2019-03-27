@@ -155,20 +155,22 @@ static uint32_t qemu_seccomp_get_action(int set)
 }
 
 
-static int seccomp_start(uint32_t seccomp_opts)
+static int seccomp_start(uint32_t seccomp_opts, Error **errp)
 {
-    int rc = 0;
+    int rc = -1;
     unsigned int i = 0;
     scmp_filter_ctx ctx;
 
     ctx = seccomp_init(SCMP_ACT_ALLOW);
     if (ctx == NULL) {
-        rc = -1;
+        error_setg(errp, "failed to initialize seccomp context");
         goto seccomp_return;
     }
 
     rc = seccomp_attr_set(ctx, SCMP_FLTATR_CTL_TSYNC, 1);
     if (rc != 0) {
+        error_setg_errno(errp, -rc,
+                         "failed to set seccomp thread synchronization");
         goto seccomp_return;
     }
 
@@ -182,15 +184,21 @@ static int seccomp_start(uint32_t seccomp_opts)
         rc = seccomp_rule_add_array(ctx, action, blacklist[i].num,
                                     blacklist[i].narg, blacklist[i].arg_cmp);
         if (rc < 0) {
+            error_setg_errno(errp, -rc,
+                             "failed to add seccomp blacklist rules");
             goto seccomp_return;
         }
     }
 
     rc = seccomp_load(ctx);
+    if (rc < 0) {
+        error_setg_errno(errp, -rc,
+                         "failed to load seccomp syscall filter in kernel");
+    }
 
   seccomp_return:
     seccomp_release(ctx);
-    return rc;
+    return rc < 0 ? -1 : 0;
 }
 
 #ifdef CONFIG_SECCOMP
@@ -260,9 +268,7 @@ int parse_sandbox(void *opaque, QemuOpts *opts, Error **errp)
             }
         }
 
-        if (seccomp_start(seccomp_opts) < 0) {
-            error_setg(errp, "failed to install seccomp syscall filter "
-                       "in the kernel");
+        if (seccomp_start(seccomp_opts, errp) < 0) {
             return -1;
         }
     }
