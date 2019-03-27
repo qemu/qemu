@@ -356,8 +356,8 @@ static void gen_##name(DisasContext *ctx)                     \
     gen_set_access_type(ctx, ACCESS_INT);                     \
     EA = tcg_temp_new();                                      \
     gen_addr_reg_index(ctx, EA);                              \
+    get_cpu_vsrh(t0, xS(ctx->opcode));                        \
     gen_qemu_##operation(ctx, t0, EA);                        \
-    set_cpu_vsrh(xS(ctx->opcode), t0);                        \
     tcg_temp_free(EA);                                        \
     tcg_temp_free_i64(t0);                                    \
 }
