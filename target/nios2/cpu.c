@@ -66,14 +66,12 @@ static void nios2_cpu_reset(CPUState *cs)
 
 static void nios2_cpu_initfn(Object *obj)
 {
-    CPUState *cs = CPU(obj);
     Nios2CPU *cpu = NIOS2_CPU(obj);
-    CPUNios2State *env = &cpu->env;
 
-    cs->env_ptr = env;
+    cpu_set_cpustate_pointers(cpu);
 
 #if !defined(CONFIG_USER_ONLY)
-    mmu_init(env);
+    mmu_init(&cpu->env);
 #endif
 }
 

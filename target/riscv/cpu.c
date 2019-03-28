@@ -367,10 +367,9 @@ static void riscv_cpu_realize(DeviceState *dev, Error **errp)
 
 static void riscv_cpu_init(Object *obj)
 {
-    CPUState *cs = CPU(obj);
     RISCVCPU *cpu = RISCV_CPU(obj);
 
-    cs->env_ptr = &cpu->env;
+    cpu_set_cpustate_pointers(cpu);
 }
 
 static const VMStateDescription vmstate_riscv_cpu = {

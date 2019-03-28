@@ -100,11 +100,9 @@ static void tilegx_cpu_realizefn(DeviceState *dev, Error **errp)
 
 static void tilegx_cpu_initfn(Object *obj)
 {
-    CPUState *cs = CPU(obj);
     TileGXCPU *cpu = TILEGX_CPU(obj);
-    CPUTLGState *env = &cpu->env;
 
-    cs->env_ptr = env;
+    cpu_set_cpustate_pointers(cpu);
 }
 
 static void tilegx_cpu_do_interrupt(CPUState *cs)
