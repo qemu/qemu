@@ -1398,6 +1398,11 @@ static void gen_op(DisasContext *s1, int op, TCGMemOp ot, int d)
 static void gen_inc(DisasContext *s1, TCGMemOp ot, int d, int c)
 {
     if (s1->prefix & PREFIX_LOCK) {
+        if (d != OR_TMP0) {
+            /* Lock prefix when destination is not memory */
+            gen_illegal_opcode(s1);
+            return;
+        }
         tcg_gen_movi_tl(s1->T0, c > 0 ? 1 : -1);
         tcg_gen_atomic_add_fetch_tl(s1->T0, s1->A0, s1->T0,
                                     s1->mem_index, ot | MO_LE);
