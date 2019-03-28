@@ -364,7 +364,7 @@ static int cpu_restore_state_from_tb(CPUState *cpu, TranslationBlock *tb,
         assert(use_icount);
         /* Reset the cycle counter to the start of the block
            and shift if to the number of actually executed instructions */
-        cpu->icount_decr.u16.low += num_insns - i;
+        cpu_neg(cpu)->icount_decr.u16.low += num_insns - i;
     }
     restore_state_to_opc(env, tb, data);
 
@@ -2200,7 +2200,7 @@ void cpu_io_recompile(CPUState *cpu, uintptr_t retaddr)
     if ((env->hflags & MIPS_HFLAG_BMASK) != 0
         && env->active_tc.PC != tb->pc) {
         env->active_tc.PC -= (env->hflags & MIPS_HFLAG_B16 ? 2 : 4);
-        cpu->icount_decr.u16.low++;
+        cpu_neg(cpu)->icount_decr.u16.low++;
         env->hflags &= ~MIPS_HFLAG_BMASK;
         n = 2;
     }
@@ -2208,7 +2208,7 @@ void cpu_io_recompile(CPUState *cpu, uintptr_t retaddr)
     if ((env->flags & ((DELAY_SLOT | DELAY_SLOT_CONDITIONAL))) != 0
         && env->pc != tb->pc) {
         env->pc -= 2;
-        cpu->icount_decr.u16.low++;
+        cpu_neg(cpu)->icount_decr.u16.low++;
         env->flags &= ~(DELAY_SLOT | DELAY_SLOT_CONDITIONAL);
         n = 2;
     }
@@ -2382,7 +2382,7 @@ void cpu_interrupt(CPUState *cpu, int mask)
 {
     g_assert(qemu_mutex_iothread_locked());
     cpu->interrupt_request |= mask;
-    atomic_set(&cpu->icount_decr.u16.high, -1);
+    atomic_set(&cpu_neg(cpu)->icount_decr.u16.high, -1);
 }
 
 /*
