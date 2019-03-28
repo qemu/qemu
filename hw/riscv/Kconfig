@@ -6,6 +6,7 @@ config HART
 
 config SIFIVE
     bool
+    select MSI_NONBROKEN
 
 config SIFIVE_E
     bool

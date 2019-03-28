@@ -100,7 +100,7 @@ config VIRTIO_GPU
 
 config VIRTIO_VGA
     bool
-    default y if PCI_DEVICES
+    # defaults to "N", enabled by specific boards
     depends on VIRTIO_PCI
     select VGA
 

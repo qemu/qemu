@@ -592,7 +592,7 @@ class KconfigParser:
         if not self.src.startswith(rest, self.cursor):
             return False
         length = len(rest)
-        if self.src[self.cursor + length].isalnum() or self.src[self.cursor + length] == '|':
+        if self.src[self.cursor + length].isalnum() or self.src[self.cursor + length] == '_':
             return False
         self.cursor += length
         return True

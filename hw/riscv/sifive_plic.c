@@ -22,6 +22,7 @@
 #include "qemu/log.h"
 #include "qemu/error-report.h"
 #include "hw/sysbus.h"
+#include "hw/pci/msi.h"
 #include "target/riscv/cpu.h"
 #include "sysemu/sysemu.h"
 #include "hw/riscv/sifive_plic.h"
@@ -458,6 +459,8 @@ static void sifive_plic_realize(DeviceState *dev, Error **errp)
             exit(1);
         }
     }
+
+    msi_nonbroken = true;
 }
 
 static void sifive_plic_class_init(ObjectClass *klass, void *data)

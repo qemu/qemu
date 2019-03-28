@@ -31,3 +31,6 @@ config XEN
 
 config VIRTFS
     bool
+
+config PVRDMA
+    bool

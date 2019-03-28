@@ -28,7 +28,7 @@ config E1000_PCI
 config E1000E_PCI_EXPRESS
     bool
     default y if PCI_DEVICES
-    depends on PCI_EXPRESS
+    depends on PCI_EXPRESS && MSI_NONBROKEN
 
 config RTL8139_PCI
     bool
@@ -107,7 +107,7 @@ config ETSEC
 config ROCKER
     bool
     default y if PCI_DEVICES
-    depends on PCI
+    depends on PCI && MSI_NONBROKEN
 
 config CAN_BUS
     bool

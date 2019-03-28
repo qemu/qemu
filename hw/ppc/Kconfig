@@ -2,12 +2,14 @@ config PSERIES
     bool
     imply PCI_DEVICES
     imply TEST_DEVICES
+    imply VIRTIO_VGA
     select DIMM
     select PCI
     select SPAPR_VSCSI
     select VFIO if LINUX   # needed by spapr_pci_vfio.c
     select XICS_SPAPR
     select XIVE_SPAPR
+    select MSI_NONBROKEN
 
 config SPAPR_RNG
     bool
@@ -36,6 +38,7 @@ config PPC440
     bool
     imply PCI_DEVICES
     imply TEST_DEVICES
+    imply E1000_PCI
     select PCI_EXPRESS
     select PPC4XX
     select SERIAL
@@ -63,7 +66,6 @@ config PREP
     imply TEST_DEVICES
     select CS4231A
     select PREP_PCI
-    select I82374
     select I82378
     select LSI_SCSI_PCI
     select M48T59
@@ -97,6 +99,7 @@ config MAC_NEWWORLD
 config E500
     bool
     imply AT24C
+    imply VIRTIO_PCI
     select ETSEC
     select OPENPIC
     select PLATFORM_BUS
