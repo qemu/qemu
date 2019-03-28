@@ -2780,13 +2780,7 @@ static void spapr_machine_init(MachineState *machine)
 
     /* advertise XIVE on POWER9 machines */
     if (spapr->irq->ov5 & (SPAPR_OV5_XIVE_EXPLOIT | SPAPR_OV5_XIVE_BOTH)) {
-        if (ppc_type_check_compat(machine->cpu_type, CPU_POWERPC_LOGICAL_3_00,
-                                  0, spapr->max_compat_pvr)) {
-            spapr_ovec_set(spapr->ov5, OV5_XIVE_EXPLOIT);
-        } else if (spapr->irq->ov5 & SPAPR_OV5_XIVE_EXPLOIT) {
-            error_report("XIVE-only machines require a POWER9 CPU");
-            exit(1);
-        }
+        spapr_ovec_set(spapr->ov5, OV5_XIVE_EXPLOIT);
     }
 
     /* init CPUs */
