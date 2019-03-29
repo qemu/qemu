@@ -85,12 +85,12 @@ class BaseVM(object):
             if not sha256sum:
                 return True
             checksum = subprocess.check_output(["sha256sum", fname]).split()[0]
-            return sha256sum == checksum
+            return sha256sum == checksum.decode()
 
         cache_dir = os.path.expanduser("~/.cache/qemu-vm/download")
         if not os.path.exists(cache_dir):
             os.makedirs(cache_dir)
-        fname = os.path.join(cache_dir, hashlib.sha1(url).hexdigest())
+        fname = os.path.join(cache_dir, hashlib.sha1(url.encode()).hexdigest())
         if os.path.exists(fname) and check_sha256sum(fname):
             return fname
         logging.debug("Downloading %s to %s...", url, fname)
@@ -134,7 +134,7 @@ class BaseVM(object):
         raise NotImplementedError
 
     def add_source_dir(self, src_dir):
-        name = "data-" + hashlib.sha1(src_dir).hexdigest()[:5]
+        name = "data-" + hashlib.sha1(src_dir.encode()).hexdigest()[:5]
         tarfile = os.path.join(self._tmpdir, name + ".tar")
         logging.debug("Creating archive %s for src_dir dir: %s", tarfile, src_dir)
         subprocess.check_call(["./scripts/archive-source.sh", tarfile],
@@ -204,7 +204,7 @@ def parse_args(vmcls):
 
     def get_default_jobs():
         if kvm_available(vmcls.arch):
-            return multiprocessing.cpu_count() / 2
+            return multiprocessing.cpu_count() // 2
         else:
             return 1
 
