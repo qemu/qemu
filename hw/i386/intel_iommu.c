@@ -1718,12 +1718,11 @@ error:
 static void vtd_root_table_setup(IntelIOMMUState *s)
 {
     s->root = vtd_get_quad_raw(s, DMAR_RTADDR_REG);
-    s->root_extended = s->root & VTD_RTADDR_RTT;
     s->root &= VTD_RTADDR_ADDR_MASK(s->aw_bits);
 
     vtd_update_scalable_state(s);
 
-    trace_vtd_reg_dmar_root(s->root, s->root_extended);
+    trace_vtd_reg_dmar_root(s->root, s->root_scalable);
 }
 
 static void vtd_iec_notify_all(IntelIOMMUState *s, bool global,
@@ -2982,7 +2981,7 @@ static const VMStateDescription vtd_vmstate = {
         VMSTATE_UINT16(next_frcd_reg, IntelIOMMUState),
         VMSTATE_UINT8_ARRAY(csr, IntelIOMMUState, DMAR_REG_SIZE),
         VMSTATE_UINT8(iq_last_desc_type, IntelIOMMUState),
-        VMSTATE_BOOL(root_extended, IntelIOMMUState),
+        VMSTATE_UNUSED(1),      /* bool root_extended is obsolete by VT-d */
         VMSTATE_BOOL(dmar_enabled, IntelIOMMUState),
         VMSTATE_BOOL(qi_enabled, IntelIOMMUState),
         VMSTATE_BOOL(intr_enabled, IntelIOMMUState),
@@ -3503,7 +3502,6 @@ static void vtd_init(IntelIOMMUState *s)
     memset(s->womask, 0, DMAR_REG_SIZE);
 
     s->root = 0;
-    s->root_extended = false;
     s->root_scalable = false;
     s->dmar_enabled = false;
     s->intr_enabled = false;

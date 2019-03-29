@@ -234,7 +234,6 @@ struct IntelIOMMUState {
     bool scalable_mode;             /* RO - is Scalable Mode supported? */
 
     dma_addr_t root;                /* Current root table pointer */
-    bool root_extended;             /* Type of root table (extended or not) */
     bool root_scalable;             /* Type of root table (scalable or not) */
     bool dmar_enabled;              /* Set if DMA remapping is enabled */
 

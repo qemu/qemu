@@ -45,7 +45,7 @@ vtd_pt_enable_fast_path(uint16_t sid, bool success) "sid 0x%"PRIu16" %d"
 vtd_irq_generate(uint64_t addr, uint64_t data) "addr 0x%"PRIx64" data 0x%"PRIx64
 vtd_reg_read(uint64_t addr, uint64_t size) "addr 0x%"PRIx64" size 0x%"PRIx64
 vtd_reg_write(uint64_t addr, uint64_t size, uint64_t val) "addr 0x%"PRIx64" size 0x%"PRIx64" value 0x%"PRIx64
-vtd_reg_dmar_root(uint64_t addr, bool extended) "addr 0x%"PRIx64" extended %d"
+vtd_reg_dmar_root(uint64_t addr, bool scalable) "addr 0x%"PRIx64" scalable %d"
 vtd_reg_ir_root(uint64_t addr, uint32_t size) "addr 0x%"PRIx64" size 0x%"PRIx32
 vtd_reg_write_gcmd(uint32_t status, uint32_t val) "status 0x%"PRIx32" value 0x%"PRIx32
 vtd_reg_write_fectl(uint32_t value) "value 0x%"PRIx32
