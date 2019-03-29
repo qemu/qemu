@@ -26,9 +26,9 @@ class CentosVM(basevm.BaseVM):
         export SRC_ARCHIVE=/dev/vdb;
         sudo chmod a+r $SRC_ARCHIVE;
         tar -xf $SRC_ARCHIVE;
-        make docker-test-block@centos7 V={verbose} J={jobs};
-        make docker-test-quick@centos7 V={verbose} J={jobs};
-        make docker-test-mingw@fedora V={verbose} J={jobs};
+        make docker-test-block@centos7 {verbose} J={jobs} NETWORK=1;
+        make docker-test-quick@centos7 {verbose} J={jobs} NETWORK=1;
+        make docker-test-mingw@fedora  {verbose} J={jobs} NETWORK=1;
     """
 
     def _gen_cloud_init_iso(self):
