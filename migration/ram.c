@@ -3918,6 +3918,7 @@ int colo_init_ram_cache(void)
     }
     ram_state = g_new0(RAMState, 1);
     ram_state->migration_dirty_pages = 0;
+    qemu_mutex_init(&ram_state->bitmap_mutex);
     memory_global_dirty_log_start();
 
     return 0;
@@ -3956,6 +3957,7 @@ void colo_release_ram_cache(void)
     }
 
     rcu_read_unlock();
+    qemu_mutex_destroy(&ram_state->bitmap_mutex);
     g_free(ram_state);
     ram_state = NULL;
 }
