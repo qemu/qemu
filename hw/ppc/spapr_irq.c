@@ -16,6 +16,7 @@
 #include "hw/ppc/spapr_xive.h"
 #include "hw/ppc/xics.h"
 #include "hw/ppc/xics_spapr.h"
+#include "cpu-models.h"
 #include "sysemu/kvm.h"
 
 #include "trace.h"
@@ -582,12 +583,55 @@ SpaprIrq spapr_irq_dual = {
     .get_nodename = spapr_irq_get_nodename_dual,
 };
 
+
+static void spapr_irq_check(SpaprMachineState *spapr, Error **errp)
+{
+    MachineState *machine = MACHINE(spapr);
+
+    /*
+     * Sanity checks on non-P9 machines. On these, XIVE is not
+     * advertised, see spapr_dt_ov5_platform_support()
+     */
+    if (!ppc_type_check_compat(machine->cpu_type, CPU_POWERPC_LOGICAL_3_00,
+                               0, spapr->max_compat_pvr)) {
+        /*
+         * If the 'dual' interrupt mode is selected, force XICS as CAS
+         * negotiation is useless.
+         */
+        if (spapr->irq == &spapr_irq_dual) {
+            spapr->irq = &spapr_irq_xics;
+            return;
+        }
+
+        /*
+         * Non-P9 machines using only XIVE is a bogus setup. We have two
+         * scenarios to take into account because of the compat mode:
+         *
+         * 1. POWER7/8 machines should fail to init later on when creating
+         *    the XIVE interrupt presenters because a POWER9 exception
+         *    model is required.
+
+         * 2. POWER9 machines using the POWER8 compat mode won't fail and
+         *    will let the OS boot with a partial XIVE setup : DT
+         *    properties but no hcalls.
+         *
+         * To cover both and not confuse the OS, add an early failure in
+         * QEMU.
+         */
+        if (spapr->irq == &spapr_irq_xive) {
+            error_setg(errp, "XIVE-only machines require a POWER9 CPU");
+            return;
+        }
+    }
+}
+
 /*
  * sPAPR IRQ frontend routines for devices
  */
 void spapr_irq_init(SpaprMachineState *spapr, Error **errp)
 {
     MachineState *machine = MACHINE(spapr);
+    Error *local_err = NULL;
 
     if (machine_kernel_irqchip_split(machine)) {
         error_setg(errp, "kernel_irqchip split mode not supported on pseries");
@@ -597,6 +641,12 @@ void spapr_irq_init(SpaprMachineState *spapr, Error **errp)
     if (!kvm_enabled() && machine_kernel_irqchip_required(machine)) {
         error_setg(errp,
                    "kernel_irqchip requested but only available with KVM");
+        return;
+    }
+
+    spapr_irq_check(spapr, &local_err);
+    if (local_err) {
+        error_propagate(errp, local_err);
         return;
     }
 

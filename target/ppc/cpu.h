@@ -2409,6 +2409,12 @@ enum {
 target_ulong cpu_read_xer(CPUPPCState *env);
 void cpu_write_xer(CPUPPCState *env, target_ulong xer);
 
+/*
+ * All 64-bit server processors compliant with arch 2.x, ie. 970 and newer,
+ * have PPC_SEGMENT_64B.
+ */
+#define is_book3s_arch2x(ctx) (!!((ctx)->insns_flags & PPC_SEGMENT_64B))
+
 static inline void cpu_get_tb_cpu_state(CPUPPCState *env, target_ulong *pc,
                                         target_ulong *cs_base, uint32_t *flags)
 {

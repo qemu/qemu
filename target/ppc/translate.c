@@ -3747,20 +3747,52 @@ static void gen_bcond(DisasContext *ctx, int type)
     if ((bo & 0x4) == 0) {
         /* Decrement and test CTR */
         TCGv temp = tcg_temp_new();
-        if (unlikely(type == BCOND_CTR)) {
-            gen_inval_exception(ctx, POWERPC_EXCP_INVAL_INVAL);
-            return;
-        }
-        tcg_gen_subi_tl(cpu_ctr, cpu_ctr, 1);
-        if (NARROW_MODE(ctx)) {
-            tcg_gen_ext32u_tl(temp, cpu_ctr);
+
+        if (type == BCOND_CTR) {
+            /*
+             * All ISAs up to v3 describe this form of bcctr as invalid but
+             * some processors, ie. 64-bit server processors compliant with
+             * arch 2.x, do implement a "test and decrement" logic instead,
+             * as described in their respective UMs. This logic involves CTR
+             * to act as both the branch target and a counter, which makes
+             * it basically useless and thus never used in real code.
+             *
+             * This form was hence chosen to trigger extra micro-architectural
+             * side-effect on real HW needed for the Spectre v2 workaround.
+             * It is up to guests that implement such workaround, ie. linux, to
+             * use this form in a way it just triggers the side-effect without
+             * doing anything else harmful.
+             */
+            if (unlikely(!is_book3s_arch2x(ctx))) {
+                gen_inval_exception(ctx, POWERPC_EXCP_INVAL_INVAL);
+                tcg_temp_free(temp);
+                tcg_temp_free(target);
+                return;
+            }
+
+            if (NARROW_MODE(ctx)) {
+                tcg_gen_ext32u_tl(temp, cpu_ctr);
+            } else {
+                tcg_gen_mov_tl(temp, cpu_ctr);
+            }
+            if (bo & 0x2) {
+                tcg_gen_brcondi_tl(TCG_COND_NE, temp, 0, l1);
+            } else {
+                tcg_gen_brcondi_tl(TCG_COND_EQ, temp, 0, l1);
+            }
+            tcg_gen_subi_tl(cpu_ctr, cpu_ctr, 1);
         } else {
-            tcg_gen_mov_tl(temp, cpu_ctr);
-        }
-        if (bo & 0x2) {
-            tcg_gen_brcondi_tl(TCG_COND_NE, temp, 0, l1);
-        } else {
-            tcg_gen_brcondi_tl(TCG_COND_EQ, temp, 0, l1);
+            tcg_gen_subi_tl(cpu_ctr, cpu_ctr, 1);
+            if (NARROW_MODE(ctx)) {
+                tcg_gen_ext32u_tl(temp, cpu_ctr);
+            } else {
+                tcg_gen_mov_tl(temp, cpu_ctr);
+            }
+            if (bo & 0x2) {
+                tcg_gen_brcondi_tl(TCG_COND_NE, temp, 0, l1);
+            } else {
+                tcg_gen_brcondi_tl(TCG_COND_EQ, temp, 0, l1);
+            }
         }
         tcg_temp_free(temp);
     }
@@ -3889,7 +3921,7 @@ static void gen_rfi(DisasContext *ctx)
     /* This instruction doesn't exist anymore on 64-bit server
      * processors compliant with arch 2.x
      */
-    if (ctx->insns_flags & PPC_SEGMENT_64B) {
+    if (is_book3s_arch2x(ctx)) {
         gen_inval_exception(ctx, POWERPC_EXCP_INVAL_INVAL);
         return;
     }
@@ -6511,8 +6543,7 @@ static void gen_msgclr(DisasContext *ctx)
     GEN_PRIV;
 #else
     CHK_HV;
-    /* 64-bit server processors compliant with arch 2.x */
-    if (ctx->insns_flags & PPC_SEGMENT_64B) {
+    if (is_book3s_arch2x(ctx)) {
         gen_helper_book3s_msgclr(cpu_env, cpu_gpr[rB(ctx->opcode)]);
     } else {
         gen_helper_msgclr(cpu_env, cpu_gpr[rB(ctx->opcode)]);
@@ -6526,8 +6557,7 @@ static void gen_msgsnd(DisasContext *ctx)
     GEN_PRIV;
 #else
     CHK_HV;
-    /* 64-bit server processors compliant with arch 2.x */
-    if (ctx->insns_flags & PPC_SEGMENT_64B) {
+    if (is_book3s_arch2x(ctx)) {
         gen_helper_book3s_msgsnd(cpu_gpr[rB(ctx->opcode)]);
     } else {
         gen_helper_msgsnd(cpu_gpr[rB(ctx->opcode)]);
