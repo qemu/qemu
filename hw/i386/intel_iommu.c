@@ -162,6 +162,15 @@ static inline void vtd_iommu_unlock(IntelIOMMUState *s)
     qemu_mutex_unlock(&s->iommu_lock);
 }
 
+static void vtd_update_scalable_state(IntelIOMMUState *s)
+{
+    uint64_t val = vtd_get_quad_raw(s, DMAR_RTADDR_REG);
+
+    if (s->scalable_mode) {
+        s->root_scalable = val & VTD_RTADDR_SMT;
+    }
+}
+
 /* Whether the address space needs to notify new mappings */
 static inline gboolean vtd_as_has_map_notifier(VTDAddressSpace *as)
 {
@@ -1710,10 +1719,9 @@ static void vtd_root_table_setup(IntelIOMMUState *s)
 {
     s->root = vtd_get_quad_raw(s, DMAR_RTADDR_REG);
     s->root_extended = s->root & VTD_RTADDR_RTT;
-    if (s->scalable_mode) {
-        s->root_scalable = s->root & VTD_RTADDR_SMT;
-    }
     s->root &= VTD_RTADDR_ADDR_MASK(s->aw_bits);
+
+    vtd_update_scalable_state(s);
 
     trace_vtd_reg_dmar_root(s->root, s->root_extended);
 }
@@ -2945,6 +2953,15 @@ static int vtd_post_load(void *opaque, int version_id)
      */
     vtd_switch_address_space_all(iommu);
 
+    /*
+     * We don't need to migrate the root_scalable because we can
+     * simply do the calculation after the loading is complete.  We
+     * can actually do similar things with root, dmar_enabled, etc.
+     * however since we've had them already so we'd better keep them
+     * for compatibility of migration.
+     */
+    vtd_update_scalable_state(iommu);
+
     return 0;
 }
 
@@ -2966,7 +2983,6 @@ static const VMStateDescription vtd_vmstate = {
         VMSTATE_UINT8_ARRAY(csr, IntelIOMMUState, DMAR_REG_SIZE),
         VMSTATE_UINT8(iq_last_desc_type, IntelIOMMUState),
         VMSTATE_BOOL(root_extended, IntelIOMMUState),
-        VMSTATE_BOOL(root_scalable, IntelIOMMUState),
         VMSTATE_BOOL(dmar_enabled, IntelIOMMUState),
         VMSTATE_BOOL(qi_enabled, IntelIOMMUState),
         VMSTATE_BOOL(intr_enabled, IntelIOMMUState),
