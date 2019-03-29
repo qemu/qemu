@@ -130,8 +130,8 @@ static void vfio_ccw_io_notifier_handler(void *opaque)
     S390CCWDevice *cdev = S390_CCW_DEVICE(vcdev);
     CcwDevice *ccw_dev = CCW_DEVICE(cdev);
     SubchDev *sch = ccw_dev->sch;
-    SCSW *s = &sch->curr_status.scsw;
-    PMCW *p = &sch->curr_status.pmcw;
+    SCHIB *schib = &sch->curr_status;
+    SCSW s;
     IRB irb;
     int size;
 
@@ -145,33 +145,33 @@ static void vfio_ccw_io_notifier_handler(void *opaque)
         switch (errno) {
         case ENODEV:
             /* Generate a deferred cc 3 condition. */
-            s->flags |= SCSW_FLAGS_MASK_CC;
-            s->ctrl &= ~SCSW_CTRL_MASK_STCTL;
-            s->ctrl |= (SCSW_STCTL_ALERT | SCSW_STCTL_STATUS_PEND);
+            schib->scsw.flags |= SCSW_FLAGS_MASK_CC;
+            schib->scsw.ctrl &= ~SCSW_CTRL_MASK_STCTL;
+            schib->scsw.ctrl |= (SCSW_STCTL_ALERT | SCSW_STCTL_STATUS_PEND);
             goto read_err;
         case EFAULT:
             /* Memory problem, generate channel data check. */
-            s->ctrl &= ~SCSW_ACTL_START_PEND;
-            s->cstat = SCSW_CSTAT_DATA_CHECK;
-            s->ctrl &= ~SCSW_CTRL_MASK_STCTL;
-            s->ctrl |= SCSW_STCTL_PRIMARY | SCSW_STCTL_SECONDARY |
+            schib->scsw.ctrl &= ~SCSW_ACTL_START_PEND;
+            schib->scsw.cstat = SCSW_CSTAT_DATA_CHECK;
+            schib->scsw.ctrl &= ~SCSW_CTRL_MASK_STCTL;
+            schib->scsw.ctrl |= SCSW_STCTL_PRIMARY | SCSW_STCTL_SECONDARY |
                        SCSW_STCTL_ALERT | SCSW_STCTL_STATUS_PEND;
             goto read_err;
         default:
             /* Error, generate channel program check. */
-            s->ctrl &= ~SCSW_ACTL_START_PEND;
-            s->cstat = SCSW_CSTAT_PROG_CHECK;
-            s->ctrl &= ~SCSW_CTRL_MASK_STCTL;
-            s->ctrl |= SCSW_STCTL_PRIMARY | SCSW_STCTL_SECONDARY |
+            schib->scsw.ctrl &= ~SCSW_ACTL_START_PEND;
+            schib->scsw.cstat = SCSW_CSTAT_PROG_CHECK;
+            schib->scsw.ctrl &= ~SCSW_CTRL_MASK_STCTL;
+            schib->scsw.ctrl |= SCSW_STCTL_PRIMARY | SCSW_STCTL_SECONDARY |
                        SCSW_STCTL_ALERT | SCSW_STCTL_STATUS_PEND;
             goto read_err;
         }
     } else if (size != vcdev->io_region_size) {
         /* Information transfer error, generate channel-control check. */
-        s->ctrl &= ~SCSW_ACTL_START_PEND;
-        s->cstat = SCSW_CSTAT_CHN_CTRL_CHK;
-        s->ctrl &= ~SCSW_CTRL_MASK_STCTL;
-        s->ctrl |= SCSW_STCTL_PRIMARY | SCSW_STCTL_SECONDARY |
+        schib->scsw.ctrl &= ~SCSW_ACTL_START_PEND;
+        schib->scsw.cstat = SCSW_CSTAT_CHN_CTRL_CHK;
+        schib->scsw.ctrl &= ~SCSW_CTRL_MASK_STCTL;
+        schib->scsw.ctrl |= SCSW_STCTL_PRIMARY | SCSW_STCTL_SECONDARY |
                    SCSW_STCTL_ALERT | SCSW_STCTL_STATUS_PEND;
         goto read_err;
     }
@@ -179,11 +179,13 @@ static void vfio_ccw_io_notifier_handler(void *opaque)
     memcpy(&irb, region->irb_area, sizeof(IRB));
 
     /* Update control block via irb. */
-    copy_scsw_to_guest(s, &irb.scsw);
+    s = schib->scsw;
+    copy_scsw_to_guest(&s, &irb.scsw);
+    schib->scsw = s;
 
     /* If a uint check is pending, copy sense data. */
-    if ((s->dstat & SCSW_DSTAT_UNIT_CHECK) &&
-        (p->chars & PMCW_CHARS_MASK_CSENSE)) {
+    if ((schib->scsw.dstat & SCSW_DSTAT_UNIT_CHECK) &&
+        (schib->pmcw.chars & PMCW_CHARS_MASK_CSENSE)) {
         memcpy(sch->sense_data, irb.ecw, sizeof(irb.ecw));
     }
 
