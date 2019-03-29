@@ -848,6 +848,25 @@ int nbd_client_co_preadv(BlockDriverState *bs, uint64_t offset,
     if (!bytes) {
         return 0;
     }
+    /*
+     * Work around the fact that the block layer doesn't do
+     * byte-accurate sizing yet - if the read exceeds the server's
+     * advertised size because the block layer rounded size up, then
+     * truncate the request to the server and tail-pad with zero.
+     */
+    if (offset >= client->info.size) {
+        assert(bytes < BDRV_SECTOR_SIZE);
+        qemu_iovec_memset(qiov, 0, 0, bytes);
+        return 0;
+    }
+    if (offset + bytes > client->info.size) {
+        uint64_t slop = offset + bytes - client->info.size;
+
+        assert(slop < BDRV_SECTOR_SIZE);
+        qemu_iovec_memset(qiov, bytes - slop, 0, slop);
+        request.len -= slop;
+    }
+
     ret = nbd_co_send_request(bs, &request, NULL);
     if (ret < 0) {
         return ret;
@@ -966,7 +985,8 @@ int coroutine_fn nbd_client_co_block_status(BlockDriverState *bs,
         .from = offset,
         .len = MIN(MIN_NON_ZERO(QEMU_ALIGN_DOWN(INT_MAX,
                                                 bs->bl.request_alignment),
-                                client->info.max_block), bytes),
+                                client->info.max_block),
+                   MIN(bytes, client->info.size - offset)),
         .flags = NBD_CMD_FLAG_REQ_ONE,
     };
 
@@ -977,6 +997,23 @@ int coroutine_fn nbd_client_co_block_status(BlockDriverState *bs,
         return BDRV_BLOCK_DATA | BDRV_BLOCK_OFFSET_VALID;
     }
 
+    /*
+     * Work around the fact that the block layer doesn't do
+     * byte-accurate sizing yet - if the status request exceeds the
+     * server's advertised size because the block layer rounded size
+     * up, we truncated the request to the server (above), or are
+     * called on just the hole.
+     */
+    if (offset >= client->info.size) {
+        *pnum = bytes;
+        assert(bytes < BDRV_SECTOR_SIZE);
+        /* Intentionally don't report offset_valid for the hole */
+        return BDRV_BLOCK_ZERO;
+    }
+
+    if (client->info.min_block) {
+        assert(QEMU_IS_ALIGNED(request.len, client->info.min_block));
+    }
     ret = nbd_co_send_request(bs, &request, NULL);
     if (ret < 0) {
         return ret;
