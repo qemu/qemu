@@ -252,8 +252,6 @@ static void s390_ipl_set_boot_menu(S390IPLState *ipl)
 {
     QemuOptsList *plist = qemu_find_opts("boot-opts");
     QemuOpts *opts = QTAILQ_FIRST(&plist->head);
-    uint8_t *flags = &ipl->qipl.qipl_flags;
-    uint32_t *timeout = &ipl->qipl.boot_menu_timeout;
     const char *tmp;
     unsigned long splash_time = 0;
 
@@ -269,7 +267,7 @@ static void s390_ipl_set_boot_menu(S390IPLState *ipl)
     case S390_IPL_TYPE_CCW:
         /* In the absence of -boot menu, use zipl parameters */
         if (!qemu_opt_get(opts, "menu")) {
-            *flags |= QIPL_FLAG_BM_OPTS_ZIPL;
+            ipl->qipl.qipl_flags |= QIPL_FLAG_BM_OPTS_ZIPL;
             return;
         }
         break;
@@ -286,23 +284,23 @@ static void s390_ipl_set_boot_menu(S390IPLState *ipl)
         return;
     }
 
-    *flags |= QIPL_FLAG_BM_OPTS_CMD;
+    ipl->qipl.qipl_flags |= QIPL_FLAG_BM_OPTS_CMD;
 
     tmp = qemu_opt_get(opts, "splash-time");
 
     if (tmp && qemu_strtoul(tmp, NULL, 10, &splash_time)) {
         error_report("splash-time is invalid, forcing it to 0");
-        *timeout = 0;
+        ipl->qipl.boot_menu_timeout = 0;
         return;
     }
 
     if (splash_time > 0xffffffff) {
         error_report("splash-time is too large, forcing it to max value");
-        *timeout = 0xffffffff;
+        ipl->qipl.boot_menu_timeout = 0xffffffff;
         return;
     }
 
-    *timeout = cpu_to_be32(splash_time);
+    ipl->qipl.boot_menu_timeout = cpu_to_be32(splash_time);
 }
 
 static CcwDevice *s390_get_ccw_device(DeviceState *dev_st)
