@@ -815,6 +815,18 @@ static int raw_handle_perm_lock(BlockDriverState *bs,
 
     switch (op) {
     case RAW_PL_PREPARE:
+        if ((s->perm | new_perm) == s->perm &&
+            (s->shared_perm & new_shared) == s->shared_perm)
+        {
+            /*
+             * We are going to unlock bytes, it should not fail. If it fail due
+             * to some fs-dependent permission-unrelated reasons (which occurs
+             * sometimes on NFS and leads to abort in bdrv_replace_child) we
+             * can't prevent such errors by any check here. And we ignore them
+             * anyway in ABORT and COMMIT.
+             */
+            return 0;
+        }
         ret = raw_apply_lock_bytes(s, s->fd, s->perm | new_perm,
                                    ~s->shared_perm | ~new_shared,
                                    false, errp);
