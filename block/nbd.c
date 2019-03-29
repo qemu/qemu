@@ -437,7 +437,24 @@ static void nbd_refresh_limits(BlockDriverState *bs, Error **errp)
     uint32_t min = s->info.min_block;
     uint32_t max = MIN_NON_ZERO(NBD_MAX_BUFFER_SIZE, s->info.max_block);
 
-    bs->bl.request_alignment = min ? min : BDRV_SECTOR_SIZE;
+    /*
+     * If the server did not advertise an alignment:
+     * - a size that is not sector-aligned implies that an alignment
+     *   of 1 can be used to access those tail bytes
+     * - advertisement of block status requires an alignment of 1, so
+     *   that we don't violate block layer constraints that block
+     *   status is always aligned (as we can't control whether the
+     *   server will report sub-sector extents, such as a hole at EOF
+     *   on an unaligned POSIX file)
+     * - otherwise, assume the server is so old that we are safer avoiding
+     *   sub-sector requests
+     */
+    if (!min) {
+        min = (!QEMU_IS_ALIGNED(s->info.size, BDRV_SECTOR_SIZE) ||
+               s->info.base_allocation) ? 1 : BDRV_SECTOR_SIZE;
+    }
+
+    bs->bl.request_alignment = min;
     bs->bl.max_pdiscard = max;
     bs->bl.max_pwrite_zeroes = max;
     bs->bl.max_transfer = max;
