@@ -35,7 +35,7 @@ $(IMAGES_DIR)/%.img:	$(SRC_PATH)/tests/vm/% \
 			$(SRC_PATH)/tests/vm/Makefile.include
 	@mkdir -p $(IMAGES_DIR)
 	$(call quiet-command, \
-		$< \
+		$(PYTHON) $< \
 		$(if $(V)$(DEBUG), --debug) \
 		--image "$@" \
 		--force \
@@ -46,7 +46,7 @@ $(IMAGES_DIR)/%.img:	$(SRC_PATH)/tests/vm/% \
 # Build in VM $(IMAGE)
 vm-build-%: $(IMAGES_DIR)/%.img
 	$(call quiet-command, \
-		$(SRC_PATH)/tests/vm/$* \
+		$(PYTHON) $(SRC_PATH)/tests/vm/$* \
 		$(if $(V)$(DEBUG), --debug) \
 		$(if $(DEBUG), --interactive) \
 		$(if $(J),--jobs $(J)) \
