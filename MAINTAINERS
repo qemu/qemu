@@ -2179,7 +2179,7 @@ F: include/migration/failover.h
 F: docs/COLO-FT.txt
 
 COLO Proxy
-M: Zhang Chen <zhangckid@gmail.com>
+M: Zhang Chen <chen.zhang@intel.com>
 M: Li Zhijian <lizhijian@cn.fujitsu.com>
 S: Supported
 F: docs/colo-proxy.txt
