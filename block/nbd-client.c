@@ -211,7 +211,8 @@ static inline uint64_t payload_advance64(uint8_t **payload)
     return ldq_be_p(*payload - 8);
 }
 
-static int nbd_parse_offset_hole_payload(NBDStructuredReplyChunk *chunk,
+static int nbd_parse_offset_hole_payload(NBDClientSession *client,
+                                         NBDStructuredReplyChunk *chunk,
                                          uint8_t *payload, uint64_t orig_offset,
                                          QEMUIOVector *qiov, Error **errp)
 {
@@ -232,6 +233,10 @@ static int nbd_parse_offset_hole_payload(NBDStructuredReplyChunk *chunk,
         error_setg(errp, "Protocol error: server sent chunk exceeding requested"
                          " region");
         return -EINVAL;
+    }
+    if (client->info.min_block &&
+        !QEMU_IS_ALIGNED(hole_size, client->info.min_block)) {
+        trace_nbd_structured_read_compliance("hole");
     }
 
     qemu_iovec_memset(qiov, offset - orig_offset, 0, hole_size);
@@ -389,6 +394,9 @@ static int nbd_co_receive_offset_data_payload(NBDClientSession *s,
         error_setg(errp, "Protocol error: server sent chunk exceeding requested"
                          " region");
         return -EINVAL;
+    }
+    if (s->info.min_block && !QEMU_IS_ALIGNED(data_size, s->info.min_block)) {
+        trace_nbd_structured_read_compliance("data");
     }
 
     qemu_iovec_init(&sub_qiov, qiov->niov);
@@ -712,7 +720,7 @@ static int nbd_co_receive_cmdread_reply(NBDClientSession *s, uint64_t handle,
              * in qiov */
             break;
         case NBD_REPLY_TYPE_OFFSET_HOLE:
-            ret = nbd_parse_offset_hole_payload(&reply.structured, payload,
+            ret = nbd_parse_offset_hole_payload(s, &reply.structured, payload,
                                                 offset, qiov, &local_err);
             if (ret < 0) {
                 s->quit = true;
