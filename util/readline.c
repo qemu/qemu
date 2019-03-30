@@ -54,8 +54,9 @@ static void readline_update(ReadLineState *rs)
         rs->cmd_buf[rs->cmd_buf_size] = '\0';
         if (rs->read_password) {
             len = strlen(rs->cmd_buf);
-            for (i = 0; i < len; i++)
+            for (i = 0; i < len; i++) {
                 rs->printf_func(rs->opaque, "*");
+            }
         } else {
             rs->printf_func(rs->opaque, "%s", rs->cmd_buf);
         }
@@ -178,13 +179,15 @@ static void readline_up_char(ReadLineState *rs)
 {
     int idx;
 
-    if (rs->hist_entry == 0)
+    if (rs->hist_entry == 0) {
         return;
+    }
     if (rs->hist_entry == -1) {
         /* Find latest entry */
         for (idx = 0; idx < READLINE_MAX_CMDS; idx++) {
-            if (rs->history[idx] == NULL)
+            if (rs->history[idx] == NULL) {
                 break;
+            }
         }
         rs->hist_entry = idx;
     }
@@ -198,8 +201,9 @@ static void readline_up_char(ReadLineState *rs)
 
 static void readline_down_char(ReadLineState *rs)
 {
-    if (rs->hist_entry == -1)
+    if (rs->hist_entry == -1) {
         return;
+    }
     if (rs->hist_entry < READLINE_MAX_CMDS - 1 &&
         rs->history[++rs->hist_entry] != NULL) {
         pstrcpy(rs->cmd_buf, sizeof(rs->cmd_buf),
@@ -216,8 +220,9 @@ static void readline_hist_add(ReadLineState *rs, const char *cmdline)
     char *hist_entry, *new_entry;
     int idx;
 
-    if (cmdline[0] == '\0')
+    if (cmdline[0] == '\0') {
         return;
+    }
     new_entry = NULL;
     if (rs->hist_entry != -1) {
         /* We were editing an existing history entry: replace it */
@@ -230,8 +235,9 @@ static void readline_hist_add(ReadLineState *rs, const char *cmdline)
     /* Search cmdline in history buffers */
     for (idx = 0; idx < READLINE_MAX_CMDS; idx++) {
         hist_entry = rs->history[idx];
-        if (hist_entry == NULL)
+        if (hist_entry == NULL) {
             break;
+        }
         if (strcmp(hist_entry, cmdline) == 0) {
         same_entry:
             new_entry = hist_entry;
@@ -240,8 +246,9 @@ static void readline_hist_add(ReadLineState *rs, const char *cmdline)
                     (READLINE_MAX_CMDS - (idx + 1)) * sizeof(char *));
             rs->history[READLINE_MAX_CMDS - 1] = NULL;
             for (; idx < READLINE_MAX_CMDS; idx++) {
-                if (rs->history[idx] == NULL)
+                if (rs->history[idx] == NULL) {
                     break;
+                }
             }
             break;
         }
@@ -254,8 +261,9 @@ static void readline_hist_add(ReadLineState *rs, const char *cmdline)
         rs->history[READLINE_MAX_CMDS - 1] = NULL;
         idx = READLINE_MAX_CMDS - 1;
     }
-    if (new_entry == NULL)
+    if (new_entry == NULL) {
         new_entry = g_strdup(cmdline);
+    }
     rs->history[idx] = new_entry;
     rs->hist_entry = -1;
 }
@@ -297,16 +305,18 @@ static void readline_completion(ReadLineState *rs)
     g_free(cmdline);
 
     /* no completion found */
-    if (rs->nb_completions <= 0)
+    if (rs->nb_completions <= 0) {
         return;
+    }
     if (rs->nb_completions == 1) {
         len = strlen(rs->completions[0]);
         for (i = rs->completion_index; i < len; i++) {
             readline_insert_char(rs, rs->completions[0][i]);
         }
         /* extra space for next argument. XXX: make it more generic */
-        if (len > 0 && rs->completions[0][len - 1] != '/')
+        if (len > 0 && rs->completions[0][len - 1] != '/') {
             readline_insert_char(rs, ' ');
+        }
     } else {
         qsort(rs->completions, rs->nb_completions, sizeof(char *),
               completion_comp);
@@ -318,25 +328,29 @@ static void readline_completion(ReadLineState *rs)
             if (i == 0) {
                 max_prefix = len;
             } else {
-                if (len < max_prefix)
+                if (len < max_prefix) {
                     max_prefix = len;
+                }
                 for (j = 0; j < max_prefix; j++) {
-                    if (rs->completions[i][j] != rs->completions[0][j])
+                    if (rs->completions[i][j] != rs->completions[0][j]) {
                         max_prefix = j;
+                    }
                 }
             }
-            if (len > max_width)
+            if (len > max_width) {
                 max_width = len;
+            }
         }
         if (max_prefix > 0)
             for (i = rs->completion_index; i < max_prefix; i++) {
                 readline_insert_char(rs, rs->completions[0][i]);
             }
         max_width += 2;
-        if (max_width < 10)
+        if (max_width < 10) {
             max_width = 10;
-        else if (max_width > 80)
+        } else if (max_width > 80) {
             max_width = 80;
+        }
         nb_cols = 80 / max_width;
         j = 0;
         for (i = 0; i < rs->nb_completions; i++) {
@@ -383,8 +397,9 @@ void readline_handle_byte(ReadLineState *rs, int ch)
         case 10:
         case 13:
             rs->cmd_buf[rs->cmd_buf_size] = '\0';
-            if (!rs->read_password)
+            if (!rs->read_password) {
                 readline_hist_add(rs, rs->cmd_buf);
+            }
             rs->printf_func(rs->opaque, "\n");
             rs->cmd_buf_index = 0;
             rs->cmd_buf_size = 0;
@@ -495,8 +510,9 @@ void readline_restart(ReadLineState *rs)
 
 const char *readline_get_history(ReadLineState *rs, unsigned int index)
 {
-    if (index >= READLINE_MAX_CMDS)
+    if (index >= READLINE_MAX_CMDS) {
         return NULL;
+    }
     return rs->history[index];
 }
 
