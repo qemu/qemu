@@ -1,2 +1,2 @@
-[{ "start": 0, "length": 524288, "depth": 0, "zero": false, "data": true},
-{ "start": 524288, "length": 524288, "depth": 0, "zero": true, "data": false}]
+[{ "start": 0, "length": 524288, "depth": 0, "zero": false, "data": true, "offset": 0},
+{ "start": 524288, "length": 524288, "depth": 0, "zero": true, "data": false, "offset": 524288}]
