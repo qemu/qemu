@@ -607,13 +607,16 @@ static int nbd_negotiate_handle_info(NBDClient *client, uint16_t myflags,
     /* Send NBD_INFO_BLOCK_SIZE always, but tweak the minimum size
      * according to whether the client requested it, and according to
      * whether this is OPT_INFO or OPT_GO. */
-    /* minimum - 1 for back-compat, or 512 if client is new enough.
-     * TODO: consult blk_bs(blk)->bl.request_alignment? */
-    sizes[0] =
-            (client->opt == NBD_OPT_INFO || blocksize) ? BDRV_SECTOR_SIZE : 1;
+    /* minimum - 1 for back-compat, or actual if client will obey it. */
+    if (client->opt == NBD_OPT_INFO || blocksize) {
+        sizes[0] = blk_get_request_alignment(exp->blk);
+    } else {
+        sizes[0] = 1;
+    }
+    assert(sizes[0] <= NBD_MAX_BUFFER_SIZE);
     /* preferred - Hard-code to 4096 for now.
      * TODO: is blk_bs(blk)->bl.opt_transfer appropriate? */
-    sizes[1] = 4096;
+    sizes[1] = MAX(4096, sizes[0]);
     /* maximum - At most 32M, but smaller as appropriate. */
     sizes[2] = MIN(blk_get_max_transfer(exp->blk), NBD_MAX_BUFFER_SIZE);
     trace_nbd_negotiate_handle_info_block_size(sizes[0], sizes[1], sizes[2]);

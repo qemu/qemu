@@ -38,7 +38,7 @@ exports available: 1
  export: ''
   size:  67108864
   flags: 0x4ed ( flush fua trim zeroes df cache )
-  min block: 512
+  min block: 1
   opt block: 4096
   max block: 33554432
   available meta contexts: 1
