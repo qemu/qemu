@@ -1150,16 +1150,6 @@ enum {
     DELETE_PARTIAL = (DELETE_FAILURE | DELETE_SUCCESS),
 };
 
-/* Assumes that children, if any, have been already freed */
-static void usb_mtp_object_free_one(MTPState *s, MTPObject *o)
-{
-    assert(o->nchildren == 0);
-    QTAILQ_REMOVE(&s->objects, o, next);
-    g_free(o->name);
-    g_free(o->path);
-    g_free(o);
-}
-
 static int usb_mtp_deletefn(MTPState *s, MTPObject *o, uint32_t trans)
 {
     MTPObject *iter, *iter2;
@@ -1181,14 +1171,14 @@ static int usb_mtp_deletefn(MTPState *s, MTPObject *o, uint32_t trans)
         if (remove(o->path)) {
             ret |= DELETE_FAILURE;
         } else {
-            usb_mtp_object_free_one(s, o);
+            usb_mtp_object_free(s, o);
             ret |= DELETE_SUCCESS;
         }
     } else if (o->format == FMT_ASSOCIATION) {
         if (rmdir(o->path)) {
             ret |= DELETE_FAILURE;
         } else {
-            usb_mtp_object_free_one(s, o);
+            usb_mtp_object_free(s, o);
             ret |= DELETE_SUCCESS;
         }
     }
