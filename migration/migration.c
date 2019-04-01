@@ -1646,7 +1646,11 @@ bool migration_in_postcopy_after_devices(MigrationState *s)
 
 bool migration_is_idle(void)
 {
-    MigrationState *s = migrate_get_current();
+    MigrationState *s = current_migration;
+
+    if (!s) {
+        return true;
+    }
 
     switch (s->state) {
     case MIGRATION_STATUS_NONE:
