@@ -70,7 +70,6 @@
 # Formats 16:
 @cr        ....  ..... .....  .. &r      rs2=%rs2_5       rs1=%rd     %rd
 @ci        ... . ..... .....  .. &i      imm=%imm_ci      rs1=%rd     %rd
-@ciw       ...   ........ ... .. &ciw    nzuimm=%nzuimm_ciw           rd=%rs2_3
 @cl_d      ... ... ... .. ... .. &i      imm=%uimm_cl_d   rs1=%rs1_3  rd=%rs2_3
 @cl_w      ... ... ... .. ... .. &i      imm=%uimm_cl_w   rs1=%rs1_3  rd=%rs2_3
 @cl        ... ... ... .. ... .. &cl                      rs1=%rs1_3  rd=%rs2_3
@@ -86,8 +85,12 @@
 @c_sdsp    ... . .....  ..... .. &s      imm=%uimm_6bit_sd rs1=2 rs2=%rs2_5
 @c_swsp    ... . .....  ..... .. &s      imm=%uimm_6bit_sw rs1=2 rs2=%rs2_5
 @c_li      ... . .....  ..... .. &i      imm=%imm_ci rs1=0 %rd
+@c_lui     ... . .....  ..... .. &u      imm=%imm_lui %rd
+@c_jalr    ... . .....  ..... .. &i      imm=0 rs1=%rd
+@c_mv      ... . ..... .....  .. &i      imm=0 rs1=%rs2_5 %rd
 
-@c_addi16sp_lui ... .  ..... ..... .. &caddi16sp_lui %imm_lui %imm_addi16sp %rd
+@c_addi4spn     ... .  ..... ..... .. &i imm=%nzuimm_ciw rs1=2 rd=%rs2_3
+@c_addi16sp     ... .  ..... ..... .. &i imm=%imm_addi16sp rs1=2 rd=2
 @c_flwsp_ldsp   ... .  ..... ..... .. &cflwsp_ldsp uimm_flwsp=%uimm_6bit_lw \
     uimm_ldsp=%uimm_6bit_ld %rd
 @c_fswsp_sdsp   ... .  ..... ..... .. &cfswsp_sdsp uimm_fswsp=%uimm_6bit_sw \
@@ -101,7 +104,11 @@
 @c_andi         ... . .. ... ..... .. &i imm=%imm_ci rs1=%rs1_3 rd=%rs1_3
 
 # *** RV64C Standard Extension (Quadrant 0) ***
-c_addi4spn        000    ........ ... 00 @ciw
+{
+  # Opcode of all zeros is illegal; rd != 0, nzuimm == 0 is reserved.
+  illegal         000  000 000 00 --- 00
+  addi            000  ... ... .. ... 00 @c_addi4spn
+}
 fld               001  ... ... .. ... 00 @cl_d
 lw                010  ... ... .. ... 00 @cl_w
 c_flw_ld          011  --- ... -- ... 00 @cl    #Note: Must parse uimm manually
@@ -113,7 +120,10 @@ c_fsw_sd          111  --- ... -- ... 00 @cs    #Note: Must parse uimm manually
 addi              000 .  .....  ..... 01 @ci
 c_jal_addiw       001 .  .....  ..... 01 @ci #Note: parse rd and/or imm manually
 addi              010 .  .....  ..... 01 @c_li
-c_addi16sp_lui    011 .  .....  ..... 01 @c_addi16sp_lui # shares opc with C.LUI
+{
+  addi            011 .  00010  ..... 01 @c_addi16sp
+  lui             011 .  .....  ..... 01 @c_lui
+}
 srli              100 . 00 ...  ..... 01 @c_shift
 srai              100 . 01 ...  ..... 01 @c_shift
 andi              100 . 10 ...  ..... 01 @c_andi
@@ -132,8 +142,15 @@ slli              000 .  .....  ..... 10 @c_shift2
 fld               001 .  .....  ..... 10 @c_ldsp
 lw                010 .  .....  ..... 10 @c_lwsp
 c_flwsp_ldsp      011 .  .....  ..... 10 @c_flwsp_ldsp #C.LDSP:RV64;C.FLWSP:RV32
-c_jr_mv           100 0  .....  ..... 10 @cr
-c_ebreak_jalr_add 100 1  .....  ..... 10 @cr
+{
+  jalr            100 0  .....  00000 10 @c_jalr rd=0  # C.JR
+  addi            100 0  .....  ..... 10 @c_mv
+}
+{
+  ebreak          100 1  00000  00000 10
+  jalr            100 1  .....  00000 10 @c_jalr rd=1  # C.JALR
+  add             100 1  .....  ..... 10 @cr
+}
 fsd               101   ......  ..... 10 @c_sdsp
 sw                110 .  .....  ..... 10 @c_swsp
 c_fswsp_sdsp      111 .  .....  ..... 10 @c_fswsp_sdsp #C.SDSP:RV64;C.FSWSP:RV32

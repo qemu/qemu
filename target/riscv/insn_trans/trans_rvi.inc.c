@@ -18,6 +18,12 @@
  * this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
+static bool trans_illegal(DisasContext *ctx, arg_empty *a)
+{
+    gen_exception_illegal(ctx);
+    return true;
+}
+
 static bool trans_lui(DisasContext *ctx, arg_lui *a)
 {
     if (a->rd != 0) {

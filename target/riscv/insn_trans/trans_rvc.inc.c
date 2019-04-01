@@ -18,16 +18,6 @@
  * this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-static bool trans_c_addi4spn(DisasContext *ctx, arg_c_addi4spn *a)
-{
-    if (a->nzuimm == 0) {
-        /* Reserved in ISA */
-        return false;
-    }
-    arg_addi arg = { .rd = a->rd, .rs1 = 2, .imm = a->nzuimm };
-    return trans_addi(ctx, &arg);
-}
-
 static bool trans_c_flw_ld(DisasContext *ctx, arg_c_flw_ld *a)
 {
 #ifdef TARGET_RISCV32
@@ -79,25 +69,6 @@ static bool trans_c_jal_addiw(DisasContext *ctx, arg_c_jal_addiw *a)
 #endif
 }
 
-static bool trans_c_addi16sp_lui(DisasContext *ctx, arg_c_addi16sp_lui *a)
-{
-    if (a->rd == 2) {
-        /* C.ADDI16SP */
-        arg_addi arg = { .rd = 2, .rs1 = 2, .imm = a->imm_addi16sp };
-        return trans_addi(ctx, &arg);
-    } else if (a->imm_lui != 0) {
-        /* C.LUI */
-        if (a->rd == 0) {
-            /* Hint: insn is valid but does not affect state */
-            return true;
-        }
-        arg_lui arg = { .rd = a->rd, .imm = a->imm_lui };
-        return trans_lui(ctx, &arg);
-    }
-    return false;
-}
-
-
 static bool trans_c_subw(DisasContext *ctx, arg_c_subw *a)
 {
 #ifdef TARGET_RISCV64
@@ -127,40 +98,6 @@ static bool trans_c_flwsp_ldsp(DisasContext *ctx, arg_c_flwsp_ldsp *a)
     arg_ld arg_ld = { .rd = a->rd, .rs1 = 2, .imm = a->uimm_ldsp };
     return trans_ld(ctx, &arg_ld);
 #endif
-    return false;
-}
-
-static bool trans_c_jr_mv(DisasContext *ctx, arg_c_jr_mv *a)
-{
-    if (a->rd != 0 && a->rs2 == 0) {
-        /* C.JR */
-        arg_jalr arg = { .rd = 0, .rs1 = a->rd, .imm = 0 };
-        return trans_jalr(ctx, &arg);
-    } else if (a->rd != 0 && a->rs2 != 0) {
-        /* C.MV */
-        arg_add arg = { .rd = a->rd, .rs1 = 0, .rs2 = a->rs2 };
-        return trans_add(ctx, &arg);
-    }
-    return false;
-}
-
-static bool trans_c_ebreak_jalr_add(DisasContext *ctx, arg_c_ebreak_jalr_add *a)
-{
-    if (a->rd == 0 && a->rs2 == 0) {
-        /* C.EBREAK */
-        arg_ebreak arg = { };
-        return trans_ebreak(ctx, &arg);
-    } else if (a->rd != 0) {
-        if (a->rs2 == 0) {
-            /* C.JALR */
-            arg_jalr arg = { .rd = 1, .rs1 = a->rd, .imm = 0 };
-            return trans_jalr(ctx, &arg);
-        } else {
-            /* C.ADD */
-            arg_add arg = { .rd = a->rd, .rs1 = a->rd, .rs2 = a->rs2 };
-            return trans_add(ctx, &arg);
-        }
-    }
     return false;
 }
 
