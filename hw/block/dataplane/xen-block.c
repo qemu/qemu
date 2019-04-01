@@ -49,7 +49,6 @@ struct XenBlockDataPlane {
     unsigned int *ring_ref;
     unsigned int nr_ring_ref;
     void *sring;
-    int64_t file_blk;
     int protocol;
     blkif_back_rings_t rings;
     int more_work;
@@ -168,7 +167,7 @@ static int xen_block_parse_request(XenBlockRequest *request)
         goto err;
     }
 
-    request->start = request->req.sector_number * dataplane->file_blk;
+    request->start = request->req.sector_number * XEN_BLKIF_SECTOR_SIZE;
     for (i = 0; i < request->req.nr_segments; i++) {
         if (i == BLKIF_MAX_SEGMENTS_PER_REQUEST) {
             error_report("error: nr_segments too big");
@@ -178,14 +177,14 @@ static int xen_block_parse_request(XenBlockRequest *request)
             error_report("error: first > last sector");
             goto err;
         }
-        if (request->req.seg[i].last_sect * dataplane->file_blk >=
+        if (request->req.seg[i].last_sect * XEN_BLKIF_SECTOR_SIZE >=
             XC_PAGE_SIZE) {
             error_report("error: page crossing");
             goto err;
         }
 
         len = (request->req.seg[i].last_sect -
-               request->req.seg[i].first_sect + 1) * dataplane->file_blk;
+               request->req.seg[i].first_sect + 1) * XEN_BLKIF_SECTOR_SIZE;
         request->size += len;
     }
     if (request->start + request->size > blk_getlength(dataplane->blk)) {
@@ -205,7 +204,6 @@ static int xen_block_copy_request(XenBlockRequest *request)
     XenDevice *xendev = dataplane->xendev;
     XenDeviceGrantCopySegment segs[BLKIF_MAX_SEGMENTS_PER_REQUEST];
     int i, count;
-    int64_t file_blk = dataplane->file_blk;
     bool to_domain = (request->req.operation == BLKIF_OP_READ);
     void *virt = request->buf;
     Error *local_err = NULL;
@@ -220,16 +218,17 @@ static int xen_block_copy_request(XenBlockRequest *request)
         if (to_domain) {
             segs[i].dest.foreign.ref = request->req.seg[i].gref;
             segs[i].dest.foreign.offset = request->req.seg[i].first_sect *
-                file_blk;
+                XEN_BLKIF_SECTOR_SIZE;
             segs[i].source.virt = virt;
         } else {
             segs[i].source.foreign.ref = request->req.seg[i].gref;
             segs[i].source.foreign.offset = request->req.seg[i].first_sect *
-                file_blk;
+                XEN_BLKIF_SECTOR_SIZE;
             segs[i].dest.virt = virt;
         }
         segs[i].len = (request->req.seg[i].last_sect -
-                       request->req.seg[i].first_sect + 1) * file_blk;
+                       request->req.seg[i].first_sect + 1) *
+                      XEN_BLKIF_SECTOR_SIZE;
         virt += segs[i].len;
     }
 
@@ -331,22 +330,22 @@ static bool xen_block_split_discard(XenBlockRequest *request,
     XenBlockDataPlane *dataplane = request->dataplane;
     int64_t byte_offset;
     int byte_chunk;
-    uint64_t byte_remaining, limit;
+    uint64_t byte_remaining;
     uint64_t sec_start = sector_number;
     uint64_t sec_count = nr_sectors;
 
     /* Wrap around, or overflowing byte limit? */
     if (sec_start + sec_count < sec_count ||
-        sec_start + sec_count > INT64_MAX / dataplane->file_blk) {
+        sec_start + sec_count > INT64_MAX / XEN_BLKIF_SECTOR_SIZE) {
         return false;
     }
 
-    limit = BDRV_REQUEST_MAX_SECTORS * dataplane->file_blk;
-    byte_offset = sec_start * dataplane->file_blk;
-    byte_remaining = sec_count * dataplane->file_blk;
+    byte_offset = sec_start * XEN_BLKIF_SECTOR_SIZE;
+    byte_remaining = sec_count * XEN_BLKIF_SECTOR_SIZE;
 
     do {
-        byte_chunk = byte_remaining > limit ? limit : byte_remaining;
+        byte_chunk = byte_remaining > BDRV_REQUEST_MAX_BYTES ?
+            BDRV_REQUEST_MAX_BYTES : byte_remaining;
         request->aio_inflight++;
         blk_aio_pdiscard(dataplane->blk, byte_offset, byte_chunk,
                          xen_block_complete_aio, request);
@@ -632,7 +631,6 @@ XenBlockDataPlane *xen_block_dataplane_create(XenDevice *xendev,
     XenBlockDataPlane *dataplane = g_new0(XenBlockDataPlane, 1);
 
     dataplane->xendev = xendev;
-    dataplane->file_blk = conf->logical_block_size;
     dataplane->blk = conf->blk;
 
     QLIST_INIT(&dataplane->inflight);
