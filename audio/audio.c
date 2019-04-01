@@ -1471,7 +1471,7 @@ static int audio_init(Audiodev *dev)
     if (dev->timer_period <= 0) {
         s->period_ticks = 1;
     } else {
-        s->period_ticks = NANOSECONDS_PER_SECOND / dev->timer_period;
+        s->period_ticks = dev->timer_period * SCALE_US;
     }
 
     e = qemu_add_vm_change_state_handler (audio_vm_change_state_handler, s);
