@@ -4278,16 +4278,9 @@ int main(int argc, char **argv, char **envp)
     }
 
     /*
-     * Migration object can only be created after global properties
-     * are applied correctly.
-     */
-    migration_object_init();
-
-    /*
      * Note: we need to create block backends before
      * machine_set_property(), so machine properties can refer to
-     * them, and after migration_object_init(), so we can create
-     * migration blockers.
+     * them.
      */
     configure_blockdev(&bdo_queue, machine_class, snapshot);
 
@@ -4304,6 +4297,12 @@ int main(int argc, char **argv, char **envp)
         error_report("Machine type '%s' is deprecated: %s",
                      machine_class->name, machine_class->deprecation_reason);
     }
+
+    /*
+     * Migration object can only be created after global properties
+     * are applied correctly.
+     */
+    migration_object_init();
 
     if (qtest_chrdev) {
         qtest_init(qtest_chrdev, qtest_log, &error_fatal);
