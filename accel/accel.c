@@ -65,8 +65,9 @@ static int accel_init_machine(AccelClass *acc, MachineState *ms)
         ms->accelerator = NULL;
         *(acc->allowed) = false;
         object_unref(OBJECT(accel));
+    } else {
+        object_set_accelerator_compat_props(acc->compat_props);
     }
-    object_set_accelerator_compat_props(acc->compat_props);
     return ret;
 }
 
