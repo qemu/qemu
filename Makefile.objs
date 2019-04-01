@@ -127,11 +127,12 @@ rdmacm-mux-obj-y = contrib/rdmacm-mux/
 trace-events-subdirs =
 trace-events-subdirs += accel/kvm
 trace-events-subdirs += accel/tcg
-trace-events-subdirs += audio
 trace-events-subdirs += authz
 trace-events-subdirs += block
 trace-events-subdirs += chardev
 trace-events-subdirs += crypto
+ifeq ($(CONFIG_SOFTMMU),y)
+trace-events-subdirs += audio
 trace-events-subdirs += hw/9pfs
 trace-events-subdirs += hw/acpi
 trace-events-subdirs += hw/alpha
@@ -140,7 +141,6 @@ trace-events-subdirs += hw/audio
 trace-events-subdirs += hw/block
 trace-events-subdirs += hw/block/dataplane
 trace-events-subdirs += hw/char
-trace-events-subdirs += hw/display
 trace-events-subdirs += hw/dma
 trace-events-subdirs += hw/hppa
 trace-events-subdirs += hw/i2c
@@ -173,11 +173,14 @@ trace-events-subdirs += hw/virtio
 trace-events-subdirs += hw/watchdog
 trace-events-subdirs += hw/xen
 trace-events-subdirs += hw/gpio
+trace-events-subdirs += migration
+trace-events-subdirs += net
+trace-events-subdirs += ui
+endif
+trace-events-subdirs += hw/display
 trace-events-subdirs += io
 trace-events-subdirs += linux-user
-trace-events-subdirs += migration
 trace-events-subdirs += nbd
-trace-events-subdirs += net
 trace-events-subdirs += qapi
 trace-events-subdirs += qom
 trace-events-subdirs += scsi
@@ -189,7 +192,6 @@ trace-events-subdirs += target/ppc
 trace-events-subdirs += target/riscv
 trace-events-subdirs += target/s390x
 trace-events-subdirs += target/sparc
-trace-events-subdirs += ui
 trace-events-subdirs += util
 
 trace-events-files = $(SRC_PATH)/trace-events $(trace-events-subdirs:%=$(SRC_PATH)/%/trace-events)
