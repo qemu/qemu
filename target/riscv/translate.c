@@ -707,7 +707,6 @@ static bool gen_shift(DisasContext *ctx, arg_r *a,
 #endif
 
 #include "decode_insn16.inc.c"
-#include "insn_trans/trans_rvc.inc.c"
 
 #ifdef CONFIG_PRAGMA_DIAGNOSTIC_AVAILABLE
 # pragma GCC diagnostic pop
