@@ -87,6 +87,10 @@ endif
 
 include $(SRC_PATH)/rules.mak
 
+# notempy and lor are defined in rules.mak
+CONFIG_TOOLS := $(call notempty,$(TOOLS))
+CONFIG_BLOCK := $(call lor,$(CONFIG_SOFTMMU),$(CONFIG_TOOLS))
+
 # Create QEMU_PKGVERSION and FULL_VERSION strings
 # If PKGVERSION is set, use that; otherwise get version and -dirty status from git
 QEMU_PKGVERSION := $(if $(PKGVERSION),$(PKGVERSION),$(shell \

@@ -127,9 +127,17 @@ rdmacm-mux-obj-y = contrib/rdmacm-mux/
 trace-events-subdirs =
 trace-events-subdirs += accel/kvm
 trace-events-subdirs += accel/tcg
+trace-events-subdirs += crypto
+ifeq ($(CONFIG_USER_ONLY),y)
+trace-events-subdirs += linux-user
+endif
+ifeq ($(CONFIG_BLOCK),y)
 trace-events-subdirs += authz
 trace-events-subdirs += block
-trace-events-subdirs += crypto
+trace-events-subdirs += io
+trace-events-subdirs += nbd
+trace-events-subdirs += scsi
+endif
 ifeq ($(CONFIG_SOFTMMU),y)
 trace-events-subdirs += chardev
 trace-events-subdirs += audio
@@ -178,12 +186,8 @@ trace-events-subdirs += net
 trace-events-subdirs += ui
 endif
 trace-events-subdirs += hw/display
-trace-events-subdirs += io
-trace-events-subdirs += linux-user
-trace-events-subdirs += nbd
 trace-events-subdirs += qapi
 trace-events-subdirs += qom
-trace-events-subdirs += scsi
 trace-events-subdirs += target/arm
 trace-events-subdirs += target/hppa
 trace-events-subdirs += target/i386
