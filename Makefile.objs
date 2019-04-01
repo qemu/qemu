@@ -129,9 +129,9 @@ trace-events-subdirs += accel/kvm
 trace-events-subdirs += accel/tcg
 trace-events-subdirs += authz
 trace-events-subdirs += block
-trace-events-subdirs += chardev
 trace-events-subdirs += crypto
 ifeq ($(CONFIG_SOFTMMU),y)
+trace-events-subdirs += chardev
 trace-events-subdirs += audio
 trace-events-subdirs += hw/9pfs
 trace-events-subdirs += hw/acpi
