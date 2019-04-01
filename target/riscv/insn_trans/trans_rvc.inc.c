@@ -97,37 +97,6 @@ static bool trans_c_addi16sp_lui(DisasContext *ctx, arg_c_addi16sp_lui *a)
     return false;
 }
 
-static bool trans_c_srli(DisasContext *ctx, arg_c_srli *a)
-{
-    int shamt = a->shamt;
-    if (shamt == 0) {
-        /* For RV128 a shamt of 0 means a shift by 64 */
-        shamt = 64;
-    }
-    /* Ensure, that shamt[5] is zero for RV32 */
-    if (shamt >= TARGET_LONG_BITS) {
-        return false;
-    }
-
-    arg_srli arg = { .rd = a->rd, .rs1 = a->rd, .shamt = a->shamt };
-    return trans_srli(ctx, &arg);
-}
-
-static bool trans_c_srai(DisasContext *ctx, arg_c_srai *a)
-{
-    int shamt = a->shamt;
-    if (shamt == 0) {
-        /* For RV128 a shamt of 0 means a shift by 64 */
-        shamt = 64;
-    }
-    /* Ensure, that shamt[5] is zero for RV32 */
-    if (shamt >= TARGET_LONG_BITS) {
-        return false;
-    }
-
-    arg_srai arg = { .rd = a->rd, .rs1 = a->rd, .shamt = a->shamt };
-    return trans_srai(ctx, &arg);
-}
 
 static bool trans_c_subw(DisasContext *ctx, arg_c_subw *a)
 {
@@ -145,22 +114,6 @@ static bool trans_c_addw(DisasContext *ctx, arg_c_addw *a)
 #else
     return false;
 #endif
-}
-
-static bool trans_c_slli(DisasContext *ctx, arg_c_slli *a)
-{
-    int shamt = a->shamt;
-    if (shamt == 0) {
-        /* For RV128 a shamt of 0 means a shift by 64 */
-        shamt = 64;
-    }
-    /* Ensure, that shamt[5] is zero for RV32 */
-    if (shamt >= TARGET_LONG_BITS) {
-        return false;
-    }
-
-    arg_slli arg = { .rd = a->rd, .rs1 = a->rd, .shamt = a->shamt };
-    return trans_slli(ctx, &arg);
 }
 
 static bool trans_c_flwsp_ldsp(DisasContext *ctx, arg_c_flwsp_ldsp *a)

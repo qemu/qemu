@@ -558,6 +558,12 @@ static int ex_rvc_register(DisasContext *ctx, int reg)
     return 8 + reg;
 }
 
+static int ex_rvc_shifti(DisasContext *ctx, int imm)
+{
+    /* For RV128 a shamt of 0 means a shift by 64. */
+    return imm ? imm : 64;
+}
+
 /* Include the auto-generated decoder for 32 bit insn */
 #include "decode_insn32.inc.c"
 
