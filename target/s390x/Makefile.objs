@@ -12,7 +12,7 @@ obj-$(call lnot,$(CONFIG_TCG)) += tcg-stub.o
 feat-src = $(SRC_PATH)/target/$(TARGET_BASE_ARCH)/
 feat-dst = $(BUILD_DIR)/$(TARGET_DIR)
 ifneq ($(MAKECMDGOALS),clean)
-GENERATED_FILES += $(feat-dst)gen-features.h
+generated-files-y += $(feat-dst)gen-features.h
 endif
 
 $(feat-dst)gen-features.h: $(feat-dst)gen-features.h-timestamp

@@ -468,19 +468,19 @@ qapi-schema += unknown-expr-key.json
 
 check-qapi-schema-y := $(addprefix tests/qapi-schema/, $(qapi-schema))
 
-GENERATED_FILES += tests/test-qapi-types.h \
-	tests/include/test-qapi-types-sub-module.h \
-	tests/test-qapi-types-sub-sub-module.h \
-	tests/test-qapi-visit.h \
-	tests/include/test-qapi-visit-sub-module.h \
-	tests/test-qapi-visit-sub-sub-module.h \
-	tests/test-qapi-commands.h \
-	tests/include/test-qapi-commands-sub-module.h \
-	tests/test-qapi-commands-sub-sub-module.h \
-	tests/test-qapi-events.h \
-	tests/include/test-qapi-events-sub-module.h \
-	tests/test-qapi-events-sub-sub-module.h \
-	tests/test-qapi-introspect.h
+generated-files-y += tests/test-qapi-types.h
+generated-files-y += tests/include/test-qapi-types-sub-module.h
+generated-files-y += tests/test-qapi-types-sub-sub-module.h
+generated-files-y += tests/test-qapi-visit.h
+generated-files-y += tests/include/test-qapi-visit-sub-module.h
+generated-files-y += tests/test-qapi-visit-sub-sub-module.h
+generated-files-y += tests/test-qapi-commands.h
+generated-files-y += tests/include/test-qapi-commands-sub-module.h
+generated-files-y += tests/test-qapi-commands-sub-sub-module.h
+generated-files-y += tests/test-qapi-events.h
+generated-files-y += tests/include/test-qapi-events-sub-module.h
+generated-files-y += tests/test-qapi-events-sub-sub-module.h
+generated-files-y += tests/test-qapi-introspect.h
 
 QEMU_CFLAGS += -I$(SRC_PATH)/tests
 

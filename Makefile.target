@@ -166,7 +166,7 @@ else
 obj-y += hw/$(TARGET_BASE_ARCH)/
 endif
 
-GENERATED_FILES += hmp-commands.h hmp-commands-info.h
+generated-files-y += hmp-commands.h hmp-commands-info.h
 
 endif # CONFIG_SOFTMMU
 
@@ -236,5 +236,5 @@ ifdef CONFIG_TRACE_SYSTEMTAP
 	$(INSTALL_DATA) $(QEMU_PROG)-log.stp "$(DESTDIR)$(qemu_datadir)/../systemtap/tapset/$(QEMU_PROG)-log.stp"
 endif
 
-GENERATED_FILES += config-target.h
-Makefile: $(GENERATED_FILES)
+generated-files-y += config-target.h
+Makefile: $(generated-files-y)

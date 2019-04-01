@@ -101,7 +101,7 @@ QEMU_PKGVERSION := $(if $(PKGVERSION),$(PKGVERSION),$(shell \
 # Either "version (pkgversion)", or just "version" if pkgversion not set
 FULL_VERSION := $(if $(QEMU_PKGVERSION),$(VERSION) ($(QEMU_PKGVERSION)),$(VERSION))
 
-GENERATED_FILES = qemu-version.h config-host.h qemu-options.def
+generated-files-y = qemu-version.h config-host.h qemu-options.def
 
 GENERATED_QAPI_FILES = qapi/qapi-builtin-types.h qapi/qapi-builtin-types.c
 GENERATED_QAPI_FILES += qapi/qapi-types.h qapi/qapi-types.c
@@ -121,20 +121,18 @@ GENERATED_QAPI_FILES += $(QAPI_MODULES:%=qapi/qapi-events-%.c)
 GENERATED_QAPI_FILES += qapi/qapi-introspect.c qapi/qapi-introspect.h
 GENERATED_QAPI_FILES += qapi/qapi-doc.texi
 
-GENERATED_FILES += $(GENERATED_QAPI_FILES)
+generated-files-y += $(GENERATED_QAPI_FILES)
 
-GENERATED_FILES += trace/generated-tcg-tracers.h
+generated-files-y += trace/generated-tcg-tracers.h
 
-GENERATED_FILES += trace/generated-helpers-wrappers.h
-GENERATED_FILES += trace/generated-helpers.h
-GENERATED_FILES += trace/generated-helpers.c
+generated-files-y += trace/generated-helpers-wrappers.h
+generated-files-y += trace/generated-helpers.h
+generated-files-y += trace/generated-helpers.c
 
-ifdef CONFIG_TRACE_UST
-GENERATED_FILES += trace-ust-all.h
-GENERATED_FILES += trace-ust-all.c
-endif
+generated-files-$(CONFIG_TRACE_UST) += trace-ust-all.h
+generated-files-$(CONFIG_TRACE_UST) += trace-ust-all.c
 
-GENERATED_FILES += module_block.h
+generated-files-y += module_block.h
 
 TRACE_HEADERS = trace-root.h $(trace-events-subdirs:%=%/trace.h)
 TRACE_SOURCES = trace-root.c $(trace-events-subdirs:%=%/trace.c)
@@ -147,10 +145,10 @@ ifdef CONFIG_TRACE_UST
 TRACE_HEADERS += trace-ust-root.h $(trace-events-subdirs:%=%/trace-ust.h)
 endif
 
-GENERATED_FILES += $(TRACE_HEADERS)
-GENERATED_FILES += $(TRACE_SOURCES)
-GENERATED_FILES += $(BUILD_DIR)/trace-events-all
-GENERATED_FILES += .git-submodule-status
+generated-files-y += $(TRACE_HEADERS)
+generated-files-y += $(TRACE_SOURCES)
+generated-files-y += $(BUILD_DIR)/trace-events-all
+generated-files-y += .git-submodule-status
 
 trace-group-name = $(shell dirname $1 | sed -e 's/[^a-zA-Z0-9]/_/g')
 
@@ -281,7 +279,7 @@ KEYCODEMAP_FILES = \
 		 ui/input-keymap-osx-to-qcode.c \
 		 $(NULL)
 
-GENERATED_FILES += $(KEYCODEMAP_FILES)
+generated-files-$(CONFIG_SOFTMMU) += $(KEYCODEMAP_FILES)
 
 ui/input-keymap-%.c: $(KEYCODEMAP_GEN) $(KEYCODEMAP_CSV) $(SRC_PATH)/ui/Makefile.objs
 	$(call quiet-command,\
@@ -643,10 +641,10 @@ clean:
 	rm -f fsdev/*.pod scsi/*.pod
 	rm -f qemu-img-cmds.h
 	rm -f ui/shader/*-vert.h ui/shader/*-frag.h
-	@# May not be present in GENERATED_FILES
+	@# May not be present in generated-files-y
 	rm -f trace/generated-tracers-dtrace.dtrace*
 	rm -f trace/generated-tracers-dtrace.h*
-	rm -f $(foreach f,$(GENERATED_FILES),$(f) $(f)-timestamp)
+	rm -f $(foreach f,$(generated-files-y),$(f) $(f)-timestamp)
 	rm -f qapi-gen-timestamp
 	rm -rf qga/qapi-generated
 	for d in $(ALL_SUBDIRS); do \
@@ -1062,7 +1060,7 @@ endif # CONFIG_WIN
 # rebuilt before other object files
 ifneq ($(wildcard config-host.mak),)
 ifneq ($(filter-out $(UNCHECKED_GOALS),$(MAKECMDGOALS)),$(if $(MAKECMDGOALS),,fail))
-Makefile: $(GENERATED_FILES)
+Makefile: $(generated-files-y)
 endif
 endif
 
