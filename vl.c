@@ -185,6 +185,7 @@ const char *prom_envs[MAX_PROM_ENVS];
 int boot_menu;
 bool boot_strict;
 uint8_t *boot_splash_filedata;
+int only_migratable; /* turn it off unless user states otherwise */
 bool wakeup_suspend_enabled;
 
 int icount_align_option;
@@ -3800,13 +3801,7 @@ int main(int argc, char **argv, char **envp)
                 incoming = optarg;
                 break;
             case QEMU_OPTION_only_migratable:
-                /*
-                 * TODO: we can remove this option one day, and we
-                 * should all use:
-                 *
-                 * "-global migration.only-migratable=true"
-                 */
-                qemu_global_option("migration.only-migratable=true");
+                only_migratable = 1;
                 break;
             case QEMU_OPTION_nodefaults:
                 has_defaults = 0;
