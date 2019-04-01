@@ -48,13 +48,13 @@ static void readline_update(ReadLineState *rs)
 
     if (rs->cmd_buf_size != rs->last_cmd_buf_size ||
         memcmp(rs->cmd_buf, rs->last_cmd_buf, rs->cmd_buf_size) != 0) {
-        for(i = 0; i < rs->last_cmd_buf_index; i++) {
+        for (i = 0; i < rs->last_cmd_buf_index; i++) {
             rs->printf_func(rs->opaque, "\033[D");
         }
         rs->cmd_buf[rs->cmd_buf_size] = '\0';
         if (rs->read_password) {
             len = strlen(rs->cmd_buf);
-            for(i = 0; i < len; i++)
+            for (i = 0; i < len; i++)
                 rs->printf_func(rs->opaque, "*");
         } else {
             rs->printf_func(rs->opaque, "%s", rs->cmd_buf);
@@ -67,12 +67,12 @@ static void readline_update(ReadLineState *rs)
     if (rs->cmd_buf_index != rs->last_cmd_buf_index) {
         delta = rs->cmd_buf_index - rs->last_cmd_buf_index;
         if (delta > 0) {
-            for(i = 0;i < delta; i++) {
+            for (i = 0; i < delta; i++) {
                 rs->printf_func(rs->opaque, "\033[C");
             }
         } else {
             delta = -delta;
-            for(i = 0;i < delta; i++) {
+            for (i = 0; i < delta; i++) {
                 rs->printf_func(rs->opaque, "\033[D");
             }
         }
@@ -301,7 +301,7 @@ static void readline_completion(ReadLineState *rs)
         return;
     if (rs->nb_completions == 1) {
         len = strlen(rs->completions[0]);
-        for(i = rs->completion_index; i < len; i++) {
+        for (i = rs->completion_index; i < len; i++) {
             readline_insert_char(rs, rs->completions[0][i]);
         }
         /* extra space for next argument. XXX: make it more generic */
@@ -312,15 +312,15 @@ static void readline_completion(ReadLineState *rs)
               completion_comp);
         rs->printf_func(rs->opaque, "\n");
         max_width = 0;
-        max_prefix = 0;	
-        for(i = 0; i < rs->nb_completions; i++) {
+        max_prefix = 0;
+        for (i = 0; i < rs->nb_completions; i++) {
             len = strlen(rs->completions[i]);
-            if (i==0) {
+            if (i == 0) {
                 max_prefix = len;
             } else {
                 if (len < max_prefix)
                     max_prefix = len;
-                for(j=0; j<max_prefix; j++) {
+                for (j = 0; j < max_prefix; j++) {
                     if (rs->completions[i][j] != rs->completions[0][j])
                         max_prefix = j;
                 }
@@ -328,8 +328,8 @@ static void readline_completion(ReadLineState *rs)
             if (len > max_width)
                 max_width = len;
         }
-        if (max_prefix > 0) 
-            for(i = rs->completion_index; i < max_prefix; i++) {
+        if (max_prefix > 0)
+            for (i = rs->completion_index; i < max_prefix; i++) {
                 readline_insert_char(rs, rs->completions[0][i]);
             }
         max_width += 2;
@@ -339,7 +339,7 @@ static void readline_completion(ReadLineState *rs)
             max_width = 80;
         nb_cols = 80 / max_width;
         j = 0;
-        for(i = 0; i < rs->nb_completions; i++) {
+        for (i = 0; i < rs->nb_completions; i++) {
             rs->printf_func(rs->opaque, "%-*s", max_width, rs->completions[i]);
             if (++j == nb_cols || i == (rs->nb_completions - 1)) {
                 rs->printf_func(rs->opaque, "\n");
@@ -362,9 +362,9 @@ static void readline_clear_screen(ReadLineState *rs)
 /* return true if command handled */
 void readline_handle_byte(ReadLineState *rs, int ch)
 {
-    switch(rs->esc_state) {
+    switch (rs->esc_state) {
     case IS_NORM:
-        switch(ch) {
+        switch (ch) {
         case 1:
             readline_bol(rs);
             break;
@@ -425,7 +425,7 @@ void readline_handle_byte(ReadLineState *rs, int ch)
         }
         break;
     case IS_CSI:
-        switch(ch) {
+        switch (ch) {
 	case 'A':
 	case 'F':
 	    readline_up_char(rs);
@@ -444,7 +444,7 @@ void readline_handle_byte(ReadLineState *rs, int ch)
             rs->esc_param = rs->esc_param * 10 + (ch - '0');
             goto the_end;
         case '~':
-            switch(rs->esc_param) {
+            switch (rs->esc_param) {
             case 1:
                 readline_bol(rs);
                 break;
@@ -463,7 +463,7 @@ void readline_handle_byte(ReadLineState *rs, int ch)
     the_end:
         break;
     case IS_SS3:
-        switch(ch) {
+        switch (ch) {
         case 'F':
             readline_eol(rs);
             break;
