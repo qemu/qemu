@@ -179,20 +179,20 @@ static void readline_up_char(ReadLineState *rs)
     int idx;
 
     if (rs->hist_entry == 0)
-	return;
+        return;
     if (rs->hist_entry == -1) {
-	/* Find latest entry */
-	for (idx = 0; idx < READLINE_MAX_CMDS; idx++) {
-	    if (rs->history[idx] == NULL)
-		break;
-	}
-	rs->hist_entry = idx;
+        /* Find latest entry */
+        for (idx = 0; idx < READLINE_MAX_CMDS; idx++) {
+            if (rs->history[idx] == NULL)
+                break;
+        }
+        rs->hist_entry = idx;
     }
     rs->hist_entry--;
     if (rs->hist_entry >= 0) {
-	pstrcpy(rs->cmd_buf, sizeof(rs->cmd_buf),
+        pstrcpy(rs->cmd_buf, sizeof(rs->cmd_buf),
                 rs->history[rs->hist_entry]);
-	rs->cmd_buf_index = rs->cmd_buf_size = strlen(rs->cmd_buf);
+        rs->cmd_buf_index = rs->cmd_buf_size = strlen(rs->cmd_buf);
     }
 }
 
@@ -202,11 +202,11 @@ static void readline_down_char(ReadLineState *rs)
         return;
     if (rs->hist_entry < READLINE_MAX_CMDS - 1 &&
         rs->history[++rs->hist_entry] != NULL) {
-	pstrcpy(rs->cmd_buf, sizeof(rs->cmd_buf),
+        pstrcpy(rs->cmd_buf, sizeof(rs->cmd_buf),
                 rs->history[rs->hist_entry]);
     } else {
         rs->cmd_buf[0] = 0;
-	rs->hist_entry = -1;
+        rs->hist_entry = -1;
     }
     rs->cmd_buf_index = rs->cmd_buf_size = strlen(rs->cmd_buf);
 }
@@ -217,42 +217,42 @@ static void readline_hist_add(ReadLineState *rs, const char *cmdline)
     int idx;
 
     if (cmdline[0] == '\0')
-	return;
+        return;
     new_entry = NULL;
     if (rs->hist_entry != -1) {
-	/* We were editing an existing history entry: replace it */
-	hist_entry = rs->history[rs->hist_entry];
-	idx = rs->hist_entry;
-	if (strcmp(hist_entry, cmdline) == 0) {
-	    goto same_entry;
-	}
+        /* We were editing an existing history entry: replace it */
+        hist_entry = rs->history[rs->hist_entry];
+        idx = rs->hist_entry;
+        if (strcmp(hist_entry, cmdline) == 0) {
+            goto same_entry;
+        }
     }
     /* Search cmdline in history buffers */
     for (idx = 0; idx < READLINE_MAX_CMDS; idx++) {
-	hist_entry = rs->history[idx];
-	if (hist_entry == NULL)
-	    break;
-	if (strcmp(hist_entry, cmdline) == 0) {
-	same_entry:
-	    new_entry = hist_entry;
-	    /* Put this entry at the end of history */
-	    memmove(&rs->history[idx], &rs->history[idx + 1],
-		    (READLINE_MAX_CMDS - (idx + 1)) * sizeof(char *));
-	    rs->history[READLINE_MAX_CMDS - 1] = NULL;
-	    for (; idx < READLINE_MAX_CMDS; idx++) {
-		if (rs->history[idx] == NULL)
-		    break;
-	    }
-	    break;
-	}
+        hist_entry = rs->history[idx];
+        if (hist_entry == NULL)
+            break;
+        if (strcmp(hist_entry, cmdline) == 0) {
+        same_entry:
+            new_entry = hist_entry;
+            /* Put this entry at the end of history */
+            memmove(&rs->history[idx], &rs->history[idx + 1],
+                    (READLINE_MAX_CMDS - (idx + 1)) * sizeof(char *));
+            rs->history[READLINE_MAX_CMDS - 1] = NULL;
+            for (; idx < READLINE_MAX_CMDS; idx++) {
+                if (rs->history[idx] == NULL)
+                    break;
+            }
+            break;
+        }
     }
     if (idx == READLINE_MAX_CMDS) {
-	/* Need to get one free slot */
+        /* Need to get one free slot */
         g_free(rs->history[0]);
-	memmove(rs->history, &rs->history[1],
-	        (READLINE_MAX_CMDS - 1) * sizeof(char *));
-	rs->history[READLINE_MAX_CMDS - 1] = NULL;
-	idx = READLINE_MAX_CMDS - 1;
+        memmove(rs->history, &rs->history[1],
+                (READLINE_MAX_CMDS - 1) * sizeof(char *));
+        rs->history[READLINE_MAX_CMDS - 1] = NULL;
+        idx = READLINE_MAX_CMDS - 1;
     }
     if (new_entry == NULL)
         new_entry = g_strdup(cmdline);
@@ -403,9 +403,9 @@ void readline_handle_byte(ReadLineState *rs, int ch)
         case 8:
             readline_backspace(rs);
             break;
-	case 155:
+        case 155:
             rs->esc_state = IS_CSI;
-	    break;
+            break;
         default:
             if (ch >= 32) {
                 readline_insert_char(rs, ch);
@@ -426,14 +426,14 @@ void readline_handle_byte(ReadLineState *rs, int ch)
         break;
     case IS_CSI:
         switch (ch) {
-	case 'A':
-	case 'F':
-	    readline_up_char(rs);
-	    break;
-	case 'B':
-	case 'E':
-	    readline_down_char(rs);
-	    break;
+        case 'A':
+        case 'F':
+            readline_up_char(rs);
+            break;
+        case 'B':
+        case 'E':
+            readline_down_char(rs);
+            break;
         case 'D':
             readline_backward_char(rs);
             break;
