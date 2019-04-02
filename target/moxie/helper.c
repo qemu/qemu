@@ -26,18 +26,10 @@
 #include "qemu/host-utils.h"
 #include "exec/helper-proto.h"
 
-/* Try to fill the TLB and return an exception if error. If retaddr is
-   NULL, it means that the function was called in C code (i.e. not
-   from generated code or from helper.c) */
 void tlb_fill(CPUState *cs, target_ulong addr, int size,
               MMUAccessType access_type, int mmu_idx, uintptr_t retaddr)
 {
-    int ret;
-
-    ret = moxie_cpu_handle_mmu_fault(cs, addr, size, access_type, mmu_idx);
-    if (unlikely(ret)) {
-        cpu_loop_exit_restore(cs, retaddr);
-    }
+    moxie_cpu_tlb_fill(cs, addr, size, access_type, mmu_idx, false, retaddr);
 }
 
 void helper_raise_exception(CPUMoxieState *env, int ex)
@@ -85,53 +77,29 @@ void helper_debug(CPUMoxieState *env)
     cpu_loop_exit(cs);
 }
 
-#if defined(CONFIG_USER_ONLY)
-
-void moxie_cpu_do_interrupt(CPUState *cs)
-{
-    CPUState *cs = CPU(moxie_env_get_cpu(env));
-
-    cs->exception_index = -1;
-}
-
-int moxie_cpu_handle_mmu_fault(CPUState *cs, vaddr address, int size,
-                               int rw, int mmu_idx)
-{
-    MoxieCPU *cpu = MOXIE_CPU(cs);
-
-    cs->exception_index = 0xaa;
-    cpu->env.debug1 = address;
-    cpu_dump_state(cs, stderr, 0);
-    return 1;
-}
-
-#else /* !CONFIG_USER_ONLY */
-
-int moxie_cpu_handle_mmu_fault(CPUState *cs, vaddr address, int size,
-                               int rw, int mmu_idx)
+bool moxie_cpu_tlb_fill(CPUState *cs, vaddr address, int size,
+                        MMUAccessType access_type, int mmu_idx,
+                        bool probe, uintptr_t retaddr)
 {
     MoxieCPU *cpu = MOXIE_CPU(cs);
     CPUMoxieState *env = &cpu->env;
     MoxieMMUResult res;
     int prot, miss;
-    target_ulong phy;
-    int r = 1;
 
     address &= TARGET_PAGE_MASK;
     prot = PAGE_READ | PAGE_WRITE | PAGE_EXEC;
-    miss = moxie_mmu_translate(&res, env, address, rw, mmu_idx);
-    if (miss) {
-        /* handle the miss.  */
-        phy = 0;
-        cs->exception_index = MOXIE_EX_MMU_MISS;
-    } else {
-        phy = res.phy;
-        r = 0;
+    miss = moxie_mmu_translate(&res, env, address, access_type, mmu_idx);
+    if (likely(!miss)) {
+        tlb_set_page(cs, address, res.phy, prot, mmu_idx, TARGET_PAGE_SIZE);
+        return true;
     }
-    tlb_set_page(cs, address, phy, prot, mmu_idx, TARGET_PAGE_SIZE);
-    return r;
-}
+    if (probe) {
+        return false;
+    }
 
+    cs->exception_index = MOXIE_EX_MMU_MISS;
+    cpu_loop_exit_restore(cs, retaddr);
+}
 
 void moxie_cpu_do_interrupt(CPUState *cs)
 {
@@ -156,4 +124,3 @@ hwaddr moxie_cpu_get_phys_page_debug(CPUState *cs, vaddr addr)
     }
     return phy;
 }
-#endif
