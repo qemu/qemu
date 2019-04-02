@@ -10592,9 +10592,7 @@ static void ppc_cpu_class_init(ObjectClass *oc, void *data)
     cc->gdb_read_register = ppc_cpu_gdb_read_register;
     cc->gdb_write_register = ppc_cpu_gdb_write_register;
     cc->do_unaligned_access = ppc_cpu_do_unaligned_access;
-#ifdef CONFIG_USER_ONLY
-    cc->handle_mmu_fault = ppc_cpu_handle_mmu_fault;
-#else
+#ifndef CONFIG_USER_ONLY
     cc->get_phys_page_debug = ppc_cpu_get_phys_page_debug;
     cc->vmsd = &vmstate_ppc_cpu;
 #endif
@@ -10624,6 +10622,7 @@ static void ppc_cpu_class_init(ObjectClass *oc, void *data)
 #endif
 #ifdef CONFIG_TCG
     cc->tcg_initialize = ppc_translate_init;
+    cc->tlb_fill = ppc_cpu_tlb_fill;
 #endif
     cc->disas_set_info = ppc_disas_set_info;
 
