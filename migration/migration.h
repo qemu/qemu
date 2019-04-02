@@ -219,9 +219,6 @@ struct MigrationState
      */
     bool store_global_state;
 
-    /* Whether the VM is only allowing for migratable devices */
-    bool only_migratable;
-
     /* Whether we send QEMU_VM_CONFIGURATION during migration */
     bool send_configuration;
     /* Whether we send section footer during migration */

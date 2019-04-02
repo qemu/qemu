@@ -185,6 +185,7 @@ const char *prom_envs[MAX_PROM_ENVS];
 int boot_menu;
 bool boot_strict;
 uint8_t *boot_splash_filedata;
+int only_migratable; /* turn it off unless user states otherwise */
 bool wakeup_suspend_enabled;
 
 int icount_align_option;
@@ -3119,6 +3120,7 @@ int main(int argc, char **argv, char **envp)
         if (optind >= argc)
             break;
         if (argv[optind][0] != '-') {
+            loc_set_cmdline(argv, optind, 1);
             drive_add(IF_DEFAULT, 0, argv[optind++], HD_OPTS);
         } else {
             const QEMUOption *popt;
@@ -3799,13 +3801,7 @@ int main(int argc, char **argv, char **envp)
                 incoming = optarg;
                 break;
             case QEMU_OPTION_only_migratable:
-                /*
-                 * TODO: we can remove this option one day, and we
-                 * should all use:
-                 *
-                 * "-global migration.only-migratable=true"
-                 */
-                qemu_global_option("migration.only-migratable=true");
+                only_migratable = 1;
                 break;
             case QEMU_OPTION_nodefaults:
                 has_defaults = 0;
@@ -4277,16 +4273,9 @@ int main(int argc, char **argv, char **envp)
     }
 
     /*
-     * Migration object can only be created after global properties
-     * are applied correctly.
-     */
-    migration_object_init();
-
-    /*
      * Note: we need to create block backends before
      * machine_set_property(), so machine properties can refer to
-     * them, and after migration_object_init(), so we can create
-     * migration blockers.
+     * them.
      */
     configure_blockdev(&bdo_queue, machine_class, snapshot);
 
@@ -4297,12 +4286,38 @@ int main(int argc, char **argv, char **envp)
     current_machine->maxram_size = maxram_size;
     current_machine->ram_slots = ram_slots;
 
+    /*
+     * Note: uses machine properties such as kernel-irqchip, must run
+     * after machine_set_property().
+     */
     configure_accelerator(current_machine, argv[0]);
+
+    /*
+     * Beware, QOM objects created before this point miss global and
+     * compat properties.
+     *
+     * Global properties get set up by qdev_prop_register_global(),
+     * called from user_register_global_props(), and certain option
+     * desugaring.  Also in CPU feature desugaring (buried in
+     * parse_cpu_model()), which happens below this point, but may
+     * only target the CPU type, which can only be created after
+     * parse_cpu_model() returned the type.
+     *
+     * Machine compat properties: object_set_machine_compat_props().
+     * Accelerator compat props: object_set_accelerator_compat_props(),
+     * called from configure_accelerator().
+     */
 
     if (!qtest_enabled() && machine_class->deprecation_reason) {
         error_report("Machine type '%s' is deprecated: %s",
                      machine_class->name, machine_class->deprecation_reason);
     }
+
+    /*
+     * Note: creates a QOM object, must run only after global and
+     * compat properties have been set up.
+     */
+    migration_object_init();
 
     if (qtest_chrdev) {
         qtest_init(qtest_chrdev, qtest_log, &error_fatal);
