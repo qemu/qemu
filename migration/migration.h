@@ -132,7 +132,6 @@ struct MigrationState
     DeviceState parent_obj;
 
     /*< public >*/
-    size_t bytes_xfer;
     QemuThread thread;
     QEMUBH *cleanup_bh;
     QEMUFile *to_dst_file;
