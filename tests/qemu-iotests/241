@@ -1,0 +1,100 @@
+#!/bin/bash
+#
+# Test qemu-nbd vs. unaligned images
+#
+# Copyright (C) 2018-2019 Red Hat, Inc.
+#
+# This program is free software; you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation; either version 2 of the License, or
+# (at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with this program.  If not, see <http://www.gnu.org/licenses/>.
+#
+
+seq="$(basename $0)"
+echo "QA output created by $seq"
+
+status=1 # failure is the default!
+
+nbd_unix_socket=$TEST_DIR/test_qemu_nbd_socket
+
+_cleanup()
+{
+    _cleanup_test_img
+    nbd_server_stop
+}
+trap "_cleanup; exit \$status" 0 1 2 3 15
+
+# get standard environment, filters and checks
+. ./common.rc
+. ./common.filter
+. ./common.nbd
+
+_supported_fmt raw
+_supported_proto nbd
+_supported_os Linux
+_require_command QEMU_NBD
+
+# can't use _make_test_img, because qemu-img rounds image size up,
+# and because we want to use Unix socket rather than TCP port. Likewise,
+# we have to redirect TEST_IMG to our server.
+# This tests that we can deal with the hole at the end of an unaligned
+# raw file (either because the server doesn't advertise alignment too
+# large, or because the client ignores the server's noncompliance - even
+# though we can't actually wire iotests into checking trace messages).
+printf %01000d 0 > "$TEST_IMG_FILE"
+TEST_IMG="nbd:unix:$nbd_unix_socket"
+
+echo
+echo "=== Exporting unaligned raw image, natural alignment ==="
+echo
+
+nbd_server_start_unix_socket -f $IMGFMT "$TEST_IMG_FILE"
+
+$QEMU_NBD_PROG --list -k $nbd_unix_socket | grep '\(size\|min\)'
+$QEMU_IMG map -f raw --output=json "$TEST_IMG" | _filter_qemu_img_map
+$QEMU_IO -f raw -c map "$TEST_IMG"
+nbd_server_stop
+
+echo
+echo "=== Exporting unaligned raw image, forced server sector alignment ==="
+echo
+
+# Intentionally omit '-f' to force image probing, which in turn forces
+# sector alignment, here at the server.
+nbd_server_start_unix_socket "$TEST_IMG_FILE"
+
+$QEMU_NBD_PROG --list -k $nbd_unix_socket | grep '\(size\|min\)'
+$QEMU_IMG map -f raw --output=json "$TEST_IMG" | _filter_qemu_img_map
+$QEMU_IO -f raw -c map "$TEST_IMG"
+nbd_server_stop
+
+echo
+echo "=== Exporting unaligned raw image, forced client sector alignment ==="
+echo
+
+# Now force sector alignment at the client.
+nbd_server_start_unix_socket -f $IMGFMT "$TEST_IMG_FILE"
+
+$QEMU_NBD_PROG --list -k $nbd_unix_socket | grep '\(size\|min\)'
+$QEMU_IMG map --output=json "$TEST_IMG" | _filter_qemu_img_map
+$QEMU_IO -c map "$TEST_IMG"
+nbd_server_stop
+
+# Not tested yet: we also want to ensure that qemu as NBD client does
+# not access beyond the end of a server's advertised unaligned size:
+#  nbdkit -U - memory size=513 --run 'qemu-io -f raw -c "r 512 512" $nbd'
+# However, since qemu as server always rounds up to a sector alignment,
+# we would have to use nbdkit to provoke the current client failures.
+
+# success, all done
+echo '*** done'
+rm -f $seq.full
+status=0

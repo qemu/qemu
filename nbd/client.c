@@ -426,6 +426,14 @@ static int nbd_opt_info_or_go(QIOChannel *ioc, uint32_t opt,
                 nbd_send_opt_abort(ioc);
                 return -1;
             }
+            if (info->min_block &&
+                !QEMU_IS_ALIGNED(info->size, info->min_block)) {
+                error_setg(errp, "export size %" PRIu64 "is not multiple of "
+                           "minimum block size %" PRIu32, info->size,
+                           info->min_block);
+                nbd_send_opt_abort(ioc);
+                return -1;
+            }
             trace_nbd_receive_negotiate_size_flags(info->size, info->flags);
             break;
 

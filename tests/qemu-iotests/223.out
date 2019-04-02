@@ -41,7 +41,7 @@ exports available: 2
  export: 'n'
   size:  4194304
   flags: 0x4ef ( readonly flush fua trim zeroes df cache )
-  min block: 512
+  min block: 1
   opt block: 4096
   max block: 33554432
   available meta contexts: 2
@@ -50,7 +50,7 @@ exports available: 2
  export: 'n2'
   size:  4194304
   flags: 0x4ed ( flush fua trim zeroes df cache )
-  min block: 512
+  min block: 1
   opt block: 4096
   max block: 33554432
   available meta contexts: 2
@@ -67,18 +67,18 @@ read 1048576/1048576 bytes at offset 1048576
 1 MiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
 read 2097152/2097152 bytes at offset 2097152
 2 MiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
-[{ "start": 0, "length": 4096, "depth": 0, "zero": false, "data": true},
-{ "start": 4096, "length": 1044480, "depth": 0, "zero": true, "data": false},
-{ "start": 1048576, "length": 3145728, "depth": 0, "zero": false, "data": true}]
+[{ "start": 0, "length": 4096, "depth": 0, "zero": false, "data": true, "offset": OFFSET},
+{ "start": 4096, "length": 1044480, "depth": 0, "zero": true, "data": false, "offset": OFFSET},
+{ "start": 1048576, "length": 3145728, "depth": 0, "zero": false, "data": true, "offset": OFFSET}]
 [{ "start": 0, "length": 65536, "depth": 0, "zero": false, "data": false},
-{ "start": 65536, "length": 2031616, "depth": 0, "zero": false, "data": true},
+{ "start": 65536, "length": 2031616, "depth": 0, "zero": false, "data": true, "offset": OFFSET},
 { "start": 2097152, "length": 2097152, "depth": 0, "zero": false, "data": false}]
 
 === Contrast to small granularity dirty-bitmap ===
 
-[{ "start": 0, "length": 512, "depth": 0, "zero": false, "data": true},
+[{ "start": 0, "length": 512, "depth": 0, "zero": false, "data": true, "offset": OFFSET},
 { "start": 512, "length": 512, "depth": 0, "zero": false, "data": false},
-{ "start": 1024, "length": 2096128, "depth": 0, "zero": false, "data": true},
+{ "start": 1024, "length": 2096128, "depth": 0, "zero": false, "data": true, "offset": OFFSET},
 { "start": 2097152, "length": 2097152, "depth": 0, "zero": false, "data": false}]
 
 === End qemu NBD server ===
@@ -94,10 +94,10 @@ read 2097152/2097152 bytes at offset 2097152
 === Use qemu-nbd as server ===
 
 [{ "start": 0, "length": 65536, "depth": 0, "zero": false, "data": false},
-{ "start": 65536, "length": 2031616, "depth": 0, "zero": false, "data": true},
+{ "start": 65536, "length": 2031616, "depth": 0, "zero": false, "data": true, "offset": OFFSET},
 { "start": 2097152, "length": 2097152, "depth": 0, "zero": false, "data": false}]
-[{ "start": 0, "length": 512, "depth": 0, "zero": false, "data": true},
+[{ "start": 0, "length": 512, "depth": 0, "zero": false, "data": true, "offset": OFFSET},
 { "start": 512, "length": 512, "depth": 0, "zero": false, "data": false},
-{ "start": 1024, "length": 2096128, "depth": 0, "zero": false, "data": true},
+{ "start": 1024, "length": 2096128, "depth": 0, "zero": false, "data": true, "offset": OFFSET},
 { "start": 2097152, "length": 2097152, "depth": 0, "zero": false, "data": false}]
 *** done

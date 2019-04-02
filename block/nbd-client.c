@@ -211,7 +211,8 @@ static inline uint64_t payload_advance64(uint8_t **payload)
     return ldq_be_p(*payload - 8);
 }
 
-static int nbd_parse_offset_hole_payload(NBDStructuredReplyChunk *chunk,
+static int nbd_parse_offset_hole_payload(NBDClientSession *client,
+                                         NBDStructuredReplyChunk *chunk,
                                          uint8_t *payload, uint64_t orig_offset,
                                          QEMUIOVector *qiov, Error **errp)
 {
@@ -233,6 +234,10 @@ static int nbd_parse_offset_hole_payload(NBDStructuredReplyChunk *chunk,
                          " region");
         return -EINVAL;
     }
+    if (client->info.min_block &&
+        !QEMU_IS_ALIGNED(hole_size, client->info.min_block)) {
+        trace_nbd_structured_read_compliance("hole");
+    }
 
     qemu_iovec_memset(qiov, offset - orig_offset, 0, hole_size);
 
@@ -240,8 +245,8 @@ static int nbd_parse_offset_hole_payload(NBDStructuredReplyChunk *chunk,
 }
 
 /* nbd_parse_blockstatus_payload
- * support only one extent in reply and only for
- * base:allocation context
+ * Based on our request, we expect only one extent in reply, for the
+ * base:allocation context.
  */
 static int nbd_parse_blockstatus_payload(NBDClientSession *client,
                                          NBDStructuredReplyChunk *chunk,
@@ -250,7 +255,8 @@ static int nbd_parse_blockstatus_payload(NBDClientSession *client,
 {
     uint32_t context_id;
 
-    if (chunk->length != sizeof(context_id) + sizeof(*extent)) {
+    /* The server succeeded, so it must have sent [at least] one extent */
+    if (chunk->length < sizeof(context_id) + sizeof(*extent)) {
         error_setg(errp, "Protocol error: invalid payload for "
                          "NBD_REPLY_TYPE_BLOCK_STATUS");
         return -EINVAL;
@@ -268,18 +274,50 @@ static int nbd_parse_blockstatus_payload(NBDClientSession *client,
     extent->length = payload_advance32(&payload);
     extent->flags = payload_advance32(&payload);
 
-    if (extent->length == 0 ||
-        (client->info.min_block && !QEMU_IS_ALIGNED(extent->length,
-                                                    client->info.min_block))) {
+    if (extent->length == 0) {
         error_setg(errp, "Protocol error: server sent status chunk with "
-                   "invalid length");
+                   "zero length");
         return -EINVAL;
     }
 
-    /* The server is allowed to send us extra information on the final
-     * extent; just clamp it to the length we requested. */
+    /*
+     * A server sending unaligned block status is in violation of the
+     * protocol, but as qemu-nbd 3.1 is such a server (at least for
+     * POSIX files that are not a multiple of 512 bytes, since qemu
+     * rounds files up to 512-byte multiples but lseek(SEEK_HOLE)
+     * still sees an implicit hole beyond the real EOF), it's nicer to
+     * work around the misbehaving server. If the request included
+     * more than the final unaligned block, truncate it back to an
+     * aligned result; if the request was only the final block, round
+     * up to the full block and change the status to fully-allocated
+     * (always a safe status, even if it loses information).
+     */
+    if (client->info.min_block && !QEMU_IS_ALIGNED(extent->length,
+                                                   client->info.min_block)) {
+        trace_nbd_parse_blockstatus_compliance("extent length is unaligned");
+        if (extent->length > client->info.min_block) {
+            extent->length = QEMU_ALIGN_DOWN(extent->length,
+                                             client->info.min_block);
+        } else {
+            extent->length = client->info.min_block;
+            extent->flags = 0;
+        }
+    }
+
+    /*
+     * We used NBD_CMD_FLAG_REQ_ONE, so the server should not have
+     * sent us any more than one extent, nor should it have included
+     * status beyond our request in that extent. However, it's easy
+     * enough to ignore the server's noncompliance without killing the
+     * connection; just ignore trailing extents, and clamp things to
+     * the length of our request.
+     */
+    if (chunk->length > sizeof(context_id) + sizeof(*extent)) {
+        trace_nbd_parse_blockstatus_compliance("more than one extent");
+    }
     if (extent->length > orig_length) {
         extent->length = orig_length;
+        trace_nbd_parse_blockstatus_compliance("extent length too large");
     }
 
     return 0;
@@ -356,6 +394,9 @@ static int nbd_co_receive_offset_data_payload(NBDClientSession *s,
         error_setg(errp, "Protocol error: server sent chunk exceeding requested"
                          " region");
         return -EINVAL;
+    }
+    if (s->info.min_block && !QEMU_IS_ALIGNED(data_size, s->info.min_block)) {
+        trace_nbd_structured_read_compliance("data");
     }
 
     qemu_iovec_init(&sub_qiov, qiov->niov);
@@ -679,7 +720,7 @@ static int nbd_co_receive_cmdread_reply(NBDClientSession *s, uint64_t handle,
              * in qiov */
             break;
         case NBD_REPLY_TYPE_OFFSET_HOLE:
-            ret = nbd_parse_offset_hole_payload(&reply.structured, payload,
+            ret = nbd_parse_offset_hole_payload(s, &reply.structured, payload,
                                                 offset, qiov, &local_err);
             if (ret < 0) {
                 s->quit = true;
@@ -718,9 +759,7 @@ static int nbd_co_receive_blockstatus_reply(NBDClientSession *s,
     bool received = false;
 
     assert(!extent->length);
-    NBD_FOREACH_REPLY_CHUNK(s, iter, handle, s->info.structured_reply,
-                            NULL, &reply, &payload)
-    {
+    NBD_FOREACH_REPLY_CHUNK(s, iter, handle, false, NULL, &reply, &payload) {
         int ret;
         NBDStructuredReplyChunk *chunk = &reply.structured;
 
@@ -758,12 +797,9 @@ static int nbd_co_receive_blockstatus_reply(NBDClientSession *s,
         payload = NULL;
     }
 
-    if (!extent->length && !iter.err) {
-        error_setg(&iter.err,
-                   "Server did not reply with any status extents");
-        if (!iter.ret) {
-            iter.ret = -EIO;
-        }
+    if (!extent->length && !iter.request_ret) {
+        error_setg(&local_err, "Server did not reply with any status extents");
+        nbd_iter_channel_error(&iter, -EIO, &local_err);
     }
 
     error_propagate(errp, iter.err);
@@ -820,6 +856,25 @@ int nbd_client_co_preadv(BlockDriverState *bs, uint64_t offset,
     if (!bytes) {
         return 0;
     }
+    /*
+     * Work around the fact that the block layer doesn't do
+     * byte-accurate sizing yet - if the read exceeds the server's
+     * advertised size because the block layer rounded size up, then
+     * truncate the request to the server and tail-pad with zero.
+     */
+    if (offset >= client->info.size) {
+        assert(bytes < BDRV_SECTOR_SIZE);
+        qemu_iovec_memset(qiov, 0, 0, bytes);
+        return 0;
+    }
+    if (offset + bytes > client->info.size) {
+        uint64_t slop = offset + bytes - client->info.size;
+
+        assert(slop < BDRV_SECTOR_SIZE);
+        qemu_iovec_memset(qiov, bytes - slop, 0, slop);
+        request.len -= slop;
+    }
+
     ret = nbd_co_send_request(bs, &request, NULL);
     if (ret < 0) {
         return ret;
@@ -938,15 +993,35 @@ int coroutine_fn nbd_client_co_block_status(BlockDriverState *bs,
         .from = offset,
         .len = MIN(MIN_NON_ZERO(QEMU_ALIGN_DOWN(INT_MAX,
                                                 bs->bl.request_alignment),
-                                client->info.max_block), bytes),
+                                client->info.max_block),
+                   MIN(bytes, client->info.size - offset)),
         .flags = NBD_CMD_FLAG_REQ_ONE,
     };
 
     if (!client->info.base_allocation) {
         *pnum = bytes;
-        return BDRV_BLOCK_DATA;
+        *map = offset;
+        *file = bs;
+        return BDRV_BLOCK_DATA | BDRV_BLOCK_OFFSET_VALID;
     }
 
+    /*
+     * Work around the fact that the block layer doesn't do
+     * byte-accurate sizing yet - if the status request exceeds the
+     * server's advertised size because the block layer rounded size
+     * up, we truncated the request to the server (above), or are
+     * called on just the hole.
+     */
+    if (offset >= client->info.size) {
+        *pnum = bytes;
+        assert(bytes < BDRV_SECTOR_SIZE);
+        /* Intentionally don't report offset_valid for the hole */
+        return BDRV_BLOCK_ZERO;
+    }
+
+    if (client->info.min_block) {
+        assert(QEMU_IS_ALIGNED(request.len, client->info.min_block));
+    }
     ret = nbd_co_send_request(bs, &request, NULL);
     if (ret < 0) {
         return ret;
@@ -967,8 +1042,11 @@ int coroutine_fn nbd_client_co_block_status(BlockDriverState *bs,
 
     assert(extent.length);
     *pnum = extent.length;
+    *map = offset;
+    *file = bs;
     return (extent.flags & NBD_STATE_HOLE ? 0 : BDRV_BLOCK_DATA) |
-           (extent.flags & NBD_STATE_ZERO ? BDRV_BLOCK_ZERO : 0);
+        (extent.flags & NBD_STATE_ZERO ? BDRV_BLOCK_ZERO : 0) |
+        BDRV_BLOCK_OFFSET_VALID;
 }
 
 void nbd_client_detach_aio_context(BlockDriverState *bs)

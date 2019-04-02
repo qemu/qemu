@@ -1630,6 +1630,8 @@ static int convert_iteration_sectors(ImgConvertState *s, int64_t sector_num)
                                           count, &count, NULL, NULL);
         }
         if (ret < 0) {
+            error_report("error while reading block status of sector %" PRId64
+                         ": %s", sector_num, strerror(-ret));
             return ret;
         }
         n = DIV_ROUND_UP(count, BDRV_SECTOR_SIZE);
@@ -2734,14 +2736,14 @@ static int img_info(int argc, char **argv)
     return 0;
 }
 
-static void dump_map_entry(OutputFormat output_format, MapEntry *e,
-                           MapEntry *next)
+static int dump_map_entry(OutputFormat output_format, MapEntry *e,
+                          MapEntry *next)
 {
     switch (output_format) {
     case OFORMAT_HUMAN:
         if (e->data && !e->has_offset) {
             error_report("File contains external, encrypted or compressed clusters.");
-            exit(1);
+            return -1;
         }
         if (e->data && !e->zero) {
             printf("%#-16"PRIx64"%#-16"PRIx64"%#-16"PRIx64"%s\n",
@@ -2774,6 +2776,7 @@ static void dump_map_entry(OutputFormat output_format, MapEntry *e,
         }
         break;
     }
+    return 0;
 }
 
 static int get_block_status(BlockDriverState *bs, int64_t offset,
@@ -2966,12 +2969,15 @@ static int img_map(int argc, char **argv)
         }
 
         if (curr.length > 0) {
-            dump_map_entry(output_format, &curr, &next);
+            ret = dump_map_entry(output_format, &curr, &next);
+            if (ret < 0) {
+                goto out;
+            }
         }
         curr = next;
     }
 
-    dump_map_entry(output_format, &curr, NULL);
+    ret = dump_map_entry(output_format, &curr, NULL);
 
 out:
     blk_unref(blk);

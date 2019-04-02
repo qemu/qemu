@@ -1764,6 +1764,13 @@ int blk_get_flags(BlockBackend *blk)
     }
 }
 
+/* Returns the minimum request alignment, in bytes; guaranteed nonzero */
+uint32_t blk_get_request_alignment(BlockBackend *blk)
+{
+    BlockDriverState *bs = blk_bs(blk);
+    return bs ? bs->bl.request_alignment : BDRV_SECTOR_SIZE;
+}
+
 /* Returns the maximum transfer length, in bytes; guaranteed nonzero */
 uint32_t blk_get_max_transfer(BlockBackend *blk)
 {
