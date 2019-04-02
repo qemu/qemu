@@ -27,43 +27,6 @@
 #include "hw/sh4/sh_intc.h"
 #endif
 
-#if defined(CONFIG_USER_ONLY)
-
-void superh_cpu_do_interrupt(CPUState *cs)
-{
-    cs->exception_index = -1;
-}
-
-int superh_cpu_handle_mmu_fault(CPUState *cs, vaddr address, int size, int rw,
-                                int mmu_idx)
-{
-    SuperHCPU *cpu = SUPERH_CPU(cs);
-    CPUSH4State *env = &cpu->env;
-
-    env->tea = address;
-    cs->exception_index = -1;
-    switch (rw) {
-    case 0:
-        cs->exception_index = 0x0a0;
-        break;
-    case 1:
-        cs->exception_index = 0x0c0;
-        break;
-    case 2:
-        cs->exception_index = 0x0a0;
-        break;
-    }
-    return 1;
-}
-
-int cpu_sh4_is_cached(CPUSH4State * env, target_ulong addr)
-{
-    /* For user mode, only U0 area is cacheable. */
-    return !(addr & 0x80000000);
-}
-
-#else /* !CONFIG_USER_ONLY */
-
 #define MMU_OK                   0
 #define MMU_ITLB_MISS            (-1)
 #define MMU_ITLB_MULTIPLE        (-2)
@@ -78,6 +41,21 @@ int cpu_sh4_is_cached(CPUSH4State * env, target_ulong addr)
 #define MMU_IADDR_ERROR          (-11)
 #define MMU_DADDR_ERROR_READ     (-12)
 #define MMU_DADDR_ERROR_WRITE    (-13)
+
+#if defined(CONFIG_USER_ONLY)
+
+void superh_cpu_do_interrupt(CPUState *cs)
+{
+    cs->exception_index = -1;
+}
+
+int cpu_sh4_is_cached(CPUSH4State *env, target_ulong addr)
+{
+    /* For user mode, only U0 area is cacheable. */
+    return !(addr & 0x80000000);
+}
+
+#else /* !CONFIG_USER_ONLY */
 
 void superh_cpu_do_interrupt(CPUState *cs)
 {
@@ -458,69 +436,6 @@ static int get_physical_address(CPUSH4State * env, target_ulong * physical,
     return get_mmu_address(env, physical, prot, address, rw, access_type);
 }
 
-int superh_cpu_handle_mmu_fault(CPUState *cs, vaddr address, int size, int rw,
-                                int mmu_idx)
-{
-    SuperHCPU *cpu = SUPERH_CPU(cs);
-    CPUSH4State *env = &cpu->env;
-    target_ulong physical;
-    int prot, ret, access_type;
-
-    access_type = ACCESS_INT;
-    ret =
-	get_physical_address(env, &physical, &prot, address, rw,
-			     access_type);
-
-    if (ret != MMU_OK) {
-	env->tea = address;
-	if (ret != MMU_DTLB_MULTIPLE && ret != MMU_ITLB_MULTIPLE) {
-	    env->pteh = (env->pteh & PTEH_ASID_MASK) |
-		    (address & PTEH_VPN_MASK);
-	}
-	switch (ret) {
-	case MMU_ITLB_MISS:
-	case MMU_DTLB_MISS_READ:
-            cs->exception_index = 0x040;
-	    break;
-	case MMU_DTLB_MULTIPLE:
-	case MMU_ITLB_MULTIPLE:
-            cs->exception_index = 0x140;
-	    break;
-	case MMU_ITLB_VIOLATION:
-            cs->exception_index = 0x0a0;
-	    break;
-	case MMU_DTLB_MISS_WRITE:
-            cs->exception_index = 0x060;
-	    break;
-	case MMU_DTLB_INITIAL_WRITE:
-            cs->exception_index = 0x080;
-	    break;
-	case MMU_DTLB_VIOLATION_READ:
-            cs->exception_index = 0x0a0;
-	    break;
-	case MMU_DTLB_VIOLATION_WRITE:
-            cs->exception_index = 0x0c0;
-	    break;
-	case MMU_IADDR_ERROR:
-	case MMU_DADDR_ERROR_READ:
-            cs->exception_index = 0x0e0;
-	    break;
-	case MMU_DADDR_ERROR_WRITE:
-            cs->exception_index = 0x100;
-	    break;
-	default:
-            cpu_abort(cs, "Unhandled MMU fault");
-	}
-	return 1;
-    }
-
-    address &= TARGET_PAGE_MASK;
-    physical &= TARGET_PAGE_MASK;
-
-    tlb_set_page(cs, address, physical, prot, mmu_idx, TARGET_PAGE_SIZE);
-    return 0;
-}
-
 hwaddr superh_cpu_get_phys_page_debug(CPUState *cs, vaddr addr)
 {
     SuperHCPU *cpu = SUPERH_CPU(cs);
@@ -745,7 +660,6 @@ void cpu_sh4_write_mmaped_utlb_addr(CPUSH4State *s, hwaddr addr,
         if (needs_tlb_flush) {
             tlb_flush_page(CPU(sh_env_get_cpu(s)), vpn << 10);
         }
-        
     } else {
         int index = (addr & 0x00003f00) >> 8;
         tlb_t * entry = &s->utlb[index];
@@ -885,3 +799,84 @@ bool superh_cpu_exec_interrupt(CPUState *cs, int interrupt_request)
     }
     return false;
 }
+
+bool superh_cpu_tlb_fill(CPUState *cs, vaddr address, int size,
+                         MMUAccessType access_type, int mmu_idx,
+                         bool probe, uintptr_t retaddr)
+{
+    SuperHCPU *cpu = SUPERH_CPU(cs);
+    CPUSH4State *env = &cpu->env;
+    int ret;
+
+#ifdef CONFIG_USER_ONLY
+    ret = (access_type == MMU_DATA_STORE ? MMU_DTLB_VIOLATION_WRITE :
+           access_type == MMU_INST_FETCH ? MMU_ITLB_VIOLATION :
+           MMU_DTLB_VIOLATION_READ);
+#else
+    target_ulong physical;
+    int prot, sh_access_type;
+
+    sh_access_type = ACCESS_INT;
+    ret = get_physical_address(env, &physical, &prot, address,
+                               access_type, sh_access_type);
+
+    if (ret == MMU_OK) {
+        address &= TARGET_PAGE_MASK;
+        physical &= TARGET_PAGE_MASK;
+        tlb_set_page(cs, address, physical, prot, mmu_idx, TARGET_PAGE_SIZE);
+        return true;
+    }
+    if (probe) {
+        return false;
+    }
+
+    if (ret != MMU_DTLB_MULTIPLE && ret != MMU_ITLB_MULTIPLE) {
+        env->pteh = (env->pteh & PTEH_ASID_MASK) | (address & PTEH_VPN_MASK);
+    }
+#endif
+
+    env->tea = address;
+    switch (ret) {
+    case MMU_ITLB_MISS:
+    case MMU_DTLB_MISS_READ:
+        cs->exception_index = 0x040;
+        break;
+    case MMU_DTLB_MULTIPLE:
+    case MMU_ITLB_MULTIPLE:
+        cs->exception_index = 0x140;
+        break;
+    case MMU_ITLB_VIOLATION:
+        cs->exception_index = 0x0a0;
+        break;
+    case MMU_DTLB_MISS_WRITE:
+        cs->exception_index = 0x060;
+        break;
+    case MMU_DTLB_INITIAL_WRITE:
+        cs->exception_index = 0x080;
+        break;
+    case MMU_DTLB_VIOLATION_READ:
+        cs->exception_index = 0x0a0;
+        break;
+    case MMU_DTLB_VIOLATION_WRITE:
+        cs->exception_index = 0x0c0;
+        break;
+    case MMU_IADDR_ERROR:
+    case MMU_DADDR_ERROR_READ:
+        cs->exception_index = 0x0e0;
+        break;
+    case MMU_DADDR_ERROR_WRITE:
+        cs->exception_index = 0x100;
+        break;
+    default:
+        cpu_abort(cs, "Unhandled MMU fault");
+    }
+    cpu_loop_exit_restore(cs, retaddr);
+}
+
+#ifndef CONFIG_USER_ONLY
+void tlb_fill(CPUState *cs, target_ulong addr, int size,
+              MMUAccessType access_type, int mmu_idx, uintptr_t retaddr)
+{
+    superh_cpu_tlb_fill(cs, addr, size, access_type, mmu_idx, false, retaddr);
+}
+#endif
