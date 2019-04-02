@@ -1380,7 +1380,7 @@
 # @mode: COLO running mode. If COLO is running, this field will return
 #        'primary' or 'secondary'.
 #
-# @last_mode: COLO last running mode. If COLO is running, this field
+# @last-mode: COLO last running mode. If COLO is running, this field
 #             will return same like mode field, after failover we can
 #             use this field to get last colo mode. (since 4.0)
 #
@@ -1389,7 +1389,7 @@
 # Since: 3.1
 ##
 { 'struct': 'COLOStatus',
-  'data': { 'mode': 'COLOMode', 'last_mode': 'COLOMode',
+  'data': { 'mode': 'COLOMode', 'last-mode': 'COLOMode',
             'reason': 'COLOExitReason' } }
 
 ##
