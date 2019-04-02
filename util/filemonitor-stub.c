@@ -38,7 +38,7 @@ qemu_file_monitor_free(QFileMonitor *mon G_GNUC_UNUSED)
 }
 
 
-int
+int64_t
 qemu_file_monitor_add_watch(QFileMonitor *mon G_GNUC_UNUSED,
                             const char *dirpath G_GNUC_UNUSED,
                             const char *filename G_GNUC_UNUSED,
@@ -54,6 +54,6 @@ qemu_file_monitor_add_watch(QFileMonitor *mon G_GNUC_UNUSED,
 void
 qemu_file_monitor_remove_watch(QFileMonitor *mon G_GNUC_UNUSED,
                                const char *dirpath G_GNUC_UNUSED,
-                               int id G_GNUC_UNUSED)
+                               int64_t id G_GNUC_UNUSED)
 {
 }

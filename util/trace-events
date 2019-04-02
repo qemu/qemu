@@ -22,13 +22,13 @@ buffer_move(const char *buf, size_t len, const char *from) "%s: %zd bytes from %
 buffer_free(const char *buf, size_t len) "%s: capacity %zd"
 
 # filemonitor-inotify.c
-qemu_file_monitor_add_watch(void *mon, const char *dirpath, const char *filename, void *cb, void *opaque, int id) "File monitor %p add watch dir='%s' file='%s' cb=%p opaque=%p id=%u"
-qemu_file_monitor_remove_watch(void *mon, const char *dirpath, int id) "File monitor %p remove watch dir='%s' id=%u"
+qemu_file_monitor_add_watch(void *mon, const char *dirpath, const char *filename, void *cb, void *opaque, int64_t id) "File monitor %p add watch dir='%s' file='%s' cb=%p opaque=%p id=%" PRId64
+qemu_file_monitor_remove_watch(void *mon, const char *dirpath, int64_t id) "File monitor %p remove watch dir='%s' id=%" PRId64
 qemu_file_monitor_new(void *mon, int fd) "File monitor %p created fd=%d"
 qemu_file_monitor_enable_watch(void *mon, const char *dirpath, int id) "File monitor %p enable watch dir='%s' id=%u"
 qemu_file_monitor_disable_watch(void *mon, const char *dirpath, int id) "Fle monitor %p disable watch dir='%s' id=%u"
 qemu_file_monitor_event(void *mon, const char *dirpath, const char *filename, int mask, unsigned int id) "File monitor %p event dir='%s' file='%s' mask=0x%x id=%u"
-qemu_file_monitor_dispatch(void *mon, const char *dirpath, const char *filename, int ev, void *cb, void *opaque, unsigned int id) "File monitor %p dispatch dir='%s' file='%s' ev=%d cb=%p opaque=%p id=%u"
+qemu_file_monitor_dispatch(void *mon, const char *dirpath, const char *filename, int ev, void *cb, void *opaque, int64_t id) "File monitor %p dispatch dir='%s' file='%s' ev=%d cb=%p opaque=%p id=%" PRId64
 
 # qemu-coroutine.c
 qemu_aio_coroutine_enter(void *ctx, void *from, void *to, void *opaque) "ctx %p from %p to %p opaque %p"

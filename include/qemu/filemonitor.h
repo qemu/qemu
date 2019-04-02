@@ -52,7 +52,7 @@ typedef enum {
  * empty.
  *
  */
-typedef void (*QFileMonitorHandler)(int id,
+typedef void (*QFileMonitorHandler)(int64_t id,
                                     QFileMonitorEvent event,
                                     const char *filename,
                                     void *opaque);
@@ -103,12 +103,12 @@ void qemu_file_monitor_free(QFileMonitor *mon);
  *
  * Returns: a positive integer watch ID, or -1 on error
  */
-int qemu_file_monitor_add_watch(QFileMonitor *mon,
-                                const char *dirpath,
-                                const char *filename,
-                                QFileMonitorHandler cb,
-                                void *opaque,
-                                Error **errp);
+int64_t qemu_file_monitor_add_watch(QFileMonitor *mon,
+                                    const char *dirpath,
+                                    const char *filename,
+                                    QFileMonitorHandler cb,
+                                    void *opaque,
+                                    Error **errp);
 
 /**
  * qemu_file_monitor_remove_watch:
@@ -123,6 +123,6 @@ int qemu_file_monitor_add_watch(QFileMonitor *mon,
  */
 void qemu_file_monitor_remove_watch(QFileMonitor *mon,
                                     const char *dirpath,
-                                    int id);
+                                    int64_t id);
 
 #endif /* QEMU_FILE_MONITOR_H */
