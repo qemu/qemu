@@ -57,6 +57,7 @@ typedef struct {
 } PCSpkState;
 
 static const char *s_spk = "pcspk";
+static PCSpkState *pcspk_state;
 
 static inline void generate_samples(PCSpkState *s)
 {
@@ -108,6 +109,22 @@ static void pcspk_callback(void *opaque, int free)
         s->play_pos = (s->play_pos + n) % s->samples;
         free -= n;
     }
+}
+
+static int pcspk_audio_init(ISABus *bus)
+{
+    PCSpkState *s = pcspk_state;
+    struct audsettings as = {PCSPK_SAMPLE_RATE, 1, AUDIO_FORMAT_U8, 0};
+
+    AUD_register_card(s_spk, &s->card);
+
+    s->voice = AUD_open_out(&s->card, s->voice, s_spk, s, pcspk_callback, &as);
+    if (!s->voice) {
+        AUD_log(s_spk, "Could not open voice\n");
+        return -1;
+    }
+
+    return 0;
 }
 
 static uint64_t pcspk_io_read(void *opaque, hwaddr addr,
@@ -162,20 +179,12 @@ static void pcspk_initfn(Object *obj)
 
 static void pcspk_realizefn(DeviceState *dev, Error **errp)
 {
-    struct audsettings as = {PCSPK_SAMPLE_RATE, 1, AUDIO_FORMAT_U8, 0};
     ISADevice *isadev = ISA_DEVICE(dev);
     PCSpkState *s = PC_SPEAKER(dev);
 
     isa_register_ioport(isadev, &s->ioport, s->iobase);
 
-    AUD_register_card(s_spk, &s->card);
-
-    s->voice = AUD_open_out(&s->card, s->voice, s_spk, s, pcspk_callback, &as);
-    if (!s->voice) {
-        error_setg(errp, "Initializing audio voice failed");
-        AUD_remove_card(&s->card);
-        return;
-    }
+    pcspk_state = s;
 }
 
 static bool migrate_needed(void *opaque)
@@ -212,6 +221,9 @@ static void pcspk_class_initfn(ObjectClass *klass, void *data)
     set_bit(DEVICE_CATEGORY_SOUND, dc->categories);
     dc->vmsd = &vmstate_spk;
     dc->props = pcspk_properties;
+    /* Reason: realize sets global pcspk_state */
+    /* Reason: pit object link */
+    dc->user_creatable = false;
 }
 
 static const TypeInfo pcspk_info = {
@@ -221,12 +233,6 @@ static const TypeInfo pcspk_info = {
     .instance_init  = pcspk_initfn,
     .class_init     = pcspk_class_initfn,
 };
-
-static int pcspk_audio_init(ISABus *bus)
-{
-    isa_create_simple(bus, TYPE_PC_SPEAKER);
-    return 0;
-}
 
 static void pcspk_register(void)
 {

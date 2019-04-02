@@ -500,6 +500,10 @@ static void usb_mask_to_str(char *dest, size_t size,
                             speeds[i].name);
         }
     }
+
+    if (pos == 0) {
+        snprintf(dest, size, "unknown");
+    }
 }
 
 void usb_check_attach(USBDevice *dev, Error **errp)
