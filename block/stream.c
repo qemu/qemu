@@ -238,11 +238,16 @@ void stream_start(const char *job_id, BlockDriverState *bs,
     BlockDriverState *iter;
     bool bs_read_only;
 
+    if (bdrv_freeze_backing_chain(bs, base, errp) < 0) {
+        return;
+    }
+
     /* Make sure that the image is opened in read-write mode */
     bs_read_only = bdrv_is_read_only(bs);
     if (bs_read_only) {
         if (bdrv_reopen_set_read_only(bs, false, errp) != 0) {
-            return;
+            bs_read_only = false;
+            goto fail;
         }
     }
 
@@ -269,11 +274,6 @@ void stream_start(const char *job_id, BlockDriverState *bs,
                            &error_abort);
     }
 
-    if (bdrv_freeze_backing_chain(bs, base, errp) < 0) {
-        job_early_fail(&s->common.job);
-        goto fail;
-    }
-
     s->base = base;
     s->backing_file_str = g_strdup(backing_file_str);
     s->bs_read_only = bs_read_only;
@@ -288,4 +288,5 @@ fail:
     if (bs_read_only) {
         bdrv_reopen_set_read_only(bs, true, NULL);
     }
+    bdrv_unfreeze_backing_chain(bs, base);
 }

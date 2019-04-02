@@ -1756,7 +1756,8 @@ static int coroutine_fn convert_co_write(ImgConvertState *s, int64_t sector_num,
             }
             ret = blk_co_pwrite_zeroes(s->target,
                                        sector_num << BDRV_SECTOR_BITS,
-                                       n << BDRV_SECTOR_BITS, 0);
+                                       n << BDRV_SECTOR_BITS,
+                                       BDRV_REQ_MAY_UNMAP);
             if (ret < 0) {
                 return ret;
             }
