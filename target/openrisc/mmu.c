@@ -107,16 +107,42 @@ static void raise_mmu_exception(OpenRISCCPU *cpu, target_ulong address,
     cpu->env.lock_addr = -1;
 }
 
-int openrisc_cpu_handle_mmu_fault(CPUState *cs, vaddr address, int size,
-                                  int rw, int mmu_idx)
+bool openrisc_cpu_tlb_fill(CPUState *cs, vaddr addr, int size,
+                           MMUAccessType access_type, int mmu_idx,
+                           bool probe, uintptr_t retaddr)
 {
-#ifdef CONFIG_USER_ONLY
     OpenRISCCPU *cpu = OPENRISC_CPU(cs);
-    raise_mmu_exception(cpu, address, EXCP_DPF);
-    return 1;
-#else
-    g_assert_not_reached();
+    int excp = EXCP_DPF;
+
+#ifndef CONFIG_USER_ONLY
+    int prot;
+    hwaddr phys_addr;
+
+    if (mmu_idx == MMU_NOMMU_IDX) {
+        /* The mmu is disabled; lookups never fail.  */
+        get_phys_nommu(&phys_addr, &prot, addr);
+        excp = 0;
+    } else {
+        bool super = mmu_idx == MMU_SUPERVISOR_IDX;
+        int need = (access_type == MMU_INST_FETCH ? PAGE_EXEC
+                    : access_type == MMU_DATA_STORE ? PAGE_WRITE
+                    : PAGE_READ);
+        excp = get_phys_mmu(cpu, &phys_addr, &prot, addr, need, super);
+    }
+
+    if (likely(excp == 0)) {
+        tlb_set_page(cs, addr & TARGET_PAGE_MASK,
+                     phys_addr & TARGET_PAGE_MASK, prot,
+                     mmu_idx, TARGET_PAGE_SIZE);
+        return true;
+    }
+    if (probe) {
+        return false;
+    }
 #endif
+
+    raise_mmu_exception(cpu, addr, excp);
+    cpu_loop_exit_restore(cs, retaddr);
 }
 
 #ifndef CONFIG_USER_ONLY
@@ -156,29 +182,6 @@ hwaddr openrisc_cpu_get_phys_page_debug(CPUState *cs, vaddr addr)
 void tlb_fill(CPUState *cs, target_ulong addr, int size,
               MMUAccessType access_type, int mmu_idx, uintptr_t retaddr)
 {
-    OpenRISCCPU *cpu = OPENRISC_CPU(cs);
-    int prot, excp;
-    hwaddr phys_addr;
-
-    if (mmu_idx == MMU_NOMMU_IDX) {
-        /* The mmu is disabled; lookups never fail.  */
-        get_phys_nommu(&phys_addr, &prot, addr);
-        excp = 0;
-    } else {
-        bool super = mmu_idx == MMU_SUPERVISOR_IDX;
-        int need = (access_type == MMU_INST_FETCH ? PAGE_EXEC
-                    : access_type == MMU_DATA_STORE ? PAGE_WRITE
-                    : PAGE_READ);
-        excp = get_phys_mmu(cpu, &phys_addr, &prot, addr, need, super);
-    }
-
-    if (unlikely(excp)) {
-        raise_mmu_exception(cpu, addr, excp);
-        cpu_loop_exit_restore(cs, retaddr);
-    }
-
-    tlb_set_page(cs, addr & TARGET_PAGE_MASK,
-                 phys_addr & TARGET_PAGE_MASK, prot,
-                 mmu_idx, TARGET_PAGE_SIZE);
+    openrisc_cpu_tlb_fill(cs, addr, size, access_type, mmu_idx, 0, retaddr);
 }
 #endif
