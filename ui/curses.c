@@ -453,8 +453,8 @@ static uint16_t get_ucs(wchar_t wch, iconv_t conv)
     swch = sizeof(wch);
 
     if (iconv(conv, &pwch, &swch, &pch, &sch) == (size_t) -1) {
-        fprintf(stderr, "Could not convert 0x%02x from WCHAR_T to UCS-2: %s\n",
-                        wch, strerror(errno));
+        fprintf(stderr, "Could not convert 0x%02lx from WCHAR_T to UCS-2: %s\n",
+                (unsigned long)wch, strerror(errno));
         return 0xFFFD;
     }
 
