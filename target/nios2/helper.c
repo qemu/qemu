@@ -38,15 +38,12 @@ void nios2_cpu_do_interrupt(CPUState *cs)
     env->regs[R_EA] = env->regs[R_PC] + 4;
 }
 
-int nios2_cpu_handle_mmu_fault(CPUState *cs, vaddr address, int size,
-                               int rw, int mmu_idx)
+bool nios2_cpu_tlb_fill(CPUState *cs, vaddr address, int size,
+                        MMUAccessType access_type, int mmu_idx,
+                        bool probe, uintptr_t retaddr)
 {
     cs->exception_index = 0xaa;
-    /* Page 0x1000 is kuser helper */
-    if (address < 0x1000 || address >= 0x2000) {
-        cpu_dump_state(cs, stderr, 0);
-    }
-    return 1;
+    cpu_loop_exit_restore(cs, retaddr);
 }
 
 #else /* !CONFIG_USER_ONLY */
@@ -203,89 +200,6 @@ void nios2_cpu_do_interrupt(CPUState *cs)
     }
 }
 
-static int cpu_nios2_handle_virtual_page(
-    CPUState *cs, target_ulong address, int rw, int mmu_idx)
-{
-    Nios2CPU *cpu = NIOS2_CPU(cs);
-    CPUNios2State *env = &cpu->env;
-    target_ulong vaddr, paddr;
-    Nios2MMULookup lu;
-    unsigned int hit;
-    hit = mmu_translate(env, &lu, address, rw, mmu_idx);
-    if (hit) {
-        vaddr = address & TARGET_PAGE_MASK;
-        paddr = lu.paddr + vaddr - lu.vaddr;
-
-        if (((rw == 0) && (lu.prot & PAGE_READ)) ||
-            ((rw == 1) && (lu.prot & PAGE_WRITE)) ||
-            ((rw == 2) && (lu.prot & PAGE_EXEC))) {
-
-            tlb_set_page(cs, vaddr, paddr, lu.prot,
-                         mmu_idx, TARGET_PAGE_SIZE);
-            return 0;
-        } else {
-            /* Permission violation */
-            cs->exception_index = (rw == 0) ? EXCP_TLBR :
-                                               ((rw == 1) ? EXCP_TLBW :
-                                                            EXCP_TLBX);
-        }
-    } else {
-        cs->exception_index = EXCP_TLBD;
-    }
-
-    if (rw == 2) {
-        env->regs[CR_TLBMISC] &= ~CR_TLBMISC_D;
-    } else {
-        env->regs[CR_TLBMISC] |= CR_TLBMISC_D;
-    }
-    env->regs[CR_PTEADDR] &= CR_PTEADDR_PTBASE_MASK;
-    env->regs[CR_PTEADDR] |= (address >> 10) & CR_PTEADDR_VPN_MASK;
-    env->mmu.pteaddr_wr = env->regs[CR_PTEADDR];
-    env->regs[CR_BADADDR] = address;
-    return 1;
-}
-
-int nios2_cpu_handle_mmu_fault(CPUState *cs, vaddr address, int size,
-                               int rw, int mmu_idx)
-{
-    Nios2CPU *cpu = NIOS2_CPU(cs);
-    CPUNios2State *env = &cpu->env;
-
-    if (cpu->mmu_present) {
-        if (MMU_SUPERVISOR_IDX == mmu_idx) {
-            if (address >= 0xC0000000) {
-                /* Kernel physical page - TLB bypassed */
-                address &= TARGET_PAGE_MASK;
-                tlb_set_page(cs, address, address, PAGE_BITS,
-                             mmu_idx, TARGET_PAGE_SIZE);
-            } else if (address >= 0x80000000) {
-                /* Kernel virtual page */
-                return cpu_nios2_handle_virtual_page(cs, address, rw, mmu_idx);
-            } else {
-                /* User virtual page */
-                return cpu_nios2_handle_virtual_page(cs, address, rw, mmu_idx);
-            }
-        } else {
-            if (address >= 0x80000000) {
-                /* Illegal access from user mode */
-                cs->exception_index = EXCP_SUPERA;
-                env->regs[CR_BADADDR] = address;
-                return 1;
-            } else {
-                /* User virtual page */
-                return cpu_nios2_handle_virtual_page(cs, address, rw, mmu_idx);
-            }
-        }
-    } else {
-        /* No MMU */
-        address &= TARGET_PAGE_MASK;
-        tlb_set_page(cs, address, address, PAGE_BITS,
-                     mmu_idx, TARGET_PAGE_SIZE);
-    }
-
-    return 0;
-}
-
 hwaddr nios2_cpu_get_phys_page_debug(CPUState *cs, vaddr addr)
 {
     Nios2CPU *cpu = NIOS2_CPU(cs);
@@ -320,5 +234,87 @@ void nios2_cpu_do_unaligned_access(CPUState *cs, vaddr addr,
     env->regs[CR_BADADDR] = addr;
     env->regs[CR_EXCEPTION] = EXCP_UNALIGN << 2;
     helper_raise_exception(env, EXCP_UNALIGN);
+}
+
+bool nios2_cpu_tlb_fill(CPUState *cs, vaddr address, int size,
+                        MMUAccessType access_type, int mmu_idx,
+                        bool probe, uintptr_t retaddr)
+{
+    Nios2CPU *cpu = NIOS2_CPU(cs);
+    CPUNios2State *env = &cpu->env;
+    unsigned int excp = EXCP_TLBD;
+    target_ulong vaddr, paddr;
+    Nios2MMULookup lu;
+    unsigned int hit;
+
+    if (!cpu->mmu_present) {
+        /* No MMU */
+        address &= TARGET_PAGE_MASK;
+        tlb_set_page(cs, address, address, PAGE_BITS,
+                     mmu_idx, TARGET_PAGE_SIZE);
+        return true;
+    }
+
+    if (MMU_SUPERVISOR_IDX == mmu_idx) {
+        if (address >= 0xC0000000) {
+            /* Kernel physical page - TLB bypassed */
+            address &= TARGET_PAGE_MASK;
+            tlb_set_page(cs, address, address, PAGE_BITS,
+                         mmu_idx, TARGET_PAGE_SIZE);
+            return true;
+        }
+    } else {
+        if (address >= 0x80000000) {
+            /* Illegal access from user mode */
+            if (probe) {
+                return false;
+            }
+            cs->exception_index = EXCP_SUPERA;
+            env->regs[CR_BADADDR] = address;
+            cpu_loop_exit_restore(cs, retaddr);
+        }
+    }
+
+    /* Virtual page.  */
+    hit = mmu_translate(env, &lu, address, access_type, mmu_idx);
+    if (hit) {
+        vaddr = address & TARGET_PAGE_MASK;
+        paddr = lu.paddr + vaddr - lu.vaddr;
+
+        if (((access_type == MMU_DATA_LOAD) && (lu.prot & PAGE_READ)) ||
+            ((access_type == MMU_DATA_STORE) && (lu.prot & PAGE_WRITE)) ||
+            ((access_type == MMU_INST_FETCH) && (lu.prot & PAGE_EXEC))) {
+            tlb_set_page(cs, vaddr, paddr, lu.prot,
+                         mmu_idx, TARGET_PAGE_SIZE);
+            return true;
+        }
+
+        /* Permission violation */
+        excp = (access_type == MMU_DATA_LOAD ? EXCP_TLBR :
+                access_type == MMU_DATA_STORE ? EXCP_TLBW : EXCP_TLBX);
+    }
+
+    if (probe) {
+        return false;
+    }
+
+    if (access_type == MMU_INST_FETCH) {
+        env->regs[CR_TLBMISC] &= ~CR_TLBMISC_D;
+    } else {
+        env->regs[CR_TLBMISC] |= CR_TLBMISC_D;
+    }
+    env->regs[CR_PTEADDR] &= CR_PTEADDR_PTBASE_MASK;
+    env->regs[CR_PTEADDR] |= (address >> 10) & CR_PTEADDR_VPN_MASK;
+    env->mmu.pteaddr_wr = env->regs[CR_PTEADDR];
+
+    cs->exception_index = excp;
+    env->regs[CR_BADADDR] = address;
+    cpu_loop_exit_restore(cs, retaddr);
+}
+
+void tlb_fill(CPUState *cs, target_ulong addr, int size,
+              MMUAccessType access_type, int mmu_idx, uintptr_t retaddr)
+{
+    nios2_cpu_tlb_fill(cs, addr, size, access_type, mmu_idx, false, retaddr);
 }
 #endif /* !CONFIG_USER_ONLY */
