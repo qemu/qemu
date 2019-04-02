@@ -1340,28 +1340,61 @@ void helper_msa_copy_u_w(CPUMIPSState *env, uint32_t rd,
     env->active_tc.gpr[rd] = (uint32_t)env->active_fpu.fpr[ws].wr.w[n];
 }
 
-void helper_msa_insert_df(CPUMIPSState *env, uint32_t df, uint32_t wd,
+void helper_msa_insert_b(CPUMIPSState *env, uint32_t wd,
                           uint32_t rs_num, uint32_t n)
 {
     wr_t *pwd = &(env->active_fpu.fpr[wd].wr);
     target_ulong rs = env->active_tc.gpr[rs_num];
-
-    switch (df) {
-    case DF_BYTE:
-        pwd->b[n] = (int8_t)rs;
-        break;
-    case DF_HALF:
-        pwd->h[n] = (int16_t)rs;
-        break;
-    case DF_WORD:
-        pwd->w[n] = (int32_t)rs;
-        break;
-    case DF_DOUBLE:
-        pwd->d[n] = (int64_t)rs;
-        break;
-    default:
-        assert(0);
+    n %= 16;
+#if defined(HOST_WORDS_BIGENDIAN)
+    if (n < 8) {
+        n = 8 - n - 1;
+    } else {
+        n = 24 - n - 1;
     }
+#endif
+    pwd->b[n] = (int8_t)rs;
+}
+
+void helper_msa_insert_h(CPUMIPSState *env, uint32_t wd,
+                          uint32_t rs_num, uint32_t n)
+{
+    wr_t *pwd = &(env->active_fpu.fpr[wd].wr);
+    target_ulong rs = env->active_tc.gpr[rs_num];
+    n %= 8;
+#if defined(HOST_WORDS_BIGENDIAN)
+    if (n < 4) {
+        n = 4 - n - 1;
+    } else {
+        n = 12 - n - 1;
+    }
+#endif
+    pwd->h[n] = (int16_t)rs;
+}
+
+void helper_msa_insert_w(CPUMIPSState *env, uint32_t wd,
+                          uint32_t rs_num, uint32_t n)
+{
+    wr_t *pwd = &(env->active_fpu.fpr[wd].wr);
+    target_ulong rs = env->active_tc.gpr[rs_num];
+    n %= 4;
+#if defined(HOST_WORDS_BIGENDIAN)
+    if (n < 2) {
+        n = 2 - n - 1;
+    } else {
+        n = 6 - n - 1;
+    }
+#endif
+    pwd->w[n] = (int32_t)rs;
+}
+
+void helper_msa_insert_d(CPUMIPSState *env, uint32_t wd,
+                          uint32_t rs_num, uint32_t n)
+{
+    wr_t *pwd = &(env->active_fpu.fpr[wd].wr);
+    target_ulong rs = env->active_tc.gpr[rs_num];
+    n %= 2;
+    pwd->d[n] = (int64_t)rs;
 }
 
 void helper_msa_insve_df(CPUMIPSState *env, uint32_t df, uint32_t wd,

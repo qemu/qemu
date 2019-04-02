@@ -28346,7 +28346,24 @@ static void gen_msa_elm_df(CPUMIPSState *env, DisasContext *ctx, uint32_t df,
             }
             break;
         case OPC_INSERT_df:
-            gen_helper_msa_insert_df(cpu_env, tdf, twd, tws, tn);
+            switch (df) {
+            case DF_BYTE:
+                gen_helper_msa_insert_b(cpu_env, twd, tws, tn);
+                break;
+            case DF_HALF:
+                gen_helper_msa_insert_h(cpu_env, twd, tws, tn);
+                break;
+            case DF_WORD:
+                gen_helper_msa_insert_w(cpu_env, twd, tws, tn);
+                break;
+#if defined(TARGET_MIPS64)
+            case DF_DOUBLE:
+                gen_helper_msa_insert_d(cpu_env, twd, tws, tn);
+                break;
+#endif
+            default:
+                assert(0);
+            }
             break;
         }
         break;
