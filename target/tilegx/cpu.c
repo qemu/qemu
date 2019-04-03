@@ -25,6 +25,7 @@
 #include "hw/qdev-properties.h"
 #include "linux-user/syscall_defs.h"
 #include "qemu/qemu-print.h"
+#include "exec/exec-all.h"
 
 static void tilegx_cpu_dump_state(CPUState *cs, FILE *f, int flags)
 {
@@ -111,8 +112,9 @@ static void tilegx_cpu_do_interrupt(CPUState *cs)
     cs->exception_index = -1;
 }
 
-static int tilegx_cpu_handle_mmu_fault(CPUState *cs, vaddr address, int size,
-                                       int rw, int mmu_idx)
+static bool tilegx_cpu_tlb_fill(CPUState *cs, vaddr address, int size,
+                                MMUAccessType access_type, int mmu_idx,
+                                bool probe, uintptr_t retaddr)
 {
     TileGXCPU *cpu = TILEGX_CPU(cs);
 
@@ -122,7 +124,7 @@ static int tilegx_cpu_handle_mmu_fault(CPUState *cs, vaddr address, int size,
     cpu->env.signo = TARGET_SIGSEGV;
     cpu->env.sigcode = 0;
 
-    return 1;
+    cpu_loop_exit_restore(cs, retaddr);
 }
 
 static bool tilegx_cpu_exec_interrupt(CPUState *cs, int interrupt_request)
@@ -152,7 +154,7 @@ static void tilegx_cpu_class_init(ObjectClass *oc, void *data)
     cc->cpu_exec_interrupt = tilegx_cpu_exec_interrupt;
     cc->dump_state = tilegx_cpu_dump_state;
     cc->set_pc = tilegx_cpu_set_pc;
-    cc->handle_mmu_fault = tilegx_cpu_handle_mmu_fault;
+    cc->tlb_fill = tilegx_cpu_tlb_fill;
     cc->gdb_num_core_regs = 0;
     cc->tcg_initialize = tilegx_tcg_init;
 }
