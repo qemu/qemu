@@ -33,6 +33,7 @@
 #define MAX_QP_RD_ATOM        16
 #define MAX_QP_INIT_RD_ATOM   16
 #define MAX_AH                64
+#define MAX_SRQ               512
 
 #define MAX_RM_TBL_NAME             16
 #define MAX_CONSEQ_EMPTY_POLL_CQ    4096 /* considered as error above this */
@@ -89,6 +90,12 @@ typedef struct RdmaRmQP {
     enum ibv_qp_state qp_state;
 } RdmaRmQP;
 
+typedef struct RdmaRmSRQ {
+    RdmaBackendSRQ backend_srq;
+    uint32_t recv_cq_handle;
+    void *opaque;
+} RdmaRmSRQ;
+
 typedef struct RdmaRmGid {
     union ibv_gid gid;
     int backend_gid_index;
@@ -129,6 +136,7 @@ struct RdmaDeviceResources {
     RdmaRmResTbl qp_tbl;
     RdmaRmResTbl cq_tbl;
     RdmaRmResTbl cqe_ctx_tbl;
+    RdmaRmResTbl srq_tbl;
     GHashTable *qp_hash; /* Keeps mapping between real and emulated */
     QemuMutex lock;
     RdmaRmStats stats;
