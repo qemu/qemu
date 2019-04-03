@@ -356,6 +356,43 @@ static void migrate_set_parameter_int(QTestState *who, const char *parameter,
     migrate_check_parameter_int(who, parameter, value);
 }
 
+static char *migrate_get_parameter_str(QTestState *who,
+                                       const char *parameter)
+{
+    QDict *rsp;
+    char *result;
+
+    rsp = wait_command(who, "{ 'execute': 'query-migrate-parameters' }");
+    result = g_strdup(qdict_get_str(rsp, parameter));
+    qobject_unref(rsp);
+    return result;
+}
+
+static void migrate_check_parameter_str(QTestState *who, const char *parameter,
+                                        const char *value)
+{
+    char *result;
+
+    result = migrate_get_parameter_str(who, parameter);
+    g_assert_cmpstr(result, ==, value);
+    g_free(result);
+}
+
+__attribute__((unused))
+static void migrate_set_parameter_str(QTestState *who, const char *parameter,
+                                      const char *value)
+{
+    QDict *rsp;
+
+    rsp = qtest_qmp(who,
+                    "{ 'execute': 'migrate-set-parameters',"
+                    "'arguments': { %s: %s } }",
+                    parameter, value);
+    g_assert(qdict_haskey(rsp, "return"));
+    qobject_unref(rsp);
+    migrate_check_parameter_str(who, parameter, value);
+}
+
 static void migrate_pause(QTestState *who)
 {
     QDict *rsp;
