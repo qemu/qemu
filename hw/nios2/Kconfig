@@ -4,5 +4,9 @@ config NIOS2_10M50
     select SERIAL
     select ALTERA_TIMER
 
+config NIOS2_GENERIC_NOMMU
+    bool
+    select NIOS2
+
 config NIOS2
     bool
