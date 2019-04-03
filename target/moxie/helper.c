@@ -26,12 +26,6 @@
 #include "qemu/host-utils.h"
 #include "exec/helper-proto.h"
 
-void tlb_fill(CPUState *cs, target_ulong addr, int size,
-              MMUAccessType access_type, int mmu_idx, uintptr_t retaddr)
-{
-    moxie_cpu_tlb_fill(cs, addr, size, access_type, mmu_idx, false, retaddr);
-}
-
 void helper_raise_exception(CPUMoxieState *env, int ex)
 {
     CPUState *cs = CPU(moxie_env_get_cpu(env));

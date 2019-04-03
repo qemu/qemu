@@ -275,12 +275,6 @@ bool alpha_cpu_tlb_fill(CPUState *cs, vaddr addr, int size,
                  prot, mmu_idx, TARGET_PAGE_SIZE);
     return true;
 }
-
-void tlb_fill(CPUState *cs, target_ulong addr, int size,
-              MMUAccessType access_type, int mmu_idx, uintptr_t retaddr)
-{
-    alpha_cpu_tlb_fill(cs, addr, size, access_type, mmu_idx, false, retaddr);
-}
 #endif /* USER_ONLY */
 
 void alpha_cpu_do_interrupt(CPUState *cs)

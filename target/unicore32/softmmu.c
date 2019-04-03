@@ -275,12 +275,6 @@ bool uc32_cpu_tlb_fill(CPUState *cs, vaddr address, int size,
     cpu_loop_exit_restore(cs, retaddr);
 }
 
-void tlb_fill(CPUState *cs, target_ulong addr, int size,
-              MMUAccessType access_type, int mmu_idx, uintptr_t retaddr)
-{
-    uc32_cpu_tlb_fill(cs, addr, size, access_type, mmu_idx, false, retaddr);
-}
-
 hwaddr uc32_cpu_get_phys_page_debug(CPUState *cs, vaddr addr)
 {
     error_report("function uc32_cpu_get_phys_page_debug not "

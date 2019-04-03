@@ -884,14 +884,6 @@ bool m68k_cpu_tlb_fill(CPUState *cs, vaddr address, int size,
     cpu_loop_exit_restore(cs, retaddr);
 }
 
-#ifndef CONFIG_USER_ONLY
-void tlb_fill(CPUState *cs, target_ulong addr, int size,
-              MMUAccessType access_type, int mmu_idx, uintptr_t retaddr)
-{
-    m68k_cpu_tlb_fill(cs, addr, size, access_type, mmu_idx, false, retaddr);
-}
-#endif
-
 uint32_t HELPER(bitrev)(uint32_t x)
 {
     x = ((x >> 1) & 0x55555555u) | ((x << 1) & 0xaaaaaaaau);

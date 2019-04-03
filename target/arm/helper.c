@@ -13127,14 +13127,6 @@ bool arm_cpu_tlb_fill(CPUState *cs, vaddr address, int size,
 #endif
 }
 
-#ifndef CONFIG_USER_ONLY
-void tlb_fill(CPUState *cs, target_ulong addr, int size,
-              MMUAccessType access_type, int mmu_idx, uintptr_t retaddr)
-{
-    arm_cpu_tlb_fill(cs, addr, size, access_type, mmu_idx, false, retaddr);
-}
-#endif
-
 void HELPER(dc_zva)(CPUARMState *env, uint64_t vaddr_in)
 {
     /* Implement DC ZVA, which zeroes a fixed-length block of memory.

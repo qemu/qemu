@@ -3080,9 +3080,3 @@ bool ppc_cpu_tlb_fill(CPUState *cs, vaddr addr, int size,
     }
     return true;
 }
-
-void tlb_fill(CPUState *cs, target_ulong addr, int size,
-              MMUAccessType access_type, int mmu_idx, uintptr_t retaddr)
-{
-    ppc_cpu_tlb_fill(cs, addr, size, access_type, mmu_idx, false, retaddr);
-}
