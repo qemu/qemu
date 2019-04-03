@@ -27,13 +27,14 @@
 
 #if defined(CONFIG_USER_ONLY)
 
-int sparc_cpu_handle_mmu_fault(CPUState *cs, vaddr address, int size, int rw,
-                               int mmu_idx)
+bool sparc_cpu_tlb_fill(CPUState *cs, vaddr address, int size,
+                        MMUAccessType access_type, int mmu_idx,
+                        bool probe, uintptr_t retaddr)
 {
     SPARCCPU *cpu = SPARC_CPU(cs);
     CPUSPARCState *env = &cpu->env;
 
-    if (rw & 2) {
+    if (access_type == MMU_INST_FETCH) {
         cs->exception_index = TT_TFAULT;
     } else {
         cs->exception_index = TT_DFAULT;
@@ -43,7 +44,7 @@ int sparc_cpu_handle_mmu_fault(CPUState *cs, vaddr address, int size, int rw,
         env->mmuregs[4] = address;
 #endif
     }
-    return 1;
+    cpu_loop_exit_restore(cs, retaddr);
 }
 
 #else
@@ -208,8 +209,9 @@ static int get_physical_address(CPUSPARCState *env, hwaddr *physical,
 }
 
 /* Perform address translation */
-int sparc_cpu_handle_mmu_fault(CPUState *cs, vaddr address, int size, int rw,
-                               int mmu_idx)
+bool sparc_cpu_tlb_fill(CPUState *cs, vaddr address, int size,
+                        MMUAccessType access_type, int mmu_idx,
+                        bool probe, uintptr_t retaddr)
 {
     SPARCCPU *cpu = SPARC_CPU(cs);
     CPUSPARCState *env = &cpu->env;
@@ -218,16 +220,26 @@ int sparc_cpu_handle_mmu_fault(CPUState *cs, vaddr address, int size, int rw,
     target_ulong page_size;
     int error_code = 0, prot, access_index;
 
+    /*
+     * TODO: If we ever need tlb_vaddr_to_host for this target,
+     * then we must figure out how to manipulate FSR and FAR
+     * when both MMU_NF and probe are set.  In the meantime,
+     * do not support this use case.
+     */
+    assert(!probe);
+
     address &= TARGET_PAGE_MASK;
     error_code = get_physical_address(env, &paddr, &prot, &access_index,
-                                      address, rw, mmu_idx, &page_size);
+                                      address, access_type,
+                                      mmu_idx, &page_size);
     vaddr = address;
-    if (error_code == 0) {
+    if (likely(error_code == 0)) {
         qemu_log_mask(CPU_LOG_MMU,
-                "Translate at %" VADDR_PRIx " -> " TARGET_FMT_plx ", vaddr "
-                TARGET_FMT_lx "\n", address, paddr, vaddr);
+                      "Translate at %" VADDR_PRIx " -> "
+                      TARGET_FMT_plx ", vaddr " TARGET_FMT_lx "\n",
+                      address, paddr, vaddr);
         tlb_set_page(cs, vaddr, paddr, prot, mmu_idx, page_size);
-        return 0;
+        return true;
     }
 
     if (env->mmuregs[3]) { /* Fault status register */
@@ -243,14 +255,14 @@ int sparc_cpu_handle_mmu_fault(CPUState *cs, vaddr address, int size, int rw,
            switching to normal mode. */
         prot = PAGE_READ | PAGE_WRITE | PAGE_EXEC;
         tlb_set_page(cs, vaddr, paddr, prot, mmu_idx, TARGET_PAGE_SIZE);
-        return 0;
+        return true;
     } else {
-        if (rw & 2) {
+        if (access_type == MMU_INST_FETCH) {
             cs->exception_index = TT_TFAULT;
         } else {
             cs->exception_index = TT_DFAULT;
         }
-        return 1;
+        cpu_loop_exit_restore(cs, retaddr);
     }
 }
 
@@ -713,8 +725,9 @@ static int get_physical_address(CPUSPARCState *env, hwaddr *physical,
 }
 
 /* Perform address translation */
-int sparc_cpu_handle_mmu_fault(CPUState *cs, vaddr address, int size, int rw,
-                               int mmu_idx)
+bool sparc_cpu_tlb_fill(CPUState *cs, vaddr address, int size,
+                        MMUAccessType access_type, int mmu_idx,
+                        bool probe, uintptr_t retaddr)
 {
     SPARCCPU *cpu = SPARC_CPU(cs);
     CPUSPARCState *env = &cpu->env;
@@ -725,8 +738,9 @@ int sparc_cpu_handle_mmu_fault(CPUState *cs, vaddr address, int size, int rw,
 
     address &= TARGET_PAGE_MASK;
     error_code = get_physical_address(env, &paddr, &prot, &access_index,
-                                      address, rw, mmu_idx, &page_size);
-    if (error_code == 0) {
+                                      address, access_type,
+                                      mmu_idx, &page_size);
+    if (likely(error_code == 0)) {
         vaddr = address;
 
         trace_mmu_helper_mmu_fault(address, paddr, mmu_idx, env->tl,
@@ -734,10 +748,12 @@ int sparc_cpu_handle_mmu_fault(CPUState *cs, vaddr address, int size, int rw,
                                    env->dmmu.mmu_secondary_context);
 
         tlb_set_page(cs, vaddr, paddr, prot, mmu_idx, page_size);
-        return 0;
+        return true;
     }
-    /* XXX */
-    return 1;
+    if (probe) {
+        return false;
+    }
+    cpu_loop_exit_restore(cs, retaddr);
 }
 
 void dump_mmu(CPUSPARCState *env)
