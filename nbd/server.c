@@ -124,6 +124,8 @@ struct NBDClient {
     int nb_requests;
     bool closing;
 
+    uint32_t check_align; /* If non-zero, check for aligned client requests */
+
     bool structured_reply;
     NBDExportMetaContexts export_meta;
 
@@ -533,6 +535,7 @@ static int nbd_negotiate_handle_info(NBDClient *client, uint16_t myflags,
     bool blocksize = false;
     uint32_t sizes[3];
     char buf[sizeof(uint64_t) + sizeof(uint16_t)];
+    uint32_t check_align = 0;
 
     /* Client sends:
         4 bytes: L, name length (can be 0)
@@ -609,7 +612,7 @@ static int nbd_negotiate_handle_info(NBDClient *client, uint16_t myflags,
      * whether this is OPT_INFO or OPT_GO. */
     /* minimum - 1 for back-compat, or actual if client will obey it. */
     if (client->opt == NBD_OPT_INFO || blocksize) {
-        sizes[0] = blk_get_request_alignment(exp->blk);
+        check_align = sizes[0] = blk_get_request_alignment(exp->blk);
     } else {
         sizes[0] = 1;
     }
@@ -660,6 +663,7 @@ static int nbd_negotiate_handle_info(NBDClient *client, uint16_t myflags,
 
     if (client->opt == NBD_OPT_GO) {
         client->exp = exp;
+        client->check_align = check_align;
         QTAILQ_INSERT_TAIL(&client->exp->clients, client, next);
         nbd_export_get(client->exp);
         nbd_check_meta_export(client);
@@ -2125,6 +2129,17 @@ static int nbd_co_receive_request(NBDRequestData *req, NBDRequest *request,
                    client->exp->size);
         return (request->type == NBD_CMD_WRITE ||
                 request->type == NBD_CMD_WRITE_ZEROES) ? -ENOSPC : -EINVAL;
+    }
+    if (client->check_align && !QEMU_IS_ALIGNED(request->from | request->len,
+                                                client->check_align)) {
+        /*
+         * The block layer gracefully handles unaligned requests, but
+         * it's still worth tracing client non-compliance
+         */
+        trace_nbd_co_receive_align_compliance(nbd_cmd_lookup(request->type),
+                                              request->from,
+                                              request->len,
+                                              client->check_align);
     }
     valid_flags = NBD_CMD_FLAG_FUA;
     if (request->type == NBD_CMD_READ && client->structured_reply) {
