@@ -215,8 +215,9 @@ do_fault:
     return code;
 }
 
-int uc32_cpu_handle_mmu_fault(CPUState *cs, vaddr address, int size,
-                              int access_type, int mmu_idx)
+bool uc32_cpu_tlb_fill(CPUState *cs, vaddr address, int size,
+                       MMUAccessType access_type, int mmu_idx,
+                       bool probe, uintptr_t retaddr)
 {
     UniCore32CPU *cpu = UNICORE32_CPU(cs);
     CPUUniCore32State *env = &cpu->env;
@@ -257,7 +258,11 @@ int uc32_cpu_handle_mmu_fault(CPUState *cs, vaddr address, int size,
         phys_addr &= TARGET_PAGE_MASK;
         address &= TARGET_PAGE_MASK;
         tlb_set_page(cs, address, phys_addr, prot, mmu_idx, page_size);
-        return 0;
+        return true;
+    }
+
+    if (probe) {
+        return false;
     }
 
     env->cp0.c3_faultstatus = ret;
@@ -267,7 +272,13 @@ int uc32_cpu_handle_mmu_fault(CPUState *cs, vaddr address, int size,
     } else {
         cs->exception_index = UC32_EXCP_DTRAP;
     }
-    return ret;
+    cpu_loop_exit_restore(cs, retaddr);
+}
+
+void tlb_fill(CPUState *cs, target_ulong addr, int size,
+              MMUAccessType access_type, int mmu_idx, uintptr_t retaddr)
+{
+    uc32_cpu_tlb_fill(cs, addr, size, access_type, mmu_idx, false, retaddr);
 }
 
 hwaddr uc32_cpu_get_phys_page_debug(CPUState *cs, vaddr addr)
