@@ -88,6 +88,7 @@ typedef struct RdmaRmQP {
     uint32_t send_cq_handle;
     uint32_t recv_cq_handle;
     enum ibv_qp_state qp_state;
+    uint8_t is_srq;
 } RdmaRmQP;
 
 typedef struct RdmaRmSRQ {

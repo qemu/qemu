@@ -89,9 +89,9 @@ void rdma_backend_poll_cq(RdmaDeviceResources *rdma_dev_res, RdmaBackendCQ *cq);
 
 int rdma_backend_create_qp(RdmaBackendQP *qp, uint8_t qp_type,
                            RdmaBackendPD *pd, RdmaBackendCQ *scq,
-                           RdmaBackendCQ *rcq, uint32_t max_send_wr,
-                           uint32_t max_recv_wr, uint32_t max_send_sge,
-                           uint32_t max_recv_sge);
+                           RdmaBackendCQ *rcq, RdmaBackendSRQ *srq,
+                           uint32_t max_send_wr, uint32_t max_recv_wr,
+                           uint32_t max_send_sge, uint32_t max_recv_sge);
 int rdma_backend_qp_state_init(RdmaBackendDev *backend_dev, RdmaBackendQP *qp,
                                uint8_t qp_type, uint32_t qkey);
 int rdma_backend_qp_state_rtr(RdmaBackendDev *backend_dev, RdmaBackendQP *qp,

@@ -357,7 +357,7 @@ static int destroy_cq(PVRDMADev *dev, union pvrdma_cmd_req *req,
 static int create_qp_rings(PCIDevice *pci_dev, uint64_t pdir_dma,
                            PvrdmaRing **rings, uint32_t scqe, uint32_t smax_sge,
                            uint32_t spages, uint32_t rcqe, uint32_t rmax_sge,
-                           uint32_t rpages)
+                           uint32_t rpages, uint8_t is_srq)
 {
     uint64_t *dir = NULL, *tbl = NULL;
     PvrdmaRing *sr, *rr;
@@ -365,9 +365,14 @@ static int create_qp_rings(PCIDevice *pci_dev, uint64_t pdir_dma,
     char ring_name[MAX_RING_NAME_SZ];
     uint32_t wqe_sz;
 
-    if (!spages || spages > PVRDMA_MAX_FAST_REG_PAGES
-        || !rpages || rpages > PVRDMA_MAX_FAST_REG_PAGES) {
-        rdma_error_report("Got invalid page count for QP ring: %d, %d", spages,
+    if (!spages || spages > PVRDMA_MAX_FAST_REG_PAGES) {
+        rdma_error_report("Got invalid send page count for QP ring: %d",
+                          spages);
+        return rc;
+    }
+
+    if (!is_srq && (!rpages || rpages > PVRDMA_MAX_FAST_REG_PAGES)) {
+        rdma_error_report("Got invalid recv page count for QP ring: %d",
                           rpages);
         return rc;
     }
@@ -384,8 +389,12 @@ static int create_qp_rings(PCIDevice *pci_dev, uint64_t pdir_dma,
         goto out;
     }
 
-    sr = g_malloc(2 * sizeof(*rr));
-    rr = &sr[1];
+    if (!is_srq) {
+        sr = g_malloc(2 * sizeof(*rr));
+        rr = &sr[1];
+    } else {
+        sr = g_malloc(sizeof(*sr));
+    }
 
     *rings = sr;
 
@@ -407,15 +416,18 @@ static int create_qp_rings(PCIDevice *pci_dev, uint64_t pdir_dma,
         goto out_unmap_ring_state;
     }
 
-    /* Create recv ring */
-    rr->ring_state = &sr->ring_state[1];
-    wqe_sz = pow2ceil(sizeof(struct pvrdma_rq_wqe_hdr) +
-                      sizeof(struct pvrdma_sge) * rmax_sge - 1);
-    sprintf(ring_name, "qp_rring_%" PRIx64, pdir_dma);
-    rc = pvrdma_ring_init(rr, ring_name, pci_dev, rr->ring_state,
-                          rcqe, wqe_sz, (dma_addr_t *)&tbl[1 + spages], rpages);
-    if (rc) {
-        goto out_free_sr;
+    if (!is_srq) {
+        /* Create recv ring */
+        rr->ring_state = &sr->ring_state[1];
+        wqe_sz = pow2ceil(sizeof(struct pvrdma_rq_wqe_hdr) +
+                          sizeof(struct pvrdma_sge) * rmax_sge - 1);
+        sprintf(ring_name, "qp_rring_%" PRIx64, pdir_dma);
+        rc = pvrdma_ring_init(rr, ring_name, pci_dev, rr->ring_state,
+                              rcqe, wqe_sz, (dma_addr_t *)&tbl[1 + spages],
+                              rpages);
+        if (rc) {
+            goto out_free_sr;
+        }
     }
 
     goto out;
@@ -436,10 +448,12 @@ out:
     return rc;
 }
 
-static void destroy_qp_rings(PvrdmaRing *ring)
+static void destroy_qp_rings(PvrdmaRing *ring, uint8_t is_srq)
 {
     pvrdma_ring_free(&ring[0]);
-    pvrdma_ring_free(&ring[1]);
+    if (!is_srq) {
+        pvrdma_ring_free(&ring[1]);
+    }
 
     rdma_pci_dma_unmap(ring->dev, ring->ring_state, TARGET_PAGE_SIZE);
     g_free(ring);
@@ -458,7 +472,7 @@ static int create_qp(PVRDMADev *dev, union pvrdma_cmd_req *req,
     rc = create_qp_rings(PCI_DEVICE(dev), cmd->pdir_dma, &rings,
                          cmd->max_send_wr, cmd->max_send_sge, cmd->send_chunks,
                          cmd->max_recv_wr, cmd->max_recv_sge,
-                         cmd->total_chunks - cmd->send_chunks - 1);
+                         cmd->total_chunks - cmd->send_chunks - 1, cmd->is_srq);
     if (rc) {
         return rc;
     }
@@ -467,9 +481,9 @@ static int create_qp(PVRDMADev *dev, union pvrdma_cmd_req *req,
                           cmd->max_send_wr, cmd->max_send_sge,
                           cmd->send_cq_handle, cmd->max_recv_wr,
                           cmd->max_recv_sge, cmd->recv_cq_handle, rings,
-                          &resp->qpn);
+                          &resp->qpn, cmd->is_srq, cmd->srq_handle);
     if (rc) {
-        destroy_qp_rings(rings);
+        destroy_qp_rings(rings, cmd->is_srq);
         return rc;
     }
 
@@ -531,10 +545,9 @@ static int destroy_qp(PVRDMADev *dev, union pvrdma_cmd_req *req,
         return -EINVAL;
     }
 
-    rdma_rm_dealloc_qp(&dev->rdma_dev_res, cmd->qp_handle);
-
     ring = (PvrdmaRing *)qp->opaque;
-    destroy_qp_rings(ring);
+    destroy_qp_rings(ring, qp->is_srq);
+    rdma_rm_dealloc_qp(&dev->rdma_dev_res, cmd->qp_handle);
 
     return 0;
 }

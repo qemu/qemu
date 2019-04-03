@@ -386,12 +386,14 @@ int rdma_rm_alloc_qp(RdmaDeviceResources *dev_res, uint32_t pd_handle,
                      uint8_t qp_type, uint32_t max_send_wr,
                      uint32_t max_send_sge, uint32_t send_cq_handle,
                      uint32_t max_recv_wr, uint32_t max_recv_sge,
-                     uint32_t recv_cq_handle, void *opaque, uint32_t *qpn)
+                     uint32_t recv_cq_handle, void *opaque, uint32_t *qpn,
+                     uint8_t is_srq, uint32_t srq_handle)
 {
     int rc;
     RdmaRmQP *qp;
     RdmaRmCQ *scq, *rcq;
     RdmaRmPD *pd;
+    RdmaRmSRQ *srq = NULL;
     uint32_t rm_qpn;
 
     pd = rdma_rm_get_pd(dev_res, pd_handle);
@@ -406,6 +408,16 @@ int rdma_rm_alloc_qp(RdmaDeviceResources *dev_res, uint32_t pd_handle,
         rdma_error_report("Invalid send_cqn or recv_cqn (%d, %d)",
                           send_cq_handle, recv_cq_handle);
         return -EINVAL;
+    }
+
+    if (is_srq) {
+        srq = rdma_rm_get_srq(dev_res, srq_handle);
+        if (!srq) {
+            rdma_error_report("Invalid srqn %d", srq_handle);
+            return -EINVAL;
+        }
+
+        srq->recv_cq_handle = recv_cq_handle;
     }
 
     if (qp_type == IBV_QPT_GSI) {
@@ -424,10 +436,14 @@ int rdma_rm_alloc_qp(RdmaDeviceResources *dev_res, uint32_t pd_handle,
     qp->send_cq_handle = send_cq_handle;
     qp->recv_cq_handle = recv_cq_handle;
     qp->opaque = opaque;
+    qp->is_srq = is_srq;
 
     rc = rdma_backend_create_qp(&qp->backend_qp, qp_type, &pd->backend_pd,
-                                &scq->backend_cq, &rcq->backend_cq, max_send_wr,
-                                max_recv_wr, max_send_sge, max_recv_sge);
+                                &scq->backend_cq, &rcq->backend_cq,
+                                is_srq ? &srq->backend_srq : NULL,
+                                max_send_wr, max_recv_wr, max_send_sge,
+                                max_recv_sge);
+
     if (rc) {
         rc = -EIO;
         goto out_dealloc_qp;

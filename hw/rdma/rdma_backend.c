@@ -794,9 +794,9 @@ void rdma_backend_destroy_cq(RdmaBackendCQ *cq)
 
 int rdma_backend_create_qp(RdmaBackendQP *qp, uint8_t qp_type,
                            RdmaBackendPD *pd, RdmaBackendCQ *scq,
-                           RdmaBackendCQ *rcq, uint32_t max_send_wr,
-                           uint32_t max_recv_wr, uint32_t max_send_sge,
-                           uint32_t max_recv_sge)
+                           RdmaBackendCQ *rcq, RdmaBackendSRQ *srq,
+                           uint32_t max_send_wr, uint32_t max_recv_wr,
+                           uint32_t max_send_sge, uint32_t max_recv_sge)
 {
     struct ibv_qp_init_attr attr = {};
 
@@ -824,6 +824,9 @@ int rdma_backend_create_qp(RdmaBackendQP *qp, uint8_t qp_type,
     attr.cap.max_recv_wr = max_recv_wr;
     attr.cap.max_send_sge = max_send_sge;
     attr.cap.max_recv_sge = max_recv_sge;
+    if (srq) {
+        attr.srq = srq->ibsrq;
+    }
 
     qp->ibqp = ibv_create_qp(pd->ibpd, &attr);
     if (!qp->ibqp) {

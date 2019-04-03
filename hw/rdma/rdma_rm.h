@@ -53,7 +53,8 @@ int rdma_rm_alloc_qp(RdmaDeviceResources *dev_res, uint32_t pd_handle,
                      uint8_t qp_type, uint32_t max_send_wr,
                      uint32_t max_send_sge, uint32_t send_cq_handle,
                      uint32_t max_recv_wr, uint32_t max_recv_sge,
-                     uint32_t recv_cq_handle, void *opaque, uint32_t *qpn);
+                     uint32_t recv_cq_handle, void *opaque, uint32_t *qpn,
+                     uint8_t is_srq, uint32_t srq_handle);
 RdmaRmQP *rdma_rm_get_qp(RdmaDeviceResources *dev_res, uint32_t qpn);
 int rdma_rm_modify_qp(RdmaDeviceResources *dev_res, RdmaBackendDev *backend_dev,
                       uint32_t qp_handle, uint32_t attr_mask, uint8_t sgid_idx,
