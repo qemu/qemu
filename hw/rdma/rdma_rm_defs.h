@@ -106,6 +106,7 @@ typedef struct RdmaRmStats {
     uint64_t rx_bufs;
     uint64_t rx_bufs_len;
     uint64_t rx_bufs_err;
+    uint64_t rx_srq;
     uint64_t completions;
     uint64_t mad_tx;
     uint64_t mad_tx_err;

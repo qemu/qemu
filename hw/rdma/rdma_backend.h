@@ -114,4 +114,16 @@ void rdma_backend_post_recv(RdmaBackendDev *backend_dev,
                             RdmaBackendQP *qp, uint8_t qp_type,
                             struct ibv_sge *sge, uint32_t num_sge, void *ctx);
 
+int rdma_backend_create_srq(RdmaBackendSRQ *srq, RdmaBackendPD *pd,
+                            uint32_t max_wr, uint32_t max_sge,
+                            uint32_t srq_limit);
+int rdma_backend_query_srq(RdmaBackendSRQ *srq, struct ibv_srq_attr *srq_attr);
+int rdma_backend_modify_srq(RdmaBackendSRQ *srq, struct ibv_srq_attr *srq_attr,
+                            int srq_attr_mask);
+void rdma_backend_destroy_srq(RdmaBackendSRQ *srq,
+                              RdmaDeviceResources *dev_res);
+void rdma_backend_post_srq_recv(RdmaBackendDev *backend_dev,
+                                RdmaBackendSRQ *srq, struct ibv_sge *sge,
+                                uint32_t num_sge, void *ctx);
+
 #endif

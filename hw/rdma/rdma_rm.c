@@ -37,6 +37,8 @@ void rdma_dump_device_counters(Monitor *mon, RdmaDeviceResources *dev_res)
                    dev_res->stats.tx_err);
     monitor_printf(mon, "\trx_bufs          : %" PRId64 "\n",
                    dev_res->stats.rx_bufs);
+    monitor_printf(mon, "\trx_srq           : %" PRId64 "\n",
+                   dev_res->stats.rx_srq);
     monitor_printf(mon, "\trx_bufs_len      : %" PRId64 "\n",
                    dev_res->stats.rx_bufs_len);
     monitor_printf(mon, "\trx_bufs_err      : %" PRId64 "\n",
