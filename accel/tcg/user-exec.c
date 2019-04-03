@@ -63,7 +63,6 @@ static inline int handle_cpu_signal(uintptr_t pc, siginfo_t *info,
 {
     CPUState *cpu = current_cpu;
     CPUClass *cc;
-    int ret;
     unsigned long address = (unsigned long)info->si_addr;
     MMUAccessType access_type;
 
@@ -156,15 +155,9 @@ static inline int handle_cpu_signal(uintptr_t pc, siginfo_t *info,
     helper_retaddr = 0;
 
     cc = CPU_GET_CLASS(cpu);
-    if (cc->tlb_fill) {
-        access_type = is_write ? MMU_DATA_STORE : MMU_DATA_LOAD;
-        cc->tlb_fill(cpu, address, 0, access_type, MMU_USER_IDX, false, pc);
-        g_assert_not_reached();
-    } else {
-        ret = cc->handle_mmu_fault(cpu, address, 0, is_write, MMU_USER_IDX);
-        g_assert(ret > 0);
-        cpu_loop_exit_restore(cpu, pc);
-    }
+    access_type = is_write ? MMU_DATA_STORE : MMU_DATA_LOAD;
+    cc->tlb_fill(cpu, address, 0, access_type, MMU_USER_IDX, false, pc);
+    g_assert_not_reached();
 }
 
 #if defined(__i386__)
