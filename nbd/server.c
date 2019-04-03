@@ -643,11 +643,14 @@ static int nbd_negotiate_handle_info(NBDClient *client, uint16_t myflags,
         return rc;
     }
 
-    /* If the client is just asking for NBD_OPT_INFO, but forgot to
-     * request block sizes, return an error.
-     * TODO: consult blk_bs(blk)->request_align, and only error if it
-     * is not 1? */
-    if (client->opt == NBD_OPT_INFO && !blocksize) {
+    /*
+     * If the client is just asking for NBD_OPT_INFO, but forgot to
+     * request block sizes in a situation that would impact
+     * performance, then return an error. But for NBD_OPT_GO, we
+     * tolerate all clients, regardless of alignments.
+     */
+    if (client->opt == NBD_OPT_INFO && !blocksize &&
+        blk_get_request_alignment(exp->blk) > 1) {
         return nbd_negotiate_send_rep_err(client,
                                           NBD_REP_ERR_BLOCK_SIZE_REQD,
                                           errp,
