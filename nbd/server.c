@@ -1880,17 +1880,12 @@ static int blockstatus_to_extents(BlockDriverState *bs, uint64_t offset,
 
         flags = (ret & BDRV_BLOCK_ALLOCATED ? 0 : NBD_STATE_HOLE) |
                 (ret & BDRV_BLOCK_ZERO      ? NBD_STATE_ZERO : 0);
-        offset += num;
-        remaining_bytes -= num;
 
         if (first_extent) {
             extent->flags = flags;
             extent->length = num;
             first_extent = false;
-            continue;
-        }
-
-        if (flags == extent->flags) {
+        } else if (flags == extent->flags) {
             /* extend current extent */
             extent->length += num;
         } else {
@@ -1903,6 +1898,8 @@ static int blockstatus_to_extents(BlockDriverState *bs, uint64_t offset,
             extent->flags = flags;
             extent->length = num;
         }
+        offset += num;
+        remaining_bytes -= num;
     }
 
     extents_end = extent + 1;
