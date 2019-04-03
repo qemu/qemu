@@ -141,7 +141,7 @@ typedef struct Nios2CPUClass {
 #define R_PC         64
 
 /* Exceptions */
-#define EXCP_BREAK    -1
+#define EXCP_BREAK    0x1000
 #define EXCP_RESET    0
 #define EXCP_PRESET   1
 #define EXCP_IRQ      2
@@ -221,6 +221,8 @@ void nios2_cpu_do_unaligned_access(CPUState *cpu, vaddr addr,
 
 qemu_irq *nios2_cpu_pic_init(Nios2CPU *cpu);
 void nios2_check_interrupts(CPUNios2State *env);
+
+void do_nios2_semihosting(CPUNios2State *env);
 
 #define TARGET_PHYS_ADDR_SPACE_BITS 32
 #ifdef CONFIG_USER_ONLY

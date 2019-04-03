@@ -23,8 +23,10 @@
 #include "cpu.h"
 #include "qemu/host-utils.h"
 #include "exec/exec-all.h"
+#include "exec/cpu_ldst.h"
 #include "exec/log.h"
 #include "exec/helper-proto.h"
+#include "exec/semihost.h"
 
 #if defined(CONFIG_USER_ONLY)
 
@@ -169,6 +171,17 @@ void nios2_cpu_do_interrupt(CPUState *cs)
         break;
 
     case EXCP_BREAK:
+        qemu_log_mask(CPU_LOG_INT, "BREAK exception at pc=%x\n",
+                      env->regs[R_PC]);
+        /* The semihosting instruction is "break 1".  */
+        if (semihosting_enabled() &&
+            cpu_ldl_code(env, env->regs[R_PC]) == 0x003da07a)  {
+            qemu_log_mask(CPU_LOG_INT, "Entering semihosting\n");
+            env->regs[R_PC] += 4;
+            do_nios2_semihosting(env);
+            break;
+        }
+
         if ((env->regs[CR_STATUS] & CR_STATUS_EH) == 0) {
             env->regs[CR_BSTATUS] = env->regs[CR_STATUS];
             env->regs[R_BA] = env->regs[R_PC] + 4;
