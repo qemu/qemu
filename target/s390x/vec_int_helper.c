@@ -46,3 +46,17 @@ void HELPER(gvec_vavgl##BITS)(void *v1, const void *v2, const void *v3,        \
 }
 DEF_VAVGL(8)
 DEF_VAVGL(16)
+
+#define DEF_VCLZ(BITS)                                                         \
+void HELPER(gvec_vclz##BITS)(void *v1, const void *v2, uint32_t desc)          \
+{                                                                              \
+    int i;                                                                     \
+                                                                               \
+    for (i = 0; i < (128 / BITS); i++) {                                       \
+        const uint##BITS##_t a = s390_vec_read_element##BITS(v2, i);           \
+                                                                               \
+        s390_vec_write_element##BITS(v1, i, clz32(a) - 32 + BITS);             \
+    }                                                                          \
+}
+DEF_VCLZ(8)
+DEF_VCLZ(16)
