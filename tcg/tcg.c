@@ -944,7 +944,6 @@ void tcg_context_init(TCGContext *s)
     int op, total_args, n, i;
     TCGOpDef *def;
     TCGArgConstraint *args_ct;
-    int *sorted_args;
     TCGTemp *ts;
 
     memset(s, 0, sizeof(*s));
@@ -960,14 +959,11 @@ void tcg_context_init(TCGContext *s)
     }
 
     args_ct = g_malloc(sizeof(TCGArgConstraint) * total_args);
-    sorted_args = g_malloc(sizeof(int) * total_args);
 
     for(op = 0; op < NB_OPS; op++) {
         def = &tcg_op_defs[op];
         def->args_ct = args_ct;
-        def->sorted_args = sorted_args;
         n = def->nb_iargs + def->nb_oargs;
-        sorted_args += n;
         args_ct += n;
     }
 
@@ -2220,20 +2216,23 @@ static int get_constraint_priority(const TCGOpDef *def, int k)
 /* sort from highest priority to lowest */
 static void sort_constraints(TCGOpDef *def, int start, int n)
 {
-    int i, j, p1, p2, tmp;
+    int i, j;
+    TCGArgConstraint *a = def->args_ct;
 
-    for(i = 0; i < n; i++)
-        def->sorted_args[start + i] = start + i;
-    if (n <= 1)
+    for (i = 0; i < n; i++) {
+        a[start + i].sort_index = start + i;
+    }
+    if (n <= 1) {
         return;
-    for(i = 0; i < n - 1; i++) {
-        for(j = i + 1; j < n; j++) {
-            p1 = get_constraint_priority(def, def->sorted_args[start + i]);
-            p2 = get_constraint_priority(def, def->sorted_args[start + j]);
+    }
+    for (i = 0; i < n - 1; i++) {
+        for (j = i + 1; j < n; j++) {
+            int p1 = get_constraint_priority(def, a[start + i].sort_index);
+            int p2 = get_constraint_priority(def, a[start + j].sort_index);
             if (p1 < p2) {
-                tmp = def->sorted_args[start + i];
-                def->sorted_args[start + i] = def->sorted_args[start + j];
-                def->sorted_args[start + j] = tmp;
+                int tmp = a[start + i].sort_index;
+                a[start + i].sort_index = a[start + j].sort_index;
+                a[start + j].sort_index = tmp;
             }
         }
     }
@@ -3659,7 +3658,7 @@ static void tcg_reg_alloc_op(TCGContext *s, const TCGOp *op)
     for (k = 0; k < nb_iargs; k++) {
         TCGRegSet i_preferred_regs, o_preferred_regs;
 
-        i = def->sorted_args[nb_oargs + k];
+        i = def->args_ct[nb_oargs + k].sort_index;
         arg = op->args[i];
         arg_ct = &def->args_ct[i];
         ts = arg_temp(arg);
@@ -3695,7 +3694,7 @@ static void tcg_reg_alloc_op(TCGContext *s, const TCGOp *op)
                     int k2, i2;
                     reg = ts->reg;
                     for (k2 = 0 ; k2 < k ; k2++) {
-                        i2 = def->sorted_args[nb_oargs + k2];
+                        i2 = def->args_ct[nb_oargs + k2].sort_index;
                         if ((def->args_ct[i2].ct & TCG_CT_IALIAS) &&
                             reg == new_args[i2]) {
                             goto allocate_in_reg;
@@ -3760,7 +3759,7 @@ static void tcg_reg_alloc_op(TCGContext *s, const TCGOp *op)
         
         /* satisfy the output constraints */
         for(k = 0; k < nb_oargs; k++) {
-            i = def->sorted_args[k];
+            i = def->args_ct[k].sort_index;
             arg = op->args[i];
             arg_ct = &def->args_ct[i];
             ts = arg_temp(arg);
