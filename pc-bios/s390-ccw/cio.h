@@ -70,9 +70,46 @@ struct scsw {
     __u16 count;
 } __attribute__ ((packed));
 
-#define SCSW_FCTL_CLEAR_FUNC 0x1000
-#define SCSW_FCTL_HALT_FUNC 0x2000
+/* Function Control */
 #define SCSW_FCTL_START_FUNC 0x4000
+#define SCSW_FCTL_HALT_FUNC 0x2000
+#define SCSW_FCTL_CLEAR_FUNC 0x1000
+
+/* Activity Control */
+#define SCSW_ACTL_RESUME_PEND   0x0800
+#define SCSW_ACTL_START_PEND    0x0400
+#define SCSW_ACTL_HALT_PEND     0x0200
+#define SCSW_ACTL_CLEAR_PEND    0x0100
+#define SCSW_ACTL_CH_ACTIVE     0x0080
+#define SCSW_ACTL_DEV_ACTIVE    0x0040
+#define SCSW_ACTL_SUSPENDED     0x0020
+
+/* Status Control */
+#define SCSW_SCTL_ALERT         0x0010
+#define SCSW_SCTL_INTERMED      0x0008
+#define SCSW_SCTL_PRIMARY       0x0004
+#define SCSW_SCTL_SECONDARY     0x0002
+#define SCSW_SCTL_STATUS_PEND   0x0001
+
+/* SCSW Device Status Flags */
+#define SCSW_DSTAT_ATTN     0x80
+#define SCSW_DSTAT_STATMOD  0x40
+#define SCSW_DSTAT_CUEND    0x20
+#define SCSW_DSTAT_BUSY     0x10
+#define SCSW_DSTAT_CHEND    0x08
+#define SCSW_DSTAT_DEVEND   0x04
+#define SCSW_DSTAT_UCHK     0x02
+#define SCSW_DSTAT_UEXCP    0x01
+
+/* SCSW Subchannel Status Flags */
+#define SCSW_CSTAT_PCINT    0x80
+#define SCSW_CSTAT_BADLEN   0x40
+#define SCSW_CSTAT_PROGCHK  0x20
+#define SCSW_CSTAT_PROTCHK  0x10
+#define SCSW_CSTAT_CHDCHK   0x08
+#define SCSW_CSTAT_CHCCHK   0x04
+#define SCSW_CSTAT_ICCHK    0x02
+#define SCSW_CSTAT_CHAINCHK 0x01
 
 /*
  * subchannel information block
@@ -127,13 +164,33 @@ struct tpi_info {
     __u32 reserved4:12;
 } __attribute__ ((packed, aligned(4)));
 
-/* channel command word (type 1) */
+/* channel command word (format 0) */
+typedef struct ccw0 {
+    __u8 cmd_code;
+    __u32 cda:24;
+    __u32 chainData:1;
+    __u32 chain:1;
+    __u32 sli:1;
+    __u32 skip:1;
+    __u32 pci:1;
+    __u32 ida:1;
+    __u32 suspend:1;
+    __u32 mida:1;
+    __u8 reserved;
+    __u16 count;
+} __attribute__ ((packed, aligned(8))) Ccw0;
+
+/* channel command word (format 1) */
 typedef struct ccw1 {
     __u8 cmd_code;
     __u8 flags;
     __u16 count;
     __u32 cda;
 } __attribute__ ((packed, aligned(8))) Ccw1;
+
+/* do_cio() CCW formats */
+#define CCW_FMT0                 0x00
+#define CCW_FMT1                 0x01
 
 #define CCW_FLAG_DC              0x80
 #define CCW_FLAG_CC              0x40
@@ -190,6 +247,11 @@ struct ciw {
     __u16 count;
 };
 
+#define CU_TYPE_UNKNOWN         0x0000
+#define CU_TYPE_DASD_2107       0x2107
+#define CU_TYPE_VIRTIO          0x3832
+#define CU_TYPE_DASD_3990       0x3990
+
 /*
  * sense-id response buffer layout
  */
@@ -205,6 +267,64 @@ typedef struct senseid {
     struct ciw ciw[62];
 }  __attribute__ ((packed, aligned(4))) SenseId;
 
+/*
+ * architected values for first sense byte - common_status. Bits 0-5 of this
+ * field are common to all device types.
+ */
+#define SNS_STAT0_CMD_REJECT         0x80
+#define SNS_STAT0_INTERVENTION_REQ   0x40
+#define SNS_STAT0_BUS_OUT_CHECK      0x20
+#define SNS_STAT0_EQUIPMENT_CHECK    0x10
+#define SNS_STAT0_DATA_CHECK         0x08
+#define SNS_STAT0_OVERRUN            0x04
+#define SNS_STAT0_INCOMPL_DOMAIN     0x01
+
+/* ECKD DASD status[0] byte */
+#define SNS_STAT1_PERM_ERR           0x80
+#define SNS_STAT1_INV_TRACK_FORMAT   0x40
+#define SNS_STAT1_EOC                0x20
+#define SNS_STAT1_MESSAGE_TO_OPER    0x10
+#define SNS_STAT1_NO_REC_FOUND       0x08
+#define SNS_STAT1_FILE_PROTECTED     0x04
+#define SNS_STAT1_WRITE_INHIBITED    0x02
+#define SNS_STAT1_IMPRECISE_END      0x01
+
+/* ECKD DASD status[1] byte */
+#define SNS_STAT2_REQ_INH_WRITE      0x80
+#define SNS_STAT2_CORRECTABLE        0x40
+#define SNS_STAT2_FIRST_LOG_ERR      0x20
+#define SNS_STAT2_ENV_DATA_PRESENT   0x10
+#define SNS_STAT2_IMPRECISE_END      0x04
+
+/* ECKD DASD 24-byte Sense fmt_msg codes */
+#define SENSE24_FMT_PROG_SYS    0x0
+#define SENSE24_FMT_EQUIPMENT   0x2
+#define SENSE24_FMT_CONTROLLER  0x3
+#define SENSE24_FMT_MISC        0xF
+
+/* basic sense response buffer layout */
+typedef struct SenseDataEckdDasd {
+    uint8_t common_status;
+    uint8_t status[2];
+    uint8_t res_count;
+    uint8_t phys_drive_id;
+    uint8_t low_cyl_addr;
+    uint8_t head_high_cyl_addr;
+    uint8_t fmt_msg;
+    uint64_t fmt_dependent_info[2];
+    uint8_t reserved;
+    uint8_t program_action_code;
+    uint16_t config_info;
+    uint8_t mcode_hicyl;
+    uint8_t cyl_head_addr[3];
+}  __attribute__ ((packed, aligned(4))) SenseDataEckdDasd;
+
+#define ECKD_SENSE24_GET_FMT(sd)     (sd->fmt_msg & 0xF0 >> 4)
+#define ECKD_SENSE24_GET_MSG(sd)     (sd->fmt_msg & 0x0F)
+
+#define unit_check(irb)         ((irb)->scsw.dstat & SCSW_DSTAT_UCHK)
+#define iface_ctrl_check(irb)   ((irb)->scsw.cstat & SCSW_CSTAT_ICCHK)
+
 /* interruption response block */
 typedef struct irb {
     struct scsw scsw;
@@ -215,6 +335,10 @@ typedef struct irb {
 
 int enable_mss_facility(void);
 void enable_subchannel(SubChannelId schid);
+uint16_t cu_type(SubChannelId schid);
+int basic_sense(SubChannelId schid, uint16_t cutype, void *sense_data,
+                 uint16_t data_size);
+int do_cio(SubChannelId schid, uint16_t cutype, uint32_t ccw_addr, int fmt);
 
 /*
  * Some S390 specific IO instructions as inline

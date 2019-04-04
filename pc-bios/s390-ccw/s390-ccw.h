@@ -52,6 +52,7 @@ typedef unsigned long long __u64;
 /* start.s */
 void disabled_wait(void);
 void consume_sclp_int(void);
+void consume_io_int(void);
 
 /* main.c */
 void panic(const char *string);
