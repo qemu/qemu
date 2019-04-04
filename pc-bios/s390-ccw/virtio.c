@@ -10,6 +10,7 @@
 
 #include "libc.h"
 #include "s390-ccw.h"
+#include "cio.h"
 #include "virtio.h"
 #include "virtio-scsi.h"
 #include "bswap.h"
@@ -19,8 +20,6 @@
 static VRing block[VIRTIO_MAX_VQS];
 static char ring_area[VIRTIO_RING_SIZE * VIRTIO_MAX_VQS]
                      __attribute__((__aligned__(PAGE_SIZE)));
-
-static char chsc_page[PAGE_SIZE] __attribute__((__aligned__(PAGE_SIZE)));
 
 static VDev vdev = {
     .nr_vqs = 1,
@@ -94,14 +93,9 @@ static int run_ccw(VDev *vdev, int cmd, void *ptr, int len)
 {
     Ccw1 ccw = {};
     CmdOrb orb = {};
-    Schib schib;
     int r;
 
-    /* start command processing */
-    stsch_err(vdev->schid, &schib);
-    /* enable the subchannel for IPL device */
-    schib.pmcw.ena = 1;
-    msch(vdev->schid, &schib);
+    enable_subchannel(vdev->schid);
 
     /* start subchannel command */
     orb.fmt = 1;
@@ -342,21 +336,4 @@ bool virtio_is_supported(SubChannelId schid)
         }
     }
     return false;
-}
-
-int enable_mss_facility(void)
-{
-    int ret;
-    ChscAreaSda *sda_area = (ChscAreaSda *) chsc_page;
-
-    memset(sda_area, 0, PAGE_SIZE);
-    sda_area->request.length = 0x0400;
-    sda_area->request.code = 0x0031;
-    sda_area->operation_code = 0x2;
-
-    ret = chsc(sda_area);
-    if ((ret == 0) && (sda_area->response.code == 0x0001)) {
-        return 0;
-    }
-    return -EIO;
 }

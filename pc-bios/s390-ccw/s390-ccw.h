@@ -72,7 +72,6 @@ unsigned long virtio_load_direct(ulong rec_list1, ulong rec_list2,
 bool virtio_is_supported(SubChannelId schid);
 void virtio_blk_setup_device(SubChannelId schid);
 int virtio_read(ulong sector, void *load_addr);
-int enable_mss_facility(void);
 u64 get_clock(void);
 ulong get_second(void);
 

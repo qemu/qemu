@@ -213,6 +213,9 @@ typedef struct irb {
     __u32 emw[8];
 }  __attribute__ ((packed, aligned(4))) Irb;
 
+int enable_mss_facility(void);
+void enable_subchannel(SubChannelId schid);
+
 /*
  * Some S390 specific IO instructions as inline
  */
