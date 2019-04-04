@@ -2374,36 +2374,16 @@ fi
 ##########################################
 # libseccomp check
 
-libseccomp_minver="2.2.0"
 if test "$seccomp" != "no" ; then
-    case "$cpu" in
-    i386|x86_64|mips)
-        ;;
-    arm|aarch64)
-        libseccomp_minver="2.2.3"
-        ;;
-    ppc|ppc64|s390x)
-        libseccomp_minver="2.3.0"
-        ;;
-    *)
-        libseccomp_minver=""
-        ;;
-    esac
-
-    if test "$libseccomp_minver" != "" &&
-       $pkg_config --atleast-version=$libseccomp_minver libseccomp ; then
+    libseccomp_minver="2.3.0"
+    if $pkg_config --atleast-version=$libseccomp_minver libseccomp ; then
         seccomp_cflags="$($pkg_config --cflags libseccomp)"
         seccomp_libs="$($pkg_config --libs libseccomp)"
         seccomp="yes"
     else
         if test "$seccomp" = "yes" ; then
-            if test "$libseccomp_minver" != "" ; then
-                feature_not_found "libseccomp" \
-                    "Install libseccomp devel >= $libseccomp_minver"
-            else
-                feature_not_found "libseccomp" \
-                    "libseccomp is not supported for host cpu $cpu"
-            fi
+            feature_not_found "libseccomp" \
+                 "Install libseccomp devel >= $libseccomp_minver"
         fi
         seccomp="no"
     fi
