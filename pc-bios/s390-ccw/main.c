@@ -13,6 +13,7 @@
 #include "s390-ccw.h"
 #include "cio.h"
 #include "virtio.h"
+#include "dasd-ipl.h"
 
 char stack[PAGE_SIZE * 8] __attribute__((__aligned__(PAGE_SIZE)));
 static SubChannelId blk_schid = { .one = 1 };
@@ -209,6 +210,10 @@ int main(void)
 
     cutype = cu_type(blk_schid);
     switch (cutype) {
+    case CU_TYPE_DASD_3990:
+    case CU_TYPE_DASD_2107:
+        dasd_ipl(blk_schid, cutype); /* no return */
+        break;
     case CU_TYPE_VIRTIO:
         virtio_setup();
         zipl_load(); /* no return */
