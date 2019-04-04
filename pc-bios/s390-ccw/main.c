@@ -99,6 +99,18 @@ static void menu_setup(void)
     }
 }
 
+/*
+ * Initialize the channel I/O subsystem so we can talk to our ipl/boot device.
+ */
+static void css_setup(void)
+{
+    /*
+     * Unconditionally enable mss support. In every sane configuration this
+     * will succeed; and even if it doesn't, stsch_err() can handle it.
+     */
+    enable_mss_facility();
+}
+
 static void virtio_setup(void)
 {
     Schib schib;
@@ -108,13 +120,6 @@ static void virtio_setup(void)
     char ldp[] = "LOADPARM=[________]\n";
     VDev *vdev = virtio_get_device();
     QemuIplParameters *early_qipl = (QemuIplParameters *)QIPL_ADDRESS;
-
-    /*
-     * We unconditionally enable mss support. In every sane configuration,
-     * this will succeed; and even if it doesn't, stsch_err() can deal
-     * with the consequences.
-     */
-    enable_mss_facility();
 
     sclp_get_loadparm_ascii(loadparm_str);
     memcpy(ldp + 10, loadparm_str, LOADPARM_LEN);
@@ -168,6 +173,7 @@ static void virtio_setup(void)
 int main(void)
 {
     sclp_setup();
+    css_setup();
     virtio_setup();
 
     zipl_load(); /* no return */
