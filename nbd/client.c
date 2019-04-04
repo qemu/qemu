@@ -428,7 +428,7 @@ static int nbd_opt_info_or_go(QIOChannel *ioc, uint32_t opt,
             }
             if (info->min_block &&
                 !QEMU_IS_ALIGNED(info->size, info->min_block)) {
-                error_setg(errp, "export size %" PRIu64 "is not multiple of "
+                error_setg(errp, "export size %" PRIu64 " is not multiple of "
                            "minimum block size %" PRIu32, info->size,
                            info->min_block);
                 nbd_send_opt_abort(ioc);
