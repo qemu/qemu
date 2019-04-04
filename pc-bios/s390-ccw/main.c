@@ -21,6 +21,7 @@ static char loadparm_str[LOADPARM_LEN + 1] = { 0, 0, 0, 0, 0, 0, 0, 0, 0 };
 QemuIplParameters qipl;
 IplParameterBlock iplb __attribute__((__aligned__(PAGE_SIZE)));
 static bool have_iplb;
+static uint16_t cutype;
 LowCore const *lowcore; /* Yes, this *is* a pointer to address 0 */
 
 #define LOADPARM_PROMPT "PROMPT  "
@@ -58,11 +59,15 @@ unsigned int get_loadparm_index(void)
  * subchannel information block (schib) with the connected subchannel's info.
  * NOTE: The global variable blk_schid is updated to contain the subchannel
  * information.
+ *
+ * If the caller gives dev_no=-1 then the user did not specify a boot device.
+ * In this case we'll just use the first potentially bootable device we find.
  */
 static bool find_subch(int dev_no)
 {
     Schib schib;
     int i, r;
+    bool is_virtio;
 
     for (i = 0; i < 0x10000; i++) {
         blk_schid.sch_no = i;
@@ -74,16 +79,39 @@ static bool find_subch(int dev_no)
             continue;
         }
 
-        /* Skip net devices since no IPLB is created and therefore no
-         * network bootloader has been loaded
-         */
         enable_subchannel(blk_schid);
-        if (virtio_is_supported(blk_schid) &&
-            virtio_get_device_type() == VIRTIO_ID_NET && dev_no < 0) {
-            continue;
+        cutype = cu_type(blk_schid);
+
+        /*
+         * Note: we always have to run virtio_is_supported() here to make
+         * sure that the vdev.senseid data gets pre-initialized correctly
+         */
+        is_virtio = virtio_is_supported(blk_schid);
+
+        /* No specific devno given, just return 1st possibly bootable device */
+        if (dev_no < 0) {
+            switch (cutype) {
+            case CU_TYPE_VIRTIO:
+                if (is_virtio) {
+                    /*
+                     * Skip net devices since no IPLB is created and therefore
+                     * no network bootloader has been loaded
+                     */
+                    if (virtio_get_device_type() != VIRTIO_ID_NET) {
+                        return true;
+                    }
+                }
+                continue;
+            case CU_TYPE_DASD_3990:
+            case CU_TYPE_DASD_2107:
+                return true;
+            default:
+                continue;
+            }
         }
 
-        if ((dev_no < 0) || (schib.pmcw.dev == dev_no)) {
+        /* Caller asked for a specific devno */
+        if (schib.pmcw.dev == dev_no) {
             return true;
         }
     }
@@ -200,15 +228,12 @@ static void virtio_setup(void)
 
 int main(void)
 {
-    uint16_t cutype;
-
     sclp_setup();
     css_setup();
     boot_setup();
     find_boot_device();
     enable_subchannel(blk_schid);
 
-    cutype = cu_type(blk_schid);
     switch (cutype) {
     case CU_TYPE_DASD_3990:
     case CU_TYPE_DASD_2107:
