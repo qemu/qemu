@@ -1216,8 +1216,60 @@ static const char *dt_name_from_class(uint8_t class, uint8_t subclass,
     return name;
 }
 
-static uint32_t spapr_phb_get_pci_drc_index(SpaprPhbState *phb,
-                                            PCIDevice *pdev);
+/*
+ * DRC helper functions
+ */
+
+static uint32_t drc_id_from_devfn(SpaprPhbState *phb,
+                                  uint32_t busnr,
+                                  int32_t devfn)
+{
+    return (phb->index << 16) | (busnr << 8) | devfn;
+}
+
+static SpaprDrc *drc_from_devfn(SpaprPhbState *phb,
+                                uint32_t busnr, int32_t devfn)
+{
+    return spapr_drc_by_id(TYPE_SPAPR_DRC_PCI,
+                           drc_id_from_devfn(phb, busnr, devfn));
+}
+
+static SpaprDrc *drc_from_dev(SpaprPhbState *phb, PCIDevice *dev)
+{
+    uint32_t busnr = pci_bus_num(PCI_BUS(qdev_get_parent_bus(DEVICE(dev))));
+    return drc_from_devfn(phb, busnr, dev->devfn);
+}
+
+static void add_drcs(SpaprPhbState *phb)
+{
+    int i;
+
+    if (!phb->dr_enabled) {
+        return;
+    }
+
+    for (i = 0; i < PCI_SLOT_MAX * PCI_FUNC_MAX; i++) {
+        spapr_dr_connector_new(OBJECT(phb), TYPE_SPAPR_DRC_PCI,
+                               drc_id_from_devfn(phb, 0, i));
+    }
+}
+
+static void remove_drcs(SpaprPhbState *phb)
+{
+    int i;
+
+    if (!phb->dr_enabled) {
+        return;
+    }
+
+    for (i = PCI_SLOT_MAX * PCI_FUNC_MAX - 1; i >= 0; i--) {
+        SpaprDrc *drc = drc_from_devfn(phb, 0, i);
+
+        if (drc) {
+            object_unparent(OBJECT(drc));
+        }
+    }
+}
 
 typedef struct PciWalkFdt {
     void *fdt;
@@ -1284,7 +1336,7 @@ static int spapr_dt_pci_device(SpaprPhbState *sphb, PCIDevice *dev,
     int func = PCI_FUNC(dev->devfn);
     PCIDeviceClass *pc = PCI_DEVICE_GET_CLASS(dev);
     ResourceProps rp;
-    uint32_t drc_index = spapr_phb_get_pci_drc_index(sphb, dev);
+    SpaprDrc *drc = drc_from_dev(sphb, dev);
     uint32_t vendor_id = pci_default_read_config(dev, PCI_VENDOR_ID, 2);
     uint32_t device_id = pci_default_read_config(dev, PCI_DEVICE_ID, 2);
     uint32_t revision_id = pci_default_read_config(dev, PCI_REVISION_ID, 1);
@@ -1351,8 +1403,9 @@ static int spapr_dt_pci_device(SpaprPhbState *sphb, PCIDevice *dev,
     _FDT(fdt_setprop_string(fdt, offset, "ibm,loc-code", loc_code));
     g_free(loc_code);
 
-    if (drc_index) {
-        _FDT(fdt_setprop_cell(fdt, offset, "ibm,my-drc-index", drc_index));
+    if (drc) {
+        _FDT(fdt_setprop_cell(fdt, offset, "ibm,my-drc-index",
+                              spapr_drc_index(drc)));
     }
 
     if (msi_present(dev)) {
@@ -1402,33 +1455,6 @@ void spapr_phb_remove_pci_device_cb(DeviceState *dev)
     object_unparent(OBJECT(dev));
 }
 
-static SpaprDrc *spapr_phb_get_pci_func_drc(SpaprPhbState *phb,
-                                                    uint32_t busnr,
-                                                    int32_t devfn)
-{
-    return spapr_drc_by_id(TYPE_SPAPR_DRC_PCI,
-                           (phb->index << 16) | (busnr << 8) | devfn);
-}
-
-static SpaprDrc *spapr_phb_get_pci_drc(SpaprPhbState *phb,
-                                               PCIDevice *pdev)
-{
-    uint32_t busnr = pci_bus_num(PCI_BUS(qdev_get_parent_bus(DEVICE(pdev))));
-    return spapr_phb_get_pci_func_drc(phb, busnr, pdev->devfn);
-}
-
-static uint32_t spapr_phb_get_pci_drc_index(SpaprPhbState *phb,
-                                            PCIDevice *pdev)
-{
-    SpaprDrc *drc = spapr_phb_get_pci_drc(phb, pdev);
-
-    if (!drc) {
-        return 0;
-    }
-
-    return spapr_drc_index(drc);
-}
-
 int spapr_pci_dt_populate(SpaprDrc *drc, SpaprMachineState *spapr,
                           void *fdt, int *fdt_start_offset, Error **errp)
 {
@@ -1445,7 +1471,7 @@ static void spapr_pci_plug(HotplugHandler *plug_handler,
 {
     SpaprPhbState *phb = SPAPR_PCI_HOST_BRIDGE(DEVICE(plug_handler));
     PCIDevice *pdev = PCI_DEVICE(plugged_dev);
-    SpaprDrc *drc = spapr_phb_get_pci_drc(phb, pdev);
+    SpaprDrc *drc = drc_from_dev(phb, pdev);
     Error *local_err = NULL;
     PCIBus *bus = PCI_BUS(qdev_get_parent_bus(DEVICE(pdev)));
     uint32_t slotnr = PCI_SLOT(pdev->devfn);
@@ -1496,8 +1522,8 @@ static void spapr_pci_plug(HotplugHandler *plug_handler,
             SpaprDrcClass *func_drck;
             SpaprDREntitySense state;
 
-            func_drc = spapr_phb_get_pci_func_drc(phb, pci_bus_num(bus),
-                                                  PCI_DEVFN(slotnr, i));
+            func_drc = drc_from_devfn(phb, pci_bus_num(bus),
+                                      PCI_DEVFN(slotnr, i));
             func_drck = SPAPR_DR_CONNECTOR_GET_CLASS(func_drc);
             state = func_drck->dr_entity_sense(func_drc);
 
@@ -1533,7 +1559,7 @@ static void spapr_pci_unplug_request(HotplugHandler *plug_handler,
 {
     SpaprPhbState *phb = SPAPR_PCI_HOST_BRIDGE(DEVICE(plug_handler));
     PCIDevice *pdev = PCI_DEVICE(plugged_dev);
-    SpaprDrc *drc = spapr_phb_get_pci_drc(phb, pdev);
+    SpaprDrc *drc = drc_from_dev(phb, pdev);
 
     if (!phb->dr_enabled) {
         error_setg(errp, QERR_BUS_NO_HOTPLUG,
@@ -1555,8 +1581,8 @@ static void spapr_pci_unplug_request(HotplugHandler *plug_handler,
         /* ensure any other present functions are pending unplug */
         if (PCI_FUNC(pdev->devfn) == 0) {
             for (i = 1; i < 8; i++) {
-                func_drc = spapr_phb_get_pci_func_drc(phb, pci_bus_num(bus),
-                                                      PCI_DEVFN(slotnr, i));
+                func_drc = drc_from_devfn(phb, pci_bus_num(bus),
+                                          PCI_DEVFN(slotnr, i));
                 func_drck = SPAPR_DR_CONNECTOR_GET_CLASS(func_drc);
                 state = func_drck->dr_entity_sense(func_drc);
                 if (state == SPAPR_DR_ENTITY_SENSE_PRESENT
@@ -1577,8 +1603,8 @@ static void spapr_pci_unplug_request(HotplugHandler *plug_handler,
          */
         if (PCI_FUNC(pdev->devfn) == 0) {
             for (i = 7; i >= 0; i--) {
-                func_drc = spapr_phb_get_pci_func_drc(phb, pci_bus_num(bus),
-                                                      PCI_DEVFN(slotnr, i));
+                func_drc = drc_from_devfn(phb, pci_bus_num(bus),
+                                          PCI_DEVFN(slotnr, i));
                 func_drck = SPAPR_DR_CONNECTOR_GET_CLASS(func_drc);
                 state = func_drck->dr_entity_sense(func_drc);
                 if (state == SPAPR_DR_ENTITY_SENSE_PRESENT) {
@@ -1626,16 +1652,7 @@ static void spapr_phb_unrealize(DeviceState *dev, Error **errp)
         }
     }
 
-    if (sphb->dr_enabled) {
-        for (i = PCI_SLOT_MAX * 8 - 1; i >= 0; i--) {
-            SpaprDrc *drc = spapr_drc_by_id(TYPE_SPAPR_DRC_PCI,
-                                                    (sphb->index << 16) | i);
-
-            if (drc) {
-                object_unparent(OBJECT(drc));
-            }
-        }
-    }
+    remove_drcs(sphb);
 
     for (i = PCI_NUM_PINS - 1; i >= 0; i--) {
         if (sphb->lsi_table[i].irq) {
@@ -1855,12 +1872,7 @@ static void spapr_phb_realize(DeviceState *dev, Error **errp)
     }
 
     /* allocate connectors for child PCI devices */
-    if (sphb->dr_enabled) {
-        for (i = 0; i < PCI_SLOT_MAX * 8; i++) {
-            spapr_dr_connector_new(OBJECT(phb), TYPE_SPAPR_DRC_PCI,
-                                   (sphb->index << 16) | i);
-        }
-    }
+    add_drcs(sphb);
 
     /* DMA setup */
     for (i = 0; i < windows_supported; ++i) {
