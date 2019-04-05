@@ -127,18 +127,32 @@ typedef struct NBDExtent {
 
 /* Transmission (export) flags: sent from server to client during handshake,
    but describe what will happen during transmission */
-#define NBD_FLAG_HAS_FLAGS         (1 << 0) /* Flags are there */
-#define NBD_FLAG_READ_ONLY         (1 << 1) /* Device is read-only */
-#define NBD_FLAG_SEND_FLUSH        (1 << 2) /* Send FLUSH */
-#define NBD_FLAG_SEND_FUA          (1 << 3) /* Send FUA (Force Unit Access) */
-#define NBD_FLAG_ROTATIONAL        (1 << 4) /* Use elevator algorithm -
-                                               rotational media */
-#define NBD_FLAG_SEND_TRIM         (1 << 5) /* Send TRIM (discard) */
-#define NBD_FLAG_SEND_WRITE_ZEROES (1 << 6) /* Send WRITE_ZEROES */
-#define NBD_FLAG_SEND_DF           (1 << 7) /* Send DF (Do not Fragment) */
-#define NBD_FLAG_CAN_MULTI_CONN    (1 << 8) /* Multi-client cache consistent */
-#define NBD_FLAG_SEND_RESIZE       (1 << 9) /* Send resize */
-#define NBD_FLAG_SEND_CACHE        (1 << 10) /* Send CACHE (prefetch) */
+enum {
+    NBD_FLAG_HAS_FLAGS_BIT          =  0, /* Flags are there */
+    NBD_FLAG_READ_ONLY_BIT          =  1, /* Device is read-only */
+    NBD_FLAG_SEND_FLUSH_BIT         =  2, /* Send FLUSH */
+    NBD_FLAG_SEND_FUA_BIT           =  3, /* Send FUA (Force Unit Access) */
+    NBD_FLAG_ROTATIONAL_BIT         =  4, /* Use elevator algorithm -
+                                             rotational media */
+    NBD_FLAG_SEND_TRIM_BIT          =  5, /* Send TRIM (discard) */
+    NBD_FLAG_SEND_WRITE_ZEROES_BIT  =  6, /* Send WRITE_ZEROES */
+    NBD_FLAG_SEND_DF_BIT            =  7, /* Send DF (Do not Fragment) */
+    NBD_FLAG_CAN_MULTI_CONN_BIT     =  8, /* Multi-client cache consistent */
+    NBD_FLAG_SEND_RESIZE_BIT        =  9, /* Send resize */
+    NBD_FLAG_SEND_CACHE_BIT         = 10, /* Send CACHE (prefetch) */
+};
+
+#define NBD_FLAG_HAS_FLAGS         (1 << NBD_FLAG_HAS_FLAGS_BIT)
+#define NBD_FLAG_READ_ONLY         (1 << NBD_FLAG_READ_ONLY_BIT)
+#define NBD_FLAG_SEND_FLUSH        (1 << NBD_FLAG_SEND_FLUSH_BIT)
+#define NBD_FLAG_SEND_FUA          (1 << NBD_FLAG_SEND_FUA_BIT)
+#define NBD_FLAG_ROTATIONAL        (1 << NBD_FLAG_ROTATIONAL_BIT)
+#define NBD_FLAG_SEND_TRIM         (1 << NBD_FLAG_SEND_TRIM_BIT)
+#define NBD_FLAG_SEND_WRITE_ZEROES (1 << NBD_FLAG_SEND_WRITE_ZEROES_BIT)
+#define NBD_FLAG_SEND_DF           (1 << NBD_FLAG_SEND_DF_BIT)
+#define NBD_FLAG_CAN_MULTI_CONN    (1 << NBD_FLAG_CAN_MULTI_CONN_BIT)
+#define NBD_FLAG_SEND_RESIZE       (1 << NBD_FLAG_SEND_RESIZE_BIT)
+#define NBD_FLAG_SEND_CACHE        (1 << NBD_FLAG_SEND_CACHE_BIT)
 
 /* New-style handshake (global) flags, sent from server to client, and
    control what will happen during handshake phase. */

@@ -279,37 +279,25 @@ static int qemu_nbd_client_list(SocketAddress *saddr, QCryptoTLSCreds *tls,
             printf("  description: %s\n", list[i].description);
         }
         if (list[i].flags & NBD_FLAG_HAS_FLAGS) {
+            static const char *const flag_names[] = {
+                [NBD_FLAG_READ_ONLY_BIT]            = "readonly",
+                [NBD_FLAG_SEND_FLUSH_BIT]           = "flush",
+                [NBD_FLAG_SEND_FUA_BIT]             = "fua",
+                [NBD_FLAG_ROTATIONAL_BIT]           = "rotational",
+                [NBD_FLAG_SEND_TRIM_BIT]            = "trim",
+                [NBD_FLAG_SEND_WRITE_ZEROES_BIT]    = "zeroes",
+                [NBD_FLAG_SEND_DF_BIT]              = "df",
+                [NBD_FLAG_CAN_MULTI_CONN_BIT]       = "multi",
+                [NBD_FLAG_SEND_RESIZE_BIT]          = "resize",
+                [NBD_FLAG_SEND_CACHE_BIT]           = "cache",
+            };
+
             printf("  size:  %" PRIu64 "\n", list[i].size);
             printf("  flags: 0x%x (", list[i].flags);
-            if (list[i].flags & NBD_FLAG_READ_ONLY) {
-                printf(" readonly");
-            }
-            if (list[i].flags & NBD_FLAG_SEND_FLUSH) {
-                printf(" flush");
-            }
-            if (list[i].flags & NBD_FLAG_SEND_FUA) {
-                printf(" fua");
-            }
-            if (list[i].flags & NBD_FLAG_ROTATIONAL) {
-                printf(" rotational");
-            }
-            if (list[i].flags & NBD_FLAG_SEND_TRIM) {
-                printf(" trim");
-            }
-            if (list[i].flags & NBD_FLAG_SEND_WRITE_ZEROES) {
-                printf(" zeroes");
-            }
-            if (list[i].flags & NBD_FLAG_SEND_DF) {
-                printf(" df");
-            }
-            if (list[i].flags & NBD_FLAG_CAN_MULTI_CONN) {
-                printf(" multi");
-            }
-            if (list[i].flags & NBD_FLAG_SEND_RESIZE) {
-                printf(" resize");
-            }
-            if (list[i].flags & NBD_FLAG_SEND_CACHE) {
-                printf(" cache");
+            for (size_t bit = 0; bit < ARRAY_SIZE(flag_names); bit++) {
+                if (flag_names[bit] && (list[i].flags & (1 << bit))) {
+                    printf(" %s", flag_names[bit]);
+                }
             }
             printf(" )\n");
         }
