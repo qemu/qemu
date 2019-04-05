@@ -2176,7 +2176,6 @@ int spapr_populate_pci_dt(SpaprPhbState *phb, uint32_t intc_phandle, void *fdt,
                           uint32_t nr_msis, int *node_offset)
 {
     int bus_off, i, j, ret;
-    gchar *nodename;
     uint32_t bus_range[] = { cpu_to_be32(0), cpu_to_be32(0xff) };
     struct {
         uint32_t hi;
@@ -2227,9 +2226,7 @@ int spapr_populate_pci_dt(SpaprPhbState *phb, uint32_t intc_phandle, void *fdt,
     Error *errp = NULL;
 
     /* Start populating the FDT */
-    nodename = g_strdup_printf("pci@%" PRIx64, phb->buid);
-    _FDT(bus_off = fdt_add_subnode(fdt, 0, nodename));
-    g_free(nodename);
+    _FDT(bus_off = fdt_add_subnode(fdt, 0, phb->dtbusname));
     if (node_offset) {
         *node_offset = bus_off;
     }
