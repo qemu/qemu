@@ -149,7 +149,7 @@ static void xen_block_set_size(XenBlockDevice *blockdev)
     const char *type = object_get_typename(OBJECT(blockdev));
     XenBlockVdev *vdev = &blockdev->props.vdev;
     BlockConf *conf = &blockdev->props.conf;
-    int64_t sectors = blk_getlength(conf->blk) / conf->logical_block_size;
+    int64_t sectors = blk_getlength(conf->blk) / XEN_BLKIF_SECTOR_SIZE;
     XenDevice *xendev = XEN_DEVICE(blockdev);
 
     trace_xen_block_size(type, vdev->disk, vdev->partition, sectors);
@@ -223,6 +223,12 @@ static void xen_block_realize(XenDevice *xendev, Error **errp)
 
     blkconf_blocksizes(conf);
 
+    if (conf->logical_block_size != XEN_BLKIF_SECTOR_SIZE) {
+        error_setg(errp, "logical_block_size != %u not supported",
+                   XEN_BLKIF_SECTOR_SIZE);
+        return;
+    }
+
     if (conf->logical_block_size > conf->physical_block_size) {
         error_setg(
             errp, "logical_block_size > physical_block_size not supported");
@@ -232,8 +238,14 @@ static void xen_block_realize(XenDevice *xendev, Error **errp)
     blk_set_dev_ops(conf->blk, &xen_block_dev_ops, blockdev);
     blk_set_guest_block_size(conf->blk, conf->logical_block_size);
 
-    if (conf->discard_granularity > 0) {
+    if (conf->discard_granularity == -1) {
+        conf->discard_granularity = conf->physical_block_size;
+    }
+
+    if (blk_get_flags(conf->blk) & BDRV_O_UNMAP) {
         xen_device_backend_printf(xendev, "feature-discard", "%u", 1);
+        xen_device_backend_printf(xendev, "discard-granularity", "%u",
+                                  conf->discard_granularity);
     }
 
     xen_device_backend_printf(xendev, "feature-flush-cache", "%u", 1);
@@ -247,7 +259,7 @@ static void xen_block_realize(XenDevice *xendev, Error **errp)
                                blockdev->device_type);
 
     xen_device_backend_printf(xendev, "sector-size", "%u",
-                              conf->logical_block_size);
+                              XEN_BLKIF_SECTOR_SIZE);
 
     xen_block_set_size(blockdev);
 
@@ -755,6 +767,7 @@ static XenBlockDrive *xen_block_drive_create(const char *id,
     drive->id = g_strdup(id);
 
     file_layer = qdict_new();
+    driver_layer = qdict_new();
 
     qdict_put_str(file_layer, "driver", "file");
     qdict_put_str(file_layer, "filename", filename);
@@ -782,6 +795,7 @@ static XenBlockDrive *xen_block_drive_create(const char *id,
 
         if (!qemu_strtoul(discard_enable, NULL, 2, &value) && !!value) {
             qdict_put_str(file_layer, "discard", "unmap");
+            qdict_put_str(driver_layer, "discard", "unmap");
         }
     }
 
@@ -790,8 +804,6 @@ static XenBlockDrive *xen_block_drive_create(const char *id,
      * may have already opened the same image file.
      */
     qdict_put_str(file_layer, "locking", "off");
-
-    driver_layer = qdict_new();
 
     qdict_put_str(driver_layer, "driver", driver);
     g_free(driver);
