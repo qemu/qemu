@@ -77,6 +77,7 @@ static void add_edge(const char *source, const char *dest,
 {
     char *key;
     QOSGraphEdgeList *list = g_hash_table_lookup(edge_table, source);
+    QOSGraphEdgeOptions def_opts = { };
 
     if (!list) {
         list = g_new0(QOSGraphEdgeList, 1);
@@ -85,7 +86,7 @@ static void add_edge(const char *source, const char *dest,
     }
 
     if (!opts) {
-        opts = &(QOSGraphEdgeOptions) { };
+        opts = &def_opts;
     }
 
     QOSGraphEdge *edge = g_new0(QOSGraphEdge, 1);
@@ -590,9 +591,10 @@ void qos_add_test(const char *name, const char *interface,
 {
     QOSGraphNode *node;
     char *test_name = g_strdup_printf("%s-tests/%s", interface, name);;
+    QOSGraphTestOptions def_opts = { };
 
     if (!opts) {
-        opts = &(QOSGraphTestOptions) { };
+        opts = &def_opts;
     }
     node = create_node(test_name, QNODE_TEST);
     node->u.test.function = test_func;
