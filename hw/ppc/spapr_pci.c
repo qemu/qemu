@@ -1219,6 +1219,60 @@ static const char *dt_name_from_class(uint8_t class, uint8_t subclass,
 static uint32_t spapr_phb_get_pci_drc_index(SpaprPhbState *phb,
                                             PCIDevice *pdev);
 
+typedef struct PciWalkFdt {
+    void *fdt;
+    int offset;
+    SpaprPhbState *sphb;
+    int err;
+} PciWalkFdt;
+
+static int spapr_dt_pci_device(SpaprPhbState *sphb, PCIDevice *dev,
+                               void *fdt, int parent_offset);
+
+static void spapr_dt_pci_device_cb(PCIBus *bus, PCIDevice *pdev,
+                                   void *opaque)
+{
+    PciWalkFdt *p = opaque;
+    int err;
+
+    if (p->err) {
+        /* Something's already broken, don't keep going */
+        return;
+    }
+
+    err = spapr_dt_pci_device(p->sphb, pdev, p->fdt, p->offset);
+    if (err < 0) {
+        p->err = err;
+    }
+}
+
+/* Augment PCI device node with bridge specific information */
+static int spapr_dt_pci_bus(SpaprPhbState *sphb, PCIBus *bus,
+                               void *fdt, int offset)
+{
+    PciWalkFdt cbinfo = {
+        .fdt = fdt,
+        .offset = offset,
+        .sphb = sphb,
+        .err = 0,
+    };
+
+    _FDT(fdt_setprop_cell(fdt, offset, "#address-cells",
+                          RESOURCE_CELLS_ADDRESS));
+    _FDT(fdt_setprop_cell(fdt, offset, "#size-cells",
+                          RESOURCE_CELLS_SIZE));
+
+    if (bus) {
+        pci_for_each_device_reverse(bus, pci_bus_num(bus),
+                                    spapr_dt_pci_device_cb, &cbinfo);
+        if (cbinfo.err) {
+            return cbinfo.err;
+        }
+    }
+
+    return offset;
+}
+
 /* create OF node for pci device and required OF DT properties */
 static int spapr_dt_pci_device(SpaprPhbState *sphb, PCIDevice *dev,
                                void *fdt, int parent_offset)
@@ -1228,10 +1282,9 @@ static int spapr_dt_pci_device(SpaprPhbState *sphb, PCIDevice *dev,
     gchar *nodename;
     int slot = PCI_SLOT(dev->devfn);
     int func = PCI_FUNC(dev->devfn);
+    PCIDeviceClass *pc = PCI_DEVICE_GET_CLASS(dev);
     ResourceProps rp;
     uint32_t drc_index = spapr_phb_get_pci_drc_index(sphb, dev);
-    uint32_t header_type = pci_default_read_config(dev, PCI_HEADER_TYPE, 1);
-    bool is_bridge = (header_type == PCI_HEADER_TYPE_BRIDGE);
     uint32_t vendor_id = pci_default_read_config(dev, PCI_VENDOR_ID, 2);
     uint32_t device_id = pci_default_read_config(dev, PCI_DEVICE_ID, 2);
     uint32_t revision_id = pci_default_read_config(dev, PCI_REVISION_ID, 1);
@@ -1268,13 +1321,6 @@ static int spapr_dt_pci_device(SpaprPhbState *sphb, PCIDevice *dev,
         _FDT(fdt_setprop_cell(fdt, offset, "interrupts", irq_pin));
     }
 
-    if (!is_bridge) {
-        uint32_t min_grant = pci_default_read_config(dev, PCI_MIN_GNT, 1);
-        uint32_t max_latency = pci_default_read_config(dev, PCI_MAX_LAT, 1);
-        _FDT(fdt_setprop_cell(fdt, offset, "min-grant", min_grant));
-        _FDT(fdt_setprop_cell(fdt, offset, "max-latency", max_latency));
-    }
-
     if (subsystem_id) {
         _FDT(fdt_setprop_cell(fdt, offset, "subsystem-id", subsystem_id));
     }
@@ -1309,11 +1355,6 @@ static int spapr_dt_pci_device(SpaprPhbState *sphb, PCIDevice *dev,
         _FDT(fdt_setprop_cell(fdt, offset, "ibm,my-drc-index", drc_index));
     }
 
-    _FDT(fdt_setprop_cell(fdt, offset, "#address-cells",
-                          RESOURCE_CELLS_ADDRESS));
-    _FDT(fdt_setprop_cell(fdt, offset, "#size-cells",
-                          RESOURCE_CELLS_SIZE));
-
     if (msi_present(dev)) {
         uint32_t max_msi = msi_nr_vectors_allocated(dev);
         if (max_msi) {
@@ -1338,7 +1379,18 @@ static int spapr_dt_pci_device(SpaprPhbState *sphb, PCIDevice *dev,
 
     spapr_phb_nvgpu_populate_pcidev_dt(dev, fdt, offset, sphb);
 
-    return offset;
+    if (!pc->is_bridge) {
+        /* Properties only for non-bridges */
+        uint32_t min_grant = pci_default_read_config(dev, PCI_MIN_GNT, 1);
+        uint32_t max_latency = pci_default_read_config(dev, PCI_MAX_LAT, 1);
+        _FDT(fdt_setprop_cell(fdt, offset, "min-grant", min_grant));
+        _FDT(fdt_setprop_cell(fdt, offset, "max-latency", max_latency));
+        return offset;
+    } else {
+        PCIBus *sec_bus = pci_bridge_get_sec_bus(PCI_BRIDGE(dev));
+
+        return spapr_dt_pci_bus(sphb, sec_bus, fdt, offset);
+    }
 }
 
 /* Callback to be called during DRC release. */
@@ -2057,44 +2109,6 @@ static const TypeInfo spapr_phb_info = {
     }
 };
 
-typedef struct SpaprFdt {
-    void *fdt;
-    int node_off;
-    SpaprPhbState *sphb;
-} SpaprFdt;
-
-static void spapr_populate_pci_devices_dt(PCIBus *bus, PCIDevice *pdev,
-                                          void *opaque)
-{
-    PCIBus *sec_bus;
-    SpaprFdt *p = opaque;
-    int offset;
-    SpaprFdt s_fdt;
-
-    offset = spapr_dt_pci_device(p->sphb, pdev, p->fdt, p->node_off);
-    if (!offset) {
-        error_report("Failed to create pci child device tree node");
-        return;
-    }
-
-    if ((pci_default_read_config(pdev, PCI_HEADER_TYPE, 1) !=
-         PCI_HEADER_TYPE_BRIDGE)) {
-        return;
-    }
-
-    sec_bus = pci_bridge_get_sec_bus(PCI_BRIDGE(pdev));
-    if (!sec_bus) {
-        return;
-    }
-
-    s_fdt.fdt = p->fdt;
-    s_fdt.node_off = offset;
-    s_fdt.sphb = p->sphb;
-    pci_for_each_device_reverse(sec_bus, pci_bus_num(sec_bus),
-                                spapr_populate_pci_devices_dt,
-                                &s_fdt);
-}
-
 static void spapr_phb_pci_enumerate_bridge(PCIBus *bus, PCIDevice *pdev,
                                            void *opaque)
 {
@@ -2132,8 +2146,8 @@ static void spapr_phb_pci_enumerate(SpaprPhbState *phb)
 
 }
 
-int spapr_populate_pci_dt(SpaprPhbState *phb, uint32_t intc_phandle, void *fdt,
-                          uint32_t nr_msis, int *node_offset)
+int spapr_dt_phb(SpaprPhbState *phb, uint32_t intc_phandle, void *fdt,
+                 uint32_t nr_msis, int *node_offset)
 {
     int bus_off, i, j, ret;
     uint32_t bus_range[] = { cpu_to_be32(0), cpu_to_be32(0xff) };
@@ -2180,8 +2194,6 @@ int spapr_populate_pci_dt(SpaprPhbState *phb, uint32_t intc_phandle, void *fdt,
                                 cpu_to_be32(0x0),
                                 cpu_to_be32(phb->numa_node)};
     SpaprTceTable *tcet;
-    PCIBus *bus = PCI_HOST_BRIDGE(phb)->bus;
-    SpaprFdt s_fdt;
     SpaprDrc *drc;
     Error *errp = NULL;
 
@@ -2194,8 +2206,6 @@ int spapr_populate_pci_dt(SpaprPhbState *phb, uint32_t intc_phandle, void *fdt,
     /* Write PHB properties */
     _FDT(fdt_setprop_string(fdt, bus_off, "device_type", "pci"));
     _FDT(fdt_setprop_string(fdt, bus_off, "compatible", "IBM,Logical_PHB"));
-    _FDT(fdt_setprop_cell(fdt, bus_off, "#address-cells", 0x3));
-    _FDT(fdt_setprop_cell(fdt, bus_off, "#size-cells", 0x2));
     _FDT(fdt_setprop_cell(fdt, bus_off, "#interrupt-cells", 0x1));
     _FDT(fdt_setprop(fdt, bus_off, "used-by-rtas", NULL, 0));
     _FDT(fdt_setprop(fdt, bus_off, "bus-range", &bus_range, sizeof(bus_range)));
@@ -2260,13 +2270,11 @@ int spapr_populate_pci_dt(SpaprPhbState *phb, uint32_t intc_phandle, void *fdt,
     spapr_phb_pci_enumerate(phb);
     _FDT(fdt_setprop_cell(fdt, bus_off, "qemu,phb-enumerated", 0x1));
 
-    /* Populate tree nodes with PCI devices attached */
-    s_fdt.fdt = fdt;
-    s_fdt.node_off = bus_off;
-    s_fdt.sphb = phb;
-    pci_for_each_device_reverse(bus, pci_bus_num(bus),
-                                spapr_populate_pci_devices_dt,
-                                &s_fdt);
+    /* Walk the bridge and subordinate buses */
+    ret = spapr_dt_pci_bus(phb, PCI_HOST_BRIDGE(phb)->bus, fdt, bus_off);
+    if (ret < 0) {
+        return ret;
+    }
 
     ret = spapr_drc_populate_dt(fdt, bus_off, OBJECT(phb),
                                 SPAPR_DR_CONNECTOR_TYPE_PCI);
