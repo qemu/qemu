@@ -1556,7 +1556,7 @@ void pci_device_set_intx_routing_notifier(PCIDevice *dev,
  */
 int pci_swizzle_map_irq_fn(PCIDevice *pci_dev, int pin)
 {
-    return (pin + PCI_SLOT(pci_dev->devfn)) % PCI_NUM_PINS;
+    return pci_swizzle(PCI_SLOT(pci_dev->devfn), pin);
 }
 
 /***********************************************************/

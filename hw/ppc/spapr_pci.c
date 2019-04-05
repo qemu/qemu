@@ -719,26 +719,10 @@ param_error_exit:
     rtas_st(rets, 0, RTAS_OUT_PARAM_ERROR);
 }
 
-static int pci_spapr_swizzle(int slot, int pin)
-{
-    return (slot + pin) % PCI_NUM_PINS;
-}
-
-static int pci_spapr_map_irq(PCIDevice *pci_dev, int irq_num)
-{
-    /*
-     * Here we need to convert pci_dev + irq_num to some unique value
-     * which is less than number of IRQs on the specific bus (4).  We
-     * use standard PCI swizzling, that is (slot number + pin number)
-     * % 4.
-     */
-    return pci_spapr_swizzle(PCI_SLOT(pci_dev->devfn), irq_num);
-}
-
 static void pci_spapr_set_irq(void *opaque, int irq_num, int level)
 {
     /*
-     * Here we use the number returned by pci_spapr_map_irq to find a
+     * Here we use the number returned by pci_swizzle_map_irq_fn to find a
      * corresponding qemu_irq.
      */
     SpaprPhbState *phb = opaque;
@@ -1766,7 +1750,7 @@ static void spapr_phb_realize(DeviceState *dev, Error **errp)
                                 &sphb->iowindow);
 
     bus = pci_register_root_bus(dev, NULL,
-                                pci_spapr_set_irq, pci_spapr_map_irq, sphb,
+                                pci_spapr_set_irq, pci_swizzle_map_irq_fn, sphb,
                                 &sphb->memspace, &sphb->iospace,
                                 PCI_DEVFN(0, 0), PCI_NUM_PINS,
                                 TYPE_SPAPR_PHB_ROOT_BUS);
@@ -2259,14 +2243,14 @@ int spapr_populate_pci_dt(SpaprPhbState *phb, uint32_t intc_phandle, void *fdt,
     }
 
     /* Build the interrupt-map, this must matches what is done
-     * in pci_spapr_map_irq
+     * in pci_swizzle_map_irq_fn
      */
     _FDT(fdt_setprop(fdt, bus_off, "interrupt-map-mask",
                      &interrupt_map_mask, sizeof(interrupt_map_mask)));
     for (i = 0; i < PCI_SLOT_MAX; i++) {
         for (j = 0; j < PCI_NUM_PINS; j++) {
             uint32_t *irqmap = interrupt_map[i*PCI_NUM_PINS + j];
-            int lsi_num = pci_spapr_swizzle(i, j);
+            int lsi_num = pci_swizzle(i, j);
 
             irqmap[0] = cpu_to_be32(b_ddddd(i)|b_fff(0));
             irqmap[1] = 0;
