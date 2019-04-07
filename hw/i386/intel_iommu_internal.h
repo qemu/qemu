@@ -171,7 +171,6 @@
 #define VTD_CCMD_FM(val)            (((val) >> 32) & 3ULL)
 
 /* RTADDR_REG */
-#define VTD_RTADDR_RTT              (1ULL << 11)
 #define VTD_RTADDR_SMT              (1ULL << 10)
 #define VTD_RTADDR_ADDR_MASK(aw)    (VTD_HAW_MASK(aw) ^ 0xfffULL)
 
