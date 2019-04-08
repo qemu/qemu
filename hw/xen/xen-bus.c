@@ -932,13 +932,20 @@ struct XenEventChannel {
     void *opaque;
 };
 
+static bool xen_device_poll(void *opaque)
+{
+    XenEventChannel *channel = opaque;
+
+    return channel->handler(channel->opaque);
+}
+
 static void xen_device_event(void *opaque)
 {
     XenEventChannel *channel = opaque;
     unsigned long port = xenevtchn_pending(channel->xeh);
 
     if (port == channel->local_port) {
-        channel->handler(channel->opaque);
+        xen_device_poll(channel);
 
         xenevtchn_unmask(channel->xeh, port);
     }
@@ -973,7 +980,7 @@ XenEventChannel *xen_device_bind_event_channel(XenDevice *xendev,
 
     channel->ctx = ctx;
     aio_set_fd_handler(channel->ctx, xenevtchn_fd(channel->xeh), true,
-                       xen_device_event, NULL, NULL, channel);
+                       xen_device_event, NULL, xen_device_poll, channel);
 
     QLIST_INSERT_HEAD(&xendev->event_channels, channel, list);
 

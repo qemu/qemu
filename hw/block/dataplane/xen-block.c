@@ -318,7 +318,9 @@ static void xen_block_complete_aio(void *opaque, int ret)
     }
     xen_block_release_request(request);
 
-    qemu_bh_schedule(dataplane->bh);
+    if (dataplane->more_work) {
+        qemu_bh_schedule(dataplane->bh);
+    }
 
 done:
     aio_context_release(dataplane->ctx);
@@ -515,12 +517,13 @@ static int xen_block_get_request(XenBlockDataPlane *dataplane,
  */
 #define IO_PLUG_THRESHOLD 1
 
-static void xen_block_handle_requests(XenBlockDataPlane *dataplane)
+static bool xen_block_handle_requests(XenBlockDataPlane *dataplane)
 {
     RING_IDX rc, rp;
     XenBlockRequest *request;
     int inflight_atstart = dataplane->requests_inflight;
     int batched = 0;
+    bool done_something = false;
 
     dataplane->more_work = 0;
 
@@ -552,6 +555,7 @@ static void xen_block_handle_requests(XenBlockDataPlane *dataplane)
         }
         xen_block_get_request(dataplane, request, rc);
         dataplane->rings.common.req_cons = ++rc;
+        done_something = true;
 
         /* parse them */
         if (xen_block_parse_request(request) != 0) {
@@ -603,10 +607,7 @@ static void xen_block_handle_requests(XenBlockDataPlane *dataplane)
         blk_io_unplug(dataplane->blk);
     }
 
-    if (dataplane->more_work &&
-        dataplane->requests_inflight < dataplane->max_requests) {
-        qemu_bh_schedule(dataplane->bh);
-    }
+    return done_something;
 }
 
 static void xen_block_dataplane_bh(void *opaque)
@@ -618,11 +619,11 @@ static void xen_block_dataplane_bh(void *opaque)
     aio_context_release(dataplane->ctx);
 }
 
-static void xen_block_dataplane_event(void *opaque)
+static bool xen_block_dataplane_event(void *opaque)
 {
     XenBlockDataPlane *dataplane = opaque;
 
-    qemu_bh_schedule(dataplane->bh);
+    return xen_block_handle_requests(dataplane);
 }
 
 XenBlockDataPlane *xen_block_dataplane_create(XenDevice *xendev,
