@@ -124,6 +124,8 @@ struct NBDClient {
     int nb_requests;
     bool closing;
 
+    uint32_t check_align; /* If non-zero, check for aligned client requests */
+
     bool structured_reply;
     NBDExportMetaContexts export_meta;
 
@@ -533,6 +535,7 @@ static int nbd_negotiate_handle_info(NBDClient *client, uint16_t myflags,
     bool blocksize = false;
     uint32_t sizes[3];
     char buf[sizeof(uint64_t) + sizeof(uint16_t)];
+    uint32_t check_align = 0;
 
     /* Client sends:
         4 bytes: L, name length (can be 0)
@@ -609,7 +612,7 @@ static int nbd_negotiate_handle_info(NBDClient *client, uint16_t myflags,
      * whether this is OPT_INFO or OPT_GO. */
     /* minimum - 1 for back-compat, or actual if client will obey it. */
     if (client->opt == NBD_OPT_INFO || blocksize) {
-        sizes[0] = blk_get_request_alignment(exp->blk);
+        check_align = sizes[0] = blk_get_request_alignment(exp->blk);
     } else {
         sizes[0] = 1;
     }
@@ -640,11 +643,14 @@ static int nbd_negotiate_handle_info(NBDClient *client, uint16_t myflags,
         return rc;
     }
 
-    /* If the client is just asking for NBD_OPT_INFO, but forgot to
-     * request block sizes, return an error.
-     * TODO: consult blk_bs(blk)->request_align, and only error if it
-     * is not 1? */
-    if (client->opt == NBD_OPT_INFO && !blocksize) {
+    /*
+     * If the client is just asking for NBD_OPT_INFO, but forgot to
+     * request block sizes in a situation that would impact
+     * performance, then return an error. But for NBD_OPT_GO, we
+     * tolerate all clients, regardless of alignments.
+     */
+    if (client->opt == NBD_OPT_INFO && !blocksize &&
+        blk_get_request_alignment(exp->blk) > 1) {
         return nbd_negotiate_send_rep_err(client,
                                           NBD_REP_ERR_BLOCK_SIZE_REQD,
                                           errp,
@@ -660,6 +666,7 @@ static int nbd_negotiate_handle_info(NBDClient *client, uint16_t myflags,
 
     if (client->opt == NBD_OPT_GO) {
         client->exp = exp;
+        client->check_align = check_align;
         QTAILQ_INSERT_TAIL(&client->exp->clients, client, next);
         nbd_export_get(client->exp);
         nbd_check_meta_export(client);
@@ -1880,17 +1887,12 @@ static int blockstatus_to_extents(BlockDriverState *bs, uint64_t offset,
 
         flags = (ret & BDRV_BLOCK_ALLOCATED ? 0 : NBD_STATE_HOLE) |
                 (ret & BDRV_BLOCK_ZERO      ? NBD_STATE_ZERO : 0);
-        offset += num;
-        remaining_bytes -= num;
 
         if (first_extent) {
             extent->flags = flags;
             extent->length = num;
             first_extent = false;
-            continue;
-        }
-
-        if (flags == extent->flags) {
+        } else if (flags == extent->flags) {
             /* extend current extent */
             extent->length += num;
         } else {
@@ -1903,6 +1905,8 @@ static int blockstatus_to_extents(BlockDriverState *bs, uint64_t offset,
             extent->flags = flags;
             extent->length = num;
         }
+        offset += num;
+        remaining_bytes -= num;
     }
 
     extents_end = extent + 1;
@@ -2128,6 +2132,17 @@ static int nbd_co_receive_request(NBDRequestData *req, NBDRequest *request,
                    client->exp->size);
         return (request->type == NBD_CMD_WRITE ||
                 request->type == NBD_CMD_WRITE_ZEROES) ? -ENOSPC : -EINVAL;
+    }
+    if (client->check_align && !QEMU_IS_ALIGNED(request->from | request->len,
+                                                client->check_align)) {
+        /*
+         * The block layer gracefully handles unaligned requests, but
+         * it's still worth tracing client non-compliance
+         */
+        trace_nbd_co_receive_align_compliance(nbd_cmd_lookup(request->type),
+                                              request->from,
+                                              request->len,
+                                              client->check_align);
     }
     valid_flags = NBD_CMD_FLAG_FUA;
     if (request->type == NBD_CMD_READ && client->structured_reply) {
