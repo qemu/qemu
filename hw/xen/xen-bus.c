@@ -924,19 +924,22 @@ done:
 }
 
 struct XenEventChannel {
+    QLIST_ENTRY(XenEventChannel) list;
+    xenevtchn_handle *xeh;
     evtchn_port_t local_port;
     XenEventHandler handler;
     void *opaque;
-    Notifier notifier;
 };
 
-static void event_notify(Notifier *n, void *data)
+static void xen_device_event(void *opaque)
 {
-    XenEventChannel *channel = container_of(n, XenEventChannel, notifier);
-    unsigned long port = (unsigned long)data;
+    XenEventChannel *channel = opaque;
+    unsigned long port = xenevtchn_pending(channel->xeh);
 
     if (port == channel->local_port) {
         channel->handler(channel->opaque);
+
+        xenevtchn_unmask(channel->xeh, port);
     }
 }
 
@@ -948,24 +951,39 @@ XenEventChannel *xen_device_bind_event_channel(XenDevice *xendev,
     XenEventChannel *channel = g_new0(XenEventChannel, 1);
     xenevtchn_port_or_error_t local_port;
 
-    local_port = xenevtchn_bind_interdomain(xendev->xeh,
+    channel->xeh = xenevtchn_open(NULL, 0);
+    if (!channel->xeh) {
+        error_setg_errno(errp, errno, "failed xenevtchn_open");
+        goto fail;
+    }
+
+    local_port = xenevtchn_bind_interdomain(channel->xeh,
                                             xendev->frontend_id,
                                             port);
     if (local_port < 0) {
         error_setg_errno(errp, errno, "xenevtchn_bind_interdomain failed");
-
-        g_free(channel);
-        return NULL;
+        goto fail;
     }
 
     channel->local_port = local_port;
     channel->handler = handler;
     channel->opaque = opaque;
-    channel->notifier.notify = event_notify;
 
-    notifier_list_add(&xendev->event_notifiers, &channel->notifier);
+    qemu_set_fd_handler(xenevtchn_fd(channel->xeh), xen_device_event, NULL,
+                        channel);
+
+    QLIST_INSERT_HEAD(&xendev->event_channels, channel, list);
 
     return channel;
+
+fail:
+    if (channel->xeh) {
+        xenevtchn_close(channel->xeh);
+    }
+
+    g_free(channel);
+
+    return NULL;
 }
 
 void xen_device_notify_event_channel(XenDevice *xendev,
@@ -977,7 +995,7 @@ void xen_device_notify_event_channel(XenDevice *xendev,
         return;
     }
 
-    if (xenevtchn_notify(xendev->xeh, channel->local_port) < 0) {
+    if (xenevtchn_notify(channel->xeh, channel->local_port) < 0) {
         error_setg_errno(errp, errno, "xenevtchn_notify failed");
     }
 }
@@ -991,12 +1009,15 @@ void xen_device_unbind_event_channel(XenDevice *xendev,
         return;
     }
 
-    notifier_remove(&channel->notifier);
+    QLIST_REMOVE(channel, list);
 
-    if (xenevtchn_unbind(xendev->xeh, channel->local_port) < 0) {
+    qemu_set_fd_handler(xenevtchn_fd(channel->xeh), NULL, NULL, NULL);
+
+    if (xenevtchn_unbind(channel->xeh, channel->local_port) < 0) {
         error_setg_errno(errp, errno, "xenevtchn_unbind failed");
     }
 
+    xenevtchn_close(channel->xeh);
     g_free(channel);
 }
 
@@ -1005,6 +1026,7 @@ static void xen_device_unrealize(DeviceState *dev, Error **errp)
     XenDevice *xendev = XEN_DEVICE(dev);
     XenDeviceClass *xendev_class = XEN_DEVICE_GET_CLASS(xendev);
     const char *type = object_get_typename(OBJECT(xendev));
+    XenEventChannel *channel, *next;
 
     if (!xendev->name) {
         return;
@@ -1021,14 +1043,13 @@ static void xen_device_unrealize(DeviceState *dev, Error **errp)
         xendev_class->unrealize(xendev, errp);
     }
 
+    /* Make sure all event channels are cleaned up */
+    QLIST_FOREACH_SAFE(channel, &xendev->event_channels, list, next) {
+        xen_device_unbind_event_channel(xendev, channel, NULL);
+    }
+
     xen_device_frontend_destroy(xendev);
     xen_device_backend_destroy(xendev);
-
-    if (xendev->xeh) {
-        qemu_set_fd_handler(xenevtchn_fd(xendev->xeh), NULL, NULL, NULL);
-        xenevtchn_close(xendev->xeh);
-        xendev->xeh = NULL;
-    }
 
     if (xendev->xgth) {
         xengnttab_close(xendev->xgth);
@@ -1044,16 +1065,6 @@ static void xen_device_exit(Notifier *n, void *data)
     XenDevice *xendev = container_of(n, XenDevice, exit);
 
     xen_device_unrealize(DEVICE(xendev), &error_abort);
-}
-
-static void xen_device_event(void *opaque)
-{
-    XenDevice *xendev = opaque;
-    unsigned long port = xenevtchn_pending(xendev->xeh);
-
-    notifier_list_notify(&xendev->event_notifiers, (void *)port);
-
-    xenevtchn_unmask(xendev->xeh, port);
 }
 
 static void xen_device_realize(DeviceState *dev, Error **errp)
@@ -1095,16 +1106,6 @@ static void xen_device_realize(DeviceState *dev, Error **errp)
 
     xendev->feature_grant_copy =
         (xengnttab_grant_copy(xendev->xgth, 0, NULL) == 0);
-
-    xendev->xeh = xenevtchn_open(NULL, 0);
-    if (!xendev->xeh) {
-        error_setg_errno(errp, errno, "failed xenevtchn_open");
-        goto unrealize;
-    }
-
-    notifier_list_init(&xendev->event_notifiers);
-    qemu_set_fd_handler(xenevtchn_fd(xendev->xeh), xen_device_event, NULL,
-                        xendev);
 
     xen_device_backend_create(xendev, &local_err);
     if (local_err) {
