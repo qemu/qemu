@@ -3444,3 +3444,35 @@ int64_t qcow2_get_last_cluster(BlockDriverState *bs, int64_t size)
                             "There are no references in the refcount table.");
     return -EIO;
 }
+
+int qcow2_detect_metadata_preallocation(BlockDriverState *bs)
+{
+    BDRVQcow2State *s = bs->opaque;
+    int64_t i, end_cluster, cluster_count = 0, threshold;
+    int64_t file_length, real_allocation, real_clusters;
+
+    file_length = bdrv_getlength(bs->file->bs);
+    if (file_length < 0) {
+        return file_length;
+    }
+
+    real_allocation = bdrv_get_allocated_file_size(bs->file->bs);
+    if (real_allocation < 0) {
+        return real_allocation;
+    }
+
+    real_clusters = real_allocation / s->cluster_size;
+    threshold = MAX(real_clusters * 10 / 9, real_clusters + 2);
+
+    end_cluster = size_to_clusters(s, file_length);
+    for (i = 0; i < end_cluster && cluster_count < threshold; i++) {
+        uint64_t refcount;
+        int ret = qcow2_get_refcount(bs, i, &refcount);
+        if (ret < 0) {
+            return ret;
+        }
+        cluster_count += !!refcount;
+    }
+
+    return cluster_count >= threshold;
+}

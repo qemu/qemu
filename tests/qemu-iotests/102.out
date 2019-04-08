@@ -7,7 +7,8 @@ wrote 65536/65536 bytes at offset 0
 64 KiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
 Image resized.
 64 KiB (0x10000) bytes     allocated at offset 0 bytes (0x0)
-Offset          Length          Mapped to       File
+Offset          Length          File
+0               0x10000         TEST_DIR/t.IMGFMT
 
 === Testing map on an image file truncated outside of qemu ===
 

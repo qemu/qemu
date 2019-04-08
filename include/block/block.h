@@ -156,10 +156,15 @@ typedef struct HDGeometry {
  * BDRV_BLOCK_EOF: the returned pnum covers through end of file for this
  *                 layer, set by block layer
  *
- * Internal flag:
+ * Internal flags:
  * BDRV_BLOCK_RAW: for use by passthrough drivers, such as raw, to request
  *                 that the block layer recompute the answer from the returned
  *                 BDS; must be accompanied by just BDRV_BLOCK_OFFSET_VALID.
+ * BDRV_BLOCK_RECURSE: request that the block layer will recursively search for
+ *                     zeroes in file child of current block node inside
+ *                     returned region. Only valid together with both
+ *                     BDRV_BLOCK_DATA and BDRV_BLOCK_OFFSET_VALID. Should not
+ *                     appear with BDRV_BLOCK_ZERO.
  *
  * If BDRV_BLOCK_OFFSET_VALID is set, the map parameter represents the
  * host offset within the returned BDS that is allocated for the
@@ -184,6 +189,7 @@ typedef struct HDGeometry {
 #define BDRV_BLOCK_RAW          0x08
 #define BDRV_BLOCK_ALLOCATED    0x10
 #define BDRV_BLOCK_EOF          0x20
+#define BDRV_BLOCK_RECURSE      0x40
 #define BDRV_BLOCK_OFFSET_MASK  BDRV_SECTOR_MASK
 
 typedef QSIMPLEQ_HEAD(BlockReopenQueue, BlockReopenQueueEntry) BlockReopenQueue;
