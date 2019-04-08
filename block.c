@@ -950,8 +950,9 @@ static void bdrv_temp_snapshot_options(int *child_flags, QDict *child_options,
     qdict_set_default_str(child_options, BDRV_OPT_CACHE_DIRECT, "off");
     qdict_set_default_str(child_options, BDRV_OPT_CACHE_NO_FLUSH, "on");
 
-    /* Copy the read-only option from the parent */
+    /* Copy the read-only and discard options from the parent */
     qdict_copy_default(child_options, parent_options, BDRV_OPT_READ_ONLY);
+    qdict_copy_default(child_options, parent_options, BDRV_OPT_DISCARD);
 
     /* aio=native doesn't work for cache.direct=off, so disable it for the
      * temporary snapshot */
