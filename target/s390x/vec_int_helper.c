@@ -529,3 +529,9 @@ void HELPER(gvec_verim##BITS)(void *v1, const void *v2, const void *v3,        \
 }
 DEF_VERIM(8)
 DEF_VERIM(16)
+
+void HELPER(gvec_vsl)(void *v1, const void *v2, uint64_t count,
+                      uint32_t desc)
+{
+    s390_vec_shl(v1, v2, count);
+}
