@@ -58,6 +58,7 @@
 #include "exec/address-spaces.h"
 #include "hw/boards.h"
 #include "qemu/cutils.h"
+#include "sysemu/runstate.h"
 
 #include <zlib.h>
 
@@ -1113,6 +1114,15 @@ int rom_add_option(const char *file, int32_t bootindex)
 static void rom_reset(void *unused)
 {
     Rom *rom;
+
+    /*
+     * We don't need to fill in the RAM with ROM data because we'll fill
+     * the data in during the next incoming migration in all cases.  Note
+     * that some of those RAMs can actually be modified by the guest on ARM
+     * so this is probably the only right thing to do here.
+     */
+    if (runstate_check(RUN_STATE_INMIGRATE))
+        return;
 
     QTAILQ_FOREACH(rom, &roms, next) {
         if (rom->fw_file) {
