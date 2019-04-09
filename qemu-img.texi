@@ -197,7 +197,7 @@ Command description:
 
 @table @option
 
-@item amend [--object @var{objectdef}] [--image-opts] [-p] [-p] [-f @var{fmt}] [-t @var{cache}] -o @var{options} @var{filename}
+@item amend [--object @var{objectdef}] [--image-opts] [-p] [-q] [-f @var{fmt}] [-t @var{cache}] -o @var{options} @var{filename}
 
 Amends the image format specific @var{options} for the image file
 @var{filename}. Not all file formats support this operation.
@@ -424,7 +424,7 @@ To enumerate information about each disk image in the above chain, starting from
 qemu-img info --backing-chain snap2.qcow2
 @end example
 
-@item map [-f @var{fmt}] [--output=@var{ofmt}] @var{filename}
+@item map [--object @var{objectdef}] [--image-opts] [-f @var{fmt}] [--output=@var{ofmt}] [-U] @var{filename}
 
 Dump the metadata of image @var{filename} and its backing file chain.
 In particular, this commands dumps the allocation state of every sector
