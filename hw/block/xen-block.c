@@ -52,10 +52,24 @@ static void xen_block_connect(XenDevice *xendev, Error **errp)
     XenBlockDevice *blockdev = XEN_BLOCK_DEVICE(xendev);
     const char *type = object_get_typename(OBJECT(blockdev));
     XenBlockVdev *vdev = &blockdev->props.vdev;
+    BlockConf *conf = &blockdev->props.conf;
+    unsigned int feature_large_sector_size;
     unsigned int order, nr_ring_ref, *ring_ref, event_channel, protocol;
     char *str;
 
     trace_xen_block_connect(type, vdev->disk, vdev->partition);
+
+    if (xen_device_frontend_scanf(xendev, "feature-large-sector-size", "%u",
+                                  &feature_large_sector_size) != 1) {
+        feature_large_sector_size = 0;
+    }
+
+    if (feature_large_sector_size != 1 &&
+        conf->logical_block_size != XEN_BLKIF_SECTOR_SIZE) {
+        error_setg(errp, "logical_block_size != %u not supported by frontend",
+                   XEN_BLKIF_SECTOR_SIZE);
+        return;
+    }
 
     if (xen_device_frontend_scanf(xendev, "ring-page-order", "%u",
                                   &order) != 1) {
@@ -150,7 +164,7 @@ static void xen_block_set_size(XenBlockDevice *blockdev)
     const char *type = object_get_typename(OBJECT(blockdev));
     XenBlockVdev *vdev = &blockdev->props.vdev;
     BlockConf *conf = &blockdev->props.conf;
-    int64_t sectors = blk_getlength(conf->blk) / XEN_BLKIF_SECTOR_SIZE;
+    int64_t sectors = blk_getlength(conf->blk) / conf->logical_block_size;
     XenDevice *xendev = XEN_DEVICE(blockdev);
 
     trace_xen_block_size(type, vdev->disk, vdev->partition, sectors);
@@ -185,6 +199,7 @@ static void xen_block_realize(XenDevice *xendev, Error **errp)
     const char *type = object_get_typename(OBJECT(blockdev));
     XenBlockVdev *vdev = &blockdev->props.vdev;
     BlockConf *conf = &blockdev->props.conf;
+    BlockBackend *blk = conf->blk;
     Error *local_err = NULL;
 
     if (vdev->type == XEN_BLOCK_VDEV_TYPE_INVALID) {
@@ -206,8 +221,8 @@ static void xen_block_realize(XenDevice *xendev, Error **errp)
      * The blkif protocol does not deal with removable media, so it must
      * always be present, even for CDRom devices.
      */
-    assert(conf->blk);
-    if (!blk_is_inserted(conf->blk)) {
+    assert(blk);
+    if (!blk_is_inserted(blk)) {
         error_setg(errp, "device needs media, but drive is empty");
         return;
     }
@@ -224,26 +239,20 @@ static void xen_block_realize(XenDevice *xendev, Error **errp)
 
     blkconf_blocksizes(conf);
 
-    if (conf->logical_block_size != XEN_BLKIF_SECTOR_SIZE) {
-        error_setg(errp, "logical_block_size != %u not supported",
-                   XEN_BLKIF_SECTOR_SIZE);
-        return;
-    }
-
     if (conf->logical_block_size > conf->physical_block_size) {
         error_setg(
             errp, "logical_block_size > physical_block_size not supported");
         return;
     }
 
-    blk_set_dev_ops(conf->blk, &xen_block_dev_ops, blockdev);
-    blk_set_guest_block_size(conf->blk, conf->logical_block_size);
+    blk_set_dev_ops(blk, &xen_block_dev_ops, blockdev);
+    blk_set_guest_block_size(blk, conf->logical_block_size);
 
     if (conf->discard_granularity == -1) {
         conf->discard_granularity = conf->physical_block_size;
     }
 
-    if (blk_get_flags(conf->blk) & BDRV_O_UNMAP) {
+    if (blk_get_flags(blk) & BDRV_O_UNMAP) {
         xen_device_backend_printf(xendev, "feature-discard", "%u", 1);
         xen_device_backend_printf(xendev, "discard-granularity", "%u",
                                   conf->discard_granularity);
@@ -260,12 +269,13 @@ static void xen_block_realize(XenDevice *xendev, Error **errp)
                                blockdev->device_type);
 
     xen_device_backend_printf(xendev, "sector-size", "%u",
-                              XEN_BLKIF_SECTOR_SIZE);
+                              conf->logical_block_size);
 
     xen_block_set_size(blockdev);
 
     blockdev->dataplane =
-        xen_block_dataplane_create(xendev, conf, blockdev->props.iothread);
+        xen_block_dataplane_create(xendev, blk, conf->logical_block_size,
+                                   blockdev->props.iothread);
 }
 
 static void xen_block_frontend_changed(XenDevice *xendev,

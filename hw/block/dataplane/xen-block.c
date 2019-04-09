@@ -58,6 +58,7 @@ struct XenBlockDataPlane {
     int requests_inflight;
     unsigned int max_requests;
     BlockBackend *blk;
+    unsigned int sector_size;
     QEMUBH *bh;
     IOThread *iothread;
     AioContext *ctx;
@@ -167,7 +168,7 @@ static int xen_block_parse_request(XenBlockRequest *request)
         goto err;
     }
 
-    request->start = request->req.sector_number * XEN_BLKIF_SECTOR_SIZE;
+    request->start = request->req.sector_number * dataplane->sector_size;
     for (i = 0; i < request->req.nr_segments; i++) {
         if (i == BLKIF_MAX_SEGMENTS_PER_REQUEST) {
             error_report("error: nr_segments too big");
@@ -177,14 +178,14 @@ static int xen_block_parse_request(XenBlockRequest *request)
             error_report("error: first > last sector");
             goto err;
         }
-        if (request->req.seg[i].last_sect * XEN_BLKIF_SECTOR_SIZE >=
+        if (request->req.seg[i].last_sect * dataplane->sector_size >=
             XC_PAGE_SIZE) {
             error_report("error: page crossing");
             goto err;
         }
 
         len = (request->req.seg[i].last_sect -
-               request->req.seg[i].first_sect + 1) * XEN_BLKIF_SECTOR_SIZE;
+               request->req.seg[i].first_sect + 1) * dataplane->sector_size;
         request->size += len;
     }
     if (request->start + request->size > blk_getlength(dataplane->blk)) {
@@ -218,17 +219,17 @@ static int xen_block_copy_request(XenBlockRequest *request)
         if (to_domain) {
             segs[i].dest.foreign.ref = request->req.seg[i].gref;
             segs[i].dest.foreign.offset = request->req.seg[i].first_sect *
-                XEN_BLKIF_SECTOR_SIZE;
+                dataplane->sector_size;
             segs[i].source.virt = virt;
         } else {
             segs[i].source.foreign.ref = request->req.seg[i].gref;
             segs[i].source.foreign.offset = request->req.seg[i].first_sect *
-                XEN_BLKIF_SECTOR_SIZE;
+                dataplane->sector_size;
             segs[i].dest.virt = virt;
         }
         segs[i].len = (request->req.seg[i].last_sect -
                        request->req.seg[i].first_sect + 1) *
-                      XEN_BLKIF_SECTOR_SIZE;
+                      dataplane->sector_size;
         virt += segs[i].len;
     }
 
@@ -336,12 +337,12 @@ static bool xen_block_split_discard(XenBlockRequest *request,
 
     /* Wrap around, or overflowing byte limit? */
     if (sec_start + sec_count < sec_count ||
-        sec_start + sec_count > INT64_MAX / XEN_BLKIF_SECTOR_SIZE) {
+        sec_start + sec_count > INT64_MAX / dataplane->sector_size) {
         return false;
     }
 
-    byte_offset = sec_start * XEN_BLKIF_SECTOR_SIZE;
-    byte_remaining = sec_count * XEN_BLKIF_SECTOR_SIZE;
+    byte_offset = sec_start * dataplane->sector_size;
+    byte_remaining = sec_count * dataplane->sector_size;
 
     do {
         byte_chunk = byte_remaining > BDRV_REQUEST_MAX_BYTES ?
@@ -625,13 +626,15 @@ static void xen_block_dataplane_event(void *opaque)
 }
 
 XenBlockDataPlane *xen_block_dataplane_create(XenDevice *xendev,
-                                              BlockConf *conf,
+                                              BlockBackend *blk,
+                                              unsigned int sector_size,
                                               IOThread *iothread)
 {
     XenBlockDataPlane *dataplane = g_new0(XenBlockDataPlane, 1);
 
     dataplane->xendev = xendev;
-    dataplane->blk = conf->blk;
+    dataplane->blk = blk;
+    dataplane->sector_size = sector_size;
 
     QLIST_INIT(&dataplane->inflight);
     QLIST_INIT(&dataplane->freelist);
