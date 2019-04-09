@@ -123,7 +123,7 @@ QPCIBar qpci_iomap(QPCIDevice *dev, int barno, uint64_t *sizeptr);
 void qpci_iounmap(QPCIDevice *dev, QPCIBar addr);
 QPCIBar qpci_legacy_iomap(QPCIDevice *dev, uint16_t addr);
 
-void qpci_unplug_acpi_device_test(const char *id, uint8_t slot);
+void qpci_unplug_acpi_device_test(QTestState *qs, const char *id, uint8_t slot);
 
 void add_qpci_address(QOSGraphEdgeOptions *opts, QPCIAddress *addr);
 #endif
