@@ -851,7 +851,7 @@ static int multifd_recv_unfill_packet(MultiFDRecvParams *p, Error **errp)
      */
     if (packet->pages_alloc > p->pages->allocated) {
         multifd_pages_clear(p->pages);
-        multifd_pages_init(packet->pages_alloc);
+        p->pages = multifd_pages_init(packet->pages_alloc);
     }
 
     p->pages->used = be32_to_cpu(packet->pages_used);
