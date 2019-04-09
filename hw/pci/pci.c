@@ -147,6 +147,11 @@ static uint16_t pcibus_numa_node(PCIBus *bus)
     return NUMA_NODE_UNASSIGNED;
 }
 
+static bool pcibus_allows_extended_config_space(PCIBus *bus)
+{
+    return false;
+}
+
 static void pci_bus_class_init(ObjectClass *klass, void *data)
 {
     BusClass *k = BUS_CLASS(klass);
@@ -162,6 +167,7 @@ static void pci_bus_class_init(ObjectClass *klass, void *data)
     pbc->is_root = pcibus_is_root;
     pbc->bus_num = pcibus_num;
     pbc->numa_node = pcibus_numa_node;
+    pbc->allows_extended_config_space = pcibus_allows_extended_config_space;
 }
 
 static const TypeInfo pci_bus_info = {
@@ -182,9 +188,22 @@ static const TypeInfo conventional_pci_interface_info = {
     .parent        = TYPE_INTERFACE,
 };
 
+static bool pciebus_allows_extended_config_space(PCIBus *bus)
+{
+    return true;
+}
+
+static void pcie_bus_class_init(ObjectClass *klass, void *data)
+{
+    PCIBusClass *pbc = PCI_BUS_CLASS(klass);
+
+    pbc->allows_extended_config_space = pciebus_allows_extended_config_space;
+}
+
 static const TypeInfo pcie_bus_info = {
     .name = TYPE_PCIE_BUS,
     .parent = TYPE_PCI_BUS,
+    .class_init = pcie_bus_class_init,
 };
 
 static PCIBus *pci_find_bus_nr(PCIBus *bus, int bus_num);
@@ -399,6 +418,11 @@ bool pci_bus_is_express(PCIBus *bus)
 bool pci_bus_is_root(PCIBus *bus)
 {
     return PCI_BUS_GET_CLASS(bus)->is_root(bus);
+}
+
+bool pci_bus_allows_extended_config_space(PCIBus *bus)
+{
+    return PCI_BUS_GET_CLASS(bus)->allows_extended_config_space(bus);
 }
 
 void pci_root_bus_new_inplace(PCIBus *bus, size_t bus_size, DeviceState *parent,

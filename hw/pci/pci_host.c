@@ -54,7 +54,7 @@ static inline PCIDevice *pci_dev_find_by_addr(PCIBus *bus, uint32_t addr)
 static void pci_adjust_config_limit(PCIBus *bus, uint32_t *limit)
 {
     if (*limit > PCI_CONFIG_SPACE_SIZE) {
-        if (!pci_bus_is_express(bus)) {
+        if (!pci_bus_allows_extended_config_space(bus)) {
             *limit = PCI_CONFIG_SPACE_SIZE;
             return;
         }
