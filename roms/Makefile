@@ -47,7 +47,7 @@ SEABIOS_EXTRAVERSION="-prebuilt.qemu.org"
 # We need that to combine multiple images (legacy bios,
 # efi ia32, efi x64) into a single rom binary.
 #
-EFIROM = edk2/BaseTools/Source/C/bin/EfiRom
+EDK2_EFIROM = edk2/BaseTools/Source/C/bin/EfiRom
 
 default:
 	@echo "nothing is build by default"
@@ -102,8 +102,8 @@ pxe-rom-%: build-pxe-roms
 
 efirom: $(patsubst %,efi-rom-%,$(pxerom_variants))
 
-efi-rom-%: build-pxe-roms build-efi-roms $(EFIROM)
-	$(EFIROM) -f "0x$(VID)" -i "0x$(DID)" -l 0x02 \
+efi-rom-%: build-pxe-roms build-efi-roms $(EDK2_EFIROM)
+	$(EDK2_EFIROM) -f "0x$(VID)" -i "0x$(DID)" -l 0x02 \
 		-b ipxe/src/bin/$(VID)$(DID).rom \
 		-ec ipxe/src/bin-i386-efi/$(VID)$(DID).efidrv \
 		-ec ipxe/src/bin-x86_64-efi/$(VID)$(DID).efidrv \
@@ -120,8 +120,21 @@ build-efi-roms: build-pxe-roms
 		$(patsubst %,bin-i386-efi/%.efidrv,$(pxerom_targets)) \
 		$(patsubst %,bin-x86_64-efi/%.efidrv,$(pxerom_targets))
 
-$(EFIROM):
-	$(MAKE) -C edk2/BaseTools
+# Build scripts can pass compiler/linker flags to the EDK2 build tools
+# via the EDK2_BASETOOLS_OPTFLAGS (CPPFLAGS and CFLAGS) and
+# EDK2_BASETOOLS_LDFLAGS (LDFLAGS) environment variables.
+#
+# Example:
+#
+#  make -C roms \
+#    EDK2_BASETOOLS_OPTFLAGS='...' \
+#    EDK2_BASETOOLS_LDFLAGS='...' \
+#    efirom
+#
+$(EDK2_EFIROM):
+	$(MAKE) -C edk2/BaseTools \
+		EXTRA_OPTFLAGS='$(EDK2_BASETOOLS_OPTFLAGS)' \
+		EXTRA_LDFLAGS='$(EDK2_BASETOOLS_LDFLAGS)'
 
 slof:
 	$(MAKE) -C SLOF CROSS=$(powerpc64_cross_prefix) qemu
