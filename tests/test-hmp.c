@@ -73,13 +73,13 @@ static const char *hmp_cmds[] = {
 };
 
 /* Run through the list of pre-defined commands */
-static void test_commands(void)
+static void test_commands(QTestState *qts)
 {
     char *response;
     int i;
 
     for (i = 0; hmp_cmds[i] != NULL; i++) {
-        response = hmp("%s", hmp_cmds[i]);
+        response = qtest_hmp(qts, "%s", hmp_cmds[i]);
         if (verbose) {
             fprintf(stderr,
                     "\texecute HMP command: %s\n"
@@ -92,11 +92,11 @@ static void test_commands(void)
 }
 
 /* Run through all info commands and call them blindly (without arguments) */
-static void test_info_commands(void)
+static void test_info_commands(QTestState *qts)
 {
     char *resp, *info, *info_buf, *endp;
 
-    info_buf = info = hmp("help info");
+    info_buf = info = qtest_hmp(qts, "help info");
 
     while (*info) {
         /* Extract the info command, ignore parameters and description */
@@ -108,7 +108,7 @@ static void test_info_commands(void)
         if (verbose) {
             fprintf(stderr, "\t%s\n", info);
         }
-        resp = hmp("%s", info);
+        resp = qtest_hmp(qts, "%s", info);
         g_free(resp);
         /* And move forward to the next line */
         info = strchr(endp + 1, '\n');
@@ -125,14 +125,15 @@ static void test_machine(gconstpointer data)
 {
     const char *machine = data;
     char *args;
+    QTestState *qts;
 
     args = g_strdup_printf("-S -M %s", machine);
-    qtest_start(args);
+    qts = qtest_init(args);
 
-    test_info_commands();
-    test_commands();
+    test_info_commands(qts);
+    test_commands(qts);
 
-    qtest_end();
+    qtest_quit(qts);
     g_free(args);
     g_free((void *)data);
 }
