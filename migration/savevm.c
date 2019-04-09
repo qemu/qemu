@@ -2542,7 +2542,7 @@ int save_snapshot(const char *name, Error **errp)
     AioContext *aio_context;
 
     if (migration_is_blocked(errp)) {
-        return false;
+        return ret;
     }
 
     if (!replay_can_snapshot()) {
