@@ -2313,3 +2313,32 @@ static DisasJumpType op_vsumq(DisasContext *s, DisasOps *o)
     tcg_temp_free_i64(tmpl);
     return DISAS_NEXT;
 }
+
+static DisasJumpType op_vsum(DisasContext *s, DisasOps *o)
+{
+    const uint8_t es = get_field(s->fields, m4);
+    TCGv_i32 sum, tmp;
+    uint8_t dst_idx;
+
+    if (es > ES_16) {
+        gen_program_exception(s, PGM_SPECIFICATION);
+        return DISAS_NORETURN;
+    }
+
+    sum = tcg_temp_new_i32();
+    tmp = tcg_temp_new_i32();
+    for (dst_idx = 0; dst_idx < 4; dst_idx++) {
+        uint8_t idx = dst_idx * NUM_VEC_ELEMENTS(es) / 4;
+        const uint8_t max_idx = idx + NUM_VEC_ELEMENTS(es) / 4 - 1;
+
+        read_vec_element_i32(sum, get_field(s->fields, v3), max_idx, es);
+        for (; idx <= max_idx; idx++) {
+            read_vec_element_i32(tmp, get_field(s->fields, v2), idx, es);
+            tcg_gen_add_i32(sum, sum, tmp);
+        }
+        write_vec_element_i32(sum, get_field(s->fields, v1), dst_idx, ES_32);
+    }
+    tcg_temp_free_i32(sum);
+    tcg_temp_free_i32(tmp);
+    return DISAS_NEXT;
+}
