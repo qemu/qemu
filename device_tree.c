@@ -84,6 +84,10 @@ void *load_device_tree(const char *filename_path, int *sizep)
                      filename_path);
         goto fail;
     }
+    if (dt_size > INT_MAX / 2 - 10000) {
+        error_report("Device tree file '%s' is too large", filename_path);
+        goto fail;
+    }
 
     /* Expand to 2x size to give enough room for manipulation.  */
     dt_size += 10000;
