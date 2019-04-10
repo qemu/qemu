@@ -28,6 +28,19 @@ static void s390_vec_xor(S390Vector *res, const S390Vector *a,
     res->doubleword[1] = a->doubleword[1] ^ b->doubleword[1];
 }
 
+static void s390_vec_and(S390Vector *res, const S390Vector *a,
+                         const S390Vector *b)
+{
+    res->doubleword[0] = a->doubleword[0] & b->doubleword[0];
+    res->doubleword[1] = a->doubleword[1] & b->doubleword[1];
+}
+
+static bool s390_vec_equal(const S390Vector *a, const S390Vector *b)
+{
+    return a->doubleword[0] == b->doubleword[0] &&
+           a->doubleword[1] == b->doubleword[1];
+}
+
 static void s390_vec_shl(S390Vector *d, const S390Vector *a, uint64_t count)
 {
     uint64_t tmp;
@@ -583,3 +596,21 @@ void HELPER(gvec_vscbi##BITS)(void *v1, const void *v2, const void *v3,        \
 }
 DEF_VSCBI(8)
 DEF_VSCBI(16)
+
+void HELPER(gvec_vtm)(void *v1, const void *v2, CPUS390XState *env,
+                      uint32_t desc)
+{
+    S390Vector tmp;
+
+    s390_vec_and(&tmp, v1, v2);
+    if (s390_vec_is_zero(&tmp)) {
+        /* Selected bits all zeros; or all mask bits zero */
+        env->cc_op = 0;
+    } else if (s390_vec_equal(&tmp, v2)) {
+        /* Selected bits all ones */
+        env->cc_op = 3;
+    } else {
+        /* Selected bits a mix of zeros and ones */
+        env->cc_op = 1;
+    }
+}
