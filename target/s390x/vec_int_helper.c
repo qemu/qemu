@@ -567,3 +567,19 @@ void HELPER(gvec_vsrl)(void *v1, const void *v2, uint64_t count,
 {
     s390_vec_shr(v1, v2, count);
 }
+
+#define DEF_VSCBI(BITS)                                                        \
+void HELPER(gvec_vscbi##BITS)(void *v1, const void *v2, const void *v3,        \
+                              uint32_t desc)                                   \
+{                                                                              \
+    int i;                                                                     \
+                                                                               \
+    for (i = 0; i < (128 / BITS); i++) {                                       \
+        const uint##BITS##_t a = s390_vec_read_element##BITS(v2, i);           \
+        const uint##BITS##_t b = s390_vec_read_element##BITS(v3, i);           \
+                                                                               \
+        s390_vec_write_element##BITS(v1, i, a < b);                            \
+    }                                                                          \
+}
+DEF_VSCBI(8)
+DEF_VSCBI(16)
