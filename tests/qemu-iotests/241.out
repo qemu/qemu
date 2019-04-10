@@ -10,13 +10,13 @@ QA output created by 241
 
 === Exporting unaligned raw image, forced server sector alignment ===
 
-WARNING: Image format was not specified for '/home/eblake/qemu/tests/qemu-iotests/scratch/t.raw' and probing guessed raw.
-         Automatically detecting the format is dangerous for raw images, write operations on block 0 will be restricted.
-         Specify the 'raw' format explicitly to remove the restrictions.
   size:  1024
   min block: 512
 [{ "start": 0, "length": 1024, "depth": 0, "zero": false, "data": true, "offset": OFFSET}]
 1 KiB (0x400) bytes     allocated at offset 0 bytes (0x0)
+WARNING: Image format was not specified for 'TEST_DIR/t.raw' and probing guessed raw.
+         Automatically detecting the format is dangerous for raw images, write operations on block 0 will be restricted.
+         Specify the 'raw' format explicitly to remove the restrictions.
 
 === Exporting unaligned raw image, forced client sector alignment ===
 

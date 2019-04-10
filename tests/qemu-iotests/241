@@ -28,6 +28,7 @@ nbd_unix_socket=$TEST_DIR/test_qemu_nbd_socket
 _cleanup()
 {
     _cleanup_test_img
+    rm -f "$TEST_DIR/server.log"
     nbd_server_stop
 }
 trap "_cleanup; exit \$status" 0 1 2 3 15
@@ -69,12 +70,13 @@ echo
 
 # Intentionally omit '-f' to force image probing, which in turn forces
 # sector alignment, here at the server.
-nbd_server_start_unix_socket "$TEST_IMG_FILE"
+nbd_server_start_unix_socket "$TEST_IMG_FILE" 2> "$TEST_DIR/server.log"
 
 $QEMU_NBD_PROG --list -k $nbd_unix_socket | grep '\(size\|min\)'
 $QEMU_IMG map -f raw --output=json "$TEST_IMG" | _filter_qemu_img_map
 $QEMU_IO -f raw -c map "$TEST_IMG"
 nbd_server_stop
+cat "$TEST_DIR/server.log" | _filter_testdir
 
 echo
 echo "=== Exporting unaligned raw image, forced client sector alignment ==="
