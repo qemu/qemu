@@ -1221,23 +1221,40 @@ static const char *dt_name_from_class(uint8_t class, uint8_t subclass,
  */
 
 static uint32_t drc_id_from_devfn(SpaprPhbState *phb,
-                                  uint32_t busnr,
-                                  int32_t devfn)
+                                  uint8_t chassis, int32_t devfn)
 {
-    return (phb->index << 16) | (busnr << 8) | devfn;
+    return (phb->index << 16) | (chassis << 8) | devfn;
 }
 
 static SpaprDrc *drc_from_devfn(SpaprPhbState *phb,
-                                uint32_t busnr, int32_t devfn)
+                                uint8_t chassis, int32_t devfn)
 {
     return spapr_drc_by_id(TYPE_SPAPR_DRC_PCI,
-                           drc_id_from_devfn(phb, busnr, devfn));
+                           drc_id_from_devfn(phb, chassis, devfn));
+}
+
+static uint8_t chassis_from_bus(PCIBus *bus, Error **errp)
+{
+    if (pci_bus_is_root(bus)) {
+        return 0;
+    } else {
+        PCIDevice *bridge = pci_bridge_get_device(bus);
+
+        return object_property_get_uint(OBJECT(bridge), "chassis_nr", errp);
+    }
 }
 
 static SpaprDrc *drc_from_dev(SpaprPhbState *phb, PCIDevice *dev)
 {
-    uint32_t busnr = pci_bus_num(PCI_BUS(qdev_get_parent_bus(DEVICE(dev))));
-    return drc_from_devfn(phb, busnr, dev->devfn);
+    Error *local_err = NULL;
+    uint8_t chassis = chassis_from_bus(pci_get_bus(dev), &local_err);
+
+    if (local_err) {
+        error_report_err(local_err);
+        return NULL;
+    }
+
+    return drc_from_devfn(phb, chassis, dev->devfn);
 }
 
 static void add_drcs(SpaprPhbState *phb)
@@ -1516,14 +1533,19 @@ static void spapr_pci_plug(HotplugHandler *plug_handler,
         spapr_drc_reset(drc);
     } else if (PCI_FUNC(pdev->devfn) == 0) {
         int i;
+        uint8_t chassis = chassis_from_bus(pci_get_bus(pdev), &local_err);
+
+        if (local_err) {
+            error_propagate(errp, local_err);
+            return;
+        }
 
         for (i = 0; i < 8; i++) {
             SpaprDrc *func_drc;
             SpaprDrcClass *func_drck;
             SpaprDREntitySense state;
 
-            func_drc = drc_from_devfn(phb, pci_bus_num(bus),
-                                      PCI_DEVFN(slotnr, i));
+            func_drc = drc_from_devfn(phb, chassis, PCI_DEVFN(slotnr, i));
             func_drck = SPAPR_DR_CONNECTOR_GET_CLASS(func_drc);
             state = func_drck->dr_entity_sense(func_drc);
 
@@ -1571,18 +1593,23 @@ static void spapr_pci_unplug_request(HotplugHandler *plug_handler,
     g_assert(drc->dev == plugged_dev);
 
     if (!spapr_drc_unplug_requested(drc)) {
-        PCIBus *bus = PCI_BUS(qdev_get_parent_bus(DEVICE(pdev)));
         uint32_t slotnr = PCI_SLOT(pdev->devfn);
         SpaprDrc *func_drc;
         SpaprDrcClass *func_drck;
         SpaprDREntitySense state;
         int i;
+        Error *local_err = NULL;
+        uint8_t chassis = chassis_from_bus(pci_get_bus(pdev), &local_err);
+
+        if (local_err) {
+            error_propagate(errp, local_err);
+            return;
+        }
 
         /* ensure any other present functions are pending unplug */
         if (PCI_FUNC(pdev->devfn) == 0) {
             for (i = 1; i < 8; i++) {
-                func_drc = drc_from_devfn(phb, pci_bus_num(bus),
-                                          PCI_DEVFN(slotnr, i));
+                func_drc = drc_from_devfn(phb, chassis, PCI_DEVFN(slotnr, i));
                 func_drck = SPAPR_DR_CONNECTOR_GET_CLASS(func_drc);
                 state = func_drck->dr_entity_sense(func_drc);
                 if (state == SPAPR_DR_ENTITY_SENSE_PRESENT
@@ -1603,8 +1630,7 @@ static void spapr_pci_unplug_request(HotplugHandler *plug_handler,
          */
         if (PCI_FUNC(pdev->devfn) == 0) {
             for (i = 7; i >= 0; i--) {
-                func_drc = drc_from_devfn(phb, pci_bus_num(bus),
-                                          PCI_DEVFN(slotnr, i));
+                func_drc = drc_from_devfn(phb, chassis, PCI_DEVFN(slotnr, i));
                 func_drck = SPAPR_DR_CONNECTOR_GET_CLASS(func_drc);
                 state = func_drck->dr_entity_sense(func_drc);
                 if (state == SPAPR_DR_ENTITY_SENSE_PRESENT) {
