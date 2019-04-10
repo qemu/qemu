@@ -196,6 +196,41 @@ static void gen_gvec128_3_i64(gen_gvec128_3_i64_fn fn, uint8_t d, uint8_t a,
         tcg_temp_free_i64(bl);
 }
 
+typedef void (*gen_gvec128_4_i64_fn)(TCGv_i64 dl, TCGv_i64 dh, TCGv_i64 al,
+                                     TCGv_i64 ah, TCGv_i64 bl, TCGv_i64 bh,
+                                     TCGv_i64 cl, TCGv_i64 ch);
+static void gen_gvec128_4_i64(gen_gvec128_4_i64_fn fn, uint8_t d, uint8_t a,
+                              uint8_t b, uint8_t c)
+{
+        TCGv_i64 dh = tcg_temp_new_i64();
+        TCGv_i64 dl = tcg_temp_new_i64();
+        TCGv_i64 ah = tcg_temp_new_i64();
+        TCGv_i64 al = tcg_temp_new_i64();
+        TCGv_i64 bh = tcg_temp_new_i64();
+        TCGv_i64 bl = tcg_temp_new_i64();
+        TCGv_i64 ch = tcg_temp_new_i64();
+        TCGv_i64 cl = tcg_temp_new_i64();
+
+        read_vec_element_i64(ah, a, 0, ES_64);
+        read_vec_element_i64(al, a, 1, ES_64);
+        read_vec_element_i64(bh, b, 0, ES_64);
+        read_vec_element_i64(bl, b, 1, ES_64);
+        read_vec_element_i64(ch, c, 0, ES_64);
+        read_vec_element_i64(cl, c, 1, ES_64);
+        fn(dl, dh, al, ah, bl, bh, cl, ch);
+        write_vec_element_i64(dh, d, 0, ES_64);
+        write_vec_element_i64(dl, d, 1, ES_64);
+
+        tcg_temp_free_i64(dh);
+        tcg_temp_free_i64(dl);
+        tcg_temp_free_i64(ah);
+        tcg_temp_free_i64(al);
+        tcg_temp_free_i64(bh);
+        tcg_temp_free_i64(bl);
+        tcg_temp_free_i64(ch);
+        tcg_temp_free_i64(cl);
+}
+
 static void gen_gvec_dupi(uint8_t es, uint8_t reg, uint64_t c)
 {
     switch (es) {
@@ -1081,5 +1116,33 @@ static DisasJumpType op_vacc(DisasContext *s, DisasOps *o)
     }
     gen_gvec_3(get_field(s->fields, v1), get_field(s->fields, v2),
                get_field(s->fields, v3), &g[es]);
+    return DISAS_NEXT;
+}
+
+static void gen_ac2_i64(TCGv_i64 dl, TCGv_i64 dh, TCGv_i64 al, TCGv_i64 ah,
+                        TCGv_i64 bl, TCGv_i64 bh, TCGv_i64 cl, TCGv_i64 ch)
+{
+    TCGv_i64 tl = tcg_temp_new_i64();
+    TCGv_i64 th = tcg_const_i64(0);
+
+    /* extract the carry only */
+    tcg_gen_extract_i64(tl, cl, 0, 1);
+    tcg_gen_add2_i64(dl, dh, al, ah, bl, bh);
+    tcg_gen_add2_i64(dl, dh, dl, dh, tl, th);
+
+    tcg_temp_free_i64(tl);
+    tcg_temp_free_i64(th);
+}
+
+static DisasJumpType op_vac(DisasContext *s, DisasOps *o)
+{
+    if (get_field(s->fields, m5) != ES_128) {
+        gen_program_exception(s, PGM_SPECIFICATION);
+        return DISAS_NORETURN;
+    }
+
+    gen_gvec128_4_i64(gen_ac2_i64, get_field(s->fields, v1),
+                      get_field(s->fields, v2), get_field(s->fields, v3),
+                      get_field(s->fields, v4));
     return DISAS_NEXT;
 }
