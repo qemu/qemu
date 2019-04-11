@@ -1537,3 +1537,16 @@ static DisasJumpType op_vlc(DisasContext *s, DisasOps *o)
     gen_gvec_fn_2(neg, es, get_field(s->fields, v1), get_field(s->fields, v2));
     return DISAS_NEXT;
 }
+
+static DisasJumpType op_vlp(DisasContext *s, DisasOps *o)
+{
+    const uint8_t es = get_field(s->fields, m3);
+
+    if (es > ES_64) {
+        gen_program_exception(s, PGM_SPECIFICATION);
+        return DISAS_NORETURN;
+    }
+
+    gen_gvec_fn_2(abs, es, get_field(s->fields, v1), get_field(s->fields, v2));
+    return DISAS_NEXT;
+}
