@@ -464,3 +464,17 @@ void HELPER(gvec_vmlo##BITS)(void *v1, const void *v2, const void *v3,         \
 DEF_VMLO(8, 16)
 DEF_VMLO(16, 32)
 DEF_VMLO(32, 64)
+
+#define DEF_VPOPCT(BITS)                                                       \
+void HELPER(gvec_vpopct##BITS)(void *v1, const void *v2, uint32_t desc)        \
+{                                                                              \
+    int i;                                                                     \
+                                                                               \
+    for (i = 0; i < (128 / BITS); i++) {                                       \
+        const uint##BITS##_t a = s390_vec_read_element##BITS(v2, i);           \
+                                                                               \
+        s390_vec_write_element##BITS(v1, i, ctpop32(a));                       \
+    }                                                                          \
+}
+DEF_VPOPCT(8)
+DEF_VPOPCT(16)

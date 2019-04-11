@@ -1826,3 +1826,22 @@ static DisasJumpType op_voc(DisasContext *s, DisasOps *o)
                   get_field(s->fields, v3));
     return DISAS_NEXT;
 }
+
+static DisasJumpType op_vpopct(DisasContext *s, DisasOps *o)
+{
+    const uint8_t es = get_field(s->fields, m3);
+    static const GVecGen2 g[4] = {
+        { .fno = gen_helper_gvec_vpopct8, },
+        { .fno = gen_helper_gvec_vpopct16, },
+        { .fni4 = tcg_gen_ctpop_i32, },
+        { .fni8 = tcg_gen_ctpop_i64, },
+    };
+
+    if (es > ES_64 || (es != ES_8 && !s390_has_feat(S390_FEAT_VECTOR_ENH))) {
+        gen_program_exception(s, PGM_SPECIFICATION);
+        return DISAS_NORETURN;
+    }
+
+    gen_gvec_2(get_field(s->fields, v1), get_field(s->fields, v2), &g[es]);
+    return DISAS_NEXT;
+}
