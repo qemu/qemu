@@ -1581,3 +1581,125 @@ static DisasJumpType op_vmx(DisasContext *s, DisasOps *o)
     }
     return DISAS_NEXT;
 }
+
+static void gen_mal_i32(TCGv_i32 d, TCGv_i32 a, TCGv_i32 b, TCGv_i32 c)
+{
+    TCGv_i32 t0 = tcg_temp_new_i32();
+
+    tcg_gen_mul_i32(t0, a, b);
+    tcg_gen_add_i32(d, t0, c);
+
+    tcg_temp_free_i32(t0);
+}
+
+static void gen_mah_i32(TCGv_i32 d, TCGv_i32 a, TCGv_i32 b, TCGv_i32 c)
+{
+    TCGv_i64 t0 = tcg_temp_new_i64();
+    TCGv_i64 t1 = tcg_temp_new_i64();
+    TCGv_i64 t2 = tcg_temp_new_i64();
+
+    tcg_gen_ext_i32_i64(t0, a);
+    tcg_gen_ext_i32_i64(t1, b);
+    tcg_gen_ext_i32_i64(t2, c);
+    tcg_gen_mul_i64(t0, t0, t1);
+    tcg_gen_add_i64(t0, t0, t2);
+    tcg_gen_extrh_i64_i32(d, t0);
+
+    tcg_temp_free(t0);
+    tcg_temp_free(t1);
+    tcg_temp_free(t2);
+}
+
+static void gen_malh_i32(TCGv_i32 d, TCGv_i32 a, TCGv_i32 b, TCGv_i32 c)
+{
+    TCGv_i64 t0 = tcg_temp_new_i64();
+    TCGv_i64 t1 = tcg_temp_new_i64();
+    TCGv_i64 t2 = tcg_temp_new_i64();
+
+    tcg_gen_extu_i32_i64(t0, a);
+    tcg_gen_extu_i32_i64(t1, b);
+    tcg_gen_extu_i32_i64(t2, c);
+    tcg_gen_mul_i64(t0, t0, t1);
+    tcg_gen_add_i64(t0, t0, t2);
+    tcg_gen_extrh_i64_i32(d, t0);
+
+    tcg_temp_free(t0);
+    tcg_temp_free(t1);
+    tcg_temp_free(t2);
+}
+
+static DisasJumpType op_vma(DisasContext *s, DisasOps *o)
+{
+    const uint8_t es = get_field(s->fields, m5);
+    static const GVecGen4 g_vmal[3] = {
+        { .fno = gen_helper_gvec_vmal8, },
+        { .fno = gen_helper_gvec_vmal16, },
+        { .fni4 = gen_mal_i32, },
+    };
+    static const GVecGen4 g_vmah[3] = {
+        { .fno = gen_helper_gvec_vmah8, },
+        { .fno = gen_helper_gvec_vmah16, },
+        { .fni4 = gen_mah_i32, },
+    };
+    static const GVecGen4 g_vmalh[3] = {
+        { .fno = gen_helper_gvec_vmalh8, },
+        { .fno = gen_helper_gvec_vmalh16, },
+        { .fni4 = gen_malh_i32, },
+    };
+    static const GVecGen4 g_vmae[3] = {
+        { .fno = gen_helper_gvec_vmae8, },
+        { .fno = gen_helper_gvec_vmae16, },
+        { .fno = gen_helper_gvec_vmae32, },
+    };
+    static const GVecGen4 g_vmale[3] = {
+        { .fno = gen_helper_gvec_vmale8, },
+        { .fno = gen_helper_gvec_vmale16, },
+        { .fno = gen_helper_gvec_vmale32, },
+    };
+    static const GVecGen4 g_vmao[3] = {
+        { .fno = gen_helper_gvec_vmao8, },
+        { .fno = gen_helper_gvec_vmao16, },
+        { .fno = gen_helper_gvec_vmao32, },
+    };
+    static const GVecGen4 g_vmalo[3] = {
+        { .fno = gen_helper_gvec_vmalo8, },
+        { .fno = gen_helper_gvec_vmalo16, },
+        { .fno = gen_helper_gvec_vmalo32, },
+    };
+    const GVecGen4 *fn;
+
+    if (es > ES_32) {
+        gen_program_exception(s, PGM_SPECIFICATION);
+        return DISAS_NORETURN;
+    }
+
+    switch (s->fields->op2) {
+    case 0xaa:
+        fn = &g_vmal[es];
+        break;
+    case 0xab:
+        fn = &g_vmah[es];
+        break;
+    case 0xa9:
+        fn = &g_vmalh[es];
+        break;
+    case 0xae:
+        fn = &g_vmae[es];
+        break;
+    case 0xac:
+        fn = &g_vmale[es];
+        break;
+    case 0xaf:
+        fn = &g_vmao[es];
+        break;
+    case 0xad:
+        fn = &g_vmalo[es];
+        break;
+    default:
+        g_assert_not_reached();
+    }
+
+    gen_gvec_4(get_field(s->fields, v1), get_field(s->fields, v2),
+               get_field(s->fields, v3), get_field(s->fields, v4), fn);
+    return DISAS_NEXT;
+}
