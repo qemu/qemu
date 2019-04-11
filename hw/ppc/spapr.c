@@ -1520,10 +1520,10 @@ static void spapr_unmap_hptes(PPCVirtualHypervisor *vhyp,
     /* Nothing to do for qemu managed HPT */
 }
 
-static void spapr_store_hpte(PPCVirtualHypervisor *vhyp, hwaddr ptex,
-                             uint64_t pte0, uint64_t pte1)
+void spapr_store_hpte(PowerPCCPU *cpu, hwaddr ptex,
+                      uint64_t pte0, uint64_t pte1)
 {
-    SpaprMachineState *spapr = SPAPR_MACHINE(vhyp);
+    SpaprMachineState *spapr = SPAPR_MACHINE(cpu->vhyp);
     hwaddr offset = ptex * HASH_PTE_SIZE_64;
 
     if (!spapr->htab) {
@@ -1549,6 +1549,38 @@ static void spapr_store_hpte(PPCVirtualHypervisor *vhyp, hwaddr ptex,
             stq_p(spapr->htab + offset + HASH_PTE_SIZE_64 / 2, pte1);
         }
     }
+}
+
+static void spapr_hpte_set_c(PPCVirtualHypervisor *vhyp, hwaddr ptex,
+                             uint64_t pte1)
+{
+    hwaddr offset = ptex * HASH_PTE_SIZE_64 + 15;
+    SpaprMachineState *spapr = SPAPR_MACHINE(vhyp);
+
+    if (!spapr->htab) {
+        /* There should always be a hash table when this is called */
+        error_report("spapr_hpte_set_c called with no hash table !");
+        return;
+    }
+
+    /* The HW performs a non-atomic byte update */
+    stb_p(spapr->htab + offset, (pte1 & 0xff) | 0x80);
+}
+
+static void spapr_hpte_set_r(PPCVirtualHypervisor *vhyp, hwaddr ptex,
+                             uint64_t pte1)
+{
+    hwaddr offset = ptex * HASH_PTE_SIZE_64 + 14;
+    SpaprMachineState *spapr = SPAPR_MACHINE(vhyp);
+
+    if (!spapr->htab) {
+        /* There should always be a hash table when this is called */
+        error_report("spapr_hpte_set_r called with no hash table !");
+        return;
+    }
+
+    /* The HW performs a non-atomic byte update */
+    stb_p(spapr->htab + offset, ((pte1 >> 8) & 0xff) | 0x01);
 }
 
 int spapr_hpt_shift_for_ramsize(uint64_t ramsize)
@@ -4291,7 +4323,8 @@ static void spapr_machine_class_init(ObjectClass *oc, void *data)
     vhc->hpt_mask = spapr_hpt_mask;
     vhc->map_hptes = spapr_map_hptes;
     vhc->unmap_hptes = spapr_unmap_hptes;
-    vhc->store_hpte = spapr_store_hpte;
+    vhc->hpte_set_c = spapr_hpte_set_c;
+    vhc->hpte_set_r = spapr_hpte_set_r;
     vhc->get_pate = spapr_get_pate;
     vhc->encode_hpt_for_kvm_pr = spapr_encode_hpt_for_kvm_pr;
     xic->ics_get = spapr_ics_get;

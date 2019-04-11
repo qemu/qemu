@@ -725,6 +725,39 @@ static void ppc_hash64_set_dsi(CPUState *cs, uint64_t dar, uint64_t dsisr)
 }
 
 
+static void ppc_hash64_set_r(PowerPCCPU *cpu, hwaddr ptex, uint64_t pte1)
+{
+    hwaddr base, offset = ptex * HASH_PTE_SIZE_64 + 16;
+
+    if (cpu->vhyp) {
+        PPCVirtualHypervisorClass *vhc =
+            PPC_VIRTUAL_HYPERVISOR_GET_CLASS(cpu->vhyp);
+        vhc->hpte_set_r(cpu->vhyp, ptex, pte1);
+        return;
+    }
+    base = ppc_hash64_hpt_base(cpu);
+
+
+    /* The HW performs a non-atomic byte update */
+    stb_phys(CPU(cpu)->as, base + offset, ((pte1 >> 8) & 0xff) | 0x01);
+}
+
+static void ppc_hash64_set_c(PowerPCCPU *cpu, hwaddr ptex, uint64_t pte1)
+{
+    hwaddr base, offset = ptex * HASH_PTE_SIZE_64 + 15;
+
+    if (cpu->vhyp) {
+        PPCVirtualHypervisorClass *vhc =
+            PPC_VIRTUAL_HYPERVISOR_GET_CLASS(cpu->vhyp);
+        vhc->hpte_set_c(cpu->vhyp, ptex, pte1);
+        return;
+    }
+    base = ppc_hash64_hpt_base(cpu);
+
+    /* The HW performs a non-atomic byte update */
+    stb_phys(CPU(cpu)->as, base + offset, (pte1 & 0xff) | 0x80);
+}
+
 int ppc_hash64_handle_mmu_fault(PowerPCCPU *cpu, vaddr eaddr,
                                 int rwx, int mmu_idx)
 {
@@ -735,7 +768,6 @@ int ppc_hash64_handle_mmu_fault(PowerPCCPU *cpu, vaddr eaddr,
     hwaddr ptex;
     ppc_hash_pte64_t pte;
     int exec_prot, pp_prot, amr_prot, prot;
-    uint64_t new_pte1;
     const int need_prot[] = {PAGE_READ, PAGE_WRITE, PAGE_EXEC};
     hwaddr raddr;
 
@@ -883,19 +915,19 @@ skip_slb_search:
 
     /* 6. Update PTE referenced and changed bits if necessary */
 
-    new_pte1 = pte.pte1 | HPTE64_R_R; /* set referenced bit */
-    if (rwx == 1) {
-        new_pte1 |= HPTE64_R_C; /* set changed (dirty) bit */
-    } else {
-        /*
-         * Treat the page as read-only for now, so that a later write
-         * will pass through this function again to set the C bit
-         */
-        prot &= ~PAGE_WRITE;
+    if (!(pte.pte1 & HPTE64_R_R)) {
+        ppc_hash64_set_r(cpu, ptex, pte.pte1);
     }
-
-    if (new_pte1 != pte.pte1) {
-        ppc_hash64_store_hpte(cpu, ptex, pte.pte0, new_pte1);
+    if (!(pte.pte1 & HPTE64_R_C)) {
+        if (rwx == 1) {
+            ppc_hash64_set_c(cpu, ptex, pte.pte1);
+        } else {
+            /*
+             * Treat the page as read-only for now, so that a later write
+             * will pass through this function again to set the C bit
+             */
+            prot &= ~PAGE_WRITE;
+        }
     }
 
     /* 7. Determine the real address from the PTE */
@@ -952,24 +984,6 @@ hwaddr ppc_hash64_get_phys_page_debug(PowerPCCPU *cpu, target_ulong addr)
 
     return deposit64(pte.pte1 & HPTE64_R_RPN, 0, apshift, addr)
         & TARGET_PAGE_MASK;
-}
-
-void ppc_hash64_store_hpte(PowerPCCPU *cpu, hwaddr ptex,
-                           uint64_t pte0, uint64_t pte1)
-{
-    hwaddr base;
-    hwaddr offset = ptex * HASH_PTE_SIZE_64;
-
-    if (cpu->vhyp) {
-        PPCVirtualHypervisorClass *vhc =
-            PPC_VIRTUAL_HYPERVISOR_GET_CLASS(cpu->vhyp);
-        vhc->store_hpte(cpu->vhyp, ptex, pte0, pte1);
-        return;
-    }
-    base = ppc_hash64_hpt_base(cpu);
-
-    stq_phys(CPU(cpu)->as, base + offset, pte0);
-    stq_phys(CPU(cpu)->as, base + offset + HASH_PTE_SIZE_64 / 2, pte1);
 }
 
 void ppc_hash64_tlb_flush_hpte(PowerPCCPU *cpu, target_ulong ptex,

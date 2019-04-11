@@ -118,7 +118,7 @@ static target_ulong h_enter(PowerPCCPU *cpu, SpaprMachineState *spapr,
         ppc_hash64_unmap_hptes(cpu, hptes, ptex, 1);
     }
 
-    ppc_hash64_store_hpte(cpu, ptex + slot, pteh | HPTE64_V_HPTE_DIRTY, ptel);
+    spapr_store_hpte(cpu, ptex + slot, pteh | HPTE64_V_HPTE_DIRTY, ptel);
 
     args[0] = ptex + slot;
     return H_SUCCESS;
@@ -131,7 +131,8 @@ typedef enum {
     REMOVE_HW = 3,
 } RemoveResult;
 
-static RemoveResult remove_hpte(PowerPCCPU *cpu, target_ulong ptex,
+static RemoveResult remove_hpte(PowerPCCPU *cpu
+                                , target_ulong ptex,
                                 target_ulong avpn,
                                 target_ulong flags,
                                 target_ulong *vp, target_ulong *rp)
@@ -155,7 +156,7 @@ static RemoveResult remove_hpte(PowerPCCPU *cpu, target_ulong ptex,
     }
     *vp = v;
     *rp = r;
-    ppc_hash64_store_hpte(cpu, ptex, HPTE64_V_HPTE_DIRTY, 0);
+    spapr_store_hpte(cpu, ptex, HPTE64_V_HPTE_DIRTY, 0);
     ppc_hash64_tlb_flush_hpte(cpu, ptex, v, r);
     return REMOVE_SUCCESS;
 }
@@ -289,13 +290,13 @@ static target_ulong h_protect(PowerPCCPU *cpu, SpaprMachineState *spapr,
     r |= (flags << 55) & HPTE64_R_PP0;
     r |= (flags << 48) & HPTE64_R_KEY_HI;
     r |= flags & (HPTE64_R_PP | HPTE64_R_N | HPTE64_R_KEY_LO);
-    ppc_hash64_store_hpte(cpu, ptex,
-                          (v & ~HPTE64_V_VALID) | HPTE64_V_HPTE_DIRTY, 0);
+    spapr_store_hpte(cpu, ptex,
+                     (v & ~HPTE64_V_VALID) | HPTE64_V_HPTE_DIRTY, 0);
     ppc_hash64_tlb_flush_hpte(cpu, ptex, v, r);
     /* Flush the tlb */
     check_tlb_flush(env, true);
     /* Don't need a memory barrier, due to qemu's global lock */
-    ppc_hash64_store_hpte(cpu, ptex, v | HPTE64_V_HPTE_DIRTY, r);
+    spapr_store_hpte(cpu, ptex, v | HPTE64_V_HPTE_DIRTY, r);
     return H_SUCCESS;
 }
 

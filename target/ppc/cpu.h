@@ -1265,8 +1265,8 @@ struct PPCVirtualHypervisorClass {
     void (*unmap_hptes)(PPCVirtualHypervisor *vhyp,
                         const ppc_hash_pte64_t *hptes,
                         hwaddr ptex, int n);
-    void (*store_hpte)(PPCVirtualHypervisor *vhyp, hwaddr ptex,
-                       uint64_t pte0, uint64_t pte1);
+    void (*hpte_set_c)(PPCVirtualHypervisor *vhyp, hwaddr ptex, uint64_t pte1);
+    void (*hpte_set_r)(PPCVirtualHypervisor *vhyp, hwaddr ptex, uint64_t pte1);
     void (*get_pate)(PPCVirtualHypervisor *vhyp, ppc_v3_pate_t *entry);
     target_ulong (*encode_hpt_for_kvm_pr)(PPCVirtualHypervisor *vhyp);
 };
