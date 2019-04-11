@@ -1476,3 +1476,10 @@ static DisasJumpType op_vctz(DisasContext *s, DisasOps *o)
     gen_gvec_2(get_field(s->fields, v1), get_field(s->fields, v2), &g[es]);
     return DISAS_NEXT;
 }
+
+static DisasJumpType op_vx(DisasContext *s, DisasOps *o)
+{
+    gen_gvec_fn_3(xor, ES_8, get_field(s->fields, v1), get_field(s->fields, v2),
+                 get_field(s->fields, v3));
+    return DISAS_NEXT;
+}
