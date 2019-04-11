@@ -228,10 +228,10 @@ int ppc_radix64_handle_mmu_fault(PowerPCCPU *cpu, vaddr eaddr, int rwx,
     ppc_v3_pate_t pate;
 
     assert((rwx == 0) || (rwx == 1) || (rwx == 2));
-    assert(ppc64_use_proc_tbl(cpu));
 
-    /* Real Mode Access */
-    if (((rwx == 2) && (msr_ir == 0)) || ((rwx != 2) && (msr_dr == 0))) {
+    /* HV or virtual hypervisor Real Mode Access */
+    if ((msr_hv || cpu->vhyp) &&
+        (((rwx == 2) && (msr_ir == 0)) || ((rwx != 2) && (msr_dr == 0)))) {
         /* In real mode top 4 effective addr bits (mostly) ignored */
         raddr = eaddr & 0x0FFFFFFFFFFFFFFFULL;
 
@@ -239,6 +239,16 @@ int ppc_radix64_handle_mmu_fault(PowerPCCPU *cpu, vaddr eaddr, int rwx,
                      PAGE_READ | PAGE_WRITE | PAGE_EXEC, mmu_idx,
                      TARGET_PAGE_SIZE);
         return 0;
+    }
+
+    /*
+     * Check UPRT (we avoid the check in real mode to deal with
+     * transitional states during kexec.
+     */
+    if (!ppc64_use_proc_tbl(cpu)) {
+        qemu_log_mask(LOG_GUEST_ERROR,
+                      "LPCR:UPRT not set in radix mode ! LPCR="
+                      TARGET_FMT_lx "\n", env->spr[SPR_LPCR]);
     }
 
     /* Virtual Mode Access - get the fully qualified address */
