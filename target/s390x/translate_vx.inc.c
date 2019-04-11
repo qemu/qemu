@@ -1819,3 +1819,10 @@ static DisasJumpType op_vo(DisasContext *s, DisasOps *o)
                   get_field(s->fields, v3));
     return DISAS_NEXT;
 }
+
+static DisasJumpType op_voc(DisasContext *s, DisasOps *o)
+{
+    gen_gvec_fn_3(orc, ES_8, get_field(s->fields, v1), get_field(s->fields, v2),
+                  get_field(s->fields, v3));
+    return DISAS_NEXT;
+}
