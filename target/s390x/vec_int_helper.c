@@ -364,3 +364,103 @@ void HELPER(gvec_vmalo##BITS)(void *v1, const void *v2, const void *v3,        \
 DEF_VMALO(8, 16)
 DEF_VMALO(16, 32)
 DEF_VMALO(32, 64)
+
+#define DEF_VMH(BITS)                                                          \
+void HELPER(gvec_vmh##BITS)(void *v1, const void *v2, const void *v3,          \
+                            uint32_t desc)                                     \
+{                                                                              \
+    int i;                                                                     \
+                                                                               \
+    for (i = 0; i < (128 / BITS); i++) {                                       \
+        const int32_t a = (int##BITS##_t)s390_vec_read_element##BITS(v2, i);   \
+        const int32_t b = (int##BITS##_t)s390_vec_read_element##BITS(v3, i);   \
+                                                                               \
+        s390_vec_write_element##BITS(v1, i, (a * b) >> BITS);                  \
+    }                                                                          \
+}
+DEF_VMH(8)
+DEF_VMH(16)
+
+#define DEF_VMLH(BITS)                                                         \
+void HELPER(gvec_vmlh##BITS)(void *v1, const void *v2, const void *v3,         \
+                             uint32_t desc)                                    \
+{                                                                              \
+    int i;                                                                     \
+                                                                               \
+    for (i = 0; i < (128 / BITS); i++) {                                       \
+        const uint##BITS##_t a = s390_vec_read_element##BITS(v2, i);           \
+        const uint##BITS##_t b = s390_vec_read_element##BITS(v3, i);           \
+                                                                               \
+        s390_vec_write_element##BITS(v1, i, (a * b) >> BITS);                  \
+    }                                                                          \
+}
+DEF_VMLH(8)
+DEF_VMLH(16)
+
+#define DEF_VME(BITS, TBITS)                                                   \
+void HELPER(gvec_vme##BITS)(void *v1, const void *v2, const void *v3,          \
+                            uint32_t desc)                                     \
+{                                                                              \
+    int i, j;                                                                  \
+                                                                               \
+    for (i = 0, j = 0; i < (128 / TBITS); i++, j += 2) {                       \
+        int##TBITS##_t a = (int##BITS##_t)s390_vec_read_element##BITS(v2, j);  \
+        int##TBITS##_t b = (int##BITS##_t)s390_vec_read_element##BITS(v3, j);  \
+                                                                               \
+        s390_vec_write_element##TBITS(v1, i, a * b);                           \
+    }                                                                          \
+}
+DEF_VME(8, 16)
+DEF_VME(16, 32)
+DEF_VME(32, 64)
+
+#define DEF_VMLE(BITS, TBITS)                                                  \
+void HELPER(gvec_vmle##BITS)(void *v1, const void *v2, const void *v3,         \
+                             uint32_t desc)                                    \
+{                                                                              \
+    int i, j;                                                                  \
+                                                                               \
+    for (i = 0, j = 0; i < (128 / TBITS); i++, j += 2) {                       \
+        const uint##TBITS##_t a = s390_vec_read_element##BITS(v2, j);          \
+        const uint##TBITS##_t b = s390_vec_read_element##BITS(v3, j);          \
+                                                                               \
+        s390_vec_write_element##TBITS(v1, i, a * b);                           \
+    }                                                                          \
+}
+DEF_VMLE(8, 16)
+DEF_VMLE(16, 32)
+DEF_VMLE(32, 64)
+
+#define DEF_VMO(BITS, TBITS)                                                   \
+void HELPER(gvec_vmo##BITS)(void *v1, const void *v2, const void *v3,          \
+                            uint32_t desc)                                     \
+{                                                                              \
+    int i, j;                                                                  \
+                                                                               \
+    for (i = 0, j = 1; i < (128 / TBITS); i++, j += 2) {                       \
+        int##TBITS##_t a = (int##BITS##_t)s390_vec_read_element##BITS(v2, j);  \
+        int##TBITS##_t b = (int##BITS##_t)s390_vec_read_element##BITS(v3, j);  \
+                                                                               \
+        s390_vec_write_element##TBITS(v1, i, a * b);                           \
+    }                                                                          \
+}
+DEF_VMO(8, 16)
+DEF_VMO(16, 32)
+DEF_VMO(32, 64)
+
+#define DEF_VMLO(BITS, TBITS)                                                  \
+void HELPER(gvec_vmlo##BITS)(void *v1, const void *v2, const void *v3,         \
+                             uint32_t desc)                                    \
+{                                                                              \
+    int i, j;                                                                  \
+                                                                               \
+    for (i = 0, j = 0; i < (128 / TBITS); i++, j += 2) {                       \
+        const uint##TBITS##_t a = s390_vec_read_element##BITS(v2, j);          \
+        const uint##TBITS##_t b = s390_vec_read_element##BITS(v3, j);          \
+                                                                               \
+        s390_vec_write_element##TBITS(v1, i, a * b);                           \
+    }                                                                          \
+}
+DEF_VMLO(8, 16)
+DEF_VMLO(16, 32)
+DEF_VMLO(32, 64)

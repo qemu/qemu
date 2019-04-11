@@ -1703,3 +1703,91 @@ static DisasJumpType op_vma(DisasContext *s, DisasOps *o)
                get_field(s->fields, v3), get_field(s->fields, v4), fn);
     return DISAS_NEXT;
 }
+
+static void gen_mh_i32(TCGv_i32 d, TCGv_i32 a, TCGv_i32 b)
+{
+    TCGv_i32 t = tcg_temp_new_i32();
+
+    tcg_gen_muls2_i32(t, d, a, b);
+    tcg_temp_free_i32(t);
+}
+
+static void gen_mlh_i32(TCGv_i32 d, TCGv_i32 a, TCGv_i32 b)
+{
+    TCGv_i32 t = tcg_temp_new_i32();
+
+    tcg_gen_mulu2_i32(t, d, a, b);
+    tcg_temp_free_i32(t);
+}
+
+static DisasJumpType op_vm(DisasContext *s, DisasOps *o)
+{
+    const uint8_t es = get_field(s->fields, m4);
+    static const GVecGen3 g_vmh[3] = {
+        { .fno = gen_helper_gvec_vmh8, },
+        { .fno = gen_helper_gvec_vmh16, },
+        { .fni4 = gen_mh_i32, },
+    };
+    static const GVecGen3 g_vmlh[3] = {
+        { .fno = gen_helper_gvec_vmlh8, },
+        { .fno = gen_helper_gvec_vmlh16, },
+        { .fni4 = gen_mlh_i32, },
+    };
+    static const GVecGen3 g_vme[3] = {
+        { .fno = gen_helper_gvec_vme8, },
+        { .fno = gen_helper_gvec_vme16, },
+        { .fno = gen_helper_gvec_vme32, },
+    };
+    static const GVecGen3 g_vmle[3] = {
+        { .fno = gen_helper_gvec_vmle8, },
+        { .fno = gen_helper_gvec_vmle16, },
+        { .fno = gen_helper_gvec_vmle32, },
+    };
+    static const GVecGen3 g_vmo[3] = {
+        { .fno = gen_helper_gvec_vmo8, },
+        { .fno = gen_helper_gvec_vmo16, },
+        { .fno = gen_helper_gvec_vmo32, },
+    };
+    static const GVecGen3 g_vmlo[3] = {
+        { .fno = gen_helper_gvec_vmlo8, },
+        { .fno = gen_helper_gvec_vmlo16, },
+        { .fno = gen_helper_gvec_vmlo32, },
+    };
+    const GVecGen3 *fn;
+
+    if (es > ES_32) {
+        gen_program_exception(s, PGM_SPECIFICATION);
+        return DISAS_NORETURN;
+    }
+
+    switch (s->fields->op2) {
+    case 0xa2:
+        gen_gvec_fn_3(mul, es, get_field(s->fields, v1),
+                      get_field(s->fields, v2), get_field(s->fields, v3));
+        return DISAS_NEXT;
+    case 0xa3:
+        fn = &g_vmh[es];
+        break;
+    case 0xa1:
+        fn = &g_vmlh[es];
+        break;
+    case 0xa6:
+        fn = &g_vme[es];
+        break;
+    case 0xa4:
+        fn = &g_vmle[es];
+        break;
+    case 0xa7:
+        fn = &g_vmo[es];
+        break;
+    case 0xa5:
+        fn = &g_vmlo[es];
+        break;
+    default:
+        g_assert_not_reached();
+    }
+
+    gen_gvec_3(get_field(s->fields, v1), get_field(s->fields, v2),
+               get_field(s->fields, v3), fn);
+    return DISAS_NEXT;
+}
