@@ -197,6 +197,9 @@ static void get_vec_element_ptr_i64(TCGv_ptr ptr, uint8_t reg, TCGv_i64 enr,
 #define gen_gvec_3_ptr(v1, v2, v3, ptr, data, fn) \
     tcg_gen_gvec_3_ptr(vec_full_reg_offset(v1), vec_full_reg_offset(v2), \
                        vec_full_reg_offset(v3), ptr, 16, 16, data, fn)
+#define gen_gvec_3i(v1, v2, v3, c, gen) \
+    tcg_gen_gvec_3i(vec_full_reg_offset(v1), vec_full_reg_offset(v2), \
+                    vec_full_reg_offset(v3), c, 16, 16, gen)
 #define gen_gvec_4(v1, v2, v3, v4, gen) \
     tcg_gen_gvec_4(vec_full_reg_offset(v1), vec_full_reg_offset(v2), \
                    vec_full_reg_offset(v3), vec_full_reg_offset(v4), \
@@ -1903,5 +1906,53 @@ static DisasJumpType op_verll(DisasContext *s, DisasOps *o)
     }
     gen_gvec_2s(get_field(s->fields, v1), get_field(s->fields, v3), o->addr1,
                 &g[es]);
+    return DISAS_NEXT;
+}
+
+static void gen_rim_i32(TCGv_i32 d, TCGv_i32 a, TCGv_i32 b, int32_t c)
+{
+    TCGv_i32 t = tcg_temp_new_i32();
+
+    tcg_gen_rotli_i32(t, a, c & 31);
+    tcg_gen_and_i32(t, t, b);
+    tcg_gen_andc_i32(d, d, b);
+    tcg_gen_or_i32(d, d, t);
+
+    tcg_temp_free_i32(t);
+}
+
+static void gen_rim_i64(TCGv_i64 d, TCGv_i64 a, TCGv_i64 b, int64_t c)
+{
+    TCGv_i64 t = tcg_temp_new_i64();
+
+    tcg_gen_rotli_i64(t, a, c & 63);
+    tcg_gen_and_i64(t, t, b);
+    tcg_gen_andc_i64(d, d, b);
+    tcg_gen_or_i64(d, d, t);
+
+    tcg_temp_free_i64(t);
+}
+
+static DisasJumpType op_verim(DisasContext *s, DisasOps *o)
+{
+    const uint8_t es = get_field(s->fields, m5);
+    const uint8_t i4 = get_field(s->fields, i4) &
+                       (NUM_VEC_ELEMENT_BITS(es) - 1);
+    static const GVecGen3i g[4] = {
+        { .fno = gen_helper_gvec_verim8, },
+        { .fno = gen_helper_gvec_verim16, },
+        { .fni4 = gen_rim_i32,
+          .load_dest = true, },
+        { .fni8 = gen_rim_i64,
+          .load_dest = true, },
+    };
+
+    if (es > ES_64) {
+        gen_program_exception(s, PGM_SPECIFICATION);
+        return DISAS_NORETURN;
+    }
+
+    gen_gvec_3i(get_field(s->fields, v1), get_field(s->fields, v2),
+                get_field(s->fields, v3), i4, &g[es]);
     return DISAS_NEXT;
 }

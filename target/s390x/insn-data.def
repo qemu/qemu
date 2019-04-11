@@ -1149,6 +1149,8 @@
 /* VECTOR ELEMENT ROTATE LEFT LOGICAL */
     F(0xe773, VERLLV,  VRR_c, V,   0, 0, 0, 0, verllv, 0, IF_VEC)
     F(0xe733, VERLL,   VRS_a, V,   la2, 0, 0, 0, verll, 0, IF_VEC)
+/* VECTOR ELEMENT ROTATE AND INSERT UNDER MASK */
+    F(0xe772, VERIM,   VRI_d, V,   0, 0, 0, 0, verim, 0, IF_VEC)
 
 #ifndef CONFIG_USER_ONLY
 /* COMPARE AND SWAP AND PURGE */
