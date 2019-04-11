@@ -3927,6 +3927,8 @@ int main(int argc, char **argv, char **envp)
                 }
                 break;
             case QEMU_OPTION_realtime:
+                warn_report("'-realtime mlock=...' is deprecated, please use "
+                             "'-overcommit mem-lock=...' instead");
                 opts = qemu_opts_parse_noisily(qemu_find_opts("realtime"),
                                                optarg, false);
                 if (!opts) {
