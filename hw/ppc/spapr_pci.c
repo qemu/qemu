@@ -1652,7 +1652,7 @@ static void spapr_phb_root_bus_class_init(ObjectClass *klass, void *data)
     pbc->allows_extended_config_space = spapr_phb_allows_extended_config_space;
 }
 
-#define TYPE_SPAPR_PHB_ROOT_BUS "spapr-pci-host-bridge-root-bus"
+#define TYPE_SPAPR_PHB_ROOT_BUS "pci"
 
 static const TypeInfo spapr_phb_root_bus_info = {
     .name = TYPE_SPAPR_PHB_ROOT_BUS,
@@ -1761,7 +1761,7 @@ static void spapr_phb_realize(DeviceState *dev, Error **errp)
     memory_region_add_subregion(get_system_memory(), sphb->io_win_addr,
                                 &sphb->iowindow);
 
-    bus = pci_register_root_bus(dev, "pci.0",
+    bus = pci_register_root_bus(dev, NULL,
                                 pci_spapr_set_irq, pci_spapr_map_irq, sphb,
                                 &sphb->memspace, &sphb->iospace,
                                 PCI_DEVFN(0, 0), PCI_NUM_PINS,
