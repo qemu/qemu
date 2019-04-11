@@ -304,8 +304,8 @@ static target_ulong h_read(PowerPCCPU *cpu, SpaprMachineState *spapr,
 {
     target_ulong flags = args[0];
     target_ulong ptex = args[1];
-    uint8_t *hpte;
     int i, ridx, n_entries = 1;
+    const ppc_hash_pte64_t *hptes;
 
     if (!valid_ptex(cpu, ptex)) {
         return H_PARAMETER;
@@ -317,13 +317,12 @@ static target_ulong h_read(PowerPCCPU *cpu, SpaprMachineState *spapr,
         n_entries = 4;
     }
 
-    hpte = spapr->htab + (ptex * HASH_PTE_SIZE_64);
-
+    hptes = ppc_hash64_map_hptes(cpu, ptex, n_entries);
     for (i = 0, ridx = 0; i < n_entries; i++) {
-        args[ridx++] = ldq_p(hpte);
-        args[ridx++] = ldq_p(hpte + (HASH_PTE_SIZE_64/2));
-        hpte += HASH_PTE_SIZE_64;
+        args[ridx++] = ppc_hash64_hpte0(cpu, hptes, i);
+        args[ridx++] = ppc_hash64_hpte1(cpu, hptes, i);
     }
+    ppc_hash64_unmap_hptes(cpu, hptes, ptex, n_entries);
 
     return H_SUCCESS;
 }
