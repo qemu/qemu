@@ -218,6 +218,12 @@ static void get_vec_element_ptr_i64(TCGv_ptr ptr, uint8_t reg, TCGv_i64 enr,
 #define gen_gvec_fn_2(fn, es, v1, v2) \
     tcg_gen_gvec_##fn(es, vec_full_reg_offset(v1), vec_full_reg_offset(v2), \
                       16, 16)
+#define gen_gvec_fn_2i(fn, es, v1, v2, c) \
+    tcg_gen_gvec_##fn(es, vec_full_reg_offset(v1), vec_full_reg_offset(v2), \
+                      c, 16, 16)
+#define gen_gvec_fn_2s(fn, es, v1, v2, s) \
+    tcg_gen_gvec_##fn(es, vec_full_reg_offset(v1), vec_full_reg_offset(v2), \
+                      s, 16, 16)
 #define gen_gvec_fn_3(fn, es, v1, v2, v3) \
     tcg_gen_gvec_##fn(es, vec_full_reg_offset(v1), vec_full_reg_offset(v2), \
                       vec_full_reg_offset(v3), 16, 16)
@@ -1954,5 +1960,83 @@ static DisasJumpType op_verim(DisasContext *s, DisasOps *o)
 
     gen_gvec_3i(get_field(s->fields, v1), get_field(s->fields, v2),
                 get_field(s->fields, v3), i4, &g[es]);
+    return DISAS_NEXT;
+}
+
+static DisasJumpType op_vesv(DisasContext *s, DisasOps *o)
+{
+    const uint8_t es = get_field(s->fields, m4);
+    const uint8_t v1 = get_field(s->fields, v1);
+    const uint8_t v2 = get_field(s->fields, v2);
+    const uint8_t v3 = get_field(s->fields, v3);
+
+    if (es > ES_64) {
+        gen_program_exception(s, PGM_SPECIFICATION);
+        return DISAS_NORETURN;
+    }
+
+    switch (s->fields->op2) {
+    case 0x70:
+        gen_gvec_fn_3(shlv, es, v1, v2, v3);
+        break;
+    case 0x7a:
+        gen_gvec_fn_3(sarv, es, v1, v2, v3);
+        break;
+    case 0x78:
+        gen_gvec_fn_3(shrv, es, v1, v2, v3);
+        break;
+    default:
+        g_assert_not_reached();
+    }
+    return DISAS_NEXT;
+}
+
+static DisasJumpType op_ves(DisasContext *s, DisasOps *o)
+{
+    const uint8_t es = get_field(s->fields, m4);
+    const uint8_t d2 = get_field(s->fields, d2) &
+                       (NUM_VEC_ELEMENT_BITS(es) - 1);
+    const uint8_t v1 = get_field(s->fields, v1);
+    const uint8_t v3 = get_field(s->fields, v3);
+    TCGv_i32 shift;
+
+    if (es > ES_64) {
+        gen_program_exception(s, PGM_SPECIFICATION);
+        return DISAS_NORETURN;
+    }
+
+    if (likely(!get_field(s->fields, b2))) {
+        switch (s->fields->op2) {
+        case 0x30:
+            gen_gvec_fn_2i(shli, es, v1, v3, d2);
+            break;
+        case 0x3a:
+            gen_gvec_fn_2i(sari, es, v1, v3, d2);
+            break;
+        case 0x38:
+            gen_gvec_fn_2i(shri, es, v1, v3, d2);
+            break;
+        default:
+            g_assert_not_reached();
+        }
+    } else {
+        shift = tcg_temp_new_i32();
+        tcg_gen_extrl_i64_i32(shift, o->addr1);
+        tcg_gen_andi_i32(shift, shift, NUM_VEC_ELEMENT_BITS(es) - 1);
+        switch (s->fields->op2) {
+        case 0x30:
+            gen_gvec_fn_2s(shls, es, v1, v3, shift);
+            break;
+        case 0x3a:
+            gen_gvec_fn_2s(sars, es, v1, v3, shift);
+            break;
+        case 0x38:
+            gen_gvec_fn_2s(shrs, es, v1, v3, shift);
+            break;
+        default:
+            g_assert_not_reached();
+        }
+        tcg_temp_free_i32(shift);
+    }
     return DISAS_NEXT;
 }
