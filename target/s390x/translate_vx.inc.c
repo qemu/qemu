@@ -1483,3 +1483,41 @@ static DisasJumpType op_vx(DisasContext *s, DisasOps *o)
                  get_field(s->fields, v3));
     return DISAS_NEXT;
 }
+
+static DisasJumpType op_vgfm(DisasContext *s, DisasOps *o)
+{
+    const uint8_t es = get_field(s->fields, m4);
+    static const GVecGen3 g[4] = {
+        { .fno = gen_helper_gvec_vgfm8, },
+        { .fno = gen_helper_gvec_vgfm16, },
+        { .fno = gen_helper_gvec_vgfm32, },
+        { .fno = gen_helper_gvec_vgfm64, },
+    };
+
+    if (es > ES_64) {
+        gen_program_exception(s, PGM_SPECIFICATION);
+        return DISAS_NORETURN;
+    }
+    gen_gvec_3(get_field(s->fields, v1), get_field(s->fields, v2),
+               get_field(s->fields, v3), &g[es]);
+    return DISAS_NEXT;
+}
+
+static DisasJumpType op_vgfma(DisasContext *s, DisasOps *o)
+{
+    const uint8_t es = get_field(s->fields, m5);
+    static const GVecGen4 g[4] = {
+        { .fno = gen_helper_gvec_vgfma8, },
+        { .fno = gen_helper_gvec_vgfma16, },
+        { .fno = gen_helper_gvec_vgfma32, },
+        { .fno = gen_helper_gvec_vgfma64, },
+    };
+
+    if (es > ES_64) {
+        gen_program_exception(s, PGM_SPECIFICATION);
+        return DISAS_NORETURN;
+    }
+    gen_gvec_4(get_field(s->fields, v1), get_field(s->fields, v2),
+               get_field(s->fields, v3), get_field(s->fields, v4), &g[es]);
+    return DISAS_NEXT;
+}

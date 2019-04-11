@@ -1090,6 +1090,10 @@
     F(0xe752, VCTZ,    VRR_a, V,   0, 0, 0, 0, vctz, 0, IF_VEC)
 /* VECTOR EXCLUSIVE OR */
     F(0xe76d, VX,      VRR_c, V,   0, 0, 0, 0, vx, 0, IF_VEC)
+/* VECTOR GALOIS FIELD MULTIPLY SUM */
+    F(0xe7b4, VGFM,    VRR_c, V,   0, 0, 0, 0, vgfm, 0, IF_VEC)
+/* VECTOR GALOIS FIELD MULTIPLY SUM AND ACCUMULATE */
+    F(0xe7bc, VGFMA,   VRR_d, V,   0, 0, 0, 0, vgfma, 0, IF_VEC)
 
 #ifndef CONFIG_USER_ONLY
 /* COMPARE AND SWAP AND PURGE */
