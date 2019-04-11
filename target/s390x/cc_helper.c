@@ -402,6 +402,20 @@ static uint32_t cc_calc_lcbb(uint64_t dst)
     return dst == 16 ? 0 : 3;
 }
 
+static uint32_t cc_calc_vc(uint64_t low, uint64_t high)
+{
+    if (high == -1ull && low == -1ull) {
+        /* all elements match */
+        return 0;
+    } else if (high == 0 && low == 0) {
+        /* no elements match */
+        return 3;
+    } else {
+        /* some elements but not all match */
+        return 1;
+    }
+}
+
 static uint32_t do_calc_cc(CPUS390XState *env, uint32_t cc_op,
                                   uint64_t src, uint64_t dst, uint64_t vr)
 {
@@ -513,6 +527,9 @@ static uint32_t do_calc_cc(CPUS390XState *env, uint32_t cc_op,
         break;
     case CC_OP_LCBB:
         r = cc_calc_lcbb(dst);
+        break;
+    case CC_OP_VC:
+        r = cc_calc_vc(src, dst);
         break;
 
     case CC_OP_NZ_F32:
