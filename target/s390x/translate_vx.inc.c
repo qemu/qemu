@@ -256,6 +256,17 @@ static void zero_vec(uint8_t reg)
     tcg_gen_gvec_dup8i(vec_full_reg_offset(reg), 16, 16, 0);
 }
 
+static void gen_addi2_i64(TCGv_i64 dl, TCGv_i64 dh, TCGv_i64 al, TCGv_i64 ah,
+                          uint64_t b)
+{
+    TCGv_i64 bl = tcg_const_i64(b);
+    TCGv_i64 bh = tcg_const_i64(0);
+
+    tcg_gen_add2_i64(dl, dh, al, ah, bl, bh);
+    tcg_temp_free_i64(bl);
+    tcg_temp_free_i64(bh);
+}
+
 static DisasJumpType op_vge(DisasContext *s, DisasOps *o)
 {
     const uint8_t es = s->insn->data;
@@ -1190,5 +1201,58 @@ static DisasJumpType op_vnc(DisasContext *s, DisasOps *o)
 {
     gen_gvec_fn_3(andc, ES_8, get_field(s->fields, v1),
                   get_field(s->fields, v2), get_field(s->fields, v3));
+    return DISAS_NEXT;
+}
+
+static void gen_avg_i32(TCGv_i32 d, TCGv_i32 a, TCGv_i32 b)
+{
+    TCGv_i64 t0 = tcg_temp_new_i64();
+    TCGv_i64 t1 = tcg_temp_new_i64();
+
+    tcg_gen_ext_i32_i64(t0, a);
+    tcg_gen_ext_i32_i64(t1, b);
+    tcg_gen_add_i64(t0, t0, t1);
+    tcg_gen_addi_i64(t0, t0, 1);
+    tcg_gen_shri_i64(t0, t0, 1);
+    tcg_gen_extrl_i64_i32(d, t0);
+
+    tcg_temp_free(t0);
+    tcg_temp_free(t1);
+}
+
+static void gen_avg_i64(TCGv_i64 dl, TCGv_i64 al, TCGv_i64 bl)
+{
+    TCGv_i64 dh = tcg_temp_new_i64();
+    TCGv_i64 ah = tcg_temp_new_i64();
+    TCGv_i64 bh = tcg_temp_new_i64();
+
+    /* extending the sign by one bit is sufficient */
+    tcg_gen_extract_i64(ah, al, 63, 1);
+    tcg_gen_extract_i64(bh, bl, 63, 1);
+    tcg_gen_add2_i64(dl, dh, al, ah, bl, bh);
+    gen_addi2_i64(dl, dh, dl, dh, 1);
+    tcg_gen_extract2_i64(dl, dl, dh, 1);
+
+    tcg_temp_free_i64(dh);
+    tcg_temp_free_i64(ah);
+    tcg_temp_free_i64(bh);
+}
+
+static DisasJumpType op_vavg(DisasContext *s, DisasOps *o)
+{
+    const uint8_t es = get_field(s->fields, m4);
+    static const GVecGen3 g[4] = {
+        { .fno = gen_helper_gvec_vavg8, },
+        { .fno = gen_helper_gvec_vavg16, },
+        { .fni4 = gen_avg_i32, },
+        { .fni8 = gen_avg_i64, },
+    };
+
+    if (es > ES_64) {
+        gen_program_exception(s, PGM_SPECIFICATION);
+        return DISAS_NORETURN;
+    }
+    gen_gvec_3(get_field(s->fields, v1), get_field(s->fields, v2),
+               get_field(s->fields, v3), &g[es]);
     return DISAS_NEXT;
 }
