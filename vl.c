@@ -2015,7 +2015,7 @@ typedef struct VGAInterfaceInfo {
     const char *class_names[2];
 } VGAInterfaceInfo;
 
-static VGAInterfaceInfo vga_interfaces[VGA_TYPE_MAX] = {
+static const VGAInterfaceInfo vga_interfaces[VGA_TYPE_MAX] = {
     [VGA_NONE] = {
         .opt_name = "none",
     },
@@ -2061,7 +2061,7 @@ static VGAInterfaceInfo vga_interfaces[VGA_TYPE_MAX] = {
 
 static bool vga_interface_available(VGAInterfaceType t)
 {
-    VGAInterfaceInfo *ti = &vga_interfaces[t];
+    const VGAInterfaceInfo *ti = &vga_interfaces[t];
 
     assert(t < VGA_TYPE_MAX);
     return !ti->class_names[0] ||
@@ -2076,7 +2076,7 @@ static void select_vgahw(const char *p)
 
     assert(vga_interface_type == VGA_NONE);
     for (t = 0; t < VGA_TYPE_MAX; t++) {
-        VGAInterfaceInfo *ti = &vga_interfaces[t];
+        const VGAInterfaceInfo *ti = &vga_interfaces[t];
         if (ti->opt_name && strstart(p, ti->opt_name, &opts)) {
             if (!vga_interface_available(t)) {
                 error_report("%s not available", ti->name);
