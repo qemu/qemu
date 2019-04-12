@@ -39,6 +39,7 @@ static const char *hmp_cmds[] = {
     "dump-guest-memory /dev/null 0 4096",
     "dump-guest-memory /dev/null",
     "gdbserver",
+    "gva2gpa 0",
     "hostfwd_add tcp::43210-:43210",
     "hostfwd_remove tcp::43210-:43210",
     "i /w 0",

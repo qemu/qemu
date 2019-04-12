@@ -1673,6 +1673,28 @@ static void hmp_gpa2hva(Monitor *mon, const QDict *qdict)
     memory_region_unref(mr);
 }
 
+static void hmp_gva2gpa(Monitor *mon, const QDict *qdict)
+{
+    target_ulong addr = qdict_get_int(qdict, "addr");
+    MemTxAttrs attrs;
+    CPUState *cs = mon_get_cpu();
+    hwaddr gpa;
+
+    if (!cs) {
+        monitor_printf(mon, "No cpu\n");
+        return;
+    }
+
+    gpa  = cpu_get_phys_page_attrs_debug(mon_get_cpu(),
+                                         addr & TARGET_PAGE_MASK, &attrs);
+    if (gpa == -1) {
+        monitor_printf(mon, "Unmapped\n");
+    } else {
+        monitor_printf(mon, "gpa: %#" HWADDR_PRIx "\n",
+                       gpa + (addr & ~TARGET_PAGE_MASK));
+    }
+}
+
 #ifdef CONFIG_LINUX
 static uint64_t vtop(void *ptr, Error **errp)
 {
