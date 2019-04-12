@@ -209,6 +209,12 @@ class TestBlockdevReopen(iotests.QMPTestCase):
 
     # Reopen an image several times changing some of its options
     def test_reopen(self):
+        # Check whether the filesystem supports O_DIRECT
+        if 'O_DIRECT' in qemu_io('-f', 'raw', '-t', 'none', '-c', 'quit', hd_path[0]):
+            supports_direct = False
+        else:
+            supports_direct = True
+
         # Open the hd1 image passing all backing options
         opts = hd_opts(1)
         opts['backing'] = hd_opts(0)
@@ -231,9 +237,9 @@ class TestBlockdevReopen(iotests.QMPTestCase):
         self.assert_qmp(self.get_node('hd1'), 'cache/writeback', True)
         self.assert_qmp(self.get_node('hd1'), 'cache/direct', False)
         self.assert_qmp(self.get_node('hd1'), 'cache/no-flush', False)
-        self.reopen(opts, {'cache': { 'direct': True, 'no-flush': True }})
+        self.reopen(opts, {'cache': { 'direct': supports_direct, 'no-flush': True }})
         self.assert_qmp(self.get_node('hd1'), 'cache/writeback', True)
-        self.assert_qmp(self.get_node('hd1'), 'cache/direct', True)
+        self.assert_qmp(self.get_node('hd1'), 'cache/direct', supports_direct)
         self.assert_qmp(self.get_node('hd1'), 'cache/no-flush', True)
 
         # Reopen again with the original options
