@@ -175,7 +175,6 @@ static const VMStateDescription vmstate_lan9118_packet = {
     }
 };
 
-#define TYPE_LAN9118 "lan9118"
 #define LAN9118(obj) OBJECT_CHECK(lan9118_state, (obj), TYPE_LAN9118)
 
 typedef struct {
