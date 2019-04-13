@@ -831,9 +831,8 @@ Creation options for 'qcow2':
 
 Note that not all of these options may be amendable.
 
-Testing: convert -o help
-Supported options:
-  size=<size>            - Virtual disk size
+Testing: amend -o help
+qemu-img: Expecting one image file name
 
 Testing: amend -f bochs -o help
 qemu-img: Format driver 'bochs' does not support option amendment
