@@ -466,6 +466,7 @@ struct XtensaConfig {
 
     unsigned icache_ways;
     unsigned dcache_ways;
+    unsigned dcache_line_bytes;
     uint32_t memctl_mask;
 
     XtensaMemory instrom;

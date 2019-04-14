@@ -1620,6 +1620,12 @@ static void translate_depbits(DisasContext *dc, const OpcodeArg arg[],
                         arg[2].imm, arg[3].imm);
 }
 
+static void translate_diwbuip(DisasContext *dc, const OpcodeArg arg[],
+                              const uint32_t par[])
+{
+    tcg_gen_addi_i32(arg[0].out, arg[0].in, dc->config->dcache_line_bytes);
+}
+
 static bool test_ill_entry(DisasContext *dc, const OpcodeArg arg[],
                            const uint32_t par[])
 {
@@ -3096,6 +3102,10 @@ static const XtensaOpcodeOps core_ops[] = {
     }, {
         .name = "diwbi",
         .translate = translate_nop,
+        .op_flags = XTENSA_OP_PRIVILEGED,
+    }, {
+        .name = "diwbui.p",
+        .translate = translate_diwbuip,
         .op_flags = XTENSA_OP_PRIVILEGED,
     }, {
         .name = "dpfl",

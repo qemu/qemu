@@ -425,6 +425,7 @@
 #define CACHE_SECTION \
     .icache_ways = XCHAL_ICACHE_WAYS, \
     .dcache_ways = XCHAL_DCACHE_WAYS, \
+    .dcache_line_bytes = XCHAL_DCACHE_LINESIZE, \
     .memctl_mask = \
         (XCHAL_ICACHE_SIZE ? MEMCTL_IUSEWAYS_MASK : 0) | \
         (XCHAL_DCACHE_SIZE ? \
