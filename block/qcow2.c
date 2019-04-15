@@ -2723,6 +2723,7 @@ static int qcow2_set_up_encryption(BlockDriverState *bs,
 static int coroutine_fn preallocate_co(BlockDriverState *bs, uint64_t offset,
                                        uint64_t new_length)
 {
+    BDRVQcow2State *s = bs->opaque;
     uint64_t bytes;
     uint64_t host_offset = 0;
     unsigned int cur_bytes;
@@ -2771,7 +2772,7 @@ static int coroutine_fn preallocate_co(BlockDriverState *bs, uint64_t offset,
      */
     if (host_offset != 0) {
         uint8_t data = 0;
-        ret = bdrv_pwrite(bs->file, (host_offset + cur_bytes) - 1,
+        ret = bdrv_pwrite(s->data_file, (host_offset + cur_bytes) - 1,
                           &data, 1);
         if (ret < 0) {
             return ret;
