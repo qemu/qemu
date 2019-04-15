@@ -1699,12 +1699,19 @@ static void usb_mtp_write_metadata(MTPState *s, uint64_t dlen)
     MTPObject *o;
     MTPObject *p = usb_mtp_object_lookup(s, s->dataset.parent_handle);
     uint32_t next_handle = s->next_handle;
+    size_t filename_chars = dlen - offsetof(ObjectInfo, filename);
+
+    /*
+     * filename is utf-16. We're intentionally doing
+     * integer division to truncate if malicious guest
+     * sent an odd number of bytes.
+     */
+    filename_chars /= 2;
 
     assert(!s->write_pending);
     assert(p != NULL);
 
-    filename = utf16_to_str(MIN(dataset->length,
-                                dlen - offsetof(ObjectInfo, filename)),
+    filename = utf16_to_str(MIN(dataset->length, filename_chars),
                             dataset->filename);
 
     if (strchr(filename, '/')) {
