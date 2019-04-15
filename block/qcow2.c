@@ -2721,11 +2721,13 @@ static int qcow2_set_up_encryption(BlockDriverState *bs,
  * Returns: 0 on success, -errno on failure.
  */
 static int coroutine_fn preallocate_co(BlockDriverState *bs, uint64_t offset,
-                                       uint64_t new_length, Error **errp)
+                                       uint64_t new_length, PreallocMode mode,
+                                       Error **errp)
 {
     BDRVQcow2State *s = bs->opaque;
     uint64_t bytes;
     uint64_t host_offset = 0;
+    int64_t file_length;
     unsigned int cur_bytes;
     int ret;
     QCowL2Meta *meta;
@@ -2772,12 +2774,19 @@ static int coroutine_fn preallocate_co(BlockDriverState *bs, uint64_t offset,
      * all of the allocated clusters (otherwise we get failing reads after
      * EOF). Extend the image to the last allocated sector.
      */
-    if (host_offset != 0) {
-        uint8_t data = 0;
-        ret = bdrv_pwrite(s->data_file, (host_offset + cur_bytes) - 1,
-                          &data, 1);
+    file_length = bdrv_getlength(s->data_file->bs);
+    if (file_length < 0) {
+        error_setg_errno(errp, -file_length, "Could not get file size");
+        return file_length;
+    }
+
+    if (host_offset + cur_bytes > file_length) {
+        if (mode == PREALLOC_MODE_METADATA) {
+            mode = PREALLOC_MODE_OFF;
+        }
+        ret = bdrv_co_truncate(s->data_file, host_offset + cur_bytes, mode,
+                               errp);
         if (ret < 0) {
-            error_setg_errno(errp, -ret, "Writing to EOF failed");
             return ret;
         }
     }
@@ -3748,10 +3757,16 @@ static int coroutine_fn qcow2_co_truncate(BlockDriverState *bs, int64_t offset,
 
     switch (prealloc) {
     case PREALLOC_MODE_OFF:
+        if (has_data_file(bs)) {
+            ret = bdrv_co_truncate(s->data_file, offset, prealloc, errp);
+            if (ret < 0) {
+                goto fail;
+            }
+        }
         break;
 
     case PREALLOC_MODE_METADATA:
-        ret = preallocate_co(bs, old_length, offset, errp);
+        ret = preallocate_co(bs, old_length, offset, prealloc, errp);
         if (ret < 0) {
             goto fail;
         }
@@ -3768,7 +3783,7 @@ static int coroutine_fn qcow2_co_truncate(BlockDriverState *bs, int64_t offset,
         /* With a data file, preallocation means just allocating the metadata
          * and forwarding the truncate request to the data file */
         if (has_data_file(bs)) {
-            ret = preallocate_co(bs, old_length, offset, errp);
+            ret = preallocate_co(bs, old_length, offset, prealloc, errp);
             if (ret < 0) {
                 goto fail;
             }
@@ -3882,16 +3897,6 @@ static int coroutine_fn qcow2_co_truncate(BlockDriverState *bs, int64_t offset,
     }
 
     bs->total_sectors = offset / BDRV_SECTOR_SIZE;
-
-    if (has_data_file(bs)) {
-        if (prealloc == PREALLOC_MODE_METADATA) {
-            prealloc = PREALLOC_MODE_OFF;
-        }
-        ret = bdrv_co_truncate(s->data_file, offset, prealloc, errp);
-        if (ret < 0) {
-            goto fail;
-        }
-    }
 
     /* write updated header.size */
     offset = cpu_to_be64(offset);
