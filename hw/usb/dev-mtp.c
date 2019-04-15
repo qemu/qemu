@@ -1721,7 +1721,7 @@ static void usb_mtp_write_metadata(MTPState *s, uint64_t dlen)
         return;
     }
 
-    o = usb_mtp_object_lookup_name(p, filename, dataset->length);
+    o = usb_mtp_object_lookup_name(p, filename, -1);
     if (o != NULL) {
         next_handle = o->handle;
     }
