@@ -2590,6 +2590,7 @@ static int qcow2_set_up_encryption(BlockDriverState *bs,
 static int coroutine_fn preallocate_co(BlockDriverState *bs, uint64_t offset,
                                        uint64_t new_length)
 {
+    BDRVQcow2State *s = bs->opaque;
     uint64_t bytes;
     uint64_t host_offset = 0;
     unsigned int cur_bytes;
@@ -2600,7 +2601,7 @@ static int coroutine_fn preallocate_co(BlockDriverState *bs, uint64_t offset,
     bytes = new_length - offset;
 
     while (bytes) {
-        cur_bytes = MIN(bytes, INT_MAX);
+        cur_bytes = MIN(bytes, QEMU_ALIGN_DOWN(INT_MAX, s->cluster_size));
         ret = qcow2_alloc_cluster_offset(bs, offset, &cur_bytes,
                                          &host_offset, &meta);
         if (ret < 0) {
