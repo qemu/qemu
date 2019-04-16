@@ -1409,11 +1409,11 @@ static const TranslatorOps openrisc_tr_ops = {
     .disas_log          = openrisc_tr_disas_log,
 };
 
-void gen_intermediate_code(CPUState *cs, struct TranslationBlock *tb)
+void gen_intermediate_code(CPUState *cs, TranslationBlock *tb, int max_insns)
 {
     DisasContext ctx;
 
-    translator_loop(&openrisc_tr_ops, &ctx.base, cs, tb);
+    translator_loop(&openrisc_tr_ops, &ctx.base, cs, tb, max_insns);
 }
 
 void openrisc_cpu_dump_state(CPUState *cs, FILE *f, int flags)

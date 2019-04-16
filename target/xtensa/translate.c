@@ -1635,10 +1635,10 @@ static const TranslatorOps xtensa_translator_ops = {
     .disas_log          = xtensa_tr_disas_log,
 };
 
-void gen_intermediate_code(CPUState *cpu, TranslationBlock *tb)
+void gen_intermediate_code(CPUState *cpu, TranslationBlock *tb, int max_insns)
 {
     DisasContext dc = {};
-    translator_loop(&xtensa_translator_ops, &dc.base, cpu, tb);
+    translator_loop(&xtensa_translator_ops, &dc.base, cpu, tb, max_insns);
 }
 
 void xtensa_cpu_dump_state(CPUState *cs, FILE *f, int flags)

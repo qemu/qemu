@@ -1871,14 +1871,13 @@ static void disas_uc32_insn(CPUUniCore32State *env, DisasContext *s)
 }
 
 /* generate intermediate code for basic block 'tb'.  */
-void gen_intermediate_code(CPUState *cs, TranslationBlock *tb)
+void gen_intermediate_code(CPUState *cs, TranslationBlock *tb, int max_insns)
 {
     CPUUniCore32State *env = cs->env_ptr;
     DisasContext dc1, *dc = &dc1;
     target_ulong pc_start;
     uint32_t page_start;
     int num_insns;
-    int max_insns;
 
     /* generate intermediate code */
     num_temps = 0;
@@ -1897,13 +1896,6 @@ void gen_intermediate_code(CPUState *cs, TranslationBlock *tb)
     cpu_F1d = tcg_temp_new_i64();
     page_start = pc_start & TARGET_PAGE_MASK;
     num_insns = 0;
-    max_insns = tb_cflags(tb) & CF_COUNT_MASK;
-    if (max_insns == 0) {
-        max_insns = CF_COUNT_MASK;
-    }
-    if (max_insns > TCG_MAX_INSNS) {
-        max_insns = TCG_MAX_INSNS;
-    }
 
 #ifndef CONFIG_USER_ONLY
     if ((env->uncached_asr & ASR_M) == ASR_MODE_USER) {
