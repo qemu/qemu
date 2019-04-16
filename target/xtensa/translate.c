@@ -3078,6 +3078,9 @@ static const XtensaOpcodeOps core_ops[] = {
         .translate = translate_dcache,
         .op_flags = XTENSA_OP_PRIVILEGED,
     }, {
+        .name = "dhi.b",
+        .translate = translate_nop,
+    }, {
         .name = "dhu",
         .translate = translate_dcache,
         .op_flags = XTENSA_OP_PRIVILEGED,
@@ -3085,8 +3088,14 @@ static const XtensaOpcodeOps core_ops[] = {
         .name = "dhwb",
         .translate = translate_dcache,
     }, {
+        .name = "dhwb.b",
+        .translate = translate_nop,
+    }, {
         .name = "dhwbi",
         .translate = translate_dcache,
+    }, {
+        .name = "dhwbi.b",
+        .translate = translate_nop,
     }, {
         .name = "dii",
         .translate = translate_nop,
@@ -3112,13 +3121,31 @@ static const XtensaOpcodeOps core_ops[] = {
         .translate = translate_dcache,
         .op_flags = XTENSA_OP_PRIVILEGED,
     }, {
+        .name = "dpfm.b",
+        .translate = translate_nop,
+    }, {
+        .name = "dpfm.bf",
+        .translate = translate_nop,
+    }, {
         .name = "dpfr",
+        .translate = translate_nop,
+    }, {
+        .name = "dpfr.b",
+        .translate = translate_nop,
+    }, {
+        .name = "dpfr.bf",
         .translate = translate_nop,
     }, {
         .name = "dpfro",
         .translate = translate_nop,
     }, {
         .name = "dpfw",
+        .translate = translate_nop,
+    }, {
+        .name = "dpfw.b",
+        .translate = translate_nop,
+    }, {
+        .name = "dpfw.bf",
         .translate = translate_nop,
     }, {
         .name = "dpfwo",
@@ -3627,6 +3654,21 @@ static const XtensaOpcodeOps core_ops[] = {
         .translate = translate_ptlb,
         .par = (const uint32_t[]){true},
         .op_flags = XTENSA_OP_PRIVILEGED,
+    }, {
+        .name = "pfend.a",
+        .translate = translate_nop,
+    }, {
+        .name = "pfend.o",
+        .translate = translate_nop,
+    }, {
+        .name = "pfnxt.f",
+        .translate = translate_nop,
+    }, {
+        .name = "pfwait.a",
+        .translate = translate_nop,
+    }, {
+        .name = "pfwait.o",
+        .translate = translate_nop,
     }, {
         .name = "pitlb",
         .translate = translate_ptlb,
