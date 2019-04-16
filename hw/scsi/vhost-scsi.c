@@ -114,6 +114,10 @@ static void vhost_scsi_set_status(VirtIODevice *vdev, uint8_t val)
     VHostSCSICommon *vsc = VHOST_SCSI_COMMON(s);
     bool start = (val & VIRTIO_CONFIG_S_DRIVER_OK);
 
+    if (!vdev->vm_running) {
+        start = false;
+    }
+
     if (vsc->dev.started == start) {
         return;
     }
