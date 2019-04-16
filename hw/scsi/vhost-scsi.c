@@ -199,13 +199,18 @@ static void vhost_scsi_realize(DeviceState *dev, Error **errp)
         goto close_fd;
     }
 
-    error_setg(&vsc->migration_blocker,
-               "vhost-scsi does not support migration");
-    migrate_add_blocker(vsc->migration_blocker, &err);
-    if (err) {
-        error_propagate(errp, err);
-        error_free(vsc->migration_blocker);
-        goto close_fd;
+    if (!vsc->migratable) {
+        error_setg(&vsc->migration_blocker,
+                "vhost-scsi does not support migration in all cases. "
+                "When external environment supports it (Orchestrator migrates "
+                "target SCSI device state or use shared storage over network), "
+                "set 'migratable' property to true to enable migration.");
+        migrate_add_blocker(vsc->migration_blocker, &err);
+        if (err) {
+            error_propagate(errp, err);
+            error_free(vsc->migration_blocker);
+            goto close_fd;
+        }
     }
 
     vsc->dev.nvqs = VHOST_SCSI_VQ_NUM_FIXED + vs->conf.num_queues;
@@ -230,7 +235,9 @@ static void vhost_scsi_realize(DeviceState *dev, Error **errp)
     return;
 
  free_vqs:
-    migrate_del_blocker(vsc->migration_blocker);
+    if (!vsc->migratable) {
+        migrate_del_blocker(vsc->migration_blocker);
+    }
     g_free(vsc->dev.vqs);
  close_fd:
     close(vhostfd);
@@ -243,8 +250,10 @@ static void vhost_scsi_unrealize(DeviceState *dev, Error **errp)
     VHostSCSICommon *vsc = VHOST_SCSI_COMMON(dev);
     struct vhost_virtqueue *vqs = vsc->dev.vqs;
 
-    migrate_del_blocker(vsc->migration_blocker);
-    error_free(vsc->migration_blocker);
+    if (!vsc->migratable) {
+        migrate_del_blocker(vsc->migration_blocker);
+        error_free(vsc->migration_blocker);
+    }
 
     /* This will stop vhost backend. */
     vhost_scsi_set_status(vdev, 0);
@@ -268,6 +277,7 @@ static Property vhost_scsi_properties[] = {
     DEFINE_PROP_BIT64("t10_pi", VHostSCSICommon, host_features,
                                                  VIRTIO_SCSI_F_T10_PI,
                                                  false),
+    DEFINE_PROP_BOOL("migratable", VHostSCSICommon, migratable, false),
     DEFINE_PROP_END_OF_LIST(),
 };
 
