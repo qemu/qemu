@@ -139,6 +139,28 @@ static void vhost_dummy_handle_output(VirtIODevice *vdev, VirtQueue *vq)
 {
 }
 
+static int vhost_scsi_pre_save(void *opaque)
+{
+    VHostSCSICommon *vsc = opaque;
+
+    /* At this point, backend must be stopped, otherwise
+     * it might keep writing to memory. */
+    assert(!vsc->dev.started);
+
+    return 0;
+}
+
+static const VMStateDescription vmstate_virtio_vhost_scsi = {
+    .name = "virtio-vhost_scsi",
+    .minimum_version_id = 1,
+    .version_id = 1,
+    .fields = (VMStateField[]) {
+        VMSTATE_VIRTIO_DEVICE,
+        VMSTATE_END_OF_LIST()
+    },
+    .pre_save = vhost_scsi_pre_save,
+};
+
 static void vhost_scsi_realize(DeviceState *dev, Error **errp)
 {
     VirtIOSCSICommon *vs = VIRTIO_SCSI_COMMON(dev);
@@ -256,6 +278,7 @@ static void vhost_scsi_class_init(ObjectClass *klass, void *data)
     FWPathProviderClass *fwc = FW_PATH_PROVIDER_CLASS(klass);
 
     dc->props = vhost_scsi_properties;
+    dc->vmsd = &vmstate_virtio_vhost_scsi;
     set_bit(DEVICE_CATEGORY_STORAGE, dc->categories);
     vdc->realize = vhost_scsi_realize;
     vdc->unrealize = vhost_scsi_unrealize;
