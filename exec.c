@@ -1688,7 +1688,7 @@ void ram_block_dump(Monitor *mon)
  * when we actually open and map them.  Iterate over the file
  * descriptors instead, and use qemu_fd_getpagesize().
  */
-static int find_max_supported_pagesize(Object *obj, void *opaque)
+static int find_min_backend_pagesize(Object *obj, void *opaque)
 {
     long *hpsize_min = opaque;
 
@@ -1704,7 +1704,27 @@ static int find_max_supported_pagesize(Object *obj, void *opaque)
     return 0;
 }
 
-long qemu_getrampagesize(void)
+static int find_max_backend_pagesize(Object *obj, void *opaque)
+{
+    long *hpsize_max = opaque;
+
+    if (object_dynamic_cast(obj, TYPE_MEMORY_BACKEND)) {
+        HostMemoryBackend *backend = MEMORY_BACKEND(obj);
+        long hpsize = host_memory_backend_pagesize(backend);
+
+        if (host_memory_backend_is_mapped(backend) && (hpsize > *hpsize_max)) {
+            *hpsize_max = hpsize;
+        }
+    }
+
+    return 0;
+}
+
+/*
+ * TODO: We assume right now that all mapped host memory backends are
+ * used as RAM, however some might be used for different purposes.
+ */
+long qemu_minrampagesize(void)
 {
     long hpsize = LONG_MAX;
     long mainrampagesize;
@@ -1724,7 +1744,7 @@ long qemu_getrampagesize(void)
      */
     memdev_root = object_resolve_path("/objects", NULL);
     if (memdev_root) {
-        object_child_foreach(memdev_root, find_max_supported_pagesize, &hpsize);
+        object_child_foreach(memdev_root, find_min_backend_pagesize, &hpsize);
     }
     if (hpsize == LONG_MAX) {
         /* No additional memory regions found ==> Report main RAM page size */
@@ -1747,8 +1767,24 @@ long qemu_getrampagesize(void)
 
     return hpsize;
 }
+
+long qemu_maxrampagesize(void)
+{
+    long pagesize = qemu_mempath_getpagesize(mem_path);
+    Object *memdev_root = object_resolve_path("/objects", NULL);
+
+    if (memdev_root) {
+        object_child_foreach(memdev_root, find_max_backend_pagesize,
+                             &pagesize);
+    }
+    return pagesize;
+}
 #else
-long qemu_getrampagesize(void)
+long qemu_minrampagesize(void)
+{
+    return getpagesize();
+}
+long qemu_maxrampagesize(void)
 {
     return getpagesize();
 }

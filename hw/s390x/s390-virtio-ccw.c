@@ -188,7 +188,7 @@ static void s390_memory_init(ram_addr_t mem_size)
      * Configure the maximum page size. As no memory devices were created
      * yet, this is the page size of initial memory only.
      */
-    s390_set_max_pagesize(qemu_getrampagesize(), &local_err);
+    s390_set_max_pagesize(qemu_maxrampagesize(), &local_err);
     if (local_err) {
         error_report_err(local_err);
         exit(EXIT_FAILURE);
