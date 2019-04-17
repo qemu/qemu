@@ -19,7 +19,7 @@
 
 extern "C" {
 #include "qemu/osdep.h"
-#include "disas/bfd.h"
+#include "disas/dis-asm.h"
 }
 
 #include "vixl/a64/disasm-a64.h"

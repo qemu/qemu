@@ -23,7 +23,7 @@
    for things we don't care about.  */
 
 #include "qemu/osdep.h"
-#include "disas/bfd.h"
+#include "disas/dis-asm.h"
 
 #define ARM_EXT_V1	 0
 #define ARM_EXT_V2	 0

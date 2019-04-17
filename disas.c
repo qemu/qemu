@@ -1,7 +1,7 @@
 /* General "disassemble this chunk" code.  Used for debugging. */
 #include "qemu/osdep.h"
 #include "qemu-common.h"
-#include "disas/bfd.h"
+#include "disas/dis-asm.h"
 #include "elf.h"
 #include "qemu/qemu-print.h"
 

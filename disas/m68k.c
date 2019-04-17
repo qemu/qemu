@@ -4,7 +4,7 @@
 #include "qemu/osdep.h"
 #include <math.h>
 
-#include "disas/bfd.h"
+#include "disas/dis-asm.h"
 
 /* **** floatformat.h from sourceware.org CVS 2005-08-14.  */
 /* IEEE floating point support declarations, for GDB, the GNU Debugger.

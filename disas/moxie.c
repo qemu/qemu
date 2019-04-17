@@ -18,7 +18,7 @@
 #define STATIC_TABLE
 #define DEFINE_TABLE
 
-#include "disas/bfd.h"
+#include "disas/dis-asm.h"
 
 static void *stream;
 

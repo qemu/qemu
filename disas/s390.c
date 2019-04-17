@@ -22,7 +22,7 @@
 
 #include "qemu/osdep.h"
 #include "qemu-common.h"
-#include "disas/bfd.h"
+#include "disas/dis-asm.h"
 
 /* include/opcode/s390.h revision 1.9 */
 /* s390.h -- Header file for S390 opcode table
