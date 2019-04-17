@@ -33,6 +33,7 @@
 #include "qemu/error-report.h"
 #include "qemu/cutils.h"
 #include "qemu/host-utils.h"
+#include "qemu/qemu-print.h"
 #include "qemu/timer.h"
 
 /* Note: the long term plan is to reduce the dependencies on the QEMU
@@ -3768,14 +3769,14 @@ static void tcg_profile_snapshot_table(TCGProfile *prof)
     tcg_profile_snapshot(prof, false, true);
 }
 
-void tcg_dump_op_count(FILE *f, fprintf_function cpu_fprintf)
+void tcg_dump_op_count(void)
 {
     TCGProfile prof = {};
     int i;
 
     tcg_profile_snapshot_table(&prof);
     for (i = 0; i < NB_OPS; i++) {
-        cpu_fprintf(f, "%s %" PRId64 "\n", tcg_op_defs[i].name,
+        qemu_printf("%s %" PRId64 "\n", tcg_op_defs[i].name,
                     prof.table_op_count[i]);
     }
 }
@@ -3795,9 +3796,9 @@ int64_t tcg_cpu_exec_time(void)
     return ret;
 }
 #else
-void tcg_dump_op_count(FILE *f, fprintf_function cpu_fprintf)
+void tcg_dump_op_count(void)
 {
-    cpu_fprintf(f, "[TCG profiler not compiled]\n");
+    qemu_printf("[TCG profiler not compiled]\n");
 }
 
 int64_t tcg_cpu_exec_time(void)

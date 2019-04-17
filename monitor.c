@@ -1324,7 +1324,7 @@ static void hmp_info_jit(Monitor *mon, const QDict *qdict)
 
 static void hmp_info_opcount(Monitor *mon, const QDict *qdict)
 {
-    dump_opcount_info((FILE *)mon, monitor_fprintf);
+    dump_opcount_info();
 }
 #endif
 

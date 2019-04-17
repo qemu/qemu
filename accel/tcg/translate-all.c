@@ -2333,9 +2333,9 @@ void dump_exec_info(FILE *f, fprintf_function cpu_fprintf)
     tcg_dump_info(f, cpu_fprintf);
 }
 
-void dump_opcount_info(FILE *f, fprintf_function cpu_fprintf)
+void dump_opcount_info(void)
 {
-    tcg_dump_op_count(f, cpu_fprintf);
+    tcg_dump_op_count();
 }
 
 #else /* CONFIG_USER_ONLY */
