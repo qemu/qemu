@@ -184,8 +184,7 @@ typedef struct CPUClass {
     void (*dump_state)(CPUState *cpu, FILE *f, fprintf_function cpu_fprintf,
                        int flags);
     GuestPanicInformation* (*get_crash_info)(CPUState *cpu);
-    void (*dump_statistics)(CPUState *cpu, FILE *f,
-                            fprintf_function cpu_fprintf, int flags);
+    void (*dump_statistics)(CPUState *cpu, int flags);
     int64_t (*get_arch_id)(CPUState *cpu);
     bool (*get_paging_enabled)(const CPUState *cpu);
     void (*get_memory_mapping)(CPUState *cpu, MemoryMappingList *list,
@@ -576,14 +575,12 @@ void cpu_dump_state(CPUState *cpu, FILE *f, fprintf_function cpu_fprintf,
 /**
  * cpu_dump_statistics:
  * @cpu: The CPU whose state is to be dumped.
- * @f: File to dump to.
- * @cpu_fprintf: Function to dump with.
  * @flags: Flags what to dump.
  *
- * Dumps CPU statistics.
+ * Dump CPU statistics to the current monitor if we have one, else to
+ * stdout.
  */
-void cpu_dump_statistics(CPUState *cpu, FILE *f, fprintf_function cpu_fprintf,
-                         int flags);
+void cpu_dump_statistics(CPUState *cpu, int flags);
 
 #ifndef CONFIG_USER_ONLY
 /**

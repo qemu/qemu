@@ -1364,7 +1364,7 @@ static void hmp_info_cpustats(Monitor *mon, const QDict *qdict)
         monitor_printf(mon, "No CPU available\n");
         return;
     }
-    cpu_dump_statistics(cs, (FILE *)mon, &monitor_fprintf, 0);
+    cpu_dump_statistics(cs, 0);
 }
 
 static void hmp_info_trace_events(Monitor *mon, const QDict *qdict)

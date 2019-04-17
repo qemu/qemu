@@ -230,13 +230,12 @@ void cpu_dump_state(CPUState *cpu, FILE *f, fprintf_function cpu_fprintf,
     }
 }
 
-void cpu_dump_statistics(CPUState *cpu, FILE *f, fprintf_function cpu_fprintf,
-                         int flags)
+void cpu_dump_statistics(CPUState *cpu, int flags)
 {
     CPUClass *cc = CPU_GET_CLASS(cpu);
 
     if (cc->dump_statistics) {
-        cc->dump_statistics(cpu, f, cpu_fprintf, flags);
+        cc->dump_statistics(cpu, flags);
     }
 }
 
