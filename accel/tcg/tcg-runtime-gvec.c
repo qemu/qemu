@@ -398,6 +398,54 @@ void HELPER(gvec_neg64)(void *d, void *a, uint32_t desc)
     clear_high(d, oprsz, desc);
 }
 
+void HELPER(gvec_abs8)(void *d, void *a, uint32_t desc)
+{
+    intptr_t oprsz = simd_oprsz(desc);
+    intptr_t i;
+
+    for (i = 0; i < oprsz; i += sizeof(int8_t)) {
+        int8_t aa = *(int8_t *)(a + i);
+        *(int8_t *)(d + i) = aa < 0 ? -aa : aa;
+    }
+    clear_high(d, oprsz, desc);
+}
+
+void HELPER(gvec_abs16)(void *d, void *a, uint32_t desc)
+{
+    intptr_t oprsz = simd_oprsz(desc);
+    intptr_t i;
+
+    for (i = 0; i < oprsz; i += sizeof(int16_t)) {
+        int16_t aa = *(int16_t *)(a + i);
+        *(int16_t *)(d + i) = aa < 0 ? -aa : aa;
+    }
+    clear_high(d, oprsz, desc);
+}
+
+void HELPER(gvec_abs32)(void *d, void *a, uint32_t desc)
+{
+    intptr_t oprsz = simd_oprsz(desc);
+    intptr_t i;
+
+    for (i = 0; i < oprsz; i += sizeof(int32_t)) {
+        int32_t aa = *(int32_t *)(a + i);
+        *(int32_t *)(d + i) = aa < 0 ? -aa : aa;
+    }
+    clear_high(d, oprsz, desc);
+}
+
+void HELPER(gvec_abs64)(void *d, void *a, uint32_t desc)
+{
+    intptr_t oprsz = simd_oprsz(desc);
+    intptr_t i;
+
+    for (i = 0; i < oprsz; i += sizeof(int64_t)) {
+        int64_t aa = *(int64_t *)(a + i);
+        *(int64_t *)(d + i) = aa < 0 ? -aa : aa;
+    }
+    clear_high(d, oprsz, desc);
+}
+
 void HELPER(gvec_mov)(void *d, void *a, uint32_t desc)
 {
     intptr_t oprsz = simd_oprsz(desc);

@@ -2177,6 +2177,69 @@ void tcg_gen_gvec_neg(unsigned vece, uint32_t dofs, uint32_t aofs,
     tcg_gen_gvec_2(dofs, aofs, oprsz, maxsz, &g[vece]);
 }
 
+static void gen_absv_mask(TCGv_i64 d, TCGv_i64 b, unsigned vece)
+{
+    TCGv_i64 t = tcg_temp_new_i64();
+    int nbit = 8 << vece;
+
+    /* Create -1 for each negative element.  */
+    tcg_gen_shri_i64(t, b, nbit - 1);
+    tcg_gen_andi_i64(t, t, dup_const(vece, 1));
+    tcg_gen_muli_i64(t, t, (1 << nbit) - 1);
+
+    /*
+     * Invert (via xor -1) and add one (via sub -1).
+     * Because of the ordering the msb is cleared,
+     * so we never have carry into the next element.
+     */
+    tcg_gen_xor_i64(d, b, t);
+    tcg_gen_sub_i64(d, d, t);
+
+    tcg_temp_free_i64(t);
+}
+
+static void tcg_gen_vec_abs8_i64(TCGv_i64 d, TCGv_i64 b)
+{
+    gen_absv_mask(d, b, MO_8);
+}
+
+static void tcg_gen_vec_abs16_i64(TCGv_i64 d, TCGv_i64 b)
+{
+    gen_absv_mask(d, b, MO_16);
+}
+
+void tcg_gen_gvec_abs(unsigned vece, uint32_t dofs, uint32_t aofs,
+                      uint32_t oprsz, uint32_t maxsz)
+{
+    static const TCGOpcode vecop_list[] = { INDEX_op_abs_vec, 0 };
+    static const GVecGen2 g[4] = {
+        { .fni8 = tcg_gen_vec_abs8_i64,
+          .fniv = tcg_gen_abs_vec,
+          .fno = gen_helper_gvec_abs8,
+          .opt_opc = vecop_list,
+          .vece = MO_8 },
+        { .fni8 = tcg_gen_vec_abs16_i64,
+          .fniv = tcg_gen_abs_vec,
+          .fno = gen_helper_gvec_abs16,
+          .opt_opc = vecop_list,
+          .vece = MO_16 },
+        { .fni4 = tcg_gen_abs_i32,
+          .fniv = tcg_gen_abs_vec,
+          .fno = gen_helper_gvec_abs32,
+          .opt_opc = vecop_list,
+          .vece = MO_32 },
+        { .fni8 = tcg_gen_abs_i64,
+          .fniv = tcg_gen_abs_vec,
+          .fno = gen_helper_gvec_abs64,
+          .opt_opc = vecop_list,
+          .prefer_i64 = TCG_TARGET_REG_BITS == 64,
+          .vece = MO_64 },
+    };
+
+    tcg_debug_assert(vece <= MO_64);
+    tcg_gen_gvec_2(dofs, aofs, oprsz, maxsz, &g[vece]);
+}
+
 void tcg_gen_gvec_and(unsigned vece, uint32_t dofs, uint32_t aofs,
                       uint32_t bofs, uint32_t oprsz, uint32_t maxsz)
 {
