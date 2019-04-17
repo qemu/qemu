@@ -70,6 +70,7 @@ int monitor_get_fd(Monitor *mon, const char *fdname, Error **errp)
  * otherwise we get duplicate syms at link time.
  */
 __thread Monitor *cur_mon;
+int monitor_vprintf(Monitor *mon, const char *fmt, va_list ap) { abort(); }
 void monitor_init(Chardev *chr, int flags) {}
 
 
