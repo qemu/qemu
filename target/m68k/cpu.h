@@ -499,7 +499,7 @@ static inline int m68k_feature(CPUM68KState *env, int feature)
     return (env->features & (1u << feature)) != 0;
 }
 
-void m68k_cpu_list(FILE *f, fprintf_function cpu_fprintf);
+void m68k_cpu_list(void);
 
 void register_m68k_insns (CPUM68KState *env);
 

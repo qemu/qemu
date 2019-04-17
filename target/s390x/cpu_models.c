@@ -18,6 +18,7 @@
 #include "qapi/error.h"
 #include "qapi/visitor.h"
 #include "qemu/error-report.h"
+#include "qemu/qemu-print.h"
 #include "qapi/qmp/qerror.h"
 #include "qapi/qobject-input-visitor.h"
 #include "qapi/qmp/qdict.h"
@@ -308,7 +309,6 @@ const S390CPUDef *s390_find_cpu_def(uint16_t type, uint8_t gen, uint8_t ec_ga,
 
 static void s390_print_cpu_model_list_entry(gpointer data, gpointer user_data)
 {
-    CPUListState *s = user_data;
     const S390CPUClass *scc = S390_CPU_CLASS((ObjectClass *)data);
     char *name = g_strdup(object_class_get_name((ObjectClass *)data));
     const char *details = "";
@@ -321,8 +321,7 @@ static void s390_print_cpu_model_list_entry(gpointer data, gpointer user_data)
 
     /* strip off the -s390x-cpu */
     g_strrstr(name, "-" TYPE_S390_CPU)[0] = 0;
-    (*s->cpu_fprintf)(s->file, "s390 %-15s %-35s %s\n", name, scc->desc,
-                      details);
+    qemu_printf("s390 %-15s %-35s %s\n", name, scc->desc, details);
     g_free(name);
 }
 
@@ -360,33 +359,29 @@ static gint s390_cpu_list_compare(gconstpointer a, gconstpointer b)
     return cc_a->is_static ? -1 : 1;
 }
 
-void s390_cpu_list(FILE *f, fprintf_function print)
+void s390_cpu_list(void)
 {
-    CPUListState s = {
-        .file = f,
-        .cpu_fprintf = print,
-    };
     S390FeatGroup group;
     S390Feat feat;
     GSList *list;
 
     list = object_class_get_list(TYPE_S390_CPU, false);
     list = g_slist_sort(list, s390_cpu_list_compare);
-    g_slist_foreach(list, s390_print_cpu_model_list_entry, &s);
+    g_slist_foreach(list, s390_print_cpu_model_list_entry, NULL);
     g_slist_free(list);
 
-    (*print)(f, "\nRecognized feature flags:\n");
+    qemu_printf("\nRecognized feature flags:\n");
     for (feat = 0; feat < S390_FEAT_MAX; feat++) {
         const S390FeatDef *def = s390_feat_def(feat);
 
-        (*print)(f, "%-20s %-50s\n", def->name, def->desc);
+        qemu_printf("%-20s %-50s\n", def->name, def->desc);
     }
 
-    (*print)(f, "\nRecognized feature groups:\n");
+    qemu_printf("\nRecognized feature groups:\n");
     for (group = 0; group < S390_FEAT_GROUP_MAX; group++) {
         const S390FeatGroupDef *def = s390_feat_group_def(group);
 
-        (*print)(f, "%-20s %-50s\n", def->name, def->desc);
+        qemu_printf("%-20s %-50s\n", def->name, def->desc);
     }
 }
 

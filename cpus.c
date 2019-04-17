@@ -2181,11 +2181,11 @@ int vm_stop_force_state(RunState state)
     }
 }
 
-void list_cpus(FILE *f, fprintf_function cpu_fprintf, const char *optarg)
+void list_cpus(const char *optarg)
 {
     /* XXX: implement xxx_cpu_list for targets that still miss it */
 #if defined(cpu_list)
-    cpu_list(f, cpu_fprintf);
+    cpu_list();
 #endif
 }
 

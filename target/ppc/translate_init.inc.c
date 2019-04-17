@@ -28,6 +28,7 @@
 #include "mmu-hash32.h"
 #include "mmu-hash64.h"
 #include "qemu/error-report.h"
+#include "qemu/qemu-print.h"
 #include "qapi/error.h"
 #include "qapi/qmp/qnull.h"
 #include "qapi/visitor.h"
@@ -10215,7 +10216,6 @@ static gint ppc_cpu_list_compare(gconstpointer a, gconstpointer b)
 static void ppc_cpu_list_entry(gpointer data, gpointer user_data)
 {
     ObjectClass *oc = data;
-    CPUListState *s = user_data;
     PowerPCCPUClass *pcc = POWERPC_CPU_CLASS(oc);
     DeviceClass *family = DEVICE_CLASS(ppc_cpu_get_family_class(pcc));
     const char *typename = object_class_get_name(oc);
@@ -10228,8 +10228,7 @@ static void ppc_cpu_list_entry(gpointer data, gpointer user_data)
 
     name = g_strndup(typename,
                      strlen(typename) - strlen(POWERPC_CPU_TYPE_SUFFIX));
-    (*s->cpu_fprintf)(s->file, "PowerPC %-16s PVR %08x\n",
-                      name, pcc->pvr);
+    qemu_printf("PowerPC %-16s PVR %08x\n", name, pcc->pvr);
     for (i = 0; ppc_cpu_aliases[i].alias != NULL; i++) {
         PowerPCCPUAlias *alias = &ppc_cpu_aliases[i];
         ObjectClass *alias_oc = ppc_cpu_class_by_name(alias->model);
@@ -10242,33 +10241,28 @@ static void ppc_cpu_list_entry(gpointer data, gpointer user_data)
          * avoid printing the wrong alias here and use "preferred" instead
          */
         if (strcmp(alias->alias, family->desc) == 0) {
-            (*s->cpu_fprintf)(s->file,
-                              "PowerPC %-16s (alias for preferred %s CPU)\n",
-                              alias->alias, family->desc);
+            qemu_printf("PowerPC %-16s (alias for preferred %s CPU)\n",
+                        alias->alias, family->desc);
         } else {
-            (*s->cpu_fprintf)(s->file, "PowerPC %-16s (alias for %s)\n",
-                              alias->alias, name);
+            qemu_printf("PowerPC %-16s (alias for %s)\n",
+                        alias->alias, name);
         }
     }
     g_free(name);
 }
 
-void ppc_cpu_list(FILE *f, fprintf_function cpu_fprintf)
+void ppc_cpu_list(void)
 {
-    CPUListState s = {
-        .file = f,
-        .cpu_fprintf = cpu_fprintf,
-    };
     GSList *list;
 
     list = object_class_get_list(TYPE_POWERPC_CPU, false);
     list = g_slist_sort(list, ppc_cpu_list_compare);
-    g_slist_foreach(list, ppc_cpu_list_entry, &s);
+    g_slist_foreach(list, ppc_cpu_list_entry, NULL);
     g_slist_free(list);
 
 #ifdef CONFIG_KVM
-    cpu_fprintf(f, "\n");
-    cpu_fprintf(f, "PowerPC %-16s\n", "host");
+    qemu_printf("\n");
+    qemu_printf("PowerPC %-16s\n", "host");
 #endif
 }
 

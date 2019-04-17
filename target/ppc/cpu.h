@@ -1308,7 +1308,7 @@ void ppc_store_ptcr(CPUPPCState *env, target_ulong value);
 #endif /* !defined(CONFIG_USER_ONLY) */
 void ppc_store_msr (CPUPPCState *env, target_ulong value);
 
-void ppc_cpu_list (FILE *f, fprintf_function cpu_fprintf);
+void ppc_cpu_list(void);
 
 /* Time-base and decrementer management */
 #ifndef NO_CPU_IO_DEFS

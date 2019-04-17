@@ -9,19 +9,6 @@
 
 #include "qemu/bswap.h"
 #include "qemu/queue.h"
-#include "qemu/fprintf-fn.h"
-
-/**
- * CPUListState:
- * @cpu_fprintf: Print function.
- * @file: File to print to using @cpu_fprint.
- *
- * State commonly used for iterating over CPU models.
- */
-typedef struct CPUListState {
-    fprintf_function cpu_fprintf;
-    FILE *file;
-} CPUListState;
 
 /* The CPU list lock nests outside page_(un)lock or mmap_(un)lock */
 void qemu_init_cpu_list(void);

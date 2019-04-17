@@ -22,9 +22,9 @@
 #include "cpu.h"
 #include "exec/exec-all.h"
 #include "exec/gdbstub.h"
-
 #include "exec/helper-proto.h"
 #include "fpu/softfloat.h"
+#include "qemu/qemu-print.h"
 
 #define SIGNBIT (1u << 31)
 
@@ -49,28 +49,22 @@ static gint m68k_cpu_list_compare(gconstpointer a, gconstpointer b)
 static void m68k_cpu_list_entry(gpointer data, gpointer user_data)
 {
     ObjectClass *c = data;
-    CPUListState *s = user_data;
     const char *typename;
     char *name;
 
     typename = object_class_get_name(c);
     name = g_strndup(typename, strlen(typename) - strlen("-" TYPE_M68K_CPU));
-    (*s->cpu_fprintf)(s->file, "%s\n",
-                      name);
+    qemu_printf("%s\n", name);
     g_free(name);
 }
 
-void m68k_cpu_list(FILE *f, fprintf_function cpu_fprintf)
+void m68k_cpu_list(void)
 {
-    CPUListState s = {
-        .file = f,
-        .cpu_fprintf = cpu_fprintf,
-    };
     GSList *list;
 
     list = object_class_get_list(TYPE_M68K_CPU, false);
     list = g_slist_sort(list, m68k_cpu_list_compare);
-    g_slist_foreach(list, m68k_cpu_list_entry, &s);
+    g_slist_foreach(list, m68k_cpu_list_entry, NULL);
     g_slist_free(list);
 }
 

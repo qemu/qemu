@@ -21,6 +21,7 @@
 #include "qemu/units.h"
 #include "qemu/cutils.h"
 #include "qemu/bitops.h"
+#include "qemu/qemu-print.h"
 
 #include "cpu.h"
 #include "exec/exec-all.h"
@@ -3671,7 +3672,7 @@ static void x86_cpu_class_check_missing_features(X86CPUClass *xcc,
 
 /* Print all cpuid feature names in featureset
  */
-static void listflags(FILE *f, fprintf_function print, GList *features)
+static void listflags(GList *features)
 {
     size_t len = 0;
     GList *tmp;
@@ -3679,13 +3680,13 @@ static void listflags(FILE *f, fprintf_function print, GList *features)
     for (tmp = features; tmp; tmp = tmp->next) {
         const char *name = tmp->data;
         if ((len + strlen(name) + 1) >= 75) {
-            print(f, "\n");
+            qemu_printf("\n");
             len = 0;
         }
-        print(f, "%s%s", len == 0 ? "  " : " ", name);
+        qemu_printf("%s%s", len == 0 ? "  " : " ", name);
         len += strlen(name) + 1;
     }
-    print(f, "\n");
+    qemu_printf("\n");
 }
 
 /* Sort alphabetically by type name, respecting X86CPUClass::ordering. */
@@ -3721,32 +3722,26 @@ static void x86_cpu_list_entry(gpointer data, gpointer user_data)
 {
     ObjectClass *oc = data;
     X86CPUClass *cc = X86_CPU_CLASS(oc);
-    CPUListState *s = user_data;
     char *name = x86_cpu_class_get_model_name(cc);
     const char *desc = cc->model_description;
     if (!desc && cc->cpu_def) {
         desc = cc->cpu_def->model_id;
     }
 
-    (*s->cpu_fprintf)(s->file, "x86 %-20s  %-48s\n",
-                      name, desc);
+    qemu_printf("x86 %-20s  %-48s\n", name, desc);
     g_free(name);
 }
 
 /* list available CPU models and flags */
-void x86_cpu_list(FILE *f, fprintf_function cpu_fprintf)
+void x86_cpu_list(void)
 {
     int i, j;
-    CPUListState s = {
-        .file = f,
-        .cpu_fprintf = cpu_fprintf,
-    };
     GSList *list;
     GList *names = NULL;
 
-    (*cpu_fprintf)(f, "Available CPUs:\n");
+    qemu_printf("Available CPUs:\n");
     list = get_sorted_cpu_model_list();
-    g_slist_foreach(list, x86_cpu_list_entry, &s);
+    g_slist_foreach(list, x86_cpu_list_entry, NULL);
     g_slist_free(list);
 
     names = NULL;
@@ -3761,9 +3756,9 @@ void x86_cpu_list(FILE *f, fprintf_function cpu_fprintf)
 
     names = g_list_sort(names, (GCompareFunc)strcmp);
 
-    (*cpu_fprintf)(f, "\nRecognized CPUID flags:\n");
-    listflags(f, cpu_fprintf, names);
-    (*cpu_fprintf)(f, "\n");
+    qemu_printf("\nRecognized CPUID flags:\n");
+    listflags(names);
+    qemu_printf("\n");
     g_list_free(names);
 }
 

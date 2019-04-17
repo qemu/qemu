@@ -1,7 +1,6 @@
 #ifndef QEMU_CPUS_H
 #define QEMU_CPUS_H
 
-#include "qemu/fprintf-fn.h"
 #include "qemu/timer.h"
 
 /* cpus.c */
@@ -39,7 +38,7 @@ extern int smp_cores;
 extern int smp_threads;
 #endif
 
-void list_cpus(FILE *f, fprintf_function cpu_fprintf, const char *optarg);
+void list_cpus(const char *optarg);
 
 void qemu_tcg_configure(QemuOpts *opts, Error **errp);
 

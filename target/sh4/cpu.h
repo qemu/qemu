@@ -247,7 +247,7 @@ int cpu_sh4_signal_handler(int host_signum, void *pinfo,
 int superh_cpu_handle_mmu_fault(CPUState *cpu, vaddr address, int size, int rw,
                                 int mmu_idx);
 
-void sh4_cpu_list(FILE *f, fprintf_function cpu_fprintf);
+void sh4_cpu_list(void);
 #if !defined(CONFIG_USER_ONLY)
 void cpu_sh4_invalidate_tlb(CPUSH4State *s);
 uint32_t cpu_sh4_read_mmaped_itlb_addr(CPUSH4State *s,

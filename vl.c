@@ -4051,7 +4051,7 @@ int main(int argc, char **argv, char **envp)
     }
 
     if (cpu_model && is_help_option(cpu_model)) {
-        list_cpus(stdout, &fprintf, cpu_model);
+        list_cpus(cpu_model);
         exit(0);
     }
 

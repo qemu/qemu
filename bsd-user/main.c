@@ -819,7 +819,7 @@ int main(int argc, char **argv)
             if (is_help_option(cpu_model)) {
 /* XXX: implement xxx_cpu_list for targets that still miss it */
 #if defined(cpu_list)
-                    cpu_list(stdout, &fprintf);
+                    cpu_list();
 #endif
                 exit(1);
             }

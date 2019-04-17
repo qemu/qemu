@@ -23,6 +23,7 @@
 
 #include "qemu/osdep.h"
 #include "qapi/error.h"
+#include "qemu/qemu-print.h"
 #include "cpu.h"
 #include "qemu-common.h"
 #include "mmu.h"
@@ -103,27 +104,22 @@ static gint cris_cpu_list_compare(gconstpointer a, gconstpointer b)
 static void cris_cpu_list_entry(gpointer data, gpointer user_data)
 {
     ObjectClass *oc = data;
-    CPUListState *s = user_data;
     const char *typename = object_class_get_name(oc);
     char *name;
 
     name = g_strndup(typename, strlen(typename) - strlen(CRIS_CPU_TYPE_SUFFIX));
-    (*s->cpu_fprintf)(s->file, "  %s\n", name);
+    qemu_printf("  %s\n", name);
     g_free(name);
 }
 
-void cris_cpu_list(FILE *f, fprintf_function cpu_fprintf)
+void cris_cpu_list(void)
 {
-    CPUListState s = {
-        .file = f,
-        .cpu_fprintf = cpu_fprintf,
-    };
     GSList *list;
 
     list = object_class_get_list(TYPE_CRIS_CPU, false);
     list = g_slist_sort(list, cris_cpu_list_compare);
-    (*cpu_fprintf)(f, "Available CPUs:\n");
-    g_slist_foreach(list, cris_cpu_list_entry, &s);
+    qemu_printf("Available CPUs:\n");
+    g_slist_foreach(list, cris_cpu_list_entry, NULL);
     g_slist_free(list);
 }
 

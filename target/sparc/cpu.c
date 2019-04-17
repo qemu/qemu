@@ -20,7 +20,7 @@
 #include "qemu/osdep.h"
 #include "qapi/error.h"
 #include "cpu.h"
-#include "qemu/error-report.h"
+#include "qemu/qemu-print.h"
 #include "exec/exec-all.h"
 #include "hw/qdev-properties.h"
 #include "qapi/visitor.h"
@@ -556,47 +556,44 @@ static const char * const feature_name[] = {
     "gl",
 };
 
-static void print_features(FILE *f, fprintf_function cpu_fprintf,
-                           uint32_t features, const char *prefix)
+static void print_features(uint32_t features, const char *prefix)
 {
     unsigned int i;
 
     for (i = 0; i < ARRAY_SIZE(feature_name); i++) {
         if (feature_name[i] && (features & (1 << i))) {
             if (prefix) {
-                (*cpu_fprintf)(f, "%s", prefix);
+                qemu_printf("%s", prefix);
             }
-            (*cpu_fprintf)(f, "%s ", feature_name[i]);
+            qemu_printf("%s ", feature_name[i]);
         }
     }
 }
 
-void sparc_cpu_list(FILE *f, fprintf_function cpu_fprintf)
+void sparc_cpu_list(void)
 {
     unsigned int i;
 
     for (i = 0; i < ARRAY_SIZE(sparc_defs); i++) {
-        (*cpu_fprintf)(f, "Sparc %16s IU " TARGET_FMT_lx
-                       " FPU %08x MMU %08x NWINS %d ",
-                       sparc_defs[i].name,
-                       sparc_defs[i].iu_version,
-                       sparc_defs[i].fpu_version,
-                       sparc_defs[i].mmu_version,
-                       sparc_defs[i].nwindows);
-        print_features(f, cpu_fprintf, CPU_DEFAULT_FEATURES &
-                       ~sparc_defs[i].features, "-");
-        print_features(f, cpu_fprintf, ~CPU_DEFAULT_FEATURES &
-                       sparc_defs[i].features, "+");
-        (*cpu_fprintf)(f, "\n");
+        qemu_printf("Sparc %16s IU " TARGET_FMT_lx
+                    " FPU %08x MMU %08x NWINS %d ",
+                    sparc_defs[i].name,
+                    sparc_defs[i].iu_version,
+                    sparc_defs[i].fpu_version,
+                    sparc_defs[i].mmu_version,
+                    sparc_defs[i].nwindows);
+        print_features(CPU_DEFAULT_FEATURES & ~sparc_defs[i].features, "-");
+        print_features(~CPU_DEFAULT_FEATURES & sparc_defs[i].features, "+");
+        qemu_printf("\n");
     }
-    (*cpu_fprintf)(f, "Default CPU feature flags (use '-' to remove): ");
-    print_features(f, cpu_fprintf, CPU_DEFAULT_FEATURES, NULL);
-    (*cpu_fprintf)(f, "\n");
-    (*cpu_fprintf)(f, "Available CPU feature flags (use '+' to add): ");
-    print_features(f, cpu_fprintf, ~CPU_DEFAULT_FEATURES, NULL);
-    (*cpu_fprintf)(f, "\n");
-    (*cpu_fprintf)(f, "Numerical features (use '=' to set): iu_version "
-                   "fpu_version mmu_version nwindows\n");
+    qemu_printf("Default CPU feature flags (use '-' to remove): ");
+    print_features(CPU_DEFAULT_FEATURES, NULL);
+    qemu_printf("\n");
+    qemu_printf("Available CPU feature flags (use '+' to add): ");
+    print_features(~CPU_DEFAULT_FEATURES, NULL);
+    qemu_printf("\n");
+    qemu_printf("Numerical features (use '=' to set): iu_version "
+                "fpu_version mmu_version nwindows\n");
 }
 
 static void cpu_print_cc(FILE *f, fprintf_function cpu_fprintf,

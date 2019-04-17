@@ -272,7 +272,7 @@ void hppa_translate_init(void);
 
 #define CPU_RESOLVING_TYPE TYPE_HPPA_CPU
 
-void hppa_cpu_list(FILE *f, fprintf_function cpu_fprintf);
+void hppa_cpu_list(void);
 
 static inline target_ulong hppa_form_gva_psw(target_ureg psw, uint64_t spc,
                                              target_ureg off)

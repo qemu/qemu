@@ -18,6 +18,7 @@
  */
 
 #include "qemu/osdep.h"
+#include "qemu/qemu-print.h"
 #include "qemu/log.h"
 #include "cpu.h"
 #include "exec/exec-all.h"
@@ -383,11 +384,6 @@ char *riscv_isa_string(RISCVCPU *cpu)
     return isa_str;
 }
 
-typedef struct RISCVCPUListState {
-    fprintf_function cpu_fprintf;
-    FILE *file;
-} RISCVCPUListState;
-
 static gint riscv_cpu_list_compare(gconstpointer a, gconstpointer b)
 {
     ObjectClass *class_a = (ObjectClass *)a;
@@ -401,24 +397,19 @@ static gint riscv_cpu_list_compare(gconstpointer a, gconstpointer b)
 
 static void riscv_cpu_list_entry(gpointer data, gpointer user_data)
 {
-    RISCVCPUListState *s = user_data;
     const char *typename = object_class_get_name(OBJECT_CLASS(data));
     int len = strlen(typename) - strlen(RISCV_CPU_TYPE_SUFFIX);
 
-    (*s->cpu_fprintf)(s->file, "%.*s\n", len, typename);
+    qemu_printf("%.*s\n", len, typename);
 }
 
-void riscv_cpu_list(FILE *f, fprintf_function cpu_fprintf)
+void riscv_cpu_list(void)
 {
-    RISCVCPUListState s = {
-        .cpu_fprintf = cpu_fprintf,
-        .file = f,
-    };
     GSList *list;
 
     list = object_class_get_list(TYPE_RISCV_CPU, false);
     list = g_slist_sort(list, riscv_cpu_list_compare);
-    g_slist_foreach(list, riscv_cpu_list_entry, &s);
+    g_slist_foreach(list, riscv_cpu_list_entry, NULL);
     g_slist_free(list);
 }
 

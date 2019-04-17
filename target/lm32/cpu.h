@@ -243,7 +243,7 @@ static inline lm32_wp_t lm32_wp_type(uint32_t dc, int idx)
    is returned if the signal was handled by the virtual CPU.  */
 int cpu_lm32_signal_handler(int host_signum, void *pinfo,
                           void *puc);
-void lm32_cpu_list(FILE *f, fprintf_function cpu_fprintf);
+void lm32_cpu_list(void);
 void lm32_translate_init(void);
 void cpu_lm32_set_phys_msb_ignore(CPULM32State *env, int value);
 void QEMU_NORETURN raise_exception(CPULM32State *env, int index);

@@ -317,7 +317,7 @@ static void handle_arg_cpu(const char *arg)
     if (cpu_model == NULL || is_help_option(cpu_model)) {
         /* XXX: implement xxx_cpu_list for targets that still miss it */
 #if defined(cpu_list)
-        cpu_list(stdout, &fprintf);
+        cpu_list();
 #endif
         exit(EXIT_FAILURE);
     }
