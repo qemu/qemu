@@ -31,6 +31,7 @@
 #include "qemu/error-report.h"
 #include "qemu/help_option.h"
 #include "qemu/option.h"
+#include "qemu/qemu-print.h"
 #include "sysemu/block-backend.h"
 #include "migration/misc.h"
 
@@ -104,31 +105,22 @@ static bool qdev_class_has_alias(DeviceClass *dc)
     return (qdev_class_get_alias(dc) != NULL);
 }
 
-static void out_printf(const char *fmt, ...)
-{
-    va_list ap;
-
-    va_start(ap, fmt);
-    monitor_vfprintf(stdout, fmt, ap);
-    va_end(ap);
-}
-
 static void qdev_print_devinfo(DeviceClass *dc)
 {
-    out_printf("name \"%s\"", object_class_get_name(OBJECT_CLASS(dc)));
+    qemu_printf("name \"%s\"", object_class_get_name(OBJECT_CLASS(dc)));
     if (dc->bus_type) {
-        out_printf(", bus %s", dc->bus_type);
+        qemu_printf(", bus %s", dc->bus_type);
     }
     if (qdev_class_has_alias(dc)) {
-        out_printf(", alias \"%s\"", qdev_class_get_alias(dc));
+        qemu_printf(", alias \"%s\"", qdev_class_get_alias(dc));
     }
     if (dc->desc) {
-        out_printf(", desc \"%s\"", dc->desc);
+        qemu_printf(", desc \"%s\"", dc->desc);
     }
     if (!dc->user_creatable) {
-        out_printf(", no-user");
+        qemu_printf(", no-user");
     }
-    out_printf("\n");
+    qemu_printf("\n");
 }
 
 static void qdev_print_devinfos(bool show_no_user)
@@ -164,7 +156,7 @@ static void qdev_print_devinfos(bool show_no_user)
                 continue;
             }
             if (!cat_printed) {
-                out_printf("%s%s devices:\n", i ? "\n" : "", cat_name[i]);
+                qemu_printf("%s%s devices:\n", i ? "\n" : "", cat_name[i]);
                 cat_printed = true;
             }
             qdev_print_devinfo(dc);
@@ -286,20 +278,20 @@ int qdev_device_help(QemuOpts *opts)
     }
 
     if (prop_list) {
-        out_printf("%s options:\n", driver);
+        qemu_printf("%s options:\n", driver);
     } else {
-        out_printf("There are no options for %s.\n", driver);
+        qemu_printf("There are no options for %s.\n", driver);
     }
     for (prop = prop_list; prop; prop = prop->next) {
         int len;
-        out_printf("  %s=<%s>%n", prop->value->name, prop->value->type, &len);
+        qemu_printf("  %s=<%s>%n", prop->value->name, prop->value->type, &len);
         if (prop->value->has_description) {
             if (len < 24) {
-                out_printf("%*s", 24 - len, "");
+                qemu_printf("%*s", 24 - len, "");
             }
-            out_printf(" - %s\n", prop->value->description);
+            qemu_printf(" - %s\n", prop->value->description);
         } else {
-            out_printf("\n");
+            qemu_printf("\n");
         }
     }
 

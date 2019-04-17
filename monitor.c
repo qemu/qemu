@@ -4542,22 +4542,14 @@ static void monitor_readline_flush(void *opaque)
 }
 
 /*
- * Print to current monitor if we have one, else to stream.
- */
-int monitor_vfprintf(FILE *stream, const char *fmt, va_list ap)
-{
-    if (cur_mon && !monitor_cur_is_qmp()) {
-        return monitor_vprintf(cur_mon, fmt, ap);
-    }
-    return vfprintf(stream, fmt, ap);
-}
-
-/*
  * Print to current monitor if we have one, else to stderr.
  */
 int error_vprintf(const char *fmt, va_list ap)
 {
-    return monitor_vfprintf(stderr, fmt, ap);
+    if (cur_mon && !monitor_cur_is_qmp()) {
+        return monitor_vprintf(cur_mon, fmt, ap);
+    }
+    return vfprintf(stderr, fmt, ap);
 }
 
 int error_vprintf_unless_qmp(const char *fmt, va_list ap)
