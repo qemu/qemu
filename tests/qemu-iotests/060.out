@@ -13,7 +13,7 @@ write failed: Input/output error
 incompatible_features     0x2
 image: TEST_DIR/t.IMGFMT
 file format: IMGFMT
-virtual size: 64M (67108864 bytes)
+virtual size: 64 MiB (67108864 bytes)
 cluster_size: 65536
 Format specific information:
     compat: 1.1
@@ -364,10 +364,10 @@ Formatting 'TEST_DIR/t.IMGFMT', fmt=IMGFMT size=67108864
 qcow2: Marking image as corrupt: Refblock at 0xffffff00000000 is not covered by the refcount structures; further corruption events will be suppressed
 qemu-img: Failed to discard unused refblocks: Input/output error
 --- Checking and retrying ---
-virtual size: 64M (67108864 bytes)
+virtual size: 64 MiB (67108864 bytes)
 No errors were found on the image.
 Image resized.
-virtual size: 32M (33554432 bytes)
+virtual size: 32 MiB (33554432 bytes)
 
 === Discarding a non-covered in-bounds refblock ===
 
@@ -375,10 +375,10 @@ Formatting 'TEST_DIR/t.IMGFMT', fmt=IMGFMT size=67108864
 qcow2: Marking image as corrupt: Refblock at 0x1000000000 is not covered by the refcount structures; further corruption events will be suppressed
 qemu-img: Failed to discard unused refblocks: Input/output error
 --- Checking and retrying ---
-virtual size: 64M (67108864 bytes)
+virtual size: 64 MiB (67108864 bytes)
 No errors were found on the image.
 Image resized.
-virtual size: 32M (33554432 bytes)
+virtual size: 32 MiB (33554432 bytes)
 
 === Discarding a refblock covered by an unaligned refblock ===
 

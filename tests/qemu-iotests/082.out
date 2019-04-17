@@ -6,14 +6,14 @@ Testing: create -f foo -f qcow2 TEST_DIR/t.qcow2 128M
 Formatting 'TEST_DIR/t.qcow2', fmt=qcow2 size=134217728 cluster_size=65536 lazy_refcounts=off refcount_bits=16
 image: TEST_DIR/t.IMGFMT
 file format: IMGFMT
-virtual size: 128M (134217728 bytes)
+virtual size: 128 MiB (134217728 bytes)
 cluster_size: 65536
 
 Testing: create -f qcow2 -o cluster_size=4k -o lazy_refcounts=on TEST_DIR/t.qcow2 128M
 Formatting 'TEST_DIR/t.qcow2', fmt=qcow2 size=134217728 cluster_size=4096 lazy_refcounts=on refcount_bits=16
 image: TEST_DIR/t.IMGFMT
 file format: IMGFMT
-virtual size: 128M (134217728 bytes)
+virtual size: 128 MiB (134217728 bytes)
 cluster_size: 4096
 Format specific information:
     compat: 1.1
@@ -25,7 +25,7 @@ Testing: create -f qcow2 -o cluster_size=4k -o lazy_refcounts=on -o cluster_size
 Formatting 'TEST_DIR/t.qcow2', fmt=qcow2 size=134217728 cluster_size=8192 lazy_refcounts=on refcount_bits=16
 image: TEST_DIR/t.IMGFMT
 file format: IMGFMT
-virtual size: 128M (134217728 bytes)
+virtual size: 128 MiB (134217728 bytes)
 cluster_size: 8192
 Format specific information:
     compat: 1.1
@@ -37,7 +37,7 @@ Testing: create -f qcow2 -o cluster_size=4k,cluster_size=8k TEST_DIR/t.qcow2 128
 Formatting 'TEST_DIR/t.qcow2', fmt=qcow2 size=134217728 cluster_size=8192 lazy_refcounts=off refcount_bits=16
 image: TEST_DIR/t.IMGFMT
 file format: IMGFMT
-virtual size: 128M (134217728 bytes)
+virtual size: 128 MiB (134217728 bytes)
 cluster_size: 8192
 
 === create: help for -o ===
@@ -278,18 +278,18 @@ Formatting 'TEST_DIR/t.qcow2', fmt=qcow2 size=134217728 cluster_size=65536 lazy_
 Testing: convert -f foo -f qcow2 TEST_DIR/t.qcow2 TEST_DIR/t.qcow2.base
 image: TEST_DIR/t.IMGFMT.base
 file format: raw
-virtual size: 128M (134217728 bytes)
+virtual size: 128 MiB (134217728 bytes)
 
 Testing: convert -O foo -O qcow2 TEST_DIR/t.qcow2 TEST_DIR/t.qcow2.base
 image: TEST_DIR/t.IMGFMT.base
 file format: IMGFMT
-virtual size: 128M (134217728 bytes)
+virtual size: 128 MiB (134217728 bytes)
 cluster_size: 65536
 
 Testing: convert -O qcow2 -o cluster_size=4k -o lazy_refcounts=on TEST_DIR/t.qcow2 TEST_DIR/t.qcow2.base
 image: TEST_DIR/t.IMGFMT.base
 file format: IMGFMT
-virtual size: 128M (134217728 bytes)
+virtual size: 128 MiB (134217728 bytes)
 cluster_size: 4096
 Format specific information:
     compat: 1.1
@@ -300,7 +300,7 @@ Format specific information:
 Testing: convert -O qcow2 -o cluster_size=4k -o lazy_refcounts=on -o cluster_size=8k TEST_DIR/t.qcow2 TEST_DIR/t.qcow2.base
 image: TEST_DIR/t.IMGFMT.base
 file format: IMGFMT
-virtual size: 128M (134217728 bytes)
+virtual size: 128 MiB (134217728 bytes)
 cluster_size: 8192
 Format specific information:
     compat: 1.1
@@ -311,7 +311,7 @@ Format specific information:
 Testing: convert -O qcow2 -o cluster_size=4k,cluster_size=8k TEST_DIR/t.qcow2 TEST_DIR/t.qcow2.base
 image: TEST_DIR/t.IMGFMT.base
 file format: IMGFMT
-virtual size: 128M (134217728 bytes)
+virtual size: 128 MiB (134217728 bytes)
 cluster_size: 8192
 
 === convert: help for -o ===
@@ -560,7 +560,7 @@ qemu-img: Cannot enable copy offloading when -c is used
 Testing: amend -f foo -f qcow2 -o lazy_refcounts=on TEST_DIR/t.qcow2
 image: TEST_DIR/t.IMGFMT
 file format: IMGFMT
-virtual size: 128M (134217728 bytes)
+virtual size: 128 MiB (134217728 bytes)
 cluster_size: 65536
 Format specific information:
     compat: 1.1
@@ -571,7 +571,7 @@ Format specific information:
 Testing: amend -f qcow2 -o size=130M -o lazy_refcounts=off TEST_DIR/t.qcow2
 image: TEST_DIR/t.IMGFMT
 file format: IMGFMT
-virtual size: 130M (136314880 bytes)
+virtual size: 130 MiB (136314880 bytes)
 cluster_size: 65536
 Format specific information:
     compat: 1.1
@@ -582,7 +582,7 @@ Format specific information:
 Testing: amend -f qcow2 -o size=8M -o lazy_refcounts=on -o size=132M TEST_DIR/t.qcow2
 image: TEST_DIR/t.IMGFMT
 file format: IMGFMT
-virtual size: 132M (138412032 bytes)
+virtual size: 132 MiB (138412032 bytes)
 cluster_size: 65536
 Format specific information:
     compat: 1.1
@@ -593,7 +593,7 @@ Format specific information:
 Testing: amend -f qcow2 -o size=4M,size=148M TEST_DIR/t.qcow2
 image: TEST_DIR/t.IMGFMT
 file format: IMGFMT
-virtual size: 148M (155189248 bytes)
+virtual size: 148 MiB (155189248 bytes)
 cluster_size: 65536
 
 === amend: help for -o ===

@@ -14,7 +14,7 @@
 
 image: TEST_IMG
 file format: IMGFMT
-virtual size: 128M (134217728 bytes)
+virtual size: 128 MiB (134217728 bytes)
 
 === Successful image creation (explicit defaults) ===
 
@@ -30,7 +30,7 @@ virtual size: 128M (134217728 bytes)
 
 image: TEST_IMG
 file format: IMGFMT
-virtual size: 64M (67108864 bytes)
+virtual size: 64 MiB (67108864 bytes)
 
 === Successful image creation (with non-default options) ===
 
@@ -46,7 +46,7 @@ virtual size: 64M (67108864 bytes)
 
 image: TEST_IMG
 file format: IMGFMT
-virtual size: 32M (33554432 bytes)
+virtual size: 32 MiB (33554432 bytes)
 
 === Invalid BlockdevRef ===
 
@@ -65,7 +65,7 @@ Job failed: Cannot find device=this doesn't exist nor node_name=this doesn't exi
 
 image: TEST_IMG
 file format: IMGFMT
-virtual size: 0 (0 bytes)
+virtual size: 0 B (0 bytes)
 
 === Maximum size ===
 
@@ -76,7 +76,7 @@ virtual size: 0 (0 bytes)
 
 image: TEST_IMG
 file format: IMGFMT
-virtual size: 4096T (4503599627369984 bytes)
+virtual size: 4 PiB (4503599627369984 bytes)
 
 === Invalid sizes ===
 

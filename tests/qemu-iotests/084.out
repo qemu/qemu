@@ -5,7 +5,7 @@ QA output created by 084
 Formatting 'TEST_DIR/t.IMGFMT', fmt=IMGFMT size=67108864
 image: TEST_DIR/t.IMGFMT
 file format: IMGFMT
-virtual size: 64M (67108864 bytes)
+virtual size: 64 MiB (67108864 bytes)
 cluster_size: 1048576
 disk image file size in bytes: 67109888
 
@@ -14,13 +14,13 @@ disk image file size in bytes: 67109888
 Formatting 'TEST_DIR/t.IMGFMT', fmt=IMGFMT size=67108864
 image: TEST_DIR/t.IMGFMT
 file format: IMGFMT
-virtual size: 64M (67108864 bytes)
+virtual size: 64 MiB (67108864 bytes)
 cluster_size: 1048576
 disk image file size in bytes: 1024
 Test 1: Maximum size (512 TB - 128 MB):
 image: TEST_DIR/t.IMGFMT
 file format: IMGFMT
-virtual size: 512T (562949819203584 bytes)
+virtual size: 512 TiB (562949819203584 bytes)
 cluster_size: 1048576
 
 Test 2: Size too large (512 TB - 128 MB + 64 kB)
@@ -35,7 +35,7 @@ qemu-img: Could not open 'TEST_DIR/t.IMGFMT': unsupported VDI image (too many bl
 Test 5: Valid Image: 64MB, Blocks In Image 64, Block Size 1MB
 image: TEST_DIR/t.IMGFMT
 file format: IMGFMT
-virtual size: 64M (67108864 bytes)
+virtual size: 64 MiB (67108864 bytes)
 cluster_size: 1048576
 
 Test 6: Block Size != 1MB; too small test (1MB - 1)

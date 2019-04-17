@@ -9,7 +9,7 @@ wrote 512/512 bytes at offset 0
 No errors were found on the image.
 
 == Checking compressed image virtual disk size ==
-virtual size: 512 (512 bytes)
+virtual size: 512 B (512 bytes)
 
 == Verifying the compressed image ==
 read 512/512 bytes at offset 0
