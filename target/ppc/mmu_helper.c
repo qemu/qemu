@@ -29,6 +29,7 @@
 #include "exec/log.h"
 #include "helper_regs.h"
 #include "qemu/error-report.h"
+#include "qemu/qemu-print.h"
 #include "mmu-book3s-v3.h"
 #include "mmu-radix64.h"
 
@@ -1116,19 +1117,18 @@ static const char *book3e_tsize_to_str[32] = {
     "1T", "2T"
 };
 
-static void mmubooke_dump_mmu(FILE *f, fprintf_function cpu_fprintf,
-                                 CPUPPCState *env)
+static void mmubooke_dump_mmu(CPUPPCState *env)
 {
     ppcemb_tlb_t *entry;
     int i;
 
     if (kvm_enabled() && !env->kvm_sw_tlb) {
-        cpu_fprintf(f, "Cannot access KVM TLB\n");
+        qemu_printf("Cannot access KVM TLB\n");
         return;
     }
 
-    cpu_fprintf(f, "\nTLB:\n");
-    cpu_fprintf(f, "Effective          Physical           Size PID   Prot     "
+    qemu_printf("\nTLB:\n");
+    qemu_printf("Effective          Physical           Size PID   Prot     "
                 "Attr\n");
 
     entry = &env->tlb.tlbe[0];
@@ -1153,22 +1153,21 @@ static void mmubooke_dump_mmu(FILE *f, fprintf_function cpu_fprintf,
         } else {
             snprintf(size_buf, sizeof(size_buf), "%3" PRId64 "k", size / KiB);
         }
-        cpu_fprintf(f, "0x%016" PRIx64 " 0x%016" PRIx64 " %s %-5u %08x %08x\n",
+        qemu_printf("0x%016" PRIx64 " 0x%016" PRIx64 " %s %-5u %08x %08x\n",
                     (uint64_t)ea, (uint64_t)pa, size_buf, (uint32_t)entry->PID,
                     entry->prot, entry->attr);
     }
 
 }
 
-static void mmubooke206_dump_one_tlb(FILE *f, fprintf_function cpu_fprintf,
-                                     CPUPPCState *env, int tlbn, int offset,
+static void mmubooke206_dump_one_tlb(CPUPPCState *env, int tlbn, int offset,
                                      int tlbsize)
 {
     ppcmas_tlb_t *entry;
     int i;
 
-    cpu_fprintf(f, "\nTLB%d:\n", tlbn);
-    cpu_fprintf(f, "Effective          Physical           Size TID   TS SRWX"
+    qemu_printf("\nTLB%d:\n", tlbn);
+    qemu_printf("Effective          Physical           Size TID   TS SRWX"
                 " URWX WIMGE U0123\n");
 
     entry = &env->tlb.tlbm[offset];
@@ -1185,7 +1184,7 @@ static void mmubooke206_dump_one_tlb(FILE *f, fprintf_function cpu_fprintf,
         ea = entry->mas2 & ~(size - 1);
         pa = entry->mas7_3 & ~(size - 1);
 
-        cpu_fprintf(f, "0x%016" PRIx64 " 0x%016" PRIx64 " %4s %-5u %1u  S%c%c%c"
+        qemu_printf("0x%016" PRIx64 " 0x%016" PRIx64 " %4s %-5u %1u  S%c%c%c"
                     "U%c%c%c %c%c%c%c%c U%c%c%c%c\n",
                     (uint64_t)ea, (uint64_t)pa,
                     book3e_tsize_to_str[tsize],
@@ -1209,14 +1208,13 @@ static void mmubooke206_dump_one_tlb(FILE *f, fprintf_function cpu_fprintf,
     }
 }
 
-static void mmubooke206_dump_mmu(FILE *f, fprintf_function cpu_fprintf,
-                                 CPUPPCState *env)
+static void mmubooke206_dump_mmu(CPUPPCState *env)
 {
     int offset = 0;
     int i;
 
     if (kvm_enabled() && !env->kvm_sw_tlb) {
-        cpu_fprintf(f, "Cannot access KVM TLB\n");
+        qemu_printf("Cannot access KVM TLB\n");
         return;
     }
 
@@ -1227,13 +1225,12 @@ static void mmubooke206_dump_mmu(FILE *f, fprintf_function cpu_fprintf,
             continue;
         }
 
-        mmubooke206_dump_one_tlb(f, cpu_fprintf, env, i, offset, size);
+        mmubooke206_dump_one_tlb(env, i, offset, size);
         offset += size;
     }
 }
 
-static void mmu6xx_dump_BATs(FILE *f, fprintf_function cpu_fprintf,
-                             CPUPPCState *env, int type)
+static void mmu6xx_dump_BATs(CPUPPCState *env, int type)
 {
     target_ulong *BATlt, *BATut, *BATu, *BATl;
     target_ulong BEPIl, BEPIu, bl;
@@ -1256,7 +1253,7 @@ static void mmu6xx_dump_BATs(FILE *f, fprintf_function cpu_fprintf,
         BEPIu = *BATu & 0xF0000000;
         BEPIl = *BATu & 0x0FFE0000;
         bl = (*BATu & 0x00001FFC) << 15;
-        cpu_fprintf(f, "%s BAT%d BATu " TARGET_FMT_lx
+        qemu_printf("%s BAT%d BATu " TARGET_FMT_lx
                     " BATl " TARGET_FMT_lx "\n\t" TARGET_FMT_lx " "
                     TARGET_FMT_lx " " TARGET_FMT_lx "\n",
                     type == ACCESS_CODE ? "code" : "data", i,
@@ -1264,44 +1261,43 @@ static void mmu6xx_dump_BATs(FILE *f, fprintf_function cpu_fprintf,
     }
 }
 
-static void mmu6xx_dump_mmu(FILE *f, fprintf_function cpu_fprintf,
-                            CPUPPCState *env)
+static void mmu6xx_dump_mmu(CPUPPCState *env)
 {
     PowerPCCPU *cpu = ppc_env_get_cpu(env);
     ppc6xx_tlb_t *tlb;
     target_ulong sr;
     int type, way, entry, i;
 
-    cpu_fprintf(f, "HTAB base = 0x%"HWADDR_PRIx"\n", ppc_hash32_hpt_base(cpu));
-    cpu_fprintf(f, "HTAB mask = 0x%"HWADDR_PRIx"\n", ppc_hash32_hpt_mask(cpu));
+    qemu_printf("HTAB base = 0x%"HWADDR_PRIx"\n", ppc_hash32_hpt_base(cpu));
+    qemu_printf("HTAB mask = 0x%"HWADDR_PRIx"\n", ppc_hash32_hpt_mask(cpu));
 
-    cpu_fprintf(f, "\nSegment registers:\n");
+    qemu_printf("\nSegment registers:\n");
     for (i = 0; i < 32; i++) {
         sr = env->sr[i];
         if (sr & 0x80000000) {
-            cpu_fprintf(f, "%02d T=%d Ks=%d Kp=%d BUID=0x%03x "
+            qemu_printf("%02d T=%d Ks=%d Kp=%d BUID=0x%03x "
                         "CNTLR_SPEC=0x%05x\n", i,
                         sr & 0x80000000 ? 1 : 0, sr & 0x40000000 ? 1 : 0,
                         sr & 0x20000000 ? 1 : 0, (uint32_t)((sr >> 20) & 0x1FF),
                         (uint32_t)(sr & 0xFFFFF));
         } else {
-            cpu_fprintf(f, "%02d T=%d Ks=%d Kp=%d N=%d VSID=0x%06x\n", i,
+            qemu_printf("%02d T=%d Ks=%d Kp=%d N=%d VSID=0x%06x\n", i,
                         sr & 0x80000000 ? 1 : 0, sr & 0x40000000 ? 1 : 0,
                         sr & 0x20000000 ? 1 : 0, sr & 0x10000000 ? 1 : 0,
                         (uint32_t)(sr & 0x00FFFFFF));
         }
     }
 
-    cpu_fprintf(f, "\nBATs:\n");
-    mmu6xx_dump_BATs(f, cpu_fprintf, env, ACCESS_INT);
-    mmu6xx_dump_BATs(f, cpu_fprintf, env, ACCESS_CODE);
+    qemu_printf("\nBATs:\n");
+    mmu6xx_dump_BATs(env, ACCESS_INT);
+    mmu6xx_dump_BATs(env, ACCESS_CODE);
 
     if (env->id_tlbs != 1) {
-        cpu_fprintf(f, "ERROR: 6xx MMU should have separated TLB"
+        qemu_printf("ERROR: 6xx MMU should have separated TLB"
                     " for code and data\n");
     }
 
-    cpu_fprintf(f, "\nTLBs                       [EPN    EPN + SIZE]\n");
+    qemu_printf("\nTLBs                       [EPN    EPN + SIZE]\n");
 
     for (type = 0; type < 2; type++) {
         for (way = 0; way < env->nb_ways; way++) {
@@ -1310,7 +1306,7 @@ static void mmu6xx_dump_mmu(FILE *f, fprintf_function cpu_fprintf,
                  entry++) {
 
                 tlb = &env->tlb.tlb6[entry];
-                cpu_fprintf(f, "%s TLB %02d/%02d way:%d %s ["
+                qemu_printf("%s TLB %02d/%02d way:%d %s ["
                             TARGET_FMT_lx " " TARGET_FMT_lx "]\n",
                             type ? "code" : "data", entry % env->nb_tlb,
                             env->nb_tlb, way,
@@ -1321,31 +1317,31 @@ static void mmu6xx_dump_mmu(FILE *f, fprintf_function cpu_fprintf,
     }
 }
 
-void dump_mmu(FILE *f, fprintf_function cpu_fprintf, CPUPPCState *env)
+void dump_mmu(CPUPPCState *env)
 {
     switch (env->mmu_model) {
     case POWERPC_MMU_BOOKE:
-        mmubooke_dump_mmu(f, cpu_fprintf, env);
+        mmubooke_dump_mmu(env);
         break;
     case POWERPC_MMU_BOOKE206:
-        mmubooke206_dump_mmu(f, cpu_fprintf, env);
+        mmubooke206_dump_mmu(env);
         break;
     case POWERPC_MMU_SOFT_6xx:
     case POWERPC_MMU_SOFT_74xx:
-        mmu6xx_dump_mmu(f, cpu_fprintf, env);
+        mmu6xx_dump_mmu(env);
         break;
 #if defined(TARGET_PPC64)
     case POWERPC_MMU_64B:
     case POWERPC_MMU_2_03:
     case POWERPC_MMU_2_06:
     case POWERPC_MMU_2_07:
-        dump_slb(f, cpu_fprintf, ppc_env_get_cpu(env));
+        dump_slb(ppc_env_get_cpu(env));
         break;
     case POWERPC_MMU_3_00:
         if (ppc64_v3_radix(ppc_env_get_cpu(env))) {
             /* TODO - Unsupported */
         } else {
-            dump_slb(f, cpu_fprintf, ppc_env_get_cpu(env));
+            dump_slb(ppc_env_get_cpu(env));
             break;
         }
 #endif

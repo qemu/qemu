@@ -583,7 +583,7 @@ void sparc_cpu_list(void);
 int sparc_cpu_handle_mmu_fault(CPUState *cpu, vaddr address, int size, int rw,
                                int mmu_idx);
 target_ulong mmu_probe(CPUSPARCState *env, target_ulong address, int mmulev);
-void dump_mmu(FILE *f, fprintf_function cpu_fprintf, CPUSPARCState *env);
+void dump_mmu(CPUSPARCState *env);
 
 #if !defined(TARGET_SPARC64) && !defined(CONFIG_USER_ONLY)
 int sparc_cpu_memory_rw_debug(CPUState *cpu, vaddr addr,
