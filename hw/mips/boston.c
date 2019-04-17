@@ -528,21 +528,21 @@ static void boston_mach_init(MachineState *machine)
         fw_size = load_image_targphys(machine->firmware,
                                       0x1fc00000, 4 * MiB);
         if (fw_size == -1) {
-            error_printf("unable to load firmware image '%s'\n",
+            error_report("unable to load firmware image '%s'",
                           machine->firmware);
             exit(1);
         }
     } else if (machine->kernel_filename) {
         fit_err = load_fit(&boston_fit_loader, machine->kernel_filename, s);
         if (fit_err) {
-            error_printf("unable to load FIT image\n");
+            error_report("unable to load FIT image");
             exit(1);
         }
 
         gen_firmware(memory_region_get_ram_ptr(flash) + 0x7c00000,
                      s->kernel_entry, s->fdt_base, is_64b);
     } else if (!qtest_enabled()) {
-        error_printf("Please provide either a -kernel or -bios argument\n");
+        error_report("Please provide either a -kernel or -bios argument");
         exit(1);
     }
 }
