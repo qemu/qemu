@@ -16,6 +16,7 @@
 #include "trace/control.h"
 #include "trace/simple.h"
 #include "qemu/error-report.h"
+#include "qemu/qemu-print.h"
 
 /** Trace file header event ID, picked to avoid conflict with real event IDs */
 #define HEADER_EVENT_ID (~(uint64_t)0)
@@ -363,10 +364,10 @@ void st_set_trace_file(const char *file)
     st_set_trace_file_enabled(true);
 }
 
-void st_print_trace_file_status(FILE *stream, int (*stream_printf)(FILE *stream, const char *fmt, ...))
+void st_print_trace_file_status(void)
 {
-    stream_printf(stream, "Trace file \"%s\" %s.\n",
-                  trace_file_name, trace_fp ? "on" : "off");
+    qemu_printf("Trace file \"%s\" %s.\n",
+                trace_file_name, trace_fp ? "on" : "off");
 }
 
 void st_flush_trace_buffer(void)

@@ -1056,7 +1056,7 @@ static void hmp_trace_file(Monitor *mon, const QDict *qdict)
     const char *arg = qdict_get_try_str(qdict, "arg");
 
     if (!op) {
-        st_print_trace_file_status((FILE *)mon, &monitor_fprintf);
+        st_print_trace_file_status();
     } else if (!strcmp(op, "on")) {
         st_set_trace_file_enabled(true);
     } else if (!strcmp(op, "off")) {
