@@ -480,17 +480,6 @@ int monitor_printf(Monitor *mon, const char *fmt, ...)
     return ret;
 }
 
-int monitor_fprintf(FILE *stream, const char *fmt, ...)
-{
-    int ret;
-
-    va_list ap;
-    va_start(ap, fmt);
-    ret = monitor_vprintf((Monitor *)stream, fmt, ap);
-    va_end(ap);
-    return ret;
-}
-
 static void qmp_send_response(Monitor *mon, const QDict *rsp)
 {
     const QObject *data = QOBJECT(rsp);

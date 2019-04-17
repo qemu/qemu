@@ -3,6 +3,7 @@
 #include "qemu-common.h"
 #include "disas/bfd.h"
 #include "elf.h"
+#include "qemu/qemu-print.h"
 
 #include "cpu.h"
 #include "disas/disas.h"
@@ -609,7 +610,7 @@ void monitor_disas(Monitor *mon, CPUState *cpu,
     int count, i;
     CPUDebug s;
 
-    INIT_DISASSEMBLE_INFO(s.info, (FILE *)mon, monitor_fprintf);
+    INIT_DISASSEMBLE_INFO(s.info, NULL, qemu_fprintf);
 
     s.cpu = cpu;
     s.info.read_memory_func
