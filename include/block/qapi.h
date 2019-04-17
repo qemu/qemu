@@ -27,6 +27,7 @@
 
 #include "block/block.h"
 #include "block/snapshot.h"
+#include "qemu/fprintf-fn.h"
 
 BlockDeviceInfo *bdrv_block_device_info(BlockBackend *blk,
                                         BlockDriverState *bs, Error **errp);
