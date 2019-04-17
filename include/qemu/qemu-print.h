@@ -16,4 +16,8 @@
 int qemu_vprintf(const char *fmt, va_list ap) GCC_FMT_ATTR(1, 0);
 int qemu_printf(const char *fmt, ...) GCC_FMT_ATTR(1, 2);
 
+int qemu_vfprintf(FILE *stream, const char *fmt, va_list ap)
+    GCC_FMT_ATTR(2, 0);
+int qemu_fprintf(FILE *stream, const char *fmt, ...) GCC_FMT_ATTR(2, 3);
+
 #endif

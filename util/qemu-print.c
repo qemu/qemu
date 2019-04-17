@@ -40,3 +40,30 @@ int qemu_printf(const char *fmt, ...)
     va_end(ap);
     return ret;
 }
+
+/*
+ * Print like vfprintf()
+ * Print to @stream if non-null, else to current monitor.
+ */
+int qemu_vfprintf(FILE *stream, const char *fmt, va_list ap)
+{
+    if (!stream) {
+        return monitor_vprintf(cur_mon, fmt, ap);
+    }
+    return vfprintf(stream, fmt, ap);
+}
+
+/*
+ * Print like fprintf().
+ * Print to @stream if non-null, else to current monitor.
+ */
+int qemu_fprintf(FILE *stream, const char *fmt, ...)
+{
+    va_list ap;
+    int ret;
+
+    va_start(ap, fmt);
+    ret = qemu_vfprintf(stream, fmt, ap);
+    va_end(ap);
+    return ret;
+}
