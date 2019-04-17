@@ -24,22 +24,26 @@ typedef enum {
     REPORT_TYPE_INFO,
 } report_type;
 
-void error_printf(const char *fmt, ...)
+int error_printf(const char *fmt, ...)
 {
     va_list ap;
+    int ret;
 
     va_start(ap, fmt);
-    error_vprintf(fmt, ap);
+    ret = error_vprintf(fmt, ap);
     va_end(ap);
+    return ret;
 }
 
-void error_printf_unless_qmp(const char *fmt, ...)
+int error_printf_unless_qmp(const char *fmt, ...)
 {
     va_list ap;
+    int ret;
 
     va_start(ap, fmt);
-    error_vprintf_unless_qmp(fmt, ap);
+    ret = error_vprintf_unless_qmp(fmt, ap);
     va_end(ap);
+    return ret;
 }
 
 static Location std_loc = {

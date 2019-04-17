@@ -30,10 +30,10 @@ void loc_set_none(void);
 void loc_set_cmdline(char **argv, int idx, int cnt);
 void loc_set_file(const char *fname, int lno);
 
-void error_vprintf(const char *fmt, va_list ap) GCC_FMT_ATTR(1, 0);
-void error_printf(const char *fmt, ...) GCC_FMT_ATTR(1, 2);
-void error_vprintf_unless_qmp(const char *fmt, va_list ap) GCC_FMT_ATTR(1, 0);
-void error_printf_unless_qmp(const char *fmt, ...) GCC_FMT_ATTR(1, 2);
+int error_vprintf(const char *fmt, va_list ap) GCC_FMT_ATTR(1, 0);
+int error_printf(const char *fmt, ...) GCC_FMT_ATTR(1, 2);
+int error_vprintf_unless_qmp(const char *fmt, va_list ap) GCC_FMT_ATTR(1, 0);
+int error_printf_unless_qmp(const char *fmt, ...) GCC_FMT_ATTR(1, 2);
 
 void error_vreport(const char *fmt, va_list ap) GCC_FMT_ATTR(1, 0);
 void warn_vreport(const char *fmt, va_list ap) GCC_FMT_ATTR(1, 0);
