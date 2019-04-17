@@ -399,6 +399,13 @@ int s390_set_memory_limit(uint64_t new_limit, uint64_t *hw_limit)
     return 0;
 }
 
+void s390_set_max_pagesize(uint64_t pagesize, Error **errp)
+{
+    if (kvm_enabled()) {
+        kvm_s390_set_max_pagesize(pagesize, errp);
+    }
+}
+
 void s390_cmma_reset(void)
 {
     if (kvm_enabled()) {

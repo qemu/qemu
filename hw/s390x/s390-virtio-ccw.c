@@ -15,6 +15,7 @@
 #include "cpu.h"
 #include "hw/boards.h"
 #include "exec/address-spaces.h"
+#include "exec/ram_addr.h"
 #include "hw/s390x/s390-virtio-hcall.h"
 #include "hw/s390x/sclp.h"
 #include "hw/s390x/s390_flic.h"
@@ -163,6 +164,7 @@ static void s390_memory_init(ram_addr_t mem_size)
     MemoryRegion *sysmem = get_system_memory();
     ram_addr_t chunk, offset = 0;
     unsigned int number = 0;
+    Error *local_err = NULL;
     gchar *name;
 
     /* allocate RAM for core */
@@ -182,6 +184,15 @@ static void s390_memory_init(ram_addr_t mem_size)
     }
     g_free(name);
 
+    /*
+     * Configure the maximum page size. As no memory devices were created
+     * yet, this is the page size of initial memory only.
+     */
+    s390_set_max_pagesize(qemu_getrampagesize(), &local_err);
+    if (local_err) {
+        error_report_err(local_err);
+        exit(EXIT_FAILURE);
+    }
     /* Initialize storage key device */
     s390_skeys_init();
     /* Initialize storage attributes device */
@@ -253,6 +264,7 @@ static void ccw_init(MachineState *machine)
     DeviceState *dev;
 
     s390_sclp_init();
+    /* init memory + setup max page size. Required for the CPU model */
     s390_memory_init(machine->ram_size);
 
     /* init CPUs (incl. CPU model) early so s390_has_feature() works */
