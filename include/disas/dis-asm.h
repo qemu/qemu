@@ -9,8 +9,6 @@
 #ifndef DISAS_BFD_H
 #define DISAS_BFD_H
 
-#include "qemu/fprintf-fn.h"
-
 typedef void *PTR;
 typedef uint64_t bfd_vma;
 typedef int64_t bfd_signed_vma;
@@ -242,6 +240,9 @@ typedef struct symbol_cache_entry
         bfd_vma i;
     } udata;
 } asymbol;
+
+typedef int (*fprintf_function)(FILE *f, const char *fmt, ...)
+    GCC_FMT_ATTR(2, 3);
 
 enum dis_insn_type {
   dis_noninsn,			/* Not a valid instruction */
