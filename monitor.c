@@ -1318,7 +1318,7 @@ static void hmp_info_jit(Monitor *mon, const QDict *qdict)
         return;
     }
 
-    dump_exec_info((FILE *)mon, monitor_fprintf);
+    dump_exec_info();
     dump_drift_info((FILE *)mon, monitor_fprintf);
 }
 

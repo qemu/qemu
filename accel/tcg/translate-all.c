@@ -50,6 +50,7 @@
 #include "translate-all.h"
 #include "qemu/bitmap.h"
 #include "qemu/error-report.h"
+#include "qemu/qemu-print.h"
 #include "qemu/timer.h"
 #include "qemu/main-loop.h"
 #include "exec/log.h"
@@ -2214,8 +2215,7 @@ void tb_flush_jmp_cache(CPUState *cpu, target_ulong addr)
     tb_jmp_cache_clear_page(cpu, addr);
 }
 
-static void print_qht_statistics(FILE *f, fprintf_function cpu_fprintf,
-                                 struct qht_stats hst)
+static void print_qht_statistics(struct qht_stats hst)
 {
     uint32_t hgram_opts;
     size_t hgram_bins;
@@ -2224,7 +2224,7 @@ static void print_qht_statistics(FILE *f, fprintf_function cpu_fprintf,
     if (!hst.head_buckets) {
         return;
     }
-    cpu_fprintf(f, "TB hash buckets     %zu/%zu (%0.2f%% head buckets used)\n",
+    qemu_printf("TB hash buckets     %zu/%zu (%0.2f%% head buckets used)\n",
                 hst.used_head_buckets, hst.head_buckets,
                 (double)hst.used_head_buckets / hst.head_buckets * 100);
 
@@ -2234,7 +2234,7 @@ static void print_qht_statistics(FILE *f, fprintf_function cpu_fprintf,
         hgram_opts |= QDIST_PR_NODECIMAL;
     }
     hgram = qdist_pr(&hst.occupancy, 10, hgram_opts);
-    cpu_fprintf(f, "TB hash occupancy   %0.2f%% avg chain occ. Histogram: %s\n",
+    qemu_printf("TB hash occupancy   %0.2f%% avg chain occ. Histogram: %s\n",
                 qdist_avg(&hst.occupancy) * 100, hgram);
     g_free(hgram);
 
@@ -2247,7 +2247,7 @@ static void print_qht_statistics(FILE *f, fprintf_function cpu_fprintf,
         hgram_opts |= QDIST_PR_NODECIMAL | QDIST_PR_NOBINRANGE;
     }
     hgram = qdist_pr(&hst.chain, hgram_bins, hgram_opts);
-    cpu_fprintf(f, "TB hash avg chain   %0.3f buckets. Histogram: %s\n",
+    qemu_printf("TB hash avg chain   %0.3f buckets. Histogram: %s\n",
                 qdist_avg(&hst.chain), hgram);
     g_free(hgram);
 }
@@ -2285,7 +2285,7 @@ static gboolean tb_tree_stats_iter(gpointer key, gpointer value, gpointer data)
     return false;
 }
 
-void dump_exec_info(FILE *f, fprintf_function cpu_fprintf)
+void dump_exec_info(void)
 {
     struct tb_tree_stats tst = {};
     struct qht_stats hst;
@@ -2294,43 +2294,44 @@ void dump_exec_info(FILE *f, fprintf_function cpu_fprintf)
     tcg_tb_foreach(tb_tree_stats_iter, &tst);
     nb_tbs = tst.nb_tbs;
     /* XXX: avoid using doubles ? */
-    cpu_fprintf(f, "Translation buffer state:\n");
+    qemu_printf("Translation buffer state:\n");
     /*
      * Report total code size including the padding and TB structs;
      * otherwise users might think "-tb-size" is not honoured.
      * For avg host size we use the precise numbers from tb_tree_stats though.
      */
-    cpu_fprintf(f, "gen code size       %zu/%zu\n",
+    qemu_printf("gen code size       %zu/%zu\n",
                 tcg_code_size(), tcg_code_capacity());
-    cpu_fprintf(f, "TB count            %zu\n", nb_tbs);
-    cpu_fprintf(f, "TB avg target size  %zu max=%zu bytes\n",
+    qemu_printf("TB count            %zu\n", nb_tbs);
+    qemu_printf("TB avg target size  %zu max=%zu bytes\n",
                 nb_tbs ? tst.target_size / nb_tbs : 0,
                 tst.max_target_size);
-    cpu_fprintf(f, "TB avg host size    %zu bytes (expansion ratio: %0.1f)\n",
+    qemu_printf("TB avg host size    %zu bytes (expansion ratio: %0.1f)\n",
                 nb_tbs ? tst.host_size / nb_tbs : 0,
                 tst.target_size ? (double)tst.host_size / tst.target_size : 0);
-    cpu_fprintf(f, "cross page TB count %zu (%zu%%)\n", tst.cross_page,
-            nb_tbs ? (tst.cross_page * 100) / nb_tbs : 0);
-    cpu_fprintf(f, "direct jump count   %zu (%zu%%) (2 jumps=%zu %zu%%)\n",
+    qemu_printf("cross page TB count %zu (%zu%%)\n", tst.cross_page,
+                nb_tbs ? (tst.cross_page * 100) / nb_tbs : 0);
+    qemu_printf("direct jump count   %zu (%zu%%) (2 jumps=%zu %zu%%)\n",
                 tst.direct_jmp_count,
                 nb_tbs ? (tst.direct_jmp_count * 100) / nb_tbs : 0,
                 tst.direct_jmp2_count,
                 nb_tbs ? (tst.direct_jmp2_count * 100) / nb_tbs : 0);
 
     qht_statistics_init(&tb_ctx.htable, &hst);
-    print_qht_statistics(f, cpu_fprintf, hst);
+    print_qht_statistics(hst);
     qht_statistics_destroy(&hst);
 
-    cpu_fprintf(f, "\nStatistics:\n");
-    cpu_fprintf(f, "TB flush count      %u\n",
+    qemu_printf("\nStatistics:\n");
+    qemu_printf("TB flush count      %u\n",
                 atomic_read(&tb_ctx.tb_flush_count));
-    cpu_fprintf(f, "TB invalidate count %zu\n", tcg_tb_phys_invalidate_count());
+    qemu_printf("TB invalidate count %zu\n",
+                tcg_tb_phys_invalidate_count());
 
     tlb_flush_counts(&flush_full, &flush_part, &flush_elide);
-    cpu_fprintf(f, "TLB full flushes    %zu\n", flush_full);
-    cpu_fprintf(f, "TLB partial flushes %zu\n", flush_part);
-    cpu_fprintf(f, "TLB elided flushes  %zu\n", flush_elide);
-    tcg_dump_info(f, cpu_fprintf);
+    qemu_printf("TLB full flushes    %zu\n", flush_full);
+    qemu_printf("TLB partial flushes %zu\n", flush_part);
+    qemu_printf("TLB elided flushes  %zu\n", flush_elide);
+    tcg_dump_info();
 }
 
 void dump_opcount_info(void)

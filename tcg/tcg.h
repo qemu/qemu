@@ -1017,7 +1017,7 @@ int tcg_check_temp_count(void);
 #endif
 
 int64_t tcg_cpu_exec_time(void);
-void tcg_dump_info(FILE *f, fprintf_function cpu_fprintf);
+void tcg_dump_info(void);
 void tcg_dump_op_count(void);
 
 #define TCG_CT_ALIAS  0x80
