@@ -1,6 +1,7 @@
 #ifndef QEMU_CPUS_H
 #define QEMU_CPUS_H
 
+#include "qemu/fprintf-fn.h"
 #include "qemu/timer.h"
 
 /* cpus.c */
