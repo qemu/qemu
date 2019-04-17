@@ -224,8 +224,7 @@ static inline TriCoreCPU *tricore_env_get_cpu(CPUTriCoreState *env)
 #define ENV_OFFSET offsetof(TriCoreCPU, env)
 
 hwaddr tricore_cpu_get_phys_page_debug(CPUState *cpu, vaddr addr);
-void tricore_cpu_dump_state(CPUState *cpu, FILE *f,
-                            fprintf_function cpu_fprintf, int flags);
+void tricore_cpu_dump_state(CPUState *cpu, FILE *f, int flags);
 
 
 #define MASK_PCXI_PCPN 0xff000000

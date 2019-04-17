@@ -27,6 +27,7 @@
 #include "translate.h"
 #include "internals.h"
 #include "qemu/host-utils.h"
+#include "qemu/qemu-print.h"
 
 #include "exec/semihost.h"
 #include "exec/gen-icount.h"
@@ -151,8 +152,7 @@ static void set_btype(DisasContext *s, int val)
     s->btype = -1;
 }
 
-void aarch64_cpu_dump_state(CPUState *cs, FILE *f,
-                            fprintf_function cpu_fprintf, int flags)
+void aarch64_cpu_dump_state(CPUState *cs, FILE *f, int flags)
 {
     ARMCPU *cpu = ARM_CPU(cs);
     CPUARMState *env = &cpu->env;
@@ -161,13 +161,13 @@ void aarch64_cpu_dump_state(CPUState *cs, FILE *f,
     int el = arm_current_el(env);
     const char *ns_status;
 
-    cpu_fprintf(f, " PC=%016" PRIx64 " ", env->pc);
+    qemu_fprintf(f, " PC=%016" PRIx64 " ", env->pc);
     for (i = 0; i < 32; i++) {
         if (i == 31) {
-            cpu_fprintf(f, " SP=%016" PRIx64 "\n", env->xregs[i]);
+            qemu_fprintf(f, " SP=%016" PRIx64 "\n", env->xregs[i]);
         } else {
-            cpu_fprintf(f, "X%02d=%016" PRIx64 "%s", i, env->xregs[i],
-                        (i + 2) % 3 ? " " : "\n");
+            qemu_fprintf(f, "X%02d=%016" PRIx64 "%s", i, env->xregs[i],
+                         (i + 2) % 3 ? " " : "\n");
         }
     }
 
@@ -176,29 +176,29 @@ void aarch64_cpu_dump_state(CPUState *cs, FILE *f,
     } else {
         ns_status = "";
     }
-    cpu_fprintf(f, "PSTATE=%08x %c%c%c%c %sEL%d%c",
-                psr,
-                psr & PSTATE_N ? 'N' : '-',
-                psr & PSTATE_Z ? 'Z' : '-',
-                psr & PSTATE_C ? 'C' : '-',
-                psr & PSTATE_V ? 'V' : '-',
-                ns_status,
-                el,
-                psr & PSTATE_SP ? 'h' : 't');
+    qemu_fprintf(f, "PSTATE=%08x %c%c%c%c %sEL%d%c",
+                 psr,
+                 psr & PSTATE_N ? 'N' : '-',
+                 psr & PSTATE_Z ? 'Z' : '-',
+                 psr & PSTATE_C ? 'C' : '-',
+                 psr & PSTATE_V ? 'V' : '-',
+                 ns_status,
+                 el,
+                 psr & PSTATE_SP ? 'h' : 't');
 
     if (cpu_isar_feature(aa64_bti, cpu)) {
-        cpu_fprintf(f, "  BTYPE=%d", (psr & PSTATE_BTYPE) >> 10);
+        qemu_fprintf(f, "  BTYPE=%d", (psr & PSTATE_BTYPE) >> 10);
     }
     if (!(flags & CPU_DUMP_FPU)) {
-        cpu_fprintf(f, "\n");
+        qemu_fprintf(f, "\n");
         return;
     }
     if (fp_exception_el(env, el) != 0) {
-        cpu_fprintf(f, "    FPU disabled\n");
+        qemu_fprintf(f, "    FPU disabled\n");
         return;
     }
-    cpu_fprintf(f, "     FPCR=%08x FPSR=%08x\n",
-                vfp_get_fpcr(env), vfp_get_fpsr(env));
+    qemu_fprintf(f, "     FPCR=%08x FPSR=%08x\n",
+                 vfp_get_fpcr(env), vfp_get_fpsr(env));
 
     if (cpu_isar_feature(aa64_sve, cpu) && sve_exception_el(env, el) == 0) {
         int j, zcr_len = sve_zcr_len_for_el(env, el);
@@ -206,11 +206,11 @@ void aarch64_cpu_dump_state(CPUState *cs, FILE *f,
         for (i = 0; i <= FFR_PRED_NUM; i++) {
             bool eol;
             if (i == FFR_PRED_NUM) {
-                cpu_fprintf(f, "FFR=");
+                qemu_fprintf(f, "FFR=");
                 /* It's last, so end the line.  */
                 eol = true;
             } else {
-                cpu_fprintf(f, "P%02d=", i);
+                qemu_fprintf(f, "P%02d=", i);
                 switch (zcr_len) {
                 case 0:
                     eol = i % 8 == 7;
@@ -235,46 +235,46 @@ void aarch64_cpu_dump_state(CPUState *cs, FILE *f,
                 } else {
                     digits = (zcr_len % 4 + 1) * 4;
                 }
-                cpu_fprintf(f, "%0*" PRIx64 "%s", digits,
-                            env->vfp.pregs[i].p[j],
-                            j ? ":" : eol ? "\n" : " ");
+                qemu_fprintf(f, "%0*" PRIx64 "%s", digits,
+                             env->vfp.pregs[i].p[j],
+                             j ? ":" : eol ? "\n" : " ");
             }
         }
 
         for (i = 0; i < 32; i++) {
             if (zcr_len == 0) {
-                cpu_fprintf(f, "Z%02d=%016" PRIx64 ":%016" PRIx64 "%s",
-                            i, env->vfp.zregs[i].d[1],
-                            env->vfp.zregs[i].d[0], i & 1 ? "\n" : " ");
+                qemu_fprintf(f, "Z%02d=%016" PRIx64 ":%016" PRIx64 "%s",
+                             i, env->vfp.zregs[i].d[1],
+                             env->vfp.zregs[i].d[0], i & 1 ? "\n" : " ");
             } else if (zcr_len == 1) {
-                cpu_fprintf(f, "Z%02d=%016" PRIx64 ":%016" PRIx64
-                            ":%016" PRIx64 ":%016" PRIx64 "\n",
-                            i, env->vfp.zregs[i].d[3], env->vfp.zregs[i].d[2],
-                            env->vfp.zregs[i].d[1], env->vfp.zregs[i].d[0]);
+                qemu_fprintf(f, "Z%02d=%016" PRIx64 ":%016" PRIx64
+                             ":%016" PRIx64 ":%016" PRIx64 "\n",
+                             i, env->vfp.zregs[i].d[3], env->vfp.zregs[i].d[2],
+                             env->vfp.zregs[i].d[1], env->vfp.zregs[i].d[0]);
             } else {
                 for (j = zcr_len; j >= 0; j--) {
                     bool odd = (zcr_len - j) % 2 != 0;
                     if (j == zcr_len) {
-                        cpu_fprintf(f, "Z%02d[%x-%x]=", i, j, j - 1);
+                        qemu_fprintf(f, "Z%02d[%x-%x]=", i, j, j - 1);
                     } else if (!odd) {
                         if (j > 0) {
-                            cpu_fprintf(f, "   [%x-%x]=", j, j - 1);
+                            qemu_fprintf(f, "   [%x-%x]=", j, j - 1);
                         } else {
-                            cpu_fprintf(f, "     [%x]=", j);
+                            qemu_fprintf(f, "     [%x]=", j);
                         }
                     }
-                    cpu_fprintf(f, "%016" PRIx64 ":%016" PRIx64 "%s",
-                                env->vfp.zregs[i].d[j * 2 + 1],
-                                env->vfp.zregs[i].d[j * 2],
-                                odd || j == 0 ? "\n" : ":");
+                    qemu_fprintf(f, "%016" PRIx64 ":%016" PRIx64 "%s",
+                                 env->vfp.zregs[i].d[j * 2 + 1],
+                                 env->vfp.zregs[i].d[j * 2],
+                                 odd || j == 0 ? "\n" : ":");
                 }
             }
         }
     } else {
         for (i = 0; i < 32; i++) {
             uint64_t *q = aa64_vfp_qreg(env, i);
-            cpu_fprintf(f, "Q%02d=%016" PRIx64 ":%016" PRIx64 "%s",
-                        i, q[1], q[0], (i & 1 ? "\n" : " "));
+            qemu_fprintf(f, "Q%02d=%016" PRIx64 ":%016" PRIx64 "%s",
+                         i, q[1], q[0], (i & 1 ? "\n" : " "));
         }
     }
 }

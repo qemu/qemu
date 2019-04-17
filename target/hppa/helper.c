@@ -23,6 +23,7 @@
 #include "fpu/softfloat.h"
 #include "exec/exec-all.h"
 #include "exec/helper-proto.h"
+#include "qemu/qemu-print.h"
 
 target_ureg cpu_hppa_get_psw(CPUHPPAState *env)
 {
@@ -76,8 +77,7 @@ void cpu_hppa_put_psw(CPUHPPAState *env, target_ureg psw)
     }
 }
 
-void hppa_cpu_dump_state(CPUState *cs, FILE *f,
-                         fprintf_function cpu_fprintf, int flags)
+void hppa_cpu_dump_state(CPUState *cs, FILE *f, int flags)
 {
     HPPACPU *cpu = HPPA_CPU(cs);
     CPUHPPAState *env = &cpu->env;
@@ -86,9 +86,9 @@ void hppa_cpu_dump_state(CPUState *cs, FILE *f,
     char psw_c[20];
     int i;
 
-    cpu_fprintf(f, "IA_F " TARGET_FMT_lx " IA_B " TARGET_FMT_lx "\n",
-                hppa_form_gva_psw(psw, env->iasq_f, env->iaoq_f),
-                hppa_form_gva_psw(psw, env->iasq_b, env->iaoq_b));
+    qemu_fprintf(f, "IA_F " TARGET_FMT_lx " IA_B " TARGET_FMT_lx "\n",
+                 hppa_form_gva_psw(psw, env->iasq_f, env->iaoq_f),
+                 hppa_form_gva_psw(psw, env->iasq_b, env->iaoq_b));
 
     psw_c[0]  = (psw & PSW_W ? 'W' : '-');
     psw_c[1]  = (psw & PSW_E ? 'E' : '-');
@@ -111,20 +111,20 @@ void hppa_cpu_dump_state(CPUState *cs, FILE *f,
     psw_c[18] = '\0';
     psw_cb = ((env->psw_cb >> 4) & 0x01111111) | (env->psw_cb_msb << 28);
 
-    cpu_fprintf(f, "PSW  " TREG_FMT_lx " CB   " TREG_FMT_lx " %s\n",
-                psw, psw_cb, psw_c);
+    qemu_fprintf(f, "PSW  " TREG_FMT_lx " CB   " TREG_FMT_lx " %s\n",
+                 psw, psw_cb, psw_c);
 
     for (i = 0; i < 32; i++) {
-        cpu_fprintf(f, "GR%02d " TREG_FMT_lx "%c", i, env->gr[i],
-                    (i & 3) == 3 ? '\n' : ' ');
+        qemu_fprintf(f, "GR%02d " TREG_FMT_lx "%c", i, env->gr[i],
+                     (i & 3) == 3 ? '\n' : ' ');
     }
 #ifndef CONFIG_USER_ONLY
     for (i = 0; i < 8; i++) {
-        cpu_fprintf(f, "SR%02d %08x%c", i, (uint32_t)(env->sr[i] >> 32),
-                    (i & 3) == 3 ? '\n' : ' ');
+        qemu_fprintf(f, "SR%02d %08x%c", i, (uint32_t)(env->sr[i] >> 32),
+                     (i & 3) == 3 ? '\n' : ' ');
     }
 #endif
-     cpu_fprintf(f, "\n");
+     qemu_fprintf(f, "\n");
 
     /* ??? FR */
 }

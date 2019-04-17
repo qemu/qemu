@@ -60,7 +60,7 @@ int cris_cpu_handle_mmu_fault(CPUState *cs, vaddr address, int size, int rw,
 
     cs->exception_index = 0xaa;
     cpu->env.pregs[PR_EDA] = address;
-    cpu_dump_state(cs, stderr, fprintf, 0);
+    cpu_dump_state(cs, stderr, 0);
     return 1;
 }
 

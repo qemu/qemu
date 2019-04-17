@@ -26,7 +26,6 @@
 #include "exec/memattrs.h"
 #include "qapi/qapi-types-run-state.h"
 #include "qemu/bitmap.h"
-#include "qemu/fprintf-fn.h"
 #include "qemu/rcu_queue.h"
 #include "qemu/queue.h"
 #include "qemu/thread.h"
@@ -181,8 +180,7 @@ typedef struct CPUClass {
     bool (*virtio_is_big_endian)(CPUState *cpu);
     int (*memory_rw_debug)(CPUState *cpu, vaddr addr,
                            uint8_t *buf, int len, bool is_write);
-    void (*dump_state)(CPUState *cpu, FILE *f, fprintf_function cpu_fprintf,
-                       int flags);
+    void (*dump_state)(CPUState *cpu, FILE *, int flags);
     GuestPanicInformation* (*get_crash_info)(CPUState *cpu);
     void (*dump_statistics)(CPUState *cpu, int flags);
     int64_t (*get_arch_id)(CPUState *cpu);
@@ -563,14 +561,11 @@ enum CPUDumpFlags {
 /**
  * cpu_dump_state:
  * @cpu: The CPU whose state is to be dumped.
- * @f: File to dump to.
- * @cpu_fprintf: Function to dump with.
- * @flags: Flags what to dump.
+ * @f: If non-null, dump to this stream, else to current print sink.
  *
  * Dumps CPU state.
  */
-void cpu_dump_state(CPUState *cpu, FILE *f, fprintf_function cpu_fprintf,
-                    int flags);
+void cpu_dump_state(CPUState *cpu, FILE *f, int flags);
 
 /**
  * cpu_dump_statistics:

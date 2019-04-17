@@ -1010,7 +1010,7 @@ void hw_error(const char *fmt, ...)
     fprintf(stderr, "\n");
     CPU_FOREACH(cpu) {
         fprintf(stderr, "CPU #%d:\n", cpu->cpu_index);
-        cpu_dump_state(cpu, stderr, fprintf, CPU_DUMP_FPU);
+        cpu_dump_state(cpu, stderr, CPU_DUMP_FPU);
     }
     va_end(ap);
     abort();

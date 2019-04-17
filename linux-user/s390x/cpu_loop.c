@@ -124,7 +124,7 @@ void cpu_loop(CPUS390XState *env)
 
             default:
                 fprintf(stderr, "Unhandled program exception: %#x\n", n);
-                cpu_dump_state(cs, stderr, fprintf, 0);
+                cpu_dump_state(cs, stderr, 0);
                 exit(EXIT_FAILURE);
             }
             break;
@@ -144,7 +144,7 @@ void cpu_loop(CPUS390XState *env)
             break;
         default:
             fprintf(stderr, "Unhandled trap: 0x%x\n", trapnr);
-            cpu_dump_state(cs, stderr, fprintf, 0);
+            cpu_dump_state(cs, stderr, 0);
             exit(EXIT_FAILURE);
         }
         process_pending_signals (env);

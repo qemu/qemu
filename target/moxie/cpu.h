@@ -112,8 +112,7 @@ static inline MoxieCPU *moxie_env_get_cpu(CPUMoxieState *env)
 #define ENV_OFFSET offsetof(MoxieCPU, env)
 
 void moxie_cpu_do_interrupt(CPUState *cs);
-void moxie_cpu_dump_state(CPUState *cpu, FILE *f,
-                          fprintf_function cpu_fprintf, int flags);
+void moxie_cpu_dump_state(CPUState *cpu, FILE *f, int flags);
 hwaddr moxie_cpu_get_phys_page_debug(CPUState *cpu, vaddr addr);
 void moxie_translate_init(void);
 int cpu_moxie_signal_handler(int host_signum, void *pinfo,

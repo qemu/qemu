@@ -33,6 +33,7 @@
 #include "exec/cpu_ldst.h"
 #include "exec/translator.h"
 #include "crisv32-decode.h"
+#include "qemu/qemu-print.h"
 
 #include "exec/helper-gen.h"
 
@@ -3299,8 +3300,7 @@ void gen_intermediate_code(CPUState *cs, struct TranslationBlock *tb)
 #endif
 }
 
-void cris_cpu_dump_state(CPUState *cs, FILE *f, fprintf_function cpu_fprintf,
-                         int flags)
+void cris_cpu_dump_state(CPUState *cs, FILE *f, int flags)
 {
     CRISCPU *cpu = CRIS_CPU(cs);
     CPUCRISState *env = &cpu->env;
@@ -3308,7 +3308,7 @@ void cris_cpu_dump_state(CPUState *cs, FILE *f, fprintf_function cpu_fprintf,
     const char **pregnames;
     int i;
 
-    if (!env || !f) {
+    if (!env) {
         return;
     }
     if (env->pregs[PR_VR] < 32) {
@@ -3319,40 +3319,40 @@ void cris_cpu_dump_state(CPUState *cs, FILE *f, fprintf_function cpu_fprintf,
         regnames = regnames_v32;
     }
 
-    cpu_fprintf(f, "PC=%x CCS=%x btaken=%d btarget=%x\n"
-            "cc_op=%d cc_src=%d cc_dest=%d cc_result=%x cc_mask=%x\n",
-            env->pc, env->pregs[PR_CCS], env->btaken, env->btarget,
-            env->cc_op,
-            env->cc_src, env->cc_dest, env->cc_result, env->cc_mask);
+    qemu_fprintf(f, "PC=%x CCS=%x btaken=%d btarget=%x\n"
+                 "cc_op=%d cc_src=%d cc_dest=%d cc_result=%x cc_mask=%x\n",
+                 env->pc, env->pregs[PR_CCS], env->btaken, env->btarget,
+                 env->cc_op,
+                 env->cc_src, env->cc_dest, env->cc_result, env->cc_mask);
 
 
     for (i = 0; i < 16; i++) {
-        cpu_fprintf(f, "%s=%8.8x ", regnames[i], env->regs[i]);
+        qemu_fprintf(f, "%s=%8.8x ", regnames[i], env->regs[i]);
         if ((i + 1) % 4 == 0) {
-            cpu_fprintf(f, "\n");
+            qemu_fprintf(f, "\n");
         }
     }
-    cpu_fprintf(f, "\nspecial regs:\n");
+    qemu_fprintf(f, "\nspecial regs:\n");
     for (i = 0; i < 16; i++) {
-        cpu_fprintf(f, "%s=%8.8x ", pregnames[i], env->pregs[i]);
+        qemu_fprintf(f, "%s=%8.8x ", pregnames[i], env->pregs[i]);
         if ((i + 1) % 4 == 0) {
-            cpu_fprintf(f, "\n");
+            qemu_fprintf(f, "\n");
         }
     }
     if (env->pregs[PR_VR] >= 32) {
         uint32_t srs = env->pregs[PR_SRS];
-        cpu_fprintf(f, "\nsupport function regs bank %x:\n", srs);
+        qemu_fprintf(f, "\nsupport function regs bank %x:\n", srs);
         if (srs < ARRAY_SIZE(env->sregs)) {
             for (i = 0; i < 16; i++) {
-                cpu_fprintf(f, "s%2.2d=%8.8x ",
-                        i, env->sregs[srs][i]);
+                qemu_fprintf(f, "s%2.2d=%8.8x ",
+                             i, env->sregs[srs][i]);
                 if ((i + 1) % 4 == 0) {
-                    cpu_fprintf(f, "\n");
+                    qemu_fprintf(f, "\n");
                 }
             }
         }
     }
-    cpu_fprintf(f, "\n\n");
+    qemu_fprintf(f, "\n\n");
 
 }
 

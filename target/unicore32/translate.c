@@ -17,6 +17,7 @@
 #include "qemu/log.h"
 #include "exec/cpu_ldst.h"
 #include "exec/translator.h"
+#include "qemu/qemu-print.h"
 
 #include "exec/helper-proto.h"
 #include "exec/helper-gen.h"
@@ -2043,8 +2044,7 @@ static const char *cpu_mode_names[16] = {
 
 #undef UCF64_DUMP_STATE
 #ifdef UCF64_DUMP_STATE
-static void cpu_dump_state_ucf64(CPUUniCore32State *env, FILE *f,
-        fprintf_function cpu_fprintf, int flags)
+static void cpu_dump_state_ucf64(CPUUniCore32State *env, int flags)
 {
     int i;
     union {
@@ -2064,20 +2064,19 @@ static void cpu_dump_state_ucf64(CPUUniCore32State *env, FILE *f,
         s0.i = d.l.lower;
         s1.i = d.l.upper;
         d0.f64 = d.d;
-        cpu_fprintf(f, "s%02d=%08x(%8g) s%02d=%08x(%8g)",
-                    i * 2, (int)s0.i, s0.s,
-                    i * 2 + 1, (int)s1.i, s1.s);
-        cpu_fprintf(f, " d%02d=%" PRIx64 "(%8g)\n",
-                    i, (uint64_t)d0.f64, d0.d);
+        qemu_fprintf(f, "s%02d=%08x(%8g) s%02d=%08x(%8g)",
+                     i * 2, (int)s0.i, s0.s,
+                     i * 2 + 1, (int)s1.i, s1.s);
+        qemu_fprintf(f, " d%02d=%" PRIx64 "(%8g)\n",
+                     i, (uint64_t)d0.f64, d0.d);
     }
-    cpu_fprintf(f, "FPSCR: %08x\n", (int)env->ucf64.xregs[UC32_UCF64_FPSCR]);
+    qemu_fprintf(f, "FPSCR: %08x\n", (int)env->ucf64.xregs[UC32_UCF64_FPSCR]);
 }
 #else
 #define cpu_dump_state_ucf64(env, file, pr, flags)      do { } while (0)
 #endif
 
-void uc32_cpu_dump_state(CPUState *cs, FILE *f,
-                         fprintf_function cpu_fprintf, int flags)
+void uc32_cpu_dump_state(CPUState *cs, FILE *f, int flags)
 {
     UniCore32CPU *cpu = UNICORE32_CPU(cs);
     CPUUniCore32State *env = &cpu->env;
@@ -2085,21 +2084,21 @@ void uc32_cpu_dump_state(CPUState *cs, FILE *f,
     uint32_t psr;
 
     for (i = 0; i < 32; i++) {
-        cpu_fprintf(f, "R%02d=%08x", i, env->regs[i]);
+        qemu_fprintf(f, "R%02d=%08x", i, env->regs[i]);
         if ((i % 4) == 3) {
-            cpu_fprintf(f, "\n");
+            qemu_fprintf(f, "\n");
         } else {
-            cpu_fprintf(f, " ");
+            qemu_fprintf(f, " ");
         }
     }
     psr = cpu_asr_read(env);
-    cpu_fprintf(f, "PSR=%08x %c%c%c%c %s\n",
-                psr,
-                psr & (1 << 31) ? 'N' : '-',
-                psr & (1 << 30) ? 'Z' : '-',
-                psr & (1 << 29) ? 'C' : '-',
-                psr & (1 << 28) ? 'V' : '-',
-                cpu_mode_names[psr & 0xf]);
+    qemu_fprintf(f, "PSR=%08x %c%c%c%c %s\n",
+                 psr,
+                 psr & (1 << 31) ? 'N' : '-',
+                 psr & (1 << 30) ? 'Z' : '-',
+                 psr & (1 << 29) ? 'C' : '-',
+                 psr & (1 << 28) ? 'V' : '-',
+                 cpu_mode_names[psr & 0xf]);
 
     if (flags & CPU_DUMP_FPU) {
         cpu_dump_state_ucf64(env, f, cpu_fprintf, flags);
