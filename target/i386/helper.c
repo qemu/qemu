@@ -20,6 +20,7 @@
 #include "qemu/osdep.h"
 #include "cpu.h"
 #include "exec/exec-all.h"
+#include "qemu/qemu-print.h"
 #include "sysemu/kvm.h"
 #include "kvm_i386.h"
 #ifndef CONFIG_USER_ONLY
@@ -231,12 +232,10 @@ static inline const char *dm2str(uint32_t dm)
     return str[dm];
 }
 
-static void dump_apic_lvt(FILE *f, fprintf_function cpu_fprintf,
-                          const char *name, uint32_t lvt, bool is_timer)
+static void dump_apic_lvt(const char *name, uint32_t lvt, bool is_timer)
 {
     uint32_t dm = (lvt & APIC_LVT_DELIV_MOD) >> APIC_LVT_DELIV_MOD_SHIFT;
-    cpu_fprintf(f,
-                "%s\t 0x%08x %s %-5s %-6s %-7s %-12s %-6s",
+    qemu_printf("%s\t 0x%08x %s %-5s %-6s %-7s %-12s %-6s",
                 name, lvt,
                 lvt & APIC_LVT_INT_POLARITY ? "active-lo" : "active-hi",
                 lvt & APIC_LVT_LEVEL_TRIGGER ? "level" : "edge",
@@ -248,9 +247,9 @@ static void dump_apic_lvt(FILE *f, fprintf_function cpu_fprintf,
                                             "tsc-deadline" : "one-shot",
                 dm2str(dm));
     if (dm != APIC_DM_NMI) {
-        cpu_fprintf(f, " (vec %u)\n", lvt & APIC_VECTOR_MASK);
+        qemu_printf(" (vec %u)\n", lvt & APIC_VECTOR_MASK);
     } else {
-        cpu_fprintf(f, "\n");
+        qemu_printf("\n");
     }
 }
 
@@ -282,8 +281,7 @@ static inline void mask2str(char *str, uint32_t val, uint8_t size)
 
 #define MAX_LOGICAL_APIC_ID_MASK_SIZE 16
 
-static void dump_apic_icr(FILE *f, fprintf_function cpu_fprintf,
-                          APICCommonState *s, CPUX86State *env)
+static void dump_apic_icr(APICCommonState *s, CPUX86State *env)
 {
     uint32_t icr = s->icr[0], icr2 = s->icr[1];
     uint8_t dest_shorthand = \
@@ -293,16 +291,16 @@ static void dump_apic_icr(FILE *f, fprintf_function cpu_fprintf,
     uint32_t dest_field;
     bool x2apic;
 
-    cpu_fprintf(f, "ICR\t 0x%08x %s %s %s %s\n",
+    qemu_printf("ICR\t 0x%08x %s %s %s %s\n",
                 icr,
                 logical_mod ? "logical" : "physical",
                 icr & APIC_ICR_TRIGGER_MOD ? "level" : "edge",
                 icr & APIC_ICR_LEVEL ? "assert" : "de-assert",
                 shorthand2str(dest_shorthand));
 
-    cpu_fprintf(f, "ICR2\t 0x%08x", icr2);
+    qemu_printf("ICR2\t 0x%08x", icr2);
     if (dest_shorthand != 0) {
-        cpu_fprintf(f, "\n");
+        qemu_printf("\n");
         return;
     }
     x2apic = env->features[FEAT_1_ECX] & CPUID_EXT_X2APIC;
@@ -310,9 +308,9 @@ static void dump_apic_icr(FILE *f, fprintf_function cpu_fprintf,
 
     if (!logical_mod) {
         if (x2apic) {
-            cpu_fprintf(f, " cpu %u (X2APIC ID)\n", dest_field);
+            qemu_printf(" cpu %u (X2APIC ID)\n", dest_field);
         } else {
-            cpu_fprintf(f, " cpu %u (APIC ID)\n",
+            qemu_printf(" cpu %u (APIC ID)\n",
                         dest_field & APIC_LOGDEST_XAPIC_ID);
         }
         return;
@@ -320,87 +318,84 @@ static void dump_apic_icr(FILE *f, fprintf_function cpu_fprintf,
 
     if (s->dest_mode == 0xf) { /* flat mode */
         mask2str(apic_id_str, icr2 >> APIC_ICR_DEST_SHIFT, 8);
-        cpu_fprintf(f, " mask %s (APIC ID)\n", apic_id_str);
+        qemu_printf(" mask %s (APIC ID)\n", apic_id_str);
     } else if (s->dest_mode == 0) { /* cluster mode */
         if (x2apic) {
             mask2str(apic_id_str, dest_field & APIC_LOGDEST_X2APIC_ID, 16);
-            cpu_fprintf(f, " cluster %u mask %s (X2APIC ID)\n",
+            qemu_printf(" cluster %u mask %s (X2APIC ID)\n",
                         dest_field >> APIC_LOGDEST_X2APIC_SHIFT, apic_id_str);
         } else {
             mask2str(apic_id_str, dest_field & APIC_LOGDEST_XAPIC_ID, 4);
-            cpu_fprintf(f, " cluster %u mask %s (APIC ID)\n",
+            qemu_printf(" cluster %u mask %s (APIC ID)\n",
                         dest_field >> APIC_LOGDEST_XAPIC_SHIFT, apic_id_str);
         }
     }
 }
 
-static void dump_apic_interrupt(FILE *f, fprintf_function cpu_fprintf,
-                                const char *name, uint32_t *ireg_tab,
+static void dump_apic_interrupt(const char *name, uint32_t *ireg_tab,
                                 uint32_t *tmr_tab)
 {
     int i, empty = true;
 
-    cpu_fprintf(f, "%s\t ", name);
+    qemu_printf("%s\t ", name);
     for (i = 0; i < 256; i++) {
         if (apic_get_bit(ireg_tab, i)) {
-            cpu_fprintf(f, "%u%s ", i,
+            qemu_printf("%u%s ", i,
                         apic_get_bit(tmr_tab, i) ? "(level)" : "");
             empty = false;
         }
     }
-    cpu_fprintf(f, "%s\n", empty ? "(none)" : "");
+    qemu_printf("%s\n", empty ? "(none)" : "");
 }
 
-void x86_cpu_dump_local_apic_state(CPUState *cs, FILE *f,
-                                   fprintf_function cpu_fprintf, int flags)
+void x86_cpu_dump_local_apic_state(CPUState *cs, int flags)
 {
     X86CPU *cpu = X86_CPU(cs);
     APICCommonState *s = APIC_COMMON(cpu->apic_state);
     if (!s) {
-        cpu_fprintf(f, "local apic state not available\n");
+        qemu_printf("local apic state not available\n");
         return;
     }
     uint32_t *lvt = s->lvt;
 
-    cpu_fprintf(f, "dumping local APIC state for CPU %-2u\n\n",
+    qemu_printf("dumping local APIC state for CPU %-2u\n\n",
                 CPU(cpu)->cpu_index);
-    dump_apic_lvt(f, cpu_fprintf, "LVT0", lvt[APIC_LVT_LINT0], false);
-    dump_apic_lvt(f, cpu_fprintf, "LVT1", lvt[APIC_LVT_LINT1], false);
-    dump_apic_lvt(f, cpu_fprintf, "LVTPC", lvt[APIC_LVT_PERFORM], false);
-    dump_apic_lvt(f, cpu_fprintf, "LVTERR", lvt[APIC_LVT_ERROR], false);
-    dump_apic_lvt(f, cpu_fprintf, "LVTTHMR", lvt[APIC_LVT_THERMAL], false);
-    dump_apic_lvt(f, cpu_fprintf, "LVTT", lvt[APIC_LVT_TIMER], true);
+    dump_apic_lvt("LVT0", lvt[APIC_LVT_LINT0], false);
+    dump_apic_lvt("LVT1", lvt[APIC_LVT_LINT1], false);
+    dump_apic_lvt("LVTPC", lvt[APIC_LVT_PERFORM], false);
+    dump_apic_lvt("LVTERR", lvt[APIC_LVT_ERROR], false);
+    dump_apic_lvt("LVTTHMR", lvt[APIC_LVT_THERMAL], false);
+    dump_apic_lvt("LVTT", lvt[APIC_LVT_TIMER], true);
 
-    cpu_fprintf(f, "Timer\t DCR=0x%x (divide by %u) initial_count = %u\n",
+    qemu_printf("Timer\t DCR=0x%x (divide by %u) initial_count = %u\n",
                 s->divide_conf & APIC_DCR_MASK,
                 divider_conf(s->divide_conf),
                 s->initial_count);
 
-    cpu_fprintf(f, "SPIV\t 0x%08x APIC %s, focus=%s, spurious vec %u\n",
+    qemu_printf("SPIV\t 0x%08x APIC %s, focus=%s, spurious vec %u\n",
                 s->spurious_vec,
                 s->spurious_vec & APIC_SPURIO_ENABLED ? "enabled" : "disabled",
                 s->spurious_vec & APIC_SPURIO_FOCUS ? "on" : "off",
                 s->spurious_vec & APIC_VECTOR_MASK);
 
-    dump_apic_icr(f, cpu_fprintf, s, &cpu->env);
+    dump_apic_icr(s, &cpu->env);
 
-    cpu_fprintf(f, "ESR\t 0x%08x\n", s->esr);
+    qemu_printf("ESR\t 0x%08x\n", s->esr);
 
-    dump_apic_interrupt(f, cpu_fprintf, "ISR", s->isr, s->tmr);
-    dump_apic_interrupt(f, cpu_fprintf, "IRR", s->irr, s->tmr);
+    dump_apic_interrupt("ISR", s->isr, s->tmr);
+    dump_apic_interrupt("IRR", s->irr, s->tmr);
 
-    cpu_fprintf(f, "\nAPR 0x%02x TPR 0x%02x DFR 0x%02x LDR 0x%02x",
+    qemu_printf("\nAPR 0x%02x TPR 0x%02x DFR 0x%02x LDR 0x%02x",
                 s->arb_id, s->tpr, s->dest_mode, s->log_dest);
     if (s->dest_mode == 0) {
-        cpu_fprintf(f, "(cluster %u: id %u)",
+        qemu_printf("(cluster %u: id %u)",
                     s->log_dest >> APIC_LOGDEST_XAPIC_SHIFT,
                     s->log_dest & APIC_LOGDEST_XAPIC_ID);
     }
-    cpu_fprintf(f, " PPR 0x%02x\n", apic_get_ppr(s));
+    qemu_printf(" PPR 0x%02x\n", apic_get_ppr(s));
 }
 #else
-void x86_cpu_dump_local_apic_state(CPUState *cs, FILE *f,
-                                   fprintf_function cpu_fprintf, int flags)
+void x86_cpu_dump_local_apic_state(CPUState *cs, int flags)
 {
 }
 #endif /* !CONFIG_USER_ONLY */
