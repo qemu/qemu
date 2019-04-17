@@ -159,31 +159,19 @@ sftp_error_setg(Error **errp, BDRVSSHState *s, const char *fs, ...)
     g_free(msg);
 }
 
-static void GCC_FMT_ATTR(2, 3)
-sftp_error_report(BDRVSSHState *s, const char *fs, ...)
+static void sftp_error_trace(BDRVSSHState *s, const char *op)
 {
-    va_list args;
+    char *ssh_err;
+    int ssh_err_code;
+    unsigned long sftp_err_code;
 
-    va_start(args, fs);
-    error_vprintf(fs, args);
+    /* This is not an errno.  See <libssh2.h>. */
+    ssh_err_code = libssh2_session_last_error(s->session,
+                                              &ssh_err, NULL, 0);
+    /* See <libssh2_sftp.h>. */
+    sftp_err_code = libssh2_sftp_last_error((s)->sftp);
 
-    if ((s)->sftp) {
-        char *ssh_err;
-        int ssh_err_code;
-        unsigned long sftp_err_code;
-
-        /* This is not an errno.  See <libssh2.h>. */
-        ssh_err_code = libssh2_session_last_error(s->session,
-                                                  &ssh_err, NULL, 0);
-        /* See <libssh2_sftp.h>. */
-        sftp_err_code = libssh2_sftp_last_error((s)->sftp);
-
-        error_printf(": %s (libssh2 error code: %d, sftp error code: %lu)",
-                     ssh_err, ssh_err_code, sftp_err_code);
-    }
-
-    va_end(args);
-    error_printf("\n");
+    trace_sftp_error(op, ssh_err, ssh_err_code, sftp_err_code);
 }
 
 static int parse_uri(const char *filename, QDict *options, Error **errp)
@@ -1035,7 +1023,7 @@ static coroutine_fn int ssh_read(BDRVSSHState *s, BlockDriverState *bs,
             goto again;
         }
         if (r < 0) {
-            sftp_error_report(s, "read failed");
+            sftp_error_trace(s, "read");
             s->offset = -1;
             return -EIO;
         }
@@ -1105,7 +1093,7 @@ static int ssh_write(BDRVSSHState *s, BlockDriverState *bs,
             goto again;
         }
         if (r < 0) {
-            sftp_error_report(s, "write failed");
+            sftp_error_trace(s, "write");
             s->offset = -1;
             return -EIO;
         }
@@ -1188,7 +1176,7 @@ static coroutine_fn int ssh_flush(BDRVSSHState *s, BlockDriverState *bs)
         return 0;
     }
     if (r < 0) {
-        sftp_error_report(s, "fsync failed");
+        sftp_error_trace(s, "fsync");
         return -EIO;
     }
 
