@@ -130,6 +130,48 @@ void HELPER(check_atomctl)(CPUXtensaState *env, uint32_t pc, uint32_t vaddr)
     }
 }
 
+void HELPER(check_exclusive)(CPUXtensaState *env, uint32_t pc, uint32_t vaddr,
+                             uint32_t is_write)
+{
+    uint32_t paddr, page_size, access;
+    uint32_t atomctl = env->sregs[ATOMCTL];
+    int rc = xtensa_get_physical_addr(env, true, vaddr, is_write,
+                                      xtensa_get_cring(env), &paddr,
+                                      &page_size, &access);
+
+    if (rc) {
+        HELPER(exception_cause_vaddr)(env, pc, rc, vaddr);
+    }
+
+    /* When data cache is not configured use ATOMCTL bypass field. */
+    if (!xtensa_option_enabled(env->config, XTENSA_OPTION_DCACHE)) {
+        access = PAGE_CACHE_BYPASS;
+    }
+
+    switch (access & PAGE_CACHE_MASK) {
+    case PAGE_CACHE_WB:
+        atomctl >>= 2;
+        /* fall through */
+    case PAGE_CACHE_WT:
+        atomctl >>= 2;
+        /* fall through */
+    case PAGE_CACHE_BYPASS:
+        if ((atomctl & 0x3) == 0) {
+            HELPER(exception_cause_vaddr)(env, pc,
+                                          EXCLUSIVE_ERROR_CAUSE, vaddr);
+        }
+        break;
+
+    case PAGE_CACHE_ISOLATE:
+        HELPER(exception_cause_vaddr)(env, pc,
+                LOAD_STORE_ERROR_CAUSE, vaddr);
+        break;
+
+    default:
+        break;
+    }
+}
+
 void HELPER(wsr_memctl)(CPUXtensaState *env, uint32_t v)
 {
     if (xtensa_option_enabled(env->config, XTENSA_OPTION_ICACHE)) {

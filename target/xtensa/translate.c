@@ -87,6 +87,8 @@ static TCGv_i32 cpu_BR8[2];
 static TCGv_i32 cpu_SR[256];
 static TCGv_i32 cpu_UR[256];
 static TCGv_i32 cpu_windowbase_next;
+static TCGv_i32 cpu_exclusive_addr;
+static TCGv_i32 cpu_exclusive_val;
 
 static GHashTable *xtensa_regfile_table;
 
@@ -216,6 +218,14 @@ void xtensa_translate_init(void)
         tcg_global_mem_new_i32(cpu_env,
                                offsetof(CPUXtensaState, windowbase_next),
                                "windowbase_next");
+    cpu_exclusive_addr =
+        tcg_global_mem_new_i32(cpu_env,
+                               offsetof(CPUXtensaState, exclusive_addr),
+                               "exclusive_addr");
+    cpu_exclusive_val =
+        tcg_global_mem_new_i32(cpu_env,
+                               offsetof(CPUXtensaState, exclusive_val),
+                               "exclusive_val");
 }
 
 void **xtensa_get_regfile_by_name(const char *name)
@@ -1592,6 +1602,12 @@ static void translate_clrb_expstate(DisasContext *dc, const OpcodeArg arg[],
     tcg_gen_andi_i32(cpu_UR[EXPSTATE], cpu_UR[EXPSTATE], ~(1u << arg[0].imm));
 }
 
+static void translate_clrex(DisasContext *dc, const OpcodeArg arg[],
+                            const uint32_t par[])
+{
+    tcg_gen_movi_i32(cpu_exclusive_addr, -1);
+}
+
 static void translate_const16(DisasContext *dc, const OpcodeArg arg[],
                              const uint32_t par[])
 {
@@ -1667,6 +1683,17 @@ static void translate_extui(DisasContext *dc, const OpcodeArg arg[],
     tcg_temp_free(tmp);
 }
 
+static void translate_getex(DisasContext *dc, const OpcodeArg arg[],
+                            const uint32_t par[])
+{
+    TCGv_i32 tmp = tcg_temp_new_i32();
+
+    tcg_gen_extract_i32(tmp, cpu_SR[ATOMCTL], 8, 1);
+    tcg_gen_deposit_i32(cpu_SR[ATOMCTL], cpu_SR[ATOMCTL], arg[0].in, 8, 1);
+    tcg_gen_mov_i32(arg[0].out, tmp);
+    tcg_temp_free(tmp);
+}
+
 static void translate_icache(DisasContext *dc, const OpcodeArg arg[],
                              const uint32_t par[])
 {
@@ -1711,6 +1738,38 @@ static void translate_l32e(DisasContext *dc, const OpcodeArg arg[],
     tcg_gen_addi_i32(addr, arg[1].in, arg[2].imm);
     gen_load_store_alignment(dc, 2, addr, false);
     tcg_gen_qemu_ld_tl(arg[0].out, addr, dc->ring, MO_TEUL);
+    tcg_temp_free(addr);
+}
+
+#ifdef CONFIG_USER_ONLY
+static void gen_check_exclusive(DisasContext *dc, TCGv_i32 addr, bool is_write)
+{
+}
+#else
+static void gen_check_exclusive(DisasContext *dc, TCGv_i32 addr, bool is_write)
+{
+    if (!option_enabled(dc, XTENSA_OPTION_MPU)) {
+        TCGv_i32 tpc = tcg_const_i32(dc->pc);
+        TCGv_i32 write = tcg_const_i32(is_write);
+
+        gen_helper_check_exclusive(cpu_env, tpc, addr, write);
+        tcg_temp_free(tpc);
+        tcg_temp_free(write);
+    }
+}
+#endif
+
+static void translate_l32ex(DisasContext *dc, const OpcodeArg arg[],
+                            const uint32_t par[])
+{
+    TCGv_i32 addr = tcg_temp_new_i32();
+
+    tcg_gen_mov_i32(addr, arg[1].in);
+    gen_load_store_alignment(dc, 2, addr, true);
+    gen_check_exclusive(dc, addr, false);
+    tcg_gen_qemu_ld_i32(arg[0].out, addr, dc->ring, MO_TEUL);
+    tcg_gen_mov_i32(cpu_exclusive_addr, addr);
+    tcg_gen_mov_i32(cpu_exclusive_val, arg[0].out);
     tcg_temp_free(addr);
 }
 
@@ -2267,6 +2326,33 @@ static void translate_s32e(DisasContext *dc, const OpcodeArg arg[],
     gen_load_store_alignment(dc, 2, addr, false);
     tcg_gen_qemu_st_tl(arg[0].in, addr, dc->ring, MO_TEUL);
     tcg_temp_free(addr);
+}
+
+static void translate_s32ex(DisasContext *dc, const OpcodeArg arg[],
+                            const uint32_t par[])
+{
+    TCGv_i32 prev = tcg_temp_new_i32();
+    TCGv_i32 addr = tcg_temp_local_new_i32();
+    TCGv_i32 res = tcg_temp_local_new_i32();
+    TCGLabel *label = gen_new_label();
+
+    tcg_gen_movi_i32(res, 0);
+    tcg_gen_mov_i32(addr, arg[1].in);
+    gen_load_store_alignment(dc, 2, addr, true);
+    tcg_gen_brcond_i32(TCG_COND_NE, addr, cpu_exclusive_addr, label);
+    gen_check_exclusive(dc, addr, true);
+    tcg_gen_atomic_cmpxchg_i32(prev, cpu_exclusive_addr, cpu_exclusive_val,
+                               arg[0].in, dc->cring, MO_TEUL);
+    tcg_gen_setcond_i32(TCG_COND_EQ, res, prev, cpu_exclusive_val);
+    tcg_gen_movcond_i32(TCG_COND_EQ, cpu_exclusive_val,
+                        prev, cpu_exclusive_val, prev, cpu_exclusive_val);
+    tcg_gen_movi_i32(cpu_exclusive_addr, -1);
+    gen_set_label(label);
+    tcg_gen_extract_i32(arg[0].out, cpu_SR[ATOMCTL], 8, 1);
+    tcg_gen_deposit_i32(cpu_SR[ATOMCTL], cpu_SR[ATOMCTL], res, 8, 1);
+    tcg_temp_free(prev);
+    tcg_temp_free(addr);
+    tcg_temp_free(res);
 }
 
 static void translate_salt(DisasContext *dc, const OpcodeArg arg[],
@@ -3068,6 +3154,9 @@ static const XtensaOpcodeOps core_ops[] = {
         .name = "clrb_expstate",
         .translate = translate_clrb_expstate,
     }, {
+        .name = "clrex",
+        .translate = translate_clrex,
+    }, {
         .name = "const16",
         .translate = translate_const16,
     }, {
@@ -3173,6 +3262,9 @@ static const XtensaOpcodeOps core_ops[] = {
         .name = "extw",
         .translate = translate_memw,
     }, {
+        .name = "getex",
+        .translate = translate_getex,
+    }, {
         .name = "hwwdtlba",
         .op_flags = XTENSA_OP_ILL,
     }, {
@@ -3243,6 +3335,10 @@ static const XtensaOpcodeOps core_ops[] = {
         .name = "l32e",
         .translate = translate_l32e,
         .op_flags = XTENSA_OP_PRIVILEGED | XTENSA_OP_LOAD,
+    }, {
+        .name = "l32ex",
+        .translate = translate_l32ex,
+        .op_flags = XTENSA_OP_LOAD,
     }, {
         .name = (const char * const[]) {
             "l32i", "l32i.n", NULL,
@@ -4556,6 +4652,10 @@ static const XtensaOpcodeOps core_ops[] = {
         .name = "s32e",
         .translate = translate_s32e,
         .op_flags = XTENSA_OP_PRIVILEGED | XTENSA_OP_STORE,
+    }, {
+        .name = "s32ex",
+        .translate = translate_s32ex,
+        .op_flags = XTENSA_OP_LOAD | XTENSA_OP_STORE,
     }, {
         .name = (const char * const[]) {
             "s32i", "s32i.n", "s32nb", NULL,

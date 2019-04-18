@@ -82,6 +82,7 @@ static void xtensa_cpu_reset(CPUState *s)
             XTENSA_OPTION_ATOMCTL) ? 0x28 : 0x15;
     env->sregs[CONFIGID0] = env->config->configid[0];
     env->sregs[CONFIGID1] = env->config->configid[1];
+    env->exclusive_addr = -1;
 
 #ifndef CONFIG_USER_ONLY
     reset_mmu(env);
