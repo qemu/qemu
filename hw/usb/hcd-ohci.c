@@ -52,7 +52,7 @@ typedef struct OHCIPort {
     uint32_t ctrl;
 } OHCIPort;
 
-typedef struct {
+typedef struct OHCIState {
     USBBus bus;
     qemu_irq irq;
     MemoryRegion mem;
@@ -108,6 +108,7 @@ typedef struct {
     uint32_t async_td;
     bool async_complete;
 
+    void (*ohci_die)(struct OHCIState *ohci);
 } OHCIState;
 
 /* Host Controller Communications Area */
@@ -302,7 +303,10 @@ struct ohci_iso_td {
 
 #define OHCI_HRESET_FSBIR       (1 << 0)
 
-static void ohci_die(OHCIState *ohci);
+static void ohci_die(OHCIState *ohci)
+{
+    ohci->ohci_die(ohci);
+}
 
 /* Update IRQ levels */
 static inline void ohci_intr_update(OHCIState *ohci)
@@ -1854,13 +1858,14 @@ static USBBusOps ohci_bus_ops = {
 
 static void usb_ohci_init(OHCIState *ohci, DeviceState *dev,
                           uint32_t num_ports, dma_addr_t localmem_base,
-                          char *masterbus, uint32_t firstport,
-                          AddressSpace *as, Error **errp)
+                          char *masterbus, uint32_t firstport, AddressSpace *as,
+                          void (*ohci_die_fn)(struct OHCIState *), Error **errp)
 {
     Error *err = NULL;
     int i;
 
     ohci->as = as;
+    ohci->ohci_die = ohci_die_fn;
 
     if (num_ports > OHCI_MAX_PORTS) {
         error_setg(errp, "OHCI num-ports=%u is too big (limit is %u ports)",
@@ -1933,18 +1938,28 @@ typedef struct {
     uint32_t firstport;
 } OHCIPCIState;
 
-/** A typical O/EHCI will stop operating, set itself into error state
- * (which can be queried by MMIO) and will set PERR in its config
- * space to signal that it got an error
+/**
+ * A typical OHCI will stop operating and set itself into error state
+ * (which can be queried by MMIO) to signal that it got an error.
  */
-static void ohci_die(OHCIState *ohci)
+static void ohci_sysbus_die(struct OHCIState *ohci)
 {
-    OHCIPCIState *dev = container_of(ohci, OHCIPCIState, state);
-
     trace_usb_ohci_die();
 
     ohci_set_interrupt(ohci, OHCI_INTR_UE);
     ohci_bus_stop(ohci);
+}
+
+/**
+ * A typical PCI OHCI will additionally set PERR in its configspace to
+ * signal that it got an error.
+ */
+static void ohci_pci_die(struct OHCIState *ohci)
+{
+    OHCIPCIState *dev = container_of(ohci, OHCIPCIState, state);
+
+    ohci_sysbus_die(ohci);
+
     pci_set_word(dev->parent_obj.config + PCI_STATUS,
                  PCI_STATUS_DETECTED_PARITY);
 }
@@ -1959,7 +1974,7 @@ static void usb_ohci_realize_pci(PCIDevice *dev, Error **errp)
 
     usb_ohci_init(&ohci->state, DEVICE(dev), ohci->num_ports, 0,
                   ohci->masterbus, ohci->firstport,
-                  pci_get_address_space(dev), &err);
+                  pci_get_address_space(dev), ohci_pci_die, &err);
     if (err) {
         error_propagate(errp, err);
         return;
@@ -2023,7 +2038,7 @@ static void ohci_realize_pxa(DeviceState *dev, Error **errp)
 
     usb_ohci_init(&s->ohci, dev, s->num_ports, s->dma_offset,
                   s->masterbus, s->firstport,
-                  &address_space_memory, &err);
+                  &address_space_memory, ohci_sysbus_die, &err);
     if (err) {
         error_propagate(errp, err);
         return;
