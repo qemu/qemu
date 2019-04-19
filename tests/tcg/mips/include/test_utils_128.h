@@ -66,7 +66,7 @@ static inline int32_t check_results(const char *instruction_name,
         }
     }
 
-    printf("PASS: %3d   FAIL: %3d   elapsed time: %5.2f ms\n",
+    printf("\tPASS: %3d \tFAIL: %3d \telapsed time: %5.2f ms\n",
            pass_count, fail_count, elapsed_time);
 
     if (fail_count > 0) {

@@ -1,8 +1,10 @@
 /*
  *  Test program for MSA instruction SUBSUU_S.H
  *
- *  Copyright (C) 2018  Wave Computing, Inc.
- *  Copyright (C) 2018  Mateja Marjanovic <mateja.marjanovic@rt-rk.com>
+ *  Copyright (C) 2019  Wave Computing, Inc.
+ *  Copyright (C) 2019  Aleksandar Markovic <amarkovic@wavecomp.com>
+ *  Copyright (C) 2019  RT-RK Computer Based Systems LLC
+ *  Copyright (C) 2019  Mateja Marjanovic <mateja.marjanovic@rt-rk.com>
  *
  *  This program is free software: you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -23,8 +25,8 @@
 #include <stdint.h>
 
 #include "../../../../include/wrappers_msa.h"
-#include "../../../../include/test_inputs.h"
-#include "../../../../include/test_utils.h"
+#include "../../../../include/test_inputs_128.h"
+#include "../../../../include/test_utils_128.h"
 
 #define TEST_COUNT_TOTAL (                                                \
             (PATTERN_INPUTS_SHORT_COUNT) * (PATTERN_INPUTS_SHORT_COUNT) + \
@@ -119,6 +121,8 @@ int32_t main(void)
         { 0x3c0b7fff5b9ea932ULL, 0x99e73e2701e98000ULL, },
         { 0xe7e5800035cf7fffULL, 0x428a7d7aaac73294ULL, },
         { 0x800015ea109e1b46ULL, 0x7afacdbe7fff7fffULL, },
+        { 0xc3f58000a46256ceULL, 0x6619c1d9fe177fffULL, },
+        { 0x0000000000000000ULL, 0x0000000000000000ULL, },
 };
 
     gettimeofday(&start, NULL);

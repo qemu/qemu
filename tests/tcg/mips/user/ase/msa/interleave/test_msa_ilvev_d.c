@@ -33,7 +33,7 @@
 
 int32_t main(void)
 {
-    char *instruction_name = "*ILVEV.D";
+    char *instruction_name = "ILVEV.D";
     int32_t ret;
     uint32_t i, j;
     struct timeval start, end;

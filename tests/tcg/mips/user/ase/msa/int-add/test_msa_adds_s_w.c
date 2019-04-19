@@ -1,6 +1,8 @@
 /*
  *  Test program for MSA instruction ADDS_S.W
  *
+ *  Copyright (C) 2019  Wave Computing, Inc.
+ *  Copyright (C) 2019  Aleksandar Markovic <amarkovic@wavecomp.com>
  *  Copyright (C) 2019  RT-RK Computer Based Systems LLC
  *  Copyright (C) 2019  Mateja Marjanovic <mateja.marjanovic@rt-rk.com>
  *
@@ -119,6 +121,8 @@ int32_t main(void)
         { 0x1ca9c4f718016dceULL, 0xb5ca4fd780000000ULL, },
         { 0xf8b9fd197fffffffULL, 0xd9589436a7be92acULL, },
         { 0x6c0d16b07fffffffULL, 0xa0e943f2be82359cULL, },
+        { 0x1ca9c4f718016dceULL, 0xb5ca4fd780000000ULL, },
+        { 0x7fffffff7fffffffULL, 0x8000000080000000ULL, },
 };
 
     gettimeofday(&start, NULL);
