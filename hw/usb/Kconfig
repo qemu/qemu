@@ -9,9 +9,13 @@ config USB_UHCI
 
 config USB_OHCI
     bool
+    select USB
+
+config USB_OHCI_PCI
+    bool
     default y if PCI_DEVICES
     depends on PCI
-    select USB
+    select USB_OHCI
 
 config USB_EHCI
     bool
