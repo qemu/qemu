@@ -523,6 +523,9 @@ typedef enum {
     I3616_ADD       = 0x0e208400,
     I3616_AND       = 0x0e201c00,
     I3616_BIC       = 0x0e601c00,
+    I3616_BIF       = 0x2ee01c00,
+    I3616_BIT       = 0x2ea01c00,
+    I3616_BSL       = 0x2e601c00,
     I3616_EOR       = 0x2e201c00,
     I3616_MUL       = 0x0e209c00,
     I3616_ORR       = 0x0ea01c00,
@@ -2181,7 +2184,7 @@ static void tcg_out_vec_op(TCGContext *s, TCGOpcode opc,
 
     TCGType type = vecl + TCG_TYPE_V64;
     unsigned is_q = vecl;
-    TCGArg a0, a1, a2;
+    TCGArg a0, a1, a2, a3;
 
     a0 = args[0];
     a1 = args[1];
@@ -2304,6 +2307,20 @@ static void tcg_out_vec_op(TCGContext *s, TCGOpcode opc,
         }
         break;
 
+    case INDEX_op_bitsel_vec:
+        a3 = args[3];
+        if (a0 == a3) {
+            tcg_out_insn(s, 3616, BIT, is_q, 0, a0, a2, a1);
+        } else if (a0 == a2) {
+            tcg_out_insn(s, 3616, BIF, is_q, 0, a0, a3, a1);
+        } else {
+            if (a0 != a1) {
+                tcg_out_mov(s, type, a0, a1);
+            }
+            tcg_out_insn(s, 3616, BSL, is_q, 0, a0, a2, a3);
+        }
+        break;
+
     case INDEX_op_mov_vec:  /* Always emitted via tcg_out_mov.  */
     case INDEX_op_dupi_vec: /* Always emitted via tcg_out_movi.  */
     case INDEX_op_dup_vec:  /* Always emitted via tcg_out_dup_vec.  */
@@ -2334,6 +2351,7 @@ int tcg_can_emit_vec_op(TCGOpcode opc, TCGType type, unsigned vece)
     case INDEX_op_usadd_vec:
     case INDEX_op_ussub_vec:
     case INDEX_op_shlv_vec:
+    case INDEX_op_bitsel_vec:
         return 1;
     case INDEX_op_shrv_vec:
     case INDEX_op_sarv_vec:
@@ -2408,6 +2426,8 @@ static const TCGTargetOpDef *tcg_target_op_def(TCGOpcode op)
         = { .args_ct_str = { "r", "r", "rA", "rZ", "rZ" } };
     static const TCGTargetOpDef add2
         = { .args_ct_str = { "r", "r", "rZ", "rZ", "rA", "rMZ" } };
+    static const TCGTargetOpDef w_w_w_w
+        = { .args_ct_str = { "w", "w", "w", "w" } };
 
     switch (op) {
     case INDEX_op_goto_ptr:
@@ -2580,6 +2600,8 @@ static const TCGTargetOpDef *tcg_target_op_def(TCGOpcode op)
         return &w_wr;
     case INDEX_op_cmp_vec:
         return &w_w_wZ;
+    case INDEX_op_bitsel_vec:
+        return &w_w_w_w;
 
     default:
         return NULL;
