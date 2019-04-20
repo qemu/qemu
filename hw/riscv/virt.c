@@ -399,7 +399,7 @@ static void riscv_virt_board_init(MachineState *machine)
     /* Initialize SOC */
     object_initialize_child(OBJECT(machine), "soc", &s->soc, sizeof(s->soc),
                             TYPE_RISCV_HART_ARRAY, &error_abort, NULL);
-    object_property_set_str(OBJECT(&s->soc), VIRT_CPU, "cpu-type",
+    object_property_set_str(OBJECT(&s->soc), machine->cpu_type, "cpu-type",
                             &error_abort);
     object_property_set_int(OBJECT(&s->soc), smp_cpus, "num-harts",
                             &error_abort);
@@ -525,6 +525,7 @@ static void riscv_virt_board_machine_init(MachineClass *mc)
     mc->desc = "RISC-V VirtIO Board (Privileged ISA v1.10)";
     mc->init = riscv_virt_board_init;
     mc->max_cpus = 8; /* hardcoded limit in BBL */
+    mc->default_cpu_type = VIRT_CPU;
 }
 
 DEFINE_MACHINE("virt", riscv_virt_board_machine_init)
