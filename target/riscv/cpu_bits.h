@@ -382,6 +382,24 @@
 #define SSTATUS_SD SSTATUS64_SD
 #endif
 
+/* hstatus CSR bits */
+#define HSTATUS_SPRV         0x00000001
+#define HSTATUS_STL          0x00000040
+#define HSTATUS_SPV          0x00000080
+#define HSTATUS_SP2P         0x00000100
+#define HSTATUS_SP2V         0x00000200
+#define HSTATUS_VTVM         0x00100000
+#define HSTATUS_VTSR         0x00400000
+
+#define HSTATUS32_WPRI       0xFF8FF87E
+#define HSTATUS64_WPRI       0xFFFFFFFFFF8FF87EULL
+
+#if defined(TARGET_RISCV32)
+#define HSTATUS_WPRI HSTATUS32_WPRI
+#elif defined(TARGET_RISCV64)
+#define HSTATUS_WPRI HSTATUS64_WPRI
+#endif
+
 /* Privilege modes */
 #define PRV_U 0
 #define PRV_S 1
