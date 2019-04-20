@@ -82,10 +82,31 @@ int riscv_cpu_claim_interrupts(RISCVCPU *cpu, uint32_t interrupts)
     }
 }
 
-/* iothread_mutex must be held */
+struct CpuAsyncInfo {
+    uint32_t new_mip;
+};
+
+static void riscv_cpu_update_mip_irqs_async(CPUState *target_cpu_state,
+                                            run_on_cpu_data data)
+{
+    CPURISCVState *env = &RISCV_CPU(target_cpu_state)->env;
+    RISCVCPU *cpu = riscv_env_get_cpu(env);
+    struct CpuAsyncInfo *info = (struct CpuAsyncInfo *) data.host_ptr;
+
+    if (info->new_mip) {
+        cpu_interrupt(CPU(cpu), CPU_INTERRUPT_HARD);
+    } else {
+        cpu_reset_interrupt(CPU(cpu), CPU_INTERRUPT_HARD);
+    }
+
+    g_free(info);
+}
+
 uint32_t riscv_cpu_update_mip(RISCVCPU *cpu, uint32_t mask, uint32_t value)
 {
     CPURISCVState *env = &cpu->env;
+    CPUState *cs = CPU(cpu);
+    struct CpuAsyncInfo *info;
     uint32_t old, new, cmp = atomic_read(&env->mip);
 
     do {
@@ -94,11 +115,11 @@ uint32_t riscv_cpu_update_mip(RISCVCPU *cpu, uint32_t mask, uint32_t value)
         cmp = atomic_cmpxchg(&env->mip, old, new);
     } while (old != cmp);
 
-    if (new) {
-        cpu_interrupt(CPU(cpu), CPU_INTERRUPT_HARD);
-    } else {
-        cpu_reset_interrupt(CPU(cpu), CPU_INTERRUPT_HARD);
-    }
+    info = g_new(struct CpuAsyncInfo, 1);
+    info->new_mip = new;
+
+    async_run_on_cpu(cs, riscv_cpu_update_mip_irqs_async,
+                     RUN_ON_CPU_HOST_PTR(info));
 
     return old;
 }

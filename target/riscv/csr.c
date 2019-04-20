@@ -555,9 +555,7 @@ static int rmw_mip(CPURISCVState *env, int csrno, target_ulong *ret_value,
     uint32_t old_mip;
 
     if (mask) {
-        qemu_mutex_lock_iothread();
         old_mip = riscv_cpu_update_mip(cpu, mask, (new_value & mask));
-        qemu_mutex_unlock_iothread();
     } else {
         old_mip = atomic_read(&env->mip);
     }
