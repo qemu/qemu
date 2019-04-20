@@ -147,6 +147,12 @@ four CPUs are: ``rv32gcsu-v1.9.1``, ``rv32gcsu-v1.10.0``, ``rv64gcsu-v1.9.1`` an
 ``rv64gcsu-v1.10.0``. Instead the version can be specified via the CPU ``priv_spec``
 option when using the ``rv32`` or ``rv64`` CPUs.
 
+@subsection RISC-V ISA CPUs (since 4.1)
+
+The RISC-V no MMU cpus have been depcreated. The two CPUs: ``rv32imacu-nommu`` and
+``rv64imacu-nommu`` should no longer be used. Instead the MMU status can be specified
+via the CPU ``mmu`` option when using the ``rv32`` or ``rv64`` CPUs.
+
 @section System emulator devices
 
 @subsection bluetooth (since 3.1)
