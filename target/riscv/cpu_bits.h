@@ -202,6 +202,12 @@
 #define CSR_DPC             0x7b1
 #define CSR_DSCRATCH        0x7b2
 
+/* Hpervisor CSRs */
+#define CSR_HSTATUS         0xa00
+#define CSR_HEDELEG         0xa02
+#define CSR_HIDELEG         0xa03
+#define CSR_HGATP           0xa80
+
 /* Performance Counters */
 #define CSR_MHPMCOUNTER3    0xb03
 #define CSR_MHPMCOUNTER4    0xb04
@@ -292,9 +298,6 @@
 #define CSR_MHPMCOUNTER31H  0xb9f
 
 /* Legacy Hypervisor Trap Setup (priv v1.9.1) */
-#define CSR_HSTATUS         0x200
-#define CSR_HEDELEG         0x202
-#define CSR_HIDELEG         0x203
 #define CSR_HIE             0x204
 #define CSR_HTVEC           0x205
 
