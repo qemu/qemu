@@ -290,7 +290,6 @@ static int write_mstatus(CPURISCVState *env, int csrno, target_ulong val)
 {
     target_ulong mstatus = env->mstatus;
     target_ulong mask = 0;
-    target_ulong mpp = get_field(val, MSTATUS_MPP);
 
     /* flush tlb on mstatus fields that affect VM */
     if (env->priv_ver <= PRIV_VERSION_1_09_1) {
@@ -305,7 +304,7 @@ static int write_mstatus(CPURISCVState *env, int csrno, target_ulong val)
                 MSTATUS_VM : 0);
     }
     if (env->priv_ver >= PRIV_VERSION_1_10_0) {
-        if ((val ^ mstatus) & (MSTATUS_MXR | MSTATUS_MPP |
+        if ((val ^ mstatus) & (MSTATUS_MXR | MSTATUS_MPP | MSTATUS_MPV |
                 MSTATUS_MPRV | MSTATUS_SUM)) {
             tlb_flush(CPU(riscv_env_get_cpu(env)));
         }
@@ -313,13 +312,13 @@ static int write_mstatus(CPURISCVState *env, int csrno, target_ulong val)
             MSTATUS_SPP | MSTATUS_FS | MSTATUS_MPRV | MSTATUS_SUM |
             MSTATUS_MPP | MSTATUS_MXR | MSTATUS_TVM | MSTATUS_TSR |
             MSTATUS_TW;
-    }
-
-    /* silenty discard mstatus.mpp writes for unsupported modes */
-    if (mpp == PRV_H ||
-        (!riscv_has_ext(env, RVS) && mpp == PRV_S) ||
-        (!riscv_has_ext(env, RVU) && mpp == PRV_U)) {
-        mask &= ~MSTATUS_MPP;
+#if defined(TARGET_RISCV64)
+            /*
+             * RV32: MPV and MTL are not in mstatus. The current plan is to
+             * add them to mstatush. For now, we just don't support it.
+             */
+            mask |= MSTATUS_MPP | MSTATUS_MPV;
+#endif
     }
 
     mstatus = (mstatus & ~mask) | (val & mask);
