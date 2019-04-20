@@ -383,7 +383,7 @@
 /* Privilege modes */
 #define PRV_U 0
 #define PRV_S 1
-#define PRV_H 2
+#define PRV_H 2 /* Reserved */
 #define PRV_M 3
 
 /* RV32 satp CSR field masks */
