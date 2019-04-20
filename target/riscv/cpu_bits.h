@@ -208,6 +208,17 @@
 #define CSR_HIDELEG         0xa03
 #define CSR_HGATP           0xa80
 
+#if defined(TARGET_RISCV32)
+#define HGATP_MODE           SATP32_MODE
+#define HGATP_ASID           SATP32_ASID
+#define HGATP_PPN            SATP32_PPN
+#endif
+#if defined(TARGET_RISCV64)
+#define HGATP_MODE           SATP64_MODE
+#define HGATP_ASID           SATP64_ASID
+#define HGATP_PPN            SATP64_PPN
+#endif
+
 /* Performance Counters */
 #define CSR_MHPMCOUNTER3    0xb03
 #define CSR_MHPMCOUNTER4    0xb04
