@@ -120,6 +120,10 @@ bool tcg_can_emit_vecop_list(const TCGOpcode *list,
             }
             break;
         case INDEX_op_cmpsel_vec:
+        case INDEX_op_smin_vec:
+        case INDEX_op_smax_vec:
+        case INDEX_op_umin_vec:
+        case INDEX_op_umax_vec:
             if (tcg_can_emit_vec_op(INDEX_op_cmp_vec, type, vece)) {
                 continue;
             }
@@ -632,24 +636,32 @@ void tcg_gen_ussub_vec(unsigned vece, TCGv_vec r, TCGv_vec a, TCGv_vec b)
     do_op3_nofail(vece, r, a, b, INDEX_op_ussub_vec);
 }
 
+static void do_minmax(unsigned vece, TCGv_vec r, TCGv_vec a,
+                      TCGv_vec b, TCGOpcode opc, TCGCond cond)
+{
+    if (!do_op3(vece, r, a, b, opc)) {
+        tcg_gen_cmpsel_vec(cond, vece, r, a, b, a, b);
+    }
+}
+
 void tcg_gen_smin_vec(unsigned vece, TCGv_vec r, TCGv_vec a, TCGv_vec b)
 {
-    do_op3_nofail(vece, r, a, b, INDEX_op_smin_vec);
+    do_minmax(vece, r, a, b, INDEX_op_smin_vec, TCG_COND_LT);
 }
 
 void tcg_gen_umin_vec(unsigned vece, TCGv_vec r, TCGv_vec a, TCGv_vec b)
 {
-    do_op3_nofail(vece, r, a, b, INDEX_op_umin_vec);
+    do_minmax(vece, r, a, b, INDEX_op_umin_vec, TCG_COND_LTU);
 }
 
 void tcg_gen_smax_vec(unsigned vece, TCGv_vec r, TCGv_vec a, TCGv_vec b)
 {
-    do_op3_nofail(vece, r, a, b, INDEX_op_smax_vec);
+    do_minmax(vece, r, a, b, INDEX_op_smax_vec, TCG_COND_GT);
 }
 
 void tcg_gen_umax_vec(unsigned vece, TCGv_vec r, TCGv_vec a, TCGv_vec b)
 {
-    do_op3_nofail(vece, r, a, b, INDEX_op_umax_vec);
+    do_minmax(vece, r, a, b, INDEX_op_umax_vec, TCG_COND_GTU);
 }
 
 void tcg_gen_shlv_vec(unsigned vece, TCGv_vec r, TCGv_vec a, TCGv_vec b)
