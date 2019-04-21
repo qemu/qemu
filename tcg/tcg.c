@@ -128,7 +128,7 @@ static void tcg_out_call(TCGContext *s, tcg_insn_unit *target);
 static int tcg_target_const_match(tcg_target_long val, TCGType type,
                                   const TCGArgConstraint *arg_ct);
 #ifdef TCG_TARGET_NEED_LDST_LABELS
-static bool tcg_out_ldst_finalize(TCGContext *s);
+static int tcg_out_ldst_finalize(TCGContext *s);
 #endif
 
 #define TCG_HIGHWATER 1024
@@ -4000,8 +4000,9 @@ int tcg_gen_code(TCGContext *s, TranslationBlock *tb)
 
     /* Generate TB finalization at the end of block */
 #ifdef TCG_TARGET_NEED_LDST_LABELS
-    if (!tcg_out_ldst_finalize(s)) {
-        return -1;
+    i = tcg_out_ldst_finalize(s);
+    if (i < 0) {
+        return i;
     }
 #endif
 #ifdef TCG_TARGET_NEED_POOL_LABELS
