@@ -121,14 +121,14 @@ static inline void new_pool_l8(TCGContext *s, int rtype, tcg_insn_unit *label,
 /* To be provided by cpu/tcg-target.inc.c.  */
 static void tcg_out_nop_fill(tcg_insn_unit *p, int count);
 
-static bool tcg_out_pool_finalize(TCGContext *s)
+static int tcg_out_pool_finalize(TCGContext *s)
 {
     TCGLabelPoolData *p = s->pool_labels;
     TCGLabelPoolData *l = NULL;
     void *a;
 
     if (p == NULL) {
-        return true;
+        return 0;
     }
 
     /* ??? Round up to qemu_icache_linesize, but then do not round
@@ -142,15 +142,17 @@ static bool tcg_out_pool_finalize(TCGContext *s)
         size_t size = sizeof(tcg_target_ulong) * p->nlong;
         if (!l || l->nlong != p->nlong || memcmp(l->data, p->data, size)) {
             if (unlikely(a > s->code_gen_highwater)) {
-                return false;
+                return -1;
             }
             memcpy(a, p->data, size);
             a += size;
             l = p;
         }
-        patch_reloc(p->label, p->rtype, (intptr_t)a - size, p->addend);
+        if (!patch_reloc(p->label, p->rtype, (intptr_t)a - size, p->addend)) {
+            return -2;
+        }
     }
 
     s->code_ptr = a;
-    return true;
+    return 0;
 }
