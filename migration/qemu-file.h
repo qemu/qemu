@@ -32,7 +32,8 @@
  * bytes actually read should be returned.
  */
 typedef ssize_t (QEMUFileGetBufferFunc)(void *opaque, uint8_t *buf,
-                                        int64_t pos, size_t size);
+                                        int64_t pos, size_t size,
+                                        Error **errp);
 
 /* Close a file
  *
@@ -41,7 +42,7 @@ typedef ssize_t (QEMUFileGetBufferFunc)(void *opaque, uint8_t *buf,
  * The meaning of return value on success depends on the specific back-end being
  * used.
  */
-typedef int (QEMUFileCloseFunc)(void *opaque);
+typedef int (QEMUFileCloseFunc)(void *opaque, Error **errp);
 
 /* Called to return the OS file descriptor associated to the QEMUFile.
  */
@@ -49,14 +50,15 @@ typedef int (QEMUFileGetFD)(void *opaque);
 
 /* Called to change the blocking mode of the file
  */
-typedef int (QEMUFileSetBlocking)(void *opaque, bool enabled);
+typedef int (QEMUFileSetBlocking)(void *opaque, bool enabled, Error **errp);
 
 /*
  * This function writes an iovec to file. The handler must write all
  * of the data or return a negative errno value.
  */
 typedef ssize_t (QEMUFileWritevBufferFunc)(void *opaque, struct iovec *iov,
-                                           int iovcnt, int64_t pos);
+                                           int iovcnt, int64_t pos,
+                                           Error **errp);
 
 /*
  * This function provides hooks around different
@@ -97,7 +99,8 @@ typedef QEMUFile *(QEMURetPathFunc)(void *opaque);
  * Existing blocking reads/writes must be woken
  * Returns 0 on success, -err on error
  */
-typedef int (QEMUFileShutdownFunc)(void *opaque, bool rd, bool wr);
+typedef int (QEMUFileShutdownFunc)(void *opaque, bool rd, bool wr,
+                                   Error **errp);
 
 typedef struct QEMUFileOps {
     QEMUFileGetBufferFunc *get_buffer;
@@ -149,6 +152,8 @@ void qemu_update_position(QEMUFile *f, size_t size);
 void qemu_file_reset_rate_limit(QEMUFile *f);
 void qemu_file_set_rate_limit(QEMUFile *f, int64_t new_rate);
 int64_t qemu_file_get_rate_limit(QEMUFile *f);
+int qemu_file_get_error_obj(QEMUFile *f, Error **errp);
+void qemu_file_set_error_obj(QEMUFile *f, int ret, Error *err);
 void qemu_file_set_error(QEMUFile *f, int ret);
 int qemu_file_shutdown(QEMUFile *f);
 QEMUFile *qemu_file_get_return_path(QEMUFile *f);

@@ -2963,6 +2963,7 @@ static MigThrError migration_detect_error(MigrationState *s)
 {
     int ret;
     int state = s->state;
+    Error *local_error = NULL;
 
     if (state == MIGRATION_STATUS_CANCELLING ||
         state == MIGRATION_STATUS_CANCELLED) {
@@ -2971,11 +2972,16 @@ static MigThrError migration_detect_error(MigrationState *s)
     }
 
     /* Try to detect any file errors */
-    ret = qemu_file_get_error(s->to_dst_file);
-
+    ret = qemu_file_get_error_obj(s->to_dst_file, &local_error);
     if (!ret) {
         /* Everything is fine */
+        assert(!local_error);
         return MIG_THR_ERR_NONE;
+    }
+
+    if (local_error) {
+        migrate_set_error(s, local_error);
+        error_free(local_error);
     }
 
     if (state == MIGRATION_STATUS_POSTCOPY_ACTIVE && ret == -EIO) {

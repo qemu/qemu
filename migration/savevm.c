@@ -124,7 +124,7 @@ static struct mig_cmd_args {
 /* savevm/loadvm support */
 
 static ssize_t block_writev_buffer(void *opaque, struct iovec *iov, int iovcnt,
-                                   int64_t pos)
+                                   int64_t pos, Error **errp)
 {
     int ret;
     QEMUIOVector qiov;
@@ -139,12 +139,12 @@ static ssize_t block_writev_buffer(void *opaque, struct iovec *iov, int iovcnt,
 }
 
 static ssize_t block_get_buffer(void *opaque, uint8_t *buf, int64_t pos,
-                                size_t size)
+                                size_t size, Error **errp)
 {
     return bdrv_load_vmstate(opaque, buf, pos, size);
 }
 
-static int bdrv_fclose(void *opaque)
+static int bdrv_fclose(void *opaque, Error **errp)
 {
     return bdrv_flush(opaque);
 }
