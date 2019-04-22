@@ -60,6 +60,62 @@ struct FWCfgEntry {
     FWCfgWriteCallback write_cb;
 };
 
+/**
+ * key_name:
+ *
+ * @key: The uint16 selector key.
+ *
+ * Returns: The stringified name if the selector refers to a well-known
+ *          numerically defined item, or NULL on key lookup failure.
+ */
+static const char *key_name(uint16_t key)
+{
+    static const char *fw_cfg_wellknown_keys[FW_CFG_FILE_FIRST] = {
+        [FW_CFG_SIGNATURE] = "signature",
+        [FW_CFG_ID] = "id",
+        [FW_CFG_UUID] = "uuid",
+        [FW_CFG_RAM_SIZE] = "ram_size",
+        [FW_CFG_NOGRAPHIC] = "nographic",
+        [FW_CFG_NB_CPUS] = "nb_cpus",
+        [FW_CFG_MACHINE_ID] = "machine_id",
+        [FW_CFG_KERNEL_ADDR] = "kernel_addr",
+        [FW_CFG_KERNEL_SIZE] = "kernel_size",
+        [FW_CFG_KERNEL_CMDLINE] = "kernel_cmdline",
+        [FW_CFG_INITRD_ADDR] = "initrd_addr",
+        [FW_CFG_INITRD_SIZE] = "initdr_size",
+        [FW_CFG_BOOT_DEVICE] = "boot_device",
+        [FW_CFG_NUMA] = "numa",
+        [FW_CFG_BOOT_MENU] = "boot_menu",
+        [FW_CFG_MAX_CPUS] = "max_cpus",
+        [FW_CFG_KERNEL_ENTRY] = "kernel_entry",
+        [FW_CFG_KERNEL_DATA] = "kernel_data",
+        [FW_CFG_INITRD_DATA] = "initrd_data",
+        [FW_CFG_CMDLINE_ADDR] = "cmdline_addr",
+        [FW_CFG_CMDLINE_SIZE] = "cmdline_size",
+        [FW_CFG_CMDLINE_DATA] = "cmdline_data",
+        [FW_CFG_SETUP_ADDR] = "setup_addr",
+        [FW_CFG_SETUP_SIZE] = "setup_size",
+        [FW_CFG_SETUP_DATA] = "setup_data",
+        [FW_CFG_FILE_DIR] = "file_dir",
+    };
+
+    if (key & FW_CFG_ARCH_LOCAL) {
+        return NULL;
+    }
+    if (key < FW_CFG_FILE_FIRST) {
+        return fw_cfg_wellknown_keys[key];
+    }
+
+    return NULL;
+}
+
+static inline const char *trace_key_name(uint16_t key)
+{
+    const char *name = key_name(key);
+
+    return name ? name : "unknown";
+}
+
 #define JPG_FILE 0
 #define BMP_FILE 1
 
@@ -233,7 +289,7 @@ static int fw_cfg_select(FWCfgState *s, uint16_t key)
         }
     }
 
-    trace_fw_cfg_select(s, key, ret);
+    trace_fw_cfg_select(s, key, trace_key_name(key), ret);
     return ret;
 }
 
@@ -616,6 +672,7 @@ static void *fw_cfg_modify_bytes_read(FWCfgState *s, uint16_t key,
 
 void fw_cfg_add_bytes(FWCfgState *s, uint16_t key, void *data, size_t len)
 {
+    trace_fw_cfg_add_bytes(key, trace_key_name(key), len);
     fw_cfg_add_bytes_callback(s, key, NULL, NULL, NULL, data, len, true);
 }
 
@@ -623,6 +680,7 @@ void fw_cfg_add_string(FWCfgState *s, uint16_t key, const char *value)
 {
     size_t sz = strlen(value) + 1;
 
+    trace_fw_cfg_add_string(key, trace_key_name(key), value);
     fw_cfg_add_bytes(s, key, g_memdup(value, sz), sz);
 }
 
@@ -632,6 +690,7 @@ void fw_cfg_add_i16(FWCfgState *s, uint16_t key, uint16_t value)
 
     copy = g_malloc(sizeof(value));
     *copy = cpu_to_le16(value);
+    trace_fw_cfg_add_i16(key, trace_key_name(key), value);
     fw_cfg_add_bytes(s, key, copy, sizeof(value));
 }
 
@@ -651,6 +710,7 @@ void fw_cfg_add_i32(FWCfgState *s, uint16_t key, uint32_t value)
 
     copy = g_malloc(sizeof(value));
     *copy = cpu_to_le32(value);
+    trace_fw_cfg_add_i32(key, trace_key_name(key), value);
     fw_cfg_add_bytes(s, key, copy, sizeof(value));
 }
 
@@ -660,6 +720,7 @@ void fw_cfg_add_i64(FWCfgState *s, uint16_t key, uint64_t value)
 
     copy = g_malloc(sizeof(value));
     *copy = cpu_to_le64(value);
+    trace_fw_cfg_add_i64(key, trace_key_name(key), value);
     fw_cfg_add_bytes(s, key, copy, sizeof(value));
 }
 
