@@ -100,7 +100,7 @@ static const char *key_name(uint16_t key)
     };
 
     if (key & FW_CFG_ARCH_LOCAL) {
-        return NULL;
+        return fw_cfg_arch_key_name(key);
     }
     if (key < FW_CFG_FILE_FIRST) {
         return fw_cfg_wellknown_keys[key];
