@@ -107,11 +107,6 @@ void configure_accelerator(MachineState *ms, const char *progname)
         if (!acc) {
             continue;
         }
-        if (acc->available && !acc->available()) {
-            printf("%s not supported for this target\n",
-                   acc->name);
-            continue;
-        }
         ret = accel_init_machine(acc, ms);
         if (ret < 0) {
             init_failed = true;

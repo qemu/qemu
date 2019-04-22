@@ -38,7 +38,6 @@ typedef struct AccelClass {
 
     const char *opt_name;
     const char *name;
-    int (*available)(void);
     int (*init_machine)(MachineState *ms);
     void (*setup_post)(MachineState *ms, AccelState *accel);
     bool *allowed;
