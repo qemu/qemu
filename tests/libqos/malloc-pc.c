@@ -29,5 +29,5 @@ void pc_alloc_init(QGuestAllocator *s, QTestState *qts, QAllocOpts flags)
     alloc_init(s, flags, 1 << 20, MIN(ram_size, 0xE0000000), PAGE_SIZE);
 
     /* clean-up */
-    g_free(fw_cfg);
+    pc_fw_cfg_uninit(fw_cfg);
 }

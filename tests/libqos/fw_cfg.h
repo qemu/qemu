@@ -42,4 +42,9 @@ static inline QFWCFG *pc_fw_cfg_init(QTestState *qts)
     return io_fw_cfg_init(qts, 0x510);
 }
 
+static inline void pc_fw_cfg_uninit(QFWCFG *fw_cfg)
+{
+    io_fw_cfg_uninit(fw_cfg);
+}
+
 #endif
