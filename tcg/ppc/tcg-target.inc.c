@@ -529,7 +529,6 @@ static bool patch_reloc(tcg_insn_unit *code_ptr, int type,
                         intptr_t value, intptr_t addend)
 {
     tcg_insn_unit *target;
-    tcg_insn_unit old;
 
     value += addend;
     target = (tcg_insn_unit *)value;
@@ -540,22 +539,16 @@ static bool patch_reloc(tcg_insn_unit *code_ptr, int type,
     case R_PPC_REL24:
         return reloc_pc24(code_ptr, target);
     case R_PPC_ADDR16:
-        /* We are abusing this relocation type.  This points to a pair
-           of insns, addis + load.  If the displacement is small, we
-           can nop out the addis.  */
-        if (value == (int16_t)value) {
-            code_ptr[0] = NOP;
-            old = deposit32(code_ptr[1], 0, 16, value);
-            code_ptr[1] = deposit32(old, 16, 5, TCG_REG_TB);
-        } else {
-            int16_t lo = value;
-            int hi = value - lo;
-            if (hi + lo != value) {
-                return false;
-            }
-            code_ptr[0] = deposit32(code_ptr[0], 0, 16, hi >> 16);
-            code_ptr[1] = deposit32(code_ptr[1], 0, 16, lo);
+        /*
+         * We are (slightly) abusing this relocation type.  In particular,
+         * assert that the low 2 bits are zero, and do not modify them.
+         * That way we can use this with LD et al that have opcode bits
+         * in the low 2 bits of the insn.
+         */
+        if ((value & 3) || value != (int16_t)value) {
+            return false;
         }
+        *code_ptr = (*code_ptr & ~0xfffc) | (value & 0xfffc);
         break;
     default:
         g_assert_not_reached();
@@ -701,8 +694,7 @@ static void tcg_out_movi_int(TCGContext *s, TCGType type, TCGReg ret,
     if (!in_prologue && USE_REG_TB) {
         new_pool_label(s, arg, R_PPC_ADDR16, s->code_ptr,
                        -(intptr_t)s->code_gen_ptr);
-        tcg_out32(s, ADDIS | TAI(ret, TCG_REG_TB, 0));
-        tcg_out32(s, LD | TAI(ret, ret, 0));
+        tcg_out32(s, LD | TAI(ret, TCG_REG_TB, 0));
         return;
     }
 
