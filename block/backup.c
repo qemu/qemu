@@ -107,7 +107,6 @@ static int coroutine_fn backup_cow_with_bounce_buffer(BackupBlockJob *job,
                                                       void **bounce_buffer)
 {
     int ret;
-    QEMUIOVector qiov;
     BlockBackend *blk = job->common.blk;
     int nbytes;
     int read_flags = is_write_notifier ? BDRV_REQ_NO_SERIALISING : 0;
@@ -118,9 +117,8 @@ static int coroutine_fn backup_cow_with_bounce_buffer(BackupBlockJob *job,
     if (!*bounce_buffer) {
         *bounce_buffer = blk_blockalign(blk, job->cluster_size);
     }
-    qemu_iovec_init_buf(&qiov, *bounce_buffer, nbytes);
 
-    ret = blk_co_preadv(blk, start, qiov.size, &qiov, read_flags);
+    ret = blk_co_pread(blk, start, nbytes, *bounce_buffer, read_flags);
     if (ret < 0) {
         trace_backup_do_cow_read_fail(job, start, ret);
         if (error_is_read) {
@@ -129,13 +127,13 @@ static int coroutine_fn backup_cow_with_bounce_buffer(BackupBlockJob *job,
         goto fail;
     }
 
-    if (qemu_iovec_is_zero(&qiov)) {
+    if (buffer_is_zero(*bounce_buffer, nbytes)) {
         ret = blk_co_pwrite_zeroes(job->target, start,
-                                   qiov.size, write_flags | BDRV_REQ_MAY_UNMAP);
+                                   nbytes, write_flags | BDRV_REQ_MAY_UNMAP);
     } else {
-        ret = blk_co_pwritev(job->target, start,
-                             qiov.size, &qiov, write_flags |
-                             (job->compress ? BDRV_REQ_WRITE_COMPRESSED : 0));
+        ret = blk_co_pwrite(job->target, start,
+                            nbytes, *bounce_buffer, write_flags |
+                            (job->compress ? BDRV_REQ_WRITE_COMPRESSED : 0));
     }
     if (ret < 0) {
         trace_backup_do_cow_write_fail(job, start, ret);
