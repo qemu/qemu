@@ -42,6 +42,7 @@ addons:
     packages:
       - glib
       - pixman
+      - gnu-sed
 
 
 # The channel name "irc.oftc.net#qemu" is encrypted against qemu/qemu
