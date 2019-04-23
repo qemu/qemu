@@ -92,6 +92,9 @@ qcow2_cache_get_done(void *co, int c, int i) "co %p is_l2_cache %d index %d"
 qcow2_cache_flush(void *co, int c) "co %p is_l2_cache %d"
 qcow2_cache_entry_flush(void *co, int c, int i) "co %p is_l2_cache %d index %d"
 
+# qcow2-refcount.c
+qcow2_process_discards_failed_region(uint64_t offset, uint64_t bytes, int ret) "offset 0x%" PRIx64 " bytes 0x%" PRIx64 " ret %d"
+
 # qed-l2-cache.c
 qed_alloc_l2_cache_entry(void *l2_cache, void *entry) "l2_cache %p entry %p"
 qed_unref_l2_cache_entry(void *entry, int ref) "entry %p ref %d"
