@@ -21,9 +21,11 @@
 #include "cpu.h"
 #include "exec/helper-proto.h"
 
-/* If the byte ordering doesn't matter, i.e. all columns are treated
-   identically, then this union can be used directly.  If byte ordering
-   does matter, we generally ignore dumping to memory.  */
+/*
+ * If the byte ordering doesn't matter, i.e. all columns are treated
+ * identically, then this union can be used directly.  If byte ordering
+ * does matter, we generally ignore dumping to memory.
+ */
 typedef union {
     uint8_t  ub[8];
     int8_t   sb[8];
