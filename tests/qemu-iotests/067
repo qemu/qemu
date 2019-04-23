@@ -32,7 +32,6 @@ status=1	# failure is the default!
 
 _supported_fmt qcow2
 _supported_proto file
-_supported_os Linux
 # Because anything other than 16 would change the output of query-block
 _unsupported_imgopts 'refcount_bits=\([^1]\|.\([^6]\|$\)\)'
 

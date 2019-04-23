@@ -37,7 +37,6 @@ _supported_fmt qcow qcow2 qed vmdk
 # colons which separate a protocol prefix from the rest and colons which are
 # just part of the filename, so we cannot test protocols which require a prefix)
 _supported_proto file
-_supported_os Linux
 
 echo
 echo '=== Testing plain files ==='

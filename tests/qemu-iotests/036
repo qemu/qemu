@@ -43,7 +43,6 @@ trap "_cleanup; exit \$status" 0 1 2 3 15
 # This tests qcow2-specific low-level functionality
 _supported_fmt qcow2
 _supported_proto file
-_supported_os Linux
 
 # Only qcow2v3 and later supports feature bits
 IMGOPTS="compat=1.1"

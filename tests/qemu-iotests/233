@@ -47,7 +47,6 @@ trap "_cleanup; exit \$status" 0 1 2 3 15
 _supported_fmt raw qcow2
 _supported_proto file
 # If porting to non-Linux, consider using socat instead of ss in common.nbd
-_supported_os Linux
 _require_command QEMU_NBD
 
 nbd_server_set_tcp_port

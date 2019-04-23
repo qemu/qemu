@@ -48,7 +48,6 @@ trap "_cleanup; exit \$status" 0 1 2 3 15
 # Test is supported for any backing file; but we force qcow2 for our wrapper.
 _supported_fmt generic
 _supported_proto generic
-_supported_os Linux
 # LUKS support may be possible, but it complicates things.
 _unsupported_fmt luks
 

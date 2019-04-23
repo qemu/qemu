@@ -44,7 +44,6 @@ trap "_cleanup; exit \$status" 0 1 2 3 15
 
 _supported_fmt qcow2
 _supported_proto file
-_supported_os Linux
 
 size_smaller=5M
 size_larger=100M
