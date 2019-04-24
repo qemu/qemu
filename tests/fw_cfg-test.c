@@ -15,6 +15,7 @@
 #include "libqtest.h"
 #include "standard-headers/linux/qemu_fw_cfg.h"
 #include "libqos/fw_cfg.h"
+#include "qemu/bswap.h"
 
 static uint64_t ram_size = 128 << 20;
 static uint16_t nb_cpus = 1;
@@ -174,6 +175,25 @@ static void test_fw_cfg_boot_menu(void)
     qtest_quit(s);
 }
 
+static void test_fw_cfg_reboot_timeout(void)
+{
+    QFWCFG *fw_cfg;
+    QTestState *s;
+    uint32_t reboot_timeout = 0;
+    size_t filesize;
+
+    s = qtest_init("-boot reboot-timeout=15");
+    fw_cfg = pc_fw_cfg_init(s);
+
+    filesize = qfw_cfg_get_file(fw_cfg, "etc/boot-fail-wait",
+                                &reboot_timeout, sizeof(reboot_timeout));
+    g_assert_cmpint(filesize, ==, sizeof(reboot_timeout));
+    reboot_timeout = le32_to_cpu(reboot_timeout);
+    g_assert_cmpint(reboot_timeout, ==, 15);
+    pc_fw_cfg_uninit(fw_cfg);
+    qtest_quit(s);
+}
+
 int main(int argc, char **argv)
 {
     g_test_init(&argc, &argv, NULL);
@@ -193,6 +213,7 @@ int main(int argc, char **argv)
     qtest_add_func("fw_cfg/max_cpus", test_fw_cfg_max_cpus);
     qtest_add_func("fw_cfg/numa", test_fw_cfg_numa);
     qtest_add_func("fw_cfg/boot_menu", test_fw_cfg_boot_menu);
+    qtest_add_func("fw_cfg/reboot_timeout", test_fw_cfg_reboot_timeout);
 
     return g_test_run();
 }
