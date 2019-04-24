@@ -2434,10 +2434,6 @@ int qemu_loadvm_state(QEMUFile *f)
         return -ENOTSUP;
     }
 
-    if (qemu_loadvm_state_setup(f) != 0) {
-        return -EINVAL;
-    }
-
     if (migrate_get_current()->send_configuration) {
         if (qemu_get_byte(f) != QEMU_VM_CONFIGURATION) {
             error_report("Configuration section missing");
@@ -2450,6 +2446,10 @@ int qemu_loadvm_state(QEMUFile *f)
             qemu_loadvm_state_cleanup();
             return ret;
         }
+    }
+
+    if (qemu_loadvm_state_setup(f) != 0) {
+        return -EINVAL;
     }
 
     cpu_synchronize_all_pre_loadvm();
