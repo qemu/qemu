@@ -296,6 +296,10 @@ ui/input-keymap-%.c: $(KEYCODEMAP_GEN) $(KEYCODEMAP_CSV) $(SRC_PATH)/ui/Makefile
 $(KEYCODEMAP_GEN): .git-submodule-status
 $(KEYCODEMAP_CSV): .git-submodule-status
 
+edk2-decompressed = $(basename $(wildcard pc-bios/edk2-*.fd.bz2))
+pc-bios/edk2-%.fd: pc-bios/edk2-%.fd.bz2
+	$(call quiet-command,bzip2 -d -c $< > $@,"BUNZIP2",$<)
+
 # Don't try to regenerate Makefile or configure
 # We don't generate any of them
 Makefile: ;
@@ -445,6 +449,7 @@ $(SOFTMMU_SUBDIR_RULES): $(block-obj-y)
 $(SOFTMMU_SUBDIR_RULES): $(crypto-obj-y)
 $(SOFTMMU_SUBDIR_RULES): $(io-obj-y)
 $(SOFTMMU_SUBDIR_RULES): config-all-devices.mak
+$(SOFTMMU_SUBDIR_RULES): $(edk2-decompressed)
 
 subdir-%:
 	$(call quiet-command,$(MAKE) $(SUBDIR_MAKEFLAGS) -C $* V="$(V)" TARGET_DIR="$*/" all,)
@@ -633,6 +638,7 @@ clean:
 		! -path ./roms/edk2/ArmPkg/Library/GccLto/liblto-arm.a \
 		! -path ./roms/edk2/BaseTools/Source/Python/UPT/Dll/sqlite3.dll \
 		-exec rm {} +
+	rm -f $(edk2-decompressed)
 	rm -f $(filter-out %.tlb,$(TOOLS)) $(HELPERS-y) qemu-ga TAGS cscope.* *.pod *~ */*~
 	rm -f fsdev/*.pod scsi/*.pod
 	rm -f qemu-img-cmds.h
@@ -723,9 +729,14 @@ spapr-rtas.bin slof.bin skiboot.lid \
 palcode-clipper \
 u-boot.e500 u-boot-sam460-20100605.bin \
 qemu_vga.ndrv \
+edk2-licenses.txt \
 hppa-firmware.img
+
+DESCS=50-edk2-i386-secure.json 50-edk2-x86_64-secure.json \
+60-edk2-aarch64.json 60-edk2-arm.json 60-edk2-i386.json 60-edk2-x86_64.json
 else
 BLOBS=
+DESCS=
 endif
 
 # Note that we manually filter-out the non-Sphinx documentation which
@@ -786,7 +797,8 @@ endif
 
 ICON_SIZES=16x16 24x24 32x32 48x48 64x64 128x128 256x256 512x512
 
-install: all $(if $(BUILD_DOCS),install-doc) install-datadir install-localstatedir
+install: all $(if $(BUILD_DOCS),install-doc) install-datadir install-localstatedir \
+	$(if $(INSTALL_BLOBS),$(edk2-decompressed))
 ifneq ($(TOOLS),)
 	$(call install-prog,$(subst qemu-ga,qemu-ga$(EXESUF),$(TOOLS)),$(DESTDIR)$(bindir))
 endif
@@ -807,6 +819,21 @@ endif
 ifneq ($(BLOBS),)
 	set -e; for x in $(BLOBS); do \
 		$(INSTALL_DATA) $(SRC_PATH)/pc-bios/$$x "$(DESTDIR)$(qemu_datadir)"; \
+	done
+endif
+ifdef INSTALL_BLOBS
+	set -e; for x in $(edk2-decompressed); do \
+		$(INSTALL_DATA) $$x "$(DESTDIR)$(qemu_datadir)"; \
+	done
+endif
+ifneq ($(DESCS),)
+	$(INSTALL_DIR) "$(DESTDIR)$(qemu_datadir)/firmware"
+	set -e; tmpf=$$(mktemp); trap 'rm -f -- "$$tmpf"' EXIT; \
+	for x in $(DESCS); do \
+		sed -e 's,@DATADIR@,$(DESTDIR)$(qemu_datadir),' \
+			"$(SRC_PATH)/pc-bios/descriptors/$$x" > "$$tmpf"; \
+		$(INSTALL_DATA) "$$tmpf" \
+			"$(DESTDIR)$(qemu_datadir)/firmware/$$x"; \
 	done
 endif
 	for s in $(ICON_SIZES); do \

@@ -50,3 +50,14 @@
 
 - QemuMacDrivers (https://github.com/ozbenh/QemuMacDrivers) is a project to
   provide virtualised drivers for PPC MacOS guests.
+
+- The "edk2-*.fd.bz2" images are platform firmware binaries and matching UEFI
+  variable store templates built from the TianoCore community's EFI Development
+  Kit II project
+  <https://github.com/tianocore/tianocore.github.io/wiki/EDK-II>. The images
+  were built at git tag "edk2-stable201903". The firmware binaries bundle parts
+  of the OpenSSL project, at git tag "OpenSSL_1_1_0j" (the OpenSSL tag is a
+  function of the edk2 tag). Licensing information is given in
+  "edk2-licenses.txt". The image files are described by the JSON documents in
+  the "pc-bios/descriptors" directory, which conform to the
+  "docs/interop/firmware.json" schema.

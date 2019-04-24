@@ -61,6 +61,7 @@ default:
 	@echo "  skiboot        -- update skiboot.lid"
 	@echo "  u-boot.e500    -- update u-boot.e500"
 	@echo "  u-boot.sam460  -- update u-boot.sam460"
+	@echo "  efi            -- update UEFI (edk2) platform firmware"
 
 bios: build-seabios-config-seabios-128k build-seabios-config-seabios-256k
 	cp seabios/builds/seabios-128k/bios.bin ../pc-bios/bios.bin
@@ -102,7 +103,7 @@ pxe-rom-%: build-pxe-roms
 
 efirom: $(patsubst %,efi-rom-%,$(pxerom_variants))
 
-efi-rom-%: build-pxe-roms build-efi-roms $(EDK2_EFIROM)
+efi-rom-%: build-pxe-roms build-efi-roms edk2-basetools
 	$(EDK2_EFIROM) -f "0x$(VID)" -i "0x$(DID)" -l 0x02 \
 		-b ipxe/src/bin/$(VID)$(DID).rom \
 		-ec ipxe/src/bin-i386-efi/$(VID)$(DID).efidrv \
@@ -131,7 +132,7 @@ build-efi-roms: build-pxe-roms
 #    EDK2_BASETOOLS_LDFLAGS='...' \
 #    efirom
 #
-$(EDK2_EFIROM):
+edk2-basetools:
 	$(MAKE) -C edk2/BaseTools \
 		EXTRA_OPTFLAGS='$(EDK2_BASETOOLS_OPTFLAGS)' \
 		EXTRA_LDFLAGS='$(EDK2_BASETOOLS_LDFLAGS)'
@@ -156,6 +157,9 @@ skiboot:
 	$(MAKE) -C skiboot CROSS=$(powerpc64_cross_prefix)
 	cp skiboot/skiboot.lid ../pc-bios/skiboot.lid
 
+efi: edk2-basetools
+	$(MAKE) -f Makefile.edk2
+
 clean:
 	rm -rf seabios/.config seabios/out seabios/builds
 	$(MAKE) -C sgabios clean
@@ -166,3 +170,4 @@ clean:
 	rm -rf u-boot/build.e500
 	$(MAKE) -C u-boot-sam460ex distclean
 	$(MAKE) -C skiboot clean
+	$(MAKE) -f Makefile.edk2 clean
