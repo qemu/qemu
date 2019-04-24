@@ -1418,10 +1418,6 @@ static int qemu_savevm_state(QEMUFile *f, Error **errp)
         return -EINVAL;
     }
 
-    if (migration_is_blocked(errp)) {
-        return -EINVAL;
-    }
-
     if (migrate_use_block()) {
         error_setg(errp, "Block migration and snapshots are incompatible");
         return -EINVAL;
