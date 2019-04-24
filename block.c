@@ -2235,6 +2235,10 @@ static void bdrv_replace_child(BdrvChild *child, BlockDriverState *new_bs)
         bdrv_get_cumulative_perm(old_bs, &perm, &shared_perm);
         bdrv_check_perm(old_bs, NULL, perm, shared_perm, NULL, &error_abort);
         bdrv_set_perm(old_bs, perm, shared_perm);
+
+        /* When the parent requiring a non-default AioContext is removed, the
+         * node moves back to the main AioContext */
+        bdrv_try_set_aio_context(old_bs, qemu_get_aio_context(), NULL);
     }
 
     if (new_bs) {

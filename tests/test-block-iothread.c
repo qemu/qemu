@@ -713,9 +713,8 @@ static void test_attach_preserve_blk_ctx(void)
 
     /* Remove the node again */
     blk_remove_bs(blk);
-    /* TODO bs should move back to main context here */
     g_assert(blk_get_aio_context(blk) == ctx);
-    g_assert(bdrv_get_aio_context(bs) == ctx);
+    g_assert(bdrv_get_aio_context(bs) == qemu_get_aio_context());
 
     /* Re-attach the node */
     blk_insert_bs(blk, bs, &error_abort);

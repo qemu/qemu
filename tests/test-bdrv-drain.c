@@ -1003,7 +1003,7 @@ static void test_blockjob_common_drain_node(enum drain_type drain_type,
 
     if (use_iothread) {
         blk_set_aio_context(blk_src, qemu_get_aio_context(), &error_abort);
-        blk_set_aio_context(blk_target, qemu_get_aio_context(), &error_abort);
+        assert(blk_get_aio_context(blk_target) == qemu_get_aio_context());
     }
     aio_context_release(ctx);
 
