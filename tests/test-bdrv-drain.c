@@ -912,6 +912,7 @@ static void test_blockjob_common_drain_node(enum drain_type drain_type,
                                   &error_abort);
     blk_target = blk_new(qemu_get_aio_context(), BLK_PERM_ALL, BLK_PERM_ALL);
     blk_insert_bs(blk_target, target, &error_abort);
+    blk_set_allow_aio_context_change(blk_target, true);
 
     aio_context_acquire(ctx);
     tjob = block_job_create("job0", &test_job_driver, NULL, src,
@@ -972,7 +973,7 @@ static void test_blockjob_common_drain_node(enum drain_type drain_type,
     g_assert_false(job->job.paused);
     g_assert_true(job->job.busy); /* We're in qemu_co_sleep_ns() */
 
-    do_drain_begin(drain_type, target);
+    do_drain_begin_unlocked(drain_type, target);
 
     if (drain_type == BDRV_DRAIN_ALL) {
         /* bdrv_drain_all() drains both src and target */
@@ -983,7 +984,7 @@ static void test_blockjob_common_drain_node(enum drain_type drain_type,
     g_assert_true(job->job.paused);
     g_assert_false(job->job.busy); /* The job is paused */
 
-    do_drain_end(drain_type, target);
+    do_drain_end_unlocked(drain_type, target);
 
     if (use_iothread) {
         /* paused is reset in the I/O thread, wait for it */
@@ -1002,6 +1003,7 @@ static void test_blockjob_common_drain_node(enum drain_type drain_type,
 
     if (use_iothread) {
         blk_set_aio_context(blk_src, qemu_get_aio_context(), &error_abort);
+        blk_set_aio_context(blk_target, qemu_get_aio_context(), &error_abort);
     }
     aio_context_release(ctx);
 

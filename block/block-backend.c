@@ -392,7 +392,7 @@ BlockBackend *blk_new_open(const char *filename, const char *reference,
         return NULL;
     }
 
-    blk->root = bdrv_root_attach_child(bs, "root", &child_root,
+    blk->root = bdrv_root_attach_child(bs, "root", &child_root, blk->ctx,
                                        perm, BLK_PERM_ALL, blk, errp);
     if (!blk->root) {
         blk_unref(blk);
@@ -803,7 +803,7 @@ int blk_insert_bs(BlockBackend *blk, BlockDriverState *bs, Error **errp)
 {
     ThrottleGroupMember *tgm = &blk->public.throttle_group_member;
     bdrv_ref(bs);
-    blk->root = bdrv_root_attach_child(bs, "root", &child_root,
+    blk->root = bdrv_root_attach_child(bs, "root", &child_root, blk->ctx,
                                        blk->perm, blk->shared_perm, blk, errp);
     if (blk->root == NULL) {
         return -EPERM;
@@ -1861,10 +1861,9 @@ AioContext *blk_get_aio_context(BlockBackend *blk)
 {
     BlockDriverState *bs = blk_bs(blk);
 
-    /* FIXME The AioContext of bs and blk can be inconsistent. For the moment,
-     * we prefer the one of bs for compatibility. */
     if (bs) {
-        return bdrv_get_aio_context(blk_bs(blk));
+        AioContext *ctx = bdrv_get_aio_context(blk_bs(blk));
+        assert(ctx == blk->ctx);
     }
 
     return blk->ctx;
