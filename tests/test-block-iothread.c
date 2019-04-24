@@ -695,6 +695,38 @@ static void test_attach_second_node(void)
     blk_unref(blk);
 }
 
+static void test_attach_preserve_blk_ctx(void)
+{
+    IOThread *iothread = iothread_new();
+    AioContext *ctx = iothread_get_aio_context(iothread);
+    BlockBackend *blk;
+    BlockDriverState *bs;
+
+    blk = blk_new(ctx, BLK_PERM_ALL, BLK_PERM_ALL);
+    bs = bdrv_new_open_driver(&bdrv_test, "base", BDRV_O_RDWR, &error_abort);
+    bs->total_sectors = 65536 / BDRV_SECTOR_SIZE;
+
+    /* Add node to BlockBackend that has an iothread context assigned */
+    blk_insert_bs(blk, bs, &error_abort);
+    g_assert(blk_get_aio_context(blk) == ctx);
+    g_assert(bdrv_get_aio_context(bs) == ctx);
+
+    /* Remove the node again */
+    blk_remove_bs(blk);
+    /* TODO bs should move back to main context here */
+    g_assert(blk_get_aio_context(blk) == ctx);
+    g_assert(bdrv_get_aio_context(bs) == ctx);
+
+    /* Re-attach the node */
+    blk_insert_bs(blk, bs, &error_abort);
+    g_assert(blk_get_aio_context(blk) == ctx);
+    g_assert(bdrv_get_aio_context(bs) == ctx);
+
+    blk_set_aio_context(blk, qemu_get_aio_context(), &error_abort);
+    bdrv_unref(bs);
+    blk_unref(blk);
+}
+
 int main(int argc, char **argv)
 {
     int i;
@@ -711,6 +743,7 @@ int main(int argc, char **argv)
 
     g_test_add_func("/attach/blockjob", test_attach_blockjob);
     g_test_add_func("/attach/second_node", test_attach_second_node);
+    g_test_add_func("/attach/preserve_blk_ctx", test_attach_preserve_blk_ctx);
     g_test_add_func("/propagate/basic", test_propagate_basic);
     g_test_add_func("/propagate/diamond", test_propagate_diamond);
     g_test_add_func("/propagate/mirror", test_propagate_mirror);
