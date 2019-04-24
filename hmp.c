@@ -580,8 +580,7 @@ static void print_block_info(Monitor *mon, BlockInfo *info,
         monitor_printf(mon, "\nImages:\n");
         image_info = inserted->image;
         while (1) {
-                bdrv_image_info_dump((fprintf_function)monitor_printf,
-                                     mon, image_info);
+                bdrv_image_info_dump(image_info);
             if (image_info->has_backing_image) {
                 image_info = image_info->backing_image;
             } else {
@@ -1586,7 +1585,7 @@ void hmp_info_snapshots(Monitor *mon, const QDict *qdict)
     monitor_printf(mon, "List of snapshots present on all disks:\n");
 
     if (total > 0) {
-        bdrv_snapshot_dump((fprintf_function)monitor_printf, mon, NULL);
+        bdrv_snapshot_dump(NULL);
         monitor_printf(mon, "\n");
         for (i = 0; i < total; i++) {
             sn = &sn_tab[global_snapshots[i]];
@@ -1594,7 +1593,7 @@ void hmp_info_snapshots(Monitor *mon, const QDict *qdict)
              * overwrite it.
              */
             pstrcpy(sn->id_str, sizeof(sn->id_str), "--");
-            bdrv_snapshot_dump((fprintf_function)monitor_printf, mon, sn);
+            bdrv_snapshot_dump(sn);
             monitor_printf(mon, "\n");
         }
     } else {
@@ -1608,11 +1607,10 @@ void hmp_info_snapshots(Monitor *mon, const QDict *qdict)
         monitor_printf(mon,
                        "\nList of partial (non-loadable) snapshots on '%s':\n",
                        image_entry->imagename);
-        bdrv_snapshot_dump((fprintf_function)monitor_printf, mon, NULL);
+        bdrv_snapshot_dump(NULL);
         monitor_printf(mon, "\n");
         QTAILQ_FOREACH(snapshot_entry, &image_entry->snapshots, next) {
-            bdrv_snapshot_dump((fprintf_function)monitor_printf, mon,
-                               &snapshot_entry->sn);
+            bdrv_snapshot_dump(&snapshot_entry->sn);
             monitor_printf(mon, "\n");
         }
     }

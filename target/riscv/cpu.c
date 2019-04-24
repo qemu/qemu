@@ -18,6 +18,7 @@
  */
 
 #include "qemu/osdep.h"
+#include "qemu/qemu-print.h"
 #include "qemu/log.h"
 #include "cpu.h"
 #include "exec/exec-all.h"
@@ -193,40 +194,39 @@ static ObjectClass *riscv_cpu_class_by_name(const char *cpu_model)
     return oc;
 }
 
-static void riscv_cpu_dump_state(CPUState *cs, FILE *f,
-    fprintf_function cpu_fprintf, int flags)
+static void riscv_cpu_dump_state(CPUState *cs, FILE *f, int flags)
 {
     RISCVCPU *cpu = RISCV_CPU(cs);
     CPURISCVState *env = &cpu->env;
     int i;
 
-    cpu_fprintf(f, " %s " TARGET_FMT_lx "\n", "pc      ", env->pc);
+    qemu_fprintf(f, " %s " TARGET_FMT_lx "\n", "pc      ", env->pc);
 #ifndef CONFIG_USER_ONLY
-    cpu_fprintf(f, " %s " TARGET_FMT_lx "\n", "mhartid ", env->mhartid);
-    cpu_fprintf(f, " %s " TARGET_FMT_lx "\n", "mstatus ", env->mstatus);
-    cpu_fprintf(f, " %s " TARGET_FMT_lx "\n", "mip     ",
-        (target_ulong)atomic_read(&env->mip));
-    cpu_fprintf(f, " %s " TARGET_FMT_lx "\n", "mie     ", env->mie);
-    cpu_fprintf(f, " %s " TARGET_FMT_lx "\n", "mideleg ", env->mideleg);
-    cpu_fprintf(f, " %s " TARGET_FMT_lx "\n", "medeleg ", env->medeleg);
-    cpu_fprintf(f, " %s " TARGET_FMT_lx "\n", "mtvec   ", env->mtvec);
-    cpu_fprintf(f, " %s " TARGET_FMT_lx "\n", "mepc    ", env->mepc);
-    cpu_fprintf(f, " %s " TARGET_FMT_lx "\n", "mcause  ", env->mcause);
+    qemu_fprintf(f, " %s " TARGET_FMT_lx "\n", "mhartid ", env->mhartid);
+    qemu_fprintf(f, " %s " TARGET_FMT_lx "\n", "mstatus ", env->mstatus);
+    qemu_fprintf(f, " %s " TARGET_FMT_lx "\n", "mip     ",
+                 (target_ulong)atomic_read(&env->mip));
+    qemu_fprintf(f, " %s " TARGET_FMT_lx "\n", "mie     ", env->mie);
+    qemu_fprintf(f, " %s " TARGET_FMT_lx "\n", "mideleg ", env->mideleg);
+    qemu_fprintf(f, " %s " TARGET_FMT_lx "\n", "medeleg ", env->medeleg);
+    qemu_fprintf(f, " %s " TARGET_FMT_lx "\n", "mtvec   ", env->mtvec);
+    qemu_fprintf(f, " %s " TARGET_FMT_lx "\n", "mepc    ", env->mepc);
+    qemu_fprintf(f, " %s " TARGET_FMT_lx "\n", "mcause  ", env->mcause);
 #endif
 
     for (i = 0; i < 32; i++) {
-        cpu_fprintf(f, " %s " TARGET_FMT_lx,
-            riscv_int_regnames[i], env->gpr[i]);
+        qemu_fprintf(f, " %s " TARGET_FMT_lx,
+                     riscv_int_regnames[i], env->gpr[i]);
         if ((i & 3) == 3) {
-            cpu_fprintf(f, "\n");
+            qemu_fprintf(f, "\n");
         }
     }
     if (flags & CPU_DUMP_FPU) {
         for (i = 0; i < 32; i++) {
-            cpu_fprintf(f, " %s %016" PRIx64,
-                riscv_fpr_regnames[i], env->fpr[i]);
+            qemu_fprintf(f, " %s %016" PRIx64,
+                         riscv_fpr_regnames[i], env->fpr[i]);
             if ((i & 3) == 3) {
-                cpu_fprintf(f, "\n");
+                qemu_fprintf(f, "\n");
             }
         }
     }
@@ -383,11 +383,6 @@ char *riscv_isa_string(RISCVCPU *cpu)
     return isa_str;
 }
 
-typedef struct RISCVCPUListState {
-    fprintf_function cpu_fprintf;
-    FILE *file;
-} RISCVCPUListState;
-
 static gint riscv_cpu_list_compare(gconstpointer a, gconstpointer b)
 {
     ObjectClass *class_a = (ObjectClass *)a;
@@ -401,24 +396,19 @@ static gint riscv_cpu_list_compare(gconstpointer a, gconstpointer b)
 
 static void riscv_cpu_list_entry(gpointer data, gpointer user_data)
 {
-    RISCVCPUListState *s = user_data;
     const char *typename = object_class_get_name(OBJECT_CLASS(data));
     int len = strlen(typename) - strlen(RISCV_CPU_TYPE_SUFFIX);
 
-    (*s->cpu_fprintf)(s->file, "%.*s\n", len, typename);
+    qemu_printf("%.*s\n", len, typename);
 }
 
-void riscv_cpu_list(FILE *f, fprintf_function cpu_fprintf)
+void riscv_cpu_list(void)
 {
-    RISCVCPUListState s = {
-        .cpu_fprintf = cpu_fprintf,
-        .file = f,
-    };
     GSList *list;
 
     list = object_class_get_list(TYPE_RISCV_CPU, false);
     list = g_slist_sort(list, riscv_cpu_list_compare);
-    g_slist_foreach(list, riscv_cpu_list_entry, &s);
+    g_slist_foreach(list, riscv_cpu_list_entry, NULL);
     g_slist_free(list);
 }
 

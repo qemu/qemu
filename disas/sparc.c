@@ -27,7 +27,7 @@
    see <http://www.gnu.org/licenses/>.  */
 
 #include "qemu/osdep.h"
-#include "disas/bfd.h"
+#include "disas/dis-asm.h"
 
 /* The SPARC opcode table (and other related data) is defined in
    the opcodes library in sparc-opc.c.  If you change anything here, make

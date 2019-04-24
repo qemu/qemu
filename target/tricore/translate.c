@@ -24,6 +24,7 @@
 #include "exec/exec-all.h"
 #include "tcg-op.h"
 #include "exec/cpu_ldst.h"
+#include "qemu/qemu-print.h"
 
 #include "exec/helper-proto.h"
 #include "exec/helper-gen.h"
@@ -88,8 +89,7 @@ enum {
     MODE_UU = 3,
 };
 
-void tricore_cpu_dump_state(CPUState *cs, FILE *f,
-                            fprintf_function cpu_fprintf, int flags)
+void tricore_cpu_dump_state(CPUState *cs, FILE *f, int flags)
 {
     TriCoreCPU *cpu = TRICORE_CPU(cs);
     CPUTriCoreState *env = &cpu->env;
@@ -98,26 +98,26 @@ void tricore_cpu_dump_state(CPUState *cs, FILE *f,
 
     psw = psw_read(env);
 
-    cpu_fprintf(f, "PC: " TARGET_FMT_lx, env->PC);
-    cpu_fprintf(f, " PSW: " TARGET_FMT_lx, psw);
-    cpu_fprintf(f, " ICR: " TARGET_FMT_lx, env->ICR);
-    cpu_fprintf(f, "\nPCXI: " TARGET_FMT_lx, env->PCXI);
-    cpu_fprintf(f, " FCX: " TARGET_FMT_lx, env->FCX);
-    cpu_fprintf(f, " LCX: " TARGET_FMT_lx, env->LCX);
+    qemu_fprintf(f, "PC: " TARGET_FMT_lx, env->PC);
+    qemu_fprintf(f, " PSW: " TARGET_FMT_lx, psw);
+    qemu_fprintf(f, " ICR: " TARGET_FMT_lx, env->ICR);
+    qemu_fprintf(f, "\nPCXI: " TARGET_FMT_lx, env->PCXI);
+    qemu_fprintf(f, " FCX: " TARGET_FMT_lx, env->FCX);
+    qemu_fprintf(f, " LCX: " TARGET_FMT_lx, env->LCX);
 
     for (i = 0; i < 16; ++i) {
         if ((i & 3) == 0) {
-            cpu_fprintf(f, "\nGPR A%02d:", i);
+            qemu_fprintf(f, "\nGPR A%02d:", i);
         }
-        cpu_fprintf(f, " " TARGET_FMT_lx, env->gpr_a[i]);
+        qemu_fprintf(f, " " TARGET_FMT_lx, env->gpr_a[i]);
     }
     for (i = 0; i < 16; ++i) {
         if ((i & 3) == 0) {
-            cpu_fprintf(f, "\nGPR D%02d:", i);
+            qemu_fprintf(f, "\nGPR D%02d:", i);
         }
-        cpu_fprintf(f, " " TARGET_FMT_lx, env->gpr_d[i]);
+        qemu_fprintf(f, " " TARGET_FMT_lx, env->gpr_d[i]);
     }
-    cpu_fprintf(f, "\n");
+    qemu_fprintf(f, "\n");
 }
 
 /*

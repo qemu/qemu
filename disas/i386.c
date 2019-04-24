@@ -32,7 +32,7 @@
    the Intel manual for details.  */
 
 #include "qemu/osdep.h"
-#include "disas/bfd.h"
+#include "disas/dis-asm.h"
 #include "qemu/cutils.h"
 
 /* include/opcode/i386.h r1.78 */

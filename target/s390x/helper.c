@@ -23,6 +23,7 @@
 #include "internal.h"
 #include "exec/gdbstub.h"
 #include "qemu/timer.h"
+#include "qemu/qemu-print.h"
 #include "hw/s390x/ioinst.h"
 #include "sysemu/hw_accel.h"
 #ifndef CONFIG_USER_ONLY
@@ -313,65 +314,64 @@ int s390_store_adtl_status(S390CPU *cpu, hwaddr addr, hwaddr len)
 }
 #endif /* CONFIG_USER_ONLY */
 
-void s390_cpu_dump_state(CPUState *cs, FILE *f, fprintf_function cpu_fprintf,
-                         int flags)
+void s390_cpu_dump_state(CPUState *cs, FILE *f, int flags)
 {
     S390CPU *cpu = S390_CPU(cs);
     CPUS390XState *env = &cpu->env;
     int i;
 
     if (env->cc_op > 3) {
-        cpu_fprintf(f, "PSW=mask %016" PRIx64 " addr %016" PRIx64 " cc %15s\n",
-                    env->psw.mask, env->psw.addr, cc_name(env->cc_op));
+        qemu_fprintf(f, "PSW=mask %016" PRIx64 " addr %016" PRIx64 " cc %15s\n",
+                     env->psw.mask, env->psw.addr, cc_name(env->cc_op));
     } else {
-        cpu_fprintf(f, "PSW=mask %016" PRIx64 " addr %016" PRIx64 " cc %02x\n",
-                    env->psw.mask, env->psw.addr, env->cc_op);
+        qemu_fprintf(f, "PSW=mask %016" PRIx64 " addr %016" PRIx64 " cc %02x\n",
+                     env->psw.mask, env->psw.addr, env->cc_op);
     }
 
     for (i = 0; i < 16; i++) {
-        cpu_fprintf(f, "R%02d=%016" PRIx64, i, env->regs[i]);
+        qemu_fprintf(f, "R%02d=%016" PRIx64, i, env->regs[i]);
         if ((i % 4) == 3) {
-            cpu_fprintf(f, "\n");
+            qemu_fprintf(f, "\n");
         } else {
-            cpu_fprintf(f, " ");
+            qemu_fprintf(f, " ");
         }
     }
 
     if (flags & CPU_DUMP_FPU) {
         if (s390_has_feat(S390_FEAT_VECTOR)) {
             for (i = 0; i < 32; i++) {
-                cpu_fprintf(f, "V%02d=%016" PRIx64 "%016" PRIx64 "%c",
-                            i, env->vregs[i][0].ll, env->vregs[i][1].ll,
-                            i % 2 ? '\n' : ' ');
+                qemu_fprintf(f, "V%02d=%016" PRIx64 "%016" PRIx64 "%c",
+                             i, env->vregs[i][0].ll, env->vregs[i][1].ll,
+                             i % 2 ? '\n' : ' ');
             }
         } else {
             for (i = 0; i < 16; i++) {
-                cpu_fprintf(f, "F%02d=%016" PRIx64 "%c",
-                            i, get_freg(env, i)->ll,
-                            (i % 4) == 3 ? '\n' : ' ');
+                qemu_fprintf(f, "F%02d=%016" PRIx64 "%c",
+                             i, get_freg(env, i)->ll,
+                             (i % 4) == 3 ? '\n' : ' ');
             }
         }
     }
 
 #ifndef CONFIG_USER_ONLY
     for (i = 0; i < 16; i++) {
-        cpu_fprintf(f, "C%02d=%016" PRIx64, i, env->cregs[i]);
+        qemu_fprintf(f, "C%02d=%016" PRIx64, i, env->cregs[i]);
         if ((i % 4) == 3) {
-            cpu_fprintf(f, "\n");
+            qemu_fprintf(f, "\n");
         } else {
-            cpu_fprintf(f, " ");
+            qemu_fprintf(f, " ");
         }
     }
 #endif
 
 #ifdef DEBUG_INLINE_BRANCHES
     for (i = 0; i < CC_OP_MAX; i++) {
-        cpu_fprintf(f, "  %15s = %10ld\t%10ld\n", cc_name(i),
-                    inline_branch_miss[i], inline_branch_hit[i]);
+        qemu_fprintf(f, "  %15s = %10ld\t%10ld\n", cc_name(i),
+                     inline_branch_miss[i], inline_branch_hit[i]);
     }
 #endif
 
-    cpu_fprintf(f, "\n");
+    qemu_fprintf(f, "\n");
 }
 
 const char *cc_name(enum cc_op cc_op)

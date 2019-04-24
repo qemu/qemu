@@ -26,7 +26,7 @@
  */
 
 #include "qemu/osdep.h"
-#include "disas/bfd.h"
+#include "disas/dis-asm.h"
 #include "hw/xtensa/xtensa-isa.h"
 
 int print_insn_xtensa(bfd_vma memaddr, struct disassemble_info *info)

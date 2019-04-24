@@ -31,6 +31,7 @@
 #include "exec/gdbstub.h"
 #include "exec/helper-proto.h"
 #include "qemu/error-report.h"
+#include "qemu/qemu-print.h"
 #include "qemu/host-utils.h"
 
 static struct XtensaConfigList *xtensa_cores;
@@ -228,12 +229,12 @@ void xtensa_breakpoint_handler(CPUState *cs)
     }
 }
 
-void xtensa_cpu_list(FILE *f, fprintf_function cpu_fprintf)
+void xtensa_cpu_list(void)
 {
     XtensaConfigList *core = xtensa_cores;
-    cpu_fprintf(f, "Available CPUs:\n");
+    qemu_printf("Available CPUs:\n");
     for (; core; core = core->next) {
-        cpu_fprintf(f, "  %s\n", core->config->name);
+        qemu_printf("  %s\n", core->config->name);
     }
 }
 

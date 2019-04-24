@@ -28,6 +28,7 @@
 #include "exec/cpu_ldst.h"
 #include "exec/helper-gen.h"
 #include "exec/translator.h"
+#include "qemu/qemu-print.h"
 
 #include "trace-tcg.h"
 #include "exec/log.h"
@@ -1785,36 +1786,36 @@ void gen_intermediate_code(CPUState *cs, struct TranslationBlock *tb)
     assert(!dc->abort_at_next_insn);
 }
 
-void mb_cpu_dump_state(CPUState *cs, FILE *f, fprintf_function cpu_fprintf,
-                       int flags)
+void mb_cpu_dump_state(CPUState *cs, FILE *f, int flags)
 {
     MicroBlazeCPU *cpu = MICROBLAZE_CPU(cs);
     CPUMBState *env = &cpu->env;
     int i;
 
-    if (!env || !f)
+    if (!env) {
         return;
+    }
 
-    cpu_fprintf(f, "IN: PC=%" PRIx64 " %s\n",
-                env->sregs[SR_PC], lookup_symbol(env->sregs[SR_PC]));
-    cpu_fprintf(f, "rmsr=%" PRIx64 " resr=%" PRIx64 " rear=%" PRIx64 " "
-                   "debug=%x imm=%x iflags=%x fsr=%" PRIx64 "\n",
-             env->sregs[SR_MSR], env->sregs[SR_ESR], env->sregs[SR_EAR],
-             env->debug, env->imm, env->iflags, env->sregs[SR_FSR]);
-    cpu_fprintf(f, "btaken=%d btarget=%" PRIx64 " mode=%s(saved=%s) "
-                   "eip=%d ie=%d\n",
-             env->btaken, env->btarget,
-             (env->sregs[SR_MSR] & MSR_UM) ? "user" : "kernel",
-             (env->sregs[SR_MSR] & MSR_UMS) ? "user" : "kernel",
-             (bool)(env->sregs[SR_MSR] & MSR_EIP),
-             (bool)(env->sregs[SR_MSR] & MSR_IE));
+    qemu_fprintf(f, "IN: PC=%" PRIx64 " %s\n",
+                 env->sregs[SR_PC], lookup_symbol(env->sregs[SR_PC]));
+    qemu_fprintf(f, "rmsr=%" PRIx64 " resr=%" PRIx64 " rear=%" PRIx64 " "
+                 "debug=%x imm=%x iflags=%x fsr=%" PRIx64 "\n",
+                 env->sregs[SR_MSR], env->sregs[SR_ESR], env->sregs[SR_EAR],
+                 env->debug, env->imm, env->iflags, env->sregs[SR_FSR]);
+    qemu_fprintf(f, "btaken=%d btarget=%" PRIx64 " mode=%s(saved=%s) "
+                 "eip=%d ie=%d\n",
+                 env->btaken, env->btarget,
+                 (env->sregs[SR_MSR] & MSR_UM) ? "user" : "kernel",
+                 (env->sregs[SR_MSR] & MSR_UMS) ? "user" : "kernel",
+                 (bool)(env->sregs[SR_MSR] & MSR_EIP),
+                 (bool)(env->sregs[SR_MSR] & MSR_IE));
 
     for (i = 0; i < 32; i++) {
-        cpu_fprintf(f, "r%2.2d=%8.8x ", i, env->regs[i]);
+        qemu_fprintf(f, "r%2.2d=%8.8x ", i, env->regs[i]);
         if ((i + 1) % 4 == 0)
-            cpu_fprintf(f, "\n");
+            qemu_fprintf(f, "\n");
         }
-    cpu_fprintf(f, "\n\n");
+    qemu_fprintf(f, "\n\n");
 }
 
 void mb_tcg_init(void)

@@ -56,7 +56,9 @@
  *   Critical-Section Execution to Improve the Performance of Multithreaded
  *   Applications", USENIX ATC'12.
  */
+
 #include "qemu/osdep.h"
+#include "qemu/qemu-print.h"
 #include "qemu/thread.h"
 #include "qemu/timer.h"
 #include "qemu/qht.h"
@@ -678,8 +680,7 @@ static gboolean qsp_tree_report(gpointer key, gpointer value, gpointer udata)
     return FALSE;
 }
 
-static void
-pr_report(const QSPReport *rep, FILE *f, fprintf_function pr)
+static void pr_report(const QSPReport *rep)
 {
     char *dashes;
     size_t max_len = 0;
@@ -702,15 +703,15 @@ pr_report(const QSPReport *rep, FILE *f, fprintf_function pr)
     /* white space to leave to the right of "Call site" */
     callsite_rspace = callsite_len - strlen("Call site");
 
-    pr(f, "Type               Object  Call site%*s  Wait Time (s)  "
-       "       Count  Average (us)\n", callsite_rspace, "");
+    qemu_printf("Type               Object  Call site%*s  Wait Time (s)  "
+                "       Count  Average (us)\n", callsite_rspace, "");
 
     /* build a horizontal rule with dashes */
     n_dashes = 79 + callsite_rspace;
     dashes = g_malloc(n_dashes + 1);
     memset(dashes, '-', n_dashes);
     dashes[n_dashes] = '\0';
-    pr(f, "%s\n", dashes);
+    qemu_printf("%s\n", dashes);
 
     for (i = 0; i < rep->n_entries; i++) {
         const QSPReportEntry *e = &rep->entries[i];
@@ -726,11 +727,11 @@ pr_report(const QSPReport *rep, FILE *f, fprintf_function pr)
                                e->callsite_at,
                                callsite_len - (int)strlen(e->callsite_at), "",
                                e->time_s, e->n_acqs, e->ns_avg * 1e-3);
-        pr(f, "%s", s->str);
+        qemu_printf("%s", s->str);
         g_string_free(s, TRUE);
     }
 
-    pr(f, "%s\n", dashes);
+    qemu_printf("%s\n", dashes);
     g_free(dashes);
 }
 
@@ -746,8 +747,8 @@ static void report_destroy(QSPReport *rep)
     g_free(rep->entries);
 }
 
-void qsp_report(FILE *f, fprintf_function cpu_fprintf, size_t max,
-                enum QSPSortBy sort_by, bool callsite_coalesce)
+void qsp_report(size_t max, enum QSPSortBy sort_by,
+                bool callsite_coalesce)
 {
     GTree *tree = g_tree_new_full(qsp_tree_cmp, &sort_by, g_free, NULL);
     QSPReport rep;
@@ -762,7 +763,7 @@ void qsp_report(FILE *f, fprintf_function cpu_fprintf, size_t max,
     g_tree_foreach(tree, qsp_tree_report, &rep);
     g_tree_destroy(tree);
 
-    pr_report(&rep, f, cpu_fprintf);
+    pr_report(&rep);
     report_destroy(&rep);
 }
 

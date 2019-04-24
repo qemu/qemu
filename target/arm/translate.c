@@ -28,6 +28,7 @@
 #include "tcg-op-gvec.h"
 #include "qemu/log.h"
 #include "qemu/bitops.h"
+#include "qemu/qemu-print.h"
 #include "arm_ldst.h"
 #include "exec/semihost.h"
 
@@ -13772,24 +13773,23 @@ void gen_intermediate_code(CPUState *cpu, TranslationBlock *tb)
     translator_loop(ops, &dc.base, cpu, tb);
 }
 
-void arm_cpu_dump_state(CPUState *cs, FILE *f, fprintf_function cpu_fprintf,
-                        int flags)
+void arm_cpu_dump_state(CPUState *cs, FILE *f, int flags)
 {
     ARMCPU *cpu = ARM_CPU(cs);
     CPUARMState *env = &cpu->env;
     int i;
 
     if (is_a64(env)) {
-        aarch64_cpu_dump_state(cs, f, cpu_fprintf, flags);
+        aarch64_cpu_dump_state(cs, f, flags);
         return;
     }
 
     for(i=0;i<16;i++) {
-        cpu_fprintf(f, "R%02d=%08x", i, env->regs[i]);
+        qemu_fprintf(f, "R%02d=%08x", i, env->regs[i]);
         if ((i % 4) == 3)
-            cpu_fprintf(f, "\n");
+            qemu_fprintf(f, "\n");
         else
-            cpu_fprintf(f, " ");
+            qemu_fprintf(f, " ");
     }
 
     if (arm_feature(env, ARM_FEATURE_M)) {
@@ -13811,15 +13811,15 @@ void arm_cpu_dump_state(CPUState *cs, FILE *f, fprintf_function cpu_fprintf,
             }
         }
 
-        cpu_fprintf(f, "XPSR=%08x %c%c%c%c %c %s%s\n",
-                    xpsr,
-                    xpsr & XPSR_N ? 'N' : '-',
-                    xpsr & XPSR_Z ? 'Z' : '-',
-                    xpsr & XPSR_C ? 'C' : '-',
-                    xpsr & XPSR_V ? 'V' : '-',
-                    xpsr & XPSR_T ? 'T' : 'A',
-                    ns_status,
-                    mode);
+        qemu_fprintf(f, "XPSR=%08x %c%c%c%c %c %s%s\n",
+                     xpsr,
+                     xpsr & XPSR_N ? 'N' : '-',
+                     xpsr & XPSR_Z ? 'Z' : '-',
+                     xpsr & XPSR_C ? 'C' : '-',
+                     xpsr & XPSR_V ? 'V' : '-',
+                     xpsr & XPSR_T ? 'T' : 'A',
+                     ns_status,
+                     mode);
     } else {
         uint32_t psr = cpsr_read(env);
         const char *ns_status = "";
@@ -13829,15 +13829,15 @@ void arm_cpu_dump_state(CPUState *cs, FILE *f, fprintf_function cpu_fprintf,
             ns_status = env->cp15.scr_el3 & SCR_NS ? "NS " : "S ";
         }
 
-        cpu_fprintf(f, "PSR=%08x %c%c%c%c %c %s%s%d\n",
-                    psr,
-                    psr & CPSR_N ? 'N' : '-',
-                    psr & CPSR_Z ? 'Z' : '-',
-                    psr & CPSR_C ? 'C' : '-',
-                    psr & CPSR_V ? 'V' : '-',
-                    psr & CPSR_T ? 'T' : 'A',
-                    ns_status,
-                    aarch32_mode_name(psr), (psr & 0x10) ? 32 : 26);
+        qemu_fprintf(f, "PSR=%08x %c%c%c%c %c %s%s%d\n",
+                     psr,
+                     psr & CPSR_N ? 'N' : '-',
+                     psr & CPSR_Z ? 'Z' : '-',
+                     psr & CPSR_C ? 'C' : '-',
+                     psr & CPSR_V ? 'V' : '-',
+                     psr & CPSR_T ? 'T' : 'A',
+                     ns_status,
+                     aarch32_mode_name(psr), (psr & 0x10) ? 32 : 26);
     }
 
     if (flags & CPU_DUMP_FPU) {
@@ -13850,12 +13850,12 @@ void arm_cpu_dump_state(CPUState *cs, FILE *f, fprintf_function cpu_fprintf,
         }
         for (i = 0; i < numvfpregs; i++) {
             uint64_t v = *aa32_vfp_dreg(env, i);
-            cpu_fprintf(f, "s%02d=%08x s%02d=%08x d%02d=%016" PRIx64 "\n",
-                        i * 2, (uint32_t)v,
-                        i * 2 + 1, (uint32_t)(v >> 32),
-                        i, v);
+            qemu_fprintf(f, "s%02d=%08x s%02d=%08x d%02d=%016" PRIx64 "\n",
+                         i * 2, (uint32_t)v,
+                         i * 2 + 1, (uint32_t)(v >> 32),
+                         i, v);
         }
-        cpu_fprintf(f, "FPSCR: %08x\n", vfp_get_fpscr(env));
+        qemu_fprintf(f, "FPSCR: %08x\n", vfp_get_fpscr(env));
     }
 }
 

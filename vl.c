@@ -1556,12 +1556,12 @@ static int machine_help_func(QemuOpts *opts, MachineState *machine)
             continue;
         }
 
-        error_printf("%s.%s=%s", MACHINE_GET_CLASS(machine)->name,
-                     prop->name, prop->type);
+        printf("%s.%s=%s", MACHINE_GET_CLASS(machine)->name,
+               prop->name, prop->type);
         if (prop->description) {
-            error_printf(" (%s)\n", prop->description);
+            printf(" (%s)\n", prop->description);
         } else {
-            error_printf("\n");
+            printf("\n");
         }
     }
 
@@ -3022,6 +3022,7 @@ int main(int argc, char **argv, char **envp)
     char *dir, **dirs;
     BlockdevOptionsQueue bdo_queue = QSIMPLEQ_HEAD_INITIALIZER(bdo_queue);
 
+    error_init(argv[0]);
     module_call_init(MODULE_INIT_TRACE);
 
     qemu_init_cpu_list();
@@ -3030,7 +3031,6 @@ int main(int argc, char **argv, char **envp)
     qemu_mutex_lock_iothread();
 
     atexit(qemu_run_exit_notifiers);
-    error_set_progname(argv[0]);
     qemu_init_exec_dir(argv[0]);
 
     module_call_init(MODULE_INIT_QOM);
@@ -3643,7 +3643,7 @@ int main(int argc, char **argv, char **envp)
                                                      optarg, true);
                 optarg = qemu_opt_get(accel_opts, "accel");
                 if (!optarg || is_help_option(optarg)) {
-                    error_printf("Possible accelerators: kvm, xen, hax, tcg\n");
+                    printf("Possible accelerators: kvm, xen, hax, tcg\n");
                     exit(0);
                 }
                 opts = qemu_opts_create(qemu_find_opts("machine"), NULL,
@@ -4051,7 +4051,7 @@ int main(int argc, char **argv, char **envp)
     }
 
     if (cpu_model && is_help_option(cpu_model)) {
-        list_cpus(stdout, &fprintf, cpu_model);
+        list_cpus(cpu_model);
         exit(0);
     }
 

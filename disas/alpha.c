@@ -20,7 +20,7 @@ along with this file; see the file COPYING.  If not, see
 <http://www.gnu.org/licenses/>. */
 
 #include "qemu/osdep.h"
-#include "disas/bfd.h"
+#include "disas/dis-asm.h"
 
 /* MAX is redefined below, so remove any previous definition. */
 #undef MAX

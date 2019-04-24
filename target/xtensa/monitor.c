@@ -35,5 +35,5 @@ void hmp_info_tlb(Monitor *mon, const QDict *qdict)
         monitor_printf(mon, "No CPU available\n");
         return;
     }
-    dump_mmu((FILE*)mon, (fprintf_function)monitor_printf, env1);
+    dump_mmu(env1);
 }

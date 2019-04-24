@@ -24,6 +24,7 @@
 #include "exec/exec-all.h"
 #include "tcg-op.h"
 #include "qemu/log.h"
+#include "qemu/qemu-print.h"
 #include "exec/cpu_ldst.h"
 #include "exec/translator.h"
 
@@ -6187,76 +6188,75 @@ static double floatx80_to_double(CPUM68KState *env, uint16_t high, uint64_t low)
     return u.d;
 }
 
-void m68k_cpu_dump_state(CPUState *cs, FILE *f, fprintf_function cpu_fprintf,
-                         int flags)
+void m68k_cpu_dump_state(CPUState *cs, FILE *f, int flags)
 {
     M68kCPU *cpu = M68K_CPU(cs);
     CPUM68KState *env = &cpu->env;
     int i;
     uint16_t sr;
     for (i = 0; i < 8; i++) {
-        cpu_fprintf(f, "D%d = %08x   A%d = %08x   "
-                    "F%d = %04x %016"PRIx64"  (%12g)\n",
-                    i, env->dregs[i], i, env->aregs[i],
-                    i, env->fregs[i].l.upper, env->fregs[i].l.lower,
-                    floatx80_to_double(env, env->fregs[i].l.upper,
-                                       env->fregs[i].l.lower));
+        qemu_fprintf(f, "D%d = %08x   A%d = %08x   "
+                     "F%d = %04x %016"PRIx64"  (%12g)\n",
+                     i, env->dregs[i], i, env->aregs[i],
+                     i, env->fregs[i].l.upper, env->fregs[i].l.lower,
+                     floatx80_to_double(env, env->fregs[i].l.upper,
+                                        env->fregs[i].l.lower));
     }
-    cpu_fprintf (f, "PC = %08x   ", env->pc);
+    qemu_fprintf(f, "PC = %08x   ", env->pc);
     sr = env->sr | cpu_m68k_get_ccr(env);
-    cpu_fprintf(f, "SR = %04x T:%x I:%x %c%c %c%c%c%c%c\n",
-                sr, (sr & SR_T) >> SR_T_SHIFT, (sr & SR_I) >> SR_I_SHIFT,
-                (sr & SR_S) ? 'S' : 'U', (sr & SR_M) ? '%' : 'I',
-                (sr & CCF_X) ? 'X' : '-', (sr & CCF_N) ? 'N' : '-',
-                (sr & CCF_Z) ? 'Z' : '-', (sr & CCF_V) ? 'V' : '-',
-                (sr & CCF_C) ? 'C' : '-');
-    cpu_fprintf(f, "FPSR = %08x %c%c%c%c ", env->fpsr,
-                (env->fpsr & FPSR_CC_A) ? 'A' : '-',
-                (env->fpsr & FPSR_CC_I) ? 'I' : '-',
-                (env->fpsr & FPSR_CC_Z) ? 'Z' : '-',
-                (env->fpsr & FPSR_CC_N) ? 'N' : '-');
-    cpu_fprintf(f, "\n                                "
-                   "FPCR =     %04x ", env->fpcr);
+    qemu_fprintf(f, "SR = %04x T:%x I:%x %c%c %c%c%c%c%c\n",
+                 sr, (sr & SR_T) >> SR_T_SHIFT, (sr & SR_I) >> SR_I_SHIFT,
+                 (sr & SR_S) ? 'S' : 'U', (sr & SR_M) ? '%' : 'I',
+                 (sr & CCF_X) ? 'X' : '-', (sr & CCF_N) ? 'N' : '-',
+                 (sr & CCF_Z) ? 'Z' : '-', (sr & CCF_V) ? 'V' : '-',
+                 (sr & CCF_C) ? 'C' : '-');
+    qemu_fprintf(f, "FPSR = %08x %c%c%c%c ", env->fpsr,
+                 (env->fpsr & FPSR_CC_A) ? 'A' : '-',
+                 (env->fpsr & FPSR_CC_I) ? 'I' : '-',
+                 (env->fpsr & FPSR_CC_Z) ? 'Z' : '-',
+                 (env->fpsr & FPSR_CC_N) ? 'N' : '-');
+    qemu_fprintf(f, "\n                                "
+                 "FPCR =     %04x ", env->fpcr);
     switch (env->fpcr & FPCR_PREC_MASK) {
     case FPCR_PREC_X:
-        cpu_fprintf(f, "X ");
+        qemu_fprintf(f, "X ");
         break;
     case FPCR_PREC_S:
-        cpu_fprintf(f, "S ");
+        qemu_fprintf(f, "S ");
         break;
     case FPCR_PREC_D:
-        cpu_fprintf(f, "D ");
+        qemu_fprintf(f, "D ");
         break;
     }
     switch (env->fpcr & FPCR_RND_MASK) {
     case FPCR_RND_N:
-        cpu_fprintf(f, "RN ");
+        qemu_fprintf(f, "RN ");
         break;
     case FPCR_RND_Z:
-        cpu_fprintf(f, "RZ ");
+        qemu_fprintf(f, "RZ ");
         break;
     case FPCR_RND_M:
-        cpu_fprintf(f, "RM ");
+        qemu_fprintf(f, "RM ");
         break;
     case FPCR_RND_P:
-        cpu_fprintf(f, "RP ");
+        qemu_fprintf(f, "RP ");
         break;
     }
-    cpu_fprintf(f, "\n");
+    qemu_fprintf(f, "\n");
 #ifdef CONFIG_SOFTMMU
-    cpu_fprintf(f, "%sA7(MSP) = %08x %sA7(USP) = %08x %sA7(ISP) = %08x\n",
-               env->current_sp == M68K_SSP ? "->" : "  ", env->sp[M68K_SSP],
-               env->current_sp == M68K_USP ? "->" : "  ", env->sp[M68K_USP],
-               env->current_sp == M68K_ISP ? "->" : "  ", env->sp[M68K_ISP]);
-    cpu_fprintf(f, "VBR = 0x%08x\n", env->vbr);
-    cpu_fprintf(f, "SFC = %x DFC %x\n", env->sfc, env->dfc);
-    cpu_fprintf(f, "SSW %08x TCR %08x URP %08x SRP %08x\n",
-                env->mmu.ssw, env->mmu.tcr, env->mmu.urp, env->mmu.srp);
-    cpu_fprintf(f, "DTTR0/1: %08x/%08x ITTR0/1: %08x/%08x\n",
-                env->mmu.ttr[M68K_DTTR0], env->mmu.ttr[M68K_DTTR1],
-                env->mmu.ttr[M68K_ITTR0], env->mmu.ttr[M68K_ITTR1]);
-    cpu_fprintf(f, "MMUSR %08x, fault at %08x\n",
-                env->mmu.mmusr, env->mmu.ar);
+    qemu_fprintf(f, "%sA7(MSP) = %08x %sA7(USP) = %08x %sA7(ISP) = %08x\n",
+                 env->current_sp == M68K_SSP ? "->" : "  ", env->sp[M68K_SSP],
+                 env->current_sp == M68K_USP ? "->" : "  ", env->sp[M68K_USP],
+                 env->current_sp == M68K_ISP ? "->" : "  ", env->sp[M68K_ISP]);
+    qemu_fprintf(f, "VBR = 0x%08x\n", env->vbr);
+    qemu_fprintf(f, "SFC = %x DFC %x\n", env->sfc, env->dfc);
+    qemu_fprintf(f, "SSW %08x TCR %08x URP %08x SRP %08x\n",
+                 env->mmu.ssw, env->mmu.tcr, env->mmu.urp, env->mmu.srp);
+    qemu_fprintf(f, "DTTR0/1: %08x/%08x ITTR0/1: %08x/%08x\n",
+                 env->mmu.ttr[M68K_DTTR0], env->mmu.ttr[M68K_DTTR1],
+                 env->mmu.ttr[M68K_ITTR0], env->mmu.ttr[M68K_ITTR1]);
+    qemu_fprintf(f, "MMUSR %08x, fault at %08x\n",
+                 env->mmu.mmusr, env->mmu.ar);
 #endif
 }
 

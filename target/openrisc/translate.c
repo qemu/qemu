@@ -26,6 +26,7 @@
 #include "qemu-common.h"
 #include "qemu/log.h"
 #include "qemu/bitops.h"
+#include "qemu/qemu-print.h"
 #include "exec/cpu_ldst.h"
 #include "exec/translator.h"
 
@@ -1415,18 +1416,16 @@ void gen_intermediate_code(CPUState *cs, struct TranslationBlock *tb)
     translator_loop(&openrisc_tr_ops, &ctx.base, cs, tb);
 }
 
-void openrisc_cpu_dump_state(CPUState *cs, FILE *f,
-                             fprintf_function cpu_fprintf,
-                             int flags)
+void openrisc_cpu_dump_state(CPUState *cs, FILE *f, int flags)
 {
     OpenRISCCPU *cpu = OPENRISC_CPU(cs);
     CPUOpenRISCState *env = &cpu->env;
     int i;
 
-    cpu_fprintf(f, "PC=%08x\n", env->pc);
+    qemu_fprintf(f, "PC=%08x\n", env->pc);
     for (i = 0; i < 32; ++i) {
-        cpu_fprintf(f, "R%02d=%08x%c", i, cpu_get_gpr(env, i),
-                    (i % 4) == 3 ? '\n' : ' ');
+        qemu_fprintf(f, "R%02d=%08x%c", i, cpu_get_gpr(env, i),
+                     (i % 4) == 3 ? '\n' : ' ');
     }
 }
 

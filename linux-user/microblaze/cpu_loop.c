@@ -107,7 +107,7 @@ void cpu_loop(CPUMBState *env)
                 default:
                     fprintf(stderr, "Unhandled hw-exception: 0x%" PRIx64 "\n",
                             env->sregs[SR_ESR] & ESR_EC_MASK);
-                    cpu_dump_state(cs, stderr, fprintf, 0);
+                    cpu_dump_state(cs, stderr, 0);
                     exit(EXIT_FAILURE);
                     break;
             }
@@ -123,7 +123,7 @@ void cpu_loop(CPUMBState *env)
             break;
         default:
             fprintf(stderr, "Unhandled trap: 0x%x\n", trapnr);
-            cpu_dump_state(cs, stderr, fprintf, 0);
+            cpu_dump_state(cs, stderr, 0);
             exit(EXIT_FAILURE);
         }
         process_pending_signals (env);

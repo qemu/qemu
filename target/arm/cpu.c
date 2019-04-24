@@ -20,7 +20,6 @@
 
 #include "qemu/osdep.h"
 #include "target/arm/idau.h"
-#include "qemu/error-report.h"
 #include "qapi/error.h"
 #include "qapi/visitor.h"
 #include "cpu.h"

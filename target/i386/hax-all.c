@@ -540,7 +540,7 @@ static int hax_vcpu_hax_exec(CPUArchState *env)
                     ht->_exit_reason);
             qemu_system_reset_request(SHUTDOWN_CAUSE_GUEST_RESET);
             hax_vcpu_sync_state(env, 0);
-            cpu_dump_state(cpu, stderr, fprintf, 0);
+            cpu_dump_state(cpu, stderr, 0);
             ret = -1;
             break;
         case HAX_EXIT_HLT:
@@ -571,7 +571,7 @@ static int hax_vcpu_hax_exec(CPUArchState *env)
             fprintf(stderr, "Unknown exit %x from HAX\n", ht->_exit_status);
             qemu_system_reset_request(SHUTDOWN_CAUSE_GUEST_RESET);
             hax_vcpu_sync_state(env, 0);
-            cpu_dump_state(cpu, stderr, fprintf, 0);
+            cpu_dump_state(cpu, stderr, 0);
             ret = 1;
             break;
         }

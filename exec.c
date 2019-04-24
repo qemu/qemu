@@ -35,6 +35,7 @@
 #include "qemu/timer.h"
 #include "qemu/config-file.h"
 #include "qemu/error-report.h"
+#include "qemu/qemu-print.h"
 #if defined(CONFIG_USER_ONLY)
 #include "qemu.h"
 #else /* !CONFIG_USER_ONLY */
@@ -1255,7 +1256,7 @@ void cpu_abort(CPUState *cpu, const char *fmt, ...)
     fprintf(stderr, "qemu: fatal: ");
     vfprintf(stderr, fmt, ap);
     fprintf(stderr, "\n");
-    cpu_dump_state(cpu, stderr, fprintf, CPU_DUMP_FPU | CPU_DUMP_CCOP);
+    cpu_dump_state(cpu, stderr, CPU_DUMP_FPU | CPU_DUMP_CCOP);
     if (qemu_log_separate()) {
         qemu_log_lock();
         qemu_log("qemu: fatal: ");
@@ -4117,42 +4118,41 @@ void page_size_init(void)
 
 #if !defined(CONFIG_USER_ONLY)
 
-static void mtree_print_phys_entries(fprintf_function mon, void *f,
-                                     int start, int end, int skip, int ptr)
+static void mtree_print_phys_entries(int start, int end, int skip, int ptr)
 {
     if (start == end - 1) {
-        mon(f, "\t%3d      ", start);
+        qemu_printf("\t%3d      ", start);
     } else {
-        mon(f, "\t%3d..%-3d ", start, end - 1);
+        qemu_printf("\t%3d..%-3d ", start, end - 1);
     }
-    mon(f, " skip=%d ", skip);
+    qemu_printf(" skip=%d ", skip);
     if (ptr == PHYS_MAP_NODE_NIL) {
-        mon(f, " ptr=NIL");
+        qemu_printf(" ptr=NIL");
     } else if (!skip) {
-        mon(f, " ptr=#%d", ptr);
+        qemu_printf(" ptr=#%d", ptr);
     } else {
-        mon(f, " ptr=[%d]", ptr);
+        qemu_printf(" ptr=[%d]", ptr);
     }
-    mon(f, "\n");
+    qemu_printf("\n");
 }
 
 #define MR_SIZE(size) (int128_nz(size) ? (hwaddr)int128_get64( \
                            int128_sub((size), int128_one())) : 0)
 
-void mtree_print_dispatch(fprintf_function mon, void *f,
-                          AddressSpaceDispatch *d, MemoryRegion *root)
+void mtree_print_dispatch(AddressSpaceDispatch *d, MemoryRegion *root)
 {
     int i;
 
-    mon(f, "  Dispatch\n");
-    mon(f, "    Physical sections\n");
+    qemu_printf("  Dispatch\n");
+    qemu_printf("    Physical sections\n");
 
     for (i = 0; i < d->map.sections_nb; ++i) {
         MemoryRegionSection *s = d->map.sections + i;
         const char *names[] = { " [unassigned]", " [not dirty]",
                                 " [ROM]", " [watch]" };
 
-        mon(f, "      #%d @" TARGET_FMT_plx ".." TARGET_FMT_plx " %s%s%s%s%s",
+        qemu_printf("      #%d @" TARGET_FMT_plx ".." TARGET_FMT_plx
+                    " %s%s%s%s%s",
             i,
             s->offset_within_address_space,
             s->offset_within_address_space + MR_SIZE(s->mr->size),
@@ -4163,20 +4163,20 @@ void mtree_print_dispatch(fprintf_function mon, void *f,
             s->mr->is_iommu ? " [iommu]" : "");
 
         if (s->mr->alias) {
-            mon(f, " alias=%s", s->mr->alias->name ?
+            qemu_printf(" alias=%s", s->mr->alias->name ?
                     s->mr->alias->name : "noname");
         }
-        mon(f, "\n");
+        qemu_printf("\n");
     }
 
-    mon(f, "    Nodes (%d bits per level, %d levels) ptr=[%d] skip=%d\n",
+    qemu_printf("    Nodes (%d bits per level, %d levels) ptr=[%d] skip=%d\n",
                P_L2_BITS, P_L2_LEVELS, d->phys_map.ptr, d->phys_map.skip);
     for (i = 0; i < d->map.nodes_nb; ++i) {
         int j, jprev;
         PhysPageEntry prev;
         Node *n = d->map.nodes + i;
 
-        mon(f, "      [%d]\n", i);
+        qemu_printf("      [%d]\n", i);
 
         for (j = 0, jprev = 0, prev = *n[0]; j < ARRAY_SIZE(*n); ++j) {
             PhysPageEntry *pe = *n + j;
@@ -4185,14 +4185,14 @@ void mtree_print_dispatch(fprintf_function mon, void *f,
                 continue;
             }
 
-            mtree_print_phys_entries(mon, f, jprev, j, prev.skip, prev.ptr);
+            mtree_print_phys_entries(jprev, j, prev.skip, prev.ptr);
 
             jprev = j;
             prev = *pe;
         }
 
         if (jprev != ARRAY_SIZE(*n)) {
-            mtree_print_phys_entries(mon, f, jprev, j, prev.skip, prev.ptr);
+            mtree_print_phys_entries(jprev, j, prev.skip, prev.ptr);
         }
     }
 }

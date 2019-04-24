@@ -19,7 +19,7 @@ void hmp_info_tlb(Monitor *mon, const QDict *qdict)
         return;
     }
 
-    dump_mmu((FILE *)mon, (fprintf_function)monitor_printf, env1);
+    dump_mmu(env1);
 }
 
 static const MonitorDef monitor_defs[] = {

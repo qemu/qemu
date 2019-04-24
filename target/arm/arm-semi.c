@@ -650,7 +650,7 @@ target_ulong do_arm_semihosting(CPUARMState *env)
         /* fall through -- invalid for A32/T32 */
     default:
         fprintf(stderr, "qemu: Unsupported SemiHosting SWI 0x%02x\n", nr);
-        cpu_dump_state(cs, stderr, fprintf, 0);
+        cpu_dump_state(cs, stderr, 0);
         abort();
     }
 }

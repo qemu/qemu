@@ -11,7 +11,7 @@
 #ifndef TRACE_SIMPLE_H
 #define TRACE_SIMPLE_H
 
-void st_print_trace_file_status(FILE *stream, fprintf_function stream_printf);
+void st_print_trace_file_status(void);
 void st_set_trace_file_enabled(bool enable);
 void st_set_trace_file(const char *file);
 bool st_init(void);

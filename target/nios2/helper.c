@@ -42,7 +42,7 @@ int nios2_cpu_handle_mmu_fault(CPUState *cs, vaddr address, int size,
     cs->exception_index = 0xaa;
     /* Page 0x1000 is kuser helper */
     if (address < 0x1000 || address >= 0x2000) {
-        cpu_dump_state(cs, stderr, fprintf, 0);
+        cpu_dump_state(cs, stderr, 0);
     }
     return 1;
 }

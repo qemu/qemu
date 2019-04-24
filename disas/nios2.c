@@ -36,7 +36,7 @@
 
 /*#include "bfd.h"*/
 #include "qemu/osdep.h"
-#include "disas/bfd.h"
+#include "disas/dis-asm.h"
 
 
 /****************************************************************************

@@ -179,8 +179,7 @@ static inline M68kCPU *m68k_env_get_cpu(CPUM68KState *env)
 
 void m68k_cpu_do_interrupt(CPUState *cpu);
 bool m68k_cpu_exec_interrupt(CPUState *cpu, int int_req);
-void m68k_cpu_dump_state(CPUState *cpu, FILE *f, fprintf_function cpu_fprintf,
-                         int flags);
+void m68k_cpu_dump_state(CPUState *cpu, FILE *f, int flags);
 hwaddr m68k_cpu_get_phys_page_debug(CPUState *cpu, vaddr addr);
 int m68k_cpu_gdb_read_register(CPUState *cpu, uint8_t *buf, int reg);
 int m68k_cpu_gdb_write_register(CPUState *cpu, uint8_t *buf, int reg);
@@ -499,7 +498,7 @@ static inline int m68k_feature(CPUM68KState *env, int feature)
     return (env->features & (1u << feature)) != 0;
 }
 
-void m68k_cpu_list(FILE *f, fprintf_function cpu_fprintf);
+void m68k_cpu_list(void);
 
 void register_m68k_insns (CPUM68KState *env);
 
@@ -573,5 +572,6 @@ static inline void cpu_get_tb_cpu_state(CPUM68KState *env, target_ulong *pc,
     }
 }
 
-void dump_mmu(FILE *f, fprintf_function cpu_fprintf, CPUM68KState *env);
+void dump_mmu(CPUM68KState *env);
+
 #endif

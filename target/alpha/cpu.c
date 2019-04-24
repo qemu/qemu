@@ -21,6 +21,7 @@
 
 #include "qemu/osdep.h"
 #include "qapi/error.h"
+#include "qemu/qemu-print.h"
 #include "cpu.h"
 #include "qemu-common.h"
 #include "exec/exec-all.h"
@@ -74,23 +75,17 @@ static void alpha_cpu_realizefn(DeviceState *dev, Error **errp)
 static void alpha_cpu_list_entry(gpointer data, gpointer user_data)
 {
     ObjectClass *oc = data;
-    CPUListState *s = user_data;
 
-    (*s->cpu_fprintf)(s->file, "  %s\n",
-                      object_class_get_name(oc));
+    qemu_printf("  %s\n", object_class_get_name(oc));
 }
 
-void alpha_cpu_list(FILE *f, fprintf_function cpu_fprintf)
+void alpha_cpu_list(void)
 {
-    CPUListState s = {
-        .file = f,
-        .cpu_fprintf = cpu_fprintf,
-    };
     GSList *list;
 
     list = object_class_get_list_sorted(TYPE_ALPHA_CPU, false);
-    (*cpu_fprintf)(f, "Available CPUs:\n");
-    g_slist_foreach(list, alpha_cpu_list_entry, &s);
+    qemu_printf("Available CPUs:\n");
+    g_slist_foreach(list, alpha_cpu_list_entry, NULL);
     g_slist_free(list);
 }
 

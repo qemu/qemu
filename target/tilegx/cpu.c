@@ -24,9 +24,9 @@
 #include "qemu-common.h"
 #include "hw/qdev-properties.h"
 #include "linux-user/syscall_defs.h"
+#include "qemu/qemu-print.h"
 
-static void tilegx_cpu_dump_state(CPUState *cs, FILE *f,
-                                  fprintf_function cpu_fprintf, int flags)
+static void tilegx_cpu_dump_state(CPUState *cs, FILE *f, int flags)
 {
     static const char * const reg_names[TILEGX_R_COUNT] = {
          "r0",  "r1",  "r2",  "r3",  "r4",  "r5",  "r6",  "r7",
@@ -43,12 +43,12 @@ static void tilegx_cpu_dump_state(CPUState *cs, FILE *f,
     int i;
 
     for (i = 0; i < TILEGX_R_COUNT; i++) {
-        cpu_fprintf(f, "%-4s" TARGET_FMT_lx "%s",
-                    reg_names[i], env->regs[i],
-                    (i % 4) == 3 ? "\n" : " ");
+        qemu_fprintf(f, "%-4s" TARGET_FMT_lx "%s",
+                     reg_names[i], env->regs[i],
+                     (i % 4) == 3 ? "\n" : " ");
     }
-    cpu_fprintf(f, "PC  " TARGET_FMT_lx " CEX " TARGET_FMT_lx "\n\n",
-                env->pc, env->spregs[TILEGX_SPR_CMPEXCH]);
+    qemu_fprintf(f, "PC  " TARGET_FMT_lx " CEX " TARGET_FMT_lx "\n\n",
+                 env->pc, env->spregs[TILEGX_SPR_CMPEXCH]);
 }
 
 static ObjectClass *tilegx_cpu_class_by_name(const char *cpu_model)

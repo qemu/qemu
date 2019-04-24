@@ -16,7 +16,7 @@
 static inline void log_cpu_state(CPUState *cpu, int flags)
 {
     if (qemu_log_enabled()) {
-        cpu_dump_state(cpu, qemu_logfile, fprintf, flags);
+        cpu_dump_state(cpu, qemu_logfile, flags);
     }
 }
 

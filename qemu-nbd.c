@@ -690,8 +690,8 @@ int main(int argc, char **argv)
     signal(SIGPIPE, SIG_IGN);
 #endif
 
+    error_init(argv[0]);
     module_call_init(MODULE_INIT_TRACE);
-    error_set_progname(argv[0]);
     qcrypto_init(&error_fatal);
 
     module_call_init(MODULE_INIT_QOM);

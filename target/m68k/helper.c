@@ -22,9 +22,9 @@
 #include "cpu.h"
 #include "exec/exec-all.h"
 #include "exec/gdbstub.h"
-
 #include "exec/helper-proto.h"
 #include "fpu/softfloat.h"
+#include "qemu/qemu-print.h"
 
 #define SIGNBIT (1u << 31)
 
@@ -49,28 +49,22 @@ static gint m68k_cpu_list_compare(gconstpointer a, gconstpointer b)
 static void m68k_cpu_list_entry(gpointer data, gpointer user_data)
 {
     ObjectClass *c = data;
-    CPUListState *s = user_data;
     const char *typename;
     char *name;
 
     typename = object_class_get_name(c);
     name = g_strndup(typename, strlen(typename) - strlen("-" TYPE_M68K_CPU));
-    (*s->cpu_fprintf)(s->file, "%s\n",
-                      name);
+    qemu_printf("%s\n", name);
     g_free(name);
 }
 
-void m68k_cpu_list(FILE *f, fprintf_function cpu_fprintf)
+void m68k_cpu_list(void)
 {
-    CPUListState s = {
-        .file = f,
-        .cpu_fprintf = cpu_fprintf,
-    };
     GSList *list;
 
     list = object_class_get_list(TYPE_M68K_CPU, false);
     list = g_slist_sort(list, m68k_cpu_list_compare);
-    g_slist_foreach(list, m68k_cpu_list_entry, &s);
+    g_slist_foreach(list, m68k_cpu_list_entry, NULL);
     g_slist_free(list);
 }
 
@@ -375,30 +369,28 @@ int m68k_cpu_handle_mmu_fault(CPUState *cs, vaddr address, int size, int rw,
 
 /* MMU: 68040 only */
 
-static void print_address_zone(FILE *f, fprintf_function cpu_fprintf,
-                               uint32_t logical, uint32_t physical,
+static void print_address_zone(uint32_t logical, uint32_t physical,
                                uint32_t size, int attr)
 {
-    cpu_fprintf(f, "%08x - %08x -> %08x - %08x %c ",
+    qemu_printf("%08x - %08x -> %08x - %08x %c ",
                 logical, logical + size - 1,
                 physical, physical + size - 1,
                 attr & 4 ? 'W' : '-');
     size >>= 10;
     if (size < 1024) {
-        cpu_fprintf(f, "(%d KiB)\n", size);
+        qemu_printf("(%d KiB)\n", size);
     } else {
         size >>= 10;
         if (size < 1024) {
-            cpu_fprintf(f, "(%d MiB)\n", size);
+            qemu_printf("(%d MiB)\n", size);
         } else {
             size >>= 10;
-            cpu_fprintf(f, "(%d GiB)\n", size);
+            qemu_printf("(%d GiB)\n", size);
         }
     }
 }
 
-static void dump_address_map(FILE *f, fprintf_function cpu_fprintf,
-                             CPUM68KState *env, uint32_t root_pointer)
+static void dump_address_map(CPUM68KState *env, uint32_t root_pointer)
 {
     int i, j, k;
     int tic_size, tic_shift;
@@ -460,7 +452,7 @@ static void dump_address_map(FILE *f, fprintf_function cpu_fprintf,
                     if (first_logical != 0xffffffff) {
                         size = last_logical + (1 << tic_shift) -
                                first_logical;
-                        print_address_zone(f, cpu_fprintf, first_logical,
+                        print_address_zone(first_logical,
                                            first_physical, size, last_attr);
                     }
                     first_logical = logical;
@@ -471,126 +463,125 @@ static void dump_address_map(FILE *f, fprintf_function cpu_fprintf,
     }
     if (first_logical != logical || (attr & 4) != (last_attr & 4)) {
         size = logical + (1 << tic_shift) - first_logical;
-        print_address_zone(f, cpu_fprintf, first_logical, first_physical, size,
-                           last_attr);
+        print_address_zone(first_logical, first_physical, size, last_attr);
     }
 }
 
 #define DUMP_CACHEFLAGS(a) \
     switch (a & M68K_DESC_CACHEMODE) { \
     case M68K_DESC_CM_WRTHRU: /* cachable, write-through */ \
-        cpu_fprintf(f, "T"); \
+        qemu_printf("T"); \
         break; \
     case M68K_DESC_CM_COPYBK: /* cachable, copyback */ \
-        cpu_fprintf(f, "C"); \
+        qemu_printf("C"); \
         break; \
     case M68K_DESC_CM_SERIAL: /* noncachable, serialized */ \
-        cpu_fprintf(f, "S"); \
+        qemu_printf("S"); \
         break; \
     case M68K_DESC_CM_NCACHE: /* noncachable */ \
-        cpu_fprintf(f, "N"); \
+        qemu_printf("N"); \
         break; \
     }
 
-static void dump_ttr(FILE *f, fprintf_function cpu_fprintf, uint32_t ttr)
+static void dump_ttr(uint32_t ttr)
 {
     if ((ttr & M68K_TTR_ENABLED) == 0) {
-        cpu_fprintf(f, "disabled\n");
+        qemu_printf("disabled\n");
         return;
     }
-    cpu_fprintf(f, "Base: 0x%08x Mask: 0x%08x Control: ",
+    qemu_printf("Base: 0x%08x Mask: 0x%08x Control: ",
                 ttr & M68K_TTR_ADDR_BASE,
                 (ttr & M68K_TTR_ADDR_MASK) << M68K_TTR_ADDR_MASK_SHIFT);
     switch (ttr & M68K_TTR_SFIELD) {
     case M68K_TTR_SFIELD_USER:
-        cpu_fprintf(f, "U");
+        qemu_printf("U");
         break;
     case M68K_TTR_SFIELD_SUPER:
-        cpu_fprintf(f, "S");
+        qemu_printf("S");
         break;
     default:
-        cpu_fprintf(f, "*");
+        qemu_printf("*");
         break;
     }
     DUMP_CACHEFLAGS(ttr);
     if (ttr & M68K_DESC_WRITEPROT) {
-        cpu_fprintf(f, "R");
+        qemu_printf("R");
     } else {
-        cpu_fprintf(f, "W");
+        qemu_printf("W");
     }
-    cpu_fprintf(f, " U: %d\n", (ttr & M68K_DESC_USERATTR) >>
+    qemu_printf(" U: %d\n", (ttr & M68K_DESC_USERATTR) >>
                                M68K_DESC_USERATTR_SHIFT);
 }
 
-void dump_mmu(FILE *f, fprintf_function cpu_fprintf, CPUM68KState *env)
+void dump_mmu(CPUM68KState *env)
 {
     if ((env->mmu.tcr & M68K_TCR_ENABLED) == 0) {
-        cpu_fprintf(f, "Translation disabled\n");
+        qemu_printf("Translation disabled\n");
         return;
     }
-    cpu_fprintf(f, "Page Size: ");
+    qemu_printf("Page Size: ");
     if (env->mmu.tcr & M68K_TCR_PAGE_8K) {
-        cpu_fprintf(f, "8kB\n");
+        qemu_printf("8kB\n");
     } else {
-        cpu_fprintf(f, "4kB\n");
+        qemu_printf("4kB\n");
     }
 
-    cpu_fprintf(f, "MMUSR: ");
+    qemu_printf("MMUSR: ");
     if (env->mmu.mmusr & M68K_MMU_B_040) {
-        cpu_fprintf(f, "BUS ERROR\n");
+        qemu_printf("BUS ERROR\n");
     } else {
-        cpu_fprintf(f, "Phy=%08x Flags: ", env->mmu.mmusr & 0xfffff000);
+        qemu_printf("Phy=%08x Flags: ", env->mmu.mmusr & 0xfffff000);
         /* flags found on the page descriptor */
         if (env->mmu.mmusr & M68K_MMU_G_040) {
-            cpu_fprintf(f, "G"); /* Global */
+            qemu_printf("G"); /* Global */
         } else {
-            cpu_fprintf(f, ".");
+            qemu_printf(".");
         }
         if (env->mmu.mmusr & M68K_MMU_S_040) {
-            cpu_fprintf(f, "S"); /* Supervisor */
+            qemu_printf("S"); /* Supervisor */
         } else {
-            cpu_fprintf(f, ".");
+            qemu_printf(".");
         }
         if (env->mmu.mmusr & M68K_MMU_M_040) {
-            cpu_fprintf(f, "M"); /* Modified */
+            qemu_printf("M"); /* Modified */
         } else {
-            cpu_fprintf(f, ".");
+            qemu_printf(".");
         }
         if (env->mmu.mmusr & M68K_MMU_WP_040) {
-            cpu_fprintf(f, "W"); /* Write protect */
+            qemu_printf("W"); /* Write protect */
         } else {
-            cpu_fprintf(f, ".");
+            qemu_printf(".");
         }
         if (env->mmu.mmusr & M68K_MMU_T_040) {
-            cpu_fprintf(f, "T"); /* Transparent */
+            qemu_printf("T"); /* Transparent */
         } else {
-            cpu_fprintf(f, ".");
+            qemu_printf(".");
         }
         if (env->mmu.mmusr & M68K_MMU_R_040) {
-            cpu_fprintf(f, "R"); /* Resident */
+            qemu_printf("R"); /* Resident */
         } else {
-            cpu_fprintf(f, ".");
+            qemu_printf(".");
         }
-        cpu_fprintf(f, " Cache: ");
+        qemu_printf(" Cache: ");
         DUMP_CACHEFLAGS(env->mmu.mmusr);
-        cpu_fprintf(f, " U: %d\n", (env->mmu.mmusr >> 8) & 3);
-        cpu_fprintf(f, "\n");
+        qemu_printf(" U: %d\n", (env->mmu.mmusr >> 8) & 3);
+        qemu_printf("\n");
     }
 
-    cpu_fprintf(f, "ITTR0: ");
-    dump_ttr(f, cpu_fprintf, env->mmu.ttr[M68K_ITTR0]);
-    cpu_fprintf(f, "ITTR1: ");
-    dump_ttr(f, cpu_fprintf, env->mmu.ttr[M68K_ITTR1]);
-    cpu_fprintf(f, "DTTR0: ");
-    dump_ttr(f, cpu_fprintf, env->mmu.ttr[M68K_DTTR0]);
-    cpu_fprintf(f, "DTTR1: ");
-    dump_ttr(f, cpu_fprintf, env->mmu.ttr[M68K_DTTR1]);
+    qemu_printf("ITTR0: ");
+    dump_ttr(env->mmu.ttr[M68K_ITTR0]);
+    qemu_printf("ITTR1: ");
+    dump_ttr(env->mmu.ttr[M68K_ITTR1]);
+    qemu_printf("DTTR0: ");
+    dump_ttr(env->mmu.ttr[M68K_DTTR0]);
+    qemu_printf("DTTR1: ");
+    dump_ttr(env->mmu.ttr[M68K_DTTR1]);
 
-    cpu_fprintf(f, "SRP: 0x%08x\n", env->mmu.srp);
-    dump_address_map(f, cpu_fprintf, env, env->mmu.srp);
+    qemu_printf("SRP: 0x%08x\n", env->mmu.srp);
+    dump_address_map(env, env->mmu.srp);
 
-    cpu_fprintf(f, "URP: 0x%08x\n", env->mmu.urp);
-    dump_address_map(f, cpu_fprintf, env, env->mmu.urp);
+    qemu_printf("URP: 0x%08x\n", env->mmu.urp);
+    dump_address_map(env, env->mmu.urp);
 }
 
 static int check_TTR(uint32_t ttr, int *prot, target_ulong addr,

@@ -45,8 +45,7 @@ AddressSpaceDispatch *address_space_dispatch_new(FlatView *fv);
 void address_space_dispatch_compact(AddressSpaceDispatch *d);
 void address_space_dispatch_free(AddressSpaceDispatch *d);
 
-void mtree_print_dispatch(fprintf_function mon, void *f,
-                          struct AddressSpaceDispatch *d,
+void mtree_print_dispatch(struct AddressSpaceDispatch *d,
                           MemoryRegion *root);
 
 struct page_collection;

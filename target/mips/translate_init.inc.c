@@ -835,13 +835,12 @@ const mips_def_t mips_defs[] =
 };
 const int mips_defs_number = ARRAY_SIZE(mips_defs);
 
-void mips_cpu_list (FILE *f, fprintf_function cpu_fprintf)
+void mips_cpu_list(void)
 {
     int i;
 
     for (i = 0; i < ARRAY_SIZE(mips_defs); i++) {
-        (*cpu_fprintf)(f, "MIPS '%s'\n",
-                       mips_defs[i].name);
+        qemu_printf("MIPS '%s'\n", mips_defs[i].name);
     }
 }
 

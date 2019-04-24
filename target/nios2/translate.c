@@ -31,6 +31,7 @@
 #include "exec/log.h"
 #include "exec/cpu_ldst.h"
 #include "exec/translator.h"
+#include "qemu/qemu-print.h"
 
 /* is_jmp field values */
 #define DISAS_JUMP    DISAS_TARGET_0 /* only pc was modified dynamically */
@@ -914,33 +915,32 @@ void gen_intermediate_code(CPUState *cs, TranslationBlock *tb)
 #endif
 }
 
-void nios2_cpu_dump_state(CPUState *cs, FILE *f, fprintf_function cpu_fprintf,
-                          int flags)
+void nios2_cpu_dump_state(CPUState *cs, FILE *f, int flags)
 {
     Nios2CPU *cpu = NIOS2_CPU(cs);
     CPUNios2State *env = &cpu->env;
     int i;
 
-    if (!env || !f) {
+    if (!env) {
         return;
     }
 
-    cpu_fprintf(f, "IN: PC=%x %s\n",
-                env->regs[R_PC], lookup_symbol(env->regs[R_PC]));
+    qemu_fprintf(f, "IN: PC=%x %s\n",
+                 env->regs[R_PC], lookup_symbol(env->regs[R_PC]));
 
     for (i = 0; i < NUM_CORE_REGS; i++) {
-        cpu_fprintf(f, "%9s=%8.8x ", regnames[i], env->regs[i]);
+        qemu_fprintf(f, "%9s=%8.8x ", regnames[i], env->regs[i]);
         if ((i + 1) % 4 == 0) {
-            cpu_fprintf(f, "\n");
+            qemu_fprintf(f, "\n");
         }
     }
 #if !defined(CONFIG_USER_ONLY)
-    cpu_fprintf(f, " mmu write: VPN=%05X PID %02X TLBACC %08X\n",
-                env->mmu.pteaddr_wr & CR_PTEADDR_VPN_MASK,
-                (env->mmu.tlbmisc_wr & CR_TLBMISC_PID_MASK) >> 4,
-                env->mmu.tlbacc_wr);
+    qemu_fprintf(f, " mmu write: VPN=%05X PID %02X TLBACC %08X\n",
+                 env->mmu.pteaddr_wr & CR_PTEADDR_VPN_MASK,
+                 (env->mmu.tlbmisc_wr & CR_TLBMISC_PID_MASK) >> 4,
+                 env->mmu.tlbacc_wr);
 #endif
-    cpu_fprintf(f, "\n\n");
+    qemu_fprintf(f, "\n\n");
 }
 
 void nios2_tcg_init(void)

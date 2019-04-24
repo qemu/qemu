@@ -35,6 +35,7 @@
 #include "disas/disas.h"
 #include "tcg-op.h"
 #include "qemu/log.h"
+#include "qemu/qemu-print.h"
 #include "sysemu/sysemu.h"
 #include "exec/cpu_ldst.h"
 #include "exec/semihost.h"
@@ -1640,60 +1641,61 @@ void gen_intermediate_code(CPUState *cpu, TranslationBlock *tb)
     translator_loop(&xtensa_translator_ops, &dc.base, cpu, tb);
 }
 
-void xtensa_cpu_dump_state(CPUState *cs, FILE *f,
-                           fprintf_function cpu_fprintf, int flags)
+void xtensa_cpu_dump_state(CPUState *cs, FILE *f, int flags)
 {
     XtensaCPU *cpu = XTENSA_CPU(cs);
     CPUXtensaState *env = &cpu->env;
     int i, j;
 
-    cpu_fprintf(f, "PC=%08x\n\n", env->pc);
+    qemu_fprintf(f, "PC=%08x\n\n", env->pc);
 
     for (i = j = 0; i < 256; ++i) {
         if (xtensa_option_bits_enabled(env->config, sregnames[i].opt_bits)) {
-            cpu_fprintf(f, "%12s=%08x%c", sregnames[i].name, env->sregs[i],
-                    (j++ % 4) == 3 ? '\n' : ' ');
+            qemu_fprintf(f, "%12s=%08x%c",
+                         sregnames[i].name, env->sregs[i],
+                         (j++ % 4) == 3 ? '\n' : ' ');
         }
     }
 
-    cpu_fprintf(f, (j % 4) == 0 ? "\n" : "\n\n");
+    qemu_fprintf(f, (j % 4) == 0 ? "\n" : "\n\n");
 
     for (i = j = 0; i < 256; ++i) {
         if (xtensa_option_bits_enabled(env->config, uregnames[i].opt_bits)) {
-            cpu_fprintf(f, "%s=%08x%c", uregnames[i].name, env->uregs[i],
-                    (j++ % 4) == 3 ? '\n' : ' ');
+            qemu_fprintf(f, "%s=%08x%c",
+                         uregnames[i].name, env->uregs[i],
+                         (j++ % 4) == 3 ? '\n' : ' ');
         }
     }
 
-    cpu_fprintf(f, (j % 4) == 0 ? "\n" : "\n\n");
+    qemu_fprintf(f, (j % 4) == 0 ? "\n" : "\n\n");
 
     for (i = 0; i < 16; ++i) {
-        cpu_fprintf(f, " A%02d=%08x%c", i, env->regs[i],
-                (i % 4) == 3 ? '\n' : ' ');
+        qemu_fprintf(f, " A%02d=%08x%c",
+                     i, env->regs[i], (i % 4) == 3 ? '\n' : ' ');
     }
 
     xtensa_sync_phys_from_window(env);
-    cpu_fprintf(f, "\n");
+    qemu_fprintf(f, "\n");
 
     for (i = 0; i < env->config->nareg; ++i) {
-        cpu_fprintf(f, "AR%02d=%08x ", i, env->phys_regs[i]);
+        qemu_fprintf(f, "AR%02d=%08x ", i, env->phys_regs[i]);
         if (i % 4 == 3) {
             bool ws = (env->sregs[WINDOW_START] & (1 << (i / 4))) != 0;
             bool cw = env->sregs[WINDOW_BASE] == i / 4;
 
-            cpu_fprintf(f, "%c%c\n", ws ? '<' : ' ', cw ? '=' : ' ');
+            qemu_fprintf(f, "%c%c\n", ws ? '<' : ' ', cw ? '=' : ' ');
         }
     }
 
     if ((flags & CPU_DUMP_FPU) &&
         xtensa_option_enabled(env->config, XTENSA_OPTION_FP_COPROCESSOR)) {
-        cpu_fprintf(f, "\n");
+        qemu_fprintf(f, "\n");
 
         for (i = 0; i < 16; ++i) {
-            cpu_fprintf(f, "F%02d=%08x (%+10.8e)%c", i,
-                    float32_val(env->fregs[i].f32[FP_F32_LOW]),
-                    *(float *)(env->fregs[i].f32 + FP_F32_LOW),
-                    (i % 2) == 1 ? '\n' : ' ');
+            qemu_fprintf(f, "F%02d=%08x (%+10.8e)%c", i,
+                         float32_val(env->fregs[i].f32[FP_F32_LOW]),
+                         *(float *)(env->fregs[i].f32 + FP_F32_LOW),
+                         (i % 2) == 1 ? '\n' : ' ');
         }
     }
 }

@@ -1895,6 +1895,8 @@ F: hmp.[ch]
 F: hmp-commands*.hx
 F: include/monitor/hmp-target.h
 F: tests/test-hmp.c
+F: include/qemu/qemu-print.h
+F: util/qemu-print.c
 
 Network device backends
 M: Jason Wang <jasowang@redhat.com>

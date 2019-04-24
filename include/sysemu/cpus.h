@@ -18,7 +18,7 @@ extern int icount_align_option;
 /* drift information for info jit command */
 extern int64_t max_delay;
 extern int64_t max_advance;
-void dump_drift_info(FILE *f, fprintf_function cpu_fprintf);
+void dump_drift_info(void);
 
 /* Unblock cpu */
 void qemu_cpu_kick_self(void);
@@ -38,7 +38,7 @@ extern int smp_cores;
 extern int smp_threads;
 #endif
 
-void list_cpus(FILE *f, fprintf_function cpu_fprintf, const char *optarg);
+void list_cpus(const char *optarg);
 
 void qemu_tcg_configure(QemuOpts *opts, Error **errp);
 

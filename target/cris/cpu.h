@@ -207,8 +207,7 @@ void cris_cpu_do_interrupt(CPUState *cpu);
 void crisv10_cpu_do_interrupt(CPUState *cpu);
 bool cris_cpu_exec_interrupt(CPUState *cpu, int int_req);
 
-void cris_cpu_dump_state(CPUState *cs, FILE *f, fprintf_function cpu_fprintf,
-                         int flags);
+void cris_cpu_dump_state(CPUState *cs, FILE *f, int flags);
 
 hwaddr cris_cpu_get_phys_page_debug(CPUState *cpu, vaddr addr);
 
@@ -308,6 +307,6 @@ static inline void cpu_get_tb_cpu_state(CPUCRISState *env, target_ulong *pc,
 }
 
 #define cpu_list cris_cpu_list
-void cris_cpu_list(FILE *f, fprintf_function cpu_fprintf);
+void cris_cpu_list(void);
 
 #endif

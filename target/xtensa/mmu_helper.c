@@ -27,6 +27,7 @@
 
 #include "qemu/osdep.h"
 #include "qemu/main-loop.h"
+#include "qemu/qemu-print.h"
 #include "qemu/units.h"
 #include "cpu.h"
 #include "exec/helper-proto.h"
@@ -740,8 +741,7 @@ int xtensa_get_physical_addr(CPUXtensaState *env, bool update_tlb,
     }
 }
 
-static void dump_tlb(FILE *f, fprintf_function cpu_fprintf,
-                     CPUXtensaState *env, bool dtlb)
+static void dump_tlb(CPUXtensaState *env, bool dtlb)
 {
     unsigned wi, ei;
     const xtensa_tlb *conf =
@@ -780,13 +780,11 @@ static void dump_tlb(FILE *f, fprintf_function cpu_fprintf,
 
                 if (print_header) {
                     print_header = false;
-                    cpu_fprintf(f, "Way %u (%d %s)\n", wi, sz, sz_text);
-                    cpu_fprintf(f,
-                                "\tVaddr       Paddr       ASID  Attr RWX Cache\n"
+                    qemu_printf("Way %u (%d %s)\n", wi, sz, sz_text);
+                    qemu_printf("\tVaddr       Paddr       ASID  Attr RWX Cache\n"
                                 "\t----------  ----------  ----  ---- --- -------\n");
                 }
-                cpu_fprintf(f,
-                            "\t0x%08x  0x%08x  0x%02x  0x%02x %c%c%c %-7s\n",
+                qemu_printf("\t0x%08x  0x%08x  0x%02x  0x%02x %c%c%c %-7s\n",
                             entry->vaddr,
                             entry->paddr,
                             entry->asid,
@@ -801,18 +799,18 @@ static void dump_tlb(FILE *f, fprintf_function cpu_fprintf,
     }
 }
 
-void dump_mmu(FILE *f, fprintf_function cpu_fprintf, CPUXtensaState *env)
+void dump_mmu(CPUXtensaState *env)
 {
     if (xtensa_option_bits_enabled(env->config,
                 XTENSA_OPTION_BIT(XTENSA_OPTION_REGION_PROTECTION) |
                 XTENSA_OPTION_BIT(XTENSA_OPTION_REGION_TRANSLATION) |
                 XTENSA_OPTION_BIT(XTENSA_OPTION_MMU))) {
 
-        cpu_fprintf(f, "ITLB:\n");
-        dump_tlb(f, cpu_fprintf, env, false);
-        cpu_fprintf(f, "\nDTLB:\n");
-        dump_tlb(f, cpu_fprintf, env, true);
+        qemu_printf("ITLB:\n");
+        dump_tlb(env, false);
+        qemu_printf("\nDTLB:\n");
+        dump_tlb(env, true);
     } else {
-        cpu_fprintf(f, "No TLB for this CPU core\n");
+        qemu_printf("No TLB for this CPU core\n");
     }
 }

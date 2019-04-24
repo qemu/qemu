@@ -23,6 +23,7 @@
 #include "exec/exec-all.h"
 #include "fpu/softfloat.h"
 #include "exec/helper-proto.h"
+#include "qemu/qemu-print.h"
 
 
 #define CONVERT_BIT(X, SRC, DST) \
@@ -426,8 +427,7 @@ bool alpha_cpu_exec_interrupt(CPUState *cs, int interrupt_request)
     return false;
 }
 
-void alpha_cpu_dump_state(CPUState *cs, FILE *f, fprintf_function cpu_fprintf,
-                          int flags)
+void alpha_cpu_dump_state(CPUState *cs, FILE *f, int flags)
 {
     static const char *linux_reg_names[] = {
         "v0 ", "t0 ", "t1 ", "t2 ", "t3 ", "t4 ", "t5 ", "t6 ",
@@ -439,24 +439,24 @@ void alpha_cpu_dump_state(CPUState *cs, FILE *f, fprintf_function cpu_fprintf,
     CPUAlphaState *env = &cpu->env;
     int i;
 
-    cpu_fprintf(f, "     PC  " TARGET_FMT_lx "      PS  %02x\n",
-                env->pc, extract32(env->flags, ENV_FLAG_PS_SHIFT, 8));
+    qemu_fprintf(f, "     PC  " TARGET_FMT_lx "      PS  %02x\n",
+                 env->pc, extract32(env->flags, ENV_FLAG_PS_SHIFT, 8));
     for (i = 0; i < 31; i++) {
-        cpu_fprintf(f, "IR%02d %s " TARGET_FMT_lx "%c", i,
-                    linux_reg_names[i], cpu_alpha_load_gr(env, i),
-                    (i % 3) == 2 ? '\n' : ' ');
+        qemu_fprintf(f, "IR%02d %s " TARGET_FMT_lx "%c", i,
+                     linux_reg_names[i], cpu_alpha_load_gr(env, i),
+                     (i % 3) == 2 ? '\n' : ' ');
     }
 
-    cpu_fprintf(f, "lock_a   " TARGET_FMT_lx " lock_v   " TARGET_FMT_lx "\n",
-                env->lock_addr, env->lock_value);
+    qemu_fprintf(f, "lock_a   " TARGET_FMT_lx " lock_v   " TARGET_FMT_lx "\n",
+                 env->lock_addr, env->lock_value);
 
     if (flags & CPU_DUMP_FPU) {
         for (i = 0; i < 31; i++) {
-            cpu_fprintf(f, "FIR%02d    %016" PRIx64 "%c", i, env->fir[i],
-                        (i % 3) == 2 ? '\n' : ' ');
+            qemu_fprintf(f, "FIR%02d    %016" PRIx64 "%c", i, env->fir[i],
+                         (i % 3) == 2 ? '\n' : ' ');
         }
     }
-    cpu_fprintf(f, "\n");
+    qemu_fprintf(f, "\n");
 }
 
 /* This should only be called from translate, via gen_excp.
