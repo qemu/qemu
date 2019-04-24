@@ -1115,6 +1115,8 @@ for opt do
   ;;
   --disable-slirp) slirp="no"
   ;;
+  --enable-slirp=git) slirp="git"
+  ;;
   --enable-slirp=system) slirp="system"
   ;;
   --disable-vde) vde="no"
@@ -5885,6 +5887,8 @@ case "$slirp" in
   "" | yes)
     if $pkg_config slirp; then
       slirp=system
+    elif test -e "${source_path}/.git" && test $git_update = 'yes' ; then
+      slirp=git
     elif test -e "${source_path}/slirp/Makefile" ; then
       slirp=internal
     elif test -z "$slirp" ; then
@@ -5902,7 +5906,10 @@ case "$slirp" in
 esac
 
 case "$slirp" in
-  internal)
+  git | internal)
+    if test "$slirp" = git; then
+      git_submodules="${git_submodules} slirp"
+    fi
     mkdir -p slirp
     slirp_cflags="-I\$(SRC_PATH)/slirp/src -I\$(BUILD_DIR)/slirp/src"
     slirp_libs="-L\$(BUILD_DIR)/slirp -lslirp"
@@ -6565,7 +6572,7 @@ if test "$slirp" != "no"; then
   echo "SLIRP_CFLAGS=$slirp_cflags" >> $config_host_mak
   echo "SLIRP_LIBS=$slirp_libs" >> $config_host_mak
 fi
-if [ "$slirp" = "internal" ]; then
+if [ "$slirp" = "git" -o "$slirp" = "internal" ]; then
     echo "config-host.h: subdir-slirp" >> $config_host_mak
 fi
 if test "$vde" = "yes" ; then

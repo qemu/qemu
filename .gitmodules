@@ -52,3 +52,6 @@
 [submodule "roms/edk2"]
 	path = roms/edk2
 	url = https://github.com/tianocore/edk2.git
+[submodule "slirp"]
+	path = slirp
+	url = https://gitlab.freedesktop.org/slirp/libslirp.git
