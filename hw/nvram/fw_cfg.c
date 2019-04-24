@@ -234,6 +234,7 @@ static void fw_cfg_reboot(FWCfgState *s)
 {
     const char *reboot_timeout = NULL;
     int64_t rt_val = -1;
+    uint32_t rt_le32;
 
     /* get user configuration */
     QemuOptsList *plist = qemu_find_opts("boot-opts");
@@ -250,7 +251,8 @@ static void fw_cfg_reboot(FWCfgState *s)
         }
     }
 
-    fw_cfg_add_file(s, "etc/boot-fail-wait", g_memdup(&rt_val, 4), 4);
+    rt_le32 = cpu_to_le32(rt_val);
+    fw_cfg_add_file(s, "etc/boot-fail-wait", g_memdup(&rt_le32, 4), 4);
 }
 
 static void fw_cfg_write(FWCfgState *s, uint8_t value)
