@@ -2262,6 +2262,43 @@ qemu_loadvm_section_part_end(QEMUFile *f, MigrationIncomingState *mis)
     return 0;
 }
 
+static int qemu_loadvm_state_header(QEMUFile *f)
+{
+    unsigned int v;
+    int ret;
+
+    v = qemu_get_be32(f);
+    if (v != QEMU_VM_FILE_MAGIC) {
+        error_report("Not a migration stream");
+        return -EINVAL;
+    }
+
+    v = qemu_get_be32(f);
+    if (v == QEMU_VM_FILE_VERSION_COMPAT) {
+        error_report("SaveVM v2 format is obsolete and don't work anymore");
+        return -ENOTSUP;
+    }
+    if (v != QEMU_VM_FILE_VERSION) {
+        error_report("Unsupported migration stream version");
+        return -ENOTSUP;
+    }
+
+    if (migrate_get_current()->send_configuration) {
+        if (qemu_get_byte(f) != QEMU_VM_CONFIGURATION) {
+            error_report("Configuration section missing");
+            qemu_loadvm_state_cleanup();
+            return -EINVAL;
+        }
+        ret = vmstate_load_state(f, &vmstate_configuration, &savevm_state, 0);
+
+        if (ret) {
+            qemu_loadvm_state_cleanup();
+            return ret;
+        }
+    }
+    return 0;
+}
+
 static int qemu_loadvm_state_setup(QEMUFile *f)
 {
     SaveStateEntry *se;
@@ -2410,7 +2447,6 @@ int qemu_loadvm_state(QEMUFile *f)
 {
     MigrationIncomingState *mis = migration_incoming_get_current();
     Error *local_err = NULL;
-    unsigned int v;
     int ret;
 
     if (qemu_savevm_state_blocked(&local_err)) {
@@ -2418,34 +2454,9 @@ int qemu_loadvm_state(QEMUFile *f)
         return -EINVAL;
     }
 
-    v = qemu_get_be32(f);
-    if (v != QEMU_VM_FILE_MAGIC) {
-        error_report("Not a migration stream");
-        return -EINVAL;
-    }
-
-    v = qemu_get_be32(f);
-    if (v == QEMU_VM_FILE_VERSION_COMPAT) {
-        error_report("SaveVM v2 format is obsolete and don't work anymore");
-        return -ENOTSUP;
-    }
-    if (v != QEMU_VM_FILE_VERSION) {
-        error_report("Unsupported migration stream version");
-        return -ENOTSUP;
-    }
-
-    if (migrate_get_current()->send_configuration) {
-        if (qemu_get_byte(f) != QEMU_VM_CONFIGURATION) {
-            error_report("Configuration section missing");
-            qemu_loadvm_state_cleanup();
-            return -EINVAL;
-        }
-        ret = vmstate_load_state(f, &vmstate_configuration, &savevm_state, 0);
-
-        if (ret) {
-            qemu_loadvm_state_cleanup();
-            return ret;
-        }
+    ret = qemu_loadvm_state_header(f);
+    if (ret) {
+        return ret;
     }
 
     if (qemu_loadvm_state_setup(f) != 0) {
