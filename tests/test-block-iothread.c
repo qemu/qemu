@@ -663,6 +663,38 @@ static void test_propagate_mirror(void)
     bdrv_unref(target);
 }
 
+static void test_attach_second_node(void)
+{
+    IOThread *iothread = iothread_new();
+    AioContext *ctx = iothread_get_aio_context(iothread);
+    AioContext *main_ctx = qemu_get_aio_context();
+    BlockBackend *blk;
+    BlockDriverState *bs, *filter;
+    QDict *options;
+
+    blk = blk_new(ctx, BLK_PERM_ALL, BLK_PERM_ALL);
+    bs = bdrv_new_open_driver(&bdrv_test, "base", BDRV_O_RDWR, &error_abort);
+    blk_insert_bs(blk, bs, &error_abort);
+
+    options = qdict_new();
+    qdict_put_str(options, "driver", "raw");
+    qdict_put_str(options, "file", "base");
+
+    filter = bdrv_open(NULL, NULL, options, BDRV_O_RDWR, &error_abort);
+    g_assert(blk_get_aio_context(blk) == ctx);
+    g_assert(bdrv_get_aio_context(bs) == ctx);
+    g_assert(bdrv_get_aio_context(filter) == ctx);
+
+    blk_set_aio_context(blk, main_ctx, &error_abort);
+    g_assert(blk_get_aio_context(blk) == main_ctx);
+    g_assert(bdrv_get_aio_context(bs) == main_ctx);
+    g_assert(bdrv_get_aio_context(filter) == main_ctx);
+
+    bdrv_unref(filter);
+    bdrv_unref(bs);
+    blk_unref(blk);
+}
+
 int main(int argc, char **argv)
 {
     int i;
@@ -678,6 +710,7 @@ int main(int argc, char **argv)
     }
 
     g_test_add_func("/attach/blockjob", test_attach_blockjob);
+    g_test_add_func("/attach/second_node", test_attach_second_node);
     g_test_add_func("/propagate/basic", test_propagate_basic);
     g_test_add_func("/propagate/diamond", test_propagate_diamond);
     g_test_add_func("/propagate/mirror", test_propagate_mirror);
