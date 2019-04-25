@@ -338,7 +338,8 @@ void commit_start(const char *job_id, BlockDriverState *bs,
         goto fail;
     }
 
-    s->base = blk_new(BLK_PERM_CONSISTENT_READ
+    s->base = blk_new(s->common.job.aio_context,
+                      BLK_PERM_CONSISTENT_READ
                       | BLK_PERM_WRITE
                       | BLK_PERM_RESIZE,
                       BLK_PERM_CONSISTENT_READ
@@ -351,7 +352,7 @@ void commit_start(const char *job_id, BlockDriverState *bs,
     s->base_bs = base;
 
     /* Required permissions are already taken with block_job_add_bdrv() */
-    s->top = blk_new(0, BLK_PERM_ALL);
+    s->top = blk_new(s->common.job.aio_context, 0, BLK_PERM_ALL);
     ret = blk_insert_bs(s->top, top, errp);
     if (ret < 0) {
         goto fail;
@@ -395,6 +396,7 @@ int bdrv_commit(BlockDriverState *bs)
     BlockDriverState *backing_file_bs = NULL;
     BlockDriverState *commit_top_bs = NULL;
     BlockDriver *drv = bs->drv;
+    AioContext *ctx;
     int64_t offset, length, backing_length;
     int ro;
     int64_t n;
@@ -422,8 +424,9 @@ int bdrv_commit(BlockDriverState *bs)
         }
     }
 
-    src = blk_new(BLK_PERM_CONSISTENT_READ, BLK_PERM_ALL);
-    backing = blk_new(BLK_PERM_WRITE | BLK_PERM_RESIZE, BLK_PERM_ALL);
+    ctx = bdrv_get_aio_context(bs);
+    src = blk_new(ctx, BLK_PERM_CONSISTENT_READ, BLK_PERM_ALL);
+    backing = blk_new(ctx, BLK_PERM_WRITE | BLK_PERM_RESIZE, BLK_PERM_ALL);
 
     ret = blk_insert_bs(src, bs, &local_err);
     if (ret < 0) {

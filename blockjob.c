@@ -392,7 +392,7 @@ void *block_job_create(const char *job_id, const BlockJobDriver *driver,
         job_id = bdrv_get_device_name(bs);
     }
 
-    blk = blk_new(perm, shared_perm);
+    blk = blk_new(bdrv_get_aio_context(bs), perm, shared_perm);
     ret = blk_insert_bs(blk, bs, errp);
     if (ret < 0) {
         blk_unref(blk);

@@ -2884,7 +2884,7 @@ static BlockDriverState *bdrv_open_inherit(const char *filename,
             /* Not requesting BLK_PERM_CONSISTENT_READ because we're only
              * looking at the header to guess the image format. This works even
              * in cases where a guest would not see a consistent state. */
-            file = blk_new(0, BLK_PERM_ALL);
+            file = blk_new(bdrv_get_aio_context(file_bs), 0, BLK_PERM_ALL);
             blk_insert_bs(file, file_bs, &local_err);
             bdrv_unref(file_bs);
             if (local_err) {

@@ -627,7 +627,8 @@ BlockJob *backup_job_create(const char *job_id, BlockDriverState *bs,
     }
 
     /* The target must match the source in size, so no resize here either */
-    job->target = blk_new(BLK_PERM_WRITE,
+    job->target = blk_new(job->common.job.aio_context,
+                          BLK_PERM_WRITE,
                           BLK_PERM_CONSISTENT_READ | BLK_PERM_WRITE |
                           BLK_PERM_WRITE_UNCHANGED | BLK_PERM_GRAPH_MOD);
     ret = blk_insert_bs(job->target, target, errp);

@@ -538,7 +538,7 @@ static void floppy_drive_realize(DeviceState *qdev, Error **errp)
 
     if (!dev->conf.blk) {
         /* Anonymous BlockBackend for an empty drive */
-        dev->conf.blk = blk_new(0, BLK_PERM_ALL);
+        dev->conf.blk = blk_new(qemu_get_aio_context(), 0, BLK_PERM_ALL);
         ret = blk_attach_dev(dev->conf.blk, qdev);
         assert(ret == 0);
     }

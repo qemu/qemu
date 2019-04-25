@@ -1484,8 +1484,9 @@ NBDExport *nbd_export_new(BlockDriverState *bs, uint64_t dev_offset,
     if ((nbdflags & NBD_FLAG_READ_ONLY) == 0) {
         perm |= BLK_PERM_WRITE;
     }
-    blk = blk_new(perm, BLK_PERM_CONSISTENT_READ | BLK_PERM_WRITE_UNCHANGED |
-                        BLK_PERM_WRITE | BLK_PERM_GRAPH_MOD);
+    blk = blk_new(bdrv_get_aio_context(bs), perm,
+                  BLK_PERM_CONSISTENT_READ | BLK_PERM_WRITE_UNCHANGED |
+                  BLK_PERM_WRITE | BLK_PERM_GRAPH_MOD);
     ret = blk_insert_bs(blk, bs, errp);
     if (ret < 0) {
         goto fail;

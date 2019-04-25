@@ -257,7 +257,8 @@ static int block_crypto_co_create_generic(BlockDriverState *bs,
     QCryptoBlock *crypto = NULL;
     struct BlockCryptoCreateData data;
 
-    blk = blk_new(BLK_PERM_WRITE | BLK_PERM_RESIZE, BLK_PERM_ALL);
+    blk = blk_new(bdrv_get_aio_context(bs),
+                  BLK_PERM_WRITE | BLK_PERM_RESIZE, BLK_PERM_ALL);
 
     ret = blk_insert_bs(blk, bs, errp);
     if (ret < 0) {

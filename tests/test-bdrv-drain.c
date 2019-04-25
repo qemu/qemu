@@ -206,7 +206,7 @@ static void test_drv_cb_common(enum drain_type drain_type, bool recursive)
 
     QEMUIOVector qiov = QEMU_IOVEC_INIT_BUF(qiov, NULL, 0);
 
-    blk = blk_new(BLK_PERM_ALL, BLK_PERM_ALL);
+    blk = blk_new(qemu_get_aio_context(), BLK_PERM_ALL, BLK_PERM_ALL);
     bs = bdrv_new_open_driver(&bdrv_test, "test-node", BDRV_O_RDWR,
                               &error_abort);
     s = bs->opaque;
@@ -290,7 +290,7 @@ static void test_quiesce_common(enum drain_type drain_type, bool recursive)
     BlockBackend *blk;
     BlockDriverState *bs, *backing;
 
-    blk = blk_new(BLK_PERM_ALL, BLK_PERM_ALL);
+    blk = blk_new(qemu_get_aio_context(), BLK_PERM_ALL, BLK_PERM_ALL);
     bs = bdrv_new_open_driver(&bdrv_test, "test-node", BDRV_O_RDWR,
                               &error_abort);
     blk_insert_bs(blk, bs, &error_abort);
@@ -353,7 +353,7 @@ static void test_nested(void)
     BDRVTestState *s, *backing_s;
     enum drain_type outer, inner;
 
-    blk = blk_new(BLK_PERM_ALL, BLK_PERM_ALL);
+    blk = blk_new(qemu_get_aio_context(), BLK_PERM_ALL, BLK_PERM_ALL);
     bs = bdrv_new_open_driver(&bdrv_test, "test-node", BDRV_O_RDWR,
                               &error_abort);
     s = bs->opaque;
@@ -402,13 +402,13 @@ static void test_multiparent(void)
     BlockDriverState *bs_a, *bs_b, *backing;
     BDRVTestState *a_s, *b_s, *backing_s;
 
-    blk_a = blk_new(BLK_PERM_ALL, BLK_PERM_ALL);
+    blk_a = blk_new(qemu_get_aio_context(), BLK_PERM_ALL, BLK_PERM_ALL);
     bs_a = bdrv_new_open_driver(&bdrv_test, "test-node-a", BDRV_O_RDWR,
                                 &error_abort);
     a_s = bs_a->opaque;
     blk_insert_bs(blk_a, bs_a, &error_abort);
 
-    blk_b = blk_new(BLK_PERM_ALL, BLK_PERM_ALL);
+    blk_b = blk_new(qemu_get_aio_context(), BLK_PERM_ALL, BLK_PERM_ALL);
     bs_b = bdrv_new_open_driver(&bdrv_test, "test-node-b", BDRV_O_RDWR,
                                 &error_abort);
     b_s = bs_b->opaque;
@@ -475,13 +475,13 @@ static void test_graph_change_drain_subtree(void)
     BlockDriverState *bs_a, *bs_b, *backing;
     BDRVTestState *a_s, *b_s, *backing_s;
 
-    blk_a = blk_new(BLK_PERM_ALL, BLK_PERM_ALL);
+    blk_a = blk_new(qemu_get_aio_context(), BLK_PERM_ALL, BLK_PERM_ALL);
     bs_a = bdrv_new_open_driver(&bdrv_test, "test-node-a", BDRV_O_RDWR,
                                 &error_abort);
     a_s = bs_a->opaque;
     blk_insert_bs(blk_a, bs_a, &error_abort);
 
-    blk_b = blk_new(BLK_PERM_ALL, BLK_PERM_ALL);
+    blk_b = blk_new(qemu_get_aio_context(), BLK_PERM_ALL, BLK_PERM_ALL);
     bs_b = bdrv_new_open_driver(&bdrv_test, "test-node-b", BDRV_O_RDWR,
                                 &error_abort);
     b_s = bs_b->opaque;
@@ -555,7 +555,7 @@ static void test_graph_change_drain_all(void)
     BDRVTestState *a_s, *b_s;
 
     /* Create node A with a BlockBackend */
-    blk_a = blk_new(BLK_PERM_ALL, BLK_PERM_ALL);
+    blk_a = blk_new(qemu_get_aio_context(), BLK_PERM_ALL, BLK_PERM_ALL);
     bs_a = bdrv_new_open_driver(&bdrv_test, "test-node-a", BDRV_O_RDWR,
                                 &error_abort);
     a_s = bs_a->opaque;
@@ -571,7 +571,7 @@ static void test_graph_change_drain_all(void)
     g_assert_cmpint(a_s->drain_count, ==, 1);
 
     /* Create node B with a BlockBackend */
-    blk_b = blk_new(BLK_PERM_ALL, BLK_PERM_ALL);
+    blk_b = blk_new(qemu_get_aio_context(), BLK_PERM_ALL, BLK_PERM_ALL);
     bs_b = bdrv_new_open_driver(&bdrv_test, "test-node-b", BDRV_O_RDWR,
                                 &error_abort);
     b_s = bs_b->opaque;
@@ -672,7 +672,7 @@ static void test_iothread_common(enum drain_type drain_type, int drain_thread)
         goto out;
     }
 
-    blk = blk_new(BLK_PERM_ALL, BLK_PERM_ALL);
+    blk = blk_new(qemu_get_aio_context(), BLK_PERM_ALL, BLK_PERM_ALL);
     bs = bdrv_new_open_driver(&bdrv_test, "test-node", BDRV_O_RDWR,
                               &error_abort);
     s = bs->opaque;
@@ -883,7 +883,7 @@ static void test_blockjob_common_drain_node(enum drain_type drain_type,
     bdrv_set_backing_hd(src, src_backing, &error_abort);
     bdrv_unref(src_backing);
 
-    blk_src = blk_new(BLK_PERM_ALL, BLK_PERM_ALL);
+    blk_src = blk_new(qemu_get_aio_context(), BLK_PERM_ALL, BLK_PERM_ALL);
     blk_insert_bs(blk_src, src_overlay, &error_abort);
 
     switch (drain_node) {
@@ -910,7 +910,7 @@ static void test_blockjob_common_drain_node(enum drain_type drain_type,
 
     target = bdrv_new_open_driver(&bdrv_test, "target", BDRV_O_RDWR,
                                   &error_abort);
-    blk_target = blk_new(BLK_PERM_ALL, BLK_PERM_ALL);
+    blk_target = blk_new(qemu_get_aio_context(), BLK_PERM_ALL, BLK_PERM_ALL);
     blk_insert_bs(blk_target, target, &error_abort);
 
     aio_context_acquire(ctx);
@@ -1205,7 +1205,7 @@ static void do_test_delete_by_drain(bool detach_instead_of_delete,
                         &error_abort);
     bdrv_attach_child(bs, null_bs, "null-child", &child_file, &error_abort);
 
-    blk = blk_new(BLK_PERM_ALL, BLK_PERM_ALL);
+    blk = blk_new(qemu_get_aio_context(), BLK_PERM_ALL, BLK_PERM_ALL);
     blk_insert_bs(blk, bs, &error_abort);
 
     /* Referenced by blk now */
@@ -1368,7 +1368,7 @@ static void test_detach_indirect(bool by_parent_cb)
     c = bdrv_new_open_driver(&bdrv_test, "c", BDRV_O_RDWR, &error_abort);
 
     /* blk is a BB for parent-a */
-    blk = blk_new(BLK_PERM_ALL, BLK_PERM_ALL);
+    blk = blk_new(qemu_get_aio_context(), BLK_PERM_ALL, BLK_PERM_ALL);
     blk_insert_bs(blk, parent_a, &error_abort);
     bdrv_unref(parent_a);
 
@@ -1460,7 +1460,7 @@ static void test_append_to_drained(void)
     BlockDriverState *base, *overlay;
     BDRVTestState *base_s, *overlay_s;
 
-    blk = blk_new(BLK_PERM_ALL, BLK_PERM_ALL);
+    blk = blk_new(qemu_get_aio_context(), BLK_PERM_ALL, BLK_PERM_ALL);
     base = bdrv_new_open_driver(&bdrv_test, "base", BDRV_O_RDWR, &error_abort);
     base_s = base->opaque;
     blk_insert_bs(blk, base, &error_abort);

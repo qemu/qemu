@@ -1800,7 +1800,8 @@ static int sd_prealloc(BlockDriverState *bs, int64_t old_size, int64_t new_size,
     void *buf = NULL;
     int ret;
 
-    blk = blk_new(BLK_PERM_CONSISTENT_READ | BLK_PERM_WRITE | BLK_PERM_RESIZE,
+    blk = blk_new(bdrv_get_aio_context(bs),
+                  BLK_PERM_CONSISTENT_READ | BLK_PERM_WRITE | BLK_PERM_RESIZE,
                   BLK_PERM_ALL);
 
     ret = blk_insert_bs(blk, bs, errp);

@@ -80,7 +80,9 @@ static void parse_drive(DeviceState *dev, const char *str, void **ptr,
     if (!blk) {
         BlockDriverState *bs = bdrv_lookup_bs(NULL, str, NULL);
         if (bs) {
-            blk = blk_new(0, BLK_PERM_ALL);
+            /* BlockBackends of devices start in the main context and are only
+             * later moved into another context if the device supports that. */
+            blk = blk_new(qemu_get_aio_context(), 0, BLK_PERM_ALL);
             blk_created = true;
 
             ret = blk_insert_bs(blk, bs, errp);

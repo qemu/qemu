@@ -417,7 +417,8 @@ static int init_blk_migration(QEMUFile *f)
         }
 
         bmds = g_new0(BlkMigDevState, 1);
-        bmds->blk = blk_new(BLK_PERM_CONSISTENT_READ, BLK_PERM_ALL);
+        bmds->blk = blk_new(qemu_get_aio_context(),
+                            BLK_PERM_CONSISTENT_READ, BLK_PERM_ALL);
         bmds->blk_name = g_strdup(bdrv_get_device_name(bs));
         bmds->bulk_completed = 0;
         bmds->total_sectors = sectors;

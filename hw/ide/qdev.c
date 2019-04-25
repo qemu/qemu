@@ -168,7 +168,7 @@ static void ide_dev_initfn(IDEDevice *dev, IDEDriveKind kind, Error **errp)
             return;
         } else {
             /* Anonymous BlockBackend for an empty drive */
-            dev->conf.blk = blk_new(0, BLK_PERM_ALL);
+            dev->conf.blk = blk_new(qemu_get_aio_context(), 0, BLK_PERM_ALL);
             ret = blk_attach_dev(dev->conf.blk, &dev->qdev);
             assert(ret == 0);
         }
