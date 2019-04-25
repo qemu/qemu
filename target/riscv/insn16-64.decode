@@ -21,10 +21,16 @@ ld                011  ... ... .. ... 00 @cl_d
 sd                111  ... ... .. ... 00 @cs_d
 
 # *** RV64C Standard Extension (Quadrant 1) ***
-addiw             001 .  .....  ..... 01 @ci
+{
+  illegal         001 -  00000  ----- 01 # c.addiw, RES rd=0
+  addiw           001 .  .....  ..... 01 @ci
+}
 subw              100 1 11 ... 00 ... 01 @cs_2
 addw              100 1 11 ... 01 ... 01 @cs_2
 
 # *** RV64C Standard Extension (Quadrant 2) ***
-ld                011 .  .....  ..... 10 @c_ldsp
+{
+  illegal         011 -  00000  ----- 10 # c.ldsp, RES rd=0
+  ld              011 .  .....  ..... 10 @c_ldsp
+}
 sd                111 .  .....  ..... 10 @c_sdsp

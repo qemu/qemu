@@ -96,6 +96,7 @@ sw                110  ... ... .. ... 00 @cs_w
 addi              000 .  .....  ..... 01 @ci
 addi              010 .  .....  ..... 01 @c_li
 {
+  illegal         011 0  -----  00000 01 # c.addi16sp and c.lui, RES nzimm=0
   addi            011 .  00010  ..... 01 @c_addi16sp
   lui             011 .  .....  ..... 01 @c_lui
 }
@@ -113,8 +114,12 @@ bne               111  ... ...  ..... 01 @cb_z
 # *** RV32/64C Standard Extension (Quadrant 2) ***
 slli              000 .  .....  ..... 10 @c_shift2
 fld               001 .  .....  ..... 10 @c_ldsp
-lw                010 .  .....  ..... 10 @c_lwsp
 {
+  illegal         010 -  00000  ----- 10 # c.lwsp, RES rd=0
+  lw              010 .  .....  ..... 10 @c_lwsp
+}
+{
+  illegal         100 0  00000  00000 10 # c.jr, RES rs1=0
   jalr            100 0  .....  00000 10 @c_jalr rd=0  # C.JR
   addi            100 0  .....  ..... 10 @c_mv
 }
