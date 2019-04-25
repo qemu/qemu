@@ -39,19 +39,19 @@
 	url = https://git.qemu.org/git/capstone.git
 [submodule "roms/seabios-hppa"]
 	path = roms/seabios-hppa
-	url = https://github.com/hdeller/seabios-hppa.git
+	url = https://git.qemu.org/git/seabios-hppa.git
 [submodule "roms/u-boot-sam460ex"]
 	path = roms/u-boot-sam460ex
 	url = https://git.qemu.org/git/u-boot-sam460ex.git
 [submodule "tests/fp/berkeley-testfloat-3"]
 	path = tests/fp/berkeley-testfloat-3
-	url = https://github.com/cota/berkeley-testfloat-3
+	url = https://git.qemu.org/git/berkeley-testfloat-3.git
 [submodule "tests/fp/berkeley-softfloat-3"]
 	path = tests/fp/berkeley-softfloat-3
-	url = https://github.com/cota/berkeley-softfloat-3
+	url = https://git.qemu.org/git/berkeley-softfloat-3.git
 [submodule "roms/edk2"]
 	path = roms/edk2
-	url = https://github.com/tianocore/edk2.git
+	url = https://git.qemu.org/git/edk2.git
 [submodule "slirp"]
 	path = slirp
-	url = https://gitlab.freedesktop.org/slirp/libslirp.git
+	url = https://git.qemu.org/git/libslirp.git
