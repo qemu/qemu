@@ -35,6 +35,8 @@
   gBiosTablesTestGuid
   gEfiAcpi10TableGuid
   gEfiAcpi20TableGuid
+  gEfiSmbios3TableGuid
+  gEfiSmbiosTableGuid
 
 [Packages]
   MdePkg/MdePkg.dec
