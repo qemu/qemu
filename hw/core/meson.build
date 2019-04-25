@@ -27,6 +27,7 @@ common_ss.add(when: 'CONFIG_XILINX_AXI', if_true: files('stream.c'))
 softmmu_ss.add(files(
   'cpu-sysemu.c',
   'fw-path-provider.c',
+  'gpio.c',
   'loader.c',
   'machine-hmp-cmds.c',
   'machine.c',
