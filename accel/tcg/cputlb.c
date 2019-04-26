@@ -1291,51 +1291,44 @@ static uint64_t load_helper(CPUArchState *env, target_ulong addr,
  * We don't bother with this widened value for SOFTMMU_CODE_ACCESS.
  */
 
-tcg_target_ulong __attribute__((flatten))
-helper_ret_ldub_mmu(CPUArchState *env, target_ulong addr, TCGMemOpIdx oi,
-                    uintptr_t retaddr)
+tcg_target_ulong helper_ret_ldub_mmu(CPUArchState *env, target_ulong addr,
+                                     TCGMemOpIdx oi, uintptr_t retaddr)
 {
     return load_helper(env, addr, oi, retaddr, 1, false, false);
 }
 
-tcg_target_ulong __attribute__((flatten))
-helper_le_lduw_mmu(CPUArchState *env, target_ulong addr, TCGMemOpIdx oi,
-                   uintptr_t retaddr)
+tcg_target_ulong helper_le_lduw_mmu(CPUArchState *env, target_ulong addr,
+                                    TCGMemOpIdx oi, uintptr_t retaddr)
 {
     return load_helper(env, addr, oi, retaddr, 2, false, false);
 }
 
-tcg_target_ulong __attribute__((flatten))
-helper_be_lduw_mmu(CPUArchState *env, target_ulong addr, TCGMemOpIdx oi,
-                   uintptr_t retaddr)
+tcg_target_ulong helper_be_lduw_mmu(CPUArchState *env, target_ulong addr,
+                                    TCGMemOpIdx oi, uintptr_t retaddr)
 {
     return load_helper(env, addr, oi, retaddr, 2, true, false);
 }
 
-tcg_target_ulong __attribute__((flatten))
-helper_le_ldul_mmu(CPUArchState *env, target_ulong addr, TCGMemOpIdx oi,
-                   uintptr_t retaddr)
+tcg_target_ulong helper_le_ldul_mmu(CPUArchState *env, target_ulong addr,
+                                    TCGMemOpIdx oi, uintptr_t retaddr)
 {
     return load_helper(env, addr, oi, retaddr, 4, false, false);
 }
 
-tcg_target_ulong __attribute__((flatten))
-helper_be_ldul_mmu(CPUArchState *env, target_ulong addr, TCGMemOpIdx oi,
-                   uintptr_t retaddr)
+tcg_target_ulong helper_be_ldul_mmu(CPUArchState *env, target_ulong addr,
+                                    TCGMemOpIdx oi, uintptr_t retaddr)
 {
     return load_helper(env, addr, oi, retaddr, 4, true, false);
 }
 
-uint64_t __attribute__((flatten))
-helper_le_ldq_mmu(CPUArchState *env, target_ulong addr, TCGMemOpIdx oi,
-                  uintptr_t retaddr)
+uint64_t helper_le_ldq_mmu(CPUArchState *env, target_ulong addr,
+                           TCGMemOpIdx oi, uintptr_t retaddr)
 {
     return load_helper(env, addr, oi, retaddr, 8, false, false);
 }
 
-uint64_t __attribute__((flatten))
-helper_be_ldq_mmu(CPUArchState *env, target_ulong addr, TCGMemOpIdx oi,
-                  uintptr_t retaddr)
+uint64_t helper_be_ldq_mmu(CPUArchState *env, target_ulong addr,
+                           TCGMemOpIdx oi, uintptr_t retaddr)
 {
     return load_helper(env, addr, oi, retaddr, 8, true, false);
 }
@@ -1519,51 +1512,44 @@ static void store_helper(CPUArchState *env, target_ulong addr, uint64_t val,
     }
 }
 
-void __attribute__((flatten))
-helper_ret_stb_mmu(CPUArchState *env, target_ulong addr, uint8_t val,
-                   TCGMemOpIdx oi, uintptr_t retaddr)
+void helper_ret_stb_mmu(CPUArchState *env, target_ulong addr, uint8_t val,
+                        TCGMemOpIdx oi, uintptr_t retaddr)
 {
     store_helper(env, addr, val, oi, retaddr, 1, false);
 }
 
-void __attribute__((flatten))
-helper_le_stw_mmu(CPUArchState *env, target_ulong addr, uint16_t val,
-                  TCGMemOpIdx oi, uintptr_t retaddr)
+void helper_le_stw_mmu(CPUArchState *env, target_ulong addr, uint16_t val,
+                       TCGMemOpIdx oi, uintptr_t retaddr)
 {
     store_helper(env, addr, val, oi, retaddr, 2, false);
 }
 
-void __attribute__((flatten))
-helper_be_stw_mmu(CPUArchState *env, target_ulong addr, uint16_t val,
-                  TCGMemOpIdx oi, uintptr_t retaddr)
+void helper_be_stw_mmu(CPUArchState *env, target_ulong addr, uint16_t val,
+                       TCGMemOpIdx oi, uintptr_t retaddr)
 {
     store_helper(env, addr, val, oi, retaddr, 2, true);
 }
 
-void __attribute__((flatten))
-helper_le_stl_mmu(CPUArchState *env, target_ulong addr, uint32_t val,
-                  TCGMemOpIdx oi, uintptr_t retaddr)
+void helper_le_stl_mmu(CPUArchState *env, target_ulong addr, uint32_t val,
+                       TCGMemOpIdx oi, uintptr_t retaddr)
 {
     store_helper(env, addr, val, oi, retaddr, 4, false);
 }
 
-void __attribute__((flatten))
-helper_be_stl_mmu(CPUArchState *env, target_ulong addr, uint32_t val,
-                  TCGMemOpIdx oi, uintptr_t retaddr)
+void helper_be_stl_mmu(CPUArchState *env, target_ulong addr, uint32_t val,
+                       TCGMemOpIdx oi, uintptr_t retaddr)
 {
     store_helper(env, addr, val, oi, retaddr, 4, true);
 }
 
-void __attribute__((flatten))
-helper_le_stq_mmu(CPUArchState *env, target_ulong addr, uint64_t val,
-                  TCGMemOpIdx oi, uintptr_t retaddr)
+void helper_le_stq_mmu(CPUArchState *env, target_ulong addr, uint64_t val,
+                       TCGMemOpIdx oi, uintptr_t retaddr)
 {
     store_helper(env, addr, val, oi, retaddr, 8, false);
 }
 
-void __attribute__((flatten))
-helper_be_stq_mmu(CPUArchState *env, target_ulong addr, uint64_t val,
-                  TCGMemOpIdx oi, uintptr_t retaddr)
+void helper_be_stq_mmu(CPUArchState *env, target_ulong addr, uint64_t val,
+                       TCGMemOpIdx oi, uintptr_t retaddr)
 {
     store_helper(env, addr, val, oi, retaddr, 8, true);
 }
@@ -1627,51 +1613,44 @@ helper_be_stq_mmu(CPUArchState *env, target_ulong addr, uint64_t val,
 
 /* Code access functions.  */
 
-uint8_t __attribute__((flatten))
-helper_ret_ldb_cmmu(CPUArchState *env, target_ulong addr, TCGMemOpIdx oi,
-                    uintptr_t retaddr)
+uint8_t helper_ret_ldb_cmmu(CPUArchState *env, target_ulong addr,
+                            TCGMemOpIdx oi, uintptr_t retaddr)
 {
     return load_helper(env, addr, oi, retaddr, 1, false, true);
 }
 
-uint16_t __attribute__((flatten))
-helper_le_ldw_cmmu(CPUArchState *env, target_ulong addr, TCGMemOpIdx oi,
-                   uintptr_t retaddr)
+uint16_t helper_le_ldw_cmmu(CPUArchState *env, target_ulong addr,
+                            TCGMemOpIdx oi, uintptr_t retaddr)
 {
     return load_helper(env, addr, oi, retaddr, 2, false, true);
 }
 
-uint16_t __attribute__((flatten))
-helper_be_ldw_cmmu(CPUArchState *env, target_ulong addr, TCGMemOpIdx oi,
-                   uintptr_t retaddr)
+uint16_t helper_be_ldw_cmmu(CPUArchState *env, target_ulong addr,
+                            TCGMemOpIdx oi, uintptr_t retaddr)
 {
     return load_helper(env, addr, oi, retaddr, 2, true, true);
 }
 
-uint32_t __attribute__((flatten))
-helper_le_ldl_cmmu(CPUArchState *env, target_ulong addr, TCGMemOpIdx oi,
-                   uintptr_t retaddr)
+uint32_t helper_le_ldl_cmmu(CPUArchState *env, target_ulong addr,
+                            TCGMemOpIdx oi, uintptr_t retaddr)
 {
     return load_helper(env, addr, oi, retaddr, 4, false, true);
 }
 
-uint32_t __attribute__((flatten))
-helper_be_ldl_cmmu(CPUArchState *env, target_ulong addr, TCGMemOpIdx oi,
-                   uintptr_t retaddr)
+uint32_t helper_be_ldl_cmmu(CPUArchState *env, target_ulong addr,
+                            TCGMemOpIdx oi, uintptr_t retaddr)
 {
     return load_helper(env, addr, oi, retaddr, 4, true, true);
 }
 
-uint64_t __attribute__((flatten))
-helper_le_ldq_cmmu(CPUArchState *env, target_ulong addr, TCGMemOpIdx oi,
-                   uintptr_t retaddr)
+uint64_t helper_le_ldq_cmmu(CPUArchState *env, target_ulong addr,
+                            TCGMemOpIdx oi, uintptr_t retaddr)
 {
     return load_helper(env, addr, oi, retaddr, 8, false, true);
 }
 
-uint64_t __attribute__((flatten))
-helper_be_ldq_cmmu(CPUArchState *env, target_ulong addr, TCGMemOpIdx oi,
-                   uintptr_t retaddr)
+uint64_t helper_be_ldq_cmmu(CPUArchState *env, target_ulong addr,
+                            TCGMemOpIdx oi, uintptr_t retaddr)
 {
     return load_helper(env, addr, oi, retaddr, 8, true, true);
 }
