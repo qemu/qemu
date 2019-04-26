@@ -29,7 +29,6 @@
  * - CFI queries
  *
  * It does not support flash interleaving.
- * It does not implement boot blocs with reduced size
  * It does not implement software data protection as found in many real chips
  * It does not implement erase suspend/resume commands
  * It does not implement multiple sectors erase
@@ -57,6 +56,13 @@ do {                                                       \
 
 #define PFLASH_LAZY_ROMD_THRESHOLD 42
 
+/*
+ * The size of the cfi_table indirectly depends on this and the start of the
+ * PRI table directly depends on it. 4 is the maximum size (and also what
+ * seems common) without changing the PRT table address.
+ */
+#define PFLASH_MAX_ERASE_REGIONS 4
+
 /* Special write cycles for CFI queries. */
 enum {
     WCYCLE_CFI              = 7,
@@ -68,8 +74,10 @@ struct PFlashCFI02 {
     /*< public >*/
 
     BlockBackend *blk;
-    uint32_t sector_len;
-    uint32_t nb_blocs;
+    uint32_t uniform_nb_blocs;
+    uint32_t uniform_sector_len;
+    uint32_t nb_blocs[PFLASH_MAX_ERASE_REGIONS];
+    uint32_t sector_len[PFLASH_MAX_ERASE_REGIONS];
     uint32_t chip_len;
     uint8_t mappings;
     uint8_t width;
@@ -86,7 +94,7 @@ struct PFlashCFI02 {
     uint16_t ident3;
     uint16_t unlock_addr0;
     uint16_t unlock_addr1;
-    uint8_t cfi_table[0x52];
+    uint8_t cfi_table[0x4d];
     QEMUTimer timer;
     /* The device replicates the flash memory across its memory space.  Emulate
      * that by having a container (.mem) filled with an array of aliases
@@ -177,6 +185,25 @@ static uint64_t pflash_data_read(PFlashCFI02 *pfl, hwaddr offset,
     return ret;
 }
 
+/*
+ * offset should be a byte offset of the QEMU device and _not_ a device
+ * offset.
+ */
+static uint32_t pflash_sector_len(PFlashCFI02 *pfl, hwaddr offset)
+{
+    assert(offset < pfl->chip_len);
+    int nb_regions = pfl->cfi_table[0x2C];
+    hwaddr addr = 0;
+    for (int i = 0; i < nb_regions; ++i) {
+        uint64_t region_size = (uint64_t)pfl->nb_blocs[i] * pfl->sector_len[i];
+        if (addr <= offset && offset < addr + region_size) {
+            return pfl->sector_len[i];
+        }
+        addr += region_size;
+    }
+    abort();
+}
+
 static uint64_t pflash_read(void *opaque, hwaddr offset, unsigned int width)
 {
     PFlashCFI02 *pfl = opaque;
@@ -191,10 +218,11 @@ static uint64_t pflash_read(void *opaque, hwaddr offset, unsigned int width)
     }
     offset &= pfl->chip_len - 1;
     boff = offset & 0xFF;
-    if (pfl->width == 2)
+    if (pfl->width == 2) {
         boff = boff >> 1;
-    else if (pfl->width == 4)
+    } else if (pfl->width == 4) {
         boff = boff >> 2;
+    }
     switch (pfl->cmd) {
     default:
         /* This should never happen : reset state & treat it as a read*/
@@ -273,6 +301,7 @@ static void pflash_write(void *opaque, hwaddr offset, uint64_t value,
     hwaddr boff;
     uint8_t *p;
     uint8_t cmd;
+    uint32_t sector_len;
 
     trace_pflash_io_write(offset, width, width << 1, value, pfl->wcycle);
     cmd = value;
@@ -282,10 +311,11 @@ static void pflash_write(void *opaque, hwaddr offset, uint64_t value,
     offset &= pfl->chip_len - 1;
 
     boff = offset;
-    if (pfl->width == 2)
+    if (pfl->width == 2) {
         boff = boff >> 1;
-    else if (pfl->width == 4)
+    } else if (pfl->width == 4) {
         boff = boff >> 2;
+    }
     /* Only the least-significant 11 bits are used in most cases. */
     boff &= 0x7FF;
     switch (pfl->wcycle) {
@@ -420,12 +450,14 @@ static void pflash_write(void *opaque, hwaddr offset, uint64_t value,
         case 0x30:
             /* Sector erase */
             p = pfl->storage;
-            offset &= ~(pfl->sector_len - 1);
-            DPRINTF("%s: start sector erase at " TARGET_FMT_plx "\n", __func__,
-                    offset);
+            sector_len = pflash_sector_len(pfl, offset);
+            offset &= ~(sector_len - 1);
+            DPRINTF("%s: start sector erase at %0*" PRIx64 "-%0*" PRIx64 "\n",
+                    __func__, pfl->width * 2, offset,
+                    pfl->width * 2, offset + sector_len - 1);
             if (!pfl->ro) {
-                memset(p + offset, 0xFF, pfl->sector_len);
-                pflash_update(pfl, offset, pfl->sector_len);
+                memset(p + offset, 0xff, sector_len);
+                pflash_update(pfl, offset, sector_len);
             }
             set_dq7(pfl, 0x00);
             /* Let's wait 1/2 second before sector erase is done */
@@ -493,11 +525,11 @@ static void pflash_cfi02_realize(DeviceState *dev, Error **errp)
     int ret;
     Error *local_err = NULL;
 
-    if (pfl->sector_len == 0) {
+    if (pfl->uniform_sector_len == 0 && pfl->sector_len[0] == 0) {
         error_setg(errp, "attribute \"sector-length\" not specified or zero.");
         return;
     }
-    if (pfl->nb_blocs == 0) {
+    if (pfl->uniform_nb_blocs == 0 && pfl->nb_blocs[0] == 0) {
         error_setg(errp, "attribute \"num-blocks\" not specified or zero.");
         return;
     }
@@ -506,7 +538,51 @@ static void pflash_cfi02_realize(DeviceState *dev, Error **errp)
         return;
     }
 
-    pfl->chip_len = pfl->sector_len * pfl->nb_blocs;
+    int nb_regions;
+    pfl->chip_len = 0;
+    for (nb_regions = 0; nb_regions < PFLASH_MAX_ERASE_REGIONS; ++nb_regions) {
+        if (pfl->nb_blocs[nb_regions] == 0) {
+            break;
+        }
+        uint64_t sector_len_per_device = pfl->sector_len[nb_regions];
+
+        /*
+         * The size of each flash sector must be a power of 2 and it must be
+         * aligned at the same power of 2.
+         */
+        if (sector_len_per_device & 0xff ||
+            sector_len_per_device >= (1 << 24) ||
+            !is_power_of_2(sector_len_per_device))
+        {
+            error_setg(errp, "unsupported configuration: "
+                       "sector length[%d] per device = %" PRIx64 ".",
+                       nb_regions, sector_len_per_device);
+            return;
+        }
+        if (pfl->chip_len & (sector_len_per_device - 1)) {
+            error_setg(errp, "unsupported configuration: "
+                       "flash region %d not correctly aligned.",
+                       nb_regions);
+            return;
+        }
+
+        pfl->chip_len += (uint64_t)pfl->sector_len[nb_regions] *
+                          pfl->nb_blocs[nb_regions];
+    }
+
+    uint64_t uniform_len = (uint64_t)pfl->uniform_nb_blocs *
+                           pfl->uniform_sector_len;
+    if (nb_regions == 0) {
+        nb_regions = 1;
+        pfl->nb_blocs[0] = pfl->uniform_nb_blocs;
+        pfl->sector_len[0] = pfl->uniform_sector_len;
+        pfl->chip_len = uniform_len;
+    } else if (uniform_len != 0 && uniform_len != pfl->chip_len) {
+        error_setg(errp, "\"num-blocks\"*\"sector-length\" "
+                   "different from \"num-blocks0\"*\'sector-length0\" + ... + "
+                   "\"num-blocks3\"*\"sector-length3\"");
+        return;
+    }
 
     memory_region_init_rom_device(&pfl->orig_mem, OBJECT(pfl),
                                   &pflash_cfi02_ops, pfl, pfl->name,
@@ -552,7 +628,7 @@ static void pflash_cfi02_realize(DeviceState *dev, Error **errp)
     pfl->status = 0;
 
     /* Hardcoded CFI table (mostly from SG29 Spansion flash) */
-    const uint16_t pri_ofs = 0x31;
+    const uint16_t pri_ofs = 0x40;
     /* Standard "QRY" string */
     pfl->cfi_table[0x10] = 'Q';
     pfl->cfi_table[0x11] = 'R';
@@ -603,14 +679,17 @@ static void pflash_cfi02_realize(DeviceState *dev, Error **errp)
     //    pfl->cfi_table[0x2A] = 0x05;
     pfl->cfi_table[0x2A] = 0x00;
     pfl->cfi_table[0x2B] = 0x00;
-    /* Number of erase block regions (uniform) */
-    pfl->cfi_table[0x2C] = 0x01;
-    /* Erase block region 1 */
-    pfl->cfi_table[0x2D] = pfl->nb_blocs - 1;
-    pfl->cfi_table[0x2E] = (pfl->nb_blocs - 1) >> 8;
-    pfl->cfi_table[0x2F] = pfl->sector_len >> 8;
-    pfl->cfi_table[0x30] = pfl->sector_len >> 16;
-    assert(0x30 < pri_ofs);
+    /* Number of erase block regions */
+    pfl->cfi_table[0x2c] = nb_regions;
+    /* Erase block regions */
+    for (int i = 0; i < nb_regions; ++i) {
+        uint32_t sector_len_per_device = pfl->sector_len[i];
+        pfl->cfi_table[0x2d + 4 * i] = pfl->nb_blocs[i] - 1;
+        pfl->cfi_table[0x2e + 4 * i] = (pfl->nb_blocs[i] - 1) >> 8;
+        pfl->cfi_table[0x2f + 4 * i] = sector_len_per_device >> 8;
+        pfl->cfi_table[0x30 + 4 * i] = sector_len_per_device >> 16;
+    }
+    assert(0x2c + 4 * nb_regions < pri_ofs);
 
     /* Extended */
     pfl->cfi_table[0x00 + pri_ofs] = 'P';
@@ -644,8 +723,16 @@ static void pflash_cfi02_realize(DeviceState *dev, Error **errp)
 
 static Property pflash_cfi02_properties[] = {
     DEFINE_PROP_DRIVE("drive", PFlashCFI02, blk),
-    DEFINE_PROP_UINT32("num-blocks", PFlashCFI02, nb_blocs, 0),
-    DEFINE_PROP_UINT32("sector-length", PFlashCFI02, sector_len, 0),
+    DEFINE_PROP_UINT32("num-blocks", PFlashCFI02, uniform_nb_blocs, 0),
+    DEFINE_PROP_UINT32("sector-length", PFlashCFI02, uniform_sector_len, 0),
+    DEFINE_PROP_UINT32("num-blocks0", PFlashCFI02, nb_blocs[0], 0),
+    DEFINE_PROP_UINT32("sector-length0", PFlashCFI02, sector_len[0], 0),
+    DEFINE_PROP_UINT32("num-blocks1", PFlashCFI02, nb_blocs[1], 0),
+    DEFINE_PROP_UINT32("sector-length1", PFlashCFI02, sector_len[1], 0),
+    DEFINE_PROP_UINT32("num-blocks2", PFlashCFI02, nb_blocs[2], 0),
+    DEFINE_PROP_UINT32("sector-length2", PFlashCFI02, sector_len[2], 0),
+    DEFINE_PROP_UINT32("num-blocks3", PFlashCFI02, nb_blocs[3], 0),
+    DEFINE_PROP_UINT32("sector-length3", PFlashCFI02, sector_len[3], 0),
     DEFINE_PROP_UINT8("width", PFlashCFI02, width, 0),
     DEFINE_PROP_UINT8("mappings", PFlashCFI02, mappings, 0),
     DEFINE_PROP_UINT8("big-endian", PFlashCFI02, be, 0),

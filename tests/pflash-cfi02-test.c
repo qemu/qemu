@@ -17,8 +17,10 @@
  */
 
 #define MP_FLASH_SIZE_MAX (32 * 1024 * 1024)
-#define FLASH_SIZE (8 * 1024 * 1024)
 #define BASE_ADDR (0x100000000ULL - MP_FLASH_SIZE_MAX)
+
+#define UNIFORM_FLASH_SIZE (8 * 1024 * 1024)
+#define UNIFORM_FLASH_SECTOR_SIZE (64 * 1024)
 
 /* Use a newtype to keep flash addresses separate from byte addresses. */
 typedef struct {
@@ -44,6 +46,10 @@ typedef struct {
 typedef struct {
     int bank_width;
 
+    /* Nonuniform block size. */
+    int nb_blocs[4];
+    int sector_len[4];
+
     QTestState *qtest;
 } FlashConfig;
 
@@ -61,6 +67,10 @@ static FlashConfig expand_config_defaults(const FlashConfig *c)
 
     if (ret.bank_width == 0) {
         ret.bank_width = 2;
+    }
+    if (ret.nb_blocs[0] == 0 && ret.sector_len[0] == 0) {
+        ret.sector_len[0] = UNIFORM_FLASH_SECTOR_SIZE;
+        ret.nb_blocs[0] = UNIFORM_FLASH_SIZE / UNIFORM_FLASH_SECTOR_SIZE;
     }
 
     /* XXX: Limitations of test harness. */
@@ -230,13 +240,41 @@ static void chip_erase(const FlashConfig *c)
     flash_cmd(c, UNLOCK0_ADDR, CHIP_ERASE_CMD);
 }
 
-static void test_flash(const void *opaque)
+/*
+ * Test flash commands with a variety of device geometry.
+ */
+static void test_geometry(const void *opaque)
 {
     const FlashConfig *config = opaque;
     QTestState *qtest;
     qtest = qtest_initf("-M musicpal,accel=qtest"
-                        " -drive if=pflash,file=%s,format=raw,copy-on-read",
-                        image_path);
+                        " -drive if=pflash,file=%s,format=raw,copy-on-read"
+                        /* Device geometry properties. */
+                        " -global driver=cfi.pflash02,"
+                        "property=num-blocks0,value=%d"
+                        " -global driver=cfi.pflash02,"
+                        "property=sector-length0,value=%d"
+                        " -global driver=cfi.pflash02,"
+                        "property=num-blocks1,value=%d"
+                        " -global driver=cfi.pflash02,"
+                        "property=sector-length1,value=%d"
+                        " -global driver=cfi.pflash02,"
+                        "property=num-blocks2,value=%d"
+                        " -global driver=cfi.pflash02,"
+                        "property=sector-length2,value=%d"
+                        " -global driver=cfi.pflash02,"
+                        "property=num-blocks3,value=%d"
+                        " -global driver=cfi.pflash02,"
+                        "property=sector-length3,value=%d",
+                        image_path,
+                        config->nb_blocs[0],
+                        config->sector_len[0],
+                        config->nb_blocs[1],
+                        config->sector_len[1],
+                        config->nb_blocs[2],
+                        config->sector_len[2],
+                        config->nb_blocs[3],
+                        config->sector_len[3]);
     FlashConfig explicit_config = expand_config_defaults(config);
     explicit_config.qtest = qtest;
     const FlashConfig *c = &explicit_config;
@@ -264,39 +302,56 @@ static void test_flash(const void *opaque)
     g_assert_cmphex(flash_query(c, FLASH_ADDR(0x12)), ==, replicate(c, 'Y'));
 
     /* Num erase regions. */
-    g_assert_cmphex(flash_query_1(c, FLASH_ADDR(0x2C)), >=, 1);
+    int nb_erase_regions = flash_query_1(c, FLASH_ADDR(0x2C));
+    g_assert_cmphex(nb_erase_regions, ==,
+                    !!c->nb_blocs[0] + !!c->nb_blocs[1] + !!c->nb_blocs[2] +
+                    !!c->nb_blocs[3]);
 
-    uint32_t nb_sectors = flash_query_1(c, FLASH_ADDR(0x2D)) +
-                          (flash_query_1(c, FLASH_ADDR(0x2E)) << 8) + 1;
-    uint32_t sector_len = (flash_query_1(c, FLASH_ADDR(0x2F)) << 8) +
-                          (flash_query_1(c, FLASH_ADDR(0x30)) << 16);
+    /* Check device length. */
+    uint32_t device_len = 1 << flash_query_1(c, FLASH_ADDR(0x27));
+    g_assert_cmphex(device_len, ==, UNIFORM_FLASH_SIZE);
+
     reset(c);
 
     const uint64_t dq7 = replicate(c, 0x80);
     const uint64_t dq6 = replicate(c, 0x40);
-    /* Erase and program sector. */
-    for (uint32_t i = 0; i < nb_sectors; ++i) {
-        uint64_t byte_addr = i * sector_len;
-        sector_erase(c, byte_addr);
-        /* Read toggle. */
-        uint64_t status0 = flash_read(c, byte_addr);
-        /* DQ7 is 0 during an erase. */
-        g_assert_cmphex(status0 & dq7, ==, 0);
-        uint64_t status1 = flash_read(c, byte_addr);
-        /* DQ6 toggles during an erase. */
-        g_assert_cmphex(status0 & dq6, ==, ~status1 & dq6);
-        /* Wait for erase to complete. */
-        qtest_clock_step_next(c->qtest);
-        /* Ensure DQ6 has stopped toggling. */
-        g_assert_cmphex(flash_read(c, byte_addr), ==, flash_read(c, byte_addr));
-        /* Now the data should be valid. */
-        g_assert_cmphex(flash_read(c, byte_addr), ==, bank_mask(c));
+    uint64_t byte_addr = 0;
+    for (int region = 0; region < nb_erase_regions; ++region) {
+        uint64_t base = 0x2D + 4 * region;
+        flash_cmd(c, CFI_ADDR, CFI_CMD);
+        uint32_t nb_sectors = flash_query_1(c, FLASH_ADDR(base + 0)) +
+                              (flash_query_1(c, FLASH_ADDR(base + 1)) << 8) + 1;
+        uint32_t sector_len = (flash_query_1(c, FLASH_ADDR(base + 2)) << 8) +
+                              (flash_query_1(c, FLASH_ADDR(base + 3)) << 16);
+        g_assert_cmphex(nb_sectors, ==, c->nb_blocs[region]);
+        g_assert_cmphex(sector_len, ==, c->sector_len[region]);
+        reset(c);
 
-        /* Program a bit pattern. */
-        program(c, byte_addr, 0x55);
-        g_assert_cmphex(flash_read(c, byte_addr) & 0xFF, ==, 0x55);
-        program(c, byte_addr, 0xA5);
-        g_assert_cmphex(flash_read(c, byte_addr) & 0xFF, ==, 0x05);
+        /* Erase and program sector. */
+        for (uint32_t i = 0; i < nb_sectors; ++i) {
+            sector_erase(c, byte_addr);
+            /* Read toggle. */
+            uint64_t status0 = flash_read(c, byte_addr);
+            /* DQ7 is 0 during an erase. */
+            g_assert_cmphex(status0 & dq7, ==, 0);
+            uint64_t status1 = flash_read(c, byte_addr);
+            /* DQ6 toggles during an erase. */
+            g_assert_cmphex(status0 & dq6, ==, ~status1 & dq6);
+            /* Wait for erase to complete. */
+            qtest_clock_step_next(c->qtest);
+            /* Ensure DQ6 has stopped toggling. */
+            g_assert_cmphex(flash_read(c, byte_addr), ==,
+                            flash_read(c, byte_addr));
+            /* Now the data should be valid. */
+            g_assert_cmphex(flash_read(c, byte_addr), ==, bank_mask(c));
+
+            /* Program a bit pattern. */
+            program(c, byte_addr, 0x55);
+            g_assert_cmphex(flash_read(c, byte_addr) & 0xFF, ==, 0x55);
+            program(c, byte_addr, 0xA5);
+            g_assert_cmphex(flash_read(c, byte_addr) & 0xFF, ==, 0x05);
+            byte_addr += sector_len;
+        }
     }
 
     /* Erase the chip. */
@@ -314,9 +369,11 @@ static void test_flash(const void *opaque)
     g_assert_cmphex(flash_read(c, 0), ==, flash_read(c, 0));
     /* Now the data should be valid. */
 
-    for (uint32_t i = 0; i < nb_sectors; ++i) {
-        uint64_t byte_addr = i * sector_len;
-        g_assert_cmphex(flash_read(c, byte_addr), ==, bank_mask(c));
+    for (int region = 0; region < nb_erase_regions; ++region) {
+        for (uint32_t i = 0; i < c->nb_blocs[region]; ++i) {
+            uint64_t byte_addr = i * c->sector_len[region];
+            g_assert_cmphex(flash_read(c, byte_addr), ==, bank_mask(c));
+        }
     }
 
     /* Unlock bypass */
@@ -364,6 +421,18 @@ static const FlashConfig configuration[] = {
     {
         .bank_width = 2,
     },
+    /* Nonuniform sectors (top boot). */
+    {
+        .bank_width = 2,
+        .nb_blocs = { 127, 1, 2, 1 },
+        .sector_len = { 0x10000, 0x08000, 0x02000, 0x04000 },
+    },
+    /* Nonuniform sectors (bottom boot). */
+    {
+        .bank_width = 2,
+        .nb_blocs = { 1, 2, 1, 127 },
+        .sector_len = { 0x04000, 0x02000, 0x08000, 0x10000 },
+    },
 };
 
 int main(int argc, char **argv)
@@ -374,12 +443,12 @@ int main(int argc, char **argv)
                    strerror(errno));
         exit(EXIT_FAILURE);
     }
-    if (ftruncate(fd, FLASH_SIZE) < 0) {
+    if (ftruncate(fd, UNIFORM_FLASH_SIZE) < 0) {
         int error_code = errno;
         close(fd);
         unlink(image_path);
         g_printerr("Failed to truncate file %s to %u MB: %s\n", image_path,
-                   FLASH_SIZE, strerror(error_code));
+                   UNIFORM_FLASH_SIZE, strerror(error_code));
         exit(EXIT_FAILURE);
     }
     close(fd);
@@ -390,9 +459,19 @@ int main(int argc, char **argv)
     size_t nb_configurations = sizeof configuration / sizeof configuration[0];
     for (size_t i = 0; i < nb_configurations; ++i) {
         const FlashConfig *config = &configuration[i];
-        char *path = g_strdup_printf("pflash-cfi02/%d",
+        char *path = g_strdup_printf("pflash-cfi02"
+                                     "/geometry/%dx%x-%dx%x-%dx%x-%dx%x"
+                                     "/%d",
+                                     config->nb_blocs[0],
+                                     config->sector_len[0],
+                                     config->nb_blocs[1],
+                                     config->sector_len[1],
+                                     config->nb_blocs[2],
+                                     config->sector_len[2],
+                                     config->nb_blocs[3],
+                                     config->sector_len[3],
                                      config->bank_width);
-        qtest_add_data_func(path, config, test_flash);
+        qtest_add_data_func(path, config, test_geometry);
         g_free(path);
     }
     int result = g_test_run();
