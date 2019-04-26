@@ -198,6 +198,8 @@ enum {
 #define SWCR_STATUS_DNO         (1U << 22)
 #define SWCR_STATUS_MASK        ((1U << 23) - (1U << 17))
 
+#define SWCR_STATUS_TO_EXCSUM_SHIFT  16
+
 #define SWCR_MASK  (SWCR_TRAP_ENABLE_MASK | SWCR_MAP_MASK | SWCR_STATUS_MASK)
 
 /* MMU modes definitions */
@@ -235,6 +237,9 @@ struct CPUAlphaState {
 
     /* The FPCR, and disassembled portions thereof.  */
     uint32_t fpcr;
+#ifdef CONFIG_USER_ONLY
+    uint32_t swcr;
+#endif
     uint32_t fpcr_exc_enable;
     float_status fp_status;
     uint8_t fpcr_dyn_round;
@@ -500,5 +505,42 @@ static inline void cpu_get_tb_cpu_state(CPUAlphaState *env, target_ulong *pc,
     *cs_base = 0;
     *pflags = env->flags & ENV_FLAG_TB_MASK;
 }
+
+#ifdef CONFIG_USER_ONLY
+/* Copied from linux ieee_swcr_to_fpcr.  */
+static inline uint64_t alpha_ieee_swcr_to_fpcr(uint64_t swcr)
+{
+    uint64_t fpcr = 0;
+
+    fpcr |= (swcr & SWCR_STATUS_MASK) << 35;
+    fpcr |= (swcr & SWCR_MAP_DMZ) << 36;
+    fpcr |= (~swcr & (SWCR_TRAP_ENABLE_INV
+                      | SWCR_TRAP_ENABLE_DZE
+                      | SWCR_TRAP_ENABLE_OVF)) << 48;
+    fpcr |= (~swcr & (SWCR_TRAP_ENABLE_UNF
+                      | SWCR_TRAP_ENABLE_INE)) << 57;
+    fpcr |= (swcr & SWCR_MAP_UMZ ? FPCR_UNDZ | FPCR_UNFD : 0);
+    fpcr |= (~swcr & SWCR_TRAP_ENABLE_DNO) << 41;
+
+    return fpcr;
+}
+
+/* Copied from linux ieee_fpcr_to_swcr.  */
+static inline uint64_t alpha_ieee_fpcr_to_swcr(uint64_t fpcr)
+{
+    uint64_t swcr = 0;
+
+    swcr |= (fpcr >> 35) & SWCR_STATUS_MASK;
+    swcr |= (fpcr >> 36) & SWCR_MAP_DMZ;
+    swcr |= (~fpcr >> 48) & (SWCR_TRAP_ENABLE_INV
+                             | SWCR_TRAP_ENABLE_DZE
+                             | SWCR_TRAP_ENABLE_OVF);
+    swcr |= (~fpcr >> 57) & (SWCR_TRAP_ENABLE_UNF | SWCR_TRAP_ENABLE_INE);
+    swcr |= (fpcr >> 47) & SWCR_MAP_UMZ;
+    swcr |= (~fpcr >> 41) & SWCR_TRAP_ENABLE_DNO;
+
+    return swcr;
+}
+#endif /* CONFIG_USER_ONLY */
 
 #endif /* ALPHA_CPU_H */

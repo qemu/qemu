@@ -29,12 +29,12 @@
 #define CONVERT_BIT(X, SRC, DST) \
     (SRC > DST ? (X) / (SRC / DST) & (DST) : ((X) & SRC) * (DST / SRC))
 
-uint64_t cpu_alpha_load_fpcr (CPUAlphaState *env)
+uint64_t cpu_alpha_load_fpcr(CPUAlphaState *env)
 {
     return (uint64_t)env->fpcr << 32;
 }
 
-void cpu_alpha_store_fpcr (CPUAlphaState *env, uint64_t val)
+void cpu_alpha_store_fpcr(CPUAlphaState *env, uint64_t val)
 {
     uint32_t fpcr = val >> 32;
     uint32_t t = 0;
@@ -67,6 +67,22 @@ void cpu_alpha_store_fpcr (CPUAlphaState *env, uint64_t val)
 
     env->fpcr_flush_to_zero = (fpcr & FPCR_UNFD) && (fpcr & FPCR_UNDZ);
     env->fp_status.flush_inputs_to_zero = (fpcr & FPCR_DNZ) != 0;
+
+#ifdef CONFIG_USER_ONLY
+    /*
+     * Override some of these bits with the contents of ENV->SWCR.
+     * In system mode, some of these would trap to the kernel, at
+     * which point the kernel's handler would emulate and apply
+     * the software exception mask.
+     */
+    if (env->swcr & SWCR_MAP_DMZ) {
+        env->fp_status.flush_inputs_to_zero = 1;
+    }
+    if (env->swcr & SWCR_MAP_UMZ) {
+        env->fp_status.flush_to_zero = 1;
+    }
+    env->fpcr_exc_enable &= ~(alpha_ieee_swcr_to_fpcr(env->swcr) >> 32);
+#endif
 }
 
 uint64_t helper_load_fpcr(CPUAlphaState *env)

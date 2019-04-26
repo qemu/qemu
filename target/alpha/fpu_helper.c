@@ -91,10 +91,25 @@ void helper_fp_exc_raise_s(CPUAlphaState *env, uint32_t ignore, uint32_t regno)
     if (exc) {
         env->fpcr |= exc;
         exc &= ~ignore;
-        if (exc) {
-            exc &= env->fpcr_exc_enable;
-            fp_exc_raise1(env, GETPC(), exc, regno, EXC_M_SWC);
+#ifdef CONFIG_USER_ONLY
+        /*
+         * In user mode, the kernel's software handler only
+         * delivers a signal if the exception is enabled.
+         */
+        if (!(exc & env->fpcr_exc_enable)) {
+            return;
         }
+#else
+        /*
+         * In system mode, the software handler gets invoked
+         * for any non-ignored exception.
+         */
+        if (!exc) {
+            return;
+        }
+#endif
+        exc &= env->fpcr_exc_enable;
+        fp_exc_raise1(env, GETPC(), exc, regno, EXC_M_SWC);
     }
 }
 
