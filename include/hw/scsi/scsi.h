@@ -88,6 +88,7 @@ struct SCSIDevice
     int scsi_version;
     int default_scsi_version;
     bool needs_vpd_bl_emulation;
+    bool hba_supports_iothread;
 };
 
 extern const VMStateDescription vmstate_scsi_device;

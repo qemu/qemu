@@ -43,7 +43,7 @@ QMP_VERSION
 {"return": {}}
 {"return": {}}
 {"return": {}}
-{"error": {"class": "GenericError", "desc": "Cannot attach a blockdev that is using a different iothread"}}
+{"error": {"class": "GenericError", "desc": "Cannot change iothread of active block backend"}}
 {"return": {}}
 {"return": {}}
 {"return": {}}

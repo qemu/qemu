@@ -2336,6 +2336,13 @@ static void scsi_realize(SCSIDevice *dev, Error **errp)
         return;
     }
 
+    if (blk_get_aio_context(s->qdev.conf.blk) != qemu_get_aio_context() &&
+        !s->qdev.hba_supports_iothread)
+    {
+        error_setg(errp, "HBA does not support iothreads");
+        return;
+    }
+
     if (dev->type == TYPE_DISK) {
         if (!blkconf_geometry(&dev->conf, NULL, 65535, 255, 255, errp)) {
             return;
@@ -2929,13 +2936,14 @@ static const TypeInfo scsi_disk_base_info = {
     .abstract      = true,
 };
 
-#define DEFINE_SCSI_DISK_PROPERTIES()                                \
-    DEFINE_BLOCK_PROPERTIES(SCSIDiskState, qdev.conf),               \
-    DEFINE_BLOCK_ERROR_PROPERTIES(SCSIDiskState, qdev.conf),         \
-    DEFINE_PROP_STRING("ver", SCSIDiskState, version),               \
-    DEFINE_PROP_STRING("serial", SCSIDiskState, serial),             \
-    DEFINE_PROP_STRING("vendor", SCSIDiskState, vendor),             \
-    DEFINE_PROP_STRING("product", SCSIDiskState, product),           \
+#define DEFINE_SCSI_DISK_PROPERTIES()                                   \
+    DEFINE_PROP_DRIVE_IOTHREAD("drive", SCSIDiskState, qdev.conf.blk),  \
+    DEFINE_BLOCK_PROPERTIES_BASE(SCSIDiskState, qdev.conf),             \
+    DEFINE_BLOCK_ERROR_PROPERTIES(SCSIDiskState, qdev.conf),            \
+    DEFINE_PROP_STRING("ver", SCSIDiskState, version),                  \
+    DEFINE_PROP_STRING("serial", SCSIDiskState, serial),                \
+    DEFINE_PROP_STRING("vendor", SCSIDiskState, vendor),                \
+    DEFINE_PROP_STRING("product", SCSIDiskState, product),              \
     DEFINE_PROP_STRING("device_id", SCSIDiskState, device_id)
 
 
