@@ -66,6 +66,7 @@ do {                                                       \
 /* Special write cycles for CFI queries. */
 enum {
     WCYCLE_CFI              = 7,
+    WCYCLE_AUTOSELECT_CFI   = 8,
 };
 
 struct PFlashCFI02 {
@@ -311,6 +312,12 @@ static void pflash_write(void *opaque, hwaddr offset, uint64_t value,
     cmd = value;
     if (pfl->cmd != 0xA0) {
         if (cmd == 0xF0) {
+            if (pfl->wcycle == WCYCLE_AUTOSELECT_CFI) {
+                /* Return to autoselect mode. */
+                pfl->wcycle = 3;
+                pfl->cmd = 0x90;
+                return;
+            }
             goto reset_flash;
         }
     }
@@ -333,7 +340,6 @@ static void pflash_write(void *opaque, hwaddr offset, uint64_t value,
         /* We're in read mode */
     check_unlock0:
         if (boff == 0x55 && cmd == 0x98) {
-        enter_CFI_mode:
             /* Enter CFI query mode */
             pfl->wcycle = WCYCLE_CFI;
             pfl->cmd = 0x98;
@@ -410,9 +416,16 @@ static void pflash_write(void *opaque, hwaddr offset, uint64_t value,
                 /* Unlock bypass reset */
                 goto reset_flash;
             }
-            /* We can enter CFI query mode from autoselect mode */
-            if (boff == 0x55 && cmd == 0x98)
-                goto enter_CFI_mode;
+            /*
+             * We can enter CFI query mode from autoselect mode, but we must
+             * return to autoselect mode after a reset.
+             */
+            if (boff == 0x55 && cmd == 0x98) {
+                /* Enter autoselect CFI query mode */
+                pfl->wcycle = WCYCLE_AUTOSELECT_CFI;
+                pfl->cmd = 0x98;
+                return;
+            }
             /* No break here */
         default:
             DPRINTF("%s: invalid write for command %02x\n",
@@ -493,6 +506,7 @@ static void pflash_write(void *opaque, hwaddr offset, uint64_t value,
         break;
     /* Special values for CFI queries */
     case WCYCLE_CFI:
+    case WCYCLE_AUTOSELECT_CFI:
         DPRINTF("%s: invalid write in CFI query mode\n", __func__);
         goto reset_flash;
     default:
