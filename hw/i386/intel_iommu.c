@@ -3741,6 +3741,8 @@ static void vtd_class_init(ObjectClass *klass, void *data)
     x86_class->int_remap = vtd_int_remap;
     /* Supported by the pc-q35-* machine types */
     dc->user_creatable = true;
+    set_bit(DEVICE_CATEGORY_MISC, dc->categories);
+    dc->desc = "Intel IOMMU (VT-d) DMA Remapping device";
 }
 
 static const TypeInfo vtd_info = {

@@ -923,6 +923,7 @@ static void isa_bridge_class_init(ObjectClass *klass, void *data)
     PCIDeviceClass *k = PCI_DEVICE_CLASS(klass);
 
     dc->desc        = "ISA bridge faked to support IGD PT";
+    set_bit(DEVICE_CATEGORY_BRIDGE, dc->categories);
     k->vendor_id    = PCI_VENDOR_ID_INTEL;
     k->class_id     = PCI_CLASS_BRIDGE_ISA;
 };

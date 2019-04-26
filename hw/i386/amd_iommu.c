@@ -1601,6 +1601,8 @@ static void amdvi_class_init(ObjectClass *klass, void* data)
     dc_class->int_remap = amdvi_int_remap;
     /* Supported by the pc-q35-* machine types */
     dc->user_creatable = true;
+    set_bit(DEVICE_CATEGORY_MISC, dc->categories);
+    dc->desc = "AMD IOMMU (AMD-Vi) DMA Remapping device";
 }
 
 static const TypeInfo amdvi = {
