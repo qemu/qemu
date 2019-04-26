@@ -148,7 +148,7 @@ int vfio_spapr_create_window(VFIOContainer *container,
     uint64_t pagesize = memory_region_iommu_get_min_page_size(iommu_mr);
     unsigned entries, bits_total, bits_per_level, max_levels;
     struct vfio_iommu_spapr_tce_create create = { .argsz = sizeof(create) };
-    long rampagesize = qemu_getrampagesize();
+    long rampagesize = qemu_minrampagesize();
 
     /*
      * The host might not support the guest supported IOMMU page size,

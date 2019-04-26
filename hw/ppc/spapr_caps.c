@@ -347,7 +347,7 @@ static void cap_hpt_maxpagesize_apply(SpaprMachineState *spapr,
         warn_report("Many guests require at least 64kiB hpt-max-page-size");
     }
 
-    spapr_check_pagesize(spapr, qemu_getrampagesize(), errp);
+    spapr_check_pagesize(spapr, qemu_minrampagesize(), errp);
 }
 
 static bool spapr_pagesize_cb(void *opaque, uint32_t seg_pshift,
@@ -609,7 +609,7 @@ static SpaprCapabilities default_caps_with_cpu(SpaprMachineState *spapr,
         uint8_t mps;
 
         if (kvmppc_hpt_needs_host_contiguous_pages()) {
-            mps = ctz64(qemu_getrampagesize());
+            mps = ctz64(qemu_minrampagesize());
         } else {
             mps = 34; /* allow everything up to 16GiB, i.e. everything */
         }

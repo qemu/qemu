@@ -1,7 +1,7 @@
 
 SLOF_DIR := $(SRC_PATH)/roms/SLOF
 
-NETOBJS := start.o sclp.o virtio.o virtio-net.o jump2ipl.o netmain.o \
+NETOBJS := start.o sclp.o cio.o virtio.o virtio-net.o jump2ipl.o netmain.o \
 	   libnet.a libc.a
 
 LIBC_INC := -nostdinc -I$(SLOF_DIR)/lib/libc/include

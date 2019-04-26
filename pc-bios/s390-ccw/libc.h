@@ -67,6 +67,17 @@ static inline size_t strlen(const char *str)
     return i;
 }
 
+static inline char *strcat(char *dest, const char *src)
+{
+    int i;
+    char *dest_end = dest + strlen(dest);
+
+    for (i = 0; i <= strlen(src); i++) {
+        dest_end[i] = src[i];
+    }
+    return dest;
+}
+
 static inline int isdigit(int c)
 {
     return (c >= '0') && (c <= '9');

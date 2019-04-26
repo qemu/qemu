@@ -10,17 +10,17 @@
 
 #include "libc.h"
 #include "s390-ccw.h"
+#include "cio.h"
 #include "virtio.h"
 #include "virtio-scsi.h"
 #include "bswap.h"
+#include "helper.h"
 
 #define VRING_WAIT_REPLY_TIMEOUT 30
 
 static VRing block[VIRTIO_MAX_VQS];
 static char ring_area[VIRTIO_RING_SIZE * VIRTIO_MAX_VQS]
                      __attribute__((__aligned__(PAGE_SIZE)));
-
-static char chsc_page[PAGE_SIZE] __attribute__((__aligned__(PAGE_SIZE)));
 
 static VDev vdev = {
     .nr_vqs = 1,
@@ -90,38 +90,19 @@ int drain_irqs(SubChannelId schid)
     }
 }
 
-static int run_ccw(VDev *vdev, int cmd, void *ptr, int len)
+static int run_ccw(VDev *vdev, int cmd, void *ptr, int len, bool sli)
 {
     Ccw1 ccw = {};
-    CmdOrb orb = {};
-    Schib schib;
-    int r;
-
-    /* start command processing */
-    stsch_err(vdev->schid, &schib);
-    /* enable the subchannel for IPL device */
-    schib.pmcw.ena = 1;
-    msch(vdev->schid, &schib);
-
-    /* start subchannel command */
-    orb.fmt = 1;
-    orb.cpa = (u32)(long)&ccw;
-    orb.lpm = 0x80;
 
     ccw.cmd_code = cmd;
     ccw.cda = (long)ptr;
     ccw.count = len;
 
-    r = ssch(vdev->schid, &orb);
-    /*
-     * XXX Wait until device is done processing the CCW. For now we can
-     *     assume that a simple tsch will have finished the CCW processing,
-     *     but the architecture allows for asynchronous operation
-     */
-    if (!r) {
-        r = drain_irqs(vdev->schid);
+    if (sli) {
+        ccw.flags |= CCW_FLAG_SLI;
     }
-    return r;
+
+    return do_cio(vdev->schid, vdev->senseid.cu_type, ptr2u32(&ccw), CCW_FMT1);
 }
 
 static void vring_init(VRing *vr, VqInfo *info)
@@ -263,7 +244,7 @@ void virtio_setup_ccw(VDev *vdev)
     vdev->config.blk.blk_size = 0; /* mark "illegal" - setup started... */
     vdev->guessed_disk_nature = VIRTIO_GDN_NONE;
 
-    run_ccw(vdev, CCW_CMD_VDEV_RESET, NULL, 0);
+    run_ccw(vdev, CCW_CMD_VDEV_RESET, NULL, 0, false);
 
     switch (vdev->senseid.cu_model) {
     case VIRTIO_ID_NET:
@@ -284,18 +265,19 @@ void virtio_setup_ccw(VDev *vdev)
     default:
         panic("Unsupported virtio device\n");
     }
-    IPL_assert(run_ccw(vdev, CCW_CMD_READ_CONF, &vdev->config, cfg_size) == 0,
-               "Could not get block device configuration");
+    IPL_assert(
+        run_ccw(vdev, CCW_CMD_READ_CONF, &vdev->config, cfg_size, false) == 0,
+       "Could not get block device configuration");
 
     /* Feature negotiation */
     for (i = 0; i < ARRAY_SIZE(vdev->guest_features); i++) {
         feats.features = 0;
         feats.index = i;
-        rc = run_ccw(vdev, CCW_CMD_READ_FEAT, &feats, sizeof(feats));
+        rc = run_ccw(vdev, CCW_CMD_READ_FEAT, &feats, sizeof(feats), false);
         IPL_assert(rc == 0, "Could not get features bits");
         vdev->guest_features[i] &= bswap32(feats.features);
         feats.features = bswap32(vdev->guest_features[i]);
-        rc = run_ccw(vdev, CCW_CMD_WRITE_FEAT, &feats, sizeof(feats));
+        rc = run_ccw(vdev, CCW_CMD_WRITE_FEAT, &feats, sizeof(feats), false);
         IPL_assert(rc == 0, "Could not set features bits");
     }
 
@@ -312,16 +294,17 @@ void virtio_setup_ccw(VDev *vdev)
         };
 
         IPL_assert(
-            run_ccw(vdev, CCW_CMD_READ_VQ_CONF, &config, sizeof(config)) == 0,
+            run_ccw(vdev, CCW_CMD_READ_VQ_CONF, &config, sizeof(config), false) == 0,
             "Could not get block device VQ configuration");
         info.num = config.num;
         vring_init(&vdev->vrings[i], &info);
         vdev->vrings[i].schid = vdev->schid;
-        IPL_assert(run_ccw(vdev, CCW_CMD_SET_VQ, &info, sizeof(info)) == 0,
-                   "Cannot set VQ info");
+        IPL_assert(
+            run_ccw(vdev, CCW_CMD_SET_VQ, &info, sizeof(info), false) == 0,
+            "Cannot set VQ info");
     }
     IPL_assert(
-        run_ccw(vdev, CCW_CMD_WRITE_STATUS, &status, sizeof(status)) == 0,
+        run_ccw(vdev, CCW_CMD_WRITE_STATUS, &status, sizeof(status), false) == 0,
         "Could not write status to host");
 }
 
@@ -329,8 +312,15 @@ bool virtio_is_supported(SubChannelId schid)
 {
     vdev.schid = schid;
     memset(&vdev.senseid, 0, sizeof(vdev.senseid));
-    /* run sense id command */
-    if (run_ccw(&vdev, CCW_CMD_SENSE_ID, &vdev.senseid, sizeof(vdev.senseid))) {
+
+    /*
+     * Run sense id command.
+     * The size of the senseid data differs between devices (notably,
+     * between virtio devices and dasds), so specify the largest possible
+     * size and suppress the incorrect length indication for smaller sizes.
+     */
+    if (run_ccw(&vdev, CCW_CMD_SENSE_ID, &vdev.senseid, sizeof(vdev.senseid),
+                true)) {
         return false;
     }
     if (vdev.senseid.cu_type == 0x3832) {
@@ -342,21 +332,4 @@ bool virtio_is_supported(SubChannelId schid)
         }
     }
     return false;
-}
-
-int enable_mss_facility(void)
-{
-    int ret;
-    ChscAreaSda *sda_area = (ChscAreaSda *) chsc_page;
-
-    memset(sda_area, 0, PAGE_SIZE);
-    sda_area->request.length = 0x0400;
-    sda_area->request.code = 0x0031;
-    sda_area->operation_code = 0x2;
-
-    ret = chsc(sda_area);
-    if ((ret == 0) && (sda_area->response.code == 0x0001)) {
-        return 0;
-    }
-    return -EIO;
 }
