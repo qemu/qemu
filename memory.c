@@ -2584,7 +2584,7 @@ void memory_global_dirty_log_start(void)
 
     MEMORY_LISTENER_CALL_GLOBAL(log_global_start, Forward);
 
-    /* Refresh DIRTY_LOG_MIGRATION bit.  */
+    /* Refresh DIRTY_MEMORY_MIGRATION bit.  */
     memory_region_transaction_begin();
     memory_region_update_pending = true;
     memory_region_transaction_commit();
@@ -2594,7 +2594,7 @@ static void memory_global_dirty_log_do_stop(void)
 {
     global_dirty_log = false;
 
-    /* Refresh DIRTY_LOG_MIGRATION bit.  */
+    /* Refresh DIRTY_MEMORY_MIGRATION bit.  */
     memory_region_transaction_begin();
     memory_region_update_pending = true;
     memory_region_transaction_commit();
