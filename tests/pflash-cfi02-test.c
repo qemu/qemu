@@ -35,6 +35,7 @@ typedef struct {
 #define CFI_CMD 0x98
 #define UNLOCK0_CMD 0xAA
 #define UNLOCK1_CMD 0x55
+#define SECOND_UNLOCK_CMD 0x80
 #define AUTOSELECT_CMD 0x90
 #define RESET_CMD 0xF0
 #define PROGRAM_CMD 0xA0
@@ -196,7 +197,7 @@ static void reset(const FlashConfig *c)
 static void sector_erase(const FlashConfig *c, uint64_t byte_addr)
 {
     unlock(c);
-    flash_cmd(c, UNLOCK0_ADDR, 0x80);
+    flash_cmd(c, UNLOCK0_ADDR, SECOND_UNLOCK_CMD);
     unlock(c);
     flash_write(c, byte_addr, replicate(c, SECTOR_ERASE_CMD));
 }
@@ -235,7 +236,7 @@ static void program(const FlashConfig *c, uint64_t byte_addr, uint16_t data)
 static void chip_erase(const FlashConfig *c)
 {
     unlock(c);
-    flash_cmd(c, UNLOCK0_ADDR, 0x80);
+    flash_cmd(c, UNLOCK0_ADDR, SECOND_UNLOCK_CMD);
     unlock(c);
     flash_cmd(c, UNLOCK0_ADDR, CHIP_ERASE_CMD);
 }
@@ -315,6 +316,8 @@ static void test_geometry(const void *opaque)
 
     const uint64_t dq7 = replicate(c, 0x80);
     const uint64_t dq6 = replicate(c, 0x40);
+    const uint64_t dq3 = replicate(c, 0x08);
+
     uint64_t byte_addr = 0;
     for (int region = 0; region < nb_erase_regions; ++region) {
         uint64_t base = 0x2D + 4 * region;
@@ -330,18 +333,29 @@ static void test_geometry(const void *opaque)
         /* Erase and program sector. */
         for (uint32_t i = 0; i < nb_sectors; ++i) {
             sector_erase(c, byte_addr);
-            /* Read toggle. */
+
+            /* Check that DQ3 is 0. */
+            g_assert_cmphex(flash_read(c, byte_addr) & dq3, ==, 0);
+            qtest_clock_step_next(c->qtest); /* Step over the 50 us timeout. */
+
+            /* Check that DQ3 is 1. */
             uint64_t status0 = flash_read(c, byte_addr);
+            g_assert_cmphex(status0 & dq3, ==, dq3);
+
             /* DQ7 is 0 during an erase. */
             g_assert_cmphex(status0 & dq7, ==, 0);
             uint64_t status1 = flash_read(c, byte_addr);
+
             /* DQ6 toggles during an erase. */
             g_assert_cmphex(status0 & dq6, ==, ~status1 & dq6);
+
             /* Wait for erase to complete. */
-            qtest_clock_step_next(c->qtest);
+            wait_for_completion(c, byte_addr);
+
             /* Ensure DQ6 has stopped toggling. */
             g_assert_cmphex(flash_read(c, byte_addr), ==,
                             flash_read(c, byte_addr));
+
             /* Now the data should be valid. */
             g_assert_cmphex(flash_read(c, byte_addr), ==, bank_mask(c));
 
@@ -404,6 +418,44 @@ static void test_geometry(const void *opaque)
     g_assert_cmphex(flash_query(c, FLASH_ADDR(0)), ==, replicate(c, 0xBF));
     reset(c);
 
+    /*
+     * Program a word on each sector, erase one or two sectors per region, and
+     * verify that all of those, and only those, are erased.
+     */
+    byte_addr = 0;
+    for (int region = 0; region < nb_erase_regions; ++region) {
+        for (int i = 0; i < config->nb_blocs[region]; ++i) {
+            program(c, byte_addr, 0);
+            byte_addr += config->sector_len[region];
+        }
+    }
+    unlock(c);
+    flash_cmd(c, UNLOCK0_ADDR, SECOND_UNLOCK_CMD);
+    unlock(c);
+    byte_addr = 0;
+    const uint64_t erase_cmd = replicate(c, SECTOR_ERASE_CMD);
+    for (int region = 0; region < nb_erase_regions; ++region) {
+        flash_write(c, byte_addr, erase_cmd);
+        if (c->nb_blocs[region] > 1) {
+            flash_write(c, byte_addr + c->sector_len[region], erase_cmd);
+        }
+        byte_addr += c->sector_len[region] * c->nb_blocs[region];
+    }
+
+    qtest_clock_step_next(c->qtest); /* Step over the 50 us timeout. */
+    wait_for_completion(c, 0);
+    byte_addr = 0;
+    for (int region = 0; region < nb_erase_regions; ++region) {
+        for (int i = 0; i < config->nb_blocs[region]; ++i) {
+            if (i < 2) {
+                g_assert_cmphex(flash_read(c, byte_addr), ==, bank_mask(c));
+            } else {
+                g_assert_cmphex(flash_read(c, byte_addr), ==, 0);
+            }
+            byte_addr += config->sector_len[region];
+        }
+    }
+
     qtest_quit(qtest);
 }
 
@@ -428,17 +480,17 @@ static void test_cfi_in_autoselect(const void *opaque)
     /* 1. Enter autoselect. */
     unlock(c);
     flash_cmd(c, UNLOCK0_ADDR, AUTOSELECT_CMD);
-    g_assert_cmpint(flash_query(c, FLASH_ADDR(0)), ==, replicate(c, 0xBF));
+    g_assert_cmphex(flash_query(c, FLASH_ADDR(0)), ==, replicate(c, 0xBF));
 
     /* 2. Enter CFI. */
     flash_cmd(c, CFI_ADDR, CFI_CMD);
-    g_assert_cmpint(flash_query(c, FLASH_ADDR(0x10)), ==, replicate(c, 'Q'));
-    g_assert_cmpint(flash_query(c, FLASH_ADDR(0x11)), ==, replicate(c, 'R'));
-    g_assert_cmpint(flash_query(c, FLASH_ADDR(0x12)), ==, replicate(c, 'Y'));
+    g_assert_cmphex(flash_query(c, FLASH_ADDR(0x10)), ==, replicate(c, 'Q'));
+    g_assert_cmphex(flash_query(c, FLASH_ADDR(0x11)), ==, replicate(c, 'R'));
+    g_assert_cmphex(flash_query(c, FLASH_ADDR(0x12)), ==, replicate(c, 'Y'));
 
     /* 3. Exit CFI. */
     reset(c);
-    g_assert_cmpint(flash_query(c, FLASH_ADDR(0)), ==, replicate(c, 0xBF));
+    g_assert_cmphex(flash_query(c, FLASH_ADDR(0)), ==, replicate(c, 0xBF));
 
     qtest_quit(qtest);
 }

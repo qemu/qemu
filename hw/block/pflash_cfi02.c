@@ -31,7 +31,6 @@
  * It does not support flash interleaving.
  * It does not implement software data protection as found in many real chips
  * It does not implement erase suspend/resume commands
- * It does not implement multiple sectors erase
  */
 
 #include "qemu/osdep.h"
@@ -106,6 +105,7 @@ struct PFlashCFI02 {
     MemoryRegion orig_mem;
     int rom_mode;
     int read_counter; /* used for lazy switch-back to rom mode */
+    int sectors_to_erase;
     char *name;
     void *storage;
 };
@@ -136,6 +136,22 @@ static inline void toggle_dq6(PFlashCFI02 *pfl)
 }
 
 /*
+ * Turn on DQ3.
+ */
+static inline void assert_dq3(PFlashCFI02 *pfl)
+{
+    pfl->status |= 0x08;
+}
+
+/*
+ * Turn off DQ3.
+ */
+static inline void reset_dq3(PFlashCFI02 *pfl)
+{
+    pfl->status &= ~0x08;
+}
+
+/*
  * Set up replicated mappings of the same region.
  */
 static void pflash_setup_mappings(PFlashCFI02 *pfl)
@@ -163,11 +179,37 @@ static size_t pflash_regions_count(PFlashCFI02 *pfl)
     return pfl->cfi_table[0x2c];
 }
 
-static void pflash_timer (void *opaque)
+static void pflash_timer(void *opaque)
 {
     PFlashCFI02 *pfl = opaque;
 
     trace_pflash_timer_expired(pfl->cmd);
+    if (pfl->cmd == 0x30) {
+        /*
+         * Sector erase. If DQ3 is 0 when the timer expires, then the 50
+         * us erase timeout has expired so we need to start the timer for the
+         * sector erase algorithm. Otherwise, the erase completed and we should
+         * go back to read array mode.
+         */
+        if ((pfl->status & 0x08) == 0) {
+            assert_dq3(pfl);
+            /*
+             * CFI address 0x21 is "Typical timeout per individual block erase
+             * 2^N ms"
+             */
+            uint64_t timeout = ((1ULL << pfl->cfi_table[0x21]) *
+                                pfl->sectors_to_erase) * 1000000;
+            timer_mod(&pfl->timer,
+                      qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL) + timeout);
+            DPRINTF("%s: erase timeout fired; erasing %d sectors\n",
+                    __func__, pfl->sectors_to_erase);
+            return;
+        }
+        DPRINTF("%s: sector erase complete\n", __func__);
+        pfl->sectors_to_erase = 0;
+        reset_dq3(pfl);
+    }
+
     /* Reset flash */
     toggle_dq7(pfl);
     if (pfl->bypass) {
@@ -299,6 +341,24 @@ static void pflash_update(PFlashCFI02 *pfl, int offset, int size)
     }
 }
 
+static void pflash_sector_erase(PFlashCFI02 *pfl, hwaddr offset)
+{
+    uint64_t sector_len = pflash_sector_len(pfl, offset);
+    offset &= ~(sector_len - 1);
+    DPRINTF("%s: start sector erase at %0*" PRIx64 "-%0*" PRIx64 "\n",
+            __func__, pfl->width * 2, offset,
+            pfl->width * 2, offset + sector_len - 1);
+    if (!pfl->ro) {
+        uint8_t *p = pfl->storage;
+        memset(p + offset, 0xff, sector_len);
+        pflash_update(pfl, offset, sector_len);
+    }
+    set_dq7(pfl, 0x00);
+    ++pfl->sectors_to_erase;
+    /* Set (or reset) the 50 us timer for additional erase commands.  */
+    timer_mod(&pfl->timer, qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL) + 50000);
+}
+
 static void pflash_write(void *opaque, hwaddr offset, uint64_t value,
                          unsigned int width)
 {
@@ -306,7 +366,6 @@ static void pflash_write(void *opaque, hwaddr offset, uint64_t value,
     hwaddr boff;
     uint8_t *p;
     uint8_t cmd;
-    uint32_t sector_len;
 
     trace_pflash_io_write(offset, width, width << 1, value, pfl->wcycle);
     cmd = value;
@@ -469,20 +528,7 @@ static void pflash_write(void *opaque, hwaddr offset, uint64_t value,
             break;
         case 0x30:
             /* Sector erase */
-            p = pfl->storage;
-            sector_len = pflash_sector_len(pfl, offset);
-            offset &= ~(sector_len - 1);
-            DPRINTF("%s: start sector erase at %0*" PRIx64 "-%0*" PRIx64 "\n",
-                    __func__, pfl->width * 2, offset,
-                    pfl->width * 2, offset + sector_len - 1);
-            if (!pfl->ro) {
-                memset(p + offset, 0xff, sector_len);
-                pflash_update(pfl, offset, sector_len);
-            }
-            set_dq7(pfl, 0x00);
-            /* Let's wait 1/2 second before sector erase is done */
-            timer_mod(&pfl->timer, qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL) +
-                      (NANOSECONDS_PER_SECOND / 2));
+            pflash_sector_erase(pfl, offset);
             break;
         default:
             DPRINTF("%s: invalid command %02x (wc 5)\n", __func__, cmd);
@@ -496,7 +542,19 @@ static void pflash_write(void *opaque, hwaddr offset, uint64_t value,
             /* Ignore writes during chip erase */
             return;
         case 0x30:
-            /* Ignore writes during sector erase */
+            /*
+             * If DQ3 is 0, additional sector erase commands can be
+             * written and anything else (other than an erase suspend) resets
+             * the device.
+             */
+            if ((pfl->status & 0x08) == 0) {
+                if (cmd == 0x30) {
+                    pflash_sector_erase(pfl, offset);
+                } else {
+                    goto reset_flash;
+                }
+            }
+            /* Ignore writes during the actual erase. */
             return;
         default:
             /* Should never happen */
