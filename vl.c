@@ -725,7 +725,7 @@ void runstate_set(RunState new_state)
     assert(new_state < RUN_STATE__MAX);
 
     trace_runstate_set(current_run_state, RunState_str(current_run_state),
-                       new_state, RunState_str(current_run_state));
+                       new_state, RunState_str(new_state));
 
     if (current_run_state == new_state) {
         return;
