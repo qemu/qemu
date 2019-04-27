@@ -92,8 +92,6 @@ typedef struct PIIX4PMState {
     MemHotplugState acpi_memory_hotplug;
 } PIIX4PMState;
 
-#define TYPE_PIIX4_PM "PIIX4_PM"
-
 #define PIIX4_PM(obj) \
     OBJECT_CHECK(PIIX4PMState, (obj), TYPE_PIIX4_PM)
 
