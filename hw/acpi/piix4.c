@@ -552,17 +552,6 @@ static void piix4_pm_realize(PCIDevice *dev, Error **errp)
     piix4_pm_add_propeties(s);
 }
 
-Object *piix4_pm_find(void)
-{
-    bool ambig;
-    Object *o = object_resolve_path_type("", TYPE_PIIX4_PM, &ambig);
-
-    if (ambig || !o) {
-        return NULL;
-    }
-    return o;
-}
-
 I2CBus *piix4_pm_init(PCIBus *bus, int devfn, uint32_t smb_io_base,
                       qemu_irq sci_irq, qemu_irq smi_irq,
                       int smm_enabled, DeviceState **piix4_pm)
