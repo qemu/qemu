@@ -28,6 +28,7 @@
 #include "qapi/qmp/qbool.h"
 #include "qapi/qmp/qnum.h"
 #include "qapi/qmp/qstring.h"
+#include "qemu/error-report.h"
 
 #define MAX_INTERFACES 32
 
@@ -448,7 +449,6 @@ static void object_initialize_with_type(void *data, size_t size, TypeImpl *type)
 {
     Object *obj = data;
 
-    g_assert(type != NULL);
     type_initialize(type);
 
     g_assert(type->instance_size >= sizeof(Object));
@@ -467,6 +467,11 @@ static void object_initialize_with_type(void *data, size_t size, TypeImpl *type)
 void object_initialize(void *data, size_t size, const char *typename)
 {
     TypeImpl *type = type_get_by_name(typename);
+
+    if (!type) {
+        error_report("missing object type '%s'", typename);
+        abort();
+    }
 
     object_initialize_with_type(data, size, type);
 }
