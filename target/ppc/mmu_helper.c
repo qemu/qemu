@@ -33,11 +33,11 @@
 #include "mmu-book3s-v3.h"
 #include "mmu-radix64.h"
 
-//#define DEBUG_MMU
-//#define DEBUG_BATS
-//#define DEBUG_SOFTWARE_TLB
-//#define DUMP_PAGE_TABLES
-//#define FLUSH_ALL_TLBS
+/* #define DEBUG_MMU */
+/* #define DEBUG_BATS */
+/* #define DEBUG_SOFTWARE_TLB */
+/* #define DUMP_PAGE_TABLES */
+/* #define FLUSH_ALL_TLBS */
 
 #ifdef DEBUG_MMU
 #  define LOG_MMU_STATE(cpu) log_cpu_state_mask(CPU_LOG_MMU, (cpu), 0)
@@ -152,7 +152,8 @@ static int check_prot(int prot, int rw, int access_type)
 }
 
 static inline int ppc6xx_tlb_pte_check(mmu_ctx_t *ctx, target_ulong pte0,
-                                       target_ulong pte1, int h, int rw, int type)
+                                       target_ulong pte1, int h,
+                                       int rw, int type)
 {
     target_ulong ptem, mmask;
     int access, ret, pteh, ptev, pp;
@@ -332,7 +333,8 @@ static inline int ppc6xx_tlb_check(CPUPPCState *env, mmu_ctx_t *ctx,
                   pte_is_valid(tlb->pte0) ? "valid" : "inval",
                   tlb->EPN, eaddr, tlb->pte1,
                   rw ? 'S' : 'L', access_type == ACCESS_CODE ? 'I' : 'D');
-        switch (ppc6xx_tlb_pte_check(ctx, tlb->pte0, tlb->pte1, 0, rw, access_type)) {
+        switch (ppc6xx_tlb_pte_check(ctx, tlb->pte0, tlb->pte1,
+                                     0, rw, access_type)) {
         case -3:
             /* TLB inconsistency */
             return -1;
@@ -347,9 +349,11 @@ static inline int ppc6xx_tlb_check(CPUPPCState *env, mmu_ctx_t *ctx,
             break;
         case 0:
             /* access granted */
-            /* XXX: we should go on looping to check all TLBs consistency
-             *      but we can speed-up the whole thing as the
-             *      result would be undefined if TLBs are not consistent.
+            /*
+             * XXX: we should go on looping to check all TLBs
+             *      consistency but we can speed-up the whole thing as
+             *      the result would be undefined if TLBs are not
+             *      consistent.
              */
             ret = 0;
             best = nr;
@@ -550,14 +554,18 @@ static inline int get_segment_6xx_tlb(CPUPPCState *env, mmu_ctx_t *ctx,
         qemu_log_mask(CPU_LOG_MMU, "direct store...\n");
         /* Direct-store segment : absolutely *BUGGY* for now */
 
-        /* Direct-store implies a 32-bit MMU.
+        /*
+         * Direct-store implies a 32-bit MMU.
          * Check the Segment Register's bus unit ID (BUID).
          */
         sr = env->sr[eaddr >> 28];
         if ((sr & 0x1FF00000) >> 20 == 0x07f) {
-            /* Memory-forced I/O controller interface access */
-            /* If T=1 and BUID=x'07F', the 601 performs a memory access
-             * to SR[28-31] LA[4-31], bypassing all protection mechanisms.
+            /*
+             * Memory-forced I/O controller interface access
+             *
+             * If T=1 and BUID=x'07F', the 601 performs a memory
+             * access to SR[28-31] LA[4-31], bypassing all protection
+             * mechanisms.
              */
             ctx->raddr = ((sr & 0xF) << 28) | (eaddr & 0x0FFFFFFF);
             ctx->prot = PAGE_READ | PAGE_WRITE | PAGE_EXEC;
@@ -578,9 +586,11 @@ static inline int get_segment_6xx_tlb(CPUPPCState *env, mmu_ctx_t *ctx,
             /* lwarx, ldarx or srwcx. */
             return -4;
         case ACCESS_CACHE:
-            /* dcba, dcbt, dcbtst, dcbf, dcbi, dcbst, dcbz, or icbi */
-            /* Should make the instruction do no-op.
-             * As it already do no-op, it's quite easy :-)
+            /*
+             * dcba, dcbt, dcbtst, dcbf, dcbi, dcbst, dcbz, or icbi
+             *
+             * Should make the instruction do no-op.  As it already do
+             * no-op, it's quite easy :-)
              */
             ctx->raddr = eaddr;
             return 0;
@@ -942,12 +952,14 @@ static uint32_t mmubooke206_esr(int mmu_idx, bool rw)
     return esr;
 }
 
-/* Get EPID register given the mmu_idx. If this is regular load,
- * construct the EPID access bits from current processor state  */
-
-/* Get the effective AS and PR bits and the PID. The PID is returned only if
- * EPID load is requested, otherwise the caller must detect the correct EPID.
- * Return true if valid EPID is returned. */
+/*
+ * Get EPID register given the mmu_idx. If this is regular load,
+ * construct the EPID access bits from current processor state
+ *
+ * Get the effective AS and PR bits and the PID. The PID is returned
+ * only if EPID load is requested, otherwise the caller must detect
+ * the correct EPID.  Return true if valid EPID is returned.
+ */
 static bool mmubooke206_get_as(CPUPPCState *env,
                                int mmu_idx, uint32_t *epid_out,
                                bool *as_out, bool *pr_out)
@@ -1369,8 +1381,9 @@ static inline int check_physical(CPUPPCState *env, mmu_ctx_t *ctx,
 
     case POWERPC_MMU_SOFT_4xx_Z:
         if (unlikely(msr_pe != 0)) {
-            /* 403 family add some particular protections,
-             * using PBL/PBU registers for accesses with no translation.
+            /*
+             * 403 family add some particular protections, using
+             * PBL/PBU registers for accesses with no translation.
              */
             in_plb =
                 /* Check PLB validity */
@@ -1453,7 +1466,8 @@ static int get_physical_address_wtlb(
         if (real_mode) {
             ret = check_physical(env, ctx, eaddr, rw);
         } else {
-            cpu_abort(CPU(cpu), "PowerPC in real mode do not do any translation\n");
+            cpu_abort(CPU(cpu),
+                      "PowerPC in real mode do not do any translation\n");
         }
         return -1;
     default:
@@ -1498,9 +1512,10 @@ hwaddr ppc_cpu_get_phys_page_debug(CPUState *cs, vaddr addr)
 
     if (unlikely(get_physical_address(env, &ctx, addr, 0, ACCESS_INT) != 0)) {
 
-        /* Some MMUs have separate TLBs for code and data. If we only try an
-         * ACCESS_INT, we may not be able to read instructions mapped by code
-         * TLBs, so we also try a ACCESS_CODE.
+        /*
+         * Some MMUs have separate TLBs for code and data. If we only
+         * try an ACCESS_INT, we may not be able to read instructions
+         * mapped by code TLBs, so we also try a ACCESS_CODE.
          */
         if (unlikely(get_physical_address(env, &ctx, addr, 0,
                                           ACCESS_CODE) != 0)) {
@@ -1805,6 +1820,13 @@ static inline void do_invalidate_BAT(CPUPPCState *env, target_ulong BATu,
 
     base = BATu & ~0x0001FFFF;
     end = base + mask + 0x00020000;
+    if (((end - base) >> TARGET_PAGE_BITS) > 1024) {
+        /* Flushing 1024 4K pages is slower than a complete flush */
+        LOG_BATS("Flush all BATs\n");
+        tlb_flush(CPU(cs));
+        LOG_BATS("Flush done\n");
+        return;
+    }
     LOG_BATS("Flush BAT from " TARGET_FMT_lx " to " TARGET_FMT_lx " ("
              TARGET_FMT_lx ")\n", base, end, mask);
     for (page = base; page != end; page += TARGET_PAGE_SIZE) {
@@ -1834,8 +1856,9 @@ void helper_store_ibatu(CPUPPCState *env, uint32_t nr, target_ulong value)
 #if !defined(FLUSH_ALL_TLBS)
         do_invalidate_BAT(env, env->IBAT[0][nr], mask);
 #endif
-        /* When storing valid upper BAT, mask BEPI and BRPN
-         * and invalidate all TLBs covered by this BAT
+        /*
+         * When storing valid upper BAT, mask BEPI and BRPN and
+         * invalidate all TLBs covered by this BAT
          */
         mask = (value << 15) & 0x0FFE0000UL;
         env->IBAT[0][nr] = (value & 0x00001FFFUL) |
@@ -1865,8 +1888,9 @@ void helper_store_dbatu(CPUPPCState *env, uint32_t nr, target_ulong value)
 
     dump_store_bat(env, 'D', 0, nr, value);
     if (env->DBAT[0][nr] != value) {
-        /* When storing valid upper BAT, mask BEPI and BRPN
-         * and invalidate all TLBs covered by this BAT
+        /*
+         * When storing valid upper BAT, mask BEPI and BRPN and
+         * invalidate all TLBs covered by this BAT
          */
         mask = (value << 15) & 0x0FFE0000UL;
 #if !defined(FLUSH_ALL_TLBS)
@@ -1913,8 +1937,9 @@ void helper_store_601_batu(CPUPPCState *env, uint32_t nr, target_ulong value)
             do_inval = 1;
 #endif
         }
-        /* When storing valid upper BAT, mask BEPI and BRPN
-         * and invalidate all TLBs covered by this BAT
+        /*
+         * When storing valid upper BAT, mask BEPI and BRPN and
+         * invalidate all TLBs covered by this BAT
          */
         env->IBAT[0][nr] = (value & 0x00001FFFUL) |
             (value & ~0x0001FFFFUL & ~mask);
@@ -2027,7 +2052,8 @@ void ppc_tlb_invalidate_one(CPUPPCState *env, target_ulong addr)
 #if defined(TARGET_PPC64)
     if (env->mmu_model & POWERPC_MMU_64) {
         /* tlbie invalidate TLBs for all segments */
-        /* XXX: given the fact that there are too many segments to invalidate,
+        /*
+         * XXX: given the fact that there are too many segments to invalidate,
          *      and we still don't have a tlb_flush_mask(env, n, mask) in QEMU,
          *      we just invalidate all TLBs
          */
@@ -2044,10 +2070,11 @@ void ppc_tlb_invalidate_one(CPUPPCState *env, target_ulong addr)
         break;
     case POWERPC_MMU_32B:
     case POWERPC_MMU_601:
-        /* Actual CPUs invalidate entire congruence classes based on the
-         * geometry of their TLBs and some OSes take that into account,
-         * we just mark the TLB to be flushed later (context synchronizing
-         * event or sync instruction on 32-bit).
+        /*
+         * Actual CPUs invalidate entire congruence classes based on
+         * the geometry of their TLBs and some OSes take that into
+         * account, we just mark the TLB to be flushed later (context
+         * synchronizing event or sync instruction on 32-bit).
          */
         env->tlb_need_flush |= TLB_NEED_LOCAL_FLUSH;
         break;
@@ -2152,8 +2179,10 @@ void helper_store_sr(CPUPPCState *env, target_ulong srnum, target_ulong value)
 #endif
     if (env->sr[srnum] != value) {
         env->sr[srnum] = value;
-/* Invalidating 256MB of virtual memory in 4kB pages is way longer than
-   flusing the whole TLB. */
+        /*
+         * Invalidating 256MB of virtual memory in 4kB pages is way
+         * longer than flusing the whole TLB.
+         */
 #if !defined(FLUSH_ALL_TLBS) && 0
         {
             target_ulong page, end;
@@ -2264,10 +2293,12 @@ target_ulong helper_rac(CPUPPCState *env, target_ulong addr)
     int nb_BATs;
     target_ulong ret = 0;
 
-    /* We don't have to generate many instances of this instruction,
+    /*
+     * We don't have to generate many instances of this instruction,
      * as rac is supervisor only.
+     *
+     * XXX: FIX THIS: Pretend we have no BAT
      */
-    /* XXX: FIX THIS: Pretend we have no BAT */
     nb_BATs = env->nb_BATs;
     env->nb_BATs = 0;
     if (get_physical_address(env, &ctx, addr, 0, ACCESS_INT) == 0) {
@@ -2422,7 +2453,8 @@ void helper_4xx_tlbwe_hi(CPUPPCState *env, target_ulong entry,
     }
     tlb->size = booke_tlb_to_page_size((val >> PPC4XX_TLBHI_SIZE_SHIFT)
                                        & PPC4XX_TLBHI_SIZE_MASK);
-    /* We cannot handle TLB size < TARGET_PAGE_SIZE.
+    /*
+     * We cannot handle TLB size < TARGET_PAGE_SIZE.
      * If this ever occurs, we should implement TARGET_PAGE_BITS_VARY
      */
     if ((val & PPC4XX_TLBHI_V) && tlb->size < TARGET_PAGE_SIZE) {
@@ -2742,7 +2774,8 @@ void helper_booke206_tlbwe(CPUPPCState *env)
     }
 
     if (tlb->mas1 & MAS1_VALID) {
-        /* Invalidate the page in QEMU TLB if it was a valid entry.
+        /*
+         * Invalidate the page in QEMU TLB if it was a valid entry.
          *
          * In "PowerPC e500 Core Family Reference Manual, Rev. 1",
          * Section "12.4.2 TLB Write Entry (tlbwe) Instruction":
@@ -2751,7 +2784,8 @@ void helper_booke206_tlbwe(CPUPPCState *env)
          * "Note that when an L2 TLB entry is written, it may be displacing an
          * already valid entry in the same L2 TLB location (a victim). If a
          * valid L1 TLB entry corresponds to the L2 MMU victim entry, that L1
-         * TLB entry is automatically invalidated." */
+         * TLB entry is automatically invalidated."
+         */
         flush_page(env, tlb);
     }
 
@@ -2777,8 +2811,9 @@ void helper_booke206_tlbwe(CPUPPCState *env)
     mask |= MAS2_ACM | MAS2_VLE | MAS2_W | MAS2_I | MAS2_M | MAS2_G | MAS2_E;
 
     if (!msr_cm) {
-        /* Executing a tlbwe instruction in 32-bit mode will set
-         * bits 0:31 of the TLB EPN field to zero.
+        /*
+         * Executing a tlbwe instruction in 32-bit mode will set bits
+         * 0:31 of the TLB EPN field to zero.
          */
         mask &= 0xffffffff;
     }
@@ -3022,10 +3057,13 @@ void helper_check_tlb_flush_global(CPUPPCState *env)
 
 /*****************************************************************************/
 
-/* try to fill the TLB and return an exception if error. If retaddr is
-   NULL, it means that the function was called in C code (i.e. not
-   from generated code or from helper.c) */
-/* XXX: fix it to restore all registers */
+/*
+ * try to fill the TLB and return an exception if error. If retaddr is
+ * NULL, it means that the function was called in C code (i.e. not
+ * from generated code or from helper.c)
+ *
+ * XXX: fix it to restore all registers
+ */
 void tlb_fill(CPUState *cs, target_ulong addr, int size,
               MMUAccessType access_type, int mmu_idx, uintptr_t retaddr)
 {

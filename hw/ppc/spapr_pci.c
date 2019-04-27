@@ -719,26 +719,10 @@ param_error_exit:
     rtas_st(rets, 0, RTAS_OUT_PARAM_ERROR);
 }
 
-static int pci_spapr_swizzle(int slot, int pin)
-{
-    return (slot + pin) % PCI_NUM_PINS;
-}
-
-static int pci_spapr_map_irq(PCIDevice *pci_dev, int irq_num)
-{
-    /*
-     * Here we need to convert pci_dev + irq_num to some unique value
-     * which is less than number of IRQs on the specific bus (4).  We
-     * use standard PCI swizzling, that is (slot number + pin number)
-     * % 4.
-     */
-    return pci_spapr_swizzle(PCI_SLOT(pci_dev->devfn), irq_num);
-}
-
 static void pci_spapr_set_irq(void *opaque, int irq_num, int level)
 {
     /*
-     * Here we use the number returned by pci_spapr_map_irq to find a
+     * Here we use the number returned by pci_swizzle_map_irq_fn to find a
      * corresponding qemu_irq.
      */
     SpaprPhbState *phb = opaque;
@@ -1355,6 +1339,8 @@ static void spapr_populate_pci_child_dt(PCIDevice *dev, void *fdt, int offset,
     if (sphb->pcie_ecs && pci_is_express(dev)) {
         _FDT(fdt_setprop_cell(fdt, offset, "ibm,pci-config-space-type", 0x1));
     }
+
+    spapr_phb_nvgpu_populate_pcidev_dt(dev, fdt, offset, sphb);
 }
 
 /* create OF node for pci device and required OF DT properties */
@@ -1587,6 +1573,8 @@ static void spapr_phb_unrealize(DeviceState *dev, Error **errp)
     int i;
     const unsigned windows_supported = spapr_phb_windows_supported(sphb);
 
+    spapr_phb_nvgpu_free(sphb);
+
     if (sphb->msi) {
         g_hash_table_unref(sphb->msi);
         sphb->msi = NULL;
@@ -1762,7 +1750,7 @@ static void spapr_phb_realize(DeviceState *dev, Error **errp)
                                 &sphb->iowindow);
 
     bus = pci_register_root_bus(dev, NULL,
-                                pci_spapr_set_irq, pci_spapr_map_irq, sphb,
+                                pci_spapr_set_irq, pci_swizzle_map_irq_fn, sphb,
                                 &sphb->memspace, &sphb->iospace,
                                 PCI_DEVFN(0, 0), PCI_NUM_PINS,
                                 TYPE_SPAPR_PHB_ROOT_BUS);
@@ -1898,8 +1886,14 @@ void spapr_phb_dma_reset(SpaprPhbState *sphb)
 static void spapr_phb_reset(DeviceState *qdev)
 {
     SpaprPhbState *sphb = SPAPR_PCI_HOST_BRIDGE(qdev);
+    Error *errp = NULL;
 
     spapr_phb_dma_reset(sphb);
+    spapr_phb_nvgpu_free(sphb);
+    spapr_phb_nvgpu_setup(sphb, &errp);
+    if (errp) {
+        error_report_err(errp);
+    }
 
     /* Reset the IOMMU state */
     object_child_foreach(OBJECT(qdev), spapr_phb_children_reset, NULL);
@@ -1932,6 +1926,8 @@ static Property spapr_phb_properties[] = {
                      pre_2_8_migration, false),
     DEFINE_PROP_BOOL("pcie-extended-configuration-space", SpaprPhbState,
                      pcie_ecs, true),
+    DEFINE_PROP_UINT64("gpa", SpaprPhbState, nv2_gpa_win_addr, 0),
+    DEFINE_PROP_UINT64("atsd", SpaprPhbState, nv2_atsd_win_addr, 0),
     DEFINE_PROP_END_OF_LIST(),
 };
 
@@ -2164,7 +2160,6 @@ int spapr_populate_pci_dt(SpaprPhbState *phb, uint32_t intc_phandle, void *fdt,
                           uint32_t nr_msis, int *node_offset)
 {
     int bus_off, i, j, ret;
-    gchar *nodename;
     uint32_t bus_range[] = { cpu_to_be32(0), cpu_to_be32(0xff) };
     struct {
         uint32_t hi;
@@ -2212,11 +2207,10 @@ int spapr_populate_pci_dt(SpaprPhbState *phb, uint32_t intc_phandle, void *fdt,
     PCIBus *bus = PCI_HOST_BRIDGE(phb)->bus;
     SpaprFdt s_fdt;
     SpaprDrc *drc;
+    Error *errp = NULL;
 
     /* Start populating the FDT */
-    nodename = g_strdup_printf("pci@%" PRIx64, phb->buid);
-    _FDT(bus_off = fdt_add_subnode(fdt, 0, nodename));
-    g_free(nodename);
+    _FDT(bus_off = fdt_add_subnode(fdt, 0, phb->dtbusname));
     if (node_offset) {
         *node_offset = bus_off;
     }
@@ -2249,14 +2243,14 @@ int spapr_populate_pci_dt(SpaprPhbState *phb, uint32_t intc_phandle, void *fdt,
     }
 
     /* Build the interrupt-map, this must matches what is done
-     * in pci_spapr_map_irq
+     * in pci_swizzle_map_irq_fn
      */
     _FDT(fdt_setprop(fdt, bus_off, "interrupt-map-mask",
                      &interrupt_map_mask, sizeof(interrupt_map_mask)));
     for (i = 0; i < PCI_SLOT_MAX; i++) {
         for (j = 0; j < PCI_NUM_PINS; j++) {
             uint32_t *irqmap = interrupt_map[i*PCI_NUM_PINS + j];
-            int lsi_num = pci_spapr_swizzle(i, j);
+            int lsi_num = pci_swizzle(i, j);
 
             irqmap[0] = cpu_to_be32(b_ddddd(i)|b_fff(0));
             irqmap[1] = 0;
@@ -2303,6 +2297,12 @@ int spapr_populate_pci_dt(SpaprPhbState *phb, uint32_t intc_phandle, void *fdt,
     if (ret) {
         return ret;
     }
+
+    spapr_phb_nvgpu_populate_dt(phb, fdt, bus_off, &errp);
+    if (errp) {
+        error_report_err(errp);
+    }
+    spapr_phb_nvgpu_ram_populate_dt(phb, fdt);
 
     return 0;
 }

@@ -1104,19 +1104,19 @@ void helper_##op(CPUPPCState *env, uint64_t *t, uint64_t *b, uint32_t s)     \
         }                                                                    \
         }                                                                    \
                                                                              \
-    while (offset < (size)/4) {                                              \
+    while (offset < (size) / 4) {                                            \
         n++;                                                                 \
-        digits[(size)/4-n] = dfp_get_bcd_digit_##size(dfp.b64, offset++);    \
-        if (digits[(size)/4-n] > 10) {                                       \
+        digits[(size) / 4 - n] = dfp_get_bcd_digit_##size(dfp.b64, offset++); \
+        if (digits[(size) / 4 - n] > 10) {                                   \
             dfp_set_FPSCR_flag(&dfp, FP_VX | FP_VXCVI, FPSCR_VE);            \
             return;                                                          \
         } else {                                                             \
-            nonzero |= (digits[(size)/4-n] > 0);                             \
+            nonzero |= (digits[(size) / 4 - n] > 0);                         \
         }                                                                    \
     }                                                                        \
                                                                              \
     if (nonzero) {                                                           \
-        decNumberSetBCD(&dfp.t, digits+((size)/4)-n, n);                     \
+        decNumberSetBCD(&dfp.t, digits + ((size) / 4) - n, n);               \
     }                                                                        \
                                                                              \
     if (s && sgn)  {                                                         \
@@ -1170,13 +1170,13 @@ DFP_HELPER_XEX(dxexq, 128)
 static void dfp_set_raw_exp_64(uint64_t *t, uint64_t raw)
 {
     *t &= 0x8003ffffffffffffULL;
-    *t |= (raw << (63-13));
+    *t |= (raw << (63 - 13));
 }
 
 static void dfp_set_raw_exp_128(uint64_t *t, uint64_t raw)
 {
     t[HI_IDX] &= 0x80003fffffffffffULL;
-    t[HI_IDX] |= (raw << (63-17));
+    t[HI_IDX] |= (raw << (63 - 17));
 }
 
 #define DFP_HELPER_IEX(op, size)                                          \

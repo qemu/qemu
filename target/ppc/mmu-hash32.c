@@ -27,7 +27,7 @@
 #include "mmu-hash32.h"
 #include "exec/log.h"
 
-//#define DEBUG_BAT
+/* #define DEBUG_BAT */
 
 #ifdef DEBUG_BATS
 #  define LOG_BATS(...) qemu_log_mask(CPU_LOG_MMU, __VA_ARGS__)
@@ -228,8 +228,10 @@ static int ppc_hash32_direct_store(PowerPCCPU *cpu, target_ulong sr,
     qemu_log_mask(CPU_LOG_MMU, "direct store...\n");
 
     if ((sr & 0x1FF00000) >> 20 == 0x07f) {
-        /* Memory-forced I/O controller interface access */
-        /* If T=1 and BUID=x'07F', the 601 performs a memory access
+        /*
+         * Memory-forced I/O controller interface access
+         *
+         * If T=1 and BUID=x'07F', the 601 performs a memory access
          * to SR[28-31] LA[4-31], bypassing all protection mechanisms.
          */
         *raddr = ((sr & 0xF) << 28) | (eaddr & 0x0FFFFFFF);
@@ -265,9 +267,11 @@ static int ppc_hash32_direct_store(PowerPCCPU *cpu, target_ulong sr,
         }
         return 1;
     case ACCESS_CACHE:
-        /* dcba, dcbt, dcbtst, dcbf, dcbi, dcbst, dcbz, or icbi */
-        /* Should make the instruction do no-op.
-         * As it already do no-op, it's quite easy :-)
+        /*
+         * dcba, dcbt, dcbtst, dcbf, dcbi, dcbst, dcbz, or icbi
+         *
+         * Should make the instruction do no-op.  As it already do
+         * no-op, it's quite easy :-)
          */
         *raddr = eaddr;
         return 0;
@@ -341,6 +345,24 @@ static hwaddr ppc_hash32_pteg_search(PowerPCCPU *cpu, hwaddr pteg_off,
     return -1;
 }
 
+static void ppc_hash32_set_r(PowerPCCPU *cpu, hwaddr pte_offset, uint32_t pte1)
+{
+    target_ulong base = ppc_hash32_hpt_base(cpu);
+    hwaddr offset = pte_offset + 6;
+
+    /* The HW performs a non-atomic byte update */
+    stb_phys(CPU(cpu)->as, base + offset, ((pte1 >> 8) & 0xff) | 0x01);
+}
+
+static void ppc_hash32_set_c(PowerPCCPU *cpu, hwaddr pte_offset, uint64_t pte1)
+{
+    target_ulong base = ppc_hash32_hpt_base(cpu);
+    hwaddr offset = pte_offset + 7;
+
+    /* The HW performs a non-atomic byte update */
+    stb_phys(CPU(cpu)->as, base + offset, (pte1 & 0xff) | 0x80);
+}
+
 static hwaddr ppc_hash32_htab_lookup(PowerPCCPU *cpu,
                                      target_ulong sr, target_ulong eaddr,
                                      ppc_hash_pte32_t *pte)
@@ -399,7 +421,6 @@ int ppc_hash32_handle_mmu_fault(PowerPCCPU *cpu, vaddr eaddr, int rwx,
     hwaddr pte_offset;
     ppc_hash_pte32_t pte;
     int prot;
-    uint32_t new_pte1;
     const int need_prot[] = {PAGE_READ, PAGE_WRITE, PAGE_EXEC};
     hwaddr raddr;
 
@@ -515,18 +536,20 @@ int ppc_hash32_handle_mmu_fault(PowerPCCPU *cpu, vaddr eaddr, int rwx,
 
     /* 8. Update PTE referenced and changed bits if necessary */
 
-    new_pte1 = pte.pte1 | HPTE32_R_R; /* set referenced bit */
-    if (rwx == 1) {
-        new_pte1 |= HPTE32_R_C; /* set changed (dirty) bit */
-    } else {
-        /* Treat the page as read-only for now, so that a later write
-         * will pass through this function again to set the C bit */
-        prot &= ~PAGE_WRITE;
+    if (!(pte.pte1 & HPTE32_R_R)) {
+        ppc_hash32_set_r(cpu, pte_offset, pte.pte1);
     }
-
-    if (new_pte1 != pte.pte1) {
-        ppc_hash32_store_hpte1(cpu, pte_offset, new_pte1);
-    }
+    if (!(pte.pte1 & HPTE32_R_C)) {
+        if (rwx == 1) {
+            ppc_hash32_set_c(cpu, pte_offset, pte.pte1);
+        } else {
+            /*
+             * Treat the page as read-only for now, so that a later write
+             * will pass through this function again to set the C bit
+             */
+            prot &= ~PAGE_WRITE;
+        }
+     }
 
     /* 9. Determine the real address from the PTE */
 

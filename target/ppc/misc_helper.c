@@ -210,10 +210,11 @@ void ppc_store_msr(CPUPPCState *env, target_ulong value)
     hreg_store_msr(env, value, 0);
 }
 
-/* This code is lifted from MacOnLinux. It is called whenever
- * THRM1,2 or 3 is read an fixes up the values in such a way
- * that will make MacOS not hang. These registers exist on some
- * 75x and 74xx processors.
+/*
+ * This code is lifted from MacOnLinux. It is called whenever THRM1,2
+ * or 3 is read an fixes up the values in such a way that will make
+ * MacOS not hang. These registers exist on some 75x and 74xx
+ * processors.
  */
 void helper_fixup_thrm(CPUPPCState *env)
 {

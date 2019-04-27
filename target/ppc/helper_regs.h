@@ -44,10 +44,11 @@ static inline void hreg_swap_gpr_tgpr(CPUPPCState *env)
 
 static inline void hreg_compute_mem_idx(CPUPPCState *env)
 {
-    /* This is our encoding for server processors. The architecture
+    /*
+     * This is our encoding for server processors. The architecture
      * specifies that there is no such thing as userspace with
-     * translation off, however it appears that MacOS does it and
-     * some 32-bit CPUs support it. Weird...
+     * translation off, however it appears that MacOS does it and some
+     * 32-bit CPUs support it. Weird...
      *
      *   0 = Guest User space virtual mode
      *   1 = Guest Kernel space virtual mode
@@ -143,7 +144,8 @@ static inline int hreg_store_msr(CPUPPCState *env, target_ulong value,
         /* Change the exception prefix on PowerPC 601 */
         env->excp_prefix = ((value >> MSR_EP) & 1) * 0xFFF00000;
     }
-    /* If PR=1 then EE, IR and DR must be 1
+    /*
+     * If PR=1 then EE, IR and DR must be 1
      *
      * Note: We only enforce this on 64-bit server processors.
      * It appears that:

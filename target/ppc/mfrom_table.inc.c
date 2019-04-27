@@ -1,5 +1,4 @@
-static const uint8_t mfrom_ROM_table[602] =
-{
+static const uint8_t mfrom_ROM_table[602] = {
      77,  77,  76,  76,  75,  75,  74,  74,
      73,  73,  72,  72,  71,  71,  70,  70,
      69,  69,  68,  68,  68,  67,  67,  66,

@@ -1034,12 +1034,13 @@ static void spapr_dt_rtas(SpaprMachineState *spapr, void *fdt)
         0, cpu_to_be32(SPAPR_MEMORY_BLOCK_SIZE),
         cpu_to_be32(max_cpus / smp_threads),
     };
+    uint32_t maxdomain = cpu_to_be32(spapr->gpu_numa_id > 1 ? 1 : 0);
     uint32_t maxdomains[] = {
         cpu_to_be32(4),
-        cpu_to_be32(0),
-        cpu_to_be32(0),
-        cpu_to_be32(0),
-        cpu_to_be32(nb_numa_nodes ? nb_numa_nodes : 1),
+        maxdomain,
+        maxdomain,
+        maxdomain,
+        cpu_to_be32(spapr->gpu_numa_id),
     };
 
     _FDT(rtas = fdt_add_subnode(fdt, 0, "rtas"));
@@ -1519,10 +1520,10 @@ static void spapr_unmap_hptes(PPCVirtualHypervisor *vhyp,
     /* Nothing to do for qemu managed HPT */
 }
 
-static void spapr_store_hpte(PPCVirtualHypervisor *vhyp, hwaddr ptex,
-                             uint64_t pte0, uint64_t pte1)
+void spapr_store_hpte(PowerPCCPU *cpu, hwaddr ptex,
+                      uint64_t pte0, uint64_t pte1)
 {
-    SpaprMachineState *spapr = SPAPR_MACHINE(vhyp);
+    SpaprMachineState *spapr = SPAPR_MACHINE(cpu->vhyp);
     hwaddr offset = ptex * HASH_PTE_SIZE_64;
 
     if (!spapr->htab) {
@@ -1548,6 +1549,38 @@ static void spapr_store_hpte(PPCVirtualHypervisor *vhyp, hwaddr ptex,
             stq_p(spapr->htab + offset + HASH_PTE_SIZE_64 / 2, pte1);
         }
     }
+}
+
+static void spapr_hpte_set_c(PPCVirtualHypervisor *vhyp, hwaddr ptex,
+                             uint64_t pte1)
+{
+    hwaddr offset = ptex * HASH_PTE_SIZE_64 + 15;
+    SpaprMachineState *spapr = SPAPR_MACHINE(vhyp);
+
+    if (!spapr->htab) {
+        /* There should always be a hash table when this is called */
+        error_report("spapr_hpte_set_c called with no hash table !");
+        return;
+    }
+
+    /* The HW performs a non-atomic byte update */
+    stb_p(spapr->htab + offset, (pte1 & 0xff) | 0x80);
+}
+
+static void spapr_hpte_set_r(PPCVirtualHypervisor *vhyp, hwaddr ptex,
+                             uint64_t pte1)
+{
+    hwaddr offset = ptex * HASH_PTE_SIZE_64 + 14;
+    SpaprMachineState *spapr = SPAPR_MACHINE(vhyp);
+
+    if (!spapr->htab) {
+        /* There should always be a hash table when this is called */
+        error_report("spapr_hpte_set_r called with no hash table !");
+        return;
+    }
+
+    /* The HW performs a non-atomic byte update */
+    stb_p(spapr->htab + offset, ((pte1 >> 8) & 0xff) | 0x01);
 }
 
 int spapr_hpt_shift_for_ramsize(uint64_t ramsize)
@@ -1698,6 +1731,16 @@ static void spapr_machine_reset(void)
         spapr_irq_msi_reset(spapr);
     }
 
+    /*
+     * NVLink2-connected GPU RAM needs to be placed on a separate NUMA node.
+     * We assign a new numa ID per GPU in spapr_pci_collect_nvgpu() which is
+     * called from vPHB reset handler so we initialize the counter here.
+     * If no NUMA is configured from the QEMU side, we start from 1 as GPU RAM
+     * must be equally distant from any other node.
+     * The final value of spapr->gpu_numa_id is going to be written to
+     * max-associativity-domains in spapr_build_fdt().
+     */
+    spapr->gpu_numa_id = MAX(1, nb_numa_nodes);
     qemu_devices_reset();
 
     /*
@@ -3907,7 +3950,9 @@ static void spapr_phb_pre_plug(HotplugHandler *hotplug_dev, DeviceState *dev,
     smc->phb_placement(spapr, sphb->index,
                        &sphb->buid, &sphb->io_win_addr,
                        &sphb->mem_win_addr, &sphb->mem64_win_addr,
-                       windows_supported, sphb->dma_liobn, errp);
+                       windows_supported, sphb->dma_liobn,
+                       &sphb->nv2_gpa_win_addr, &sphb->nv2_atsd_win_addr,
+                       errp);
 }
 
 static void spapr_phb_plug(HotplugHandler *hotplug_dev, DeviceState *dev,
@@ -4108,7 +4153,8 @@ static const CPUArchIdList *spapr_possible_cpu_arch_ids(MachineState *machine)
 static void spapr_phb_placement(SpaprMachineState *spapr, uint32_t index,
                                 uint64_t *buid, hwaddr *pio,
                                 hwaddr *mmio32, hwaddr *mmio64,
-                                unsigned n_dma, uint32_t *liobns, Error **errp)
+                                unsigned n_dma, uint32_t *liobns,
+                                hwaddr *nv2gpa, hwaddr *nv2atsd, Error **errp)
 {
     /*
      * New-style PHB window placement.
@@ -4153,6 +4199,9 @@ static void spapr_phb_placement(SpaprMachineState *spapr, uint32_t index,
     *pio = SPAPR_PCI_BASE + index * SPAPR_PCI_IO_WIN_SIZE;
     *mmio32 = SPAPR_PCI_BASE + (index + 1) * SPAPR_PCI_MEM32_WIN_SIZE;
     *mmio64 = SPAPR_PCI_BASE + (index + 1) * SPAPR_PCI_MEM64_WIN_SIZE;
+
+    *nv2gpa = SPAPR_PCI_NV2RAM64_WIN_BASE + index * SPAPR_PCI_NV2RAM64_WIN_SIZE;
+    *nv2atsd = SPAPR_PCI_NV2ATSD_WIN_BASE + index * SPAPR_PCI_NV2ATSD_WIN_SIZE;
 }
 
 static ICSState *spapr_ics_get(XICSFabric *dev, int irq)
@@ -4274,7 +4323,8 @@ static void spapr_machine_class_init(ObjectClass *oc, void *data)
     vhc->hpt_mask = spapr_hpt_mask;
     vhc->map_hptes = spapr_map_hptes;
     vhc->unmap_hptes = spapr_unmap_hptes;
-    vhc->store_hpte = spapr_store_hpte;
+    vhc->hpte_set_c = spapr_hpte_set_c;
+    vhc->hpte_set_r = spapr_hpte_set_r;
     vhc->get_pate = spapr_get_pate;
     vhc->encode_hpt_for_kvm_pr = spapr_encode_hpt_for_kvm_pr;
     xic->ics_get = spapr_ics_get;
@@ -4368,6 +4418,18 @@ DEFINE_SPAPR_MACHINE(4_0, "4.0", false);
 /*
  * pseries-3.1
  */
+static void phb_placement_3_1(SpaprMachineState *spapr, uint32_t index,
+                              uint64_t *buid, hwaddr *pio,
+                              hwaddr *mmio32, hwaddr *mmio64,
+                              unsigned n_dma, uint32_t *liobns,
+                              hwaddr *nv2gpa, hwaddr *nv2atsd, Error **errp)
+{
+    spapr_phb_placement(spapr, index, buid, pio, mmio32, mmio64, n_dma, liobns,
+                        nv2gpa, nv2atsd, errp);
+    *nv2gpa = 0;
+    *nv2atsd = 0;
+}
+
 static void spapr_machine_3_1_class_options(MachineClass *mc)
 {
     SpaprMachineClass *smc = SPAPR_MACHINE_CLASS(mc);
@@ -4383,6 +4445,7 @@ static void spapr_machine_3_1_class_options(MachineClass *mc)
     smc->default_caps.caps[SPAPR_CAP_SBBC] = SPAPR_CAP_BROKEN;
     smc->default_caps.caps[SPAPR_CAP_IBS] = SPAPR_CAP_BROKEN;
     smc->default_caps.caps[SPAPR_CAP_LARGE_DECREMENTER] = SPAPR_CAP_OFF;
+    smc->phb_placement = phb_placement_3_1;
 }
 
 DEFINE_SPAPR_MACHINE(3_1, "3.1", false);
@@ -4514,7 +4577,8 @@ DEFINE_SPAPR_MACHINE(2_8, "2.8", false);
 static void phb_placement_2_7(SpaprMachineState *spapr, uint32_t index,
                               uint64_t *buid, hwaddr *pio,
                               hwaddr *mmio32, hwaddr *mmio64,
-                              unsigned n_dma, uint32_t *liobns, Error **errp)
+                              unsigned n_dma, uint32_t *liobns,
+                              hwaddr *nv2gpa, hwaddr *nv2atsd, Error **errp)
 {
     /* Legacy PHB placement for pseries-2.7 and earlier machine types */
     const uint64_t base_buid = 0x800000020000000ULL;
@@ -4558,6 +4622,9 @@ static void phb_placement_2_7(SpaprMachineState *spapr, uint32_t index,
      * fallback behaviour of automatically splitting a large "32-bit"
      * window into contiguous 32-bit and 64-bit windows
      */
+
+    *nv2gpa = 0;
+    *nv2atsd = 0;
 }
 
 static void spapr_machine_2_7_class_options(MachineClass *mc)

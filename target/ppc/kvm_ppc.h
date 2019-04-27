@@ -117,7 +117,8 @@ static inline int kvmppc_get_hasidle(CPUPPCState *env)
     return 0;
 }
 
-static inline int kvmppc_get_hypercall(CPUPPCState *env, uint8_t *buf, int buf_len)
+static inline int kvmppc_get_hypercall(CPUPPCState *env,
+                                       uint8_t *buf, int buf_len)
 {
     return -1;
 }

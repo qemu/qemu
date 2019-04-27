@@ -393,7 +393,8 @@ enum {
     CPU_POWERPC_RS64IV             = 0x00370000,
 #endif /* defined(TARGET_PPC64) */
     /* Original POWER */
-    /* XXX: should be POWER (RIOS), RSC3308, RSC4608,
+    /*
+     * XXX: should be POWER (RIOS), RSC3308, RSC4608,
      * POWER2 (RIOS2) & RSC2 (P2SC) here
      */
     /* PA Semi core */

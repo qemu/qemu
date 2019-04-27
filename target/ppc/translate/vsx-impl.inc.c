@@ -751,7 +751,7 @@ static void gen_xxpermdi(DisasContext *ctx)
 #define SGN_MASK_SP 0x8000000080000000ull
 
 #define VSX_SCALAR_MOVE(name, op, sgn_mask)                       \
-static void glue(gen_, name)(DisasContext * ctx)                  \
+static void glue(gen_, name)(DisasContext *ctx)                   \
     {                                                             \
         TCGv_i64 xb, sgm;                                         \
         if (unlikely(!ctx->vsx_enabled)) {                        \
@@ -848,7 +848,7 @@ VSX_SCALAR_MOVE_QP(xsnegqp, OP_NEG, SGN_MASK_DP)
 VSX_SCALAR_MOVE_QP(xscpsgnqp, OP_CPSGN, SGN_MASK_DP)
 
 #define VSX_VECTOR_MOVE(name, op, sgn_mask)                      \
-static void glue(gen_, name)(DisasContext * ctx)                 \
+static void glue(gen_, name)(DisasContext *ctx)                  \
     {                                                            \
         TCGv_i64 xbh, xbl, sgm;                                  \
         if (unlikely(!ctx->vsx_enabled)) {                       \
@@ -910,7 +910,7 @@ VSX_VECTOR_MOVE(xvnegsp, OP_NEG, SGN_MASK_SP)
 VSX_VECTOR_MOVE(xvcpsgnsp, OP_CPSGN, SGN_MASK_SP)
 
 #define GEN_VSX_HELPER_2(name, op1, op2, inval, type)                         \
-static void gen_##name(DisasContext * ctx)                                    \
+static void gen_##name(DisasContext *ctx)                                     \
 {                                                                             \
     TCGv_i32 opc;                                                             \
     if (unlikely(!ctx->vsx_enabled)) {                                        \
@@ -923,7 +923,7 @@ static void gen_##name(DisasContext * ctx)                                    \
 }
 
 #define GEN_VSX_HELPER_XT_XB_ENV(name, op1, op2, inval, type) \
-static void gen_##name(DisasContext * ctx)                    \
+static void gen_##name(DisasContext *ctx)                     \
 {                                                             \
     TCGv_i64 t0;                                              \
     TCGv_i64 t1;                                              \
@@ -1230,7 +1230,7 @@ static void gen_xxbrw(DisasContext *ctx)
 }
 
 #define VSX_LOGICAL(name, vece, tcg_op)                              \
-static void glue(gen_, name)(DisasContext * ctx)                     \
+static void glue(gen_, name)(DisasContext *ctx)                      \
     {                                                                \
         if (unlikely(!ctx->vsx_enabled)) {                           \
             gen_exception(ctx, POWERPC_EXCP_VSXU);                   \
@@ -1251,7 +1251,7 @@ VSX_LOGICAL(xxlnand, MO_64, tcg_gen_gvec_nand)
 VSX_LOGICAL(xxlorc, MO_64, tcg_gen_gvec_orc)
 
 #define VSX_XXMRG(name, high)                               \
-static void glue(gen_, name)(DisasContext * ctx)            \
+static void glue(gen_, name)(DisasContext *ctx)             \
     {                                                       \
         TCGv_i64 a0, a1, b0, b1, tmp;                       \
         if (unlikely(!ctx->vsx_enabled)) {                  \
@@ -1444,7 +1444,8 @@ static void gen_##name(DisasContext *ctx)                       \
     xb = tcg_const_tl(xB(ctx->opcode));                         \
     t0 = tcg_temp_new_i32();                                    \
     t1 = tcg_temp_new_i64();                                    \
-    /* uimm > 15 out of bound and for                           \
+    /*                                                          \
+     * uimm > 15 out of bound and for                           \
      * uimm > 12 handle as per hardware in helper               \
      */                                                         \
     if (uimm > 15) {                                            \

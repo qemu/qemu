@@ -25,9 +25,9 @@
 #include "internal.h"
 #include "helper_regs.h"
 
-//#define DEBUG_OP
-//#define DEBUG_SOFTWARE_TLB
-//#define DEBUG_EXCEPTIONS
+/* #define DEBUG_OP */
+/* #define DEBUG_SOFTWARE_TLB */
+/* #define DEBUG_EXCEPTIONS */
 
 #ifdef DEBUG_EXCEPTIONS
 #  define LOG_EXCP(...) qemu_log(__VA_ARGS__)
@@ -126,8 +126,9 @@ static uint64_t ppc_excp_vector_offset(CPUState *cs, int ail)
     return offset;
 }
 
-/* Note that this function should be greatly optimized
- * when called with a constant excp, from ppc_hw_interrupt
+/*
+ * Note that this function should be greatly optimized when called
+ * with a constant excp, from ppc_hw_interrupt
  */
 static inline void powerpc_excp(PowerPCCPU *cpu, int excp_model, int excp)
 {
@@ -147,7 +148,8 @@ static inline void powerpc_excp(PowerPCCPU *cpu, int excp_model, int excp)
         msr = env->msr & ~0x783f0000ULL;
     }
 
-    /* new interrupt handler msr preserves existing HV and ME unless
+    /*
+     * new interrupt handler msr preserves existing HV and ME unless
      * explicitly overriden
      */
     new_msr = env->msr & (((target_ulong)1 << MSR_ME) | MSR_HVB);
@@ -166,7 +168,8 @@ static inline void powerpc_excp(PowerPCCPU *cpu, int excp_model, int excp)
         excp = powerpc_reset_wakeup(cs, env, excp, &msr);
     }
 
-    /* Exception targetting modifiers
+    /*
+     * Exception targetting modifiers
      *
      * LPES0 is supported on POWER7/8/9
      * LPES1 is not supported (old iSeries mode)
@@ -194,7 +197,8 @@ static inline void powerpc_excp(PowerPCCPU *cpu, int excp_model, int excp)
         ail = 0;
     }
 
-    /* Hypervisor emulation assistance interrupt only exists on server
+    /*
+     * Hypervisor emulation assistance interrupt only exists on server
      * arch 2.05 server or later. We also don't want to generate it if
      * we don't have HVB in msr_mask (PAPR mode).
      */
@@ -229,8 +233,9 @@ static inline void powerpc_excp(PowerPCCPU *cpu, int excp_model, int excp)
         break;
     case POWERPC_EXCP_MCHECK:    /* Machine check exception                  */
         if (msr_me == 0) {
-            /* Machine check exception is not enabled.
-             * Enter checkstop state.
+            /*
+             * Machine check exception is not enabled.  Enter
+             * checkstop state.
              */
             fprintf(stderr, "Machine check while not allowed. "
                     "Entering checkstop state\n");
@@ -242,8 +247,9 @@ static inline void powerpc_excp(PowerPCCPU *cpu, int excp_model, int excp)
             cpu_interrupt_exittb(cs);
         }
         if (env->msr_mask & MSR_HVB) {
-            /* ISA specifies HV, but can be delivered to guest with HV clear
-             * (e.g., see FWNMI in PAPR).
+            /*
+             * ISA specifies HV, but can be delivered to guest with HV
+             * clear (e.g., see FWNMI in PAPR).
              */
             new_msr |= (target_ulong)MSR_HVB;
         }
@@ -294,9 +300,10 @@ static inline void powerpc_excp(PowerPCCPU *cpu, int excp_model, int excp)
         break;
     case POWERPC_EXCP_ALIGN:     /* Alignment exception                      */
         /* Get rS/rD and rA from faulting opcode */
-        /* Note: the opcode fields will not be set properly for a direct
-         * store load/store, but nobody cares as nobody actually uses
-         * direct store segments.
+        /*
+         * Note: the opcode fields will not be set properly for a
+         * direct store load/store, but nobody cares as nobody
+         * actually uses direct store segments.
          */
         env->spr[SPR_DSISR] |= (env->error_code & 0x03FF0000) >> 16;
         break;
@@ -310,7 +317,8 @@ static inline void powerpc_excp(PowerPCCPU *cpu, int excp_model, int excp)
                 return;
             }
 
-            /* FP exceptions always have NIP pointing to the faulting
+            /*
+             * FP exceptions always have NIP pointing to the faulting
              * instruction, so always use store_next and claim we are
              * precise in the MSR.
              */
@@ -341,7 +349,8 @@ static inline void powerpc_excp(PowerPCCPU *cpu, int excp_model, int excp)
         dump_syscall(env);
         lev = env->error_code;
 
-        /* We need to correct the NIP which in this case is supposed
+        /*
+         * We need to correct the NIP which in this case is supposed
          * to point to the next instruction
          */
         env->nip += 4;
@@ -425,8 +434,9 @@ static inline void powerpc_excp(PowerPCCPU *cpu, int excp_model, int excp)
             new_msr |= ((target_ulong)1 << MSR_ME);
         }
         if (env->msr_mask & MSR_HVB) {
-            /* ISA specifies HV, but can be delivered to guest with HV clear
-             * (e.g., see FWNMI in PAPR, NMI injection in QEMU).
+            /*
+             * ISA specifies HV, but can be delivered to guest with HV
+             * clear (e.g., see FWNMI in PAPR, NMI injection in QEMU).
              */
             new_msr |= (target_ulong)MSR_HVB;
         } else {
@@ -675,7 +685,8 @@ static inline void powerpc_excp(PowerPCCPU *cpu, int excp_model, int excp)
         env->spr[asrr1] = env->spr[srr1];
     }
 
-    /* Sort out endianness of interrupt, this differs depending on the
+    /*
+     * Sort out endianness of interrupt, this differs depending on the
      * CPU, the HV mode, etc...
      */
 #ifdef TARGET_PPC64
@@ -716,8 +727,9 @@ static inline void powerpc_excp(PowerPCCPU *cpu, int excp_model, int excp)
     }
     vector |= env->excp_prefix;
 
-    /* AIL only works if there is no HV transition and we are running with
-     * translations enabled
+    /*
+     * AIL only works if there is no HV transition and we are running
+     * with translations enabled
      */
     if (!((msr >> MSR_IR) & 1) || !((msr >> MSR_DR) & 1) ||
         ((new_msr & MSR_HVB) && !(msr & MSR_HVB))) {
@@ -745,8 +757,9 @@ static inline void powerpc_excp(PowerPCCPU *cpu, int excp_model, int excp)
         }
     }
 #endif
-    /* We don't use hreg_store_msr here as already have treated
-     * any special case that could occur. Just store MSR and update hflags
+    /*
+     * We don't use hreg_store_msr here as already have treated any
+     * special case that could occur. Just store MSR and update hflags
      *
      * Note: We *MUST* not use hreg_store_msr() as-is anyway because it
      * will prevent setting of the HV bit which some exceptions might need
@@ -762,8 +775,9 @@ static inline void powerpc_excp(PowerPCCPU *cpu, int excp_model, int excp)
     /* Reset the reservation */
     env->reserve_addr = -1;
 
-    /* Any interrupt is context synchronizing, check if TCG TLB
-     * needs a delayed flush on ppc64
+    /*
+     * Any interrupt is context synchronizing, check if TCG TLB needs
+     * a delayed flush on ppc64
      */
     check_tlb_flush(env, false);
 }
@@ -1015,8 +1029,9 @@ void helper_pminsn(CPUPPCState *env, powerpc_pm_insn_t insn)
     cs = CPU(ppc_env_get_cpu(env));
     cs->halted = 1;
 
-    /* The architecture specifies that HDEC interrupts are
-     * discarded in PM states
+    /*
+     * The architecture specifies that HDEC interrupts are discarded
+     * in PM states
      */
     env->pending_interrupts &= ~(1 << PPC_INTERRUPT_HDECR);
 
@@ -1047,8 +1062,9 @@ static inline void do_rfi(CPUPPCState *env, target_ulong nip, target_ulong msr)
 #if defined(DEBUG_OP)
     cpu_dump_rfi(env->nip, env->msr);
 #endif
-    /* No need to raise an exception here,
-     * as rfi is always the last insn of a TB
+    /*
+     * No need to raise an exception here, as rfi is always the last
+     * insn of a TB
      */
     cpu_interrupt_exittb(cs);
     /* Reset the reservation */
@@ -1067,8 +1083,9 @@ void helper_rfi(CPUPPCState *env)
 #if defined(TARGET_PPC64)
 void helper_rfid(CPUPPCState *env)
 {
-    /* The architeture defines a number of rules for which bits
-     * can change but in practice, we handle this in hreg_store_msr()
+    /*
+     * The architeture defines a number of rules for which bits can
+     * change but in practice, we handle this in hreg_store_msr()
      * which will be called by do_rfi(), so there is no need to filter
      * here
      */
@@ -1206,9 +1223,11 @@ static int book3s_dbell2irq(target_ulong rb)
 {
     int msg = rb & DBELL_TYPE_MASK;
 
-    /* A Directed Hypervisor Doorbell message is sent only if the
+    /*
+     * A Directed Hypervisor Doorbell message is sent only if the
      * message type is 5. All other types are reserved and the
-     * instruction is a no-op */
+     * instruction is a no-op
+     */
     return msg == DBELL_TYPE_DBELL_SERVER ? PPC_INTERRUPT_HDOORBELL : -1;
 }
 

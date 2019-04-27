@@ -30,7 +30,7 @@
 #include "hw/hw.h"
 #include "mmu-book3s-v3.h"
 
-//#define DEBUG_SLB
+/* #define DEBUG_SLB */
 
 #ifdef DEBUG_SLB
 #  define LOG_SLB(...) qemu_log_mask(CPU_LOG_MMU, __VA_ARGS__)
@@ -58,9 +58,11 @@ static ppc_slb_t *slb_lookup(PowerPCCPU *cpu, target_ulong eaddr)
 
         LOG_SLB("%s: slot %d %016" PRIx64 " %016"
                     PRIx64 "\n", __func__, n, slb->esid, slb->vsid);
-        /* We check for 1T matches on all MMUs here - if the MMU
+        /*
+         * We check for 1T matches on all MMUs here - if the MMU
          * doesn't have 1T segment support, we will have prevented 1T
-         * entries from being inserted in the slbmte code. */
+         * entries from being inserted in the slbmte code.
+         */
         if (((slb->esid == esid_256M) &&
              ((slb->vsid & SLB_VSID_B) == SLB_VSID_B_256M))
             || ((slb->esid == esid_1T) &&
@@ -103,7 +105,8 @@ void helper_slbia(CPUPPCState *env)
 
         if (slb->esid & SLB_ESID_V) {
             slb->esid &= ~SLB_ESID_V;
-            /* XXX: given the fact that segment size is 256 MB or 1TB,
+            /*
+             * XXX: given the fact that segment size is 256 MB or 1TB,
              *      and we still don't have a tlb_flush_mask(env, n, mask)
              *      in QEMU, we just invalidate all TLBs
              */
@@ -126,7 +129,8 @@ static void __helper_slbie(CPUPPCState *env, target_ulong addr,
     if (slb->esid & SLB_ESID_V) {
         slb->esid &= ~SLB_ESID_V;
 
-        /* XXX: given the fact that segment size is 256 MB or 1TB,
+        /*
+         * XXX: given the fact that segment size is 256 MB or 1TB,
          *      and we still don't have a tlb_flush_mask(env, n, mask)
          *      in QEMU, we just invalidate all TLBs
          */
@@ -306,8 +310,10 @@ static int ppc_hash64_pte_prot(PowerPCCPU *cpu,
 {
     CPUPPCState *env = &cpu->env;
     unsigned pp, key;
-    /* Some pp bit combinations have undefined behaviour, so default
-     * to no access in those cases */
+    /*
+     * Some pp bit combinations have undefined behaviour, so default
+     * to no access in those cases
+     */
     int prot = 0;
 
     key = !!(msr_pr ? (slb->vsid & SLB_VSID_KP)
@@ -376,7 +382,7 @@ static int ppc_hash64_amr_prot(PowerPCCPU *cpu, ppc_hash_pte64_t pte)
     }
 
     key = HPTE64_R_KEY(pte.pte1);
-    amrbits = (env->spr[SPR_AMR] >> 2*(31 - key)) & 0x3;
+    amrbits = (env->spr[SPR_AMR] >> 2 * (31 - key)) & 0x3;
 
     /* fprintf(stderr, "AMR protection: key=%d AMR=0x%" PRIx64 "\n", key, */
     /*         env->spr[SPR_AMR]); */
@@ -547,8 +553,9 @@ static hwaddr ppc_hash64_pteg_search(PowerPCCPU *cpu, hwaddr hash,
             if (*pshift == 0) {
                 continue;
             }
-            /* We don't do anything with pshift yet as qemu TLB only deals
-             * with 4K pages anyway
+            /*
+             * We don't do anything with pshift yet as qemu TLB only
+             * deals with 4K pages anyway
              */
             pte->pte0 = pte0;
             pte->pte1 = pte1;
@@ -572,8 +579,10 @@ static hwaddr ppc_hash64_htab_lookup(PowerPCCPU *cpu,
     uint64_t vsid, epnmask, epn, ptem;
     const PPCHash64SegmentPageSizes *sps = slb->sps;
 
-    /* The SLB store path should prevent any bad page size encodings
-     * getting in there, so: */
+    /*
+     * The SLB store path should prevent any bad page size encodings
+     * getting in there, so:
+     */
     assert(sps);
 
     /* If ISL is set in LPCR we need to clamp the page size to 4K */
@@ -716,6 +725,39 @@ static void ppc_hash64_set_dsi(CPUState *cs, uint64_t dar, uint64_t dsisr)
 }
 
 
+static void ppc_hash64_set_r(PowerPCCPU *cpu, hwaddr ptex, uint64_t pte1)
+{
+    hwaddr base, offset = ptex * HASH_PTE_SIZE_64 + 16;
+
+    if (cpu->vhyp) {
+        PPCVirtualHypervisorClass *vhc =
+            PPC_VIRTUAL_HYPERVISOR_GET_CLASS(cpu->vhyp);
+        vhc->hpte_set_r(cpu->vhyp, ptex, pte1);
+        return;
+    }
+    base = ppc_hash64_hpt_base(cpu);
+
+
+    /* The HW performs a non-atomic byte update */
+    stb_phys(CPU(cpu)->as, base + offset, ((pte1 >> 8) & 0xff) | 0x01);
+}
+
+static void ppc_hash64_set_c(PowerPCCPU *cpu, hwaddr ptex, uint64_t pte1)
+{
+    hwaddr base, offset = ptex * HASH_PTE_SIZE_64 + 15;
+
+    if (cpu->vhyp) {
+        PPCVirtualHypervisorClass *vhc =
+            PPC_VIRTUAL_HYPERVISOR_GET_CLASS(cpu->vhyp);
+        vhc->hpte_set_c(cpu->vhyp, ptex, pte1);
+        return;
+    }
+    base = ppc_hash64_hpt_base(cpu);
+
+    /* The HW performs a non-atomic byte update */
+    stb_phys(CPU(cpu)->as, base + offset, (pte1 & 0xff) | 0x80);
+}
+
 int ppc_hash64_handle_mmu_fault(PowerPCCPU *cpu, vaddr eaddr,
                                 int rwx, int mmu_idx)
 {
@@ -726,23 +768,25 @@ int ppc_hash64_handle_mmu_fault(PowerPCCPU *cpu, vaddr eaddr,
     hwaddr ptex;
     ppc_hash_pte64_t pte;
     int exec_prot, pp_prot, amr_prot, prot;
-    uint64_t new_pte1;
     const int need_prot[] = {PAGE_READ, PAGE_WRITE, PAGE_EXEC};
     hwaddr raddr;
 
     assert((rwx == 0) || (rwx == 1) || (rwx == 2));
 
-    /* Note on LPCR usage: 970 uses HID4, but our special variant
-     * of store_spr copies relevant fields into env->spr[SPR_LPCR].
-     * Similarily we filter unimplemented bits when storing into
-     * LPCR depending on the MMU version. This code can thus just
-     * use the LPCR "as-is".
+    /*
+     * Note on LPCR usage: 970 uses HID4, but our special variant of
+     * store_spr copies relevant fields into env->spr[SPR_LPCR].
+     * Similarily we filter unimplemented bits when storing into LPCR
+     * depending on the MMU version. This code can thus just use the
+     * LPCR "as-is".
      */
 
     /* 1. Handle real mode accesses */
     if (((rwx == 2) && (msr_ir == 0)) || ((rwx != 2) && (msr_dr == 0))) {
-        /* Translation is supposedly "off"  */
-        /* In real mode the top 4 effective address bits are (mostly) ignored */
+        /*
+         * Translation is supposedly "off", but in real mode the top 4
+         * effective address bits are (mostly) ignored
+         */
         raddr = eaddr & 0x0FFFFFFFFFFFFFFFULL;
 
         /* In HV mode, add HRMOR if top EA bit is clear */
@@ -871,17 +915,19 @@ skip_slb_search:
 
     /* 6. Update PTE referenced and changed bits if necessary */
 
-    new_pte1 = pte.pte1 | HPTE64_R_R; /* set referenced bit */
-    if (rwx == 1) {
-        new_pte1 |= HPTE64_R_C; /* set changed (dirty) bit */
-    } else {
-        /* Treat the page as read-only for now, so that a later write
-         * will pass through this function again to set the C bit */
-        prot &= ~PAGE_WRITE;
+    if (!(pte.pte1 & HPTE64_R_R)) {
+        ppc_hash64_set_r(cpu, ptex, pte.pte1);
     }
-
-    if (new_pte1 != pte.pte1) {
-        ppc_hash64_store_hpte(cpu, ptex, pte.pte0, new_pte1);
+    if (!(pte.pte1 & HPTE64_R_C)) {
+        if (rwx == 1) {
+            ppc_hash64_set_c(cpu, ptex, pte.pte1);
+        } else {
+            /*
+             * Treat the page as read-only for now, so that a later write
+             * will pass through this function again to set the C bit
+             */
+            prot &= ~PAGE_WRITE;
+        }
     }
 
     /* 7. Determine the real address from the PTE */
@@ -938,24 +984,6 @@ hwaddr ppc_hash64_get_phys_page_debug(PowerPCCPU *cpu, target_ulong addr)
 
     return deposit64(pte.pte1 & HPTE64_R_RPN, 0, apshift, addr)
         & TARGET_PAGE_MASK;
-}
-
-void ppc_hash64_store_hpte(PowerPCCPU *cpu, hwaddr ptex,
-                           uint64_t pte0, uint64_t pte1)
-{
-    hwaddr base;
-    hwaddr offset = ptex * HASH_PTE_SIZE_64;
-
-    if (cpu->vhyp) {
-        PPCVirtualHypervisorClass *vhc =
-            PPC_VIRTUAL_HYPERVISOR_GET_CLASS(cpu->vhyp);
-        vhc->store_hpte(cpu->vhyp, ptex, pte0, pte1);
-        return;
-    }
-    base = ppc_hash64_hpt_base(cpu);
-
-    stq_phys(CPU(cpu)->as, base + offset, pte0);
-    stq_phys(CPU(cpu)->as, base + offset + HASH_PTE_SIZE_64 / 2, pte1);
 }
 
 void ppc_hash64_tlb_flush_hpte(PowerPCCPU *cpu, target_ulong ptex,
@@ -1023,8 +1051,9 @@ static void ppc_hash64_update_vrma(PowerPCCPU *cpu)
         return;
     }
 
-    /* Make one up. Mostly ignore the ESID which will not be
-     * needed for translation
+    /*
+     * Make one up. Mostly ignore the ESID which will not be needed
+     * for translation
      */
     vsid = SLB_VSID_VRMA;
     vrmasd = (lpcr & LPCR_VRMASD) >> LPCR_VRMASD_SHIFT;
@@ -1080,11 +1109,12 @@ void ppc_store_lpcr(PowerPCCPU *cpu, target_ulong val)
         }
         env->spr[SPR_RMOR] = ((lpcr >> 41) & 0xffffull) << 26;
 
-        /* XXX We could also write LPID from HID4 here
+        /*
+         * XXX We could also write LPID from HID4 here
          * but since we don't tag any translation on it
          * it doesn't actually matter
-         */
-        /* XXX For proper emulation of 970 we also need
+         *
+         * XXX For proper emulation of 970 we also need
          * to dig HRMOR out of HID5
          */
         break;
