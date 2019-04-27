@@ -66,20 +66,22 @@ static void curses_update(DisplayChangeListener *dcl,
 {
     console_ch_t *line;
     cchar_t curses_line[width];
+    wchar_t wch[CCHARW_MAX];
+    attr_t attrs;
+    short colors;
+    int ret;
 
     line = screen + y * width;
     for (h += y; y < h; y ++, line += width) {
         for (x = 0; x < width; x++) {
             chtype ch = line[x] & 0xff;
             chtype at = line[x] & ~0xff;
-            if (vga_to_curses[ch].chars[0]) {
-                curses_line[x] = vga_to_curses[ch];
-            } else {
-                curses_line[x] = (cchar_t) {
-                    .chars[0] = ch,
-                };
+            ret = getcchar(&vga_to_curses[ch], wch, &attrs, &colors, NULL);
+            if (ret == ERR || wch[0] == 0) {
+                wch[0] = ch;
+                wch[1] = 0;
             }
-            curses_line[x].attr |= at;
+            setcchar(&curses_line[x], wch, at, 0, NULL);
         }
         mvwadd_wchnstr(screenpad, y, 0, curses_line, width);
     }
@@ -412,7 +414,7 @@ static void curses_atexit(void)
 static void convert_ucs(unsigned char fch, uint16_t uch, iconv_t conv)
 {
     char mbch[MB_LEN_MAX];
-    wchar_t wch;
+    wchar_t wch[2];
     char *puch, *pmbch;
     size_t such, smbch;
     mbstate_t ps;
@@ -430,20 +432,22 @@ static void convert_ucs(unsigned char fch, uint16_t uch, iconv_t conv)
     }
 
     memset(&ps, 0, sizeof(ps));
-    if (mbrtowc(&wch, mbch, sizeof(mbch) - smbch, &ps) == -1) {
+    if (mbrtowc(&wch[0], mbch, sizeof(mbch) - smbch, &ps) == -1) {
         fprintf(stderr, "Could not convert 0x%04x "
                         "from a multibyte character to wchar_t: %s\n",
                         uch, strerror(errno));
         return;
     }
-    vga_to_curses[fch].chars[0] = wch;
+
+    wch[1] = 0;
+    setcchar(&vga_to_curses[fch], wch, 0, 0, NULL);
 }
 
 /* Setup wchar glyph for one font character */
 static void convert_font(unsigned char fch, iconv_t conv)
 {
     char mbch[MB_LEN_MAX];
-    wchar_t wch;
+    wchar_t wch[2];
     char *pfch, *pmbch;
     size_t sfch, smbch;
     mbstate_t ps;
@@ -461,13 +465,15 @@ static void convert_font(unsigned char fch, iconv_t conv)
     }
 
     memset(&ps, 0, sizeof(ps));
-    if (mbrtowc(&wch, mbch, sizeof(mbch) - smbch, &ps) == -1) {
+    if (mbrtowc(&wch[0], mbch, sizeof(mbch) - smbch, &ps) == -1) {
         fprintf(stderr, "Could not convert font glyph 0x%02x "
                         "from a multibyte character to wchar_t: %s\n",
                         fch, strerror(errno));
         return;
     }
-    vga_to_curses[fch].chars[0] = wch;
+
+    wch[1] = 0;
+    setcchar(&vga_to_curses[fch], wch, 0, 0, NULL);
 }
 
 /* Convert one wchar to UCS-2 */
@@ -592,7 +598,16 @@ static void font_setup(void)
     if (strcmp(nl_langinfo(CODESET), "UTF-8")) {
         /* Non-Unicode capable, use termcap equivalents for those available */
         for (i = 0; i <= 0xFF; i++) {
-            switch (get_ucs(vga_to_curses[i].chars[0], nativecharset_to_ucs2)) {
+            wchar_t wch[CCHARW_MAX];
+            attr_t attr;
+            short color;
+            int ret;
+
+            ret = getcchar(&vga_to_curses[i], wch, &attr, &color, NULL);
+            if (ret == ERR)
+                continue;
+
+            switch (get_ucs(wch[0], nativecharset_to_ucs2)) {
             case 0x00a3:
                 vga_to_curses[i] = *WACS_STERLING;
                 break;
