@@ -16,7 +16,7 @@ read 2147483136/2147483136 bytes at offset 1024
 2 GiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
 read 1024/1024 bytes at offset 3221226496
 1 KiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
-can't open device TEST_DIR/t.wrap.qcow2: Can't use copy-on-read on read-only device
+qemu-io: can't open device TEST_DIR/t.wrap.qcow2: Can't use copy-on-read on read-only device
 2 GiB (0x80010000) bytes     allocated at offset 0 bytes (0x0)
 1023.938 MiB (0x3fff0000) bytes not allocated at offset 2 GiB (0x80010000)
 64 KiB (0x10000) bytes     allocated at offset 3 GiB (0xc0000000)

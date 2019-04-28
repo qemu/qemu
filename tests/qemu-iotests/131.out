@@ -22,7 +22,7 @@ read 32768/32768 bytes at offset 163840
 read 32768/32768 bytes at offset 0
 32 KiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
 == Corrupt image ==
-can't open device TEST_DIR/t.parallels: parallels: Image was not closed correctly; cannot be opened read/write
+qemu-io: can't open device TEST_DIR/t.parallels: parallels: Image was not closed correctly; cannot be opened read/write
 ERROR image was not closed correctly
 
 1 errors were found on the image.

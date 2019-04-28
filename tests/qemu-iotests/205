@@ -78,7 +78,7 @@ class TestNbdServerRemove(iotests.QMPTestCase):
 
     def assertConnectFailed(self, qemu_io_output):
         self.assertEqual(filter_qemu_io(qemu_io_output).strip(),
-                         "can't open device " + nbd_uri +
+                         "qemu-io: can't open device " + nbd_uri +
                          ": Requested export not available\n"
                          "server reported: export 'exp' not present")
 

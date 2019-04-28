@@ -20,7 +20,7 @@ Format specific information:
     lazy refcounts: false
     refcount bits: 16
     corrupt: true
-can't open device TEST_DIR/t.IMGFMT: IMGFMT: Image is corrupt; cannot be opened read/write
+qemu-io: can't open device TEST_DIR/t.IMGFMT: IMGFMT: Image is corrupt; cannot be opened read/write
 no file open, try 'help open'
 read 512/512 bytes at offset 0
 512 bytes, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
@@ -267,7 +267,7 @@ No errors were found on the image.
 === Testing zero refcount table size ===
 
 Formatting 'TEST_DIR/t.IMGFMT', fmt=IMGFMT size=67108864
-can't open device TEST_DIR/t.IMGFMT: Image does not contain a reference count table
+qemu-io: can't open device TEST_DIR/t.IMGFMT: Image does not contain a reference count table
 ERROR cluster 0 refcount=0 reference=1
 ERROR cluster 3 refcount=0 reference=1
 Rebuilding refcount structure
@@ -296,7 +296,7 @@ Can't get refcount for cluster 2: Input/output error
 Can't get refcount for cluster 3: Input/output error
 Rebuilding refcount structure
 Repairing cluster 1 refcount=1 reference=0
-can't open device TEST_DIR/t.IMGFMT: Could not repair dirty image: Input/output error
+qemu-io: can't open device TEST_DIR/t.IMGFMT: Could not repair dirty image: Input/output error
 --- Repairing ---
 Leaked cluster 1 refcount=1 reference=0
 Repairing cluster 1 refcount=1 reference=0

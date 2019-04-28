@@ -5,18 +5,18 @@ read 512/512 bytes at offset 0
 512 bytes, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
 
 == Negative catalog size ==
-can't open device TEST_DIR/empty.bochs: Catalog size is too large
+qemu-io: can't open device TEST_DIR/empty.bochs: Catalog size is too large
 
 == Overflow for catalog size * sizeof(uint32_t) ==
-can't open device TEST_DIR/empty.bochs: Catalog size is too large
+qemu-io: can't open device TEST_DIR/empty.bochs: Catalog size is too large
 
 == Too small catalog bitmap for image size ==
-can't open device TEST_DIR/empty.bochs: Catalog size is too small for this disk size
-can't open device TEST_DIR/empty.bochs: Catalog size is too small for this disk size
+qemu-io: can't open device TEST_DIR/empty.bochs: Catalog size is too small for this disk size
+qemu-io: can't open device TEST_DIR/empty.bochs: Catalog size is too small for this disk size
 
 == Negative extent size ==
-can't open device TEST_DIR/empty.bochs: Extent size 2147483648 is too large
+qemu-io: can't open device TEST_DIR/empty.bochs: Extent size 2147483648 is too large
 
 == Zero extent size ==
-can't open device TEST_DIR/empty.bochs: Extent size must be at least 512
+qemu-io: can't open device TEST_DIR/empty.bochs: Extent size must be at least 512
 *** done
