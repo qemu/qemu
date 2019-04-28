@@ -452,6 +452,7 @@ static inline int tcg_target_const_match(tcg_target_long val, TCGType type,
 #define OPC_SHUFPS      (0xc6 | P_EXT)
 #define OPC_SHLX        (0xf7 | P_EXT38 | P_DATA16)
 #define OPC_SHRX        (0xf7 | P_EXT38 | P_SIMDF2)
+#define OPC_SHRD_Ib     (0xac | P_EXT)
 #define OPC_TESTL	(0x85)
 #define OPC_TZCNT       (0xbc | P_EXT | P_SIMDF3)
 #define OPC_UD2         (0x0b | P_EXT)
@@ -1729,7 +1730,7 @@ static void add_qemu_ldst_label(TCGContext *s, bool is_ld, bool is_64,
 /*
  * Generate code for the slow path for a load at the end of block
  */
-static void tcg_out_qemu_ld_slow_path(TCGContext *s, TCGLabelQemuLdst *l)
+static bool tcg_out_qemu_ld_slow_path(TCGContext *s, TCGLabelQemuLdst *l)
 {
     TCGMemOpIdx oi = l->oi;
     TCGMemOp opc = get_memop(oi);
@@ -1808,12 +1809,13 @@ static void tcg_out_qemu_ld_slow_path(TCGContext *s, TCGLabelQemuLdst *l)
 
     /* Jump to the code corresponding to next IR of qemu_st */
     tcg_out_jmp(s, l->raddr);
+    return true;
 }
 
 /*
  * Generate code for the slow path for a store at the end of block
  */
-static void tcg_out_qemu_st_slow_path(TCGContext *s, TCGLabelQemuLdst *l)
+static bool tcg_out_qemu_st_slow_path(TCGContext *s, TCGLabelQemuLdst *l)
 {
     TCGMemOpIdx oi = l->oi;
     TCGMemOp opc = get_memop(oi);
@@ -1876,6 +1878,7 @@ static void tcg_out_qemu_st_slow_path(TCGContext *s, TCGLabelQemuLdst *l)
     /* "Tail call" to the helper, with the return address back inline.  */
     tcg_out_push(s, retaddr);
     tcg_out_jmp(s, qemu_st_helpers[opc & (MO_BSWAP | MO_SIZE)]);
+    return true;
 }
 #elif TCG_TARGET_REG_BITS == 32
 # define x86_guest_base_seg     0
@@ -2587,6 +2590,12 @@ static inline void tcg_out_op(TCGContext *s, TCGOpcode opc,
         }
         break;
 
+    OP_32_64(extract2):
+        /* Note that SHRD outputs to the r/m operand.  */
+        tcg_out_modrm(s, OPC_SHRD_Ib + rexw, a2, a0);
+        tcg_out8(s, args[3]);
+        break;
+
     case INDEX_op_mb:
         tcg_out_mb(s, a0);
         break;
@@ -2845,6 +2854,7 @@ static const TCGTargetOpDef *tcg_target_op_def(TCGOpcode op)
     static const TCGTargetOpDef r_0 = { .args_ct_str = { "r", "0" } };
     static const TCGTargetOpDef r_r_ri = { .args_ct_str = { "r", "r", "ri" } };
     static const TCGTargetOpDef r_r_re = { .args_ct_str = { "r", "r", "re" } };
+    static const TCGTargetOpDef r_0_r = { .args_ct_str = { "r", "0", "r" } };
     static const TCGTargetOpDef r_0_re = { .args_ct_str = { "r", "0", "re" } };
     static const TCGTargetOpDef r_0_ci = { .args_ct_str = { "r", "0", "ci" } };
     static const TCGTargetOpDef r_L = { .args_ct_str = { "r", "L" } };
@@ -2970,6 +2980,9 @@ static const TCGTargetOpDef *tcg_target_op_def(TCGOpcode op)
     case INDEX_op_ctpop_i32:
     case INDEX_op_ctpop_i64:
         return &r_r;
+    case INDEX_op_extract2_i32:
+    case INDEX_op_extract2_i64:
+        return &r_0_r;
 
     case INDEX_op_deposit_i32:
     case INDEX_op_deposit_i64:

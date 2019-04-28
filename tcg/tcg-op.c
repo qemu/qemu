@@ -611,9 +611,22 @@ void tcg_gen_deposit_i32(TCGv_i32 ret, TCGv_i32 arg1, TCGv_i32 arg2,
         return;
     }
 
-    mask = (1u << len) - 1;
     t1 = tcg_temp_new_i32();
 
+    if (TCG_TARGET_HAS_extract2_i32) {
+        if (ofs + len == 32) {
+            tcg_gen_shli_i32(t1, arg1, len);
+            tcg_gen_extract2_i32(ret, t1, arg2, len);
+            goto done;
+        }
+        if (ofs == 0) {
+            tcg_gen_extract2_i32(ret, arg1, arg2, len);
+            tcg_gen_rotli_i32(ret, ret, len);
+            goto done;
+        }
+    }
+
+    mask = (1u << len) - 1;
     if (ofs + len < 32) {
         tcg_gen_andi_i32(t1, arg2, mask);
         tcg_gen_shli_i32(t1, t1, ofs);
@@ -622,7 +635,7 @@ void tcg_gen_deposit_i32(TCGv_i32 ret, TCGv_i32 arg1, TCGv_i32 arg2,
     }
     tcg_gen_andi_i32(ret, arg1, ~(mask << ofs));
     tcg_gen_or_i32(ret, ret, t1);
-
+ done:
     tcg_temp_free_i32(t1);
 }
 
@@ -807,6 +820,30 @@ void tcg_gen_sextract_i32(TCGv_i32 ret, TCGv_i32 arg,
 
     tcg_gen_shli_i32(ret, arg, 32 - len - ofs);
     tcg_gen_sari_i32(ret, ret, 32 - len);
+}
+
+/*
+ * Extract 32-bits from a 64-bit input, ah:al, starting from ofs.
+ * Unlike tcg_gen_extract_i32 above, len is fixed at 32.
+ */
+void tcg_gen_extract2_i32(TCGv_i32 ret, TCGv_i32 al, TCGv_i32 ah,
+                          unsigned int ofs)
+{
+    tcg_debug_assert(ofs <= 32);
+    if (ofs == 0) {
+        tcg_gen_mov_i32(ret, al);
+    } else if (ofs == 32) {
+        tcg_gen_mov_i32(ret, ah);
+    } else if (al == ah) {
+        tcg_gen_rotri_i32(ret, al, ofs);
+    } else if (TCG_TARGET_HAS_extract2_i32) {
+        tcg_gen_op4i_i32(INDEX_op_extract2_i32, ret, al, ah, ofs);
+    } else {
+        TCGv_i32 t0 = tcg_temp_new_i32();
+        tcg_gen_shri_i32(t0, al, ofs);
+        tcg_gen_deposit_i32(ret, t0, ah, 32 - ofs, ofs);
+        tcg_temp_free_i32(t0);
+    }
 }
 
 void tcg_gen_movcond_i32(TCGCond cond, TCGv_i32 ret, TCGv_i32 c1,
@@ -1331,31 +1368,32 @@ static inline void tcg_gen_shifti_i64(TCGv_i64 ret, TCGv_i64 arg1,
             tcg_gen_shli_i32(TCGV_HIGH(ret), TCGV_LOW(arg1), c);
             tcg_gen_movi_i32(TCGV_LOW(ret), 0);
         }
-    } else {
-        TCGv_i32 t0, t1;
-
-        t0 = tcg_temp_new_i32();
-        t1 = tcg_temp_new_i32();
-        if (right) {
-            tcg_gen_shli_i32(t0, TCGV_HIGH(arg1), 32 - c);
-            if (arith) {
-                tcg_gen_sari_i32(t1, TCGV_HIGH(arg1), c);
-            } else {
-                tcg_gen_shri_i32(t1, TCGV_HIGH(arg1), c);
-            }
-            tcg_gen_shri_i32(TCGV_LOW(ret), TCGV_LOW(arg1), c);
-            tcg_gen_or_i32(TCGV_LOW(ret), TCGV_LOW(ret), t0);
-            tcg_gen_mov_i32(TCGV_HIGH(ret), t1);
+    } else if (right) {
+        if (TCG_TARGET_HAS_extract2_i32) {
+            tcg_gen_extract2_i32(TCGV_LOW(ret),
+                                 TCGV_LOW(arg1), TCGV_HIGH(arg1), c);
         } else {
-            tcg_gen_shri_i32(t0, TCGV_LOW(arg1), 32 - c);
-            /* Note: ret can be the same as arg1, so we use t1 */
-            tcg_gen_shli_i32(t1, TCGV_LOW(arg1), c);
-            tcg_gen_shli_i32(TCGV_HIGH(ret), TCGV_HIGH(arg1), c);
-            tcg_gen_or_i32(TCGV_HIGH(ret), TCGV_HIGH(ret), t0);
-            tcg_gen_mov_i32(TCGV_LOW(ret), t1);
+            tcg_gen_shri_i32(TCGV_LOW(ret), TCGV_LOW(arg1), c);
+            tcg_gen_deposit_i32(TCGV_LOW(ret), TCGV_LOW(ret),
+                                TCGV_HIGH(arg1), 32 - c, c);
         }
-        tcg_temp_free_i32(t0);
-        tcg_temp_free_i32(t1);
+        if (arith) {
+            tcg_gen_sari_i32(TCGV_HIGH(ret), TCGV_HIGH(arg1), c);
+        } else {
+            tcg_gen_shri_i32(TCGV_HIGH(ret), TCGV_HIGH(arg1), c);
+        }
+    } else {
+        if (TCG_TARGET_HAS_extract2_i32) {
+            tcg_gen_extract2_i32(TCGV_HIGH(ret),
+                                 TCGV_LOW(arg1), TCGV_HIGH(arg1), 32 - c);
+        } else {
+            TCGv_i32 t0 = tcg_temp_new_i32();
+            tcg_gen_shri_i32(t0, TCGV_LOW(arg1), 32 - c);
+            tcg_gen_deposit_i32(TCGV_HIGH(ret), t0,
+                                TCGV_HIGH(arg1), c, 32 - c);
+            tcg_temp_free_i32(t0);
+        }
+        tcg_gen_shli_i32(TCGV_LOW(ret), TCGV_LOW(arg1), c);
     }
 }
 
@@ -1999,9 +2037,22 @@ void tcg_gen_deposit_i64(TCGv_i64 ret, TCGv_i64 arg1, TCGv_i64 arg2,
         }
     }
 
-    mask = (1ull << len) - 1;
     t1 = tcg_temp_new_i64();
 
+    if (TCG_TARGET_HAS_extract2_i64) {
+        if (ofs + len == 64) {
+            tcg_gen_shli_i64(t1, arg1, len);
+            tcg_gen_extract2_i64(ret, t1, arg2, len);
+            goto done;
+        }
+        if (ofs == 0) {
+            tcg_gen_extract2_i64(ret, arg1, arg2, len);
+            tcg_gen_rotli_i64(ret, ret, len);
+            goto done;
+        }
+    }
+
+    mask = (1ull << len) - 1;
     if (ofs + len < 64) {
         tcg_gen_andi_i64(t1, arg2, mask);
         tcg_gen_shli_i64(t1, t1, ofs);
@@ -2010,7 +2061,7 @@ void tcg_gen_deposit_i64(TCGv_i64 ret, TCGv_i64 arg1, TCGv_i64 arg2,
     }
     tcg_gen_andi_i64(ret, arg1, ~(mask << ofs));
     tcg_gen_or_i64(ret, ret, t1);
-
+ done:
     tcg_temp_free_i64(t1);
 }
 
@@ -2295,6 +2346,30 @@ void tcg_gen_sextract_i64(TCGv_i64 ret, TCGv_i64 arg,
     }
     tcg_gen_shli_i64(ret, arg, 64 - len - ofs);
     tcg_gen_sari_i64(ret, ret, 64 - len);
+}
+
+/*
+ * Extract 64 bits from a 128-bit input, ah:al, starting from ofs.
+ * Unlike tcg_gen_extract_i64 above, len is fixed at 64.
+ */
+void tcg_gen_extract2_i64(TCGv_i64 ret, TCGv_i64 al, TCGv_i64 ah,
+                          unsigned int ofs)
+{
+    tcg_debug_assert(ofs <= 64);
+    if (ofs == 0) {
+        tcg_gen_mov_i64(ret, al);
+    } else if (ofs == 64) {
+        tcg_gen_mov_i64(ret, ah);
+    } else if (al == ah) {
+        tcg_gen_rotri_i64(ret, al, ofs);
+    } else if (TCG_TARGET_HAS_extract2_i64) {
+        tcg_gen_op4i_i64(INDEX_op_extract2_i64, ret, al, ah, ofs);
+    } else {
+        TCGv_i64 t0 = tcg_temp_new_i64();
+        tcg_gen_shri_i64(t0, al, ofs);
+        tcg_gen_deposit_i64(ret, t0, ah, 64 - ofs, ofs);
+        tcg_temp_free_i64(t0);
+    }
 }
 
 void tcg_gen_movcond_i64(TCGCond cond, TCGv_i64 ret, TCGv_i64 c1,

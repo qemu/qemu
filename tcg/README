@@ -343,6 +343,13 @@ at bit 8.  This operation would be equivalent to
 
 (using an arithmetic right shift).
 
+* extract2_i32/i64 dest, t1, t2, pos
+
+For N = {32,64}, extract an N-bit quantity from the concatenation
+of t2:t1, beginning at pos.  The tcg_gen_extract2_{i32,i64} expander
+accepts 0 <= pos <= N as inputs.  The backend code generator will
+not see either 0 or N as inputs for these opcodes.
+
 * extrl_i64_i32 t0, t1
 
 For 64-bit hosts only, extract the low 32-bits of input T1 and place it

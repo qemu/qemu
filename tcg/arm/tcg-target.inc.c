@@ -197,6 +197,24 @@ static inline bool reloc_pc24(tcg_insn_unit *code_ptr, tcg_insn_unit *target)
     return false;
 }
 
+static inline bool reloc_pc13(tcg_insn_unit *code_ptr, tcg_insn_unit *target)
+{
+    ptrdiff_t offset = tcg_ptr_byte_diff(target, code_ptr) - 8;
+
+    if (offset >= -0xfff && offset <= 0xfff) {
+        tcg_insn_unit insn = *code_ptr;
+        bool u = (offset >= 0);
+        if (!u) {
+            offset = -offset;
+        }
+        insn = deposit32(insn, 23, 1, u);
+        insn = deposit32(insn, 0, 12, offset);
+        *code_ptr = insn;
+        return true;
+    }
+    return false;
+}
+
 static bool patch_reloc(tcg_insn_unit *code_ptr, int type,
                         intptr_t value, intptr_t addend)
 {
@@ -205,39 +223,10 @@ static bool patch_reloc(tcg_insn_unit *code_ptr, int type,
     if (type == R_ARM_PC24) {
         return reloc_pc24(code_ptr, (tcg_insn_unit *)value);
     } else if (type == R_ARM_PC13) {
-        intptr_t diff = value - (uintptr_t)(code_ptr + 2);
-        tcg_insn_unit insn = *code_ptr;
-        bool u;
-
-        if (diff >= -0xfff && diff <= 0xfff) {
-            u = (diff >= 0);
-            if (!u) {
-                diff = -diff;
-            }
-        } else {
-            int rd = extract32(insn, 12, 4);
-            int rt = rd == TCG_REG_PC ? TCG_REG_TMP : rd;
-
-            if (diff < 0x1000 || diff >= 0x100000) {
-                return false;
-            }
-
-            /* add rt, pc, #high */
-            *code_ptr++ = ((insn & 0xf0000000) | (1 << 25) | ARITH_ADD
-                           | (TCG_REG_PC << 16) | (rt << 12)
-                           | (20 << 7) | (diff >> 12));
-            /* ldr rd, [rt, #low] */
-            insn = deposit32(insn, 12, 4, rt);
-            diff &= 0xfff;
-            u = 1;
-        }
-        insn = deposit32(insn, 23, 1, u);
-        insn = deposit32(insn, 0, 12, diff);
-        *code_ptr = insn;
+        return reloc_pc13(code_ptr, (tcg_insn_unit *)value);
     } else {
         g_assert_not_reached();
     }
-    return true;
 }
 
 #define TCG_CT_CONST_ARM  0x100
@@ -605,12 +594,8 @@ static inline void tcg_out_ld8s_r(TCGContext *s, int cond, TCGReg rt,
 
 static void tcg_out_movi_pool(TCGContext *s, int cond, int rd, uint32_t arg)
 {
-    /* The 12-bit range on the ldr insn is sometimes a bit too small.
-       In order to get around that we require two insns, one of which
-       will usually be a nop, but may be replaced in patch_reloc.  */
     new_pool_label(s, arg, R_ARM_PC13, s->code_ptr, 0);
     tcg_out_ld32_12(s, cond, rd, TCG_REG_PC, 0);
-    tcg_out_nop(s);
 }
 
 static void tcg_out_movi32(TCGContext *s, int cond, int rd, uint32_t arg)
@@ -1069,8 +1054,8 @@ static void tcg_out_call(TCGContext *s, tcg_insn_unit *addr)
         tcg_out_movi32(s, COND_AL, TCG_REG_TMP, addri);
         tcg_out_blx(s, COND_AL, TCG_REG_TMP);
     } else {
-        /* ??? Know that movi_pool emits exactly 2 insns.  */
-        tcg_out_dat_imm(s, COND_AL, ARITH_ADD, TCG_REG_R14, TCG_REG_PC, 4);
+        /* ??? Know that movi_pool emits exactly 1 insn.  */
+        tcg_out_dat_imm(s, COND_AL, ARITH_ADD, TCG_REG_R14, TCG_REG_PC, 0);
         tcg_out_movi_pool(s, COND_AL, TCG_REG_PC, addri);
     }
 }
@@ -1372,15 +1357,16 @@ static void add_qemu_ldst_label(TCGContext *s, bool is_ld, TCGMemOpIdx oi,
     label->label_ptr[0] = label_ptr;
 }
 
-static void tcg_out_qemu_ld_slow_path(TCGContext *s, TCGLabelQemuLdst *lb)
+static bool tcg_out_qemu_ld_slow_path(TCGContext *s, TCGLabelQemuLdst *lb)
 {
     TCGReg argreg, datalo, datahi;
     TCGMemOpIdx oi = lb->oi;
     TCGMemOp opc = get_memop(oi);
     void *func;
 
-    bool ok = reloc_pc24(lb->label_ptr[0], s->code_ptr);
-    tcg_debug_assert(ok);
+    if (!reloc_pc24(lb->label_ptr[0], s->code_ptr)) {
+        return false;
+    }
 
     argreg = tcg_out_arg_reg32(s, TCG_REG_R0, TCG_AREG0);
     if (TARGET_LONG_BITS == 64) {
@@ -1432,16 +1418,18 @@ static void tcg_out_qemu_ld_slow_path(TCGContext *s, TCGLabelQemuLdst *lb)
     }
 
     tcg_out_goto(s, COND_AL, lb->raddr);
+    return true;
 }
 
-static void tcg_out_qemu_st_slow_path(TCGContext *s, TCGLabelQemuLdst *lb)
+static bool tcg_out_qemu_st_slow_path(TCGContext *s, TCGLabelQemuLdst *lb)
 {
     TCGReg argreg, datalo, datahi;
     TCGMemOpIdx oi = lb->oi;
     TCGMemOp opc = get_memop(oi);
 
-    bool ok = reloc_pc24(lb->label_ptr[0], s->code_ptr);
-    tcg_debug_assert(ok);
+    if (!reloc_pc24(lb->label_ptr[0], s->code_ptr)) {
+        return false;
+    }
 
     argreg = TCG_REG_R0;
     argreg = tcg_out_arg_reg32(s, argreg, TCG_AREG0);
@@ -1474,6 +1462,7 @@ static void tcg_out_qemu_st_slow_path(TCGContext *s, TCGLabelQemuLdst *lb)
 
     /* Tail-call to the helper, which will return to the fast path.  */
     tcg_out_goto(s, COND_AL, qemu_st_helpers[opc & (MO_BSWAP | MO_SIZE)]);
+    return true;
 }
 #endif /* SOFTMMU */
 
@@ -2064,6 +2053,27 @@ static inline void tcg_out_op(TCGContext *s, TCGOpcode opc,
     case INDEX_op_sextract_i32:
         tcg_out_sextract(s, COND_AL, args[0], args[1], args[2], args[3]);
         break;
+    case INDEX_op_extract2_i32:
+        /* ??? These optimization vs zero should be generic.  */
+        /* ??? But we can't substitute 2 for 1 in the opcode stream yet.  */
+        if (const_args[1]) {
+            if (const_args[2]) {
+                tcg_out_movi(s, TCG_TYPE_REG, args[0], 0);
+            } else {
+                tcg_out_dat_reg(s, COND_AL, ARITH_MOV, args[0], 0,
+                                args[2], SHIFT_IMM_LSL(32 - args[3]));
+            }
+        } else if (const_args[2]) {
+            tcg_out_dat_reg(s, COND_AL, ARITH_MOV, args[0], 0,
+                            args[1], SHIFT_IMM_LSR(args[3]));
+        } else {
+            /* We can do extract2 in 2 insns, vs the 3 required otherwise.  */
+            tcg_out_dat_reg(s, COND_AL, ARITH_MOV, TCG_REG_TMP, 0,
+                            args[2], SHIFT_IMM_LSL(32 - args[3]));
+            tcg_out_dat_reg(s, COND_AL, ARITH_ORR, args[0], TCG_REG_TMP,
+                            args[1], SHIFT_IMM_LSR(args[3]));
+        }
+        break;
 
     case INDEX_op_div_i32:
         tcg_out_sdiv(s, COND_AL, args[0], args[1], args[2]);
@@ -2108,6 +2118,8 @@ static const TCGTargetOpDef *tcg_target_op_def(TCGOpcode op)
         = { .args_ct_str = { "s", "s", "s", "s" } };
     static const TCGTargetOpDef br
         = { .args_ct_str = { "r", "rIN" } };
+    static const TCGTargetOpDef ext2
+        = { .args_ct_str = { "r", "rZ", "rZ" } };
     static const TCGTargetOpDef dep
         = { .args_ct_str = { "r", "0", "rZ" } };
     static const TCGTargetOpDef movc
@@ -2174,6 +2186,8 @@ static const TCGTargetOpDef *tcg_target_op_def(TCGOpcode op)
         return &br;
     case INDEX_op_deposit_i32:
         return &dep;
+    case INDEX_op_extract2_i32:
+        return &ext2;
     case INDEX_op_movcond_i32:
         return &movc;
     case INDEX_op_add2_i32:

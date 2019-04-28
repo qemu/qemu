@@ -29721,11 +29721,11 @@ static const TranslatorOps mips_tr_ops = {
     .disas_log          = mips_tr_disas_log,
 };
 
-void gen_intermediate_code(CPUState *cs, struct TranslationBlock *tb)
+void gen_intermediate_code(CPUState *cs, TranslationBlock *tb, int max_insns)
 {
     DisasContext ctx;
 
-    translator_loop(&mips_tr_ops, &ctx.base, cs, tb);
+    translator_loop(&mips_tr_ops, &ctx.base, cs, tb, max_insns);
 }
 
 static void fpu_dump_state(CPUMIPSState *env, FILE *f, int flags)

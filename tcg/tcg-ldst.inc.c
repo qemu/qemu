@@ -38,19 +38,19 @@ typedef struct TCGLabelQemuLdst {
  * Generate TB finalization at the end of block
  */
 
-static void tcg_out_qemu_ld_slow_path(TCGContext *s, TCGLabelQemuLdst *l);
-static void tcg_out_qemu_st_slow_path(TCGContext *s, TCGLabelQemuLdst *l);
+static bool tcg_out_qemu_ld_slow_path(TCGContext *s, TCGLabelQemuLdst *l);
+static bool tcg_out_qemu_st_slow_path(TCGContext *s, TCGLabelQemuLdst *l);
 
-static bool tcg_out_ldst_finalize(TCGContext *s)
+static int tcg_out_ldst_finalize(TCGContext *s)
 {
     TCGLabelQemuLdst *lb;
 
     /* qemu_ld/st slow paths */
     QSIMPLEQ_FOREACH(lb, &s->ldst_labels, next) {
-        if (lb->is_ld) {
-            tcg_out_qemu_ld_slow_path(s, lb);
-        } else {
-            tcg_out_qemu_st_slow_path(s, lb);
+        if (lb->is_ld
+            ? !tcg_out_qemu_ld_slow_path(s, lb)
+            : !tcg_out_qemu_st_slow_path(s, lb)) {
+            return -2;
         }
 
         /* Test for (pending) buffer overflow.  The assumption is that any
@@ -58,10 +58,10 @@ static bool tcg_out_ldst_finalize(TCGContext *s)
            the buffer completely.  Thus we can test for overflow after
            generating code without having to check during generation.  */
         if (unlikely((void *)s->code_ptr > s->code_gen_highwater)) {
-            return false;
+            return -1;
         }
     }
-    return true;
+    return 0;
 }
 
 /*

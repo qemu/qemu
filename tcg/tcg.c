@@ -128,7 +128,7 @@ static void tcg_out_call(TCGContext *s, tcg_insn_unit *target);
 static int tcg_target_const_match(tcg_target_long val, TCGType type,
                                   const TCGArgConstraint *arg_ct);
 #ifdef TCG_TARGET_NEED_LDST_LABELS
-static bool tcg_out_ldst_finalize(TCGContext *s);
+static int tcg_out_ldst_finalize(TCGContext *s);
 #endif
 
 #define TCG_HIGHWATER 1024
@@ -263,37 +263,17 @@ static __attribute__((unused)) inline void tcg_patch64(tcg_insn_unit *p,
 static void tcg_out_reloc(TCGContext *s, tcg_insn_unit *code_ptr, int type,
                           TCGLabel *l, intptr_t addend)
 {
-    TCGRelocation *r;
+    TCGRelocation *r = tcg_malloc(sizeof(TCGRelocation));
 
-    if (l->has_value) {
-        /* FIXME: This may break relocations on RISC targets that
-           modify instruction fields in place.  The caller may not have 
-           written the initial value.  */
-        bool ok = patch_reloc(code_ptr, type, l->u.value, addend);
-        tcg_debug_assert(ok);
-    } else {
-        /* add a new relocation entry */
-        r = tcg_malloc(sizeof(TCGRelocation));
-        r->type = type;
-        r->ptr = code_ptr;
-        r->addend = addend;
-        r->next = l->u.first_reloc;
-        l->u.first_reloc = r;
-    }
+    r->type = type;
+    r->ptr = code_ptr;
+    r->addend = addend;
+    QSIMPLEQ_INSERT_TAIL(&l->relocs, r, next);
 }
 
 static void tcg_out_label(TCGContext *s, TCGLabel *l, tcg_insn_unit *ptr)
 {
-    intptr_t value = (intptr_t)ptr;
-    TCGRelocation *r;
-
     tcg_debug_assert(!l->has_value);
-
-    for (r = l->u.first_reloc; r != NULL; r = r->next) {
-        bool ok = patch_reloc(r->ptr, r->type, value, r->addend);
-        tcg_debug_assert(ok);
-    }
-
     l->has_value = 1;
     l->u.value_ptr = ptr;
 }
@@ -303,14 +283,30 @@ TCGLabel *gen_new_label(void)
     TCGContext *s = tcg_ctx;
     TCGLabel *l = tcg_malloc(sizeof(TCGLabel));
 
-    *l = (TCGLabel){
-        .id = s->nb_labels++
-    };
-#ifdef CONFIG_DEBUG_TCG
+    memset(l, 0, sizeof(TCGLabel));
+    l->id = s->nb_labels++;
+    QSIMPLEQ_INIT(&l->relocs);
+
     QSIMPLEQ_INSERT_TAIL(&s->labels, l, next);
-#endif
 
     return l;
+}
+
+static bool tcg_resolve_relocs(TCGContext *s)
+{
+    TCGLabel *l;
+
+    QSIMPLEQ_FOREACH(l, &s->labels, next) {
+        TCGRelocation *r;
+        uintptr_t value = l->u.value;
+
+        QSIMPLEQ_FOREACH(r, &l->relocs, next) {
+            if (!patch_reloc(r->ptr, r->type, value, r->addend)) {
+                return false;
+            }
+        }
+    }
+    return true;
 }
 
 static void set_jmp_reset_offset(TCGContext *s, int which)
@@ -1023,8 +1019,8 @@ void tcg_prologue_init(TCGContext *s)
 #ifdef TCG_TARGET_NEED_POOL_LABELS
     /* Allow the prologue to put e.g. guest_base into a pool entry.  */
     {
-        bool ok = tcg_out_pool_finalize(s);
-        tcg_debug_assert(ok);
+        int result = tcg_out_pool_finalize(s);
+        tcg_debug_assert(result == 0);
     }
 #endif
 
@@ -1096,9 +1092,7 @@ void tcg_func_start(TCGContext *s)
 
     QTAILQ_INIT(&s->ops);
     QTAILQ_INIT(&s->free_ops);
-#ifdef CONFIG_DEBUG_TCG
     QSIMPLEQ_INIT(&s->labels);
-#endif
 }
 
 static inline TCGTemp *tcg_temp_alloc(TCGContext *s)
@@ -1426,6 +1420,8 @@ bool tcg_op_supported(TCGOpcode op)
         return TCG_TARGET_HAS_extract_i32;
     case INDEX_op_sextract_i32:
         return TCG_TARGET_HAS_sextract_i32;
+    case INDEX_op_extract2_i32:
+        return TCG_TARGET_HAS_extract2_i32;
     case INDEX_op_add2_i32:
         return TCG_TARGET_HAS_add2_i32;
     case INDEX_op_sub2_i32:
@@ -1523,6 +1519,8 @@ bool tcg_op_supported(TCGOpcode op)
         return TCG_TARGET_HAS_extract_i64;
     case INDEX_op_sextract_i64:
         return TCG_TARGET_HAS_sextract_i64;
+    case INDEX_op_extract2_i64:
+        return TCG_TARGET_HAS_extract2_i64;
     case INDEX_op_extrl_i64_i32:
         return TCG_TARGET_HAS_extrl_i64_i32;
     case INDEX_op_extrh_i64_i32:
@@ -3992,21 +3990,30 @@ int tcg_gen_code(TCGContext *s, TranslationBlock *tb)
         if (unlikely((void *)s->code_ptr > s->code_gen_highwater)) {
             return -1;
         }
+        /* Test for TB overflow, as seen by gen_insn_end_off.  */
+        if (unlikely(tcg_current_code_size(s) > UINT16_MAX)) {
+            return -2;
+        }
     }
     tcg_debug_assert(num_insns >= 0);
     s->gen_insn_end_off[num_insns] = tcg_current_code_size(s);
 
     /* Generate TB finalization at the end of block */
 #ifdef TCG_TARGET_NEED_LDST_LABELS
-    if (!tcg_out_ldst_finalize(s)) {
-        return -1;
+    i = tcg_out_ldst_finalize(s);
+    if (i < 0) {
+        return i;
     }
 #endif
 #ifdef TCG_TARGET_NEED_POOL_LABELS
-    if (!tcg_out_pool_finalize(s)) {
-        return -1;
+    i = tcg_out_pool_finalize(s);
+    if (i < 0) {
+        return i;
     }
 #endif
+    if (!tcg_resolve_relocs(s)) {
+        return -2;
+    }
 
     /* flush instruction cache */
     flush_icache_range((uintptr_t)s->code_buf, (uintptr_t)s->code_ptr);

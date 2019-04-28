@@ -8590,11 +8590,11 @@ static const TranslatorOps i386_tr_ops = {
 };
 
 /* generate intermediate code for basic block 'tb'.  */
-void gen_intermediate_code(CPUState *cpu, TranslationBlock *tb)
+void gen_intermediate_code(CPUState *cpu, TranslationBlock *tb, int max_insns)
 {
     DisasContext dc;
 
-    translator_loop(&i386_tr_ops, &dc.base, cpu, tb);
+    translator_loop(&i386_tr_ops, &dc.base, cpu, tb, max_insns);
 }
 
 void restore_state_to_opc(CPUX86State *env, TranslationBlock *tb,

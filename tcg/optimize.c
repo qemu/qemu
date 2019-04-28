@@ -1202,6 +1202,22 @@ void tcg_optimize(TCGContext *s)
             }
             goto do_default;
 
+        CASE_OP_32_64(extract2):
+            if (arg_is_const(op->args[1]) && arg_is_const(op->args[2])) {
+                TCGArg v1 = arg_info(op->args[1])->val;
+                TCGArg v2 = arg_info(op->args[2])->val;
+
+                if (opc == INDEX_op_extract2_i64) {
+                    tmp = (v1 >> op->args[3]) | (v2 << (64 - op->args[3]));
+                } else {
+                    tmp = (v1 >> op->args[3]) | (v2 << (32 - op->args[3]));
+                    tmp = (int32_t)tmp;
+                }
+                tcg_opt_gen_movi(s, op, op->args[0], tmp);
+                break;
+            }
+            goto do_default;
+
         CASE_OP_32_64(setcond):
             tmp = do_constant_folding_cond(opc, op->args[1],
                                            op->args[2], op->args[3]);

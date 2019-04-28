@@ -125,6 +125,7 @@ typedef uint64_t TCGRegSet;
 #define TCG_TARGET_HAS_deposit_i64      0
 #define TCG_TARGET_HAS_extract_i64      0
 #define TCG_TARGET_HAS_sextract_i64     0
+#define TCG_TARGET_HAS_extract2_i64     0
 #define TCG_TARGET_HAS_movcond_i64      0
 #define TCG_TARGET_HAS_add2_i64         0
 #define TCG_TARGET_HAS_sub2_i64         0
@@ -237,12 +238,13 @@ typedef uint64_t tcg_insn_unit;
     do { if (!(X)) { __builtin_unreachable(); } } while (0)
 #endif
 
-typedef struct TCGRelocation {
-    struct TCGRelocation *next;
-    int type;
+typedef struct TCGRelocation TCGRelocation;
+struct TCGRelocation {
+    QSIMPLEQ_ENTRY(TCGRelocation) next;
     tcg_insn_unit *ptr;
     intptr_t addend;
-} TCGRelocation; 
+    int type;
+};
 
 typedef struct TCGLabel TCGLabel;
 struct TCGLabel {
@@ -253,11 +255,9 @@ struct TCGLabel {
     union {
         uintptr_t value;
         tcg_insn_unit *value_ptr;
-        TCGRelocation *first_reloc;
     } u;
-#ifdef CONFIG_DEBUG_TCG
+    QSIMPLEQ_HEAD(, TCGRelocation) relocs;
     QSIMPLEQ_ENTRY(TCGLabel) next;
-#endif
 };
 
 typedef struct TCGPool {
@@ -690,7 +690,6 @@ struct TCGContext {
 #endif
 
 #ifdef CONFIG_DEBUG_TCG
-    QSIMPLEQ_HEAD(, TCGLabel) labels;
     int temps_in_use;
     int goto_tb_issue_mask;
 #endif
@@ -728,6 +727,7 @@ struct TCGContext {
     TCGTemp temps[TCG_MAX_TEMPS]; /* globals first, temps after */
 
     QTAILQ_HEAD(, TCGOp) ops, free_ops;
+    QSIMPLEQ_HEAD(, TCGLabel) labels;
 
     /* Tells which temporary holds a given register.
        It does not take into account fixed registers */

@@ -123,6 +123,7 @@ typedef struct TranslatorOps {
  * @db: Disassembly context.
  * @cpu: Target vCPU.
  * @tb: Translation block.
+ * @max_insns: Maximum number of insns to translate.
  *
  * Generic translator loop.
  *
@@ -137,7 +138,7 @@ typedef struct TranslatorOps {
  * - When too many instructions have been translated.
  */
 void translator_loop(const TranslatorOps *ops, DisasContextBase *db,
-                     CPUState *cpu, TranslationBlock *tb);
+                     CPUState *cpu, TranslationBlock *tb, int max_insns);
 
 void translator_loop_temp_check(DisasContextBase *db);
 

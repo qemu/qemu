@@ -32,7 +32,7 @@ void translator_loop_temp_check(DisasContextBase *db)
 }
 
 void translator_loop(const TranslatorOps *ops, DisasContextBase *db,
-                     CPUState *cpu, TranslationBlock *tb)
+                     CPUState *cpu, TranslationBlock *tb, int max_insns)
 {
     int bp_insn = 0;
 
@@ -42,19 +42,8 @@ void translator_loop(const TranslatorOps *ops, DisasContextBase *db,
     db->pc_next = db->pc_first;
     db->is_jmp = DISAS_NEXT;
     db->num_insns = 0;
+    db->max_insns = max_insns;
     db->singlestep_enabled = cpu->singlestep_enabled;
-
-    /* Instruction counting */
-    db->max_insns = tb_cflags(db->tb) & CF_COUNT_MASK;
-    if (db->max_insns == 0) {
-        db->max_insns = CF_COUNT_MASK;
-    }
-    if (db->max_insns > TCG_MAX_INSNS) {
-        db->max_insns = TCG_MAX_INSNS;
-    }
-    if (db->singlestep_enabled || singlestep) {
-        db->max_insns = 1;
-    }
 
     ops->init_disas_context(db, cpu);
     tcg_debug_assert(db->is_jmp == DISAS_NEXT);  /* no early exit */

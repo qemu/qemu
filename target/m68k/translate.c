@@ -6170,10 +6170,10 @@ static const TranslatorOps m68k_tr_ops = {
     .disas_log          = m68k_tr_disas_log,
 };
 
-void gen_intermediate_code(CPUState *cpu, TranslationBlock *tb)
+void gen_intermediate_code(CPUState *cpu, TranslationBlock *tb, int max_insns)
 {
     DisasContext dc;
-    translator_loop(&m68k_tr_ops, &dc.base, cpu, tb);
+    translator_loop(&m68k_tr_ops, &dc.base, cpu, tb, max_insns);
 }
 
 static double floatx80_to_double(CPUM68KState *env, uint16_t high, uint64_t low)
