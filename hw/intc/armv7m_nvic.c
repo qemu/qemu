@@ -746,6 +746,40 @@ int armv7m_nvic_complete_irq(void *opaque, int irq, bool secure)
     return ret;
 }
 
+bool armv7m_nvic_get_ready_status(void *opaque, int irq, bool secure)
+{
+    /*
+     * Return whether an exception is "ready", i.e. it is enabled and is
+     * configured at a priority which would allow it to interrupt the
+     * current execution priority.
+     *
+     * irq and secure have the same semantics as for armv7m_nvic_set_pending():
+     * for non-banked exceptions secure is always false; for banked exceptions
+     * it indicates which of the exceptions is required.
+     */
+    NVICState *s = (NVICState *)opaque;
+    bool banked = exc_is_banked(irq);
+    VecInfo *vec;
+    int running = nvic_exec_prio(s);
+
+    assert(irq > ARMV7M_EXCP_RESET && irq < s->num_irq);
+    assert(!secure || banked);
+
+    /*
+     * HardFault is an odd special case: we always check against -1,
+     * even if we're secure and HardFault has priority -3; we never
+     * need to check for enabled state.
+     */
+    if (irq == ARMV7M_EXCP_HARD) {
+        return running > -1;
+    }
+
+    vec = (banked && secure) ? &s->sec_vectors[irq] : &s->vectors[irq];
+
+    return vec->enabled &&
+        exc_group_prio(s, vec->prio, secure) < running;
+}
+
 /* callback when external interrupt line is changed */
 static void set_irq_level(void *opaque, int n, int level)
 {

@@ -2045,6 +2045,20 @@ void armv7m_nvic_acknowledge_irq(void *opaque);
  */
 int armv7m_nvic_complete_irq(void *opaque, int irq, bool secure);
 /**
+ * armv7m_nvic_get_ready_status(void *opaque, int irq, bool secure)
+ * @opaque: the NVIC
+ * @irq: the exception number to mark pending
+ * @secure: false for non-banked exceptions or for the nonsecure
+ * version of a banked exception, true for the secure version of a banked
+ * exception.
+ *
+ * Return whether an exception is "ready", i.e. whether the exception is
+ * enabled and is configured at a priority which would allow it to
+ * interrupt the current execution priority. This controls whether the
+ * RDY bit for it in the FPCCR is set.
+ */
+bool armv7m_nvic_get_ready_status(void *opaque, int irq, bool secure);
+/**
  * armv7m_nvic_raw_execution_priority: return the raw execution priority
  * @opaque: the NVIC
  *
