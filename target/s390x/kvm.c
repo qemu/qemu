@@ -2073,6 +2073,9 @@ static int query_cpu_subfunc(S390FeatBitmap features)
     if (test_bit(S390_FEAT_MSA_EXT_8, features)) {
         s390_add_from_feat_block(features, S390_FEAT_TYPE_KMA, prop.kma);
     }
+    if (test_bit(S390_FEAT_MSA_EXT_9, features)) {
+        s390_add_from_feat_block(features, S390_FEAT_TYPE_KDSA, prop.kdsa);
+    }
     return 0;
 }
 
@@ -2116,6 +2119,9 @@ static int configure_cpu_subfunc(const S390FeatBitmap features)
     }
     if (test_bit(S390_FEAT_MSA_EXT_8, features)) {
         s390_fill_feat_block(features, S390_FEAT_TYPE_KMA, prop.kma);
+    }
+    if (test_bit(S390_FEAT_MSA_EXT_9, features)) {
+        s390_fill_feat_block(features, S390_FEAT_TYPE_KDSA, prop.kdsa);
     }
     return kvm_vm_ioctl(kvm_state, KVM_SET_DEVICE_ATTR, &attr);
 }
