@@ -254,7 +254,14 @@ static void run_eckd_boot_script(block_number_t bmt_block_nr,
     memset(sec, FREE_SPACE_FILLER, sizeof(sec));
     read_block(block_nr, sec, "Cannot read Boot Map Script");
 
-    for (i = 0; bms->entry[i].type == BOOT_SCRIPT_LOAD; i++) {
+    for (i = 0; bms->entry[i].type == BOOT_SCRIPT_LOAD ||
+                bms->entry[i].type == BOOT_SCRIPT_SIGNATURE; i++) {
+
+        /* We don't support secure boot yet, so we skip signature entries */
+        if (bms->entry[i].type == BOOT_SCRIPT_SIGNATURE) {
+            continue;
+        }
+
         address = bms->entry[i].address.load_address;
         block_nr = eckd_block_num(&bms->entry[i].blkptr.xeckd.bptr.chs);
 
@@ -489,7 +496,15 @@ static void zipl_run(ScsiBlockPtr *pte)
 
     /* Load image(s) into RAM */
     entry = (ComponentEntry *)(&header[1]);
-    while (entry->component_type == ZIPL_COMP_ENTRY_LOAD) {
+    while (entry->component_type == ZIPL_COMP_ENTRY_LOAD ||
+           entry->component_type == ZIPL_COMP_ENTRY_SIGNATURE) {
+
+        /* We don't support secure boot yet, so we skip signature entries */
+        if (entry->component_type == ZIPL_COMP_ENTRY_SIGNATURE) {
+            entry++;
+            continue;
+        }
+
         zipl_load_segment(entry);
 
         entry++;
