@@ -7390,6 +7390,12 @@ void HELPER(v7m_vlstm)(CPUARMState *env, uint32_t fptr)
     g_assert_not_reached();
 }
 
+void HELPER(v7m_vlldm)(CPUARMState *env, uint32_t fptr)
+{
+    /* translate.c should never generate calls here in user-only mode */
+    g_assert_not_reached();
+}
+
 uint32_t HELPER(v7m_tt)(CPUARMState *env, uint32_t addr, uint32_t op)
 {
     /* The TT instructions can be used by unprivileged code, but in
@@ -8472,6 +8478,54 @@ void HELPER(v7m_vlstm)(CPUARMState *env, uint32_t fptr)
     }
 
     env->v7m.control[M_REG_S] &= ~R_V7M_CONTROL_FPCA_MASK;
+}
+
+void HELPER(v7m_vlldm)(CPUARMState *env, uint32_t fptr)
+{
+    /* fptr is the value of Rn, the frame pointer we load the FP regs from */
+    assert(env->v7m.secure);
+
+    if (!(env->v7m.control[M_REG_S] & R_V7M_CONTROL_SFPA_MASK)) {
+        return;
+    }
+
+    /* Check access to the coprocessor is permitted */
+    if (!v7m_cpacr_pass(env, true, arm_current_el(env) != 0)) {
+        raise_exception_ra(env, EXCP_NOCP, 0, 1, GETPC());
+    }
+
+    if (env->v7m.fpccr[M_REG_S] & R_V7M_FPCCR_LSPACT_MASK) {
+        /* State in FP is still valid */
+        env->v7m.fpccr[M_REG_S] &= ~R_V7M_FPCCR_LSPACT_MASK;
+    } else {
+        bool ts = env->v7m.fpccr[M_REG_S] & R_V7M_FPCCR_TS_MASK;
+        int i;
+        uint32_t fpscr;
+
+        if (fptr & 7) {
+            raise_exception_ra(env, EXCP_UNALIGNED, 0, 1, GETPC());
+        }
+
+        for (i = 0; i < (ts ? 32 : 16); i += 2) {
+            uint32_t slo, shi;
+            uint64_t dn;
+            uint32_t faddr = fptr + 4 * i;
+
+            if (i >= 16) {
+                faddr += 8; /* skip the slot for the FPSCR */
+            }
+
+            slo = cpu_ldl_data(env, faddr);
+            shi = cpu_ldl_data(env, faddr + 4);
+
+            dn = (uint64_t) shi << 32 | slo;
+            *aa32_vfp_dreg(env, i / 2) = dn;
+        }
+        fpscr = cpu_ldl_data(env, fptr + 0x40);
+        vfp_set_fpscr(env, fpscr);
+    }
+
+    env->v7m.control[M_REG_S] |= R_V7M_CONTROL_FPCA_MASK;
 }
 
 static bool v7m_push_stack(ARMCPU *cpu)
