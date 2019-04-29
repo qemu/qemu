@@ -429,11 +429,13 @@ static void xlnx_zynqmp_qspips_reset(DeviceState *d)
 
 static inline void stripe8(uint8_t *x, int num, bool dir)
 {
-    uint8_t r[num];
-    memset(r, 0, sizeof(uint8_t) * num);
+    uint8_t r[MAX_NUM_BUSSES];
     int idx[2] = {0, 0};
     int bit[2] = {0, 7};
     int d = dir;
+
+    assert(num <= MAX_NUM_BUSSES);
+    memset(r, 0, sizeof(uint8_t) * num);
 
     for (idx[0] = 0; idx[0] < num; ++idx[0]) {
         for (bit[0] = 7; bit[0] >= 0; bit[0]--) {
