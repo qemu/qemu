@@ -45,8 +45,7 @@ static inline unsigned int get_physical_block_exp(BlockConf *conf)
     return exp;
 }
 
-#define DEFINE_BLOCK_PROPERTIES(_state, _conf)                          \
-    DEFINE_PROP_DRIVE("drive", _state, _conf.blk),                      \
+#define DEFINE_BLOCK_PROPERTIES_BASE(_state, _conf)                     \
     DEFINE_PROP_BLOCKSIZE("logical_block_size", _state,                 \
                           _conf.logical_block_size),                    \
     DEFINE_PROP_BLOCKSIZE("physical_block_size", _state,                \
@@ -58,6 +57,10 @@ static inline unsigned int get_physical_block_exp(BlockConf *conf)
     DEFINE_PROP_ON_OFF_AUTO("write-cache", _state, _conf.wce, \
                             ON_OFF_AUTO_AUTO), \
     DEFINE_PROP_BOOL("share-rw", _state, _conf.share_rw, false)
+
+#define DEFINE_BLOCK_PROPERTIES(_state, _conf)                          \
+    DEFINE_PROP_DRIVE("drive", _state, _conf.blk),                      \
+    DEFINE_BLOCK_PROPERTIES_BASE(_state, _conf)
 
 #define DEFINE_BLOCK_CHS_PROPERTIES(_state, _conf)      \
     DEFINE_PROP_UINT32("cyls", _state, _conf.cyls, 0),  \
