@@ -12027,7 +12027,14 @@ uint32_t HELPER(v7m_mrs)(CPUARMState *env, uint32_t reg)
         return xpsr_read(env) & mask;
         break;
     case 20: /* CONTROL */
-        return env->v7m.control[env->v7m.secure];
+    {
+        uint32_t value = env->v7m.control[env->v7m.secure];
+        if (!env->v7m.secure) {
+            /* SFPA is RAZ/WI from NS; FPCA is stored in the M_REG_S bank */
+            value |= env->v7m.control[M_REG_S] & R_V7M_CONTROL_FPCA_MASK;
+        }
+        return value;
+    }
     case 0x94: /* CONTROL_NS */
         /* We have to handle this here because unprivileged Secure code
          * can read the NS CONTROL register.
@@ -12035,7 +12042,8 @@ uint32_t HELPER(v7m_mrs)(CPUARMState *env, uint32_t reg)
         if (!env->v7m.secure) {
             return 0;
         }
-        return env->v7m.control[M_REG_NS];
+        return env->v7m.control[M_REG_NS] |
+            (env->v7m.control[M_REG_S] & R_V7M_CONTROL_FPCA_MASK);
     }
 
     if (el == 0) {
@@ -12141,9 +12149,13 @@ void HELPER(v7m_msr)(CPUARMState *env, uint32_t maskreg, uint32_t val)
      */
     uint32_t mask = extract32(maskreg, 8, 4);
     uint32_t reg = extract32(maskreg, 0, 8);
+    int cur_el = arm_current_el(env);
 
-    if (arm_current_el(env) == 0 && reg > 7) {
-        /* only xPSR sub-fields may be written by unprivileged */
+    if (cur_el == 0 && reg > 7 && reg != 20) {
+        /*
+         * only xPSR sub-fields and CONTROL.SFPA may be written by
+         * unprivileged code
+         */
         return;
     }
 
@@ -12201,6 +12213,15 @@ void HELPER(v7m_msr)(CPUARMState *env, uint32_t maskreg, uint32_t val)
             if (arm_feature(env, ARM_FEATURE_M_MAIN)) {
                 env->v7m.control[M_REG_NS] &= ~R_V7M_CONTROL_NPRIV_MASK;
                 env->v7m.control[M_REG_NS] |= val & R_V7M_CONTROL_NPRIV_MASK;
+            }
+            /*
+             * SFPA is RAZ/WI from NS. FPCA is RO if NSACR.CP10 == 0,
+             * RES0 if the FPU is not present, and is stored in the S bank
+             */
+            if (arm_feature(env, ARM_FEATURE_VFP) &&
+                extract32(env->v7m.nsacr, 10, 1)) {
+                env->v7m.control[M_REG_S] &= ~R_V7M_CONTROL_FPCA_MASK;
+                env->v7m.control[M_REG_S] |= val & R_V7M_CONTROL_FPCA_MASK;
             }
             return;
         case 0x98: /* SP_NS */
@@ -12304,20 +12325,40 @@ void HELPER(v7m_msr)(CPUARMState *env, uint32_t maskreg, uint32_t val)
         env->v7m.faultmask[env->v7m.secure] = val & 1;
         break;
     case 20: /* CONTROL */
-        /* Writing to the SPSEL bit only has an effect if we are in
+        /*
+         * Writing to the SPSEL bit only has an effect if we are in
          * thread mode; other bits can be updated by any privileged code.
          * write_v7m_control_spsel() deals with updating the SPSEL bit in
          * env->v7m.control, so we only need update the others.
          * For v7M, we must just ignore explicit writes to SPSEL in handler
          * mode; for v8M the write is permitted but will have no effect.
+         * All these bits are writes-ignored from non-privileged code,
+         * except for SFPA.
          */
-        if (arm_feature(env, ARM_FEATURE_V8) ||
-            !arm_v7m_is_handler_mode(env)) {
+        if (cur_el > 0 && (arm_feature(env, ARM_FEATURE_V8) ||
+                           !arm_v7m_is_handler_mode(env))) {
             write_v7m_control_spsel(env, (val & R_V7M_CONTROL_SPSEL_MASK) != 0);
         }
-        if (arm_feature(env, ARM_FEATURE_M_MAIN)) {
+        if (cur_el > 0 && arm_feature(env, ARM_FEATURE_M_MAIN)) {
             env->v7m.control[env->v7m.secure] &= ~R_V7M_CONTROL_NPRIV_MASK;
             env->v7m.control[env->v7m.secure] |= val & R_V7M_CONTROL_NPRIV_MASK;
+        }
+        if (arm_feature(env, ARM_FEATURE_VFP)) {
+            /*
+             * SFPA is RAZ/WI from NS or if no FPU.
+             * FPCA is RO if NSACR.CP10 == 0, RES0 if the FPU is not present.
+             * Both are stored in the S bank.
+             */
+            if (env->v7m.secure) {
+                env->v7m.control[M_REG_S] &= ~R_V7M_CONTROL_SFPA_MASK;
+                env->v7m.control[M_REG_S] |= val & R_V7M_CONTROL_SFPA_MASK;
+            }
+            if (cur_el > 0 &&
+                (env->v7m.secure || !arm_feature(env, ARM_FEATURE_M_SECURITY) ||
+                 extract32(env->v7m.nsacr, 10, 1))) {
+                env->v7m.control[M_REG_S] &= ~R_V7M_CONTROL_FPCA_MASK;
+                env->v7m.control[M_REG_S] |= val & R_V7M_CONTROL_FPCA_MASK;
+            }
         }
         break;
     default:
