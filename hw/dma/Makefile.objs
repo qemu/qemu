@@ -14,4 +14,4 @@ common-obj-$(CONFIG_XLNX_ZYNQMP_ARM) += xlnx-zdma.o
 
 obj-$(CONFIG_OMAP) += omap_dma.o soc_dma.o
 obj-$(CONFIG_PXA2XX) += pxa2xx_dma.o
-obj-$(CONFIG_RASPI) += bcm2835_dma.o
+common-obj-$(CONFIG_RASPI) += bcm2835_dma.o

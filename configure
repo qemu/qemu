@@ -278,6 +278,8 @@ ld_has() {
 
 # default parameters
 source_path=$(dirname "$0")
+# make source path absolute
+source_path=$(cd "$source_path"; pwd)
 cpu=""
 iasl="iasl"
 interp_prefix="/usr/gnemul/qemu-%M"
@@ -520,8 +522,6 @@ for opt do
   ;;
   --cxx=*) CXX="$optarg"
   ;;
-  --source-path=*) source_path="$optarg"
-  ;;
   --cpu=*) cpu="$optarg"
   ;;
   --extra-cflags=*) QEMU_CFLAGS="$QEMU_CFLAGS $optarg"
@@ -599,9 +599,6 @@ if test "$debug_info" = "yes"; then
     CFLAGS="-g $CFLAGS"
     LDFLAGS="-g $LDFLAGS"
 fi
-
-# make source path absolute
-source_path=$(cd "$source_path"; pwd)
 
 # running configure in the source tree?
 # we know that's the case if configure is there.
@@ -945,8 +942,6 @@ for opt do
   --prefix=*) prefix="$optarg"
   ;;
   --interp-prefix=*) interp_prefix="$optarg"
-  ;;
-  --source-path=*)
   ;;
   --cross-prefix=*)
   ;;
@@ -1651,7 +1646,6 @@ $(echo Available targets: $default_target_list | \
   --target-list-exclude=LIST exclude a set of targets from the default target-list
 
 Advanced options (experts only):
-  --source-path=PATH       path of source code [$source_path]
   --cross-prefix=PREFIX    use PREFIX for compile tools [$cross_prefix]
   --cc=CC                  use C compiler CC [$cc]
   --iasl=IASL              use ACPI compiler IASL [$iasl]
