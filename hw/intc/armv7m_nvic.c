@@ -1077,6 +1077,16 @@ static uint32_t nvic_readl(NVICState *s, uint32_t offset, MemTxAttrs attrs)
     }
     case 0xd84: /* CSSELR */
         return cpu->env.v7m.csselr[attrs.secure];
+    case 0xd88: /* CPACR */
+        if (!arm_feature(&cpu->env, ARM_FEATURE_VFP)) {
+            return 0;
+        }
+        return cpu->env.v7m.cpacr[attrs.secure];
+    case 0xd8c: /* NSACR */
+        if (!attrs.secure || !arm_feature(&cpu->env, ARM_FEATURE_VFP)) {
+            return 0;
+        }
+        return cpu->env.v7m.nsacr;
     /* TODO: Implement debug registers.  */
     case 0xd90: /* MPU_TYPE */
         /* Unified MPU; if the MPU is not present this value is zero */
@@ -1222,6 +1232,43 @@ static uint32_t nvic_readl(NVICState *s, uint32_t offset, MemTxAttrs attrs)
             return 0;
         }
         return cpu->env.v7m.sfar;
+    case 0xf34: /* FPCCR */
+        if (!arm_feature(&cpu->env, ARM_FEATURE_VFP)) {
+            return 0;
+        }
+        if (attrs.secure) {
+            return cpu->env.v7m.fpccr[M_REG_S];
+        } else {
+            /*
+             * NS can read LSPEN, CLRONRET and MONRDY. It can read
+             * BFRDY and HFRDY if AIRCR.BFHFNMINS != 0;
+             * other non-banked bits RAZ.
+             * TODO: MONRDY should RAZ/WI if DEMCR.SDME is set.
+             */
+            uint32_t value = cpu->env.v7m.fpccr[M_REG_S];
+            uint32_t mask = R_V7M_FPCCR_LSPEN_MASK |
+                R_V7M_FPCCR_CLRONRET_MASK |
+                R_V7M_FPCCR_MONRDY_MASK;
+
+            if (s->cpu->env.v7m.aircr & R_V7M_AIRCR_BFHFNMINS_MASK) {
+                mask |= R_V7M_FPCCR_BFRDY_MASK | R_V7M_FPCCR_HFRDY_MASK;
+            }
+
+            value &= mask;
+
+            value |= cpu->env.v7m.fpccr[M_REG_NS];
+            return value;
+        }
+    case 0xf38: /* FPCAR */
+        if (!arm_feature(&cpu->env, ARM_FEATURE_VFP)) {
+            return 0;
+        }
+        return cpu->env.v7m.fpcar[attrs.secure];
+    case 0xf3c: /* FPDSCR */
+        if (!arm_feature(&cpu->env, ARM_FEATURE_VFP)) {
+            return 0;
+        }
+        return cpu->env.v7m.fpdscr[attrs.secure];
     case 0xf40: /* MVFR0 */
         return cpu->isar.mvfr0;
     case 0xf44: /* MVFR1 */
@@ -1475,6 +1522,18 @@ static void nvic_writel(NVICState *s, uint32_t offset, uint32_t value,
             cpu->env.v7m.csselr[attrs.secure] = value & R_V7M_CSSELR_INDEX_MASK;
         }
         break;
+    case 0xd88: /* CPACR */
+        if (arm_feature(&cpu->env, ARM_FEATURE_VFP)) {
+            /* We implement only the Floating Point extension's CP10/CP11 */
+            cpu->env.v7m.cpacr[attrs.secure] = value & (0xf << 20);
+        }
+        break;
+    case 0xd8c: /* NSACR */
+        if (attrs.secure && arm_feature(&cpu->env, ARM_FEATURE_VFP)) {
+            /* We implement only the Floating Point extension's CP10/CP11 */
+            cpu->env.v7m.nsacr = value & (3 << 10);
+        }
+        break;
     case 0xd90: /* MPU_TYPE */
         return; /* RO */
     case 0xd94: /* MPU_CTRL */
@@ -1703,6 +1762,72 @@ static void nvic_writel(NVICState *s, uint32_t offset, uint32_t value,
         }
         break;
     }
+    case 0xf34: /* FPCCR */
+        if (arm_feature(&cpu->env, ARM_FEATURE_VFP)) {
+            /* Not all bits here are banked. */
+            uint32_t fpccr_s;
+
+            if (!arm_feature(&cpu->env, ARM_FEATURE_V8)) {
+                /* Don't allow setting of bits not present in v7M */
+                value &= (R_V7M_FPCCR_LSPACT_MASK |
+                          R_V7M_FPCCR_USER_MASK |
+                          R_V7M_FPCCR_THREAD_MASK |
+                          R_V7M_FPCCR_HFRDY_MASK |
+                          R_V7M_FPCCR_MMRDY_MASK |
+                          R_V7M_FPCCR_BFRDY_MASK |
+                          R_V7M_FPCCR_MONRDY_MASK |
+                          R_V7M_FPCCR_LSPEN_MASK |
+                          R_V7M_FPCCR_ASPEN_MASK);
+            }
+            value &= ~R_V7M_FPCCR_RES0_MASK;
+
+            if (!attrs.secure) {
+                /* Some non-banked bits are configurably writable by NS */
+                fpccr_s = cpu->env.v7m.fpccr[M_REG_S];
+                if (!(fpccr_s & R_V7M_FPCCR_LSPENS_MASK)) {
+                    uint32_t lspen = FIELD_EX32(value, V7M_FPCCR, LSPEN);
+                    fpccr_s = FIELD_DP32(fpccr_s, V7M_FPCCR, LSPEN, lspen);
+                }
+                if (!(fpccr_s & R_V7M_FPCCR_CLRONRETS_MASK)) {
+                    uint32_t cor = FIELD_EX32(value, V7M_FPCCR, CLRONRET);
+                    fpccr_s = FIELD_DP32(fpccr_s, V7M_FPCCR, CLRONRET, cor);
+                }
+                if ((s->cpu->env.v7m.aircr & R_V7M_AIRCR_BFHFNMINS_MASK)) {
+                    uint32_t hfrdy = FIELD_EX32(value, V7M_FPCCR, HFRDY);
+                    uint32_t bfrdy = FIELD_EX32(value, V7M_FPCCR, BFRDY);
+                    fpccr_s = FIELD_DP32(fpccr_s, V7M_FPCCR, HFRDY, hfrdy);
+                    fpccr_s = FIELD_DP32(fpccr_s, V7M_FPCCR, BFRDY, bfrdy);
+                }
+                /* TODO MONRDY should RAZ/WI if DEMCR.SDME is set */
+                {
+                    uint32_t monrdy = FIELD_EX32(value, V7M_FPCCR, MONRDY);
+                    fpccr_s = FIELD_DP32(fpccr_s, V7M_FPCCR, MONRDY, monrdy);
+                }
+
+                /*
+                 * All other non-banked bits are RAZ/WI from NS; write
+                 * just the banked bits to fpccr[M_REG_NS].
+                 */
+                value &= R_V7M_FPCCR_BANKED_MASK;
+                cpu->env.v7m.fpccr[M_REG_NS] = value;
+            } else {
+                fpccr_s = value;
+            }
+            cpu->env.v7m.fpccr[M_REG_S] = fpccr_s;
+        }
+        break;
+    case 0xf38: /* FPCAR */
+        if (arm_feature(&cpu->env, ARM_FEATURE_VFP)) {
+            value &= ~7;
+            cpu->env.v7m.fpcar[attrs.secure] = value;
+        }
+        break;
+    case 0xf3c: /* FPDSCR */
+        if (arm_feature(&cpu->env, ARM_FEATURE_VFP)) {
+            value &= 0x07c00000;
+            cpu->env.v7m.fpdscr[attrs.secure] = value;
+        }
+        break;
     case 0xf50: /* ICIALLU */
     case 0xf58: /* ICIMVAU */
     case 0xf5c: /* DCIMVAC */

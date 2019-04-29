@@ -281,6 +281,11 @@ static void arm_cpu_reset(CPUState *s)
             env->v7m.ccr[M_REG_S] |= R_V7M_CCR_UNALIGN_TRP_MASK;
         }
 
+        if (arm_feature(env, ARM_FEATURE_VFP)) {
+            env->v7m.fpccr[M_REG_NS] = R_V7M_FPCCR_ASPEN_MASK;
+            env->v7m.fpccr[M_REG_S] = R_V7M_FPCCR_ASPEN_MASK |
+                R_V7M_FPCCR_LSPEN_MASK | R_V7M_FPCCR_S_MASK;
+        }
         /* Unlike A/R profile, M profile defines the reset LR value */
         env->regs[14] = 0xffffffff;
 

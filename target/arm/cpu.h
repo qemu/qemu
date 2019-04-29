@@ -533,6 +533,11 @@ typedef struct CPUARMState {
         uint32_t scr[M_REG_NUM_BANKS];
         uint32_t msplim[M_REG_NUM_BANKS];
         uint32_t psplim[M_REG_NUM_BANKS];
+        uint32_t fpcar[M_REG_NUM_BANKS];
+        uint32_t fpccr[M_REG_NUM_BANKS];
+        uint32_t fpdscr[M_REG_NUM_BANKS];
+        uint32_t cpacr[M_REG_NUM_BANKS];
+        uint32_t nsacr;
     } v7m;
 
     /* Information associated with an exception about to be taken:
@@ -1575,6 +1580,35 @@ FIELD(V7M_CSSELR, LEVEL, 1, 3)
  * the end of the array.
  */
 FIELD(V7M_CSSELR, INDEX, 0, 4)
+
+/* v7M FPCCR bits */
+FIELD(V7M_FPCCR, LSPACT, 0, 1)
+FIELD(V7M_FPCCR, USER, 1, 1)
+FIELD(V7M_FPCCR, S, 2, 1)
+FIELD(V7M_FPCCR, THREAD, 3, 1)
+FIELD(V7M_FPCCR, HFRDY, 4, 1)
+FIELD(V7M_FPCCR, MMRDY, 5, 1)
+FIELD(V7M_FPCCR, BFRDY, 6, 1)
+FIELD(V7M_FPCCR, SFRDY, 7, 1)
+FIELD(V7M_FPCCR, MONRDY, 8, 1)
+FIELD(V7M_FPCCR, SPLIMVIOL, 9, 1)
+FIELD(V7M_FPCCR, UFRDY, 10, 1)
+FIELD(V7M_FPCCR, RES0, 11, 15)
+FIELD(V7M_FPCCR, TS, 26, 1)
+FIELD(V7M_FPCCR, CLRONRETS, 27, 1)
+FIELD(V7M_FPCCR, CLRONRET, 28, 1)
+FIELD(V7M_FPCCR, LSPENS, 29, 1)
+FIELD(V7M_FPCCR, LSPEN, 30, 1)
+FIELD(V7M_FPCCR, ASPEN, 31, 1)
+/* These bits are banked. Others are non-banked and live in the M_REG_S bank */
+#define R_V7M_FPCCR_BANKED_MASK                 \
+    (R_V7M_FPCCR_LSPACT_MASK |                  \
+     R_V7M_FPCCR_USER_MASK |                    \
+     R_V7M_FPCCR_THREAD_MASK |                  \
+     R_V7M_FPCCR_MMRDY_MASK |                   \
+     R_V7M_FPCCR_SPLIMVIOL_MASK |               \
+     R_V7M_FPCCR_UFRDY_MASK |                   \
+     R_V7M_FPCCR_ASPEN_MASK)
 
 /*
  * System register ID fields.
