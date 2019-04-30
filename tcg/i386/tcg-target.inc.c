@@ -3297,7 +3297,6 @@ int tcg_can_emit_vec_op(TCGOpcode opc, TCGType type, unsigned vece)
     case INDEX_op_smax_vec:
     case INDEX_op_umin_vec:
     case INDEX_op_umax_vec:
-        return vece <= MO_32 ? 1 : -1;
     case INDEX_op_abs_vec:
         return vece <= MO_32;
 
@@ -3551,25 +3550,6 @@ static void expand_vec_cmpsel(TCGType type, unsigned vece, TCGv_vec v0,
     tcg_temp_free_vec(t);
 }
 
-static void expand_vec_minmax(TCGType type, unsigned vece,
-                              TCGCond cond, bool min,
-                              TCGv_vec v0, TCGv_vec v1, TCGv_vec v2)
-{
-    TCGv_vec t1 = tcg_temp_new_vec(type);
-
-    tcg_debug_assert(vece == MO_64);
-
-    tcg_gen_cmp_vec(cond, vece, t1, v1, v2);
-    if (min) {
-        TCGv_vec t2;
-        t2 = v1, v1 = v2, v2 = t2;
-    }
-    vec_gen_4(INDEX_op_x86_vpblendvb_vec, type, vece,
-              tcgv_vec_arg(v0), tcgv_vec_arg(v1),
-              tcgv_vec_arg(v2), tcgv_vec_arg(t1));
-    tcg_temp_free_vec(t1);
-}
-
 void tcg_expand_vec_op(TCGOpcode opc, TCGType type, unsigned vece,
                        TCGArg a0, ...)
 {
@@ -3607,23 +3587,6 @@ void tcg_expand_vec_op(TCGOpcode opc, TCGType type, unsigned vece,
         v3 = temp_tcgv_vec(arg_temp(va_arg(va, TCGArg)));
         v4 = temp_tcgv_vec(arg_temp(va_arg(va, TCGArg)));
         expand_vec_cmpsel(type, vece, v0, v1, v2, v3, v4, va_arg(va, TCGArg));
-        break;
-
-    case INDEX_op_smin_vec:
-        v2 = temp_tcgv_vec(arg_temp(a2));
-        expand_vec_minmax(type, vece, TCG_COND_GT, true, v0, v1, v2);
-        break;
-    case INDEX_op_smax_vec:
-        v2 = temp_tcgv_vec(arg_temp(a2));
-        expand_vec_minmax(type, vece, TCG_COND_GT, false, v0, v1, v2);
-        break;
-    case INDEX_op_umin_vec:
-        v2 = temp_tcgv_vec(arg_temp(a2));
-        expand_vec_minmax(type, vece, TCG_COND_GTU, true, v0, v1, v2);
-        break;
-    case INDEX_op_umax_vec:
-        v2 = temp_tcgv_vec(arg_temp(a2));
-        expand_vec_minmax(type, vece, TCG_COND_GTU, false, v0, v1, v2);
         break;
 
     default:
