@@ -3195,3 +3195,26 @@ void tcg_gen_gvec_cmp(TCGCond cond, unsigned vece, uint32_t dofs,
         expand_clr(dofs + oprsz, maxsz - oprsz);
     }
 }
+
+static void tcg_gen_bitsel_i64(TCGv_i64 d, TCGv_i64 a, TCGv_i64 b, TCGv_i64 c)
+{
+    TCGv_i64 t = tcg_temp_new_i64();
+
+    tcg_gen_and_i64(t, b, a);
+    tcg_gen_andc_i64(d, c, a);
+    tcg_gen_or_i64(d, d, t);
+    tcg_temp_free_i64(t);
+}
+
+void tcg_gen_gvec_bitsel(unsigned vece, uint32_t dofs, uint32_t aofs,
+                         uint32_t bofs, uint32_t cofs,
+                         uint32_t oprsz, uint32_t maxsz)
+{
+    static const GVecGen4 g = {
+        .fni8 = tcg_gen_bitsel_i64,
+        .fniv = tcg_gen_bitsel_vec,
+        .fno = gen_helper_gvec_bitsel,
+    };
+
+    tcg_gen_gvec_4(dofs, aofs, bofs, cofs, oprsz, maxsz, &g);
+}

@@ -88,6 +88,7 @@ bool tcg_can_emit_vecop_list(const TCGOpcode *list,
         case INDEX_op_dup2_vec:
         case INDEX_op_ld_vec:
         case INDEX_op_st_vec:
+        case INDEX_op_bitsel_vec:
             /* These opcodes are mandatory and should not be listed.  */
             g_assert_not_reached();
         default:
@@ -690,4 +691,29 @@ void tcg_gen_shrs_vec(unsigned vece, TCGv_vec r, TCGv_vec a, TCGv_i32 b)
 void tcg_gen_sars_vec(unsigned vece, TCGv_vec r, TCGv_vec a, TCGv_i32 b)
 {
     do_shifts(vece, r, a, b, INDEX_op_sars_vec, INDEX_op_sarv_vec);
+}
+
+void tcg_gen_bitsel_vec(unsigned vece, TCGv_vec r, TCGv_vec a,
+                        TCGv_vec b, TCGv_vec c)
+{
+    TCGTemp *rt = tcgv_vec_temp(r);
+    TCGTemp *at = tcgv_vec_temp(a);
+    TCGTemp *bt = tcgv_vec_temp(b);
+    TCGTemp *ct = tcgv_vec_temp(c);
+    TCGType type = rt->base_type;
+
+    tcg_debug_assert(at->base_type >= type);
+    tcg_debug_assert(bt->base_type >= type);
+    tcg_debug_assert(ct->base_type >= type);
+
+    if (TCG_TARGET_HAS_bitsel_vec) {
+        vec_gen_4(INDEX_op_bitsel_vec, type, MO_8,
+                  temp_arg(rt), temp_arg(at), temp_arg(bt), temp_arg(ct));
+    } else {
+        TCGv_vec t = tcg_temp_new_vec(type);
+        tcg_gen_and_vec(MO_8, t, a, b);
+        tcg_gen_andc_vec(MO_8, r, c, a);
+        tcg_gen_or_vec(MO_8, r, r, t);
+        tcg_temp_free_vec(t);
+    }
 }

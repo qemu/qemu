@@ -1646,6 +1646,8 @@ bool tcg_op_supported(TCGOpcode op)
     case INDEX_op_smax_vec:
     case INDEX_op_umax_vec:
         return have_vec && TCG_TARGET_HAS_minmax_vec;
+    case INDEX_op_bitsel_vec:
+        return have_vec && TCG_TARGET_HAS_bitsel_vec;
 
     default:
         tcg_debug_assert(op > INDEX_op_last_generic && op < NB_OPS);

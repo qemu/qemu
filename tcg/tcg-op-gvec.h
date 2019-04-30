@@ -343,6 +343,13 @@ void tcg_gen_gvec_cmp(TCGCond cond, unsigned vece, uint32_t dofs,
                       uint32_t oprsz, uint32_t maxsz);
 
 /*
+ * Perform vector bit select: d = (b & a) | (c & ~a).
+ */
+void tcg_gen_gvec_bitsel(unsigned vece, uint32_t dofs, uint32_t aofs,
+                         uint32_t bofs, uint32_t cofs,
+                         uint32_t oprsz, uint32_t maxsz);
+
+/*
  * 64-bit vector operations.  Use these when the register has been allocated
  * with tcg_global_mem_new_i64, and so we cannot also address it via pointer.
  * OPRSZ = MAXSZ = 8.
