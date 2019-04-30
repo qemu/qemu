@@ -631,6 +631,13 @@ E.g. VECL=1 -> 64 << 1 -> v128, and VECE=2 -> 1 << 2 -> i32.
 
   Bitwise select, v0 = (v2 & v1) | (v3 & ~v1), across the entire vector.
 
+* cmpsel_vec v0, c1, c2, v3, v4, cond
+
+  Select elements based on comparison results:
+  for (i = 0; i < n; ++i) {
+    v0[i] = (c1[i] cond c2[i]) ? v3[i] : v4[i].
+  }
+
 *********
 
 Note 1: Some shortcuts are defined when the last operand is known to be
