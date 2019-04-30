@@ -19,7 +19,8 @@
 #include "qemu/bswap.h"
 
 /* Called with table_lock held.  */
-static int qed_read_table(BDRVQEDState *s, uint64_t offset, QEDTable *table)
+static int coroutine_fn qed_read_table(BDRVQEDState *s, uint64_t offset,
+                                       QEDTable *table)
 {
     unsigned int bytes = s->header.cluster_size * s->header.table_size;
 
@@ -60,8 +61,9 @@ out:
  *
  * Called with table_lock held.
  */
-static int qed_write_table(BDRVQEDState *s, uint64_t offset, QEDTable *table,
-                           unsigned int index, unsigned int n, bool flush)
+static int coroutine_fn qed_write_table(BDRVQEDState *s, uint64_t offset,
+                                        QEDTable *table, unsigned int index,
+                                        unsigned int n, bool flush)
 {
     unsigned int sector_mask = BDRV_SECTOR_SIZE / sizeof(uint64_t) - 1;
     unsigned int start, end, i;
@@ -109,27 +111,29 @@ out:
     return ret;
 }
 
-int qed_read_l1_table_sync(BDRVQEDState *s)
+int coroutine_fn qed_read_l1_table_sync(BDRVQEDState *s)
 {
     return qed_read_table(s, s->header.l1_table_offset, s->l1_table);
 }
 
 /* Called with table_lock held.  */
-int qed_write_l1_table(BDRVQEDState *s, unsigned int index, unsigned int n)
+int coroutine_fn qed_write_l1_table(BDRVQEDState *s, unsigned int index,
+                                    unsigned int n)
 {
     BLKDBG_EVENT(s->bs->file, BLKDBG_L1_UPDATE);
     return qed_write_table(s, s->header.l1_table_offset,
                            s->l1_table, index, n, false);
 }
 
-int qed_write_l1_table_sync(BDRVQEDState *s, unsigned int index,
-                            unsigned int n)
+int coroutine_fn qed_write_l1_table_sync(BDRVQEDState *s, unsigned int index,
+                                         unsigned int n)
 {
     return qed_write_l1_table(s, index, n);
 }
 
 /* Called with table_lock held.  */
-int qed_read_l2_table(BDRVQEDState *s, QEDRequest *request, uint64_t offset)
+int coroutine_fn qed_read_l2_table(BDRVQEDState *s, QEDRequest *request,
+                                   uint64_t offset)
 {
     int ret;
 
@@ -166,22 +170,25 @@ int qed_read_l2_table(BDRVQEDState *s, QEDRequest *request, uint64_t offset)
     return ret;
 }
 
-int qed_read_l2_table_sync(BDRVQEDState *s, QEDRequest *request, uint64_t offset)
+int coroutine_fn qed_read_l2_table_sync(BDRVQEDState *s, QEDRequest *request,
+                                        uint64_t offset)
 {
     return qed_read_l2_table(s, request, offset);
 }
 
 /* Called with table_lock held.  */
-int qed_write_l2_table(BDRVQEDState *s, QEDRequest *request,
-                       unsigned int index, unsigned int n, bool flush)
+int coroutine_fn qed_write_l2_table(BDRVQEDState *s, QEDRequest *request,
+                                    unsigned int index, unsigned int n,
+                                    bool flush)
 {
     BLKDBG_EVENT(s->bs->file, BLKDBG_L2_UPDATE);
     return qed_write_table(s, request->l2_table->offset,
                            request->l2_table->table, index, n, flush);
 }
 
-int qed_write_l2_table_sync(BDRVQEDState *s, QEDRequest *request,
-                            unsigned int index, unsigned int n, bool flush)
+int coroutine_fn qed_write_l2_table_sync(BDRVQEDState *s, QEDRequest *request,
+                                         unsigned int index, unsigned int n,
+                                         bool flush)
 {
     return qed_write_l2_table(s, request, index, n, flush);
 }

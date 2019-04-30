@@ -1604,8 +1604,9 @@ static void coroutine_fn bdrv_qed_co_invalidate_cache(BlockDriverState *bs,
     }
 }
 
-static int bdrv_qed_co_check(BlockDriverState *bs, BdrvCheckResult *result,
-                             BdrvCheckMode fix)
+static int coroutine_fn bdrv_qed_co_check(BlockDriverState *bs,
+                                          BdrvCheckResult *result,
+                                          BdrvCheckMode fix)
 {
     BDRVQEDState *s = bs->opaque;
     int ret;
