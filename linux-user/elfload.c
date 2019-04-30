@@ -2872,7 +2872,7 @@ struct target_elf_prpsinfo {
     target_gid_t pr_gid;
     target_pid_t pr_pid, pr_ppid, pr_pgrp, pr_sid;
     /* Lots missing */
-    char    pr_fname[16];           /* filename of executable */
+    char    pr_fname[16] QEMU_NONSTRING; /* filename of executable */
     char    pr_psargs[ELF_PRARGSZ]; /* initial part of arg list */
 };
 
