@@ -23,20 +23,20 @@ Is another process using the image [TEST_DIR/t.qcow2]?
 == Running utility commands  ==
 
 _qemu_io_wrapper -c read 0 512 TEST_DIR/t.qcow2
-can't open device TEST_DIR/t.qcow2: Failed to get "write" lock
+qemu-io: can't open device TEST_DIR/t.qcow2: Failed to get "write" lock
 Is another process using the image [TEST_DIR/t.qcow2]?
 
 _qemu_io_wrapper -r -c read 0 512 TEST_DIR/t.qcow2
-can't open device TEST_DIR/t.qcow2: Failed to get shared "write" lock
+qemu-io: can't open device TEST_DIR/t.qcow2: Failed to get shared "write" lock
 Is another process using the image [TEST_DIR/t.qcow2]?
 
 _qemu_io_wrapper -c open  TEST_DIR/t.qcow2 -c read 0 512
-can't open device TEST_DIR/t.qcow2: Failed to get "write" lock
+qemu-io: can't open device TEST_DIR/t.qcow2: Failed to get "write" lock
 Is another process using the image [TEST_DIR/t.qcow2]?
 no file open, try 'help open'
 
 _qemu_io_wrapper -c open -r  TEST_DIR/t.qcow2 -c read 0 512
-can't open device TEST_DIR/t.qcow2: Failed to get shared "write" lock
+qemu-io: can't open device TEST_DIR/t.qcow2: Failed to get shared "write" lock
 Is another process using the image [TEST_DIR/t.qcow2]?
 no file open, try 'help open'
 
@@ -100,12 +100,12 @@ file format: IMGFMT
 == Running utility commands -U ==
 
 _qemu_io_wrapper -U -c read 0 512 TEST_DIR/t.qcow2
-can't open device TEST_DIR/t.qcow2: force-share=on can only be used with read-only images
+qemu-io: can't open device TEST_DIR/t.qcow2: force-share=on can only be used with read-only images
 
 _qemu_io_wrapper -U -r -c read 0 512 TEST_DIR/t.qcow2
 
 _qemu_io_wrapper -c open -U TEST_DIR/t.qcow2 -c read 0 512
-can't open device TEST_DIR/t.qcow2: force-share=on can only be used with read-only images
+qemu-io: can't open device TEST_DIR/t.qcow2: force-share=on can only be used with read-only images
 no file open, try 'help open'
 
 _qemu_io_wrapper -c open -r -U TEST_DIR/t.qcow2 -c read 0 512
@@ -166,13 +166,13 @@ Is another process using the image [TEST_DIR/t.qcow2]?
 == Running utility commands  ==
 
 _qemu_io_wrapper -c read 0 512 TEST_DIR/t.qcow2
-can't open device TEST_DIR/t.qcow2: Failed to get "write" lock
+qemu-io: can't open device TEST_DIR/t.qcow2: Failed to get "write" lock
 Is another process using the image [TEST_DIR/t.qcow2]?
 
 _qemu_io_wrapper -r -c read 0 512 TEST_DIR/t.qcow2
 
 _qemu_io_wrapper -c open  TEST_DIR/t.qcow2 -c read 0 512
-can't open device TEST_DIR/t.qcow2: Failed to get "write" lock
+qemu-io: can't open device TEST_DIR/t.qcow2: Failed to get "write" lock
 Is another process using the image [TEST_DIR/t.qcow2]?
 no file open, try 'help open'
 
@@ -222,12 +222,12 @@ file format: IMGFMT
 == Running utility commands -U ==
 
 _qemu_io_wrapper -U -c read 0 512 TEST_DIR/t.qcow2
-can't open device TEST_DIR/t.qcow2: force-share=on can only be used with read-only images
+qemu-io: can't open device TEST_DIR/t.qcow2: force-share=on can only be used with read-only images
 
 _qemu_io_wrapper -U -r -c read 0 512 TEST_DIR/t.qcow2
 
 _qemu_io_wrapper -c open -U TEST_DIR/t.qcow2 -c read 0 512
-can't open device TEST_DIR/t.qcow2: force-share=on can only be used with read-only images
+qemu-io: can't open device TEST_DIR/t.qcow2: force-share=on can only be used with read-only images
 no file open, try 'help open'
 
 _qemu_io_wrapper -c open -r -U TEST_DIR/t.qcow2 -c read 0 512
@@ -325,12 +325,12 @@ file format: IMGFMT
 == Running utility commands -U ==
 
 _qemu_io_wrapper -U -c read 0 512 TEST_DIR/t.qcow2
-can't open device TEST_DIR/t.qcow2: force-share=on can only be used with read-only images
+qemu-io: can't open device TEST_DIR/t.qcow2: force-share=on can only be used with read-only images
 
 _qemu_io_wrapper -U -r -c read 0 512 TEST_DIR/t.qcow2
 
 _qemu_io_wrapper -c open -U TEST_DIR/t.qcow2 -c read 0 512
-can't open device TEST_DIR/t.qcow2: force-share=on can only be used with read-only images
+qemu-io: can't open device TEST_DIR/t.qcow2: force-share=on can only be used with read-only images
 no file open, try 'help open'
 
 _qemu_io_wrapper -c open -r -U TEST_DIR/t.qcow2 -c read 0 512
@@ -420,7 +420,7 @@ Adding drive
 {"return": "OKrn"}
 
 _qemu_io_wrapper TEST_DIR/t.qcow2 -c write 0 512
-can't open device TEST_DIR/t.qcow2: Failed to get "write" lock
+qemu-io: can't open device TEST_DIR/t.qcow2: Failed to get "write" lock
 Is another process using the image [TEST_DIR/t.qcow2]?
 Creating overlay with qemu-img when the guest is running should be allowed
 
@@ -437,7 +437,7 @@ _qemu_img_wrapper info TEST_DIR/t.qcow2
 {"return": ""}
 
 _qemu_io_wrapper TEST_DIR/t.qcow2 -c write 0 512
-can't open device TEST_DIR/t.qcow2: Failed to get "write" lock
+qemu-io: can't open device TEST_DIR/t.qcow2: Failed to get "write" lock
 Is another process using the image [TEST_DIR/t.qcow2]?
 Closing the other
 {"return": ""}
@@ -449,7 +449,7 @@ _qemu_io_wrapper TEST_DIR/t.qcow2 -c write 0 512
 No conflict:
 image: null-co://
 file format: null-co
-virtual size: 1.0G (1073741824 bytes)
+virtual size: 1 GiB (1073741824 bytes)
 disk size: unavailable
 
 Conflict:
@@ -458,5 +458,5 @@ qemu-img: --force-share/-U conflicts with image options
 No conflict:
 
 Conflict:
--U conflicts with image options
+qemu-io: -U conflicts with image options
 *** done

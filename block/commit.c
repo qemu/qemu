@@ -48,16 +48,15 @@ static int coroutine_fn commit_populate(BlockBackend *bs, BlockBackend *base,
                                         void *buf)
 {
     int ret = 0;
-    QEMUIOVector qiov = QEMU_IOVEC_INIT_BUF(qiov, buf, bytes);
 
     assert(bytes < SIZE_MAX);
 
-    ret = blk_co_preadv(bs, offset, qiov.size, &qiov, 0);
+    ret = blk_co_pread(bs, offset, bytes, buf, 0);
     if (ret < 0) {
         return ret;
     }
 
-    ret = blk_co_pwritev(base, offset, qiov.size, &qiov, 0);
+    ret = blk_co_pwrite(base, offset, bytes, buf, 0);
     if (ret < 0) {
         return ret;
     }
@@ -383,6 +382,9 @@ fail:
     }
     if (s->top) {
         blk_unref(s->top);
+    }
+    if (s->base_read_only) {
+        bdrv_reopen_set_read_only(base, true, NULL);
     }
     job_early_fail(&s->common.job);
     /* commit_top_bs has to be replaced after deleting the block job,

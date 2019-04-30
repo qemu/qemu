@@ -106,7 +106,7 @@ static unsigned int qed_check_l2_table(QEDCheck *check, QEDTable *table)
 /**
  * Descend tables and check each cluster is referenced once only
  */
-static int qed_check_l1_table(QEDCheck *check, QEDTable *table)
+static int coroutine_fn qed_check_l1_table(QEDCheck *check, QEDTable *table)
 {
     BDRVQEDState *s = check->s;
     unsigned int i, num_invalid_l1 = 0;
@@ -218,7 +218,7 @@ static void qed_check_mark_clean(BDRVQEDState *s, BdrvCheckResult *result)
 }
 
 /* Called with table_lock held.  */
-int qed_check(BDRVQEDState *s, BdrvCheckResult *result, bool fix)
+int coroutine_fn qed_check(BDRVQEDState *s, BdrvCheckResult *result, bool fix)
 {
     QEDCheck check = {
         .s = s,

@@ -8,7 +8,7 @@ qemu-img info dump:
 
 image: TEST_IMG
 file format: IMGFMT
-virtual size: 1.0M (1048576 bytes)
+virtual size: 1 MiB (1048576 bytes)
 cluster_size: 65536
 Format specific information:
     compat: 1.1
@@ -28,7 +28,7 @@ qemu-img info dump:
 
 image: TEST_IMG
 file format: IMGFMT
-virtual size: 1.0M (1048576 bytes)
+virtual size: 1 MiB (1048576 bytes)
 cluster_size: 65536
 Format specific information:
     compat: 1.1
@@ -60,7 +60,7 @@ qemu-img info dump:
 
 image: TEST_IMG
 file format: IMGFMT
-virtual size: 1.0M (1048576 bytes)
+virtual size: 1 MiB (1048576 bytes)
 cluster_size: 65536
 Format specific information:
     compat: 1.1
@@ -100,7 +100,7 @@ qemu-img info dump:
 
 image: TEST_IMG
 file format: IMGFMT
-virtual size: 1.0M (1048576 bytes)
+virtual size: 1 MiB (1048576 bytes)
 cluster_size: 65536
 Format specific information:
     compat: 1.1
@@ -149,7 +149,7 @@ Unset the unknown bitmap flag '0x4' in the bitmap directory entry:
 
 image: TEST_IMG
 file format: IMGFMT
-virtual size: 1.0M (1048576 bytes)
+virtual size: 1 MiB (1048576 bytes)
 cluster_size: 65536
 Format specific information:
     compat: 1.1

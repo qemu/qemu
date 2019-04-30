@@ -212,7 +212,10 @@ run_qemu_img amend -f $IMGFMT -o backing_file="$TEST_IMG" -o ,, -o help "$TEST_I
 
 # Leave out everything that isn't needed
 run_qemu_img amend -f $IMGFMT -o help
-run_qemu_img convert -o help
+
+# amend requires specifying either a format explicitly, or a file
+# which it can probe
+run_qemu_img amend -o help
 
 # Try help option for a format that does not support amendment
 run_qemu_img amend -f bochs -o help

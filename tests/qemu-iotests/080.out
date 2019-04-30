@@ -2,34 +2,34 @@ QA output created by 080
 
 == Huge header size ==
 Formatting 'TEST_DIR/t.IMGFMT', fmt=IMGFMT size=67108864
-can't open device TEST_DIR/t.qcow2: qcow2 header exceeds cluster size
-can't open device TEST_DIR/t.qcow2: qcow2 header exceeds cluster size
+qemu-io: can't open device TEST_DIR/t.qcow2: qcow2 header exceeds cluster size
+qemu-io: can't open device TEST_DIR/t.qcow2: qcow2 header exceeds cluster size
 
 == Huge unknown header extension ==
 Formatting 'TEST_DIR/t.IMGFMT', fmt=IMGFMT size=67108864
-can't open device TEST_DIR/t.qcow2: Invalid backing file offset
-can't open device TEST_DIR/t.qcow2: Header extension too large
-can't open device TEST_DIR/t.qcow2: Header extension too large
+qemu-io: can't open device TEST_DIR/t.qcow2: Invalid backing file offset
+qemu-io: can't open device TEST_DIR/t.qcow2: Header extension too large
+qemu-io: can't open device TEST_DIR/t.qcow2: Header extension too large
 
 == Huge refcount table size ==
 Formatting 'TEST_DIR/t.IMGFMT', fmt=IMGFMT size=67108864
-can't open device TEST_DIR/t.qcow2: Reference count table too large
-can't open device TEST_DIR/t.qcow2: Reference count table too large
+qemu-io: can't open device TEST_DIR/t.qcow2: Reference count table too large
+qemu-io: can't open device TEST_DIR/t.qcow2: Reference count table too large
 
 == Misaligned refcount table ==
 Formatting 'TEST_DIR/t.IMGFMT', fmt=IMGFMT size=67108864
-can't open device TEST_DIR/t.qcow2: Reference count table offset invalid
+qemu-io: can't open device TEST_DIR/t.qcow2: Reference count table offset invalid
 
 == Huge refcount offset ==
 Formatting 'TEST_DIR/t.IMGFMT', fmt=IMGFMT size=67108864
-can't open device TEST_DIR/t.qcow2: Reference count table offset invalid
+qemu-io: can't open device TEST_DIR/t.qcow2: Reference count table offset invalid
 
 == Invalid snapshot table ==
 Formatting 'TEST_DIR/t.IMGFMT', fmt=IMGFMT size=67108864
-can't open device TEST_DIR/t.qcow2: Snapshot table too large
-can't open device TEST_DIR/t.qcow2: Snapshot table too large
-can't open device TEST_DIR/t.qcow2: Snapshot table offset invalid
-can't open device TEST_DIR/t.qcow2: Snapshot table offset invalid
+qemu-io: can't open device TEST_DIR/t.qcow2: Snapshot table too large
+qemu-io: can't open device TEST_DIR/t.qcow2: Snapshot table too large
+qemu-io: can't open device TEST_DIR/t.qcow2: Snapshot table offset invalid
+qemu-io: can't open device TEST_DIR/t.qcow2: Snapshot table offset invalid
 
 == Hitting snapshot table size limit ==
 Formatting 'TEST_DIR/t.IMGFMT', fmt=IMGFMT size=67108864
@@ -39,10 +39,10 @@ read 512/512 bytes at offset 0
 
 == Invalid L1 table ==
 Formatting 'TEST_DIR/t.IMGFMT', fmt=IMGFMT size=67108864
-can't open device TEST_DIR/t.qcow2: Active L1 table too large
-can't open device TEST_DIR/t.qcow2: Active L1 table too large
-can't open device TEST_DIR/t.qcow2: Active L1 table offset invalid
-can't open device TEST_DIR/t.qcow2: Active L1 table offset invalid
+qemu-io: can't open device TEST_DIR/t.qcow2: Active L1 table too large
+qemu-io: can't open device TEST_DIR/t.qcow2: Active L1 table too large
+qemu-io: can't open device TEST_DIR/t.qcow2: Active L1 table offset invalid
+qemu-io: can't open device TEST_DIR/t.qcow2: Active L1 table offset invalid
 
 == Invalid L1 table (with internal snapshot in the image) ==
 Formatting 'TEST_DIR/t.IMGFMT', fmt=IMGFMT size=67108864
@@ -50,7 +50,7 @@ qemu-img: Could not open 'TEST_DIR/t.IMGFMT': L1 table is too small
 
 == Invalid backing file size ==
 Formatting 'TEST_DIR/t.IMGFMT', fmt=IMGFMT size=67108864
-can't open device TEST_DIR/t.qcow2: Backing file name too long
+qemu-io: can't open device TEST_DIR/t.qcow2: Backing file name too long
 
 == Invalid L2 entry (huge physical offset) ==
 Formatting 'TEST_DIR/t.IMGFMT', fmt=IMGFMT size=67108864
@@ -66,7 +66,7 @@ wrote 512/512 bytes at offset 0
 qemu-img: Failed to load snapshot: Snapshot L1 table offset invalid
 qemu-img: Snapshot L1 table offset invalid
 qemu-img: Failed to turn zero into data clusters: Invalid argument
-Failed to flush the refcount block cache: Invalid argument
+qemu-io: Failed to flush the refcount block cache: Invalid argument
 write failed: Invalid argument
 qemu-img: Snapshot L1 table offset invalid
 qemu-img: Could not apply snapshot 'test': Failed to load snapshot: Invalid argument
@@ -89,7 +89,7 @@ wrote 512/512 bytes at offset 0
 qemu-img: Failed to load snapshot: Snapshot L1 table too large
 qemu-img: Snapshot L1 table too large
 qemu-img: Failed to turn zero into data clusters: File too large
-Failed to flush the refcount block cache: File too large
+qemu-io: Failed to flush the refcount block cache: File too large
 write failed: File too large
 qemu-img: Snapshot L1 table too large
 qemu-img: Could not apply snapshot 'test': Failed to load snapshot: File too large

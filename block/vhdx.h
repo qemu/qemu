@@ -17,13 +17,11 @@
 
 #ifndef BLOCK_VHDX_H
 #define BLOCK_VHDX_H
-
-#define KiB              (1 * 1024)
-#define MiB            (KiB * 1024)
-#define GiB            (MiB * 1024)
-#define TiB ((uint64_t) GiB * 1024)
+#include "qemu/units.h"
 
 #define DEFAULT_LOG_SIZE 1048576 /* 1MiB */
+/* Note: can't use 1 * MiB, because it's passed to stringify() */
+
 /* Structures and fields present in the VHDX file */
 
 /* The header section has the following blocks,
@@ -36,7 +34,7 @@
  * 0.........64KB...........128KB........192KB..........256KB................1MB
  */
 
-#define VHDX_HEADER_BLOCK_SIZE      (64 * 1024)
+#define VHDX_HEADER_BLOCK_SIZE      (64 * KiB)
 
 #define VHDX_FILE_ID_OFFSET         0
 #define VHDX_HEADER1_OFFSET         (VHDX_HEADER_BLOCK_SIZE * 1)
@@ -85,7 +83,7 @@ typedef struct QEMU_PACKED MSGUID {
 #define guid_eq(a, b) \
     (memcmp(&(a), &(b), sizeof(MSGUID)) == 0)
 
-#define VHDX_HEADER_SIZE (4 * 1024)   /* although the vhdx_header struct in disk
+#define VHDX_HEADER_SIZE (4 * KiB)    /* although the vhdx_header struct in disk
                                          is only 582 bytes, for purposes of crc
                                          the header is the first 4KB of the 64KB
                                          block */
@@ -161,8 +159,8 @@ typedef struct QEMU_PACKED VHDXRegionTableEntry {
 
 
 /* ---- LOG ENTRY STRUCTURES ---- */
-#define VHDX_LOG_MIN_SIZE (1024 * 1024)
-#define VHDX_LOG_SECTOR_SIZE 4096
+#define VHDX_LOG_MIN_SIZE (1 * MiB)
+#define VHDX_LOG_SECTOR_SIZE (4 * KiB)
 #define VHDX_LOG_HDR_SIZE 64
 #define VHDX_LOG_SIGNATURE 0x65676f6c
 typedef struct QEMU_PACKED VHDXLogEntryHeader {

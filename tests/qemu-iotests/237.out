@@ -14,7 +14,7 @@
 
 image: TEST_IMG
 file format: IMGFMT
-virtual size: 5.0G (5368709120 bytes)
+virtual size: 5 GiB (5368709120 bytes)
 cluster_size: 65536
 Format specific information:
     cid: XXXXXXXXXX
@@ -41,7 +41,7 @@ Format specific information:
 
 image: TEST_IMG
 file format: IMGFMT
-virtual size: 64M (67108864 bytes)
+virtual size: 64 MiB (67108864 bytes)
 cluster_size: 65536
 Format specific information:
     cid: XXXXXXXXXX
@@ -68,7 +68,7 @@ Format specific information:
 
 image: TEST_IMG
 file format: IMGFMT
-virtual size: 32M (33554432 bytes)
+virtual size: 32 MiB (33554432 bytes)
 cluster_size: 65536
 Format specific information:
     cid: XXXXXXXXXX
@@ -169,7 +169,7 @@ Job failed: List of extents contains unused extents
 
 image: TEST_IMG
 file format: IMGFMT
-virtual size: 512 (512 bytes)
+virtual size: 512 B (512 bytes)
 Format specific information:
     cid: XXXXXXXXXX
     parent cid: XXXXXXXXXX
@@ -189,7 +189,7 @@ Format specific information:
 
 image: TEST_IMG
 file format: IMGFMT
-virtual size: 512 (512 bytes)
+virtual size: 512 B (512 bytes)
 cluster_size: 65536
 Format specific information:
     cid: XXXXXXXXXX
@@ -211,7 +211,7 @@ Format specific information:
 
 image: TEST_IMG
 file format: IMGFMT
-virtual size: 1.0G (1073741824 bytes)
+virtual size: 1 GiB (1073741824 bytes)
 Format specific information:
     cid: XXXXXXXXXX
     parent cid: XXXXXXXXXX
@@ -231,7 +231,7 @@ Format specific information:
 
 image: TEST_IMG
 file format: IMGFMT
-virtual size: 1.0G (1073741824 bytes)
+virtual size: 1 GiB (1073741824 bytes)
 cluster_size: 65536
 Format specific information:
     cid: XXXXXXXXXX
@@ -253,7 +253,7 @@ Format specific information:
 
 image: TEST_IMG
 file format: IMGFMT
-virtual size: 2.0G (2147483648 bytes)
+virtual size: 2 GiB (2147483648 bytes)
 Format specific information:
     cid: XXXXXXXXXX
     parent cid: XXXXXXXXXX
@@ -273,7 +273,7 @@ Format specific information:
 
 image: TEST_IMG
 file format: IMGFMT
-virtual size: 2.0G (2147483648 bytes)
+virtual size: 2 GiB (2147483648 bytes)
 cluster_size: 65536
 Format specific information:
     cid: XXXXXXXXXX
@@ -295,7 +295,7 @@ Format specific information:
 
 image: TEST_IMG
 file format: IMGFMT
-virtual size: 5.0G (5368709120 bytes)
+virtual size: 5 GiB (5368709120 bytes)
 Format specific information:
     cid: XXXXXXXXXX
     parent cid: XXXXXXXXXX
@@ -323,7 +323,7 @@ Format specific information:
 
 image: TEST_IMG
 file format: IMGFMT
-virtual size: 5.0G (5368709120 bytes)
+virtual size: 5 GiB (5368709120 bytes)
 cluster_size: 65536
 Format specific information:
     cid: XXXXXXXXXX

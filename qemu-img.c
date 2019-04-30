@@ -267,9 +267,20 @@ static int print_block_option_help(const char *filename, const char *fmt)
         create_opts = qemu_opts_append(create_opts, proto_drv->create_opts);
     }
 
-    printf("Supported options:\n");
+    if (filename) {
+        printf("Supported options:\n");
+    } else {
+        printf("Supported %s options:\n", fmt);
+    }
     qemu_opts_print_help(create_opts, false);
     qemu_opts_free(create_opts);
+
+    if (!filename) {
+        printf("\n"
+               "The protocol level may support further options.\n"
+               "Specify the target filename to include those options.\n");
+    }
+
     return 0;
 }
 
@@ -1669,7 +1680,6 @@ static int coroutine_fn convert_co_read(ImgConvertState *s, int64_t sector_num,
                                         int nb_sectors, uint8_t *buf)
 {
     int n, ret;
-    QEMUIOVector qiov;
 
     assert(nb_sectors <= s->buf_sectors);
     while (nb_sectors > 0) {
@@ -1685,11 +1695,10 @@ static int coroutine_fn convert_co_read(ImgConvertState *s, int64_t sector_num,
         bs_sectors = s->src_sectors[src_cur];
 
         n = MIN(nb_sectors, bs_sectors - (sector_num - src_cur_offset));
-        qemu_iovec_init_buf(&qiov, buf, n << BDRV_SECTOR_BITS);
 
-        ret = blk_co_preadv(
+        ret = blk_co_pread(
                 blk, (sector_num - src_cur_offset) << BDRV_SECTOR_BITS,
-                n << BDRV_SECTOR_BITS, &qiov, 0);
+                n << BDRV_SECTOR_BITS, buf, 0);
         if (ret < 0) {
             return ret;
         }
@@ -1708,7 +1717,6 @@ static int coroutine_fn convert_co_write(ImgConvertState *s, int64_t sector_num,
                                          enum ImgConvertBlockStatus status)
 {
     int ret;
-    QEMUIOVector qiov;
 
     while (nb_sectors > 0) {
         int n = nb_sectors;
@@ -1736,10 +1744,8 @@ static int coroutine_fn convert_co_write(ImgConvertState *s, int64_t sector_num,
                 (s->compressed &&
                  !buffer_is_zero(buf, n * BDRV_SECTOR_SIZE)))
             {
-                qemu_iovec_init_buf(&qiov, buf, n << BDRV_SECTOR_BITS);
-
-                ret = blk_co_pwritev(s->target, sector_num << BDRV_SECTOR_BITS,
-                                     n << BDRV_SECTOR_BITS, &qiov, flags);
+                ret = blk_co_pwrite(s->target, sector_num << BDRV_SECTOR_BITS,
+                                    n << BDRV_SECTOR_BITS, buf, flags);
                 if (ret < 0) {
                     return ret;
                 }

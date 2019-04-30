@@ -551,7 +551,7 @@ static int vhdx_log_flush(BlockDriverState *bs, BDRVVHDXState *s,
         }
         if (file_length < desc_entries->hdr.last_file_offset) {
             new_file_size = desc_entries->hdr.last_file_offset;
-            if (new_file_size % (1024*1024)) {
+            if (new_file_size % (1 * MiB)) {
                 /* round up to nearest 1MB boundary */
                 new_file_size = QEMU_ALIGN_UP(new_file_size, MiB);
                 if (new_file_size > INT64_MAX) {

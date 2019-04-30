@@ -34,7 +34,7 @@ read 16777216/16777216 bytes at offset 0
 == checking image base ==
 image: json:{"encrypt.key-secret": "sec0", "driver": "IMGFMT", "file": {"driver": "file", "filename": "TEST_DIR/t.IMGFMT.base"}}
 file format: IMGFMT
-virtual size: 16M (16777216 bytes)
+virtual size: 16 MiB (16777216 bytes)
 Format specific information:
     encrypt:
         ivgen alg: plain64
@@ -76,7 +76,7 @@ Format specific information:
 == checking image layer ==
 image: json:{"encrypt.key-secret": "sec1", "driver": "IMGFMT", "file": {"driver": "file", "filename": "TEST_DIR/t.IMGFMT"}}
 file format: IMGFMT
-virtual size: 16M (16777216 bytes)
+virtual size: 16 MiB (16777216 bytes)
 backing file: TEST_DIR/t.IMGFMT.base
 Format specific information:
     encrypt:

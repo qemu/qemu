@@ -28,11 +28,11 @@ server reported: Option 0x8 not permitted before TLS
 == check TLS works ==
 image: nbd://127.0.0.1:PORT
 file format: nbd
-virtual size: 64M (67108864 bytes)
+virtual size: 64 MiB (67108864 bytes)
 disk size: unavailable
 image: nbd://127.0.0.1:PORT
 file format: nbd
-virtual size: 64M (67108864 bytes)
+virtual size: 64 MiB (67108864 bytes)
 disk size: unavailable
 exports available: 1
  export: ''

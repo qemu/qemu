@@ -2721,11 +2721,13 @@ static int qcow2_set_up_encryption(BlockDriverState *bs,
  * Returns: 0 on success, -errno on failure.
  */
 static int coroutine_fn preallocate_co(BlockDriverState *bs, uint64_t offset,
-                                       uint64_t new_length)
+                                       uint64_t new_length, PreallocMode mode,
+                                       Error **errp)
 {
     BDRVQcow2State *s = bs->opaque;
     uint64_t bytes;
     uint64_t host_offset = 0;
+    int64_t file_length;
     unsigned int cur_bytes;
     int ret;
     QCowL2Meta *meta;
@@ -2734,10 +2736,11 @@ static int coroutine_fn preallocate_co(BlockDriverState *bs, uint64_t offset,
     bytes = new_length - offset;
 
     while (bytes) {
-        cur_bytes = MIN(bytes, INT_MAX);
+        cur_bytes = MIN(bytes, QEMU_ALIGN_DOWN(INT_MAX, s->cluster_size));
         ret = qcow2_alloc_cluster_offset(bs, offset, &cur_bytes,
                                          &host_offset, &meta);
         if (ret < 0) {
+            error_setg_errno(errp, -ret, "Allocating clusters failed");
             return ret;
         }
 
@@ -2746,6 +2749,7 @@ static int coroutine_fn preallocate_co(BlockDriverState *bs, uint64_t offset,
 
             ret = qcow2_alloc_cluster_link_l2(bs, meta);
             if (ret < 0) {
+                error_setg_errno(errp, -ret, "Mapping clusters failed");
                 qcow2_free_any_clusters(bs, meta->alloc_offset,
                                         meta->nb_clusters, QCOW2_DISCARD_NEVER);
                 return ret;
@@ -2770,10 +2774,18 @@ static int coroutine_fn preallocate_co(BlockDriverState *bs, uint64_t offset,
      * all of the allocated clusters (otherwise we get failing reads after
      * EOF). Extend the image to the last allocated sector.
      */
-    if (host_offset != 0) {
-        uint8_t data = 0;
-        ret = bdrv_pwrite(s->data_file, (host_offset + cur_bytes) - 1,
-                          &data, 1);
+    file_length = bdrv_getlength(s->data_file->bs);
+    if (file_length < 0) {
+        error_setg_errno(errp, -file_length, "Could not get file size");
+        return file_length;
+    }
+
+    if (host_offset + cur_bytes > file_length) {
+        if (mode == PREALLOC_MODE_METADATA) {
+            mode = PREALLOC_MODE_OFF;
+        }
+        ret = bdrv_co_truncate(s->data_file, host_offset + cur_bytes, mode,
+                               errp);
         if (ret < 0) {
             return ret;
         }
@@ -3745,12 +3757,17 @@ static int coroutine_fn qcow2_co_truncate(BlockDriverState *bs, int64_t offset,
 
     switch (prealloc) {
     case PREALLOC_MODE_OFF:
+        if (has_data_file(bs)) {
+            ret = bdrv_co_truncate(s->data_file, offset, prealloc, errp);
+            if (ret < 0) {
+                goto fail;
+            }
+        }
         break;
 
     case PREALLOC_MODE_METADATA:
-        ret = preallocate_co(bs, old_length, offset);
+        ret = preallocate_co(bs, old_length, offset, prealloc, errp);
         if (ret < 0) {
-            error_setg_errno(errp, -ret, "Preallocation failed");
             goto fail;
         }
         break;
@@ -3766,9 +3783,8 @@ static int coroutine_fn qcow2_co_truncate(BlockDriverState *bs, int64_t offset,
         /* With a data file, preallocation means just allocating the metadata
          * and forwarding the truncate request to the data file */
         if (has_data_file(bs)) {
-            ret = preallocate_co(bs, old_length, offset);
+            ret = preallocate_co(bs, old_length, offset, prealloc, errp);
             if (ret < 0) {
-                error_setg_errno(errp, -ret, "Preallocation failed");
                 goto fail;
             }
             break;
@@ -3882,16 +3898,6 @@ static int coroutine_fn qcow2_co_truncate(BlockDriverState *bs, int64_t offset,
 
     bs->total_sectors = offset / BDRV_SECTOR_SIZE;
 
-    if (has_data_file(bs)) {
-        if (prealloc == PREALLOC_MODE_METADATA) {
-            prealloc = PREALLOC_MODE_OFF;
-        }
-        ret = bdrv_co_truncate(s->data_file, offset, prealloc, errp);
-        if (ret < 0) {
-            goto fail;
-        }
-    }
-
     /* write updated header.size */
     offset = cpu_to_be64(offset);
     ret = bdrv_pwrite_sync(bs->file, offsetof(QCowHeader, size),
@@ -3923,8 +3929,8 @@ fail:
  * @src - source buffer, @src_size bytes
  *
  * Returns: compressed size on success
- *          -1 destination buffer is not enough to store compressed data
- *          -2 on any other error
+ *          -ENOMEM destination buffer is not enough to store compressed data
+ *          -EIO    on any other error
  */
 static ssize_t qcow2_compress(void *dest, size_t dest_size,
                               const void *src, size_t src_size)
@@ -3937,7 +3943,7 @@ static ssize_t qcow2_compress(void *dest, size_t dest_size,
     ret = deflateInit2(&strm, Z_DEFAULT_COMPRESSION, Z_DEFLATED,
                        -12, 9, Z_DEFAULT_STRATEGY);
     if (ret != Z_OK) {
-        return -2;
+        return -EIO;
     }
 
     /* strm.next_in is not const in old zlib versions, such as those used on
@@ -3951,7 +3957,7 @@ static ssize_t qcow2_compress(void *dest, size_t dest_size,
     if (ret == Z_STREAM_END) {
         ret = dest_size - strm.avail_out;
     } else {
-        ret = (ret == Z_OK ? -1 : -2);
+        ret = (ret == Z_OK ? -ENOMEM : -EIO);
     }
 
     deflateEnd(&strm);
@@ -4088,9 +4094,8 @@ qcow2_co_pwritev_compressed(BlockDriverState *bs, uint64_t offset,
                             uint64_t bytes, QEMUIOVector *qiov)
 {
     BDRVQcow2State *s = bs->opaque;
-    QEMUIOVector hd_qiov;
     int ret;
-    size_t out_len;
+    ssize_t out_len;
     uint8_t *buf, *out_buf;
     uint64_t cluster_offset;
 
@@ -4129,16 +4134,16 @@ qcow2_co_pwritev_compressed(BlockDriverState *bs, uint64_t offset,
 
     out_len = qcow2_co_compress(bs, out_buf, s->cluster_size - 1,
                                 buf, s->cluster_size);
-    if (out_len == -2) {
-        ret = -EINVAL;
-        goto fail;
-    } else if (out_len == -1) {
+    if (out_len == -ENOMEM) {
         /* could not compress: write normal cluster */
         ret = qcow2_co_pwritev(bs, offset, bytes, qiov, 0);
         if (ret < 0) {
             goto fail;
         }
         goto success;
+    } else if (out_len < 0) {
+        ret = -EINVAL;
+        goto fail;
     }
 
     qemu_co_mutex_lock(&s->lock);
@@ -4155,10 +4160,8 @@ qcow2_co_pwritev_compressed(BlockDriverState *bs, uint64_t offset,
         goto fail;
     }
 
-    qemu_iovec_init_buf(&hd_qiov, out_buf, out_len);
-
     BLKDBG_EVENT(s->data_file, BLKDBG_WRITE_COMPRESSED);
-    ret = bdrv_co_pwritev(s->data_file, cluster_offset, out_len, &hd_qiov, 0);
+    ret = bdrv_co_pwrite(s->data_file, cluster_offset, out_len, out_buf, 0);
     if (ret < 0) {
         goto fail;
     }
@@ -4181,7 +4184,6 @@ qcow2_co_preadv_compressed(BlockDriverState *bs,
     int ret = 0, csize, nb_csectors;
     uint64_t coffset;
     uint8_t *buf, *out_buf;
-    QEMUIOVector local_qiov;
     int offset_in_cluster = offset_into_cluster(s, offset);
 
     coffset = file_cluster_offset & s->cluster_offset_mask;
@@ -4192,12 +4194,11 @@ qcow2_co_preadv_compressed(BlockDriverState *bs,
     if (!buf) {
         return -ENOMEM;
     }
-    qemu_iovec_init_buf(&local_qiov, buf, csize);
 
     out_buf = qemu_blockalign(bs, s->cluster_size);
 
     BLKDBG_EVENT(bs->file, BLKDBG_READ_COMPRESSED);
-    ret = bdrv_co_preadv(bs->file, coffset, csize, &local_qiov, 0);
+    ret = bdrv_co_pread(bs->file, coffset, csize, buf, 0);
     if (ret < 0) {
         goto fail;
     }
@@ -4378,14 +4379,17 @@ static int qcow2_make_empty(BlockDriverState *bs)
 
     if (s->qcow_version >= 3 && !s->snapshots && !s->nb_bitmaps &&
         3 + l1_clusters <= s->refcount_block_size &&
-        s->crypt_method_header != QCOW_CRYPT_LUKS) {
+        s->crypt_method_header != QCOW_CRYPT_LUKS &&
+        !has_data_file(bs)) {
         /* The following function only works for qcow2 v3 images (it
          * requires the dirty flag) and only as long as there are no
          * features that reserve extra clusters (such as snapshots,
          * LUKS header, or persistent bitmaps), because it completely
          * empties the image.  Furthermore, the L1 table and three
          * additional clusters (image header, refcount table, one
-         * refcount block) have to fit inside one refcount block. */
+         * refcount block) have to fit inside one refcount block. It
+         * only resets the image file, i.e. does not work with an
+         * external data file. */
         return make_completely_empty(bs);
     }
 

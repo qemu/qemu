@@ -4,18 +4,18 @@ Formatting 'TEST_DIR/t.IMGFMT', fmt=IMGFMT size=67108864 backing_file=TEST_DIR/t
 
 === Check that node-name can't be changed ===
 
-Cannot change the option 'node-name'
-Cannot change the option 'node-name'
-Cannot change the option 'node-name'
+qemu-io: Cannot change the option 'node-name'
+qemu-io: Cannot change the option 'node-name'
+qemu-io: Cannot change the option 'node-name'
 
 === Check that unchanged node-name is okay ===
 
 
 === Check that driver can't be changed ===
 
-Cannot change the option 'driver'
-Cannot change the option 'driver'
-Cannot change the option 'driver'
+qemu-io: Cannot change the option 'driver'
+qemu-io: Cannot change the option 'driver'
+qemu-io: Cannot change the option 'driver'
 
 === Check that unchanged driver is okay ===
 
@@ -27,16 +27,16 @@ format name: null-co
 
 === Check that mixing -c/-r/-w and their corresponding options is forbidden ===
 
-Cannot set both -r/-w and 'read-only'
-Cannot set both -r/-w and 'read-only'
-Cannot set both -c and the cache options
-Cannot set both -c and the cache options
-Cannot set both -c and the cache options
+qemu-io: Cannot set both -r/-w and 'read-only'
+qemu-io: Cannot set both -r/-w and 'read-only'
+qemu-io: Cannot set both -c and the cache options
+qemu-io: Cannot set both -c and the cache options
+qemu-io: Cannot set both -c and the cache options
 
 === Check that invalid options are handled correctly ===
 
-Parameter 'read-only' expects 'on' or 'off'
-Parameter 'cache.no-flush' expects 'on' or 'off'
-Parameter 'cache.direct' expects 'on' or 'off'
-Parameter 'auto-read-only' expects 'on' or 'off'
+qemu-io: Parameter 'read-only' expects 'on' or 'off'
+qemu-io: Parameter 'cache.no-flush' expects 'on' or 'off'
+qemu-io: Parameter 'cache.direct' expects 'on' or 'off'
+qemu-io: Parameter 'auto-read-only' expects 'on' or 'off'
 *** done

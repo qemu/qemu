@@ -5,13 +5,13 @@ read 65536/65536 bytes at offset 0
 64 KiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
 
 == Negative catalog size ==
-can't open device TEST_DIR/parallels-v1: Catalog too large
+qemu-io: can't open device TEST_DIR/parallels-v1: Catalog too large
 
 == Overflow in catalog allocation ==
-can't open device TEST_DIR/parallels-v1: Catalog too large
+qemu-io: can't open device TEST_DIR/parallels-v1: Catalog too large
 
 == Zero sectors per track ==
-can't open device TEST_DIR/parallels-v1: Invalid image: Zero sectors per track
+qemu-io: can't open device TEST_DIR/parallels-v1: Invalid image: Zero sectors per track
 
 == Read from a valid v2 image ==
 read 65536/65536 bytes at offset 0

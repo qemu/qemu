@@ -14,7 +14,7 @@
 
 image: json:{"driver": "IMGFMT", "file": {"driver": "file", "filename": "TEST_IMG"}, "key-secret": "keysec0"}
 file format: IMGFMT
-virtual size: 128M (134217728 bytes)
+virtual size: 128 MiB (134217728 bytes)
 encrypted: yes
 Format specific information:
     ivgen alg: plain64
@@ -66,7 +66,7 @@ Format specific information:
 
 image: json:{"driver": "IMGFMT", "file": {"driver": "file", "filename": "TEST_IMG"}, "key-secret": "keysec0"}
 file format: IMGFMT
-virtual size: 64M (67108864 bytes)
+virtual size: 64 MiB (67108864 bytes)
 encrypted: yes
 Format specific information:
     ivgen alg: plain64
@@ -121,7 +121,7 @@ Job failed: Cannot find device=this doesn't exist nor node_name=this doesn't exi
 
 image: json:{"driver": "IMGFMT", "file": {"driver": "file", "filename": "TEST_IMG"}, "key-secret": "keysec0"}
 file format: IMGFMT
-virtual size: 0 (0 bytes)
+virtual size: 0 B (0 bytes)
 encrypted: yes
 Format specific information:
     ivgen alg: plain64
@@ -191,7 +191,7 @@ Job failed: The requested file size is too large
 {"error": {"class": "GenericError", "desc": "Parameter 'size' expects a >0 size"}}
 image: json:{"driver": "IMGFMT", "file": {"driver": "file", "filename": "TEST_IMG"}, "key-secret": "keysec0"}
 file format: IMGFMT
-virtual size: 0 (0 bytes)
+virtual size: 0 B (0 bytes)
 encrypted: yes
 Format specific information:
     ivgen alg: plain64

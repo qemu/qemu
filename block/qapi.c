@@ -631,42 +631,13 @@ BlockStatsList *qmp_query_blockstats(bool has_query_nodes,
     return head;
 }
 
-#define NB_SUFFIXES 4
-
-static char *get_human_readable_size(char *buf, int buf_size, int64_t size)
-{
-    static const char suffixes[NB_SUFFIXES] = {'K', 'M', 'G', 'T'};
-    int64_t base;
-    int i;
-
-    if (size <= 999) {
-        snprintf(buf, buf_size, "%" PRId64, size);
-    } else {
-        base = 1024;
-        for (i = 0; i < NB_SUFFIXES; i++) {
-            if (size < (10 * base)) {
-                snprintf(buf, buf_size, "%0.1f%c",
-                         (double)size / base,
-                         suffixes[i]);
-                break;
-            } else if (size < (1000 * base) || i == (NB_SUFFIXES - 1)) {
-                snprintf(buf, buf_size, "%" PRId64 "%c",
-                         ((size + (base >> 1)) / base),
-                         suffixes[i]);
-                break;
-            }
-            base = base * 1024;
-        }
-    }
-    return buf;
-}
-
 void bdrv_snapshot_dump(QEMUSnapshotInfo *sn)
 {
-    char buf1[128], date_buf[128], clock_buf[128];
+    char date_buf[128], clock_buf[128];
     struct tm tm;
     time_t ti;
     int64_t secs;
+    char *sizing = NULL;
 
     if (!sn) {
         qemu_printf("%-10s%-20s%7s%20s%15s",
@@ -683,13 +654,14 @@ void bdrv_snapshot_dump(QEMUSnapshotInfo *sn)
                  (int)((secs / 60) % 60),
                  (int)(secs % 60),
                  (int)((sn->vm_clock_nsec / 1000000) % 1000));
+        sizing = size_to_str(sn->vm_state_size);
         qemu_printf("%-10s%-20s%7s%20s%15s",
                     sn->id_str, sn->name,
-                    get_human_readable_size(buf1, sizeof(buf1),
-                                            sn->vm_state_size),
+                    sizing,
                     date_buf,
                     clock_buf);
     }
+    g_free(sizing);
 }
 
 static void dump_qdict(int indentation, QDict *dict);
@@ -787,14 +759,13 @@ void bdrv_image_info_specific_dump(ImageInfoSpecific *info_spec)
 
 void bdrv_image_info_dump(ImageInfo *info)
 {
-    char size_buf[128], dsize_buf[128];
+    char *size_buf, *dsize_buf;
     if (!info->has_actual_size) {
-        snprintf(dsize_buf, sizeof(dsize_buf), "unavailable");
+        dsize_buf = g_strdup("unavailable");
     } else {
-        get_human_readable_size(dsize_buf, sizeof(dsize_buf),
-                                info->actual_size);
+        dsize_buf = size_to_str(info->actual_size);
     }
-    get_human_readable_size(size_buf, sizeof(size_buf), info->virtual_size);
+    size_buf = size_to_str(info->virtual_size);
     qemu_printf("image: %s\n"
                 "file format: %s\n"
                 "virtual size: %s (%" PRId64 " bytes)\n"
@@ -802,6 +773,8 @@ void bdrv_image_info_dump(ImageInfo *info)
                 info->filename, info->format, size_buf,
                 info->virtual_size,
                 dsize_buf);
+    g_free(size_buf);
+    g_free(dsize_buf);
 
     if (info->has_encrypted && info->encrypted) {
         qemu_printf("encrypted: yes\n");

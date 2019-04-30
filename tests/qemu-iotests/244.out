@@ -9,22 +9,22 @@ read 65536/65536 bytes at offset 0
 64 KiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
 read 65536/65536 bytes at offset 0
 64 KiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
-can't open device TEST_DIR/t.qcow2: Could not open 'inexistent': No such file or directory
+qemu-io: can't open device TEST_DIR/t.qcow2: Could not open 'inexistent': No such file or directory
 no file open, try 'help open'
 
 Data file required, but without data file name in the image:
-can't open device TEST_DIR/t.qcow2: 'data-file' is required for this image
+qemu-io: can't open device TEST_DIR/t.qcow2: 'data-file' is required for this image
 no file open, try 'help open'
 read 65536/65536 bytes at offset 0
 64 KiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
-can't open device TEST_DIR/t.qcow2: Could not open 'inexistent': No such file or directory
+qemu-io: can't open device TEST_DIR/t.qcow2: Could not open 'inexistent': No such file or directory
 no file open, try 'help open'
 
 Setting data-file for an image with internal data:
 Formatting 'TEST_DIR/t.IMGFMT', fmt=IMGFMT size=67108864
-can't open device TEST_DIR/t.qcow2: 'data-file' can only be set for images with an external data file
+qemu-io: can't open device TEST_DIR/t.qcow2: 'data-file' can only be set for images with an external data file
 no file open, try 'help open'
-can't open device TEST_DIR/t.qcow2: Could not open 'inexistent': No such file or directory
+qemu-io: can't open device TEST_DIR/t.qcow2: Could not open 'inexistent': No such file or directory
 no file open, try 'help open'
 
 === Conflicting features ===

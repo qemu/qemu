@@ -1175,7 +1175,7 @@ static int vhdx_allocate_block(BlockDriverState *bs, BDRVVHDXState *s,
     *new_offset = current_len;
 
     /* per the spec, the address for a block is in units of 1MB */
-    *new_offset = ROUND_UP(*new_offset, 1024 * 1024);
+    *new_offset = ROUND_UP(*new_offset, 1 * MiB);
     if (*new_offset > INT64_MAX) {
         return -EINVAL;
     }
@@ -1338,7 +1338,7 @@ static coroutine_fn int vhdx_co_writev(BlockDriverState *bs, int64_t sector_num,
             case PAYLOAD_BLOCK_FULLY_PRESENT:
                 /* if the file offset address is in the header zone,
                  * there is a problem */
-                if (sinfo.file_offset < (1024 * 1024)) {
+                if (sinfo.file_offset < (1 * MiB)) {
                     ret = -EFAULT;
                     goto error_bat_restore;
                 }
@@ -1889,7 +1889,8 @@ static int coroutine_fn vhdx_co_create(BlockdevCreateOptions *opts,
         return -EINVAL;
     }
     if (block_size > VHDX_BLOCK_SIZE_MAX) {
-        error_setg(errp, "Block size must not exceed %d", VHDX_BLOCK_SIZE_MAX);
+        error_setg(errp, "Block size must not exceed %" PRId64,
+                   VHDX_BLOCK_SIZE_MAX);
         return -EINVAL;
     }
 
