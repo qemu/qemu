@@ -3468,28 +3468,61 @@ static bool expand_vec_cmp_noinv(TCGType type, unsigned vece, TCGv_vec v0,
                                  TCGv_vec v1, TCGv_vec v2, TCGCond cond)
 {
     enum {
-        NEED_SWAP = 1,
-        NEED_INV  = 2,
-        NEED_BIAS = 4
-    };
-    static const uint8_t fixups[16] = {
-        [0 ... 15] = -1,
-        [TCG_COND_EQ] = 0,
-        [TCG_COND_NE] = NEED_INV,
-        [TCG_COND_GT] = 0,
-        [TCG_COND_LT] = NEED_SWAP,
-        [TCG_COND_LE] = NEED_INV,
-        [TCG_COND_GE] = NEED_SWAP | NEED_INV,
-        [TCG_COND_GTU] = NEED_BIAS,
-        [TCG_COND_LTU] = NEED_BIAS | NEED_SWAP,
-        [TCG_COND_LEU] = NEED_BIAS | NEED_INV,
-        [TCG_COND_GEU] = NEED_BIAS | NEED_SWAP | NEED_INV,
+        NEED_INV  = 1,
+        NEED_SWAP = 2,
+        NEED_BIAS = 4,
+        NEED_UMIN = 8,
+        NEED_UMAX = 16,
     };
     TCGv_vec t1, t2;
     uint8_t fixup;
 
-    fixup = fixups[cond & 15];
-    tcg_debug_assert(fixup != 0xff);
+    switch (cond) {
+    case TCG_COND_EQ:
+    case TCG_COND_GT:
+        fixup = 0;
+        break;
+    case TCG_COND_NE:
+    case TCG_COND_LE:
+        fixup = NEED_INV;
+        break;
+    case TCG_COND_LT:
+        fixup = NEED_SWAP;
+        break;
+    case TCG_COND_GE:
+        fixup = NEED_SWAP | NEED_INV;
+        break;
+    case TCG_COND_LEU:
+        if (vece <= MO_32) {
+            fixup = NEED_UMIN;
+        } else {
+            fixup = NEED_BIAS | NEED_INV;
+        }
+        break;
+    case TCG_COND_GTU:
+        if (vece <= MO_32) {
+            fixup = NEED_UMIN | NEED_INV;
+        } else {
+            fixup = NEED_BIAS;
+        }
+        break;
+    case TCG_COND_GEU:
+        if (vece <= MO_32) {
+            fixup = NEED_UMAX;
+        } else {
+            fixup = NEED_BIAS | NEED_SWAP | NEED_INV;
+        }
+        break;
+    case TCG_COND_LTU:
+        if (vece <= MO_32) {
+            fixup = NEED_UMAX | NEED_INV;
+        } else {
+            fixup = NEED_BIAS | NEED_SWAP;
+        }
+        break;
+    default:
+        g_assert_not_reached();
+    }
 
     if (fixup & NEED_INV) {
         cond = tcg_invert_cond(cond);
@@ -3500,7 +3533,16 @@ static bool expand_vec_cmp_noinv(TCGType type, unsigned vece, TCGv_vec v0,
     }
 
     t1 = t2 = NULL;
-    if (fixup & NEED_BIAS) {
+    if (fixup & (NEED_UMIN | NEED_UMAX)) {
+        t1 = tcg_temp_new_vec(type);
+        if (fixup & NEED_UMIN) {
+            tcg_gen_umin_vec(vece, t1, v1, v2);
+        } else {
+            tcg_gen_umax_vec(vece, t1, v1, v2);
+        }
+        v2 = t1;
+        cond = TCG_COND_EQ;
+    } else if (fixup & NEED_BIAS) {
         t1 = tcg_temp_new_vec(type);
         t2 = tcg_temp_new_vec(type);
         tcg_gen_dupi_vec(vece, t2, 1ull << ((8 << vece) - 1));
