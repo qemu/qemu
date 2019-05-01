@@ -1556,37 +1556,37 @@ case "$cpu" in
            CPU_CFLAGS="-m64"
            LDFLAGS="-m64 $LDFLAGS"
            cross_cc_ppc64=$cc
-           cross_cc_cflags_ppc64=$CPU_CFLAGS
+           cross_cc_cflags_ppc64="$CPU_CFLAGS"
            ;;
     sparc)
            CPU_CFLAGS="-m32 -mv8plus -mcpu=ultrasparc"
            LDFLAGS="-m32 -mv8plus $LDFLAGS"
            cross_cc_sparc=$cc
-           cross_cc_cflags_sparc=$CPU_CFLAGS
+           cross_cc_cflags_sparc="$CPU_CFLAGS"
            ;;
     sparc64)
            CPU_CFLAGS="-m64 -mcpu=ultrasparc"
            LDFLAGS="-m64 $LDFLAGS"
            cross_cc_sparc64=$cc
-           cross_cc_cflags_sparc64=$CPU_CFLAGS
+           cross_cc_cflags_sparc64="$CPU_CFLAGS"
            ;;
     s390)
            CPU_CFLAGS="-m31"
            LDFLAGS="-m31 $LDFLAGS"
            cross_cc_s390=$cc
-           cross_cc_cflags_s390=$CPU_CFLAGS
+           cross_cc_cflags_s390="$CPU_CFLAGS"
            ;;
     s390x)
            CPU_CFLAGS="-m64"
            LDFLAGS="-m64 $LDFLAGS"
            cross_cc_s390x=$cc
-           cross_cc_cflags_s390x=$CPU_CFLAGS
+           cross_cc_cflags_s390x="$CPU_CFLAGS"
            ;;
     i386)
            CPU_CFLAGS="-m32"
            LDFLAGS="-m32 $LDFLAGS"
            cross_cc_i386=$cc
-           cross_cc_cflags_i386=$CPU_CFLAGS
+           cross_cc_cflags_i386="$CPU_CFLAGS"
            ;;
     x86_64)
            # ??? Only extremely old AMD cpus do not have cmpxchg16b.
@@ -1595,13 +1595,13 @@ case "$cpu" in
            CPU_CFLAGS="-m64 -mcx16"
            LDFLAGS="-m64 $LDFLAGS"
            cross_cc_x86_64=$cc
-           cross_cc_cflags_x86_64=$CPU_CFLAGS
+           cross_cc_cflags_x86_64="$CPU_CFLAGS"
            ;;
     x32)
            CPU_CFLAGS="-mx32"
            LDFLAGS="-mx32 $LDFLAGS"
            cross_cc_i386=$cc
-           cross_cc_cflags_i386=$CPU_CFLAGS
+           cross_cc_cflags_i386="$CPU_CFLAGS"
            ;;
     # No special flags required for other host CPUs
 esac
