@@ -102,6 +102,31 @@ struct PFlashCFI02 {
 };
 
 /*
+ * Toggle status bit DQ7.
+ */
+static inline void toggle_dq7(PFlashCFI02 *pfl)
+{
+    pfl->status ^= 0x80;
+}
+
+/*
+ * Set status bit DQ7 to bit 7 of value.
+ */
+static inline void set_dq7(PFlashCFI02 *pfl, uint8_t value)
+{
+    pfl->status &= 0x7F;
+    pfl->status |= value & 0x80;
+}
+
+/*
+ * Toggle status bit DQ6.
+ */
+static inline void toggle_dq6(PFlashCFI02 *pfl)
+{
+    pfl->status ^= 0x40;
+}
+
+/*
  * Set up replicated mappings of the same region.
  */
 static void pflash_setup_mappings(PFlashCFI02 *pfl)
@@ -130,7 +155,7 @@ static void pflash_timer (void *opaque)
 
     trace_pflash_timer_expired(pfl->cmd);
     /* Reset flash */
-    pfl->status ^= 0x80;
+    toggle_dq7(pfl);
     if (pfl->bypass) {
         pfl->wcycle = 2;
     } else {
@@ -229,8 +254,7 @@ static uint32_t pflash_read(PFlashCFI02 *pfl, hwaddr offset,
         /* Status register read */
         ret = pfl->status;
         DPRINTF("%s: status %" PRIx32 "\n", __func__, ret);
-        /* Toggle bit 6 */
-        pfl->status ^= 0x40;
+        toggle_dq6(pfl);
         break;
     case 0x98:
         /* CFI query mode */
@@ -374,7 +398,11 @@ static void pflash_write(PFlashCFI02 *pfl, hwaddr offset,
                     break;
                 }
             }
-            pfl->status = 0x00 | ~(value & 0x80);
+            /*
+             * While programming, status bit DQ7 should hold the opposite
+             * value from how it was programmed.
+             */
+            set_dq7(pfl, ~value);
             /* Let's pretend write is immediate */
             if (pfl->bypass)
                 goto do_bypass;
@@ -422,7 +450,7 @@ static void pflash_write(PFlashCFI02 *pfl, hwaddr offset,
                 memset(pfl->storage, 0xFF, pfl->chip_len);
                 pflash_update(pfl, 0, pfl->chip_len);
             }
-            pfl->status = 0x00;
+            set_dq7(pfl, 0x00);
             /* Let's wait 5 seconds before chip erase is done */
             timer_mod(&pfl->timer, qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL) +
                       (NANOSECONDS_PER_SECOND * 5));
@@ -437,7 +465,7 @@ static void pflash_write(PFlashCFI02 *pfl, hwaddr offset,
                 memset(p + offset, 0xFF, pfl->sector_len);
                 pflash_update(pfl, offset, pfl->sector_len);
             }
-            pfl->status = 0x00;
+            set_dq7(pfl, 0x00);
             /* Let's wait 1/2 second before sector erase is done */
             timer_mod(&pfl->timer, qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL) +
                       (NANOSECONDS_PER_SECOND / 2));
