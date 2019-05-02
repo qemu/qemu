@@ -71,3 +71,18 @@ build-clang:
                      ppc-softmmu s390x-softmmu x86_64-softmmu arm-linux-user"
  - make -j2
  - make -j2 check
+
+build-tci:
+ script:
+ - TARGETS="aarch64 alpha arm hppa m68k microblaze moxie ppc64 s390x x86_64"
+ - ./configure --enable-tcg-interpreter
+      --target-list="$(for tg in $TARGETS; do echo -n ${tg}'-softmmu '; done)"
+ - make -j2
+ - make tests/boot-serial-test tests/cdrom-test tests/pxe-test
+ - for tg in $TARGETS ; do
+     export QTEST_QEMU_BINARY="${tg}-softmmu/qemu-system-${tg}" ;
+     ./tests/boot-serial-test || exit 1 ;
+     ./tests/cdrom-test || exit 1 ;
+   done
+ - QTEST_QEMU_BINARY="x86_64-softmmu/qemu-system-x86_64" ./tests/pxe-test
+ - QTEST_QEMU_BINARY="s390x-softmmu/qemu-system-s390x" ./tests/pxe-test -m slow
