@@ -26,6 +26,11 @@
 typedef struct {
     const char *machine;
     const char *variant;
+    const char *uefi_fl1;
+    const char *uefi_fl2;
+    const char *cd;
+    const uint64_t ram_start;
+    const uint64_t scan_len;
     uint64_t rsdp_addr;
     uint8_t rsdp_table[36 /* ACPI 2.0+ RSDP size */];
     GArray *tables;
@@ -75,13 +80,6 @@ static void free_test_data(test_data *data)
     }
 
     g_array_free(data->tables, true);
-}
-
-static void test_acpi_rsdp_address(test_data *data)
-{
-    uint32_t off = acpi_find_rsdp_address(data->qts);
-    g_assert_cmphex(off, <, 0x100000);
-    data->rsdp_addr = off;
 }
 
 static void test_acpi_rsdp_table(test_data *data)
@@ -524,21 +522,41 @@ static void test_smbios_structs(test_data *data)
 static void test_acpi_one(const char *params, test_data *data)
 {
     char *args;
+    bool use_uefi = data->uefi_fl1 && data->uefi_fl2;
 
-    /* Disable kernel irqchip to be able to override apic irq0. */
-    args = g_strdup_printf("-machine %s,accel=%s,kernel-irqchip=off "
-                           "-net none -display none %s "
-                           "-drive id=hd0,if=none,file=%s,format=raw "
-                           "-device ide-hd,drive=hd0 ",
-                           data->machine, "kvm:tcg",
-                           params ? params : "", disk);
+    if (use_uefi) {
+        /*
+         * TODO: convert '-drive if=pflash' to new syntax (see e33763be7cd3)
+         * when arm/virt boad starts to support it.
+         */
+        args = g_strdup_printf("-machine %s,accel=%s -nodefaults -nographic "
+            "-drive if=pflash,format=raw,file=%s,readonly "
+            "-drive if=pflash,format=raw,file=%s,snapshot=on -cdrom %s %s",
+            data->machine, "kvm:tcg", data->uefi_fl1, data->uefi_fl2,
+            data->cd, params ? params : "");
+
+    } else {
+        /* Disable kernel irqchip to be able to override apic irq0. */
+        args = g_strdup_printf("-machine %s,accel=%s,kernel-irqchip=off "
+            "-net none -display none %s "
+            "-drive id=hd0,if=none,file=%s,format=raw "
+            "-device ide-hd,drive=hd0 ",
+             data->machine, "kvm:tcg", params ? params : "", disk);
+    }
 
     data->qts = qtest_init(args);
 
-    boot_sector_test(data->qts);
+    if (use_uefi) {
+        g_assert(data->scan_len);
+        data->rsdp_addr = acpi_find_rsdp_address_uefi(data->qts,
+            data->ram_start, data->scan_len);
+    } else {
+        boot_sector_test(data->qts);
+        data->rsdp_addr = acpi_find_rsdp_address(data->qts);
+        g_assert_cmphex(data->rsdp_addr, <, 0x100000);
+    }
 
     data->tables = g_array_new(false, true, sizeof(AcpiSdtTable));
-    test_acpi_rsdp_address(data);
     test_acpi_rsdp_table(data);
     test_acpi_rxsdt_table(data);
     test_acpi_fadt_table(data);
