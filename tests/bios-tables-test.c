@@ -788,13 +788,14 @@ int main(int argc, char *argv[])
     const char *arch = qtest_get_arch();
     int ret;
 
-    ret = boot_sector_init(disk);
-    if(ret)
-        return ret;
-
     g_test_init(&argc, &argv, NULL);
 
     if (strcmp(arch, "i386") == 0 || strcmp(arch, "x86_64") == 0) {
+        ret = boot_sector_init(disk);
+        if (ret) {
+            return ret;
+        }
+
         qtest_add_func("acpi/piix4", test_acpi_piix4_tcg);
         qtest_add_func("acpi/piix4/bridge", test_acpi_piix4_tcg_bridge);
         qtest_add_func("acpi/q35", test_acpi_q35_tcg);
