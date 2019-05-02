@@ -24,6 +24,7 @@
 #define ACPI_REBUILD_EXPECTED_AML "TEST_ACPI_REBUILD_AML"
 
 typedef struct {
+    const char *accel;
     const char *machine;
     const char *variant;
     const char *uefi_fl1;
@@ -532,8 +533,8 @@ static void test_acpi_one(const char *params, test_data *data)
         args = g_strdup_printf("-machine %s,accel=%s -nodefaults -nographic "
             "-drive if=pflash,format=raw,file=%s,readonly "
             "-drive if=pflash,format=raw,file=%s,snapshot=on -cdrom %s %s",
-            data->machine, "kvm:tcg", data->uefi_fl1, data->uefi_fl2,
-            data->cd, params ? params : "");
+            data->machine, data->accel ? data->accel : "kvm:tcg",
+            data->uefi_fl1, data->uefi_fl2, data->cd, params ? params : "");
 
     } else {
         /* Disable kernel irqchip to be able to override apic irq0. */
@@ -541,7 +542,8 @@ static void test_acpi_one(const char *params, test_data *data)
             "-net none -display none %s "
             "-drive id=hd0,if=none,file=%s,format=raw "
             "-device ide-hd,drive=hd0 ",
-             data->machine, "kvm:tcg", params ? params : "", disk);
+             data->machine, data->accel ? data->accel : "kvm:tcg",
+             params ? params : "", disk);
     }
 
     data->qts = qtest_init(args);
