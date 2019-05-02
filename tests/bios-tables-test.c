@@ -140,6 +140,9 @@ static void test_acpi_fadt_table(test_data *data)
     AcpiSdtTable table = g_array_index(data->tables, typeof(table), 0);
     uint8_t *fadt_aml = table.aml;
     uint32_t fadt_len = table.aml_len;
+    uint32_t val;
+    int dsdt_offset = 40 /* DSDT */;
+    int dsdt_entry_size = 4;
 
     g_assert(compare_signature(&table, "FACP"));
 
@@ -148,8 +151,14 @@ static void test_acpi_fadt_table(test_data *data)
                      fadt_aml + 36 /* FIRMWARE_CTRL */, 4, "FACS", false);
     g_array_append_val(data->tables, table);
 
+    memcpy(&val, fadt_aml + dsdt_offset, 4);
+    val = le32_to_cpu(val);
+    if (!val) {
+        dsdt_offset = 140 /* X_DSDT */;
+        dsdt_entry_size = 8;
+    }
     acpi_fetch_table(data->qts, &table.aml, &table.aml_len,
-                     fadt_aml + 40 /* DSDT */, 4, "DSDT", true);
+                     fadt_aml + dsdt_offset, dsdt_entry_size, "DSDT", true);
     g_array_append_val(data->tables, table);
 
     memset(fadt_aml + 36, 0, 4); /* sanitize FIRMWARE_CTRL ptr */
