@@ -915,41 +915,35 @@ int mips_cpu_handle_mmu_fault(CPUState *cs, vaddr address, int size, int rw,
         tlb_set_page(cs, address & TARGET_PAGE_MASK,
                      physical & TARGET_PAGE_MASK, prot | PAGE_EXEC,
                      mmu_idx, TARGET_PAGE_SIZE);
-        ret = 0;
-    } else if (ret < 0)
-#endif
-    {
-#if !defined(CONFIG_USER_ONLY)
+        return 0;
+    }
 #if !defined(TARGET_MIPS64)
-        if ((ret == TLBRET_NOMATCH) && (env->tlb->nb_tlb > 1)) {
-            /*
-             * Memory reads during hardware page table walking are performed
-             * as if they were kernel-mode load instructions.
-             */
-            int mode = (env->hflags & MIPS_HFLAG_KSU);
-            bool ret_walker;
-            env->hflags &= ~MIPS_HFLAG_KSU;
-            ret_walker = page_table_walk_refill(env, address, rw, mmu_idx);
-            env->hflags |= mode;
-            if (ret_walker) {
-                ret = get_physical_address(env, &physical, &prot,
-                                           address, rw, access_type, mmu_idx);
-                if (ret == TLBRET_MATCH) {
-                    tlb_set_page(cs, address & TARGET_PAGE_MASK,
-                            physical & TARGET_PAGE_MASK, prot | PAGE_EXEC,
-                            mmu_idx, TARGET_PAGE_SIZE);
-                    ret = 0;
-                    return ret;
-                }
+    if ((ret == TLBRET_NOMATCH) && (env->tlb->nb_tlb > 1)) {
+        /*
+         * Memory reads during hardware page table walking are performed
+         * as if they were kernel-mode load instructions.
+         */
+        int mode = (env->hflags & MIPS_HFLAG_KSU);
+        bool ret_walker;
+        env->hflags &= ~MIPS_HFLAG_KSU;
+        ret_walker = page_table_walk_refill(env, address, rw, mmu_idx);
+        env->hflags |= mode;
+        if (ret_walker) {
+            ret = get_physical_address(env, &physical, &prot,
+                                       address, rw, access_type, mmu_idx);
+            if (ret == TLBRET_MATCH) {
+                tlb_set_page(cs, address & TARGET_PAGE_MASK,
+                             physical & TARGET_PAGE_MASK, prot | PAGE_EXEC,
+                             mmu_idx, TARGET_PAGE_SIZE);
+                return 0;
             }
         }
-#endif
-#endif
-        raise_mmu_exception(env, address, rw, ret);
-        ret = 1;
     }
+#endif
+#endif
 
-    return ret;
+    raise_mmu_exception(env, address, rw, ret);
+    return 1;
 }
 
 #if !defined(CONFIG_USER_ONLY)
