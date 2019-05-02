@@ -1865,30 +1865,36 @@ static AioContext *blk_aiocb_get_aio_context(BlockAIOCB *acb)
     return blk_get_aio_context(blk_acb->blk);
 }
 
-static void blk_do_set_aio_context(BlockBackend *blk, AioContext *new_context,
-                                   bool update_root_node)
+static int blk_do_set_aio_context(BlockBackend *blk, AioContext *new_context,
+                                  bool update_root_node, Error **errp)
 {
     BlockDriverState *bs = blk_bs(blk);
     ThrottleGroupMember *tgm = &blk->public.throttle_group_member;
+    int ret;
 
     if (bs) {
+        if (update_root_node) {
+            ret = bdrv_child_try_set_aio_context(bs, new_context, blk->root,
+                                                 errp);
+            if (ret < 0) {
+                return ret;
+            }
+        }
         if (tgm->throttle_state) {
             bdrv_drained_begin(bs);
             throttle_group_detach_aio_context(tgm);
             throttle_group_attach_aio_context(tgm, new_context);
             bdrv_drained_end(bs);
         }
-        if (update_root_node) {
-            GSList *ignore = g_slist_prepend(NULL, blk->root);
-            bdrv_set_aio_context_ignore(bs, new_context, &ignore);
-            g_slist_free(ignore);
-        }
     }
+
+    return 0;
 }
 
-void blk_set_aio_context(BlockBackend *blk, AioContext *new_context)
+int blk_set_aio_context(BlockBackend *blk, AioContext *new_context,
+                        Error **errp)
 {
-    blk_do_set_aio_context(blk, new_context, true);
+    return blk_do_set_aio_context(blk, new_context, true, errp);
 }
 
 static bool blk_root_can_set_aio_ctx(BdrvChild *child, AioContext *ctx,
@@ -1915,7 +1921,7 @@ static void blk_root_set_aio_ctx(BdrvChild *child, AioContext *ctx,
                                  GSList **ignore)
 {
     BlockBackend *blk = child->opaque;
-    blk_do_set_aio_context(blk, ctx, false);
+    blk_do_set_aio_context(blk, ctx, false, &error_abort);
 }
 
 void blk_add_aio_context_notifier(BlockBackend *blk,

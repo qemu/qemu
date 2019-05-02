@@ -678,7 +678,7 @@ static void test_iothread_common(enum drain_type drain_type, int drain_thread)
     s = bs->opaque;
     blk_insert_bs(blk, bs, &error_abort);
 
-    blk_set_aio_context(blk, ctx_a);
+    blk_set_aio_context(blk, ctx_a, &error_abort);
     aio_context_acquire(ctx_a);
 
     s->bh_indirection_ctx = ctx_b;
@@ -742,7 +742,7 @@ static void test_iothread_common(enum drain_type drain_type, int drain_thread)
     }
 
     aio_context_acquire(ctx_a);
-    blk_set_aio_context(blk, qemu_get_aio_context());
+    blk_set_aio_context(blk, qemu_get_aio_context(), &error_abort);
     aio_context_release(ctx_a);
 
     bdrv_unref(bs);
@@ -903,7 +903,7 @@ static void test_blockjob_common_drain_node(enum drain_type drain_type,
     if (use_iothread) {
         iothread = iothread_new();
         ctx = iothread_get_aio_context(iothread);
-        blk_set_aio_context(blk_src, ctx);
+        blk_set_aio_context(blk_src, ctx, &error_abort);
     } else {
         ctx = qemu_get_aio_context();
     }
@@ -1001,7 +1001,7 @@ static void test_blockjob_common_drain_node(enum drain_type drain_type,
     g_assert_cmpint(ret, ==, (result == TEST_JOB_SUCCESS ? 0 : -EIO));
 
     if (use_iothread) {
-        blk_set_aio_context(blk_src, qemu_get_aio_context());
+        blk_set_aio_context(blk_src, qemu_get_aio_context(), &error_abort);
     }
     aio_context_release(ctx);
 

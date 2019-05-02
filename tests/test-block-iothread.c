@@ -342,14 +342,14 @@ static void test_sync_op(const void *opaque)
     blk_insert_bs(blk, bs, &error_abort);
     c = QLIST_FIRST(&bs->parents);
 
-    blk_set_aio_context(blk, ctx);
+    blk_set_aio_context(blk, ctx, &error_abort);
     aio_context_acquire(ctx);
     t->fn(c);
     if (t->blkfn) {
         t->blkfn(blk);
     }
     aio_context_release(ctx);
-    blk_set_aio_context(blk, qemu_get_aio_context());
+    blk_set_aio_context(blk, qemu_get_aio_context(), &error_abort);
 
     bdrv_unref(bs);
     blk_unref(blk);
@@ -428,7 +428,7 @@ static void test_attach_blockjob(void)
         aio_poll(qemu_get_aio_context(), false);
     }
 
-    blk_set_aio_context(blk, ctx);
+    blk_set_aio_context(blk, ctx, &error_abort);
 
     tjob->n = 0;
     while (tjob->n == 0) {
@@ -436,7 +436,7 @@ static void test_attach_blockjob(void)
     }
 
     aio_context_acquire(ctx);
-    blk_set_aio_context(blk, qemu_get_aio_context());
+    blk_set_aio_context(blk, qemu_get_aio_context(), &error_abort);
     aio_context_release(ctx);
 
     tjob->n = 0;
@@ -444,7 +444,7 @@ static void test_attach_blockjob(void)
         aio_poll(qemu_get_aio_context(), false);
     }
 
-    blk_set_aio_context(blk, ctx);
+    blk_set_aio_context(blk, ctx, &error_abort);
 
     tjob->n = 0;
     while (tjob->n == 0) {
@@ -453,7 +453,7 @@ static void test_attach_blockjob(void)
 
     aio_context_acquire(ctx);
     job_complete_sync(&tjob->common.job, &error_abort);
-    blk_set_aio_context(blk, qemu_get_aio_context());
+    blk_set_aio_context(blk, qemu_get_aio_context(), &error_abort);
     aio_context_release(ctx);
 
     bdrv_unref(bs);
@@ -497,7 +497,7 @@ static void test_propagate_basic(void)
     bs_verify = bdrv_open(NULL, NULL, options, BDRV_O_RDWR, &error_abort);
 
     /* Switch the AioContext */
-    blk_set_aio_context(blk, ctx);
+    blk_set_aio_context(blk, ctx, &error_abort);
     g_assert(blk_get_aio_context(blk) == ctx);
     g_assert(bdrv_get_aio_context(bs_a) == ctx);
     g_assert(bdrv_get_aio_context(bs_verify) == ctx);
@@ -505,7 +505,7 @@ static void test_propagate_basic(void)
 
     /* Switch the AioContext back */
     ctx = qemu_get_aio_context();
-    blk_set_aio_context(blk, ctx);
+    blk_set_aio_context(blk, ctx, &error_abort);
     g_assert(blk_get_aio_context(blk) == ctx);
     g_assert(bdrv_get_aio_context(bs_a) == ctx);
     g_assert(bdrv_get_aio_context(bs_verify) == ctx);
@@ -565,7 +565,7 @@ static void test_propagate_diamond(void)
     blk_insert_bs(blk, bs_verify, &error_abort);
 
     /* Switch the AioContext */
-    blk_set_aio_context(blk, ctx);
+    blk_set_aio_context(blk, ctx, &error_abort);
     g_assert(blk_get_aio_context(blk) == ctx);
     g_assert(bdrv_get_aio_context(bs_verify) == ctx);
     g_assert(bdrv_get_aio_context(bs_a) == ctx);
@@ -574,7 +574,7 @@ static void test_propagate_diamond(void)
 
     /* Switch the AioContext back */
     ctx = qemu_get_aio_context();
-    blk_set_aio_context(blk, ctx);
+    blk_set_aio_context(blk, ctx, &error_abort);
     g_assert(blk_get_aio_context(blk) == ctx);
     g_assert(bdrv_get_aio_context(bs_verify) == ctx);
     g_assert(bdrv_get_aio_context(bs_a) == ctx);
@@ -654,7 +654,7 @@ static void test_propagate_mirror(void)
     job_cancel_sync_all();
 
     aio_context_acquire(ctx);
-    blk_set_aio_context(blk, main_ctx);
+    blk_set_aio_context(blk, main_ctx, &error_abort);
     bdrv_try_set_aio_context(target, main_ctx, &error_abort);
     aio_context_release(ctx);
 

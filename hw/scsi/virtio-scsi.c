@@ -795,6 +795,7 @@ static void virtio_scsi_hotplug(HotplugHandler *hotplug_dev, DeviceState *dev,
     VirtIODevice *vdev = VIRTIO_DEVICE(hotplug_dev);
     VirtIOSCSI *s = VIRTIO_SCSI(vdev);
     SCSIDevice *sd = SCSI_DEVICE(dev);
+    int ret;
 
     if (s->ctx && !s->dataplane_fenced) {
         AioContext *ctx;
@@ -808,9 +809,11 @@ static void virtio_scsi_hotplug(HotplugHandler *hotplug_dev, DeviceState *dev,
             return;
         }
         virtio_scsi_acquire(s);
-        blk_set_aio_context(sd->conf.blk, s->ctx);
+        ret = blk_set_aio_context(sd->conf.blk, s->ctx, errp);
         virtio_scsi_release(s);
-
+        if (ret < 0) {
+            return;
+        }
     }
 
     if (virtio_vdev_has_feature(vdev, VIRTIO_SCSI_F_HOTPLUG)) {
@@ -839,7 +842,8 @@ static void virtio_scsi_hotunplug(HotplugHandler *hotplug_dev, DeviceState *dev,
 
     if (s->ctx) {
         virtio_scsi_acquire(s);
-        blk_set_aio_context(sd->conf.blk, qemu_get_aio_context());
+        /* If other users keep the BlockBackend in the iothread, that's ok */
+        blk_set_aio_context(sd->conf.blk, qemu_get_aio_context(), NULL);
         virtio_scsi_release(s);
     }
 

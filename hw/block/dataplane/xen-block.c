@@ -682,7 +682,8 @@ void xen_block_dataplane_stop(XenBlockDataPlane *dataplane)
     }
 
     aio_context_acquire(dataplane->ctx);
-    blk_set_aio_context(dataplane->blk, qemu_get_aio_context());
+    /* Xen doesn't have multiple users for nodes, so this can't fail */
+    blk_set_aio_context(dataplane->blk, qemu_get_aio_context(), &error_abort);
     aio_context_release(dataplane->ctx);
 
     xendev = dataplane->xendev;
@@ -811,7 +812,8 @@ void xen_block_dataplane_start(XenBlockDataPlane *dataplane,
     }
 
     aio_context_acquire(dataplane->ctx);
-    blk_set_aio_context(dataplane->blk, dataplane->ctx);
+    /* If other users keep the BlockBackend in the iothread, that's ok */
+    blk_set_aio_context(dataplane->blk, dataplane->ctx, NULL);
     aio_context_release(dataplane->ctx);
     return;
 
