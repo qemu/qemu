@@ -884,7 +884,7 @@ int mips_cpu_handle_mmu_fault(CPUState *cs, vaddr address, int size, int rw,
     int prot;
     int access_type;
 #endif
-    int ret = 0;
+    int ret = TLBRET_BADADDR;
 
 #if 0
     log_cpu_state(cs, 0);
