@@ -91,13 +91,15 @@ void acpi_fetch_rsdp_table(QTestState *qts, uint32_t addr, uint8_t *rsdp_table)
  *  actual one.
  */
 void acpi_fetch_table(QTestState *qts, uint8_t **aml, uint32_t *aml_len,
-                      const uint8_t *addr_ptr, const char *sig,
+                      const uint8_t *addr_ptr, int addr_size, const char *sig,
                       bool verify_checksum)
 {
-    uint32_t addr, len;
+    uint32_t len;
+    uint64_t addr = 0;
 
-    memcpy(&addr, addr_ptr , sizeof(addr));
-    addr = le32_to_cpu(addr);
+    g_assert(addr_size == 4 || addr_size == 8);
+    memcpy(&addr, addr_ptr , addr_size);
+    addr = le64_to_cpu(addr);
     qtest_memread(qts, addr + 4, &len, 4); /* Length of ACPI table */
     *aml_len = le32_to_cpu(len);
     *aml = g_malloc0(*aml_len);
