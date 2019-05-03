@@ -1,13 +1,14 @@
 /** @file
-  Expose the address(es) of the ACPI RSD PTR table(s) in a MB-aligned structure
-  to the hypervisor.
+  Expose the address(es) of the ACPI RSD PTR table(s) and the SMBIOS entry
+  point(s) in a MB-aligned structure to the hypervisor.
 
   The hypervisor locates the MB-aligned structure based on the signature GUID
-  that is at offset 0 in the structure. Once the RSD PTR address(es) are
-  retrieved, the hypervisor may perform various ACPI checks.
+  that is at offset 0 in the structure. Once the RSD PTR and SMBIOS anchor
+  address(es) are retrieved, the hypervisor may perform various ACPI and SMBIOS
+  checks.
 
-  This feature is a development aid, for supporting ACPI table unit tests in
-  hypervisors. Do not enable in production builds.
+  This feature is a development aid, for supporting ACPI and SMBIOS table unit
+  tests in hypervisors. Do not enable in production builds.
 
   Copyright (C) 2019, Red Hat, Inc.
 
@@ -61,6 +62,18 @@ typedef struct {
   //
   EFI_PHYSICAL_ADDRESS Rsdp10;
   EFI_PHYSICAL_ADDRESS Rsdp20;
+  //
+  // The Smbios21 and Smbios30 fields may be read when the signature GUID
+  // matches. Smbios21 is the guest-physical address of the SMBIOS 2.1 (32-bit)
+  // Entry Point Structure from the SMBIOS v3.2.0 specification, in 8-byte
+  // little endian representation. Smbios30 is the guest-physical address of
+  // the SMBIOS 3.0 (64-bit) Entry Point Structure from the same specification,
+  // in the same representation. Each of these fields may be zero
+  // (independently of the other) if the UEFI System Table does not provide the
+  // corresponding UEFI Configuration Table.
+  //
+  EFI_PHYSICAL_ADDRESS Smbios21;
+  EFI_PHYSICAL_ADDRESS Smbios30;
 } BIOS_TABLES_TEST;
 #pragma pack ()
 

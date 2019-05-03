@@ -14,6 +14,7 @@
 
 #include <Guid/Acpi.h>
 #include <Guid/BiosTablesTest.h>
+#include <Guid/SmBios.h>
 #include <Library/BaseLib.h>
 #include <Library/BaseMemoryLib.h>
 #include <Library/MemoryAllocationLib.h>
@@ -55,6 +56,8 @@ BiosTablesTestMain (
   volatile BIOS_TABLES_TEST     *BiosTablesTest;
   CONST VOID                    *Rsdp10;
   CONST VOID                    *Rsdp20;
+  CONST VOID                    *Smbios21;
+  CONST VOID                    *Smbios30;
   CONST EFI_CONFIGURATION_TABLE *ConfigTable;
   CONST EFI_CONFIGURATION_TABLE *ConfigTablesEnd;
   volatile EFI_GUID             *InverseSignature;
@@ -77,31 +80,43 @@ BiosTablesTestMain (
   }
 
   //
-  // Locate both gEfiAcpi10TableGuid and gEfiAcpi20TableGuid config tables in
-  // one go.
+  // Locate all the gEfiAcpi10TableGuid, gEfiAcpi20TableGuid,
+  // gEfiSmbiosTableGuid, gEfiSmbios3TableGuid config tables in one go.
   //
   Rsdp10 = NULL;
   Rsdp20 = NULL;
+  Smbios21 = NULL;
+  Smbios30 = NULL;
   ConfigTable = gST->ConfigurationTable;
   ConfigTablesEnd = gST->ConfigurationTable + gST->NumberOfTableEntries;
-  while ((Rsdp10 == NULL || Rsdp20 == NULL) && ConfigTable < ConfigTablesEnd) {
+  while ((Rsdp10 == NULL || Rsdp20 == NULL ||
+          Smbios21 == NULL || Smbios30 == NULL) &&
+         ConfigTable < ConfigTablesEnd) {
     if (CompareGuid (&ConfigTable->VendorGuid, &gEfiAcpi10TableGuid)) {
       Rsdp10 = ConfigTable->VendorTable;
     } else if (CompareGuid (&ConfigTable->VendorGuid, &gEfiAcpi20TableGuid)) {
       Rsdp20 = ConfigTable->VendorTable;
+    } else if (CompareGuid (&ConfigTable->VendorGuid, &gEfiSmbiosTableGuid)) {
+      Smbios21 = ConfigTable->VendorTable;
+    } else if (CompareGuid (&ConfigTable->VendorGuid, &gEfiSmbios3TableGuid)) {
+      Smbios30 = ConfigTable->VendorTable;
     }
     ++ConfigTable;
   }
 
   AsciiPrint ("%a: BiosTablesTest=%p Rsdp10=%p Rsdp20=%p\n",
     gEfiCallerBaseName, Pages, Rsdp10, Rsdp20);
+  AsciiPrint ("%a: Smbios21=%p Smbios30=%p\n", gEfiCallerBaseName, Smbios21,
+    Smbios30);
 
   //
-  // Store the RSD PTR address(es) first, then the signature second.
+  // Store the config table addresses first, then the signature second.
   //
   BiosTablesTest = Pages;
   BiosTablesTest->Rsdp10 = (UINTN)Rsdp10;
   BiosTablesTest->Rsdp20 = (UINTN)Rsdp20;
+  BiosTablesTest->Smbios21 = (UINTN)Smbios21;
+  BiosTablesTest->Smbios30 = (UINTN)Smbios30;
 
   MemoryFence();
 
