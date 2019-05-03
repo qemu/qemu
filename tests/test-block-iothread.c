@@ -593,7 +593,7 @@ static void test_propagate_mirror(void)
     IOThread *iothread = iothread_new();
     AioContext *ctx = iothread_get_aio_context(iothread);
     AioContext *main_ctx = qemu_get_aio_context();
-    BlockDriverState *src, *target;
+    BlockDriverState *src, *target, *filter;
     BlockBackend *blk;
     Job *job;
     Error *local_err = NULL;
@@ -610,11 +610,13 @@ static void test_propagate_mirror(void)
                  false, "filter_node", MIRROR_COPY_MODE_BACKGROUND,
                  &error_abort);
     job = job_get("job0");
+    filter = bdrv_find_node("filter_node");
 
     /* Change the AioContext of src */
     bdrv_try_set_aio_context(src, ctx, &error_abort);
     g_assert(bdrv_get_aio_context(src) == ctx);
     g_assert(bdrv_get_aio_context(target) == ctx);
+    g_assert(bdrv_get_aio_context(filter) == ctx);
     g_assert(job->aio_context == ctx);
 
     /* Change the AioContext of target */
@@ -623,6 +625,7 @@ static void test_propagate_mirror(void)
     aio_context_release(ctx);
     g_assert(bdrv_get_aio_context(src) == main_ctx);
     g_assert(bdrv_get_aio_context(target) == main_ctx);
+    g_assert(bdrv_get_aio_context(filter) == main_ctx);
 
     /* With a BlockBackend on src, changing target must fail */
     blk = blk_new(0, BLK_PERM_ALL);
@@ -635,6 +638,7 @@ static void test_propagate_mirror(void)
     g_assert(blk_get_aio_context(blk) == main_ctx);
     g_assert(bdrv_get_aio_context(src) == main_ctx);
     g_assert(bdrv_get_aio_context(target) == main_ctx);
+    g_assert(bdrv_get_aio_context(filter) == main_ctx);
 
     /* ...unless we explicitly allow it */
     aio_context_acquire(ctx);
@@ -645,6 +649,7 @@ static void test_propagate_mirror(void)
     g_assert(blk_get_aio_context(blk) == ctx);
     g_assert(bdrv_get_aio_context(src) == ctx);
     g_assert(bdrv_get_aio_context(target) == ctx);
+    g_assert(bdrv_get_aio_context(filter) == ctx);
 
     job_cancel_sync_all();
 
