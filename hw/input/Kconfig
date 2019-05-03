@@ -29,5 +29,10 @@ config VIRTIO_INPUT_HOST
     default y
     depends on VIRTIO && LINUX
 
+config VHOST_USER_INPUT
+    bool
+    default y
+    depends on VIRTIO_INPUT && VHOST_USER
+
 config TSC210X
     bool
