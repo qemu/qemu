@@ -354,6 +354,111 @@ static void test_sync_op(const void *opaque)
     blk_unref(blk);
 }
 
+typedef struct TestBlockJob {
+    BlockJob common;
+    bool should_complete;
+    int n;
+} TestBlockJob;
+
+static int test_job_prepare(Job *job)
+{
+    g_assert(qemu_get_current_aio_context() == qemu_get_aio_context());
+    return 0;
+}
+
+static int coroutine_fn test_job_run(Job *job, Error **errp)
+{
+    TestBlockJob *s = container_of(job, TestBlockJob, common.job);
+
+    job_transition_to_ready(&s->common.job);
+    while (!s->should_complete) {
+        s->n++;
+        g_assert(qemu_get_current_aio_context() == job->aio_context);
+
+        /* Avoid job_sleep_ns() because it marks the job as !busy. We want to
+         * emulate some actual activity (probably some I/O) here so that the
+         * drain involved in AioContext switches has to wait for this activity
+         * to stop. */
+        qemu_co_sleep_ns(QEMU_CLOCK_REALTIME, 1000000);
+
+        job_pause_point(&s->common.job);
+    }
+
+    g_assert(qemu_get_current_aio_context() == job->aio_context);
+    return 0;
+}
+
+static void test_job_complete(Job *job, Error **errp)
+{
+    TestBlockJob *s = container_of(job, TestBlockJob, common.job);
+    s->should_complete = true;
+}
+
+BlockJobDriver test_job_driver = {
+    .job_driver = {
+        .instance_size  = sizeof(TestBlockJob),
+        .free           = block_job_free,
+        .user_resume    = block_job_user_resume,
+        .drain          = block_job_drain,
+        .run            = test_job_run,
+        .complete       = test_job_complete,
+        .prepare        = test_job_prepare,
+    },
+};
+
+static void test_attach_blockjob(void)
+{
+    IOThread *iothread = iothread_new();
+    AioContext *ctx = iothread_get_aio_context(iothread);
+    BlockBackend *blk;
+    BlockDriverState *bs;
+    TestBlockJob *tjob;
+
+    blk = blk_new(BLK_PERM_ALL, BLK_PERM_ALL);
+    bs = bdrv_new_open_driver(&bdrv_test, "base", BDRV_O_RDWR, &error_abort);
+    blk_insert_bs(blk, bs, &error_abort);
+
+    tjob = block_job_create("job0", &test_job_driver, NULL, bs,
+                            0, BLK_PERM_ALL,
+                            0, 0, NULL, NULL, &error_abort);
+    job_start(&tjob->common.job);
+
+    while (tjob->n == 0) {
+        aio_poll(qemu_get_aio_context(), false);
+    }
+
+    blk_set_aio_context(blk, ctx);
+
+    tjob->n = 0;
+    while (tjob->n == 0) {
+        aio_poll(qemu_get_aio_context(), false);
+    }
+
+    aio_context_acquire(ctx);
+    blk_set_aio_context(blk, qemu_get_aio_context());
+    aio_context_release(ctx);
+
+    tjob->n = 0;
+    while (tjob->n == 0) {
+        aio_poll(qemu_get_aio_context(), false);
+    }
+
+    blk_set_aio_context(blk, ctx);
+
+    tjob->n = 0;
+    while (tjob->n == 0) {
+        aio_poll(qemu_get_aio_context(), false);
+    }
+
+    aio_context_acquire(ctx);
+    job_complete_sync(&tjob->common.job, &error_abort);
+    blk_set_aio_context(blk, qemu_get_aio_context());
+    aio_context_release(ctx);
+
+    bdrv_unref(bs);
+    blk_unref(blk);
+}
+
 int main(int argc, char **argv)
 {
     int i;
@@ -367,6 +472,8 @@ int main(int argc, char **argv)
         const SyncOpTest *t = &sync_op_tests[i];
         g_test_add_data_func(t->name, t, test_sync_op);
     }
+
+    g_test_add_func("/attach/blockjob", test_attach_blockjob);
 
     return g_test_run();
 }
