@@ -30,85 +30,18 @@
 #include "qapi/error.h"
 #include "qemu/timer.h"
 #include "hw/usb.h"
-#include "hw/pci/pci.h"
 #include "hw/sysbus.h"
 #include "hw/qdev-dma.h"
 #include "trace.h"
+#include "hcd-ohci.h"
 
 /* This causes frames to occur 1000x slower */
 //#define OHCI_TIME_WARP 1
-
-/* Number of Downstream Ports on the root hub.  */
-
-#define OHCI_MAX_PORTS 15
 
 #define ED_LINK_LIMIT 32
 
 static int64_t usb_frame_time;
 static int64_t usb_bit_time;
-
-typedef struct OHCIPort {
-    USBPort port;
-    uint32_t ctrl;
-} OHCIPort;
-
-typedef struct {
-    USBBus bus;
-    qemu_irq irq;
-    MemoryRegion mem;
-    AddressSpace *as;
-    uint32_t num_ports;
-    const char *name;
-
-    QEMUTimer *eof_timer;
-    int64_t sof_time;
-
-    /* OHCI state */
-    /* Control partition */
-    uint32_t ctl, status;
-    uint32_t intr_status;
-    uint32_t intr;
-
-    /* memory pointer partition */
-    uint32_t hcca;
-    uint32_t ctrl_head, ctrl_cur;
-    uint32_t bulk_head, bulk_cur;
-    uint32_t per_cur;
-    uint32_t done;
-    int32_t done_count;
-
-    /* Frame counter partition */
-    uint16_t fsmps;
-    uint8_t fit;
-    uint16_t fi;
-    uint8_t frt;
-    uint16_t frame_number;
-    uint16_t padding;
-    uint32_t pstart;
-    uint32_t lst;
-
-    /* Root Hub partition */
-    uint32_t rhdesc_a, rhdesc_b;
-    uint32_t rhstatus;
-    OHCIPort rhport[OHCI_MAX_PORTS];
-
-    /* PXA27x Non-OHCI events */
-    uint32_t hstatus;
-    uint32_t hmask;
-    uint32_t hreset;
-    uint32_t htest;
-
-    /* SM501 local memory offset */
-    dma_addr_t localmem_base;
-
-    /* Active packets.  */
-    uint32_t old_ctl;
-    USBPacket usb_packet;
-    uint8_t usb_buf[8192];
-    uint32_t async_td;
-    bool async_complete;
-
-} OHCIState;
 
 /* Host Controller Communications Area */
 struct ohci_hcca {
@@ -122,7 +55,6 @@ struct ohci_hcca {
 #define ED_WBACK_OFFSET offsetof(struct ohci_ed, head)
 #define ED_WBACK_SIZE   4
 
-static void ohci_bus_stop(OHCIState *ohci);
 static void ohci_async_cancel_device(OHCIState *ohci, USBDevice *dev);
 
 /* Bitfields for the first word of an Endpoint Desciptor.  */
@@ -302,7 +234,10 @@ struct ohci_iso_td {
 
 #define OHCI_HRESET_FSBIR       (1 << 0)
 
-static void ohci_die(OHCIState *ohci);
+static void ohci_die(OHCIState *ohci)
+{
+    ohci->ohci_die(ohci);
+}
 
 /* Update IRQ levels */
 static inline void ohci_intr_update(OHCIState *ohci)
@@ -426,7 +361,7 @@ static USBDevice *ohci_find_device(OHCIState *ohci, uint8_t addr)
     return NULL;
 }
 
-static void ohci_stop_endpoints(OHCIState *ohci)
+void ohci_stop_endpoints(OHCIState *ohci)
 {
     USBDevice *dev;
     int i, j;
@@ -498,7 +433,7 @@ static void ohci_soft_reset(OHCIState *ohci)
     ohci->lst = OHCI_LS_THRESH;
 }
 
-static void ohci_hard_reset(OHCIState *ohci)
+void ohci_hard_reset(OHCIState *ohci)
 {
     ohci_soft_reset(ohci);
     ohci->ctl = 0;
@@ -1372,7 +1307,7 @@ static int ohci_bus_start(OHCIState *ohci)
 }
 
 /* Stop sending SOF tokens on the bus */
-static void ohci_bus_stop(OHCIState *ohci)
+void ohci_bus_stop(OHCIState *ohci)
 {
     trace_usb_ohci_stop(ohci->name);
     timer_del(ohci->eof_timer);
@@ -1852,15 +1787,16 @@ static USBPortOps ohci_port_ops = {
 static USBBusOps ohci_bus_ops = {
 };
 
-static void usb_ohci_init(OHCIState *ohci, DeviceState *dev,
-                          uint32_t num_ports, dma_addr_t localmem_base,
-                          char *masterbus, uint32_t firstport,
-                          AddressSpace *as, Error **errp)
+void usb_ohci_init(OHCIState *ohci, DeviceState *dev, uint32_t num_ports,
+                   dma_addr_t localmem_base, char *masterbus,
+                   uint32_t firstport, AddressSpace *as,
+                   void (*ohci_die_fn)(struct OHCIState *), Error **errp)
 {
     Error *err = NULL;
     int i;
 
     ohci->as = as;
+    ohci->ohci_die = ohci_die_fn;
 
     if (num_ports > OHCI_MAX_PORTS) {
         error_setg(errp, "OHCI num-ports=%u is too big (limit is %u ports)",
@@ -1919,85 +1855,16 @@ static void usb_ohci_init(OHCIState *ohci, DeviceState *dev,
                                    ohci_frame_boundary, ohci);
 }
 
-#define TYPE_PCI_OHCI "pci-ohci"
-#define PCI_OHCI(obj) OBJECT_CHECK(OHCIPCIState, (obj), TYPE_PCI_OHCI)
-
-typedef struct {
-    /*< private >*/
-    PCIDevice parent_obj;
-    /*< public >*/
-
-    OHCIState state;
-    char *masterbus;
-    uint32_t num_ports;
-    uint32_t firstport;
-} OHCIPCIState;
-
-/** A typical O/EHCI will stop operating, set itself into error state
- * (which can be queried by MMIO) and will set PERR in its config
- * space to signal that it got an error
+/**
+ * A typical OHCI will stop operating and set itself into error state
+ * (which can be queried by MMIO) to signal that it got an error.
  */
-static void ohci_die(OHCIState *ohci)
+void ohci_sysbus_die(struct OHCIState *ohci)
 {
-    OHCIPCIState *dev = container_of(ohci, OHCIPCIState, state);
-
     trace_usb_ohci_die();
 
     ohci_set_interrupt(ohci, OHCI_INTR_UE);
     ohci_bus_stop(ohci);
-    pci_set_word(dev->parent_obj.config + PCI_STATUS,
-                 PCI_STATUS_DETECTED_PARITY);
-}
-
-static void usb_ohci_realize_pci(PCIDevice *dev, Error **errp)
-{
-    Error *err = NULL;
-    OHCIPCIState *ohci = PCI_OHCI(dev);
-
-    dev->config[PCI_CLASS_PROG] = 0x10; /* OHCI */
-    dev->config[PCI_INTERRUPT_PIN] = 0x01; /* interrupt pin A */
-
-    usb_ohci_init(&ohci->state, DEVICE(dev), ohci->num_ports, 0,
-                  ohci->masterbus, ohci->firstport,
-                  pci_get_address_space(dev), &err);
-    if (err) {
-        error_propagate(errp, err);
-        return;
-    }
-
-    ohci->state.irq = pci_allocate_irq(dev);
-    pci_register_bar(dev, 0, 0, &ohci->state.mem);
-}
-
-static void usb_ohci_exit(PCIDevice *dev)
-{
-    OHCIPCIState *ohci = PCI_OHCI(dev);
-    OHCIState *s = &ohci->state;
-
-    trace_usb_ohci_exit(s->name);
-    ohci_bus_stop(s);
-
-    if (s->async_td) {
-        usb_cancel_packet(&s->usb_packet);
-        s->async_td = 0;
-    }
-    ohci_stop_endpoints(s);
-
-    if (!ohci->masterbus) {
-        usb_bus_release(&s->bus);
-    }
-
-    timer_del(s->eof_timer);
-    timer_free(s->eof_timer);
-}
-
-static void usb_ohci_reset_pci(DeviceState *d)
-{
-    PCIDevice *dev = PCI_DEVICE(d);
-    OHCIPCIState *ohci = PCI_OHCI(dev);
-    OHCIState *s = &ohci->state;
-
-    ohci_hard_reset(s);
 }
 
 #define TYPE_SYSBUS_OHCI "sysbus-ohci"
@@ -2023,7 +1890,7 @@ static void ohci_realize_pxa(DeviceState *dev, Error **errp)
 
     usb_ohci_init(&s->ohci, dev, s->num_ports, s->dma_offset,
                   s->masterbus, s->firstport,
-                  &address_space_memory, &err);
+                  &address_space_memory, ohci_sysbus_die, &err);
     if (err) {
         error_propagate(errp, err);
         return;
@@ -2039,13 +1906,6 @@ static void usb_ohci_reset_sysbus(DeviceState *dev)
 
     ohci_hard_reset(ohci);
 }
-
-static Property ohci_pci_properties[] = {
-    DEFINE_PROP_STRING("masterbus", OHCIPCIState, masterbus),
-    DEFINE_PROP_UINT32("num-ports", OHCIPCIState, num_ports, 3),
-    DEFINE_PROP_UINT32("firstport", OHCIPCIState, firstport, 0),
-    DEFINE_PROP_END_OF_LIST(),
-};
 
 static const VMStateDescription vmstate_ohci_state_port = {
     .name = "ohci-core/port",
@@ -2075,7 +1935,7 @@ static const VMStateDescription vmstate_ohci_eof_timer = {
     },
 };
 
-static const VMStateDescription vmstate_ohci_state = {
+const VMStateDescription vmstate_ohci_state = {
     .name = "ohci-core",
     .version_id = 1,
     .minimum_version_id = 1,
@@ -2122,46 +1982,6 @@ static const VMStateDescription vmstate_ohci_state = {
     }
 };
 
-static const VMStateDescription vmstate_ohci = {
-    .name = "ohci",
-    .version_id = 1,
-    .minimum_version_id = 1,
-    .fields = (VMStateField[]) {
-        VMSTATE_PCI_DEVICE(parent_obj, OHCIPCIState),
-        VMSTATE_STRUCT(state, OHCIPCIState, 1, vmstate_ohci_state, OHCIState),
-        VMSTATE_END_OF_LIST()
-    }
-};
-
-static void ohci_pci_class_init(ObjectClass *klass, void *data)
-{
-    DeviceClass *dc = DEVICE_CLASS(klass);
-    PCIDeviceClass *k = PCI_DEVICE_CLASS(klass);
-
-    k->realize = usb_ohci_realize_pci;
-    k->exit = usb_ohci_exit;
-    k->vendor_id = PCI_VENDOR_ID_APPLE;
-    k->device_id = PCI_DEVICE_ID_APPLE_IPID_USB;
-    k->class_id = PCI_CLASS_SERIAL_USB;
-    set_bit(DEVICE_CATEGORY_USB, dc->categories);
-    dc->desc = "Apple USB Controller";
-    dc->props = ohci_pci_properties;
-    dc->hotpluggable = false;
-    dc->vmsd = &vmstate_ohci;
-    dc->reset = usb_ohci_reset_pci;
-}
-
-static const TypeInfo ohci_pci_info = {
-    .name          = TYPE_PCI_OHCI,
-    .parent        = TYPE_PCI_DEVICE,
-    .instance_size = sizeof(OHCIPCIState),
-    .class_init    = ohci_pci_class_init,
-    .interfaces = (InterfaceInfo[]) {
-        { INTERFACE_CONVENTIONAL_PCI_DEVICE },
-        { },
-    },
-};
-
 static Property ohci_sysbus_properties[] = {
     DEFINE_PROP_STRING("masterbus", OHCISysBusState, masterbus),
     DEFINE_PROP_UINT32("num-ports", OHCISysBusState, num_ports, 3),
@@ -2190,7 +2010,6 @@ static const TypeInfo ohci_sysbus_info = {
 
 static void ohci_register_types(void)
 {
-    type_register_static(&ohci_pci_info);
     type_register_static(&ohci_sysbus_info);
 }
 

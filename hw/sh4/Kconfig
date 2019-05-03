@@ -6,7 +6,7 @@ config R2D
     select I82378 if TEST_DEVICES
     select IDE_MMIO
     select PFLASH_CFI02
-    select USB_OHCI
+    select USB_OHCI_PCI
     select PCI
     select SM501
     select SH4
