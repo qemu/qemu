@@ -23,8 +23,13 @@
  * THE SOFTWARE.
  */
 /*
- * Reference: Finn Thogersons' VGADOC4b
- *   available at http://home.worldonline.dk/~finth/
+ * Reference: Finn Thogersons' VGADOC4b:
+ *
+ *  http://web.archive.org/web/20021019054927/http://home.worldonline.dk/finth/
+ *
+ * VGADOC4b.ZIP content available at:
+ *
+ *  https://pdos.csail.mit.edu/6.828/2005/readings/hardware/vgadoc
  */
 #include "qemu/osdep.h"
 #include "qemu/units.h"
