@@ -1,8 +1,9 @@
 common-obj-$(CONFIG_DP8393X) += dp8393x.o
 common-obj-$(CONFIG_XEN) += xen_nic.o
+common-obj-$(CONFIG_NE2000_COMMON) += ne2000.o
 
 # PCI network cards
-common-obj-$(CONFIG_NE2000_PCI) += ne2000.o
+common-obj-$(CONFIG_NE2000_PCI) += ne2000-pci.o
 common-obj-$(CONFIG_EEPRO100_PCI) += eepro100.o
 common-obj-$(CONFIG_PCNET_PCI) += pcnet-pci.o
 common-obj-$(CONFIG_PCNET_COMMON) += pcnet.o
