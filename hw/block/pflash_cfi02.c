@@ -196,33 +196,11 @@ static uint32_t pflash_read(PFlashCFI02 *pfl, hwaddr offset,
     case 0x00:
     flash_read:
         /* Flash area read */
-        p = pfl->storage;
-        switch (width) {
-        case 1:
-            ret = p[offset];
-            break;
-        case 2:
-            if (be) {
-                ret = p[offset] << 8;
-                ret |= p[offset + 1];
-            } else {
-                ret = p[offset];
-                ret |= p[offset + 1] << 8;
-            }
-            break;
-        case 4:
-            if (be) {
-                ret = p[offset] << 24;
-                ret |= p[offset + 1] << 16;
-                ret |= p[offset + 2] << 8;
-                ret |= p[offset + 3];
-            } else {
-                ret = p[offset];
-                ret |= p[offset + 1] << 8;
-                ret |= p[offset + 2] << 16;
-                ret |= p[offset + 3] << 24;
-            }
-            break;
+        p = (uint8_t *)pfl->storage + offset;
+        if (pfl->be) {
+            ret = ldn_be_p(p, width);
+        } else {
+            ret = ldn_le_p(p, width);
         }
         trace_pflash_data_read(offset, width << 1, ret);
         break;
