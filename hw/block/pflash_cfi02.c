@@ -365,38 +365,16 @@ static void pflash_write(PFlashCFI02 *pfl, hwaddr offset,
             goto check_unlock0;
         case 0xA0:
             trace_pflash_data_write(offset, width << 1, value, 0);
-            p = pfl->storage;
             if (!pfl->ro) {
-                switch (width) {
-                case 1:
-                    p[offset] &= value;
-                    pflash_update(pfl, offset, 1);
-                    break;
-                case 2:
-                    if (be) {
-                        p[offset] &= value >> 8;
-                        p[offset + 1] &= value;
-                    } else {
-                        p[offset] &= value;
-                        p[offset + 1] &= value >> 8;
-                    }
-                    pflash_update(pfl, offset, 2);
-                    break;
-                case 4:
-                    if (be) {
-                        p[offset] &= value >> 24;
-                        p[offset + 1] &= value >> 16;
-                        p[offset + 2] &= value >> 8;
-                        p[offset + 3] &= value;
-                    } else {
-                        p[offset] &= value;
-                        p[offset + 1] &= value >> 8;
-                        p[offset + 2] &= value >> 16;
-                        p[offset + 3] &= value >> 24;
-                    }
-                    pflash_update(pfl, offset, 4);
-                    break;
+                p = (uint8_t *)pfl->storage + offset;
+                if (pfl->be) {
+                    uint64_t current = ldn_be_p(p, width);
+                    stn_be_p(p, width, current & value);
+                } else {
+                    uint64_t current = ldn_le_p(p, width);
+                    stn_le_p(p, width, current & value);
                 }
+                pflash_update(pfl, offset, width);
             }
             /*
              * While programming, status bit DQ7 should hold the opposite
