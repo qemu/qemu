@@ -676,7 +676,9 @@ static void ibm_40p_init(MachineState *machine)
     qdev_init_nofail(dev);
 
     /* RTC */
-    isa_create_simple(isa_bus, TYPE_MC146818_RTC);
+    dev = DEVICE(isa_create(isa_bus, TYPE_MC146818_RTC));
+    qdev_prop_set_int32(dev, "base_year", 1900);
+    qdev_init_nofail(dev);
 
     /* initialize CMOS checksums */
     cmos_checksum = 0x6aa9;
