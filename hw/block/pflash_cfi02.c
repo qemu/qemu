@@ -165,12 +165,23 @@ static void pflash_timer (void *opaque)
     pfl->cmd = 0;
 }
 
+/*
+ * Read data from flash.
+ */
+static uint64_t pflash_data_read(PFlashCFI02 *pfl, hwaddr offset,
+                                 unsigned int width)
+{
+    uint8_t *p = (uint8_t *)pfl->storage + offset;
+    uint64_t ret = pfl->be ? ldn_be_p(p, width) : ldn_le_p(p, width);
+    trace_pflash_data_read(offset, width << 1, ret);
+    return ret;
+}
+
 static uint32_t pflash_read(PFlashCFI02 *pfl, hwaddr offset,
                             int width, int be)
 {
     hwaddr boff;
     uint32_t ret;
-    uint8_t *p;
 
     ret = -1;
     /* Lazy reset to ROMD mode after a certain amount of read accesses */
@@ -194,15 +205,8 @@ static uint32_t pflash_read(PFlashCFI02 *pfl, hwaddr offset,
     case 0x80:
         /* We accept reads during second unlock sequence... */
     case 0x00:
-    flash_read:
         /* Flash area read */
-        p = (uint8_t *)pfl->storage + offset;
-        if (pfl->be) {
-            ret = ldn_be_p(p, width);
-        } else {
-            ret = ldn_le_p(p, width);
-        }
-        trace_pflash_data_read(offset, width << 1, ret);
+        ret = pflash_data_read(pfl, offset, width);
         break;
     case 0x90:
         /* flash ID read */
@@ -222,7 +226,7 @@ static uint32_t pflash_read(PFlashCFI02 *pfl, hwaddr offset,
             }
             /* Fall through to data read. */
         default:
-            goto flash_read;
+            ret = pflash_data_read(pfl, offset, width);
         }
         DPRINTF("%s: ID " TARGET_FMT_plx " %" PRIx32 "\n", __func__, boff, ret);
         break;
