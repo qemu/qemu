@@ -14,16 +14,9 @@
  */
 
 #include "qemu/osdep.h"
-#include "sysemu/sysemu.h"
-#include "qapi/error.h"
-#include "qapi/qmp/qlist.h"
-#include "qapi/qmp/qnum.h"
 #include "qapi/qapi-events-rdma.h"
 
 #include <infiniband/verbs.h>
-#include <infiniband/umad_types.h>
-#include <infiniband/umad.h>
-#include <rdma/rdma_user_cm.h>
 
 #include "contrib/rdmacm-mux/rdmacm-mux.h"
 #include "trace.h"
