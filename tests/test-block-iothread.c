@@ -27,6 +27,7 @@
 #include "block/blockjob_int.h"
 #include "sysemu/block-backend.h"
 #include "qapi/error.h"
+#include "qapi/qmp/qdict.h"
 #include "iothread.h"
 
 static int coroutine_fn bdrv_test_co_prwv(BlockDriverState *bs,
@@ -459,6 +460,134 @@ static void test_attach_blockjob(void)
     blk_unref(blk);
 }
 
+/*
+ * Test that changing the AioContext for one node in a tree (here through blk)
+ * changes all other nodes as well:
+ *
+ *  blk
+ *   |
+ *   |  bs_verify [blkverify]
+ *   |   /               \
+ *   |  /                 \
+ *  bs_a [bdrv_test]    bs_b [bdrv_test]
+ *
+ */
+static void test_propagate_basic(void)
+{
+    IOThread *iothread = iothread_new();
+    AioContext *ctx = iothread_get_aio_context(iothread);
+    BlockBackend *blk;
+    BlockDriverState *bs_a, *bs_b, *bs_verify;
+    QDict *options;
+
+    /* Create bs_a and its BlockBackend */
+    blk = blk_new(BLK_PERM_ALL, BLK_PERM_ALL);
+    bs_a = bdrv_new_open_driver(&bdrv_test, "bs_a", BDRV_O_RDWR, &error_abort);
+    blk_insert_bs(blk, bs_a, &error_abort);
+
+    /* Create bs_b */
+    bs_b = bdrv_new_open_driver(&bdrv_test, "bs_b", BDRV_O_RDWR, &error_abort);
+
+    /* Create blkverify filter that references both bs_a and bs_b */
+    options = qdict_new();
+    qdict_put_str(options, "driver", "blkverify");
+    qdict_put_str(options, "test", "bs_a");
+    qdict_put_str(options, "raw", "bs_b");
+
+    bs_verify = bdrv_open(NULL, NULL, options, BDRV_O_RDWR, &error_abort);
+
+    /* Switch the AioContext */
+    blk_set_aio_context(blk, ctx);
+    g_assert(blk_get_aio_context(blk) == ctx);
+    g_assert(bdrv_get_aio_context(bs_a) == ctx);
+    g_assert(bdrv_get_aio_context(bs_verify) == ctx);
+    g_assert(bdrv_get_aio_context(bs_b) == ctx);
+
+    /* Switch the AioContext back */
+    ctx = qemu_get_aio_context();
+    blk_set_aio_context(blk, ctx);
+    g_assert(blk_get_aio_context(blk) == ctx);
+    g_assert(bdrv_get_aio_context(bs_a) == ctx);
+    g_assert(bdrv_get_aio_context(bs_verify) == ctx);
+    g_assert(bdrv_get_aio_context(bs_b) == ctx);
+
+    bdrv_unref(bs_verify);
+    bdrv_unref(bs_b);
+    bdrv_unref(bs_a);
+    blk_unref(blk);
+}
+
+/*
+ * Test that diamonds in the graph don't lead to endless recursion:
+ *
+ *              blk
+ *               |
+ *      bs_verify [blkverify]
+ *       /              \
+ *      /                \
+ *   bs_b [raw]         bs_c[raw]
+ *      \                /
+ *       \              /
+ *       bs_a [bdrv_test]
+ */
+static void test_propagate_diamond(void)
+{
+    IOThread *iothread = iothread_new();
+    AioContext *ctx = iothread_get_aio_context(iothread);
+    BlockBackend *blk;
+    BlockDriverState *bs_a, *bs_b, *bs_c, *bs_verify;
+    QDict *options;
+
+    /* Create bs_a */
+    bs_a = bdrv_new_open_driver(&bdrv_test, "bs_a", BDRV_O_RDWR, &error_abort);
+
+    /* Create bs_b and bc_c */
+    options = qdict_new();
+    qdict_put_str(options, "driver", "raw");
+    qdict_put_str(options, "file", "bs_a");
+    qdict_put_str(options, "node-name", "bs_b");
+    bs_b = bdrv_open(NULL, NULL, options, BDRV_O_RDWR, &error_abort);
+
+    options = qdict_new();
+    qdict_put_str(options, "driver", "raw");
+    qdict_put_str(options, "file", "bs_a");
+    qdict_put_str(options, "node-name", "bs_c");
+    bs_c = bdrv_open(NULL, NULL, options, BDRV_O_RDWR, &error_abort);
+
+    /* Create blkverify filter that references both bs_b and bs_c */
+    options = qdict_new();
+    qdict_put_str(options, "driver", "blkverify");
+    qdict_put_str(options, "test", "bs_b");
+    qdict_put_str(options, "raw", "bs_c");
+
+    bs_verify = bdrv_open(NULL, NULL, options, BDRV_O_RDWR, &error_abort);
+    blk = blk_new(BLK_PERM_ALL, BLK_PERM_ALL);
+    blk_insert_bs(blk, bs_verify, &error_abort);
+
+    /* Switch the AioContext */
+    blk_set_aio_context(blk, ctx);
+    g_assert(blk_get_aio_context(blk) == ctx);
+    g_assert(bdrv_get_aio_context(bs_verify) == ctx);
+    g_assert(bdrv_get_aio_context(bs_a) == ctx);
+    g_assert(bdrv_get_aio_context(bs_b) == ctx);
+    g_assert(bdrv_get_aio_context(bs_c) == ctx);
+
+    /* Switch the AioContext back */
+    ctx = qemu_get_aio_context();
+    blk_set_aio_context(blk, ctx);
+    g_assert(blk_get_aio_context(blk) == ctx);
+    g_assert(bdrv_get_aio_context(bs_verify) == ctx);
+    g_assert(bdrv_get_aio_context(bs_a) == ctx);
+    g_assert(bdrv_get_aio_context(bs_b) == ctx);
+    g_assert(bdrv_get_aio_context(bs_c) == ctx);
+
+    blk_unref(blk);
+    bdrv_unref(bs_verify);
+    bdrv_unref(bs_c);
+    bdrv_unref(bs_b);
+    bdrv_unref(bs_a);
+}
+
 int main(int argc, char **argv)
 {
     int i;
@@ -474,6 +603,8 @@ int main(int argc, char **argv)
     }
 
     g_test_add_func("/attach/blockjob", test_attach_blockjob);
+    g_test_add_func("/propagate/basic", test_propagate_basic);
+    g_test_add_func("/propagate/diamond", test_propagate_diamond);
 
     return g_test_run();
 }
