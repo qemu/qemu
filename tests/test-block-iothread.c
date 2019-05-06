@@ -588,6 +588,76 @@ static void test_propagate_diamond(void)
     bdrv_unref(bs_a);
 }
 
+static void test_propagate_mirror(void)
+{
+    IOThread *iothread = iothread_new();
+    AioContext *ctx = iothread_get_aio_context(iothread);
+    AioContext *main_ctx = qemu_get_aio_context();
+    BlockDriverState *src, *target;
+    BlockBackend *blk;
+    Job *job;
+    Error *local_err = NULL;
+
+    /* Create src and target*/
+    src = bdrv_new_open_driver(&bdrv_test, "src", BDRV_O_RDWR, &error_abort);
+    target = bdrv_new_open_driver(&bdrv_test, "target", BDRV_O_RDWR,
+                                  &error_abort);
+
+    /* Start a mirror job */
+    mirror_start("job0", src, target, NULL, JOB_DEFAULT, 0, 0, 0,
+                 MIRROR_SYNC_MODE_NONE, MIRROR_OPEN_BACKING_CHAIN,
+                 BLOCKDEV_ON_ERROR_REPORT, BLOCKDEV_ON_ERROR_REPORT,
+                 false, "filter_node", MIRROR_COPY_MODE_BACKGROUND,
+                 &error_abort);
+    job = job_get("job0");
+
+    /* Change the AioContext of src */
+    bdrv_try_set_aio_context(src, ctx, &error_abort);
+    g_assert(bdrv_get_aio_context(src) == ctx);
+    g_assert(bdrv_get_aio_context(target) == ctx);
+    g_assert(job->aio_context == ctx);
+
+    /* Change the AioContext of target */
+    aio_context_acquire(ctx);
+    bdrv_try_set_aio_context(target, main_ctx, &error_abort);
+    aio_context_release(ctx);
+    g_assert(bdrv_get_aio_context(src) == main_ctx);
+    g_assert(bdrv_get_aio_context(target) == main_ctx);
+
+    /* With a BlockBackend on src, changing target must fail */
+    blk = blk_new(0, BLK_PERM_ALL);
+    blk_insert_bs(blk, src, &error_abort);
+
+    bdrv_try_set_aio_context(target, ctx, &local_err);
+    g_assert(local_err);
+    error_free(local_err);
+
+    g_assert(blk_get_aio_context(blk) == main_ctx);
+    g_assert(bdrv_get_aio_context(src) == main_ctx);
+    g_assert(bdrv_get_aio_context(target) == main_ctx);
+
+    /* ...unless we explicitly allow it */
+    aio_context_acquire(ctx);
+    blk_set_allow_aio_context_change(blk, true);
+    bdrv_try_set_aio_context(target, ctx, &error_abort);
+    aio_context_release(ctx);
+
+    g_assert(blk_get_aio_context(blk) == ctx);
+    g_assert(bdrv_get_aio_context(src) == ctx);
+    g_assert(bdrv_get_aio_context(target) == ctx);
+
+    job_cancel_sync_all();
+
+    aio_context_acquire(ctx);
+    blk_set_aio_context(blk, main_ctx);
+    bdrv_try_set_aio_context(target, main_ctx, &error_abort);
+    aio_context_release(ctx);
+
+    blk_unref(blk);
+    bdrv_unref(src);
+    bdrv_unref(target);
+}
+
 int main(int argc, char **argv)
 {
     int i;
@@ -605,6 +675,7 @@ int main(int argc, char **argv)
     g_test_add_func("/attach/blockjob", test_attach_blockjob);
     g_test_add_func("/propagate/basic", test_propagate_basic);
     g_test_add_func("/propagate/diamond", test_propagate_diamond);
+    g_test_add_func("/propagate/mirror", test_propagate_mirror);
 
     return g_test_run();
 }
