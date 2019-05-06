@@ -1142,13 +1142,6 @@ static bool mirror_drained_poll(BlockJob *job)
     return !!s->in_flight;
 }
 
-static void mirror_attached_aio_context(BlockJob *job, AioContext *new_context)
-{
-    MirrorBlockJob *s = container_of(job, MirrorBlockJob, common);
-
-    blk_set_aio_context(s->target, new_context);
-}
-
 static void mirror_drain(BlockJob *job)
 {
     MirrorBlockJob *s = container_of(job, MirrorBlockJob, common);
@@ -1178,7 +1171,6 @@ static const BlockJobDriver mirror_job_driver = {
         .complete               = mirror_complete,
     },
     .drained_poll           = mirror_drained_poll,
-    .attached_aio_context   = mirror_attached_aio_context,
     .drain                  = mirror_drain,
 };
 
@@ -1196,7 +1188,6 @@ static const BlockJobDriver commit_active_job_driver = {
         .complete               = mirror_complete,
     },
     .drained_poll           = mirror_drained_poll,
-    .attached_aio_context   = mirror_attached_aio_context,
     .drain                  = mirror_drain,
 };
 
@@ -1612,6 +1603,7 @@ static void mirror_start_job(const char *job_id, BlockDriverState *bs,
          * ensure that. */
         blk_set_force_allow_inactivate(s->target);
     }
+    blk_set_allow_aio_context_change(s->target, true);
 
     s->replaces = g_strdup(replaces);
     s->on_source_error = on_source_error;

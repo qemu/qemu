@@ -183,11 +183,44 @@ static void child_job_drained_end(BdrvChild *c)
     job_resume(&job->job);
 }
 
+static bool child_job_can_set_aio_ctx(BdrvChild *c, AioContext *ctx,
+                                      GSList **ignore, Error **errp)
+{
+    BlockJob *job = c->opaque;
+    GSList *l;
+
+    for (l = job->nodes; l; l = l->next) {
+        BdrvChild *sibling = l->data;
+        if (!bdrv_child_can_set_aio_context(sibling, ctx, ignore, errp)) {
+            return false;
+        }
+    }
+    return true;
+}
+
+static void child_job_set_aio_ctx(BdrvChild *c, AioContext *ctx,
+                                  GSList **ignore)
+{
+    BlockJob *job = c->opaque;
+    GSList *l;
+
+    for (l = job->nodes; l; l = l->next) {
+        BdrvChild *sibling = l->data;
+        if (g_slist_find(*ignore, sibling)) {
+            continue;
+        }
+        *ignore = g_slist_prepend(*ignore, sibling);
+        bdrv_set_aio_context_ignore(sibling->bs, ctx, ignore);
+    }
+}
+
 static const BdrvChildRole child_job = {
     .get_parent_desc    = child_job_get_parent_desc,
     .drained_begin      = child_job_drained_begin,
     .drained_poll       = child_job_drained_poll,
     .drained_end        = child_job_drained_end,
+    .can_set_aio_ctx    = child_job_can_set_aio_ctx,
+    .set_aio_ctx        = child_job_set_aio_ctx,
     .stay_at_node       = true,
 };
 
@@ -440,6 +473,7 @@ void *block_job_create(const char *job_id, const BlockJobDriver *driver,
 
     blk_add_aio_context_notifier(blk, block_job_attached_aio_context,
                                  block_job_detach_aio_context, job);
+    blk_set_allow_aio_context_change(blk, true);
 
     /* Only set speed when necessary to avoid NotSupported error */
     if (speed != 0) {
