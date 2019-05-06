@@ -31,7 +31,36 @@
 #include "qcow2.h"
 #include "block/thread-pool.h"
 
-#define MAX_COMPRESS_THREADS 4
+#define QCOW2_MAX_THREADS 4
+
+static int coroutine_fn
+qcow2_co_process(BlockDriverState *bs, ThreadPoolFunc *func, void *arg)
+{
+    int ret;
+    BDRVQcow2State *s = bs->opaque;
+    ThreadPool *pool = aio_get_thread_pool(bdrv_get_aio_context(bs));
+
+    qemu_co_mutex_lock(&s->lock);
+    while (s->nb_threads >= QCOW2_MAX_THREADS) {
+        qemu_co_queue_wait(&s->thread_task_queue, &s->lock);
+    }
+    s->nb_threads++;
+    qemu_co_mutex_unlock(&s->lock);
+
+    ret = thread_pool_submit_co(pool, func, arg);
+
+    qemu_co_mutex_lock(&s->lock);
+    s->nb_threads--;
+    qemu_co_queue_next(&s->thread_task_queue);
+    qemu_co_mutex_unlock(&s->lock);
+
+    return ret;
+}
+
+
+/*
+ * Compression
+ */
 
 typedef ssize_t (*Qcow2CompressFunc)(void *dest, size_t dest_size,
                                      const void *src, size_t src_size);
@@ -148,8 +177,6 @@ static ssize_t coroutine_fn
 qcow2_co_do_compress(BlockDriverState *bs, void *dest, size_t dest_size,
                      const void *src, size_t src_size, Qcow2CompressFunc func)
 {
-    BDRVQcow2State *s = bs->opaque;
-    ThreadPool *pool = aio_get_thread_pool(bdrv_get_aio_context(bs));
     Qcow2CompressData arg = {
         .dest = dest,
         .dest_size = dest_size,
@@ -158,19 +185,7 @@ qcow2_co_do_compress(BlockDriverState *bs, void *dest, size_t dest_size,
         .func = func,
     };
 
-    qemu_co_mutex_lock(&s->lock);
-    while (s->nb_compress_threads >= MAX_COMPRESS_THREADS) {
-        qemu_co_queue_wait(&s->compress_wait_queue, &s->lock);
-    }
-    s->nb_compress_threads++;
-    qemu_co_mutex_unlock(&s->lock);
-
-    thread_pool_submit_co(pool, qcow2_compress_pool_func, &arg);
-
-    qemu_co_mutex_lock(&s->lock);
-    s->nb_compress_threads--;
-    qemu_co_queue_next(&s->compress_wait_queue);
-    qemu_co_mutex_unlock(&s->lock);
+    qcow2_co_process(bs, qcow2_compress_pool_func, &arg);
 
     return arg.ret;
 }
