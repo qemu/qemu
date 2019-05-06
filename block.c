@@ -5676,7 +5676,7 @@ static void bdrv_do_remove_aio_context_notifier(BdrvAioNotifier *ban)
     g_free(ban);
 }
 
-void bdrv_detach_aio_context(BlockDriverState *bs)
+static void bdrv_detach_aio_context(BlockDriverState *bs)
 {
     BdrvAioNotifier *baf, *baf_tmp;
     BdrvChild *child;
@@ -5708,8 +5708,8 @@ void bdrv_detach_aio_context(BlockDriverState *bs)
     bs->aio_context = NULL;
 }
 
-void bdrv_attach_aio_context(BlockDriverState *bs,
-                             AioContext *new_context)
+static void bdrv_attach_aio_context(BlockDriverState *bs,
+                                    AioContext *new_context)
 {
     BdrvAioNotifier *ban, *ban_tmp;
     BdrvChild *child;
