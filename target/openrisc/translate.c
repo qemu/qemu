@@ -48,6 +48,9 @@ typedef struct DisasContext {
 
     /* If not -1, jmp_pc contains this value and so is a direct jump.  */
     target_ulong jmp_pc_imm;
+
+    /* The temporary corresponding to register 0 for this compilation.  */
+    TCGv R0;
 } DisasContext;
 
 static inline bool is_user(DisasContext *dc)
@@ -64,7 +67,6 @@ static inline bool is_user(DisasContext *dc)
 
 static TCGv cpu_sr;
 static TCGv cpu_regs[32];
-static TCGv cpu_R0;
 static TCGv cpu_pc;
 static TCGv jmp_pc;            /* l.jr/l.jalr temp pc */
 static TCGv cpu_ppc;
@@ -122,7 +124,6 @@ void openrisc_translate_init(void)
                                                   shadow_gpr[0][i]),
                                          regnames[i]);
     }
-    cpu_R0 = cpu_regs[0];
 }
 
 static void gen_exception(DisasContext *dc, unsigned int excp)
@@ -165,7 +166,11 @@ static void check_ov64s(DisasContext *dc)
 
 static TCGv cpu_R(DisasContext *dc, int reg)
 {
-    return cpu_regs[reg];
+    if (reg == 0) {
+        return dc->R0;
+    } else {
+        return cpu_regs[reg];
+    }
 }
 
 /*
@@ -175,7 +180,7 @@ static TCGv cpu_R(DisasContext *dc, int reg)
 static void check_r0_write(DisasContext *dc, int reg)
 {
     if (unlikely(reg == 0)) {
-        cpu_regs[0] = cpu_R0;
+        dc->R0 = cpu_regs[0];
     }
 }
 
@@ -747,7 +752,7 @@ static bool trans_l_swa(DisasContext *dc, arg_store *a)
        to cpu_regs[0].  Since l.swa is quite often immediately followed by a
        branch, don't bother reallocating; finish the TB using the "real" R0.
        This also takes care of RB input across the branch.  */
-    cpu_regs[0] = cpu_R0;
+    dc->R0 = cpu_regs[0];
 
     lab_fail = gen_new_label();
     lab_done = gen_new_label();
@@ -1292,9 +1297,9 @@ static void openrisc_tr_tb_start(DisasContextBase *db, CPUState *cs)
     /* Allow the TCG optimizer to see that R0 == 0,
        when it's true, which is the common case.  */
     if (dc->tb_flags & TB_FLAGS_R0_0) {
-        cpu_regs[0] = tcg_const_tl(0);
+        dc->R0 = tcg_const_tl(0);
     } else {
-        cpu_regs[0] = cpu_R0;
+        dc->R0 = cpu_regs[0];
     }
 }
 
