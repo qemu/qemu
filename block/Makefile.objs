@@ -6,7 +6,7 @@ block-obj-$(CONFIG_BOCHS) += bochs.o
 block-obj-$(CONFIG_VVFAT) += vvfat.o
 block-obj-$(CONFIG_DMG) += dmg.o
 
-block-obj-y += qcow2.o qcow2-refcount.o qcow2-cluster.o qcow2-snapshot.o qcow2-cache.o qcow2-bitmap.o
+block-obj-y += qcow2.o qcow2-refcount.o qcow2-cluster.o qcow2-snapshot.o qcow2-cache.o qcow2-bitmap.o qcow2-threads.o
 block-obj-$(CONFIG_QED) += qed.o qed-l2-cache.o qed-table.o qed-cluster.o
 block-obj-$(CONFIG_QED) += qed-check.o
 block-obj-y += vhdx.o vhdx-endian.o vhdx-log.o
