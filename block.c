@@ -936,6 +936,13 @@ static int bdrv_child_cb_inactivate(BdrvChild *child)
     return 0;
 }
 
+static bool bdrv_child_cb_can_set_aio_ctx(BdrvChild *child, AioContext *ctx,
+                                          GSList **ignore, Error **errp)
+{
+    BlockDriverState *bs = child->opaque;
+    return bdrv_can_set_aio_context(bs, ctx, ignore, errp);
+}
+
 /*
  * Returns the options and flags that a temporary snapshot should get, based on
  * the originally requested flags (the originally requested image will have
@@ -1003,6 +1010,7 @@ const BdrvChildRole child_file = {
     .attach          = bdrv_child_cb_attach,
     .detach          = bdrv_child_cb_detach,
     .inactivate      = bdrv_child_cb_inactivate,
+    .can_set_aio_ctx = bdrv_child_cb_can_set_aio_ctx,
 };
 
 /*
@@ -1029,6 +1037,7 @@ const BdrvChildRole child_format = {
     .attach          = bdrv_child_cb_attach,
     .detach          = bdrv_child_cb_detach,
     .inactivate      = bdrv_child_cb_inactivate,
+    .can_set_aio_ctx = bdrv_child_cb_can_set_aio_ctx,
 };
 
 static void bdrv_backing_attach(BdrvChild *c)
@@ -1152,6 +1161,7 @@ const BdrvChildRole child_backing = {
     .drained_end     = bdrv_child_cb_drained_end,
     .inactivate      = bdrv_child_cb_inactivate,
     .update_filename = bdrv_backing_update_filename,
+    .can_set_aio_ctx = bdrv_child_cb_can_set_aio_ctx,
 };
 
 static int bdrv_open_flags(BlockDriverState *bs, int flags)
@@ -5748,6 +5758,88 @@ void bdrv_set_aio_context(BlockDriverState *bs, AioContext *new_context)
     bdrv_attach_aio_context(bs, new_context);
     bdrv_drained_end(bs);
     aio_context_release(new_context);
+}
+
+static bool bdrv_parent_can_set_aio_context(BdrvChild *c, AioContext *ctx,
+                                            GSList **ignore, Error **errp)
+{
+    if (g_slist_find(*ignore, c)) {
+        return true;
+    }
+    *ignore = g_slist_prepend(*ignore, c);
+
+    /* A BdrvChildRole that doesn't handle AioContext changes cannot
+     * tolerate any AioContext changes */
+    if (!c->role->can_set_aio_ctx) {
+        char *user = bdrv_child_user_desc(c);
+        error_setg(errp, "Changing iothreads is not supported by %s", user);
+        g_free(user);
+        return false;
+    }
+    if (!c->role->can_set_aio_ctx(c, ctx, ignore, errp)) {
+        assert(!errp || *errp);
+        return false;
+    }
+    return true;
+}
+
+bool bdrv_child_can_set_aio_context(BdrvChild *c, AioContext *ctx,
+                                    GSList **ignore, Error **errp)
+{
+    if (g_slist_find(*ignore, c)) {
+        return true;
+    }
+    *ignore = g_slist_prepend(*ignore, c);
+    return bdrv_can_set_aio_context(c->bs, ctx, ignore, errp);
+}
+
+/* @ignore will accumulate all visited BdrvChild object. The caller is
+ * responsible for freeing the list afterwards. */
+bool bdrv_can_set_aio_context(BlockDriverState *bs, AioContext *ctx,
+                              GSList **ignore, Error **errp)
+{
+    BdrvChild *c;
+
+    if (bdrv_get_aio_context(bs) == ctx) {
+        return true;
+    }
+
+    QLIST_FOREACH(c, &bs->parents, next_parent) {
+        if (!bdrv_parent_can_set_aio_context(c, ctx, ignore, errp)) {
+            return false;
+        }
+    }
+    QLIST_FOREACH(c, &bs->children, next) {
+        if (!bdrv_child_can_set_aio_context(c, ctx, ignore, errp)) {
+            return false;
+        }
+    }
+
+    return true;
+}
+
+int bdrv_child_try_set_aio_context(BlockDriverState *bs, AioContext *ctx,
+                                   BdrvChild *ignore_child, Error **errp)
+{
+    GSList *ignore;
+    bool ret;
+
+    ignore = ignore_child ? g_slist_prepend(NULL, ignore_child) : NULL;
+    ret = bdrv_can_set_aio_context(bs, ctx, &ignore, errp);
+    g_slist_free(ignore);
+
+    if (!ret) {
+        return -EPERM;
+    }
+
+    bdrv_set_aio_context(bs, ctx);
+    return 0;
+}
+
+int bdrv_try_set_aio_context(BlockDriverState *bs, AioContext *ctx,
+                             Error **errp)
+{
+    return bdrv_child_try_set_aio_context(bs, ctx, NULL, errp);
 }
 
 void bdrv_add_aio_context_notifier(BlockDriverState *bs,
