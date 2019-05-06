@@ -63,7 +63,7 @@ void HELPER(update_fpcsr)(CPUOpenRISCState *env)
 
 uint64_t HELPER(itofd)(CPUOpenRISCState *env, uint64_t val)
 {
-    return int32_to_float64(val, &env->fp_status);
+    return int64_to_float64(val, &env->fp_status);
 }
 
 uint32_t HELPER(itofs)(CPUOpenRISCState *env, uint32_t val)
@@ -73,12 +73,22 @@ uint32_t HELPER(itofs)(CPUOpenRISCState *env, uint32_t val)
 
 uint64_t HELPER(ftoid)(CPUOpenRISCState *env, uint64_t val)
 {
-    return float32_to_int64(val, &env->fp_status);
+    return float64_to_int64_round_to_zero(val, &env->fp_status);
 }
 
 uint32_t HELPER(ftois)(CPUOpenRISCState *env, uint32_t val)
 {
     return float32_to_int32_round_to_zero(val, &env->fp_status);
+}
+
+uint64_t HELPER(stod)(CPUOpenRISCState *env, uint32_t val)
+{
+    return float32_to_float64(val, &env->fp_status);
+}
+
+uint32_t HELPER(dtos)(CPUOpenRISCState *env, uint64_t val)
+{
+    return float64_to_float32(val, &env->fp_status);
 }
 
 #define FLOAT_CALC(name)                                                  \

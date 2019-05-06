@@ -166,3 +166,59 @@ FP_INSN(sfgt, s, "r%d, r%d", a->a, a->b)
 FP_INSN(sfge, s, "r%d, r%d", a->a, a->b)
 FP_INSN(sflt, s, "r%d, r%d", a->a, a->b)
 FP_INSN(sfle, s, "r%d, r%d", a->a, a->b)
+
+FP_INSN(add, d,  "r%d,r%d, r%d,r%d, r%d,r%d",
+        a->d, a->d + a->dp + 1,
+        a->a, a->a + a->ap + 1,
+        a->b, a->b + a->bp + 1)
+FP_INSN(sub, d,  "r%d,r%d, r%d,r%d, r%d,r%d",
+        a->d, a->d + a->dp + 1,
+        a->a, a->a + a->ap + 1,
+        a->b, a->b + a->bp + 1)
+FP_INSN(mul, d,  "r%d,r%d, r%d,r%d, r%d,r%d",
+        a->d, a->d + a->dp + 1,
+        a->a, a->a + a->ap + 1,
+        a->b, a->b + a->bp + 1)
+FP_INSN(div, d,  "r%d,r%d, r%d,r%d, r%d,r%d",
+        a->d, a->d + a->dp + 1,
+        a->a, a->a + a->ap + 1,
+        a->b, a->b + a->bp + 1)
+FP_INSN(rem, d,  "r%d,r%d, r%d,r%d, r%d,r%d",
+        a->d, a->d + a->dp + 1,
+        a->a, a->a + a->ap + 1,
+        a->b, a->b + a->bp + 1)
+FP_INSN(madd, d, "r%d,r%d, r%d,r%d, r%d,r%d",
+        a->d, a->d + a->dp + 1,
+        a->a, a->a + a->ap + 1,
+        a->b, a->b + a->bp + 1)
+
+FP_INSN(itof, d, "r%d,r%d, r%d,r%d",
+        a->d, a->d + a->dp + 1,
+        a->a, a->a + a->ap + 1)
+FP_INSN(ftoi, d, "r%d,r%d, r%d,r%d",
+        a->d, a->d + a->dp + 1,
+        a->a, a->a + a->ap + 1)
+
+FP_INSN(stod, d, "r%d,r%d, r%d",
+        a->d, a->d + a->dp + 1, a->a)
+FP_INSN(dtos, d, "r%d r%d,r%d",
+        a->d, a->a, a->a + a->ap + 1)
+
+FP_INSN(sfeq, d, "r%d,r%d, r%d,r%d",
+        a->a, a->a + a->ap + 1,
+        a->b, a->b + a->bp + 1)
+FP_INSN(sfne, d, "r%d,r%d, r%d,r%d",
+        a->a, a->a + a->ap + 1,
+        a->b, a->b + a->bp + 1)
+FP_INSN(sfgt, d, "r%d,r%d, r%d,r%d",
+        a->a, a->a + a->ap + 1,
+        a->b, a->b + a->bp + 1)
+FP_INSN(sfge, d, "r%d,r%d, r%d,r%d",
+        a->a, a->a + a->ap + 1,
+        a->b, a->b + a->bp + 1)
+FP_INSN(sflt, d, "r%d,r%d, r%d,r%d",
+        a->a, a->a + a->ap + 1,
+        a->b, a->b + a->bp + 1)
+FP_INSN(sfle, d, "r%d,r%d, r%d,r%d",
+        a->a, a->a + a->ap + 1,
+        a->b, a->b + a->bp + 1)
