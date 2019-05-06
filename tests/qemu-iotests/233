@@ -139,11 +139,13 @@ nbd_server_start_tcp_socket \
 
 $QEMU_IMG info --image-opts \
     --object tls-creds-x509,dir=${tls_dir}/client1,endpoint=client,id=tls0 \
-    driver=nbd,host=$nbd_tcp_addr,port=$nbd_tcp_port,tls-creds=tls0
+    driver=nbd,host=$nbd_tcp_addr,port=$nbd_tcp_port,tls-creds=tls0 \
+    2>&1 | sed "s/$nbd_tcp_port/PORT/g"
 
 $QEMU_IMG info --image-opts \
     --object tls-creds-x509,dir=${tls_dir}/client3,endpoint=client,id=tls0 \
-    driver=nbd,host=$nbd_tcp_addr,port=$nbd_tcp_port,tls-creds=tls0
+    driver=nbd,host=$nbd_tcp_addr,port=$nbd_tcp_port,tls-creds=tls0 \
+    2>&1 | sed "s/$nbd_tcp_port/PORT/g"
 
 echo
 echo "== final server log =="
