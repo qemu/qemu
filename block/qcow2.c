@@ -27,7 +27,6 @@
 #define ZLIB_CONST
 #include <zlib.h>
 
-#include "block/block_int.h"
 #include "block/qdict.h"
 #include "sysemu/block-backend.h"
 #include "qemu/module.h"
