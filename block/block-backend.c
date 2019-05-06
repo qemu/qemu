@@ -71,6 +71,7 @@ struct BlockBackend {
     uint64_t shared_perm;
     bool disable_perm;
 
+    bool allow_aio_context_change;
     bool allow_write_beyond_eof;
 
     NotifierList remove_bs_notifiers, insert_bs_notifiers;
@@ -1092,6 +1093,11 @@ void blk_set_allow_write_beyond_eof(BlockBackend *blk, bool allow)
     blk->allow_write_beyond_eof = allow;
 }
 
+void blk_set_allow_aio_context_change(BlockBackend *blk, bool allow)
+{
+    blk->allow_aio_context_change = allow;
+}
+
 static int blk_check_byte_request(BlockBackend *blk, int64_t offset,
                                   size_t size)
 {
@@ -1890,6 +1896,10 @@ static bool blk_root_can_set_aio_ctx(BdrvChild *child, AioContext *ctx,
                                      GSList **ignore, Error **errp)
 {
     BlockBackend *blk = child->opaque;
+
+    if (blk->allow_aio_context_change) {
+        return true;
+    }
 
     /* Only manually created BlockBackends that are not attached to anything
      * can change their AioContext without updating their user. */
