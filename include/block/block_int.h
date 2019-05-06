@@ -694,6 +694,7 @@ struct BdrvChildRole {
 
     bool (*can_set_aio_ctx)(BdrvChild *child, AioContext *ctx,
                             GSList **ignore, Error **errp);
+    void (*set_aio_ctx)(BdrvChild *child, AioContext *ctx, GSList **ignore);
 };
 
 extern const BdrvChildRole child_file;

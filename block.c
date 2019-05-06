@@ -943,6 +943,13 @@ static bool bdrv_child_cb_can_set_aio_ctx(BdrvChild *child, AioContext *ctx,
     return bdrv_can_set_aio_context(bs, ctx, ignore, errp);
 }
 
+static void bdrv_child_cb_set_aio_ctx(BdrvChild *child, AioContext *ctx,
+                                      GSList **ignore)
+{
+    BlockDriverState *bs = child->opaque;
+    return bdrv_set_aio_context_ignore(bs, ctx, ignore);
+}
+
 /*
  * Returns the options and flags that a temporary snapshot should get, based on
  * the originally requested flags (the originally requested image will have
@@ -1011,6 +1018,7 @@ const BdrvChildRole child_file = {
     .detach          = bdrv_child_cb_detach,
     .inactivate      = bdrv_child_cb_inactivate,
     .can_set_aio_ctx = bdrv_child_cb_can_set_aio_ctx,
+    .set_aio_ctx     = bdrv_child_cb_set_aio_ctx,
 };
 
 /*
@@ -1038,6 +1046,7 @@ const BdrvChildRole child_format = {
     .detach          = bdrv_child_cb_detach,
     .inactivate      = bdrv_child_cb_inactivate,
     .can_set_aio_ctx = bdrv_child_cb_can_set_aio_ctx,
+    .set_aio_ctx     = bdrv_child_cb_set_aio_ctx,
 };
 
 static void bdrv_backing_attach(BdrvChild *c)
@@ -1162,6 +1171,7 @@ const BdrvChildRole child_backing = {
     .inactivate      = bdrv_child_cb_inactivate,
     .update_filename = bdrv_backing_update_filename,
     .can_set_aio_ctx = bdrv_child_cb_can_set_aio_ctx,
+    .set_aio_ctx     = bdrv_child_cb_set_aio_ctx,
 };
 
 static int bdrv_open_flags(BlockDriverState *bs, int flags)
@@ -5731,10 +5741,10 @@ static void bdrv_attach_aio_context(BlockDriverState *bs,
     bs->walking_aio_notifiers = false;
 }
 
-/* The caller must own the AioContext lock for the old AioContext of bs, but it
- * must not own the AioContext lock for new_context (unless new_context is
- * the same as the current context of bs). */
-void bdrv_set_aio_context(BlockDriverState *bs, AioContext *new_context)
+/* @ignore will accumulate all visited BdrvChild object. The caller is
+ * responsible for freeing the list afterwards. */
+void bdrv_set_aio_context_ignore(BlockDriverState *bs,
+                                 AioContext *new_context, GSList **ignore)
 {
     BdrvChild *child;
 
@@ -5745,7 +5755,20 @@ void bdrv_set_aio_context(BlockDriverState *bs, AioContext *new_context)
     bdrv_drained_begin(bs);
 
     QLIST_FOREACH(child, &bs->children, next) {
-        bdrv_set_aio_context(child->bs, new_context);
+        if (g_slist_find(*ignore, child)) {
+            continue;
+        }
+        *ignore = g_slist_prepend(*ignore, child);
+        bdrv_set_aio_context_ignore(child->bs, new_context, ignore);
+    }
+    QLIST_FOREACH(child, &bs->parents, next_parent) {
+        if (g_slist_find(*ignore, child)) {
+            continue;
+        }
+        if (child->role->set_aio_ctx) {
+            *ignore = g_slist_prepend(*ignore, child);
+            child->role->set_aio_ctx(child, new_context, ignore);
+        }
     }
 
     bdrv_detach_aio_context(bs);
@@ -5757,6 +5780,16 @@ void bdrv_set_aio_context(BlockDriverState *bs, AioContext *new_context)
     bdrv_attach_aio_context(bs, new_context);
     bdrv_drained_end(bs);
     aio_context_release(new_context);
+}
+
+/* The caller must own the AioContext lock for the old AioContext of bs, but it
+ * must not own the AioContext lock for new_context (unless new_context is
+ * the same as the current context of bs). */
+void bdrv_set_aio_context(BlockDriverState *bs, AioContext *new_context)
+{
+    GSList *ignore_list = NULL;
+    bdrv_set_aio_context_ignore(bs, new_context, &ignore_list);
+    g_slist_free(ignore_list);
 }
 
 static bool bdrv_parent_can_set_aio_context(BdrvChild *c, AioContext *ctx,
@@ -5831,7 +5864,10 @@ int bdrv_child_try_set_aio_context(BlockDriverState *bs, AioContext *ctx,
         return -EPERM;
     }
 
-    bdrv_set_aio_context(bs, ctx);
+    ignore = ignore_child ? g_slist_prepend(NULL, ignore_child) : NULL;
+    bdrv_set_aio_context_ignore(bs, ctx, &ignore);
+    g_slist_free(ignore);
+
     return 0;
 }
 

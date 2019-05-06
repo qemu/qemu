@@ -586,6 +586,8 @@ void bdrv_coroutine_enter(BlockDriverState *bs, Coroutine *co);
  * This function must be called with iothread lock held.
  */
 void bdrv_set_aio_context(BlockDriverState *bs, AioContext *new_context);
+void bdrv_set_aio_context_ignore(BlockDriverState *bs,
+                                 AioContext *new_context, GSList **ignore);
 int bdrv_try_set_aio_context(BlockDriverState *bs, AioContext *ctx,
                              Error **errp);
 int bdrv_child_try_set_aio_context(BlockDriverState *bs, AioContext *ctx,
