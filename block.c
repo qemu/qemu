@@ -5679,7 +5679,6 @@ static void bdrv_do_remove_aio_context_notifier(BdrvAioNotifier *ban)
 static void bdrv_detach_aio_context(BlockDriverState *bs)
 {
     BdrvAioNotifier *baf, *baf_tmp;
-    BdrvChild *child;
 
     assert(!bs->walking_aio_notifiers);
     bs->walking_aio_notifiers = true;
@@ -5698,9 +5697,6 @@ static void bdrv_detach_aio_context(BlockDriverState *bs)
     if (bs->drv && bs->drv->bdrv_detach_aio_context) {
         bs->drv->bdrv_detach_aio_context(bs);
     }
-    QLIST_FOREACH(child, &bs->children, next) {
-        bdrv_detach_aio_context(child->bs);
-    }
 
     if (bs->quiesce_counter) {
         aio_enable_external(bs->aio_context);
@@ -5712,7 +5708,6 @@ static void bdrv_attach_aio_context(BlockDriverState *bs,
                                     AioContext *new_context)
 {
     BdrvAioNotifier *ban, *ban_tmp;
-    BdrvChild *child;
 
     if (bs->quiesce_counter) {
         aio_disable_external(new_context);
@@ -5720,9 +5715,6 @@ static void bdrv_attach_aio_context(BlockDriverState *bs,
 
     bs->aio_context = new_context;
 
-    QLIST_FOREACH(child, &bs->children, next) {
-        bdrv_attach_aio_context(child->bs, new_context);
-    }
     if (bs->drv && bs->drv->bdrv_attach_aio_context) {
         bs->drv->bdrv_attach_aio_context(bs, new_context);
     }
@@ -5744,11 +5736,18 @@ static void bdrv_attach_aio_context(BlockDriverState *bs,
  * the same as the current context of bs). */
 void bdrv_set_aio_context(BlockDriverState *bs, AioContext *new_context)
 {
+    BdrvChild *child;
+
     if (bdrv_get_aio_context(bs) == new_context) {
         return;
     }
 
     bdrv_drained_begin(bs);
+
+    QLIST_FOREACH(child, &bs->children, next) {
+        bdrv_set_aio_context(child->bs, new_context);
+    }
+
     bdrv_detach_aio_context(bs);
 
     /* This function executes in the old AioContext so acquire the new one in
