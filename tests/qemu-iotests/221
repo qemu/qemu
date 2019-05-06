@@ -2,7 +2,7 @@
 #
 # Test qemu-img vs. unaligned images
 #
-# Copyright (C) 2018 Red Hat, Inc.
+# Copyright (C) 2018-2019 Red Hat, Inc.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -41,16 +41,16 @@ echo
 echo "=== Check mapping of unaligned raw image ==="
 echo
 
-_make_test_img 43009 # qemu-img create rounds size up
+_make_test_img 65537 # qemu-img create rounds size up
 $QEMU_IMG map --output=json "$TEST_IMG" | _filter_qemu_img_map
 
-truncate --size=43009 "$TEST_IMG" # so we resize it and check again
+truncate --size=65537 "$TEST_IMG" # so we resize it and check again
 $QEMU_IMG map --output=json "$TEST_IMG" | _filter_qemu_img_map
 
-$QEMU_IO -c 'w 43008 1' "$TEST_IMG" | _filter_qemu_io # writing also rounds up
+$QEMU_IO -c 'w 65536 1' "$TEST_IMG" | _filter_qemu_io # writing also rounds up
 $QEMU_IMG map --output=json "$TEST_IMG" | _filter_qemu_img_map
 
-truncate --size=43009 "$TEST_IMG" # so we resize it and check again
+truncate --size=65537 "$TEST_IMG" # so we resize it and check again
 $QEMU_IMG map --output=json "$TEST_IMG" | _filter_qemu_img_map
 
 # success, all done
