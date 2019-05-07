@@ -1285,6 +1285,7 @@ static inline uint32_t xpsr_read(CPUARMState *env)
         | (env->CF << 29) | ((env->VF & 0x80000000) >> 3) | (env->QF << 27)
         | (env->thumb << 24) | ((env->condexec_bits & 3) << 25)
         | ((env->condexec_bits & 0xfc) << 8)
+        | (env->GE << 16)
         | env->v7m.exception;
 }
 
@@ -1299,6 +1300,9 @@ static inline void xpsr_write(CPUARMState *env, uint32_t val, uint32_t mask)
     }
     if (mask & XPSR_Q) {
         env->QF = ((val & XPSR_Q) != 0);
+    }
+    if (mask & XPSR_GE) {
+        env->GE = (val & XPSR_GE) >> 16;
     }
     if (mask & XPSR_T) {
         env->thumb = ((val & XPSR_T) != 0);

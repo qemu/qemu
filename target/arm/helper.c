@@ -8727,7 +8727,7 @@ static void do_v7m_exception_exit(ARMCPU *cpu)
 {
     CPUARMState *env = &cpu->env;
     uint32_t excret;
-    uint32_t xpsr;
+    uint32_t xpsr, xpsr_mask;
     bool ufault = false;
     bool sfault = false;
     bool return_to_sp_process;
@@ -9179,8 +9179,13 @@ static void do_v7m_exception_exit(ARMCPU *cpu)
         }
         *frame_sp_p = frameptr;
     }
+
+    xpsr_mask = ~(XPSR_SPREALIGN | XPSR_SFPA);
+    if (!arm_feature(env, ARM_FEATURE_THUMB_DSP)) {
+        xpsr_mask &= ~XPSR_GE;
+    }
     /* This xpsr_write() will invalidate frame_sp_p as it may switch stack */
-    xpsr_write(env, xpsr, ~(XPSR_SPREALIGN | XPSR_SFPA));
+    xpsr_write(env, xpsr, xpsr_mask);
 
     if (env->v7m.secure) {
         bool sfpa = xpsr & XPSR_SFPA;
@@ -12665,6 +12670,9 @@ uint32_t HELPER(v7m_mrs)(CPUARMState *env, uint32_t reg)
         }
         if (!(reg & 4)) {
             mask |= XPSR_NZCV | XPSR_Q; /* APSR */
+            if (arm_feature(env, ARM_FEATURE_THUMB_DSP)) {
+                mask |= XPSR_GE;
+            }
         }
         /* EPSR reads as zero */
         return xpsr_read(env) & mask;
