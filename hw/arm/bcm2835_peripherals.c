@@ -46,7 +46,7 @@ static void bcm2835_peripherals_init(Object *obj)
     qdev_set_parent_bus(DEVICE(&s->ic), sysbus_get_default());
 
     /* UART0 */
-    s->uart0 = SYS_BUS_DEVICE(object_new("pl011"));
+    s->uart0 = SYS_BUS_DEVICE(object_new(TYPE_PL011));
     object_property_add_child(obj, "uart0", OBJECT(s->uart0), NULL);
     qdev_set_parent_bus(DEVICE(s->uart0), sysbus_get_default());
 
