@@ -2053,7 +2053,7 @@ void helper_vsum2sws(CPUPPCState *env, ppc_avr_t *r, ppc_avr_t *a, ppc_avr_t *b)
     for (i = 0; i < ARRAY_SIZE(r->u64); i++) {
         int64_t t = (int64_t)b->VsrSW(upper + i * 2);
 
-        result.VsrW(i) = 0;
+        result.VsrD(i) = 0;
         for (j = 0; j < ARRAY_SIZE(r->u64); j++) {
             t += a->VsrSW(2 * i + j);
         }
