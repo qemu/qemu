@@ -1167,6 +1167,10 @@ static uint32_t nvic_readl(NVICState *s, uint32_t offset, MemTxAttrs attrs)
         if (!arm_feature(&cpu->env, ARM_FEATURE_M_MAIN)) {
             goto bad_offset;
         }
+        if (!attrs.secure &&
+            !(s->cpu->env.v7m.aircr & R_V7M_AIRCR_BFHFNMINS_MASK)) {
+            return 0;
+        }
         return cpu->env.v7m.bfar;
     case 0xd3c: /* Aux Fault Status.  */
         /* TODO: Implement fault status registers.  */
@@ -1645,6 +1649,10 @@ static void nvic_writel(NVICState *s, uint32_t offset, uint32_t value,
     case 0xd38: /* Bus Fault Address.  */
         if (!arm_feature(&cpu->env, ARM_FEATURE_M_MAIN)) {
             goto bad_offset;
+        }
+        if (!attrs.secure &&
+            !(s->cpu->env.v7m.aircr & R_V7M_AIRCR_BFHFNMINS_MASK)) {
+            return;
         }
         cpu->env.v7m.bfar = value;
         return;
@@ -2130,11 +2138,18 @@ static MemTxResult nvic_sysreg_read(void *opaque, hwaddr addr,
             val = 0;
             break;
         };
-        /* The BFSR bits [15:8] are shared between security states
-         * and we store them in the NS copy
+        /*
+         * The BFSR bits [15:8] are shared between security states
+         * and we store them in the NS copy. They are RAZ/WI for
+         * NS code if AIRCR.BFHFNMINS is 0.
          */
         val = s->cpu->env.v7m.cfsr[attrs.secure];
-        val |= s->cpu->env.v7m.cfsr[M_REG_NS] & R_V7M_CFSR_BFSR_MASK;
+        if (!attrs.secure &&
+            !(s->cpu->env.v7m.aircr & R_V7M_AIRCR_BFHFNMINS_MASK)) {
+            val &= ~R_V7M_CFSR_BFSR_MASK;
+        } else {
+            val |= s->cpu->env.v7m.cfsr[M_REG_NS] & R_V7M_CFSR_BFSR_MASK;
+        }
         val = extract32(val, (offset - 0xd28) * 8, size * 8);
         break;
     case 0xfe0 ... 0xfff: /* ID.  */
@@ -2248,6 +2263,12 @@ static MemTxResult nvic_sysreg_write(void *opaque, hwaddr addr,
          * the parts not written by the access size
          */
         value <<= ((offset - 0xd28) * 8);
+
+        if (!attrs.secure &&
+            !(s->cpu->env.v7m.aircr & R_V7M_AIRCR_BFHFNMINS_MASK)) {
+            /* BFSR bits are RAZ/WI for NS if BFHFNMINS is set */
+            value &= ~R_V7M_CFSR_BFSR_MASK;
+        }
 
         s->cpu->env.v7m.cfsr[attrs.secure] &= ~value;
         if (attrs.secure) {
