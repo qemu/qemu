@@ -1815,10 +1815,10 @@ void helper_vslv(ppc_avr_t *r, ppc_avr_t *a, ppc_avr_t *b)
 
     size = ARRAY_SIZE(r->u8);
     for (i = 0; i < size; i++) {
-        shift = b->u8[i] & 0x7;             /* extract shift value */
-        bytes = (a->u8[i] << 8) +             /* extract adjacent bytes */
-            (((i + 1) < size) ? a->u8[i + 1] : 0);
-        r->u8[i] = (bytes << shift) >> 8;   /* shift and store result */
+        shift = b->VsrB(i) & 0x7;             /* extract shift value */
+        bytes = (a->VsrB(i) << 8) +           /* extract adjacent bytes */
+            (((i + 1) < size) ? a->VsrB(i + 1) : 0);
+        r->VsrB(i) = (bytes << shift) >> 8;   /* shift and store result */
     }
 }
 
@@ -1833,10 +1833,10 @@ void helper_vsrv(ppc_avr_t *r, ppc_avr_t *a, ppc_avr_t *b)
      * order will guarantee that computed result is not fed back.
      */
     for (i = ARRAY_SIZE(r->u8) - 1; i >= 0; i--) {
-        shift = b->u8[i] & 0x7;                 /* extract shift value */
-        bytes = ((i ? a->u8[i - 1] : 0) << 8) + a->u8[i];
+        shift = b->VsrB(i) & 0x7;               /* extract shift value */
+        bytes = ((i ? a->VsrB(i - 1) : 0) << 8) + a->VsrB(i);
                                                 /* extract adjacent bytes */
-        r->u8[i] = (bytes >> shift) & 0xFF;     /* shift and store result */
+        r->VsrB(i) = (bytes >> shift) & 0xFF;   /* shift and store result */
     }
 }
 
