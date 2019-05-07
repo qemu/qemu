@@ -1151,8 +1151,8 @@ static void create_cps(MaltaState *s, const char *cpu_type,
 {
     Error *err = NULL;
 
-    object_initialize(&s->cps, sizeof(s->cps), TYPE_MIPS_CPS);
-    qdev_set_parent_bus(DEVICE(&s->cps), sysbus_get_default());
+    sysbus_init_child_obj(OBJECT(s), "cps", OBJECT(&s->cps), sizeof(s->cps),
+                          TYPE_MIPS_CPS);
     object_property_set_str(OBJECT(&s->cps), cpu_type, "cpu-type", &err);
     object_property_set_int(OBJECT(&s->cps), smp_cpus, "num-vp", &err);
     object_property_set_bool(OBJECT(&s->cps), true, "realized", &err);
