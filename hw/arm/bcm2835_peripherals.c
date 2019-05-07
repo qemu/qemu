@@ -46,9 +46,9 @@ static void bcm2835_peripherals_init(Object *obj)
     qdev_set_parent_bus(DEVICE(&s->ic), sysbus_get_default());
 
     /* UART0 */
-    s->uart0 = SYS_BUS_DEVICE(object_new(TYPE_PL011));
-    object_property_add_child(obj, "uart0", OBJECT(s->uart0), NULL);
-    qdev_set_parent_bus(DEVICE(s->uart0), sysbus_get_default());
+    object_initialize(&s->uart0, sizeof(s->uart0), TYPE_PL011);
+    object_property_add_child(obj, "uart0", OBJECT(&s->uart0), NULL);
+    qdev_set_parent_bus(DEVICE(&s->uart0), sysbus_get_default());
 
     /* AUX / UART1 */
     object_initialize(&s->aux, sizeof(s->aux), TYPE_BCM2835_AUX);
@@ -166,16 +166,16 @@ static void bcm2835_peripherals_realize(DeviceState *dev, Error **errp)
     sysbus_pass_irq(SYS_BUS_DEVICE(s), SYS_BUS_DEVICE(&s->ic));
 
     /* UART0 */
-    qdev_prop_set_chr(DEVICE(s->uart0), "chardev", serial_hd(0));
-    object_property_set_bool(OBJECT(s->uart0), true, "realized", &err);
+    qdev_prop_set_chr(DEVICE(&s->uart0), "chardev", serial_hd(0));
+    object_property_set_bool(OBJECT(&s->uart0), true, "realized", &err);
     if (err) {
         error_propagate(errp, err);
         return;
     }
 
     memory_region_add_subregion(&s->peri_mr, UART0_OFFSET,
-                                sysbus_mmio_get_region(s->uart0, 0));
-    sysbus_connect_irq(s->uart0, 0,
+                sysbus_mmio_get_region(SYS_BUS_DEVICE(&s->uart0), 0));
+    sysbus_connect_irq(SYS_BUS_DEVICE(&s->uart0), 0,
         qdev_get_gpio_in_named(DEVICE(&s->ic), BCM2835_IC_GPU_IRQ,
                                INTERRUPT_UART));
     /* AUX / UART1 */
