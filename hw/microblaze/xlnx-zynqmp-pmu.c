@@ -55,6 +55,7 @@ typedef struct XlnxZynqMPPMUSoCState {
     /*< public >*/
     MicroBlazeCPU cpu;
     XlnxPMUIOIntc intc;
+    XlnxZynqMPIPI ipi[XLNX_ZYNQMP_PMU_NUM_IPIS];
 }  XlnxZynqMPPMUSoCState;
 
 
@@ -144,7 +145,6 @@ static void xlnx_zynqmp_pmu_init(MachineState *machine)
     MemoryRegion *address_space_mem = get_system_memory();
     MemoryRegion *pmu_rom = g_new(MemoryRegion, 1);
     MemoryRegion *pmu_ram = g_new(MemoryRegion, 1);
-    XlnxZynqMPIPI *ipi[XLNX_ZYNQMP_PMU_NUM_IPIS];
     qemu_irq irq[32];
     int i;
 
@@ -172,16 +172,16 @@ static void xlnx_zynqmp_pmu_init(MachineState *machine)
 
     /* Create and connect the IPI device */
     for (i = 0; i < XLNX_ZYNQMP_PMU_NUM_IPIS; i++) {
-        ipi[i] = g_new0(XlnxZynqMPIPI, 1);
-        object_initialize(ipi[i], sizeof(XlnxZynqMPIPI), TYPE_XLNX_ZYNQMP_IPI);
-        qdev_set_parent_bus(DEVICE(ipi[i]), sysbus_get_default());
+        object_initialize(&pmu->ipi[i], sizeof(XlnxZynqMPIPI),
+                          TYPE_XLNX_ZYNQMP_IPI);
+        qdev_set_parent_bus(DEVICE(&pmu->ipi[i]), sysbus_get_default());
     }
 
     for (i = 0; i < XLNX_ZYNQMP_PMU_NUM_IPIS; i++) {
-        object_property_set_bool(OBJECT(ipi[i]), true, "realized",
+        object_property_set_bool(OBJECT(&pmu->ipi[i]), true, "realized",
                                  &error_abort);
-        sysbus_mmio_map(SYS_BUS_DEVICE(ipi[i]), 0, ipi_addr[i]);
-        sysbus_connect_irq(SYS_BUS_DEVICE(ipi[i]), 0, irq[ipi_irq[i]]);
+        sysbus_mmio_map(SYS_BUS_DEVICE(&pmu->ipi[i]), 0, ipi_addr[i]);
+        sysbus_connect_irq(SYS_BUS_DEVICE(&pmu->ipi[i]), 0, irq[ipi_irq[i]]);
     }
 
     /* Load the kernel */
