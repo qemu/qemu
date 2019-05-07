@@ -670,7 +670,15 @@ static int coroutine_fn blkdebug_co_block_status(BlockDriverState *bs,
                                                  int64_t *map,
                                                  BlockDriverState **file)
 {
+    int err;
+
     assert(QEMU_IS_ALIGNED(offset | bytes, bs->bl.request_alignment));
+
+    err = rule_check(bs, offset, bytes, BLKDEBUG_IO_TYPE_BLOCK_STATUS);
+    if (err) {
+        return err;
+    }
+
     return bdrv_co_block_status_from_file(bs, want_zero, offset, bytes,
                                           pnum, map, file);
 }
