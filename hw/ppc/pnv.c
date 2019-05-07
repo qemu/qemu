@@ -994,14 +994,12 @@ static void pnv_chip_quad_realize(Pnv9Chip *chip9, Error **errp)
         PnvCore *pnv_core = PNV_CORE(chip->cores + (i * 4) * typesize);
         int core_id = CPU_CORE(pnv_core)->core_id;
 
-        object_initialize(eq, sizeof(*eq), TYPE_PNV_QUAD);
         snprintf(eq_name, sizeof(eq_name), "eq[%d]", core_id);
+        object_initialize_child(OBJECT(chip), eq_name, eq, sizeof(*eq),
+                                TYPE_PNV_QUAD, &error_fatal, NULL);
 
-        object_property_add_child(OBJECT(chip), eq_name, OBJECT(eq),
-                                  &error_fatal);
         object_property_set_int(OBJECT(eq), core_id, "id", &error_fatal);
         object_property_set_bool(OBJECT(eq), true, "realized", &error_fatal);
-        object_unref(OBJECT(eq));
 
         pnv_xscom_add_subregion(chip, PNV9_XSCOM_EQ_BASE(eq->id),
                                 &eq->xscom_regs);
@@ -1165,10 +1163,9 @@ static void pnv_chip_core_realize(PnvChip *chip, Error **errp)
             continue;
         }
 
-        object_initialize(pnv_core, typesize, typename);
         snprintf(core_name, sizeof(core_name), "core[%d]", core_hwid);
-        object_property_add_child(OBJECT(chip), core_name, OBJECT(pnv_core),
-                                  &error_fatal);
+        object_initialize_child(OBJECT(chip), core_name, pnv_core, typesize,
+                                typename, &error_fatal, NULL);
         object_property_set_int(OBJECT(pnv_core), smp_threads, "nr-threads",
                                 &error_fatal);
         object_property_set_int(OBJECT(pnv_core), core_hwid,
@@ -1180,7 +1177,6 @@ static void pnv_chip_core_realize(PnvChip *chip, Error **errp)
                                        OBJECT(chip), &error_fatal);
         object_property_set_bool(OBJECT(pnv_core), true, "realized",
                                  &error_fatal);
-        object_unref(OBJECT(pnv_core));
 
         /* Each core has an XSCOM MMIO region */
         if (!pnv_chip_is_power9(chip)) {
