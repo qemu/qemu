@@ -5789,8 +5789,17 @@ static void bdrv_attach_aio_context(BlockDriverState *bs,
     bs->walking_aio_notifiers = false;
 }
 
-/* @ignore will accumulate all visited BdrvChild object. The caller is
- * responsible for freeing the list afterwards. */
+/*
+ * Changes the AioContext used for fd handlers, timers, and BHs by this
+ * BlockDriverState and all its children and parents.
+ *
+ * The caller must own the AioContext lock for the old AioContext of bs, but it
+ * must not own the AioContext lock for new_context (unless new_context is the
+ * same as the current context of bs).
+ *
+ * @ignore will accumulate all visited BdrvChild object. The caller is
+ * responsible for freeing the list afterwards.
+ */
 void bdrv_set_aio_context_ignore(BlockDriverState *bs,
                                  AioContext *new_context, GSList **ignore)
 {
@@ -5813,10 +5822,9 @@ void bdrv_set_aio_context_ignore(BlockDriverState *bs,
         if (g_slist_find(*ignore, child)) {
             continue;
         }
-        if (child->role->set_aio_ctx) {
-            *ignore = g_slist_prepend(*ignore, child);
-            child->role->set_aio_ctx(child, new_context, ignore);
-        }
+        assert(child->role->set_aio_ctx);
+        *ignore = g_slist_prepend(*ignore, child);
+        child->role->set_aio_ctx(child, new_context, ignore);
     }
 
     bdrv_detach_aio_context(bs);
@@ -5828,16 +5836,6 @@ void bdrv_set_aio_context_ignore(BlockDriverState *bs,
     bdrv_attach_aio_context(bs, new_context);
     bdrv_drained_end(bs);
     aio_context_release(new_context);
-}
-
-/* The caller must own the AioContext lock for the old AioContext of bs, but it
- * must not own the AioContext lock for new_context (unless new_context is
- * the same as the current context of bs). */
-void bdrv_set_aio_context(BlockDriverState *bs, AioContext *new_context)
-{
-    GSList *ignore_list = NULL;
-    bdrv_set_aio_context_ignore(bs, new_context, &ignore_list);
-    g_slist_free(ignore_list);
 }
 
 static bool bdrv_parent_can_set_aio_context(BdrvChild *c, AioContext *ctx,

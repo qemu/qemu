@@ -583,15 +583,6 @@ AioContext *bdrv_get_aio_context(BlockDriverState *bs);
  */
 void bdrv_coroutine_enter(BlockDriverState *bs, Coroutine *co);
 
-/**
- * bdrv_set_aio_context:
- *
- * Changes the #AioContext used for fd handlers, timers, and BHs by this
- * BlockDriverState and all its children.
- *
- * This function must be called with iothread lock held.
- */
-void bdrv_set_aio_context(BlockDriverState *bs, AioContext *new_context);
 void bdrv_set_aio_context_ignore(BlockDriverState *bs,
                                  AioContext *new_context, GSList **ignore);
 int bdrv_try_set_aio_context(BlockDriverState *bs, AioContext *ctx,
