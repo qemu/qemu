@@ -12,6 +12,7 @@
  */
 
 #include "qemu/osdep.h"
+#include "qemu/units.h"
 #include "qapi/error.h"
 #include "qemu-common.h"
 #include "cpu.h"
@@ -174,6 +175,12 @@ static void raspi_init(MachineState *machine, int version)
     BlockBackend *blk;
     BusState *bus;
     DeviceState *carddev;
+
+    if (machine->ram_size > 1 * GiB) {
+        error_report("Requested ram size is too large for this machine: "
+                     "maximum is 1GB");
+        exit(1);
+    }
 
     object_initialize(&s->soc, sizeof(s->soc),
                       version == 3 ? TYPE_BCM2837 : TYPE_BCM2836);

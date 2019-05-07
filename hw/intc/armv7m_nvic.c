@@ -213,6 +213,7 @@ static void nvic_recompute_state_secure(NVICState *s)
     int active_prio = NVIC_NOEXC_PRIO;
     int pend_irq = 0;
     bool pending_is_s_banked = false;
+    int pend_subprio = 0;
 
     /* R_CQRV: precedence is by:
      *  - lowest group priority; if both the same then
@@ -226,7 +227,7 @@ static void nvic_recompute_state_secure(NVICState *s)
     for (i = 1; i < s->num_irq; i++) {
         for (bank = M_REG_S; bank >= M_REG_NS; bank--) {
             VecInfo *vec;
-            int prio;
+            int prio, subprio;
             bool targets_secure;
 
             if (bank == M_REG_S) {
@@ -241,8 +242,12 @@ static void nvic_recompute_state_secure(NVICState *s)
             }
 
             prio = exc_group_prio(s, vec->prio, targets_secure);
-            if (vec->enabled && vec->pending && prio < pend_prio) {
+            subprio = vec->prio & ~nvic_gprio_mask(s, targets_secure);
+            if (vec->enabled && vec->pending &&
+                ((prio < pend_prio) ||
+                 (prio == pend_prio && prio >= 0 && subprio < pend_subprio))) {
                 pend_prio = prio;
+                pend_subprio = subprio;
                 pend_irq = i;
                 pending_is_s_banked = (bank == M_REG_S);
             }
@@ -1162,6 +1167,10 @@ static uint32_t nvic_readl(NVICState *s, uint32_t offset, MemTxAttrs attrs)
         if (!arm_feature(&cpu->env, ARM_FEATURE_M_MAIN)) {
             goto bad_offset;
         }
+        if (!attrs.secure &&
+            !(s->cpu->env.v7m.aircr & R_V7M_AIRCR_BFHFNMINS_MASK)) {
+            return 0;
+        }
         return cpu->env.v7m.bfar;
     case 0xd3c: /* Aux Fault Status.  */
         /* TODO: Implement fault status registers.  */
@@ -1640,6 +1649,10 @@ static void nvic_writel(NVICState *s, uint32_t offset, uint32_t value,
     case 0xd38: /* Bus Fault Address.  */
         if (!arm_feature(&cpu->env, ARM_FEATURE_M_MAIN)) {
             goto bad_offset;
+        }
+        if (!attrs.secure &&
+            !(s->cpu->env.v7m.aircr & R_V7M_AIRCR_BFHFNMINS_MASK)) {
+            return;
         }
         cpu->env.v7m.bfar = value;
         return;
@@ -2125,11 +2138,18 @@ static MemTxResult nvic_sysreg_read(void *opaque, hwaddr addr,
             val = 0;
             break;
         };
-        /* The BFSR bits [15:8] are shared between security states
-         * and we store them in the NS copy
+        /*
+         * The BFSR bits [15:8] are shared between security states
+         * and we store them in the NS copy. They are RAZ/WI for
+         * NS code if AIRCR.BFHFNMINS is 0.
          */
         val = s->cpu->env.v7m.cfsr[attrs.secure];
-        val |= s->cpu->env.v7m.cfsr[M_REG_NS] & R_V7M_CFSR_BFSR_MASK;
+        if (!attrs.secure &&
+            !(s->cpu->env.v7m.aircr & R_V7M_AIRCR_BFHFNMINS_MASK)) {
+            val &= ~R_V7M_CFSR_BFSR_MASK;
+        } else {
+            val |= s->cpu->env.v7m.cfsr[M_REG_NS] & R_V7M_CFSR_BFSR_MASK;
+        }
         val = extract32(val, (offset - 0xd28) * 8, size * 8);
         break;
     case 0xfe0 ... 0xfff: /* ID.  */
@@ -2243,6 +2263,12 @@ static MemTxResult nvic_sysreg_write(void *opaque, hwaddr addr,
          * the parts not written by the access size
          */
         value <<= ((offset - 0xd28) * 8);
+
+        if (!attrs.secure &&
+            !(s->cpu->env.v7m.aircr & R_V7M_AIRCR_BFHFNMINS_MASK)) {
+            /* BFSR bits are RAZ/WI for NS if BFHFNMINS is set */
+            value &= ~R_V7M_CFSR_BFSR_MASK;
+        }
 
         s->cpu->env.v7m.cfsr[attrs.secure] &= ~value;
         if (attrs.secure) {
@@ -2465,9 +2491,11 @@ static void armv7m_nvic_reset(DeviceState *dev)
      * the System Handler Control register
      */
     s->vectors[ARMV7M_EXCP_SVC].enabled = 1;
-    s->vectors[ARMV7M_EXCP_DEBUG].enabled = 1;
     s->vectors[ARMV7M_EXCP_PENDSV].enabled = 1;
     s->vectors[ARMV7M_EXCP_SYSTICK].enabled = 1;
+
+    /* DebugMonitor is enabled via DEMCR.MON_EN */
+    s->vectors[ARMV7M_EXCP_DEBUG].enabled = 0;
 
     resetprio = arm_feature(&s->cpu->env, ARM_FEATURE_V8) ? -4 : -3;
     s->vectors[ARMV7M_EXCP_RESET].prio = resetprio;
