@@ -279,7 +279,7 @@ typedef struct DisasContext {
 } DisasContext;
 
 /* Note that ssm/rsm instructions number PSW_W and PSW_E differently.  */
-static int expand_sm_imm(int val)
+static int expand_sm_imm(DisasContext *ctx, int val)
 {
     if (val & PSW_SM_E) {
         val = (val & ~PSW_SM_E) | PSW_E;
@@ -291,43 +291,43 @@ static int expand_sm_imm(int val)
 }
 
 /* Inverted space register indicates 0 means sr0 not inferred from base.  */
-static int expand_sr3x(int val)
+static int expand_sr3x(DisasContext *ctx, int val)
 {
     return ~val;
 }
 
 /* Convert the M:A bits within a memory insn to the tri-state value
    we use for the final M.  */
-static int ma_to_m(int val)
+static int ma_to_m(DisasContext *ctx, int val)
 {
     return val & 2 ? (val & 1 ? -1 : 1) : 0;
 }
 
 /* Convert the sign of the displacement to a pre or post-modify.  */
-static int pos_to_m(int val)
+static int pos_to_m(DisasContext *ctx, int val)
 {
     return val ? 1 : -1;
 }
 
-static int neg_to_m(int val)
+static int neg_to_m(DisasContext *ctx, int val)
 {
     return val ? -1 : 1;
 }
 
 /* Used for branch targets and fp memory ops.  */
-static int expand_shl2(int val)
+static int expand_shl2(DisasContext *ctx, int val)
 {
     return val << 2;
 }
 
 /* Used for fp memory ops.  */
-static int expand_shl3(int val)
+static int expand_shl3(DisasContext *ctx, int val)
 {
     return val << 3;
 }
 
 /* Used for assemble_21.  */
-static int expand_shl11(int val)
+static int expand_shl11(DisasContext *ctx, int val)
 {
     return val << 11;
 }

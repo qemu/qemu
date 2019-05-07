@@ -48,13 +48,13 @@ static bool trans_c_flw_ld(DisasContext *ctx, arg_c_flw_ld *a)
     REQUIRE_EXT(ctx, RVF);
 
     arg_c_lw tmp;
-    decode_insn16_extract_cl_w(&tmp, ctx->opcode);
+    decode_insn16_extract_cl_w(ctx, &tmp, ctx->opcode);
     arg_flw arg = { .rd = tmp.rd, .rs1 = tmp.rs1, .imm = tmp.uimm };
     return trans_flw(ctx, &arg);
 #else
     /* C.LD ( RV64C/RV128C-only ) */
     arg_c_fld tmp;
-    decode_insn16_extract_cl_d(&tmp, ctx->opcode);
+    decode_insn16_extract_cl_d(ctx, &tmp, ctx->opcode);
     arg_ld arg = { .rd = tmp.rd, .rs1 = tmp.rs1, .imm = tmp.uimm };
     return trans_ld(ctx, &arg);
 #endif
@@ -80,13 +80,13 @@ static bool trans_c_fsw_sd(DisasContext *ctx, arg_c_fsw_sd *a)
     REQUIRE_EXT(ctx, RVF);
 
     arg_c_sw tmp;
-    decode_insn16_extract_cs_w(&tmp, ctx->opcode);
+    decode_insn16_extract_cs_w(ctx, &tmp, ctx->opcode);
     arg_fsw arg = { .rs1 = tmp.rs1, .rs2 = tmp.rs2, .imm = tmp.uimm };
     return trans_fsw(ctx, &arg);
 #else
     /* C.SD ( RV64C/RV128C-only ) */
     arg_c_fsd tmp;
-    decode_insn16_extract_cs_d(&tmp, ctx->opcode);
+    decode_insn16_extract_cs_d(ctx, &tmp, ctx->opcode);
     arg_sd arg = { .rs1 = tmp.rs1, .rs2 = tmp.rs2, .imm = tmp.uimm };
     return trans_sd(ctx, &arg);
 #endif
@@ -107,7 +107,7 @@ static bool trans_c_jal_addiw(DisasContext *ctx, arg_c_jal_addiw *a)
 #ifdef TARGET_RISCV32
     /* C.JAL */
     arg_c_j tmp;
-    decode_insn16_extract_cj(&tmp, ctx->opcode);
+    decode_insn16_extract_cj(ctx, &tmp, ctx->opcode);
     arg_jal arg = { .rd = 1, .imm = tmp.imm };
     return trans_jal(ctx, &arg);
 #else
