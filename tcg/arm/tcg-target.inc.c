@@ -1290,19 +1290,20 @@ static TCGReg tcg_out_tlb_read(TCGContext *s, TCGReg addrlo, TCGReg addrhi,
     tcg_out_ld32_12(s, COND_AL, TCG_REG_R1, TCG_REG_R1,
                     offsetof(CPUTLBEntry, addend));
 
-    /* Check alignment, check comparators.  */
-    if (use_armv7_instructions) {
+    /*
+     * Check alignment, check comparators.
+     * Do this in no more than 3 insns.  Use MOVW for v7, if possible,
+     * to reduce the number of sequential conditional instructions.
+     * Almost all guests have at least 4k pages, which means that we need
+     * to clear at least 9 bits even for an 8-byte memory, which means it
+     * isn't worth checking for an immediate operand for BIC.
+     */
+    if (use_armv7_instructions && TARGET_PAGE_BITS <= 16) {
         tcg_target_ulong mask = ~(TARGET_PAGE_MASK | ((1 << a_bits) - 1));
-        int rot = encode_imm(mask);
 
-        if (rot >= 0) { 
-            tcg_out_dat_imm(s, COND_AL, ARITH_BIC, TCG_REG_TMP, addrlo,
-                            rotl(mask, rot) | (rot << 7));
-        } else {
-            tcg_out_movi32(s, COND_AL, TCG_REG_TMP, mask);
-            tcg_out_dat_reg(s, COND_AL, ARITH_BIC, TCG_REG_TMP,
-                            addrlo, TCG_REG_TMP, 0);
-        }
+        tcg_out_movi32(s, COND_AL, TCG_REG_TMP, mask);
+        tcg_out_dat_reg(s, COND_AL, ARITH_BIC, TCG_REG_TMP,
+                        addrlo, TCG_REG_TMP, 0);
         tcg_out_dat_reg(s, COND_AL, ARITH_CMP, 0, TCG_REG_R2, TCG_REG_TMP, 0);
     } else {
         if (a_bits) {
