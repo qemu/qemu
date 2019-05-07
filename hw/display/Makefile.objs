@@ -1,3 +1,4 @@
+common-obj-$(CONFIG_DDC) += i2c-ddc.o
 common-obj-$(CONFIG_EDID) += edid-generate.o edid-region.o
 
 common-obj-$(CONFIG_FW_CFG_DMA) += ramfb.o

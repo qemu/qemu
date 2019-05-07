@@ -1,3 +1,8 @@
+config DDC
+    bool
+    depends on I2C
+    select EDID
+
 config EDID
     bool
 

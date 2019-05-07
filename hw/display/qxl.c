@@ -33,24 +33,6 @@
 
 #include "qxl.h"
 
-/*
- * NOTE: SPICE_RING_PROD_ITEM accesses memory on the pci bar and as
- * such can be changed by the guest, so to avoid a guest trigerrable
- * abort we just qxl_set_guest_bug and set the return to NULL. Still
- * it may happen as a result of emulator bug as well.
- */
-#undef SPICE_RING_PROD_ITEM
-#define SPICE_RING_PROD_ITEM(qxl, r, ret) {                             \
-        uint32_t prod = (r)->prod & SPICE_RING_INDEX_MASK(r);           \
-        if (prod >= ARRAY_SIZE((r)->items)) {                           \
-            qxl_set_guest_bug(qxl, "SPICE_RING_PROD_ITEM indices mismatch " \
-                          "%u >= %zu", prod, ARRAY_SIZE((r)->items));   \
-            ret = NULL;                                                 \
-        } else {                                                        \
-            ret = &(r)->items[prod].el;                                 \
-        }                                                               \
-    }
-
 #undef SPICE_RING_CONS_ITEM
 #define SPICE_RING_CONS_ITEM(qxl, r, ret) {                             \
         uint32_t cons = (r)->cons & SPICE_RING_INDEX_MASK(r);           \
@@ -414,7 +396,8 @@ static void init_qxl_rom(PCIQXLDevice *d)
 static void init_qxl_ram(PCIQXLDevice *d)
 {
     uint8_t *buf;
-    uint64_t *item;
+    uint32_t prod;
+    QXLReleaseRing *ring;
 
     buf = d->vga.vram_ptr;
     d->ram = (QXLRam *)(buf + le32_to_cpu(d->shadow_rom.ram_header_offset));
@@ -426,9 +409,12 @@ static void init_qxl_ram(PCIQXLDevice *d)
     SPICE_RING_INIT(&d->ram->cmd_ring);
     SPICE_RING_INIT(&d->ram->cursor_ring);
     SPICE_RING_INIT(&d->ram->release_ring);
-    SPICE_RING_PROD_ITEM(d, &d->ram->release_ring, item);
-    assert(item);
-    *item = 0;
+
+    ring = &d->ram->release_ring;
+    prod = ring->prod & SPICE_RING_INDEX_MASK(ring);
+    assert(prod < ARRAY_SIZE(ring->items));
+    ring->items[prod].el = 0;
+
     qxl_ring_set_dirty(d);
 }
 
@@ -732,7 +718,7 @@ static int interface_req_cmd_notification(QXLInstance *sin)
 static inline void qxl_push_free_res(PCIQXLDevice *d, int flush)
 {
     QXLReleaseRing *ring = &d->ram->release_ring;
-    uint64_t *item;
+    uint32_t prod;
     int notify;
 
 #define QXL_FREE_BUNCH_SIZE 32
@@ -759,11 +745,15 @@ static inline void qxl_push_free_res(PCIQXLDevice *d, int flush)
     if (notify) {
         qxl_send_events(d, QXL_INTERRUPT_DISPLAY);
     }
-    SPICE_RING_PROD_ITEM(d, ring, item);
-    if (!item) {
+
+    ring = &d->ram->release_ring;
+    prod = ring->prod & SPICE_RING_INDEX_MASK(ring);
+    if (prod >= ARRAY_SIZE(ring->items)) {
+        qxl_set_guest_bug(d, "SPICE_RING_PROD_ITEM indices mismatch "
+                          "%u >= %zu", prod, ARRAY_SIZE(ring->items));
         return;
     }
-    *item = 0;
+    ring->items[prod].el = 0;
     d->num_free_res = 0;
     d->last_release = NULL;
     qxl_ring_set_dirty(d);
@@ -775,8 +765,12 @@ static void interface_release_resource(QXLInstance *sin,
 {
     PCIQXLDevice *qxl = container_of(sin, PCIQXLDevice, ssd.qxl);
     QXLReleaseRing *ring;
-    uint64_t *item, id;
+    uint32_t prod;
+    uint64_t id;
 
+    if (!ext.info) {
+        return;
+    }
     if (ext.group_id == MEMSLOT_GROUP_HOST) {
         /* host group -> vga mode update request */
         QXLCommandExt *cmdext = (void *)(intptr_t)(ext.info->id);
@@ -792,16 +786,18 @@ static void interface_release_resource(QXLInstance *sin,
      * pci bar 0, $command.release_info
      */
     ring = &qxl->ram->release_ring;
-    SPICE_RING_PROD_ITEM(qxl, ring, item);
-    if (!item) {
+    prod = ring->prod & SPICE_RING_INDEX_MASK(ring);
+    if (prod >= ARRAY_SIZE(ring->items)) {
+        qxl_set_guest_bug(qxl, "SPICE_RING_PROD_ITEM indices mismatch "
+                          "%u >= %zu", prod, ARRAY_SIZE(ring->items));
         return;
     }
-    if (*item == 0) {
+    if (ring->items[prod].el == 0) {
         /* stick head into the ring */
         id = ext.info->id;
         ext.info->next = 0;
         qxl_ram_set_dirty(qxl, &ext.info->next);
-        *item = id;
+        ring->items[prod].el = id;
         qxl_ring_set_dirty(qxl);
     } else {
         /* append item to the list */

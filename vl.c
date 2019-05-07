@@ -2015,7 +2015,7 @@ typedef struct VGAInterfaceInfo {
     const char *class_names[2];
 } VGAInterfaceInfo;
 
-static VGAInterfaceInfo vga_interfaces[VGA_TYPE_MAX] = {
+static const VGAInterfaceInfo vga_interfaces[VGA_TYPE_MAX] = {
     [VGA_NONE] = {
         .opt_name = "none",
     },
@@ -2061,7 +2061,7 @@ static VGAInterfaceInfo vga_interfaces[VGA_TYPE_MAX] = {
 
 static bool vga_interface_available(VGAInterfaceType t)
 {
-    VGAInterfaceInfo *ti = &vga_interfaces[t];
+    const VGAInterfaceInfo *ti = &vga_interfaces[t];
 
     assert(t < VGA_TYPE_MAX);
     return !ti->class_names[0] ||
@@ -2069,14 +2069,42 @@ static bool vga_interface_available(VGAInterfaceType t)
            object_class_by_name(ti->class_names[1]);
 }
 
-static void select_vgahw(const char *p)
+static const char *
+get_default_vga_model(const MachineClass *machine_class)
+{
+    if (machine_class->default_display) {
+        return machine_class->default_display;
+    } else if (vga_interface_available(VGA_CIRRUS)) {
+        return "cirrus";
+    } else if (vga_interface_available(VGA_STD)) {
+        return "std";
+    }
+
+    return NULL;
+}
+
+static void select_vgahw(const MachineClass *machine_class, const char *p)
 {
     const char *opts;
     int t;
 
+    if (g_str_equal(p, "help")) {
+        const char *def = get_default_vga_model(machine_class);
+
+        for (t = 0; t < VGA_TYPE_MAX; t++) {
+            const VGAInterfaceInfo *ti = &vga_interfaces[t];
+
+            if (vga_interface_available(t) && ti->opt_name) {
+                printf("%-20s %s%s\n", ti->opt_name, ti->name ?: "",
+                       g_str_equal(ti->opt_name, def) ? " (default)" : "");
+            }
+        }
+        exit(0);
+    }
+
     assert(vga_interface_type == VGA_NONE);
     for (t = 0; t < VGA_TYPE_MAX; t++) {
-        VGAInterfaceInfo *ti = &vga_interfaces[t];
+        const VGAInterfaceInfo *ti = &vga_interfaces[t];
         if (ti->opt_name && strstart(p, ti->opt_name, &opts)) {
             if (!vga_interface_available(t)) {
                 error_report("%s not available", ti->name);
@@ -4424,16 +4452,10 @@ int main(int argc, char **argv, char **envp)
 
     /* If no default VGA is requested, the default is "none".  */
     if (default_vga) {
-        if (machine_class->default_display) {
-            vga_model = machine_class->default_display;
-        } else if (vga_interface_available(VGA_CIRRUS)) {
-            vga_model = "cirrus";
-        } else if (vga_interface_available(VGA_STD)) {
-            vga_model = "std";
-        }
+        vga_model = get_default_vga_model(machine_class);
     }
     if (vga_model) {
-        select_vgahw(vga_model);
+        select_vgahw(machine_class, vga_model);
     }
 
     if (watchdog) {
