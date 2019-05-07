@@ -55,9 +55,8 @@ static void sabrelite_init(MachineState *machine)
         exit(1);
     }
 
-    object_initialize(&s->soc, sizeof(s->soc), TYPE_FSL_IMX6);
-    object_property_add_child(OBJECT(machine), "soc", OBJECT(&s->soc),
-                              &error_abort);
+    object_initialize_child(OBJECT(machine), "soc", &s->soc, sizeof(s->soc),
+                            TYPE_FSL_IMX6, &error_abort, NULL);
 
     object_property_set_bool(OBJECT(&s->soc), true, "realized", &err);
     if (err != NULL) {

@@ -91,9 +91,8 @@ static void xlnx_zcu102_init(MachineState *machine)
     memory_region_allocate_system_memory(&s->ddr_ram, NULL, "ddr-ram",
                                          ram_size);
 
-    object_initialize(&s->soc, sizeof(s->soc), TYPE_XLNX_ZYNQMP);
-    object_property_add_child(OBJECT(machine), "soc", OBJECT(&s->soc),
-                              &error_abort);
+    object_initialize_child(OBJECT(machine), "soc", &s->soc, sizeof(s->soc),
+                            TYPE_XLNX_ZYNQMP, &error_abort, NULL);
 
     object_property_set_link(OBJECT(&s->soc), OBJECT(&s->ddr_ram),
                          "ddr-ram", &error_abort);
