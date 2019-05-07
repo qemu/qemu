@@ -3244,6 +3244,8 @@
 #
 # @cluster_alloc_space: an allocation of file space for a cluster (since 4.1)
 #
+# @none: triggers once at creation of the blkdebug node (since 4.1)
+#
 # Since: 2.9
 ##
 { 'enum': 'BlkdebugEvent', 'prefix': 'BLKDBG',
@@ -3262,7 +3264,7 @@
             'pwritev_rmw_tail', 'pwritev_rmw_after_tail', 'pwritev',
             'pwritev_zero', 'pwritev_done', 'empty_image_prepare',
             'l1_shrink_write_table', 'l1_shrink_free_l2_clusters',
-            'cor_write', 'cluster_alloc_space'] }
+            'cor_write', 'cluster_alloc_space', 'none'] }
 
 ##
 # @BlkdebugIOType:

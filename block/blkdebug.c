@@ -491,6 +491,8 @@ static int blkdebug_open(BlockDriverState *bs, QDict *options, int flags,
         goto out;
     }
 
+    bdrv_debug_event(bs, BLKDBG_NONE);
+
     ret = 0;
 out:
     if (ret < 0) {
