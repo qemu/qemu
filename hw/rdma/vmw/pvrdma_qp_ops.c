@@ -70,7 +70,7 @@ static int pvrdma_post_cqe(PVRDMADev *dev, uint32_t cq_handle,
 
     memset(cqe1, 0, sizeof(*cqe1));
     cqe1->wr_id = cqe->wr_id;
-    cqe1->qp = cqe->qp;
+    cqe1->qp = cqe->qp ? cqe->qp : wc->qp_num;
     cqe1->opcode = cqe->opcode;
     cqe1->status = wc->status;
     cqe1->byte_len = wc->byte_len;
@@ -239,6 +239,50 @@ void pvrdma_qp_recv(PVRDMADev *dev, uint32_t qp_handle)
 
         wqe = pvrdma_ring_next_elem_read(ring);
     }
+}
+
+void pvrdma_srq_recv(PVRDMADev *dev, uint32_t srq_handle)
+{
+    RdmaRmSRQ *srq;
+    PvrdmaRqWqe *wqe;
+    PvrdmaRing *ring;
+
+    srq = rdma_rm_get_srq(&dev->rdma_dev_res, srq_handle);
+    if (unlikely(!srq)) {
+        return;
+    }
+
+    ring = (PvrdmaRing *)srq->opaque;
+
+    wqe = (struct PvrdmaRqWqe *)pvrdma_ring_next_elem_read(ring);
+    while (wqe) {
+        CompHandlerCtx *comp_ctx;
+
+        /* Prepare CQE */
+        comp_ctx = g_malloc(sizeof(CompHandlerCtx));
+        comp_ctx->dev = dev;
+        comp_ctx->cq_handle = srq->recv_cq_handle;
+        comp_ctx->cqe.wr_id = wqe->hdr.wr_id;
+        comp_ctx->cqe.qp = 0;
+        comp_ctx->cqe.opcode = IBV_WC_RECV;
+
+        if (wqe->hdr.num_sge > dev->dev_attr.max_sge) {
+            rdma_error_report("Invalid num_sge=%d (max %d)", wqe->hdr.num_sge,
+                              dev->dev_attr.max_sge);
+            complete_with_error(VENDOR_ERR_INV_NUM_SGE, comp_ctx);
+            continue;
+        }
+
+        rdma_backend_post_srq_recv(&dev->backend_dev, &srq->backend_srq,
+                                   (struct ibv_sge *)&wqe->sge[0],
+                                   wqe->hdr.num_sge,
+                                   comp_ctx);
+
+        pvrdma_ring_read_inc(ring);
+
+        wqe = pvrdma_ring_next_elem_read(ring);
+    }
+
 }
 
 void pvrdma_cq_poll(RdmaDeviceResources *dev_res, uint32_t cq_handle)

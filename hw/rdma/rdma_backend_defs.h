@@ -68,4 +68,9 @@ typedef struct RdmaBackendQP {
     RdmaProtectedGSList cqe_ctx_list;
 } RdmaBackendQP;
 
+typedef struct RdmaBackendSRQ {
+    struct ibv_srq *ibsrq;
+    RdmaProtectedGSList cqe_ctx_list;
+} RdmaBackendSRQ;
+
 #endif
