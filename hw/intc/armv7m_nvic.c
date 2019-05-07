@@ -2491,9 +2491,11 @@ static void armv7m_nvic_reset(DeviceState *dev)
      * the System Handler Control register
      */
     s->vectors[ARMV7M_EXCP_SVC].enabled = 1;
-    s->vectors[ARMV7M_EXCP_DEBUG].enabled = 1;
     s->vectors[ARMV7M_EXCP_PENDSV].enabled = 1;
     s->vectors[ARMV7M_EXCP_SYSTICK].enabled = 1;
+
+    /* DebugMonitor is enabled via DEMCR.MON_EN */
+    s->vectors[ARMV7M_EXCP_DEBUG].enabled = 0;
 
     resetprio = arm_feature(&s->cpu->env, ARM_FEATURE_V8) ? -4 : -3;
     s->vectors[ARMV7M_EXCP_RESET].prio = resetprio;
