@@ -3265,6 +3265,26 @@
             'cor_write', 'cluster_alloc_space'] }
 
 ##
+# @BlkdebugIOType:
+#
+# Kinds of I/O that blkdebug can inject errors in.
+#
+# @read: .bdrv_co_preadv()
+#
+# @write: .bdrv_co_pwritev()
+#
+# @write-zeroes: .bdrv_co_pwrite_zeroes()
+#
+# @discard: .bdrv_co_pdiscard()
+#
+# @flush: .bdrv_co_flush_to_disk()
+#
+# Since: 4.1
+##
+{ 'enum': 'BlkdebugIOType', 'prefix': 'BLKDEBUG_IO_TYPE',
+  'data': [ 'read', 'write', 'write-zeroes', 'discard', 'flush' ] }
+
+##
 # @BlkdebugInjectErrorOptions:
 #
 # Describes a single error injection for blkdebug.
@@ -3273,6 +3293,11 @@
 #
 # @state:       the state identifier blkdebug needs to be in to
 #               actually trigger the event; defaults to "any"
+#
+# @iotype:      the type of I/O operations on which this error should
+#               be injected; defaults to "all read, write,
+#               write-zeroes, discard, and flush operations"
+#               (since: 4.1)
 #
 # @errno:       error identifier (errno) to be returned; defaults to
 #               EIO
@@ -3291,6 +3316,7 @@
 { 'struct': 'BlkdebugInjectErrorOptions',
   'data': { 'event': 'BlkdebugEvent',
             '*state': 'int',
+            '*iotype': 'BlkdebugIOType',
             '*errno': 'int',
             '*sector': 'int',
             '*once': 'bool',
