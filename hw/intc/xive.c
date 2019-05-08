@@ -1042,8 +1042,7 @@ static const TypeInfo xive_source_info = {
 
 void xive_end_queue_pic_print_info(XiveEND *end, uint32_t width, Monitor *mon)
 {
-    uint64_t qaddr_base = (uint64_t) be32_to_cpu(end->w2 & 0x0fffffff) << 32
-        | be32_to_cpu(end->w3);
+    uint64_t qaddr_base = xive_end_qaddr(end);
     uint32_t qsize = xive_get_field32(END_W0_QSIZE, end->w0);
     uint32_t qindex = xive_get_field32(END_W1_PAGE_OFF, end->w1);
     uint32_t qentries = 1 << (qsize + 10);
@@ -1072,8 +1071,7 @@ void xive_end_queue_pic_print_info(XiveEND *end, uint32_t width, Monitor *mon)
 
 void xive_end_pic_print_info(XiveEND *end, uint32_t end_idx, Monitor *mon)
 {
-    uint64_t qaddr_base = (uint64_t) be32_to_cpu(end->w2 & 0x0fffffff) << 32
-        | be32_to_cpu(end->w3);
+    uint64_t qaddr_base = xive_end_qaddr(end);
     uint32_t qindex = xive_get_field32(END_W1_PAGE_OFF, end->w1);
     uint32_t qgen = xive_get_field32(END_W1_GENERATION, end->w1);
     uint32_t qsize = xive_get_field32(END_W0_QSIZE, end->w0);
@@ -1101,8 +1099,7 @@ void xive_end_pic_print_info(XiveEND *end, uint32_t end_idx, Monitor *mon)
 
 static void xive_end_enqueue(XiveEND *end, uint32_t data)
 {
-    uint64_t qaddr_base = (uint64_t) be32_to_cpu(end->w2 & 0x0fffffff) << 32
-        | be32_to_cpu(end->w3);
+    uint64_t qaddr_base = xive_end_qaddr(end);
     uint32_t qsize = xive_get_field32(END_W0_QSIZE, end->w0);
     uint32_t qindex = xive_get_field32(END_W1_PAGE_OFF, end->w1);
     uint32_t qgen = xive_get_field32(END_W1_GENERATION, end->w1);
