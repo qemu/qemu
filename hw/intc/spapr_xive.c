@@ -1150,8 +1150,7 @@ static target_ulong h_int_get_queue_config(PowerPCCPU *cpu,
     }
 
     if (xive_end_is_enqueue(end)) {
-        args[1] = (uint64_t) be32_to_cpu(end->w2 & 0x0fffffff) << 32
-            | be32_to_cpu(end->w3);
+        args[1] = xive_end_qaddr(end);
         args[2] = xive_get_field32(END_W0_QSIZE, end->w0) + 12;
     } else {
         args[1] = 0;
