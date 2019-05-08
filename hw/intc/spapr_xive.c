@@ -993,6 +993,12 @@ static target_ulong h_int_set_queue_config(PowerPCCPU *cpu,
     case 16:
     case 21:
     case 24:
+        if (!QEMU_IS_ALIGNED(qpage, 1ul << qsize)) {
+            qemu_log_mask(LOG_GUEST_ERROR, "XIVE: EQ @0x%" HWADDR_PRIx
+                          " is not naturally aligned with %" HWADDR_PRIx "\n",
+                          qpage, (hwaddr)1 << qsize);
+            return H_P4;
+        }
         end.w2 = cpu_to_be32((qpage >> 32) & 0x0fffffff);
         end.w3 = cpu_to_be32(qpage & 0xffffffff);
         end.w0 |= cpu_to_be32(END_W0_ENQUEUE);
