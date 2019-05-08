@@ -1004,10 +1004,11 @@ int main(int argc, char **argv)
             exit(EXIT_FAILURE);
         } else if (pid == 0) {
             close(stderr_fd[0]);
+
+            old_stderr = dup(STDERR_FILENO);
             ret = qemu_daemon(1, 0);
 
             /* Temporarily redirect stderr to the parent's pipe...  */
-            old_stderr = dup(STDERR_FILENO);
             dup2(stderr_fd[1], STDERR_FILENO);
             if (ret < 0) {
                 error_report("Failed to daemonize: %s", strerror(errno));
