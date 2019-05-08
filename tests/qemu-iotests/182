@@ -31,6 +31,7 @@ _cleanup()
 {
     _cleanup_test_img
     rm -f "$TEST_IMG.overlay"
+    rm -f "$TEST_DIR/nbd.socket"
 }
 trap "_cleanup; exit \$status" 0 1 2 3 15
 
@@ -126,15 +127,26 @@ success_or_failure=y _send_qemu_cmd $QEMU_HANDLE \
     'return' \
     'error'
 
-# Now we attach the image to a virtio-blk device.  This device does
-# require some permissions (at least WRITE and READ_CONSISTENT), so if
+# Start an NBD server to which we can attach node1
+success_or_failure=y _send_qemu_cmd $QEMU_HANDLE \
+    "{'execute': 'nbd-server-start',
+      'arguments': {
+          'addr': {
+              'type': 'unix',
+              'data': {
+                  'path': '$TEST_DIR/nbd.socket'
+              } } } }" \
+    'return' \
+    'error'
+
+# Now we attach the image to the NBD server.  This server does require
+# some permissions (at least WRITE and READ_CONSISTENT), so if
 # reopening node0 unshared any (which it should not have), this will
 # fail (but it should not).
 success_or_failure=y _send_qemu_cmd $QEMU_HANDLE \
-    "{'execute': 'device_add',
+    "{'execute': 'nbd-server-add',
       'arguments': {
-          'driver': 'virtio-blk',
-          'drive': 'node1'
+          'device': 'node1'
       } }" \
     'return' \
     'error'

@@ -14,4 +14,5 @@ Formatting 'TEST_DIR/t.qcow2.overlay', fmt=qcow2 size=197120 backing_file=TEST_D
 {"return": {}}
 {"return": {}}
 {"return": {}}
+{"return": {}}
 *** done
