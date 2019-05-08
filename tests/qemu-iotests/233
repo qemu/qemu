@@ -49,7 +49,6 @@ _supported_proto file
 # If porting to non-Linux, consider using socat instead of ss in common.nbd
 _require_command QEMU_NBD
 
-nbd_server_set_tcp_port
 tls_x509_init
 
 echo
