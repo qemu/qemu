@@ -37,6 +37,7 @@
 #include "qemu/option.h"
 #include "qemu/error-report.h"
 #include "qemu/log.h"
+#include "qemu/units.h"
 #include "qom/object_interfaces.h"
 #include "sysemu/sysemu.h"
 #include "sysemu/block-backend.h"
@@ -1216,7 +1217,7 @@ static int compare_buffers(const uint8_t *buf1, const uint8_t *buf2,
     return res;
 }
 
-#define IO_BUF_SIZE (2 * 1024 * 1024)
+#define IO_BUF_SIZE (2 * MiB)
 
 /*
  * Check if passed sectors are empty (not allocated or contain only 0 bytes)
@@ -2960,7 +2961,7 @@ static int img_map(int argc, char **argv)
         int64_t n;
 
         /* Probe up to 1 GiB at a time.  */
-        n = MIN(1 << 30, length - offset);
+        n = MIN(1 * GiB, length - offset);
         ret = get_block_status(bs, offset, n, &next);
 
         if (ret < 0) {
