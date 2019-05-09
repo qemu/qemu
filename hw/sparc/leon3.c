@@ -194,6 +194,10 @@ static void leon3_generic_hw_init(MachineState *machine)
                                &entry, NULL, NULL,
                                1 /* big endian */, EM_SPARC, 0, 0);
         if (kernel_size < 0) {
+            kernel_size = load_uimage(kernel_filename, NULL, &entry,
+                                      NULL, NULL, NULL);
+        }
+        if (kernel_size < 0) {
             error_report("could not load kernel '%s'", kernel_filename);
             exit(1);
         }
