@@ -176,19 +176,19 @@ void qpci_free_pc(QPCIBus *bus)
     g_free(s);
 }
 
-void qpci_unplug_acpi_device_test(const char *id, uint8_t slot)
+void qpci_unplug_acpi_device_test(QTestState *qts, const char *id, uint8_t slot)
 {
     QDict *response;
 
-    response = qmp("{'execute': 'device_del', 'arguments': {'id': %s}}",
-                   id);
+    response = qtest_qmp(qts, "{'execute': 'device_del',"
+                              " 'arguments': {'id': %s}}", id);
     g_assert(response);
     g_assert(!qdict_haskey(response, "error"));
     qobject_unref(response);
 
-    outb(ACPI_PCIHP_ADDR + PCI_EJ_BASE, 1 << slot);
+    qtest_outb(qts, ACPI_PCIHP_ADDR + PCI_EJ_BASE, 1 << slot);
 
-    qmp_eventwait("DEVICE_DELETED");
+    qtest_qmp_eventwait(qts, "DEVICE_DELETED");
 }
 
 static void qpci_pc_register_nodes(void)

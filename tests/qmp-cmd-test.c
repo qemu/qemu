@@ -61,10 +61,11 @@ static void test_query(const void *data)
     int expected_error_class = query_error_class(cmd);
     QDict *resp, *error;
     const char *error_class;
+    QTestState *qts;
 
-    qtest_start(common_args);
+    qts = qtest_init(common_args);
 
-    resp = qmp("{ 'execute': %s }", cmd);
+    resp = qtest_qmp(qts, "{ 'execute': %s }", cmd);
     error = qdict_get_qdict(resp, "error");
     error_class = error ? qdict_get_str(error, "class") : NULL;
 
@@ -78,7 +79,7 @@ static void test_query(const void *data)
     }
     qobject_unref(resp);
 
-    qtest_end();
+    qtest_quit(qts);
 }
 
 static bool query_is_blacklisted(const char *cmd)
@@ -118,16 +119,18 @@ static void qmp_schema_init(QmpSchema *schema)
     QDict *resp;
     Visitor *qiv;
     SchemaInfoList *tail;
+    QTestState *qts;
 
-    qtest_start(common_args);
-    resp = qmp("{ 'execute': 'query-qmp-schema' }");
+    qts = qtest_init(common_args);
+
+    resp = qtest_qmp(qts, "{ 'execute': 'query-qmp-schema' }");
 
     qiv = qobject_input_visitor_new(qdict_get(resp, "return"));
     visit_type_SchemaInfoList(qiv, NULL, &schema->list, &error_abort);
     visit_free(qiv);
 
     qobject_unref(resp);
-    qtest_end();
+    qtest_quit(qts);
 
     schema->hash = g_hash_table_new(g_str_hash, g_str_equal);
 

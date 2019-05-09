@@ -383,18 +383,21 @@ static void test_ivshmem_server(void)
 
 static void test_ivshmem_hotplug(void)
 {
+    QTestState *qts;
     const char *arch = qtest_get_arch();
 
-    qtest_start("-object memory-backend-ram,size=1M,id=mb1");
+    qts = qtest_init("-object memory-backend-ram,size=1M,id=mb1");
 
+    global_qtest = qts;  /* TODO: Get rid of global_qtest here */
     qtest_qmp_device_add("ivshmem-plain", "iv1",
                          "{'addr': %s, 'memdev': 'mb1'}",
                          stringify(PCI_SLOT_HP));
     if (strcmp(arch, "ppc64") != 0) {
-        qpci_unplug_acpi_device_test("iv1", PCI_SLOT_HP);
+        qpci_unplug_acpi_device_test(qts, "iv1", PCI_SLOT_HP);
     }
 
-    qtest_end();
+    qtest_quit(qts);
+    global_qtest = NULL;
 }
 
 static void test_ivshmem_memdev(void)
