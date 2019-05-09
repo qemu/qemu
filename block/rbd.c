@@ -103,6 +103,7 @@ typedef struct BDRVRBDState {
     rbd_image_t image;
     char *image_name;
     char *snap;
+    uint64_t image_size;
 } BDRVRBDState;
 
 static int qemu_rbd_connect(rados_t *cluster, rados_ioctx_t *io_ctx,
@@ -778,6 +779,14 @@ static int qemu_rbd_open(BlockDriverState *bs, QDict *options, int flags,
         goto failed_open;
     }
 
+    r = rbd_get_size(s->image, &s->image_size);
+    if (r < 0) {
+        error_setg_errno(errp, -r, "error getting image size from %s",
+                         s->image_name);
+        rbd_close(s->image);
+        goto failed_open;
+    }
+
     /* If we are using an rbd snapshot, we must be r/o, otherwise
      * leave as-is */
     if (s->snap != NULL) {
@@ -832,6 +841,22 @@ static void qemu_rbd_close(BlockDriverState *bs)
     g_free(s->snap);
     g_free(s->image_name);
     rados_shutdown(s->cluster);
+}
+
+/* Resize the RBD image and update the 'image_size' with the current size */
+static int qemu_rbd_resize(BlockDriverState *bs, uint64_t size)
+{
+    BDRVRBDState *s = bs->opaque;
+    int r;
+
+    r = rbd_resize(s->image, size);
+    if (r < 0) {
+        return r;
+    }
+
+    s->image_size = size;
+
+    return 0;
 }
 
 static const AIOCBInfo rbd_aiocb_info = {
@@ -935,13 +960,25 @@ static BlockAIOCB *rbd_start_aio(BlockDriverState *bs,
     }
 
     switch (cmd) {
-    case RBD_AIO_WRITE:
+    case RBD_AIO_WRITE: {
+        /*
+         * RBD APIs don't allow us to write more than actual size, so in order
+         * to support growing images, we resize the image before write
+         * operations that exceed the current size.
+         */
+        if (off + size > s->image_size) {
+            r = qemu_rbd_resize(bs, off + size);
+            if (r < 0) {
+                goto failed_completion;
+            }
+        }
 #ifdef LIBRBD_SUPPORTS_IOVEC
             r = rbd_aio_writev(s->image, qiov->iov, qiov->niov, off, c);
 #else
             r = rbd_aio_write(s->image, off, size, rcb->buf, c);
 #endif
         break;
+    }
     case RBD_AIO_READ:
 #ifdef LIBRBD_SUPPORTS_IOVEC
             r = rbd_aio_readv(s->image, qiov->iov, qiov->niov, off, c);
@@ -1052,7 +1089,6 @@ static int coroutine_fn qemu_rbd_co_truncate(BlockDriverState *bs,
                                              PreallocMode prealloc,
                                              Error **errp)
 {
-    BDRVRBDState *s = bs->opaque;
     int r;
 
     if (prealloc != PREALLOC_MODE_OFF) {
@@ -1061,7 +1097,7 @@ static int coroutine_fn qemu_rbd_co_truncate(BlockDriverState *bs,
         return -ENOTSUP;
     }
 
-    r = rbd_resize(s->image, offset);
+    r = qemu_rbd_resize(bs, offset);
     if (r < 0) {
         error_setg_errno(errp, -r, "Failed to resize file");
         return r;
