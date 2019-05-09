@@ -141,7 +141,7 @@ void spapr_xive_pic_print_info(SpaprXive *xive, Monitor *mon)
     XiveSource *xsrc = &xive->source;
     int i;
 
-    monitor_printf(mon, "  LSIN         PQ    EISN     CPU/PRIO EQ\n");
+    monitor_printf(mon, "  LISN         PQ    EISN     CPU/PRIO EQ\n");
 
     for (i = 0; i < xive->nr_irqs; i++) {
         uint8_t pq = xive_source_esb_get(xsrc, i);
