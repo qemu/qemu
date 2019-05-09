@@ -75,6 +75,14 @@ typedef struct BDRVSSHState {
 
     /* Used to warn if 'flush' is not supported. */
     bool unsafe_flush_warning;
+
+    /*
+     * Store the user name for ssh_refresh_filename() because the
+     * default depends on the system you are on -- therefore, when we
+     * generate a filename, it should always contain the user name we
+     * are actually using.
+     */
+    char *user;
 } BDRVSSHState;
 
 static void ssh_state_init(BDRVSSHState *s)
@@ -87,6 +95,8 @@ static void ssh_state_init(BDRVSSHState *s)
 
 static void ssh_state_free(BDRVSSHState *s)
 {
+    g_free(s->user);
+
     if (s->sftp_handle) {
         libssh2_sftp_close(s->sftp_handle);
     }
@@ -628,14 +638,13 @@ static int connect_to_ssh(BDRVSSHState *s, BlockdevOptionsSsh *opts,
                           int ssh_flags, int creat_mode, Error **errp)
 {
     int r, ret;
-    const char *user;
     long port = 0;
 
     if (opts->has_user) {
-        user = opts->user;
+        s->user = g_strdup(opts->user);
     } else {
-        user = g_get_user_name();
-        if (!user) {
+        s->user = g_strdup(g_get_user_name());
+        if (!s->user) {
             error_setg_errno(errp, errno, "Can't get user name");
             ret = -errno;
             goto err;
@@ -685,7 +694,7 @@ static int connect_to_ssh(BDRVSSHState *s, BlockdevOptionsSsh *opts,
     }
 
     /* Authenticate. */
-    ret = authenticate(s, user, errp);
+    ret = authenticate(s, s->user, errp);
     if (ret < 0) {
         goto err;
     }
@@ -1242,6 +1251,58 @@ static int coroutine_fn ssh_co_truncate(BlockDriverState *bs, int64_t offset,
     return ssh_grow_file(s, offset, errp);
 }
 
+static void ssh_refresh_filename(BlockDriverState *bs)
+{
+    BDRVSSHState *s = bs->opaque;
+    const char *path, *host_key_check;
+    int ret;
+
+    /*
+     * None of these options can be represented in a plain "host:port"
+     * format, so if any was given, we have to abort.
+     */
+    if (s->inet->has_ipv4 || s->inet->has_ipv6 || s->inet->has_to ||
+        s->inet->has_numeric)
+    {
+        return;
+    }
+
+    path = qdict_get_try_str(bs->full_open_options, "path");
+    assert(path); /* mandatory option */
+
+    host_key_check = qdict_get_try_str(bs->full_open_options, "host_key_check");
+
+    ret = snprintf(bs->exact_filename, sizeof(bs->exact_filename),
+                   "ssh://%s@%s:%s%s%s%s",
+                   s->user, s->inet->host, s->inet->port, path,
+                   host_key_check ? "?host_key_check=" : "",
+                   host_key_check ?: "");
+    if (ret >= sizeof(bs->exact_filename)) {
+        /* An overflow makes the filename unusable, so do not report any */
+        bs->exact_filename[0] = '\0';
+    }
+}
+
+static char *ssh_bdrv_dirname(BlockDriverState *bs, Error **errp)
+{
+    if (qdict_haskey(bs->full_open_options, "host_key_check")) {
+        /*
+         * We cannot generate a simple prefix if we would have to
+         * append a query string.
+         */
+        error_setg(errp,
+                   "Cannot generate a base directory with host_key_check set");
+        return NULL;
+    }
+
+    if (bs->exact_filename[0] == '\0') {
+        error_setg(errp, "Cannot generate a base directory for this ssh node");
+        return NULL;
+    }
+
+    return path_combine(bs->exact_filename, "");
+}
+
 static const char *const ssh_strong_runtime_opts[] = {
     "host",
     "port",
@@ -1268,6 +1329,8 @@ static BlockDriver bdrv_ssh = {
     .bdrv_getlength               = ssh_getlength,
     .bdrv_co_truncate             = ssh_co_truncate,
     .bdrv_co_flush_to_disk        = ssh_co_flush,
+    .bdrv_refresh_filename        = ssh_refresh_filename,
+    .bdrv_dirname                 = ssh_bdrv_dirname,
     .create_opts                  = &ssh_create_opts,
     .strong_runtime_opts          = ssh_strong_runtime_opts,
 };

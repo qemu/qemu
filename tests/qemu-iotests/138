@@ -54,15 +54,13 @@ $QEMU_IO -c 'write 0 512' "$TEST_IMG" | _filter_qemu_io
 # Put the data cluster at a multiple of 2 TB, resulting in the image apparently
 # having a multiple of 2^32 clusters
 # (To be more specific: It is at 32 PB)
-poke_file "$TEST_IMG" 2048 "\x80\x80\x00\x00\x00\x00\x00\x00"
+poke_file "$TEST_IMG" $((2048 + 8)) "\x00\x80\x00\x00\x00\x00\x00\x00"
 
 # An offset of 32 PB results in qemu-img check having to allocate an in-memory
-# refcount table of 128 TB (16 bit refcounts, 512 byte clusters).
-# This should be generally too much for any system and thus fail.
-# What this test is checking is that the qcow2 driver actually tries to allocate
-# such a large amount of memory (and is consequently aborting) instead of having
-# truncated the cluster count somewhere (which would result in much less memory
-# being allocated and then a segfault occurring).
+# refcount table of 128 TB (16 bit refcounts, 512 byte clusters), if qemu-img
+# don't check that referenced data cluster is far beyond the end of file.
+# But starting from 4.0, qemu-img does this check, and instead of "Cannot
+# allocate memory", we have an error showing that l2 entry is invalid.
 _check_test_img
 
 # success, all done

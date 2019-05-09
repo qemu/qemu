@@ -62,8 +62,12 @@ TOP_IMG="$TEST_DIR/image:top.$IMGFMT"
 TEST_IMG=$BASE_IMG _make_test_img 64M
 TEST_IMG=$TOP_IMG _make_test_img -b ./image:base.$IMGFMT
 
-# The default cluster size depends on the image format
-TEST_IMG=$TOP_IMG _img_info | grep -v 'cluster_size'
+# (1) The default cluster size depends on the image format
+# (2) vmdk only supports vmdk backing files, so it always reports the
+#     format of its backing file as such (but neither it nor qcow
+#     support the backing_fmt creation option, so we cannot use that to
+#     harmonize the output across all image formats this test supports)
+TEST_IMG=$TOP_IMG _img_info | grep -ve 'cluster_size' -e 'backing file format'
 
 _rm_test_img "$BASE_IMG"
 _rm_test_img "$TOP_IMG"
@@ -79,7 +83,7 @@ TOP_IMG="file:image:top.$IMGFMT"
 TEST_IMG=$BASE_IMG _make_test_img 64M
 TEST_IMG=$TOP_IMG _make_test_img -b "$BASE_IMG"
 
-TEST_IMG=$TOP_IMG _img_info | grep -v 'cluster_size'
+TEST_IMG=$TOP_IMG _img_info | grep -ve 'cluster_size' -e 'backing file format'
 
 _rm_test_img "$BASE_IMG"
 _rm_test_img "image:top.$IMGFMT"

@@ -303,23 +303,14 @@ void commit_start(const char *job_id, BlockDriverState *bs,
     commit_top_bs->total_sectors = top->total_sectors;
     bdrv_set_aio_context(commit_top_bs, bdrv_get_aio_context(top));
 
-    bdrv_set_backing_hd(commit_top_bs, top, &local_err);
+    bdrv_append(commit_top_bs, top, &local_err);
     if (local_err) {
-        bdrv_unref(commit_top_bs);
-        commit_top_bs = NULL;
-        error_propagate(errp, local_err);
-        goto fail;
-    }
-    bdrv_replace_node(top, commit_top_bs, &local_err);
-    if (local_err) {
-        bdrv_unref(commit_top_bs);
         commit_top_bs = NULL;
         error_propagate(errp, local_err);
         goto fail;
     }
 
     s->commit_top_bs = commit_top_bs;
-    bdrv_unref(commit_top_bs);
 
     /* Block all nodes between top and base, because they will
      * disappear from the chain after this operation. */

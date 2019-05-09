@@ -1743,11 +1743,10 @@ static void bdrv_child_perm(BlockDriverState *bs, BlockDriverState *child_bs,
                             uint64_t parent_perm, uint64_t parent_shared,
                             uint64_t *nperm, uint64_t *nshared)
 {
-    if (bs->drv && bs->drv->bdrv_child_perm) {
-        bs->drv->bdrv_child_perm(bs, c, role, reopen_queue,
-                                 parent_perm, parent_shared,
-                                 nperm, nshared);
-    }
+    assert(bs->drv && bs->drv->bdrv_child_perm);
+    bs->drv->bdrv_child_perm(bs, c, role, reopen_queue,
+                             parent_perm, parent_shared,
+                             nperm, nshared);
     /* TODO Take force_share from reopen_queue */
     if (child_bs && child_bs->force_share) {
         *nshared = BLK_PERM_ALL;

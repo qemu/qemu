@@ -5,5 +5,8 @@ QA output created by 138
 Formatting 'TEST_DIR/t.IMGFMT', fmt=IMGFMT size=512
 wrote 512/512 bytes at offset 0
 512 bytes, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
-qemu-img: Check failed: Cannot allocate memory
+ERROR: counting reference for region exceeding the end of the file by one cluster or more: offset 0x80000000000000 size 0x200
+
+1 errors were found on the image.
+Data may be corrupted, or further writes to the image may corrupt it.
 *** done

@@ -411,7 +411,7 @@ def remote_filename(path):
     if imgproto == 'file':
         return path
     elif imgproto == 'ssh':
-        return "ssh://127.0.0.1%s" % (path)
+        return "ssh://%s@127.0.0.1:22%s" % (os.environ.get('USER'), path)
     else:
         raise Exception("Protocol %s not supported" % (imgproto))
 
