@@ -1,0 +1,131 @@
+@node Security
+@chapter Security
+
+@section Overview
+
+This chapter explains the security requirements that QEMU is designed to meet
+and principles for securely deploying QEMU.
+
+@section Security Requirements
+
+QEMU supports many different use cases, some of which have stricter security
+requirements than others.  The community has agreed on the overall security
+requirements that users may depend on.  These requirements define what is
+considered supported from a security perspective.
+
+@subsection Virtualization Use Case
+
+The virtualization use case covers cloud and virtual private server (VPS)
+hosting, as well as traditional data center and desktop virtualization.  These
+use cases rely on hardware virtualization extensions to execute guest code
+safely on the physical CPU at close-to-native speed.
+
+The following entities are untrusted, meaning that they may be buggy or
+malicious:
+
+@itemize
+@item Guest
+@item User-facing interfaces (e.g. VNC, SPICE, WebSocket)
+@item Network protocols (e.g. NBD, live migration)
+@item User-supplied files (e.g. disk images, kernels, device trees)
+@item Passthrough devices (e.g. PCI, USB)
+@end itemize
+
+Bugs affecting these entities are evaluated on whether they can cause damage in
+real-world use cases and treated as security bugs if this is the case.
+
+@subsection Non-virtualization Use Case
+
+The non-virtualization use case covers emulation using the Tiny Code Generator
+(TCG).  In principle the TCG and device emulation code used in conjunction with
+the non-virtualization use case should meet the same security requirements as
+the virtualization use case.  However, for historical reasons much of the
+non-virtualization use case code was not written with these security
+requirements in mind.
+
+Bugs affecting the non-virtualization use case are not considered security
+bugs at this time.  Users with non-virtualization use cases must not rely on
+QEMU to provide guest isolation or any security guarantees.
+
+@section Architecture
+
+This section describes the design principles that ensure the security
+requirements are met.
+
+@subsection Guest Isolation
+
+Guest isolation is the confinement of guest code to the virtual machine.  When
+guest code gains control of execution on the host this is called escaping the
+virtual machine.  Isolation also includes resource limits such as throttling of
+CPU, memory, disk, or network.  Guests must be unable to exceed their resource
+limits.
+
+QEMU presents an attack surface to the guest in the form of emulated devices.
+The guest must not be able to gain control of QEMU.  Bugs in emulated devices
+could allow malicious guests to gain code execution in QEMU.  At this point the
+guest has escaped the virtual machine and is able to act in the context of the
+QEMU process on the host.
+
+Guests often interact with other guests and share resources with them.  A
+malicious guest must not gain control of other guests or access their data.
+Disk image files and network traffic must be protected from other guests unless
+explicitly shared between them by the user.
+
+@subsection Principle of Least Privilege
+
+The principle of least privilege states that each component only has access to
+the privileges necessary for its function.  In the case of QEMU this means that
+each process only has access to resources belonging to the guest.
+
+The QEMU process should not have access to any resources that are inaccessible
+to the guest.  This way the guest does not gain anything by escaping into the
+QEMU process since it already has access to those same resources from within
+the guest.
+
+Following the principle of least privilege immediately fulfills guest isolation
+requirements.  For example, guest A only has access to its own disk image file
+@code{a.img} and not guest B's disk image file @code{b.img}.
+
+In reality certain resources are inaccessible to the guest but must be
+available to QEMU to perform its function.  For example, host system calls are
+necessary for QEMU but are not exposed to guests.  A guest that escapes into
+the QEMU process can then begin invoking host system calls.
+
+New features must be designed to follow the principle of least privilege.
+Should this not be possible for technical reasons, the security risk must be
+clearly documented so users are aware of the trade-off of enabling the feature.
+
+@subsection Isolation mechanisms
+
+Several isolation mechanisms are available to realize this architecture of
+guest isolation and the principle of least privilege.  With the exception of
+Linux seccomp, these mechanisms are all deployed by management tools that
+launch QEMU, such as libvirt.  They are also platform-specific so they are only
+described briefly for Linux here.
+
+The fundamental isolation mechanism is that QEMU processes must run as
+unprivileged users.  Sometimes it seems more convenient to launch QEMU as
+root to give it access to host devices (e.g. @code{/dev/net/tun}) but this poses a
+huge security risk.  File descriptor passing can be used to give an otherwise
+unprivileged QEMU process access to host devices without running QEMU as root.
+It is also possible to launch QEMU as a non-root user and configure UNIX groups
+for access to @code{/dev/kvm}, @code{/dev/net/tun}, and other device nodes.
+Some Linux distros already ship with UNIX groups for these devices by default.
+
+@itemize
+@item SELinux and AppArmor make it possible to confine processes beyond the
+traditional UNIX process and file permissions model.  They restrict the QEMU
+process from accessing processes and files on the host system that are not
+needed by QEMU.
+
+@item Resource limits and cgroup controllers provide throughput and utilization
+limits on key resources such as CPU time, memory, and I/O bandwidth.
+
+@item Linux namespaces can be used to make process, file system, and other system
+resources unavailable to QEMU.  A namespaced QEMU process is restricted to only
+those resources that were granted to it.
+
+@item Linux seccomp is available via the QEMU @option{--sandbox} option.  It disables
+system calls that are not needed by QEMU, thereby reducing the host kernel
+attack surface.
+@end itemize
