@@ -1,0 +1,124 @@
+#!/usr/bin/env bash
+#
+# Tests for rebasing COW images that require zero cluster support
+#
+# Copyright (C) 2019 Red Hat, Inc.
+#
+# This program is free software; you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation; either version 2 of the License, or
+# (at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with this program.  If not, see <http://www.gnu.org/licenses/>.
+#
+
+# creator
+owner=mreitz@redhat.com
+
+seq=$(basename $0)
+echo "QA output created by $seq"
+
+status=1	# failure is the default!
+
+_cleanup()
+{
+    _cleanup_test_img
+    rm -f "$TEST_IMG.base_new"
+}
+trap "_cleanup; exit \$status" 0 1 2 3 15
+
+# get standard environment, filters and checks
+. ./common.rc
+. ./common.filter
+. ./common.pattern
+
+# Currently only qcow2 and qed support rebasing, and only qcow2 v3 has
+# zero cluster support
+_supported_fmt qcow2
+_unsupported_imgopts 'compat=0.10'
+_supported_proto file
+_supported_os Linux
+
+CLUSTER_SIZE=65536
+
+echo
+echo "=== Test rebase without input base ==="
+echo
+
+# Cluster allocations to be tested:
+#
+# Backing (new) 11 -- 11 -- 11 --
+# COW image     22 22 11 11 -- --
+#
+# Expected result:
+#
+# COW image     22 22 11 11 00 --
+#
+# (Cluster 2 might be "--" after the rebase, too, but rebase just
+#  compares the new backing file to the old one and disregards the
+#  overlay.  Therefore, it will never discard overlay clusters.)
+
+_make_test_img $((6 * CLUSTER_SIZE))
+TEST_IMG="$TEST_IMG.base_new" _make_test_img $((6 * CLUSTER_SIZE))
+
+echo
+
+$QEMU_IO "$TEST_IMG" \
+    -c "write -P 0x22 $((0 * CLUSTER_SIZE)) $((2 * CLUSTER_SIZE))" \
+    -c "write -P 0x11 $((2 * CLUSTER_SIZE)) $((2 * CLUSTER_SIZE))" \
+    | _filter_qemu_io
+
+$QEMU_IO "$TEST_IMG.base_new" \
+    -c "write -P 0x11 $((0 * CLUSTER_SIZE)) $CLUSTER_SIZE" \
+    -c "write -P 0x11 $((2 * CLUSTER_SIZE)) $CLUSTER_SIZE" \
+    -c "write -P 0x11 $((4 * CLUSTER_SIZE)) $CLUSTER_SIZE" \
+    | _filter_qemu_io
+
+echo
+
+# This should be a no-op
+$QEMU_IMG rebase -b "" "$TEST_IMG"
+
+# Verify the data is correct
+$QEMU_IO "$TEST_IMG" \
+    -c "read -P 0x22 $((0 * CLUSTER_SIZE)) $((2 * CLUSTER_SIZE))" \
+    -c "read -P 0x11 $((2 * CLUSTER_SIZE)) $((2 * CLUSTER_SIZE))" \
+    -c "read -P 0x00 $((4 * CLUSTER_SIZE)) $((2 * CLUSTER_SIZE))" \
+    | _filter_qemu_io
+
+echo
+
+# Verify the allocation status (first four cluster should be allocated
+# in TEST_IMG, clusters 4 and 5 should be unallocated (marked as zero
+# clusters here because there is no backing file))
+$QEMU_IMG map --output=json "$TEST_IMG" | _filter_qemu_img_map
+
+echo
+
+$QEMU_IMG rebase -b "$TEST_IMG.base_new" "$TEST_IMG"
+
+# Verify the data is correct
+$QEMU_IO "$TEST_IMG" \
+    -c "read -P 0x22 $((0 * CLUSTER_SIZE)) $((2 * CLUSTER_SIZE))" \
+    -c "read -P 0x11 $((2 * CLUSTER_SIZE)) $((2 * CLUSTER_SIZE))" \
+    -c "read -P 0x00 $((4 * CLUSTER_SIZE)) $((2 * CLUSTER_SIZE))" \
+    | _filter_qemu_io
+
+echo
+
+# Verify the allocation status (first four cluster should be allocated
+# in TEST_IMG, cluster 4 should be zero, and cluster 5 should be
+# unallocated (signified by '"depth": 1'))
+$QEMU_IMG map --output=json "$TEST_IMG" | _filter_qemu_img_map
+
+
+# success, all done
+echo "*** done"
+rm -f $seq.full
+status=0
