@@ -4121,7 +4121,7 @@ typedef struct CheckCo {
     int ret;
 } CheckCo;
 
-static void bdrv_check_co_entry(void *opaque)
+static void coroutine_fn bdrv_check_co_entry(void *opaque)
 {
     CheckCo *cco = opaque;
     cco->ret = bdrv_co_check(cco->bs, cco->res, cco->fix);

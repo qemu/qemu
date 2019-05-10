@@ -38,6 +38,7 @@
 * QEMU Guest Agent::
 * QEMU User space emulator::
 * System requirements::
+* Security::
 * Implementation notes::
 * Deprecated features::
 * Supported build platforms::
@@ -2877,6 +2878,8 @@ The OpteronG[345] CPU models require KVM support for RDTSCP, which was
 added with Linux 4.5 which is supported by the major distros. And even
 if RHEL7 has kernel 3.10, KVM there has the required functionality there
 to make it close to a 4.5 or newer kernel.
+
+@include docs/security.texi
 
 @include qemu-tech.texi
 

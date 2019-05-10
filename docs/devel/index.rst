@@ -20,3 +20,4 @@ Contents:
    stable-process
    testing
    decodetree
+   secure-coding-practices
