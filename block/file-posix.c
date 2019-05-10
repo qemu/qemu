@@ -1444,8 +1444,21 @@ out:
 #ifdef CONFIG_XFS
 static int xfs_write_zeroes(BDRVRawState *s, int64_t offset, uint64_t bytes)
 {
+    int64_t len;
     struct xfs_flock64 fl;
     int err;
+
+    len = lseek(s->fd, 0, SEEK_END);
+    if (len < 0) {
+        return -errno;
+    }
+
+    if (offset + bytes > len) {
+        /* XFS_IOC_ZERO_RANGE does not increase the file length */
+        if (ftruncate(s->fd, offset + bytes) < 0) {
+            return -errno;
+        }
+    }
 
     memset(&fl, 0, sizeof(fl));
     fl.l_whence = SEEK_SET;
