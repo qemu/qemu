@@ -970,26 +970,12 @@ static int unix_connect_saddr(UnixSocketAddress *saddr, Error **errp)
 /* compatibility wrapper */
 int unix_listen(const char *str, Error **errp)
 {
-    char *path, *optstr;
-    int sock, len;
     UnixSocketAddress *saddr;
+    int sock;
 
     saddr = g_new0(UnixSocketAddress, 1);
-
-    optstr = strchr(str, ',');
-    if (optstr) {
-        len = optstr - str;
-        if (len) {
-            path = g_malloc(len+1);
-            snprintf(path, len+1, "%.*s", len, str);
-            saddr->path = path;
-        }
-    } else {
-        saddr->path = g_strdup(str);
-    }
-
+    saddr->path = g_strdup(str);
     sock = unix_listen_saddr(saddr, errp);
-
     qapi_free_UnixSocketAddress(saddr);
     return sock;
 }

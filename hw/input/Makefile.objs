@@ -9,9 +9,8 @@ common-obj-$(CONFIG_TSC2005) += tsc2005.o
 
 common-obj-$(CONFIG_VIRTIO_INPUT) += virtio-input.o
 common-obj-$(CONFIG_VIRTIO_INPUT) += virtio-input-hid.o
-ifeq ($(CONFIG_LINUX),y)
-common-obj-$(CONFIG_VIRTIO_INPUT) += virtio-input-host.o
-endif
+common-obj-$(CONFIG_VIRTIO_INPUT_HOST) += virtio-input-host.o
+common-obj-$(CONFIG_VHOST_USER_INPUT) += vhost-user-input.o
 
 obj-$(CONFIG_MILKYMIST) += milkymist-softusb.o
 obj-$(CONFIG_PXA2XX) += pxa2xx_keypad.o
