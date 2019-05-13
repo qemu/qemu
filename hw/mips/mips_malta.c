@@ -55,7 +55,7 @@
 #include "qemu/error-report.h"
 #include "hw/empty_slot.h"
 #include "sysemu/kvm.h"
-#include "exec/semihost.h"
+#include "hw/semihosting/semihost.h"
 #include "hw/mips/cps.h"
 
 #define ENVP_ADDR		0x80002000l

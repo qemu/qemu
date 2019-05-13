@@ -37,7 +37,7 @@
 #include "qemu/sockets.h"
 #include "sysemu/hw_accel.h"
 #include "sysemu/kvm.h"
-#include "exec/semihost.h"
+#include "hw/semihosting/semihost.h"
 #include "exec/exec-all.h"
 
 #ifdef CONFIG_USER_ONLY

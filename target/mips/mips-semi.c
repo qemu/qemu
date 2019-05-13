@@ -22,7 +22,7 @@
 #include "qemu/log.h"
 #include "exec/helper-proto.h"
 #include "exec/softmmu-semi.h"
-#include "exec/semihost.h"
+#include "hw/semihosting/semihost.h"
 
 typedef enum UHIOp {
     UHI_exit = 1,

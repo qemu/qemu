@@ -1,0 +1,1 @@
+common-obj-$(CONFIG_SOFTMMU) += config.o

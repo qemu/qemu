@@ -38,7 +38,7 @@
 #include "qemu/qemu-print.h"
 #include "sysemu/sysemu.h"
 #include "exec/cpu_ldst.h"
-#include "exec/semihost.h"
+#include "hw/semihosting/semihost.h"
 #include "exec/translator.h"
 
 #include "exec/helper-proto.h"

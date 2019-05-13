@@ -21,7 +21,7 @@
 #include "qemu/osdep.h"
 
 #include "cpu.h"
-#include "exec/semihost.h"
+#include "hw/semihosting/semihost.h"
 #ifdef CONFIG_USER_ONLY
 #include "qemu.h"
 
