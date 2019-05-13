@@ -55,9 +55,24 @@ void spapr_xive_set_tctx_os_cam(XiveTCTX *tctx);
 void spapr_xive_mmio_set_enabled(SpaprXive *xive, bool enable);
 void spapr_xive_map_mmio(SpaprXive *xive);
 
+int spapr_xive_end_to_target(uint8_t end_blk, uint32_t end_idx,
+                             uint32_t *out_server, uint8_t *out_prio);
+
 /*
  * KVM XIVE device helpers
  */
 void kvmppc_xive_connect(SpaprXive *xive, Error **errp);
+void kvmppc_xive_reset(SpaprXive *xive, Error **errp);
+void kvmppc_xive_set_source_config(SpaprXive *xive, uint32_t lisn, XiveEAS *eas,
+                                   Error **errp);
+void kvmppc_xive_sync_source(SpaprXive *xive, uint32_t lisn, Error **errp);
+uint64_t kvmppc_xive_esb_rw(XiveSource *xsrc, int srcno, uint32_t offset,
+                            uint64_t data, bool write);
+void kvmppc_xive_set_queue_config(SpaprXive *xive, uint8_t end_blk,
+                                 uint32_t end_idx, XiveEND *end,
+                                 Error **errp);
+void kvmppc_xive_get_queue_config(SpaprXive *xive, uint8_t end_blk,
+                                 uint32_t end_idx, XiveEND *end,
+                                 Error **errp);
 
 #endif /* PPC_SPAPR_XIVE_H */

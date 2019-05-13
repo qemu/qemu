@@ -86,6 +86,22 @@ static int spapr_xive_target_to_nvt(uint32_t target,
  * sPAPR END indexing uses a simple mapping of the CPU vcpu_id, 8
  * priorities per CPU
  */
+int spapr_xive_end_to_target(uint8_t end_blk, uint32_t end_idx,
+                             uint32_t *out_server, uint8_t *out_prio)
+{
+
+    assert(end_blk == SPAPR_XIVE_BLOCK_ID);
+
+    if (out_server) {
+        *out_server = end_idx >> 3;
+    }
+
+    if (out_prio) {
+        *out_prio = end_idx & 0x7;
+    }
+    return 0;
+}
+
 static void spapr_xive_cpu_to_end(PowerPCCPU *cpu, uint8_t prio,
                                   uint8_t *out_end_blk, uint32_t *out_end_idx)
 {
@@ -792,6 +808,16 @@ static target_ulong h_int_set_source_config(PowerPCCPU *cpu,
         new_eas.w = xive_set_field64(EAS_END_DATA, new_eas.w, eisn);
     }
 
+    if (kvm_irqchip_in_kernel()) {
+        Error *local_err = NULL;
+
+        kvmppc_xive_set_source_config(xive, lisn, &new_eas, &local_err);
+        if (local_err) {
+            error_report_err(local_err);
+            return H_HARDWARE;
+        }
+    }
+
 out:
     xive->eat[lisn] = new_eas;
     return H_SUCCESS;
@@ -1103,6 +1129,16 @@ static target_ulong h_int_set_queue_config(PowerPCCPU *cpu,
      */
 
 out:
+    if (kvm_irqchip_in_kernel()) {
+        Error *local_err = NULL;
+
+        kvmppc_xive_set_queue_config(xive, end_blk, end_idx, &end, &local_err);
+        if (local_err) {
+            error_report_err(local_err);
+            return H_HARDWARE;
+        }
+    }
+
     /* Update END */
     memcpy(&xive->endt[end_idx], &end, sizeof(XiveEND));
     return H_SUCCESS;
@@ -1192,6 +1228,16 @@ static target_ulong h_int_get_queue_config(PowerPCCPU *cpu,
     } else {
         args[1] = 0;
         args[2] = 0;
+    }
+
+    if (kvm_irqchip_in_kernel()) {
+        Error *local_err = NULL;
+
+        kvmppc_xive_get_queue_config(xive, end_blk, end_idx, end, &local_err);
+        if (local_err) {
+            error_report_err(local_err);
+            return H_HARDWARE;
+        }
     }
 
     /* TODO: do we need any locking on the END ? */
@@ -1346,15 +1392,20 @@ static target_ulong h_int_esb(PowerPCCPU *cpu,
         return H_P3;
     }
 
-    mmio_addr = xive->vc_base + xive_source_esb_mgmt(xsrc, lisn) + offset;
+    if (kvm_irqchip_in_kernel()) {
+        args[0] = kvmppc_xive_esb_rw(xsrc, lisn, offset, data,
+                                     flags & SPAPR_XIVE_ESB_STORE);
+    } else {
+        mmio_addr = xive->vc_base + xive_source_esb_mgmt(xsrc, lisn) + offset;
 
-    if (dma_memory_rw(&address_space_memory, mmio_addr, &data, 8,
-                      (flags & SPAPR_XIVE_ESB_STORE))) {
-        qemu_log_mask(LOG_GUEST_ERROR, "XIVE: failed to access ESB @0x%"
-                      HWADDR_PRIx "\n", mmio_addr);
-        return H_HARDWARE;
+        if (dma_memory_rw(&address_space_memory, mmio_addr, &data, 8,
+                          (flags & SPAPR_XIVE_ESB_STORE))) {
+            qemu_log_mask(LOG_GUEST_ERROR, "XIVE: failed to access ESB @0x%"
+                          HWADDR_PRIx "\n", mmio_addr);
+            return H_HARDWARE;
+        }
+        args[0] = (flags & SPAPR_XIVE_ESB_STORE) ? -1 : data;
     }
-    args[0] = (flags & SPAPR_XIVE_ESB_STORE) ? -1 : data;
     return H_SUCCESS;
 }
 
@@ -1411,7 +1462,20 @@ static target_ulong h_int_sync(PowerPCCPU *cpu,
      * This is not needed when running the emulation under QEMU
      */
 
-    /* This is not real hardware. Nothing to be done */
+    /*
+     * This is not real hardware. Nothing to be done unless when
+     * under KVM
+     */
+
+    if (kvm_irqchip_in_kernel()) {
+        Error *local_err = NULL;
+
+        kvmppc_xive_sync_source(xive, lisn, &local_err);
+        if (local_err) {
+            error_report_err(local_err);
+            return H_HARDWARE;
+        }
+    }
     return H_SUCCESS;
 }
 
@@ -1446,6 +1510,16 @@ static target_ulong h_int_reset(PowerPCCPU *cpu,
     }
 
     device_reset(DEVICE(xive));
+
+    if (kvm_irqchip_in_kernel()) {
+        Error *local_err = NULL;
+
+        kvmppc_xive_reset(xive, &local_err);
+        if (local_err) {
+            error_report_err(local_err);
+            return H_HARDWARE;
+        }
+    }
     return H_SUCCESS;
 }
 

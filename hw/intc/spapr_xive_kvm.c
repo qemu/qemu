@@ -89,6 +89,50 @@ void kvmppc_xive_cpu_connect(XiveTCTX *tctx, Error **errp)
  * XIVE Interrupt Source (KVM)
  */
 
+void kvmppc_xive_set_source_config(SpaprXive *xive, uint32_t lisn, XiveEAS *eas,
+                                   Error **errp)
+{
+    uint32_t end_idx;
+    uint32_t end_blk;
+    uint8_t priority;
+    uint32_t server;
+    bool masked;
+    uint32_t eisn;
+    uint64_t kvm_src;
+    Error *local_err = NULL;
+
+    assert(xive_eas_is_valid(eas));
+
+    end_idx = xive_get_field64(EAS_END_INDEX, eas->w);
+    end_blk = xive_get_field64(EAS_END_BLOCK, eas->w);
+    eisn = xive_get_field64(EAS_END_DATA, eas->w);
+    masked = xive_eas_is_masked(eas);
+
+    spapr_xive_end_to_target(end_blk, end_idx, &server, &priority);
+
+    kvm_src = priority << KVM_XIVE_SOURCE_PRIORITY_SHIFT &
+        KVM_XIVE_SOURCE_PRIORITY_MASK;
+    kvm_src |= server << KVM_XIVE_SOURCE_SERVER_SHIFT &
+        KVM_XIVE_SOURCE_SERVER_MASK;
+    kvm_src |= ((uint64_t) masked << KVM_XIVE_SOURCE_MASKED_SHIFT) &
+        KVM_XIVE_SOURCE_MASKED_MASK;
+    kvm_src |= ((uint64_t)eisn << KVM_XIVE_SOURCE_EISN_SHIFT) &
+        KVM_XIVE_SOURCE_EISN_MASK;
+
+    kvm_device_access(xive->fd, KVM_DEV_XIVE_GRP_SOURCE_CONFIG, lisn,
+                      &kvm_src, true, &local_err);
+    if (local_err) {
+        error_propagate(errp, local_err);
+        return;
+    }
+}
+
+void kvmppc_xive_sync_source(SpaprXive *xive, uint32_t lisn, Error **errp)
+{
+    kvm_device_access(xive->fd, KVM_DEV_XIVE_GRP_SOURCE_SYNC, lisn,
+                      NULL, true, errp);
+}
+
 /*
  * At reset, the interrupt sources are simply created and MASKED. We
  * only need to inform the KVM XIVE device about their type: LSI or
@@ -125,6 +169,64 @@ void kvmppc_xive_source_reset(XiveSource *xsrc, Error **errp)
     }
 }
 
+/*
+ * This is used to perform the magic loads on the ESB pages, described
+ * in xive.h.
+ *
+ * Memory barriers should not be needed for loads (no store for now).
+ */
+static uint64_t xive_esb_rw(XiveSource *xsrc, int srcno, uint32_t offset,
+                            uint64_t data, bool write)
+{
+    uint64_t *addr = xsrc->esb_mmap + xive_source_esb_mgmt(xsrc, srcno) +
+        offset;
+
+    if (write) {
+        *addr = cpu_to_be64(data);
+        return -1;
+    } else {
+        /* Prevent the compiler from optimizing away the load */
+        volatile uint64_t value = be64_to_cpu(*addr);
+        return value;
+    }
+}
+
+static uint8_t xive_esb_read(XiveSource *xsrc, int srcno, uint32_t offset)
+{
+    return xive_esb_rw(xsrc, srcno, offset, 0, 0) & 0x3;
+}
+
+static void xive_esb_trigger(XiveSource *xsrc, int srcno)
+{
+    uint64_t *addr = xsrc->esb_mmap + xive_source_esb_page(xsrc, srcno);
+
+    *addr = 0x0;
+}
+
+uint64_t kvmppc_xive_esb_rw(XiveSource *xsrc, int srcno, uint32_t offset,
+                            uint64_t data, bool write)
+{
+    if (write) {
+        return xive_esb_rw(xsrc, srcno, offset, data, 1);
+    }
+
+    /*
+     * Special Load EOI handling for LSI sources. Q bit is never set
+     * and the interrupt should be re-triggered if the level is still
+     * asserted.
+     */
+    if (xive_source_irq_is_lsi(xsrc, srcno) &&
+        offset == XIVE_ESB_LOAD_EOI) {
+        xive_esb_read(xsrc, srcno, XIVE_ESB_SET_PQ_00);
+        if (xsrc->status[srcno] & XIVE_STATUS_ASSERTED) {
+            xive_esb_trigger(xsrc, srcno);
+        }
+        return 0;
+    } else {
+        return xive_esb_rw(xsrc, srcno, offset, 0, 0);
+    }
+}
+
 void kvmppc_xive_source_set_irq(void *opaque, int srcno, int val)
 {
     XiveSource *xsrc = opaque;
@@ -155,6 +257,101 @@ void kvmppc_xive_source_set_irq(void *opaque, int srcno, int val)
 /*
  * sPAPR XIVE interrupt controller (KVM)
  */
+void kvmppc_xive_get_queue_config(SpaprXive *xive, uint8_t end_blk,
+                                  uint32_t end_idx, XiveEND *end,
+                                  Error **errp)
+{
+    struct kvm_ppc_xive_eq kvm_eq = { 0 };
+    uint64_t kvm_eq_idx;
+    uint8_t priority;
+    uint32_t server;
+    Error *local_err = NULL;
+
+    assert(xive_end_is_valid(end));
+
+    /* Encode the tuple (server, prio) as a KVM EQ index */
+    spapr_xive_end_to_target(end_blk, end_idx, &server, &priority);
+
+    kvm_eq_idx = priority << KVM_XIVE_EQ_PRIORITY_SHIFT &
+            KVM_XIVE_EQ_PRIORITY_MASK;
+    kvm_eq_idx |= server << KVM_XIVE_EQ_SERVER_SHIFT &
+        KVM_XIVE_EQ_SERVER_MASK;
+
+    kvm_device_access(xive->fd, KVM_DEV_XIVE_GRP_EQ_CONFIG, kvm_eq_idx,
+                      &kvm_eq, false, &local_err);
+    if (local_err) {
+        error_propagate(errp, local_err);
+        return;
+    }
+
+    /*
+     * The EQ index and toggle bit are updated by HW. These are the
+     * only fields from KVM we want to update QEMU with. The other END
+     * fields should already be in the QEMU END table.
+     */
+    end->w1 = xive_set_field32(END_W1_GENERATION, 0ul, kvm_eq.qtoggle) |
+        xive_set_field32(END_W1_PAGE_OFF, 0ul, kvm_eq.qindex);
+}
+
+void kvmppc_xive_set_queue_config(SpaprXive *xive, uint8_t end_blk,
+                                  uint32_t end_idx, XiveEND *end,
+                                  Error **errp)
+{
+    struct kvm_ppc_xive_eq kvm_eq = { 0 };
+    uint64_t kvm_eq_idx;
+    uint8_t priority;
+    uint32_t server;
+    Error *local_err = NULL;
+
+    /*
+     * Build the KVM state from the local END structure.
+     */
+
+    kvm_eq.flags = 0;
+    if (xive_get_field32(END_W0_UCOND_NOTIFY, end->w0)) {
+        kvm_eq.flags |= KVM_XIVE_EQ_ALWAYS_NOTIFY;
+    }
+
+    /*
+     * If the hcall is disabling the EQ, set the size and page address
+     * to zero. When migrating, only valid ENDs are taken into
+     * account.
+     */
+    if (xive_end_is_valid(end)) {
+        kvm_eq.qshift = xive_get_field32(END_W0_QSIZE, end->w0) + 12;
+        kvm_eq.qaddr  = xive_end_qaddr(end);
+        /*
+         * The EQ toggle bit and index should only be relevant when
+         * restoring the EQ state
+         */
+        kvm_eq.qtoggle = xive_get_field32(END_W1_GENERATION, end->w1);
+        kvm_eq.qindex  = xive_get_field32(END_W1_PAGE_OFF, end->w1);
+    } else {
+        kvm_eq.qshift = 0;
+        kvm_eq.qaddr  = 0;
+    }
+
+    /* Encode the tuple (server, prio) as a KVM EQ index */
+    spapr_xive_end_to_target(end_blk, end_idx, &server, &priority);
+
+    kvm_eq_idx = priority << KVM_XIVE_EQ_PRIORITY_SHIFT &
+            KVM_XIVE_EQ_PRIORITY_MASK;
+    kvm_eq_idx |= server << KVM_XIVE_EQ_SERVER_SHIFT &
+        KVM_XIVE_EQ_SERVER_MASK;
+
+    kvm_device_access(xive->fd, KVM_DEV_XIVE_GRP_EQ_CONFIG, kvm_eq_idx,
+                      &kvm_eq, true, &local_err);
+    if (local_err) {
+        error_propagate(errp, local_err);
+        return;
+    }
+}
+
+void kvmppc_xive_reset(SpaprXive *xive, Error **errp)
+{
+    kvm_device_access(xive->fd, KVM_DEV_XIVE_GRP_CTRL, KVM_DEV_XIVE_RESET,
+                      NULL, true, errp);
+}
 
 static void *kvmppc_xive_mmap(SpaprXive *xive, int pgoff, size_t len,
                               Error **errp)
