@@ -69,6 +69,11 @@ void icp_get_kvm_state(ICPState *icp)
     uint64_t state;
     int ret;
 
+    /* The KVM XICS device is not in use */
+    if (kernel_xics_fd == -1) {
+        return;
+    }
+
     /* ICP for this CPU thread is not in use, exiting */
     if (!icp->cs) {
         return;
@@ -105,6 +110,11 @@ int icp_set_kvm_state(ICPState *icp)
     uint64_t state;
     int ret;
 
+    /* The KVM XICS device is not in use */
+    if (kernel_xics_fd == -1) {
+        return 0;
+    }
+
     /* ICP for this CPU thread is not in use, exiting */
     if (!icp->cs) {
         return 0;
@@ -133,8 +143,9 @@ void icp_kvm_realize(DeviceState *dev, Error **errp)
     unsigned long vcpu_id;
     int ret;
 
+    /* The KVM XICS device is not in use */
     if (kernel_xics_fd == -1) {
-        abort();
+        return;
     }
 
     cs = icp->cs;
@@ -169,6 +180,11 @@ void ics_get_kvm_state(ICSState *ics)
 {
     uint64_t state;
     int i;
+
+    /* The KVM XICS device is not in use */
+    if (kernel_xics_fd == -1) {
+        return;
+    }
 
     for (i = 0; i < ics->nr_irqs; i++) {
         ICSIRQState *irq = &ics->irqs[i];
@@ -230,6 +246,11 @@ int ics_set_kvm_state_one(ICSState *ics, int srcno)
     ICSIRQState *irq = &ics->irqs[srcno];
     int ret;
 
+    /* The KVM XICS device is not in use */
+    if (kernel_xics_fd == -1) {
+        return 0;
+    }
+
     state = irq->server;
     state |= (uint64_t)(irq->saved_priority & KVM_XICS_PRIORITY_MASK)
         << KVM_XICS_PRIORITY_SHIFT;
@@ -269,6 +290,11 @@ int ics_set_kvm_state(ICSState *ics)
 {
     int i;
 
+    /* The KVM XICS device is not in use */
+    if (kernel_xics_fd == -1) {
+        return 0;
+    }
+
     for (i = 0; i < ics->nr_irqs; i++) {
         int ret;
 
@@ -285,6 +311,9 @@ void ics_kvm_set_irq(ICSState *ics, int srcno, int val)
 {
     struct kvm_irq_level args;
     int rc;
+
+    /* The KVM XICS device should be in use */
+    assert(kernel_xics_fd != -1);
 
     args.irq = srcno + ics->offset;
     if (ics->irqs[srcno].flags & XICS_FLAGS_IRQ_MSI) {

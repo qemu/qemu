@@ -90,8 +90,14 @@ static void kvmppc_xive_cpu_set_state(XiveTCTX *tctx, Error **errp)
 
 void kvmppc_xive_cpu_get_state(XiveTCTX *tctx, Error **errp)
 {
+    SpaprXive *xive = SPAPR_MACHINE(qdev_get_machine())->xive;
     uint64_t state[2] = { 0 };
     int ret;
+
+    /* The KVM XIVE device is not in use */
+    if (xive->fd == -1) {
+        return;
+    }
 
     ret = kvm_get_one_reg(tctx->cs, KVM_REG_PPC_VP_STATE, state);
     if (ret != 0) {
@@ -142,6 +148,11 @@ void kvmppc_xive_cpu_connect(XiveTCTX *tctx, Error **errp)
     SpaprXive *xive = SPAPR_MACHINE(qdev_get_machine())->xive;
     unsigned long vcpu_id;
     int ret;
+
+    /* The KVM XIVE device is not in use */
+    if (xive->fd == -1) {
+        return;
+    }
 
     /* Check if CPU was hot unplugged and replugged. */
     if (kvm_cpu_is_enabled(tctx->cs)) {
@@ -218,6 +229,11 @@ void kvmppc_xive_source_reset_one(XiveSource *xsrc, int srcno, Error **errp)
 {
     SpaprXive *xive = SPAPR_XIVE(xsrc->xive);
     uint64_t state = 0;
+
+    /* The KVM XIVE device is not in use */
+    if (xive->fd == -1) {
+        return;
+    }
 
     if (xive_source_irq_is_lsi(xsrc, srcno)) {
         state |= KVM_XIVE_LEVEL_SENSITIVE;
@@ -319,8 +335,12 @@ static void kvmppc_xive_source_get_state(XiveSource *xsrc)
 void kvmppc_xive_source_set_irq(void *opaque, int srcno, int val)
 {
     XiveSource *xsrc = opaque;
+    SpaprXive *xive = SPAPR_XIVE(xsrc->xive);
     struct kvm_irq_level args;
     int rc;
+
+    /* The KVM XIVE device should be in use */
+    assert(xive->fd != -1);
 
     args.irq = srcno;
     if (!xive_source_irq_is_lsi(xsrc, srcno)) {
@@ -546,6 +566,11 @@ static void kvmppc_xive_change_state_handler(void *opaque, int running,
 
 void kvmppc_xive_synchronize_state(SpaprXive *xive, Error **errp)
 {
+    /* The KVM XIVE device is not in use */
+    if (xive->fd == -1) {
+        return;
+    }
+
     /*
      * When the VM is stopped, the sources are masked and the previous
      * state is saved in anticipation of a migration. We should not
@@ -571,6 +596,11 @@ int kvmppc_xive_pre_save(SpaprXive *xive)
 {
     Error *local_err = NULL;
 
+    /* The KVM XIVE device is not in use */
+    if (xive->fd == -1) {
+        return 0;
+    }
+
     /* EAT: there is no extra state to query from KVM */
 
     /* ENDT */
@@ -594,6 +624,9 @@ int kvmppc_xive_post_load(SpaprXive *xive, int version_id)
     Error *local_err = NULL;
     CPUState *cs;
     int i;
+
+    /* The KVM XIVE device should be in use */
+    assert(xive->fd != -1);
 
     /* Restore the ENDT first. The targetting depends on it. */
     for (i = 0; i < xive->nr_ends; i++) {
