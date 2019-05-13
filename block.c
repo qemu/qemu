@@ -2243,6 +2243,13 @@ static void bdrv_replace_child(BdrvChild *child, BlockDriverState *new_bs)
     }
 }
 
+/*
+ * This function steals the reference to child_bs from the caller.
+ * That reference is later dropped by bdrv_root_unref_child().
+ *
+ * On failure NULL is returned, errp is set and the reference to
+ * child_bs is also dropped.
+ */
 BdrvChild *bdrv_root_attach_child(BlockDriverState *child_bs,
                                   const char *child_name,
                                   const BdrvChildRole *child_role,
@@ -2255,6 +2262,7 @@ BdrvChild *bdrv_root_attach_child(BlockDriverState *child_bs,
     ret = bdrv_check_update_perm(child_bs, NULL, perm, shared_perm, NULL, errp);
     if (ret < 0) {
         bdrv_abort_perm_update(child_bs);
+        bdrv_unref(child_bs);
         return NULL;
     }
 
@@ -2274,6 +2282,14 @@ BdrvChild *bdrv_root_attach_child(BlockDriverState *child_bs,
     return child;
 }
 
+/*
+ * This function transfers the reference to child_bs from the caller
+ * to parent_bs. That reference is later dropped by parent_bs on
+ * bdrv_close() or if someone calls bdrv_unref_child().
+ *
+ * On failure NULL is returned, errp is set and the reference to
+ * child_bs is also dropped.
+ */
 BdrvChild *bdrv_attach_child(BlockDriverState *parent_bs,
                              BlockDriverState *child_bs,
                              const char *child_name,
@@ -2401,11 +2417,8 @@ void bdrv_set_backing_hd(BlockDriverState *bs, BlockDriverState *backing_hd,
     /* If backing_hd was already part of bs's backing chain, and
      * inherits_from pointed recursively to bs then let's update it to
      * point directly to bs (else it will become NULL). */
-    if (update_inherits_from) {
+    if (bs->backing && update_inherits_from) {
         backing_hd->inherits_from = bs;
-    }
-    if (!bs->backing) {
-        bdrv_unref(backing_hd);
     }
 
 out:
@@ -2594,7 +2607,6 @@ BdrvChild *bdrv_open_child(const char *filename,
                            const BdrvChildRole *child_role,
                            bool allow_none, Error **errp)
 {
-    BdrvChild *c;
     BlockDriverState *bs;
 
     bs = bdrv_open_child_bs(filename, options, bdref_key, parent, child_role,
@@ -2603,13 +2615,7 @@ BdrvChild *bdrv_open_child(const char *filename,
         return NULL;
     }
 
-    c = bdrv_attach_child(parent, bs, bdref_key, child_role, errp);
-    if (!c) {
-        bdrv_unref(bs);
-        return NULL;
-    }
-
-    return c;
+    return bdrv_attach_child(parent, bs, bdref_key, child_role, errp);
 }
 
 /* TODO Future callers may need to specify parent/child_role in order for
