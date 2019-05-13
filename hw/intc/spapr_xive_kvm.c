@@ -433,9 +433,100 @@ static void kvmppc_xive_get_queues(SpaprXive *xive, Error **errp)
     }
 }
 
+/*
+ * The primary goal of the XIVE VM change handler is to mark the EQ
+ * pages dirty when all XIVE event notifications have stopped.
+ *
+ * Whenever the VM is stopped, the VM change handler sets the source
+ * PQs to PENDING to stop the flow of events and to possibly catch a
+ * triggered interrupt occuring while the VM is stopped. The previous
+ * state is saved in anticipation of a migration. The XIVE controller
+ * is then synced through KVM to flush any in-flight event
+ * notification and stabilize the EQs.
+ *
+ * At this stage, we can mark the EQ page dirty and let a migration
+ * sequence transfer the EQ pages to the destination, which is done
+ * just after the stop state.
+ *
+ * The previous configuration of the sources is restored when the VM
+ * runs again. If an interrupt was queued while the VM was stopped,
+ * simply generate a trigger.
+ */
+static void kvmppc_xive_change_state_handler(void *opaque, int running,
+                                             RunState state)
+{
+    SpaprXive *xive = opaque;
+    XiveSource *xsrc = &xive->source;
+    Error *local_err = NULL;
+    int i;
+
+    /*
+     * Restore the sources to their initial state. This is called when
+     * the VM resumes after a stop or a migration.
+     */
+    if (running) {
+        for (i = 0; i < xsrc->nr_irqs; i++) {
+            uint8_t pq = xive_source_esb_get(xsrc, i);
+            uint8_t old_pq;
+
+            old_pq = xive_esb_read(xsrc, i, XIVE_ESB_SET_PQ_00 + (pq << 8));
+
+            /*
+             * An interrupt was queued while the VM was stopped,
+             * generate a trigger.
+             */
+            if (pq == XIVE_ESB_RESET && old_pq == XIVE_ESB_QUEUED) {
+                xive_esb_trigger(xsrc, i);
+            }
+        }
+
+        return;
+    }
+
+    /*
+     * Mask the sources, to stop the flow of event notifications, and
+     * save the PQs locally in the XiveSource object. The XiveSource
+     * state will be collected later on by its vmstate handler if a
+     * migration is in progress.
+     */
+    for (i = 0; i < xsrc->nr_irqs; i++) {
+        uint8_t pq = xive_esb_read(xsrc, i, XIVE_ESB_GET);
+
+        /*
+         * PQ is set to PENDING to possibly catch a triggered
+         * interrupt occuring while the VM is stopped (hotplug event
+         * for instance) .
+         */
+        if (pq != XIVE_ESB_OFF) {
+            pq = xive_esb_read(xsrc, i, XIVE_ESB_SET_PQ_10);
+        }
+        xive_source_esb_set(xsrc, i, pq);
+    }
+
+    /*
+     * Sync the XIVE controller in KVM, to flush in-flight event
+     * notification that should be enqueued in the EQs and mark the
+     * XIVE EQ pages dirty to collect all updates.
+     */
+    kvm_device_access(xive->fd, KVM_DEV_XIVE_GRP_CTRL,
+                      KVM_DEV_XIVE_EQ_SYNC, NULL, true, &local_err);
+    if (local_err) {
+        error_report_err(local_err);
+        return;
+    }
+}
+
 void kvmppc_xive_synchronize_state(SpaprXive *xive, Error **errp)
 {
-    kvmppc_xive_source_get_state(&xive->source);
+    /*
+     * When the VM is stopped, the sources are masked and the previous
+     * state is saved in anticipation of a migration. We should not
+     * synchronize the source state in that case else we will override
+     * the saved state.
+     */
+    if (runstate_is_running()) {
+        kvmppc_xive_source_get_state(&xive->source);
+    }
 
     /* EAT: there is no extra state to query from KVM */
 
@@ -514,6 +605,9 @@ void kvmppc_xive_connect(SpaprXive *xive, Error **errp)
     memory_region_init_ram_device_ptr(&xive->tm_mmio, OBJECT(xive),
                                       "xive.tima", tima_len, xive->tm_mmap);
     sysbus_init_mmio(SYS_BUS_DEVICE(xive), &xive->tm_mmio);
+
+    xive->change = qemu_add_vm_change_state_handler(
+        kvmppc_xive_change_state_handler, xive);
 
     kvm_kernel_irqchip = true;
     kvm_msi_via_irqfd_allowed = true;
