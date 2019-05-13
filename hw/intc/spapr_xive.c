@@ -174,7 +174,7 @@ void spapr_xive_pic_print_info(SpaprXive *xive, Monitor *mon)
     }
 }
 
-static void spapr_xive_map_mmio(SpaprXive *xive)
+void spapr_xive_map_mmio(SpaprXive *xive)
 {
     sysbus_mmio_map(SYS_BUS_DEVICE(xive), 0, xive->vc_base);
     sysbus_mmio_map(SYS_BUS_DEVICE(xive), 1, xive->end_base);
@@ -251,6 +251,9 @@ static void spapr_xive_instance_init(Object *obj)
     object_initialize_child(obj, "end_source", &xive->end_source,
                             sizeof(xive->end_source), TYPE_XIVE_END_SOURCE,
                             &error_abort, NULL);
+
+    /* Not connected to the KVM XIVE device */
+    xive->fd = -1;
 }
 
 static void spapr_xive_realize(DeviceState *dev, Error **errp)
@@ -259,6 +262,7 @@ static void spapr_xive_realize(DeviceState *dev, Error **errp)
     XiveSource *xsrc = &xive->source;
     XiveENDSource *end_xsrc = &xive->end_source;
     Error *local_err = NULL;
+    MachineState *machine = MACHINE(qdev_get_machine());
 
     if (!xive->nr_irqs) {
         error_setg(errp, "Number of interrupt needs to be greater 0");
@@ -305,6 +309,32 @@ static void spapr_xive_realize(DeviceState *dev, Error **errp)
     xive->eat = g_new0(XiveEAS, xive->nr_irqs);
     xive->endt = g_new0(XiveEND, xive->nr_ends);
 
+    xive->nodename = g_strdup_printf("interrupt-controller@%" PRIx64,
+                           xive->tm_base + XIVE_TM_USER_PAGE * (1 << TM_SHIFT));
+
+    qemu_register_reset(spapr_xive_reset, dev);
+
+    if (kvm_enabled() && machine_kernel_irqchip_allowed(machine)) {
+        kvmppc_xive_connect(xive, &local_err);
+        if (local_err && machine_kernel_irqchip_required(machine)) {
+            error_prepend(&local_err,
+                          "kernel_irqchip requested but unavailable: ");
+            error_propagate(errp, local_err);
+            return;
+        }
+
+        if (!local_err) {
+            return;
+        }
+
+        /*
+         * We failed to initialize the XIVE KVM device, fallback to
+         * emulated mode
+         */
+        error_prepend(&local_err, "kernel_irqchip allowed but unavailable: ");
+        warn_report_err(local_err);
+    }
+
     /* TIMA initialization */
     memory_region_init_io(&xive->tm_mmio, OBJECT(xive), &xive_tm_ops, xive,
                           "xive.tima", 4ull << TM_SHIFT);
@@ -316,11 +346,6 @@ static void spapr_xive_realize(DeviceState *dev, Error **errp)
 
     /* Map all regions */
     spapr_xive_map_mmio(xive);
-
-    xive->nodename = g_strdup_printf("interrupt-controller@%" PRIx64,
-                           xive->tm_base + XIVE_TM_USER_PAGE * (1 << TM_SHIFT));
-
-    qemu_register_reset(spapr_xive_reset, dev);
 }
 
 static int spapr_xive_get_eas(XiveRouter *xrtr, uint8_t eas_blk,
@@ -495,6 +520,17 @@ bool spapr_xive_irq_claim(SpaprXive *xive, uint32_t lisn, bool lsi)
     if (lsi) {
         xive_source_irq_set_lsi(xsrc, lisn);
     }
+
+    if (kvm_irqchip_in_kernel()) {
+        Error *local_err = NULL;
+
+        kvmppc_xive_source_reset_one(xsrc, lisn, &local_err);
+        if (local_err) {
+            error_report_err(local_err);
+            return false;
+        }
+    }
+
     return true;
 }
 

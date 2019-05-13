@@ -75,6 +75,7 @@ static int cap_fixup_hcalls;
 static int cap_htm;             /* Hardware transactional memory support */
 static int cap_mmu_radix;
 static int cap_mmu_hash_v3;
+static int cap_xive;
 static int cap_resize_hpt;
 static int cap_ppc_pvr_compat;
 static int cap_ppc_safe_cache;
@@ -146,6 +147,7 @@ int kvm_arch_init(MachineState *ms, KVMState *s)
     cap_htm = kvm_vm_check_extension(s, KVM_CAP_PPC_HTM);
     cap_mmu_radix = kvm_vm_check_extension(s, KVM_CAP_PPC_MMU_RADIX);
     cap_mmu_hash_v3 = kvm_vm_check_extension(s, KVM_CAP_PPC_MMU_HASH_V3);
+    cap_xive = kvm_vm_check_extension(s, KVM_CAP_PPC_IRQ_XIVE);
     cap_resize_hpt = kvm_vm_check_extension(s, KVM_CAP_SPAPR_RESIZE_HPT);
     kvmppc_get_cpu_characteristics(s);
     cap_ppc_nested_kvm_hv = kvm_vm_check_extension(s, KVM_CAP_PPC_NESTED_HV);
@@ -2476,6 +2478,11 @@ static int parse_cap_ppc_count_cache_flush_assist(struct kvm_ppc_cpu_char c)
         return 1;
     }
     return 0;
+}
+
+bool kvmppc_has_cap_xive(void)
+{
+    return cap_xive;
 }
 
 static void kvmppc_get_cpu_characteristics(KVMState *s)

@@ -555,6 +555,15 @@ static void xive_tctx_realize(DeviceState *dev, Error **errp)
         return;
     }
 
+    /* Connect the presenter to the VCPU (required for CPU hotplug) */
+    if (kvm_irqchip_in_kernel()) {
+        kvmppc_xive_cpu_connect(tctx, &local_err);
+        if (local_err) {
+            error_propagate(errp, local_err);
+            return;
+        }
+    }
+
     qemu_register_reset(xive_tctx_reset, dev);
 }
 
@@ -957,6 +966,10 @@ static void xive_source_reset(void *dev)
 
     /* PQs are initialized to 0b01 (Q=1) which corresponds to "ints off" */
     memset(xsrc->status, XIVE_ESB_OFF, xsrc->nr_irqs);
+
+    if (kvm_irqchip_in_kernel()) {
+        kvmppc_xive_source_reset(xsrc, &error_fatal);
+    }
 }
 
 static void xive_source_realize(DeviceState *dev, Error **errp)
@@ -990,9 +1003,11 @@ static void xive_source_realize(DeviceState *dev, Error **errp)
     xsrc->status = g_malloc0(xsrc->nr_irqs);
     xsrc->lsi_map = bitmap_new(xsrc->nr_irqs);
 
-    memory_region_init_io(&xsrc->esb_mmio, OBJECT(xsrc),
-                          &xive_source_esb_ops, xsrc, "xive.esb",
-                          (1ull << xsrc->esb_shift) * xsrc->nr_irqs);
+    if (!kvm_irqchip_in_kernel()) {
+        memory_region_init_io(&xsrc->esb_mmio, OBJECT(xsrc),
+                              &xive_source_esb_ops, xsrc, "xive.esb",
+                              (1ull << xsrc->esb_shift) * xsrc->nr_irqs);
+    }
 
     qemu_register_reset(xive_source_reset, dev);
 }

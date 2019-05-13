@@ -372,7 +372,11 @@ static void spapr_irq_set_irq_xive(void *opaque, int srcno, int val)
 {
     SpaprMachineState *spapr = opaque;
 
-    xive_source_set_irq(&spapr->xive->source, srcno, val);
+    if (kvm_irqchip_in_kernel()) {
+        kvmppc_xive_source_set_irq(&spapr->xive->source, srcno, val);
+    } else {
+        xive_source_set_irq(&spapr->xive->source, srcno, val);
+    }
 }
 
 static const char *spapr_irq_get_nodename_xive(SpaprMachineState *spapr)
