@@ -153,6 +153,16 @@ static void sysbus_mmio_map_common(SysBusDevice *dev, int n, hwaddr addr,
     }
 }
 
+void sysbus_mmio_unmap(SysBusDevice *dev, int n)
+{
+    assert(n >= 0 && n < dev->num_mmio);
+
+    if (dev->mmio[n].addr != (hwaddr)-1) {
+        memory_region_del_subregion(get_system_memory(), dev->mmio[n].memory);
+        dev->mmio[n].addr = (hwaddr)-1;
+    }
+}
+
 void sysbus_mmio_map(SysBusDevice *dev, int n, hwaddr addr)
 {
     sysbus_mmio_map_common(dev, n, addr, false, 0);
