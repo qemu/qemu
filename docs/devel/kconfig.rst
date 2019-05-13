@@ -299,7 +299,7 @@ and also listed as follows in the top-level Makefile's ``MINIKCONF_ARGS``
 variable::
 
     MINIKCONF_ARGS = \
-      $@ $*-config.devices.mak.d $< $(MINIKCONF_INPUTS) \
+      $@ $*/config-devices.mak.d $< $(MINIKCONF_INPUTS) \
       CONFIG_KVM=$(CONFIG_KVM) \
       CONFIG_SPICE=$(CONFIG_SPICE) \
       CONFIG_TPM=$(CONFIG_TPM) \

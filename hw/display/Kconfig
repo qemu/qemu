@@ -26,10 +26,12 @@ config JAZZ_LED
 
 config PL110
     bool
+    select FRAMEBUFFER
 
 config SII9022
     bool
     depends on I2C
+    select DDC
 
 config SSD0303
     bool
@@ -111,6 +113,7 @@ config VIRTIO_VGA
 
 config DPCD
     bool
+    select AUX
 
 config ATI_VGA
     bool

@@ -44,9 +44,13 @@ config MICRODRIVE
 
 config AHCI
     bool
+    select IDE_QDEV
+
+config AHCI_ICH9
+    bool
     default y if PCI_DEVICES
     depends on PCI
-    select IDE_QDEV
+    select AHCI
 
 config IDE_SII3112
     bool

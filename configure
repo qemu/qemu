@@ -1832,7 +1832,7 @@ exit 0
 fi
 
 # Remove old dependency files to make sure that they get properly regenerated
-rm -f *-config-devices.mak.d
+rm -f */config-devices.mak.d
 
 if test -z "$python"
 then
