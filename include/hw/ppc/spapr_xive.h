@@ -55,6 +55,7 @@ typedef struct SpaprXive {
 bool spapr_xive_irq_claim(SpaprXive *xive, uint32_t lisn, bool lsi);
 bool spapr_xive_irq_free(SpaprXive *xive, uint32_t lisn);
 void spapr_xive_pic_print_info(SpaprXive *xive, Monitor *mon);
+int spapr_xive_post_load(SpaprXive *xive, int version_id);
 
 void spapr_xive_hcall_init(SpaprMachineState *spapr);
 void spapr_dt_xive(SpaprMachineState *spapr, uint32_t nr_servers, void *fdt,
@@ -83,5 +84,7 @@ void kvmppc_xive_get_queue_config(SpaprXive *xive, uint8_t end_blk,
                                  uint32_t end_idx, XiveEND *end,
                                  Error **errp);
 void kvmppc_xive_synchronize_state(SpaprXive *xive, Error **errp);
+int kvmppc_xive_pre_save(SpaprXive *xive);
+int kvmppc_xive_post_load(SpaprXive *xive, int version_id);
 
 #endif /* PPC_SPAPR_XIVE_H */

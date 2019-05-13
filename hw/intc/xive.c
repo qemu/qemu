@@ -582,10 +582,27 @@ static void xive_tctx_unrealize(DeviceState *dev, Error **errp)
     qemu_unregister_reset(xive_tctx_reset, dev);
 }
 
+static int vmstate_xive_tctx_pre_save(void *opaque)
+{
+    Error *local_err = NULL;
+
+    if (kvm_irqchip_in_kernel()) {
+        kvmppc_xive_cpu_get_state(XIVE_TCTX(opaque), &local_err);
+        if (local_err) {
+            error_report_err(local_err);
+            return -1;
+        }
+    }
+
+    return 0;
+}
+
 static const VMStateDescription vmstate_xive_tctx = {
     .name = TYPE_XIVE_TCTX,
     .version_id = 1,
     .minimum_version_id = 1,
+    .pre_save = vmstate_xive_tctx_pre_save,
+    .post_load = NULL, /* handled by the sPAPRxive model */
     .fields = (VMStateField[]) {
         VMSTATE_BUFFER(regs, XiveTCTX),
         VMSTATE_END_OF_LIST()

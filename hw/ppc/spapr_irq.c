@@ -350,7 +350,7 @@ static void spapr_irq_cpu_intc_create_xive(SpaprMachineState *spapr,
 
 static int spapr_irq_post_load_xive(SpaprMachineState *spapr, int version_id)
 {
-    return 0;
+    return spapr_xive_post_load(spapr->xive, version_id);
 }
 
 static void spapr_irq_reset_xive(SpaprMachineState *spapr, Error **errp)
