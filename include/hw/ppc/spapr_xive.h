@@ -44,6 +44,13 @@ typedef struct SpaprXive {
     void          *tm_mmap;
 } SpaprXive;
 
+/*
+ * The sPAPR machine has a unique XIVE IC device. Assign a fixed value
+ * to the controller block id value. It can nevertheless be changed
+ * for testing purpose.
+ */
+#define SPAPR_XIVE_BLOCK_ID 0x0
+
 bool spapr_xive_irq_claim(SpaprXive *xive, uint32_t lisn, bool lsi);
 bool spapr_xive_irq_free(SpaprXive *xive, uint32_t lisn);
 void spapr_xive_pic_print_info(SpaprXive *xive, Monitor *mon);
@@ -74,5 +81,6 @@ void kvmppc_xive_set_queue_config(SpaprXive *xive, uint8_t end_blk,
 void kvmppc_xive_get_queue_config(SpaprXive *xive, uint8_t end_blk,
                                  uint32_t end_idx, XiveEND *end,
                                  Error **errp);
+void kvmppc_xive_synchronize_state(SpaprXive *xive, Error **errp);
 
 #endif /* PPC_SPAPR_XIVE_H */

@@ -41,13 +41,6 @@
 #define SPAPR_XIVE_NVT_BASE 0x400
 
 /*
- * The sPAPR machine has a unique XIVE IC device. Assign a fixed value
- * to the controller block id value. It can nevertheless be changed
- * for testing purpose.
- */
-#define SPAPR_XIVE_BLOCK_ID 0x0
-
-/*
  * sPAPR NVT and END indexing helpers
  */
 static uint32_t spapr_xive_nvt_to_target(uint8_t nvt_blk, uint32_t nvt_idx)
@@ -156,6 +149,16 @@ void spapr_xive_pic_print_info(SpaprXive *xive, Monitor *mon)
 {
     XiveSource *xsrc = &xive->source;
     int i;
+
+    if (kvm_irqchip_in_kernel()) {
+        Error *local_err = NULL;
+
+        kvmppc_xive_synchronize_state(xive, &local_err);
+        if (local_err) {
+            error_report_err(local_err);
+            return;
+        }
+    }
 
     monitor_printf(mon, "  LISN         PQ    EISN     CPU/PRIO EQ\n");
 

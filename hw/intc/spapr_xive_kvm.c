@@ -60,6 +60,54 @@ static void kvm_cpu_enable(CPUState *cs)
 /*
  * XIVE Thread Interrupt Management context (KVM)
  */
+static void kvmppc_xive_cpu_get_state(XiveTCTX *tctx, Error **errp)
+{
+    uint64_t state[2] = { 0 };
+    int ret;
+
+    ret = kvm_get_one_reg(tctx->cs, KVM_REG_PPC_VP_STATE, state);
+    if (ret != 0) {
+        error_setg_errno(errp, errno,
+                         "XIVE: could not capture KVM state of CPU %ld",
+                         kvm_arch_vcpu_id(tctx->cs));
+        return;
+    }
+
+    /* word0 and word1 of the OS ring. */
+    *((uint64_t *) &tctx->regs[TM_QW1_OS]) = state[0];
+}
+
+typedef struct {
+    XiveTCTX *tctx;
+    Error *err;
+} XiveCpuGetState;
+
+static void kvmppc_xive_cpu_do_synchronize_state(CPUState *cpu,
+                                                 run_on_cpu_data arg)
+{
+    XiveCpuGetState *s = arg.host_ptr;
+
+    kvmppc_xive_cpu_get_state(s->tctx, &s->err);
+}
+
+void kvmppc_xive_cpu_synchronize_state(XiveTCTX *tctx, Error **errp)
+{
+    XiveCpuGetState s = {
+        .tctx = tctx,
+        .err = NULL,
+    };
+
+    /*
+     * Kick the vCPU to make sure they are available for the KVM ioctl.
+     */
+    run_on_cpu(tctx->cs, kvmppc_xive_cpu_do_synchronize_state,
+               RUN_ON_CPU_HOST_PTR(&s));
+
+    if (s.err) {
+        error_propagate(errp, s.err);
+        return;
+    }
+}
 
 void kvmppc_xive_cpu_connect(XiveTCTX *tctx, Error **errp)
 {
@@ -227,6 +275,19 @@ uint64_t kvmppc_xive_esb_rw(XiveSource *xsrc, int srcno, uint32_t offset,
     }
 }
 
+static void kvmppc_xive_source_get_state(XiveSource *xsrc)
+{
+    int i;
+
+    for (i = 0; i < xsrc->nr_irqs; i++) {
+        /* Perform a load without side effect to retrieve the PQ bits */
+        uint8_t pq = xive_esb_read(xsrc, i, XIVE_ESB_GET);
+
+        /* and save PQ locally */
+        xive_source_esb_set(xsrc, i, pq);
+    }
+}
+
 void kvmppc_xive_source_set_irq(void *opaque, int srcno, int val)
 {
     XiveSource *xsrc = opaque;
@@ -351,6 +412,35 @@ void kvmppc_xive_reset(SpaprXive *xive, Error **errp)
 {
     kvm_device_access(xive->fd, KVM_DEV_XIVE_GRP_CTRL, KVM_DEV_XIVE_RESET,
                       NULL, true, errp);
+}
+
+static void kvmppc_xive_get_queues(SpaprXive *xive, Error **errp)
+{
+    Error *local_err = NULL;
+    int i;
+
+    for (i = 0; i < xive->nr_ends; i++) {
+        if (!xive_end_is_valid(&xive->endt[i])) {
+            continue;
+        }
+
+        kvmppc_xive_get_queue_config(xive, SPAPR_XIVE_BLOCK_ID, i,
+                                     &xive->endt[i], &local_err);
+        if (local_err) {
+            error_propagate(errp, local_err);
+            return;
+        }
+    }
+}
+
+void kvmppc_xive_synchronize_state(SpaprXive *xive, Error **errp)
+{
+    kvmppc_xive_source_get_state(&xive->source);
+
+    /* EAT: there is no extra state to query from KVM */
+
+    /* ENDT */
+    kvmppc_xive_get_queues(xive, errp);
 }
 
 static void *kvmppc_xive_mmap(SpaprXive *xive, int pgoff, size_t len,

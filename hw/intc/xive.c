@@ -493,6 +493,16 @@ void xive_tctx_pic_print_info(XiveTCTX *tctx, Monitor *mon)
     int cpu_index = tctx->cs ? tctx->cs->cpu_index : -1;
     int i;
 
+    if (kvm_irqchip_in_kernel()) {
+        Error *local_err = NULL;
+
+        kvmppc_xive_cpu_synchronize_state(tctx, &local_err);
+        if (local_err) {
+            error_report_err(local_err);
+            return;
+        }
+    }
+
     monitor_printf(mon, "CPU[%04x]:   QW   NSR CPPR IPB LSMFB ACK# INC AGE PIPR"
                    "  W2\n", cpu_index);
 
