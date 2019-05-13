@@ -248,18 +248,9 @@ SpaprIrq spapr_irq_xics = {
 static void spapr_irq_init_xive(SpaprMachineState *spapr, int nr_irqs,
                                 Error **errp)
 {
-    MachineState *machine = MACHINE(spapr);
     uint32_t nr_servers = spapr_max_server_number(spapr);
     DeviceState *dev;
     int i;
-
-    /* KVM XIVE device not yet available */
-    if (kvm_enabled()) {
-        if (machine_kernel_irqchip_required(machine)) {
-            error_setg(errp, "kernel_irqchip requested. no KVM XIVE support");
-            return;
-        }
-    }
 
     dev = qdev_create(NULL, TYPE_SPAPR_XIVE);
     qdev_prop_set_uint32(dev, "nr-irqs", nr_irqs);
