@@ -62,6 +62,35 @@ void spapr_irq_msi_reset(SpaprMachineState *spapr)
     bitmap_clear(spapr->irq_map, 0, spapr->irq_map_nr);
 }
 
+static void spapr_irq_init_device(SpaprMachineState *spapr,
+                                  SpaprIrq *irq, Error **errp)
+{
+    MachineState *machine = MACHINE(spapr);
+    Error *local_err = NULL;
+
+    if (kvm_enabled() && machine_kernel_irqchip_allowed(machine)) {
+        irq->init_kvm(spapr, &local_err);
+        if (local_err && machine_kernel_irqchip_required(machine)) {
+            error_prepend(&local_err,
+                          "kernel_irqchip requested but unavailable: ");
+            error_propagate(errp, local_err);
+            return;
+        }
+
+        if (!local_err) {
+            return;
+        }
+
+        /*
+         * We failed to initialize the KVM device, fallback to
+         * emulated mode
+         */
+        error_prepend(&local_err, "kernel_irqchip allowed but unavailable: ");
+        warn_report_err(local_err);
+    }
+
+    irq->init_emu(spapr, errp);
+}
 
 /*
  * XICS IRQ backend.
@@ -70,28 +99,13 @@ void spapr_irq_msi_reset(SpaprMachineState *spapr)
 static void spapr_irq_init_xics(SpaprMachineState *spapr, int nr_irqs,
                                 Error **errp)
 {
-    MachineState *machine = MACHINE(spapr);
     Object *obj;
     Error *local_err = NULL;
-    bool xics_kvm = false;
 
-    if (kvm_enabled()) {
-        if (machine_kernel_irqchip_allowed(machine) &&
-            !xics_kvm_init(spapr, &local_err)) {
-            xics_kvm = true;
-        }
-        if (machine_kernel_irqchip_required(machine) && !xics_kvm) {
-            error_prepend(&local_err,
-                          "kernel_irqchip requested but unavailable: ");
-            error_propagate(errp, local_err);
-            return;
-        }
-        error_free(local_err);
-        local_err = NULL;
-    }
-
-    if (!xics_kvm) {
-        xics_spapr_init(spapr);
+    spapr_irq_init_device(spapr, &spapr_irq_xics, &local_err);
+    if (local_err) {
+        error_propagate(errp, local_err);
+        return;
     }
 
     obj = object_new(TYPE_ICS_SIMPLE);
@@ -220,6 +234,18 @@ static const char *spapr_irq_get_nodename_xics(SpaprMachineState *spapr)
     return XICS_NODENAME;
 }
 
+static void spapr_irq_init_emu_xics(SpaprMachineState *spapr, Error **errp)
+{
+    xics_spapr_init(spapr);
+}
+
+static void spapr_irq_init_kvm_xics(SpaprMachineState *spapr, Error **errp)
+{
+    if (kvm_enabled()) {
+        xics_kvm_init(spapr, errp);
+    }
+}
+
 #define SPAPR_IRQ_XICS_NR_IRQS     0x1000
 #define SPAPR_IRQ_XICS_NR_MSIS     \
     (XICS_IRQ_BASE + SPAPR_IRQ_XICS_NR_IRQS - SPAPR_IRQ_MSI)
@@ -240,6 +266,8 @@ SpaprIrq spapr_irq_xics = {
     .reset       = spapr_irq_reset_xics,
     .set_irq     = spapr_irq_set_irq_xics,
     .get_nodename = spapr_irq_get_nodename_xics,
+    .init_emu    = spapr_irq_init_emu_xics,
+    .init_kvm    = spapr_irq_init_kvm_xics,
 };
 
 /*
@@ -251,6 +279,7 @@ static void spapr_irq_init_xive(SpaprMachineState *spapr, int nr_irqs,
     uint32_t nr_servers = spapr_max_server_number(spapr);
     DeviceState *dev;
     int i;
+    Error *local_err = NULL;
 
     dev = qdev_create(NULL, TYPE_SPAPR_XIVE);
     qdev_prop_set_uint32(dev, "nr-irqs", nr_irqs);
@@ -268,6 +297,12 @@ static void spapr_irq_init_xive(SpaprMachineState *spapr, int nr_irqs,
     }
 
     spapr_xive_hcall_init(spapr);
+
+    spapr_irq_init_device(spapr, &spapr_irq_xive, &local_err);
+    if (local_err) {
+        error_propagate(errp, local_err);
+        return;
+    }
 }
 
 static int spapr_irq_claim_xive(SpaprMachineState *spapr, int irq, bool lsi,
@@ -375,6 +410,18 @@ static const char *spapr_irq_get_nodename_xive(SpaprMachineState *spapr)
     return spapr->xive->nodename;
 }
 
+static void spapr_irq_init_emu_xive(SpaprMachineState *spapr, Error **errp)
+{
+    spapr_xive_init(spapr->xive, errp);
+}
+
+static void spapr_irq_init_kvm_xive(SpaprMachineState *spapr, Error **errp)
+{
+    if (kvm_enabled()) {
+        kvmppc_xive_connect(spapr->xive, errp);
+    }
+}
+
 /*
  * XIVE uses the full IRQ number space. Set it to 8K to be compatible
  * with XICS.
@@ -399,6 +446,8 @@ SpaprIrq spapr_irq_xive = {
     .reset       = spapr_irq_reset_xive,
     .set_irq     = spapr_irq_set_irq_xive,
     .get_nodename = spapr_irq_get_nodename_xive,
+    .init_emu    = spapr_irq_init_emu_xive,
+    .init_kvm    = spapr_irq_init_kvm_xive,
 };
 
 /*
@@ -560,6 +609,8 @@ SpaprIrq spapr_irq_dual = {
     .reset       = spapr_irq_reset_dual,
     .set_irq     = spapr_irq_set_irq_dual,
     .get_nodename = spapr_irq_get_nodename_dual,
+    .init_emu    = NULL, /* should not be used */
+    .init_kvm    = NULL, /* should not be used */
 };
 
 

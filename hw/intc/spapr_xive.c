@@ -281,7 +281,6 @@ static void spapr_xive_realize(DeviceState *dev, Error **errp)
     XiveSource *xsrc = &xive->source;
     XiveENDSource *end_xsrc = &xive->end_source;
     Error *local_err = NULL;
-    MachineState *machine = MACHINE(qdev_get_machine());
 
     if (!xive->nr_irqs) {
         error_setg(errp, "Number of interrupt needs to be greater 0");
@@ -332,27 +331,12 @@ static void spapr_xive_realize(DeviceState *dev, Error **errp)
                            xive->tm_base + XIVE_TM_USER_PAGE * (1 << TM_SHIFT));
 
     qemu_register_reset(spapr_xive_reset, dev);
+}
 
-    if (kvm_enabled() && machine_kernel_irqchip_allowed(machine)) {
-        kvmppc_xive_connect(xive, &local_err);
-        if (local_err && machine_kernel_irqchip_required(machine)) {
-            error_prepend(&local_err,
-                          "kernel_irqchip requested but unavailable: ");
-            error_propagate(errp, local_err);
-            return;
-        }
-
-        if (!local_err) {
-            return;
-        }
-
-        /*
-         * We failed to initialize the XIVE KVM device, fallback to
-         * emulated mode
-         */
-        error_prepend(&local_err, "kernel_irqchip allowed but unavailable: ");
-        warn_report_err(local_err);
-    }
+void spapr_xive_init(SpaprXive *xive, Error **errp)
+{
+    XiveSource *xsrc = &xive->source;
+    XiveENDSource *end_xsrc = &xive->end_source;
 
     /* TIMA initialization */
     memory_region_init_io(&xive->tm_mmio, OBJECT(xive), &xive_tm_ops, xive,

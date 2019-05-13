@@ -48,6 +48,8 @@ typedef struct SpaprIrq {
     void (*reset)(SpaprMachineState *spapr, Error **errp);
     void (*set_irq)(void *opaque, int srcno, int val);
     const char *(*get_nodename)(SpaprMachineState *spapr);
+    void (*init_emu)(SpaprMachineState *spapr, Error **errp);
+    void (*init_kvm)(SpaprMachineState *spapr, Error **errp);
 } SpaprIrq;
 
 extern SpaprIrq spapr_irq_xics;
