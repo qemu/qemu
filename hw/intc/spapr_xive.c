@@ -338,6 +338,15 @@ void spapr_xive_init(SpaprXive *xive, Error **errp)
     XiveSource *xsrc = &xive->source;
     XiveENDSource *end_xsrc = &xive->end_source;
 
+    /*
+     * The emulated XIVE device can only be initialized once. If the
+     * ESB memory region has been already mapped, it means we have been
+     * through there.
+     */
+    if (memory_region_is_mapped(&xsrc->esb_mmio)) {
+        return;
+    }
+
     /* TIMA initialization */
     memory_region_init_io(&xive->tm_mmio, OBJECT(xive), &xive_tm_ops, xive,
                           "xive.tima", 4ull << TM_SHIFT);

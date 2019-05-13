@@ -119,6 +119,7 @@ struct ICSState {
     uint32_t offset;
     ICSIRQState *irqs;
     XICSFabric *xics;
+    bool init; /* sPAPR ICS device initialized */
 };
 
 #define ICS_PROP_XICS "xics"
