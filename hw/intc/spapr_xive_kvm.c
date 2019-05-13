@@ -58,6 +58,16 @@ static void kvm_cpu_enable(CPUState *cs)
     QLIST_INSERT_HEAD(&kvm_enabled_cpus, enabled_cpu, node);
 }
 
+static void kvm_cpu_disable_all(void)
+{
+    KVMEnabledCPU *enabled_cpu, *next;
+
+    QLIST_FOREACH_SAFE(enabled_cpu, &kvm_enabled_cpus, node, next) {
+        QLIST_REMOVE(enabled_cpu, node);
+        g_free(enabled_cpu);
+    }
+}
+
 /*
  * XIVE Thread Interrupt Management context (KVM)
  */
@@ -708,4 +718,50 @@ void kvmppc_xive_connect(SpaprXive *xive, Error **errp)
 
     /* Map all regions */
     spapr_xive_map_mmio(xive);
+}
+
+void kvmppc_xive_disconnect(SpaprXive *xive, Error **errp)
+{
+    XiveSource *xsrc;
+    size_t esb_len;
+
+    /* The KVM XIVE device is not in use */
+    if (!xive || xive->fd == -1) {
+        return;
+    }
+
+    if (!kvmppc_has_cap_xive()) {
+        error_setg(errp, "IRQ_XIVE capability must be present for KVM");
+        return;
+    }
+
+    /* Clear the KVM mapping */
+    xsrc = &xive->source;
+    esb_len = (1ull << xsrc->esb_shift) * xsrc->nr_irqs;
+
+    sysbus_mmio_unmap(SYS_BUS_DEVICE(xive), 0);
+    munmap(xsrc->esb_mmap, esb_len);
+
+    sysbus_mmio_unmap(SYS_BUS_DEVICE(xive), 1);
+
+    sysbus_mmio_unmap(SYS_BUS_DEVICE(xive), 2);
+    munmap(xive->tm_mmap, 4ull << TM_SHIFT);
+
+    /*
+     * When the KVM device fd is closed, the KVM device is destroyed
+     * and removed from the list of devices of the VM. The VCPU
+     * presenters are also detached from the device.
+     */
+    close(xive->fd);
+    xive->fd = -1;
+
+    kvm_kernel_irqchip = false;
+    kvm_msi_via_irqfd_allowed = false;
+    kvm_gsi_direct_mapping = false;
+
+    /* Clear the local list of presenter (hotplug) */
+    kvm_cpu_disable_all();
+
+    /* VM Change state handler is not needed anymore */
+    qemu_del_vm_change_state_handler(xive->change);
 }
