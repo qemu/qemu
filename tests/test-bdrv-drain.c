@@ -1436,12 +1436,6 @@ static void test_detach_indirect(bool by_parent_cb)
     bdrv_unref(parent_b);
     blk_unref(blk);
 
-    /* XXX Once bdrv_close() unref's children instead of just detaching them,
-     * this won't be necessary any more. */
-    bdrv_unref(a);
-    bdrv_unref(a);
-    bdrv_unref(c);
-
     g_assert_cmpint(a->refcnt, ==, 1);
     g_assert_cmpint(b->refcnt, ==, 1);
     g_assert_cmpint(c->refcnt, ==, 1);
