@@ -1,1 +1,1 @@
-common-obj-$(CONFIG_SOFTMMU) += config.o
+obj-$(CONFIG_SEMIHOSTING) += config.o

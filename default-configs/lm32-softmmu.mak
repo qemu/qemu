@@ -4,6 +4,8 @@
 #
 #CONFIG_MILKYMIST_TMU2=n        # disabling it actually causes compile-time failures
 
+CONFIG_SEMIHOSTING=y
+
 # Boards:
 #
 CONFIG_LM32=y
