@@ -33,6 +33,7 @@
 #include "trace.h"
 #include "sysemu/kvm.h"
 #include "hw/ppc/spapr.h"
+#include "hw/ppc/spapr_cpu_core.h"
 #include "hw/ppc/xics.h"
 #include "hw/ppc/xics_spapr.h"
 #include "kvm_ppc.h"
@@ -342,6 +343,16 @@ static void rtas_dummy(PowerPCCPU *cpu, SpaprMachineState *spapr,
 int xics_kvm_init(SpaprMachineState *spapr, Error **errp)
 {
     int rc;
+    CPUState *cs;
+    Error *local_err = NULL;
+
+    /*
+     * The KVM XICS device already in use. This is the case when
+     * rebooting under the XICS-only interrupt mode.
+     */
+    if (kernel_xics_fd != -1) {
+        return 0;
+    }
 
     if (!kvm_enabled() || !kvm_check_extension(kvm_state, KVM_CAP_IRQ_XICS)) {
         error_setg(errp,
@@ -389,6 +400,26 @@ int xics_kvm_init(SpaprMachineState *spapr, Error **errp)
     kvm_kernel_irqchip = true;
     kvm_msi_via_irqfd_allowed = true;
     kvm_gsi_direct_mapping = true;
+
+    /* Create the presenters */
+    CPU_FOREACH(cs) {
+        PowerPCCPU *cpu = POWERPC_CPU(cs);
+
+        icp_kvm_realize(DEVICE(spapr_cpu_state(cpu)->icp), &local_err);
+        if (local_err) {
+            error_propagate(errp, local_err);
+            goto fail;
+        }
+    }
+
+    /* Update the KVM sources */
+    ics_set_kvm_state(spapr->ics);
+
+    /* Connect the presenters to the initial VCPUs of the machine */
+    CPU_FOREACH(cs) {
+        PowerPCCPU *cpu = POWERPC_CPU(cs);
+        icp_set_kvm_state(spapr_cpu_state(cpu)->icp);
+    }
 
     return 0;
 

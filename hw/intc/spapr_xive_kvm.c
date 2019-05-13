@@ -246,7 +246,7 @@ void kvmppc_xive_source_reset_one(XiveSource *xsrc, int srcno, Error **errp)
                       true, errp);
 }
 
-void kvmppc_xive_source_reset(XiveSource *xsrc, Error **errp)
+static void kvmppc_xive_source_reset(XiveSource *xsrc, Error **errp)
 {
     int i;
 
@@ -697,6 +697,15 @@ void kvmppc_xive_connect(SpaprXive *xive, Error **errp)
     Error *local_err = NULL;
     size_t esb_len = (1ull << xsrc->esb_shift) * xsrc->nr_irqs;
     size_t tima_len = 4ull << TM_SHIFT;
+    CPUState *cs;
+
+    /*
+     * The KVM XIVE device already in use. This is the case when
+     * rebooting under the XIVE-only interrupt mode.
+     */
+    if (xive->fd != -1) {
+        return;
+    }
 
     if (!kvmppc_has_cap_xive()) {
         error_setg(errp, "IRQ_XIVE capability must be present for KVM");
@@ -744,6 +753,24 @@ void kvmppc_xive_connect(SpaprXive *xive, Error **errp)
 
     xive->change = qemu_add_vm_change_state_handler(
         kvmppc_xive_change_state_handler, xive);
+
+    /* Connect the presenters to the initial VCPUs of the machine */
+    CPU_FOREACH(cs) {
+        PowerPCCPU *cpu = POWERPC_CPU(cs);
+
+        kvmppc_xive_cpu_connect(spapr_cpu_state(cpu)->tctx, &local_err);
+        if (local_err) {
+            error_propagate(errp, local_err);
+            return;
+        }
+    }
+
+    /* Update the KVM sources */
+    kvmppc_xive_source_reset(xsrc, &local_err);
+    if (local_err) {
+            error_propagate(errp, local_err);
+            return;
+    }
 
     kvm_kernel_irqchip = true;
     kvm_msi_via_irqfd_allowed = true;
