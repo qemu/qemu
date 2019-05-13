@@ -5,9 +5,8 @@
  *
  */
 
-#include <inttypes.h>
-
 #include "qemu/osdep.h"
+
 #include "err.h"
 #include "addrspace.h"
 #include "pe.h"

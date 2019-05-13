@@ -14,8 +14,8 @@
 
 /* Interface with HAX kernel module */
 
-#ifndef _HAX_INTERFACE_H
-#define _HAX_INTERFACE_H
+#ifndef HAX_INTERFACE_H
+#define HAX_INTERFACE_H
 
 /* fx_layout has 3 formats table 3-56, 512bytes */
 struct fx_layout {

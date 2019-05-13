@@ -8,8 +8,8 @@
  * Copyright (C) 2001 - 2009 Tensilica Inc.
  */
 
-#ifndef _XTENSA_UNISTD_H
-#define _XTENSA_UNISTD_H
+#ifndef XTENSA_SYSCALL_NR_H
+#define XTENSA_SYSCALL_NR_H
 
 #define TARGET_NR_spill                                0
 #define TARGET_NR_xtensa                               1
@@ -434,4 +434,4 @@
 
 #define TARGET_NR_syscall_count                      352
 
-#endif  /* _XTENSA_UNISTD_H */
+#endif /* XTENSA_SYSCALL_NR_H */

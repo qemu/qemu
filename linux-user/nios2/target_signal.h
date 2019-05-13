@@ -1,5 +1,5 @@
-#ifndef TARGET_SIGNAL_H
-#define TARGET_SIGNAL_H
+#ifndef NIOS2_TARGET_SIGNAL_H
+#define NIOS2_TARGET_SIGNAL_H
 
 /* this struct defines a stack used during syscall handling */
 
@@ -18,4 +18,4 @@ typedef struct target_sigaltstack {
 
 #include "../generic/signal.h"
 
-#endif /* TARGET_SIGNAL_H */
+#endif /* NIOS2_TARGET_SIGNAL_H */

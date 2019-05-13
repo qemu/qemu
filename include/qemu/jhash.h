@@ -21,8 +21,8 @@
   * Jozsef
   */
 
-#ifndef QEMU_JHASH_H__
-#define QEMU_JHASH_H__
+#ifndef QEMU_JHASH_H
+#define QEMU_JHASH_H
 
 #include "qemu/bitops.h"
 
@@ -56,4 +56,4 @@
 /* An arbitrary initial parameter */
 #define JHASH_INITVAL           0xdeadbeef
 
-#endif /* QEMU_JHASH_H__ */
+#endif /* QEMU_JHASH_H */

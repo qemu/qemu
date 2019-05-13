@@ -1,5 +1,5 @@
-#ifndef PCI_HOST_APB_H
-#define PCI_HOST_APB_H
+#ifndef HW_PCI_HOST_SABRE_H
+#define HW_PCI_HOST_SABRE_H
 
 #include "hw/sparc/sun4u_iommu.h"
 

@@ -16,8 +16,9 @@
  * You should have received a copy of the GNU Lesser General Public
  * License along with this library; if not, see <http://www.gnu.org/licenses/>.
  */
-#ifndef _PPC_PNV_PSI_H
-#define _PPC_PNV_PSI_H
+
+#ifndef PPC_PNV_PSI_H
+#define PPC_PNV_PSI_H
 
 #include "hw/sysbus.h"
 #include "hw/ppc/xics.h"
@@ -118,4 +119,4 @@ void pnv_psi_irq_set(PnvPsi *psi, int irq, bool state);
 
 void pnv_psi_pic_print_info(Pnv9Psi *psi, Monitor *mon);
 
-#endif /* _PPC_PNV_PSI_H */
+#endif /* PPC_PNV_PSI_H */

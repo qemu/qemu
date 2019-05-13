@@ -1,5 +1,5 @@
-#ifndef _SPARC_ASI_H
-#define _SPARC_ASI_H
+#ifndef SPARC_ASI_H
+#define SPARC_ASI_H
 
 /* asi.h:  Address Space Identifier values for the sparc.
  *
@@ -309,4 +309,4 @@
 				      * implicit, little-endian
 				      */
 
-#endif /* _SPARC_ASI_H */
+#endif /* SPARC_ASI_H */

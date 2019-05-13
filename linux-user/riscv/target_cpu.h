@@ -1,5 +1,5 @@
-#ifndef TARGET_CPU_H
-#define TARGET_CPU_H
+#ifndef RISCV_TARGET_CPU_H
+#define RISCV_TARGET_CPU_H
 
 static inline void cpu_clone_regs(CPURISCVState *env, target_ulong newsp)
 {

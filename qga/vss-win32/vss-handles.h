@@ -1,5 +1,5 @@
-#ifndef VSS_HANDLES
-#define VSS_HANDLES
+#ifndef VSS_HANDLES_H
+#define VSS_HANDLES_H
 
 /* Constants for QGA VSS Provider */
 

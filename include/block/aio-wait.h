@@ -124,4 +124,4 @@ void aio_wait_kick(void);
  */
 void aio_wait_bh_oneshot(AioContext *ctx, QEMUBHFunc *cb, void *opaque);
 
-#endif /* QEMU_AIO_WAIT */
+#endif /* QEMU_AIO_WAIT_H */

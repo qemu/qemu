@@ -394,4 +394,4 @@ void ahci_reset(AHCIState *s);
 
 #define SYSBUS_AHCI(obj) OBJECT_CHECK(SysbusAHCIState, (obj), TYPE_SYSBUS_AHCI)
 
-#endif /* HW_IDE_AHCI_H */
+#endif /* HW_IDE_AHCI_INTERNAL_H */

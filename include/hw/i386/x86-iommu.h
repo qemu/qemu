@@ -17,8 +17,8 @@
  * with this program; if not, see <http://www.gnu.org/licenses/>.
  */
 
-#ifndef IOMMU_COMMON_H
-#define IOMMU_COMMON_H
+#ifndef HW_I386_X86_IOMMU_H
+#define HW_I386_X86_IOMMU_H
 
 #include "hw/sysbus.h"
 #include "hw/pci/pci.h"

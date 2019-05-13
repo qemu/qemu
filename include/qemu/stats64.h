@@ -10,7 +10,7 @@
  */
 
 #ifndef QEMU_STATS64_H
-#define QEMU_STATS64_H 1
+#define QEMU_STATS64_H
 
 #include "qemu/atomic.h"
 

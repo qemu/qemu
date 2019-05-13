@@ -30,6 +30,7 @@
  * the COPYING file in the top-level directory.
  *
  */
+
 #ifndef NRF51_RNG_H
 #define NRF51_RNG_H
 
@@ -80,4 +81,4 @@ typedef struct {
 } NRF51RNGState;
 
 
-#endif /* NRF51_RNG_H_ */
+#endif /* NRF51_RNG_H */

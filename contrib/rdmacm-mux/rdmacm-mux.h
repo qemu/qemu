@@ -17,9 +17,9 @@
 #define RDMACM_MUX_H
 
 #include "linux/if.h"
-#include "infiniband/verbs.h"
-#include "infiniband/umad.h"
-#include "rdma/rdma_user_cm.h"
+#include <infiniband/verbs.h>
+#include <infiniband/umad.h>
+#include <rdma/rdma_user_cm.h>
 
 typedef enum RdmaCmMuxMsgType {
     RDMACM_MUX_MSG_TYPE_REQ   = 0,

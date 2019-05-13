@@ -13,8 +13,8 @@
  *
  */
 
-#ifndef _HVF_I386_H
-#define _HVF_I386_H
+#ifndef HVF_I386_H
+#define HVF_I386_H
 
 #include "sysemu/hvf.h"
 #include "cpu.h"

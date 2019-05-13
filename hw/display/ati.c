@@ -16,6 +16,7 @@
  * No 3D at all yet (maybe after 2D works, but feel free to improve it)
  */
 
+#include "qemu/osdep.h"
 #include "ati_int.h"
 #include "ati_regs.h"
 #include "vga_regs.h"

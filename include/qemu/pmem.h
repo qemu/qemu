@@ -33,4 +33,4 @@ pmem_persist(const void *addr, size_t len)
 
 #endif /* CONFIG_LIBPMEM */
 
-#endif /* !QEMU_PMEM_H */
+#endif /* QEMU_PMEM_H */

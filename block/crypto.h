@@ -18,8 +18,8 @@
  *
  */
 
-#ifndef BLOCK_CRYPTO_H__
-#define BLOCK_CRYPTO_H__
+#ifndef BLOCK_CRYPTO_H
+#define BLOCK_CRYPTO_H
 
 #define BLOCK_CRYPTO_OPT_DEF_KEY_SECRET(prefix, helpstr)                \
     {                                                                   \
@@ -94,4 +94,4 @@ block_crypto_create_opts_init(QDict *opts, Error **errp);
 QCryptoBlockOpenOptions *
 block_crypto_open_opts_init(QDict *opts, Error **errp);
 
-#endif /* BLOCK_CRYPTO_H__ */
+#endif /* BLOCK_CRYPTO_H */

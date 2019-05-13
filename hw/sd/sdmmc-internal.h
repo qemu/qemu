@@ -7,8 +7,9 @@
  * See the COPYING file in the top-level directory.
  * SPDX-License-Identifier: GPL-2.0-or-later
  */
-#ifndef SD_INTERNAL_H
-#define SD_INTERNAL_H
+
+#ifndef SDMMC_INTERNAL_H
+#define SDMMC_INTERNAL_H
 
 #define SDMMC_CMD_MAX 64
 

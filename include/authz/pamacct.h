@@ -18,8 +18,8 @@
  *
  */
 
-#ifndef QAUTHZ_PAM_H__
-#define QAUTHZ_PAM_H__
+#ifndef QAUTHZ_PAMACCT_H
+#define QAUTHZ_PAMACCT_H
 
 #include "authz/base.h"
 
@@ -96,5 +96,4 @@ QAuthZPAM *qauthz_pam_new(const char *id,
                           const char *service,
                           Error **errp);
 
-
-#endif /* QAUTHZ_PAM_H__ */
+#endif /* QAUTHZ_PAMACCT_H */

@@ -1,5 +1,5 @@
-#ifndef CHARDEV_SPICE_H_
-#define CHARDEV_SPICE_H_
+#ifndef CHARDEV_SPICE_H
+#define CHARDEV_SPICE_H
 
 #include <spice.h>
 #include "chardev/char-fe.h"

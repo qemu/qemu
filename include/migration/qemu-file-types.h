@@ -22,8 +22,8 @@
  * THE SOFTWARE.
  */
 
-#ifndef QEMU_FILE_H
-#define QEMU_FILE_H
+#ifndef MIGRATION_QEMU_FILE_TYPES_H
+#define MIGRATION_QEMU_FILE_TYPES_H
 
 int qemu_file_get_error(QEMUFile *f);
 

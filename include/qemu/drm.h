@@ -1,5 +1,5 @@
-#ifndef QEMU_DRM_H_
-#define QEMU_DRM_H_
+#ifndef QEMU_DRM_H
+#define QEMU_DRM_H
 
 int qemu_drm_rendernode_open(const char *rendernode);
 

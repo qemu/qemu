@@ -16,8 +16,8 @@
  * License along with this library; if not, see <http://www.gnu.org/licenses/>
  */
 
-#ifndef QGRAPH_E1000E
-#define QGRAPH_E1000E
+#ifndef QGRAPH_E1000E_H
+#define QGRAPH_E1000E_H
 
 #include "libqos/qgraph.h"
 #include "pci.h"

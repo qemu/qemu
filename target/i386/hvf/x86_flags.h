@@ -20,8 +20,9 @@
 /*
  * x86 eflags functions
  */
-#ifndef __X86_FLAGS_H__
-#define __X86_FLAGS_H__
+
+#ifndef X86_FLAGS_H
+#define X86_FLAGS_H
 
 #include "cpu.h"
 void lflags_to_rflags(CPUX86State *env);
@@ -77,4 +78,4 @@ void SET_FLAGS_OSZAPC_LOGIC16(CPUX86State *env, uint16_t v1, uint16_t v2,
 void SET_FLAGS_OSZAPC_LOGIC8(CPUX86State *env, uint8_t v1, uint8_t v2,
                              uint8_t diff);
 
-#endif /* __X86_FLAGS_H__ */
+#endif /* X86_FLAGS_H */

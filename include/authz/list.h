@@ -18,8 +18,8 @@
  *
  */
 
-#ifndef QAUTHZ_LIST_H__
-#define QAUTHZ_LIST_H__
+#ifndef QAUTHZ_LIST_H
+#define QAUTHZ_LIST_H
 
 #include "authz/base.h"
 #include "qapi/qapi-types-authz.h"
@@ -102,5 +102,4 @@ ssize_t qauthz_list_delete_rule(QAuthZList *auth,
                                 const char *match);
 
 
-#endif /* QAUTHZ_LIST_H__ */
-
+#endif /* QAUTHZ_LIST_H */

@@ -22,8 +22,8 @@
  * THE SOFTWARE.
  */
 
-#ifndef XLNX_PMU_IO_INTC_H
-#define XLNX_PMU_IO_INTC_H
+#ifndef HW_INTC_XLNX_PMU_IOMOD_INTC_H
+#define HW_INTC_XLNX_PMU_IOMOD_INTC_H
 
 #include "hw/sysbus.h"
 #include "hw/register.h"
@@ -54,4 +54,4 @@ typedef struct XlnxPMUIOIntc {
     RegisterInfo regs_info[XLNXPMUIOINTC_R_MAX];
 } XlnxPMUIOIntc;
 
-#endif /* XLNX_PMU_IO_INTC_H */
+#endif /* HW_INTC_XLNX_PMU_IOMOD_INTC_H */

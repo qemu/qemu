@@ -26,8 +26,8 @@
  * $FreeBSD$
  */
 
-#ifndef _VMCS_H_
-#define _VMCS_H_
+#ifndef VMCS_H
+#define VMCS_H
 
 #include <Hypervisor/hv.h>
 #include <Hypervisor/hv_vmx.h>

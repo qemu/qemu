@@ -11,8 +11,8 @@
  * top-level directory.
  */
 
-#ifndef _QEMU_VHOST_VSOCK_H
-#define _QEMU_VHOST_VSOCK_H
+#ifndef QEMU_VHOST_VSOCK_H
+#define QEMU_VHOST_VSOCK_H
 
 #include "hw/virtio/virtio.h"
 #include "hw/virtio/vhost.h"
@@ -38,4 +38,4 @@ typedef struct {
     /*< public >*/
 } VHostVSock;
 
-#endif /* _QEMU_VHOST_VSOCK_H */
+#endif /* QEMU_VHOST_VSOCK_H */

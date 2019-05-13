@@ -3,8 +3,9 @@
  * (at your option) any later version.  See the COPYING file in the
  * top-level directory.
  */
+
 #ifndef QEMU_UI_KBD_STATE_H
-#define QEMU_UI_KBD_STATE_H 1
+#define QEMU_UI_KBD_STATE_H
 
 #include "qapi/qapi-types-ui.h"
 

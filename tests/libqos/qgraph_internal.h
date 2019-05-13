@@ -16,8 +16,8 @@
  * License along with this library; if not, see <http://www.gnu.org/licenses/>
  */
 
-#ifndef QGRAPH_EXTRA_H
-#define QGRAPH_EXTRA_H
+#ifndef QGRAPH_INTERNAL_H
+#define QGRAPH_INTERNAL_H
 
 /* This header is declaring additional helper functions defined in
  * libqos/qgraph.c

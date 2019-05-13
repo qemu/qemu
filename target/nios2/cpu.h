@@ -17,8 +17,9 @@
  * License along with this library; if not, see
  * <http://www.gnu.org/licenses/lgpl-2.1.html>
  */
-#ifndef CPU_NIOS2_H
-#define CPU_NIOS2_H
+
+#ifndef NIOS2_CPU_H
+#define NIOS2_CPU_H
 
 #include "qemu-common.h"
 
@@ -270,4 +271,4 @@ static inline void cpu_get_tb_cpu_state(CPUNios2State *env, target_ulong *pc,
     *flags = (env->regs[CR_STATUS] & (CR_STATUS_EH | CR_STATUS_U));
 }
 
-#endif /* CPU_NIOS2_H */
+#endif /* NIOS2_CPU_H */

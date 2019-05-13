@@ -20,8 +20,8 @@
  *
  */
 
-#ifndef NANOMIPS_DISASSEMBLER_H
-#define NANOMIPS_DISASSEMBLER_H
+#ifndef DISAS_NANOMIPS_H
+#define DISAS_NANOMIPS_H
 
 #include <string>
 

@@ -18,8 +18,8 @@
  *
  */
 
-#ifndef QAUTHZ_SIMPLE_H__
-#define QAUTHZ_SIMPLE_H__
+#ifndef QAUTHZ_SIMPLE_H
+#define QAUTHZ_SIMPLE_H
 
 #include "authz/base.h"
 
@@ -80,5 +80,4 @@ QAuthZSimple *qauthz_simple_new(const char *id,
                                 Error **errp);
 
 
-#endif /* QAUTHZ_SIMPLE_H__ */
-
+#endif /* QAUTHZ_SIMPLE_H */

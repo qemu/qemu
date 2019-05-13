@@ -20,8 +20,8 @@
  * Copyright (c) 2016, Citrix Systems, Inc.
  */
 
-#ifndef __XEN_PUBLIC_ARCH_X86_HVM_START_INFO_H__
-#define __XEN_PUBLIC_ARCH_X86_HVM_START_INFO_H__
+#ifndef XEN_PUBLIC_ARCH_X86_HVM_START_INFO_H
+#define XEN_PUBLIC_ARCH_X86_HVM_START_INFO_H
 
 /*
  * Start of day structure passed to PVH guests and to HVM guests in %ebx.
@@ -143,4 +143,4 @@ struct hvm_memmap_table_entry {
     uint32_t reserved;
 };
 
-#endif /* __XEN_PUBLIC_ARCH_X86_HVM_START_INFO_H__ */
+#endif /* XEN_PUBLIC_ARCH_X86_HVM_START_INFO_H */

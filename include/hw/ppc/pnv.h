@@ -16,8 +16,9 @@
  * You should have received a copy of the GNU Lesser General Public
  * License along with this library; if not, see <http://www.gnu.org/licenses/>.
  */
-#ifndef _PPC_PNV_H
-#define _PPC_PNV_H
+
+#ifndef PPC_PNV_H
+#define PPC_PNV_H
 
 #include "hw/boards.h"
 #include "hw/sysbus.h"
@@ -255,4 +256,4 @@ void pnv_bmc_powerdown(IPMIBmc *bmc);
 #define PNV9_PSIHB_ESB_SIZE          0x0000000000010000ull
 #define PNV9_PSIHB_ESB_BASE(chip)    PNV9_CHIP_BASE(chip, 0x00060302031c0000ull)
 
-#endif /* _PPC_PNV_H */
+#endif /* PPC_PNV_H */

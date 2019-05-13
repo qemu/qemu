@@ -1,5 +1,5 @@
 #ifndef SCSI_UTILS_H
-#define SCSI_UTILS_H 1
+#define SCSI_UTILS_H
 
 #ifdef CONFIG_LINUX
 #include <scsi/sg.h>

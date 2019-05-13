@@ -1,5 +1,5 @@
-#ifndef TARGET_SIGNAL_H
-#define TARGET_SIGNAL_H
+#ifndef RISCV_TARGET_SIGNAL_H
+#define RISCV_TARGET_SIGNAL_H
 
 typedef struct target_sigaltstack {
     abi_ulong ss_sp;
@@ -15,4 +15,4 @@ typedef struct target_sigaltstack {
 
 #include "../generic/signal.h"
 
-#endif /* TARGET_SIGNAL_H */
+#endif /* RISCV_TARGET_SIGNAL_H */
