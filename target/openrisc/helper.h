@@ -52,6 +52,10 @@ DEF_HELPER_FLAGS_3(float_ ## op ## _d, TCG_CALL_NO_RWG, tl, env, i64, i64)
 FOP_CMP(eq)
 FOP_CMP(lt)
 FOP_CMP(le)
+FOP_CMP(un)
+FOP_CMP(ueq)
+FOP_CMP(ule)
+FOP_CMP(ult)
 #undef FOP_CMP
 
 /* interrupt */

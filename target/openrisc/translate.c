@@ -46,6 +46,7 @@ typedef struct DisasContext {
     uint32_t tb_flags;
     uint32_t delayed_branch;
     uint32_t cpucfgr;
+    uint32_t avr;
 
     /* If not -1, jmp_pc contains this value and so is a direct jump.  */
     target_ulong jmp_pc_imm;
@@ -139,6 +140,11 @@ static void gen_illegal_exception(DisasContext *dc)
     tcg_gen_movi_tl(cpu_pc, dc->base.pc_next);
     gen_exception(dc, EXCP_ILLEGAL);
     dc->base.is_jmp = DISAS_NORETURN;
+}
+
+static bool check_v1_3(DisasContext *dc)
+{
+    return dc->avr >= 0x01030000;
 }
 
 static bool check_of32s(DisasContext *dc)
@@ -1265,6 +1271,54 @@ static bool trans_lf_sfle_s(DisasContext *dc, arg_ab *a)
     return do_fpcmp(dc, a, gen_helper_float_le_s, false, false);
 }
 
+static bool trans_lf_sfueq_s(DisasContext *dc, arg_ab *a)
+{
+    if (!check_v1_3(dc)) {
+        return false;
+    }
+    return do_fpcmp(dc, a, gen_helper_float_ueq_s, false, false);
+}
+
+static bool trans_lf_sfult_s(DisasContext *dc, arg_ab *a)
+{
+    if (!check_v1_3(dc)) {
+        return false;
+    }
+    return do_fpcmp(dc, a, gen_helper_float_ult_s, false, false);
+}
+
+static bool trans_lf_sfugt_s(DisasContext *dc, arg_ab *a)
+{
+    if (!check_v1_3(dc)) {
+        return false;
+    }
+    return do_fpcmp(dc, a, gen_helper_float_ult_s, false, true);
+}
+
+static bool trans_lf_sfule_s(DisasContext *dc, arg_ab *a)
+{
+    if (!check_v1_3(dc)) {
+        return false;
+    }
+    return do_fpcmp(dc, a, gen_helper_float_ule_s, false, false);
+}
+
+static bool trans_lf_sfuge_s(DisasContext *dc, arg_ab *a)
+{
+    if (!check_v1_3(dc)) {
+        return false;
+    }
+    return do_fpcmp(dc, a, gen_helper_float_ule_s, false, true);
+}
+
+static bool trans_lf_sfun_s(DisasContext *dc, arg_ab *a)
+{
+    if (!check_v1_3(dc)) {
+        return false;
+    }
+    return do_fpcmp(dc, a, gen_helper_float_un_s, false, false);
+}
+
 static bool check_pair(DisasContext *dc, int r, int p)
 {
     return r + 1 + p < 32;
@@ -1490,6 +1544,36 @@ static bool trans_lf_sfle_d(DisasContext *dc, arg_ab_pair *a)
     return do_dpcmp(dc, a, gen_helper_float_le_d, false, false);
 }
 
+static bool trans_lf_sfueq_d(DisasContext *dc, arg_ab_pair *a)
+{
+    return do_dpcmp(dc, a, gen_helper_float_ueq_d, false, false);
+}
+
+static bool trans_lf_sfule_d(DisasContext *dc, arg_ab_pair *a)
+{
+    return do_dpcmp(dc, a, gen_helper_float_ule_d, false, false);
+}
+
+static bool trans_lf_sfuge_d(DisasContext *dc, arg_ab_pair *a)
+{
+    return do_dpcmp(dc, a, gen_helper_float_ule_d, false, true);
+}
+
+static bool trans_lf_sfult_d(DisasContext *dc, arg_ab_pair *a)
+{
+    return do_dpcmp(dc, a, gen_helper_float_ult_d, false, false);
+}
+
+static bool trans_lf_sfugt_d(DisasContext *dc, arg_ab_pair *a)
+{
+    return do_dpcmp(dc, a, gen_helper_float_ult_d, false, true);
+}
+
+static bool trans_lf_sfun_d(DisasContext *dc, arg_ab_pair *a)
+{
+    return do_dpcmp(dc, a, gen_helper_float_un_d, false, false);
+}
+
 static void openrisc_tr_init_disas_context(DisasContextBase *dcb, CPUState *cs)
 {
     DisasContext *dc = container_of(dcb, DisasContext, base);
@@ -1500,6 +1584,7 @@ static void openrisc_tr_init_disas_context(DisasContextBase *dcb, CPUState *cs)
     dc->tb_flags = dc->base.tb->flags;
     dc->delayed_branch = (dc->tb_flags & TB_FLAGS_DFLAG) != 0;
     dc->cpucfgr = env->cpucfgr;
+    dc->avr = env->avr;
     dc->jmp_pc_imm = -1;
 
     bound = -(dc->base.pc_first | TARGET_PAGE_MASK) / 4;

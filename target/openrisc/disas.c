@@ -166,6 +166,12 @@ FP_INSN(sfgt, s, "r%d, r%d", a->a, a->b)
 FP_INSN(sfge, s, "r%d, r%d", a->a, a->b)
 FP_INSN(sflt, s, "r%d, r%d", a->a, a->b)
 FP_INSN(sfle, s, "r%d, r%d", a->a, a->b)
+FP_INSN(sfun, s, "r%d, r%d", a->a, a->b)
+FP_INSN(sfueq, s, "r%d, r%d", a->a, a->b)
+FP_INSN(sfuge, s, "r%d, r%d", a->a, a->b)
+FP_INSN(sfugt, s, "r%d, r%d", a->a, a->b)
+FP_INSN(sfule, s, "r%d, r%d", a->a, a->b)
+FP_INSN(sfult, s, "r%d, r%d", a->a, a->b)
 
 FP_INSN(add, d,  "r%d,r%d, r%d,r%d, r%d,r%d",
         a->d, a->d + a->dp + 1,
@@ -220,5 +226,23 @@ FP_INSN(sflt, d, "r%d,r%d, r%d,r%d",
         a->a, a->a + a->ap + 1,
         a->b, a->b + a->bp + 1)
 FP_INSN(sfle, d, "r%d,r%d, r%d,r%d",
+        a->a, a->a + a->ap + 1,
+        a->b, a->b + a->bp + 1)
+FP_INSN(sfun, d, "r%d,r%d, r%d,r%d",
+        a->a, a->a + a->ap + 1,
+        a->b, a->b + a->bp + 1)
+FP_INSN(sfueq, d, "r%d,r%d, r%d,r%d",
+        a->a, a->a + a->ap + 1,
+        a->b, a->b + a->bp + 1)
+FP_INSN(sfuge, d, "r%d,r%d, r%d,r%d",
+        a->a, a->a + a->ap + 1,
+        a->b, a->b + a->bp + 1)
+FP_INSN(sfugt, d, "r%d,r%d, r%d,r%d",
+        a->a, a->a + a->ap + 1,
+        a->b, a->b + a->bp + 1)
+FP_INSN(sfule, d, "r%d,r%d, r%d,r%d",
+        a->a, a->a + a->ap + 1,
+        a->b, a->b + a->bp + 1)
+FP_INSN(sfult, d, "r%d,r%d, r%d,r%d",
         a->a, a->a + a->ap + 1,
         a->b, a->b + a->bp + 1)

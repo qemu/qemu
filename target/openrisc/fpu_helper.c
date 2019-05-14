@@ -135,4 +135,24 @@ target_ulong helper_float_ ## name ## _s(CPUOpenRISCState *env,           \
 FLOAT_CMP(le, le)
 FLOAT_CMP(lt, lt)
 FLOAT_CMP(eq, eq_quiet)
+FLOAT_CMP(un, unordered_quiet)
 #undef FLOAT_CMP
+
+#define FLOAT_UCMP(name, expr) \
+target_ulong helper_float_ ## name ## _d(CPUOpenRISCState *env,           \
+                                         uint64_t fdt0, uint64_t fdt1)    \
+{                                                                         \
+    int r = float64_compare_quiet(fdt0, fdt1, &env->fp_status);           \
+    return expr;                                                          \
+}                                                                         \
+target_ulong helper_float_ ## name ## _s(CPUOpenRISCState *env,           \
+                                         uint32_t fdt0, uint32_t fdt1)    \
+{                                                                         \
+    int r = float32_compare_quiet(fdt0, fdt1, &env->fp_status);           \
+    return expr;                                                          \
+}
+
+FLOAT_UCMP(ueq, r == float_relation_equal || r == float_relation_unordered)
+FLOAT_UCMP(ult, r == float_relation_less || r == float_relation_unordered)
+FLOAT_UCMP(ule, r != float_relation_greater)
+#undef FLOAT_UCMP
