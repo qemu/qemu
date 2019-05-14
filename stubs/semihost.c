@@ -64,3 +64,7 @@ const char *semihosting_get_cmdline(void)
 void semihosting_arg_fallback(const char *file, const char *cmd)
 {
 }
+
+void qemu_semihosting_connect_chardevs(void)
+{
+}

@@ -17,13 +17,20 @@
 
 #include "qemu/osdep.h"
 #include "cpu.h"
+#include "hw/semihosting/semihost.h"
 #include "hw/semihosting/console.h"
 #include "exec/gdbstub.h"
 #include "qemu/log.h"
+#include "chardev/char.h"
 
 int qemu_semihosting_log_out(const char *s, int len)
 {
-    return write(STDERR_FILENO, s, len);
+    Chardev *chardev = semihosting_get_chardev();
+    if (chardev) {
+        return qemu_chr_write_all(chardev, (uint8_t *) s, len);
+    } else {
+        return write(STDERR_FILENO, s, len);
+    }
 }
 
 /*
