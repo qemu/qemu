@@ -9,3 +9,6 @@ config FITLOADER
 
 config PLATFORM_BUS
     bool
+
+config REGISTER
+    bool
