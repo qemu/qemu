@@ -1987,7 +1987,7 @@ void gdb_do_syscall(gdb_syscall_complete_cb cb, const char *fmt, ...)
     va_end(va);
 }
 
-static void gdb_read_byte(GDBState *s, int ch)
+static void gdb_read_byte(GDBState *s, uint8_t ch)
 {
     uint8_t reply;
 
@@ -2001,7 +2001,7 @@ static void gdb_read_byte(GDBState *s, int ch)
         } else if (ch == '+') {
             trace_gdbstub_io_got_ack();
         } else {
-            trace_gdbstub_io_got_unexpected((uint8_t)ch);
+            trace_gdbstub_io_got_unexpected(ch);
         }
 
         if (ch == '+' || ch == '$')
@@ -2024,7 +2024,7 @@ static void gdb_read_byte(GDBState *s, int ch)
                 s->line_sum = 0;
                 s->state = RS_GETLINE;
             } else {
-                trace_gdbstub_err_garbage((uint8_t)ch);
+                trace_gdbstub_err_garbage(ch);
             }
             break;
         case RS_GETLINE:
@@ -2070,11 +2070,11 @@ static void gdb_read_byte(GDBState *s, int ch)
              */
             if (ch < ' ' || ch == '#' || ch == '$' || ch > 126) {
                 /* invalid RLE count encoding */
-                trace_gdbstub_err_invalid_repeat((uint8_t)ch);
+                trace_gdbstub_err_invalid_repeat(ch);
                 s->state = RS_GETLINE;
             } else {
                 /* decode repeat length */
-                int repeat = (unsigned char)ch - ' ' + 3;
+                int repeat = ch - ' ' + 3;
                 if (s->line_buf_index + repeat >= sizeof(s->line_buf) - 1) {
                     /* that many repeats would overrun the command buffer */
                     trace_gdbstub_err_overrun();
@@ -2096,7 +2096,7 @@ static void gdb_read_byte(GDBState *s, int ch)
         case RS_CHKSUM1:
             /* get high hex digit of checksum */
             if (!isxdigit(ch)) {
-                trace_gdbstub_err_checksum_invalid((uint8_t)ch);
+                trace_gdbstub_err_checksum_invalid(ch);
                 s->state = RS_GETLINE;
                 break;
             }
@@ -2107,7 +2107,7 @@ static void gdb_read_byte(GDBState *s, int ch)
         case RS_CHKSUM2:
             /* get low hex digit of checksum */
             if (!isxdigit(ch)) {
-                trace_gdbstub_err_checksum_invalid((uint8_t)ch);
+                trace_gdbstub_err_checksum_invalid(ch);
                 s->state = RS_GETLINE;
                 break;
             }
