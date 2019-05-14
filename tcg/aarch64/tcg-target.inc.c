@@ -494,6 +494,7 @@ typedef enum {
 
     /* AdvSIMD modified immediate */
     I3606_MOVI      = 0x0f000400,
+    I3606_MVNI      = 0x2f000400,
 
     /* AdvSIMD shift by immediate */
     I3614_SSHR      = 0x0f000400,
@@ -838,13 +839,23 @@ static void tcg_out_dupi_vec(TCGContext *s, TCGType type,
             tcg_out_insn(s, 3606, MOVI, q, rd, 0, cmode, imm8);
             return;
         }
+        if (is_shimm16(~v16, &cmode, &imm8)) {
+            tcg_out_insn(s, 3606, MVNI, q, rd, 0, cmode, imm8);
+            return;
+        }
     } else if (v64 == dup_const(MO_32, v64)) {
         uint32_t v32 = v64;
+        uint32_t n32 = ~v32;
 
         if (is_shimm32(v32, &cmode, &imm8) ||
             is_soimm32(v32, &cmode, &imm8) ||
             is_fimm32(v32, &cmode, &imm8)) {
             tcg_out_insn(s, 3606, MOVI, q, rd, 0, cmode, imm8);
+            return;
+        }
+        if (is_shimm32(n32, &cmode, &imm8) ||
+            is_soimm32(n32, &cmode, &imm8)) {
+            tcg_out_insn(s, 3606, MVNI, q, rd, 0, cmode, imm8);
             return;
         }
     } else if (is_fimm64(v64, &cmode, &imm8)) {
