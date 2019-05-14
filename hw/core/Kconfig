@@ -7,6 +7,9 @@ config PTIMER
 config FITLOADER
     bool
 
+config OR_IRQ
+    bool
+
 config PLATFORM_BUS
     bool
 
