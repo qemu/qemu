@@ -566,10 +566,15 @@ static void glue(glue(gen_, NAME), _vec)(unsigned vece, TCGv_vec t,     \
 }                                                                       \
 static void glue(gen_, NAME)(DisasContext *ctx)                         \
 {                                                                       \
+    static const TCGOpcode vecop_list[] = {                             \
+        glue(glue(INDEX_op_, NORM), _vec),                              \
+        glue(glue(INDEX_op_, SAT), _vec),                               \
+        INDEX_op_cmp_vec, 0                                             \
+    };                                                                  \
     static const GVecGen4 g = {                                         \
         .fniv = glue(glue(gen_, NAME), _vec),                           \
         .fno = glue(gen_helper_, NAME),                                 \
-        .opc = glue(glue(INDEX_op_, SAT), _vec),                        \
+        .opt_opc = vecop_list,                                          \
         .write_aofs = true,                                             \
         .vece = VECE,                                                   \
     };                                                                  \

@@ -561,6 +561,10 @@ E.g. VECL=1 -> 64 << 1 -> v128, and VECE=2 -> 1 << 2 -> i32.
 
   Similarly, v0 = -v1.
 
+* abs_vec   v0, v1
+
+  Similarly, v0 = v1 < 0 ? -v1 : v1, in elements across the vector.
+
 * smin_vec:
 * umin_vec:
 

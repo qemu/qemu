@@ -176,6 +176,7 @@ typedef uint64_t TCGRegSet;
     && !defined(TCG_TARGET_HAS_v128) \
     && !defined(TCG_TARGET_HAS_v256)
 #define TCG_TARGET_MAYBE_vec            0
+#define TCG_TARGET_HAS_abs_vec          0
 #define TCG_TARGET_HAS_neg_vec          0
 #define TCG_TARGET_HAS_not_vec          0
 #define TCG_TARGET_HAS_andc_vec         0
@@ -692,6 +693,7 @@ struct TCGContext {
 #ifdef CONFIG_DEBUG_TCG
     int temps_in_use;
     int goto_tb_issue_mask;
+    const TCGOpcode *vecop_list;
 #endif
 
     /* Code generation.  Note that we specifically do not use tcg_insn_unit
@@ -1491,5 +1493,24 @@ void helper_atomic_sto_le_mmu(CPUArchState *env, target_ulong addr, Int128 val,
                               TCGMemOpIdx oi, uintptr_t retaddr);
 void helper_atomic_sto_be_mmu(CPUArchState *env, target_ulong addr, Int128 val,
                               TCGMemOpIdx oi, uintptr_t retaddr);
+
+#ifdef CONFIG_DEBUG_TCG
+void tcg_assert_listed_vecop(TCGOpcode);
+#else
+static inline void tcg_assert_listed_vecop(TCGOpcode op) { }
+#endif
+
+static inline const TCGOpcode *tcg_swap_vecop_list(const TCGOpcode *n)
+{
+#ifdef CONFIG_DEBUG_TCG
+    const TCGOpcode *o = tcg_ctx->vecop_list;
+    tcg_ctx->vecop_list = n;
+    return o;
+#else
+    return NULL;
+#endif
+}
+
+bool tcg_can_emit_vecop_list(const TCGOpcode *, TCGType, unsigned);
 
 #endif /* TCG_H */

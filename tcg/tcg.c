@@ -103,16 +103,37 @@ static const char *target_parse_constraint(TCGArgConstraint *ct,
                                            const char *ct_str, TCGType type);
 static void tcg_out_ld(TCGContext *s, TCGType type, TCGReg ret, TCGReg arg1,
                        intptr_t arg2);
-static void tcg_out_mov(TCGContext *s, TCGType type, TCGReg ret, TCGReg arg);
+static bool tcg_out_mov(TCGContext *s, TCGType type, TCGReg ret, TCGReg arg);
 static void tcg_out_movi(TCGContext *s, TCGType type,
                          TCGReg ret, tcg_target_long arg);
 static void tcg_out_op(TCGContext *s, TCGOpcode opc, const TCGArg *args,
                        const int *const_args);
 #if TCG_TARGET_MAYBE_vec
+static bool tcg_out_dup_vec(TCGContext *s, TCGType type, unsigned vece,
+                            TCGReg dst, TCGReg src);
+static bool tcg_out_dupm_vec(TCGContext *s, TCGType type, unsigned vece,
+                             TCGReg dst, TCGReg base, intptr_t offset);
+static void tcg_out_dupi_vec(TCGContext *s, TCGType type,
+                             TCGReg dst, tcg_target_long arg);
 static void tcg_out_vec_op(TCGContext *s, TCGOpcode opc, unsigned vecl,
                            unsigned vece, const TCGArg *args,
                            const int *const_args);
 #else
+static inline bool tcg_out_dup_vec(TCGContext *s, TCGType type, unsigned vece,
+                                   TCGReg dst, TCGReg src)
+{
+    g_assert_not_reached();
+}
+static inline bool tcg_out_dupm_vec(TCGContext *s, TCGType type, unsigned vece,
+                                    TCGReg dst, TCGReg base, intptr_t offset)
+{
+    g_assert_not_reached();
+}
+static inline void tcg_out_dupi_vec(TCGContext *s, TCGType type,
+                                    TCGReg dst, tcg_target_long arg)
+{
+    g_assert_not_reached();
+}
 static inline void tcg_out_vec_op(TCGContext *s, TCGOpcode opc, unsigned vecl,
                                   unsigned vece, const TCGArg *args,
                                   const int *const_args)
@@ -1579,6 +1600,7 @@ bool tcg_op_supported(TCGOpcode op)
     case INDEX_op_mov_vec:
     case INDEX_op_dup_vec:
     case INDEX_op_dupi_vec:
+    case INDEX_op_dupm_vec:
     case INDEX_op_ld_vec:
     case INDEX_op_st_vec:
     case INDEX_op_add_vec:
@@ -1594,6 +1616,8 @@ bool tcg_op_supported(TCGOpcode op)
         return have_vec && TCG_TARGET_HAS_not_vec;
     case INDEX_op_neg_vec:
         return have_vec && TCG_TARGET_HAS_neg_vec;
+    case INDEX_op_abs_vec:
+        return have_vec && TCG_TARGET_HAS_abs_vec;
     case INDEX_op_andc_vec:
         return have_vec && TCG_TARGET_HAS_andc_vec;
     case INDEX_op_orc_vec:
@@ -3270,15 +3294,15 @@ static void tcg_reg_alloc_bb_end(TCGContext *s, TCGRegSet allocated_regs)
     save_globals(s, allocated_regs);
 }
 
+/*
+ * Specialized code generation for INDEX_op_movi_*.
+ */
 static void tcg_reg_alloc_do_movi(TCGContext *s, TCGTemp *ots,
                                   tcg_target_ulong val, TCGLifeData arg_life,
                                   TCGRegSet preferred_regs)
 {
-    if (ots->fixed_reg) {
-        /* For fixed registers, we do not do any constant propagation.  */
-        tcg_out_movi(s, ots->type, ots->reg, val);
-        return;
-    }
+    /* ENV should not be modified.  */
+    tcg_debug_assert(!ots->fixed_reg);
 
     /* The movi is not explicitly generated here.  */
     if (ots->val_type == TEMP_VAL_REG) {
@@ -3302,6 +3326,9 @@ static void tcg_reg_alloc_movi(TCGContext *s, const TCGOp *op)
     tcg_reg_alloc_do_movi(s, ots, val, op->life, op->output_pref[0]);
 }
 
+/*
+ * Specialized code generation for INDEX_op_mov_*.
+ */
 static void tcg_reg_alloc_mov(TCGContext *s, const TCGOp *op)
 {
     const TCGLifeData arg_life = op->life;
@@ -3313,6 +3340,9 @@ static void tcg_reg_alloc_mov(TCGContext *s, const TCGOp *op)
     preferred_regs = op->output_pref[0];
     ots = arg_temp(op->args[0]);
     ts = arg_temp(op->args[1]);
+
+    /* ENV should not be modified.  */
+    tcg_debug_assert(!ots->fixed_reg);
 
     /* Note that otype != itype for no-op truncation.  */
     otype = ots->type;
@@ -3338,7 +3368,7 @@ static void tcg_reg_alloc_mov(TCGContext *s, const TCGOp *op)
     }
 
     tcg_debug_assert(ts->val_type == TEMP_VAL_REG);
-    if (IS_DEAD_ARG(0) && !ots->fixed_reg) {
+    if (IS_DEAD_ARG(0)) {
         /* mov to a non-saved dead register makes no sense (even with
            liveness analysis disabled). */
         tcg_debug_assert(NEED_SYNC_ARG(0));
@@ -3351,7 +3381,7 @@ static void tcg_reg_alloc_mov(TCGContext *s, const TCGOp *op)
         }
         temp_dead(s, ots);
     } else {
-        if (IS_DEAD_ARG(1) && !ts->fixed_reg && !ots->fixed_reg) {
+        if (IS_DEAD_ARG(1) && !ts->fixed_reg) {
             /* the mov can be suppressed */
             if (ots->val_type == TEMP_VAL_REG) {
                 s->reg_to_temp[ots->reg] = NULL;
@@ -3367,7 +3397,22 @@ static void tcg_reg_alloc_mov(TCGContext *s, const TCGOp *op)
                                          allocated_regs, preferred_regs,
                                          ots->indirect_base);
             }
-            tcg_out_mov(s, otype, ots->reg, ts->reg);
+            if (!tcg_out_mov(s, otype, ots->reg, ts->reg)) {
+                /*
+                 * Cross register class move not supported.
+                 * Store the source register into the destination slot
+                 * and leave the destination temp as TEMP_VAL_MEM.
+                 */
+                assert(!ots->fixed_reg);
+                if (!ts->mem_allocated) {
+                    temp_allocate_frame(s, ots);
+                }
+                tcg_out_st(s, ts->type, ts->reg,
+                           ots->mem_base->reg, ots->mem_offset);
+                ots->mem_coherent = 1;
+                temp_free_or_dead(s, ots, -1);
+                return;
+            }
         }
         ots->val_type = TEMP_VAL_REG;
         ots->mem_coherent = 0;
@@ -3375,6 +3420,118 @@ static void tcg_reg_alloc_mov(TCGContext *s, const TCGOp *op)
         if (NEED_SYNC_ARG(0)) {
             temp_sync(s, ots, allocated_regs, 0, 0);
         }
+    }
+}
+
+/*
+ * Specialized code generation for INDEX_op_dup_vec.
+ */
+static void tcg_reg_alloc_dup(TCGContext *s, const TCGOp *op)
+{
+    const TCGLifeData arg_life = op->life;
+    TCGRegSet dup_out_regs, dup_in_regs;
+    TCGTemp *its, *ots;
+    TCGType itype, vtype;
+    intptr_t endian_fixup;
+    unsigned vece;
+    bool ok;
+
+    ots = arg_temp(op->args[0]);
+    its = arg_temp(op->args[1]);
+
+    /* ENV should not be modified.  */
+    tcg_debug_assert(!ots->fixed_reg);
+
+    itype = its->type;
+    vece = TCGOP_VECE(op);
+    vtype = TCGOP_VECL(op) + TCG_TYPE_V64;
+
+    if (its->val_type == TEMP_VAL_CONST) {
+        /* Propagate constant via movi -> dupi.  */
+        tcg_target_ulong val = its->val;
+        if (IS_DEAD_ARG(1)) {
+            temp_dead(s, its);
+        }
+        tcg_reg_alloc_do_movi(s, ots, val, arg_life, op->output_pref[0]);
+        return;
+    }
+
+    dup_out_regs = tcg_op_defs[INDEX_op_dup_vec].args_ct[0].u.regs;
+    dup_in_regs = tcg_op_defs[INDEX_op_dup_vec].args_ct[1].u.regs;
+
+    /* Allocate the output register now.  */
+    if (ots->val_type != TEMP_VAL_REG) {
+        TCGRegSet allocated_regs = s->reserved_regs;
+
+        if (!IS_DEAD_ARG(1) && its->val_type == TEMP_VAL_REG) {
+            /* Make sure to not spill the input register. */
+            tcg_regset_set_reg(allocated_regs, its->reg);
+        }
+        ots->reg = tcg_reg_alloc(s, dup_out_regs, allocated_regs,
+                                 op->output_pref[0], ots->indirect_base);
+        ots->val_type = TEMP_VAL_REG;
+        ots->mem_coherent = 0;
+        s->reg_to_temp[ots->reg] = ots;
+    }
+
+    switch (its->val_type) {
+    case TEMP_VAL_REG:
+        /*
+         * The dup constriaints must be broad, covering all possible VECE.
+         * However, tcg_op_dup_vec() gets to see the VECE and we allow it
+         * to fail, indicating that extra moves are required for that case.
+         */
+        if (tcg_regset_test_reg(dup_in_regs, its->reg)) {
+            if (tcg_out_dup_vec(s, vtype, vece, ots->reg, its->reg)) {
+                goto done;
+            }
+            /* Try again from memory or a vector input register.  */
+        }
+        if (!its->mem_coherent) {
+            /*
+             * The input register is not synced, and so an extra store
+             * would be required to use memory.  Attempt an integer-vector
+             * register move first.  We do not have a TCGRegSet for this.
+             */
+            if (tcg_out_mov(s, itype, ots->reg, its->reg)) {
+                break;
+            }
+            /* Sync the temp back to its slot and load from there.  */
+            temp_sync(s, its, s->reserved_regs, 0, 0);
+        }
+        /* fall through */
+
+    case TEMP_VAL_MEM:
+#ifdef HOST_WORDS_BIGENDIAN
+        endian_fixup = itype == TCG_TYPE_I32 ? 4 : 8;
+        endian_fixup -= 1 << vece;
+#else
+        endian_fixup = 0;
+#endif
+        if (tcg_out_dupm_vec(s, vtype, vece, ots->reg, its->mem_base->reg,
+                             its->mem_offset + endian_fixup)) {
+            goto done;
+        }
+        tcg_out_ld(s, itype, ots->reg, its->mem_base->reg, its->mem_offset);
+        break;
+
+    default:
+        g_assert_not_reached();
+    }
+
+    /* We now have a vector input register, so dup must succeed. */
+    ok = tcg_out_dup_vec(s, vtype, vece, ots->reg, ots->reg);
+    tcg_debug_assert(ok);
+
+ done:
+    if (IS_DEAD_ARG(1)) {
+        temp_dead(s, its);
+    }
+    if (NEED_SYNC_ARG(0)) {
+        temp_sync(s, ots, s->reserved_regs, 0, 0);
+    }
+    if (IS_DEAD_ARG(0)) {
+        temp_dead(s, ots);
     }
 }
 
@@ -3467,7 +3624,15 @@ static void tcg_reg_alloc_op(TCGContext *s, const TCGOp *op)
                       i_allocated_regs, 0);
             reg = tcg_reg_alloc(s, arg_ct->u.regs, i_allocated_regs,
                                 o_preferred_regs, ts->indirect_base);
-            tcg_out_mov(s, ts->type, reg, ts->reg);
+            if (!tcg_out_mov(s, ts->type, reg, ts->reg)) {
+                /*
+                 * Cross register class move not supported.  Sync the
+                 * temp back to its slot and load from there.
+                 */
+                temp_sync(s, ts, i_allocated_regs, 0, 0);
+                tcg_out_ld(s, ts->type, reg,
+                           ts->mem_base->reg, ts->mem_offset);
+            }
         }
         new_args[i] = reg;
         const_args[i] = 0;
@@ -3504,6 +3669,10 @@ static void tcg_reg_alloc_op(TCGContext *s, const TCGOp *op)
             arg = op->args[i];
             arg_ct = &def->args_ct[i];
             ts = arg_temp(arg);
+
+            /* ENV should not be modified.  */
+            tcg_debug_assert(!ts->fixed_reg);
+
             if ((arg_ct->ct & TCG_CT_ALIAS)
                 && !const_args[arg_ct->alias_index]) {
                 reg = new_args[arg_ct->alias_index];
@@ -3512,29 +3681,21 @@ static void tcg_reg_alloc_op(TCGContext *s, const TCGOp *op)
                                     i_allocated_regs | o_allocated_regs,
                                     op->output_pref[k], ts->indirect_base);
             } else {
-                /* if fixed register, we try to use it */
-                reg = ts->reg;
-                if (ts->fixed_reg &&
-                    tcg_regset_test_reg(arg_ct->u.regs, reg)) {
-                    goto oarg_end;
-                }
                 reg = tcg_reg_alloc(s, arg_ct->u.regs, o_allocated_regs,
                                     op->output_pref[k], ts->indirect_base);
             }
             tcg_regset_set_reg(o_allocated_regs, reg);
-            /* if a fixed register is used, then a move will be done afterwards */
-            if (!ts->fixed_reg) {
-                if (ts->val_type == TEMP_VAL_REG) {
-                    s->reg_to_temp[ts->reg] = NULL;
-                }
-                ts->val_type = TEMP_VAL_REG;
-                ts->reg = reg;
-                /* temp value is modified, so the value kept in memory is
-                   potentially not the same */
-                ts->mem_coherent = 0;
-                s->reg_to_temp[reg] = ts;
+            if (ts->val_type == TEMP_VAL_REG) {
+                s->reg_to_temp[ts->reg] = NULL;
             }
-        oarg_end:
+            ts->val_type = TEMP_VAL_REG;
+            ts->reg = reg;
+            /*
+             * Temp value is modified, so the value kept in memory is
+             * potentially not the same.
+             */
+            ts->mem_coherent = 0;
+            s->reg_to_temp[reg] = ts;
             new_args[i] = reg;
         }
     }
@@ -3550,10 +3711,10 @@ static void tcg_reg_alloc_op(TCGContext *s, const TCGOp *op)
     /* move the outputs in the correct register if needed */
     for(i = 0; i < nb_oargs; i++) {
         ts = arg_temp(op->args[i]);
-        reg = new_args[i];
-        if (ts->fixed_reg && ts->reg != reg) {
-            tcg_out_mov(s, ts->type, ts->reg, reg);
-        }
+
+        /* ENV should not be modified.  */
+        tcg_debug_assert(!ts->fixed_reg);
+
         if (NEED_SYNC_ARG(i)) {
             temp_sync(s, ts, o_allocated_regs, 0, IS_DEAD_ARG(i));
         } else if (IS_DEAD_ARG(i)) {
@@ -3630,7 +3791,15 @@ static void tcg_reg_alloc_call(TCGContext *s, TCGOp *op)
             if (ts->val_type == TEMP_VAL_REG) {
                 if (ts->reg != reg) {
                     tcg_reg_free(s, reg, allocated_regs);
-                    tcg_out_mov(s, ts->type, reg, ts->reg);
+                    if (!tcg_out_mov(s, ts->type, reg, ts->reg)) {
+                        /*
+                         * Cross register class move not supported.  Sync the
+                         * temp back to its slot and load from there.
+                         */
+                        temp_sync(s, ts, allocated_regs, 0, 0);
+                        tcg_out_ld(s, ts->type, reg,
+                                   ts->mem_base->reg, ts->mem_offset);
+                    }
                 }
             } else {
                 TCGRegSet arg_set = 0;
@@ -3674,26 +3843,23 @@ static void tcg_reg_alloc_call(TCGContext *s, TCGOp *op)
     for(i = 0; i < nb_oargs; i++) {
         arg = op->args[i];
         ts = arg_temp(arg);
+
+        /* ENV should not be modified.  */
+        tcg_debug_assert(!ts->fixed_reg);
+
         reg = tcg_target_call_oarg_regs[i];
         tcg_debug_assert(s->reg_to_temp[reg] == NULL);
-
-        if (ts->fixed_reg) {
-            if (ts->reg != reg) {
-                tcg_out_mov(s, ts->type, ts->reg, reg);
-            }
-        } else {
-            if (ts->val_type == TEMP_VAL_REG) {
-                s->reg_to_temp[ts->reg] = NULL;
-            }
-            ts->val_type = TEMP_VAL_REG;
-            ts->reg = reg;
-            ts->mem_coherent = 0;
-            s->reg_to_temp[reg] = ts;
-            if (NEED_SYNC_ARG(i)) {
-                temp_sync(s, ts, allocated_regs, 0, IS_DEAD_ARG(i));
-            } else if (IS_DEAD_ARG(i)) {
-                temp_dead(s, ts);
-            }
+        if (ts->val_type == TEMP_VAL_REG) {
+            s->reg_to_temp[ts->reg] = NULL;
+        }
+        ts->val_type = TEMP_VAL_REG;
+        ts->reg = reg;
+        ts->mem_coherent = 0;
+        s->reg_to_temp[reg] = ts;
+        if (NEED_SYNC_ARG(i)) {
+            temp_sync(s, ts, allocated_regs, 0, IS_DEAD_ARG(i));
+        } else if (IS_DEAD_ARG(i)) {
+            temp_dead(s, ts);
         }
     }
 }
@@ -3942,6 +4108,9 @@ int tcg_gen_code(TCGContext *s, TranslationBlock *tb)
         case INDEX_op_movi_i64:
         case INDEX_op_dupi_vec:
             tcg_reg_alloc_movi(s, op);
+            break;
+        case INDEX_op_dup_vec:
+            tcg_reg_alloc_dup(s, op);
             break;
         case INDEX_op_insn_start:
             if (num_insns >= 0) {

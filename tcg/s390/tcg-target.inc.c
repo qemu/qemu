@@ -548,7 +548,7 @@ static void tcg_out_sh32(TCGContext* s, S390Opcode op, TCGReg dest,
     tcg_out_insn_RS(s, op, dest, sh_reg, 0, sh_imm);
 }
 
-static void tcg_out_mov(TCGContext *s, TCGType type, TCGReg dst, TCGReg src)
+static bool tcg_out_mov(TCGContext *s, TCGType type, TCGReg dst, TCGReg src)
 {
     if (src != dst) {
         if (type == TCG_TYPE_I32) {
@@ -557,6 +557,7 @@ static void tcg_out_mov(TCGContext *s, TCGType type, TCGReg dst, TCGReg src)
             tcg_out_insn(s, RRE, LGR, dst, src);
         }
     }
+    return true;
 }
 
 static const S390Opcode lli_insns[4] = {
