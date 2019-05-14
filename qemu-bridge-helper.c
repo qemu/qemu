@@ -75,7 +75,7 @@ static int parse_acl_file(const char *filename, ACLList *acl_list)
         char *ptr = line;
         char *cmd, *arg, *argend;
 
-        while (isspace(*ptr)) {
+        while (g_ascii_isspace(*ptr)) {
             ptr++;
         }
 
@@ -99,12 +99,12 @@ static int parse_acl_file(const char *filename, ACLList *acl_list)
 
         *arg = 0;
         arg++;
-        while (isspace(*arg)) {
+        while (g_ascii_isspace(*arg)) {
             arg++;
         }
 
         argend = arg + strlen(arg);
-        while (arg != argend && isspace(*(argend - 1))) {
+        while (arg != argend && g_ascii_isspace(*(argend - 1))) {
             argend--;
         }
         *argend = 0;
