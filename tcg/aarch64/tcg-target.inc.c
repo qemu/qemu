@@ -119,6 +119,8 @@ static inline bool patch_reloc(tcg_insn_unit *code_ptr, int type,
 #define TCG_CT_CONST_LIMM 0x200
 #define TCG_CT_CONST_ZERO 0x400
 #define TCG_CT_CONST_MONE 0x800
+#define TCG_CT_CONST_ORRI 0x1000
+#define TCG_CT_CONST_ANDI 0x2000
 
 /* parse target specific constraints */
 static const char *target_parse_constraint(TCGArgConstraint *ct,
@@ -153,6 +155,12 @@ static const char *target_parse_constraint(TCGArgConstraint *ct,
         break;
     case 'M': /* minus one */
         ct->ct |= TCG_CT_CONST_MONE;
+        break;
+    case 'O': /* vector orr/bic immediate */
+        ct->ct |= TCG_CT_CONST_ORRI;
+        break;
+    case 'N': /* vector orr/bic immediate, inverted */
+        ct->ct |= TCG_CT_CONST_ANDI;
         break;
     case 'Z': /* zero */
         ct->ct |= TCG_CT_CONST_ZERO;
@@ -293,6 +301,16 @@ static int is_shimm32_pair(uint32_t v32, int *cmode, int *imm8)
     return i;
 }
 
+/* Return true if V is a valid 16-bit or 32-bit shifted immediate.  */
+static bool is_shimm1632(uint32_t v32, int *cmode, int *imm8)
+{
+    if (v32 == deposit32(v32, 16, 16, v32)) {
+        return is_shimm16(v32, cmode, imm8);
+    } else {
+        return is_shimm32(v32, cmode, imm8);
+    }
+}
+
 static int tcg_target_const_match(tcg_target_long val, TCGType type,
                                   const TCGArgConstraint *arg_ct)
 {
@@ -315,6 +333,23 @@ static int tcg_target_const_match(tcg_target_long val, TCGType type,
     }
     if ((ct & TCG_CT_CONST_MONE) && val == -1) {
         return 1;
+    }
+
+    switch (ct & (TCG_CT_CONST_ORRI | TCG_CT_CONST_ANDI)) {
+    case 0:
+        break;
+    case TCG_CT_CONST_ANDI:
+        val = ~val;
+        /* fallthru */
+    case TCG_CT_CONST_ORRI:
+        if (val == deposit64(val, 32, 32, val)) {
+            int cmode, imm8;
+            return is_shimm1632(val, &cmode, &imm8);
+        }
+        break;
+    default:
+        /* Both bits should not be set for the same insn.  */
+        g_assert_not_reached();
     }
 
     return 0;
@@ -2278,6 +2313,7 @@ static void tcg_out_vec_op(TCGContext *s, TCGOpcode opc,
     TCGType type = vecl + TCG_TYPE_V64;
     unsigned is_q = vecl;
     TCGArg a0, a1, a2, a3;
+    int cmode, imm8;
 
     a0 = args[0];
     a1 = args[1];
@@ -2309,19 +2345,55 @@ static void tcg_out_vec_op(TCGContext *s, TCGOpcode opc,
         tcg_out_insn(s, 3617, ABS, is_q, vece, a0, a1);
         break;
     case INDEX_op_and_vec:
+        if (const_args[2]) {
+            is_shimm1632(~a2, &cmode, &imm8);
+            if (a0 == a1) {
+                tcg_out_insn(s, 3606, BIC, is_q, a0, 0, cmode, imm8);
+                return;
+            }
+            tcg_out_insn(s, 3606, MVNI, is_q, a0, 0, cmode, imm8);
+            a2 = a0;
+        }
         tcg_out_insn(s, 3616, AND, is_q, 0, a0, a1, a2);
         break;
     case INDEX_op_or_vec:
+        if (const_args[2]) {
+            is_shimm1632(a2, &cmode, &imm8);
+            if (a0 == a1) {
+                tcg_out_insn(s, 3606, ORR, is_q, a0, 0, cmode, imm8);
+                return;
+            }
+            tcg_out_insn(s, 3606, MOVI, is_q, a0, 0, cmode, imm8);
+            a2 = a0;
+        }
         tcg_out_insn(s, 3616, ORR, is_q, 0, a0, a1, a2);
         break;
-    case INDEX_op_xor_vec:
-        tcg_out_insn(s, 3616, EOR, is_q, 0, a0, a1, a2);
-        break;
     case INDEX_op_andc_vec:
+        if (const_args[2]) {
+            is_shimm1632(a2, &cmode, &imm8);
+            if (a0 == a1) {
+                tcg_out_insn(s, 3606, BIC, is_q, a0, 0, cmode, imm8);
+                return;
+            }
+            tcg_out_insn(s, 3606, MOVI, is_q, a0, 0, cmode, imm8);
+            a2 = a0;
+        }
         tcg_out_insn(s, 3616, BIC, is_q, 0, a0, a1, a2);
         break;
     case INDEX_op_orc_vec:
+        if (const_args[2]) {
+            is_shimm1632(~a2, &cmode, &imm8);
+            if (a0 == a1) {
+                tcg_out_insn(s, 3606, ORR, is_q, a0, 0, cmode, imm8);
+                return;
+            }
+            tcg_out_insn(s, 3606, MVNI, is_q, a0, 0, cmode, imm8);
+            a2 = a0;
+        }
         tcg_out_insn(s, 3616, ORN, is_q, 0, a0, a1, a2);
+        break;
+    case INDEX_op_xor_vec:
+        tcg_out_insn(s, 3616, EOR, is_q, 0, a0, a1, a2);
         break;
     case INDEX_op_ssadd_vec:
         tcg_out_insn(s, 3616, SQADD, is_q, vece, a0, a1, a2);
@@ -2505,6 +2577,8 @@ static const TCGTargetOpDef *tcg_target_op_def(TCGOpcode op)
     static const TCGTargetOpDef lZ_l = { .args_ct_str = { "lZ", "l" } };
     static const TCGTargetOpDef r_r_r = { .args_ct_str = { "r", "r", "r" } };
     static const TCGTargetOpDef w_w_w = { .args_ct_str = { "w", "w", "w" } };
+    static const TCGTargetOpDef w_w_wO = { .args_ct_str = { "w", "w", "wO" } };
+    static const TCGTargetOpDef w_w_wN = { .args_ct_str = { "w", "w", "wN" } };
     static const TCGTargetOpDef w_w_wZ = { .args_ct_str = { "w", "w", "wZ" } };
     static const TCGTargetOpDef r_r_ri = { .args_ct_str = { "r", "r", "ri" } };
     static const TCGTargetOpDef r_r_rA = { .args_ct_str = { "r", "r", "rA" } };
@@ -2660,11 +2734,7 @@ static const TCGTargetOpDef *tcg_target_op_def(TCGOpcode op)
     case INDEX_op_add_vec:
     case INDEX_op_sub_vec:
     case INDEX_op_mul_vec:
-    case INDEX_op_and_vec:
-    case INDEX_op_or_vec:
     case INDEX_op_xor_vec:
-    case INDEX_op_andc_vec:
-    case INDEX_op_orc_vec:
     case INDEX_op_ssadd_vec:
     case INDEX_op_sssub_vec:
     case INDEX_op_usadd_vec:
@@ -2691,6 +2761,12 @@ static const TCGTargetOpDef *tcg_target_op_def(TCGOpcode op)
         return &w_r;
     case INDEX_op_dup_vec:
         return &w_wr;
+    case INDEX_op_or_vec:
+    case INDEX_op_andc_vec:
+        return &w_w_wO;
+    case INDEX_op_and_vec:
+    case INDEX_op_orc_vec:
+        return &w_w_wN;
     case INDEX_op_cmp_vec:
         return &w_w_wZ;
     case INDEX_op_bitsel_vec:
