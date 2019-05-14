@@ -190,101 +190,84 @@ static inline bool is_limm(uint64_t val)
     return (val & (val - 1)) == 0;
 }
 
-/* Match a constant that is valid for vectors.  */
-static bool is_fimm(uint64_t v64, int *op, int *cmode, int *imm8)
+/* Return true if v16 is a valid 16-bit shifted immediate.  */
+static bool is_shimm16(uint16_t v16, int *cmode, int *imm8)
 {
-    int i;
-
-    *op = 0;
-    /* Match replication across 8 bits.  */
-    if (v64 == dup_const(MO_8, v64)) {
-        *cmode = 0xe;
-        *imm8 = v64 & 0xff;
+    if (v16 == (v16 & 0xff)) {
+        *cmode = 0x8;
+        *imm8 = v16 & 0xff;
+        return true;
+    } else if (v16 == (v16 & 0xff00)) {
+        *cmode = 0xa;
+        *imm8 = v16 >> 8;
         return true;
     }
-    /* Match replication across 16 bits.  */
-    if (v64 == dup_const(MO_16, v64)) {
-        uint16_t v16 = v64;
+    return false;
+}
 
-        if (v16 == (v16 & 0xff)) {
-            *cmode = 0x8;
-            *imm8 = v16 & 0xff;
-            return true;
-        } else if (v16 == (v16 & 0xff00)) {
-            *cmode = 0xa;
-            *imm8 = v16 >> 8;
-            return true;
-        }
+/* Return true if v32 is a valid 32-bit shifted immediate.  */
+static bool is_shimm32(uint32_t v32, int *cmode, int *imm8)
+{
+    if (v32 == (v32 & 0xff)) {
+        *cmode = 0x0;
+        *imm8 = v32 & 0xff;
+        return true;
+    } else if (v32 == (v32 & 0xff00)) {
+        *cmode = 0x2;
+        *imm8 = (v32 >> 8) & 0xff;
+        return true;
+    } else if (v32 == (v32 & 0xff0000)) {
+        *cmode = 0x4;
+        *imm8 = (v32 >> 16) & 0xff;
+        return true;
+    } else if (v32 == (v32 & 0xff000000)) {
+        *cmode = 0x6;
+        *imm8 = v32 >> 24;
+        return true;
     }
-    /* Match replication across 32 bits.  */
-    if (v64 == dup_const(MO_32, v64)) {
-        uint32_t v32 = v64;
+    return false;
+}
 
-        if (v32 == (v32 & 0xff)) {
-            *cmode = 0x0;
-            *imm8 = v32 & 0xff;
-            return true;
-        } else if (v32 == (v32 & 0xff00)) {
-            *cmode = 0x2;
-            *imm8 = (v32 >> 8) & 0xff;
-            return true;
-        } else if (v32 == (v32 & 0xff0000)) {
-            *cmode = 0x4;
-            *imm8 = (v32 >> 16) & 0xff;
-            return true;
-        } else if (v32 == (v32 & 0xff000000)) {
-            *cmode = 0x6;
-            *imm8 = v32 >> 24;
-            return true;
-        } else if ((v32 & 0xffff00ff) == 0xff) {
-            *cmode = 0xc;
-            *imm8 = (v32 >> 8) & 0xff;
-            return true;
-        } else if ((v32 & 0xff00ffff) == 0xffff) {
-            *cmode = 0xd;
-            *imm8 = (v32 >> 16) & 0xff;
-            return true;
-        }
-        /* Match forms of a float32.  */
-        if (extract32(v32, 0, 19) == 0
-            && (extract32(v32, 25, 6) == 0x20
-                || extract32(v32, 25, 6) == 0x1f)) {
-            *cmode = 0xf;
-            *imm8 = (extract32(v32, 31, 1) << 7)
-                  | (extract32(v32, 25, 1) << 6)
-                  | extract32(v32, 19, 6);
-            return true;
-        }
+/* Return true if v32 is a valid 32-bit shifting ones immediate.  */
+static bool is_soimm32(uint32_t v32, int *cmode, int *imm8)
+{
+    if ((v32 & 0xffff00ff) == 0xff) {
+        *cmode = 0xc;
+        *imm8 = (v32 >> 8) & 0xff;
+        return true;
+    } else if ((v32 & 0xff00ffff) == 0xffff) {
+        *cmode = 0xd;
+        *imm8 = (v32 >> 16) & 0xff;
+        return true;
     }
-    /* Match forms of a float64.  */
+    return false;
+}
+
+/* Return true if v32 is a valid float32 immediate.  */
+static bool is_fimm32(uint32_t v32, int *cmode, int *imm8)
+{
+    if (extract32(v32, 0, 19) == 0
+        && (extract32(v32, 25, 6) == 0x20
+            || extract32(v32, 25, 6) == 0x1f)) {
+        *cmode = 0xf;
+        *imm8 = (extract32(v32, 31, 1) << 7)
+              | (extract32(v32, 25, 1) << 6)
+              | extract32(v32, 19, 6);
+        return true;
+    }
+    return false;
+}
+
+/* Return true if v64 is a valid float64 immediate.  */
+static bool is_fimm64(uint64_t v64, int *cmode, int *imm8)
+{
     if (extract64(v64, 0, 48) == 0
         && (extract64(v64, 54, 9) == 0x100
             || extract64(v64, 54, 9) == 0x0ff)) {
         *cmode = 0xf;
-        *op = 1;
         *imm8 = (extract64(v64, 63, 1) << 7)
               | (extract64(v64, 54, 1) << 6)
               | extract64(v64, 48, 6);
-        return true;
-    }
-    /* Match bytes of 0x00 and 0xff.  */
-    for (i = 0; i < 64; i += 8) {
-        uint64_t byte = extract64(v64, i, 8);
-        if (byte != 0 && byte != 0xff) {
-            break;
-        }
-    }
-    if (i == 64) {
-        *cmode = 0xe;
-        *op = 1;
-        *imm8 = (extract64(v64, 0, 1) << 0)
-              | (extract64(v64, 8, 1) << 1)
-              | (extract64(v64, 16, 1) << 2)
-              | (extract64(v64, 24, 1) << 3)
-              | (extract64(v64, 32, 1) << 4)
-              | (extract64(v64, 40, 1) << 5)
-              | (extract64(v64, 48, 1) << 6)
-              | (extract64(v64, 56, 1) << 7);
         return true;
     }
     return false;
@@ -817,11 +800,63 @@ static void tcg_out_logicali(TCGContext *s, AArch64Insn insn, TCGType ext,
 static void tcg_out_dupi_vec(TCGContext *s, TCGType type,
                              TCGReg rd, tcg_target_long v64)
 {
-    int op, cmode, imm8;
+    bool q = type == TCG_TYPE_V128;
+    int cmode, imm8, i;
 
-    if (is_fimm(v64, &op, &cmode, &imm8)) {
-        tcg_out_insn(s, 3606, MOVI, type == TCG_TYPE_V128, rd, op, cmode, imm8);
-    } else if (type == TCG_TYPE_V128) {
+    /* Test all bytes equal first.  */
+    if (v64 == dup_const(MO_8, v64)) {
+        imm8 = (uint8_t)v64;
+        tcg_out_insn(s, 3606, MOVI, q, rd, 0, 0xe, imm8);
+        return;
+    }
+
+    /*
+     * Test all bytes 0x00 or 0xff second.  This can match cases that
+     * might otherwise take 2 or 3 insns for MO_16 or MO_32 below.
+     */
+    for (i = imm8 = 0; i < 8; i++) {
+        uint8_t byte = v64 >> (i * 8);
+        if (byte == 0xff) {
+            imm8 |= 1 << i;
+        } else if (byte != 0) {
+            goto fail_bytes;
+        }
+    }
+    tcg_out_insn(s, 3606, MOVI, q, rd, 1, 0xe, imm8);
+    return;
+ fail_bytes:
+
+    /*
+     * Tests for various replications.  For each element width, if we
+     * cannot find an expansion there's no point checking a larger
+     * width because we already know by replication it cannot match.
+     */
+    if (v64 == dup_const(MO_16, v64)) {
+        uint16_t v16 = v64;
+
+        if (is_shimm16(v16, &cmode, &imm8)) {
+            tcg_out_insn(s, 3606, MOVI, q, rd, 0, cmode, imm8);
+            return;
+        }
+    } else if (v64 == dup_const(MO_32, v64)) {
+        uint32_t v32 = v64;
+
+        if (is_shimm32(v32, &cmode, &imm8) ||
+            is_soimm32(v32, &cmode, &imm8) ||
+            is_fimm32(v32, &cmode, &imm8)) {
+            tcg_out_insn(s, 3606, MOVI, q, rd, 0, cmode, imm8);
+            return;
+        }
+    } else if (is_fimm64(v64, &cmode, &imm8)) {
+        tcg_out_insn(s, 3606, MOVI, q, rd, 1, cmode, imm8);
+        return;
+    }
+
+    /*
+     * As a last resort, load from the constant pool.  Sadly there
+     * is no LD1R (literal), so store the full 16-byte vector.
+     */
+    if (type == TCG_TYPE_V128) {
         new_pool_l2(s, R_AARCH64_CONDBR19, s->code_ptr, 0, v64, v64);
         tcg_out_insn(s, 3305, LDR_v128, 0, rd);
     } else {
