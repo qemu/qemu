@@ -15,3 +15,6 @@ config PLATFORM_BUS
 
 config REGISTER
     bool
+
+config SPLIT_IRQ
+    bool
