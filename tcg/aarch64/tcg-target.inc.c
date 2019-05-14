@@ -273,6 +273,26 @@ static bool is_fimm64(uint64_t v64, int *cmode, int *imm8)
     return false;
 }
 
+/*
+ * Return non-zero if v32 can be formed by MOVI+ORR.
+ * Place the parameters for MOVI in (cmode, imm8).
+ * Return the cmode for ORR; the imm8 can be had via extraction from v32.
+ */
+static int is_shimm32_pair(uint32_t v32, int *cmode, int *imm8)
+{
+    int i;
+
+    for (i = 6; i > 0; i -= 2) {
+        /* Mask out one byte we can add with ORR.  */
+        uint32_t tmp = v32 & ~(0xffu << (i * 4));
+        if (is_shimm32(tmp, cmode, imm8) ||
+            is_soimm32(tmp, cmode, imm8)) {
+            break;
+        }
+    }
+    return i;
+}
+
 static int tcg_target_const_match(tcg_target_long val, TCGType type,
                                   const TCGArgConstraint *arg_ct)
 {
@@ -495,6 +515,8 @@ typedef enum {
     /* AdvSIMD modified immediate */
     I3606_MOVI      = 0x0f000400,
     I3606_MVNI      = 0x2f000400,
+    I3606_BIC       = 0x2f001400,
+    I3606_ORR       = 0x0f001400,
 
     /* AdvSIMD shift by immediate */
     I3614_SSHR      = 0x0f000400,
@@ -843,6 +865,14 @@ static void tcg_out_dupi_vec(TCGContext *s, TCGType type,
             tcg_out_insn(s, 3606, MVNI, q, rd, 0, cmode, imm8);
             return;
         }
+
+        /*
+         * Otherwise, all remaining constants can be loaded in two insns:
+         * rd = v16 & 0xff, rd |= v16 & 0xff00.
+         */
+        tcg_out_insn(s, 3606, MOVI, q, rd, 0, 0x8, v16 & 0xff);
+        tcg_out_insn(s, 3606, ORR, q, rd, 0, 0xa, v16 >> 8);
+        return;
     } else if (v64 == dup_const(MO_32, v64)) {
         uint32_t v32 = v64;
         uint32_t n32 = ~v32;
@@ -856,6 +886,23 @@ static void tcg_out_dupi_vec(TCGContext *s, TCGType type,
         if (is_shimm32(n32, &cmode, &imm8) ||
             is_soimm32(n32, &cmode, &imm8)) {
             tcg_out_insn(s, 3606, MVNI, q, rd, 0, cmode, imm8);
+            return;
+        }
+
+        /*
+         * Restrict the set of constants to those we can load with
+         * two instructions.  Others we load from the pool.
+         */
+        i = is_shimm32_pair(v32, &cmode, &imm8);
+        if (i) {
+            tcg_out_insn(s, 3606, MOVI, q, rd, 0, cmode, imm8);
+            tcg_out_insn(s, 3606, ORR, q, rd, 0, i, extract32(v32, i * 4, 8));
+            return;
+        }
+        i = is_shimm32_pair(n32, &cmode, &imm8);
+        if (i) {
+            tcg_out_insn(s, 3606, MVNI, q, rd, 0, cmode, imm8);
+            tcg_out_insn(s, 3606, BIC, q, rd, 0, i, extract32(n32, i * 4, 8));
             return;
         }
     } else if (is_fimm64(v64, &cmode, &imm8)) {
