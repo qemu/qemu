@@ -357,7 +357,7 @@ static void pc_q35_machine_options(MachineClass *m)
     m->units_per_default_bus = 1;
     m->default_machine_opts = "firmware=bios-256k.bin";
     m->default_display = "std";
-    m->default_kernel_irqchip_split = true;
+    m->default_kernel_irqchip_split = false;
     m->no_floppy = 1;
     machine_class_allow_dynamic_sysbus_dev(m, TYPE_AMD_IOMMU_DEVICE);
     machine_class_allow_dynamic_sysbus_dev(m, TYPE_INTEL_IOMMU_DEVICE);
@@ -374,9 +374,21 @@ static void pc_q35_4_1_machine_options(MachineClass *m)
 DEFINE_Q35_MACHINE(v4_1, "pc-q35-4.1", NULL,
                    pc_q35_4_1_machine_options);
 
-static void pc_q35_4_0_machine_options(MachineClass *m)
+static void pc_q35_4_0_1_machine_options(MachineClass *m)
 {
     pc_q35_4_1_machine_options(m);
+    m->alias = NULL;
+    compat_props_add(m->compat_props, hw_compat_4_0_1, hw_compat_4_0_1_len);
+    compat_props_add(m->compat_props, pc_compat_4_0_1, pc_compat_4_0_1_len);
+}
+
+DEFINE_Q35_MACHINE(v4_0_1, "pc-q35-4.0.1", NULL,
+                   pc_q35_4_0_1_machine_options);
+
+static void pc_q35_4_0_machine_options(MachineClass *m)
+{
+    pc_q35_4_0_1_machine_options(m);
+    m->default_kernel_irqchip_split = true;
     m->alias = NULL;
     compat_props_add(m->compat_props, hw_compat_4_0, hw_compat_4_0_len);
     compat_props_add(m->compat_props, pc_compat_4_0, pc_compat_4_0_len);
