@@ -538,7 +538,7 @@ static int do_write_compressed(BlockBackend *blk, char *buf, int64_t offset,
 {
     int ret;
 
-    if (bytes >> 9 > BDRV_REQUEST_MAX_SECTORS) {
+    if (bytes > BDRV_REQUEST_MAX_BYTES) {
         return -ERANGE;
     }
 
@@ -1781,10 +1781,9 @@ static int discard_f(BlockBackend *blk, int argc, char **argv)
     if (bytes < 0) {
         print_cvtnum_err(bytes, argv[optind]);
         return bytes;
-    } else if (bytes >> BDRV_SECTOR_BITS > BDRV_REQUEST_MAX_SECTORS) {
+    } else if (bytes > BDRV_REQUEST_MAX_BYTES) {
         printf("length cannot exceed %"PRIu64", given %s\n",
-               (uint64_t)BDRV_REQUEST_MAX_SECTORS << BDRV_SECTOR_BITS,
-               argv[optind]);
+               (uint64_t)BDRV_REQUEST_MAX_BYTES, argv[optind]);
         return -EINVAL;
     }
 

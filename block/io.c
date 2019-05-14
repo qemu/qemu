@@ -769,7 +769,7 @@ static bool coroutine_fn wait_serialising_requests(BdrvTrackedRequest *self)
 static int bdrv_check_byte_request(BlockDriverState *bs, int64_t offset,
                                    size_t size)
 {
-    if (size > BDRV_REQUEST_MAX_SECTORS << BDRV_SECTOR_BITS) {
+    if (size > BDRV_REQUEST_MAX_BYTES) {
         return -EIO;
     }
 
@@ -1017,7 +1017,7 @@ static int coroutine_fn bdrv_driver_preadv(BlockDriverState *bs,
 
     assert((offset & (BDRV_SECTOR_SIZE - 1)) == 0);
     assert((bytes & (BDRV_SECTOR_SIZE - 1)) == 0);
-    assert((bytes >> BDRV_SECTOR_BITS) <= BDRV_REQUEST_MAX_SECTORS);
+    assert(bytes <= BDRV_REQUEST_MAX_BYTES);
     assert(drv->bdrv_co_readv);
 
     return drv->bdrv_co_readv(bs, sector_num, nb_sectors, qiov);
@@ -1070,7 +1070,7 @@ static int coroutine_fn bdrv_driver_pwritev(BlockDriverState *bs,
 
     assert((offset & (BDRV_SECTOR_SIZE - 1)) == 0);
     assert((bytes & (BDRV_SECTOR_SIZE - 1)) == 0);
-    assert((bytes >> BDRV_SECTOR_BITS) <= BDRV_REQUEST_MAX_SECTORS);
+    assert(bytes <= BDRV_REQUEST_MAX_BYTES);
 
     assert(drv->bdrv_co_writev);
     ret = drv->bdrv_co_writev(bs, sector_num, nb_sectors, qiov,
