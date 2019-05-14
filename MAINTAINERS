@@ -1532,6 +1532,7 @@ S: Maintained
 F: hw/input/vhost-user-input.c
 F: hw/input/virtio-input*.c
 F: include/hw/virtio/virtio-input.h
+F: contrib/vhost-user-input/*
 
 virtio-serial
 M: Amit Shah <amit@kernel.org>
