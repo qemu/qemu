@@ -27,6 +27,7 @@
 
 #include "cpu.h"
 #include "hw/semihosting/semihost.h"
+#include "hw/semihosting/console.h"
 #ifdef CONFIG_USER_ONLY
 #include "qemu.h"
 
@@ -313,32 +314,10 @@ target_ulong do_arm_semihosting(CPUARMState *env)
             return set_swi_errno(ts, close(arg0));
         }
     case TARGET_SYS_WRITEC:
-        {
-          char c;
-
-          if (get_user_u8(c, args))
-              /* FIXME - should this error code be -TARGET_EFAULT ? */
-              return (uint32_t)-1;
-          /* Write to debug console.  stderr is near enough.  */
-          if (use_gdb_syscalls()) {
-                return arm_gdb_syscall(cpu, arm_semi_cb, "write,2,%x,1", args);
-          } else {
-                return write(STDERR_FILENO, &c, 1);
-          }
-        }
+        qemu_semihosting_console_out(env, args, 1);
+        return 0xdeadbeef;
     case TARGET_SYS_WRITE0:
-        if (!(s = lock_user_string(args)))
-            /* FIXME - should this error code be -TARGET_EFAULT ? */
-            return (uint32_t)-1;
-        len = strlen(s);
-        if (use_gdb_syscalls()) {
-            return arm_gdb_syscall(cpu, arm_semi_cb, "write,2,%x,%x",
-                                   args, len);
-        } else {
-            ret = write(STDERR_FILENO, s, len);
-        }
-        unlock_user(s, args, 0);
-        return ret;
+        return qemu_semihosting_console_out(env, args, 0);
     case TARGET_SYS_WRITE:
         GET_ARG(0);
         GET_ARG(1);
