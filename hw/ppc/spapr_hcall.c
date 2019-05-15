@@ -1513,6 +1513,7 @@ static target_ulong h_client_architecture_support(PowerPCCPU *cpu,
     bool guest_radix;
     Error *local_err = NULL;
     bool raw_mode_supported = false;
+    bool guest_xive;
 
     cas_pvr = cas_check_pvr(spapr, cpu, &addr, &raw_mode_supported, &local_err);
     if (local_err) {
@@ -1545,9 +1546,16 @@ static target_ulong h_client_architecture_support(PowerPCCPU *cpu,
         error_report("guest requested hash and radix MMU, which is invalid.");
         exit(EXIT_FAILURE);
     }
+    if (spapr_ovec_test(ov5_guest, OV5_XIVE_BOTH)) {
+        error_report("guest requested an invalid interrupt mode");
+        exit(EXIT_FAILURE);
+    }
+
     /* The radix/hash bit in byte 24 requires special handling: */
     guest_radix = spapr_ovec_test(ov5_guest, OV5_MMU_RADIX_300);
     spapr_ovec_clear(ov5_guest, OV5_MMU_RADIX_300);
+
+    guest_xive = spapr_ovec_test(ov5_guest, OV5_XIVE_EXPLOIT);
 
     /*
      * HPT resizing is a bit of a special case, because when enabled
@@ -1630,6 +1638,22 @@ static target_ulong h_client_architecture_support(PowerPCCPU *cpu,
         spapr->cas_reboot =
             (spapr_h_cas_compose_response(spapr, args[1], args[2],
                                           ov5_updates) != 0);
+    }
+
+    /*
+     * Ensure the guest asks for an interrupt mode we support; otherwise
+     * terminate the boot.
+     */
+    if (guest_xive) {
+        if (spapr->irq->ov5 == SPAPR_OV5_XIVE_LEGACY) {
+            error_report("Guest requested unavailable interrupt mode (XIVE)");
+            exit(EXIT_FAILURE);
+        }
+    } else {
+        if (spapr->irq->ov5 == SPAPR_OV5_XIVE_EXPLOIT) {
+            error_report("Guest requested unavailable interrupt mode (XICS)");
+            exit(EXIT_FAILURE);
+        }
     }
 
     /*
