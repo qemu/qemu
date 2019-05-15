@@ -77,33 +77,35 @@ static bool is_hd(const CHST *expected_chst)
     return expected_chst && expected_chst->cyls;
 }
 
-static void test_cmos_byte(int reg, int expected)
+static void test_cmos_byte(QTestState *qts, int reg, int expected)
 {
     enum { cmos_base = 0x70 };
     int actual;
 
-    outb(cmos_base + 0, reg);
-    actual = inb(cmos_base + 1);
+    qtest_outb(qts, cmos_base + 0, reg);
+    actual = qtest_inb(qts, cmos_base + 1);
     g_assert(actual == expected);
 }
 
-static void test_cmos_bytes(int reg0, int n, uint8_t expected[])
+static void test_cmos_bytes(QTestState *qts, int reg0, int n,
+                            uint8_t expected[])
 {
     int i;
 
     for (i = 0; i < 9; i++) {
-        test_cmos_byte(reg0 + i, expected[i]);
+        test_cmos_byte(qts, reg0 + i, expected[i]);
     }
 }
 
-static void test_cmos_disk_data(void)
+static void test_cmos_disk_data(QTestState *qts)
 {
-    test_cmos_byte(0x12,
+    test_cmos_byte(qts, 0x12,
                    (is_hd(cur_ide[0]) ? 0xf0 : 0) |
                    (is_hd(cur_ide[1]) ? 0x0f : 0));
 }
 
-static void test_cmos_drive_cyl(int reg0, const CHST *expected_chst)
+static void test_cmos_drive_cyl(QTestState *qts, int reg0,
+                                const CHST *expected_chst)
 {
     if (is_hd(expected_chst)) {
         int c = expected_chst->cyls;
@@ -113,29 +115,29 @@ static void test_cmos_drive_cyl(int reg0, const CHST *expected_chst)
             c & 0xff, c >> 8, h, 0xff, 0xff, 0xc0 | ((h > 8) << 3),
             c & 0xff, c >> 8, s
         };
-        test_cmos_bytes(reg0, 9, expected_bytes);
+        test_cmos_bytes(qts, reg0, 9, expected_bytes);
     } else {
         int i;
 
         for (i = 0; i < 9; i++) {
-            test_cmos_byte(reg0 + i, 0);
+            test_cmos_byte(qts, reg0 + i, 0);
         }
     }
 }
 
-static void test_cmos_drive1(void)
+static void test_cmos_drive1(QTestState *qts)
 {
-    test_cmos_byte(0x19, is_hd(cur_ide[0]) ? 47 : 0);
-    test_cmos_drive_cyl(0x1b, cur_ide[0]);
+    test_cmos_byte(qts, 0x19, is_hd(cur_ide[0]) ? 47 : 0);
+    test_cmos_drive_cyl(qts, 0x1b, cur_ide[0]);
 }
 
-static void test_cmos_drive2(void)
+static void test_cmos_drive2(QTestState *qts)
 {
-    test_cmos_byte(0x1a, is_hd(cur_ide[1]) ? 47 : 0);
-    test_cmos_drive_cyl(0x24, cur_ide[1]);
+    test_cmos_byte(qts, 0x1a, is_hd(cur_ide[1]) ? 47 : 0);
+    test_cmos_drive_cyl(qts, 0x24, cur_ide[1]);
 }
 
-static void test_cmos_disktransflag(void)
+static void test_cmos_disktransflag(QTestState *qts)
 {
     int val, i;
 
@@ -145,15 +147,15 @@ static void test_cmos_disktransflag(void)
             val |= cur_ide[i]->trans << (2 * i);
         }
     }
-    test_cmos_byte(0x39, val);
+    test_cmos_byte(qts, 0x39, val);
 }
 
-static void test_cmos(void)
+static void test_cmos(QTestState *qts)
 {
-    test_cmos_disk_data();
-    test_cmos_drive1();
-    test_cmos_drive2();
-    test_cmos_disktransflag();
+    test_cmos_disk_data(qts);
+    test_cmos_drive1(qts);
+    test_cmos_drive2(qts);
+    test_cmos_disktransflag(qts);
 }
 
 static int append_arg(int argc, char *argv[], int argv_sz, char *arg)
@@ -238,14 +240,15 @@ static void test_ide_none(void)
 {
     char **argv = g_new0(char *, ARGV_SIZE);
     char *args;
+    QTestState *qts;
 
     setup_common(argv, ARGV_SIZE);
     args = g_strjoinv(" ", argv);
-    qtest_start(args);
+    qts = qtest_init(args);
     g_strfreev(argv);
     g_free(args);
-    test_cmos();
-    qtest_end();
+    test_cmos(qts);
+    qtest_quit(qts);
 }
 
 static void test_ide_mbr(bool use_device, MBRcontents mbr)
@@ -255,6 +258,7 @@ static void test_ide_mbr(bool use_device, MBRcontents mbr)
     int argc;
     Backend i;
     const char *dev;
+    QTestState *qts;
 
     argc = setup_common(argv, ARGV_SIZE);
     for (i = 0; i < backend_last; i++) {
@@ -263,11 +267,11 @@ static void test_ide_mbr(bool use_device, MBRcontents mbr)
         argc = setup_ide(argc, argv, ARGV_SIZE, i, dev, i, mbr);
     }
     args = g_strjoinv(" ", argv);
-    qtest_start(args);
+    qts = qtest_init(args);
     g_strfreev(argv);
     g_free(args);
-    test_cmos();
-    qtest_end();
+    test_cmos(qts);
+    qtest_quit(qts);
 }
 
 /*
@@ -325,6 +329,7 @@ static void test_ide_drive_user(const char *dev, bool trans)
     int argc;
     int secs = img_secs[backend_small];
     const CHST expected_chst = { secs / (4 * 32) , 4, 32, trans };
+    QTestState *qts;
 
     argc = setup_common(argv, ARGV_SIZE);
     opts = g_strdup_printf("%s,%scyls=%d,heads=%d,secs=%d",
@@ -335,11 +340,11 @@ static void test_ide_drive_user(const char *dev, bool trans)
     argc = setup_ide(argc, argv, ARGV_SIZE, 0, opts, backend_small, mbr_chs);
     g_free(opts);
     args = g_strjoinv(" ", argv);
-    qtest_start(args);
+    qts = qtest_init(args);
     g_strfreev(argv);
     g_free(args);
-    test_cmos();
-    qtest_end();
+    test_cmos(qts);
+    qtest_quit(qts);
 }
 
 /*
@@ -367,6 +372,7 @@ static void test_ide_drive_cd_0(void)
     char *args;
     int argc, ide_idx;
     Backend i;
+    QTestState *qts;
 
     argc = setup_common(argv, ARGV_SIZE);
     for (i = 0; i <= backend_empty; i++) {
@@ -375,11 +381,11 @@ static void test_ide_drive_cd_0(void)
         argc = setup_ide(argc, argv, ARGV_SIZE, ide_idx, NULL, i, mbr_blank);
     }
     args = g_strjoinv(" ", argv);
-    qtest_start(args);
+    qts = qtest_init(args);
     g_strfreev(argv);
     g_free(args);
-    test_cmos();
-    qtest_end();
+    test_cmos(qts);
+    qtest_quit(qts);
 }
 
 int main(int argc, char **argv)
