@@ -1709,6 +1709,8 @@ static int bdrv_child_check_perm(BdrvChild *c, BlockReopenQueue *q,
                                  GSList *ignore_children, Error **errp);
 static void bdrv_child_abort_perm_update(BdrvChild *c);
 static void bdrv_child_set_perm(BdrvChild *c, uint64_t perm, uint64_t shared);
+static void bdrv_get_cumulative_perm(BlockDriverState *bs, uint64_t *perm,
+                                     uint64_t *shared_perm);
 
 typedef struct BlockReopenQueueEntry {
      bool prepared;
@@ -1795,7 +1797,20 @@ static int bdrv_check_perm(BlockDriverState *bs, BlockReopenQueue *q,
     if ((cumulative_perms & (BLK_PERM_WRITE | BLK_PERM_WRITE_UNCHANGED)) &&
         !bdrv_is_writable_after_reopen(bs, q))
     {
-        error_setg(errp, "Block node is read-only");
+        if (!bdrv_is_writable_after_reopen(bs, NULL)) {
+            error_setg(errp, "Block node is read-only");
+        } else {
+            uint64_t current_perms, current_shared;
+            bdrv_get_cumulative_perm(bs, &current_perms, &current_shared);
+            if (current_perms & (BLK_PERM_WRITE | BLK_PERM_WRITE_UNCHANGED)) {
+                error_setg(errp, "Cannot make block node read-only, there is "
+                           "a writer on it");
+            } else {
+                error_setg(errp, "Cannot make block node read-only and create "
+                           "a writer on it");
+            }
+        }
+
         return -EPERM;
     }
 
