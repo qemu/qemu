@@ -47,6 +47,8 @@
 
 #define MAX_PILS 16
 
+#define LEON3_IRQMP_OFFSET (0x80000200)
+
 typedef struct ResetData {
     SPARCCPU *cpu;
     uint32_t  entry;            /* save kernel entry in case of reset */
@@ -121,6 +123,7 @@ static void leon3_generic_hw_init(MachineState *machine)
     int         bios_size;
     int         prom_size;
     ResetData  *reset_info;
+    DeviceState *dev;
 
     /* Init CPU */
     cpu = SPARC_CPU(cpu_create(machine->cpu_type));
@@ -135,9 +138,14 @@ static void leon3_generic_hw_init(MachineState *machine)
     qemu_register_reset(main_cpu_reset, reset_info);
 
     /* Allocate IRQ manager */
-    grlib_irqmp_create(0x80000200, env, &cpu_irqs, MAX_PILS, &leon3_set_pil_in);
-
+    dev = qdev_create(NULL, TYPE_GRLIB_IRQMP);
+    qdev_prop_set_ptr(dev, "set_pil_in", leon3_set_pil_in);
+    qdev_prop_set_ptr(dev, "set_pil_in_opaque", env);
+    qdev_init_nofail(dev);
+    sysbus_mmio_map(SYS_BUS_DEVICE(dev), 0, LEON3_IRQMP_OFFSET);
+    env->irq_manager = dev;
     env->qemu_irq_ack = leon3_irq_manager;
+    cpu_irqs = qemu_allocate_irqs(grlib_irqmp_set_irq, dev, MAX_PILS);
 
     /* Allocate RAM */
     if (ram_size > 1 * GiB) {

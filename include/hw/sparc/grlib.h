@@ -1,7 +1,7 @@
 /*
  * QEMU GRLIB Components
  *
- * Copyright (c) 2010-2011 AdaCore
+ * Copyright (c) 2010-2019 AdaCore
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -33,40 +33,13 @@
  */
 
 /* IRQMP */
+#define TYPE_GRLIB_IRQMP "grlib,irqmp"
 
 typedef void (*set_pil_in_fn) (void *opaque, uint32_t pil_in);
 
 void grlib_irqmp_set_irq(void *opaque, int irq, int level);
 
 void grlib_irqmp_ack(DeviceState *dev, int intno);
-
-static inline
-DeviceState *grlib_irqmp_create(hwaddr   base,
-                                CPUSPARCState            *env,
-                                qemu_irq           **cpu_irqs,
-                                uint32_t             nr_irqs,
-                                set_pil_in_fn        set_pil_in)
-{
-    DeviceState *dev;
-
-    assert(cpu_irqs != NULL);
-
-    dev = qdev_create(NULL, "grlib,irqmp");
-    qdev_prop_set_ptr(dev, "set_pil_in", set_pil_in);
-    qdev_prop_set_ptr(dev, "set_pil_in_opaque", env);
-
-    qdev_init_nofail(dev);
-
-    env->irq_manager = dev;
-
-    sysbus_mmio_map(SYS_BUS_DEVICE(dev), 0, base);
-
-    *cpu_irqs = qemu_allocate_irqs(grlib_irqmp_set_irq,
-                                   dev,
-                                   nr_irqs);
-
-    return dev;
-}
 
 /* GPTimer */
 
