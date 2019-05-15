@@ -129,7 +129,8 @@ QVirtQueue *qvirtqueue_setup(QVirtioDevice *d,
 void qvirtqueue_cleanup(const QVirtioBus *bus, QVirtQueue *vq,
                         QGuestAllocator *alloc);
 
-void qvring_init(const QGuestAllocator *alloc, QVirtQueue *vq, uint64_t addr);
+void qvring_init(QTestState *qts, const QGuestAllocator *alloc, QVirtQueue *vq,
+                 uint64_t addr);
 QVRingIndirectDesc *qvring_indirect_desc_setup(QVirtioDevice *d,
                                         QGuestAllocator *alloc, uint16_t elem);
 void qvring_indirect_desc_add(QVRingIndirectDesc *indirect, uint64_t data,

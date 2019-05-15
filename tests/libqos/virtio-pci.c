@@ -199,6 +199,7 @@ static QVirtQueue *qvirtio_pci_virtqueue_setup(QVirtioDevice *d,
     uint32_t feat;
     uint64_t addr;
     QVirtQueuePCI *vqpci;
+    QVirtioPCIDevice *qvpcidev = container_of(d, QVirtioPCIDevice, vdev);
 
     vqpci = g_malloc0(sizeof(*vqpci));
     feat = qvirtio_pci_get_guest_features(d);
@@ -224,7 +225,7 @@ static QVirtQueue *qvirtio_pci_virtqueue_setup(QVirtioDevice *d,
 
     addr = guest_alloc(alloc, qvring_size(vqpci->vq.size,
                                           VIRTIO_PCI_VRING_ALIGN));
-    qvring_init(alloc, &vqpci->vq, addr);
+    qvring_init(qvpcidev->pdev->bus->qts, alloc, &vqpci->vq, addr);
     qvirtio_pci_set_queue_address(d, vqpci->vq.desc / VIRTIO_PCI_VRING_ALIGN);
 
     return &vqpci->vq;
