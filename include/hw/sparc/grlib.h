@@ -45,24 +45,6 @@ void grlib_irqmp_ack(DeviceState *dev, int intno);
 #define TYPE_GRLIB_GPTIMER "grlib,gptimer"
 
 /* APB UART */
-
-static inline
-DeviceState *grlib_apbuart_create(hwaddr  base,
-                                  Chardev    *serial,
-                                  qemu_irq            irq)
-{
-    DeviceState *dev;
-
-    dev = qdev_create(NULL, "grlib,apbuart");
-    qdev_prop_set_chr(dev, "chrdev", serial);
-
-    qdev_init_nofail(dev);
-
-    sysbus_mmio_map(SYS_BUS_DEVICE(dev), 0, base);
-
-    sysbus_connect_irq(SYS_BUS_DEVICE(dev), 0, irq);
-
-    return dev;
-}
+#define TYPE_GRLIB_APB_UART "grlib,apbuart"
 
 #endif /* GRLIB_H */

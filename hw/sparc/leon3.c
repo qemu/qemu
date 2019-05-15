@@ -47,6 +47,9 @@
 
 #define MAX_PILS 16
 
+#define LEON3_UART_OFFSET  (0x80000100)
+#define LEON3_UART_IRQ     (3)
+
 #define LEON3_IRQMP_OFFSET (0x80000200)
 
 #define LEON3_TIMER_OFFSET (0x80000300)
@@ -239,7 +242,11 @@ static void leon3_generic_hw_init(MachineState *machine)
 
     /* Allocate uart */
     if (serial_hd(0)) {
-        grlib_apbuart_create(0x80000100, serial_hd(0), cpu_irqs[3]);
+        dev = qdev_create(NULL, TYPE_GRLIB_APB_UART);
+        qdev_prop_set_chr(dev, "chrdev", serial_hd(0));
+        qdev_init_nofail(dev);
+        sysbus_mmio_map(SYS_BUS_DEVICE(dev), 0, LEON3_UART_OFFSET);
+        sysbus_connect_irq(SYS_BUS_DEVICE(dev), 0, cpu_irqs[LEON3_UART_IRQ]);
     }
 }
 
