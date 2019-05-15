@@ -230,6 +230,7 @@ overridden with a pattern byte specified by @var{pattern}.
 
 Perform a consistency check on the disk image @var{filename}. The command can
 output in the format @var{ofmt} which is either @code{human} or @code{json}.
+The JSON output is an object of QAPI type @code{ImageCheck}.
 
 If @code{-r} is specified, qemu-img tries to repair any inconsistencies found
 during the check. @code{-r leaks} repairs only cluster leaks, whereas
@@ -406,8 +407,7 @@ The size syntax is similar to dd(1)'s size syntax.
 Give information about the disk image @var{filename}. Use it in
 particular to know the size reserved on disk which can be different
 from the displayed size. If VM snapshots are stored in the disk image,
-they are displayed too. The command can output in the format @var{ofmt}
-which is either @code{human} or @code{json}.
+they are displayed too.
 
 If a disk image has a backing file chain, information about each disk image in
 the chain can be recursively enumerated by using the option @code{--backing-chain}.
@@ -423,6 +423,10 @@ To enumerate information about each disk image in the above chain, starting from
 @example
 qemu-img info --backing-chain snap2.qcow2
 @end example
+
+The command can output in the format @var{ofmt} which is either @code{human} or
+@code{json}.  The JSON output is an object of QAPI type @code{ImageInfo}; with
+@code{--backing-chain}, it is an array of @code{ImageInfo} objects.
 
 @item map [--object @var{objectdef}] [--image-opts] [-f @var{fmt}] [--output=@var{ofmt}] [-U] @var{filename}
 
@@ -485,7 +489,8 @@ Calculate the file size required for a new image.  This information can be used
 to size logical volumes or SAN LUNs appropriately for the image that will be
 placed in them.  The values reported are guaranteed to be large enough to fit
 the image.  The command can output in the format @var{ofmt} which is either
-@code{human} or @code{json}.
+@code{human} or @code{json}.  The JSON output is an object of QAPI type
+@code{BlockMeasureInfo}.
 
 If the size @var{N} is given then act as if creating a new empty image file
 using @command{qemu-img create}.  If @var{filename} is given then act as if
