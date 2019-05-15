@@ -42,32 +42,7 @@ void grlib_irqmp_set_irq(void *opaque, int irq, int level);
 void grlib_irqmp_ack(DeviceState *dev, int intno);
 
 /* GPTimer */
-
-static inline
-DeviceState *grlib_gptimer_create(hwaddr  base,
-                                  uint32_t            nr_timers,
-                                  uint32_t            freq,
-                                  qemu_irq           *cpu_irqs,
-                                  int                 base_irq)
-{
-    DeviceState *dev;
-    int i;
-
-    dev = qdev_create(NULL, "grlib,gptimer");
-    qdev_prop_set_uint32(dev, "nr-timers", nr_timers);
-    qdev_prop_set_uint32(dev, "frequency", freq);
-    qdev_prop_set_uint32(dev, "irq-line", base_irq);
-
-    qdev_init_nofail(dev);
-
-    sysbus_mmio_map(SYS_BUS_DEVICE(dev), 0, base);
-
-    for (i = 0; i < nr_timers; i++) {
-        sysbus_connect_irq(SYS_BUS_DEVICE(dev), i, cpu_irqs[base_irq + i]);
-    }
-
-    return dev;
-}
+#define TYPE_GRLIB_GPTIMER "grlib,gptimer"
 
 /* APB UART */
 

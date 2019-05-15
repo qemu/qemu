@@ -49,6 +49,10 @@
 
 #define LEON3_IRQMP_OFFSET (0x80000200)
 
+#define LEON3_TIMER_OFFSET (0x80000300)
+#define LEON3_TIMER_IRQ    (6)
+#define LEON3_TIMER_COUNT  (2)
+
 typedef struct ResetData {
     SPARCCPU *cpu;
     uint32_t  entry;            /* save kernel entry in case of reset */
@@ -124,6 +128,7 @@ static void leon3_generic_hw_init(MachineState *machine)
     int         prom_size;
     ResetData  *reset_info;
     DeviceState *dev;
+    int i;
 
     /* Init CPU */
     cpu = SPARC_CPU(cpu_create(machine->cpu_type));
@@ -220,7 +225,17 @@ static void leon3_generic_hw_init(MachineState *machine)
     }
 
     /* Allocate timers */
-    grlib_gptimer_create(0x80000300, 2, CPU_CLK, cpu_irqs, 6);
+    dev = qdev_create(NULL, TYPE_GRLIB_GPTIMER);
+    qdev_prop_set_uint32(dev, "nr-timers", LEON3_TIMER_COUNT);
+    qdev_prop_set_uint32(dev, "frequency", CPU_CLK);
+    qdev_prop_set_uint32(dev, "irq-line", LEON3_TIMER_IRQ);
+    qdev_init_nofail(dev);
+
+    sysbus_mmio_map(SYS_BUS_DEVICE(dev), 0, LEON3_TIMER_OFFSET);
+    for (i = 0; i < LEON3_TIMER_COUNT; i++) {
+        sysbus_connect_irq(SYS_BUS_DEVICE(dev), i,
+                           cpu_irqs[LEON3_TIMER_IRQ + i]);
+    }
 
     /* Allocate uart */
     if (serial_hd(0)) {
