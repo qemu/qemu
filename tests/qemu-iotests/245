@@ -862,7 +862,8 @@ class TestBlockdevReopen(iotests.QMPTestCase):
 
         # hd2 <- hd0
         result = self.vm.qmp('block-stream', conv_keys = True, job_id = 'stream0',
-                             device = 'hd0', base_node = 'hd2', speed = 512 * 1024)
+                             device = 'hd0', base_node = 'hd2',
+                             auto_finalize = False)
         self.assert_qmp(result, 'return', {})
 
         # We can't remove hd2 while the stream job is ongoing
@@ -873,7 +874,7 @@ class TestBlockdevReopen(iotests.QMPTestCase):
         opts['backing'] = None
         self.reopen(opts, {}, "Cannot change 'backing' link from 'hd0' to 'hd1'")
 
-        self.wait_until_completed(drive = 'stream0')
+        self.vm.run_job('stream0', auto_finalize = False, auto_dismiss = True)
 
     # Reopen the chain during a block-stream job (from hd2 to hd1)
     def test_block_stream_4(self):
@@ -886,12 +887,16 @@ class TestBlockdevReopen(iotests.QMPTestCase):
 
         # hd1 <- hd0
         result = self.vm.qmp('block-stream', conv_keys = True, job_id = 'stream0',
-                             device = 'hd1', speed = 512 * 1024)
+                             device = 'hd1', auto_finalize = False)
         self.assert_qmp(result, 'return', {})
 
         # We can't reopen with the original options because that would
         # make hd1 read-only and block-stream requires it to be read-write
-        self.reopen(opts, {}, "Can't set node 'hd1' to r/o with copy-on-read enabled")
+        # (Which error message appears depends on whether the stream job is
+        # already done with copying at this point.)
+        self.reopen(opts, {},
+            ["Can't set node 'hd1' to r/o with copy-on-read enabled",
+             "Cannot make block node read-only, there is a writer on it"])
 
         # We can't remove hd2 while the stream job is ongoing
         opts['backing']['backing'] = None
@@ -901,7 +906,7 @@ class TestBlockdevReopen(iotests.QMPTestCase):
         opts['backing'] = None
         self.reopen(opts)
 
-        self.wait_until_completed(drive = 'stream0')
+        self.vm.run_job('stream0', auto_finalize = False, auto_dismiss = True)
 
     # Reopen the chain during a block-commit job (from hd0 to hd2)
     def test_block_commit_1(self):
@@ -913,7 +918,7 @@ class TestBlockdevReopen(iotests.QMPTestCase):
         self.assert_qmp(result, 'return', {})
 
         result = self.vm.qmp('block-commit', conv_keys = True, job_id = 'commit0',
-                             device = 'hd0', speed = 1024 * 1024)
+                             device = 'hd0')
         self.assert_qmp(result, 'return', {})
 
         # We can't remove hd2 while the commit job is ongoing
@@ -944,7 +949,8 @@ class TestBlockdevReopen(iotests.QMPTestCase):
         self.assert_qmp(result, 'return', {})
 
         result = self.vm.qmp('block-commit', conv_keys = True, job_id = 'commit0',
-                             device = 'hd0', top_node = 'hd1', speed = 1024 * 1024)
+                             device = 'hd0', top_node = 'hd1',
+                             auto_finalize = False)
         self.assert_qmp(result, 'return', {})
 
         # We can't remove hd2 while the commit job is ongoing
@@ -956,7 +962,7 @@ class TestBlockdevReopen(iotests.QMPTestCase):
         self.reopen(opts, {}, "Cannot change backing link if 'hd0' has an implicit backing file")
 
         # hd2 <- hd0
-        self.wait_until_completed(drive = 'commit0')
+        self.vm.run_job('commit0', auto_finalize = False, auto_dismiss = True)
 
         self.assert_qmp(self.get_node('hd0'), 'ro', False)
         self.assertEqual(self.get_node('hd1'), None)
