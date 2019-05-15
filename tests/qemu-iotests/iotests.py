@@ -552,7 +552,7 @@ class VM(qtest.QEMUQtestMachine):
                     elif status == 'null':
                         return error
                 else:
-                    iotests.log(ev)
+                    log(ev)
 
     def node_info(self, node_name):
         nodes = self.qmp('query-named-block-nodes')
