@@ -1,7 +1,7 @@
 /*
  * QEMU Leon3 System Emulator
  *
- * Copyright (c) 2010-2011 AdaCore
+ * Copyright (c) 2010-2019 AdaCore
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -43,7 +43,7 @@
 /* Default system clock.  */
 #define CPU_CLK (40 * 1000 * 1000)
 
-#define PROM_FILENAME        "u-boot.bin"
+#define LEON3_PROM_FILENAME "u-boot.bin"
 
 #define MAX_PILS 16
 
@@ -158,7 +158,7 @@ static void leon3_generic_hw_init(MachineState *machine)
 
     /* Load boot prom */
     if (bios_name == NULL) {
-        bios_name = PROM_FILENAME;
+        bios_name = LEON3_PROM_FILENAME;
     }
     filename = qemu_find_file(QEMU_FILE_TYPE_BIOS, bios_name);
 
@@ -180,7 +180,9 @@ static void leon3_generic_hw_init(MachineState *machine)
             exit(1);
         }
     } else if (kernel_filename == NULL && !qtest_enabled()) {
-        error_report("Can't read bios image %s", filename);
+        error_report("Can't read bios image '%s'", filename
+                                                   ? filename
+                                                   : LEON3_PROM_FILENAME);
         exit(1);
     }
     g_free(filename);
