@@ -1161,7 +1161,7 @@ M: Fabien Chouteau <chouteau@adacore.com>
 S: Maintained
 F: hw/sparc/leon3.c
 F: hw/*/grlib*
-F: include/hw/sparc/grlib.h
+F: include/hw/*/grlib*
 
 S390 Machines
 -------------

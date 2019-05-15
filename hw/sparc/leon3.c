@@ -39,6 +39,7 @@
 #include "exec/address-spaces.h"
 
 #include "hw/sparc/grlib.h"
+#include "hw/misc/grlib_ahb_apb_pnp.h"
 
 /* Default system clock.  */
 #define CPU_CLK (40 * 1000 * 1000)
@@ -57,6 +58,9 @@
 #define LEON3_TIMER_OFFSET (0x80000300)
 #define LEON3_TIMER_IRQ    (6)
 #define LEON3_TIMER_COUNT  (2)
+
+#define LEON3_APB_PNP_OFFSET (0x800FF000)
+#define LEON3_AHB_PNP_OFFSET (0xFFFFF000)
 
 typedef struct ResetData {
     SPARCCPU *cpu;
@@ -187,6 +191,8 @@ static void leon3_generic_hw_init(MachineState *machine)
     ResetData  *reset_info;
     DeviceState *dev;
     int i;
+    AHBPnp *ahb_pnp;
+    APBPnp *apb_pnp;
 
     /* Init CPU */
     cpu = SPARC_CPU(cpu_create(machine->cpu_type));
@@ -200,6 +206,20 @@ static void leon3_generic_hw_init(MachineState *machine)
     reset_info->sp    = LEON3_RAM_OFFSET + ram_size;
     qemu_register_reset(main_cpu_reset, reset_info);
 
+    ahb_pnp = GRLIB_AHB_PNP(object_new(TYPE_GRLIB_AHB_PNP));
+    object_property_set_bool(OBJECT(ahb_pnp), true, "realized", &error_fatal);
+    sysbus_mmio_map(SYS_BUS_DEVICE(ahb_pnp), 0, LEON3_AHB_PNP_OFFSET);
+    grlib_ahb_pnp_add_entry(ahb_pnp, 0, 0, GRLIB_VENDOR_GAISLER,
+                            GRLIB_LEON3_DEV, GRLIB_AHB_MASTER,
+                            GRLIB_CPU_AREA);
+
+    apb_pnp = GRLIB_APB_PNP(object_new(TYPE_GRLIB_APB_PNP));
+    object_property_set_bool(OBJECT(apb_pnp), true, "realized", &error_fatal);
+    sysbus_mmio_map(SYS_BUS_DEVICE(apb_pnp), 0, LEON3_APB_PNP_OFFSET);
+    grlib_ahb_pnp_add_entry(ahb_pnp, LEON3_APB_PNP_OFFSET, 0xFFF,
+                            GRLIB_VENDOR_GAISLER, GRLIB_APBMST_DEV,
+                            GRLIB_AHB_SLAVE, GRLIB_AHBMEM_AREA);
+
     /* Allocate IRQ manager */
     dev = qdev_create(NULL, TYPE_GRLIB_IRQMP);
     qdev_prop_set_ptr(dev, "set_pil_in", leon3_set_pil_in);
@@ -209,6 +229,9 @@ static void leon3_generic_hw_init(MachineState *machine)
     env->irq_manager = dev;
     env->qemu_irq_ack = leon3_irq_manager;
     cpu_irqs = qemu_allocate_irqs(grlib_irqmp_set_irq, dev, MAX_PILS);
+    grlib_apb_pnp_add_entry(apb_pnp, LEON3_IRQMP_OFFSET, 0xFFF,
+                            GRLIB_VENDOR_GAISLER, GRLIB_IRQMP_DEV,
+                            2, 0, GRLIB_APBIO_AREA);
 
     /* Allocate RAM */
     if (ram_size > 1 * GiB) {
@@ -303,6 +326,10 @@ static void leon3_generic_hw_init(MachineState *machine)
                            cpu_irqs[LEON3_TIMER_IRQ + i]);
     }
 
+    grlib_apb_pnp_add_entry(apb_pnp, LEON3_TIMER_OFFSET, 0xFFF,
+                            GRLIB_VENDOR_GAISLER, GRLIB_GPTIMER_DEV,
+                            0, LEON3_TIMER_IRQ, GRLIB_APBIO_AREA);
+
     /* Allocate uart */
     if (serial_hd(0)) {
         dev = qdev_create(NULL, TYPE_GRLIB_APB_UART);
@@ -310,6 +337,9 @@ static void leon3_generic_hw_init(MachineState *machine)
         qdev_init_nofail(dev);
         sysbus_mmio_map(SYS_BUS_DEVICE(dev), 0, LEON3_UART_OFFSET);
         sysbus_connect_irq(SYS_BUS_DEVICE(dev), 0, cpu_irqs[LEON3_UART_IRQ]);
+        grlib_apb_pnp_add_entry(apb_pnp, LEON3_UART_OFFSET, 0xFFF,
+                                GRLIB_VENDOR_GAISLER, GRLIB_APBUART_DEV, 1,
+                                LEON3_UART_IRQ, GRLIB_APBIO_AREA);
     }
 }
 
