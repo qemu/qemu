@@ -58,9 +58,11 @@ static void spapr_cpu_reset(void *opaque)
      *
      * Disable Power-saving mode Exit Cause exceptions for the CPU, so
      * we don't get spurious wakups before an RTAS start-cpu call.
+     * For the same reason, set PSSCR_EC.
      */
     lpcr &= ~(LPCR_VPM0 | LPCR_VPM1 | LPCR_ISL | LPCR_KBV | pcc->lpcr_pm);
     lpcr |= LPCR_LPES0 | LPCR_LPES1;
+    env->spr[SPR_PSSCR] |= PSSCR_EC;
 
     /* Set RMLS to the max (ie, 16G) */
     lpcr &= ~LPCR_RMLS;
