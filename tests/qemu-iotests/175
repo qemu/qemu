@@ -28,9 +28,24 @@ status=1	# failure is the default!
 
 _cleanup()
 {
-	_cleanup_test_img
+    _cleanup_test_img
+    rm -f "$TEST_DIR/empty"
 }
 trap "_cleanup; exit \$status" 0 1 2 3 15
+
+# Some file systems sometimes allocate extra blocks independently of
+# the file size.  This function hides the resulting difference in the
+# stat -c '%b' output.
+# Parameter 1: Number of blocks an empty file occupies
+# Parameter 2: Image size in bytes
+_filter_blocks()
+{
+    extra_blocks=$1
+    img_size=$2
+
+    sed -e "s/blocks=$extra_blocks\\(\$\\|[^0-9]\\)/nothing allocated/" \
+        -e "s/blocks=$((extra_blocks + img_size / 512))\\(\$\\|[^0-9]\\)/everything allocated/"
+}
 
 # get standard environment, filters and checks
 . ./common.rc
@@ -40,18 +55,21 @@ _supported_fmt raw
 _supported_proto file
 _supported_os Linux
 
-size=1m
+size=$((1 * 1024 * 1024))
+
+touch "$TEST_DIR/empty"
+extra_blocks=$(stat -c '%b' "$TEST_DIR/empty")
 
 echo
 echo "== creating image with default preallocation =="
 _make_test_img $size | _filter_imgfmt
-stat -c "size=%s, blocks=%b" $TEST_IMG
+stat -c "size=%s, blocks=%b" $TEST_IMG | _filter_blocks $extra_blocks $size
 
 for mode in off full falloc; do
     echo
     echo "== creating image with preallocation $mode =="
     IMGOPTS=preallocation=$mode _make_test_img $size | _filter_imgfmt
-    stat -c "size=%s, blocks=%b" $TEST_IMG
+    stat -c "size=%s, blocks=%b" $TEST_IMG | _filter_blocks $extra_blocks $size
 done
 
 # success, all done
