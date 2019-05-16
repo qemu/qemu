@@ -37,34 +37,6 @@
 #define D_LOG(...) do { } while (0)
 #endif
 
-#if !defined(CONFIG_USER_ONLY)
-/* Try to fill the TLB and return an exception if error. If retaddr is
-   NULL, it means that the function was called in C code (i.e. not
-   from generated code or from helper.c) */
-void tlb_fill(CPUState *cs, target_ulong addr, int size,
-              MMUAccessType access_type, int mmu_idx, uintptr_t retaddr)
-{
-    CRISCPU *cpu = CRIS_CPU(cs);
-    CPUCRISState *env = &cpu->env;
-    int ret;
-
-    D_LOG("%s pc=%x tpc=%x ra=%p\n", __func__,
-          env->pc, env->pregs[PR_EDA], (void *)retaddr);
-    ret = cris_cpu_handle_mmu_fault(cs, addr, size, access_type, mmu_idx);
-    if (unlikely(ret)) {
-        if (retaddr) {
-            /* now we have a real cpu fault */
-            if (cpu_restore_state(cs, retaddr, true)) {
-                /* Evaluate flags after retranslation. */
-                helper_top_evaluate_flags(env);
-            }
-        }
-        cpu_loop_exit(cs);
-    }
-}
-
-#endif
-
 void helper_raise_exception(CPUCRISState *env, uint32_t index)
 {
     CPUState *cs = CPU(cris_env_get_cpu(env));
