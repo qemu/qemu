@@ -22,8 +22,6 @@ enum colo_event {
     COLO_EVENT_FAILOVER,
 };
 
-void colo_info_init(void);
-
 void migrate_start_colo_process(MigrationState *s);
 bool migration_in_colo_state(void);
 
@@ -37,7 +35,7 @@ bool migration_incoming_in_colo_state(void);
 COLOMode get_colo_mode(void);
 
 /* failover */
-void colo_do_failover(MigrationState *s);
+void colo_do_failover(void);
 
 void colo_checkpoint_notify(void *opaque);
 #endif

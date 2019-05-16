@@ -1685,8 +1685,7 @@ static void hmp_gva2gpa(Monitor *mon, const QDict *qdict)
         return;
     }
 
-    gpa  = cpu_get_phys_page_attrs_debug(mon_get_cpu(),
-                                         addr & TARGET_PAGE_MASK, &attrs);
+    gpa  = cpu_get_phys_page_attrs_debug(cs, addr & TARGET_PAGE_MASK, &attrs);
     if (gpa == -1) {
         monitor_printf(mon, "Unmapped\n");
     } else {

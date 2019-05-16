@@ -1035,6 +1035,20 @@ extern const VMStateInfo vmstate_info_qtailq;
 #define VMSTATE_BUFFER_UNSAFE(_field, _state, _version, _size)        \
     VMSTATE_BUFFER_UNSAFE_INFO(_field, _state, _version, vmstate_info_buffer, _size)
 
+/*
+ * These VMSTATE_UNUSED*() macros can be used to fill in the holes
+ * when some of the vmstate fields are obsolete to be compatible with
+ * migrations between new/old binaries.
+ *
+ * CAUTION: when using any of the VMSTATE_UNUSED*() macros please be
+ * sure that the size passed in is the size that was actually *sent*
+ * rather than the size of the *structure*.  One example is the
+ * boolean type - the size of the structure can vary depending on the
+ * definition of boolean, however the size we actually sent is always
+ * 1 byte (please refer to implementation of VMSTATE_BOOL_V and
+ * vmstate_info_bool).  So here we should always pass in size==1
+ * rather than size==sizeof(bool).
+ */
 #define VMSTATE_UNUSED_V(_v, _size)                                   \
     VMSTATE_UNUSED_BUFFER(NULL, _v, _size)
 

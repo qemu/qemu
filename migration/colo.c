@@ -193,7 +193,7 @@ COLOMode get_colo_mode(void)
     }
 }
 
-void colo_do_failover(MigrationState *s)
+void colo_do_failover(void)
 {
     /* Make sure VM stopped while failover happened. */
     if (!colo_runstate_is_stopped()) {
