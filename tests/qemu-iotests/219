@@ -23,6 +23,8 @@ import iotests
 
 iotests.verify_image_format(supported_fmts=['qcow2'])
 
+img_size = 4 * 1024 * 1024
+
 def pause_wait(vm, job_id):
     with iotests.Timeout(3, "Timeout waiting for job to pause"):
         while True:
@@ -62,6 +64,8 @@ def test_pause_resume(vm):
                 iotests.log(vm.qmp('query-jobs'))
 
 def test_job_lifecycle(vm, job, job_args, has_ready=False):
+    global img_size
+
     iotests.log('')
     iotests.log('')
     iotests.log('Starting block job: %s (auto-finalize: %s; auto-dismiss: %s)' %
@@ -83,6 +87,10 @@ def test_job_lifecycle(vm, job, job_args, has_ready=False):
     # undefined -> created -> running
     iotests.log(iotests.filter_qmp_event(vm.event_wait('JOB_STATUS_CHANGE')))
     iotests.log(iotests.filter_qmp_event(vm.event_wait('JOB_STATUS_CHANGE')))
+
+    # Wait for total-progress to stabilize
+    while vm.qmp('query-jobs')['return'][0]['total-progress'] < img_size:
+        pass
 
     # RUNNING state:
     # pause/resume should work, complete/finalize/dismiss should error out
@@ -173,9 +181,8 @@ with iotests.FilePath('disk.img') as disk_path, \
      iotests.FilePath('copy.img') as copy_path, \
      iotests.VM() as vm:
 
-    img_size = '4M'
-    iotests.qemu_img_create('-f', iotests.imgfmt, disk_path, img_size)
-    iotests.qemu_io('-c', 'write 0 %s' % (img_size),
+    iotests.qemu_img_create('-f', iotests.imgfmt, disk_path, str(img_size))
+    iotests.qemu_io('-c', 'write 0 %i' % (img_size),
                     '-f', iotests.imgfmt, disk_path)
 
     iotests.log('Launching VM...')
