@@ -329,6 +329,16 @@
 #define __NR_statx	(__NR_Linux + 326)
 #define __NR_rseq	(__NR_Linux + 327)
 #define __NR_io_pgetevents	(__NR_Linux + 328)
+#define __NR_pidfd_send_signal	(__NR_Linux + 424)
+#define __NR_io_uring_setup	(__NR_Linux + 425)
+#define __NR_io_uring_enter	(__NR_Linux + 426)
+#define __NR_io_uring_register	(__NR_Linux + 427)
+#define __NR_open_tree	(__NR_Linux + 428)
+#define __NR_move_mount	(__NR_Linux + 429)
+#define __NR_fsopen	(__NR_Linux + 430)
+#define __NR_fsconfig	(__NR_Linux + 431)
+#define __NR_fsmount	(__NR_Linux + 432)
+#define __NR_fspick	(__NR_Linux + 433)
 
 
 #endif /* _ASM_MIPS_UNISTD_N64_H */
