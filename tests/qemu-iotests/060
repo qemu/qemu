@@ -150,10 +150,15 @@ $QEMU_IO -c "$OPEN_RO" -c "read -P 1 0 512" | _filter_qemu_io
 echo
 echo "=== Testing overlap while COW is in flight ==="
 echo
+BACKING_IMG=$TEST_IMG.base
+TEST_IMG=$BACKING_IMG _make_test_img 1G
+
+$QEMU_IO -c 'write 0k 64k' "$BACKING_IMG" | _filter_qemu_io
+
 # compat=0.10 is required in order to make the following discard actually
 # unallocate the sector rather than make it a zero sector - we want COW, after
 # all.
-IMGOPTS='compat=0.10' _make_test_img 1G
+IMGOPTS='compat=0.10' _make_test_img -b "$BACKING_IMG" 1G
 # Write two clusters, the second one enforces creation of an L2 table after
 # the first data cluster.
 $QEMU_IO -c 'write 0k 64k' -c 'write 512M 64k' "$TEST_IMG" | _filter_qemu_io

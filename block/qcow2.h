@@ -405,6 +405,12 @@ typedef struct QCowL2Meta
      */
     Qcow2COWRegion cow_end;
 
+    /*
+     * Indicates that COW regions are already handled and do not require
+     * any more processing.
+     */
+    bool skip_cow;
+
     /**
      * The I/O vector with the data from the actual guest write request.
      * If non-NULL, this is meant to be merged together with the data
