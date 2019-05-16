@@ -1446,36 +1446,35 @@ void tcg_gen_gvec_dup_i64(unsigned vece, uint32_t dofs, uint32_t oprsz,
 void tcg_gen_gvec_dup_mem(unsigned vece, uint32_t dofs, uint32_t aofs,
                           uint32_t oprsz, uint32_t maxsz)
 {
+    check_size_align(oprsz, maxsz, dofs);
     if (vece <= MO_64) {
-        TCGType type = choose_vector_type(0, vece, oprsz, 0);
+        TCGType type = choose_vector_type(NULL, vece, oprsz, 0);
         if (type != 0) {
             TCGv_vec t_vec = tcg_temp_new_vec(type);
             tcg_gen_dup_mem_vec(vece, t_vec, cpu_env, aofs);
             do_dup_store(type, dofs, oprsz, maxsz, t_vec);
             tcg_temp_free_vec(t_vec);
-            return;
+        } else if (vece <= MO_32) {
+            TCGv_i32 in = tcg_temp_new_i32();
+            switch (vece) {
+            case MO_8:
+                tcg_gen_ld8u_i32(in, cpu_env, aofs);
+                break;
+            case MO_16:
+                tcg_gen_ld16u_i32(in, cpu_env, aofs);
+                break;
+            default:
+                tcg_gen_ld_i32(in, cpu_env, aofs);
+                break;
+            }
+            do_dup(vece, dofs, oprsz, maxsz, in, NULL, 0);
+            tcg_temp_free_i32(in);
+        } else {
+            TCGv_i64 in = tcg_temp_new_i64();
+            tcg_gen_ld_i64(in, cpu_env, aofs);
+            do_dup(vece, dofs, oprsz, maxsz, NULL, in, 0);
+            tcg_temp_free_i64(in);
         }
-    }
-    if (vece <= MO_32) {
-        TCGv_i32 in = tcg_temp_new_i32();
-        switch (vece) {
-        case MO_8:
-            tcg_gen_ld8u_i32(in, cpu_env, aofs);
-            break;
-        case MO_16:
-            tcg_gen_ld16u_i32(in, cpu_env, aofs);
-            break;
-        case MO_32:
-            tcg_gen_ld_i32(in, cpu_env, aofs);
-            break;
-        }
-        tcg_gen_gvec_dup_i32(vece, dofs, oprsz, maxsz, in);
-        tcg_temp_free_i32(in);
-    } else if (vece == MO_64) {
-        TCGv_i64 in = tcg_temp_new_i64();
-        tcg_gen_ld_i64(in, cpu_env, aofs);
-        tcg_gen_gvec_dup_i64(MO_64, dofs, oprsz, maxsz, in);
-        tcg_temp_free_i64(in);
     } else {
         /* 128-bit duplicate.  */
         /* ??? Dup to 256-bit vector.  */
@@ -1503,6 +1502,9 @@ void tcg_gen_gvec_dup_mem(unsigned vece, uint32_t dofs, uint32_t aofs,
             }
             tcg_temp_free_i64(in0);
             tcg_temp_free_i64(in1);
+        }
+        if (oprsz < maxsz) {
+            expand_clr(dofs + oprsz, maxsz - oprsz);
         }
     }
 }
