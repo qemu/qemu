@@ -1728,7 +1728,7 @@ int migrate_add_blocker(Error *reason, Error **errp)
     if (only_migratable) {
         error_propagate_prepend(errp, error_copy(reason),
                                 "disallowing migration blocker "
-                                "(--only_migratable) for: ");
+                                "(--only-migratable) for: ");
         return -EACCES;
     }
 
