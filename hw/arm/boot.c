@@ -977,6 +977,7 @@ static void arm_setup_direct_kernel_boot(ARMCPU *cpu,
     int elf_machine;
     hwaddr entry;
     static const ARMInsnFixup *primary_loader;
+    uint64_t ram_end = info->loader_start + info->ram_size;
 
     if (arm_feature(&cpu->env, ARM_FEATURE_AARCH64)) {
         primary_loader = bootloader_aarch64;
@@ -1048,8 +1049,7 @@ static void arm_setup_direct_kernel_boot(ARMCPU *cpu,
         /* 32-bit ARM */
         entry = info->loader_start + KERNEL_LOAD_ADDR;
         kernel_size = load_image_targphys_as(info->kernel_filename, entry,
-                                             info->ram_size - KERNEL_LOAD_ADDR,
-                                             as);
+                                             ram_end - KERNEL_LOAD_ADDR, as);
         is_linux = 1;
     }
     if (kernel_size < 0) {
@@ -1063,12 +1063,11 @@ static void arm_setup_direct_kernel_boot(ARMCPU *cpu,
         if (info->initrd_filename) {
             initrd_size = load_ramdisk_as(info->initrd_filename,
                                           info->initrd_start,
-                                          info->ram_size - info->initrd_start,
-                                          as);
+                                          ram_end - info->initrd_start, as);
             if (initrd_size < 0) {
                 initrd_size = load_image_targphys_as(info->initrd_filename,
                                                      info->initrd_start,
-                                                     info->ram_size -
+                                                     ram_end -
                                                      info->initrd_start,
                                                      as);
             }
