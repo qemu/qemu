@@ -790,6 +790,8 @@ struct ARMCPU {
     bool has_vfp;
     /* CPU has Neon */
     bool has_neon;
+    /* CPU has M-profile DSP extension */
+    bool has_dsp;
 
     /* CPU has memory protection unit */
     bool has_mpu;
