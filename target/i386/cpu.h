@@ -749,6 +749,7 @@ typedef uint32_t FeatureWordArray[FEATURE_WORDS];
 #define HYPERV_FEAT_TLBFLUSH            11
 #define HYPERV_FEAT_EVMCS               12
 #define HYPERV_FEAT_IPI                 13
+#define HYPERV_FEAT_STIMER_DIRECT       14
 
 #ifndef HYPERV_SPINLOCK_NEVER_RETRY
 #define HYPERV_SPINLOCK_NEVER_RETRY             0xFFFFFFFF
