@@ -790,7 +790,8 @@ static struct {
         .flags = {
             {.fw = FEAT_HV_RECOMM_EAX,
              .bits = HV_ENLIGHTENED_VMCS_RECOMMENDED}
-        }
+        },
+        .dependencies = BIT(HYPERV_FEAT_VAPIC)
     },
     [HYPERV_FEAT_IPI] = {
         .desc = "paravirtualized IPI (hv-ipi)",
