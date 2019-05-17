@@ -782,7 +782,8 @@ static struct {
             {.fw = FEAT_HV_RECOMM_EAX,
              .bits = HV_REMOTE_TLB_FLUSH_RECOMMENDED |
              HV_EX_PROCESSOR_MASKS_RECOMMENDED}
-        }
+        },
+        .dependencies = BIT(HYPERV_FEAT_VPINDEX)
     },
     [HYPERV_FEAT_EVMCS] = {
         .desc = "enlightened VMCS (hv-evmcs)",
@@ -797,7 +798,8 @@ static struct {
             {.fw = FEAT_HV_RECOMM_EAX,
              .bits = HV_CLUSTER_IPI_RECOMMENDED |
              HV_EX_PROCESSOR_MASKS_RECOMMENDED}
-        }
+        },
+        .dependencies = BIT(HYPERV_FEAT_VPINDEX)
     },
 };
 
