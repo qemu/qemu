@@ -1,7 +1,7 @@
 /*
  * QEMU GRLIB Components
  *
- * Copyright (c) 2010-2011 AdaCore
+ * Copyright (c) 2010-2019 AdaCore
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -33,6 +33,7 @@
  */
 
 /* IRQMP */
+#define TYPE_GRLIB_IRQMP "grlib,irqmp"
 
 typedef void (*set_pil_in_fn) (void *opaque, uint32_t pil_in);
 
@@ -40,81 +41,10 @@ void grlib_irqmp_set_irq(void *opaque, int irq, int level);
 
 void grlib_irqmp_ack(DeviceState *dev, int intno);
 
-static inline
-DeviceState *grlib_irqmp_create(hwaddr   base,
-                                CPUSPARCState            *env,
-                                qemu_irq           **cpu_irqs,
-                                uint32_t             nr_irqs,
-                                set_pil_in_fn        set_pil_in)
-{
-    DeviceState *dev;
-
-    assert(cpu_irqs != NULL);
-
-    dev = qdev_create(NULL, "grlib,irqmp");
-    qdev_prop_set_ptr(dev, "set_pil_in", set_pil_in);
-    qdev_prop_set_ptr(dev, "set_pil_in_opaque", env);
-
-    qdev_init_nofail(dev);
-
-    env->irq_manager = dev;
-
-    sysbus_mmio_map(SYS_BUS_DEVICE(dev), 0, base);
-
-    *cpu_irqs = qemu_allocate_irqs(grlib_irqmp_set_irq,
-                                   dev,
-                                   nr_irqs);
-
-    return dev;
-}
-
 /* GPTimer */
-
-static inline
-DeviceState *grlib_gptimer_create(hwaddr  base,
-                                  uint32_t            nr_timers,
-                                  uint32_t            freq,
-                                  qemu_irq           *cpu_irqs,
-                                  int                 base_irq)
-{
-    DeviceState *dev;
-    int i;
-
-    dev = qdev_create(NULL, "grlib,gptimer");
-    qdev_prop_set_uint32(dev, "nr-timers", nr_timers);
-    qdev_prop_set_uint32(dev, "frequency", freq);
-    qdev_prop_set_uint32(dev, "irq-line", base_irq);
-
-    qdev_init_nofail(dev);
-
-    sysbus_mmio_map(SYS_BUS_DEVICE(dev), 0, base);
-
-    for (i = 0; i < nr_timers; i++) {
-        sysbus_connect_irq(SYS_BUS_DEVICE(dev), i, cpu_irqs[base_irq + i]);
-    }
-
-    return dev;
-}
+#define TYPE_GRLIB_GPTIMER "grlib,gptimer"
 
 /* APB UART */
-
-static inline
-DeviceState *grlib_apbuart_create(hwaddr  base,
-                                  Chardev    *serial,
-                                  qemu_irq            irq)
-{
-    DeviceState *dev;
-
-    dev = qdev_create(NULL, "grlib,apbuart");
-    qdev_prop_set_chr(dev, "chrdev", serial);
-
-    qdev_init_nofail(dev);
-
-    sysbus_mmio_map(SYS_BUS_DEVICE(dev), 0, base);
-
-    sysbus_connect_irq(SYS_BUS_DEVICE(dev), 0, irq);
-
-    return dev;
-}
+#define TYPE_GRLIB_APB_UART "grlib,apbuart"
 
 #endif /* GRLIB_H */

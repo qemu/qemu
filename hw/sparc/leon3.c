@@ -1,7 +1,7 @@
 /*
  * QEMU Leon3 System Emulator
  *
- * Copyright (c) 2010-2011 AdaCore
+ * Copyright (c) 2010-2019 AdaCore
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -39,19 +39,87 @@
 #include "exec/address-spaces.h"
 
 #include "hw/sparc/grlib.h"
+#include "hw/misc/grlib_ahb_apb_pnp.h"
 
 /* Default system clock.  */
 #define CPU_CLK (40 * 1000 * 1000)
 
-#define PROM_FILENAME        "u-boot.bin"
+#define LEON3_PROM_FILENAME "u-boot.bin"
+#define LEON3_PROM_OFFSET    (0x00000000)
+#define LEON3_RAM_OFFSET     (0x40000000)
 
 #define MAX_PILS 16
+
+#define LEON3_UART_OFFSET  (0x80000100)
+#define LEON3_UART_IRQ     (3)
+
+#define LEON3_IRQMP_OFFSET (0x80000200)
+
+#define LEON3_TIMER_OFFSET (0x80000300)
+#define LEON3_TIMER_IRQ    (6)
+#define LEON3_TIMER_COUNT  (2)
+
+#define LEON3_APB_PNP_OFFSET (0x800FF000)
+#define LEON3_AHB_PNP_OFFSET (0xFFFFF000)
 
 typedef struct ResetData {
     SPARCCPU *cpu;
     uint32_t  entry;            /* save kernel entry in case of reset */
     target_ulong sp;            /* initial stack pointer */
 } ResetData;
+
+static uint32_t *gen_store_u32(uint32_t *code, hwaddr addr, uint32_t val)
+{
+    stl_p(code++, 0x82100000); /* mov %g0, %g1                */
+    stl_p(code++, 0x84100000); /* mov %g0, %g2                */
+    stl_p(code++, 0x03000000 +
+      extract32(addr, 10, 22));
+                               /* sethi %hi(addr), %g1        */
+    stl_p(code++, 0x82106000 +
+      extract32(addr, 0, 10));
+                               /* or %g1, addr, %g1           */
+    stl_p(code++, 0x05000000 +
+      extract32(val, 10, 22));
+                               /* sethi %hi(val), %g2         */
+    stl_p(code++, 0x8410a000 +
+      extract32(val, 0, 10));
+                               /* or %g2, val, %g2            */
+    stl_p(code++, 0xc4204000); /* st %g2, [ %g1 ]             */
+
+    return code;
+}
+
+/*
+ * When loading a kernel in RAM the machine is expected to be in a different
+ * state (eg: initialized by the bootloader). This little code reproduces
+ * this behavior.
+ */
+static void write_bootloader(CPUSPARCState *env, uint8_t *base,
+                             hwaddr kernel_addr)
+{
+    uint32_t *p = (uint32_t *) base;
+
+    /* Initialize the UARTs                                        */
+    /* *UART_CONTROL = UART_RECEIVE_ENABLE | UART_TRANSMIT_ENABLE; */
+    p = gen_store_u32(p, 0x80000108, 3);
+
+    /* Initialize the TIMER 0                                      */
+    /* *GPTIMER_SCALER_RELOAD = 40 - 1;                            */
+    p = gen_store_u32(p, 0x80000304, 39);
+    /* *GPTIMER0_COUNTER_RELOAD = 0xFFFE;                          */
+    p = gen_store_u32(p, 0x80000314, 0xFFFFFFFE);
+    /* *GPTIMER0_CONFIG = GPTIMER_ENABLE | GPTIMER_RESTART;        */
+    p = gen_store_u32(p, 0x80000318, 3);
+
+    /* JUMP to the entry point                                     */
+    stl_p(p++, 0x82100000); /* mov %g0, %g1 */
+    stl_p(p++, 0x03000000 + extract32(kernel_addr, 10, 22));
+                            /* sethi %hi(kernel_addr), %g1 */
+    stl_p(p++, 0x82106000 + extract32(kernel_addr, 0, 10));
+                            /* or kernel_addr, %g1 */
+    stl_p(p++, 0x81c04000); /* jmp  %g1 */
+    stl_p(p++, 0x01000000); /* nop */
+}
 
 static void main_cpu_reset(void *opaque)
 {
@@ -121,6 +189,10 @@ static void leon3_generic_hw_init(MachineState *machine)
     int         bios_size;
     int         prom_size;
     ResetData  *reset_info;
+    DeviceState *dev;
+    int i;
+    AHBPnp *ahb_pnp;
+    APBPnp *apb_pnp;
 
     /* Init CPU */
     cpu = SPARC_CPU(cpu_create(machine->cpu_type));
@@ -131,13 +203,35 @@ static void leon3_generic_hw_init(MachineState *machine)
     /* Reset data */
     reset_info        = g_malloc0(sizeof(ResetData));
     reset_info->cpu   = cpu;
-    reset_info->sp    = 0x40000000 + ram_size;
+    reset_info->sp    = LEON3_RAM_OFFSET + ram_size;
     qemu_register_reset(main_cpu_reset, reset_info);
 
-    /* Allocate IRQ manager */
-    grlib_irqmp_create(0x80000200, env, &cpu_irqs, MAX_PILS, &leon3_set_pil_in);
+    ahb_pnp = GRLIB_AHB_PNP(object_new(TYPE_GRLIB_AHB_PNP));
+    object_property_set_bool(OBJECT(ahb_pnp), true, "realized", &error_fatal);
+    sysbus_mmio_map(SYS_BUS_DEVICE(ahb_pnp), 0, LEON3_AHB_PNP_OFFSET);
+    grlib_ahb_pnp_add_entry(ahb_pnp, 0, 0, GRLIB_VENDOR_GAISLER,
+                            GRLIB_LEON3_DEV, GRLIB_AHB_MASTER,
+                            GRLIB_CPU_AREA);
 
+    apb_pnp = GRLIB_APB_PNP(object_new(TYPE_GRLIB_APB_PNP));
+    object_property_set_bool(OBJECT(apb_pnp), true, "realized", &error_fatal);
+    sysbus_mmio_map(SYS_BUS_DEVICE(apb_pnp), 0, LEON3_APB_PNP_OFFSET);
+    grlib_ahb_pnp_add_entry(ahb_pnp, LEON3_APB_PNP_OFFSET, 0xFFF,
+                            GRLIB_VENDOR_GAISLER, GRLIB_APBMST_DEV,
+                            GRLIB_AHB_SLAVE, GRLIB_AHBMEM_AREA);
+
+    /* Allocate IRQ manager */
+    dev = qdev_create(NULL, TYPE_GRLIB_IRQMP);
+    qdev_prop_set_ptr(dev, "set_pil_in", leon3_set_pil_in);
+    qdev_prop_set_ptr(dev, "set_pil_in_opaque", env);
+    qdev_init_nofail(dev);
+    sysbus_mmio_map(SYS_BUS_DEVICE(dev), 0, LEON3_IRQMP_OFFSET);
+    env->irq_manager = dev;
     env->qemu_irq_ack = leon3_irq_manager;
+    cpu_irqs = qemu_allocate_irqs(grlib_irqmp_set_irq, dev, MAX_PILS);
+    grlib_apb_pnp_add_entry(apb_pnp, LEON3_IRQMP_OFFSET, 0xFFF,
+                            GRLIB_VENDOR_GAISLER, GRLIB_IRQMP_DEV,
+                            2, 0, GRLIB_APBIO_AREA);
 
     /* Allocate RAM */
     if (ram_size > 1 * GiB) {
@@ -148,17 +242,17 @@ static void leon3_generic_hw_init(MachineState *machine)
     }
 
     memory_region_allocate_system_memory(ram, NULL, "leon3.ram", ram_size);
-    memory_region_add_subregion(address_space_mem, 0x40000000, ram);
+    memory_region_add_subregion(address_space_mem, LEON3_RAM_OFFSET, ram);
 
     /* Allocate BIOS */
     prom_size = 8 * MiB;
     memory_region_init_ram(prom, NULL, "Leon3.bios", prom_size, &error_fatal);
     memory_region_set_readonly(prom, true);
-    memory_region_add_subregion(address_space_mem, 0x00000000, prom);
+    memory_region_add_subregion(address_space_mem, LEON3_PROM_OFFSET, prom);
 
     /* Load boot prom */
     if (bios_name == NULL) {
-        bios_name = PROM_FILENAME;
+        bios_name = LEON3_PROM_FILENAME;
     }
     filename = qemu_find_file(QEMU_FILE_TYPE_BIOS, bios_name);
 
@@ -174,13 +268,15 @@ static void leon3_generic_hw_init(MachineState *machine)
     }
 
     if (bios_size > 0) {
-        ret = load_image_targphys(filename, 0x00000000, bios_size);
+        ret = load_image_targphys(filename, LEON3_PROM_OFFSET, bios_size);
         if (ret < 0 || ret > prom_size) {
             error_report("could not load prom '%s'", filename);
             exit(1);
         }
     } else if (kernel_filename == NULL && !qtest_enabled()) {
-        error_report("Can't read bios image %s", filename);
+        error_report("Can't read bios image '%s'", filename
+                                                   ? filename
+                                                   : LEON3_PROM_FILENAME);
         exit(1);
     }
     g_free(filename);
@@ -202,19 +298,48 @@ static void leon3_generic_hw_init(MachineState *machine)
             exit(1);
         }
         if (bios_size <= 0) {
-            /* If there is no bios/monitor, start the application.  */
-            env->pc = entry;
-            env->npc = entry + 4;
-            reset_info->entry = entry;
+            /*
+             * If there is no bios/monitor just start the application but put
+             * the machine in an initialized state through a little
+             * bootloader.
+             */
+            uint8_t *bootloader_entry;
+
+            bootloader_entry = memory_region_get_ram_ptr(prom);
+            write_bootloader(env, bootloader_entry, entry);
+            env->pc = LEON3_PROM_OFFSET;
+            env->npc = LEON3_PROM_OFFSET + 4;
+            reset_info->entry = LEON3_PROM_OFFSET;
         }
     }
 
     /* Allocate timers */
-    grlib_gptimer_create(0x80000300, 2, CPU_CLK, cpu_irqs, 6);
+    dev = qdev_create(NULL, TYPE_GRLIB_GPTIMER);
+    qdev_prop_set_uint32(dev, "nr-timers", LEON3_TIMER_COUNT);
+    qdev_prop_set_uint32(dev, "frequency", CPU_CLK);
+    qdev_prop_set_uint32(dev, "irq-line", LEON3_TIMER_IRQ);
+    qdev_init_nofail(dev);
+
+    sysbus_mmio_map(SYS_BUS_DEVICE(dev), 0, LEON3_TIMER_OFFSET);
+    for (i = 0; i < LEON3_TIMER_COUNT; i++) {
+        sysbus_connect_irq(SYS_BUS_DEVICE(dev), i,
+                           cpu_irqs[LEON3_TIMER_IRQ + i]);
+    }
+
+    grlib_apb_pnp_add_entry(apb_pnp, LEON3_TIMER_OFFSET, 0xFFF,
+                            GRLIB_VENDOR_GAISLER, GRLIB_GPTIMER_DEV,
+                            0, LEON3_TIMER_IRQ, GRLIB_APBIO_AREA);
 
     /* Allocate uart */
     if (serial_hd(0)) {
-        grlib_apbuart_create(0x80000100, serial_hd(0), cpu_irqs[3]);
+        dev = qdev_create(NULL, TYPE_GRLIB_APB_UART);
+        qdev_prop_set_chr(dev, "chrdev", serial_hd(0));
+        qdev_init_nofail(dev);
+        sysbus_mmio_map(SYS_BUS_DEVICE(dev), 0, LEON3_UART_OFFSET);
+        sysbus_connect_irq(SYS_BUS_DEVICE(dev), 0, cpu_irqs[LEON3_UART_IRQ]);
+        grlib_apb_pnp_add_entry(apb_pnp, LEON3_UART_OFFSET, 0xFFF,
+                                GRLIB_VENDOR_GAISLER, GRLIB_APBUART_DEV, 1,
+                                LEON3_UART_IRQ, GRLIB_APBIO_AREA);
     }
 }
 
