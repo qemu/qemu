@@ -901,7 +901,6 @@ e1000_receive_iov(NetClientState *nc, const struct iovec *iov, int iovcnt)
     if (size < sizeof(min_buf)) {
         iov_to_buf(iov, iovcnt, 0, min_buf, size);
         memset(&min_buf[size], 0, sizeof(min_buf) - size);
-        e1000x_inc_reg_if_not_full(s->mac_reg, RUC);
         min_iov.iov_base = filter_buf = min_buf;
         min_iov.iov_len = size = sizeof(min_buf);
         iovcnt = 1;
