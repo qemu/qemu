@@ -1232,26 +1232,35 @@ the write back by pressing @key{C-a s} (@pxref{disk_images}).
 ETEXI
 
 DEF("fsdev", HAS_ARG, QEMU_OPTION_fsdev,
-    "-fsdev fsdriver,id=id[,path=path,][security_model={mapped-xattr|mapped-file|passthrough|none}]\n"
-    " [,writeout=immediate][,readonly][,socket=socket|sock_fd=sock_fd][,fmode=fmode][,dmode=dmode]\n"
+    "-fsdev local,id=id,path=path,security_model=mapped-xattr|mapped-file|passthrough|none\n"
+    " [,writeout=immediate][,readonly][,fmode=fmode][,dmode=dmode]\n"
     " [[,throttling.bps-total=b]|[[,throttling.bps-read=r][,throttling.bps-write=w]]]\n"
     " [[,throttling.iops-total=i]|[[,throttling.iops-read=r][,throttling.iops-write=w]]]\n"
     " [[,throttling.bps-total-max=bm]|[[,throttling.bps-read-max=rm][,throttling.bps-write-max=wm]]]\n"
     " [[,throttling.iops-total-max=im]|[[,throttling.iops-read-max=irm][,throttling.iops-write-max=iwm]]]\n"
-    " [[,throttling.iops-size=is]]\n",
+    " [[,throttling.iops-size=is]]\n"
+    "-fsdev proxy,id=id,socket=socket[,writeout=immediate][,readonly]\n"
+    "-fsdev proxy,id=id,sock_fd=sock_fd[,writeout=immediate][,readonly]\n"
+    "-fsdev synth,id=id\n",
     QEMU_ARCH_ALL)
 
 STEXI
 
-@item -fsdev @var{fsdriver},id=@var{id},path=@var{path},[security_model=@var{security_model}][,writeout=@var{writeout}][,readonly][,socket=@var{socket}|sock_fd=@var{sock_fd}][,fmode=@var{fmode}][,dmode=@var{dmode}]
+@item -fsdev local,id=@var{id},path=@var{path},security_model=@var{security_model} [,writeout=@var{writeout}][,readonly][,fmode=@var{fmode}][,dmode=@var{dmode}] [,throttling.@var{option}=@var{value}[,throttling.@var{option}=@var{value}[,...]]]
+@itemx -fsdev proxy,id=@var{id},socket=@var{socket}[,writeout=@var{writeout}][,readonly]
+@itemx -fsdev proxy,id=@var{id},sock_fd=@var{sock_fd}[,writeout=@var{writeout}][,readonly]
+@itemx -fsdev synth,id=@var{id}[,readonly]
 @findex -fsdev
 Define a new file system device. Valid options are:
 @table @option
-@item @var{fsdriver}
-This option specifies the fs driver backend to use.
-Currently "local" and "proxy" file system drivers are supported.
+@item local
+Accesses to the filesystem are done by QEMU.
+@item proxy
+Accesses to the filesystem are done by virtfs-proxy-helper(1).
+@item synth
+Synthetic filesystem, only used by QTests.
 @item id=@var{id}
-Specifies identifier for this device
+Specifies identifier for this device.
 @item path=@var{path}
 Specifies the export path for the file system device. Files under
 this path will be available to the 9p client on the guest.
@@ -1279,48 +1288,76 @@ Enables exporting 9p share as a readonly mount for guests. By default
 read-write access is given.
 @item socket=@var{socket}
 Enables proxy filesystem driver to use passed socket file for communicating
-with virtfs-proxy-helper
+with virtfs-proxy-helper(1).
 @item sock_fd=@var{sock_fd}
 Enables proxy filesystem driver to use passed socket descriptor for
-communicating with virtfs-proxy-helper. Usually a helper like libvirt
-will create socketpair and pass one of the fds as sock_fd
+communicating with virtfs-proxy-helper(1). Usually a helper like libvirt
+will create socketpair and pass one of the fds as sock_fd.
 @item fmode=@var{fmode}
 Specifies the default mode for newly created files on the host. Works only
 with security models "mapped-xattr" and "mapped-file".
 @item dmode=@var{dmode}
 Specifies the default mode for newly created directories on the host. Works
 only with security models "mapped-xattr" and "mapped-file".
+@item throttling.bps-total=@var{b},throttling.bps-read=@var{r},throttling.bps-write=@var{w}
+Specify bandwidth throttling limits in bytes per second, either for all request
+types or for reads or writes only.
+@item throttling.bps-total-max=@var{bm},bps-read-max=@var{rm},bps-write-max=@var{wm}
+Specify bursts in bytes per second, either for all request types or for reads
+or writes only.  Bursts allow the guest I/O to spike above the limit
+temporarily.
+@item throttling.iops-total=@var{i},throttling.iops-read=@var{r}, throttling.iops-write=@var{w}
+Specify request rate limits in requests per second, either for all request
+types or for reads or writes only.
+@item throttling.iops-total-max=@var{im},throttling.iops-read-max=@var{irm}, throttling.iops-write-max=@var{iwm}
+Specify bursts in requests per second, either for all request types or for reads
+or writes only.  Bursts allow the guest I/O to spike above the limit temporarily.
+@item throttling.iops-size=@var{is}
+Let every @var{is} bytes of a request count as a new request for iops
+throttling purposes.
 @end table
 
--fsdev option is used along with -device driver "virtio-9p-pci".
-@item -device virtio-9p-pci,fsdev=@var{id},mount_tag=@var{mount_tag}
-Options for virtio-9p-pci driver are:
+-fsdev option is used along with -device driver "virtio-9p-...".
+@item -device virtio-9p-@var{type},fsdev=@var{id},mount_tag=@var{mount_tag}
+Options for virtio-9p-... driver are:
 @table @option
+@item @var{type}
+Specifies the variant to be used. Supported values are "pci", "ccw" or "device",
+depending on the machine type.
 @item fsdev=@var{id}
-Specifies the id value specified along with -fsdev option
+Specifies the id value specified along with -fsdev option.
 @item mount_tag=@var{mount_tag}
-Specifies the tag name to be used by the guest to mount this export point
+Specifies the tag name to be used by the guest to mount this export point.
 @end table
 
 ETEXI
 
 DEF("virtfs", HAS_ARG, QEMU_OPTION_virtfs,
-    "-virtfs local,path=path,mount_tag=tag,security_model=[mapped-xattr|mapped-file|passthrough|none]\n"
-    "        [,id=id][,writeout=immediate][,readonly][,socket=socket|sock_fd=sock_fd][,fmode=fmode][,dmode=dmode]\n",
+    "-virtfs local,path=path,mount_tag=tag,security_model=mapped-xattr|mapped-file|passthrough|none\n"
+    "        [,id=id][,writeout=immediate][,readonly][,fmode=fmode][,dmode=dmode]\n"
+    "-virtfs proxy,mount_tag=tag,socket=socket[,id=id][,writeout=immediate][,readonly]\n"
+    "-virtfs proxy,mount_tag=tag,sock_fd=sock_fd[,id=id][,writeout=immediate][,readonly]\n"
+    "-virtfs synth,mount_tag=tag[,id=id][,readonly]\n",
     QEMU_ARCH_ALL)
 
 STEXI
 
-@item -virtfs @var{fsdriver}[,path=@var{path}],mount_tag=@var{mount_tag}[,security_model=@var{security_model}][,writeout=@var{writeout}][,readonly][,socket=@var{socket}|sock_fd=@var{sock_fd}][,fmode=@var{fmode}][,dmode=@var{dmode}]
+@item -virtfs local,path=@var{path},mount_tag=@var{mount_tag} ,security_model=@var{security_model}[,writeout=@var{writeout}][,readonly] [,fmode=@var{fmode}][,dmode=@var{dmode}]
+@itemx -virtfs proxy,socket=@var{socket},mount_tag=@var{mount_tag} [,writeout=@var{writeout}][,readonly]
+@itemx -virtfs proxy,sock_fd=@var{sock_fd},mount_tag=@var{mount_tag} [,writeout=@var{writeout}][,readonly]
+@itemx -virtfs synth,mount_tag=@var{mount_tag}
 @findex -virtfs
 
-The general form of a Virtual File system pass-through options are:
+Define a new filesystem device and expose it to the guest using a virtio-9p-device. The general form of a Virtual File system pass-through options are:
 @table @option
-@item @var{fsdriver}
-This option specifies the fs driver backend to use.
-Currently "local" and "proxy" file system drivers are supported.
+@item local
+Accesses to the filesystem are done by QEMU.
+@item proxy
+Accesses to the filesystem are done by virtfs-proxy-helper(1).
+@item synth
+Synthetic filesystem, only used by QTests.
 @item id=@var{id}
-Specifies identifier for this device
+Specifies identifier for the filesystem device
 @item path=@var{path}
 Specifies the export path for the file system device. Files under
 this path will be available to the 9p client on the guest.
@@ -1348,17 +1385,19 @@ Enables exporting 9p share as a readonly mount for guests. By default
 read-write access is given.
 @item socket=@var{socket}
 Enables proxy filesystem driver to use passed socket file for
-communicating with virtfs-proxy-helper. Usually a helper like libvirt
-will create socketpair and pass one of the fds as sock_fd
+communicating with virtfs-proxy-helper(1). Usually a helper like libvirt
+will create socketpair and pass one of the fds as sock_fd.
 @item sock_fd
 Enables proxy filesystem driver to use passed 'sock_fd' as the socket
-descriptor for interfacing with virtfs-proxy-helper
+descriptor for interfacing with virtfs-proxy-helper(1).
 @item fmode=@var{fmode}
 Specifies the default mode for newly created files on the host. Works only
 with security models "mapped-xattr" and "mapped-file".
 @item dmode=@var{dmode}
 Specifies the default mode for newly created directories on the host. Works
 only with security models "mapped-xattr" and "mapped-file".
+@item mount_tag=@var{mount_tag}
+Specifies the tag name to be used by the guest to mount this export point.
 @end table
 ETEXI
 
