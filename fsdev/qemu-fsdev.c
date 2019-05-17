@@ -18,6 +18,29 @@
 #include "qemu/error-report.h"
 #include "qemu/option.h"
 
+/*
+ * A table to store the various file systems and their callback operations.
+ * -----------------
+ * fstype | ops
+ * -----------------
+ *  local | local_ops
+ *  .     |
+ *  .     |
+ *  .     |
+ *  .     |
+ * -----------------
+ *  etc
+ */
+typedef struct FsDriverTable {
+    const char *name;
+    FileOperations *ops;
+} FsDriverTable;
+
+typedef struct FsDriverListEntry {
+    FsDriverEntry fse;
+    QTAILQ_ENTRY(FsDriverListEntry) next;
+} FsDriverListEntry;
+
 static QTAILQ_HEAD(, FsDriverListEntry) fsdriver_entries =
     QTAILQ_HEAD_INITIALIZER(fsdriver_entries);
 
