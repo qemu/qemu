@@ -175,6 +175,16 @@ without the feature to find out if enabling it is beneficial.
 Requires: hv-vapic
 
 
+4. Development features
+========================
+In some cases (e.g. during development) it may make sense to use QEMU in
+'pass-through' mode and give Windows guests all enlightenments currently
+supported by KVM. This pass-through mode is enabled by "hv-passthrough" CPU
+flag.
+Note: enabling this flag effectively prevents migration as supported features
+may differ between target and destination.
+
+
 4. Useful links
 ================
 Hyper-V Top Level Functional specification and other information:

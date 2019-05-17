@@ -639,7 +639,7 @@ static bool hyperv_enabled(X86CPU *cpu)
     CPUState *cs = CPU(cpu);
     return kvm_check_extension(cs->kvm_state, KVM_CAP_HYPERV) > 0 &&
         ((cpu->hyperv_spinlock_attempts != HYPERV_SPINLOCK_NEVER_RETRY) ||
-         cpu->hyperv_features);
+         cpu->hyperv_features || cpu->hyperv_passthrough);
 }
 
 static int kvm_arch_set_tsc_khz(CPUState *cs)
@@ -985,10 +985,10 @@ static int hv_cpuid_check_and_set(CPUState *cs, struct kvm_cpuid2 *cpuid,
 {
     X86CPU *cpu = X86_CPU(cs);
     CPUX86State *env = &cpu->env;
-    uint32_t r, fw, bits;;
+    uint32_t r, fw, bits;
     int i;
 
-    if (!hyperv_feat_enabled(cpu, feature)) {
+    if (!hyperv_feat_enabled(cpu, feature) && !cpu->hyperv_passthrough) {
         return 0;
     }
 
@@ -1001,13 +1001,21 @@ static int hv_cpuid_check_and_set(CPUState *cs, struct kvm_cpuid2 *cpuid,
         }
 
         if (hv_cpuid_get_fw(cpuid, fw, &r) || (r & bits) != bits) {
-            fprintf(stderr,
-                    "Hyper-V %s is not supported by kernel\n",
-                    kvm_hyperv_properties[feature].desc);
-            return 1;
+            if (hyperv_feat_enabled(cpu, feature)) {
+                fprintf(stderr,
+                        "Hyper-V %s is not supported by kernel\n",
+                        kvm_hyperv_properties[feature].desc);
+                return 1;
+            } else {
+                return 0;
+            }
         }
 
         env->features[fw] |= bits;
+    }
+
+    if (cpu->hyperv_passthrough) {
+        cpu->hyperv_features |= BIT(feature);
     }
 
     return 0;
@@ -1027,22 +1035,29 @@ static int hyperv_handle_properties(CPUState *cs,
     struct kvm_cpuid_entry2 *c;
     uint32_t signature[3];
     uint32_t cpuid_i = 0;
-    int r = 0;
+    int r;
 
     if (!hyperv_enabled(cpu))
         return 0;
 
-    if (hyperv_feat_enabled(cpu, HYPERV_FEAT_EVMCS)) {
+    if (hyperv_feat_enabled(cpu, HYPERV_FEAT_EVMCS) ||
+        cpu->hyperv_passthrough) {
         uint16_t evmcs_version;
 
-        if (kvm_vcpu_enable_cap(cs, KVM_CAP_HYPERV_ENLIGHTENED_VMCS, 0,
-                                (uintptr_t)&evmcs_version)) {
+        r = kvm_vcpu_enable_cap(cs, KVM_CAP_HYPERV_ENLIGHTENED_VMCS, 0,
+                                (uintptr_t)&evmcs_version);
+
+        if (hyperv_feat_enabled(cpu, HYPERV_FEAT_EVMCS) && r) {
             fprintf(stderr, "Hyper-V %s is not supported by kernel\n",
                     kvm_hyperv_properties[HYPERV_FEAT_EVMCS].desc);
             return -ENOSYS;
         }
-        env->features[FEAT_HV_RECOMM_EAX] |= HV_ENLIGHTENED_VMCS_RECOMMENDED;
-        env->features[FEAT_HV_NESTED_EAX] = evmcs_version;
+
+        if (!r) {
+            env->features[FEAT_HV_RECOMM_EAX] |=
+                HV_ENLIGHTENED_VMCS_RECOMMENDED;
+            env->features[FEAT_HV_NESTED_EAX] = evmcs_version;
+        }
     }
 
     if (kvm_check_extension(cs->kvm_state, KVM_CAP_HYPERV_CPUID) > 0) {
@@ -1051,8 +1066,33 @@ static int hyperv_handle_properties(CPUState *cs,
         cpuid = get_supported_hv_cpuid_legacy(cs);
     }
 
+    if (cpu->hyperv_passthrough) {
+        memcpy(cpuid_ent, &cpuid->entries[0],
+               cpuid->nent * sizeof(cpuid->entries[0]));
+
+        c = cpuid_find_entry(cpuid, HV_CPUID_FEATURES, 0);
+        if (c) {
+            env->features[FEAT_HYPERV_EAX] = c->eax;
+            env->features[FEAT_HYPERV_EBX] = c->ebx;
+            env->features[FEAT_HYPERV_EDX] = c->eax;
+        }
+        c = cpuid_find_entry(cpuid, HV_CPUID_ENLIGHTMENT_INFO, 0);
+        if (c) {
+            env->features[FEAT_HV_RECOMM_EAX] = c->eax;
+
+            /* hv-spinlocks may have been overriden */
+            if (cpu->hyperv_spinlock_attempts != HYPERV_SPINLOCK_NEVER_RETRY) {
+                c->ebx = cpu->hyperv_spinlock_attempts;
+            }
+        }
+        c = cpuid_find_entry(cpuid, HV_CPUID_NESTED_FEATURES, 0);
+        if (c) {
+            env->features[FEAT_HV_NESTED_EAX] = c->eax;
+        }
+    }
+
     /* Features */
-    r |= hv_cpuid_check_and_set(cs, cpuid, HYPERV_FEAT_RELAXED);
+    r = hv_cpuid_check_and_set(cs, cpuid, HYPERV_FEAT_RELAXED);
     r |= hv_cpuid_check_and_set(cs, cpuid, HYPERV_FEAT_VAPIC);
     r |= hv_cpuid_check_and_set(cs, cpuid, HYPERV_FEAT_TIME);
     r |= hv_cpuid_check_and_set(cs, cpuid, HYPERV_FEAT_CRASH);
@@ -1082,6 +1122,12 @@ static int hyperv_handle_properties(CPUState *cs,
 
     if (r) {
         r = -ENOSYS;
+        goto free;
+    }
+
+    if (cpu->hyperv_passthrough) {
+        /* We already copied all feature words from KVM as is */
+        r = cpuid->nent;
         goto free;
     }
 
@@ -1156,10 +1202,25 @@ free:
     return r;
 }
 
+static Error *hv_passthrough_mig_blocker;
+
 static int hyperv_init_vcpu(X86CPU *cpu)
 {
     CPUState *cs = CPU(cpu);
+    Error *local_err = NULL;
     int ret;
+
+    if (cpu->hyperv_passthrough && hv_passthrough_mig_blocker == NULL) {
+        error_setg(&hv_passthrough_mig_blocker,
+                   "'hv-passthrough' CPU flag prevents migration, use explicit"
+                   " set of hv-* flags instead");
+        ret = migrate_add_blocker(hv_passthrough_mig_blocker, &local_err);
+        if (local_err) {
+            error_report_err(local_err);
+            error_free(hv_passthrough_mig_blocker);
+            return ret;
+        }
+    }
 
     if (hyperv_feat_enabled(cpu, HYPERV_FEAT_VPINDEX) && !hv_vpindex_settable) {
         /*
