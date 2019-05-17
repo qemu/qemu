@@ -734,6 +734,22 @@ typedef uint32_t FeatureWordArray[FEATURE_WORDS];
 #define MSR_ARCH_CAP_SKIP_L1DFL_VMENTRY (1U << 3)
 #define MSR_ARCH_CAP_SSB_NO     (1U << 4)
 
+/* Supported Hyper-V Enlightenments */
+#define HYPERV_FEAT_RELAXED             0
+#define HYPERV_FEAT_VAPIC               1
+#define HYPERV_FEAT_TIME                2
+#define HYPERV_FEAT_CRASH               3
+#define HYPERV_FEAT_RESET               4
+#define HYPERV_FEAT_VPINDEX             5
+#define HYPERV_FEAT_RUNTIME             6
+#define HYPERV_FEAT_SYNIC               7
+#define HYPERV_FEAT_STIMER              8
+#define HYPERV_FEAT_FREQUENCIES         9
+#define HYPERV_FEAT_REENLIGHTENMENT     10
+#define HYPERV_FEAT_TLBFLUSH            11
+#define HYPERV_FEAT_EVMCS               12
+#define HYPERV_FEAT_IPI                 13
+
 #ifndef HYPERV_SPINLOCK_NEVER_RETRY
 #define HYPERV_SPINLOCK_NEVER_RETRY             0xFFFFFFFF
 #endif
@@ -1370,23 +1386,11 @@ struct X86CPU {
     CPUNegativeOffsetState neg;
     CPUX86State env;
 
-    bool hyperv_vapic;
-    bool hyperv_relaxed_timing;
     int hyperv_spinlock_attempts;
     char *hyperv_vendor_id;
-    bool hyperv_time;
-    bool hyperv_crash;
-    bool hyperv_reset;
-    bool hyperv_vpindex;
-    bool hyperv_runtime;
-    bool hyperv_synic;
     bool hyperv_synic_kvm_only;
-    bool hyperv_stimer;
-    bool hyperv_frequencies;
-    bool hyperv_reenlightenment;
-    bool hyperv_tlbflush;
-    bool hyperv_evmcs;
-    bool hyperv_ipi;
+    uint64_t hyperv_features;
+
     bool check_cpuid;
     bool enforce_cpuid;
     bool expose_kvm;
@@ -1905,5 +1909,10 @@ bool cpu_is_bsp(X86CPU *cpu);
 void x86_cpu_xrstor_all_areas(X86CPU *cpu, const X86XSaveArea *buf);
 void x86_cpu_xsave_all_areas(X86CPU *cpu, X86XSaveArea *buf);
 void x86_update_hflags(CPUX86State* env);
+
+static inline bool hyperv_feat_enabled(X86CPU *cpu, int feat)
+{
+    return !!(cpu->hyperv_features & BIT(feat));
+}
 
 #endif /* I386_CPU_H */

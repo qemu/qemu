@@ -634,7 +634,7 @@ static bool hyperv_runtime_enable_needed(void *opaque)
     X86CPU *cpu = opaque;
     CPUX86State *env = &cpu->env;
 
-    if (!cpu->hyperv_runtime) {
+    if (!hyperv_feat_enabled(cpu, HYPERV_FEAT_RUNTIME)) {
         return false;
     }
 
