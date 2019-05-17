@@ -139,6 +139,15 @@ static void ioapic_service(IOAPICCommonState *s)
     }
 }
 
+#define SUCCESSIVE_IRQ_MAX_COUNT 10000
+
+static void delayed_ioapic_service_cb(void *opaque)
+{
+    IOAPICCommonState *s = opaque;
+
+    ioapic_service(s);
+}
+
 static void ioapic_set_irq(void *opaque, int vector, int level)
 {
     IOAPICCommonState *s = opaque;
@@ -222,13 +231,39 @@ void ioapic_eoi_broadcast(int vector)
         }
         for (n = 0; n < IOAPIC_NUM_PINS; n++) {
             entry = s->ioredtbl[n];
-            if ((entry & IOAPIC_LVT_REMOTE_IRR)
-                && (entry & IOAPIC_VECTOR_MASK) == vector) {
-                trace_ioapic_clear_remote_irr(n, vector);
-                s->ioredtbl[n] = entry & ~IOAPIC_LVT_REMOTE_IRR;
-                if (!(entry & IOAPIC_LVT_MASKED) && (s->irr & (1 << n))) {
+
+            if ((entry & IOAPIC_VECTOR_MASK) != vector ||
+                ((entry >> IOAPIC_LVT_TRIGGER_MODE_SHIFT) & 1) != IOAPIC_TRIGGER_LEVEL) {
+                continue;
+            }
+
+            if (!(entry & IOAPIC_LVT_REMOTE_IRR)) {
+                continue;
+            }
+
+            trace_ioapic_clear_remote_irr(n, vector);
+            s->ioredtbl[n] = entry & ~IOAPIC_LVT_REMOTE_IRR;
+
+            if (!(entry & IOAPIC_LVT_MASKED) && (s->irr & (1 << n))) {
+                ++s->irq_eoi[vector];
+                if (s->irq_eoi[vector] >= SUCCESSIVE_IRQ_MAX_COUNT) {
+                    /*
+                     * Real hardware does not deliver the interrupt immediately
+                     * during eoi broadcast, and this lets a buggy guest make
+                     * slow progress even if it does not correctly handle a
+                     * level-triggered interrupt. Emulate this behavior if we
+                     * detect an interrupt storm.
+                     */
+                    s->irq_eoi[vector] = 0;
+                    timer_mod_anticipate(s->delayed_ioapic_service_timer,
+                                         qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL) +
+                                         NANOSECONDS_PER_SECOND / 100);
+                    trace_ioapic_eoi_delayed_reassert(vector);
+                } else {
                     ioapic_service(s);
                 }
+            } else {
+                s->irq_eoi[vector] = 0;
             }
         }
     }
@@ -401,11 +436,22 @@ static void ioapic_realize(DeviceState *dev, Error **errp)
     memory_region_init_io(&s->io_memory, OBJECT(s), &ioapic_io_ops, s,
                           "ioapic", 0x1000);
 
+    s->delayed_ioapic_service_timer =
+        timer_new_ns(QEMU_CLOCK_VIRTUAL, delayed_ioapic_service_cb, s);
+
     qdev_init_gpio_in(dev, ioapic_set_irq, IOAPIC_NUM_PINS);
 
     ioapics[ioapic_no] = s;
     s->machine_done.notify = ioapic_machine_done_notify;
     qemu_add_machine_init_done_notifier(&s->machine_done);
+}
+
+static void ioapic_unrealize(DeviceState *dev, Error **errp)
+{
+    IOAPICCommonState *s = IOAPIC_COMMON(dev);
+
+    timer_del(s->delayed_ioapic_service_timer);
+    timer_free(s->delayed_ioapic_service_timer);
 }
 
 static Property ioapic_properties[] = {
@@ -419,6 +465,7 @@ static void ioapic_class_init(ObjectClass *klass, void *data)
     DeviceClass *dc = DEVICE_CLASS(klass);
 
     k->realize = ioapic_realize;
+    k->unrealize = ioapic_unrealize;
     /*
      * If APIC is in kernel, we need to update the kernel cache after
      * migration, otherwise first 24 gsi routes will be invalid.

@@ -92,8 +92,6 @@ typedef struct PIIX4PMState {
     MemHotplugState acpi_memory_hotplug;
 } PIIX4PMState;
 
-#define TYPE_PIIX4_PM "PIIX4_PM"
-
 #define PIIX4_PM(obj) \
     OBJECT_CHECK(PIIX4PMState, (obj), TYPE_PIIX4_PM)
 
@@ -552,17 +550,6 @@ static void piix4_pm_realize(PCIDevice *dev, Error **errp)
     qbus_set_hotplug_handler(BUS(pci_get_bus(dev)), OBJECT(s), &error_abort);
 
     piix4_pm_add_propeties(s);
-}
-
-Object *piix4_pm_find(void)
-{
-    bool ambig;
-    Object *o = object_resolve_path_type("", TYPE_PIIX4_PM, &ambig);
-
-    if (ambig || !o) {
-        return NULL;
-    }
-    return o;
 }
 
 I2CBus *piix4_pm_init(PCIBus *bus, int devfn, uint32_t smb_io_base,

@@ -708,6 +708,7 @@ int hvf_vcpu_exec(CPUState *cpu)
                 !(idtvec_info & VMCS_IDT_VEC_VALID)) {
                 cpu->halted = 1;
                 ret = EXCP_HLT;
+                break;
             }
             ret = EXCP_INTERRUPT;
             break;
