@@ -545,9 +545,10 @@ static inline int cpu_mmu_index (CPUM68KState *env, bool ifetch)
 bool m68k_cpu_tlb_fill(CPUState *cs, vaddr address, int size,
                        MMUAccessType access_type, int mmu_idx,
                        bool probe, uintptr_t retaddr);
-void m68k_cpu_unassigned_access(CPUState *cs, hwaddr addr,
-                                bool is_write, bool is_exec, int is_asi,
-                                unsigned size);
+void m68k_cpu_transaction_failed(CPUState *cs, hwaddr physaddr, vaddr addr,
+                                 unsigned size, MMUAccessType access_type,
+                                 int mmu_idx, MemTxAttrs attrs,
+                                 MemTxResult response, uintptr_t retaddr);
 
 #include "exec/cpu-all.h"
 

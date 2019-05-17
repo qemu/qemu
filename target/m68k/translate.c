@@ -2227,6 +2227,7 @@ static TCGv gen_get_sr(DisasContext *s)
     sr = tcg_temp_new();
     tcg_gen_andi_i32(sr, QREG_SR, 0xffe0);
     tcg_gen_or_i32(sr, sr, ccr);
+    tcg_temp_free(ccr);
     return sr;
 }
 
@@ -3020,7 +3021,6 @@ DISAS_INSN(branch)
     int32_t offset;
     uint32_t base;
     int op;
-    TCGLabel *l1;
 
     base = s->pc;
     op = (insn >> 8) & 0xf;
@@ -3036,7 +3036,7 @@ DISAS_INSN(branch)
     }
     if (op > 1) {
         /* Bcc */
-        l1 = gen_new_label();
+        TCGLabel *l1 = gen_new_label();
         gen_jmpcc(s, ((insn >> 8) & 0xf) ^ 1, l1);
         gen_jmp_tb(s, 1, base + offset);
         gen_set_label(l1);
@@ -3693,6 +3693,7 @@ static TCGv rotate_x(TCGv reg, TCGv shift, int left, int size)
         tcg_gen_sub_i32(shl, shl, shift); /* shl = size + 1 - shift */
         tcg_gen_sub_i32(shx, sz, shift); /* shx = size - shift */
     }
+    tcg_temp_free_i32(sz);
 
     /* reg = (reg << shl) | (reg >> shr) | (x << shx); */
 
@@ -3708,9 +3709,7 @@ static TCGv rotate_x(TCGv reg, TCGv shift, int left, int size)
     /* X = (reg >> size) & 1 */
 
     X = tcg_temp_new();
-    tcg_gen_shr_i32(X, reg, sz);
-    tcg_gen_andi_i32(X, X, 1);
-    tcg_temp_free(sz);
+    tcg_gen_extract_i32(X, reg, size, 1);
 
     return X;
 }
