@@ -87,32 +87,39 @@ static int get_str_sep(char *buf, int buf_size, const char **pp, int sep)
 int parse_host_port(struct sockaddr_in *saddr, const char *str,
                     Error **errp)
 {
-    char buf[512];
+    gchar **substrings;
     struct hostent *he;
-    const char *p, *r;
-    int port;
+    const char *addr, *p, *r;
+    int port, ret = 0;
 
-    p = str;
-    if (get_str_sep(buf, sizeof(buf), &p, ':') < 0) {
+    substrings = g_strsplit(str, ":", 2);
+    if (!substrings || !substrings[0] || !substrings[1]) {
         error_setg(errp, "host address '%s' doesn't contain ':' "
                    "separating host from port", str);
-        return -1;
+        ret = -1;
+        goto out;
     }
+
+    addr = substrings[0];
+    p = substrings[1];
+
     saddr->sin_family = AF_INET;
-    if (buf[0] == '\0') {
+    if (addr[0] == '\0') {
         saddr->sin_addr.s_addr = 0;
     } else {
-        if (qemu_isdigit(buf[0])) {
-            if (!inet_aton(buf, &saddr->sin_addr)) {
+        if (qemu_isdigit(addr[0])) {
+            if (!inet_aton(addr, &saddr->sin_addr)) {
                 error_setg(errp, "host address '%s' is not a valid "
-                           "IPv4 address", buf);
-                return -1;
+                           "IPv4 address", addr);
+                ret = -1;
+                goto out;
             }
         } else {
-            he = gethostbyname(buf);
+            he = gethostbyname(addr);
             if (he == NULL) {
-                error_setg(errp, "can't resolve host address '%s'", buf);
-                return - 1;
+                error_setg(errp, "can't resolve host address '%s'", addr);
+                ret = -1;
+                goto out;
             }
             saddr->sin_addr = *(struct in_addr *)he->h_addr;
         }
@@ -120,10 +127,14 @@ int parse_host_port(struct sockaddr_in *saddr, const char *str,
     port = strtol(p, (char **)&r, 0);
     if (r == p) {
         error_setg(errp, "port number '%s' is invalid", p);
-        return -1;
+        ret = -1;
+        goto out;
     }
     saddr->sin_port = htons(port);
-    return 0;
+
+out:
+    g_strfreev(substrings);
+    return ret;
 }
 
 char *qemu_mac_strdup_printf(const uint8_t *macaddr)
