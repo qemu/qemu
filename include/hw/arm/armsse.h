@@ -50,6 +50,11 @@
  *    address of each SRAM bank (and thus the total amount of internal SRAM)
  *  + QOM property "init-svtor" sets the initial value of the CPU SVTOR register
  *    (where it expects to load the PC and SP from the vector table on reset)
+ *  + QOM properties "CPU0_FPU", "CPU0_DSP", "CPU1_FPU" and "CPU1_DSP" which
+ *    set whether the CPUs have the FPU and DSP features present. The default
+ *    (matching the hardware) is that for CPU0 in an IoTKit and CPU1 in an
+ *    SSE-200 both are present; CPU0 in an SSE-200 has neither.
+ *    Since the IoTKit has only one CPU, it does not have the CPU1_* properties.
  *  + Named GPIO inputs "EXP_IRQ" 0..n are the expansion interrupts for CPU 0,
  *    which are wired to its NVIC lines 32 .. n+32
  *  + Named GPIO inputs "EXP_CPU1_IRQ" 0..n are the expansion interrupts for
@@ -208,6 +213,8 @@ typedef struct ARMSSE {
     uint32_t mainclk_frq;
     uint32_t sram_addr_width;
     uint32_t init_svtor;
+    bool cpu_fpu[SSE_MAX_CPUS];
+    bool cpu_dsp[SSE_MAX_CPUS];
 } ARMSSE;
 
 typedef struct ARMSSEInfo ARMSSEInfo;
