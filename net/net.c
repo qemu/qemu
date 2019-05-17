@@ -1136,11 +1136,11 @@ static int net_client_init(QemuOpts *opts, bool is_netdev, Error **errp)
 
                 if (err) {
                     error_setg(errp, QERR_INVALID_PARAMETER_VALUE,
-                              "ipv6-prefix", "a number");
-                } else {
-                    qemu_opt_set_number(opts, "ipv6-prefixlen", len,
-                                        &error_abort);
+                               "ipv6-prefixlen", "a number");
+                    goto out;
                 }
+
+                qemu_opt_set_number(opts, "ipv6-prefixlen", len, &error_abort);
             }
             qemu_opt_unset(opts, "ipv6-net");
         }
@@ -1162,6 +1162,7 @@ static int net_client_init(QemuOpts *opts, bool is_netdev, Error **errp)
         qapi_free_NetLegacy(object);
     }
 
+out:
     error_propagate(errp, err);
     visit_free(v);
     return ret;
