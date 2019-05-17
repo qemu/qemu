@@ -147,7 +147,6 @@ struct FileOperations
     int (*renameat)(FsContext *ctx, V9fsPath *olddir, const char *old_name,
                     V9fsPath *newdir, const char *new_name);
     int (*unlinkat)(FsContext *ctx, V9fsPath *dir, const char *name, int flags);
-    void *opaque;
 };
 
 #endif
