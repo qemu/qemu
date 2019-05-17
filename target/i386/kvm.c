@@ -1013,12 +1013,24 @@ static int hv_cpuid_check_and_set(CPUState *cs, struct kvm_cpuid2 *cpuid,
     return 0;
 }
 
-static int hyperv_handle_properties(CPUState *cs)
+/*
+ * Fill in Hyper-V CPUIDs. Returns the number of entries filled in cpuid_ent in
+ * case of success, errno < 0 in case of failure and 0 when no Hyper-V
+ * extentions are enabled.
+ */
+static int hyperv_handle_properties(CPUState *cs,
+                                    struct kvm_cpuid_entry2 *cpuid_ent)
 {
     X86CPU *cpu = X86_CPU(cs);
     CPUX86State *env = &cpu->env;
     struct kvm_cpuid2 *cpuid;
+    struct kvm_cpuid_entry2 *c;
+    uint32_t signature[3];
+    uint32_t cpuid_i = 0;
     int r = 0;
+
+    if (!hyperv_enabled(cpu))
+        return 0;
 
     if (hyperv_feat_enabled(cpu, HYPERV_FEAT_EVMCS)) {
         uint16_t evmcs_version;
@@ -1068,9 +1080,80 @@ static int hyperv_handle_properties(CPUState *cs)
     /* Not exposed by KVM but needed to make CPU hotplug in Windows work */
     env->features[FEAT_HYPERV_EDX] |= HV_CPU_DYNAMIC_PARTITIONING_AVAILABLE;
 
+    if (r) {
+        r = -ENOSYS;
+        goto free;
+    }
+
+    c = &cpuid_ent[cpuid_i++];
+    c->function = HV_CPUID_VENDOR_AND_MAX_FUNCTIONS;
+    if (!cpu->hyperv_vendor_id) {
+        memcpy(signature, "Microsoft Hv", 12);
+    } else {
+        size_t len = strlen(cpu->hyperv_vendor_id);
+
+        if (len > 12) {
+            error_report("hv-vendor-id truncated to 12 characters");
+            len = 12;
+        }
+        memset(signature, 0, 12);
+        memcpy(signature, cpu->hyperv_vendor_id, len);
+    }
+    c->eax = hyperv_feat_enabled(cpu, HYPERV_FEAT_EVMCS) ?
+        HV_CPUID_NESTED_FEATURES : HV_CPUID_IMPLEMENT_LIMITS;
+    c->ebx = signature[0];
+    c->ecx = signature[1];
+    c->edx = signature[2];
+
+    c = &cpuid_ent[cpuid_i++];
+    c->function = HV_CPUID_INTERFACE;
+    memcpy(signature, "Hv#1\0\0\0\0\0\0\0\0", 12);
+    c->eax = signature[0];
+    c->ebx = 0;
+    c->ecx = 0;
+    c->edx = 0;
+
+    c = &cpuid_ent[cpuid_i++];
+    c->function = HV_CPUID_VERSION;
+    c->eax = 0x00001bbc;
+    c->ebx = 0x00060001;
+
+    c = &cpuid_ent[cpuid_i++];
+    c->function = HV_CPUID_FEATURES;
+    c->eax = env->features[FEAT_HYPERV_EAX];
+    c->ebx = env->features[FEAT_HYPERV_EBX];
+    c->edx = env->features[FEAT_HYPERV_EDX];
+
+    c = &cpuid_ent[cpuid_i++];
+    c->function = HV_CPUID_ENLIGHTMENT_INFO;
+    c->eax = env->features[FEAT_HV_RECOMM_EAX];
+    c->ebx = cpu->hyperv_spinlock_attempts;
+
+    c = &cpuid_ent[cpuid_i++];
+    c->function = HV_CPUID_IMPLEMENT_LIMITS;
+    c->eax = cpu->hv_max_vps;
+    c->ebx = 0x40;
+
+    if (hyperv_feat_enabled(cpu, HYPERV_FEAT_EVMCS)) {
+        __u32 function;
+
+        /* Create zeroed 0x40000006..0x40000009 leaves */
+        for (function = HV_CPUID_IMPLEMENT_LIMITS + 1;
+             function < HV_CPUID_NESTED_FEATURES; function++) {
+            c = &cpuid_ent[cpuid_i++];
+            c->function = function;
+        }
+
+        c = &cpuid_ent[cpuid_i++];
+        c->function = HV_CPUID_NESTED_FEATURES;
+        c->eax = env->features[FEAT_HV_NESTED_EAX];
+    }
+    r = cpuid_i;
+
+free:
     g_free(cpuid);
 
-    return r ? -ENOSYS : 0;
+    return r;
 }
 
 static int hyperv_init_vcpu(X86CPU *cpu)
@@ -1179,79 +1262,13 @@ int kvm_arch_init_vcpu(CPUState *cs)
     }
 
     /* Paravirtualization CPUIDs */
-    if (hyperv_enabled(cpu)) {
-        c = &cpuid_data.entries[cpuid_i++];
-        c->function = HV_CPUID_VENDOR_AND_MAX_FUNCTIONS;
-        if (!cpu->hyperv_vendor_id) {
-            memcpy(signature, "Microsoft Hv", 12);
-        } else {
-            size_t len = strlen(cpu->hyperv_vendor_id);
-
-            if (len > 12) {
-                error_report("hv-vendor-id truncated to 12 characters");
-                len = 12;
-            }
-            memset(signature, 0, 12);
-            memcpy(signature, cpu->hyperv_vendor_id, len);
-        }
-        c->eax = hyperv_feat_enabled(cpu, HYPERV_FEAT_EVMCS) ?
-            HV_CPUID_NESTED_FEATURES : HV_CPUID_IMPLEMENT_LIMITS;
-        c->ebx = signature[0];
-        c->ecx = signature[1];
-        c->edx = signature[2];
-
-        c = &cpuid_data.entries[cpuid_i++];
-        c->function = HV_CPUID_INTERFACE;
-        memcpy(signature, "Hv#1\0\0\0\0\0\0\0\0", 12);
-        c->eax = signature[0];
-        c->ebx = 0;
-        c->ecx = 0;
-        c->edx = 0;
-
-        c = &cpuid_data.entries[cpuid_i++];
-        c->function = HV_CPUID_VERSION;
-        c->eax = 0x00001bbc;
-        c->ebx = 0x00060001;
-
-        c = &cpuid_data.entries[cpuid_i++];
-        c->function = HV_CPUID_FEATURES;
-        r = hyperv_handle_properties(cs);
-        if (r) {
-            return r;
-        }
-        c->eax = env->features[FEAT_HYPERV_EAX];
-        c->ebx = env->features[FEAT_HYPERV_EBX];
-        c->edx = env->features[FEAT_HYPERV_EDX];
-
-        c = &cpuid_data.entries[cpuid_i++];
-        c->function = HV_CPUID_ENLIGHTMENT_INFO;
-
-        c->eax = env->features[FEAT_HV_RECOMM_EAX];
-        c->ebx = cpu->hyperv_spinlock_attempts;
-
-        c = &cpuid_data.entries[cpuid_i++];
-        c->function = HV_CPUID_IMPLEMENT_LIMITS;
-
-        c->eax = cpu->hv_max_vps;
-        c->ebx = 0x40;
-
+    r = hyperv_handle_properties(cs, cpuid_data.entries);
+    if (r < 0) {
+        return r;
+    } else if (r > 0) {
+        cpuid_i = r;
         kvm_base = KVM_CPUID_SIGNATURE_NEXT;
         has_msr_hv_hypercall = true;
-
-        if (hyperv_feat_enabled(cpu, HYPERV_FEAT_EVMCS)) {
-            __u32 function;
-
-            /* Create zeroed 0x40000006..0x40000009 leaves */
-            for (function = HV_CPUID_IMPLEMENT_LIMITS + 1;
-                 function < HV_CPUID_NESTED_FEATURES; function++) {
-                c = &cpuid_data.entries[cpuid_i++];
-                c->function = function;
-            }
-
-            c = &cpuid_data.entries[cpuid_i++];
-            c->function = HV_CPUID_NESTED_FEATURES;
-            c->eax = env->features[FEAT_HV_NESTED_EAX];
-        }
     }
 
     if (cpu->expose_kvm) {
