@@ -1082,14 +1082,24 @@ static void tcg_out_ld(TCGContext *s, TCGType type, TCGReg ret,
         }
         /* FALLTHRU */
     case TCG_TYPE_V64:
+        /* There is no instruction that can validate 8-byte alignment.  */
         tcg_debug_assert(ret >= 16);
         tcg_out_vex_modrm_offset(s, OPC_MOVQ_VqWq, ret, 0, arg1, arg2);
         break;
     case TCG_TYPE_V128:
+        /*
+         * The gvec infrastructure is asserts that v128 vector loads
+         * and stores use a 16-byte aligned offset.  Validate that the
+         * final pointer is aligned by using an insn that will SIGSEGV.
+         */
         tcg_debug_assert(ret >= 16);
-        tcg_out_vex_modrm_offset(s, OPC_MOVDQU_VxWx, ret, 0, arg1, arg2);
+        tcg_out_vex_modrm_offset(s, OPC_MOVDQA_VxWx, ret, 0, arg1, arg2);
         break;
     case TCG_TYPE_V256:
+        /*
+         * The gvec infrastructure only requires 16-byte alignment,
+         * so here we must use an unaligned load.
+         */
         tcg_debug_assert(ret >= 16);
         tcg_out_vex_modrm_offset(s, OPC_MOVDQU_VxWx | P_VEXL,
                                  ret, 0, arg1, arg2);
@@ -1117,14 +1127,24 @@ static void tcg_out_st(TCGContext *s, TCGType type, TCGReg arg,
         }
         /* FALLTHRU */
     case TCG_TYPE_V64:
+        /* There is no instruction that can validate 8-byte alignment.  */
         tcg_debug_assert(arg >= 16);
         tcg_out_vex_modrm_offset(s, OPC_MOVQ_WqVq, arg, 0, arg1, arg2);
         break;
     case TCG_TYPE_V128:
+        /*
+         * The gvec infrastructure is asserts that v128 vector loads
+         * and stores use a 16-byte aligned offset.  Validate that the
+         * final pointer is aligned by using an insn that will SIGSEGV.
+         */
         tcg_debug_assert(arg >= 16);
-        tcg_out_vex_modrm_offset(s, OPC_MOVDQU_WxVx, arg, 0, arg1, arg2);
+        tcg_out_vex_modrm_offset(s, OPC_MOVDQA_WxVx, arg, 0, arg1, arg2);
         break;
     case TCG_TYPE_V256:
+        /*
+         * The gvec infrastructure only requires 16-byte alignment,
+         * so here we must use an unaligned store.
+         */
         tcg_debug_assert(arg >= 16);
         tcg_out_vex_modrm_offset(s, OPC_MOVDQU_WxVx | P_VEXL,
                                  arg, 0, arg1, arg2);
