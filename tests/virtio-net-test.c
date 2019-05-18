@@ -33,6 +33,7 @@ static void rx_test(QVirtioDevice *dev,
                     QGuestAllocator *alloc, QVirtQueue *vq,
                     int socket)
 {
+    QTestState *qts = global_qtest;
     uint64_t req_addr;
     uint32_t free_head;
     char test[] = "TEST";
@@ -51,13 +52,14 @@ static void rx_test(QVirtioDevice *dev,
 
     req_addr = guest_alloc(alloc, 64);
 
-    free_head = qvirtqueue_add(vq, req_addr, 64, true, false);
-    qvirtqueue_kick(dev, vq, free_head);
+    free_head = qvirtqueue_add(qts, vq, req_addr, 64, true, false);
+    qvirtqueue_kick(qts, dev, vq, free_head);
 
     ret = iov_send(socket, iov, 2, 0, sizeof(len) + sizeof(test));
     g_assert_cmpint(ret, ==, sizeof(test) + sizeof(len));
 
-    qvirtio_wait_used_elem(dev, vq, free_head, NULL, QVIRTIO_NET_TIMEOUT_US);
+    qvirtio_wait_used_elem(qts, dev, vq, free_head, NULL,
+                           QVIRTIO_NET_TIMEOUT_US);
     memread(req_addr + VNET_HDR_SIZE, buffer, sizeof(test));
     g_assert_cmpstr(buffer, ==, "TEST");
 
@@ -68,6 +70,7 @@ static void tx_test(QVirtioDevice *dev,
                     QGuestAllocator *alloc, QVirtQueue *vq,
                     int socket)
 {
+    QTestState *qts = global_qtest;
     uint64_t req_addr;
     uint32_t free_head;
     uint32_t len;
@@ -77,10 +80,11 @@ static void tx_test(QVirtioDevice *dev,
     req_addr = guest_alloc(alloc, 64);
     memwrite(req_addr + VNET_HDR_SIZE, "TEST", 4);
 
-    free_head = qvirtqueue_add(vq, req_addr, 64, false, false);
-    qvirtqueue_kick(dev, vq, free_head);
+    free_head = qvirtqueue_add(qts, vq, req_addr, 64, false, false);
+    qvirtqueue_kick(qts, dev, vq, free_head);
 
-    qvirtio_wait_used_elem(dev, vq, free_head, NULL, QVIRTIO_NET_TIMEOUT_US);
+    qvirtio_wait_used_elem(qts, dev, vq, free_head, NULL,
+                           QVIRTIO_NET_TIMEOUT_US);
     guest_free(alloc, req_addr);
 
     ret = qemu_recv(socket, &len, sizeof(len), 0);
@@ -95,6 +99,7 @@ static void rx_stop_cont_test(QVirtioDevice *dev,
                               QGuestAllocator *alloc, QVirtQueue *vq,
                               int socket)
 {
+    QTestState *qts = global_qtest;
     uint64_t req_addr;
     uint32_t free_head;
     char test[] = "TEST";
@@ -114,8 +119,8 @@ static void rx_stop_cont_test(QVirtioDevice *dev,
 
     req_addr = guest_alloc(alloc, 64);
 
-    free_head = qvirtqueue_add(vq, req_addr, 64, true, false);
-    qvirtqueue_kick(dev, vq, free_head);
+    free_head = qvirtqueue_add(qts, vq, req_addr, 64, true, false);
+    qvirtqueue_kick(qts, dev, vq, free_head);
 
     rsp = qmp("{ 'execute' : 'stop'}");
     qobject_unref(rsp);
@@ -131,7 +136,8 @@ static void rx_stop_cont_test(QVirtioDevice *dev,
     rsp = qmp("{ 'execute' : 'cont'}");
     qobject_unref(rsp);
 
-    qvirtio_wait_used_elem(dev, vq, free_head, NULL, QVIRTIO_NET_TIMEOUT_US);
+    qvirtio_wait_used_elem(qts, dev, vq, free_head, NULL,
+                           QVIRTIO_NET_TIMEOUT_US);
     memread(req_addr + VNET_HDR_SIZE, buffer, sizeof(test));
     g_assert_cmpstr(buffer, ==, "TEST");
 
@@ -283,19 +289,20 @@ static void large_tx(void *obj, void *data, QGuestAllocator *t_alloc)
     uint64_t req_addr;
     uint32_t free_head;
     size_t alloc_size = (size_t)data / 64;
+    QTestState *qts = global_qtest;
     int i;
 
     /* Bypass the limitation by pointing several descriptors to a single
      * smaller area */
     req_addr = guest_alloc(t_alloc, alloc_size);
-    free_head = qvirtqueue_add(vq, req_addr, alloc_size, false, true);
+    free_head = qvirtqueue_add(qts, vq, req_addr, alloc_size, false, true);
 
     for (i = 0; i < 64; i++) {
-        qvirtqueue_add(vq, req_addr, alloc_size, false, i != 63);
+        qvirtqueue_add(qts, vq, req_addr, alloc_size, false, i != 63);
     }
-    qvirtqueue_kick(dev->vdev, vq, free_head);
+    qvirtqueue_kick(qts, dev->vdev, vq, free_head);
 
-    qvirtio_wait_used_elem(dev->vdev, vq, free_head, NULL,
+    qvirtio_wait_used_elem(qts, dev->vdev, vq, free_head, NULL,
                            QVIRTIO_NET_TIMEOUT_US);
     guest_free(t_alloc, req_addr);
 }

@@ -39,6 +39,7 @@ static void pci_config(void *obj, void *data, QGuestAllocator *t_alloc)
 #define P9_MAX_SIZE 4096 /* Max size of a T-message or R-message */
 
 typedef struct {
+    QTestState *qts;
     QVirtio9P *v9p;
     uint16_t tag;
     uint64_t t_msg;
@@ -52,7 +53,7 @@ typedef struct {
 
 static void v9fs_memwrite(P9Req *req, const void *addr, size_t len)
 {
-    memwrite(req->t_msg + req->t_off, addr, len);
+    qtest_memwrite(req->qts, req->t_msg + req->t_off, addr, len);
     req->t_off += len;
 }
 
@@ -63,7 +64,7 @@ static void v9fs_memskip(P9Req *req, size_t len)
 
 static void v9fs_memread(P9Req *req, void *addr, size_t len)
 {
-    memread(req->r_msg + req->r_off, addr, len);
+    qtest_memread(req->qts, req->r_msg + req->r_off, addr, len);
     req->r_off += len;
 }
 
@@ -158,6 +159,7 @@ static P9Req *v9fs_req_init(QVirtio9P *v9p, uint32_t size, uint8_t id,
 
     g_assert_cmpint(total_size, <=, P9_MAX_SIZE);
 
+    req->qts = global_qtest;
     req->v9p = v9p;
     req->t_size = total_size;
     req->t_msg = guest_alloc(alloc, req->t_size);
@@ -171,10 +173,10 @@ static void v9fs_req_send(P9Req *req)
     QVirtio9P *v9p = req->v9p;
 
     req->r_msg = guest_alloc(alloc, P9_MAX_SIZE);
-    req->free_head = qvirtqueue_add(v9p->vq, req->t_msg, req->t_size, false,
-                                    true);
-    qvirtqueue_add(v9p->vq, req->r_msg, P9_MAX_SIZE, true, false);
-    qvirtqueue_kick(v9p->vdev, v9p->vq, req->free_head);
+    req->free_head = qvirtqueue_add(req->qts, v9p->vq, req->t_msg, req->t_size,
+                                    false, true);
+    qvirtqueue_add(req->qts, v9p->vq, req->r_msg, P9_MAX_SIZE, true, false);
+    qvirtqueue_kick(req->qts, v9p->vdev, v9p->vq, req->free_head);
     req->t_off = 0;
 }
 
@@ -195,7 +197,7 @@ static void v9fs_req_wait_for_reply(P9Req *req, uint32_t *len)
 {
     QVirtio9P *v9p = req->v9p;
 
-    qvirtio_wait_used_elem(v9p->vdev, v9p->vq, req->free_head, len,
+    qvirtio_wait_used_elem(req->qts, v9p->vdev, v9p->vq, req->free_head, len,
                            QVIRTIO_9P_TIMEOUT_US);
 }
 

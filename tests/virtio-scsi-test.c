@@ -72,6 +72,7 @@ static uint8_t virtio_scsi_do_command(QVirtioSCSIQueues *vs,
     uint64_t req_addr, resp_addr, data_in_addr = 0, data_out_addr = 0;
     uint8_t response;
     uint32_t free_head;
+    QTestState *qts = global_qtest;
 
     vq = vs->vq[2];
 
@@ -83,24 +84,24 @@ static uint8_t virtio_scsi_do_command(QVirtioSCSIQueues *vs,
 
     /* Add request header */
     req_addr = qvirtio_scsi_alloc(vs, sizeof(req), &req);
-    free_head = qvirtqueue_add(vq, req_addr, sizeof(req), false, true);
+    free_head = qvirtqueue_add(qts, vq, req_addr, sizeof(req), false, true);
 
     if (data_out_len) {
         data_out_addr = qvirtio_scsi_alloc(vs, data_out_len, data_out);
-        qvirtqueue_add(vq, data_out_addr, data_out_len, false, true);
+        qvirtqueue_add(qts, vq, data_out_addr, data_out_len, false, true);
     }
 
     /* Add response header */
     resp_addr = qvirtio_scsi_alloc(vs, sizeof(resp), &resp);
-    qvirtqueue_add(vq, resp_addr, sizeof(resp), true, !!data_in_len);
+    qvirtqueue_add(qts, vq, resp_addr, sizeof(resp), true, !!data_in_len);
 
     if (data_in_len) {
         data_in_addr = qvirtio_scsi_alloc(vs, data_in_len, data_in);
-        qvirtqueue_add(vq, data_in_addr, data_in_len, true, false);
+        qvirtqueue_add(qts, vq, data_in_addr, data_in_len, true, false);
     }
 
-    qvirtqueue_kick(vs->dev, vq, free_head);
-    qvirtio_wait_used_elem(vs->dev, vq, free_head, NULL,
+    qvirtqueue_kick(qts, vs->dev, vq, free_head);
+    qvirtio_wait_used_elem(qts, vs->dev, vq, free_head, NULL,
                            QVIRTIO_SCSI_TIMEOUT_US);
 
     response = readb(resp_addr +
