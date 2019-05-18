@@ -238,9 +238,6 @@ static inline void gen_ss_advance(DisasContext *s)
 }
 
 /* Vector operations shared between ARM and AArch64.  */
-extern const GVecGen3 bsl_op;
-extern const GVecGen3 bit_op;
-extern const GVecGen3 bif_op;
 extern const GVecGen3 mla_op[4];
 extern const GVecGen3 mls_op[4];
 extern const GVecGen3 cmtst_op[4];

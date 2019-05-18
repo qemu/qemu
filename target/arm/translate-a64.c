@@ -704,6 +704,15 @@ static void gen_gvec_fn3(DisasContext *s, bool is_q, int rd, int rn, int rm,
             vec_full_reg_offset(s, rm), is_q ? 16 : 8, vec_full_reg_size(s));
 }
 
+/* Expand a 4-operand AdvSIMD vector operation using an expander function.  */
+static void gen_gvec_fn4(DisasContext *s, bool is_q, int rd, int rn, int rm,
+                         int rx, GVecGen4Fn *gvec_fn, int vece)
+{
+    gvec_fn(vece, vec_full_reg_offset(s, rd), vec_full_reg_offset(s, rn),
+            vec_full_reg_offset(s, rm), vec_full_reg_offset(s, rx),
+            is_q ? 16 : 8, vec_full_reg_size(s));
+}
+
 /* Expand a 2-operand + immediate AdvSIMD vector operation using
  * an op descriptor.
  */
@@ -10918,13 +10927,13 @@ static void disas_simd_3same_logic(DisasContext *s, uint32_t insn)
         return;
 
     case 5: /* BSL bitwise select */
-        gen_gvec_op3(s, is_q, rd, rn, rm, &bsl_op);
+        gen_gvec_fn4(s, is_q, rd, rd, rn, rm, tcg_gen_gvec_bitsel, 0);
         return;
     case 6: /* BIT, bitwise insert if true */
-        gen_gvec_op3(s, is_q, rd, rn, rm, &bit_op);
+        gen_gvec_fn4(s, is_q, rd, rm, rn, rd, tcg_gen_gvec_bitsel, 0);
         return;
     case 7: /* BIF, bitwise insert if false */
-        gen_gvec_op3(s, is_q, rd, rn, rm, &bif_op);
+        gen_gvec_fn4(s, is_q, rd, rm, rd, rn, tcg_gen_gvec_bitsel, 0);
         return;
 
     default:
