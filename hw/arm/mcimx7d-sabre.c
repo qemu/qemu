@@ -45,7 +45,7 @@ static void mcimx7d_sabre_init(MachineState *machine)
         .kernel_filename = machine->kernel_filename,
         .kernel_cmdline = machine->kernel_cmdline,
         .initrd_filename = machine->initrd_filename,
-        .nb_cpus = smp_cpus,
+        .nb_cpus = machine->smp.cpus,
     };
 
     object_initialize(&s->soc, sizeof(s->soc), TYPE_FSL_IMX7);

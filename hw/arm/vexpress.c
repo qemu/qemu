@@ -203,12 +203,14 @@ struct VEDBoardInfo {
     DBoardInitFn *init;
 };
 
-static void init_cpus(const char *cpu_type, const char *privdev,
-                      hwaddr periphbase, qemu_irq *pic, bool secure, bool virt)
+static void init_cpus(MachineState *ms, const char *cpu_type,
+                      const char *privdev, hwaddr periphbase,
+                      qemu_irq *pic, bool secure, bool virt)
 {
     DeviceState *dev;
     SysBusDevice *busdev;
     int n;
+    unsigned int smp_cpus = ms->smp.cpus;
 
     /* Create the actual CPUs */
     for (n = 0; n < smp_cpus; n++) {
@@ -269,6 +271,7 @@ static void a9_daughterboard_init(const VexpressMachineState *vms,
                                   const char *cpu_type,
                                   qemu_irq *pic)
 {
+    MachineState *machine = MACHINE(vms);
     MemoryRegion *sysmem = get_system_memory();
     MemoryRegion *ram = g_new(MemoryRegion, 1);
     MemoryRegion *lowram = g_new(MemoryRegion, 1);
@@ -295,7 +298,7 @@ static void a9_daughterboard_init(const VexpressMachineState *vms,
     memory_region_add_subregion(sysmem, 0x60000000, ram);
 
     /* 0x1e000000 A9MPCore (SCU) private memory region */
-    init_cpus(cpu_type, TYPE_A9MPCORE_PRIV, 0x1e000000, pic,
+    init_cpus(machine, cpu_type, TYPE_A9MPCORE_PRIV, 0x1e000000, pic,
               vms->secure, vms->virt);
 
     /* Daughterboard peripherals : 0x10020000 .. 0x20000000 */
@@ -355,6 +358,7 @@ static void a15_daughterboard_init(const VexpressMachineState *vms,
                                    const char *cpu_type,
                                    qemu_irq *pic)
 {
+    MachineState *machine = MACHINE(vms);
     MemoryRegion *sysmem = get_system_memory();
     MemoryRegion *ram = g_new(MemoryRegion, 1);
     MemoryRegion *sram = g_new(MemoryRegion, 1);
@@ -377,8 +381,8 @@ static void a15_daughterboard_init(const VexpressMachineState *vms,
     memory_region_add_subregion(sysmem, 0x80000000, ram);
 
     /* 0x2c000000 A15MPCore private memory region (GIC) */
-    init_cpus(cpu_type, TYPE_A15MPCORE_PRIV, 0x2c000000, pic, vms->secure,
-              vms->virt);
+    init_cpus(machine, cpu_type, TYPE_A15MPCORE_PRIV,
+              0x2c000000, pic, vms->secure, vms->virt);
 
     /* A15 daughterboard peripherals: */
 
@@ -706,7 +710,7 @@ static void vexpress_common_init(MachineState *machine)
     daughterboard->bootinfo.kernel_filename = machine->kernel_filename;
     daughterboard->bootinfo.kernel_cmdline = machine->kernel_cmdline;
     daughterboard->bootinfo.initrd_filename = machine->initrd_filename;
-    daughterboard->bootinfo.nb_cpus = smp_cpus;
+    daughterboard->bootinfo.nb_cpus = machine->smp.cpus;
     daughterboard->bootinfo.board_id = VEXPRESS_BOARD_ID;
     daughterboard->bootinfo.loader_start = daughterboard->loader_start;
     daughterboard->bootinfo.smp_loader_start = map[VE_SRAM];
