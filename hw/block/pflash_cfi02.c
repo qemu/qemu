@@ -637,7 +637,9 @@ static void pflash_cfi02_realize(DeviceState *dev, Error **errp)
     pfl->cfi_table[0x0a + pri_ofs] = 0x00;
     /* Burst mode not supported. */
     pfl->cfi_table[0x0b + pri_ofs] = 0x00;
-    assert(0x0b + pri_ofs < ARRAY_SIZE(pfl->cfi_table));
+    /* Page mode not supported. */
+    pfl->cfi_table[0x0c + pri_ofs] = 0x00;
+    assert(0x0c + pri_ofs < ARRAY_SIZE(pfl->cfi_table));
 }
 
 static Property pflash_cfi02_properties[] = {
