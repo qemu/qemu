@@ -327,7 +327,7 @@ static uint64_t pflash_read(void *opaque, hwaddr offset, unsigned int width)
         pfl->wcycle = 0;
         pfl->cmd = 0;
         /* fall through to the read code */
-    case 0x80:
+    case 0x80: /* Erase (unlock) */
         /* We accept reads during second unlock sequence... */
     case 0x00:
         if (pflash_erase_suspend_mode(pfl) &&
@@ -342,8 +342,7 @@ static uint64_t pflash_read(void *opaque, hwaddr offset, unsigned int width)
         /* Flash area read */
         ret = pflash_data_read(pfl, offset, width);
         break;
-    case 0x90:
-        /* flash ID read */
+    case 0x90: /* flash ID read */
         switch (boff) {
         case 0x00:
         case 0x01:
@@ -364,11 +363,11 @@ static uint64_t pflash_read(void *opaque, hwaddr offset, unsigned int width)
         }
         DPRINTF("%s: ID " TARGET_FMT_plx " %" PRIx64 "\n", __func__, boff, ret);
         break;
-    case 0x10:
-    case 0x30:
+    case 0x10: /* Chip Erase */
+    case 0x30: /* Sector Erase */
         /* Toggle bit 2 during erase, but not program. */
         toggle_dq2(pfl);
-    case 0xA0:
+    case 0xA0: /* Program */
         /* Toggle bit 6 */
         toggle_dq6(pfl);
         /* Status register read */
@@ -470,7 +469,7 @@ static void pflash_write(void *opaque, hwaddr offset, uint64_t value,
             return;
         }
         /* Handle erase resume in erase suspend mode, otherwise reset. */
-        if (cmd == 0x30) {
+        if (cmd == 0x30) { /* Erase Resume */
             if (pflash_erase_suspend_mode(pfl)) {
                 /* Resume the erase. */
                 timer_mod(&pfl->timer, qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL) +
@@ -485,7 +484,7 @@ static void pflash_write(void *opaque, hwaddr offset, uint64_t value,
             goto reset_flash;
         }
         /* Ignore erase suspend. */
-        if (cmd == 0xB0) {
+        if (cmd == 0xB0) { /* Erase Suspend */
             return;
         }
         if (boff != pfl->unlock_addr0 || cmd != 0xAA) {
@@ -516,9 +515,9 @@ static void pflash_write(void *opaque, hwaddr offset, uint64_t value,
         case 0x20:
             pfl->bypass = 1;
             goto do_bypass;
-        case 0x80:
-        case 0x90:
-        case 0xA0:
+        case 0x80: /* Erase */
+        case 0x90: /* Autoselect */
+        case 0xA0: /* Program */
             pfl->cmd = cmd;
             DPRINTF("%s: starting command %02x\n", __func__, cmd);
             break;
@@ -529,10 +528,10 @@ static void pflash_write(void *opaque, hwaddr offset, uint64_t value,
         break;
     case 3:
         switch (pfl->cmd) {
-        case 0x80:
+        case 0x80: /* Erase */
             /* We need another unlock sequence */
             goto check_unlock0;
-        case 0xA0:
+        case 0xA0: /* Program */
             if (pflash_erase_suspend_mode(pfl) &&
                 pflash_sector_is_erasing(pfl, offset)) {
                 /* Ignore writes to erasing sectors. */
@@ -562,7 +561,7 @@ static void pflash_write(void *opaque, hwaddr offset, uint64_t value,
             if (pfl->bypass)
                 goto do_bypass;
             goto reset_flash;
-        case 0x90:
+        case 0x90: /* Autoselect */
             if (pfl->bypass && cmd == 0x00) {
                 /* Unlock bypass reset */
                 goto reset_flash;
@@ -585,11 +584,11 @@ static void pflash_write(void *opaque, hwaddr offset, uint64_t value,
         }
     case 4:
         switch (pfl->cmd) {
-        case 0xA0:
+        case 0xA0: /* Program */
             /* Ignore writes while flash data write is occurring */
             /* As we suppose write is immediate, this should never happen */
             return;
-        case 0x80:
+        case 0x80: /* Erase */
             goto check_unlock1;
         default:
             /* Should never happen */
@@ -604,7 +603,7 @@ static void pflash_write(void *opaque, hwaddr offset, uint64_t value,
             goto reset_flash;
         }
         switch (cmd) {
-        case 0x10:
+        case 0x10: /* Chip Erase */
             if (boff != pfl->unlock_addr0) {
                 DPRINTF("%s: chip erase: invalid address " TARGET_FMT_plx "\n",
                         __func__, offset);
@@ -621,8 +620,7 @@ static void pflash_write(void *opaque, hwaddr offset, uint64_t value,
             timer_mod(&pfl->timer, qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL) +
                       (1ULL << pfl->cfi_table[0x22]) * SCALE_MS);
             break;
-        case 0x30:
-            /* Sector erase */
+        case 0x30: /* Sector erase */
             pflash_sector_erase(pfl, offset);
             break;
         default:
@@ -633,10 +631,10 @@ static void pflash_write(void *opaque, hwaddr offset, uint64_t value,
         break;
     case 6:
         switch (pfl->cmd) {
-        case 0x10:
+        case 0x10: /* Chip Erase */
             /* Ignore writes during chip erase */
             return;
-        case 0x30:
+        case 0x30: /* Sector erase */
             if (cmd == 0xB0) {
                 /*
                  * If erase suspend happens during the erase timeout (so DQ3 is
