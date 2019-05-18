@@ -157,6 +157,11 @@ static void pflash_register_memory(PFlashCFI02 *pfl, int rom_mode)
     pfl->rom_mode = rom_mode;
 }
 
+static size_t pflash_regions_count(PFlashCFI02 *pfl)
+{
+    return pfl->cfi_table[0x2c];
+}
+
 static void pflash_timer (void *opaque)
 {
     PFlashCFI02 *pfl = opaque;
@@ -192,9 +197,8 @@ static uint64_t pflash_data_read(PFlashCFI02 *pfl, hwaddr offset,
 static uint32_t pflash_sector_len(PFlashCFI02 *pfl, hwaddr offset)
 {
     assert(offset < pfl->chip_len);
-    int nb_regions = pfl->cfi_table[0x2C];
     hwaddr addr = 0;
-    for (int i = 0; i < nb_regions; ++i) {
+    for (int i = 0; i < pflash_regions_count(pfl); ++i) {
         uint64_t region_size = (uint64_t)pfl->nb_blocs[i] * pfl->sector_len[i];
         if (addr <= offset && offset < addr + region_size) {
             return pfl->sector_len[i];
