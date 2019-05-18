@@ -50,6 +50,7 @@ typedef void IOHandler(void *opaque);
 struct Coroutine;
 struct ThreadPool;
 struct LinuxAioState;
+struct LuringState;
 
 struct AioContext {
     GSource source;
@@ -122,6 +123,12 @@ struct AioContext {
      * locking.
      */
     struct LinuxAioState *linux_aio;
+#endif
+#ifdef CONFIG_LINUX_IORING
+    /* State for native Linux AIO.  Uses aio_context_acquire/release for
+     * locking.
+     */
+    struct LuringState *linux_ioring;
 #endif
 
     /* TimerLists for calling timers - one per clock type.  Has its own
@@ -387,6 +394,11 @@ struct LinuxAioState *aio_setup_linux_aio(AioContext *ctx, Error **errp);
 /* Return the LinuxAioState bound to this AioContext */
 struct LinuxAioState *aio_get_linux_aio(AioContext *ctx);
 
+/* Setup the LuringState bound to this AioContext */
+struct LuringState *aio_setup_linux_ioring(AioContext *ctx, Error **errp);
+
+/* Return the LuringState bound to this AioContext */
+struct LuringState *aio_get_linux_ioring(AioContext *ctx);
 /**
  * aio_timer_new_with_attrs:
  * @ctx: the aio context
