@@ -1791,23 +1791,6 @@ VSHIFT(l, 1)
 VSHIFT(r, 0)
 #undef VSHIFT
 
-#define VSL(suffix, element, mask)                                      \
-    void helper_vsl##suffix(ppc_avr_t *r, ppc_avr_t *a, ppc_avr_t *b)   \
-    {                                                                   \
-        int i;                                                          \
-                                                                        \
-        for (i = 0; i < ARRAY_SIZE(r->element); i++) {                  \
-            unsigned int shift = b->element[i] & mask;                  \
-                                                                        \
-            r->element[i] = a->element[i] << shift;                     \
-        }                                                               \
-    }
-VSL(b, u8, 0x7)
-VSL(h, u16, 0x0F)
-VSL(w, u32, 0x1F)
-VSL(d, u64, 0x3F)
-#undef VSL
-
 void helper_vslv(ppc_avr_t *r, ppc_avr_t *a, ppc_avr_t *b)
 {
     int i;
@@ -1979,26 +1962,6 @@ void helper_##name(ppc_avr_t *r, ppc_avr_t *b)                      \
 VNEG(vnegw, s32)
 VNEG(vnegd, s64)
 #undef VNEG
-
-#define VSR(suffix, element, mask)                                      \
-    void helper_vsr##suffix(ppc_avr_t *r, ppc_avr_t *a, ppc_avr_t *b)   \
-    {                                                                   \
-        int i;                                                          \
-                                                                        \
-        for (i = 0; i < ARRAY_SIZE(r->element); i++) {                  \
-            unsigned int shift = b->element[i] & mask;                  \
-            r->element[i] = a->element[i] >> shift;                     \
-        }                                                               \
-    }
-VSR(ab, s8, 0x7)
-VSR(ah, s16, 0xF)
-VSR(aw, s32, 0x1F)
-VSR(ad, s64, 0x3F)
-VSR(b, u8, 0x7)
-VSR(h, u16, 0xF)
-VSR(w, u32, 0x1F)
-VSR(d, u64, 0x3F)
-#undef VSR
 
 void helper_vsro(ppc_avr_t *r, ppc_avr_t *a, ppc_avr_t *b)
 {
