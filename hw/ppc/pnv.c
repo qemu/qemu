@@ -688,7 +688,8 @@ static void pnv_init(MachineState *machine)
         object_property_add_child(OBJECT(pnv), chip_name, chip, &error_fatal);
         object_property_set_int(chip, PNV_CHIP_HWID(i), "chip-id",
                                 &error_fatal);
-        object_property_set_int(chip, smp_cores, "nr-cores", &error_fatal);
+        object_property_set_int(chip, machine->smp.cores,
+                                "nr-cores", &error_fatal);
         object_property_set_bool(chip, true, "realized", &error_fatal);
     }
     g_free(chip_typename);
@@ -1149,6 +1150,7 @@ static void pnv_chip_core_sanitize(PnvChip *chip, Error **errp)
 
 static void pnv_chip_core_realize(PnvChip *chip, Error **errp)
 {
+    MachineState *ms = MACHINE(qdev_get_machine());
     Error *error = NULL;
     PnvChipClass *pcc = PNV_CHIP_GET_CLASS(chip);
     const char *typename = pnv_chip_core_typename(chip);
@@ -1182,7 +1184,7 @@ static void pnv_chip_core_realize(PnvChip *chip, Error **errp)
         snprintf(core_name, sizeof(core_name), "core[%d]", core_hwid);
         object_initialize_child(OBJECT(chip), core_name, pnv_core, typesize,
                                 typename, &error_fatal, NULL);
-        object_property_set_int(OBJECT(pnv_core), smp_threads, "nr-threads",
+        object_property_set_int(OBJECT(pnv_core), ms->smp.threads, "nr-threads",
                                 &error_fatal);
         object_property_set_int(OBJECT(pnv_core), core_hwid,
                                 CPU_CORE_PROP_CORE_ID, &error_fatal);
