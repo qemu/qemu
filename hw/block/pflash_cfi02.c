@@ -409,7 +409,7 @@ static void pflash_write(void *opaque, hwaddr offset, uint64_t value,
             /* Chip erase */
             DPRINTF("%s: start chip erase\n", __func__);
             if (!pfl->ro) {
-                memset(pfl->storage, 0xFF, pfl->chip_len);
+                memset(pfl->storage, 0xff, pfl->chip_len);
                 pflash_update(pfl, 0, pfl->chip_len);
             }
             set_dq7(pfl, 0x00);
@@ -490,7 +490,6 @@ static const MemoryRegionOps pflash_cfi02_ops = {
 static void pflash_cfi02_realize(DeviceState *dev, Error **errp)
 {
     PFlashCFI02 *pfl = PFLASH_CFI02(dev);
-    uint32_t chip_len;
     int ret;
     Error *local_err = NULL;
 
@@ -507,18 +506,17 @@ static void pflash_cfi02_realize(DeviceState *dev, Error **errp)
         return;
     }
 
-    chip_len = pfl->sector_len * pfl->nb_blocs;
+    pfl->chip_len = pfl->sector_len * pfl->nb_blocs;
 
     memory_region_init_rom_device(&pfl->orig_mem, OBJECT(pfl),
                                   &pflash_cfi02_ops, pfl, pfl->name,
-                                  chip_len, &local_err);
+                                  pfl->chip_len, &local_err);
     if (local_err) {
         error_propagate(errp, local_err);
         return;
     }
 
     pfl->storage = memory_region_get_ram_ptr(&pfl->orig_mem);
-    pfl->chip_len = chip_len;
 
     if (pfl->blk) {
         uint64_t perm;
@@ -533,8 +531,8 @@ static void pflash_cfi02_realize(DeviceState *dev, Error **errp)
     }
 
     if (pfl->blk) {
-        if (!blk_check_size_and_read_all(pfl->blk, pfl->storage, chip_len,
-                                         errp)) {
+        if (!blk_check_size_and_read_all(pfl->blk, pfl->storage,
+                                         pfl->chip_len, errp)) {
             vmstate_unregister_ram(&pfl->orig_mem, DEVICE(pfl));
             return;
         }
@@ -594,7 +592,7 @@ static void pflash_cfi02_realize(DeviceState *dev, Error **errp)
     /* Max timeout for chip erase */
     pfl->cfi_table[0x26] = 0x0D;
     /* Device size */
-    pfl->cfi_table[0x27] = ctz32(chip_len);
+    pfl->cfi_table[0x27] = ctz32(pfl->chip_len);
     /* Flash device interface (8 & 16 bits) */
     pfl->cfi_table[0x28] = 0x02;
     pfl->cfi_table[0x29] = 0x00;
