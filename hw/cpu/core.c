@@ -13,6 +13,7 @@
 #include "qemu/module.h"
 #include "qapi/error.h"
 #include "sysemu/cpus.h"
+#include "hw/boards.h"
 
 static void core_prop_get_core_id(Object *obj, Visitor *v, const char *name,
                                   void *opaque, Error **errp)
@@ -71,13 +72,14 @@ static void core_prop_set_nr_threads(Object *obj, Visitor *v, const char *name,
 
 static void cpu_core_instance_init(Object *obj)
 {
+    MachineState *ms = MACHINE(qdev_get_machine());
     CPUCore *core = CPU_CORE(obj);
 
     object_property_add(obj, "core-id", "int", core_prop_get_core_id,
                         core_prop_set_core_id, NULL, NULL, NULL);
     object_property_add(obj, "nr-threads", "int", core_prop_get_nr_threads,
                         core_prop_set_nr_threads, NULL, NULL, NULL);
-    core->nr_threads = smp_threads;
+    core->nr_threads = ms->smp.threads;
 }
 
 static void cpu_core_class_init(ObjectClass *oc, void *data)

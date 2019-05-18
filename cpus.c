@@ -54,6 +54,7 @@
 #include "tcg.h"
 #include "hw/nmi.h"
 #include "sysemu/replay.h"
+#include "hw/boards.h"
 
 #ifdef CONFIG_LINUX
 
@@ -2075,8 +2076,10 @@ static void qemu_dummy_start_vcpu(CPUState *cpu)
 
 void qemu_init_vcpu(CPUState *cpu)
 {
-    cpu->nr_cores = smp_cores;
-    cpu->nr_threads = smp_threads;
+    MachineState *ms = MACHINE(qdev_get_machine());
+
+    cpu->nr_cores = ms->smp.cores;
+    cpu->nr_threads =  ms->smp.threads;
     cpu->stopped = true;
     cpu->random_seed = qemu_guest_random_seed_thread_part1();
 

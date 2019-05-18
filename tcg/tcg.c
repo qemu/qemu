@@ -45,6 +45,10 @@
 #include "exec/cpu-common.h"
 #include "exec/exec-all.h"
 
+#if !defined(CONFIG_USER_ONLY)
+#include "hw/boards.h"
+#endif
+
 #include "tcg-op.h"
 
 #if UINTPTR_MAX == UINT32_MAX
@@ -620,6 +624,10 @@ static size_t tcg_n_regions(void)
     size_t i;
 
     /* Use a single region if all we have is one vCPU thread */
+#if !defined(CONFIG_USER_ONLY)
+    MachineState *ms = MACHINE(qdev_get_machine());
+    unsigned int max_cpus = ms->smp.max_cpus;
+#endif
     if (max_cpus == 1 || !qemu_tcg_mttcg_enabled()) {
         return 1;
     }
@@ -752,6 +760,7 @@ void tcg_register_thread(void)
 #else
 void tcg_register_thread(void)
 {
+    MachineState *ms = MACHINE(qdev_get_machine());
     TCGContext *s = g_malloc(sizeof(*s));
     unsigned int i, n;
     bool err;
@@ -769,7 +778,7 @@ void tcg_register_thread(void)
 
     /* Claim an entry in tcg_ctxs */
     n = atomic_fetch_inc(&n_tcg_ctxs);
-    g_assert(n < max_cpus);
+    g_assert(n < ms->smp.max_cpus);
     atomic_set(&tcg_ctxs[n], s);
 
     tcg_ctx = s;
@@ -979,6 +988,8 @@ void tcg_context_init(TCGContext *s)
     tcg_ctxs = &tcg_ctx;
     n_tcg_ctxs = 1;
 #else
+    MachineState *ms = MACHINE(qdev_get_machine());
+    unsigned int max_cpus = ms->smp.max_cpus;
     tcg_ctxs = g_new(TCGContext *, max_cpus);
 #endif
 

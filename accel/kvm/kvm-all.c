@@ -1542,8 +1542,8 @@ static int kvm_init(MachineState *ms)
         const char *name;
         int num;
     } num_cpus[] = {
-        { "SMP",          smp_cpus },
-        { "hotpluggable", max_cpus },
+        { "SMP",          ms->smp.cpus },
+        { "hotpluggable", ms->smp.max_cpus },
         { NULL, }
     }, *nc = num_cpus;
     int soft_vcpus_limit, hard_vcpus_limit;

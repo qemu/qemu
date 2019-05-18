@@ -60,6 +60,7 @@ static void parse_numa_node(MachineState *ms, NumaNodeOptions *node,
     uint16_t nodenr;
     uint16List *cpus = NULL;
     MachineClass *mc = MACHINE_GET_CLASS(ms);
+    unsigned int max_cpus = ms->smp.max_cpus;
 
     if (node->has_nodeid) {
         nodenr = node->nodeid;

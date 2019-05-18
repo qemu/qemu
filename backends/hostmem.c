@@ -222,6 +222,7 @@ static void host_memory_backend_set_prealloc(Object *obj, bool value,
 {
     Error *local_err = NULL;
     HostMemoryBackend *backend = MEMORY_BACKEND(obj);
+    MachineState *ms = MACHINE(qdev_get_machine());
 
     if (backend->force_prealloc) {
         if (value) {
@@ -241,7 +242,7 @@ static void host_memory_backend_set_prealloc(Object *obj, bool value,
         void *ptr = memory_region_get_ram_ptr(&backend->mr);
         uint64_t sz = memory_region_size(&backend->mr);
 
-        os_mem_prealloc(fd, ptr, sz, smp_cpus, &local_err);
+        os_mem_prealloc(fd, ptr, sz, ms->smp.cpus, &local_err);
         if (local_err) {
             error_propagate(errp, local_err);
             return;
@@ -311,6 +312,7 @@ host_memory_backend_memory_complete(UserCreatable *uc, Error **errp)
 {
     HostMemoryBackend *backend = MEMORY_BACKEND(uc);
     HostMemoryBackendClass *bc = MEMORY_BACKEND_GET_CLASS(uc);
+    MachineState *ms = MACHINE(qdev_get_machine());
     Error *local_err = NULL;
     void *ptr;
     uint64_t sz;
@@ -375,7 +377,7 @@ host_memory_backend_memory_complete(UserCreatable *uc, Error **errp)
          */
         if (backend->prealloc) {
             os_mem_prealloc(memory_region_get_fd(&backend->mr), ptr, sz,
-                            smp_cpus, &local_err);
+                            ms->smp.cpus, &local_err);
             if (local_err) {
                 goto out;
             }

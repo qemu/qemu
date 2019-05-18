@@ -29,6 +29,7 @@
 #include "sysemu/balloon.h"
 #include "qemu/error-report.h"
 #include "trace.h"
+#include "hw/boards.h"
 
 /* Arbitrary limit on size of each discard command,
  * keeps them around ~200 bytes
@@ -128,6 +129,8 @@ static void migration_exit_cb(Notifier *n, void *data)
 
 static struct PostcopyBlocktimeContext *blocktime_context_new(void)
 {
+    MachineState *ms = MACHINE(qdev_get_machine());
+    unsigned int smp_cpus = ms->smp.cpus;
     PostcopyBlocktimeContext *ctx = g_new0(PostcopyBlocktimeContext, 1);
     ctx->page_fault_vcpu_time = g_new0(uint32_t, smp_cpus);
     ctx->vcpu_addr = g_new0(uintptr_t, smp_cpus);
@@ -141,10 +144,11 @@ static struct PostcopyBlocktimeContext *blocktime_context_new(void)
 
 static uint32List *get_vcpu_blocktime_list(PostcopyBlocktimeContext *ctx)
 {
+    MachineState *ms = MACHINE(qdev_get_machine());
     uint32List *list = NULL, *entry = NULL;
     int i;
 
-    for (i = smp_cpus - 1; i >= 0; i--) {
+    for (i = ms->smp.cpus - 1; i >= 0; i--) {
         entry = g_new0(uint32List, 1);
         entry->value = ctx->vcpu_blocktime[i];
         entry->next = list;
@@ -807,6 +811,8 @@ static void mark_postcopy_blocktime_end(uintptr_t addr)
 {
     MigrationIncomingState *mis = migration_incoming_get_current();
     PostcopyBlocktimeContext *dc = mis->blocktime_ctx;
+    MachineState *ms = MACHINE(qdev_get_machine());
+    unsigned int smp_cpus = ms->smp.cpus;
     int i, affected_cpu = 0;
     bool vcpu_total_blocktime = false;
     uint32_t read_vcpu_time, low_time_offset;
