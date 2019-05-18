@@ -550,6 +550,7 @@ static void pflash_cfi02_realize(DeviceState *dev, Error **errp)
     pfl->wcycle = 0;
     pfl->cmd = 0;
     pfl->status = 0;
+
     /* Hardcoded CFI table (mostly from SG29 Spansion flash) */
     /* Standard "QRY" string */
     pfl->cfi_table[0x10] = 'Q';
@@ -575,7 +576,7 @@ static void pflash_cfi02_realize(DeviceState *dev, Error **errp)
     pfl->cfi_table[0x1D] = 0x00;
     /* Vpp max (no Vpp pin) */
     pfl->cfi_table[0x1E] = 0x00;
-    /* Reserved */
+    /* Timeout per single byte/word write (128 ms) */
     pfl->cfi_table[0x1F] = 0x07;
     /* Timeout for min size buffer write (NA) */
     pfl->cfi_table[0x20] = 0x00;
@@ -614,17 +615,25 @@ static void pflash_cfi02_realize(DeviceState *dev, Error **errp)
     pfl->cfi_table[0x32] = 'R';
     pfl->cfi_table[0x33] = 'I';
 
+    /* Extended version 1.0 */
     pfl->cfi_table[0x34] = '1';
     pfl->cfi_table[0x35] = '0';
 
+    /* Address sensitive unlock required. */
     pfl->cfi_table[0x36] = 0x00;
+    /* Erase suspend not supported. */
     pfl->cfi_table[0x37] = 0x00;
+    /* Sector protect not supported. */
     pfl->cfi_table[0x38] = 0x00;
+    /* Temporary sector unprotect not supported. */
     pfl->cfi_table[0x39] = 0x00;
 
+    /* Sector protect/unprotect scheme. */
     pfl->cfi_table[0x3a] = 0x00;
 
+    /* Simultaneous operation not supported. */
     pfl->cfi_table[0x3b] = 0x00;
+    /* Burst mode not supported. */
     pfl->cfi_table[0x3c] = 0x00;
 }
 
