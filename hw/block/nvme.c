@@ -238,7 +238,7 @@ static uint16_t nvme_dma_read_prp(NvmeCtrl *n, uint8_t *ptr, uint32_t len,
         }
         qemu_sglist_destroy(&qsg);
     } else {
-        if (unlikely(qemu_iovec_to_buf(&iov, 0, ptr, len) != len)) {
+        if (unlikely(qemu_iovec_from_buf(&iov, 0, ptr, len) != len)) {
             trace_nvme_err_invalid_dma();
             status = NVME_INVALID_FIELD | NVME_DNR;
         }
