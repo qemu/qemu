@@ -552,6 +552,7 @@ static void pflash_cfi02_realize(DeviceState *dev, Error **errp)
     pfl->status = 0;
 
     /* Hardcoded CFI table (mostly from SG29 Spansion flash) */
+    const uint16_t pri_ofs = 0x31;
     /* Standard "QRY" string */
     pfl->cfi_table[0x10] = 'Q';
     pfl->cfi_table[0x11] = 'R';
@@ -560,8 +561,8 @@ static void pflash_cfi02_realize(DeviceState *dev, Error **errp)
     pfl->cfi_table[0x13] = 0x02;
     pfl->cfi_table[0x14] = 0x00;
     /* Primary extended table address */
-    pfl->cfi_table[0x15] = 0x31;
-    pfl->cfi_table[0x16] = 0x00;
+    pfl->cfi_table[0x15] = pri_ofs;
+    pfl->cfi_table[0x16] = pri_ofs >> 8;
     /* Alternate command set (none) */
     pfl->cfi_table[0x17] = 0x00;
     pfl->cfi_table[0x18] = 0x00;
@@ -609,32 +610,34 @@ static void pflash_cfi02_realize(DeviceState *dev, Error **errp)
     pfl->cfi_table[0x2E] = (pfl->nb_blocs - 1) >> 8;
     pfl->cfi_table[0x2F] = pfl->sector_len >> 8;
     pfl->cfi_table[0x30] = pfl->sector_len >> 16;
+    assert(0x30 < pri_ofs);
 
     /* Extended */
-    pfl->cfi_table[0x31] = 'P';
-    pfl->cfi_table[0x32] = 'R';
-    pfl->cfi_table[0x33] = 'I';
+    pfl->cfi_table[0x00 + pri_ofs] = 'P';
+    pfl->cfi_table[0x01 + pri_ofs] = 'R';
+    pfl->cfi_table[0x02 + pri_ofs] = 'I';
 
     /* Extended version 1.0 */
-    pfl->cfi_table[0x34] = '1';
-    pfl->cfi_table[0x35] = '0';
+    pfl->cfi_table[0x03 + pri_ofs] = '1';
+    pfl->cfi_table[0x04 + pri_ofs] = '0';
 
     /* Address sensitive unlock required. */
-    pfl->cfi_table[0x36] = 0x00;
+    pfl->cfi_table[0x05 + pri_ofs] = 0x00;
     /* Erase suspend not supported. */
-    pfl->cfi_table[0x37] = 0x00;
+    pfl->cfi_table[0x06 + pri_ofs] = 0x00;
     /* Sector protect not supported. */
-    pfl->cfi_table[0x38] = 0x00;
+    pfl->cfi_table[0x07 + pri_ofs] = 0x00;
     /* Temporary sector unprotect not supported. */
-    pfl->cfi_table[0x39] = 0x00;
+    pfl->cfi_table[0x08 + pri_ofs] = 0x00;
 
     /* Sector protect/unprotect scheme. */
-    pfl->cfi_table[0x3a] = 0x00;
+    pfl->cfi_table[0x09 + pri_ofs] = 0x00;
 
     /* Simultaneous operation not supported. */
-    pfl->cfi_table[0x3b] = 0x00;
+    pfl->cfi_table[0x0a + pri_ofs] = 0x00;
     /* Burst mode not supported. */
-    pfl->cfi_table[0x3c] = 0x00;
+    pfl->cfi_table[0x0b + pri_ofs] = 0x00;
+    assert(0x0b + pri_ofs < ARRAY_SIZE(pfl->cfi_table));
 }
 
 static Property pflash_cfi02_properties[] = {
