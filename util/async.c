@@ -277,6 +277,14 @@ aio_ctx_finalize(GSource     *source)
     }
 #endif
 
+#ifdef CONFIG_LINUX_IORING
+    if (ctx->linux_ioring) {
+        luring_detach_aio_context(ctx->linux_ioring, ctx);
+        luring_cleanup(ctx->linux_ioring);
+        ctx->linux_ioring = NULL;
+    }
+#endif
+
     assert(QSLIST_EMPTY(&ctx->scheduled_coroutines));
     qemu_bh_delete(ctx->co_schedule_bh);
 
@@ -338,6 +346,25 @@ LinuxAioState *aio_get_linux_aio(AioContext *ctx)
 {
     assert(ctx->linux_aio);
     return ctx->linux_aio;
+}
+#endif
+
+#ifdef CONFIG_LINUX_IORING
+LuringState *aio_setup_linux_ioring(AioContext *ctx, Error **errp)
+{
+    if (!ctx->linux_ioring) {
+        ctx->linux_ioring = luring_init(errp);
+        if (ctx->linux_ioring) {
+            luring_attach_aio_context(ctx->linux_ioring, ctx);
+        }
+    }
+    return ctx->linux_ioring;
+}
+
+LuringState *aio_get_linux_ioring(AioContext *ctx)
+{
+    assert(ctx->linux_ioring);
+    return ctx->linux_ioring;
 }
 #endif
 
@@ -432,6 +459,11 @@ AioContext *aio_context_new(Error **errp)
 #ifdef CONFIG_LINUX_AIO
     ctx->linux_aio = NULL;
 #endif
+
+#ifdef CONFIG_LINUX_IORING
+    ctx->linux_ioring = NULL;
+#endif
+
     ctx->thread_pool = NULL;
     qemu_rec_mutex_init(&ctx->lock);
     timerlistgroup_init(&ctx->tlg, aio_timerlist_notify, ctx);
