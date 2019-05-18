@@ -264,7 +264,7 @@ void qmp_cpu_add(int64_t id, Error **errp)
 
     mc = MACHINE_GET_CLASS(current_machine);
     if (mc->hot_add_cpu) {
-        mc->hot_add_cpu(id, errp);
+        mc->hot_add_cpu(current_machine, id, errp);
     } else {
         error_setg(errp, "Not supported");
     }

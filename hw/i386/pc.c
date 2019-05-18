@@ -954,7 +954,7 @@ static void pc_build_smbios(PCMachineState *pcms)
     /* tell smbios about cpuid version and features */
     smbios_set_cpuid(cpu->env.cpuid_version, cpu->env.features[FEAT_1_EDX]);
 
-    smbios_tables = smbios_get_table_legacy(&smbios_tables_len);
+    smbios_tables = smbios_get_table_legacy(ms, &smbios_tables_len);
     if (smbios_tables) {
         fw_cfg_add_bytes(pcms->fw_cfg, FW_CFG_SMBIOS_ENTRIES,
                          smbios_tables, smbios_tables_len);
@@ -971,7 +971,7 @@ static void pc_build_smbios(PCMachineState *pcms)
             array_count++;
         }
     }
-    smbios_get_tables(mem_array, array_count,
+    smbios_get_tables(ms, mem_array, array_count,
                       &smbios_tables, &smbios_tables_len,
                       &smbios_anchor, &smbios_anchor_len);
     g_free(mem_array);
@@ -1526,9 +1526,8 @@ static void pc_new_cpu(const char *typename, int64_t apic_id, Error **errp)
     error_propagate(errp, local_err);
 }
 
-void pc_hot_add_cpu(const int64_t id, Error **errp)
+void pc_hot_add_cpu(MachineState *ms, const int64_t id, Error **errp)
 {
-    MachineState *ms = MACHINE(qdev_get_machine());
     PCMachineState *pcms = PC_MACHINE(ms);
     int64_t apic_id = x86_cpu_apic_id_from_index(pcms, id);
     Error *local_err = NULL;
@@ -2684,7 +2683,7 @@ static void pc_machine_initfn(Object *obj)
     pc_system_flash_create(pcms);
 }
 
-static void pc_machine_reset(void)
+static void pc_machine_reset(MachineState *machine)
 {
     CPUState *cs;
     X86CPU *cpu;

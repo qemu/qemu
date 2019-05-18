@@ -1691,9 +1691,8 @@ static int spapr_reset_drcs(Object *child, void *opaque)
     return 0;
 }
 
-static void spapr_machine_reset(void)
+static void spapr_machine_reset(MachineState *machine)
 {
-    MachineState *machine = MACHINE(qdev_get_machine());
     SpaprMachineState *spapr = SPAPR_MACHINE(machine);
     PowerPCCPU *first_ppc_cpu;
     uint32_t rtas_limit;

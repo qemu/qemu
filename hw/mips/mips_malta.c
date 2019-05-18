@@ -1124,15 +1124,15 @@ static void main_cpu_reset(void *opaque)
     }
 }
 
-static void create_cpu_without_cps(const char *cpu_type,
+static void create_cpu_without_cps(MachineState *ms,
                                    qemu_irq *cbus_irq, qemu_irq *i8259_irq)
 {
     CPUMIPSState *env;
     MIPSCPU *cpu;
     int i;
 
-    for (i = 0; i < smp_cpus; i++) {
-        cpu = MIPS_CPU(cpu_create(cpu_type));
+    for (i = 0; i < ms->smp.cpus; i++) {
+        cpu = MIPS_CPU(cpu_create(ms->cpu_type));
 
         /* Init internal devices */
         cpu_mips_irq_init_cpu(cpu);
@@ -1146,15 +1146,15 @@ static void create_cpu_without_cps(const char *cpu_type,
     *cbus_irq = env->irq[4];
 }
 
-static void create_cps(MaltaState *s, const char *cpu_type,
+static void create_cps(MachineState *ms, MaltaState *s,
                        qemu_irq *cbus_irq, qemu_irq *i8259_irq)
 {
     Error *err = NULL;
 
     sysbus_init_child_obj(OBJECT(s), "cps", OBJECT(&s->cps), sizeof(s->cps),
                           TYPE_MIPS_CPS);
-    object_property_set_str(OBJECT(&s->cps), cpu_type, "cpu-type", &err);
-    object_property_set_int(OBJECT(&s->cps), smp_cpus, "num-vp", &err);
+    object_property_set_str(OBJECT(&s->cps), ms->cpu_type, "cpu-type", &err);
+    object_property_set_int(OBJECT(&s->cps), ms->smp.cpus, "num-vp", &err);
     object_property_set_bool(OBJECT(&s->cps), true, "realized", &err);
     if (err != NULL) {
         error_report("%s", error_get_pretty(err));
@@ -1167,13 +1167,13 @@ static void create_cps(MaltaState *s, const char *cpu_type,
     *cbus_irq = NULL;
 }
 
-static void mips_create_cpu(MaltaState *s, const char *cpu_type,
+static void mips_create_cpu(MachineState *ms, MaltaState *s,
                             qemu_irq *cbus_irq, qemu_irq *i8259_irq)
 {
-    if ((smp_cpus > 1) && cpu_supports_cps_smp(cpu_type)) {
-        create_cps(s, cpu_type, cbus_irq, i8259_irq);
+    if ((ms->smp.cpus > 1) && cpu_supports_cps_smp(ms->cpu_type)) {
+        create_cps(ms, s, cbus_irq, i8259_irq);
     } else {
-        create_cpu_without_cps(cpu_type, cbus_irq, i8259_irq);
+        create_cpu_without_cps(ms, cbus_irq, i8259_irq);
     }
 }
 
@@ -1217,7 +1217,7 @@ void mips_malta_init(MachineState *machine)
     qdev_init_nofail(dev);
 
     /* create CPU */
-    mips_create_cpu(s, machine->cpu_type, &cbus_irq, &i8259_irq);
+    mips_create_cpu(machine, s, &cbus_irq, &i8259_irq);
 
     /* allocate RAM */
     if (ram_size > 2 * GiB) {
