@@ -581,6 +581,7 @@ enum NvmeIdCtrlOncs {
     NVME_ONCS_WRITE_ZEROS   = 1 << 3,
     NVME_ONCS_FEATURES      = 1 << 4,
     NVME_ONCS_RESRVATIONS   = 1 << 5,
+    NVME_ONCS_TIMESTAMP     = 1 << 6,
 };
 
 #define NVME_CTRL_SQES_MIN(sqes) ((sqes) & 0xf)
@@ -622,6 +623,7 @@ enum NvmeFeatureIds {
     NVME_INTERRUPT_VECTOR_CONF      = 0x9,
     NVME_WRITE_ATOMICITY            = 0xa,
     NVME_ASYNCHRONOUS_EVENT_CONF    = 0xb,
+    NVME_TIMESTAMP                  = 0xe,
     NVME_SOFTWARE_PROGRESS_MARKER   = 0x80
 };
 
