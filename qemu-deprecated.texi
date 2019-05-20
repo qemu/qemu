@@ -77,6 +77,11 @@ the current values of the environment variables to ``-audiodev'' options.
 The @code{-realtime mlock=on|off} argument has been replaced by the
 @code{-overcommit mem-lock=on|off} argument.
 
+@subsection -virtfs_synth (since 4.1)
+
+The ``-virtfs_synth'' argument is now deprecated. Please use ``-fsdev synth''
+and ``-device virtio-9p-...'' instead.
+
 @section QEMU Machine Protocol (QMP) commands
 
 @subsection block-dirty-bitmap-add "autoload" parameter (since 2.12.0)

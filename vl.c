@@ -3537,6 +3537,10 @@ int main(int argc, char **argv, char **envp)
                 QemuOpts *fsdev;
                 QemuOpts *device;
 
+                warn_report("'-virtfs_synth' is deprecated, please use "
+                             "'-fsdev synth' and '-device virtio-9p-...' "
+                            "instead");
+
                 fsdev = qemu_opts_create(qemu_find_opts("fsdev"), "v_synth",
                                          1, NULL);
                 if (!fsdev) {
