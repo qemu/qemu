@@ -691,6 +691,10 @@ struct BdrvChildRole {
      * can update its reference. */
     int (*update_filename)(BdrvChild *child, BlockDriverState *new_base,
                            const char *filename, Error **errp);
+
+    bool (*can_set_aio_ctx)(BdrvChild *child, AioContext *ctx,
+                            GSList **ignore, Error **errp);
+    void (*set_aio_ctx)(BdrvChild *child, AioContext *ctx, GSList **ignore);
 };
 
 extern const BdrvChildRole child_file;
@@ -961,27 +965,6 @@ void bdrv_parse_filename_strip_prefix(const char *filename, const char *prefix,
  */
 void bdrv_add_before_write_notifier(BlockDriverState *bs,
                                     NotifierWithReturn *notifier);
-
-/**
- * bdrv_detach_aio_context:
- *
- * May be called from .bdrv_detach_aio_context() to detach children from the
- * current #AioContext.  This is only needed by block drivers that manage their
- * own children.  Both ->file and ->backing are automatically handled and
- * block drivers should not call this function on them explicitly.
- */
-void bdrv_detach_aio_context(BlockDriverState *bs);
-
-/**
- * bdrv_attach_aio_context:
- *
- * May be called from .bdrv_attach_aio_context() to attach children to the new
- * #AioContext.  This is only needed by block drivers that manage their own
- * children.  Both ->file and ->backing are automatically handled and block
- * drivers should not call this function on them explicitly.
- */
-void bdrv_attach_aio_context(BlockDriverState *bs,
-                             AioContext *new_context);
 
 /**
  * bdrv_add_aio_context_notifier:

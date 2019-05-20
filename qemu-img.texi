@@ -230,6 +230,7 @@ overridden with a pattern byte specified by @var{pattern}.
 
 Perform a consistency check on the disk image @var{filename}. The command can
 output in the format @var{ofmt} which is either @code{human} or @code{json}.
+The JSON output is an object of QAPI type @code{ImageCheck}.
 
 If @code{-r} is specified, qemu-img tries to repair any inconsistencies found
 during the check. @code{-r leaks} repairs only cluster leaks, whereas
@@ -406,8 +407,7 @@ The size syntax is similar to dd(1)'s size syntax.
 Give information about the disk image @var{filename}. Use it in
 particular to know the size reserved on disk which can be different
 from the displayed size. If VM snapshots are stored in the disk image,
-they are displayed too. The command can output in the format @var{ofmt}
-which is either @code{human} or @code{json}.
+they are displayed too.
 
 If a disk image has a backing file chain, information about each disk image in
 the chain can be recursively enumerated by using the option @code{--backing-chain}.
@@ -423,6 +423,51 @@ To enumerate information about each disk image in the above chain, starting from
 @example
 qemu-img info --backing-chain snap2.qcow2
 @end example
+
+The command can output in the format @var{ofmt} which is either @code{human} or
+@code{json}.  The JSON output is an object of QAPI type @code{ImageInfo}; with
+@code{--backing-chain}, it is an array of @code{ImageInfo} objects.
+
+@code{--output=human} reports the following information (for every image in the
+chain):
+@table @var
+@item image
+The image file name
+
+@item file format
+The image format
+
+@item virtual size
+The size of the guest disk
+
+@item disk size
+How much space the image file occupies on the host file system (may be shown as
+0 if this information is unavailable, e.g. because there is no file system)
+
+@item cluster_size
+Cluster size of the image format, if applicable
+
+@item encrypted
+Whether the image is encrypted (only present if so)
+
+@item cleanly shut down
+This is shown as @code{no} if the image is dirty and will have to be
+auto-repaired the next time it is opened in qemu.
+
+@item backing file
+The backing file name, if present
+
+@item backing file format
+The format of the backing file, if the image enforces it
+
+@item Snapshot list
+A list of all internal snapshots
+
+@item Format specific information
+Further information whose structure depends on the image format.  This section
+is a textual representation of the respective @code{ImageInfoSpecific*} QAPI
+object (e.g. @code{ImageInfoSpecificQCow2} for qcow2 images).
+@end table
 
 @item map [--object @var{objectdef}] [--image-opts] [-f @var{fmt}] [--output=@var{ofmt}] [-U] @var{filename}
 
@@ -485,7 +530,8 @@ Calculate the file size required for a new image.  This information can be used
 to size logical volumes or SAN LUNs appropriately for the image that will be
 placed in them.  The values reported are guaranteed to be large enough to fit
 the image.  The command can output in the format @var{ofmt} which is either
-@code{human} or @code{json}.
+@code{human} or @code{json}.  The JSON output is an object of QAPI type
+@code{BlockMeasureInfo}.
 
 If the size @var{N} is given then act as if creating a new empty image file
 using @command{qemu-img create}.  If @var{filename} is given then act as if

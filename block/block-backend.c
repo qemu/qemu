@@ -71,6 +71,7 @@ struct BlockBackend {
     uint64_t shared_perm;
     bool disable_perm;
 
+    bool allow_aio_context_change;
     bool allow_write_beyond_eof;
 
     NotifierList remove_bs_notifiers, insert_bs_notifiers;
@@ -123,6 +124,11 @@ static void blk_root_drained_end(BdrvChild *child);
 
 static void blk_root_change_media(BdrvChild *child, bool load);
 static void blk_root_resize(BdrvChild *child);
+
+static bool blk_root_can_set_aio_ctx(BdrvChild *child, AioContext *ctx,
+                                     GSList **ignore, Error **errp);
+static void blk_root_set_aio_ctx(BdrvChild *child, AioContext *ctx,
+                                 GSList **ignore);
 
 static char *blk_root_get_parent_desc(BdrvChild *child)
 {
@@ -300,6 +306,9 @@ static const BdrvChildRole child_root = {
 
     .attach             = blk_root_attach,
     .detach             = blk_root_detach,
+
+    .can_set_aio_ctx    = blk_root_can_set_aio_ctx,
+    .set_aio_ctx        = blk_root_set_aio_ctx,
 };
 
 /*
@@ -1084,6 +1093,11 @@ void blk_set_allow_write_beyond_eof(BlockBackend *blk, bool allow)
     blk->allow_write_beyond_eof = allow;
 }
 
+void blk_set_allow_aio_context_change(BlockBackend *blk, bool allow)
+{
+    blk->allow_aio_context_change = allow;
+}
+
 static int blk_check_byte_request(BlockBackend *blk, int64_t offset,
                                   size_t size)
 {
@@ -1852,7 +1866,8 @@ static AioContext *blk_aiocb_get_aio_context(BlockAIOCB *acb)
     return blk_get_aio_context(blk_acb->blk);
 }
 
-void blk_set_aio_context(BlockBackend *blk, AioContext *new_context)
+static void blk_do_set_aio_context(BlockBackend *blk, AioContext *new_context,
+                                   bool update_root_node)
 {
     BlockDriverState *bs = blk_bs(blk);
     ThrottleGroupMember *tgm = &blk->public.throttle_group_member;
@@ -1864,8 +1879,44 @@ void blk_set_aio_context(BlockBackend *blk, AioContext *new_context)
             throttle_group_attach_aio_context(tgm, new_context);
             bdrv_drained_end(bs);
         }
-        bdrv_set_aio_context(bs, new_context);
+        if (update_root_node) {
+            GSList *ignore = g_slist_prepend(NULL, blk->root);
+            bdrv_set_aio_context_ignore(bs, new_context, &ignore);
+            g_slist_free(ignore);
+        }
     }
+}
+
+void blk_set_aio_context(BlockBackend *blk, AioContext *new_context)
+{
+    blk_do_set_aio_context(blk, new_context, true);
+}
+
+static bool blk_root_can_set_aio_ctx(BdrvChild *child, AioContext *ctx,
+                                     GSList **ignore, Error **errp)
+{
+    BlockBackend *blk = child->opaque;
+
+    if (blk->allow_aio_context_change) {
+        return true;
+    }
+
+    /* Only manually created BlockBackends that are not attached to anything
+     * can change their AioContext without updating their user. */
+    if (!blk->name || blk->dev) {
+        /* TODO Add BB name/QOM path */
+        error_setg(errp, "Cannot change iothread of active block backend");
+        return false;
+    }
+
+    return true;
+}
+
+static void blk_root_set_aio_ctx(BdrvChild *child, AioContext *ctx,
+                                 GSList **ignore)
+{
+    BlockBackend *blk = child->opaque;
+    blk_do_set_aio_context(blk, ctx, false);
 }
 
 void blk_add_aio_context_notifier(BlockBackend *blk,

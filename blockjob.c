@@ -81,10 +81,6 @@ BlockJob *block_job_get(const char *id)
     }
 }
 
-static void block_job_attached_aio_context(AioContext *new_context,
-                                           void *opaque);
-static void block_job_detach_aio_context(void *opaque);
-
 void block_job_free(Job *job)
 {
     BlockJob *bjob = container_of(job, BlockJob, job);
@@ -92,26 +88,8 @@ void block_job_free(Job *job)
 
     bs->job = NULL;
     block_job_remove_all_bdrv(bjob);
-    blk_remove_aio_context_notifier(bjob->blk,
-                                    block_job_attached_aio_context,
-                                    block_job_detach_aio_context, bjob);
     blk_unref(bjob->blk);
     error_free(bjob->blocker);
-}
-
-static void block_job_attached_aio_context(AioContext *new_context,
-                                           void *opaque)
-{
-    BlockJob *job = opaque;
-    const JobDriver *drv = job->job.driver;
-    BlockJobDriver *bjdrv = container_of(drv, BlockJobDriver, job_driver);
-
-    job->job.aio_context = new_context;
-    if (bjdrv->attached_aio_context) {
-        bjdrv->attached_aio_context(job, new_context);
-    }
-
-    job_resume(&job->job);
 }
 
 void block_job_drain(Job *job)
@@ -124,23 +102,6 @@ void block_job_drain(Job *job)
     if (bjdrv->drain) {
         bjdrv->drain(bjob);
     }
-}
-
-static void block_job_detach_aio_context(void *opaque)
-{
-    BlockJob *job = opaque;
-
-    /* In case the job terminates during aio_poll()... */
-    job_ref(&job->job);
-
-    job_pause(&job->job);
-
-    while (!job->job.paused && !job_is_completed(&job->job)) {
-        job_drain(&job->job);
-    }
-
-    job->job.aio_context = NULL;
-    job_unref(&job->job);
 }
 
 static char *child_job_get_parent_desc(BdrvChild *c)
@@ -183,11 +144,46 @@ static void child_job_drained_end(BdrvChild *c)
     job_resume(&job->job);
 }
 
+static bool child_job_can_set_aio_ctx(BdrvChild *c, AioContext *ctx,
+                                      GSList **ignore, Error **errp)
+{
+    BlockJob *job = c->opaque;
+    GSList *l;
+
+    for (l = job->nodes; l; l = l->next) {
+        BdrvChild *sibling = l->data;
+        if (!bdrv_child_can_set_aio_context(sibling, ctx, ignore, errp)) {
+            return false;
+        }
+    }
+    return true;
+}
+
+static void child_job_set_aio_ctx(BdrvChild *c, AioContext *ctx,
+                                  GSList **ignore)
+{
+    BlockJob *job = c->opaque;
+    GSList *l;
+
+    for (l = job->nodes; l; l = l->next) {
+        BdrvChild *sibling = l->data;
+        if (g_slist_find(*ignore, sibling)) {
+            continue;
+        }
+        *ignore = g_slist_prepend(*ignore, sibling);
+        bdrv_set_aio_context_ignore(sibling->bs, ctx, ignore);
+    }
+
+    job->job.aio_context = ctx;
+}
+
 static const BdrvChildRole child_job = {
     .get_parent_desc    = child_job_get_parent_desc,
     .drained_begin      = child_job_drained_begin,
     .drained_poll       = child_job_drained_poll,
     .drained_end        = child_job_drained_end,
+    .can_set_aio_ctx    = child_job_can_set_aio_ctx,
+    .set_aio_ctx        = child_job_set_aio_ctx,
     .stay_at_node       = true,
 };
 
@@ -438,8 +434,7 @@ void *block_job_create(const char *job_id, const BlockJobDriver *driver,
 
     bdrv_op_unblock(bs, BLOCK_OP_TYPE_DATAPLANE, job->blocker);
 
-    blk_add_aio_context_notifier(blk, block_job_attached_aio_context,
-                                 block_job_detach_aio_context, job);
+    blk_set_allow_aio_context_change(blk, true);
 
     /* Only set speed when necessary to avoid NotSupported error */
     if (speed != 0) {

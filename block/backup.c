@@ -300,13 +300,6 @@ static void backup_clean(Job *job)
     s->target = NULL;
 }
 
-static void backup_attached_aio_context(BlockJob *job, AioContext *aio_context)
-{
-    BackupBlockJob *s = container_of(job, BackupBlockJob, common);
-
-    blk_set_aio_context(s->target, aio_context);
-}
-
 void backup_do_checkpoint(BlockJob *job, Error **errp)
 {
     BackupBlockJob *backup_job = container_of(job, BackupBlockJob, common);
@@ -558,7 +551,6 @@ static const BlockJobDriver backup_job_driver = {
         .abort                  = backup_abort,
         .clean                  = backup_clean,
     },
-    .attached_aio_context   = backup_attached_aio_context,
     .drain                  = backup_drain,
 };
 

@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
 #
 # Test qemu-img vs. unaligned images
+# (See also 253, which is the O_DIRECT version)
 #
 # Copyright (C) 2018-2019 Red Hat, Inc.
 #
@@ -36,6 +37,9 @@ trap "_cleanup; exit \$status" 0 1 2 3 15
 _supported_fmt raw
 _supported_proto file
 _supported_os Linux
+
+_default_cache_mode writeback
+_supported_cache_modes writeback writethrough unsafe
 
 echo
 echo "=== Check mapping of unaligned raw image ==="
