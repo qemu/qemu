@@ -37,8 +37,10 @@ class BootLinuxConsole(Test):
         console = self.vm.console_socket.makefile()
         console_logger = logging.getLogger('console')
         while True:
-            msg = console.readline()
-            console_logger.debug(msg.strip())
+            msg = console.readline().strip()
+            if not msg:
+                continue
+            console_logger.debug(msg)
             if success_message in msg:
                 break
             if failure_message in msg:
