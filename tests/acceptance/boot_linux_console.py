@@ -179,6 +179,33 @@ class BootLinuxConsole(Test):
         console_pattern = 'Kernel command line: %s' % kernel_command_line
         self.wait_for_console_pattern(console_pattern)
 
+    def test_arm_emcraft_sf2(self):
+        """
+        :avocado: tags=arch:arm
+        :avocado: tags=machine:emcraft_sf2
+        :avocado: tags=endian:little
+        """
+        uboot_url = ('https://raw.githubusercontent.com/'
+                     'Subbaraya-Sundeep/qemu-test-binaries/'
+                     'fa030bd77a014a0b8e360d3b7011df89283a2f0b/u-boot')
+        uboot_hash = 'abba5d9c24cdd2d49cdc2a8aa92976cf20737eff'
+        uboot_path = self.fetch_asset(uboot_url, asset_hash=uboot_hash)
+        spi_url = ('https://raw.githubusercontent.com/'
+                   'Subbaraya-Sundeep/qemu-test-binaries/'
+                   'fa030bd77a014a0b8e360d3b7011df89283a2f0b/spi.bin')
+        spi_hash = '85f698329d38de63aea6e884a86fbde70890a78a'
+        spi_path = self.fetch_asset(spi_url, asset_hash=spi_hash)
+
+        self.vm.set_machine('emcraft-sf2')
+        self.vm.set_console()
+        kernel_command_line = self.KERNEL_COMMON_COMMAND_LINE
+        self.vm.add_args('-kernel', uboot_path,
+                         '-append', kernel_command_line,
+                         '-drive', 'file=' + spi_path + ',if=mtd,format=raw',
+                         '-no-reboot')
+        self.vm.launch()
+        self.wait_for_console_pattern('init started: BusyBox')
+
     def test_s390x_s390_ccw_virtio(self):
         """
         :avocado: tags=arch:s390x
