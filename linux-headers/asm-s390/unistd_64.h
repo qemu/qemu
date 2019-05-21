@@ -330,5 +330,29 @@
 #define __NR_kexec_file_load 381
 #define __NR_io_pgetevents 382
 #define __NR_rseq 383
+#define __NR_pkey_mprotect 384
+#define __NR_pkey_alloc 385
+#define __NR_pkey_free 386
+#define __NR_semtimedop 392
+#define __NR_semget 393
+#define __NR_semctl 394
+#define __NR_shmget 395
+#define __NR_shmctl 396
+#define __NR_shmat 397
+#define __NR_shmdt 398
+#define __NR_msgget 399
+#define __NR_msgsnd 400
+#define __NR_msgrcv 401
+#define __NR_msgctl 402
+#define __NR_pidfd_send_signal 424
+#define __NR_io_uring_setup 425
+#define __NR_io_uring_enter 426
+#define __NR_io_uring_register 427
+#define __NR_open_tree 428
+#define __NR_move_mount 429
+#define __NR_fsopen 430
+#define __NR_fsconfig 431
+#define __NR_fsmount 432
+#define __NR_fspick 433
 
 #endif /* _ASM_S390_UNISTD_64_H */

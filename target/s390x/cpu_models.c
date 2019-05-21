@@ -43,10 +43,9 @@
     }
 
 /*
- * CPU definiton list in order of release. For now, base features of a
- * following release are always a subset of base features of the previous
- * release. Same is correct for the other feature sets.
- * A BC release always follows the corresponding EC release.
+ * CPU definition list in order of release. Up to generation 14 base features
+ * of a following release have been a superset of the previous release. With
+ * generation 15 one base feature and one optional feature have been deprecated.
  */
 static S390CPUDef s390_cpu_defs[] = {
     CPUDEF_INIT(0x2064, 7, 1, 38, 0x00000000U, "z900", "IBM zSeries 900 GA1"),
@@ -83,6 +82,8 @@ static S390CPUDef s390_cpu_defs[] = {
     CPUDEF_INIT(0x3906, 14, 1, 47, 0x08000000U, "z14", "IBM z14 GA1"),
     CPUDEF_INIT(0x3906, 14, 2, 47, 0x08000000U, "z14.2", "IBM z14 GA2"),
     CPUDEF_INIT(0x3907, 14, 1, 47, 0x08000000U, "z14ZR1", "IBM z14 Model ZR1 GA1"),
+    CPUDEF_INIT(0x8561, 15, 1, 47, 0x08000000U, "gen15a", "IBM 8561 GA1"),
+    CPUDEF_INIT(0x8562, 15, 1, 47, 0x08000000U, "gen15b", "IBM 8562 GA1"),
 };
 
 #define QEMU_MAX_CPU_TYPE 0x2827
@@ -782,6 +783,8 @@ static void check_consistency(const S390CPUModel *model)
         { S390_FEAT_SIE_CMMA, S390_FEAT_SIE_GSLS },
         { S390_FEAT_SIE_PFMFI, S390_FEAT_EDAT },
         { S390_FEAT_MSA_EXT_8, S390_FEAT_MSA_EXT_3 },
+        { S390_FEAT_MSA_EXT_9, S390_FEAT_MSA_EXT_3 },
+        { S390_FEAT_MSA_EXT_9, S390_FEAT_MSA_EXT_4 },
         { S390_FEAT_MULTIPLE_EPOCH, S390_FEAT_TOD_CLOCK_STEERING },
         { S390_FEAT_VECTOR_PACKED_DECIMAL, S390_FEAT_VECTOR },
         { S390_FEAT_VECTOR_ENH, S390_FEAT_VECTOR },
@@ -1322,6 +1325,8 @@ static void init_ignored_base_feat(void)
          S390_FEAT_KM_TDEA_192,
          S390_FEAT_KIMD_SHA_1,
          S390_FEAT_KLMD_SHA_1,
+         /* CSSKE is deprecated on newer generations */
+         S390_FEAT_CONDITIONAL_SSKE,
     };
     int i;
 

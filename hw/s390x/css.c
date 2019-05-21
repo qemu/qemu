@@ -830,8 +830,12 @@ static int ccw_dstream_rw_noflags(CcwDataStream *cds, void *buff, int len,
     if (op == CDS_OP_A) {
         goto incr;
     }
-    ret = address_space_rw(&address_space_memory, cds->cda,
-                           MEMTXATTRS_UNSPECIFIED, buff, len, op);
+    if (!cds->do_skip) {
+        ret = address_space_rw(&address_space_memory, cds->cda,
+                               MEMTXATTRS_UNSPECIFIED, buff, len, op);
+    } else {
+        ret = MEMTX_OK;
+    }
     if (ret != MEMTX_OK) {
         cds->flags |= CDS_F_STREAM_BROKEN;
         return -EINVAL;
@@ -928,8 +932,13 @@ static int ccw_dstream_rw_ida(CcwDataStream *cds, void *buff, int len,
     do {
         iter_len = MIN(len, cont_left);
         if (op != CDS_OP_A) {
-            ret = address_space_rw(&address_space_memory, cds->cda,
-                                   MEMTXATTRS_UNSPECIFIED, buff, iter_len, op);
+            if (!cds->do_skip) {
+                ret = address_space_rw(&address_space_memory, cds->cda,
+                                       MEMTXATTRS_UNSPECIFIED, buff, iter_len,
+                                       op);
+            } else {
+                ret = MEMTX_OK;
+            }
             if (ret != MEMTX_OK) {
                 /* assume inaccessible address */
                 ret = -EINVAL; /* channel program check */
@@ -968,6 +977,11 @@ void ccw_dstream_init(CcwDataStream *cds, CCW1 const *ccw, ORB const *orb)
 
     cds->count = ccw->count;
     cds->cda_orig = ccw->cda;
+    /* skip is only effective for read, read backwards, or sense commands */
+    cds->do_skip = (ccw->flags & CCW_FLAG_SKIP) &&
+        ((ccw->cmd_code & 0x0f) == CCW_CMD_BASIC_SENSE ||
+         (ccw->cmd_code & 0x03) == 0x02 /* read */ ||
+         (ccw->cmd_code & 0x0f) == 0x0c /* read backwards */);
     ccw_dstream_rewind(cds);
     if (!(cds->flags & CDS_F_IDA)) {
         cds->op_handler = ccw_dstream_rw_noflags;
