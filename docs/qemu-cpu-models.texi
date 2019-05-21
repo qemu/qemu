@@ -200,6 +200,18 @@ Not included by default in any Intel CPU model.
 Should be explicitly turned on for all Intel CPU models.
 
 Note that not all CPU hardware will support this feature.
+
+@item @code{md-clear}
+
+Required to confirm the MDS (CVE-2018-12126, CVE-2018-12127, CVE-2018-12130,
+CVE-2019-11091) fixes.
+
+Not included by default in any Intel CPU model.
+
+Must be explicitly turned on for all Intel CPU models.
+
+Requires the host CPU microcode to support this feature before it
+can be used for guest CPUs.
 @end table
 
 
