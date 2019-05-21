@@ -1,0 +1,16 @@
+=== Create backing chain and start VM ===
+
+Formatting 'TEST_DIR/PID-t.qcow2.mid', fmt=qcow2 size=134217728 cluster_size=65536 lazy_refcounts=off refcount_bits=16
+
+Formatting 'TEST_DIR/PID-t.qcow2', fmt=qcow2 size=134217728 cluster_size=65536 lazy_refcounts=off refcount_bits=16
+
+=== Start background read requests ===
+
+=== Run a commit job ===
+
+{"execute": "block-commit", "arguments": {"auto-finalize": false, "device": "overlay", "job-id": "job0", "top-node": "mid"}}
+{"return": {}}
+{"execute": "job-finalize", "arguments": {"id": "job0"}}
+{"return": {}}
+{"data": {"id": "job0", "type": "commit"}, "event": "BLOCK_JOB_PENDING", "timestamp": {"microseconds": "USECS", "seconds": "SECS"}}
+{"data": {"device": "job0", "len": 134217728, "offset": 134217728, "speed": 0, "type": "commit"}, "event": "BLOCK_JOB_COMPLETED", "timestamp": {"microseconds": "USECS", "seconds": "SECS"}}
