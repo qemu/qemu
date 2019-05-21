@@ -62,7 +62,6 @@ _check_ofd || _notrun "OFD lock not available"
 
 _supported_fmt qcow2
 _supported_proto file
-_supported_os Linux
 
 _run_cmd()
 {

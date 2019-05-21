@@ -41,7 +41,6 @@ trap "_cleanup; exit \$status" 0 1 2 3 15
 # See 178 for more extensive tests across more formats
 _supported_fmt qcow2
 _supported_proto file
-_supported_os Linux
 
 echo "== Huge file =="
 echo

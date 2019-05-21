@@ -162,7 +162,8 @@ void qvirtio_wait_config_isr(QVirtioDevice *d, gint64 timeout_us)
     }
 }
 
-void qvring_init(const QGuestAllocator *alloc, QVirtQueue *vq, uint64_t addr)
+void qvring_init(QTestState *qts, const QGuestAllocator *alloc, QVirtQueue *vq,
+                 uint64_t addr)
 {
     int i;
 
@@ -173,22 +174,23 @@ void qvring_init(const QGuestAllocator *alloc, QVirtQueue *vq, uint64_t addr)
 
     for (i = 0; i < vq->size - 1; i++) {
         /* vq->desc[i].addr */
-        writeq(vq->desc + (16 * i), 0);
+        qtest_writeq(qts, vq->desc + (16 * i), 0);
         /* vq->desc[i].next */
-        writew(vq->desc + (16 * i) + 14, i + 1);
+        qtest_writew(qts, vq->desc + (16 * i) + 14, i + 1);
     }
 
     /* vq->avail->flags */
-    writew(vq->avail, 0);
+    qtest_writew(qts, vq->avail, 0);
     /* vq->avail->idx */
-    writew(vq->avail + 2, 0);
+    qtest_writew(qts, vq->avail + 2, 0);
     /* vq->avail->used_event */
-    writew(vq->avail + 4 + (2 * vq->size), 0);
+    qtest_writew(qts, vq->avail + 4 + (2 * vq->size), 0);
 
     /* vq->used->flags */
-    writew(vq->used, 0);
+    qtest_writew(qts, vq->used, 0);
     /* vq->used->avail_event */
-    writew(vq->used + 2 + sizeof(struct vring_used_elem) * vq->size, 0);
+    qtest_writew(qts, vq->used + 2 + sizeof(struct vring_used_elem) * vq->size,
+                 0);
 }
 
 QVRingIndirectDesc *qvring_indirect_desc_setup(QVirtioDevice *d,

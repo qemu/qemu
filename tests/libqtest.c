@@ -1038,15 +1038,6 @@ QDict *qmp(const char *fmt, ...)
     return response;
 }
 
-void qmp_send(const char *fmt, ...)
-{
-    va_list ap;
-
-    va_start(ap, fmt);
-    qtest_qmp_vsend(global_qtest, fmt, ap);
-    va_end(ap);
-}
-
 char *hmp(const char *fmt, ...)
 {
     va_list ap;
@@ -1232,7 +1223,7 @@ void qtest_qmp_device_del(const char *id)
                                     &got_event);
     qobject_unref(rsp);
     if (!got_event) {
-        rsp = qmp_receive();
+        rsp = qtest_qmp_receive(global_qtest);
         g_assert_cmpstr(qdict_get_try_str(rsp, "event"),
                         ==, "DEVICE_DELETED");
         qobject_unref(rsp);

@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/usr/bin/env bash
 #
 # Test hot plugging and unplugging with iothreads
 #
@@ -33,7 +33,6 @@ status=1	# failure is the default!
 
 _supported_fmt generic
 _supported_proto generic
-_supported_os Linux
 
 do_run_qemu()
 {

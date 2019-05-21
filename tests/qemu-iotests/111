@@ -39,7 +39,6 @@ trap "_cleanup; exit \$status" 0 1 2 3 15
 
 _supported_fmt qed qcow qcow2 vmdk
 _supported_proto file
-_supported_os Linux
 _unsupported_imgopts "subformat=monolithicFlat" "subformat=twoGbMaxExtentFlat"
 
 $QEMU_IMG create -f $IMGFMT -b "$TEST_IMG.inexistent" "$TEST_IMG" 2>&1 \

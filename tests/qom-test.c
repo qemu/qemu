@@ -44,7 +44,7 @@ static bool is_blacklisted(const char *arch, const char *mach)
     return false;
 }
 
-static void test_properties(const char *path, bool recurse)
+static void test_properties(QTestState *qts, const char *path, bool recurse)
 {
     char *child_path;
     QDict *response, *tuple, *tmp;
@@ -52,8 +52,8 @@ static void test_properties(const char *path, bool recurse)
     QListEntry *entry;
 
     g_test_message("Obtaining properties of %s", path);
-    response = qmp("{ 'execute': 'qom-list',"
-                   "  'arguments': { 'path': %s } }", path);
+    response = qtest_qmp(qts, "{ 'execute': 'qom-list',"
+                              "  'arguments': { 'path': %s } }", path);
     g_assert(response);
 
     if (!recurse) {
@@ -71,15 +71,15 @@ static void test_properties(const char *path, bool recurse)
         if (is_child || is_link) {
             child_path = g_strdup_printf("%s/%s",
                                          path, qdict_get_str(tuple, "name"));
-            test_properties(child_path, is_child);
+            test_properties(qts, child_path, is_child);
             g_free(child_path);
         } else {
             const char *prop = qdict_get_str(tuple, "name");
             g_test_message("Testing property %s.%s", path, prop);
-            tmp = qmp("{ 'execute': 'qom-get',"
-                      "  'arguments': { 'path': %s,"
-                      "                 'property': %s } }",
-                      path, prop);
+            tmp = qtest_qmp(qts,
+                            "{ 'execute': 'qom-get',"
+                            "  'arguments': { 'path': %s, 'property': %s } }",
+                            path, prop);
             /* qom-get may fail but should not, e.g., segfault. */
             g_assert(tmp);
             qobject_unref(tmp);
@@ -91,20 +91,18 @@ static void test_properties(const char *path, bool recurse)
 static void test_machine(gconstpointer data)
 {
     const char *machine = data;
-    char *args;
     QDict *response;
+    QTestState *qts;
 
-    args = g_strdup_printf("-machine %s", machine);
-    qtest_start(args);
+    qts = qtest_initf("-machine %s", machine);
 
-    test_properties("/machine", true);
+    test_properties(qts, "/machine", true);
 
-    response = qmp("{ 'execute': 'quit' }");
+    response = qtest_qmp(qts, "{ 'execute': 'quit' }");
     g_assert(qdict_haskey(response, "return"));
     qobject_unref(response);
 
-    qtest_end();
-    g_free(args);
+    qtest_quit(qts);
     g_free((void *)machine);
 }
 

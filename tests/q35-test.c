@@ -84,10 +84,11 @@ static void test_smram_lock(void)
     QPCIBus *pcibus;
     QPCIDevice *pcidev;
     QDict *response;
+    QTestState *qts;
 
-    qtest_start("-M q35");
+    qts = qtest_init("-M q35");
 
-    pcibus = qpci_new_pc(global_qtest, NULL);
+    pcibus = qpci_new_pc(qts, NULL);
     g_assert(pcibus != NULL);
 
     pcidev = qpci_device_find(pcibus, 0);
@@ -106,7 +107,7 @@ static void test_smram_lock(void)
     g_assert(smram_test_bit(pcidev, MCH_HOST_BRIDGE_SMRAM_D_OPEN) == false);
 
     /* reset */
-    response = qmp("{'execute': 'system_reset', 'arguments': {} }");
+    response = qtest_qmp(qts, "{'execute': 'system_reset', 'arguments': {} }");
     g_assert(response);
     g_assert(!qdict_haskey(response, "error"));
     qobject_unref(response);
@@ -120,33 +121,29 @@ static void test_smram_lock(void)
     g_free(pcidev);
     qpci_free_pc(pcibus);
 
-    qtest_end();
+    qtest_quit(qts);
 }
 
 static void test_tseg_size(const void *data)
 {
     const TsegSizeArgs *args = data;
-    char *cmdline;
     QPCIBus *pcibus;
     QPCIDevice *pcidev;
     uint8_t smram_val;
     uint8_t esmramc_val;
     uint32_t ram_offs;
+    QTestState *qts;
 
     if (args->esmramc_tseg_sz == MCH_HOST_BRIDGE_ESMRAMC_TSEG_SZ_MASK) {
-        cmdline = g_strdup_printf("-M q35 -m %uM "
-                                  "-global mch.extended-tseg-mbytes=%u",
-                                  TSEG_SIZE_TEST_GUEST_RAM_MBYTES,
-                                  args->extended_tseg_mbytes);
+        qts = qtest_initf("-M q35 -m %uM -global mch.extended-tseg-mbytes=%u",
+                          TSEG_SIZE_TEST_GUEST_RAM_MBYTES,
+                          args->extended_tseg_mbytes);
     } else {
-        cmdline = g_strdup_printf("-M q35 -m %uM",
-                                  TSEG_SIZE_TEST_GUEST_RAM_MBYTES);
+        qts = qtest_initf("-M q35 -m %uM", TSEG_SIZE_TEST_GUEST_RAM_MBYTES);
     }
-    qtest_start(cmdline);
-    g_free(cmdline);
 
     /* locate the DRAM controller */
-    pcibus = qpci_new_pc(global_qtest, NULL);
+    pcibus = qpci_new_pc(qts, NULL);
     g_assert(pcibus != NULL);
     pcidev = qpci_device_find(pcibus, 0);
     g_assert(pcidev != NULL);
@@ -175,18 +172,18 @@ static void test_tseg_size(const void *data)
      */
     ram_offs = (TSEG_SIZE_TEST_GUEST_RAM_MBYTES - args->expected_tseg_mbytes) *
                1024 * 1024 - 1;
-    g_assert_cmpint(readb(ram_offs), ==, 0);
-    writeb(ram_offs, 1);
-    g_assert_cmpint(readb(ram_offs), ==, 1);
+    g_assert_cmpint(qtest_readb(qts, ram_offs), ==, 0);
+    qtest_writeb(qts, ram_offs, 1);
+    g_assert_cmpint(qtest_readb(qts, ram_offs), ==, 1);
 
     ram_offs++;
-    g_assert_cmpint(readb(ram_offs), ==, 0xff);
-    writeb(ram_offs, 1);
-    g_assert_cmpint(readb(ram_offs), ==, 0xff);
+    g_assert_cmpint(qtest_readb(qts, ram_offs), ==, 0xff);
+    qtest_writeb(qts, ram_offs, 1);
+    g_assert_cmpint(qtest_readb(qts, ram_offs), ==, 0xff);
 
     g_free(pcidev);
     qpci_free_pc(pcibus);
-    qtest_end();
+    qtest_quit(qts);
 }
 
 int main(int argc, char **argv)

@@ -38,7 +38,6 @@ trap "_cleanup; exit \$status" 0 1 2 3 15
 
 _supported_fmt qcow2
 _supported_proto file
-_supported_os Linux
 # Because anything other than 16 would change the output of qemu_io -c info
 _unsupported_imgopts 'refcount_bits=\([^1]\|.\([^6]\|$\)\)'
 

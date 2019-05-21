@@ -38,7 +38,6 @@ trap "_cleanup; exit \$status" 0 1 2 3 15
 
 _supported_fmt qcow2 qed
 _supported_proto file
-_supported_os Linux
 
 echo
 echo "== Creating zero size image =="

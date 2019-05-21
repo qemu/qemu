@@ -26,7 +26,8 @@
 
 const char common_args[] = "-nodefaults -machine none";
 
-static QList *qom_list_types(const char *implements, bool abstract)
+static QList *qom_list_types(QTestState * qts, const char *implements,
+                             bool abstract)
 {
     QDict *resp;
     QList *ret;
@@ -36,8 +37,8 @@ static QList *qom_list_types(const char *implements, bool abstract)
     if (implements) {
         qdict_put_str(args, "implements", implements);
     }
-    resp = qmp("{'execute': 'qom-list-types',"
-               " 'arguments': %p }", args);
+    resp = qtest_qmp(qts, "{'execute': 'qom-list-types', 'arguments': %p }",
+                     args);
     g_assert(qdict_haskey(resp, "return"));
     ret = qdict_get_qlist(resp, "return");
     qobject_ref(ret);
@@ -95,12 +96,12 @@ static QDict *type_list_find(QList *types, const char *name)
     return NULL;
 }
 
-static QList *device_type_list(bool abstract)
+static QList *device_type_list(QTestState *qts, bool abstract)
 {
-    return qom_list_types("device", abstract);
+    return qom_list_types(qts, "device", abstract);
 }
 
-static void test_one_device(const char *type)
+static void test_one_device(QTestState *qts, const char *type)
 {
     QDict *resp;
     char *help;
@@ -109,15 +110,15 @@ static void test_one_device(const char *type)
 
     g_test_message("Testing device '%s'", type);
 
-    qom_tree_start = hmp("info qom-tree");
-    qtree_start = hmp("info qtree");
+    qom_tree_start = qtest_hmp(qts, "info qom-tree");
+    qtree_start = qtest_hmp(qts, "info qtree");
 
-    resp = qmp("{'execute': 'device-list-properties',"
-               " 'arguments': {'typename': %s}}",
+    resp = qtest_qmp(qts, "{'execute': 'device-list-properties',"
+                          " 'arguments': {'typename': %s}}",
                type);
     qobject_unref(resp);
 
-    help = hmp("device_add \"%s,help\"", type);
+    help = qtest_hmp(qts, "device_add \"%s,help\"", type);
     g_free(help);
 
     /*
@@ -125,12 +126,12 @@ static void test_one_device(const char *type)
      * "info qom-tree" or "info qtree" have a good chance at crashing then.
      * Also make sure that the tree did not change.
      */
-    qom_tree_end = hmp("info qom-tree");
+    qom_tree_end = qtest_hmp(qts, "info qom-tree");
     g_assert_cmpstr(qom_tree_start, ==, qom_tree_end);
     g_free(qom_tree_start);
     g_free(qom_tree_end);
 
-    qtree_end = hmp("info qtree");
+    qtree_end = qtest_hmp(qts, "info qtree");
     g_assert_cmpstr(qtree_start, ==, qtree_end);
     g_free(qtree_start);
     g_free(qtree_end);
@@ -140,29 +141,30 @@ static void test_device_intro_list(void)
 {
     QList *types;
     char *help;
+    QTestState *qts;
 
-    qtest_start(common_args);
+    qts = qtest_init(common_args);
 
-    types = device_type_list(true);
+    types = device_type_list(qts, true);
     qobject_unref(types);
 
-    help = hmp("device_add help");
+    help = qtest_hmp(qts, "device_add help");
     g_free(help);
 
-    qtest_end();
+    qtest_quit(qts);
 }
 
 /*
  * Ensure all entries returned by qom-list-types implements=<parent>
  * have <parent> as a parent.
  */
-static void test_qom_list_parents(const char *parent)
+static void test_qom_list_parents(QTestState *qts, const char *parent)
 {
     QList *types;
     QListEntry *e;
     QDict *index;
 
-    types = qom_list_types(parent, true);
+    types = qom_list_types(qts, parent, true);
     index = qom_type_index(types);
 
     QLIST_FOREACH_ENTRY(types, e) {
@@ -181,11 +183,12 @@ static void test_qom_list_fields(void)
     QList *all_types;
     QList *non_abstract;
     QListEntry *e;
+    QTestState *qts;
 
-    qtest_start(common_args);
+    qts = qtest_init(common_args);
 
-    all_types = qom_list_types(NULL, true);
-    non_abstract = qom_list_types(NULL, false);
+    all_types = qom_list_types(qts, NULL, true);
+    non_abstract = qom_list_types(qts, NULL, false);
 
     QLIST_FOREACH_ENTRY(all_types, e) {
         QDict *d = qobject_to(QDict, qlist_entry_obj(e));
@@ -198,27 +201,29 @@ static void test_qom_list_fields(void)
         g_assert(abstract == expected_abstract);
     }
 
-    test_qom_list_parents("object");
-    test_qom_list_parents("device");
-    test_qom_list_parents("sys-bus-device");
+    test_qom_list_parents(qts, "object");
+    test_qom_list_parents(qts, "device");
+    test_qom_list_parents(qts, "sys-bus-device");
 
     qobject_unref(all_types);
     qobject_unref(non_abstract);
-    qtest_end();
+    qtest_quit(qts);
 }
 
 static void test_device_intro_none(void)
 {
-    qtest_start(common_args);
-    test_one_device("nonexistent");
-    qtest_end();
+    QTestState *qts = qtest_init(common_args);
+
+    test_one_device(qts, "nonexistent");
+    qtest_quit(qts);
 }
 
 static void test_device_intro_abstract(void)
 {
-    qtest_start(common_args);
-    test_one_device("device");
-    qtest_end();
+    QTestState *qts = qtest_init(common_args);
+
+    test_one_device(qts, "device");
+    qtest_quit(qts);
 }
 
 static void test_device_intro_concrete(const void *args)
@@ -226,19 +231,20 @@ static void test_device_intro_concrete(const void *args)
     QList *types;
     QListEntry *entry;
     const char *type;
+    QTestState *qts;
 
-    qtest_start(args);
-    types = device_type_list(false);
+    qts = qtest_init(args);
+    types = device_type_list(qts, false);
 
     QLIST_FOREACH_ENTRY(types, entry) {
         type = qdict_get_try_str(qobject_to(QDict, qlist_entry_obj(entry)),
                                  "name");
         g_assert(type);
-        test_one_device(type);
+        test_one_device(qts, type);
     }
 
     qobject_unref(types);
-    qtest_end();
+    qtest_quit(qts);
     g_free((void *)args);
 }
 
@@ -247,10 +253,11 @@ static void test_abstract_interfaces(void)
     QList *all_types;
     QListEntry *e;
     QDict *index;
+    QTestState *qts;
 
-    qtest_start(common_args);
+    qts = qtest_init(common_args);
 
-    all_types = qom_list_types("interface", true);
+    all_types = qom_list_types(qts, "interface", true);
     index = qom_type_index(all_types);
 
     QLIST_FOREACH_ENTRY(all_types, e) {
@@ -273,7 +280,7 @@ static void test_abstract_interfaces(void)
 
     qobject_unref(all_types);
     qobject_unref(index);
-    qtest_end();
+    qtest_quit(qts);
 }
 
 static void add_machine_test_case(const char *mname)
