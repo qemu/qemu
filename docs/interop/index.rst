@@ -15,4 +15,4 @@ Contents:
    bitmaps
    live-block-operations
    pr-helper
-
+   vhost-user

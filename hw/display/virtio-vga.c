@@ -154,7 +154,9 @@ static void virtio_vga_realize(VirtIOPCIProxy *vpci_dev, Error **errp)
 
     /* init virtio bits */
     qdev_set_parent_bus(DEVICE(g), BUS(&vpci_dev->bus));
-    virtio_pci_force_virtio_1(vpci_dev);
+    if (!virtio_pci_force_virtio_1(vpci_dev, errp)) {
+        return;
+    }
     object_property_set_bool(OBJECT(g), true, "realized", &err);
     if (err) {
         error_propagate(errp, err);

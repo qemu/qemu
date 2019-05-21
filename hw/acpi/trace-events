@@ -31,6 +31,22 @@ cpuhp_acpi_ejecting_cpu(uint32_t idx) "0x%"PRIx32
 cpuhp_acpi_write_ost_ev(uint32_t slot, uint32_t ev) "idx[0x%"PRIx32"] OST EVENT: 0x%"PRIx32
 cpuhp_acpi_write_ost_status(uint32_t slot, uint32_t st) "idx[0x%"PRIx32"] OST STATUS: 0x%"PRIx32
 
+# pcihp.c
+acpi_pci_eject_slot(unsigned bsel, unsigned slot) "bsel: %u slot: %u"
+acpi_pci_unplug(int bsel, int slot) "bsel: %d slot: %d"
+acpi_pci_unplug_request(int bsel, int slot) "bsel: %d slot: %d"
+acpi_pci_up_read(uint32_t val) "%" PRIu32
+acpi_pci_down_read(uint32_t val) "%" PRIu32
+acpi_pci_features_read(uint32_t val) "%" PRIu32
+acpi_pci_rmv_read(uint32_t val) "%" PRIu32
+acpi_pci_sel_read(uint32_t val) "%" PRIu32
+acpi_pci_ej_write(uint64_t addr, uint64_t data) "0x%" PRIx64 " <== %" PRIu64
+acpi_pci_sel_write(uint64_t addr, uint64_t data) "0x%" PRIx64 " <== %" PRIu64
+
+# piix4.c
+piix4_gpe_readb(uint64_t addr, unsigned width, uint64_t val) "addr: 0x%" PRIx64 " width: %d ==> 0x%" PRIx64
+piix4_gpe_writeb(uint64_t addr, unsigned width, uint64_t val) "addr: 0x%" PRIx64 " width: %d <== 0x%" PRIx64
+
 # tco.c
 tco_timer_reload(int ticks, int msec) "ticks=%d (%d ms)"
 tco_timer_expired(int timeouts_no, bool strap, bool no_reboot) "timeouts_no=%d no_reboot=%d/%d"

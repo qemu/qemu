@@ -40,14 +40,14 @@ static uint32_t acpi_find_vgia(QTestState *qts)
     g_assert_cmphex(rsdp_offset, <, RSDP_ADDR_INVALID);
 
 
-    acpi_parse_rsdp_table(qts, rsdp_offset, rsdp_table);
+    acpi_fetch_rsdp_table(qts, rsdp_offset, rsdp_table);
     acpi_fetch_table(qts, &rsdt, &rsdt_len, &rsdp_table[16 /* RsdtAddress */],
-                     "RSDT", true);
+                     4, "RSDT", true);
 
     ACPI_FOREACH_RSDT_ENTRY(rsdt, rsdt_len, ent, 4 /* Entry size */) {
         uint8_t *table_aml;
 
-        acpi_fetch_table(qts, &table_aml, &table_length, ent, NULL, true);
+        acpi_fetch_table(qts, &table_aml, &table_length, ent, 4, NULL, true);
         if (!memcmp(table_aml + 16 /* OEM Table ID */, "VMGENID", 7)) {
             uint32_t vgia_val;
             uint8_t *aml = &table_aml[36 /* AML byte-code start */];
