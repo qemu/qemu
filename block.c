@@ -4017,12 +4017,12 @@ void bdrv_replace_node(BlockDriverState *from, BlockDriverState *to,
     uint64_t perm = 0, shared = BLK_PERM_ALL;
     int ret;
 
-    assert(!atomic_read(&from->in_flight));
-    assert(!atomic_read(&to->in_flight));
-
     /* Make sure that @from doesn't go away until we have successfully attached
      * all of its parents to @to. */
     bdrv_ref(from);
+
+    assert(qemu_get_current_aio_context() == qemu_get_aio_context());
+    bdrv_drained_begin(from);
 
     /* Put all parents into @list and calculate their cumulative permissions */
     QLIST_FOREACH_SAFE(c, &from->parents, next_parent, next) {
@@ -4064,6 +4064,7 @@ void bdrv_replace_node(BlockDriverState *from, BlockDriverState *to,
 
 out:
     g_slist_free(list);
+    bdrv_drained_end(from);
     bdrv_unref(from);
 }
 
