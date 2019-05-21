@@ -128,6 +128,7 @@ int main(int argc, char **argv)
 
     ret = g_test_run();
 
+    pc_fw_cfg_uninit(fw_cfg);
     qtest_quit(s);
 
     return ret;
