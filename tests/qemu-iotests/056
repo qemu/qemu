@@ -214,7 +214,7 @@ class BackupTest(iotests.QMPTestCase):
         res = self.vm.qmp('query-block-jobs')
         self.assert_qmp(res, 'return[0]/status', 'concluded')
         # Leave zombie job un-dismissed, observe a failure:
-        res = self.qmp_backup_and_wait(serror='Need a root block node',
+        res = self.qmp_backup_and_wait(serror="Node 'drive0' is busy: block device is in use by block job: backup",
                                        device='drive0', format=iotests.imgfmt,
                                        sync='full', target=self.dest_img,
                                        auto_dismiss=False)
