@@ -23,3 +23,4 @@ Contents:
    secure-coding-practices
    tcg
    tcg-plugins
+   bitops
