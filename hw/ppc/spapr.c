@@ -4431,6 +4431,7 @@ static void spapr_machine_4_0_class_options(MachineClass *mc)
     compat_props_add(mc->compat_props, hw_compat_4_0, hw_compat_4_0_len);
     smc->phb_placement = phb_placement_4_0;
     smc->irq = &spapr_irq_xics;
+    smc->pre_4_1_migration = true;
 }
 
 DEFINE_SPAPR_MACHINE(4_0, "4.0", false);
