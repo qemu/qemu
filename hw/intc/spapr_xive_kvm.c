@@ -693,7 +693,6 @@ static void *kvmppc_xive_mmap(SpaprXive *xive, int pgoff, size_t len,
 void kvmppc_xive_connect(SpaprXive *xive, Error **errp)
 {
     XiveSource *xsrc = &xive->source;
-    XiveENDSource *end_xsrc = &xive->end_source;
     Error *local_err = NULL;
     size_t esb_len = (1ull << xsrc->esb_shift) * xsrc->nr_irqs;
     size_t tima_len = 4ull << TM_SHIFT;
@@ -731,12 +730,10 @@ void kvmppc_xive_connect(SpaprXive *xive, Error **errp)
 
     memory_region_init_ram_device_ptr(&xsrc->esb_mmio, OBJECT(xsrc),
                                       "xive.esb", esb_len, xsrc->esb_mmap);
-    sysbus_init_mmio(SYS_BUS_DEVICE(xive), &xsrc->esb_mmio);
 
     /*
      * 2. END ESB pages (No KVM support yet)
      */
-    sysbus_init_mmio(SYS_BUS_DEVICE(xive), &end_xsrc->esb_mmio);
 
     /*
      * 3. TIMA pages - KVM mapping
@@ -749,7 +746,6 @@ void kvmppc_xive_connect(SpaprXive *xive, Error **errp)
     }
     memory_region_init_ram_device_ptr(&xive->tm_mmio, OBJECT(xive),
                                       "xive.tima", tima_len, xive->tm_mmap);
-    sysbus_init_mmio(SYS_BUS_DEVICE(xive), &xive->tm_mmio);
 
     xive->change = qemu_add_vm_change_state_handler(
         kvmppc_xive_change_state_handler, xive);

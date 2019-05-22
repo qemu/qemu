@@ -331,12 +331,16 @@ static void spapr_xive_realize(DeviceState *dev, Error **errp)
                            xive->tm_base + XIVE_TM_USER_PAGE * (1 << TM_SHIFT));
 
     qemu_register_reset(spapr_xive_reset, dev);
+
+    /* Define all XIVE MMIO regions on SysBus */
+    sysbus_init_mmio(SYS_BUS_DEVICE(xive), &xsrc->esb_mmio);
+    sysbus_init_mmio(SYS_BUS_DEVICE(xive), &end_xsrc->esb_mmio);
+    sysbus_init_mmio(SYS_BUS_DEVICE(xive), &xive->tm_mmio);
 }
 
 void spapr_xive_init(SpaprXive *xive, Error **errp)
 {
     XiveSource *xsrc = &xive->source;
-    XiveENDSource *end_xsrc = &xive->end_source;
 
     /*
      * The emulated XIVE device can only be initialized once. If the
@@ -350,11 +354,6 @@ void spapr_xive_init(SpaprXive *xive, Error **errp)
     /* TIMA initialization */
     memory_region_init_io(&xive->tm_mmio, OBJECT(xive), &xive_tm_ops, xive,
                           "xive.tima", 4ull << TM_SHIFT);
-
-    /* Define all XIVE MMIO regions on SysBus */
-    sysbus_init_mmio(SYS_BUS_DEVICE(xive), &xsrc->esb_mmio);
-    sysbus_init_mmio(SYS_BUS_DEVICE(xive), &end_xsrc->esb_mmio);
-    sysbus_init_mmio(SYS_BUS_DEVICE(xive), &xive->tm_mmio);
 
     /* Map all regions */
     spapr_xive_map_mmio(xive);
