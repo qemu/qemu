@@ -35,6 +35,10 @@ def blockdev_create(vm, options):
         vm.run_job('job0')
     iotests.log("")
 
+iotests.log('Finishing a commit job with background reads')
+iotests.log('============================================')
+iotests.log('')
+
 with iotests.FilePath('t.qcow2') as disk_path, \
      iotests.FilePath('t.qcow2.mid') as mid_path, \
      iotests.FilePath('t.qcow2.base') as base_path, \
@@ -79,5 +83,53 @@ with iotests.FilePath('t.qcow2') as disk_path, \
 
     vm.run_job('job0', auto_finalize=False, pre_finalize=start_requests,
                 auto_dismiss=True)
+
+    vm.shutdown()
+
+iotests.log('')
+iotests.log('Closing the VM while a job is being cancelled')
+iotests.log('=============================================')
+iotests.log('')
+
+with iotests.FilePath('src.qcow2') as src_path, \
+     iotests.FilePath('dst.qcow2') as dst_path, \
+     iotests.VM() as vm:
+
+    iotests.log('=== Create images and start VM ===')
+    iotests.log('')
+
+    size = 128 * 1024 * 1024
+    size_str = str(size)
+
+    iotests.qemu_img_log('create', '-f', iotests.imgfmt, src_path, size_str)
+    iotests.qemu_img_log('create', '-f', iotests.imgfmt, dst_path, size_str)
+
+    iotests.log(iotests.qemu_io('-f', iotests.imgfmt, '-c', 'write 0 1M',
+                                src_path),
+                filters=[iotests.filter_test_dir, iotests.filter_qemu_io])
+
+    vm.add_object('throttle-group,x-bps-read=4096,id=throttle0')
+
+    vm.add_blockdev('file,node-name=src-file,filename=%s' % (src_path))
+    vm.add_blockdev('%s,node-name=src,file=src-file' % (iotests.imgfmt))
+
+    vm.add_blockdev('file,node-name=dst-file,filename=%s' % (dst_path))
+    vm.add_blockdev('%s,node-name=dst,file=dst-file' % (iotests.imgfmt))
+
+    vm.add_blockdev('throttle,node-name=src-throttled,' +
+                    'throttle-group=throttle0,file=src')
+
+    vm.add_device('virtio-blk,drive=src-throttled')
+
+    vm.launch()
+
+    iotests.log('=== Start a mirror job ===')
+    iotests.log('')
+
+    vm.qmp_log('blockdev-mirror', job_id='job0', device='src-throttled',
+                                  target='dst', sync='full')
+
+    vm.qmp_log('block-job-cancel', device='job0')
+    vm.qmp_log('quit')
 
     vm.shutdown()
