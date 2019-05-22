@@ -1225,19 +1225,21 @@ static void usb_host_set_address(USBHostDevice *s, int addr)
 
 static void usb_host_set_config(USBHostDevice *s, int config, USBPacket *p)
 {
-    int rc;
+    int rc = 0;
 
     trace_usb_host_set_config(s->bus_num, s->addr, config);
 
     usb_host_release_interfaces(s);
-    rc = libusb_set_configuration(s->dh, config);
-    if (rc != 0) {
-        usb_host_libusb_error("libusb_set_configuration", rc);
-        p->status = USB_RET_STALL;
-        if (rc == LIBUSB_ERROR_NO_DEVICE) {
-            usb_host_nodev(s);
+    if (s->ddesc.bNumConfigurations != 1) {
+        rc = libusb_set_configuration(s->dh, config);
+        if (rc != 0) {
+            usb_host_libusb_error("libusb_set_configuration", rc);
+            p->status = USB_RET_STALL;
+            if (rc == LIBUSB_ERROR_NO_DEVICE) {
+                usb_host_nodev(s);
+            }
+            return;
         }
-        return;
     }
     p->status = usb_host_claim_interfaces(s, config);
     if (p->status != USB_RET_SUCCESS) {
