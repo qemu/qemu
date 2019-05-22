@@ -4352,7 +4352,7 @@ static void spapr_machine_class_init(ObjectClass *oc, void *data)
     smc->default_caps.caps[SPAPR_CAP_LARGE_DECREMENTER] = SPAPR_CAP_ON;
     smc->default_caps.caps[SPAPR_CAP_CCF_ASSIST] = SPAPR_CAP_OFF;
     spapr_caps_add_properties(smc, &error_abort);
-    smc->irq = &spapr_irq_xics;
+    smc->irq = &spapr_irq_dual;
     smc->dr_phb_enabled = true;
 }
 
@@ -4430,6 +4430,7 @@ static void spapr_machine_4_0_class_options(MachineClass *mc)
     spapr_machine_4_1_class_options(mc);
     compat_props_add(mc->compat_props, hw_compat_4_0, hw_compat_4_0_len);
     smc->phb_placement = phb_placement_4_0;
+    smc->irq = &spapr_irq_xics;
 }
 
 DEFINE_SPAPR_MACHINE(4_0, "4.0", false);
