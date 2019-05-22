@@ -1459,6 +1459,9 @@ static void usb_host_handle_reset(USBDevice *udev)
     if (!s->allow_guest_reset) {
         return;
     }
+    if (udev->addr == 0) {
+        return;
+    }
 
     trace_usb_host_reset(s->bus_num, s->addr);
 
