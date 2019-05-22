@@ -422,11 +422,12 @@ static void bdrv_do_drained_end(BlockDriverState *bs, bool recursive,
         return;
     }
     assert(bs->quiesce_counter > 0);
-    old_quiesce_counter = atomic_fetch_dec(&bs->quiesce_counter);
 
     /* Re-enable things in child-to-parent order */
     bdrv_drain_invoke(bs, false);
     bdrv_parent_drained_end(bs, parent, ignore_bds_parents);
+
+    old_quiesce_counter = atomic_fetch_dec(&bs->quiesce_counter);
     if (old_quiesce_counter == 1) {
         aio_enable_external(bdrv_get_aio_context(bs));
     }
