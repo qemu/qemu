@@ -167,8 +167,4 @@ void arm_write_secure_board_setup_dummy_smc(ARMCPU *cpu,
                                             const struct arm_boot_info *info,
                                             hwaddr mvbar_addr);
 
-/* Multiplication factor to convert from system clock ticks to qemu timer
-   ticks.  */
-extern int system_clock_scale;
-
 #endif /* HW_ARM_H */
