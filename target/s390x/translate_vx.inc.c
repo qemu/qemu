@@ -2353,3 +2353,33 @@ static DisasJumpType op_vtm(DisasContext *s, DisasOps *o)
     set_cc_static(s);
     return DISAS_NEXT;
 }
+
+static DisasJumpType op_vfae(DisasContext *s, DisasOps *o)
+{
+    const uint8_t es = get_field(s->fields, m4);
+    const uint8_t m5 = get_field(s->fields, m5);
+    static gen_helper_gvec_3 * const g[3] = {
+        gen_helper_gvec_vfae8,
+        gen_helper_gvec_vfae16,
+        gen_helper_gvec_vfae32,
+    };
+    static gen_helper_gvec_3_ptr * const g_cc[3] = {
+        gen_helper_gvec_vfae_cc8,
+        gen_helper_gvec_vfae_cc16,
+        gen_helper_gvec_vfae_cc32,
+    };
+    if (es > ES_32) {
+        gen_program_exception(s, PGM_SPECIFICATION);
+        return DISAS_NORETURN;
+    }
+
+    if (extract32(m5, 0, 1)) {
+        gen_gvec_3_ptr(get_field(s->fields, v1), get_field(s->fields, v2),
+                       get_field(s->fields, v3), cpu_env, m5, g_cc[es]);
+        set_cc_static(s);
+    } else {
+        gen_gvec_3_ool(get_field(s->fields, v1), get_field(s->fields, v2),
+                       get_field(s->fields, v3), m5, g[es]);
+    }
+    return DISAS_NEXT;
+}
