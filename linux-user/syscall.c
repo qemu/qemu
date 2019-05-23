@@ -763,14 +763,7 @@ safe_syscall2(int, nanosleep, const struct timespec *, req,
 safe_syscall4(int, clock_nanosleep, const clockid_t, clock, int, flags,
               const struct timespec *, req, struct timespec *, rem)
 #endif
-#ifdef __NR_msgsnd
-safe_syscall4(int, msgsnd, int, msgid, const void *, msgp, size_t, sz,
-              int, flags)
-safe_syscall5(int, msgrcv, int, msgid, void *, msgp, size_t, sz,
-              long, msgtype, int, flags)
-safe_syscall4(int, semtimedop, int, semid, struct sembuf *, tsops,
-              unsigned, nsops, const struct timespec *, timeout)
-#else
+#if !defined(__NR_msgsnd) || !defined(__NR_msgrcv) || !defined(__NR_semtimedop)
 /* This host kernel architecture uses a single ipc syscall; fake up
  * wrappers for the sub-operations to hide this implementation detail.
  * Annoyingly we can't include linux/ipc.h to get the constant definitions
@@ -785,14 +778,29 @@ safe_syscall4(int, semtimedop, int, semid, struct sembuf *, tsops,
 
 safe_syscall6(int, ipc, int, call, long, first, long, second, long, third,
               void *, ptr, long, fifth)
+#endif
+#ifdef __NR_msgsnd
+safe_syscall4(int, msgsnd, int, msgid, const void *, msgp, size_t, sz,
+              int, flags)
+#else
 static int safe_msgsnd(int msgid, const void *msgp, size_t sz, int flags)
 {
     return safe_ipc(Q_IPCCALL(0, Q_MSGSND), msgid, sz, flags, (void *)msgp, 0);
 }
+#endif
+#ifdef __NR_msgrcv
+safe_syscall5(int, msgrcv, int, msgid, void *, msgp, size_t, sz,
+              long, msgtype, int, flags)
+#else
 static int safe_msgrcv(int msgid, void *msgp, size_t sz, long type, int flags)
 {
     return safe_ipc(Q_IPCCALL(1, Q_MSGRCV), msgid, sz, flags, msgp, type);
 }
+#endif
+#ifdef __NR_semtimedop
+safe_syscall4(int, semtimedop, int, semid, struct sembuf *, tsops,
+              unsigned, nsops, const struct timespec *, timeout)
+#else
 static int safe_semtimedop(int semid, struct sembuf *tsops, unsigned nsops,
                            const struct timespec *timeout)
 {
