@@ -1157,7 +1157,7 @@ endif
 	@echo  ''
 	@echo  'Test targets:'
 	@echo  '  check           - Run all tests (check-help for details)'
-	@echo  '  docker          - Help about targets running tests inside Docker containers'
+	@echo  '  docker          - Help about targets running tests inside containers'
 	@echo  '  vm-help         - Help about targets running tests inside VM'
 	@echo  ''
 	@echo  'Documentation targets:'

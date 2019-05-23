@@ -17,7 +17,9 @@ DOCKER_TESTS := $(notdir $(shell \
 
 DOCKER_TOOLS := travis
 
-DOCKER_SCRIPT=$(SRC_PATH)/tests/docker/docker.py
+ENGINE := auto
+
+DOCKER_SCRIPT=$(SRC_PATH)/tests/docker/docker.py --engine $(ENGINE)
 
 TESTS ?= %
 IMAGES ?= %
@@ -146,7 +148,7 @@ $(foreach i,$(filter-out $(DOCKER_PARTIAL_IMAGES),$(DOCKER_IMAGES) $(DOCKER_DEPR
 )
 
 docker:
-	@echo 'Build QEMU and run tests inside Docker containers'
+	@echo 'Build QEMU and run tests inside Docker or Podman containers'
 	@echo
 	@echo 'Available targets:'
 	@echo
@@ -193,6 +195,8 @@ endif
 	@echo '    EXECUTABLE=<path>    Include executable in image.'
 	@echo '    EXTRA_FILES="<path> [... <path>]"'
 	@echo '                         Include extra files in image.'
+	@echo '    ENGINE=auto/docker/podman'
+	@echo '                         Specify which container engine to run.'
 
 # This rule if for directly running against an arbitrary docker target.
 # It is called by the expanded docker targets (e.g. make
