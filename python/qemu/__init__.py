@@ -402,42 +402,71 @@ class QEMUMachine(object):
         self._qmp.clear_events()
         return events
 
+    @staticmethod
+    def event_match(event, match=None):
+        """
+        Check if an event matches optional match criteria.
+
+        The match criteria takes the form of a matching subdict. The event is
+        checked to be a superset of the subdict, recursively, with matching
+        values whenever those values are not None.
+
+        Examples, with the subdict queries on the left:
+         - None matches any object.
+         - {"foo": None} matches {"foo": {"bar": 1}}
+         - {"foo": {"baz": None}} does not match {"foo": {"bar": 1}}
+         - {"foo": {"baz": 2}} matches {"foo": {"bar": 1, "baz": 2}}
+        """
+        if match is None:
+            return True
+
+        for key in match:
+            if key in event:
+                if isinstance(event[key], dict):
+                    if not QEMUMachine.event_match(event[key], match[key]):
+                        return False
+                elif event[key] != match[key]:
+                    return False
+            else:
+                return False
+        return True
+
     def event_wait(self, name, timeout=60.0, match=None):
         """
-        Wait for specified timeout on named event in QMP; optionally filter
-        results by match.
+        event_wait waits for and returns a named event from QMP with a timeout.
 
-        The 'match' is checked to be a recursive subset of the 'event'; skips
-        branch processing on match's value None
-           {"foo": {"bar": 1}} matches {"foo": None}
-           {"foo": {"bar": 1}} does not matches {"foo": {"baz": None}}
+        name: The event to wait for.
+        timeout: QEMUMonitorProtocol.pull_event timeout parameter.
+        match: Optional match criteria. See event_match for details.
         """
-        def event_match(event, match=None):
-            if match is None:
-                return True
+        return self.events_wait([(name, match)], timeout)
 
-            for key in match:
-                if key in event:
-                    if isinstance(event[key], dict):
-                        if not event_match(event[key], match[key]):
-                            return False
-                    elif event[key] != match[key]:
-                        return False
-                else:
-                    return False
+    def events_wait(self, events, timeout=60.0):
+        """
+        events_wait waits for and returns a named event from QMP with a timeout.
 
-            return True
+        events: a sequence of (name, match_criteria) tuples.
+                The match criteria are optional and may be None.
+                See event_match for details.
+        timeout: QEMUMonitorProtocol.pull_event timeout parameter.
+        """
+        def _match(event):
+            for name, match in events:
+                if (event['event'] == name and
+                    self.event_match(event, match)):
+                    return True
+            return False
 
         # Search cached events
         for event in self._events:
-            if (event['event'] == name) and event_match(event, match):
+            if _match(event):
                 self._events.remove(event)
                 return event
 
         # Poll for new events
         while True:
             event = self._qmp.pull_event(wait=timeout)
-            if (event['event'] == name) and event_match(event, match):
+            if _match(event):
                 return event
             self._events.append(event)
 
