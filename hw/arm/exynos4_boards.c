@@ -22,6 +22,7 @@
  */
 
 #include "qemu/osdep.h"
+#include "qemu/units.h"
 #include "qapi/error.h"
 #include "qemu/error-report.h"
 #include "qemu-common.h"
@@ -60,8 +61,8 @@ static int exynos4_board_smp_bootreg_addr[EXYNOS4_NUM_OF_BOARDS] = {
 };
 
 static unsigned long exynos4_board_ram_size[EXYNOS4_NUM_OF_BOARDS] = {
-    [EXYNOS4_BOARD_NURI]     = 0x40000000,
-    [EXYNOS4_BOARD_SMDKC210] = 0x40000000,
+    [EXYNOS4_BOARD_NURI]     = 1 * GiB,
+    [EXYNOS4_BOARD_SMDKC210] = 1 * GiB,
 };
 
 static struct arm_boot_info exynos4_board_binfo = {
