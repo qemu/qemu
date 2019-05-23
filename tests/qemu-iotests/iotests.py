@@ -524,7 +524,7 @@ class VM(qtest.QEMUQtestMachine):
             output_list += [key + '=' + obj[key]]
         return ','.join(output_list)
 
-    def get_qmp_events_filtered(self, wait=True):
+    def get_qmp_events_filtered(self, wait=60.0):
         result = []
         for ev in self.get_qmp_events(wait=wait):
             result.append(filter_qmp_event(ev))
@@ -542,10 +542,10 @@ class VM(qtest.QEMUQtestMachine):
 
     # Returns None on success, and an error string on failure
     def run_job(self, job, auto_finalize=True, auto_dismiss=False,
-                pre_finalize=None):
+                pre_finalize=None, wait=60.0):
         error = None
         while True:
-            for ev in self.get_qmp_events_filtered(wait=True):
+            for ev in self.get_qmp_events_filtered(wait=wait):
                 if ev['event'] == 'JOB_STATUS_CHANGE':
                     status = ev['data']['status']
                     if status == 'aborting':
@@ -650,7 +650,7 @@ class QMPTestCase(unittest.TestCase):
         self.assertEqual(self.vm.flatten_qmp_object(json.loads(json_filename[5:])),
                          self.vm.flatten_qmp_object(reference))
 
-    def cancel_and_wait(self, drive='drive0', force=False, resume=False):
+    def cancel_and_wait(self, drive='drive0', force=False, resume=False, wait=60.0):
         '''Cancel a block job and wait for it to finish, returning the event'''
         result = self.vm.qmp('block-job-cancel', device=drive, force=force)
         self.assert_qmp(result, 'return', {})
@@ -661,7 +661,7 @@ class QMPTestCase(unittest.TestCase):
         cancelled = False
         result = None
         while not cancelled:
-            for event in self.vm.get_qmp_events(wait=True):
+            for event in self.vm.get_qmp_events(wait=wait):
                 if event['event'] == 'BLOCK_JOB_COMPLETED' or \
                    event['event'] == 'BLOCK_JOB_CANCELLED':
                     self.assert_qmp(event, 'data/device', drive)
@@ -674,10 +674,10 @@ class QMPTestCase(unittest.TestCase):
         self.assert_no_active_block_jobs()
         return result
 
-    def wait_until_completed(self, drive='drive0', check_offset=True):
+    def wait_until_completed(self, drive='drive0', check_offset=True, wait=60.0):
         '''Wait for a block job to finish, returning the event'''
         while True:
-            for event in self.vm.get_qmp_events(wait=True):
+            for event in self.vm.get_qmp_events(wait=wait):
                 if event['event'] == 'BLOCK_JOB_COMPLETED':
                     self.assert_qmp(event, 'data/device', drive)
                     self.assert_qmp_absent(event, 'data/error')
