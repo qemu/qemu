@@ -16,7 +16,6 @@
 #include "cpu.h"
 #include "hw/sysbus.h"
 #include "qemu/timer.h"
-#include "hw/arm/arm.h"
 #include "hw/intc/armv7m_nvic.h"
 #include "target/arm/cpu.h"
 #include "exec/exec-all.h"
