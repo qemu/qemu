@@ -1,0 +1,122 @@
+#!/usr/bin/env python
+#
+# Test incremental/backup across iothread contexts
+#
+# Copyright (c) 2019 John Snow for Red Hat, Inc.
+#
+# This program is free software; you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation; either version 2 of the License, or
+# (at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with this program.  If not, see <http://www.gnu.org/licenses/>.
+#
+# owner=jsnow@redhat.com
+
+import os
+import iotests
+from iotests import log
+
+iotests.verify_image_format(supported_fmts=['qcow2'])
+size = 64 * 1024 * 1024
+
+with iotests.FilePath('img0') as img0_path, \
+     iotests.FilePath('img1') as img1_path, \
+     iotests.FilePath('img0-full') as img0_full_path, \
+     iotests.FilePath('img1-full') as img1_full_path, \
+     iotests.FilePath('img0-incr') as img0_incr_path, \
+     iotests.FilePath('img1-incr') as img1_incr_path, \
+     iotests.VM() as vm:
+
+    def create_target(filepath, name, size):
+        basename = os.path.basename(filepath)
+        nodename = "file_{}".format(basename)
+        log(vm.command('blockdev-create', job_id='job1',
+                       options={
+                           'driver': 'file',
+                           'filename': filepath,
+                           'size': 0,
+                       }))
+        vm.run_job('job1')
+        log(vm.command('blockdev-add', driver='file',
+                       node_name=nodename, filename=filepath))
+        log(vm.command('blockdev-create', job_id='job2',
+                       options={
+                           'driver': iotests.imgfmt,
+                           'file': nodename,
+                           'size': size,
+                       }))
+        vm.run_job('job2')
+        log(vm.command('blockdev-add', driver=iotests.imgfmt,
+                       node_name=name,
+                       file=nodename))
+
+    log('--- Preparing images & VM ---\n')
+    vm.add_object('iothread,id=iothread0')
+    vm.add_object('iothread,id=iothread1')
+    vm.add_device('virtio-scsi-pci,id=scsi0,iothread=iothread0')
+    vm.add_device('virtio-scsi-pci,id=scsi1,iothread=iothread1')
+    iotests.qemu_img_create('-f', iotests.imgfmt, img0_path, str(size))
+    iotests.qemu_img_create('-f', iotests.imgfmt, img1_path, str(size))
+    vm.add_drive(img0_path, interface='none')
+    vm.add_device('scsi-hd,id=device0,drive=drive0,bus=scsi0.0')
+    vm.add_drive(img1_path, interface='none')
+    vm.add_device('scsi-hd,id=device1,drive=drive1,bus=scsi1.0')
+
+    log('--- Starting VM ---\n')
+    vm.launch()
+
+    log('--- Create Targets & Full Backups ---\n')
+    create_target(img0_full_path, 'img0-full', size)
+    create_target(img1_full_path, 'img1-full', size)
+    ret = vm.qmp_log('transaction', indent=2, actions=[
+        { 'type': 'block-dirty-bitmap-add',
+          'data': { 'node': 'drive0', 'name': 'bitmap0' }},
+        { 'type': 'block-dirty-bitmap-add',
+          'data': { 'node': 'drive1', 'name': 'bitmap1' }},
+        { 'type': 'blockdev-backup',
+          'data': { 'device': 'drive0',
+                    'target': 'img0-full',
+                    'sync': 'full',
+                    'job-id': 'j0' }},
+        { 'type': 'blockdev-backup',
+          'data': { 'device': 'drive1',
+                    'target': 'img1-full',
+                    'sync': 'full',
+                    'job-id': 'j1' }}
+    ])
+    if "error" in ret:
+        raise Exception(ret['error']['desc'])
+    vm.run_job('j0', auto_dismiss=True)
+    vm.run_job('j1', auto_dismiss=True)
+
+    log('\n--- Create Targets & Incremental Backups ---\n')
+    create_target(img0_incr_path, 'img0-incr', size)
+    create_target(img1_incr_path, 'img1-incr', size)
+    ret = vm.qmp_log('transaction', indent=2, actions=[
+        { 'type': 'blockdev-backup',
+          'data': { 'device': 'drive0',
+                    'target': 'img0-incr',
+                    'sync': 'incremental',
+                    'bitmap': 'bitmap0',
+                    'job-id': 'j2' }},
+        { 'type': 'blockdev-backup',
+          'data': { 'device': 'drive1',
+                    'target': 'img1-incr',
+                    'sync': 'incremental',
+                    'bitmap': 'bitmap1',
+                    'job-id': 'j3' }}
+    ])
+    if "error" in ret:
+        raise Exception(ret['error']['desc'])
+    vm.run_job('j2', auto_dismiss=True)
+    vm.run_job('j3', auto_dismiss=True)
+
+    log('\n--- Done ---')
+    vm.shutdown()
