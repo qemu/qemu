@@ -1876,10 +1876,6 @@ static void blockdev_backup_prepare(BlkActionState *common, Error **errp)
     }
 
     aio_context = bdrv_get_aio_context(bs);
-    if (aio_context != bdrv_get_aio_context(target)) {
-        error_setg(errp, "Backup between two IO threads is not implemented");
-        return;
-    }
     aio_context_acquire(aio_context);
     state->bs = bs;
 
