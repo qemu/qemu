@@ -14,7 +14,6 @@
 #ifndef QTEST_H
 #define QTEST_H
 
-#include "qemu-common.h"
 
 extern bool qtest_allowed;
 

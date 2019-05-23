@@ -23,6 +23,7 @@
  */
 
 #include "qemu/osdep.h"
+#include "qemu-common.h"
 #include "keymaps.h"
 #include "sysemu/sysemu.h"
 #include "trace.h"

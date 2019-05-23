@@ -5,7 +5,6 @@
  * See the COPYING file in the top-level directory.
  */
 #include "qemu/osdep.h"
-#include "qemu-common.h"
 #include "qemu/bswap.h"
 #include "qemu/cutils.h"
 #include "hw/display/edid.h"

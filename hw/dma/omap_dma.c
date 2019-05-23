@@ -19,7 +19,6 @@
  */
 #include "qemu/osdep.h"
 #include "qemu/log.h"
-#include "qemu-common.h"
 #include "qemu/timer.h"
 #include "hw/arm/omap.h"
 #include "hw/irq.h"

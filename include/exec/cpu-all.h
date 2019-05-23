@@ -19,7 +19,6 @@
 #ifndef CPU_ALL_H
 #define CPU_ALL_H
 
-#include "qemu-common.h"
 #include "exec/cpu-common.h"
 #include "exec/memory.h"
 #include "qemu/thread.h"

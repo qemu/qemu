@@ -12,6 +12,7 @@
  */
 
 #include "qemu/osdep.h"
+#include "qemu-common.h"
 #include "hw/timer/pl031.h"
 #include "hw/sysbus.h"
 #include "qemu/timer.h"

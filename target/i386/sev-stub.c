@@ -12,7 +12,6 @@
  */
 
 #include "qemu/osdep.h"
-#include "qemu-common.h"
 #include "sev_i386.h"
 
 SevInfo *sev_get_info(void)

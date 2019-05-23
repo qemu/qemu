@@ -1,7 +1,6 @@
 #ifndef QEMU_MMAP_ALLOC_H
 #define QEMU_MMAP_ALLOC_H
 
-#include "qemu-common.h"
 
 size_t qemu_fd_getpagesize(int fd);
 

@@ -1,7 +1,6 @@
 #ifndef NBD_CLIENT_H
 #define NBD_CLIENT_H
 
-#include "qemu-common.h"
 #include "block/nbd.h"
 #include "block/block_int.h"
 #include "io/channel-socket.h"

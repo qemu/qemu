@@ -1,6 +1,5 @@
 #ifndef ALLWINNER_H_
 
-#include "qemu-common.h"
 #include "qemu/error-report.h"
 #include "hw/char/serial.h"
 #include "hw/arm/boot.h"

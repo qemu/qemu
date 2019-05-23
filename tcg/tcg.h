@@ -25,7 +25,6 @@
 #ifndef TCG_H
 #define TCG_H
 
-#include "qemu-common.h"
 #include "cpu.h"
 #include "exec/tb-context.h"
 #include "qemu/bitops.h"

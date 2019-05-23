@@ -13,7 +13,6 @@
 #ifndef HVF_H
 #define HVF_H
 
-#include "qemu-common.h"
 #include "qemu/bitops.h"
 #include "exec/memory.h"
 #include "sysemu/accel.h"

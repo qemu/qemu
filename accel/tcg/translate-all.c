@@ -18,6 +18,7 @@
  */
 
 #include "qemu/osdep.h"
+#include "qemu-common.h"
 
 #define NO_CPU_IO_DEFS
 #include "cpu.h"

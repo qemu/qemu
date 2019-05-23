@@ -8,6 +8,7 @@
  */
 
 #include "qemu/osdep.h"
+#include "qemu-common.h"
 #include "libqtest.h"
 #include "qemu/iov.h"
 #include "qemu/module.h"

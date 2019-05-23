@@ -22,7 +22,6 @@
 
 #include "kvm-consts.h"
 #include "hw/registerfields.h"
-#include "qemu-common.h"
 #include "cpu-qom.h"
 #include "exec/cpu-defs.h"
 

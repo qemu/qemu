@@ -23,7 +23,6 @@
  */
 
 #include "qemu/osdep.h"
-#include "qemu-common.h"
 #include "exec/cpu-common.h"
 #include "tcg/tcg.h"
 

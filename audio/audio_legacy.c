@@ -24,7 +24,6 @@
 #include "qemu/osdep.h"
 #include "audio.h"
 #include "audio_int.h"
-#include "qemu-common.h"
 #include "qemu/cutils.h"
 #include "qemu/timer.h"
 #include "qapi/error.h"

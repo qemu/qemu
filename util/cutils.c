@@ -26,6 +26,7 @@
 #include "qemu/host-utils.h"
 #include <math.h>
 
+#include "qemu-common.h"
 #include "qemu/sockets.h"
 #include "qemu/iov.h"
 #include "net/net.h"

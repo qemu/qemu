@@ -21,7 +21,6 @@
 #ifndef QEMU_BASE64_H
 #define QEMU_BASE64_H
 
-#include "qemu-common.h"
 
 
 /**

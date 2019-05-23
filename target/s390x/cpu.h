@@ -21,7 +21,6 @@
 #ifndef S390X_CPU_H
 #define S390X_CPU_H
 
-#include "qemu-common.h"
 #include "cpu-qom.h"
 #include "cpu_models.h"
 #include "exec/cpu-defs.h"

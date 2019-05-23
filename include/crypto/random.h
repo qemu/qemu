@@ -21,7 +21,6 @@
 #ifndef QCRYPTO_RANDOM_H
 #define QCRYPTO_RANDOM_H
 
-#include "qemu-common.h"
 
 /**
  * qcrypto_random_bytes:

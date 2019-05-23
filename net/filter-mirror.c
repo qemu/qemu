@@ -12,7 +12,6 @@
 #include "qemu/osdep.h"
 #include "net/filter.h"
 #include "net/net.h"
-#include "qemu-common.h"
 #include "qapi/error.h"
 #include "qom/object.h"
 #include "qemu/main-loop.h"

@@ -28,7 +28,6 @@
 #ifndef XTENSA_CPU_H
 #define XTENSA_CPU_H
 
-#include "qemu-common.h"
 #include "cpu-qom.h"
 #include "exec/cpu-defs.h"
 #include "xtensa-isa.h"

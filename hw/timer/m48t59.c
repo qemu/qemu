@@ -24,6 +24,7 @@
  */
 
 #include "qemu/osdep.h"
+#include "qemu-common.h"
 #include "hw/hw.h"
 #include "hw/timer/m48t59.h"
 #include "qemu/timer.h"

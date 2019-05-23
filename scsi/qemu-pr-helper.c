@@ -36,6 +36,7 @@
 #include <mpath_persist.h>
 #endif
 
+#include "qemu-common.h"
 #include "qapi/error.h"
 #include "qemu/cutils.h"
 #include "qemu/main-loop.h"

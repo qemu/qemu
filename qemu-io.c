@@ -15,6 +15,7 @@
 #include <termios.h>
 #endif
 
+#include "qemu-common.h"
 #include "qapi/error.h"
 #include "qemu-io.h"
 #include "qemu/error-report.h"

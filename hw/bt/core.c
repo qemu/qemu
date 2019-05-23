@@ -19,7 +19,6 @@
 
 #include "qemu/osdep.h"
 #include "qemu/error-report.h"
-#include "qemu-common.h"
 #include "sysemu/bt.h"
 #include "hw/bt.h"
 

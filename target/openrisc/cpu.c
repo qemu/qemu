@@ -21,7 +21,6 @@
 #include "qapi/error.h"
 #include "qemu/qemu-print.h"
 #include "cpu.h"
-#include "qemu-common.h"
 
 static void openrisc_cpu_set_pc(CPUState *cs, vaddr value)
 {

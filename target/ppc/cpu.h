@@ -20,7 +20,6 @@
 #ifndef PPC_CPU_H
 #define PPC_CPU_H
 
-#include "qemu-common.h"
 #include "qemu/int128.h"
 #include "exec/cpu-defs.h"
 #include "cpu-qom.h"

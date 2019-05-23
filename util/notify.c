@@ -14,7 +14,6 @@
  */
 
 #include "qemu/osdep.h"
-#include "qemu-common.h"
 #include "qemu/notify.h"
 
 void notifier_list_init(NotifierList *list)

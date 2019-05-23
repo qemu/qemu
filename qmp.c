@@ -14,6 +14,7 @@
  */
 
 #include "qemu/osdep.h"
+#include "qemu-common.h"
 #include "qemu-version.h"
 #include "qemu/cutils.h"
 #include "qemu/option.h"

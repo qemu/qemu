@@ -25,7 +25,6 @@
 #ifndef QEMU_KEYMAPS_H
 #define QEMU_KEYMAPS_H
 
-#include "qemu-common.h"
 #include "ui/kbd-state.h"
 
 typedef struct {

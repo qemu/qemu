@@ -21,7 +21,6 @@
 #ifndef NIOS2_CPU_H
 #define NIOS2_CPU_H
 
-#include "qemu-common.h"
 #include "exec/cpu-defs.h"
 #include "qom/cpu.h"
 

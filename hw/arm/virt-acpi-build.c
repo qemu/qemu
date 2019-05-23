@@ -28,7 +28,6 @@
 
 #include "qemu/osdep.h"
 #include "qapi/error.h"
-#include "qemu-common.h"
 #include "qemu/bitmap.h"
 #include "trace.h"
 #include "qom/cpu.h"

@@ -9,6 +9,7 @@
  */
 
 #include "qemu/osdep.h"
+#include "qemu-common.h"
 #include "qapi/error.h"
 #include "hw/s390x/tod.h"
 #include "qemu/timer.h"

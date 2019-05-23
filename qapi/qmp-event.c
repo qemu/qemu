@@ -13,7 +13,6 @@
 
 #include "qemu/osdep.h"
 
-#include "qemu-common.h"
 #include "qapi/qmp-event.h"
 #include "qapi/qmp/qstring.h"
 #include "qapi/qmp/qdict.h"

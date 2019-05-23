@@ -21,7 +21,6 @@
  * Only host-mode and non-DMA accesses are currently supported.
  */
 #include "qemu/osdep.h"
-#include "qemu-common.h"
 #include "qemu/timer.h"
 #include "hw/usb.h"
 #include "hw/irq.h"

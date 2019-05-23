@@ -1,7 +1,6 @@
 #ifndef QEMU_DISAS_H
 #define QEMU_DISAS_H
 
-#include "qemu-common.h"
 
 #ifdef NEED_CPU_H
 #include "cpu.h"

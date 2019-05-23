@@ -27,7 +27,6 @@
 #include "qemu/log.h"
 #include "qapi/error.h"
 #include "cpu.h"
-#include "qemu-common.h"
 
 #ifndef CONFIG_USER_ONLY
 

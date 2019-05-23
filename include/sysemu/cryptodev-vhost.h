@@ -24,7 +24,6 @@
 #ifndef CRYPTODEV_VHOST_H
 #define CRYPTODEV_VHOST_H
 
-#include "qemu-common.h"
 #include "hw/virtio/vhost.h"
 #include "hw/virtio/vhost-backend.h"
 #include "chardev/char.h"

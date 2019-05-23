@@ -31,7 +31,6 @@
 /* This needs to be before jpeglib.h line because of conflict with
    INT32 definitions between jmorecfg.h (included by jpeglib.h) and
    Win32 basetsd.h (included by windows.h). */
-#include "qemu-common.h"
 
 #ifdef CONFIG_VNC_PNG
 /* The following define is needed by pngconf.h. Otherwise it won't compile,

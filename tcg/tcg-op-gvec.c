@@ -18,7 +18,6 @@
  */
 
 #include "qemu/osdep.h"
-#include "qemu-common.h"
 #include "tcg.h"
 #include "tcg-op.h"
 #include "tcg-op-gvec.h"

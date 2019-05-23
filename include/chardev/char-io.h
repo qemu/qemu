@@ -24,7 +24,6 @@
 #ifndef CHAR_IO_H
 #define CHAR_IO_H
 
-#include "qemu-common.h"
 #include "io/channel.h"
 #include "chardev/char.h"
 

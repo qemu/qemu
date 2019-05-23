@@ -24,7 +24,6 @@
 #endif
 #include "qemu/osdep.h"
 #include <ucontext.h>
-#include "qemu-common.h"
 #include "qemu/coroutine_int.h"
 
 #ifdef CONFIG_VALGRIND_H

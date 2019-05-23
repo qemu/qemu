@@ -1,7 +1,6 @@
 #ifndef SPARC_CPU_H
 #define SPARC_CPU_H
 
-#include "qemu-common.h"
 #include "qemu/bswap.h"
 #include "cpu-qom.h"
 #include "exec/cpu-defs.h"

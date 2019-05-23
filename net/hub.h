@@ -15,7 +15,6 @@
 #ifndef NET_HUB_H
 #define NET_HUB_H
 
-#include "qemu-common.h"
 
 NetClientState *net_hub_add_port(int hub_id, const char *name,
                                  NetClientState *hubpeer);

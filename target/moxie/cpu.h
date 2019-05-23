@@ -20,7 +20,6 @@
 #ifndef MOXIE_CPU_H
 #define MOXIE_CPU_H
 
-#include "qemu-common.h"
 #include "exec/cpu-defs.h"
 
 #define MOXIE_EX_DIV0        0

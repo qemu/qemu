@@ -1,6 +1,4 @@
-
-/* Common header file that is included by all of QEMU.
- *
+/*
  * This file is supposed to be included only by .c files. No header file should
  * depend on qemu-common.h, as this would easily lead to circular header
  * dependencies.

@@ -27,7 +27,6 @@
 #ifndef SUN4U_IOMMU_H
 #define SUN4U_IOMMU_H
 
-#include "qemu-common.h"
 #include "hw/sysbus.h"
 
 #define IOMMU_NREGS             3

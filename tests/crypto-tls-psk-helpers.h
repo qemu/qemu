@@ -21,7 +21,6 @@
 #include <gnutls/gnutls.h>
 
 #ifdef QCRYPTO_HAVE_TLS_TEST_SUPPORT
-# include "qemu-common.h"
 
 void test_tls_psk_init(const char *keyfile);
 void test_tls_psk_cleanup(const char *keyfile);

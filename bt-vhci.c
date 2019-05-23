@@ -18,7 +18,6 @@
  */
 
 #include "qemu/osdep.h"
-#include "qemu-common.h"
 #include "sysemu/bt.h"
 #include "hw/bt.h"
 #include "qemu/main-loop.h"

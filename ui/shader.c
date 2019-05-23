@@ -25,7 +25,6 @@
  * THE SOFTWARE.
  */
 #include "qemu/osdep.h"
-#include "qemu-common.h"
 #include "ui/shader.h"
 
 #include "shader/texture-blit-vert.h"

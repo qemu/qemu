@@ -24,7 +24,6 @@
 #ifndef QEMU_NET_QUEUE_H
 #define QEMU_NET_QUEUE_H
 
-#include "qemu-common.h"
 
 typedef struct NetPacket NetPacket;
 typedef struct NetQueue NetQueue;

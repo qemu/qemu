@@ -24,7 +24,6 @@
 
 #include "qemu/osdep.h"
 #include "qapi/error.h"
-#include "qemu-common.h"
 #include "qcow2.h"
 #include "qemu/range.h"
 #include "qemu/bswap.h"

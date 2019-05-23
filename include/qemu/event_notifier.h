@@ -13,7 +13,6 @@
 #ifndef QEMU_EVENT_NOTIFIER_H
 #define QEMU_EVENT_NOTIFIER_H
 
-#include "qemu-common.h"
 
 #ifdef _WIN32
 #include <windows.h>

@@ -20,7 +20,6 @@
 #ifndef MICROBLAZE_CPU_H
 #define MICROBLAZE_CPU_H
 
-#include "qemu-common.h"
 #include "cpu-qom.h"
 #include "exec/cpu-defs.h"
 #include "fpu/softfloat-types.h"

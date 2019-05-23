@@ -13,7 +13,6 @@
  */
 
 #include "qemu/osdep.h"
-#include "qemu-common.h"
 #include "block/thread-pool.h"
 #include "qemu/coroutine.h"
 #include "coth.h"

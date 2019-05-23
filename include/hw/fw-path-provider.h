@@ -18,7 +18,6 @@
 #ifndef FW_PATH_PROVIDER_H
 #define FW_PATH_PROVIDER_H
 
-#include "qemu-common.h"
 #include "qom/object.h"
 
 #define TYPE_FW_PATH_PROVIDER "fw-path-provider"

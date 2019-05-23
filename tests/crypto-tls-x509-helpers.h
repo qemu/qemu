@@ -29,7 +29,6 @@
 #ifdef QCRYPTO_HAVE_TLS_TEST_SUPPORT
 # include <libtasn1.h>
 
-# include "qemu-common.h"
 
 /*
  * This contains parameter about how to generate

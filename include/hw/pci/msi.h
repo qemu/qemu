@@ -21,7 +21,6 @@
 #ifndef QEMU_MSI_H
 #define QEMU_MSI_H
 
-#include "qemu-common.h"
 #include "hw/pci/pci.h"
 
 struct MSIMessage {

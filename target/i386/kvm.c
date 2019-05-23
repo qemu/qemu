@@ -20,7 +20,6 @@
 #include <linux/kvm.h>
 #include "standard-headers/asm-x86/kvm_para.h"
 
-#include "qemu-common.h"
 #include "cpu.h"
 #include "sysemu/sysemu.h"
 #include "sysemu/hw_accel.h"

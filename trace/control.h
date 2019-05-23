@@ -10,7 +10,6 @@
 #ifndef TRACE__CONTROL_H
 #define TRACE__CONTROL_H
 
-#include "qemu-common.h"
 #include "event-internal.h"
 
 typedef struct TraceEventIter {

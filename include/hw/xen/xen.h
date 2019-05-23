@@ -8,7 +8,6 @@
  *   /usr/include/xen, so it can be included unconditionally.
  */
 
-#include "qemu-common.h"
 #include "exec/cpu-common.h"
 #include "hw/irq.h"
 

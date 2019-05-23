@@ -27,7 +27,6 @@
 #ifndef PPC4XX_I2C_H
 #define PPC4XX_I2C_H
 
-#include "qemu-common.h"
 #include "hw/sysbus.h"
 #include "hw/i2c/i2c.h"
 

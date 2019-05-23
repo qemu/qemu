@@ -1,7 +1,6 @@
 #ifndef QEMU_MSIX_H
 #define QEMU_MSIX_H
 
-#include "qemu-common.h"
 #include "hw/pci/pci.h"
 
 #define MSIX_CAP_LENGTH 12

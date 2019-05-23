@@ -1,7 +1,6 @@
 #ifndef XEN_PT_H
 #define XEN_PT_H
 
-#include "qemu-common.h"
 #include "hw/xen/xen_common.h"
 #include "hw/pci/pci.h"
 #include "xen-host-pci-device.h"

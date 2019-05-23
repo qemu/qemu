@@ -17,7 +17,6 @@
 
 #ifndef XLNX_ZYNQMP_H
 
-#include "qemu-common.h"
 #include "hw/arm/boot.h"
 #include "hw/intc/arm_gic.h"
 #include "hw/net/cadence_gem.h"

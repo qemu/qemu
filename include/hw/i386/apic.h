@@ -1,7 +1,6 @@
 #ifndef APIC_H
 #define APIC_H
 
-#include "qemu-common.h"
 
 /* apic.c */
 void apic_deliver_irq(uint8_t dest, uint8_t dest_mode, uint8_t delivery_mode,

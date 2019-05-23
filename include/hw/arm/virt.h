@@ -30,7 +30,6 @@
 #ifndef QEMU_ARM_VIRT_H
 #define QEMU_ARM_VIRT_H
 
-#include "qemu-common.h"
 #include "exec/hwaddr.h"
 #include "qemu/notify.h"
 #include "hw/boards.h"
