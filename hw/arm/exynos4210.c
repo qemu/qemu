@@ -178,9 +178,10 @@ static void pl330_create(uint32_t base, qemu_irq irq, int nreq)
     sysbus_connect_irq(busdev, 0, irq);
 }
 
-Exynos4210State *exynos4210_init(MemoryRegion *system_mem)
+static void exynos4210_realize(DeviceState *socdev, Error **errp)
 {
-    Exynos4210State *s = g_new0(Exynos4210State, 1);
+    Exynos4210State *s = EXYNOS4210_SOC(socdev);
+    MemoryRegion *system_mem = get_system_memory();
     qemu_irq gate_irq[EXYNOS4210_NCPUS][EXYNOS4210_IRQ_GATE_NINPUTS];
     SysBusDevice *busdev;
     DeviceState *dev;
@@ -435,6 +436,25 @@ Exynos4210State *exynos4210_init(MemoryRegion *system_mem)
                  qemu_irq_invert(s->irq_table[exynos4210_get_irq(36, 1)]), 32);
     pl330_create(EXYNOS4210_PL330_BASE2_ADDR,
                  qemu_irq_invert(s->irq_table[exynos4210_get_irq(34, 1)]), 1);
-
-    return s;
 }
+
+static void exynos4210_class_init(ObjectClass *klass, void *data)
+{
+    DeviceClass *dc = DEVICE_CLASS(klass);
+
+    dc->realize = exynos4210_realize;
+}
+
+static const TypeInfo exynos4210_info = {
+    .name = TYPE_EXYNOS4210_SOC,
+    .parent = TYPE_SYS_BUS_DEVICE,
+    .instance_size = sizeof(Exynos4210State),
+    .class_init = exynos4210_class_init,
+};
+
+static void exynos4210_register_types(void)
+{
+    type_register_static(&exynos4210_info);
+}
+
+type_init(exynos4210_register_types)

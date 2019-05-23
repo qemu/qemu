@@ -85,6 +85,9 @@ typedef struct Exynos4210Irq {
 } Exynos4210Irq;
 
 typedef struct Exynos4210State {
+    /*< private >*/
+    SysBusDevice parent_obj;
+    /*< public >*/
     ARMCPU *cpu[EXYNOS4210_NCPUS];
     Exynos4210Irq irqs;
     qemu_irq *irq_table;
@@ -98,10 +101,12 @@ typedef struct Exynos4210State {
     I2CBus *i2c_if[EXYNOS4210_I2C_NUMBER];
 } Exynos4210State;
 
+#define TYPE_EXYNOS4210_SOC "exynos4210"
+#define EXYNOS4210_SOC(obj) \
+    OBJECT_CHECK(Exynos4210State, obj, TYPE_EXYNOS4210_SOC)
+
 void exynos4210_write_secondary(ARMCPU *cpu,
         const struct arm_boot_info *info);
-
-Exynos4210State *exynos4210_init(MemoryRegion *system_mem);
 
 /* Initialize exynos4210 IRQ subsystem stub */
 qemu_irq *exynos4210_init_irq(Exynos4210Irq *env);
