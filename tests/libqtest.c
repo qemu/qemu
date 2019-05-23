@@ -22,6 +22,7 @@
 
 #include "libqtest.h"
 #include "qemu-common.h"
+#include "qemu/ctype.h"
 #include "qemu/cutils.h"
 #include "qapi/error.h"
 #include "qapi/qmp/json-parser.h"

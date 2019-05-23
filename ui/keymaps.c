@@ -26,6 +26,7 @@
 #include "keymaps.h"
 #include "sysemu/sysemu.h"
 #include "trace.h"
+#include "qemu/ctype.h"
 #include "qemu/error-report.h"
 #include "qapi/error.h"
 #include "ui/input.h"

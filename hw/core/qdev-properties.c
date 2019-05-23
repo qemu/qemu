@@ -4,6 +4,7 @@
 #include "qapi/error.h"
 #include "hw/pci/pci.h"
 #include "qapi/qmp/qerror.h"
+#include "qemu/ctype.h"
 #include "qemu/error-report.h"
 #include "hw/block/block.h"
 #include "net/hub.h"

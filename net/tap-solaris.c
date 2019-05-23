@@ -26,6 +26,7 @@
 #include "qapi/error.h"
 #include "tap_int.h"
 #include "sysemu/sysemu.h"
+#include "qemu/ctype.h"
 #include "qemu/cutils.h"
 
 #include <sys/ethernet.h>

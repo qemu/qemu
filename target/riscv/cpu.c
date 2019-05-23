@@ -19,6 +19,7 @@
 
 #include "qemu/osdep.h"
 #include "qemu/qemu-print.h"
+#include "qemu/ctype.h"
 #include "qemu/log.h"
 #include "cpu.h"
 #include "exec/exec-all.h"

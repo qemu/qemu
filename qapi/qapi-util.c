@@ -12,7 +12,7 @@
 
 #include "qemu/osdep.h"
 #include "qapi/error.h"
-#include "qemu-common.h"
+#include "qemu/ctype.h"
 
 const char *qapi_enum_lookup(const QEnumLookup *lookup, int val)
 {
