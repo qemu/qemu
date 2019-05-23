@@ -17,6 +17,7 @@
 
 #include "qemu/osdep.h"
 #include "qapi/error.h"
+#include "qemu/module.h"
 #include "hw/hw.h"
 #include "hw/sd/sdhci.h"
 #include "sdhci-internal.h"

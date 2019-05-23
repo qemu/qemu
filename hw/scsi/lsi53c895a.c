@@ -20,6 +20,7 @@
 #include "hw/scsi/scsi.h"
 #include "sysemu/dma.h"
 #include "qemu/log.h"
+#include "qemu/module.h"
 #include "trace.h"
 
 static const char *names[] = {

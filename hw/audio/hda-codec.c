@@ -21,6 +21,7 @@
 #include "hw/hw.h"
 #include "hw/pci/pci.h"
 #include "intel-hda.h"
+#include "qemu/module.h"
 #include "intel-hda-defs.h"
 #include "audio/audio.h"
 #include "trace.h"

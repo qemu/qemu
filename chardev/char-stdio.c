@@ -23,6 +23,7 @@
  */
 
 #include "qemu/osdep.h"
+#include "qemu/module.h"
 #include "qemu/option.h"
 #include "qemu/sockets.h"
 #include "qapi/error.h"

@@ -29,6 +29,7 @@
 #include "hw/pci/pci.h"
 #include "hw/intc/heathrow_pic.h"
 #include "qapi/error.h"
+#include "qemu/module.h"
 #include "trace.h"
 
 #define GRACKLE_PCI_HOST_BRIDGE(obj) \

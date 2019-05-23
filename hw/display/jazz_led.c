@@ -23,7 +23,7 @@
  */
 
 #include "qemu/osdep.h"
-#include "qemu-common.h"
+#include "qemu/module.h"
 #include "ui/console.h"
 #include "ui/pixel_ops.h"
 #include "trace.h"

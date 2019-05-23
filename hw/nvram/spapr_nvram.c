@@ -23,9 +23,9 @@
  */
 
 #include "qemu/osdep.h"
+#include "qemu/module.h"
 #include "qemu/units.h"
 #include "qapi/error.h"
-#include "qemu-common.h"
 #include "cpu.h"
 #include <libfdt.h>
 

@@ -27,6 +27,7 @@
 
 #include "qemu/osdep.h"
 #include "qemu/event_notifier.h"
+#include "qemu/module.h"
 #include "qemu/thread.h"
 #include "qemu/sockets.h"
 #include "qapi/error.h"

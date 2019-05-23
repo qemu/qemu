@@ -9,9 +9,11 @@
  * This work is licensed under the terms of the GNU GPL, version 2 or later.
  * See the COPYING file in the top-level directory.
  */
+
 #include "qemu/osdep.h"
 #include "sysemu/hostmem.h"
 #include "qapi/error.h"
+#include "qemu/module.h"
 #include "qom/object_interfaces.h"
 
 #define TYPE_MEMORY_BACKEND_RAM "memory-backend-ram"

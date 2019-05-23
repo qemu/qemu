@@ -19,6 +19,7 @@
 #include "qapi/error.h"
 #include "qapi/visitor.h"
 #include "qemu/error-report.h"
+#include "qemu/module.h"
 #include "qemu/qemu-print.h"
 #include "qapi/qmp/qerror.h"
 #include "qapi/qobject-input-visitor.h"

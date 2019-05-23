@@ -28,6 +28,7 @@
 #include "sysemu/kvm.h"
 #include "qemu/timer.h"
 #include "qemu/error-report.h"
+#include "qemu/module.h"
 #include "trace.h"
 #include "qapi/visitor.h"
 #include "qapi/qapi-visit-misc.h"

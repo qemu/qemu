@@ -17,6 +17,7 @@
 
 #include "qemu/osdep.h"
 #include "hw/usb/hcd-ehci.h"
+#include "qemu/module.h"
 #include "qemu/range.h"
 
 typedef struct EHCIPCIInfo {

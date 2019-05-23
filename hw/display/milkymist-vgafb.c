@@ -30,6 +30,7 @@
 #include "framebuffer.h"
 #include "ui/pixel_ops.h"
 #include "qemu/error-report.h"
+#include "qemu/module.h"
 
 #define BITS 8
 #include "milkymist-vgafb_template.h"

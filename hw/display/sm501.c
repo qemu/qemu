@@ -27,7 +27,7 @@
 #include "qemu/units.h"
 #include "qapi/error.h"
 #include "qemu/log.h"
-#include "qemu-common.h"
+#include "qemu/module.h"
 #include "cpu.h"
 #include "hw/hw.h"
 #include "hw/char/serial.h"

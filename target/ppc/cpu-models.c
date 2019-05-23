@@ -21,6 +21,7 @@
 
 #include "qemu/osdep.h"
 #include "cpu.h"
+#include "qemu/module.h"
 #include "cpu-models.h"
 
 #if defined(CONFIG_USER_ONLY)

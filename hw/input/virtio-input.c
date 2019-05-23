@@ -7,6 +7,7 @@
 #include "qemu/osdep.h"
 #include "qapi/error.h"
 #include "qemu/iov.h"
+#include "qemu/module.h"
 #include "trace.h"
 
 #include "hw/qdev.h"

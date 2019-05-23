@@ -10,8 +10,10 @@
 /* The controller can support a variety of different displays, but we only
    implement one.  Most of the commends relating to brightness and geometry
    setup are ignored. */
+
 #include "qemu/osdep.h"
 #include "hw/i2c/i2c.h"
+#include "qemu/module.h"
 #include "ui/console.h"
 
 //#define DEBUG_SSD0303 1

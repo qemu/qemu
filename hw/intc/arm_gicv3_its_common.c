@@ -22,6 +22,7 @@
 #include "hw/pci/msi.h"
 #include "hw/intc/arm_gicv3_its_common.h"
 #include "qemu/log.h"
+#include "qemu/module.h"
 
 static int gicv3_its_pre_save(void *opaque)
 {

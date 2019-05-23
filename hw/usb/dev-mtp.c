@@ -18,8 +18,8 @@
 #include <sys/statvfs.h>
 
 
-#include "qemu-common.h"
 #include "qemu/iov.h"
+#include "qemu/module.h"
 #include "qemu/filemonitor.h"
 #include "trace.h"
 #include "hw/usb.h"

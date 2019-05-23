@@ -21,11 +21,11 @@
 
 #include "qemu/osdep.h"
 #include "qapi/error.h"
-#include "qemu-common.h"
 #include "hw/arm/fsl-imx6.h"
 #include "sysemu/sysemu.h"
 #include "chardev/char.h"
 #include "qemu/error-report.h"
+#include "qemu/module.h"
 
 #define IMX6_ESDHC_CAPABILITIES     0x057834b4
 

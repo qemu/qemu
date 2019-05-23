@@ -49,6 +49,7 @@
 #include "exec/address-spaces.h"
 #include "qemu/bitops.h"
 #include "qemu/error-report.h"
+#include "qemu/module.h"
 #include "hw/pci-host/gpex.h"
 #include "hw/arm/sysbus-fdt.h"
 #include "hw/platform-bus.h"

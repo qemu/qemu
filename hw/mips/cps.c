@@ -19,6 +19,7 @@
 
 #include "qemu/osdep.h"
 #include "qapi/error.h"
+#include "qemu/module.h"
 #include "hw/mips/cps.h"
 #include "hw/mips/mips.h"
 #include "hw/mips/cpudevs.h"

@@ -5,6 +5,7 @@
 #include "chardev/spice.h"
 #include "qapi/error.h"
 #include "qemu/error-report.h"
+#include "qemu/module.h"
 #include "qemu/option.h"
 #include <spice/protocol.h>
 

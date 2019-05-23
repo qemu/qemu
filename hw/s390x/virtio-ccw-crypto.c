@@ -11,6 +11,7 @@
 #include "qemu/osdep.h"
 #include "hw/virtio/virtio.h"
 #include "qapi/error.h"
+#include "qemu/module.h"
 #include "virtio-ccw.h"
 
 static void virtio_ccw_crypto_realize(VirtioCcwDevice *ccw_dev, Error **errp)

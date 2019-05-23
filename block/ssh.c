@@ -31,6 +31,7 @@
 #include "block/qdict.h"
 #include "qapi/error.h"
 #include "qemu/error-report.h"
+#include "qemu/module.h"
 #include "qemu/option.h"
 #include "qemu/ctype.h"
 #include "qemu/cutils.h"

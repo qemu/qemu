@@ -19,6 +19,7 @@
 #include <sys/ioctl.h>
 #include "qapi/error.h"
 #include "qemu/error-report.h"
+#include "qemu/module.h"
 #include "qemu/queue.h"
 #include "monitor/monitor.h"
 #include "migration/blocker.h"

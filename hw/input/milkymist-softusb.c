@@ -29,6 +29,7 @@
 #include "ui/console.h"
 #include "hw/input/hid.h"
 #include "qemu/error-report.h"
+#include "qemu/module.h"
 
 enum {
     R_CTRL = 0,

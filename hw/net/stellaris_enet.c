@@ -6,10 +6,12 @@
  *
  * This code is licensed under the GPL.
  */
+
 #include "qemu/osdep.h"
 #include "hw/sysbus.h"
 #include "net/net.h"
 #include "qemu/log.h"
+#include "qemu/module.h"
 #include <zlib.h>
 
 //#define DEBUG_STELLARIS_ENET 1

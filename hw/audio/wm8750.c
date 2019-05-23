@@ -9,6 +9,7 @@
 
 #include "qemu/osdep.h"
 #include "hw/i2c/i2c.h"
+#include "qemu/module.h"
 #include "hw/audio/wm8750.h"
 #include "audio/audio.h"
 

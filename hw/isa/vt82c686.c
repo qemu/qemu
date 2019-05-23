@@ -23,6 +23,7 @@
 #include "hw/acpi/acpi.h"
 #include "hw/i2c/pm_smbus.h"
 #include "sysemu/sysemu.h"
+#include "qemu/module.h"
 #include "qemu/timer.h"
 #include "exec/address-spaces.h"
 

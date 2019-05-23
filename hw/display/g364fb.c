@@ -21,6 +21,7 @@
 #include "qemu/units.h"
 #include "hw/hw.h"
 #include "qemu/error-report.h"
+#include "qemu/module.h"
 #include "ui/console.h"
 #include "ui/pixel_ops.h"
 #include "trace.h"

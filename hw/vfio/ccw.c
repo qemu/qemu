@@ -25,6 +25,7 @@
 #include "hw/s390x/ccw-device.h"
 #include "exec/address-spaces.h"
 #include "qemu/error-report.h"
+#include "qemu/module.h"
 
 struct VFIOCCWDevice {
     S390CCWDevice cdev;

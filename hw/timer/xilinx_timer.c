@@ -27,6 +27,7 @@
 #include "hw/ptimer.h"
 #include "qemu/log.h"
 #include "qemu/main-loop.h"
+#include "qemu/module.h"
 
 #define D(x)
 

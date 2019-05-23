@@ -10,6 +10,7 @@
 #include "qemu/osdep.h"
 #include "libqtest.h"
 #include "qemu/iov.h"
+#include "qemu/module.h"
 #include "qapi/qmp/qdict.h"
 #include "hw/virtio/virtio-net.h"
 #include "libqos/qgraph.h"

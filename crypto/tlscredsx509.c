@@ -23,6 +23,7 @@
 #include "tlscredspriv.h"
 #include "crypto/secret.h"
 #include "qapi/error.h"
+#include "qemu/module.h"
 #include "qom/object_interfaces.h"
 #include "trace.h"
 

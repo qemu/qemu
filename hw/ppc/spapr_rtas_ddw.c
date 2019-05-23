@@ -20,6 +20,7 @@
 #include "qemu/osdep.h"
 #include "cpu.h"
 #include "qemu/error-report.h"
+#include "qemu/module.h"
 #include "hw/ppc/spapr.h"
 #include "hw/pci-host/spapr.h"
 #include "trace.h"

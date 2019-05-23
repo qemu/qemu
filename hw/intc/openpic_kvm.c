@@ -24,7 +24,6 @@
 
 #include "qemu/osdep.h"
 #include "qapi/error.h"
-#include "qemu-common.h"
 #include "cpu.h"
 #include <sys/ioctl.h>
 #include "exec/address-spaces.h"
@@ -35,6 +34,7 @@
 #include "hw/sysbus.h"
 #include "sysemu/kvm.h"
 #include "qemu/log.h"
+#include "qemu/module.h"
 
 #define GCR_RESET        0x80000000
 

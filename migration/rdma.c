@@ -13,9 +13,9 @@
  * later.  See the COPYING file in the top-level directory.
  *
  */
+
 #include "qemu/osdep.h"
 #include "qapi/error.h"
-#include "qemu-common.h"
 #include "qemu/cutils.h"
 #include "rdma.h"
 #include "migration.h"
@@ -24,6 +24,7 @@
 #include "qemu-file-channel.h"
 #include "qemu/error-report.h"
 #include "qemu/main-loop.h"
+#include "qemu/module.h"
 #include "qemu/sockets.h"
 #include "qemu/bitmap.h"
 #include "qemu/coroutine.h"

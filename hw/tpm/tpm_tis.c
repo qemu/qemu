@@ -25,6 +25,7 @@
 #include "qemu/osdep.h"
 #include "hw/isa/isa.h"
 #include "qapi/error.h"
+#include "qemu/module.h"
 
 #include "hw/acpi/tpm.h"
 #include "hw/pci/pci_ids.h"

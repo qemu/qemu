@@ -21,7 +21,7 @@
 
 #include "qemu/osdep.h"
 #include "qapi/error.h"
-#include "qemu-common.h"
+#include "qemu/module.h"
 #include "cpu.h"
 #include "hw/sysbus.h"
 #include "migration/blocker.h"

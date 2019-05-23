@@ -17,6 +17,7 @@
 
 #include "qemu/osdep.h"
 #include "qapi/error.h"
+#include "qemu/module.h"
 #include "hw/sysbus.h"
 #include "hw/intc/arm_gicv3.h"
 #include "gicv3_internal.h"

@@ -24,7 +24,7 @@
 
 #include "qemu/osdep.h"
 #include "qapi/error.h"
-#include "qemu-common.h"
+#include "qemu/module.h"
 #include "hw/arm/boot.h"
 #include "exec/address-spaces.h"
 #include "hw/arm/stm32f205_soc.h"

@@ -14,6 +14,7 @@
 #include "qemu/osdep.h"
 #include "hw/misc/imx_ccm.h"
 #include "qemu/log.h"
+#include "qemu/module.h"
 
 #ifndef DEBUG_IMX_CCM
 #define DEBUG_IMX_CCM 0

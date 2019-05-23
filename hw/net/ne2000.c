@@ -21,8 +21,10 @@
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
  * THE SOFTWARE.
  */
+
 #include "qemu/osdep.h"
 #include "net/eth.h"
+#include "qemu/module.h"
 #include "ne2000.h"
 #include "sysemu/sysemu.h"
 #include "trace.h"

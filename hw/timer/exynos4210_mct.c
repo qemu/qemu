@@ -57,7 +57,7 @@
 #include "hw/sysbus.h"
 #include "qemu/timer.h"
 #include "qemu/main-loop.h"
-#include "qemu-common.h"
+#include "qemu/module.h"
 #include "hw/ptimer.h"
 
 #include "hw/arm/exynos4210.h"

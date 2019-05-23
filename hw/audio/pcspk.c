@@ -27,6 +27,7 @@
 #include "hw/isa/isa.h"
 #include "hw/audio/soundhw.h"
 #include "audio/audio.h"
+#include "qemu/module.h"
 #include "qemu/timer.h"
 #include "hw/timer/i8254.h"
 #include "hw/audio/pcspk.h"

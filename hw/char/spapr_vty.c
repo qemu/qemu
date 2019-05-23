@@ -1,7 +1,7 @@
 #include "qemu/osdep.h"
 #include "qemu/error-report.h"
+#include "qemu/module.h"
 #include "qapi/error.h"
-#include "qemu-common.h"
 #include "cpu.h"
 #include "hw/qdev.h"
 #include "chardev/char-fe.h"

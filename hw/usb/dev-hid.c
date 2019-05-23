@@ -22,12 +22,14 @@
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
  * THE SOFTWARE.
  */
+
 #include "qemu/osdep.h"
 #include "hw/hw.h"
 #include "ui/console.h"
 #include "hw/usb.h"
 #include "desc.h"
 #include "qapi/error.h"
+#include "qemu/module.h"
 #include "qemu/timer.h"
 #include "hw/input/hid.h"
 

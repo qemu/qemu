@@ -12,7 +12,6 @@
 
 #include "qemu/osdep.h"
 #include "qapi/error.h"
-#include "qemu-common.h"
 #include "cpu.h"
 #include "hw/sysbus.h"
 #include "qemu/timer.h"
@@ -20,6 +19,7 @@
 #include "target/arm/cpu.h"
 #include "exec/exec-all.h"
 #include "qemu/log.h"
+#include "qemu/module.h"
 #include "trace.h"
 
 /* IRQ number counting:

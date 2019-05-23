@@ -22,6 +22,7 @@
 #include "qemu/error-report.h"
 #include "qemu/ctype.h"
 #include "qemu/cutils.h"
+#include "qemu/module.h"
 #include "trace-root.h"
 #ifdef CONFIG_USER_ONLY
 #include "qemu.h"

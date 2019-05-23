@@ -18,10 +18,10 @@
 
 #include "qemu/osdep.h"
 #include "libqtest.h"
-#include "qemu-common.h"
 #include "libqos/pci-pc.h"
 #include "qemu/sockets.h"
 #include "qemu/iov.h"
+#include "qemu/module.h"
 #include "qemu/bitops.h"
 #include "libqos/malloc.h"
 #include "libqos/qgraph.h"

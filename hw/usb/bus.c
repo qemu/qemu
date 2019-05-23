@@ -4,6 +4,7 @@
 #include "hw/qdev.h"
 #include "qapi/error.h"
 #include "qemu/error-report.h"
+#include "qemu/module.h"
 #include "sysemu/sysemu.h"
 #include "monitor/monitor.h"
 #include "trace.h"

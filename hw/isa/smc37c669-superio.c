@@ -10,6 +10,7 @@
 
 #include "qemu/osdep.h"
 #include "hw/isa/superio.h"
+#include "qemu/module.h"
 
 /* UARTs (compatible with NS16450 or PC16550) */
 

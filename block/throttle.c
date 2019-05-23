@@ -19,6 +19,7 @@
 
 #include "qemu/osdep.h"
 #include "block/throttle-groups.h"
+#include "qemu/module.h"
 #include "qemu/option.h"
 #include "qemu/throttle-options.h"
 #include "qapi/error.h"

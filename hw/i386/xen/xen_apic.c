@@ -9,10 +9,12 @@
  * This work is licensed under the terms of the GNU GPL version 2 or
  * later. See the COPYING file in the top-level directory.
  */
+
 #include "qemu/osdep.h"
 #include "hw/i386/apic_internal.h"
 #include "hw/pci/msi.h"
 #include "hw/xen/xen.h"
+#include "qemu/module.h"
 
 static uint64_t xen_apic_mem_read(void *opaque, hwaddr addr,
                                   unsigned size)

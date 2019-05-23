@@ -23,6 +23,7 @@
 #include "crypto/init.h"
 #include "crypto/block.h"
 #include "qemu/buffer.h"
+#include "qemu/module.h"
 #include "crypto/secret.h"
 #ifndef _WIN32
 #include <sys/resource.h>

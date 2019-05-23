@@ -23,6 +23,7 @@
  */
 
 #include "qemu/osdep.h"
+#include "qemu/module.h"
 #include "qemu/pmem.h"
 #include "qapi/error.h"
 #include "qapi/visitor.h"

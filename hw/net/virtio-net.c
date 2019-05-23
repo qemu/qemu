@@ -13,6 +13,7 @@
 
 #include "qemu/osdep.h"
 #include "qemu/iov.h"
+#include "qemu/module.h"
 #include "hw/virtio/virtio.h"
 #include "net/net.h"
 #include "net/checksum.h"

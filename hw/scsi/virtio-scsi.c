@@ -19,6 +19,7 @@
 #include "hw/virtio/virtio-scsi.h"
 #include "qemu/error-report.h"
 #include "qemu/iov.h"
+#include "qemu/module.h"
 #include "sysemu/block-backend.h"
 #include "hw/scsi/scsi.h"
 #include "scsi/constants.h"

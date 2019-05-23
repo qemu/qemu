@@ -16,6 +16,7 @@
 #include "hw/sysbus.h"
 #include "hw/misc/unimp.h"
 #include "qemu/log.h"
+#include "qemu/module.h"
 #include "qapi/error.h"
 
 static uint64_t unimp_read(void *opaque, hwaddr offset, unsigned size)

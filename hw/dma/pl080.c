@@ -11,6 +11,7 @@
 #include "hw/sysbus.h"
 #include "exec/address-spaces.h"
 #include "qemu/log.h"
+#include "qemu/module.h"
 #include "hw/dma/pl080.h"
 #include "qapi/error.h"
 

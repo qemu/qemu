@@ -15,6 +15,7 @@
 #include "qemu/osdep.h"
 #include "hw/intc/bcm2835_ic.h"
 #include "qemu/log.h"
+#include "qemu/module.h"
 
 #define GPU_IRQS 64
 #define ARM_IRQS 8

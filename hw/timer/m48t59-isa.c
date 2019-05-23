@@ -22,10 +22,12 @@
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
  * THE SOFTWARE.
  */
+
 #include "qemu/osdep.h"
 #include "hw/isa/isa.h"
 #include "hw/timer/m48t59.h"
 #include "m48t59-internal.h"
+#include "qemu/module.h"
 
 #define TYPE_M48TXX_ISA "isa-m48txx"
 #define M48TXX_ISA_GET_CLASS(obj) \

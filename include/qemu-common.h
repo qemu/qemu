@@ -113,8 +113,6 @@ void os_setup_early_signal_handling(void);
 char *os_find_datadir(void);
 int os_parse_cmd_args(int index, const char *optarg);
 
-#include "qemu/module.h"
-
 /*
  * Hexdump a buffer to a file. An optional string prefix is added to every line
  */

@@ -24,6 +24,7 @@
 
 #include "qemu/osdep.h"
 #include "hw/sysbus.h"
+#include "qemu/module.h"
 #include "qemu/timer.h"
 
 #define TYPE_GPIOKEY "gpio-key"

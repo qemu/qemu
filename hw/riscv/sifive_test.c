@@ -20,6 +20,7 @@
 
 #include "qemu/osdep.h"
 #include "hw/sysbus.h"
+#include "qemu/module.h"
 #include "target/riscv/cpu.h"
 #include "hw/riscv/sifive_test.h"
 

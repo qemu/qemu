@@ -15,6 +15,7 @@
 #include "qemu/osdep.h"
 #include "hw/timer/imx_gpt.h"
 #include "qemu/main-loop.h"
+#include "qemu/module.h"
 #include "qemu/log.h"
 
 #ifndef DEBUG_IMX_GPT

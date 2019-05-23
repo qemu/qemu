@@ -20,6 +20,7 @@
 
 #include "qemu/osdep.h"
 #include "io/channel-buffer.h"
+#include "qemu/module.h"
 #include "io-channel-helpers.h"
 
 

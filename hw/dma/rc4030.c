@@ -28,6 +28,7 @@
 #include "hw/sysbus.h"
 #include "qemu/timer.h"
 #include "qemu/log.h"
+#include "qemu/module.h"
 #include "exec/address-spaces.h"
 #include "trace.h"
 

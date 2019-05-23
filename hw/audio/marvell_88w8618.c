@@ -9,12 +9,14 @@
  * Contributions after 2012-01-13 are licensed under the terms of the
  * GNU GPL, version 2 or (at your option) any later version.
  */
+
 #include "qemu/osdep.h"
 #include "hw/sysbus.h"
 #include "hw/hw.h"
 #include "hw/audio/wm8750.h"
 #include "audio/audio.h"
 #include "qapi/error.h"
+#include "qemu/module.h"
 
 #define MP_AUDIO_SIZE           0x00001000
 

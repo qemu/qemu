@@ -29,6 +29,7 @@
 #include "hw/i2c/i2c.h"
 #include "qapi/error.h"
 #include "qapi/visitor.h"
+#include "qemu/module.h"
 
 /* Manufacturer / Device ID's */
 #define TMP421_MANUFACTURER_ID          0x55

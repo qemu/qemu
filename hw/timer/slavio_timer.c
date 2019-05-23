@@ -28,6 +28,7 @@
 #include "hw/sysbus.h"
 #include "trace.h"
 #include "qemu/main-loop.h"
+#include "qemu/module.h"
 
 /*
  * Registers of hardware timer in sun4m.

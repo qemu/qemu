@@ -25,6 +25,7 @@
 #include "qemu/osdep.h"
 #include "qapi/error.h"
 #include "qemu/error-report.h"
+#include "qemu/module.h"
 #include "qemu/option.h"
 #include "block/block_int.h"
 #include "qapi/qmp/qdict.h"

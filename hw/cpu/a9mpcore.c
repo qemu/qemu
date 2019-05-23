@@ -10,6 +10,7 @@
 
 #include "qemu/osdep.h"
 #include "qapi/error.h"
+#include "qemu/module.h"
 #include "hw/cpu/a9mpcore.h"
 #include "qom/cpu.h"
 

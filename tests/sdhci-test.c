@@ -7,9 +7,11 @@
  * See the COPYING file in the top-level directory.
  * SPDX-License-Identifier: GPL-2.0-or-later
  */
+
 #include "qemu/osdep.h"
 #include "hw/registerfields.h"
 #include "libqtest.h"
+#include "qemu/module.h"
 #include "libqos/pci-pc.h"
 #include "hw/pci/pci.h"
 #include "libqos/qgraph.h"

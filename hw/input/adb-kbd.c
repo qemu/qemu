@@ -21,8 +21,10 @@
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
  * THE SOFTWARE.
  */
+
 #include "qemu/osdep.h"
 #include "hw/input/adb.h"
+#include "qemu/module.h"
 #include "ui/input.h"
 #include "hw/input/adb-keys.h"
 #include "sysemu/sysemu.h"

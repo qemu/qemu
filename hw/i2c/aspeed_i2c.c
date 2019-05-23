@@ -21,6 +21,7 @@
 #include "qemu/osdep.h"
 #include "hw/sysbus.h"
 #include "qemu/log.h"
+#include "qemu/module.h"
 #include "hw/i2c/aspeed_i2c.h"
 
 /* I2C Global Register */

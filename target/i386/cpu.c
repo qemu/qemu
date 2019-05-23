@@ -32,6 +32,7 @@
 #include "sev_i386.h"
 
 #include "qemu/error-report.h"
+#include "qemu/module.h"
 #include "qemu/option.h"
 #include "qemu/config-file.h"
 #include "qapi/error.h"

@@ -17,6 +17,7 @@
 #include "virtio-pci.h"
 #include "hw/virtio/virtio-balloon.h"
 #include "qapi/error.h"
+#include "qemu/module.h"
 
 typedef struct VirtIOBalloonPCI VirtIOBalloonPCI;
 

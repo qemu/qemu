@@ -20,6 +20,7 @@
 #include "libqtest.h"
 #include "libqos/qgraph.h"
 #include "pci-pc.h"
+#include "qemu/module.h"
 #include "malloc-pc.h"
 
 typedef struct QX86PCMachine QX86PCMachine;

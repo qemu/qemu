@@ -13,6 +13,7 @@
 #include "hw/sysbus.h"
 #include "hw/arm/pxa.h"
 #include "qemu/log.h"
+#include "qemu/module.h"
 
 #define PXA2XX_GPIO_BANKS	4
 

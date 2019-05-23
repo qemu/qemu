@@ -30,6 +30,7 @@
 #include "ui/pixel_ops.h"
 #include "hw/misc/bcm2835_mbox_defs.h"
 #include "qemu/log.h"
+#include "qemu/module.h"
 
 #define DEFAULT_VCRAM_SIZE 0x4000000
 #define BCM2835_FB_OFFSET  0x00100000

@@ -22,6 +22,7 @@
 #include "qemu/osdep.h"
 #include "hw/qdev-core.h"
 #include "hw/sd/sd.h"
+#include "qemu/module.h"
 #include "trace.h"
 
 static inline const char *sdbus_name(SDBus *sdbus)

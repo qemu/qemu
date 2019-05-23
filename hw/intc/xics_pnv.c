@@ -21,6 +21,7 @@
 #include "qapi/error.h"
 #include "sysemu/sysemu.h"
 #include "qemu/log.h"
+#include "qemu/module.h"
 #include "hw/ppc/xics.h"
 
 #define ICP_XIRR_POLL    0 /* 1 byte (CPRR) or 4 bytes */

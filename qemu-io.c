@@ -19,6 +19,7 @@
 #include "qemu-io.h"
 #include "qemu/error-report.h"
 #include "qemu/main-loop.h"
+#include "qemu/module.h"
 #include "qemu/option.h"
 #include "qemu/config-file.h"
 #include "qemu/readline.h"

@@ -36,6 +36,7 @@
 #include "block/qdict.h"
 #include "scsi/constants.h"
 #include "qemu/iov.h"
+#include "qemu/module.h"
 #include "qemu/option.h"
 #include "qemu/uuid.h"
 #include "qapi/error.h"

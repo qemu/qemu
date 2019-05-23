@@ -14,6 +14,7 @@
 
 #include "qemu/osdep.h"
 #include "qapi/error.h"
+#include "qemu/module.h"
 #include "hw/pci/pcie_port.h"
 
 static void rp_aer_vector_update(PCIDevice *d)

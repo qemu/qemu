@@ -24,9 +24,11 @@
  * sgabios code originally available at code.google.com/p/sgabios
  *
  */
+
 #include "qemu/osdep.h"
 #include "hw/isa/isa.h"
 #include "hw/loader.h"
+#include "qemu/module.h"
 #include "sysemu/sysemu.h"
 
 #define SGABIOS_FILENAME "sgabios.bin"

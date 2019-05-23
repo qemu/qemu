@@ -22,6 +22,7 @@
 
 #include "qemu/osdep.h"
 #include "block/block_int.h"
+#include "qemu/module.h"
 
 
 static int cor_open(BlockDriverState *bs, QDict *options, int flags,

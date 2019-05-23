@@ -22,6 +22,7 @@
 #include "hw/i2c/imx_i2c.h"
 #include "hw/i2c/i2c.h"
 #include "qemu/log.h"
+#include "qemu/module.h"
 
 #ifndef DEBUG_IMX_I2C
 #define DEBUG_IMX_I2C 0

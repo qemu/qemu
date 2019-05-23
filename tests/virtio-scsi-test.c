@@ -10,6 +10,7 @@
 
 #include "qemu/osdep.h"
 #include "libqtest.h"
+#include "qemu/module.h"
 #include "scsi/constants.h"
 #include "libqos/libqos-pc.h"
 #include "libqos/libqos-spapr.h"

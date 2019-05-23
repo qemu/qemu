@@ -20,6 +20,7 @@
 #include "libqtest.h"
 #include "libqos/qgraph.h"
 #include "pci.h"
+#include "qemu/module.h"
 #include "sdhci.h"
 #include "hw/pci/pci.h"
 

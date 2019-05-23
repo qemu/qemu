@@ -24,6 +24,7 @@
 
 #include "qemu/osdep.h"
 #include "hw/sysbus.h"
+#include "qemu/module.h"
 #include "trace.h"
 
 /* There are 3 versions of this chip used in SMP sun4m systems:

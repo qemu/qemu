@@ -14,9 +14,9 @@
  */
 
 #include "qemu/osdep.h"
-#include "qemu-common.h"
 #include "cpu.h"
 #include "qemu/host-utils.h"
+#include "qemu/module.h"
 #include "sysemu/sysemu.h"
 #include "sysemu/kvm.h"
 #include "sysemu/hw_accel.h"

@@ -18,6 +18,7 @@
 #include "sysemu/tpm.h"
 #include "qemu/thread.h"
 #include "qemu/main-loop.h"
+#include "qemu/module.h"
 #include "block/thread-pool.h"
 #include "qemu/error-report.h"
 

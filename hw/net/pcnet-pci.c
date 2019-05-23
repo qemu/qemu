@@ -30,6 +30,7 @@
 #include "qemu/osdep.h"
 #include "hw/pci/pci.h"
 #include "net/net.h"
+#include "qemu/module.h"
 #include "qemu/timer.h"
 #include "sysemu/dma.h"
 #include "sysemu/sysemu.h"

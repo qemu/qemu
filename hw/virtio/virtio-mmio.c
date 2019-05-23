@@ -24,6 +24,7 @@
 #include "hw/sysbus.h"
 #include "hw/virtio/virtio.h"
 #include "qemu/host-utils.h"
+#include "qemu/module.h"
 #include "sysemu/kvm.h"
 #include "hw/virtio/virtio-bus.h"
 #include "qemu/error-report.h"

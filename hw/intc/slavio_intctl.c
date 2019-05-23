@@ -24,6 +24,7 @@
 
 #include "qemu/osdep.h"
 #include "monitor/monitor.h"
+#include "qemu/module.h"
 #include "hw/sysbus.h"
 #include "hw/intc/intc.h"
 #include "trace.h"

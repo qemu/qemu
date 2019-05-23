@@ -23,6 +23,7 @@
 #include "trace.h"
 #include "qom/object_interfaces.h"
 #include "qapi/qapi-visit-authz.h"
+#include "qemu/module.h"
 
 static bool qauthz_list_is_allowed(QAuthZ *authz,
                                    const char *identity,

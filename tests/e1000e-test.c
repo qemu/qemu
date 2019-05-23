@@ -30,6 +30,7 @@
 #include "libqos/pci-pc.h"
 #include "qemu/sockets.h"
 #include "qemu/iov.h"
+#include "qemu/module.h"
 #include "qemu/bitops.h"
 #include "libqos/malloc.h"
 #include "libqos/e1000e.h"

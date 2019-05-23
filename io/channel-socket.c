@@ -21,6 +21,7 @@
 #include "qemu/osdep.h"
 #include "qapi/error.h"
 #include "qapi/qapi-visit-sockets.h"
+#include "qemu/module.h"
 #include "io/channel-socket.h"
 #include "io/channel-watch.h"
 #include "trace.h"

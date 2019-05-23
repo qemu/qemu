@@ -13,7 +13,6 @@
 
 #include "qemu/osdep.h"
 #include "qemu/units.h"
-#include "qemu-common.h"
 #include "qemu/iov.h"
 #include "ui/console.h"
 #include "trace.h"
@@ -25,6 +24,7 @@
 #include "hw/virtio/virtio-bus.h"
 #include "hw/display/edid.h"
 #include "qemu/log.h"
+#include "qemu/module.h"
 #include "qapi/error.h"
 #include "qemu/error-report.h"
 

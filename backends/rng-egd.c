@@ -15,6 +15,7 @@
 #include "chardev/char-fe.h"
 #include "qapi/error.h"
 #include "qapi/qmp/qerror.h"
+#include "qemu/module.h"
 
 #define TYPE_RNG_EGD "rng-egd"
 #define RNG_EGD(obj) OBJECT_CHECK(RngEgd, (obj), TYPE_RNG_EGD)

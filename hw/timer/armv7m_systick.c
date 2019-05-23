@@ -11,10 +11,10 @@
 
 #include "qemu/osdep.h"
 #include "hw/timer/armv7m_systick.h"
-#include "qemu-common.h"
 #include "hw/sysbus.h"
 #include "qemu/timer.h"
 #include "qemu/log.h"
+#include "qemu/module.h"
 #include "trace.h"
 
 /* qemu timers run at 1GHz.   We want something closer to 1MHz.  */

@@ -20,6 +20,7 @@
 #include "qapi/error.h"
 #include "qemu/config-file.h"
 #include "qemu/error-report.h"
+#include "qemu/module.h"
 #include "qemu/option.h"
 #include "sysemu/sysemu.h"
 #include "qemu/uuid.h"

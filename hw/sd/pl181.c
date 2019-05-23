@@ -12,6 +12,7 @@
 #include "hw/sysbus.h"
 #include "hw/sd/sd.h"
 #include "qemu/log.h"
+#include "qemu/module.h"
 #include "qapi/error.h"
 
 //#define DEBUG_PL181 1

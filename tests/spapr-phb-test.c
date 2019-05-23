@@ -10,6 +10,7 @@
 
 #include "qemu/osdep.h"
 #include "libqtest.h"
+#include "qemu/module.h"
 #include "libqos/qgraph.h"
 
 /* Tests only initialization so far. TODO: Replace with functional tests,

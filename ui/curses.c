@@ -21,6 +21,7 @@
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
  * THE SOFTWARE.
  */
+
 #include "qemu/osdep.h"
 
 #ifndef _WIN32
@@ -33,7 +34,7 @@
 #include <iconv.h>
 
 #include "qapi/error.h"
-#include "qemu-common.h"
+#include "qemu/module.h"
 #include "ui/console.h"
 #include "ui/input.h"
 #include "sysemu/sysemu.h"

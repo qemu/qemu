@@ -18,6 +18,7 @@
  */
 
 #include "qemu/osdep.h"
+#include "qemu/module.h"
 #include "qemu/units.h"
 #include "qapi/error.h"
 #include "hw/pci/pci_bridge.h"

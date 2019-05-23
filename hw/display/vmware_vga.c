@@ -21,7 +21,9 @@
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
  * THE SOFTWARE.
  */
+
 #include "qemu/osdep.h"
+#include "qemu/module.h"
 #include "qemu/units.h"
 #include "qapi/error.h"
 #include "hw/hw.h"

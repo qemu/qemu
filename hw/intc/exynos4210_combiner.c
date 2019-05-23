@@ -29,6 +29,7 @@
 
 #include "qemu/osdep.h"
 #include "hw/sysbus.h"
+#include "qemu/module.h"
 
 #include "hw/arm/exynos4210.h"
 

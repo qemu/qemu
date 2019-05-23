@@ -30,6 +30,7 @@
 #include "hw/register.h"
 #include "qemu/bitops.h"
 #include "qemu/log.h"
+#include "qemu/module.h"
 #include "hw/intc/xlnx-zynqmp-ipi.h"
 
 #ifndef XLNX_ZYNQMP_IPI_ERR_DEBUG

@@ -18,6 +18,7 @@
 
 #include "qemu/osdep.h"
 #include "libqtest.h"
+#include "qemu/module.h"
 #include "standard-headers/linux/virtio_blk.h"
 #include "libqos/qgraph.h"
 #include "libqos/virtio-blk.h"

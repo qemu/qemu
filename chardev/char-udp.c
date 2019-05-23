@@ -26,6 +26,7 @@
 #include "chardev/char.h"
 #include "io/channel-socket.h"
 #include "qapi/error.h"
+#include "qemu/module.h"
 #include "qemu/option.h"
 
 #include "chardev/char-io.h"

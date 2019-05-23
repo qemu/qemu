@@ -22,6 +22,7 @@
 #include "io/net-listener.h"
 #include "io/dns-resolver.h"
 #include "qapi/error.h"
+#include "qemu/module.h"
 
 QIONetListener *qio_net_listener_new(void)
 {

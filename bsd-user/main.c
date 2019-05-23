@@ -29,6 +29,7 @@
 #include "qemu/error-report.h"
 #include "qemu/path.h"
 #include "qemu/help_option.h"
+#include "qemu/module.h"
 #include "cpu.h"
 #include "exec/exec-all.h"
 #include "tcg.h"

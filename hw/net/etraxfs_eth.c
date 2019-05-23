@@ -28,6 +28,7 @@
 #include "net/net.h"
 #include "hw/cris/etraxfs.h"
 #include "qemu/error-report.h"
+#include "qemu/module.h"
 #include "trace.h"
 
 #define D(x)

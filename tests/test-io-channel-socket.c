@@ -24,6 +24,7 @@
 #include "io-channel-helpers.h"
 #include "socket-helpers.h"
 #include "qapi/error.h"
+#include "qemu/module.h"
 
 
 static void test_io_channel_set_socket_bufs(QIOChannel *src,

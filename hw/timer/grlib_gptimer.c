@@ -28,6 +28,7 @@
 #include "qemu/timer.h"
 #include "hw/ptimer.h"
 #include "qemu/main-loop.h"
+#include "qemu/module.h"
 
 #include "trace.h"
 

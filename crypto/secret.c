@@ -24,6 +24,7 @@
 #include "qapi/error.h"
 #include "qom/object_interfaces.h"
 #include "qemu/base64.h"
+#include "qemu/module.h"
 #include "trace.h"
 
 

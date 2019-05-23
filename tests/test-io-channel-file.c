@@ -23,6 +23,7 @@
 #include "io/channel-util.h"
 #include "io-channel-helpers.h"
 #include "qapi/error.h"
+#include "qemu/module.h"
 
 #define TEST_FILE "tests/test-io-channel-file.txt"
 #define TEST_MASK 0600

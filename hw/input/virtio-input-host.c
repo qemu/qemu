@@ -6,7 +6,7 @@
 
 #include "qemu/osdep.h"
 #include "qapi/error.h"
-#include "qemu-common.h"
+#include "qemu/module.h"
 #include "qemu/sockets.h"
 
 #include "hw/qdev.h"

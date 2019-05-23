@@ -28,6 +28,7 @@
 #include "hw/sysbus.h"
 #include "sysemu/sysemu.h"
 #include "qemu/log.h"
+#include "qemu/module.h"
 #include "qemu/fifo8.h"
 
 #include "hw/ssi/ssi.h"

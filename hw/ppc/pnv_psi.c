@@ -21,6 +21,7 @@
 #include "hw/hw.h"
 #include "target/ppc/cpu.h"
 #include "qemu/log.h"
+#include "qemu/module.h"
 #include "qapi/error.h"
 #include "monitor/monitor.h"
 

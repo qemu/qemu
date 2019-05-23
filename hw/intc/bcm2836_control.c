@@ -18,6 +18,7 @@
 #include "qemu/osdep.h"
 #include "hw/intc/bcm2836_control.h"
 #include "qemu/log.h"
+#include "qemu/module.h"
 
 #define REG_GPU_ROUTE           0x0c
 #define REG_LOCALTIMERROUTING   0x24

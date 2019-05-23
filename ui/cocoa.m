@@ -36,6 +36,7 @@
 #include "qapi/qapi-commands-misc.h"
 #include "sysemu/blockdev.h"
 #include "qemu-version.h"
+#include "qemu/module.h"
 #include <Carbon/Carbon.h>
 #include "qom/cpu.h"
 

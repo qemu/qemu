@@ -11,6 +11,7 @@
 
 #include "qemu/osdep.h"
 #include "qemu/bitops.h"
+#include "qemu/module.h"
 #include "sysemu/watchdog.h"
 
 #include "hw/misc/imx2_wdt.h"

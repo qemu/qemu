@@ -17,6 +17,7 @@
 #include "qapi/qmp/qdict.h"
 #include "qapi/qmp/qstring.h"
 #include "qemu/error-report.h"
+#include "qemu/module.h"
 #include "qemu/cutils.h"
 #include "qemu/option.h"
 #include "qemu/vfio-helpers.h"

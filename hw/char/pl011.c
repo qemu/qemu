@@ -23,6 +23,7 @@
 #include "hw/sysbus.h"
 #include "chardev/char-fe.h"
 #include "qemu/log.h"
+#include "qemu/module.h"
 #include "trace.h"
 
 #define PL011_INT_TX 0x20

@@ -13,6 +13,7 @@
 #include "hw/usb/hcd-ehci.h"
 #include "hw/usb/chipidea.h"
 #include "qemu/log.h"
+#include "qemu/module.h"
 
 enum {
     CHIPIDEA_USBx_DCIVERSION   = 0x000,

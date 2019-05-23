@@ -37,9 +37,9 @@
 #endif
 
 #include "qapi/error.h"
-#include "qemu-common.h"
 #include "qemu/cutils.h"
 #include "qemu/main-loop.h"
+#include "qemu/module.h"
 #include "qemu/error-report.h"
 #include "qemu/config-file.h"
 #include "qemu/bswap.h"

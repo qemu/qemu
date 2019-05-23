@@ -14,6 +14,7 @@
 #include "qemu/units.h"
 #include "qemu/error-report.h"
 #include "qemu/main-loop.h"
+#include "qemu/module.h"
 #include "qemu/range.h"
 #include "qapi/error.h"
 #include "qapi/visitor.h"

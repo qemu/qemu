@@ -16,12 +16,14 @@
  * GNU General Public License for more details.
  *
  */
+
 #include "qemu/osdep.h"
 #include "hw/sysbus.h"
 #include "net/net.h"
 #include "qemu/fifo8.h"
 #include "hw/net/allwinner_emac.h"
 #include "qemu/log.h"
+#include "qemu/module.h"
 #include <zlib.h>
 
 static uint8_t padding[60];

@@ -1,6 +1,7 @@
 /* public domain */
+
 #include "qemu/osdep.h"
-#include "qemu-common.h"
+#include "qemu/module.h"
 #include "audio.h"
 #include "qapi/opts-visitor.h"
 

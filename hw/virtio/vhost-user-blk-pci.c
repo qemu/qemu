@@ -24,6 +24,7 @@
 #include "hw/pci/pci.h"
 #include "qapi/error.h"
 #include "qemu/error-report.h"
+#include "qemu/module.h"
 #include "virtio-pci.h"
 
 typedef struct VHostUserBlkPCI VHostUserBlkPCI;

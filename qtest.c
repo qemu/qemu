@@ -13,7 +13,6 @@
 
 #include "qemu/osdep.h"
 #include "qapi/error.h"
-#include "qemu-common.h"
 #include "cpu.h"
 #include "sysemu/qtest.h"
 #include "hw/qdev.h"
@@ -27,6 +26,7 @@
 #include "qemu/config-file.h"
 #include "qemu/option.h"
 #include "qemu/error-report.h"
+#include "qemu/module.h"
 #include "qemu/cutils.h"
 #ifdef TARGET_PPC64
 #include "hw/ppc/spapr_rtas.h"

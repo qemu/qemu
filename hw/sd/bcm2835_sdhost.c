@@ -13,6 +13,7 @@
 
 #include "qemu/osdep.h"
 #include "qemu/log.h"
+#include "qemu/module.h"
 #include "sysemu/blockdev.h"
 #include "hw/sd/bcm2835_sdhost.h"
 #include "trace.h"

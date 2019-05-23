@@ -24,6 +24,7 @@
 #include "hw/timer/arm_mptimer.h"
 #include "qapi/error.h"
 #include "qemu/main-loop.h"
+#include "qemu/module.h"
 #include "qom/cpu.h"
 
 #define PTIMER_POLICY                       \

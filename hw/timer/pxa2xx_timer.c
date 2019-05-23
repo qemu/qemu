@@ -14,6 +14,7 @@
 #include "hw/arm/pxa.h"
 #include "hw/sysbus.h"
 #include "qemu/log.h"
+#include "qemu/module.h"
 
 #define OSMR0	0x00
 #define OSMR1	0x04

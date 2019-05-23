@@ -20,7 +20,7 @@
 
 #include "qemu/osdep.h"
 #include "qemu/error-report.h"
-#include "qemu-common.h"
+#include "qemu/module.h"
 #include "chardev/char-serial.h"
 #include "qemu/timer.h"
 #include "qemu/bswap.h"

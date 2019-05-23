@@ -29,6 +29,7 @@
 #include "hw/sparc/sun4u_iommu.h"
 #include "exec/address-spaces.h"
 #include "qemu/log.h"
+#include "qemu/module.h"
 #include "trace.h"
 
 

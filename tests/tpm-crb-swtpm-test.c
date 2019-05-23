@@ -16,6 +16,7 @@
 #include <glib/gstdio.h>
 
 #include "libqtest.h"
+#include "qemu/module.h"
 #include "tpm-tests.h"
 
 typedef struct TestState {

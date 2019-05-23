@@ -43,6 +43,7 @@
 #include "qemu/timer.h"
 #include "sysemu/block-backend.h"
 #include "qemu/host-utils.h"
+#include "qemu/module.h"
 #include "hw/sysbus.h"
 #include "trace.h"
 

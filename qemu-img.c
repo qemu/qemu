@@ -37,6 +37,7 @@
 #include "qemu/option.h"
 #include "qemu/error-report.h"
 #include "qemu/log.h"
+#include "qemu/module.h"
 #include "qemu/units.h"
 #include "qom/object_interfaces.h"
 #include "sysemu/sysemu.h"

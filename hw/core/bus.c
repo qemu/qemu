@@ -19,6 +19,7 @@
 
 #include "qemu/osdep.h"
 #include "qemu/ctype.h"
+#include "qemu/module.h"
 #include "hw/qdev.h"
 #include "qapi/error.h"
 

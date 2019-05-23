@@ -10,10 +10,10 @@
  * the COPYING file in the top-level directory.
  *
  */
+
 #include "qemu/osdep.h"
 #include "qemu-fsdev.h"
 #include "qemu/config-file.h"
-#include "qemu/module.h"
 
 int qemu_fsdev_add(QemuOpts *opts, Error **errp)
 {

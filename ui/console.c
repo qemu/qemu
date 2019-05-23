@@ -27,6 +27,7 @@
 #include "hw/qdev-core.h"
 #include "qapi/error.h"
 #include "qapi/qapi-commands-ui.h"
+#include "qemu/module.h"
 #include "qemu/option.h"
 #include "qemu/timer.h"
 #include "chardev/char-fe.h"

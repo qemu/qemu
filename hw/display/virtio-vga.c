@@ -3,6 +3,7 @@
 #include "hw/pci/pci.h"
 #include "hw/virtio/virtio-gpu.h"
 #include "qapi/error.h"
+#include "qemu/module.h"
 #include "virtio-vga.h"
 
 static void virtio_vga_base_invalidate_display(void *opaque)

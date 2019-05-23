@@ -9,7 +9,7 @@
  */
 
 #include "qemu/osdep.h"
-#include "qemu-common.h"
+#include "qemu/module.h"
 #include "cpu.h"
 #include "hw/hw.h"
 #include "hw/arm/pxa.h"

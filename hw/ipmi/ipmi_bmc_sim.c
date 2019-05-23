@@ -27,6 +27,7 @@
 #include "qemu/timer.h"
 #include "hw/ipmi/ipmi.h"
 #include "qemu/error-report.h"
+#include "qemu/module.h"
 #include "hw/loader.h"
 
 #define IPMI_NETFN_CHASSIS            0x00
