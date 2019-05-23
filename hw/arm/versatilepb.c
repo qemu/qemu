@@ -12,7 +12,7 @@
 #include "qemu-common.h"
 #include "cpu.h"
 #include "hw/sysbus.h"
-#include "hw/arm/arm.h"
+#include "hw/arm/boot.h"
 #include "hw/net/smc91c111.h"
 #include "net/net.h"
 #include "sysemu/sysemu.h"

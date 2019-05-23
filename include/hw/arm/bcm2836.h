@@ -11,7 +11,6 @@
 #ifndef BCM2836_H
 #define BCM2836_H
 
-#include "hw/arm/arm.h"
 #include "hw/arm/bcm2835_peripherals.h"
 #include "hw/intc/bcm2836_control.h"
 

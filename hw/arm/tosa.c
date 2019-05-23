@@ -15,7 +15,7 @@
 #include "qapi/error.h"
 #include "hw/hw.h"
 #include "hw/arm/pxa.h"
-#include "hw/arm/arm.h"
+#include "hw/arm/boot.h"
 #include "hw/arm/sharpsl.h"
 #include "hw/pcmcia.h"
 #include "hw/boards.h"

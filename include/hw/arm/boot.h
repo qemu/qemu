@@ -1,5 +1,5 @@
 /*
- * Misc ARM declarations
+ * ARM kernel loader.
  *
  * Copyright (c) 2006 CodeSourcery.
  * Written by Paul Brook
@@ -8,8 +8,8 @@
  *
  */
 
-#ifndef HW_ARM_H
-#define HW_ARM_H
+#ifndef HW_ARM_BOOT_H
+#define HW_ARM_BOOT_H
 
 #include "exec/memory.h"
 #include "target/arm/cpu-qom.h"
@@ -167,4 +167,4 @@ void arm_write_secure_board_setup_dummy_smc(ARMCPU *cpu,
                                             const struct arm_boot_info *info,
                                             hwaddr mvbar_addr);
 
-#endif /* HW_ARM_H */
+#endif /* HW_ARM_BOOT_H */

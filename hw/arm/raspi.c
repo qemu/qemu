@@ -20,7 +20,7 @@
 #include "qemu/error-report.h"
 #include "hw/boards.h"
 #include "hw/loader.h"
-#include "hw/arm/arm.h"
+#include "hw/arm/boot.h"
 #include "sysemu/sysemu.h"
 
 #define SMPBOOT_ADDR    0x300 /* this should leave enough space for ATAGS */

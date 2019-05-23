@@ -29,7 +29,7 @@
 #include "sysemu/sysemu.h"
 #include "hw/sysbus.h"
 #include "net/net.h"
-#include "hw/arm/arm.h"
+#include "hw/arm/boot.h"
 #include "exec/address-spaces.h"
 #include "hw/arm/exynos4210.h"
 #include "hw/net/lan9118.h"

@@ -17,7 +17,7 @@
 #include "net/net.h"
 #include "sysemu/sysemu.h"
 #include "sysemu/kvm.h"
-#include "hw/arm/arm.h"
+#include "hw/arm/boot.h"
 #include "kvm_arm.h"
 #include "hw/misc/unimp.h"
 #include "hw/intc/arm_gicv3_common.h"

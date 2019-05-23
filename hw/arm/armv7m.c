@@ -13,7 +13,7 @@
 #include "qemu-common.h"
 #include "cpu.h"
 #include "hw/sysbus.h"
-#include "hw/arm/arm.h"
+#include "hw/arm/boot.h"
 #include "hw/loader.h"
 #include "elf.h"
 #include "sysemu/qtest.h"

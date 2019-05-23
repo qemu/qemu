@@ -16,7 +16,7 @@
 #include "qapi/error.h"
 #include "hw/hw.h"
 #include "hw/arm/pxa.h"
-#include "hw/arm/arm.h"
+#include "hw/arm/boot.h"
 #include "net/net.h"
 #include "hw/net/smc91c111.h"
 #include "hw/boards.h"

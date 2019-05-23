@@ -25,7 +25,7 @@
 #include "qemu/bswap.h"
 #include "sysemu/sysemu.h"
 #include "hw/arm/omap.h"
-#include "hw/arm/arm.h"
+#include "hw/arm/boot.h"
 #include "hw/irq.h"
 #include "ui/console.h"
 #include "hw/boards.h"

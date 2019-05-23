@@ -30,7 +30,7 @@
 #include "hw/boards.h"
 #include "sysemu/sysemu.h"
 #include "hw/sysbus.h"
-#include "hw/arm/arm.h"
+#include "hw/arm/boot.h"
 #include "hw/loader.h"
 #include "hw/arm/exynos4210.h"
 #include "hw/sd/sdhci.h"
