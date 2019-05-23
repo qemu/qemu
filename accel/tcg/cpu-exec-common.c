@@ -20,6 +20,7 @@
 #include "qemu/osdep.h"
 #include "cpu.h"
 #include "sysemu/cpus.h"
+#include "sysemu/tcg.h"
 #include "exec/exec-all.h"
 
 bool tcg_allowed;

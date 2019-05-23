@@ -21,6 +21,7 @@
 
 #ifndef CONFIG_USER_ONLY
 #include "hw/xen/xen.h"
+#include "sysemu/tcg.h"
 #include "exec/ramlist.h"
 
 struct RAMBlock {

@@ -30,6 +30,7 @@
 #include "qemu/help_option.h"
 #include "qemu/uuid.h"
 #include "sysemu/seccomp.h"
+#include "sysemu/tcg.h"
 
 #ifdef CONFIG_SDL
 #if defined(__APPLE__) || defined(main)

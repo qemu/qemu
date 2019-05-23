@@ -47,6 +47,7 @@
 #include "standard-headers/asm-x86/kvm_para.h"
 
 #include "sysemu/sysemu.h"
+#include "sysemu/tcg.h"
 #include "hw/qdev-properties.h"
 #include "hw/i386/topology.h"
 #ifndef CONFIG_USER_ONLY

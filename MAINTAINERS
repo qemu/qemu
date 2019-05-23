@@ -125,6 +125,7 @@ F: include/exec/exec-all.h
 F: include/exec/helper*.h
 F: include/exec/tb-hash.h
 F: include/sysemu/cpus.h
+F: include/sysemu/tcg.h
 
 FPU emulation
 M: Aurelien Jarno <aurelien@aurel32.net>

@@ -24,13 +24,13 @@
 #include "qapi/visitor.h"
 #include "cpu.h"
 #include "internals.h"
-#include "qemu-common.h"
 #include "exec/exec-all.h"
 #include "hw/qdev-properties.h"
 #if !defined(CONFIG_USER_ONLY)
 #include "hw/loader.h"
 #endif
 #include "sysemu/sysemu.h"
+#include "sysemu/tcg.h"
 #include "sysemu/hw_accel.h"
 #include "kvm_arm.h"
 #include "disas/capstone.h"

@@ -14,6 +14,7 @@
 #include "qemu/osdep.h"
 #include "qapi/error.h"
 #include "sysemu/sysemu.h"
+#include "sysemu/tcg.h"
 #include "cpu.h"
 #include "elf.h"
 #include "hw/loader.h"

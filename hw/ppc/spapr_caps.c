@@ -21,6 +21,7 @@
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
  * THE SOFTWARE.
  */
+
 #include "qemu/osdep.h"
 #include "qemu/error-report.h"
 #include "qapi/error.h"
@@ -32,6 +33,7 @@
 #include "cpu-models.h"
 #include "kvm_ppc.h"
 #include "sysemu/qtest.h"
+#include "sysemu/tcg.h"
 
 #include "hw/ppc/spapr.h"
 

@@ -9,13 +9,13 @@
  */
 
 #include "qemu/osdep.h"
-#include "qemu-common.h"
 #include "cpu.h"
 #include "internal.h"
 #include "sysemu/hw_accel.h"
 #include "exec/address-spaces.h"
 #include "exec/exec-all.h"
 #include "sysemu/sysemu.h"
+#include "sysemu/tcg.h"
 #include "trace.h"
 #include "qapi/qapi-types-misc.h"
 
