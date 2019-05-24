@@ -28,6 +28,15 @@ static inline uint64_t zero_search(uint64_t a, uint64_t mask)
 }
 
 /*
+ * Returns a bit set in the MSB of each element that is not zero,
+ * as defined by the mask.
+ */
+static inline uint64_t nonzero_search(uint64_t a, uint64_t mask)
+{
+    return (((a & mask) + mask) | a) & ~mask;
+}
+
+/*
  * Returns the byte offset for the first match, or 16 for no match.
  */
 static inline int match_index(uint64_t c0, uint64_t c1)
@@ -209,3 +218,68 @@ void HELPER(gvec_vfee_cc##BITS)(void *v1, const void *v2, const void *v3,      \
 DEF_VFEE_CC_HELPER(8)
 DEF_VFEE_CC_HELPER(16)
 DEF_VFEE_CC_HELPER(32)
+
+static int vfene(void *v1, const void *v2, const void *v3, bool zs, uint8_t es)
+{
+    const uint64_t mask = get_element_lsbs_mask(es);
+    uint64_t a0, a1, b0, b1, e0, e1, z0, z1;
+    uint64_t first_zero = 16;
+    uint64_t first_inequal;
+    bool smaller = false;
+
+    a0 = s390_vec_read_element64(v2, 0);
+    a1 = s390_vec_read_element64(v2, 1);
+    b0 = s390_vec_read_element64(v3, 0);
+    b1 = s390_vec_read_element64(v3, 1);
+    e0 = nonzero_search(a0 ^ b0, mask);
+    e1 = nonzero_search(a1 ^ b1, mask);
+    first_inequal = match_index(e0, e1);
+
+    /* identify the smaller element */
+    if (first_inequal < 16) {
+        uint8_t enr = first_inequal / (1 << es);
+        uint32_t a = s390_vec_read_element(v2, enr, es);
+        uint32_t b = s390_vec_read_element(v3, enr, es);
+
+        smaller = a < b;
+    }
+
+    if (zs) {
+        z0 = zero_search(a0, mask);
+        z1 = zero_search(a1, mask);
+        first_zero = match_index(z0, z1);
+    }
+
+    s390_vec_write_element64(v1, 0, MIN(first_inequal, first_zero));
+    s390_vec_write_element64(v1, 1, 0);
+    if (first_zero == 16 && first_inequal == 16) {
+        return 3;
+    } else if (first_zero < first_inequal) {
+        return 0;
+    }
+    return smaller ? 1 : 2;
+}
+
+#define DEF_VFENE_HELPER(BITS)                                                 \
+void HELPER(gvec_vfene##BITS)(void *v1, const void *v2, const void *v3,        \
+                              uint32_t desc)                                   \
+{                                                                              \
+    const bool zs = extract32(simd_data(desc), 1, 1);                          \
+                                                                               \
+    vfene(v1, v2, v3, zs, MO_##BITS);                                          \
+}
+DEF_VFENE_HELPER(8)
+DEF_VFENE_HELPER(16)
+DEF_VFENE_HELPER(32)
+
+#define DEF_VFENE_CC_HELPER(BITS)                                              \
+void HELPER(gvec_vfene_cc##BITS)(void *v1, const void *v2, const void *v3,     \
+                                 CPUS390XState *env, uint32_t desc)            \
+{                                                                              \
+    const bool zs = extract32(simd_data(desc), 1, 1);                          \
+                                                                               \
+    env->cc_op = vfene(v1, v2, v3, zs, MO_##BITS);                             \
+}
+DEF_VFENE_CC_HELPER(8)
+DEF_VFENE_CC_HELPER(16)
+DEF_VFENE_CC_HELPER(32)
