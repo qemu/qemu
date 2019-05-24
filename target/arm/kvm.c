@@ -23,7 +23,6 @@
 #include "cpu.h"
 #include "trace.h"
 #include "internals.h"
-#include "hw/arm/arm.h"
 #include "hw/pci/pci.h"
 #include "exec/memattrs.h"
 #include "exec/address-spaces.h"

@@ -20,7 +20,6 @@
 #include "sysemu/kvm.h"
 #include "kvm_arm.h"
 #include "internals.h"
-#include "hw/arm/arm.h"
 #include "qemu/log.h"
 
 static inline void set_feature(uint64_t *features, int feature)

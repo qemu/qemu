@@ -29,7 +29,6 @@
 #else
 #include "qemu-common.h"
 #include "exec/gdbstub.h"
-#include "hw/arm/arm.h"
 #include "qemu/cutils.h"
 #endif
 

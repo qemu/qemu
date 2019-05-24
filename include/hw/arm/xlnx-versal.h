@@ -13,7 +13,7 @@
 #define XLNX_VERSAL_H
 
 #include "hw/sysbus.h"
-#include "hw/arm/arm.h"
+#include "hw/arm/boot.h"
 #include "hw/intc/arm_gicv3.h"
 
 #define TYPE_XLNX_VERSAL "xlnx-versal"

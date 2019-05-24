@@ -17,7 +17,7 @@
 #include "hw/sysbus.h"
 #include "hw/registerfields.h"
 #include "hw/arm/armsse.h"
-#include "hw/arm/arm.h"
+#include "hw/arm/boot.h"
 
 /* Format of the System Information block SYS_CONFIG register */
 typedef enum SysConfigFormat {
