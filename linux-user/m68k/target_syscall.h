@@ -26,6 +26,4 @@ struct target_pt_regs {
 
 #define TARGET_WANT_OLD_SYS_SELECT
 
-void do_m68k_simcall(CPUM68KState *, int);
-
 #endif /* M68K_TARGET_SYSCALL_H */
