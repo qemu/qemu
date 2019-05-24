@@ -6452,8 +6452,6 @@ echo "gcov              $gcov_tool"
 echo "gcov enabled      $gcov"
 echo "TPM support       $tpm"
 echo "libssh2 support   $libssh2"
-echo "TPM passthrough   $tpm_passthrough"
-echo "TPM emulator      $tpm_emulator"
 echo "QOM debugging     $qom_cast_debug"
 echo "Live block migration $live_block_migration"
 echo "lzo support       $lzo"
@@ -7158,14 +7156,6 @@ fi
 
 if test "$tpm" = "yes"; then
   echo 'CONFIG_TPM=$(CONFIG_SOFTMMU)' >> $config_host_mak
-  # TPM passthrough support?
-  if test "$tpm_passthrough" = "yes"; then
-    echo "CONFIG_TPM_PASSTHROUGH=y" >> $config_host_mak
-  fi
-  # TPM emulator support?
-  if test "$tpm_emulator" = "yes"; then
-    echo "CONFIG_TPM_EMULATOR=y" >> $config_host_mak
-  fi
 fi
 
 echo "TRACE_BACKENDS=$trace_backends" >> $config_host_mak
