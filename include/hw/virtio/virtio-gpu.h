@@ -19,6 +19,7 @@
 #include "ui/console.h"
 #include "hw/virtio/virtio.h"
 #include "qemu/log.h"
+#include "sysemu/vhost-user-backend.h"
 
 #include "standard-headers/linux/virtio_gpu.h"
 
@@ -33,6 +34,8 @@
 #define TYPE_VIRTIO_GPU "virtio-gpu-device"
 #define VIRTIO_GPU(obj)                                        \
         OBJECT_CHECK(VirtIOGPU, (obj), TYPE_VIRTIO_GPU)
+
+#define TYPE_VHOST_USER_GPU "vhost-user-gpu"
 
 #define VIRTIO_ID_GPU 16
 
@@ -157,13 +160,17 @@ typedef struct VirtIOGPU {
     } stats;
 } VirtIOGPU;
 
-extern const GraphicHwOps virtio_gpu_ops;
+typedef struct VhostUserGPU {
+    VirtIOGPUBase parent_obj;
 
-/* to share between PCI and VGA */
-#define DEFINE_VIRTIO_GPU_PCI_PROPERTIES(_state)               \
-    DEFINE_PROP_BIT("ioeventfd", _state, flags,                \
-                    VIRTIO_PCI_FLAG_USE_IOEVENTFD_BIT, false), \
-    DEFINE_PROP_UINT32("vectors", _state, nvectors, 3)
+    VhostUserBackend *vhost;
+    int vhost_gpu_fd; /* closed by the chardev */
+    CharBackend vhost_chr;
+    QemuDmaBuf dmabuf[VIRTIO_GPU_MAX_SCANOUTS];
+    bool backend_blocked;
+} VhostUserGPU;
+
+extern const GraphicHwOps virtio_gpu_ops;
 
 #define VIRTIO_GPU_FILL_CMD(out) do {                                   \
         size_t s;                                                       \

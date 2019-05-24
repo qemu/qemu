@@ -16,22 +16,7 @@
 #include "hw/pci/pci.h"
 #include "hw/virtio/virtio.h"
 #include "hw/virtio/virtio-bus.h"
-#include "hw/virtio/virtio-pci.h"
-#include "hw/virtio/virtio-gpu.h"
-
-typedef struct VirtIOGPUPCIBase VirtIOGPUPCIBase;
-
-/*
- * virtio-gpu-pci-base: This extends VirtioPCIProxy.
- */
-#define TYPE_VIRTIO_GPU_PCI_BASE "virtio-gpu-pci-base"
-#define VIRTIO_GPU_PCI_BASE(obj) \
-        OBJECT_CHECK(VirtIOGPUPCIBase, (obj), TYPE_VIRTIO_GPU_PCI_BASE)
-
-struct VirtIOGPUPCIBase {
-    VirtIOPCIProxy parent_obj;
-    VirtIOGPUBase *vgpu;
-};
+#include "hw/virtio/virtio-gpu-pci.h"
 
 static Property virtio_gpu_pci_base_properties[] = {
     DEFINE_VIRTIO_GPU_PCI_PROPERTIES(VirtIOPCIProxy),

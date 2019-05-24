@@ -1,7 +1,7 @@
 #ifndef VIRTIO_VGA_H_
 #define VIRTIO_VGA_H_
 
-#include "hw/virtio/virtio-pci.h"
+#include "hw/virtio/virtio-gpu-pci.h"
 #include "vga_int.h"
 
 /*

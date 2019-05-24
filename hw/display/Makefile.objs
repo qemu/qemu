@@ -44,8 +44,11 @@ obj-$(CONFIG_VGA) += vga.o
 common-obj-$(CONFIG_QXL) += qxl.o qxl-logger.o qxl-render.o
 
 obj-$(CONFIG_VIRTIO_GPU) += virtio-gpu-base.o virtio-gpu.o virtio-gpu-3d.o
+obj-$(CONFIG_VHOST_USER_GPU) += vhost-user-gpu.o
 obj-$(call land,$(CONFIG_VIRTIO_GPU),$(CONFIG_VIRTIO_PCI)) += virtio-gpu-pci.o
+obj-$(call land,$(CONFIG_VHOST_USER_GPU),$(CONFIG_VIRTIO_PCI)) += vhost-user-gpu-pci.o
 obj-$(CONFIG_VIRTIO_VGA) += virtio-vga.o
+obj-$(CONFIG_VHOST_USER_VGA) += vhost-user-vga.o
 virtio-gpu.o-cflags := $(VIRGL_CFLAGS)
 virtio-gpu.o-libs += $(VIRGL_LIBS)
 virtio-gpu-3d.o-cflags := $(VIRGL_CFLAGS)
