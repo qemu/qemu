@@ -1262,6 +1262,7 @@ rx-gdbsim
 M: Yoshinori Sato <ysato@users.sourceforge.jp>
 S: Maintained
 F: hw/rx/rx-gdbsim.c
+F: tests/acceptance/machine_rx_gdbsim.py
 
 SH4 Machines
 ------------
