@@ -24,6 +24,7 @@
 #include "qemu/osdep.h"
 #include "qapi/error.h"
 #include "qemu-common.h"
+#include "qemu/timer.h"
 #include "trace.h"
 #include "hw/usb.h"
 #include "desc.h"
@@ -41,6 +42,8 @@ typedef struct USBHubState {
     USBDevice dev;
     USBEndpoint *intr;
     uint32_t num_ports;
+    bool port_power;
+    QEMUTimer *port_timer;
     USBHubPort ports[MAX_PORTS];
 } USBHubState;
 
@@ -201,6 +204,20 @@ static bool usb_hub_port_update(USBHubPort *port)
         }
     }
     return notify;
+}
+
+static void usb_hub_port_update_timer(void *opaque)
+{
+    USBHubState *s = opaque;
+    bool notify = false;
+    int i;
+
+    for (i = 0; i < s->num_ports; i++) {
+        notify |= usb_hub_port_update(&s->ports[i]);
+    }
+    if (notify) {
+        usb_wakeup(s->intr, 0);
+    }
 }
 
 static void usb_hub_attach(USBPort *port1)
@@ -405,6 +422,11 @@ static void usb_hub_handle_control(USBDevice *dev, USBPacket *p,
                 usb_wakeup(s->intr, 0);
                 break;
             case PORT_POWER:
+                if (s->port_power) {
+                    int64_t now = qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL);
+                    usb_hub_port_set(port, PORT_STAT_POWER);
+                    timer_mod(s->port_timer, now + 5000000); /* 5 ms */
+                }
                 break;
             default:
                 goto fail;
@@ -445,6 +467,14 @@ static void usb_hub_handle_control(USBDevice *dev, USBPacket *p,
             case PORT_C_RESET:
                 port->wPortChange &= ~PORT_STAT_C_RESET;
                 break;
+            case PORT_POWER:
+                if (s->port_power) {
+                    usb_hub_port_clear(port, PORT_STAT_POWER);
+                    usb_hub_port_clear(port, PORT_STAT_CONNECTION);
+                    usb_hub_port_clear(port, PORT_STAT_ENABLE);
+                    usb_hub_port_clear(port, PORT_STAT_SUSPEND);
+                    port->wPortChange = 0;
+                }
             default:
                 goto fail;
             }
@@ -456,6 +486,11 @@ static void usb_hub_handle_control(USBDevice *dev, USBPacket *p,
             memcpy(data, qemu_hub_hub_descriptor,
                    sizeof(qemu_hub_hub_descriptor));
             data[2] = s->num_ports;
+
+            if (s->port_power) {
+                data[3] &= ~0x03;
+                data[3] |= 0x01;
+            }
 
             /* fill DeviceRemovable bits */
             limit = DIV_ROUND_UP(s->num_ports + 1, 8) + 7;
@@ -536,6 +571,9 @@ static void usb_hub_unrealize(USBDevice *dev, Error **errp)
         usb_unregister_port(usb_bus_from_device(dev),
                             &s->ports[i].port);
     }
+
+    timer_del(s->port_timer);
+    timer_free(s->port_timer);
 }
 
 static USBPortOps usb_hub_port_ops = {
@@ -565,6 +603,8 @@ static void usb_hub_realize(USBDevice *dev, Error **errp)
 
     usb_desc_create_serial(dev);
     usb_desc_init(dev);
+    s->port_timer = timer_new_ns(QEMU_CLOCK_VIRTUAL,
+                                 usb_hub_port_update_timer, s);
     s->intr = usb_ep_get(dev, USB_TOKEN_IN, 1);
     for (i = 0; i < s->num_ports; i++) {
         port = &s->ports[i];
@@ -587,6 +627,24 @@ static const VMStateDescription vmstate_usb_hub_port = {
     }
 };
 
+static bool usb_hub_port_timer_needed(void *opaque)
+{
+    USBHubState *s = opaque;
+
+    return s->port_power;
+}
+
+static const VMStateDescription vmstate_usb_hub_port_timer = {
+    .name = "usb-hub/port-timer",
+    .version_id = 1,
+    .minimum_version_id = 1,
+    .needed = usb_hub_port_timer_needed,
+    .fields = (VMStateField[]) {
+        VMSTATE_TIMER_PTR(port_timer, USBHubState),
+        VMSTATE_END_OF_LIST()
+    },
+};
+
 static const VMStateDescription vmstate_usb_hub = {
     .name = "usb-hub",
     .version_id = 1,
@@ -596,11 +654,16 @@ static const VMStateDescription vmstate_usb_hub = {
         VMSTATE_STRUCT_ARRAY(ports, USBHubState, MAX_PORTS, 0,
                              vmstate_usb_hub_port, USBHubPort),
         VMSTATE_END_OF_LIST()
+    },
+    .subsections = (const VMStateDescription * []) {
+        &vmstate_usb_hub_port_timer,
+        NULL
     }
 };
 
 static Property usb_hub_properties[] = {
     DEFINE_PROP_UINT32("ports", USBHubState, num_ports, 8),
+    DEFINE_PROP_BOOL("port-power", USBHubState, port_power, false),
     DEFINE_PROP_END_OF_LIST(),
 };
 
