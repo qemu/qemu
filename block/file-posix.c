@@ -2752,7 +2752,11 @@ static QemuOptsList raw_create_opts = {
         {
             .name = BLOCK_OPT_PREALLOC,
             .type = QEMU_OPT_STRING,
-            .help = "Preallocation mode (allowed values: off, falloc, full)"
+            .help = "Preallocation mode (allowed values: off"
+#ifdef CONFIG_POSIX_FALLOCATE
+                    ", falloc"
+#endif
+                    ", full)"
         },
         { /* end of list */ }
     }
