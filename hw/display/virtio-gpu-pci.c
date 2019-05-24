@@ -41,7 +41,7 @@ static Property virtio_gpu_pci_properties[] = {
 static void virtio_gpu_pci_realize(VirtIOPCIProxy *vpci_dev, Error **errp)
 {
     VirtIOGPUPCI *vgpu = VIRTIO_GPU_PCI(vpci_dev);
-    VirtIOGPU *g = &vgpu->vdev;
+    VirtIOGPUBase *g = VIRTIO_GPU_BASE(&vgpu->vdev);
     DeviceState *vdev = DEVICE(&vgpu->vdev);
     int i;
     Error *local_error = NULL;
