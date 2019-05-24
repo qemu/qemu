@@ -152,3 +152,60 @@ void HELPER(gvec_vfae_cc##BITS)(void *v1, const void *v2, const void *v3,      \
 DEF_VFAE_CC_HELPER(8)
 DEF_VFAE_CC_HELPER(16)
 DEF_VFAE_CC_HELPER(32)
+
+static int vfee(void *v1, const void *v2, const void *v3, bool zs, uint8_t es)
+{
+    const uint64_t mask = get_element_lsbs_mask(es);
+    uint64_t a0, a1, b0, b1, e0, e1, z0, z1;
+    uint64_t first_zero = 16;
+    uint64_t first_equal;
+
+    a0 = s390_vec_read_element64(v2, 0);
+    a1 = s390_vec_read_element64(v2, 1);
+    b0 = s390_vec_read_element64(v3, 0);
+    b1 = s390_vec_read_element64(v3, 1);
+    e0 = zero_search(a0 ^ b0, mask);
+    e1 = zero_search(a1 ^ b1, mask);
+    first_equal = match_index(e0, e1);
+
+    if (zs) {
+        z0 = zero_search(a0, mask);
+        z1 = zero_search(a1, mask);
+        first_zero = match_index(z0, z1);
+    }
+
+    s390_vec_write_element64(v1, 0, MIN(first_equal, first_zero));
+    s390_vec_write_element64(v1, 1, 0);
+    if (first_zero == 16 && first_equal == 16) {
+        return 3; /* no match */
+    } else if (first_zero == 16) {
+        return 1; /* matching elements, no match for zero */
+    } else if (first_equal < first_zero) {
+        return 2; /* matching elements before match for zero */
+    }
+    return 0; /* match for zero */
+}
+
+#define DEF_VFEE_HELPER(BITS)                                                  \
+void HELPER(gvec_vfee##BITS)(void *v1, const void *v2, const void *v3,         \
+                             uint32_t desc)                                    \
+{                                                                              \
+    const bool zs = extract32(simd_data(desc), 1, 1);                          \
+                                                                               \
+    vfee(v1, v2, v3, zs, MO_##BITS);                                           \
+}
+DEF_VFEE_HELPER(8)
+DEF_VFEE_HELPER(16)
+DEF_VFEE_HELPER(32)
+
+#define DEF_VFEE_CC_HELPER(BITS)                                               \
+void HELPER(gvec_vfee_cc##BITS)(void *v1, const void *v2, const void *v3,      \
+                                CPUS390XState *env, uint32_t desc)             \
+{                                                                              \
+    const bool zs = extract32(simd_data(desc), 1, 1);                          \
+                                                                               \
+    env->cc_op = vfee(v1, v2, v3, zs, MO_##BITS);                              \
+}
+DEF_VFEE_CC_HELPER(8)
+DEF_VFEE_CC_HELPER(16)
+DEF_VFEE_CC_HELPER(32)
