@@ -29,7 +29,7 @@
 #include "desc.h"
 #include "qemu/error-report.h"
 
-#define NUM_PORTS 8
+#define MAX_PORTS 8
 
 typedef struct USBHubPort {
     USBPort port;
@@ -40,7 +40,8 @@ typedef struct USBHubPort {
 typedef struct USBHubState {
     USBDevice dev;
     USBEndpoint *intr;
-    USBHubPort ports[NUM_PORTS];
+    uint32_t num_ports;
+    USBHubPort ports[MAX_PORTS];
 } USBHubState;
 
 #define TYPE_USB_HUB "usb-hub"
@@ -109,7 +110,7 @@ static const USBDescIface desc_iface_hub = {
         {
             .bEndpointAddress      = USB_DIR_IN | 0x01,
             .bmAttributes          = USB_ENDPOINT_XFER_INT,
-            .wMaxPacketSize        = 1 + DIV_ROUND_UP(NUM_PORTS, 8),
+            .wMaxPacketSize        = 1 + DIV_ROUND_UP(MAX_PORTS, 8),
             .bInterval             = 0xff,
         },
     }
@@ -242,7 +243,7 @@ static USBDevice *usb_hub_find_device(USBDevice *dev, uint8_t addr)
     USBDevice *downstream;
     int i;
 
-    for (i = 0; i < NUM_PORTS; i++) {
+    for (i = 0; i < s->num_ports; i++) {
         port = &s->ports[i];
         if (!(port->wPortStatus & PORT_STAT_ENABLE)) {
             continue;
@@ -262,7 +263,7 @@ static void usb_hub_handle_reset(USBDevice *dev)
     int i;
 
     trace_usb_hub_reset(s->dev.addr);
-    for (i = 0; i < NUM_PORTS; i++) {
+    for (i = 0; i < s->num_ports; i++) {
         port = s->ports + i;
         port->wPortStatus = PORT_STAT_POWER;
         port->wPortChange = 0;
@@ -332,7 +333,7 @@ static void usb_hub_handle_control(USBDevice *dev, USBPacket *p,
         {
             unsigned int n = index - 1;
             USBHubPort *port;
-            if (n >= NUM_PORTS) {
+            if (n >= s->num_ports) {
                 goto fail;
             }
             port = &s->ports[n];
@@ -361,7 +362,7 @@ static void usb_hub_handle_control(USBDevice *dev, USBPacket *p,
             trace_usb_hub_set_port_feature(s->dev.addr, index,
                                            feature_name(value));
 
-            if (n >= NUM_PORTS) {
+            if (n >= s->num_ports) {
                 goto fail;
             }
             port = &s->ports[n];
@@ -394,7 +395,7 @@ static void usb_hub_handle_control(USBDevice *dev, USBPacket *p,
             trace_usb_hub_clear_port_feature(s->dev.addr, index,
                                              feature_name(value));
 
-            if (n >= NUM_PORTS) {
+            if (n >= s->num_ports) {
                 goto fail;
             }
             port = &s->ports[n];
@@ -443,17 +444,17 @@ static void usb_hub_handle_control(USBDevice *dev, USBPacket *p,
             unsigned int n, limit, var_hub_size = 0;
             memcpy(data, qemu_hub_hub_descriptor,
                    sizeof(qemu_hub_hub_descriptor));
-            data[2] = NUM_PORTS;
+            data[2] = s->num_ports;
 
             /* fill DeviceRemovable bits */
-            limit = DIV_ROUND_UP(NUM_PORTS + 1, 8) + 7;
+            limit = DIV_ROUND_UP(s->num_ports + 1, 8) + 7;
             for (n = 7; n < limit; n++) {
                 data[n] = 0x00;
                 var_hub_size++;
             }
 
             /* fill PortPwrCtrlMask bits */
-            limit = limit + DIV_ROUND_UP(NUM_PORTS, 8);
+            limit = limit + DIV_ROUND_UP(s->num_ports, 8);
             for (;n < limit; n++) {
                 data[n] = 0xff;
                 var_hub_size++;
@@ -481,7 +482,7 @@ static void usb_hub_handle_data(USBDevice *dev, USBPacket *p)
             unsigned int status;
             uint8_t buf[4];
             int i, n;
-            n = DIV_ROUND_UP(NUM_PORTS + 1, 8);
+            n = DIV_ROUND_UP(s->num_ports + 1, 8);
             if (p->iov.size == 1) { /* FreeBSD workaround */
                 n = 1;
             } else if (n > p->iov.size) {
@@ -489,7 +490,7 @@ static void usb_hub_handle_data(USBDevice *dev, USBPacket *p)
                 return;
             }
             status = 0;
-            for(i = 0; i < NUM_PORTS; i++) {
+            for (i = 0; i < s->num_ports; i++) {
                 port = &s->ports[i];
                 if (port->wPortChange)
                     status |= (1 << (i + 1));
@@ -520,7 +521,7 @@ static void usb_hub_unrealize(USBDevice *dev, Error **errp)
     USBHubState *s = (USBHubState *)dev;
     int i;
 
-    for (i = 0; i < NUM_PORTS; i++) {
+    for (i = 0; i < s->num_ports; i++) {
         usb_unregister_port(usb_bus_from_device(dev),
                             &s->ports[i].port);
     }
@@ -540,6 +541,12 @@ static void usb_hub_realize(USBDevice *dev, Error **errp)
     USBHubPort *port;
     int i;
 
+    if (s->num_ports < 1 || s->num_ports > MAX_PORTS) {
+        error_setg(errp, "num_ports (%d) out of range (1..%d)",
+                   s->num_ports, MAX_PORTS);
+        return;
+    }
+
     if (dev->port->hubcount == 5) {
         error_setg(errp, "usb hub chain too deep");
         return;
@@ -548,7 +555,7 @@ static void usb_hub_realize(USBDevice *dev, Error **errp)
     usb_desc_create_serial(dev);
     usb_desc_init(dev);
     s->intr = usb_ep_get(dev, USB_TOKEN_IN, 1);
-    for (i = 0; i < NUM_PORTS; i++) {
+    for (i = 0; i < s->num_ports; i++) {
         port = &s->ports[i];
         usb_register_port(usb_bus_from_device(dev),
                           &port->port, s, i, &usb_hub_port_ops,
@@ -575,10 +582,15 @@ static const VMStateDescription vmstate_usb_hub = {
     .minimum_version_id = 1,
     .fields = (VMStateField[]) {
         VMSTATE_USB_DEVICE(dev, USBHubState),
-        VMSTATE_STRUCT_ARRAY(ports, USBHubState, NUM_PORTS, 0,
+        VMSTATE_STRUCT_ARRAY(ports, USBHubState, MAX_PORTS, 0,
                              vmstate_usb_hub_port, USBHubPort),
         VMSTATE_END_OF_LIST()
     }
+};
+
+static Property usb_hub_properties[] = {
+    DEFINE_PROP_UINT32("ports", USBHubState, num_ports, 8),
+    DEFINE_PROP_END_OF_LIST(),
 };
 
 static void usb_hub_class_initfn(ObjectClass *klass, void *data)
@@ -597,6 +609,7 @@ static void usb_hub_class_initfn(ObjectClass *klass, void *data)
     set_bit(DEVICE_CATEGORY_BRIDGE, dc->categories);
     dc->fw_name = "hub";
     dc->vmsd = &vmstate_usb_hub;
+    dc->props = usb_hub_properties;
 }
 
 static const TypeInfo hub_info = {
