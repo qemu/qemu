@@ -1673,7 +1673,7 @@ virtio-gpu
 M: Gerd Hoffmann <kraxel@redhat.com>
 S: Maintained
 F: hw/display/virtio-gpu*
-F: hw/display/virtio-vga.c
+F: hw/display/virtio-vga.*
 F: include/hw/virtio/virtio-gpu.h
 
 vhost-user-gpu
