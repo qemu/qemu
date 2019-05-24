@@ -1491,6 +1491,7 @@ NBDExport *nbd_export_new(BlockDriverState *bs, uint64_t dev_offset,
         goto fail;
     }
     blk_set_enable_write_cache(blk, !writethrough);
+    blk_set_allow_aio_context_change(blk, true);
 
     exp->refcount = 1;
     QTAILQ_INIT(&exp->clients);

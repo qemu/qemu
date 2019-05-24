@@ -51,4 +51,17 @@ QMP_VERSION
 {"return": {}}
 {"return": {}}
 {"return": {}}
+
+=== Attach a SCSI disks using the same block device as a NBD server ===
+
+Testing:
+QMP_VERSION
+{"return": {}}
+{"return": {}}
+{"return": {}}
+{"return": {}}
+{"return": {}}
+{"return": {}}
+{"return": {}}
+{"return": {}}
 *** done
