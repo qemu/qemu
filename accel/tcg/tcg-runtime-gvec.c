@@ -1444,3 +1444,17 @@ void HELPER(gvec_umax64)(void *d, void *a, void *b, uint32_t desc)
     }
     clear_high(d, oprsz, desc);
 }
+
+void HELPER(gvec_bitsel)(void *d, void *a, void *b, void *c, uint32_t desc)
+{
+    intptr_t oprsz = simd_oprsz(desc);
+    intptr_t i;
+
+    for (i = 0; i < oprsz; i += sizeof(vec64)) {
+        vec64 aa = *(vec64 *)(a + i);
+        vec64 bb = *(vec64 *)(b + i);
+        vec64 cc = *(vec64 *)(c + i);
+        *(vec64 *)(d + i) = (bb & aa) | (cc & ~aa);
+    }
+    clear_high(d, oprsz, desc);
+}

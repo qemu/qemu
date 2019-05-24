@@ -119,6 +119,8 @@ static inline bool patch_reloc(tcg_insn_unit *code_ptr, int type,
 #define TCG_CT_CONST_LIMM 0x200
 #define TCG_CT_CONST_ZERO 0x400
 #define TCG_CT_CONST_MONE 0x800
+#define TCG_CT_CONST_ORRI 0x1000
+#define TCG_CT_CONST_ANDI 0x2000
 
 /* parse target specific constraints */
 static const char *target_parse_constraint(TCGArgConstraint *ct,
@@ -153,6 +155,12 @@ static const char *target_parse_constraint(TCGArgConstraint *ct,
         break;
     case 'M': /* minus one */
         ct->ct |= TCG_CT_CONST_MONE;
+        break;
+    case 'O': /* vector orr/bic immediate */
+        ct->ct |= TCG_CT_CONST_ORRI;
+        break;
+    case 'N': /* vector orr/bic immediate, inverted */
+        ct->ct |= TCG_CT_CONST_ANDI;
         break;
     case 'Z': /* zero */
         ct->ct |= TCG_CT_CONST_ZERO;
@@ -190,104 +198,117 @@ static inline bool is_limm(uint64_t val)
     return (val & (val - 1)) == 0;
 }
 
-/* Match a constant that is valid for vectors.  */
-static bool is_fimm(uint64_t v64, int *op, int *cmode, int *imm8)
+/* Return true if v16 is a valid 16-bit shifted immediate.  */
+static bool is_shimm16(uint16_t v16, int *cmode, int *imm8)
 {
-    int i;
-
-    *op = 0;
-    /* Match replication across 8 bits.  */
-    if (v64 == dup_const(MO_8, v64)) {
-        *cmode = 0xe;
-        *imm8 = v64 & 0xff;
+    if (v16 == (v16 & 0xff)) {
+        *cmode = 0x8;
+        *imm8 = v16 & 0xff;
+        return true;
+    } else if (v16 == (v16 & 0xff00)) {
+        *cmode = 0xa;
+        *imm8 = v16 >> 8;
         return true;
     }
-    /* Match replication across 16 bits.  */
-    if (v64 == dup_const(MO_16, v64)) {
-        uint16_t v16 = v64;
+    return false;
+}
 
-        if (v16 == (v16 & 0xff)) {
-            *cmode = 0x8;
-            *imm8 = v16 & 0xff;
-            return true;
-        } else if (v16 == (v16 & 0xff00)) {
-            *cmode = 0xa;
-            *imm8 = v16 >> 8;
-            return true;
-        }
+/* Return true if v32 is a valid 32-bit shifted immediate.  */
+static bool is_shimm32(uint32_t v32, int *cmode, int *imm8)
+{
+    if (v32 == (v32 & 0xff)) {
+        *cmode = 0x0;
+        *imm8 = v32 & 0xff;
+        return true;
+    } else if (v32 == (v32 & 0xff00)) {
+        *cmode = 0x2;
+        *imm8 = (v32 >> 8) & 0xff;
+        return true;
+    } else if (v32 == (v32 & 0xff0000)) {
+        *cmode = 0x4;
+        *imm8 = (v32 >> 16) & 0xff;
+        return true;
+    } else if (v32 == (v32 & 0xff000000)) {
+        *cmode = 0x6;
+        *imm8 = v32 >> 24;
+        return true;
     }
-    /* Match replication across 32 bits.  */
-    if (v64 == dup_const(MO_32, v64)) {
-        uint32_t v32 = v64;
+    return false;
+}
 
-        if (v32 == (v32 & 0xff)) {
-            *cmode = 0x0;
-            *imm8 = v32 & 0xff;
-            return true;
-        } else if (v32 == (v32 & 0xff00)) {
-            *cmode = 0x2;
-            *imm8 = (v32 >> 8) & 0xff;
-            return true;
-        } else if (v32 == (v32 & 0xff0000)) {
-            *cmode = 0x4;
-            *imm8 = (v32 >> 16) & 0xff;
-            return true;
-        } else if (v32 == (v32 & 0xff000000)) {
-            *cmode = 0x6;
-            *imm8 = v32 >> 24;
-            return true;
-        } else if ((v32 & 0xffff00ff) == 0xff) {
-            *cmode = 0xc;
-            *imm8 = (v32 >> 8) & 0xff;
-            return true;
-        } else if ((v32 & 0xff00ffff) == 0xffff) {
-            *cmode = 0xd;
-            *imm8 = (v32 >> 16) & 0xff;
-            return true;
-        }
-        /* Match forms of a float32.  */
-        if (extract32(v32, 0, 19) == 0
-            && (extract32(v32, 25, 6) == 0x20
-                || extract32(v32, 25, 6) == 0x1f)) {
-            *cmode = 0xf;
-            *imm8 = (extract32(v32, 31, 1) << 7)
-                  | (extract32(v32, 25, 1) << 6)
-                  | extract32(v32, 19, 6);
-            return true;
-        }
+/* Return true if v32 is a valid 32-bit shifting ones immediate.  */
+static bool is_soimm32(uint32_t v32, int *cmode, int *imm8)
+{
+    if ((v32 & 0xffff00ff) == 0xff) {
+        *cmode = 0xc;
+        *imm8 = (v32 >> 8) & 0xff;
+        return true;
+    } else if ((v32 & 0xff00ffff) == 0xffff) {
+        *cmode = 0xd;
+        *imm8 = (v32 >> 16) & 0xff;
+        return true;
     }
-    /* Match forms of a float64.  */
+    return false;
+}
+
+/* Return true if v32 is a valid float32 immediate.  */
+static bool is_fimm32(uint32_t v32, int *cmode, int *imm8)
+{
+    if (extract32(v32, 0, 19) == 0
+        && (extract32(v32, 25, 6) == 0x20
+            || extract32(v32, 25, 6) == 0x1f)) {
+        *cmode = 0xf;
+        *imm8 = (extract32(v32, 31, 1) << 7)
+              | (extract32(v32, 25, 1) << 6)
+              | extract32(v32, 19, 6);
+        return true;
+    }
+    return false;
+}
+
+/* Return true if v64 is a valid float64 immediate.  */
+static bool is_fimm64(uint64_t v64, int *cmode, int *imm8)
+{
     if (extract64(v64, 0, 48) == 0
         && (extract64(v64, 54, 9) == 0x100
             || extract64(v64, 54, 9) == 0x0ff)) {
         *cmode = 0xf;
-        *op = 1;
         *imm8 = (extract64(v64, 63, 1) << 7)
               | (extract64(v64, 54, 1) << 6)
               | extract64(v64, 48, 6);
         return true;
     }
-    /* Match bytes of 0x00 and 0xff.  */
-    for (i = 0; i < 64; i += 8) {
-        uint64_t byte = extract64(v64, i, 8);
-        if (byte != 0 && byte != 0xff) {
+    return false;
+}
+
+/*
+ * Return non-zero if v32 can be formed by MOVI+ORR.
+ * Place the parameters for MOVI in (cmode, imm8).
+ * Return the cmode for ORR; the imm8 can be had via extraction from v32.
+ */
+static int is_shimm32_pair(uint32_t v32, int *cmode, int *imm8)
+{
+    int i;
+
+    for (i = 6; i > 0; i -= 2) {
+        /* Mask out one byte we can add with ORR.  */
+        uint32_t tmp = v32 & ~(0xffu << (i * 4));
+        if (is_shimm32(tmp, cmode, imm8) ||
+            is_soimm32(tmp, cmode, imm8)) {
             break;
         }
     }
-    if (i == 64) {
-        *cmode = 0xe;
-        *op = 1;
-        *imm8 = (extract64(v64, 0, 1) << 0)
-              | (extract64(v64, 8, 1) << 1)
-              | (extract64(v64, 16, 1) << 2)
-              | (extract64(v64, 24, 1) << 3)
-              | (extract64(v64, 32, 1) << 4)
-              | (extract64(v64, 40, 1) << 5)
-              | (extract64(v64, 48, 1) << 6)
-              | (extract64(v64, 56, 1) << 7);
-        return true;
+    return i;
+}
+
+/* Return true if V is a valid 16-bit or 32-bit shifted immediate.  */
+static bool is_shimm1632(uint32_t v32, int *cmode, int *imm8)
+{
+    if (v32 == deposit32(v32, 16, 16, v32)) {
+        return is_shimm16(v32, cmode, imm8);
+    } else {
+        return is_shimm32(v32, cmode, imm8);
     }
-    return false;
 }
 
 static int tcg_target_const_match(tcg_target_long val, TCGType type,
@@ -312,6 +333,23 @@ static int tcg_target_const_match(tcg_target_long val, TCGType type,
     }
     if ((ct & TCG_CT_CONST_MONE) && val == -1) {
         return 1;
+    }
+
+    switch (ct & (TCG_CT_CONST_ORRI | TCG_CT_CONST_ANDI)) {
+    case 0:
+        break;
+    case TCG_CT_CONST_ANDI:
+        val = ~val;
+        /* fallthru */
+    case TCG_CT_CONST_ORRI:
+        if (val == deposit64(val, 32, 32, val)) {
+            int cmode, imm8;
+            return is_shimm1632(val, &cmode, &imm8);
+        }
+        break;
+    default:
+        /* Both bits should not be set for the same insn.  */
+        g_assert_not_reached();
     }
 
     return 0;
@@ -511,6 +549,9 @@ typedef enum {
 
     /* AdvSIMD modified immediate */
     I3606_MOVI      = 0x0f000400,
+    I3606_MVNI      = 0x2f000400,
+    I3606_BIC       = 0x2f001400,
+    I3606_ORR       = 0x0f001400,
 
     /* AdvSIMD shift by immediate */
     I3614_SSHR      = 0x0f000400,
@@ -523,6 +564,9 @@ typedef enum {
     I3616_ADD       = 0x0e208400,
     I3616_AND       = 0x0e201c00,
     I3616_BIC       = 0x0e601c00,
+    I3616_BIF       = 0x2ee01c00,
+    I3616_BIT       = 0x2ea01c00,
+    I3616_BSL       = 0x2e601c00,
     I3616_EOR       = 0x2e201c00,
     I3616_MUL       = 0x0e209c00,
     I3616_ORR       = 0x0ea01c00,
@@ -814,11 +858,98 @@ static void tcg_out_logicali(TCGContext *s, AArch64Insn insn, TCGType ext,
 static void tcg_out_dupi_vec(TCGContext *s, TCGType type,
                              TCGReg rd, tcg_target_long v64)
 {
-    int op, cmode, imm8;
+    bool q = type == TCG_TYPE_V128;
+    int cmode, imm8, i;
 
-    if (is_fimm(v64, &op, &cmode, &imm8)) {
-        tcg_out_insn(s, 3606, MOVI, type == TCG_TYPE_V128, rd, op, cmode, imm8);
-    } else if (type == TCG_TYPE_V128) {
+    /* Test all bytes equal first.  */
+    if (v64 == dup_const(MO_8, v64)) {
+        imm8 = (uint8_t)v64;
+        tcg_out_insn(s, 3606, MOVI, q, rd, 0, 0xe, imm8);
+        return;
+    }
+
+    /*
+     * Test all bytes 0x00 or 0xff second.  This can match cases that
+     * might otherwise take 2 or 3 insns for MO_16 or MO_32 below.
+     */
+    for (i = imm8 = 0; i < 8; i++) {
+        uint8_t byte = v64 >> (i * 8);
+        if (byte == 0xff) {
+            imm8 |= 1 << i;
+        } else if (byte != 0) {
+            goto fail_bytes;
+        }
+    }
+    tcg_out_insn(s, 3606, MOVI, q, rd, 1, 0xe, imm8);
+    return;
+ fail_bytes:
+
+    /*
+     * Tests for various replications.  For each element width, if we
+     * cannot find an expansion there's no point checking a larger
+     * width because we already know by replication it cannot match.
+     */
+    if (v64 == dup_const(MO_16, v64)) {
+        uint16_t v16 = v64;
+
+        if (is_shimm16(v16, &cmode, &imm8)) {
+            tcg_out_insn(s, 3606, MOVI, q, rd, 0, cmode, imm8);
+            return;
+        }
+        if (is_shimm16(~v16, &cmode, &imm8)) {
+            tcg_out_insn(s, 3606, MVNI, q, rd, 0, cmode, imm8);
+            return;
+        }
+
+        /*
+         * Otherwise, all remaining constants can be loaded in two insns:
+         * rd = v16 & 0xff, rd |= v16 & 0xff00.
+         */
+        tcg_out_insn(s, 3606, MOVI, q, rd, 0, 0x8, v16 & 0xff);
+        tcg_out_insn(s, 3606, ORR, q, rd, 0, 0xa, v16 >> 8);
+        return;
+    } else if (v64 == dup_const(MO_32, v64)) {
+        uint32_t v32 = v64;
+        uint32_t n32 = ~v32;
+
+        if (is_shimm32(v32, &cmode, &imm8) ||
+            is_soimm32(v32, &cmode, &imm8) ||
+            is_fimm32(v32, &cmode, &imm8)) {
+            tcg_out_insn(s, 3606, MOVI, q, rd, 0, cmode, imm8);
+            return;
+        }
+        if (is_shimm32(n32, &cmode, &imm8) ||
+            is_soimm32(n32, &cmode, &imm8)) {
+            tcg_out_insn(s, 3606, MVNI, q, rd, 0, cmode, imm8);
+            return;
+        }
+
+        /*
+         * Restrict the set of constants to those we can load with
+         * two instructions.  Others we load from the pool.
+         */
+        i = is_shimm32_pair(v32, &cmode, &imm8);
+        if (i) {
+            tcg_out_insn(s, 3606, MOVI, q, rd, 0, cmode, imm8);
+            tcg_out_insn(s, 3606, ORR, q, rd, 0, i, extract32(v32, i * 4, 8));
+            return;
+        }
+        i = is_shimm32_pair(n32, &cmode, &imm8);
+        if (i) {
+            tcg_out_insn(s, 3606, MVNI, q, rd, 0, cmode, imm8);
+            tcg_out_insn(s, 3606, BIC, q, rd, 0, i, extract32(n32, i * 4, 8));
+            return;
+        }
+    } else if (is_fimm64(v64, &cmode, &imm8)) {
+        tcg_out_insn(s, 3606, MOVI, q, rd, 1, cmode, imm8);
+        return;
+    }
+
+    /*
+     * As a last resort, load from the constant pool.  Sadly there
+     * is no LD1R (literal), so store the full 16-byte vector.
+     */
+    if (type == TCG_TYPE_V128) {
         new_pool_l2(s, R_AARCH64_CONDBR19, s->code_ptr, 0, v64, v64);
         tcg_out_insn(s, 3305, LDR_v128, 0, rd);
     } else {
@@ -2181,7 +2312,8 @@ static void tcg_out_vec_op(TCGContext *s, TCGOpcode opc,
 
     TCGType type = vecl + TCG_TYPE_V64;
     unsigned is_q = vecl;
-    TCGArg a0, a1, a2;
+    TCGArg a0, a1, a2, a3;
+    int cmode, imm8;
 
     a0 = args[0];
     a1 = args[1];
@@ -2213,19 +2345,55 @@ static void tcg_out_vec_op(TCGContext *s, TCGOpcode opc,
         tcg_out_insn(s, 3617, ABS, is_q, vece, a0, a1);
         break;
     case INDEX_op_and_vec:
+        if (const_args[2]) {
+            is_shimm1632(~a2, &cmode, &imm8);
+            if (a0 == a1) {
+                tcg_out_insn(s, 3606, BIC, is_q, a0, 0, cmode, imm8);
+                return;
+            }
+            tcg_out_insn(s, 3606, MVNI, is_q, a0, 0, cmode, imm8);
+            a2 = a0;
+        }
         tcg_out_insn(s, 3616, AND, is_q, 0, a0, a1, a2);
         break;
     case INDEX_op_or_vec:
+        if (const_args[2]) {
+            is_shimm1632(a2, &cmode, &imm8);
+            if (a0 == a1) {
+                tcg_out_insn(s, 3606, ORR, is_q, a0, 0, cmode, imm8);
+                return;
+            }
+            tcg_out_insn(s, 3606, MOVI, is_q, a0, 0, cmode, imm8);
+            a2 = a0;
+        }
         tcg_out_insn(s, 3616, ORR, is_q, 0, a0, a1, a2);
         break;
-    case INDEX_op_xor_vec:
-        tcg_out_insn(s, 3616, EOR, is_q, 0, a0, a1, a2);
-        break;
     case INDEX_op_andc_vec:
+        if (const_args[2]) {
+            is_shimm1632(a2, &cmode, &imm8);
+            if (a0 == a1) {
+                tcg_out_insn(s, 3606, BIC, is_q, a0, 0, cmode, imm8);
+                return;
+            }
+            tcg_out_insn(s, 3606, MOVI, is_q, a0, 0, cmode, imm8);
+            a2 = a0;
+        }
         tcg_out_insn(s, 3616, BIC, is_q, 0, a0, a1, a2);
         break;
     case INDEX_op_orc_vec:
+        if (const_args[2]) {
+            is_shimm1632(~a2, &cmode, &imm8);
+            if (a0 == a1) {
+                tcg_out_insn(s, 3606, ORR, is_q, a0, 0, cmode, imm8);
+                return;
+            }
+            tcg_out_insn(s, 3606, MVNI, is_q, a0, 0, cmode, imm8);
+            a2 = a0;
+        }
         tcg_out_insn(s, 3616, ORN, is_q, 0, a0, a1, a2);
+        break;
+    case INDEX_op_xor_vec:
+        tcg_out_insn(s, 3616, EOR, is_q, 0, a0, a1, a2);
         break;
     case INDEX_op_ssadd_vec:
         tcg_out_insn(s, 3616, SQADD, is_q, vece, a0, a1, a2);
@@ -2304,6 +2472,20 @@ static void tcg_out_vec_op(TCGContext *s, TCGOpcode opc,
         }
         break;
 
+    case INDEX_op_bitsel_vec:
+        a3 = args[3];
+        if (a0 == a3) {
+            tcg_out_insn(s, 3616, BIT, is_q, 0, a0, a2, a1);
+        } else if (a0 == a2) {
+            tcg_out_insn(s, 3616, BIF, is_q, 0, a0, a3, a1);
+        } else {
+            if (a0 != a1) {
+                tcg_out_mov(s, type, a0, a1);
+            }
+            tcg_out_insn(s, 3616, BSL, is_q, 0, a0, a2, a3);
+        }
+        break;
+
     case INDEX_op_mov_vec:  /* Always emitted via tcg_out_mov.  */
     case INDEX_op_dupi_vec: /* Always emitted via tcg_out_movi.  */
     case INDEX_op_dup_vec:  /* Always emitted via tcg_out_dup_vec.  */
@@ -2334,6 +2516,7 @@ int tcg_can_emit_vec_op(TCGOpcode opc, TCGType type, unsigned vece)
     case INDEX_op_usadd_vec:
     case INDEX_op_ussub_vec:
     case INDEX_op_shlv_vec:
+    case INDEX_op_bitsel_vec:
         return 1;
     case INDEX_op_shrv_vec:
     case INDEX_op_sarv_vec:
@@ -2394,6 +2577,8 @@ static const TCGTargetOpDef *tcg_target_op_def(TCGOpcode op)
     static const TCGTargetOpDef lZ_l = { .args_ct_str = { "lZ", "l" } };
     static const TCGTargetOpDef r_r_r = { .args_ct_str = { "r", "r", "r" } };
     static const TCGTargetOpDef w_w_w = { .args_ct_str = { "w", "w", "w" } };
+    static const TCGTargetOpDef w_w_wO = { .args_ct_str = { "w", "w", "wO" } };
+    static const TCGTargetOpDef w_w_wN = { .args_ct_str = { "w", "w", "wN" } };
     static const TCGTargetOpDef w_w_wZ = { .args_ct_str = { "w", "w", "wZ" } };
     static const TCGTargetOpDef r_r_ri = { .args_ct_str = { "r", "r", "ri" } };
     static const TCGTargetOpDef r_r_rA = { .args_ct_str = { "r", "r", "rA" } };
@@ -2408,6 +2593,8 @@ static const TCGTargetOpDef *tcg_target_op_def(TCGOpcode op)
         = { .args_ct_str = { "r", "r", "rA", "rZ", "rZ" } };
     static const TCGTargetOpDef add2
         = { .args_ct_str = { "r", "r", "rZ", "rZ", "rA", "rMZ" } };
+    static const TCGTargetOpDef w_w_w_w
+        = { .args_ct_str = { "w", "w", "w", "w" } };
 
     switch (op) {
     case INDEX_op_goto_ptr:
@@ -2547,11 +2734,7 @@ static const TCGTargetOpDef *tcg_target_op_def(TCGOpcode op)
     case INDEX_op_add_vec:
     case INDEX_op_sub_vec:
     case INDEX_op_mul_vec:
-    case INDEX_op_and_vec:
-    case INDEX_op_or_vec:
     case INDEX_op_xor_vec:
-    case INDEX_op_andc_vec:
-    case INDEX_op_orc_vec:
     case INDEX_op_ssadd_vec:
     case INDEX_op_sssub_vec:
     case INDEX_op_usadd_vec:
@@ -2578,8 +2761,16 @@ static const TCGTargetOpDef *tcg_target_op_def(TCGOpcode op)
         return &w_r;
     case INDEX_op_dup_vec:
         return &w_wr;
+    case INDEX_op_or_vec:
+    case INDEX_op_andc_vec:
+        return &w_w_wO;
+    case INDEX_op_and_vec:
+    case INDEX_op_orc_vec:
+        return &w_w_wN;
     case INDEX_op_cmp_vec:
         return &w_w_wZ;
+    case INDEX_op_bitsel_vec:
+        return &w_w_w_w;
 
     default:
         return NULL;

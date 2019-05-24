@@ -358,6 +358,7 @@ static inline int tcg_target_const_match(tcg_target_long val, TCGType type,
 #define OPC_MOVBE_MyGy  (0xf1 | P_EXT38)
 #define OPC_MOVD_VyEy   (0x6e | P_EXT | P_DATA16)
 #define OPC_MOVD_EyVy   (0x7e | P_EXT | P_DATA16)
+#define OPC_MOVDDUP     (0x12 | P_EXT | P_SIMDF2)
 #define OPC_MOVDQA_VxWx (0x6f | P_EXT | P_DATA16)
 #define OPC_MOVDQA_WxVx (0x7f | P_EXT | P_DATA16)
 #define OPC_MOVDQU_VxWx (0x6f | P_EXT | P_SIMDF3)
@@ -921,7 +922,7 @@ static bool tcg_out_dupm_vec(TCGContext *s, TCGType type, unsigned vece,
     } else {
         switch (vece) {
         case MO_64:
-            tcg_out_vex_modrm_offset(s, OPC_VBROADCASTSD, r, 0, base, offset);
+            tcg_out_vex_modrm_offset(s, OPC_MOVDDUP, r, 0, base, offset);
             break;
         case MO_32:
             tcg_out_vex_modrm_offset(s, OPC_VBROADCASTSS, r, 0, base, offset);
@@ -963,12 +964,12 @@ static void tcg_out_dupi_vec(TCGContext *s, TCGType type,
         } else if (have_avx2) {
             tcg_out_vex_modrm_pool(s, OPC_VPBROADCASTQ + vex_l, ret);
         } else {
-            tcg_out_vex_modrm_pool(s, OPC_VBROADCASTSD, ret);
+            tcg_out_vex_modrm_pool(s, OPC_MOVDDUP, ret);
         }
         new_pool_label(s, arg, R_386_PC32, s->code_ptr - 4, -4);
     } else {
         if (have_avx2) {
-            tcg_out_vex_modrm_pool(s, OPC_VBROADCASTSD + vex_l, ret);
+            tcg_out_vex_modrm_pool(s, OPC_VPBROADCASTW + vex_l, ret);
         } else {
             tcg_out_vex_modrm_pool(s, OPC_VBROADCASTSS, ret);
         }
@@ -1081,14 +1082,24 @@ static void tcg_out_ld(TCGContext *s, TCGType type, TCGReg ret,
         }
         /* FALLTHRU */
     case TCG_TYPE_V64:
+        /* There is no instruction that can validate 8-byte alignment.  */
         tcg_debug_assert(ret >= 16);
         tcg_out_vex_modrm_offset(s, OPC_MOVQ_VqWq, ret, 0, arg1, arg2);
         break;
     case TCG_TYPE_V128:
+        /*
+         * The gvec infrastructure is asserts that v128 vector loads
+         * and stores use a 16-byte aligned offset.  Validate that the
+         * final pointer is aligned by using an insn that will SIGSEGV.
+         */
         tcg_debug_assert(ret >= 16);
-        tcg_out_vex_modrm_offset(s, OPC_MOVDQU_VxWx, ret, 0, arg1, arg2);
+        tcg_out_vex_modrm_offset(s, OPC_MOVDQA_VxWx, ret, 0, arg1, arg2);
         break;
     case TCG_TYPE_V256:
+        /*
+         * The gvec infrastructure only requires 16-byte alignment,
+         * so here we must use an unaligned load.
+         */
         tcg_debug_assert(ret >= 16);
         tcg_out_vex_modrm_offset(s, OPC_MOVDQU_VxWx | P_VEXL,
                                  ret, 0, arg1, arg2);
@@ -1116,14 +1127,24 @@ static void tcg_out_st(TCGContext *s, TCGType type, TCGReg arg,
         }
         /* FALLTHRU */
     case TCG_TYPE_V64:
+        /* There is no instruction that can validate 8-byte alignment.  */
         tcg_debug_assert(arg >= 16);
         tcg_out_vex_modrm_offset(s, OPC_MOVQ_WqVq, arg, 0, arg1, arg2);
         break;
     case TCG_TYPE_V128:
+        /*
+         * The gvec infrastructure is asserts that v128 vector loads
+         * and stores use a 16-byte aligned offset.  Validate that the
+         * final pointer is aligned by using an insn that will SIGSEGV.
+         */
         tcg_debug_assert(arg >= 16);
-        tcg_out_vex_modrm_offset(s, OPC_MOVDQU_WxVx, arg, 0, arg1, arg2);
+        tcg_out_vex_modrm_offset(s, OPC_MOVDQA_WxVx, arg, 0, arg1, arg2);
         break;
     case TCG_TYPE_V256:
+        /*
+         * The gvec infrastructure only requires 16-byte alignment,
+         * so here we must use an unaligned store.
+         */
         tcg_debug_assert(arg >= 16);
         tcg_out_vex_modrm_offset(s, OPC_MOVDQU_WxVx | P_VEXL,
                                  arg, 0, arg1, arg2);
@@ -3245,6 +3266,7 @@ int tcg_can_emit_vec_op(TCGOpcode opc, TCGType type, unsigned vece)
     case INDEX_op_andc_vec:
         return 1;
     case INDEX_op_cmp_vec:
+    case INDEX_op_cmpsel_vec:
         return -1;
 
     case INDEX_op_shli_vec:
@@ -3295,7 +3317,6 @@ int tcg_can_emit_vec_op(TCGOpcode opc, TCGType type, unsigned vece)
     case INDEX_op_smax_vec:
     case INDEX_op_umin_vec:
     case INDEX_op_umax_vec:
-        return vece <= MO_32 ? 1 : -1;
     case INDEX_op_abs_vec:
         return vece <= MO_32;
 
@@ -3463,32 +3484,65 @@ static void expand_vec_mul(TCGType type, unsigned vece,
     }
 }
 
-static void expand_vec_cmp(TCGType type, unsigned vece, TCGv_vec v0,
-                           TCGv_vec v1, TCGv_vec v2, TCGCond cond)
+static bool expand_vec_cmp_noinv(TCGType type, unsigned vece, TCGv_vec v0,
+                                 TCGv_vec v1, TCGv_vec v2, TCGCond cond)
 {
     enum {
-        NEED_SWAP = 1,
-        NEED_INV  = 2,
-        NEED_BIAS = 4
-    };
-    static const uint8_t fixups[16] = {
-        [0 ... 15] = -1,
-        [TCG_COND_EQ] = 0,
-        [TCG_COND_NE] = NEED_INV,
-        [TCG_COND_GT] = 0,
-        [TCG_COND_LT] = NEED_SWAP,
-        [TCG_COND_LE] = NEED_INV,
-        [TCG_COND_GE] = NEED_SWAP | NEED_INV,
-        [TCG_COND_GTU] = NEED_BIAS,
-        [TCG_COND_LTU] = NEED_BIAS | NEED_SWAP,
-        [TCG_COND_LEU] = NEED_BIAS | NEED_INV,
-        [TCG_COND_GEU] = NEED_BIAS | NEED_SWAP | NEED_INV,
+        NEED_INV  = 1,
+        NEED_SWAP = 2,
+        NEED_BIAS = 4,
+        NEED_UMIN = 8,
+        NEED_UMAX = 16,
     };
     TCGv_vec t1, t2;
     uint8_t fixup;
 
-    fixup = fixups[cond & 15];
-    tcg_debug_assert(fixup != 0xff);
+    switch (cond) {
+    case TCG_COND_EQ:
+    case TCG_COND_GT:
+        fixup = 0;
+        break;
+    case TCG_COND_NE:
+    case TCG_COND_LE:
+        fixup = NEED_INV;
+        break;
+    case TCG_COND_LT:
+        fixup = NEED_SWAP;
+        break;
+    case TCG_COND_GE:
+        fixup = NEED_SWAP | NEED_INV;
+        break;
+    case TCG_COND_LEU:
+        if (vece <= MO_32) {
+            fixup = NEED_UMIN;
+        } else {
+            fixup = NEED_BIAS | NEED_INV;
+        }
+        break;
+    case TCG_COND_GTU:
+        if (vece <= MO_32) {
+            fixup = NEED_UMIN | NEED_INV;
+        } else {
+            fixup = NEED_BIAS;
+        }
+        break;
+    case TCG_COND_GEU:
+        if (vece <= MO_32) {
+            fixup = NEED_UMAX;
+        } else {
+            fixup = NEED_BIAS | NEED_SWAP | NEED_INV;
+        }
+        break;
+    case TCG_COND_LTU:
+        if (vece <= MO_32) {
+            fixup = NEED_UMAX | NEED_INV;
+        } else {
+            fixup = NEED_BIAS | NEED_SWAP;
+        }
+        break;
+    default:
+        g_assert_not_reached();
+    }
 
     if (fixup & NEED_INV) {
         cond = tcg_invert_cond(cond);
@@ -3499,7 +3553,16 @@ static void expand_vec_cmp(TCGType type, unsigned vece, TCGv_vec v0,
     }
 
     t1 = t2 = NULL;
-    if (fixup & NEED_BIAS) {
+    if (fixup & (NEED_UMIN | NEED_UMAX)) {
+        t1 = tcg_temp_new_vec(type);
+        if (fixup & NEED_UMIN) {
+            tcg_gen_umin_vec(vece, t1, v1, v2);
+        } else {
+            tcg_gen_umax_vec(vece, t1, v1, v2);
+        }
+        v2 = t1;
+        cond = TCG_COND_EQ;
+    } else if (fixup & NEED_BIAS) {
         t1 = tcg_temp_new_vec(type);
         t2 = tcg_temp_new_vec(type);
         tcg_gen_dupi_vec(vece, t2, 1ull << ((8 << vece) - 1));
@@ -3521,28 +3584,32 @@ static void expand_vec_cmp(TCGType type, unsigned vece, TCGv_vec v0,
             tcg_temp_free_vec(t2);
         }
     }
-    if (fixup & NEED_INV) {
+    return fixup & NEED_INV;
+}
+
+static void expand_vec_cmp(TCGType type, unsigned vece, TCGv_vec v0,
+                           TCGv_vec v1, TCGv_vec v2, TCGCond cond)
+{
+    if (expand_vec_cmp_noinv(type, vece, v0, v1, v2, cond)) {
         tcg_gen_not_vec(vece, v0, v0);
     }
 }
 
-static void expand_vec_minmax(TCGType type, unsigned vece,
-                              TCGCond cond, bool min,
-                              TCGv_vec v0, TCGv_vec v1, TCGv_vec v2)
+static void expand_vec_cmpsel(TCGType type, unsigned vece, TCGv_vec v0,
+                              TCGv_vec c1, TCGv_vec c2,
+                              TCGv_vec v3, TCGv_vec v4, TCGCond cond)
 {
-    TCGv_vec t1 = tcg_temp_new_vec(type);
+    TCGv_vec t = tcg_temp_new_vec(type);
 
-    tcg_debug_assert(vece == MO_64);
-
-    tcg_gen_cmp_vec(cond, vece, t1, v1, v2);
-    if (min) {
-        TCGv_vec t2;
-        t2 = v1, v1 = v2, v2 = t2;
+    if (expand_vec_cmp_noinv(type, vece, t, c1, c2, cond)) {
+        /* Invert the sense of the compare by swapping arguments.  */
+        TCGv_vec x;
+        x = v3, v3 = v4, v4 = x;
     }
     vec_gen_4(INDEX_op_x86_vpblendvb_vec, type, vece,
-              tcgv_vec_arg(v0), tcgv_vec_arg(v1),
-              tcgv_vec_arg(v2), tcgv_vec_arg(t1));
-    tcg_temp_free_vec(t1);
+              tcgv_vec_arg(v0), tcgv_vec_arg(v4),
+              tcgv_vec_arg(v3), tcgv_vec_arg(t));
+    tcg_temp_free_vec(t);
 }
 
 void tcg_expand_vec_op(TCGOpcode opc, TCGType type, unsigned vece,
@@ -3550,7 +3617,7 @@ void tcg_expand_vec_op(TCGOpcode opc, TCGType type, unsigned vece,
 {
     va_list va;
     TCGArg a2;
-    TCGv_vec v0, v1, v2;
+    TCGv_vec v0, v1, v2, v3, v4;
 
     va_start(va, a0);
     v0 = temp_tcgv_vec(arg_temp(a0));
@@ -3577,21 +3644,11 @@ void tcg_expand_vec_op(TCGOpcode opc, TCGType type, unsigned vece,
         expand_vec_cmp(type, vece, v0, v1, v2, va_arg(va, TCGArg));
         break;
 
-    case INDEX_op_smin_vec:
+    case INDEX_op_cmpsel_vec:
         v2 = temp_tcgv_vec(arg_temp(a2));
-        expand_vec_minmax(type, vece, TCG_COND_GT, true, v0, v1, v2);
-        break;
-    case INDEX_op_smax_vec:
-        v2 = temp_tcgv_vec(arg_temp(a2));
-        expand_vec_minmax(type, vece, TCG_COND_GT, false, v0, v1, v2);
-        break;
-    case INDEX_op_umin_vec:
-        v2 = temp_tcgv_vec(arg_temp(a2));
-        expand_vec_minmax(type, vece, TCG_COND_GTU, true, v0, v1, v2);
-        break;
-    case INDEX_op_umax_vec:
-        v2 = temp_tcgv_vec(arg_temp(a2));
-        expand_vec_minmax(type, vece, TCG_COND_GTU, false, v0, v1, v2);
+        v3 = temp_tcgv_vec(arg_temp(va_arg(va, TCGArg)));
+        v4 = temp_tcgv_vec(arg_temp(va_arg(va, TCGArg)));
+        expand_vec_cmpsel(type, vece, v0, v1, v2, v3, v4, va_arg(va, TCGArg));
         break;
 
     default:

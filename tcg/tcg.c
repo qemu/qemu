@@ -1646,6 +1646,10 @@ bool tcg_op_supported(TCGOpcode op)
     case INDEX_op_smax_vec:
     case INDEX_op_umax_vec:
         return have_vec && TCG_TARGET_HAS_minmax_vec;
+    case INDEX_op_bitsel_vec:
+        return have_vec && TCG_TARGET_HAS_bitsel_vec;
+    case INDEX_op_cmpsel_vec:
+        return have_vec && TCG_TARGET_HAS_cmpsel_vec;
 
     default:
         tcg_debug_assert(op > INDEX_op_last_generic && op < NB_OPS);
@@ -2026,6 +2030,7 @@ static void tcg_dump_ops(TCGContext *s, bool have_prefs)
             case INDEX_op_setcond_i64:
             case INDEX_op_movcond_i64:
             case INDEX_op_cmp_vec:
+            case INDEX_op_cmpsel_vec:
                 if (op->args[k] < ARRAY_SIZE(cond_name)
                     && cond_name[op->args[k]]) {
                     col += qemu_log(",%s", cond_name[op->args[k++]]);

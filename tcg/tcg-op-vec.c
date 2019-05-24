@@ -88,6 +88,7 @@ bool tcg_can_emit_vecop_list(const TCGOpcode *list,
         case INDEX_op_dup2_vec:
         case INDEX_op_ld_vec:
         case INDEX_op_st_vec:
+        case INDEX_op_bitsel_vec:
             /* These opcodes are mandatory and should not be listed.  */
             g_assert_not_reached();
         default:
@@ -115,6 +116,15 @@ bool tcg_can_emit_vecop_list(const TCGOpcode *list,
                 && (tcg_can_emit_vec_op(INDEX_op_smax_vec, type, vece) > 0
                     || tcg_can_emit_vec_op(INDEX_op_sari_vec, type, vece) > 0
                     || tcg_can_emit_vec_op(INDEX_op_cmp_vec, type, vece))) {
+                continue;
+            }
+            break;
+        case INDEX_op_cmpsel_vec:
+        case INDEX_op_smin_vec:
+        case INDEX_op_smax_vec:
+        case INDEX_op_umin_vec:
+        case INDEX_op_umax_vec:
+            if (tcg_can_emit_vec_op(INDEX_op_cmp_vec, type, vece)) {
                 continue;
             }
             break;
@@ -156,6 +166,20 @@ void vec_gen_4(TCGOpcode opc, TCGType type, unsigned vece,
     op->args[1] = a;
     op->args[2] = b;
     op->args[3] = c;
+}
+
+static void vec_gen_6(TCGOpcode opc, TCGType type, unsigned vece, TCGArg r,
+                      TCGArg a, TCGArg b, TCGArg c, TCGArg d, TCGArg e)
+{
+    TCGOp *op = tcg_emit_op(opc);
+    TCGOP_VECL(op) = type - TCG_TYPE_V64;
+    TCGOP_VECE(op) = vece;
+    op->args[0] = r;
+    op->args[1] = a;
+    op->args[2] = b;
+    op->args[3] = c;
+    op->args[4] = d;
+    op->args[5] = e;
 }
 
 static void vec_gen_op2(TCGOpcode opc, unsigned vece, TCGv_vec r, TCGv_vec a)
@@ -542,7 +566,7 @@ void tcg_gen_cmp_vec(TCGCond cond, unsigned vece,
     }
 }
 
-static void do_op3(unsigned vece, TCGv_vec r, TCGv_vec a,
+static bool do_op3(unsigned vece, TCGv_vec r, TCGv_vec a,
                    TCGv_vec b, TCGOpcode opc)
 {
     TCGTemp *rt = tcgv_vec_temp(r);
@@ -560,82 +584,99 @@ static void do_op3(unsigned vece, TCGv_vec r, TCGv_vec a,
     can = tcg_can_emit_vec_op(opc, type, vece);
     if (can > 0) {
         vec_gen_3(opc, type, vece, ri, ai, bi);
-    } else {
+    } else if (can < 0) {
         const TCGOpcode *hold_list = tcg_swap_vecop_list(NULL);
-        tcg_debug_assert(can < 0);
         tcg_expand_vec_op(opc, type, vece, ri, ai, bi);
         tcg_swap_vecop_list(hold_list);
+    } else {
+        return false;
     }
+    return true;
+}
+
+static void do_op3_nofail(unsigned vece, TCGv_vec r, TCGv_vec a,
+                          TCGv_vec b, TCGOpcode opc)
+{
+    bool ok = do_op3(vece, r, a, b, opc);
+    tcg_debug_assert(ok);
 }
 
 void tcg_gen_add_vec(unsigned vece, TCGv_vec r, TCGv_vec a, TCGv_vec b)
 {
-    do_op3(vece, r, a, b, INDEX_op_add_vec);
+    do_op3_nofail(vece, r, a, b, INDEX_op_add_vec);
 }
 
 void tcg_gen_sub_vec(unsigned vece, TCGv_vec r, TCGv_vec a, TCGv_vec b)
 {
-    do_op3(vece, r, a, b, INDEX_op_sub_vec);
+    do_op3_nofail(vece, r, a, b, INDEX_op_sub_vec);
 }
 
 void tcg_gen_mul_vec(unsigned vece, TCGv_vec r, TCGv_vec a, TCGv_vec b)
 {
-    do_op3(vece, r, a, b, INDEX_op_mul_vec);
+    do_op3_nofail(vece, r, a, b, INDEX_op_mul_vec);
 }
 
 void tcg_gen_ssadd_vec(unsigned vece, TCGv_vec r, TCGv_vec a, TCGv_vec b)
 {
-    do_op3(vece, r, a, b, INDEX_op_ssadd_vec);
+    do_op3_nofail(vece, r, a, b, INDEX_op_ssadd_vec);
 }
 
 void tcg_gen_usadd_vec(unsigned vece, TCGv_vec r, TCGv_vec a, TCGv_vec b)
 {
-    do_op3(vece, r, a, b, INDEX_op_usadd_vec);
+    do_op3_nofail(vece, r, a, b, INDEX_op_usadd_vec);
 }
 
 void tcg_gen_sssub_vec(unsigned vece, TCGv_vec r, TCGv_vec a, TCGv_vec b)
 {
-    do_op3(vece, r, a, b, INDEX_op_sssub_vec);
+    do_op3_nofail(vece, r, a, b, INDEX_op_sssub_vec);
 }
 
 void tcg_gen_ussub_vec(unsigned vece, TCGv_vec r, TCGv_vec a, TCGv_vec b)
 {
-    do_op3(vece, r, a, b, INDEX_op_ussub_vec);
+    do_op3_nofail(vece, r, a, b, INDEX_op_ussub_vec);
+}
+
+static void do_minmax(unsigned vece, TCGv_vec r, TCGv_vec a,
+                      TCGv_vec b, TCGOpcode opc, TCGCond cond)
+{
+    if (!do_op3(vece, r, a, b, opc)) {
+        tcg_gen_cmpsel_vec(cond, vece, r, a, b, a, b);
+    }
 }
 
 void tcg_gen_smin_vec(unsigned vece, TCGv_vec r, TCGv_vec a, TCGv_vec b)
 {
-    do_op3(vece, r, a, b, INDEX_op_smin_vec);
+    do_minmax(vece, r, a, b, INDEX_op_smin_vec, TCG_COND_LT);
 }
 
 void tcg_gen_umin_vec(unsigned vece, TCGv_vec r, TCGv_vec a, TCGv_vec b)
 {
-    do_op3(vece, r, a, b, INDEX_op_umin_vec);
+    do_minmax(vece, r, a, b, INDEX_op_umin_vec, TCG_COND_LTU);
 }
 
 void tcg_gen_smax_vec(unsigned vece, TCGv_vec r, TCGv_vec a, TCGv_vec b)
 {
-    do_op3(vece, r, a, b, INDEX_op_smax_vec);
+    do_minmax(vece, r, a, b, INDEX_op_smax_vec, TCG_COND_GT);
 }
 
 void tcg_gen_umax_vec(unsigned vece, TCGv_vec r, TCGv_vec a, TCGv_vec b)
 {
-    do_op3(vece, r, a, b, INDEX_op_umax_vec);
+    do_minmax(vece, r, a, b, INDEX_op_umax_vec, TCG_COND_GTU);
 }
 
 void tcg_gen_shlv_vec(unsigned vece, TCGv_vec r, TCGv_vec a, TCGv_vec b)
 {
-    do_op3(vece, r, a, b, INDEX_op_shlv_vec);
+    do_op3_nofail(vece, r, a, b, INDEX_op_shlv_vec);
 }
 
 void tcg_gen_shrv_vec(unsigned vece, TCGv_vec r, TCGv_vec a, TCGv_vec b)
 {
-    do_op3(vece, r, a, b, INDEX_op_shrv_vec);
+    do_op3_nofail(vece, r, a, b, INDEX_op_shrv_vec);
 }
 
 void tcg_gen_sarv_vec(unsigned vece, TCGv_vec r, TCGv_vec a, TCGv_vec b)
 {
-    do_op3(vece, r, a, b, INDEX_op_sarv_vec);
+    do_op3_nofail(vece, r, a, b, INDEX_op_sarv_vec);
 }
 
 static void do_shifts(unsigned vece, TCGv_vec r, TCGv_vec a,
@@ -671,7 +712,7 @@ static void do_shifts(unsigned vece, TCGv_vec r, TCGv_vec a,
         } else {
             tcg_gen_dup_i32_vec(vece, vec_s, s);
         }
-        do_op3(vece, r, a, vec_s, opc_v);
+        do_op3_nofail(vece, r, a, vec_s, opc_v);
         tcg_temp_free_vec(vec_s);
     }
     tcg_swap_vecop_list(hold_list);
@@ -690,4 +731,69 @@ void tcg_gen_shrs_vec(unsigned vece, TCGv_vec r, TCGv_vec a, TCGv_i32 b)
 void tcg_gen_sars_vec(unsigned vece, TCGv_vec r, TCGv_vec a, TCGv_i32 b)
 {
     do_shifts(vece, r, a, b, INDEX_op_sars_vec, INDEX_op_sarv_vec);
+}
+
+void tcg_gen_bitsel_vec(unsigned vece, TCGv_vec r, TCGv_vec a,
+                        TCGv_vec b, TCGv_vec c)
+{
+    TCGTemp *rt = tcgv_vec_temp(r);
+    TCGTemp *at = tcgv_vec_temp(a);
+    TCGTemp *bt = tcgv_vec_temp(b);
+    TCGTemp *ct = tcgv_vec_temp(c);
+    TCGType type = rt->base_type;
+
+    tcg_debug_assert(at->base_type >= type);
+    tcg_debug_assert(bt->base_type >= type);
+    tcg_debug_assert(ct->base_type >= type);
+
+    if (TCG_TARGET_HAS_bitsel_vec) {
+        vec_gen_4(INDEX_op_bitsel_vec, type, MO_8,
+                  temp_arg(rt), temp_arg(at), temp_arg(bt), temp_arg(ct));
+    } else {
+        TCGv_vec t = tcg_temp_new_vec(type);
+        tcg_gen_and_vec(MO_8, t, a, b);
+        tcg_gen_andc_vec(MO_8, r, c, a);
+        tcg_gen_or_vec(MO_8, r, r, t);
+        tcg_temp_free_vec(t);
+    }
+}
+
+void tcg_gen_cmpsel_vec(TCGCond cond, unsigned vece, TCGv_vec r,
+                        TCGv_vec a, TCGv_vec b, TCGv_vec c, TCGv_vec d)
+{
+    TCGTemp *rt = tcgv_vec_temp(r);
+    TCGTemp *at = tcgv_vec_temp(a);
+    TCGTemp *bt = tcgv_vec_temp(b);
+    TCGTemp *ct = tcgv_vec_temp(c);
+    TCGTemp *dt = tcgv_vec_temp(d);
+    TCGArg ri = temp_arg(rt);
+    TCGArg ai = temp_arg(at);
+    TCGArg bi = temp_arg(bt);
+    TCGArg ci = temp_arg(ct);
+    TCGArg di = temp_arg(dt);
+    TCGType type = rt->base_type;
+    const TCGOpcode *hold_list;
+    int can;
+
+    tcg_debug_assert(at->base_type >= type);
+    tcg_debug_assert(bt->base_type >= type);
+    tcg_debug_assert(ct->base_type >= type);
+    tcg_debug_assert(dt->base_type >= type);
+
+    tcg_assert_listed_vecop(INDEX_op_cmpsel_vec);
+    hold_list = tcg_swap_vecop_list(NULL);
+    can = tcg_can_emit_vec_op(INDEX_op_cmpsel_vec, type, vece);
+
+    if (can > 0) {
+        vec_gen_6(INDEX_op_cmpsel_vec, type, vece, ri, ai, bi, ci, di, cond);
+    } else if (can < 0) {
+        tcg_expand_vec_op(INDEX_op_cmpsel_vec, type, vece,
+                          ri, ai, bi, ci, di, cond);
+    } else {
+        TCGv_vec t = tcg_temp_new_vec(type);
+        tcg_gen_cmp_vec(cond, vece, t, a, b);
+        tcg_gen_bitsel_vec(vece, r, t, c, d);
+        tcg_temp_free_vec(t);
+    }
+    tcg_swap_vecop_list(hold_list);
 }
