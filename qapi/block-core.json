@@ -4121,7 +4121,10 @@
 #
 # @filename         Filename for the new image file
 # @size             Size of the virtual disk in bytes
-# @preallocation    Preallocation mode for the new image (default: off)
+# @preallocation    Preallocation mode for the new image (default: off;
+#                   allowed values: off,
+#                   falloc (if defined CONFIG_POSIX_FALLOCATE),
+#                   full (if defined CONFIG_POSIX))
 # @nocow            Turn off copy-on-write (valid only on btrfs; default: off)
 #
 # Since: 2.12
@@ -4139,7 +4142,10 @@
 #
 # @location         Where to store the new image file
 # @size             Size of the virtual disk in bytes
-# @preallocation    Preallocation mode for the new image (default: off)
+# @preallocation    Preallocation mode for the new image (default: off;
+#                   allowed values: off,
+#                   falloc (if defined CONFIG_GLUSTERFS_FALLOCATE),
+#                   full (if defined CONFIG_GLUSTERFS_ZEROFILL))
 #
 # Since: 2.12
 ##
@@ -4243,7 +4249,8 @@
 # @backing-fmt      Name of the block driver to use for the backing file
 # @encrypt          Encryption options if the image should be encrypted
 # @cluster-size     qcow2 cluster size in bytes (default: 65536)
-# @preallocation    Preallocation mode for the new image (default: off)
+# @preallocation    Preallocation mode for the new image (default: off;
+#                   allowed values: off, falloc, full, metadata)
 # @lazy-refcounts   True if refcounts may be updated lazily (default: off)
 # @refcount-bits    Width of reference counts in bits (default: 16)
 #
@@ -4426,7 +4433,8 @@
 # @location         Where to store the new image file
 # @size             Size of the virtual disk in bytes
 # @backing-file     File name of a base image
-# @preallocation    Preallocation mode (allowed values: off, full)
+# @preallocation    Preallocation mode for the new image (default: off;
+#                   allowed values: off, full)
 # @redundancy       Redundancy of the image
 # @object-size      Object size of the image
 #
@@ -4461,8 +4469,8 @@
 #
 # @file             Node to create the image format on
 # @size             Size of the virtual disk in bytes
-# @preallocation    Preallocation mode for the new image (allowed values: off,
-#                   metadata; default: off)
+# @preallocation    Preallocation mode for the new image (default: off;
+#                   allowed values: off, metadata)
 #
 # Since: 2.12
 ##
