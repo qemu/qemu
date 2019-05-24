@@ -1681,6 +1681,8 @@ M: Marc-André Lureau <marcandre.lureau@redhat.com>
 M: Gerd Hoffmann <kraxel@redhat.com>
 S: Maintained
 F: docs/interop/vhost-user-gpu.rst
+F: contrib/vhost-user-gpu
+F: hw/display/vhost-user-*
 
 Cirrus VGA
 M: Gerd Hoffmann <kraxel@redhat.com>

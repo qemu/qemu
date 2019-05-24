@@ -4099,6 +4099,13 @@ libs_softmmu="$libs_softmmu $fdt_libs"
 ##########################################
 # opengl probe (for sdl2, gtk, milkymist-tmu2)
 
+gbm="no"
+if $pkg_config gbm; then
+    gbm_cflags="$($pkg_config --cflags gbm)"
+    gbm_libs="$($pkg_config --libs gbm)"
+    gbm="yes"
+fi
+
 if test "$opengl" != "no" ; then
   opengl_pkgs="epoxy gbm"
   if $pkg_config $opengl_pkgs; then
@@ -6964,6 +6971,13 @@ if test "$opengl" = "yes" ; then
   fi
 fi
 
+if test "$gbm" = "yes" ; then
+    echo "CONFIG_GBM=y" >> $config_host_mak
+    echo "GBM_LIBS=$gbm_libs" >> $config_host_mak
+    echo "GBM_CFLAGS=$gbm_cflags" >> $config_host_mak
+fi
+
+
 if test "$malloc_trim" = "yes" ; then
   echo "CONFIG_MALLOC_TRIM=y" >> $config_host_mak
 fi
@@ -7858,6 +7872,9 @@ echo "LDFLAGS+=$ldflags" >> $config_target_mak
 echo "QEMU_CFLAGS+=$cflags" >> $config_target_mak
 
 done # for target in $targets
+
+echo "PIXMAN_CFLAGS=$pixman_cflags" >> $config_host_mak
+echo "PIXMAN_LIBS=$pixman_libs" >> $config_host_mak
 
 if test -n "$enabled_cross_compilers"; then
     echo
