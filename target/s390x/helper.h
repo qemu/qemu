@@ -230,6 +230,12 @@ DEF_HELPER_FLAGS_4(gvec_vfene32, TCG_CALL_NO_RWG, void, ptr, cptr, cptr, i32)
 DEF_HELPER_5(gvec_vfene_cc8, void, ptr, cptr, cptr, env, i32)
 DEF_HELPER_5(gvec_vfene_cc16, void, ptr, cptr, cptr, env, i32)
 DEF_HELPER_5(gvec_vfene_cc32, void, ptr, cptr, cptr, env, i32)
+DEF_HELPER_FLAGS_3(gvec_vistr8, TCG_CALL_NO_RWG, void, ptr, cptr, i32)
+DEF_HELPER_FLAGS_3(gvec_vistr16, TCG_CALL_NO_RWG, void, ptr, cptr, i32)
+DEF_HELPER_FLAGS_3(gvec_vistr32, TCG_CALL_NO_RWG, void, ptr, cptr, i32)
+DEF_HELPER_4(gvec_vistr_cc8, void, ptr, cptr, env, i32)
+DEF_HELPER_4(gvec_vistr_cc16, void, ptr, cptr, env, i32)
+DEF_HELPER_4(gvec_vistr_cc32, void, ptr, cptr, env, i32)
 
 #ifndef CONFIG_USER_ONLY
 DEF_HELPER_3(servc, i32, env, i64, i64)

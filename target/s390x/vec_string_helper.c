@@ -283,3 +283,48 @@ void HELPER(gvec_vfene_cc##BITS)(void *v1, const void *v2, const void *v3,     \
 DEF_VFENE_CC_HELPER(8)
 DEF_VFENE_CC_HELPER(16)
 DEF_VFENE_CC_HELPER(32)
+
+static int vistr(void *v1, const void *v2, uint8_t es)
+{
+    const uint64_t mask = get_element_lsbs_mask(es);
+    uint64_t a0 = s390_vec_read_element64(v2, 0);
+    uint64_t a1 = s390_vec_read_element64(v2, 1);
+    uint64_t z;
+    int cc = 3;
+
+    z = zero_search(a0, mask);
+    if (z) {
+        a0 &= ~(-1ull >> clz64(z));
+        a1 = 0;
+        cc = 0;
+    } else {
+        z = zero_search(a1, mask);
+        if (z) {
+            a1 &= ~(-1ull >> clz64(z));
+            cc = 0;
+        }
+    }
+
+    s390_vec_write_element64(v1, 0, a0);
+    s390_vec_write_element64(v1, 1, a1);
+    return cc;
+}
+
+#define DEF_VISTR_HELPER(BITS)                                                 \
+void HELPER(gvec_vistr##BITS)(void *v1, const void *v2, uint32_t desc)         \
+{                                                                              \
+    vistr(v1, v2, MO_##BITS);                                                  \
+}
+DEF_VISTR_HELPER(8)
+DEF_VISTR_HELPER(16)
+DEF_VISTR_HELPER(32)
+
+#define DEF_VISTR_CC_HELPER(BITS)                                              \
+void HELPER(gvec_vistr_cc##BITS)(void *v1, const void *v2, CPUS390XState *env, \
+                                uint32_t desc)                                 \
+{                                                                              \
+    env->cc_op = vistr(v1, v2, MO_##BITS);                                     \
+}
+DEF_VISTR_CC_HELPER(8)
+DEF_VISTR_CC_HELPER(16)
+DEF_VISTR_CC_HELPER(32)
