@@ -159,18 +159,46 @@ static const uint8_t qemu_hub_hub_descriptor[] =
         /* DeviceRemovable and PortPwrCtrlMask patched in later */
 };
 
+static bool usb_hub_port_change(USBHubPort *port, uint16_t status)
+{
+    bool notify = false;
+
+    if (status & 0x1f) {
+        port->wPortChange |= status;
+        notify = true;
+    }
+    return notify;
+}
+
+static bool usb_hub_port_set(USBHubPort *port, uint16_t status)
+{
+    if (port->wPortStatus & status) {
+        return false;
+    }
+    port->wPortStatus |= status;
+    return usb_hub_port_change(port, status);
+}
+
+static bool usb_hub_port_clear(USBHubPort *port, uint16_t status)
+{
+    if (!(port->wPortStatus & status)) {
+        return false;
+    }
+    port->wPortStatus &= ~status;
+    return usb_hub_port_change(port, status);
+}
+
 static void usb_hub_attach(USBPort *port1)
 {
     USBHubState *s = port1->opaque;
     USBHubPort *port = &s->ports[port1->index];
 
     trace_usb_hub_attach(s->dev.addr, port1->index + 1);
-    port->wPortStatus |= PORT_STAT_CONNECTION;
-    port->wPortChange |= PORT_STAT_C_CONNECTION;
+    usb_hub_port_set(port, PORT_STAT_CONNECTION);
     if (port->port.dev->speed == USB_SPEED_LOW) {
-        port->wPortStatus |= PORT_STAT_LOW_SPEED;
+        usb_hub_port_set(port, PORT_STAT_LOW_SPEED);
     } else {
-        port->wPortStatus &= ~PORT_STAT_LOW_SPEED;
+        usb_hub_port_clear(port, PORT_STAT_LOW_SPEED);
     }
     usb_wakeup(s->intr, 0);
 }
@@ -186,16 +214,9 @@ static void usb_hub_detach(USBPort *port1)
     /* Let upstream know the device on this port is gone */
     s->dev.port->ops->child_detach(s->dev.port, port1->dev);
 
-    port->wPortStatus &= ~PORT_STAT_CONNECTION;
-    port->wPortChange |= PORT_STAT_C_CONNECTION;
-    if (port->wPortStatus & PORT_STAT_ENABLE) {
-        port->wPortStatus &= ~PORT_STAT_ENABLE;
-        port->wPortChange |= PORT_STAT_C_ENABLE;
-    }
-    if (port->wPortStatus & PORT_STAT_SUSPEND) {
-        port->wPortStatus &= ~PORT_STAT_SUSPEND;
-        port->wPortChange |= PORT_STAT_C_SUSPEND;
-    }
+    usb_hub_port_clear(port, PORT_STAT_CONNECTION);
+    usb_hub_port_clear(port, PORT_STAT_ENABLE);
+    usb_hub_port_clear(port, PORT_STAT_SUSPEND);
     usb_wakeup(s->intr, 0);
 }
 
@@ -212,9 +233,7 @@ static void usb_hub_wakeup(USBPort *port1)
     USBHubState *s = port1->opaque;
     USBHubPort *port = &s->ports[port1->index];
 
-    if (port->wPortStatus & PORT_STAT_SUSPEND) {
-        port->wPortStatus &= ~PORT_STAT_SUSPEND;
-        port->wPortChange |= PORT_STAT_C_SUSPEND;
+    if (usb_hub_port_clear(port, PORT_STAT_SUSPEND)) {
         usb_wakeup(s->intr, 0);
     }
 }
@@ -265,13 +284,13 @@ static void usb_hub_handle_reset(USBDevice *dev)
     trace_usb_hub_reset(s->dev.addr);
     for (i = 0; i < s->num_ports; i++) {
         port = s->ports + i;
-        port->wPortStatus = PORT_STAT_POWER;
+        port->wPortStatus = 0;
         port->wPortChange = 0;
+        usb_hub_port_set(port, PORT_STAT_POWER);
         if (port->port.dev && port->port.dev->attached) {
-            port->wPortStatus |= PORT_STAT_CONNECTION;
-            port->wPortChange |= PORT_STAT_C_CONNECTION;
+            usb_hub_port_set(port, PORT_STAT_CONNECTION);
             if (port->port.dev->speed == USB_SPEED_LOW) {
-                port->wPortStatus |= PORT_STAT_LOW_SPEED;
+                usb_hub_port_set(port, PORT_STAT_LOW_SPEED);
             }
         }
     }
@@ -372,13 +391,13 @@ static void usb_hub_handle_control(USBDevice *dev, USBPacket *p,
                 port->wPortStatus |= PORT_STAT_SUSPEND;
                 break;
             case PORT_RESET:
+                usb_hub_port_set(port, PORT_STAT_RESET);
+                usb_hub_port_clear(port, PORT_STAT_RESET);
                 if (dev && dev->attached) {
                     usb_device_reset(dev);
-                    port->wPortChange |= PORT_STAT_C_RESET;
-                    /* set enable bit */
-                    port->wPortStatus |= PORT_STAT_ENABLE;
-                    usb_wakeup(s->intr, 0);
+                    usb_hub_port_set(port, PORT_STAT_ENABLE);
                 }
+                usb_wakeup(s->intr, 0);
                 break;
             case PORT_POWER:
                 break;
@@ -407,20 +426,7 @@ static void usb_hub_handle_control(USBDevice *dev, USBPacket *p,
                 port->wPortChange &= ~PORT_STAT_C_ENABLE;
                 break;
             case PORT_SUSPEND:
-                if (port->wPortStatus & PORT_STAT_SUSPEND) {
-                    port->wPortStatus &= ~PORT_STAT_SUSPEND;
-
-                    /*
-                     * USB Spec rev2.0 11.24.2.7.2.3 C_PORT_SUSPEND
-                     * "This bit is set on the following transitions:
-                     *  - On transition from the Resuming state to the
-                     *    SendEOP [sic] state"
-                     *
-                     * Note that this includes both remote wake-up and
-                     * explicit ClearPortFeature(PORT_SUSPEND).
-                     */
-                    port->wPortChange |= PORT_STAT_C_SUSPEND;
-                }
+                usb_hub_port_clear(port, PORT_STAT_SUSPEND);
                 break;
             case PORT_C_SUSPEND:
                 port->wPortChange &= ~PORT_STAT_C_SUSPEND;
