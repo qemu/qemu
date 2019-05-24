@@ -117,4 +117,25 @@ static inline void s390_vec_write_element64(S390Vector *v, uint8_t enr,
     v->doubleword[enr] = data;
 }
 
+static inline void s390_vec_write_element(S390Vector *v, uint8_t enr,
+                                          uint8_t es, uint64_t data)
+{
+    switch (es) {
+    case MO_8:
+        s390_vec_write_element8(v, enr, data);
+        break;
+    case MO_16:
+        s390_vec_write_element16(v, enr, data);
+        break;
+    case MO_32:
+        s390_vec_write_element32(v, enr, data);
+        break;
+    case MO_64:
+        s390_vec_write_element64(v, enr, data);
+        break;
+    default:
+        g_assert_not_reached();
+    }
+}
+
 #endif /* S390X_VEC_H */

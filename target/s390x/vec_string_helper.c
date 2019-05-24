@@ -328,3 +328,146 @@ void HELPER(gvec_vistr_cc##BITS)(void *v1, const void *v2, CPUS390XState *env, \
 DEF_VISTR_CC_HELPER(8)
 DEF_VISTR_CC_HELPER(16)
 DEF_VISTR_CC_HELPER(32)
+
+static bool element_compare(uint32_t data, uint32_t l, uint8_t c)
+{
+    const bool equal = extract32(c, 7, 1);
+    const bool lower = extract32(c, 6, 1);
+    const bool higher = extract32(c, 5, 1);
+
+    if (data < l) {
+        return lower;
+    } else if (data > l) {
+        return higher;
+    }
+    return equal;
+}
+
+static int vstrc(void *v1, const void *v2, const void *v3, const void *v4,
+                 bool in, bool rt, bool zs, uint8_t es)
+{
+    const uint64_t mask = get_element_lsbs_mask(es);
+    uint64_t a0 = s390_vec_read_element64(v2, 0);
+    uint64_t a1 = s390_vec_read_element64(v2, 1);
+    int first_zero = 16, first_match = 16;
+    S390Vector rt_result = {};
+    uint64_t z0, z1;
+    int i, j;
+
+    if (zs) {
+        z0 = zero_search(a0, mask);
+        z1 = zero_search(a1, mask);
+        first_zero = match_index(z0, z1);
+    }
+
+    for (i = 0; i < 16 / (1 << es); i++) {
+        const uint32_t data = s390_vec_read_element(v2, i, es);
+        const int cur_byte = i * (1 << es);
+        bool any_match = false;
+
+        /* if we don't need a bit vector, we can stop early */
+        if (cur_byte == first_zero && !rt) {
+            break;
+        }
+
+        for (j = 0; j < 16 / (1 << es); j += 2) {
+            const uint32_t l1 = s390_vec_read_element(v3, j, es);
+            const uint32_t l2 = s390_vec_read_element(v3, j + 1, es);
+            /* we are only interested in the highest byte of each element */
+            const uint8_t c1 = s390_vec_read_element8(v4, j * (1 << es));
+            const uint8_t c2 = s390_vec_read_element8(v4, (j + 1) * (1 << es));
+
+            if (element_compare(data, l1, c1) &&
+                element_compare(data, l2, c2)) {
+                any_match = true;
+                break;
+            }
+        }
+        /* invert the result if requested */
+        any_match = in ^ any_match;
+
+        if (any_match) {
+            /* indicate bit vector if requested */
+            if (rt) {
+                const uint64_t val = -1ull;
+
+                first_match = MIN(cur_byte, first_match);
+                s390_vec_write_element(&rt_result, i, es, val);
+            } else {
+                /* stop on the first match */
+                first_match = cur_byte;
+                break;
+            }
+        }
+    }
+
+    if (rt) {
+        *(S390Vector *)v1 = rt_result;
+    } else {
+        s390_vec_write_element64(v1, 0, MIN(first_match, first_zero));
+        s390_vec_write_element64(v1, 1, 0);
+    }
+
+    if (first_zero == 16 && first_match == 16) {
+        return 3; /* no match */
+    } else if (first_zero == 16) {
+        return 1; /* matching elements, no match for zero */
+    } else if (first_match < first_zero) {
+        return 2; /* matching elements before match for zero */
+    }
+    return 0; /* match for zero */
+}
+
+#define DEF_VSTRC_HELPER(BITS)                                                 \
+void HELPER(gvec_vstrc##BITS)(void *v1, const void *v2, const void *v3,        \
+                              const void *v4, uint32_t desc)                   \
+{                                                                              \
+    const bool in = extract32(simd_data(desc), 3, 1);                          \
+    const bool zs = extract32(simd_data(desc), 1, 1);                          \
+                                                                               \
+    vstrc(v1, v2, v3, v4, in, 0, zs, MO_##BITS);                               \
+}
+DEF_VSTRC_HELPER(8)
+DEF_VSTRC_HELPER(16)
+DEF_VSTRC_HELPER(32)
+
+#define DEF_VSTRC_RT_HELPER(BITS)                                              \
+void HELPER(gvec_vstrc_rt##BITS)(void *v1, const void *v2, const void *v3,     \
+                                 const void *v4, uint32_t desc)                \
+{                                                                              \
+    const bool in = extract32(simd_data(desc), 3, 1);                          \
+    const bool zs = extract32(simd_data(desc), 1, 1);                          \
+                                                                               \
+    vstrc(v1, v2, v3, v4, in, 1, zs, MO_##BITS);                               \
+}
+DEF_VSTRC_RT_HELPER(8)
+DEF_VSTRC_RT_HELPER(16)
+DEF_VSTRC_RT_HELPER(32)
+
+#define DEF_VSTRC_CC_HELPER(BITS)                                              \
+void HELPER(gvec_vstrc_cc##BITS)(void *v1, const void *v2, const void *v3,     \
+                                 const void *v4, CPUS390XState *env,           \
+                                 uint32_t desc)                                \
+{                                                                              \
+    const bool in = extract32(simd_data(desc), 3, 1);                          \
+    const bool zs = extract32(simd_data(desc), 1, 1);                          \
+                                                                               \
+    env->cc_op = vstrc(v1, v2, v3, v4, in, 0, zs, MO_##BITS);                  \
+}
+DEF_VSTRC_CC_HELPER(8)
+DEF_VSTRC_CC_HELPER(16)
+DEF_VSTRC_CC_HELPER(32)
+
+#define DEF_VSTRC_CC_RT_HELPER(BITS)                                           \
+void HELPER(gvec_vstrc_cc_rt##BITS)(void *v1, const void *v2, const void *v3,  \
+                                    const void *v4, CPUS390XState *env,        \
+                                    uint32_t desc)                             \
+{                                                                              \
+    const bool in = extract32(simd_data(desc), 3, 1);                          \
+    const bool zs = extract32(simd_data(desc), 1, 1);                          \
+                                                                               \
+    env->cc_op = vstrc(v1, v2, v3, v4, in, 1, zs, MO_##BITS);                  \
+}
+DEF_VSTRC_CC_RT_HELPER(8)
+DEF_VSTRC_CC_RT_HELPER(16)
+DEF_VSTRC_CC_RT_HELPER(32)
