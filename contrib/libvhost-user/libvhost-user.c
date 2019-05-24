@@ -130,6 +130,7 @@ vu_request_to_string(unsigned int req)
         REQ(VHOST_USER_POSTCOPY_END),
         REQ(VHOST_USER_GET_INFLIGHT_FD),
         REQ(VHOST_USER_SET_INFLIGHT_FD),
+        REQ(VHOST_USER_GPU_SET_SOCKET),
         REQ(VHOST_USER_MAX),
     };
 #undef REQ

@@ -1163,6 +1163,15 @@ Master message types
   send the shared inflight buffer back to slave so that slave could
   get inflight I/O after a crash or restart.
 
+``VHOST_USER_GPU_SET_SOCKET``
+  :id: 33
+  :equivalent ioctl: N/A
+  :master payload: N/A
+
+  Sets the GPU protocol socket file descriptor, which is passed as
+  ancillary data. The GPU protocol is used to inform the master of
+  rendering state and updates. See vhost-user-gpu.rst for details.
+
 Slave message types
 -------------------
 
