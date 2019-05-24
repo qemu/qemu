@@ -188,18 +188,28 @@ static bool usb_hub_port_clear(USBHubPort *port, uint16_t status)
     return usb_hub_port_change(port, status);
 }
 
+static bool usb_hub_port_update(USBHubPort *port)
+{
+    bool notify = false;
+
+    if (port->port.dev && port->port.dev->attached) {
+        notify = usb_hub_port_set(port, PORT_STAT_CONNECTION);
+        if (port->port.dev->speed == USB_SPEED_LOW) {
+            usb_hub_port_set(port, PORT_STAT_LOW_SPEED);
+        } else {
+            usb_hub_port_clear(port, PORT_STAT_LOW_SPEED);
+        }
+    }
+    return notify;
+}
+
 static void usb_hub_attach(USBPort *port1)
 {
     USBHubState *s = port1->opaque;
     USBHubPort *port = &s->ports[port1->index];
 
     trace_usb_hub_attach(s->dev.addr, port1->index + 1);
-    usb_hub_port_set(port, PORT_STAT_CONNECTION);
-    if (port->port.dev->speed == USB_SPEED_LOW) {
-        usb_hub_port_set(port, PORT_STAT_LOW_SPEED);
-    } else {
-        usb_hub_port_clear(port, PORT_STAT_LOW_SPEED);
-    }
+    usb_hub_port_update(port);
     usb_wakeup(s->intr, 0);
 }
 
@@ -287,12 +297,7 @@ static void usb_hub_handle_reset(USBDevice *dev)
         port->wPortStatus = 0;
         port->wPortChange = 0;
         usb_hub_port_set(port, PORT_STAT_POWER);
-        if (port->port.dev && port->port.dev->attached) {
-            usb_hub_port_set(port, PORT_STAT_CONNECTION);
-            if (port->port.dev->speed == USB_SPEED_LOW) {
-                usb_hub_port_set(port, PORT_STAT_LOW_SPEED);
-            }
-        }
+        usb_hub_port_update(port);
     }
 }
 
