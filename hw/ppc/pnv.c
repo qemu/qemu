@@ -450,7 +450,8 @@ static void pnv_dt_power_mgt(void *fdt)
 
 static void *pnv_dt_create(MachineState *machine)
 {
-    const char plat_compat[] = "qemu,powernv\0ibm,powernv";
+    const char plat_compat8[] = "qemu,powernv8\0qemu,powernv\0ibm,powernv";
+    const char plat_compat9[] = "qemu,powernv9\0ibm,powernv";
     PnvMachineState *pnv = PNV_MACHINE(machine);
     void *fdt;
     char *buf;
@@ -465,8 +466,14 @@ static void *pnv_dt_create(MachineState *machine)
     _FDT((fdt_setprop_cell(fdt, 0, "#size-cells", 0x2)));
     _FDT((fdt_setprop_string(fdt, 0, "model",
                              "IBM PowerNV (emulated by qemu)")));
-    _FDT((fdt_setprop(fdt, 0, "compatible", plat_compat,
-                      sizeof(plat_compat))));
+    if (pnv_is_power9(pnv)) {
+        _FDT((fdt_setprop(fdt, 0, "compatible", plat_compat9,
+                          sizeof(plat_compat9))));
+    } else {
+        _FDT((fdt_setprop(fdt, 0, "compatible", plat_compat8,
+                          sizeof(plat_compat8))));
+    }
+
 
     buf =  qemu_uuid_unparse_strdup(&qemu_uuid);
     _FDT((fdt_setprop_string(fdt, 0, "vm,uuid", buf)));
