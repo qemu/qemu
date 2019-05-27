@@ -677,6 +677,8 @@ static void virtio_gpu_set_scanout(VirtIOGPU *g,
 
     if (ss.r.x > res->width ||
         ss.r.y > res->height ||
+        ss.r.width < 16 ||
+        ss.r.height < 16 ||
         ss.r.width > res->width ||
         ss.r.height > res->height ||
         ss.r.x + ss.r.width > res->width ||
