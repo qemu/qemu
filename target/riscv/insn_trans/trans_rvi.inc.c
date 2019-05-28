@@ -18,6 +18,12 @@
  * this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
+static bool trans_illegal(DisasContext *ctx, arg_empty *a)
+{
+    gen_exception_illegal(ctx);
+    return true;
+}
+
 static bool trans_lui(DisasContext *ctx, arg_lui *a)
 {
     if (a->rd != 0) {
@@ -60,7 +66,7 @@ static bool trans_jalr(DisasContext *ctx, arg_jalr *a)
     if (a->rd != 0) {
         tcg_gen_movi_tl(cpu_gpr[a->rd], ctx->pc_succ_insn);
     }
-    tcg_gen_lookup_and_goto_ptr();
+    lookup_and_goto_ptr(ctx);
 
     if (misaligned) {
         gen_set_label(misaligned);
@@ -217,7 +223,7 @@ static bool trans_sd(DisasContext *ctx, arg_sd *a)
 
 static bool trans_addi(DisasContext *ctx, arg_addi *a)
 {
-    return gen_arith_imm(ctx, a, &tcg_gen_add_tl);
+    return gen_arith_imm_fn(ctx, a, &tcg_gen_addi_tl);
 }
 
 static void gen_slt(TCGv ret, TCGv s1, TCGv s2)
@@ -233,25 +239,25 @@ static void gen_sltu(TCGv ret, TCGv s1, TCGv s2)
 
 static bool trans_slti(DisasContext *ctx, arg_slti *a)
 {
-    return gen_arith_imm(ctx, a, &gen_slt);
+    return gen_arith_imm_tl(ctx, a, &gen_slt);
 }
 
 static bool trans_sltiu(DisasContext *ctx, arg_sltiu *a)
 {
-    return gen_arith_imm(ctx, a, &gen_sltu);
+    return gen_arith_imm_tl(ctx, a, &gen_sltu);
 }
 
 static bool trans_xori(DisasContext *ctx, arg_xori *a)
 {
-    return gen_arith_imm(ctx, a, &tcg_gen_xor_tl);
+    return gen_arith_imm_fn(ctx, a, &tcg_gen_xori_tl);
 }
 static bool trans_ori(DisasContext *ctx, arg_ori *a)
 {
-    return gen_arith_imm(ctx, a, &tcg_gen_or_tl);
+    return gen_arith_imm_fn(ctx, a, &tcg_gen_ori_tl);
 }
 static bool trans_andi(DisasContext *ctx, arg_andi *a)
 {
-    return gen_arith_imm(ctx, a, &tcg_gen_and_tl);
+    return gen_arith_imm_fn(ctx, a, &tcg_gen_andi_tl);
 }
 static bool trans_slli(DisasContext *ctx, arg_slli *a)
 {
@@ -358,7 +364,7 @@ static bool trans_and(DisasContext *ctx, arg_and *a)
 #ifdef TARGET_RISCV64
 static bool trans_addiw(DisasContext *ctx, arg_addiw *a)
 {
-    return gen_arith_imm(ctx, a, &gen_addw);
+    return gen_arith_imm_tl(ctx, a, &gen_addw);
 }
 
 static bool trans_slliw(DisasContext *ctx, arg_slliw *a)
@@ -483,7 +489,7 @@ static bool trans_fence_i(DisasContext *ctx, arg_fence_i *a)
      * however we need to end the translation block
      */
     tcg_gen_movi_tl(cpu_pc, ctx->pc_succ_insn);
-    tcg_gen_exit_tb(NULL, 0);
+    exit_tb(ctx);
     ctx->base.is_jmp = DISAS_NORETURN;
     return true;
 }
@@ -504,7 +510,7 @@ static bool trans_fence_i(DisasContext *ctx, arg_fence_i *a)
     gen_io_end(); \
     gen_set_gpr(a->rd, dest); \
     tcg_gen_movi_tl(cpu_pc, ctx->pc_succ_insn); \
-    tcg_gen_exit_tb(NULL, 0); \
+    exit_tb(ctx); \
     ctx->base.is_jmp = DISAS_NORETURN; \
     tcg_temp_free(source1); \
     tcg_temp_free(csr_store); \

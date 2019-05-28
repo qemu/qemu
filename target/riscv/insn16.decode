@@ -30,7 +30,7 @@
 %imm_cb        12:s1 5:2 2:1 10:2 3:2 !function=ex_shift_1
 %imm_cj        12:s1 8:1 9:2 6:1 7:1 2:1 11:1 3:3 !function=ex_shift_1
 
-%nzuimm_6bit   12:1 2:5
+%shimm_6bit   12:1 2:5               !function=ex_rvc_shifti
 %uimm_6bit_ld 2:3 12:1 5:2           !function=ex_shift_3
 %uimm_6bit_lw 2:2 12:1 4:3           !function=ex_shift_2
 %uimm_6bit_sd 7:3 10:3               !function=ex_shift_3
@@ -40,90 +40,93 @@
 %imm_lui       12:s1 2:5             !function=ex_shift_12
 
 
+# Argument sets imported from insn32.decode:
+&empty                  !extern
+&r         rd rs1 rs2   !extern
+&i         imm rs1 rd   !extern
+&s         imm rs1 rs2  !extern
+&j         imm rd       !extern
+&b         imm rs2 rs1  !extern
+&u         imm rd       !extern
+&shift     shamt rs1 rd !extern
 
-# Argument sets:
-&cl               rs1 rd
-&cl_dw     uimm   rs1 rd
-&ci        imm        rd
-&ciw       nzuimm     rd
-&cs               rs1 rs2
-&cs_dw     uimm   rs1 rs2
-&cb        imm    rs1
-&cr               rd  rs2
-&cj       imm
-&c_shift   shamt      rd
-
-&c_ld      uimm  rd
-&c_sd      uimm  rs2
-
-&caddi16sp_lui  imm_lui imm_addi16sp rd
-&cflwsp_ldsp    uimm_flwsp uimm_ldsp rd
-&cfswsp_sdsp    uimm_fswsp uimm_sdsp rs2
 
 # Formats 16:
-@cr        ....  ..... .....  .. &cr                      rs2=%rs2_5  %rd
-@ci        ... . ..... .....  .. &ci     imm=%imm_ci                  %rd
-@ciw       ...   ........ ... .. &ciw    nzuimm=%nzuimm_ciw           rd=%rs2_3
-@cl_d      ... ... ... .. ... .. &cl_dw  uimm=%uimm_cl_d  rs1=%rs1_3  rd=%rs2_3
-@cl_w      ... ... ... .. ... .. &cl_dw  uimm=%uimm_cl_w  rs1=%rs1_3  rd=%rs2_3
-@cl        ... ... ... .. ... .. &cl                      rs1=%rs1_3  rd=%rs2_3
-@cs        ... ... ... .. ... .. &cs                      rs1=%rs1_3  rs2=%rs2_3
-@cs_2      ... ... ... .. ... .. &cr                      rd=%rs1_3   rs2=%rs2_3
-@cs_d      ... ... ... .. ... .. &cs_dw  uimm=%uimm_cl_d  rs1=%rs1_3  rs2=%rs2_3
-@cs_w      ... ... ... .. ... .. &cs_dw  uimm=%uimm_cl_w  rs1=%rs1_3  rs2=%rs2_3
-@cb        ... ... ... .. ... .. &cb     imm=%imm_cb      rs1=%rs1_3
-@cj        ...    ........... .. &cj     imm=%imm_cj
+@cr        ....  ..... .....  .. &r      rs2=%rs2_5       rs1=%rd     %rd
+@ci        ... . ..... .....  .. &i      imm=%imm_ci      rs1=%rd     %rd
+@cl_d      ... ... ... .. ... .. &i      imm=%uimm_cl_d   rs1=%rs1_3  rd=%rs2_3
+@cl_w      ... ... ... .. ... .. &i      imm=%uimm_cl_w   rs1=%rs1_3  rd=%rs2_3
+@cs_2      ... ... ... .. ... .. &r      rs2=%rs2_3       rs1=%rs1_3  rd=%rs1_3
+@cs_d      ... ... ... .. ... .. &s      imm=%uimm_cl_d   rs1=%rs1_3  rs2=%rs2_3
+@cs_w      ... ... ... .. ... .. &s      imm=%uimm_cl_w   rs1=%rs1_3  rs2=%rs2_3
+@cj        ...    ........... .. &j      imm=%imm_cj
+@cb_z      ... ... ... .. ... .. &b      imm=%imm_cb      rs1=%rs1_3  rs2=0
 
-@c_ld      ... . .....  ..... .. &c_ld     uimm=%uimm_6bit_ld  %rd
-@c_lw      ... . .....  ..... .. &c_ld     uimm=%uimm_6bit_lw  %rd
-@c_sd      ... . .....  ..... .. &c_sd     uimm=%uimm_6bit_sd  rs2=%rs2_5
-@c_sw      ... . .....  ..... .. &c_sd     uimm=%uimm_6bit_sw  rs2=%rs2_5
+@c_ldsp    ... . .....  ..... .. &i      imm=%uimm_6bit_ld rs1=2 %rd
+@c_lwsp    ... . .....  ..... .. &i      imm=%uimm_6bit_lw rs1=2 %rd
+@c_sdsp    ... . .....  ..... .. &s      imm=%uimm_6bit_sd rs1=2 rs2=%rs2_5
+@c_swsp    ... . .....  ..... .. &s      imm=%uimm_6bit_sw rs1=2 rs2=%rs2_5
+@c_li      ... . .....  ..... .. &i      imm=%imm_ci rs1=0 %rd
+@c_lui     ... . .....  ..... .. &u      imm=%imm_lui %rd
+@c_jalr    ... . .....  ..... .. &i      imm=0 rs1=%rd
+@c_mv      ... . ..... .....  .. &i      imm=0 rs1=%rs2_5 %rd
 
-@c_addi16sp_lui ... .  ..... ..... .. &caddi16sp_lui %imm_lui %imm_addi16sp %rd
-@c_flwsp_ldsp   ... .  ..... ..... .. &cflwsp_ldsp uimm_flwsp=%uimm_6bit_lw \
-    uimm_ldsp=%uimm_6bit_ld %rd
-@c_fswsp_sdsp   ... .  ..... ..... .. &cfswsp_sdsp uimm_fswsp=%uimm_6bit_sw \
-    uimm_sdsp=%uimm_6bit_sd rs2=%rs2_5
+@c_addi4spn     ... .  ..... ..... .. &i imm=%nzuimm_ciw rs1=2 rd=%rs2_3
+@c_addi16sp     ... .  ..... ..... .. &i imm=%imm_addi16sp rs1=2 rd=2
 
-@c_shift        ... . .. ... ..... .. &c_shift rd=%rs1_3 shamt=%nzuimm_6bit
-@c_shift2       ... . .. ... ..... .. &c_shift rd=%rd    shamt=%nzuimm_6bit
+@c_shift        ... . .. ... ..... .. \
+                &shift rd=%rs1_3 rs1=%rs1_3 shamt=%shimm_6bit
+@c_shift2       ... . .. ... ..... .. \
+                &shift rd=%rd rs1=%rd shamt=%shimm_6bit
 
-@c_andi         ... . .. ... ..... .. &ci imm=%imm_ci rd=%rs1_3
+@c_andi         ... . .. ... ..... .. &i imm=%imm_ci rs1=%rs1_3 rd=%rs1_3
 
-# *** RV64C Standard Extension (Quadrant 0) ***
-c_addi4spn        000    ........ ... 00 @ciw
-c_fld             001  ... ... .. ... 00 @cl_d
-c_lw              010  ... ... .. ... 00 @cl_w
-c_flw_ld          011  --- ... -- ... 00 @cl    #Note: Must parse uimm manually
-c_fsd             101  ... ... .. ... 00 @cs_d
-c_sw              110  ... ... .. ... 00 @cs_w
-c_fsw_sd          111  --- ... -- ... 00 @cs    #Note: Must parse uimm manually
+# *** RV32/64C Standard Extension (Quadrant 0) ***
+{
+  # Opcode of all zeros is illegal; rd != 0, nzuimm == 0 is reserved.
+  illegal         000  000 000 00 --- 00
+  addi            000  ... ... .. ... 00 @c_addi4spn
+}
+fld               001  ... ... .. ... 00 @cl_d
+lw                010  ... ... .. ... 00 @cl_w
+fsd               101  ... ... .. ... 00 @cs_d
+sw                110  ... ... .. ... 00 @cs_w
 
-# *** RV64C Standard Extension (Quadrant 1) ***
-c_addi            000 .  .....  ..... 01 @ci
-c_jal_addiw       001 .  .....  ..... 01 @ci #Note: parse rd and/or imm manually
-c_li              010 .  .....  ..... 01 @ci
-c_addi16sp_lui    011 .  .....  ..... 01 @c_addi16sp_lui # shares opc with C.LUI
-c_srli            100 . 00 ...  ..... 01 @c_shift
-c_srai            100 . 01 ...  ..... 01 @c_shift
-c_andi            100 . 10 ...  ..... 01 @c_andi
-c_sub             100 0 11 ... 00 ... 01 @cs_2
-c_xor             100 0 11 ... 01 ... 01 @cs_2
-c_or              100 0 11 ... 10 ... 01 @cs_2
-c_and             100 0 11 ... 11 ... 01 @cs_2
-c_subw            100 1 11 ... 00 ... 01 @cs_2
-c_addw            100 1 11 ... 01 ... 01 @cs_2
-c_j               101     ........... 01 @cj
-c_beqz            110  ... ...  ..... 01 @cb
-c_bnez            111  ... ...  ..... 01 @cb
+# *** RV32/64C Standard Extension (Quadrant 1) ***
+addi              000 .  .....  ..... 01 @ci
+addi              010 .  .....  ..... 01 @c_li
+{
+  illegal         011 0  -----  00000 01 # c.addi16sp and c.lui, RES nzimm=0
+  addi            011 .  00010  ..... 01 @c_addi16sp
+  lui             011 .  .....  ..... 01 @c_lui
+}
+srli              100 . 00 ...  ..... 01 @c_shift
+srai              100 . 01 ...  ..... 01 @c_shift
+andi              100 . 10 ...  ..... 01 @c_andi
+sub               100 0 11 ... 00 ... 01 @cs_2
+xor               100 0 11 ... 01 ... 01 @cs_2
+or                100 0 11 ... 10 ... 01 @cs_2
+and               100 0 11 ... 11 ... 01 @cs_2
+jal               101     ........... 01 @cj    rd=0  # C.J
+beq               110  ... ...  ..... 01 @cb_z
+bne               111  ... ...  ..... 01 @cb_z
 
-# *** RV64C Standard Extension (Quadrant 2) ***
-c_slli            000 .  .....  ..... 10 @c_shift2
-c_fldsp           001 .  .....  ..... 10 @c_ld
-c_lwsp            010 .  .....  ..... 10 @c_lw
-c_flwsp_ldsp      011 .  .....  ..... 10 @c_flwsp_ldsp #C.LDSP:RV64;C.FLWSP:RV32
-c_jr_mv           100 0  .....  ..... 10 @cr
-c_ebreak_jalr_add 100 1  .....  ..... 10 @cr
-c_fsdsp           101   ......  ..... 10 @c_sd
-c_swsp            110 .  .....  ..... 10 @c_sw
-c_fswsp_sdsp      111 .  .....  ..... 10 @c_fswsp_sdsp #C.SDSP:RV64;C.FSWSP:RV32
+# *** RV32/64C Standard Extension (Quadrant 2) ***
+slli              000 .  .....  ..... 10 @c_shift2
+fld               001 .  .....  ..... 10 @c_ldsp
+{
+  illegal         010 -  00000  ----- 10 # c.lwsp, RES rd=0
+  lw              010 .  .....  ..... 10 @c_lwsp
+}
+{
+  illegal         100 0  00000  00000 10 # c.jr, RES rs1=0
+  jalr            100 0  .....  00000 10 @c_jalr rd=0  # C.JR
+  addi            100 0  .....  ..... 10 @c_mv
+}
+{
+  ebreak          100 1  00000  00000 10
+  jalr            100 1  .....  00000 10 @c_jalr rd=1  # C.JALR
+  add             100 1  .....  ..... 10 @cr
+}
+fsd               101   ......  ..... 10 @c_sdsp
+sw                110 .  .....  ..... 10 @c_swsp

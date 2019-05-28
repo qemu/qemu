@@ -34,9 +34,13 @@
 %imm_u    12:s20                 !function=ex_shift_12
 
 # Argument sets:
+&empty
 &b    imm rs2 rs1
 &i    imm rs1 rd
+&j    imm rd
 &r    rd rs1 rs2
+&s    imm rs1 rs2
+&u    imm rd
 &shift     shamt rs1 rd
 &atomic    aq rl rs2 rs1 rd
 
@@ -44,9 +48,9 @@
 @r       .......   ..... ..... ... ..... ....... &r                %rs2 %rs1 %rd
 @i       ............    ..... ... ..... ....... &i      imm=%imm_i     %rs1 %rd
 @b       .......   ..... ..... ... ..... ....... &b      imm=%imm_b %rs2 %rs1
-@s       .......   ..... ..... ... ..... .......         imm=%imm_s %rs2 %rs1
-@u       ....................      ..... .......         imm=%imm_u          %rd
-@j       ....................      ..... .......         imm=%imm_j          %rd
+@s       .......   ..... ..... ... ..... ....... &s      imm=%imm_s %rs2 %rs1
+@u       ....................      ..... ....... &u      imm=%imm_u          %rd
+@j       ....................      ..... ....... &j      imm=%imm_j          %rd
 
 @sh      ......  ...... .....  ... ..... ....... &shift  shamt=%sh10      %rs1 %rd
 @csr     ............   .....  ... ..... .......               %csr     %rs1 %rd

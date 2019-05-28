@@ -202,6 +202,23 @@
 #define CSR_DPC             0x7b1
 #define CSR_DSCRATCH        0x7b2
 
+/* Hpervisor CSRs */
+#define CSR_HSTATUS         0xa00
+#define CSR_HEDELEG         0xa02
+#define CSR_HIDELEG         0xa03
+#define CSR_HGATP           0xa80
+
+#if defined(TARGET_RISCV32)
+#define HGATP_MODE           SATP32_MODE
+#define HGATP_ASID           SATP32_ASID
+#define HGATP_PPN            SATP32_PPN
+#endif
+#if defined(TARGET_RISCV64)
+#define HGATP_MODE           SATP64_MODE
+#define HGATP_ASID           SATP64_ASID
+#define HGATP_PPN            SATP64_PPN
+#endif
+
 /* Performance Counters */
 #define CSR_MHPMCOUNTER3    0xb03
 #define CSR_MHPMCOUNTER4    0xb04
@@ -292,9 +309,6 @@
 #define CSR_MHPMCOUNTER31H  0xb9f
 
 /* Legacy Hypervisor Trap Setup (priv v1.9.1) */
-#define CSR_HSTATUS         0x200
-#define CSR_HEDELEG         0x202
-#define CSR_HIDELEG         0x203
 #define CSR_HIE             0x204
 #define CSR_HTVEC           0x205
 
@@ -316,14 +330,11 @@
 /* mstatus CSR bits */
 #define MSTATUS_UIE         0x00000001
 #define MSTATUS_SIE         0x00000002
-#define MSTATUS_HIE         0x00000004
 #define MSTATUS_MIE         0x00000008
 #define MSTATUS_UPIE        0x00000010
 #define MSTATUS_SPIE        0x00000020
-#define MSTATUS_HPIE        0x00000040
 #define MSTATUS_MPIE        0x00000080
 #define MSTATUS_SPP         0x00000100
-#define MSTATUS_HPP         0x00000600
 #define MSTATUS_MPP         0x00001800
 #define MSTATUS_FS          0x00006000
 #define MSTATUS_XS          0x00018000
@@ -335,6 +346,8 @@
 #define MSTATUS_TVM         0x00100000 /* since: priv-1.10 */
 #define MSTATUS_TW          0x20000000 /* since: priv-1.10 */
 #define MSTATUS_TSR         0x40000000 /* since: priv-1.10 */
+#define MSTATUS_MTL         0x4000000000ULL
+#define MSTATUS_MPV         0x8000000000ULL
 
 #define MSTATUS64_UXL       0x0000000300000000ULL
 #define MSTATUS64_SXL       0x0000000C00000000ULL
@@ -380,10 +393,28 @@
 #define SSTATUS_SD SSTATUS64_SD
 #endif
 
+/* hstatus CSR bits */
+#define HSTATUS_SPRV         0x00000001
+#define HSTATUS_STL          0x00000040
+#define HSTATUS_SPV          0x00000080
+#define HSTATUS_SP2P         0x00000100
+#define HSTATUS_SP2V         0x00000200
+#define HSTATUS_VTVM         0x00100000
+#define HSTATUS_VTSR         0x00400000
+
+#define HSTATUS32_WPRI       0xFF8FF87E
+#define HSTATUS64_WPRI       0xFFFFFFFFFF8FF87EULL
+
+#if defined(TARGET_RISCV32)
+#define HSTATUS_WPRI HSTATUS32_WPRI
+#elif defined(TARGET_RISCV64)
+#define HSTATUS_WPRI HSTATUS64_WPRI
+#endif
+
 /* Privilege modes */
 #define PRV_U 0
 #define PRV_S 1
-#define PRV_H 2
+#define PRV_H 2 /* Reserved */
 #define PRV_M 3
 
 /* RV32 satp CSR field masks */

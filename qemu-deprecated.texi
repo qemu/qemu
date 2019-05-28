@@ -138,6 +138,21 @@ The ``acl_show'', ``acl_reset'', ``acl_policy'', ``acl_add'', and
 ``acl_remove'' commands are deprecated with no replacement. Authorization
 for VNC should be performed using the pluggable QAuthZ objects.
 
+@section System emulator CPUS
+
+@subsection RISC-V ISA CPUs (since 4.1)
+
+The RISC-V cpus with the ISA version in the CPU name have been depcreated. The
+four CPUs are: ``rv32gcsu-v1.9.1``, ``rv32gcsu-v1.10.0``, ``rv64gcsu-v1.9.1`` and
+``rv64gcsu-v1.10.0``. Instead the version can be specified via the CPU ``priv_spec``
+option when using the ``rv32`` or ``rv64`` CPUs.
+
+@subsection RISC-V ISA CPUs (since 4.1)
+
+The RISC-V no MMU cpus have been depcreated. The two CPUs: ``rv32imacu-nommu`` and
+``rv64imacu-nommu`` should no longer be used. Instead the MMU status can be specified
+via the CPU ``mmu`` option when using the ``rv32`` or ``rv64`` CPUs.
+
 @section System emulator devices
 
 @subsection bluetooth (since 3.1)
@@ -159,6 +174,12 @@ from old QEMU versions anymore. A newer machine type should be used instead.
 This machine type uses an unmaintained firmware, broken in lots of ways,
 and unable to start post-2004 operating systems. 40p machine type should be
 used instead.
+
+@subsection spike_v1.9.1 and spike_v1.10 (since 4.1)
+
+The version specific Spike machines have been deprecated in favour of the
+generic ``spike`` machine. If you need to specify an older version of the RISC-V
+spec you can use the ``-cpu rv64gcsu,priv_spec=v1.9.1`` command line argument.
 
 @section Device options
 
