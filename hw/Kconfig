@@ -29,6 +29,7 @@ source pci/Kconfig
 source rdma/Kconfig
 source scsi/Kconfig
 source sd/Kconfig
+source semihosting/Kconfig
 source smbios/Kconfig
 source ssi/Kconfig
 source timer/Kconfig

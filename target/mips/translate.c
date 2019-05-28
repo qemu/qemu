@@ -32,7 +32,7 @@
 
 #include "exec/helper-proto.h"
 #include "exec/helper-gen.h"
-#include "exec/semihost.h"
+#include "hw/semihosting/semihost.h"
 
 #include "target/mips/trace.h"
 #include "trace-tcg.h"
@@ -13725,6 +13725,14 @@ static inline bool is_uhi(int sdbbp_code)
     return semihosting_enabled() && sdbbp_code == 1;
 #endif
 }
+
+#ifdef CONFIG_USER_ONLY
+/* The above should dead-code away any calls to this..*/
+static inline void gen_helper_do_semihosting(void *env)
+{
+    g_assert_not_reached();
+}
+#endif
 
 static int decode_mips16_opc (CPUMIPSState *env, DisasContext *ctx)
 {

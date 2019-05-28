@@ -29,7 +29,7 @@
 #include "qemu/host-utils.h"
 #include "qemu/qemu-print.h"
 
-#include "exec/semihost.h"
+#include "hw/semihosting/semihost.h"
 #include "exec/gen-icount.h"
 
 #include "exec/helper-proto.h"
