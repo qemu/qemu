@@ -273,7 +273,6 @@ static int init_dirty_bitmap_migration(void)
     BlockDriverState *bs;
     BdrvDirtyBitmap *bitmap;
     DirtyBitmapMigBitmapState *dbms;
-    BdrvNextIterator it;
     Error *local_err = NULL;
 
     dirty_bitmap_mig_state.bulk_completed = false;
@@ -281,13 +280,8 @@ static int init_dirty_bitmap_migration(void)
     dirty_bitmap_mig_state.prev_bitmap = NULL;
     dirty_bitmap_mig_state.no_bitmaps = false;
 
-    for (bs = bdrv_first(&it); bs; bs = bdrv_next(&it)) {
-        const char *drive_name = bdrv_get_device_or_node_name(bs);
-
-        /* skip automatically inserted nodes */
-        while (bs && bs->drv && bs->implicit) {
-            bs = backing_bs(bs);
-        }
+    for (bs = bdrv_next_all_states(NULL); bs; bs = bdrv_next_all_states(bs)) {
+        const char *name = bdrv_get_device_or_node_name(bs);
 
         for (bitmap = bdrv_dirty_bitmap_next(bs, NULL); bitmap;
              bitmap = bdrv_dirty_bitmap_next(bs, bitmap))
@@ -296,7 +290,7 @@ static int init_dirty_bitmap_migration(void)
                 continue;
             }
 
-            if (drive_name == NULL) {
+            if (!name || strcmp(name, "") == 0) {
                 error_report("Found bitmap '%s' in unnamed node %p. It can't "
                              "be migrated", bdrv_dirty_bitmap_name(bitmap), bs);
                 goto fail;
@@ -313,7 +307,7 @@ static int init_dirty_bitmap_migration(void)
 
             dbms = g_new0(DirtyBitmapMigBitmapState, 1);
             dbms->bs = bs;
-            dbms->node_name = drive_name;
+            dbms->node_name = name;
             dbms->bitmap = bitmap;
             dbms->total_sectors = bdrv_nb_sectors(bs);
             dbms->sectors_per_chunk = CHUNK_SIZE * 8 *
