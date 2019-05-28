@@ -1388,7 +1388,7 @@ static void ac97_realize(PCIDevice *dev, Error **errp)
     pci_register_bar (&s->dev, 0, PCI_BASE_ADDRESS_SPACE_IO, &s->io_nam);
     pci_register_bar (&s->dev, 1, PCI_BASE_ADDRESS_SPACE_IO, &s->io_nabm);
     AUD_register_card ("ac97", &s->card);
-    ac97_on_reset (&s->dev.qdev);
+    ac97_on_reset(DEVICE(s));
 }
 
 static void ac97_exit(PCIDevice *dev)
