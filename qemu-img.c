@@ -3350,6 +3350,7 @@ static int img_rebase(int argc, char **argv)
                                                              out_baseimg,
                                                              &local_err);
             if (local_err) {
+                qobject_unref(options);
                 error_reportf_err(local_err,
                                   "Could not resolve backing filename: ");
                 ret = -1;
@@ -3362,7 +3363,9 @@ static int img_rebase(int argc, char **argv)
              */
             prefix_chain_bs = bdrv_find_backing_image(bs, out_real_path);
             if (prefix_chain_bs) {
+                qobject_unref(options);
                 g_free(out_real_path);
+
                 blk_new_backing = blk_new(qemu_get_aio_context(),
                                           BLK_PERM_CONSISTENT_READ,
                                           BLK_PERM_ALL);
