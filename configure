@@ -6609,7 +6609,7 @@ if test "$slirp" != "no"; then
   echo "SLIRP_LIBS=$slirp_libs" >> $config_host_mak
 fi
 if [ "$slirp" = "git" -o "$slirp" = "internal" ]; then
-    echo "config-host.h: subdir-slirp" >> $config_host_mak
+    echo "config-host.h: slirp/all" >> $config_host_mak
 fi
 if test "$vde" = "yes" ; then
   echo "CONFIG_VDE=y" >> $config_host_mak
@@ -7881,10 +7881,10 @@ if test -n "$enabled_cross_compilers"; then
 fi
 
 if [ "$fdt" = "git" ]; then
-  echo "config-host.h: subdir-dtc" >> $config_host_mak
+  echo "config-host.h: dtc/all" >> $config_host_mak
 fi
 if [ "$capstone" = "git" -o "$capstone" = "internal" ]; then
-  echo "config-host.h: subdir-capstone" >> $config_host_mak
+  echo "config-host.h: capstone/all" >> $config_host_mak
 fi
 if test -n "$LIBCAPSTONE"; then
   echo "LIBCAPSTONE=$LIBCAPSTONE" >> $config_host_mak
