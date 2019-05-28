@@ -160,9 +160,9 @@ static void aspeed_board_init(MachineState *machine,
     ram_addr_t max_ram_size;
 
     bmc = g_new0(AspeedBoardState, 1);
-    object_initialize(&bmc->soc, (sizeof(bmc->soc)), cfg->soc_name);
-    object_property_add_child(OBJECT(machine), "soc", OBJECT(&bmc->soc),
-                              &error_abort);
+    object_initialize_child(OBJECT(machine), "soc", &bmc->soc,
+                            (sizeof(bmc->soc)), cfg->soc_name, &error_abort,
+                            NULL);
 
     sc = ASPEED_SOC_GET_CLASS(&bmc->soc);
 
