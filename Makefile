@@ -454,20 +454,22 @@ config-host.h-timestamp: config-host.mak
 qemu-options.def: $(SRC_PATH)/qemu-options.hx $(SRC_PATH)/scripts/hxtool
 	$(call quiet-command,sh $(SRC_PATH)/scripts/hxtool -h < $< > $@,"GEN","$@")
 
-SUBDIR_RULES=$(addsuffix /all, $(TARGET_DIRS))
-SOFTMMU_SUBDIR_RULES=$(filter %-softmmu/all,$(SUBDIR_RULES))
+TARGET_DIRS_RULES := $(foreach t, all clean install, $(addsuffix /$(t), $(TARGET_DIRS)))
 
-$(SOFTMMU_SUBDIR_RULES): $(authz-obj-y)
-$(SOFTMMU_SUBDIR_RULES): $(block-obj-y)
-$(SOFTMMU_SUBDIR_RULES): $(chardev-obj-y)
-$(SOFTMMU_SUBDIR_RULES): $(crypto-obj-y)
-$(SOFTMMU_SUBDIR_RULES): $(io-obj-y)
-$(SOFTMMU_SUBDIR_RULES): config-all-devices.mak
-$(SOFTMMU_SUBDIR_RULES): $(edk2-decompressed)
+SOFTMMU_ALL_RULES=$(filter %-softmmu/all, $(TARGET_DIRS_RULES))
+$(SOFTMMU_ALL_RULES): $(authz-obj-y)
+$(SOFTMMU_ALL_RULES): $(block-obj-y)
+$(SOFTMMU_ALL_RULES): $(chardev-obj-y)
+$(SOFTMMU_ALL_RULES): $(crypto-obj-y)
+$(SOFTMMU_ALL_RULES): $(io-obj-y)
+$(SOFTMMU_ALL_RULES): config-all-devices.mak
+$(SOFTMMU_ALL_RULES): $(edk2-decompressed)
 
-.PHONY: $(SUBDIR_RULES)
-$(SUBDIR_RULES):
-	$(call quiet-command,$(MAKE) $(SUBDIR_MAKEFLAGS) -C $(dir $@) V="$(V)" TARGET_DIR="$(dir $@)" all,)
+.PHONY: $(TARGET_DIRS_RULES)
+# The $(TARGET_DIRS_RULES) are of the form SUBDIR/GOAL, so that
+# $(dir $@) yields the sub-directory, and $(notdir $@) yields the sub-goal
+$(TARGET_DIRS_RULES):
+	$(call quiet-command,$(MAKE) $(SUBDIR_MAKEFLAGS) -C $(dir $@) V="$(V)" TARGET_DIR="$(dir $@)" $(notdir $@),)
 
 DTC_MAKE_ARGS=-I$(SRC_PATH)/dtc VPATH=$(SRC_PATH)/dtc -C dtc V="$(V)" LIBFDT_srcdir=$(SRC_PATH)/dtc/libfdt
 DTC_CFLAGS=$(CFLAGS) $(QEMU_CFLAGS)
@@ -506,19 +508,19 @@ subdir-dtc: dtc/all
 subdir-capstone: capstone/all
 subdir-slirp: slirp/all
 
-$(SUBDIR_RULES): libqemuutil.a $(common-obj-y) \
+$(filter %/all, $(TARGET_DIRS_RULES)): libqemuutil.a $(common-obj-y) \
 	$(qom-obj-y) $(crypto-user-obj-$(CONFIG_USER_ONLY))
 
 ROM_DIRS = $(addprefix pc-bios/, $(ROMS))
-ROMSUBDIR_RULES=$(addsuffix /all, $(ROM_DIRS))
+ROM_DIRS_RULES=$(foreach t, all clean, $(addsuffix /$(t), $(ROM_DIRS)))
 # Only keep -O and -g cflags
-.PHONY: $(ROMSUBDIR_RULES)
-$(ROMSUBDIR_RULES):
-	$(call quiet-command,$(MAKE) $(SUBDIR_MAKEFLAGS) -C $(dir $@) V="$(V)" TARGET_DIR="$(dir $@)" CFLAGS="$(filter -O% -g%,$(CFLAGS))",)
+.PHONY: $(ROM_DIRS_RULES)
+$(ROM_DIRS_RULES):
+	$(call quiet-command,$(MAKE) $(SUBDIR_MAKEFLAGS) -C $(dir $@) V="$(V)" TARGET_DIR="$(dir $@)" CFLAGS="$(filter -O% -g%,$(CFLAGS))" $(notdir $@),)
 
-ALL_SUBDIRS=$(TARGET_DIRS) $(ROM_DIRS)
-
-recurse-all: $(SUBDIR_RULES) $(ROMSUBDIR_RULES)
+recurse-all: $(addsuffix /all, $(TARGET_DIRS) $(ROM_DIRS))
+recurse-clean: $(addsuffix /clean, $(TARGET_DIRS) $(ROM_DIRS))
+recurse-install: $(addsuffix /install, $(TARGET_DIRS))
 
 $(BUILD_DIR)/version.o: $(SRC_PATH)/version.rc config-host.h
 	$(call quiet-command,$(WINDRES) -I$(BUILD_DIR) -o $@ $<,"RC","version.o")
@@ -667,7 +669,7 @@ clean-coverage:
 		"CLEAN", "coverage files")
 endif
 
-clean:
+clean: recurse-clean
 # avoid old build problems by removing potentially incorrect old files
 	rm -f config.mak op-i386.h opc-i386.h gen-op-i386.h op-arm.h opc-arm.h gen-op-arm.h
 	rm -f qemu-options.def
@@ -688,9 +690,6 @@ clean:
 	rm -f $(foreach f,$(generated-files-y),$(f) $(f)-timestamp)
 	rm -f qapi-gen-timestamp
 	rm -rf qga/qapi-generated
-	for d in $(ALL_SUBDIRS); do \
-	if test -d $$d; then $(MAKE) -C $$d $@ || exit 1; fi; \
-        done
 	rm -f config-all-devices.mak
 
 VERSION ?= $(shell cat VERSION)
@@ -838,7 +837,8 @@ endif
 ICON_SIZES=16x16 24x24 32x32 48x48 64x64 128x128 256x256 512x512
 
 install: all $(if $(BUILD_DOCS),install-doc) install-datadir install-localstatedir \
-	$(if $(INSTALL_BLOBS),$(edk2-decompressed))
+	$(if $(INSTALL_BLOBS),$(edk2-decompressed)) \
+	recurse-install
 ifneq ($(TOOLS),)
 	$(call install-prog,$(subst qemu-ga,qemu-ga$(EXESUF),$(TOOLS)),$(DESTDIR)$(bindir))
 endif
@@ -904,9 +904,6 @@ endif
 		$(INSTALL_DATA) $(SRC_PATH)/pc-bios/keymaps/$$x "$(DESTDIR)$(qemu_datadir)/keymaps"; \
 	done
 	$(INSTALL_DATA) $(BUILD_DIR)/trace-events-all "$(DESTDIR)$(qemu_datadir)/trace-events-all"
-	for d in $(TARGET_DIRS); do \
-	$(MAKE) $(SUBDIR_MAKEFLAGS) TARGET_DIR=$$d/ -C $$d $@ || exit 1 ; \
-        done
 
 .PHONY: ctags
 ctags:
