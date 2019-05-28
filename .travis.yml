@@ -240,8 +240,8 @@ matrix:
             - ubuntu-toolchain-r-test
           packages:
             # Extra toolchains
-            - gcc-7
-            - g++-7
+            - gcc-9
+            - g++-9
             # Build dependencies
             - libaio-dev
             - libattr1-dev
@@ -270,11 +270,11 @@ matrix:
       language: generic
       compiler: none
       env:
-        - COMPILER_NAME=gcc CXX=g++-7 CC=gcc-7
-        - CONFIG="--cc=gcc-7 --cxx=g++-7 --disable-pie --disable-linux-user"
+        - COMPILER_NAME=gcc CXX=g++-9 CC=gcc-9
+        - CONFIG="--cc=gcc-9 --cxx=g++-9 --disable-pie --disable-linux-user"
         - TEST_CMD=""
       before_script:
-        - ./configure ${CONFIG} --extra-cflags="-g3 -O0 -fsanitize=thread -fuse-ld=gold" || { cat config.log && exit 1; }
+        - ./configure ${CONFIG} --extra-cflags="-g3 -O0 -Wno-error=stringop-truncation -fsanitize=thread -fuse-ld=gold" || { cat config.log && exit 1; }
 
 
     # Run check-tcg against linux-user
