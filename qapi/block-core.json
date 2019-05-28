@@ -2004,18 +2004,34 @@
             '*persistent': 'bool', '*autoload': 'bool', '*disabled': 'bool' } }
 
 ##
+# @BlockDirtyBitmapMergeSource:
+#
+# @local: name of the bitmap, attached to the same node as target bitmap.
+#
+# @external: bitmap with specified node
+#
+# Since: 4.1
+##
+{ 'alternate': 'BlockDirtyBitmapMergeSource',
+  'data': { 'local': 'str',
+            'external': 'BlockDirtyBitmap' } }
+
+##
 # @BlockDirtyBitmapMerge:
 #
-# @node: name of device/node which the bitmap is tracking
+# @node: name of device/node which the @target bitmap is tracking
 #
 # @target: name of the destination dirty bitmap
 #
-# @bitmaps: name(s) of the source dirty bitmap(s)
+# @bitmaps: name(s) of the source dirty bitmap(s) at @node and/or fully
+#           specifed BlockDirtyBitmap elements. The latter are supported
+#           since 4.1.
 #
 # Since: 4.0
 ##
 { 'struct': 'BlockDirtyBitmapMerge',
-  'data': { 'node': 'str', 'target': 'str', 'bitmaps': ['str'] } }
+  'data': { 'node': 'str', 'target': 'str',
+            'bitmaps': ['BlockDirtyBitmapMergeSource'] } }
 
 ##
 # @block-dirty-bitmap-add:
