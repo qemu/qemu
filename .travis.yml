@@ -153,6 +153,13 @@ matrix:
 
 
     - env:
+        - CONFIG="--target-list=${MAIN_SOFTMMU_TARGETS} "
+      compiler: clang
+      before_script:
+        - ./configure ${CONFIG} --extra-cflags="-fsanitize=undefined -Werror" || { cat config.log && exit 1; }
+
+
+    - env:
         - CONFIG="--disable-user --target-list-exclude=${MAIN_SOFTMMU_TARGETS}"
       compiler: clang
 
