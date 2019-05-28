@@ -2717,7 +2717,7 @@ static void vfio_req_notifier_handler(void *opaque)
         return;
     }
 
-    qdev_unplug(&vdev->pdev.qdev, &err);
+    qdev_unplug(DEVICE(vdev), &err);
     if (err) {
         warn_reportf_err(err, VFIO_MSG_PREFIX, vdev->vbasedev.name);
     }
@@ -2839,7 +2839,7 @@ static void vfio_realize(PCIDevice *pdev, Error **errp)
     vdev->vbasedev.name = g_path_get_basename(vdev->vbasedev.sysfsdev);
     vdev->vbasedev.ops = &vfio_pci_ops;
     vdev->vbasedev.type = VFIO_DEVICE_TYPE_PCI;
-    vdev->vbasedev.dev = &vdev->pdev.qdev;
+    vdev->vbasedev.dev = DEVICE(vdev);
 
     tmp = g_strdup_printf("%s/iommu_group", vdev->vbasedev.sysfsdev);
     len = readlink(tmp, group_path, sizeof(group_path));
