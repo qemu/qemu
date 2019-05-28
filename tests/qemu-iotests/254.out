@@ -1,0 +1,52 @@
+{"execute": "block-dirty-bitmap-add", "arguments": {"name": "bitmap0", "node": "drive0"}}
+{"return": {}}
+{
+  "execute": "transaction",
+  "arguments": {
+    "actions": [
+      {
+        "data": {
+          "device": "drive0",
+          "snapshot-file": "TEST_DIR/PID-top",
+          "snapshot-node-name": "snap"
+        },
+        "type": "blockdev-snapshot-sync"
+      },
+      {
+        "data": {
+          "name": "bitmap0",
+          "node": "snap"
+        },
+        "type": "block-dirty-bitmap-add"
+      },
+      {
+        "data": {
+          "bitmaps": [
+            {
+              "name": "bitmap0",
+              "node": "base"
+            }
+          ],
+          "node": "snap",
+          "target": "bitmap0"
+        },
+        "type": "block-dirty-bitmap-merge"
+      }
+    ]
+  }
+}
+{
+  "return": {}
+}
+query-block: device = drive0, node-name = snap, dirty-bitmaps:
+[
+  {
+    "busy": false,
+    "count": 524288,
+    "granularity": 65536,
+    "name": "bitmap0",
+    "persistent": false,
+    "recording": true,
+    "status": "active"
+  }
+]
