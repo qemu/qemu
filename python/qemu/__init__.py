@@ -409,27 +409,31 @@ class QEMUMachine(object):
 
         The match criteria takes the form of a matching subdict. The event is
         checked to be a superset of the subdict, recursively, with matching
-        values whenever those values are not None.
+        values whenever the subdict values are not None.
+
+        This has a limitation that you cannot explicitly check for None values.
 
         Examples, with the subdict queries on the left:
          - None matches any object.
          - {"foo": None} matches {"foo": {"bar": 1}}
-         - {"foo": {"baz": None}} does not match {"foo": {"bar": 1}}
-         - {"foo": {"baz": 2}} matches {"foo": {"bar": 1, "baz": 2}}
+         - {"foo": None} matches {"foo": 5}
+         - {"foo": {"abc": None}} does not match {"foo": {"bar": 1}}
+         - {"foo": {"rab": 2}} matches {"foo": {"bar": 1, "rab": 2}}
         """
         if match is None:
             return True
 
-        for key in match:
-            if key in event:
-                if isinstance(event[key], dict):
+        try:
+            for key in match:
+                if key in event:
                     if not QEMUMachine.event_match(event[key], match[key]):
                         return False
-                elif event[key] != match[key]:
+                else:
                     return False
-            else:
-                return False
-        return True
+            return True
+        except TypeError:
+            # either match or event wasn't iterable (not a dict)
+            return match == event
 
     def event_wait(self, name, timeout=60.0, match=None):
         """
