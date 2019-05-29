@@ -2727,3 +2727,55 @@ static DisasJumpType op_vfma(DisasContext *s, DisasOps *o)
                    0, fn);
     return DISAS_NEXT;
 }
+
+static DisasJumpType op_vfpso(DisasContext *s, DisasOps *o)
+{
+    const uint8_t v1 = get_field(s->fields, v1);
+    const uint8_t v2 = get_field(s->fields, v2);
+    const uint8_t fpf = get_field(s->fields, m3);
+    const uint8_t m4 = get_field(s->fields, m4);
+    const uint8_t m5 = get_field(s->fields, m5);
+    TCGv_i64 tmp;
+
+    if (fpf != FPF_LONG || extract32(m4, 0, 3) || m5 > 2) {
+        gen_program_exception(s, PGM_SPECIFICATION);
+        return DISAS_NORETURN;
+    }
+
+    if (extract32(m4, 3, 1)) {
+        tmp = tcg_temp_new_i64();
+        read_vec_element_i64(tmp, v2, 0, ES_64);
+        switch (m5) {
+        case 0:
+            /* sign bit is inverted (complement) */
+            tcg_gen_xori_i64(tmp, tmp, 1ull << 63);
+            break;
+        case 1:
+            /* sign bit is set to one (negative) */
+            tcg_gen_ori_i64(tmp, tmp, 1ull << 63);
+            break;
+        case 2:
+            /* sign bit is set to zero (positive) */
+            tcg_gen_andi_i64(tmp, tmp, (1ull << 63) - 1);
+            break;
+        }
+        write_vec_element_i64(tmp, v1, 0, ES_64);
+        tcg_temp_free_i64(tmp);
+    } else {
+        switch (m5) {
+        case 0:
+            /* sign bit is inverted (complement) */
+            gen_gvec_fn_2i(xori, ES_64, v1, v2, 1ull << 63);
+            break;
+        case 1:
+            /* sign bit is set to one (negative) */
+            gen_gvec_fn_2i(ori, ES_64, v1, v2, 1ull << 63);
+            break;
+        case 2:
+            /* sign bit is set to zero (positive) */
+            gen_gvec_fn_2i(andi, ES_64, v1, v2, (1ull << 63) - 1);
+            break;
+        }
+    }
+    return DISAS_NEXT;
+}
