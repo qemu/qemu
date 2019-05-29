@@ -409,3 +409,38 @@ void HELPER(gvec_vfi64s)(void *v1, const void *v2, CPUS390XState *env,
 
     vop64_2(v1, v2, env, true, XxC, erm, vfi64, GETPC());
 }
+
+static void vfll32(S390Vector *v1, const S390Vector *v2, CPUS390XState *env,
+                   bool s, uintptr_t retaddr)
+{
+    uint8_t vxc, vec_exc = 0;
+    S390Vector tmp = {};
+    int i;
+
+    for (i = 0; i < 2; i++) {
+        /* load from even element */
+        const float32 a = s390_vec_read_element32(v2, i * 2);
+        const uint64_t ret = float32_to_float64(a, &env->fpu_status);
+
+        s390_vec_write_element64(&tmp, i, ret);
+        /* indicate the source element */
+        vxc = check_ieee_exc(env, i * 2, false, &vec_exc);
+        if (s || vxc) {
+            break;
+        }
+    }
+    handle_ieee_exc(env, vxc, vec_exc, retaddr);
+    *v1 = tmp;
+}
+
+void HELPER(gvec_vfll32)(void *v1, const void *v2, CPUS390XState *env,
+                         uint32_t desc)
+{
+    vfll32(v1, v2, env, false, GETPC());
+}
+
+void HELPER(gvec_vfll32s)(void *v1, const void *v2, CPUS390XState *env,
+                          uint32_t desc)
+{
+    vfll32(v1, v2, env, true, GETPC());
+}
