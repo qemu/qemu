@@ -702,6 +702,7 @@ static uint16_t qemu_LATEST[] = {
 static uint16_t qemu_MAX[] = {
     /* z13+ features */
     S390_FEAT_STFLE_53,
+    S390_FEAT_VECTOR,
     /* generates a dependency warning, leave it out for now */
     S390_FEAT_MSA_EXT_5,
 };
