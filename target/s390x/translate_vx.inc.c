@@ -52,6 +52,11 @@
 #define ES_64   MO_64
 #define ES_128  4
 
+/* Floating-Point Format */
+#define FPF_SHORT       2
+#define FPF_LONG        3
+#define FPF_EXT         4
+
 static inline bool valid_vec_element(uint8_t enr, TCGMemOp es)
 {
     return !(enr & ~(NUM_VEC_ELEMENTS(es) - 1));
@@ -2536,5 +2541,29 @@ static DisasJumpType op_vstrc(DisasContext *s, DisasOps *o)
                            m6, g[es]);
         }
     }
+    return DISAS_NEXT;
+}
+
+static DisasJumpType op_vfa(DisasContext *s, DisasOps *o)
+{
+    const uint8_t fpf = get_field(s->fields, m4);
+    const uint8_t m5 = get_field(s->fields, m5);
+    const bool se = extract32(m5, 3, 1);
+    gen_helper_gvec_3_ptr *fn;
+
+    if (fpf != FPF_LONG || extract32(m5, 0, 3)) {
+        gen_program_exception(s, PGM_SPECIFICATION);
+        return DISAS_NORETURN;
+    }
+
+    switch (s->fields->op2) {
+    case 0xe3:
+        fn = se ? gen_helper_gvec_vfa64s : gen_helper_gvec_vfa64;
+        break;
+    default:
+        g_assert_not_reached();
+    }
+    gen_gvec_3_ptr(get_field(s->fields, v1), get_field(s->fields, v2),
+                   get_field(s->fields, v3), cpu_env, 0, fn);
     return DISAS_NEXT;
 }
