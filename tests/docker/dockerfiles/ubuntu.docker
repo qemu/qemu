@@ -1,6 +1,15 @@
-FROM ubuntu:16.04
-RUN echo "deb http://archive.ubuntu.com/ubuntu/ trusty universe multiverse" >> \
-    /etc/apt/sources.list
+#
+# Latest Ubuntu Release
+#
+# Useful for testing against relatively bleeding edge libraries and
+# compilers. We also have seperate recipe for the most recent LTS
+# release.
+#
+# When updating use the full tag not :latest otherwise the build
+# system won't pick up that it has changed.
+#
+
+FROM ubuntu:19.04
 ENV PACKAGES flex bison \
     ccache \
     clang \
@@ -21,7 +30,7 @@ ENV PACKAGES flex bison \
     libepoxy-dev \
     libfdt-dev \
     libgbm-dev \
-    libgnutls-dev \
+    libgnutls28-dev \
     libgtk-3-dev \
     libibverbs-dev \
     libiscsi-dev \
@@ -34,7 +43,7 @@ ENV PACKAGES flex bison \
     libnss3-dev \
     libnuma-dev \
     libpixman-1-dev \
-    libpng12-dev \
+    libpng-dev \
     librados-dev \
     librbd-dev \
     librdmacm-dev \
