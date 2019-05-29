@@ -470,8 +470,8 @@ void numa_cpu_pre_plug(const CPUArchId *slot, DeviceState *dev, Error **errp)
                                     "node-id", errp);
         }
     } else if (node_id != slot->props.node_id) {
-        error_setg(errp, "node-id=%d must match numa node specified "
-                   "with -numa option", node_id);
+        error_setg(errp, "invalid node-id, must be %"PRId64,
+                   slot->props.node_id);
     }
 }
 
