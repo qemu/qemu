@@ -78,6 +78,30 @@ static void handle_ieee_exc(CPUS390XState *env, uint8_t vxc, uint8_t vec_exc,
     }
 }
 
+typedef uint64_t (*vop64_2_fn)(uint64_t a, float_status *s);
+static void vop64_2(S390Vector *v1, const S390Vector *v2, CPUS390XState *env,
+                    bool s, bool XxC, uint8_t erm, vop64_2_fn fn,
+                    uintptr_t retaddr)
+{
+    uint8_t vxc, vec_exc = 0;
+    S390Vector tmp = {};
+    int i, old_mode;
+
+    old_mode = s390_swap_bfp_rounding_mode(env, erm);
+    for (i = 0; i < 2; i++) {
+        const uint64_t a = s390_vec_read_element64(v2, i);
+
+        s390_vec_write_element64(&tmp, i, fn(a, &env->fpu_status));
+        vxc = check_ieee_exc(env, i, XxC, &vec_exc);
+        if (s || vxc) {
+            break;
+        }
+    }
+    s390_restore_bfp_rounding_mode(env, old_mode);
+    handle_ieee_exc(env, vxc, vec_exc, retaddr);
+    *v1 = tmp;
+}
+
 typedef uint64_t (*vop64_3_fn)(uint64_t a, uint64_t b, float_status *s);
 static void vop64_3(S390Vector *v1, const S390Vector *v2, const S390Vector *v3,
                     CPUS390XState *env, bool s, vop64_3_fn fn,
@@ -252,4 +276,27 @@ void HELPER(gvec_vfche64s_cc)(void *v1, const void *v2, const void *v3,
                               CPUS390XState *env, uint32_t desc)
 {
     env->cc_op = vfc64(v1, v2, v3, env, true, float64_le_quiet, GETPC());
+}
+
+static uint64_t vcdg64(uint64_t a, float_status *s)
+{
+    return int64_to_float64(a, s);
+}
+
+void HELPER(gvec_vcdg64)(void *v1, const void *v2, CPUS390XState *env,
+                         uint32_t desc)
+{
+    const uint8_t erm = extract32(simd_data(desc), 4, 4);
+    const bool XxC = extract32(simd_data(desc), 2, 1);
+
+    vop64_2(v1, v2, env, false, XxC, erm, vcdg64, GETPC());
+}
+
+void HELPER(gvec_vcdg64s)(void *v1, const void *v2, CPUS390XState *env,
+                          uint32_t desc)
+{
+    const uint8_t erm = extract32(simd_data(desc), 4, 4);
+    const bool XxC = extract32(simd_data(desc), 2, 1);
+
+    vop64_2(v1, v2, env, true, XxC, erm, vcdg64, GETPC());
 }

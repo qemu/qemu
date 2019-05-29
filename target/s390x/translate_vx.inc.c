@@ -2639,3 +2639,28 @@ static DisasJumpType op_vfc(DisasContext *s, DisasOps *o)
     }
     return DISAS_NEXT;
 }
+
+static DisasJumpType op_vcdg(DisasContext *s, DisasOps *o)
+{
+    const uint8_t fpf = get_field(s->fields, m3);
+    const uint8_t m4 = get_field(s->fields, m4);
+    const uint8_t erm = get_field(s->fields, m5);
+    const bool se = extract32(m4, 3, 1);
+    gen_helper_gvec_2_ptr *fn;
+
+    if (fpf != FPF_LONG || extract32(m4, 0, 2) || erm > 7 || erm == 2) {
+        gen_program_exception(s, PGM_SPECIFICATION);
+        return DISAS_NORETURN;
+    }
+
+    switch (s->fields->op2) {
+    case 0xc3:
+        fn = se ? gen_helper_gvec_vcdg64s : gen_helper_gvec_vcdg64;
+        break;
+    default:
+        g_assert_not_reached();
+    }
+    gen_gvec_2_ptr(get_field(s->fields, v1), get_field(s->fields, v2), cpu_env,
+                   deposit32(m4, 4, 4, erm), fn);
+    return DISAS_NEXT;
+}
