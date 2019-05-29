@@ -2148,7 +2148,8 @@ static bool is_unallocated(BlockDriverState *bs, int64_t offset, int64_t bytes)
 {
     int64_t nr;
     return !bytes ||
-        (!bdrv_is_allocated_above(bs, NULL, offset, bytes, &nr) && nr == bytes);
+        (!bdrv_is_allocated_above(bs, NULL, false, offset, bytes, &nr) &&
+         nr == bytes);
 }
 
 static bool is_zero_cow(BlockDriverState *bs, QCowL2Meta *m)
