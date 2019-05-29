@@ -504,3 +504,51 @@ void HELPER(gvec_vfm64s)(void *v1, const void *v2, const void *v3,
 {
     vop64_3(v1, v2, v3, env, true, vfm64, GETPC());
 }
+
+static void vfma64(S390Vector *v1, const S390Vector *v2, const S390Vector *v3,
+                   const S390Vector *v4, CPUS390XState *env, bool s, int flags,
+                   uintptr_t retaddr)
+{
+    uint8_t vxc, vec_exc = 0;
+    S390Vector tmp = {};
+    int i;
+
+    for (i = 0; i < 2; i++) {
+        const uint64_t a = s390_vec_read_element64(v2, i);
+        const uint64_t b = s390_vec_read_element64(v3, i);
+        const uint64_t c = s390_vec_read_element64(v4, i);
+        uint64_t ret = float64_muladd(a, b, c, flags, &env->fpu_status);
+
+        s390_vec_write_element64(&tmp, i, ret);
+        vxc = check_ieee_exc(env, i, false, &vec_exc);
+        if (s || vxc) {
+            break;
+        }
+    }
+    handle_ieee_exc(env, vxc, vec_exc, retaddr);
+    *v1 = tmp;
+}
+
+void HELPER(gvec_vfma64)(void *v1, const void *v2, const void *v3,
+                         const void *v4, CPUS390XState *env, uint32_t desc)
+{
+    vfma64(v1, v2, v3, v4, env, false, 0, GETPC());
+}
+
+void HELPER(gvec_vfma64s)(void *v1, const void *v2, const void *v3,
+                         const void *v4, CPUS390XState *env, uint32_t desc)
+{
+    vfma64(v1, v2, v3, v4, env, true, 0, GETPC());
+}
+
+void HELPER(gvec_vfms64)(void *v1, const void *v2, const void *v3,
+                         const void *v4, CPUS390XState *env, uint32_t desc)
+{
+    vfma64(v1, v2, v3, v4, env, false, float_muladd_negate_c, GETPC());
+}
+
+void HELPER(gvec_vfms64s)(void *v1, const void *v2, const void *v3,
+                         const void *v4, CPUS390XState *env, uint32_t desc)
+{
+    vfma64(v1, v2, v3, v4, env, true, float_muladd_negate_c, GETPC());
+}
