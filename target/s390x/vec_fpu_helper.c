@@ -117,3 +117,35 @@ void HELPER(gvec_vfa64s)(void *v1, const void *v2, const void *v3,
 {
     vop64_3(v1, v2, v3, env, true, vfa64, GETPC());
 }
+
+static int wfc64(const S390Vector *v1, const S390Vector *v2,
+                 CPUS390XState *env, bool signal, uintptr_t retaddr)
+{
+    /* only the zero-indexed elements are compared */
+    const float64 a = s390_vec_read_element64(v1, 0);
+    const float64 b = s390_vec_read_element64(v2, 0);
+    uint8_t vxc, vec_exc = 0;
+    int cmp;
+
+    if (signal) {
+        cmp = float64_compare(a, b, &env->fpu_status);
+    } else {
+        cmp = float64_compare_quiet(a, b, &env->fpu_status);
+    }
+    vxc = check_ieee_exc(env, 0, false, &vec_exc);
+    handle_ieee_exc(env, vxc, vec_exc, retaddr);
+
+    return float_comp_to_cc(env, cmp);
+}
+
+void HELPER(gvec_wfc64)(const void *v1, const void *v2, CPUS390XState *env,
+                        uint32_t desc)
+{
+    env->cc_op = wfc64(v1, v2, env, false, GETPC());
+}
+
+void HELPER(gvec_wfk64)(const void *v1, const void *v2, CPUS390XState *env,
+                        uint32_t desc)
+{
+    env->cc_op = wfc64(v1, v2, env, true, GETPC());
+}

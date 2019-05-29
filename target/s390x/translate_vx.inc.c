@@ -2567,3 +2567,24 @@ static DisasJumpType op_vfa(DisasContext *s, DisasOps *o)
                    get_field(s->fields, v3), cpu_env, 0, fn);
     return DISAS_NEXT;
 }
+
+static DisasJumpType op_wfc(DisasContext *s, DisasOps *o)
+{
+    const uint8_t fpf = get_field(s->fields, m3);
+    const uint8_t m4 = get_field(s->fields, m4);
+
+    if (fpf != FPF_LONG || m4) {
+        gen_program_exception(s, PGM_SPECIFICATION);
+        return DISAS_NORETURN;
+    }
+
+    if (s->fields->op2 == 0xcb) {
+        gen_gvec_2_ptr(get_field(s->fields, v1), get_field(s->fields, v2),
+                       cpu_env, 0, gen_helper_gvec_wfc64);
+    } else {
+        gen_gvec_2_ptr(get_field(s->fields, v1), get_field(s->fields, v2),
+                       cpu_env, 0, gen_helper_gvec_wfk64);
+    }
+    set_cc_static(s);
+    return DISAS_NEXT;
+}
