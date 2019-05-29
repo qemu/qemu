@@ -104,7 +104,7 @@ static void s390x_write_elf64_fpregset(Note *note, S390CPU *cpu, int id)
     note->hdr.n_type = cpu_to_be32(NT_FPREGSET);
     note->contents.fpregset.fpc = cpu_to_be32(cpu->env.fpc);
     for (i = 0; i <= 15; i++) {
-        note->contents.fpregset.fprs[i] = cpu_to_be64(get_freg(cs, i)->ll);
+        note->contents.fpregset.fprs[i] = cpu_to_be64(*get_freg(cs, i));
     }
 }
 
@@ -114,7 +114,7 @@ static void s390x_write_elf64_vregslo(Note *note, S390CPU *cpu,  int id)
 
     note->hdr.n_type = cpu_to_be32(NT_S390_VXRS_LOW);
     for (i = 0; i <= 15; i++) {
-        note->contents.vregslo.vregs[i] = cpu_to_be64(cpu->env.vregs[i][1].ll);
+        note->contents.vregslo.vregs[i] = cpu_to_be64(cpu->env.vregs[i][1]);
     }
 }
 
@@ -127,8 +127,8 @@ static void s390x_write_elf64_vregshi(Note *note, S390CPU *cpu, int id)
 
     note->hdr.n_type = cpu_to_be32(NT_S390_VXRS_HIGH);
     for (i = 0; i <= 15; i++) {
-        temp_vregshi->vregs[i][0] = cpu_to_be64(cpu->env.vregs[i + 16][0].ll);
-        temp_vregshi->vregs[i][1] = cpu_to_be64(cpu->env.vregs[i + 16][1].ll);
+        temp_vregshi->vregs[i][0] = cpu_to_be64(cpu->env.vregs[i + 16][0]);
+        temp_vregshi->vregs[i][1] = cpu_to_be64(cpu->env.vregs[i + 16][1]);
     }
 }
 

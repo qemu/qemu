@@ -66,7 +66,7 @@ struct CPUS390XState {
      * The floating point registers are part of the vector registers.
      * vregs[0][0] -> vregs[15][0] are 16 floating point registers
      */
-    CPU_DoubleU vregs[32][2] QEMU_ALIGNED(16);  /* vector registers */
+    uint64_t vregs[32][2] QEMU_ALIGNED(16);  /* vector registers */
     uint32_t aregs[16];    /* access registers */
     uint8_t riccb[64];     /* runtime instrumentation control */
     uint64_t gscb[4];      /* guarded storage control */
@@ -153,7 +153,7 @@ struct CPUS390XState {
 
 };
 
-static inline CPU_DoubleU *get_freg(CPUS390XState *cs, int nr)
+static inline uint64_t *get_freg(CPUS390XState *cs, int nr)
 {
     return &cs->vregs[nr][0];
 }

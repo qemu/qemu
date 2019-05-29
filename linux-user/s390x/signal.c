@@ -123,7 +123,7 @@ static void save_sigregs(CPUS390XState *env, target_sigregs *sregs)
      */
     //save_fp_regs(&current->thread.fp_regs); FIXME
     for (i = 0; i < 16; i++) {
-        __put_user(get_freg(env, i)->ll, &sregs->fpregs.fprs[i]);
+        __put_user(*get_freg(env, i), &sregs->fpregs.fprs[i]);
     }
 }
 
@@ -254,7 +254,7 @@ restore_sigregs(CPUS390XState *env, target_sigregs *sc)
         __get_user(env->aregs[i], &sc->regs.acrs[i]);
     }
     for (i = 0; i < 16; i++) {
-        __get_user(get_freg(env, i)->ll, &sc->fpregs.fprs[i]);
+        __get_user(*get_freg(env, i), &sc->fpregs.fprs[i]);
     }
 
     return err;

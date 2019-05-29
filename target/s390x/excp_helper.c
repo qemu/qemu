@@ -390,8 +390,8 @@ static int mchk_store_vregs(CPUS390XState *env, uint64_t mcesao)
     }
 
     for (i = 0; i < 32; i++) {
-        sa->vregs[i][0] = cpu_to_be64(env->vregs[i][0].ll);
-        sa->vregs[i][1] = cpu_to_be64(env->vregs[i][1].ll);
+        sa->vregs[i][0] = cpu_to_be64(env->vregs[i][0]);
+        sa->vregs[i][1] = cpu_to_be64(env->vregs[i][1]);
     }
 
     cpu_physical_memory_unmap(sa, len, 1, len);
@@ -429,7 +429,7 @@ static void do_mchk_interrupt(CPUS390XState *env)
     lowcore->ar_access_id = 1;
 
     for (i = 0; i < 16; i++) {
-        lowcore->floating_pt_save_area[i] = cpu_to_be64(get_freg(env, i)->ll);
+        lowcore->floating_pt_save_area[i] = cpu_to_be64(*get_freg(env, i));
         lowcore->gpregs_save_area[i] = cpu_to_be64(env->regs[i]);
         lowcore->access_regs_save_area[i] = cpu_to_be32(env->aregs[i]);
         lowcore->cregs_save_area[i] = cpu_to_be64(env->cregs[i]);
