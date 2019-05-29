@@ -444,3 +444,46 @@ void HELPER(gvec_vfll32s)(void *v1, const void *v2, CPUS390XState *env,
 {
     vfll32(v1, v2, env, true, GETPC());
 }
+
+static void vflr64(S390Vector *v1, const S390Vector *v2, CPUS390XState *env,
+                   bool s, bool XxC, uint8_t erm, uintptr_t retaddr)
+{
+    uint8_t vxc, vec_exc = 0;
+    S390Vector tmp = {};
+    int i, old_mode;
+
+    old_mode = s390_swap_bfp_rounding_mode(env, erm);
+    for (i = 0; i < 2; i++) {
+        float64 a = s390_vec_read_element64(v2, i);
+        uint32_t ret = float64_to_float32(a, &env->fpu_status);
+
+        /* place at even element */
+        s390_vec_write_element32(&tmp, i * 2, ret);
+        /* indicate the source element */
+        vxc = check_ieee_exc(env, i, XxC, &vec_exc);
+        if (s || vxc) {
+            break;
+        }
+    }
+    s390_restore_bfp_rounding_mode(env, old_mode);
+    handle_ieee_exc(env, vxc, vec_exc, retaddr);
+    *v1 = tmp;
+}
+
+void HELPER(gvec_vflr64)(void *v1, const void *v2, CPUS390XState *env,
+                         uint32_t desc)
+{
+    const uint8_t erm = extract32(simd_data(desc), 4, 4);
+    const bool XxC = extract32(simd_data(desc), 2, 1);
+
+    vflr64(v1, v2, env, false, XxC, erm, GETPC());
+}
+
+void HELPER(gvec_vflr64s)(void *v1, const void *v2, CPUS390XState *env,
+                          uint32_t desc)
+{
+    const uint8_t erm = extract32(simd_data(desc), 4, 4);
+    const bool XxC = extract32(simd_data(desc), 2, 1);
+
+    vflr64(v1, v2, env, true, XxC, erm, GETPC());
+}
