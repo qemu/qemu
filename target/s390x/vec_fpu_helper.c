@@ -149,3 +149,107 @@ void HELPER(gvec_wfk64)(const void *v1, const void *v2, CPUS390XState *env,
 {
     env->cc_op = wfc64(v1, v2, env, true, GETPC());
 }
+
+typedef int (*vfc64_fn)(float64 a, float64 b, float_status *status);
+static int vfc64(S390Vector *v1, const S390Vector *v2, const S390Vector *v3,
+                 CPUS390XState *env, bool s, vfc64_fn fn, uintptr_t retaddr)
+{
+    uint8_t vxc, vec_exc = 0;
+    S390Vector tmp = {};
+    int match = 0;
+    int i;
+
+    for (i = 0; i < 2; i++) {
+        const float64 a = s390_vec_read_element64(v2, i);
+        const float64 b = s390_vec_read_element64(v3, i);
+
+        /* swap the order of the parameters, so we can use existing functions */
+        if (fn(b, a, &env->fpu_status)) {
+            match++;
+            s390_vec_write_element64(&tmp, i, -1ull);
+        }
+        vxc = check_ieee_exc(env, i, false, &vec_exc);
+        if (s || vxc) {
+            break;
+        }
+    }
+
+    handle_ieee_exc(env, vxc, vec_exc, retaddr);
+    *v1 = tmp;
+    if (match) {
+        return s || match == 2 ? 0 : 1;
+    }
+    return 3;
+}
+
+void HELPER(gvec_vfce64)(void *v1, const void *v2, const void *v3,
+                         CPUS390XState *env, uint32_t desc)
+{
+    vfc64(v1, v2, v3, env, false, float64_eq_quiet, GETPC());
+}
+
+void HELPER(gvec_vfce64s)(void *v1, const void *v2, const void *v3,
+                          CPUS390XState *env, uint32_t desc)
+{
+    vfc64(v1, v2, v3, env, true, float64_eq_quiet, GETPC());
+}
+
+void HELPER(gvec_vfce64_cc)(void *v1, const void *v2, const void *v3,
+                            CPUS390XState *env, uint32_t desc)
+{
+    env->cc_op = vfc64(v1, v2, v3, env, false, float64_eq_quiet, GETPC());
+}
+
+void HELPER(gvec_vfce64s_cc)(void *v1, const void *v2, const void *v3,
+                            CPUS390XState *env, uint32_t desc)
+{
+    env->cc_op = vfc64(v1, v2, v3, env, true, float64_eq_quiet, GETPC());
+}
+
+void HELPER(gvec_vfch64)(void *v1, const void *v2, const void *v3,
+                         CPUS390XState *env, uint32_t desc)
+{
+    vfc64(v1, v2, v3, env, false, float64_lt_quiet, GETPC());
+}
+
+void HELPER(gvec_vfch64s)(void *v1, const void *v2, const void *v3,
+                          CPUS390XState *env, uint32_t desc)
+{
+    vfc64(v1, v2, v3, env, true, float64_lt_quiet, GETPC());
+}
+
+void HELPER(gvec_vfch64_cc)(void *v1, const void *v2, const void *v3,
+                            CPUS390XState *env, uint32_t desc)
+{
+    env->cc_op = vfc64(v1, v2, v3, env, false, float64_lt_quiet, GETPC());
+}
+
+void HELPER(gvec_vfch64s_cc)(void *v1, const void *v2, const void *v3,
+                             CPUS390XState *env, uint32_t desc)
+{
+    env->cc_op = vfc64(v1, v2, v3, env, true, float64_lt_quiet, GETPC());
+}
+
+void HELPER(gvec_vfche64)(void *v1, const void *v2, const void *v3,
+                          CPUS390XState *env, uint32_t desc)
+{
+    vfc64(v1, v2, v3, env, false, float64_le_quiet, GETPC());
+}
+
+void HELPER(gvec_vfche64s)(void *v1, const void *v2, const void *v3,
+                           CPUS390XState *env, uint32_t desc)
+{
+    vfc64(v1, v2, v3, env, true, float64_le_quiet, GETPC());
+}
+
+void HELPER(gvec_vfche64_cc)(void *v1, const void *v2, const void *v3,
+                             CPUS390XState *env, uint32_t desc)
+{
+    env->cc_op = vfc64(v1, v2, v3, env, false, float64_le_quiet, GETPC());
+}
+
+void HELPER(gvec_vfche64s_cc)(void *v1, const void *v2, const void *v3,
+                              CPUS390XState *env, uint32_t desc)
+{
+    env->cc_op = vfc64(v1, v2, v3, env, true, float64_le_quiet, GETPC());
+}
