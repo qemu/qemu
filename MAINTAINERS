@@ -408,7 +408,7 @@ M: Paul Durrant <paul.durrant@citrix.com>
 L: xen-devel@lists.xenproject.org
 S: Supported
 F: */xen*
-F: hw/9pfs/xen-9p-backend.c
+F: hw/9pfs/xen-9p*
 F: hw/char/xen_console.c
 F: hw/display/xenfb.c
 F: hw/net/xen_nic.c
@@ -1498,6 +1498,7 @@ virtio-9p
 M: Greg Kurz <groug@kaod.org>
 S: Supported
 F: hw/9pfs/
+X: hw/9pfs/xen-9p*
 F: fsdev/
 F: tests/virtio-9p-test.c
 T: git https://github.com/gkurz/qemu.git 9p-next
