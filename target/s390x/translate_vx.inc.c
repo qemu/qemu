@@ -2779,3 +2779,22 @@ static DisasJumpType op_vfpso(DisasContext *s, DisasOps *o)
     }
     return DISAS_NEXT;
 }
+
+static DisasJumpType op_vfsq(DisasContext *s, DisasOps *o)
+{
+    const uint8_t fpf = get_field(s->fields, m3);
+    const uint8_t m4 = get_field(s->fields, m4);
+    gen_helper_gvec_2_ptr *fn = gen_helper_gvec_vfsq64;
+
+    if (fpf != FPF_LONG || extract32(m4, 0, 3)) {
+        gen_program_exception(s, PGM_SPECIFICATION);
+        return DISAS_NORETURN;
+    }
+
+    if (extract32(m4, 3, 1)) {
+        fn = gen_helper_gvec_vfsq64s;
+    }
+    gen_gvec_2_ptr(get_field(s->fields, v1), get_field(s->fields, v2), cpu_env,
+                   0, fn);
+    return DISAS_NEXT;
+}
