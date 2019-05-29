@@ -300,3 +300,26 @@ void HELPER(gvec_vcdg64s)(void *v1, const void *v2, CPUS390XState *env,
 
     vop64_2(v1, v2, env, true, XxC, erm, vcdg64, GETPC());
 }
+
+static uint64_t vcdlg64(uint64_t a, float_status *s)
+{
+    return uint64_to_float64(a, s);
+}
+
+void HELPER(gvec_vcdlg64)(void *v1, const void *v2, CPUS390XState *env,
+                          uint32_t desc)
+{
+    const uint8_t erm = extract32(simd_data(desc), 4, 4);
+    const bool XxC = extract32(simd_data(desc), 2, 1);
+
+    vop64_2(v1, v2, env, false, XxC, erm, vcdlg64, GETPC());
+}
+
+void HELPER(gvec_vcdlg64s)(void *v1, const void *v2, CPUS390XState *env,
+                           uint32_t desc)
+{
+    const uint8_t erm = extract32(simd_data(desc), 4, 4);
+    const bool XxC = extract32(simd_data(desc), 2, 1);
+
+    vop64_2(v1, v2, env, true, XxC, erm, vcdlg64, GETPC());
+}
