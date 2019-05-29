@@ -1677,7 +1677,14 @@ static void spapr_phb_realize(DeviceState *dev, Error **errp)
     }
 
     if (spapr_pci_find_phb(spapr, sphb->buid)) {
-        error_setg(errp, "PCI host bridges must have unique BUIDs");
+        SpaprPhbState *s;
+
+        error_setg(errp, "PCI host bridges must have unique indexes");
+        error_append_hint(errp, "The following indexes are already in use:");
+        QLIST_FOREACH(s, &spapr->phbs, list) {
+            error_append_hint(errp, " %d", s->index);
+        }
+        error_append_hint(errp, "\nTry another value for the index property\n");
         return;
     }
 
