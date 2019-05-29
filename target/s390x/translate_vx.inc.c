@@ -2801,3 +2801,24 @@ static DisasJumpType op_vfsq(DisasContext *s, DisasOps *o)
                    0, fn);
     return DISAS_NEXT;
 }
+
+static DisasJumpType op_vftci(DisasContext *s, DisasOps *o)
+{
+    const uint16_t i3 = get_field(s->fields, i3);
+    const uint8_t fpf = get_field(s->fields, m4);
+    const uint8_t m5 = get_field(s->fields, m5);
+    gen_helper_gvec_2_ptr *fn = gen_helper_gvec_vftci64;
+
+    if (fpf != FPF_LONG || extract32(m5, 0, 3)) {
+        gen_program_exception(s, PGM_SPECIFICATION);
+        return DISAS_NORETURN;
+    }
+
+    if (extract32(m5, 3, 1)) {
+        fn = gen_helper_gvec_vftci64s;
+    }
+    gen_gvec_2_ptr(get_field(s->fields, v1), get_field(s->fields, v2), cpu_env,
+                   i3, fn);
+    set_cc_static(s);
+    return DISAS_NEXT;
+}

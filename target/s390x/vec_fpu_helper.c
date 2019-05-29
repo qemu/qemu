@@ -586,3 +586,40 @@ void HELPER(gvec_vfs64s)(void *v1, const void *v2, const void *v3,
 {
     vop64_3(v1, v2, v3, env, true, vfs64, GETPC());
 }
+
+static int vftci64(S390Vector *v1, const S390Vector *v2, CPUS390XState *env,
+                   bool s, uint16_t i3)
+{
+    int i, match = 0;
+
+    for (i = 0; i < 2; i++) {
+        float64 a = s390_vec_read_element64(v2, i);
+
+        if (float64_dcmask(env, a) & i3) {
+            match++;
+            s390_vec_write_element64(v1, i, -1ull);
+        } else {
+            s390_vec_write_element64(v1, i, 0);
+        }
+        if (s) {
+            break;
+        }
+    }
+
+    if (match) {
+        return s || match == 2 ? 0 : 1;
+    }
+    return 3;
+}
+
+void HELPER(gvec_vftci64)(void *v1, const void *v2, CPUS390XState *env,
+                          uint32_t desc)
+{
+    env->cc_op = vftci64(v1, v2, env, false, simd_data(desc));
+}
+
+void HELPER(gvec_vftci64s)(void *v1, const void *v2, CPUS390XState *env,
+                           uint32_t desc)
+{
+    env->cc_op = vftci64(v1, v2, env, true, simd_data(desc));
+}
