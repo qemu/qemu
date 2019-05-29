@@ -2560,6 +2560,9 @@ static DisasJumpType op_vfa(DisasContext *s, DisasOps *o)
     case 0xe3:
         fn = se ? gen_helper_gvec_vfa64s : gen_helper_gvec_vfa64;
         break;
+    case 0xe5:
+        fn = se ? gen_helper_gvec_vfd64s : gen_helper_gvec_vfd64;
+        break;
     default:
         g_assert_not_reached();
     }
