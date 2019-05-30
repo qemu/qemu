@@ -94,6 +94,7 @@ typedef enum VhostUserRequest {
     VHOST_USER_POSTCOPY_END     = 30,
     VHOST_USER_GET_INFLIGHT_FD = 31,
     VHOST_USER_SET_INFLIGHT_FD = 32,
+    VHOST_USER_GPU_SET_SOCKET = 33,
     VHOST_USER_MAX
 } VhostUserRequest;
 

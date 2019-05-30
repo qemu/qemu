@@ -1,0 +1,10 @@
+vhost-user-gpu-obj-y = main.o virgl.o vugbm.o
+
+main.o-cflags := $(PIXMAN_CFLAGS) $(GBM_CFLAGS)
+main.o-libs := $(PIXMAN_LIBS)
+
+virgl.o-cflags := $(VIRGL_CFLAGS) $(GBM_CFLAGS)
+virgl.o-libs := $(VIRGL_LIBS)
+
+vugbm.o-cflags := $(GBM_CFLAGS)
+vugbm.o-libs := $(GBM_LIBS)

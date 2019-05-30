@@ -96,6 +96,7 @@ typedef enum VhostUserRequest {
     VHOST_USER_POSTCOPY_END     = 30,
     VHOST_USER_GET_INFLIGHT_FD = 31,
     VHOST_USER_SET_INFLIGHT_FD = 32,
+    VHOST_USER_GPU_SET_SOCKET = 33,
     VHOST_USER_MAX
 } VhostUserRequest;
 
@@ -351,6 +352,16 @@ static int vhost_user_write(struct vhost_dev *dev, VhostUserMsg *msg,
     }
 
     return 0;
+}
+
+int vhost_user_gpu_set_socket(struct vhost_dev *dev, int fd)
+{
+    VhostUserMsg msg = {
+        .hdr.request = VHOST_USER_GPU_SET_SOCKET,
+        .hdr.flags = VHOST_USER_VERSION,
+    };
+
+    return vhost_user_write(dev, &msg, &fd, 1);
 }
 
 static int vhost_user_set_log_base(struct vhost_dev *dev, uint64_t base,

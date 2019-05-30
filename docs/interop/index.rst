@@ -16,3 +16,4 @@ Contents:
    live-block-operations
    pr-helper
    vhost-user
+   vhost-user-gpu

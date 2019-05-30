@@ -111,6 +111,16 @@ config VIRTIO_VGA
     depends on VIRTIO_PCI
     select VGA
 
+config VHOST_USER_GPU
+    bool
+    default y
+    depends on VIRTIO_GPU && VHOST_USER
+
+config VHOST_USER_VGA
+    bool
+    default y
+    depends on VIRTIO_VGA && VHOST_USER_GPU
+
 config DPCD
     bool
     select AUX

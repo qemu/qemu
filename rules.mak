@@ -144,7 +144,7 @@ cc-option = $(if $(shell $(CC) $1 $2 -S -o /dev/null -xc /dev/null \
 cc-c-option = $(if $(shell $(CC) $1 $2 -c -o /dev/null -xc /dev/null \
                 >/dev/null 2>&1 && echo OK), $2, $3)
 
-VPATH_SUFFIXES = %.c %.h %.S %.cc %.cpp %.m %.mak %.texi %.sh %.rc Kconfig%
+VPATH_SUFFIXES = %.c %.h %.S %.cc %.cpp %.m %.mak %.texi %.sh %.rc Kconfig% %.json.in
 set-vpath = $(if $1,$(foreach PATTERN,$(VPATH_SUFFIXES),$(eval vpath $(PATTERN) $1)))
 
 # install-prog list, dir
@@ -392,3 +392,10 @@ TEXI2MAN = $(call quiet-command, \
 	$(call TEXI2MAN)
 %.8:
 	$(call TEXI2MAN)
+
+GEN_SUBST = $(call quiet-command, \
+	sed -e "s!@libexecdir@!$(libexecdir)!g" < $< > $@, \
+	"GEN","$@")
+
+%.json: %.json.in
+	$(call GEN_SUBST)
