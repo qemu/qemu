@@ -2112,11 +2112,10 @@ static void block_dirty_bitmap_disable_abort(BlkActionState *common)
     }
 }
 
-static BdrvDirtyBitmap *do_block_dirty_bitmap_merge(const char *node,
-                                                    const char *target,
-                                                    strList *bitmaps,
-                                                    HBitmap **backup,
-                                                    Error **errp);
+static BdrvDirtyBitmap *do_block_dirty_bitmap_merge(
+        const char *node, const char *target,
+        BlockDirtyBitmapMergeSourceList *bitmaps,
+        HBitmap **backup, Error **errp);
 
 static void block_dirty_bitmap_merge_prepare(BlkActionState *common,
                                              Error **errp)
@@ -2965,15 +2964,14 @@ void qmp_block_dirty_bitmap_disable(const char *node, const char *name,
     bdrv_disable_dirty_bitmap(bitmap);
 }
 
-static BdrvDirtyBitmap *do_block_dirty_bitmap_merge(const char *node,
-                                                    const char *target,
-                                                    strList *bitmaps,
-                                                    HBitmap **backup,
-                                                    Error **errp)
+static BdrvDirtyBitmap *do_block_dirty_bitmap_merge(
+        const char *node, const char *target,
+        BlockDirtyBitmapMergeSourceList *bitmaps,
+        HBitmap **backup, Error **errp)
 {
     BlockDriverState *bs;
     BdrvDirtyBitmap *dst, *src, *anon;
-    strList *lst;
+    BlockDirtyBitmapMergeSourceList *lst;
     Error *local_err = NULL;
 
     dst = block_dirty_bitmap_lookup(node, target, &bs, errp);
@@ -2988,11 +2986,28 @@ static BdrvDirtyBitmap *do_block_dirty_bitmap_merge(const char *node,
     }
 
     for (lst = bitmaps; lst; lst = lst->next) {
-        src = bdrv_find_dirty_bitmap(bs, lst->value);
-        if (!src) {
-            error_setg(errp, "Dirty bitmap '%s' not found", lst->value);
-            dst = NULL;
-            goto out;
+        switch (lst->value->type) {
+            const char *name, *node;
+        case QTYPE_QSTRING:
+            name = lst->value->u.local;
+            src = bdrv_find_dirty_bitmap(bs, name);
+            if (!src) {
+                error_setg(errp, "Dirty bitmap '%s' not found", name);
+                dst = NULL;
+                goto out;
+            }
+            break;
+        case QTYPE_QDICT:
+            node = lst->value->u.external.node;
+            name = lst->value->u.external.name;
+            src = block_dirty_bitmap_lookup(node, name, NULL, errp);
+            if (!src) {
+                dst = NULL;
+                goto out;
+            }
+            break;
+        default:
+            abort();
         }
 
         bdrv_merge_dirty_bitmap(anon, src, NULL, &local_err);
@@ -3012,7 +3027,8 @@ static BdrvDirtyBitmap *do_block_dirty_bitmap_merge(const char *node,
 }
 
 void qmp_block_dirty_bitmap_merge(const char *node, const char *target,
-                                  strList *bitmaps, Error **errp)
+                                  BlockDirtyBitmapMergeSourceList *bitmaps,
+                                  Error **errp)
 {
     do_block_dirty_bitmap_merge(node, target, bitmaps, NULL, errp);
 }
