@@ -610,6 +610,12 @@ static const TypeInfo ics_simple_info = {
     .class_size = sizeof(ICSStateClass),
 };
 
+static void ics_reset_irq(ICSIRQState *irq)
+{
+    irq->priority = 0xff;
+    irq->saved_priority = 0xff;
+}
+
 static void ics_base_reset(DeviceState *dev)
 {
     ICSState *ics = ICS_BASE(dev);
@@ -623,8 +629,7 @@ static void ics_base_reset(DeviceState *dev)
     memset(ics->irqs, 0, sizeof(ICSIRQState) * ics->nr_irqs);
 
     for (i = 0; i < ics->nr_irqs; i++) {
-        ics->irqs[i].priority = 0xff;
-        ics->irqs[i].saved_priority = 0xff;
+        ics_reset_irq(ics->irqs + i);
         ics->irqs[i].flags = flags[i];
     }
 }
@@ -760,6 +765,7 @@ void ics_set_irq_type(ICSState *ics, int srcno, bool lsi)
         lsi ? XICS_FLAGS_IRQ_LSI : XICS_FLAGS_IRQ_MSI;
 
     if (kvm_irqchip_in_kernel()) {
+        ics_reset_irq(ics->irqs + srcno);
         ics_set_kvm_state_one(ics, srcno);
     }
 }

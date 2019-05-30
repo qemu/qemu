@@ -29,6 +29,12 @@
 
 #include <libfdt.h>
 
+/* PRD registers */
+#define PRD_P8_IPOLL_REG_MASK           0x01020013
+#define PRD_P8_IPOLL_REG_STATUS         0x01020014
+#define PRD_P9_IPOLL_REG_MASK           0x000F0033
+#define PRD_P9_IPOLL_REG_STATUS         0x000F0034
+
 static void xscom_complete(CPUState *cs, uint64_t hmer_bits)
 {
     /*
@@ -69,6 +75,12 @@ static uint64_t xscom_read_default(PnvChip *chip, uint32_t pcba)
 
     case 0x1010c00:     /* PIBAM FIR */
     case 0x1010c03:     /* PIBAM FIR MASK */
+
+        /* PRD registers */
+    case PRD_P8_IPOLL_REG_MASK:
+    case PRD_P8_IPOLL_REG_STATUS:
+    case PRD_P9_IPOLL_REG_MASK:
+    case PRD_P9_IPOLL_REG_STATUS:
 
         /* P9 xscom reset */
     case 0x0090018:     /* Receive status reg */
@@ -124,6 +136,12 @@ static bool xscom_write_default(PnvChip *chip, uint32_t pcba, uint64_t val)
     case 0x201302a:     /* CAPP stuff */
     case 0x2013801:     /* CAPP stuff */
     case 0x2013802:     /* CAPP stuff */
+
+        /* P8 PRD registers */
+    case PRD_P8_IPOLL_REG_MASK:
+    case PRD_P8_IPOLL_REG_STATUS:
+    case PRD_P9_IPOLL_REG_MASK:
+    case PRD_P9_IPOLL_REG_STATUS:
         return true;
     default:
         return false;

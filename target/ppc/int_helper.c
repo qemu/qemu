@@ -1791,23 +1791,6 @@ VSHIFT(l, 1)
 VSHIFT(r, 0)
 #undef VSHIFT
 
-#define VSL(suffix, element, mask)                                      \
-    void helper_vsl##suffix(ppc_avr_t *r, ppc_avr_t *a, ppc_avr_t *b)   \
-    {                                                                   \
-        int i;                                                          \
-                                                                        \
-        for (i = 0; i < ARRAY_SIZE(r->element); i++) {                  \
-            unsigned int shift = b->element[i] & mask;                  \
-                                                                        \
-            r->element[i] = a->element[i] << shift;                     \
-        }                                                               \
-    }
-VSL(b, u8, 0x7)
-VSL(h, u16, 0x0F)
-VSL(w, u32, 0x1F)
-VSL(d, u64, 0x3F)
-#undef VSL
-
 void helper_vslv(ppc_avr_t *r, ppc_avr_t *a, ppc_avr_t *b)
 {
     int i;
@@ -1815,10 +1798,10 @@ void helper_vslv(ppc_avr_t *r, ppc_avr_t *a, ppc_avr_t *b)
 
     size = ARRAY_SIZE(r->u8);
     for (i = 0; i < size; i++) {
-        shift = b->u8[i] & 0x7;             /* extract shift value */
-        bytes = (a->u8[i] << 8) +             /* extract adjacent bytes */
-            (((i + 1) < size) ? a->u8[i + 1] : 0);
-        r->u8[i] = (bytes << shift) >> 8;   /* shift and store result */
+        shift = b->VsrB(i) & 0x7;             /* extract shift value */
+        bytes = (a->VsrB(i) << 8) +           /* extract adjacent bytes */
+            (((i + 1) < size) ? a->VsrB(i + 1) : 0);
+        r->VsrB(i) = (bytes << shift) >> 8;   /* shift and store result */
     }
 }
 
@@ -1833,10 +1816,10 @@ void helper_vsrv(ppc_avr_t *r, ppc_avr_t *a, ppc_avr_t *b)
      * order will guarantee that computed result is not fed back.
      */
     for (i = ARRAY_SIZE(r->u8) - 1; i >= 0; i--) {
-        shift = b->u8[i] & 0x7;                 /* extract shift value */
-        bytes = ((i ? a->u8[i - 1] : 0) << 8) + a->u8[i];
+        shift = b->VsrB(i) & 0x7;               /* extract shift value */
+        bytes = ((i ? a->VsrB(i - 1) : 0) << 8) + a->VsrB(i);
                                                 /* extract adjacent bytes */
-        r->u8[i] = (bytes >> shift) & 0xFF;     /* shift and store result */
+        r->VsrB(i) = (bytes >> shift) & 0xFF;   /* shift and store result */
     }
 }
 
@@ -1980,26 +1963,6 @@ VNEG(vnegw, s32)
 VNEG(vnegd, s64)
 #undef VNEG
 
-#define VSR(suffix, element, mask)                                      \
-    void helper_vsr##suffix(ppc_avr_t *r, ppc_avr_t *a, ppc_avr_t *b)   \
-    {                                                                   \
-        int i;                                                          \
-                                                                        \
-        for (i = 0; i < ARRAY_SIZE(r->element); i++) {                  \
-            unsigned int shift = b->element[i] & mask;                  \
-            r->element[i] = a->element[i] >> shift;                     \
-        }                                                               \
-    }
-VSR(ab, s8, 0x7)
-VSR(ah, s16, 0xF)
-VSR(aw, s32, 0x1F)
-VSR(ad, s64, 0x3F)
-VSR(b, u8, 0x7)
-VSR(h, u16, 0xF)
-VSR(w, u32, 0x1F)
-VSR(d, u64, 0x3F)
-#undef VSR
-
 void helper_vsro(ppc_avr_t *r, ppc_avr_t *a, ppc_avr_t *b)
 {
     int sh = (b->VsrB(0xf) >> 3) & 0xf;
@@ -2053,7 +2016,7 @@ void helper_vsum2sws(CPUPPCState *env, ppc_avr_t *r, ppc_avr_t *a, ppc_avr_t *b)
     for (i = 0; i < ARRAY_SIZE(r->u64); i++) {
         int64_t t = (int64_t)b->VsrSW(upper + i * 2);
 
-        result.VsrW(i) = 0;
+        result.VsrD(i) = 0;
         for (j = 0; j < ARRAY_SIZE(r->u64); j++) {
             t += a->VsrSW(2 * i + j);
         }

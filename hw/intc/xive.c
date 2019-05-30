@@ -493,6 +493,16 @@ void xive_tctx_pic_print_info(XiveTCTX *tctx, Monitor *mon)
     int cpu_index = tctx->cs ? tctx->cs->cpu_index : -1;
     int i;
 
+    if (kvm_irqchip_in_kernel()) {
+        Error *local_err = NULL;
+
+        kvmppc_xive_cpu_synchronize_state(tctx, &local_err);
+        if (local_err) {
+            error_report_err(local_err);
+            return;
+        }
+    }
+
     monitor_printf(mon, "CPU[%04x]:   QW   NSR CPPR IPB LSMFB ACK# INC AGE PIPR"
                    "  W2\n", cpu_index);
 
@@ -555,6 +565,15 @@ static void xive_tctx_realize(DeviceState *dev, Error **errp)
         return;
     }
 
+    /* Connect the presenter to the VCPU (required for CPU hotplug) */
+    if (kvm_irqchip_in_kernel()) {
+        kvmppc_xive_cpu_connect(tctx, &local_err);
+        if (local_err) {
+            error_propagate(errp, local_err);
+            return;
+        }
+    }
+
     qemu_register_reset(xive_tctx_reset, dev);
 }
 
@@ -563,10 +582,27 @@ static void xive_tctx_unrealize(DeviceState *dev, Error **errp)
     qemu_unregister_reset(xive_tctx_reset, dev);
 }
 
+static int vmstate_xive_tctx_pre_save(void *opaque)
+{
+    Error *local_err = NULL;
+
+    if (kvm_irqchip_in_kernel()) {
+        kvmppc_xive_cpu_get_state(XIVE_TCTX(opaque), &local_err);
+        if (local_err) {
+            error_report_err(local_err);
+            return -1;
+        }
+    }
+
+    return 0;
+}
+
 static const VMStateDescription vmstate_xive_tctx = {
     .name = TYPE_XIVE_TCTX,
     .version_id = 1,
     .minimum_version_id = 1,
+    .pre_save = vmstate_xive_tctx_pre_save,
+    .post_load = NULL, /* handled by the sPAPRxive model */
     .fields = (VMStateField[]) {
         VMSTATE_BUFFER(regs, XiveTCTX),
         VMSTATE_END_OF_LIST()
@@ -990,9 +1026,11 @@ static void xive_source_realize(DeviceState *dev, Error **errp)
     xsrc->status = g_malloc0(xsrc->nr_irqs);
     xsrc->lsi_map = bitmap_new(xsrc->nr_irqs);
 
-    memory_region_init_io(&xsrc->esb_mmio, OBJECT(xsrc),
-                          &xive_source_esb_ops, xsrc, "xive.esb",
-                          (1ull << xsrc->esb_shift) * xsrc->nr_irqs);
+    if (!kvm_irqchip_in_kernel()) {
+        memory_region_init_io(&xsrc->esb_mmio, OBJECT(xsrc),
+                              &xive_source_esb_ops, xsrc, "xive.esb",
+                              (1ull << xsrc->esb_shift) * xsrc->nr_irqs);
+    }
 
     qemu_register_reset(xive_source_reset, dev);
 }
@@ -1042,8 +1080,7 @@ static const TypeInfo xive_source_info = {
 
 void xive_end_queue_pic_print_info(XiveEND *end, uint32_t width, Monitor *mon)
 {
-    uint64_t qaddr_base = (uint64_t) be32_to_cpu(end->w2 & 0x0fffffff) << 32
-        | be32_to_cpu(end->w3);
+    uint64_t qaddr_base = xive_end_qaddr(end);
     uint32_t qsize = xive_get_field32(END_W0_QSIZE, end->w0);
     uint32_t qindex = xive_get_field32(END_W1_PAGE_OFF, end->w1);
     uint32_t qentries = 1 << (qsize + 10);
@@ -1072,8 +1109,7 @@ void xive_end_queue_pic_print_info(XiveEND *end, uint32_t width, Monitor *mon)
 
 void xive_end_pic_print_info(XiveEND *end, uint32_t end_idx, Monitor *mon)
 {
-    uint64_t qaddr_base = (uint64_t) be32_to_cpu(end->w2 & 0x0fffffff) << 32
-        | be32_to_cpu(end->w3);
+    uint64_t qaddr_base = xive_end_qaddr(end);
     uint32_t qindex = xive_get_field32(END_W1_PAGE_OFF, end->w1);
     uint32_t qgen = xive_get_field32(END_W1_GENERATION, end->w1);
     uint32_t qsize = xive_get_field32(END_W0_QSIZE, end->w0);
@@ -1101,8 +1137,7 @@ void xive_end_pic_print_info(XiveEND *end, uint32_t end_idx, Monitor *mon)
 
 static void xive_end_enqueue(XiveEND *end, uint32_t data)
 {
-    uint64_t qaddr_base = (uint64_t) be32_to_cpu(end->w2 & 0x0fffffff) << 32
-        | be32_to_cpu(end->w3);
+    uint64_t qaddr_base = xive_end_qaddr(end);
     uint32_t qsize = xive_get_field32(END_W0_QSIZE, end->w0);
     uint32_t qindex = xive_get_field32(END_W1_PAGE_OFF, end->w1);
     uint32_t qgen = xive_get_field32(END_W1_GENERATION, end->w1);

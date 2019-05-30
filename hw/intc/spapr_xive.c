@@ -41,13 +41,6 @@
 #define SPAPR_XIVE_NVT_BASE 0x400
 
 /*
- * The sPAPR machine has a unique XIVE IC device. Assign a fixed value
- * to the controller block id value. It can nevertheless be changed
- * for testing purpose.
- */
-#define SPAPR_XIVE_BLOCK_ID 0x0
-
-/*
  * sPAPR NVT and END indexing helpers
  */
 static uint32_t spapr_xive_nvt_to_target(uint8_t nvt_blk, uint32_t nvt_idx)
@@ -86,6 +79,22 @@ static int spapr_xive_target_to_nvt(uint32_t target,
  * sPAPR END indexing uses a simple mapping of the CPU vcpu_id, 8
  * priorities per CPU
  */
+int spapr_xive_end_to_target(uint8_t end_blk, uint32_t end_idx,
+                             uint32_t *out_server, uint8_t *out_prio)
+{
+
+    assert(end_blk == SPAPR_XIVE_BLOCK_ID);
+
+    if (out_server) {
+        *out_server = end_idx >> 3;
+    }
+
+    if (out_prio) {
+        *out_prio = end_idx & 0x7;
+    }
+    return 0;
+}
+
 static void spapr_xive_cpu_to_end(PowerPCCPU *cpu, uint8_t prio,
                                   uint8_t *out_end_blk, uint32_t *out_end_idx)
 {
@@ -120,6 +129,7 @@ static int spapr_xive_target_to_end(uint32_t target, uint8_t prio,
 static void spapr_xive_end_pic_print_info(SpaprXive *xive, XiveEND *end,
                                           Monitor *mon)
 {
+    uint64_t qaddr_base = xive_end_qaddr(end);
     uint32_t qindex = xive_get_field32(END_W1_PAGE_OFF, end->w1);
     uint32_t qgen = xive_get_field32(END_W1_GENERATION, end->w1);
     uint32_t qsize = xive_get_field32(END_W0_QSIZE, end->w0);
@@ -127,9 +137,9 @@ static void spapr_xive_end_pic_print_info(SpaprXive *xive, XiveEND *end,
     uint32_t nvt = xive_get_field32(END_W6_NVT_INDEX, end->w6);
     uint8_t priority = xive_get_field32(END_W7_F0_PRIORITY, end->w7);
 
-    monitor_printf(mon, "%3d/%d % 6d/%5d ^%d",
+    monitor_printf(mon, "%3d/%d % 6d/%5d @%"PRIx64" ^%d",
                    spapr_xive_nvt_to_target(0, nvt),
-                   priority, qindex, qentries, qgen);
+                   priority, qindex, qentries, qaddr_base, qgen);
 
     xive_end_queue_pic_print_info(end, 6, mon);
     monitor_printf(mon, "]");
@@ -140,7 +150,17 @@ void spapr_xive_pic_print_info(SpaprXive *xive, Monitor *mon)
     XiveSource *xsrc = &xive->source;
     int i;
 
-    monitor_printf(mon, "  LSIN         PQ    EISN     CPU/PRIO EQ\n");
+    if (kvm_irqchip_in_kernel()) {
+        Error *local_err = NULL;
+
+        kvmppc_xive_synchronize_state(xive, &local_err);
+        if (local_err) {
+            error_report_err(local_err);
+            return;
+        }
+    }
+
+    monitor_printf(mon, "  LISN         PQ    EISN     CPU/PRIO EQ\n");
 
     for (i = 0; i < xive->nr_irqs; i++) {
         uint8_t pq = xive_source_esb_get(xsrc, i);
@@ -173,7 +193,7 @@ void spapr_xive_pic_print_info(SpaprXive *xive, Monitor *mon)
     }
 }
 
-static void spapr_xive_map_mmio(SpaprXive *xive)
+void spapr_xive_map_mmio(SpaprXive *xive)
 {
     sysbus_mmio_map(SYS_BUS_DEVICE(xive), 0, xive->vc_base);
     sysbus_mmio_map(SYS_BUS_DEVICE(xive), 1, xive->end_base);
@@ -250,6 +270,9 @@ static void spapr_xive_instance_init(Object *obj)
     object_initialize_child(obj, "end_source", &xive->end_source,
                             sizeof(xive->end_source), TYPE_XIVE_END_SOURCE,
                             &error_abort, NULL);
+
+    /* Not connected to the KVM XIVE device */
+    xive->fd = -1;
 }
 
 static void spapr_xive_realize(DeviceState *dev, Error **errp)
@@ -304,22 +327,36 @@ static void spapr_xive_realize(DeviceState *dev, Error **errp)
     xive->eat = g_new0(XiveEAS, xive->nr_irqs);
     xive->endt = g_new0(XiveEND, xive->nr_ends);
 
-    /* TIMA initialization */
-    memory_region_init_io(&xive->tm_mmio, OBJECT(xive), &xive_tm_ops, xive,
-                          "xive.tima", 4ull << TM_SHIFT);
+    xive->nodename = g_strdup_printf("interrupt-controller@%" PRIx64,
+                           xive->tm_base + XIVE_TM_USER_PAGE * (1 << TM_SHIFT));
+
+    qemu_register_reset(spapr_xive_reset, dev);
 
     /* Define all XIVE MMIO regions on SysBus */
     sysbus_init_mmio(SYS_BUS_DEVICE(xive), &xsrc->esb_mmio);
     sysbus_init_mmio(SYS_BUS_DEVICE(xive), &end_xsrc->esb_mmio);
     sysbus_init_mmio(SYS_BUS_DEVICE(xive), &xive->tm_mmio);
+}
+
+void spapr_xive_init(SpaprXive *xive, Error **errp)
+{
+    XiveSource *xsrc = &xive->source;
+
+    /*
+     * The emulated XIVE device can only be initialized once. If the
+     * ESB memory region has been already mapped, it means we have been
+     * through there.
+     */
+    if (memory_region_is_mapped(&xsrc->esb_mmio)) {
+        return;
+    }
+
+    /* TIMA initialization */
+    memory_region_init_io(&xive->tm_mmio, OBJECT(xive), &xive_tm_ops, xive,
+                          "xive.tima", 4ull << TM_SHIFT);
 
     /* Map all regions */
     spapr_xive_map_mmio(xive);
-
-    xive->nodename = g_strdup_printf("interrupt-controller@%" PRIx64,
-                           xive->tm_base + XIVE_TM_USER_PAGE * (1 << TM_SHIFT));
-
-    qemu_register_reset(spapr_xive_reset, dev);
 }
 
 static int spapr_xive_get_eas(XiveRouter *xrtr, uint8_t eas_blk,
@@ -427,10 +464,34 @@ static const VMStateDescription vmstate_spapr_xive_eas = {
     },
 };
 
+static int vmstate_spapr_xive_pre_save(void *opaque)
+{
+    if (kvm_irqchip_in_kernel()) {
+        return kvmppc_xive_pre_save(SPAPR_XIVE(opaque));
+    }
+
+    return 0;
+}
+
+/*
+ * Called by the sPAPR IRQ backend 'post_load' method at the machine
+ * level.
+ */
+int spapr_xive_post_load(SpaprXive *xive, int version_id)
+{
+    if (kvm_irqchip_in_kernel()) {
+        return kvmppc_xive_post_load(xive, version_id);
+    }
+
+    return 0;
+}
+
 static const VMStateDescription vmstate_spapr_xive = {
     .name = TYPE_SPAPR_XIVE,
     .version_id = 1,
     .minimum_version_id = 1,
+    .pre_save = vmstate_spapr_xive_pre_save,
+    .post_load = NULL, /* handled at the machine level */
     .fields = (VMStateField[]) {
         VMSTATE_UINT32_EQUAL(nr_irqs, SpaprXive, NULL),
         VMSTATE_STRUCT_VARRAY_POINTER_UINT32(eat, SpaprXive, nr_irqs,
@@ -494,6 +555,17 @@ bool spapr_xive_irq_claim(SpaprXive *xive, uint32_t lisn, bool lsi)
     if (lsi) {
         xive_source_irq_set_lsi(xsrc, lisn);
     }
+
+    if (kvm_irqchip_in_kernel()) {
+        Error *local_err = NULL;
+
+        kvmppc_xive_source_reset_one(xsrc, lisn, &local_err);
+        if (local_err) {
+            error_report_err(local_err);
+            return false;
+        }
+    }
+
     return true;
 }
 
@@ -755,6 +827,16 @@ static target_ulong h_int_set_source_config(PowerPCCPU *cpu,
         new_eas.w = xive_set_field64(EAS_END_DATA, new_eas.w, eisn);
     }
 
+    if (kvm_irqchip_in_kernel()) {
+        Error *local_err = NULL;
+
+        kvmppc_xive_set_source_config(xive, lisn, &new_eas, &local_err);
+        if (local_err) {
+            error_report_err(local_err);
+            return H_HARDWARE;
+        }
+    }
+
 out:
     xive->eat[lisn] = new_eas;
     return H_SUCCESS;
@@ -993,6 +1075,12 @@ static target_ulong h_int_set_queue_config(PowerPCCPU *cpu,
     case 16:
     case 21:
     case 24:
+        if (!QEMU_IS_ALIGNED(qpage, 1ul << qsize)) {
+            qemu_log_mask(LOG_GUEST_ERROR, "XIVE: EQ @0x%" HWADDR_PRIx
+                          " is not naturally aligned with %" HWADDR_PRIx "\n",
+                          qpage, (hwaddr)1 << qsize);
+            return H_P4;
+        }
         end.w2 = cpu_to_be32((qpage >> 32) & 0x0fffffff);
         end.w3 = cpu_to_be32(qpage & 0xffffffff);
         end.w0 |= cpu_to_be32(END_W0_ENQUEUE);
@@ -1060,6 +1148,16 @@ static target_ulong h_int_set_queue_config(PowerPCCPU *cpu,
      */
 
 out:
+    if (kvm_irqchip_in_kernel()) {
+        Error *local_err = NULL;
+
+        kvmppc_xive_set_queue_config(xive, end_blk, end_idx, &end, &local_err);
+        if (local_err) {
+            error_report_err(local_err);
+            return H_HARDWARE;
+        }
+    }
+
     /* Update END */
     memcpy(&xive->endt[end_idx], &end, sizeof(XiveEND));
     return H_SUCCESS;
@@ -1144,12 +1242,21 @@ static target_ulong h_int_get_queue_config(PowerPCCPU *cpu,
     }
 
     if (xive_end_is_enqueue(end)) {
-        args[1] = (uint64_t) be32_to_cpu(end->w2 & 0x0fffffff) << 32
-            | be32_to_cpu(end->w3);
+        args[1] = xive_end_qaddr(end);
         args[2] = xive_get_field32(END_W0_QSIZE, end->w0) + 12;
     } else {
         args[1] = 0;
         args[2] = 0;
+    }
+
+    if (kvm_irqchip_in_kernel()) {
+        Error *local_err = NULL;
+
+        kvmppc_xive_get_queue_config(xive, end_blk, end_idx, end, &local_err);
+        if (local_err) {
+            error_report_err(local_err);
+            return H_HARDWARE;
+        }
     }
 
     /* TODO: do we need any locking on the END ? */
@@ -1304,15 +1411,20 @@ static target_ulong h_int_esb(PowerPCCPU *cpu,
         return H_P3;
     }
 
-    mmio_addr = xive->vc_base + xive_source_esb_mgmt(xsrc, lisn) + offset;
+    if (kvm_irqchip_in_kernel()) {
+        args[0] = kvmppc_xive_esb_rw(xsrc, lisn, offset, data,
+                                     flags & SPAPR_XIVE_ESB_STORE);
+    } else {
+        mmio_addr = xive->vc_base + xive_source_esb_mgmt(xsrc, lisn) + offset;
 
-    if (dma_memory_rw(&address_space_memory, mmio_addr, &data, 8,
-                      (flags & SPAPR_XIVE_ESB_STORE))) {
-        qemu_log_mask(LOG_GUEST_ERROR, "XIVE: failed to access ESB @0x%"
-                      HWADDR_PRIx "\n", mmio_addr);
-        return H_HARDWARE;
+        if (dma_memory_rw(&address_space_memory, mmio_addr, &data, 8,
+                          (flags & SPAPR_XIVE_ESB_STORE))) {
+            qemu_log_mask(LOG_GUEST_ERROR, "XIVE: failed to access ESB @0x%"
+                          HWADDR_PRIx "\n", mmio_addr);
+            return H_HARDWARE;
+        }
+        args[0] = (flags & SPAPR_XIVE_ESB_STORE) ? -1 : data;
     }
-    args[0] = (flags & SPAPR_XIVE_ESB_STORE) ? -1 : data;
     return H_SUCCESS;
 }
 
@@ -1369,7 +1481,20 @@ static target_ulong h_int_sync(PowerPCCPU *cpu,
      * This is not needed when running the emulation under QEMU
      */
 
-    /* This is not real hardware. Nothing to be done */
+    /*
+     * This is not real hardware. Nothing to be done unless when
+     * under KVM
+     */
+
+    if (kvm_irqchip_in_kernel()) {
+        Error *local_err = NULL;
+
+        kvmppc_xive_sync_source(xive, lisn, &local_err);
+        if (local_err) {
+            error_report_err(local_err);
+            return H_HARDWARE;
+        }
+    }
     return H_SUCCESS;
 }
 
@@ -1404,6 +1529,16 @@ static target_ulong h_int_reset(PowerPCCPU *cpu,
     }
 
     device_reset(DEVICE(xive));
+
+    if (kvm_irqchip_in_kernel()) {
+        Error *local_err = NULL;
+
+        kvmppc_xive_reset(xive, &local_err);
+        if (local_err) {
+            error_report_err(local_err);
+            return H_HARDWARE;
+        }
+    }
     return H_SUCCESS;
 }
 

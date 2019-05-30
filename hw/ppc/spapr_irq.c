@@ -62,6 +62,35 @@ void spapr_irq_msi_reset(SpaprMachineState *spapr)
     bitmap_clear(spapr->irq_map, 0, spapr->irq_map_nr);
 }
 
+static void spapr_irq_init_device(SpaprMachineState *spapr,
+                                  SpaprIrq *irq, Error **errp)
+{
+    MachineState *machine = MACHINE(spapr);
+    Error *local_err = NULL;
+
+    if (kvm_enabled() && machine_kernel_irqchip_allowed(machine)) {
+        irq->init_kvm(spapr, &local_err);
+        if (local_err && machine_kernel_irqchip_required(machine)) {
+            error_prepend(&local_err,
+                          "kernel_irqchip requested but unavailable: ");
+            error_propagate(errp, local_err);
+            return;
+        }
+
+        if (!local_err) {
+            return;
+        }
+
+        /*
+         * We failed to initialize the KVM device, fallback to
+         * emulated mode
+         */
+        error_prepend(&local_err, "kernel_irqchip allowed but unavailable: ");
+        warn_report_err(local_err);
+    }
+
+    irq->init_emu(spapr, errp);
+}
 
 /*
  * XICS IRQ backend.
@@ -70,29 +99,8 @@ void spapr_irq_msi_reset(SpaprMachineState *spapr)
 static void spapr_irq_init_xics(SpaprMachineState *spapr, int nr_irqs,
                                 Error **errp)
 {
-    MachineState *machine = MACHINE(spapr);
     Object *obj;
     Error *local_err = NULL;
-    bool xics_kvm = false;
-
-    if (kvm_enabled()) {
-        if (machine_kernel_irqchip_allowed(machine) &&
-            !xics_kvm_init(spapr, &local_err)) {
-            xics_kvm = true;
-        }
-        if (machine_kernel_irqchip_required(machine) && !xics_kvm) {
-            error_prepend(&local_err,
-                          "kernel_irqchip requested but unavailable: ");
-            error_propagate(errp, local_err);
-            return;
-        }
-        error_free(local_err);
-        local_err = NULL;
-    }
-
-    if (!xics_kvm) {
-        xics_spapr_init(spapr);
-    }
 
     obj = object_new(TYPE_ICS_SIMPLE);
     object_property_add_child(OBJECT(spapr), "ics", obj, &error_abort);
@@ -212,12 +220,30 @@ static void spapr_irq_set_irq_xics(void *opaque, int srcno, int val)
 
 static void spapr_irq_reset_xics(SpaprMachineState *spapr, Error **errp)
 {
-    /* TODO: create the KVM XICS device */
+    Error *local_err = NULL;
+
+    spapr_irq_init_device(spapr, &spapr_irq_xics, &local_err);
+    if (local_err) {
+        error_propagate(errp, local_err);
+        return;
+    }
 }
 
 static const char *spapr_irq_get_nodename_xics(SpaprMachineState *spapr)
 {
     return XICS_NODENAME;
+}
+
+static void spapr_irq_init_emu_xics(SpaprMachineState *spapr, Error **errp)
+{
+    xics_spapr_init(spapr);
+}
+
+static void spapr_irq_init_kvm_xics(SpaprMachineState *spapr, Error **errp)
+{
+    if (kvm_enabled()) {
+        xics_kvm_init(spapr, errp);
+    }
 }
 
 #define SPAPR_IRQ_XICS_NR_IRQS     0x1000
@@ -240,6 +266,8 @@ SpaprIrq spapr_irq_xics = {
     .reset       = spapr_irq_reset_xics,
     .set_irq     = spapr_irq_set_irq_xics,
     .get_nodename = spapr_irq_get_nodename_xics,
+    .init_emu    = spapr_irq_init_emu_xics,
+    .init_kvm    = spapr_irq_init_kvm_xics,
 };
 
 /*
@@ -248,18 +276,9 @@ SpaprIrq spapr_irq_xics = {
 static void spapr_irq_init_xive(SpaprMachineState *spapr, int nr_irqs,
                                 Error **errp)
 {
-    MachineState *machine = MACHINE(spapr);
     uint32_t nr_servers = spapr_max_server_number(spapr);
     DeviceState *dev;
     int i;
-
-    /* KVM XIVE device not yet available */
-    if (kvm_enabled()) {
-        if (machine_kernel_irqchip_required(machine)) {
-            error_setg(errp, "kernel_irqchip requested. no KVM XIVE support");
-            return;
-        }
-    }
 
     dev = qdev_create(NULL, TYPE_SPAPR_XIVE);
     qdev_prop_set_uint32(dev, "nr-irqs", nr_irqs);
@@ -350,18 +369,25 @@ static void spapr_irq_cpu_intc_create_xive(SpaprMachineState *spapr,
 
 static int spapr_irq_post_load_xive(SpaprMachineState *spapr, int version_id)
 {
-    return 0;
+    return spapr_xive_post_load(spapr->xive, version_id);
 }
 
 static void spapr_irq_reset_xive(SpaprMachineState *spapr, Error **errp)
 {
     CPUState *cs;
+    Error *local_err = NULL;
 
     CPU_FOREACH(cs) {
         PowerPCCPU *cpu = POWERPC_CPU(cs);
 
         /* (TCG) Set the OS CAM line of the thread interrupt context. */
         spapr_xive_set_tctx_os_cam(spapr_cpu_state(cpu)->tctx);
+    }
+
+    spapr_irq_init_device(spapr, &spapr_irq_xive, &local_err);
+    if (local_err) {
+        error_propagate(errp, local_err);
+        return;
     }
 
     /* Activate the XIVE MMIOs */
@@ -372,12 +398,28 @@ static void spapr_irq_set_irq_xive(void *opaque, int srcno, int val)
 {
     SpaprMachineState *spapr = opaque;
 
-    xive_source_set_irq(&spapr->xive->source, srcno, val);
+    if (kvm_irqchip_in_kernel()) {
+        kvmppc_xive_source_set_irq(&spapr->xive->source, srcno, val);
+    } else {
+        xive_source_set_irq(&spapr->xive->source, srcno, val);
+    }
 }
 
 static const char *spapr_irq_get_nodename_xive(SpaprMachineState *spapr)
 {
     return spapr->xive->nodename;
+}
+
+static void spapr_irq_init_emu_xive(SpaprMachineState *spapr, Error **errp)
+{
+    spapr_xive_init(spapr->xive, errp);
+}
+
+static void spapr_irq_init_kvm_xive(SpaprMachineState *spapr, Error **errp)
+{
+    if (kvm_enabled()) {
+        kvmppc_xive_connect(spapr->xive, errp);
+    }
 }
 
 /*
@@ -404,6 +446,8 @@ SpaprIrq spapr_irq_xive = {
     .reset       = spapr_irq_reset_xive,
     .set_irq     = spapr_irq_set_irq_xive,
     .get_nodename = spapr_irq_get_nodename_xive,
+    .init_emu    = spapr_irq_init_emu_xive,
+    .init_kvm    = spapr_irq_init_kvm_xive,
 };
 
 /*
@@ -428,13 +472,7 @@ static SpaprIrq *spapr_irq_current(SpaprMachineState *spapr)
 static void spapr_irq_init_dual(SpaprMachineState *spapr, int nr_irqs,
                                 Error **errp)
 {
-    MachineState *machine = MACHINE(spapr);
     Error *local_err = NULL;
-
-    if (kvm_enabled() && machine_kernel_irqchip_allowed(machine)) {
-        error_setg(errp, "No KVM support for the 'dual' machine");
-        return;
-    }
 
     spapr_irq_xics.init(spapr, spapr_irq_xics.nr_irqs, &local_err);
     if (local_err) {
@@ -514,6 +552,9 @@ static int spapr_irq_post_load_dual(SpaprMachineState *spapr, int version_id)
      * defaults to XICS at startup.
      */
     if (spapr_ovec_test(spapr->ov5_cas, OV5_XIVE_EXPLOIT)) {
+        if (kvm_irqchip_in_kernel()) {
+            xics_kvm_disconnect(spapr, &error_fatal);
+        }
         spapr_irq_xive.reset(spapr, &error_fatal);
     }
 
@@ -522,11 +563,29 @@ static int spapr_irq_post_load_dual(SpaprMachineState *spapr, int version_id)
 
 static void spapr_irq_reset_dual(SpaprMachineState *spapr, Error **errp)
 {
+    Error *local_err = NULL;
+
     /*
      * Deactivate the XIVE MMIOs. The XIVE backend will reenable them
      * if selected.
      */
     spapr_xive_mmio_set_enabled(spapr->xive, false);
+
+    /* Destroy all KVM devices */
+    if (kvm_irqchip_in_kernel()) {
+        xics_kvm_disconnect(spapr, &local_err);
+        if (local_err) {
+            error_propagate(errp, local_err);
+            error_prepend(errp, "KVM XICS disconnect failed: ");
+            return;
+        }
+        kvmppc_xive_disconnect(spapr->xive, &local_err);
+        if (local_err) {
+            error_propagate(errp, local_err);
+            error_prepend(errp, "KVM XIVE disconnect failed: ");
+            return;
+        }
+    }
 
     spapr_irq_current(spapr)->reset(spapr, errp);
 }
@@ -565,6 +624,8 @@ SpaprIrq spapr_irq_dual = {
     .reset       = spapr_irq_reset_dual,
     .set_irq     = spapr_irq_set_irq_dual,
     .get_nodename = spapr_irq_get_nodename_dual,
+    .init_emu    = NULL, /* should not be used */
+    .init_kvm    = NULL, /* should not be used */
 };
 
 
@@ -763,6 +824,9 @@ SpaprIrq spapr_irq_xics_legacy = {
     .dt_populate = spapr_dt_xics,
     .cpu_intc_create = spapr_irq_cpu_intc_create_xics,
     .post_load   = spapr_irq_post_load_xics,
+    .reset       = spapr_irq_reset_xics,
     .set_irq     = spapr_irq_set_irq_xics,
     .get_nodename = spapr_irq_get_nodename_xics,
+    .init_emu    = spapr_irq_init_emu_xics,
+    .init_kvm    = spapr_irq_init_kvm_xics,
 };

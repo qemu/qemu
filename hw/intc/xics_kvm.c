@@ -33,6 +33,7 @@
 #include "trace.h"
 #include "sysemu/kvm.h"
 #include "hw/ppc/spapr.h"
+#include "hw/ppc/spapr_cpu_core.h"
 #include "hw/ppc/xics.h"
 #include "hw/ppc/xics_spapr.h"
 #include "kvm_ppc.h"
@@ -51,6 +52,16 @@ typedef struct KVMEnabledICP {
 static QLIST_HEAD(, KVMEnabledICP)
     kvm_enabled_icps = QLIST_HEAD_INITIALIZER(&kvm_enabled_icps);
 
+static void kvm_disable_icps(void)
+{
+    KVMEnabledICP *enabled_icp, *next;
+
+    QLIST_FOREACH_SAFE(enabled_icp, &kvm_enabled_icps, node, next) {
+        QLIST_REMOVE(enabled_icp, node);
+        g_free(enabled_icp);
+    }
+}
+
 /*
  * ICP-KVM
  */
@@ -58,6 +69,11 @@ void icp_get_kvm_state(ICPState *icp)
 {
     uint64_t state;
     int ret;
+
+    /* The KVM XICS device is not in use */
+    if (kernel_xics_fd == -1) {
+        return;
+    }
 
     /* ICP for this CPU thread is not in use, exiting */
     if (!icp->cs) {
@@ -95,6 +111,11 @@ int icp_set_kvm_state(ICPState *icp)
     uint64_t state;
     int ret;
 
+    /* The KVM XICS device is not in use */
+    if (kernel_xics_fd == -1) {
+        return 0;
+    }
+
     /* ICP for this CPU thread is not in use, exiting */
     if (!icp->cs) {
         return 0;
@@ -123,8 +144,9 @@ void icp_kvm_realize(DeviceState *dev, Error **errp)
     unsigned long vcpu_id;
     int ret;
 
+    /* The KVM XICS device is not in use */
     if (kernel_xics_fd == -1) {
-        abort();
+        return;
     }
 
     cs = icp->cs;
@@ -159,6 +181,11 @@ void ics_get_kvm_state(ICSState *ics)
 {
     uint64_t state;
     int i;
+
+    /* The KVM XICS device is not in use */
+    if (kernel_xics_fd == -1) {
+        return;
+    }
 
     for (i = 0; i < ics->nr_irqs; i++) {
         ICSIRQState *irq = &ics->irqs[i];
@@ -220,6 +247,11 @@ int ics_set_kvm_state_one(ICSState *ics, int srcno)
     ICSIRQState *irq = &ics->irqs[srcno];
     int ret;
 
+    /* The KVM XICS device is not in use */
+    if (kernel_xics_fd == -1) {
+        return 0;
+    }
+
     state = irq->server;
     state |= (uint64_t)(irq->saved_priority & KVM_XICS_PRIORITY_MASK)
         << KVM_XICS_PRIORITY_SHIFT;
@@ -259,6 +291,11 @@ int ics_set_kvm_state(ICSState *ics)
 {
     int i;
 
+    /* The KVM XICS device is not in use */
+    if (kernel_xics_fd == -1) {
+        return 0;
+    }
+
     for (i = 0; i < ics->nr_irqs; i++) {
         int ret;
 
@@ -275,6 +312,9 @@ void ics_kvm_set_irq(ICSState *ics, int srcno, int val)
 {
     struct kvm_irq_level args;
     int rc;
+
+    /* The KVM XICS device should be in use */
+    assert(kernel_xics_fd != -1);
 
     args.irq = srcno + ics->offset;
     if (ics->irqs[srcno].flags & XICS_FLAGS_IRQ_MSI) {
@@ -303,6 +343,16 @@ static void rtas_dummy(PowerPCCPU *cpu, SpaprMachineState *spapr,
 int xics_kvm_init(SpaprMachineState *spapr, Error **errp)
 {
     int rc;
+    CPUState *cs;
+    Error *local_err = NULL;
+
+    /*
+     * The KVM XICS device already in use. This is the case when
+     * rebooting under the XICS-only interrupt mode.
+     */
+    if (kernel_xics_fd != -1) {
+        return 0;
+    }
 
     if (!kvm_enabled() || !kvm_check_extension(kvm_state, KVM_CAP_IRQ_XICS)) {
         error_setg(errp,
@@ -351,6 +401,26 @@ int xics_kvm_init(SpaprMachineState *spapr, Error **errp)
     kvm_msi_via_irqfd_allowed = true;
     kvm_gsi_direct_mapping = true;
 
+    /* Create the presenters */
+    CPU_FOREACH(cs) {
+        PowerPCCPU *cpu = POWERPC_CPU(cs);
+
+        icp_kvm_realize(DEVICE(spapr_cpu_state(cpu)->icp), &local_err);
+        if (local_err) {
+            error_propagate(errp, local_err);
+            goto fail;
+        }
+    }
+
+    /* Update the KVM sources */
+    ics_set_kvm_state(spapr->ics);
+
+    /* Connect the presenters to the initial VCPUs of the machine */
+    CPU_FOREACH(cs) {
+        PowerPCCPU *cpu = POWERPC_CPU(cs);
+        icp_set_kvm_state(spapr_cpu_state(cpu)->icp);
+    }
+
     return 0;
 
 fail:
@@ -359,4 +429,45 @@ fail:
     kvmppc_define_rtas_kernel_token(0, "ibm,int-on");
     kvmppc_define_rtas_kernel_token(0, "ibm,int-off");
     return -1;
+}
+
+void xics_kvm_disconnect(SpaprMachineState *spapr, Error **errp)
+{
+    /* The KVM XICS device is not in use */
+    if (kernel_xics_fd == -1) {
+        return;
+    }
+
+    if (!kvm_enabled() || !kvm_check_extension(kvm_state, KVM_CAP_IRQ_XICS)) {
+        error_setg(errp,
+                   "KVM and IRQ_XICS capability must be present for KVM XICS device");
+        return;
+    }
+
+    /*
+     * Only on P9 using the XICS-on XIVE KVM device:
+     *
+     * When the KVM device fd is closed, the device is destroyed and
+     * removed from the list of devices of the VM. The VCPU presenters
+     * are also detached from the device.
+     */
+    close(kernel_xics_fd);
+    kernel_xics_fd = -1;
+
+    spapr_rtas_unregister(RTAS_IBM_SET_XIVE);
+    spapr_rtas_unregister(RTAS_IBM_GET_XIVE);
+    spapr_rtas_unregister(RTAS_IBM_INT_OFF);
+    spapr_rtas_unregister(RTAS_IBM_INT_ON);
+
+    kvmppc_define_rtas_kernel_token(0, "ibm,set-xive");
+    kvmppc_define_rtas_kernel_token(0, "ibm,get-xive");
+    kvmppc_define_rtas_kernel_token(0, "ibm,int-on");
+    kvmppc_define_rtas_kernel_token(0, "ibm,int-off");
+
+    kvm_kernel_irqchip = false;
+    kvm_msi_via_irqfd_allowed = false;
+    kvm_gsi_direct_mapping = false;
+
+    /* Clear the presenter from the VCPUs */
+    kvm_disable_icps();
 }

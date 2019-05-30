@@ -1720,6 +1720,7 @@ L: qemu-ppc@nongnu.org
 S: Supported
 F: hw/*/*xive*
 F: include/hw/*/*xive*
+F: docs/*/*xive*
 
 Subsystems
 ----------
