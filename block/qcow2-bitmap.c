@@ -29,7 +29,6 @@
 #include "qapi/error.h"
 #include "qemu/cutils.h"
 
-#include "block/block_int.h"
 #include "qcow2.h"
 
 /* NOTICE: BME here means Bitmaps Extension and used as a namespace for
@@ -754,7 +753,7 @@ static int bitmap_list_store(BlockDriverState *bs, Qcow2BitmapList *bm_list,
         dir_offset = *offset;
     }
 
-    dir = g_try_malloc(dir_size);
+    dir = g_try_malloc0(dir_size);
     if (dir == NULL) {
         return -ENOMEM;
     }

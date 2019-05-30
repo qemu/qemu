@@ -1019,7 +1019,6 @@ static void quorum_add_child(BlockDriverState *bs, BlockDriverState *child_bs,
     child = bdrv_attach_child(bs, child_bs, indexstr, &child_format, errp);
     if (child == NULL) {
         s->next_child_index--;
-        bdrv_unref(child_bs);
         goto out;
     }
     s->children = g_renew(BdrvChild *, s->children, s->num_children + 1);

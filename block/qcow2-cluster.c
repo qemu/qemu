@@ -27,7 +27,6 @@
 
 #include "qapi/error.h"
 #include "qemu-common.h"
-#include "block/block_int.h"
 #include "qcow2.h"
 #include "qemu/bswap.h"
 #include "trace.h"
@@ -472,13 +471,12 @@ static bool coroutine_fn do_perform_cow_encrypt(BlockDriverState *bs,
 {
     if (bytes && bs->encrypted) {
         BDRVQcow2State *s = bs->opaque;
-        int64_t offset = (s->crypt_physical_offset ?
-                          (cluster_offset + offset_in_cluster) :
-                          (src_cluster_offset + offset_in_cluster));
         assert((offset_in_cluster & ~BDRV_SECTOR_MASK) == 0);
         assert((bytes & ~BDRV_SECTOR_MASK) == 0);
         assert(s->crypto);
-        if (qcrypto_block_encrypt(s->crypto, offset, buffer, bytes, NULL) < 0) {
+        if (qcow2_co_encrypt(bs, cluster_offset,
+                             src_cluster_offset + offset_in_cluster,
+                             buffer, bytes) < 0) {
             return false;
         }
     }
@@ -833,7 +831,7 @@ static int perform_cow(BlockDriverState *bs, QCowL2Meta *m)
     assert(start->offset + start->nb_bytes <= end->offset);
     assert(!m->data_qiov || m->data_qiov->size == data_bytes);
 
-    if (start->nb_bytes == 0 && end->nb_bytes == 0) {
+    if ((start->nb_bytes == 0 && end->nb_bytes == 0) || m->skip_cow) {
         return 0;
     }
 

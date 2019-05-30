@@ -3450,8 +3450,13 @@ static BlockJob *do_drive_backup(DriveBackup *backup, JobTxn *txn,
         backup->compress = false;
     }
 
-    bs = qmp_get_root_bs(backup->device, errp);
+    bs = bdrv_lookup_bs(backup->device, backup->device, errp);
     if (!bs) {
+        return NULL;
+    }
+
+    if (!bs->drv) {
+        error_setg(errp, "Device has no medium");
         return NULL;
     }
 

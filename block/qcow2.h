@@ -28,6 +28,7 @@
 #include "crypto/block.h"
 #include "qemu/coroutine.h"
 #include "qemu/units.h"
+#include "block/block_int.h"
 
 //#define DEBUG_ALLOC
 //#define DEBUG_ALLOC2
@@ -267,6 +268,8 @@ typedef struct Qcow2BitmapHeaderExt {
     uint64_t bitmap_directory_offset;
 } QEMU_PACKED Qcow2BitmapHeaderExt;
 
+#define QCOW2_MAX_THREADS 4
+
 typedef struct BDRVQcow2State {
     int cluster_bits;
     int cluster_size;
@@ -349,8 +352,8 @@ typedef struct BDRVQcow2State {
     char *image_backing_format;
     char *image_data_file;
 
-    CoQueue compress_wait_queue;
-    int nb_compress_threads;
+    CoQueue thread_task_queue;
+    int nb_threads;
 
     BdrvChild *data_file;
 } BDRVQcow2State;
@@ -401,6 +404,12 @@ typedef struct QCowL2Meta
      * end of the last allocated cluster.
      */
     Qcow2COWRegion cow_end;
+
+    /*
+     * Indicates that COW regions are already handled and do not require
+     * any more processing.
+     */
+    bool skip_cow;
 
     /**
      * The I/O vector with the data from the actual guest write request.
@@ -736,5 +745,18 @@ bool qcow2_can_store_new_dirty_bitmap(BlockDriverState *bs,
 void qcow2_remove_persistent_dirty_bitmap(BlockDriverState *bs,
                                           const char *name,
                                           Error **errp);
+
+ssize_t coroutine_fn
+qcow2_co_compress(BlockDriverState *bs, void *dest, size_t dest_size,
+                  const void *src, size_t src_size);
+ssize_t coroutine_fn
+qcow2_co_decompress(BlockDriverState *bs, void *dest, size_t dest_size,
+                    const void *src, size_t src_size);
+int coroutine_fn
+qcow2_co_encrypt(BlockDriverState *bs, uint64_t file_cluster_offset,
+                 uint64_t offset, void *buf, size_t len);
+int coroutine_fn
+qcow2_co_decrypt(BlockDriverState *bs, uint64_t file_cluster_offset,
+                 uint64_t offset, void *buf, size_t len);
 
 #endif

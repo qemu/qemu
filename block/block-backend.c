@@ -392,7 +392,6 @@ BlockBackend *blk_new_open(const char *filename, const char *reference,
     blk->root = bdrv_root_attach_child(bs, "root", &child_root,
                                        perm, BLK_PERM_ALL, blk, errp);
     if (!blk->root) {
-        bdrv_unref(bs);
         blk_unref(blk);
         return NULL;
     }
@@ -800,12 +799,12 @@ void blk_remove_bs(BlockBackend *blk)
 int blk_insert_bs(BlockBackend *blk, BlockDriverState *bs, Error **errp)
 {
     ThrottleGroupMember *tgm = &blk->public.throttle_group_member;
+    bdrv_ref(bs);
     blk->root = bdrv_root_attach_child(bs, "root", &child_root,
                                        blk->perm, blk->shared_perm, blk, errp);
     if (blk->root == NULL) {
         return -EPERM;
     }
-    bdrv_ref(bs);
 
     notifier_list_notify(&blk->insert_bs_notifiers, blk);
     if (tgm->throttle_state) {

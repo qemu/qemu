@@ -24,10 +24,6 @@
 
 #include "qemu/osdep.h"
 
-#define ZLIB_CONST
-#include <zlib.h>
-
-#include "block/block_int.h"
 #include "block/qdict.h"
 #include "sysemu/block-backend.h"
 #include "qemu/module.h"
@@ -44,7 +40,6 @@
 #include "qapi/qobject-input-visitor.h"
 #include "qapi/qapi-visit-block-core.h"
 #include "crypto.h"
-#include "block/thread-pool.h"
 
 /*
   Differences with QCOW:
@@ -302,7 +297,7 @@ static int qcow2_read_extensions(BlockDriverState *bs, uint64_t start_offset,
             }
             s->crypto = qcrypto_block_open(s->crypto_opts, "encrypt.",
                                            qcow2_crypto_hdr_read_func,
-                                           bs, cflags, 1, errp);
+                                           bs, cflags, QCOW2_MAX_THREADS, errp);
             if (!s->crypto) {
                 return -EINVAL;
             }
@@ -1543,7 +1538,8 @@ static int coroutine_fn qcow2_do_open(BlockDriverState *bs, QDict *options,
                 cflags |= QCRYPTO_BLOCK_OPEN_NO_IO;
             }
             s->crypto = qcrypto_block_open(s->crypto_opts, "encrypt.",
-                                           NULL, NULL, cflags, 1, errp);
+                                           NULL, NULL, cflags,
+                                           QCOW2_MAX_THREADS, errp);
             if (!s->crypto) {
                 ret = -EINVAL;
                 goto fail;
@@ -1698,7 +1694,7 @@ static int coroutine_fn qcow2_do_open(BlockDriverState *bs, QDict *options,
     }
 #endif
 
-    qemu_co_queue_init(&s->compress_wait_queue);
+    qemu_co_queue_init(&s->thread_task_queue);
 
     return ret;
 
@@ -1974,8 +1970,6 @@ static coroutine_fn int qcow2_co_preadv(BlockDriverState *bs, uint64_t offset,
 
     qemu_iovec_init(&hd_qiov, qiov->niov);
 
-    qemu_co_mutex_lock(&s->lock);
-
     while (bytes != 0) {
 
         /* prepare next request */
@@ -1985,7 +1979,9 @@ static coroutine_fn int qcow2_co_preadv(BlockDriverState *bs, uint64_t offset,
                             QCOW_MAX_CRYPT_CLUSTERS * s->cluster_size);
         }
 
+        qemu_co_mutex_lock(&s->lock);
         ret = qcow2_get_cluster_offset(bs, offset, &cur_bytes, &cluster_offset);
+        qemu_co_mutex_unlock(&s->lock);
         if (ret < 0) {
             goto fail;
         }
@@ -2000,10 +1996,8 @@ static coroutine_fn int qcow2_co_preadv(BlockDriverState *bs, uint64_t offset,
 
             if (bs->backing) {
                 BLKDBG_EVENT(bs->file, BLKDBG_READ_BACKING_AIO);
-                qemu_co_mutex_unlock(&s->lock);
                 ret = bdrv_co_preadv(bs->backing, offset, cur_bytes,
                                      &hd_qiov, 0);
-                qemu_co_mutex_lock(&s->lock);
                 if (ret < 0) {
                     goto fail;
                 }
@@ -2019,11 +2013,9 @@ static coroutine_fn int qcow2_co_preadv(BlockDriverState *bs, uint64_t offset,
             break;
 
         case QCOW2_CLUSTER_COMPRESSED:
-            qemu_co_mutex_unlock(&s->lock);
             ret = qcow2_co_preadv_compressed(bs, cluster_offset,
                                              offset, cur_bytes,
                                              &hd_qiov);
-            qemu_co_mutex_lock(&s->lock);
             if (ret < 0) {
                 goto fail;
             }
@@ -2060,11 +2052,9 @@ static coroutine_fn int qcow2_co_preadv(BlockDriverState *bs, uint64_t offset,
             }
 
             BLKDBG_EVENT(bs->file, BLKDBG_READ_AIO);
-            qemu_co_mutex_unlock(&s->lock);
             ret = bdrv_co_preadv(s->data_file,
                                  cluster_offset + offset_in_cluster,
                                  cur_bytes, &hd_qiov, 0);
-            qemu_co_mutex_lock(&s->lock);
             if (ret < 0) {
                 goto fail;
             }
@@ -2072,13 +2062,8 @@ static coroutine_fn int qcow2_co_preadv(BlockDriverState *bs, uint64_t offset,
                 assert(s->crypto);
                 assert((offset & (BDRV_SECTOR_SIZE - 1)) == 0);
                 assert((cur_bytes & (BDRV_SECTOR_SIZE - 1)) == 0);
-                if (qcrypto_block_decrypt(s->crypto,
-                                          (s->crypt_physical_offset ?
-                                           cluster_offset + offset_in_cluster :
-                                           offset),
-                                          cluster_data,
-                                          cur_bytes,
-                                          NULL) < 0) {
+                if (qcow2_co_decrypt(bs, cluster_offset, offset,
+                                     cluster_data, cur_bytes) < 0) {
                     ret = -EIO;
                     goto fail;
                 }
@@ -2099,8 +2084,6 @@ static coroutine_fn int qcow2_co_preadv(BlockDriverState *bs, uint64_t offset,
     ret = 0;
 
 fail:
-    qemu_co_mutex_unlock(&s->lock);
-
     qemu_iovec_destroy(&hd_qiov);
     qemu_vfree(cluster_data);
 
@@ -2117,6 +2100,11 @@ static bool merge_cow(uint64_t offset, unsigned bytes,
     for (m = l2meta; m != NULL; m = m->next) {
         /* If both COW regions are empty then there's nothing to merge */
         if (m->cow_start.nb_bytes == 0 && m->cow_end.nb_bytes == 0) {
+            continue;
+        }
+
+        /* If COW regions are handled already, skip this too */
+        if (m->skip_cow) {
             continue;
         }
 
@@ -2143,6 +2131,80 @@ static bool merge_cow(uint64_t offset, unsigned bytes,
     }
 
     return false;
+}
+
+static bool is_unallocated(BlockDriverState *bs, int64_t offset, int64_t bytes)
+{
+    int64_t nr;
+    return !bytes ||
+        (!bdrv_is_allocated_above(bs, NULL, offset, bytes, &nr) && nr == bytes);
+}
+
+static bool is_zero_cow(BlockDriverState *bs, QCowL2Meta *m)
+{
+    /*
+     * This check is designed for optimization shortcut so it must be
+     * efficient.
+     * Instead of is_zero(), use is_unallocated() as it is faster (but not
+     * as accurate and can result in false negatives).
+     */
+    return is_unallocated(bs, m->offset + m->cow_start.offset,
+                          m->cow_start.nb_bytes) &&
+           is_unallocated(bs, m->offset + m->cow_end.offset,
+                          m->cow_end.nb_bytes);
+}
+
+static int handle_alloc_space(BlockDriverState *bs, QCowL2Meta *l2meta)
+{
+    BDRVQcow2State *s = bs->opaque;
+    QCowL2Meta *m;
+
+    if (!(s->data_file->bs->supported_zero_flags & BDRV_REQ_NO_FALLBACK)) {
+        return 0;
+    }
+
+    if (bs->encrypted) {
+        return 0;
+    }
+
+    for (m = l2meta; m != NULL; m = m->next) {
+        int ret;
+
+        if (!m->cow_start.nb_bytes && !m->cow_end.nb_bytes) {
+            continue;
+        }
+
+        if (!is_zero_cow(bs, m)) {
+            continue;
+        }
+
+        /*
+         * instead of writing zero COW buffers,
+         * efficiently zero out the whole clusters
+         */
+
+        ret = qcow2_pre_write_overlap_check(bs, 0, m->alloc_offset,
+                                            m->nb_clusters * s->cluster_size,
+                                            true);
+        if (ret < 0) {
+            return ret;
+        }
+
+        BLKDBG_EVENT(bs->file, BLKDBG_CLUSTER_ALLOC_SPACE);
+        ret = bdrv_co_pwrite_zeroes(s->data_file, m->alloc_offset,
+                                    m->nb_clusters * s->cluster_size,
+                                    BDRV_REQ_NO_FALLBACK);
+        if (ret < 0) {
+            if (ret != -ENOTSUP && ret != -EAGAIN) {
+                return ret;
+            }
+            continue;
+        }
+
+        trace_qcow2_skip_cow(qemu_coroutine_self(), m->offset, m->nb_clusters);
+        m->skip_cow = true;
+    }
+    return 0;
 }
 
 static coroutine_fn int qcow2_co_pwritev(BlockDriverState *bs, uint64_t offset,
@@ -2181,10 +2243,19 @@ static coroutine_fn int qcow2_co_pwritev(BlockDriverState *bs, uint64_t offset,
         ret = qcow2_alloc_cluster_offset(bs, offset, &cur_bytes,
                                          &cluster_offset, &l2meta);
         if (ret < 0) {
-            goto fail;
+            goto out_locked;
         }
 
         assert((cluster_offset & 511) == 0);
+
+        ret = qcow2_pre_write_overlap_check(bs, 0,
+                                            cluster_offset + offset_in_cluster,
+                                            cur_bytes, true);
+        if (ret < 0) {
+            goto out_locked;
+        }
+
+        qemu_co_mutex_unlock(&s->lock);
 
         qemu_iovec_reset(&hd_qiov);
         qemu_iovec_concat(&hd_qiov, qiov, bytes_done, cur_bytes);
@@ -2197,7 +2268,7 @@ static coroutine_fn int qcow2_co_pwritev(BlockDriverState *bs, uint64_t offset,
                                                    * s->cluster_size);
                 if (cluster_data == NULL) {
                     ret = -ENOMEM;
-                    goto fail;
+                    goto out_unlocked;
                 }
             }
 
@@ -2205,24 +2276,20 @@ static coroutine_fn int qcow2_co_pwritev(BlockDriverState *bs, uint64_t offset,
                    QCOW_MAX_CRYPT_CLUSTERS * s->cluster_size);
             qemu_iovec_to_buf(&hd_qiov, 0, cluster_data, hd_qiov.size);
 
-            if (qcrypto_block_encrypt(s->crypto,
-                                      (s->crypt_physical_offset ?
-                                       cluster_offset + offset_in_cluster :
-                                       offset),
-                                      cluster_data,
-                                      cur_bytes, NULL) < 0) {
+            if (qcow2_co_encrypt(bs, cluster_offset, offset,
+                                 cluster_data, cur_bytes) < 0) {
                 ret = -EIO;
-                goto fail;
+                goto out_unlocked;
             }
 
             qemu_iovec_reset(&hd_qiov);
             qemu_iovec_add(&hd_qiov, cluster_data, cur_bytes);
         }
 
-        ret = qcow2_pre_write_overlap_check(bs, 0,
-                cluster_offset + offset_in_cluster, cur_bytes, true);
+        /* Try to efficiently initialize the physical space with zeroes */
+        ret = handle_alloc_space(bs, l2meta);
         if (ret < 0) {
-            goto fail;
+            goto out_unlocked;
         }
 
         /* If we need to do COW, check if it's possible to merge the
@@ -2230,22 +2297,22 @@ static coroutine_fn int qcow2_co_pwritev(BlockDriverState *bs, uint64_t offset,
          * If it's not possible (or not necessary) then write the
          * guest data now. */
         if (!merge_cow(offset, cur_bytes, &hd_qiov, l2meta)) {
-            qemu_co_mutex_unlock(&s->lock);
             BLKDBG_EVENT(bs->file, BLKDBG_WRITE_AIO);
             trace_qcow2_writev_data(qemu_coroutine_self(),
                                     cluster_offset + offset_in_cluster);
             ret = bdrv_co_pwritev(s->data_file,
                                   cluster_offset + offset_in_cluster,
                                   cur_bytes, &hd_qiov, 0);
-            qemu_co_mutex_lock(&s->lock);
             if (ret < 0) {
-                goto fail;
+                goto out_unlocked;
             }
         }
 
+        qemu_co_mutex_lock(&s->lock);
+
         ret = qcow2_handle_l2meta(bs, &l2meta, true);
         if (ret) {
-            goto fail;
+            goto out_locked;
         }
 
         bytes -= cur_bytes;
@@ -2254,8 +2321,12 @@ static coroutine_fn int qcow2_co_pwritev(BlockDriverState *bs, uint64_t offset,
         trace_qcow2_writev_done_part(qemu_coroutine_self(), cur_bytes);
     }
     ret = 0;
+    goto out_locked;
 
-fail:
+out_unlocked:
+    qemu_co_mutex_lock(&s->lock);
+
+out_locked:
     qcow2_handle_l2meta(bs, &l2meta, false);
 
     qemu_co_mutex_unlock(&s->lock);
@@ -3919,171 +3990,6 @@ static int coroutine_fn qcow2_co_truncate(BlockDriverState *bs, int64_t offset,
 fail:
     qemu_co_mutex_unlock(&s->lock);
     return ret;
-}
-
-/*
- * qcow2_compress()
- *
- * @dest - destination buffer, @dest_size bytes
- * @src - source buffer, @src_size bytes
- *
- * Returns: compressed size on success
- *          -ENOMEM destination buffer is not enough to store compressed data
- *          -EIO    on any other error
- */
-static ssize_t qcow2_compress(void *dest, size_t dest_size,
-                              const void *src, size_t src_size)
-{
-    ssize_t ret;
-    z_stream strm;
-
-    /* best compression, small window, no zlib header */
-    memset(&strm, 0, sizeof(strm));
-    ret = deflateInit2(&strm, Z_DEFAULT_COMPRESSION, Z_DEFLATED,
-                       -12, 9, Z_DEFAULT_STRATEGY);
-    if (ret != Z_OK) {
-        return -EIO;
-    }
-
-    /* strm.next_in is not const in old zlib versions, such as those used on
-     * OpenBSD/NetBSD, so cast the const away */
-    strm.avail_in = src_size;
-    strm.next_in = (void *) src;
-    strm.avail_out = dest_size;
-    strm.next_out = dest;
-
-    ret = deflate(&strm, Z_FINISH);
-    if (ret == Z_STREAM_END) {
-        ret = dest_size - strm.avail_out;
-    } else {
-        ret = (ret == Z_OK ? -ENOMEM : -EIO);
-    }
-
-    deflateEnd(&strm);
-
-    return ret;
-}
-
-/*
- * qcow2_decompress()
- *
- * Decompress some data (not more than @src_size bytes) to produce exactly
- * @dest_size bytes.
- *
- * @dest - destination buffer, @dest_size bytes
- * @src - source buffer, @src_size bytes
- *
- * Returns: 0 on success
- *          -1 on fail
- */
-static ssize_t qcow2_decompress(void *dest, size_t dest_size,
-                                const void *src, size_t src_size)
-{
-    int ret = 0;
-    z_stream strm;
-
-    memset(&strm, 0, sizeof(strm));
-    strm.avail_in = src_size;
-    strm.next_in = (void *) src;
-    strm.avail_out = dest_size;
-    strm.next_out = dest;
-
-    ret = inflateInit2(&strm, -12);
-    if (ret != Z_OK) {
-        return -1;
-    }
-
-    ret = inflate(&strm, Z_FINISH);
-    if ((ret != Z_STREAM_END && ret != Z_BUF_ERROR) || strm.avail_out != 0) {
-        /* We approve Z_BUF_ERROR because we need @dest buffer to be filled, but
-         * @src buffer may be processed partly (because in qcow2 we know size of
-         * compressed data with precision of one sector) */
-        ret = -1;
-    }
-
-    inflateEnd(&strm);
-
-    return ret;
-}
-
-#define MAX_COMPRESS_THREADS 4
-
-typedef ssize_t (*Qcow2CompressFunc)(void *dest, size_t dest_size,
-                                     const void *src, size_t src_size);
-typedef struct Qcow2CompressData {
-    void *dest;
-    size_t dest_size;
-    const void *src;
-    size_t src_size;
-    ssize_t ret;
-
-    Qcow2CompressFunc func;
-} Qcow2CompressData;
-
-static int qcow2_compress_pool_func(void *opaque)
-{
-    Qcow2CompressData *data = opaque;
-
-    data->ret = data->func(data->dest, data->dest_size,
-                           data->src, data->src_size);
-
-    return 0;
-}
-
-static void qcow2_compress_complete(void *opaque, int ret)
-{
-    qemu_coroutine_enter(opaque);
-}
-
-static ssize_t coroutine_fn
-qcow2_co_do_compress(BlockDriverState *bs, void *dest, size_t dest_size,
-                     const void *src, size_t src_size, Qcow2CompressFunc func)
-{
-    BDRVQcow2State *s = bs->opaque;
-    BlockAIOCB *acb;
-    ThreadPool *pool = aio_get_thread_pool(bdrv_get_aio_context(bs));
-    Qcow2CompressData arg = {
-        .dest = dest,
-        .dest_size = dest_size,
-        .src = src,
-        .src_size = src_size,
-        .func = func,
-    };
-
-    while (s->nb_compress_threads >= MAX_COMPRESS_THREADS) {
-        qemu_co_queue_wait(&s->compress_wait_queue, NULL);
-    }
-
-    s->nb_compress_threads++;
-    acb = thread_pool_submit_aio(pool, qcow2_compress_pool_func, &arg,
-                                 qcow2_compress_complete,
-                                 qemu_coroutine_self());
-
-    if (!acb) {
-        s->nb_compress_threads--;
-        return -EINVAL;
-    }
-    qemu_coroutine_yield();
-    s->nb_compress_threads--;
-    qemu_co_queue_next(&s->compress_wait_queue);
-
-    return arg.ret;
-}
-
-static ssize_t coroutine_fn
-qcow2_co_compress(BlockDriverState *bs, void *dest, size_t dest_size,
-                  const void *src, size_t src_size)
-{
-    return qcow2_co_do_compress(bs, dest, dest_size, src, src_size,
-                                qcow2_compress);
-}
-
-static ssize_t coroutine_fn
-qcow2_co_decompress(BlockDriverState *bs, void *dest, size_t dest_size,
-                    const void *src, size_t src_size)
-{
-    return qcow2_co_do_compress(bs, dest, dest_size, src, src_size,
-                                qcow2_decompress);
 }
 
 /* XXX: put compressed sectors first, then all the cluster aligned
