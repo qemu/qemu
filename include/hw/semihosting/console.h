@@ -10,17 +10,30 @@
 #define SEMIHOST_CONSOLE_H
 
 /**
- * qemu_semihosting_console_out:
+ * qemu_semihosting_console_outs:
  * @env: CPUArchState
- * @s: host address of guest string
- * @len: length of string or 0 (string is null terminated)
+ * @s: host address of null terminated guest string
  *
- * Send a guest string to the debug console. This may be the remote
- * gdb session if a softmmu guest is currently being debugged.
+ * Send a null terminated guest string to the debug console. This may
+ * be the remote gdb session if a softmmu guest is currently being
+ * debugged.
  *
  * Returns: number of bytes written.
  */
-int qemu_semihosting_console_out(CPUArchState *env, target_ulong s, int len);
+int qemu_semihosting_console_outs(CPUArchState *env, target_ulong s);
+
+/**
+ * qemu_semihosting_console_outc:
+ * @env: CPUArchState
+ * @s: host address of null terminated guest string
+ *
+ * Send single character from guest memory to the debug console. This
+ * may be the remote gdb session if a softmmu guest is currently being
+ * debugged.
+ *
+ * Returns: nothing
+ */
+void qemu_semihosting_console_outc(CPUArchState *env, target_ulong c);
 
 /**
  * qemu_semihosting_log_out:

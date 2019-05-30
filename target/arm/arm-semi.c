@@ -314,10 +314,10 @@ target_ulong do_arm_semihosting(CPUARMState *env)
             return set_swi_errno(ts, close(arg0));
         }
     case TARGET_SYS_WRITEC:
-        qemu_semihosting_console_out(env, args, 1);
+        qemu_semihosting_console_outc(env, args);
         return 0xdeadbeef;
     case TARGET_SYS_WRITE0:
-        return qemu_semihosting_console_out(env, args, 0);
+        return qemu_semihosting_console_outs(env, args);
     case TARGET_SYS_WRITE:
         GET_ARG(0);
         GET_ARG(1);

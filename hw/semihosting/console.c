@@ -36,26 +36,24 @@ int qemu_semihosting_log_out(const char *s, int len)
 /*
  * A re-implementation of lock_user_string that we can use locally
  * instead of relying on softmmu-semi. Hopefully we can deprecate that
- * in time. We either copy len bytes if specified or until we find a NULL.
+ * in time. Copy string until we find a 0 or address error.
  */
-static GString *copy_user_string(CPUArchState *env, target_ulong addr, int len)
+static GString *copy_user_string(CPUArchState *env, target_ulong addr)
 {
     CPUState *cpu = env_cpu(env);
-    GString *s = g_string_sized_new(len ? len : 128);
+    GString *s = g_string_sized_new(128);
     uint8_t c;
-    bool done;
 
     do {
         if (cpu_memory_rw_debug(cpu, addr++, &c, 1, 0) == 0) {
             s = g_string_append_c(s, c);
-            done = len ? s->len == len : c == 0;
         } else {
             qemu_log_mask(LOG_GUEST_ERROR,
                           "%s: passed inaccessible address " TARGET_FMT_lx,
                           __func__, addr);
-            done = true;
+            break;
         }
-    } while (!done);
+    } while (c!=0);
 
     return s;
 }
@@ -68,9 +66,9 @@ static void semihosting_cb(CPUState *cs, target_ulong ret, target_ulong err)
     }
 }
 
-int qemu_semihosting_console_out(CPUArchState *env, target_ulong addr, int len)
+int qemu_semihosting_console_outs(CPUArchState *env, target_ulong addr)
 {
-    GString *s = copy_user_string(env, addr, len);
+    GString *s = copy_user_string(env, addr);
     int out = s->len;
 
     if (use_gdb_syscalls()) {
@@ -81,4 +79,22 @@ int qemu_semihosting_console_out(CPUArchState *env, target_ulong addr, int len)
 
     g_string_free(s, true);
     return out;
+}
+
+void qemu_semihosting_console_outc(CPUArchState *env, target_ulong addr)
+{
+    CPUState *cpu = env_cpu(env);
+    uint8_t c;
+
+    if (cpu_memory_rw_debug(cpu, addr, &c, 1, 0) == 0) {
+        if (use_gdb_syscalls()) {
+            gdb_do_syscall(semihosting_cb, "write,2,%x,%x", addr, 1);
+        } else {
+            qemu_semihosting_log_out((const char *) &c, 1);
+        }
+    } else {
+        qemu_log_mask(LOG_GUEST_ERROR,
+                      "%s: passed inaccessible address " TARGET_FMT_lx,
+                      __func__, addr);
+    }
 }
