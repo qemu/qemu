@@ -56,7 +56,7 @@ int qemu_guest_getrandom(void *buf, size_t len, Error **errp)
 
 void qemu_guest_getrandom_nofail(void *buf, size_t len)
 {
-    qemu_guest_getrandom(buf, len, &error_fatal);
+    (void)qemu_guest_getrandom(buf, len, &error_fatal);
 }
 
 uint64_t qemu_guest_random_seed_thread_part1(void)
