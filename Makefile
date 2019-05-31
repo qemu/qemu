@@ -13,7 +13,7 @@ SRC_PATH=.
 UNCHECKED_GOALS := %clean TAGS cscope ctags dist \
     html info pdf txt \
     help check-help print-% \
-    docker docker-% vm-test vm-build-%
+    docker docker-% vm-help vm-test vm-build-%
 
 print-%:
 	@echo '$*=$($*)'
@@ -1153,7 +1153,7 @@ endif
 	@echo  'Test targets:'
 	@echo  '  check           - Run all tests (check-help for details)'
 	@echo  '  docker          - Help about targets running tests inside Docker containers'
-	@echo  '  vm-test         - Help about targets running tests inside VM'
+	@echo  '  vm-help         - Help about targets running tests inside VM'
 	@echo  ''
 	@echo  'Documentation targets:'
 	@echo  '  html info pdf txt'

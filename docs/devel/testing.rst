@@ -399,12 +399,12 @@ VM testing
 
 This test suite contains scripts that bootstrap various guest images that have
 necessary packages to build QEMU. The basic usage is documented in ``Makefile``
-help which is displayed with ``make vm-test``.
+help which is displayed with ``make vm-help``.
 
 Quickstart
 ----------
 
-Run ``make vm-test`` to list available make targets. Invoke a specific make
+Run ``make vm-help`` to list available make targets. Invoke a specific make
 command to run build test in an image. For example, ``make vm-build-freebsd``
 will build the source tree in the FreeBSD image. The command can be executed
 from either the source tree or the build dir; if the former, ``./configure`` is

@@ -8,8 +8,9 @@ IMAGE_FILES := $(patsubst %, $(IMAGES_DIR)/%.img, $(IMAGES))
 
 .PRECIOUS: $(IMAGE_FILES)
 
-vm-test:
-	@echo "vm-test: Test QEMU in preconfigured virtual machines"
+# 'vm-help' target was historically named 'vm-test'
+vm-help vm-test:
+	@echo "vm-help: Test QEMU in preconfigured virtual machines"
 	@echo
 	@echo "  vm-build-ubuntu.i386            - Build QEMU in ubuntu i386 VM"
 	@echo "  vm-build-freebsd                - Build QEMU in FreeBSD VM"
