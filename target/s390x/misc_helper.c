@@ -669,7 +669,7 @@ uint32_t HELPER(stfle)(CPUS390XState *env, uint64_t addr)
 {
     const uintptr_t ra = GETPC();
     const int count_bytes = ((env->regs[0] & 0xff) + 1) * 8;
-    const int max_bytes = ROUND_UP(used_stfl_bytes, 8);
+    int max_bytes;
     int i;
 
     if (addr & 0x7) {
@@ -677,6 +677,7 @@ uint32_t HELPER(stfle)(CPUS390XState *env, uint64_t addr)
     }
 
     prepare_stfl();
+    max_bytes = ROUND_UP(used_stfl_bytes, 8);
     for (i = 0; i < count_bytes; ++i) {
         cpu_stb_data_ra(env, addr + i, stfl_bytes[i], ra);
     }
