@@ -6943,3 +6943,94 @@ int bdrv_make_empty(BdrvChild *c, Error **errp)
 
     return 0;
 }
+
+/*
+ * Return the child that @bs acts as an overlay for, and from which data may be
+ * copied in COW or COR operations.  Usually this is the backing file.
+ */
+BdrvChild *bdrv_cow_child(BlockDriverState *bs)
+{
+    if (!bs || !bs->drv) {
+        return NULL;
+    }
+
+    if (bs->drv->is_filter) {
+        return NULL;
+    }
+
+    if (!bs->backing) {
+        return NULL;
+    }
+
+    assert(bs->backing->role & BDRV_CHILD_COW);
+    return bs->backing;
+}
+
+/*
+ * If @bs acts as a filter for exactly one of its children, return
+ * that child.
+ */
+BdrvChild *bdrv_filter_child(BlockDriverState *bs)
+{
+    BdrvChild *c;
+
+    if (!bs || !bs->drv) {
+        return NULL;
+    }
+
+    if (!bs->drv->is_filter) {
+        return NULL;
+    }
+
+    /* Only one of @backing or @file may be used */
+    assert(!(bs->backing && bs->file));
+
+    c = bs->backing ?: bs->file;
+    if (!c) {
+        return NULL;
+    }
+
+    assert(c->role & BDRV_CHILD_FILTERED);
+    return c;
+}
+
+/*
+ * Return either the result of bdrv_cow_child() or bdrv_filter_child(),
+ * whichever is non-NULL.
+ *
+ * Return NULL if both are NULL.
+ */
+BdrvChild *bdrv_filter_or_cow_child(BlockDriverState *bs)
+{
+    BdrvChild *cow_child = bdrv_cow_child(bs);
+    BdrvChild *filter_child = bdrv_filter_child(bs);
+
+    /* Filter nodes cannot have COW backing files */
+    assert(!(cow_child && filter_child));
+
+    return cow_child ?: filter_child;
+}
+
+/*
+ * Return the primary child of this node: For filters, that is the
+ * filtered child.  For other nodes, that is usually the child storing
+ * metadata.
+ * (A generally more helpful description is that this is (usually) the
+ * child that has the same filename as @bs.)
+ *
+ * Drivers do not necessarily have a primary child; for example quorum
+ * does not.
+ */
+BdrvChild *bdrv_primary_child(BlockDriverState *bs)
+{
+    BdrvChild *c, *found = NULL;
+
+    QLIST_FOREACH(c, &bs->children, next) {
+        if (c->role & BDRV_CHILD_PRIMARY) {
+            assert(!found);
+            found = c;
+        }
+    }
+
+    return found;
+}
