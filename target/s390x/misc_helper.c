@@ -678,7 +678,13 @@ uint32_t HELPER(stfle)(CPUS390XState *env, uint64_t addr)
 
     prepare_stfl();
     max_bytes = ROUND_UP(used_stfl_bytes, 8);
-    for (i = 0; i < count_bytes; ++i) {
+
+    /*
+     * The PoP says that doublewords beyond the highest-numbered facility
+     * bit may or may not be stored.  However, existing hardware appears to
+     * not store the words, and existing software depend on that.
+     */
+    for (i = 0; i < MIN(count_bytes, max_bytes); ++i) {
         cpu_stb_data_ra(env, addr + i, stfl_bytes[i], ra);
     }
 
