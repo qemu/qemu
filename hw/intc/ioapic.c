@@ -197,9 +197,11 @@ static void ioapic_update_kvm_routes(IOAPICCommonState *s)
             MSIMessage msg;
             struct ioapic_entry_info info;
             ioapic_entry_parse(s->ioredtbl[i], &info);
-            msg.address = info.addr;
-            msg.data = info.data;
-            kvm_irqchip_update_msi_route(kvm_state, i, msg, NULL);
+            if (!info.masked) {
+                msg.address = info.addr;
+                msg.data = info.data;
+                kvm_irqchip_update_msi_route(kvm_state, i, msg, NULL);
+            }
         }
         kvm_irqchip_commit_routes(kvm_state);
     }
