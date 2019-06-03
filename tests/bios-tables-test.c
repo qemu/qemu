@@ -364,7 +364,7 @@ static void test_acpi_asl(test_data *data)
     int i;
     AcpiSdtTable *sdt, *exp_sdt;
     test_data exp_data;
-    gboolean exp_err, err;
+    gboolean exp_err, err, all_tables_match = true;
 
     memset(&exp_data, 0, sizeof(exp_data));
     exp_data.tables = load_expected_aml(data);
@@ -413,11 +413,13 @@ static void test_acpi_asl(test_data *data)
                     }
                 }
             }
-            g_assert(test_acpi_find_diff_allowed(exp_sdt));
+            all_tables_match = all_tables_match &&
+                test_acpi_find_diff_allowed(exp_sdt);
         }
         g_string_free(asl, true);
         g_string_free(exp_asl, true);
     }
+    g_assert(all_tables_match);
 
     free_test_data(&exp_data);
 }
