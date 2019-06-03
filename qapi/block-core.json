@@ -1279,17 +1279,17 @@
 #
 # Either @device or @node-name must be set but not both.
 #
-# @device: the name of the device to generate the snapshot from.
+# @device: the name of the device to take a snapshot of.
 #
 # @node-name: graph node name to generate the snapshot from (Since 2.0)
 #
-# @snapshot-file: the target of the new image. If the file exists, or
-# if it is a device, the snapshot will be created in the existing
-# file/device. Otherwise, a new file will be created.
+# @snapshot-file: the target of the new overlay image. If the file
+# exists, or if it is a device, the overlay will be created in the
+# existing file/device. Otherwise, a new file will be created.
 #
 # @snapshot-node-name: the graph node name of the new image (Since 2.0)
 #
-# @format: the format of the snapshot image, default is 'qcow2'.
+# @format: the format of the overlay image, default is 'qcow2'.
 #
 # @mode: whether and how QEMU should create a new image, default is
 #        'absolute-paths'.
@@ -1302,10 +1302,10 @@
 ##
 # @BlockdevSnapshot:
 #
-# @node: device or node name that will have a snapshot created.
+# @node: device or node name that will have a snapshot taken.
 #
 # @overlay: reference to the existing block device that will become
-#           the overlay of @node, as part of creating the snapshot.
+#           the overlay of @node, as part of taking the snapshot.
 #           It must not have a current backing file (this can be
 #           achieved by passing "backing": null to blockdev-add).
 #
@@ -1443,7 +1443,7 @@
 ##
 # @blockdev-snapshot-sync:
 #
-# Generates a synchronous snapshot of a block device.
+# Takes a synchronous snapshot of a block device.
 #
 # For the arguments, see the documentation of BlockdevSnapshotSync.
 #
@@ -1469,9 +1469,9 @@
 ##
 # @blockdev-snapshot:
 #
-# Generates a snapshot of a block device.
+# Takes a snapshot of a block device.
 #
-# Create a snapshot, by installing 'node' as the backing image of
+# Take a snapshot, by installing 'node' as the backing image of
 # 'overlay'. Additionally, if 'node' is associated with a block
 # device, the block device changes to using 'overlay' as its new active
 # image.
