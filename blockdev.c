@@ -1608,13 +1608,13 @@ static void external_snapshot_prepare(BlkActionState *common,
             s->has_snapshot_node_name ? s->snapshot_node_name : NULL;
 
         if (node_name && !snapshot_node_name) {
-            error_setg(errp, "New snapshot node name missing");
+            error_setg(errp, "New overlay node name missing");
             goto out;
         }
 
         if (snapshot_node_name &&
             bdrv_lookup_bs(snapshot_node_name, snapshot_node_name, NULL)) {
-            error_setg(errp, "New snapshot node name already in use");
+            error_setg(errp, "New overlay node name already in use");
             goto out;
         }
 
@@ -1656,7 +1656,7 @@ static void external_snapshot_prepare(BlkActionState *common,
     }
 
     if (bdrv_has_blk(state->new_bs)) {
-        error_setg(errp, "The snapshot is already in use");
+        error_setg(errp, "The overlay is already in use");
         goto out;
     }
 
@@ -1666,12 +1666,12 @@ static void external_snapshot_prepare(BlkActionState *common,
     }
 
     if (state->new_bs->backing != NULL) {
-        error_setg(errp, "The snapshot already has a backing image");
+        error_setg(errp, "The overlay already has a backing image");
         goto out;
     }
 
     if (!state->new_bs->drv->supports_backing) {
-        error_setg(errp, "The snapshot does not support backing images");
+        error_setg(errp, "The overlay does not support backing images");
         goto out;
     }
 
