@@ -1358,6 +1358,8 @@ bool cpu_physical_memory_test_and_clear_dirty(ram_addr_t start,
     DirtyMemoryBlocks *blocks;
     unsigned long end, page;
     bool dirty = false;
+    RAMBlock *ramblock;
+    uint64_t mr_offset, mr_size;
 
     if (length == 0) {
         return false;
@@ -1369,6 +1371,10 @@ bool cpu_physical_memory_test_and_clear_dirty(ram_addr_t start,
     rcu_read_lock();
 
     blocks = atomic_rcu_read(&ram_list.dirty_memory[client]);
+    ramblock = qemu_get_ram_block(start);
+    /* Range sanity check on the ramblock */
+    assert(start >= ramblock->offset &&
+           start + length <= ramblock->offset + ramblock->used_length);
 
     while (page < end) {
         unsigned long idx = page / DIRTY_MEMORY_BLOCK_SIZE;
@@ -1379,6 +1385,10 @@ bool cpu_physical_memory_test_and_clear_dirty(ram_addr_t start,
                                               offset, num);
         page += num;
     }
+
+    mr_offset = (ram_addr_t)(page << TARGET_PAGE_BITS) - ramblock->offset;
+    mr_size = (end - page) << TARGET_PAGE_BITS;
+    memory_region_clear_dirty_bitmap(ramblock->mr, mr_offset, mr_size);
 
     rcu_read_unlock();
 
@@ -1434,6 +1444,8 @@ DirtyBitmapSnapshot *cpu_physical_memory_snapshot_and_clear_dirty
     if (tcg_enabled()) {
         tlb_reset_dirty_range_all(start, length);
     }
+
+    memory_region_clear_dirty_bitmap(mr, offset, length);
 
     return snap;
 }
