@@ -1,8 +1,10 @@
 /*
  *  Test program for MSA instruction DIV_U.B
  *
- *  Copyright (C) 2018  Wave Computing, Inc.
- *  Copyright (C) 2018  Mateja Marjanovic <mateja.marjanovic@rt-rk.com>
+ *  Copyright (C) 2019  Wave Computing, Inc.
+ *  Copyright (C) 2019  Aleksandar Markovic <amarkovic@wavecomp.com>
+ *  Copyright (C) 2019  RT-RK Computer Based Systems LLC
+ *  Copyright (C) 2019  Mateja Marjanovic <mateja.marjanovic@rt-rk.com>
  *
  *  This program is free software: you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -23,8 +25,8 @@
 #include <stdint.h>
 
 #include "../../../../include/wrappers_msa.h"
-#include "../../../../include/test_inputs.h"
-#include "../../../../include/test_utils.h"
+#include "../../../../include/test_inputs_128.h"
+#include "../../../../include/test_utils_128.h"
 
 #define TEST_COUNT_TOTAL (                                                \
             (PATTERN_INPUTS_SHORT_COUNT) * (PATTERN_INPUTS_SHORT_COUNT) + \
@@ -119,6 +121,8 @@ int32_t main(void)
         { 0x0101070201040001ULL, 0x0000010101000000ULL, },
         { 0x0000000002000201ULL, 0x01020c020000010dULL, },
         { 0x0000ff0001000109ULL, 0x0700000808010200ULL, },
+        { 0x0000000000000100ULL, 0x0301000000010608ULL, },
+        { 0x0101010101010101ULL, 0x0101010101010101ULL, },
 };
 
     gettimeofday(&start, NULL);

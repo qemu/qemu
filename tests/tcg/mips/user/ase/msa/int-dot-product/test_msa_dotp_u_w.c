@@ -1,8 +1,10 @@
 /*
  *  Test program for MSA instruction DOTP_U.W
  *
- *  Copyright (C) 2018  Wave Computing, Inc.
- *  Copyright (C) 2018  Mateja Marjanovic <mateja.marjanovic@rt-rk.com>
+ *  Copyright (C) 2019  Wave Computing, Inc.
+ *  Copyright (C) 2019  Aleksandar Markovic <amarkovic@wavecomp.com>
+ *  Copyright (C) 2019  RT-RK Computer Based Systems LLC
+ *  Copyright (C) 2019  Mateja Marjanovic <mateja.marjanovic@rt-rk.com>
  *
  *  This program is free software: you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -23,8 +25,8 @@
 #include <stdint.h>
 
 #include "../../../../include/wrappers_msa.h"
-#include "../../../../include/test_inputs.h"
-#include "../../../../include/test_utils.h"
+#include "../../../../include/test_inputs_128.h"
+#include "../../../../include/test_utils_128.h"
 
 #define TEST_COUNT_TOTAL (                                                \
             (PATTERN_INPUTS_SHORT_COUNT) * (PATTERN_INPUTS_SHORT_COUNT) + \
@@ -119,6 +121,8 @@ int32_t main(void)
         { 0x5ad3b4e8bfaf139fULL, 0x8076d98091fe5896ULL, },
         { 0x4ff36c125a383042ULL, 0x2fe23e4744196e36ULL, },
         { 0x6e796f69cc7c8793ULL, 0x6e879377578266beULL, },
+        { 0x5ad3b4e8bfaf139fULL, 0x8076d98091fe5896ULL, },
+        { 0x33368b8aeab5d525ULL, 0x97d9932138871904ULL, },
 };
 
     gettimeofday(&start, NULL);

@@ -22,8 +22,10 @@
 #include "exec/helper-proto.h"
 #include "qemu/bitops.h"
 
-/* As the byte ordering doesn't matter, i.e. all columns are treated
-   identically, these unions can be used directly.  */
+/*
+ * As the byte ordering doesn't matter, i.e. all columns are treated
+ * identically, these unions can be used directly.
+ */
 typedef union {
     uint8_t  ub[4];
     int8_t   sb[4];
@@ -1445,9 +1447,15 @@ target_ulong helper_precr_ob_qh(target_ulong rs, target_ulong rt)
     return temp;
 }
 
-#define PRECR_QH_PW(name, var) \
-target_ulong helper_precr_##name##_qh_pw(target_ulong rs, target_ulong rt, \
-                                    uint32_t sa)                      \
+
+/*
+ * In case sa == 0, use rt2, rt0, rs2, rs0.
+ * In case sa != 0, use rt3, rt1, rs3, rs1.
+ */
+#define PRECR_QH_PW(name, var)                                        \
+target_ulong helper_precr_##name##_qh_pw(target_ulong rs,             \
+                                         target_ulong rt,             \
+                                         uint32_t sa)                 \
 {                                                                     \
     uint16_t rs3, rs2, rs1, rs0;                                      \
     uint16_t rt3, rt2, rt1, rt0;                                      \
@@ -1456,8 +1464,6 @@ target_ulong helper_precr_##name##_qh_pw(target_ulong rs, target_ulong rt, \
     MIPSDSP_SPLIT64_16(rs, rs3, rs2, rs1, rs0);                       \
     MIPSDSP_SPLIT64_16(rt, rt3, rt2, rt1, rt0);                       \
                                                                       \
-    /* When sa = 0, we use rt2, rt0, rs2, rs0;                        \
-     * when sa != 0, we use rt3, rt1, rs3, rs1. */                    \
     if (sa == 0) {                                                    \
         tempD = rt2 << var;                                           \
         tempC = rt0 << var;                                           \
@@ -1965,7 +1971,8 @@ SHIFT_PH(shra_r, rnd16_rashift);
 #undef SHIFT_PH
 
 /** DSP Multiply Sub-class insns **/
-/* Return value made up by two 16bits value.
+/*
+ * Return value made up by two 16bits value.
  * FIXME give the macro a better name.
  */
 #define MUL_RETURN32_16_PH(name, func, \
@@ -3274,11 +3281,15 @@ target_ulong helper_dextr_l(target_ulong ac, target_ulong shift,
                             CPUMIPSState *env)
 {
     uint64_t temp[3];
+    target_ulong ret;
 
     shift = shift & 0x3F;
 
     mipsdsp_rndrashift_acc(temp, ac, shift, env);
-    return (temp[1] << 63) | (temp[0] >> 1);
+
+    ret = (temp[1] << 63) | (temp[0] >> 1);
+
+    return ret;
 }
 
 target_ulong helper_dextr_r_l(target_ulong ac, target_ulong shift,
@@ -3286,6 +3297,7 @@ target_ulong helper_dextr_r_l(target_ulong ac, target_ulong shift,
 {
     uint64_t temp[3];
     uint32_t temp128;
+    target_ulong ret;
 
     shift = shift & 0x3F;
     mipsdsp_rndrashift_acc(temp, ac, shift, env);
@@ -3305,7 +3317,9 @@ target_ulong helper_dextr_r_l(target_ulong ac, target_ulong shift,
         set_DSPControl_overflow_flag(1, 23, env);
     }
 
-    return (temp[1] << 63) | (temp[0] >> 1);
+    ret = (temp[1] << 63) | (temp[0] >> 1);
+
+    return ret;
 }
 
 target_ulong helper_dextr_rs_l(target_ulong ac, target_ulong shift,
@@ -3313,6 +3327,7 @@ target_ulong helper_dextr_rs_l(target_ulong ac, target_ulong shift,
 {
     uint64_t temp[3];
     uint32_t temp128;
+    target_ulong ret;
 
     shift = shift & 0x3F;
     mipsdsp_rndrashift_acc(temp, ac, shift, env);
@@ -3338,7 +3353,10 @@ target_ulong helper_dextr_rs_l(target_ulong ac, target_ulong shift,
         }
         set_DSPControl_overflow_flag(1, 23, env);
     }
-    return (temp[1] << 63) | (temp[0] >> 1);
+
+    ret = (temp[1] << 63) | (temp[0] >> 1);
+
+    return ret;
 }
 #endif
 

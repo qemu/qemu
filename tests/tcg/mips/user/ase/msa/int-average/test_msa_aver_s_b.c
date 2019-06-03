@@ -1,8 +1,10 @@
 /*
  *  Test program for MSA instruction AVER_S.B
  *
- *  Copyright (C) 2018  Wave Computing, Inc.
- *  Copyright (C) 2018  Mateja Marjanovic <mateja.marjanovic@rt-rk.com>
+ *  Copyright (C) 2019  Wave Computing, Inc.
+ *  Copyright (C) 2019  Aleksandar Markovic <amarkovic@wavecomp.com>
+ *  Copyright (C) 2019  RT-RK Computer Based Systems LLC
+ *  Copyright (C) 2019  Mateja Marjanovic <mateja.marjanovic@rt-rk.com>
  *
  *  This program is free software: you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -23,8 +25,8 @@
 #include <stdint.h>
 
 #include "../../../../include/wrappers_msa.h"
-#include "../../../../include/test_inputs.h"
-#include "../../../../include/test_utils.h"
+#include "../../../../include/test_inputs_128.h"
+#include "../../../../include/test_utils_128.h"
 
 #define TEST_COUNT_TOTAL (                                                \
             (PATTERN_INPUTS_SHORT_COUNT) * (PATTERN_INPUTS_SHORT_COUNT) + \
@@ -119,6 +121,8 @@ int32_t main(void)
         { 0x0e55e2fc0c00b7e7ULL, 0xdae5a7ecaa3704daULL, },
         { 0xfc5dfe0d434a1c47ULL, 0xec2cca1bd45fc9d6ULL, },
         { 0x36070b5856e2d52bULL, 0xd0f4a2f9df411aceULL, },
+        { 0x0e55e2fc0c00b7e7ULL, 0xdae5a7ecaa3704daULL, },
+        { 0x704f164d5e31e24eULL, 0x8df188d8a942e2a0ULL, },
 };
 
     gettimeofday(&start, NULL);
