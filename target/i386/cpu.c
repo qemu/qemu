@@ -906,7 +906,7 @@ static FeatureWordInfo feature_word_info[FEATURE_WORDS] = {
             "kvmclock", "kvm-nopiodelay", "kvm-mmu", "kvmclock",
             "kvm-asyncpf", "kvm-steal-time", "kvm-pv-eoi", "kvm-pv-unhalt",
             NULL, "kvm-pv-tlb-flush", NULL, "kvm-pv-ipi",
-            NULL, NULL, NULL, NULL,
+            "kvm-poll-control", NULL, NULL, NULL,
             NULL, NULL, NULL, NULL,
             NULL, NULL, NULL, NULL,
             "kvmclock-stable-bit", NULL, NULL, NULL,
@@ -5660,6 +5660,8 @@ static void x86_cpu_initfn(Object *obj)
     object_property_add_alias(obj, "kvm_steal_time", obj, "kvm-steal-time", &error_abort);
     object_property_add_alias(obj, "kvm_pv_eoi", obj, "kvm-pv-eoi", &error_abort);
     object_property_add_alias(obj, "kvm_pv_unhalt", obj, "kvm-pv-unhalt", &error_abort);
+    object_property_add_alias(obj, "kvm_poll_control", obj, "kvm-poll-control",
+                              &error_abort);
     object_property_add_alias(obj, "svm_lock", obj, "svm-lock", &error_abort);
     object_property_add_alias(obj, "nrip_save", obj, "nrip-save", &error_abort);
     object_property_add_alias(obj, "tsc_scale", obj, "tsc-scale", &error_abort);
