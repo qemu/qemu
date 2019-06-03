@@ -1,0 +1,302 @@
+---
+# Note: this file is still unused.  It serves as a documentation for the
+# Patchew configuration in case patchew.org disappears or has to be
+# reinstalled.
+#
+# Patchew configuration is available to project administrators at
+# https://patchew.org/api/v1/projects/1/config/ and can be configured
+# to YAML using the following Python script:
+#
+#     import json
+#     import sys
+#     import ruamel.yaml
+#
+#     json_str = sys.stdin.read()
+#     yaml = ruamel.yaml.YAML()
+#     yaml.explicit_start = True
+#     data = json.loads(json_str, object_pairs_hook=ruamel.yaml.comments.CommentedMap)
+#     ruamel.yaml.scalarstring.walk_tree(data)
+#     yaml.dump(data, sys.stdout)
+
+email:
+  notifications:
+    timeouts:
+      event: TestingReport
+      enabled: true
+      to_user: false
+      reply_subject: true
+      set_reply_to: true
+      in_reply_to: true
+      reply_to_all: false
+      subject_template: none
+      to: fam@euphon.net
+      cc: ''
+      body_template: |
+        {% if not is_timeout %} {{ cancel }} {% endif %}
+
+        Test '{{ test }}' timeout, log:
+
+        {{ log }}
+    ENOSPC:
+      event: TestingReport
+      enabled: true
+      to_user: false
+      reply_subject: false
+      set_reply_to: false
+      in_reply_to: true
+      reply_to_all: false
+      subject_template: Out of space error
+      to: fam@euphon.net
+      cc: ''
+      body_template: |
+        {% if passed %}
+          {{ cancel }}
+        {% endif %}
+
+        {% if 'No space left on device' in log %}
+        Tester {{ tester }} out of space when running {{ test }}
+
+          {{ log }}
+        {% else %}
+          {{ cancel }}
+        {% endif %}
+    FailureShort:
+      event: TestingReport
+      enabled: true
+      to_user: false
+      reply_subject: true
+      set_reply_to: true
+      in_reply_to: true
+      reply_to_all: true
+      subject_template: Testing failed
+      to: ''
+      cc: ''
+      body_template: |
+        {% if passed or not obj.message_id or is_timeout %}
+          {{ cancel }}
+        {% endif %}
+        {% if 'No space left on device' in log %}
+          {{ cancel }}
+        {% endif %}
+        Patchew URL: https://patchew.org/QEMU/{{ obj.message_id }}/
+
+        {% ansi2text log as logtext %}
+        {% if test == "checkpatch" %}
+        Hi,
+
+        This series seems to have some coding style problems. See output below for
+        more information:
+
+        {{ logtext }}
+        {% elif test == "docker-mingw@fedora" or test == "docker-quick@centos7" or test == "asan" %}
+        Hi,
+
+        This series failed the {{ test }} build test. Please find the testing commands and
+        their output below. If you have Docker installed, you can probably reproduce it
+        locally.
+
+        {% lines_between logtext start="^=== TEST SCRIPT BEGIN ===$" stop="^=== TEST SCRIPT END ===$" %}
+        {% lines_between logtext start="^=== OUTPUT BEGIN ===$" stop="=== OUTPUT END ===$" as output %}
+        {% grep_C output regex="\b(FAIL|XPASS|ERROR|WARN|error:|warning:)" n=3 %}
+        {% elif test == "s390x" or test == "FreeBSD" or test == "ppcle" or test == "ppcbe" %}
+        Hi,
+
+        This series failed build test on {{test}} host. Please find the details below.
+
+        {% lines_between logtext start="^=== TEST SCRIPT BEGIN ===$" stop="^=== TEST SCRIPT END ===$" %}
+        {% lines_between logtext start="^=== OUTPUT BEGIN ===$" stop="=== OUTPUT END ===$" as output %}
+        {% grep_C output regex="\b(FAIL|XPASS|ERROR|WARN|error:|warning:)" n=3 %}
+        {% else %}
+        {{ cancel }}
+        {% endif %}
+
+        The full log is available at
+        {{ log_url }}.
+        ---
+        Email generated automatically by Patchew [https://patchew.org/].
+        Please send your feedback to patchew-devel@redhat.com
+testing:
+  tests:
+    asan:
+      enabled: true
+      requirements: docker
+      timeout: 3600
+      script: |
+        #!/bin/bash
+        time make docker-test-debug@fedora TARGET_LIST=x86_64-softmmu J=14 NETWORK=1
+    docker-quick@centos7:
+      enabled: false
+      requirements: docker,x86_64
+      timeout: 3600
+      script: |
+        #!/bin/bash
+        time make docker-test-quick@centos7 SHOW_ENV=1 J=14 NETWORK=1
+    checkpatch:
+      enabled: true
+      requirements: ''
+      timeout: 600
+      script: |
+        #!/bin/bash
+        git rev-parse base > /dev/null || exit 0
+        git config --local diff.renamelimit 0
+        git config --local diff.renames True
+        git config --local diff.algorithm histogram
+        ./scripts/checkpatch.pl --mailback base..
+    docker-mingw@fedora:
+      enabled: true
+      requirements: docker,x86_64
+      timeout: 3600
+      script: |
+        #! /bin/bash
+        test "$(uname -m)" = "x86_64"
+    ppcle:
+      enabled: false
+      requirements: ppcle
+      timeout: 3600
+      script: |
+        #!/bin/bash
+        # Testing script will be invoked under the git checkout with
+        # HEAD pointing to a commit that has the patches applied on top of "base"
+        # branch
+        set -e
+        CC=$HOME/bin/cc
+        INSTALL=$PWD/install
+        BUILD=$PWD/build
+        mkdir -p $BUILD $INSTALL
+        SRC=$PWD
+        cd $BUILD
+        $SRC/configure --cc=$CC --prefix=$INSTALL
+        make -j4
+        # XXX: we need reliable clean up
+        # make check -j4 V=1
+        make install
+
+        echo
+        echo "=== ENV ==="
+        env
+
+        echo
+        echo "=== PACKAGES ==="
+        rpm -qa
+    ppcbe:
+      enabled: false
+      requirements: ppcbe
+      timeout: 3600
+      script: |
+        #!/bin/bash
+        # Testing script will be invoked under the git checkout with
+        # HEAD pointing to a commit that has the patches applied on top of "base"
+        # branch
+        set -e
+        CC=$HOME/bin/cc
+        INSTALL=$PWD/install
+        BUILD=$PWD/build
+        mkdir -p $BUILD $INSTALL
+        SRC=$PWD
+        cd $BUILD
+        $SRC/configure --cc=$CC --prefix=$INSTALL
+        make -j4
+        # XXX: we need reliable clean up
+        # make check -j4 V=1
+        make install
+
+        echo
+        echo "=== ENV ==="
+        env
+
+        echo
+        echo "=== PACKAGES ==="
+        rpm -qa
+    FreeBSD:
+      enabled: true
+      requirements: qemu-x86,x86_64,git
+      timeout: 3600
+      script: |
+        #!/bin/bash
+        # Testing script will be invoked under the git checkout with
+        # HEAD pointing to a commit that has the patches applied on top of "base"
+        # branch
+        if qemu-system-x86_64 --help >/dev/null 2>&1; then
+          QEMU=qemu-system-x86_64
+        elif /usr/libexec/qemu-kvm --help >/dev/null 2>&1; then
+          QEMU=/usr/libexec/qemu-kvm
+        else
+          exit 1
+        fi
+        make vm-build-freebsd J=21 QEMU=$QEMU
+        exit 0
+    docker-clang@ubuntu:
+      enabled: true
+      requirements: docker,x86_64
+      timeout: 3600
+      script: |
+        #!/bin/bash
+        time make docker-test-clang@ubuntu SHOW_ENV=1 J=14 NETWORK=1
+    s390x:
+      enabled: true
+      requirements: s390x
+      timeout: 3600
+      script: |
+        #!/bin/bash
+        # Testing script will be invoked under the git checkout with
+        # HEAD pointing to a commit that has the patches applied on top of "base"
+        # branch
+        set -e
+        CC=$HOME/bin/cc
+        INSTALL=$PWD/install
+        BUILD=$PWD/build
+        mkdir -p $BUILD $INSTALL
+        SRC=$PWD
+        cd $BUILD
+        $SRC/configure --cc=$CC --prefix=$INSTALL
+        make -j4
+        # XXX: we need reliable clean up
+        # make check -j4 V=1
+        make install
+
+        echo
+        echo "=== ENV ==="
+        env
+
+        echo
+        echo "=== PACKAGES ==="
+        rpm -qa
+  requirements:
+    x86_64:
+      script: |
+        #! /bin/bash
+        test "$(uname -m)" = "x86_64"
+    qemu-x86:
+      script: |
+        #!/bin/bash
+        if qemu-system-x86_64 --help >/dev/null 2>&1; then
+          :
+        elif /usr/libexec/qemu-kvm --help >/dev/null 2>&1; then
+          :
+        else
+          exit 1
+        fi
+    ppcle:
+      script: |
+        #!/bin/bash
+        test "$(uname -m)" = "ppc64le"
+    ppcbe:
+      script: |
+        #!/bin/bash
+        test "$(uname -m)" = "ppc64"
+    git:
+      script: |
+        #! /bin/bash
+        git config user.name > /dev/null 2>&1
+    docker:
+      script: |
+        #!/bin/bash
+        docker ps || sudo -n docker ps
+    s390x:
+      script: |
+        #!/bin/bash
+        test "$(uname -m)" = "s390x"
+git:
+  push_to: git@github.com:patchew-project/qemu
+  public_repo: https://github.com/patchew-project/qemu
+  url_template: https://github.com/patchew-project/qemu/tree/%t

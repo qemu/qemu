@@ -30,13 +30,6 @@ enum IMXI2CDirection {
     IMX_I2C_WRITE,
 };
 
-typedef struct IMXI2C {
-    I2CAdapter parent;
-
-    uint64_t addr;
-} IMXI2C;
-
-
 static void imx_i2c_set_slave_addr(IMXI2C *s, uint8_t addr,
                                    enum IMXI2CDirection direction)
 {
@@ -47,7 +40,7 @@ static void imx_i2c_set_slave_addr(IMXI2C *s, uint8_t addr,
 static void imx_i2c_send(I2CAdapter *i2c, uint8_t addr,
                          const uint8_t *buf, uint16_t len)
 {
-    IMXI2C *s = (IMXI2C *)i2c;
+    IMXI2C *s = container_of(i2c, IMXI2C, parent);
     uint8_t data;
     uint8_t status;
     uint16_t size = 0;
@@ -107,7 +100,7 @@ static void imx_i2c_send(I2CAdapter *i2c, uint8_t addr,
 static void imx_i2c_recv(I2CAdapter *i2c, uint8_t addr,
                          uint8_t *buf, uint16_t len)
 {
-    IMXI2C *s = (IMXI2C *)i2c;
+    IMXI2C *s = container_of(i2c, IMXI2C, parent);
     uint8_t data;
     uint8_t status;
     uint16_t size = 0;
@@ -193,16 +186,31 @@ static void imx_i2c_recv(I2CAdapter *i2c, uint8_t addr,
     g_assert((status & I2SR_IBB) == 0);
 }
 
-I2CAdapter *imx_i2c_create(QTestState *qts, uint64_t addr)
+static void *imx_i2c_get_driver(void *obj, const char *interface)
 {
-    IMXI2C *s = g_malloc0(sizeof(*s));
-    I2CAdapter *i2c = (I2CAdapter *)s;
+    IMXI2C *s = obj;
+    if (!g_strcmp0(interface, "i2c-bus")) {
+        return &s->parent;
+    }
+    fprintf(stderr, "%s not present in imx-i2c\n", interface);
+    g_assert_not_reached();
+}
 
+void imx_i2c_init(IMXI2C *s, QTestState *qts, uint64_t addr)
+{
     s->addr = addr;
 
-    i2c->send = imx_i2c_send;
-    i2c->recv = imx_i2c_recv;
-    i2c->qts = qts;
+    s->obj.get_driver = imx_i2c_get_driver;
 
-    return i2c;
+    s->parent.send = imx_i2c_send;
+    s->parent.recv = imx_i2c_recv;
+    s->parent.qts = qts;
 }
+
+static void imx_i2c_register_nodes(void)
+{
+    qos_node_create_driver("imx.i2c", NULL);
+    qos_node_produces("imx.i2c", "i2c-bus");
+}
+
+libqos_init(imx_i2c_register_nodes);

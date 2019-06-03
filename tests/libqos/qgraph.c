@@ -632,15 +632,19 @@ void qos_node_create_driver(const char *name, QOSCreateDriverFunc function)
 }
 
 void qos_node_contains(const char *container, const char *contained,
-                       ...)
+                       QOSGraphEdgeOptions *opts, ...)
 {
     va_list va;
-    va_start(va, contained);
-    QOSGraphEdgeOptions *opts;
 
+    if (opts == NULL) {
+        add_edge(container, contained, QEDGE_CONTAINS, NULL);
+        return;
+    }
+
+    va_start(va, opts);
     do {
-        opts = va_arg(va, QOSGraphEdgeOptions *);
         add_edge(container, contained, QEDGE_CONTAINS, opts);
+        opts = va_arg(va, QOSGraphEdgeOptions *);
     } while (opts != NULL);
 
     va_end(va);
