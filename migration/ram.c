@@ -1664,6 +1664,33 @@ static inline bool migration_bitmap_clear_dirty(RAMState *rs,
     bool ret;
 
     qemu_mutex_lock(&rs->bitmap_mutex);
+
+    /*
+     * Clear dirty bitmap if needed.  This _must_ be called before we
+     * send any of the page in the chunk because we need to make sure
+     * we can capture further page content changes when we sync dirty
+     * log the next time.  So as long as we are going to send any of
+     * the page in the chunk we clear the remote dirty bitmap for all.
+     * Clearing it earlier won't be a problem, but too late will.
+     */
+    if (rb->clear_bmap && clear_bmap_test_and_clear(rb, page)) {
+        uint8_t shift = rb->clear_bmap_shift;
+        hwaddr size = 1ULL << (TARGET_PAGE_BITS + shift);
+        hwaddr start = (page << TARGET_PAGE_BITS) & (-size);
+
+        /*
+         * CLEAR_BITMAP_SHIFT_MIN should always guarantee this... this
+         * can make things easier sometimes since then start address
+         * of the small chunk will always be 64 pages aligned so the
+         * bitmap will always be aligned to unsigned long.  We should
+         * even be able to remove this restriction but I'm simply
+         * keeping it.
+         */
+        assert(shift >= 6);
+        trace_migration_bitmap_clear_dirty(rb->idstr, start, size, page);
+        memory_region_clear_dirty_bitmap(rb->mr, start, size);
+    }
+
     ret = test_and_clear_bit(page, rb->bmap);
 
     if (ret) {
@@ -2687,6 +2714,8 @@ static void ram_save_cleanup(void *opaque)
     memory_global_dirty_log_stop();
 
     RAMBLOCK_FOREACH_NOT_IGNORED(block) {
+        g_free(block->clear_bmap);
+        block->clear_bmap = NULL;
         g_free(block->bmap);
         block->bmap = NULL;
         g_free(block->unsentmap);
@@ -3197,11 +3226,24 @@ static int ram_state_init(RAMState **rsp)
 
 static void ram_list_init_bitmaps(void)
 {
+    MigrationState *ms = migrate_get_current();
     RAMBlock *block;
     unsigned long pages;
+    uint8_t shift;
 
     /* Skip setting bitmap if there is no RAM */
     if (ram_bytes_total()) {
+        shift = ms->clear_bitmap_shift;
+        if (shift > CLEAR_BITMAP_SHIFT_MAX) {
+            error_report("clear_bitmap_shift (%u) too big, using "
+                         "max value (%u)", shift, CLEAR_BITMAP_SHIFT_MAX);
+            shift = CLEAR_BITMAP_SHIFT_MAX;
+        } else if (shift < CLEAR_BITMAP_SHIFT_MIN) {
+            error_report("clear_bitmap_shift (%u) too small, using "
+                         "min value (%u)", shift, CLEAR_BITMAP_SHIFT_MIN);
+            shift = CLEAR_BITMAP_SHIFT_MIN;
+        }
+
         RAMBLOCK_FOREACH_NOT_IGNORED(block) {
             pages = block->max_length >> TARGET_PAGE_BITS;
             /*
@@ -3214,6 +3256,8 @@ static void ram_list_init_bitmaps(void)
              * Here setting RAMBlock.bmap would be fine too but not necessary.
              */
             block->bmap = bitmap_new(pages);
+            block->clear_bmap_shift = shift;
+            block->clear_bmap = bitmap_new(clear_bmap_size(pages, shift));
             if (migrate_postcopy_ram()) {
                 block->unsentmap = bitmap_new(pages);
                 bitmap_set(block->unsentmap, 0, pages);
