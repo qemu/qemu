@@ -1339,28 +1339,8 @@ static void glue(gen_, name)(DisasContext *ctx)             \
 VSX_XXMRG(xxmrghw, 1)
 VSX_XXMRG(xxmrglw, 0)
 
-static void xxsel_i64(TCGv_i64 t, TCGv_i64 a, TCGv_i64 b, TCGv_i64 c)
-{
-    tcg_gen_and_i64(b, b, c);
-    tcg_gen_andc_i64(a, a, c);
-    tcg_gen_or_i64(t, a, b);
-}
-
-static void xxsel_vec(unsigned vece, TCGv_vec t, TCGv_vec a,
-                      TCGv_vec b, TCGv_vec c)
-{
-    tcg_gen_and_vec(vece, b, b, c);
-    tcg_gen_andc_vec(vece, a, a, c);
-    tcg_gen_or_vec(vece, t, a, b);
-}
-
 static void gen_xxsel(DisasContext *ctx)
 {
-    static const GVecGen4 g = {
-        .fni8 = xxsel_i64,
-        .fniv = xxsel_vec,
-        .vece = MO_64,
-    };
     int rt = xT(ctx->opcode);
     int ra = xA(ctx->opcode);
     int rb = xB(ctx->opcode);
@@ -1370,8 +1350,8 @@ static void gen_xxsel(DisasContext *ctx)
         gen_exception(ctx, POWERPC_EXCP_VSXU);
         return;
     }
-    tcg_gen_gvec_4(vsr_full_offset(rt), vsr_full_offset(ra),
-                   vsr_full_offset(rb), vsr_full_offset(rc), 16, 16, &g);
+    tcg_gen_gvec_bitsel(MO_64, vsr_full_offset(rt), vsr_full_offset(rc),
+                        vsr_full_offset(rb), vsr_full_offset(ra), 16, 16);
 }
 
 static void gen_xxspltw(DisasContext *ctx)
