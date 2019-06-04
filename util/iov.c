@@ -451,23 +451,30 @@ void qemu_iovec_init_extended(
 }
 
 /*
- * Check if the contents of the iovecs are all zero
+ * Check if the contents of subrange of qiov data is all zeroes.
  */
-bool qemu_iovec_is_zero(QEMUIOVector *qiov)
+bool qemu_iovec_is_zero(QEMUIOVector *qiov, size_t offset, size_t bytes)
 {
-    int i;
-    for (i = 0; i < qiov->niov; i++) {
-        size_t offs = QEMU_ALIGN_DOWN(qiov->iov[i].iov_len, 4 * sizeof(long));
-        uint8_t *ptr = qiov->iov[i].iov_base;
-        if (offs && !buffer_is_zero(qiov->iov[i].iov_base, offs)) {
+    struct iovec *iov;
+    size_t current_offset;
+
+    assert(offset + bytes <= qiov->size);
+
+    iov = iov_skip_offset(qiov->iov, offset, &current_offset);
+
+    while (bytes) {
+        uint8_t *base = (uint8_t *)iov->iov_base + current_offset;
+        size_t len = MIN(iov->iov_len - current_offset, bytes);
+
+        if (!buffer_is_zero(base, len)) {
             return false;
         }
-        for (; offs < qiov->iov[i].iov_len; offs++) {
-            if (ptr[offs]) {
-                return false;
-            }
-        }
+
+        current_offset = 0;
+        bytes -= len;
+        iov++;
     }
+
     return true;
 }
 
