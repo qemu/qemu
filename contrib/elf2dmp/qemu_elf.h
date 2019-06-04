@@ -2,11 +2,10 @@
  * Copyright (c) 2018 Virtuozzo International GmbH
  *
  * This work is licensed under the terms of the GNU GPL, version 2 or later.
- *
  */
 
-#ifndef EMPF2DMP_QEMU_ELF_H
-#define EMPF2DMP_QEMU_ELF_H
+#ifndef ELF2DMP_QEMU_ELF_H
+#define ELF2DMP_QEMU_ELF_H
 
 #include "elf.h"
 

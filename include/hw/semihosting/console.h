@@ -6,8 +6,8 @@
  * SPDX-License-Identifier: GPL-2.0-or-later
  */
 
-#ifndef _SEMIHOST_CONSOLE_H_
-#define _SEMIHOST_CONSOLE_H_
+#ifndef SEMIHOST_CONSOLE_H
+#define SEMIHOST_CONSOLE_H
 
 /**
  * qemu_semihosting_console_out:
@@ -35,4 +35,4 @@ int qemu_semihosting_console_out(CPUArchState *env, target_ulong s, int len);
  */
 int qemu_semihosting_log_out(const char *s, int len);
 
-#endif /* _SEMIHOST_CONSOLE_H_ */
+#endif /* SEMIHOST_CONSOLE_H */

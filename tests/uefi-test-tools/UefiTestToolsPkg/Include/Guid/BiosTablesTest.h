@@ -21,8 +21,8 @@
   WARRANTIES OR REPRESENTATIONS OF ANY KIND, EITHER EXPRESS OR IMPLIED.
 **/
 
-#ifndef __BIOS_TABLES_TEST_H__
-#define __BIOS_TABLES_TEST_H__
+#ifndef BIOSTABLESTEST_H
+#define BIOSTABLESTEST_H
 
 #include <Uefi/UefiBaseType.h>
 
@@ -77,4 +77,4 @@ typedef struct {
 } BIOS_TABLES_TEST;
 #pragma pack ()
 
-#endif // __BIOS_TABLES_TEST_H__
+#endif /* BIOSTABLESTEST_H */

@@ -32,4 +32,4 @@
  */
 #define ARM_TEST_MAX_KERNEL_SIZE (512 * 1024)
 
-#endif /* _MIGRATION_TEST_H */
+#endif /* MIGRATION_TEST_H */
