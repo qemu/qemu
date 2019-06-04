@@ -1376,7 +1376,7 @@ err:
  */
 static int coroutine_fn bdrv_aligned_preadv(BdrvChild *child,
     BdrvTrackedRequest *req, int64_t offset, unsigned int bytes,
-    int64_t align, QEMUIOVector *qiov, int flags)
+    int64_t align, QEMUIOVector *qiov, size_t qiov_offset, int flags)
 {
     BlockDriverState *bs = child->bs;
     int64_t total_bytes, max_bytes;
@@ -1387,7 +1387,6 @@ static int coroutine_fn bdrv_aligned_preadv(BdrvChild *child,
     assert(is_power_of_2(align));
     assert((offset & (align - 1)) == 0);
     assert((bytes & (align - 1)) == 0);
-    assert(!qiov || bytes == qiov->size);
     assert((bs->open_flags & BDRV_O_NO_IO) == 0);
     max_transfer = QEMU_ALIGN_DOWN(MIN_NON_ZERO(bs->bl.max_transfer, INT_MAX),
                                    align);
@@ -1425,7 +1424,8 @@ static int coroutine_fn bdrv_aligned_preadv(BdrvChild *child,
         }
 
         if (!ret || pnum != bytes) {
-            ret = bdrv_co_do_copy_on_readv(child, offset, bytes, qiov, 0, flags);
+            ret = bdrv_co_do_copy_on_readv(child, offset, bytes,
+                                           qiov, qiov_offset, flags);
             goto out;
         } else if (flags & BDRV_REQ_PREFETCH) {
             goto out;
@@ -1441,7 +1441,7 @@ static int coroutine_fn bdrv_aligned_preadv(BdrvChild *child,
 
     max_bytes = ROUND_UP(MAX(0, total_bytes - offset), align);
     if (bytes <= max_bytes && bytes <= max_transfer) {
-        ret = bdrv_driver_preadv(bs, offset, bytes, qiov, 0, 0);
+        ret = bdrv_driver_preadv(bs, offset, bytes, qiov, qiov_offset, 0);
         goto out;
     }
 
@@ -1449,17 +1449,12 @@ static int coroutine_fn bdrv_aligned_preadv(BdrvChild *child,
         int num;
 
         if (max_bytes) {
-            QEMUIOVector local_qiov;
-
             num = MIN(bytes_remaining, MIN(max_bytes, max_transfer));
             assert(num);
-            qemu_iovec_init(&local_qiov, qiov->niov);
-            qemu_iovec_concat(&local_qiov, qiov, bytes - bytes_remaining, num);
 
             ret = bdrv_driver_preadv(bs, offset + bytes - bytes_remaining,
-                                     num, &local_qiov, 0, 0);
+                                     num, qiov, bytes - bytes_remaining, 0);
             max_bytes -= num;
-            qemu_iovec_destroy(&local_qiov);
         } else {
             num = bytes_remaining;
             ret = qemu_iovec_memset(qiov, bytes - bytes_remaining, 0,
@@ -1561,7 +1556,7 @@ static int bdrv_padding_rmw_read(BdrvChild *child,
             bdrv_debug_event(bs, BLKDBG_PWRITEV_RMW_TAIL);
         }
         ret = bdrv_aligned_preadv(child, req, req->overlap_offset, bytes,
-                                  align, &local_qiov, 0);
+                                  align, &local_qiov, 0, 0);
         if (ret < 0) {
             return ret;
         }
@@ -1584,7 +1579,7 @@ static int bdrv_padding_rmw_read(BdrvChild *child,
         ret = bdrv_aligned_preadv(
                 child, req,
                 req->overlap_offset + req->overlap_bytes - align,
-                align, align, &local_qiov, 0);
+                align, align, &local_qiov, 0, 0);
         if (ret < 0) {
             return ret;
         }
@@ -1665,7 +1660,7 @@ int coroutine_fn bdrv_co_preadv(BdrvChild *child,
     tracked_request_begin(&req, bs, offset, bytes, BDRV_TRACKED_READ);
     ret = bdrv_aligned_preadv(child, &req, offset, bytes,
                               bs->bl.request_alignment,
-                              qiov, flags);
+                              qiov, 0, flags);
     tracked_request_end(&req);
     bdrv_dec_in_flight(bs);
 
