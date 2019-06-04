@@ -1,3 +1,6 @@
+#ifndef LINUX_USER_NIOS2_SYSCALL_NR_H
+#define LINUX_USER_NIOS2_SYSCALL_NR_H
+
 #define TARGET_NR_io_setup                  0
 #define TARGET_NR_io_destroy                1
 #define TARGET_NR_io_submit                 2
@@ -327,3 +330,5 @@
 #define TARGET_NR_uselib                    1077
 #define TARGET_NR__sysctl                   1078
 #define TARGET_NR_fork                      1079
+
+#endif

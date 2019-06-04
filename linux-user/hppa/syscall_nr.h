@@ -2,6 +2,9 @@
  * This file contains the system call numbers.
  */
 
+#ifndef LINUX_USER_HPPA_SYSCALL_NR_H
+#define LINUX_USER_HPPA_SYSCALL_NR_H
+
 #define TARGET_NR_restart_syscall 0
 #define TARGET_NR_exit            1
 #define TARGET_NR_fork            2
@@ -351,3 +354,5 @@
 #define TARGET_NR_copy_file_range   346
 #define TARGET_NR_preadv2           347
 #define TARGET_NR_pwritev2          348
+
+#endif

@@ -1,3 +1,6 @@
+#ifndef LINUX_USER_ALPHA_SYSCALL_NR_H
+#define LINUX_USER_ALPHA_SYSCALL_NR_H
+
 #define TARGET_NR_osf_syscall	  0	/* not implemented */
 #define TARGET_NR_exit		  1
 #define TARGET_NR_fork		  2
@@ -450,3 +453,5 @@
 #define TARGET_NR_getrandom                     511
 #define TARGET_NR_memfd_create                  512
 #define TARGET_NR_execveat                      513
+
+#endif

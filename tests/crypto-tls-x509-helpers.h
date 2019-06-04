@@ -18,6 +18,9 @@
  * Author: Daniel P. Berrange <berrange@redhat.com>
  */
 
+#ifndef TESTS_CRYPTO_TLS_X509_HELPERS_H
+#define TESTS_CRYPTO_TLS_X509_HELPERS_H
+
 #include <gnutls/gnutls.h>
 #include <gnutls/x509.h>
 
@@ -125,3 +128,5 @@ void test_tls_cleanup(const char *keyfile);
 extern const ASN1_ARRAY_TYPE pkix_asn1_tab[];
 
 #endif /* QCRYPTO_HAVE_TLS_TEST_SUPPORT */
+
+#endif

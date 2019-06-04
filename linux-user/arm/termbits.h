@@ -1,6 +1,9 @@
 /* from asm/termbits.h */
 /* NOTE: exactly the same as i386 */
 
+#ifndef LINUX_USER_ARM_TERMBITS_H
+#define LINUX_USER_ARM_TERMBITS_H
+
 #define TARGET_NCCS 19
 
 struct target_termios {
@@ -215,3 +218,5 @@ struct target_termios {
 #define TARGET_TIOCPKT_DOSTOP		32
 
 #define TARGET_TIOCSER_TEMT    0x01	/* Transmitter physically empty */
+
+#endif

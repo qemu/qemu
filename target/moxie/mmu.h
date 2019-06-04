@@ -1,3 +1,6 @@
+#ifndef TARGET_MOXIE_MMU_H
+#define TARGET_MOXIE_MMU_H
+
 #define MOXIE_MMU_ERR_EXEC  0
 #define MOXIE_MMU_ERR_READ  1
 #define MOXIE_MMU_ERR_WRITE 2
@@ -12,3 +15,5 @@ typedef struct {
 int moxie_mmu_translate(MoxieMMUResult *res,
                         CPUMoxieState *env, uint32_t vaddr,
                         int rw, int mmu_idx);
+
+#endif

@@ -18,6 +18,9 @@
  * License along with this library; if not, see <http://www.gnu.org/licenses/>.
  */
 
+#ifndef TARGET_CRIS_CRISV10_DECODE_H
+#define TARGET_CRIS_CRISV10_DECODE_H
+
 #define CRISV10_MODE_QIMMEDIATE  0
 #define CRISV10_MODE_REG         1
 #define CRISV10_MODE_INDIRECT    2
@@ -106,3 +109,4 @@
 #define CRISV10_IND_MOVEM_M_R    14
 #define CRISV10_IND_MOVEM_R_M    15
 
+#endif

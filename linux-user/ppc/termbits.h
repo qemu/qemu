@@ -1,5 +1,8 @@
 /* from asm/termbits.h */
 
+#ifndef LINUX_USER_PPC_TERMBITS_H
+#define LINUX_USER_PPC_TERMBITS_H
+
 #define TARGET_NCCS 19
 
 struct target_termios {
@@ -235,3 +238,5 @@ struct target_termios {
 
 #define TARGET_TIOCMIWAIT	0x545C	/* wait for a change on serial input line(s) */
 #define TARGET_TIOCGICOUNT	0x545D	/* read serial port inline interrupt counts */
+
+#endif

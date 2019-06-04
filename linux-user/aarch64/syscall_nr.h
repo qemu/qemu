@@ -2,6 +2,9 @@
  * This file contains the system call numbers.
  */
 
+#ifndef LINUX_USER_AARCH64_SYSCALL_NR_H
+#define LINUX_USER_AARCH64_SYSCALL_NR_H
+
 #define TARGET_NR_io_setup 0
 #define TARGET_NR_io_destroy 1
 #define TARGET_NR_io_submit 2
@@ -274,3 +277,4 @@
 #define TARGET_NR_mlock2 284
 #define TARGET_NR_copy_file_range 285
 
+#endif

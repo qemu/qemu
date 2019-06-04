@@ -6,6 +6,9 @@
  *  Derived from "include/asm-i386/termbits.h"
  */
 
+#ifndef LINUX_USER_S390X_TERMBITS_H
+#define LINUX_USER_S390X_TERMBITS_H
+
 #define TARGET_NCCS 19
 struct target_termios {
     unsigned int c_iflag;		/* input mode flags */
@@ -282,3 +285,4 @@ struct target_ktermios {
 
 #define TARGET_TIOCSER_TEMT    0x01	/* Transmitter physically empty */
 
+#endif

@@ -17,6 +17,9 @@
  * License along with this library; if not, see <http://www.gnu.org/licenses/>.
  */
 
+#ifndef TCG_TCG_GVEC_DESC_H
+#define TCG_TCG_GVEC_DESC_H
+
 /* ??? These bit widths are set for ARM SVE, maxing out at 256 byte vectors. */
 #define SIMD_OPRSZ_SHIFT   0
 #define SIMD_OPRSZ_BITS    5
@@ -47,3 +50,5 @@ static inline int32_t simd_data(uint32_t desc)
 {
     return sextract32(desc, SIMD_DATA_SHIFT, SIMD_DATA_BITS);
 }
+
+#endif

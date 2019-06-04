@@ -4,6 +4,10 @@
  *
  * Taken from asm-generic/errno-base.h and asm-generic/errno.h
  */
+
+#ifndef LINUX_USER_ERRNO_DEFS_H
+#define LINUX_USER_ERRNO_DEFS_H
+
 #define TARGET_EPERM            1      /* Operation not permitted */
 #define TARGET_ENOENT           2      /* No such file or directory */
 #define TARGET_ESRCH            3      /* No such process */
@@ -159,3 +163,5 @@
  * clash with a valid guest errno now or in the future.
  */
 #define TARGET_QEMU_ESIGRETURN 513     /* Return from signal */
+
+#endif

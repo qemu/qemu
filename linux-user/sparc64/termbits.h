@@ -1,5 +1,8 @@
 /* from asm/termbits.h */
 
+#ifndef LINUX_USER_SPARC64_TERMBITS_H
+#define LINUX_USER_SPARC64_TERMBITS_H
+
 #define TARGET_NCCS 19
 
 struct target_termios {
@@ -278,3 +281,5 @@ struct target_termios {
 #define TARGET_TIOCSERSETMULTI 0x545B /* Set multiport config */
 #define TARGET_TIOCMIWAIT	0x545C /* Wait input */
 #define TARGET_TIOCGICOUNT	0x545D /* Read serial port inline interrupt counts */
+
+#endif

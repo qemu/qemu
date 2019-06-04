@@ -1,3 +1,6 @@
+#ifndef LINUX_USER_OPENRISC_TERMBITS_H
+#define LINUX_USER_OPENRISC_TERMBITS_H
+
 typedef unsigned char   target_openrisc_cc;        /*cc_t*/
 typedef unsigned int    target_openrisc_speed;     /*speed_t*/
 typedef unsigned int    target_openrisc_tcflag;    /*tcflag_t*/
@@ -294,3 +297,5 @@ struct target_termios3 {
 #define TARGET_TIOCPKT_IOCTL           64
 
 #define TARGET_TIOCSER_TEMT    0x01    /* Transmitter physically empty */
+
+#endif

@@ -1,3 +1,6 @@
+#ifndef LINUX_USER_MIPS64_SYSCALL_NR_H
+#define LINUX_USER_MIPS64_SYSCALL_NR_H
+
 #ifdef TARGET_ABI32
 /*
  * Linux N32 syscalls are in the range from 6000 to 6999.
@@ -671,4 +674,6 @@
 #define TARGET_NR_statx                 (TARGET_NR_Linux + 326)
 #define TARGET_NR_rseq                  (TARGET_NR_Linux + 327)
 #define TARGET_NR_io_pgetevents         (TARGET_NR_Linux + 328)
+#endif
+
 #endif

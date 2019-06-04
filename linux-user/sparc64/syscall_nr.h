@@ -1,3 +1,6 @@
+#ifndef LINUX_USER_SPARC64_SYSCALL_NR_H
+#define LINUX_USER_SPARC64_SYSCALL_NR_H
+
 #define TARGET_NR_restart_syscall      0 /* Linux Specific				   */
 #define TARGET_NR_exit                 1 /* Common                                      */
 #define TARGET_NR_fork                 2 /* Common                                      */
@@ -359,3 +362,5 @@
 #define TARGET_NR_preadv2               358
 #define TARGET_NR_pwritev2              359
 #define TARGET_NR_statx                 360
+
+#endif

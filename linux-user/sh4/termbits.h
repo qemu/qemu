@@ -1,5 +1,8 @@
 /* from asm/termbits.h */
 
+#ifndef LINUX_USER_SH4_TERMBITS_H
+#define LINUX_USER_SH4_TERMBITS_H
+
 #define TARGET_NCCS 19
 
 struct target_termios {
@@ -273,3 +276,5 @@ tus register */
 serial input line(s) */
 #define TARGET_TIOCGICOUNT     TARGET_IOR('T', 93, int) /* 0x545D */ /* read
 serial port inline interrupt counts */
+
+#endif

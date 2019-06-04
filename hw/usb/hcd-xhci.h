@@ -19,6 +19,9 @@
  * License along with this library; if not, see <http://www.gnu.org/licenses/>.
  */
 
+#ifndef HW_USB_HCD_XHCI_H
+#define HW_USB_HCD_XHCI_H
+
 #define TYPE_XHCI "base-xhci"
 #define TYPE_NEC_XHCI "nec-usb-xhci"
 #define TYPE_QEMU_XHCI "qemu-xhci"
@@ -225,3 +228,5 @@ struct XHCIState {
 
     bool nec_quirks;
 };
+
+#endif

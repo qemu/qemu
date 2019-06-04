@@ -2,6 +2,9 @@
  * This file contains the system call numbers.
  */
 
+#ifndef LINUX_USER_S390X_SYSCALL_NR_H
+#define LINUX_USER_S390X_SYSCALL_NR_H
+
 #define TARGET_NR_exit                 1
 #define TARGET_NR_fork                 2
 #define TARGET_NR_read                 3
@@ -389,5 +392,7 @@
 #define TARGET_NR_setfsuid  		215
 #define TARGET_NR_setfsgid  		216
 #define TARGET_NR_newfstatat		293
+
+#endif
 
 #endif

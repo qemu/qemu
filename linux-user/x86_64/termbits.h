@@ -1,3 +1,6 @@
+#ifndef LINUX_USER_X86_64_TERMBITS_H
+#define LINUX_USER_X86_64_TERMBITS_H
+
 #define TARGET_NCCS 19
 
 typedef unsigned char	target_cc_t;
@@ -246,3 +249,5 @@ struct target_termios {
 #define TARGET_TIOCPKT_DOSTOP		32
 
 #define TARGET_TIOCSER_TEMT    0x01	/* Transmitter physically empty */
+
+#endif

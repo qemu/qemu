@@ -5,6 +5,9 @@
  * Reference: linux/arch/riscv/include/uapi/asm/ptrace.h
  */
 
+#ifndef LINUX_USER_RISCV_TARGET_SYSCALL_H
+#define LINUX_USER_RISCV_TARGET_SYSCALL_H
+
 struct target_pt_regs {
     abi_long sepc;
     abi_long ra;
@@ -54,3 +57,5 @@ struct target_pt_regs {
 /* clone(flags, newsp, ptidptr, tls, ctidptr) for RISC-V */
 /* This comes from linux/kernel/fork.c, CONFIG_CLONE_BACKWARDS */
 #define TARGET_CLONE_BACKWARDS
+
+#endif
