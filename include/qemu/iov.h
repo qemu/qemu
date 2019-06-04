@@ -199,6 +199,13 @@ static inline void *qemu_iovec_buf(QEMUIOVector *qiov)
 
 void qemu_iovec_init(QEMUIOVector *qiov, int alloc_hint);
 void qemu_iovec_init_external(QEMUIOVector *qiov, struct iovec *iov, int niov);
+void qemu_iovec_init_extended(
+        QEMUIOVector *qiov,
+        void *head_buf, size_t head_len,
+        QEMUIOVector *mid_qiov, size_t mid_offset, size_t mid_len,
+        void *tail_buf, size_t tail_len);
+void qemu_iovec_init_slice(QEMUIOVector *qiov, QEMUIOVector *source,
+                           size_t offset, size_t len);
 void qemu_iovec_add(QEMUIOVector *qiov, void *base, size_t len);
 void qemu_iovec_concat(QEMUIOVector *dst,
                        QEMUIOVector *src, size_t soffset, size_t sbytes);
