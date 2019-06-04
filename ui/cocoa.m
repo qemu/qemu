@@ -406,6 +406,41 @@ QemuCocoaView *cocoaView;
     return (p.x > -1 && p.x < screen.width && p.y > -1 && p.y < screen.height);
 }
 
+/* Get location of event and convert to virtual screen coordinate */
+- (CGPoint) screenLocationOfEvent:(NSEvent *)ev
+{
+    NSWindow *eventWindow = [ev window];
+    // XXX: Use CGRect and -convertRectFromScreen: to support macOS 10.10
+    CGRect r = CGRectZero;
+    r.origin = [ev locationInWindow];
+    if (!eventWindow) {
+        if (!isFullscreen) {
+            return [[self window] convertRectFromScreen:r].origin;
+        } else {
+            CGPoint locationInSelfWindow = [[self window] convertRectFromScreen:r].origin;
+            CGPoint loc = [self convertPoint:locationInSelfWindow fromView:nil];
+            if (stretch_video) {
+                loc.x /= cdx;
+                loc.y /= cdy;
+            }
+            return loc;
+        }
+    } else if ([[self window] isEqual:eventWindow]) {
+        if (!isFullscreen) {
+            return r.origin;
+        } else {
+            CGPoint loc = [self convertPoint:r.origin fromView:nil];
+            if (stretch_video) {
+                loc.x /= cdx;
+                loc.y /= cdy;
+            }
+            return loc;
+        }
+    } else {
+        return [[self window] convertRectFromScreen:[eventWindow convertRectToScreen:r]].origin;
+    }
+}
+
 - (void) hideCursor
 {
     if (!cursor_hide) {
@@ -705,7 +740,8 @@ QemuCocoaView *cocoaView;
     int keycode = 0;
     bool mouse_event = false;
     static bool switched_to_fullscreen = false;
-    NSPoint p = [event locationInWindow];
+    // Location of event in virtual screen coordinates
+    NSPoint p = [self screenLocationOfEvent:event];
 
     switch ([event type]) {
         case NSEventTypeFlagsChanged:
@@ -816,7 +852,10 @@ QemuCocoaView *cocoaView;
             break;
         case NSEventTypeMouseMoved:
             if (isAbsoluteEnabled) {
-                if (![self screenContainsPoint:p] || ![[self window] isKeyWindow]) {
+                // Cursor re-entered into a window might generate events bound to screen coordinates
+                // and `nil` window property, and in full screen mode, current window might not be
+                // key window, where event location alone should suffice.
+                if (![self screenContainsPoint:p] || !([[self window] isKeyWindow] || isFullscreen)) {
                     if (isMouseGrabbed) {
                         [self ungrabMouse];
                     }
