@@ -16,6 +16,7 @@
  */
 
 #ifndef XLNX_ZYNQMP_H
+#define XLNX_ZYNQMP_H
 
 #include "hw/arm/boot.h"
 #include "hw/intc/arm_gic.h"
@@ -113,5 +114,4 @@ typedef struct XlnxZynqMPState {
     bool has_rpu;
 }  XlnxZynqMPState;
 
-#define XLNX_ZYNQMP_H
 #endif

@@ -25,6 +25,7 @@
  */
 
 #ifndef XLNX_ZYNQ_DEVCFG_H
+#define XLNX_ZYNQ_DEVCFG_H
 
 #include "hw/register.h"
 #include "hw/sysbus.h"
@@ -58,5 +59,4 @@ typedef struct XlnxZynqDevcfg {
     RegisterInfo regs_info[XLNX_ZYNQ_DEVCFG_R_MAX];
 } XlnxZynqDevcfg;
 
-#define XLNX_ZYNQ_DEVCFG_H
 #endif

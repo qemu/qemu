@@ -17,6 +17,7 @@
  */
 
 #ifndef CADENCE_UART_H
+#define CADENCE_UART_H
 
 #include "hw/sysbus.h"
 #include "chardev/char-fe.h"
@@ -66,5 +67,4 @@ static inline DeviceState *cadence_uart_create(hwaddr addr,
     return dev;
 }
 
-#define CADENCE_UART_H
 #endif

@@ -12,10 +12,8 @@
  *   more details.
  */
 
-#ifndef __DOXYGEN__
-
-#ifndef __ARCH_SPR_DEF_64_H__
-#define __ARCH_SPR_DEF_64_H__
+#ifndef ARCH_SPR_DEF_64_H
+#define ARCH_SPR_DEF_64_H
 
 #define SPR_AUX_PERF_COUNT_0 0x2105
 #define SPR_AUX_PERF_COUNT_1 0x2106
@@ -211,6 +209,4 @@
 #define SPR_WATCH_MASK 0x200a
 #define SPR_WATCH_VAL 0x200b
 
-#endif /* !defined(__ARCH_SPR_DEF_64_H__) */
-
-#endif /* !defined(__DOXYGEN__) */
+#endif
