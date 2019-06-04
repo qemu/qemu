@@ -8,14 +8,9 @@
 
 I386_SYSTEM_SRC=$(SRC_PATH)/tests/tcg/i386/system
 X64_SYSTEM_SRC=$(SRC_PATH)/tests/tcg/x86_64/system
-# Set search path for all sources
-VPATH+=$(I386_SYSTEM_SRC)
 
 # These objects provide the basic boot code and helper functions for all tests
 CRT_OBJS=boot.o
-
-X86_TEST_SRCS=$(wildcard $(I386_SYSTEM_SRC)/*.c)
-X86_TESTS = $(patsubst $(I386_SYSTEM_SRC)/%.c, %, $(X86_TEST_SRCS))
 
 ifeq ($(TARGET_X86_64), y)
 CRT_PATH=$(X64_SYSTEM_SRC)
@@ -26,11 +21,11 @@ CRT_PATH=$(I386_SYSTEM_SRC)
 CFLAGS+=-m32
 LINK_SCRIPT=$(I386_SYSTEM_SRC)/kernel.ld
 LDFLAGS=-Wl,-T$(LINK_SCRIPT) -Wl,-melf_i386
-# FIXME: move to common once x86_64 is bootstrapped
-TESTS+=$(X86_TESTS) $(MULTIARCH_TESTS)
 endif
 CFLAGS+=-nostdlib -ggdb -O0 $(MINILIB_INC)
 LDFLAGS+=-static -nostdlib $(CRT_OBJS) $(MINILIB_OBJS) -lgcc
+
+TESTS+=$(MULTIARCH_TESTS)
 
 # building head blobs
 .PRECIOUS: $(CRT_OBJS)
