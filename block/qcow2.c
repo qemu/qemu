@@ -76,7 +76,8 @@ qcow2_co_preadv_compressed(BlockDriverState *bs,
                            uint64_t file_cluster_offset,
                            uint64_t offset,
                            uint64_t bytes,
-                           QEMUIOVector *qiov);
+                           QEMUIOVector *qiov,
+                           size_t qiov_offset);
 
 static int qcow2_probe(const uint8_t *buf, int buf_size, const char *filename)
 {
@@ -1967,20 +1968,17 @@ out:
     return ret;
 }
 
-static coroutine_fn int qcow2_co_preadv(BlockDriverState *bs, uint64_t offset,
-                                        uint64_t bytes, QEMUIOVector *qiov,
-                                        int flags)
+static coroutine_fn int qcow2_co_preadv_part(BlockDriverState *bs,
+                                             uint64_t offset, uint64_t bytes,
+                                             QEMUIOVector *qiov,
+                                             size_t qiov_offset, int flags)
 {
     BDRVQcow2State *s = bs->opaque;
     int offset_in_cluster;
     int ret;
     unsigned int cur_bytes; /* number of bytes in current iteration */
     uint64_t cluster_offset = 0;
-    uint64_t bytes_done = 0;
-    QEMUIOVector hd_qiov;
     uint8_t *cluster_data = NULL;
-
-    qemu_iovec_init(&hd_qiov, qiov->niov);
 
     while (bytes != 0) {
 
@@ -2000,34 +1998,31 @@ static coroutine_fn int qcow2_co_preadv(BlockDriverState *bs, uint64_t offset,
 
         offset_in_cluster = offset_into_cluster(s, offset);
 
-        qemu_iovec_reset(&hd_qiov);
-        qemu_iovec_concat(&hd_qiov, qiov, bytes_done, cur_bytes);
-
         switch (ret) {
         case QCOW2_CLUSTER_UNALLOCATED:
 
             if (bs->backing) {
                 BLKDBG_EVENT(bs->file, BLKDBG_READ_BACKING_AIO);
-                ret = bdrv_co_preadv(bs->backing, offset, cur_bytes,
-                                     &hd_qiov, 0);
+                ret = bdrv_co_preadv_part(bs->backing, offset, cur_bytes,
+                                          qiov, qiov_offset, 0);
                 if (ret < 0) {
                     goto fail;
                 }
             } else {
                 /* Note: in this case, no need to wait */
-                qemu_iovec_memset(&hd_qiov, 0, 0, cur_bytes);
+                qemu_iovec_memset(qiov, qiov_offset, 0, cur_bytes);
             }
             break;
 
         case QCOW2_CLUSTER_ZERO_PLAIN:
         case QCOW2_CLUSTER_ZERO_ALLOC:
-            qemu_iovec_memset(&hd_qiov, 0, 0, cur_bytes);
+            qemu_iovec_memset(qiov, qiov_offset, 0, cur_bytes);
             break;
 
         case QCOW2_CLUSTER_COMPRESSED:
             ret = qcow2_co_preadv_compressed(bs, cluster_offset,
                                              offset, cur_bytes,
-                                             &hd_qiov);
+                                             qiov, qiov_offset);
             if (ret < 0) {
                 goto fail;
             }
@@ -2075,12 +2070,12 @@ static coroutine_fn int qcow2_co_preadv(BlockDriverState *bs, uint64_t offset,
                     ret = -EIO;
                     goto fail;
                 }
-                qemu_iovec_from_buf(qiov, bytes_done, cluster_data, cur_bytes);
+                qemu_iovec_from_buf(qiov, qiov_offset, cluster_data, cur_bytes);
             } else {
                 BLKDBG_EVENT(bs->file, BLKDBG_READ_AIO);
-                ret = bdrv_co_preadv(s->data_file,
-                                     cluster_offset + offset_in_cluster,
-                                     cur_bytes, &hd_qiov, 0);
+                ret = bdrv_co_preadv_part(s->data_file,
+                                          cluster_offset + offset_in_cluster,
+                                          cur_bytes, qiov, qiov_offset, 0);
                 if (ret < 0) {
                     goto fail;
                 }
@@ -2095,12 +2090,11 @@ static coroutine_fn int qcow2_co_preadv(BlockDriverState *bs, uint64_t offset,
 
         bytes -= cur_bytes;
         offset += cur_bytes;
-        bytes_done += cur_bytes;
+        qiov_offset += cur_bytes;
     }
     ret = 0;
 
 fail:
-    qemu_iovec_destroy(&hd_qiov);
     qemu_vfree(cluster_data);
 
     return ret;
@@ -4101,7 +4095,8 @@ qcow2_co_preadv_compressed(BlockDriverState *bs,
                            uint64_t file_cluster_offset,
                            uint64_t offset,
                            uint64_t bytes,
-                           QEMUIOVector *qiov)
+                           QEMUIOVector *qiov,
+                           size_t qiov_offset)
 {
     BDRVQcow2State *s = bs->opaque;
     int ret = 0, csize, nb_csectors;
@@ -4132,7 +4127,7 @@ qcow2_co_preadv_compressed(BlockDriverState *bs,
         goto fail;
     }
 
-    qemu_iovec_from_buf(qiov, 0, out_buf + offset_in_cluster, bytes);
+    qemu_iovec_from_buf(qiov, qiov_offset, out_buf + offset_in_cluster, bytes);
 
 fail:
     qemu_vfree(out_buf);
@@ -4679,8 +4674,8 @@ static int qcow2_load_vmstate(BlockDriverState *bs, QEMUIOVector *qiov,
     BDRVQcow2State *s = bs->opaque;
 
     BLKDBG_EVENT(bs->file, BLKDBG_VMSTATE_LOAD);
-    return bs->drv->bdrv_co_preadv(bs, qcow2_vm_state_offset(s) + pos,
-                                   qiov->size, qiov, 0);
+    return bs->drv->bdrv_co_preadv_part(bs, qcow2_vm_state_offset(s) + pos,
+                                        qiov->size, qiov, 0, 0);
 }
 
 /*
@@ -5222,7 +5217,7 @@ BlockDriver bdrv_qcow2 = {
     .bdrv_has_zero_init_truncate = bdrv_has_zero_init_1,
     .bdrv_co_block_status = qcow2_co_block_status,
 
-    .bdrv_co_preadv         = qcow2_co_preadv,
+    .bdrv_co_preadv_part    = qcow2_co_preadv_part,
     .bdrv_co_pwritev        = qcow2_co_pwritev,
     .bdrv_co_flush_to_os    = qcow2_co_flush_to_os,
 

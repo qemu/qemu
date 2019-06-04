@@ -452,8 +452,9 @@ static int coroutine_fn do_perform_cow_read(BlockDriverState *bs,
      * interface.  This avoids double I/O throttling and request tracking,
      * which can lead to deadlock when block layer copy-on-read is enabled.
      */
-    ret = bs->drv->bdrv_co_preadv(bs, src_cluster_offset + offset_in_cluster,
-                                  qiov->size, qiov, 0);
+    ret = bs->drv->bdrv_co_preadv_part(bs,
+                                       src_cluster_offset + offset_in_cluster,
+                                       qiov->size, qiov, 0, 0);
     if (ret < 0) {
         return ret;
     }
