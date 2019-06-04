@@ -354,6 +354,15 @@ static void test_acpi_asl(test_data *data)
             } else {
                 sdt->tmp_files_retain = true;
                 exp_sdt->tmp_files_retain = true;
+                /* NOTE: In QEMU 4.0.1, q35 aliases "pc-q35-4.0.1" instead of
+                 * "pc-q35-4.0". This gets encoded into the smbios tables and
+                 * due to the extra characters changes the offset of ACPI
+                 * pointer values allocated by SeaBIOS, causing some tests to
+                 * report AML mismatches. Since ACPI expected file paths rely
+                 * on the "q35" alias being used we can't easily change the
+                 * tests to use pc-q35-4.0, so for now hopefully this friendly
+                 * note will suffice.
+                 */
                 fprintf(stderr,
                         "acpi-test: Warning! %.4s mismatch. "
                         "Actual [asl:%s, aml:%s], Expected [asl:%s, aml:%s].\n",
