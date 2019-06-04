@@ -1227,7 +1227,7 @@ bdrv_driver_pwritev_compressed(BlockDriverState *bs, uint64_t offset,
 
 static int coroutine_fn bdrv_co_do_copy_on_readv(BdrvChild *child,
         int64_t offset, unsigned int bytes, QEMUIOVector *qiov,
-        int flags)
+        size_t qiov_offset, int flags)
 {
     BlockDriverState *bs = child->bs;
 
@@ -1239,7 +1239,6 @@ static int coroutine_fn bdrv_co_do_copy_on_readv(BdrvChild *child,
     void *bounce_buffer;
 
     BlockDriver *drv = bs->drv;
-    QEMUIOVector local_qiov;
     int64_t cluster_offset;
     int64_t cluster_bytes;
     size_t skip_bytes;
@@ -1302,6 +1301,8 @@ static int coroutine_fn bdrv_co_do_copy_on_readv(BdrvChild *child,
         assert(skip_bytes < pnum);
 
         if (ret <= 0) {
+            QEMUIOVector local_qiov;
+
             /* Must copy-on-read; use the bounce buffer */
             pnum = MIN(pnum, MAX_BOUNCE_BUFFER);
             qemu_iovec_init_buf(&local_qiov, bounce_buffer, pnum);
@@ -1339,16 +1340,15 @@ static int coroutine_fn bdrv_co_do_copy_on_readv(BdrvChild *child,
             }
 
             if (!(flags & BDRV_REQ_PREFETCH)) {
-                qemu_iovec_from_buf(qiov, progress, bounce_buffer + skip_bytes,
+                qemu_iovec_from_buf(qiov, qiov_offset + progress,
+                                    bounce_buffer + skip_bytes,
                                     pnum - skip_bytes);
             }
         } else if (!(flags & BDRV_REQ_PREFETCH)) {
             /* Read directly into the destination */
-            qemu_iovec_init(&local_qiov, qiov->niov);
-            qemu_iovec_concat(&local_qiov, qiov, progress, pnum - skip_bytes);
-            ret = bdrv_driver_preadv(bs, offset + progress, local_qiov.size,
-                                     &local_qiov, 0, 0);
-            qemu_iovec_destroy(&local_qiov);
+            ret = bdrv_driver_preadv(bs, offset + progress,
+                                     MIN(pnum - skip_bytes, bytes - progress),
+                                     qiov, qiov_offset + progress, 0);
             if (ret < 0) {
                 goto err;
             }
@@ -1422,7 +1422,7 @@ static int coroutine_fn bdrv_aligned_preadv(BdrvChild *child,
         }
 
         if (!ret || pnum != bytes) {
-            ret = bdrv_co_do_copy_on_readv(child, offset, bytes, qiov, flags);
+            ret = bdrv_co_do_copy_on_readv(child, offset, bytes, qiov, 0, flags);
             goto out;
         } else if (flags & BDRV_REQ_PREFETCH) {
             goto out;
