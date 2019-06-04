@@ -829,7 +829,6 @@ static int perform_cow(BlockDriverState *bs, QCowL2Meta *m)
     assert(start->nb_bytes <= UINT_MAX - end->nb_bytes);
     assert(start->nb_bytes + end->nb_bytes <= UINT_MAX - data_bytes);
     assert(start->offset + start->nb_bytes <= end->offset);
-    assert(!m->data_qiov || m->data_qiov->size == data_bytes);
 
     if ((start->nb_bytes == 0 && end->nb_bytes == 0) || m->skip_cow) {
         return 0;
@@ -861,7 +860,11 @@ static int perform_cow(BlockDriverState *bs, QCowL2Meta *m)
     /* The part of the buffer where the end region is located */
     end_buffer = start_buffer + buffer_size - end->nb_bytes;
 
-    qemu_iovec_init(&qiov, 2 + (m->data_qiov ? m->data_qiov->niov : 0));
+    qemu_iovec_init(&qiov, 2 + (m->data_qiov ?
+                                qemu_iovec_subvec_niov(m->data_qiov,
+                                                       m->data_qiov_offset,
+                                                       data_bytes)
+                                : 0));
 
     qemu_co_mutex_unlock(&s->lock);
     /* First we read the existing data from both COW regions. We
@@ -904,7 +907,7 @@ static int perform_cow(BlockDriverState *bs, QCowL2Meta *m)
         if (start->nb_bytes) {
             qemu_iovec_add(&qiov, start_buffer, start->nb_bytes);
         }
-        qemu_iovec_concat(&qiov, m->data_qiov, 0, data_bytes);
+        qemu_iovec_concat(&qiov, m->data_qiov, m->data_qiov_offset, data_bytes);
         if (end->nb_bytes) {
             qemu_iovec_add(&qiov, end_buffer, end->nb_bytes);
         }
