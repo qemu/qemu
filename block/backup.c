@@ -674,7 +674,7 @@ BlockJob *backup_job_create(const char *job_id, BlockDriverState *bs,
         return NULL;
     }
 
-    if (compress && target->drv->bdrv_co_pwritev_compressed == NULL) {
+    if (compress && !block_driver_can_compress(target->drv)) {
         error_setg(errp, "Compression is not supported for this drive %s",
                    bdrv_get_device_name(target));
         return NULL;
