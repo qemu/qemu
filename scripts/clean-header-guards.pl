@@ -103,7 +103,7 @@ sub preprocess {
 for my $fname (@ARGV) {
     my $text = slurp($fname);
 
-    $text =~ m,\A(\s*\n|\s*//\N*\n|\s*/\*.*?\*/\s*\n)*|,msg;
+    $text =~ m,\A(\s*\n|\s*//\N*\n|\s*/\*.*?\*/\s*\n)*|,sg;
     my $pre = $&;
     unless ($text =~ /\G(.*\n)/g) {
         $text =~ /\G.*/;
@@ -137,14 +137,16 @@ for my $fname (@ARGV) {
     }
 
     unless ($body =~ m,\A((.*\n)*)
-                       (\s*\#\s*endif\s*(/\*\s*.*\s*\*/\s*)?\n?)
-                       (\n|\s)*\Z,x) {
+                       ([ \t]*\#[ \t]*endif([ \t]*\N*)\n)
+                       ((?s)(\s*\n|\s*//\N*\n|\s*/\*.*?\*/\s*\n)*)
+                       \Z,x) {
         skipping($fname, "can't find end of header guard");
         next;
     }
     $body = $1;
     my $line3 = $3;
     my $endif_comment = $4;
+    my $post = $5;
 
     my $oldg = $guard;
 
@@ -186,14 +188,14 @@ for my $fname (@ARGV) {
         my $newl1 = "#ifndef $guard\n";
         my $newl2 = "#define $guard\n";
         my $newl3 = "#endif\n";
-        $newl3 =~ s,\Z, /* $guard */, if defined $endif_comment;
+        $newl3 =~ s,\Z, /* $guard */, if $endif_comment;
         if ($line1 ne $newl1 or $line2 ne $newl2 or $line3 ne $newl3) {
             $pre =~ s/\n*\Z/\n\n/ if $pre =~ /\N/;
             $body =~ s/\A\n*/\n/;
             if ($opt_n) {
                 print "$fname would be cleaned up\n" if $opt_v;
             } else {
-                unslurp($fname, "$pre$newl1$newl2$body$newl3");
+                unslurp($fname, "$pre$newl1$newl2$body$newl3$post");
                 print "$fname cleaned up\n" if $opt_v;
             }
         }
