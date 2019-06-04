@@ -1614,7 +1614,8 @@ static void bdrv_padding_destroy(BdrvRequestPadding *pad)
  *
  * Function always succeeds.
  */
-static bool bdrv_pad_request(BlockDriverState *bs, QEMUIOVector **qiov,
+static bool bdrv_pad_request(BlockDriverState *bs,
+                             QEMUIOVector **qiov, size_t *qiov_offset,
                              int64_t *offset, unsigned int *bytes,
                              BdrvRequestPadding *pad)
 {
@@ -1623,17 +1624,26 @@ static bool bdrv_pad_request(BlockDriverState *bs, QEMUIOVector **qiov,
     }
 
     qemu_iovec_init_extended(&pad->local_qiov, pad->buf, pad->head,
-                             *qiov, 0, *bytes,
+                             *qiov, *qiov_offset, *bytes,
                              pad->buf + pad->buf_len - pad->tail, pad->tail);
     *bytes += pad->head + pad->tail;
     *offset -= pad->head;
     *qiov = &pad->local_qiov;
+    *qiov_offset = 0;
 
     return true;
 }
 
 int coroutine_fn bdrv_co_preadv(BdrvChild *child,
     int64_t offset, unsigned int bytes, QEMUIOVector *qiov,
+    BdrvRequestFlags flags)
+{
+    return bdrv_co_preadv_part(child, offset, bytes, qiov, 0, flags);
+}
+
+int coroutine_fn bdrv_co_preadv_part(BdrvChild *child,
+    int64_t offset, unsigned int bytes,
+    QEMUIOVector *qiov, size_t qiov_offset,
     BdrvRequestFlags flags)
 {
     BlockDriverState *bs = child->bs;
@@ -1655,12 +1665,12 @@ int coroutine_fn bdrv_co_preadv(BdrvChild *child,
         flags |= BDRV_REQ_COPY_ON_READ;
     }
 
-    bdrv_pad_request(bs, &qiov, &offset, &bytes, &pad);
+    bdrv_pad_request(bs, &qiov, &qiov_offset, &offset, &bytes, &pad);
 
     tracked_request_begin(&req, bs, offset, bytes, BDRV_TRACKED_READ);
     ret = bdrv_aligned_preadv(child, &req, offset, bytes,
                               bs->bl.request_alignment,
-                              qiov, 0, flags);
+                              qiov, qiov_offset, flags);
     tracked_request_end(&req);
     bdrv_dec_in_flight(bs);
 
@@ -2024,6 +2034,13 @@ int coroutine_fn bdrv_co_pwritev(BdrvChild *child,
     int64_t offset, unsigned int bytes, QEMUIOVector *qiov,
     BdrvRequestFlags flags)
 {
+    return bdrv_co_pwritev_part(child, offset, bytes, qiov, 0, flags);
+}
+
+int coroutine_fn bdrv_co_pwritev_part(BdrvChild *child,
+    int64_t offset, unsigned int bytes, QEMUIOVector *qiov, size_t qiov_offset,
+    BdrvRequestFlags flags)
+{
     BlockDriverState *bs = child->bs;
     BdrvTrackedRequest req;
     uint64_t align = bs->bl.request_alignment;
@@ -2054,14 +2071,14 @@ int coroutine_fn bdrv_co_pwritev(BdrvChild *child,
         goto out;
     }
 
-    if (bdrv_pad_request(bs, &qiov, &offset, &bytes, &pad)) {
+    if (bdrv_pad_request(bs, &qiov, &qiov_offset, &offset, &bytes, &pad)) {
         mark_request_serialising(&req, align);
         wait_serialising_requests(&req);
         bdrv_padding_rmw_read(child, &req, &pad, false);
     }
 
     ret = bdrv_aligned_pwritev(child, &req, offset, bytes, align,
-                               qiov, 0, flags);
+                               qiov, qiov_offset, flags);
 
     bdrv_padding_destroy(&pad);
 
