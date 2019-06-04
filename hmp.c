@@ -2560,7 +2560,8 @@ void hmp_qemu_io(Monitor *mon, const QDict *qdict)
     if (!blk) {
         BlockDriverState *bs = bdrv_lookup_bs(NULL, device, &err);
         if (bs) {
-            blk = local_blk = blk_new(0, BLK_PERM_ALL);
+            blk = local_blk = blk_new(bdrv_get_aio_context(bs),
+                                      0, BLK_PERM_ALL);
             ret = blk_insert_bs(blk, bs, &err);
             if (ret < 0) {
                 goto fail;

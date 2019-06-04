@@ -574,7 +574,7 @@ static BlockBackend *blockdev_init(const char *file, QDict *bs_opts,
     if ((!file || !*file) && !qdict_size(bs_opts)) {
         BlockBackendRootState *blk_rs;
 
-        blk = blk_new(0, BLK_PERM_ALL);
+        blk = blk_new(qemu_get_aio_context(), 0, BLK_PERM_ALL);
         blk_rs = blk_get_root_state(blk);
         blk_rs->open_flags    = bdrv_flags;
         blk_rs->read_only     = read_only;
@@ -1535,6 +1535,7 @@ static void external_snapshot_prepare(BlkActionState *common,
                              DO_UPCAST(ExternalSnapshotState, common, common);
     TransactionAction *action = common->action;
     AioContext *aio_context;
+    int ret;
 
     /* 'blockdev-snapshot' and 'blockdev-snapshot-sync' have similar
      * purpose but a different set of parameters */
@@ -1674,7 +1675,10 @@ static void external_snapshot_prepare(BlkActionState *common,
         goto out;
     }
 
-    bdrv_set_aio_context(state->new_bs, aio_context);
+    ret = bdrv_try_set_aio_context(state->new_bs, aio_context, errp);
+    if (ret < 0) {
+        goto out;
+    }
 
     /* This removes our old bs and adds the new bs. This is an operation that
      * can fail, so we need to do it in .prepare; undoing it for abort is
@@ -3154,7 +3158,7 @@ void qmp_block_resize(bool has_device, const char *device,
         goto out;
     }
 
-    blk = blk_new(BLK_PERM_RESIZE, BLK_PERM_ALL);
+    blk = blk_new(bdrv_get_aio_context(bs), BLK_PERM_RESIZE, BLK_PERM_ALL);
     ret = blk_insert_bs(blk, bs, errp);
     if (ret < 0) {
         goto out;
@@ -3440,6 +3444,7 @@ static BlockJob *do_drive_backup(DriveBackup *backup, JobTxn *txn,
     int flags, job_flags = JOB_DEFAULT;
     int64_t size;
     bool set_backing_hd = false;
+    int ret;
 
     if (!backup->has_speed) {
         backup->speed = 0;
@@ -3541,13 +3546,16 @@ static BlockJob *do_drive_backup(DriveBackup *backup, JobTxn *txn,
         goto out;
     }
 
-    bdrv_set_aio_context(target_bs, aio_context);
+    ret = bdrv_try_set_aio_context(target_bs, aio_context, errp);
+    if (ret < 0) {
+        bdrv_unref(target_bs);
+        goto out;
+    }
 
     if (set_backing_hd) {
         bdrv_set_backing_hd(target_bs, source, &local_err);
         if (local_err) {
-            bdrv_unref(target_bs);
-            goto out;
+            goto unref;
         }
     }
 
@@ -3555,11 +3563,10 @@ static BlockJob *do_drive_backup(DriveBackup *backup, JobTxn *txn,
         bmap = bdrv_find_dirty_bitmap(bs, backup->bitmap);
         if (!bmap) {
             error_setg(errp, "Bitmap '%s' could not be found", backup->bitmap);
-            bdrv_unref(target_bs);
-            goto out;
+            goto unref;
         }
         if (bdrv_dirty_bitmap_check(bmap, BDRV_BITMAP_DEFAULT, errp)) {
-            goto out;
+            goto unref;
         }
     }
     if (!backup->auto_finalize) {
@@ -3573,12 +3580,13 @@ static BlockJob *do_drive_backup(DriveBackup *backup, JobTxn *txn,
                             backup->sync, bmap, backup->compress,
                             backup->on_source_error, backup->on_target_error,
                             job_flags, NULL, NULL, txn, &local_err);
-    bdrv_unref(target_bs);
     if (local_err != NULL) {
         error_propagate(errp, local_err);
-        goto out;
+        goto unref;
     }
 
+unref:
+    bdrv_unref(target_bs);
 out:
     aio_context_release(aio_context);
     return job;
@@ -3614,6 +3622,7 @@ BlockJob *do_blockdev_backup(BlockdevBackup *backup, JobTxn *txn,
     AioContext *aio_context;
     BlockJob *job = NULL;
     int job_flags = JOB_DEFAULT;
+    int ret;
 
     if (!backup->has_speed) {
         backup->speed = 0;
@@ -3650,16 +3659,9 @@ BlockJob *do_blockdev_backup(BlockdevBackup *backup, JobTxn *txn,
         goto out;
     }
 
-    if (bdrv_get_aio_context(target_bs) != aio_context) {
-        if (!bdrv_has_blk(target_bs)) {
-            /* The target BDS is not attached, we can safely move it to another
-             * AioContext. */
-            bdrv_set_aio_context(target_bs, aio_context);
-        } else {
-            error_setg(errp, "Target is attached to a different thread from "
-                             "source.");
-            goto out;
-        }
+    ret = bdrv_try_set_aio_context(target_bs, aio_context, errp);
+    if (ret < 0) {
+        goto out;
     }
 
     if (backup->has_bitmap) {
@@ -3832,6 +3834,7 @@ void qmp_drive_mirror(DriveMirror *arg, Error **errp)
     int flags;
     int64_t size;
     const char *format = arg->format;
+    int ret;
 
     bs = qmp_get_root_bs(arg->device, errp);
     if (!bs) {
@@ -3932,7 +3935,11 @@ void qmp_drive_mirror(DriveMirror *arg, Error **errp)
         goto out;
     }
 
-    bdrv_set_aio_context(target_bs, aio_context);
+    ret = bdrv_try_set_aio_context(target_bs, aio_context, errp);
+    if (ret < 0) {
+        bdrv_unref(target_bs);
+        goto out;
+    }
 
     blockdev_mirror_common(arg->has_job_id ? arg->job_id : NULL, bs, target_bs,
                            arg->has_replaces, arg->replaces, arg->sync,
@@ -3976,6 +3983,7 @@ void qmp_blockdev_mirror(bool has_job_id, const char *job_id,
     AioContext *aio_context;
     BlockMirrorBackingMode backing_mode = MIRROR_LEAVE_BACKING_CHAIN;
     Error *local_err = NULL;
+    int ret;
 
     bs = qmp_get_root_bs(device, errp);
     if (!bs) {
@@ -3990,7 +3998,10 @@ void qmp_blockdev_mirror(bool has_job_id, const char *job_id,
     aio_context = bdrv_get_aio_context(bs);
     aio_context_acquire(aio_context);
 
-    bdrv_set_aio_context(target_bs, aio_context);
+    ret = bdrv_try_set_aio_context(target_bs, aio_context, errp);
+    if (ret < 0) {
+        goto out;
+    }
 
     blockdev_mirror_common(has_job_id ? job_id : NULL, bs, target_bs,
                            has_replaces, replaces, sync, backing_mode,
@@ -4006,7 +4017,7 @@ void qmp_blockdev_mirror(bool has_job_id, const char *job_id,
                            has_auto_dismiss, auto_dismiss,
                            &local_err);
     error_propagate(errp, local_err);
-
+out:
     aio_context_release(aio_context);
 }
 
@@ -4496,7 +4507,7 @@ void qmp_x_blockdev_set_iothread(const char *node_name, StrOrNull *iothread,
     old_context = bdrv_get_aio_context(bs);
     aio_context_acquire(old_context);
 
-    bdrv_set_aio_context(bs, new_context);
+    bdrv_try_set_aio_context(bs, new_context, errp);
 
     aio_context_release(old_context);
 }

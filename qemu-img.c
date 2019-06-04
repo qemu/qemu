@@ -3313,7 +3313,8 @@ static int img_rebase(int argc, char **argv)
         BlockDriverState *base_bs = backing_bs(bs);
 
         if (base_bs) {
-            blk_old_backing = blk_new(BLK_PERM_CONSISTENT_READ,
+            blk_old_backing = blk_new(qemu_get_aio_context(),
+                                      BLK_PERM_CONSISTENT_READ,
                                       BLK_PERM_ALL);
             ret = blk_insert_bs(blk_old_backing, base_bs,
                                 &local_err);
@@ -3360,7 +3361,8 @@ static int img_rebase(int argc, char **argv)
             prefix_chain_bs = bdrv_find_backing_image(bs, out_real_path);
             if (prefix_chain_bs) {
                 g_free(out_real_path);
-                blk_new_backing = blk_new(BLK_PERM_CONSISTENT_READ,
+                blk_new_backing = blk_new(qemu_get_aio_context(),
+                                          BLK_PERM_CONSISTENT_READ,
                                           BLK_PERM_ALL);
                 ret = blk_insert_bs(blk_new_backing, prefix_chain_bs,
                                     &local_err);

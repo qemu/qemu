@@ -69,8 +69,8 @@ static void set_pointer(Object *obj, Visitor *v, Property *prop,
 
 /* --- drive --- */
 
-static void parse_drive(DeviceState *dev, const char *str, void **ptr,
-                        const char *propname, Error **errp)
+static void do_parse_drive(DeviceState *dev, const char *str, void **ptr,
+                           const char *propname, bool iothread, Error **errp)
 {
     BlockBackend *blk;
     bool blk_created = false;
@@ -80,7 +80,16 @@ static void parse_drive(DeviceState *dev, const char *str, void **ptr,
     if (!blk) {
         BlockDriverState *bs = bdrv_lookup_bs(NULL, str, NULL);
         if (bs) {
-            blk = blk_new(0, BLK_PERM_ALL);
+            /*
+             * If the device supports iothreads, it will make sure to move the
+             * block node to the right AioContext if necessary (or fail if this
+             * isn't possible because of other users). Devices that are not
+             * aware of iothreads require their BlockBackends to be in the main
+             * AioContext.
+             */
+            AioContext *ctx = iothread ? bdrv_get_aio_context(bs) :
+                                         qemu_get_aio_context();
+            blk = blk_new(ctx, 0, BLK_PERM_ALL);
             blk_created = true;
 
             ret = blk_insert_bs(blk, bs, errp);
@@ -116,6 +125,18 @@ fail:
         /* If we need to keep a reference, blk_attach_dev() took it */
         blk_unref(blk);
     }
+}
+
+static void parse_drive(DeviceState *dev, const char *str, void **ptr,
+                        const char *propname, Error **errp)
+{
+    do_parse_drive(dev, str, ptr, propname, false, errp);
+}
+
+static void parse_drive_iothread(DeviceState *dev, const char *str, void **ptr,
+                                 const char *propname, Error **errp)
+{
+    do_parse_drive(dev, str, ptr, propname, true, errp);
 }
 
 static void release_drive(Object *obj, const char *name, void *opaque)
@@ -160,11 +181,25 @@ static void set_drive(Object *obj, Visitor *v, const char *name, void *opaque,
     set_pointer(obj, v, opaque, parse_drive, name, errp);
 }
 
+static void set_drive_iothread(Object *obj, Visitor *v, const char *name,
+                               void *opaque, Error **errp)
+{
+    set_pointer(obj, v, opaque, parse_drive_iothread, name, errp);
+}
+
 const PropertyInfo qdev_prop_drive = {
     .name  = "str",
     .description = "Node name or ID of a block device to use as a backend",
     .get   = get_drive,
     .set   = set_drive,
+    .release = release_drive,
+};
+
+const PropertyInfo qdev_prop_drive_iothread = {
+    .name  = "str",
+    .description = "Node name or ID of a block device to use as a backend",
+    .get   = get_drive,
+    .set   = set_drive_iothread,
     .release = release_drive,
 };
 

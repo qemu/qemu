@@ -356,6 +356,9 @@ typedef struct BDRVQcow2State {
     int nb_threads;
 
     BdrvChild *data_file;
+
+    bool metadata_preallocation_checked;
+    bool metadata_preallocation;
 } BDRVQcow2State;
 
 typedef struct Qcow2COWRegion {
@@ -655,6 +658,7 @@ int qcow2_change_refcount_order(BlockDriverState *bs, int refcount_order,
                                 void *cb_opaque, Error **errp);
 int qcow2_shrink_reftable(BlockDriverState *bs);
 int64_t qcow2_get_last_cluster(BlockDriverState *bs, int64_t size);
+int qcow2_detect_metadata_preallocation(BlockDriverState *bs);
 
 /* qcow2-cluster.c functions */
 int qcow2_grow_l1_table(BlockDriverState *bs, uint64_t min_size,

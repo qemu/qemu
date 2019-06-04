@@ -1038,6 +1038,25 @@ QDict *qmp(const char *fmt, ...)
     return response;
 }
 
+void qmp_assert_success(const char *fmt, ...)
+{
+    va_list ap;
+    QDict *response;
+
+    va_start(ap, fmt);
+    response = qtest_vqmp(global_qtest, fmt, ap);
+    va_end(ap);
+
+    g_assert(response);
+    if (!qdict_haskey(response, "return")) {
+        QString *s = qobject_to_json_pretty(QOBJECT(response));
+        g_test_message("%s", qstring_get_str(s));
+        qobject_unref(s);
+    }
+    g_assert(qdict_haskey(response, "return"));
+    qobject_unref(response);
+}
+
 char *hmp(const char *fmt, ...)
 {
     va_list ap;

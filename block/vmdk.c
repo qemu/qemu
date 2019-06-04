@@ -2356,7 +2356,8 @@ static BlockBackend *vmdk_co_create_cb(int64_t size, int idx,
     if (!bs) {
         return NULL;
     }
-    blk = blk_new(BLK_PERM_CONSISTENT_READ | BLK_PERM_WRITE | BLK_PERM_RESIZE,
+    blk = blk_new(bdrv_get_aio_context(bs),
+                  BLK_PERM_CONSISTENT_READ | BLK_PERM_WRITE | BLK_PERM_RESIZE,
                   BLK_PERM_ALL);
     if (blk_insert_bs(blk, bs, errp)) {
         bdrv_unref(bs);

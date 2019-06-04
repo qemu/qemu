@@ -1,0 +1,135 @@
+#!/usr/bin/env python
+#
+# Test commit job graph modifications while requests are active
+#
+# Copyright (C) 2019 Red Hat, Inc.
+#
+# Creator/Owner: Kevin Wolf <kwolf@redhat.com>
+#
+# This program is free software; you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation; either version 2 of the License, or
+# (at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with this program.  If not, see <http://www.gnu.org/licenses/>.
+#
+
+import iotests
+from iotests import imgfmt
+
+iotests.verify_image_format(supported_fmts=['qcow2'])
+
+def blockdev_create(vm, options):
+    result = vm.qmp_log('blockdev-create',
+                        filters=[iotests.filter_qmp_testfiles],
+                        job_id='job0', options=options)
+
+    if 'return' in result:
+        assert result['return'] == {}
+        vm.run_job('job0')
+    iotests.log("")
+
+iotests.log('Finishing a commit job with background reads')
+iotests.log('============================================')
+iotests.log('')
+
+with iotests.FilePath('t.qcow2') as disk_path, \
+     iotests.FilePath('t.qcow2.mid') as mid_path, \
+     iotests.FilePath('t.qcow2.base') as base_path, \
+     iotests.VM() as vm:
+
+    iotests.log("=== Create backing chain and start VM ===")
+    iotests.log("")
+
+    size = 128 * 1024 * 1024
+    size_str = str(size)
+
+    iotests.create_image(base_path, size)
+    iotests.qemu_img_log('create', '-f', iotests.imgfmt, mid_path, size_str)
+    iotests.qemu_img_log('create', '-f', iotests.imgfmt, disk_path, size_str)
+
+    # Create a backing chain like this:
+    # base <- [throttled: bps-read=4096] <- mid <- overlay
+
+    vm.add_object('throttle-group,x-bps-read=4096,id=throttle0')
+    vm.add_blockdev('file,filename=%s,node-name=base' % (base_path))
+    vm.add_blockdev('throttle,throttle-group=throttle0,file=base,node-name=throttled')
+    vm.add_blockdev('file,filename=%s,node-name=mid-file' % (mid_path))
+    vm.add_blockdev('qcow2,file=mid-file,node-name=mid,backing=throttled')
+    vm.add_drive_raw('if=none,id=overlay,driver=qcow2,file=%s,backing=mid' % (disk_path))
+
+    vm.launch()
+
+    iotests.log("=== Start background read requests ===")
+    iotests.log("")
+
+    def start_requests():
+        vm.hmp_qemu_io('overlay', 'aio_read 0 4k')
+        vm.hmp_qemu_io('overlay', 'aio_read 0 4k')
+
+    start_requests()
+
+    iotests.log("=== Run a commit job ===")
+    iotests.log("")
+
+    result = vm.qmp_log('block-commit', job_id='job0', auto_finalize=False,
+                        device='overlay', top_node='mid')
+
+    vm.run_job('job0', auto_finalize=False, pre_finalize=start_requests,
+                auto_dismiss=True)
+
+    vm.shutdown()
+
+iotests.log('')
+iotests.log('Closing the VM while a job is being cancelled')
+iotests.log('=============================================')
+iotests.log('')
+
+with iotests.FilePath('src.qcow2') as src_path, \
+     iotests.FilePath('dst.qcow2') as dst_path, \
+     iotests.VM() as vm:
+
+    iotests.log('=== Create images and start VM ===')
+    iotests.log('')
+
+    size = 128 * 1024 * 1024
+    size_str = str(size)
+
+    iotests.qemu_img_log('create', '-f', iotests.imgfmt, src_path, size_str)
+    iotests.qemu_img_log('create', '-f', iotests.imgfmt, dst_path, size_str)
+
+    iotests.log(iotests.qemu_io('-f', iotests.imgfmt, '-c', 'write 0 1M',
+                                src_path),
+                filters=[iotests.filter_test_dir, iotests.filter_qemu_io])
+
+    vm.add_object('throttle-group,x-bps-read=4096,id=throttle0')
+
+    vm.add_blockdev('file,node-name=src-file,filename=%s' % (src_path))
+    vm.add_blockdev('%s,node-name=src,file=src-file' % (iotests.imgfmt))
+
+    vm.add_blockdev('file,node-name=dst-file,filename=%s' % (dst_path))
+    vm.add_blockdev('%s,node-name=dst,file=dst-file' % (iotests.imgfmt))
+
+    vm.add_blockdev('throttle,node-name=src-throttled,' +
+                    'throttle-group=throttle0,file=src')
+
+    vm.add_device('virtio-blk,drive=src-throttled')
+
+    vm.launch()
+
+    iotests.log('=== Start a mirror job ===')
+    iotests.log('')
+
+    vm.qmp_log('blockdev-mirror', job_id='job0', device='src-throttled',
+                                  target='dst', sync='full')
+
+    vm.qmp_log('block-job-cancel', device='job0')
+    vm.qmp_log('quit')
+
+    vm.shutdown()

@@ -102,7 +102,8 @@ static void test_update_perm_tree(void)
 {
     Error *local_err = NULL;
 
-    BlockBackend *root = blk_new(BLK_PERM_WRITE | BLK_PERM_CONSISTENT_READ,
+    BlockBackend *root = blk_new(qemu_get_aio_context(),
+                                 BLK_PERM_WRITE | BLK_PERM_CONSISTENT_READ,
                                  BLK_PERM_ALL & ~BLK_PERM_WRITE);
     BlockDriverState *bs = no_perm_node("node");
     BlockDriverState *filter = pass_through_node("filter");
@@ -165,7 +166,7 @@ static void test_update_perm_tree(void)
  */
 static void test_should_update_child(void)
 {
-    BlockBackend *root = blk_new(0, BLK_PERM_ALL);
+    BlockBackend *root = blk_new(qemu_get_aio_context(), 0, BLK_PERM_ALL);
     BlockDriverState *bs = no_perm_node("node");
     BlockDriverState *filter = no_perm_node("filter");
     BlockDriverState *target = no_perm_node("target");

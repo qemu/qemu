@@ -188,6 +188,53 @@ static void test_unaligned_write_same(void *obj, void *data,
     qvirtio_scsi_pci_free(vs);
 }
 
+static void test_iothread_attach_node(void *obj, void *data,
+                                      QGuestAllocator *t_alloc)
+{
+    QVirtioSCSIPCI *scsi_pci = obj;
+    QVirtioSCSI *scsi = &scsi_pci->scsi;
+    QVirtioSCSIQueues *vs;
+    char tmp_path[] = "/tmp/qtest.XXXXXX";
+    int fd;
+    int ret;
+
+    uint8_t buf[512] = { 0 };
+    const uint8_t write_cdb[VIRTIO_SCSI_CDB_SIZE] = {
+        /* WRITE(10) to LBA 0, transfer length 1 */
+        0x2a, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x01, 0x00
+    };
+
+    alloc = t_alloc;
+    vs = qvirtio_scsi_init(scsi->vdev);
+
+    /* Create a temporary qcow2 overlay*/
+    fd = mkstemp(tmp_path);
+    g_assert(fd >= 0);
+    close(fd);
+
+    if (!have_qemu_img()) {
+        g_test_message("QTEST_QEMU_IMG not set or qemu-img missing; "
+                       "skipping snapshot test");
+        goto fail;
+    }
+
+    mkqcow2(tmp_path, 64);
+
+    /* Attach the overlay to the null0 node */
+    qmp_assert_success("{'execute': 'blockdev-add', 'arguments': {"
+                       "   'driver': 'qcow2', 'node-name': 'overlay',"
+                       "   'backing': 'null0', 'file': {"
+                       "     'driver': 'file', 'filename': %s}}}", tmp_path);
+
+    /* Send a request to see if the AioContext is still right */
+    ret = virtio_scsi_do_command(vs, write_cdb, NULL, 0, buf, 512, NULL);
+    g_assert_cmphex(ret, ==, 0);
+
+fail:
+    qvirtio_scsi_pci_free(vs);
+    unlink(tmp_path);
+}
+
 static void *virtio_scsi_hotplug_setup(GString *cmd_line, void *arg)
 {
     g_string_append(cmd_line,
@@ -204,6 +251,15 @@ static void *virtio_scsi_setup(GString *cmd_line, void *arg)
     return arg;
 }
 
+static void *virtio_scsi_setup_iothread(GString *cmd_line, void *arg)
+{
+    g_string_append(cmd_line,
+                    " -object iothread,id=thread0"
+                    " -blockdev driver=null-co,node-name=null0"
+                    " -device scsi-hd,drive=null0");
+    return arg;
+}
+
 static void register_virtio_scsi_test(void)
 {
     QOSGraphTestOptions opts = { };
@@ -214,6 +270,13 @@ static void register_virtio_scsi_test(void)
     opts.before = virtio_scsi_setup;
     qos_add_test("unaligned-write-same", "virtio-scsi",
                  test_unaligned_write_same, &opts);
+
+    opts.before = virtio_scsi_setup_iothread;
+    opts.edge = (QOSGraphEdgeOptions) {
+        .extra_device_opts = "iothread=thread0",
+    };
+    qos_add_test("iothread-attach-node", "virtio-scsi-pci",
+                 test_iothread_attach_node, &opts);
 }
 
 libqos_init(register_virtio_scsi_test);

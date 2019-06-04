@@ -68,7 +68,7 @@ static BlockJob *do_test_id(BlockBackend *blk, const char *id,
 static BlockBackend *create_blk(const char *name)
 {
     /* No I/O is performed on this device */
-    BlockBackend *blk = blk_new(0, BLK_PERM_ALL);
+    BlockBackend *blk = blk_new(qemu_get_aio_context(), 0, BLK_PERM_ALL);
     BlockDriverState *bs;
 
     bs = bdrv_open("null-co://", NULL, NULL, 0, &error_abort);

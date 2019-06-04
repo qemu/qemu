@@ -55,7 +55,7 @@ $QEMU_IO -c 'write 0 64k' "$TEST_IMG" | _filter_qemu_io
 $QEMU_IMG resize -f raw --shrink "$TEST_IMG" $((5 * 64 * 1024))
 
 $QEMU_IO -c map "$TEST_IMG"
-$QEMU_IMG map "$TEST_IMG"
+$QEMU_IMG map "$TEST_IMG" | _filter_qemu_img_map
 
 echo
 echo '=== Testing map on an image file truncated outside of qemu ==='

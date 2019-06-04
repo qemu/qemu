@@ -675,9 +675,9 @@ static void test_groups(void)
     ThrottleGroupMember *tgm1, *tgm2, *tgm3;
 
     /* No actual I/O is performed on these devices */
-    blk1 = blk_new(0, BLK_PERM_ALL);
-    blk2 = blk_new(0, BLK_PERM_ALL);
-    blk3 = blk_new(0, BLK_PERM_ALL);
+    blk1 = blk_new(qemu_get_aio_context(), 0, BLK_PERM_ALL);
+    blk2 = blk_new(qemu_get_aio_context(), 0, BLK_PERM_ALL);
+    blk3 = blk_new(qemu_get_aio_context(), 0, BLK_PERM_ALL);
 
     blkp1 = blk_get_public(blk1);
     blkp2 = blk_get_public(blk2);

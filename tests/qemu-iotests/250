@@ -1,0 +1,78 @@
+#!/usr/bin/env bash
+#
+# Test big discard in qcow2 shrink
+#
+# Copyright (c) 2019 Virtuozzo International GmbH. All rights reserved.
+#
+# This program is free software; you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation; either version 2 of the License, or
+# (at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with this program.  If not, see <http://www.gnu.org/licenses/>.
+#
+
+# creator
+owner=vsementsov@virtuozzo.com
+
+seq=`basename $0`
+echo "QA output created by $seq"
+
+status=1	# failure is the default!
+
+_cleanup()
+{
+    _cleanup_test_img
+}
+trap "_cleanup; exit \$status" 0 1 2 3 15
+
+# get standard environment, filters and checks
+. ./common.rc
+. ./common.filter
+
+_supported_fmt qcow2
+_supported_proto file
+_supported_os Linux
+
+# This test checks that qcow2_process_discards does not truncate a discard
+# request > 2G.
+# To reproduce bug we need to overflow int by one sequential discard, so we
+# need size > 2G, bigger cluster size (as with default 64k we may have maximum
+# of 512M sequential data, corresponding to one L1 entry), and we need some
+# data of the beginning of the disk mapped to the end of file to prevent
+# bdrv_co_truncate(bs->file) call in qcow2_co_truncate(), which might succeed
+# anyway.
+
+disk_usage()
+{
+    du --block-size=1 $1 | awk '{print $1}'
+}
+
+size=2100M
+IMGOPTS="cluster_size=1M,preallocation=metadata"
+
+_make_test_img $size
+$QEMU_IO -c 'discard 0 10M' -c 'discard 2090M 10M' \
+         -c 'write 2090M 10M' -c 'write 0 10M' "$TEST_IMG" | _filter_qemu_io
+
+# Check that our trick with swapping first and last 10M chunks succeeded.
+# Otherwise test may pass even if bdrv_pdiscard() fails in
+# qcow2_process_discards()
+$QEMU_IMG map "$TEST_IMG" | _filter_testdir
+
+before=$(disk_usage "$TEST_IMG")
+$QEMU_IMG resize --shrink "$TEST_IMG" 5M
+after=$(disk_usage "$TEST_IMG")
+
+echo "Disk usage delta: $((before - after))"
+
+# success, all done
+echo "*** done"
+rm -f $seq.full
+status=0

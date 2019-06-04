@@ -1543,7 +1543,6 @@ static void mirror_start_job(const char *job_id, BlockDriverState *bs,
                                           BDRV_REQ_NO_FALLBACK;
     bs_opaque = g_new0(MirrorBDSOpaque, 1);
     mirror_top_bs->opaque = bs_opaque;
-    bdrv_set_aio_context(mirror_top_bs, bdrv_get_aio_context(bs));
 
     /* bdrv_append takes ownership of the mirror_top_bs reference, need to keep
      * it alive until block_job_create() succeeds even if bs has no parent. */
@@ -1584,7 +1583,8 @@ static void mirror_start_job(const char *job_id, BlockDriverState *bs,
      * We can allow anything except resize there.*/
     target_is_backing = bdrv_chain_contains(bs, target);
     target_graph_mod = (backing_mode != MIRROR_LEAVE_BACKING_CHAIN);
-    s->target = blk_new(BLK_PERM_WRITE | BLK_PERM_RESIZE |
+    s->target = blk_new(s->common.job.aio_context,
+                        BLK_PERM_WRITE | BLK_PERM_RESIZE |
                         (target_graph_mod ? BLK_PERM_GRAPH_MOD : 0),
                         BLK_PERM_WRITE_UNCHANGED |
                         (target_is_backing ? BLK_PERM_CONSISTENT_READ |

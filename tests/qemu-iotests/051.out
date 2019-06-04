@@ -137,6 +137,9 @@ QEMU X.Y.Z monitor - type 'help' for more information
 (qemu) QEMU_PROG: -drive if=virtio: Device needs media, but drive is empty
 
 
+=== Attach to node in non-default iothread ===
+
+
 === Read-only ===
 
 Testing: -drive file=TEST_DIR/t.qcow2,if=virtio,readonly=on

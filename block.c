@@ -2235,6 +2235,10 @@ static void bdrv_replace_child(BdrvChild *child, BlockDriverState *new_bs)
         bdrv_get_cumulative_perm(old_bs, &perm, &shared_perm);
         bdrv_check_perm(old_bs, NULL, perm, shared_perm, NULL, &error_abort);
         bdrv_set_perm(old_bs, perm, shared_perm);
+
+        /* When the parent requiring a non-default AioContext is removed, the
+         * node moves back to the main AioContext */
+        bdrv_try_set_aio_context(old_bs, qemu_get_aio_context(), NULL);
     }
 
     if (new_bs) {
@@ -2249,14 +2253,19 @@ static void bdrv_replace_child(BdrvChild *child, BlockDriverState *new_bs)
  *
  * On failure NULL is returned, errp is set and the reference to
  * child_bs is also dropped.
+ *
+ * The caller must hold the AioContext lock @child_bs, but not that of @ctx
+ * (unless @child_bs is already in @ctx).
  */
 BdrvChild *bdrv_root_attach_child(BlockDriverState *child_bs,
                                   const char *child_name,
                                   const BdrvChildRole *child_role,
+                                  AioContext *ctx,
                                   uint64_t perm, uint64_t shared_perm,
                                   void *opaque, Error **errp)
 {
     BdrvChild *child;
+    Error *local_err = NULL;
     int ret;
 
     ret = bdrv_check_update_perm(child_bs, NULL, perm, shared_perm, NULL, errp);
@@ -2276,6 +2285,31 @@ BdrvChild *bdrv_root_attach_child(BlockDriverState *child_bs,
         .opaque         = opaque,
     };
 
+    /* If the AioContexts don't match, first try to move the subtree of
+     * child_bs into the AioContext of the new parent. If this doesn't work,
+     * try moving the parent into the AioContext of child_bs instead. */
+    if (bdrv_get_aio_context(child_bs) != ctx) {
+        ret = bdrv_try_set_aio_context(child_bs, ctx, &local_err);
+        if (ret < 0 && child_role->can_set_aio_ctx) {
+            GSList *ignore = g_slist_prepend(NULL, child);;
+            ctx = bdrv_get_aio_context(child_bs);
+            if (child_role->can_set_aio_ctx(child, ctx, &ignore, NULL)) {
+                error_free(local_err);
+                ret = 0;
+                g_slist_free(ignore);
+                ignore = g_slist_prepend(NULL, child);;
+                child_role->set_aio_ctx(child, ctx, &ignore);
+            }
+            g_slist_free(ignore);
+        }
+        if (ret < 0) {
+            error_propagate(errp, local_err);
+            g_free(child);
+            bdrv_abort_perm_update(child_bs);
+            return NULL;
+        }
+    }
+
     /* This performs the matching bdrv_set_perm() for the above check. */
     bdrv_replace_child(child, child_bs);
 
@@ -2289,6 +2323,9 @@ BdrvChild *bdrv_root_attach_child(BlockDriverState *child_bs,
  *
  * On failure NULL is returned, errp is set and the reference to
  * child_bs is also dropped.
+ *
+ * If @parent_bs and @child_bs are in different AioContexts, the caller must
+ * hold the AioContext lock for @child_bs, but not for @parent_bs.
  */
 BdrvChild *bdrv_attach_child(BlockDriverState *parent_bs,
                              BlockDriverState *child_bs,
@@ -2302,11 +2339,11 @@ BdrvChild *bdrv_attach_child(BlockDriverState *parent_bs,
     bdrv_get_cumulative_perm(parent_bs, &perm, &shared_perm);
 
     assert(parent_bs->drv);
-    assert(bdrv_get_aio_context(parent_bs) == bdrv_get_aio_context(child_bs));
     bdrv_child_perm(parent_bs, child_bs, NULL, child_role, NULL,
                     perm, shared_perm, &perm, &shared_perm);
 
     child = bdrv_root_attach_child(child_bs, child_name, child_role,
+                                   bdrv_get_aio_context(parent_bs),
                                    perm, shared_perm, parent_bs, errp);
     if (child == NULL) {
         return NULL;
@@ -2517,7 +2554,6 @@ int bdrv_open_backing_file(BlockDriverState *bs, QDict *parent_options,
         ret = -EINVAL;
         goto free_exit;
     }
-    bdrv_set_aio_context(backing_hd, bdrv_get_aio_context(bs));
 
     if (implicit_backing) {
         bdrv_refresh_filename(backing_hd);
@@ -2884,7 +2920,7 @@ static BlockDriverState *bdrv_open_inherit(const char *filename,
             /* Not requesting BLK_PERM_CONSISTENT_READ because we're only
              * looking at the header to guess the image format. This works even
              * in cases where a guest would not see a consistent state. */
-            file = blk_new(0, BLK_PERM_ALL);
+            file = blk_new(bdrv_get_aio_context(file_bs), 0, BLK_PERM_ALL);
             blk_insert_bs(file, file_bs, &local_err);
             bdrv_unref(file_bs);
             if (local_err) {
@@ -4017,12 +4053,12 @@ void bdrv_replace_node(BlockDriverState *from, BlockDriverState *to,
     uint64_t perm = 0, shared = BLK_PERM_ALL;
     int ret;
 
-    assert(!atomic_read(&from->in_flight));
-    assert(!atomic_read(&to->in_flight));
-
     /* Make sure that @from doesn't go away until we have successfully attached
      * all of its parents to @to. */
     bdrv_ref(from);
+
+    assert(qemu_get_current_aio_context() == qemu_get_aio_context());
+    bdrv_drained_begin(from);
 
     /* Put all parents into @list and calculate their cumulative permissions */
     QLIST_FOREACH_SAFE(c, &from->parents, next_parent, next) {
@@ -4064,6 +4100,7 @@ void bdrv_replace_node(BlockDriverState *from, BlockDriverState *to,
 
 out:
     g_slist_free(list);
+    bdrv_drained_end(from);
     bdrv_unref(from);
 }
 
@@ -5752,8 +5789,17 @@ static void bdrv_attach_aio_context(BlockDriverState *bs,
     bs->walking_aio_notifiers = false;
 }
 
-/* @ignore will accumulate all visited BdrvChild object. The caller is
- * responsible for freeing the list afterwards. */
+/*
+ * Changes the AioContext used for fd handlers, timers, and BHs by this
+ * BlockDriverState and all its children and parents.
+ *
+ * The caller must own the AioContext lock for the old AioContext of bs, but it
+ * must not own the AioContext lock for new_context (unless new_context is the
+ * same as the current context of bs).
+ *
+ * @ignore will accumulate all visited BdrvChild object. The caller is
+ * responsible for freeing the list afterwards.
+ */
 void bdrv_set_aio_context_ignore(BlockDriverState *bs,
                                  AioContext *new_context, GSList **ignore)
 {
@@ -5776,10 +5822,9 @@ void bdrv_set_aio_context_ignore(BlockDriverState *bs,
         if (g_slist_find(*ignore, child)) {
             continue;
         }
-        if (child->role->set_aio_ctx) {
-            *ignore = g_slist_prepend(*ignore, child);
-            child->role->set_aio_ctx(child, new_context, ignore);
-        }
+        assert(child->role->set_aio_ctx);
+        *ignore = g_slist_prepend(*ignore, child);
+        child->role->set_aio_ctx(child, new_context, ignore);
     }
 
     bdrv_detach_aio_context(bs);
@@ -5791,16 +5836,6 @@ void bdrv_set_aio_context_ignore(BlockDriverState *bs,
     bdrv_attach_aio_context(bs, new_context);
     bdrv_drained_end(bs);
     aio_context_release(new_context);
-}
-
-/* The caller must own the AioContext lock for the old AioContext of bs, but it
- * must not own the AioContext lock for new_context (unless new_context is
- * the same as the current context of bs). */
-void bdrv_set_aio_context(BlockDriverState *bs, AioContext *new_context)
-{
-    GSList *ignore_list = NULL;
-    bdrv_set_aio_context_ignore(bs, new_context, &ignore_list);
-    g_slist_free(ignore_list);
 }
 
 static bool bdrv_parent_can_set_aio_context(BdrvChild *c, AioContext *ctx,

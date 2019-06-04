@@ -30,7 +30,6 @@
 #define MAX_EVENTS 128
 
 struct qemu_laiocb {
-    BlockAIOCB common;
     Coroutine *co;
     LinuxAioState *ctx;
     struct iocb iocb;
@@ -72,7 +71,7 @@ static inline ssize_t io_event_ret(struct io_event *ev)
 }
 
 /*
- * Completes an AIO request (calls the callback and frees the ACB).
+ * Completes an AIO request.
  */
 static void qemu_laio_process_completion(struct qemu_laiocb *laiocb)
 {
@@ -94,18 +93,15 @@ static void qemu_laio_process_completion(struct qemu_laiocb *laiocb)
     }
 
     laiocb->ret = ret;
-    if (laiocb->co) {
-        /* If the coroutine is already entered it must be in ioq_submit() and
-         * will notice laio->ret has been filled in when it eventually runs
-         * later.  Coroutines cannot be entered recursively so avoid doing
-         * that!
-         */
-        if (!qemu_coroutine_entered(laiocb->co)) {
-            aio_co_wake(laiocb->co);
-        }
-    } else {
-        laiocb->common.cb(laiocb->common.opaque, ret);
-        qemu_aio_unref(laiocb);
+
+    /*
+     * If the coroutine is already entered it must be in ioq_submit() and
+     * will notice laio->ret has been filled in when it eventually runs
+     * later.  Coroutines cannot be entered recursively so avoid doing
+     * that!
+     */
+    if (!qemu_coroutine_entered(laiocb->co)) {
+        aio_co_wake(laiocb->co);
     }
 }
 
@@ -273,30 +269,6 @@ static bool qemu_laio_poll_cb(void *opaque)
     return true;
 }
 
-static void laio_cancel(BlockAIOCB *blockacb)
-{
-    struct qemu_laiocb *laiocb = (struct qemu_laiocb *)blockacb;
-    struct io_event event;
-    int ret;
-
-    if (laiocb->ret != -EINPROGRESS) {
-        return;
-    }
-    ret = io_cancel(laiocb->ctx->ctx, &laiocb->iocb, &event);
-    laiocb->ret = -ECANCELED;
-    if (ret != 0) {
-        /* iocb is not cancelled, cb will be called by the event loop later */
-        return;
-    }
-
-    laiocb->common.cb(laiocb->common.opaque, laiocb->ret);
-}
-
-static const AIOCBInfo laio_aiocb_info = {
-    .aiocb_size         = sizeof(struct qemu_laiocb),
-    .cancel_async       = laio_cancel,
-};
-
 static void ioq_init(LaioQueue *io_q)
 {
     QSIMPLEQ_INIT(&io_q->pending);
@@ -429,30 +401,6 @@ int coroutine_fn laio_co_submit(BlockDriverState *bs, LinuxAioState *s, int fd,
         qemu_coroutine_yield();
     }
     return laiocb.ret;
-}
-
-BlockAIOCB *laio_submit(BlockDriverState *bs, LinuxAioState *s, int fd,
-        int64_t sector_num, QEMUIOVector *qiov, int nb_sectors,
-        BlockCompletionFunc *cb, void *opaque, int type)
-{
-    struct qemu_laiocb *laiocb;
-    off_t offset = sector_num * BDRV_SECTOR_SIZE;
-    int ret;
-
-    laiocb = qemu_aio_get(&laio_aiocb_info, bs, cb, opaque);
-    laiocb->nbytes = nb_sectors * BDRV_SECTOR_SIZE;
-    laiocb->ctx = s;
-    laiocb->ret = -EINPROGRESS;
-    laiocb->is_read = (type == QEMU_AIO_READ);
-    laiocb->qiov = qiov;
-
-    ret = laio_do_submit(fd, laiocb, offset, type);
-    if (ret < 0) {
-        qemu_aio_unref(laiocb);
-        return NULL;
-    }
-
-    return &laiocb->common;
 }
 
 void laio_detach_aio_context(LinuxAioState *s, AioContext *old_context)

@@ -844,7 +844,8 @@ static int coroutine_fn qcow_co_create(BlockdevCreateOptions *opts,
         return -EIO;
     }
 
-    qcow_blk = blk_new(BLK_PERM_WRITE | BLK_PERM_RESIZE, BLK_PERM_ALL);
+    qcow_blk = blk_new(bdrv_get_aio_context(bs),
+                       BLK_PERM_WRITE | BLK_PERM_RESIZE, BLK_PERM_ALL);
     ret = blk_insert_bs(qcow_blk, bs, errp);
     if (ret < 0) {
         goto exit;

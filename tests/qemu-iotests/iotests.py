@@ -126,6 +126,11 @@ def qemu_img_pipe(*args):
         sys.stderr.write('qemu-img received signal %i: %s\n' % (-exitcode, ' '.join(qemu_img_args + list(args))))
     return subp.communicate()[0]
 
+def qemu_img_log(*args):
+    result = qemu_img_pipe(*args)
+    log(result, filters=[filter_testfiles])
+    return result
+
 def img_info_log(filename, filter_path=None, imgopts=False, extra_args=[]):
     args = [ 'info' ]
     if imgopts:
@@ -533,7 +538,8 @@ class VM(qtest.QEMUQtestMachine):
         return result
 
     # Returns None on success, and an error string on failure
-    def run_job(self, job, auto_finalize=True, auto_dismiss=False):
+    def run_job(self, job, auto_finalize=True, auto_dismiss=False,
+                pre_finalize=None):
         error = None
         while True:
             for ev in self.get_qmp_events_filtered(wait=True):
@@ -546,6 +552,8 @@ class VM(qtest.QEMUQtestMachine):
                                 error = j['error']
                                 log('Job failed: %s' % (j['error']))
                     elif status == 'pending' and not auto_finalize:
+                        if pre_finalize:
+                            pre_finalize()
                         self.qmp_log('job-finalize', id=job)
                     elif status == 'concluded' and not auto_dismiss:
                         self.qmp_log('job-dismiss', id=job)

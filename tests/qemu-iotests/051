@@ -192,6 +192,30 @@ case "$QEMU_DEFAULT_MACHINE" in
 esac
 
 echo
+echo === Attach to node in non-default iothread ===
+echo
+
+case "$QEMU_DEFAULT_MACHINE" in
+    pc)
+        iothread="-drive file=$TEST_IMG,if=none,node-name=disk -object iothread,id=thread0 -device virtio-scsi,iothread=thread0,id=virtio-scsi0 -device scsi-hd,bus=virtio-scsi0.0,drive=disk,share-rw=on"
+
+        # Can't add a device in the main thread while virtio-scsi0 uses the node
+        run_qemu $iothread -device ide-hd,drive=disk,share-rw=on
+        run_qemu $iothread -device virtio-blk-pci,drive=disk,share-rw=on
+        run_qemu $iothread -device lsi53c895a,id=lsi0 -device scsi-hd,bus=lsi0.0,drive=disk,share-rw=on
+        run_qemu $iothread -device virtio-scsi,id=virtio-scsi1 -device scsi-hd,bus=virtio-scsi1.0,drive=disk,share-rw=on
+
+        # virtio-blk enables the iothread only when the driver initialises the
+        # device, so a second virtio-blk device can't be added even with the
+        # same iothread. virtio-scsi allows this.
+        run_qemu $iothread -device virtio-blk-pci,drive=disk,iohtread=iothread0,share-rw=on
+        run_qemu $iothread -device virtio-scsi,id=virtio-scsi1,iothread=thread0 -device scsi-hd,bus=virtio-scsi1.0,drive=disk,share-rw=on
+        ;;
+     *)
+        ;;
+esac
+
+echo
 echo === Read-only ===
 echo
 

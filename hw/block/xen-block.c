@@ -609,7 +609,7 @@ static void xen_cdrom_realize(XenBlockDevice *blockdev, Error **errp)
         int rc;
 
         /* Set up an empty drive */
-        conf->blk = blk_new(0, BLK_PERM_ALL);
+        conf->blk = blk_new(qemu_get_aio_context(), 0, BLK_PERM_ALL);
 
         rc = blk_attach_dev(conf->blk, DEVICE(blockdev));
         if (!rc) {

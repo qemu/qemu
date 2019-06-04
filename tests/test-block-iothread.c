@@ -336,20 +336,20 @@ static void test_sync_op(const void *opaque)
     BlockDriverState *bs;
     BdrvChild *c;
 
-    blk = blk_new(BLK_PERM_ALL, BLK_PERM_ALL);
+    blk = blk_new(qemu_get_aio_context(), BLK_PERM_ALL, BLK_PERM_ALL);
     bs = bdrv_new_open_driver(&bdrv_test, "base", BDRV_O_RDWR, &error_abort);
     bs->total_sectors = 65536 / BDRV_SECTOR_SIZE;
     blk_insert_bs(blk, bs, &error_abort);
     c = QLIST_FIRST(&bs->parents);
 
-    blk_set_aio_context(blk, ctx);
+    blk_set_aio_context(blk, ctx, &error_abort);
     aio_context_acquire(ctx);
     t->fn(c);
     if (t->blkfn) {
         t->blkfn(blk);
     }
     aio_context_release(ctx);
-    blk_set_aio_context(blk, qemu_get_aio_context());
+    blk_set_aio_context(blk, qemu_get_aio_context(), &error_abort);
 
     bdrv_unref(bs);
     blk_unref(blk);
@@ -415,7 +415,7 @@ static void test_attach_blockjob(void)
     BlockDriverState *bs;
     TestBlockJob *tjob;
 
-    blk = blk_new(BLK_PERM_ALL, BLK_PERM_ALL);
+    blk = blk_new(qemu_get_aio_context(), BLK_PERM_ALL, BLK_PERM_ALL);
     bs = bdrv_new_open_driver(&bdrv_test, "base", BDRV_O_RDWR, &error_abort);
     blk_insert_bs(blk, bs, &error_abort);
 
@@ -428,7 +428,7 @@ static void test_attach_blockjob(void)
         aio_poll(qemu_get_aio_context(), false);
     }
 
-    blk_set_aio_context(blk, ctx);
+    blk_set_aio_context(blk, ctx, &error_abort);
 
     tjob->n = 0;
     while (tjob->n == 0) {
@@ -436,7 +436,7 @@ static void test_attach_blockjob(void)
     }
 
     aio_context_acquire(ctx);
-    blk_set_aio_context(blk, qemu_get_aio_context());
+    blk_set_aio_context(blk, qemu_get_aio_context(), &error_abort);
     aio_context_release(ctx);
 
     tjob->n = 0;
@@ -444,7 +444,7 @@ static void test_attach_blockjob(void)
         aio_poll(qemu_get_aio_context(), false);
     }
 
-    blk_set_aio_context(blk, ctx);
+    blk_set_aio_context(blk, ctx, &error_abort);
 
     tjob->n = 0;
     while (tjob->n == 0) {
@@ -453,7 +453,7 @@ static void test_attach_blockjob(void)
 
     aio_context_acquire(ctx);
     job_complete_sync(&tjob->common.job, &error_abort);
-    blk_set_aio_context(blk, qemu_get_aio_context());
+    blk_set_aio_context(blk, qemu_get_aio_context(), &error_abort);
     aio_context_release(ctx);
 
     bdrv_unref(bs);
@@ -481,7 +481,7 @@ static void test_propagate_basic(void)
     QDict *options;
 
     /* Create bs_a and its BlockBackend */
-    blk = blk_new(BLK_PERM_ALL, BLK_PERM_ALL);
+    blk = blk_new(qemu_get_aio_context(), BLK_PERM_ALL, BLK_PERM_ALL);
     bs_a = bdrv_new_open_driver(&bdrv_test, "bs_a", BDRV_O_RDWR, &error_abort);
     blk_insert_bs(blk, bs_a, &error_abort);
 
@@ -497,7 +497,7 @@ static void test_propagate_basic(void)
     bs_verify = bdrv_open(NULL, NULL, options, BDRV_O_RDWR, &error_abort);
 
     /* Switch the AioContext */
-    blk_set_aio_context(blk, ctx);
+    blk_set_aio_context(blk, ctx, &error_abort);
     g_assert(blk_get_aio_context(blk) == ctx);
     g_assert(bdrv_get_aio_context(bs_a) == ctx);
     g_assert(bdrv_get_aio_context(bs_verify) == ctx);
@@ -505,7 +505,7 @@ static void test_propagate_basic(void)
 
     /* Switch the AioContext back */
     ctx = qemu_get_aio_context();
-    blk_set_aio_context(blk, ctx);
+    blk_set_aio_context(blk, ctx, &error_abort);
     g_assert(blk_get_aio_context(blk) == ctx);
     g_assert(bdrv_get_aio_context(bs_a) == ctx);
     g_assert(bdrv_get_aio_context(bs_verify) == ctx);
@@ -561,11 +561,11 @@ static void test_propagate_diamond(void)
     qdict_put_str(options, "raw", "bs_c");
 
     bs_verify = bdrv_open(NULL, NULL, options, BDRV_O_RDWR, &error_abort);
-    blk = blk_new(BLK_PERM_ALL, BLK_PERM_ALL);
+    blk = blk_new(qemu_get_aio_context(), BLK_PERM_ALL, BLK_PERM_ALL);
     blk_insert_bs(blk, bs_verify, &error_abort);
 
     /* Switch the AioContext */
-    blk_set_aio_context(blk, ctx);
+    blk_set_aio_context(blk, ctx, &error_abort);
     g_assert(blk_get_aio_context(blk) == ctx);
     g_assert(bdrv_get_aio_context(bs_verify) == ctx);
     g_assert(bdrv_get_aio_context(bs_a) == ctx);
@@ -574,7 +574,7 @@ static void test_propagate_diamond(void)
 
     /* Switch the AioContext back */
     ctx = qemu_get_aio_context();
-    blk_set_aio_context(blk, ctx);
+    blk_set_aio_context(blk, ctx, &error_abort);
     g_assert(blk_get_aio_context(blk) == ctx);
     g_assert(bdrv_get_aio_context(bs_verify) == ctx);
     g_assert(bdrv_get_aio_context(bs_a) == ctx);
@@ -593,7 +593,7 @@ static void test_propagate_mirror(void)
     IOThread *iothread = iothread_new();
     AioContext *ctx = iothread_get_aio_context(iothread);
     AioContext *main_ctx = qemu_get_aio_context();
-    BlockDriverState *src, *target;
+    BlockDriverState *src, *target, *filter;
     BlockBackend *blk;
     Job *job;
     Error *local_err = NULL;
@@ -610,11 +610,13 @@ static void test_propagate_mirror(void)
                  false, "filter_node", MIRROR_COPY_MODE_BACKGROUND,
                  &error_abort);
     job = job_get("job0");
+    filter = bdrv_find_node("filter_node");
 
     /* Change the AioContext of src */
     bdrv_try_set_aio_context(src, ctx, &error_abort);
     g_assert(bdrv_get_aio_context(src) == ctx);
     g_assert(bdrv_get_aio_context(target) == ctx);
+    g_assert(bdrv_get_aio_context(filter) == ctx);
     g_assert(job->aio_context == ctx);
 
     /* Change the AioContext of target */
@@ -623,9 +625,10 @@ static void test_propagate_mirror(void)
     aio_context_release(ctx);
     g_assert(bdrv_get_aio_context(src) == main_ctx);
     g_assert(bdrv_get_aio_context(target) == main_ctx);
+    g_assert(bdrv_get_aio_context(filter) == main_ctx);
 
     /* With a BlockBackend on src, changing target must fail */
-    blk = blk_new(0, BLK_PERM_ALL);
+    blk = blk_new(qemu_get_aio_context(), 0, BLK_PERM_ALL);
     blk_insert_bs(blk, src, &error_abort);
 
     bdrv_try_set_aio_context(target, ctx, &local_err);
@@ -635,6 +638,7 @@ static void test_propagate_mirror(void)
     g_assert(blk_get_aio_context(blk) == main_ctx);
     g_assert(bdrv_get_aio_context(src) == main_ctx);
     g_assert(bdrv_get_aio_context(target) == main_ctx);
+    g_assert(bdrv_get_aio_context(filter) == main_ctx);
 
     /* ...unless we explicitly allow it */
     aio_context_acquire(ctx);
@@ -645,17 +649,81 @@ static void test_propagate_mirror(void)
     g_assert(blk_get_aio_context(blk) == ctx);
     g_assert(bdrv_get_aio_context(src) == ctx);
     g_assert(bdrv_get_aio_context(target) == ctx);
+    g_assert(bdrv_get_aio_context(filter) == ctx);
 
     job_cancel_sync_all();
 
     aio_context_acquire(ctx);
-    blk_set_aio_context(blk, main_ctx);
+    blk_set_aio_context(blk, main_ctx, &error_abort);
     bdrv_try_set_aio_context(target, main_ctx, &error_abort);
     aio_context_release(ctx);
 
     blk_unref(blk);
     bdrv_unref(src);
     bdrv_unref(target);
+}
+
+static void test_attach_second_node(void)
+{
+    IOThread *iothread = iothread_new();
+    AioContext *ctx = iothread_get_aio_context(iothread);
+    AioContext *main_ctx = qemu_get_aio_context();
+    BlockBackend *blk;
+    BlockDriverState *bs, *filter;
+    QDict *options;
+
+    blk = blk_new(ctx, BLK_PERM_ALL, BLK_PERM_ALL);
+    bs = bdrv_new_open_driver(&bdrv_test, "base", BDRV_O_RDWR, &error_abort);
+    blk_insert_bs(blk, bs, &error_abort);
+
+    options = qdict_new();
+    qdict_put_str(options, "driver", "raw");
+    qdict_put_str(options, "file", "base");
+
+    filter = bdrv_open(NULL, NULL, options, BDRV_O_RDWR, &error_abort);
+    g_assert(blk_get_aio_context(blk) == ctx);
+    g_assert(bdrv_get_aio_context(bs) == ctx);
+    g_assert(bdrv_get_aio_context(filter) == ctx);
+
+    blk_set_aio_context(blk, main_ctx, &error_abort);
+    g_assert(blk_get_aio_context(blk) == main_ctx);
+    g_assert(bdrv_get_aio_context(bs) == main_ctx);
+    g_assert(bdrv_get_aio_context(filter) == main_ctx);
+
+    bdrv_unref(filter);
+    bdrv_unref(bs);
+    blk_unref(blk);
+}
+
+static void test_attach_preserve_blk_ctx(void)
+{
+    IOThread *iothread = iothread_new();
+    AioContext *ctx = iothread_get_aio_context(iothread);
+    BlockBackend *blk;
+    BlockDriverState *bs;
+
+    blk = blk_new(ctx, BLK_PERM_ALL, BLK_PERM_ALL);
+    bs = bdrv_new_open_driver(&bdrv_test, "base", BDRV_O_RDWR, &error_abort);
+    bs->total_sectors = 65536 / BDRV_SECTOR_SIZE;
+
+    /* Add node to BlockBackend that has an iothread context assigned */
+    blk_insert_bs(blk, bs, &error_abort);
+    g_assert(blk_get_aio_context(blk) == ctx);
+    g_assert(bdrv_get_aio_context(bs) == ctx);
+
+    /* Remove the node again */
+    blk_remove_bs(blk);
+    g_assert(blk_get_aio_context(blk) == ctx);
+    g_assert(bdrv_get_aio_context(bs) == qemu_get_aio_context());
+
+    /* Re-attach the node */
+    blk_insert_bs(blk, bs, &error_abort);
+    g_assert(blk_get_aio_context(blk) == ctx);
+    g_assert(bdrv_get_aio_context(bs) == ctx);
+
+    blk_set_aio_context(blk, qemu_get_aio_context(), &error_abort);
+    bdrv_unref(bs);
+    blk_unref(blk);
 }
 
 int main(int argc, char **argv)
@@ -673,6 +741,8 @@ int main(int argc, char **argv)
     }
 
     g_test_add_func("/attach/blockjob", test_attach_blockjob);
+    g_test_add_func("/attach/second_node", test_attach_second_node);
+    g_test_add_func("/attach/preserve_blk_ctx", test_attach_preserve_blk_ctx);
     g_test_add_func("/propagate/basic", test_propagate_basic);
     g_test_add_func("/propagate/diamond", test_propagate_diamond);
     g_test_add_func("/propagate/mirror", test_propagate_mirror);

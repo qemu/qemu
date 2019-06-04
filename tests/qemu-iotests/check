@@ -876,7 +876,6 @@ do
                     fi
                 else
                     mv $tmp.out $seq.out.bad
-                    $diff -w "$reference" "$PWD"/$seq.out.bad
                     status="fail"
                     results="output mismatch (see $seq.out.bad)"
                     printdiff=true
