@@ -1170,7 +1170,7 @@ main(int argc, char *argv[])
         fd = opt_fdnum;
     }
     if (fd == -1) {
-        g_printerr("Invalid socket");
+        g_printerr("Invalid vhost-user socket.\n");
         exit(EXIT_FAILURE);
     }
 
