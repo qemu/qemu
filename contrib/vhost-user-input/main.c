@@ -342,7 +342,11 @@ main(int argc, char *argv[])
 
     vi.config = g_array_new(false, false, sizeof(virtio_input_config));
     memset(&id, 0, sizeof(id));
-    ioctl(vi.evdevfd, EVIOCGNAME(sizeof(id.u.string) - 1), id.u.string);
+    if (ioctl(vi.evdevfd, EVIOCGNAME(sizeof(id.u.string) - 1),
+              id.u.string) < 0) {
+        g_printerr("Failed to get evdev name: %s\n", g_strerror(errno));
+        exit(EXIT_FAILURE);
+    }
     id.select = VIRTIO_INPUT_CFG_ID_NAME;
     id.size = strlen(id.u.string);
     g_array_append_val(vi.config, id);
