@@ -1160,6 +1160,10 @@ main(int argc, char *argv[])
 
     if (opt_socket_path) {
         int lsock = unix_listen(opt_socket_path, &error_fatal);
+        if (lsock < 0) {
+            g_printerr("Failed to listen on %s.\n", opt_socket_path);
+            exit(EXIT_FAILURE);
+        }
         fd = accept(lsock, NULL, NULL);
         close(lsock);
     } else {
