@@ -2443,13 +2443,14 @@ int main(int argc, char *argv[])
     lo_map_init(&lo.fd_map);
 
     if (fuse_parse_cmdline(&args, &opts) != 0) {
-        return 1;
+        goto err_out1;
     }
     fuse_set_log_func(log_func);
     use_syslog = opts.syslog;
     if (use_syslog) {
         openlog("virtiofsd", LOG_PID, LOG_DAEMON);
     }
+
     if (opts.show_help) {
         printf("usage: %s [options]\n\n", argv[0]);
         fuse_cmdline_help();
@@ -2468,7 +2469,7 @@ int main(int argc, char *argv[])
     }
 
     if (fuse_opt_parse(&args, &lo, lo_opts, NULL) == -1) {
-        return 1;
+        goto err_out1;
     }
 
     /*
