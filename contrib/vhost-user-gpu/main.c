@@ -138,21 +138,19 @@ static int
 vg_sock_fd_write(int sock, const void *buf, ssize_t buflen, int fd)
 {
     ssize_t ret;
-    struct msghdr msg;
-    struct iovec iov;
+    struct iovec iov = {
+        .iov_base = (void *)buf,
+        .iov_len = buflen,
+    };
+    struct msghdr msg = {
+        .msg_iov = &iov,
+        .msg_iovlen = 1,
+    };
     union {
         struct cmsghdr cmsghdr;
         char control[CMSG_SPACE(sizeof(int))];
     } cmsgu;
     struct cmsghdr *cmsg;
-
-    iov.iov_base = (void *)buf;
-    iov.iov_len = buflen;
-
-    msg.msg_name = NULL;
-    msg.msg_namelen = 0;
-    msg.msg_iov = &iov;
-    msg.msg_iovlen = 1;
 
     if (fd != -1) {
         msg.msg_control = cmsgu.control;
@@ -164,9 +162,6 @@ vg_sock_fd_write(int sock, const void *buf, ssize_t buflen, int fd)
         cmsg->cmsg_type = SCM_RIGHTS;
 
         *((int *)CMSG_DATA(cmsg)) = fd;
-    } else {
-        msg.msg_control = NULL;
-        msg.msg_controllen = 0;
     }
 
     do {
