@@ -354,7 +354,7 @@ vg_disable_scanout(VuGpu *g, int scanout_id)
     scanout->width = 0;
     scanout->height = 0;
 
-    {
+    if (g->sock_fd >= 0) {
         VhostUserGpuMsg msg = {
             .request = VHOST_USER_GPU_SCANOUT,
             .size = sizeof(VhostUserGpuScanout),
