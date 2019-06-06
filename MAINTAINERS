@@ -65,7 +65,7 @@ F: *
 F: */
 
 Responsible Disclosure, Reporting Security Issues
-------------------------------
+-------------------------------------------------
 W: https://wiki.qemu.org/SecurityProcess
 M: Michael S. Tsirkin <mst@redhat.com>
 L: secalert@redhat.com
@@ -107,8 +107,8 @@ K: ^Subject:.*(?i)s390x?
 T: git https://github.com/cohuck/qemu.git s390-next
 L: qemu-s390x@nongnu.org
 
-Guest CPU cores (TCG):
-----------------------
+Guest CPU cores (TCG)
+---------------------
 Overall TCG CPUs
 M: Richard Henderson <rth@twiddle.net>
 R: Paolo Bonzini <pbonzini@redhat.com>
@@ -344,9 +344,8 @@ M: Alex Bennée <alex.bennee@linaro.org>
 S: Maintained
 F: tests/tcg/multiarch/
 
-Guest CPU Cores (KVM):
-----------------------
-
+Guest CPU Cores (KVM)
+---------------------
 Overall KVM CPUs
 M: Paolo Bonzini <pbonzini@redhat.com>
 L: kvm@vger.kernel.org
@@ -402,9 +401,8 @@ S: Supported
 F: target/i386/kvm.c
 F: scripts/kvm/vmxcap
 
-Guest CPU Cores (Xen):
-----------------------
-
+Guest CPU Cores (Xen)
+---------------------
 X86 Xen CPUs
 M: Stefano Stabellini <sstabellini@kernel.org>
 M: Anthony Perard <anthony.perard@citrix.com>
@@ -425,9 +423,8 @@ F: include/hw/block/dataplane/xen*
 F: include/hw/xen/
 F: include/sysemu/xen-mapcache.h
 
-Hosts:
-------
-
+Hosts
+-----
 LINUX
 M: Michael S. Tsirkin <mst@redhat.com>
 M: Cornelia Huck <cohuck@redhat.com>
@@ -464,6 +461,7 @@ X: qga/*win32*
 F: qemu.nsi
 
 Alpha Machines
+--------------
 M: Richard Henderson <rth@twiddle.net>
 S: Maintained
 F: hw/alpha/
@@ -1198,7 +1196,7 @@ F: hw/s390x/s390-pci*
 L: qemu-s390x@nongnu.org
 
 UniCore32 Machines
--------------
+------------------
 PKUnity-3 SoC initramfs-with-busybox
 M: Guan Xuetao <gxt@mprc.pku.edu.cn>
 S: Maintained
