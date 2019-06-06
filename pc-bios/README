@@ -55,9 +55,11 @@
   variable store templates built from the TianoCore community's EFI Development
   Kit II project
   <https://github.com/tianocore/tianocore.github.io/wiki/EDK-II>. The images
-  were built at git tag "edk2-stable201903". The firmware binaries bundle parts
-  of the OpenSSL project, at git tag "OpenSSL_1_1_0j" (the OpenSSL tag is a
-  function of the edk2 tag). Licensing information is given in
-  "edk2-licenses.txt". The image files are described by the JSON documents in
-  the "pc-bios/descriptors" directory, which conform to the
-  "docs/interop/firmware.json" schema.
+  were built at git tag "edk2-stable201905". The firmware binaries bundle parts
+  of the OpenSSL project, at git tag "OpenSSL_1_1_1b" (the OpenSSL tag is a
+  function of the edk2 tag). Parts of the Berkeley SoftFloat library are
+  bundled as well, at Release 3e plus a subsequent typo fix (commit
+  b64af41c3276f97f0e181920400ee056b9c88037), as an OpenSSL dependency on 32-bit
+  ARM. Licensing information is given in "edk2-licenses.txt". The image files
+  are described by the JSON documents in the "pc-bios/descriptors" directory,
+  which conform to the "docs/interop/firmware.json" schema.
