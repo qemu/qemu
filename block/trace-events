@@ -53,7 +53,7 @@ qmp_block_job_resume(void *job) "job %p"
 qmp_block_job_complete(void *job) "job %p"
 qmp_block_job_finalize(void *job) "job %p"
 qmp_block_job_dismiss(void *job) "job %p"
-qmp_block_stream(void *bs, void *job) "bs %p job %p"
+qmp_block_stream(void *bs) "bs %p"
 
 # file-posix.c
 # file-win32.c

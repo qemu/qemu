@@ -122,8 +122,9 @@ static void test_job_ids(void)
     /* This one is valid */
     job[0] = do_test_id(blk[0], "id0", true);
 
-    /* We cannot have two jobs in the same BDS */
-    do_test_id(blk[0], "id1", false);
+    /* We can have two jobs in the same BDS */
+    job[1] = do_test_id(blk[0], "id1", true);
+    job_early_fail(&job[1]->job);
 
     /* Duplicate job IDs are not allowed */
     job[1] = do_test_id(blk[1], "id0", false);

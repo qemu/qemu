@@ -3905,7 +3905,6 @@ static void bdrv_close(BlockDriverState *bs)
     BdrvAioNotifier *ban, *ban_next;
     BdrvChild *child, *next;
 
-    assert(!bs->job);
     assert(!bs->refcnt);
 
     bdrv_drained_begin(bs); /* complete I/O */
@@ -4146,7 +4145,6 @@ out:
 
 static void bdrv_delete(BlockDriverState *bs)
 {
-    assert(!bs->job);
     assert(bdrv_op_blocker_is_empty(bs));
     assert(!bs->refcnt);
 

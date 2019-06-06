@@ -3260,7 +3260,7 @@ void qmp_block_stream(bool has_job_id, const char *job_id, const char *device,
         goto out;
     }
 
-    trace_qmp_block_stream(bs, bs->job);
+    trace_qmp_block_stream(bs);
 
 out:
     aio_context_release(aio_context);

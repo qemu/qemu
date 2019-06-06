@@ -812,9 +812,6 @@ struct BlockDriverState {
     /* operation blockers */
     QLIST_HEAD(, BdrvOpBlocker) op_blockers[BLOCK_OP_TYPE_MAX];
 
-    /* long-running background operation */
-    BlockJob *job;
-
     /* The node that this node inherited default options from (and a reopen on
      * which can affect this node by changing these defaults). This is always a
      * parent node of this node. */
