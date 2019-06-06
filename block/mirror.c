@@ -1482,7 +1482,8 @@ static BlockDriver bdrv_mirror_top = {
     .bdrv_child_perm            = bdrv_mirror_top_child_perm,
 };
 
-static void mirror_start_job(const char *job_id, BlockDriverState *bs,
+static BlockJob *mirror_start_job(
+                             const char *job_id, BlockDriverState *bs,
                              int creation_flags, BlockDriverState *target,
                              const char *replaces, int64_t speed,
                              uint32_t granularity, int64_t buf_size,
@@ -1514,7 +1515,7 @@ static void mirror_start_job(const char *job_id, BlockDriverState *bs,
 
     if (buf_size < 0) {
         error_setg(errp, "Invalid parameter 'buf-size'");
-        return;
+        return NULL;
     }
 
     if (buf_size == 0) {
@@ -1523,7 +1524,7 @@ static void mirror_start_job(const char *job_id, BlockDriverState *bs,
 
     if (bs == target) {
         error_setg(errp, "Can't mirror node into itself");
-        return;
+        return NULL;
     }
 
     /* In the case of active commit, add dummy driver to provide consistent
@@ -1532,7 +1533,7 @@ static void mirror_start_job(const char *job_id, BlockDriverState *bs,
     mirror_top_bs = bdrv_new_open_driver(&bdrv_mirror_top, filter_node_name,
                                          BDRV_O_RDWR, errp);
     if (mirror_top_bs == NULL) {
-        return;
+        return NULL;
     }
     if (!filter_node_name) {
         mirror_top_bs->implicit = true;
@@ -1554,7 +1555,7 @@ static void mirror_start_job(const char *job_id, BlockDriverState *bs,
     if (local_err) {
         bdrv_unref(mirror_top_bs);
         error_propagate(errp, local_err);
-        return;
+        return NULL;
     }
 
     /* Make sure that the source is not resized while the job is running */
@@ -1662,7 +1663,8 @@ static void mirror_start_job(const char *job_id, BlockDriverState *bs,
 
     trace_mirror_start(bs, s, opaque);
     job_start(&s->common.job);
-    return;
+
+    return &s->common;
 
 fail:
     if (s) {
@@ -1684,6 +1686,8 @@ fail:
     bdrv_replace_node(mirror_top_bs, backing_bs(mirror_top_bs), &error_abort);
 
     bdrv_unref(mirror_top_bs);
+
+    return NULL;
 }
 
 void mirror_start(const char *job_id, BlockDriverState *bs,
@@ -1712,25 +1716,27 @@ void mirror_start(const char *job_id, BlockDriverState *bs,
                      filter_node_name, true, copy_mode, errp);
 }
 
-void commit_active_start(const char *job_id, BlockDriverState *bs,
-                         BlockDriverState *base, int creation_flags,
-                         int64_t speed, BlockdevOnError on_error,
-                         const char *filter_node_name,
-                         BlockCompletionFunc *cb, void *opaque,
-                         bool auto_complete, Error **errp)
+BlockJob *commit_active_start(const char *job_id, BlockDriverState *bs,
+                              BlockDriverState *base, int creation_flags,
+                              int64_t speed, BlockdevOnError on_error,
+                              const char *filter_node_name,
+                              BlockCompletionFunc *cb, void *opaque,
+                              bool auto_complete, Error **errp)
 {
     bool base_read_only;
     Error *local_err = NULL;
+    BlockJob *ret;
 
     base_read_only = bdrv_is_read_only(base);
 
     if (base_read_only) {
         if (bdrv_reopen_set_read_only(base, false, errp) < 0) {
-            return;
+            return NULL;
         }
     }
 
-    mirror_start_job(job_id, bs, creation_flags, base, NULL, speed, 0, 0,
+    ret = mirror_start_job(
+                     job_id, bs, creation_flags, base, NULL, speed, 0, 0,
                      MIRROR_LEAVE_BACKING_CHAIN,
                      on_error, on_error, true, cb, opaque,
                      &commit_active_job_driver, false, base, auto_complete,
@@ -1741,7 +1747,7 @@ void commit_active_start(const char *job_id, BlockDriverState *bs,
         goto error_restore_flags;
     }
 
-    return;
+    return ret;
 
 error_restore_flags:
     /* ignore error and errp for bdrv_reopen, because we want to propagate
@@ -1749,5 +1755,5 @@ error_restore_flags:
     if (base_read_only) {
         bdrv_reopen_set_read_only(base, true, NULL);
     }
-    return;
+    return NULL;
 }
