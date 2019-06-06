@@ -140,22 +140,21 @@ void override_max_devs(BlockInterfaceType type, int max_devs)
 void blockdev_mark_auto_del(BlockBackend *blk)
 {
     DriveInfo *dinfo = blk_legacy_dinfo(blk);
-    BlockDriverState *bs = blk_bs(blk);
-    AioContext *aio_context;
+    BlockJob *job;
 
     if (!dinfo) {
         return;
     }
 
-    if (bs) {
-        aio_context = bdrv_get_aio_context(bs);
-        aio_context_acquire(aio_context);
+    for (job = block_job_next(NULL); job; job = block_job_next(job)) {
+        if (block_job_has_bdrv(job, blk_bs(blk))) {
+            AioContext *aio_context = job->job.aio_context;
+            aio_context_acquire(aio_context);
 
-        if (bs->job) {
-            job_cancel(&bs->job->job, false);
+            job_cancel(&job->job, false);
+
+            aio_context_release(aio_context);
         }
-
-        aio_context_release(aio_context);
     }
 
     dinfo->auto_del = 1;
