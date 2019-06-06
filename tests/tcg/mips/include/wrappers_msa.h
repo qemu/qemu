@@ -23,6 +23,54 @@
 #define WRAPPERS_MSA_H
 
 
+#define RESET_MSA_REGISTER(wi)                                         \
+   __asm__ volatile (                                                  \
+      "xor.v $" #wi ", $" #wi ", $" #wi "\n\t"                         \
+      :                                                                \
+      :                                                                \
+      :                                                                \
+   )
+
+
+static inline void reset_msa_registers()
+{
+
+   RESET_MSA_REGISTER(w0);
+   RESET_MSA_REGISTER(w1);
+   RESET_MSA_REGISTER(w2);
+   RESET_MSA_REGISTER(w3);
+   RESET_MSA_REGISTER(w4);
+   RESET_MSA_REGISTER(w5);
+   RESET_MSA_REGISTER(w6);
+   RESET_MSA_REGISTER(w7);
+   RESET_MSA_REGISTER(w8);
+   RESET_MSA_REGISTER(w9);
+   RESET_MSA_REGISTER(w10);
+   RESET_MSA_REGISTER(w11);
+   RESET_MSA_REGISTER(w12);
+   RESET_MSA_REGISTER(w13);
+   RESET_MSA_REGISTER(w14);
+   RESET_MSA_REGISTER(w15);
+   RESET_MSA_REGISTER(w16);
+   RESET_MSA_REGISTER(w17);
+   RESET_MSA_REGISTER(w18);
+   RESET_MSA_REGISTER(w19);
+   RESET_MSA_REGISTER(w20);
+   RESET_MSA_REGISTER(w21);
+   RESET_MSA_REGISTER(w22);
+   RESET_MSA_REGISTER(w23);
+   RESET_MSA_REGISTER(w24);
+   RESET_MSA_REGISTER(w25);
+   RESET_MSA_REGISTER(w26);
+   RESET_MSA_REGISTER(w27);
+   RESET_MSA_REGISTER(w28);
+   RESET_MSA_REGISTER(w29);
+   RESET_MSA_REGISTER(w30);
+   RESET_MSA_REGISTER(w31);
+
+}
+
+
 #define DO_MSA__WD__WS(suffix, mnemonic)                               \
 static inline void do_msa_##suffix(const void *input,                  \
                                    const void *output)                 \

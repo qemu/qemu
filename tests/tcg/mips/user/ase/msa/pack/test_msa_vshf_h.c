@@ -41,7 +41,7 @@ int32_t main(void)
 
     uint64_t b128_result[TEST_COUNT_TOTAL][2];
     uint64_t b128_expect[TEST_COUNT_TOTAL][2] = {
-        { 0x0000000000000000ULL, 0x0000000000000000ULL, },    /*   0  */
+        { 0xffffffffffffffffULL, 0xffffffffffffffffULL, },    /*   0  */
         { 0x0000000000000000ULL, 0x0000000000000000ULL, },
         { 0xaaaaaaaaaaaaaaaaULL, 0xaaaaaaaaaaaaaaaaULL, },
         { 0x0000000000000000ULL, 0x0000000000000000ULL, },
@@ -122,6 +122,8 @@ int32_t main(void)
         { 0x8b808b808b808b80ULL, 0x8b808b808b808b80ULL, },
         { 0x0000000000000000ULL, 0x0000000000000000ULL, },
     };
+
+    reset_msa_registers();
 
     gettimeofday(&start, NULL);
 
