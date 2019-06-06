@@ -120,6 +120,24 @@ class QAPIDoc(object):
         def connect(self, member):
             self.member = member
 
+    class DocPart:
+        """
+        Describes which part of the documentation we're parsing right now.
+
+        Expression documentation blocks consist of
+        * a BODY part: first line naming the expression, plus an
+          optional overview
+        * an ARGS part: description of each argument (for commands and
+          events) or member (for structs, unions and alternates),
+        * a VARIOUS part: optional tagged sections.
+
+        Free-form documentation blocks consist only of a BODY part.
+        """
+        # TODO Make it a subclass of Enum when Python 2 support is removed
+        BODY = 1
+        ARGS = 2
+        VARIOUS = 3
+
     def __init__(self, parser, info):
         # self._parser is used to report errors with QAPIParseError.  The
         # resulting error position depends on the state of the parser.
@@ -135,6 +153,7 @@ class QAPIDoc(object):
         self.sections = []
         # the current section
         self._section = self.body
+        self._part = QAPIDoc.DocPart.BODY
 
     def has_section(self, name):
         """Return True if we have a section with this name."""
@@ -144,7 +163,27 @@ class QAPIDoc(object):
         return False
 
     def append(self, line):
-        """Parse a comment line and add it to the documentation."""
+        """
+        Parse a comment line and add it to the documentation.
+
+        The way that the line is dealt with depends on which part of
+        the documentation we're parsing right now:
+
+        BODY means that we're ready to process free-form text into
+        self.body.  A symbol name is only allowed if no other text was
+        parsed yet.  It is interpreted as the symbol name that
+        describes the currently documented object.  On getting the
+        second symbol name, we proceed to ARGS.
+
+        ARGS means that we're parsing the arguments section.  Any
+        symbol name is interpreted as an argument and an ArgSection is
+        created for it.
+
+        VARIOUS is the final part where free-form sections may appear.
+        This includes named sections such as "Return:" as well as
+        unnamed paragraphs.  Symbols are not allowed any more in this
+        part.
+        """
         line = line[1:]
         if not line:
             self._append_freeform(line)
@@ -154,36 +193,84 @@ class QAPIDoc(object):
             raise QAPIParseError(self._parser, "Missing space after #")
         line = line[1:]
 
+        if self._part == QAPIDoc.DocPart.BODY:
+            self._append_body_line(line)
+        elif self._part == QAPIDoc.DocPart.ARGS:
+            self._append_args_line(line)
+        elif self._part == QAPIDoc.DocPart.VARIOUS:
+            self._append_various_line(line)
+        else:
+            assert False
+
+    def end_comment(self):
+        self._end_section()
+
+    @staticmethod
+    def _is_section_tag(name):
+        return name in ('Returns:', 'Since:',
+                        # those are often singular or plural
+                        'Note:', 'Notes:',
+                        'Example:', 'Examples:',
+                        'TODO:')
+
+    def _append_body_line(self, line):
+        name = line.split(' ', 1)[0]
         # FIXME not nice: things like '#  @foo:' and '# @foo: ' aren't
         # recognized, and get silently treated as ordinary text
-        if self.symbol:
-            self._append_symbol_line(line)
-        elif not self.body.text and line.startswith('@'):
+        if not self.symbol and not self.body.text and line.startswith('@'):
             if not line.endswith(':'):
                 raise QAPIParseError(self._parser, "Line should end with :")
             self.symbol = line[1:-1]
             # FIXME invalid names other than the empty string aren't flagged
             if not self.symbol:
                 raise QAPIParseError(self._parser, "Invalid name")
+        elif self.symbol:
+            # We already know that we document some symbol
+            if name.startswith('@') and name.endswith(':'):
+                self._part = QAPIDoc.DocPart.ARGS
+                self._append_args_line(line)
+            elif self._is_section_tag(name):
+                self._part = QAPIDoc.DocPart.VARIOUS
+                self._append_various_line(line)
+            else:
+                self._append_freeform(line.strip())
         else:
-            self._append_freeform(line)
+            # This is free-form documentation without a symbol
+            self._append_freeform(line.strip())
 
-    def end_comment(self):
-        self._end_section()
-
-    def _append_symbol_line(self, line):
+    def _append_args_line(self, line):
         name = line.split(' ', 1)[0]
 
         if name.startswith('@') and name.endswith(':'):
             line = line[len(name)+1:]
             self._start_args_section(name[1:-1])
-        elif name in ('Returns:', 'Since:',
-                      # those are often singular or plural
-                      'Note:', 'Notes:',
-                      'Example:', 'Examples:',
-                      'TODO:'):
+        elif self._is_section_tag(name):
+            self._part = QAPIDoc.DocPart.VARIOUS
+            self._append_various_line(line)
+            return
+        elif (self._section.text.endswith('\n\n')
+              and line and not line[0].isspace()):
+            self._start_section()
+            self._part = QAPIDoc.DocPart.VARIOUS
+            self._append_various_line(line)
+            return
+
+        self._append_freeform(line.strip())
+
+    def _append_various_line(self, line):
+        name = line.split(' ', 1)[0]
+
+        if name.startswith('@') and name.endswith(':'):
+            raise QAPIParseError(self._parser,
+                                 "'%s' can't follow '%s' section"
+                                 % (name, self.sections[0].name))
+        elif self._is_section_tag(name):
             line = line[len(name)+1:]
             self._start_section(name[:-1])
+
+        if (not self._section.name or
+                not self._section.name.startswith('Example')):
+            line = line.strip()
 
         self._append_freeform(line)
 
@@ -194,10 +281,7 @@ class QAPIDoc(object):
         if name in self.args:
             raise QAPIParseError(self._parser,
                                  "'%s' parameter name duplicated" % name)
-        if self.sections:
-            raise QAPIParseError(self._parser,
-                                 "'@%s:' can't follow '%s' section"
-                                 % (name, self.sections[0].name))
+        assert not self.sections
         self._end_section()
         self._section = QAPIDoc.ArgSection(name)
         self.args[name] = self._section
@@ -219,13 +303,6 @@ class QAPIDoc(object):
             self._section = None
 
     def _append_freeform(self, line):
-        in_arg = isinstance(self._section, QAPIDoc.ArgSection)
-        if (in_arg and self._section.text.endswith('\n\n')
-                and line and not line[0].isspace()):
-            self._start_section()
-        if (in_arg or not self._section.name
-                or not self._section.name.startswith('Example')):
-            line = line.strip()
         match = re.match(r'(@\S+:)', line)
         if match:
             raise QAPIParseError(self._parser,
