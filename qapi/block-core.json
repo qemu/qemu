@@ -2859,6 +2859,15 @@
 #                         file is large, do not use in production.
 #                         (default: off) (since: 3.0)
 #
+# Features:
+# @dynamic-auto-read-only: If present, enabled auto-read-only means that the
+#                          driver will open the image read-only at first,
+#                          dynamically reopen the image file read-write when
+#                          the first writer is attached to the node and reopen
+#                          read-only when the last writer is detached. This
+#                          allows giving QEMU write permissions only on demand
+#                          when an operation actually needs write access.
+#
 # Since: 2.9
 ##
 { 'struct': 'BlockdevOptionsFile',
@@ -2868,7 +2877,9 @@
             '*aio': 'BlockdevAioOptions',
 	    '*drop-cache': {'type': 'bool',
 	                    'if': 'defined(CONFIG_LINUX)'},
-            '*x-check-cache-dropped': 'bool' } }
+            '*x-check-cache-dropped': 'bool' },
+  'features': [ { 'name': 'dynamic-auto-read-only',
+                  'if': 'defined(CONFIG_POSIX)' } ] }
 
 ##
 # @BlockdevOptionsNull:
