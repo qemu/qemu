@@ -61,13 +61,28 @@ static uint8_t exception_mask(uint8_t ring)
     }
 }
 
+static qemu_irq xive_tctx_output(XiveTCTX *tctx, uint8_t ring)
+{
+        switch (ring) {
+        case TM_QW0_USER:
+                return 0; /* Not supported */
+        case TM_QW1_OS:
+                return tctx->os_output;
+        case TM_QW2_HV_POOL:
+        case TM_QW3_HV_PHYS:
+                return tctx->hv_output;
+        default:
+                return 0;
+        }
+}
+
 static uint64_t xive_tctx_accept(XiveTCTX *tctx, uint8_t ring)
 {
     uint8_t *regs = &tctx->regs[ring];
     uint8_t nsr = regs[TM_NSR];
     uint8_t mask = exception_mask(ring);
 
-    qemu_irq_lower(tctx->output);
+    qemu_irq_lower(xive_tctx_output(tctx, ring));
 
     if (regs[TM_NSR] & mask) {
         uint8_t cppr = regs[TM_PIPR];
@@ -100,7 +115,7 @@ static void xive_tctx_notify(XiveTCTX *tctx, uint8_t ring)
         default:
             g_assert_not_reached();
         }
-        qemu_irq_raise(tctx->output);
+        qemu_irq_raise(xive_tctx_output(tctx, ring));
     }
 }
 
@@ -556,7 +571,8 @@ static void xive_tctx_realize(DeviceState *dev, Error **errp)
     env = &cpu->env;
     switch (PPC_INPUT(env)) {
     case PPC_FLAGS_INPUT_POWER9:
-        tctx->output = env->irq_inputs[POWER9_INPUT_INT];
+        tctx->hv_output = env->irq_inputs[POWER9_INPUT_HINT];
+        tctx->os_output = env->irq_inputs[POWER9_INPUT_INT];
         break;
 
     default:
