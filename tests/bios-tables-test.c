@@ -342,13 +342,29 @@ try_again:
     return exp_tables;
 }
 
+static bool test_acpi_find_diff_allowed(AcpiSdtTable *sdt)
+{
+    const gchar *allowed_diff_file[] = {
+#include "bios-tables-test-allowed-diff.h"
+        NULL
+    };
+    const gchar **f;
+
+    for (f = allowed_diff_file; *f; ++f) {
+        if (!g_strcmp0(sdt->aml_file, *f)) {
+            return true;
+        }
+    }
+    return false;
+}
+
 /* test the list of tables in @data->tables against reference tables */
 static void test_acpi_asl(test_data *data)
 {
     int i;
     AcpiSdtTable *sdt, *exp_sdt;
     test_data exp_data;
-    gboolean exp_err, err;
+    gboolean exp_err, err, all_tables_match = true;
 
     memset(&exp_data, 0, sizeof(exp_data));
     exp_data.tables = load_expected_aml(data);
@@ -358,6 +374,20 @@ static void test_acpi_asl(test_data *data)
 
         sdt = &g_array_index(data->tables, AcpiSdtTable, i);
         exp_sdt = &g_array_index(exp_data.tables, AcpiSdtTable, i);
+
+        if (sdt->aml_len == exp_sdt->aml_len &&
+            !memcmp(sdt->aml, exp_sdt->aml, sdt->aml_len)) {
+            /* Identical table binaries: no need to disassemble. */
+            continue;
+        }
+
+        fprintf(stderr,
+                "acpi-test: Warning! %.4s binary file mismatch. "
+                "Actual [aml:%s], Expected [aml:%s].\n",
+                exp_sdt->aml, sdt->aml_file, exp_sdt->aml_file);
+
+        all_tables_match = all_tables_match &&
+            test_acpi_find_diff_allowed(exp_sdt);
 
         err = load_asl(data->tables, sdt);
         asl = normalize_asl(sdt->asl);
@@ -396,11 +426,12 @@ static void test_acpi_asl(test_data *data)
                             "see ASL difference.");
                     }
                 }
-          }
+            }
         }
         g_string_free(asl, true);
         g_string_free(exp_asl, true);
     }
+    g_assert(all_tables_match);
 
     free_test_data(&exp_data);
 }
@@ -813,6 +844,22 @@ static void test_acpi_piix4_tcg_dimm_pxm(void)
     test_acpi_tcg_dimm_pxm(MACHINE_PC);
 }
 
+static void test_acpi_virt_tcg(void)
+{
+    test_data data = {
+        .machine = "virt",
+        .accel = "tcg",
+        .uefi_fl1 = "pc-bios/edk2-aarch64-code.fd",
+        .uefi_fl2 = "pc-bios/edk2-arm-vars.fd",
+        .cd = "tests/data/uefi-boot-images/bios-tables-test.aarch64.iso.qcow2",
+        .ram_start = 0x40000000ULL,
+        .scan_len = 128ULL * 1024 * 1024,
+    };
+
+    test_acpi_one("-cpu cortex-a57", &data);
+    free_test_data(&data);
+}
+
 int main(int argc, char *argv[])
 {
     const char *arch = qtest_get_arch();
@@ -841,6 +888,8 @@ int main(int argc, char *argv[])
         qtest_add_func("acpi/q35/numamem", test_acpi_q35_tcg_numamem);
         qtest_add_func("acpi/piix4/dimmpxm", test_acpi_piix4_tcg_dimm_pxm);
         qtest_add_func("acpi/q35/dimmpxm", test_acpi_q35_tcg_dimm_pxm);
+    } else if (strcmp(arch, "aarch64") == 0) {
+        qtest_add_func("acpi/virt", test_acpi_virt_tcg);
     }
     ret = g_test_run();
     boot_sector_cleanup(disk);

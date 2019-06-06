@@ -19,6 +19,7 @@ config ARM_VIRT
     select PLATFORM_BUS
     select SMBIOS
     select VIRTIO_MMIO
+    select ACPI_PCI
 
 config CHEETAH
     bool

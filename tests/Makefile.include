@@ -264,6 +264,10 @@ check-qtest-arm-y += tests/hexloader-test$(EXESUF)
 check-qtest-aarch64-y = tests/numa-test$(EXESUF)
 check-qtest-aarch64-y += tests/boot-serial-test$(EXESUF)
 check-qtest-aarch64-y += tests/migration-test$(EXESUF)
+# TODO: once aarch64 TCG is fixed on ARM 32 bit host, make test unconditional
+ifneq ($(ARCH),arm)
+check-qtest-aarch64-y += tests/bios-tables-test$(EXESUF)
+endif
 
 check-qtest-microblazeel-y += $(check-qtest-microblaze-y)
 
