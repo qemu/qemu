@@ -17,7 +17,9 @@ toolchain = $(shell source ./edk2-funcs.sh && qemu_edk2_get_toolchain $(1))
 
 licenses := \
 	edk2/License.txt \
+	edk2/License-History.txt \
 	edk2/OvmfPkg/License.txt \
+	edk2/ArmPkg/Library/ArmSoftFloatLib/berkeley-softfloat-3/COPYING.txt \
 	edk2/CryptoPkg/Library/OpensslLib/openssl/LICENSE
 
 # The "edk2-arm-vars.fd" varstore template is suitable for aarch64 as well.
