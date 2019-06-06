@@ -143,6 +143,7 @@ void qmp_x_exit_preconfig(Error **errp)
 void qmp_cont(Error **errp)
 {
     BlockBackend *blk;
+    BlockJob *job;
     Error *local_err = NULL;
 
     /* if there is a dump in background, we should wait until the dump
@@ -164,6 +165,10 @@ void qmp_cont(Error **errp)
 
     for (blk = blk_next(NULL); blk; blk = blk_next(blk)) {
         blk_iostatus_reset(blk);
+    }
+
+    for (job = block_job_next(NULL); job; job = block_job_next(job)) {
+        block_job_iostatus_reset(job);
     }
 
     /* Continuing after completed migration. Images have been inactivated to
