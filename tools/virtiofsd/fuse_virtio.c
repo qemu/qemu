@@ -833,3 +833,10 @@ int virtio_session_mount(struct fuse_session *se)
 
     return 0;
 }
+
+void virtio_session_close(struct fuse_session *se)
+{
+    close(se->vu_socketfd);
+    free(se->virtio_dev);
+    se->virtio_dev = NULL;
+}

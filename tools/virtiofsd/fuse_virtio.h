@@ -19,7 +19,7 @@
 struct fuse_session;
 
 int virtio_session_mount(struct fuse_session *se);
-
+void virtio_session_close(struct fuse_session *se);
 int virtio_loop(struct fuse_session *se);
 
 
