@@ -1,0 +1,1 @@
+tests/qapi-schema/features-bad-type.json:1: Feature of struct FeatureStruct0 requires a string name
