@@ -1318,7 +1318,7 @@ load_helper(CPUArchState *env, target_ulong addr, TCGMemOpIdx oi,
         uint64_t r1, r2;
         unsigned shift;
     do_unaligned_access:
-        addr1 = addr & ~(size - 1);
+        addr1 = addr & ~((target_ulong)size - 1);
         addr2 = addr1 + size;
         r1 = full_load(env, addr1, oi, retaddr);
         r2 = full_load(env, addr2, oi, retaddr);
