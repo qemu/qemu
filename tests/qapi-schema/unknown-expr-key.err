@@ -1,2 +1,2 @@
 tests/qapi-schema/unknown-expr-key.json:2: Unknown keys 'bogus', 'phony' in struct 'bar'
-Valid keys are 'base', 'data', 'if', 'struct'.
+Valid keys are 'base', 'data', 'features', 'if', 'struct'.

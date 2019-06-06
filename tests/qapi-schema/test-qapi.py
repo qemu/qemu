@@ -38,7 +38,8 @@ class QAPISchemaTestVisitor(QAPISchemaVisitor):
         print('array %s %s' % (name, element_type.name))
         self._print_if(ifcond)
 
-    def visit_object_type(self, name, info, ifcond, base, members, variants):
+    def visit_object_type(self, name, info, ifcond, base, members, variants,
+                          features):
         print('object %s' % name)
         if base:
             print('    base %s' % base.name)

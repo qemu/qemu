@@ -886,11 +886,25 @@ def check_enum(expr, info):
 def check_struct(expr, info):
     name = expr['struct']
     members = expr['data']
+    features = expr.get('features')
 
     check_type(info, "'data' for struct '%s'" % name, members,
                allow_dict=True, allow_optional=True)
     check_type(info, "'base' for struct '%s'" % name, expr.get('base'),
                allow_metas=['struct'])
+
+    if features:
+        if not isinstance(features, list):
+            raise QAPISemError(info,
+                               "Struct '%s' requires an array for 'features'" %
+                               name)
+        for f in features:
+            assert isinstance(f, dict)
+            check_known_keys(info, "feature of struct %s" % name, f,
+                             ['name'], ['if'])
+
+            check_if(f, info)
+            check_name(info, "Feature of struct %s" % name, f['name'])
 
 
 def check_known_keys(info, source, keys, required, optional):
@@ -948,6 +962,12 @@ def normalize_members(members):
             members[key] = {'type': arg}
 
 
+def normalize_features(features):
+    if isinstance(features, list):
+        features[:] = [f if isinstance(f, dict) else {'name': f}
+                       for f in features]
+
+
 def check_exprs(exprs):
     global all_names
 
@@ -986,8 +1006,10 @@ def check_exprs(exprs):
             normalize_members(expr['data'])
         elif 'struct' in expr:
             meta = 'struct'
-            check_keys(expr_elem, 'struct', ['data'], ['base', 'if'])
+            check_keys(expr_elem, 'struct', ['data'],
+                       ['base', 'if', 'features'])
             normalize_members(expr['data'])
+            normalize_features(expr.get('features'))
             struct_types[expr[meta]] = expr
         elif 'command' in expr:
             meta = 'command'
@@ -1126,10 +1148,12 @@ class QAPISchemaVisitor(object):
     def visit_array_type(self, name, info, ifcond, element_type):
         pass
 
-    def visit_object_type(self, name, info, ifcond, base, members, variants):
+    def visit_object_type(self, name, info, ifcond, base, members, variants,
+                          features):
         pass
 
-    def visit_object_type_flat(self, name, info, ifcond, members, variants):
+    def visit_object_type_flat(self, name, info, ifcond, members, variants,
+                               features):
         pass
 
     def visit_alternate_type(self, name, info, ifcond, variants):
@@ -1290,7 +1314,7 @@ class QAPISchemaArrayType(QAPISchemaType):
 
 class QAPISchemaObjectType(QAPISchemaType):
     def __init__(self, name, info, doc, ifcond,
-                 base, local_members, variants):
+                 base, local_members, variants, features):
         # struct has local_members, optional base, and no variants
         # flat union has base, variants, and no local_members
         # simple union has local_members, variants, and no base
@@ -1302,11 +1326,15 @@ class QAPISchemaObjectType(QAPISchemaType):
         if variants is not None:
             assert isinstance(variants, QAPISchemaObjectTypeVariants)
             variants.set_owner(name)
+        for f in features:
+            assert isinstance(f, QAPISchemaFeature)
+            f.set_owner(name)
         self._base_name = base
         self.base = None
         self.local_members = local_members
         self.variants = variants
         self.members = None
+        self.features = features
 
     def check(self, schema):
         QAPISchemaType.check(self, schema)
@@ -1332,6 +1360,12 @@ class QAPISchemaObjectType(QAPISchemaType):
             self.variants.check(schema, seen)
             assert self.variants.tag_member in self.members
             self.variants.check_clash(self.info, seen)
+
+        # Features are in a name space separate from members
+        seen = {}
+        for f in self.features:
+            f.check_clash(self.info, seen)
+
         if self.doc:
             self.doc.check()
 
@@ -1368,12 +1402,15 @@ class QAPISchemaObjectType(QAPISchemaType):
 
     def visit(self, visitor):
         visitor.visit_object_type(self.name, self.info, self.ifcond,
-                                  self.base, self.local_members, self.variants)
+                                  self.base, self.local_members, self.variants,
+                                  self.features)
         visitor.visit_object_type_flat(self.name, self.info, self.ifcond,
-                                       self.members, self.variants)
+                                       self.members, self.variants,
+                                       self.features)
 
 
 class QAPISchemaMember(object):
+    """ Represents object members, enum members and features """
     role = 'member'
 
     def __init__(self, name, ifcond=None):
@@ -1417,6 +1454,10 @@ class QAPISchemaMember(object):
 
     def describe(self):
         return "'%s' %s" % (self.name, self._pretty_owner())
+
+
+class QAPISchemaFeature(QAPISchemaMember):
+    role = 'feature'
 
 
 class QAPISchemaObjectTypeMember(QAPISchemaMember):
@@ -1675,7 +1716,7 @@ class QAPISchema(object):
                   ('null',   'null',    'QNull' + pointer_suffix)]:
             self._def_builtin_type(*t)
         self.the_empty_object_type = QAPISchemaObjectType(
-            'q_empty', None, None, None, None, [], None)
+            'q_empty', None, None, None, None, [], None, [])
         self._def_entity(self.the_empty_object_type)
 
         qtypes = ['none', 'qnull', 'qnum', 'qstring', 'qdict', 'qlist',
@@ -1684,6 +1725,9 @@ class QAPISchema(object):
 
         self._def_entity(QAPISchemaEnumType('QType', None, None, None,
                                             qtype_values, 'QTYPE'))
+
+    def _make_features(self, features):
+        return [QAPISchemaFeature(f['name'], f.get('if')) for f in features]
 
     def _make_enum_members(self, values):
         return [QAPISchemaMember(v['name'], v.get('if')) for v in values]
@@ -1721,7 +1765,7 @@ class QAPISchema(object):
             assert ifcond == typ._ifcond # pylint: disable=protected-access
         else:
             self._def_entity(QAPISchemaObjectType(name, info, doc, ifcond,
-                                                  None, members, None))
+                                                  None, members, None, []))
         return name
 
     def _def_enum_type(self, expr, info, doc):
@@ -1752,9 +1796,11 @@ class QAPISchema(object):
         base = expr.get('base')
         data = expr['data']
         ifcond = expr.get('if')
+        features = expr.get('features', [])
         self._def_entity(QAPISchemaObjectType(name, info, doc, ifcond, base,
                                               self._make_members(data, info),
-                                              None))
+                                              None,
+                                              self._make_features(features)))
 
     def _make_variant(self, case, typ, ifcond):
         return QAPISchemaObjectTypeVariant(case, typ, ifcond)
@@ -1795,7 +1841,7 @@ class QAPISchema(object):
             QAPISchemaObjectType(name, info, doc, ifcond, base, members,
                                  QAPISchemaObjectTypeVariants(tag_name,
                                                               tag_member,
-                                                              variants)))
+                                                              variants), []))
 
     def _def_alternate_type(self, expr, info, doc):
         name = expr['alternate']

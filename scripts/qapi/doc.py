@@ -220,7 +220,8 @@ class QAPISchemaGenDocVisitor(qapi.common.QAPISchemaVisitor):
                                body=texi_entity(doc, 'Values', ifcond,
                                                 member_func=texi_enum_value)))
 
-    def visit_object_type(self, name, info, ifcond, base, members, variants):
+    def visit_object_type(self, name, info, ifcond, base, members, variants,
+                          features):
         doc = self.cur_doc
         if base and base.is_implicit():
             base = None

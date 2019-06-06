@@ -719,6 +719,34 @@ any non-empty complex type (struct, union, or alternate), and a
 pointer to that QAPI type is passed as a single argument.
 
 
+=== Features ===
+
+Sometimes, the behaviour of QEMU changes compatibly, but without a
+change in the QMP syntax (usually by allowing values or operations that
+previously resulted in an error). QMP clients may still need to know
+whether the extension is available.
+
+For this purpose, a list of features can be specified for a struct type.
+This is exposed to the client as a list of string, where each string
+signals that this build of QEMU shows a certain behaviour.
+
+In the schema, features can be specified as simple strings, for example:
+
+{ 'struct': 'TestType',
+  'data': { 'number': 'int' },
+  'features': [ 'allow-negative-numbers' ] }
+
+Another option is to specify features as dictionaries, where the key
+'name' specifies the feature string to be exposed to clients:
+
+{ 'struct': 'TestType',
+  'data': { 'number': 'int' },
+  'features': [ { 'name': 'allow-negative-numbers' } ] }
+
+This expanded form is necessary if you want to make the feature
+conditional (see below in "Configuring the schema").
+
+
 === Downstream extensions ===
 
 QAPI schema names that are externally visible, say in the Client JSON
@@ -770,6 +798,16 @@ Example: a conditional 'bar' enum member.
 { 'enum': 'IfEnum', 'data':
   [ 'foo',
     { 'name' : 'bar', 'if': 'defined(IFCOND)' } ] }
+
+Similarly, features can be specified as a dictionary with a 'name' and
+an 'if' key.
+
+Example: a conditional 'allow-negative-numbers' feature
+
+{ 'struct': 'TestType',
+  'data': { 'number': 'int' },
+  'features': [ { 'name': 'allow-negative-numbers',
+                  'if' 'defined(IFCOND)' } ] }
 
 Please note that you are responsible to ensure that the C code will
 compile with an arbitrary combination of conditions, since the
