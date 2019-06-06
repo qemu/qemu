@@ -413,18 +413,13 @@ context.
 - default-configs/*.mak
 
 The files under default-configs/ control what emulated hardware is built
-into each QEMU system and userspace emulator targets. They merely
-contain a long list of config variable definitions. For example,
-default-configs/x86_64-softmmu.mak has:
+into each QEMU system and userspace emulator targets. They merely contain
+a list of config variable definitions like the machines that should be
+included. For example, default-configs/aarch64-softmmu.mak has:
 
-  include sound.mak
-  include usb.mak
-  CONFIG_QXL=$(CONFIG_SPICE)
-  CONFIG_VGA_ISA=y
-  CONFIG_VGA_CIRRUS=y
-  CONFIG_VMWARE_VGA=y
-  CONFIG_VIRTIO_VGA=y
-  ...snip...
+  include arm-softmmu.mak
+  CONFIG_XLNX_ZYNQMP_ARM=y
+  CONFIG_XLNX_VERSAL=y
 
 These files rarely need changing unless new devices / hardware need to
 be enabled for a particular system/userspace emulation target
