@@ -25,7 +25,8 @@
 #include "exec/cpu_ldst.h"
 #include "softfloat.h"
 
-/* Undefined offsets may be different on various FPU.
+/*
+ * Undefined offsets may be different on various FPU.
  * On 68040 they return 0.0 (floatx80_zero)
  */
 
@@ -611,7 +612,8 @@ void HELPER(fcos)(CPUM68KState *env, FPReg *res, FPReg *val)
 void HELPER(fsincos)(CPUM68KState *env, FPReg *res0, FPReg *res1, FPReg *val)
 {
     floatx80 a = val->d;
-    /* If res0 and res1 specify the same floating-point data register,
+    /*
+     * If res0 and res1 specify the same floating-point data register,
      * the sine result is stored in the register, and the cosine
      * result is discarded.
      */

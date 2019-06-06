@@ -31,7 +31,7 @@
 #define M68K_CPU_GET_CLASS(obj) \
     OBJECT_GET_CLASS(M68kCPUClass, (obj), TYPE_M68K_CPU)
 
-/**
+/*
  * M68kCPUClass:
  * @parent_realize: The parent class' realize handler.
  * @parent_reset: The parent class' reset handler.

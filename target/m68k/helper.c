@@ -965,9 +965,11 @@ void HELPER(set_sr)(CPUM68KState *env, uint32_t val)
 }
 
 /* MAC unit.  */
-/* FIXME: The MAC unit implementation is a bit of a mess.  Some helpers
-   take values,  others take register numbers and manipulate the contents
-   in-place.  */
+/*
+ * FIXME: The MAC unit implementation is a bit of a mess.  Some helpers
+ * take values,  others take register numbers and manipulate the contents
+ * in-place.
+ */
 void HELPER(mac_move)(CPUM68KState *env, uint32_t dest, uint32_t src)
 {
     uint32_t mask;
@@ -1047,9 +1049,11 @@ void HELPER(macsats)(CPUM68KState *env, uint32_t acc)
     if (env->macsr & MACSR_V) {
         env->macsr |= MACSR_PAV0 << acc;
         if (env->macsr & MACSR_OMC) {
-            /* The result is saturated to 32 bits, despite overflow occurring
-               at 48 bits.  Seems weird, but that's what the hardware docs
-               say.  */
+            /*
+             * The result is saturated to 32 bits, despite overflow occurring
+             * at 48 bits.  Seems weird, but that's what the hardware docs
+             * say.
+             */
             result = (result >> 63) ^ 0x7fffffff;
         }
     }

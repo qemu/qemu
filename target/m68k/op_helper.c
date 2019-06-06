@@ -494,10 +494,12 @@ bool m68k_cpu_exec_interrupt(CPUState *cs, int interrupt_request)
 
     if (interrupt_request & CPU_INTERRUPT_HARD
         && ((env->sr & SR_I) >> SR_I_SHIFT) < env->pending_level) {
-        /* Real hardware gets the interrupt vector via an IACK cycle
-           at this point.  Current emulated hardware doesn't rely on
-           this, so we provide/save the vector when the interrupt is
-           first signalled.  */
+        /*
+         * Real hardware gets the interrupt vector via an IACK cycle
+         * at this point.  Current emulated hardware doesn't rely on
+         * this, so we provide/save the vector when the interrupt is
+         * first signalled.
+         */
         cs->exception_index = env->pending_vector;
         do_interrupt_m68k_hardirq(env);
         return true;
@@ -537,7 +539,8 @@ void HELPER(divuw)(CPUM68KState *env, int destr, uint32_t den)
     env->cc_c = 0; /* always cleared, even if overflow */
     if (quot > 0xffff) {
         env->cc_v = -1;
-        /* real 68040 keeps N and unset Z on overflow,
+        /*
+         * real 68040 keeps N and unset Z on overflow,
          * whereas documentation says "undefined"
          */
         env->cc_z = 1;
@@ -564,7 +567,8 @@ void HELPER(divsw)(CPUM68KState *env, int destr, int32_t den)
     if (quot != (int16_t)quot) {
         env->cc_v = -1;
         /* nothing else is modified */
-        /* real 68040 keeps N and unset Z on overflow,
+        /*
+         * real 68040 keeps N and unset Z on overflow,
          * whereas documentation says "undefined"
          */
         env->cc_z = 1;
@@ -647,7 +651,8 @@ void HELPER(divull)(CPUM68KState *env, int numr, int regr, uint32_t den)
     env->cc_c = 0; /* always cleared, even if overflow */
     if (quot > 0xffffffffULL) {
         env->cc_v = -1;
-        /* real 68040 keeps N and unset Z on overflow,
+        /*
+         * real 68040 keeps N and unset Z on overflow,
          * whereas documentation says "undefined"
          */
         env->cc_z = 1;
@@ -681,7 +686,8 @@ void HELPER(divsll)(CPUM68KState *env, int numr, int regr, int32_t den)
     env->cc_c = 0; /* always cleared, even if overflow */
     if (quot != (int32_t)quot) {
         env->cc_v = -1;
-        /* real 68040 keeps N and unset Z on overflow,
+        /*
+         * real 68040 keeps N and unset Z on overflow,
          * whereas documentation says "undefined"
          */
         env->cc_z = 1;
@@ -838,14 +844,18 @@ static struct bf_data bf_prep(uint32_t addr, int32_t ofs, uint32_t len)
         addr -= 1;
     }
 
-    /* Compute the number of bytes required (minus one) to
-       satisfy the bitfield.  */
+    /*
+     * Compute the number of bytes required (minus one) to
+     * satisfy the bitfield.
+     */
     blen = (bofs + len - 1) / 8;
 
-    /* Canonicalize the bit offset for data loaded into a 64-bit big-endian
-       word.  For the cases where BLEN is not a power of 2, adjust ADDR so
-       that we can use the next power of two sized load without crossing a
-       page boundary, unless the field itself crosses the boundary.  */
+    /*
+     * Canonicalize the bit offset for data loaded into a 64-bit big-endian
+     * word.  For the cases where BLEN is not a power of 2, adjust ADDR so
+     * that we can use the next power of two sized load without crossing a
+     * page boundary, unless the field itself crosses the boundary.
+     */
     switch (blen) {
     case 0:
         bofs += 56;
@@ -937,8 +947,10 @@ uint64_t HELPER(bfextu_mem)(CPUM68KState *env, uint32_t addr,
     struct bf_data d = bf_prep(addr, ofs, len);
     uint64_t data = bf_load(env, d.addr, d.blen, ra);
 
-    /* Put CC_N at the top of the high word; put the zero-extended value
-       at the bottom of the low word.  */
+    /*
+     * Put CC_N at the top of the high word; put the zero-extended value
+     * at the bottom of the low word.
+     */
     data <<= d.bofs;
     data >>= 64 - d.len;
     data |= data << (64 - d.len);
@@ -1016,15 +1028,18 @@ uint64_t HELPER(bfffo_mem)(CPUM68KState *env, uint32_t addr,
     uint64_t n = (data & mask) << d.bofs;
     uint32_t ffo = helper_bfffo_reg(n >> 32, ofs, d.len);
 
-    /* Return FFO in the low word and N in the high word.
-       Note that because of MASK and the shift, the low word
-       is already zero.  */
+    /*
+     * Return FFO in the low word and N in the high word.
+     * Note that because of MASK and the shift, the low word
+     * is already zero.
+     */
     return n | ffo;
 }
 
 void HELPER(chk)(CPUM68KState *env, int32_t val, int32_t ub)
 {
-    /* From the specs:
+    /*
+     * From the specs:
      *   X: Not affected, C,V,Z: Undefined,
      *   N: Set if val < 0; cleared if val > ub, undefined otherwise
      * We implement here values found from a real MC68040:
@@ -1054,7 +1069,8 @@ void HELPER(chk)(CPUM68KState *env, int32_t val, int32_t ub)
 
 void HELPER(chk2)(CPUM68KState *env, int32_t val, int32_t lb, int32_t ub)
 {
-    /* From the specs:
+    /*
+     * From the specs:
      *   X: Not affected, N,V: Undefined,
      *   Z: Set if val is equal to lb or ub
      *   C: Set if val < lb or val > ub, cleared otherwise

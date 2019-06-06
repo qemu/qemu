@@ -41,8 +41,10 @@ int m68k_cpu_gdb_read_register(CPUState *cs, uint8_t *mem_buf, int n)
             return gdb_get_reg32(mem_buf, env->pc);
         }
     }
-    /* FP registers not included here because they vary between
-       ColdFire and m68k.  Use XML bits for these.  */
+    /*
+     * FP registers not included here because they vary between
+     * ColdFire and m68k.  Use XML bits for these.
+     */
     return 0;
 }
 

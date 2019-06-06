@@ -14,7 +14,8 @@
  * the Softfloat-2a license unless specifically indicated otherwise.
  */
 
-/* Portions of this work are licensed under the terms of the GNU GPL,
+/*
+ * Portions of this work are licensed under the terms of the GNU GPL,
  * version 2 or later. See the COPYING file in the top-level directory.
  */
 
@@ -41,10 +42,10 @@ static floatx80 propagateFloatx80NaNOneArg(floatx80 a, float_status *status)
     return a;
 }
 
-/*----------------------------------------------------------------------------
- | Returns the modulo remainder of the extended double-precision floating-point
- | value `a' with respect to the corresponding value `b'.
- *----------------------------------------------------------------------------*/
+/*
+ * Returns the modulo remainder of the extended double-precision floating-point
+ * value `a' with respect to the corresponding value `b'.
+ */
 
 floatx80 floatx80_mod(floatx80 a, floatx80 b, float_status *status)
 {
@@ -124,10 +125,10 @@ floatx80 floatx80_mod(floatx80 a, floatx80 b, float_status *status)
             80, zSign, bExp + expDiff, aSig0, aSig1, status);
 }
 
-/*----------------------------------------------------------------------------
- | Returns the mantissa of the extended double-precision floating-point
- | value `a'.
- *----------------------------------------------------------------------------*/
+/*
+ * Returns the mantissa of the extended double-precision floating-point
+ * value `a'.
+ */
 
 floatx80 floatx80_getman(floatx80 a, float_status *status)
 {
@@ -158,10 +159,10 @@ floatx80 floatx80_getman(floatx80 a, float_status *status)
                                 0x3FFF, aSig, 0, status);
 }
 
-/*----------------------------------------------------------------------------
- | Returns the exponent of the extended double-precision floating-point
- | value `a' as an extended double-precision value.
- *----------------------------------------------------------------------------*/
+/*
+ * Returns the exponent of the extended double-precision floating-point
+ * value `a' as an extended double-precision value.
+ */
 
 floatx80 floatx80_getexp(floatx80 a, float_status *status)
 {
@@ -191,13 +192,13 @@ floatx80 floatx80_getexp(floatx80 a, float_status *status)
     return int32_to_floatx80(aExp - 0x3FFF, status);
 }
 
-/*----------------------------------------------------------------------------
- | Scales extended double-precision floating-point value in operand `a' by
- | value `b'. The function truncates the value in the second operand 'b' to
- | an integral value and adds that value to the exponent of the operand 'a'.
- | The operation performed according to the IEC/IEEE Standard for Binary
- | Floating-Point Arithmetic.
- *----------------------------------------------------------------------------*/
+/*
+ * Scales extended double-precision floating-point value in operand `a' by
+ * value `b'. The function truncates the value in the second operand 'b' to
+ * an integral value and adds that value to the exponent of the operand 'a'.
+ * The operation performed according to the IEC/IEEE Standard for Binary
+ * Floating-Point Arithmetic.
+ */
 
 floatx80 floatx80_scale(floatx80 a, floatx80 b, float_status *status)
 {
@@ -282,26 +283,26 @@ floatx80 floatx80_move(floatx80 a, float_status *status)
                                 aExp, aSig, 0, status);
 }
 
-/*----------------------------------------------------------------------------
-| Algorithms for transcendental functions supported by MC68881 and MC68882
-| mathematical coprocessors. The functions are derived from FPSP library.
-*----------------------------------------------------------------------------*/
+/*
+ * Algorithms for transcendental functions supported by MC68881 and MC68882
+ * mathematical coprocessors. The functions are derived from FPSP library.
+ */
 
 #define one_exp     0x3FFF
 #define one_sig     LIT64(0x8000000000000000)
 
-/*----------------------------------------------------------------------------
- | Function for compactifying extended double-precision floating point values.
- *----------------------------------------------------------------------------*/
+/*
+ * Function for compactifying extended double-precision floating point values.
+ */
 
 static int32_t floatx80_make_compact(int32_t aExp, uint64_t aSig)
 {
     return (aExp << 16) | (aSig >> 48);
 }
 
-/*----------------------------------------------------------------------------
- | Log base e of x plus 1
- *----------------------------------------------------------------------------*/
+/*
+ * Log base e of x plus 1
+ */
 
 floatx80 floatx80_lognp1(floatx80 a, float_status *status)
 {
@@ -498,9 +499,9 @@ floatx80 floatx80_lognp1(floatx80 a, float_status *status)
     }
 }
 
-/*----------------------------------------------------------------------------
- | Log base e
- *----------------------------------------------------------------------------*/
+/*
+ * Log base e
+ */
 
 floatx80 floatx80_logn(floatx80 a, float_status *status)
 {
@@ -666,9 +667,9 @@ floatx80 floatx80_logn(floatx80 a, float_status *status)
     }
 }
 
-/*----------------------------------------------------------------------------
- | Log base 10
- *----------------------------------------------------------------------------*/
+/*
+ * Log base 10
+ */
 
 floatx80 floatx80_log10(floatx80 a, float_status *status)
 {
@@ -723,9 +724,9 @@ floatx80 floatx80_log10(floatx80 a, float_status *status)
     return a;
 }
 
-/*----------------------------------------------------------------------------
- | Log base 2
- *----------------------------------------------------------------------------*/
+/*
+ * Log base 2
+ */
 
 floatx80 floatx80_log2(floatx80 a, float_status *status)
 {
@@ -790,9 +791,9 @@ floatx80 floatx80_log2(floatx80 a, float_status *status)
     return a;
 }
 
-/*----------------------------------------------------------------------------
- | e to x
- *----------------------------------------------------------------------------*/
+/*
+ * e to x
+ */
 
 floatx80 floatx80_etox(floatx80 a, float_status *status)
 {
@@ -848,7 +849,8 @@ floatx80 floatx80_etox(floatx80 a, float_status *status)
             j = n & 0x3F; /* J = N mod 64 */
             m = n / 64; /* NOTE: this is really arithmetic right shift by 6 */
             if (n < 0 && j) {
-                /* arithmetic right shift is division and
+                /*
+                 * arithmetic right shift is division and
                  * round towards minus infinity
                  */
                 m--;
@@ -973,9 +975,9 @@ floatx80 floatx80_etox(floatx80 a, float_status *status)
     }
 }
 
-/*----------------------------------------------------------------------------
- | 2 to x
- *----------------------------------------------------------------------------*/
+/*
+ * 2 to x
+ */
 
 floatx80 floatx80_twotox(floatx80 a, float_status *status)
 {
@@ -1051,14 +1053,16 @@ floatx80 floatx80_twotox(floatx80 a, float_status *status)
         j = n & 0x3F;
         l = n / 64; /* NOTE: this is really arithmetic right shift by 6 */
         if (n < 0 && j) {
-            /* arithmetic right shift is division and
+            /*
+             * arithmetic right shift is division and
              * round towards minus infinity
              */
             l--;
         }
         m = l / 2; /* NOTE: this is really arithmetic right shift by 1 */
         if (l < 0 && (l & 1)) {
-            /* arithmetic right shift is division and
+            /*
+             * arithmetic right shift is division and
              * round towards minus infinity
              */
             m--;
@@ -1121,9 +1125,9 @@ floatx80 floatx80_twotox(floatx80 a, float_status *status)
     }
 }
 
-/*----------------------------------------------------------------------------
- | 10 to x
- *----------------------------------------------------------------------------*/
+/*
+ * 10 to x
+ */
 
 floatx80 floatx80_tentox(floatx80 a, float_status *status)
 {
@@ -1200,14 +1204,16 @@ floatx80 floatx80_tentox(floatx80 a, float_status *status)
         j = n & 0x3F;
         l = n / 64; /* NOTE: this is really arithmetic right shift by 6 */
         if (n < 0 && j) {
-            /* arithmetic right shift is division and
+            /*
+             * arithmetic right shift is division and
              * round towards minus infinity
              */
             l--;
         }
         m = l / 2; /* NOTE: this is really arithmetic right shift by 1 */
         if (l < 0 && (l & 1)) {
-            /* arithmetic right shift is division and
+            /*
+             * arithmetic right shift is division and
              * round towards minus infinity
              */
             m--;
@@ -1274,9 +1280,9 @@ floatx80 floatx80_tentox(floatx80 a, float_status *status)
     }
 }
 
-/*----------------------------------------------------------------------------
- | Tangent
- *----------------------------------------------------------------------------*/
+/*
+ * Tangent
+ */
 
 floatx80 floatx80_tan(floatx80 a, float_status *status)
 {
@@ -1484,9 +1490,9 @@ floatx80 floatx80_tan(floatx80 a, float_status *status)
     }
 }
 
-/*----------------------------------------------------------------------------
- | Sine
- *----------------------------------------------------------------------------*/
+/*
+ * Sine
+ */
 
 floatx80 floatx80_sin(floatx80 a, float_status *status)
 {
@@ -1723,9 +1729,9 @@ floatx80 floatx80_sin(floatx80 a, float_status *status)
     }
 }
 
-/*----------------------------------------------------------------------------
- | Cosine
- *----------------------------------------------------------------------------*/
+/*
+ * Cosine
+ */
 
 floatx80 floatx80_cos(floatx80 a, float_status *status)
 {
@@ -1960,9 +1966,9 @@ floatx80 floatx80_cos(floatx80 a, float_status *status)
     }
 }
 
-/*----------------------------------------------------------------------------
- | Arc tangent
- *----------------------------------------------------------------------------*/
+/*
+ * Arc tangent
+ */
 
 floatx80 floatx80_atan(floatx80 a, float_status *status)
 {
@@ -2157,9 +2163,9 @@ floatx80 floatx80_atan(floatx80 a, float_status *status)
     }
 }
 
-/*----------------------------------------------------------------------------
- | Arc sine
- *----------------------------------------------------------------------------*/
+/*
+ * Arc sine
+ */
 
 floatx80 floatx80_asin(floatx80 a, float_status *status)
 {
@@ -2222,9 +2228,9 @@ floatx80 floatx80_asin(floatx80 a, float_status *status)
     return a;
 }
 
-/*----------------------------------------------------------------------------
- | Arc cosine
- *----------------------------------------------------------------------------*/
+/*
+ * Arc cosine
+ */
 
 floatx80 floatx80_acos(floatx80 a, float_status *status)
 {
@@ -2291,9 +2297,9 @@ floatx80 floatx80_acos(floatx80 a, float_status *status)
     return a;
 }
 
-/*----------------------------------------------------------------------------
- | Hyperbolic arc tangent
- *----------------------------------------------------------------------------*/
+/*
+ * Hyperbolic arc tangent
+ */
 
 floatx80 floatx80_atanh(floatx80 a, float_status *status)
 {
@@ -2356,9 +2362,9 @@ floatx80 floatx80_atanh(floatx80 a, float_status *status)
     return a;
 }
 
-/*----------------------------------------------------------------------------
- | e to x minus 1
- *----------------------------------------------------------------------------*/
+/*
+ * e to x minus 1
+ */
 
 floatx80 floatx80_etoxm1(floatx80 a, float_status *status)
 {
@@ -2410,7 +2416,8 @@ floatx80 floatx80_etoxm1(floatx80 a, float_status *status)
             j = n & 0x3F; /* J = N mod 64 */
             m = n / 64; /* NOTE: this is really arithmetic right shift by 6 */
             if (n < 0 && j) {
-                /* arithmetic right shift is division and
+                /*
+                 * arithmetic right shift is division and
                  * round towards minus infinity
                  */
                 m--;
@@ -2607,9 +2614,9 @@ floatx80 floatx80_etoxm1(floatx80 a, float_status *status)
     }
 }
 
-/*----------------------------------------------------------------------------
- | Hyperbolic tangent
- *----------------------------------------------------------------------------*/
+/*
+ * Hyperbolic tangent
+ */
 
 floatx80 floatx80_tanh(floatx80 a, float_status *status)
 {
@@ -2722,9 +2729,9 @@ floatx80 floatx80_tanh(floatx80 a, float_status *status)
     }
 }
 
-/*----------------------------------------------------------------------------
- | Hyperbolic sine
- *----------------------------------------------------------------------------*/
+/*
+ * Hyperbolic sine
+ */
 
 floatx80 floatx80_sinh(floatx80 a, float_status *status)
 {
@@ -2811,9 +2818,9 @@ floatx80 floatx80_sinh(floatx80 a, float_status *status)
     }
 }
 
-/*----------------------------------------------------------------------------
- | Hyperbolic cosine
- *----------------------------------------------------------------------------*/
+/*
+ * Hyperbolic cosine
+ */
 
 floatx80 floatx80_cosh(floatx80 a, float_status *status)
 {
