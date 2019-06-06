@@ -360,16 +360,16 @@ static inline int64_t msa_binsr_df(uint32_t df, int64_t dest, int64_t arg1,
 
 static inline int64_t msa_sat_s_df(uint32_t df, int64_t arg, uint32_t m)
 {
-    return arg < M_MIN_INT(m+1) ? M_MIN_INT(m+1) :
-                                  arg > M_MAX_INT(m+1) ? M_MAX_INT(m+1) :
-                                                         arg;
+    return arg < M_MIN_INT(m + 1) ? M_MIN_INT(m + 1) :
+                                    arg > M_MAX_INT(m + 1) ? M_MAX_INT(m + 1) :
+                                                             arg;
 }
 
 static inline int64_t msa_sat_u_df(uint32_t df, int64_t arg, uint32_t m)
 {
     uint64_t u_arg = UNSIGNED(arg, df);
-    return  u_arg < M_MAX_UINT(m+1) ? u_arg :
-                                      M_MAX_UINT(m+1);
+    return  u_arg < M_MAX_UINT(m + 1) ? u_arg :
+                                        M_MAX_UINT(m + 1);
 }
 
 static inline int64_t msa_srar_df(uint32_t df, int64_t arg1, int64_t arg2)
@@ -668,16 +668,16 @@ static inline int64_t msa_mod_u_df(uint32_t df, int64_t arg1, int64_t arg2)
 }
 
 #define SIGNED_EVEN(a, df) \
-        ((((int64_t)(a)) << (64 - DF_BITS(df)/2)) >> (64 - DF_BITS(df)/2))
+        ((((int64_t)(a)) << (64 - DF_BITS(df) / 2)) >> (64 - DF_BITS(df) / 2))
 
 #define UNSIGNED_EVEN(a, df) \
-        ((((uint64_t)(a)) << (64 - DF_BITS(df)/2)) >> (64 - DF_BITS(df)/2))
+        ((((uint64_t)(a)) << (64 - DF_BITS(df) / 2)) >> (64 - DF_BITS(df) / 2))
 
 #define SIGNED_ODD(a, df) \
-        ((((int64_t)(a)) << (64 - DF_BITS(df))) >> (64 - DF_BITS(df)/2))
+        ((((int64_t)(a)) << (64 - DF_BITS(df))) >> (64 - DF_BITS(df) / 2))
 
 #define UNSIGNED_ODD(a, df) \
-        ((((uint64_t)(a)) << (64 - DF_BITS(df))) >> (64 - DF_BITS(df)/2))
+        ((((uint64_t)(a)) << (64 - DF_BITS(df))) >> (64 - DF_BITS(df) / 2))
 
 #define SIGNED_EXTRACT(e, o, a, df)     \
     do {                                \
@@ -1205,13 +1205,13 @@ void helper_msa_##FUNC(CPUMIPSState *env, uint32_t df, uint32_t wd, \
             (DF_ELEMENTS(DF) / 2)
 
 #define Rb(pwr, i) (pwr->b[i])
-#define Lb(pwr, i) (pwr->b[i + DF_ELEMENTS(DF_BYTE)/2])
+#define Lb(pwr, i) (pwr->b[i + DF_ELEMENTS(DF_BYTE) / 2])
 #define Rh(pwr, i) (pwr->h[i])
-#define Lh(pwr, i) (pwr->h[i + DF_ELEMENTS(DF_HALF)/2])
+#define Lh(pwr, i) (pwr->h[i + DF_ELEMENTS(DF_HALF) / 2])
 #define Rw(pwr, i) (pwr->w[i])
-#define Lw(pwr, i) (pwr->w[i + DF_ELEMENTS(DF_WORD)/2])
+#define Lw(pwr, i) (pwr->w[i + DF_ELEMENTS(DF_WORD) / 2])
 #define Rd(pwr, i) (pwr->d[i])
-#define Ld(pwr, i) (pwr->d[i + DF_ELEMENTS(DF_DOUBLE)/2])
+#define Ld(pwr, i) (pwr->d[i + DF_ELEMENTS(DF_DOUBLE) / 2])
 
 #undef MSA_LOOP_COND
 
@@ -3320,7 +3320,7 @@ void helper_msa_fmax_a_df(CPUMIPSState *env, uint32_t df, uint32_t wd,
 void helper_msa_fclass_df(CPUMIPSState *env, uint32_t df,
         uint32_t wd, uint32_t ws)
 {
-    float_status* status = &env->active_tc.msa_fp_status;
+    float_status *status = &env->active_tc.msa_fp_status;
 
     wr_t *pwd = &(env->active_fpu.fpr[wd].wr);
     wr_t *pws = &(env->active_fpu.fpr[ws].wr);
