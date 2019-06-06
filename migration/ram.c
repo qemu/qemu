@@ -661,8 +661,6 @@ typedef struct {
     uint64_t num_packets;
     /* pages sent through this channel */
     uint64_t num_pages;
-    /* syncs main thread and channels */
-    QemuSemaphore sem_sync;
 }  MultiFDSendParams;
 
 typedef struct {
@@ -894,8 +892,6 @@ static int multifd_recv_unfill_packet(MultiFDRecvParams *p, Error **errp)
 
 struct {
     MultiFDSendParams *params;
-    /* number of created threads */
-    int count;
     /* array of pages to sent */
     MultiFDPages_t *pages;
     /* syncs main thread and channels */
@@ -1027,7 +1023,6 @@ void multifd_save_cleanup(void)
         p->c = NULL;
         qemu_mutex_destroy(&p->mutex);
         qemu_sem_destroy(&p->sem);
-        qemu_sem_destroy(&p->sem_sync);
         g_free(p->name);
         p->name = NULL;
         multifd_pages_clear(p->pages);
@@ -1174,8 +1169,6 @@ static void multifd_new_send_channel_async(QIOTask *task, gpointer opaque)
         p->running = true;
         qemu_thread_create(&p->thread, p->name, multifd_send_thread, p,
                            QEMU_THREAD_JOINABLE);
-
-        atomic_inc(&multifd_send_state->count);
     }
 }
 
@@ -1191,7 +1184,6 @@ int multifd_save_setup(void)
     thread_count = migrate_multifd_channels();
     multifd_send_state = g_malloc0(sizeof(*multifd_send_state));
     multifd_send_state->params = g_new0(MultiFDSendParams, thread_count);
-    atomic_set(&multifd_send_state->count, 0);
     multifd_send_state->pages = multifd_pages_init(page_count);
     qemu_sem_init(&multifd_send_state->sem_sync, 0);
     qemu_sem_init(&multifd_send_state->channels_ready, 0);
@@ -1201,7 +1193,6 @@ int multifd_save_setup(void)
 
         qemu_mutex_init(&p->mutex);
         qemu_sem_init(&p->sem, 0);
-        qemu_sem_init(&p->sem_sync, 0);
         p->quit = false;
         p->pending_job = 0;
         p->id = i;
@@ -3182,11 +3173,11 @@ static int ram_state_init(RAMState **rsp)
     QSIMPLEQ_INIT(&(*rsp)->src_page_requests);
 
     /*
-     * Count the total number of pages used by ram blocks not including any
-     * gaps due to alignment or unplugs.
+     * This must match with the initial values of dirty bitmap.
+     * Currently we initialize the dirty bitmap to all zeros so
+     * here the total dirty page count is zero.
      */
-    (*rsp)->migration_dirty_pages = ram_bytes_total() >> TARGET_PAGE_BITS;
-
+    (*rsp)->migration_dirty_pages = 0;
     ram_state_reset(*rsp);
 
     return 0;
@@ -3201,8 +3192,16 @@ static void ram_list_init_bitmaps(void)
     if (ram_bytes_total()) {
         RAMBLOCK_FOREACH_NOT_IGNORED(block) {
             pages = block->max_length >> TARGET_PAGE_BITS;
+            /*
+             * The initial dirty bitmap for migration must be set with all
+             * ones to make sure we'll migrate every guest RAM page to
+             * destination.
+             * Here we didn't set RAMBlock.bmap simply because it is already
+             * set in ram_list.dirty_memory[DIRTY_MEMORY_MIGRATION] in
+             * ram_block_add, and that's where we'll sync the dirty bitmaps.
+             * Here setting RAMBlock.bmap would be fine too but not necessary.
+             */
             block->bmap = bitmap_new(pages);
-            bitmap_set(block->bmap, 0, pages);
             if (migrate_postcopy_ram()) {
                 block->unsentmap = bitmap_new(pages);
                 bitmap_set(block->unsentmap, 0, pages);

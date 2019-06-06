@@ -85,6 +85,21 @@ QTestState *qtest_init_with_serial(const char *extra_args, int *sock_fd);
 void qtest_quit(QTestState *s);
 
 /**
+ * qtest_qmp_fds:
+ * @s: #QTestState instance to operate on.
+ * @fds: array of file descriptors
+ * @fds_num: number of elements in @fds
+ * @fmt...: QMP message to send to qemu, formatted like
+ * qobject_from_jsonf_nofail().  See parse_escape() for what's
+ * supported after '%'.
+ *
+ * Sends a QMP message to QEMU with fds and returns the response.
+ */
+QDict *qtest_qmp_fds(QTestState *s, int *fds, size_t fds_num,
+                     const char *fmt, ...)
+    GCC_FMT_ATTR(4, 5);
+
+/**
  * qtest_qmp:
  * @s: #QTestState instance to operate on.
  * @fmt...: QMP message to send to qemu, formatted like
@@ -120,7 +135,23 @@ void qtest_qmp_send_raw(QTestState *s, const char *fmt, ...)
     GCC_FMT_ATTR(2, 3);
 
 /**
- * qtest_qmpv:
+ * qtest_vqmp_fds:
+ * @s: #QTestState instance to operate on.
+ * @fds: array of file descriptors
+ * @fds_num: number of elements in @fds
+ * @fmt: QMP message to send to QEMU, formatted like
+ * qobject_from_jsonf_nofail().  See parse_escape() for what's
+ * supported after '%'.
+ * @ap: QMP message arguments
+ *
+ * Sends a QMP message to QEMU with fds and returns the response.
+ */
+QDict *qtest_vqmp_fds(QTestState *s, int *fds, size_t fds_num,
+                      const char *fmt, va_list ap)
+    GCC_FMT_ATTR(4, 0);
+
+/**
+ * qtest_vqmp:
  * @s: #QTestState instance to operate on.
  * @fmt: QMP message to send to QEMU, formatted like
  * qobject_from_jsonf_nofail().  See parse_escape() for what's
@@ -131,6 +162,22 @@ void qtest_qmp_send_raw(QTestState *s, const char *fmt, ...)
  */
 QDict *qtest_vqmp(QTestState *s, const char *fmt, va_list ap)
     GCC_FMT_ATTR(2, 0);
+
+/**
+ * qtest_qmp_vsend_fds:
+ * @s: #QTestState instance to operate on.
+ * @fds: array of file descriptors
+ * @fds_num: number of elements in @fds
+ * @fmt: QMP message to send to QEMU, formatted like
+ * qobject_from_jsonf_nofail().  See parse_escape() for what's
+ * supported after '%'.
+ * @ap: QMP message arguments
+ *
+ * Sends a QMP message to QEMU and leaves the response in the stream.
+ */
+void qtest_qmp_vsend_fds(QTestState *s, int *fds, size_t fds_num,
+                         const char *fmt, va_list ap)
+    GCC_FMT_ATTR(4, 0);
 
 /**
  * qtest_qmp_vsend:
@@ -888,6 +935,8 @@ static inline int64_t clock_step(int64_t step)
 }
 
 QDict *qmp_fd_receive(int fd);
+void qmp_fd_vsend_fds(int fd, int *fds, size_t fds_num,
+                      const char *fmt, va_list ap) GCC_FMT_ATTR(4, 0);
 void qmp_fd_vsend(int fd, const char *fmt, va_list ap) GCC_FMT_ATTR(2, 0);
 void qmp_fd_send(int fd, const char *fmt, ...) GCC_FMT_ATTR(2, 3);
 void qmp_fd_send_raw(int fd, const char *fmt, ...) GCC_FMT_ATTR(2, 3);
