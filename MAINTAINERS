@@ -1865,7 +1865,9 @@ F: util/error.c
 F: util/qemu-error.c
 
 GDB stub
-S: Orphan
+M: Alex Bennée <alex.bennee@linaro.org>
+R: Philippe Mathieu-Daudé <philmd@redhat.com>
+S: Maintained
 F: gdbstub*
 F: gdb-xml/
 
