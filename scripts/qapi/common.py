@@ -129,6 +129,7 @@ class QAPIDoc(object):
           optional overview
         * an ARGS part: description of each argument (for commands and
           events) or member (for structs, unions and alternates),
+        * a FEATURES part: description of each feature,
         * a VARIOUS part: optional tagged sections.
 
         Free-form documentation blocks consist only of a BODY part.
@@ -136,7 +137,8 @@ class QAPIDoc(object):
         # TODO Make it a subclass of Enum when Python 2 support is removed
         BODY = 1
         ARGS = 2
-        VARIOUS = 3
+        FEATURES = 3
+        VARIOUS = 4
 
     def __init__(self, parser, info):
         # self._parser is used to report errors with QAPIParseError.  The
@@ -149,6 +151,7 @@ class QAPIDoc(object):
         self.body = QAPIDoc.Section()
         # dict mapping parameter name to ArgSection
         self.args = OrderedDict()
+        self.features = OrderedDict()
         # a list of Section
         self.sections = []
         # the current section
@@ -197,6 +200,8 @@ class QAPIDoc(object):
             self._append_body_line(line)
         elif self._part == QAPIDoc.DocPart.ARGS:
             self._append_args_line(line)
+        elif self._part == QAPIDoc.DocPart.FEATURES:
+            self._append_features_line(line)
         elif self._part == QAPIDoc.DocPart.VARIOUS:
             self._append_various_line(line)
         else:
@@ -229,6 +234,8 @@ class QAPIDoc(object):
             if name.startswith('@') and name.endswith(':'):
                 self._part = QAPIDoc.DocPart.ARGS
                 self._append_args_line(line)
+            elif line == 'Features:':
+                self._part = QAPIDoc.DocPart.FEATURES
             elif self._is_section_tag(name):
                 self._part = QAPIDoc.DocPart.VARIOUS
                 self._append_various_line(line)
@@ -244,6 +251,28 @@ class QAPIDoc(object):
         if name.startswith('@') and name.endswith(':'):
             line = line[len(name)+1:]
             self._start_args_section(name[1:-1])
+        elif self._is_section_tag(name):
+            self._part = QAPIDoc.DocPart.VARIOUS
+            self._append_various_line(line)
+            return
+        elif (self._section.text.endswith('\n\n')
+              and line and not line[0].isspace()):
+            if line == 'Features:':
+                self._part = QAPIDoc.DocPart.FEATURES
+            else:
+                self._start_section()
+                self._part = QAPIDoc.DocPart.VARIOUS
+                self._append_various_line(line)
+            return
+
+        self._append_freeform(line.strip())
+
+    def _append_features_line(self, line):
+        name = line.split(' ', 1)[0]
+
+        if name.startswith('@') and name.endswith(':'):
+            line = line[len(name)+1:]
+            self._start_features_section(name[1:-1])
         elif self._is_section_tag(name):
             self._part = QAPIDoc.DocPart.VARIOUS
             self._append_various_line(line)
@@ -274,17 +303,23 @@ class QAPIDoc(object):
 
         self._append_freeform(line)
 
-    def _start_args_section(self, name):
+    def _start_symbol_section(self, symbols_dict, name):
         # FIXME invalid names other than the empty string aren't flagged
         if not name:
             raise QAPIParseError(self._parser, "Invalid parameter name")
-        if name in self.args:
+        if name in symbols_dict:
             raise QAPIParseError(self._parser,
                                  "'%s' parameter name duplicated" % name)
         assert not self.sections
         self._end_section()
         self._section = QAPIDoc.ArgSection(name)
-        self.args[name] = self._section
+        symbols_dict[name] = self._section
+
+    def _start_args_section(self, name):
+        self._start_symbol_section(self.args, name)
+
+    def _start_features_section(self, name):
+        self._start_symbol_section(self.features, name)
 
     def _start_section(self, name=None):
         if name in ('Returns', 'Since') and self.has_section(name):
