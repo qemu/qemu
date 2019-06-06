@@ -57,6 +57,7 @@ submodules:
 		--arch=AARCH64 \
 		--platform=ArmVirtPkg/ArmVirtQemu.dsc \
 		-D NETWORK_IP6_ENABLE \
+		-D NETWORK_HTTP_BOOT_ENABLE \
 		-D HTTP_BOOT_ENABLE
 	cp edk2/Build/ArmVirtQemu-AARCH64/DEBUG_$(call toolchain,aarch64)/FV/QEMU_EFI.fd \
 		$@
@@ -68,6 +69,7 @@ submodules:
 		--arch=ARM \
 		--platform=ArmVirtPkg/ArmVirtQemu.dsc \
 		-D NETWORK_IP6_ENABLE \
+		-D NETWORK_HTTP_BOOT_ENABLE \
 		-D HTTP_BOOT_ENABLE
 	cp edk2/Build/ArmVirtQemu-ARM/DEBUG_$(call toolchain,arm)/FV/QEMU_EFI.fd \
 		$@
@@ -79,7 +81,9 @@ submodules:
 		--arch=IA32 \
 		--platform=OvmfPkg/OvmfPkgIa32.dsc \
 		-D NETWORK_IP6_ENABLE \
+		-D NETWORK_HTTP_BOOT_ENABLE \
 		-D HTTP_BOOT_ENABLE \
+		-D NETWORK_TLS_ENABLE \
 		-D TLS_ENABLE \
 		-D TPM2_ENABLE \
 		-D TPM2_CONFIG_ENABLE
@@ -91,7 +95,9 @@ submodules:
 		--arch=IA32 \
 		--platform=OvmfPkg/OvmfPkgIa32.dsc \
 		-D NETWORK_IP6_ENABLE \
+		-D NETWORK_HTTP_BOOT_ENABLE \
 		-D HTTP_BOOT_ENABLE \
+		-D NETWORK_TLS_ENABLE \
 		-D TLS_ENABLE \
 		-D TPM2_ENABLE \
 		-D TPM2_CONFIG_ENABLE \
@@ -105,7 +111,9 @@ submodules:
 		--arch=X64 \
 		--platform=OvmfPkg/OvmfPkgX64.dsc \
 		-D NETWORK_IP6_ENABLE \
+		-D NETWORK_HTTP_BOOT_ENABLE \
 		-D HTTP_BOOT_ENABLE \
+		-D NETWORK_TLS_ENABLE \
 		-D TLS_ENABLE \
 		-D TPM2_ENABLE \
 		-D TPM2_CONFIG_ENABLE
@@ -118,7 +126,9 @@ submodules:
 		--arch=X64 \
 		--platform=OvmfPkg/OvmfPkgIa32X64.dsc \
 		-D NETWORK_IP6_ENABLE \
+		-D NETWORK_HTTP_BOOT_ENABLE \
 		-D HTTP_BOOT_ENABLE \
+		-D NETWORK_TLS_ENABLE \
 		-D TLS_ENABLE \
 		-D TPM2_ENABLE \
 		-D TPM2_CONFIG_ENABLE \
