@@ -2062,6 +2062,9 @@ static void do_init(fuse_req_t req, fuse_ino_t nodeid,
     if (se->conn.want & FUSE_CAP_ASYNC_READ) {
         outarg.flags |= FUSE_ASYNC_READ;
     }
+    if (se->conn.want & FUSE_CAP_PARALLEL_DIROPS) {
+        outarg.flags |= FUSE_PARALLEL_DIROPS;
+    }
     if (se->conn.want & FUSE_CAP_POSIX_LOCKS) {
         outarg.flags |= FUSE_POSIX_LOCKS;
     }
