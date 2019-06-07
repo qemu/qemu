@@ -121,6 +121,8 @@ typedef struct FwCfgTPMConfig {
     uint8_t tpmppi_version;
 } QEMU_PACKED FwCfgTPMConfig;
 
+static bool acpi_get_mcfg(AcpiMcfgInfo *mcfg);
+
 static void init_common_fadt_data(Object *o, AcpiFadtData *data)
 {
     uint32_t io = object_property_get_uint(o, ACPI_PM_PROP_PM_IO_BASE, NULL);
@@ -1806,6 +1808,7 @@ build_dsdt(GArray *table_data, BIOSLinker *linker,
     CrsRangeSet crs_range_set;
     PCMachineState *pcms = PC_MACHINE(machine);
     PCMachineClass *pcmc = PC_MACHINE_GET_CLASS(machine);
+    AcpiMcfgInfo mcfg;
     uint32_t nr_mem = machine->ram_slots;
     int root_bus_limit = 0xFF;
     PCIBus *bus = NULL;
@@ -1918,6 +1921,17 @@ build_dsdt(GArray *table_data, BIOSLinker *linker,
             aml_append(scope, dev);
             aml_append(dsdt, scope);
         }
+    }
+
+    /*
+     * At this point crs_range_set has all the ranges used by pci
+     * busses *other* than PCI0.  These ranges will be excluded from
+     * the PCI0._CRS.  Add mmconfig to the set so it will be excluded
+     * too.
+     */
+    if (acpi_get_mcfg(&mcfg)) {
+        crs_range_insert(crs_range_set.mem_ranges,
+                         mcfg.base, mcfg.base + mcfg.size - 1);
     }
 
     scope = aml_scope("\\_SB.PCI0");
