@@ -874,7 +874,7 @@ void HELPER(gvec_sar8v)(void *d, void *a, void *b, uint32_t desc)
     intptr_t oprsz = simd_oprsz(desc);
     intptr_t i;
 
-    for (i = 0; i < oprsz; i += sizeof(vec8)) {
+    for (i = 0; i < oprsz; i += sizeof(int8_t)) {
         uint8_t sh = *(uint8_t *)(b + i) & 7;
         *(int8_t *)(d + i) = *(int8_t *)(a + i) >> sh;
     }
@@ -898,7 +898,7 @@ void HELPER(gvec_sar32v)(void *d, void *a, void *b, uint32_t desc)
     intptr_t oprsz = simd_oprsz(desc);
     intptr_t i;
 
-    for (i = 0; i < oprsz; i += sizeof(vec32)) {
+    for (i = 0; i < oprsz; i += sizeof(int32_t)) {
         uint8_t sh = *(uint32_t *)(b + i) & 31;
         *(int32_t *)(d + i) = *(int32_t *)(a + i) >> sh;
     }
@@ -910,7 +910,7 @@ void HELPER(gvec_sar64v)(void *d, void *a, void *b, uint32_t desc)
     intptr_t oprsz = simd_oprsz(desc);
     intptr_t i;
 
-    for (i = 0; i < oprsz; i += sizeof(vec64)) {
+    for (i = 0; i < oprsz; i += sizeof(int64_t)) {
         uint8_t sh = *(uint64_t *)(b + i) & 63;
         *(int64_t *)(d + i) = *(int64_t *)(a + i) >> sh;
     }
