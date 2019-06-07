@@ -17,9 +17,6 @@ from avocado.utils import wait
 
 
 class Migration(Test):
-    """
-    :avocado: enable
-    """
 
     timeout = 10
 
