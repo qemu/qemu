@@ -11,8 +11,9 @@
  * This work is licensed under the terms of the GNU GPL, version 2 or later.
  * See the COPYING file in the top-level directory.
  */
-#ifndef VUGPU_VIRGL_H_
-#define VUGPU_VIRGL_H_
+
+#ifndef VUGPU_VIRGL_H
+#define VUGPU_VIRGL_H
 
 #include "vugpu.h"
 
