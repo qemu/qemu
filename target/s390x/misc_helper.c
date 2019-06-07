@@ -669,7 +669,7 @@ uint32_t HELPER(stfle)(CPUS390XState *env, uint64_t addr)
 {
     const uintptr_t ra = GETPC();
     const int count_bytes = ((env->regs[0] & 0xff) + 1) * 8;
-    const int max_bytes = ROUND_UP(used_stfl_bytes, 8);
+    int max_bytes;
     int i;
 
     if (addr & 0x7) {
@@ -677,7 +677,14 @@ uint32_t HELPER(stfle)(CPUS390XState *env, uint64_t addr)
     }
 
     prepare_stfl();
-    for (i = 0; i < count_bytes; ++i) {
+    max_bytes = ROUND_UP(used_stfl_bytes, 8);
+
+    /*
+     * The PoP says that doublewords beyond the highest-numbered facility
+     * bit may or may not be stored.  However, existing hardware appears to
+     * not store the words, and existing software depend on that.
+     */
+    for (i = 0; i < MIN(count_bytes, max_bytes); ++i) {
         cpu_stb_data_ra(env, addr + i, stfl_bytes[i], ra);
     }
 

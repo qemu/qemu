@@ -116,7 +116,7 @@ static int cpu_read_fp_reg(CPUS390XState *env, uint8_t *mem_buf, int n)
     case S390_FPC_REGNUM:
         return gdb_get_reg32(mem_buf, env->fpc);
     case S390_F0_REGNUM ... S390_F15_REGNUM:
-        return gdb_get_reg64(mem_buf, get_freg(env, n - S390_F0_REGNUM)->ll);
+        return gdb_get_reg64(mem_buf, *get_freg(env, n - S390_F0_REGNUM));
     default:
         return 0;
     }
@@ -129,7 +129,7 @@ static int cpu_write_fp_reg(CPUS390XState *env, uint8_t *mem_buf, int n)
         env->fpc = ldl_p(mem_buf);
         return 4;
     case S390_F0_REGNUM ... S390_F15_REGNUM:
-        get_freg(env, n - S390_F0_REGNUM)->ll = ldtul_p(mem_buf);
+        *get_freg(env, n - S390_F0_REGNUM) = ldtul_p(mem_buf);
         return 8;
     default:
         return 0;
@@ -150,11 +150,11 @@ static int cpu_read_vreg(CPUS390XState *env, uint8_t *mem_buf, int n)
 
     switch (n) {
     case S390_V0L_REGNUM ... S390_V15L_REGNUM:
-        ret = gdb_get_reg64(mem_buf, env->vregs[n][1].ll);
+        ret = gdb_get_reg64(mem_buf, env->vregs[n][1]);
         break;
     case S390_V16_REGNUM ... S390_V31_REGNUM:
-        ret = gdb_get_reg64(mem_buf, env->vregs[n][0].ll);
-        ret += gdb_get_reg64(mem_buf + 8, env->vregs[n][1].ll);
+        ret = gdb_get_reg64(mem_buf, env->vregs[n][0]);
+        ret += gdb_get_reg64(mem_buf + 8, env->vregs[n][1]);
         break;
     default:
         ret = 0;
@@ -167,11 +167,11 @@ static int cpu_write_vreg(CPUS390XState *env, uint8_t *mem_buf, int n)
 {
     switch (n) {
     case S390_V0L_REGNUM ... S390_V15L_REGNUM:
-        env->vregs[n][1].ll = ldtul_p(mem_buf + 8);
+        env->vregs[n][1] = ldtul_p(mem_buf + 8);
         return 8;
     case S390_V16_REGNUM ... S390_V31_REGNUM:
-        env->vregs[n][0].ll = ldtul_p(mem_buf);
-        env->vregs[n][1].ll = ldtul_p(mem_buf + 8);
+        env->vregs[n][0] = ldtul_p(mem_buf);
+        env->vregs[n][1] = ldtul_p(mem_buf + 8);
         return 16;
     default:
         return 0;

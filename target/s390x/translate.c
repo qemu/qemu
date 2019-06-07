@@ -149,7 +149,7 @@ void s390x_translate_init(void)
 static inline int vec_full_reg_offset(uint8_t reg)
 {
     g_assert(reg < 32);
-    return offsetof(CPUS390XState, vregs[reg][0].d);
+    return offsetof(CPUS390XState, vregs[reg][0]);
 }
 
 static inline int vec_reg_offset(uint8_t reg, uint8_t enr, TCGMemOp es)

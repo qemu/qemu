@@ -52,6 +52,11 @@
 #define ES_64   MO_64
 #define ES_128  4
 
+/* Floating-Point Format */
+#define FPF_SHORT       2
+#define FPF_LONG        3
+#define FPF_EXT         4
+
 static inline bool valid_vec_element(uint8_t enr, TCGMemOp es)
 {
     return !(enr & ~(NUM_VEC_ELEMENTS(es) - 1));
@@ -188,6 +193,9 @@ static void get_vec_element_ptr_i64(TCGv_ptr ptr, uint8_t reg, TCGv_i64 enr,
 #define gen_gvec_2s(v1, v2, c, gen) \
     tcg_gen_gvec_2s(vec_full_reg_offset(v1), vec_full_reg_offset(v2), \
                     16, 16, c, gen)
+#define gen_gvec_2_ool(v1, v2, data, fn) \
+    tcg_gen_gvec_2_ool(vec_full_reg_offset(v1), vec_full_reg_offset(v2), \
+                       16, 16, data, fn)
 #define gen_gvec_2i_ool(v1, v2, c, data, fn) \
     tcg_gen_gvec_2i_ool(vec_full_reg_offset(v1), vec_full_reg_offset(v2), \
                         c, 16, 16, data, fn)
@@ -214,6 +222,10 @@ static void get_vec_element_ptr_i64(TCGv_ptr ptr, uint8_t reg, TCGv_i64 enr,
     tcg_gen_gvec_4_ool(vec_full_reg_offset(v1), vec_full_reg_offset(v2), \
                        vec_full_reg_offset(v3), vec_full_reg_offset(v4), \
                        16, 16, data, fn)
+#define gen_gvec_4_ptr(v1, v2, v3, v4, ptr, data, fn) \
+    tcg_gen_gvec_4_ptr(vec_full_reg_offset(v1), vec_full_reg_offset(v2), \
+                       vec_full_reg_offset(v3), vec_full_reg_offset(v4), \
+                       ptr, 16, 16, data, fn)
 #define gen_gvec_dup_i64(es, v1, c) \
     tcg_gen_gvec_dup_i64(es, vec_full_reg_offset(v1), 16, 16, c)
 #define gen_gvec_mov(v1, v2) \
@@ -233,6 +245,9 @@ static void get_vec_element_ptr_i64(TCGv_ptr ptr, uint8_t reg, TCGv_i64 enr,
 #define gen_gvec_fn_3(fn, es, v1, v2, v3) \
     tcg_gen_gvec_##fn(es, vec_full_reg_offset(v1), vec_full_reg_offset(v2), \
                       vec_full_reg_offset(v3), 16, 16)
+#define gen_gvec_fn_4(fn, es, v1, v2, v3, v4) \
+    tcg_gen_gvec_##fn(es, vec_full_reg_offset(v1), vec_full_reg_offset(v2), \
+                      vec_full_reg_offset(v3), vec_full_reg_offset(v4), 16, 16)
 
 /*
  * Helper to carry out a 128 bit vector computation using 2 i64 values per
@@ -903,40 +918,11 @@ static DisasJumpType op_vsce(DisasContext *s, DisasOps *o)
     return DISAS_NEXT;
 }
 
-static void gen_sel_i64(TCGv_i64 d, TCGv_i64 a, TCGv_i64 b, TCGv_i64 c)
-{
-    TCGv_i64 t = tcg_temp_new_i64();
-
-    /* bit in c not set -> copy bit from b */
-    tcg_gen_andc_i64(t, b, c);
-    /* bit in c set -> copy bit from a */
-    tcg_gen_and_i64(d, a, c);
-    /* merge the results */
-    tcg_gen_or_i64(d, d, t);
-    tcg_temp_free_i64(t);
-}
-
-static void gen_sel_vec(unsigned vece, TCGv_vec d, TCGv_vec a, TCGv_vec b,
-                        TCGv_vec c)
-{
-    TCGv_vec t = tcg_temp_new_vec_matching(d);
-
-    tcg_gen_andc_vec(vece, t, b, c);
-    tcg_gen_and_vec(vece, d, a, c);
-    tcg_gen_or_vec(vece, d, d, t);
-    tcg_temp_free_vec(t);
-}
-
 static DisasJumpType op_vsel(DisasContext *s, DisasOps *o)
 {
-    static const GVecGen4 gvec_op = {
-        .fni8 = gen_sel_i64,
-        .fniv = gen_sel_vec,
-        .prefer_i64 = TCG_TARGET_REG_BITS == 64,
-    };
-
-    gen_gvec_4(get_field(s->fields, v1), get_field(s->fields, v2),
-               get_field(s->fields, v3), get_field(s->fields, v4), &gvec_op);
+    gen_gvec_fn_4(bitsel, ES_8, get_field(s->fields, v1),
+                  get_field(s->fields, v4), get_field(s->fields, v2),
+                  get_field(s->fields, v3));
     return DISAS_NEXT;
 }
 
@@ -2350,6 +2336,463 @@ static DisasJumpType op_vtm(DisasContext *s, DisasOps *o)
 {
     gen_gvec_2_ptr(get_field(s->fields, v1), get_field(s->fields, v2),
                    cpu_env, 0, gen_helper_gvec_vtm);
+    set_cc_static(s);
+    return DISAS_NEXT;
+}
+
+static DisasJumpType op_vfae(DisasContext *s, DisasOps *o)
+{
+    const uint8_t es = get_field(s->fields, m4);
+    const uint8_t m5 = get_field(s->fields, m5);
+    static gen_helper_gvec_3 * const g[3] = {
+        gen_helper_gvec_vfae8,
+        gen_helper_gvec_vfae16,
+        gen_helper_gvec_vfae32,
+    };
+    static gen_helper_gvec_3_ptr * const g_cc[3] = {
+        gen_helper_gvec_vfae_cc8,
+        gen_helper_gvec_vfae_cc16,
+        gen_helper_gvec_vfae_cc32,
+    };
+    if (es > ES_32) {
+        gen_program_exception(s, PGM_SPECIFICATION);
+        return DISAS_NORETURN;
+    }
+
+    if (extract32(m5, 0, 1)) {
+        gen_gvec_3_ptr(get_field(s->fields, v1), get_field(s->fields, v2),
+                       get_field(s->fields, v3), cpu_env, m5, g_cc[es]);
+        set_cc_static(s);
+    } else {
+        gen_gvec_3_ool(get_field(s->fields, v1), get_field(s->fields, v2),
+                       get_field(s->fields, v3), m5, g[es]);
+    }
+    return DISAS_NEXT;
+}
+
+static DisasJumpType op_vfee(DisasContext *s, DisasOps *o)
+{
+    const uint8_t es = get_field(s->fields, m4);
+    const uint8_t m5 = get_field(s->fields, m5);
+    static gen_helper_gvec_3 * const g[3] = {
+        gen_helper_gvec_vfee8,
+        gen_helper_gvec_vfee16,
+        gen_helper_gvec_vfee32,
+    };
+    static gen_helper_gvec_3_ptr * const g_cc[3] = {
+        gen_helper_gvec_vfee_cc8,
+        gen_helper_gvec_vfee_cc16,
+        gen_helper_gvec_vfee_cc32,
+    };
+
+    if (es > ES_32 || m5 & ~0x3) {
+        gen_program_exception(s, PGM_SPECIFICATION);
+        return DISAS_NORETURN;
+    }
+
+    if (extract32(m5, 0, 1)) {
+        gen_gvec_3_ptr(get_field(s->fields, v1), get_field(s->fields, v2),
+                       get_field(s->fields, v3), cpu_env, m5, g_cc[es]);
+        set_cc_static(s);
+    } else {
+        gen_gvec_3_ool(get_field(s->fields, v1), get_field(s->fields, v2),
+                       get_field(s->fields, v3), m5, g[es]);
+    }
+    return DISAS_NEXT;
+}
+
+static DisasJumpType op_vfene(DisasContext *s, DisasOps *o)
+{
+    const uint8_t es = get_field(s->fields, m4);
+    const uint8_t m5 = get_field(s->fields, m5);
+    static gen_helper_gvec_3 * const g[3] = {
+        gen_helper_gvec_vfene8,
+        gen_helper_gvec_vfene16,
+        gen_helper_gvec_vfene32,
+    };
+    static gen_helper_gvec_3_ptr * const g_cc[3] = {
+        gen_helper_gvec_vfene_cc8,
+        gen_helper_gvec_vfene_cc16,
+        gen_helper_gvec_vfene_cc32,
+    };
+
+    if (es > ES_32 || m5 & ~0x3) {
+        gen_program_exception(s, PGM_SPECIFICATION);
+        return DISAS_NORETURN;
+    }
+
+    if (extract32(m5, 0, 1)) {
+        gen_gvec_3_ptr(get_field(s->fields, v1), get_field(s->fields, v2),
+                       get_field(s->fields, v3), cpu_env, m5, g_cc[es]);
+        set_cc_static(s);
+    } else {
+        gen_gvec_3_ool(get_field(s->fields, v1), get_field(s->fields, v2),
+                       get_field(s->fields, v3), m5, g[es]);
+    }
+    return DISAS_NEXT;
+}
+
+static DisasJumpType op_vistr(DisasContext *s, DisasOps *o)
+{
+    const uint8_t es = get_field(s->fields, m4);
+    const uint8_t m5 = get_field(s->fields, m5);
+    static gen_helper_gvec_2 * const g[3] = {
+        gen_helper_gvec_vistr8,
+        gen_helper_gvec_vistr16,
+        gen_helper_gvec_vistr32,
+    };
+    static gen_helper_gvec_2_ptr * const g_cc[3] = {
+        gen_helper_gvec_vistr_cc8,
+        gen_helper_gvec_vistr_cc16,
+        gen_helper_gvec_vistr_cc32,
+    };
+
+    if (es > ES_32 || m5 & ~0x1) {
+        gen_program_exception(s, PGM_SPECIFICATION);
+        return DISAS_NORETURN;
+    }
+
+    if (extract32(m5, 0, 1)) {
+        gen_gvec_2_ptr(get_field(s->fields, v1), get_field(s->fields, v2),
+                       cpu_env, 0, g_cc[es]);
+        set_cc_static(s);
+    } else {
+        gen_gvec_2_ool(get_field(s->fields, v1), get_field(s->fields, v2), 0,
+                       g[es]);
+    }
+    return DISAS_NEXT;
+}
+
+static DisasJumpType op_vstrc(DisasContext *s, DisasOps *o)
+{
+    const uint8_t es = get_field(s->fields, m5);
+    const uint8_t m6 = get_field(s->fields, m6);
+    static gen_helper_gvec_4 * const g[3] = {
+        gen_helper_gvec_vstrc8,
+        gen_helper_gvec_vstrc16,
+        gen_helper_gvec_vstrc32,
+    };
+    static gen_helper_gvec_4 * const g_rt[3] = {
+        gen_helper_gvec_vstrc_rt8,
+        gen_helper_gvec_vstrc_rt16,
+        gen_helper_gvec_vstrc_rt32,
+    };
+    static gen_helper_gvec_4_ptr * const g_cc[3] = {
+        gen_helper_gvec_vstrc_cc8,
+        gen_helper_gvec_vstrc_cc16,
+        gen_helper_gvec_vstrc_cc32,
+    };
+    static gen_helper_gvec_4_ptr * const g_cc_rt[3] = {
+        gen_helper_gvec_vstrc_cc_rt8,
+        gen_helper_gvec_vstrc_cc_rt16,
+        gen_helper_gvec_vstrc_cc_rt32,
+    };
+
+    if (es > ES_32) {
+        gen_program_exception(s, PGM_SPECIFICATION);
+        return DISAS_NORETURN;
+    }
+
+    if (extract32(m6, 0, 1)) {
+        if (extract32(m6, 2, 1)) {
+            gen_gvec_4_ptr(get_field(s->fields, v1), get_field(s->fields, v2),
+                           get_field(s->fields, v3), get_field(s->fields, v4),
+                           cpu_env, m6, g_cc_rt[es]);
+        } else {
+            gen_gvec_4_ptr(get_field(s->fields, v1), get_field(s->fields, v2),
+                           get_field(s->fields, v3), get_field(s->fields, v4),
+                           cpu_env, m6, g_cc[es]);
+        }
+        set_cc_static(s);
+    } else {
+        if (extract32(m6, 2, 1)) {
+            gen_gvec_4_ool(get_field(s->fields, v1), get_field(s->fields, v2),
+                           get_field(s->fields, v3), get_field(s->fields, v4),
+                           m6, g_rt[es]);
+        } else {
+            gen_gvec_4_ool(get_field(s->fields, v1), get_field(s->fields, v2),
+                           get_field(s->fields, v3), get_field(s->fields, v4),
+                           m6, g[es]);
+        }
+    }
+    return DISAS_NEXT;
+}
+
+static DisasJumpType op_vfa(DisasContext *s, DisasOps *o)
+{
+    const uint8_t fpf = get_field(s->fields, m4);
+    const uint8_t m5 = get_field(s->fields, m5);
+    const bool se = extract32(m5, 3, 1);
+    gen_helper_gvec_3_ptr *fn;
+
+    if (fpf != FPF_LONG || extract32(m5, 0, 3)) {
+        gen_program_exception(s, PGM_SPECIFICATION);
+        return DISAS_NORETURN;
+    }
+
+    switch (s->fields->op2) {
+    case 0xe3:
+        fn = se ? gen_helper_gvec_vfa64s : gen_helper_gvec_vfa64;
+        break;
+    case 0xe5:
+        fn = se ? gen_helper_gvec_vfd64s : gen_helper_gvec_vfd64;
+        break;
+    case 0xe7:
+        fn = se ? gen_helper_gvec_vfm64s : gen_helper_gvec_vfm64;
+        break;
+    case 0xe2:
+        fn = se ? gen_helper_gvec_vfs64s : gen_helper_gvec_vfs64;
+        break;
+    default:
+        g_assert_not_reached();
+    }
+    gen_gvec_3_ptr(get_field(s->fields, v1), get_field(s->fields, v2),
+                   get_field(s->fields, v3), cpu_env, 0, fn);
+    return DISAS_NEXT;
+}
+
+static DisasJumpType op_wfc(DisasContext *s, DisasOps *o)
+{
+    const uint8_t fpf = get_field(s->fields, m3);
+    const uint8_t m4 = get_field(s->fields, m4);
+
+    if (fpf != FPF_LONG || m4) {
+        gen_program_exception(s, PGM_SPECIFICATION);
+        return DISAS_NORETURN;
+    }
+
+    if (s->fields->op2 == 0xcb) {
+        gen_gvec_2_ptr(get_field(s->fields, v1), get_field(s->fields, v2),
+                       cpu_env, 0, gen_helper_gvec_wfc64);
+    } else {
+        gen_gvec_2_ptr(get_field(s->fields, v1), get_field(s->fields, v2),
+                       cpu_env, 0, gen_helper_gvec_wfk64);
+    }
+    set_cc_static(s);
+    return DISAS_NEXT;
+}
+
+static DisasJumpType op_vfc(DisasContext *s, DisasOps *o)
+{
+    const uint8_t fpf = get_field(s->fields, m4);
+    const uint8_t m5 = get_field(s->fields, m5);
+    const uint8_t m6 = get_field(s->fields, m6);
+    const bool se = extract32(m5, 3, 1);
+    const bool cs = extract32(m6, 0, 1);
+    gen_helper_gvec_3_ptr *fn;
+
+    if (fpf != FPF_LONG || extract32(m5, 0, 3) || extract32(m6, 1, 3)) {
+        gen_program_exception(s, PGM_SPECIFICATION);
+        return DISAS_NORETURN;
+    }
+
+    if (cs) {
+        switch (s->fields->op2) {
+        case 0xe8:
+            fn = se ? gen_helper_gvec_vfce64s_cc : gen_helper_gvec_vfce64_cc;
+            break;
+        case 0xeb:
+            fn = se ? gen_helper_gvec_vfch64s_cc : gen_helper_gvec_vfch64_cc;
+            break;
+        case 0xea:
+            fn = se ? gen_helper_gvec_vfche64s_cc : gen_helper_gvec_vfche64_cc;
+            break;
+        default:
+            g_assert_not_reached();
+        }
+    } else {
+        switch (s->fields->op2) {
+        case 0xe8:
+            fn = se ? gen_helper_gvec_vfce64s : gen_helper_gvec_vfce64;
+            break;
+        case 0xeb:
+            fn = se ? gen_helper_gvec_vfch64s : gen_helper_gvec_vfch64;
+            break;
+        case 0xea:
+            fn = se ? gen_helper_gvec_vfche64s : gen_helper_gvec_vfche64;
+            break;
+        default:
+            g_assert_not_reached();
+        }
+    }
+    gen_gvec_3_ptr(get_field(s->fields, v1), get_field(s->fields, v2),
+                   get_field(s->fields, v3), cpu_env, 0, fn);
+    if (cs) {
+        set_cc_static(s);
+    }
+    return DISAS_NEXT;
+}
+
+static DisasJumpType op_vcdg(DisasContext *s, DisasOps *o)
+{
+    const uint8_t fpf = get_field(s->fields, m3);
+    const uint8_t m4 = get_field(s->fields, m4);
+    const uint8_t erm = get_field(s->fields, m5);
+    const bool se = extract32(m4, 3, 1);
+    gen_helper_gvec_2_ptr *fn;
+
+    if (fpf != FPF_LONG || extract32(m4, 0, 2) || erm > 7 || erm == 2) {
+        gen_program_exception(s, PGM_SPECIFICATION);
+        return DISAS_NORETURN;
+    }
+
+    switch (s->fields->op2) {
+    case 0xc3:
+        fn = se ? gen_helper_gvec_vcdg64s : gen_helper_gvec_vcdg64;
+        break;
+    case 0xc1:
+        fn = se ? gen_helper_gvec_vcdlg64s : gen_helper_gvec_vcdlg64;
+        break;
+    case 0xc2:
+        fn = se ? gen_helper_gvec_vcgd64s : gen_helper_gvec_vcgd64;
+        break;
+    case 0xc0:
+        fn = se ? gen_helper_gvec_vclgd64s : gen_helper_gvec_vclgd64;
+        break;
+    case 0xc7:
+        fn = se ? gen_helper_gvec_vfi64s : gen_helper_gvec_vfi64;
+        break;
+    case 0xc5:
+        fn = se ? gen_helper_gvec_vflr64s : gen_helper_gvec_vflr64;
+        break;
+    default:
+        g_assert_not_reached();
+    }
+    gen_gvec_2_ptr(get_field(s->fields, v1), get_field(s->fields, v2), cpu_env,
+                   deposit32(m4, 4, 4, erm), fn);
+    return DISAS_NEXT;
+}
+
+static DisasJumpType op_vfll(DisasContext *s, DisasOps *o)
+{
+    const uint8_t fpf = get_field(s->fields, m3);
+    const uint8_t m4 = get_field(s->fields, m4);
+    gen_helper_gvec_2_ptr *fn = gen_helper_gvec_vfll32;
+
+    if (fpf != FPF_SHORT || extract32(m4, 0, 3)) {
+        gen_program_exception(s, PGM_SPECIFICATION);
+        return DISAS_NORETURN;
+    }
+
+    if (extract32(m4, 3, 1)) {
+        fn = gen_helper_gvec_vfll32s;
+    }
+    gen_gvec_2_ptr(get_field(s->fields, v1), get_field(s->fields, v2), cpu_env,
+                   0, fn);
+    return DISAS_NEXT;
+}
+
+static DisasJumpType op_vfma(DisasContext *s, DisasOps *o)
+{
+    const uint8_t m5 = get_field(s->fields, m5);
+    const uint8_t fpf = get_field(s->fields, m6);
+    const bool se = extract32(m5, 3, 1);
+    gen_helper_gvec_4_ptr *fn;
+
+    if (fpf != FPF_LONG || extract32(m5, 0, 3)) {
+        gen_program_exception(s, PGM_SPECIFICATION);
+        return DISAS_NORETURN;
+    }
+
+    if (s->fields->op2 == 0x8f) {
+        fn = se ? gen_helper_gvec_vfma64s : gen_helper_gvec_vfma64;
+    } else {
+        fn = se ? gen_helper_gvec_vfms64s : gen_helper_gvec_vfms64;
+    }
+    gen_gvec_4_ptr(get_field(s->fields, v1), get_field(s->fields, v2),
+                   get_field(s->fields, v3), get_field(s->fields, v4), cpu_env,
+                   0, fn);
+    return DISAS_NEXT;
+}
+
+static DisasJumpType op_vfpso(DisasContext *s, DisasOps *o)
+{
+    const uint8_t v1 = get_field(s->fields, v1);
+    const uint8_t v2 = get_field(s->fields, v2);
+    const uint8_t fpf = get_field(s->fields, m3);
+    const uint8_t m4 = get_field(s->fields, m4);
+    const uint8_t m5 = get_field(s->fields, m5);
+    TCGv_i64 tmp;
+
+    if (fpf != FPF_LONG || extract32(m4, 0, 3) || m5 > 2) {
+        gen_program_exception(s, PGM_SPECIFICATION);
+        return DISAS_NORETURN;
+    }
+
+    if (extract32(m4, 3, 1)) {
+        tmp = tcg_temp_new_i64();
+        read_vec_element_i64(tmp, v2, 0, ES_64);
+        switch (m5) {
+        case 0:
+            /* sign bit is inverted (complement) */
+            tcg_gen_xori_i64(tmp, tmp, 1ull << 63);
+            break;
+        case 1:
+            /* sign bit is set to one (negative) */
+            tcg_gen_ori_i64(tmp, tmp, 1ull << 63);
+            break;
+        case 2:
+            /* sign bit is set to zero (positive) */
+            tcg_gen_andi_i64(tmp, tmp, (1ull << 63) - 1);
+            break;
+        }
+        write_vec_element_i64(tmp, v1, 0, ES_64);
+        tcg_temp_free_i64(tmp);
+    } else {
+        switch (m5) {
+        case 0:
+            /* sign bit is inverted (complement) */
+            gen_gvec_fn_2i(xori, ES_64, v1, v2, 1ull << 63);
+            break;
+        case 1:
+            /* sign bit is set to one (negative) */
+            gen_gvec_fn_2i(ori, ES_64, v1, v2, 1ull << 63);
+            break;
+        case 2:
+            /* sign bit is set to zero (positive) */
+            gen_gvec_fn_2i(andi, ES_64, v1, v2, (1ull << 63) - 1);
+            break;
+        }
+    }
+    return DISAS_NEXT;
+}
+
+static DisasJumpType op_vfsq(DisasContext *s, DisasOps *o)
+{
+    const uint8_t fpf = get_field(s->fields, m3);
+    const uint8_t m4 = get_field(s->fields, m4);
+    gen_helper_gvec_2_ptr *fn = gen_helper_gvec_vfsq64;
+
+    if (fpf != FPF_LONG || extract32(m4, 0, 3)) {
+        gen_program_exception(s, PGM_SPECIFICATION);
+        return DISAS_NORETURN;
+    }
+
+    if (extract32(m4, 3, 1)) {
+        fn = gen_helper_gvec_vfsq64s;
+    }
+    gen_gvec_2_ptr(get_field(s->fields, v1), get_field(s->fields, v2), cpu_env,
+                   0, fn);
+    return DISAS_NEXT;
+}
+
+static DisasJumpType op_vftci(DisasContext *s, DisasOps *o)
+{
+    const uint16_t i3 = get_field(s->fields, i3);
+    const uint8_t fpf = get_field(s->fields, m4);
+    const uint8_t m5 = get_field(s->fields, m5);
+    gen_helper_gvec_2_ptr *fn = gen_helper_gvec_vftci64;
+
+    if (fpf != FPF_LONG || extract32(m5, 0, 3)) {
+        gen_program_exception(s, PGM_SPECIFICATION);
+        return DISAS_NORETURN;
+    }
+
+    if (extract32(m5, 3, 1)) {
+        fn = gen_helper_gvec_vftci64s;
+    }
+    gen_gvec_2_ptr(get_field(s->fields, v1), get_field(s->fields, v2), cpu_env,
+                   i3, fn);
     set_cc_static(s);
     return DISAS_NEXT;
 }

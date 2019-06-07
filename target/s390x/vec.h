@@ -12,6 +12,8 @@
 #ifndef S390X_VEC_H
 #define S390X_VEC_H
 
+#include "tcg/tcg.h"
+
 typedef union S390Vector {
     uint64_t doubleword[2];
     uint32_t word[4];
@@ -70,6 +72,23 @@ static inline uint64_t s390_vec_read_element64(const S390Vector *v, uint8_t enr)
     return v->doubleword[enr];
 }
 
+static inline uint64_t s390_vec_read_element(const S390Vector *v, uint8_t enr,
+                                             uint8_t es)
+{
+    switch (es) {
+    case MO_8:
+        return s390_vec_read_element8(v, enr);
+    case MO_16:
+        return s390_vec_read_element16(v, enr);
+    case MO_32:
+        return s390_vec_read_element32(v, enr);
+    case MO_64:
+        return s390_vec_read_element64(v, enr);
+    default:
+        g_assert_not_reached();
+    }
+}
+
 static inline void s390_vec_write_element8(S390Vector *v, uint8_t enr,
                                            uint8_t data)
 {
@@ -96,6 +115,27 @@ static inline void s390_vec_write_element64(S390Vector *v, uint8_t enr,
 {
     g_assert(enr < 2);
     v->doubleword[enr] = data;
+}
+
+static inline void s390_vec_write_element(S390Vector *v, uint8_t enr,
+                                          uint8_t es, uint64_t data)
+{
+    switch (es) {
+    case MO_8:
+        s390_vec_write_element8(v, enr, data);
+        break;
+    case MO_16:
+        s390_vec_write_element16(v, enr, data);
+        break;
+    case MO_32:
+        s390_vec_write_element32(v, enr, data);
+        break;
+    case MO_64:
+        s390_vec_write_element64(v, enr, data);
+        break;
+    default:
+        g_assert_not_reached();
+    }
 }
 
 #endif /* S390X_VEC_H */

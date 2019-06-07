@@ -249,7 +249,7 @@ int s390_store_status(S390CPU *cpu, hwaddr addr, bool store_arch)
         cpu_physical_memory_write(offsetof(LowCore, ar_access_id), &ar_id, 1);
     }
     for (i = 0; i < 16; ++i) {
-        sa->fprs[i] = cpu_to_be64(get_freg(&cpu->env, i)->ll);
+        sa->fprs[i] = cpu_to_be64(*get_freg(&cpu->env, i));
     }
     for (i = 0; i < 16; ++i) {
         sa->grs[i] = cpu_to_be64(cpu->env.regs[i]);
@@ -299,8 +299,8 @@ int s390_store_adtl_status(S390CPU *cpu, hwaddr addr, hwaddr len)
 
     if (s390_has_feat(S390_FEAT_VECTOR)) {
         for (i = 0; i < 32; i++) {
-            sa->vregs[i][0] = cpu_to_be64(cpu->env.vregs[i][0].ll);
-            sa->vregs[i][1] = cpu_to_be64(cpu->env.vregs[i][1].ll);
+            sa->vregs[i][0] = cpu_to_be64(cpu->env.vregs[i][0]);
+            sa->vregs[i][1] = cpu_to_be64(cpu->env.vregs[i][1]);
         }
     }
     if (s390_has_feat(S390_FEAT_GUARDED_STORAGE) && len >= ADTL_GS_MIN_SIZE) {
@@ -341,13 +341,13 @@ void s390_cpu_dump_state(CPUState *cs, FILE *f, int flags)
         if (s390_has_feat(S390_FEAT_VECTOR)) {
             for (i = 0; i < 32; i++) {
                 qemu_fprintf(f, "V%02d=%016" PRIx64 "%016" PRIx64 "%c",
-                             i, env->vregs[i][0].ll, env->vregs[i][1].ll,
+                             i, env->vregs[i][0], env->vregs[i][1],
                              i % 2 ? '\n' : ' ');
             }
         } else {
             for (i = 0; i < 16; i++) {
                 qemu_fprintf(f, "F%02d=%016" PRIx64 "%c",
-                             i, get_freg(env, i)->ll,
+                             i, *get_freg(env, i),
                              (i % 4) == 3 ? '\n' : ' ');
             }
         }
