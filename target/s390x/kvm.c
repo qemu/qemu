@@ -418,21 +418,21 @@ int kvm_arch_put_registers(CPUState *cs, int level)
 
     if (can_sync_regs(cs, KVM_SYNC_VRS)) {
         for (i = 0; i < 32; i++) {
-            cs->kvm_run->s.regs.vrs[i][0] = env->vregs[i][0].ll;
-            cs->kvm_run->s.regs.vrs[i][1] = env->vregs[i][1].ll;
+            cs->kvm_run->s.regs.vrs[i][0] = env->vregs[i][0];
+            cs->kvm_run->s.regs.vrs[i][1] = env->vregs[i][1];
         }
         cs->kvm_run->s.regs.fpc = env->fpc;
         cs->kvm_run->kvm_dirty_regs |= KVM_SYNC_VRS;
     } else if (can_sync_regs(cs, KVM_SYNC_FPRS)) {
         for (i = 0; i < 16; i++) {
-            cs->kvm_run->s.regs.fprs[i] = get_freg(env, i)->ll;
+            cs->kvm_run->s.regs.fprs[i] = *get_freg(env, i);
         }
         cs->kvm_run->s.regs.fpc = env->fpc;
         cs->kvm_run->kvm_dirty_regs |= KVM_SYNC_FPRS;
     } else {
         /* Floating point */
         for (i = 0; i < 16; i++) {
-            fpu.fprs[i] = get_freg(env, i)->ll;
+            fpu.fprs[i] = *get_freg(env, i);
         }
         fpu.fpc = env->fpc;
 
@@ -586,13 +586,13 @@ int kvm_arch_get_registers(CPUState *cs)
     /* Floating point and vector registers */
     if (can_sync_regs(cs, KVM_SYNC_VRS)) {
         for (i = 0; i < 32; i++) {
-            env->vregs[i][0].ll = cs->kvm_run->s.regs.vrs[i][0];
-            env->vregs[i][1].ll = cs->kvm_run->s.regs.vrs[i][1];
+            env->vregs[i][0] = cs->kvm_run->s.regs.vrs[i][0];
+            env->vregs[i][1] = cs->kvm_run->s.regs.vrs[i][1];
         }
         env->fpc = cs->kvm_run->s.regs.fpc;
     } else if (can_sync_regs(cs, KVM_SYNC_FPRS)) {
         for (i = 0; i < 16; i++) {
-            get_freg(env, i)->ll = cs->kvm_run->s.regs.fprs[i];
+            *get_freg(env, i) = cs->kvm_run->s.regs.fprs[i];
         }
         env->fpc = cs->kvm_run->s.regs.fpc;
     } else {
@@ -601,7 +601,7 @@ int kvm_arch_get_registers(CPUState *cs)
             return r;
         }
         for (i = 0; i < 16; i++) {
-            get_freg(env, i)->ll = fpu.fprs[i];
+            *get_freg(env, i) = fpu.fprs[i];
         }
         env->fpc = fpu.fpc;
     }

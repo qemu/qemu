@@ -112,7 +112,7 @@ static void handle_exceptions(CPUS390XState *env, bool XxC, uintptr_t retaddr)
     }
 }
 
-static inline int float_comp_to_cc(CPUS390XState *env, int float_compare)
+int float_comp_to_cc(CPUS390XState *env, int float_compare)
 {
     S390CPU *cpu = s390_env_get_cpu(env);
 
@@ -746,7 +746,7 @@ static inline uint16_t dcmask(int bit, bool neg)
 }
 
 #define DEF_FLOAT_DCMASK(_TYPE) \
-static uint16_t _TYPE##_dcmask(CPUS390XState *env, _TYPE f1)       \
+uint16_t _TYPE##_dcmask(CPUS390XState *env, _TYPE f1)              \
 {                                                                  \
     const bool neg = _TYPE##_is_neg(f1);                           \
                                                                    \
