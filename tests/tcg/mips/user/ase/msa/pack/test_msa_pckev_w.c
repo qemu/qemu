@@ -123,6 +123,8 @@ int32_t main(void)
         { 0xa942e2a05e31e24eULL, 0xa942e2a05e31e24eULL, },
     };
 
+    reset_msa_registers();
+
     gettimeofday(&start, NULL);
 
     for (i = 0; i < PATTERN_INPUTS_SHORT_COUNT; i++) {
