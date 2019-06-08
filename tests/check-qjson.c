@@ -767,7 +767,7 @@ static void utf8_string(void)
                     if (*end == ' ') {
                         end++;
                     }
-                    in = strndup(tail, end - tail);
+                    in = g_strndup(tail, end - tail);
                     str = from_json_str(in, j, NULL);
                     g_assert(!str);
                     g_free(in);

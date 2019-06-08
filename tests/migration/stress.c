@@ -104,9 +104,9 @@ static int get_command_arg_str(const char *name,
     }
 
     if (end)
-        *val = strndup(start, end - start);
+        *val = g_strndup(start, end - start);
     else
-        *val = strdup(start);
+        *val = g_strdup(start);
     return 1;
 }
 
@@ -126,10 +126,10 @@ static int get_command_arg_ull(const char *name,
     if (errno || *end) {
         fprintf(stderr, "%s (%05d): ERROR: cannot parse %s value %s\n",
                 argv0, gettid(), name, valstr);
-        free(valstr);
+        g_free(valstr);
         return -1;
     }
-    free(valstr);
+    g_free(valstr);
     return 0;
 }
 
