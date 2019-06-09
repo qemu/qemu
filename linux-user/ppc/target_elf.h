@@ -10,7 +10,7 @@
 static inline const char *cpu_get_model(uint32_t eflags)
 {
 #ifdef TARGET_PPC64
-    return "POWER8";
+    return "POWER9";
 #else
     return "750";
 #endif
