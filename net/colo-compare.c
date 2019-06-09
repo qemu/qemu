@@ -129,7 +129,8 @@ static void colo_compare_inconsistency_notify(void)
 static int compare_chr_send(CompareState *s,
                             const uint8_t *buf,
                             uint32_t size,
-                            uint32_t vnet_hdr_len);
+                            uint32_t vnet_hdr_len,
+                            bool notify_remote_frame);
 
 static gint seq_sorter(Packet *a, Packet *b, gpointer data)
 {
@@ -241,7 +242,8 @@ static void colo_release_primary_pkt(CompareState *s, Packet *pkt)
     ret = compare_chr_send(s,
                            pkt->data,
                            pkt->size,
-                           pkt->vnet_hdr_len);
+                           pkt->vnet_hdr_len,
+                           false);
     if (ret < 0) {
         error_report("colo send primary packet failed");
     }
@@ -671,7 +673,8 @@ static void colo_compare_connection(void *opaque, void *user_data)
 static int compare_chr_send(CompareState *s,
                             const uint8_t *buf,
                             uint32_t size,
-                            uint32_t vnet_hdr_len)
+                            uint32_t vnet_hdr_len,
+                            bool notify_remote_frame)
 {
     int ret = 0;
     uint32_t len = htonl(size);
@@ -680,7 +683,14 @@ static int compare_chr_send(CompareState *s,
         return 0;
     }
 
-    ret = qemu_chr_fe_write_all(&s->chr_out, (uint8_t *)&len, sizeof(len));
+    if (notify_remote_frame) {
+        ret = qemu_chr_fe_write_all(&s->chr_notify_dev,
+                                    (uint8_t *)&len,
+                                    sizeof(len));
+    } else {
+        ret = qemu_chr_fe_write_all(&s->chr_out, (uint8_t *)&len, sizeof(len));
+    }
+
     if (ret != sizeof(len)) {
         goto err;
     }
@@ -691,13 +701,26 @@ static int compare_chr_send(CompareState *s,
          * know how to parse net packet correctly.
          */
         len = htonl(vnet_hdr_len);
-        ret = qemu_chr_fe_write_all(&s->chr_out, (uint8_t *)&len, sizeof(len));
+
+        if (!notify_remote_frame) {
+            ret = qemu_chr_fe_write_all(&s->chr_out,
+                                        (uint8_t *)&len,
+                                        sizeof(len));
+        }
+
         if (ret != sizeof(len)) {
             goto err;
         }
     }
 
-    ret = qemu_chr_fe_write_all(&s->chr_out, (uint8_t *)buf, size);
+    if (notify_remote_frame) {
+        ret = qemu_chr_fe_write_all(&s->chr_notify_dev,
+                                    (uint8_t *)buf,
+                                    size);
+    } else {
+        ret = qemu_chr_fe_write_all(&s->chr_out, (uint8_t *)buf, size);
+    }
+
     if (ret != size) {
         goto err;
     }
@@ -943,7 +966,8 @@ static void compare_pri_rs_finalize(SocketReadState *pri_rs)
         compare_chr_send(s,
                          pri_rs->buf,
                          pri_rs->packet_len,
-                         pri_rs->vnet_hdr_len);
+                         pri_rs->vnet_hdr_len,
+                         false);
     } else {
         /* compare packet in the specified connection */
         colo_compare_connection(conn, s);
@@ -1075,7 +1099,8 @@ static void colo_flush_packets(void *opaque, void *user_data)
         compare_chr_send(s,
                          pkt->data,
                          pkt->size,
-                         pkt->vnet_hdr_len);
+                         pkt->vnet_hdr_len,
+                         false);
         packet_destroy(pkt, NULL);
     }
     while (!g_queue_is_empty(&conn->secondary_list)) {
