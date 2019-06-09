@@ -344,9 +344,9 @@ static uint64_t pauth_auth(CPUARMState *env, uint64_t ptr, uint64_t modifier,
     if (unlikely(extract64(test, bot_bit, top_bit - bot_bit))) {
         int error_code = (keynumber << 1) | (keynumber ^ 1);
         if (param.tbi) {
-            return deposit64(ptr, 53, 2, error_code);
+            return deposit64(orig_ptr, 53, 2, error_code);
         } else {
-            return deposit64(ptr, 61, 2, error_code);
+            return deposit64(orig_ptr, 61, 2, error_code);
         }
     }
     return orig_ptr;
