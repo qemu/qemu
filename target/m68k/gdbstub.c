@@ -35,7 +35,8 @@ int m68k_cpu_gdb_read_register(CPUState *cs, uint8_t *mem_buf, int n)
     } else {
         switch (n) {
         case 16:
-            return gdb_get_reg32(mem_buf, env->sr);
+            /* SR is made of SR+CCR, CCR is many 1bit flags so uses helper */
+            return gdb_get_reg32(mem_buf, env->sr | cpu_m68k_get_ccr(env));
         case 17:
             return gdb_get_reg32(mem_buf, env->pc);
         }
