@@ -1599,7 +1599,7 @@ static int usb_mtp_update_object(MTPObject *parent, char *name)
     return ret;
 }
 
-static int usb_mtp_write_data(MTPState *s)
+static void usb_mtp_write_data(MTPState *s, uint32_t handle)
 {
     MTPData *d = s->data_out;
     MTPObject *parent =
@@ -1616,26 +1616,33 @@ static int usb_mtp_write_data(MTPState *s)
         if (!parent || !s->write_pending) {
             usb_mtp_queue_result(s, RES_INVALID_OBJECTINFO, d->trans,
                 0, 0, 0, 0);
-        return 1;
+            return;
         }
 
         if (s->dataset.filename) {
             path = g_strdup_printf("%s/%s", parent->path, s->dataset.filename);
             if (s->dataset.format == FMT_ASSOCIATION) {
                 ret = mkdir(path, mask);
-                goto free;
+                if (!ret) {
+                    usb_mtp_queue_result(s, RES_OK, d->trans, 3,
+                                         QEMU_STORAGE_ID,
+                                         s->dataset.parent_handle,
+                                         handle);
+                    goto close;
+                }
+                goto done;
             }
+
             d->fd = open(path, O_CREAT | O_WRONLY |
                          O_CLOEXEC | O_NOFOLLOW, mask);
             if (d->fd == -1) {
-                usb_mtp_queue_result(s, RES_STORE_FULL, d->trans,
-                                     0, 0, 0, 0);
+                ret = 1;
                 goto done;
             }
 
             /* Return success if initiator sent 0 sized data */
             if (!s->dataset.size) {
-                goto success;
+                goto done;
             }
             if (d->length != MTP_WRITE_BUF_SZ && !d->pending) {
                 d->write_status = WRITE_END;
@@ -1647,13 +1654,12 @@ static int usb_mtp_write_data(MTPState *s)
         rc = write_retry(d->fd, d->data, d->data_offset,
                          d->offset - d->data_offset);
         if (rc != d->data_offset) {
-            usb_mtp_queue_result(s, RES_STORE_FULL, d->trans,
-                                 0, 0, 0, 0);
+            ret = 1;
             goto done;
         }
         if (d->write_status != WRITE_END) {
             g_free(path);
-            return ret;
+            return;
         } else {
             /*
              * Return an incomplete transfer if file size doesn't match
@@ -1665,16 +1671,20 @@ static int usb_mtp_write_data(MTPState *s)
                 usb_mtp_update_object(parent, s->dataset.filename)) {
                 usb_mtp_queue_result(s, RES_INCOMPLETE_TRANSFER, d->trans,
                                      0, 0, 0, 0);
-                goto done;
+                goto close;
             }
         }
     }
 
-success:
-    usb_mtp_queue_result(s, RES_OK, d->trans,
-                         0, 0, 0, 0);
-
 done:
+    if (ret) {
+        usb_mtp_queue_result(s, RES_STORE_FULL, d->trans,
+                             0, 0, 0, 0);
+    } else {
+        usb_mtp_queue_result(s, RES_OK, d->trans,
+                             0, 0, 0, 0);
+    }
+close:
     /*
      * The write dataset is kept around and freed only
      * on success or if another write request comes in
@@ -1683,12 +1693,10 @@ done:
         close(d->fd);
         d->fd = -1;
     }
-free:
     g_free(s->dataset.filename);
     s->dataset.size = 0;
     g_free(path);
     s->write_pending = false;
-    return ret;
 }
 
 static void usb_mtp_write_metadata(MTPState *s, uint64_t dlen)
@@ -1732,16 +1740,11 @@ static void usb_mtp_write_metadata(MTPState *s, uint64_t dlen)
     s->write_pending = true;
 
     if (s->dataset.format == FMT_ASSOCIATION) {
-        if (usb_mtp_write_data(s)) {
-            /* next_handle will be allocated to the newly created dir */
-            usb_mtp_queue_result(s, RES_STORE_FULL, d->trans,
-                                 0, 0, 0, 0);
-            return;
-        }
+        usb_mtp_write_data(s, next_handle);
+    } else {
+        usb_mtp_queue_result(s, RES_OK, d->trans, 3, QEMU_STORAGE_ID,
+                             s->dataset.parent_handle, next_handle);
     }
-
-    usb_mtp_queue_result(s, RES_OK, d->trans, 3, QEMU_STORAGE_ID,
-                         s->dataset.parent_handle, next_handle);
 }
 
 static void usb_mtp_get_data(MTPState *s, mtp_container *container,
@@ -1821,14 +1824,14 @@ static void usb_mtp_get_data(MTPState *s, mtp_container *container,
             } else {
                 d->write_status = WRITE_START;
             }
-            usb_mtp_write_data(s);
+            usb_mtp_write_data(s, 0);
             usb_mtp_data_free(s->data_out);
             s->data_out = NULL;
             return;
         }
         if (d->data_offset == d->length) {
             d->pending = true;
-            usb_mtp_write_data(s);
+            usb_mtp_write_data(s, 0);
         }
         break;
     default:
