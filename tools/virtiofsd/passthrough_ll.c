@@ -67,6 +67,12 @@
 #include "passthrough_helpers.h"
 #include "seccomp.h"
 
+/* Keep track of inode posix locks for each owner. */
+struct lo_inode_plock {
+    uint64_t lock_owner;
+    int fd; /* fd for OFD locks */
+};
+
 struct lo_map_elem {
     union {
         struct lo_inode *inode;
@@ -95,6 +101,8 @@ struct lo_inode {
     struct lo_key key;
     uint64_t refcount; /* protected by lo->mutex */
     fuse_ino_t fuse_ino;
+    pthread_mutex_t plock_mutex;
+    GHashTable *posix_locks; /* protected by lo_inode->plock_mutex */
 };
 
 struct lo_cred {
@@ -114,6 +122,7 @@ struct lo_data {
     int norace;
     int writeback;
     int flock;
+    int posix_lock;
     int xattr;
     char *source;
     double timeout;
@@ -137,6 +146,8 @@ static const struct fuse_opt lo_opts[] = {
     { "source=%s", offsetof(struct lo_data, source), 0 },
     { "flock", offsetof(struct lo_data, flock), 1 },
     { "no_flock", offsetof(struct lo_data, flock), 0 },
+    { "posix_lock", offsetof(struct lo_data, posix_lock), 1 },
+    { "no_posix_lock", offsetof(struct lo_data, posix_lock), 0 },
     { "xattr", offsetof(struct lo_data, xattr), 1 },
     { "no_xattr", offsetof(struct lo_data, xattr), 0 },
     { "timeout=%lf", offsetof(struct lo_data, timeout), 0 },
@@ -485,6 +496,17 @@ static void lo_init(void *userdata, struct fuse_conn_info *conn)
         fuse_log(FUSE_LOG_DEBUG, "lo_init: activating flock locks\n");
         conn->want |= FUSE_CAP_FLOCK_LOCKS;
     }
+
+    if (conn->capable & FUSE_CAP_POSIX_LOCKS) {
+        if (lo->posix_lock) {
+            fuse_log(FUSE_LOG_DEBUG, "lo_init: activating posix locks\n");
+            conn->want |= FUSE_CAP_POSIX_LOCKS;
+        } else {
+            fuse_log(FUSE_LOG_DEBUG, "lo_init: disabling posix locks\n");
+            conn->want &= ~FUSE_CAP_POSIX_LOCKS;
+        }
+    }
+
     if ((lo->cache == CACHE_NONE && !lo->readdirplus_set) ||
         lo->readdirplus_clear) {
         fuse_log(FUSE_LOG_DEBUG, "lo_init: disabling readdirplus\n");
@@ -772,6 +794,19 @@ static struct lo_inode *lo_find(struct lo_data *lo, struct stat *st)
     return p;
 }
 
+/* value_destroy_func for posix_locks GHashTable */
+static void posix_locks_value_destroy(gpointer data)
+{
+    struct lo_inode_plock *plock = data;
+
+    /*
+     * We had used open() for locks and had only one fd. So
+     * closing this fd should release all OFD locks.
+     */
+    close(plock->fd);
+    free(plock);
+}
+
 static int lo_do_lookup(fuse_req_t req, fuse_ino_t parent, const char *name,
                         struct fuse_entry_param *e)
 {
@@ -825,6 +860,9 @@ static int lo_do_lookup(fuse_req_t req, fuse_ino_t parent, const char *name,
         newfd = -1;
         inode->key.ino = e->attr.st_ino;
         inode->key.dev = e->attr.st_dev;
+        pthread_mutex_init(&inode->plock_mutex, NULL);
+        inode->posix_locks = g_hash_table_new_full(
+            g_direct_hash, g_direct_equal, NULL, posix_locks_value_destroy);
 
         pthread_mutex_lock(&lo->mutex);
         inode->fuse_ino = lo_add_inode_mapping(req, inode);
@@ -1160,6 +1198,11 @@ static void unref_inode_lolocked(struct lo_data *lo, struct lo_inode *inode,
     if (!inode->refcount) {
         lo_map_remove(&lo->ino_map, inode->fuse_ino);
         g_hash_table_remove(lo->inodes, &inode->key);
+        if (g_hash_table_size(inode->posix_locks)) {
+            fuse_log(FUSE_LOG_WARNING, "Hash table is not empty\n");
+        }
+        g_hash_table_destroy(inode->posix_locks);
+        pthread_mutex_destroy(&inode->plock_mutex);
         pthread_mutex_unlock(&lo->mutex);
         close(inode->fd);
         free(inode);
@@ -1516,6 +1559,136 @@ out:
     }
 }
 
+/* Should be called with inode->plock_mutex held */
+static struct lo_inode_plock *lookup_create_plock_ctx(struct lo_data *lo,
+                                                      struct lo_inode *inode,
+                                                      uint64_t lock_owner,
+                                                      pid_t pid, int *err)
+{
+    struct lo_inode_plock *plock;
+    char procname[64];
+    int fd;
+
+    plock =
+        g_hash_table_lookup(inode->posix_locks, GUINT_TO_POINTER(lock_owner));
+
+    if (plock) {
+        return plock;
+    }
+
+    plock = malloc(sizeof(struct lo_inode_plock));
+    if (!plock) {
+        *err = ENOMEM;
+        return NULL;
+    }
+
+    /* Open another instance of file which can be used for ofd locks. */
+    sprintf(procname, "%i", inode->fd);
+
+    /* TODO: What if file is not writable? */
+    fd = openat(lo->proc_self_fd, procname, O_RDWR);
+    if (fd == -1) {
+        *err = errno;
+        free(plock);
+        return NULL;
+    }
+
+    plock->lock_owner = lock_owner;
+    plock->fd = fd;
+    g_hash_table_insert(inode->posix_locks, GUINT_TO_POINTER(plock->lock_owner),
+                        plock);
+    return plock;
+}
+
+static void lo_getlk(fuse_req_t req, fuse_ino_t ino, struct fuse_file_info *fi,
+                     struct flock *lock)
+{
+    struct lo_data *lo = lo_data(req);
+    struct lo_inode *inode;
+    struct lo_inode_plock *plock;
+    int ret, saverr = 0;
+
+    fuse_log(FUSE_LOG_DEBUG,
+             "lo_getlk(ino=%" PRIu64 ", flags=%d)"
+             " owner=0x%lx, l_type=%d l_start=0x%lx"
+             " l_len=0x%lx\n",
+             ino, fi->flags, fi->lock_owner, lock->l_type, lock->l_start,
+             lock->l_len);
+
+    inode = lo_inode(req, ino);
+    if (!inode) {
+        fuse_reply_err(req, EBADF);
+        return;
+    }
+
+    pthread_mutex_lock(&inode->plock_mutex);
+    plock =
+        lookup_create_plock_ctx(lo, inode, fi->lock_owner, lock->l_pid, &ret);
+    if (!plock) {
+        pthread_mutex_unlock(&inode->plock_mutex);
+        fuse_reply_err(req, ret);
+        return;
+    }
+
+    ret = fcntl(plock->fd, F_OFD_GETLK, lock);
+    if (ret == -1) {
+        saverr = errno;
+    }
+    pthread_mutex_unlock(&inode->plock_mutex);
+
+    if (saverr) {
+        fuse_reply_err(req, saverr);
+    } else {
+        fuse_reply_lock(req, lock);
+    }
+}
+
+static void lo_setlk(fuse_req_t req, fuse_ino_t ino, struct fuse_file_info *fi,
+                     struct flock *lock, int sleep)
+{
+    struct lo_data *lo = lo_data(req);
+    struct lo_inode *inode;
+    struct lo_inode_plock *plock;
+    int ret, saverr = 0;
+
+    fuse_log(FUSE_LOG_DEBUG,
+             "lo_setlk(ino=%" PRIu64 ", flags=%d)"
+             " cmd=%d pid=%d owner=0x%lx sleep=%d l_whence=%d"
+             " l_start=0x%lx l_len=0x%lx\n",
+             ino, fi->flags, lock->l_type, lock->l_pid, fi->lock_owner, sleep,
+             lock->l_whence, lock->l_start, lock->l_len);
+
+    if (sleep) {
+        fuse_reply_err(req, EOPNOTSUPP);
+        return;
+    }
+
+    inode = lo_inode(req, ino);
+    if (!inode) {
+        fuse_reply_err(req, EBADF);
+        return;
+    }
+
+    pthread_mutex_lock(&inode->plock_mutex);
+    plock =
+        lookup_create_plock_ctx(lo, inode, fi->lock_owner, lock->l_pid, &ret);
+
+    if (!plock) {
+        pthread_mutex_unlock(&inode->plock_mutex);
+        fuse_reply_err(req, ret);
+        return;
+    }
+
+    /* TODO: Is it alright to modify flock? */
+    lock->l_pid = 0;
+    ret = fcntl(plock->fd, F_OFD_SETLK, lock);
+    if (ret == -1) {
+        saverr = errno;
+    }
+    pthread_mutex_unlock(&inode->plock_mutex);
+    fuse_reply_err(req, saverr);
+}
+
 static void lo_fsyncdir(fuse_req_t req, fuse_ino_t ino, int datasync,
                         struct fuse_file_info *fi)
 {
@@ -1617,6 +1790,19 @@ static void lo_flush(fuse_req_t req, fuse_ino_t ino, struct fuse_file_info *fi)
 {
     int res;
     (void)ino;
+    struct lo_inode *inode;
+
+    inode = lo_inode(req, ino);
+    if (!inode) {
+        fuse_reply_err(req, EBADF);
+        return;
+    }
+
+    /* An fd is going away. Cleanup associated posix locks */
+    pthread_mutex_lock(&inode->plock_mutex);
+    g_hash_table_remove(inode->posix_locks, GUINT_TO_POINTER(fi->lock_owner));
+    pthread_mutex_unlock(&inode->plock_mutex);
+
     res = close(dup(lo_fi_fd(req, fi)));
     fuse_reply_err(req, res == -1 ? errno : 0);
 }
@@ -2080,6 +2266,8 @@ static struct fuse_lowlevel_ops lo_oper = {
     .releasedir = lo_releasedir,
     .fsyncdir = lo_fsyncdir,
     .create = lo_create,
+    .getlk = lo_getlk,
+    .setlk = lo_setlk,
     .open = lo_open,
     .release = lo_release,
     .flush = lo_flush,
@@ -2434,6 +2622,7 @@ int main(int argc, char *argv[])
     struct lo_data lo = {
         .debug = 0,
         .writeback = 0,
+        .posix_lock = 1,
         .proc_self_fd = -1,
     };
     struct lo_map_elem *root_elem;
