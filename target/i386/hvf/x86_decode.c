@@ -75,8 +75,8 @@ static inline uint64_t decode_bytes(CPUX86State *env, struct x86_decode *decode,
         VM_PANIC_EX("%s invalid size %d\n", __func__, size);
         break;
     }
-    target_ulong va  = linear_rip(ENV_GET_CPU(env), RIP(env)) + decode->len;
-    vmx_read_mem(ENV_GET_CPU(env), &val, va, size);
+    target_ulong va  = linear_rip(env_cpu(env), RIP(env)) + decode->len;
+    vmx_read_mem(env_cpu(env), &val, va, size);
     decode->len += size;
     
     return val;
@@ -1772,7 +1772,7 @@ void calc_modrm_operand32(CPUX86State *env, struct x86_decode *decode,
     if (4 == decode->modrm.rm) {
         ptr += get_sib_val(env, decode, &seg);
     } else if (!decode->modrm.mod && 5 == decode->modrm.rm) {
-        if (x86_is_long_mode(ENV_GET_CPU(env))) {
+        if (x86_is_long_mode(env_cpu(env))) {
             ptr += RIP(env) + decode->len;
         } else {
             ptr = decode->displacement;
@@ -1877,7 +1877,7 @@ static void decode_prefix(CPUX86State *env, struct x86_decode *decode)
             decode->addr_size_override = byte;
             break;
         case PREFIX_REX ... (PREFIX_REX + 0xf):
-            if (x86_is_long_mode(ENV_GET_CPU(env))) {
+            if (x86_is_long_mode(env_cpu(env))) {
                 decode->rex.rex = byte;
                 break;
             }
@@ -1892,16 +1892,16 @@ static void decode_prefix(CPUX86State *env, struct x86_decode *decode)
 void set_addressing_size(CPUX86State *env, struct x86_decode *decode)
 {
     decode->addressing_size = -1;
-    if (x86_is_real(ENV_GET_CPU(env)) || x86_is_v8086(ENV_GET_CPU(env))) {
+    if (x86_is_real(env_cpu(env)) || x86_is_v8086(env_cpu(env))) {
         if (decode->addr_size_override) {
             decode->addressing_size = 4;
         } else {
             decode->addressing_size = 2;
         }
-    } else if (!x86_is_long_mode(ENV_GET_CPU(env))) {
+    } else if (!x86_is_long_mode(env_cpu(env))) {
         /* protected */
         struct vmx_segment cs;
-        vmx_read_segment_descriptor(ENV_GET_CPU(env), &cs, R_CS);
+        vmx_read_segment_descriptor(env_cpu(env), &cs, R_CS);
         /* check db */
         if ((cs.ar >> 14) & 1) {
             if (decode->addr_size_override) {
@@ -1929,16 +1929,16 @@ void set_addressing_size(CPUX86State *env, struct x86_decode *decode)
 void set_operand_size(CPUX86State *env, struct x86_decode *decode)
 {
     decode->operand_size = -1;
-    if (x86_is_real(ENV_GET_CPU(env)) || x86_is_v8086(ENV_GET_CPU(env))) {
+    if (x86_is_real(env_cpu(env)) || x86_is_v8086(env_cpu(env))) {
         if (decode->op_size_override) {
             decode->operand_size = 4;
         } else {
             decode->operand_size = 2;
         }
-    } else if (!x86_is_long_mode(ENV_GET_CPU(env))) {
+    } else if (!x86_is_long_mode(env_cpu(env))) {
         /* protected */
         struct vmx_segment cs;
-        vmx_read_segment_descriptor(ENV_GET_CPU(env), &cs, R_CS);
+        vmx_read_segment_descriptor(env_cpu(env), &cs, R_CS);
         /* check db */
         if ((cs.ar >> 14) & 1) {
             if (decode->op_size_override) {
@@ -2188,5 +2188,5 @@ target_ulong decode_linear_addr(CPUX86State *env, struct x86_decode *decode,
     default:
         break;
     }
-    return linear_addr_size(ENV_GET_CPU(env), addr, decode->addressing_size, seg);
+    return linear_addr_size(env_cpu(env), addr, decode->addressing_size, seg);
 }

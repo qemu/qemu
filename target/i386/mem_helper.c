@@ -89,7 +89,7 @@ void helper_cmpxchg8b(CPUX86State *env, target_ulong a0)
     }
     CC_SRC = eflags;
 #else
-    cpu_loop_exit_atomic(ENV_GET_CPU(env), GETPC());
+    cpu_loop_exit_atomic(env_cpu(env), GETPC());
 #endif /* CONFIG_ATOMIC64 */
 }
 
@@ -158,7 +158,7 @@ void helper_cmpxchg16b(CPUX86State *env, target_ulong a0)
         }
         CC_SRC = eflags;
     } else {
-        cpu_loop_exit_atomic(ENV_GET_CPU(env), ra);
+        cpu_loop_exit_atomic(env_cpu(env), ra);
     }
 }
 #endif

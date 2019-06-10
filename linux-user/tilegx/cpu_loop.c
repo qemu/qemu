@@ -206,7 +206,7 @@ static void do_fetch(CPUTLGState *env, int trapnr, bool quad)
 
 void cpu_loop(CPUTLGState *env)
 {
-    CPUState *cs = CPU(tilegx_env_get_cpu(env));
+    CPUState *cs = env_cpu(env);
     int trapnr;
 
     while (1) {

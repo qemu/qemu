@@ -680,7 +680,7 @@ static void *atomic_mmu_lookup(CPUArchState *env, target_ulong addr,
 {
     /* Enforce qemu required alignment.  */
     if (unlikely(addr & (size - 1))) {
-        cpu_loop_exit_atomic(ENV_GET_CPU(env), retaddr);
+        cpu_loop_exit_atomic(env_cpu(env), retaddr);
     }
     helper_retaddr = retaddr;
     return g2h(addr);

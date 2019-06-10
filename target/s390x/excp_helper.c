@@ -36,7 +36,7 @@
 void QEMU_NORETURN tcg_s390_program_interrupt(CPUS390XState *env, uint32_t code,
                                               int ilen, uintptr_t ra)
 {
-    CPUState *cs = CPU(s390_env_get_cpu(env));
+    CPUState *cs = env_cpu(env);
 
     cpu_restore_state(cs, ra, true);
     qemu_log_mask(CPU_LOG_INT, "program interrupt at %#" PRIx64 "\n",
@@ -51,7 +51,7 @@ void QEMU_NORETURN tcg_s390_data_exception(CPUS390XState *env, uint32_t dxc,
     g_assert(dxc <= 0xff);
 #if !defined(CONFIG_USER_ONLY)
     /* Store the DXC into the lowcore */
-    stl_phys(CPU(s390_env_get_cpu(env))->as,
+    stl_phys(env_cpu(env)->as,
              env->psa + offsetof(LowCore, data_exc_code), dxc);
 #endif
 
@@ -68,7 +68,7 @@ void QEMU_NORETURN tcg_s390_vector_exception(CPUS390XState *env, uint32_t vxc,
     g_assert(vxc <= 0xff);
 #if !defined(CONFIG_USER_ONLY)
     /* Always store the VXC into the lowcore, without AFP it is undefined */
-    stl_phys(CPU(s390_env_get_cpu(env))->as,
+    stl_phys(env_cpu(env)->as,
              env->psa + offsetof(LowCore, data_exc_code), vxc);
 #endif
 
@@ -297,7 +297,7 @@ static void do_svc_interrupt(CPUS390XState *env)
 static void do_ext_interrupt(CPUS390XState *env)
 {
     QEMUS390FLICState *flic = QEMU_S390_FLIC(s390_get_flic());
-    S390CPU *cpu = s390_env_get_cpu(env);
+    S390CPU *cpu = env_archcpu(env);
     uint64_t mask, addr;
     uint16_t cpu_addr;
     LowCore *lowcore;

@@ -385,7 +385,7 @@ void ppc40x_system_reset(PowerPCCPU *cpu)
 
 void store_40x_dbcr0(CPUPPCState *env, uint32_t val)
 {
-    PowerPCCPU *cpu = ppc_env_get_cpu(env);
+    PowerPCCPU *cpu = env_archcpu(env);
 
     switch ((val >> 28) & 0x3) {
     case 0x0:
@@ -785,7 +785,7 @@ target_ulong cpu_ppc_load_decr(CPUPPCState *env)
 
 target_ulong cpu_ppc_load_hdecr(CPUPPCState *env)
 {
-    PowerPCCPU *cpu = ppc_env_get_cpu(env);
+    PowerPCCPU *cpu = env_archcpu(env);
     PowerPCCPUClass *pcc = POWERPC_CPU_GET_CLASS(cpu);
     ppc_tb_t *tb_env = env->tb_env;
     uint64_t hdecr;
@@ -923,7 +923,7 @@ static inline void _cpu_ppc_store_decr(PowerPCCPU *cpu, target_ulong decr,
 
 void cpu_ppc_store_decr(CPUPPCState *env, target_ulong value)
 {
-    PowerPCCPU *cpu = ppc_env_get_cpu(env);
+    PowerPCCPU *cpu = env_archcpu(env);
     PowerPCCPUClass *pcc = POWERPC_CPU_GET_CLASS(cpu);
     int nr_bits = 32;
 
@@ -955,7 +955,7 @@ static inline void _cpu_ppc_store_hdecr(PowerPCCPU *cpu, target_ulong hdecr,
 
 void cpu_ppc_store_hdecr(CPUPPCState *env, target_ulong value)
 {
-    PowerPCCPU *cpu = ppc_env_get_cpu(env);
+    PowerPCCPU *cpu = env_archcpu(env);
     PowerPCCPUClass *pcc = POWERPC_CPU_GET_CLASS(cpu);
 
     _cpu_ppc_store_hdecr(cpu, cpu_ppc_load_hdecr(env), value,
@@ -980,7 +980,7 @@ static void cpu_ppc_store_purr(PowerPCCPU *cpu, uint64_t value)
 static void cpu_ppc_set_tb_clk (void *opaque, uint32_t freq)
 {
     CPUPPCState *env = opaque;
-    PowerPCCPU *cpu = ppc_env_get_cpu(env);
+    PowerPCCPU *cpu = env_archcpu(env);
     ppc_tb_t *tb_env = env->tb_env;
 
     tb_env->tb_freq = freq;
@@ -1095,7 +1095,7 @@ const VMStateDescription vmstate_ppc_timebase = {
 /* Set up (once) timebase frequency (in Hz) */
 clk_setup_cb cpu_ppc_tb_init (CPUPPCState *env, uint32_t freq)
 {
-    PowerPCCPU *cpu = ppc_env_get_cpu(env);
+    PowerPCCPU *cpu = env_archcpu(env);
     ppc_tb_t *tb_env;
 
     tb_env = g_malloc0(sizeof(ppc_tb_t));
@@ -1165,7 +1165,7 @@ static void cpu_4xx_fit_cb (void *opaque)
     uint64_t now, next;
 
     env = opaque;
-    cpu = ppc_env_get_cpu(env);
+    cpu = env_archcpu(env);
     tb_env = env->tb_env;
     ppc40x_timer = tb_env->opaque;
     now = qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL);
@@ -1235,7 +1235,7 @@ static void cpu_4xx_pit_cb (void *opaque)
     ppc40x_timer_t *ppc40x_timer;
 
     env = opaque;
-    cpu = ppc_env_get_cpu(env);
+    cpu = env_archcpu(env);
     tb_env = env->tb_env;
     ppc40x_timer = tb_env->opaque;
     env->spr[SPR_40x_TSR] |= 1 << 27;
@@ -1261,7 +1261,7 @@ static void cpu_4xx_wdt_cb (void *opaque)
     uint64_t now, next;
 
     env = opaque;
-    cpu = ppc_env_get_cpu(env);
+    cpu = env_archcpu(env);
     tb_env = env->tb_env;
     ppc40x_timer = tb_env->opaque;
     now = qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL);

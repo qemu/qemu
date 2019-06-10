@@ -28,13 +28,12 @@
 #include "sysemu/sysemu.h"
 #include "qom/object.h"
 #include "qemu-common.h"
-#include "qom/cpu.h"
+#include "cpu.h"
 #include "sysemu/cpus.h"
 #include "qemu/main-loop.h"
 
 unsigned long tcg_tb_size;
 
-#ifndef CONFIG_USER_ONLY
 /* mask must never be zero, except for A20 change call */
 static void tcg_handle_interrupt(CPUState *cpu, int mask)
 {
@@ -51,7 +50,7 @@ static void tcg_handle_interrupt(CPUState *cpu, int mask)
     if (!qemu_cpu_is_self(cpu)) {
         qemu_cpu_kick(cpu);
     } else {
-        atomic_set(&cpu->icount_decr.u16.high, -1);
+        atomic_set(&cpu_neg(cpu)->icount_decr.u16.high, -1);
         if (use_icount &&
             !cpu->can_do_io
             && (mask & ~old_mask) != 0) {
@@ -59,7 +58,6 @@ static void tcg_handle_interrupt(CPUState *cpu, int mask)
         }
     }
 }
-#endif
 
 static int tcg_init(MachineState *ms)
 {

@@ -28,28 +28,15 @@
 #ifndef XTENSA_CPU_H
 #define XTENSA_CPU_H
 
-#define ALIGNED_ONLY
-#define TARGET_LONG_BITS 32
-
-/* Xtensa processors have a weak memory model */
-#define TCG_GUEST_DEFAULT_MO      (0)
-
-#define CPUArchState struct CPUXtensaState
-
 #include "qemu-common.h"
 #include "cpu-qom.h"
 #include "exec/cpu-defs.h"
 #include "xtensa-isa.h"
 
-#define NB_MMU_MODES 4
+#define ALIGNED_ONLY
 
-#define TARGET_PHYS_ADDR_SPACE_BITS 32
-#ifdef CONFIG_USER_ONLY
-#define TARGET_VIRT_ADDR_SPACE_BITS 30
-#else
-#define TARGET_VIRT_ADDR_SPACE_BITS 32
-#endif
-#define TARGET_PAGE_BITS 12
+/* Xtensa processors have a weak memory model */
+#define TCG_GUEST_DEFAULT_MO      (0)
 
 enum {
     /* Additional instructions */
@@ -554,8 +541,6 @@ typedef struct CPUXtensaState {
 
     /* Watchpoints for DBREAK registers */
     struct CPUWatchpoint *cpu_watchpoint[MAX_NDBREAK];
-
-    CPU_COMMON
 } CPUXtensaState;
 
 /**
@@ -569,17 +554,9 @@ struct XtensaCPU {
     CPUState parent_obj;
     /*< public >*/
 
+    CPUNegativeOffsetState neg;
     CPUXtensaState env;
 };
-
-static inline XtensaCPU *xtensa_env_get_cpu(const CPUXtensaState *env)
-{
-    return container_of(env, XtensaCPU, env);
-}
-
-#define ENV_GET_CPU(e) CPU(xtensa_env_get_cpu(e))
-
-#define ENV_OFFSET offsetof(XtensaCPU, env)
 
 
 bool xtensa_cpu_tlb_fill(CPUState *cs, vaddr address, int size,
@@ -739,10 +716,15 @@ static inline int cpu_mmu_index(CPUXtensaState *env, bool ifetch)
 #define XTENSA_CSBASE_LBEG_OFF_MASK 0x00ff0000
 #define XTENSA_CSBASE_LBEG_OFF_SHIFT 16
 
+typedef CPUXtensaState CPUArchState;
+typedef XtensaCPU ArchCPU;
+
+#include "exec/cpu-all.h"
+
 static inline void cpu_get_tb_cpu_state(CPUXtensaState *env, target_ulong *pc,
         target_ulong *cs_base, uint32_t *flags)
 {
-    CPUState *cs = CPU(xtensa_env_get_cpu(env));
+    CPUState *cs = env_cpu(env);
 
     *pc = env->pc;
     *cs_base = 0;
@@ -811,7 +793,5 @@ static inline void cpu_get_tb_cpu_state(CPUXtensaState *env, target_ulong *pc,
         *flags |= XTENSA_TBFLAG_YIELD;
     }
 }
-
-#include "exec/cpu-all.h"
 
 #endif

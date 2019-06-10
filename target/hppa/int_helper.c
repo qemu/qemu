@@ -77,7 +77,7 @@ void HELPER(write_eirr)(CPUHPPAState *env, target_ureg val)
 {
     env->cr[CR_EIRR] &= ~val;
     qemu_mutex_lock_iothread();
-    eval_interrupt(hppa_env_get_cpu(env));
+    eval_interrupt(env_archcpu(env));
     qemu_mutex_unlock_iothread();
 }
 
@@ -85,7 +85,7 @@ void HELPER(write_eiem)(CPUHPPAState *env, target_ureg val)
 {
     env->cr[CR_EIEM] = val;
     qemu_mutex_lock_iothread();
-    eval_interrupt(hppa_env_get_cpu(env));
+    eval_interrupt(env_archcpu(env));
     qemu_mutex_unlock_iothread();
 }
 #endif /* !CONFIG_USER_ONLY */

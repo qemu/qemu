@@ -36,8 +36,6 @@
 /* Map CPU modes onto saved register banks.  */
 static inline int bank_number(CPUUniCore32State *env, int mode)
 {
-    UniCore32CPU *cpu = uc32_env_get_cpu(env);
-
     switch (mode) {
     case ASR_MODE_USER:
     case ASR_MODE_SUSR:
@@ -51,7 +49,7 @@ static inline int bank_number(CPUUniCore32State *env, int mode)
     case ASR_MODE_INTR:
         return 4;
     }
-    cpu_abort(CPU(cpu), "Bad mode %x\n", mode);
+    cpu_abort(env_cpu(env), "Bad mode %x\n", mode);
     return -1;
 }
 
@@ -126,8 +124,7 @@ static int get_phys_addr_ucv2(CPUUniCore32State *env, uint32_t address,
         int access_type, int is_user, uint32_t *phys_ptr, int *prot,
         target_ulong *page_size)
 {
-    UniCore32CPU *cpu = uc32_env_get_cpu(env);
-    CPUState *cs = CPU(cpu);
+    CPUState *cs = env_cpu(env);
     int code;
     uint32_t table;
     uint32_t desc;
@@ -174,11 +171,11 @@ static int get_phys_addr_ucv2(CPUUniCore32State *env, uint32_t address,
             *page_size = TARGET_PAGE_SIZE;
             break;
         default:
-            cpu_abort(CPU(cpu), "wrong page type!");
+            cpu_abort(cs, "wrong page type!");
         }
         break;
     default:
-        cpu_abort(CPU(cpu), "wrong page type!");
+        cpu_abort(cs, "wrong page type!");
     }
 
     *phys_ptr = phys_addr;

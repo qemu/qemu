@@ -33,9 +33,30 @@
 #include "exec/hwaddr.h"
 #endif
 #include "exec/memattrs.h"
+#include "qom/cpu.h"
+
+#include "cpu-param.h"
 
 #ifndef TARGET_LONG_BITS
-#error TARGET_LONG_BITS must be defined before including this header
+# error TARGET_LONG_BITS must be defined in cpu-param.h
+#endif
+#ifndef NB_MMU_MODES
+# error NB_MMU_MODES must be defined in cpu-param.h
+#endif
+#ifndef TARGET_PHYS_ADDR_SPACE_BITS
+# error TARGET_PHYS_ADDR_SPACE_BITS must be defined in cpu-param.h
+#endif
+#ifndef TARGET_VIRT_ADDR_SPACE_BITS
+# error TARGET_VIRT_ADDR_SPACE_BITS must be defined in cpu-param.h
+#endif
+#ifndef TARGET_PAGE_BITS
+# ifdef TARGET_PAGE_BITS_VARY
+#  ifndef TARGET_PAGE_BITS_MIN
+#   error TARGET_PAGE_BITS_MIN must be defined in cpu-param.h
+#  endif
+# else
+#  error TARGET_PAGE_BITS must be defined in cpu-param.h
+# endif
 #endif
 
 #define TARGET_LONG_SIZE (TARGET_LONG_BITS / 8)
@@ -58,6 +79,7 @@ typedef uint64_t target_ulong;
 #endif
 
 #if !defined(CONFIG_USER_ONLY) && defined(CONFIG_TCG)
+
 /* use a fully associative victim tlb of 8 entries */
 #define CPU_VTLB_SIZE 8
 
@@ -127,18 +149,10 @@ typedef struct CPUIOTLBEntry {
     MemTxAttrs attrs;
 } CPUIOTLBEntry;
 
-/**
- * struct CPUTLBWindow
- * @begin_ns: host time (in ns) at the beginning of the time window
- * @max_entries: maximum number of entries observed in the window
- *
- * See also: tlb_mmu_resize_locked()
+/*
+ * Data elements that are per MMU mode, minus the bits accessed by
+ * the TCG fast path.
  */
-typedef struct CPUTLBWindow {
-    int64_t begin_ns;
-    size_t max_entries;
-} CPUTLBWindow;
-
 typedef struct CPUTLBDesc {
     /*
      * Describe a region covering all of the large pages allocated
@@ -148,17 +162,36 @@ typedef struct CPUTLBDesc {
      */
     target_ulong large_page_addr;
     target_ulong large_page_mask;
+    /* host time (in ns) at the beginning of the time window */
+    int64_t window_begin_ns;
+    /* maximum number of entries observed in the window */
+    size_t window_max_entries;
+    size_t n_used_entries;
     /* The next index to use in the tlb victim table.  */
     size_t vindex;
-    CPUTLBWindow window;
-    size_t n_used_entries;
+    /* The tlb victim table, in two parts.  */
+    CPUTLBEntry vtable[CPU_VTLB_SIZE];
+    CPUIOTLBEntry viotlb[CPU_VTLB_SIZE];
+    /* The iotlb.  */
+    CPUIOTLBEntry *iotlb;
 } CPUTLBDesc;
+
+/*
+ * Data elements that are per MMU mode, accessed by the fast path.
+ * The structure is aligned to aid loading the pair with one insn.
+ */
+typedef struct CPUTLBDescFast {
+    /* Contains (n_entries - 1) << CPU_TLB_ENTRY_BITS */
+    uintptr_t mask;
+    /* The array of tlb entries itself. */
+    CPUTLBEntry *table;
+} CPUTLBDescFast QEMU_ALIGNED(2 * sizeof(void *));
 
 /*
  * Data elements that are shared between all MMU modes.
  */
 typedef struct CPUTLBCommon {
-    /* Serialize updates to tlb_table and tlb_v_table, and others as noted. */
+    /* Serialize updates to f.table and d.vtable, and others as noted. */
     QemuSpin lock;
     /*
      * Within dirty, for each bit N, modifications have been made to
@@ -176,35 +209,35 @@ typedef struct CPUTLBCommon {
     size_t elide_flush_count;
 } CPUTLBCommon;
 
-# define CPU_TLB                                                        \
-    /* tlb_mask[i] contains (n_entries - 1) << CPU_TLB_ENTRY_BITS */    \
-    uintptr_t tlb_mask[NB_MMU_MODES];                                   \
-    CPUTLBEntry *tlb_table[NB_MMU_MODES];
-# define CPU_IOTLB                              \
-    CPUIOTLBEntry *iotlb[NB_MMU_MODES];
-
 /*
+ * The entire softmmu tlb, for all MMU modes.
  * The meaning of each of the MMU modes is defined in the target code.
- * Note that NB_MMU_MODES is not yet defined; we can only reference it
- * within preprocessor defines that will be expanded later.
+ * Since this is placed within CPUNegativeOffsetState, the smallest
+ * negative offsets are at the end of the struct.
  */
-#define CPU_COMMON_TLB \
-    CPUTLBCommon tlb_c;                                                 \
-    CPUTLBDesc tlb_d[NB_MMU_MODES];                                     \
-    CPU_TLB                                                             \
-    CPUTLBEntry tlb_v_table[NB_MMU_MODES][CPU_VTLB_SIZE];               \
-    CPU_IOTLB                                                           \
-    CPUIOTLBEntry iotlb_v[NB_MMU_MODES][CPU_VTLB_SIZE];
+typedef struct CPUTLB {
+    CPUTLBCommon c;
+    CPUTLBDesc d[NB_MMU_MODES];
+    CPUTLBDescFast f[NB_MMU_MODES];
+} CPUTLB;
+
+/* This will be used by TCG backends to compute offsets.  */
+#define TLB_MASK_TABLE_OFS(IDX) \
+    ((int)offsetof(ArchCPU, neg.tlb.f[IDX]) - (int)offsetof(ArchCPU, env))
 
 #else
 
-#define CPU_COMMON_TLB
+typedef struct CPUTLB { } CPUTLB;
 
-#endif
+#endif  /* !CONFIG_USER_ONLY && CONFIG_TCG */
 
-
-#define CPU_COMMON                                                      \
-    /* soft mmu support */                                              \
-    CPU_COMMON_TLB                                                      \
+/*
+ * This structure must be placed in ArchCPU immedately
+ * before CPUArchState, as a field named "neg".
+ */
+typedef struct CPUNegativeOffsetState {
+    CPUTLB tlb;
+    IcountDecr icount_decr;
+} CPUNegativeOffsetState;
 
 #endif

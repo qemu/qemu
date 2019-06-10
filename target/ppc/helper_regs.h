@@ -116,7 +116,7 @@ static inline int hreg_store_msr(CPUPPCState *env, target_ulong value,
 {
     int excp;
 #if !defined(CONFIG_USER_ONLY)
-    CPUState *cs = CPU(ppc_env_get_cpu(env));
+    CPUState *cs = env_cpu(env);
 #endif
 
     excp = 0;
@@ -175,7 +175,7 @@ static inline int hreg_store_msr(CPUPPCState *env, target_ulong value,
 #if !defined(CONFIG_USER_ONLY)
 static inline void check_tlb_flush(CPUPPCState *env, bool global)
 {
-    CPUState *cs = CPU(ppc_env_get_cpu(env));
+    CPUState *cs = env_cpu(env);
 
     /* Handle global flushes first */
     if (global && (env->tlb_need_flush & TLB_NEED_GLOBAL_FLUSH)) {

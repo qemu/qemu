@@ -55,7 +55,7 @@
 /* Raise an exception statically from a TB.  */
 void HELPER(exception)(CPUS390XState *env, uint32_t excp)
 {
-    CPUState *cs = CPU(s390_env_get_cpu(env));
+    CPUState *cs = env_cpu(env);
 
     HELPER_LOG("%s: exception %d\n", __func__, excp);
     cs->exception_index = excp;
@@ -150,7 +150,7 @@ void HELPER(diag)(CPUS390XState *env, uint32_t r1, uint32_t r3, uint32_t num)
 /* Set Prefix */
 void HELPER(spx)(CPUS390XState *env, uint64_t a1)
 {
-    CPUState *cs = CPU(s390_env_get_cpu(env));
+    CPUState *cs = env_cpu(env);
     uint32_t prefix = a1 & 0x7fffe000;
 
     env->psa = prefix;
@@ -256,7 +256,7 @@ uint32_t HELPER(stsi)(CPUS390XState *env, uint64_t a0, uint64_t r0, uint64_t r1)
     const uint32_t sel2 = r1 & STSI_R1_SEL2_MASK;
     const MachineState *ms = MACHINE(qdev_get_machine());
     uint16_t total_cpus = 0, conf_cpus = 0, reserved_cpus = 0;
-    S390CPU *cpu = s390_env_get_cpu(env);
+    S390CPU *cpu = env_archcpu(env);
     SysIB sysib = { };
     int i, cc = 0;
 
@@ -411,7 +411,7 @@ uint32_t HELPER(sigp)(CPUS390XState *env, uint64_t order_code, uint32_t r1,
 #ifndef CONFIG_USER_ONLY
 void HELPER(xsch)(CPUS390XState *env, uint64_t r1)
 {
-    S390CPU *cpu = s390_env_get_cpu(env);
+    S390CPU *cpu = env_archcpu(env);
     qemu_mutex_lock_iothread();
     ioinst_handle_xsch(cpu, r1, GETPC());
     qemu_mutex_unlock_iothread();
@@ -419,7 +419,7 @@ void HELPER(xsch)(CPUS390XState *env, uint64_t r1)
 
 void HELPER(csch)(CPUS390XState *env, uint64_t r1)
 {
-    S390CPU *cpu = s390_env_get_cpu(env);
+    S390CPU *cpu = env_archcpu(env);
     qemu_mutex_lock_iothread();
     ioinst_handle_csch(cpu, r1, GETPC());
     qemu_mutex_unlock_iothread();
@@ -427,7 +427,7 @@ void HELPER(csch)(CPUS390XState *env, uint64_t r1)
 
 void HELPER(hsch)(CPUS390XState *env, uint64_t r1)
 {
-    S390CPU *cpu = s390_env_get_cpu(env);
+    S390CPU *cpu = env_archcpu(env);
     qemu_mutex_lock_iothread();
     ioinst_handle_hsch(cpu, r1, GETPC());
     qemu_mutex_unlock_iothread();
@@ -435,7 +435,7 @@ void HELPER(hsch)(CPUS390XState *env, uint64_t r1)
 
 void HELPER(msch)(CPUS390XState *env, uint64_t r1, uint64_t inst)
 {
-    S390CPU *cpu = s390_env_get_cpu(env);
+    S390CPU *cpu = env_archcpu(env);
     qemu_mutex_lock_iothread();
     ioinst_handle_msch(cpu, r1, inst >> 16, GETPC());
     qemu_mutex_unlock_iothread();
@@ -443,7 +443,7 @@ void HELPER(msch)(CPUS390XState *env, uint64_t r1, uint64_t inst)
 
 void HELPER(rchp)(CPUS390XState *env, uint64_t r1)
 {
-    S390CPU *cpu = s390_env_get_cpu(env);
+    S390CPU *cpu = env_archcpu(env);
     qemu_mutex_lock_iothread();
     ioinst_handle_rchp(cpu, r1, GETPC());
     qemu_mutex_unlock_iothread();
@@ -451,7 +451,7 @@ void HELPER(rchp)(CPUS390XState *env, uint64_t r1)
 
 void HELPER(rsch)(CPUS390XState *env, uint64_t r1)
 {
-    S390CPU *cpu = s390_env_get_cpu(env);
+    S390CPU *cpu = env_archcpu(env);
     qemu_mutex_lock_iothread();
     ioinst_handle_rsch(cpu, r1, GETPC());
     qemu_mutex_unlock_iothread();
@@ -459,7 +459,7 @@ void HELPER(rsch)(CPUS390XState *env, uint64_t r1)
 
 void HELPER(sal)(CPUS390XState *env, uint64_t r1)
 {
-    S390CPU *cpu = s390_env_get_cpu(env);
+    S390CPU *cpu = env_archcpu(env);
 
     qemu_mutex_lock_iothread();
     ioinst_handle_sal(cpu, r1, GETPC());
@@ -468,7 +468,7 @@ void HELPER(sal)(CPUS390XState *env, uint64_t r1)
 
 void HELPER(schm)(CPUS390XState *env, uint64_t r1, uint64_t r2, uint64_t inst)
 {
-    S390CPU *cpu = s390_env_get_cpu(env);
+    S390CPU *cpu = env_archcpu(env);
 
     qemu_mutex_lock_iothread();
     ioinst_handle_schm(cpu, r1, r2, inst >> 16, GETPC());
@@ -477,7 +477,7 @@ void HELPER(schm)(CPUS390XState *env, uint64_t r1, uint64_t r2, uint64_t inst)
 
 void HELPER(ssch)(CPUS390XState *env, uint64_t r1, uint64_t inst)
 {
-    S390CPU *cpu = s390_env_get_cpu(env);
+    S390CPU *cpu = env_archcpu(env);
     qemu_mutex_lock_iothread();
     ioinst_handle_ssch(cpu, r1, inst >> 16, GETPC());
     qemu_mutex_unlock_iothread();
@@ -485,7 +485,7 @@ void HELPER(ssch)(CPUS390XState *env, uint64_t r1, uint64_t inst)
 
 void HELPER(stcrw)(CPUS390XState *env, uint64_t inst)
 {
-    S390CPU *cpu = s390_env_get_cpu(env);
+    S390CPU *cpu = env_archcpu(env);
 
     qemu_mutex_lock_iothread();
     ioinst_handle_stcrw(cpu, inst >> 16, GETPC());
@@ -494,7 +494,7 @@ void HELPER(stcrw)(CPUS390XState *env, uint64_t inst)
 
 void HELPER(stsch)(CPUS390XState *env, uint64_t r1, uint64_t inst)
 {
-    S390CPU *cpu = s390_env_get_cpu(env);
+    S390CPU *cpu = env_archcpu(env);
     qemu_mutex_lock_iothread();
     ioinst_handle_stsch(cpu, r1, inst >> 16, GETPC());
     qemu_mutex_unlock_iothread();
@@ -503,7 +503,7 @@ void HELPER(stsch)(CPUS390XState *env, uint64_t r1, uint64_t inst)
 uint32_t HELPER(tpi)(CPUS390XState *env, uint64_t addr)
 {
     const uintptr_t ra = GETPC();
-    S390CPU *cpu = s390_env_get_cpu(env);
+    S390CPU *cpu = env_archcpu(env);
     QEMUS390FLICState *flic = s390_get_qemu_flic(s390_get_flic());
     QEMUS390FlicIO *io = NULL;
     LowCore *lowcore;
@@ -555,7 +555,7 @@ uint32_t HELPER(tpi)(CPUS390XState *env, uint64_t addr)
 
 void HELPER(tsch)(CPUS390XState *env, uint64_t r1, uint64_t inst)
 {
-    S390CPU *cpu = s390_env_get_cpu(env);
+    S390CPU *cpu = env_archcpu(env);
     qemu_mutex_lock_iothread();
     ioinst_handle_tsch(cpu, r1, inst >> 16, GETPC());
     qemu_mutex_unlock_iothread();
@@ -563,7 +563,7 @@ void HELPER(tsch)(CPUS390XState *env, uint64_t r1, uint64_t inst)
 
 void HELPER(chsc)(CPUS390XState *env, uint64_t inst)
 {
-    S390CPU *cpu = s390_env_get_cpu(env);
+    S390CPU *cpu = env_archcpu(env);
     qemu_mutex_lock_iothread();
     ioinst_handle_chsc(cpu, inst >> 16, GETPC());
     qemu_mutex_unlock_iothread();
@@ -618,7 +618,7 @@ void HELPER(per_ifetch)(CPUS390XState *env, uint64_t addr)
         /* If the instruction has to be nullified, trigger the
            exception immediately. */
         if (env->cregs[9] & PER_CR9_EVENT_NULLIFICATION) {
-            CPUState *cs = CPU(s390_env_get_cpu(env));
+            CPUState *cs = env_cpu(env);
 
             env->per_perc_atmid |= PER_CODE_EVENT_NULLIFICATION;
             env->int_pgm_code = PGM_PER;
@@ -702,7 +702,7 @@ uint32_t HELPER(stfle)(CPUS390XState *env, uint64_t addr)
  */
 void HELPER(clp)(CPUS390XState *env, uint32_t r2)
 {
-    S390CPU *cpu = s390_env_get_cpu(env);
+    S390CPU *cpu = env_archcpu(env);
 
     qemu_mutex_lock_iothread();
     clp_service_call(cpu, r2, GETPC());
@@ -711,7 +711,7 @@ void HELPER(clp)(CPUS390XState *env, uint32_t r2)
 
 void HELPER(pcilg)(CPUS390XState *env, uint32_t r1, uint32_t r2)
 {
-    S390CPU *cpu = s390_env_get_cpu(env);
+    S390CPU *cpu = env_archcpu(env);
 
     qemu_mutex_lock_iothread();
     pcilg_service_call(cpu, r1, r2, GETPC());
@@ -720,7 +720,7 @@ void HELPER(pcilg)(CPUS390XState *env, uint32_t r1, uint32_t r2)
 
 void HELPER(pcistg)(CPUS390XState *env, uint32_t r1, uint32_t r2)
 {
-    S390CPU *cpu = s390_env_get_cpu(env);
+    S390CPU *cpu = env_archcpu(env);
 
     qemu_mutex_lock_iothread();
     pcistg_service_call(cpu, r1, r2, GETPC());
@@ -730,7 +730,7 @@ void HELPER(pcistg)(CPUS390XState *env, uint32_t r1, uint32_t r2)
 void HELPER(stpcifc)(CPUS390XState *env, uint32_t r1, uint64_t fiba,
                      uint32_t ar)
 {
-    S390CPU *cpu = s390_env_get_cpu(env);
+    S390CPU *cpu = env_archcpu(env);
 
     qemu_mutex_lock_iothread();
     stpcifc_service_call(cpu, r1, fiba, ar, GETPC());
@@ -752,7 +752,7 @@ void HELPER(sic)(CPUS390XState *env, uint64_t r1, uint64_t r3)
 
 void HELPER(rpcit)(CPUS390XState *env, uint32_t r1, uint32_t r2)
 {
-    S390CPU *cpu = s390_env_get_cpu(env);
+    S390CPU *cpu = env_archcpu(env);
 
     qemu_mutex_lock_iothread();
     rpcit_service_call(cpu, r1, r2, GETPC());
@@ -762,7 +762,7 @@ void HELPER(rpcit)(CPUS390XState *env, uint32_t r1, uint32_t r2)
 void HELPER(pcistb)(CPUS390XState *env, uint32_t r1, uint32_t r3,
                     uint64_t gaddr, uint32_t ar)
 {
-    S390CPU *cpu = s390_env_get_cpu(env);
+    S390CPU *cpu = env_archcpu(env);
 
     qemu_mutex_lock_iothread();
     pcistb_service_call(cpu, r1, r3, gaddr, ar, GETPC());
@@ -772,7 +772,7 @@ void HELPER(pcistb)(CPUS390XState *env, uint32_t r1, uint32_t r3,
 void HELPER(mpcifc)(CPUS390XState *env, uint32_t r1, uint64_t fiba,
                     uint32_t ar)
 {
-    S390CPU *cpu = s390_env_get_cpu(env);
+    S390CPU *cpu = env_archcpu(env);
 
     qemu_mutex_lock_iothread();
     mpcifc_service_call(cpu, r1, fiba, ar, GETPC());

@@ -1991,9 +1991,8 @@ static int kvmppc_get_dec_bits(void)
 }
 
 static int kvmppc_get_pvinfo(CPUPPCState *env, struct kvm_ppc_pvinfo *pvinfo)
- {
-     PowerPCCPU *cpu = ppc_env_get_cpu(env);
-     CPUState *cs = CPU(cpu);
+{
+    CPUState *cs = env_cpu(env);
 
     if (kvm_vm_check_extension(cs->kvm_state, KVM_CAP_PPC_GET_PVINFO) &&
         !kvm_vm_ioctl(cs->kvm_state, KVM_PPC_GET_PVINFO, pvinfo)) {

@@ -198,7 +198,7 @@ static void setup_sigcontext(struct target_sigcontext *sc,
         struct target_fpstate *fpstate, CPUX86State *env, abi_ulong mask,
         abi_ulong fpstate_addr)
 {
-    CPUState *cs = CPU(x86_env_get_cpu(env));
+    CPUState *cs = env_cpu(env);
 #ifndef TARGET_X86_64
     uint16_t magic;
 

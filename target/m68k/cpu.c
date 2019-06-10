@@ -238,11 +238,9 @@ static void m68k_cpu_realizefn(DeviceState *dev, Error **errp)
 
 static void m68k_cpu_initfn(Object *obj)
 {
-    CPUState *cs = CPU(obj);
     M68kCPU *cpu = M68K_CPU(obj);
-    CPUM68KState *env = &cpu->env;
 
-    cs->env_ptr = env;
+    cpu_set_cpustate_pointers(cpu);
 }
 
 static const VMStateDescription vmstate_m68k_cpu = {

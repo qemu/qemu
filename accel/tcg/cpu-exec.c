@@ -54,7 +54,7 @@ typedef struct SyncClocks {
 #define MAX_DELAY_PRINT_RATE 2000000000LL
 #define MAX_NB_PRINTS 100
 
-static void align_clocks(SyncClocks *sc, const CPUState *cpu)
+static void align_clocks(SyncClocks *sc, CPUState *cpu)
 {
     int64_t cpu_icount;
 
@@ -62,7 +62,7 @@ static void align_clocks(SyncClocks *sc, const CPUState *cpu)
         return;
     }
 
-    cpu_icount = cpu->icount_extra + cpu->icount_decr.u16.low;
+    cpu_icount = cpu->icount_extra + cpu_neg(cpu)->icount_decr.u16.low;
     sc->diff_clk += cpu_icount_to_ns(sc->last_cpu_icount - cpu_icount);
     sc->last_cpu_icount = cpu_icount;
 
@@ -105,15 +105,15 @@ static void print_delay(const SyncClocks *sc)
     }
 }
 
-static void init_delay_params(SyncClocks *sc,
-                              const CPUState *cpu)
+static void init_delay_params(SyncClocks *sc, CPUState *cpu)
 {
     if (!icount_align_option) {
         return;
     }
     sc->realtime_clock = qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL_RT);
     sc->diff_clk = qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL) - sc->realtime_clock;
-    sc->last_cpu_icount = cpu->icount_extra + cpu->icount_decr.u16.low;
+    sc->last_cpu_icount
+        = cpu->icount_extra + cpu_neg(cpu)->icount_decr.u16.low;
     if (sc->diff_clk < max_delay) {
         max_delay = sc->diff_clk;
     }
@@ -467,7 +467,7 @@ static inline bool cpu_handle_exception(CPUState *cpu, int *ret)
     if (cpu->exception_index < 0) {
 #ifndef CONFIG_USER_ONLY
         if (replay_has_exception()
-               && cpu->icount_decr.u16.low + cpu->icount_extra == 0) {
+            && cpu_neg(cpu)->icount_decr.u16.low + cpu->icount_extra == 0) {
             /* try to cause an exception pending in the log */
             cpu_exec_nocache(cpu, 1, tb_find(cpu, NULL, 0, curr_cflags()), true);
         }
@@ -525,7 +525,7 @@ static inline bool cpu_handle_interrupt(CPUState *cpu,
      * Ensure zeroing happens before reading cpu->exit_request or
      * cpu->interrupt_request (see also smp_wmb in cpu_exit())
      */
-    atomic_mb_set(&cpu->icount_decr.u16.high, 0);
+    atomic_mb_set(&cpu_neg(cpu)->icount_decr.u16.high, 0);
 
     if (unlikely(atomic_read(&cpu->interrupt_request))) {
         int interrupt_request;
@@ -596,8 +596,9 @@ static inline bool cpu_handle_interrupt(CPUState *cpu,
     }
 
     /* Finally, check if we need to exit to the main loop.  */
-    if (unlikely(atomic_read(&cpu->exit_request)
-        || (use_icount && cpu->icount_decr.u16.low + cpu->icount_extra == 0))) {
+    if (unlikely(atomic_read(&cpu->exit_request))
+        || (use_icount
+            && cpu_neg(cpu)->icount_decr.u16.low + cpu->icount_extra == 0)) {
         atomic_set(&cpu->exit_request, 0);
         if (cpu->exception_index == -1) {
             cpu->exception_index = EXCP_INTERRUPT;
@@ -624,7 +625,7 @@ static inline void cpu_loop_exec_tb(CPUState *cpu, TranslationBlock *tb,
     }
 
     *last_tb = NULL;
-    insns_left = atomic_read(&cpu->icount_decr.u32);
+    insns_left = atomic_read(&cpu_neg(cpu)->icount_decr.u32);
     if (insns_left < 0) {
         /* Something asked us to stop executing chained TBs; just
          * continue round the main loop. Whatever requested the exit
@@ -643,7 +644,7 @@ static inline void cpu_loop_exec_tb(CPUState *cpu, TranslationBlock *tb,
     cpu_update_icount(cpu);
     /* Refill decrementer and continue execution.  */
     insns_left = MIN(0xffff, cpu->icount_budget);
-    cpu->icount_decr.u16.low = insns_left;
+    cpu_neg(cpu)->icount_decr.u16.low = insns_left;
     cpu->icount_extra = cpu->icount_budget - insns_left;
     if (!cpu->icount_extra) {
         /* Execute any remaining instructions, then let the main loop

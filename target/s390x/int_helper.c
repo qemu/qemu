@@ -109,10 +109,9 @@ uint64_t HELPER(divu64)(CPUS390XState *env, uint64_t ah, uint64_t al,
             s390_program_interrupt(env, PGM_FIXPT_DIVIDE, ILEN_AUTO, GETPC());
         }
 #else
-        S390CPU *cpu = s390_env_get_cpu(env);
         /* 32-bit hosts would need special wrapper functionality - just abort if
            we encounter such a case; it's very unlikely anyways. */
-        cpu_abort(CPU(cpu), "128 -> 64/64 division not implemented\n");
+        cpu_abort(env_cpu(env), "128 -> 64/64 division not implemented\n");
 #endif
     }
     return ret;

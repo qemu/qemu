@@ -697,10 +697,9 @@ static void cpreg_hashtable_data_destroy(gpointer data)
 
 static void arm_cpu_initfn(Object *obj)
 {
-    CPUState *cs = CPU(obj);
     ARMCPU *cpu = ARM_CPU(obj);
 
-    cs->env_ptr = &cpu->env;
+    cpu_set_cpustate_pointers(cpu);
     cpu->cp_regs = g_hash_table_new_full(g_int_hash, g_int_equal,
                                          g_free, cpreg_hashtable_data_destroy);
 

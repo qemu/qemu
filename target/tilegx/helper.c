@@ -28,7 +28,7 @@
 
 void helper_exception(CPUTLGState *env, uint32_t excp)
 {
-    CPUState *cs = CPU(tilegx_env_get_cpu(env));
+    CPUState *cs = env_cpu(env);
 
     cs->exception_index = excp;
     cpu_loop_exit(cs);

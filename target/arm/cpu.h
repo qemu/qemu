@@ -22,22 +22,12 @@
 
 #include "kvm-consts.h"
 #include "hw/registerfields.h"
-
-#if defined(TARGET_AARCH64)
-  /* AArch64 definitions */
-#  define TARGET_LONG_BITS 64
-#else
-#  define TARGET_LONG_BITS 32
-#endif
-
-/* ARM processors have a weak memory model */
-#define TCG_GUEST_DEFAULT_MO      (0)
-
-#define CPUArchState struct CPUARMState
-
 #include "qemu-common.h"
 #include "cpu-qom.h"
 #include "exec/cpu-defs.h"
+
+/* ARM processors have a weak memory model */
+#define TCG_GUEST_DEFAULT_MO      (0)
 
 #define EXCP_UDEF            1   /* undefined instruction */
 #define EXCP_SWI             2   /* software interrupt */
@@ -114,7 +104,6 @@ enum {
 #define ARM_CPU_VIRQ 2
 #define ARM_CPU_VFIQ 3
 
-#define NB_MMU_MODES 8
 /* ARM-specific extra insn start words:
  * 1: Conditional execution bits
  * 2: Partial exception syndrome for data aborts
@@ -656,9 +645,7 @@ typedef struct CPUARMState {
     /* Fields up to this point are cleared by a CPU reset */
     struct {} end_reset_fields;
 
-    CPU_COMMON
-
-    /* Fields after CPU_COMMON are preserved across CPU reset. */
+    /* Fields after this point are preserved across CPU reset. */
 
     /* Internal CPU feature flags.  */
     uint64_t features;
@@ -732,6 +719,7 @@ struct ARMCPU {
     CPUState parent_obj;
     /*< public >*/
 
+    CPUNegativeOffsetState neg;
     CPUARMState env;
 
     /* Coprocessor information */
@@ -924,18 +912,9 @@ struct ARMCPU {
     uint32_t sve_max_vq;
 };
 
-static inline ARMCPU *arm_env_get_cpu(CPUARMState *env)
-{
-    return container_of(env, ARMCPU, env);
-}
-
 void arm_cpu_post_init(Object *obj);
 
 uint64_t arm_cpu_mp_affinity(int idx, uint8_t clustersz);
-
-#define ENV_GET_CPU(e) CPU(arm_env_get_cpu(e))
-
-#define ENV_OFFSET offsetof(ARMCPU, env)
 
 #ifndef CONFIG_USER_ONLY
 extern const struct VMStateDescription vmstate_arm_cpu;
@@ -2639,24 +2618,6 @@ bool write_cpustate_to_list(ARMCPU *cpu, bool kvm_sync);
 #define ARM_CPUID_TI915T      0x54029152
 #define ARM_CPUID_TI925T      0x54029252
 
-#if defined(CONFIG_USER_ONLY)
-#define TARGET_PAGE_BITS 12
-#else
-/* ARMv7 and later CPUs have 4K pages minimum, but ARMv5 and v6
- * have to support 1K tiny pages.
- */
-#define TARGET_PAGE_BITS_VARY
-#define TARGET_PAGE_BITS_MIN 10
-#endif
-
-#if defined(TARGET_AARCH64)
-#  define TARGET_PHYS_ADDR_SPACE_BITS 48
-#  define TARGET_VIRT_ADDR_SPACE_BITS 48
-#else
-#  define TARGET_PHYS_ADDR_SPACE_BITS 40
-#  define TARGET_VIRT_ADDR_SPACE_BITS 32
-#endif
-
 static inline bool arm_excp_unmasked(CPUState *cs, unsigned int excp_idx,
                                      unsigned int target_el)
 {
@@ -3153,6 +3114,9 @@ static inline bool arm_cpu_data_is_big_endian(CPUARMState *env)
         return (sctlr & (cur_el ? SCTLR_EE : SCTLR_E0E)) != 0;
     }
 }
+
+typedef CPUARMState CPUArchState;
+typedef ARMCPU ArchCPU;
 
 #include "exec/cpu-all.h"
 

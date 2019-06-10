@@ -56,7 +56,7 @@ static hppa_tlb_entry *hppa_find_tlb(CPUHPPAState *env, vaddr addr)
 
 static void hppa_flush_tlb_ent(CPUHPPAState *env, hppa_tlb_entry *ent)
 {
-    CPUState *cs = CPU(hppa_env_get_cpu(env));
+    CPUState *cs = env_cpu(env);
     unsigned i, n = 1 << (2 * ent->page_size);
     uint64_t addr = ent->va_b;
 
@@ -329,7 +329,7 @@ static void ptlb_work(CPUState *cpu, run_on_cpu_data data)
 
 void HELPER(ptlb)(CPUHPPAState *env, target_ulong addr)
 {
-    CPUState *src = CPU(hppa_env_get_cpu(env));
+    CPUState *src = env_cpu(env);
     CPUState *cpu;
     trace_hppa_tlb_ptlb(env);
     run_on_cpu_data data = RUN_ON_CPU_TARGET_PTR(addr);
@@ -346,17 +346,15 @@ void HELPER(ptlb)(CPUHPPAState *env, target_ulong addr)
    number of pages/entries (we choose all), and is local to the cpu.  */
 void HELPER(ptlbe)(CPUHPPAState *env)
 {
-    CPUState *src = CPU(hppa_env_get_cpu(env));
     trace_hppa_tlb_ptlbe(env);
     memset(env->tlb, 0, sizeof(env->tlb));
-    tlb_flush_by_mmuidx(src, 0xf);
+    tlb_flush_by_mmuidx(env_cpu(env), 0xf);
 }
 
 void cpu_hppa_change_prot_id(CPUHPPAState *env)
 {
     if (env->psw & PSW_P) {
-        CPUState *src = CPU(hppa_env_get_cpu(env));
-        tlb_flush_by_mmuidx(src, 0xf);
+        tlb_flush_by_mmuidx(env_cpu(env), 0xf);
     }
 }
 

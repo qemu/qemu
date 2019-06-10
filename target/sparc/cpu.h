@@ -4,30 +4,15 @@
 #include "qemu-common.h"
 #include "qemu/bswap.h"
 #include "cpu-qom.h"
+#include "exec/cpu-defs.h"
 
 #define ALIGNED_ONLY
 
 #if !defined(TARGET_SPARC64)
-#define TARGET_LONG_BITS 32
 #define TARGET_DPREGS 16
-#define TARGET_PAGE_BITS 12 /* 4k */
-#define TARGET_PHYS_ADDR_SPACE_BITS 36
-#define TARGET_VIRT_ADDR_SPACE_BITS 32
 #else
-#define TARGET_LONG_BITS 64
 #define TARGET_DPREGS 32
-#define TARGET_PAGE_BITS 13 /* 8k */
-#define TARGET_PHYS_ADDR_SPACE_BITS 41
-# ifdef TARGET_ABI32
-#  define TARGET_VIRT_ADDR_SPACE_BITS 32
-# else
-#  define TARGET_VIRT_ADDR_SPACE_BITS 44
-# endif
 #endif
-
-#define CPUArchState struct CPUSPARCState
-
-#include "exec/cpu-defs.h"
 
 /*#define EXCP_INTERRUPT 0x100*/
 
@@ -225,10 +210,7 @@ enum {
 #define MIN_NWINDOWS 3
 #define MAX_NWINDOWS 32
 
-#if !defined(TARGET_SPARC64)
-#define NB_MMU_MODES 3
-#else
-#define NB_MMU_MODES 6
+#ifdef TARGET_SPARC64
 typedef struct trap_state {
     uint64_t tpc;
     uint64_t tnpc;
@@ -464,8 +446,6 @@ struct CPUSPARCState {
     /* Fields up to this point are cleared by a CPU reset */
     struct {} end_reset_fields;
 
-    CPU_COMMON
-
     /* Fields from here on are preserved across CPU reset. */
     target_ulong version;
     uint32_t nwindows;
@@ -547,17 +527,10 @@ struct SPARCCPU {
     CPUState parent_obj;
     /*< public >*/
 
+    CPUNegativeOffsetState neg;
     CPUSPARCState env;
 };
 
-static inline SPARCCPU *sparc_env_get_cpu(CPUSPARCState *env)
-{
-    return container_of(env, SPARCCPU, env);
-}
-
-#define ENV_GET_CPU(e) CPU(sparc_env_get_cpu(e))
-
-#define ENV_OFFSET offsetof(SPARCCPU, env)
 
 #ifndef CONFIG_USER_ONLY
 extern const struct VMStateDescription vmstate_sparc_cpu;
@@ -746,6 +719,9 @@ static inline int cpu_pil_allowed(CPUSPARCState *env1, int pil)
     return pil > env1->psrpil;
 #endif
 }
+
+typedef CPUSPARCState CPUArchState;
+typedef SPARCCPU ArchCPU;
 
 #include "exec/cpu-all.h"
 

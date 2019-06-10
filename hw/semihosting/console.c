@@ -40,7 +40,7 @@ int qemu_semihosting_log_out(const char *s, int len)
  */
 static GString *copy_user_string(CPUArchState *env, target_ulong addr, int len)
 {
-    CPUState *cpu = ENV_GET_CPU(env);
+    CPUState *cpu = env_cpu(env);
     GString *s = g_string_sized_new(len ? len : 128);
     uint8_t c;
     bool done;

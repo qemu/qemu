@@ -44,7 +44,7 @@ static void mips_gic_set_vp_irq(MIPSGICState *gic, int vp, int pin)
                       GIC_VP_MASK_CMP_SHF;
     }
     if (kvm_enabled())  {
-        kvm_mips_set_ipi_interrupt(mips_env_get_cpu(gic->vps[vp].env),
+        kvm_mips_set_ipi_interrupt(env_archcpu(gic->vps[vp].env),
                                    pin + GIC_CPU_PIN_OFFSET,
                                    ored_level);
     } else {

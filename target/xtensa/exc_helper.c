@@ -34,7 +34,7 @@
 
 void HELPER(exception)(CPUXtensaState *env, uint32_t excp)
 {
-    CPUState *cs = CPU(xtensa_env_get_cpu(env));
+    CPUState *cs = env_cpu(env);
 
     cs->exception_index = excp;
     if (excp == EXCP_YIELD) {
@@ -100,7 +100,7 @@ void HELPER(debug_exception)(CPUXtensaState *env, uint32_t pc, uint32_t cause)
 
 void HELPER(waiti)(CPUXtensaState *env, uint32_t pc, uint32_t intlevel)
 {
-    CPUState *cpu;
+    CPUState *cpu = env_cpu(env);
 
     env->pc = pc;
     env->sregs[PS] = (env->sregs[PS] & ~PS_INTLEVEL) |
@@ -111,11 +111,10 @@ void HELPER(waiti)(CPUXtensaState *env, uint32_t pc, uint32_t intlevel)
     qemu_mutex_unlock_iothread();
 
     if (env->pending_irq_level) {
-        cpu_loop_exit(CPU(xtensa_env_get_cpu(env)));
+        cpu_loop_exit(cpu);
         return;
     }
 
-    cpu = CPU(xtensa_env_get_cpu(env));
     cpu->halted = 1;
     HELPER(exception)(env, EXCP_HLT);
 }
@@ -165,7 +164,7 @@ static void handle_interrupt(CPUXtensaState *env)
         (env->config->level_mask[level] &
          env->sregs[INTSET] &
          env->sregs[INTENABLE])) {
-        CPUState *cs = CPU(xtensa_env_get_cpu(env));
+        CPUState *cs = env_cpu(env);
 
         if (level > 1) {
             env->sregs[EPC1 + level - 1] = env->pc;

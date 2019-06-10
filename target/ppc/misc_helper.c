@@ -81,28 +81,24 @@ void helper_msr_facility_check(CPUPPCState *env, uint32_t bit,
 
 void helper_store_sdr1(CPUPPCState *env, target_ulong val)
 {
-    PowerPCCPU *cpu = ppc_env_get_cpu(env);
-
     if (env->spr[SPR_SDR1] != val) {
         ppc_store_sdr1(env, val);
-        tlb_flush(CPU(cpu));
+        tlb_flush(env_cpu(env));
     }
 }
 
 #if defined(TARGET_PPC64)
 void helper_store_ptcr(CPUPPCState *env, target_ulong val)
 {
-    PowerPCCPU *cpu = ppc_env_get_cpu(env);
-
     if (env->spr[SPR_PTCR] != val) {
         ppc_store_ptcr(env, val);
-        tlb_flush(CPU(cpu));
+        tlb_flush(env_cpu(env));
     }
 }
 
 void helper_store_pcr(CPUPPCState *env, target_ulong value)
 {
-    PowerPCCPU *cpu = ppc_env_get_cpu(env);
+    PowerPCCPU *cpu = env_archcpu(env);
     PowerPCCPUClass *pcc = POWERPC_CPU_GET_CLASS(cpu);
 
     env->spr[SPR_PCR] = value & pcc->pcr_mask;
@@ -111,16 +107,12 @@ void helper_store_pcr(CPUPPCState *env, target_ulong value)
 
 void helper_store_pidr(CPUPPCState *env, target_ulong val)
 {
-    PowerPCCPU *cpu = ppc_env_get_cpu(env);
-
     env->spr[SPR_BOOKS_PID] = val;
-    tlb_flush(CPU(cpu));
+    tlb_flush(env_cpu(env));
 }
 
 void helper_store_lpidr(CPUPPCState *env, target_ulong val)
 {
-    PowerPCCPU *cpu = ppc_env_get_cpu(env);
-
     env->spr[SPR_LPIDR] = val;
 
     /*
@@ -129,7 +121,7 @@ void helper_store_lpidr(CPUPPCState *env, target_ulong val)
      * potentially access and cache entries for the current LPID as
      * well.
      */
-    tlb_flush(CPU(cpu));
+    tlb_flush(env_cpu(env));
 }
 
 void helper_store_hid0_601(CPUPPCState *env, target_ulong val)
@@ -151,12 +143,10 @@ void helper_store_hid0_601(CPUPPCState *env, target_ulong val)
 
 void helper_store_403_pbr(CPUPPCState *env, uint32_t num, target_ulong value)
 {
-    PowerPCCPU *cpu = ppc_env_get_cpu(env);
-
     if (likely(env->pb[num] != value)) {
         env->pb[num] = value;
         /* Should be optimized */
-        tlb_flush(CPU(cpu));
+        tlb_flush(env_cpu(env));
     }
 }
 

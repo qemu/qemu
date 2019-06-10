@@ -454,7 +454,7 @@ int handle_sigp(CPUS390XState *env, uint8_t order, uint64_t r1, uint64_t r3)
 {
     uint64_t *status_reg = &env->regs[r1];
     uint64_t param = (r1 % 2) ? env->regs[r1] : env->regs[r1 + 1];
-    S390CPU *cpu = s390_env_get_cpu(env);
+    S390CPU *cpu = env_archcpu(env);
     S390CPU *dst_cpu = NULL;
     int ret;
 
@@ -492,7 +492,7 @@ int s390_cpu_restart(S390CPU *cpu)
 
 void do_stop_interrupt(CPUS390XState *env)
 {
-    S390CPU *cpu = s390_env_get_cpu(env);
+    S390CPU *cpu = env_archcpu(env);
 
     if (s390_cpu_set_state(S390_CPU_STATE_STOPPED, cpu) == 0) {
         qemu_system_shutdown_request(SHUTDOWN_CAUSE_GUEST_SHUTDOWN);

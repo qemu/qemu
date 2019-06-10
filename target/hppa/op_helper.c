@@ -29,8 +29,7 @@
 
 void QEMU_NORETURN HELPER(excp)(CPUHPPAState *env, int excp)
 {
-    HPPACPU *cpu = hppa_env_get_cpu(env);
-    CPUState *cs = CPU(cpu);
+    CPUState *cs = env_cpu(env);
 
     cs->exception_index = excp;
     cpu_loop_exit(cs);
@@ -38,8 +37,7 @@ void QEMU_NORETURN HELPER(excp)(CPUHPPAState *env, int excp)
 
 void QEMU_NORETURN hppa_dynamic_excp(CPUHPPAState *env, int excp, uintptr_t ra)
 {
-    HPPACPU *cpu = hppa_env_get_cpu(env);
-    CPUState *cs = CPU(cpu);
+    CPUState *cs = env_cpu(env);
 
     cs->exception_index = excp;
     cpu_loop_exit_restore(cs, ra);
@@ -77,7 +75,7 @@ static void atomic_store_3(CPUHPPAState *env, target_ulong addr, uint32_t val,
     }
 #else
     /* FIXME -- we can do better.  */
-    cpu_loop_exit_atomic(ENV_GET_CPU(env), ra);
+    cpu_loop_exit_atomic(env_cpu(env), ra);
 #endif
 }
 
@@ -630,7 +628,7 @@ target_ureg HELPER(read_interval_timer)(void)
 #ifndef CONFIG_USER_ONLY
 void HELPER(write_interval_timer)(CPUHPPAState *env, target_ureg val)
 {
-    HPPACPU *cpu = hppa_env_get_cpu(env);
+    HPPACPU *cpu = env_archcpu(env);
     uint64_t current = qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL);
     uint64_t timeout;
 

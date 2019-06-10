@@ -22,14 +22,9 @@
 #define NIOS2_CPU_H
 
 #include "qemu-common.h"
-
-#define TARGET_LONG_BITS 32
-
-#define CPUArchState struct CPUNios2State
-
 #include "exec/cpu-defs.h"
 #include "qom/cpu.h"
-struct CPUNios2State;
+
 typedef struct CPUNios2State CPUNios2State;
 #if !defined(CONFIG_USER_ONLY)
 #include "mmu.h"
@@ -164,8 +159,6 @@ typedef struct Nios2CPUClass {
 
 #define CPU_INTERRUPT_NMI       CPU_INTERRUPT_TGT_EXT_3
 
-#define NB_MMU_MODES 2
-
 struct CPUNios2State {
     uint32_t regs[NUM_CORE_REGS];
 
@@ -174,8 +167,6 @@ struct CPUNios2State {
 
     uint32_t irq_pending;
 #endif
-
-    CPU_COMMON
 };
 
 /**
@@ -189,7 +180,9 @@ typedef struct Nios2CPU {
     CPUState parent_obj;
     /*< public >*/
 
+    CPUNegativeOffsetState neg;
     CPUNios2State env;
+
     bool mmu_present;
     uint32_t pid_num_bits;
     uint32_t tlb_num_ways;
@@ -201,14 +194,6 @@ typedef struct Nios2CPU {
     uint32_t fast_tlb_miss_addr;
 } Nios2CPU;
 
-static inline Nios2CPU *nios2_env_get_cpu(CPUNios2State *env)
-{
-    return NIOS2_CPU(container_of(env, Nios2CPU, env));
-}
-
-#define ENV_GET_CPU(e) CPU(nios2_env_get_cpu(e))
-
-#define ENV_OFFSET offsetof(Nios2CPU, env)
 
 void nios2_tcg_init(void);
 void nios2_cpu_do_interrupt(CPUState *cs);
@@ -225,21 +210,12 @@ void nios2_check_interrupts(CPUNios2State *env);
 
 void do_nios2_semihosting(CPUNios2State *env);
 
-#define TARGET_PHYS_ADDR_SPACE_BITS 32
-#ifdef CONFIG_USER_ONLY
-# define TARGET_VIRT_ADDR_SPACE_BITS 31
-#else
-# define TARGET_VIRT_ADDR_SPACE_BITS 32
-#endif
-
 #define CPU_RESOLVING_TYPE TYPE_NIOS2_CPU
 
 #define cpu_gen_code cpu_nios2_gen_code
 #define cpu_signal_handler cpu_nios2_signal_handler
 
 #define CPU_SAVE_VERSION 1
-
-#define TARGET_PAGE_BITS 12
 
 /* MMU modes definitions */
 #define MMU_MODE0_SUFFIX _kernel
@@ -261,6 +237,9 @@ static inline int cpu_interrupts_enabled(CPUNios2State *env)
 {
     return env->regs[CR_STATUS] & CR_STATUS_PIE;
 }
+
+typedef CPUNios2State CPUArchState;
+typedef Nios2CPU ArchCPU;
 
 #include "exec/cpu-all.h"
 

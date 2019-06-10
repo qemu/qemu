@@ -137,7 +137,7 @@ static inline void get_ss_esp_from_tss(CPUX86State *env, uint32_t *ss_ptr,
                                        uint32_t *esp_ptr, int dpl,
                                        uintptr_t retaddr)
 {
-    X86CPU *cpu = x86_env_get_cpu(env);
+    X86CPU *cpu = env_archcpu(env);
     int type, index, shift;
 
 #if 0
@@ -830,7 +830,7 @@ static void do_interrupt_protected(CPUX86State *env, int intno, int is_int,
 
 static inline target_ulong get_rsp_from_tss(CPUX86State *env, int level)
 {
-    X86CPU *cpu = x86_env_get_cpu(env);
+    X86CPU *cpu = env_archcpu(env);
     int index;
 
 #if 0
@@ -972,7 +972,7 @@ static void do_interrupt64(CPUX86State *env, int intno, int is_int,
 #if defined(CONFIG_USER_ONLY)
 void helper_syscall(CPUX86State *env, int next_eip_addend)
 {
-    CPUState *cs = CPU(x86_env_get_cpu(env));
+    CPUState *cs = env_cpu(env);
 
     cs->exception_index = EXCP_SYSCALL;
     env->exception_next_eip = env->eip + next_eip_addend;
@@ -1172,7 +1172,7 @@ static void do_interrupt_user(CPUX86State *env, int intno, int is_int,
 static void handle_even_inj(CPUX86State *env, int intno, int is_int,
                             int error_code, int is_hw, int rm)
 {
-    CPUState *cs = CPU(x86_env_get_cpu(env));
+    CPUState *cs = env_cpu(env);
     uint32_t event_inj = x86_ldl_phys(cs, env->vm_vmcb + offsetof(struct vmcb,
                                                           control.event_inj));
 
@@ -1312,7 +1312,7 @@ void x86_cpu_do_interrupt(CPUState *cs)
 
 void do_interrupt_x86_hardirq(CPUX86State *env, int intno, int is_hw)
 {
-    do_interrupt_all(x86_env_get_cpu(env), intno, 0, 0, 0, is_hw);
+    do_interrupt_all(env_archcpu(env), intno, 0, 0, 0, is_hw);
 }
 
 bool x86_cpu_exec_interrupt(CPUState *cs, int interrupt_request)
@@ -1763,7 +1763,7 @@ void helper_lcall_protected(CPUX86State *env, int new_cs, target_ulong new_eip,
     target_ulong ssp, old_ssp, offset, sp;
 
     LOG_PCALL("lcall %04x:" TARGET_FMT_lx " s=%d\n", new_cs, new_eip, shift);
-    LOG_PCALL_STATE(CPU(x86_env_get_cpu(env)));
+    LOG_PCALL_STATE(env_cpu(env));
     if ((new_cs & 0xfffc) == 0) {
         raise_exception_err_ra(env, EXCP0D_GPF, 0, GETPC());
     }
@@ -2167,7 +2167,7 @@ static inline void helper_ret_protected(CPUX86State *env, int shift,
     }
     LOG_PCALL("lret new %04x:" TARGET_FMT_lx " s=%d addend=0x%x\n",
               new_cs, new_eip, shift, addend);
-    LOG_PCALL_STATE(CPU(x86_env_get_cpu(env)));
+    LOG_PCALL_STATE(env_cpu(env));
     if ((new_cs & 0xfffc) == 0) {
         raise_exception_err_ra(env, EXCP0D_GPF, new_cs & 0xfffc, retaddr);
     }

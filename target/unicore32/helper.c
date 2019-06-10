@@ -31,8 +31,6 @@
 void helper_cp0_set(CPUUniCore32State *env, uint32_t val, uint32_t creg,
         uint32_t cop)
 {
-    UniCore32CPU *cpu = uc32_env_get_cpu(env);
-
     /*
      * movc pp.nn, rn, #imm9
      *      rn: UCOP_REG_D
@@ -101,7 +99,7 @@ void helper_cp0_set(CPUUniCore32State *env, uint32_t val, uint32_t creg,
     case 6:
         if ((cop <= 6) && (cop >= 2)) {
             /* invalid all tlb */
-            tlb_flush(CPU(cpu));
+            tlb_flush(env_cpu(env));
             return;
         }
         break;

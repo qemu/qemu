@@ -622,7 +622,7 @@ void x86_cpu_set_a20(X86CPU *cpu, int a20_state)
 
 void cpu_x86_update_cr0(CPUX86State *env, uint32_t new_cr0)
 {
-    X86CPU *cpu = x86_env_get_cpu(env);
+    X86CPU *cpu = env_archcpu(env);
     int pe_state;
 
     qemu_log_mask(CPU_LOG_MMU, "CR0 update: CR0=0x%08x\n", new_cr0);
@@ -664,19 +664,16 @@ void cpu_x86_update_cr0(CPUX86State *env, uint32_t new_cr0)
    the PDPT */
 void cpu_x86_update_cr3(CPUX86State *env, target_ulong new_cr3)
 {
-    X86CPU *cpu = x86_env_get_cpu(env);
-
     env->cr[3] = new_cr3;
     if (env->cr[0] & CR0_PG_MASK) {
         qemu_log_mask(CPU_LOG_MMU,
                         "CR3 update: CR3=" TARGET_FMT_lx "\n", new_cr3);
-        tlb_flush(CPU(cpu));
+        tlb_flush(env_cpu(env));
     }
 }
 
 void cpu_x86_update_cr4(CPUX86State *env, uint32_t new_cr4)
 {
-    X86CPU *cpu = x86_env_get_cpu(env);
     uint32_t hflags;
 
 #if defined(DEBUG_MMU)
@@ -685,7 +682,7 @@ void cpu_x86_update_cr4(CPUX86State *env, uint32_t new_cr4)
     if ((new_cr4 ^ env->cr[4]) &
         (CR4_PGE_MASK | CR4_PAE_MASK | CR4_PSE_MASK |
          CR4_SMEP_MASK | CR4_SMAP_MASK | CR4_LA57_MASK)) {
-        tlb_flush(CPU(cpu));
+        tlb_flush(env_cpu(env));
     }
 
     /* Clear bits we're going to recompute.  */
@@ -977,8 +974,8 @@ void cpu_x86_inject_mce(Monitor *mon, X86CPU *cpu, int bank,
 
 void cpu_report_tpr_access(CPUX86State *env, TPRAccess access)
 {
-    X86CPU *cpu = x86_env_get_cpu(env);
-    CPUState *cs = CPU(cpu);
+    X86CPU *cpu = env_archcpu(env);
+    CPUState *cs = env_cpu(env);
 
     if (kvm_enabled() || whpx_enabled()) {
         env->tpr_access_type = access;
@@ -996,8 +993,7 @@ int cpu_x86_get_descr_debug(CPUX86State *env, unsigned int selector,
                             target_ulong *base, unsigned int *limit,
                             unsigned int *flags)
 {
-    X86CPU *cpu = x86_env_get_cpu(env);
-    CPUState *cs = CPU(cpu);
+    CPUState *cs = env_cpu(env);
     SegmentCache *dt;
     target_ulong ptr;
     uint32_t e1, e2;

@@ -97,7 +97,7 @@ static int get_physical_address(CPUSPARCState *env, hwaddr *physical,
     uint32_t pde;
     int error_code = 0, is_dirty, is_user;
     unsigned long page_offset;
-    CPUState *cs = CPU(sparc_env_get_cpu(env));
+    CPUState *cs = env_cpu(env);
 
     is_user = mmu_idx == MMU_USER_IDX;
 
@@ -268,7 +268,7 @@ bool sparc_cpu_tlb_fill(CPUState *cs, vaddr address, int size,
 
 target_ulong mmu_probe(CPUSPARCState *env, target_ulong address, int mmulev)
 {
-    CPUState *cs = CPU(sparc_env_get_cpu(env));
+    CPUState *cs = env_cpu(env);
     hwaddr pde_ptr;
     uint32_t pde;
 
@@ -335,7 +335,7 @@ target_ulong mmu_probe(CPUSPARCState *env, target_ulong address, int mmulev)
 
 void dump_mmu(CPUSPARCState *env)
 {
-    CPUState *cs = CPU(sparc_env_get_cpu(env));
+    CPUState *cs = env_cpu(env);
     target_ulong va, va1, va2;
     unsigned int n, m, o;
     hwaddr pde_ptr, pa;
@@ -494,7 +494,7 @@ static int get_physical_address_data(CPUSPARCState *env,
                                      hwaddr *physical, int *prot,
                                      target_ulong address, int rw, int mmu_idx)
 {
-    CPUState *cs = CPU(sparc_env_get_cpu(env));
+    CPUState *cs = env_cpu(env);
     unsigned int i;
     uint64_t context;
     uint64_t sfsr = 0;
@@ -612,7 +612,7 @@ static int get_physical_address_code(CPUSPARCState *env,
                                      hwaddr *physical, int *prot,
                                      target_ulong address, int mmu_idx)
 {
-    CPUState *cs = CPU(sparc_env_get_cpu(env));
+    CPUState *cs = env_cpu(env);
     unsigned int i;
     uint64_t context;
     bool is_user = false;

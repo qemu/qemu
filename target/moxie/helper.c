@@ -28,7 +28,7 @@
 
 void helper_raise_exception(CPUMoxieState *env, int ex)
 {
-    CPUState *cs = CPU(moxie_env_get_cpu(env));
+    CPUState *cs = env_cpu(env);
 
     cs->exception_index = ex;
     /* Stash the exception type.  */
@@ -65,7 +65,7 @@ uint32_t helper_udiv(CPUMoxieState *env, uint32_t a, uint32_t b)
 
 void helper_debug(CPUMoxieState *env)
 {
-    CPUState *cs = CPU(moxie_env_get_cpu(env));
+    CPUState *cs = env_cpu(env);
 
     cs->exception_index = EXCP_DEBUG;
     cpu_loop_exit(cs);

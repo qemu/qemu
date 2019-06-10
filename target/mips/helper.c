@@ -339,10 +339,8 @@ static int get_physical_address (CPUMIPSState *env, hwaddr *physical,
 
 void cpu_mips_tlb_flush(CPUMIPSState *env)
 {
-    MIPSCPU *cpu = mips_env_get_cpu(env);
-
     /* Flush qemu's TLB and discard all shadowed entries.  */
-    tlb_flush(CPU(cpu));
+    tlb_flush(env_cpu(env));
     env->tlb->tlb_in_use = env->tlb->nb_tlb;
 }
 
@@ -404,7 +402,7 @@ void cpu_mips_store_status(CPUMIPSState *env, target_ulong val)
 #if defined(TARGET_MIPS64)
     if ((env->CP0_Status ^ old) & (old & (7 << CP0St_UX))) {
         /* Access to at least one of the 64-bit segments has been disabled */
-        tlb_flush(CPU(mips_env_get_cpu(env)));
+        tlb_flush(env_cpu(env));
     }
 #endif
     if (env->CP0_Config3 & (1 << CP0C3_MT)) {
@@ -449,7 +447,7 @@ void cpu_mips_store_cause(CPUMIPSState *env, target_ulong val)
 static void raise_mmu_exception(CPUMIPSState *env, target_ulong address,
                                 int rw, int tlb_error)
 {
-    CPUState *cs = CPU(mips_env_get_cpu(env));
+    CPUState *cs = env_cpu(env);
     int exception = 0, error_code = 0;
 
     if (rw == MMU_INST_FETCH) {
@@ -1394,8 +1392,7 @@ bool mips_cpu_exec_interrupt(CPUState *cs, int interrupt_request)
 #if !defined(CONFIG_USER_ONLY)
 void r4k_invalidate_tlb (CPUMIPSState *env, int idx, int use_extra)
 {
-    MIPSCPU *cpu = mips_env_get_cpu(env);
-    CPUState *cs;
+    CPUState *cs = env_cpu(env);
     r4k_tlb_t *tlb;
     target_ulong addr;
     target_ulong end;
@@ -1421,7 +1418,6 @@ void r4k_invalidate_tlb (CPUMIPSState *env, int idx, int use_extra)
     /* 1k pages are not supported. */
     mask = tlb->PageMask | ~(TARGET_PAGE_MASK << 1);
     if (tlb->V0) {
-        cs = CPU(cpu);
         addr = tlb->VPN & ~mask;
 #if defined(TARGET_MIPS64)
         if (addr >= (0xFFFFFFFF80000000ULL & env->SEGMask)) {
@@ -1435,7 +1431,6 @@ void r4k_invalidate_tlb (CPUMIPSState *env, int idx, int use_extra)
         }
     }
     if (tlb->V1) {
-        cs = CPU(cpu);
         addr = (tlb->VPN & ~mask) | ((mask >> 1) + 1);
 #if defined(TARGET_MIPS64)
         if (addr >= (0xFFFFFFFF80000000ULL & env->SEGMask)) {
@@ -1456,7 +1451,7 @@ void QEMU_NORETURN do_raise_exception_err(CPUMIPSState *env,
                                           int error_code,
                                           uintptr_t pc)
 {
-    CPUState *cs = CPU(mips_env_get_cpu(env));
+    CPUState *cs = env_cpu(env);
 
     qemu_log_mask(CPU_LOG_INT, "%s: %d %d\n",
                   __func__, exception, error_code);

@@ -3097,7 +3097,7 @@ void gen_intermediate_code(CPUState *cs, TranslationBlock *tb, int max_insns)
      * delayslot, like in real hw.
      */
     pc_start = tb->pc & ~1;
-    dc->cpu = cris_env_get_cpu(env);
+    dc->cpu = env_archcpu(env);
     dc->tb = tb;
 
     dc->is_jmp = DISAS_NEXT;

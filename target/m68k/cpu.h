@@ -21,10 +21,6 @@
 #ifndef M68K_CPU_H
 #define M68K_CPU_H
 
-#define TARGET_LONG_BITS 32
-
-#define CPUArchState struct CPUM68KState
-
 #include "qemu-common.h"
 #include "exec/cpu-defs.h"
 #include "cpu-qom.h"
@@ -82,7 +78,6 @@
 #define M68K_MAX_TTR 2
 #define TTR(type, index) ttr[((type & ACCESS_CODE) == ACCESS_CODE) * 2 + index]
 
-#define NB_MMU_MODES 2
 #define TARGET_INSN_START_EXTRA_WORDS 1
 
 typedef CPU_LDoubleU FPReg;
@@ -148,8 +143,6 @@ typedef struct CPUM68KState {
     /* Fields up to this point are cleared by a CPU reset */
     struct {} end_reset_fields;
 
-    CPU_COMMON
-
     /* Fields from here on are preserved across CPU reset. */
     uint32_t features;
 } CPUM68KState;
@@ -165,17 +158,10 @@ struct M68kCPU {
     CPUState parent_obj;
     /*< public >*/
 
+    CPUNegativeOffsetState neg;
     CPUM68KState env;
 };
 
-static inline M68kCPU *m68k_env_get_cpu(CPUM68KState *env)
-{
-    return container_of(env, M68kCPU, env);
-}
-
-#define ENV_GET_CPU(e) CPU(m68k_env_get_cpu(e))
-
-#define ENV_OFFSET offsetof(M68kCPU, env)
 
 void m68k_cpu_do_interrupt(CPUState *cpu);
 bool m68k_cpu_exec_interrupt(CPUState *cpu, int int_req);
@@ -502,12 +488,6 @@ void m68k_cpu_list(void);
 
 void register_m68k_insns (CPUM68KState *env);
 
-/* Coldfire Linux uses 8k pages
- * and m68k linux uses 4k pages
- * use the smallest one
- */
-#define TARGET_PAGE_BITS 12
-
 enum {
     /* 1 bit to define user level / supervisor access */
     ACCESS_SUPER = 0x01,
@@ -521,9 +501,6 @@ enum {
     ACCESS_CODE  = 0x10, /* Code fetch access                */
     ACCESS_DATA  = 0x20, /* Data load/store access        */
 };
-
-#define TARGET_PHYS_ADDR_SPACE_BITS 32
-#define TARGET_VIRT_ADDR_SPACE_BITS 32
 
 #define M68K_CPU_TYPE_SUFFIX "-" TYPE_M68K_CPU
 #define M68K_CPU_TYPE_NAME(model) model M68K_CPU_TYPE_SUFFIX
@@ -549,6 +526,9 @@ void m68k_cpu_transaction_failed(CPUState *cs, hwaddr physaddr, vaddr addr,
                                  unsigned size, MMUAccessType access_type,
                                  int mmu_idx, MemTxAttrs attrs,
                                  MemTxResult response, uintptr_t retaddr);
+
+typedef CPUM68KState CPUArchState;
+typedef M68kCPU ArchCPU;
 
 #include "exec/cpu-all.h"
 

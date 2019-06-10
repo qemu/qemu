@@ -159,7 +159,7 @@ static void leon3_set_pil_in(void *opaque, uint32_t pil_in)
 
                 env->interrupt_index = TT_EXTINT | i;
                 if (old_interrupt != env->interrupt_index) {
-                    cs = CPU(sparc_env_get_cpu(env));
+                    cs = env_cpu(env);
                     trace_leon3_set_irq(i);
                     cpu_interrupt(cs, CPU_INTERRUPT_HARD);
                 }
@@ -167,7 +167,7 @@ static void leon3_set_pil_in(void *opaque, uint32_t pil_in)
             }
         }
     } else if (!env->pil_in && (env->interrupt_index & ~15) == TT_EXTINT) {
-        cs = CPU(sparc_env_get_cpu(env));
+        cs = env_cpu(env);
         trace_leon3_reset_irq(env->interrupt_index & 15);
         env->interrupt_index = 0;
         cpu_reset_interrupt(cs, CPU_INTERRUPT_HARD);

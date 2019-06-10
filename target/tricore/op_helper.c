@@ -29,7 +29,7 @@ static void QEMU_NORETURN
 raise_exception_sync_internal(CPUTriCoreState *env, uint32_t class, int tin,
                               uintptr_t pc, uint32_t fcd_pc)
 {
-    CPUState *cs = CPU(tricore_env_get_cpu(env));
+    CPUState *cs = env_cpu(env);
     /* in case we come from a helper-call we need to restore the PC */
     cpu_restore_state(cs, pc, true);
 

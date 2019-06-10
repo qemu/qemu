@@ -22,8 +22,8 @@
 
 #include "qemu-common.h"
 #include "cpu-qom.h"
+#include "exec/cpu-defs.h"
 
-#define TARGET_LONG_BITS 32
 #define ALIGNED_ONLY
 
 /* CPU Subtypes */
@@ -35,19 +35,6 @@
 #define SH_CPU_SH7785  (1 << 5)
 #define SH_CPU_SH7750_ALL (SH_CPU_SH7750 | SH_CPU_SH7750S | SH_CPU_SH7750R)
 #define SH_CPU_SH7751_ALL (SH_CPU_SH7751 | SH_CPU_SH7751R)
-
-#define CPUArchState struct CPUSH4State
-
-#include "exec/cpu-defs.h"
-
-#define TARGET_PAGE_BITS 12	/* 4k XXXXX */
-
-#define TARGET_PHYS_ADDR_SPACE_BITS 32
-#ifdef CONFIG_USER_ONLY
-# define TARGET_VIRT_ADDR_SPACE_BITS 31
-#else
-# define TARGET_VIRT_ADDR_SPACE_BITS 32
-#endif
 
 #define SR_MD 30
 #define SR_RB 29
@@ -132,7 +119,6 @@ typedef struct tlb_t {
 #define UTLB_SIZE 64
 #define ITLB_SIZE 4
 
-#define NB_MMU_MODES 2
 #define TARGET_INSN_START_EXTRA_WORDS 1
 
 enum sh_features {
@@ -193,8 +179,6 @@ typedef struct CPUSH4State {
     /* Fields up to this point are cleared by a CPU reset */
     struct {} end_reset_fields;
 
-    CPU_COMMON
-
     /* Fields from here on are preserved over CPU reset. */
     int id;			/* CPU model */
 
@@ -218,17 +202,10 @@ struct SuperHCPU {
     CPUState parent_obj;
     /*< public >*/
 
+    CPUNegativeOffsetState neg;
     CPUSH4State env;
 };
 
-static inline SuperHCPU *sh_env_get_cpu(CPUSH4State *env)
-{
-    return container_of(env, SuperHCPU, env);
-}
-
-#define ENV_GET_CPU(e) CPU(sh_env_get_cpu(e))
-
-#define ENV_OFFSET offsetof(SuperHCPU, env)
 
 void superh_cpu_do_interrupt(CPUState *cpu);
 bool superh_cpu_exec_interrupt(CPUState *cpu, int int_req);
@@ -293,6 +270,9 @@ static inline int cpu_mmu_index (CPUSH4State *env, bool ifetch)
         return (env->sr & (1u << SR_MD)) == 0 ? 1 : 0;
     }
 }
+
+typedef CPUSH4State CPUArchState;
+typedef SuperHCPU ArchCPU;
 
 #include "exec/cpu-all.h"
 

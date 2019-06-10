@@ -271,7 +271,7 @@ static void float_invalid_op_vxvc(CPUPPCState *env, bool set_fpcc,
     env->fpscr |= FP_FX;
     /* We must update the target FPR before raising the exception */
     if (fpscr_ve != 0) {
-        CPUState *cs = CPU(ppc_env_get_cpu(env));
+        CPUState *cs = env_cpu(env);
 
         cs->exception_index = POWERPC_EXCP_PROGRAM;
         env->error_code = POWERPC_EXCP_FP | POWERPC_EXCP_FP_VXVC;
@@ -315,7 +315,7 @@ static inline void float_zero_divide_excp(CPUPPCState *env, uintptr_t raddr)
 
 static inline void float_overflow_excp(CPUPPCState *env)
 {
-    CPUState *cs = CPU(ppc_env_get_cpu(env));
+    CPUState *cs = env_cpu(env);
 
     env->fpscr |= 1 << FPSCR_OX;
     /* Update the floating-point exception summary */
@@ -335,7 +335,7 @@ static inline void float_overflow_excp(CPUPPCState *env)
 
 static inline void float_underflow_excp(CPUPPCState *env)
 {
-    CPUState *cs = CPU(ppc_env_get_cpu(env));
+    CPUState *cs = env_cpu(env);
 
     env->fpscr |= 1 << FPSCR_UX;
     /* Update the floating-point exception summary */
@@ -352,7 +352,7 @@ static inline void float_underflow_excp(CPUPPCState *env)
 
 static inline void float_inexact_excp(CPUPPCState *env)
 {
-    CPUState *cs = CPU(ppc_env_get_cpu(env));
+    CPUState *cs = env_cpu(env);
 
     env->fpscr |= 1 << FPSCR_FI;
     env->fpscr |= 1 << FPSCR_XX;
@@ -442,7 +442,7 @@ void helper_fpscr_clrbit(CPUPPCState *env, uint32_t bit)
 
 void helper_fpscr_setbit(CPUPPCState *env, uint32_t bit)
 {
-    CPUState *cs = CPU(ppc_env_get_cpu(env));
+    CPUState *cs = env_cpu(env);
     int prev;
 
     prev = (env->fpscr >> bit) & 1;
@@ -574,7 +574,7 @@ void helper_fpscr_setbit(CPUPPCState *env, uint32_t bit)
 
 void helper_store_fpscr(CPUPPCState *env, uint64_t arg, uint32_t mask)
 {
-    CPUState *cs = CPU(ppc_env_get_cpu(env));
+    CPUState *cs = env_cpu(env);
     target_ulong prev, new;
     int i;
 
@@ -612,7 +612,7 @@ void store_fpscr(CPUPPCState *env, uint64_t arg, uint32_t mask)
 
 static void do_float_check_status(CPUPPCState *env, uintptr_t raddr)
 {
-    CPUState *cs = CPU(ppc_env_get_cpu(env));
+    CPUState *cs = env_cpu(env);
     int status = get_float_exception_flags(&env->fp_status);
     bool inexact_happened = false;
 

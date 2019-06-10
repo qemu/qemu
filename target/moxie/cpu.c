@@ -74,10 +74,9 @@ static void moxie_cpu_realizefn(DeviceState *dev, Error **errp)
 
 static void moxie_cpu_initfn(Object *obj)
 {
-    CPUState *cs = CPU(obj);
     MoxieCPU *cpu = MOXIE_CPU(obj);
 
-    cs->env_ptr = &cpu->env;
+    cpu_set_cpustate_pointers(cpu);
 }
 
 static ObjectClass *moxie_cpu_class_by_name(const char *cpu_model)

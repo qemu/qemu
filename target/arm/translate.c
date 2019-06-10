@@ -13408,7 +13408,7 @@ static void arm_tr_init_disas_context(DisasContextBase *dcbase, CPUState *cs)
 {
     DisasContext *dc = container_of(dcbase, DisasContext, base);
     CPUARMState *env = cs->env_ptr;
-    ARMCPU *cpu = arm_env_get_cpu(env);
+    ARMCPU *cpu = env_archcpu(env);
     uint32_t tb_flags = dc->base.tb->flags;
     uint32_t condexec, core_mmu_idx;
 

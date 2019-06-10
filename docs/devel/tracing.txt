@@ -434,9 +434,9 @@ Can be used as:
         /* trace emitted at this point */
         trace_foo(0xd1);
         /* trace emitted at this point */
-        trace_bar(ENV_GET_CPU(env), 0xd2);
+        trace_bar(env_cpu(env), 0xd2);
         /* trace emitted at this point (env) and when guest code is executed (cpu_env) */
-        trace_baz_tcg(ENV_GET_CPU(env), cpu_env, 0xd3);
+        trace_baz_tcg(env_cpu(env), cpu_env, 0xd3);
     }
 
 If the translating vCPU has address 0xc1 and code is later executed by vCPU

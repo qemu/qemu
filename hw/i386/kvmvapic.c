@@ -152,7 +152,7 @@ static void update_guest_rom_state(VAPICROMState *s)
 
 static int find_real_tpr_addr(VAPICROMState *s, CPUX86State *env)
 {
-    CPUState *cs = CPU(x86_env_get_cpu(env));
+    CPUState *cs = env_cpu(env);
     hwaddr paddr;
     target_ulong addr;
 
@@ -279,7 +279,7 @@ instruction_ok:
 
 static int update_rom_mapping(VAPICROMState *s, CPUX86State *env, target_ulong ip)
 {
-    CPUState *cs = CPU(x86_env_get_cpu(env));
+    CPUState *cs = env_cpu(env);
     hwaddr paddr;
     uint32_t rom_state_vaddr;
     uint32_t pos, patch, offset;

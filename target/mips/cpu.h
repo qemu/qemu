@@ -3,17 +3,13 @@
 
 #define ALIGNED_ONLY
 
-#define CPUArchState struct CPUMIPSState
-
 #include "qemu-common.h"
 #include "cpu-qom.h"
-#include "mips-defs.h"
 #include "exec/cpu-defs.h"
 #include "fpu/softfloat.h"
+#include "mips-defs.h"
 
 #define TCG_GUEST_DEFAULT_MO (0)
-
-struct CPUMIPSState;
 
 typedef struct CPUMIPSTLBContext CPUMIPSTLBContext;
 
@@ -103,7 +99,6 @@ struct CPUMIPSFPUContext {
 #define FP_UNIMPLEMENTED  32
 };
 
-#define NB_MMU_MODES 4
 #define TARGET_INSN_START_EXTRA_WORDS 2
 
 typedef struct CPUMIPSMVPContext CPUMIPSMVPContext;
@@ -1046,8 +1041,6 @@ struct CPUMIPSState {
     /* Fields up to this point are cleared by a CPU reset */
     struct {} end_reset_fields;
 
-    CPU_COMMON
-
     /* Fields from here on are preserved across CPU reset. */
     CPUMIPSMVPContext *mvp;
 #if !defined(CONFIG_USER_ONLY)
@@ -1073,17 +1066,10 @@ struct MIPSCPU {
     CPUState parent_obj;
     /*< public >*/
 
+    CPUNegativeOffsetState neg;
     CPUMIPSState env;
 };
 
-static inline MIPSCPU *mips_env_get_cpu(CPUMIPSState *env)
-{
-    return container_of(env, MIPSCPU, env);
-}
-
-#define ENV_GET_CPU(e) CPU(mips_env_get_cpu(e))
-
-#define ENV_OFFSET offsetof(MIPSCPU, env)
 
 void mips_cpu_list(void);
 
@@ -1116,6 +1102,9 @@ static inline int cpu_mmu_index(CPUMIPSState *env, bool ifetch)
 {
     return hflags_mmu_index(env->hflags);
 }
+
+typedef CPUMIPSState CPUArchState;
+typedef MIPSCPU ArchCPU;
 
 #include "exec/cpu-all.h"
 

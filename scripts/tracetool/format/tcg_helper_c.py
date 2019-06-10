@@ -25,7 +25,7 @@ def vcpu_transform_args(args, mode):
     if mode == "code":
         return Arguments([
             # Does cast from helper requirements to tracing types
-            ("CPUState *", "ENV_GET_CPU(%s)" % args.names()[0]),
+            ("CPUState *", "env_cpu(%s)" % args.names()[0]),
         ])
     else:
         args = Arguments([

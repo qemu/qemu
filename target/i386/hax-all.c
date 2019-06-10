@@ -67,7 +67,7 @@ int valid_hax_tunnel_size(uint16_t size)
 
 hax_fd hax_vcpu_get_fd(CPUArchState *env)
 {
-    struct hax_vcpu_state *vcpu = ENV_GET_CPU(env)->hax_vcpu;
+    struct hax_vcpu_state *vcpu = env_cpu(env)->hax_vcpu;
     if (!vcpu) {
         return HAX_INVALID_FD;
     }
@@ -409,7 +409,7 @@ static int hax_handle_io(CPUArchState *env, uint32_t df, uint16_t port,
 
 static int hax_vcpu_interrupt(CPUArchState *env)
 {
-    CPUState *cpu = ENV_GET_CPU(env);
+    CPUState *cpu = env_cpu(env);
     struct hax_vcpu_state *vcpu = cpu->hax_vcpu;
     struct hax_tunnel *ht = vcpu->tunnel;
 
@@ -461,7 +461,7 @@ void hax_raise_event(CPUState *cpu)
 static int hax_vcpu_hax_exec(CPUArchState *env)
 {
     int ret = 0;
-    CPUState *cpu = ENV_GET_CPU(env);
+    CPUState *cpu = env_cpu(env);
     X86CPU *x86_cpu = X86_CPU(cpu);
     struct hax_vcpu_state *vcpu = cpu->hax_vcpu;
     struct hax_tunnel *ht = vcpu->tunnel;

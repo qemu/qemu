@@ -371,4 +371,73 @@ int cpu_memory_rw_debug(CPUState *cpu, target_ulong addr,
 
 int cpu_exec(CPUState *cpu);
 
+/**
+ * cpu_set_cpustate_pointers(cpu)
+ * @cpu: The cpu object
+ *
+ * Set the generic pointers in CPUState into the outer object.
+ */
+static inline void cpu_set_cpustate_pointers(ArchCPU *cpu)
+{
+    cpu->parent_obj.env_ptr = &cpu->env;
+    cpu->parent_obj.icount_decr_ptr = &cpu->neg.icount_decr;
+}
+
+/**
+ * env_archcpu(env)
+ * @env: The architecture environment
+ *
+ * Return the ArchCPU associated with the environment.
+ */
+static inline ArchCPU *env_archcpu(CPUArchState *env)
+{
+    return container_of(env, ArchCPU, env);
+}
+
+/**
+ * env_cpu(env)
+ * @env: The architecture environment
+ *
+ * Return the CPUState associated with the environment.
+ */
+static inline CPUState *env_cpu(CPUArchState *env)
+{
+    return &env_archcpu(env)->parent_obj;
+}
+
+/**
+ * env_neg(env)
+ * @env: The architecture environment
+ *
+ * Return the CPUNegativeOffsetState associated with the environment.
+ */
+static inline CPUNegativeOffsetState *env_neg(CPUArchState *env)
+{
+    ArchCPU *arch_cpu = container_of(env, ArchCPU, env);
+    return &arch_cpu->neg;
+}
+
+/**
+ * cpu_neg(cpu)
+ * @cpu: The generic CPUState
+ *
+ * Return the CPUNegativeOffsetState associated with the cpu.
+ */
+static inline CPUNegativeOffsetState *cpu_neg(CPUState *cpu)
+{
+    ArchCPU *arch_cpu = container_of(cpu, ArchCPU, parent_obj);
+    return &arch_cpu->neg;
+}
+
+/**
+ * env_tlb(env)
+ * @env: The architecture environment
+ *
+ * Return the CPUTLB state associated with the environment.
+ */
+static inline CPUTLB *env_tlb(CPUArchState *env)
+{
+    return &env_neg(env)->tlb;
+}
+
 #endif /* CPU_ALL_H */

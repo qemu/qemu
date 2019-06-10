@@ -12,19 +12,9 @@
 #ifndef UNICORE32_CPU_H
 #define UNICORE32_CPU_H
 
-#define TARGET_LONG_BITS                32
-#define TARGET_PAGE_BITS                12
-
-#define TARGET_PHYS_ADDR_SPACE_BITS     32
-#define TARGET_VIRT_ADDR_SPACE_BITS     32
-
-#define CPUArchState                struct CPUUniCore32State
-
 #include "qemu-common.h"
 #include "cpu-qom.h"
 #include "exec/cpu-defs.h"
-
-#define NB_MMU_MODES            2
 
 typedef struct CPUUniCore32State {
     /* Regs for current mode.  */
@@ -65,8 +55,6 @@ typedef struct CPUUniCore32State {
         float_status fp_status;
     } ucf64;
 
-    CPU_COMMON
-
     /* Internal CPU feature flags.  */
     uint32_t features;
 
@@ -83,17 +71,10 @@ struct UniCore32CPU {
     CPUState parent_obj;
     /*< public >*/
 
+    CPUNegativeOffsetState neg;
     CPUUniCore32State env;
 };
 
-static inline UniCore32CPU *uc32_env_get_cpu(CPUUniCore32State *env)
-{
-    return container_of(env, UniCore32CPU, env);
-}
-
-#define ENV_GET_CPU(e) CPU(uc32_env_get_cpu(e))
-
-#define ENV_OFFSET offsetof(UniCore32CPU, env)
 
 void uc32_cpu_do_interrupt(CPUState *cpu);
 bool uc32_cpu_exec_interrupt(CPUState *cpu, int int_req);
@@ -160,6 +141,9 @@ static inline int cpu_mmu_index(CPUUniCore32State *env, bool ifetch)
 {
     return (env->uncached_asr & ASR_M) == ASR_MODE_USER ? 1 : 0;
 }
+
+typedef CPUUniCore32State CPUArchState;
+typedef UniCore32CPU ArchCPU;
 
 #include "exec/cpu-all.h"
 

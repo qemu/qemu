@@ -46,7 +46,7 @@ void helper_check_interrupts(CPUNios2State *env)
 
 void helper_raise_exception(CPUNios2State *env, uint32_t index)
 {
-    CPUState *cs = ENV_GET_CPU(env);
+    CPUState *cs = env_cpu(env);
     cs->exception_index = index;
     cpu_loop_exit(cs);
 }

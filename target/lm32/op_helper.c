@@ -16,7 +16,7 @@
 #if !defined(CONFIG_USER_ONLY)
 void raise_exception(CPULM32State *env, int index)
 {
-    CPUState *cs = CPU(lm32_env_get_cpu(env));
+    CPUState *cs = env_cpu(env);
 
     cs->exception_index = index;
     cpu_loop_exit(cs);
@@ -29,7 +29,7 @@ void HELPER(raise_exception)(CPULM32State *env, uint32_t index)
 
 void HELPER(hlt)(CPULM32State *env)
 {
-    CPUState *cs = CPU(lm32_env_get_cpu(env));
+    CPUState *cs = env_cpu(env);
 
     cs->halted = 1;
     cs->exception_index = EXCP_HLT;
@@ -39,7 +39,7 @@ void HELPER(hlt)(CPULM32State *env)
 void HELPER(ill)(CPULM32State *env)
 {
 #ifndef CONFIG_USER_ONLY
-    CPUState *cs = CPU(lm32_env_get_cpu(env));
+    CPUState *cs = env_cpu(env);
     fprintf(stderr, "VM paused due to illegal instruction. "
             "Connect a debugger or switch to the monitor console "
             "to find out more.\n");

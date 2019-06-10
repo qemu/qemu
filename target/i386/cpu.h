@@ -1,4 +1,3 @@
-
 /*
  * i386 virtual CPU header
  *
@@ -24,13 +23,6 @@
 #include "qemu-common.h"
 #include "cpu-qom.h"
 #include "hyperv-proto.h"
-
-#ifdef TARGET_X86_64
-#define TARGET_LONG_BITS 64
-#else
-#define TARGET_LONG_BITS 32
-#endif
-
 #include "exec/cpu-defs.h"
 
 /* The x86 has a strong memory model with some store-after-load re-ordering */
@@ -50,8 +42,6 @@
 #define I386_ELF_MACHINE  EM_386
 #define ELF_MACHINE_UNAME "i686"
 #endif
-
-#define CPUArchState struct CPUX86State
 
 enum {
     R_EAX = 0,
@@ -956,7 +946,6 @@ typedef struct {
 #define MAX_FIXED_COUNTERS 3
 #define MAX_GP_COUNTERS    (MSR_IA32_PERF_STATUS - MSR_P6_EVNTSEL0)
 
-#define NB_MMU_MODES 3
 #define TARGET_INSN_START_EXTRA_WORDS 1
 
 #define NB_OPMASK_REGS 8
@@ -1300,9 +1289,7 @@ typedef struct CPUX86State {
     /* Fields up to this point are cleared by a CPU reset */
     struct {} end_reset_fields;
 
-    CPU_COMMON
-
-    /* Fields after CPU_COMMON are preserved across CPU reset. */
+    /* Fields after this point are preserved across CPU reset. */
 
     /* processor features (e.g. for CPUID insn) */
     /* Minimum level/xlevel/xlevel2, based on CPU model + features */
@@ -1380,6 +1367,7 @@ struct X86CPU {
     CPUState parent_obj;
     /*< public >*/
 
+    CPUNegativeOffsetState neg;
     CPUX86State env;
 
     bool hyperv_vapic;
@@ -1491,14 +1479,6 @@ struct X86CPU {
     int32_t hv_max_vps;
 };
 
-static inline X86CPU *x86_env_get_cpu(CPUX86State *env)
-{
-    return container_of(env, X86CPU, env);
-}
-
-#define ENV_GET_CPU(e) CPU(x86_env_get_cpu(e))
-
-#define ENV_OFFSET offsetof(X86CPU, env)
 
 #ifndef CONFIG_USER_ONLY
 extern struct VMStateDescription vmstate_x86_cpu;
@@ -1695,19 +1675,6 @@ void cpu_x86_update_dr7(CPUX86State *env, uint32_t new_dr7);
 /* hw/pc.c */
 uint64_t cpu_get_tsc(CPUX86State *env);
 
-#define TARGET_PAGE_BITS 12
-
-#ifdef TARGET_X86_64
-#define TARGET_PHYS_ADDR_SPACE_BITS 52
-/* ??? This is really 48 bits, sign-extended, but the only thing
-   accessible to userland with bit 48 set is the VSYSCALL, and that
-   is handled via other mechanisms.  */
-#define TARGET_VIRT_ADDR_SPACE_BITS 47
-#else
-#define TARGET_PHYS_ADDR_SPACE_BITS 36
-#define TARGET_VIRT_ADDR_SPACE_BITS 32
-#endif
-
 /* XXX: This value should match the one returned by CPUID
  * and in exec.c */
 # if defined(TARGET_X86_64)
@@ -1775,6 +1742,9 @@ static inline target_long lshift(target_long x, int n)
 
 /* translate.c */
 void tcg_x86_init(void);
+
+typedef CPUX86State CPUArchState;
+typedef X86CPU ArchCPU;
 
 #include "exec/cpu-all.h"
 #include "svm.h"

@@ -24,26 +24,13 @@
 #include "qemu-common.h"
 #include "cpu-qom.h"
 #include "cpu_models.h"
-
-#define TARGET_LONG_BITS 64
+#include "exec/cpu-defs.h"
 
 #define ELF_MACHINE_UNAME "S390X"
-
-#define CPUArchState struct CPUS390XState
-
-#include "exec/cpu-defs.h"
 
 /* The z/Architecture has a strong memory model with some store-after-load re-ordering */
 #define TCG_GUEST_DEFAULT_MO      (TCG_MO_ALL & ~TCG_MO_ST_LD)
 
-#define TARGET_PAGE_BITS 12
-
-#define TARGET_PHYS_ADDR_SPACE_BITS 64
-#define TARGET_VIRT_ADDR_SPACE_BITS 64
-
-#include "exec/cpu-all.h"
-
-#define NB_MMU_MODES 4
 #define TARGET_INSN_START_EXTRA_WORDS 1
 
 #define MMU_MODE0_SUFFIX _primary
@@ -127,8 +114,6 @@ struct CPUS390XState {
     /* Fields up to this point are cleared by a CPU reset */
     struct {} end_reset_fields;
 
-    CPU_COMMON
-
 #if !defined(CONFIG_USER_ONLY)
     uint32_t core_id; /* PoP "CPU address", same as cpu_index */
     uint64_t cpuid;
@@ -169,6 +154,7 @@ struct S390CPU {
     CPUState parent_obj;
     /*< public >*/
 
+    CPUNegativeOffsetState neg;
     CPUS390XState env;
     S390CPUModel *model;
     /* needed for live migration */
@@ -176,14 +162,6 @@ struct S390CPU {
     uint32_t irqstate_saved_size;
 };
 
-static inline S390CPU *s390_env_get_cpu(CPUS390XState *env)
-{
-    return container_of(env, S390CPU, env);
-}
-
-#define ENV_GET_CPU(e) CPU(s390_env_get_cpu(e))
-
-#define ENV_OFFSET offsetof(S390CPU, env)
 
 #ifndef CONFIG_USER_ONLY
 extern const struct VMStateDescription vmstate_s390_cpu;
@@ -806,5 +784,10 @@ void s390_init_sigp(void);
 
 /* outside of target/s390x/ */
 S390CPU *s390_cpu_addr2state(uint16_t cpu_addr);
+
+typedef CPUS390XState CPUArchState;
+typedef S390CPU ArchCPU;
+
+#include "exec/cpu-all.h"
 
 #endif

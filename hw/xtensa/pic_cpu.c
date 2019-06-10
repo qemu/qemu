@@ -33,7 +33,7 @@
 
 void check_interrupts(CPUXtensaState *env)
 {
-    CPUState *cs = CPU(xtensa_env_get_cpu(env));
+    CPUState *cs = env_cpu(env);
     int minlevel = xtensa_get_cintlevel(env);
     uint32_t int_set_enabled = env->sregs[INTSET] & env->sregs[INTENABLE];
     int level;

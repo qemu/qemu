@@ -31,7 +31,7 @@ static inline void cpu_clone_regs(CPUM68KState *env, target_ulong newsp)
 
 static inline void cpu_set_tls(CPUM68KState *env, target_ulong newtls)
 {
-    CPUState *cs = CPU(m68k_env_get_cpu(env));
+    CPUState *cs = env_cpu(env);
     TaskState *ts = cs->opaque;
 
     ts->tp_value = newtls;

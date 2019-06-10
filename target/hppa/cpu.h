@@ -22,25 +22,8 @@
 
 #include "qemu-common.h"
 #include "cpu-qom.h"
+#include "exec/cpu-defs.h"
 
-#ifdef TARGET_HPPA64
-#define TARGET_LONG_BITS            64
-#define TARGET_VIRT_ADDR_SPACE_BITS 64
-#define TARGET_REGISTER_BITS        64
-#define TARGET_PHYS_ADDR_SPACE_BITS 64
-#elif defined(CONFIG_USER_ONLY)
-#define TARGET_LONG_BITS            32
-#define TARGET_VIRT_ADDR_SPACE_BITS 32
-#define TARGET_REGISTER_BITS        32
-#define TARGET_PHYS_ADDR_SPACE_BITS 32
-#else
-/* In order to form the GVA from space:offset,
-   we need a 64-bit virtual address space.  */
-#define TARGET_LONG_BITS            64
-#define TARGET_VIRT_ADDR_SPACE_BITS 64
-#define TARGET_REGISTER_BITS        32
-#define TARGET_PHYS_ADDR_SPACE_BITS 32
-#endif
 
 /* PA-RISC 1.x processors have a strong memory model.  */
 /* ??? While we do not yet implement PA-RISC 2.0, those processors have
@@ -48,14 +31,7 @@
    basis.  It's probably easier to fall back to a strong memory model.  */
 #define TCG_GUEST_DEFAULT_MO        TCG_MO_ALL
 
-#define CPUArchState struct CPUHPPAState
-
-#include "exec/cpu-defs.h"
-
-#define TARGET_PAGE_BITS 12
-
 #define ALIGNED_ONLY
-#define NB_MMU_MODES     5
 #define MMU_KERNEL_IDX   0
 #define MMU_USER_IDX     3
 #define MMU_PHYS_IDX     4
@@ -221,9 +197,6 @@ struct CPUHPPAState {
     target_ureg cr_back[2];  /* back of cr17/cr18 */
     target_ureg shadow[7];   /* shadow registers */
 
-    /* Those resources are used only in QEMU core */
-    CPU_COMMON
-
     /* ??? The number of entries isn't specified by the architecture.  */
     /* ??? Implement a unified itlb/dtlb for the moment.  */
     /* ??? We should use a more intelligent data structure.  */
@@ -242,17 +215,14 @@ struct HPPACPU {
     CPUState parent_obj;
     /*< public >*/
 
+    CPUNegativeOffsetState neg;
     CPUHPPAState env;
     QEMUTimer *alarm_timer;
 };
 
-static inline HPPACPU *hppa_env_get_cpu(CPUHPPAState *env)
-{
-    return container_of(env, HPPACPU, env);
-}
 
-#define ENV_GET_CPU(e)  CPU(hppa_env_get_cpu(e))
-#define ENV_OFFSET      offsetof(HPPACPU, env)
+typedef CPUHPPAState CPUArchState;
+typedef HPPACPU ArchCPU;
 
 #include "exec/cpu-all.h"
 

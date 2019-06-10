@@ -76,7 +76,7 @@ void cpu_mips_irq_init_cpu(MIPSCPU *cpu)
     qemu_irq *qi;
     int i;
 
-    qi = qemu_allocate_irqs(cpu_mips_irq_request, mips_env_get_cpu(env), 8);
+    qi = qemu_allocate_irqs(cpu_mips_irq_request, env_archcpu(env), 8);
     for (i = 0; i < 8; i++) {
         env->irq[i] = qi[i];
     }

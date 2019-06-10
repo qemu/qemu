@@ -257,8 +257,8 @@ static target_ulong arm_gdb_syscall(ARMCPU *cpu, gdb_syscall_complete_cb cb,
  */
 target_ulong do_arm_semihosting(CPUARMState *env)
 {
-    ARMCPU *cpu = arm_env_get_cpu(env);
-    CPUState *cs = CPU(cpu);
+    ARMCPU *cpu = env_archcpu(env);
+    CPUState *cs = env_cpu(env);
     target_ulong args;
     target_ulong arg0, arg1, arg2, arg3;
     char * s;

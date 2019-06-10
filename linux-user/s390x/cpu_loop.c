@@ -26,7 +26,7 @@
 
 void cpu_loop(CPUS390XState *env)
 {
-    CPUState *cs = CPU(s390_env_get_cpu(env));
+    CPUState *cs = env_cpu(env);
     int trapnr, n, sig;
     target_siginfo_t info;
     target_ulong addr;

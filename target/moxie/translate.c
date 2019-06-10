@@ -816,7 +816,7 @@ static int decode_opc(MoxieCPU *cpu, DisasContext *ctx)
 void gen_intermediate_code(CPUState *cs, TranslationBlock *tb, int max_insns)
 {
     CPUMoxieState *env = cs->env_ptr;
-    MoxieCPU *cpu = moxie_env_get_cpu(env);
+    MoxieCPU *cpu = env_archcpu(env);
     DisasContext ctx;
     target_ulong pc_start;
     int num_insns;

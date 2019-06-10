@@ -20,25 +20,16 @@
 #ifndef LM32_CPU_H
 #define LM32_CPU_H
 
-#define TARGET_LONG_BITS 32
-
-#define CPUArchState struct CPULM32State
-
 #include "qemu-common.h"
 #include "cpu-qom.h"
 #include "exec/cpu-defs.h"
-struct CPULM32State;
+
 typedef struct CPULM32State CPULM32State;
 
-#define NB_MMU_MODES 1
-#define TARGET_PAGE_BITS 12
 static inline int cpu_mmu_index(CPULM32State *env, bool ifetch)
 {
     return 0;
 }
-
-#define TARGET_PHYS_ADDR_SPACE_BITS 32
-#define TARGET_VIRT_ADDR_SPACE_BITS 32
 
 /* Exceptions indices */
 enum {
@@ -168,8 +159,6 @@ struct CPULM32State {
     /* Fields up to this point are cleared by a CPU reset */
     struct {} end_reset_fields;
 
-    CPU_COMMON
-
     /* Fields from here on are preserved across CPU reset. */
     uint32_t eba;       /* exception base address */
     uint32_t deba;      /* debug exception base address */
@@ -195,6 +184,7 @@ struct LM32CPU {
     CPUState parent_obj;
     /*< public >*/
 
+    CPUNegativeOffsetState neg;
     CPULM32State env;
 
     uint32_t revision;
@@ -204,14 +194,6 @@ struct LM32CPU {
     uint32_t features;
 };
 
-static inline LM32CPU *lm32_env_get_cpu(CPULM32State *env)
-{
-    return container_of(env, LM32CPU, env);
-}
-
-#define ENV_GET_CPU(e) CPU(lm32_env_get_cpu(e))
-
-#define ENV_OFFSET offsetof(LM32CPU, env)
 
 #ifndef CONFIG_USER_ONLY
 extern const struct VMStateDescription vmstate_lm32_cpu;
@@ -264,6 +246,9 @@ bool lm32_cpu_do_semihosting(CPUState *cs);
 bool lm32_cpu_tlb_fill(CPUState *cs, vaddr address, int size,
                        MMUAccessType access_type, int mmu_idx,
                        bool probe, uintptr_t retaddr);
+
+typedef CPULM32State CPUArchState;
+typedef LM32CPU ArchCPU;
 
 #include "exec/cpu-all.h"
 

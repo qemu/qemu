@@ -20,16 +20,12 @@
 #ifndef OPENRISC_CPU_H
 #define OPENRISC_CPU_H
 
-#define TARGET_LONG_BITS 32
-
-#define CPUArchState struct CPUOpenRISCState
-
-/* cpu_openrisc_map_address_* in CPUOpenRISCTLBContext need this decl.  */
-struct OpenRISCCPU;
-
 #include "qemu-common.h"
 #include "exec/cpu-defs.h"
 #include "qom/cpu.h"
+
+/* cpu_openrisc_map_address_* in CPUOpenRISCTLBContext need this decl.  */
+struct OpenRISCCPU;
 
 #define TYPE_OPENRISC_CPU "or1k-cpu"
 
@@ -56,7 +52,6 @@ typedef struct OpenRISCCPUClass {
     void (*parent_reset)(CPUState *cpu);
 } OpenRISCCPUClass;
 
-#define NB_MMU_MODES    3
 #define TARGET_INSN_START_EXTRA_WORDS 1
 
 enum {
@@ -64,11 +59,6 @@ enum {
     MMU_SUPERVISOR_IDX = 1,
     MMU_USER_IDX = 2,
 };
-
-#define TARGET_PAGE_BITS 13
-
-#define TARGET_PHYS_ADDR_SPACE_BITS 32
-#define TARGET_VIRT_ADDR_SPACE_BITS 32
 
 #define SET_FP_CAUSE(reg, v)    do {\
                                     (reg) = ((reg) & ~(0x3f << 12)) | \
@@ -296,8 +286,6 @@ typedef struct CPUOpenRISCState {
     /* Fields up to this point are cleared by a CPU reset */
     struct {} end_reset_fields;
 
-    CPU_COMMON
-
     /* Fields from here on are preserved across CPU reset. */
     uint32_t cpucfgr;         /* CPU configure register */
 
@@ -323,18 +311,10 @@ typedef struct OpenRISCCPU {
     CPUState parent_obj;
     /*< public >*/
 
+    CPUNegativeOffsetState neg;
     CPUOpenRISCState env;
-
 } OpenRISCCPU;
 
-static inline OpenRISCCPU *openrisc_env_get_cpu(CPUOpenRISCState *env)
-{
-    return container_of(env, OpenRISCCPU, env);
-}
-
-#define ENV_GET_CPU(e) CPU(openrisc_env_get_cpu(e))
-
-#define ENV_OFFSET offsetof(OpenRISCCPU, env)
 
 void cpu_openrisc_list(void);
 void openrisc_cpu_do_interrupt(CPUState *cpu);
@@ -372,6 +352,9 @@ void cpu_openrisc_count_stop(OpenRISCCPU *cpu);
 #define OPENRISC_CPU_TYPE_SUFFIX "-" TYPE_OPENRISC_CPU
 #define OPENRISC_CPU_TYPE_NAME(model) model OPENRISC_CPU_TYPE_SUFFIX
 #define CPU_RESOLVING_TYPE TYPE_OPENRISC_CPU
+
+typedef CPUOpenRISCState CPUArchState;
+typedef OpenRISCCPU ArchCPU;
 
 #include "exec/cpu-all.h"
 

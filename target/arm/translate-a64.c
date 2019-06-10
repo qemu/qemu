@@ -14134,7 +14134,7 @@ static bool is_guarded_page(CPUARMState *env, DisasContext *s)
      * table entry even for that case.
      */
     return (tlb_hit(entry->addr_code, addr) &&
-            env->iotlb[mmu_idx][index].attrs.target_tlb_bit0);
+            env_tlb(env)->d[mmu_idx].iotlb[index].attrs.target_tlb_bit0);
 #endif
 }
 
@@ -14289,7 +14289,7 @@ static void aarch64_tr_init_disas_context(DisasContextBase *dcbase,
 {
     DisasContext *dc = container_of(dcbase, DisasContext, base);
     CPUARMState *env = cpu->env_ptr;
-    ARMCPU *arm_cpu = arm_env_get_cpu(env);
+    ARMCPU *arm_cpu = env_archcpu(env);
     uint32_t tb_flags = dc->base.tb->flags;
     int bound, core_mmu_idx;
 
