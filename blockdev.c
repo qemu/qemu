@@ -2602,6 +2602,7 @@ void qmp_block_commit(bool has_job_id, const char *job_id, const char *device,
     AioContext *aio_context;
     Error *local_err = NULL;
     int job_flags = JOB_DEFAULT;
+    uint64_t top_perm, top_shared;
 
     if (!has_speed) {
         speed = 0;
@@ -2717,14 +2718,38 @@ void qmp_block_commit(bool has_job_id, const char *job_id, const char *device,
         goto out;
     }
 
-    if (top_bs == bs) {
+    /*
+     * Active commit is required if and only if someone has taken a
+     * WRITE permission on the top node.  Historically, we have always
+     * used active commit for top nodes, so continue that practice
+     * lest we possibly break clients that rely on this behavior, e.g.
+     * to later attach this node to a writing parent.
+     * (Active commit is never really wrong.)
+     */
+    bdrv_get_cumulative_perm(top_bs, &top_perm, &top_shared);
+    if (top_perm & BLK_PERM_WRITE ||
+        bdrv_skip_filters(top_bs) == bdrv_skip_filters(bs))
+    {
         if (has_backing_file) {
-            error_setg(errp, "'backing-file' specified,"
-                             " but 'top' is the active layer");
+            if (bdrv_skip_filters(top_bs) == bdrv_skip_filters(bs)) {
+                error_setg(errp, "'backing-file' specified,"
+                                 " but 'top' is the active layer");
+            } else {
+                error_setg(errp, "'backing-file' specified, but 'top' has a "
+                                 "writer on it");
+            }
             goto out;
         }
-        commit_active_start(has_job_id ? job_id : NULL, bs, base_bs,
-                            job_flags, speed, on_error,
+        if (!has_job_id) {
+            /*
+             * Emulate here what block_job_create() does, because it
+             * is possible that @bs != @top_bs (the block job should
+             * be named after @bs, even if @top_bs is the actual
+             * source)
+             */
+            job_id = bdrv_get_device_name(bs);
+        }
+        commit_active_start(job_id, top_bs, base_bs, job_flags, speed, on_error,
                             filter_node_name, NULL, NULL, false, &local_err);
     } else {
         BlockDriverState *overlay_bs = bdrv_find_overlay(bs, top_bs);
