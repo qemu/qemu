@@ -1727,6 +1727,9 @@ static inline void gen_mov_vreg_F0(int dp, int reg)
 
 #define ARM_CP_RW_BIT   (1 << 20)
 
+/* Include the VFP decoder */
+#include "translate-vfp.inc.c"
+
 static inline void iwmmxt_load_reg(TCGv_i64 var, int reg)
 {
     tcg_gen_ld_i64(var, cpu_env, offsetof(CPUARMState, iwmmxt.regs[reg]));
@@ -3382,6 +3385,22 @@ static int disas_vfp_insn(DisasContext *s, uint32_t insn)
 
     if (!arm_dc_feature(s, ARM_FEATURE_VFP)) {
         return 1;
+    }
+
+    /*
+     * If the decodetree decoder handles this insn it will always
+     * emit code to either execute the insn or generate an appropriate
+     * exception; so we don't need to ever return non-zero to tell
+     * the calling code to emit an UNDEF exception.
+     */
+    if (extract32(insn, 28, 4) == 0xf) {
+        if (disas_vfp_uncond(s, insn)) {
+            return 0;
+        }
+    } else {
+        if (disas_vfp(s, insn)) {
+            return 0;
+        }
     }
 
     /* FIXME: this access check should not take precedence over UNDEF
