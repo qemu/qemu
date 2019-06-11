@@ -1140,6 +1140,42 @@ typedef void VFPGen2OpSPFn(TCGv_i32 vd, TCGv_i32 vm);
 typedef void VFPGen2OpDPFn(TCGv_i64 vd, TCGv_i64 vm);
 
 /*
+ * Return true if the specified S reg is in a scalar bank
+ * (ie if it is s0..s7)
+ */
+static inline bool vfp_sreg_is_scalar(int reg)
+{
+    return (reg & 0x18) == 0;
+}
+
+/*
+ * Return true if the specified D reg is in a scalar bank
+ * (ie if it is d0..d3 or d16..d19)
+ */
+static inline bool vfp_dreg_is_scalar(int reg)
+{
+    return (reg & 0xc) == 0;
+}
+
+/*
+ * Advance the S reg number forwards by delta within its bank
+ * (ie increment the low 3 bits but leave the rest the same)
+ */
+static inline int vfp_advance_sreg(int reg, int delta)
+{
+    return ((reg + delta) & 0x7) | (reg & ~0x7);
+}
+
+/*
+ * Advance the D reg number forwards by delta within its bank
+ * (ie increment the low 2 bits but leave the rest the same)
+ */
+static inline int vfp_advance_dreg(int reg, int delta)
+{
+    return ((reg + delta) & 0x3) | (reg & ~0x3);
+}
+
+/*
  * Perform a 3-operand VFP data processing instruction. fn is the
  * callback to do the actual operation; this function deals with the
  * code to handle looping around for VFP vector processing.
@@ -1149,7 +1185,6 @@ static bool do_vfp_3op_sp(DisasContext *s, VFPGen3OpSPFn *fn,
 {
     uint32_t delta_m = 0;
     uint32_t delta_d = 0;
-    uint32_t bank_mask = 0;
     int veclen = s->vec_len;
     TCGv_i32 f0, f1, fd;
     TCGv_ptr fpst;
@@ -1164,16 +1199,14 @@ static bool do_vfp_3op_sp(DisasContext *s, VFPGen3OpSPFn *fn,
     }
 
     if (veclen > 0) {
-        bank_mask = 0x18;
-
         /* Figure out what type of vector operation this is.  */
-        if ((vd & bank_mask) == 0) {
+        if (vfp_sreg_is_scalar(vd)) {
             /* scalar */
             veclen = 0;
         } else {
             delta_d = s->vec_stride + 1;
 
-            if ((vm & bank_mask) == 0) {
+            if (vfp_sreg_is_scalar(vm)) {
                 /* mixed scalar/vector */
                 delta_m = 0;
             } else {
@@ -1204,11 +1237,11 @@ static bool do_vfp_3op_sp(DisasContext *s, VFPGen3OpSPFn *fn,
 
         /* Set up the operands for the next iteration */
         veclen--;
-        vd = ((vd + delta_d) & (bank_mask - 1)) | (vd & bank_mask);
-        vn = ((vn + delta_d) & (bank_mask - 1)) | (vn & bank_mask);
+        vd = vfp_advance_sreg(vd, delta_d);
+        vn = vfp_advance_sreg(vn, delta_d);
         neon_load_reg32(f0, vn);
         if (delta_m) {
-            vm = ((vm + delta_m) & (bank_mask - 1)) | (vm & bank_mask);
+            vm = vfp_advance_sreg(vm, delta_m);
             neon_load_reg32(f1, vm);
         }
     }
@@ -1226,7 +1259,6 @@ static bool do_vfp_3op_dp(DisasContext *s, VFPGen3OpDPFn *fn,
 {
     uint32_t delta_m = 0;
     uint32_t delta_d = 0;
-    uint32_t bank_mask = 0;
     int veclen = s->vec_len;
     TCGv_i64 f0, f1, fd;
     TCGv_ptr fpst;
@@ -1246,16 +1278,14 @@ static bool do_vfp_3op_dp(DisasContext *s, VFPGen3OpDPFn *fn,
     }
 
     if (veclen > 0) {
-        bank_mask = 0xc;
-
         /* Figure out what type of vector operation this is.  */
-        if ((vd & bank_mask) == 0) {
+        if (vfp_dreg_is_scalar(vd)) {
             /* scalar */
             veclen = 0;
         } else {
             delta_d = (s->vec_stride >> 1) + 1;
 
-            if ((vm & bank_mask) == 0) {
+            if (vfp_dreg_is_scalar(vm)) {
                 /* mixed scalar/vector */
                 delta_m = 0;
             } else {
@@ -1285,11 +1315,11 @@ static bool do_vfp_3op_dp(DisasContext *s, VFPGen3OpDPFn *fn,
         }
         /* Set up the operands for the next iteration */
         veclen--;
-        vd = ((vd + delta_d) & (bank_mask - 1)) | (vd & bank_mask);
-        vn = ((vn + delta_d) & (bank_mask - 1)) | (vn & bank_mask);
+        vd = vfp_advance_dreg(vd, delta_d);
+        vn = vfp_advance_dreg(vn, delta_d);
         neon_load_reg64(f0, vn);
         if (delta_m) {
-            vm = ((vm + delta_m) & (bank_mask - 1)) | (vm & bank_mask);
+            vm = vfp_advance_dreg(vm, delta_m);
             neon_load_reg64(f1, vm);
         }
     }
@@ -1306,7 +1336,6 @@ static bool do_vfp_2op_sp(DisasContext *s, VFPGen2OpSPFn *fn, int vd, int vm)
 {
     uint32_t delta_m = 0;
     uint32_t delta_d = 0;
-    uint32_t bank_mask = 0;
     int veclen = s->vec_len;
     TCGv_i32 f0, fd;
 
@@ -1320,16 +1349,14 @@ static bool do_vfp_2op_sp(DisasContext *s, VFPGen2OpSPFn *fn, int vd, int vm)
     }
 
     if (veclen > 0) {
-        bank_mask = 0x18;
-
         /* Figure out what type of vector operation this is.  */
-        if ((vd & bank_mask) == 0) {
+        if (vfp_sreg_is_scalar(vd)) {
             /* scalar */
             veclen = 0;
         } else {
             delta_d = s->vec_stride + 1;
 
-            if ((vm & bank_mask) == 0) {
+            if (vfp_sreg_is_scalar(vm)) {
                 /* mixed scalar/vector */
                 delta_m = 0;
             } else {
@@ -1355,7 +1382,7 @@ static bool do_vfp_2op_sp(DisasContext *s, VFPGen2OpSPFn *fn, int vd, int vm)
         if (delta_m == 0) {
             /* single source one-many */
             while (veclen--) {
-                vd = ((vd + delta_d) & (bank_mask - 1)) | (vd & bank_mask);
+                vd = vfp_advance_sreg(vd, delta_d);
                 neon_store_reg32(fd, vd);
             }
             break;
@@ -1363,8 +1390,8 @@ static bool do_vfp_2op_sp(DisasContext *s, VFPGen2OpSPFn *fn, int vd, int vm)
 
         /* Set up the operands for the next iteration */
         veclen--;
-        vd = ((vd + delta_d) & (bank_mask - 1)) | (vd & bank_mask);
-        vm = ((vm + delta_m) & (bank_mask - 1)) | (vm & bank_mask);
+        vd = vfp_advance_sreg(vd, delta_d);
+        vm = vfp_advance_sreg(vm, delta_m);
         neon_load_reg32(f0, vm);
     }
 
@@ -1378,7 +1405,6 @@ static bool do_vfp_2op_dp(DisasContext *s, VFPGen2OpDPFn *fn, int vd, int vm)
 {
     uint32_t delta_m = 0;
     uint32_t delta_d = 0;
-    uint32_t bank_mask = 0;
     int veclen = s->vec_len;
     TCGv_i64 f0, fd;
 
@@ -1397,16 +1423,14 @@ static bool do_vfp_2op_dp(DisasContext *s, VFPGen2OpDPFn *fn, int vd, int vm)
     }
 
     if (veclen > 0) {
-        bank_mask = 0xc;
-
         /* Figure out what type of vector operation this is.  */
-        if ((vd & bank_mask) == 0) {
+        if (vfp_dreg_is_scalar(vd)) {
             /* scalar */
             veclen = 0;
         } else {
             delta_d = (s->vec_stride >> 1) + 1;
 
-            if ((vm & bank_mask) == 0) {
+            if (vfp_dreg_is_scalar(vm)) {
                 /* mixed scalar/vector */
                 delta_m = 0;
             } else {
@@ -1432,7 +1456,7 @@ static bool do_vfp_2op_dp(DisasContext *s, VFPGen2OpDPFn *fn, int vd, int vm)
         if (delta_m == 0) {
             /* single source one-many */
             while (veclen--) {
-                vd = ((vd + delta_d) & (bank_mask - 1)) | (vd & bank_mask);
+                vd = vfp_advance_dreg(vd, delta_d);
                 neon_store_reg64(fd, vd);
             }
             break;
@@ -1440,8 +1464,8 @@ static bool do_vfp_2op_dp(DisasContext *s, VFPGen2OpDPFn *fn, int vd, int vm)
 
         /* Set up the operands for the next iteration */
         veclen--;
-        vd = ((vd + delta_d) & (bank_mask - 1)) | (vd & bank_mask);
-        vm = ((vm + delta_m) & (bank_mask - 1)) | (vm & bank_mask);
+        vd = vfp_advance_dreg(vd, delta_d);
+        vd = vfp_advance_dreg(vm, delta_m);
         neon_load_reg64(f0, vm);
     }
 
@@ -1783,7 +1807,6 @@ static bool trans_VFM_dp(DisasContext *s, arg_VFM_sp *a)
 static bool trans_VMOV_imm_sp(DisasContext *s, arg_VMOV_imm_sp *a)
 {
     uint32_t delta_d = 0;
-    uint32_t bank_mask = 0;
     int veclen = s->vec_len;
     TCGv_i32 fd;
     uint32_t n, i, vd;
@@ -1804,9 +1827,8 @@ static bool trans_VMOV_imm_sp(DisasContext *s, arg_VMOV_imm_sp *a)
     }
 
     if (veclen > 0) {
-        bank_mask = 0x18;
         /* Figure out what type of vector operation this is.  */
-        if ((vd & bank_mask) == 0) {
+        if (vfp_sreg_is_scalar(vd)) {
             /* scalar */
             veclen = 0;
         } else {
@@ -1835,7 +1857,7 @@ static bool trans_VMOV_imm_sp(DisasContext *s, arg_VMOV_imm_sp *a)
 
         /* Set up the operands for the next iteration */
         veclen--;
-        vd = ((vd + delta_d) & (bank_mask - 1)) | (vd & bank_mask);
+        vd = vfp_advance_sreg(vd, delta_d);
     }
 
     tcg_temp_free_i32(fd);
@@ -1845,7 +1867,6 @@ static bool trans_VMOV_imm_sp(DisasContext *s, arg_VMOV_imm_sp *a)
 static bool trans_VMOV_imm_dp(DisasContext *s, arg_VMOV_imm_dp *a)
 {
     uint32_t delta_d = 0;
-    uint32_t bank_mask = 0;
     int veclen = s->vec_len;
     TCGv_i64 fd;
     uint32_t n, i, vd;
@@ -1871,9 +1892,8 @@ static bool trans_VMOV_imm_dp(DisasContext *s, arg_VMOV_imm_dp *a)
     }
 
     if (veclen > 0) {
-        bank_mask = 0xc;
         /* Figure out what type of vector operation this is.  */
-        if ((vd & bank_mask) == 0) {
+        if (vfp_dreg_is_scalar(vd)) {
             /* scalar */
             veclen = 0;
         } else {
@@ -1902,7 +1922,7 @@ static bool trans_VMOV_imm_dp(DisasContext *s, arg_VMOV_imm_dp *a)
 
         /* Set up the operands for the next iteration */
         veclen--;
-        vd = ((vd + delta_d) & (bank_mask - 1)) | (vd & bank_mask);
+        vfp_advance_dreg(vd, delta_d);
     }
 
     tcg_temp_free_i64(fd);
