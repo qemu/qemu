@@ -1418,9 +1418,7 @@ static inline void gen_vfp_##name(int dp, int neon) \
     tcg_temp_free_ptr(statusptr); \
 }
 
-VFP_GEN_FTOI(toui)
 VFP_GEN_FTOI(touiz)
-VFP_GEN_FTOI(tosi)
 VFP_GEN_FTOI(tosiz)
 #undef VFP_GEN_FTOI
 
@@ -1612,33 +1610,7 @@ static TCGv_ptr vfp_reg_ptr(bool dp, int reg)
 }
 
 #define tcg_gen_ld_f32 tcg_gen_ld_i32
-#define tcg_gen_ld_f64 tcg_gen_ld_i64
 #define tcg_gen_st_f32 tcg_gen_st_i32
-#define tcg_gen_st_f64 tcg_gen_st_i64
-
-static inline void gen_mov_F0_vreg(int dp, int reg)
-{
-    if (dp)
-        tcg_gen_ld_f64(cpu_F0d, cpu_env, vfp_reg_offset(dp, reg));
-    else
-        tcg_gen_ld_f32(cpu_F0s, cpu_env, vfp_reg_offset(dp, reg));
-}
-
-static inline void gen_mov_F1_vreg(int dp, int reg)
-{
-    if (dp)
-        tcg_gen_ld_f64(cpu_F1d, cpu_env, vfp_reg_offset(dp, reg));
-    else
-        tcg_gen_ld_f32(cpu_F1s, cpu_env, vfp_reg_offset(dp, reg));
-}
-
-static inline void gen_mov_vreg_F0(int dp, int reg)
-{
-    if (dp)
-        tcg_gen_st_f64(cpu_F0d, cpu_env, vfp_reg_offset(dp, reg));
-    else
-        tcg_gen_st_f32(cpu_F0s, cpu_env, vfp_reg_offset(dp, reg));
-}
 
 #define ARM_CP_RW_BIT   (1 << 20)
 
@@ -2983,9 +2955,6 @@ static void gen_neon_dup_high16(TCGv_i32 var)
  */
 static int disas_vfp_insn(DisasContext *s, uint32_t insn)
 {
-    uint32_t rd, rn, rm, op, delta_d, delta_m, bank_mask;
-    int dp, veclen;
-
     if (!arm_dc_feature(s, ARM_FEATURE_VFP)) {
         return 1;
     }
@@ -3005,214 +2974,8 @@ static int disas_vfp_insn(DisasContext *s, uint32_t insn)
             return 0;
         }
     }
-
-    if (extract32(insn, 28, 4) == 0xf) {
-        /*
-         * Encodings with T=1 (Thumb) or unconditional (ARM): these
-         * were all handled by the decodetree decoder, so any insn
-         * patterns which get here must be UNDEF.
-         */
-        return 1;
-    }
-
-    /*
-     * FIXME: this access check should not take precedence over UNDEF
-     * for invalid encodings; we will generate incorrect syndrome information
-     * for attempts to execute invalid vfp/neon encodings with FP disabled.
-     */
-    if (!vfp_access_check(s)) {
-        return 0;
-    }
-
-    dp = ((insn & 0xf00) == 0xb00);
-    switch ((insn >> 24) & 0xf) {
-    case 0xe:
-        if (insn & (1 << 4)) {
-            /* already handled by decodetree */
-            return 1;
-        } else {
-            /* data processing */
-            bool rd_is_dp = dp;
-            bool rm_is_dp = dp;
-            bool no_output = false;
-
-            /* The opcode is in bits 23, 21, 20 and 6.  */
-            op = ((insn >> 20) & 8) | ((insn >> 19) & 6) | ((insn >> 6) & 1);
-            rn = VFP_SREG_N(insn);
-
-            switch (op) {
-            case 0 ... 14:
-                /* Already handled by decodetree */
-                return 1;
-            case 15:
-                switch (rn) {
-                case 0 ... 23:
-                case 28 ... 31:
-                    /* Already handled by decodetree */
-                    return 1;
-                default:
-                    break;
-                }
-            default:
-                break;
-            }
-
-            if (op == 15) {
-                /* rn is opcode, encoded as per VFP_SREG_N. */
-                switch (rn) {
-                case 0x18: /* vcvtr.u32.fxx */
-                case 0x19: /* vcvtz.u32.fxx */
-                case 0x1a: /* vcvtr.s32.fxx */
-                case 0x1b: /* vcvtz.s32.fxx */
-                    rd_is_dp = false;
-                    break;
-
-                default:
-                    return 1;
-                }
-            } else if (dp) {
-                /* rn is register number */
-                VFP_DREG_N(rn, insn);
-            }
-
-            if (rd_is_dp) {
-                VFP_DREG_D(rd, insn);
-            } else {
-                rd = VFP_SREG_D(insn);
-            }
-            if (rm_is_dp) {
-                VFP_DREG_M(rm, insn);
-            } else {
-                rm = VFP_SREG_M(insn);
-            }
-
-            veclen = s->vec_len;
-            if (op == 15 && rn > 3) {
-                veclen = 0;
-            }
-
-            /* Shut up compiler warnings.  */
-            delta_m = 0;
-            delta_d = 0;
-            bank_mask = 0;
-
-            if (veclen > 0) {
-                if (dp)
-                    bank_mask = 0xc;
-                else
-                    bank_mask = 0x18;
-
-                /* Figure out what type of vector operation this is.  */
-                if ((rd & bank_mask) == 0) {
-                    /* scalar */
-                    veclen = 0;
-                } else {
-                    if (dp)
-                        delta_d = (s->vec_stride >> 1) + 1;
-                    else
-                        delta_d = s->vec_stride + 1;
-
-                    if ((rm & bank_mask) == 0) {
-                        /* mixed scalar/vector */
-                        delta_m = 0;
-                    } else {
-                        /* vector */
-                        delta_m = delta_d;
-                    }
-                }
-            }
-
-            /* Load the initial operands.  */
-            if (op == 15) {
-                switch (rn) {
-                default:
-                    /* One source operand.  */
-                    gen_mov_F0_vreg(rm_is_dp, rm);
-                    break;
-                }
-            } else {
-                /* Two source operands.  */
-                gen_mov_F0_vreg(dp, rn);
-                gen_mov_F1_vreg(dp, rm);
-            }
-
-            for (;;) {
-                /* Perform the calculation.  */
-                switch (op) {
-                case 15: /* extension space */
-                    switch (rn) {
-                    case 24: /* ftoui */
-                        gen_vfp_toui(dp, 0);
-                        break;
-                    case 25: /* ftouiz */
-                        gen_vfp_touiz(dp, 0);
-                        break;
-                    case 26: /* ftosi */
-                        gen_vfp_tosi(dp, 0);
-                        break;
-                    case 27: /* ftosiz */
-                        gen_vfp_tosiz(dp, 0);
-                        break;
-                    default: /* undefined */
-                        g_assert_not_reached();
-                    }
-                    break;
-                default: /* undefined */
-                    return 1;
-                }
-
-                /* Write back the result, if any.  */
-                if (!no_output) {
-                    gen_mov_vreg_F0(rd_is_dp, rd);
-                }
-
-                /* break out of the loop if we have finished  */
-                if (veclen == 0) {
-                    break;
-                }
-
-                if (op == 15 && delta_m == 0) {
-                    /* single source one-many */
-                    while (veclen--) {
-                        rd = ((rd + delta_d) & (bank_mask - 1))
-                             | (rd & bank_mask);
-                        gen_mov_vreg_F0(dp, rd);
-                    }
-                    break;
-                }
-                /* Setup the next operands.  */
-                veclen--;
-                rd = ((rd + delta_d) & (bank_mask - 1))
-                     | (rd & bank_mask);
-
-                if (op == 15) {
-                    /* One source operand.  */
-                    rm = ((rm + delta_m) & (bank_mask - 1))
-                         | (rm & bank_mask);
-                    gen_mov_F0_vreg(dp, rm);
-                } else {
-                    /* Two source operands.  */
-                    rn = ((rn + delta_d) & (bank_mask - 1))
-                         | (rn & bank_mask);
-                    gen_mov_F0_vreg(dp, rn);
-                    if (delta_m) {
-                        rm = ((rm + delta_m) & (bank_mask - 1))
-                             | (rm & bank_mask);
-                        gen_mov_F1_vreg(dp, rm);
-                    }
-                }
-            }
-        }
-        break;
-    case 0xc:
-    case 0xd:
-        /* Already handled by decodetree */
-        return 1;
-    default:
-        /* Should never happen.  */
-        return 1;
-    }
-    return 0;
+    /* If the decodetree decoder didn't handle this insn, it must be UNDEF */
+    return 1;
 }
 
 static inline bool use_goto_tb(DisasContext *s, target_ulong dest)
