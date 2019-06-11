@@ -31,6 +31,26 @@
 #include "decode-vfp-uncond.inc.c"
 
 /*
+ * Return the offset of a 16-bit half of the specified VFP single-precision
+ * register. If top is true, returns the top 16 bits; otherwise the bottom
+ * 16 bits.
+ */
+static inline long vfp_f16_offset(unsigned reg, bool top)
+{
+    long offs = vfp_reg_offset(false, reg);
+#ifdef HOST_WORDS_BIGENDIAN
+    if (!top) {
+        offs += 2;
+    }
+#else
+    if (top) {
+        offs += 2;
+    }
+#endif
+    return offs;
+}
+
+/*
  * Check that VFP access is enabled. If it is, do the necessary
  * M-profile lazy-FP handling and then return true.
  * If not, emit code to generate an appropriate exception and
@@ -2011,5 +2031,67 @@ static bool trans_VCMP_dp(DisasContext *s, arg_VCMP_dp *a)
     tcg_temp_free_i64(vd);
     tcg_temp_free_i64(vm);
 
+    return true;
+}
+
+static bool trans_VCVT_f32_f16(DisasContext *s, arg_VCVT_f32_f16 *a)
+{
+    TCGv_ptr fpst;
+    TCGv_i32 ahp_mode;
+    TCGv_i32 tmp;
+
+    if (!dc_isar_feature(aa32_fp16_spconv, s)) {
+        return false;
+    }
+
+    if (!vfp_access_check(s)) {
+        return true;
+    }
+
+    fpst = get_fpstatus_ptr(false);
+    ahp_mode = get_ahp_flag();
+    tmp = tcg_temp_new_i32();
+    /* The T bit tells us if we want the low or high 16 bits of Vm */
+    tcg_gen_ld16u_i32(tmp, cpu_env, vfp_f16_offset(a->vm, a->t));
+    gen_helper_vfp_fcvt_f16_to_f32(tmp, tmp, fpst, ahp_mode);
+    neon_store_reg32(tmp, a->vd);
+    tcg_temp_free_i32(ahp_mode);
+    tcg_temp_free_ptr(fpst);
+    tcg_temp_free_i32(tmp);
+    return true;
+}
+
+static bool trans_VCVT_f64_f16(DisasContext *s, arg_VCVT_f64_f16 *a)
+{
+    TCGv_ptr fpst;
+    TCGv_i32 ahp_mode;
+    TCGv_i32 tmp;
+    TCGv_i64 vd;
+
+    if (!dc_isar_feature(aa32_fp16_dpconv, s)) {
+        return false;
+    }
+
+    /* UNDEF accesses to D16-D31 if they don't exist. */
+    if (!dc_isar_feature(aa32_fp_d32, s) && (a->vd  & 0x10)) {
+        return false;
+    }
+
+    if (!vfp_access_check(s)) {
+        return true;
+    }
+
+    fpst = get_fpstatus_ptr(false);
+    ahp_mode = get_ahp_flag();
+    tmp = tcg_temp_new_i32();
+    /* The T bit tells us if we want the low or high 16 bits of Vm */
+    tcg_gen_ld16u_i32(tmp, cpu_env, vfp_f16_offset(a->vm, a->t));
+    vd = tcg_temp_new_i64();
+    gen_helper_vfp_fcvt_f16_to_f64(vd, tmp, fpst, ahp_mode);
+    neon_store_reg64(vd, a->vd);
+    tcg_temp_free_i32(ahp_mode);
+    tcg_temp_free_ptr(fpst);
+    tcg_temp_free_i32(tmp);
+    tcg_temp_free_i64(vd);
     return true;
 }

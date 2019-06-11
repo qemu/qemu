@@ -181,3 +181,9 @@ VCMP_sp      ---- 1110 1.11 010 z:1 .... 1010 e:1 1.0 .... \
              vd=%vd_sp vm=%vm_sp
 VCMP_dp      ---- 1110 1.11 010 z:1 .... 1011 e:1 1.0 .... \
              vd=%vd_dp vm=%vm_dp
+
+# VCVTT and VCVTB from f16: Vd format depends on size bit; Vm is always vm_sp
+VCVT_f32_f16 ---- 1110 1.11 0010 .... 1010 t:1 1.0 .... \
+             vd=%vd_sp vm=%vm_sp
+VCVT_f64_f16 ---- 1110 1.11 0010 .... 1011 t:1 1.0 .... \
+             vd=%vd_dp vm=%vm_sp
