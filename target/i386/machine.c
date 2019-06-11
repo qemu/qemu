@@ -964,6 +964,27 @@ static const VMStateDescription vmstate_svm_npt = {
     }
 };
 
+#ifndef TARGET_X86_64
+static bool intel_efer32_needed(void *opaque)
+{
+    X86CPU *cpu = opaque;
+    CPUX86State *env = &cpu->env;
+
+    return env->efer != 0;
+}
+
+static const VMStateDescription vmstate_efer32 = {
+    .name = "cpu/efer32",
+    .version_id = 1,
+    .minimum_version_id = 1,
+    .needed = intel_efer32_needed,
+    .fields = (VMStateField[]) {
+        VMSTATE_UINT64(env.efer, X86CPU),
+        VMSTATE_END_OF_LIST()
+    }
+};
+#endif
+
 VMStateDescription vmstate_x86_cpu = {
     .name = "cpu",
     .version_id = 12,
@@ -1089,6 +1110,9 @@ VMStateDescription vmstate_x86_cpu = {
         &vmstate_msr_intel_pt,
         &vmstate_msr_virt_ssbd,
         &vmstate_svm_npt,
+#ifndef TARGET_X86_64
+        &vmstate_efer32,
+#endif
         NULL
     }
 };
