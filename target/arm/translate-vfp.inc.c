@@ -475,3 +475,150 @@ static bool trans_VCVT(DisasContext *s, arg_VCVT *a)
 
     return true;
 }
+
+static bool trans_VMOV_to_gp(DisasContext *s, arg_VMOV_to_gp *a)
+{
+    /* VMOV scalar to general purpose register */
+    TCGv_i32 tmp;
+    int pass;
+    uint32_t offset;
+
+    /* UNDEF accesses to D16-D31 if they don't exist */
+    if (!dc_isar_feature(aa32_fp_d32, s) && (a->vn & 0x10)) {
+        return false;
+    }
+
+    offset = a->index << a->size;
+    pass = extract32(offset, 2, 1);
+    offset = extract32(offset, 0, 2) * 8;
+
+    if (a->size != 2 && !arm_dc_feature(s, ARM_FEATURE_NEON)) {
+        return false;
+    }
+
+    if (!vfp_access_check(s)) {
+        return true;
+    }
+
+    tmp = neon_load_reg(a->vn, pass);
+    switch (a->size) {
+    case 0:
+        if (offset) {
+            tcg_gen_shri_i32(tmp, tmp, offset);
+        }
+        if (a->u) {
+            gen_uxtb(tmp);
+        } else {
+            gen_sxtb(tmp);
+        }
+        break;
+    case 1:
+        if (a->u) {
+            if (offset) {
+                tcg_gen_shri_i32(tmp, tmp, 16);
+            } else {
+                gen_uxth(tmp);
+            }
+        } else {
+            if (offset) {
+                tcg_gen_sari_i32(tmp, tmp, 16);
+            } else {
+                gen_sxth(tmp);
+            }
+        }
+        break;
+    case 2:
+        break;
+    }
+    store_reg(s, a->rt, tmp);
+
+    return true;
+}
+
+static bool trans_VMOV_from_gp(DisasContext *s, arg_VMOV_from_gp *a)
+{
+    /* VMOV general purpose register to scalar */
+    TCGv_i32 tmp, tmp2;
+    int pass;
+    uint32_t offset;
+
+    /* UNDEF accesses to D16-D31 if they don't exist */
+    if (!dc_isar_feature(aa32_fp_d32, s) && (a->vn & 0x10)) {
+        return false;
+    }
+
+    offset = a->index << a->size;
+    pass = extract32(offset, 2, 1);
+    offset = extract32(offset, 0, 2) * 8;
+
+    if (a->size != 2 && !arm_dc_feature(s, ARM_FEATURE_NEON)) {
+        return false;
+    }
+
+    if (!vfp_access_check(s)) {
+        return true;
+    }
+
+    tmp = load_reg(s, a->rt);
+    switch (a->size) {
+    case 0:
+        tmp2 = neon_load_reg(a->vn, pass);
+        tcg_gen_deposit_i32(tmp, tmp2, tmp, offset, 8);
+        tcg_temp_free_i32(tmp2);
+        break;
+    case 1:
+        tmp2 = neon_load_reg(a->vn, pass);
+        tcg_gen_deposit_i32(tmp, tmp2, tmp, offset, 16);
+        tcg_temp_free_i32(tmp2);
+        break;
+    case 2:
+        break;
+    }
+    neon_store_reg(a->vn, pass, tmp);
+
+    return true;
+}
+
+static bool trans_VDUP(DisasContext *s, arg_VDUP *a)
+{
+    /* VDUP (general purpose register) */
+    TCGv_i32 tmp;
+    int size, vec_size;
+
+    if (!arm_dc_feature(s, ARM_FEATURE_NEON)) {
+        return false;
+    }
+
+    /* UNDEF accesses to D16-D31 if they don't exist */
+    if (!dc_isar_feature(aa32_fp_d32, s) && (a->vn & 0x10)) {
+        return false;
+    }
+
+    if (a->b && a->e) {
+        return false;
+    }
+
+    if (a->q && (a->vn & 1)) {
+        return false;
+    }
+
+    vec_size = a->q ? 16 : 8;
+    if (a->b) {
+        size = 0;
+    } else if (a->e) {
+        size = 1;
+    } else {
+        size = 2;
+    }
+
+    if (!vfp_access_check(s)) {
+        return true;
+    }
+
+    tmp = load_reg(s, a->rt);
+    tcg_gen_gvec_dup_i32(size, neon_reg_offset(a->vn, 0),
+                         vec_size, vec_size, tmp);
+    tcg_temp_free_i32(tmp);
+
+    return true;
+}
