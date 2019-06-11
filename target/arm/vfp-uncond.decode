@@ -50,3 +50,8 @@ VMINMAXNM   1111 1110 1.00 .... .... 1010 . op:1 .0 .... \
             vm=%vm_sp vn=%vn_sp vd=%vd_sp dp=0
 VMINMAXNM   1111 1110 1.00 .... .... 1011 . op:1 .0 .... \
             vm=%vm_dp vn=%vn_dp vd=%vd_dp dp=1
+
+VRINT       1111 1110 1.11 10 rm:2 .... 1010 01.0 .... \
+            vm=%vm_sp vd=%vd_sp dp=0
+VRINT       1111 1110 1.11 10 rm:2 .... 1011 01.0 .... \
+            vm=%vm_dp vd=%vd_dp dp=1
