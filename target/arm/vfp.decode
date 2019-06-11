@@ -142,3 +142,12 @@ VDIV_sp      ---- 1110 1.00 .... .... 1010 .0.0 .... \
              vm=%vm_sp vn=%vn_sp vd=%vd_sp
 VDIV_dp      ---- 1110 1.00 .... .... 1011 .0.0 .... \
              vm=%vm_dp vn=%vn_dp vd=%vd_dp
+
+VFM_sp       ---- 1110 1.01 .... .... 1010 . o2:1 . 0 .... \
+             vm=%vm_sp vn=%vn_sp vd=%vd_sp o1=1
+VFM_dp       ---- 1110 1.01 .... .... 1011 . o2:1 . 0 .... \
+             vm=%vm_dp vn=%vn_dp vd=%vd_dp o1=1
+VFM_sp       ---- 1110 1.10 .... .... 1010 . o2:1 . 0 .... \
+             vm=%vm_sp vn=%vn_sp vd=%vd_sp o1=2
+VFM_dp       ---- 1110 1.10 .... .... 1011 . o2:1 . 0 .... \
+             vm=%vm_dp vn=%vn_dp vd=%vd_dp o1=2
