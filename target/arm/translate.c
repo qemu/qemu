@@ -3202,11 +3202,31 @@ static bool trans_VSEL(DisasContext *s, arg_VSEL *a)
     return true;
 }
 
-static int handle_vminmaxnm(uint32_t insn, uint32_t rd, uint32_t rn,
-                            uint32_t rm, uint32_t dp)
+static bool trans_VMINMAXNM(DisasContext *s, arg_VMINMAXNM *a)
 {
-    uint32_t vmin = extract32(insn, 6, 1);
-    TCGv_ptr fpst = get_fpstatus_ptr(0);
+    uint32_t rd, rn, rm;
+    bool dp = a->dp;
+    bool vmin = a->op;
+    TCGv_ptr fpst;
+
+    if (!dc_isar_feature(aa32_vminmaxnm, s)) {
+        return false;
+    }
+
+    /* UNDEF accesses to D16-D31 if they don't exist */
+    if (dp && !dc_isar_feature(aa32_fp_d32, s) &&
+        ((a->vm | a->vn | a->vd) & 0x10)) {
+        return false;
+    }
+    rd = a->vd;
+    rn = a->vn;
+    rm = a->vm;
+
+    if (!vfp_access_check(s)) {
+        return true;
+    }
+
+    fpst = get_fpstatus_ptr(0);
 
     if (dp) {
         TCGv_i64 frn, frm, dest;
@@ -3247,7 +3267,7 @@ static int handle_vminmaxnm(uint32_t insn, uint32_t rd, uint32_t rn,
     }
 
     tcg_temp_free_ptr(fpst);
-    return 0;
+    return true;
 }
 
 static int handle_vrint(uint32_t insn, uint32_t rd, uint32_t rm, uint32_t dp,
@@ -3359,23 +3379,18 @@ static const uint8_t fp_decode_rm[] = {
 
 static int disas_vfp_misc_insn(DisasContext *s, uint32_t insn)
 {
-    uint32_t rd, rn, rm, dp = extract32(insn, 8, 1);
+    uint32_t rd, rm, dp = extract32(insn, 8, 1);
 
     if (dp) {
         VFP_DREG_D(rd, insn);
-        VFP_DREG_N(rn, insn);
         VFP_DREG_M(rm, insn);
     } else {
         rd = VFP_SREG_D(insn);
-        rn = VFP_SREG_N(insn);
         rm = VFP_SREG_M(insn);
     }
 
-    if ((insn & 0x0fb00e10) == 0x0e800a00 &&
-        dc_isar_feature(aa32_vminmaxnm, s)) {
-        return handle_vminmaxnm(insn, rd, rn, rm, dp);
-    } else if ((insn & 0x0fbc0ed0) == 0x0eb80a40 &&
-               dc_isar_feature(aa32_vrint, s)) {
+    if ((insn & 0x0fbc0ed0) == 0x0eb80a40 &&
+        dc_isar_feature(aa32_vrint, s)) {
         /* VRINTA, VRINTN, VRINTP, VRINTM */
         int rounding = fp_decode_rm[extract32(insn, 16, 2)];
         return handle_vrint(insn, rd, rm, dp, rounding);
