@@ -3377,6 +3377,11 @@ static inline bool isar_feature_aa32_fp_d32(const ARMISARegisters *id)
     return FIELD_EX64(id->mvfr0, MVFR0, SIMDREG) >= 2;
 }
 
+static inline bool isar_feature_aa32_fpshvec(const ARMISARegisters *id)
+{
+    return FIELD_EX64(id->mvfr0, MVFR0, FPSHVEC) > 0;
+}
+
 /*
  * We always set the FP and SIMD FP16 fields to indicate identical
  * levels of support (assuming SIMD is implemented at all), so
