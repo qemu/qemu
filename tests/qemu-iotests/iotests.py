@@ -972,8 +972,12 @@ class QMPTestCase(unittest.TestCase):
 
     def wait_ready(self, drive='drive0'):
         """Wait until a BLOCK_JOB_READY event, and return the event."""
-        f = {'data': {'type': 'mirror', 'device': drive}}
-        return self.vm.event_wait(name='BLOCK_JOB_READY', match=f)
+        return self.vm.events_wait([
+            ('BLOCK_JOB_READY',
+             {'data': {'type': 'mirror', 'device': drive}}),
+            ('BLOCK_JOB_READY',
+             {'data': {'type': 'commit', 'device': drive}})
+        ])
 
     def wait_ready_and_cancel(self, drive='drive0'):
         self.wait_ready(drive=drive)
@@ -992,7 +996,7 @@ class QMPTestCase(unittest.TestCase):
         self.assert_qmp(result, 'return', {})
 
         event = self.wait_until_completed(drive=drive, error=completion_error)
-        self.assert_qmp(event, 'data/type', 'mirror')
+        self.assertTrue(event['data']['type'] in ['mirror', 'commit'])
 
     def pause_wait(self, job_id='job0'):
         with Timeout(3, "Timeout waiting for job to pause"):
