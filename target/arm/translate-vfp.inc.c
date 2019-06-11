@@ -926,3 +926,165 @@ static bool trans_VLDR_VSTR_dp(DisasContext *s, arg_VLDR_VSTR_sp *a)
 
     return true;
 }
+
+static bool trans_VLDM_VSTM_sp(DisasContext *s, arg_VLDM_VSTM_sp *a)
+{
+    uint32_t offset;
+    TCGv_i32 addr;
+    int i, n;
+
+    n = a->imm;
+
+    if (n == 0 || (a->vd + n) > 32) {
+        /*
+         * UNPREDICTABLE cases for bad immediates: we choose to
+         * UNDEF to avoid generating huge numbers of TCG ops
+         */
+        return false;
+    }
+    if (a->rn == 15 && a->w) {
+        /* writeback to PC is UNPREDICTABLE, we choose to UNDEF */
+        return false;
+    }
+
+    if (!vfp_access_check(s)) {
+        return true;
+    }
+
+    if (s->thumb && a->rn == 15) {
+        /* This is actually UNPREDICTABLE */
+        addr = tcg_temp_new_i32();
+        tcg_gen_movi_i32(addr, s->pc & ~2);
+    } else {
+        addr = load_reg(s, a->rn);
+    }
+    if (a->p) {
+        /* pre-decrement */
+        tcg_gen_addi_i32(addr, addr, -(a->imm << 2));
+    }
+
+    if (s->v8m_stackcheck && a->rn == 13 && a->w) {
+        /*
+         * Here 'addr' is the lowest address we will store to,
+         * and is either the old SP (if post-increment) or
+         * the new SP (if pre-decrement). For post-increment
+         * where the old value is below the limit and the new
+         * value is above, it is UNKNOWN whether the limit check
+         * triggers; we choose to trigger.
+         */
+        gen_helper_v8m_stackcheck(cpu_env, addr);
+    }
+
+    offset = 4;
+    for (i = 0; i < n; i++) {
+        if (a->l) {
+            /* load */
+            gen_vfp_ld(s, false, addr);
+            gen_mov_vreg_F0(false, a->vd + i);
+        } else {
+            /* store */
+            gen_mov_F0_vreg(false, a->vd + i);
+            gen_vfp_st(s, false, addr);
+        }
+        tcg_gen_addi_i32(addr, addr, offset);
+    }
+    if (a->w) {
+        /* writeback */
+        if (a->p) {
+            offset = -offset * n;
+            tcg_gen_addi_i32(addr, addr, offset);
+        }
+        store_reg(s, a->rn, addr);
+    } else {
+        tcg_temp_free_i32(addr);
+    }
+
+    return true;
+}
+
+static bool trans_VLDM_VSTM_dp(DisasContext *s, arg_VLDM_VSTM_dp *a)
+{
+    uint32_t offset;
+    TCGv_i32 addr;
+    int i, n;
+
+    n = a->imm >> 1;
+
+    if (n == 0 || (a->vd + n) > 32 || n > 16) {
+        /*
+         * UNPREDICTABLE cases for bad immediates: we choose to
+         * UNDEF to avoid generating huge numbers of TCG ops
+         */
+        return false;
+    }
+    if (a->rn == 15 && a->w) {
+        /* writeback to PC is UNPREDICTABLE, we choose to UNDEF */
+        return false;
+    }
+
+    /* UNDEF accesses to D16-D31 if they don't exist */
+    if (!dc_isar_feature(aa32_fp_d32, s) && (a->vd + n) > 16) {
+        return false;
+    }
+
+    if (!vfp_access_check(s)) {
+        return true;
+    }
+
+    if (s->thumb && a->rn == 15) {
+        /* This is actually UNPREDICTABLE */
+        addr = tcg_temp_new_i32();
+        tcg_gen_movi_i32(addr, s->pc & ~2);
+    } else {
+        addr = load_reg(s, a->rn);
+    }
+    if (a->p) {
+        /* pre-decrement */
+        tcg_gen_addi_i32(addr, addr, -(a->imm << 2));
+    }
+
+    if (s->v8m_stackcheck && a->rn == 13 && a->w) {
+        /*
+         * Here 'addr' is the lowest address we will store to,
+         * and is either the old SP (if post-increment) or
+         * the new SP (if pre-decrement). For post-increment
+         * where the old value is below the limit and the new
+         * value is above, it is UNKNOWN whether the limit check
+         * triggers; we choose to trigger.
+         */
+        gen_helper_v8m_stackcheck(cpu_env, addr);
+    }
+
+    offset = 8;
+    for (i = 0; i < n; i++) {
+        if (a->l) {
+            /* load */
+            gen_vfp_ld(s, true, addr);
+            gen_mov_vreg_F0(true, a->vd + i);
+        } else {
+            /* store */
+            gen_mov_F0_vreg(true, a->vd + i);
+            gen_vfp_st(s, true, addr);
+        }
+        tcg_gen_addi_i32(addr, addr, offset);
+    }
+    if (a->w) {
+        /* writeback */
+        if (a->p) {
+            offset = -offset * n;
+        } else if (a->imm & 1) {
+            offset = 4;
+        } else {
+            offset = 0;
+        }
+
+        if (offset != 0) {
+            tcg_gen_addi_i32(addr, addr, offset);
+        }
+        store_reg(s, a->rn, addr);
+    } else {
+        tcg_temp_free_i32(addr);
+    }
+
+    return true;
+}

@@ -78,3 +78,21 @@ VLDR_VSTR_sp ---- 1101 u:1 .0 l:1 rn:4 .... 1010 imm:8 \
              vd=%vd_sp
 VLDR_VSTR_dp ---- 1101 u:1 .0 l:1 rn:4 .... 1011 imm:8 \
              vd=%vd_dp
+
+# We split the load/store multiple up into two patterns to avoid
+# overlap with other insns in the "Advanced SIMD load/store and 64-bit move"
+# grouping:
+#   P=0 U=0 W=0 is 64-bit VMOV
+#   P=1 W=0 is VLDR/VSTR
+#   P=U W=1 is UNDEF
+# leaving P=0 U=1 W=x and P=1 U=0 W=1 for load/store multiple.
+# These include FSTM/FLDM.
+VLDM_VSTM_sp ---- 1100 1 . w:1 l:1 rn:4 .... 1010 imm:8 \
+             vd=%vd_sp p=0 u=1
+VLDM_VSTM_dp ---- 1100 1 . w:1 l:1 rn:4 .... 1011 imm:8 \
+             vd=%vd_dp p=0 u=1
+
+VLDM_VSTM_sp ---- 1101 0.1 l:1 rn:4 .... 1010 imm:8 \
+             vd=%vd_sp p=1 u=0 w=1
+VLDM_VSTM_dp ---- 1101 0.1 l:1 rn:4 .... 1011 imm:8 \
+             vd=%vd_dp p=1 u=0 w=1
