@@ -138,3 +138,340 @@ static bool vfp_access_check(DisasContext *s)
 {
     return full_vfp_access_check(s, false);
 }
+
+static bool trans_VSEL(DisasContext *s, arg_VSEL *a)
+{
+    uint32_t rd, rn, rm;
+    bool dp = a->dp;
+
+    if (!dc_isar_feature(aa32_vsel, s)) {
+        return false;
+    }
+
+    /* UNDEF accesses to D16-D31 if they don't exist */
+    if (dp && !dc_isar_feature(aa32_fp_d32, s) &&
+        ((a->vm | a->vn | a->vd) & 0x10)) {
+        return false;
+    }
+    rd = a->vd;
+    rn = a->vn;
+    rm = a->vm;
+
+    if (!vfp_access_check(s)) {
+        return true;
+    }
+
+    if (dp) {
+        TCGv_i64 frn, frm, dest;
+        TCGv_i64 tmp, zero, zf, nf, vf;
+
+        zero = tcg_const_i64(0);
+
+        frn = tcg_temp_new_i64();
+        frm = tcg_temp_new_i64();
+        dest = tcg_temp_new_i64();
+
+        zf = tcg_temp_new_i64();
+        nf = tcg_temp_new_i64();
+        vf = tcg_temp_new_i64();
+
+        tcg_gen_extu_i32_i64(zf, cpu_ZF);
+        tcg_gen_ext_i32_i64(nf, cpu_NF);
+        tcg_gen_ext_i32_i64(vf, cpu_VF);
+
+        tcg_gen_ld_f64(frn, cpu_env, vfp_reg_offset(dp, rn));
+        tcg_gen_ld_f64(frm, cpu_env, vfp_reg_offset(dp, rm));
+        switch (a->cc) {
+        case 0: /* eq: Z */
+            tcg_gen_movcond_i64(TCG_COND_EQ, dest, zf, zero,
+                                frn, frm);
+            break;
+        case 1: /* vs: V */
+            tcg_gen_movcond_i64(TCG_COND_LT, dest, vf, zero,
+                                frn, frm);
+            break;
+        case 2: /* ge: N == V -> N ^ V == 0 */
+            tmp = tcg_temp_new_i64();
+            tcg_gen_xor_i64(tmp, vf, nf);
+            tcg_gen_movcond_i64(TCG_COND_GE, dest, tmp, zero,
+                                frn, frm);
+            tcg_temp_free_i64(tmp);
+            break;
+        case 3: /* gt: !Z && N == V */
+            tcg_gen_movcond_i64(TCG_COND_NE, dest, zf, zero,
+                                frn, frm);
+            tmp = tcg_temp_new_i64();
+            tcg_gen_xor_i64(tmp, vf, nf);
+            tcg_gen_movcond_i64(TCG_COND_GE, dest, tmp, zero,
+                                dest, frm);
+            tcg_temp_free_i64(tmp);
+            break;
+        }
+        tcg_gen_st_f64(dest, cpu_env, vfp_reg_offset(dp, rd));
+        tcg_temp_free_i64(frn);
+        tcg_temp_free_i64(frm);
+        tcg_temp_free_i64(dest);
+
+        tcg_temp_free_i64(zf);
+        tcg_temp_free_i64(nf);
+        tcg_temp_free_i64(vf);
+
+        tcg_temp_free_i64(zero);
+    } else {
+        TCGv_i32 frn, frm, dest;
+        TCGv_i32 tmp, zero;
+
+        zero = tcg_const_i32(0);
+
+        frn = tcg_temp_new_i32();
+        frm = tcg_temp_new_i32();
+        dest = tcg_temp_new_i32();
+        tcg_gen_ld_f32(frn, cpu_env, vfp_reg_offset(dp, rn));
+        tcg_gen_ld_f32(frm, cpu_env, vfp_reg_offset(dp, rm));
+        switch (a->cc) {
+        case 0: /* eq: Z */
+            tcg_gen_movcond_i32(TCG_COND_EQ, dest, cpu_ZF, zero,
+                                frn, frm);
+            break;
+        case 1: /* vs: V */
+            tcg_gen_movcond_i32(TCG_COND_LT, dest, cpu_VF, zero,
+                                frn, frm);
+            break;
+        case 2: /* ge: N == V -> N ^ V == 0 */
+            tmp = tcg_temp_new_i32();
+            tcg_gen_xor_i32(tmp, cpu_VF, cpu_NF);
+            tcg_gen_movcond_i32(TCG_COND_GE, dest, tmp, zero,
+                                frn, frm);
+            tcg_temp_free_i32(tmp);
+            break;
+        case 3: /* gt: !Z && N == V */
+            tcg_gen_movcond_i32(TCG_COND_NE, dest, cpu_ZF, zero,
+                                frn, frm);
+            tmp = tcg_temp_new_i32();
+            tcg_gen_xor_i32(tmp, cpu_VF, cpu_NF);
+            tcg_gen_movcond_i32(TCG_COND_GE, dest, tmp, zero,
+                                dest, frm);
+            tcg_temp_free_i32(tmp);
+            break;
+        }
+        tcg_gen_st_f32(dest, cpu_env, vfp_reg_offset(dp, rd));
+        tcg_temp_free_i32(frn);
+        tcg_temp_free_i32(frm);
+        tcg_temp_free_i32(dest);
+
+        tcg_temp_free_i32(zero);
+    }
+
+    return true;
+}
+
+static bool trans_VMINMAXNM(DisasContext *s, arg_VMINMAXNM *a)
+{
+    uint32_t rd, rn, rm;
+    bool dp = a->dp;
+    bool vmin = a->op;
+    TCGv_ptr fpst;
+
+    if (!dc_isar_feature(aa32_vminmaxnm, s)) {
+        return false;
+    }
+
+    /* UNDEF accesses to D16-D31 if they don't exist */
+    if (dp && !dc_isar_feature(aa32_fp_d32, s) &&
+        ((a->vm | a->vn | a->vd) & 0x10)) {
+        return false;
+    }
+    rd = a->vd;
+    rn = a->vn;
+    rm = a->vm;
+
+    if (!vfp_access_check(s)) {
+        return true;
+    }
+
+    fpst = get_fpstatus_ptr(0);
+
+    if (dp) {
+        TCGv_i64 frn, frm, dest;
+
+        frn = tcg_temp_new_i64();
+        frm = tcg_temp_new_i64();
+        dest = tcg_temp_new_i64();
+
+        tcg_gen_ld_f64(frn, cpu_env, vfp_reg_offset(dp, rn));
+        tcg_gen_ld_f64(frm, cpu_env, vfp_reg_offset(dp, rm));
+        if (vmin) {
+            gen_helper_vfp_minnumd(dest, frn, frm, fpst);
+        } else {
+            gen_helper_vfp_maxnumd(dest, frn, frm, fpst);
+        }
+        tcg_gen_st_f64(dest, cpu_env, vfp_reg_offset(dp, rd));
+        tcg_temp_free_i64(frn);
+        tcg_temp_free_i64(frm);
+        tcg_temp_free_i64(dest);
+    } else {
+        TCGv_i32 frn, frm, dest;
+
+        frn = tcg_temp_new_i32();
+        frm = tcg_temp_new_i32();
+        dest = tcg_temp_new_i32();
+
+        tcg_gen_ld_f32(frn, cpu_env, vfp_reg_offset(dp, rn));
+        tcg_gen_ld_f32(frm, cpu_env, vfp_reg_offset(dp, rm));
+        if (vmin) {
+            gen_helper_vfp_minnums(dest, frn, frm, fpst);
+        } else {
+            gen_helper_vfp_maxnums(dest, frn, frm, fpst);
+        }
+        tcg_gen_st_f32(dest, cpu_env, vfp_reg_offset(dp, rd));
+        tcg_temp_free_i32(frn);
+        tcg_temp_free_i32(frm);
+        tcg_temp_free_i32(dest);
+    }
+
+    tcg_temp_free_ptr(fpst);
+    return true;
+}
+
+/*
+ * Table for converting the most common AArch32 encoding of
+ * rounding mode to arm_fprounding order (which matches the
+ * common AArch64 order); see ARM ARM pseudocode FPDecodeRM().
+ */
+static const uint8_t fp_decode_rm[] = {
+    FPROUNDING_TIEAWAY,
+    FPROUNDING_TIEEVEN,
+    FPROUNDING_POSINF,
+    FPROUNDING_NEGINF,
+};
+
+static bool trans_VRINT(DisasContext *s, arg_VRINT *a)
+{
+    uint32_t rd, rm;
+    bool dp = a->dp;
+    TCGv_ptr fpst;
+    TCGv_i32 tcg_rmode;
+    int rounding = fp_decode_rm[a->rm];
+
+    if (!dc_isar_feature(aa32_vrint, s)) {
+        return false;
+    }
+
+    /* UNDEF accesses to D16-D31 if they don't exist */
+    if (dp && !dc_isar_feature(aa32_fp_d32, s) &&
+        ((a->vm | a->vd) & 0x10)) {
+        return false;
+    }
+    rd = a->vd;
+    rm = a->vm;
+
+    if (!vfp_access_check(s)) {
+        return true;
+    }
+
+    fpst = get_fpstatus_ptr(0);
+
+    tcg_rmode = tcg_const_i32(arm_rmode_to_sf(rounding));
+    gen_helper_set_rmode(tcg_rmode, tcg_rmode, fpst);
+
+    if (dp) {
+        TCGv_i64 tcg_op;
+        TCGv_i64 tcg_res;
+        tcg_op = tcg_temp_new_i64();
+        tcg_res = tcg_temp_new_i64();
+        tcg_gen_ld_f64(tcg_op, cpu_env, vfp_reg_offset(dp, rm));
+        gen_helper_rintd(tcg_res, tcg_op, fpst);
+        tcg_gen_st_f64(tcg_res, cpu_env, vfp_reg_offset(dp, rd));
+        tcg_temp_free_i64(tcg_op);
+        tcg_temp_free_i64(tcg_res);
+    } else {
+        TCGv_i32 tcg_op;
+        TCGv_i32 tcg_res;
+        tcg_op = tcg_temp_new_i32();
+        tcg_res = tcg_temp_new_i32();
+        tcg_gen_ld_f32(tcg_op, cpu_env, vfp_reg_offset(dp, rm));
+        gen_helper_rints(tcg_res, tcg_op, fpst);
+        tcg_gen_st_f32(tcg_res, cpu_env, vfp_reg_offset(dp, rd));
+        tcg_temp_free_i32(tcg_op);
+        tcg_temp_free_i32(tcg_res);
+    }
+
+    gen_helper_set_rmode(tcg_rmode, tcg_rmode, fpst);
+    tcg_temp_free_i32(tcg_rmode);
+
+    tcg_temp_free_ptr(fpst);
+    return true;
+}
+
+static bool trans_VCVT(DisasContext *s, arg_VCVT *a)
+{
+    uint32_t rd, rm;
+    bool dp = a->dp;
+    TCGv_ptr fpst;
+    TCGv_i32 tcg_rmode, tcg_shift;
+    int rounding = fp_decode_rm[a->rm];
+    bool is_signed = a->op;
+
+    if (!dc_isar_feature(aa32_vcvt_dr, s)) {
+        return false;
+    }
+
+    /* UNDEF accesses to D16-D31 if they don't exist */
+    if (dp && !dc_isar_feature(aa32_fp_d32, s) && (a->vm & 0x10)) {
+        return false;
+    }
+    rd = a->vd;
+    rm = a->vm;
+
+    if (!vfp_access_check(s)) {
+        return true;
+    }
+
+    fpst = get_fpstatus_ptr(0);
+
+    tcg_shift = tcg_const_i32(0);
+
+    tcg_rmode = tcg_const_i32(arm_rmode_to_sf(rounding));
+    gen_helper_set_rmode(tcg_rmode, tcg_rmode, fpst);
+
+    if (dp) {
+        TCGv_i64 tcg_double, tcg_res;
+        TCGv_i32 tcg_tmp;
+        tcg_double = tcg_temp_new_i64();
+        tcg_res = tcg_temp_new_i64();
+        tcg_tmp = tcg_temp_new_i32();
+        tcg_gen_ld_f64(tcg_double, cpu_env, vfp_reg_offset(1, rm));
+        if (is_signed) {
+            gen_helper_vfp_tosld(tcg_res, tcg_double, tcg_shift, fpst);
+        } else {
+            gen_helper_vfp_tould(tcg_res, tcg_double, tcg_shift, fpst);
+        }
+        tcg_gen_extrl_i64_i32(tcg_tmp, tcg_res);
+        tcg_gen_st_f32(tcg_tmp, cpu_env, vfp_reg_offset(0, rd));
+        tcg_temp_free_i32(tcg_tmp);
+        tcg_temp_free_i64(tcg_res);
+        tcg_temp_free_i64(tcg_double);
+    } else {
+        TCGv_i32 tcg_single, tcg_res;
+        tcg_single = tcg_temp_new_i32();
+        tcg_res = tcg_temp_new_i32();
+        tcg_gen_ld_f32(tcg_single, cpu_env, vfp_reg_offset(0, rm));
+        if (is_signed) {
+            gen_helper_vfp_tosls(tcg_res, tcg_single, tcg_shift, fpst);
+        } else {
+            gen_helper_vfp_touls(tcg_res, tcg_single, tcg_shift, fpst);
+        }
+        tcg_gen_st_f32(tcg_res, cpu_env, vfp_reg_offset(0, rd));
+        tcg_temp_free_i32(tcg_res);
+        tcg_temp_free_i32(tcg_single);
+    }
+
+    gen_helper_set_rmode(tcg_rmode, tcg_rmode, fpst);
+    tcg_temp_free_i32(tcg_rmode);
+
+    tcg_temp_free_i32(tcg_shift);
+
+    tcg_temp_free_ptr(fpst);
+
+    return true;
+}
