@@ -31,7 +31,7 @@
 
 /* See the README file for details on these settings. */
 //#define DEBUG_STM32_UART
-//#define STM32_UART_NO_BAUD_DELAY
+#define STM32_UART_NO_BAUD_DELAY
 //#define STM32_UART_ENABLE_OVERRUN
 
 #ifdef DEBUG_STM32_UART
@@ -348,6 +348,9 @@ static void stm32_uart_rx_timer_expire(void *opaque) {
     Stm32Uart *s = (Stm32Uart *)opaque;
 
     s->receiving = false;
+
+    uint64_t curr_time = qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL);
+    timer_mod(s->rx_timer, curr_time + s->ns_per_char);
 }
 
 /* When the transmit delay is complete, mark the transmit as complete
@@ -452,12 +455,14 @@ static void stm32_uart_receive(void *opaque, const uint8_t *buf, int size)
 #ifdef STM32_UART_NO_BAUD_DELAY
         /* Do nothing - there is no delay before the module reports it can receive
          * the next character. */
-        curr_time = curr_time; //Avoid "variable unused" compiler error
 #else
         /* Indicate the module is receiving and start the delay. */
         s->receiving = true;
-        timer_mod(s->rx_timer,  curr_time + s->ns_per_char);
 #endif
+        /* Set timer in either case - main event loop must run again to
+         * trigger next receive when using STM32_UART_NO_BAUD_DELAY. */
+        curr_time = qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL);
+        timer_mod(s->rx_timer, curr_time + s->ns_per_char);
 	}
 }
 
