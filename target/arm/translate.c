@@ -3097,7 +3097,6 @@ static int disas_vfp_insn(DisasContext *s, uint32_t insn)
     TCGv_i32 addr;
     TCGv_i32 tmp;
     TCGv_i32 tmp2;
-    bool ignore_vfp_enabled = false;
 
     if (!arm_dc_feature(s, ARM_FEATURE_VFP)) {
         return 1;
@@ -3133,14 +3132,7 @@ static int disas_vfp_insn(DisasContext *s, uint32_t insn)
      * for invalid encodings; we will generate incorrect syndrome information
      * for attempts to execute invalid vfp/neon encodings with FP disabled.
      */
-    if ((insn & 0x0fe00fff) == 0x0ee00a10) {
-        rn = (insn >> 16) & 0xf;
-        if (rn == ARM_VFP_FPSID || rn == ARM_VFP_FPEXC || rn == ARM_VFP_MVFR2
-            || rn == ARM_VFP_MVFR1 || rn == ARM_VFP_MVFR0) {
-            ignore_vfp_enabled = true;
-        }
-    }
-    if (!full_vfp_access_check(s, ignore_vfp_enabled)) {
+    if (!vfp_access_check(s)) {
         return 0;
     }
 
@@ -3148,142 +3140,8 @@ static int disas_vfp_insn(DisasContext *s, uint32_t insn)
     switch ((insn >> 24) & 0xf) {
     case 0xe:
         if (insn & (1 << 4)) {
-            /* single register transfer */
-            rd = (insn >> 12) & 0xf;
-            if (dp) {
-                /* already handled by decodetree */
-                return 1;
-            } else { /* !dp */
-                bool is_sysreg;
-
-                if ((insn & 0x6f) != 0x00)
-                    return 1;
-                rn = VFP_SREG_N(insn);
-
-                is_sysreg = extract32(insn, 21, 1);
-
-                if (arm_dc_feature(s, ARM_FEATURE_M)) {
-                    /*
-                     * The only M-profile VFP vmrs/vmsr sysreg is FPSCR.
-                     * Writes to R15 are UNPREDICTABLE; we choose to undef.
-                     */
-                    if (is_sysreg && (rd == 15 || (rn >> 1) != ARM_VFP_FPSCR)) {
-                        return 1;
-                    }
-                }
-
-                if (insn & ARM_CP_RW_BIT) {
-                    /* vfp->arm */
-                    if (is_sysreg) {
-                        /* system register */
-                        rn >>= 1;
-
-                        switch (rn) {
-                        case ARM_VFP_FPSID:
-                            /* VFP2 allows access to FSID from userspace.
-                               VFP3 restricts all id registers to privileged
-                               accesses.  */
-                            if (IS_USER(s)
-                                && arm_dc_feature(s, ARM_FEATURE_VFP3)) {
-                                return 1;
-                            }
-                            tmp = load_cpu_field(vfp.xregs[rn]);
-                            break;
-                        case ARM_VFP_FPEXC:
-                            if (IS_USER(s))
-                                return 1;
-                            tmp = load_cpu_field(vfp.xregs[rn]);
-                            break;
-                        case ARM_VFP_FPINST:
-                        case ARM_VFP_FPINST2:
-                            /* Not present in VFP3.  */
-                            if (IS_USER(s)
-                                || arm_dc_feature(s, ARM_FEATURE_VFP3)) {
-                                return 1;
-                            }
-                            tmp = load_cpu_field(vfp.xregs[rn]);
-                            break;
-                        case ARM_VFP_FPSCR:
-                            if (rd == 15) {
-                                tmp = load_cpu_field(vfp.xregs[ARM_VFP_FPSCR]);
-                                tcg_gen_andi_i32(tmp, tmp, 0xf0000000);
-                            } else {
-                                tmp = tcg_temp_new_i32();
-                                gen_helper_vfp_get_fpscr(tmp, cpu_env);
-                            }
-                            break;
-                        case ARM_VFP_MVFR2:
-                            if (!arm_dc_feature(s, ARM_FEATURE_V8)) {
-                                return 1;
-                            }
-                            /* fall through */
-                        case ARM_VFP_MVFR0:
-                        case ARM_VFP_MVFR1:
-                            if (IS_USER(s)
-                                || !arm_dc_feature(s, ARM_FEATURE_MVFR)) {
-                                return 1;
-                            }
-                            tmp = load_cpu_field(vfp.xregs[rn]);
-                            break;
-                        default:
-                            return 1;
-                        }
-                    } else {
-                        gen_mov_F0_vreg(0, rn);
-                        tmp = gen_vfp_mrs();
-                    }
-                    if (rd == 15) {
-                        /* Set the 4 flag bits in the CPSR.  */
-                        gen_set_nzcv(tmp);
-                        tcg_temp_free_i32(tmp);
-                    } else {
-                        store_reg(s, rd, tmp);
-                    }
-                } else {
-                    /* arm->vfp */
-                    if (is_sysreg) {
-                        rn >>= 1;
-                        /* system register */
-                        switch (rn) {
-                        case ARM_VFP_FPSID:
-                        case ARM_VFP_MVFR0:
-                        case ARM_VFP_MVFR1:
-                            /* Writes are ignored.  */
-                            break;
-                        case ARM_VFP_FPSCR:
-                            tmp = load_reg(s, rd);
-                            gen_helper_vfp_set_fpscr(cpu_env, tmp);
-                            tcg_temp_free_i32(tmp);
-                            gen_lookup_tb(s);
-                            break;
-                        case ARM_VFP_FPEXC:
-                            if (IS_USER(s))
-                                return 1;
-                            /* TODO: VFP subarchitecture support.
-                             * For now, keep the EN bit only */
-                            tmp = load_reg(s, rd);
-                            tcg_gen_andi_i32(tmp, tmp, 1 << 30);
-                            store_cpu_field(tmp, vfp.xregs[rn]);
-                            gen_lookup_tb(s);
-                            break;
-                        case ARM_VFP_FPINST:
-                        case ARM_VFP_FPINST2:
-                            if (IS_USER(s)) {
-                                return 1;
-                            }
-                            tmp = load_reg(s, rd);
-                            store_cpu_field(tmp, vfp.xregs[rn]);
-                            break;
-                        default:
-                            return 1;
-                        }
-                    } else {
-                        tmp = load_reg(s, rd);
-                        gen_vfp_msr(tmp);
-                        gen_mov_vreg_F0(0, rn);
-                    }
-                }
-            }
+            /* already handled by decodetree */
+            return 1;
         } else {
             /* data processing */
             bool rd_is_dp = dp;
