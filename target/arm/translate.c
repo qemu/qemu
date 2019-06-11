@@ -3340,12 +3340,31 @@ static bool trans_VRINT(DisasContext *s, arg_VRINT *a)
     return true;
 }
 
-static int handle_vcvt(uint32_t insn, uint32_t rd, uint32_t rm, uint32_t dp,
-                       int rounding)
+static bool trans_VCVT(DisasContext *s, arg_VCVT *a)
 {
-    bool is_signed = extract32(insn, 7, 1);
-    TCGv_ptr fpst = get_fpstatus_ptr(0);
+    uint32_t rd, rm;
+    bool dp = a->dp;
+    TCGv_ptr fpst;
     TCGv_i32 tcg_rmode, tcg_shift;
+    int rounding = fp_decode_rm[a->rm];
+    bool is_signed = a->op;
+
+    if (!dc_isar_feature(aa32_vcvt_dr, s)) {
+        return false;
+    }
+
+    /* UNDEF accesses to D16-D31 if they don't exist */
+    if (dp && !dc_isar_feature(aa32_fp_d32, s) && (a->vm & 0x10)) {
+        return false;
+    }
+    rd = a->vd;
+    rm = a->vm;
+
+    if (!vfp_access_check(s)) {
+        return true;
+    }
+
+    fpst = get_fpstatus_ptr(0);
 
     tcg_shift = tcg_const_i32(0);
 
@@ -3355,10 +3374,6 @@ static int handle_vcvt(uint32_t insn, uint32_t rd, uint32_t rm, uint32_t dp,
     if (dp) {
         TCGv_i64 tcg_double, tcg_res;
         TCGv_i32 tcg_tmp;
-        /* Rd is encoded as a single precision register even when the source
-         * is double precision.
-         */
-        rd = ((rd << 1) & 0x1e) | ((rd >> 4) & 0x1);
         tcg_double = tcg_temp_new_i64();
         tcg_res = tcg_temp_new_i64();
         tcg_tmp = tcg_temp_new_i32();
@@ -3395,28 +3410,7 @@ static int handle_vcvt(uint32_t insn, uint32_t rd, uint32_t rm, uint32_t dp,
 
     tcg_temp_free_ptr(fpst);
 
-    return 0;
-}
-
-static int disas_vfp_misc_insn(DisasContext *s, uint32_t insn)
-{
-    uint32_t rd, rm, dp = extract32(insn, 8, 1);
-
-    if (dp) {
-        VFP_DREG_D(rd, insn);
-        VFP_DREG_M(rm, insn);
-    } else {
-        rd = VFP_SREG_D(insn);
-        rm = VFP_SREG_M(insn);
-    }
-
-    if ((insn & 0x0fbc0e50) == 0x0ebc0a40 &&
-        dc_isar_feature(aa32_vcvt_dr, s)) {
-        /* VCVTA, VCVTN, VCVTP, VCVTM */
-        int rounding = fp_decode_rm[extract32(insn, 16, 2)];
-        return handle_vcvt(insn, rd, rm, dp, rounding);
-    }
-    return 1;
+    return true;
 }
 
 /*
@@ -3452,6 +3446,15 @@ static int disas_vfp_insn(DisasContext *s, uint32_t insn)
         }
     }
 
+    if (extract32(insn, 28, 4) == 0xf) {
+        /*
+         * Encodings with T=1 (Thumb) or unconditional (ARM): these
+         * were all handled by the decodetree decoder, so any insn
+         * patterns which get here must be UNDEF.
+         */
+        return 1;
+    }
+
     /*
      * FIXME: this access check should not take precedence over UNDEF
      * for invalid encodings; we will generate incorrect syndrome information
@@ -3466,15 +3469,6 @@ static int disas_vfp_insn(DisasContext *s, uint32_t insn)
     }
     if (!full_vfp_access_check(s, ignore_vfp_enabled)) {
         return 0;
-    }
-
-    if (extract32(insn, 28, 4) == 0xf) {
-        /*
-         * Encodings with T=1 (Thumb) or unconditional (ARM):
-         * only used for the "miscellaneous VFP features" added in v8A
-         * and v7M (and gated on the MVFR2.FPMisc field).
-         */
-        return disas_vfp_misc_insn(s, insn);
     }
 
     dp = ((insn & 0xf00) == 0xb00);
