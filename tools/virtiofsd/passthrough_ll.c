@@ -814,7 +814,6 @@ static int lo_do_lookup(fuse_req_t req, fuse_ino_t parent, const char *name,
         close(newfd);
         newfd = -1;
     } else {
-        saverr = ENOMEM;
         inode = calloc(1, sizeof(struct lo_inode));
         if (!inode) {
             goto out_err;
