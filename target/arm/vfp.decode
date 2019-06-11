@@ -193,3 +193,18 @@ VCVT_f16_f32 ---- 1110 1.11 0011 .... 1010 t:1 1.0 .... \
              vd=%vd_sp vm=%vm_sp
 VCVT_f16_f64 ---- 1110 1.11 0011 .... 1011 t:1 1.0 .... \
              vd=%vd_sp vm=%vm_dp
+
+VRINTR_sp    ---- 1110 1.11 0110 .... 1010 01.0 .... \
+             vd=%vd_sp vm=%vm_sp
+VRINTR_dp    ---- 1110 1.11 0110 .... 1011 01.0 .... \
+             vd=%vd_dp vm=%vm_dp
+
+VRINTZ_sp    ---- 1110 1.11 0110 .... 1010 11.0 .... \
+             vd=%vd_sp vm=%vm_sp
+VRINTZ_dp    ---- 1110 1.11 0110 .... 1011 11.0 .... \
+             vd=%vd_dp vm=%vm_dp
+
+VRINTX_sp    ---- 1110 1.11 0111 .... 1010 01.0 .... \
+             vd=%vd_sp vm=%vm_sp
+VRINTX_dp    ---- 1110 1.11 0111 .... 1011 01.0 .... \
+             vd=%vd_dp vm=%vm_dp
