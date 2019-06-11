@@ -5,15 +5,6 @@
 #include "block/block_int.h"
 #include "io/channel-socket.h"
 
-/* #define DEBUG_NBD */
-
-#if defined(DEBUG_NBD)
-#define logout(fmt, ...) \
-    fprintf(stderr, "nbd\t%-24s" fmt, __func__, ##__VA_ARGS__)
-#else
-#define logout(fmt, ...) ((void)0)
-#endif
-
 #define MAX_NBD_REQUESTS    16
 
 typedef struct {

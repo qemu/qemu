@@ -1136,7 +1136,7 @@ static int nbd_client_connect(BlockDriverState *bs,
     }
 
     /* NBD handshake */
-    logout("session init %s\n", export);
+    trace_nbd_client_connect(export);
     qio_channel_set_blocking(QIO_CHANNEL(sioc), true, NULL);
 
     client->info.request_sizes = true;
@@ -1149,7 +1149,6 @@ static int nbd_client_connect(BlockDriverState *bs,
     g_free(client->info.x_dirty_bitmap);
     g_free(client->info.name);
     if (ret < 0) {
-        logout("Failed to negotiate with the NBD server\n");
         object_unref(OBJECT(sioc));
         return ret;
     }
@@ -1187,7 +1186,8 @@ static int nbd_client_connect(BlockDriverState *bs,
     bdrv_inc_in_flight(bs);
     nbd_client_attach_aio_context(bs, bdrv_get_aio_context(bs));
 
-    logout("Established connection with NBD server\n");
+    trace_nbd_client_connect_success(export);
+
     return 0;
 
  fail:
