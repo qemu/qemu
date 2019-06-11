@@ -2963,20 +2963,6 @@ static int disas_dsp_insn(DisasContext *s, uint32_t insn)
 #define VFP_SREG_M(insn) VFP_SREG(insn,  0,  5)
 #define VFP_DREG_M(reg, insn) VFP_DREG(reg, insn,  0,  5)
 
-/* Move between integer and VFP cores.  */
-static TCGv_i32 gen_vfp_mrs(void)
-{
-    TCGv_i32 tmp = tcg_temp_new_i32();
-    tcg_gen_mov_i32(tmp, cpu_F0s);
-    return tmp;
-}
-
-static void gen_vfp_msr(TCGv_i32 tmp)
-{
-    tcg_gen_mov_i32(cpu_F0s, tmp);
-    tcg_temp_free_i32(tmp);
-}
-
 static void gen_neon_dup_low16(TCGv_i32 var)
 {
     TCGv_i32 tmp = tcg_temp_new_i32();
@@ -3003,8 +2989,6 @@ static int disas_vfp_insn(DisasContext *s, uint32_t insn)
 {
     uint32_t rd, rn, rm, op, delta_d, delta_m, bank_mask;
     int dp, veclen;
-    TCGv_i32 tmp;
-    TCGv_i32 tmp2;
 
     if (!arm_dc_feature(s, ARM_FEATURE_VFP)) {
         return 1;
@@ -3066,8 +3050,7 @@ static int disas_vfp_insn(DisasContext *s, uint32_t insn)
                 return 1;
             case 15:
                 switch (rn) {
-                case 0 ... 5:
-                case 8 ... 11:
+                case 0 ... 11:
                     /* Already handled by decodetree */
                     return 1;
                 default:
@@ -3080,20 +3063,6 @@ static int disas_vfp_insn(DisasContext *s, uint32_t insn)
             if (op == 15) {
                 /* rn is opcode, encoded as per VFP_SREG_N. */
                 switch (rn) {
-                case 0x06: /* vcvtb.f16.f32, vcvtb.f16.f64 */
-                case 0x07: /* vcvtt.f16.f32, vcvtt.f16.f64 */
-                    if (dp) {
-                        if (!dc_isar_feature(aa32_fp16_dpconv, s)) {
-                            return 1;
-                        }
-                    } else {
-                        if (!dc_isar_feature(aa32_fp16_spconv, s)) {
-                            return 1;
-                        }
-                    }
-                    rd_is_dp = false;
-                    break;
-
                 case 0x0c: /* vrintr */
                 case 0x0d: /* vrintz */
                 case 0x0e: /* vrintx */
@@ -3221,52 +3190,6 @@ static int disas_vfp_insn(DisasContext *s, uint32_t insn)
                 switch (op) {
                 case 15: /* extension space */
                     switch (rn) {
-                    case 6: /* vcvtb.f16.f32, vcvtb.f16.f64 */
-                    {
-                        TCGv_ptr fpst = get_fpstatus_ptr(false);
-                        TCGv_i32 ahp = get_ahp_flag();
-                        tmp = tcg_temp_new_i32();
-
-                        if (dp) {
-                            gen_helper_vfp_fcvt_f64_to_f16(tmp, cpu_F0d,
-                                                           fpst, ahp);
-                        } else {
-                            gen_helper_vfp_fcvt_f32_to_f16(tmp, cpu_F0s,
-                                                           fpst, ahp);
-                        }
-                        tcg_temp_free_i32(ahp);
-                        tcg_temp_free_ptr(fpst);
-                        gen_mov_F0_vreg(0, rd);
-                        tmp2 = gen_vfp_mrs();
-                        tcg_gen_andi_i32(tmp2, tmp2, 0xffff0000);
-                        tcg_gen_or_i32(tmp, tmp, tmp2);
-                        tcg_temp_free_i32(tmp2);
-                        gen_vfp_msr(tmp);
-                        break;
-                    }
-                    case 7: /* vcvtt.f16.f32, vcvtt.f16.f64 */
-                    {
-                        TCGv_ptr fpst = get_fpstatus_ptr(false);
-                        TCGv_i32 ahp = get_ahp_flag();
-                        tmp = tcg_temp_new_i32();
-                        if (dp) {
-                            gen_helper_vfp_fcvt_f64_to_f16(tmp, cpu_F0d,
-                                                           fpst, ahp);
-                        } else {
-                            gen_helper_vfp_fcvt_f32_to_f16(tmp, cpu_F0s,
-                                                           fpst, ahp);
-                        }
-                        tcg_temp_free_i32(ahp);
-                        tcg_temp_free_ptr(fpst);
-                        tcg_gen_shli_i32(tmp, tmp, 16);
-                        gen_mov_F0_vreg(0, rd);
-                        tmp2 = gen_vfp_mrs();
-                        tcg_gen_ext16u_i32(tmp2, tmp2);
-                        tcg_gen_or_i32(tmp, tmp, tmp2);
-                        tcg_temp_free_i32(tmp2);
-                        gen_vfp_msr(tmp);
-                        break;
-                    }
                     case 12: /* vrintr */
                     {
                         TCGv_ptr fpst = get_fpstatus_ptr(0);
