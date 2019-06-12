@@ -213,17 +213,17 @@ const MemoryRegionOps pnv_xscom_ops = {
     .endianness = DEVICE_BIG_ENDIAN,
 };
 
-void pnv_xscom_realize(PnvChip *chip, Error **errp)
+void pnv_xscom_realize(PnvChip *chip, uint64_t size, Error **errp)
 {
     SysBusDevice *sbd = SYS_BUS_DEVICE(chip);
     char *name;
 
     name = g_strdup_printf("xscom-%x", chip->chip_id);
     memory_region_init_io(&chip->xscom_mmio, OBJECT(chip), &pnv_xscom_ops,
-                          chip, name, PNV_XSCOM_SIZE);
+                          chip, name, size);
     sysbus_init_mmio(sbd, &chip->xscom_mmio);
 
-    memory_region_init(&chip->xscom, OBJECT(chip), name, PNV_XSCOM_SIZE);
+    memory_region_init(&chip->xscom, OBJECT(chip), name, size);
     address_space_init(&chip->xscom_as, &chip->xscom, name);
     g_free(name);
 }
@@ -265,11 +265,18 @@ static const char compat_p9[] = "ibm,power9-xscom\0ibm,xscom";
 
 int pnv_dt_xscom(PnvChip *chip, void *fdt, int root_offset)
 {
-    uint64_t reg[] = { cpu_to_be64(PNV_XSCOM_BASE(chip)),
-                       cpu_to_be64(PNV_XSCOM_SIZE) };
+    uint64_t reg[2];
     int xscom_offset;
     ForeachPopulateArgs args;
     char *name;
+
+    if (pnv_chip_is_power9(chip)) {
+        reg[0] = cpu_to_be64(PNV9_XSCOM_BASE(chip));
+        reg[1] = cpu_to_be64(PNV9_XSCOM_SIZE);
+    } else {
+        reg[0] = cpu_to_be64(PNV_XSCOM_BASE(chip));
+        reg[1] = cpu_to_be64(PNV_XSCOM_SIZE);
+    }
 
     name = g_strdup_printf("xscom@%" PRIx64, be64_to_cpu(reg[0]));
     xscom_offset = fdt_add_subnode(fdt, root_offset, name);

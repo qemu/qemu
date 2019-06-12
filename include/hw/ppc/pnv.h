@@ -256,4 +256,7 @@ void pnv_bmc_powerdown(IPMIBmc *bmc);
 #define PNV9_PSIHB_ESB_SIZE          0x0000000000010000ull
 #define PNV9_PSIHB_ESB_BASE(chip)    PNV9_CHIP_BASE(chip, 0x00060302031c0000ull)
 
+#define PNV9_XSCOM_SIZE              0x0000000400000000ull
+#define PNV9_XSCOM_BASE(chip)        PNV9_CHIP_BASE(chip, 0x00603fc00000000ull)
+
 #endif /* PPC_PNV_H */
