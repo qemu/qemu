@@ -5415,7 +5415,7 @@ int bdrv_has_zero_init(BlockDriverState *bs)
 
     /* If BS is a copy on write image, it is initialized to
        the contents of the base image, which may not be zeroes.  */
-    if (bs->backing) {
+    if (bdrv_cow_child(bs)) {
         return 0;
     }
     if (bs->drv->bdrv_has_zero_init) {
