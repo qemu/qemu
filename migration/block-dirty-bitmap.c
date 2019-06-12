@@ -615,13 +615,7 @@ static int init_dirty_bitmap_migration(DBMSaveState *s)
             while (bs && bs->drv && bs->drv->is_filter &&
                    !bdrv_has_named_bitmaps(bs))
             {
-                if (bs->backing) {
-                    bs = bs->backing->bs;
-                } else if (bs->file) {
-                    bs = bs->file->bs;
-                } else {
-                    bs = NULL;
-                }
+                bs = bdrv_filter_bs(bs);
             }
 
             if (bs && bs->drv && !bs->drv->is_filter) {
