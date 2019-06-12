@@ -1514,12 +1514,16 @@ void pc_acpi_smi_interrupt(void *opaque, int irq, int level)
     }
 }
 
-static void pc_new_cpu(const char *typename, int64_t apic_id, Error **errp)
+static void pc_new_cpu(PCMachineState *pcms, int64_t apic_id, Error **errp)
 {
     Object *cpu = NULL;
     Error *local_err = NULL;
+    CPUX86State *env = NULL;
 
-    cpu = object_new(typename);
+    cpu = object_new(MACHINE(pcms)->cpu_type);
+
+    env = &X86_CPU(cpu)->env;
+    env->nr_dies = pcms->smp_dies;
 
     object_property_set_uint(cpu, apic_id, "apic-id", &local_err);
     object_property_set_bool(cpu, true, "realized", &local_err);
@@ -1546,7 +1550,7 @@ void pc_hot_add_cpu(MachineState *ms, const int64_t id, Error **errp)
         return;
     }
 
-    pc_new_cpu(ms->cpu_type, apic_id, &local_err);
+    pc_new_cpu(PC_MACHINE(ms), apic_id, &local_err);
     if (local_err) {
         error_propagate(errp, local_err);
         return;
@@ -1571,8 +1575,7 @@ void pc_cpus_init(PCMachineState *pcms)
                                                      ms->smp.max_cpus - 1) + 1;
     possible_cpus = mc->possible_cpu_arch_ids(ms);
     for (i = 0; i < ms->smp.cpus; i++) {
-        pc_new_cpu(possible_cpus->cpus[i].type, possible_cpus->cpus[i].arch_id,
-                   &error_fatal);
+        pc_new_cpu(pcms, possible_cpus->cpus[i].arch_id, &error_fatal);
     }
 }
 
@@ -2292,6 +2295,7 @@ static void pc_cpu_pre_plug(HotplugHandler *hotplug_dev,
     CPUArchId *cpu_slot;
     X86CPUTopoInfo topo;
     X86CPU *cpu = X86_CPU(dev);
+    CPUX86State *env = &cpu->env;
     MachineState *ms = MACHINE(hotplug_dev);
     PCMachineState *pcms = PC_MACHINE(hotplug_dev);
     unsigned int smp_cores = ms->smp.cores;
@@ -2302,6 +2306,8 @@ static void pc_cpu_pre_plug(HotplugHandler *hotplug_dev,
                    ms->cpu_type);
         return;
     }
+
+    env->nr_dies = pcms->smp_dies;
 
     /*
      * If APIC ID is not set,
