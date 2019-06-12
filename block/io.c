@@ -2648,6 +2648,7 @@ bdrv_co_rw_vmstate(BlockDriverState *bs, QEMUIOVector *qiov, int64_t pos,
                    bool is_read)
 {
     BlockDriver *drv = bs->drv;
+    BlockDriverState *child_bs = bdrv_primary_bs(bs);
     int ret = -ENOTSUP;
 
     bdrv_inc_in_flight(bs);
@@ -2660,8 +2661,8 @@ bdrv_co_rw_vmstate(BlockDriverState *bs, QEMUIOVector *qiov, int64_t pos,
         } else {
             ret = drv->bdrv_save_vmstate(bs, qiov, pos);
         }
-    } else if (bs->file) {
-        ret = bdrv_co_rw_vmstate(bs->file->bs, qiov, pos, is_read);
+    } else if (child_bs) {
+        ret = bdrv_co_rw_vmstate(child_bs, qiov, pos, is_read);
     }
 
     bdrv_dec_in_flight(bs);
