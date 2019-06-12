@@ -281,7 +281,7 @@ void bdrv_backup_top_drop(BlockDriverState *bs)
 
     s->active = false;
     bdrv_child_refresh_perms(bs, bs->backing, &error_abort);
-    bdrv_replace_node(bs, backing_bs(bs), &error_abort);
+    bdrv_replace_node(bs, bs->backing->bs, &error_abort);
     bdrv_set_backing_hd(bs, NULL, &error_abort);
 
     bdrv_drained_end(bs);

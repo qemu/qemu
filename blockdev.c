@@ -1741,7 +1741,13 @@ static void drive_backup_prepare(BlkActionState *common, Error **errp)
      * on top of.
      */
     if (backup->sync == MIRROR_SYNC_MODE_TOP) {
-        source = backing_bs(bs);
+        /*
+         * Backup will not replace the source by the target, so none
+         * of the filters skipped here will be removed (in contrast to
+         * mirror).  Therefore, we can skip all of them when looking
+         * for the first COW relationship.
+         */
+        source = bdrv_cow_bs(bdrv_skip_filters(bs));
         if (!source) {
             backup->sync = MIRROR_SYNC_MODE_FULL;
         }
@@ -1761,9 +1767,14 @@ static void drive_backup_prepare(BlkActionState *common, Error **errp)
     if (backup->mode != NEW_IMAGE_MODE_EXISTING) {
         assert(backup->format);
         if (source) {
-            bdrv_refresh_filename(source);
-            bdrv_img_create(backup->target, backup->format, source->filename,
-                            source->drv->format_name, NULL,
+            /* Implicit filters should not appear in the filename */
+            BlockDriverState *explicit_backing =
+                bdrv_skip_implicit_filters(source);
+
+            bdrv_refresh_filename(explicit_backing);
+            bdrv_img_create(backup->target, backup->format,
+                            explicit_backing->filename,
+                            explicit_backing->drv->format_name, NULL,
                             size, flags, false, &local_err);
         } else {
             bdrv_img_create(backup->target, backup->format, NULL, NULL, NULL,
