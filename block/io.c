@@ -2409,9 +2409,10 @@ static int coroutine_fn bdrv_co_block_status(BlockDriverState *bs,
     if (ret & (BDRV_BLOCK_DATA | BDRV_BLOCK_ZERO)) {
         ret |= BDRV_BLOCK_ALLOCATED;
     } else if (want_zero && bs->drv->supports_backing) {
-        if (bs->backing) {
-            BlockDriverState *bs2 = bs->backing->bs;
-            int64_t size2 = bdrv_getlength(bs2);
+        BlockDriverState *cow_bs = bdrv_cow_bs(bs);
+
+        if (cow_bs) {
+            int64_t size2 = bdrv_getlength(cow_bs);
 
             if (size2 >= 0 && offset >= size2) {
                 ret |= BDRV_BLOCK_ZERO;
@@ -2479,7 +2480,7 @@ static int coroutine_fn bdrv_co_block_status_above(BlockDriverState *bs,
     bool first = true;
 
     assert(bs != base);
-    for (p = bs; p != base; p = backing_bs(p)) {
+    for (p = bs; p != base; p = bdrv_filter_or_cow_bs(p)) {
         ret = bdrv_co_block_status(p, want_zero, offset, bytes, pnum, map,
                                    file);
         if (ret < 0) {
@@ -2553,7 +2554,7 @@ int bdrv_block_status_above(BlockDriverState *bs, BlockDriverState *base,
 int bdrv_block_status(BlockDriverState *bs, int64_t offset, int64_t bytes,
                       int64_t *pnum, int64_t *map, BlockDriverState **file)
 {
-    return bdrv_block_status_above(bs, backing_bs(bs),
+    return bdrv_block_status_above(bs, bdrv_filter_or_cow_bs(bs),
                                    offset, bytes, pnum, map, file);
 }
 
@@ -2563,9 +2564,9 @@ int coroutine_fn bdrv_is_allocated(BlockDriverState *bs, int64_t offset,
     int ret;
     int64_t dummy;
 
-    ret = bdrv_common_block_status_above(bs, backing_bs(bs), false, offset,
-                                         bytes, pnum ? pnum : &dummy, NULL,
-                                         NULL);
+    ret = bdrv_common_block_status_above(bs, bdrv_filter_or_cow_bs(bs), false,
+                                         offset, bytes, pnum ? pnum : &dummy,
+                                         NULL, NULL);
     if (ret < 0) {
         return ret;
     }
@@ -2628,7 +2629,7 @@ int bdrv_is_allocated_above(BlockDriverState *top,
             break;
         }
 
-        intermediate = backing_bs(intermediate);
+        intermediate = bdrv_filter_or_cow_bs(intermediate);
     }
 
     *pnum = n;
