@@ -23,7 +23,6 @@
 #include "exec/exec-all.h"
 #include "disas/disas.h"
 #include "tcg-op.h"
-#include "qemu-common.h"
 #include "qemu/log.h"
 #include "qemu/bitops.h"
 #include "qemu/qemu-print.h"

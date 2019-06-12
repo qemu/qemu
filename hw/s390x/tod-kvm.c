@@ -10,6 +10,7 @@
 
 #include "qemu/osdep.h"
 #include "qapi/error.h"
+#include "qemu/module.h"
 #include "sysemu/sysemu.h"
 #include "hw/s390x/tod.h"
 #include "kvm_s390x.h"

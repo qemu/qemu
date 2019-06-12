@@ -20,7 +20,6 @@
 #ifndef HPPA_CPU_H
 #define HPPA_CPU_H
 
-#include "qemu-common.h"
 #include "cpu-qom.h"
 #include "exec/cpu-defs.h"
 

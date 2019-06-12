@@ -18,12 +18,12 @@
 #include <syslog.h>
 #include <sys/wait.h>
 #endif
+#include "qemu-common.h"
 #include "qapi/qmp/json-parser.h"
 #include "qapi/qmp/qdict.h"
 #include "qapi/qmp/qjson.h"
 #include "qapi/qmp/qstring.h"
 #include "guest-agent-core.h"
-#include "qemu/module.h"
 #include "qga-qapi-commands.h"
 #include "qapi/qmp/qerror.h"
 #include "qapi/error.h"

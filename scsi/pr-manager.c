@@ -18,6 +18,7 @@
 #include "scsi/pr-manager.h"
 #include "trace.h"
 #include "qapi/qapi-types-block.h"
+#include "qemu/module.h"
 #include "qapi/qapi-commands-block.h"
 
 #define PR_MANAGER_PATH     "/objects"

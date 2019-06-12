@@ -12,6 +12,7 @@
 #include "qemu/osdep.h"
 #include "hw/intc/imx_gpcv2.h"
 #include "qemu/log.h"
+#include "qemu/module.h"
 
 #define GPC_PU_PGC_SW_PUP_REQ       0x0f8
 #define GPC_PU_PGC_SW_PDN_REQ       0x104

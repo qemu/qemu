@@ -23,7 +23,7 @@
 #include "cpu.h"
 #include "internal.h"
 #include "kvm_mips.h"
-#include "qemu-common.h"
+#include "qemu/module.h"
 #include "sysemu/kvm.h"
 #include "exec/exec-all.h"
 

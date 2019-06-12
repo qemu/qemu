@@ -24,6 +24,7 @@
 
 #include "qemu/osdep.h"
 #include "qapi/error.h"
+#include "qemu/module.h"
 #include "hw/isa/isa.h"
 #include "hw/dma/i8257.h"
 

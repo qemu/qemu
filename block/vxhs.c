@@ -17,6 +17,7 @@
 #include "qapi/qmp/qdict.h"
 #include "qapi/qmp/qstring.h"
 #include "trace.h"
+#include "qemu/module.h"
 #include "qemu/uri.h"
 #include "qapi/error.h"
 #include "qemu/uuid.h"

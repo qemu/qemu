@@ -15,6 +15,7 @@
 
 #include "virtio-pci.h"
 #include "hw/virtio/vhost-vsock.h"
+#include "qemu/module.h"
 
 typedef struct VHostVSockPCI VHostVSockPCI;
 

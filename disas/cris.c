@@ -19,7 +19,6 @@
    along with this program; if not, see <http://www.gnu.org/licenses/>. */
 
 #include "qemu/osdep.h"
-#include "qemu-common.h"
 #include "disas/dis-asm.h"
 #include "target/cris/opcode-cris.h"
 

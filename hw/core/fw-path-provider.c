@@ -17,6 +17,7 @@
 
 #include "qemu/osdep.h"
 #include "hw/fw-path-provider.h"
+#include "qemu/module.h"
 
 char *fw_path_provider_get_dev_path(FWPathProvider *p, BusState *bus,
                                     DeviceState *dev)

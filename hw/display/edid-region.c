@@ -1,5 +1,4 @@
 #include "qemu/osdep.h"
-#include "qemu-common.h"
 #include "hw/display/edid.h"
 
 static uint64_t edid_region_read(void *ptr, hwaddr addr, unsigned size)

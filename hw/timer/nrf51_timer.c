@@ -13,6 +13,7 @@
 
 #include "qemu/osdep.h"
 #include "qemu/log.h"
+#include "qemu/module.h"
 #include "hw/arm/nrf51.h"
 #include "hw/timer/nrf51_timer.h"
 #include "trace.h"

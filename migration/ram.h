@@ -29,7 +29,6 @@
 #ifndef QEMU_MIGRATION_RAM_H
 #define QEMU_MIGRATION_RAM_H
 
-#include "qemu-common.h"
 #include "qapi/qapi-types-migration.h"
 #include "exec/cpu-common.h"
 #include "io/channel.h"

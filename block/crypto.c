@@ -28,6 +28,7 @@
 #include "qapi/qapi-visit-crypto.h"
 #include "qapi/qobject-input-visitor.h"
 #include "qapi/error.h"
+#include "qemu/module.h"
 #include "qemu/option.h"
 #include "crypto.h"
 

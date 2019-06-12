@@ -21,6 +21,7 @@
 #include "hw/sysbus.h"
 #include "qemu/bitops.h"
 #include "qemu/error-report.h"
+#include "qemu/module.h"
 #include "hw/virtio/virtio-access.h"
 #include "hw/virtio/virtio-bus.h"
 #include "hw/s390x/adapter.h"

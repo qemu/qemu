@@ -21,10 +21,11 @@
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
  * THE SOFTWARE.
  */
+
 #include "qemu/osdep.h"
 #include "qapi/error.h"
-#include "qemu-common.h"
 #include "chardev/char.h"
+#include "qemu/module.h"
 #include "qemu/timer.h"
 #include "hw/usb.h"
 #include "ui/console.h"

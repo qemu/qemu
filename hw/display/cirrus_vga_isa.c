@@ -25,6 +25,7 @@
 
 #include "qemu/osdep.h"
 #include "qapi/error.h"
+#include "qemu/module.h"
 #include "hw/hw.h"
 #include "hw/loader.h"
 #include "hw/isa/isa.h"

@@ -34,6 +34,7 @@
 #include "hw/hw.h"
 #include "hw/isa/isa.h"
 #include "ui/console.h"
+#include "qemu/module.h"
 #include "qemu/timer.h"
 
 /* #define DEBUG_SMC */

@@ -21,7 +21,6 @@
 #ifndef QEMU_BUFFER_H
 #define QEMU_BUFFER_H
 
-#include "qemu-common.h"
 
 typedef struct Buffer Buffer;
 

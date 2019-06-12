@@ -21,6 +21,7 @@
 #include "qapi/error.h"
 #include "cpu.h"
 #include "qemu/log.h"
+#include "qemu/module.h"
 #include "hw/sysbus.h"
 
 #include "hw/misc/mips_cpc.h"

@@ -1,5 +1,8 @@
 /* RISC-V ISA constants */
 
+#ifndef TARGET_RISCV_CPU_BITS_H
+#define TARGET_RISCV_CPU_BITS_H
+
 #define get_field(reg, mask) (((reg) & \
                  (target_ulong)(mask)) / ((mask) & ~((mask) << 1)))
 #define set_field(reg, mask, val) (((reg) & ~(target_ulong)(mask)) | \
@@ -527,3 +530,5 @@
 #define SIP_SSIP                           MIP_SSIP
 #define SIP_STIP                           MIP_STIP
 #define SIP_SEIP                           MIP_SEIP
+
+#endif

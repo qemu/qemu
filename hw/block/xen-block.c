@@ -7,6 +7,7 @@
 
 #include "qemu/osdep.h"
 #include "qemu/cutils.h"
+#include "qemu/module.h"
 #include "qemu/option.h"
 #include "qapi/error.h"
 #include "qapi/qapi-commands-block-core.h"

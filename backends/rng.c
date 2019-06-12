@@ -14,6 +14,7 @@
 #include "sysemu/rng.h"
 #include "qapi/error.h"
 #include "qapi/qmp/qerror.h"
+#include "qemu/module.h"
 #include "qom/object_interfaces.h"
 
 void rng_backend_request_entropy(RngBackend *s, size_t size,

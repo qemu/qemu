@@ -50,6 +50,7 @@
 #include "sysemu/sysemu.h"
 #include "sysemu/dma.h"
 #include "qemu/bitops.h"
+#include "qemu/module.h"
 #include "qapi/error.h"
 
 /* QEMU sends frames smaller than 60 bytes to ethernet nics.

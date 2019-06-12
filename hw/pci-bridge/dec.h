@@ -1,7 +1,6 @@
 #ifndef HW_PCI_BRIDGE_DEC_H
 #define HW_PCI_BRIDGE_DEC_H
 
-#include "qemu-common.h"
 
 #define TYPE_DEC_21154 "dec-21154-sysbus"
 

@@ -22,9 +22,9 @@
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
  * THE SOFTWARE.
  */
+
 #include "qemu/osdep.h"
 #include "qapi/error.h"
-#include "qemu-common.h"
 #include "cpu.h"
 #include "hw/hw.h"
 #include "hw/sysbus.h"
@@ -39,6 +39,7 @@
 #include <libfdt.h>
 #include "trace.h"
 #include "qemu/error-report.h"
+#include "qemu/module.h"
 #include "qapi/qmp/qerror.h"
 #include "hw/ppc/fdt.h"
 #include "hw/pci/pci_bridge.h"

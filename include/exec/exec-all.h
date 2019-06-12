@@ -20,7 +20,6 @@
 #ifndef EXEC_ALL_H
 #define EXEC_ALL_H
 
-#include "qemu-common.h"
 #include "exec/tb-context.h"
 #include "sysemu/cpus.h"
 

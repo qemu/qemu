@@ -17,6 +17,9 @@
  * License along with this library; if not, see <http://www.gnu.org/licenses/>.
  */
 
+#ifndef TARGET_MICROBLAZE_MICROBLAZE_DECODE_H
+#define TARGET_MICROBLAZE_MICROBLAZE_DECODE_H
+
 /* Convenient binary macros.  */
 #define HEX__(n) 0x##n##LU
 #define B8__(x) ((x&0x0000000FLU)?1:0) \
@@ -53,3 +56,4 @@
 
 #define DEC_STREAM  {B8(00010011), B8(00110111)}
 
+#endif

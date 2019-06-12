@@ -20,7 +20,7 @@
  */
 
 #include "qemu/osdep.h"
-#include "qemu-common.h"
+#include "qemu/module.h"
 #include "qemu/timer.h"
 #include "sysemu/watchdog.h"
 #include "hw/hw.h"

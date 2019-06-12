@@ -1,3 +1,6 @@
+#ifndef LINUX_USER_X86_64_SYSCALL_NR_H
+#define LINUX_USER_X86_64_SYSCALL_NR_H
+
 #define TARGET_NR_read                                0
 #define TARGET_NR_write                               1
 #define TARGET_NR_open                                2
@@ -325,3 +328,5 @@
 #define TARGET_NR_membarrier            324
 #define TARGET_NR_mlock2                325
 #define TARGET_NR_copy_file_range       326
+
+#endif

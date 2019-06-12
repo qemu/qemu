@@ -6,8 +6,8 @@
 
 #include "qemu/osdep.h"
 #include "qapi/error.h"
-#include "qemu-common.h"
 #include "qemu/config-file.h"
+#include "qemu/module.h"
 #include "qemu/sockets.h"
 #include "sysemu/sysemu.h"
 #include "ui/input.h"

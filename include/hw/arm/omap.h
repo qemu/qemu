@@ -16,9 +16,11 @@
  * You should have received a copy of the GNU General Public License along
  * with this program; if not, see <http://www.gnu.org/licenses/>.
  */
-#ifndef hw_omap_h
+
+#ifndef HW_ARM_OMAP_H
+#define HW_ARM_OMAP_H
+
 #include "exec/memory.h"
-# define hw_omap_h		"omap.h"
 #include "hw/irq.h"
 #include "hw/input/tsc2xxx.h"
 #include "target/arm/cpu-qom.h"
@@ -991,4 +993,4 @@ enum {
 
 # define OMAP_MPUI_REG_MASK		0x000007ff
 
-#endif /* hw_omap_h */
+#endif

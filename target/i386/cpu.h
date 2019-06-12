@@ -20,7 +20,7 @@
 #ifndef I386_CPU_H
 #define I386_CPU_H
 
-#include "qemu-common.h"
+#include "sysemu/tcg.h"
 #include "cpu-qom.h"
 #include "hyperv-proto.h"
 #include "exec/cpu-defs.h"

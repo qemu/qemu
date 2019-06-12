@@ -9,12 +9,13 @@
  * This work is licensed under the terms of the GNU GPL, version 2 or later.
  * See the COPYING file in the top-level directory.
  */
+
 #include "qemu/osdep.h"
-#include "qemu-common.h"
 #include "sysemu/hostmem.h"
 #include "sysemu/sysemu.h"
 #include "qom/object_interfaces.h"
 #include "qemu/memfd.h"
+#include "qemu/module.h"
 #include "qapi/error.h"
 
 #define TYPE_MEMORY_BACKEND_MEMFD "memory-backend-memfd"

@@ -24,7 +24,6 @@
 #include "qemu/osdep.h"
 #include "hw/hw.h"
 #include "exec/address-spaces.h"
-#include "qemu-common.h"
 #include "sysemu/sysemu.h"
 
 #include "hw/cris/etraxfs_dma.h"

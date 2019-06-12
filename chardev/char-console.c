@@ -21,8 +21,10 @@
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
  * THE SOFTWARE.
  */
+
 #include "qemu/osdep.h"
 #include "chardev/char-win.h"
+#include "qemu/module.h"
 
 static void qemu_chr_open_win_con(Chardev *chr,
                                   ChardevBackend *backend,

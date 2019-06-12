@@ -22,6 +22,7 @@
 #include "qapi/qmp/qdict.h"
 #include "qapi/qmp/qbool.h"
 #include "qapi/qmp/qstring.h"
+#include "qemu/module.h"
 #include "qapi/qmp/qlist.h"
 #include "libqos/malloc.h"
 #include "libqos/qgraph.h"

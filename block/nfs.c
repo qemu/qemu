@@ -32,6 +32,7 @@
 #include "block/qdict.h"
 #include "trace.h"
 #include "qemu/iov.h"
+#include "qemu/module.h"
 #include "qemu/option.h"
 #include "qemu/uri.h"
 #include "qemu/cutils.h"

@@ -21,7 +21,6 @@
 #ifndef QIO_CHANNEL_H
 #define QIO_CHANNEL_H
 
-#include "qemu-common.h"
 #include "qom/object.h"
 #include "qemu/coroutine.h"
 #include "block/aio.h"

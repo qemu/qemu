@@ -35,6 +35,7 @@
 #include "exec/address-spaces.h"
 #include "sysemu/block-backend.h"
 #include "qemu/error-report.h"
+#include "qemu/module.h"
 
 #include <xenguest.h>
 

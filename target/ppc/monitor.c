@@ -21,9 +21,11 @@
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
  * THE SOFTWARE.
  */
+
 #include "qemu/osdep.h"
 #include "cpu.h"
 #include "monitor/monitor.h"
+#include "qemu/ctype.h"
 #include "monitor/hmp-target.h"
 #include "hmp.h"
 

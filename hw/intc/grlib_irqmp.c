@@ -32,6 +32,7 @@
 
 #include "trace.h"
 #include "qapi/error.h"
+#include "qemu/module.h"
 
 #define IRQMP_MAX_CPU 16
 #define IRQMP_REG_SIZE 256      /* Size of memory mapped registers */

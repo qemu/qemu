@@ -11,6 +11,7 @@
  * top-level directory.
  *
  */
+
 #include "qemu/osdep.h"
 #include "hw/pci/pci.h"
 #include "hw/virtio/virtio.h"
@@ -18,6 +19,7 @@
 #include "hw/virtio/virtio-pci.h"
 #include "hw/virtio/virtio-crypto.h"
 #include "qapi/error.h"
+#include "qemu/module.h"
 
 typedef struct VirtIOCryptoPCI VirtIOCryptoPCI;
 

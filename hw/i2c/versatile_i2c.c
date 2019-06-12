@@ -25,6 +25,7 @@
 #include "hw/sysbus.h"
 #include "bitbang_i2c.h"
 #include "qemu/log.h"
+#include "qemu/module.h"
 
 #define TYPE_VERSATILE_I2C "versatile_i2c"
 #define VERSATILE_I2C(obj) \

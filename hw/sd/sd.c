@@ -43,6 +43,7 @@
 #include "qemu/error-report.h"
 #include "qemu/timer.h"
 #include "qemu/log.h"
+#include "qemu/module.h"
 #include "sdmmc-internal.h"
 #include "trace.h"
 

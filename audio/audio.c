@@ -21,6 +21,7 @@
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
  * THE SOFTWARE.
  */
+
 #include "qemu/osdep.h"
 #include "hw/hw.h"
 #include "audio.h"
@@ -31,6 +32,7 @@
 #include "qapi/qapi-visit-audio.h"
 #include "sysemu/sysemu.h"
 #include "qemu/cutils.h"
+#include "qemu/module.h"
 #include "sysemu/replay.h"
 #include "trace.h"
 

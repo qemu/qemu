@@ -15,6 +15,7 @@
 #include "hw/net/ftgmac100.h"
 #include "sysemu/dma.h"
 #include "qemu/log.h"
+#include "qemu/module.h"
 #include "net/checksum.h"
 #include "net/eth.h"
 #include "hw/net/mii.h"

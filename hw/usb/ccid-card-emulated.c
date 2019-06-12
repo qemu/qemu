@@ -31,6 +31,7 @@
 
 #include "qemu/thread.h"
 #include "qemu/main-loop.h"
+#include "qemu/module.h"
 #include "ccid.h"
 #include "qapi/error.h"
 

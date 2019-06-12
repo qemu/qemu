@@ -16,10 +16,11 @@
  * License along with this library; if not, see <http://www.gnu.org/licenses/>
  */
 
- #include "qemu/osdep.h"
+#include "qemu/osdep.h"
 #include "libqtest.h"
 #include "libqos/qgraph.h"
 #include "pci-spapr.h"
+#include "qemu/module.h"
 #include "libqos/malloc-spapr.h"
 
 typedef struct QSPAPR_pci_host QSPAPR_pci_host;

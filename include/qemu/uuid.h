@@ -16,7 +16,6 @@
 #ifndef QEMU_UUID_H
 #define QEMU_UUID_H
 
-#include "qemu-common.h"
 
 /* Version 4 UUID (pseudo random numbers), RFC4122 4.4. */
 

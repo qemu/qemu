@@ -12,6 +12,7 @@
 #include "qapi/error.h"
 #include "hw/misc/bcm2835_mbox.h"
 #include "qemu/log.h"
+#include "qemu/module.h"
 
 #define MAIL0_PEEK   0x90
 #define MAIL0_SENDER 0x94

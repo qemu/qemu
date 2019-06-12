@@ -19,6 +19,7 @@
 #include "coth.h"
 #include "hw/virtio/virtio-access.h"
 #include "qemu/iov.h"
+#include "qemu/module.h"
 
 static void virtio_9p_push_and_notify(V9fsPDU *pdu)
 {

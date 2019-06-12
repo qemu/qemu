@@ -19,8 +19,10 @@
  *
  * You should have received a copy of the GNU General Public License along
  * with this program; if not, see <http://www.gnu.org/licenses/>.
- *
  */
+
+#ifndef XLNX_DP_H
+#define XLNX_DP_H
 
 #include "hw/sysbus.h"
 #include "ui/console.h"
@@ -32,9 +34,6 @@
 #include "qemu/units.h"
 #include "hw/dma/xlnx_dpdma.h"
 #include "audio/audio.h"
-
-#ifndef XLNX_DP_H
-#define XLNX_DP_H
 
 #define AUD_CHBUF_MAX_DEPTH                 (32 * KiB)
 #define MAX_QEMU_BUFFER_SIZE                (4 * KiB)
@@ -107,4 +106,4 @@ typedef struct XlnxDPState {
 #define TYPE_XLNX_DP "xlnx.v-dp"
 #define XLNX_DP(obj) OBJECT_CHECK(XlnxDPState, (obj), TYPE_XLNX_DP)
 
-#endif /* !XLNX_DP_H */
+#endif

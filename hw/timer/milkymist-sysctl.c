@@ -29,6 +29,7 @@
 #include "qemu/timer.h"
 #include "hw/ptimer.h"
 #include "qemu/error-report.h"
+#include "qemu/module.h"
 
 enum {
     CTRL_ENABLE      = (1<<0),

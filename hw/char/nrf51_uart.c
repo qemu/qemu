@@ -14,6 +14,7 @@
 
 #include "qemu/osdep.h"
 #include "qemu/log.h"
+#include "qemu/module.h"
 #include "hw/char/nrf51_uart.h"
 #include "trace.h"
 

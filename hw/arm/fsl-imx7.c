@@ -20,11 +20,11 @@
 
 #include "qemu/osdep.h"
 #include "qapi/error.h"
-#include "qemu-common.h"
 #include "hw/arm/fsl-imx7.h"
 #include "hw/misc/unimp.h"
 #include "sysemu/sysemu.h"
 #include "qemu/error-report.h"
+#include "qemu/module.h"
 
 #define NAME_SIZE 20
 

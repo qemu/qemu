@@ -10,11 +10,11 @@
  */
 
 #include "qemu/osdep.h"
-#include "qemu-common.h"
 #include "qemu/option.h"
 #include "qemu/config-file.h"
 #include "trace.h"
 #include "qemu/error-report.h"
+#include "qemu/module.h"
 
 #include "hw/usb.h"
 #include "desc.h"

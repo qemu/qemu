@@ -29,6 +29,7 @@
 #include "io/channel-websock.h"
 #include "io/net-listener.h"
 #include "qemu/error-report.h"
+#include "qemu/module.h"
 #include "qemu/option.h"
 #include "qapi/error.h"
 #include "qapi/clone-visitor.h"

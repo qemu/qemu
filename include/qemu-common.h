@@ -1,6 +1,4 @@
-
-/* Common header file that is included by all of QEMU.
- *
+/*
  * This file is supposed to be included only by .c files. No header file should
  * depend on qemu-common.h, as this would easily lead to circular header
  * dependencies.
@@ -31,22 +29,6 @@ int qemu_main(int argc, char **argv, char **envp);
 void qemu_get_timedate(struct tm *tm, int offset);
 int qemu_timedate_diff(struct tm *tm);
 
-#define qemu_isalnum(c)		isalnum((unsigned char)(c))
-#define qemu_isalpha(c)		isalpha((unsigned char)(c))
-#define qemu_iscntrl(c)		iscntrl((unsigned char)(c))
-#define qemu_isdigit(c)		isdigit((unsigned char)(c))
-#define qemu_isgraph(c)		isgraph((unsigned char)(c))
-#define qemu_islower(c)		islower((unsigned char)(c))
-#define qemu_isprint(c)		isprint((unsigned char)(c))
-#define qemu_ispunct(c)		ispunct((unsigned char)(c))
-#define qemu_isspace(c)		isspace((unsigned char)(c))
-#define qemu_isupper(c)		isupper((unsigned char)(c))
-#define qemu_isxdigit(c)	isxdigit((unsigned char)(c))
-#define qemu_tolower(c)		tolower((unsigned char)(c))
-#define qemu_toupper(c)		toupper((unsigned char)(c))
-#define qemu_isascii(c)		isascii((unsigned char)(c))
-#define qemu_toascii(c)		toascii((unsigned char)(c))
-
 void *qemu_oom_check(void *ptr);
 
 ssize_t qemu_write_full(int fd, const void *buf, size_t count)
@@ -75,14 +57,6 @@ int qemu_openpty_raw(int *aslave, char *pty_name);
 #define qemu_recv(sockfd, buf, len, flags) recv(sockfd, buf, len, flags)
 #define qemu_sendto(sockfd, buf, len, flags, destaddr, addrlen) \
     sendto(sockfd, buf, len, flags, destaddr, addrlen)
-#endif
-
-extern bool tcg_allowed;
-void tcg_exec_init(unsigned long tb_size);
-#ifdef CONFIG_TCG
-#define tcg_enabled() (tcg_allowed)
-#else
-#define tcg_enabled() 0
 #endif
 
 void cpu_exec_init_all(void);
@@ -136,8 +110,6 @@ char *qemu_find_file(int type, const char *name);
 void os_setup_early_signal_handling(void);
 char *os_find_datadir(void);
 int os_parse_cmd_args(int index, const char *optarg);
-
-#include "qemu/module.h"
 
 /*
  * Hexdump a buffer to a file. An optional string prefix is added to every line

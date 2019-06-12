@@ -68,8 +68,6 @@ def print_top(fheader):
     fheader.write('''#ifndef QEMU_MODULE_BLOCK_H
 #define QEMU_MODULE_BLOCK_H
 
-#include "qemu-common.h"
-
 static const struct {
     const char *format_name;
     const char *protocol_name;

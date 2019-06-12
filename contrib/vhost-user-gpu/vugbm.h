@@ -6,8 +6,9 @@
  * This work is licensed under the terms of the GNU GPL, version 2 or later.
  * See the COPYING file in the top-level directory.
  */
-#ifndef VHOST_USER_GPU_GBM_H
-#define VHOST_USER_GPU_GBM_H
+
+#ifndef VHOST_USER_GPU_VUGBM_H
+#define VHOST_USER_GPU_VUGBM_H
 
 #include "qemu/osdep.h"
 

@@ -12,7 +12,6 @@
  */
 
 #include "qemu/osdep.h"
-#include "qemu-common.h"
 #include "sysemu/dump-arch.h"
 
 int cpu_get_dump_info(ArchDumpInfo *info,

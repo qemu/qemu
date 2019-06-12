@@ -20,6 +20,7 @@
 
 #include "qemu/osdep.h"
 #include "qapi/error.h"
+#include "qemu/module.h"
 #include "gic_internal.h"
 #include "hw/arm/linux-boot-if.h"
 

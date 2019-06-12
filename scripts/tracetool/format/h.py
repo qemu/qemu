@@ -22,7 +22,6 @@ def generate(events, backend, group):
         '#ifndef TRACE_%s_GENERATED_TRACERS_H' % group.upper(),
         '#define TRACE_%s_GENERATED_TRACERS_H' % group.upper(),
         '',
-        '#include "qemu-common.h"',
         '#include "trace/control.h"',
         '')
 

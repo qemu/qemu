@@ -79,6 +79,9 @@ this code that are retained.
  * version 2 or later. See the COPYING file in the top-level directory.
  */
 
+#ifndef FPU_SOFTFLOAT_MACROS_H
+#define FPU_SOFTFLOAT_MACROS_H
+
 /*----------------------------------------------------------------------------
 | Shifts `a' right by the number of bits given in `count'.  If any nonzero
 | bits are shifted off, they are ``jammed'' into the least significant bit of
@@ -796,3 +799,5 @@ static inline flag ne128( uint64_t a0, uint64_t a1, uint64_t b0, uint64_t b1 )
     return ( a0 != b0 ) || ( a1 != b1 );
 
 }
+
+#endif

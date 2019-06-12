@@ -27,6 +27,7 @@
 #include "crypto/tlssession.h"
 #include "qom/object_interfaces.h"
 #include "qapi/error.h"
+#include "qemu/module.h"
 #include "qemu/sockets.h"
 #include "authz/list.h"
 

@@ -21,6 +21,7 @@
 #include "ati_regs.h"
 #include "vga_regs.h"
 #include "qemu/log.h"
+#include "qemu/module.h"
 #include "qemu/error-report.h"
 #include "qapi/error.h"
 #include "hw/hw.h"

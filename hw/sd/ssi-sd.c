@@ -15,6 +15,7 @@
 #include "hw/ssi/ssi.h"
 #include "hw/sd/sd.h"
 #include "qapi/error.h"
+#include "qemu/module.h"
 
 //#define DEBUG_SSI_SD 1
 

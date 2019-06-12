@@ -24,6 +24,7 @@
 #include "hw/intc/arm_gicv3_common.h"
 #include "hw/sysbus.h"
 #include "qemu/error-report.h"
+#include "qemu/module.h"
 #include "sysemu/kvm.h"
 #include "sysemu/sysemu.h"
 #include "kvm_arm.h"

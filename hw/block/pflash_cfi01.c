@@ -47,6 +47,7 @@
 #include "qemu/error-report.h"
 #include "qemu/host-utils.h"
 #include "qemu/log.h"
+#include "qemu/module.h"
 #include "qemu/option.h"
 #include "hw/sysbus.h"
 #include "sysemu/blockdev.h"

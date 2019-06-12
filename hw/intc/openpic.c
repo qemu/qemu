@@ -33,6 +33,7 @@
  * Serial interrupts, as implemented in Raven chipset are not supported yet.
  *
  */
+
 #include "qemu/osdep.h"
 #include "hw/hw.h"
 #include "hw/ppc/mac.h"
@@ -45,6 +46,7 @@
 #include "qemu/bitops.h"
 #include "qapi/qmp/qerror.h"
 #include "qemu/log.h"
+#include "qemu/module.h"
 #include "qemu/timer.h"
 #include "qemu/error-report.h"
 

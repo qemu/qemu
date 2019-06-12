@@ -22,6 +22,7 @@
 #include "internal.h"
 #include "kvm_s390x.h"
 #include "sysemu/kvm.h"
+#include "sysemu/tcg.h"
 #include "exec/exec-all.h"
 #include "trace.h"
 #include "hw/s390x/storage-keys.h"

@@ -21,12 +21,14 @@
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
  * THE SOFTWARE.
  */
+
 #include "qemu/osdep.h"
 #include "hw/sysbus.h"
 #include "hw/sh4/sh.h"
 #include "hw/pci/pci.h"
 #include "hw/pci/pci_host.h"
 #include "qemu/bswap.h"
+#include "qemu/module.h"
 #include "exec/address-spaces.h"
 
 #define TYPE_SH_PCI_HOST_BRIDGE "sh_pci"

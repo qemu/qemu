@@ -6,7 +6,6 @@
 #ifndef BCM2835_DMA_H
 #define BCM2835_DMA_H
 
-#include "qemu-common.h"
 #include "hw/sysbus.h"
 
 typedef struct {

@@ -30,6 +30,7 @@
 #include "hw/misc/macio/gpio.h"
 #include "hw/nmi.h"
 #include "qemu/log.h"
+#include "qemu/module.h"
 #include "trace.h"
 
 

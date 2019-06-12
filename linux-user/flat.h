@@ -7,6 +7,9 @@
  * support uClinux flat-format executables.
  */
 
+#ifndef LINUX_USER_FLAT_H
+#define LINUX_USER_FLAT_H
+
 #define	FLAT_VERSION			0x00000004L
 
 #ifdef CONFIG_BINFMT_SHARED_FLAT
@@ -65,3 +68,5 @@ struct flat_hdr {
 #define OLD_FLAT_RELOC_TYPE_BSS		2
 
 #   	define OLD_FLAT_FLAG_RAM    0x1 /* load program entirely into RAM */
+
+#endif

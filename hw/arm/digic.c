@@ -22,6 +22,7 @@
 
 #include "qemu/osdep.h"
 #include "qapi/error.h"
+#include "qemu/module.h"
 #include "hw/arm/digic.h"
 #include "sysemu/sysemu.h"
 

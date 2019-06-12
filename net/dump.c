@@ -23,12 +23,13 @@
  */
 
 #include "qemu/osdep.h"
+#include "qemu-common.h"
 #include "clients.h"
 #include "qapi/error.h"
-#include "qemu-common.h"
 #include "qemu/error-report.h"
 #include "qemu/iov.h"
 #include "qemu/log.h"
+#include "qemu/module.h"
 #include "qemu/timer.h"
 #include "qapi/visitor.h"
 #include "net/filter.h"

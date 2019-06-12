@@ -22,6 +22,9 @@
  * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
  */
 
+#ifndef HW_ARM_RASPI_PLATFORM_H
+#define HW_ARM_RASPI_PLATFORM_H
+
 #define MCORE_OFFSET            0x0000   /* Fake frame buffer device
                                           * (the multicore sync block) */
 #define IC0_OFFSET              0x2000
@@ -126,3 +129,5 @@
 #define INTERRUPT_VPU1_HALTED          5
 #define INTERRUPT_ILLEGAL_TYPE0        6
 #define INTERRUPT_ILLEGAL_TYPE1        7
+
+#endif

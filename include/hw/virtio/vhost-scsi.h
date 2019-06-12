@@ -14,7 +14,6 @@
 #ifndef VHOST_SCSI_H
 #define VHOST_SCSI_H
 
-#include "qemu-common.h"
 #include "hw/qdev.h"
 #include "hw/virtio/virtio-scsi.h"
 #include "hw/virtio/vhost.h"

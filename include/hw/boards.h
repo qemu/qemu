@@ -6,6 +6,7 @@
 #include "sysemu/blockdev.h"
 #include "sysemu/accel.h"
 #include "hw/qdev.h"
+#include "qemu/module.h"
 #include "qom/object.h"
 #include "qom/cpu.h"
 

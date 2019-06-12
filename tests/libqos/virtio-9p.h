@@ -16,6 +16,9 @@
  * License along with this library; if not, see <http://www.gnu.org/licenses/>
  */
 
+#ifndef TESTS_LIBQOS_VIRTIO_9P_H
+#define TESTS_LIBQOS_VIRTIO_9P_H
+
 #include "libqos/qgraph.h"
 #include "libqos/virtio.h"
 #include "libqos/virtio-pci.h"
@@ -40,3 +43,5 @@ struct QVirtio9PDevice {
     QOSGraphObject obj;
     QVirtio9P v9p;
 };
+
+#endif

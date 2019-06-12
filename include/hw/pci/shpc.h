@@ -1,7 +1,6 @@
 #ifndef SHPC_H
 #define SHPC_H
 
-#include "qemu-common.h"
 #include "exec/memory.h"
 #include "hw/hotplug.h"
 #include "hw/pci/pci.h"

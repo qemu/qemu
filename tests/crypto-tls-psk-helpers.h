@@ -18,12 +18,16 @@
  * Author: Richard W.M. Jones <rjones@redhat.com>
  */
 
+#ifndef TESTS_CRYPTO_TLS_PSK_HELPERS_H
+#define TESTS_CRYPTO_TLS_PSK_HELPERS_H
+
 #include <gnutls/gnutls.h>
 
 #ifdef QCRYPTO_HAVE_TLS_TEST_SUPPORT
-# include "qemu-common.h"
 
 void test_tls_psk_init(const char *keyfile);
 void test_tls_psk_cleanup(const char *keyfile);
 
 #endif /* QCRYPTO_HAVE_TLS_TEST_SUPPORT */
+
+#endif

@@ -25,6 +25,7 @@
 #include "hw/qdev-properties.h"
 #include "qapi/error.h"
 #include "qemu/jhash.h"
+#include "qemu/module.h"
 
 #include "qemu/error-report.h"
 #include "hw/arm/smmu-common.h"

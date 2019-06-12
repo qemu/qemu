@@ -12,6 +12,7 @@
 #include "net/net.h"
 #include "hw/net/smc91c111.h"
 #include "qemu/log.h"
+#include "qemu/module.h"
 /* For crc32 */
 #include <zlib.h>
 

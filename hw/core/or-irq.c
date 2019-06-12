@@ -24,6 +24,7 @@
 
 #include "qemu/osdep.h"
 #include "hw/or-irq.h"
+#include "qemu/module.h"
 
 static void or_irq_handler(void *opaque, int n, int level)
 {

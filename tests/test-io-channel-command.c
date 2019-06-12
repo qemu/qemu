@@ -22,6 +22,7 @@
 #include "io/channel-command.h"
 #include "io-channel-helpers.h"
 #include "qapi/error.h"
+#include "qemu/module.h"
 
 #ifndef WIN32
 static void test_io_channel_command_fifo(bool async)

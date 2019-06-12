@@ -12,6 +12,7 @@
 
 #include "qemu/osdep.h"
 #include "hw/ssi/ssi.h"
+#include "qemu/module.h"
 #include "ui/console.h"
 
 typedef struct {

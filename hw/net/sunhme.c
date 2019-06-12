@@ -27,6 +27,7 @@
 #include "hw/pci/pci.h"
 #include "hw/net/mii.h"
 #include "net/net.h"
+#include "qemu/module.h"
 #include "net/checksum.h"
 #include "net/eth.h"
 #include "sysemu/sysemu.h"

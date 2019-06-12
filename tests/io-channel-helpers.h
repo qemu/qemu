@@ -15,13 +15,12 @@
  *
  * You should have received a copy of the GNU Lesser General Public
  * License along with this library; if not, see <http://www.gnu.org/licenses/>.
- *
  */
 
-#include "io/channel.h"
+#ifndef TEST_IO_CHANNEL_HELPERS_H
+#define TEST_IO_CHANNEL_HELPERS_H
 
-#ifndef TEST_IO_CHANNEL_HELPERS
-#define TEST_IO_CHANNEL_HELPERS
+#include "io/channel.h"
 
 typedef struct QIOChannelTest QIOChannelTest;
 
@@ -39,4 +38,4 @@ void qio_channel_test_run_reader(QIOChannelTest *test,
 
 void qio_channel_test_validate(QIOChannelTest *test);
 
-#endif /* TEST_IO_CHANNEL_HELPERS */
+#endif /* TEST_IO_CHANNEL_HELPERS_H */

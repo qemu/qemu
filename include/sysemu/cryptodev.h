@@ -24,7 +24,6 @@
 #define CRYPTODEV_H
 
 #include "qom/object.h"
-#include "qemu-common.h"
 
 /**
  * CryptoDevBackend:

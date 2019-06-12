@@ -27,6 +27,7 @@
 
 #include "qemu/osdep.h"
 #include "qapi/error.h"
+#include "qemu/module.h"
 #include "hw/scsi/scsi.h"
 #include "scsi/constants.h"
 #include "hw/pci/msi.h"

@@ -23,6 +23,7 @@
 #include "hw/s390x/css.h"
 #include "virtio-ccw.h"
 #include "qemu/config-file.h"
+#include "qemu/ctype.h"
 #include "qemu/error-report.h"
 #include "qemu/option.h"
 #include "s390-pci-bus.h"

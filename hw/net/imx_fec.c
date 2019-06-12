@@ -25,6 +25,7 @@
 #include "hw/net/imx_fec.h"
 #include "sysemu/dma.h"
 #include "qemu/log.h"
+#include "qemu/module.h"
 #include "net/checksum.h"
 #include "net/eth.h"
 

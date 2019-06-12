@@ -24,7 +24,6 @@
 
 #include "qemu/osdep.h"
 
-#include "qemu-common.h"
 #include "../migration/migration.h"
 #include "migration/vmstate.h"
 #include "migration/qemu-file-types.h"
@@ -32,6 +31,7 @@
 #include "../migration/qemu-file-channel.h"
 #include "../migration/savevm.h"
 #include "qemu/coroutine.h"
+#include "qemu/module.h"
 #include "io/channel-file.h"
 
 static char temp_file[] = "/tmp/vmst.test.XXXXXX";

@@ -33,6 +33,7 @@
 #include "sysemu/sysemu.h"
 #include "sysemu/dma.h"
 #include "qemu/iov.h"
+#include "qemu/module.h"
 #include "qemu/range.h"
 
 #include "e1000x_common.h"

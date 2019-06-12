@@ -27,12 +27,12 @@
  */
 
 #include "qemu/osdep.h"
-#include "qemu-common.h"
 #include "audio.h"
 
 #define AUDIO_CAP "dsound"
 #include "audio_int.h"
 #include "qemu/host-utils.h"
+#include "qemu/module.h"
 
 #include <windows.h>
 #include <mmsystem.h>

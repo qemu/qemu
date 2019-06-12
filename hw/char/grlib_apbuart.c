@@ -25,6 +25,7 @@
 #include "qemu/osdep.h"
 #include "hw/sparc/grlib.h"
 #include "hw/sysbus.h"
+#include "qemu/module.h"
 #include "chardev/char-fe.h"
 
 #include "trace.h"

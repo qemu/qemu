@@ -21,7 +21,6 @@
 #ifndef M68K_CPU_H
 #define M68K_CPU_H
 
-#include "qemu-common.h"
 #include "exec/cpu-defs.h"
 #include "cpu-qom.h"
 

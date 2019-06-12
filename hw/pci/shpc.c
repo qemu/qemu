@@ -1,6 +1,5 @@
 #include "qemu/osdep.h"
 #include "qapi/error.h"
-#include "qemu-common.h"
 #include "qemu/host-utils.h"
 #include "qemu/range.h"
 #include "qemu/error-report.h"

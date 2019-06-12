@@ -1,7 +1,6 @@
 #ifndef APM_H
 #define APM_H
 
-#include "qemu-common.h"
 #include "hw/hw.h"
 #include "exec/memory.h"
 

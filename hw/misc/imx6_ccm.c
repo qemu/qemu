@@ -13,6 +13,7 @@
 #include "qemu/osdep.h"
 #include "hw/misc/imx6_ccm.h"
 #include "qemu/log.h"
+#include "qemu/module.h"
 
 #ifndef DEBUG_IMX6_CCM
 #define DEBUG_IMX6_CCM 0

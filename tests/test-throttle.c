@@ -18,6 +18,7 @@
 #include "qapi/error.h"
 #include "qemu/throttle.h"
 #include "qemu/error-report.h"
+#include "qemu/module.h"
 #include "block/throttle-groups.h"
 #include "sysemu/block-backend.h"
 

@@ -16,6 +16,9 @@
  * this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
+#ifndef TARGET_RISCV_INSTMAP_H
+#define TARGET_RISCV_INSTMAP_H
+
 #define MASK_OP_MAJOR(op)  (op & 0x7F)
 enum {
     /* rv32i, rv64i, rv32m */
@@ -362,3 +365,5 @@ enum {
 #define GET_C_RS2(inst)             extract32(inst, 2, 5)
 #define GET_C_RS1S(inst)            (8 + extract32(inst, 7, 3))
 #define GET_C_RS2S(inst)            (8 + extract32(inst, 2, 3))
+
+#endif

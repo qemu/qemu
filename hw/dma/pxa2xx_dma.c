@@ -13,6 +13,7 @@
 #include "hw/arm/pxa.h"
 #include "hw/sysbus.h"
 #include "qapi/error.h"
+#include "qemu/module.h"
 
 #define PXA255_DMA_NUM_CHANNELS 16
 #define PXA27X_DMA_NUM_CHANNELS 32

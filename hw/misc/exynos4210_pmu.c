@@ -26,6 +26,7 @@
 
 #include "qemu/osdep.h"
 #include "hw/sysbus.h"
+#include "qemu/module.h"
 #include "sysemu/sysemu.h"
 
 #ifndef DEBUG_PMU

@@ -25,7 +25,6 @@
 #ifndef SDHCI_H
 #define SDHCI_H
 
-#include "qemu-common.h"
 #include "hw/pci/pci.h"
 #include "hw/sysbus.h"
 #include "hw/sd/sd.h"

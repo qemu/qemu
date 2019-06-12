@@ -13,8 +13,9 @@
 
 #include "qemu/osdep.h"
 #include "qapi/error.h"
-#include "qemu-common.h"
+#include "qemu/ctype.h"
 #include "qemu/error-report.h"
+#include "qemu/module.h"
 #include "hw/scsi/scsi.h"
 #include "hw/scsi/emulation.h"
 #include "sysemu/block-backend.h"

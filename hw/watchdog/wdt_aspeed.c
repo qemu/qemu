@@ -11,6 +11,7 @@
 
 #include "qapi/error.h"
 #include "qemu/log.h"
+#include "qemu/module.h"
 #include "qemu/timer.h"
 #include "sysemu/watchdog.h"
 #include "hw/misc/aspeed_scu.h"

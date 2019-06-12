@@ -22,6 +22,7 @@
 #include "qapi/error.h"
 #include "qemu/log.h"
 #include "qemu/guest-random.h"
+#include "qemu/module.h"
 
 #define DEBUG_EXYNOS_RNG 0
 

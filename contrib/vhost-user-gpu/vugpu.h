@@ -11,8 +11,9 @@
  * This work is licensed under the terms of the GNU GPL, version 2 or later.
  * See the COPYING file in the top-level directory.
  */
-#ifndef VUGPU_H_
-#define VUGPU_H_
+
+#ifndef VUGPU_H
+#define VUGPU_H
 
 #include "qemu/osdep.h"
 

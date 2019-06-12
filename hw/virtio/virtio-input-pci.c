@@ -10,6 +10,7 @@
 
 #include "virtio-pci.h"
 #include "hw/virtio/virtio-input.h"
+#include "qemu/module.h"
 
 typedef struct VirtIOInputPCI VirtIOInputPCI;
 typedef struct VirtIOInputHIDPCI VirtIOInputHIDPCI;

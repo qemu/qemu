@@ -15,6 +15,7 @@
 #include "qemu/osdep.h"
 #include "sysemu/sysemu.h"
 #include "qemu/log.h"
+#include "qemu/module.h"
 
 #include "hw/nvram/fw_cfg.h"
 #include "hw/misc/pvpanic.h"

@@ -14,6 +14,7 @@
 
 #include "qemu/osdep.h"
 #include "hw/ssi/ssi.h"
+#include "qemu/module.h"
 
 struct SSIBus {
     BusState parent_obj;

@@ -1,3 +1,6 @@
+#ifndef LINUX_USER_SOCKET_H
+#define LINUX_USER_SOCKET_H
+
 #include "sockbits.h"
 
 #ifndef TARGET_ARCH_HAS_SOCKET_TYPES
@@ -35,3 +38,5 @@ enum sock_type {
 #define TARGET_SOCK_NONBLOCK   TARGET_O_NONBLOCK
 #endif
 #endif /* TARGET_ARCH_HAS_SOCKET_TYPES */
+
+#endif

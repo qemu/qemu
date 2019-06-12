@@ -20,7 +20,6 @@
 #include <spice.h>
 #include <spice/enums.h>
 
-#include "qemu-common.h"
 #include "ui/qemu-spice.h"
 #include "ui/console.h"
 #include "keymaps.h"

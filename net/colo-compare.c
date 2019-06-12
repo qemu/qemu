@@ -13,9 +13,9 @@
  */
 
 #include "qemu/osdep.h"
+#include "qemu-common.h"
 #include "qemu/error-report.h"
 #include "trace.h"
-#include "qemu-common.h"
 #include "qapi/error.h"
 #include "net/net.h"
 #include "net/eth.h"

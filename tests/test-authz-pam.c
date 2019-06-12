@@ -20,6 +20,7 @@
 
 #include "qemu/osdep.h"
 #include "qapi/error.h"
+#include "qemu/module.h"
 #include "authz/pamacct.h"
 
 #include <security/pam_appl.h>

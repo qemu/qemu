@@ -21,7 +21,6 @@
 #define TARGET_OPENRISC_EXCEPTION_H
 
 #include "cpu.h"
-#include "qemu-common.h"
 
 void QEMU_NORETURN raise_exception(OpenRISCCPU *cpu, uint32_t excp);
 

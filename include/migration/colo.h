@@ -13,7 +13,6 @@
 #ifndef QEMU_COLO_H
 #define QEMU_COLO_H
 
-#include "qemu-common.h"
 #include "qapi/qapi-types-migration.h"
 
 enum colo_event {

@@ -22,6 +22,7 @@
 
 #include "ui/qemu-spice.h"
 #include "qemu/error-report.h"
+#include "qemu/module.h"
 #include "qemu/thread.h"
 #include "qemu/timer.h"
 #include "qemu/queue.h"

@@ -13,8 +13,8 @@
 
 #include "qemu/osdep.h"
 #include "qapi/error.h"
-#include "qemu-common.h"
 #include "qemu/iov.h"
+#include "qemu/module.h"
 #include "qemu/error-report.h"
 #include "trace.h"
 #include "hw/block/block.h"

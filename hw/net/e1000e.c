@@ -37,6 +37,7 @@
 #include "qemu/units.h"
 #include "net/net.h"
 #include "net/tap.h"
+#include "qemu/module.h"
 #include "qemu/range.h"
 #include "sysemu/sysemu.h"
 #include "hw/pci/msi.h"

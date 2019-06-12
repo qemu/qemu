@@ -9,6 +9,7 @@
 
 #include "qemu/osdep.h"
 #include "libqtest.h"
+#include "qemu/module.h"
 #include "libqos/virtio.h"
 #include "libqos/virtio-mmio.h"
 #include "libqos/malloc.h"

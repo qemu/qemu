@@ -25,6 +25,7 @@
 #include "crypto/hash.h"
 #include "trace.h"
 #include "qemu/iov.h"
+#include "qemu/module.h"
 
 /* Max amount to allow in rawinput/encoutput buffers */
 #define QIO_CHANNEL_WEBSOCK_MAX_BUFFER 8192

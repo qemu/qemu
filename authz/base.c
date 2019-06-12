@@ -20,6 +20,7 @@
 
 #include "qemu/osdep.h"
 #include "authz/base.h"
+#include "qemu/module.h"
 #include "trace.h"
 
 bool qauthz_is_allowed(QAuthZ *authz,

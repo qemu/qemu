@@ -22,7 +22,6 @@
 #ifndef QEMU_HAX_H
 #define QEMU_HAX_H
 
-#include "qemu-common.h"
 
 int hax_sync_vcpus(void);
 int hax_init_vcpu(CPUState *cpu);

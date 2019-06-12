@@ -9,7 +9,6 @@
 #ifndef QEMU_NET_ANNOUNCE_H
 #define QEMU_NET_ANNOUNCE_H
 
-#include "qemu-common.h"
 #include "qapi/qapi-types-net.h"
 #include "qemu/timer.h"
 

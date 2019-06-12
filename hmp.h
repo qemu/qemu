@@ -14,7 +14,6 @@
 #ifndef HMP_H
 #define HMP_H
 
-#include "qemu-common.h"
 #include "qemu/readline.h"
 
 void hmp_info_name(Monitor *mon, const QDict *qdict);

@@ -15,6 +15,7 @@
 #include "hw/arm/primecell.h"
 #include "sysemu/sysemu.h"
 #include "qemu/log.h"
+#include "qemu/module.h"
 
 #define LOCK_VALUE 0xa05f
 

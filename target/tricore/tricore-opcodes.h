@@ -15,6 +15,9 @@
  * License along with this library; if not, see <http://www.gnu.org/licenses/>.
  */
 
+#ifndef TARGET_TRICORE_TRICORE_OPCODES_H
+#define TARGET_TRICORE_TRICORE_OPCODES_H
+
 /*
  * Opcode Masks for Tricore
  * Format MASK_OP_InstrFormatName_Field
@@ -1467,3 +1470,5 @@ enum {
     OPC2_32_SYS_RESTORE                          = 0x0e,
     OPC2_32_SYS_FRET                             = 0x03,
 };
+
+#endif

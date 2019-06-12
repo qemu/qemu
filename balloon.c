@@ -25,7 +25,6 @@
  */
 
 #include "qemu/osdep.h"
-#include "qemu-common.h"
 #include "qemu/atomic.h"
 #include "exec/cpu-common.h"
 #include "sysemu/kvm.h"

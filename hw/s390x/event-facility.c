@@ -17,6 +17,7 @@
 
 #include "qemu/osdep.h"
 #include "qapi/error.h"
+#include "qemu/module.h"
 #include "sysemu/sysemu.h"
 
 #include "hw/s390x/sclp.h"

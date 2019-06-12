@@ -20,6 +20,7 @@
 #include "hw/pci/pci.h"
 #include "hw/pci/pci_host.h"
 #include "qemu/bswap.h"
+#include "qemu/module.h"
 #include "hw/pci-host/ppce500.h"
 
 #ifdef DEBUG_PCI

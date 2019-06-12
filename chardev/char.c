@@ -35,6 +35,7 @@
 #include "qapi/qmp/qerror.h"
 #include "sysemu/replay.h"
 #include "qemu/help_option.h"
+#include "qemu/module.h"
 #include "qemu/option.h"
 
 #include "chardev/char-mux.h"

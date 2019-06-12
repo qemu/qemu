@@ -13,7 +13,6 @@
  */
 
 #include "qemu/osdep.h"
-#include "qemu-common.h"
 #include "qemu/fifo8.h"
 
 void fifo8_create(Fifo8 *fifo, uint32_t capacity)

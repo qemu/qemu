@@ -22,6 +22,7 @@
 #include "crypto/tlscredspsk.h"
 #include "tlscredspriv.h"
 #include "qapi/error.h"
+#include "qemu/module.h"
 #include "qom/object_interfaces.h"
 #include "trace.h"
 

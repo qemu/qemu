@@ -26,6 +26,7 @@
 #include "hw/sysbus.h"
 #include "trace.h"
 #include "qemu/error-report.h"
+#include "qemu/module.h"
 
 enum {
     R_SYSTEM = 0,

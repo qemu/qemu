@@ -36,10 +36,12 @@
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
  * THE SOFTWARE.
  */
+
 #include "qemu/osdep.h"
 #include "hw/hw.h"
 #include "hw/ppc/mac_dbdma.h"
 #include "qemu/main-loop.h"
+#include "qemu/module.h"
 #include "qemu/log.h"
 #include "sysemu/dma.h"
 

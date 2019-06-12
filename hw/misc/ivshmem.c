@@ -16,6 +16,7 @@
  * Contributions after 2012-01-13 are licensed under the terms of the
  * GNU GPL, version 2 or (at your option) any later version.
  */
+
 #include "qemu/osdep.h"
 #include "qemu/units.h"
 #include "qapi/error.h"
@@ -28,6 +29,7 @@
 #include "migration/blocker.h"
 #include "qemu/error-report.h"
 #include "qemu/event_notifier.h"
+#include "qemu/module.h"
 #include "qom/object_interfaces.h"
 #include "chardev/char-fe.h"
 #include "sysemu/hostmem.h"

@@ -2,6 +2,7 @@
 #include <glib/gstdio.h>
 
 #include "qemu/config-file.h"
+#include "qemu/module.h"
 #include "qemu/option.h"
 #include "qemu/sockets.h"
 #include "chardev/char-fe.h"

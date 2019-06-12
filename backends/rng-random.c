@@ -16,6 +16,7 @@
 #include "qapi/error.h"
 #include "qapi/qmp/qerror.h"
 #include "qemu/main-loop.h"
+#include "qemu/module.h"
 
 struct RngRandom
 {

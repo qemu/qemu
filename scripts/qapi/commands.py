@@ -249,8 +249,6 @@ class QAPISchemaGenCommandVisitor(QAPISchemaModularCVisitor):
         visit = self._module_basename('qapi-visit', name)
         self._genc.add(mcgen('''
 #include "qemu/osdep.h"
-#include "qemu-common.h"
-#include "qemu/module.h"
 #include "qapi/visitor.h"
 #include "qapi/qmp/qdict.h"
 #include "qapi/qobject-output-visitor.h"

@@ -14,7 +14,6 @@
 #ifndef QEMU_AIO_H
 #define QEMU_AIO_H
 
-#include "qemu-common.h"
 #include "qemu/queue.h"
 #include "qemu/event_notifier.h"
 #include "qemu/thread.h"

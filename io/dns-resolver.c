@@ -25,6 +25,7 @@
 #include "qemu/sockets.h"
 #include "qapi/error.h"
 #include "qemu/cutils.h"
+#include "qemu/module.h"
 
 #ifndef AI_NUMERICSERV
 # define AI_NUMERICSERV 0

@@ -14,7 +14,6 @@
 #define GUEST_AGENT_CORE_H
 
 #include "qapi/qmp/dispatch.h"
-#include "qemu-common.h"
 #include "qga-qapi-types.h"
 
 #define QGA_READ_COUNT_DEFAULT 4096

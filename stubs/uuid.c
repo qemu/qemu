@@ -1,5 +1,4 @@
 #include "qemu/osdep.h"
-#include "qemu-common.h"
 #include "qapi/qapi-commands-misc.h"
 #include "qemu/uuid.h"
 

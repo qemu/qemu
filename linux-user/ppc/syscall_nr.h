@@ -1,6 +1,10 @@
 /*
  * This file contains the system call numbers.
  */
+
+#ifndef LINUX_USER_PPC_SYSCALL_NR_H
+#define LINUX_USER_PPC_SYSCALL_NR_H
+
 #define TARGET_NR_restart_syscall          0
 #define TARGET_NR_exit                     1
 #define TARGET_NR_fork                     2
@@ -394,3 +398,5 @@
 #define TARGET_NR_shmget                376
 #define TARGET_NR_shmctl                377
 #define TARGET_NR_mlock2                378
+
+#endif

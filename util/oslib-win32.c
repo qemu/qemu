@@ -29,8 +29,10 @@
  * this file are based on code from GNOME glib-2 and use a different license,
  * see the license comment there.
  */
+
 #include "qemu/osdep.h"
 #include <windows.h>
+#include "qemu-common.h"
 #include "qapi/error.h"
 #include "sysemu/sysemu.h"
 #include "qemu/main-loop.h"

@@ -10,7 +10,6 @@
 #include "qemu/osdep.h"
 #include "hw/arm/armv7m.h"
 #include "qapi/error.h"
-#include "qemu-common.h"
 #include "cpu.h"
 #include "hw/sysbus.h"
 #include "hw/arm/boot.h"
@@ -18,6 +17,7 @@
 #include "elf.h"
 #include "sysemu/qtest.h"
 #include "qemu/error-report.h"
+#include "qemu/module.h"
 #include "exec/address-spaces.h"
 #include "target/arm/idau.h"
 

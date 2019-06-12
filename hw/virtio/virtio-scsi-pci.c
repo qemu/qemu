@@ -16,6 +16,7 @@
 #include "qemu/osdep.h"
 
 #include "hw/virtio/virtio-scsi.h"
+#include "qemu/module.h"
 #include "virtio-pci.h"
 
 typedef struct VirtIOSCSIPCI VirtIOSCSIPCI;

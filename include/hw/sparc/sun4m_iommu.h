@@ -25,7 +25,6 @@
 #ifndef SUN4M_IOMMU_H
 #define SUN4M_IOMMU_H
 
-#include "qemu-common.h"
 #include "hw/sysbus.h"
 
 #define IOMMU_NREGS         (4 * 4096 / 4)

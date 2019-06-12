@@ -26,7 +26,6 @@
 #ifndef BLOCK_DMG_H
 #define BLOCK_DMG_H
 
-#include "qemu-common.h"
 #include "block/block_int.h"
 #include <zlib.h>
 

@@ -14,7 +14,6 @@
  */
 
 #include "qemu/osdep.h"
-#include "qemu-common.h"
 #ifdef CONFIG_MODULES
 #include <gmodule.h>
 #endif

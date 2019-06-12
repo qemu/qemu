@@ -10,6 +10,7 @@
 #include "qemu/osdep.h"
 #include "hw/hw.h"
 #include "hw/isa/isa.h"
+#include "qemu/module.h"
 
 #define TYPE_ISA_DEBUG_EXIT_DEVICE "isa-debug-exit"
 #define ISA_DEBUG_EXIT_DEVICE(obj) \

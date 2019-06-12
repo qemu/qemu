@@ -17,6 +17,7 @@
 #include "qemu/bitops.h"
 #include "qemu/log.h"
 #include "qemu/guest-random.h"
+#include "qemu/module.h"
 #include "trace.h"
 
 #define TO_REG(offset) ((offset) >> 2)

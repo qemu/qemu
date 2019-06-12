@@ -25,6 +25,7 @@
 #include "qemu/osdep.h"
 #include <getopt.h>
 
+#include "qemu-common.h"
 #include "qemu-version.h"
 #include "qapi/error.h"
 #include "qapi/qapi-visit-block-core.h"
@@ -37,6 +38,7 @@
 #include "qemu/option.h"
 #include "qemu/error-report.h"
 #include "qemu/log.h"
+#include "qemu/module.h"
 #include "qemu/units.h"
 #include "qom/object_interfaces.h"
 #include "sysemu/sysemu.h"

@@ -22,6 +22,9 @@
 * License along with this library; if not, see <http://www.gnu.org/licenses/>.
 */
 
+#ifndef HW_NET_E1000X_COMMON_H
+#define HW_NET_E1000X_COMMON_H
+
 #include "e1000_regs.h"
 
 #define defreg(x)   x = (E1000_##x >> 2)
@@ -209,3 +212,5 @@ typedef struct e1000x_txd_props {
 
 void e1000x_read_tx_ctx_descr(struct e1000_context_desc *d,
                               e1000x_txd_props *props);
+
+#endif

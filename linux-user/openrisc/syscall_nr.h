@@ -1,3 +1,6 @@
+#ifndef LINUX_USER_OPENRISC_SYSCALL_NR_H
+#define LINUX_USER_OPENRISC_SYSCALL_NR_H
+
 #define TARGET_NR_io_setup 0
 #define TARGET_NR_io_destroy 1
 #define TARGET_NR_io_submit 2
@@ -501,4 +504,6 @@
 #ifdef TARGET_NR_3264_stat
 #define TARGET_NR_stat64 TARGET_NR_3264_stat
 #define TARGET_NR_lstat64 TARGET_NR_3264_lstat
+#endif
+
 #endif

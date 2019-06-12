@@ -13,8 +13,8 @@
 
 #include "hw/pci/pci_regs.h"
 
-#include "qemu-common.h"
 #include "qemu/host-utils.h"
+#include "qemu/module.h"
 
 /*
  * PCI devices are always little-endian

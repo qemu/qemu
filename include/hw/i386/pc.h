@@ -1,7 +1,6 @@
 #ifndef HW_PC_H
 #define HW_PC_H
 
-#include "qemu-common.h"
 #include "exec/memory.h"
 #include "hw/boards.h"
 #include "hw/isa/isa.h"
@@ -12,6 +11,7 @@
 
 #include "qemu/range.h"
 #include "qemu/bitmap.h"
+#include "qemu/module.h"
 #include "sysemu/sysemu.h"
 #include "hw/pci/pci.h"
 #include "hw/mem/pc-dimm.h"

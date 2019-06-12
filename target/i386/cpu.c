@@ -32,6 +32,7 @@
 #include "sev_i386.h"
 
 #include "qemu/error-report.h"
+#include "qemu/module.h"
 #include "qemu/option.h"
 #include "qemu/config-file.h"
 #include "qapi/error.h"
@@ -47,6 +48,7 @@
 #include "standard-headers/asm-x86/kvm_para.h"
 
 #include "sysemu/sysemu.h"
+#include "sysemu/tcg.h"
 #include "hw/qdev-properties.h"
 #include "hw/i386/topology.h"
 #ifndef CONFIG_USER_ONLY

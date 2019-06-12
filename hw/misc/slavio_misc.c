@@ -25,6 +25,7 @@
 #include "qemu/osdep.h"
 #include "sysemu/sysemu.h"
 #include "hw/sysbus.h"
+#include "qemu/module.h"
 #include "trace.h"
 
 /*

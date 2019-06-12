@@ -20,7 +20,6 @@
 #ifndef TRICORE_CPU_H
 #define TRICORE_CPU_H
 
-#include "qemu-common.h"
 #include "cpu-qom.h"
 #include "exec/cpu-defs.h"
 #include "tricore-defs.h"

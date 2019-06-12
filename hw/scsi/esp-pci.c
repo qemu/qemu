@@ -30,6 +30,7 @@
 #include "trace.h"
 #include "qapi/error.h"
 #include "qemu/log.h"
+#include "qemu/module.h"
 
 #define TYPE_AM53C974_DEVICE "am53c974"
 

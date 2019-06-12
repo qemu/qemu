@@ -24,6 +24,9 @@
  * THE SOFTWARE.
  */
 
+#ifndef HW_PCI_BRIDGE_SIMBA_H
+#define HW_PCI_BRIDGE_SIMBA_H
+
 #include "hw/pci/pci_bridge.h"
 
 
@@ -35,3 +38,5 @@ typedef struct SimbaPCIBridge {
 #define TYPE_SIMBA_PCI_BRIDGE "pbm-bridge"
 #define SIMBA_PCI_BRIDGE(obj) \
     OBJECT_CHECK(SimbaPCIBridge, (obj), TYPE_SIMBA_PCI_BRIDGE)
+
+#endif

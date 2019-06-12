@@ -28,6 +28,7 @@
 #include "sysemu/hw_accel.h"
 #ifndef CONFIG_USER_ONLY
 #include "sysemu/sysemu.h"
+#include "sysemu/tcg.h"
 #endif
 
 #ifndef CONFIG_USER_ONLY

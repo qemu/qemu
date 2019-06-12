@@ -18,6 +18,7 @@
 #include "hw/pci/pci_bridge.h"
 #include "qemu/range.h"
 #include "qemu/error-report.h"
+#include "qemu/module.h"
 #include "sysemu/numa.h"
 
 #define TYPE_PXB_BUS "pxb-bus"

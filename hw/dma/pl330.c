@@ -15,11 +15,13 @@
  */
 
 #include "qemu/osdep.h"
+#include "qemu-common.h"
 #include "hw/sysbus.h"
 #include "qapi/error.h"
 #include "qemu/timer.h"
 #include "sysemu/dma.h"
 #include "qemu/log.h"
+#include "qemu/module.h"
 
 #ifndef PL330_ERR_DEBUG
 #define PL330_ERR_DEBUG 0

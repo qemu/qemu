@@ -24,6 +24,7 @@
 #include "hw/mem/memory-device.h"
 #include "qapi/error.h"
 #include "qapi/visitor.h"
+#include "qemu/module.h"
 #include "sysemu/numa.h"
 #include "trace.h"
 

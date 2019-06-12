@@ -23,6 +23,7 @@
  */
 
 #include "qemu/osdep.h"
+#include "qemu-common.h"
 #include "qemu/units.h"
 #include "qapi/error.h"
 #include "qemu-version.h"
@@ -30,6 +31,7 @@
 #include "qemu/help_option.h"
 #include "qemu/uuid.h"
 #include "sysemu/seccomp.h"
+#include "sysemu/tcg.h"
 
 #ifdef CONFIG_SDL
 #if defined(__APPLE__) || defined(main)

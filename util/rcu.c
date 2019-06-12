@@ -27,7 +27,6 @@
  */
 
 #include "qemu/osdep.h"
-#include "qemu-common.h"
 #include "qemu/rcu.h"
 #include "qemu/atomic.h"
 #include "qemu/thread.h"

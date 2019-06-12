@@ -26,6 +26,7 @@
 #include "qemu/osdep.h"
 #include "hw/ssi/mss-spi.h"
 #include "qemu/log.h"
+#include "qemu/module.h"
 
 #ifndef MSS_SPI_ERR_DEBUG
 #define MSS_SPI_ERR_DEBUG   0

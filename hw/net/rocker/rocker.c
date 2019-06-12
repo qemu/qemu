@@ -24,6 +24,7 @@
 #include "qapi/error.h"
 #include "qapi/qapi-commands-rocker.h"
 #include "qemu/iov.h"
+#include "qemu/module.h"
 #include "qemu/bitops.h"
 
 #include "rocker.h"

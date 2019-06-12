@@ -1,5 +1,5 @@
 #include "qemu/osdep.h"
-#include "qemu-common.h"
+#include "qemu/module.h"
 #include "sysemu/sysemu.h"
 #include "ui/console.h"
 #include "ui/egl-helpers.h"

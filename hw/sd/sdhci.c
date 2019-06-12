@@ -33,6 +33,7 @@
 #include "hw/sd/sdhci.h"
 #include "sdhci-internal.h"
 #include "qemu/log.h"
+#include "qemu/module.h"
 #include "trace.h"
 
 #define TYPE_SDHCI_BUS "sdhci-bus"

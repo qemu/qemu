@@ -18,6 +18,7 @@
 #include "io/channel-socket.h"
 #include "pr-helper.h"
 #include "qapi/qapi-events-block.h"
+#include "qemu/module.h"
 
 #include <scsi/sg.h>
 

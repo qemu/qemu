@@ -21,6 +21,7 @@
 #include "qemu/osdep.h"
 #include "hw/hw.h"
 #include "hw/i2c/i2c.h"
+#include "qemu/module.h"
 #include "qemu/timer.h"
 #include "ui/console.h"
 

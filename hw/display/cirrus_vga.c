@@ -31,7 +31,9 @@
  *
  *  https://pdos.csail.mit.edu/6.828/2005/readings/hardware/vgadoc
  */
+
 #include "qemu/osdep.h"
+#include "qemu/module.h"
 #include "qemu/units.h"
 #include "qapi/error.h"
 #include "trace.h"

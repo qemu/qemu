@@ -20,6 +20,7 @@
 #include "qemu/error-report.h"
 #include "hw/virtio/vhost-vsock.h"
 #include "qemu/iov.h"
+#include "qemu/module.h"
 #include "monitor/monitor.h"
 
 enum {

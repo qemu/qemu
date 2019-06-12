@@ -21,6 +21,7 @@
 #include "trace.h"
 #include "qapi/error.h"
 #include "qemu/main-loop.h"
+#include "qemu/module.h"
 #include "hw/sysbus.h"
 #include "hw/registerfields.h"
 #include "hw/timer/cmsdk-apb-dualtimer.h"

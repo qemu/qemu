@@ -14,7 +14,6 @@
 #define TPM_BACKEND_H
 
 #include "qom/object.h"
-#include "qemu-common.h"
 #include "qemu/option.h"
 #include "sysemu/tpm.h"
 #include "qapi/error.h"

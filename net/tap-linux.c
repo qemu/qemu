@@ -24,6 +24,7 @@
  */
 
 #include "qemu/osdep.h"
+#include "qemu-common.h"
 #include "tap_int.h"
 #include "tap-linux.h"
 #include "net/tap.h"

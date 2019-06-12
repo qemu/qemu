@@ -32,6 +32,7 @@
 #include "hw/sysbus.h"
 #include "sysemu/dma.h"
 #include "qapi/error.h"
+#include "qemu/module.h"
 #include "trace.h"
 
 /*

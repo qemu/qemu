@@ -18,6 +18,7 @@
 #include "sysemu/sysemu.h"
 #include "hw/ptimer.h"
 #include "qemu/log.h"
+#include "qemu/module.h"
 /* For crc32 */
 #include <zlib.h>
 

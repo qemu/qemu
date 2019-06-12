@@ -28,6 +28,7 @@
 #include "hw/pci/pci.h"
 #include "hw/pci/pci_bridge.h"
 #include "hw/pci/pci_bus.h"
+#include "qemu/module.h"
 #include "hw/pci-bridge/simba.h"
 
 /*

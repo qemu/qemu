@@ -18,7 +18,6 @@
 #include "qemu/osdep.h"
 #include "net/eth.h"
 #include "net/checksum.h"
-#include "qemu-common.h"
 #include "net/tap.h"
 
 void eth_setup_vlan_headers_ex(struct eth_header *ehdr, uint16_t vlan_tag,

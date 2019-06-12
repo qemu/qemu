@@ -12,6 +12,9 @@
  * (at your option) any later version.
  */
 
+#ifndef HW_USB_QUIRKS_H
+#define HW_USB_QUIRKS_H
+
 /* 1 on 1 copy of linux/drivers/usb/serial/ftdi_sio_ids.h */
 #include "quirks-ftdi-ids.h"
 /* 1 on 1 copy of linux/drivers/usb/serial/pl2303.h */
@@ -908,3 +911,5 @@ static const struct usb_device_id usbredir_ftdi_serial_ids[] = {
 
 #undef USB_DEVICE
 #undef USB_DEVICE_AND_INTERFACE_INFO
+
+#endif

@@ -16,7 +16,6 @@
 
 #include "qapi/qmp/qerror.h"
 #include "qapi/error.h"
-#include "qemu-common.h"
 #include "qemu/host-utils.h"
 #include "page_cache.h"
 

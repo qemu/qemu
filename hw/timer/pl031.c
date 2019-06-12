@@ -12,12 +12,14 @@
  */
 
 #include "qemu/osdep.h"
+#include "qemu-common.h"
 #include "hw/timer/pl031.h"
 #include "hw/sysbus.h"
 #include "qemu/timer.h"
 #include "sysemu/sysemu.h"
 #include "qemu/cutils.h"
 #include "qemu/log.h"
+#include "qemu/module.h"
 #include "trace.h"
 
 #define RTC_DR      0x00    /* Data read register */

@@ -21,6 +21,7 @@
 #include "qemu/osdep.h"
 #include "authz/simple.h"
 #include "trace.h"
+#include "qemu/module.h"
 #include "qom/object_interfaces.h"
 
 static bool qauthz_simple_is_allowed(QAuthZ *authz,

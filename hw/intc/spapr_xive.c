@@ -9,6 +9,7 @@
 
 #include "qemu/osdep.h"
 #include "qemu/log.h"
+#include "qemu/module.h"
 #include "qapi/error.h"
 #include "qemu/error-report.h"
 #include "target/ppc/cpu.h"

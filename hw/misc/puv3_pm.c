@@ -8,12 +8,14 @@
  * published by the Free Software Foundation, or any later version.
  * See the COPYING file in the top-level directory.
  */
+
 #include "qemu/osdep.h"
 #include "hw/hw.h"
 #include "hw/sysbus.h"
 
 #undef DEBUG_PUV3
 #include "hw/unicore32/puv3.h"
+#include "qemu/module.h"
 
 #define TYPE_PUV3_PM "puv3_pm"
 #define PUV3_PM(obj) OBJECT_CHECK(PUV3PMState, (obj), TYPE_PUV3_PM)

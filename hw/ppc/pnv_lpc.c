@@ -22,6 +22,7 @@
 #include "target/ppc/cpu.h"
 #include "qapi/error.h"
 #include "qemu/log.h"
+#include "qemu/module.h"
 #include "hw/isa/isa.h"
 
 #include "hw/ppc/pnv.h"

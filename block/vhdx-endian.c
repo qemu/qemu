@@ -16,7 +16,6 @@
  */
 
 #include "qemu/osdep.h"
-#include "qemu-common.h"
 #include "block/block_int.h"
 #include "qemu/bswap.h"
 #include "vhdx.h"

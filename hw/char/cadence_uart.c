@@ -27,6 +27,7 @@
 #include "chardev/char-serial.h"
 #include "qemu/timer.h"
 #include "qemu/log.h"
+#include "qemu/module.h"
 #include "hw/char/cadence_uart.h"
 
 #ifdef CADENCE_UART_ERR_DEBUG

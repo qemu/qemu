@@ -28,7 +28,6 @@
  * EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 #include "qemu/osdep.h"
-#include "qemu-common.h"
 #include "crypto/aes.h"
 
 typedef uint32_t u32;

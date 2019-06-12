@@ -20,6 +20,7 @@
 
 #include "qemu/osdep.h"
 #include "qemu/main-loop.h"
+#include "qemu/module.h"
 #include "authz/listfile.h"
 
 static char *workdir;

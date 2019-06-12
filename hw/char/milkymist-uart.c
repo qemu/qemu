@@ -27,6 +27,7 @@
 #include "trace.h"
 #include "chardev/char-fe.h"
 #include "qemu/error-report.h"
+#include "qemu/module.h"
 
 enum {
     R_RXTX = 0,

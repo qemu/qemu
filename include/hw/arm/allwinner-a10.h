@@ -1,6 +1,6 @@
-#ifndef ALLWINNER_H_
+#ifndef HW_ARM_ALLWINNER_A10_H
+#define HW_ARM_ALLWINNER_A10_H
 
-#include "qemu-common.h"
 #include "qemu/error-report.h"
 #include "hw/char/serial.h"
 #include "hw/arm/boot.h"
@@ -38,5 +38,4 @@ typedef struct AwA10State {
     MemoryRegion sram_a;
 } AwA10State;
 
-#define ALLWINNER_H_
 #endif

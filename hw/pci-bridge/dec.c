@@ -26,6 +26,7 @@
 #include "qemu/osdep.h"
 #include "dec.h"
 #include "hw/sysbus.h"
+#include "qemu/module.h"
 #include "hw/pci/pci.h"
 #include "hw/pci/pci_host.h"
 #include "hw/pci/pci_bridge.h"

@@ -30,6 +30,7 @@
 #include "qapi/error.h"
 #include "qapi/qapi-commands-misc.h"
 #include "qapi/visitor.h"
+#include "qemu/module.h"
 
 static uint32_t ipmi_current_uuid = 1;
 

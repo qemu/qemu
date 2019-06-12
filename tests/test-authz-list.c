@@ -21,6 +21,7 @@
 #include "qemu/osdep.h"
 
 #include "authz/list.h"
+#include "qemu/module.h"
 
 static void test_authz_default_deny(void)
 {

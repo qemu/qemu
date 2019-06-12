@@ -13,6 +13,7 @@
 
 #include "qemu/osdep.h"
 #include "qapi/error.h"
+#include "qemu/module.h"
 #include "chardev/char-fe.h"
 #include "hw/s390x/3270-ccw.h"
 

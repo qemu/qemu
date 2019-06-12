@@ -9,6 +9,7 @@
 
 #include "qemu/osdep.h"
 #include "qapi/error.h"
+#include "qemu/module.h"
 #include "hw/intc/realview_gic.h"
 
 static void realview_gic_set_irq(void *opaque, int irq, int level)

@@ -20,7 +20,6 @@
 #ifndef TILEGX_CPU_H
 #define TILEGX_CPU_H
 
-#include "qemu-common.h"
 #include "exec/cpu-defs.h"
 
 /* TILE-Gx common register alias */

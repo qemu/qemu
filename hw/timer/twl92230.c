@@ -20,12 +20,14 @@
  */
 
 #include "qemu/osdep.h"
+#include "qemu-common.h"
 #include "hw/hw.h"
 #include "qemu/timer.h"
 #include "hw/i2c/i2c.h"
 #include "sysemu/sysemu.h"
 #include "ui/console.h"
 #include "qemu/bcd.h"
+#include "qemu/module.h"
 
 #define VERBOSE 1
 

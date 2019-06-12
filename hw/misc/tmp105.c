@@ -24,6 +24,7 @@
 #include "tmp105.h"
 #include "qapi/error.h"
 #include "qapi/visitor.h"
+#include "qemu/module.h"
 
 static void tmp105_interrupt_update(TMP105State *s)
 {

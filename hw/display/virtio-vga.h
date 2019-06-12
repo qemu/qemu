@@ -1,5 +1,5 @@
-#ifndef VIRTIO_VGA_H_
-#define VIRTIO_VGA_H_
+#ifndef VIRTIO_VGA_H
+#define VIRTIO_VGA_H
 
 #include "hw/virtio/virtio-gpu-pci.h"
 #include "vga_int.h"
@@ -29,4 +29,4 @@ typedef struct VirtIOVGABaseClass {
     DeviceReset parent_reset;
 } VirtIOVGABaseClass;
 
-#endif /* VIRTIO_VGA_H_ */
+#endif /* VIRTIO_VGA_H */

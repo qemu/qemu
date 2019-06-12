@@ -22,7 +22,6 @@
 #ifndef NMI_H
 #define NMI_H
 
-#include "qemu-common.h"
 #include "qom/object.h"
 
 #define TYPE_NMI "nmi"

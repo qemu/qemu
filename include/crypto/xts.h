@@ -26,7 +26,6 @@
 #ifndef QCRYPTO_XTS_H
 #define QCRYPTO_XTS_H
 
-#include "qemu-common.h"
 
 #define XTS_BLOCK_SIZE 16
 

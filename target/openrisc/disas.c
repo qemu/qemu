@@ -18,7 +18,6 @@
  */
 
 #include "qemu/osdep.h"
-#include "qemu-common.h"
 #include "disas/dis-asm.h"
 #include "qemu/bitops.h"
 #include "cpu.h"

@@ -17,6 +17,9 @@
  * License along with this library; if not, see <http://www.gnu.org/licenses/>.
  */
 
+#ifndef TCG_TCG_OP_GVEC_H
+#define TCG_TCG_OP_GVEC_H
+
 /*
  * "Generic" vectors.  All operands are given as offsets from ENV,
  * and therefore cannot also be allocated via tcg_global_mem_new_*.
@@ -373,3 +376,5 @@ void tcg_gen_vec_shr8i_i64(TCGv_i64 d, TCGv_i64 a, int64_t);
 void tcg_gen_vec_shr16i_i64(TCGv_i64 d, TCGv_i64 a, int64_t);
 void tcg_gen_vec_sar8i_i64(TCGv_i64 d, TCGv_i64 a, int64_t);
 void tcg_gen_vec_sar16i_i64(TCGv_i64 d, TCGv_i64 a, int64_t);
+
+#endif

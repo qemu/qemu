@@ -23,11 +23,11 @@
  */
 
 #include "qemu/osdep.h"
-#include "qemu-common.h"
 #include "hw/sysbus.h"
 #include "ui/console.h"
 #include "ui/pixel_ops.h"
 #include "qemu/bswap.h"
+#include "qemu/module.h"
 
 /* Debug messages configuration */
 #define EXYNOS4210_FIMD_DEBUG              0

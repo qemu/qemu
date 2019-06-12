@@ -10,8 +10,10 @@
  * (at your option) any later version.  See the COPYING file in the
  * top-level directory.
  */
+
 #include "qemu/osdep.h"
 #include "qemu/iov.h"
+#include "qemu/module.h"
 #include "hw/qdev.h"
 #include "qapi/error.h"
 #include "qemu/error-report.h"

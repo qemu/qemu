@@ -24,11 +24,12 @@
  * THE SOFTWARE.
  *
  */
+
 #include "qemu/osdep.h"
-#include "qemu-common.h"
 #include "cpu.h"
 #include "hw/hw.h"
 #include "qemu/log.h"
+#include "qemu/module.h"
 #include "net/net.h"
 #include "hw/qdev.h"
 #include "hw/ppc/spapr.h"

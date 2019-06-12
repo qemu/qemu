@@ -28,7 +28,6 @@
 #ifndef XTENSA_MEMORY_H
 #define XTENSA_MEMORY_H
 
-#include "qemu-common.h"
 #include "cpu.h"
 #include "exec/memory.h"
 

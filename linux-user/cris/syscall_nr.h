@@ -2,6 +2,9 @@
  * This file contains the system call numbers, and stub macros for libc.
  */
 
+#ifndef LINUX_USER_CRIS_SYSCALL_NR_H
+#define LINUX_USER_CRIS_SYSCALL_NR_H
+
 #define TARGET_NR_restart_syscall      0
 #define TARGET_NR_exit		  1
 #define TARGET_NR_fork		  2
@@ -360,3 +363,5 @@
 #define TARGET_NR_memfd_create       357
 #define TARGET_NR_bpf                358
 #define TARGET_NR_execveat           359
+
+#endif

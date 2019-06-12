@@ -25,7 +25,6 @@
 #ifndef EXYNOS4210_H
 #define EXYNOS4210_H
 
-#include "qemu-common.h"
 #include "exec/memory.h"
 #include "target/arm/cpu-qom.h"
 

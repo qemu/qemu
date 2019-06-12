@@ -14,7 +14,6 @@
 #define QEMU_RNG_H
 
 #include "qom/object.h"
-#include "qemu-common.h"
 
 #define TYPE_RNG_BACKEND "rng-backend"
 #define RNG_BACKEND(obj) \

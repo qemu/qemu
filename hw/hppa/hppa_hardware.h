@@ -1,5 +1,8 @@
 /* HPPA cores and system support chips.  */
 
+#ifndef HW_HPPA_HPPA_HARDWARE_H
+#define HW_HPPA_HPPA_HARDWARE_H
+
 #define FIRMWARE_START  0xf0000000
 #define FIRMWARE_END    0xf0800000
 
@@ -38,3 +41,5 @@
 
 #define HPPA_MAX_CPUS   8       /* max. number of SMP CPUs */
 #define CPU_CLOCK_MHZ   250     /* emulate a 250 MHz CPU */
+
+#endif

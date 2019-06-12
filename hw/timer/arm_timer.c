@@ -10,10 +10,10 @@
 #include "qemu/osdep.h"
 #include "hw/sysbus.h"
 #include "qemu/timer.h"
-#include "qemu-common.h"
 #include "hw/qdev.h"
 #include "hw/ptimer.h"
 #include "qemu/main-loop.h"
+#include "qemu/module.h"
 #include "qemu/log.h"
 
 /* Common timer implementation.  */

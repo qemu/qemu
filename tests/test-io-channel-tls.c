@@ -30,6 +30,7 @@
 #include "crypto/init.h"
 #include "crypto/tlscredsx509.h"
 #include "qapi/error.h"
+#include "qemu/module.h"
 #include "authz/list.h"
 #include "qom/object_interfaces.h"
 

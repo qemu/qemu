@@ -21,7 +21,6 @@
 #ifndef QEMU_FILEMONITOR_H
 #define QEMU_FILEMONITOR_H
 
-#include "qemu-common.h"
 
 
 typedef struct QFileMonitor QFileMonitor;

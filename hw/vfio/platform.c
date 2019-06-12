@@ -21,6 +21,7 @@
 
 #include "hw/vfio/vfio-platform.h"
 #include "qemu/error-report.h"
+#include "qemu/module.h"
 #include "qemu/range.h"
 #include "sysemu/sysemu.h"
 #include "exec/memory.h"

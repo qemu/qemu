@@ -23,6 +23,7 @@
 #include "trace.h"
 #include "qemu/error-report.h"
 #include "qemu/main-loop.h"
+#include "qemu/module.h"
 #include "qemu/sockets.h"
 #include "qemu/filemonitor.h"
 #include "qom/object_interfaces.h"

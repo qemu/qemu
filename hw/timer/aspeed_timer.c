@@ -13,10 +13,10 @@
 #include "qapi/error.h"
 #include "hw/sysbus.h"
 #include "hw/timer/aspeed_timer.h"
-#include "qemu-common.h"
 #include "qemu/bitops.h"
 #include "qemu/timer.h"
 #include "qemu/log.h"
+#include "qemu/module.h"
 #include "trace.h"
 
 #define TIMER_NR_REGS 4

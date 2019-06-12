@@ -1,11 +1,10 @@
+#ifndef WHP_DISPATCH_H
+#define WHP_DISPATCH_H
+
 #include <windows.h>
 
 #include <WinHvPlatform.h>
 #include <WinHvEmulation.h>
-
-#ifndef WHP_DISPATCH_H
-#define WHP_DISPATCH_H
-
 
 #define LIST_WINHVPLATFORM_FUNCTIONS(X) \
   X(HRESULT, WHvGetCapability, (WHV_CAPABILITY_CODE CapabilityCode, VOID* CapabilityBuffer, UINT32 CapabilityBufferSizeInBytes, UINT32* WrittenSizeInBytes)) \

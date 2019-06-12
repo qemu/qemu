@@ -19,6 +19,7 @@
 #include "qemu/timer.h"
 #include "sysemu/sysemu.h"
 #include "qemu/log.h"
+#include "qemu/module.h"
 
 enum {
     CFG                = 0x000 / 4,

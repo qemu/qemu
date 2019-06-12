@@ -1,5 +1,8 @@
 /* from asm/termbits.h */
 
+#ifndef LINUX_USER_MICROBLAZE_TERMBITS_H
+#define LINUX_USER_MICROBLAZE_TERMBITS_H
+
 #define TARGET_NCCS 19
 
 struct target_termios {
@@ -212,3 +215,5 @@ struct target_termios {
 #define TARGET_TIOCPKT_DOSTOP		32
 
 #define TARGET_TIOCSER_TEMT    0x01	/* Transmitter physically empty */
+
+#endif

@@ -19,6 +19,7 @@
 #include "standard-headers/linux/virtio_pci.h"
 #include "hw/virtio/vhost-scsi.h"
 #include "qapi/error.h"
+#include "qemu/module.h"
 #include "virtio-pci.h"
 
 typedef struct VHostSCSIPCI VHostSCSIPCI;

@@ -24,6 +24,7 @@
 #include "qemu/timer.h"
 #include "qemu/bitops.h"
 #include "qemu/log.h"
+#include "qemu/module.h"
 #include "hw/audio/soundhw.h"
 #include "intel-hda.h"
 #include "intel-hda-defs.h"

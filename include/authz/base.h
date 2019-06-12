@@ -21,7 +21,6 @@
 #ifndef QAUTHZ_BASE_H
 #define QAUTHZ_BASE_H
 
-#include "qemu-common.h"
 #include "qapi/error.h"
 #include "qom/object.h"
 

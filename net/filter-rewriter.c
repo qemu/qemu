@@ -14,7 +14,6 @@
 #include "colo.h"
 #include "net/filter.h"
 #include "net/net.h"
-#include "qemu-common.h"
 #include "qemu/error-report.h"
 #include "qom/object.h"
 #include "qemu/main-loop.h"

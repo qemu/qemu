@@ -28,6 +28,7 @@
 #include "hw/net/cadence_gem.h"
 #include "qapi/error.h"
 #include "qemu/log.h"
+#include "qemu/module.h"
 #include "sysemu/dma.h"
 #include "net/checksum.h"
 

@@ -15,8 +15,10 @@
  *
  * You should have received a copy of the GNU General Public License
  * along with this program; if not, see <http://www.gnu.org/licenses/>.
- *
  */
+
+#ifndef TESTS_SOCKET_HELPERS_H
+#define TESTS_SOCKET_HELPERS_H
 
 /*
  * @hostname: a DNS name or numeric IP address
@@ -40,3 +42,5 @@ int socket_can_bind_connect(const char *hostname);
  * Returns 0 on success, -1 on fatal error
  */
 int socket_check_protocol_support(bool *has_ipv4, bool *has_ipv6);
+
+#endif

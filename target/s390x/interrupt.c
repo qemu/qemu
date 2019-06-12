@@ -14,6 +14,7 @@
 #include "internal.h"
 #include "exec/exec-all.h"
 #include "sysemu/kvm.h"
+#include "sysemu/tcg.h"
 #include "hw/s390x/ioinst.h"
 #include "tcg_s390x.h"
 #if !defined(CONFIG_USER_ONLY)

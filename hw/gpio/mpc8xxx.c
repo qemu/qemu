@@ -21,6 +21,7 @@
 
 #include "qemu/osdep.h"
 #include "hw/sysbus.h"
+#include "qemu/module.h"
 
 #define TYPE_MPC8XXX_GPIO "mpc8xxx_gpio"
 #define MPC8XXX_GPIO(obj) OBJECT_CHECK(MPC8XXXGPIOState, (obj), TYPE_MPC8XXX_GPIO)

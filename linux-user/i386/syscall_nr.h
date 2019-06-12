@@ -2,6 +2,9 @@
  * This file contains the system call numbers.
  */
 
+#ifndef LINUX_USER_I386_SYSCALL_NR_H
+#define LINUX_USER_I386_SYSCALL_NR_H
+
 #define TARGET_NR_restart_syscall      0
 #define TARGET_NR_exit		  1
 #define TARGET_NR_fork		  2
@@ -380,3 +383,5 @@
 #define TARGET_NR_membarrier            375
 #define TARGET_NR_mlock2                376
 #define TARGET_NR_copy_file_range       377
+
+#endif

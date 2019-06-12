@@ -11,7 +11,6 @@
 #ifndef BCM2835_PERIPHERALS_H
 #define BCM2835_PERIPHERALS_H
 
-#include "qemu-common.h"
 #include "hw/sysbus.h"
 #include "hw/char/pl011.h"
 #include "hw/char/bcm2835_aux.h"
