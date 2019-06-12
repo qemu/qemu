@@ -47,6 +47,7 @@ typedef uint32_t apic_id_t;
 
 typedef struct X86CPUTopoInfo {
     unsigned pkg_id;
+    unsigned die_id;
     unsigned core_id;
     unsigned smt_id;
 } X86CPUTopoInfo;
@@ -130,6 +131,7 @@ static inline void x86_topo_ids_from_apicid(apic_id_t apicid,
     topo->core_id = (apicid >> apicid_core_offset(nr_cores, nr_threads)) &
                    ~(0xFFFFFFFFUL << apicid_core_width(nr_cores, nr_threads));
     topo->pkg_id = apicid >> apicid_pkg_offset(nr_cores, nr_threads);
+    topo->die_id = 0;
 }
 
 /* Make APIC ID for the CPU 'cpu_index'
