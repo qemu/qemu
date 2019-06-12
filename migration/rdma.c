@@ -4004,7 +4004,7 @@ static void rdma_accept_incoming_migration(void *opaque)
     }
 
     rdma->migration_started_on_destination = 1;
-    migration_fd_process_incoming(f);
+    migration_fd_process_incoming(f, errp);
 }
 
 void rdma_start_incoming_migration(const char *host_port, Error **errp)
