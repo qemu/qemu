@@ -1252,7 +1252,7 @@ static void multifd_new_send_channel_async(QIOTask *task, gpointer opaque)
     }
 }
 
-int multifd_save_setup(void)
+int multifd_save_setup(Error **errp)
 {
     int thread_count;
     uint32_t page_count = MULTIFD_PACKET_SIZE / qemu_target_page_size();
