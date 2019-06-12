@@ -781,8 +781,7 @@ static void pnv_xive_ic_reg_write(void *opaque, hwaddr offset,
          * support recently though)
          */
         if (val & (VC_SBC_CONF_CPLX_CIST | VC_SBC_CONF_CIST_BOTH)) {
-            object_property_set_int(OBJECT(&xive->ipi_source),
-                                    XIVE_SRC_STORE_EOI, "flags", &error_fatal);
+            xive->ipi_source.esb_flags |= XIVE_SRC_STORE_EOI;
         }
         break;
 
