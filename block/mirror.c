@@ -42,6 +42,7 @@ typedef struct MirrorBlockJob {
     BlockBackend *target;
     BlockDriverState *mirror_top_bs;
     BlockDriverState *base;
+    BlockDriverState *base_overlay;
 
     /* The name of the graph node to replace */
     char *replaces;
@@ -677,8 +678,10 @@ static int mirror_exit_common(Job *job)
                              &error_abort);
     if (!abort && s->backing_mode == MIRROR_SOURCE_BACKING_CHAIN) {
         BlockDriverState *backing = s->is_none_mode ? src : s->base;
-        if (backing_bs(target_bs) != backing) {
-            bdrv_set_backing_hd(target_bs, backing, &local_err);
+        BlockDriverState *unfiltered_target = bdrv_skip_filters(target_bs);
+
+        if (bdrv_cow_bs(unfiltered_target) != backing) {
+            bdrv_set_backing_hd(unfiltered_target, backing, &local_err);
             if (local_err) {
                 error_report_err(local_err);
                 local_err = NULL;
@@ -740,7 +743,7 @@ static int mirror_exit_common(Job *job)
      * valid.
      */
     block_job_remove_all_bdrv(bjob);
-    bdrv_replace_node(mirror_top_bs, backing_bs(mirror_top_bs), &error_abort);
+    bdrv_replace_node(mirror_top_bs, mirror_top_bs->backing->bs, &error_abort);
 
     /* We just changed the BDS the job BB refers to (with either or both of the
      * bdrv_replace_node() calls), so switch the BB back so the cleanup does
@@ -786,7 +789,6 @@ static void coroutine_fn mirror_throttle(MirrorBlockJob *s)
 static int coroutine_fn mirror_dirty_init(MirrorBlockJob *s)
 {
     int64_t offset;
-    BlockDriverState *base = s->base;
     BlockDriverState *bs = s->mirror_top_bs->backing->bs;
     BlockDriverState *target_bs = blk_bs(s->target);
     int ret;
@@ -837,7 +839,8 @@ static int coroutine_fn mirror_dirty_init(MirrorBlockJob *s)
             return 0;
         }
 
-        ret = bdrv_is_allocated_above(bs, base, false, offset, bytes, &count);
+        ret = bdrv_is_allocated_above(bs, s->base_overlay, true, offset, bytes,
+                                      &count);
         if (ret < 0) {
             return ret;
         }
@@ -936,7 +939,7 @@ static int coroutine_fn mirror_run(Job *job, Error **errp)
     } else {
         s->target_cluster_size = BDRV_SECTOR_SIZE;
     }
-    if (backing_filename[0] && !target_bs->backing &&
+    if (backing_filename[0] && !bdrv_backing_chain_next(target_bs) &&
         s->granularity < s->target_cluster_size) {
         s->buf_size = MAX(s->buf_size, s->target_cluster_size);
         s->cow_bitmap = bitmap_new(length);
@@ -1116,8 +1119,9 @@ static void mirror_complete(Job *job, Error **errp)
     if (s->backing_mode == MIRROR_OPEN_BACKING_CHAIN) {
         int ret;
 
-        assert(!target->backing);
-        ret = bdrv_open_backing_file(target, NULL, "backing", errp);
+        assert(!bdrv_backing_chain_next(target));
+        ret = bdrv_open_backing_file(bdrv_skip_filters(target), NULL,
+                                     "backing", errp);
         if (ret < 0) {
             return;
         }
@@ -1555,8 +1559,8 @@ static BlockJob *mirror_start_job(
     MirrorBlockJob *s;
     MirrorBDSOpaque *bs_opaque;
     BlockDriverState *mirror_top_bs;
-    bool target_graph_mod;
     bool target_is_backing;
+    uint64_t target_perms, target_shared_perms;
     Error *local_err = NULL;
     int ret;
 
@@ -1575,7 +1579,7 @@ static BlockJob *mirror_start_job(
         buf_size = DEFAULT_MIRROR_BUF_SIZE;
     }
 
-    if (bs == target) {
+    if (bdrv_skip_filters(bs) == bdrv_skip_filters(target)) {
         error_setg(errp, "Can't mirror node into itself");
         return NULL;
     }
@@ -1639,15 +1643,50 @@ static BlockJob *mirror_start_job(
      * In the case of active commit, things look a bit different, though,
      * because the target is an already populated backing file in active use.
      * We can allow anything except resize there.*/
+
+    target_perms = BLK_PERM_WRITE;
+    target_shared_perms = BLK_PERM_WRITE_UNCHANGED;
+
     target_is_backing = bdrv_chain_contains(bs, target);
-    target_graph_mod = (backing_mode != MIRROR_LEAVE_BACKING_CHAIN);
+    if (target_is_backing) {
+        int64_t bs_size, target_size;
+        bs_size = bdrv_getlength(bs);
+        if (bs_size < 0) {
+            error_setg_errno(errp, -bs_size,
+                             "Could not inquire top image size");
+            goto fail;
+        }
+
+        target_size = bdrv_getlength(target);
+        if (target_size < 0) {
+            error_setg_errno(errp, -target_size,
+                             "Could not inquire base image size");
+            goto fail;
+        }
+
+        if (target_size < bs_size) {
+            target_perms |= BLK_PERM_RESIZE;
+        }
+
+        target_shared_perms |= BLK_PERM_CONSISTENT_READ
+                            |  BLK_PERM_WRITE
+                            |  BLK_PERM_GRAPH_MOD;
+    } else if (bdrv_chain_contains(bs, bdrv_skip_filters(target))) {
+        /*
+         * We may want to allow this in the future, but it would
+         * require taking some extra care.
+         */
+        error_setg(errp, "Cannot mirror to a filter on top of a node in the "
+                   "source's backing chain");
+        goto fail;
+    }
+
+    if (backing_mode != MIRROR_LEAVE_BACKING_CHAIN) {
+        target_perms |= BLK_PERM_GRAPH_MOD;
+    }
+
     s->target = blk_new(s->common.job.aio_context,
-                        BLK_PERM_WRITE | BLK_PERM_RESIZE |
-                        (target_graph_mod ? BLK_PERM_GRAPH_MOD : 0),
-                        BLK_PERM_WRITE_UNCHANGED |
-                        (target_is_backing ? BLK_PERM_CONSISTENT_READ |
-                                             BLK_PERM_WRITE |
-                                             BLK_PERM_GRAPH_MOD : 0));
+                        target_perms, target_shared_perms);
     ret = blk_insert_bs(s->target, target, errp);
     if (ret < 0) {
         goto fail;
@@ -1672,6 +1711,7 @@ static BlockJob *mirror_start_job(
     s->zero_target = zero_target;
     s->copy_mode = copy_mode;
     s->base = base;
+    s->base_overlay = bdrv_find_overlay(bs, base);
     s->granularity = granularity;
     s->buf_size = ROUND_UP(buf_size, granularity);
     s->unmap = unmap;
@@ -1702,15 +1742,39 @@ static BlockJob *mirror_start_job(
     /* In commit_active_start() all intermediate nodes disappear, so
      * any jobs in them must be blocked */
     if (target_is_backing) {
-        BlockDriverState *iter;
-        for (iter = backing_bs(bs); iter != target; iter = backing_bs(iter)) {
-            /* XXX BLK_PERM_WRITE needs to be allowed so we don't block
-             * ourselves at s->base (if writes are blocked for a node, they are
-             * also blocked for its backing file). The other options would be a
-             * second filter driver above s->base (== target). */
+        BlockDriverState *iter, *filtered_target;
+        uint64_t iter_shared_perms;
+
+        /*
+         * The topmost node with
+         * bdrv_skip_filters(filtered_target) == bdrv_skip_filters(target)
+         */
+        filtered_target = bdrv_cow_bs(bdrv_find_overlay(bs, target));
+
+        assert(bdrv_skip_filters(filtered_target) ==
+               bdrv_skip_filters(target));
+
+        /*
+         * XXX BLK_PERM_WRITE needs to be allowed so we don't block
+         * ourselves at s->base (if writes are blocked for a node, they are
+         * also blocked for its backing file). The other options would be a
+         * second filter driver above s->base (== target).
+         */
+        iter_shared_perms = BLK_PERM_WRITE_UNCHANGED | BLK_PERM_WRITE;
+
+        for (iter = bdrv_filter_or_cow_bs(bs); iter != target;
+             iter = bdrv_filter_or_cow_bs(iter))
+        {
+            if (iter == filtered_target) {
+                /*
+                 * From here on, all nodes are filters on the base.
+                 * This allows us to share BLK_PERM_CONSISTENT_READ.
+                 */
+                iter_shared_perms |= BLK_PERM_CONSISTENT_READ;
+            }
+
             ret = block_job_add_bdrv(&s->common, "intermediate node", iter, 0,
-                                     BLK_PERM_WRITE_UNCHANGED | BLK_PERM_WRITE,
-                                     errp);
+                                     iter_shared_perms, errp);
             if (ret < 0) {
                 goto fail;
             }
@@ -1746,7 +1810,7 @@ fail:
     bs_opaque->stop = true;
     bdrv_child_refresh_perms(mirror_top_bs, mirror_top_bs->backing,
                              &error_abort);
-    bdrv_replace_node(mirror_top_bs, backing_bs(mirror_top_bs), &error_abort);
+    bdrv_replace_node(mirror_top_bs, mirror_top_bs->backing->bs, &error_abort);
 
     bdrv_unref(mirror_top_bs);
 
@@ -1774,7 +1838,7 @@ void mirror_start(const char *job_id, BlockDriverState *bs,
         return;
     }
     is_none_mode = mode == MIRROR_SYNC_MODE_NONE;
-    base = mode == MIRROR_SYNC_MODE_TOP ? backing_bs(bs) : NULL;
+    base = mode == MIRROR_SYNC_MODE_TOP ? bdrv_backing_chain_next(bs) : NULL;
     mirror_start_job(job_id, bs, creation_flags, target, replaces,
                      speed, granularity, buf_size, backing_mode, zero_target,
                      on_source_error, on_target_error, unmap, NULL, NULL,

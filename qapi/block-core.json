@@ -1948,7 +1948,8 @@
 #
 # @replaces: with sync=full graph node name to be replaced by the new
 #            image when a whole image copy is done. This can be used to repair
-#            broken Quorum files. (Since 2.1)
+#            broken Quorum files.  By default, @device is replaced, although
+#            implicitly created filters on it are kept. (Since 2.1)
 #
 # @mode: whether and how QEMU should create a new image, default is
 #        'absolute-paths'.
@@ -2259,7 +2260,8 @@
 #
 # @replaces: with sync=full graph node name to be replaced by the new
 #            image when a whole image copy is done. This can be used to repair
-#            broken Quorum files.
+#            broken Quorum files.  By default, @device is replaced, although
+#            implicitly created filters on it are kept.
 #
 # @speed:  the maximum speed, in bytes per second
 #
