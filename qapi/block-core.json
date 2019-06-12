@@ -2484,12 +2484,19 @@
 # of 'device'.
 #
 # If a base file is specified then sectors are not copied from that base file and
-# its backing chain.  When streaming completes the image file will have the base
-# file as its backing file.  This can be used to stream a subset of the backing
-# file chain instead of flattening the entire image.
+# its backing chain.  This can be used to stream a subset of the backing file
+# chain instead of flattening the entire image.
+# When streaming completes the image file will have the base file as its backing
+# file, unless that node was changed while the job was running.  In that case,
+# base's parent's backing (or filtered, whichever exists) child (i.e., base at
+# the beginning of the job) will be the new backing file.
 #
 # On successful completion the image file is updated to drop the backing file
 # and the BLOCK_JOB_COMPLETED event is emitted.
+#
+# In case @device is a filter node, block-stream modifies the first non-filter
+# overlay node below it to point to the new backing node instead of modifying
+# @device itself.
 #
 # @job-id: identifier for the newly-created block job. If
 #          omitted, the device name will be used. (Since 2.7)
