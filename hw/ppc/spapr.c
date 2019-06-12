@@ -1310,8 +1310,7 @@ static void *spapr_build_fdt(SpaprMachineState *spapr)
     }
 
     QLIST_FOREACH(phb, &spapr->phbs, list) {
-        ret = spapr_populate_pci_dt(phb, PHANDLE_INTC, fdt,
-                                    spapr->irq->nr_msis, NULL);
+        ret = spapr_dt_phb(phb, PHANDLE_INTC, fdt, spapr->irq->nr_msis, NULL);
         if (ret < 0) {
             error_report("couldn't setup PCI devices in fdt");
             exit(1);
@@ -1322,13 +1321,12 @@ static void *spapr_build_fdt(SpaprMachineState *spapr)
     spapr_populate_cpus_dt_node(fdt, spapr);
 
     if (smc->dr_lmb_enabled) {
-        _FDT(spapr_drc_populate_dt(fdt, 0, NULL, SPAPR_DR_CONNECTOR_TYPE_LMB));
+        _FDT(spapr_dt_drc(fdt, 0, NULL, SPAPR_DR_CONNECTOR_TYPE_LMB));
     }
 
     if (mc->has_hotpluggable_cpus) {
         int offset = fdt_path_offset(fdt, "/cpus");
-        ret = spapr_drc_populate_dt(fdt, offset, NULL,
-                                    SPAPR_DR_CONNECTOR_TYPE_CPU);
+        ret = spapr_dt_drc(fdt, offset, NULL, SPAPR_DR_CONNECTOR_TYPE_CPU);
         if (ret < 0) {
             error_report("Couldn't set up CPU DR device tree properties");
             exit(1);
@@ -1365,7 +1363,7 @@ static void *spapr_build_fdt(SpaprMachineState *spapr)
     }
 
     if (smc->dr_phb_enabled) {
-        ret = spapr_drc_populate_dt(fdt, 0, NULL, SPAPR_DR_CONNECTOR_TYPE_PHB);
+        ret = spapr_dt_drc(fdt, 0, NULL, SPAPR_DR_CONNECTOR_TYPE_PHB);
         if (ret < 0) {
             error_report("Couldn't set up PHB DR device tree properties");
             exit(1);
@@ -3918,8 +3916,8 @@ int spapr_phb_dt_populate(SpaprDrc *drc, SpaprMachineState *spapr,
         return -1;
     }
 
-    if (spapr_populate_pci_dt(sphb, intc_phandle, fdt, spapr->irq->nr_msis,
-                              fdt_start_offset)) {
+    if (spapr_dt_phb(sphb, intc_phandle, fdt, spapr->irq->nr_msis,
+                     fdt_start_offset)) {
         error_setg(errp, "unable to create FDT node for PHB %d", sphb->index);
         return -1;
     }
@@ -4096,6 +4094,17 @@ static HotplugHandler *spapr_get_hotplug_handler(MachineState *machine,
         object_dynamic_cast(OBJECT(dev), TYPE_SPAPR_CPU_CORE) ||
         object_dynamic_cast(OBJECT(dev), TYPE_SPAPR_PCI_HOST_BRIDGE)) {
         return HOTPLUG_HANDLER(machine);
+    }
+    if (object_dynamic_cast(OBJECT(dev), TYPE_PCI_DEVICE)) {
+        PCIDevice *pcidev = PCI_DEVICE(dev);
+        PCIBus *root = pci_device_root_bus(pcidev);
+        SpaprPhbState *phb =
+            (SpaprPhbState *)object_dynamic_cast(OBJECT(BUS(root)->parent),
+                                                 TYPE_SPAPR_PCI_HOST_BRIDGE);
+
+        if (phb) {
+            return HOTPLUG_HANDLER(phb);
+        }
     }
     return NULL;
 }
