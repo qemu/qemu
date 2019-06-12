@@ -20,10 +20,11 @@ The XIVE IC is composed of three sub-engines, each taking care of a
 processing layer of external interrupts:
 
 - Interrupt Virtualization Source Engine (IVSE), or Source Controller
-  (SC). These are found in PCI PHBs, in the PSI host bridge
-  controller, but also inside the main controller for the core IPIs
-  and other sub-chips (NX, CAP, NPU) of the chip/processor. They are
-  configured to feed the IVRE with events.
+  (SC). These are found in PCI PHBs, in the Processor Service
+  Interface (PSI) host bridge Controller, but also inside the main
+  controller for the core IPIs and other sub-chips (NX, CAP, NPU) of
+  the chip/processor. They are configured to feed the IVRE with
+  events.
 - Interrupt Virtualization Routing Engine (IVRE) or Virtualization
   Controller (VC). It handles event coalescing and perform interrupt
   routing by matching an event source number with an Event
