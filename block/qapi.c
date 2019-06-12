@@ -288,7 +288,7 @@ void bdrv_query_image_info(BlockDriverState *bs,
     info->virtual_size    = size;
     info->actual_size     = bdrv_get_allocated_file_size(bs);
     info->has_actual_size = info->actual_size >= 0;
-    if (bdrv_is_encrypted(bs)) {
+    if (bs->encrypted) {
         info->encrypted = true;
         info->has_encrypted = true;
     }

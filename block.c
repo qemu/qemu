@@ -5065,14 +5065,6 @@ bool bdrv_is_sg(BlockDriverState *bs)
     return bs->sg;
 }
 
-bool bdrv_is_encrypted(BlockDriverState *bs)
-{
-    if (bs->backing && bs->backing->bs->encrypted) {
-        return true;
-    }
-    return bs->encrypted;
-}
-
 const char *bdrv_get_format_name(BlockDriverState *bs)
 {
     return bs->drv ? bs->drv->format_name : NULL;
