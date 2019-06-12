@@ -4267,7 +4267,7 @@ void cpu_x86_cpuid(CPUX86State *env, uint32_t index, uint32_t count,
 {
     X86CPU *cpu = env_archcpu(env);
     CPUState *cs = env_cpu(env);
-    uint32_t pkg_offset;
+    uint32_t die_offset;
     uint32_t limit;
     uint32_t signature[3];
 
@@ -4356,10 +4356,11 @@ void cpu_x86_cpuid(CPUX86State *env, uint32_t index, uint32_t count,
                                     eax, ebx, ecx, edx);
                 break;
             case 3: /* L3 cache info */
-                pkg_offset = apicid_pkg_offset(cs->nr_cores, cs->nr_threads);
+                die_offset = apicid_die_offset(env->nr_dies,
+                                        cs->nr_cores, cs->nr_threads);
                 if (cpu->enable_l3_cache) {
                     encode_cache_cpuid4(env->cache_info_cpuid4.l3_cache,
-                                        (1 << pkg_offset), cs->nr_cores,
+                                        (1 << die_offset), cs->nr_cores,
                                         eax, ebx, ecx, edx);
                     break;
                 }
@@ -4441,12 +4442,14 @@ void cpu_x86_cpuid(CPUX86State *env, uint32_t index, uint32_t count,
 
         switch (count) {
         case 0:
-            *eax = apicid_core_offset(cs->nr_cores, cs->nr_threads);
+            *eax = apicid_core_offset(env->nr_dies,
+                                      cs->nr_cores, cs->nr_threads);
             *ebx = cs->nr_threads;
             *ecx |= CPUID_TOPOLOGY_LEVEL_SMT;
             break;
         case 1:
-            *eax = apicid_pkg_offset(cs->nr_cores, cs->nr_threads);
+            *eax = apicid_pkg_offset(env->nr_dies,
+                                     cs->nr_cores, cs->nr_threads);
             *ebx = cs->nr_cores * cs->nr_threads;
             *ecx |= CPUID_TOPOLOGY_LEVEL_CORE;
             break;
