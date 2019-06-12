@@ -27,9 +27,9 @@
 # Creator/Owner: Max Reitz <mreitz@redhat.com>
 
 import iotests
-from iotests import log
+from iotests import log, qemu_img, qemu_io_silent
 
-iotests.verify_platform(['linux'])
+iotests.verify_image_format(supported_fmts=['qcow2', 'raw'])
 
 
 # Launches the VM, adds two null-co nodes (source and target), and
@@ -136,3 +136,54 @@ with iotests.VM() as vm:
 
     log(vm.event_wait('BLOCK_JOB_CANCELLED'),
         filters=[iotests.filter_qmp_event])
+
+log('')
+log('=== Cancel mirror job from throttled node by quitting ===')
+log('')
+
+with iotests.VM() as vm, \
+     iotests.FilePath('src.img') as src_img_path:
+
+    assert qemu_img('create', '-f', iotests.imgfmt, src_img_path, '64M') == 0
+    assert qemu_io_silent('-f', iotests.imgfmt, src_img_path,
+                          '-c', 'write -P 42 0M 64M') == 0
+
+    vm.launch()
+
+    ret = vm.qmp('object-add', qom_type='throttle-group', id='tg',
+                 props={'x-bps-read': 4096})
+    assert ret['return'] == {}
+
+    ret = vm.qmp('blockdev-add',
+                 node_name='source',
+                 driver=iotests.imgfmt,
+                 file={
+                     'driver': 'file',
+                     'filename': src_img_path
+                 })
+    assert ret['return'] == {}
+
+    ret = vm.qmp('blockdev-add',
+                 node_name='throttled-source',
+                 driver='throttle',
+                 throttle_group='tg',
+                 file='source')
+    assert ret['return'] == {}
+
+    ret = vm.qmp('blockdev-add',
+                 node_name='target',
+                 driver='null-co',
+                 size=(64 * 1048576))
+    assert ret['return'] == {}
+
+    ret = vm.qmp('blockdev-mirror',
+                 job_id='mirror',
+                 device='throttled-source',
+                 target='target',
+                 sync='full')
+    assert ret['return'] == {}
+
+    log(vm.qmp('quit'))
+
+    with iotests.Timeout(5, 'Timeout waiting for VM to quit'):
+        vm.shutdown(has_quit=True)
