@@ -21,15 +21,18 @@
 #include "qapi/error.h"
 #include "trace.h"
 #include "nbd-internal.h"
+#include "qemu/units.h"
 
 #define NBD_META_ID_BASE_ALLOCATION 0
 #define NBD_META_ID_DIRTY_BITMAP 1
 
-/* NBD_MAX_BITMAP_EXTENTS: 1 mb of extents data. An empirical
+/*
+ * NBD_MAX_BLOCK_STATUS_EXTENTS: 1 MiB of extents data. An empirical
  * constant. If an increase is needed, note that the NBD protocol
  * recommends no larger than 32 mb, so that the client won't consider
- * the reply as a denial of service attack. */
-#define NBD_MAX_BITMAP_EXTENTS (0x100000 / 8)
+ * the reply as a denial of service attack.
+ */
+#define NBD_MAX_BLOCK_STATUS_EXTENTS (1 * MiB / 8)
 
 static int system_errno_to_nbd_errno(int err)
 {
@@ -1960,7 +1963,7 @@ static int nbd_co_send_block_status(NBDClient *client, uint64_t handle,
                                     Error **errp)
 {
     int ret;
-    unsigned int nb_extents = dont_fragment ? 1 : NBD_MAX_BITMAP_EXTENTS;
+    unsigned int nb_extents = dont_fragment ? 1 : NBD_MAX_BLOCK_STATUS_EXTENTS;
     NBDExtent *extents = g_new(NBDExtent, nb_extents);
     uint64_t final_length = length;
 
@@ -2045,7 +2048,7 @@ static int nbd_co_send_bitmap(NBDClient *client, uint64_t handle,
                               uint32_t context_id, Error **errp)
 {
     int ret;
-    unsigned int nb_extents = dont_fragment ? 1 : NBD_MAX_BITMAP_EXTENTS;
+    unsigned int nb_extents = dont_fragment ? 1 : NBD_MAX_BLOCK_STATUS_EXTENTS;
     NBDExtent *extents = g_new(NBDExtent, nb_extents);
     uint64_t final_length = length;
 

@@ -24,7 +24,7 @@ import socket
 import stat
 import time
 import iotests
-from iotests import cachemode, imgfmt, qemu_img, qemu_nbd, qemu_nbd_pipe
+from iotests import cachemode, imgfmt, qemu_img, qemu_nbd, qemu_nbd_early_pipe
 
 NBD_PORT_START      = 32768
 NBD_PORT_END        = NBD_PORT_START + 1024
@@ -93,7 +93,7 @@ class QemuNBD(NBDBlockdevAddBase):
             pass
 
     def _try_server_up(self, *args):
-        status, msg = qemu_nbd_pipe('-f', imgfmt, test_img, *args)
+        status, msg = qemu_nbd_early_pipe('-f', imgfmt, test_img, *args)
         if status == 0:
             return True
         if 'Address already in use' in msg:
