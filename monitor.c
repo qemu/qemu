@@ -193,7 +193,6 @@ struct Monitor {
     bool use_io_thread;
 
     gchar *mon_cpu_path;
-    mon_cmd_t *cmd_table;
     QTAILQ_ENTRY(Monitor) entry;
 
     /*
@@ -722,8 +721,6 @@ static void monitor_data_init(Monitor *mon, int flags, bool skip_flush,
     }
     qemu_mutex_init(&mon->mon_lock);
     mon->outbuf = qstring_new();
-    /* Use *mon_cmds by default. */
-    mon->cmd_table = mon_cmds;
     mon->skip_flush = skip_flush;
     mon->use_io_thread = use_io_thread;
     mon->flags = flags;
@@ -1024,7 +1021,7 @@ static void help_cmd(Monitor *mon, const char *name)
     }
 
     /* 2. dump the contents according to parsed args */
-    help_cmd_dump(mon, mon->cmd_table, args, nb_args, 0);
+    help_cmd_dump(mon, mon_cmds, args, nb_args, 0);
 
     free_cmdline_args(args, nb_args);
 }
@@ -3485,7 +3482,7 @@ static void handle_hmp_command(MonitorHMP *mon, const char *cmdline)
 
     trace_handle_hmp_command(mon, cmdline);
 
-    cmd = monitor_parse_command(mon, cmdline, &cmdline, mon->common.cmd_table);
+    cmd = monitor_parse_command(mon, cmdline, &cmdline, mon_cmds);
     if (!cmd) {
         return;
     }
@@ -4132,7 +4129,7 @@ static void monitor_find_completion(void *opaque,
     }
 
     /* 2. auto complete according to args */
-    monitor_find_completion_by_table(mon, mon->common.cmd_table, args, nb_args);
+    monitor_find_completion_by_table(mon, mon_cmds, args, nb_args);
 
 cleanup:
     free_cmdline_args(args, nb_args);
