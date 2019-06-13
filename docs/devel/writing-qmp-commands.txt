@@ -470,7 +470,7 @@ it's good practice to always check for errors.
 
 Another important detail is that HMP's "info" commands don't go into the
 hmp-commands.hx. Instead, they go into the info_cmds[] table, which is defined
-in the monitor.c file. The entry for the "info alarmclock" follows:
+in the monitor/misc.c file. The entry for the "info alarmclock" follows:
 
     {
         .name       = "alarmclock",

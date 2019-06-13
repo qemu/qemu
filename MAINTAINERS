@@ -1918,7 +1918,7 @@ F: qapi/run-state.json
 Human Monitor (HMP)
 M: Dr. David Alan Gilbert <dgilbert@redhat.com>
 S: Maintained
-F: monitor.c
+F: monitor/misc.c
 F: hmp.[ch]
 F: hmp-commands*.hx
 F: include/monitor/hmp-target.h
@@ -2040,7 +2040,7 @@ QMP
 M: Markus Armbruster <armbru@redhat.com>
 S: Supported
 F: qmp.c
-F: monitor.c
+F: monitor/misc.c
 F: docs/devel/*qmp-*
 F: docs/interop/*qmp-*
 F: scripts/qmp/
