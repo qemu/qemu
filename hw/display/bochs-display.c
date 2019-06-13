@@ -338,7 +338,7 @@ static void bochs_display_exit(PCIDevice *dev)
 
 static Property bochs_display_properties[] = {
     DEFINE_PROP_SIZE("vgamem", BochsDisplayState, vgamem, 16 * MiB),
-    DEFINE_PROP_BOOL("edid", BochsDisplayState, enable_edid, false),
+    DEFINE_PROP_BOOL("edid", BochsDisplayState, enable_edid, true),
     DEFINE_EDID_PROPERTIES(BochsDisplayState, edid_info),
     DEFINE_PROP_END_OF_LIST(),
 };
