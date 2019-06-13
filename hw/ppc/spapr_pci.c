@@ -1356,12 +1356,11 @@ static int spapr_dt_pci_bus(SpaprPhbState *sphb, PCIBus *bus,
     _FDT(fdt_setprop_cell(fdt, offset, "#size-cells",
                           RESOURCE_CELLS_SIZE));
 
-    if (bus) {
-        pci_for_each_device_reverse(bus, pci_bus_num(bus),
-                                    spapr_dt_pci_device_cb, &cbinfo);
-        if (cbinfo.err) {
-            return cbinfo.err;
-        }
+    assert(bus);
+    pci_for_each_device_reverse(bus, pci_bus_num(bus),
+                                spapr_dt_pci_device_cb, &cbinfo);
+    if (cbinfo.err) {
+        return cbinfo.err;
     }
 
     ret = spapr_dt_drc(fdt, offset, OBJECT(bus->parent_dev),
