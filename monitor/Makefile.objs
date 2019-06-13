@@ -1,1 +1,2 @@
 obj-y += misc.o
+common-obj-y += qmp-cmds.o hmp-cmds.o

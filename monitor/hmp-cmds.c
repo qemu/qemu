@@ -1,5 +1,5 @@
 /*
- * Human Monitor Interface
+ * Human Monitor Interface commands
  *
  * Copyright IBM, Corp. 2011
  *

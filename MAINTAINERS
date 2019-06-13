@@ -1919,7 +1919,8 @@ Human Monitor (HMP)
 M: Dr. David Alan Gilbert <dgilbert@redhat.com>
 S: Maintained
 F: monitor/misc.c
-F: hmp.[ch]
+F: monitor/hmp*
+F: hmp.h
 F: hmp-commands*.hx
 F: include/monitor/hmp-target.h
 F: tests/test-hmp.c
@@ -2039,7 +2040,7 @@ F: tests/check-qom-proplist.c
 QMP
 M: Markus Armbruster <armbru@redhat.com>
 S: Supported
-F: qmp.c
+F: monitor/qmp*
 F: monitor/misc.c
 F: docs/devel/*qmp-*
 F: docs/interop/*qmp-*

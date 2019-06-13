@@ -1,5 +1,5 @@
 /*
- * QEMU Management Protocol
+ * QEMU Management Protocol commands
  *
  * Copyright IBM, Corp. 2011
  *
