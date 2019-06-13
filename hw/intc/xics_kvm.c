@@ -452,3 +452,33 @@ void xics_kvm_disconnect(SpaprMachineState *spapr, Error **errp)
     /* Clear the presenter from the VCPUs */
     kvm_disable_icps();
 }
+
+/*
+ * This is a heuristic to detect older KVMs on POWER9 hosts that don't
+ * support destruction of a KVM XICS device while the VM is running.
+ * Required to start a spapr machine with ic-mode=dual,kernel-irqchip=on.
+ */
+bool xics_kvm_has_broken_disconnect(SpaprMachineState *spapr)
+{
+    int rc;
+
+    rc = kvm_create_device(kvm_state, KVM_DEV_TYPE_XICS, false);
+    if (rc < 0) {
+        /*
+         * The error is ignored on purpose. The KVM XICS setup code
+         * will catch it again anyway. The goal here is to see if
+         * close() actually destroys the device or not.
+         */
+        return false;
+    }
+
+    close(rc);
+
+    rc = kvm_create_device(kvm_state, KVM_DEV_TYPE_XICS, false);
+    if (rc >= 0) {
+        close(rc);
+        return false;
+    }
+
+    return errno == EEXIST;
+}

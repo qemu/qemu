@@ -669,6 +669,19 @@ static void spapr_irq_check(SpaprMachineState *spapr, Error **errp)
             return;
         }
     }
+
+    /*
+     * On a POWER9 host, some older KVM XICS devices cannot be destroyed and
+     * re-created. Detect that early to avoid QEMU to exit later when the
+     * guest reboots.
+     */
+    if (kvm_enabled() &&
+        spapr->irq == &spapr_irq_dual &&
+        machine_kernel_irqchip_required(machine) &&
+        xics_kvm_has_broken_disconnect(spapr)) {
+        error_setg(errp, "KVM is too old to support ic-mode=dual,kernel-irqchip=on");
+        return;
+    }
 }
 
 /*

@@ -142,8 +142,8 @@ xics            XICS KVM       XICS emul.     XICS KVM
 (3) QEMU fails at CAS with ``Guest requested unavailable interrupt
     mode (XICS), either don't set the ic-mode machine property or try
     ic-mode=xics or ic-mode=dual``
-(4) QEMU/KVM incompatibility due to device destruction in reset. This
-    needs to be addressed more cleanly with an error.
+(4) QEMU/KVM incompatibility due to device destruction in reset. QEMU fails
+    with ``KVM is too old to support ic-mode=dual,kernel-irqchip=on``
 
 
 XIVE Device tree properties
