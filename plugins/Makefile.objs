@@ -4,3 +4,4 @@
 
 obj-y += loader.o
 obj-y += core.o
+obj-y += api.o
