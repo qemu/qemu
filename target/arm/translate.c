@@ -1374,38 +1374,6 @@ static TCGv_ptr get_fpstatus_ptr(int neon)
     return statusptr;
 }
 
-#define VFP_GEN_ITOF(name) \
-static inline void gen_vfp_##name(int dp, int neon) \
-{ \
-    TCGv_ptr statusptr = get_fpstatus_ptr(neon); \
-    if (dp) { \
-        gen_helper_vfp_##name##d(cpu_F0d, cpu_F0s, statusptr); \
-    } else { \
-        gen_helper_vfp_##name##s(cpu_F0s, cpu_F0s, statusptr); \
-    } \
-    tcg_temp_free_ptr(statusptr); \
-}
-
-VFP_GEN_ITOF(uito)
-VFP_GEN_ITOF(sito)
-#undef VFP_GEN_ITOF
-
-#define VFP_GEN_FTOI(name) \
-static inline void gen_vfp_##name(int dp, int neon) \
-{ \
-    TCGv_ptr statusptr = get_fpstatus_ptr(neon); \
-    if (dp) { \
-        gen_helper_vfp_##name##d(cpu_F0s, cpu_F0d, statusptr); \
-    } else { \
-        gen_helper_vfp_##name##s(cpu_F0s, cpu_F0s, statusptr); \
-    } \
-    tcg_temp_free_ptr(statusptr); \
-}
-
-VFP_GEN_FTOI(touiz)
-VFP_GEN_FTOI(tosiz)
-#undef VFP_GEN_FTOI
-
 #define VFP_GEN_FIX(name, round) \
 static inline void gen_vfp_##name(int dp, int shift, int neon) \
 { \
@@ -4173,17 +4141,6 @@ static const uint8_t neon_3r_sizes[] = {
 #define NEON_2RM_VCVT_SF 62
 #define NEON_2RM_VCVT_UF 63
 
-static int neon_2rm_is_float_op(int op)
-{
-    /*
-     * Return true if this neon 2reg-misc op is float-to-float.
-     * This is not a property of the operation but of our code --
-     * what we are asking here is "does the code for this case in
-     * the Neon for-each-pass loop use cpu_F0s?".
-     */
-    return op >= NEON_2RM_VCVT_FS;
-}
-
 static bool neon_2rm_is_v8_op(int op)
 {
     /* Return true if this neon 2reg-misc op is ARMv8 and up */
@@ -6599,13 +6556,7 @@ static int disas_neon_data_insn(DisasContext *s, uint32_t insn)
                 default:
                 elementwise:
                     for (pass = 0; pass < (q ? 4 : 2); pass++) {
-                        if (neon_2rm_is_float_op(op)) {
-                            tcg_gen_ld_f32(cpu_F0s, cpu_env,
-                                           neon_reg_offset(rm, pass));
-                            tmp = NULL;
-                        } else {
-                            tmp = neon_load_reg(rm, pass);
-                        }
+                        tmp = neon_load_reg(rm, pass);
                         switch (op) {
                         case NEON_2RM_VREV32:
                             switch (size) {
@@ -6860,29 +6811,40 @@ static int disas_neon_data_insn(DisasContext *s, uint32_t insn)
                             break;
                         }
                         case NEON_2RM_VCVT_FS: /* VCVT.F32.S32 */
-                            gen_vfp_sito(0, 1);
+                        {
+                            TCGv_ptr fpstatus = get_fpstatus_ptr(1);
+                            gen_helper_vfp_sitos(tmp, tmp, fpstatus);
+                            tcg_temp_free_ptr(fpstatus);
                             break;
+                        }
                         case NEON_2RM_VCVT_FU: /* VCVT.F32.U32 */
-                            gen_vfp_uito(0, 1);
+                        {
+                            TCGv_ptr fpstatus = get_fpstatus_ptr(1);
+                            gen_helper_vfp_uitos(tmp, tmp, fpstatus);
+                            tcg_temp_free_ptr(fpstatus);
                             break;
+                        }
                         case NEON_2RM_VCVT_SF: /* VCVT.S32.F32 */
-                            gen_vfp_tosiz(0, 1);
+                        {
+                            TCGv_ptr fpstatus = get_fpstatus_ptr(1);
+                            gen_helper_vfp_tosizs(tmp, tmp, fpstatus);
+                            tcg_temp_free_ptr(fpstatus);
                             break;
+                        }
                         case NEON_2RM_VCVT_UF: /* VCVT.U32.F32 */
-                            gen_vfp_touiz(0, 1);
+                        {
+                            TCGv_ptr fpstatus = get_fpstatus_ptr(1);
+                            gen_helper_vfp_touizs(tmp, tmp, fpstatus);
+                            tcg_temp_free_ptr(fpstatus);
                             break;
+                        }
                         default:
                             /* Reserved op values were caught by the
                              * neon_2rm_sizes[] check earlier.
                              */
                             abort();
                         }
-                        if (neon_2rm_is_float_op(op)) {
-                            tcg_gen_st_f32(cpu_F0s, cpu_env,
-                                           neon_reg_offset(rd, pass));
-                        } else {
-                            neon_store_reg(rd, pass, tmp);
-                        }
+                        neon_store_reg(rd, pass, tmp);
                     }
                     break;
                 }
