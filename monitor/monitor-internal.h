@@ -31,6 +31,7 @@
 #include "qapi/qmp/dispatch.h"
 #include "qapi/qmp/json-parser.h"
 #include "qemu/readline.h"
+#include "sysemu/iothread.h"
 
 /*
  * Supported types:
@@ -141,5 +142,34 @@ typedef struct {
     /* Input queue that holds all the parsed QMP requests */
     GQueue *qmp_requests;
 } MonitorQMP;
+
+/**
+ * Is @mon a QMP monitor?
+ */
+static inline bool monitor_is_qmp(const Monitor *mon)
+{
+    return mon->flags & MONITOR_USE_CONTROL;
+}
+
+typedef QTAILQ_HEAD(MonitorList, Monitor) MonitorList;
+extern IOThread *mon_iothread;
+extern QEMUBH *qmp_dispatcher_bh;
+extern QmpCommandList qmp_commands, qmp_cap_negotiation_commands;
+extern QemuMutex monitor_lock;
+extern MonitorList mon_list;
+extern int mon_refcount;
+
+void monitor_init_qmp(Chardev *chr, int flags);
+
+int monitor_puts(Monitor *mon, const char *str);
+void monitor_data_init(Monitor *mon, int flags, bool skip_flush,
+                       bool use_io_thread);
+int monitor_can_read(void *opaque);
+void monitor_list_append(Monitor *mon);
+void monitor_fdsets_cleanup(void);
+
+void qmp_send_response(MonitorQMP *mon, const QDict *rsp);
+void monitor_data_destroy_qmp(MonitorQMP *mon);
+void monitor_qmp_bh_dispatcher(void *data);
 
 #endif
