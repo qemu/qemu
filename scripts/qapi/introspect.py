@@ -188,11 +188,15 @@ const QLitObject %(c_name)s = %(c_string)s;
         self._gen_qlit('[' + element + ']', 'array', {'element-type': element},
                        ifcond)
 
-    def visit_object_type_flat(self, name, info, ifcond, members, variants):
+    def visit_object_type_flat(self, name, info, ifcond, members, variants,
+                               features):
         obj = {'members': [self._gen_member(m) for m in members]}
         if variants:
             obj.update(self._gen_variants(variants.tag_member.name,
                                           variants.variants))
+        if features:
+            obj['features'] = [(f.name, {'if': f.ifcond}) for f in features]
+
         self._gen_qlit(name, 'object', obj, ifcond)
 
     def visit_alternate_type(self, name, info, ifcond, variants):

@@ -38,7 +38,8 @@ class QAPISchemaTestVisitor(QAPISchemaVisitor):
         print('array %s %s' % (name, element_type.name))
         self._print_if(ifcond)
 
-    def visit_object_type(self, name, info, ifcond, base, members, variants):
+    def visit_object_type(self, name, info, ifcond, base, members, variants,
+                          features):
         print('object %s' % name)
         if base:
             print('    base %s' % base.name)
@@ -48,6 +49,10 @@ class QAPISchemaTestVisitor(QAPISchemaVisitor):
             self._print_if(m.ifcond, 8)
         self._print_variants(variants)
         self._print_if(ifcond)
+        if features:
+            for f in features:
+                print('    feature %s' % f.name)
+                self._print_if(f.ifcond, 8)
 
     def visit_alternate_type(self, name, info, ifcond, variants):
         print('alternate %s' % name)

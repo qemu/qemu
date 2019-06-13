@@ -182,6 +182,17 @@ def texi_members(doc, what, base, variants, member_func):
     return '\n@b{%s:}\n@table @asis\n%s@end table\n' % (what, items)
 
 
+def texi_features(doc):
+    """Format the table of features"""
+    items = ''
+    for section in doc.features.values():
+        desc = texi_format(section.text)
+        items += '@item @code{%s}\n%s' % (section.name, desc)
+    if not items:
+        return ''
+    return '\n@b{Features:}\n@table @asis\n%s@end table\n' % (items)
+
+
 def texi_sections(doc, ifcond):
     """Format additional sections following arguments"""
     body = ''
@@ -201,6 +212,7 @@ def texi_entity(doc, what, ifcond, base=None, variants=None,
                 member_func=texi_member):
     return (texi_body(doc)
             + texi_members(doc, what, base, variants, member_func)
+            + texi_features(doc)
             + texi_sections(doc, ifcond))
 
 
@@ -220,7 +232,8 @@ class QAPISchemaGenDocVisitor(qapi.common.QAPISchemaVisitor):
                                body=texi_entity(doc, 'Values', ifcond,
                                                 member_func=texi_enum_value)))
 
-    def visit_object_type(self, name, info, ifcond, base, members, variants):
+    def visit_object_type(self, name, info, ifcond, base, members, variants,
+                          features):
         doc = self.cur_doc
         if base and base.is_implicit():
             base = None

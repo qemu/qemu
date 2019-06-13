@@ -172,17 +172,13 @@
 # @delay: continue to deliver ticks at the normal rate.  Guest time will be
 #         delayed due to the late tick
 #
-# @merge: merge the missed tick(s) into one tick and inject.  Guest time
-#         may be delayed, depending on how the OS reacts to the merging
-#         of ticks
-#
 # @slew: deliver ticks at a higher rate to catch up with the missed tick. The
 #        guest time should not be delayed once catchup is complete.
 #
 # Since: 2.0
 ##
 { 'enum': 'LostTickPolicy',
-  'data': ['discard', 'delay', 'merge', 'slew' ] }
+  'data': ['discard', 'delay', 'slew' ] }
 
 ##
 # @add_client:
