@@ -773,6 +773,7 @@ do
     printdiff=false # show diff to reference output?
     status=""       # test result summary
     results=""      # test result details
+    thistime=""     # time the test took
 
     if [ -n "$TESTS_REMAINING_LOG" ] ; then
         sed -e "s/$seq//" -e 's/  / /' -e 's/^ *//' $TESTS_REMAINING_LOG > $TESTS_REMAINING_LOG.tmp
