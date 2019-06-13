@@ -41,10 +41,30 @@
  * Guest interfaces
  */
 
+static bool check_in_kernel_xics(const char *func)
+{
+    if (kvm_irqchip_in_kernel()) {
+        error_report("pseries: %s must never be called for in-kernel XICS",
+                     func);
+        return true;
+    }
+
+    return false;
+}
+
+#define CHECK_IN_KERNEL_XICS_HCALL              \
+    do {                                        \
+        if (check_in_kernel_xics(__func__)) {   \
+            return H_HARDWARE;                  \
+        }                                       \
+    } while (0)
+
 static target_ulong h_cppr(PowerPCCPU *cpu, SpaprMachineState *spapr,
                            target_ulong opcode, target_ulong *args)
 {
     target_ulong cppr = args[0];
+
+    CHECK_IN_KERNEL_XICS_HCALL;
 
     icp_set_cppr(spapr_cpu_state(cpu)->icp, cppr);
     return H_SUCCESS;
@@ -55,6 +75,8 @@ static target_ulong h_ipi(PowerPCCPU *cpu, SpaprMachineState *spapr,
 {
     target_ulong mfrr = args[1];
     ICPState *icp = xics_icp_get(XICS_FABRIC(spapr), args[0]);
+
+    CHECK_IN_KERNEL_XICS_HCALL;
 
     if (!icp) {
         return H_PARAMETER;
@@ -69,6 +91,8 @@ static target_ulong h_xirr(PowerPCCPU *cpu, SpaprMachineState *spapr,
 {
     uint32_t xirr = icp_accept(spapr_cpu_state(cpu)->icp);
 
+    CHECK_IN_KERNEL_XICS_HCALL;
+
     args[0] = xirr;
     return H_SUCCESS;
 }
@@ -77,6 +101,8 @@ static target_ulong h_xirr_x(PowerPCCPU *cpu, SpaprMachineState *spapr,
                              target_ulong opcode, target_ulong *args)
 {
     uint32_t xirr = icp_accept(spapr_cpu_state(cpu)->icp);
+
+    CHECK_IN_KERNEL_XICS_HCALL;
 
     args[0] = xirr;
     args[1] = cpu_get_host_ticks();
@@ -88,6 +114,8 @@ static target_ulong h_eoi(PowerPCCPU *cpu, SpaprMachineState *spapr,
 {
     target_ulong xirr = args[0];
 
+    CHECK_IN_KERNEL_XICS_HCALL;
+
     icp_eoi(spapr_cpu_state(cpu)->icp, xirr);
     return H_SUCCESS;
 }
@@ -98,6 +126,8 @@ static target_ulong h_ipoll(PowerPCCPU *cpu, SpaprMachineState *spapr,
     ICPState *icp = xics_icp_get(XICS_FABRIC(spapr), args[0]);
     uint32_t mfrr;
     uint32_t xirr;
+
+    CHECK_IN_KERNEL_XICS_HCALL;
 
     if (!icp) {
         return H_PARAMETER;
@@ -111,6 +141,14 @@ static target_ulong h_ipoll(PowerPCCPU *cpu, SpaprMachineState *spapr,
     return H_SUCCESS;
 }
 
+#define CHECK_IN_KERNEL_XICS_RTAS(rets)                 \
+    do {                                                \
+        if (check_in_kernel_xics(__func__)) {           \
+            rtas_st((rets), 0, RTAS_OUT_HW_ERROR);      \
+            return;                                     \
+        }                                               \
+    } while (0)
+
 static void rtas_set_xive(PowerPCCPU *cpu, SpaprMachineState *spapr,
                           uint32_t token,
                           uint32_t nargs, target_ulong args,
@@ -118,6 +156,8 @@ static void rtas_set_xive(PowerPCCPU *cpu, SpaprMachineState *spapr,
 {
     ICSState *ics = spapr->ics;
     uint32_t nr, srcno, server, priority;
+
+    CHECK_IN_KERNEL_XICS_RTAS(rets);
 
     if ((nargs != 3) || (nret != 1)) {
         rtas_st(rets, 0, RTAS_OUT_PARAM_ERROR);
@@ -152,6 +192,8 @@ static void rtas_get_xive(PowerPCCPU *cpu, SpaprMachineState *spapr,
     ICSState *ics = spapr->ics;
     uint32_t nr, srcno;
 
+    CHECK_IN_KERNEL_XICS_RTAS(rets);
+
     if ((nargs != 1) || (nret != 3)) {
         rtas_st(rets, 0, RTAS_OUT_PARAM_ERROR);
         return;
@@ -181,6 +223,8 @@ static void rtas_int_off(PowerPCCPU *cpu, SpaprMachineState *spapr,
 {
     ICSState *ics = spapr->ics;
     uint32_t nr, srcno;
+
+    CHECK_IN_KERNEL_XICS_RTAS(rets);
 
     if ((nargs != 1) || (nret != 1)) {
         rtas_st(rets, 0, RTAS_OUT_PARAM_ERROR);
@@ -212,6 +256,8 @@ static void rtas_int_on(PowerPCCPU *cpu, SpaprMachineState *spapr,
 {
     ICSState *ics = spapr->ics;
     uint32_t nr, srcno;
+
+    CHECK_IN_KERNEL_XICS_RTAS(rets);
 
     if ((nargs != 1) || (nret != 1)) {
         rtas_st(rets, 0, RTAS_OUT_PARAM_ERROR);
