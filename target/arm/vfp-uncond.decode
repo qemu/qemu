@@ -1,0 +1,63 @@
+# AArch32 VFP instruction descriptions (unconditional insns)
+#
+#  Copyright (c) 2019 Linaro, Ltd
+#
+# This library is free software; you can redistribute it and/or
+# modify it under the terms of the GNU Lesser General Public
+# License as published by the Free Software Foundation; either
+# version 2 of the License, or (at your option) any later version.
+#
+# This library is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
+# Lesser General Public License for more details.
+#
+# You should have received a copy of the GNU Lesser General Public
+# License along with this library; if not, see <http://www.gnu.org/licenses/>.
+
+#
+# This file is processed by scripts/decodetree.py
+#
+# Encodings for the unconditional VFP instructions are here:
+# generally anything matching A32
+#  1111 1110 .... .... .... 101. ...0 ....
+# and T32
+#  1111 110. .... .... .... 101. .... ....
+#  1111 1110 .... .... .... 101. .... ....
+# (but those patterns might also cover some Neon instructions,
+# which do not live in this file.)
+
+# VFP registers have an odd encoding with a four-bit field
+# and a one-bit field which are assembled in different orders
+# depending on whether the register is double or single precision.
+# Each individual instruction function must do the checks for
+# "double register selected but CPU does not have double support"
+# and "double register number has bit 4 set but CPU does not
+# support D16-D31" (which should UNDEF).
+%vm_dp  5:1 0:4
+%vm_sp  0:4 5:1
+%vn_dp  7:1 16:4
+%vn_sp  16:4 7:1
+%vd_dp  22:1 12:4
+%vd_sp  12:4 22:1
+
+VSEL        1111 1110 0. cc:2 .... .... 1010 .0.0 .... \
+            vm=%vm_sp vn=%vn_sp vd=%vd_sp dp=0
+VSEL        1111 1110 0. cc:2 .... .... 1011 .0.0 .... \
+            vm=%vm_dp vn=%vn_dp vd=%vd_dp dp=1
+
+VMINMAXNM   1111 1110 1.00 .... .... 1010 . op:1 .0 .... \
+            vm=%vm_sp vn=%vn_sp vd=%vd_sp dp=0
+VMINMAXNM   1111 1110 1.00 .... .... 1011 . op:1 .0 .... \
+            vm=%vm_dp vn=%vn_dp vd=%vd_dp dp=1
+
+VRINT       1111 1110 1.11 10 rm:2 .... 1010 01.0 .... \
+            vm=%vm_sp vd=%vd_sp dp=0
+VRINT       1111 1110 1.11 10 rm:2 .... 1011 01.0 .... \
+            vm=%vm_dp vd=%vd_dp dp=1
+
+# VCVT float to int with specified rounding mode; Vd is always single-precision
+VCVT        1111 1110 1.11 11 rm:2 .... 1010 op:1 1.0 .... \
+            vm=%vm_sp vd=%vd_sp dp=0
+VCVT        1111 1110 1.11 11 rm:2 .... 1011 op:1 1.0 .... \
+            vm=%vm_dp vd=%vd_sp dp=1
