@@ -192,14 +192,6 @@ struct Monitor {
     bool skip_flush;
     bool use_io_thread;
 
-    /*
-     * State used only in the thread "owning" the monitor.
-     * If @use_io_thread, this is @mon_iothread.
-     * Else, it's the main thread.
-     * These members can be safely accessed without locks.
-     */
-    ReadLineState *rs;
-
     gchar *mon_cpu_path;
     mon_cmd_t *cmd_table;
     QTAILQ_ENTRY(Monitor) entry;
@@ -218,6 +210,18 @@ struct Monitor {
     guint out_watch;
     /* Read under either BQL or mon_lock, written with BQL+mon_lock.  */
     int mux_out;
+};
+
+struct MonitorHMP {
+    Monitor common;
+    /*
+     * State used only in the thread "owning" the monitor.
+     * If @use_io_thread, this is @mon_iothread. (This does not actually happen
+     * in the current state of the code.)
+     * Else, it's the main thread.
+     * These members can be safely accessed without locks.
+     */
+    ReadLineState *rs;
 };
 
 typedef struct {
@@ -326,7 +330,7 @@ bool monitor_cur_is_qmp(void)
     return cur_mon && monitor_is_qmp(cur_mon);
 }
 
-void monitor_read_command(Monitor *mon, int show_prompt)
+void monitor_read_command(MonitorHMP *mon, int show_prompt)
 {
     if (!mon->rs)
         return;
@@ -336,7 +340,7 @@ void monitor_read_command(Monitor *mon, int show_prompt)
         readline_show_prompt(mon->rs);
 }
 
-int monitor_read_password(Monitor *mon, ReadLineFunc *readline_func,
+int monitor_read_password(MonitorHMP *mon, ReadLineFunc *readline_func,
                           void *opaque)
 {
     if (mon->rs) {
@@ -344,7 +348,8 @@ int monitor_read_password(Monitor *mon, ReadLineFunc *readline_func,
         /* prompt is printed on return from the command handler */
         return 0;
     } else {
-        monitor_printf(mon, "terminal does not support password prompting\n");
+        monitor_printf(&mon->common,
+                       "terminal does not support password prompting\n");
         return -ENOTTY;
     }
 }
@@ -705,7 +710,7 @@ static void monitor_qapi_event_init(void)
                                                 qapi_event_throttle_equal);
 }
 
-static void handle_hmp_command(Monitor *mon, const char *cmdline);
+static void handle_hmp_command(MonitorHMP *mon, const char *cmdline);
 
 static void monitor_iothread_init(void);
 
@@ -738,8 +743,9 @@ static void monitor_data_destroy(Monitor *mon)
     qemu_chr_fe_deinit(&mon->chr, false);
     if (monitor_is_qmp(mon)) {
         monitor_data_destroy_qmp(container_of(mon, MonitorQMP, common));
+    } else {
+        readline_free(container_of(mon, MonitorHMP, common)->rs);
     }
-    readline_free(mon->rs);
     qobject_unref(mon->outbuf);
     qemu_mutex_destroy(&mon->mon_lock);
 }
@@ -749,12 +755,12 @@ char *qmp_human_monitor_command(const char *command_line, bool has_cpu_index,
 {
     char *output = NULL;
     Monitor *old_mon;
-    Monitor hmp = {};
+    MonitorHMP hmp = {};
 
-    monitor_data_init(&hmp, 0, true, false);
+    monitor_data_init(&hmp.common, 0, true, false);
 
     old_mon = cur_mon;
-    cur_mon = &hmp;
+    cur_mon = &hmp.common;
 
     if (has_cpu_index) {
         int ret = monitor_set_cpu(cpu_index);
@@ -769,16 +775,16 @@ char *qmp_human_monitor_command(const char *command_line, bool has_cpu_index,
     handle_hmp_command(&hmp, command_line);
     cur_mon = old_mon;
 
-    qemu_mutex_lock(&hmp.mon_lock);
-    if (qstring_get_length(hmp.outbuf) > 0) {
-        output = g_strdup(qstring_get_str(hmp.outbuf));
+    qemu_mutex_lock(&hmp.common.mon_lock);
+    if (qstring_get_length(hmp.common.outbuf) > 0) {
+        output = g_strdup(qstring_get_str(hmp.common.outbuf));
     } else {
         output = g_strdup("");
     }
-    qemu_mutex_unlock(&hmp.mon_lock);
+    qemu_mutex_unlock(&hmp.common.mon_lock);
 
 out:
-    monitor_data_destroy(&hmp);
+    monitor_data_destroy(&hmp.common);
     return output;
 }
 
@@ -1348,16 +1354,19 @@ static void hmp_info_sync_profile(Monitor *mon, const QDict *qdict)
 
 static void hmp_info_history(Monitor *mon, const QDict *qdict)
 {
+    MonitorHMP *hmp_mon = container_of(mon, MonitorHMP, common);
     int i;
     const char *str;
 
-    if (!mon->rs)
+    if (!hmp_mon->rs) {
         return;
+    }
     i = 0;
     for(;;) {
-        str = readline_get_history(mon->rs, i);
-        if (!str)
+        str = readline_get_history(hmp_mon->rs, i);
+        if (!str) {
             break;
+        }
         monitor_printf(mon, "%d: '%s'\n", i, str);
         i++;
     }
@@ -3055,11 +3064,12 @@ static const mon_cmd_t *search_dispatch_table(const mon_cmd_t *disp_table,
  * Do not assume the return value points into @table!  It doesn't when
  * the command is found in a sub-command table.
  */
-static const mon_cmd_t *monitor_parse_command(Monitor *mon,
+static const mon_cmd_t *monitor_parse_command(MonitorHMP *hmp_mon,
                                               const char *cmdp_start,
                                               const char **cmdp,
                                               mon_cmd_t *table)
 {
+    Monitor *mon = &hmp_mon->common;
     const char *p;
     const mon_cmd_t *cmd;
     char cmdname[256];
@@ -3090,7 +3100,7 @@ static const mon_cmd_t *monitor_parse_command(Monitor *mon,
     *cmdp = p;
     /* search sub command */
     if (cmd->sub_table != NULL && *p != '\0') {
-        return monitor_parse_command(mon, cmdp_start, cmdp, cmd->sub_table);
+        return monitor_parse_command(hmp_mon, cmdp_start, cmdp, cmd->sub_table);
     }
 
     return cmd;
@@ -3467,7 +3477,7 @@ fail:
     return NULL;
 }
 
-static void handle_hmp_command(Monitor *mon, const char *cmdline)
+static void handle_hmp_command(MonitorHMP *mon, const char *cmdline)
 {
     QDict *qdict;
     const mon_cmd_t *cmd;
@@ -3475,26 +3485,26 @@ static void handle_hmp_command(Monitor *mon, const char *cmdline)
 
     trace_handle_hmp_command(mon, cmdline);
 
-    cmd = monitor_parse_command(mon, cmdline, &cmdline, mon->cmd_table);
+    cmd = monitor_parse_command(mon, cmdline, &cmdline, mon->common.cmd_table);
     if (!cmd) {
         return;
     }
 
-    qdict = monitor_parse_arguments(mon, &cmdline, cmd);
+    qdict = monitor_parse_arguments(&mon->common, &cmdline, cmd);
     if (!qdict) {
         while (cmdline > cmd_start && qemu_isspace(cmdline[-1])) {
             cmdline--;
         }
-        monitor_printf(mon, "Try \"help %.*s\" for more information\n",
+        monitor_printf(&mon->common, "Try \"help %.*s\" for more information\n",
                        (int)(cmdline - cmd_start), cmd_start);
         return;
     }
 
-    cmd->cmd(mon, qdict);
+    cmd->cmd(&mon->common, qdict);
     qobject_unref(qdict);
 }
 
-static void cmd_completion(Monitor *mon, const char *name, const char *list)
+static void cmd_completion(MonitorHMP *mon, const char *name, const char *list)
 {
     const char *p, *pstart;
     char cmd[128];
@@ -3518,7 +3528,7 @@ static void cmd_completion(Monitor *mon, const char *name, const char *list)
     }
 }
 
-static void file_completion(Monitor *mon, const char *input)
+static void file_completion(MonitorHMP *mon, const char *input)
 {
     DIR *ffs;
     struct dirent *d;
@@ -4007,7 +4017,7 @@ void loadvm_completion(ReadLineState *rs, int nb_args, const char *str)
     }
 }
 
-static void monitor_find_completion_by_table(Monitor *mon,
+static void monitor_find_completion_by_table(MonitorHMP *mon,
                                              const mon_cmd_t *cmd_table,
                                              char **args,
                                              int nb_args)
@@ -4102,7 +4112,7 @@ static void monitor_find_completion_by_table(Monitor *mon,
 static void monitor_find_completion(void *opaque,
                                     const char *cmdline)
 {
-    Monitor *mon = opaque;
+    MonitorHMP *mon = opaque;
     char *args[MAX_ARGS];
     int nb_args, len;
 
@@ -4122,7 +4132,7 @@ static void monitor_find_completion(void *opaque,
     }
 
     /* 2. auto complete according to args */
-    monitor_find_completion_by_table(mon, mon->cmd_table, args, nb_args);
+    monitor_find_completion_by_table(mon, mon->common.cmd_table, args, nb_args);
 
 cleanup:
     free_cmdline_args(args, nb_args);
@@ -4333,19 +4343,21 @@ static void monitor_qmp_read(void *opaque, const uint8_t *buf, int size)
 
 static void monitor_read(void *opaque, const uint8_t *buf, int size)
 {
+    MonitorHMP *mon;
     Monitor *old_mon = cur_mon;
     int i;
 
     cur_mon = opaque;
+    mon = container_of(cur_mon, MonitorHMP, common);
 
-    if (cur_mon->rs) {
+    if (mon->rs) {
         for (i = 0; i < size; i++)
-            readline_handle_byte(cur_mon->rs, buf[i]);
+            readline_handle_byte(mon->rs, buf[i]);
     } else {
         if (size == 0 || buf[size - 1] != 0)
             monitor_printf(cur_mon, "corrupted command\n");
         else
-            handle_hmp_command(cur_mon, (char *)buf);
+            handle_hmp_command(mon, (char *)buf);
     }
 
     cur_mon = old_mon;
@@ -4354,11 +4366,11 @@ static void monitor_read(void *opaque, const uint8_t *buf, int size)
 static void monitor_command_cb(void *opaque, const char *cmdline,
                                void *readline_opaque)
 {
-    Monitor *mon = opaque;
+    MonitorHMP *mon = opaque;
 
-    monitor_suspend(mon);
+    monitor_suspend(&mon->common);
     handle_hmp_command(mon, cmdline);
-    monitor_resume(mon);
+    monitor_resume(&mon->common);
 }
 
 int monitor_suspend(Monitor *mon)
@@ -4404,8 +4416,9 @@ void monitor_resume(Monitor *mon)
         }
 
         if (!monitor_is_qmp(mon)) {
-            assert(mon->rs);
-            readline_show_prompt(mon->rs);
+            MonitorHMP *hmp_mon = container_of(mon, MonitorHMP, common);
+            assert(hmp_mon->rs);
+            readline_show_prompt(hmp_mon->rs);
         }
 
         aio_bh_schedule_oneshot(ctx, monitor_accept_input, mon);
@@ -4467,6 +4480,7 @@ static void monitor_qmp_event(void *opaque, int event)
 static void monitor_event(void *opaque, int event)
 {
     Monitor *mon = opaque;
+    MonitorHMP *hmp_mon = container_of(mon, MonitorHMP, common);
 
     switch (event) {
     case CHR_EVENT_MUX_IN:
@@ -4474,7 +4488,7 @@ static void monitor_event(void *opaque, int event)
         mon->mux_out = 0;
         qemu_mutex_unlock(&mon->mon_lock);
         if (mon->reset_seen) {
-            readline_restart(mon->rs);
+            readline_restart(hmp_mon->rs);
             monitor_resume(mon);
             monitor_flush(mon);
         } else {
@@ -4501,8 +4515,8 @@ static void monitor_event(void *opaque, int event)
         monitor_printf(mon, "QEMU %s monitor - type 'help' for more "
                        "information\n", QEMU_VERSION);
         if (!mon->mux_out) {
-            readline_restart(mon->rs);
-            readline_show_prompt(mon->rs);
+            readline_restart(hmp_mon->rs);
+            readline_show_prompt(hmp_mon->rs);
         }
         mon->reset_seen = 1;
         mon_refcount++;
@@ -4563,15 +4577,17 @@ void monitor_init_globals(void)
 static void GCC_FMT_ATTR(2, 3) monitor_readline_printf(void *opaque,
                                                        const char *fmt, ...)
 {
+    MonitorHMP *mon = opaque;
     va_list ap;
     va_start(ap, fmt);
-    monitor_vprintf(opaque, fmt, ap);
+    monitor_vprintf(&mon->common, fmt, ap);
     va_end(ap);
 }
 
 static void monitor_readline_flush(void *opaque)
 {
-    monitor_flush(opaque);
+    MonitorHMP *mon = opaque;
+    monitor_flush(&mon->common);
 }
 
 /*
@@ -4672,11 +4688,11 @@ static void monitor_init_qmp(Chardev *chr, int flags)
 
 static void monitor_init_hmp(Chardev *chr, int flags)
 {
-    Monitor *mon = g_new0(Monitor, 1);
+    MonitorHMP *mon = g_new0(MonitorHMP, 1);
     bool use_readline = flags & MONITOR_USE_READLINE;
 
-    monitor_data_init(mon, flags, false, false);
-    qemu_chr_fe_init(&mon->chr, chr, &error_abort);
+    monitor_data_init(&mon->common, flags, false, false);
+    qemu_chr_fe_init(&mon->common.chr, chr, &error_abort);
 
     if (use_readline) {
         mon->rs = readline_init(monitor_readline_printf,
@@ -4686,9 +4702,9 @@ static void monitor_init_hmp(Chardev *chr, int flags)
         monitor_read_command(mon, 0);
     }
 
-    qemu_chr_fe_set_handlers(&mon->chr, monitor_can_read, monitor_read,
-                             monitor_event, NULL, mon, NULL, true);
-    monitor_list_append(mon);
+    qemu_chr_fe_set_handlers(&mon->common.chr, monitor_can_read, monitor_read,
+                             monitor_event, NULL, &mon->common, NULL, true);
+    monitor_list_append(&mon->common);
 }
 
 void monitor_init(Chardev *chr, int flags)

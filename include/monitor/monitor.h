@@ -6,6 +6,7 @@
 #include "qemu/readline.h"
 
 extern __thread Monitor *cur_mon;
+typedef struct MonitorHMP MonitorHMP;
 
 /* flags for monitor_init */
 /* 0x01 unused */
@@ -34,8 +35,8 @@ void monitor_flush(Monitor *mon);
 int monitor_set_cpu(int cpu_index);
 int monitor_get_cpu_index(void);
 
-void monitor_read_command(Monitor *mon, int show_prompt);
-int monitor_read_password(Monitor *mon, ReadLineFunc *readline_func,
+void monitor_read_command(MonitorHMP *mon, int show_prompt);
+int monitor_read_password(MonitorHMP *mon, ReadLineFunc *readline_func,
                           void *opaque);
 
 AddfdInfo *monitor_fdset_add_fd(int fd, bool has_fdset_id, int64_t fdset_id,
