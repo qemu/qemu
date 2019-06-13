@@ -23,6 +23,7 @@
  */
 
 #include "qemu/osdep.h"
+#include "monitor-internal.h"
 #include "qemu/units.h"
 #include <dirent.h>
 #include "cpu.h"
@@ -35,15 +36,12 @@
 #include "exec/gdbstub.h"
 #include "net/net.h"
 #include "net/slirp.h"
-#include "chardev/char-fe.h"
 #include "chardev/char-io.h"
 #include "chardev/char-mux.h"
 #include "ui/qemu-spice.h"
 #include "sysemu/numa.h"
-#include "monitor/monitor.h"
 #include "qemu/config-file.h"
 #include "qemu/ctype.h"
-#include "qemu/readline.h"
 #include "ui/console.h"
 #include "ui/input.h"
 #include "sysemu/block-backend.h"
@@ -61,7 +59,6 @@
 #include "qapi/qmp/qnum.h"
 #include "qapi/qmp/qstring.h"
 #include "qapi/qmp/qjson.h"
-#include "qapi/qmp/json-parser.h"
 #include "qapi/qmp/qlist.h"
 #include "qom/object_interfaces.h"
 #include "trace.h"
@@ -92,55 +89,6 @@
 #include "hw/s390x/storage-keys.h"
 #include "hw/s390x/storage-attributes.h"
 #endif
-
-/*
- * Supported types:
- *
- * 'F'          filename
- * 'B'          block device name
- * 's'          string (accept optional quote)
- * 'S'          it just appends the rest of the string (accept optional quote)
- * 'O'          option string of the form NAME=VALUE,...
- *              parsed according to QemuOptsList given by its name
- *              Example: 'device:O' uses qemu_device_opts.
- *              Restriction: only lists with empty desc are supported
- *              TODO lift the restriction
- * 'i'          32 bit integer
- * 'l'          target long (32 or 64 bit)
- * 'M'          Non-negative target long (32 or 64 bit), in user mode the
- *              value is multiplied by 2^20 (think Mebibyte)
- * 'o'          octets (aka bytes)
- *              user mode accepts an optional E, e, P, p, T, t, G, g, M, m,
- *              K, k suffix, which multiplies the value by 2^60 for suffixes E
- *              and e, 2^50 for suffixes P and p, 2^40 for suffixes T and t,
- *              2^30 for suffixes G and g, 2^20 for M and m, 2^10 for K and k
- * 'T'          double
- *              user mode accepts an optional ms, us, ns suffix,
- *              which divides the value by 1e3, 1e6, 1e9, respectively
- * '/'          optional gdb-like print format (like "/10x")
- *
- * '?'          optional type (for all types, except '/')
- * '.'          other form of optional type (for 'i' and 'l')
- * 'b'          boolean
- *              user mode accepts "on" or "off"
- * '-'          optional parameter (eg. '-f')
- *
- */
-
-typedef struct HMPCommand {
-    const char *name;
-    const char *args_type;
-    const char *params;
-    const char *help;
-    const char *flags; /* p=preconfig */
-    void (*cmd)(Monitor *mon, const QDict *qdict);
-    /* @sub_table is a list of 2nd level of commands. If it does not exist,
-     * cmd should be used. If it exists, sub_table[?].cmd should be
-     * used, and cmd of 1st level plays the role of help function.
-     */
-    struct HMPCommand *sub_table;
-    void (*command_completion)(ReadLineState *rs, int nb_args, const char *str);
-} HMPCommand;
 
 /* file descriptors passed via SCM_RIGHTS */
 typedef struct mon_fd_t mon_fd_t;
@@ -183,66 +131,6 @@ typedef struct MonitorQAPIEventState {
 typedef struct {
     int64_t rate;       /* Minimum time (in ns) between two events */
 } MonitorQAPIEventConf;
-
-struct Monitor {
-    CharBackend chr;
-    int reset_seen;
-    int flags;
-    int suspend_cnt;            /* Needs to be accessed atomically */
-    bool skip_flush;
-    bool use_io_thread;
-
-    gchar *mon_cpu_path;
-    QTAILQ_ENTRY(Monitor) entry;
-
-    /*
-     * The per-monitor lock. We can't access guest memory when holding
-     * the lock.
-     */
-    QemuMutex mon_lock;
-
-    /*
-     * Members that are protected by the per-monitor lock
-     */
-    QLIST_HEAD(, mon_fd_t) fds;
-    QString *outbuf;
-    guint out_watch;
-    /* Read under either BQL or mon_lock, written with BQL+mon_lock.  */
-    int mux_out;
-};
-
-struct MonitorHMP {
-    Monitor common;
-    /*
-     * State used only in the thread "owning" the monitor.
-     * If @use_io_thread, this is @mon_iothread. (This does not actually happen
-     * in the current state of the code.)
-     * Else, it's the main thread.
-     * These members can be safely accessed without locks.
-     */
-    ReadLineState *rs;
-};
-
-typedef struct {
-    Monitor common;
-    JSONMessageParser parser;
-    /*
-     * When a client connects, we're in capabilities negotiation mode.
-     * @commands is &qmp_cap_negotiation_commands then.  When command
-     * qmp_capabilities succeeds, we go into command mode, and
-     * @command becomes &qmp_commands.
-     */
-    QmpCommandList *commands;
-    bool capab_offered[QMP_CAPABILITY__MAX]; /* capabilities offered */
-    bool capab[QMP_CAPABILITY__MAX];         /* offered and accepted */
-    /*
-     * Protects qmp request/response queue.
-     * Take monitor_lock first when you need both.
-     */
-    QemuMutex qmp_queue_lock;
-    /* Input queue that holds all the parsed QMP requests */
-    GQueue *qmp_requests;
-} MonitorQMP;
 
 /* Shared monitor I/O thread */
 IOThread *mon_iothread;

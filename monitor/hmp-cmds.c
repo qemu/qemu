@@ -24,7 +24,7 @@
 #include "qemu/option.h"
 #include "qemu/timer.h"
 #include "qemu/sockets.h"
-#include "monitor/monitor.h"
+#include "monitor/monitor-internal.h"
 #include "monitor/qdev.h"
 #include "qapi/error.h"
 #include "qapi/opts-visitor.h"
@@ -1943,8 +1943,7 @@ static void hmp_change_read_arg(void *opaque, const char *password,
 
 void hmp_change(Monitor *mon, const QDict *qdict)
 {
-    /* FIXME Make MonitorHMP public and use container_of */
-    MonitorHMP *hmp_mon = (MonitorHMP *)mon;
+    MonitorHMP *hmp_mon = container_of(mon, MonitorHMP, common);
     const char *device = qdict_get_str(qdict, "device");
     const char *target = qdict_get_str(qdict, "target");
     const char *arg = qdict_get_try_str(qdict, "arg");
