@@ -21,9 +21,13 @@ vm-test:
 	@echo "  vm-clean-all                    - Clean up VM images"
 	@echo
 	@echo "Special variables:"
-	@echo "    BUILD_TARGET=foo		 - override the build target"
-	@echo "    TARGET_LIST=a,b,c    	 - Override target list in builds."
+	@echo "    BUILD_TARGET=foo		 - Override the build target"
+	@echo "    TARGET_LIST=a,b,c    	 - Override target list in builds"
 	@echo '    EXTRA_CONFIGURE_OPTS="..."'
+	@echo "    J=[0..9]*            	 - Override the -jN parameter for make commands"
+	@echo "    DEBUG=1              	 - Enable verbose output on host and interactive debugging"
+	@echo "    V=1				 - Enable verbose ouput on host and guest commands"
+	@echo "    QEMU=/path/to/qemu		 - Change path to QEMU binary"
 
 vm-build-all: $(addprefix vm-build-, $(IMAGES))
 
@@ -35,7 +39,7 @@ $(IMAGES_DIR)/%.img:	$(SRC_PATH)/tests/vm/% \
 			$(SRC_PATH)/tests/vm/Makefile.include
 	@mkdir -p $(IMAGES_DIR)
 	$(call quiet-command, \
-		$< \
+		$(PYTHON) $< \
 		$(if $(V)$(DEBUG), --debug) \
 		--image "$@" \
 		--force \
@@ -46,7 +50,7 @@ $(IMAGES_DIR)/%.img:	$(SRC_PATH)/tests/vm/% \
 # Build in VM $(IMAGE)
 vm-build-%: $(IMAGES_DIR)/%.img
 	$(call quiet-command, \
-		$(SRC_PATH)/tests/vm/$* \
+		$(PYTHON) $(SRC_PATH)/tests/vm/$* \
 		$(if $(V)$(DEBUG), --debug) \
 		$(if $(DEBUG), --interactive) \
 		$(if $(J),--jobs $(J)) \

@@ -208,12 +208,23 @@ static bool read_test_data_u32(int offset)
 
     for (i = 0; i < max; i++) {
         uint8_t b1, b2, b3, b4;
+        int zeros = 0;
         word = *ptr++;
 
         b1 = word >> 24 & 0xff;
         b2 = word >> 16 & 0xff;
         b3 = word >> 8 & 0xff;
         b4 = word & 0xff;
+
+        zeros += (b1 == 0 ? 1 : 0);
+        zeros += (b2 == 0 ? 1 : 0);
+        zeros += (b3 == 0 ? 1 : 0);
+        zeros += (b4 == 0 ? 1 : 0);
+        if (zeros > 1) {
+            ml_printf("Error @ %p, more zeros than expected: %d, %d, %d, %d",
+                      ptr - 1, b1, b2, b3, b4);
+            return false;
+        }
 
         if ((b1 < b2 && b1 != 0) ||
             (b2 < b3 && b2 != 0) ||
@@ -238,6 +249,7 @@ static bool read_test_data_u64(int offset)
 
     for (i = 0; i < max; i++) {
         uint8_t b1, b2, b3, b4, b5, b6, b7, b8;
+        int zeros = 0;
         word = *ptr++;
 
         b1 = ((uint64_t) (word >> 56)) & 0xff;
@@ -248,6 +260,20 @@ static bool read_test_data_u64(int offset)
         b6 = (word >> 16) & 0xff;
         b7 = (word >> 8)  & 0xff;
         b8 = (word >> 0)  & 0xff;
+
+        zeros += (b1 == 0 ? 1 : 0);
+        zeros += (b2 == 0 ? 1 : 0);
+        zeros += (b3 == 0 ? 1 : 0);
+        zeros += (b4 == 0 ? 1 : 0);
+        zeros += (b5 == 0 ? 1 : 0);
+        zeros += (b6 == 0 ? 1 : 0);
+        zeros += (b7 == 0 ? 1 : 0);
+        zeros += (b8 == 0 ? 1 : 0);
+        if (zeros > 1) {
+            ml_printf("Error @ %p, more zeros than expected: %d, %d, %d, %d, %d, %d, %d, %d",
+                      ptr - 1, b1, b2, b3, b4, b5, b6, b7, b8);
+            return false;
+        }
 
         if ((b1 < b2 && b1 != 0) ||
             (b2 < b3 && b2 != 0) ||
@@ -272,7 +298,7 @@ read_ufn read_ufns[] = { read_test_data_u16,
                          read_test_data_u32,
                          read_test_data_u64 };
 
-bool do_unsigned_reads(void)
+bool do_unsigned_reads(int start_off)
 {
     int i;
     bool ok = true;
@@ -280,11 +306,11 @@ bool do_unsigned_reads(void)
     for (i = 0; i < ARRAY_SIZE(read_ufns) && ok; i++) {
 #if CHECK_UNALIGNED
         int off;
-        for (off = 0; off < 8 && ok; off++) {
+        for (off = start_off; off < 8 && ok; off++) {
             ok = read_ufns[i](off);
         }
 #else
-        ok = read_ufns[i](0);
+        ok = read_ufns[i](start_off);
 #endif
     }
 
@@ -298,11 +324,11 @@ static bool do_unsigned_test(init_ufn fn)
     int i;
     for (i = 0; i < 8 && ok; i++) {
         fn(i);
-        ok = do_unsigned_reads();
+        ok = do_unsigned_reads(i);
     }
 #else
     fn(0);
-    return do_unsigned_reads();
+    return do_unsigned_reads(0);
 #endif
 }
 
