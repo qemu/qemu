@@ -127,7 +127,7 @@
  *
  */
 
-typedef struct mon_cmd_t {
+typedef struct HMPCommand {
     const char *name;
     const char *args_type;
     const char *params;
@@ -138,9 +138,9 @@ typedef struct mon_cmd_t {
      * cmd should be used. If it exists, sub_table[?].cmd should be
      * used, and cmd of 1st level plays the role of help function.
      */
-    struct mon_cmd_t *sub_table;
+    struct HMPCommand *sub_table;
     void (*command_completion)(ReadLineState *rs, int nb_args, const char *str);
-} mon_cmd_t;
+} HMPCommand;
 
 /* file descriptors passed via SCM_RIGHTS */
 typedef struct mon_fd_t mon_fd_t;
@@ -277,8 +277,8 @@ static QLIST_HEAD(, MonFdset) mon_fdsets;
 
 static int mon_refcount;
 
-static mon_cmd_t mon_cmds[];
-static mon_cmd_t info_cmds[];
+static HMPCommand hmp_cmds[];
+static HMPCommand hmp_info_cmds[];
 
 QmpCommandList qmp_commands, qmp_cap_negotiation_commands;
 
@@ -933,7 +933,7 @@ static int parse_cmdline(const char *cmdline,
 /*
  * Can command @cmd be executed in preconfig state?
  */
-static bool cmd_can_preconfig(const mon_cmd_t *cmd)
+static bool cmd_can_preconfig(const HMPCommand *cmd)
 {
     if (!cmd->flags) {
         return false;
@@ -943,7 +943,7 @@ static bool cmd_can_preconfig(const mon_cmd_t *cmd)
 }
 
 static void help_cmd_dump_one(Monitor *mon,
-                              const mon_cmd_t *cmd,
+                              const HMPCommand *cmd,
                               char **prefix_args,
                               int prefix_args_nb)
 {
@@ -960,10 +960,10 @@ static void help_cmd_dump_one(Monitor *mon,
 }
 
 /* @args[@arg_index] is the valid command need to find in @cmds */
-static void help_cmd_dump(Monitor *mon, const mon_cmd_t *cmds,
+static void help_cmd_dump(Monitor *mon, const HMPCommand *cmds,
                           char **args, int nb_args, int arg_index)
 {
-    const mon_cmd_t *cmd;
+    const HMPCommand *cmd;
     size_t i;
 
     /* No valid arg need to compare with, dump all in *cmds */
@@ -1021,7 +1021,7 @@ static void help_cmd(Monitor *mon, const char *name)
     }
 
     /* 2. dump the contents according to parsed args */
-    help_cmd_dump(mon, mon_cmds, args, nb_args, 0);
+    help_cmd_dump(mon, hmp_cmds, args, nb_args, 0);
 
     free_cmdline_args(args, nb_args);
 }
@@ -2689,13 +2689,13 @@ int monitor_fd_param(Monitor *mon, const char *fdname, Error **errp)
 }
 
 /* Please update hmp-commands.hx when adding or changing commands */
-static mon_cmd_t info_cmds[] = {
+static HMPCommand hmp_info_cmds[] = {
 #include "hmp-commands-info.h"
     { NULL, NULL, },
 };
 
-/* mon_cmds and info_cmds would be sorted at runtime */
-static mon_cmd_t mon_cmds[] = {
+/* hmp_cmds and hmp_info_cmds would be sorted at runtime */
+static HMPCommand hmp_cmds[] = {
 #include "hmp-commands.h"
     { NULL, NULL, },
 };
@@ -3037,10 +3037,10 @@ static int is_valid_option(const char *c, const char *typestr)
     return (typestr != NULL);
 }
 
-static const mon_cmd_t *search_dispatch_table(const mon_cmd_t *disp_table,
-                                              const char *cmdname)
+static const HMPCommand *search_dispatch_table(const HMPCommand *disp_table,
+                                               const char *cmdname)
 {
-    const mon_cmd_t *cmd;
+    const HMPCommand *cmd;
 
     for (cmd = disp_table; cmd->name != NULL; cmd++) {
         if (compare_cmd(cmdname, cmd->name)) {
@@ -3061,14 +3061,14 @@ static const mon_cmd_t *search_dispatch_table(const mon_cmd_t *disp_table,
  * Do not assume the return value points into @table!  It doesn't when
  * the command is found in a sub-command table.
  */
-static const mon_cmd_t *monitor_parse_command(MonitorHMP *hmp_mon,
-                                              const char *cmdp_start,
-                                              const char **cmdp,
-                                              mon_cmd_t *table)
+static const HMPCommand *monitor_parse_command(MonitorHMP *hmp_mon,
+                                               const char *cmdp_start,
+                                               const char **cmdp,
+                                               HMPCommand *table)
 {
     Monitor *mon = &hmp_mon->common;
     const char *p;
-    const mon_cmd_t *cmd;
+    const HMPCommand *cmd;
     char cmdname[256];
 
     /* extract the command name */
@@ -3112,7 +3112,7 @@ static const mon_cmd_t *monitor_parse_command(MonitorHMP *hmp_mon,
 
 static QDict *monitor_parse_arguments(Monitor *mon,
                                       const char **endp,
-                                      const mon_cmd_t *cmd)
+                                      const HMPCommand *cmd)
 {
     const char *typestr;
     char *key;
@@ -3477,12 +3477,12 @@ fail:
 static void handle_hmp_command(MonitorHMP *mon, const char *cmdline)
 {
     QDict *qdict;
-    const mon_cmd_t *cmd;
+    const HMPCommand *cmd;
     const char *cmd_start = cmdline;
 
     trace_handle_hmp_command(mon, cmdline);
 
-    cmd = monitor_parse_command(mon, cmdline, &cmdline, mon_cmds);
+    cmd = monitor_parse_command(mon, cmdline, &cmdline, hmp_cmds);
     if (!cmd) {
         return;
     }
@@ -4015,14 +4015,14 @@ void loadvm_completion(ReadLineState *rs, int nb_args, const char *str)
 }
 
 static void monitor_find_completion_by_table(MonitorHMP *mon,
-                                             const mon_cmd_t *cmd_table,
+                                             const HMPCommand *cmd_table,
                                              char **args,
                                              int nb_args)
 {
     const char *cmdname;
     int i;
     const char *ptype, *old_ptype, *str, *name;
-    const mon_cmd_t *cmd;
+    const HMPCommand *cmd;
     BlockBackend *blk = NULL;
 
     if (nb_args <= 1) {
@@ -4129,7 +4129,7 @@ static void monitor_find_completion(void *opaque,
     }
 
     /* 2. auto complete according to args */
-    monitor_find_completion_by_table(mon, mon_cmds, args, nb_args);
+    monitor_find_completion_by_table(mon, hmp_cmds, args, nb_args);
 
 cleanup:
     free_cmdline_args(args, nb_args);
@@ -4529,20 +4529,18 @@ static void monitor_event(void *opaque, int event)
 static int
 compare_mon_cmd(const void *a, const void *b)
 {
-    return strcmp(((const mon_cmd_t *)a)->name,
-            ((const mon_cmd_t *)b)->name);
+    return strcmp(((const HMPCommand *)a)->name,
+            ((const HMPCommand *)b)->name);
 }
 
 static void sortcmdlist(void)
 {
-    int array_num;
-    int elem_size = sizeof(mon_cmd_t);
-
-    array_num = sizeof(mon_cmds)/elem_size-1;
-    qsort((void *)mon_cmds, array_num, elem_size, compare_mon_cmd);
-
-    array_num = sizeof(info_cmds)/elem_size-1;
-    qsort((void *)info_cmds, array_num, elem_size, compare_mon_cmd);
+    qsort(hmp_cmds, ARRAY_SIZE(hmp_cmds) - 1,
+          sizeof(*hmp_cmds),
+          compare_mon_cmd);
+    qsort(hmp_info_cmds, ARRAY_SIZE(hmp_info_cmds) - 1,
+          sizeof(*hmp_info_cmds),
+          compare_mon_cmd);
 }
 
 static void monitor_iothread_init(void)
