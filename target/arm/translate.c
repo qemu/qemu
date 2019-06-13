@@ -1374,14 +1374,6 @@ static TCGv_ptr get_fpstatus_ptr(int neon)
     return statusptr;
 }
 
-static inline void gen_vfp_neg(int dp)
-{
-    if (dp)
-        gen_helper_vfp_negd(cpu_F0d, cpu_F0d);
-    else
-        gen_helper_vfp_negs(cpu_F0s, cpu_F0s);
-}
-
 #define VFP_GEN_ITOF(name) \
 static inline void gen_vfp_##name(int dp, int neon) \
 { \
@@ -4189,8 +4181,7 @@ static int neon_2rm_is_float_op(int op)
      * what we are asking here is "does the code for this case in
      * the Neon for-each-pass loop use cpu_F0s?".
      */
-    return (op == NEON_2RM_VNEG_F ||
-            (op >= NEON_2RM_VRINTN && op <= NEON_2RM_VRINTZ) ||
+    return ((op >= NEON_2RM_VRINTN && op <= NEON_2RM_VRINTZ) ||
             op == NEON_2RM_VRINTM ||
             (op >= NEON_2RM_VRINTP && op <= NEON_2RM_VCVTMS) ||
             op >= NEON_2RM_VRECPE_F);
@@ -6761,7 +6752,7 @@ static int disas_neon_data_insn(DisasContext *s, uint32_t insn)
                             gen_helper_vfp_abss(tmp, tmp);
                             break;
                         case NEON_2RM_VNEG_F:
-                            gen_vfp_neg(0);
+                            gen_helper_vfp_negs(tmp, tmp);
                             break;
                         case NEON_2RM_VSWP:
                             tmp2 = neon_load_reg(rd, pass);
