@@ -1920,6 +1920,7 @@ M: Dr. David Alan Gilbert <dgilbert@redhat.com>
 S: Maintained
 F: monitor/monitor-internal.h
 F: monitor/misc.c
+F: monitor/monitor.c
 F: monitor/hmp*
 F: hmp.h
 F: hmp-commands*.hx
@@ -2044,6 +2045,7 @@ S: Supported
 F: monitor/monitor-internal.h
 F: monitor/qmp*
 F: monitor/misc.c
+F: monitor/monitor.c
 F: docs/devel/*qmp-*
 F: docs/interop/*qmp-*
 F: scripts/qmp/

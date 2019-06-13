@@ -19,6 +19,7 @@ typedef struct MonitorHMP MonitorHMP;
 bool monitor_cur_is_qmp(void);
 
 void monitor_init_globals(void);
+void monitor_init_globals_core(void);
 void monitor_init(Chardev *chr, int flags);
 void monitor_cleanup(void);
 

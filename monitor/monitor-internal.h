@@ -167,6 +167,7 @@ void monitor_init_hmp(Chardev *chr, int flags);
 int monitor_puts(Monitor *mon, const char *str);
 void monitor_data_init(Monitor *mon, int flags, bool skip_flush,
                        bool use_io_thread);
+void monitor_data_destroy(Monitor *mon);
 int monitor_can_read(void *opaque);
 void monitor_list_append(Monitor *mon);
 void monitor_fdsets_cleanup(void);
