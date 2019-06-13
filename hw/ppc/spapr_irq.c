@@ -114,6 +114,8 @@ static void spapr_irq_init_xics(SpaprMachineState *spapr, int nr_irqs,
     }
 
     spapr->ics = ICS_BASE(obj);
+
+    xics_spapr_init(spapr);
 }
 
 #define ICS_IRQ_FREE(ics, srcno)   \
@@ -236,7 +238,6 @@ static const char *spapr_irq_get_nodename_xics(SpaprMachineState *spapr)
 
 static void spapr_irq_init_emu_xics(SpaprMachineState *spapr, Error **errp)
 {
-    xics_spapr_init(spapr);
 }
 
 static void spapr_irq_init_kvm_xics(SpaprMachineState *spapr, Error **errp)

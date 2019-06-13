@@ -36,5 +36,6 @@ void spapr_dt_xics(SpaprMachineState *spapr, uint32_t nr_servers, void *fdt,
 int xics_kvm_init(SpaprMachineState *spapr, Error **errp);
 void xics_kvm_disconnect(SpaprMachineState *spapr, Error **errp);
 void xics_spapr_init(SpaprMachineState *spapr);
+void xics_spapr_connect(SpaprMachineState *spapr);
 
 #endif /* XICS_SPAPR_H */

@@ -331,15 +331,6 @@ void ics_kvm_set_irq(ICSState *ics, int srcno, int val)
     }
 }
 
-static void rtas_dummy(PowerPCCPU *cpu, SpaprMachineState *spapr,
-                       uint32_t token,
-                       uint32_t nargs, target_ulong args,
-                       uint32_t nret, target_ulong rets)
-{
-    error_report("pseries: %s must never be called for in-kernel XICS",
-                 __func__);
-}
-
 int xics_kvm_init(SpaprMachineState *spapr, Error **errp)
 {
     int rc;
@@ -359,11 +350,6 @@ int xics_kvm_init(SpaprMachineState *spapr, Error **errp)
                    "KVM and IRQ_XICS capability must be present for in-kernel XICS");
         goto fail;
     }
-
-    spapr_rtas_register(RTAS_IBM_SET_XIVE, "ibm,set-xive", rtas_dummy);
-    spapr_rtas_register(RTAS_IBM_GET_XIVE, "ibm,get-xive", rtas_dummy);
-    spapr_rtas_register(RTAS_IBM_INT_OFF, "ibm,int-off", rtas_dummy);
-    spapr_rtas_register(RTAS_IBM_INT_ON, "ibm,int-on", rtas_dummy);
 
     rc = kvmppc_define_rtas_kernel_token(RTAS_IBM_SET_XIVE, "ibm,set-xive");
     if (rc < 0) {
@@ -453,11 +439,6 @@ void xics_kvm_disconnect(SpaprMachineState *spapr, Error **errp)
      */
     close(kernel_xics_fd);
     kernel_xics_fd = -1;
-
-    spapr_rtas_unregister(RTAS_IBM_SET_XIVE);
-    spapr_rtas_unregister(RTAS_IBM_GET_XIVE);
-    spapr_rtas_unregister(RTAS_IBM_INT_OFF);
-    spapr_rtas_unregister(RTAS_IBM_INT_ON);
 
     kvmppc_define_rtas_kernel_token(0, "ibm,set-xive");
     kvmppc_define_rtas_kernel_token(0, "ibm,get-xive");
