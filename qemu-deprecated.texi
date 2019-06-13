@@ -72,6 +72,12 @@ backend settings instead of environment variables.  To ease migration to
 the new format, the ``-audiodev-help'' option can be used to convert
 the current values of the environment variables to ``-audiodev'' options.
 
+@subsection -mon ...,control=readline,pretty=on|off (since 4.1)
+
+The @code{pretty=on|off} switch has no effect for HMP monitors, but is
+silently ignored. Using the switch with HMP monitors will become an
+error in the future.
+
 @subsection -realtime (since 4.1)
 
 The @code{-realtime mlock=on|off} argument has been replaced by the

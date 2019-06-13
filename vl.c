@@ -2317,6 +2317,10 @@ static int mon_init_func(void *opaque, QemuOpts *opts, Error **errp)
         return -1;
     }
 
+    if (!qmp && qemu_opt_get(opts, "pretty")) {
+        warn_report("'pretty' is deprecated for HMP monitors, it has no effect "
+                    "and will be removed in future versions");
+    }
     if (qemu_opt_get_bool(opts, "pretty", 0)) {
         pretty = true;
     }
@@ -2362,7 +2366,11 @@ static void monitor_parse(const char *optarg, const char *mode, bool pretty)
     opts = qemu_opts_create(qemu_find_opts("mon"), label, 1, &error_fatal);
     qemu_opt_set(opts, "mode", mode, &error_abort);
     qemu_opt_set(opts, "chardev", label, &error_abort);
-    qemu_opt_set_bool(opts, "pretty", pretty, &error_abort);
+    if (!strcmp(mode, "control")) {
+        qemu_opt_set_bool(opts, "pretty", pretty, &error_abort);
+    } else {
+        assert(pretty == false);
+    }
     monitor_device_index++;
 }
 
