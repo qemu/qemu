@@ -4181,9 +4181,7 @@ static int neon_2rm_is_float_op(int op)
      * what we are asking here is "does the code for this case in
      * the Neon for-each-pass loop use cpu_F0s?".
      */
-    return ((op >= NEON_2RM_VRINTN && op <= NEON_2RM_VRINTZ) ||
-            op == NEON_2RM_VRINTM ||
-            (op >= NEON_2RM_VRINTP && op <= NEON_2RM_VCVTMS) ||
+    return ((op >= NEON_2RM_VCVTAU && op <= NEON_2RM_VCVTMS) ||
             op >= NEON_2RM_VRECPE_F);
 }
 
@@ -6786,7 +6784,7 @@ static int disas_neon_data_insn(DisasContext *s, uint32_t insn)
                             tcg_rmode = tcg_const_i32(arm_rmode_to_sf(rmode));
                             gen_helper_set_neon_rmode(tcg_rmode, tcg_rmode,
                                                       cpu_env);
-                            gen_helper_rints(cpu_F0s, cpu_F0s, fpstatus);
+                            gen_helper_rints(tmp, tmp, fpstatus);
                             gen_helper_set_neon_rmode(tcg_rmode, tcg_rmode,
                                                       cpu_env);
                             tcg_temp_free_ptr(fpstatus);
@@ -6796,7 +6794,7 @@ static int disas_neon_data_insn(DisasContext *s, uint32_t insn)
                         case NEON_2RM_VRINTX:
                         {
                             TCGv_ptr fpstatus = get_fpstatus_ptr(1);
-                            gen_helper_rints_exact(cpu_F0s, cpu_F0s, fpstatus);
+                            gen_helper_rints_exact(tmp, tmp, fpstatus);
                             tcg_temp_free_ptr(fpstatus);
                             break;
                         }
