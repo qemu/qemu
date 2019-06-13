@@ -44,6 +44,8 @@
 %vmov_idx_b     21:1 5:2
 %vmov_idx_h     21:1 6:1
 
+%vmov_imm 16:4 0:4
+
 # VMOV scalar to general-purpose register; note that this does
 # include some Neon cases.
 VMOV_to_gp   ---- 1110 u:1 1.        1 .... rt:4 1011 ... 1 0000 \
@@ -152,10 +154,10 @@ VFM_sp       ---- 1110 1.10 .... .... 1010 . o2:1 . 0 .... \
 VFM_dp       ---- 1110 1.10 .... .... 1011 . o2:1 . 0 .... \
              vm=%vm_dp vn=%vn_dp vd=%vd_dp o1=2
 
-VMOV_imm_sp  ---- 1110 1.11 imm4h:4 .... 1010 0000 imm4l:4 \
-             vd=%vd_sp
-VMOV_imm_dp  ---- 1110 1.11 imm4h:4 .... 1011 0000 imm4l:4 \
-             vd=%vd_dp
+VMOV_imm_sp  ---- 1110 1.11 .... .... 1010 0000 .... \
+             vd=%vd_sp imm=%vmov_imm
+VMOV_imm_dp  ---- 1110 1.11 .... .... 1011 0000 .... \
+             vd=%vd_dp imm=%vmov_imm
 
 VMOV_reg_sp  ---- 1110 1.11 0000 .... 1010 01.0 .... \
              vd=%vd_sp vm=%vm_sp

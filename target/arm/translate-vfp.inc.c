@@ -1842,7 +1842,7 @@ static bool trans_VMOV_imm_sp(DisasContext *s, arg_VMOV_imm_sp *a)
     uint32_t delta_d = 0;
     int veclen = s->vec_len;
     TCGv_i32 fd;
-    uint32_t n, i, vd;
+    uint32_t vd;
 
     vd = a->vd;
 
@@ -1869,17 +1869,7 @@ static bool trans_VMOV_imm_sp(DisasContext *s, arg_VMOV_imm_sp *a)
         }
     }
 
-    n = (a->imm4h << 28) & 0x80000000;
-    i = ((a->imm4h << 4) & 0x70) | a->imm4l;
-    if (i & 0x40) {
-        i |= 0x780;
-    } else {
-        i |= 0x800;
-    }
-    n |= i << 19;
-
-    fd = tcg_temp_new_i32();
-    tcg_gen_movi_i32(fd, n);
+    fd = tcg_const_i32(vfp_expand_imm(MO_32, a->imm));
 
     for (;;) {
         neon_store_reg32(fd, vd);
@@ -1902,7 +1892,7 @@ static bool trans_VMOV_imm_dp(DisasContext *s, arg_VMOV_imm_dp *a)
     uint32_t delta_d = 0;
     int veclen = s->vec_len;
     TCGv_i64 fd;
-    uint32_t n, i, vd;
+    uint32_t vd;
 
     vd = a->vd;
 
@@ -1934,17 +1924,7 @@ static bool trans_VMOV_imm_dp(DisasContext *s, arg_VMOV_imm_dp *a)
         }
     }
 
-    n = (a->imm4h << 28) & 0x80000000;
-    i = ((a->imm4h << 4) & 0x70) | a->imm4l;
-    if (i & 0x40) {
-        i |= 0x3f80;
-    } else {
-        i |= 0x4000;
-    }
-    n |= i << 16;
-
-    fd = tcg_temp_new_i64();
-    tcg_gen_movi_i64(fd, ((uint64_t)n) << 32);
+    fd = tcg_const_i64(vfp_expand_imm(MO_64, a->imm));
 
     for (;;) {
         neon_store_reg64(fd, vd);
