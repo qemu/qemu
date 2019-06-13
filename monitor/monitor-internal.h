@@ -159,7 +159,10 @@ extern QemuMutex monitor_lock;
 extern MonitorList mon_list;
 extern int mon_refcount;
 
+extern HMPCommand hmp_cmds[];
+
 void monitor_init_qmp(Chardev *chr, int flags);
+void monitor_init_hmp(Chardev *chr, int flags);
 
 int monitor_puts(Monitor *mon, const char *str);
 void monitor_data_init(Monitor *mon, int flags, bool skip_flush,
@@ -171,5 +174,10 @@ void monitor_fdsets_cleanup(void);
 void qmp_send_response(MonitorQMP *mon, const QDict *rsp);
 void monitor_data_destroy_qmp(MonitorQMP *mon);
 void monitor_qmp_bh_dispatcher(void *data);
+
+int get_monitor_def(int64_t *pval, const char *name);
+void help_cmd(Monitor *mon, const char *name);
+void handle_hmp_command(MonitorHMP *mon, const char *cmdline);
+int hmp_compare_cmd(const char *name, const char *list);
 
 #endif
