@@ -16,7 +16,11 @@ int monitor_get_fd(Monitor *mon, const char *name, Error **errp)
     return -1;
 }
 
-void monitor_init(Chardev *chr, int flags)
+void monitor_init_qmp(Chardev *chr, bool pretty)
+{
+}
+
+void monitor_init_hmp(Chardev *chr, bool use_readline)
 {
 }
 

@@ -2299,25 +2299,27 @@ static int fsdev_init_func(void *opaque, QemuOpts *opts, Error **errp)
 static int mon_init_func(void *opaque, QemuOpts *opts, Error **errp)
 {
     Chardev *chr;
+    bool qmp;
+    bool pretty = false;
     const char *chardev;
     const char *mode;
-    int flags;
 
     mode = qemu_opt_get(opts, "mode");
     if (mode == NULL) {
         mode = "readline";
     }
     if (strcmp(mode, "readline") == 0) {
-        flags = MONITOR_USE_READLINE;
+        qmp = false;
     } else if (strcmp(mode, "control") == 0) {
-        flags = MONITOR_USE_CONTROL;
+        qmp = true;
     } else {
         error_setg(errp, "unknown monitor mode \"%s\"", mode);
         return -1;
     }
 
-    if (qemu_opt_get_bool(opts, "pretty", 0))
-        flags |= MONITOR_USE_PRETTY;
+    if (qemu_opt_get_bool(opts, "pretty", 0)) {
+        pretty = true;
+    }
 
     chardev = qemu_opt_get(opts, "chardev");
     if (!chardev) {
@@ -2330,7 +2332,11 @@ static int mon_init_func(void *opaque, QemuOpts *opts, Error **errp)
         return -1;
     }
 
-    monitor_init(chr, flags);
+    if (qmp) {
+        monitor_init_qmp(chr, pretty);
+    } else {
+        monitor_init_hmp(chr, true);
+    }
     return 0;
 }
 

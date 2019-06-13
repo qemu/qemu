@@ -8,19 +8,14 @@
 extern __thread Monitor *cur_mon;
 typedef struct MonitorHMP MonitorHMP;
 
-/* flags for monitor_init */
-/* 0x01 unused */
-#define MONITOR_USE_READLINE  0x02
-#define MONITOR_USE_CONTROL   0x04
-#define MONITOR_USE_PRETTY    0x08
-
 #define QMP_REQ_QUEUE_LEN_MAX 8
 
 bool monitor_cur_is_qmp(void);
 
 void monitor_init_globals(void);
 void monitor_init_globals_core(void);
-void monitor_init(Chardev *chr, int flags);
+void monitor_init_qmp(Chardev *chr, bool pretty);
+void monitor_init_hmp(Chardev *chr, bool use_readline);
 void monitor_cleanup(void);
 
 int monitor_suspend(Monitor *mon);

@@ -551,15 +551,6 @@ void monitor_data_destroy(Monitor *mon)
     qemu_mutex_destroy(&mon->mon_lock);
 }
 
-void monitor_init(Chardev *chr, int flags)
-{
-    if (flags & MONITOR_USE_CONTROL) {
-        monitor_init_qmp(chr, flags);
-    } else {
-        monitor_init_hmp(chr, flags);
-    }
-}
-
 void monitor_cleanup(void)
 {
     /*

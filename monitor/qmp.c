@@ -364,18 +364,15 @@ static void monitor_qmp_setup_handlers_bh(void *opaque)
     monitor_list_append(&mon->common);
 }
 
-void monitor_init_qmp(Chardev *chr, int flags)
+void monitor_init_qmp(Chardev *chr, bool pretty)
 {
     MonitorQMP *mon = g_new0(MonitorQMP, 1);
-
-    /* Only HMP supports readline */
-    assert(!(flags & MONITOR_USE_READLINE));
 
     /* Note: we run QMP monitor in I/O thread when @chr supports that */
     monitor_data_init(&mon->common, true, false,
                       qemu_chr_has_feature(chr, QEMU_CHAR_FEATURE_GCONTEXT));
 
-    mon->pretty = flags & MONITOR_USE_PRETTY;
+    mon->pretty = pretty;
 
     qemu_mutex_init(&mon->qmp_queue_lock);
     mon->qmp_requests = g_queue_new();

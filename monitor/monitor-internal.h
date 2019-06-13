@@ -163,9 +163,6 @@ extern int mon_refcount;
 
 extern HMPCommand hmp_cmds[];
 
-void monitor_init_qmp(Chardev *chr, int flags);
-void monitor_init_hmp(Chardev *chr, int flags);
-
 int monitor_puts(Monitor *mon, const char *str);
 void monitor_data_init(Monitor *mon, bool is_qmp, bool skip_flush,
                        bool use_io_thread);
