@@ -78,14 +78,18 @@ bool monitor_cur_is_qmp(void)
  * Note: not all HMP monitors use readline, e.g., gdbserver has a
  * non-interactive HMP monitor, so readline is not used there.
  */
-static inline bool monitor_uses_readline(const Monitor *mon)
+static inline bool monitor_uses_readline(const MonitorHMP *mon)
 {
-    return mon->flags & MONITOR_USE_READLINE;
+    return mon->use_readline;
 }
 
 static inline bool monitor_is_hmp_non_interactive(const Monitor *mon)
 {
-    return !monitor_is_qmp(mon) && !monitor_uses_readline(mon);
+    if (monitor_is_qmp(mon)) {
+        return false;
+    }
+
+    return !monitor_uses_readline(container_of(mon, MonitorHMP, common));
 }
 
 static void monitor_flush_locked(Monitor *mon);
@@ -521,17 +525,17 @@ static void monitor_iothread_init(void)
     mon_iothread = iothread_create("mon_iothread", &error_abort);
 }
 
-void monitor_data_init(Monitor *mon, int flags, bool skip_flush,
+void monitor_data_init(Monitor *mon, bool is_qmp, bool skip_flush,
                        bool use_io_thread)
 {
     if (use_io_thread && !mon_iothread) {
         monitor_iothread_init();
     }
     qemu_mutex_init(&mon->mon_lock);
+    mon->is_qmp = is_qmp;
     mon->outbuf = qstring_new();
     mon->skip_flush = skip_flush;
     mon->use_io_thread = use_io_thread;
-    mon->flags = flags;
 }
 
 void monitor_data_destroy(Monitor *mon)

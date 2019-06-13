@@ -1398,12 +1398,12 @@ static void monitor_readline_flush(void *opaque)
 void monitor_init_hmp(Chardev *chr, int flags)
 {
     MonitorHMP *mon = g_new0(MonitorHMP, 1);
-    bool use_readline = flags & MONITOR_USE_READLINE;
 
-    monitor_data_init(&mon->common, flags, false, false);
+    monitor_data_init(&mon->common, false, false, false);
     qemu_chr_fe_init(&mon->common.chr, chr, &error_abort);
 
-    if (use_readline) {
+    mon->use_readline = flags & MONITOR_USE_READLINE;
+    if (mon->use_readline) {
         mon->rs = readline_init(monitor_readline_printf,
                                 monitor_readline_flush,
                                 mon,

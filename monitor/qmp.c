@@ -87,8 +87,7 @@ void qmp_send_response(MonitorQMP *mon, const QDict *rsp)
     const QObject *data = QOBJECT(rsp);
     QString *json;
 
-    json = mon->common.flags & MONITOR_USE_PRETTY ?
-           qobject_to_json_pretty(data) : qobject_to_json(data);
+    json = mon->pretty ? qobject_to_json_pretty(data) : qobject_to_json(data);
     assert(json != NULL);
 
     qstring_append_chr(json, '\n');
@@ -373,8 +372,10 @@ void monitor_init_qmp(Chardev *chr, int flags)
     assert(!(flags & MONITOR_USE_READLINE));
 
     /* Note: we run QMP monitor in I/O thread when @chr supports that */
-    monitor_data_init(&mon->common, flags, false,
+    monitor_data_init(&mon->common, true, false,
                       qemu_chr_has_feature(chr, QEMU_CHAR_FEATURE_GCONTEXT));
+
+    mon->pretty = flags & MONITOR_USE_PRETTY;
 
     qemu_mutex_init(&mon->qmp_queue_lock);
     mon->qmp_requests = g_queue_new();

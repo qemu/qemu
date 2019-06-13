@@ -121,7 +121,7 @@ char *qmp_human_monitor_command(const char *command_line, bool has_cpu_index,
     Monitor *old_mon;
     MonitorHMP hmp = {};
 
-    monitor_data_init(&hmp.common, 0, true, false);
+    monitor_data_init(&hmp.common, false, true, false);
 
     old_mon = cur_mon;
     cur_mon = &hmp.common;

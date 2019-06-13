@@ -86,8 +86,8 @@ typedef struct HMPCommand {
 struct Monitor {
     CharBackend chr;
     int reset_seen;
-    int flags;
     int suspend_cnt;            /* Needs to be accessed atomically */
+    bool is_qmp;
     bool skip_flush;
     bool use_io_thread;
 
@@ -112,6 +112,7 @@ struct Monitor {
 
 struct MonitorHMP {
     Monitor common;
+    bool use_readline;
     /*
      * State used only in the thread "owning" the monitor.
      * If @use_io_thread, this is @mon_iothread. (This does not actually happen
@@ -125,6 +126,7 @@ struct MonitorHMP {
 typedef struct {
     Monitor common;
     JSONMessageParser parser;
+    bool pretty;
     /*
      * When a client connects, we're in capabilities negotiation mode.
      * @commands is &qmp_cap_negotiation_commands then.  When command
@@ -148,7 +150,7 @@ typedef struct {
  */
 static inline bool monitor_is_qmp(const Monitor *mon)
 {
-    return mon->flags & MONITOR_USE_CONTROL;
+    return mon->is_qmp;
 }
 
 typedef QTAILQ_HEAD(MonitorList, Monitor) MonitorList;
@@ -165,7 +167,7 @@ void monitor_init_qmp(Chardev *chr, int flags);
 void monitor_init_hmp(Chardev *chr, int flags);
 
 int monitor_puts(Monitor *mon, const char *str);
-void monitor_data_init(Monitor *mon, int flags, bool skip_flush,
+void monitor_data_init(Monitor *mon, bool is_qmp, bool skip_flush,
                        bool use_io_thread);
 void monitor_data_destroy(Monitor *mon);
 int monitor_can_read(void *opaque);
