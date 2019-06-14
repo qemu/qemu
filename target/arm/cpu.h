@@ -3388,6 +3388,12 @@ static inline bool isar_feature_aa32_fpshvec(const ARMISARegisters *id)
     return FIELD_EX64(id->mvfr0, MVFR0, FPSHVEC) > 0;
 }
 
+static inline bool isar_feature_aa32_fpdp(const ARMISARegisters *id)
+{
+    /* Return true if CPU supports double precision floating point */
+    return FIELD_EX64(id->mvfr0, MVFR0, FPDP) > 0;
+}
+
 /*
  * We always set the FP and SIMD FP16 fields to indicate identical
  * levels of support (assuming SIMD is implemented at all), so
