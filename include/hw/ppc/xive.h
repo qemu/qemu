@@ -197,6 +197,7 @@ typedef struct XiveSource {
 
     /* KVM support */
     void            *esb_mmap;
+    MemoryRegion    esb_mmio_kvm;
 
     XiveNotifier    *xive;
 } XiveSource;

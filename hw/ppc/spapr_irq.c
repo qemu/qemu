@@ -413,7 +413,6 @@ static const char *spapr_irq_get_nodename_xive(SpaprMachineState *spapr)
 
 static void spapr_irq_init_emu_xive(SpaprMachineState *spapr, Error **errp)
 {
-    spapr_xive_init(spapr->xive, errp);
 }
 
 static void spapr_irq_init_kvm_xive(SpaprMachineState *spapr, Error **errp)

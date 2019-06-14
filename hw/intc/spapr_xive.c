@@ -194,13 +194,6 @@ void spapr_xive_pic_print_info(SpaprXive *xive, Monitor *mon)
     }
 }
 
-void spapr_xive_map_mmio(SpaprXive *xive)
-{
-    sysbus_mmio_map(SYS_BUS_DEVICE(xive), 0, xive->vc_base);
-    sysbus_mmio_map(SYS_BUS_DEVICE(xive), 1, xive->end_base);
-    sysbus_mmio_map(SYS_BUS_DEVICE(xive), 2, xive->tm_base);
-}
-
 void spapr_xive_mmio_set_enabled(SpaprXive *xive, bool enable)
 {
     memory_region_set_enabled(&xive->source.esb_mmio, enable);
@@ -305,6 +298,7 @@ static void spapr_xive_realize(DeviceState *dev, Error **errp)
         error_propagate(errp, local_err);
         return;
     }
+    sysbus_init_mmio(SYS_BUS_DEVICE(xive), &xsrc->esb_mmio);
 
     /*
      * Initialize the END ESB source
@@ -318,6 +312,7 @@ static void spapr_xive_realize(DeviceState *dev, Error **errp)
         error_propagate(errp, local_err);
         return;
     }
+    sysbus_init_mmio(SYS_BUS_DEVICE(xive), &end_xsrc->esb_mmio);
 
     /* Set the mapping address of the END ESB pages after the source ESBs */
     xive->end_base = xive->vc_base + (1ull << xsrc->esb_shift) * xsrc->nr_irqs;
@@ -333,31 +328,18 @@ static void spapr_xive_realize(DeviceState *dev, Error **errp)
 
     qemu_register_reset(spapr_xive_reset, dev);
 
-    /* Define all XIVE MMIO regions on SysBus */
-    sysbus_init_mmio(SYS_BUS_DEVICE(xive), &xsrc->esb_mmio);
-    sysbus_init_mmio(SYS_BUS_DEVICE(xive), &end_xsrc->esb_mmio);
-    sysbus_init_mmio(SYS_BUS_DEVICE(xive), &xive->tm_mmio);
-}
-
-void spapr_xive_init(SpaprXive *xive, Error **errp)
-{
-    XiveSource *xsrc = &xive->source;
-
-    /*
-     * The emulated XIVE device can only be initialized once. If the
-     * ESB memory region has been already mapped, it means we have been
-     * through there.
-     */
-    if (memory_region_is_mapped(&xsrc->esb_mmio)) {
-        return;
-    }
-
     /* TIMA initialization */
     memory_region_init_io(&xive->tm_mmio, OBJECT(xive), &xive_tm_ops, xive,
                           "xive.tima", 4ull << TM_SHIFT);
+    sysbus_init_mmio(SYS_BUS_DEVICE(xive), &xive->tm_mmio);
 
-    /* Map all regions */
-    spapr_xive_map_mmio(xive);
+    /*
+     * Map all regions. These will be enabled or disabled at reset and
+     * can also be overridden by KVM memory regions if active
+     */
+    sysbus_mmio_map(SYS_BUS_DEVICE(xive), 0, xive->vc_base);
+    sysbus_mmio_map(SYS_BUS_DEVICE(xive), 1, xive->end_base);
+    sysbus_mmio_map(SYS_BUS_DEVICE(xive), 2, xive->tm_base);
 }
 
 static int spapr_xive_get_eas(XiveRouter *xrtr, uint8_t eas_blk,
