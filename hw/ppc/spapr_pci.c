@@ -1951,11 +1951,9 @@ static void spapr_phb_realize(DeviceState *dev, Error **errp)
      * For KVM we want to ensure that this memory is a full page so that
      * our memory slot is of page size granularity.
      */
-#ifdef CONFIG_KVM
     if (kvm_enabled()) {
         msi_window_size = getpagesize();
     }
-#endif
 
     memory_region_init_io(&sphb->msiwindow, OBJECT(sphb), &spapr_msi_ops, spapr,
                           "msi", msi_window_size);
