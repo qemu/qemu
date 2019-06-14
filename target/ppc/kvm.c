@@ -2944,3 +2944,12 @@ void kvmppc_set_reg_ppc_online(PowerPCCPU *cpu, unsigned int online)
         kvm_set_one_reg(cs, KVM_REG_PPC_ONLINE, &online);
     }
 }
+
+void kvmppc_set_reg_tb_offset(PowerPCCPU *cpu, int64_t tb_offset)
+{
+    CPUState *cs = CPU(cpu);
+
+    if (kvm_enabled()) {
+        kvm_set_one_reg(cs, KVM_REG_PPC_TB_OFFSET, &tb_offset);
+    }
+}
