@@ -399,6 +399,11 @@ static inline int kvmppc_resize_hpt_commit(PowerPCCPU *cpu,
     return -ENOSYS;
 }
 
+static inline bool kvmppc_pvr_workaround_required(PowerPCCPU *cpu)
+{
+    return false;
+}
+
 #endif
 
 #ifndef CONFIG_KVM

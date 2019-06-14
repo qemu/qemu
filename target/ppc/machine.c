@@ -378,11 +378,9 @@ static int cpu_post_load(void *opaque, int version_id)
      * receive the PVR it expects as a workaround.
      *
      */
-#if defined(CONFIG_KVM)
     if (kvmppc_pvr_workaround_required(cpu)) {
         env->spr[SPR_PVR] = env->spr_cb[SPR_PVR].default_value;
     }
-#endif
 
     env->lr = env->spr[SPR_LR];
     env->ctr = env->spr[SPR_CTR];
