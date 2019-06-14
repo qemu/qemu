@@ -80,9 +80,7 @@ void ppc_set_irq(PowerPCCPU *cpu, int n_IRQ, int level)
     }
 
     if (old_pending != env->pending_interrupts) {
-#ifdef CONFIG_KVM
         kvmppc_set_interrupt(cpu, n_IRQ, level);
-#endif
     }
 
 
