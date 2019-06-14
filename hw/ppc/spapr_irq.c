@@ -62,7 +62,7 @@ void spapr_irq_msi_reset(SpaprMachineState *spapr)
     bitmap_clear(spapr->irq_map, 0, spapr->irq_map_nr);
 }
 
-static void spapr_irq_init_device(SpaprMachineState *spapr,
+static void spapr_irq_init_kvm(SpaprMachineState *spapr,
                                   SpaprIrq *irq, Error **errp)
 {
     MachineState *machine = MACHINE(spapr);
@@ -88,8 +88,6 @@ static void spapr_irq_init_device(SpaprMachineState *spapr,
         error_prepend(&local_err, "kernel_irqchip allowed but unavailable: ");
         warn_report_err(local_err);
     }
-
-    irq->init_emu(spapr, errp);
 }
 
 /*
@@ -224,7 +222,7 @@ static void spapr_irq_reset_xics(SpaprMachineState *spapr, Error **errp)
 {
     Error *local_err = NULL;
 
-    spapr_irq_init_device(spapr, &spapr_irq_xics, &local_err);
+    spapr_irq_init_kvm(spapr, &spapr_irq_xics, &local_err);
     if (local_err) {
         error_propagate(errp, local_err);
         return;
@@ -234,10 +232,6 @@ static void spapr_irq_reset_xics(SpaprMachineState *spapr, Error **errp)
 static const char *spapr_irq_get_nodename_xics(SpaprMachineState *spapr)
 {
     return XICS_NODENAME;
-}
-
-static void spapr_irq_init_emu_xics(SpaprMachineState *spapr, Error **errp)
-{
 }
 
 static void spapr_irq_init_kvm_xics(SpaprMachineState *spapr, Error **errp)
@@ -267,7 +261,6 @@ SpaprIrq spapr_irq_xics = {
     .reset       = spapr_irq_reset_xics,
     .set_irq     = spapr_irq_set_irq_xics,
     .get_nodename = spapr_irq_get_nodename_xics,
-    .init_emu    = spapr_irq_init_emu_xics,
     .init_kvm    = spapr_irq_init_kvm_xics,
 };
 
@@ -385,7 +378,7 @@ static void spapr_irq_reset_xive(SpaprMachineState *spapr, Error **errp)
         spapr_xive_set_tctx_os_cam(spapr_cpu_state(cpu)->tctx);
     }
 
-    spapr_irq_init_device(spapr, &spapr_irq_xive, &local_err);
+    spapr_irq_init_kvm(spapr, &spapr_irq_xive, &local_err);
     if (local_err) {
         error_propagate(errp, local_err);
         return;
@@ -409,10 +402,6 @@ static void spapr_irq_set_irq_xive(void *opaque, int srcno, int val)
 static const char *spapr_irq_get_nodename_xive(SpaprMachineState *spapr)
 {
     return spapr->xive->nodename;
-}
-
-static void spapr_irq_init_emu_xive(SpaprMachineState *spapr, Error **errp)
-{
 }
 
 static void spapr_irq_init_kvm_xive(SpaprMachineState *spapr, Error **errp)
@@ -446,7 +435,6 @@ SpaprIrq spapr_irq_xive = {
     .reset       = spapr_irq_reset_xive,
     .set_irq     = spapr_irq_set_irq_xive,
     .get_nodename = spapr_irq_get_nodename_xive,
-    .init_emu    = spapr_irq_init_emu_xive,
     .init_kvm    = spapr_irq_init_kvm_xive,
 };
 
@@ -624,7 +612,6 @@ SpaprIrq spapr_irq_dual = {
     .reset       = spapr_irq_reset_dual,
     .set_irq     = spapr_irq_set_irq_dual,
     .get_nodename = spapr_irq_get_nodename_dual,
-    .init_emu    = NULL, /* should not be used */
     .init_kvm    = NULL, /* should not be used */
 };
 
@@ -840,6 +827,5 @@ SpaprIrq spapr_irq_xics_legacy = {
     .reset       = spapr_irq_reset_xics,
     .set_irq     = spapr_irq_set_irq_xics,
     .get_nodename = spapr_irq_get_nodename_xics,
-    .init_emu    = spapr_irq_init_emu_xics,
     .init_kvm    = spapr_irq_init_kvm_xics,
 };
