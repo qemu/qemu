@@ -25,6 +25,7 @@
 
 #include "qom/object.h"
 #include "hw/qdev-properties.h"
+#include "exec/hwaddr.h"
 
 typedef struct AccelState {
     /*< private >*/
@@ -39,6 +40,8 @@ typedef struct AccelClass {
     const char *name;
     int (*init_machine)(MachineState *ms);
     void (*setup_post)(MachineState *ms, AccelState *accel);
+    bool (*has_memory)(MachineState *ms, AddressSpace *as,
+                       hwaddr start_addr, hwaddr size);
     bool *allowed;
     /*
      * Array of global properties that would be applied when specific

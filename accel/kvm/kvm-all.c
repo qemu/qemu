@@ -111,6 +111,13 @@ struct KVMState
     /* memory encryption */
     void *memcrypt_handle;
     int (*memcrypt_encrypt_data)(void *handle, uint8_t *ptr, uint64_t len);
+
+    /* For "info mtree -f" to tell if an MR is registered in KVM */
+    int nr_as;
+    struct KVMAs {
+        KVMMemoryListener *ml;
+        AddressSpace *as;
+    } *as;
 };
 
 KVMState *kvm_state;
@@ -1159,6 +1166,14 @@ void kvm_memory_listener_register(KVMState *s, KVMMemoryListener *kml,
     kml->listener.priority = 10;
 
     memory_listener_register(&kml->listener, as);
+
+    for (i = 0; i < s->nr_as; ++i) {
+        if (!s->as[i].as) {
+            s->as[i].as = as;
+            s->as[i].ml = kml;
+            break;
+        }
+    }
 }
 
 static MemoryListener kvm_io_listener = {
@@ -1808,6 +1823,12 @@ static int kvm_init(MachineState *ms)
     if (!s->nr_slots) {
         s->nr_slots = 32;
     }
+
+    s->nr_as = kvm_check_extension(s, KVM_CAP_MULTI_ADDRESS_SPACE);
+    if (s->nr_as <= 1) {
+        s->nr_as = 1;
+    }
+    s->as = g_new0(struct KVMAs, s->nr_as);
 
     kvm_type = qemu_opt_get(qemu_get_machine_opts(), "kvm-type");
     if (mc->kvm_type) {
@@ -2828,11 +2849,28 @@ int kvm_get_one_reg(CPUState *cs, uint64_t id, void *target)
     return r;
 }
 
+static bool kvm_accel_has_memory(MachineState *ms, AddressSpace *as,
+                                 hwaddr start_addr, hwaddr size)
+{
+    KVMState *kvm = KVM_STATE(ms->accelerator);
+    int i;
+
+    for (i = 0; i < kvm->nr_as; ++i) {
+        if (kvm->as[i].as == as && kvm->as[i].ml) {
+            return NULL != kvm_lookup_matching_slot(kvm->as[i].ml,
+                                                    start_addr, size);
+        }
+    }
+
+    return false;
+}
+
 static void kvm_accel_class_init(ObjectClass *oc, void *data)
 {
     AccelClass *ac = ACCEL_CLASS(oc);
     ac->name = "KVM";
     ac->init_machine = kvm_init;
+    ac->has_memory = kvm_accel_has_memory;
     ac->allowed = &kvm_allowed;
 }
 
