@@ -69,6 +69,7 @@ enum {
     OPTION_SIZE = 264,
     OPTION_PREALLOCATION = 265,
     OPTION_SHRINK = 266,
+    OPTION_SALVAGE = 267,
 };
 
 typedef enum OutputFormat {
@@ -1581,6 +1582,8 @@ typedef struct ImgConvertState {
     int64_t target_backing_sectors; /* negative if unknown */
     bool wr_in_order;
     bool copy_range;
+    bool salvage;
+    bool quiet;
     int min_sparse;
     int alignment;
     size_t cluster_sectors;
@@ -1627,25 +1630,44 @@ static int convert_iteration_sectors(ImgConvertState *s, int64_t sector_num)
     }
 
     if (s->sector_next_status <= sector_num) {
-        int64_t count = n * BDRV_SECTOR_SIZE;
+        uint64_t offset = (sector_num - src_cur_offset) * BDRV_SECTOR_SIZE;
+        int64_t count;
 
-        if (s->target_has_backing) {
+        do {
+            count = n * BDRV_SECTOR_SIZE;
 
-            ret = bdrv_block_status(blk_bs(s->src[src_cur]),
-                                    (sector_num - src_cur_offset) *
-                                    BDRV_SECTOR_SIZE,
-                                    count, &count, NULL, NULL);
-        } else {
-            ret = bdrv_block_status_above(blk_bs(s->src[src_cur]), NULL,
-                                          (sector_num - src_cur_offset) *
-                                          BDRV_SECTOR_SIZE,
-                                          count, &count, NULL, NULL);
-        }
-        if (ret < 0) {
-            error_report("error while reading block status of sector %" PRId64
-                         ": %s", sector_num, strerror(-ret));
-            return ret;
-        }
+            if (s->target_has_backing) {
+                ret = bdrv_block_status(blk_bs(s->src[src_cur]), offset,
+                                        count, &count, NULL, NULL);
+            } else {
+                ret = bdrv_block_status_above(blk_bs(s->src[src_cur]), NULL,
+                                              offset, count, &count, NULL,
+                                              NULL);
+            }
+
+            if (ret < 0) {
+                if (s->salvage) {
+                    if (n == 1) {
+                        if (!s->quiet) {
+                            warn_report("error while reading block status at "
+                                        "offset %" PRIu64 ": %s", offset,
+                                        strerror(-ret));
+                        }
+                        /* Just try to read the data, then */
+                        ret = BDRV_BLOCK_DATA;
+                        count = BDRV_SECTOR_SIZE;
+                    } else {
+                        /* Retry on a shorter range */
+                        n = DIV_ROUND_UP(n, 4);
+                    }
+                } else {
+                    error_report("error while reading block status at offset "
+                                 "%" PRIu64 ": %s", offset, strerror(-ret));
+                    return ret;
+                }
+            }
+        } while (ret < 0);
+
         n = DIV_ROUND_UP(count, BDRV_SECTOR_SIZE);
 
         if (ret & BDRV_BLOCK_ZERO) {
@@ -1682,6 +1704,7 @@ static int convert_iteration_sectors(ImgConvertState *s, int64_t sector_num)
 static int coroutine_fn convert_co_read(ImgConvertState *s, int64_t sector_num,
                                         int nb_sectors, uint8_t *buf)
 {
+    uint64_t single_read_until = 0;
     int n, ret;
 
     assert(nb_sectors <= s->buf_sectors);
@@ -1689,6 +1712,7 @@ static int coroutine_fn convert_co_read(ImgConvertState *s, int64_t sector_num,
         BlockBackend *blk;
         int src_cur;
         int64_t bs_sectors, src_cur_offset;
+        uint64_t offset;
 
         /* In the case of compression with multiple source files, we can get a
          * nb_sectors that spreads into the next part. So we must be able to
@@ -1697,13 +1721,29 @@ static int coroutine_fn convert_co_read(ImgConvertState *s, int64_t sector_num,
         blk = s->src[src_cur];
         bs_sectors = s->src_sectors[src_cur];
 
-        n = MIN(nb_sectors, bs_sectors - (sector_num - src_cur_offset));
+        offset = (sector_num - src_cur_offset) << BDRV_SECTOR_BITS;
 
-        ret = blk_co_pread(
-                blk, (sector_num - src_cur_offset) << BDRV_SECTOR_BITS,
-                n << BDRV_SECTOR_BITS, buf, 0);
+        n = MIN(nb_sectors, bs_sectors - (sector_num - src_cur_offset));
+        if (single_read_until > offset) {
+            n = 1;
+        }
+
+        ret = blk_co_pread(blk, offset, n << BDRV_SECTOR_BITS, buf, 0);
         if (ret < 0) {
-            return ret;
+            if (s->salvage) {
+                if (n > 1) {
+                    single_read_until = offset + (n << BDRV_SECTOR_BITS);
+                    continue;
+                } else {
+                    if (!s->quiet) {
+                        warn_report("error while reading offset %" PRIu64
+                                    ": %s", offset, strerror(-ret));
+                    }
+                    memset(buf, 0, BDRV_SECTOR_SIZE);
+                }
+            } else {
+                return ret;
+            }
         }
 
         sector_num += n;
@@ -2012,7 +2052,7 @@ static int img_convert(int argc, char **argv)
     QDict *open_opts = NULL;
     char *options = NULL;
     Error *local_err = NULL;
-    bool writethrough, src_writethrough, quiet = false, image_opts = false,
+    bool writethrough, src_writethrough, image_opts = false,
          skip_create = false, progress = false, tgt_image_opts = false;
     int64_t ret = -EINVAL;
     bool force_share = false;
@@ -2034,6 +2074,7 @@ static int img_convert(int argc, char **argv)
             {"image-opts", no_argument, 0, OPTION_IMAGE_OPTS},
             {"force-share", no_argument, 0, 'U'},
             {"target-image-opts", no_argument, 0, OPTION_TARGET_IMAGE_OPTS},
+            {"salvage", no_argument, 0, OPTION_SALVAGE},
             {0, 0, 0, 0}
         };
         c = getopt_long(argc, argv, ":hf:O:B:Cco:l:S:pt:T:qnm:WU",
@@ -2120,7 +2161,7 @@ static int img_convert(int argc, char **argv)
             src_cache = optarg;
             break;
         case 'q':
-            quiet = true;
+            s.quiet = true;
             break;
         case 'n':
             skip_create = true;
@@ -2151,6 +2192,9 @@ static int img_convert(int argc, char **argv)
         case OPTION_IMAGE_OPTS:
             image_opts = true;
             break;
+        case OPTION_SALVAGE:
+            s.salvage = true;
+            break;
         case OPTION_TARGET_IMAGE_OPTS:
             tgt_image_opts = true;
             break;
@@ -2174,6 +2218,11 @@ static int img_convert(int argc, char **argv)
 
     if (explict_min_sparse && s.copy_range) {
         error_report("Cannot enable copy offloading when -S is used");
+        goto fail_getopt;
+    }
+
+    if (s.copy_range && s.salvage) {
+        error_report("Cannot use copy offloading in salvaging mode");
         goto fail_getopt;
     }
 
@@ -2209,7 +2258,7 @@ static int img_convert(int argc, char **argv)
     }
 
     /* Initialize before goto out */
-    if (quiet) {
+    if (s.quiet) {
         progress = false;
     }
     qemu_progress_init(progress, 1.0);
@@ -2220,7 +2269,7 @@ static int img_convert(int argc, char **argv)
 
     for (bs_i = 0; bs_i < s.src_num; bs_i++) {
         s.src[bs_i] = img_open(image_opts, argv[optind + bs_i],
-                               fmt, src_flags, src_writethrough, quiet,
+                               fmt, src_flags, src_writethrough, s.quiet,
                                force_share);
         if (!s.src[bs_i]) {
             ret = -1;
@@ -2383,7 +2432,7 @@ static int img_convert(int argc, char **argv)
 
     if (skip_create) {
         s.target = img_open(tgt_image_opts, out_filename, out_fmt,
-                            flags, writethrough, quiet, false);
+                            flags, writethrough, s.quiet, false);
     } else {
         /* TODO ultimately we should allow --target-image-opts
          * to be used even when -n is not given.
@@ -2391,7 +2440,7 @@ static int img_convert(int argc, char **argv)
          * to allow filenames in option syntax
          */
         s.target = img_open_file(out_filename, open_opts, out_fmt,
-                                 flags, writethrough, quiet, false);
+                                 flags, writethrough, s.quiet, false);
         open_opts = NULL; /* blk_new_open will have freed it */
     }
     if (!s.target) {
@@ -3350,6 +3399,7 @@ static int img_rebase(int argc, char **argv)
                                                              out_baseimg,
                                                              &local_err);
             if (local_err) {
+                qobject_unref(options);
                 error_reportf_err(local_err,
                                   "Could not resolve backing filename: ");
                 ret = -1;
@@ -3362,7 +3412,9 @@ static int img_rebase(int argc, char **argv)
              */
             prefix_chain_bs = bdrv_find_backing_image(bs, out_real_path);
             if (prefix_chain_bs) {
+                qobject_unref(options);
                 g_free(out_real_path);
+
                 blk_new_backing = blk_new(qemu_get_aio_context(),
                                           BLK_PERM_CONSISTENT_READ,
                                           BLK_PERM_ALL);

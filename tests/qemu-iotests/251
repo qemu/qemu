@@ -1,0 +1,170 @@
+#!/usr/bin/env bash
+#
+# Test qemu-img convert --salvage
+#
+# Copyright (C) 2019 Red Hat, Inc.
+#
+# This program is free software; you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation; either version 2 of the License, or
+# (at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with this program.  If not, see <http://www.gnu.org/licenses/>.
+#
+
+# creator
+owner=mreitz@redhat.com
+
+seq=$(basename $0)
+echo "QA output created by $seq"
+
+status=1	# failure is the default!
+
+_cleanup()
+{
+    _cleanup_test_img
+}
+trap "_cleanup; exit \$status" 0 1 2 3 15
+
+# get standard environment, filters and checks
+. ./common.rc
+. ./common.filter
+. ./common.qemu
+
+_supported_fmt generic
+_supported_proto file
+_supported_os Linux
+
+if [ "$IMGOPTSSYNTAX" = "true" ]; then
+    # We use json:{} filenames here, so we cannot work with additional options.
+    _unsupported_fmt $IMGFMT
+else
+    # With VDI, the output is ordered differently.  Just disable it.
+    _unsupported_fmt vdi
+fi
+
+
+TEST_IMG="$TEST_IMG.orig" _make_test_img 64M
+
+$QEMU_IO -c 'write -P 42 0 64M' "$TEST_IMG.orig" | _filter_qemu_io
+
+
+sector_size=512
+
+# Offsets on which to fail block-status.  Keep in ascending order so
+# the indexing done by _filter_offsets will appear in ascending order
+# in the output as well.
+status_fail_offsets="$((16 * 1024 * 1024 + 8192))
+                     $((33 * 1024 * 1024 + 512))"
+
+# Offsets on which to fail reads.  Keep in ascending order for the
+# same reason.
+# The second element is shared with $status_fail_offsets on purpose.
+# Starting with the third element, we test what happens when a
+# continuous range of sectors is inaccessible.
+read_fail_offsets="$((32 * 1024 * 1024 - 65536))
+                   $((33 * 1024 * 1024 + 512))
+                   $(seq $((34 * 1024 * 1024)) $sector_size \
+                         $((34 * 1024 * 1024 + 4096 - $sector_size)))"
+
+
+# blkdebug must be above the format layer so it can intercept all
+# block-status events
+source_img="json:{'driver': 'blkdebug',
+                  'image': {
+                      'driver': '$IMGFMT',
+                      'file': {
+                          'driver': 'file',
+                          'filename': '$TEST_IMG.orig'
+                      }
+                  },
+                  'inject-error': ["
+
+for ofs in $status_fail_offsets
+do
+    source_img+="{ 'event': 'none',
+                   'iotype': 'block-status',
+                   'errno': 5,
+                   'sector': $((ofs / sector_size)) },"
+done
+
+for ofs in $read_fail_offsets
+do
+    source_img+="{ 'event': 'none',
+                   'iotype': 'read',
+                   'errno': 5,
+                   'sector': $((ofs / sector_size)) },"
+done
+
+# Remove the trailing comma and terminate @inject-error and json:{}
+source_img="${source_img%,} ] }"
+
+
+echo
+
+
+_filter_offsets() {
+    filters=
+
+    index=0
+    for ofs in $1
+    do
+        filters+=" -e s/$ofs/status_fail_offset_$index/"
+        index=$((index + 1))
+    done
+
+    index=0
+    for ofs in $2
+    do
+        filters+=" -e s/$ofs/read_fail_offset_$index/"
+        index=$((index + 1))
+    done
+
+    sed $filters
+}
+
+# While determining the number of allocated sectors in the input
+# image, we should see one block status warning per element of
+# $status_fail_offsets.
+#
+# Then, the image is read.  Since the block status is queried in
+# basically the same way, the same warnings as in the previous step
+# should reappear.  Interleaved with those we should see a read
+# warning per element of $read_fail_offsets.
+# Note that $read_fail_offsets and $status_fail_offsets share an
+# element (read_fail_offset_1 == status_fail_offset_1), so
+# "status_fail_offset_1" in the output is the same as
+# "read_fail_offset_1".
+$QEMU_IMG convert --salvage "$source_img" "$TEST_IMG" 2>&1 \
+    | _filter_offsets "$status_fail_offsets" "$read_fail_offsets"
+
+echo
+
+# The offsets where the block status could not be determined should
+# have been treated as containing data and thus should be correct in
+# the output image.
+# The offsets where reading failed altogether should be 0.  Make them
+# 0 in the input image, too, so we can compare both images.
+for ofs in $read_fail_offsets
+do
+    $QEMU_IO -c "write -z $ofs $sector_size" "$TEST_IMG.orig" \
+        | _filter_qemu_io \
+        | _filter_offsets '' "$read_fail_offsets"
+done
+
+echo
+
+# These should be equal now.
+$QEMU_IMG compare "$TEST_IMG.orig" "$TEST_IMG"
+
+
+# success, all done
+echo "*** done"
+rm -f $seq.full
+status=0

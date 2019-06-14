@@ -175,6 +175,10 @@ improve performance if the data is remote, such as with NFS or iSCSI backends,
 but will not automatically sparsify zero sectors, and may result in a fully
 allocated target image depending on the host support for getting allocation
 information.
+@item --salvage
+Try to ignore I/O errors when reading.  Unless in quiet mode (@code{-q}), errors
+will still be printed.  Areas that cannot be read from the source will be
+treated as containing only zeroes.
 @end table
 
 Parameters to dd subcommand:

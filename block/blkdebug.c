@@ -75,6 +75,7 @@ typedef struct BlkdebugRule {
     int state;
     union {
         struct {
+            uint64_t iotype_mask;
             int error;
             int immediately;
             int once;
@@ -91,6 +92,9 @@ typedef struct BlkdebugRule {
     QSIMPLEQ_ENTRY(BlkdebugRule) active_next;
 } BlkdebugRule;
 
+QEMU_BUILD_BUG_MSG(BLKDEBUG_IO_TYPE__MAX > 64,
+                   "BlkdebugIOType mask does not fit into an uint64_t");
+
 static QemuOptsList inject_error_opts = {
     .name = "inject-error",
     .head = QTAILQ_HEAD_INITIALIZER(inject_error_opts.head),
@@ -102,6 +106,10 @@ static QemuOptsList inject_error_opts = {
         {
             .name = "state",
             .type = QEMU_OPT_NUMBER,
+        },
+        {
+            .name = "iotype",
+            .type = QEMU_OPT_STRING,
         },
         {
             .name = "errno",
@@ -162,6 +170,8 @@ static int add_rule(void *opaque, QemuOpts *opts, Error **errp)
     int event;
     struct BlkdebugRule *rule;
     int64_t sector;
+    BlkdebugIOType iotype;
+    Error *local_error = NULL;
 
     /* Find the right event for the rule */
     event_name = qemu_opt_get(opts, "event");
@@ -192,6 +202,26 @@ static int add_rule(void *opaque, QemuOpts *opts, Error **errp)
         sector = qemu_opt_get_number(opts, "sector", -1);
         rule->options.inject.offset =
             sector == -1 ? -1 : sector * BDRV_SECTOR_SIZE;
+
+        iotype = qapi_enum_parse(&BlkdebugIOType_lookup,
+                                 qemu_opt_get(opts, "iotype"),
+                                 BLKDEBUG_IO_TYPE__MAX, &local_error);
+        if (local_error) {
+            error_propagate(errp, local_error);
+            return -1;
+        }
+        if (iotype != BLKDEBUG_IO_TYPE__MAX) {
+            rule->options.inject.iotype_mask = (1ull << iotype);
+        } else {
+            /* Apply the default */
+            rule->options.inject.iotype_mask =
+                (1ull << BLKDEBUG_IO_TYPE_READ)
+                | (1ull << BLKDEBUG_IO_TYPE_WRITE)
+                | (1ull << BLKDEBUG_IO_TYPE_WRITE_ZEROES)
+                | (1ull << BLKDEBUG_IO_TYPE_DISCARD)
+                | (1ull << BLKDEBUG_IO_TYPE_FLUSH);
+        }
+
         break;
 
     case ACTION_SET_STATE:
@@ -461,6 +491,8 @@ static int blkdebug_open(BlockDriverState *bs, QDict *options, int flags,
         goto out;
     }
 
+    bdrv_debug_event(bs, BLKDBG_NONE);
+
     ret = 0;
 out:
     if (ret < 0) {
@@ -470,7 +502,8 @@ out:
     return ret;
 }
 
-static int rule_check(BlockDriverState *bs, uint64_t offset, uint64_t bytes)
+static int rule_check(BlockDriverState *bs, uint64_t offset, uint64_t bytes,
+                      BlkdebugIOType iotype)
 {
     BDRVBlkdebugState *s = bs->opaque;
     BlkdebugRule *rule = NULL;
@@ -480,9 +513,10 @@ static int rule_check(BlockDriverState *bs, uint64_t offset, uint64_t bytes)
     QSIMPLEQ_FOREACH(rule, &s->active_rules, active_next) {
         uint64_t inject_offset = rule->options.inject.offset;
 
-        if (inject_offset == -1 ||
-            (bytes && inject_offset >= offset &&
-             inject_offset < offset + bytes))
+        if ((inject_offset == -1 ||
+             (bytes && inject_offset >= offset &&
+              inject_offset < offset + bytes)) &&
+            (rule->options.inject.iotype_mask & (1ull << iotype)))
         {
             break;
         }
@@ -521,7 +555,7 @@ blkdebug_co_preadv(BlockDriverState *bs, uint64_t offset, uint64_t bytes,
         assert(bytes <= bs->bl.max_transfer);
     }
 
-    err = rule_check(bs, offset, bytes);
+    err = rule_check(bs, offset, bytes, BLKDEBUG_IO_TYPE_READ);
     if (err) {
         return err;
     }
@@ -542,7 +576,7 @@ blkdebug_co_pwritev(BlockDriverState *bs, uint64_t offset, uint64_t bytes,
         assert(bytes <= bs->bl.max_transfer);
     }
 
-    err = rule_check(bs, offset, bytes);
+    err = rule_check(bs, offset, bytes, BLKDEBUG_IO_TYPE_WRITE);
     if (err) {
         return err;
     }
@@ -552,7 +586,7 @@ blkdebug_co_pwritev(BlockDriverState *bs, uint64_t offset, uint64_t bytes,
 
 static int blkdebug_co_flush(BlockDriverState *bs)
 {
-    int err = rule_check(bs, 0, 0);
+    int err = rule_check(bs, 0, 0, BLKDEBUG_IO_TYPE_FLUSH);
 
     if (err) {
         return err;
@@ -586,7 +620,7 @@ static int coroutine_fn blkdebug_co_pwrite_zeroes(BlockDriverState *bs,
         assert(bytes <= bs->bl.max_pwrite_zeroes);
     }
 
-    err = rule_check(bs, offset, bytes);
+    err = rule_check(bs, offset, bytes, BLKDEBUG_IO_TYPE_WRITE_ZEROES);
     if (err) {
         return err;
     }
@@ -620,7 +654,7 @@ static int coroutine_fn blkdebug_co_pdiscard(BlockDriverState *bs,
         assert(bytes <= bs->bl.max_pdiscard);
     }
 
-    err = rule_check(bs, offset, bytes);
+    err = rule_check(bs, offset, bytes, BLKDEBUG_IO_TYPE_DISCARD);
     if (err) {
         return err;
     }
@@ -636,7 +670,15 @@ static int coroutine_fn blkdebug_co_block_status(BlockDriverState *bs,
                                                  int64_t *map,
                                                  BlockDriverState **file)
 {
+    int err;
+
     assert(QEMU_IS_ALIGNED(offset | bytes, bs->bl.request_alignment));
+
+    err = rule_check(bs, offset, bytes, BLKDEBUG_IO_TYPE_BLOCK_STATUS);
+    if (err) {
+        return err;
+    }
+
     return bdrv_co_block_status_from_file(bs, want_zero, offset, bytes,
                                           pnum, map, file);
 }

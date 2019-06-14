@@ -64,13 +64,13 @@ Formatting 'TEST_DIR/t.IMGFMT', fmt=IMGFMT size=134217728 backing_file=TEST_DIR/
 
 === Invalid command - cannot create a snapshot using a file BDS ===
 
-{"error": {"class": "GenericError", "desc": "The snapshot does not support backing images"}}
+{"error": {"class": "GenericError", "desc": "The overlay does not support backing images"}}
 
 === Invalid command - snapshot node used as active layer ===
 
-{"error": {"class": "GenericError", "desc": "The snapshot is already in use"}}
-{"error": {"class": "GenericError", "desc": "The snapshot is already in use"}}
-{"error": {"class": "GenericError", "desc": "The snapshot is already in use"}}
+{"error": {"class": "GenericError", "desc": "The overlay is already in use"}}
+{"error": {"class": "GenericError", "desc": "The overlay is already in use"}}
+{"error": {"class": "GenericError", "desc": "The overlay is already in use"}}
 
 === Invalid command - snapshot node used as backing hd ===
 
@@ -81,7 +81,7 @@ Formatting 'TEST_DIR/t.IMGFMT', fmt=IMGFMT size=134217728 backing_file=TEST_DIR/
 Formatting 'TEST_DIR/t.IMGFMT.base', fmt=IMGFMT size=134217728
 Formatting 'TEST_DIR/t.IMGFMT', fmt=IMGFMT size=134217728 backing_file=TEST_DIR/t.IMGFMT.base
 {"return": {}}
-{"error": {"class": "GenericError", "desc": "The snapshot already has a backing image"}}
+{"error": {"class": "GenericError", "desc": "The overlay already has a backing image"}}
 
 === Invalid command - The node does not exist ===
 
