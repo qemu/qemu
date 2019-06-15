@@ -618,7 +618,7 @@ static int qpa_init_in(HWVoiceIn *hw, struct audsettings *as, void *drv_opaque)
     ss.rate = as->freq;
 
     ba.fragsize = pa_usec_to_bytes(ppdo->latency, &ss);
-    ba.maxlength = -1;
+    ba.maxlength = pa_usec_to_bytes(ppdo->latency * 2, &ss);
     ba.minreq = -1;
     ba.prebuf = -1;
 
