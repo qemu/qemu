@@ -20,6 +20,13 @@ static inline void set_cpu_vsrl(int n, TCGv_i64 src)
     tcg_gen_st_i64(src, cpu_env, vsr64_offset(n, false));
 }
 
+static inline TCGv_ptr gen_vsr_ptr(int reg)
+{
+    TCGv_ptr r = tcg_temp_new_ptr();
+    tcg_gen_addi_ptr(r, cpu_env, vsr_full_offset(reg));
+    return r;
+}
+
 #define VSX_LOAD_SCALAR(name, operation)                      \
 static void gen_##name(DisasContext *ctx)                     \
 {                                                             \
@@ -958,6 +965,40 @@ VSX_VECTOR_MOVE(xvnabssp, OP_NABS, SGN_MASK_SP)
 VSX_VECTOR_MOVE(xvnegsp, OP_NEG, SGN_MASK_SP)
 VSX_VECTOR_MOVE(xvcpsgnsp, OP_CPSGN, SGN_MASK_SP)
 
+#define VSX_CMP(name, op1, op2, inval, type)                                  \
+static void gen_##name(DisasContext *ctx)                                     \
+{                                                                             \
+    TCGv_i32 ignored;                                                         \
+    TCGv_ptr xt, xa, xb;                                                      \
+    if (unlikely(!ctx->vsx_enabled)) {                                        \
+        gen_exception(ctx, POWERPC_EXCP_VSXU);                                \
+        return;                                                               \
+    }                                                                         \
+    xt = gen_vsr_ptr(xT(ctx->opcode));                                        \
+    xa = gen_vsr_ptr(xA(ctx->opcode));                                        \
+    xb = gen_vsr_ptr(xB(ctx->opcode));                                        \
+    if ((ctx->opcode >> (31 - 21)) & 1) {                                     \
+        gen_helper_##name(cpu_crf[6], cpu_env, xt, xa, xb);                   \
+    } else {                                                                  \
+        ignored = tcg_temp_new_i32();                                         \
+        gen_helper_##name(ignored, cpu_env, xt, xa, xb);                      \
+        tcg_temp_free_i32(ignored);                                           \
+    }                                                                         \
+    gen_helper_float_check_status(cpu_env);                                   \
+    tcg_temp_free_ptr(xt);                                                    \
+    tcg_temp_free_ptr(xa);                                                    \
+    tcg_temp_free_ptr(xb);                                                    \
+}
+
+VSX_CMP(xvcmpeqdp, 0x0C, 0x0C, 0, PPC2_VSX)
+VSX_CMP(xvcmpgedp, 0x0C, 0x0E, 0, PPC2_VSX)
+VSX_CMP(xvcmpgtdp, 0x0C, 0x0D, 0, PPC2_VSX)
+VSX_CMP(xvcmpnedp, 0x0C, 0x0F, 0, PPC2_ISA300)
+VSX_CMP(xvcmpeqsp, 0x0C, 0x08, 0, PPC2_VSX)
+VSX_CMP(xvcmpgesp, 0x0C, 0x0A, 0, PPC2_VSX)
+VSX_CMP(xvcmpgtsp, 0x0C, 0x09, 0, PPC2_VSX)
+VSX_CMP(xvcmpnesp, 0x0C, 0x0B, 0, PPC2_VSX)
+
 #define GEN_VSX_HELPER_2(name, op1, op2, inval, type)                         \
 static void gen_##name(DisasContext *ctx)                                     \
 {                                                                             \
@@ -1097,10 +1138,6 @@ GEN_VSX_HELPER_2(xvnmsubadp, 0x04, 0x1E, 0, PPC2_VSX)
 GEN_VSX_HELPER_2(xvnmsubmdp, 0x04, 0x1F, 0, PPC2_VSX)
 GEN_VSX_HELPER_2(xvmaxdp, 0x00, 0x1C, 0, PPC2_VSX)
 GEN_VSX_HELPER_2(xvmindp, 0x00, 0x1D, 0, PPC2_VSX)
-GEN_VSX_HELPER_2(xvcmpeqdp, 0x0C, 0x0C, 0, PPC2_VSX)
-GEN_VSX_HELPER_2(xvcmpgtdp, 0x0C, 0x0D, 0, PPC2_VSX)
-GEN_VSX_HELPER_2(xvcmpgedp, 0x0C, 0x0E, 0, PPC2_VSX)
-GEN_VSX_HELPER_2(xvcmpnedp, 0x0C, 0x0F, 0, PPC2_ISA300)
 GEN_VSX_HELPER_2(xvcvdpsp, 0x12, 0x18, 0, PPC2_VSX)
 GEN_VSX_HELPER_2(xvcvdpsxds, 0x10, 0x1D, 0, PPC2_VSX)
 GEN_VSX_HELPER_2(xvcvdpsxws, 0x10, 0x0D, 0, PPC2_VSX)
@@ -1135,10 +1172,6 @@ GEN_VSX_HELPER_2(xvnmsubasp, 0x04, 0x1A, 0, PPC2_VSX)
 GEN_VSX_HELPER_2(xvnmsubmsp, 0x04, 0x1B, 0, PPC2_VSX)
 GEN_VSX_HELPER_2(xvmaxsp, 0x00, 0x18, 0, PPC2_VSX)
 GEN_VSX_HELPER_2(xvminsp, 0x00, 0x19, 0, PPC2_VSX)
-GEN_VSX_HELPER_2(xvcmpeqsp, 0x0C, 0x08, 0, PPC2_VSX)
-GEN_VSX_HELPER_2(xvcmpgtsp, 0x0C, 0x09, 0, PPC2_VSX)
-GEN_VSX_HELPER_2(xvcmpgesp, 0x0C, 0x0A, 0, PPC2_VSX)
-GEN_VSX_HELPER_2(xvcmpnesp, 0x0C, 0x0B, 0, PPC2_VSX)
 GEN_VSX_HELPER_2(xvcvspdp, 0x12, 0x1C, 0, PPC2_VSX)
 GEN_VSX_HELPER_2(xvcvhpsp, 0x16, 0x1D, 0x18, PPC2_ISA300)
 GEN_VSX_HELPER_2(xvcvsphp, 0x16, 0x1D, 0x19, PPC2_ISA300)

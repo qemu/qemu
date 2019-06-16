@@ -2746,12 +2746,11 @@ VSX_MAX_MINJ(xsminjdp, 0);
  *   exp   - expected result of comparison
  */
 #define VSX_CMP(op, nels, tp, fld, cmp, svxvc, exp)                       \
-void helper_##op(CPUPPCState *env, uint32_t opcode)                       \
+uint32_t helper_##op(CPUPPCState *env, ppc_vsr_t *xt,                     \
+                     ppc_vsr_t *xa, ppc_vsr_t *xb)                        \
 {                                                                         \
-    ppc_vsr_t *xt = &env->vsr[xT(opcode)];                                \
-    ppc_vsr_t *xa = &env->vsr[xA(opcode)];                                \
-    ppc_vsr_t *xb = &env->vsr[xB(opcode)];                                \
     ppc_vsr_t t = *xt;                                                    \
+    uint32_t crf6 = 0;                                                    \
     int i;                                                                \
     int all_true = 1;                                                     \
     int all_false = 1;                                                    \
@@ -2780,11 +2779,9 @@ void helper_##op(CPUPPCState *env, uint32_t opcode)                       \
     }                                                                     \
                                                                           \
     *xt = t;                                                              \
-    if ((opcode >> (31 - 21)) & 1) {                                      \
-        env->crf[6] = (all_true ? 0x8 : 0) | (all_false ? 0x2 : 0);       \
-    }                                                                     \
-    do_float_check_status(env, GETPC());                                  \
- }
+    crf6 = (all_true ? 0x8 : 0) | (all_false ? 0x2 : 0);                  \
+    return crf6;                                                          \
+}
 
 VSX_CMP(xvcmpeqdp, 2, float64, VsrD(i), eq, 0, 1)
 VSX_CMP(xvcmpgedp, 2, float64, VsrD(i), le, 1, 1)
