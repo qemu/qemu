@@ -1632,7 +1632,7 @@ static void gen_xxsldwi(DisasContext *ctx)
 #define VSX_EXTRACT_INSERT(name)                                \
 static void gen_##name(DisasContext *ctx)                       \
 {                                                               \
-    TCGv xt, xb;                                                \
+    TCGv_ptr xt, xb;                                            \
     TCGv_i32 t0;                                                \
     TCGv_i64 t1;                                                \
     uint8_t uimm = UIMM4(ctx->opcode);                          \
@@ -1641,8 +1641,8 @@ static void gen_##name(DisasContext *ctx)                       \
         gen_exception(ctx, POWERPC_EXCP_VSXU);                  \
         return;                                                 \
     }                                                           \
-    xt = tcg_const_tl(xT(ctx->opcode));                         \
-    xb = tcg_const_tl(xB(ctx->opcode));                         \
+    xt = gen_vsr_ptr(xT(ctx->opcode));                          \
+    xb = gen_vsr_ptr(xB(ctx->opcode));                          \
     t0 = tcg_temp_new_i32();                                    \
     t1 = tcg_temp_new_i64();                                    \
     /*                                                          \
@@ -1657,8 +1657,8 @@ static void gen_##name(DisasContext *ctx)                       \
     }                                                           \
     tcg_gen_movi_i32(t0, uimm);                                 \
     gen_helper_##name(cpu_env, xt, xb, t0);                     \
-    tcg_temp_free(xb);                                          \
-    tcg_temp_free(xt);                                          \
+    tcg_temp_free_ptr(xb);                                      \
+    tcg_temp_free_ptr(xt);                                      \
     tcg_temp_free_i32(t0);                                      \
     tcg_temp_free_i64(t1);                                      \
 }
