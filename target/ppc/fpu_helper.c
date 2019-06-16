@@ -1801,11 +1801,9 @@ uint32_t helper_efdcmpeq(CPUPPCState *env, uint64_t op1, uint64_t op2)
  *   sfprf - set FPRF
  */
 #define VSX_ADD_SUB(name, op, nels, tp, fld, sfprf, r2sp)                    \
-void helper_##name(CPUPPCState *env, uint32_t opcode)                        \
+void helper_##name(CPUPPCState *env, ppc_vsr_t *xt,                          \
+                   ppc_vsr_t *xa, ppc_vsr_t *xb)                             \
 {                                                                            \
-    ppc_vsr_t *xt = &env->vsr[xT(opcode)];                                   \
-    ppc_vsr_t *xa = &env->vsr[xA(opcode)];                                   \
-    ppc_vsr_t *xb = &env->vsr[xB(opcode)];                                   \
     ppc_vsr_t t = *xt;                                                       \
     int i;                                                                   \
                                                                              \
@@ -1884,11 +1882,9 @@ void helper_xsaddqp(CPUPPCState *env, uint32_t opcode)
  *   sfprf - set FPRF
  */
 #define VSX_MUL(op, nels, tp, fld, sfprf, r2sp)                              \
-void helper_##op(CPUPPCState *env, uint32_t opcode)                          \
+void helper_##op(CPUPPCState *env, ppc_vsr_t *xt,                            \
+                 ppc_vsr_t *xa, ppc_vsr_t *xb)                               \
 {                                                                            \
-    ppc_vsr_t *xt = &env->vsr[xT(opcode)];                                   \
-    ppc_vsr_t *xa = &env->vsr[xA(opcode)];                                   \
-    ppc_vsr_t *xb = &env->vsr[xB(opcode)];                                   \
     ppc_vsr_t t = *xt;                                                       \
     int i;                                                                   \
                                                                              \
@@ -1962,11 +1958,9 @@ void helper_xsmulqp(CPUPPCState *env, uint32_t opcode)
  *   sfprf - set FPRF
  */
 #define VSX_DIV(op, nels, tp, fld, sfprf, r2sp)                               \
-void helper_##op(CPUPPCState *env, uint32_t opcode)                           \
+void helper_##op(CPUPPCState *env, ppc_vsr_t *xt,                             \
+                 ppc_vsr_t *xa, ppc_vsr_t *xb)                                \
 {                                                                             \
-    ppc_vsr_t *xt = &env->vsr[xT(opcode)];                                    \
-    ppc_vsr_t *xa = &env->vsr[xA(opcode)];                                    \
-    ppc_vsr_t *xb = &env->vsr[xB(opcode)];                                    \
     ppc_vsr_t t = *xt;                                                        \
     int i;                                                                    \
                                                                               \
@@ -2304,11 +2298,9 @@ VSX_TSQRT(xvtsqrtsp, 4, float32, VsrW(i), -126, 23)
  *   sfprf - set FPRF
  */
 #define VSX_MADD(op, nels, tp, fld, maddflgs, afrm, sfprf, r2sp)              \
-void helper_##op(CPUPPCState *env, uint32_t opcode)                           \
+void helper_##op(CPUPPCState *env, ppc_vsr_t *xt,                             \
+                 ppc_vsr_t *xa, ppc_vsr_t *xb)                                \
 {                                                                             \
-    ppc_vsr_t *xt = &env->vsr[xT(opcode)];                                    \
-    ppc_vsr_t *xa = &env->vsr[xA(opcode)];                                    \
-    ppc_vsr_t *xb = &env->vsr[xB(opcode)];                                    \
     ppc_vsr_t t = *xt, *b, *c;                                                \
     int i;                                                                    \
                                                                               \
@@ -2402,11 +2394,9 @@ VSX_MADD(xvnmsubmsp, 4, float32, VsrW(i), NMSUB_FLGS, 0, 0, 0)
  *   svxvc - set VXVC bit
  */
 #define VSX_SCALAR_CMP_DP(op, cmp, exp, svxvc)                                \
-void helper_##op(CPUPPCState *env, uint32_t opcode)                           \
+void helper_##op(CPUPPCState *env, ppc_vsr_t *xt,                             \
+                 ppc_vsr_t *xa, ppc_vsr_t *xb)                                \
 {                                                                             \
-    ppc_vsr_t *xt = &env->vsr[xT(opcode)];                                    \
-    ppc_vsr_t *xa = &env->vsr[xA(opcode)];                                    \
-    ppc_vsr_t *xb = &env->vsr[xB(opcode)];                                    \
     ppc_vsr_t t = *xt;                                                        \
     bool vxsnan_flag = false, vxvc_flag = false, vex_flag = false;            \
                                                                               \
@@ -2614,11 +2604,9 @@ VSX_SCALAR_CMPQ(xscmpuqp, 0)
  *   fld   - vsr_t field (VsrD(*) or VsrW(*))
  */
 #define VSX_MAX_MIN(name, op, nels, tp, fld)                                  \
-void helper_##name(CPUPPCState *env, uint32_t opcode)                         \
+void helper_##name(CPUPPCState *env, ppc_vsr_t *xt,                           \
+                   ppc_vsr_t *xa, ppc_vsr_t *xb)                              \
 {                                                                             \
-    ppc_vsr_t *xt = &env->vsr[xT(opcode)];                                    \
-    ppc_vsr_t *xa = &env->vsr[xA(opcode)];                                    \
-    ppc_vsr_t *xb = &env->vsr[xB(opcode)];                                    \
     ppc_vsr_t t = *xt;                                                        \
     int i;                                                                    \
                                                                               \
@@ -3194,11 +3182,9 @@ uint64_t helper_xsrsp(CPUPPCState *env, uint64_t xb)
 }
 
 #define VSX_XXPERM(op, indexed)                                       \
-void helper_##op(CPUPPCState *env, uint32_t opcode)                   \
+void helper_##op(CPUPPCState *env, ppc_vsr_t *xt,                     \
+                 ppc_vsr_t *xa, ppc_vsr_t *pcv)                       \
 {                                                                     \
-    ppc_vsr_t *xt = &env->vsr[xT(opcode)];                            \
-    ppc_vsr_t *xa = &env->vsr[xA(opcode)];                            \
-    ppc_vsr_t *pcv = &env->vsr[xB(opcode)];                           \
     ppc_vsr_t t = *xt;                                                \
     int i, idx;                                                       \
                                                                       \
