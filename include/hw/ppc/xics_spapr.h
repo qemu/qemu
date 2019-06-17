@@ -37,6 +37,5 @@ int xics_kvm_init(SpaprMachineState *spapr, Error **errp);
 void xics_kvm_disconnect(SpaprMachineState *spapr, Error **errp);
 bool xics_kvm_has_broken_disconnect(SpaprMachineState *spapr);
 void xics_spapr_init(SpaprMachineState *spapr);
-void xics_spapr_connect(SpaprMachineState *spapr);
 
 #endif /* XICS_SPAPR_H */
