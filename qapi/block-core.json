@@ -2890,11 +2890,13 @@
 # @latency-ns: emulated latency (in nanoseconds) in processing
 #              requests. Default to zero which completes requests immediately.
 #              (Since 2.4)
+# @read-zeroes: if true, reads from the device produce zeroes; if false, the
+#               buffer is left unchanged. (default: false; since: 4.1)
 #
 # Since: 2.9
 ##
 { 'struct': 'BlockdevOptionsNull',
-  'data': { '*size': 'int', '*latency-ns': 'uint64' } }
+  'data': { '*size': 'int', '*latency-ns': 'uint64', '*read-zeroes': 'bool' } }
 
 ##
 # @BlockdevOptionsNVMe:
