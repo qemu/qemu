@@ -21,3 +21,4 @@ Contents:
    testing
    decodetree
    secure-coding-practices
+   tcg
