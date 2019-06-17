@@ -421,10 +421,7 @@ int xics_kvm_connect(SpaprMachineState *spapr, Error **errp)
 
 fail:
     error_propagate(errp, local_err);
-    kvmppc_define_rtas_kernel_token(0, "ibm,set-xive");
-    kvmppc_define_rtas_kernel_token(0, "ibm,get-xive");
-    kvmppc_define_rtas_kernel_token(0, "ibm,int-on");
-    kvmppc_define_rtas_kernel_token(0, "ibm,int-off");
+    xics_kvm_disconnect(spapr, NULL);
     return -1;
 }
 
@@ -448,8 +445,10 @@ void xics_kvm_disconnect(SpaprMachineState *spapr, Error **errp)
      * removed from the list of devices of the VM. The VCPU presenters
      * are also detached from the device.
      */
-    close(kernel_xics_fd);
-    kernel_xics_fd = -1;
+    if (kernel_xics_fd != -1) {
+        close(kernel_xics_fd);
+        kernel_xics_fd = -1;
+    }
 
     kvmppc_define_rtas_kernel_token(0, "ibm,set-xive");
     kvmppc_define_rtas_kernel_token(0, "ibm,get-xive");
