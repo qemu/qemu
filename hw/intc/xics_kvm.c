@@ -353,32 +353,36 @@ int xics_kvm_connect(SpaprMachineState *spapr, Error **errp)
 
     rc = kvmppc_define_rtas_kernel_token(RTAS_IBM_SET_XIVE, "ibm,set-xive");
     if (rc < 0) {
-        error_setg(errp, "kvmppc_define_rtas_kernel_token: ibm,set-xive");
+        error_setg_errno(&local_err, -rc,
+                         "kvmppc_define_rtas_kernel_token: ibm,set-xive");
         goto fail;
     }
 
     rc = kvmppc_define_rtas_kernel_token(RTAS_IBM_GET_XIVE, "ibm,get-xive");
     if (rc < 0) {
-        error_setg(errp, "kvmppc_define_rtas_kernel_token: ibm,get-xive");
+        error_setg_errno(&local_err, -rc,
+                         "kvmppc_define_rtas_kernel_token: ibm,get-xive");
         goto fail;
     }
 
     rc = kvmppc_define_rtas_kernel_token(RTAS_IBM_INT_ON, "ibm,int-on");
     if (rc < 0) {
-        error_setg(errp, "kvmppc_define_rtas_kernel_token: ibm,int-on");
+        error_setg_errno(&local_err, -rc,
+                         "kvmppc_define_rtas_kernel_token: ibm,int-on");
         goto fail;
     }
 
     rc = kvmppc_define_rtas_kernel_token(RTAS_IBM_INT_OFF, "ibm,int-off");
     if (rc < 0) {
-        error_setg(errp, "kvmppc_define_rtas_kernel_token: ibm,int-off");
+        error_setg_errno(&local_err, -rc,
+                         "kvmppc_define_rtas_kernel_token: ibm,int-off");
         goto fail;
     }
 
     /* Create the KVM XICS device */
     rc = kvm_create_device(kvm_state, KVM_DEV_TYPE_XICS, false);
     if (rc < 0) {
-        error_setg_errno(errp, -rc, "Error on KVM_CREATE_DEVICE for XICS");
+        error_setg_errno(&local_err, -rc, "Error on KVM_CREATE_DEVICE for XICS");
         goto fail;
     }
 
@@ -393,7 +397,6 @@ int xics_kvm_connect(SpaprMachineState *spapr, Error **errp)
 
         icp_kvm_realize(DEVICE(spapr_cpu_state(cpu)->icp), &local_err);
         if (local_err) {
-            error_propagate(errp, local_err);
             goto fail;
         }
     }
@@ -410,6 +413,7 @@ int xics_kvm_connect(SpaprMachineState *spapr, Error **errp)
     return 0;
 
 fail:
+    error_propagate(errp, local_err);
     kvmppc_define_rtas_kernel_token(0, "ibm,set-xive");
     kvmppc_define_rtas_kernel_token(0, "ibm,get-xive");
     kvmppc_define_rtas_kernel_token(0, "ibm,int-on");
