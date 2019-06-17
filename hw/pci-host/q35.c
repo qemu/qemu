@@ -260,15 +260,6 @@ static void q35_host_initfn(Object *obj)
     object_property_add_link(obj, MCH_HOST_PROP_IO_MEM, TYPE_MEMORY_REGION,
                              (Object **) &s->mch.address_space_io,
                              qdev_prop_allow_set_link_before_realize, 0, NULL);
-
-    /* Leave enough space for the biggest MCFG BAR */
-    /* TODO: this matches current bios behaviour, but
-     * it's not a power of two, which means an MTRR
-     * can't cover it exactly.
-     */
-    range_set_bounds(&s->mch.pci_hole,
-            MCH_HOST_BRIDGE_PCIEXBAR_DEFAULT + MCH_HOST_BRIDGE_PCIEXBAR_MAX,
-            IO_APIC_DEFAULT_ADDRESS - 1);
 }
 
 static const TypeInfo q35_host_info = {
@@ -340,20 +331,6 @@ static void mch_update_pciexbar(MCHPCIState *mch)
     }
     addr = pciexbar & addr_mask;
     pcie_host_mmcfg_update(pehb, enable, addr, length);
-    /* Leave enough space for the MCFG BAR */
-    /*
-     * TODO: this matches current bios behaviour, but it's not a power of two,
-     * which means an MTRR can't cover it exactly.
-     */
-    if (enable) {
-        range_set_bounds(&mch->pci_hole,
-                         addr + length,
-                         IO_APIC_DEFAULT_ADDRESS - 1);
-    } else {
-        range_set_bounds(&mch->pci_hole,
-                         MCH_HOST_BRIDGE_PCIEXBAR_DEFAULT,
-                         IO_APIC_DEFAULT_ADDRESS - 1);
-    }
 }
 
 /* PAM */
@@ -486,6 +463,14 @@ static void mch_update(MCHPCIState *mch)
     mch_update_pam(mch);
     mch_update_smram(mch);
     mch_update_ext_tseg_mbytes(mch);
+
+    /*
+     * pci hole goes from end-of-low-ram to io-apic.
+     * mmconfig will be excluded by the dsdt builder.
+     */
+    range_set_bounds(&mch->pci_hole,
+                     mch->below_4g_mem_size,
+                     IO_APIC_DEFAULT_ADDRESS - 1);
 }
 
 static int mch_post_load(void *opaque, int version_id)

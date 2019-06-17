@@ -138,21 +138,19 @@ static int
 vg_sock_fd_write(int sock, const void *buf, ssize_t buflen, int fd)
 {
     ssize_t ret;
-    struct msghdr msg;
-    struct iovec iov;
+    struct iovec iov = {
+        .iov_base = (void *)buf,
+        .iov_len = buflen,
+    };
+    struct msghdr msg = {
+        .msg_iov = &iov,
+        .msg_iovlen = 1,
+    };
     union {
         struct cmsghdr cmsghdr;
         char control[CMSG_SPACE(sizeof(int))];
     } cmsgu;
     struct cmsghdr *cmsg;
-
-    iov.iov_base = (void *)buf;
-    iov.iov_len = buflen;
-
-    msg.msg_name = NULL;
-    msg.msg_namelen = 0;
-    msg.msg_iov = &iov;
-    msg.msg_iovlen = 1;
 
     if (fd != -1) {
         msg.msg_control = cmsgu.control;
@@ -164,9 +162,6 @@ vg_sock_fd_write(int sock, const void *buf, ssize_t buflen, int fd)
         cmsg->cmsg_type = SCM_RIGHTS;
 
         *((int *)CMSG_DATA(cmsg)) = fd;
-    } else {
-        msg.msg_control = NULL;
-        msg.msg_controllen = 0;
     }
 
     do {
@@ -354,7 +349,7 @@ vg_disable_scanout(VuGpu *g, int scanout_id)
     scanout->width = 0;
     scanout->height = 0;
 
-    {
+    if (g->sock_fd >= 0) {
         VhostUserGpuMsg msg = {
             .request = VHOST_USER_GPU_SCANOUT,
             .size = sizeof(VhostUserGpuScanout),
@@ -1160,13 +1155,17 @@ main(int argc, char *argv[])
 
     if (opt_socket_path) {
         int lsock = unix_listen(opt_socket_path, &error_fatal);
+        if (lsock < 0) {
+            g_printerr("Failed to listen on %s.\n", opt_socket_path);
+            exit(EXIT_FAILURE);
+        }
         fd = accept(lsock, NULL, NULL);
         close(lsock);
     } else {
         fd = opt_fdnum;
     }
     if (fd == -1) {
-        g_printerr("Invalid socket");
+        g_printerr("Invalid vhost-user socket.\n");
         exit(EXIT_FAILURE);
     }
 

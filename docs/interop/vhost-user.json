@@ -178,11 +178,11 @@
 #
 #   - /usr/share/qemu/vhost-user/50-crosvm-gpu.json
 #
-# then the sysadmin can prevent the default QEMU being used at all with
+# then the sysadmin can prevent the default QEMU GPU being used at all with
 #
 #   $ touch /etc/qemu/vhost-user/50-qemu-gpu.json
 #
-# The sysadmin can replace/alter the distro default OVMF with
+# The sysadmin can replace/alter the distro default QEMU GPU with
 #
 #   $ vim /etc/qemu/vhost-user/50-qemu-gpu.json
 #
@@ -190,7 +190,7 @@
 #
 #   $ vim /etc/qemu/vhost-user/10-qemu-gpu.json
 #
-# or they can provide a parallel OVMF with lower priority
+# or they can provide a parallel QEMU GPU with lower priority
 #
 #   $ vim /etc/qemu/vhost-user/99-qemu-gpu.json
 #

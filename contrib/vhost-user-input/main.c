@@ -342,7 +342,11 @@ main(int argc, char *argv[])
 
     vi.config = g_array_new(false, false, sizeof(virtio_input_config));
     memset(&id, 0, sizeof(id));
-    ioctl(vi.evdevfd, EVIOCGNAME(sizeof(id.u.string) - 1), id.u.string);
+    if (ioctl(vi.evdevfd, EVIOCGNAME(sizeof(id.u.string) - 1),
+              id.u.string) < 0) {
+        g_printerr("Failed to get evdev name: %s\n", g_strerror(errno));
+        exit(EXIT_FAILURE);
+    }
     id.select = VIRTIO_INPUT_CFG_ID_NAME;
     id.size = strlen(id.u.string);
     g_array_append_val(vi.config, id);
@@ -367,13 +371,17 @@ main(int argc, char *argv[])
 
     if (opt_socket_path) {
         int lsock = unix_listen(opt_socket_path, &error_fatal);
+        if (lsock < 0) {
+            g_printerr("Failed to listen on %s.\n", opt_socket_path);
+            exit(EXIT_FAILURE);
+        }
         fd = accept(lsock, NULL, NULL);
         close(lsock);
     } else {
         fd = opt_fdnum;
     }
     if (fd == -1) {
-        g_printerr("Invalid socket");
+        g_printerr("Invalid vhost-user socket.\n");
         exit(EXIT_FAILURE);
     }
     vug_init(&vi.dev, fd, vi_panic, &vuiface);

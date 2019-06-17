@@ -29,5 +29,8 @@ for qemu in $qemu_bins; do
     TEST_ACPI_REBUILD_AML=y QTEST_QEMU_BINARY=$qemu tests/bios-tables-test
 done
 
+eval `grep SRC_PATH= config-host.mak`
+
+echo '/* List of comma-separated changed AML files to ignore */' > ${SRC_PATH}/tests/bios-tables-test-allowed-diff.h
 
 echo "The files were rebuilt and can be added to git."
