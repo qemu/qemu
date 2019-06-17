@@ -5144,7 +5144,7 @@ fi
 sem_timedwait=no
 cat > $TMPC << EOF
 #include <semaphore.h>
-int main(void) { return sem_timedwait(0, 0); }
+int main(void) { sem_t s; struct timespec t = {0}; return sem_timedwait(&s, &t); }
 EOF
 if compile_prog "" "" ; then
     sem_timedwait=yes
