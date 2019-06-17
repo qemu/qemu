@@ -331,7 +331,7 @@ void ics_kvm_set_irq(ICSState *ics, int srcno, int val)
     }
 }
 
-int xics_kvm_init(SpaprMachineState *spapr, Error **errp)
+int xics_kvm_connect(SpaprMachineState *spapr, Error **errp)
 {
     int rc;
     CPUState *cs;

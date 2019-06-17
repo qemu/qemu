@@ -243,7 +243,7 @@ static void spapr_irq_init_emu_xics(SpaprMachineState *spapr, Error **errp)
 static void spapr_irq_init_kvm_xics(SpaprMachineState *spapr, Error **errp)
 {
     if (kvm_enabled()) {
-        xics_kvm_init(spapr, errp);
+        xics_kvm_connect(spapr, errp);
     }
 }
 
