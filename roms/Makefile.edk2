@@ -17,7 +17,9 @@ toolchain = $(shell source ./edk2-funcs.sh && qemu_edk2_get_toolchain $(1))
 
 licenses := \
 	edk2/License.txt \
+	edk2/License-History.txt \
 	edk2/OvmfPkg/License.txt \
+	edk2/ArmPkg/Library/ArmSoftFloatLib/berkeley-softfloat-3/COPYING.txt \
 	edk2/CryptoPkg/Library/OpensslLib/openssl/LICENSE
 
 # The "edk2-arm-vars.fd" varstore template is suitable for aarch64 as well.
@@ -57,7 +59,7 @@ submodules:
 		--arch=AARCH64 \
 		--platform=ArmVirtPkg/ArmVirtQemu.dsc \
 		-D NETWORK_IP6_ENABLE \
-		-D HTTP_BOOT_ENABLE
+		-D NETWORK_HTTP_BOOT_ENABLE
 	cp edk2/Build/ArmVirtQemu-AARCH64/DEBUG_$(call toolchain,aarch64)/FV/QEMU_EFI.fd \
 		$@
 	truncate --size=64M $@
@@ -68,7 +70,7 @@ submodules:
 		--arch=ARM \
 		--platform=ArmVirtPkg/ArmVirtQemu.dsc \
 		-D NETWORK_IP6_ENABLE \
-		-D HTTP_BOOT_ENABLE
+		-D NETWORK_HTTP_BOOT_ENABLE
 	cp edk2/Build/ArmVirtQemu-ARM/DEBUG_$(call toolchain,arm)/FV/QEMU_EFI.fd \
 		$@
 	truncate --size=64M $@
@@ -79,8 +81,8 @@ submodules:
 		--arch=IA32 \
 		--platform=OvmfPkg/OvmfPkgIa32.dsc \
 		-D NETWORK_IP6_ENABLE \
-		-D HTTP_BOOT_ENABLE \
-		-D TLS_ENABLE \
+		-D NETWORK_HTTP_BOOT_ENABLE \
+		-D NETWORK_TLS_ENABLE \
 		-D TPM2_ENABLE \
 		-D TPM2_CONFIG_ENABLE
 	cp edk2/Build/OvmfIa32/DEBUG_$(call toolchain,i386)/FV/OVMF_CODE.fd $@
@@ -91,8 +93,8 @@ submodules:
 		--arch=IA32 \
 		--platform=OvmfPkg/OvmfPkgIa32.dsc \
 		-D NETWORK_IP6_ENABLE \
-		-D HTTP_BOOT_ENABLE \
-		-D TLS_ENABLE \
+		-D NETWORK_HTTP_BOOT_ENABLE \
+		-D NETWORK_TLS_ENABLE \
 		-D TPM2_ENABLE \
 		-D TPM2_CONFIG_ENABLE \
 		-D SECURE_BOOT_ENABLE \
@@ -105,8 +107,8 @@ submodules:
 		--arch=X64 \
 		--platform=OvmfPkg/OvmfPkgX64.dsc \
 		-D NETWORK_IP6_ENABLE \
-		-D HTTP_BOOT_ENABLE \
-		-D TLS_ENABLE \
+		-D NETWORK_HTTP_BOOT_ENABLE \
+		-D NETWORK_TLS_ENABLE \
 		-D TPM2_ENABLE \
 		-D TPM2_CONFIG_ENABLE
 	cp edk2/Build/OvmfX64/DEBUG_$(call toolchain,x86_64)/FV/OVMF_CODE.fd $@
@@ -118,8 +120,8 @@ submodules:
 		--arch=X64 \
 		--platform=OvmfPkg/OvmfPkgIa32X64.dsc \
 		-D NETWORK_IP6_ENABLE \
-		-D HTTP_BOOT_ENABLE \
-		-D TLS_ENABLE \
+		-D NETWORK_HTTP_BOOT_ENABLE \
+		-D NETWORK_TLS_ENABLE \
 		-D TPM2_ENABLE \
 		-D TPM2_CONFIG_ENABLE \
 		-D SECURE_BOOT_ENABLE \
