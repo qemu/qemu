@@ -351,6 +351,7 @@ static void icp_realize(DeviceState *dev, Error **errp)
         return;
     }
 
+    /* Connect the presenter to the VCPU (required for CPU hotplug) */
     if (kvm_irqchip_in_kernel()) {
         icp_kvm_realize(dev, &err);
         if (err) {
