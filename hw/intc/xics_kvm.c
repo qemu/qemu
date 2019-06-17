@@ -348,7 +348,7 @@ int xics_kvm_connect(SpaprMachineState *spapr, Error **errp)
     if (!kvm_enabled() || !kvm_check_extension(kvm_state, KVM_CAP_IRQ_XICS)) {
         error_setg(errp,
                    "KVM and IRQ_XICS capability must be present for in-kernel XICS");
-        goto fail;
+        return -1;
     }
 
     rc = kvmppc_define_rtas_kernel_token(RTAS_IBM_SET_XIVE, "ibm,set-xive");
