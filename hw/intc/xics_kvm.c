@@ -106,7 +106,7 @@ void icp_synchronize_state(ICPState *icp)
     }
 }
 
-int icp_set_kvm_state(ICPState *icp)
+int icp_set_kvm_state(ICPState *icp, Error **errp)
 {
     uint64_t state;
     int ret;
@@ -126,10 +126,11 @@ int icp_set_kvm_state(ICPState *icp)
         | ((uint64_t)icp->pending_priority << KVM_REG_PPC_ICP_PPRI_SHIFT);
 
     ret = kvm_set_one_reg(icp->cs, KVM_REG_PPC_ICP_STATE, &state);
-    if (ret != 0) {
-        error_report("Unable to restore KVM interrupt controller state (0x%"
-                PRIx64 ") for CPU %ld: %s", state, kvm_arch_vcpu_id(icp->cs),
-                strerror(errno));
+    if (ret < 0) {
+        error_setg_errno(errp, -ret,
+                         "Unable to restore KVM interrupt controller state (0x%"
+                         PRIx64 ") for CPU %ld", state,
+                         kvm_arch_vcpu_id(icp->cs));
         return ret;
     }
 
@@ -240,10 +241,9 @@ void ics_synchronize_state(ICSState *ics)
     ics_get_kvm_state(ics);
 }
 
-int ics_set_kvm_state_one(ICSState *ics, int srcno)
+int ics_set_kvm_state_one(ICSState *ics, int srcno, Error **errp)
 {
     uint64_t state;
-    Error *local_err = NULL;
     ICSIRQState *irq = &ics->irqs[srcno];
     int ret;
 
@@ -278,16 +278,15 @@ int ics_set_kvm_state_one(ICSState *ics, int srcno)
     }
 
     ret = kvm_device_access(kernel_xics_fd, KVM_DEV_XICS_GRP_SOURCES,
-                            srcno + ics->offset, &state, true, &local_err);
-    if (local_err) {
-        error_report_err(local_err);
+                            srcno + ics->offset, &state, true, errp);
+    if (ret < 0) {
         return ret;
     }
 
     return 0;
 }
 
-int ics_set_kvm_state(ICSState *ics)
+int ics_set_kvm_state(ICSState *ics, Error **errp)
 {
     int i;
 
@@ -297,10 +296,12 @@ int ics_set_kvm_state(ICSState *ics)
     }
 
     for (i = 0; i < ics->nr_irqs; i++) {
+        Error *local_err = NULL;
         int ret;
 
-        ret = ics_set_kvm_state_one(ics, i);
-        if (ret) {
+        ret = ics_set_kvm_state_one(ics, i, &local_err);
+        if (ret < 0) {
+            error_propagate(errp, local_err);
             return ret;
         }
     }
@@ -402,12 +403,18 @@ int xics_kvm_connect(SpaprMachineState *spapr, Error **errp)
     }
 
     /* Update the KVM sources */
-    ics_set_kvm_state(spapr->ics);
+    ics_set_kvm_state(spapr->ics, &local_err);
+    if (local_err) {
+        goto fail;
+    }
 
     /* Connect the presenters to the initial VCPUs of the machine */
     CPU_FOREACH(cs) {
         PowerPCCPU *cpu = POWERPC_CPU(cs);
-        icp_set_kvm_state(spapr_cpu_state(cpu)->icp);
+        icp_set_kvm_state(spapr_cpu_state(cpu)->icp, &local_err);
+        if (local_err) {
+            goto fail;
+        }
     }
 
     return 0;

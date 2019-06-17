@@ -190,13 +190,13 @@ Object *icp_create(Object *cpu, const char *type, XICSFabric *xi,
 
 /* KVM */
 void icp_get_kvm_state(ICPState *icp);
-int icp_set_kvm_state(ICPState *icp);
+int icp_set_kvm_state(ICPState *icp, Error **errp);
 void icp_synchronize_state(ICPState *icp);
 void icp_kvm_realize(DeviceState *dev, Error **errp);
 
 void ics_get_kvm_state(ICSState *ics);
-int ics_set_kvm_state_one(ICSState *ics, int srcno);
-int ics_set_kvm_state(ICSState *ics);
+int ics_set_kvm_state_one(ICSState *ics, int srcno, Error **errp);
+int ics_set_kvm_state(ICSState *ics, Error **errp);
 void ics_synchronize_state(ICSState *ics);
 void ics_kvm_set_irq(ICSState *ics, int srcno, int val);
 
