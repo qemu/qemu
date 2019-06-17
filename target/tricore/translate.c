@@ -8772,7 +8772,7 @@ static void decode_32Bit_opc(DisasContext *ctx)
     }
 }
 
-static void decode_opc(DisasContext *ctx, int *is_branch)
+static void decode_opc(DisasContext *ctx)
 {
     /* 16-Bit Instruction */
     if ((ctx->opcode & 0x1) == 0) {
@@ -8785,57 +8785,87 @@ static void decode_opc(DisasContext *ctx, int *is_branch)
     }
 }
 
+static void tricore_tr_init_disas_context(DisasContextBase *dcbase,
+                                          CPUState *cs)
+{
+    DisasContext *ctx = container_of(dcbase, DisasContext, base);
+    CPUTriCoreState *env = cs->env_ptr;
+    ctx->mem_idx = cpu_mmu_index(env, false);
+    ctx->hflags = (uint32_t)ctx->base.tb->flags;
+}
+
+static void tricore_tr_tb_start(DisasContextBase *db, CPUState *cpu)
+{
+}
+
+static void tricore_tr_insn_start(DisasContextBase *dcbase, CPUState *cpu)
+{
+    DisasContext *ctx = container_of(dcbase, DisasContext, base);
+
+    tcg_gen_insn_start(ctx->base.pc_next);
+}
+
+static bool tricore_tr_breakpoint_check(DisasContextBase *dcbase, CPUState *cpu,
+                                      const CPUBreakpoint *bp)
+{
+    return false;
+}
+
+static void tricore_tr_translate_insn(DisasContextBase *dcbase, CPUState *cpu)
+{
+    DisasContext *ctx = container_of(dcbase, DisasContext, base);
+    CPUTriCoreState *env = cpu->env_ptr;
+
+    ctx->opcode = cpu_ldl_code(env, ctx->base.pc_next);
+    decode_opc(ctx);
+    ctx->base.pc_next = ctx->pc_succ_insn;
+
+    if (ctx->base.is_jmp == DISAS_NEXT) {
+        target_ulong page_start;
+
+        page_start = ctx->base.pc_first & TARGET_PAGE_MASK;
+        if (ctx->base.pc_next - page_start >= TARGET_PAGE_SIZE) {
+            ctx->base.is_jmp = DISAS_TOO_MANY;
+        }
+    }
+}
+
+static void tricore_tr_tb_stop(DisasContextBase *dcbase, CPUState *cpu)
+{
+    DisasContext *ctx = container_of(dcbase, DisasContext, base);
+
+    switch (ctx->base.is_jmp) {
+    case DISAS_TOO_MANY:
+        gen_goto_tb(ctx, 0, ctx->base.pc_next);
+        break;
+    case DISAS_NORETURN:
+        break;
+    default:
+        g_assert_not_reached();
+    }
+}
+
+static void tricore_tr_disas_log(const DisasContextBase *dcbase, CPUState *cpu)
+{
+    qemu_log("IN: %s\n", lookup_symbol(dcbase->pc_first));
+    log_target_disas(cpu, dcbase->pc_first, dcbase->tb->size);
+}
+
+static const TranslatorOps tricore_tr_ops = {
+    .init_disas_context = tricore_tr_init_disas_context,
+    .tb_start           = tricore_tr_tb_start,
+    .insn_start         = tricore_tr_insn_start,
+    .breakpoint_check   = tricore_tr_breakpoint_check,
+    .translate_insn     = tricore_tr_translate_insn,
+    .tb_stop            = tricore_tr_tb_stop,
+    .disas_log          = tricore_tr_disas_log,
+};
+
+
 void gen_intermediate_code(CPUState *cs, TranslationBlock *tb, int max_insns)
 {
-    CPUTriCoreState *env = cs->env_ptr;
     DisasContext ctx;
-    target_ulong pc_start;
-    int num_insns = 0;
-
-    pc_start = tb->pc;
-    ctx.base.pc_next = pc_start;
-    ctx.base.tb = tb;
-    ctx.base.singlestep_enabled = cs->singlestep_enabled;
-    ctx.base.is_jmp = DISAS_NEXT;
-    ctx.mem_idx = cpu_mmu_index(env, false);
-    ctx.hflags = (uint32_t)tb->flags;
-    ctx.env = env;
-
-    tcg_clear_temp_count();
-    gen_tb_start(tb);
-    while (ctx.base.is_jmp == DISAS_NEXT) {
-        tcg_gen_insn_start(ctx.base.pc_next);
-        num_insns++;
-
-        ctx.opcode = cpu_ldl_code(env, ctx.base.pc_next);
-        decode_opc(&ctx, 0);
-
-        if (num_insns >= max_insns || tcg_op_buf_full()) {
-            gen_save_pc(ctx.pc_succ_insn);
-            tcg_gen_exit_tb(NULL, 0);
-            break;
-        }
-        ctx.base.pc_next = ctx.pc_succ_insn;
-    }
-
-    gen_tb_end(tb, num_insns);
-    tb->size = ctx.base.pc_next - pc_start;
-    tb->icount = num_insns;
-
-    if (tcg_check_temp_count()) {
-        printf("LEAK at %08x\n", env->PC);
-    }
-
-#ifdef DEBUG_DISAS
-    if (qemu_loglevel_mask(CPU_LOG_TB_IN_ASM)
-        && qemu_log_in_addr_range(pc_start)) {
-        qemu_log_lock();
-        qemu_log("IN: %s\n", lookup_symbol(pc_start));
-        log_target_disas(cs, pc_start, ctx.base.pc_next - pc_start);
-        qemu_log("\n");
-        qemu_log_unlock();
-    }
-#endif
+    translator_loop(&tricore_tr_ops, &ctx.base, cs, tb, max_insns);
 }
 
 void
