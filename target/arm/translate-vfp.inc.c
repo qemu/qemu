@@ -31,6 +31,39 @@
 #include "decode-vfp-uncond.inc.c"
 
 /*
+ * The imm8 encodes the sign bit, enough bits to represent an exponent in
+ * the range 01....1xx to 10....0xx, and the most significant 4 bits of
+ * the mantissa; see VFPExpandImm() in the v8 ARM ARM.
+ */
+uint64_t vfp_expand_imm(int size, uint8_t imm8)
+{
+    uint64_t imm;
+
+    switch (size) {
+    case MO_64:
+        imm = (extract32(imm8, 7, 1) ? 0x8000 : 0) |
+            (extract32(imm8, 6, 1) ? 0x3fc0 : 0x4000) |
+            extract32(imm8, 0, 6);
+        imm <<= 48;
+        break;
+    case MO_32:
+        imm = (extract32(imm8, 7, 1) ? 0x8000 : 0) |
+            (extract32(imm8, 6, 1) ? 0x3e00 : 0x4000) |
+            (extract32(imm8, 0, 6) << 3);
+        imm <<= 16;
+        break;
+    case MO_16:
+        imm = (extract32(imm8, 7, 1) ? 0x8000 : 0) |
+            (extract32(imm8, 6, 1) ? 0x3000 : 0x4000) |
+            (extract32(imm8, 0, 6) << 6);
+        break;
+    default:
+        g_assert_not_reached();
+    }
+    return imm;
+}
+
+/*
  * Return the offset of a 16-bit half of the specified VFP single-precision
  * register. If top is true, returns the top 16 bits; otherwise the bottom
  * 16 bits.
@@ -173,6 +206,11 @@ static bool trans_VSEL(DisasContext *s, arg_VSEL *a)
         ((a->vm | a->vn | a->vd) & 0x10)) {
         return false;
     }
+
+    if (dp && !dc_isar_feature(aa32_fpdp, s)) {
+        return false;
+    }
+
     rd = a->vd;
     rn = a->vn;
     rm = a->vm;
@@ -301,6 +339,11 @@ static bool trans_VMINMAXNM(DisasContext *s, arg_VMINMAXNM *a)
         ((a->vm | a->vn | a->vd) & 0x10)) {
         return false;
     }
+
+    if (dp && !dc_isar_feature(aa32_fpdp, s)) {
+        return false;
+    }
+
     rd = a->vd;
     rn = a->vn;
     rm = a->vm;
@@ -382,6 +425,11 @@ static bool trans_VRINT(DisasContext *s, arg_VRINT *a)
         ((a->vm | a->vd) & 0x10)) {
         return false;
     }
+
+    if (dp && !dc_isar_feature(aa32_fpdp, s)) {
+        return false;
+    }
+
     rd = a->vd;
     rm = a->vm;
 
@@ -440,6 +488,11 @@ static bool trans_VCVT(DisasContext *s, arg_VCVT *a)
     if (dp && !dc_isar_feature(aa32_fp_d32, s) && (a->vm & 0x10)) {
         return false;
     }
+
+    if (dp && !dc_isar_feature(aa32_fpdp, s)) {
+        return false;
+    }
+
     rd = a->vd;
     rm = a->vm;
 
@@ -835,7 +888,7 @@ static bool trans_VMOV_64_sp(DisasContext *s, arg_VMOV_64_sp *a)
     return true;
 }
 
-static bool trans_VMOV_64_dp(DisasContext *s, arg_VMOV_64_sp *a)
+static bool trans_VMOV_64_dp(DisasContext *s, arg_VMOV_64_dp *a)
 {
     TCGv_i32 tmp;
 
@@ -910,7 +963,7 @@ static bool trans_VLDR_VSTR_sp(DisasContext *s, arg_VLDR_VSTR_sp *a)
     return true;
 }
 
-static bool trans_VLDR_VSTR_dp(DisasContext *s, arg_VLDR_VSTR_sp *a)
+static bool trans_VLDR_VSTR_dp(DisasContext *s, arg_VLDR_VSTR_dp *a)
 {
     uint32_t offset;
     TCGv_i32 addr;
@@ -1268,6 +1321,10 @@ static bool do_vfp_3op_dp(DisasContext *s, VFPGen3OpDPFn *fn,
         return false;
     }
 
+    if (!dc_isar_feature(aa32_fpdp, s)) {
+        return false;
+    }
+
     if (!dc_isar_feature(aa32_fpshvec, s) &&
         (veclen != 0 || s->vec_stride != 0)) {
         return false;
@@ -1413,6 +1470,10 @@ static bool do_vfp_2op_dp(DisasContext *s, VFPGen2OpDPFn *fn, int vd, int vm)
         return false;
     }
 
+    if (!dc_isar_feature(aa32_fpdp, s)) {
+        return false;
+    }
+
     if (!dc_isar_feature(aa32_fpshvec, s) &&
         (veclen != 0 || s->vec_stride != 0)) {
         return false;
@@ -1500,7 +1561,7 @@ static void gen_VMLA_dp(TCGv_i64 vd, TCGv_i64 vn, TCGv_i64 vm, TCGv_ptr fpst)
     tcg_temp_free_i64(tmp);
 }
 
-static bool trans_VMLA_dp(DisasContext *s, arg_VMLA_sp *a)
+static bool trans_VMLA_dp(DisasContext *s, arg_VMLA_dp *a)
 {
     return do_vfp_3op_dp(s, gen_VMLA_dp, a->vd, a->vn, a->vm, true);
 }
@@ -1538,7 +1599,7 @@ static void gen_VMLS_dp(TCGv_i64 vd, TCGv_i64 vn, TCGv_i64 vm, TCGv_ptr fpst)
     tcg_temp_free_i64(tmp);
 }
 
-static bool trans_VMLS_dp(DisasContext *s, arg_VMLS_sp *a)
+static bool trans_VMLS_dp(DisasContext *s, arg_VMLS_dp *a)
 {
     return do_vfp_3op_dp(s, gen_VMLS_dp, a->vd, a->vn, a->vm, true);
 }
@@ -1580,7 +1641,7 @@ static void gen_VNMLS_dp(TCGv_i64 vd, TCGv_i64 vn, TCGv_i64 vm, TCGv_ptr fpst)
     tcg_temp_free_i64(tmp);
 }
 
-static bool trans_VNMLS_dp(DisasContext *s, arg_VNMLS_sp *a)
+static bool trans_VNMLS_dp(DisasContext *s, arg_VNMLS_dp *a)
 {
     return do_vfp_3op_dp(s, gen_VNMLS_dp, a->vd, a->vn, a->vm, true);
 }
@@ -1614,7 +1675,7 @@ static void gen_VNMLA_dp(TCGv_i64 vd, TCGv_i64 vn, TCGv_i64 vm, TCGv_ptr fpst)
     tcg_temp_free_i64(tmp);
 }
 
-static bool trans_VNMLA_dp(DisasContext *s, arg_VNMLA_sp *a)
+static bool trans_VNMLA_dp(DisasContext *s, arg_VNMLA_dp *a)
 {
     return do_vfp_3op_dp(s, gen_VNMLA_dp, a->vd, a->vn, a->vm, true);
 }
@@ -1624,7 +1685,7 @@ static bool trans_VMUL_sp(DisasContext *s, arg_VMUL_sp *a)
     return do_vfp_3op_sp(s, gen_helper_vfp_muls, a->vd, a->vn, a->vm, false);
 }
 
-static bool trans_VMUL_dp(DisasContext *s, arg_VMUL_sp *a)
+static bool trans_VMUL_dp(DisasContext *s, arg_VMUL_dp *a)
 {
     return do_vfp_3op_dp(s, gen_helper_vfp_muld, a->vd, a->vn, a->vm, false);
 }
@@ -1648,7 +1709,7 @@ static void gen_VNMUL_dp(TCGv_i64 vd, TCGv_i64 vn, TCGv_i64 vm, TCGv_ptr fpst)
     gen_helper_vfp_negd(vd, vd);
 }
 
-static bool trans_VNMUL_dp(DisasContext *s, arg_VNMUL_sp *a)
+static bool trans_VNMUL_dp(DisasContext *s, arg_VNMUL_dp *a)
 {
     return do_vfp_3op_dp(s, gen_VNMUL_dp, a->vd, a->vn, a->vm, false);
 }
@@ -1658,7 +1719,7 @@ static bool trans_VADD_sp(DisasContext *s, arg_VADD_sp *a)
     return do_vfp_3op_sp(s, gen_helper_vfp_adds, a->vd, a->vn, a->vm, false);
 }
 
-static bool trans_VADD_dp(DisasContext *s, arg_VADD_sp *a)
+static bool trans_VADD_dp(DisasContext *s, arg_VADD_dp *a)
 {
     return do_vfp_3op_dp(s, gen_helper_vfp_addd, a->vd, a->vn, a->vm, false);
 }
@@ -1668,7 +1729,7 @@ static bool trans_VSUB_sp(DisasContext *s, arg_VSUB_sp *a)
     return do_vfp_3op_sp(s, gen_helper_vfp_subs, a->vd, a->vn, a->vm, false);
 }
 
-static bool trans_VSUB_dp(DisasContext *s, arg_VSUB_sp *a)
+static bool trans_VSUB_dp(DisasContext *s, arg_VSUB_dp *a)
 {
     return do_vfp_3op_dp(s, gen_helper_vfp_subd, a->vd, a->vn, a->vm, false);
 }
@@ -1678,7 +1739,7 @@ static bool trans_VDIV_sp(DisasContext *s, arg_VDIV_sp *a)
     return do_vfp_3op_sp(s, gen_helper_vfp_divs, a->vd, a->vn, a->vm, false);
 }
 
-static bool trans_VDIV_dp(DisasContext *s, arg_VDIV_sp *a)
+static bool trans_VDIV_dp(DisasContext *s, arg_VDIV_dp *a)
 {
     return do_vfp_3op_dp(s, gen_helper_vfp_divd, a->vd, a->vn, a->vm, false);
 }
@@ -1707,6 +1768,10 @@ static bool trans_VFM_sp(DisasContext *s, arg_VFM_sp *a)
      */
     if (!arm_dc_feature(s, ARM_FEATURE_VFP4) ||
         (s->vec_len != 0 || s->vec_stride != 0)) {
+        return false;
+    }
+
+    if (!dc_isar_feature(aa32_fpdp, s)) {
         return false;
     }
 
@@ -1741,7 +1806,7 @@ static bool trans_VFM_sp(DisasContext *s, arg_VFM_sp *a)
     return true;
 }
 
-static bool trans_VFM_dp(DisasContext *s, arg_VFM_sp *a)
+static bool trans_VFM_dp(DisasContext *s, arg_VFM_dp *a)
 {
     /*
      * VFNMA : fd = muladd(-fd,  fn, fm)
@@ -1809,7 +1874,7 @@ static bool trans_VMOV_imm_sp(DisasContext *s, arg_VMOV_imm_sp *a)
     uint32_t delta_d = 0;
     int veclen = s->vec_len;
     TCGv_i32 fd;
-    uint32_t n, i, vd;
+    uint32_t vd;
 
     vd = a->vd;
 
@@ -1836,17 +1901,7 @@ static bool trans_VMOV_imm_sp(DisasContext *s, arg_VMOV_imm_sp *a)
         }
     }
 
-    n = (a->imm4h << 28) & 0x80000000;
-    i = ((a->imm4h << 4) & 0x70) | a->imm4l;
-    if (i & 0x40) {
-        i |= 0x780;
-    } else {
-        i |= 0x800;
-    }
-    n |= i << 19;
-
-    fd = tcg_temp_new_i32();
-    tcg_gen_movi_i32(fd, n);
+    fd = tcg_const_i32(vfp_expand_imm(MO_32, a->imm));
 
     for (;;) {
         neon_store_reg32(fd, vd);
@@ -1869,12 +1924,16 @@ static bool trans_VMOV_imm_dp(DisasContext *s, arg_VMOV_imm_dp *a)
     uint32_t delta_d = 0;
     int veclen = s->vec_len;
     TCGv_i64 fd;
-    uint32_t n, i, vd;
+    uint32_t vd;
 
     vd = a->vd;
 
     /* UNDEF accesses to D16-D31 if they don't exist. */
     if (!dc_isar_feature(aa32_fp_d32, s) && (vd & 0x10)) {
+        return false;
+    }
+
+    if (!dc_isar_feature(aa32_fpdp, s)) {
         return false;
     }
 
@@ -1901,17 +1960,7 @@ static bool trans_VMOV_imm_dp(DisasContext *s, arg_VMOV_imm_dp *a)
         }
     }
 
-    n = (a->imm4h << 28) & 0x80000000;
-    i = ((a->imm4h << 4) & 0x70) | a->imm4l;
-    if (i & 0x40) {
-        i |= 0x3f80;
-    } else {
-        i |= 0x4000;
-    }
-    n |= i << 16;
-
-    fd = tcg_temp_new_i64();
-    tcg_gen_movi_i64(fd, ((uint64_t)n) << 32);
+    fd = tcg_const_i64(vfp_expand_imm(MO_64, a->imm));
 
     for (;;) {
         neon_store_reg64(fd, vd);
@@ -2028,6 +2077,10 @@ static bool trans_VCMP_dp(DisasContext *s, arg_VCMP_dp *a)
         return false;
     }
 
+    if (!dc_isar_feature(aa32_fpdp, s)) {
+        return false;
+    }
+
     if (!vfp_access_check(s)) {
         return true;
     }
@@ -2097,6 +2150,10 @@ static bool trans_VCVT_f64_f16(DisasContext *s, arg_VCVT_f64_f16 *a)
         return false;
     }
 
+    if (!dc_isar_feature(aa32_fpdp, s)) {
+        return false;
+    }
+
     if (!vfp_access_check(s)) {
         return true;
     }
@@ -2159,6 +2216,10 @@ static bool trans_VCVT_f16_f64(DisasContext *s, arg_VCVT_f16_f64 *a)
         return false;
     }
 
+    if (!dc_isar_feature(aa32_fpdp, s)) {
+        return false;
+    }
+
     if (!vfp_access_check(s)) {
         return true;
     }
@@ -2201,7 +2262,7 @@ static bool trans_VRINTR_sp(DisasContext *s, arg_VRINTR_sp *a)
     return true;
 }
 
-static bool trans_VRINTR_dp(DisasContext *s, arg_VRINTR_sp *a)
+static bool trans_VRINTR_dp(DisasContext *s, arg_VRINTR_dp *a)
 {
     TCGv_ptr fpst;
     TCGv_i64 tmp;
@@ -2212,6 +2273,10 @@ static bool trans_VRINTR_dp(DisasContext *s, arg_VRINTR_sp *a)
 
     /* UNDEF accesses to D16-D31 if they don't exist. */
     if (!dc_isar_feature(aa32_fp_d32, s) && ((a->vd | a->vm) & 0x10)) {
+        return false;
+    }
+
+    if (!dc_isar_feature(aa32_fpdp, s)) {
         return false;
     }
 
@@ -2257,7 +2322,7 @@ static bool trans_VRINTZ_sp(DisasContext *s, arg_VRINTZ_sp *a)
     return true;
 }
 
-static bool trans_VRINTZ_dp(DisasContext *s, arg_VRINTZ_sp *a)
+static bool trans_VRINTZ_dp(DisasContext *s, arg_VRINTZ_dp *a)
 {
     TCGv_ptr fpst;
     TCGv_i64 tmp;
@@ -2269,6 +2334,10 @@ static bool trans_VRINTZ_dp(DisasContext *s, arg_VRINTZ_sp *a)
 
     /* UNDEF accesses to D16-D31 if they don't exist. */
     if (!dc_isar_feature(aa32_fp_d32, s) && ((a->vd | a->vm) & 0x10)) {
+        return false;
+    }
+
+    if (!dc_isar_feature(aa32_fpdp, s)) {
         return false;
     }
 
@@ -2327,6 +2396,10 @@ static bool trans_VRINTX_dp(DisasContext *s, arg_VRINTX_dp *a)
         return false;
     }
 
+    if (!dc_isar_feature(aa32_fpdp, s)) {
+        return false;
+    }
+
     if (!vfp_access_check(s)) {
         return true;
     }
@@ -2351,6 +2424,10 @@ static bool trans_VCVT_sp(DisasContext *s, arg_VCVT_sp *a)
         return false;
     }
 
+    if (!dc_isar_feature(aa32_fpdp, s)) {
+        return false;
+    }
+
     if (!vfp_access_check(s)) {
         return true;
     }
@@ -2372,6 +2449,10 @@ static bool trans_VCVT_dp(DisasContext *s, arg_VCVT_dp *a)
 
     /* UNDEF accesses to D16-D31 if they don't exist. */
     if (!dc_isar_feature(aa32_fp_d32, s) && (a->vm & 0x10)) {
+        return false;
+    }
+
+    if (!dc_isar_feature(aa32_fpdp, s)) {
         return false;
     }
 
@@ -2425,6 +2506,10 @@ static bool trans_VCVT_int_dp(DisasContext *s, arg_VCVT_int_dp *a)
         return false;
     }
 
+    if (!dc_isar_feature(aa32_fpdp, s)) {
+        return false;
+    }
+
     if (!vfp_access_check(s)) {
         return true;
     }
@@ -2458,6 +2543,10 @@ static bool trans_VJCVT(DisasContext *s, arg_VJCVT *a)
 
     /* UNDEF accesses to D16-D31 if they don't exist. */
     if (!dc_isar_feature(aa32_fp_d32, s) && (a->vm & 0x10)) {
+        return false;
+    }
+
+    if (!dc_isar_feature(aa32_fpdp, s)) {
         return false;
     }
 
@@ -2550,6 +2639,10 @@ static bool trans_VCVT_fix_dp(DisasContext *s, arg_VCVT_fix_dp *a)
         return false;
     }
 
+    if (!dc_isar_feature(aa32_fpdp, s)) {
+        return false;
+    }
+
     if (!vfp_access_check(s)) {
         return true;
     }
@@ -2639,6 +2732,10 @@ static bool trans_VCVT_dp_int(DisasContext *s, arg_VCVT_dp_int *a)
 
     /* UNDEF accesses to D16-D31 if they don't exist. */
     if (!dc_isar_feature(aa32_fp_d32, s) && (a->vm & 0x10)) {
+        return false;
+    }
+
+    if (!dc_isar_feature(aa32_fpdp, s)) {
         return false;
     }
 

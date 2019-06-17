@@ -786,6 +786,12 @@ struct ARMCPU {
     bool has_el3;
     /* CPU has PMU (Performance Monitor Unit) */
     bool has_pmu;
+    /* CPU has VFP */
+    bool has_vfp;
+    /* CPU has Neon */
+    bool has_neon;
+    /* CPU has M-profile DSP extension */
+    bool has_dsp;
 
     /* CPU has memory protection unit */
     bool has_mpu;
@@ -3380,6 +3386,12 @@ static inline bool isar_feature_aa32_fp_d32(const ARMISARegisters *id)
 static inline bool isar_feature_aa32_fpshvec(const ARMISARegisters *id)
 {
     return FIELD_EX64(id->mvfr0, MVFR0, FPSHVEC) > 0;
+}
+
+static inline bool isar_feature_aa32_fpdp(const ARMISARegisters *id)
+{
+    /* Return true if CPU supports double precision floating point */
+    return FIELD_EX64(id->mvfr0, MVFR0, FPDP) > 0;
 }
 
 /*

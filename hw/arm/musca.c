@@ -385,6 +385,14 @@ static void musca_init(MachineState *machine)
     qdev_prop_set_uint32(ssedev, "init-svtor", mmc->init_svtor);
     qdev_prop_set_uint32(ssedev, "SRAM_ADDR_WIDTH", mmc->sram_addr_width);
     qdev_prop_set_uint32(ssedev, "MAINCLK", SYSCLK_FRQ);
+    /*
+     * Musca-A takes the default SSE-200 FPU/DSP settings (ie no for
+     * CPU0 and yes for CPU1); Musca-B1 explicitly enables them for CPU0.
+     */
+    if (mmc->type == MUSCA_B1) {
+        qdev_prop_set_bit(ssedev, "CPU0_FPU", true);
+        qdev_prop_set_bit(ssedev, "CPU0_DSP", true);
+    }
     object_property_set_bool(OBJECT(&mms->sse), true, "realized",
                              &error_fatal);
 

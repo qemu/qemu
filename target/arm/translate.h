@@ -237,6 +237,13 @@ static inline void gen_ss_advance(DisasContext *s)
     }
 }
 
+/*
+ * Given a VFP floating point constant encoded into an 8 bit immediate in an
+ * instruction, expand it to the actual constant value of the specified
+ * size, as per the VFPExpandImm() pseudocode in the Arm ARM.
+ */
+uint64_t vfp_expand_imm(int size, uint8_t imm8);
+
 /* Vector operations shared between ARM and AArch64.  */
 extern const GVecGen3 mla_op[4];
 extern const GVecGen3 mls_op[4];
