@@ -73,9 +73,13 @@ typedef struct BDRVNBDState {
     NBDReply reply;
     BlockDriverState *bs;
 
-    /* For nbd_refresh_filename() */
+    /* Connection parameters */
+    uint32_t reconnect_delay;
     SocketAddress *saddr;
     char *export, *tlscredsid;
+    QCryptoTLSCreds *tlscreds;
+    const char *hostname;
+    char *x_dirty_bitmap;
 } BDRVNBDState;
 
 /* @ret will be used for reconnect in future */
@@ -1182,13 +1186,7 @@ static QIOChannelSocket *nbd_establish_connection(SocketAddress *saddr,
     return sioc;
 }
 
-static int nbd_client_connect(BlockDriverState *bs,
-                              SocketAddress *saddr,
-                              const char *export,
-                              QCryptoTLSCreds *tlscreds,
-                              const char *hostname,
-                              const char *x_dirty_bitmap,
-                              Error **errp)
+static int nbd_client_connect(BlockDriverState *bs, Error **errp)
 {
     BDRVNBDState *s = (BDRVNBDState *)bs->opaque;
     AioContext *aio_context = bdrv_get_aio_context(bs);
@@ -1198,33 +1196,33 @@ static int nbd_client_connect(BlockDriverState *bs,
      * establish TCP connection, return error if it fails
      * TODO: Configurable retry-until-timeout behaviour.
      */
-    QIOChannelSocket *sioc = nbd_establish_connection(saddr, errp);
+    QIOChannelSocket *sioc = nbd_establish_connection(s->saddr, errp);
 
     if (!sioc) {
         return -ECONNREFUSED;
     }
 
     /* NBD handshake */
-    trace_nbd_client_connect(export);
+    trace_nbd_client_connect(s->export);
     qio_channel_set_blocking(QIO_CHANNEL(sioc), false, NULL);
     qio_channel_attach_aio_context(QIO_CHANNEL(sioc), aio_context);
 
     s->info.request_sizes = true;
     s->info.structured_reply = true;
     s->info.base_allocation = true;
-    s->info.x_dirty_bitmap = g_strdup(x_dirty_bitmap);
-    s->info.name = g_strdup(export ?: "");
-    ret = nbd_receive_negotiate(aio_context, QIO_CHANNEL(sioc), tlscreds,
-                                hostname, &s->ioc, &s->info, errp);
+    s->info.x_dirty_bitmap = g_strdup(s->x_dirty_bitmap);
+    s->info.name = g_strdup(s->export ?: "");
+    ret = nbd_receive_negotiate(aio_context, QIO_CHANNEL(sioc), s->tlscreds,
+                                s->hostname, &s->ioc, &s->info, errp);
     g_free(s->info.x_dirty_bitmap);
     g_free(s->info.name);
     if (ret < 0) {
         object_unref(OBJECT(sioc));
         return ret;
     }
-    if (x_dirty_bitmap && !s->info.base_allocation) {
+    if (s->x_dirty_bitmap && !s->info.base_allocation) {
         error_setg(errp, "requested x-dirty-bitmap %s not found",
-                   x_dirty_bitmap);
+                   s->x_dirty_bitmap);
         ret = -EINVAL;
         goto fail;
     }
@@ -1249,7 +1247,7 @@ static int nbd_client_connect(BlockDriverState *bs,
         object_ref(OBJECT(s->ioc));
     }
 
-    trace_nbd_client_connect_success(export);
+    trace_nbd_client_connect_success(s->export);
 
     return 0;
 
@@ -1269,34 +1267,9 @@ static int nbd_client_connect(BlockDriverState *bs,
     }
 }
 
-static int nbd_client_init(BlockDriverState *bs,
-                           SocketAddress *saddr,
-                           const char *export,
-                           QCryptoTLSCreds *tlscreds,
-                           const char *hostname,
-                           const char *x_dirty_bitmap,
-                           uint32_t reconnect_delay,
-                           Error **errp)
-{
-    int ret;
-    BDRVNBDState *s = (BDRVNBDState *)bs->opaque;
-
-    s->bs = bs;
-    qemu_co_mutex_init(&s->send_mutex);
-    qemu_co_queue_init(&s->free_sema);
-
-    ret = nbd_client_connect(bs, saddr, export, tlscreds, hostname,
-                             x_dirty_bitmap, errp);
-    if (ret < 0) {
-        return ret;
-    }
-
-    s->connection_co = qemu_coroutine_create(nbd_connection_entry, s);
-    bdrv_inc_in_flight(bs);
-    aio_co_schedule(bdrv_get_aio_context(bs), s->connection_co);
-
-    return 0;
-}
+/*
+ * Parse nbd_open options
+ */
 
 static int nbd_parse_uri(const char *filename, QDict *options)
 {
@@ -1616,14 +1589,12 @@ static QemuOptsList nbd_runtime_opts = {
     },
 };
 
-static int nbd_open(BlockDriverState *bs, QDict *options, int flags,
-                    Error **errp)
+static int nbd_process_options(BlockDriverState *bs, QDict *options,
+                               Error **errp)
 {
     BDRVNBDState *s = bs->opaque;
-    QemuOpts *opts = NULL;
+    QemuOpts *opts;
     Error *local_err = NULL;
-    QCryptoTLSCreds *tlscreds = NULL;
-    const char *hostname = NULL;
     int ret = -EINVAL;
 
     opts = qemu_opts_create(&nbd_runtime_opts, NULL, 0, &error_abort);
@@ -1648,8 +1619,8 @@ static int nbd_open(BlockDriverState *bs, QDict *options, int flags,
 
     s->tlscredsid = g_strdup(qemu_opt_get(opts, "tls-creds"));
     if (s->tlscredsid) {
-        tlscreds = nbd_get_tls_creds(s->tlscredsid, errp);
-        if (!tlscreds) {
+        s->tlscreds = nbd_get_tls_creds(s->tlscredsid, errp);
+        if (!s->tlscreds) {
             goto error;
         }
 
@@ -1658,26 +1629,52 @@ static int nbd_open(BlockDriverState *bs, QDict *options, int flags,
             error_setg(errp, "TLS only supported over IP sockets");
             goto error;
         }
-        hostname = s->saddr->u.inet.host;
+        s->hostname = s->saddr->u.inet.host;
     }
 
-    /* NBD handshake */
-    ret = nbd_client_init(bs, s->saddr, s->export, tlscreds, hostname,
-                          qemu_opt_get(opts, "x-dirty-bitmap"),
-                          qemu_opt_get_number(opts, "reconnect-delay", 0),
-                          errp);
+    s->x_dirty_bitmap = g_strdup(qemu_opt_get(opts, "x-dirty-bitmap"));
+    s->reconnect_delay = qemu_opt_get_number(opts, "reconnect-delay", 0);
+
+    ret = 0;
 
  error:
-    if (tlscreds) {
-        object_unref(OBJECT(tlscreds));
-    }
     if (ret < 0) {
+        object_unref(OBJECT(s->tlscreds));
         qapi_free_SocketAddress(s->saddr);
         g_free(s->export);
         g_free(s->tlscredsid);
     }
     qemu_opts_del(opts);
     return ret;
+}
+
+static int nbd_open(BlockDriverState *bs, QDict *options, int flags,
+                    Error **errp)
+{
+    int ret;
+    BDRVNBDState *s = (BDRVNBDState *)bs->opaque;
+
+    ret = nbd_process_options(bs, options, errp);
+    if (ret < 0) {
+        return ret;
+    }
+
+    s->bs = bs;
+    qemu_co_mutex_init(&s->send_mutex);
+    qemu_co_queue_init(&s->free_sema);
+
+    ret = nbd_client_connect(bs, errp);
+    if (ret < 0) {
+        return ret;
+    }
+    /* successfully connected */
+    s->state = NBD_CLIENT_CONNECTED;
+
+    s->connection_co = qemu_coroutine_create(nbd_connection_entry, s);
+    bdrv_inc_in_flight(bs);
+    aio_co_schedule(bdrv_get_aio_context(bs), s->connection_co);
+
+    return 0;
 }
 
 static int nbd_co_flush(BlockDriverState *bs)
@@ -1725,9 +1722,11 @@ static void nbd_close(BlockDriverState *bs)
 
     nbd_client_close(bs);
 
+    object_unref(OBJECT(s->tlscreds));
     qapi_free_SocketAddress(s->saddr);
     g_free(s->export);
     g_free(s->tlscredsid);
+    g_free(s->x_dirty_bitmap);
 }
 
 static int64_t nbd_getlength(BlockDriverState *bs)
