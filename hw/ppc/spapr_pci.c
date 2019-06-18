@@ -1343,6 +1343,7 @@ static void spapr_dt_pci_device_cb(PCIBus *bus, PCIDevice *pdev,
 static int spapr_dt_pci_bus(SpaprPhbState *sphb, PCIBus *bus,
                                void *fdt, int offset)
 {
+    Object *owner;
     PciWalkFdt cbinfo = {
         .fdt = fdt,
         .offset = offset,
@@ -1363,7 +1364,13 @@ static int spapr_dt_pci_bus(SpaprPhbState *sphb, PCIBus *bus,
         return cbinfo.err;
     }
 
-    ret = spapr_dt_drc(fdt, offset, OBJECT(bus->parent_dev),
+    if (pci_bus_is_root(bus)) {
+        owner = OBJECT(sphb);
+    } else {
+        owner = OBJECT(pci_bridge_get_device(bus));
+    }
+
+    ret = spapr_dt_drc(fdt, offset, owner,
                        SPAPR_DR_CONNECTOR_TYPE_PCI);
     if (ret) {
         return ret;
