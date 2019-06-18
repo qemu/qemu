@@ -3518,46 +3518,6 @@ static void x86_cpu_get_feature_words(Object *obj, Visitor *v,
     visit_type_X86CPUFeatureWordInfoList(v, "feature-words", &list, errp);
 }
 
-static void x86_get_hv_spinlocks(Object *obj, Visitor *v, const char *name,
-                                 void *opaque, Error **errp)
-{
-    X86CPU *cpu = X86_CPU(obj);
-    int64_t value = cpu->hyperv_spinlock_attempts;
-
-    visit_type_int(v, name, &value, errp);
-}
-
-static void x86_set_hv_spinlocks(Object *obj, Visitor *v, const char *name,
-                                 void *opaque, Error **errp)
-{
-    const int64_t min = 0xFFF;
-    const int64_t max = UINT_MAX;
-    X86CPU *cpu = X86_CPU(obj);
-    Error *err = NULL;
-    int64_t value;
-
-    visit_type_int(v, name, &value, &err);
-    if (err) {
-        error_propagate(errp, err);
-        return;
-    }
-
-    if (value < min || value > max) {
-        error_setg(errp, "Property %s.%s doesn't take value %" PRId64
-                   " (minimum: %" PRId64 ", maximum: %" PRId64 ")",
-                   object_get_typename(obj), name ? name : "null",
-                   value, min, max);
-        return;
-    }
-    cpu->hyperv_spinlock_attempts = value;
-}
-
-static const PropertyInfo qdev_prop_spinlocks = {
-    .name  = "int",
-    .get   = x86_get_hv_spinlocks,
-    .set   = x86_set_hv_spinlocks,
-};
-
 /* Convert all '_' in a feature string option name to '-', to make feature
  * name conform to QOM property naming rule, which uses '-' instead of '_'.
  */
@@ -5682,8 +5642,6 @@ static void x86_cpu_initfn(Object *obj)
     object_property_add(obj, "crash-information", "GuestPanicInformation",
                         x86_cpu_get_crash_info_qom, NULL, NULL, NULL, NULL);
 
-    cpu->hyperv_spinlock_attempts = HYPERV_SPINLOCK_NEVER_RETRY;
-
     for (w = 0; w < FEATURE_WORDS; w++) {
         int bitnr;
 
@@ -5880,7 +5838,8 @@ static Property x86_cpu_properties[] = {
     DEFINE_PROP_INT32("node-id", X86CPU, node_id, CPU_UNSET_NUMA_NODE_ID),
     DEFINE_PROP_BOOL("pmu", X86CPU, enable_pmu, false),
 
-    { .name  = "hv-spinlocks", .info  = &qdev_prop_spinlocks },
+    DEFINE_PROP_UINT32("hv-spinlocks", X86CPU, hyperv_spinlock_attempts,
+                       HYPERV_SPINLOCK_NEVER_RETRY),
     DEFINE_PROP_BIT64("hv-relaxed", X86CPU, hyperv_features,
                       HYPERV_FEAT_RELAXED, 0),
     DEFINE_PROP_BIT64("hv-vapic", X86CPU, hyperv_features,
