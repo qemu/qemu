@@ -36,8 +36,10 @@ typedef struct BDRVReplicationState {
     ReplicationMode mode;
     ReplicationStage stage;
     BdrvChild *active_disk;
+    BlockJob *commit_job;
     BdrvChild *hidden_disk;
     BdrvChild *secondary_disk;
+    BlockJob *backup_job;
     char *top_id;
     ReplicationState *rs;
     Error *blocker;
@@ -147,7 +149,7 @@ static void replication_close(BlockDriverState *bs)
         replication_stop(s->rs, false, NULL);
     }
     if (s->stage == BLOCK_REPLICATION_FAILOVER) {
-        job_cancel_sync(&s->active_disk->bs->job->job);
+        job_cancel_sync(&s->commit_job->job);
     }
 
     if (s->mode == REPLICATION_MODE_SECONDARY) {
@@ -315,12 +317,12 @@ static void secondary_do_checkpoint(BDRVReplicationState *s, Error **errp)
     Error *local_err = NULL;
     int ret;
 
-    if (!s->secondary_disk->bs->job) {
+    if (!s->backup_job) {
         error_setg(errp, "Backup job was cancelled unexpectedly");
         return;
     }
 
-    backup_do_checkpoint(s->secondary_disk->bs->job, &local_err);
+    backup_do_checkpoint(s->backup_job, &local_err);
     if (local_err) {
         error_propagate(errp, local_err);
         return;
@@ -449,7 +451,6 @@ static void replication_start(ReplicationState *rs, ReplicationMode mode,
     int64_t active_length, hidden_length, disk_length;
     AioContext *aio_context;
     Error *local_err = NULL;
-    BlockJob *job;
 
     aio_context = bdrv_get_aio_context(bs);
     aio_context_acquire(aio_context);
@@ -540,7 +541,8 @@ static void replication_start(ReplicationState *rs, ReplicationMode mode,
         bdrv_op_block_all(top_bs, s->blocker);
         bdrv_op_unblock(top_bs, BLOCK_OP_TYPE_DATAPLANE, s->blocker);
 
-        job = backup_job_create(NULL, s->secondary_disk->bs, s->hidden_disk->bs,
+        s->backup_job = backup_job_create(
+                                NULL, s->secondary_disk->bs, s->hidden_disk->bs,
                                 0, MIRROR_SYNC_MODE_NONE, NULL, false,
                                 BLOCKDEV_ON_ERROR_REPORT,
                                 BLOCKDEV_ON_ERROR_REPORT, JOB_INTERNAL,
@@ -551,7 +553,7 @@ static void replication_start(ReplicationState *rs, ReplicationMode mode,
             aio_context_release(aio_context);
             return;
         }
-        job_start(&job->job);
+        job_start(&s->backup_job->job);
         break;
     default:
         aio_context_release(aio_context);
@@ -653,8 +655,8 @@ static void replication_stop(ReplicationState *rs, bool failover, Error **errp)
          * before the BDS is closed, because we will access hidden
          * disk, secondary disk in backup_job_completed().
          */
-        if (s->secondary_disk->bs->job) {
-            job_cancel_sync(&s->secondary_disk->bs->job->job);
+        if (s->backup_job) {
+            job_cancel_sync(&s->backup_job->job);
         }
 
         if (!failover) {
@@ -665,7 +667,8 @@ static void replication_stop(ReplicationState *rs, bool failover, Error **errp)
         }
 
         s->stage = BLOCK_REPLICATION_FAILOVER;
-        commit_active_start(NULL, s->active_disk->bs, s->secondary_disk->bs,
+        s->commit_job = commit_active_start(
+                            NULL, s->active_disk->bs, s->secondary_disk->bs,
                             JOB_INTERNAL, 0, BLOCKDEV_ON_ERROR_REPORT,
                             NULL, replication_done, bs, true, errp);
         break;

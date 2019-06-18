@@ -122,6 +122,15 @@ int block_job_add_bdrv(BlockJob *job, const char *name, BlockDriverState *bs,
 void block_job_remove_all_bdrv(BlockJob *job);
 
 /**
+ * block_job_has_bdrv:
+ * @job: The block job
+ *
+ * Searches for @bs in the list of nodes that are involved in the
+ * job.
+ */
+bool block_job_has_bdrv(BlockJob *job, BlockDriverState *bs);
+
+/**
  * block_job_set_speed:
  * @job: The job to set the speed for.
  * @speed: The new value

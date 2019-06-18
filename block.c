@@ -1706,7 +1706,8 @@ static int bdrv_fill_options(QDict **options, const char *filename,
 
 static int bdrv_child_check_perm(BdrvChild *c, BlockReopenQueue *q,
                                  uint64_t perm, uint64_t shared,
-                                 GSList *ignore_children, Error **errp);
+                                 GSList *ignore_children,
+                                 bool *tighten_restrictions, Error **errp);
 static void bdrv_child_abort_perm_update(BdrvChild *c);
 static void bdrv_child_set_perm(BdrvChild *c, uint64_t perm, uint64_t shared);
 static void bdrv_get_cumulative_perm(BlockDriverState *bs, uint64_t *perm,
@@ -1781,17 +1782,42 @@ static void bdrv_child_perm(BlockDriverState *bs, BlockDriverState *child_bs,
  * permissions of all its parents. This involves checking whether all necessary
  * permission changes to child nodes can be performed.
  *
+ * Will set *tighten_restrictions to true if and only if new permissions have to
+ * be taken or currently shared permissions are to be unshared.  Otherwise,
+ * errors are not fatal as long as the caller accepts that the restrictions
+ * remain tighter than they need to be.  The caller still has to abort the
+ * transaction.
+ * @tighten_restrictions cannot be used together with @q: When reopening, we may
+ * encounter fatal errors even though no restrictions are to be tightened.  For
+ * example, changing a node from RW to RO will fail if the WRITE permission is
+ * to be kept.
+ *
  * A call to this function must always be followed by a call to bdrv_set_perm()
  * or bdrv_abort_perm_update().
  */
 static int bdrv_check_perm(BlockDriverState *bs, BlockReopenQueue *q,
                            uint64_t cumulative_perms,
                            uint64_t cumulative_shared_perms,
-                           GSList *ignore_children, Error **errp)
+                           GSList *ignore_children,
+                           bool *tighten_restrictions, Error **errp)
 {
     BlockDriver *drv = bs->drv;
     BdrvChild *c;
     int ret;
+
+    assert(!q || !tighten_restrictions);
+
+    if (tighten_restrictions) {
+        uint64_t current_perms, current_shared;
+        uint64_t added_perms, removed_shared_perms;
+
+        bdrv_get_cumulative_perm(bs, &current_perms, &current_shared);
+
+        added_perms = cumulative_perms & ~current_perms;
+        removed_shared_perms = current_shared & ~cumulative_shared_perms;
+
+        *tighten_restrictions = added_perms || removed_shared_perms;
+    }
 
     /* Write permissions never work with read-only images */
     if ((cumulative_perms & (BLK_PERM_WRITE | BLK_PERM_WRITE_UNCHANGED)) &&
@@ -1833,11 +1859,18 @@ static int bdrv_check_perm(BlockDriverState *bs, BlockReopenQueue *q,
     /* Check all children */
     QLIST_FOREACH(c, &bs->children, next) {
         uint64_t cur_perm, cur_shared;
+        bool child_tighten_restr;
+
         bdrv_child_perm(bs, c->bs, c, c->role, q,
                         cumulative_perms, cumulative_shared_perms,
                         &cur_perm, &cur_shared);
-        ret = bdrv_child_check_perm(c, q, cur_perm, cur_shared,
-                                    ignore_children, errp);
+        ret = bdrv_child_check_perm(c, q, cur_perm, cur_shared, ignore_children,
+                                    tighten_restrictions ? &child_tighten_restr
+                                                         : NULL,
+                                    errp);
+        if (tighten_restrictions) {
+            *tighten_restrictions |= child_tighten_restr;
+        }
         if (ret < 0) {
             return ret;
         }
@@ -1961,16 +1994,22 @@ char *bdrv_perm_names(uint64_t perm)
  * set, the BdrvChild objects in this list are ignored in the calculations;
  * this allows checking permission updates for an existing reference.
  *
+ * See bdrv_check_perm() for the semantics of @tighten_restrictions.
+ *
  * Needs to be followed by a call to either bdrv_set_perm() or
  * bdrv_abort_perm_update(). */
 static int bdrv_check_update_perm(BlockDriverState *bs, BlockReopenQueue *q,
                                   uint64_t new_used_perm,
                                   uint64_t new_shared_perm,
-                                  GSList *ignore_children, Error **errp)
+                                  GSList *ignore_children,
+                                  bool *tighten_restrictions,
+                                  Error **errp)
 {
     BdrvChild *c;
     uint64_t cumulative_perms = new_used_perm;
     uint64_t cumulative_shared_perms = new_shared_perm;
+
+    assert(!q || !tighten_restrictions);
 
     /* There is no reason why anyone couldn't tolerate write_unchanged */
     assert(new_shared_perm & BLK_PERM_WRITE_UNCHANGED);
@@ -1983,6 +2022,11 @@ static int bdrv_check_update_perm(BlockDriverState *bs, BlockReopenQueue *q,
         if ((new_used_perm & c->shared_perm) != new_used_perm) {
             char *user = bdrv_child_user_desc(c);
             char *perm_names = bdrv_perm_names(new_used_perm & ~c->shared_perm);
+
+            if (tighten_restrictions) {
+                *tighten_restrictions = true;
+            }
+
             error_setg(errp, "Conflicts with use by %s as '%s', which does not "
                              "allow '%s' on %s",
                        user, c->name, perm_names, bdrv_get_node_name(c->bs));
@@ -1994,6 +2038,11 @@ static int bdrv_check_update_perm(BlockDriverState *bs, BlockReopenQueue *q,
         if ((c->perm & new_shared_perm) != c->perm) {
             char *user = bdrv_child_user_desc(c);
             char *perm_names = bdrv_perm_names(c->perm & ~new_shared_perm);
+
+            if (tighten_restrictions) {
+                *tighten_restrictions = true;
+            }
+
             error_setg(errp, "Conflicts with use by %s as '%s', which uses "
                              "'%s' on %s",
                        user, c->name, perm_names, bdrv_get_node_name(c->bs));
@@ -2007,19 +2056,21 @@ static int bdrv_check_update_perm(BlockDriverState *bs, BlockReopenQueue *q,
     }
 
     return bdrv_check_perm(bs, q, cumulative_perms, cumulative_shared_perms,
-                           ignore_children, errp);
+                           ignore_children, tighten_restrictions, errp);
 }
 
 /* Needs to be followed by a call to either bdrv_child_set_perm() or
  * bdrv_child_abort_perm_update(). */
 static int bdrv_child_check_perm(BdrvChild *c, BlockReopenQueue *q,
                                  uint64_t perm, uint64_t shared,
-                                 GSList *ignore_children, Error **errp)
+                                 GSList *ignore_children,
+                                 bool *tighten_restrictions, Error **errp)
 {
     int ret;
 
     ignore_children = g_slist_prepend(g_slist_copy(ignore_children), c);
-    ret = bdrv_check_update_perm(c->bs, q, perm, shared, ignore_children, errp);
+    ret = bdrv_check_update_perm(c->bs, q, perm, shared, ignore_children,
+                                 tighten_restrictions, errp);
     g_slist_free(ignore_children);
 
     if (ret < 0) {
@@ -2070,17 +2121,44 @@ static void bdrv_child_abort_perm_update(BdrvChild *c)
 int bdrv_child_try_set_perm(BdrvChild *c, uint64_t perm, uint64_t shared,
                             Error **errp)
 {
+    Error *local_err = NULL;
     int ret;
+    bool tighten_restrictions;
 
-    ret = bdrv_child_check_perm(c, NULL, perm, shared, NULL, errp);
+    ret = bdrv_child_check_perm(c, NULL, perm, shared, NULL,
+                                &tighten_restrictions, &local_err);
     if (ret < 0) {
         bdrv_child_abort_perm_update(c);
+        if (tighten_restrictions) {
+            error_propagate(errp, local_err);
+        } else {
+            /*
+             * Our caller may intend to only loosen restrictions and
+             * does not expect this function to fail.  Errors are not
+             * fatal in such a case, so we can just hide them from our
+             * caller.
+             */
+            error_free(local_err);
+            ret = 0;
+        }
         return ret;
     }
 
     bdrv_child_set_perm(c, perm, shared);
 
     return 0;
+}
+
+int bdrv_child_refresh_perms(BlockDriverState *bs, BdrvChild *c, Error **errp)
+{
+    uint64_t parent_perms, parent_shared;
+    uint64_t perms, shared;
+
+    bdrv_get_cumulative_perm(bs, &parent_perms, &parent_shared);
+    bdrv_child_perm(bs, c->bs, c, c->role, NULL, parent_perms, parent_shared,
+                    &perms, &shared);
+
+    return bdrv_child_try_set_perm(c, perms, shared, errp);
 }
 
 void bdrv_filter_default_perms(BlockDriverState *bs, BdrvChild *c,
@@ -2228,22 +2306,40 @@ static void bdrv_replace_child(BdrvChild *child, BlockDriverState *new_bs)
 
     bdrv_replace_child_noperm(child, new_bs);
 
+    /*
+     * Start with the new node's permissions.  If @new_bs is a (direct
+     * or indirect) child of @old_bs, we must complete the permission
+     * update on @new_bs before we loosen the restrictions on @old_bs.
+     * Otherwise, bdrv_check_perm() on @old_bs would re-initiate
+     * updating the permissions of @new_bs, and thus not purely loosen
+     * restrictions.
+     */
+    if (new_bs) {
+        bdrv_get_cumulative_perm(new_bs, &perm, &shared_perm);
+        bdrv_set_perm(new_bs, perm, shared_perm);
+    }
+
     if (old_bs) {
         /* Update permissions for old node. This is guaranteed to succeed
          * because we're just taking a parent away, so we're loosening
          * restrictions. */
+        bool tighten_restrictions;
+        int ret;
+
         bdrv_get_cumulative_perm(old_bs, &perm, &shared_perm);
-        bdrv_check_perm(old_bs, NULL, perm, shared_perm, NULL, &error_abort);
-        bdrv_set_perm(old_bs, perm, shared_perm);
+        ret = bdrv_check_perm(old_bs, NULL, perm, shared_perm, NULL,
+                              &tighten_restrictions, NULL);
+        assert(tighten_restrictions == false);
+        if (ret < 0) {
+            /* We only tried to loosen restrictions, so errors are not fatal */
+            bdrv_abort_perm_update(old_bs);
+        } else {
+            bdrv_set_perm(old_bs, perm, shared_perm);
+        }
 
         /* When the parent requiring a non-default AioContext is removed, the
          * node moves back to the main AioContext */
         bdrv_try_set_aio_context(old_bs, qemu_get_aio_context(), NULL);
-    }
-
-    if (new_bs) {
-        bdrv_get_cumulative_perm(new_bs, &perm, &shared_perm);
-        bdrv_set_perm(new_bs, perm, shared_perm);
     }
 }
 
@@ -2268,7 +2364,8 @@ BdrvChild *bdrv_root_attach_child(BlockDriverState *child_bs,
     Error *local_err = NULL;
     int ret;
 
-    ret = bdrv_check_update_perm(child_bs, NULL, perm, shared_perm, NULL, errp);
+    ret = bdrv_check_update_perm(child_bs, NULL, perm, shared_perm, NULL, NULL,
+                                 errp);
     if (ret < 0) {
         bdrv_abort_perm_update(child_bs);
         bdrv_unref(child_bs);
@@ -3349,7 +3446,7 @@ int bdrv_reopen_multiple(BlockReopenQueue *bs_queue, Error **errp)
     QSIMPLEQ_FOREACH(bs_entry, bs_queue, entry) {
         BDRVReopenState *state = &bs_entry->state;
         ret = bdrv_check_perm(state->bs, bs_queue, state->perm,
-                              state->shared_perm, NULL, errp);
+                              state->shared_perm, NULL, NULL, errp);
         if (ret < 0) {
             goto cleanup_perm;
         }
@@ -3361,7 +3458,7 @@ int bdrv_reopen_multiple(BlockReopenQueue *bs_queue, Error **errp)
                             state->perm, state->shared_perm,
                             &nperm, &nshared);
             ret = bdrv_check_update_perm(state->new_backing_bs, NULL,
-                                         nperm, nshared, NULL, errp);
+                                         nperm, nshared, NULL, NULL, errp);
             if (ret < 0) {
                 goto cleanup_perm;
             }
@@ -3905,7 +4002,6 @@ static void bdrv_close(BlockDriverState *bs)
     BdrvAioNotifier *ban, *ban_next;
     BdrvChild *child, *next;
 
-    assert(!bs->job);
     assert(!bs->refcnt);
 
     bdrv_drained_begin(bs); /* complete I/O */
@@ -4078,7 +4174,7 @@ void bdrv_replace_node(BlockDriverState *from, BlockDriverState *to,
 
     /* Check whether the required permissions can be granted on @to, ignoring
      * all BdrvChild in @list so that they can't block themselves. */
-    ret = bdrv_check_update_perm(to, NULL, perm, shared, list, errp);
+    ret = bdrv_check_update_perm(to, NULL, perm, shared, list, NULL, errp);
     if (ret < 0) {
         bdrv_abort_perm_update(to);
         goto out;
@@ -4146,7 +4242,6 @@ out:
 
 static void bdrv_delete(BlockDriverState *bs)
 {
-    assert(!bs->job);
     assert(bdrv_op_blocker_is_empty(bs));
     assert(!bs->refcnt);
 
@@ -4426,7 +4521,7 @@ int bdrv_drop_intermediate(BlockDriverState *top, BlockDriverState *base,
         /* Check whether we are allowed to switch c from top to base */
         GSList *ignore_children = g_slist_prepend(NULL, c);
         ret = bdrv_check_update_perm(base, NULL, c->perm, c->shared_perm,
-                                     ignore_children, &local_err);
+                                     ignore_children, NULL, &local_err);
         g_slist_free(ignore_children);
         if (ret < 0) {
             error_report_err(local_err);
@@ -5201,7 +5296,7 @@ static void coroutine_fn bdrv_co_invalidate_cache(BlockDriverState *bs,
      */
     bs->open_flags &= ~BDRV_O_INACTIVE;
     bdrv_get_cumulative_perm(bs, &perm, &shared_perm);
-    ret = bdrv_check_perm(bs, NULL, perm, shared_perm, NULL, &local_err);
+    ret = bdrv_check_perm(bs, NULL, perm, shared_perm, NULL, NULL, &local_err);
     if (ret < 0) {
         bs->open_flags |= BDRV_O_INACTIVE;
         error_propagate(errp, local_err);
@@ -5315,6 +5410,7 @@ static bool bdrv_has_bds_parent(BlockDriverState *bs, bool only_active)
 static int bdrv_inactivate_recurse(BlockDriverState *bs)
 {
     BdrvChild *child, *parent;
+    bool tighten_restrictions;
     uint64_t perm, shared_perm;
     int ret;
 
@@ -5351,8 +5447,15 @@ static int bdrv_inactivate_recurse(BlockDriverState *bs)
 
     /* Update permissions, they may differ for inactive nodes */
     bdrv_get_cumulative_perm(bs, &perm, &shared_perm);
-    bdrv_check_perm(bs, NULL, perm, shared_perm, NULL, &error_abort);
-    bdrv_set_perm(bs, perm, shared_perm);
+    ret = bdrv_check_perm(bs, NULL, perm, shared_perm, NULL,
+                          &tighten_restrictions, NULL);
+    assert(tighten_restrictions == false);
+    if (ret < 0) {
+        /* We only tried to loosen restrictions, so errors are not fatal */
+        bdrv_abort_perm_update(bs);
+    } else {
+        bdrv_set_perm(bs, perm, shared_perm);
+    }
 
 
     /* Recursively inactivate children */

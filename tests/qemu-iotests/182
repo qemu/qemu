@@ -152,6 +152,27 @@ success_or_failure=y _send_qemu_cmd $QEMU_HANDLE \
 
 _cleanup_qemu
 
+echo
+echo '=== Testing failure to loosen restrictions ==='
+echo
+
+_launch_qemu -drive file=$TEST_IMG,if=none,file.locking=on
+
+_send_qemu_cmd $QEMU_HANDLE \
+    "{'execute': 'qmp_capabilities'}" \
+    'return'
+
+_cleanup_test_img
+
+# When quitting qemu, it will try to drop its locks on the test image.
+# Because that file no longer exists, it will be unable to do so.
+# However, that is not fatal, so it should just move on.
+_send_qemu_cmd $QEMU_HANDLE \
+    "{'execute': 'quit'}" \
+    'return'
+
+wait=1 _cleanup_qemu
+
 # success, all done
 echo "*** done"
 rm -f $seq.full

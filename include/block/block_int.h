@@ -812,9 +812,6 @@ struct BlockDriverState {
     /* operation blockers */
     QLIST_HEAD(, BdrvOpBlocker) op_blockers[BLOCK_OP_TYPE_MAX];
 
-    /* long-running background operation */
-    BlockJob *job;
-
     /* The node that this node inherited default options from (and a reopen on
      * which can affect this node by changing these defaults). This is always a
      * parent node of this node. */
@@ -1082,12 +1079,12 @@ void commit_start(const char *job_id, BlockDriverState *bs,
  * @errp: Error object.
  *
  */
-void commit_active_start(const char *job_id, BlockDriverState *bs,
-                         BlockDriverState *base, int creation_flags,
-                         int64_t speed, BlockdevOnError on_error,
-                         const char *filter_node_name,
-                         BlockCompletionFunc *cb, void *opaque,
-                         bool auto_complete, Error **errp);
+BlockJob *commit_active_start(const char *job_id, BlockDriverState *bs,
+                              BlockDriverState *base, int creation_flags,
+                              int64_t speed, BlockdevOnError on_error,
+                              const char *filter_node_name,
+                              BlockCompletionFunc *cb, void *opaque,
+                              bool auto_complete, Error **errp);
 /*
  * mirror_start:
  * @job_id: The id of the newly-created job, or %NULL to use the
@@ -1168,8 +1165,23 @@ BdrvChild *bdrv_root_attach_child(BlockDriverState *child_bs,
                                   void *opaque, Error **errp);
 void bdrv_root_unref_child(BdrvChild *child);
 
+/**
+ * Sets a BdrvChild's permissions.  Avoid if the parent is a BDS; use
+ * bdrv_child_refresh_perms() instead and make the parent's
+ * .bdrv_child_perm() implementation return the correct values.
+ */
 int bdrv_child_try_set_perm(BdrvChild *c, uint64_t perm, uint64_t shared,
                             Error **errp);
+
+/**
+ * Calls bs->drv->bdrv_child_perm() and updates the child's permission
+ * masks with the result.
+ * Drivers should invoke this function whenever an event occurs that
+ * makes their .bdrv_child_perm() implementation return different
+ * values than before, but which will not result in the block layer
+ * automatically refreshing the permissions.
+ */
+int bdrv_child_refresh_perms(BlockDriverState *bs, BdrvChild *c, Error **errp);
 
 /* Default implementation for BlockDriver.bdrv_child_perm() that can be used by
  * block filters: Forward CONSISTENT_READ, WRITE, WRITE_UNCHANGED and RESIZE to
