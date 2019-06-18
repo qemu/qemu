@@ -2299,25 +2299,31 @@ static int fsdev_init_func(void *opaque, QemuOpts *opts, Error **errp)
 static int mon_init_func(void *opaque, QemuOpts *opts, Error **errp)
 {
     Chardev *chr;
+    bool qmp;
+    bool pretty = false;
     const char *chardev;
     const char *mode;
-    int flags;
 
     mode = qemu_opt_get(opts, "mode");
     if (mode == NULL) {
         mode = "readline";
     }
     if (strcmp(mode, "readline") == 0) {
-        flags = MONITOR_USE_READLINE;
+        qmp = false;
     } else if (strcmp(mode, "control") == 0) {
-        flags = MONITOR_USE_CONTROL;
+        qmp = true;
     } else {
         error_setg(errp, "unknown monitor mode \"%s\"", mode);
         return -1;
     }
 
-    if (qemu_opt_get_bool(opts, "pretty", 0))
-        flags |= MONITOR_USE_PRETTY;
+    if (!qmp && qemu_opt_get(opts, "pretty")) {
+        warn_report("'pretty' is deprecated for HMP monitors, it has no effect "
+                    "and will be removed in future versions");
+    }
+    if (qemu_opt_get_bool(opts, "pretty", 0)) {
+        pretty = true;
+    }
 
     chardev = qemu_opt_get(opts, "chardev");
     if (!chardev) {
@@ -2330,7 +2336,11 @@ static int mon_init_func(void *opaque, QemuOpts *opts, Error **errp)
         return -1;
     }
 
-    monitor_init(chr, flags);
+    if (qmp) {
+        monitor_init_qmp(chr, pretty);
+    } else {
+        monitor_init_hmp(chr, true);
+    }
     return 0;
 }
 
@@ -2356,7 +2366,11 @@ static void monitor_parse(const char *optarg, const char *mode, bool pretty)
     opts = qemu_opts_create(qemu_find_opts("mon"), label, 1, &error_fatal);
     qemu_opt_set(opts, "mode", mode, &error_abort);
     qemu_opt_set(opts, "chardev", label, &error_abort);
-    qemu_opt_set_bool(opts, "pretty", pretty, &error_abort);
+    if (!strcmp(mode, "control")) {
+        qemu_opt_set_bool(opts, "pretty", pretty, &error_abort);
+    } else {
+        assert(pretty == false);
+    }
     monitor_device_index++;
 }
 

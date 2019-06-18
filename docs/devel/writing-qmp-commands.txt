@@ -20,7 +20,7 @@ new QMP command.
 
 2. Write the QMP command itself, which is a regular C function. Preferably,
    the command should be exported by some QEMU subsystem. But it can also be
-   added to the qmp.c file
+   added to the monitor/qmp-cmds.c file
 
 3. At this point the command can be tested under the QMP protocol
 
@@ -101,7 +101,8 @@ protocol data.
 
 The next step is to write the "hello-world" implementation. As explained
 earlier, it's preferable for commands to live in QEMU subsystems. But
-"hello-world" doesn't pertain to any, so we put its implementation in qmp.c:
+"hello-world" doesn't pertain to any, so we put its implementation in
+monitor/qmp-cmds.c:
 
 void qmp_hello_world(Error **errp)
 {
@@ -146,7 +147,7 @@ for mandatory arguments). Finally, 'str' is the argument's type, which
 stands for "string". The QAPI also supports integers, booleans, enumerations
 and user defined types.
 
-Now, let's update our C implementation in qmp.c:
+Now, let's update our C implementation in monitor/qmp-cmds.c:
 
 void qmp_hello_world(bool has_message, const char *message, Error **errp)
 {
@@ -267,7 +268,7 @@ monitor (HMP).
 
 With the introduction of the QAPI, HMP commands make QMP calls. Most of the
 time HMP commands are simple wrappers. All HMP commands implementation exist in
-the hmp.c file.
+the monitor/hmp-cmds.c file.
 
 Here's the implementation of the "hello-world" HMP command:
 
@@ -470,7 +471,7 @@ it's good practice to always check for errors.
 
 Another important detail is that HMP's "info" commands don't go into the
 hmp-commands.hx. Instead, they go into the info_cmds[] table, which is defined
-in the monitor.c file. The entry for the "info alarmclock" follows:
+in the monitor/misc.c file. The entry for the "info alarmclock" follows:
 
     {
         .name       = "alarmclock",

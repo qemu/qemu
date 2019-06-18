@@ -41,16 +41,6 @@ system_wakeup_request(int reason) "reason=%d"
 qemu_system_shutdown_request(int reason) "reason=%d"
 qemu_system_powerdown_request(void) ""
 
-# monitor.c
-monitor_protocol_event_handler(uint32_t event, void *qdict) "event=%d data=%p"
-monitor_protocol_event_emit(uint32_t event, void *data) "event=%d data=%p"
-monitor_protocol_event_queue(uint32_t event, void *qdict, uint64_t rate) "event=%d data=%p rate=%" PRId64
-handle_hmp_command(void *mon, const char *cmdline) "mon %p cmdline: %s"
-handle_qmp_command(void *mon, const char *req) "mon %p req: %s"
-monitor_suspend(void *ptr, int cnt) "mon %p: %d"
-monitor_qmp_cmd_in_band(const char *id) "%s"
-monitor_qmp_cmd_out_of_band(const char *id) "%s"
-
 # dma-helpers.c
 dma_blk_io(void *dbs, void *bs, int64_t offset, bool to_dev) "dbs=%p bs=%p offset=%" PRId64 " to_dev=%d"
 dma_aio_cancel(void *dbs) "dbs=%p"

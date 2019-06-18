@@ -46,6 +46,7 @@ ifeq ($(CONFIG_SOFTMMU),y)
 common-obj-y = blockdev.o blockdev-nbd.o block/
 common-obj-y += bootdevice.o iothread.o
 common-obj-y += job-qmp.o
+common-obj-y += monitor/
 common-obj-y += net/
 common-obj-y += qdev-monitor.o device-hotplug.o
 common-obj-$(CONFIG_WIN32) += os-win32.o
@@ -83,8 +84,8 @@ common-obj-$(CONFIG_FDT) += device_tree.o
 ######################################################################
 # qapi
 
-common-obj-y += qmp.o hmp.o
 common-obj-y += qapi/
+common-obj-y += monitor/
 endif
 
 #######################################################################
@@ -130,6 +131,7 @@ trace-events-subdirs =
 trace-events-subdirs += accel/kvm
 trace-events-subdirs += accel/tcg
 trace-events-subdirs += crypto
+trace-events-subdirs += monitor
 ifeq ($(CONFIG_USER_ONLY),y)
 trace-events-subdirs += linux-user
 endif

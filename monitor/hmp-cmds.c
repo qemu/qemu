@@ -1,5 +1,5 @@
 /*
- * Human Monitor Interface
+ * Human Monitor Interface commands
  *
  * Copyright IBM, Corp. 2011
  *
@@ -24,7 +24,7 @@
 #include "qemu/option.h"
 #include "qemu/timer.h"
 #include "qemu/sockets.h"
-#include "monitor/monitor.h"
+#include "monitor/monitor-internal.h"
 #include "monitor/qdev.h"
 #include "qapi/error.h"
 #include "qapi/opts-visitor.h"
@@ -1943,6 +1943,7 @@ static void hmp_change_read_arg(void *opaque, const char *password,
 
 void hmp_change(Monitor *mon, const QDict *qdict)
 {
+    MonitorHMP *hmp_mon = container_of(mon, MonitorHMP, common);
     const char *device = qdict_get_str(qdict, "device");
     const char *target = qdict_get_str(qdict, "target");
     const char *arg = qdict_get_try_str(qdict, "arg");
@@ -1960,7 +1961,7 @@ void hmp_change(Monitor *mon, const QDict *qdict)
         if (strcmp(target, "passwd") == 0 ||
             strcmp(target, "password") == 0) {
             if (!arg) {
-                monitor_read_password(mon, hmp_change_read_arg, NULL);
+                monitor_read_password(hmp_mon, hmp_change_read_arg, NULL);
                 return;
             }
         }

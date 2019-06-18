@@ -1,0 +1,3 @@
+obj-y += misc.o
+common-obj-y += monitor.o qmp.o hmp.o
+common-obj-y += qmp-cmds.o hmp-cmds.o
