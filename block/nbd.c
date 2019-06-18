@@ -1275,6 +1275,7 @@ static int nbd_client_init(BlockDriverState *bs,
                            QCryptoTLSCreds *tlscreds,
                            const char *hostname,
                            const char *x_dirty_bitmap,
+                           uint32_t reconnect_delay,
                            Error **errp)
 {
     int ret;
@@ -1600,6 +1601,17 @@ static QemuOptsList nbd_runtime_opts = {
             .help = "experimental: expose named dirty bitmap in place of "
                     "block status",
         },
+        {
+            .name = "reconnect-delay",
+            .type = QEMU_OPT_NUMBER,
+            .help = "On an unexpected disconnect, the nbd client tries to "
+                    "connect again until succeeding or encountering a serious "
+                    "error.  During the first @reconnect-delay seconds, all "
+                    "requests are paused and will be rerun on a successful "
+                    "reconnect. After that time, any delayed requests and all "
+                    "future requests before a successful reconnect will "
+                    "immediately fail. Default 0",
+        },
         { /* end of list */ }
     },
 };
@@ -1651,7 +1663,9 @@ static int nbd_open(BlockDriverState *bs, QDict *options, int flags,
 
     /* NBD handshake */
     ret = nbd_client_init(bs, s->saddr, s->export, tlscreds, hostname,
-                          qemu_opt_get(opts, "x-dirty-bitmap"), errp);
+                          qemu_opt_get(opts, "x-dirty-bitmap"),
+                          qemu_opt_get_number(opts, "reconnect-delay", 0),
+                          errp);
 
  error:
     if (tlscreds) {
