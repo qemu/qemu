@@ -1175,6 +1175,7 @@ static int nbd_client_connect(BlockDriverState *bs,
                               Error **errp)
 {
     BDRVNBDState *s = (BDRVNBDState *)bs->opaque;
+    AioContext *aio_context = bdrv_get_aio_context(bs);
     int ret;
 
     /*
@@ -1189,15 +1190,16 @@ static int nbd_client_connect(BlockDriverState *bs,
 
     /* NBD handshake */
     trace_nbd_client_connect(export);
-    qio_channel_set_blocking(QIO_CHANNEL(sioc), true, NULL);
+    qio_channel_set_blocking(QIO_CHANNEL(sioc), false, NULL);
+    qio_channel_attach_aio_context(QIO_CHANNEL(sioc), aio_context);
 
     s->info.request_sizes = true;
     s->info.structured_reply = true;
     s->info.base_allocation = true;
     s->info.x_dirty_bitmap = g_strdup(x_dirty_bitmap);
     s->info.name = g_strdup(export ?: "");
-    ret = nbd_receive_negotiate(QIO_CHANNEL(sioc), tlscreds, hostname,
-                                &s->ioc, &s->info, errp);
+    ret = nbd_receive_negotiate(aio_context, QIO_CHANNEL(sioc), tlscreds,
+                                hostname, &s->ioc, &s->info, errp);
     g_free(s->info.x_dirty_bitmap);
     g_free(s->info.name);
     if (ret < 0) {
@@ -1231,18 +1233,14 @@ static int nbd_client_connect(BlockDriverState *bs,
         object_ref(OBJECT(s->ioc));
     }
 
-    qio_channel_set_blocking(QIO_CHANNEL(sioc), false, NULL);
-    qio_channel_attach_aio_context(s->ioc, bdrv_get_aio_context(bs));
-
     trace_nbd_client_connect_success(export);
 
     return 0;
 
  fail:
     /*
-     * We have connected, but must fail for other reasons. The
-     * connection is still blocking; send NBD_CMD_DISC as a courtesy
-     * to the server.
+     * We have connected, but must fail for other reasons.
+     * Send NBD_CMD_DISC as a courtesy to the server.
      */
     {
         NBDRequest request = { .type = NBD_CMD_DISC };
