@@ -120,6 +120,8 @@ typedef struct XenIOState {
     DeviceListener device_listener;
     hwaddr free_phys_offset;
     const XenPhysmap *log_for_dirtybit;
+    /* Buffer used by xen_sync_dirty_bitmap */
+    unsigned long *dirty_bitmap;
 
     Notifier exit;
     Notifier suspend;
@@ -465,6 +467,8 @@ static int xen_remove_from_physmap(XenIOState *state,
     QLIST_REMOVE(physmap, list);
     if (state->log_for_dirtybit == physmap) {
         state->log_for_dirtybit = NULL;
+        g_free(state->dirty_bitmap);
+        state->dirty_bitmap = NULL;
     }
     g_free(physmap);
 
@@ -615,7 +619,7 @@ static void xen_sync_dirty_bitmap(XenIOState *state,
 {
     hwaddr npages = size >> TARGET_PAGE_BITS;
     const int width = sizeof(unsigned long) * 8;
-    unsigned long bitmap[DIV_ROUND_UP(npages, width)];
+    size_t bitmap_size = DIV_ROUND_UP(npages, width);
     int rc, i, j;
     const XenPhysmap *physmap = NULL;
 
@@ -627,13 +631,14 @@ static void xen_sync_dirty_bitmap(XenIOState *state,
 
     if (state->log_for_dirtybit == NULL) {
         state->log_for_dirtybit = physmap;
+        state->dirty_bitmap = g_new(unsigned long, bitmap_size);
     } else if (state->log_for_dirtybit != physmap) {
         /* Only one range for dirty bitmap can be tracked. */
         return;
     }
 
     rc = xen_track_dirty_vram(xen_domid, start_addr >> TARGET_PAGE_BITS,
-                              npages, bitmap);
+                              npages, state->dirty_bitmap);
     if (rc < 0) {
 #ifndef ENODATA
 #define ENODATA  ENOENT
@@ -647,8 +652,8 @@ static void xen_sync_dirty_bitmap(XenIOState *state,
         return;
     }
 
-    for (i = 0; i < ARRAY_SIZE(bitmap); i++) {
-        unsigned long map = bitmap[i];
+    for (i = 0; i < bitmap_size; i++) {
+        unsigned long map = state->dirty_bitmap[i];
         while (map != 0) {
             j = ctzl(map);
             map &= ~(1ul << j);
@@ -678,6 +683,8 @@ static void xen_log_stop(MemoryListener *listener, MemoryRegionSection *section,
 
     if (old & ~new & (1 << DIRTY_MEMORY_VGA)) {
         state->log_for_dirtybit = NULL;
+        g_free(state->dirty_bitmap);
+        state->dirty_bitmap = NULL;
         /* Disable dirty bit tracking */
         xen_track_dirty_vram(xen_domid, 0, 0, NULL);
     }
