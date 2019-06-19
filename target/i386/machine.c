@@ -240,6 +240,41 @@ static int cpu_pre_save(void *opaque)
     }
 #endif
 
+    /*
+     * When vCPU is running L2 and exception is still pending,
+     * it can potentially be intercepted by L1 hypervisor.
+     * In contrast to an injected exception which cannot be
+     * intercepted anymore.
+     *
+     * Furthermore, when a L2 exception is intercepted by L1
+     * hypervisor, it's exception payload (CR2/DR6 on #PF/#DB)
+     * should not be set yet in the respective vCPU register.
+     * Thus, in case an exception is pending, it is
+     * important to save the exception payload seperately.
+     *
+     * Therefore, if an exception is not in a pending state
+     * or vCPU is not in guest-mode, it is not important to
+     * distinguish between a pending and injected exception
+     * and we don't need to store seperately the exception payload.
+     *
+     * In order to preserve better backwards-compatabile migration,
+     * convert a pending exception to an injected exception in
+     * case it is not important to distingiush between them
+     * as described above.
+     */
+    if (env->exception_pending && !(env->hflags & HF_GUEST_MASK)) {
+        env->exception_pending = 0;
+        env->exception_injected = 1;
+
+        if (env->exception_has_payload) {
+            if (env->exception_nr == EXCP01_DB) {
+                env->dr[6] = env->exception_payload;
+            } else if (env->exception_nr == EXCP0E_PAGE) {
+                env->cr[2] = env->exception_payload;
+            }
+        }
+    }
+
     return 0;
 }
 
@@ -297,6 +332,23 @@ static int cpu_post_load(void *opaque, int version_id)
     }
 #endif
 
+    /*
+     * There are cases that we can get valid exception_nr with both
+     * exception_pending and exception_injected being cleared.
+     * This can happen in one of the following scenarios:
+     * 1) Source is older QEMU without KVM_CAP_EXCEPTION_PAYLOAD support.
+     * 2) Source is running on kernel without KVM_CAP_EXCEPTION_PAYLOAD support.
+     * 3) "cpu/exception_info" subsection not sent because there is no exception
+     *    pending or guest wasn't running L2 (See comment in cpu_pre_save()).
+     *
+     * In those cases, we can just deduce that a valid exception_nr means
+     * we can treat the exception as already injected.
+     */
+    if ((env->exception_nr != -1) &&
+        !env->exception_pending && !env->exception_injected) {
+        env->exception_injected = 1;
+    }
+
     env->fpstt = (env->fpus_vmstate >> 11) & 7;
     env->fpus = env->fpus_vmstate & ~0x3800;
     env->fptag_vmstate ^= 0xff;
@@ -341,6 +393,35 @@ static bool steal_time_msr_needed(void *opaque)
 
     return cpu->env.steal_time_msr != 0;
 }
+
+static bool exception_info_needed(void *opaque)
+{
+    X86CPU *cpu = opaque;
+    CPUX86State *env = &cpu->env;
+
+    /*
+     * It is important to save exception-info only in case
+     * we need to distingiush between a pending and injected
+     * exception. Which is only required in case there is a
+     * pending exception and vCPU is running L2.
+     * For more info, refer to comment in cpu_pre_save().
+     */
+    return env->exception_pending && (env->hflags & HF_GUEST_MASK);
+}
+
+static const VMStateDescription vmstate_exception_info = {
+    .name = "cpu/exception_info",
+    .version_id = 1,
+    .minimum_version_id = 1,
+    .needed = exception_info_needed,
+    .fields = (VMStateField[]) {
+        VMSTATE_UINT8(env.exception_pending, X86CPU),
+        VMSTATE_UINT8(env.exception_injected, X86CPU),
+        VMSTATE_UINT8(env.exception_has_payload, X86CPU),
+        VMSTATE_UINT64(env.exception_payload, X86CPU),
+        VMSTATE_END_OF_LIST()
+    }
+};
 
 static const VMStateDescription vmstate_steal_time_msr = {
     .name = "cpu/steal_time_msr",
@@ -1251,7 +1332,7 @@ VMStateDescription vmstate_x86_cpu = {
         VMSTATE_INT32(env.interrupt_injected, X86CPU),
         VMSTATE_UINT32(env.mp_state, X86CPU),
         VMSTATE_UINT64(env.tsc, X86CPU),
-        VMSTATE_INT32(env.exception_injected, X86CPU),
+        VMSTATE_INT32(env.exception_nr, X86CPU),
         VMSTATE_UINT8(env.soft_interrupt, X86CPU),
         VMSTATE_UINT8(env.nmi_injected, X86CPU),
         VMSTATE_UINT8(env.nmi_pending, X86CPU),
@@ -1275,6 +1356,7 @@ VMStateDescription vmstate_x86_cpu = {
         /* The above list is not sorted /wrt version numbers, watch out! */
     },
     .subsections = (const VMStateDescription*[]) {
+        &vmstate_exception_info,
         &vmstate_async_pf_msr,
         &vmstate_pv_eoi_msr,
         &vmstate_steal_time_msr,

@@ -104,6 +104,7 @@ static uint32_t num_architectural_pmu_fixed_counters;
 static int has_xsave;
 static int has_xcrs;
 static int has_pit_state2;
+static int has_exception_payload;
 
 static bool has_msr_mcg_ext_ctl;
 
@@ -584,15 +585,56 @@ void kvm_arch_on_sigbus_vcpu(CPUState *c, int code, void *addr)
     /* Hope we are lucky for AO MCE */
 }
 
+static void kvm_reset_exception(CPUX86State *env)
+{
+    env->exception_nr = -1;
+    env->exception_pending = 0;
+    env->exception_injected = 0;
+    env->exception_has_payload = false;
+    env->exception_payload = 0;
+}
+
+static void kvm_queue_exception(CPUX86State *env,
+                                int32_t exception_nr,
+                                uint8_t exception_has_payload,
+                                uint64_t exception_payload)
+{
+    assert(env->exception_nr == -1);
+    assert(!env->exception_pending);
+    assert(!env->exception_injected);
+    assert(!env->exception_has_payload);
+
+    env->exception_nr = exception_nr;
+
+    if (has_exception_payload) {
+        env->exception_pending = 1;
+
+        env->exception_has_payload = exception_has_payload;
+        env->exception_payload = exception_payload;
+    } else {
+        env->exception_injected = 1;
+
+        if (exception_nr == EXCP01_DB) {
+            assert(exception_has_payload);
+            env->dr[6] = exception_payload;
+        } else if (exception_nr == EXCP0E_PAGE) {
+            assert(exception_has_payload);
+            env->cr[2] = exception_payload;
+        } else {
+            assert(!exception_has_payload);
+        }
+    }
+}
+
 static int kvm_inject_mce_oldstyle(X86CPU *cpu)
 {
     CPUX86State *env = &cpu->env;
 
-    if (!kvm_has_vcpu_events() && env->exception_injected == EXCP12_MCHK) {
+    if (!kvm_has_vcpu_events() && env->exception_nr == EXCP12_MCHK) {
         unsigned int bank, bank_num = env->mcg_cap & 0xff;
         struct kvm_x86_mce mce;
 
-        env->exception_injected = -1;
+        kvm_reset_exception(env);
 
         /*
          * There must be at least one bank in use if an MCE is pending.
@@ -1943,6 +1985,16 @@ int kvm_arch_init(MachineState *ms, KVMState *s)
 
     hv_vpindex_settable = kvm_check_extension(s, KVM_CAP_HYPERV_VP_INDEX);
 
+    has_exception_payload = kvm_check_extension(s, KVM_CAP_EXCEPTION_PAYLOAD);
+    if (has_exception_payload) {
+        ret = kvm_vm_enable_cap(s, KVM_CAP_EXCEPTION_PAYLOAD, 0, true);
+        if (ret < 0) {
+            error_report("kvm: Failed to enable exception payload cap: %s",
+                         strerror(-ret));
+            return ret;
+        }
+    }
+
     ret = kvm_get_supported_msrs(s);
     if (ret < 0) {
         return ret;
@@ -3253,8 +3305,16 @@ static int kvm_put_vcpu_events(X86CPU *cpu, int level)
         return 0;
     }
 
-    events.exception.injected = (env->exception_injected >= 0);
-    events.exception.nr = env->exception_injected;
+    events.flags = 0;
+
+    if (has_exception_payload) {
+        events.flags |= KVM_VCPUEVENT_VALID_PAYLOAD;
+        events.exception.pending = env->exception_pending;
+        events.exception_has_payload = env->exception_has_payload;
+        events.exception_payload = env->exception_payload;
+    }
+    events.exception.nr = env->exception_nr;
+    events.exception.injected = env->exception_injected;
     events.exception.has_error_code = env->has_error_code;
     events.exception.error_code = env->error_code;
 
@@ -3267,7 +3327,6 @@ static int kvm_put_vcpu_events(X86CPU *cpu, int level)
     events.nmi.masked = !!(env->hflags2 & HF2_NMI_MASK);
 
     events.sipi_vector = env->sipi_vector;
-    events.flags = 0;
 
     if (has_msr_smbase) {
         events.smi.smm = !!(env->hflags & HF_SMM_MASK);
@@ -3317,8 +3376,19 @@ static int kvm_get_vcpu_events(X86CPU *cpu)
     if (ret < 0) {
        return ret;
     }
-    env->exception_injected =
-       events.exception.injected ? events.exception.nr : -1;
+
+    if (events.flags & KVM_VCPUEVENT_VALID_PAYLOAD) {
+        env->exception_pending = events.exception.pending;
+        env->exception_has_payload = events.exception_has_payload;
+        env->exception_payload = events.exception_payload;
+    } else {
+        env->exception_pending = 0;
+        env->exception_has_payload = false;
+    }
+    env->exception_injected = events.exception.injected;
+    env->exception_nr =
+        (env->exception_pending || env->exception_injected) ?
+        events.exception.nr : -1;
     env->has_error_code = events.exception.has_error_code;
     env->error_code = events.exception.error_code;
 
@@ -3370,12 +3440,12 @@ static int kvm_guest_debug_workarounds(X86CPU *cpu)
     unsigned long reinject_trap = 0;
 
     if (!kvm_has_vcpu_events()) {
-        if (env->exception_injected == EXCP01_DB) {
+        if (env->exception_nr == EXCP01_DB) {
             reinject_trap = KVM_GUESTDBG_INJECT_DB;
         } else if (env->exception_injected == EXCP03_INT3) {
             reinject_trap = KVM_GUESTDBG_INJECT_BP;
         }
-        env->exception_injected = -1;
+        kvm_reset_exception(env);
     }
 
     /*
@@ -3751,13 +3821,13 @@ int kvm_arch_process_async_events(CPUState *cs)
 
         kvm_cpu_synchronize_state(cs);
 
-        if (env->exception_injected == EXCP08_DBLE) {
+        if (env->exception_nr == EXCP08_DBLE) {
             /* this means triple fault */
             qemu_system_reset_request(SHUTDOWN_CAUSE_GUEST_RESET);
             cs->exit_request = 1;
             return 0;
         }
-        env->exception_injected = EXCP12_MCHK;
+        kvm_queue_exception(env, EXCP12_MCHK, 0, 0);
         env->has_error_code = 0;
 
         cs->halted = 0;
@@ -3972,14 +4042,13 @@ static int kvm_handle_debug(X86CPU *cpu,
     }
     if (ret == 0) {
         cpu_synchronize_state(cs);
-        assert(env->exception_injected == -1);
+        assert(env->exception_nr == -1);
 
         /* pass to guest */
-        env->exception_injected = arch_info->exception;
+        kvm_queue_exception(env, arch_info->exception,
+                            arch_info->exception == EXCP01_DB,
+                            arch_info->dr6);
         env->has_error_code = 0;
-        if (arch_info->exception == EXCP01_DB) {
-            env->dr[6] = arch_info->dr6;
-        }
     }
 
     return ret;

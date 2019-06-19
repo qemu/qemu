@@ -362,8 +362,8 @@ bool hvf_inject_interrupts(CPUState *cpu_state)
     if (env->interrupt_injected != -1) {
         vector = env->interrupt_injected;
         intr_type = VMCS_INTR_T_SWINTR;
-    } else if (env->exception_injected != -1) {
-        vector = env->exception_injected;
+    } else if (env->exception_nr != -1) {
+        vector = env->exception_nr;
         if (vector == EXCP03_INT3 || vector == EXCP04_INTO) {
             intr_type = VMCS_INTR_T_SWEXCEPTION;
         } else {

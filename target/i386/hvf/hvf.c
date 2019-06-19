@@ -605,7 +605,9 @@ static void hvf_store_events(CPUState *cpu, uint32_t ins_len, uint64_t idtvec_in
     X86CPU *x86_cpu = X86_CPU(cpu);
     CPUX86State *env = &x86_cpu->env;
 
-    env->exception_injected = -1;
+    env->exception_nr = -1;
+    env->exception_pending = 0;
+    env->exception_injected = 0;
     env->interrupt_injected = -1;
     env->nmi_injected = false;
     if (idtvec_info & VMCS_IDT_VEC_VALID) {
@@ -619,7 +621,8 @@ static void hvf_store_events(CPUState *cpu, uint32_t ins_len, uint64_t idtvec_in
             break;
         case VMCS_IDT_VEC_HWEXCEPTION:
         case VMCS_IDT_VEC_SWEXCEPTION:
-            env->exception_injected = idtvec_info & VMCS_IDT_VEC_VECNUM;
+            env->exception_nr = idtvec_info & VMCS_IDT_VEC_VECNUM;
+            env->exception_injected = 1;
             break;
         case VMCS_IDT_VEC_PRIV_SWEXCEPTION:
         default:
@@ -912,7 +915,8 @@ int hvf_vcpu_exec(CPUState *cpu)
             macvm_set_rip(cpu, rip + ins_len);
             break;
         case VMX_REASON_VMCALL:
-            env->exception_injected = EXCP0D_GPF;
+            env->exception_nr = EXCP0D_GPF;
+            env->exception_injected = 1;
             env->has_error_code = true;
             env->error_code = 0;
             break;
