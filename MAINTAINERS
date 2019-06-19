@@ -1850,7 +1850,7 @@ F: include/sysemu/device_tree.h
 Dump
 S: Supported
 M: Marc-André Lureau <marcandre.lureau@redhat.com>
-F: dump.c
+F: dump/dump.c
 F: hw/misc/vmcoreinfo.c
 F: include/hw/misc/vmcoreinfo.h
 F: include/sysemu/dump-arch.h

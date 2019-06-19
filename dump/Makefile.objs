@@ -1,0 +1,2 @@
+obj-y += dump.o
+obj-$(TARGET_X86_64) += win_dump.o
