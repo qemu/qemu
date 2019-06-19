@@ -31,7 +31,7 @@
 #include "qemu/module.h"
 #include "trace.h"
 #include "qapi/visitor.h"
-#include "qapi/qapi-visit-misc.h"
+#include "qapi/qapi-types-machine.h"
 #include "qapi/qapi-visit-run-state.h"
 #include "sysemu/hw_accel.h"
 #include "hw/qdev-properties.h"

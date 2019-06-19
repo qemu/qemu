@@ -1268,6 +1268,7 @@ F: hw/core/machine.c
 F: hw/core/null-machine.c
 F: hw/cpu/cluster.c
 F: numa.c
+F: qapi/machine.json
 F: qom/cpu.c
 F: include/hw/boards.h
 F: include/hw/cpu/cluster.h

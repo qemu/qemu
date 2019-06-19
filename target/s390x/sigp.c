@@ -17,7 +17,7 @@
 #include "sysemu/sysemu.h"
 #include "sysemu/tcg.h"
 #include "trace.h"
-#include "qapi/qapi-types-misc.h"
+#include "qapi/qapi-types-machine.h"
 
 QemuMutex qemu_sigp_mutex;
 
