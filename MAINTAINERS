@@ -1855,6 +1855,7 @@ F: hw/misc/vmcoreinfo.c
 F: include/hw/misc/vmcoreinfo.h
 F: include/sysemu/dump-arch.h
 F: include/sysemu/dump.h
+F: qapi/dump.json
 F: scripts/dump-guest-memory.py
 F: stubs/dump.c
 

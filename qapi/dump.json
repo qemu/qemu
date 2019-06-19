@@ -1,0 +1,200 @@
+# -*- Mode: Python -*-
+#
+# This work is licensed under the terms of the GNU GPL, version 2 or later.
+# See the COPYING file in the top-level directory.
+
+##
+# = Dump guest memory
+##
+
+##
+# @DumpGuestMemoryFormat:
+#
+# An enumeration of guest-memory-dump's format.
+#
+# @elf: elf format
+#
+# @kdump-zlib: kdump-compressed format with zlib-compressed
+#
+# @kdump-lzo: kdump-compressed format with lzo-compressed
+#
+# @kdump-snappy: kdump-compressed format with snappy-compressed
+#
+# @win-dmp: Windows full crashdump format,
+#           can be used instead of ELF converting (since 2.13)
+#
+# Since: 2.0
+##
+{ 'enum': 'DumpGuestMemoryFormat',
+  'data': [ 'elf', 'kdump-zlib', 'kdump-lzo', 'kdump-snappy', 'win-dmp' ] }
+
+##
+# @dump-guest-memory:
+#
+# Dump guest's memory to vmcore. It is a synchronous operation that can take
+# very long depending on the amount of guest memory.
+#
+# @paging: if true, do paging to get guest's memory mapping. This allows
+#          using gdb to process the core file.
+#
+#          IMPORTANT: this option can make QEMU allocate several gigabytes
+#                     of RAM. This can happen for a large guest, or a
+#                     malicious guest pretending to be large.
+#
+#          Also, paging=true has the following limitations:
+#
+#             1. The guest may be in a catastrophic state or can have corrupted
+#                memory, which cannot be trusted
+#             2. The guest can be in real-mode even if paging is enabled. For
+#                example, the guest uses ACPI to sleep, and ACPI sleep state
+#                goes in real-mode
+#             3. Currently only supported on i386 and x86_64.
+#
+# @protocol: the filename or file descriptor of the vmcore. The supported
+#            protocols are:
+#
+#            1. file: the protocol starts with "file:", and the following
+#               string is the file's path.
+#            2. fd: the protocol starts with "fd:", and the following string
+#               is the fd's name.
+#
+# @detach: if true, QMP will return immediately rather than
+#          waiting for the dump to finish. The user can track progress
+#          using "query-dump". (since 2.6).
+#
+# @begin: if specified, the starting physical address.
+#
+# @length: if specified, the memory size, in bytes. If you don't
+#          want to dump all guest's memory, please specify the start @begin
+#          and @length
+#
+# @format: if specified, the format of guest memory dump. But non-elf
+#          format is conflict with paging and filter, ie. @paging, @begin and
+#          @length is not allowed to be specified with non-elf @format at the
+#          same time (since 2.0)
+#
+# Note: All boolean arguments default to false
+#
+# Returns: nothing on success
+#
+# Since: 1.2
+#
+# Example:
+#
+# -> { "execute": "dump-guest-memory",
+#      "arguments": { "protocol": "fd:dump" } }
+# <- { "return": {} }
+#
+##
+{ 'command': 'dump-guest-memory',
+  'data': { 'paging': 'bool', 'protocol': 'str', '*detach': 'bool',
+            '*begin': 'int', '*length': 'int',
+            '*format': 'DumpGuestMemoryFormat'} }
+
+##
+# @DumpStatus:
+#
+# Describe the status of a long-running background guest memory dump.
+#
+# @none: no dump-guest-memory has started yet.
+#
+# @active: there is one dump running in background.
+#
+# @completed: the last dump has finished successfully.
+#
+# @failed: the last dump has failed.
+#
+# Since: 2.6
+##
+{ 'enum': 'DumpStatus',
+  'data': [ 'none', 'active', 'completed', 'failed' ] }
+
+##
+# @DumpQueryResult:
+#
+# The result format for 'query-dump'.
+#
+# @status: enum of @DumpStatus, which shows current dump status
+#
+# @completed: bytes written in latest dump (uncompressed)
+#
+# @total: total bytes to be written in latest dump (uncompressed)
+#
+# Since: 2.6
+##
+{ 'struct': 'DumpQueryResult',
+  'data': { 'status': 'DumpStatus',
+            'completed': 'int',
+            'total': 'int' } }
+
+##
+# @query-dump:
+#
+# Query latest dump status.
+#
+# Returns: A @DumpStatus object showing the dump status.
+#
+# Since: 2.6
+#
+# Example:
+#
+# -> { "execute": "query-dump" }
+# <- { "return": { "status": "active", "completed": 1024000,
+#                  "total": 2048000 } }
+#
+##
+{ 'command': 'query-dump', 'returns': 'DumpQueryResult' }
+
+##
+# @DUMP_COMPLETED:
+#
+# Emitted when background dump has completed
+#
+# @result: final dump status
+#
+# @error: human-readable error string that provides
+#         hint on why dump failed. Only presents on failure. The
+#         user should not try to interpret the error string.
+#
+# Since: 2.6
+#
+# Example:
+#
+# { "event": "DUMP_COMPLETED",
+#   "data": {"result": {"total": 1090650112, "status": "completed",
+#                       "completed": 1090650112} } }
+#
+##
+{ 'event': 'DUMP_COMPLETED' ,
+  'data': { 'result': 'DumpQueryResult', '*error': 'str' } }
+
+##
+# @DumpGuestMemoryCapability:
+#
+# A list of the available formats for dump-guest-memory
+#
+# Since: 2.0
+##
+{ 'struct': 'DumpGuestMemoryCapability',
+  'data': {
+      'formats': ['DumpGuestMemoryFormat'] } }
+
+##
+# @query-dump-guest-memory-capability:
+#
+# Returns the available formats for dump-guest-memory
+#
+# Returns:  A @DumpGuestMemoryCapability object listing available formats for
+#           dump-guest-memory
+#
+# Since: 2.0
+#
+# Example:
+#
+# -> { "execute": "query-dump-guest-memory-capability" }
+# <- { "return": { "formats":
+#                  ["elf", "kdump-zlib", "kdump-lzo", "kdump-snappy"] }
+#
+##
+{ 'command': 'query-dump-guest-memory-capability',
+  'returns': 'DumpGuestMemoryCapability' }
