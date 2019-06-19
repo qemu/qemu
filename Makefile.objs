@@ -85,7 +85,6 @@ common-obj-$(CONFIG_FDT) += device_tree.o
 # qapi
 
 common-obj-y += qapi/
-common-obj-y += monitor/
 endif
 
 #######################################################################
