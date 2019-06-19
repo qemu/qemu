@@ -30,6 +30,7 @@ config PC
     # For ACPI builder:
     select SERIAL_ISA
     select ACPI_VMGENID
+    select VIRTIO_PMEM_SUPPORTED
 
 config PC_PCI
     bool
