@@ -2,10 +2,6 @@
 #
 
 ##
-# = Target-specific commands & events
-##
-
-##
 # @RTC_CHANGE:
 #
 # Emitted when the guest changes the RTC time.

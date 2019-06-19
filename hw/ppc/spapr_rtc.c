@@ -32,7 +32,7 @@
 #include "sysemu/sysemu.h"
 #include "hw/ppc/spapr.h"
 #include "qapi/error.h"
-#include "qapi/qapi-events-target.h"
+#include "qapi/qapi-events-misc-target.h"
 #include "qemu/cutils.h"
 #include "qemu/module.h"
 

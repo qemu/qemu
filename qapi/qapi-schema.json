@@ -102,5 +102,5 @@
 { 'include': 'machine.json' }
 { 'include': 'machine-target.json' }
 { 'include': 'misc.json' }
-{ 'include': 'target.json' }
+{ 'include': 'misc-target.json' }
 { 'include': 'audio.json' }
