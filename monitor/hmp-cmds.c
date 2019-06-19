@@ -31,7 +31,6 @@
 #include "qapi/qapi-builtin-visit.h"
 #include "qapi/qapi-commands-block.h"
 #include "qapi/qapi-commands-char.h"
-#include "qapi/qapi-commands-machine.h"
 #include "qapi/qapi-commands-migration.h"
 #include "qapi/qapi-commands-misc.h"
 #include "qapi/qapi-commands-net.h"
@@ -455,27 +454,6 @@ void hmp_info_migrate_cache_size(Monitor *mon, const QDict *qdict)
 {
     monitor_printf(mon, "xbzrel cache size: %" PRId64 " kbytes\n",
                    qmp_query_migrate_cache_size(NULL) >> 10);
-}
-
-void hmp_info_cpus(Monitor *mon, const QDict *qdict)
-{
-    CpuInfoFastList *cpu_list, *cpu;
-
-    cpu_list = qmp_query_cpus_fast(NULL);
-
-    for (cpu = cpu_list; cpu; cpu = cpu->next) {
-        int active = ' ';
-
-        if (cpu->value->cpu_index == monitor_get_cpu_index()) {
-            active = '*';
-        }
-
-        monitor_printf(mon, "%c CPU #%" PRId64 ":", active,
-                       cpu->value->cpu_index);
-        monitor_printf(mon, " thread_id=%" PRId64 "\n", cpu->value->thread_id);
-    }
-
-    qapi_free_CpuInfoFastList(cpu_list);
 }
 
 static void print_block_info(Monitor *mon, BlockInfo *info,
@@ -2472,18 +2450,6 @@ void hmp_nbd_server_stop(Monitor *mon, const QDict *qdict)
     hmp_handle_error(mon, &err);
 }
 
-void hmp_cpu_add(Monitor *mon, const QDict *qdict)
-{
-    int cpuid;
-    Error *err = NULL;
-
-    error_report("cpu_add is deprecated, please use device_add instead");
-
-    cpuid = qdict_get_int(qdict, "id");
-    qmp_cpu_add(cpuid, &err);
-    hmp_handle_error(mon, &err);
-}
-
 void hmp_chardev_add(Monitor *mon, const QDict *qdict)
 {
     const char *args = qdict_get_str(qdict, "args");
@@ -2612,41 +2578,6 @@ void hmp_object_del(Monitor *mon, const QDict *qdict)
     Error *err = NULL;
 
     user_creatable_del(id, &err);
-    hmp_handle_error(mon, &err);
-}
-
-void hmp_info_memdev(Monitor *mon, const QDict *qdict)
-{
-    Error *err = NULL;
-    MemdevList *memdev_list = qmp_query_memdev(&err);
-    MemdevList *m = memdev_list;
-    Visitor *v;
-    char *str;
-
-    while (m) {
-        v = string_output_visitor_new(false, &str);
-        visit_type_uint16List(v, NULL, &m->value->host_nodes, NULL);
-        monitor_printf(mon, "memory backend: %s\n", m->value->id);
-        monitor_printf(mon, "  size:  %" PRId64 "\n", m->value->size);
-        monitor_printf(mon, "  merge: %s\n",
-                       m->value->merge ? "true" : "false");
-        monitor_printf(mon, "  dump: %s\n",
-                       m->value->dump ? "true" : "false");
-        monitor_printf(mon, "  prealloc: %s\n",
-                       m->value->prealloc ? "true" : "false");
-        monitor_printf(mon, "  policy: %s\n",
-                       HostMemPolicy_str(m->value->policy));
-        visit_complete(v, &str);
-        monitor_printf(mon, "  host nodes: %s\n", str);
-
-        g_free(str);
-        visit_free(v);
-        m = m->next;
-    }
-
-    monitor_printf(mon, "\n");
-
-    qapi_free_MemdevList(memdev_list);
     hmp_handle_error(mon, &err);
 }
 
@@ -3037,48 +2968,6 @@ void hmp_info_dump(Monitor *mon, const QDict *qdict)
 void hmp_info_ramblock(Monitor *mon, const QDict *qdict)
 {
     ram_block_dump(mon);
-}
-
-void hmp_hotpluggable_cpus(Monitor *mon, const QDict *qdict)
-{
-    Error *err = NULL;
-    HotpluggableCPUList *l = qmp_query_hotpluggable_cpus(&err);
-    HotpluggableCPUList *saved = l;
-    CpuInstanceProperties *c;
-
-    if (err != NULL) {
-        hmp_handle_error(mon, &err);
-        return;
-    }
-
-    monitor_printf(mon, "Hotpluggable CPUs:\n");
-    while (l) {
-        monitor_printf(mon, "  type: \"%s\"\n", l->value->type);
-        monitor_printf(mon, "  vcpus_count: \"%" PRIu64 "\"\n",
-                       l->value->vcpus_count);
-        if (l->value->has_qom_path) {
-            monitor_printf(mon, "  qom_path: \"%s\"\n", l->value->qom_path);
-        }
-
-        c = l->value->props;
-        monitor_printf(mon, "  CPUInstance Properties:\n");
-        if (c->has_node_id) {
-            monitor_printf(mon, "    node-id: \"%" PRIu64 "\"\n", c->node_id);
-        }
-        if (c->has_socket_id) {
-            monitor_printf(mon, "    socket-id: \"%" PRIu64 "\"\n", c->socket_id);
-        }
-        if (c->has_core_id) {
-            monitor_printf(mon, "    core-id: \"%" PRIu64 "\"\n", c->core_id);
-        }
-        if (c->has_thread_id) {
-            monitor_printf(mon, "    thread-id: \"%" PRIu64 "\"\n", c->thread_id);
-        }
-
-        l = l->next;
-    }
-
-    qapi_free_HotpluggableCPUList(saved);
 }
 
 void hmp_info_vm_generation_id(Monitor *mon, const QDict *qdict)
