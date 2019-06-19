@@ -42,6 +42,7 @@
 #include "trace/mem-internal.h" /* mem_info macros */
 #include "plugin.h"
 #ifndef CONFIG_USER_ONLY
+#include "qemu/plugin-memory.h"
 #include "hw/boards.h"
 #endif
 
@@ -240,10 +241,58 @@ bool qemu_plugin_mem_is_store(qemu_plugin_meminfo_t info)
  * Virtual Memory queries
  */
 
+#ifdef CONFIG_SOFTMMU
+static __thread struct qemu_plugin_hwaddr hwaddr_info;
+
+struct qemu_plugin_hwaddr *qemu_plugin_get_hwaddr(qemu_plugin_meminfo_t info,
+                                                  uint64_t vaddr)
+{
+    CPUState *cpu = current_cpu;
+    unsigned int mmu_idx = info >> TRACE_MEM_MMU_SHIFT;
+    hwaddr_info.is_store = info & TRACE_MEM_ST;
+
+    if (!tlb_plugin_lookup(cpu, vaddr, mmu_idx,
+                           info & TRACE_MEM_ST, &hwaddr_info)) {
+        error_report("invalid use of qemu_plugin_get_hwaddr");
+        return NULL;
+    }
+
+    return &hwaddr_info;
+}
+#else
 struct qemu_plugin_hwaddr *qemu_plugin_get_hwaddr(qemu_plugin_meminfo_t info,
                                                   uint64_t vaddr)
 {
     return NULL;
+}
+#endif
+
+bool qemu_plugin_hwaddr_is_io(struct qemu_plugin_hwaddr *hwaddr)
+{
+#ifdef CONFIG_SOFTMMU
+    return hwaddr->is_io;
+#else
+    return false;
+#endif
+}
+
+uint64_t qemu_plugin_hwaddr_device_offset(const struct qemu_plugin_hwaddr *haddr)
+{
+#ifdef CONFIG_SOFTMMU
+    if (haddr) {
+        if (!haddr->is_io) {
+            ram_addr_t ram_addr = qemu_ram_addr_from_host((void *) haddr->v.ram.hostaddr);
+            if (ram_addr == RAM_ADDR_INVALID) {
+                error_report("Bad ram pointer %"PRIx64"", haddr->v.ram.hostaddr);
+                abort();
+            }
+            return ram_addr;
+        } else {
+            return haddr->v.io.offset;
+        }
+    }
+#endif
+    return 0;
 }
 
 /*

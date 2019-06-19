@@ -34,6 +34,9 @@
 #include "qemu/atomic.h"
 #include "qemu/atomic128.h"
 #include "translate-all.h"
+#ifdef CONFIG_PLUGIN
+#include "qemu/plugin-memory.h"
+#endif
 
 /* DEBUG defines, enable DEBUG_TLB_LOG to log to the CPU_LOG_MMU target */
 /* #define DEBUG_TLB */
@@ -1246,6 +1249,45 @@ void *tlb_vaddr_to_host(CPUArchState *env, abi_ptr addr,
 
     return (void *)((uintptr_t)addr + entry->addend);
 }
+
+
+#ifdef CONFIG_PLUGIN
+/*
+ * Perform a TLB lookup and populate the qemu_plugin_hwaddr structure.
+ * This should be a hot path as we will have just looked this path up
+ * in the softmmu lookup code (or helper). We don't handle re-fills or
+ * checking the victim table. This is purely informational.
+ *
+ * This should never fail as the memory access being instrumented
+ * should have just filled the TLB.
+ */
+
+bool tlb_plugin_lookup(CPUState *cpu, target_ulong addr, int mmu_idx,
+                       bool is_store, struct qemu_plugin_hwaddr *data)
+{
+    CPUArchState *env = cpu->env_ptr;
+    CPUTLBEntry *tlbe = tlb_entry(env, mmu_idx, addr);
+    uintptr_t index = tlb_index(env, mmu_idx, addr);
+    target_ulong tlb_addr = is_store ? tlb_addr_write(tlbe) : tlbe->addr_read;
+
+    if (likely(tlb_hit(tlb_addr, addr))) {
+        /* We must have an iotlb entry for MMIO */
+        if (tlb_addr & TLB_MMIO) {
+            CPUIOTLBEntry *iotlbentry;
+            iotlbentry = &env_tlb(env)->d[mmu_idx].iotlb[index];
+            data->is_io = true;
+            data->v.io.section = iotlb_to_section(cpu, iotlbentry->addr, iotlbentry->attrs);
+            data->v.io.offset = (iotlbentry->addr & TARGET_PAGE_MASK) + addr;
+        } else {
+            data->is_io = false;
+            data->v.ram.hostaddr = addr + tlbe->addend;
+        }
+        return true;
+    }
+    return false;
+}
+
+#endif
 
 /* Probe for a read-modify-write atomic operation.  Do not allow unaligned
  * operations, or io operations to proceed.  Return the host address.  */
