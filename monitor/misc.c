@@ -56,13 +56,13 @@
 #include "qom/object_interfaces.h"
 #include "trace/control.h"
 #include "monitor/hmp-target.h"
+#include "monitor/hmp.h"
 #ifdef CONFIG_TRACE_SIMPLE
 #include "trace/simple.h"
 #endif
 #include "exec/memory.h"
 #include "exec/exec-all.h"
 #include "qemu/option.h"
-#include "hmp.h"
 #include "qemu/thread.h"
 #include "block/qapi.h"
 #include "qapi/qapi-commands.h"

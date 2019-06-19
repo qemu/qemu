@@ -14,7 +14,7 @@
  */
 
 #include "qemu/osdep.h"
-#include "hmp.h"
+#include "monitor/hmp.h"
 #include "net/net.h"
 #include "net/eth.h"
 #include "chardev/char.h"
