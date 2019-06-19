@@ -2029,9 +2029,10 @@ F: docs/interop/qemu-ga-ref.texi
 T: git https://github.com/mdroth/qemu.git qga
 
 QOM
-M: Andreas Färber <afaerber@suse.de>
+M: Paolo Bonzini <pbonzini@redhat.com>
+R: Daniel P. Berrange <berrange@redhat.com>
+R: Eduardo Habkost <ehabkost@redhat.com>
 S: Supported
-T: git https://github.com/afaerber/qemu-cpu.git qom-next
 F: include/qom/
 X: include/qom/cpu.h
 F: qom/
