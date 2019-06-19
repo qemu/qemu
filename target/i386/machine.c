@@ -233,7 +233,7 @@ static int cpu_pre_save(void *opaque)
 
 #ifdef CONFIG_KVM
     /* Verify we have nested virtualization state from kernel if required */
-    if (cpu_has_nested_virt(env) && !env->nested_state) {
+    if (kvm_enabled() && cpu_has_vmx(env) && !env->nested_state) {
         error_report("Guest enabled nested virtualization but kernel "
                 "does not support saving of nested state");
         return -EINVAL;
