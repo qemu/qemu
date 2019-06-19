@@ -29,3 +29,13 @@ config VIRTIO_CRYPTO
     bool
     default y
     depends on VIRTIO
+
+config VIRTIO_PMEM_SUPPORTED
+    bool
+
+config VIRTIO_PMEM
+    bool
+    default y
+    depends on VIRTIO
+    depends on VIRTIO_PMEM_SUPPORTED
+    select MEM_DEVICE
