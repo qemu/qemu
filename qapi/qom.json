@@ -1,0 +1,244 @@
+# -*- Mode: Python -*-
+#
+# This work is licensed under the terms of the GNU GPL, version 2 or later.
+# See the COPYING file in the top-level directory.
+
+##
+# = QEMU Object Model (QOM)
+##
+
+##
+# @ObjectPropertyInfo:
+#
+# @name: the name of the property
+#
+# @type: the type of the property.  This will typically come in one of four
+#        forms:
+#
+#        1) A primitive type such as 'u8', 'u16', 'bool', 'str', or 'double'.
+#           These types are mapped to the appropriate JSON type.
+#
+#        2) A child type in the form 'child<subtype>' where subtype is a qdev
+#           device type name.  Child properties create the composition tree.
+#
+#        3) A link type in the form 'link<subtype>' where subtype is a qdev
+#           device type name.  Link properties form the device model graph.
+#
+# @description: if specified, the description of the property.
+#
+# Since: 1.2
+##
+{ 'struct': 'ObjectPropertyInfo',
+  'data': { 'name': 'str', 'type': 'str', '*description': 'str' } }
+
+##
+# @qom-list:
+#
+# This command will list any properties of a object given a path in the object
+# model.
+#
+# @path: the path within the object model.  See @qom-get for a description of
+#        this parameter.
+#
+# Returns: a list of @ObjectPropertyInfo that describe the properties of the
+#          object.
+#
+# Since: 1.2
+#
+# Example:
+#
+# -> { "execute": "qom-list",
+#      "arguments": { "path": "/chardevs" } }
+# <- { "return": [ { "name": "type", "type": "string" },
+#                  { "name": "parallel0", "type": "child<chardev-vc>" },
+#                  { "name": "serial0", "type": "child<chardev-vc>" },
+#                  { "name": "mon0", "type": "child<chardev-stdio>" } ] }
+#
+##
+{ 'command': 'qom-list',
+  'data': { 'path': 'str' },
+  'returns': [ 'ObjectPropertyInfo' ],
+  'allow-preconfig': true }
+
+##
+# @qom-get:
+#
+# This command will get a property from a object model path and return the
+# value.
+#
+# @path: The path within the object model.  There are two forms of supported
+#        paths--absolute and partial paths.
+#
+#        Absolute paths are derived from the root object and can follow child<>
+#        or link<> properties.  Since they can follow link<> properties, they
+#        can be arbitrarily long.  Absolute paths look like absolute filenames
+#        and are prefixed  with a leading slash.
+#
+#        Partial paths look like relative filenames.  They do not begin
+#        with a prefix.  The matching rules for partial paths are subtle but
+#        designed to make specifying objects easy.  At each level of the
+#        composition tree, the partial path is matched as an absolute path.
+#        The first match is not returned.  At least two matches are searched
+#        for.  A successful result is only returned if only one match is
+#        found.  If more than one match is found, a flag is return to
+#        indicate that the match was ambiguous.
+#
+# @property: The property name to read
+#
+# Returns: The property value.  The type depends on the property
+#          type. child<> and link<> properties are returned as #str
+#          pathnames.  All integer property types (u8, u16, etc) are
+#          returned as #int.
+#
+# Since: 1.2
+#
+# Example:
+#
+# 1. Use absolute path
+#
+# -> { "execute": "qom-get",
+#      "arguments": { "path": "/machine/unattached/device[0]",
+#                     "property": "hotplugged" } }
+# <- { "return": false }
+#
+# 2. Use partial path
+#
+# -> { "execute": "qom-get",
+#      "arguments": { "path": "unattached/sysbus",
+#                     "property": "type" } }
+# <- { "return": "System" }
+#
+##
+{ 'command': 'qom-get',
+  'data': { 'path': 'str', 'property': 'str' },
+  'returns': 'any',
+  'allow-preconfig': true }
+
+##
+# @qom-set:
+#
+# This command will set a property from a object model path.
+#
+# @path: see @qom-get for a description of this parameter
+#
+# @property: the property name to set
+#
+# @value: a value who's type is appropriate for the property type.  See @qom-get
+#         for a description of type mapping.
+#
+# Since: 1.2
+#
+# Example:
+#
+# -> { "execute": "qom-set",
+#      "arguments": { "path": "/machine",
+#                     "property": "graphics",
+#                     "value": false } }
+# <- { "return": {} }
+#
+##
+{ 'command': 'qom-set',
+  'data': { 'path': 'str', 'property': 'str', 'value': 'any' },
+  'allow-preconfig': true }
+
+##
+# @ObjectTypeInfo:
+#
+# This structure describes a search result from @qom-list-types
+#
+# @name: the type name found in the search
+#
+# @abstract: the type is abstract and can't be directly instantiated.
+#            Omitted if false. (since 2.10)
+#
+# @parent: Name of parent type, if any (since 2.10)
+#
+# Since: 1.1
+##
+{ 'struct': 'ObjectTypeInfo',
+  'data': { 'name': 'str', '*abstract': 'bool', '*parent': 'str' } }
+
+##
+# @qom-list-types:
+#
+# This command will return a list of types given search parameters
+#
+# @implements: if specified, only return types that implement this type name
+#
+# @abstract: if true, include abstract types in the results
+#
+# Returns: a list of @ObjectTypeInfo or an empty list if no results are found
+#
+# Since: 1.1
+##
+{ 'command': 'qom-list-types',
+  'data': { '*implements': 'str', '*abstract': 'bool' },
+  'returns': [ 'ObjectTypeInfo' ],
+  'allow-preconfig': true }
+
+##
+# @qom-list-properties:
+#
+# List properties associated with a QOM object.
+#
+# @typename: the type name of an object
+#
+# Note: objects can create properties at runtime, for example to describe
+# links between different devices and/or objects. These properties
+# are not included in the output of this command.
+#
+# Returns: a list of ObjectPropertyInfo describing object properties
+#
+# Since: 2.12
+##
+{ 'command': 'qom-list-properties',
+  'data': { 'typename': 'str'},
+  'returns': [ 'ObjectPropertyInfo' ],
+  'allow-preconfig': true }
+
+##
+# @object-add:
+#
+# Create a QOM object.
+#
+# @qom-type: the class name for the object to be created
+#
+# @id: the name of the new object
+#
+# @props: a dictionary of properties to be passed to the backend
+#
+# Returns: Nothing on success
+#          Error if @qom-type is not a valid class name
+#
+# Since: 2.0
+#
+# Example:
+#
+# -> { "execute": "object-add",
+#      "arguments": { "qom-type": "rng-random", "id": "rng1",
+#                     "props": { "filename": "/dev/hwrng" } } }
+# <- { "return": {} }
+#
+##
+{ 'command': 'object-add',
+  'data': {'qom-type': 'str', 'id': 'str', '*props': 'any'} }
+
+##
+# @object-del:
+#
+# Remove a QOM object.
+#
+# @id: the name of the QOM object to remove
+#
+# Returns: Nothing on success
+#          Error if @id is not a valid id for a QOM object
+#
+# Since: 2.0
+#
+# Example:
+#
+# -> { "execute": "object-del", "arguments": { "id": "rng1" } }
+# <- { "return": {} }
+#
+##
+{ 'command': 'object-del', 'data': {'id': 'str'} }

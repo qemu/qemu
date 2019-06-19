@@ -1,0 +1,125 @@
+# -*- Mode: Python -*-
+#
+# This work is licensed under the terms of the GNU GPL, version 2 or later.
+# See the COPYING file in the top-level directory.
+
+##
+# = Device infrastructure (qdev)
+##
+
+{ 'include': 'qom.json' }
+
+##
+# @device-list-properties:
+#
+# List properties associated with a device.
+#
+# @typename: the type name of a device
+#
+# Returns: a list of ObjectPropertyInfo describing a devices properties
+#
+# Note: objects can create properties at runtime, for example to describe
+# links between different devices and/or objects. These properties
+# are not included in the output of this command.
+#
+# Since: 1.2
+##
+{ 'command': 'device-list-properties',
+  'data': { 'typename': 'str'},
+  'returns': [ 'ObjectPropertyInfo' ] }
+
+##
+# @device_add:
+#
+# @driver: the name of the new device's driver
+#
+# @bus: the device's parent bus (device tree path)
+#
+# @id: the device's ID, must be unique
+#
+# Additional arguments depend on the type.
+#
+# Add a device.
+#
+# Notes:
+# 1. For detailed information about this command, please refer to the
+#    'docs/qdev-device-use.txt' file.
+#
+# 2. It's possible to list device properties by running QEMU with the
+#    "-device DEVICE,help" command-line argument, where DEVICE is the
+#    device's name
+#
+# Example:
+#
+# -> { "execute": "device_add",
+#      "arguments": { "driver": "e1000", "id": "net1",
+#                     "bus": "pci.0",
+#                     "mac": "52:54:00:12:34:56" } }
+# <- { "return": {} }
+#
+# TODO: This command effectively bypasses QAPI completely due to its
+# "additional arguments" business.  It shouldn't have been added to
+# the schema in this form.  It should be qapified properly, or
+# replaced by a properly qapified command.
+#
+# Since: 0.13
+##
+{ 'command': 'device_add',
+  'data': {'driver': 'str', '*bus': 'str', '*id': 'str'},
+  'gen': false } # so we can get the additional arguments
+
+##
+# @device_del:
+#
+# Remove a device from a guest
+#
+# @id: the device's ID or QOM path
+#
+# Returns: Nothing on success
+#          If @id is not a valid device, DeviceNotFound
+#
+# Notes: When this command completes, the device may not be removed from the
+#        guest.  Hot removal is an operation that requires guest cooperation.
+#        This command merely requests that the guest begin the hot removal
+#        process.  Completion of the device removal process is signaled with a
+#        DEVICE_DELETED event. Guest reset will automatically complete removal
+#        for all devices.
+#
+# Since: 0.14.0
+#
+# Example:
+#
+# -> { "execute": "device_del",
+#      "arguments": { "id": "net1" } }
+# <- { "return": {} }
+#
+# -> { "execute": "device_del",
+#      "arguments": { "id": "/machine/peripheral-anon/device[0]" } }
+# <- { "return": {} }
+#
+##
+{ 'command': 'device_del', 'data': {'id': 'str'} }
+
+##
+# @DEVICE_DELETED:
+#
+# Emitted whenever the device removal completion is acknowledged by the guest.
+# At this point, it's safe to reuse the specified device ID. Device removal can
+# be initiated by the guest or by HMP/QMP commands.
+#
+# @device: device name
+#
+# @path: device path
+#
+# Since: 1.5
+#
+# Example:
+#
+# <- { "event": "DEVICE_DELETED",
+#      "data": { "device": "virtio-net-pci-0",
+#                "path": "/machine/peripheral/virtio-net-pci-0" },
+#      "timestamp": { "seconds": 1265044230, "microseconds": 450486 } }
+#
+##
+{ 'event': 'DEVICE_DELETED',
+  'data': { '*device': 'str', 'path': 'str' } }

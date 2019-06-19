@@ -2039,6 +2039,8 @@ F: include/hw/qdev*
 F: include/monitor/qdev.h
 F: include/qom/
 X: include/qom/cpu.h
+F: qapi/qom.json
+F: qapi/qdev.json
 F: qdev-monitor.c
 F: qom/
 X: qom/cpu.c
