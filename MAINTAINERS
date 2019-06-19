@@ -1850,9 +1850,10 @@ F: include/sysemu/device_tree.h
 Dump
 S: Supported
 M: Marc-André Lureau <marcandre.lureau@redhat.com>
-F: dump/dump.c
+F: dump/
 F: hw/misc/vmcoreinfo.c
 F: include/hw/misc/vmcoreinfo.h
+F: include/qemu/win_dump_defs
 F: include/sysemu/dump-arch.h
 F: include/sysemu/dump.h
 F: qapi/dump.json
