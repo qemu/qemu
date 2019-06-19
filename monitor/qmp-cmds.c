@@ -114,18 +114,6 @@ void qmp_system_powerdown(Error **erp)
     qemu_system_powerdown_request();
 }
 
-void qmp_cpu_add(int64_t id, Error **errp)
-{
-    MachineClass *mc;
-
-    mc = MACHINE_GET_CLASS(current_machine);
-    if (mc->hot_add_cpu) {
-        mc->hot_add_cpu(id, errp);
-    } else {
-        error_setg(errp, "Not supported");
-    }
-}
-
 void qmp_x_exit_preconfig(Error **errp)
 {
     if (!runstate_check(RUN_STATE_PRECONFIG)) {

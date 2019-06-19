@@ -27,14 +27,10 @@
 #include "exec/cpu-common.h"
 #include "exec/ramlist.h"
 #include "qemu/bitmap.h"
-#include "qom/cpu.h"
 #include "qemu/error-report.h"
 #include "qapi/error.h"
 #include "qapi/opts-visitor.h"
-#include "qapi/qapi-commands-machine.h"
 #include "qapi/qapi-visit-machine.h"
-#include "hw/boards.h"
-#include "sysemu/hostmem.h"
 #include "hw/mem/pc-dimm.h"
 #include "hw/mem/memory-device.h"
 #include "qemu/option.h"
@@ -174,7 +170,6 @@ static void parse_numa_distance(NumaDistOptions *dist, Error **errp)
     have_numa_distance = true;
 }
 
-static
 void set_numa_options(MachineState *ms, NumaOptions *object, Error **errp)
 {
     Error *err = NULL;
@@ -447,17 +442,6 @@ void parse_numa_opts(MachineState *ms)
     qemu_opts_foreach(qemu_find_opts("numa"), parse_numa, ms, &error_fatal);
 }
 
-void qmp_set_numa_node(NumaOptions *cmd, Error **errp)
-{
-    if (!runstate_check(RUN_STATE_PRECONFIG)) {
-        error_setg(errp, "The command is permitted only in '%s' state",
-                   RunState_str(RUN_STATE_PRECONFIG));
-         return;
-    }
-
-    set_numa_options(MACHINE(qdev_get_machine()), cmd, errp);
-}
-
 void numa_cpu_pre_plug(const CPUArchId *slot, DeviceState *dev, Error **errp)
 {
     int node_id = object_property_get_int(OBJECT(dev), "node-id", &error_abort);
@@ -590,52 +574,6 @@ void query_numa_node_mem(NumaNodeMem node_mem[])
     for (i = 0; i < nb_numa_nodes; i++) {
         node_mem[i].node_mem += numa_info[i].node_mem;
     }
-}
-
-static int query_memdev(Object *obj, void *opaque)
-{
-    MemdevList **list = opaque;
-    MemdevList *m = NULL;
-
-    if (object_dynamic_cast(obj, TYPE_MEMORY_BACKEND)) {
-        m = g_malloc0(sizeof(*m));
-
-        m->value = g_malloc0(sizeof(*m->value));
-
-        m->value->id = object_get_canonical_path_component(obj);
-        m->value->has_id = !!m->value->id;
-
-        m->value->size = object_property_get_uint(obj, "size",
-                                                  &error_abort);
-        m->value->merge = object_property_get_bool(obj, "merge",
-                                                   &error_abort);
-        m->value->dump = object_property_get_bool(obj, "dump",
-                                                  &error_abort);
-        m->value->prealloc = object_property_get_bool(obj,
-                                                      "prealloc",
-                                                      &error_abort);
-        m->value->policy = object_property_get_enum(obj,
-                                                    "policy",
-                                                    "HostMemPolicy",
-                                                    &error_abort);
-        object_property_get_uint16List(obj, "host-nodes",
-                                       &m->value->host_nodes,
-                                       &error_abort);
-
-        m->next = *list;
-        *list = m;
-    }
-
-    return 0;
-}
-
-MemdevList *qmp_query_memdev(Error **errp)
-{
-    Object *obj = object_get_objects_root();
-    MemdevList *list = NULL;
-
-    object_child_foreach(obj, query_memdev, &list);
-    return list;
 }
 
 void ram_block_notifier_add(RAMBlockNotifier *n)

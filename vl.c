@@ -55,7 +55,6 @@ int main(int argc, char **argv)
 #include "qemu/error-report.h"
 #include "qemu/sockets.h"
 #include "hw/hw.h"
-#include "hw/boards.h"
 #include "sysemu/accel.h"
 #include "hw/usb.h"
 #include "hw/isa/isa.h"
@@ -125,7 +124,6 @@ int main(int argc, char **argv)
 #include "qapi/qapi-visit-block-core.h"
 #include "qapi/qapi-visit-ui.h"
 #include "qapi/qapi-commands-block-core.h"
-#include "qapi/qapi-commands-machine.h"
 #include "qapi/qapi-commands-run-state.h"
 #include "qapi/qapi-commands-ui.h"
 #include "qapi/qmp/qerror.h"
@@ -1406,41 +1404,6 @@ static MachineClass *find_default_machine(GSList *machines)
     return NULL;
 }
 
-MachineInfoList *qmp_query_machines(Error **errp)
-{
-    GSList *el, *machines = object_class_get_list(TYPE_MACHINE, false);
-    MachineInfoList *mach_list = NULL;
-
-    for (el = machines; el; el = el->next) {
-        MachineClass *mc = el->data;
-        MachineInfoList *entry;
-        MachineInfo *info;
-
-        info = g_malloc0(sizeof(*info));
-        if (mc->is_default) {
-            info->has_is_default = true;
-            info->is_default = true;
-        }
-
-        if (mc->alias) {
-            info->has_alias = true;
-            info->alias = g_strdup(mc->alias);
-        }
-
-        info->name = g_strdup(mc->name);
-        info->cpu_max = !mc->max_cpus ? 1 : mc->max_cpus;
-        info->hotpluggable_cpus = mc->has_hotpluggable_cpus;
-
-        entry = g_malloc0(sizeof(*entry));
-        entry->value = info;
-        entry->next = mach_list;
-        mach_list = entry;
-    }
-
-    g_slist_free(machines);
-    return mach_list;
-}
-
 static int machine_help_func(QemuOpts *opts, MachineState *machine)
 {
     ObjectProperty *prop;
@@ -1737,14 +1700,6 @@ void qemu_register_wakeup_support(void)
 bool qemu_wakeup_suspend_enabled(void)
 {
     return wakeup_suspend_enabled;
-}
-
-CurrentMachineParams *qmp_query_current_machine(Error **errp)
-{
-    CurrentMachineParams *params = g_malloc0(sizeof(*params));
-    params->wakeup_suspend_support = qemu_wakeup_suspend_enabled();
-
-    return params;
 }
 
 void qemu_system_killed(int signal, pid_t pid)
