@@ -383,7 +383,7 @@ static void pcie_cap_slot_event(PCIDevice *dev, PCIExpressHotPlugEvent event)
 {
     /* Minor optimization: if nothing changed - no event is needed. */
     if (pci_word_test_and_set_mask(dev->config + dev->exp.exp_cap +
-                                   PCI_EXP_SLTSTA, event)) {
+                                   PCI_EXP_SLTSTA, event) == event) {
         return;
     }
     hotplug_event_notify(dev);
