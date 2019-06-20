@@ -26,6 +26,7 @@
 #include "qapi/error.h"
 #include "hw/hw.h"
 #include "ui/console.h"
+#include "hw/display/i2c-ddc.h"
 #include "trace.h"
 
 #define ATI_DEBUG_HW_CURSOR 0
@@ -215,6 +216,24 @@ static void ati_cursor_draw_line(VGACommonState *vga, uint8_t *d, int scr_y)
     }
 }
 
+static uint64_t ati_i2c(bitbang_i2c_interface *i2c, uint64_t data, int base)
+{
+    bool c = (data & BIT(base + 17) ? !!(data & BIT(base + 1)) : 1);
+    bool d = (data & BIT(base + 16) ? !!(data & BIT(base)) : 1);
+
+    bitbang_i2c_set(i2c, BITBANG_I2C_SCL, c);
+    d = bitbang_i2c_set(i2c, BITBANG_I2C_SDA, d);
+
+    data &= ~0xf00ULL;
+    if (c) {
+        data |= BIT(base + 9);
+    }
+    if (d) {
+        data |= BIT(base + 8);
+    }
+    return data;
+}
+
 static inline uint64_t ati_reg_read_offs(uint32_t reg, int offs,
                                          unsigned int size)
 {
@@ -266,7 +285,16 @@ static uint64_t ati_mm_read(void *opaque, hwaddr addr, unsigned int size)
     case DAC_CNTL:
         val = s->regs.dac_cntl;
         break;
-/*    case GPIO_MONID: FIXME hook up DDC I2C here */
+    case GPIO_VGA_DDC:
+        val = s->regs.gpio_vga_ddc;
+        break;
+    case GPIO_DVI_DDC:
+        val = s->regs.gpio_dvi_ddc;
+        break;
+    case GPIO_MONID ... GPIO_MONID + 3:
+        val = ati_reg_read_offs(s->regs.gpio_monid,
+                                addr - GPIO_MONID, size);
+        break;
     case PALETTE_INDEX:
         /* FIXME unaligned access */
         val = vga_ioport_read(&s->vga, VGA_PEL_IR) << 16;
@@ -497,7 +525,33 @@ static void ati_mm_write(void *opaque, hwaddr addr,
         s->regs.dac_cntl = data & 0xffffe3ff;
         s->vga.dac_8bit = !!(data & DAC_8BIT_EN);
         break;
-/*    case GPIO_MONID: FIXME hook up DDC I2C here */
+    case GPIO_VGA_DDC:
+        if (s->dev_id != PCI_DEVICE_ID_ATI_RAGE128_PF) {
+            /* FIXME: Maybe add a property to select VGA or DVI port? */
+        }
+        break;
+    case GPIO_DVI_DDC:
+        if (s->dev_id != PCI_DEVICE_ID_ATI_RAGE128_PF) {
+            s->regs.gpio_dvi_ddc = ati_i2c(s->bbi2c, data, 0);
+        }
+        break;
+    case GPIO_MONID ... GPIO_MONID + 3:
+        /* FIXME What does Radeon have here? */
+        if (s->dev_id == PCI_DEVICE_ID_ATI_RAGE128_PF) {
+            ati_reg_write_offs(&s->regs.gpio_monid,
+                               addr - GPIO_MONID, data, size);
+            /*
+             * Rage128p accesses DDC used to get EDID via these bits.
+             * Only touch i2c when write overlaps 3rd byte because some
+             * drivers access this reg via multiple partial writes and
+             * without this spurious bits would be sent.
+             */
+            if ((s->regs.gpio_monid & BIT(25)) &&
+                addr <= GPIO_MONID + 2 && addr + size > GPIO_MONID + 2) {
+                s->regs.gpio_monid = ati_i2c(s->bbi2c, s->regs.gpio_monid, 1);
+            }
+        }
+        break;
     case PALETTE_INDEX ... PALETTE_INDEX + 3:
         if (size == 4) {
             vga_ioport_write(&s->vga, VGA_PEL_IR, (data >> 16) & 0xff);
@@ -788,6 +842,12 @@ static void ati_vga_realize(PCIDevice *dev, Error **errp)
         vga->cursor_draw_line = ati_cursor_draw_line;
     }
 
+    /* ddc, edid */
+    I2CBus *i2cbus = i2c_init_bus(DEVICE(s), "ati-vga.ddc");
+    s->bbi2c = bitbang_i2c_init(i2cbus);
+    I2CSlave *i2cddc = I2C_SLAVE(qdev_create(BUS(i2cbus), TYPE_I2CDDC));
+    i2c_set_slave_address(i2cddc, 0x50);
+
     /* mmio register space */
     memory_region_init_io(&s->mm, OBJECT(s), &ati_mm_ops, s,
                           "ati.mmregs", 0x4000);
@@ -813,6 +873,7 @@ static void ati_vga_exit(PCIDevice *dev)
     ATIVGAState *s = ATI_VGA(dev);
 
     graphic_console_close(s->vga.con);
+    g_free(s->bbi2c);
 }
 
 static Property ati_vga_properties[] = {
