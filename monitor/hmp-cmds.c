@@ -1660,12 +1660,15 @@ void hmp_info_snapshots(Monitor *mon, const QDict *qdict)
 void hmp_announce_self(Monitor *mon, const QDict *qdict)
 {
     const char *interfaces_str = qdict_get_try_str(qdict, "interfaces");
+    const char *id = qdict_get_try_str(qdict, "id");
     AnnounceParameters *params = QAPI_CLONE(AnnounceParameters,
                                             migrate_announce_params());
 
     qapi_free_strList(params->interfaces);
     params->interfaces = strList_from_comma_list(interfaces_str);
     params->has_interfaces = params->interfaces != NULL;
+    params->id = g_strdup(id);
+    params->has_id = !!params->id;
     qmp_announce_self(params, NULL);
     qapi_free_AnnounceParameters(params);
 }
