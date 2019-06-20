@@ -28,7 +28,7 @@
 #define PPC4XX_I2C_H
 
 #include "hw/sysbus.h"
-#include "hw/i2c/i2c.h"
+#include "hw/i2c/bitbang_i2c.h"
 
 #define TYPE_PPC4xx_I2C "ppc4xx-i2c"
 #define PPC4xx_I2C(obj) OBJECT_CHECK(PPC4xxI2CState, (obj), TYPE_PPC4xx_I2C)
