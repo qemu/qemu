@@ -15,7 +15,6 @@ RUN DEBIAN_FRONTEND=noninteractive eatmydata \
         mxe-$TARGET-w64-mingw32.shared-curl \
         mxe-$TARGET-w64-mingw32.shared-glib \
         mxe-$TARGET-w64-mingw32.shared-libgcrypt \
-        mxe-$TARGET-w64-mingw32.shared-libssh2 \
         mxe-$TARGET-w64-mingw32.shared-libusb1 \
         mxe-$TARGET-w64-mingw32.shared-lzo \
         mxe-$TARGET-w64-mingw32.shared-nettle \

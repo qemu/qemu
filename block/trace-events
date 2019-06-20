@@ -171,19 +171,21 @@ nbd_client_connect_success(const char *export_name) "export '%s'"
 # ssh.c
 ssh_restart_coroutine(void *co) "co=%p"
 ssh_flush(void) "fsync"
-ssh_check_host_key_knownhosts(const char *key) "host key OK: %s"
+ssh_check_host_key_knownhosts(void) "host key OK"
 ssh_connect_to_ssh(char *path, int flags, int mode) "opening file %s flags=0x%x creat_mode=0%o"
 ssh_co_yield(int sock, void *rd_handler, void *wr_handler) "s->sock=%d rd_handler=%p wr_handler=%p"
 ssh_co_yield_back(int sock) "s->sock=%d - back"
 ssh_getlength(int64_t length) "length=%" PRIi64
 ssh_co_create_opts(uint64_t size) "total_size=%" PRIu64
 ssh_read(int64_t offset, size_t size) "offset=%" PRIi64 " size=%zu"
-ssh_read_buf(void *buf, size_t size) "sftp_read buf=%p size=%zu"
-ssh_read_return(ssize_t ret) "sftp_read returned %zd"
+ssh_read_buf(void *buf, size_t size, size_t actual_size) "sftp_read buf=%p size=%zu (actual size=%zu)"
+ssh_read_return(ssize_t ret, int sftp_err) "sftp_read returned %zd (sftp error=%d)"
 ssh_write(int64_t offset, size_t size) "offset=%" PRIi64 " size=%zu"
-ssh_write_buf(void *buf, size_t size) "sftp_write buf=%p size=%zu"
-ssh_write_return(ssize_t ret) "sftp_write returned %zd"
+ssh_write_buf(void *buf, size_t size, size_t actual_size) "sftp_write buf=%p size=%zu (actual size=%zu)"
+ssh_write_return(ssize_t ret, int sftp_err) "sftp_write returned %zd (sftp error=%d)"
 ssh_seek(int64_t offset) "seeking to offset=%" PRIi64
+ssh_auth_methods(int methods) "auth methods=0x%x"
+ssh_server_status(int status) "server status=%d"
 
 # curl.c
 curl_timer_cb(long timeout_ms) "timer callback timeout_ms %ld"
@@ -216,4 +218,4 @@ sheepdog_snapshot_create(const char *sn_name, const char *id) "%s %s"
 sheepdog_snapshot_create_inode(const char *name, uint32_t snap, uint32_t vdi) "s->inode: name %s snap_id 0x%" PRIx32 " vdi 0x%" PRIx32
 
 # ssh.c
-sftp_error(const char *op, const char *ssh_err, int ssh_err_code, unsigned long sftp_err_code) "%s failed: %s (libssh2 error code: %d, sftp error code: %lu)"
+sftp_error(const char *op, const char *ssh_err, int ssh_err_code, int sftp_err_code) "%s failed: %s (libssh error code: %d, sftp error code: %d)"
