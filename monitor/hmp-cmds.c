@@ -27,6 +27,7 @@
 #include "monitor/monitor-internal.h"
 #include "monitor/qdev.h"
 #include "qapi/error.h"
+#include "qapi/clone-visitor.h"
 #include "qapi/opts-visitor.h"
 #include "qapi/qapi-builtin-visit.h"
 #include "qapi/qapi-commands-block.h"
@@ -38,6 +39,7 @@
 #include "qapi/qapi-commands-run-state.h"
 #include "qapi/qapi-commands-tpm.h"
 #include "qapi/qapi-commands-ui.h"
+#include "qapi/qapi-visit-net.h"
 #include "qapi/qmp/qdict.h"
 #include "qapi/qmp/qerror.h"
 #include "qapi/string-input-visitor.h"
@@ -65,6 +67,32 @@ static void hmp_handle_error(Monitor *mon, Error **errp)
     if (*errp) {
         error_reportf_err(*errp, "Error: ");
     }
+}
+
+/*
+ * Produce a strList from a comma separated list.
+ * A NULL or empty input string return NULL.
+ */
+static strList *strList_from_comma_list(const char *in)
+{
+    strList *res = NULL;
+    strList **hook = &res;
+
+    while (in && in[0]) {
+        char *comma = strchr(in, ',');
+        *hook = g_new0(strList, 1);
+
+        if (comma) {
+            (*hook)->value = g_strndup(in, comma - in);
+            in = comma + 1; /* skip the , */
+        } else {
+            (*hook)->value = g_strdup(in);
+            in = NULL;
+        }
+        hook = &(*hook)->next;
+    }
+
+    return res;
 }
 
 void hmp_info_name(Monitor *mon, const QDict *qdict)
@@ -1631,7 +1659,15 @@ void hmp_info_snapshots(Monitor *mon, const QDict *qdict)
 
 void hmp_announce_self(Monitor *mon, const QDict *qdict)
 {
-    qmp_announce_self(migrate_announce_params(), NULL);
+    const char *interfaces_str = qdict_get_try_str(qdict, "interfaces");
+    AnnounceParameters *params = QAPI_CLONE(AnnounceParameters,
+                                            migrate_announce_params());
+
+    qapi_free_strList(params->interfaces);
+    params->interfaces = strList_from_comma_list(interfaces_str);
+    params->has_interfaces = params->interfaces != NULL;
+    qmp_announce_self(params, NULL);
+    qapi_free_AnnounceParameters(params);
 }
 
 void hmp_migrate_cancel(Monitor *mon, const QDict *qdict)
