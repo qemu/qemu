@@ -22,8 +22,12 @@ struct AnnounceTimer {
 /* Returns: update the timer to the next time point */
 int64_t qemu_announce_timer_step(AnnounceTimer *timer);
 
-/* Delete the underlying timer and other data */
-void qemu_announce_timer_del(AnnounceTimer *timer);
+/*
+ * Delete the underlying timer and other data
+ * If 'free_named' true and the timer is a named timer, then remove
+ * it from the list of named timers and free the AnnounceTimer itself.
+ */
+void qemu_announce_timer_del(AnnounceTimer *timer, bool free_named);
 
 /*
  * Under BQL/main thread
