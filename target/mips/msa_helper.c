@@ -1913,6 +1913,24 @@ void helper_msa_ilvl_df(CPUMIPSState *env, uint32_t df, uint32_t wd,
 
     switch (df) {
     case DF_BYTE:
+#if defined(TARGET_WORDS_BIGENDIAN)
+        pwd->b[7]  = pwt->b[15];
+        pwd->b[6]  = pws->b[15];
+        pwd->b[5]  = pwt->b[14];
+        pwd->b[4]  = pws->b[14];
+        pwd->b[3]  = pwt->b[13];
+        pwd->b[2]  = pws->b[13];
+        pwd->b[1]  = pwt->b[12];
+        pwd->b[0]  = pws->b[12];
+        pwd->b[15] = pwt->b[11];
+        pwd->b[14] = pws->b[11];
+        pwd->b[13] = pwt->b[10];
+        pwd->b[12] = pws->b[10];
+        pwd->b[11] = pwt->b[9];
+        pwd->b[10] = pws->b[9];
+        pwd->b[9]  = pwt->b[8];
+        pwd->b[8]  = pws->b[8];
+#else
         pwd->b[0]  = pwt->b[8];
         pwd->b[1]  = pws->b[8];
         pwd->b[2]  = pwt->b[9];
@@ -1929,8 +1947,19 @@ void helper_msa_ilvl_df(CPUMIPSState *env, uint32_t df, uint32_t wd,
         pwd->b[13] = pws->b[14];
         pwd->b[14] = pwt->b[15];
         pwd->b[15] = pws->b[15];
+#endif
         break;
     case DF_HALF:
+#if defined(TARGET_WORDS_BIGENDIAN)
+        pwd->h[3] = pwt->h[7];
+        pwd->h[2] = pws->h[7];
+        pwd->h[1] = pwt->h[6];
+        pwd->h[0] = pws->h[6];
+        pwd->h[7] = pwt->h[5];
+        pwd->h[6] = pws->h[5];
+        pwd->h[5] = pwt->h[4];
+        pwd->h[4] = pws->h[4];
+#else
         pwd->h[0] = pwt->h[4];
         pwd->h[1] = pws->h[4];
         pwd->h[2] = pwt->h[5];
@@ -1939,12 +1968,20 @@ void helper_msa_ilvl_df(CPUMIPSState *env, uint32_t df, uint32_t wd,
         pwd->h[5] = pws->h[6];
         pwd->h[6] = pwt->h[7];
         pwd->h[7] = pws->h[7];
+#endif
         break;
     case DF_WORD:
+#if defined(TARGET_WORDS_BIGENDIAN)
+        pwd->w[1] = pwt->w[3];
+        pwd->w[0] = pws->w[3];
+        pwd->w[3] = pwt->w[2];
+        pwd->w[2] = pws->w[2];
+#else
         pwd->w[0] = pwt->w[2];
         pwd->w[1] = pws->w[2];
         pwd->w[2] = pwt->w[3];
         pwd->w[3] = pws->w[3];
+#endif
         break;
     case DF_DOUBLE:
         pwd->d[0] = pwt->d[1];
