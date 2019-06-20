@@ -22,7 +22,7 @@ struct AnnounceTimer {
 /* Returns: update the timer to the next time point */
 int64_t qemu_announce_timer_step(AnnounceTimer *timer);
 
-/* Delete the underlying timer */
+/* Delete the underlying timer and other data */
 void qemu_announce_timer_del(AnnounceTimer *timer);
 
 /*

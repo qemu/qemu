@@ -699,6 +699,9 @@
 #
 # @step: Delay increase (in ms) after each self-announcement attempt
 #
+# @interfaces: An optional list of interface names, which restricts the
+#        announcement to the listed interfaces. (Since 4.1)
+#
 # Since: 4.0
 ##
 
@@ -706,7 +709,8 @@
   'data': { 'initial': 'int',
             'max': 'int',
             'rounds': 'int',
-            'step': 'int' } }
+            'step': 'int',
+            '*interfaces': ['str'] } }
 
 ##
 # @announce-self:
@@ -718,9 +722,10 @@
 #
 # Example:
 #
-# -> { "execute": "announce-self"
+# -> { "execute": "announce-self",
 #      "arguments": {
-#          "initial": 50, "max": 550, "rounds": 10, "step": 50 } }
+#          "initial": 50, "max": 550, "rounds": 10, "step": 50,
+#          "interfaces": ["vn2", "vn3"] } }
 # <- { "return": {} }
 #
 # Since: 4.0

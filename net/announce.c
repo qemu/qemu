@@ -38,6 +38,8 @@ void qemu_announce_timer_del(AnnounceTimer *timer)
         timer_free(timer->tm);
         timer->tm = NULL;
     }
+    qapi_free_strList(timer->params.interfaces);
+    timer->params.interfaces = NULL;
 }
 
 /*
@@ -96,24 +98,47 @@ static int announce_self_create(uint8_t *buf,
 
 static void qemu_announce_self_iter(NICState *nic, void *opaque)
 {
+    AnnounceTimer *timer = opaque;
     uint8_t buf[60];
     int len;
+    bool skip;
 
-    trace_qemu_announce_self_iter(qemu_ether_ntoa(&nic->conf->macaddr));
-    len = announce_self_create(buf, nic->conf->macaddr.a);
+    if (timer->params.has_interfaces) {
+        strList *entry = timer->params.interfaces;
+        /* Skip unless we find our name in the requested list */
+        skip = true;
 
-    qemu_send_packet_raw(qemu_get_queue(nic), buf, len);
+        while (entry) {
+            if (!strcmp(entry->value, nic->ncs->name)) {
+                /* Found us */
+                skip = false;
+                break;
+            }
+            entry = entry->next;
+        }
+    } else {
+        skip = false;
+    }
 
-    /* if the NIC provides it's own announcement support, use it as well */
-    if (nic->ncs->info->announce) {
-        nic->ncs->info->announce(nic->ncs);
+    trace_qemu_announce_self_iter(nic->ncs->name,
+                                  qemu_ether_ntoa(&nic->conf->macaddr), skip);
+
+    if (!skip) {
+        len = announce_self_create(buf, nic->conf->macaddr.a);
+
+        qemu_send_packet_raw(qemu_get_queue(nic), buf, len);
+
+        /* if the NIC provides it's own announcement support, use it as well */
+        if (nic->ncs->info->announce) {
+            nic->ncs->info->announce(nic->ncs);
+        }
     }
 }
 static void qemu_announce_self_once(void *opaque)
 {
     AnnounceTimer *timer = (AnnounceTimer *)opaque;
 
-    qemu_foreach_nic(qemu_announce_self_iter, NULL);
+    qemu_foreach_nic(qemu_announce_self_iter, timer);
 
     if (--timer->round) {
         qemu_announce_timer_step(timer);
