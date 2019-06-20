@@ -30,7 +30,9 @@
 #define PRINT_RESULTS 0
 
 
-static inline int32_t check_results_64(const char *instruction_name,
+static inline int32_t check_results_64(const char *isa_ase_name,
+                                       const char *group_name,
+                                       const char *instruction_name,
                                        const uint32_t test_count,
                                        const double elapsed_time,
                                        const uint64_t *b64_result,
@@ -55,7 +57,8 @@ static inline int32_t check_results_64(const char *instruction_name,
     uint32_t pass_count = 0;
     uint32_t fail_count = 0;
 
-    printf("%s:   ", instruction_name);
+    printf("| %-10s \t| %-20s\t| %-16s \t|",
+           isa_ase_name, group_name, instruction_name);
     for (i = 0; i < test_count; i++) {
         if (b64_result[i] == b64_expect[i]) {
             pass_count++;
@@ -64,7 +67,7 @@ static inline int32_t check_results_64(const char *instruction_name,
         }
     }
 
-    printf("PASS: %3d   FAIL: %3d   elapsed time: %5.2f ms\n",
+    printf(" PASS: %3d \t| FAIL: %3d \t| elapsed time: %5.2f ms \t|\n",
            pass_count, fail_count, elapsed_time);
 
     if (fail_count > 0) {

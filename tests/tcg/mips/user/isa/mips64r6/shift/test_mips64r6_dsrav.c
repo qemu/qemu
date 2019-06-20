@@ -31,7 +31,9 @@
 
 int32_t main(void)
 {
-    char *instruction_name = "DSRAV";
+    char *isa_ase_name = "mips64r6";
+    char *group_name = "Shift";
+    char *instruction_name =   "DSRAV";
     int32_t ret;
     uint32_t i, j;
     struct timeval start, end;

@@ -31,7 +31,9 @@
 
 int32_t main(void)
 {
-    char *instruction_name = "CLO";
+    char *isa_ase_name = "mips64r6";
+    char *group_name = "Bit Count";
+    char *instruction_name =   "CLO";
     int32_t ret;
     uint32_t i;
     struct timeval start, end;

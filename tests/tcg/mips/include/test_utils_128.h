@@ -30,11 +30,13 @@
 #define PRINT_RESULTS 0
 
 
-static inline int32_t check_results(const char *instruction_name,
-                                    const uint32_t test_count,
-                                    const double elapsed_time,
-                                    const uint64_t *b128_result,
-                                    const uint64_t *b128_expect)
+static inline int32_t check_results_128(const char *isa_ase_name,
+                                        const char *group_name,
+                                        const char *instruction_name,
+                                        const uint32_t test_count,
+                                        const double elapsed_time,
+                                        const uint64_t *b128_result,
+                                        const uint64_t *b128_expect)
 {
 #if PRINT_RESULTS
     uint32_t ii;
@@ -56,7 +58,8 @@ static inline int32_t check_results(const char *instruction_name,
     uint32_t pass_count = 0;
     uint32_t fail_count = 0;
 
-    printf("%s:   ", instruction_name);
+    printf("| %-10s \t| %-20s\t| %-16s \t|",
+           isa_ase_name, group_name, instruction_name);
     for (i = 0; i < test_count; i++) {
         if ((b128_result[2 * i] == b128_expect[2 * i]) &&
             (b128_result[2 * i + 1] == b128_expect[2 * i + 1])) {
@@ -66,7 +69,7 @@ static inline int32_t check_results(const char *instruction_name,
         }
     }
 
-    printf("\tPASS: %3d \tFAIL: %3d \telapsed time: %5.2f ms\n",
+    printf(" PASS: %3d \t| FAIL: %3d \t| elapsed time: %5.2f ms \t|\n",
            pass_count, fail_count, elapsed_time);
 
     if (fail_count > 0) {
