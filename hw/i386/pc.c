@@ -1540,9 +1540,12 @@ static void pc_new_cpu(PCMachineState *pcms, int64_t apic_id, Error **errp)
  */
 void pc_smp_parse(MachineState *ms, QemuOpts *opts)
 {
+    PCMachineState *pcms = PC_MACHINE(ms);
+
     if (opts) {
         unsigned cpus    = qemu_opt_get_number(opts, "cpus", 0);
         unsigned sockets = qemu_opt_get_number(opts, "sockets", 0);
+        unsigned dies = qemu_opt_get_number(opts, "dies", 1);
         unsigned cores   = qemu_opt_get_number(opts, "cores", 0);
         unsigned threads = qemu_opt_get_number(opts, "threads", 0);
 
@@ -1552,24 +1555,24 @@ void pc_smp_parse(MachineState *ms, QemuOpts *opts)
             threads = threads > 0 ? threads : 1;
             if (cpus == 0) {
                 sockets = sockets > 0 ? sockets : 1;
-                cpus = cores * threads * sockets;
+                cpus = cores * threads * dies * sockets;
             } else {
                 ms->smp.max_cpus =
                         qemu_opt_get_number(opts, "maxcpus", cpus);
-                sockets = ms->smp.max_cpus / (cores * threads);
+                sockets = ms->smp.max_cpus / (cores * threads * dies);
             }
         } else if (cores == 0) {
             threads = threads > 0 ? threads : 1;
-            cores = cpus / (sockets * threads);
+            cores = cpus / (sockets * dies * threads);
             cores = cores > 0 ? cores : 1;
         } else if (threads == 0) {
-            threads = cpus / (cores * sockets);
+            threads = cpus / (cores * dies * sockets);
             threads = threads > 0 ? threads : 1;
-        } else if (sockets * cores * threads < cpus) {
+        } else if (sockets * dies * cores * threads < cpus) {
             error_report("cpu topology: "
-                         "sockets (%u) * cores (%u) * threads (%u) < "
+                         "sockets (%u) * dies (%u) * cores (%u) * threads (%u) < "
                          "smp_cpus (%u)",
-                         sockets, cores, threads, cpus);
+                         sockets, dies, cores, threads, cpus);
             exit(1);
         }
 
@@ -1581,26 +1584,27 @@ void pc_smp_parse(MachineState *ms, QemuOpts *opts)
             exit(1);
         }
 
-        if (sockets * cores * threads > ms->smp.max_cpus) {
+        if (sockets * dies * cores * threads > ms->smp.max_cpus) {
             error_report("cpu topology: "
-                         "sockets (%u) * cores (%u) * threads (%u) > "
+                         "sockets (%u) * dies (%u) * cores (%u) * threads (%u) > "
                          "maxcpus (%u)",
-                         sockets, cores, threads,
+                         sockets, dies, cores, threads,
                          ms->smp.max_cpus);
             exit(1);
         }
 
-        if (sockets * cores * threads != ms->smp.max_cpus) {
+        if (sockets * dies * cores * threads != ms->smp.max_cpus) {
             warn_report("Invalid CPU topology deprecated: "
-                        "sockets (%u) * cores (%u) * threads (%u) "
+                        "sockets (%u) * dies (%u) * cores (%u) * threads (%u) "
                         "!= maxcpus (%u)",
-                        sockets, cores, threads,
+                        sockets, dies, cores, threads,
                         ms->smp.max_cpus);
         }
 
         ms->smp.cpus = cpus;
         ms->smp.cores = cores;
         ms->smp.threads = threads;
+        pcms->smp_dies = dies;
     }
 
     if (ms->smp.cpus > 1) {

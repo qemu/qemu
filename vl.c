@@ -1232,6 +1232,9 @@ static QemuOptsList qemu_smp_opts = {
             .name = "sockets",
             .type = QEMU_OPT_NUMBER,
         }, {
+            .name = "dies",
+            .type = QEMU_OPT_NUMBER,
+        }, {
             .name = "cores",
             .type = QEMU_OPT_NUMBER,
         }, {
