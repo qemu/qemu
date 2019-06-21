@@ -4135,6 +4135,11 @@ elif test "$fdt" != "yes" ; then
   fdt=no
 fi
 
+# fdt is only required when building softmmu targets
+if test -z "$fdt" -a "$softmmu" != "yes" ; then
+    fdt="no"
+fi
+
 if test "$fdt" != "no" ; then
   fdt_libs="-lfdt"
   # explicitly check for libfdt_env.h as it is missing in some stable installs
@@ -6077,6 +6082,11 @@ fi
 
 ##########################################
 # check for slirp
+
+# slirp is only required when building softmmu targets
+if test -z "$slirp" -a "$softmmu" != "yes" ; then
+    slirp="no"
+fi
 
 case "$slirp" in
   "" | yes)
