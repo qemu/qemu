@@ -1085,7 +1085,7 @@ static FeatureWordInfo feature_word_info[FEATURE_WORDS] = {
             NULL, NULL, NULL, NULL,
             NULL, NULL, NULL, NULL,
             NULL, NULL, "spec-ctrl", "stibp",
-            NULL, "arch-capabilities", NULL, "ssbd",
+            NULL, "arch-capabilities", "core-capability", "ssbd",
         },
         .cpuid = {
             .eax = 7,
@@ -1201,6 +1201,26 @@ static FeatureWordInfo feature_word_info[FEATURE_WORDS] = {
                 FEAT_7_0_EDX,
                 CPUID_7_0_EDX_ARCH_CAPABILITIES
             }
+        },
+    },
+    [FEAT_CORE_CAPABILITY] = {
+        .type = MSR_FEATURE_WORD,
+        .feat_names = {
+            NULL, NULL, NULL, NULL,
+            NULL, "split-lock-detect", NULL, NULL,
+            NULL, NULL, NULL, NULL,
+            NULL, NULL, NULL, NULL,
+            NULL, NULL, NULL, NULL,
+            NULL, NULL, NULL, NULL,
+            NULL, NULL, NULL, NULL,
+            NULL, NULL, NULL, NULL,
+        },
+        .msr = {
+            .index = MSR_IA32_CORE_CAPABILITY,
+            .cpuid_dep = {
+                FEAT_7_0_EDX,
+                CPUID_7_0_EDX_CORE_CAPABILITY,
+            },
         },
     },
 };
@@ -4799,7 +4819,11 @@ static void x86_cpu_reset(CPUState *s)
     memset(env->mtrr_fixed, 0, sizeof(env->mtrr_fixed));
 
     env->interrupt_injected = -1;
-    env->exception_injected = -1;
+    env->exception_nr = -1;
+    env->exception_pending = 0;
+    env->exception_injected = 0;
+    env->exception_has_payload = false;
+    env->exception_payload = 0;
     env->nmi_injected = false;
 #if !defined(CONFIG_USER_ONLY)
     /* We hard-wire the BSP to the first CPU. */
@@ -5195,12 +5219,6 @@ static int x86_cpu_filter_features(X86CPU *cpu)
     return rv;
 }
 
-#define IS_INTEL_CPU(env) ((env)->cpuid_vendor1 == CPUID_VENDOR_INTEL_1 && \
-                           (env)->cpuid_vendor2 == CPUID_VENDOR_INTEL_2 && \
-                           (env)->cpuid_vendor3 == CPUID_VENDOR_INTEL_3)
-#define IS_AMD_CPU(env) ((env)->cpuid_vendor1 == CPUID_VENDOR_AMD_1 && \
-                         (env)->cpuid_vendor2 == CPUID_VENDOR_AMD_2 && \
-                         (env)->cpuid_vendor3 == CPUID_VENDOR_AMD_3)
 static void x86_cpu_realizefn(DeviceState *dev, Error **errp)
 {
     CPUState *cs = CPU(dev);
@@ -5853,21 +5871,40 @@ static Property x86_cpu_properties[] = {
 #endif
     DEFINE_PROP_INT32("node-id", X86CPU, node_id, CPU_UNSET_NUMA_NODE_ID),
     DEFINE_PROP_BOOL("pmu", X86CPU, enable_pmu, false),
+
     { .name  = "hv-spinlocks", .info  = &qdev_prop_spinlocks },
-    DEFINE_PROP_BOOL("hv-relaxed", X86CPU, hyperv_relaxed_timing, false),
-    DEFINE_PROP_BOOL("hv-vapic", X86CPU, hyperv_vapic, false),
-    DEFINE_PROP_BOOL("hv-time", X86CPU, hyperv_time, false),
-    DEFINE_PROP_BOOL("hv-crash", X86CPU, hyperv_crash, false),
-    DEFINE_PROP_BOOL("hv-reset", X86CPU, hyperv_reset, false),
-    DEFINE_PROP_BOOL("hv-vpindex", X86CPU, hyperv_vpindex, false),
-    DEFINE_PROP_BOOL("hv-runtime", X86CPU, hyperv_runtime, false),
-    DEFINE_PROP_BOOL("hv-synic", X86CPU, hyperv_synic, false),
-    DEFINE_PROP_BOOL("hv-stimer", X86CPU, hyperv_stimer, false),
-    DEFINE_PROP_BOOL("hv-frequencies", X86CPU, hyperv_frequencies, false),
-    DEFINE_PROP_BOOL("hv-reenlightenment", X86CPU, hyperv_reenlightenment, false),
-    DEFINE_PROP_BOOL("hv-tlbflush", X86CPU, hyperv_tlbflush, false),
-    DEFINE_PROP_BOOL("hv-evmcs", X86CPU, hyperv_evmcs, false),
-    DEFINE_PROP_BOOL("hv-ipi", X86CPU, hyperv_ipi, false),
+    DEFINE_PROP_BIT64("hv-relaxed", X86CPU, hyperv_features,
+                      HYPERV_FEAT_RELAXED, 0),
+    DEFINE_PROP_BIT64("hv-vapic", X86CPU, hyperv_features,
+                      HYPERV_FEAT_VAPIC, 0),
+    DEFINE_PROP_BIT64("hv-time", X86CPU, hyperv_features,
+                      HYPERV_FEAT_TIME, 0),
+    DEFINE_PROP_BIT64("hv-crash", X86CPU, hyperv_features,
+                      HYPERV_FEAT_CRASH, 0),
+    DEFINE_PROP_BIT64("hv-reset", X86CPU, hyperv_features,
+                      HYPERV_FEAT_RESET, 0),
+    DEFINE_PROP_BIT64("hv-vpindex", X86CPU, hyperv_features,
+                      HYPERV_FEAT_VPINDEX, 0),
+    DEFINE_PROP_BIT64("hv-runtime", X86CPU, hyperv_features,
+                      HYPERV_FEAT_RUNTIME, 0),
+    DEFINE_PROP_BIT64("hv-synic", X86CPU, hyperv_features,
+                      HYPERV_FEAT_SYNIC, 0),
+    DEFINE_PROP_BIT64("hv-stimer", X86CPU, hyperv_features,
+                      HYPERV_FEAT_STIMER, 0),
+    DEFINE_PROP_BIT64("hv-frequencies", X86CPU, hyperv_features,
+                      HYPERV_FEAT_FREQUENCIES, 0),
+    DEFINE_PROP_BIT64("hv-reenlightenment", X86CPU, hyperv_features,
+                      HYPERV_FEAT_REENLIGHTENMENT, 0),
+    DEFINE_PROP_BIT64("hv-tlbflush", X86CPU, hyperv_features,
+                      HYPERV_FEAT_TLBFLUSH, 0),
+    DEFINE_PROP_BIT64("hv-evmcs", X86CPU, hyperv_features,
+                      HYPERV_FEAT_EVMCS, 0),
+    DEFINE_PROP_BIT64("hv-ipi", X86CPU, hyperv_features,
+                      HYPERV_FEAT_IPI, 0),
+    DEFINE_PROP_BIT64("hv-stimer-direct", X86CPU, hyperv_features,
+                      HYPERV_FEAT_STIMER_DIRECT, 0),
+    DEFINE_PROP_BOOL("hv-passthrough", X86CPU, hyperv_passthrough, false),
+
     DEFINE_PROP_BOOL("check", X86CPU, check_cpuid, true),
     DEFINE_PROP_BOOL("enforce", X86CPU, enforce_cpuid, false),
     DEFINE_PROP_BOOL("kvm", X86CPU, expose_kvm, true),

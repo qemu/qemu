@@ -471,11 +471,33 @@ static int hax_vcpu_hax_exec(CPUArchState *env)
         return 0;
     }
 
-    cpu->halted = 0;
-
     if (cpu->interrupt_request & CPU_INTERRUPT_POLL) {
         cpu->interrupt_request &= ~CPU_INTERRUPT_POLL;
         apic_poll_irq(x86_cpu->apic_state);
+    }
+
+    /* After a vcpu is halted (either because it is an AP and has just been
+     * reset, or because it has executed the HLT instruction), it will not be
+     * run (hax_vcpu_run()) until it is unhalted. The next few if blocks check
+     * for events that may change the halted state of this vcpu:
+     *  a) Maskable interrupt, when RFLAGS.IF is 1;
+     *     Note: env->eflags may not reflect the current RFLAGS state, because
+     *           it is not updated after each hax_vcpu_run(). We cannot afford
+     *           to fail to recognize any unhalt-by-maskable-interrupt event
+     *           (in which case the vcpu will halt forever), and yet we cannot
+     *           afford the overhead of hax_vcpu_sync_state(). The current
+     *           solution is to err on the side of caution and have the HLT
+     *           handler (see case HAX_EXIT_HLT below) unconditionally set the
+     *           IF_MASK bit in env->eflags, which, in effect, disables the
+     *           RFLAGS.IF check.
+     *  b) NMI;
+     *  c) INIT signal;
+     *  d) SIPI signal.
+     */
+    if (((cpu->interrupt_request & CPU_INTERRUPT_HARD) &&
+         (env->eflags & IF_MASK)) ||
+        (cpu->interrupt_request & CPU_INTERRUPT_NMI)) {
+        cpu->halted = 0;
     }
 
     if (cpu->interrupt_request & CPU_INTERRUPT_INIT) {
@@ -491,6 +513,16 @@ static int hax_vcpu_hax_exec(CPUArchState *env)
         hax_vcpu_sync_state(env, 0);
         do_cpu_sipi(x86_cpu);
         hax_vcpu_sync_state(env, 1);
+    }
+
+    if (cpu->halted) {
+        /* If this vcpu is halted, we must not ask HAXM to run it. Instead, we
+         * break out of hax_smp_cpu_exec() as if this vcpu had executed HLT.
+         * That way, this vcpu thread will be trapped in qemu_wait_io_event(),
+         * until the vcpu is unhalted.
+         */
+        cpu->exception_index = EXCP_HLT;
+        return 0;
     }
 
     do {
