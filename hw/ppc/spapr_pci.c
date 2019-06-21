@@ -1788,6 +1788,12 @@ static void spapr_phb_unrealize(DeviceState *dev, Error **errp)
 
     memory_region_del_subregion(&sphb->iommu_root, &sphb->msiwindow);
 
+    /*
+     * An attached PCI device may have memory listeners, eg. VFIO PCI. We have
+     * unmapped all sections. Remove the listeners now, before destroying the
+     * address space.
+     */
+    address_space_remove_listeners(&sphb->iommu_as);
     address_space_destroy(&sphb->iommu_as);
 
     qbus_set_hotplug_handler(BUS(phb->bus), NULL, &error_abort);

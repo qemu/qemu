@@ -1758,6 +1758,16 @@ void address_space_init(AddressSpace *as, MemoryRegion *root, const char *name);
 void address_space_destroy(AddressSpace *as);
 
 /**
+ * address_space_remove_listeners: unregister all listeners of an address space
+ *
+ * Removes all callbacks previously registered with memory_listener_register()
+ * for @as.
+ *
+ * @as: an initialized #AddressSpace
+ */
+void address_space_remove_listeners(AddressSpace *as);
+
+/**
  * address_space_rw: read from or write to an address space.
  *
  * Return a MemTxResult indicating whether the operation succeeded
