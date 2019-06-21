@@ -594,7 +594,15 @@ void pcie_cap_slot_reset(PCIDevice *dev)
     hotplug_event_update_event_status(dev);
 }
 
-void pcie_cap_slot_write_config(PCIDevice *dev,
+void pcie_cap_slot_get(PCIDevice *dev, uint16_t *slt_ctl, uint16_t *slt_sta)
+{
+    uint32_t pos = dev->exp.exp_cap;
+    uint8_t *exp_cap = dev->config + pos;
+    *slt_ctl = pci_get_word(exp_cap + PCI_EXP_SLTCTL);
+    *slt_sta = pci_get_word(exp_cap + PCI_EXP_SLTSTA);
+}
+
+void pcie_cap_slot_write_config(PCIDevice *dev, uint16_t slt_ctl, uint16_t slt_sta,
                                 uint32_t addr, uint32_t val, int len)
 {
     uint32_t pos = dev->exp.exp_cap;
@@ -623,7 +631,9 @@ void pcie_cap_slot_write_config(PCIDevice *dev,
      * controller is off, it is safe to detach the devices.
      */
     if ((sltsta & PCI_EXP_SLTSTA_PDS) && (val & PCI_EXP_SLTCTL_PCC) &&
-        ((val & PCI_EXP_SLTCTL_PIC_OFF) == PCI_EXP_SLTCTL_PIC_OFF)) {
+        (val & PCI_EXP_SLTCTL_PIC_OFF) == PCI_EXP_SLTCTL_PIC_OFF &&
+        (!(slt_ctl & PCI_EXP_SLTCTL_PCC) ||
+        (slt_ctl & PCI_EXP_SLTCTL_PIC_OFF) != PCI_EXP_SLTCTL_PIC_OFF)) {
         PCIBus *sec_bus = pci_bridge_get_sec_bus(PCI_BRIDGE(dev));
         pci_for_each_device(sec_bus, pci_bus_num(sec_bus),
                             pcie_unplug_device, NULL);
