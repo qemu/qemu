@@ -33,7 +33,9 @@
 
 int32_t main(void)
 {
-    char *instruction_name = "ILVR.B";
+    char *isa_ase_name = "MSA";
+    char *group_name = "Interleave";
+    char *instruction_name =  "ILVR.B";
     int32_t ret;
     uint32_t i, j;
     struct timeval start, end;
@@ -148,8 +150,9 @@ int32_t main(void)
     elapsed_time = (end.tv_sec - start.tv_sec) * 1000.0;
     elapsed_time += (end.tv_usec - start.tv_usec) / 1000.0;
 
-    ret = check_results(instruction_name, TEST_COUNT_TOTAL, elapsed_time,
-                        &b128_result[0][0], &b128_expect[0][0]);
+    ret = check_results_128(isa_ase_name, group_name, instruction_name,
+                            TEST_COUNT_TOTAL, elapsed_time,
+                            &b128_result[0][0], &b128_expect[0][0]);
 
     return ret;
 }
