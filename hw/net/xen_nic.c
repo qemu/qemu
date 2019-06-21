@@ -30,7 +30,7 @@
 #include "net/util.h"
 #include "hw/xen/xen-legacy-backend.h"
 
-#include <xen/io/netif.h>
+#include "hw/xen/interface/io/netif.h"
 
 /* ------------------------------------------------------------- */
 

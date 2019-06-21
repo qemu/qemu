@@ -34,8 +34,6 @@
 #include "hw/xen/xen_pvdev.h"
 #include "monitor/qdev.h"
 
-#include <xen/grant_table.h>
-
 DeviceState *xen_sysdev;
 BusState *xen_sysbus;
 
