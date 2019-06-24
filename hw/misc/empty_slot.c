@@ -50,7 +50,7 @@ static const MemoryRegionOps empty_slot_ops = {
     .endianness = DEVICE_NATIVE_ENDIAN,
 };
 
-void empty_slot_init(hwaddr addr, uint64_t slot_size)
+void empty_slot_init(const char *name, hwaddr addr, uint64_t slot_size)
 {
     if (slot_size > 0) {
         /* Only empty slots larger than 0 byte need handling. */

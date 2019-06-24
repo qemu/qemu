@@ -1241,7 +1241,7 @@ void mips_malta_init(MachineState *machine)
      * exception when accessing invalid memory. Create an empty slot to
      * emulate this feature.
      */
-    empty_slot_init(0, 0x20000000);
+    empty_slot_init("GT64120", 0, 0x20000000);
 
     qdev_init_nofail(dev);
 

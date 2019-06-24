@@ -14,6 +14,6 @@
 
 #include "exec/hwaddr.h"
 
-void empty_slot_init(hwaddr addr, uint64_t slot_size);
+void empty_slot_init(const char *name, hwaddr addr, uint64_t slot_size);
 
 #endif
