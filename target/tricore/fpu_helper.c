@@ -303,6 +303,22 @@ uint32_t helper_itof(CPUTriCoreState *env, uint32_t arg)
     return (uint32_t)f_result;
 }
 
+uint32_t helper_utof(CPUTriCoreState *env, uint32_t arg)
+{
+    float32 f_result;
+    uint32_t flags;
+
+    f_result = uint32_to_float32(arg, &env->fp_status);
+
+    flags = f_get_excp_flags(env);
+    if (flags) {
+        f_update_psw_flags(env, flags);
+    } else {
+        env->FPU_FS = 0;
+    }
+    return (uint32_t)f_result;
+}
+
 uint32_t helper_ftoiz(CPUTriCoreState *env, uint32_t arg)
 {
     float32 f_arg = make_float32(arg);
