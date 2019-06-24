@@ -384,8 +384,8 @@ static const VMStateDescription vmstate_gt64120 = {
     }
 };
 
-static void gt64120_writel (void *opaque, hwaddr addr,
-                            uint64_t val, unsigned size)
+static void gt64120_writel(void *opaque, hwaddr addr,
+                           uint64_t val, unsigned size)
 {
     GT64120State *s = opaque;
     PCIHostState *phb = PCI_HOST_BRIDGE(s);
@@ -671,8 +671,8 @@ static void gt64120_writel (void *opaque, hwaddr addr,
     }
 }
 
-static uint64_t gt64120_readl (void *opaque,
-                               hwaddr addr, unsigned size)
+static uint64_t gt64120_readl(void *opaque,
+                              hwaddr addr, unsigned size)
 {
     GT64120State *s = opaque;
     PCIHostState *phb = PCI_HOST_BRIDGE(s);
@@ -1193,7 +1193,8 @@ PCIBus *gt64120_register(qemu_irq *pic)
                                      get_system_io(),
                                      PCI_DEVFN(18, 0), 4, TYPE_PCI_BUS);
     qdev_init_nofail(dev);
-    memory_region_init_io(&d->ISD_mem, OBJECT(dev), &isd_mem_ops, d, "isd-mem", 0x1000);
+    memory_region_init_io(&d->ISD_mem, OBJECT(dev), &isd_mem_ops, d,
+                          "isd-mem", 0x1000);
 
     pci_create_simple(phb->bus, PCI_DEVFN(0, 0), "gt64120_pci");
     return phb->bus;
