@@ -2033,12 +2033,18 @@ M: Paolo Bonzini <pbonzini@redhat.com>
 R: Daniel P. Berrange <berrange@redhat.com>
 R: Eduardo Habkost <ehabkost@redhat.com>
 S: Supported
+F: docs/qdev-device-use.txt
+F: hw/core/qdev*
+F: include/hw/qdev*
+F: include/monitor/qdev.h
 F: include/qom/
 X: include/qom/cpu.h
+F: qdev-monitor.c
 F: qom/
 X: qom/cpu.c
 F: tests/check-qom-interface.c
 F: tests/check-qom-proplist.c
+F: tests/test-qdev-global-props.c
 
 QMP
 M: Markus Armbruster <armbru@redhat.com>
