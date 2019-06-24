@@ -3,7 +3,7 @@
 
 int main(void)
 {
-    uint64_t parmlist[] = {
+    uint64_t parmlist[] __attribute__((aligned(16))) = {
         0xfedcba9876543210ull,
         0,
         0x7777777777777777ull,
