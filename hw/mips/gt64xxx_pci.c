@@ -257,19 +257,25 @@ static void check_reserved_space(hwaddr *start, hwaddr *length)
     hwaddr begin = *start;
     hwaddr end = *start + *length;
 
-    if (end >= 0x1e000000LL && end < 0x1f100000LL)
+    if (end >= 0x1e000000LL && end < 0x1f100000LL) {
         end = 0x1e000000LL;
-    if (begin >= 0x1e000000LL && begin < 0x1f100000LL)
+    }
+    if (begin >= 0x1e000000LL && begin < 0x1f100000LL) {
         begin = 0x1f100000LL;
-    if (end >= 0x1fc00000LL && end < 0x1fd00000LL)
+    }
+    if (end >= 0x1fc00000LL && end < 0x1fd00000LL) {
         end = 0x1fc00000LL;
-    if (begin >= 0x1fc00000LL && begin < 0x1fd00000LL)
+    }
+    if (begin >= 0x1fc00000LL && begin < 0x1fd00000LL) {
         begin = 0x1fd00000LL;
+    }
     /* XXX: This is broken when a reserved range splits the requested range */
-    if (end >= 0x1f100000LL && begin < 0x1e000000LL)
+    if (end >= 0x1f100000LL && begin < 0x1e000000LL) {
         end = 0x1e000000LL;
-    if (end >= 0x1fd00000LL && begin < 0x1fc00000LL)
+    }
+    if (end >= 0x1fd00000LL && begin < 0x1fc00000LL) {
         end = 0x1fc00000LL;
+    }
 
     *start = begin;
     *length = end - begin;
@@ -385,8 +391,9 @@ static void gt64120_writel (void *opaque, hwaddr addr,
     PCIHostState *phb = PCI_HOST_BRIDGE(s);
     uint32_t saddr;
 
-    if (!(s->regs[GT_CPU] & 0x00001000))
+    if (!(s->regs[GT_CPU] & 0x00001000)) {
         val = bswap32(val);
+    }
 
     saddr = (addr & 0xfff) >> 2;
     switch (saddr) {
@@ -937,8 +944,9 @@ static uint64_t gt64120_readl (void *opaque,
         break;
     }
 
-    if (!(s->regs[GT_CPU] & 0x00001000))
+    if (!(s->regs[GT_CPU] & 0x00001000)) {
         val = bswap32(val);
+    }
 
     return val;
 }
@@ -990,8 +998,9 @@ static void gt64120_pci_set_irq(void *opaque, int irq_num, int level)
         /* The pic level is the logical OR of all the PCI irqs mapped to it. */
         pic_level = 0;
         for (i = 0; i < 4; i++) {
-            if (pic_irq == piix4_dev->config[0x60 + i])
+            if (pic_irq == piix4_dev->config[0x60 + i]) {
                 pic_level |= pci_irq_levels[i];
+            }
         }
         qemu_set_irq(pic[pic_irq], pic_level);
     }
