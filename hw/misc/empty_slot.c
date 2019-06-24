@@ -11,9 +11,8 @@
 
 #include "qemu/osdep.h"
 #include "hw/sysbus.h"
-#include "qemu/module.h"
 #include "hw/qdev-properties.h"
-#include "hw/empty_slot.h"
+#include "hw/misc/empty_slot.h"
 #include "trace.h"
 
 #define TYPE_EMPTY_SLOT "empty_slot"
@@ -90,6 +89,7 @@ static void empty_slot_class_init(ObjectClass *klass, void *data)
 
     dc->realize = empty_slot_realize;
     device_class_set_props(dc, empty_slot_properties);
+    set_bit(DEVICE_CATEGORY_MISC, dc->categories);
 }
 
 static const TypeInfo empty_slot_info = {
