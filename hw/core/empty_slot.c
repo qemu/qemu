@@ -12,6 +12,7 @@
 #include "qemu/osdep.h"
 #include "hw/sysbus.h"
 #include "qemu/module.h"
+#include "hw/qdev-properties.h"
 #include "hw/empty_slot.h"
 
 //#define DEBUG_EMPTY_SLOT
@@ -57,17 +58,13 @@ void empty_slot_init(hwaddr addr, uint64_t slot_size)
     if (slot_size > 0) {
         /* Only empty slots larger than 0 byte need handling. */
         DeviceState *dev;
-        SysBusDevice *s;
-        EmptySlot *e;
 
         dev = qdev_create(NULL, TYPE_EMPTY_SLOT);
-        s = SYS_BUS_DEVICE(dev);
-        e = EMPTY_SLOT(dev);
-        e->size = slot_size;
 
+        qdev_prop_set_uint64(dev, "size", slot_size);
         qdev_init_nofail(dev);
 
-        sysbus_mmio_map_overlap(s, 0, addr, -10000);
+        sysbus_mmio_map_overlap(SYS_BUS_DEVICE(dev), 0, addr, -10000);
     }
 }
 
@@ -80,11 +77,17 @@ static void empty_slot_realize(DeviceState *dev, Error **errp)
     sysbus_init_mmio(SYS_BUS_DEVICE(dev), &s->iomem);
 }
 
+static Property empty_slot_properties[] = {
+    DEFINE_PROP_UINT64("size", EmptySlot, size, 0),
+    DEFINE_PROP_END_OF_LIST(),
+};
+
 static void empty_slot_class_init(ObjectClass *klass, void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
 
     dc->realize = empty_slot_realize;
+    device_class_set_props(dc, empty_slot_properties);
 }
 
 static const TypeInfo empty_slot_info = {
