@@ -248,10 +248,11 @@ typedef struct GT64120State {
 } GT64120State;
 
 /* Adjust range to avoid touching space which isn't mappable via PCI */
-/* XXX: Hardcoded values for Malta: 0x1e000000 - 0x1f100000
-                                    0x1fc00000 - 0x1fd00000  */
-static void check_reserved_space (hwaddr *start,
-                                  hwaddr *length)
+/*
+ * XXX: Hardcoded values for Malta: 0x1e000000 - 0x1f100000
+ *                                  0x1fc00000 - 0x1fd00000
+ */
+static void check_reserved_space(hwaddr *start, hwaddr *length)
 {
     hwaddr begin = *start;
     hwaddr end = *start + *length;
@@ -650,8 +651,10 @@ static void gt64120_writel (void *opaque, hwaddr addr,
     case GT_SDRAM_B1:
     case GT_SDRAM_B2:
     case GT_SDRAM_B3:
-        /* We don't simulate electrical parameters of the SDRAM.
-           Accept, but ignore the values. */
+        /*
+         * We don't simulate electrical parameters of the SDRAM.
+         * Accept, but ignore the values.
+         */
         s->regs[saddr] = val;
         break;
 
@@ -674,8 +677,10 @@ static uint64_t gt64120_readl (void *opaque,
 
     /* CPU Configuration */
     case GT_MULTI:
-        /* Only one GT64xxx is present on the CPU bus, return
-           the initial value */
+        /*
+         * Only one GT64xxx is present on the CPU bus, return
+         * the initial value.
+         */
         val = s->regs[saddr];
         break;
 
@@ -685,17 +690,18 @@ static uint64_t gt64120_readl (void *opaque,
     case GT_CPUERR_DATALO:
     case GT_CPUERR_DATAHI:
     case GT_CPUERR_PARITY:
-        /* Emulated memory has no error, always return the initial
-           values */
+        /* Emulated memory has no error, always return the initial values. */
         val = s->regs[saddr];
         break;
 
     /* CPU Sync Barrier */
     case GT_PCI0SYNC:
     case GT_PCI1SYNC:
-        /* Reading those register should empty all FIFO on the PCI
-           bus, which are not emulated. The return value should be
-           a random value that should be ignored. */
+        /*
+         * Reading those register should empty all FIFO on the PCI
+         * bus, which are not emulated. The return value should be
+         * a random value that should be ignored.
+         */
         val = 0xc000ffee;
         break;
 
@@ -705,8 +711,7 @@ static uint64_t gt64120_readl (void *opaque,
     case GT_ECC_MEM:
     case GT_ECC_CALC:
     case GT_ECC_ERRADDR:
-        /* Emulated memory has no error, always return the initial
-           values */
+        /* Emulated memory has no error, always return the initial values. */
         val = s->regs[saddr];
         break;
 
@@ -785,8 +790,10 @@ static uint64_t gt64120_readl (void *opaque,
     case GT_SDRAM_B1:
     case GT_SDRAM_B2:
     case GT_SDRAM_B3:
-        /* We don't simulate electrical parameters of the SDRAM.
-           Just return the last written value. */
+        /*
+         * We don't simulate electrical parameters of the SDRAM.
+         * Just return the last written value.
+         */
         val = s->regs[saddr];
         break;
 
@@ -949,20 +956,20 @@ static int gt64120_pci_map_irq(PCIDevice *pci_dev, int irq_num)
     slot = (pci_dev->devfn >> 3);
 
     switch (slot) {
-      /* PIIX4 USB */
-      case 10:
+    /* PIIX4 USB */
+    case 10:
         return 3;
-      /* AMD 79C973 Ethernet */
-      case 11:
+    /* AMD 79C973 Ethernet */
+    case 11:
         return 1;
-      /* Crystal 4281 Sound */
-      case 12:
+    /* Crystal 4281 Sound */
+    case 12:
         return 2;
-      /* PCI slot 1 to 4 */
-      case 18 ... 21:
+    /* PCI slot 1 to 4 */
+    case 18 ... 21:
         return ((slot - 18) + irq_num) & 0x03;
-      /* Unknown device, don't do any translation */
-      default:
+    /* Unknown device, don't do any translation */
+    default:
         return irq_num;
     }
 }
@@ -980,8 +987,7 @@ static void gt64120_pci_set_irq(void *opaque, int irq_num, int level)
     /* XXX: optimize */
     pic_irq = piix4_dev->config[0x60 + irq_num];
     if (pic_irq < 16) {
-        /* The pic level is the logical OR of all the PCI irqs mapped
-           to it */
+        /* The pic level is the logical OR of all the PCI irqs mapped to it. */
         pic_level = 0;
         for (i = 0; i < 4; i++) {
             if (pic_irq == piix4_dev->config[0x60 + i])
