@@ -14,15 +14,7 @@
 #include "qemu/module.h"
 #include "hw/qdev-properties.h"
 #include "hw/empty_slot.h"
-
-//#define DEBUG_EMPTY_SLOT
-
-#ifdef DEBUG_EMPTY_SLOT
-#define DPRINTF(fmt, ...)                                       \
-    do { printf("empty_slot: " fmt , ## __VA_ARGS__); } while (0)
-#else
-#define DPRINTF(fmt, ...) do {} while (0)
-#endif
+#include "trace.h"
 
 #define TYPE_EMPTY_SLOT "empty_slot"
 #define EMPTY_SLOT(obj) OBJECT_CHECK(EmptySlot, (obj), TYPE_EMPTY_SLOT)
@@ -38,14 +30,19 @@ typedef struct EmptySlot {
 static uint64_t empty_slot_read(void *opaque, hwaddr addr,
                                 unsigned size)
 {
-    DPRINTF("read from " TARGET_FMT_plx "\n", addr);
+    EmptySlot *s = EMPTY_SLOT(opaque);
+
+    trace_empty_slot_write(addr, size << 1, 0, size, s->name);
+
     return 0;
 }
 
 static void empty_slot_write(void *opaque, hwaddr addr,
                              uint64_t val, unsigned size)
 {
-    DPRINTF("write 0x%x to " TARGET_FMT_plx "\n", (unsigned)val, addr);
+    EmptySlot *s = EMPTY_SLOT(opaque);
+
+    trace_empty_slot_write(addr, size << 1, val, size, s->name);
 }
 
 static const MemoryRegionOps empty_slot_ops = {
