@@ -30,14 +30,7 @@
 #include "hw/pci/pci_host.h"
 #include "hw/i386/pc.h"
 #include "exec/address-spaces.h"
-
-//#define DEBUG
-
-#ifdef DEBUG
-#define DPRINTF(fmt, ...) fprintf(stderr, "%s: " fmt, __func__, ##__VA_ARGS__)
-#else
-#define DPRINTF(fmt, ...)
-#endif
+#include "trace.h"
 
 #define GT_REGS                 (0x1000 >> 2)
 
@@ -294,9 +287,7 @@ static void gt64120_isd_mapping(GT64120State *s)
     check_reserved_space(&start, &length);
     length = 0x1000;
     /* Map new address */
-    DPRINTF("ISD: "TARGET_FMT_plx"@"TARGET_FMT_plx
-        " -> "TARGET_FMT_plx"@"TARGET_FMT_plx"\n",
-        s->ISD_length, s->ISD_start, length, start);
+    trace_gt64120_isd_remap(s->ISD_length, s->ISD_start, length, start);
     s->ISD_start = start;
     s->ISD_length = length;
     memory_region_add_subregion(get_system_memory(), s->ISD_start, &s->ISD_mem);
@@ -648,19 +639,19 @@ static void gt64120_writel(void *opaque, hwaddr addr,
         /* not really implemented */
         s->regs[saddr] = ~(~(s->regs[saddr]) | ~(val & 0xfffffffe));
         s->regs[saddr] |= !!(s->regs[saddr] & 0xfffffffe);
-        DPRINTF("INTRCAUSE %" PRIx64 "\n", val);
+        trace_gt64120_write("INTRCAUSE", size << 1, val);
         break;
     case GT_INTRMASK:
         s->regs[saddr] = val & 0x3c3ffffe;
-        DPRINTF("INTRMASK %" PRIx64 "\n", val);
+        trace_gt64120_write("INTRMASK", size << 1, val);
         break;
     case GT_PCI0_ICMASK:
         s->regs[saddr] = val & 0x03fffffe;
-        DPRINTF("ICMASK %" PRIx64 "\n", val);
+        trace_gt64120_write("ICMASK", size << 1, val);
         break;
     case GT_PCI0_SERR0MASK:
         s->regs[saddr] = val & 0x0000003f;
-        DPRINTF("SERR0MASK %" PRIx64 "\n", val);
+        trace_gt64120_write("SERR0MASK", size << 1, val);
         break;
 
     /* Reserved when only PCI_0 is configured. */
@@ -936,19 +927,19 @@ static uint64_t gt64120_readl(void *opaque,
     /* Interrupts */
     case GT_INTRCAUSE:
         val = s->regs[saddr];
-        DPRINTF("INTRCAUSE %x\n", val);
+        trace_gt64120_read("INTRCAUSE", size << 1, val);
         break;
     case GT_INTRMASK:
         val = s->regs[saddr];
-        DPRINTF("INTRMASK %x\n", val);
+        trace_gt64120_read("INTRMASK", size << 1, val);
         break;
     case GT_PCI0_ICMASK:
         val = s->regs[saddr];
-        DPRINTF("ICMASK %x\n", val);
+        trace_gt64120_read("ICMASK", size << 1, val);
         break;
     case GT_PCI0_SERR0MASK:
         val = s->regs[saddr];
-        DPRINTF("SERR0MASK %x\n", val);
+        trace_gt64120_read("SERR0MASK", size << 1, val);
         break;
 
     /* Reserved when only PCI_0 is configured. */

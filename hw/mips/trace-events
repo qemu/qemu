@@ -1,0 +1,4 @@
+# gt64xxx.c
+gt64120_read(const char *regname, int width, uint64_t value) "gt64120 read %s value:0x%0*" PRIx64
+gt64120_write(const char *regname, int width, uint64_t value) "gt64120 write %s value:0x%0*" PRIx64
+gt64120_isd_remap(uint64_t from_length, uint64_t from_addr, uint64_t to_length, uint64_t to_addr) "ISD: 0x%08" PRIx64 "@0x%08" PRIx64 " -> 0x%08" PRIx64 "@0x%08" PRIx64
