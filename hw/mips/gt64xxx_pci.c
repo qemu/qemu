@@ -23,6 +23,7 @@
  */
 
 #include "qemu/osdep.h"
+#include "qemu/log.h"
 #include "hw/hw.h"
 #include "hw/mips/mips.h"
 #include "hw/pci/pci.h"
@@ -466,12 +467,20 @@ static void gt64120_writel(void *opaque, hwaddr addr,
     case GT_CPUERR_DATAHI:
     case GT_CPUERR_PARITY:
         /* Read-only registers, do nothing */
+        qemu_log_mask(LOG_GUEST_ERROR,
+                      "gt64120: Read-only register write "
+                      "reg:0x03%x size:%u value:0x%0*" PRIx64 "\n",
+                      saddr << 2, size, size << 1, val);
         break;
 
     /* CPU Sync Barrier */
     case GT_PCI0SYNC:
     case GT_PCI1SYNC:
         /* Read-only registers, do nothing */
+        qemu_log_mask(LOG_GUEST_ERROR,
+                      "gt64120: Read-only register write "
+                      "reg:0x03%x size:%u value:0x%0*" PRIx64 "\n",
+                      saddr << 2, size, size << 1, val);
         break;
 
     /* SDRAM and Device Address Decode */
@@ -510,7 +519,10 @@ static void gt64120_writel(void *opaque, hwaddr addr,
     case GT_DEV_B3:
     case GT_DEV_BOOT:
         /* Not implemented */
-        DPRINTF ("Unimplemented device register offset 0x%x\n", saddr << 2);
+        qemu_log_mask(LOG_UNIMP,
+                      "gt64120: Unimplemented device register write "
+                      "reg:0x03%x size:%u value:0x%0*" PRIx64 "\n",
+                      saddr << 2, size, size << 1, val);
         break;
 
     /* ECC */
@@ -520,6 +532,10 @@ static void gt64120_writel(void *opaque, hwaddr addr,
     case GT_ECC_CALC:
     case GT_ECC_ERRADDR:
         /* Read-only registers, do nothing */
+        qemu_log_mask(LOG_GUEST_ERROR,
+                      "gt64120: Read-only register write "
+                      "reg:0x03%x size:%u value:0x%0*" PRIx64 "\n",
+                      saddr << 2, size, size << 1, val);
         break;
 
     /* DMA Record */
@@ -543,23 +559,20 @@ static void gt64120_writel(void *opaque, hwaddr addr,
     case GT_DMA1_CUR:
     case GT_DMA2_CUR:
     case GT_DMA3_CUR:
-        /* Not implemented */
-        DPRINTF ("Unimplemented DMA register offset 0x%x\n", saddr << 2);
-        break;
 
     /* DMA Channel Control */
     case GT_DMA0_CTRL:
     case GT_DMA1_CTRL:
     case GT_DMA2_CTRL:
     case GT_DMA3_CTRL:
-        /* Not implemented */
-        DPRINTF ("Unimplemented DMA register offset 0x%x\n", saddr << 2);
-        break;
 
     /* DMA Arbiter */
     case GT_DMA_ARB:
         /* Not implemented */
-        DPRINTF ("Unimplemented DMA register offset 0x%x\n", saddr << 2);
+        qemu_log_mask(LOG_UNIMP,
+                      "gt64120: Unimplemented DMA register write "
+                      "reg:0x03%x size:%u value:0x%0*" PRIx64 "\n",
+                      saddr << 2, size, size << 1, val);
         break;
 
     /* Timer/Counter */
@@ -569,7 +582,10 @@ static void gt64120_writel(void *opaque, hwaddr addr,
     case GT_TC3:
     case GT_TC_CONTROL:
         /* Not implemented */
-        DPRINTF ("Unimplemented timer register offset 0x%x\n", saddr << 2);
+        qemu_log_mask(LOG_UNIMP,
+                      "gt64120: Unimplemented timer register write "
+                      "reg:0x03%x size:%u value:0x%0*" PRIx64 "\n",
+                      saddr << 2, size, size << 1, val);
         break;
 
     /* PCI Internal */
@@ -610,6 +626,10 @@ static void gt64120_writel(void *opaque, hwaddr addr,
     case GT_PCI1_CFGADDR:
     case GT_PCI1_CFGDATA:
         /* not implemented */
+        qemu_log_mask(LOG_UNIMP,
+                      "gt64120: Unimplemented timer register write "
+                      "reg:0x03%x size:%u value:0x%0*" PRIx64 "\n",
+                      saddr << 2, size, size << 1, val);
         break;
     case GT_PCI0_CFGADDR:
         phb->config_reg = val & 0x80fffffc;
@@ -666,7 +686,10 @@ static void gt64120_writel(void *opaque, hwaddr addr,
         break;
 
     default:
-        DPRINTF ("Bad register offset 0x%x\n", (int)addr);
+        qemu_log_mask(LOG_GUEST_ERROR,
+                      "gt64120: Illegal register write "
+                      "reg:0x03%x size:%u value:0x%0*" PRIx64 "\n",
+                      saddr << 2, size, size << 1, val);
         break;
     }
 }
@@ -940,7 +963,10 @@ static uint64_t gt64120_readl(void *opaque,
 
     default:
         val = s->regs[saddr];
-        DPRINTF ("Bad register offset 0x%x\n", (int)addr);
+        qemu_log_mask(LOG_GUEST_ERROR,
+                      "gt64120: Illegal register read "
+                      "reg:0x03%x size:%u value:0x%0*x\n",
+                      saddr << 2, size, size << 1, val);
         break;
     }
 
