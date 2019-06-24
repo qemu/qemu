@@ -24,6 +24,7 @@
 
 #define QUIET_NAN 0x7fc00000
 #define ADD_NAN   0x7fc00001
+#define SQRT_NAN  0x7fc00004
 #define DIV_NAN   0x7fc00008
 #define MUL_NAN   0x7fc00002
 #define FPU_FS PSW_USB_C
@@ -31,6 +32,9 @@
 #define FPU_FV PSW_USB_SV
 #define FPU_FZ PSW_USB_AV
 #define FPU_FU PSW_USB_SAV
+
+#define float32_sqrt_nan make_float32(SQRT_NAN)
+#define float32_quiet_nan make_float32(QUIET_NAN)
 
 /* we don't care about input_denormal */
 static inline uint8_t f_get_excp_flags(CPUTriCoreState *env)
@@ -164,6 +168,87 @@ uint32_t helper_fmul(CPUTriCoreState *env, uint32_t r1, uint32_t r2)
     }
     return (uint32_t)f_result;
 
+}
+
+/*
+ * Target TriCore QSEED.F significand Lookup Table
+ *
+ * The QSEED.F output significand depends on the least-significant
+ * exponent bit and the 6 most-significant significand bits.
+ *
+ * IEEE 754 float datatype
+ * partitioned into Sign (S), Exponent (E) and Significand (M):
+ *
+ * S   E E E E E E E E   M M M M M M ...
+ *    |             |               |
+ *    +------+------+-------+-------+
+ *           |              |
+ *          for        lookup table
+ *      calculating     index for
+ *        output E       output M
+ *
+ * This lookup table was extracted by analyzing QSEED output
+ * from the real hardware
+ */
+static const uint8_t target_qseed_significand_table[128] = {
+    253, 252, 245, 244, 239, 238, 231, 230, 225, 224, 217, 216,
+    211, 210, 205, 204, 201, 200, 195, 194, 189, 188, 185, 184,
+    179, 178, 175, 174, 169, 168, 165, 164, 161, 160, 157, 156,
+    153, 152, 149, 148, 145, 144, 141, 140, 137, 136, 133, 132,
+    131, 130, 127, 126, 123, 122, 121, 120, 117, 116, 115, 114,
+    111, 110, 109, 108, 103, 102, 99, 98, 93, 92, 89, 88, 83,
+    82, 79, 78, 75, 74, 71, 70, 67, 66, 63, 62, 59, 58, 55,
+    54, 53, 52, 49, 48, 45, 44, 43, 42, 39, 38, 37, 36, 33,
+    32, 31, 30, 27, 26, 25, 24, 23, 22, 19, 18, 17, 16, 15,
+    14, 13, 12, 11, 10, 9, 8, 7, 6, 5, 4, 3, 2
+};
+
+uint32_t helper_qseed(CPUTriCoreState *env, uint32_t r1)
+{
+    uint32_t arg1, S, E, M, E_minus_one, m_idx;
+    uint32_t new_E, new_M, new_S, result;
+
+    arg1 = make_float32(r1);
+
+    /* fetch IEEE-754 fields S, E and the uppermost 6-bit of M */
+    S = extract32(arg1, 31, 1);
+    E = extract32(arg1, 23, 8);
+    M = extract32(arg1, 17, 6);
+
+    if (float32_is_any_nan(arg1)) {
+        result = float32_quiet_nan;
+    } else if (float32_is_zero_or_denormal(arg1)) {
+        if (float32_is_neg(arg1)) {
+            result = float32_infinity | (1 << 31);
+        } else {
+            result = float32_infinity;
+        }
+    } else if (float32_is_neg(arg1)) {
+        result = float32_sqrt_nan;
+    } else if (float32_is_infinity(arg1)) {
+        result = float32_zero;
+    } else {
+        E_minus_one = E - 1;
+        m_idx = ((E_minus_one & 1) << 6) | M;
+        new_S = S;
+        new_E = 0xBD - E_minus_one / 2;
+        new_M = target_qseed_significand_table[m_idx];
+
+        result = 0;
+        result = deposit32(result, 31, 1, new_S);
+        result = deposit32(result, 23, 8, new_E);
+        result = deposit32(result, 15, 8, new_M);
+    }
+
+    if (float32_is_signaling_nan(arg1, &env->fp_status)
+        || result == float32_sqrt_nan) {
+        env->FPU_FI = 1 << 31;
+        env->FPU_FS = 1;
+    } else {
+        env->FPU_FS = 0;
+    }
+
+    return (uint32_t) result;
 }
 
 uint32_t helper_fdiv(CPUTriCoreState *env, uint32_t r1, uint32_t r2)
