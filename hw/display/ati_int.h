@@ -74,6 +74,7 @@ typedef struct ATIVGARegs {
     uint32_t dp_write_mask;
     uint32_t default_offset;
     uint32_t default_pitch;
+    uint32_t default_tile;
     uint32_t default_sc_bottom_right;
 } ATIVGARegs;
 
