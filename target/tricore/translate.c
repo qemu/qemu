@@ -8810,6 +8810,7 @@ void gen_intermediate_code(CPUState *cs, TranslationBlock *tb, int max_insns)
     ctx.singlestep_enabled = cs->singlestep_enabled;
     ctx.bstate = BS_NONE;
     ctx.mem_idx = cpu_mmu_index(env, false);
+    ctx.hflags = (uint32_t)tb->flags;
 
     tcg_clear_temp_count();
     gen_tb_start(tb);
