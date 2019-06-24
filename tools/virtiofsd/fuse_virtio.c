@@ -625,6 +625,8 @@ static void fv_queue_cleanup_thread(struct fv_VuDev *vud, int qidx)
     }
     close(ourqi->kill_fd);
     ourqi->kick_fd = -1;
+    free(vud->qi[qidx]);
+    vud->qi[qidx] = NULL;
 }
 
 /* Callback from libvhost-user on start or stop of a queue */
@@ -884,6 +886,12 @@ int virtio_session_mount(struct fuse_session *se)
 void virtio_session_close(struct fuse_session *se)
 {
     close(se->vu_socketfd);
+
+    if (!se->virtio_dev) {
+        return;
+    }
+
+    free(se->virtio_dev->qi);
     free(se->virtio_dev);
     se->virtio_dev = NULL;
 }
