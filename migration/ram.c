@@ -1292,6 +1292,11 @@ int multifd_load_cleanup(Error **errp)
 
         if (p->running) {
             p->quit = true;
+            /*
+             * multifd_recv_thread may hung at MULTIFD_FLAG_SYNC handle code,
+             * however try to wakeup it without harm in cleanup phase.
+             */
+            qemu_sem_post(&p->sem_sync);
             qemu_thread_join(&p->thread);
         }
         object_unref(OBJECT(p->c));
