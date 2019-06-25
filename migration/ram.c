@@ -1097,7 +1097,8 @@ static void *multifd_send_thread(void *opaque)
 {
     MultiFDSendParams *p = opaque;
     Error *local_err = NULL;
-    int ret;
+    int ret = 0;
+    uint32_t flags = 0;
 
     trace_multifd_send_thread_start(p->id);
     rcu_register_thread();
@@ -1115,7 +1116,7 @@ static void *multifd_send_thread(void *opaque)
         if (p->pending_job) {
             uint32_t used = p->pages->used;
             uint64_t packet_num = p->packet_num;
-            uint32_t flags = p->flags;
+            flags = p->flags;
 
             p->next_packet_size = used * qemu_target_page_size();
             multifd_send_fill_packet(p);
@@ -1162,6 +1163,17 @@ static void *multifd_send_thread(void *opaque)
 out:
     if (local_err) {
         multifd_send_terminate_threads(local_err);
+    }
+
+    /*
+     * Error happen, I will exit, but I can't just leave, tell
+     * who pay attention to me.
+     */
+    if (ret != 0) {
+        if (flags & MULTIFD_FLAG_SYNC) {
+            qemu_sem_post(&multifd_send_state->sem_sync);
+        }
+        qemu_sem_post(&multifd_send_state->channels_ready);
     }
 
     qemu_mutex_lock(&p->mutex);
