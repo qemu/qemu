@@ -68,6 +68,7 @@ struct fuse_session {
     size_t bufsize;
     int error;
     char *vu_socket_path;
+    int   vu_listen_fd;
     int   vu_socketfd;
     struct fv_VuDev *virtio_dev;
 };
