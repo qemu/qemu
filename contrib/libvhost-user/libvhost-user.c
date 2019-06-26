@@ -1160,7 +1160,8 @@ vu_set_vring_err_exec(VuDev *dev, VhostUserMsg *vmsg)
 static bool
 vu_get_protocol_features_exec(VuDev *dev, VhostUserMsg *vmsg)
 {
-    uint64_t features = 1ULL << VHOST_USER_PROTOCOL_F_LOG_SHMFD |
+    uint64_t features = 1ULL << VHOST_USER_PROTOCOL_F_MQ |
+                        1ULL << VHOST_USER_PROTOCOL_F_LOG_SHMFD |
                         1ULL << VHOST_USER_PROTOCOL_F_SLAVE_REQ |
                         1ULL << VHOST_USER_PROTOCOL_F_HOST_NOTIFIER |
                         1ULL << VHOST_USER_PROTOCOL_F_SLAVE_SEND_FD;
@@ -1200,8 +1201,8 @@ vu_set_protocol_features_exec(VuDev *dev, VhostUserMsg *vmsg)
 static bool
 vu_get_queue_num_exec(VuDev *dev, VhostUserMsg *vmsg)
 {
-    DPRINT("Function %s() not implemented yet.\n", __func__);
-    return false;
+    vmsg_set_reply_u64(vmsg, dev->max_queues);
+    return true;
 }
 
 static bool
