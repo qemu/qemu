@@ -32,6 +32,28 @@
 # Bit move
 # --------
 #
+/opt/img/bin/mips-img-linux-gnu-gcc         bit-move/test_msa_binsl_b.c        \
+-EL -static -mabi=64 -march=mips64r6 -mmsa -o   /tmp/test_msa_binsl_b
+/opt/img/bin/mips-img-linux-gnu-gcc         bit-move/test_msa_binsl_h.c        \
+-EL -static -mabi=64 -march=mips64r6 -mmsa -o   /tmp/test_msa_binsl_h
+/opt/img/bin/mips-img-linux-gnu-gcc         bit-move/test_msa_binsl_w.c        \
+-EL -static -mabi=64 -march=mips64r6 -mmsa -o   /tmp/test_msa_binsl_w
+/opt/img/bin/mips-img-linux-gnu-gcc         bit-move/test_msa_binsl_d.c        \
+-EL -static -mabi=64 -march=mips64r6 -mmsa -o   /tmp/test_msa_binsl_d
+/opt/img/bin/mips-img-linux-gnu-gcc         bit-move/test_msa_binsr_b.c        \
+-EL -static -mabi=64 -march=mips64r6 -mmsa -o   /tmp/test_msa_binsr_b
+/opt/img/bin/mips-img-linux-gnu-gcc         bit-move/test_msa_binsr_h.c        \
+-EL -static -mabi=64 -march=mips64r6 -mmsa -o   /tmp/test_msa_binsr_h
+/opt/img/bin/mips-img-linux-gnu-gcc         bit-move/test_msa_binsr_w.c        \
+-EL -static -mabi=64 -march=mips64r6 -mmsa -o   /tmp/test_msa_binsr_w
+/opt/img/bin/mips-img-linux-gnu-gcc         bit-move/test_msa_binsr_d.c        \
+-EL -static -mabi=64 -march=mips64r6 -mmsa -o   /tmp/test_msa_binsr_d
+/opt/img/bin/mips-img-linux-gnu-gcc         bit-move/test_msa_bmnz_v.c         \
+-EL -static -mabi=64 -march=mips64r6 -mmsa -o   /tmp/test_msa_bmnz_v
+/opt/img/bin/mips-img-linux-gnu-gcc         bit-move/test_msa_bmz_v.c          \
+-EL -static -mabi=64 -march=mips64r6 -mmsa -o   /tmp/test_msa_bmz_v
+/opt/img/bin/mips-img-linux-gnu-gcc         bit-move/test_msa_bsel_v.c         \
+-EL -static -mabi=64 -march=mips64r6 -mmsa -o   /tmp/test_msa_bsel_v
 
 #
 # Bit Set

@@ -124,8 +124,9 @@ static inline void do_msa_##suffix(const void *input1,                 \
 }
 
 #define DO_MSA__WD__WD_WT(suffix, mnemonic)                            \
-static inline void do_msa_##suffix(void *input1, void *input2,         \
-                                   void *output)                       \
+static inline void do_msa_##suffix(const void *input1,                 \
+                                   const void *input2,                 \
+                                   const void *output)                 \
 {                                                                      \
    __asm__ volatile (                                                  \
       "move $t0, %0\n\t"                                               \
@@ -142,8 +143,9 @@ static inline void do_msa_##suffix(void *input1, void *input2,         \
 }
 
 #define DO_MSA__WD__WS_WD(suffix, mnemonic)                            \
-static inline void do_msa_##suffix(void *input1, void *input2,         \
-                                   void *output)                       \
+static inline void do_msa_##suffix(const void *input1,                 \
+                                   const void *input2,                 \
+                                   const void *output)                 \
 {                                                                      \
    __asm__ volatile (                                                  \
       "move $t0, %0\n\t"                                               \
@@ -187,18 +189,40 @@ DO_MSA__WD__WS(PCNT_D, pcnt.d)
  */
 
 DO_MSA__WD__WS_WT(BINSL_B, binsl.b)
+DO_MSA__WD__WD_WT(BINSL_B__DDT, binsl.b)
+DO_MSA__WD__WS_WD(BINSL_B__DSD, binsl.b)
 DO_MSA__WD__WS_WT(BINSL_H, binsl.h)
+DO_MSA__WD__WD_WT(BINSL_H__DDT, binsl.h)
+DO_MSA__WD__WS_WD(BINSL_H__DSD, binsl.h)
 DO_MSA__WD__WS_WT(BINSL_W, binsl.w)
+DO_MSA__WD__WD_WT(BINSL_W__DDT, binsl.w)
+DO_MSA__WD__WS_WD(BINSL_W__DSD, binsl.w)
 DO_MSA__WD__WS_WT(BINSL_D, binsl.d)
+DO_MSA__WD__WD_WT(BINSL_D__DDT, binsl.d)
+DO_MSA__WD__WS_WD(BINSL_D__DSD, binsl.d)
 
 DO_MSA__WD__WS_WT(BINSR_B, binsr.b)
+DO_MSA__WD__WD_WT(BINSR_B__DDT, binsr.b)
+DO_MSA__WD__WS_WD(BINSR_B__DSD, binsr.b)
 DO_MSA__WD__WS_WT(BINSR_H, binsr.h)
+DO_MSA__WD__WD_WT(BINSR_H__DDT, binsr.h)
+DO_MSA__WD__WS_WD(BINSR_H__DSD, binsr.h)
 DO_MSA__WD__WS_WT(BINSR_W, binsr.w)
+DO_MSA__WD__WD_WT(BINSR_W__DDT, binsr.w)
+DO_MSA__WD__WS_WD(BINSR_W__DSD, binsr.w)
 DO_MSA__WD__WS_WT(BINSR_D, binsr.d)
+DO_MSA__WD__WD_WT(BINSR_D__DDT, binsr.d)
+DO_MSA__WD__WS_WD(BINSR_D__DSD, binsr.d)
 
 DO_MSA__WD__WS_WT(BMNZ_V, bmnz.v)
+DO_MSA__WD__WD_WT(BMNZ_V__DDT, bmnz.v)
+DO_MSA__WD__WS_WD(BMNZ_V__DSD, bmnz.v)
 DO_MSA__WD__WS_WT(BMZ_V, bmz.v)
+DO_MSA__WD__WD_WT(BMZ_V__DDT, bmz.v)
+DO_MSA__WD__WS_WD(BMZ_V__DSD, bmz.v)
 DO_MSA__WD__WS_WT(BSEL_V, bsel.v)
+DO_MSA__WD__WD_WT(BSEL_V__DDT, bsel.v)
+DO_MSA__WD__WS_WD(BSEL_V__DSD, bsel.v)
 
 
 /*

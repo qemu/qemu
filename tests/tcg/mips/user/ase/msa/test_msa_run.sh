@@ -22,6 +22,17 @@ $PATH_TO_QEMU -cpu I6400  /tmp/test_msa_pcnt_d
 # Bit move
 # --------
 #
+$PATH_TO_QEMU -cpu I6400  /tmp/test_msa_binsl_b
+$PATH_TO_QEMU -cpu I6400  /tmp/test_msa_binsl_h
+$PATH_TO_QEMU -cpu I6400  /tmp/test_msa_binsl_w
+$PATH_TO_QEMU -cpu I6400  /tmp/test_msa_binsl_d
+$PATH_TO_QEMU -cpu I6400  /tmp/test_msa_binsr_b
+$PATH_TO_QEMU -cpu I6400  /tmp/test_msa_binsr_h
+$PATH_TO_QEMU -cpu I6400  /tmp/test_msa_binsr_w
+$PATH_TO_QEMU -cpu I6400  /tmp/test_msa_binsr_d
+$PATH_TO_QEMU -cpu I6400  /tmp/test_msa_bmnz_v
+$PATH_TO_QEMU -cpu I6400  /tmp/test_msa_bmz_v
+$PATH_TO_QEMU -cpu I6400  /tmp/test_msa_bsel_v
 
 #
 # Bit Set
