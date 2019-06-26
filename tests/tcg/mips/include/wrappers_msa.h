@@ -574,6 +574,14 @@ DO_MSA__WD__WS_WT(XOR_V, xor.v)
 
 
 /*
+ * Move
+ * ----
+ */
+
+DO_MSA__WD__WS(MOVE_V, move.v)
+
+
+/*
  * Pack
  * ----
  */

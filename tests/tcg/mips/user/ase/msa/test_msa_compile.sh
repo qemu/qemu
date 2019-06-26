@@ -506,6 +506,13 @@
 -EL -static -mabi=64 -march=mips64r6 -mmsa -o  /tmp/test_msa_xor_v
 
 #
+# Move
+# ----
+#
+/opt/img/bin/mips-img-linux-gnu-gcc            move/test_msa_move_v.c          \
+-EL -static -mabi=64 -march=mips64r6 -mmsa -o  /tmp/test_msa_move_v
+
+#
 # Pack
 # ----
 #

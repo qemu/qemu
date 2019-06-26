@@ -295,6 +295,12 @@ $PATH_TO_QEMU -cpu I6400  /tmp/test_msa_or_v
 $PATH_TO_QEMU -cpu I6400  /tmp/test_msa_xor_v
 
 #
+# Move
+# ----
+#
+$PATH_TO_QEMU -cpu I6400  /tmp/test_msa_move_v
+
+#
 # Pack
 # ----
 #
