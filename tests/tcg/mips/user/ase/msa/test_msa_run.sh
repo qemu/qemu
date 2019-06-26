@@ -173,6 +173,18 @@ $PATH_TO_QEMU -cpu I6400  /tmp/test_msa_dotp_s_d
 $PATH_TO_QEMU -cpu I6400  /tmp/test_msa_dotp_u_h
 $PATH_TO_QEMU -cpu I6400  /tmp/test_msa_dotp_u_w
 $PATH_TO_QEMU -cpu I6400  /tmp/test_msa_dotp_u_d
+$PATH_TO_QEMU -cpu I6400  /tmp/test_msa_dpadd_s_h
+$PATH_TO_QEMU -cpu I6400  /tmp/test_msa_dpadd_s_w
+$PATH_TO_QEMU -cpu I6400  /tmp/test_msa_dpadd_s_d
+$PATH_TO_QEMU -cpu I6400  /tmp/test_msa_dpadd_u_h
+$PATH_TO_QEMU -cpu I6400  /tmp/test_msa_dpadd_u_w
+$PATH_TO_QEMU -cpu I6400  /tmp/test_msa_dpadd_u_d
+$PATH_TO_QEMU -cpu I6400  /tmp/test_msa_dpsub_s_h
+$PATH_TO_QEMU -cpu I6400  /tmp/test_msa_dpsub_s_w
+$PATH_TO_QEMU -cpu I6400  /tmp/test_msa_dpsub_s_d
+$PATH_TO_QEMU -cpu I6400  /tmp/test_msa_dpsub_u_h
+$PATH_TO_QEMU -cpu I6400  /tmp/test_msa_dpsub_u_w
+$PATH_TO_QEMU -cpu I6400  /tmp/test_msa_dpsub_u_d
 
 #
 # Int Max Min
