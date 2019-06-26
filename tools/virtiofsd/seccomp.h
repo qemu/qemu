@@ -9,6 +9,8 @@
 #ifndef VIRTIOFSD_SECCOMP_H
 #define VIRTIOFSD_SECCOMP_H
 
-void setup_seccomp(void);
+#include <stdbool.h>
+
+void setup_seccomp(bool enable_syslog);
 
 #endif /* VIRTIOFSD_SECCOMP_H */

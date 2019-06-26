@@ -107,10 +107,27 @@ static const int syscall_whitelist[] = {
     SCMP_SYS(writev),
 };
 
-void setup_seccomp(void)
+/* Syscalls used when --syslog is enabled */
+static const int syscall_whitelist_syslog[] = {
+    SCMP_SYS(sendto),
+};
+
+static void add_whitelist(scmp_filter_ctx ctx, const int syscalls[], size_t len)
+{
+    size_t i;
+
+    for (i = 0; i < len; i++) {
+        if (seccomp_rule_add(ctx, SCMP_ACT_ALLOW, syscalls[i], 0) != 0) {
+            fuse_log(FUSE_LOG_ERR, "seccomp_rule_add syscall %d failed\n",
+                     syscalls[i]);
+            exit(1);
+        }
+    }
+}
+
+void setup_seccomp(bool enable_syslog)
 {
     scmp_filter_ctx ctx;
-    size_t i;
 
 #ifdef SCMP_ACT_KILL_PROCESS
     ctx = seccomp_init(SCMP_ACT_KILL_PROCESS);
@@ -126,13 +143,10 @@ void setup_seccomp(void)
         exit(1);
     }
 
-    for (i = 0; i < G_N_ELEMENTS(syscall_whitelist); i++) {
-        if (seccomp_rule_add(ctx, SCMP_ACT_ALLOW,
-                             syscall_whitelist[i], 0) != 0) {
-            fuse_log(FUSE_LOG_ERR, "seccomp_rule_add syscall %d",
-                     syscall_whitelist[i]);
-            exit(1);
-        }
+    add_whitelist(ctx, syscall_whitelist, G_N_ELEMENTS(syscall_whitelist));
+    if (enable_syslog) {
+        add_whitelist(ctx, syscall_whitelist_syslog,
+                      G_N_ELEMENTS(syscall_whitelist_syslog));
     }
 
     /* libvhost-user calls this for post-copy migration, we don't need it */

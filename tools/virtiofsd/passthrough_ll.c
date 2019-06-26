@@ -58,6 +58,7 @@
 #include <sys/types.h>
 #include <sys/wait.h>
 #include <sys/xattr.h>
+#include <syslog.h>
 #include <unistd.h>
 
 #include "passthrough_helpers.h"
@@ -138,6 +139,7 @@ static const struct fuse_opt lo_opts[] = {
     { "norace", offsetof(struct lo_data, norace), 1 },
     FUSE_OPT_END
 };
+static bool use_syslog = false;
 
 static void unref_inode(struct lo_data *lo, struct lo_inode *inode, uint64_t n);
 
@@ -2262,11 +2264,12 @@ static void setup_mounts(const char *source)
  * Lock down this process to prevent access to other processes or files outside
  * source directory.  This reduces the impact of arbitrary code execution bugs.
  */
-static void setup_sandbox(struct lo_data *lo, struct fuse_session *se)
+static void setup_sandbox(struct lo_data *lo, struct fuse_session *se,
+                          bool enable_syslog)
 {
     setup_namespaces(lo, se);
     setup_mounts(lo->source);
-    setup_seccomp();
+    setup_seccomp(enable_syslog);
 }
 
 /* Raise the maximum number of open file descriptors */
@@ -2295,6 +2298,42 @@ static void setup_nofile_rlimit(void)
 
         fuse_log(FUSE_LOG_ERR, "setrlimit(RLIMIT_NOFILE): %m\n");
         exit(1);
+    }
+}
+
+static void log_func(enum fuse_log_level level, const char *fmt, va_list ap)
+{
+    if (use_syslog) {
+        int priority = LOG_ERR;
+        switch (level) {
+        case FUSE_LOG_EMERG:
+            priority = LOG_EMERG;
+            break;
+        case FUSE_LOG_ALERT:
+            priority = LOG_ALERT;
+            break;
+        case FUSE_LOG_CRIT:
+            priority = LOG_CRIT;
+            break;
+        case FUSE_LOG_ERR:
+            priority = LOG_ERR;
+            break;
+        case FUSE_LOG_WARNING:
+            priority = LOG_WARNING;
+            break;
+        case FUSE_LOG_NOTICE:
+            priority = LOG_NOTICE;
+            break;
+        case FUSE_LOG_INFO:
+            priority = LOG_INFO;
+            break;
+        case FUSE_LOG_DEBUG:
+            priority = LOG_DEBUG;
+            break;
+        }
+        vsyslog(priority, fmt, ap);
+    } else {
+        vfprintf(stderr, fmt, ap);
     }
 }
 
@@ -2335,6 +2374,11 @@ int main(int argc, char *argv[])
 
     if (fuse_parse_cmdline(&args, &opts) != 0) {
         return 1;
+    }
+    fuse_set_log_func(log_func);
+    use_syslog = opts.syslog;
+    if (use_syslog) {
+        openlog("virtiofsd", LOG_PID, LOG_DAEMON);
     }
     if (opts.show_help) {
         printf("usage: %s [options]\n\n", argv[0]);
@@ -2424,7 +2468,7 @@ int main(int argc, char *argv[])
     /* Must be before sandbox since it wants /proc */
     setup_capng();
 
-    setup_sandbox(&lo, se);
+    setup_sandbox(&lo, se, opts.syslog);
 
     /* Block until ctrl+c or fusermount -u */
     ret = virtio_loop(se);
