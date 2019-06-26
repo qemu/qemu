@@ -1163,7 +1163,10 @@ int virtio_set_status(VirtIODevice *vdev, uint8_t val)
         }
     }
 
-    virtio_set_started(vdev, val & VIRTIO_CONFIG_S_DRIVER_OK);
+    if ((vdev->status & VIRTIO_CONFIG_S_DRIVER_OK) !=
+        (val & VIRTIO_CONFIG_S_DRIVER_OK)) {
+        virtio_set_started(vdev, val & VIRTIO_CONFIG_S_DRIVER_OK);
+    }
 
     if (k->set_status) {
         k->set_status(vdev, val);
