@@ -145,7 +145,6 @@ static uint32_t pflash_read(PFlashCFI02 *pfl, hwaddr offset,
     uint8_t *p;
 
     ret = -1;
-    trace_pflash_read(offset, pfl->cmd, width, pfl->wcycle);
     /* Lazy reset to ROMD mode after a certain amount of read accesses */
     if (!pfl->rom_mode && pfl->wcycle == 0 &&
         ++pfl->read_counter > PFLASH_LAZY_ROMD_THRESHOLD) {
@@ -241,6 +240,7 @@ static uint32_t pflash_read(PFlashCFI02 *pfl, hwaddr offset,
         }
         break;
     }
+    trace_pflash_io_read(offset, width, width << 1, ret, pfl->cmd, pfl->wcycle);
 
     return ret;
 }
@@ -267,6 +267,7 @@ static void pflash_write(PFlashCFI02 *pfl, hwaddr offset,
     uint8_t *p;
     uint8_t cmd;
 
+    trace_pflash_io_write(offset, width, width << 1, value, pfl->wcycle);
     cmd = value;
     if (pfl->cmd != 0xA0 && cmd == 0xF0) {
 #if 0
@@ -275,11 +276,8 @@ static void pflash_write(PFlashCFI02 *pfl, hwaddr offset,
 #endif
         goto reset_flash;
     }
-    trace_pflash_write(offset, value, width, pfl->wcycle);
     offset &= pfl->chip_len - 1;
 
-    DPRINTF("%s: offset " TARGET_FMT_plx " %08x %d\n", __func__,
-            offset, value, width);
     boff = offset & (pfl->sector_len - 1);
     if (pfl->width == 2)
         boff = boff >> 1;
