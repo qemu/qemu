@@ -479,8 +479,10 @@ static void allocate_system_memory_nonnuma(MemoryRegion *mr, Object *owner,
             if (mem_prealloc) {
                 exit(1);
             }
-            error_report("falling back to regular RAM allocation.");
-
+            warn_report("falling back to regular RAM allocation");
+            error_printf("This is deprecated. Make sure that -mem-path "
+                         " specified path has sufficient resources to allocate"
+                         " -m specified RAM amount");
             /* Legacy behavior: if allocation failed, fall back to
              * regular RAM allocation.
              */
