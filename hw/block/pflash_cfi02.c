@@ -172,7 +172,6 @@ static uint32_t pflash_read(PFlashCFI02 *pfl, hwaddr offset,
         switch (width) {
         case 1:
             ret = p[offset];
-            trace_pflash_data_read8(offset, ret);
             break;
         case 2:
             if (be) {
@@ -182,7 +181,6 @@ static uint32_t pflash_read(PFlashCFI02 *pfl, hwaddr offset,
                 ret = p[offset];
                 ret |= p[offset + 1] << 8;
             }
-            trace_pflash_data_read16(offset, ret);
             break;
         case 4:
             if (be) {
@@ -196,9 +194,9 @@ static uint32_t pflash_read(PFlashCFI02 *pfl, hwaddr offset,
                 ret |= p[offset + 2] << 16;
                 ret |= p[offset + 3] << 24;
             }
-            trace_pflash_data_read32(offset, ret);
             break;
         }
+        trace_pflash_data_read(offset, width << 1, ret);
         break;
     case 0x90:
         /* flash ID read */
@@ -343,7 +341,7 @@ static void pflash_write(PFlashCFI02 *pfl, hwaddr offset,
             /* We need another unlock sequence */
             goto check_unlock0;
         case 0xA0:
-            trace_pflash_data_write(offset, value, width, 0);
+            trace_pflash_data_write(offset, width << 1, value, 0);
             p = pfl->storage;
             if (!pfl->ro) {
                 switch (width) {

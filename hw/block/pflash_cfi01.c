@@ -248,7 +248,6 @@ static uint32_t pflash_data_read(PFlashCFI01 *pfl, hwaddr offset,
     switch (width) {
     case 1:
         ret = p[offset];
-        trace_pflash_data_read8(offset, ret);
         break;
     case 2:
         if (be) {
@@ -258,7 +257,6 @@ static uint32_t pflash_data_read(PFlashCFI01 *pfl, hwaddr offset,
             ret = p[offset];
             ret |= p[offset + 1] << 8;
         }
-        trace_pflash_data_read16(offset, ret);
         break;
     case 4:
         if (be) {
@@ -272,12 +270,12 @@ static uint32_t pflash_data_read(PFlashCFI01 *pfl, hwaddr offset,
             ret |= p[offset + 2] << 16;
             ret |= p[offset + 3] << 24;
         }
-        trace_pflash_data_read32(offset, ret);
         break;
     default:
         DPRINTF("BUG in %s\n", __func__);
         abort();
     }
+    trace_pflash_data_read(offset, width << 1, ret);
     return ret;
 }
 
@@ -415,7 +413,7 @@ static inline void pflash_data_write(PFlashCFI01 *pfl, hwaddr offset,
 {
     uint8_t *p = pfl->storage;
 
-    trace_pflash_data_write(offset, value, width, pfl->counter);
+    trace_pflash_data_write(offset, width << 1, value, pfl->counter);
     switch (width) {
     case 1:
         p[offset] = value;
