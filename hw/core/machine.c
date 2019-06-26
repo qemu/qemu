@@ -30,6 +30,7 @@ GlobalProperty hw_compat_4_0[] = {
     { "bochs-display",  "edid", "false" },
     { "virtio-vga",     "edid", "false" },
     { "virtio-gpu-pci", "edid", "false" },
+    { "virtio-device", "use-started", "false" },
 };
 const size_t hw_compat_4_0_len = G_N_ELEMENTS(hw_compat_4_0);
 
