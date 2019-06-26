@@ -216,6 +216,15 @@ vmsg_close_fds(VhostUserMsg *vmsg)
     }
 }
 
+/* Set reply payload.u64 and clear request flags and fd_num */
+static void vmsg_set_reply_u64(VhostUserMsg *vmsg, uint64_t val)
+{
+    vmsg->flags = 0; /* defaults will be set by vu_send_reply() */
+    vmsg->size = sizeof(vmsg->payload.u64);
+    vmsg->payload.u64 = val;
+    vmsg->fd_num = 0;
+}
+
 /* A test to see if we have userfault available */
 static bool
 have_userfault(void)
@@ -1168,10 +1177,7 @@ vu_get_protocol_features_exec(VuDev *dev, VhostUserMsg *vmsg)
         features |= dev->iface->get_protocol_features(dev);
     }
 
-    vmsg->payload.u64 = features;
-    vmsg->size = sizeof(vmsg->payload.u64);
-    vmsg->fd_num = 0;
-
+    vmsg_set_reply_u64(vmsg, features);
     return true;
 }
 
@@ -1307,17 +1313,14 @@ out:
 static bool
 vu_set_postcopy_listen(VuDev *dev, VhostUserMsg *vmsg)
 {
-    vmsg->payload.u64 = -1;
-    vmsg->size = sizeof(vmsg->payload.u64);
-
     if (dev->nregions) {
         vu_panic(dev, "Regions already registered at postcopy-listen");
+        vmsg_set_reply_u64(vmsg, -1);
         return true;
     }
     dev->postcopy_listening = true;
 
-    vmsg->flags = VHOST_USER_VERSION |  VHOST_USER_REPLY_MASK;
-    vmsg->payload.u64 = 0; /* Success */
+    vmsg_set_reply_u64(vmsg, 0);
     return true;
 }
 
@@ -1332,10 +1335,7 @@ vu_set_postcopy_end(VuDev *dev, VhostUserMsg *vmsg)
         DPRINT("%s: Done close\n", __func__);
     }
 
-    vmsg->fd_num = 0;
-    vmsg->payload.u64 = 0;
-    vmsg->size = sizeof(vmsg->payload.u64);
-    vmsg->flags = VHOST_USER_VERSION |  VHOST_USER_REPLY_MASK;
+    vmsg_set_reply_u64(vmsg, 0);
     DPRINT("%s: exit\n", __func__);
     return true;
 }
