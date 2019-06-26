@@ -25,7 +25,7 @@ typedef struct VugDev {
     GSource *src;
 } VugDev;
 
-void vug_init(VugDev *dev, int socket,
+bool vug_init(VugDev *dev, uint16_t max_queues, int socket,
               vu_panic_cb panic, const VuDevIface *iface);
 void vug_deinit(VugDev *dev);
 

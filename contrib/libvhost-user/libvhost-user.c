@@ -493,9 +493,9 @@ vu_get_features_exec(VuDev *dev, VhostUserMsg *vmsg)
 static void
 vu_set_enable_all_rings(VuDev *dev, bool enabled)
 {
-    int i;
+    uint16_t i;
 
-    for (i = 0; i < VHOST_MAX_NR_VIRTQUEUE; i++) {
+    for (i = 0; i < dev->max_queues; i++) {
         dev->vq[i].enable = enabled;
     }
 }
@@ -916,7 +916,7 @@ vu_check_queue_msg_file(VuDev *dev, VhostUserMsg *vmsg)
 {
     int index = vmsg->payload.u64 & VHOST_USER_VRING_IDX_MASK;
 
-    if (index >= VHOST_MAX_NR_VIRTQUEUE) {
+    if (index >= dev->max_queues) {
         vmsg_close_fds(vmsg);
         vu_panic(dev, "Invalid queue index: %u", index);
         return false;
@@ -1213,7 +1213,7 @@ vu_set_vring_enable_exec(VuDev *dev, VhostUserMsg *vmsg)
     DPRINT("State.index: %d\n", index);
     DPRINT("State.enable:   %d\n", enable);
 
-    if (index >= VHOST_MAX_NR_VIRTQUEUE) {
+    if (index >= dev->max_queues) {
         vu_panic(dev, "Invalid vring_enable index: %u", index);
         return false;
     }
@@ -1582,7 +1582,7 @@ vu_deinit(VuDev *dev)
     }
     dev->nregions = 0;
 
-    for (i = 0; i < VHOST_MAX_NR_VIRTQUEUE; i++) {
+    for (i = 0; i < dev->max_queues; i++) {
         VuVirtq *vq = &dev->vq[i];
 
         if (vq->call_fd != -1) {
@@ -1627,18 +1627,23 @@ vu_deinit(VuDev *dev)
     if (dev->sock != -1) {
         close(dev->sock);
     }
+
+    free(dev->vq);
+    dev->vq = NULL;
 }
 
-void
+bool
 vu_init(VuDev *dev,
+        uint16_t max_queues,
         int socket,
         vu_panic_cb panic,
         vu_set_watch_cb set_watch,
         vu_remove_watch_cb remove_watch,
         const VuDevIface *iface)
 {
-    int i;
+    uint16_t i;
 
+    assert(max_queues > 0);
     assert(socket >= 0);
     assert(set_watch);
     assert(remove_watch);
@@ -1654,18 +1659,28 @@ vu_init(VuDev *dev,
     dev->iface = iface;
     dev->log_call_fd = -1;
     dev->slave_fd = -1;
-    for (i = 0; i < VHOST_MAX_NR_VIRTQUEUE; i++) {
+    dev->max_queues = max_queues;
+
+    dev->vq = malloc(max_queues * sizeof(dev->vq[0]));
+    if (!dev->vq) {
+        DPRINT("%s: failed to malloc virtqueues\n", __func__);
+        return false;
+    }
+
+    for (i = 0; i < max_queues; i++) {
         dev->vq[i] = (VuVirtq) {
             .call_fd = -1, .kick_fd = -1, .err_fd = -1,
             .notification = true,
         };
     }
+
+    return true;
 }
 
 VuVirtq *
 vu_get_queue(VuDev *dev, int qidx)
 {
-    assert(qidx < VHOST_MAX_NR_VIRTQUEUE);
+    assert(qidx < dev->max_queues);
     return &dev->vq[qidx];
 }
 

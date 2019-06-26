@@ -131,18 +131,24 @@ static void vug_watch(VuDev *dev, int condition, void *data)
     }
 }
 
-void
-vug_init(VugDev *dev, int socket,
+bool
+vug_init(VugDev *dev, uint16_t max_queues, int socket,
          vu_panic_cb panic, const VuDevIface *iface)
 {
     g_assert(dev);
     g_assert(iface);
 
-    vu_init(&dev->parent, socket, panic, set_watch, remove_watch, iface);
+    if (!vu_init(&dev->parent, max_queues, socket, panic, set_watch,
+                 remove_watch, iface)) {
+        return false;
+    }
+
     dev->fdmap = g_hash_table_new_full(NULL, NULL, NULL,
                                        (GDestroyNotify) g_source_destroy);
 
     dev->src = vug_source_new(dev, socket, G_IO_IN, vug_watch, NULL);
+
+    return true;
 }
 
 void
