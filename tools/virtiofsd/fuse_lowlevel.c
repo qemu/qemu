@@ -2537,11 +2537,12 @@ void fuse_session_destroy(struct fuse_session *se)
         close(se->fd);
     }
 
-    if (se->vu_socket_path) {
+    if (fuse_lowlevel_is_virtio(se)) {
         virtio_session_close(se);
-        free(se->vu_socket_path);
-        se->vu_socket_path = NULL;
     }
+
+    free(se->vu_socket_path);
+    se->vu_socket_path = NULL;
 
     free(se);
 }
