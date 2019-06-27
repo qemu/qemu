@@ -2864,23 +2864,23 @@ static int postcopy_send_discard_bm_ram(MigrationState *ms,
 
     for (current = 0; current < end; ) {
         unsigned long one = find_next_bit(unsentmap, end, current);
+        unsigned long zero, discard_length;
 
-        if (one < end) {
-            unsigned long zero = find_next_zero_bit(unsentmap, end, one + 1);
-            unsigned long discard_length;
-
-            if (zero >= end) {
-                discard_length = end - one;
-            } else {
-                discard_length = zero - one;
-            }
-            if (discard_length) {
-                postcopy_discard_send_range(ms, pds, one, discard_length);
-            }
-            current = one + discard_length;
-        } else {
-            current = one;
+        if (one >= end) {
+            break;
         }
+
+        zero = find_next_zero_bit(unsentmap, end, one + 1);
+
+        if (zero >= end) {
+            discard_length = end - one;
+        } else {
+            discard_length = zero - one;
+        }
+        if (discard_length) {
+            postcopy_discard_send_range(ms, pds, one, discard_length);
+        }
+        current = one + discard_length;
     }
 
     return 0;
