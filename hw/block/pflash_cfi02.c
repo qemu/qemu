@@ -309,8 +309,10 @@ static void pflash_write(void *opaque, hwaddr offset, uint64_t value,
 
     trace_pflash_io_write(offset, width, width << 1, value, pfl->wcycle);
     cmd = value;
-    if (pfl->cmd != 0xA0 && cmd == 0xF0) {
-        goto reset_flash;
+    if (pfl->cmd != 0xA0) {
+        if (cmd == 0xF0) {
+            goto reset_flash;
+        }
     }
     offset &= pfl->chip_len - 1;
 
