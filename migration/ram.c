@@ -2865,7 +2865,7 @@ static int postcopy_send_discard_bm_ram(MigrationState *ms,
     for (current = 0; current < end; ) {
         unsigned long one = find_next_bit(unsentmap, end, current);
 
-        if (one <= end) {
+        if (one < end) {
             unsigned long zero = find_next_zero_bit(unsentmap, end, one + 1);
             unsigned long discard_length;
 
