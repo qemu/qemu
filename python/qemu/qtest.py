@@ -14,7 +14,7 @@
 import socket
 import os
 
-from . import QEMUMachine
+from .machine import QEMUMachine
 
 
 class QEMUQtestProtocol(object):
