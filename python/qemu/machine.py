@@ -1,5 +1,10 @@
-# QEMU library
-#
+"""
+QEMU machine module:
+
+The machine module primarily provides the QEMUMachine class,
+which provides facilities for managing the lifetime of a QEMU VM.
+"""
+
 # Copyright (C) 2015-2016 Red Hat Inc.
 # Copyright (C) 2012 IBM Corp.
 #
@@ -16,7 +21,6 @@ import errno
 import logging
 import os
 import subprocess
-import re
 import shutil
 import socket
 import tempfile
@@ -119,8 +123,10 @@ class QEMUMachine(object):
         self.shutdown()
         return False
 
-    # This can be used to add an unused monitor instance.
     def add_monitor_null(self):
+        """
+        This can be used to add an unused monitor instance.
+        """
         self._args.append('-monitor')
         self._args.append('null')
 
@@ -143,10 +149,13 @@ class QEMUMachine(object):
         self._args.append(','.join(options))
         return self
 
-    # Exactly one of fd and file_path must be given.
-    # (If it is file_path, the helper will open that file and pass its
-    # own fd)
     def send_fd_scm(self, fd=None, file_path=None):
+        """
+        Send an fd or file_path to socket_scm_helper.
+
+        Exactly one of fd and file_path must be given.
+        If it is file_path, the helper will open that file and pass its own fd.
+        """
         # In iotest.py, the qmp should always use unix socket.
         assert self._qmp.is_scm_available()
         if self._socket_scm_helper is None:
@@ -194,14 +203,17 @@ class QEMUMachine(object):
             raise
 
     def is_running(self):
+        """Returns true if the VM is running."""
         return self._popen is not None and self._popen.poll() is None
 
     def exitcode(self):
+        """Returns the exit code if possible, or None."""
         if self._popen is None:
             return None
         return self._popen.poll()
 
     def get_pid(self):
+        """Returns the PID of the running process, or None."""
         if not self.is_running():
             return None
         return self._popen.pid
@@ -339,7 +351,7 @@ class QEMUMachine(object):
                 command = ' '.join(self._qemu_full_args)
             else:
                 command = ''
-            LOG.warn(msg, -exitcode, command)
+            LOG.warning(msg, -exitcode, command)
 
         self._launched = False
 
@@ -373,7 +385,7 @@ class QEMUMachine(object):
         """
         Poll for one queued QMP events and return it
         """
-        if len(self._events) > 0:
+        if self._events:
             return self._events.pop(0)
         return self._qmp.pull_event(wait=wait)
 
@@ -441,8 +453,7 @@ class QEMUMachine(object):
         """
         def _match(event):
             for name, match in events:
-                if (event['event'] == name and
-                    self.event_match(event, match)):
+                if event['event'] == name and self.event_match(event, match):
                     return True
             return False
 
