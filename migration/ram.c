@@ -2877,9 +2877,7 @@ static int postcopy_send_discard_bm_ram(MigrationState *ms,
         } else {
             discard_length = zero - one;
         }
-        if (discard_length) {
-            postcopy_discard_send_range(ms, pds, one, discard_length);
-        }
+        postcopy_discard_send_range(ms, pds, one, discard_length);
         current = one + discard_length;
     }
 
