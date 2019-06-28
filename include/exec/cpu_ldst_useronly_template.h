@@ -73,7 +73,7 @@ glue(glue(cpu_ld, USUFFIX), MEMSUFFIX)(CPUArchState *env, abi_ptr ptr)
 #else
     trace_guest_mem_before_exec(
         env_cpu(env), ptr,
-        trace_mem_build_info(SHIFT, false, MO_TE, false));
+        trace_mem_build_info(SHIFT, false, MO_TE, false, MMU_USER_IDX));
     return glue(glue(ld, USUFFIX), _p)(g2h(ptr));
 #endif
 }
@@ -105,7 +105,7 @@ glue(glue(cpu_lds, SUFFIX), MEMSUFFIX)(CPUArchState *env, abi_ptr ptr)
 #else
     trace_guest_mem_before_exec(
         env_cpu(env), ptr,
-        trace_mem_build_info(SHIFT, true, MO_TE, false));
+        trace_mem_build_info(SHIFT, true, MO_TE, false, MMU_USER_IDX));
     return glue(glue(lds, SUFFIX), _p)(g2h(ptr));
 #endif
 }
@@ -132,7 +132,7 @@ glue(glue(cpu_st, SUFFIX), MEMSUFFIX)(CPUArchState *env, abi_ptr ptr,
 {
     trace_guest_mem_before_exec(
         env_cpu(env), ptr,
-        trace_mem_build_info(SHIFT, false, MO_TE, true));
+        trace_mem_build_info(SHIFT, false, MO_TE, true, MMU_USER_IDX));
     glue(glue(st, SUFFIX), _p)(g2h(ptr), v);
 }
 
