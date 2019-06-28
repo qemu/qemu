@@ -5250,8 +5250,11 @@ static int x86_cpu_filter_features(X86CPU *cpu)
         uint32_t host_feat =
             x86_cpu_get_supported_feature_word(w, false);
         uint32_t requested_features = env->features[w];
-        env->features[w] &= host_feat;
-        cpu->filtered_features[w] = requested_features & ~env->features[w];
+        uint32_t available_features = requested_features & host_feat;
+        if (!cpu->force_features) {
+            env->features[w] = available_features;
+        }
+        cpu->filtered_features[w] = requested_features & ~available_features;
         if (cpu->filtered_features[w]) {
             rv = 1;
         }
@@ -5980,6 +5983,7 @@ static Property x86_cpu_properties[] = {
 
     DEFINE_PROP_BOOL("check", X86CPU, check_cpuid, true),
     DEFINE_PROP_BOOL("enforce", X86CPU, enforce_cpuid, false),
+    DEFINE_PROP_BOOL("x-force-features", X86CPU, force_features, false),
     DEFINE_PROP_BOOL("kvm", X86CPU, expose_kvm, true),
     DEFINE_PROP_UINT32("phys-bits", X86CPU, phys_bits, 0),
     DEFINE_PROP_BOOL("host-phys-bits", X86CPU, host_phys_bits, false),
