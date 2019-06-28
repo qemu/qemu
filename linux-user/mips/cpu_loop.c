@@ -540,6 +540,23 @@ done_syscall:
             info.si_code = TARGET_ILL_ILLOPC;
             queue_signal(env, info.si_signo, QEMU_SI_FAULT, &info);
             break;
+        case EXCP_FPE:
+            info.si_signo = TARGET_SIGFPE;
+            info.si_errno = 0;
+            info.si_code = TARGET_FPE_FLTUNK;
+            if (GET_FP_CAUSE(env->active_fpu.fcr31) & FP_INVALID) {
+                info.si_code = TARGET_FPE_FLTINV;
+            } else if (GET_FP_CAUSE(env->active_fpu.fcr31) & FP_DIV0) {
+                info.si_code = TARGET_FPE_FLTDIV;
+            } else if (GET_FP_CAUSE(env->active_fpu.fcr31) & FP_OVERFLOW) {
+                info.si_code = TARGET_FPE_FLTOVF;
+            } else if (GET_FP_CAUSE(env->active_fpu.fcr31) & FP_UNDERFLOW) {
+                info.si_code = TARGET_FPE_FLTUND;
+            } else if (GET_FP_CAUSE(env->active_fpu.fcr31) & FP_INEXACT) {
+                info.si_code = TARGET_FPE_FLTRES;
+            }
+            queue_signal(env, info.si_signo, QEMU_SI_FAULT, &info);
+            break;
         /* The code below was inspired by the MIPS Linux kernel trap
          * handling code in arch/mips/kernel/traps.c.
          */
