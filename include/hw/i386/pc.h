@@ -109,6 +109,9 @@ typedef struct PCMachineClass {
 
     /* Compat options: */
 
+    /* Default CPU model version.  See x86_cpu_set_default_version(). */
+    int default_cpu_version;
+
     /* ACPI compat: */
     bool has_acpi_build;
     bool rsdp_in_ram;

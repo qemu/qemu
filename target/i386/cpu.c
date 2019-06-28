@@ -1470,6 +1470,11 @@ struct X86CPUModel {
     X86CPUDefinition *cpudef;
     /* CPU model version */
     X86CPUVersion version;
+    /*
+     * If true, this is an alias CPU model.
+     * This matters only for "-cpu help" and query-cpu-definitions
+     */
+    bool is_alias;
 };
 
 /* Get full model name for CPU version */
@@ -2835,6 +2840,15 @@ static PropValue tcg_default_props[] = {
 };
 
 
+X86CPUVersion default_cpu_version = CPU_VERSION_LATEST;
+
+void x86_cpu_set_default_version(X86CPUVersion version)
+{
+    /* Translating CPU_VERSION_AUTO to CPU_VERSION_AUTO doesn't make sense */
+    assert(version != CPU_VERSION_AUTO);
+    default_cpu_version = version;
+}
+
 static X86CPUVersion x86_cpu_model_last_version(const X86CPUModel *model)
 {
     int v = 0;
@@ -2851,6 +2865,9 @@ static X86CPUVersion x86_cpu_model_last_version(const X86CPUModel *model)
 static X86CPUVersion x86_cpu_model_resolve_version(const X86CPUModel *model)
 {
     X86CPUVersion v = model->version;
+    if (v == CPU_VERSION_AUTO) {
+        v = default_cpu_version;
+    }
     if (v == CPU_VERSION_LATEST) {
         return x86_cpu_model_last_version(model);
     }
@@ -3589,13 +3606,35 @@ static char *x86_cpu_class_get_model_id(X86CPUClass *xc)
     return r;
 }
 
+static char *x86_cpu_class_get_alias_of(X86CPUClass *cc)
+{
+    X86CPUVersion version;
+
+    if (!cc->model || !cc->model->is_alias) {
+        return NULL;
+    }
+    version = x86_cpu_model_resolve_version(cc->model);
+    if (version <= 0) {
+        return NULL;
+    }
+    return x86_cpu_versioned_model_name(cc->model->cpudef, version);
+}
+
 static void x86_cpu_list_entry(gpointer data, gpointer user_data)
 {
     ObjectClass *oc = data;
     X86CPUClass *cc = X86_CPU_CLASS(oc);
     char *name = x86_cpu_class_get_model_name(cc);
     char *desc = g_strdup(cc->model_description);
+    char *alias_of = x86_cpu_class_get_alias_of(cc);
 
+    if (!desc && alias_of) {
+        if (cc->model && cc->model->version == CPU_VERSION_AUTO) {
+            desc = g_strdup("(alias configured by machine type)");
+        } else {
+            desc = g_strdup_printf("(alias of %s)", alias_of);
+        }
+    }
     if (!desc) {
         desc = x86_cpu_class_get_model_id(cc);
     }
@@ -3603,6 +3642,7 @@ static void x86_cpu_list_entry(gpointer data, gpointer user_data)
     qemu_printf("x86 %-20s  %-48s\n", name, desc);
     g_free(name);
     g_free(desc);
+    g_free(alias_of);
 }
 
 /* list available CPU models and flags */
@@ -3651,6 +3691,14 @@ static void x86_cpu_definition_entry(gpointer data, gpointer user_data)
     info->migration_safe = cc->migration_safe;
     info->has_migration_safe = true;
     info->q_static = cc->static_model;
+    /*
+     * Old machine types won't report aliases, so that alias translation
+     * doesn't break compatibility with previous QEMU versions.
+     */
+    if (default_cpu_version != CPU_VERSION_LEGACY) {
+        info->alias_of = x86_cpu_class_get_alias_of(cc);
+        info->has_alias_of = !!info->alias_of;
+    }
 
     entry = g_malloc0(sizeof(*entry));
     entry->value = info;
@@ -4070,7 +4118,8 @@ static void x86_register_cpudef_types(X86CPUDefinition *def)
     /* Unversioned model: */
     m = g_new0(X86CPUModel, 1);
     m->cpudef = def;
-    m->version = CPU_VERSION_LEGACY;
+    m->version = CPU_VERSION_AUTO;
+    m->is_alias = true;
     x86_register_cpu_model_type(def->name, m);
 
     /* Versioned models: */
@@ -4087,6 +4136,7 @@ static void x86_register_cpudef_types(X86CPUDefinition *def)
             X86CPUModel *am = g_new0(X86CPUModel, 1);
             am->cpudef = def;
             am->version = vdef->version;
+            am->is_alias = true;
             x86_register_cpu_model_type(vdef->alias, am);
         }
     }

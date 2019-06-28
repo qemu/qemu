@@ -429,9 +429,11 @@ static void pc_i440fx_machine_options(MachineClass *m)
 
 static void pc_i440fx_4_1_machine_options(MachineClass *m)
 {
+    PCMachineClass *pcmc = PC_MACHINE_CLASS(m);
     pc_i440fx_machine_options(m);
     m->alias = "pc";
     m->is_default = 1;
+    pcmc->default_cpu_version = 1;
 }
 
 DEFINE_I440FX_MACHINE(v4_1, "pc-i440fx-4.1", NULL,
@@ -439,9 +441,11 @@ DEFINE_I440FX_MACHINE(v4_1, "pc-i440fx-4.1", NULL,
 
 static void pc_i440fx_4_0_machine_options(MachineClass *m)
 {
+    PCMachineClass *pcmc = PC_MACHINE_CLASS(m);
     pc_i440fx_4_1_machine_options(m);
     m->alias = NULL;
     m->is_default = 0;
+    pcmc->default_cpu_version = CPU_VERSION_LEGACY;
     compat_props_add(m->compat_props, hw_compat_4_0, hw_compat_4_0_len);
     compat_props_add(m->compat_props, pc_compat_4_0, pc_compat_4_0_len);
 }
