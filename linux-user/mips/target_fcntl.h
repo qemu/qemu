@@ -28,11 +28,20 @@
 #define TARGET_F_GETOWN        23       /*  for sockets. */
 
 #if (TARGET_ABI_BITS == 32)
-#define TARGET_ARCH_FLOCK_PAD abi_long pad[4];
-#else
-#define TARGET_ARCH_FLOCK_PAD
+
+struct target_flock {
+    short l_type;
+    short l_whence;
+    abi_long l_start;
+    abi_long l_len;
+    abi_long l_sysid;
+    int l_pid;
+    abi_long pad[4];
+};
+
+#define TARGET_HAVE_ARCH_STRUCT_FLOCK
+
 #endif
-#define TARGET_ARCH_FLOCK64_PAD
 
 #define TARGET_F_GETLK64       33      /*  using 'struct flock64' */
 #define TARGET_F_SETLK64       34
