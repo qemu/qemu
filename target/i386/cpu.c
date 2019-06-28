@@ -3837,18 +3837,28 @@ static GSList *get_sorted_cpu_model_list(void)
     return list;
 }
 
+static char *x86_cpu_class_get_model_id(X86CPUClass *xc)
+{
+    Object *obj = object_new(object_class_get_name(OBJECT_CLASS(xc)));
+    char *r = object_property_get_str(obj, "model-id", &error_abort);
+    object_unref(obj);
+    return r;
+}
+
 static void x86_cpu_list_entry(gpointer data, gpointer user_data)
 {
     ObjectClass *oc = data;
     X86CPUClass *cc = X86_CPU_CLASS(oc);
     char *name = x86_cpu_class_get_model_name(cc);
-    const char *desc = cc->model_description;
-    if (!desc && cc->cpu_def) {
-        desc = cc->cpu_def->model_id;
+    char *desc = g_strdup(cc->model_description);
+
+    if (!desc) {
+        desc = x86_cpu_class_get_model_id(cc);
     }
 
     qemu_printf("x86 %-20s  %-48s\n", name, desc);
     g_free(name);
+    g_free(desc);
 }
 
 /* list available CPU models and flags */
