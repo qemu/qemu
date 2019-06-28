@@ -915,14 +915,6 @@ bool e820_get_entry(int idx, uint32_t type, uint64_t *address, uint64_t *length)
     return false;
 }
 
-/* Enables contiguous-apic-ID mode, for compatibility */
-static bool compat_apic_id_mode;
-
-void enable_compat_apic_id_mode(void)
-{
-    compat_apic_id_mode = true;
-}
-
 /* Calculates initial APIC ID for a specific CPU index
  *
  * Currently we need to be able to calculate the APIC ID from the CPU index
@@ -930,13 +922,15 @@ void enable_compat_apic_id_mode(void)
  * no concept of "CPU index", and the NUMA tables on fw_cfg need the APIC ID of
  * all CPUs up to max_cpus.
  */
-static uint32_t x86_cpu_apic_id_from_index(unsigned int cpu_index)
+static uint32_t x86_cpu_apic_id_from_index(PCMachineState *pcms,
+                                           unsigned int cpu_index)
 {
+    PCMachineClass *pcmc = PC_MACHINE_GET_CLASS(pcms);
     uint32_t correct_id;
     static bool warned;
 
     correct_id = x86_apicid_from_cpu_idx(smp_cores, smp_threads, cpu_index);
-    if (compat_apic_id_mode) {
+    if (pcmc->compat_apic_id_mode) {
         if (cpu_index != correct_id && !warned && !qtest_enabled()) {
             error_report("APIC IDs set in compatibility mode, "
                          "CPU topology won't match the configuration");
@@ -1535,7 +1529,8 @@ static void pc_new_cpu(const char *typename, int64_t apic_id, Error **errp)
 void pc_hot_add_cpu(const int64_t id, Error **errp)
 {
     MachineState *ms = MACHINE(qdev_get_machine());
-    int64_t apic_id = x86_cpu_apic_id_from_index(id);
+    PCMachineState *pcms = PC_MACHINE(ms);
+    int64_t apic_id = x86_cpu_apic_id_from_index(pcms, id);
     Error *local_err = NULL;
 
     if (id < 0) {
@@ -1571,7 +1566,7 @@ void pc_cpus_init(PCMachineState *pcms)
      *
      * This is used for FW_CFG_MAX_CPUS. See comments on bochs_bios_init().
      */
-    pcms->apic_id_limit = x86_cpu_apic_id_from_index(max_cpus - 1) + 1;
+    pcms->apic_id_limit = x86_cpu_apic_id_from_index(pcms, max_cpus - 1) + 1;
     possible_cpus = mc->possible_cpu_arch_ids(ms);
     for (i = 0; i < smp_cpus; i++) {
         pc_new_cpu(possible_cpus->cpus[i].type, possible_cpus->cpus[i].arch_id,
@@ -2730,6 +2725,7 @@ static int64_t pc_get_default_cpu_node_id(const MachineState *ms, int idx)
 
 static const CPUArchIdList *pc_possible_cpu_arch_ids(MachineState *ms)
 {
+    PCMachineState *pcms = PC_MACHINE(ms);
     int i;
 
     if (ms->possible_cpus) {
@@ -2749,7 +2745,7 @@ static const CPUArchIdList *pc_possible_cpu_arch_ids(MachineState *ms)
 
         ms->possible_cpus->cpus[i].type = ms->cpu_type;
         ms->possible_cpus->cpus[i].vcpus_count = 1;
-        ms->possible_cpus->cpus[i].arch_id = x86_cpu_apic_id_from_index(i);
+        ms->possible_cpus->cpus[i].arch_id = x86_cpu_apic_id_from_index(pcms, i);
         x86_topo_ids_from_apicid(ms->possible_cpus->cpus[i].arch_id,
                                  smp_cores, smp_threads, &topo);
         ms->possible_cpus->cpus[i].props.has_socket_id = true;
