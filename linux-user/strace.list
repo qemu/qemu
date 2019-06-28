@@ -1650,3 +1650,6 @@
 #ifdef TARGET_NR_atomic_barrier
 { TARGET_NR_atomic_barrier, "atomic_barrier", NULL, NULL, NULL },
 #endif
+#ifdef TARGET_NR_statx
+{ TARGET_NR_statx, "statx", NULL, print_statx, NULL },
+#endif
