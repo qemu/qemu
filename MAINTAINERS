@@ -2385,7 +2385,7 @@ S: Supported
 F: block/vmdk.c
 
 RBD
-M: Josh Durgin <jdurgin@redhat.com>
+M: Jason Dillaman <dillaman@redhat.com>
 L: qemu-block@nongnu.org
 S: Supported
 F: block/rbd.c
