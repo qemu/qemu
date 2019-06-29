@@ -3528,6 +3528,10 @@ static void tcg_target_init(TCGContext *s)
     have_isel = have_isa_2_06;
 #endif
 
+    if (hwcap & PPC_FEATURE_HAS_ALTIVEC) {
+        have_altivec = true;
+    }
+
     tcg_target_available_regs[TCG_TYPE_I32] = 0xffffffff;
     tcg_target_available_regs[TCG_TYPE_I64] = 0xffffffff;
     if (have_altivec) {
