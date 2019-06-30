@@ -132,6 +132,11 @@ static void xive_tctx_set_cppr(XiveTCTX *tctx, uint8_t ring, uint8_t cppr)
     xive_tctx_notify(tctx, ring);
 }
 
+static inline uint32_t xive_tctx_word2(uint8_t *ring)
+{
+    return *((uint32_t *) &ring[TM_WORD2]);
+}
+
 /*
  * XIVE Thread Interrupt Management Area (TIMA)
  */
@@ -150,11 +155,12 @@ static uint64_t xive_tm_ack_hv_reg(XiveTCTX *tctx, hwaddr offset, unsigned size)
 static uint64_t xive_tm_pull_pool_ctx(XiveTCTX *tctx, hwaddr offset,
                                       unsigned size)
 {
-    uint64_t ret;
+    uint32_t qw2w2_prev = xive_tctx_word2(&tctx->regs[TM_QW2_HV_POOL]);
+    uint32_t qw2w2;
 
-    ret = tctx->regs[TM_QW2_HV_POOL + TM_WORD2] & TM_QW2W2_POOL_CAM;
-    tctx->regs[TM_QW2_HV_POOL + TM_WORD2] &= ~TM_QW2W2_POOL_CAM;
-    return ret;
+    qw2w2 = xive_set_field32(TM_QW2W2_VP, qw2w2_prev, 0);
+    memcpy(&tctx->regs[TM_QW2_HV_POOL + TM_WORD2], &qw2w2, 4);
+    return qw2w2;
 }
 
 static void xive_tm_vt_push(XiveTCTX *tctx, hwaddr offset,
@@ -483,11 +489,6 @@ const MemoryRegionOps xive_tm_ops = {
         .max_access_size = 8,
     },
 };
-
-static inline uint32_t xive_tctx_word2(uint8_t *ring)
-{
-    return *((uint32_t *) &ring[TM_WORD2]);
-}
 
 static char *xive_tctx_ring_print(uint8_t *ring)
 {
