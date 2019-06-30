@@ -209,6 +209,8 @@ static void sunhme_update_irq(SunHMEState *s)
     }
 
     level = (seb ? 1 : 0);
+    trace_sunhme_update_irq(mifmask, mif, sebmask, seb, level);
+
     pci_set_irq(d, level);
 }
 
