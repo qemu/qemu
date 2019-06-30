@@ -44,6 +44,7 @@
 #define HME_SEBI_STAT                  0x100
 #define HME_SEBI_STAT_LINUXBUG         0x108
 #define HME_SEB_STAT_RXTOHOST          0x10000
+#define HME_SEB_STAT_NORXD             0x20000
 #define HME_SEB_STAT_MIFIRQ            0x800000
 #define HME_SEB_STAT_HOSTTOTX          0x1000000
 #define HME_SEB_STAT_TXALL             0x2000000
@@ -786,6 +787,14 @@ static ssize_t sunhme_receive(NetClientState *nc, const uint8_t *buf,
 
     pci_dma_read(d, rb + cr * HME_DESC_SIZE, &status, 4);
     pci_dma_read(d, rb + cr * HME_DESC_SIZE + 4, &buffer, 4);
+
+    /* If we don't own the current descriptor then indicate overflow error */
+    if (!(status & HME_XD_OWN)) {
+        s->sebregs[HME_SEBI_STAT >> 2] |= HME_SEB_STAT_NORXD;
+        sunhme_update_irq(s);
+        trace_sunhme_rx_norxd();
+        return -1;
+    }
 
     rxoffset = (s->erxregs[HME_ERXI_CFG >> 2] & HME_ERX_CFG_BYTEOFFSET) >>
                 HME_ERX_CFG_BYTEOFFSET_SHIFT;
