@@ -9109,7 +9109,7 @@ static void disas_arm_insn(DisasContext *s, unsigned int insn)
                 loaded_base = 0;
                 loaded_var = NULL;
                 n = 0;
-                for(i=0;i<16;i++) {
+                for (i = 0; i < 16; i++) {
                     if (insn & (1 << i))
                         n++;
                 }
@@ -9132,7 +9132,7 @@ static void disas_arm_insn(DisasContext *s, unsigned int insn)
                     }
                 }
                 j = 0;
-                for(i=0;i<16;i++) {
+                for (i = 0; i < 16; i++) {
                     if (insn & (1 << i)) {
                         if (is_load) {
                             /* load */
@@ -12353,12 +12353,13 @@ void arm_cpu_dump_state(CPUState *cs, FILE *f, int flags)
         return;
     }
 
-    for(i=0;i<16;i++) {
+    for (i = 0; i < 16; i++) {
         qemu_fprintf(f, "R%02d=%08x", i, env->regs[i]);
-        if ((i % 4) == 3)
+        if ((i % 4) == 3) {
             qemu_fprintf(f, "\n");
-        else
+        } else {
             qemu_fprintf(f, " ");
+        }
     }
 
     if (arm_feature(env, ARM_FEATURE_M)) {

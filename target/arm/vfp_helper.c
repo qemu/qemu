@@ -34,18 +34,24 @@ static inline int vfp_exceptbits_from_host(int host_bits)
 {
     int target_bits = 0;
 
-    if (host_bits & float_flag_invalid)
+    if (host_bits & float_flag_invalid) {
         target_bits |= 1;
-    if (host_bits & float_flag_divbyzero)
+    }
+    if (host_bits & float_flag_divbyzero) {
         target_bits |= 2;
-    if (host_bits & float_flag_overflow)
+    }
+    if (host_bits & float_flag_overflow) {
         target_bits |= 4;
-    if (host_bits & (float_flag_underflow | float_flag_output_denormal))
+    }
+    if (host_bits & (float_flag_underflow | float_flag_output_denormal)) {
         target_bits |= 8;
-    if (host_bits & float_flag_inexact)
+    }
+    if (host_bits & float_flag_inexact) {
         target_bits |= 0x10;
-    if (host_bits & float_flag_input_denormal)
+    }
+    if (host_bits & float_flag_input_denormal) {
         target_bits |= 0x80;
+    }
     return target_bits;
 }
 
@@ -80,18 +86,24 @@ static inline int vfp_exceptbits_to_host(int target_bits)
 {
     int host_bits = 0;
 
-    if (target_bits & 1)
+    if (target_bits & 1) {
         host_bits |= float_flag_invalid;
-    if (target_bits & 2)
+    }
+    if (target_bits & 2) {
         host_bits |= float_flag_divbyzero;
-    if (target_bits & 4)
+    }
+    if (target_bits & 4) {
         host_bits |= float_flag_overflow;
-    if (target_bits & 8)
+    }
+    if (target_bits & 8) {
         host_bits |= float_flag_underflow;
-    if (target_bits & 0x10)
+    }
+    if (target_bits & 0x10) {
         host_bits |= float_flag_inexact;
-    if (target_bits & 0x80)
+    }
+    if (target_bits & 0x80) {
         host_bits |= float_flag_input_denormal;
+    }
     return host_bits;
 }
 
