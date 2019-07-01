@@ -234,8 +234,10 @@ static void aspeed_soc_init(Object *obj)
                                     sc->info->silicon_rev);
     }
 
-    sysbus_init_child_obj(obj, "ftgmac100", OBJECT(&s->ftgmac100),
-                          sizeof(s->ftgmac100), TYPE_FTGMAC100);
+    for (i = 0; i < ASPEED_MACS_NUM; i++) {
+        sysbus_init_child_obj(obj, "ftgmac100[*]", OBJECT(&s->ftgmac100[i]),
+                              sizeof(s->ftgmac100[i]), TYPE_FTGMAC100);
+    }
 }
 
 static void aspeed_soc_realize(DeviceState *dev, Error **errp)
@@ -382,19 +384,22 @@ static void aspeed_soc_realize(DeviceState *dev, Error **errp)
     }
 
     /* Net */
-    qdev_set_nic_properties(DEVICE(&s->ftgmac100), &nd_table[0]);
-    object_property_set_bool(OBJECT(&s->ftgmac100), true, "aspeed", &err);
-    object_property_set_bool(OBJECT(&s->ftgmac100), true, "realized",
-                             &local_err);
-    error_propagate(&err, local_err);
-    if (err) {
-        error_propagate(errp, err);
-        return;
+    for (i = 0; i < nb_nics; i++) {
+        qdev_set_nic_properties(DEVICE(&s->ftgmac100[i]), &nd_table[i]);
+        object_property_set_bool(OBJECT(&s->ftgmac100[i]), true, "aspeed",
+                                 &err);
+        object_property_set_bool(OBJECT(&s->ftgmac100[i]), true, "realized",
+                                 &local_err);
+        error_propagate(&err, local_err);
+        if (err) {
+            error_propagate(errp, err);
+           return;
+        }
+        sysbus_mmio_map(SYS_BUS_DEVICE(&s->ftgmac100[i]), 0,
+                        sc->info->memmap[ASPEED_ETH1 + i]);
+        sysbus_connect_irq(SYS_BUS_DEVICE(&s->ftgmac100[i]), 0,
+                           aspeed_soc_get_irq(s, ASPEED_ETH1 + i));
     }
-    sysbus_mmio_map(SYS_BUS_DEVICE(&s->ftgmac100), 0,
-                    sc->info->memmap[ASPEED_ETH1]);
-    sysbus_connect_irq(SYS_BUS_DEVICE(&s->ftgmac100), 0,
-                       aspeed_soc_get_irq(s, ASPEED_ETH1));
 }
 static Property aspeed_soc_properties[] = {
     DEFINE_PROP_UINT32("num-cpus", AspeedSoCState, num_cpus, 0),
