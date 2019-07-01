@@ -53,6 +53,7 @@ static void emcraft_sf2_s2s010_init(MachineState *machine)
     if (strcmp(machine->cpu_type, mc->default_cpu_type) != 0) {
         error_report("This board can only be used with CPU %s",
                      mc->default_cpu_type);
+        exit(1);
     }
 
     memory_region_init_ram(ddr, NULL, "ddr-ram", DDR_SIZE,
