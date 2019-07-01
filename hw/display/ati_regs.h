@@ -37,6 +37,8 @@
 #define CRTC_GEN_CNTL                           0x0050
 #define CRTC_EXT_CNTL                           0x0054
 #define DAC_CNTL                                0x0058
+#define GPIO_VGA_DDC                            0x0060
+#define GPIO_DVI_DDC                            0x0064
 #define GPIO_MONID                              0x0068
 #define I2C_CNTL_1                              0x0094
 #define PALETTE_INDEX                           0x00b0
@@ -368,8 +370,8 @@
 #define BRUSH_SOLIDCOLOR                        0x00000d00
 
 /* DP_GUI_MASTER_CNTL bit constants */
-#define GMC_SRC_PITCH_OFFSET_DEFAULT            0x00000000
-#define GMC_DST_PITCH_OFFSET_DEFAULT            0x00000000
+#define GMC_SRC_PITCH_OFFSET_CNTL               0x00000001
+#define GMC_DST_PITCH_OFFSET_CNTL               0x00000002
 #define GMC_SRC_CLIP_DEFAULT                    0x00000000
 #define GMC_DST_CLIP_DEFAULT                    0x00000000
 #define GMC_BRUSH_SOLIDCOLOR                    0x000000d0

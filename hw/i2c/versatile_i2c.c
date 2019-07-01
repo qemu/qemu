@@ -23,7 +23,7 @@
 
 #include "qemu/osdep.h"
 #include "hw/sysbus.h"
-#include "bitbang_i2c.h"
+#include "hw/i2c/bitbang_i2c.h"
 #include "qemu/log.h"
 #include "qemu/module.h"
 

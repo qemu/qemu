@@ -30,7 +30,6 @@
 #include "cpu.h"
 #include "hw/hw.h"
 #include "hw/i2c/ppc4xx_i2c.h"
-#include "bitbang_i2c.h"
 
 #define PPC4xx_I2C_MEM_SIZE 18
 

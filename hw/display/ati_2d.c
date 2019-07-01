@@ -51,8 +51,9 @@ void ati_2d_blt(ATIVGAState *s)
             s->vga.vbe_start_addr, surface_data(ds), surface_stride(ds),
             surface_bits_per_pixel(ds),
             (s->regs.dp_mix & GMC_ROP3_MASK) >> 16);
-    DPRINTF("%d %d, %d %d, (%d,%d) -> (%d,%d) %dx%d\n", s->regs.src_offset,
-            s->regs.dst_offset, s->regs.src_pitch, s->regs.dst_pitch,
+    DPRINTF("%d %d %d, %d %d %d, (%d,%d) -> (%d,%d) %dx%d\n",
+            s->regs.src_offset, s->regs.dst_offset, s->regs.default_offset,
+            s->regs.src_pitch, s->regs.dst_pitch, s->regs.default_pitch,
             s->regs.src_x, s->regs.src_y, s->regs.dst_x, s->regs.dst_y,
             s->regs.dst_width, s->regs.dst_height);
     switch (s->regs.dp_mix & GMC_ROP3_MASK) {
@@ -60,10 +61,16 @@ void ati_2d_blt(ATIVGAState *s)
     {
         uint8_t *src_bits, *dst_bits, *end;
         int src_stride, dst_stride, bpp = ati_bpp_from_datatype(s);
-        src_bits = s->vga.vram_ptr + s->regs.src_offset;
-        dst_bits = s->vga.vram_ptr + s->regs.dst_offset;
-        src_stride = s->regs.src_pitch;
-        dst_stride = s->regs.dst_pitch;
+        src_bits = s->vga.vram_ptr +
+                   (s->regs.dp_gui_master_cntl & GMC_SRC_PITCH_OFFSET_CNTL ?
+                    s->regs.src_offset : s->regs.default_offset);
+        dst_bits = s->vga.vram_ptr +
+                   (s->regs.dp_gui_master_cntl & GMC_DST_PITCH_OFFSET_CNTL ?
+                    s->regs.dst_offset : s->regs.default_offset);
+        src_stride = (s->regs.dp_gui_master_cntl & GMC_SRC_PITCH_OFFSET_CNTL ?
+                      s->regs.src_pitch : s->regs.default_pitch);
+        dst_stride = (s->regs.dp_gui_master_cntl & GMC_DST_PITCH_OFFSET_CNTL ?
+                      s->regs.dst_pitch : s->regs.default_pitch);
 
         if (s->dev_id == PCI_DEVICE_ID_ATI_RAGE128_PF) {
             src_bits += s->regs.crtc_offset & 0x07ffffff;
@@ -111,8 +118,11 @@ void ati_2d_blt(ATIVGAState *s)
         uint8_t *dst_bits, *end;
         int dst_stride, bpp = ati_bpp_from_datatype(s);
         uint32_t filler = 0;
-        dst_bits = s->vga.vram_ptr + s->regs.dst_offset;
-        dst_stride = s->regs.dst_pitch;
+        dst_bits = s->vga.vram_ptr +
+                   (s->regs.dp_gui_master_cntl & GMC_DST_PITCH_OFFSET_CNTL ?
+                    s->regs.dst_offset : s->regs.default_offset);
+        dst_stride = (s->regs.dp_gui_master_cntl & GMC_DST_PITCH_OFFSET_CNTL ?
+                      s->regs.dst_pitch : s->regs.default_pitch);
 
         if (s->dev_id == PCI_DEVICE_ID_ATI_RAGE128_PF) {
             dst_bits += s->regs.crtc_offset & 0x07ffffff;
