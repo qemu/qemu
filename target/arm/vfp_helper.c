@@ -18,16 +18,19 @@
  */
 
 #include "qemu/osdep.h"
-#include "qemu/log.h"
 #include "cpu.h"
 #include "exec/helper-proto.h"
-#include "fpu/softfloat.h"
 #include "internals.h"
-
+#ifdef CONFIG_TCG
+#include "qemu/log.h"
+#include "fpu/softfloat.h"
+#endif
 
 /* VFP support.  We follow the convention used for VFP instructions:
    Single precision routines have a "s" suffix, double precision a
    "d" suffix.  */
+
+#ifdef CONFIG_TCG
 
 /* Convert host exception flags to vfp form.  */
 static inline int vfp_exceptbits_from_host(int host_bits)
@@ -145,6 +148,19 @@ static void vfp_set_fpscr_to_host(CPUARMState *env, uint32_t val)
     set_float_exception_flags(0, &env->vfp.standard_fp_status);
 }
 
+#else
+
+static uint32_t vfp_get_fpscr_from_host(CPUARMState *env)
+{
+    return 0;
+}
+
+static void vfp_set_fpscr_to_host(CPUARMState *env, uint32_t val)
+{
+}
+
+#endif
+
 uint32_t HELPER(vfp_get_fpscr)(CPUARMState *env)
 {
     uint32_t i, fpscr;
@@ -209,6 +225,8 @@ void vfp_set_fpscr(CPUARMState *env, uint32_t val)
 {
     HELPER(vfp_set_fpscr)(env, val);
 }
+
+#ifdef CONFIG_TCG
 
 #define VFP_HELPER(name, p) HELPER(glue(glue(vfp_,name),p))
 
@@ -1303,3 +1321,5 @@ float64 HELPER(frint64_d)(float64 f, void *fpst)
 {
     return frint_d(f, fpst, 64);
 }
+
+#endif
