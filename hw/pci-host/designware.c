@@ -297,16 +297,10 @@ static void designware_pcie_root_config_write(PCIDevice *d, uint32_t address,
         root->msi.base |= (uint64_t)val << 32;
         break;
 
-    case DESIGNWARE_PCIE_MSI_INTR0_ENABLE: {
-        const bool update_msi_mapping = !root->msi.intr[0].enable ^ !!val;
-
+    case DESIGNWARE_PCIE_MSI_INTR0_ENABLE:
         root->msi.intr[0].enable = val;
-
-        if (update_msi_mapping) {
-            designware_pcie_root_update_msi_mapping(root);
-        }
+        designware_pcie_root_update_msi_mapping(root);
         break;
-    }
 
     case DESIGNWARE_PCIE_MSI_INTR0_MASK:
         root->msi.intr[0].mask = val;
