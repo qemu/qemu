@@ -290,11 +290,13 @@ static void designware_pcie_root_config_write(PCIDevice *d, uint32_t address,
     case DESIGNWARE_PCIE_MSI_ADDR_LO:
         root->msi.base &= 0xFFFFFFFF00000000ULL;
         root->msi.base |= val;
+        designware_pcie_root_update_msi_mapping(root);
         break;
 
     case DESIGNWARE_PCIE_MSI_ADDR_HI:
         root->msi.base &= 0x00000000FFFFFFFFULL;
         root->msi.base |= (uint64_t)val << 32;
+        designware_pcie_root_update_msi_mapping(root);
         break;
 
     case DESIGNWARE_PCIE_MSI_INTR0_ENABLE:
