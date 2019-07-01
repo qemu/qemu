@@ -53,7 +53,7 @@ ENV PACKAGES flex bison \
     libsnappy-dev \
     libspice-protocol-dev \
     libspice-server-dev \
-    libssh2-1-dev \
+    libssh-dev \
     libusb-1.0-0-dev \
     libusbredirhost-dev \
     libvdeplug-dev \

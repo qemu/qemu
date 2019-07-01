@@ -782,7 +782,7 @@ print a warning when @code{fsync} is not supported:
 
 warning: ssh server @code{ssh.example.com:22} does not support fsync
 
-With sufficiently new versions of libssh2 and OpenSSH, @code{fsync} is
+With sufficiently new versions of libssh and OpenSSH, @code{fsync} is
 supported.
 
 @node disk_images_nvme

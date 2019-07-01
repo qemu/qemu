@@ -35,7 +35,7 @@ ENV PACKAGES \
     libpng-devel \
     librbd-devel \
     libseccomp-devel \
-    libssh2-devel \
+    libssh-devel \
     libubsan \
     libusbx-devel \
     libxml2-devel \
@@ -50,7 +50,6 @@ ENV PACKAGES \
     mingw32-gtk3 \
     mingw32-libjpeg-turbo \
     mingw32-libpng \
-    mingw32-libssh2 \
     mingw32-libtasn1 \
     mingw32-nettle \
     mingw32-pixman \
@@ -64,7 +63,6 @@ ENV PACKAGES \
     mingw64-gtk3 \
     mingw64-libjpeg-turbo \
     mingw64-libpng \
-    mingw64-libssh2 \
     mingw64-libtasn1 \
     mingw64-nettle \
     mingw64-pixman \

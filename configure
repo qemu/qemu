@@ -472,7 +472,7 @@ auth_pam=""
 vte=""
 virglrenderer=""
 tpm=""
-libssh2=""
+libssh=""
 live_block_migration="yes"
 numa=""
 tcmalloc="no"
@@ -1439,9 +1439,9 @@ for opt do
   ;;
   --enable-tpm) tpm="yes"
   ;;
-  --disable-libssh2) libssh2="no"
+  --disable-libssh) libssh="no"
   ;;
-  --enable-libssh2) libssh2="yes"
+  --enable-libssh) libssh="yes"
   ;;
   --disable-live-block-migration) live_block_migration="no"
   ;;
@@ -1810,7 +1810,7 @@ disabled with --disable-FEATURE, default is enabled if available:
   coroutine-pool  coroutine freelist (better performance)
   glusterfs       GlusterFS backend
   tpm             TPM support
-  libssh2         ssh block device support
+  libssh          ssh block device support
   numa            libnuma support
   libxml2         for Parallels image format
   tcmalloc        tcmalloc support
@@ -3914,43 +3914,34 @@ EOF
 fi
 
 ##########################################
-# libssh2 probe
-min_libssh2_version=1.2.8
-if test "$libssh2" != "no" ; then
-  if $pkg_config --atleast-version=$min_libssh2_version libssh2; then
-    libssh2_cflags=$($pkg_config libssh2 --cflags)
-    libssh2_libs=$($pkg_config libssh2 --libs)
-    libssh2=yes
+# libssh probe
+if test "$libssh" != "no" ; then
+  if $pkg_config --exists libssh; then
+    libssh_cflags=$($pkg_config libssh --cflags)
+    libssh_libs=$($pkg_config libssh --libs)
+    libssh=yes
   else
-    if test "$libssh2" = "yes" ; then
-      error_exit "libssh2 >= $min_libssh2_version required for --enable-libssh2"
+    if test "$libssh" = "yes" ; then
+      error_exit "libssh required for --enable-libssh"
     fi
-    libssh2=no
+    libssh=no
   fi
 fi
 
 ##########################################
-# libssh2_sftp_fsync probe
+# Check for libssh 0.8
+# This is done like this instead of using the LIBSSH_VERSION_* and
+# SSH_VERSION_* macros because some distributions in the past shipped
+# snapshots of the future 0.8 from Git, and those snapshots did not
+# have updated version numbers (still referring to 0.7.0).
 
-if test "$libssh2" = "yes"; then
+if test "$libssh" = "yes"; then
   cat > $TMPC <<EOF
-#include <stdio.h>
-#include <libssh2.h>
-#include <libssh2_sftp.h>
-int main(void) {
-    LIBSSH2_SESSION *session;
-    LIBSSH2_SFTP *sftp;
-    LIBSSH2_SFTP_HANDLE *sftp_handle;
-    session = libssh2_session_init ();
-    sftp = libssh2_sftp_init (session);
-    sftp_handle = libssh2_sftp_open (sftp, "/", 0, 0);
-    libssh2_sftp_fsync (sftp_handle);
-    return 0;
-}
+#include <libssh/libssh.h>
+int main(void) { return ssh_get_server_publickey(NULL, NULL); }
 EOF
-  # libssh2_cflags/libssh2_libs defined in previous test.
-  if compile_prog "$libssh2_cflags" "$libssh2_libs" ; then
-    QEMU_CFLAGS="-DHAS_LIBSSH2_SFTP_FSYNC $QEMU_CFLAGS"
+  if compile_prog "$libssh_cflags" "$libssh_libs"; then
+    libssh_cflags="-DHAVE_LIBSSH_0_8 $libssh_cflags"
   fi
 fi
 
@@ -6451,7 +6442,7 @@ echo "GlusterFS support $glusterfs"
 echo "gcov              $gcov_tool"
 echo "gcov enabled      $gcov"
 echo "TPM support       $tpm"
-echo "libssh2 support   $libssh2"
+echo "libssh support    $libssh"
 echo "QOM debugging     $qom_cast_debug"
 echo "Live block migration $live_block_migration"
 echo "lzo support       $lzo"
@@ -7144,10 +7135,10 @@ if test "$glusterfs_iocb_has_stat" = "yes" ; then
   echo "CONFIG_GLUSTERFS_IOCB_HAS_STAT=y" >> $config_host_mak
 fi
 
-if test "$libssh2" = "yes" ; then
-  echo "CONFIG_LIBSSH2=m" >> $config_host_mak
-  echo "LIBSSH2_CFLAGS=$libssh2_cflags" >> $config_host_mak
-  echo "LIBSSH2_LIBS=$libssh2_libs" >> $config_host_mak
+if test "$libssh" = "yes" ; then
+  echo "CONFIG_LIBSSH=m" >> $config_host_mak
+  echo "LIBSSH_CFLAGS=$libssh_cflags" >> $config_host_mak
+  echo "LIBSSH_LIBS=$libssh_libs" >> $config_host_mak
 fi
 
 if test "$live_block_migration" = "yes" ; then

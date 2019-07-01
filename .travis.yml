@@ -31,7 +31,7 @@ addons:
       - libseccomp-dev
       - libspice-protocol-dev
       - libspice-server-dev
-      - libssh2-1-dev
+      - libssh-dev
       - liburcu-dev
       - libusb-1.0-0-dev
       - libvte-2.91-dev
@@ -270,7 +270,7 @@ matrix:
             - libseccomp-dev
             - libspice-protocol-dev
             - libspice-server-dev
-            - libssh2-1-dev
+            - libssh-dev
             - liburcu-dev
             - libusb-1.0-0-dev
             - libvte-2.91-dev
