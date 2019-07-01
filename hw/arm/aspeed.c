@@ -191,8 +191,8 @@ static void aspeed_board_init(MachineState *machine,
                                         &error_abort);
 
     memory_region_allocate_system_memory(&bmc->ram, NULL, "ram", ram_size);
-    memory_region_add_subregion(get_system_memory(), sc->info->sdram_base,
-                                &bmc->ram);
+    memory_region_add_subregion(get_system_memory(),
+                                sc->info->memmap[ASPEED_SDRAM], &bmc->ram);
     object_property_add_const_link(OBJECT(&bmc->soc), "ram", OBJECT(&bmc->ram),
                                    &error_abort);
 
@@ -201,7 +201,7 @@ static void aspeed_board_init(MachineState *machine,
     memory_region_init_io(&bmc->max_ram, NULL, &max_ram_ops, NULL,
                           "max_ram", max_ram_size  - ram_size);
     memory_region_add_subregion(get_system_memory(),
-                                sc->info->sdram_base + ram_size,
+                                sc->info->memmap[ASPEED_SDRAM] + ram_size,
                                 &bmc->max_ram);
 
     aspeed_board_init_flashes(&bmc->soc.fmc, cfg->fmc_model, &error_abort);
@@ -229,7 +229,7 @@ static void aspeed_board_init(MachineState *machine,
     aspeed_board_binfo.initrd_filename = machine->initrd_filename;
     aspeed_board_binfo.kernel_cmdline = machine->kernel_cmdline;
     aspeed_board_binfo.ram_size = ram_size;
-    aspeed_board_binfo.loader_start = sc->info->sdram_base;
+    aspeed_board_binfo.loader_start = sc->info->memmap[ASPEED_SDRAM];
 
     if (cfg->i2c_init) {
         cfg->i2c_init(bmc);

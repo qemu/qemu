@@ -49,14 +49,13 @@ typedef struct AspeedSoCInfo {
     const char *name;
     const char *cpu_type;
     uint32_t silicon_rev;
-    hwaddr sdram_base;
     uint64_t sram_size;
     int spis_num;
-    const hwaddr *spi_bases;
     const char *fmc_typename;
     const char **spi_typename;
     int wdts_num;
     const int *irqmap;
+    const hwaddr *memmap;
 } AspeedSoCInfo;
 
 typedef struct AspeedSoCClass {
@@ -102,6 +101,7 @@ enum {
     ASPEED_I2C,
     ASPEED_ETH1,
     ASPEED_ETH2,
+    ASPEED_SDRAM,
 };
 
 #endif /* ASPEED_SOC_H */
