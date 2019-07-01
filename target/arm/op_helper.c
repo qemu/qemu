@@ -97,7 +97,8 @@ static inline uint32_t merge_syn_data_abort(uint32_t template_syn,
 {
     uint32_t syn;
 
-    /* ISV is only set for data aborts routed to EL2 and
+    /*
+     * ISV is only set for data aborts routed to EL2 and
      * never for stage-1 page table walks faulting on stage 2.
      *
      * Furthermore, ISV is only set for certain kinds of load/stores.
@@ -112,7 +113,8 @@ static inline uint32_t merge_syn_data_abort(uint32_t template_syn,
         syn = syn_data_abort_no_iss(same_el,
                                     ea, 0, s1ptw, is_write, fsc);
     } else {
-        /* Fields: IL, ISV, SAS, SSE, SRT, SF and AR come from the template
+        /*
+         * Fields: IL, ISV, SAS, SSE, SRT, SF and AR come from the template
          * syndrome created at translation time.
          * Now we create the runtime syndrome with the remaining fields.
          */
@@ -144,14 +146,16 @@ void arm_deliver_fault(ARMCPU *cpu, vaddr addr, MMUAccessType access_type,
 
     if (target_el == 2 || arm_el_is_aa64(env, target_el) ||
         arm_s1_regime_using_lpae_format(env, arm_mmu_idx)) {
-        /* LPAE format fault status register : bottom 6 bits are
+        /*
+         * LPAE format fault status register : bottom 6 bits are
          * status code in the same form as needed for syndrome
          */
         fsr = arm_fi_to_lfsc(fi);
         fsc = extract32(fsr, 0, 6);
     } else {
         fsr = arm_fi_to_sfsc(fi);
-        /* Short format FSR : this fault will never actually be reported
+        /*
+         * Short format FSR : this fault will never actually be reported
          * to an EL that uses a syndrome register. Use a (currently)
          * reserved FSR code in case the constructed syndrome does leak
          * into the guest somehow.
@@ -194,7 +198,8 @@ void arm_cpu_do_unaligned_access(CPUState *cs, vaddr vaddr,
     arm_deliver_fault(cpu, vaddr, access_type, mmu_idx, &fi);
 }
 
-/* arm_cpu_do_transaction_failed: handle a memory system error response
+/*
+ * arm_cpu_do_transaction_failed: handle a memory system error response
  * (eg "no device/memory present at address") by raising an external abort
  * exception
  */
@@ -970,7 +975,8 @@ static bool linked_bp_matches(ARMCPU *cpu, int lbn)
     int bt;
     uint32_t contextidr;
 
-    /* Links to unimplemented or non-context aware breakpoints are
+    /*
+     * Links to unimplemented or non-context aware breakpoints are
      * CONSTRAINED UNPREDICTABLE: either behave as if disabled, or
      * as if linked to an UNKNOWN context-aware breakpoint (in which
      * case DBGWCR<n>_EL1.LBN must indicate that breakpoint).
@@ -989,7 +995,8 @@ static bool linked_bp_matches(ARMCPU *cpu, int lbn)
 
     bt = extract64(bcr, 20, 4);
 
-    /* We match the whole register even if this is AArch32 using the
+    /*
+     * We match the whole register even if this is AArch32 using the
      * short descriptor format (in which case it holds both PROCID and ASID),
      * since we don't implement the optional v7 context ID masking.
      */
@@ -1006,7 +1013,8 @@ static bool linked_bp_matches(ARMCPU *cpu, int lbn)
     case 9: /* linked VMID match (reserved if no EL2) */
     case 11: /* linked context ID and VMID match (reserved if no EL2) */
     default:
-        /* Links to Unlinked context breakpoints must generate no
+        /*
+         * Links to Unlinked context breakpoints must generate no
          * events; we choose to do the same for reserved values too.
          */
         return false;
@@ -1020,7 +1028,8 @@ static bool bp_wp_matches(ARMCPU *cpu, int n, bool is_wp)
     CPUARMState *env = &cpu->env;
     uint64_t cr;
     int pac, hmc, ssc, wt, lbn;
-    /* Note that for watchpoints the check is against the CPU security
+    /*
+     * Note that for watchpoints the check is against the CPU security
      * state, not the S/NS attribute on the offending data access.
      */
     bool is_secure = arm_is_secure(env);
@@ -1034,7 +1043,8 @@ static bool bp_wp_matches(ARMCPU *cpu, int n, bool is_wp)
         }
         cr = env->cp15.dbgwcr[n];
         if (wp->hitattrs.user) {
-            /* The LDRT/STRT/LDT/STT "unprivileged access" instructions should
+            /*
+             * The LDRT/STRT/LDT/STT "unprivileged access" instructions should
              * match watchpoints as if they were accesses done at EL0, even if
              * the CPU is at EL1 or higher.
              */
@@ -1048,7 +1058,8 @@ static bool bp_wp_matches(ARMCPU *cpu, int n, bool is_wp)
         }
         cr = env->cp15.dbgbcr[n];
     }
-    /* The WATCHPOINT_HIT flag guarantees us that the watchpoint is
+    /*
+     * The WATCHPOINT_HIT flag guarantees us that the watchpoint is
      * enabled and that the address and access type match; for breakpoints
      * we know the address matched; check the remaining fields, including
      * linked breakpoints. We rely on WCR and BCR having the same layout
@@ -1116,7 +1127,8 @@ static bool check_watchpoints(ARMCPU *cpu)
     CPUARMState *env = &cpu->env;
     int n;
 
-    /* If watchpoints are disabled globally or we can't take debug
+    /*
+     * If watchpoints are disabled globally or we can't take debug
      * exceptions here then watchpoint firings are ignored.
      */
     if (extract32(env->cp15.mdscr_el1, 15, 1) == 0
@@ -1137,7 +1149,8 @@ static bool check_breakpoints(ARMCPU *cpu)
     CPUARMState *env = &cpu->env;
     int n;
 
-    /* If breakpoints are disabled globally or we can't take debug
+    /*
+     * If breakpoints are disabled globally or we can't take debug
      * exceptions here then breakpoint firings are ignored.
      */
     if (extract32(env->cp15.mdscr_el1, 15, 1) == 0
@@ -1164,7 +1177,8 @@ void HELPER(check_breakpoints)(CPUARMState *env)
 
 bool arm_debug_check_watchpoint(CPUState *cs, CPUWatchpoint *wp)
 {
-    /* Called by core code when a CPU watchpoint fires; need to check if this
+    /*
+     * Called by core code when a CPU watchpoint fires; need to check if this
      * is also an architectural watchpoint match.
      */
     ARMCPU *cpu = ARM_CPU(cs);
@@ -1177,7 +1191,8 @@ vaddr arm_adjust_watchpoint_address(CPUState *cs, vaddr addr, int len)
     ARMCPU *cpu = ARM_CPU(cs);
     CPUARMState *env = &cpu->env;
 
-    /* In BE32 system mode, target memory is stored byteswapped (on a
+    /*
+     * In BE32 system mode, target memory is stored byteswapped (on a
      * little-endian host system), and by the time we reach here (via an
      * opcode helper) the addresses of subword accesses have been adjusted
      * to account for that, which means that watchpoints will not match.
@@ -1196,7 +1211,8 @@ vaddr arm_adjust_watchpoint_address(CPUState *cs, vaddr addr, int len)
 
 void arm_debug_excp_handler(CPUState *cs)
 {
-    /* Called by core code when a watchpoint or breakpoint fires;
+    /*
+     * Called by core code when a watchpoint or breakpoint fires;
      * need to check which one and raise the appropriate exception.
      */
     ARMCPU *cpu = ARM_CPU(cs);
@@ -1220,7 +1236,8 @@ void arm_debug_excp_handler(CPUState *cs)
         uint64_t pc = is_a64(env) ? env->pc : env->regs[15];
         bool same_el = (arm_debug_target_el(env) == arm_current_el(env));
 
-        /* (1) GDB breakpoints should be handled first.
+        /*
+         * (1) GDB breakpoints should be handled first.
          * (2) Do not raise a CPU exception if no CPU breakpoint has fired,
          * since singlestep is also done by generating a debug internal
          * exception.
@@ -1231,7 +1248,8 @@ void arm_debug_excp_handler(CPUState *cs)
         }
 
         env->exception.fsr = arm_debug_exception_fsr(env);
-        /* FAR is UNKNOWN: clear vaddress to avoid potentially exposing
+        /*
+         * FAR is UNKNOWN: clear vaddress to avoid potentially exposing
          * values to the guest that it shouldn't be able to see at its
          * exception/security level.
          */

@@ -170,7 +170,8 @@ void HELPER(vfp_set_fpscr)(CPUARMState *env, uint32_t val)
         set_default_nan_mode(dnan_enabled, &env->vfp.fp_status_f16);
     }
 
-    /* The exception flags are ORed together when we read fpscr so we
+    /*
+     * The exception flags are ORed together when we read fpscr so we
      * only need to preserve the current state in one of our
      * float_status values.
      */
