@@ -104,54 +104,63 @@ static void aspeed_vic_set_irq(void *opaque, int irq, int level)
 
 static uint64_t aspeed_vic_read(void *opaque, hwaddr offset, unsigned size)
 {
-    uint64_t val;
-    const bool high = !!(offset & 0x4);
-    hwaddr n_offset = (offset & ~0x4);
     AspeedVICState *s = (AspeedVICState *)opaque;
+    hwaddr n_offset;
+    uint64_t val;
+    bool high;
 
     if (offset < AVIC_NEW_BASE_OFFSET) {
-        qemu_log_mask(LOG_UNIMP, "%s: Ignoring read from legacy registers "
-                      "at 0x%" HWADDR_PRIx "[%u]\n", __func__, offset, size);
-        return 0;
+        high = false;
+        n_offset = offset;
+    } else {
+        high = !!(offset & 0x4);
+        n_offset = (offset & ~0x4);
     }
 
-    n_offset -= AVIC_NEW_BASE_OFFSET;
-
     switch (n_offset) {
-    case 0x0: /* IRQ Status */
+    case 0x80: /* IRQ Status */
+    case 0x00:
         val = s->raw & ~s->select & s->enable;
         break;
-    case 0x08: /* FIQ Status */
+    case 0x88: /* FIQ Status */
+    case 0x04:
         val = s->raw & s->select & s->enable;
         break;
-    case 0x10: /* Raw Interrupt Status */
+    case 0x90: /* Raw Interrupt Status */
+    case 0x08:
         val = s->raw;
         break;
-    case 0x18: /* Interrupt Selection */
+    case 0x98: /* Interrupt Selection */
+    case 0x0c:
         val = s->select;
         break;
-    case 0x20: /* Interrupt Enable */
+    case 0xa0: /* Interrupt Enable */
+    case 0x10:
         val = s->enable;
         break;
-    case 0x30: /* Software Interrupt */
+    case 0xb0: /* Software Interrupt */
+    case 0x18:
         val = s->trigger;
         break;
-    case 0x40: /* Interrupt Sensitivity */
+    case 0xc0: /* Interrupt Sensitivity */
+    case 0x24:
         val = s->sense;
         break;
-    case 0x48: /* Interrupt Both Edge Trigger Control */
+    case 0xc8: /* Interrupt Both Edge Trigger Control */
+    case 0x28:
         val = s->dual_edge;
         break;
-    case 0x50: /* Interrupt Event */
+    case 0xd0: /* Interrupt Event */
+    case 0x2c:
         val = s->event;
         break;
-    case 0x60: /* Edge Triggered Interrupt Status */
+    case 0xe0: /* Edge Triggered Interrupt Status */
         val = s->raw & ~s->sense;
         break;
         /* Illegal */
-    case 0x28: /* Interrupt Enable Clear */
-    case 0x38: /* Software Interrupt Clear */
-    case 0x58: /* Edge Triggered Interrupt Clear */
+    case 0xa8: /* Interrupt Enable Clear */
+    case 0xb8: /* Software Interrupt Clear */
+    case 0xd8: /* Edge Triggered Interrupt Clear */
         qemu_log_mask(LOG_GUEST_ERROR,
                       "%s: Read of write-only register with offset 0x%"
                       HWADDR_PRIx "\n", __func__, offset);
@@ -166,6 +175,8 @@ static uint64_t aspeed_vic_read(void *opaque, hwaddr offset, unsigned size)
     }
     if (high) {
         val = extract64(val, 32, 19);
+    } else {
+        val = extract64(val, 0, 32);
     }
     trace_aspeed_vic_read(offset, size, val);
     return val;
@@ -174,19 +185,18 @@ static uint64_t aspeed_vic_read(void *opaque, hwaddr offset, unsigned size)
 static void aspeed_vic_write(void *opaque, hwaddr offset, uint64_t data,
                              unsigned size)
 {
-    const bool high = !!(offset & 0x4);
-    hwaddr n_offset = (offset & ~0x4);
     AspeedVICState *s = (AspeedVICState *)opaque;
+    hwaddr n_offset;
+    bool high;
 
     if (offset < AVIC_NEW_BASE_OFFSET) {
-        qemu_log_mask(LOG_UNIMP,
-                      "%s: Ignoring write to legacy registers at 0x%"
-                      HWADDR_PRIx "[%u] <- 0x%" PRIx64 "\n", __func__, offset,
-                      size, data);
-        return;
+        high = false;
+        n_offset = offset;
+    } else {
+        high = !!(offset & 0x4);
+        n_offset = (offset & ~0x4);
     }
 
-    n_offset -= AVIC_NEW_BASE_OFFSET;
     trace_aspeed_vic_write(offset, size, data);
 
     /* Given we have members using separate enable/clear registers, deposit64()
@@ -201,7 +211,8 @@ static void aspeed_vic_write(void *opaque, hwaddr offset, uint64_t data,
     }
 
     switch (n_offset) {
-    case 0x18: /* Interrupt Selection */
+    case 0x98: /* Interrupt Selection */
+    case 0x0c:
         /* Register has deposit64() semantics - overwrite requested 32 bits */
         if (high) {
             s->select &= AVIC_L_MASK;
@@ -210,21 +221,25 @@ static void aspeed_vic_write(void *opaque, hwaddr offset, uint64_t data,
         }
         s->select |= data;
         break;
-    case 0x20: /* Interrupt Enable */
+    case 0xa0: /* Interrupt Enable */
+    case 0x10:
         s->enable |= data;
         break;
-    case 0x28: /* Interrupt Enable Clear */
+    case 0xa8: /* Interrupt Enable Clear */
+    case 0x14:
         s->enable &= ~data;
         break;
-    case 0x30: /* Software Interrupt */
+    case 0xb0: /* Software Interrupt */
+    case 0x18:
         qemu_log_mask(LOG_UNIMP, "%s: Software interrupts unavailable. "
                       "IRQs requested: 0x%016" PRIx64 "\n", __func__, data);
         break;
-    case 0x38: /* Software Interrupt Clear */
+    case 0xb8: /* Software Interrupt Clear */
+    case 0x1c:
         qemu_log_mask(LOG_UNIMP, "%s: Software interrupts unavailable. "
                       "IRQs to be cleared: 0x%016" PRIx64 "\n", __func__, data);
         break;
-    case 0x50: /* Interrupt Event */
+    case 0xd0: /* Interrupt Event */
         /* Register has deposit64() semantics - overwrite the top four valid
          * IRQ bits, as only the top four IRQs (GPIOs) can change their event
          * type */
@@ -236,15 +251,21 @@ static void aspeed_vic_write(void *opaque, hwaddr offset, uint64_t data,
                           "Ignoring invalid write to interrupt event register");
         }
         break;
-    case 0x58: /* Edge Triggered Interrupt Clear */
+    case 0xd8: /* Edge Triggered Interrupt Clear */
+    case 0x38:
         s->raw &= ~(data & ~s->sense);
         break;
-    case 0x00: /* IRQ Status */
-    case 0x08: /* FIQ Status */
-    case 0x10: /* Raw Interrupt Status */
-    case 0x40: /* Interrupt Sensitivity */
-    case 0x48: /* Interrupt Both Edge Trigger Control */
-    case 0x60: /* Edge Triggered Interrupt Status */
+    case 0x80: /* IRQ Status */
+    case 0x00:
+    case 0x88: /* FIQ Status */
+    case 0x04:
+    case 0x90: /* Raw Interrupt Status */
+    case 0x08:
+    case 0xc0: /* Interrupt Sensitivity */
+    case 0x24:
+    case 0xc8: /* Interrupt Both Edge Trigger Control */
+    case 0x28:
+    case 0xe0: /* Edge Triggered Interrupt Status */
         qemu_log_mask(LOG_GUEST_ERROR,
                       "%s: Write of read-only register with offset 0x%"
                       HWADDR_PRIx "\n", __func__, offset);
