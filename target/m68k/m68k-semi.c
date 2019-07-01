@@ -130,7 +130,8 @@ static void m68k_semi_return_u32(CPUM68KState *env, uint32_t ret, uint32_t err)
     target_ulong args = env->dregs[1];
     if (put_user_u32(ret, args) ||
         put_user_u32(err, args + 4)) {
-        /* The m68k semihosting ABI does not provide any way to report this
+        /*
+         * The m68k semihosting ABI does not provide any way to report this
          * error to the guest, so the best we can do is log it in qemu.
          * It is always a guest error not to pass us a valid argument block.
          */
@@ -159,8 +160,10 @@ static void m68k_semi_cb(CPUState *cs, target_ulong ret, target_ulong err)
     CPUM68KState *env = &cpu->env;
 
     if (m68k_semi_is_fseek) {
-        /* FIXME: We've already lost the high bits of the fseek
-           return value.  */
+        /*
+         * FIXME: We've already lost the high bits of the fseek
+         * return value.
+         */
         m68k_semi_return_u64(env, ret, err);
         m68k_semi_is_fseek = 0;
     } else {
@@ -168,7 +171,8 @@ static void m68k_semi_cb(CPUState *cs, target_ulong ret, target_ulong err)
     }
 }
 
-/* Read the input value from the argument block; fail the semihosting
+/*
+ * Read the input value from the argument block; fail the semihosting
  * call if the memory read fails.
  */
 #define GET_ARG(n) do {                                 \
@@ -440,14 +444,18 @@ void do_m68k_semihosting(CPUM68KState *env, int nr)
             }
             ts->heap_limit = base + size;
         }
-        /* This call may happen before we have writable memory, so return
-           values directly in registers.  */
+        /*
+         * This call may happen before we have writable memory, so return
+         * values directly in registers.
+         */
         env->dregs[1] = ts->heap_limit;
         env->aregs[7] = ts->stack_base;
         }
 #else
-        /* FIXME: This is wrong for boards where RAM does not start at
-           address zero.  */
+        /*
+         * FIXME: This is wrong for boards where RAM does not start at
+         * address zero.
+         */
         env->dregs[1] = ram_size;
         env->aregs[7] = ram_size;
 #endif
