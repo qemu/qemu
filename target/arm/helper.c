@@ -39,21 +39,6 @@ static bool get_phys_addr_lpae(CPUARMState *env, target_ulong address,
                                hwaddr *phys_ptr, MemTxAttrs *txattrs, int *prot,
                                target_ulong *page_size_ptr,
                                ARMMMUFaultInfo *fi, ARMCacheAttrs *cacheattrs);
-
-/* Security attributes for an address, as returned by v8m_security_lookup. */
-typedef struct V8M_SAttributes {
-    bool subpage; /* true if these attrs don't cover the whole TARGET_PAGE */
-    bool ns;
-    bool nsc;
-    uint8_t sregion;
-    bool srvalid;
-    uint8_t iregion;
-    bool irvalid;
-} V8M_SAttributes;
-
-static void v8m_security_lookup(CPUARMState *env, uint32_t address,
-                                MMUAccessType access_type, ARMMMUIdx mmu_idx,
-                                V8M_SAttributes *sattrs);
 #endif
 
 static void switch_mode(CPUARMState *env, int mode);
@@ -7734,25 +7719,6 @@ void arm_log_exception(int idx)
 }
 
 /*
- * Return true if the v7M CPACR permits access to the FPU for the specified
- * security state and privilege level.
- */
-static bool v7m_cpacr_pass(CPUARMState *env, bool is_secure, bool is_priv)
-{
-    switch (extract32(env->v7m.cpacr[is_secure], 20, 2)) {
-    case 0:
-    case 2: /* UNPREDICTABLE: we treat like 0 */
-        return false;
-    case 1:
-        return is_priv;
-    case 3:
-        return true;
-    default:
-        g_assert_not_reached();
-    }
-}
-
-/*
  * What kind of stack write are we doing? This affects how exceptions
  * generated during the stacking are treated.
  */
@@ -12117,7 +12083,7 @@ static bool v8m_is_sau_exempt(CPUARMState *env,
         (address >= 0xe00ff000 && address <= 0xe00fffff);
 }
 
-static void v8m_security_lookup(CPUARMState *env, uint32_t address,
+void v8m_security_lookup(CPUARMState *env, uint32_t address,
                                 MMUAccessType access_type, ARMMMUIdx mmu_idx,
                                 V8M_SAttributes *sattrs)
 {
@@ -12224,7 +12190,7 @@ static void v8m_security_lookup(CPUARMState *env, uint32_t address,
     }
 }
 
-static bool pmsav8_mpu_lookup(CPUARMState *env, uint32_t address,
+bool pmsav8_mpu_lookup(CPUARMState *env, uint32_t address,
                               MMUAccessType access_type, ARMMMUIdx mmu_idx,
                               hwaddr *phys_ptr, MemTxAttrs *txattrs,
                               int *prot, bool *is_subpage,
