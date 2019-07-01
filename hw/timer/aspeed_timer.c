@@ -187,7 +187,11 @@ static uint64_t aspeed_timer_get_value(AspeedTimer *t, int reg)
 
     switch (reg) {
     case TIMER_REG_STATUS:
-        value = calculate_ticks(t, qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL));
+        if (timer_enabled(t)) {
+            value = calculate_ticks(t, qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL));
+        } else {
+            value = t->reload;
+        }
         break;
     case TIMER_REG_RELOAD:
         value = t->reload;
