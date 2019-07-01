@@ -1737,7 +1737,7 @@ void helper_msa_ilvev_df(CPUMIPSState *env, uint32_t df, uint32_t wd,
 
     switch (df) {
     case DF_BYTE:
-#if defined(TARGET_WORDS_BIGENDIAN)
+#if defined(HOST_WORDS_BIGENDIAN)
         pwd->b[8]  = pws->b[9];
         pwd->b[9]  = pwt->b[9];
         pwd->b[10] = pws->b[11];
@@ -1774,7 +1774,7 @@ void helper_msa_ilvev_df(CPUMIPSState *env, uint32_t df, uint32_t wd,
 #endif
         break;
     case DF_HALF:
-#if defined(TARGET_WORDS_BIGENDIAN)
+#if defined(HOST_WORDS_BIGENDIAN)
         pwd->h[4] = pws->h[5];
         pwd->h[5] = pwt->h[5];
         pwd->h[6] = pws->h[7];
@@ -1795,7 +1795,7 @@ void helper_msa_ilvev_df(CPUMIPSState *env, uint32_t df, uint32_t wd,
 #endif
         break;
     case DF_WORD:
-#if defined(TARGET_WORDS_BIGENDIAN)
+#if defined(HOST_WORDS_BIGENDIAN)
         pwd->w[2] = pws->w[3];
         pwd->w[3] = pwt->w[3];
         pwd->w[0] = pws->w[1];
@@ -1825,7 +1825,7 @@ void helper_msa_ilvod_df(CPUMIPSState *env, uint32_t df, uint32_t wd,
 
     switch (df) {
     case DF_BYTE:
-#if defined(TARGET_WORDS_BIGENDIAN)
+#if defined(HOST_WORDS_BIGENDIAN)
         pwd->b[7]  = pwt->b[6];
         pwd->b[6]  = pws->b[6];
         pwd->b[5]  = pwt->b[4];
@@ -1862,7 +1862,7 @@ void helper_msa_ilvod_df(CPUMIPSState *env, uint32_t df, uint32_t wd,
 #endif
         break;
     case DF_HALF:
-#if defined(TARGET_WORDS_BIGENDIAN)
+#if defined(HOST_WORDS_BIGENDIAN)
         pwd->h[3] = pwt->h[2];
         pwd->h[2] = pws->h[2];
         pwd->h[1] = pwt->h[0];
@@ -1883,7 +1883,7 @@ void helper_msa_ilvod_df(CPUMIPSState *env, uint32_t df, uint32_t wd,
 #endif
         break;
     case DF_WORD:
-#if defined(TARGET_WORDS_BIGENDIAN)
+#if defined(HOST_WORDS_BIGENDIAN)
         pwd->w[1] = pwt->w[0];
         pwd->w[0] = pws->w[0];
         pwd->w[3] = pwt->w[2];
@@ -1913,7 +1913,7 @@ void helper_msa_ilvl_df(CPUMIPSState *env, uint32_t df, uint32_t wd,
 
     switch (df) {
     case DF_BYTE:
-#if defined(TARGET_WORDS_BIGENDIAN)
+#if defined(HOST_WORDS_BIGENDIAN)
         pwd->b[7]  = pwt->b[15];
         pwd->b[6]  = pws->b[15];
         pwd->b[5]  = pwt->b[14];
@@ -1950,7 +1950,7 @@ void helper_msa_ilvl_df(CPUMIPSState *env, uint32_t df, uint32_t wd,
 #endif
         break;
     case DF_HALF:
-#if defined(TARGET_WORDS_BIGENDIAN)
+#if defined(HOST_WORDS_BIGENDIAN)
         pwd->h[3] = pwt->h[7];
         pwd->h[2] = pws->h[7];
         pwd->h[1] = pwt->h[6];
@@ -1971,7 +1971,7 @@ void helper_msa_ilvl_df(CPUMIPSState *env, uint32_t df, uint32_t wd,
 #endif
         break;
     case DF_WORD:
-#if defined(TARGET_WORDS_BIGENDIAN)
+#if defined(HOST_WORDS_BIGENDIAN)
         pwd->w[1] = pwt->w[3];
         pwd->w[0] = pws->w[3];
         pwd->w[3] = pwt->w[2];
@@ -2001,7 +2001,7 @@ void helper_msa_ilvr_df(CPUMIPSState *env, uint32_t df, uint32_t wd,
 
     switch (df) {
     case DF_BYTE:
-#if defined(TARGET_WORDS_BIGENDIAN)
+#if defined(HOST_WORDS_BIGENDIAN)
         pwd->b[8]  = pws->b[0];
         pwd->b[9]  = pwt->b[0];
         pwd->b[10] = pws->b[1];
@@ -2038,7 +2038,7 @@ void helper_msa_ilvr_df(CPUMIPSState *env, uint32_t df, uint32_t wd,
 #endif
         break;
     case DF_HALF:
-#if defined(TARGET_WORDS_BIGENDIAN)
+#if defined(HOST_WORDS_BIGENDIAN)
         pwd->h[4] = pws->h[0];
         pwd->h[5] = pwt->h[0];
         pwd->h[6] = pws->h[1];
@@ -2059,7 +2059,7 @@ void helper_msa_ilvr_df(CPUMIPSState *env, uint32_t df, uint32_t wd,
 #endif
         break;
     case DF_WORD:
-#if defined(TARGET_WORDS_BIGENDIAN)
+#if defined(HOST_WORDS_BIGENDIAN)
         pwd->w[2] = pws->w[0];
         pwd->w[3] = pwt->w[0];
         pwd->w[0] = pws->w[1];

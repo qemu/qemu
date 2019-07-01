@@ -23,6 +23,7 @@
  */
 
 #include "qemu/osdep.h"
+#include "qemu/units.h"
 #include "hw/hw.h"
 #include "hw/mips/mips.h"
 #include "hw/sysbus.h"
@@ -57,8 +58,8 @@ typedef struct dma_pagetable_entry {
 
 #define TYPE_RC4030_IOMMU_MEMORY_REGION "rc4030-iommu-memory-region"
 
-typedef struct rc4030State
-{
+typedef struct rc4030State {
+
     SysBusDevice parent;
 
     uint32_t config; /* 0x0000: RC4030 config register */
@@ -151,8 +152,9 @@ static uint64_t rc4030_read(void *opaque, hwaddr addr, unsigned int size)
     case 0x0058:
         val = s->cache_bmask;
         /* HACK */
-        if (s->cache_bmask == (uint32_t)-1)
+        if (s->cache_bmask == (uint32_t)-1) {
             s->cache_bmask = 0;
+        }
         break;
     /* Remote Speed Registers */
     case 0x0070:
@@ -537,8 +539,9 @@ static void rc4030_reset(DeviceState *dev)
 
     s->memory_refresh_rate = 0x18186;
     s->nvram_protect = 7;
-    for (i = 0; i < 15; i++)
+    for (i = 0; i < 15; i++) {
         s->rem_speed[i] = 7;
+    }
     s->imr_jazz = 0x10; /* XXX: required by firmware, but why? */
     s->isr_jazz = 0;
 
@@ -550,7 +553,7 @@ static void rc4030_reset(DeviceState *dev)
 
 static int rc4030_post_load(void *opaque, int version_id)
 {
-    rc4030State* s = opaque;
+    rc4030State *s = opaque;
 
     set_next_tick(s);
     update_jazz_irq(s);
@@ -590,7 +593,8 @@ static void rc4030_do_dma(void *opaque, int n, uint8_t *buf, int len, int is_wri
     hwaddr dma_addr;
     int dev_to_mem;
 
-    s->dma_regs[n][DMA_REG_ENABLE] &= ~(DMA_FLAG_TC_INTR | DMA_FLAG_MEM_INTR | DMA_FLAG_ADDR_INTR);
+    s->dma_regs[n][DMA_REG_ENABLE] &=
+           ~(DMA_FLAG_TC_INTR | DMA_FLAG_MEM_INTR | DMA_FLAG_ADDR_INTR);
 
     /* Check DMA channel consistency */
     dev_to_mem = (s->dma_regs[n][DMA_REG_ENABLE] & DMA_FLAG_MEM_TO_DEV) ? 0 : 1;
@@ -602,8 +606,9 @@ static void rc4030_do_dma(void *opaque, int n, uint8_t *buf, int len, int is_wri
     }
 
     /* Get start address and len */
-    if (len > s->dma_regs[n][DMA_REG_COUNT])
+    if (len > s->dma_regs[n][DMA_REG_COUNT]) {
         len = s->dma_regs[n][DMA_REG_COUNT];
+    }
     dma_addr = s->dma_regs[n][DMA_REG_ADDRESS];
 
     /* Read/write data at right place */
@@ -678,7 +683,7 @@ static void rc4030_realize(DeviceState *dev, Error **errp)
 
     memory_region_init_iommu(&s->dma_mr, sizeof(s->dma_mr),
                              TYPE_RC4030_IOMMU_MEMORY_REGION,
-                             o, "rc4030.dma", UINT32_MAX);
+                             o, "rc4030.dma", 4 * GiB);
     address_space_init(&s->dma_as, MEMORY_REGION(&s->dma_mr), "rc4030-dma");
 }
 

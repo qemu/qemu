@@ -163,6 +163,7 @@ trace-events-subdirs += hw/input
 trace-events-subdirs += hw/intc
 trace-events-subdirs += hw/isa
 trace-events-subdirs += hw/mem
+trace-events-subdirs += hw/mips
 trace-events-subdirs += hw/misc
 trace-events-subdirs += hw/misc/macio
 trace-events-subdirs += hw/net

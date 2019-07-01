@@ -23,207 +23,202 @@
  */
 
 #include "qemu/osdep.h"
+#include "qemu/units.h"
+#include "qemu/log.h"
 #include "hw/hw.h"
 #include "hw/mips/mips.h"
 #include "hw/pci/pci.h"
 #include "hw/pci/pci_host.h"
 #include "hw/i386/pc.h"
 #include "exec/address-spaces.h"
+#include "trace.h"
 
-//#define DEBUG
-
-#ifdef DEBUG
-#define DPRINTF(fmt, ...) fprintf(stderr, "%s: " fmt, __func__, ##__VA_ARGS__)
-#else
-#define DPRINTF(fmt, ...)
-#endif
-
-#define GT_REGS			(0x1000 >> 2)
+#define GT_REGS                 (0x1000 >> 2)
 
 /* CPU Configuration */
-#define GT_CPU    		(0x000 >> 2)
-#define GT_MULTI    		(0x120 >> 2)
+#define GT_CPU                  (0x000 >> 2)
+#define GT_MULTI                (0x120 >> 2)
 
 /* CPU Address Decode */
-#define GT_SCS10LD    		(0x008 >> 2)
-#define GT_SCS10HD    		(0x010 >> 2)
-#define GT_SCS32LD    		(0x018 >> 2)
-#define GT_SCS32HD    		(0x020 >> 2)
-#define GT_CS20LD    		(0x028 >> 2)
-#define GT_CS20HD    		(0x030 >> 2)
-#define GT_CS3BOOTLD    	(0x038 >> 2)
-#define GT_CS3BOOTHD    	(0x040 >> 2)
-#define GT_PCI0IOLD    		(0x048 >> 2)
-#define GT_PCI0IOHD    		(0x050 >> 2)
-#define GT_PCI0M0LD    		(0x058 >> 2)
-#define GT_PCI0M0HD    		(0x060 >> 2)
-#define GT_PCI0M1LD    		(0x080 >> 2)
-#define GT_PCI0M1HD    		(0x088 >> 2)
-#define GT_PCI1IOLD    		(0x090 >> 2)
-#define GT_PCI1IOHD    		(0x098 >> 2)
-#define GT_PCI1M0LD    		(0x0a0 >> 2)
-#define GT_PCI1M0HD    		(0x0a8 >> 2)
-#define GT_PCI1M1LD    		(0x0b0 >> 2)
-#define GT_PCI1M1HD    		(0x0b8 >> 2)
-#define GT_ISD    		(0x068 >> 2)
+#define GT_SCS10LD              (0x008 >> 2)
+#define GT_SCS10HD              (0x010 >> 2)
+#define GT_SCS32LD              (0x018 >> 2)
+#define GT_SCS32HD              (0x020 >> 2)
+#define GT_CS20LD               (0x028 >> 2)
+#define GT_CS20HD               (0x030 >> 2)
+#define GT_CS3BOOTLD            (0x038 >> 2)
+#define GT_CS3BOOTHD            (0x040 >> 2)
+#define GT_PCI0IOLD             (0x048 >> 2)
+#define GT_PCI0IOHD             (0x050 >> 2)
+#define GT_PCI0M0LD             (0x058 >> 2)
+#define GT_PCI0M0HD             (0x060 >> 2)
+#define GT_PCI0M1LD             (0x080 >> 2)
+#define GT_PCI0M1HD             (0x088 >> 2)
+#define GT_PCI1IOLD             (0x090 >> 2)
+#define GT_PCI1IOHD             (0x098 >> 2)
+#define GT_PCI1M0LD             (0x0a0 >> 2)
+#define GT_PCI1M0HD             (0x0a8 >> 2)
+#define GT_PCI1M1LD             (0x0b0 >> 2)
+#define GT_PCI1M1HD             (0x0b8 >> 2)
+#define GT_ISD                  (0x068 >> 2)
 
-#define GT_SCS10AR    		(0x0d0 >> 2)
-#define GT_SCS32AR    		(0x0d8 >> 2)
-#define GT_CS20R    		(0x0e0 >> 2)
-#define GT_CS3BOOTR    		(0x0e8 >> 2)
+#define GT_SCS10AR              (0x0d0 >> 2)
+#define GT_SCS32AR              (0x0d8 >> 2)
+#define GT_CS20R                (0x0e0 >> 2)
+#define GT_CS3BOOTR             (0x0e8 >> 2)
 
-#define GT_PCI0IOREMAP    	(0x0f0 >> 2)
-#define GT_PCI0M0REMAP    	(0x0f8 >> 2)
-#define GT_PCI0M1REMAP    	(0x100 >> 2)
-#define GT_PCI1IOREMAP    	(0x108 >> 2)
-#define GT_PCI1M0REMAP    	(0x110 >> 2)
-#define GT_PCI1M1REMAP    	(0x118 >> 2)
+#define GT_PCI0IOREMAP          (0x0f0 >> 2)
+#define GT_PCI0M0REMAP          (0x0f8 >> 2)
+#define GT_PCI0M1REMAP          (0x100 >> 2)
+#define GT_PCI1IOREMAP          (0x108 >> 2)
+#define GT_PCI1M0REMAP          (0x110 >> 2)
+#define GT_PCI1M1REMAP          (0x118 >> 2)
 
 /* CPU Error Report */
-#define GT_CPUERR_ADDRLO    	(0x070 >> 2)
-#define GT_CPUERR_ADDRHI    	(0x078 >> 2)
-#define GT_CPUERR_DATALO    	(0x128 >> 2)		/* GT-64120A only  */
-#define GT_CPUERR_DATAHI    	(0x130 >> 2)		/* GT-64120A only  */
-#define GT_CPUERR_PARITY    	(0x138 >> 2)		/* GT-64120A only  */
+#define GT_CPUERR_ADDRLO        (0x070 >> 2)
+#define GT_CPUERR_ADDRHI        (0x078 >> 2)
+#define GT_CPUERR_DATALO        (0x128 >> 2)        /* GT-64120A only  */
+#define GT_CPUERR_DATAHI        (0x130 >> 2)        /* GT-64120A only  */
+#define GT_CPUERR_PARITY        (0x138 >> 2)        /* GT-64120A only  */
 
 /* CPU Sync Barrier */
-#define GT_PCI0SYNC    		(0x0c0 >> 2)
-#define GT_PCI1SYNC    		(0x0c8 >> 2)
+#define GT_PCI0SYNC             (0x0c0 >> 2)
+#define GT_PCI1SYNC             (0x0c8 >> 2)
 
 /* SDRAM and Device Address Decode */
-#define GT_SCS0LD    		(0x400 >> 2)
-#define GT_SCS0HD    		(0x404 >> 2)
-#define GT_SCS1LD    		(0x408 >> 2)
-#define GT_SCS1HD    		(0x40c >> 2)
-#define GT_SCS2LD    		(0x410 >> 2)
-#define GT_SCS2HD    		(0x414 >> 2)
-#define GT_SCS3LD    		(0x418 >> 2)
-#define GT_SCS3HD    		(0x41c >> 2)
-#define GT_CS0LD    		(0x420 >> 2)
-#define GT_CS0HD    		(0x424 >> 2)
-#define GT_CS1LD    		(0x428 >> 2)
-#define GT_CS1HD    		(0x42c >> 2)
-#define GT_CS2LD    		(0x430 >> 2)
-#define GT_CS2HD    		(0x434 >> 2)
-#define GT_CS3LD    		(0x438 >> 2)
-#define GT_CS3HD    		(0x43c >> 2)
-#define GT_BOOTLD    		(0x440 >> 2)
-#define GT_BOOTHD    		(0x444 >> 2)
-#define GT_ADERR    		(0x470 >> 2)
+#define GT_SCS0LD               (0x400 >> 2)
+#define GT_SCS0HD               (0x404 >> 2)
+#define GT_SCS1LD               (0x408 >> 2)
+#define GT_SCS1HD               (0x40c >> 2)
+#define GT_SCS2LD               (0x410 >> 2)
+#define GT_SCS2HD               (0x414 >> 2)
+#define GT_SCS3LD               (0x418 >> 2)
+#define GT_SCS3HD               (0x41c >> 2)
+#define GT_CS0LD                (0x420 >> 2)
+#define GT_CS0HD                (0x424 >> 2)
+#define GT_CS1LD                (0x428 >> 2)
+#define GT_CS1HD                (0x42c >> 2)
+#define GT_CS2LD                (0x430 >> 2)
+#define GT_CS2HD                (0x434 >> 2)
+#define GT_CS3LD                (0x438 >> 2)
+#define GT_CS3HD                (0x43c >> 2)
+#define GT_BOOTLD               (0x440 >> 2)
+#define GT_BOOTHD               (0x444 >> 2)
+#define GT_ADERR                (0x470 >> 2)
 
 /* SDRAM Configuration */
-#define GT_SDRAM_CFG    	(0x448 >> 2)
-#define GT_SDRAM_OPMODE    	(0x474 >> 2)
-#define GT_SDRAM_BM    		(0x478 >> 2)
-#define GT_SDRAM_ADDRDECODE    	(0x47c >> 2)
+#define GT_SDRAM_CFG            (0x448 >> 2)
+#define GT_SDRAM_OPMODE         (0x474 >> 2)
+#define GT_SDRAM_BM             (0x478 >> 2)
+#define GT_SDRAM_ADDRDECODE     (0x47c >> 2)
 
 /* SDRAM Parameters */
-#define GT_SDRAM_B0    		(0x44c >> 2)
-#define GT_SDRAM_B1    		(0x450 >> 2)
-#define GT_SDRAM_B2    		(0x454 >> 2)
-#define GT_SDRAM_B3    		(0x458 >> 2)
+#define GT_SDRAM_B0             (0x44c >> 2)
+#define GT_SDRAM_B1             (0x450 >> 2)
+#define GT_SDRAM_B2             (0x454 >> 2)
+#define GT_SDRAM_B3             (0x458 >> 2)
 
 /* Device Parameters */
-#define GT_DEV_B0    		(0x45c >> 2)
-#define GT_DEV_B1    		(0x460 >> 2)
-#define GT_DEV_B2    		(0x464 >> 2)
-#define GT_DEV_B3    		(0x468 >> 2)
-#define GT_DEV_BOOT    		(0x46c >> 2)
+#define GT_DEV_B0               (0x45c >> 2)
+#define GT_DEV_B1               (0x460 >> 2)
+#define GT_DEV_B2               (0x464 >> 2)
+#define GT_DEV_B3               (0x468 >> 2)
+#define GT_DEV_BOOT             (0x46c >> 2)
 
 /* ECC */
-#define GT_ECC_ERRDATALO	(0x480 >> 2)		/* GT-64120A only  */
-#define GT_ECC_ERRDATAHI	(0x484 >> 2)		/* GT-64120A only  */
-#define GT_ECC_MEM		(0x488 >> 2)		/* GT-64120A only  */
-#define GT_ECC_CALC		(0x48c >> 2)		/* GT-64120A only  */
-#define GT_ECC_ERRADDR		(0x490 >> 2)		/* GT-64120A only  */
+#define GT_ECC_ERRDATALO        (0x480 >> 2)        /* GT-64120A only  */
+#define GT_ECC_ERRDATAHI        (0x484 >> 2)        /* GT-64120A only  */
+#define GT_ECC_MEM              (0x488 >> 2)        /* GT-64120A only  */
+#define GT_ECC_CALC             (0x48c >> 2)        /* GT-64120A only  */
+#define GT_ECC_ERRADDR          (0x490 >> 2)        /* GT-64120A only  */
 
 /* DMA Record */
-#define GT_DMA0_CNT    		(0x800 >> 2)
-#define GT_DMA1_CNT    		(0x804 >> 2)
-#define GT_DMA2_CNT    		(0x808 >> 2)
-#define GT_DMA3_CNT    		(0x80c >> 2)
-#define GT_DMA0_SA    		(0x810 >> 2)
-#define GT_DMA1_SA    		(0x814 >> 2)
-#define GT_DMA2_SA    		(0x818 >> 2)
-#define GT_DMA3_SA    		(0x81c >> 2)
-#define GT_DMA0_DA    		(0x820 >> 2)
-#define GT_DMA1_DA    		(0x824 >> 2)
-#define GT_DMA2_DA    		(0x828 >> 2)
-#define GT_DMA3_DA    		(0x82c >> 2)
-#define GT_DMA0_NEXT    	(0x830 >> 2)
-#define GT_DMA1_NEXT    	(0x834 >> 2)
-#define GT_DMA2_NEXT    	(0x838 >> 2)
-#define GT_DMA3_NEXT    	(0x83c >> 2)
-#define GT_DMA0_CUR    		(0x870 >> 2)
-#define GT_DMA1_CUR    		(0x874 >> 2)
-#define GT_DMA2_CUR    		(0x878 >> 2)
-#define GT_DMA3_CUR    		(0x87c >> 2)
+#define GT_DMA0_CNT             (0x800 >> 2)
+#define GT_DMA1_CNT             (0x804 >> 2)
+#define GT_DMA2_CNT             (0x808 >> 2)
+#define GT_DMA3_CNT             (0x80c >> 2)
+#define GT_DMA0_SA              (0x810 >> 2)
+#define GT_DMA1_SA              (0x814 >> 2)
+#define GT_DMA2_SA              (0x818 >> 2)
+#define GT_DMA3_SA              (0x81c >> 2)
+#define GT_DMA0_DA              (0x820 >> 2)
+#define GT_DMA1_DA              (0x824 >> 2)
+#define GT_DMA2_DA              (0x828 >> 2)
+#define GT_DMA3_DA              (0x82c >> 2)
+#define GT_DMA0_NEXT            (0x830 >> 2)
+#define GT_DMA1_NEXT            (0x834 >> 2)
+#define GT_DMA2_NEXT            (0x838 >> 2)
+#define GT_DMA3_NEXT            (0x83c >> 2)
+#define GT_DMA0_CUR             (0x870 >> 2)
+#define GT_DMA1_CUR             (0x874 >> 2)
+#define GT_DMA2_CUR             (0x878 >> 2)
+#define GT_DMA3_CUR             (0x87c >> 2)
 
 /* DMA Channel Control */
-#define GT_DMA0_CTRL    	(0x840 >> 2)
-#define GT_DMA1_CTRL    	(0x844 >> 2)
-#define GT_DMA2_CTRL    	(0x848 >> 2)
-#define GT_DMA3_CTRL    	(0x84c >> 2)
+#define GT_DMA0_CTRL            (0x840 >> 2)
+#define GT_DMA1_CTRL            (0x844 >> 2)
+#define GT_DMA2_CTRL            (0x848 >> 2)
+#define GT_DMA3_CTRL            (0x84c >> 2)
 
 /* DMA Arbiter */
-#define GT_DMA_ARB    		(0x860 >> 2)
+#define GT_DMA_ARB              (0x860 >> 2)
 
 /* Timer/Counter */
-#define GT_TC0    		(0x850 >> 2)
-#define GT_TC1    		(0x854 >> 2)
-#define GT_TC2    		(0x858 >> 2)
-#define GT_TC3    		(0x85c >> 2)
-#define GT_TC_CONTROL    	(0x864 >> 2)
+#define GT_TC0                  (0x850 >> 2)
+#define GT_TC1                  (0x854 >> 2)
+#define GT_TC2                  (0x858 >> 2)
+#define GT_TC3                  (0x85c >> 2)
+#define GT_TC_CONTROL           (0x864 >> 2)
 
 /* PCI Internal */
-#define GT_PCI0_CMD    		(0xc00 >> 2)
-#define GT_PCI0_TOR    		(0xc04 >> 2)
-#define GT_PCI0_BS_SCS10    	(0xc08 >> 2)
-#define GT_PCI0_BS_SCS32    	(0xc0c >> 2)
-#define GT_PCI0_BS_CS20    	(0xc10 >> 2)
-#define GT_PCI0_BS_CS3BT    	(0xc14 >> 2)
-#define GT_PCI1_IACK    	(0xc30 >> 2)
-#define GT_PCI0_IACK    	(0xc34 >> 2)
-#define GT_PCI0_BARE    	(0xc3c >> 2)
-#define GT_PCI0_PREFMBR    	(0xc40 >> 2)
-#define GT_PCI0_SCS10_BAR    	(0xc48 >> 2)
-#define GT_PCI0_SCS32_BAR    	(0xc4c >> 2)
-#define GT_PCI0_CS20_BAR    	(0xc50 >> 2)
-#define GT_PCI0_CS3BT_BAR    	(0xc54 >> 2)
-#define GT_PCI0_SSCS10_BAR    	(0xc58 >> 2)
-#define GT_PCI0_SSCS32_BAR    	(0xc5c >> 2)
-#define GT_PCI0_SCS3BT_BAR    	(0xc64 >> 2)
-#define GT_PCI1_CMD    		(0xc80 >> 2)
-#define GT_PCI1_TOR    		(0xc84 >> 2)
-#define GT_PCI1_BS_SCS10    	(0xc88 >> 2)
-#define GT_PCI1_BS_SCS32    	(0xc8c >> 2)
-#define GT_PCI1_BS_CS20    	(0xc90 >> 2)
-#define GT_PCI1_BS_CS3BT    	(0xc94 >> 2)
-#define GT_PCI1_BARE    	(0xcbc >> 2)
-#define GT_PCI1_PREFMBR    	(0xcc0 >> 2)
-#define GT_PCI1_SCS10_BAR    	(0xcc8 >> 2)
-#define GT_PCI1_SCS32_BAR    	(0xccc >> 2)
-#define GT_PCI1_CS20_BAR    	(0xcd0 >> 2)
-#define GT_PCI1_CS3BT_BAR    	(0xcd4 >> 2)
-#define GT_PCI1_SSCS10_BAR    	(0xcd8 >> 2)
-#define GT_PCI1_SSCS32_BAR    	(0xcdc >> 2)
-#define GT_PCI1_SCS3BT_BAR    	(0xce4 >> 2)
-#define GT_PCI1_CFGADDR    	(0xcf0 >> 2)
-#define GT_PCI1_CFGDATA    	(0xcf4 >> 2)
-#define GT_PCI0_CFGADDR    	(0xcf8 >> 2)
-#define GT_PCI0_CFGDATA    	(0xcfc >> 2)
+#define GT_PCI0_CMD             (0xc00 >> 2)
+#define GT_PCI0_TOR             (0xc04 >> 2)
+#define GT_PCI0_BS_SCS10        (0xc08 >> 2)
+#define GT_PCI0_BS_SCS32        (0xc0c >> 2)
+#define GT_PCI0_BS_CS20         (0xc10 >> 2)
+#define GT_PCI0_BS_CS3BT        (0xc14 >> 2)
+#define GT_PCI1_IACK            (0xc30 >> 2)
+#define GT_PCI0_IACK            (0xc34 >> 2)
+#define GT_PCI0_BARE            (0xc3c >> 2)
+#define GT_PCI0_PREFMBR         (0xc40 >> 2)
+#define GT_PCI0_SCS10_BAR       (0xc48 >> 2)
+#define GT_PCI0_SCS32_BAR       (0xc4c >> 2)
+#define GT_PCI0_CS20_BAR        (0xc50 >> 2)
+#define GT_PCI0_CS3BT_BAR       (0xc54 >> 2)
+#define GT_PCI0_SSCS10_BAR      (0xc58 >> 2)
+#define GT_PCI0_SSCS32_BAR      (0xc5c >> 2)
+#define GT_PCI0_SCS3BT_BAR      (0xc64 >> 2)
+#define GT_PCI1_CMD             (0xc80 >> 2)
+#define GT_PCI1_TOR             (0xc84 >> 2)
+#define GT_PCI1_BS_SCS10        (0xc88 >> 2)
+#define GT_PCI1_BS_SCS32        (0xc8c >> 2)
+#define GT_PCI1_BS_CS20         (0xc90 >> 2)
+#define GT_PCI1_BS_CS3BT        (0xc94 >> 2)
+#define GT_PCI1_BARE            (0xcbc >> 2)
+#define GT_PCI1_PREFMBR         (0xcc0 >> 2)
+#define GT_PCI1_SCS10_BAR       (0xcc8 >> 2)
+#define GT_PCI1_SCS32_BAR       (0xccc >> 2)
+#define GT_PCI1_CS20_BAR        (0xcd0 >> 2)
+#define GT_PCI1_CS3BT_BAR       (0xcd4 >> 2)
+#define GT_PCI1_SSCS10_BAR      (0xcd8 >> 2)
+#define GT_PCI1_SSCS32_BAR      (0xcdc >> 2)
+#define GT_PCI1_SCS3BT_BAR      (0xce4 >> 2)
+#define GT_PCI1_CFGADDR         (0xcf0 >> 2)
+#define GT_PCI1_CFGDATA         (0xcf4 >> 2)
+#define GT_PCI0_CFGADDR         (0xcf8 >> 2)
+#define GT_PCI0_CFGDATA         (0xcfc >> 2)
 
 /* Interrupts */
-#define GT_INTRCAUSE    	(0xc18 >> 2)
-#define GT_INTRMASK    		(0xc1c >> 2)
-#define GT_PCI0_ICMASK    	(0xc24 >> 2)
-#define GT_PCI0_SERR0MASK    	(0xc28 >> 2)
-#define GT_CPU_INTSEL    	(0xc70 >> 2)
-#define GT_PCI0_INTSEL    	(0xc74 >> 2)
-#define GT_HINTRCAUSE    	(0xc98 >> 2)
-#define GT_HINTRMASK    	(0xc9c >> 2)
-#define GT_PCI0_HICMASK    	(0xca4 >> 2)
-#define GT_PCI1_SERR1MASK    	(0xca8 >> 2)
+#define GT_INTRCAUSE            (0xc18 >> 2)
+#define GT_INTRMASK             (0xc1c >> 2)
+#define GT_PCI0_ICMASK          (0xc24 >> 2)
+#define GT_PCI0_SERR0MASK       (0xc28 >> 2)
+#define GT_CPU_INTSEL           (0xc70 >> 2)
+#define GT_PCI0_INTSEL          (0xc74 >> 2)
+#define GT_HINTRCAUSE           (0xc98 >> 2)
+#define GT_HINTRMASK            (0xc9c >> 2)
+#define GT_PCI0_HICMASK         (0xca4 >> 2)
+#define GT_PCI1_SERR1MASK       (0xca8 >> 2)
 
 #define PCI_MAPPING_ENTRY(regname)            \
     hwaddr regname ##_start;      \
@@ -248,27 +243,34 @@ typedef struct GT64120State {
 } GT64120State;
 
 /* Adjust range to avoid touching space which isn't mappable via PCI */
-/* XXX: Hardcoded values for Malta: 0x1e000000 - 0x1f100000
-                                    0x1fc00000 - 0x1fd00000  */
-static void check_reserved_space (hwaddr *start,
-                                  hwaddr *length)
+/*
+ * XXX: Hardcoded values for Malta: 0x1e000000 - 0x1f100000
+ *                                  0x1fc00000 - 0x1fd00000
+ */
+static void check_reserved_space(hwaddr *start, hwaddr *length)
 {
     hwaddr begin = *start;
     hwaddr end = *start + *length;
 
-    if (end >= 0x1e000000LL && end < 0x1f100000LL)
+    if (end >= 0x1e000000LL && end < 0x1f100000LL) {
         end = 0x1e000000LL;
-    if (begin >= 0x1e000000LL && begin < 0x1f100000LL)
+    }
+    if (begin >= 0x1e000000LL && begin < 0x1f100000LL) {
         begin = 0x1f100000LL;
-    if (end >= 0x1fc00000LL && end < 0x1fd00000LL)
+    }
+    if (end >= 0x1fc00000LL && end < 0x1fd00000LL) {
         end = 0x1fc00000LL;
-    if (begin >= 0x1fc00000LL && begin < 0x1fd00000LL)
+    }
+    if (begin >= 0x1fc00000LL && begin < 0x1fd00000LL) {
         begin = 0x1fd00000LL;
+    }
     /* XXX: This is broken when a reserved range splits the requested range */
-    if (end >= 0x1f100000LL && begin < 0x1e000000LL)
+    if (end >= 0x1f100000LL && begin < 0x1e000000LL) {
         end = 0x1e000000LL;
-    if (end >= 0x1fd00000LL && begin < 0x1fc00000LL)
+    }
+    if (end >= 0x1fd00000LL && begin < 0x1fc00000LL) {
         end = 0x1fc00000LL;
+    }
 
     *start = begin;
     *length = end - begin;
@@ -286,9 +288,7 @@ static void gt64120_isd_mapping(GT64120State *s)
     check_reserved_space(&start, &length);
     length = 0x1000;
     /* Map new address */
-    DPRINTF("ISD: "TARGET_FMT_plx"@"TARGET_FMT_plx
-        " -> "TARGET_FMT_plx"@"TARGET_FMT_plx"\n",
-        s->ISD_length, s->ISD_start, length, start);
+    trace_gt64120_isd_remap(s->ISD_length, s->ISD_start, length, start);
     s->ISD_start = start;
     s->ISD_length = length;
     memory_region_add_subregion(get_system_memory(), s->ISD_start, &s->ISD_mem);
@@ -377,15 +377,16 @@ static const VMStateDescription vmstate_gt64120 = {
     }
 };
 
-static void gt64120_writel (void *opaque, hwaddr addr,
-                            uint64_t val, unsigned size)
+static void gt64120_writel(void *opaque, hwaddr addr,
+                           uint64_t val, unsigned size)
 {
     GT64120State *s = opaque;
     PCIHostState *phb = PCI_HOST_BRIDGE(s);
     uint32_t saddr;
 
-    if (!(s->regs[GT_CPU] & 0x00001000))
+    if (!(s->regs[GT_CPU] & 0x00001000)) {
         val = bswap32(val);
+    }
 
     saddr = (addr & 0xfff) >> 2;
     switch (saddr) {
@@ -458,12 +459,20 @@ static void gt64120_writel (void *opaque, hwaddr addr,
     case GT_CPUERR_DATAHI:
     case GT_CPUERR_PARITY:
         /* Read-only registers, do nothing */
+        qemu_log_mask(LOG_GUEST_ERROR,
+                      "gt64120: Read-only register write "
+                      "reg:0x03%x size:%u value:0x%0*" PRIx64 "\n",
+                      saddr << 2, size, size << 1, val);
         break;
 
     /* CPU Sync Barrier */
     case GT_PCI0SYNC:
     case GT_PCI1SYNC:
         /* Read-only registers, do nothing */
+        qemu_log_mask(LOG_GUEST_ERROR,
+                      "gt64120: Read-only register write "
+                      "reg:0x03%x size:%u value:0x%0*" PRIx64 "\n",
+                      saddr << 2, size, size << 1, val);
         break;
 
     /* SDRAM and Device Address Decode */
@@ -502,7 +511,10 @@ static void gt64120_writel (void *opaque, hwaddr addr,
     case GT_DEV_B3:
     case GT_DEV_BOOT:
         /* Not implemented */
-        DPRINTF ("Unimplemented device register offset 0x%x\n", saddr << 2);
+        qemu_log_mask(LOG_UNIMP,
+                      "gt64120: Unimplemented device register write "
+                      "reg:0x03%x size:%u value:0x%0*" PRIx64 "\n",
+                      saddr << 2, size, size << 1, val);
         break;
 
     /* ECC */
@@ -512,6 +524,10 @@ static void gt64120_writel (void *opaque, hwaddr addr,
     case GT_ECC_CALC:
     case GT_ECC_ERRADDR:
         /* Read-only registers, do nothing */
+        qemu_log_mask(LOG_GUEST_ERROR,
+                      "gt64120: Read-only register write "
+                      "reg:0x03%x size:%u value:0x%0*" PRIx64 "\n",
+                      saddr << 2, size, size << 1, val);
         break;
 
     /* DMA Record */
@@ -535,23 +551,20 @@ static void gt64120_writel (void *opaque, hwaddr addr,
     case GT_DMA1_CUR:
     case GT_DMA2_CUR:
     case GT_DMA3_CUR:
-        /* Not implemented */
-        DPRINTF ("Unimplemented DMA register offset 0x%x\n", saddr << 2);
-        break;
 
     /* DMA Channel Control */
     case GT_DMA0_CTRL:
     case GT_DMA1_CTRL:
     case GT_DMA2_CTRL:
     case GT_DMA3_CTRL:
-        /* Not implemented */
-        DPRINTF ("Unimplemented DMA register offset 0x%x\n", saddr << 2);
-        break;
 
     /* DMA Arbiter */
     case GT_DMA_ARB:
         /* Not implemented */
-        DPRINTF ("Unimplemented DMA register offset 0x%x\n", saddr << 2);
+        qemu_log_mask(LOG_UNIMP,
+                      "gt64120: Unimplemented DMA register write "
+                      "reg:0x03%x size:%u value:0x%0*" PRIx64 "\n",
+                      saddr << 2, size, size << 1, val);
         break;
 
     /* Timer/Counter */
@@ -561,7 +574,10 @@ static void gt64120_writel (void *opaque, hwaddr addr,
     case GT_TC3:
     case GT_TC_CONTROL:
         /* Not implemented */
-        DPRINTF ("Unimplemented timer register offset 0x%x\n", saddr << 2);
+        qemu_log_mask(LOG_UNIMP,
+                      "gt64120: Unimplemented timer register write "
+                      "reg:0x03%x size:%u value:0x%0*" PRIx64 "\n",
+                      saddr << 2, size, size << 1, val);
         break;
 
     /* PCI Internal */
@@ -602,6 +618,10 @@ static void gt64120_writel (void *opaque, hwaddr addr,
     case GT_PCI1_CFGADDR:
     case GT_PCI1_CFGDATA:
         /* not implemented */
+        qemu_log_mask(LOG_UNIMP,
+                      "gt64120: Unimplemented timer register write "
+                      "reg:0x03%x size:%u value:0x%0*" PRIx64 "\n",
+                      saddr << 2, size, size << 1, val);
         break;
     case GT_PCI0_CFGADDR:
         phb->config_reg = val & 0x80fffffc;
@@ -620,19 +640,19 @@ static void gt64120_writel (void *opaque, hwaddr addr,
         /* not really implemented */
         s->regs[saddr] = ~(~(s->regs[saddr]) | ~(val & 0xfffffffe));
         s->regs[saddr] |= !!(s->regs[saddr] & 0xfffffffe);
-        DPRINTF("INTRCAUSE %" PRIx64 "\n", val);
+        trace_gt64120_write("INTRCAUSE", size << 1, val);
         break;
     case GT_INTRMASK:
         s->regs[saddr] = val & 0x3c3ffffe;
-        DPRINTF("INTRMASK %" PRIx64 "\n", val);
+        trace_gt64120_write("INTRMASK", size << 1, val);
         break;
     case GT_PCI0_ICMASK:
         s->regs[saddr] = val & 0x03fffffe;
-        DPRINTF("ICMASK %" PRIx64 "\n", val);
+        trace_gt64120_write("ICMASK", size << 1, val);
         break;
     case GT_PCI0_SERR0MASK:
         s->regs[saddr] = val & 0x0000003f;
-        DPRINTF("SERR0MASK %" PRIx64 "\n", val);
+        trace_gt64120_write("SERR0MASK", size << 1, val);
         break;
 
     /* Reserved when only PCI_0 is configured. */
@@ -650,19 +670,24 @@ static void gt64120_writel (void *opaque, hwaddr addr,
     case GT_SDRAM_B1:
     case GT_SDRAM_B2:
     case GT_SDRAM_B3:
-        /* We don't simulate electrical parameters of the SDRAM.
-           Accept, but ignore the values. */
+        /*
+         * We don't simulate electrical parameters of the SDRAM.
+         * Accept, but ignore the values.
+         */
         s->regs[saddr] = val;
         break;
 
     default:
-        DPRINTF ("Bad register offset 0x%x\n", (int)addr);
+        qemu_log_mask(LOG_GUEST_ERROR,
+                      "gt64120: Illegal register write "
+                      "reg:0x03%x size:%u value:0x%0*" PRIx64 "\n",
+                      saddr << 2, size, size << 1, val);
         break;
     }
 }
 
-static uint64_t gt64120_readl (void *opaque,
-                               hwaddr addr, unsigned size)
+static uint64_t gt64120_readl(void *opaque,
+                              hwaddr addr, unsigned size)
 {
     GT64120State *s = opaque;
     PCIHostState *phb = PCI_HOST_BRIDGE(s);
@@ -674,8 +699,10 @@ static uint64_t gt64120_readl (void *opaque,
 
     /* CPU Configuration */
     case GT_MULTI:
-        /* Only one GT64xxx is present on the CPU bus, return
-           the initial value */
+        /*
+         * Only one GT64xxx is present on the CPU bus, return
+         * the initial value.
+         */
         val = s->regs[saddr];
         break;
 
@@ -685,17 +712,18 @@ static uint64_t gt64120_readl (void *opaque,
     case GT_CPUERR_DATALO:
     case GT_CPUERR_DATAHI:
     case GT_CPUERR_PARITY:
-        /* Emulated memory has no error, always return the initial
-           values */
+        /* Emulated memory has no error, always return the initial values. */
         val = s->regs[saddr];
         break;
 
     /* CPU Sync Barrier */
     case GT_PCI0SYNC:
     case GT_PCI1SYNC:
-        /* Reading those register should empty all FIFO on the PCI
-           bus, which are not emulated. The return value should be
-           a random value that should be ignored. */
+        /*
+         * Reading those register should empty all FIFO on the PCI
+         * bus, which are not emulated. The return value should be
+         * a random value that should be ignored.
+         */
         val = 0xc000ffee;
         break;
 
@@ -705,8 +733,7 @@ static uint64_t gt64120_readl (void *opaque,
     case GT_ECC_MEM:
     case GT_ECC_CALC:
     case GT_ECC_ERRADDR:
-        /* Emulated memory has no error, always return the initial
-           values */
+        /* Emulated memory has no error, always return the initial values. */
         val = s->regs[saddr];
         break;
 
@@ -785,8 +812,10 @@ static uint64_t gt64120_readl (void *opaque,
     case GT_SDRAM_B1:
     case GT_SDRAM_B2:
     case GT_SDRAM_B3:
-        /* We don't simulate electrical parameters of the SDRAM.
-           Just return the last written value. */
+        /*
+         * We don't simulate electrical parameters of the SDRAM.
+         * Just return the last written value.
+         */
         val = s->regs[saddr];
         break;
 
@@ -899,19 +928,19 @@ static uint64_t gt64120_readl (void *opaque,
     /* Interrupts */
     case GT_INTRCAUSE:
         val = s->regs[saddr];
-        DPRINTF("INTRCAUSE %x\n", val);
+        trace_gt64120_read("INTRCAUSE", size << 1, val);
         break;
     case GT_INTRMASK:
         val = s->regs[saddr];
-        DPRINTF("INTRMASK %x\n", val);
+        trace_gt64120_read("INTRMASK", size << 1, val);
         break;
     case GT_PCI0_ICMASK:
         val = s->regs[saddr];
-        DPRINTF("ICMASK %x\n", val);
+        trace_gt64120_read("ICMASK", size << 1, val);
         break;
     case GT_PCI0_SERR0MASK:
         val = s->regs[saddr];
-        DPRINTF("SERR0MASK %x\n", val);
+        trace_gt64120_read("SERR0MASK", size << 1, val);
         break;
 
     /* Reserved when only PCI_0 is configured. */
@@ -926,12 +955,16 @@ static uint64_t gt64120_readl (void *opaque,
 
     default:
         val = s->regs[saddr];
-        DPRINTF ("Bad register offset 0x%x\n", (int)addr);
+        qemu_log_mask(LOG_GUEST_ERROR,
+                      "gt64120: Illegal register read "
+                      "reg:0x03%x size:%u value:0x%0*x\n",
+                      saddr << 2, size, size << 1, val);
         break;
     }
 
-    if (!(s->regs[GT_CPU] & 0x00001000))
+    if (!(s->regs[GT_CPU] & 0x00001000)) {
         val = bswap32(val);
+    }
 
     return val;
 }
@@ -949,20 +982,20 @@ static int gt64120_pci_map_irq(PCIDevice *pci_dev, int irq_num)
     slot = (pci_dev->devfn >> 3);
 
     switch (slot) {
-      /* PIIX4 USB */
-      case 10:
+    /* PIIX4 USB */
+    case 10:
         return 3;
-      /* AMD 79C973 Ethernet */
-      case 11:
+    /* AMD 79C973 Ethernet */
+    case 11:
         return 1;
-      /* Crystal 4281 Sound */
-      case 12:
+    /* Crystal 4281 Sound */
+    case 12:
         return 2;
-      /* PCI slot 1 to 4 */
-      case 18 ... 21:
+    /* PCI slot 1 to 4 */
+    case 18 ... 21:
         return ((slot - 18) + irq_num) & 0x03;
-      /* Unknown device, don't do any translation */
-      default:
+    /* Unknown device, don't do any translation */
+    default:
         return irq_num;
     }
 }
@@ -980,12 +1013,12 @@ static void gt64120_pci_set_irq(void *opaque, int irq_num, int level)
     /* XXX: optimize */
     pic_irq = piix4_dev->config[0x60 + irq_num];
     if (pic_irq < 16) {
-        /* The pic level is the logical OR of all the PCI irqs mapped
-           to it */
+        /* The pic level is the logical OR of all the PCI irqs mapped to it. */
         pic_level = 0;
         for (i = 0; i < 4; i++) {
-            if (pic_irq == piix4_dev->config[0x60 + i])
+            if (pic_irq == piix4_dev->config[0x60 + i]) {
                 pic_level |= pci_irq_levels[i];
+            }
         }
         qemu_set_irq(pic[pic_irq], pic_level);
     }
@@ -1169,7 +1202,7 @@ PCIBus *gt64120_register(qemu_irq *pic)
     dev = qdev_create(NULL, TYPE_GT64120_PCI_HOST_BRIDGE);
     d = GT64120_PCI_HOST_BRIDGE(dev);
     phb = PCI_HOST_BRIDGE(dev);
-    memory_region_init(&d->pci0_mem, OBJECT(dev), "pci0-mem", UINT32_MAX);
+    memory_region_init(&d->pci0_mem, OBJECT(dev), "pci0-mem", 4 * GiB);
     address_space_init(&d->pci0_mem_as, &d->pci0_mem, "pci0-mem");
     phb->bus = pci_register_root_bus(dev, "pci",
                                      gt64120_pci_set_irq, gt64120_pci_map_irq,
@@ -1178,7 +1211,8 @@ PCIBus *gt64120_register(qemu_irq *pic)
                                      get_system_io(),
                                      PCI_DEVFN(18, 0), 4, TYPE_PCI_BUS);
     qdev_init_nofail(dev);
-    memory_region_init_io(&d->ISD_mem, OBJECT(dev), &isd_mem_ops, d, "isd-mem", 0x1000);
+    memory_region_init_io(&d->ISD_mem, OBJECT(dev), &isd_mem_ops, d,
+                          "isd-mem", 0x1000);
 
     pci_create_simple(phb->bus, PCI_DEVFN(0, 0), "gt64120_pci");
     return phb->bus;
