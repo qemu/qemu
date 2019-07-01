@@ -1000,6 +1000,8 @@ bool get_phys_addr(CPUARMState *env, target_ulong address,
                    target_ulong *page_size,
                    ARMMMUFaultInfo *fi, ARMCacheAttrs *cacheattrs);
 
+void arm_log_exception(int idx);
+
 #endif /* !CONFIG_USER_ONLY */
 
 #endif
