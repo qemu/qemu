@@ -529,10 +529,14 @@ vaddr arm_adjust_watchpoint_address(CPUState *cs, vaddr addr, int len);
 /* Callback function for when a watchpoint or breakpoint triggers. */
 void arm_debug_excp_handler(CPUState *cs);
 
-#ifdef CONFIG_USER_ONLY
+#if defined(CONFIG_USER_ONLY) || !defined(CONFIG_TCG)
 static inline bool arm_is_psci_call(ARMCPU *cpu, int excp_type)
 {
     return false;
+}
+static inline void arm_handle_psci_call(ARMCPU *cpu)
+{
+    g_assert_not_reached();
 }
 #else
 /* Return true if the r0/x0 value indicates that this SMC/HVC is a PSCI call. */
