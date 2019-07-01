@@ -24,8 +24,8 @@
  * Tim Deegan and Andrew Warfield November 2004.
  */
 
-#ifndef XEN_PUBLIC_IO_RING_H
-#define XEN_PUBLIC_IO_RING_H
+#ifndef __XEN_PUBLIC_IO_RING_H__
+#define __XEN_PUBLIC_IO_RING_H__
 
 /*
  * When #include'ing this header, you need to provide the following
@@ -469,7 +469,7 @@ struct name##_data_intf {                                                     \
 };                                                                            \
 DEFINE_XEN_FLEX_RING(name)
 
-#endif /* XEN_PUBLIC_IO_RING_H */
+#endif /* __XEN_PUBLIC_IO_RING_H__ */
 
 /*
  * Local variables:

@@ -15,6 +15,7 @@
 typedef void (*XenWatchHandler)(void *opaque);
 
 typedef struct XenWatch XenWatch;
+typedef struct XenEventChannel XenEventChannel;
 
 typedef struct XenDevice {
     DeviceState qdev;
@@ -28,8 +29,7 @@ typedef struct XenDevice {
     XenWatch *backend_online_watch;
     xengnttab_handle *xgth;
     bool feature_grant_copy;
-    xenevtchn_handle *xeh;
-    NotifierList event_notifiers;
+    QLIST_HEAD(, XenEventChannel) event_channels;
 } XenDevice;
 
 typedef char *(*XenDeviceGetName)(XenDevice *xendev, Error **errp);
@@ -119,11 +119,10 @@ void xen_device_copy_grant_refs(XenDevice *xendev, bool to_domain,
                                 XenDeviceGrantCopySegment segs[],
                                 unsigned int nr_segs, Error **errp);
 
-typedef struct XenEventChannel XenEventChannel;
-
-typedef void (*XenEventHandler)(void *opaque);
+typedef bool (*XenEventHandler)(void *opaque);
 
 XenEventChannel *xen_device_bind_event_channel(XenDevice *xendev,
+                                               AioContext *ctx,
                                                unsigned int port,
                                                XenEventHandler handler,
                                                void *opaque, Error **errp);

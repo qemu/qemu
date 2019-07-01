@@ -32,10 +32,9 @@
 #include "ui/console.h"
 #include "hw/xen/xen-legacy-backend.h"
 
-#include <xen/event_channel.h>
-#include <xen/io/fbif.h>
-#include <xen/io/kbdif.h>
-#include <xen/io/protocols.h>
+#include "hw/xen/interface/io/fbif.h"
+#include "hw/xen/interface/io/kbdif.h"
+#include "hw/xen/interface/io/protocols.h"
 
 #include "trace.h"
 

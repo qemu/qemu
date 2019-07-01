@@ -28,7 +28,7 @@
 #include "chardev/char-fe.h"
 #include "hw/xen/xen-legacy-backend.h"
 
-#include <xen/io/console.h>
+#include "hw/xen/interface/io/console.h"
 
 struct buffer {
     uint8_t *data;

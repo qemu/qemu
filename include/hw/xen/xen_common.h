@@ -12,7 +12,7 @@
 
 #include <xenctrl.h>
 #include <xenstore.h>
-#include <xen/io/xenbus.h>
+#include "hw/xen/interface/io/xenbus.h"
 
 #include "hw/hw.h"
 #include "hw/xen/xen.h"

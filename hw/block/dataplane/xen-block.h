@@ -15,7 +15,8 @@
 typedef struct XenBlockDataPlane XenBlockDataPlane;
 
 XenBlockDataPlane *xen_block_dataplane_create(XenDevice *xendev,
-                                              BlockConf *conf,
+                                              BlockBackend *blk,
+                                              unsigned int sector_size,
                                               IOThread *iothread);
 void xen_block_dataplane_destroy(XenBlockDataPlane *dataplane);
 void xen_block_dataplane_start(XenBlockDataPlane *dataplane,
