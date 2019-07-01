@@ -24,13 +24,15 @@
 
 #define ASPEED_SPIS_NUM  2
 #define ASPEED_WDTS_NUM  3
+#define ASPEED_CPUS_NUM  2
 
 typedef struct AspeedSoCState {
     /*< private >*/
     DeviceState parent;
 
     /*< public >*/
-    ARMCPU cpu;
+    ARMCPU cpu[ASPEED_CPUS_NUM];
+    uint32_t num_cpus;
     MemoryRegion sram;
     AspeedVICState vic;
     AspeedRtcState rtc;
@@ -58,6 +60,7 @@ typedef struct AspeedSoCInfo {
     int wdts_num;
     const int *irqmap;
     const hwaddr *memmap;
+    uint32_t num_cpus;
 } AspeedSoCInfo;
 
 typedef struct AspeedSoCClass {

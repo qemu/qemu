@@ -22,13 +22,13 @@
 #include "hw/misc/tmp105.h"
 #include "qemu/log.h"
 #include "sysemu/block-backend.h"
+#include "sysemu/sysemu.h"
 #include "hw/loader.h"
 #include "qemu/error-report.h"
 #include "qemu/units.h"
 
 static struct arm_boot_info aspeed_board_binfo = {
     .board_id = -1, /* device-tree-only board */
-    .nb_cpus = 1,
 };
 
 struct AspeedBoardState {
@@ -171,6 +171,8 @@ static void aspeed_board_init(MachineState *machine,
                             &error_abort);
     object_property_set_int(OBJECT(&bmc->soc), cfg->num_cs, "num-cs",
                             &error_abort);
+    object_property_set_int(OBJECT(&bmc->soc), smp_cpus, "num-cpus",
+                            &error_abort);
     if (machine->kernel_filename) {
         /*
          * When booting with a -kernel command line there is no u-boot
@@ -230,6 +232,7 @@ static void aspeed_board_init(MachineState *machine,
     aspeed_board_binfo.kernel_cmdline = machine->kernel_cmdline;
     aspeed_board_binfo.ram_size = ram_size;
     aspeed_board_binfo.loader_start = sc->info->memmap[ASPEED_SDRAM];
+    aspeed_board_binfo.nb_cpus = bmc->soc.num_cpus;
 
     if (cfg->i2c_init) {
         cfg->i2c_init(bmc);
@@ -326,7 +329,7 @@ static void aspeed_machine_class_init(ObjectClass *oc, void *data)
 
     mc->desc = board->desc;
     mc->init = aspeed_machine_init;
-    mc->max_cpus = 1;
+    mc->max_cpus = ASPEED_CPUS_NUM;
     mc->no_sdcard = 1;
     mc->no_floppy = 1;
     mc->no_cdrom = 1;

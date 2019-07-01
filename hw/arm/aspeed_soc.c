@@ -19,6 +19,7 @@
 #include "hw/char/serial.h"
 #include "qemu/log.h"
 #include "qemu/module.h"
+#include "qemu/error-report.h"
 #include "hw/i2c/aspeed_i2c.h"
 #include "net/net.h"
 
@@ -123,6 +124,7 @@ static const AspeedSoCInfo aspeed_socs[] = {
         .wdts_num     = 2,
         .irqmap       = aspeed_soc_ast2400_irqmap,
         .memmap       = aspeed_soc_ast2400_memmap,
+        .num_cpus     = 1,
     }, {
         .name         = "ast2400-a1",
         .cpu_type     = ARM_CPU_TYPE_NAME("arm926"),
@@ -134,6 +136,7 @@ static const AspeedSoCInfo aspeed_socs[] = {
         .wdts_num     = 2,
         .irqmap       = aspeed_soc_ast2400_irqmap,
         .memmap       = aspeed_soc_ast2400_memmap,
+        .num_cpus     = 1,
     }, {
         .name         = "ast2400",
         .cpu_type     = ARM_CPU_TYPE_NAME("arm926"),
@@ -145,6 +148,7 @@ static const AspeedSoCInfo aspeed_socs[] = {
         .wdts_num     = 2,
         .irqmap       = aspeed_soc_ast2400_irqmap,
         .memmap       = aspeed_soc_ast2400_memmap,
+        .num_cpus     = 1,
     }, {
         .name         = "ast2500-a1",
         .cpu_type     = ARM_CPU_TYPE_NAME("arm1176"),
@@ -156,6 +160,7 @@ static const AspeedSoCInfo aspeed_socs[] = {
         .wdts_num     = 3,
         .irqmap       = aspeed_soc_ast2500_irqmap,
         .memmap       = aspeed_soc_ast2500_memmap,
+        .num_cpus     = 1,
     },
 };
 
@@ -172,8 +177,11 @@ static void aspeed_soc_init(Object *obj)
     AspeedSoCClass *sc = ASPEED_SOC_GET_CLASS(s);
     int i;
 
-    object_initialize_child(obj, "cpu", OBJECT(&s->cpu), sizeof(s->cpu),
-                            sc->info->cpu_type, &error_abort, NULL);
+    for (i = 0; i < sc->info->num_cpus; i++) {
+        object_initialize_child(obj, "cpu[*]", OBJECT(&s->cpu[i]),
+                                sizeof(s->cpu[i]), sc->info->cpu_type,
+                                &error_abort, NULL);
+    }
 
     sysbus_init_child_obj(obj, "scu", OBJECT(&s->scu), sizeof(s->scu),
                           TYPE_ASPEED_SCU);
@@ -241,11 +249,19 @@ static void aspeed_soc_realize(DeviceState *dev, Error **errp)
     create_unimplemented_device("aspeed_soc.io", sc->info->memmap[ASPEED_IOMEM],
                                 ASPEED_SOC_IOMEM_SIZE);
 
+    if (s->num_cpus > sc->info->num_cpus) {
+        warn_report("%s: invalid number of CPUs %d, using default %d",
+                    sc->info->name, s->num_cpus, sc->info->num_cpus);
+        s->num_cpus = sc->info->num_cpus;
+    }
+
     /* CPU */
-    object_property_set_bool(OBJECT(&s->cpu), true, "realized", &err);
-    if (err) {
-        error_propagate(errp, err);
-        return;
+    for (i = 0; i < s->num_cpus; i++) {
+        object_property_set_bool(OBJECT(&s->cpu[i]), true, "realized", &err);
+        if (err) {
+            error_propagate(errp, err);
+            return;
+        }
     }
 
     /* SRAM */
@@ -380,6 +396,10 @@ static void aspeed_soc_realize(DeviceState *dev, Error **errp)
     sysbus_connect_irq(SYS_BUS_DEVICE(&s->ftgmac100), 0,
                        aspeed_soc_get_irq(s, ASPEED_ETH1));
 }
+static Property aspeed_soc_properties[] = {
+    DEFINE_PROP_UINT32("num-cpus", AspeedSoCState, num_cpus, 0),
+    DEFINE_PROP_END_OF_LIST(),
+};
 
 static void aspeed_soc_class_init(ObjectClass *oc, void *data)
 {
@@ -390,6 +410,7 @@ static void aspeed_soc_class_init(ObjectClass *oc, void *data)
     dc->realize = aspeed_soc_realize;
     /* Reason: Uses serial_hds and nd_table in realize() directly */
     dc->user_creatable = false;
+    dc->props = aspeed_soc_properties;
 }
 
 static const TypeInfo aspeed_soc_type_info = {
