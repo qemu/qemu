@@ -6,6 +6,9 @@ config MALTA
 
 config MIPSSIM
     bool
+    select ISA_BUS
+    select SERIAL_ISA
+    select MIPSNET
 
 config JAZZ
     bool
