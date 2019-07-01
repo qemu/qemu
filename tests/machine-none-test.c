@@ -36,9 +36,9 @@ static struct arch2cpu cpus_map[] = {
     /* FIXME: { "microblaze", "any" }, doesn't work with -M none -cpu any */
     /* FIXME: { "microblazeel", "any" }, doesn't work with -M none -cpu any */
     { "mips", "4Kc" },
-    { "mipsel", "4Kc" },
+    { "mipsel", "I7200" },
     { "mips64", "20Kc" },
-    { "mips64el", "20Kc" },
+    { "mips64el", "I6500" },
     { "moxie", "MoxieLite" },
     { "nios2", "FIXME" },
     { "or1k", "or1200" },
