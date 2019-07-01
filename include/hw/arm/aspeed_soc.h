@@ -15,6 +15,7 @@
 #include "hw/intc/aspeed_vic.h"
 #include "hw/misc/aspeed_scu.h"
 #include "hw/misc/aspeed_sdmc.h"
+#include "hw/misc/aspeed_xdma.h"
 #include "hw/timer/aspeed_timer.h"
 #include "hw/timer/aspeed_rtc.h"
 #include "hw/i2c/aspeed_i2c.h"
@@ -40,6 +41,7 @@ typedef struct AspeedSoCState {
     AspeedTimerCtrlState timerctrl;
     AspeedI2CState i2c;
     AspeedSCUState scu;
+    AspeedXDMAState xdma;
     AspeedSMCState fmc;
     AspeedSMCState spi[ASPEED_SPIS_NUM];
     AspeedSDMCState sdmc;
@@ -108,6 +110,7 @@ enum {
     ASPEED_ETH1,
     ASPEED_ETH2,
     ASPEED_SDRAM,
+    ASPEED_XDMA,
 };
 
 #endif /* ASPEED_SOC_H */
