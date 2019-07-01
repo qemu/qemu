@@ -235,6 +235,8 @@ static void aspeed_soc_init(Object *obj)
                               sizeof(s->wdt[i]), TYPE_ASPEED_WDT);
         qdev_prop_set_uint32(DEVICE(&s->wdt[i]), "silicon-rev",
                                     sc->info->silicon_rev);
+        object_property_add_const_link(OBJECT(&s->wdt[i]), "scu",
+                                       OBJECT(&s->scu), &error_abort);
     }
 
     for (i = 0; i < ASPEED_MACS_NUM; i++) {
