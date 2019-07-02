@@ -3518,7 +3518,7 @@ static int img_rebase(int argc, char **argv)
                  * to take action
                  */
                 ret = bdrv_is_allocated_above(backing_bs(bs), prefix_chain_bs,
-                                              offset, n, &n);
+                                              false, offset, n, &n);
                 if (ret < 0) {
                     error_report("error while reading image metadata: %s",
                                  strerror(-ret));
