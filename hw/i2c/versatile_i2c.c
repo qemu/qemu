@@ -35,7 +35,7 @@ typedef struct VersatileI2CState {
     SysBusDevice parent_obj;
 
     MemoryRegion iomem;
-    bitbang_i2c_interface *bitbang;
+    bitbang_i2c_interface bitbang;
     int out;
     int in;
 } VersatileI2CState;
@@ -70,8 +70,8 @@ static void versatile_i2c_write(void *opaque, hwaddr offset,
         qemu_log_mask(LOG_GUEST_ERROR,
                       "%s: Bad offset 0x%x\n", __func__, (int)offset);
     }
-    bitbang_i2c_set(s->bitbang, BITBANG_I2C_SCL, (s->out & 1) != 0);
-    s->in = bitbang_i2c_set(s->bitbang, BITBANG_I2C_SDA, (s->out & 2) != 0);
+    bitbang_i2c_set(&s->bitbang, BITBANG_I2C_SCL, (s->out & 1) != 0);
+    s->in = bitbang_i2c_set(&s->bitbang, BITBANG_I2C_SDA, (s->out & 2) != 0);
 }
 
 static const MemoryRegionOps versatile_i2c_ops = {
@@ -88,7 +88,7 @@ static void versatile_i2c_init(Object *obj)
     I2CBus *bus;
 
     bus = i2c_init_bus(dev, "i2c");
-    s->bitbang = bitbang_i2c_init(bus);
+    bitbang_i2c_init(&s->bitbang, bus);
     memory_region_init_io(&s->iomem, obj, &versatile_i2c_ops, s,
                           "versatile_i2c", 0x1000);
     sysbus_init_mmio(sbd, &s->iomem);
