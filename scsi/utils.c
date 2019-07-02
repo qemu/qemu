@@ -360,6 +360,11 @@ static bool scsi_sense_is_guest_recoverable(int key, int asc, int ascq)
     case 0x2500: /* LOGICAL UNIT NOT SUPPORTED */
     case 0x2600: /* INVALID FIELD IN PARAMETER LIST */
 
+    case 0x2104: /* UNALIGNED WRITE COMMAND */
+    case 0x2105: /* WRITE BOUNDARY VIOLATION */
+    case 0x2106: /* ATTEMPT TO READ INVALID DATA */
+    case 0x550e: /* INSUFFICIENT ZONE RESOURCES */
+
     case 0x0401: /* NOT READY, IN PROGRESS OF BECOMING READY */
     case 0x0402: /* NOT READY, INITIALIZING COMMAND REQUIRED */
         return true;
