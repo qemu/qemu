@@ -55,6 +55,14 @@ $PATH_TO_QEMU -cpu I6400  /tmp/test_msa_bset_d_32r6el
 # Fixed Multiply
 # --------------
 #
+$PATH_TO_QEMU -cpu I6400  /tmp/test_msa_madd_q_h_32r6el
+$PATH_TO_QEMU -cpu I6400  /tmp/test_msa_madd_q_w_32r6el
+$PATH_TO_QEMU -cpu I6400  /tmp/test_msa_maddr_q_h_32r6el
+$PATH_TO_QEMU -cpu I6400  /tmp/test_msa_maddr_q_w_32r6el
+$PATH_TO_QEMU -cpu I6400  /tmp/test_msa_msub_q_h_32r6el
+$PATH_TO_QEMU -cpu I6400  /tmp/test_msa_msub_q_w_32r6el
+$PATH_TO_QEMU -cpu I6400  /tmp/test_msa_msubr_q_h_32r6el
+$PATH_TO_QEMU -cpu I6400  /tmp/test_msa_msubr_q_w_32r6el
 $PATH_TO_QEMU -cpu I6400  /tmp/test_msa_mul_q_h_32r6el
 $PATH_TO_QEMU -cpu I6400  /tmp/test_msa_mul_q_w_32r6el
 $PATH_TO_QEMU -cpu I6400  /tmp/test_msa_mulr_q_h_32r6el

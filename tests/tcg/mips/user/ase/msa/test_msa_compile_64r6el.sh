@@ -88,6 +88,22 @@
 # Fixed Multiply
 # --------------
 #
+/opt/img/bin/mips-img-linux-gnu-gcc  fixed-multiply/test_msa_madd_q_h.c        \
+-EL -static -mabi=64 -march=mips64r6 -mmsa -o  /tmp/test_msa_madd_q_h_64r6el
+/opt/img/bin/mips-img-linux-gnu-gcc  fixed-multiply/test_msa_madd_q_w.c        \
+-EL -static -mabi=64 -march=mips64r6 -mmsa -o  /tmp/test_msa_madd_q_w_64r6el
+/opt/img/bin/mips-img-linux-gnu-gcc  fixed-multiply/test_msa_maddr_q_h.c       \
+-EL -static -mabi=64 -march=mips64r6 -mmsa -o  /tmp/test_msa_maddr_q_h_64r6el
+/opt/img/bin/mips-img-linux-gnu-gcc  fixed-multiply/test_msa_maddr_q_w.c       \
+-EL -static -mabi=64 -march=mips64r6 -mmsa -o  /tmp/test_msa_maddr_q_w_64r6el
+/opt/img/bin/mips-img-linux-gnu-gcc  fixed-multiply/test_msa_msub_q_h.c        \
+-EL -static -mabi=64 -march=mips64r6 -mmsa -o  /tmp/test_msa_msub_q_h_64r6el
+/opt/img/bin/mips-img-linux-gnu-gcc  fixed-multiply/test_msa_msub_q_w.c        \
+-EL -static -mabi=64 -march=mips64r6 -mmsa -o  /tmp/test_msa_msub_q_w_64r6el
+/opt/img/bin/mips-img-linux-gnu-gcc  fixed-multiply/test_msa_msubr_q_h.c       \
+-EL -static -mabi=64 -march=mips64r6 -mmsa -o  /tmp/test_msa_msubr_q_h_64r6el
+/opt/img/bin/mips-img-linux-gnu-gcc  fixed-multiply/test_msa_msubr_q_w.c       \
+-EL -static -mabi=64 -march=mips64r6 -mmsa -o  /tmp/test_msa_msubr_q_w_64r6el
 /opt/img/bin/mips-img-linux-gnu-gcc  fixed-multiply/test_msa_mul_q_h.c         \
 -EL -static -mabi=64 -march=mips64r6 -mmsa -o  /tmp/test_msa_mul_q_h_64r6el
 /opt/img/bin/mips-img-linux-gnu-gcc  fixed-multiply/test_msa_mul_q_w.c         \

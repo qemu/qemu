@@ -252,16 +252,32 @@ DO_MSA__WD__WS_WT(BNEG_D, bneg.d)
  */
 
 DO_MSA__WD__WS_WT(MADD_Q_H, madd_q.h)
+DO_MSA__WD__WD_WT(MADD_Q_H__DDT, madd_q.h)
+DO_MSA__WD__WS_WD(MADD_Q_H__DSD, madd_q.h)
 DO_MSA__WD__WS_WT(MADD_Q_W, madd_q.w)
+DO_MSA__WD__WD_WT(MADD_Q_W__DDT, madd_q.w)
+DO_MSA__WD__WS_WD(MADD_Q_W__DSD, madd_q.w)
 
 DO_MSA__WD__WS_WT(MADDR_Q_H, maddr_q.h)
+DO_MSA__WD__WD_WT(MADDR_Q_H__DDT, maddr_q.h)
+DO_MSA__WD__WS_WD(MADDR_Q_H__DSD, maddr_q.h)
 DO_MSA__WD__WS_WT(MADDR_Q_W, maddr_q.w)
+DO_MSA__WD__WD_WT(MADDR_Q_W__DDT, maddr_q.w)
+DO_MSA__WD__WS_WD(MADDR_Q_W__DSD, maddr_q.w)
 
 DO_MSA__WD__WS_WT(MSUB_Q_H, msub_q.h)
+DO_MSA__WD__WD_WT(MSUB_Q_H__DDT, msub_q.h)
+DO_MSA__WD__WS_WD(MSUB_Q_H__DSD, msub_q.h)
 DO_MSA__WD__WS_WT(MSUB_Q_W, msub_q.w)
+DO_MSA__WD__WD_WT(MSUB_Q_W__DDT, msub_q.w)
+DO_MSA__WD__WS_WD(MSUB_Q_W__DSD, msub_q.w)
 
 DO_MSA__WD__WS_WT(MSUBR_Q_H, msubr_q.h)
+DO_MSA__WD__WD_WT(MSUBR_Q_H__DDT, msubr_q.h)
+DO_MSA__WD__WS_WD(MSUBR_Q_H__DSD, msubr_q.h)
 DO_MSA__WD__WS_WT(MSUBR_Q_W, msubr_q.w)
+DO_MSA__WD__WD_WT(MSUBR_Q_W__DDT, msubr_q.w)
+DO_MSA__WD__WS_WD(MSUBR_Q_W__DSD, msubr_q.w)
 
 DO_MSA__WD__WS_WT(MUL_Q_H, mul_q.h)
 DO_MSA__WD__WS_WT(MUL_Q_W, mul_q.w)
