@@ -379,8 +379,7 @@ int scsi_sense_to_errno(int key, int asc, int ascq)
     case NO_SENSE:
     case RECOVERED_ERROR:
     case UNIT_ATTENTION:
-        /* These sense keys are not errors */
-        return 0;
+        return EAGAIN;
     case ABORTED_COMMAND: /* COMMAND ABORTED */
         return ECANCELED;
     case NOT_READY:
@@ -409,7 +408,7 @@ int scsi_sense_to_errno(int key, int asc, int ascq)
     case 0x2700: /* WRITE PROTECTED */
         return EACCES;
     case 0x0401: /* NOT READY, IN PROGRESS OF BECOMING READY */
-        return EAGAIN;
+        return EINPROGRESS;
     case 0x0402: /* NOT READY, INITIALIZING COMMAND REQUIRED */
         return ENOTCONN;
     default:
