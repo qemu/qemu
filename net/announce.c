@@ -15,6 +15,8 @@
 #include "qapi/qapi-commands-net.h"
 #include "trace.h"
 
+static GData *named_timers;
+
 int64_t qemu_announce_timer_step(AnnounceTimer *timer)
 {
     int64_t step;
@@ -31,12 +33,37 @@ int64_t qemu_announce_timer_step(AnnounceTimer *timer)
     return step;
 }
 
-void qemu_announce_timer_del(AnnounceTimer *timer)
+/*
+ * If 'free_named' is true, then remove the timer from the list
+ * and free the timer itself.
+ */
+void qemu_announce_timer_del(AnnounceTimer *timer, bool free_named)
 {
+    bool free_timer = false;
     if (timer->tm) {
         timer_del(timer->tm);
         timer_free(timer->tm);
         timer->tm = NULL;
+    }
+    qapi_free_strList(timer->params.interfaces);
+    timer->params.interfaces = NULL;
+    if (free_named && timer->params.has_id) {
+        AnnounceTimer *list_timer;
+        /*
+         * Sanity check: There should only be one timer on the list with
+         * the id.
+         */
+        list_timer = g_datalist_get_data(&named_timers, timer->params.id);
+        assert(timer == list_timer);
+        free_timer = true;
+        g_datalist_remove_data(&named_timers, timer->params.id);
+    }
+    trace_qemu_announce_timer_del(free_named, free_timer, timer->params.id);
+    g_free(timer->params.id);
+    timer->params.id = NULL;
+
+    if (free_timer) {
+        g_free(timer);
     }
 }
 
@@ -54,7 +81,7 @@ void qemu_announce_timer_reset(AnnounceTimer *timer,
      * We're under the BQL, so the current timer can't
      * be firing, so we should be able to delete it.
      */
-    qemu_announce_timer_del(timer);
+    qemu_announce_timer_del(timer, false);
 
     QAPI_CLONE_MEMBERS(AnnounceParameters, &timer->params, params);
     timer->round = params->rounds;
@@ -96,29 +123,53 @@ static int announce_self_create(uint8_t *buf,
 
 static void qemu_announce_self_iter(NICState *nic, void *opaque)
 {
+    AnnounceTimer *timer = opaque;
     uint8_t buf[60];
     int len;
+    bool skip;
 
-    trace_qemu_announce_self_iter(qemu_ether_ntoa(&nic->conf->macaddr));
-    len = announce_self_create(buf, nic->conf->macaddr.a);
+    if (timer->params.has_interfaces) {
+        strList *entry = timer->params.interfaces;
+        /* Skip unless we find our name in the requested list */
+        skip = true;
 
-    qemu_send_packet_raw(qemu_get_queue(nic), buf, len);
+        while (entry) {
+            if (!strcmp(entry->value, nic->ncs->name)) {
+                /* Found us */
+                skip = false;
+                break;
+            }
+            entry = entry->next;
+        }
+    } else {
+        skip = false;
+    }
 
-    /* if the NIC provides it's own announcement support, use it as well */
-    if (nic->ncs->info->announce) {
-        nic->ncs->info->announce(nic->ncs);
+    trace_qemu_announce_self_iter(timer->params.has_id ? timer->params.id : "_",
+                                  nic->ncs->name,
+                                  qemu_ether_ntoa(&nic->conf->macaddr), skip);
+
+    if (!skip) {
+        len = announce_self_create(buf, nic->conf->macaddr.a);
+
+        qemu_send_packet_raw(qemu_get_queue(nic), buf, len);
+
+        /* if the NIC provides it's own announcement support, use it as well */
+        if (nic->ncs->info->announce) {
+            nic->ncs->info->announce(nic->ncs);
+        }
     }
 }
 static void qemu_announce_self_once(void *opaque)
 {
     AnnounceTimer *timer = (AnnounceTimer *)opaque;
 
-    qemu_foreach_nic(qemu_announce_self_iter, NULL);
+    qemu_foreach_nic(qemu_announce_self_iter, timer);
 
     if (--timer->round) {
         qemu_announce_timer_step(timer);
     } else {
-        qemu_announce_timer_del(timer);
+        qemu_announce_timer_del(timer, true);
     }
 }
 
@@ -129,12 +180,24 @@ void qemu_announce_self(AnnounceTimer *timer, AnnounceParameters *params)
     if (params->rounds) {
         qemu_announce_self_once(timer);
     } else {
-        qemu_announce_timer_del(timer);
+        qemu_announce_timer_del(timer, true);
     }
 }
 
 void qmp_announce_self(AnnounceParameters *params, Error **errp)
 {
-    static AnnounceTimer announce_timer;
-    qemu_announce_self(&announce_timer, params);
+    AnnounceTimer *named_timer;
+    if (!params->has_id) {
+        params->id = g_strdup("");
+        params->has_id = true;
+    }
+
+    named_timer = g_datalist_get_data(&named_timers, params->id);
+
+    if (!named_timer) {
+        named_timer = g_new0(AnnounceTimer, 1);
+        g_datalist_set_data(&named_timers, params->id, named_timer);
+    }
+
+    qemu_announce_self(named_timer, params);
 }

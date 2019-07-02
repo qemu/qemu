@@ -699,6 +699,13 @@
 #
 # @step: Delay increase (in ms) after each self-announcement attempt
 #
+# @interfaces: An optional list of interface names, which restricts the
+#        announcement to the listed interfaces. (Since 4.1)
+#
+# @id: A name to be used to identify an instance of announce-timers
+#        and to allow it to modified later.  Not for use as
+#        part of the migration parameters. (Since 4.1)
+#
 # Since: 4.0
 ##
 
@@ -706,7 +713,9 @@
   'data': { 'initial': 'int',
             'max': 'int',
             'rounds': 'int',
-            'step': 'int' } }
+            'step': 'int',
+            '*interfaces': ['str'],
+            '*id' : 'str' } }
 
 ##
 # @announce-self:
@@ -718,9 +727,10 @@
 #
 # Example:
 #
-# -> { "execute": "announce-self"
+# -> { "execute": "announce-self",
 #      "arguments": {
-#          "initial": 50, "max": 550, "rounds": 10, "step": 50 } }
+#          "initial": 50, "max": 550, "rounds": 10, "step": 50,
+#          "interfaces": ["vn2", "vn3"], "id": "bob" } }
 # <- { "return": {} }
 #
 # Since: 4.0

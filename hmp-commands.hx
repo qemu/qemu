@@ -955,8 +955,8 @@ ETEXI
 
     {
         .name       = "announce_self",
-        .args_type  = "",
-        .params     = "",
+        .args_type  = "interfaces:s?,id:s?",
+        .params     = "[interfaces] [id]",
         .help       = "Trigger GARP/RARP announcements",
         .cmd        = hmp_announce_self,
     },
@@ -967,6 +967,9 @@ STEXI
 Trigger a round of GARP/RARP broadcasts; this is useful for explicitly updating the
 network infrastructure after a reconfiguration or some forms of migration.
 The timings of the round are set by the migration announce parameters.
+An optional comma separated @var{interfaces} list restricts the announce to the
+named set of interfaces. An optional @var{id} can be used to start a separate announce
+timer and to change the parameters of it later.
 ETEXI
 
     {

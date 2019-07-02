@@ -1,7 +1,8 @@
 # See docs/devel/tracing.txt for syntax documentation.
 
 # announce.c
-qemu_announce_self_iter(const char *mac) "%s"
+qemu_announce_self_iter(const char *id, const char *name, const char *mac, int skip) "%s:%s:%s skip: %d"
+qemu_announce_timer_del(bool free_named, bool free_timer, char *id) "free named: %d free timer: %d id: %s"
 
 # vhost-user.c
 vhost_user_event(const char *chr, int event) "chr: %s got event: %d"
