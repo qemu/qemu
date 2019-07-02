@@ -184,6 +184,20 @@ config REALVIEW
     select DS1338 # I2C RTC+NVRAM
     select USB_OHCI
 
+config SBSA_REF
+    bool
+    imply PCI_DEVICES
+    select AHCI
+    select ARM_SMMUV3
+    select GPIO_KEY
+    select PCI_EXPRESS
+    select PCI_EXPRESS_GENERIC_BRIDGE
+    select PFLASH_CFI01
+    select PL011 # UART
+    select PL031 # RTC
+    select PL061 # GPIO
+    select USB_EHCI_SYSBUS
+
 config SABRELITE
     bool
     select FSL_IMX6

@@ -107,39 +107,49 @@ static inline uint64_t calculate_time(struct AspeedTimer *t, uint32_t ticks)
     return t->start + delta_ns;
 }
 
+static inline uint32_t calculate_match(struct AspeedTimer *t, int i)
+{
+    return t->match[i] < t->reload ? t->match[i] : 0;
+}
+
 static uint64_t calculate_next(struct AspeedTimer *t)
 {
-    uint64_t next = 0;
-    uint32_t rate = calculate_rate(t);
+    uint64_t now = qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL);
+    uint64_t next;
 
-    while (!next) {
-        /* We don't know the relationship between the values in the match
-         * registers, so sort using MAX/MIN/zero. We sort in that order as the
-         * timer counts down to zero. */
-        uint64_t seq[] = {
-            calculate_time(t, MAX(t->match[0], t->match[1])),
-            calculate_time(t, MIN(t->match[0], t->match[1])),
-            calculate_time(t, 0),
-        };
-        uint64_t reload_ns;
-        uint64_t now = qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL);
+    /*
+     * We don't know the relationship between the values in the match
+     * registers, so sort using MAX/MIN/zero. We sort in that order as
+     * the timer counts down to zero.
+     */
 
-        if (now < seq[0]) {
-            next = seq[0];
-        } else if (now < seq[1]) {
-            next = seq[1];
-        } else if (now < seq[2]) {
-            next = seq[2];
-        } else if (t->reload) {
-            reload_ns = muldiv64(t->reload, NANOSECONDS_PER_SECOND, rate);
-            t->start = now - ((now - t->start) % reload_ns);
-        } else {
-            /* no reload value, return 0 */
-            break;
-        }
+    next = calculate_time(t, MAX(calculate_match(t, 0), calculate_match(t, 1)));
+    if (now < next) {
+        return next;
     }
 
-    return next;
+    next = calculate_time(t, MIN(calculate_match(t, 0), calculate_match(t, 1)));
+    if (now < next) {
+        return next;
+    }
+
+    next = calculate_time(t, 0);
+    if (now < next) {
+        return next;
+    }
+
+    /* We've missed all deadlines, fire interrupt and try again */
+    timer_del(&t->timer);
+
+    if (timer_overflow_interrupt(t)) {
+        t->level = !t->level;
+        qemu_set_irq(t->irq, t->level);
+    }
+
+    next = MAX(MAX(calculate_match(t, 0), calculate_match(t, 1)), 0);
+    t->start = qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL);
+
+    return calculate_time(t, next);
 }
 
 static void aspeed_timer_mod(AspeedTimer *t)
@@ -184,7 +194,11 @@ static uint64_t aspeed_timer_get_value(AspeedTimer *t, int reg)
 
     switch (reg) {
     case TIMER_REG_STATUS:
-        value = calculate_ticks(t, qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL));
+        if (timer_enabled(t)) {
+            value = calculate_ticks(t, qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL));
+        } else {
+            value = t->reload;
+        }
         break;
     case TIMER_REG_RELOAD:
         value = t->reload;
@@ -261,7 +275,11 @@ static void aspeed_timer_set_value(AspeedTimerCtrlState *s, int timer, int reg,
             int64_t delta = (int64_t) value - (int64_t) calculate_ticks(t, now);
             uint32_t rate = calculate_rate(t);
 
-            t->start += muldiv64(delta, NANOSECONDS_PER_SECOND, rate);
+            if (delta >= 0) {
+                t->start += muldiv64(delta, NANOSECONDS_PER_SECOND, rate);
+            } else {
+                t->start -= muldiv64(-delta, NANOSECONDS_PER_SECOND, rate);
+            }
             aspeed_timer_mod(t);
         }
         break;

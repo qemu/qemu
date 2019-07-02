@@ -730,6 +730,14 @@ F: include/hw/arm/fsl-imx6.h
 F: include/hw/misc/imx6_*.h
 F: include/hw/ssi/imx_spi.h
 
+SBSA-REF
+M: Radoslaw Biernacki <radoslaw.biernacki@linaro.org>
+M: Peter Maydell <peter.maydell@linaro.org>
+R: Leif Lindholm <leif.lindholm@linaro.org>
+L: qemu-arm@nongnu.org
+S: Maintained
+F: hw/arm/sbsa-ref.c
+
 Sharp SL-5500 (Collie) PDA
 M: Peter Maydell <peter.maydell@linaro.org>
 L: qemu-arm@nongnu.org
