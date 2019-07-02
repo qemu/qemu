@@ -36,7 +36,6 @@
 #include "net/slirp.h"
 #include "chardev/char-mux.h"
 #include "ui/qemu-spice.h"
-#include "sysemu/numa.h"
 #include "qemu/config-file.h"
 #include "qemu/ctype.h"
 #include "ui/console.h"
@@ -48,6 +47,8 @@
 #include "sysemu/hw_accel.h"
 #include "authz/list.h"
 #include "qapi/util.h"
+#include "sysemu/blockdev.h"
+#include "sysemu/sysemu.h"
 #include "sysemu/tcg.h"
 #include "sysemu/tpm.h"
 #include "qapi/qmp/qdict.h"
@@ -56,13 +57,13 @@
 #include "qom/object_interfaces.h"
 #include "trace/control.h"
 #include "monitor/hmp-target.h"
+#include "monitor/hmp.h"
 #ifdef CONFIG_TRACE_SIMPLE
 #include "trace/simple.h"
 #endif
 #include "exec/memory.h"
 #include "exec/exec-all.h"
 #include "qemu/option.h"
-#include "hmp.h"
 #include "qemu/thread.h"
 #include "block/qapi.h"
 #include "qapi/qapi-commands.h"
@@ -1079,35 +1080,6 @@ static void hmp_info_mtree(Monitor *mon, const QDict *qdict)
     bool owner = qdict_get_try_bool(qdict, "owner", false);
 
     mtree_info(flatview, dispatch_tree, owner);
-}
-
-static void hmp_info_numa(Monitor *mon, const QDict *qdict)
-{
-    int i;
-    NumaNodeMem *node_mem;
-    CpuInfoList *cpu_list, *cpu;
-
-    cpu_list = qmp_query_cpus(&error_abort);
-    node_mem = g_new0(NumaNodeMem, nb_numa_nodes);
-
-    query_numa_node_mem(node_mem);
-    monitor_printf(mon, "%d nodes\n", nb_numa_nodes);
-    for (i = 0; i < nb_numa_nodes; i++) {
-        monitor_printf(mon, "node %d cpus:", i);
-        for (cpu = cpu_list; cpu; cpu = cpu->next) {
-            if (cpu->value->has_props && cpu->value->props->has_node_id &&
-                cpu->value->props->node_id == i) {
-                monitor_printf(mon, " %" PRIi64, cpu->value->CPU);
-            }
-        }
-        monitor_printf(mon, "\n");
-        monitor_printf(mon, "node %d size: %" PRId64 " MB\n", i,
-                       node_mem[i].node_mem >> 20);
-        monitor_printf(mon, "node %d plugged: %" PRId64 " MB\n", i,
-                       node_mem[i].node_plugged_mem >> 20);
-    }
-    qapi_free_CpuInfoList(cpu_list);
-    g_free(node_mem);
 }
 
 #ifdef CONFIG_PROFILER
@@ -2337,17 +2309,4 @@ void monitor_init_globals(void)
     monitor_init_qmp_commands();
     sortcmdlist();
     qemu_mutex_init(&mon_fdsets_lock);
-}
-
-HotpluggableCPUList *qmp_query_hotpluggable_cpus(Error **errp)
-{
-    MachineState *ms = MACHINE(qdev_get_machine());
-    MachineClass *mc = MACHINE_GET_CLASS(ms);
-
-    if (!mc->has_hotpluggable_cpus) {
-        error_setg(errp, QERR_FEATURE_DISABLED, "query-hotpluggable-cpus");
-        return NULL;
-    }
-
-    return machine_query_hotpluggable_cpus(ms);
 }

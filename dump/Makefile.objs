@@ -1,0 +1,3 @@
+obj-y += dump.o
+common-obj-y += dump-hmp-cmds.o
+obj-$(TARGET_X86_64) += win_dump.o
