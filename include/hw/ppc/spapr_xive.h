@@ -42,6 +42,7 @@ typedef struct SpaprXive {
     /* KVM support */
     int           fd;
     void          *tm_mmap;
+    MemoryRegion  tm_mmio_kvm;
     VMChangeStateEntry *change;
 } SpaprXive;
 
@@ -66,7 +67,6 @@ void spapr_xive_map_mmio(SpaprXive *xive);
 
 int spapr_xive_end_to_target(uint8_t end_blk, uint32_t end_idx,
                              uint32_t *out_server, uint8_t *out_prio);
-void spapr_xive_init(SpaprXive *xive, Error **errp);
 
 /*
  * KVM XIVE device helpers

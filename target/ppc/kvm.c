@@ -2650,7 +2650,7 @@ int kvmppc_define_rtas_kernel_token(uint32_t token, const char *function)
         return -ENOENT;
     }
 
-    strncpy(args.name, function, sizeof(args.name));
+    strncpy(args.name, function, sizeof(args.name) - 1);
 
     return kvm_vm_ioctl(kvm_state, KVM_PPC_RTAS_DEFINE_TOKEN, &args);
 }
@@ -2942,5 +2942,14 @@ void kvmppc_set_reg_ppc_online(PowerPCCPU *cpu, unsigned int online)
 
     if (kvm_enabled()) {
         kvm_set_one_reg(cs, KVM_REG_PPC_ONLINE, &online);
+    }
+}
+
+void kvmppc_set_reg_tb_offset(PowerPCCPU *cpu, int64_t tb_offset)
+{
+    CPUState *cs = CPU(cpu);
+
+    if (kvm_enabled()) {
+        kvm_set_one_reg(cs, KVM_REG_PPC_TB_OFFSET, &tb_offset);
     }
 }

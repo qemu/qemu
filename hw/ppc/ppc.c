@@ -80,9 +80,7 @@ void ppc_set_irq(PowerPCCPU *cpu, int n_IRQ, int level)
     }
 
     if (old_pending != env->pending_interrupts) {
-#ifdef CONFIG_KVM
         kvmppc_set_interrupt(cpu, n_IRQ, level);
-#endif
     }
 
 
@@ -1036,10 +1034,7 @@ static void timebase_load(PPCTimebase *tb)
     CPU_FOREACH(cpu) {
         PowerPCCPU *pcpu = POWERPC_CPU(cpu);
         pcpu->env.tb_env->tb_offset = tb_off_adj;
-#if defined(CONFIG_KVM)
-        kvm_set_one_reg(cpu, KVM_REG_PPC_TB_OFFSET,
-                        &pcpu->env.tb_env->tb_offset);
-#endif
+        kvmppc_set_reg_tb_offset(pcpu, pcpu->env.tb_env->tb_offset);
     }
 }
 

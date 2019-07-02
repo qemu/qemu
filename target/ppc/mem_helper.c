@@ -415,28 +415,28 @@ STVE(stvewx, cpu_stl_data_ra, bswap32, u32)
 
 #define VSX_LXVL(name, lj)                                              \
 void helper_##name(CPUPPCState *env, target_ulong addr,                 \
-                   target_ulong xt_num, target_ulong rb)                \
+                   ppc_vsr_t *xt, target_ulong rb)                      \
 {                                                                       \
-    int i;                                                              \
-    ppc_vsr_t xt;                                                       \
+    ppc_vsr_t t;                                                        \
     uint64_t nb = GET_NB(rb);                                           \
+    int i;                                                              \
                                                                         \
-    xt.s128 = int128_zero();                                            \
+    t.s128 = int128_zero();                                             \
     if (nb) {                                                           \
         nb = (nb >= 16) ? 16 : nb;                                      \
         if (msr_le && !lj) {                                            \
             for (i = 16; i > 16 - nb; i--) {                            \
-                xt.VsrB(i - 1) = cpu_ldub_data_ra(env, addr, GETPC());  \
+                t.VsrB(i - 1) = cpu_ldub_data_ra(env, addr, GETPC());   \
                 addr = addr_add(env, addr, 1);                          \
             }                                                           \
         } else {                                                        \
             for (i = 0; i < nb; i++) {                                  \
-                xt.VsrB(i) = cpu_ldub_data_ra(env, addr, GETPC());      \
+                t.VsrB(i) = cpu_ldub_data_ra(env, addr, GETPC());       \
                 addr = addr_add(env, addr, 1);                          \
             }                                                           \
         }                                                               \
     }                                                                   \
-    putVSR(xt_num, &xt, env);                                           \
+    *xt = t;                                                            \
 }
 
 VSX_LXVL(lxvl, 0)
@@ -445,25 +445,24 @@ VSX_LXVL(lxvll, 1)
 
 #define VSX_STXVL(name, lj)                                       \
 void helper_##name(CPUPPCState *env, target_ulong addr,           \
-                   target_ulong xt_num, target_ulong rb)          \
+                   ppc_vsr_t *xt, target_ulong rb)                \
 {                                                                 \
-    int i;                                                        \
-    ppc_vsr_t xt;                                                 \
     target_ulong nb = GET_NB(rb);                                 \
+    int i;                                                        \
                                                                   \
     if (!nb) {                                                    \
         return;                                                   \
     }                                                             \
-    getVSR(xt_num, &xt, env);                                     \
+                                                                  \
     nb = (nb >= 16) ? 16 : nb;                                    \
     if (msr_le && !lj) {                                          \
         for (i = 16; i > 16 - nb; i--) {                          \
-            cpu_stb_data_ra(env, addr, xt.VsrB(i - 1), GETPC());  \
+            cpu_stb_data_ra(env, addr, xt->VsrB(i - 1), GETPC()); \
             addr = addr_add(env, addr, 1);                        \
         }                                                         \
     } else {                                                      \
         for (i = 0; i < nb; i++) {                                \
-            cpu_stb_data_ra(env, addr, xt.VsrB(i), GETPC());      \
+            cpu_stb_data_ra(env, addr, xt->VsrB(i), GETPC());     \
             addr = addr_add(env, addr, 1);                        \
         }                                                         \
     }                                                             \

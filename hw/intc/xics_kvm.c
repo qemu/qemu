@@ -106,7 +106,7 @@ void icp_synchronize_state(ICPState *icp)
     }
 }
 
-int icp_set_kvm_state(ICPState *icp)
+int icp_set_kvm_state(ICPState *icp, Error **errp)
 {
     uint64_t state;
     int ret;
@@ -126,10 +126,11 @@ int icp_set_kvm_state(ICPState *icp)
         | ((uint64_t)icp->pending_priority << KVM_REG_PPC_ICP_PPRI_SHIFT);
 
     ret = kvm_set_one_reg(icp->cs, KVM_REG_PPC_ICP_STATE, &state);
-    if (ret != 0) {
-        error_report("Unable to restore KVM interrupt controller state (0x%"
-                PRIx64 ") for CPU %ld: %s", state, kvm_arch_vcpu_id(icp->cs),
-                strerror(errno));
+    if (ret < 0) {
+        error_setg_errno(errp, -ret,
+                         "Unable to restore KVM interrupt controller state (0x%"
+                         PRIx64 ") for CPU %ld", state,
+                         kvm_arch_vcpu_id(icp->cs));
         return ret;
     }
 
@@ -240,10 +241,9 @@ void ics_synchronize_state(ICSState *ics)
     ics_get_kvm_state(ics);
 }
 
-int ics_set_kvm_state_one(ICSState *ics, int srcno)
+int ics_set_kvm_state_one(ICSState *ics, int srcno, Error **errp)
 {
     uint64_t state;
-    Error *local_err = NULL;
     ICSIRQState *irq = &ics->irqs[srcno];
     int ret;
 
@@ -278,16 +278,15 @@ int ics_set_kvm_state_one(ICSState *ics, int srcno)
     }
 
     ret = kvm_device_access(kernel_xics_fd, KVM_DEV_XICS_GRP_SOURCES,
-                            srcno + ics->offset, &state, true, &local_err);
-    if (local_err) {
-        error_report_err(local_err);
+                            srcno + ics->offset, &state, true, errp);
+    if (ret < 0) {
         return ret;
     }
 
     return 0;
 }
 
-int ics_set_kvm_state(ICSState *ics)
+int ics_set_kvm_state(ICSState *ics, Error **errp)
 {
     int i;
 
@@ -297,10 +296,12 @@ int ics_set_kvm_state(ICSState *ics)
     }
 
     for (i = 0; i < ics->nr_irqs; i++) {
+        Error *local_err = NULL;
         int ret;
 
-        ret = ics_set_kvm_state_one(ics, i);
-        if (ret) {
+        ret = ics_set_kvm_state_one(ics, i, &local_err);
+        if (ret < 0) {
+            error_propagate(errp, local_err);
             return ret;
         }
     }
@@ -331,16 +332,7 @@ void ics_kvm_set_irq(ICSState *ics, int srcno, int val)
     }
 }
 
-static void rtas_dummy(PowerPCCPU *cpu, SpaprMachineState *spapr,
-                       uint32_t token,
-                       uint32_t nargs, target_ulong args,
-                       uint32_t nret, target_ulong rets)
-{
-    error_report("pseries: %s must never be called for in-kernel XICS",
-                 __func__);
-}
-
-int xics_kvm_init(SpaprMachineState *spapr, Error **errp)
+int xics_kvm_connect(SpaprMachineState *spapr, Error **errp)
 {
     int rc;
     CPUState *cs;
@@ -357,42 +349,41 @@ int xics_kvm_init(SpaprMachineState *spapr, Error **errp)
     if (!kvm_enabled() || !kvm_check_extension(kvm_state, KVM_CAP_IRQ_XICS)) {
         error_setg(errp,
                    "KVM and IRQ_XICS capability must be present for in-kernel XICS");
-        goto fail;
+        return -1;
     }
-
-    spapr_rtas_register(RTAS_IBM_SET_XIVE, "ibm,set-xive", rtas_dummy);
-    spapr_rtas_register(RTAS_IBM_GET_XIVE, "ibm,get-xive", rtas_dummy);
-    spapr_rtas_register(RTAS_IBM_INT_OFF, "ibm,int-off", rtas_dummy);
-    spapr_rtas_register(RTAS_IBM_INT_ON, "ibm,int-on", rtas_dummy);
 
     rc = kvmppc_define_rtas_kernel_token(RTAS_IBM_SET_XIVE, "ibm,set-xive");
     if (rc < 0) {
-        error_setg(errp, "kvmppc_define_rtas_kernel_token: ibm,set-xive");
+        error_setg_errno(&local_err, -rc,
+                         "kvmppc_define_rtas_kernel_token: ibm,set-xive");
         goto fail;
     }
 
     rc = kvmppc_define_rtas_kernel_token(RTAS_IBM_GET_XIVE, "ibm,get-xive");
     if (rc < 0) {
-        error_setg(errp, "kvmppc_define_rtas_kernel_token: ibm,get-xive");
+        error_setg_errno(&local_err, -rc,
+                         "kvmppc_define_rtas_kernel_token: ibm,get-xive");
         goto fail;
     }
 
     rc = kvmppc_define_rtas_kernel_token(RTAS_IBM_INT_ON, "ibm,int-on");
     if (rc < 0) {
-        error_setg(errp, "kvmppc_define_rtas_kernel_token: ibm,int-on");
+        error_setg_errno(&local_err, -rc,
+                         "kvmppc_define_rtas_kernel_token: ibm,int-on");
         goto fail;
     }
 
     rc = kvmppc_define_rtas_kernel_token(RTAS_IBM_INT_OFF, "ibm,int-off");
     if (rc < 0) {
-        error_setg(errp, "kvmppc_define_rtas_kernel_token: ibm,int-off");
+        error_setg_errno(&local_err, -rc,
+                         "kvmppc_define_rtas_kernel_token: ibm,int-off");
         goto fail;
     }
 
     /* Create the KVM XICS device */
     rc = kvm_create_device(kvm_state, KVM_DEV_TYPE_XICS, false);
     if (rc < 0) {
-        error_setg_errno(errp, -rc, "Error on KVM_CREATE_DEVICE for XICS");
+        error_setg_errno(&local_err, -rc, "Error on KVM_CREATE_DEVICE for XICS");
         goto fail;
     }
 
@@ -407,27 +398,30 @@ int xics_kvm_init(SpaprMachineState *spapr, Error **errp)
 
         icp_kvm_realize(DEVICE(spapr_cpu_state(cpu)->icp), &local_err);
         if (local_err) {
-            error_propagate(errp, local_err);
             goto fail;
         }
     }
 
     /* Update the KVM sources */
-    ics_set_kvm_state(spapr->ics);
+    ics_set_kvm_state(spapr->ics, &local_err);
+    if (local_err) {
+        goto fail;
+    }
 
     /* Connect the presenters to the initial VCPUs of the machine */
     CPU_FOREACH(cs) {
         PowerPCCPU *cpu = POWERPC_CPU(cs);
-        icp_set_kvm_state(spapr_cpu_state(cpu)->icp);
+        icp_set_kvm_state(spapr_cpu_state(cpu)->icp, &local_err);
+        if (local_err) {
+            goto fail;
+        }
     }
 
     return 0;
 
 fail:
-    kvmppc_define_rtas_kernel_token(0, "ibm,set-xive");
-    kvmppc_define_rtas_kernel_token(0, "ibm,get-xive");
-    kvmppc_define_rtas_kernel_token(0, "ibm,int-on");
-    kvmppc_define_rtas_kernel_token(0, "ibm,int-off");
+    error_propagate(errp, local_err);
+    xics_kvm_disconnect(spapr, NULL);
     return -1;
 }
 
@@ -451,13 +445,10 @@ void xics_kvm_disconnect(SpaprMachineState *spapr, Error **errp)
      * removed from the list of devices of the VM. The VCPU presenters
      * are also detached from the device.
      */
-    close(kernel_xics_fd);
-    kernel_xics_fd = -1;
-
-    spapr_rtas_unregister(RTAS_IBM_SET_XIVE);
-    spapr_rtas_unregister(RTAS_IBM_GET_XIVE);
-    spapr_rtas_unregister(RTAS_IBM_INT_OFF);
-    spapr_rtas_unregister(RTAS_IBM_INT_ON);
+    if (kernel_xics_fd != -1) {
+        close(kernel_xics_fd);
+        kernel_xics_fd = -1;
+    }
 
     kvmppc_define_rtas_kernel_token(0, "ibm,set-xive");
     kvmppc_define_rtas_kernel_token(0, "ibm,get-xive");
@@ -470,4 +461,34 @@ void xics_kvm_disconnect(SpaprMachineState *spapr, Error **errp)
 
     /* Clear the presenter from the VCPUs */
     kvm_disable_icps();
+}
+
+/*
+ * This is a heuristic to detect older KVMs on POWER9 hosts that don't
+ * support destruction of a KVM XICS device while the VM is running.
+ * Required to start a spapr machine with ic-mode=dual,kernel-irqchip=on.
+ */
+bool xics_kvm_has_broken_disconnect(SpaprMachineState *spapr)
+{
+    int rc;
+
+    rc = kvm_create_device(kvm_state, KVM_DEV_TYPE_XICS, false);
+    if (rc < 0) {
+        /*
+         * The error is ignored on purpose. The KVM XICS setup code
+         * will catch it again anyway. The goal here is to see if
+         * close() actually destroys the device or not.
+         */
+        return false;
+    }
+
+    close(rc);
+
+    rc = kvm_create_device(kvm_state, KVM_DEV_TYPE_XICS, false);
+    if (rc >= 0) {
+        close(rc);
+        return false;
+    }
+
+    return errno == EEXIST;
 }

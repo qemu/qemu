@@ -34,18 +34,117 @@ CAS Negotiation
 ---------------
 
 QEMU advertises the supported interrupt modes in the device tree
-property "ibm,arch-vec-5-platform-support" in byte 23 and the OS
-Selection for XIVE is indicated in the "ibm,architecture-vec-5"
+property ``ibm,arch-vec-5-platform-support`` in byte 23 and the OS
+Selection for XIVE is indicated in the ``ibm,architecture-vec-5``
 property byte 23.
 
 The interrupt modes supported by the machine depend on the CPU type
 (POWER9 is required for XIVE) but also on the machine property
 ``ic-mode`` which can be set on the command line. It can take the
-following values: ``xics``, ``xive``, ``dual`` and currently ``xics``
-is the default but it may change in the future.
+following values: ``xics``, ``xive``, and ``dual`` which is the
+default mode. ``dual`` means that both modes XICS **and** XIVE are
+supported and if the guest OS supports XIVE, this mode will be
+selected.
 
 The choosen interrupt mode is activated after a reconfiguration done
 in a machine reset.
+
+KVM negotiation
+---------------
+
+When the guest starts under KVM, the capabilities of the host kernel
+and QEMU are also negotiated. Depending on the version of the host
+kernel, KVM will advertise the XIVE capability to QEMU or not.
+
+Nevertheless, the available interrupt modes in the machine should not
+depend on the XIVE KVM capability of the host. On older kernels
+without XIVE KVM support, QEMU will use the emulated XIVE device as a
+fallback and on newer kernels (>=5.2), the KVM XIVE device.
+
+As a final refinement, the user can also switch the use of the KVM
+device with the machine option ``kernel_irqchip``.
+
+
+XIVE support in KVM
+~~~~~~~~~~~~~~~~~~~
+
+For guest OSes supporting XIVE, the resulting interrupt modes on host
+kernels with XIVE KVM support are the following:
+
+==============  =============  =============  ================
+ic-mode                            kernel_irqchip
+--------------  ----------------------------------------------
+/               allowed        off            on
+                (default)
+==============  =============  =============  ================
+dual (default)  XIVE KVM       XIVE emul.     XIVE KVM
+xive            XIVE KVM       XIVE emul.     XIVE KVM
+xics            XICS KVM       XICS emul.     XICS KVM
+==============  =============  =============  ================
+
+For legacy guest OSes without XIVE support, the resulting interrupt
+modes are the following:
+
+==============  =============  =============  ================
+ic-mode                            kernel_irqchip
+--------------  ----------------------------------------------
+/               allowed        off            on
+                (default)
+==============  =============  =============  ================
+dual (default)  XICS KVM       XICS emul.     XICS KVM
+xive            QEMU error(3)  QEMU error(3)  QEMU error(3)
+xics            XICS KVM       XICS emul.     XICS KVM
+==============  =============  =============  ================
+
+(3) QEMU fails at CAS with ``Guest requested unavailable interrupt
+    mode (XICS), either don't set the ic-mode machine property or try
+    ic-mode=xics or ic-mode=dual``
+
+
+No XIVE support in KVM
+~~~~~~~~~~~~~~~~~~~~~~
+
+For guest OSes supporting XIVE, the resulting interrupt modes on host
+kernels without XIVE KVM support are the following:
+
+==============  =============  =============  ================
+ic-mode                            kernel_irqchip
+--------------  ----------------------------------------------
+/               allowed        off            on
+                (default)
+==============  =============  =============  ================
+dual (default)  XIVE emul.(1)  XIVE emul.     QEMU error (2)
+xive            XIVE emul.(1)  XIVE emul.     QEMU error (2)
+xics            XICS KVM       XICS emul.     XICS KVM
+==============  =============  =============  ================
+
+
+(1) QEMU warns with ``warning: kernel_irqchip requested but unavailable:
+    IRQ_XIVE capability must be present for KVM``
+(2) QEMU fails with ``kernel_irqchip requested but unavailable:
+    IRQ_XIVE capability must be present for KVM``
+
+
+For legacy guest OSes without XIVE support, the resulting interrupt
+modes are the following:
+
+==============  =============  =============  ================
+ic-mode                            kernel_irqchip
+--------------  ----------------------------------------------
+/               allowed        off            on
+                (default)
+==============  =============  =============  ================
+dual (default)  QEMU error(4)  XICS emul.     QEMU error(4)
+xive            QEMU error(3)  QEMU error(3)  QEMU error(3)
+xics            XICS KVM       XICS emul.     XICS KVM
+==============  =============  =============  ================
+
+(3) QEMU fails at CAS with ``Guest requested unavailable interrupt
+    mode (XICS), either don't set the ic-mode machine property or try
+    ic-mode=xics or ic-mode=dual``
+(4) QEMU/KVM incompatibility due to device destruction in reset. QEMU fails
+    with ``KVM is too old to support ic-mode=dual,kernel-irqchip=on``
+
 
 XIVE Device tree properties
 ---------------------------
@@ -92,10 +191,11 @@ for both interrupt mode. The different ranges are defined as follow :
 - ``0x0000 .. 0x0FFF`` 4K CPU IPIs (only used under XIVE)
 - ``0x1000 .. 0x1000`` 1 EPOW
 - ``0x1001 .. 0x1001`` 1 HOTPLUG
+- ``0x1002 .. 0x10FF`` unused
 - ``0x1100 .. 0x11FF`` 256 VIO devices
-- ``0x1200 .. 0x127F`` 32 PHBs devices
+- ``0x1200 .. 0x127F`` 32x4 LSIs for PHB devices
 - ``0x1280 .. 0x12FF`` unused
-- ``0x1300 .. 0x1FFF`` PHB MSIs
+- ``0x1300 .. 0x1FFF`` PHB MSIs (dynamically allocated)
 
 Monitoring XIVE
 ---------------

@@ -56,7 +56,6 @@ typedef struct PnvChip {
     uint64_t     cores_mask;
     void         *cores;
 
-    hwaddr       xscom_base;
     MemoryRegion xscom_mmio;
     MemoryRegion xscom;
     AddressSpace xscom_as;
@@ -104,8 +103,6 @@ typedef struct PnvChipClass {
     PnvChipType  chip_type;
     uint64_t     chip_cfam_id;
     uint64_t     cores_mask;
-
-    hwaddr       xscom_base;
 
     DeviceRealize parent_realize;
 
@@ -199,7 +196,7 @@ void pnv_bmc_powerdown(IPMIBmc *bmc);
  */
 #define PNV_XSCOM_SIZE        0x800000000ull
 #define PNV_XSCOM_BASE(chip)                                            \
-    (chip->xscom_base + ((uint64_t)(chip)->chip_id) * PNV_XSCOM_SIZE)
+    (0x0003fc0000000000ull + ((uint64_t)(chip)->chip_id) * PNV_XSCOM_SIZE)
 
 /*
  * XSCOM 0x20109CA defines the ICP BAR:
@@ -255,5 +252,8 @@ void pnv_bmc_powerdown(IPMIBmc *bmc);
 
 #define PNV9_PSIHB_ESB_SIZE          0x0000000000010000ull
 #define PNV9_PSIHB_ESB_BASE(chip)    PNV9_CHIP_BASE(chip, 0x00060302031c0000ull)
+
+#define PNV9_XSCOM_SIZE              0x0000000400000000ull
+#define PNV9_XSCOM_BASE(chip)        PNV9_CHIP_BASE(chip, 0x00603fc00000000ull)
 
 #endif /* PPC_PNV_H */

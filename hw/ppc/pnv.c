@@ -860,6 +860,14 @@ static void pnv_chip_power8_realize(DeviceState *dev, Error **errp)
     Pnv8Psi *psi8 = &chip8->psi;
     Error *local_err = NULL;
 
+    /* XSCOM bridge is first */
+    pnv_xscom_realize(chip, PNV_XSCOM_SIZE, &local_err);
+    if (local_err) {
+        error_propagate(errp, local_err);
+        return;
+    }
+    sysbus_mmio_map(SYS_BUS_DEVICE(chip), 0, PNV_XSCOM_BASE(chip));
+
     pcc->parent_realize(dev, &local_err);
     if (local_err) {
         error_propagate(errp, local_err);
@@ -916,7 +924,6 @@ static void pnv_chip_power8e_class_init(ObjectClass *klass, void *data)
     k->isa_create = pnv_chip_power8_isa_create;
     k->dt_populate = pnv_chip_power8_dt_populate;
     k->pic_print_info = pnv_chip_power8_pic_print_info;
-    k->xscom_base = 0x003fc0000000000ull;
     dc->desc = "PowerNV Chip POWER8E";
 
     device_class_set_parent_realize(dc, pnv_chip_power8_realize,
@@ -936,7 +943,6 @@ static void pnv_chip_power8_class_init(ObjectClass *klass, void *data)
     k->isa_create = pnv_chip_power8_isa_create;
     k->dt_populate = pnv_chip_power8_dt_populate;
     k->pic_print_info = pnv_chip_power8_pic_print_info;
-    k->xscom_base = 0x003fc0000000000ull;
     dc->desc = "PowerNV Chip POWER8";
 
     device_class_set_parent_realize(dc, pnv_chip_power8_realize,
@@ -956,7 +962,6 @@ static void pnv_chip_power8nvl_class_init(ObjectClass *klass, void *data)
     k->isa_create = pnv_chip_power8nvl_isa_create;
     k->dt_populate = pnv_chip_power8_dt_populate;
     k->pic_print_info = pnv_chip_power8_pic_print_info;
-    k->xscom_base = 0x003fc0000000000ull;
     dc->desc = "PowerNV Chip POWER8NVL";
 
     device_class_set_parent_realize(dc, pnv_chip_power8_realize,
@@ -1023,6 +1028,14 @@ static void pnv_chip_power9_realize(DeviceState *dev, Error **errp)
     PnvChip *chip = PNV_CHIP(dev);
     Pnv9Psi *psi9 = &chip9->psi;
     Error *local_err = NULL;
+
+    /* XSCOM bridge is first */
+    pnv_xscom_realize(chip, PNV9_XSCOM_SIZE, &local_err);
+    if (local_err) {
+        error_propagate(errp, local_err);
+        return;
+    }
+    sysbus_mmio_map(SYS_BUS_DEVICE(chip), 0, PNV9_XSCOM_BASE(chip));
 
     pcc->parent_realize(dev, &local_err);
     if (local_err) {
@@ -1099,7 +1112,6 @@ static void pnv_chip_power9_class_init(ObjectClass *klass, void *data)
     k->isa_create = pnv_chip_power9_isa_create;
     k->dt_populate = pnv_chip_power9_dt_populate;
     k->pic_print_info = pnv_chip_power9_pic_print_info;
-    k->xscom_base = 0x00603fc00000000ull;
     dc->desc = "PowerNV Chip POWER9";
 
     device_class_set_parent_realize(dc, pnv_chip_power9_realize,
@@ -1134,11 +1146,6 @@ static void pnv_chip_core_sanitize(PnvChip *chip, Error **errp)
                    cores_max);
         return;
     }
-}
-
-static void pnv_chip_instance_init(Object *obj)
-{
-    PNV_CHIP(obj)->xscom_base = PNV_CHIP_GET_CLASS(obj)->xscom_base;
 }
 
 static void pnv_chip_core_realize(PnvChip *chip, Error **errp)
@@ -1205,14 +1212,6 @@ static void pnv_chip_realize(DeviceState *dev, Error **errp)
 {
     PnvChip *chip = PNV_CHIP(dev);
     Error *error = NULL;
-
-    /* XSCOM bridge */
-    pnv_xscom_realize(chip, &error);
-    if (error) {
-        error_propagate(errp, error);
-        return;
-    }
-    sysbus_mmio_map(SYS_BUS_DEVICE(chip), 0, PNV_XSCOM_BASE(chip));
 
     /* Cores */
     pnv_chip_core_realize(chip, &error);
@@ -1398,7 +1397,6 @@ static const TypeInfo types[] = {
         .name          = TYPE_PNV_CHIP,
         .parent        = TYPE_SYS_BUS_DEVICE,
         .class_init    = pnv_chip_class_init,
-        .instance_init = pnv_chip_instance_init,
         .instance_size = sizeof(PnvChip),
         .class_size    = sizeof(PnvChipClass),
         .abstract      = true,

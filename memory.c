@@ -2723,6 +2723,13 @@ void memory_listener_unregister(MemoryListener *listener)
     listener->address_space = NULL;
 }
 
+void address_space_remove_listeners(AddressSpace *as)
+{
+    while (!QTAILQ_EMPTY(&as->listeners)) {
+        memory_listener_unregister(QTAILQ_FIRST(&as->listeners));
+    }
+}
+
 void address_space_init(AddressSpace *as, MemoryRegion *root, const char *name)
 {
     memory_region_ref(root);

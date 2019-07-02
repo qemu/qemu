@@ -132,6 +132,11 @@ static void xive_tctx_set_cppr(XiveTCTX *tctx, uint8_t ring, uint8_t cppr)
     xive_tctx_notify(tctx, ring);
 }
 
+static inline uint32_t xive_tctx_word2(uint8_t *ring)
+{
+    return *((uint32_t *) &ring[TM_WORD2]);
+}
+
 /*
  * XIVE Thread Interrupt Management Area (TIMA)
  */
@@ -150,11 +155,12 @@ static uint64_t xive_tm_ack_hv_reg(XiveTCTX *tctx, hwaddr offset, unsigned size)
 static uint64_t xive_tm_pull_pool_ctx(XiveTCTX *tctx, hwaddr offset,
                                       unsigned size)
 {
-    uint64_t ret;
+    uint32_t qw2w2_prev = xive_tctx_word2(&tctx->regs[TM_QW2_HV_POOL]);
+    uint32_t qw2w2;
 
-    ret = tctx->regs[TM_QW2_HV_POOL + TM_WORD2] & TM_QW2W2_POOL_CAM;
-    tctx->regs[TM_QW2_HV_POOL + TM_WORD2] &= ~TM_QW2W2_POOL_CAM;
-    return ret;
+    qw2w2 = xive_set_field32(TM_QW2W2_VP, qw2w2_prev, 0);
+    memcpy(&tctx->regs[TM_QW2_HV_POOL + TM_WORD2], &qw2w2, 4);
+    return qw2w2;
 }
 
 static void xive_tm_vt_push(XiveTCTX *tctx, hwaddr offset,
@@ -182,31 +188,31 @@ static uint64_t xive_tm_vt_poll(XiveTCTX *tctx, hwaddr offset, unsigned size)
  */
 
 static const uint8_t xive_tm_hw_view[] = {
-    /* QW-0 User */   3, 0, 0, 0,   0, 0, 0, 0,   3, 3, 3, 3,   0, 0, 0, 0,
-    /* QW-1 OS   */   3, 3, 3, 3,   3, 3, 0, 3,   3, 3, 3, 3,   0, 0, 0, 0,
-    /* QW-2 POOL */   0, 0, 3, 3,   0, 0, 0, 0,   3, 3, 3, 3,   0, 0, 0, 0,
-    /* QW-3 PHYS */   3, 3, 3, 3,   0, 3, 0, 3,   3, 0, 0, 3,   3, 3, 3, 0,
+    3, 0, 0, 0,   0, 0, 0, 0,   3, 3, 3, 3,   0, 0, 0, 0, /* QW-0 User */
+    3, 3, 3, 3,   3, 3, 0, 2,   3, 3, 3, 3,   0, 0, 0, 0, /* QW-1 OS   */
+    0, 0, 3, 3,   0, 0, 0, 0,   3, 3, 3, 3,   0, 0, 0, 0, /* QW-2 POOL */
+    3, 3, 3, 3,   0, 3, 0, 2,   3, 0, 0, 3,   3, 3, 3, 0, /* QW-3 PHYS */
 };
 
 static const uint8_t xive_tm_hv_view[] = {
-    /* QW-0 User */   3, 0, 0, 0,   0, 0, 0, 0,   3, 3, 3, 3,   0, 0, 0, 0,
-    /* QW-1 OS   */   3, 3, 3, 3,   3, 3, 0, 3,   3, 3, 3, 3,   0, 0, 0, 0,
-    /* QW-2 POOL */   0, 0, 3, 3,   0, 0, 0, 0,   0, 3, 3, 3,   0, 0, 0, 0,
-    /* QW-3 PHYS */   3, 3, 3, 3,   0, 3, 0, 3,   3, 0, 0, 3,   0, 0, 0, 0,
+    3, 0, 0, 0,   0, 0, 0, 0,   3, 3, 3, 3,   0, 0, 0, 0, /* QW-0 User */
+    3, 3, 3, 3,   3, 3, 0, 2,   3, 3, 3, 3,   0, 0, 0, 0, /* QW-1 OS   */
+    0, 0, 3, 3,   0, 0, 0, 0,   0, 3, 3, 3,   0, 0, 0, 0, /* QW-2 POOL */
+    3, 3, 3, 3,   0, 3, 0, 2,   3, 0, 0, 3,   0, 0, 0, 0, /* QW-3 PHYS */
 };
 
 static const uint8_t xive_tm_os_view[] = {
-    /* QW-0 User */   3, 0, 0, 0,   0, 0, 0, 0,   3, 3, 3, 3,   0, 0, 0, 0,
-    /* QW-1 OS   */   2, 3, 2, 2,   2, 2, 0, 2,   0, 0, 0, 0,   0, 0, 0, 0,
-    /* QW-2 POOL */   0, 0, 0, 0,   0, 0, 0, 0,   0, 0, 0, 0,   0, 0, 0, 0,
-    /* QW-3 PHYS */   0, 0, 0, 0,   0, 0, 0, 0,   0, 0, 0, 0,   0, 0, 0, 0,
+    3, 0, 0, 0,   0, 0, 0, 0,   3, 3, 3, 3,   0, 0, 0, 0, /* QW-0 User */
+    2, 3, 2, 2,   2, 2, 0, 2,   0, 0, 0, 0,   0, 0, 0, 0, /* QW-1 OS   */
+    0, 0, 0, 0,   0, 0, 0, 0,   0, 0, 0, 0,   0, 0, 0, 0, /* QW-2 POOL */
+    0, 0, 0, 0,   0, 0, 0, 0,   0, 0, 0, 0,   0, 0, 0, 0, /* QW-3 PHYS */
 };
 
 static const uint8_t xive_tm_user_view[] = {
-    /* QW-0 User */   3, 0, 0, 0,   0, 0, 0, 0,   0, 0, 0, 0,   0, 0, 0, 0,
-    /* QW-1 OS   */   0, 0, 0, 0,   0, 0, 0, 0,   0, 0, 0, 0,   0, 0, 0, 0,
-    /* QW-2 POOL */   0, 0, 0, 0,   0, 0, 0, 0,   0, 0, 0, 0,   0, 0, 0, 0,
-    /* QW-3 PHYS */   0, 0, 0, 0,   0, 0, 0, 0,   0, 0, 0, 0,   0, 0, 0, 0,
+    3, 0, 0, 0,   0, 0, 0, 0,   0, 0, 0, 0,   0, 0, 0, 0, /* QW-0 User */
+    0, 0, 0, 0,   0, 0, 0, 0,   0, 0, 0, 0,   0, 0, 0, 0, /* QW-1 OS   */
+    0, 0, 0, 0,   0, 0, 0, 0,   0, 0, 0, 0,   0, 0, 0, 0, /* QW-2 POOL */
+    0, 0, 0, 0,   0, 0, 0, 0,   0, 0, 0, 0,   0, 0, 0, 0, /* QW-3 PHYS */
 };
 
 /*
@@ -483,11 +489,6 @@ const MemoryRegionOps xive_tm_ops = {
         .max_access_size = 8,
     },
 };
-
-static inline uint32_t xive_tctx_word2(uint8_t *ring)
-{
-    return *((uint32_t *) &ring[TM_WORD2]);
-}
 
 static char *xive_tctx_ring_print(uint8_t *ring)
 {
@@ -1229,27 +1230,16 @@ XiveTCTX *xive_router_get_tctx(XiveRouter *xrtr, CPUState *cs)
 }
 
 /*
- * By default on P9, the HW CAM line (23bits) is hardwired to :
+ * Encode the HW CAM line in the block group mode format :
  *
- *   0x000||0b1||4Bit chip number||7Bit Thread number.
- *
- * When the block grouping is enabled, the CAM line is changed to :
- *
- *   4Bit chip number||0x001||7Bit Thread number.
+ *   chip << 19 | 0000000 0 0001 thread (7Bit)
  */
-static uint32_t hw_cam_line(uint8_t chip_id, uint8_t tid)
-{
-    return 1 << 11 | (chip_id & 0xf) << 7 | (tid & 0x7f);
-}
-
-static bool xive_presenter_tctx_match_hw(XiveTCTX *tctx,
-                                         uint8_t nvt_blk, uint32_t nvt_idx)
+static uint32_t xive_tctx_hw_cam_line(XiveTCTX *tctx)
 {
     CPUPPCState *env = &POWERPC_CPU(tctx->cs)->env;
     uint32_t pir = env->spr_cb[SPR_PIR].default_value;
 
-    return hw_cam_line((pir >> 8) & 0xf, pir & 0x7f) ==
-        hw_cam_line(nvt_blk, nvt_idx);
+    return xive_nvt_cam_line((pir >> 8) & 0xf, 1 << 7 | (pir & 0x7f));
 }
 
 /*
@@ -1285,7 +1275,7 @@ static int xive_presenter_tctx_match(XiveTCTX *tctx, uint8_t format,
 
         /* PHYS ring */
         if ((be32_to_cpu(qw3w2) & TM_QW3W2_VT) &&
-            xive_presenter_tctx_match_hw(tctx, nvt_blk, nvt_idx)) {
+            cam == xive_tctx_hw_cam_line(tctx)) {
             return TM_QW3_HV_PHYS;
         }
 
