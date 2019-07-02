@@ -30,6 +30,26 @@ IOInstEnding s390_ccw_cmd_request(SubchDev *sch)
     return cdc->handle_request(sch);
 }
 
+int s390_ccw_halt(SubchDev *sch)
+{
+    S390CCWDeviceClass *cdc = S390_CCW_DEVICE_GET_CLASS(sch->driver_data);
+
+    if (!cdc->handle_halt) {
+        return -ENOSYS;
+    }
+    return cdc->handle_halt(sch);
+}
+
+int s390_ccw_clear(SubchDev *sch)
+{
+    S390CCWDeviceClass *cdc = S390_CCW_DEVICE_GET_CLASS(sch->driver_data);
+
+    if (!cdc->handle_clear) {
+        return -ENOSYS;
+    }
+    return cdc->handle_clear(sch);
+}
+
 static void s390_ccw_get_dev_info(S390CCWDevice *cdev,
                                   char *sysfsdev,
                                   Error **errp)

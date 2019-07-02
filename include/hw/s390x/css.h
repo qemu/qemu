@@ -215,6 +215,9 @@ IOInstEnding s390_ccw_cmd_request(SubchDev *sch);
 IOInstEnding do_subchannel_work_virtual(SubchDev *sub);
 IOInstEnding do_subchannel_work_passthrough(SubchDev *sub);
 
+int s390_ccw_halt(SubchDev *sch);
+int s390_ccw_clear(SubchDev *sch);
+
 typedef enum {
     CSS_IO_ADAPTER_VIRTIO = 0,
     CSS_IO_ADAPTER_PCI = 1,
