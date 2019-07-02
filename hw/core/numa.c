@@ -31,6 +31,7 @@
 #include "qapi/error.h"
 #include "qapi/opts-visitor.h"
 #include "qapi/qapi-visit-machine.h"
+#include "sysemu/qtest.h"
 #include "hw/mem/pc-dimm.h"
 #include "hw/mem/memory-device.h"
 #include "qemu/option.h"
@@ -118,8 +119,10 @@ static void parse_numa_node(MachineState *ms, NumaNodeOptions *node,
 
     if (node->has_mem) {
         numa_info[nodenr].node_mem = node->mem;
-        warn_report("Parameter -numa node,mem is deprecated,"
-                    " use -numa node,memdev instead");
+        if (!qtest_enabled()) {
+            warn_report("Parameter -numa node,mem is deprecated,"
+                        " use -numa node,memdev instead");
+        }
     }
     if (node->has_memdev) {
         Object *o;
@@ -405,9 +408,11 @@ void numa_complete_configuration(MachineState *ms)
         if (i == nb_numa_nodes) {
             assert(mc->numa_auto_assign_ram);
             mc->numa_auto_assign_ram(mc, numa_info, nb_numa_nodes, ram_size);
-            warn_report("Default splitting of RAM between nodes is deprecated,"
-                        " Use '-numa node,memdev' to explictly define RAM"
-                        " allocation per node");
+            if (!qtest_enabled()) {
+                warn_report("Default splitting of RAM between nodes is deprecated,"
+                            " Use '-numa node,memdev' to explictly define RAM"
+                            " allocation per node");
+            }
         }
 
         numa_total = 0;
