@@ -551,9 +551,12 @@ static void vfio_msix_vector_release(PCIDevice *pdev, unsigned int nr)
      */
     if (vector->virq >= 0) {
         int32_t fd = event_notifier_get_fd(&vector->interrupt);
+        Error *err = NULL;
 
-        vfio_set_irq_signaling(&vdev->vbasedev, VFIO_PCI_MSIX_IRQ_INDEX, nr,
-                               VFIO_IRQ_SET_ACTION_TRIGGER, fd, NULL);
+        if (vfio_set_irq_signaling(&vdev->vbasedev, VFIO_PCI_MSIX_IRQ_INDEX, nr,
+                                   VFIO_IRQ_SET_ACTION_TRIGGER, fd, &err)) {
+            error_reportf_err(err, VFIO_MSG_PREFIX, vdev->vbasedev.name);
+        }
     }
 }
 
