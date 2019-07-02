@@ -454,14 +454,13 @@ static bool scsi_handle_rw_error(SCSIDiskReq *r, int error, bool acct_failed)
              * pause the host.
              */
             assert(r->status && *r->status);
-            error = scsi_sense_buf_to_errno(r->req.sense, sizeof(r->req.sense));
-            if (error == ECANCELED || error == EAGAIN || error == ENOTCONN ||
-                error == 0)  {
+            if (scsi_sense_buf_is_guest_recoverable(r->req.sense, sizeof(r->req.sense))) {
                 /* These errors are handled by guest. */
                 sdc->update_sense(&r->req);
                 scsi_req_complete(&r->req, *r->status);
                 return true;
             }
+            error = scsi_sense_buf_to_errno(r->req.sense, sizeof(r->req.sense));
             break;
         case ENOMEDIUM:
             scsi_check_condition(r, SENSE_CODE(NO_MEDIUM));
