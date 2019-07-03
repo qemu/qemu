@@ -4417,6 +4417,14 @@ int bdrv_freeze_backing_chain(BlockDriverState *bs, BlockDriverState *base,
     }
 
     for (i = bs; i != base; i = backing_bs(i)) {
+        if (i->backing && backing_bs(i)->never_freeze) {
+            error_setg(errp, "Cannot freeze '%s' link to '%s'",
+                       i->backing->name, backing_bs(i)->node_name);
+            return -EPERM;
+        }
+    }
+
+    for (i = bs; i != base; i = backing_bs(i)) {
         if (i->backing) {
             i->backing->frozen = true;
         }
