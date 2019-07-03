@@ -36,7 +36,9 @@ class TestSingleDrive(iotests.QMPTestCase):
         qemu_img('create', '-f', iotests.imgfmt, '-o', 'backing_file=%s' % mid_img, test_img)
         qemu_io('-f', 'raw', '-c', 'write -P 0x1 0 512', backing_img)
         qemu_io('-f', iotests.imgfmt, '-c', 'write -P 0x1 524288 512', mid_img)
-        self.vm = iotests.VM().add_drive("blkdebug::" + test_img, "backing.node-name=mid")
+        self.vm = iotests.VM().add_drive("blkdebug::" + test_img,
+                                         "backing.node-name=mid," +
+                                         "backing.backing.node-name=base")
         self.vm.launch()
 
     def tearDown(self):
@@ -150,6 +152,31 @@ class TestSingleDrive(iotests.QMPTestCase):
     def test_job_id_missing(self):
         result = self.vm.qmp('block-stream', device='mid')
         self.assert_qmp(result, 'error/desc', "Invalid job ID ''")
+
+    def test_read_only(self):
+        # Create a new file that we can attach (we need a read-only top)
+        with iotests.FilePath('ro-top.img') as ro_top_path:
+            qemu_img('create', '-f', iotests.imgfmt, ro_top_path,
+                     str(self.image_len))
+
+            result = self.vm.qmp('blockdev-add',
+                                 node_name='ro-top',
+                                 driver=iotests.imgfmt,
+                                 read_only=True,
+                                 file={
+                                     'driver': 'file',
+                                     'filename': ro_top_path,
+                                     'read-only': True
+                                 },
+                                 backing='mid')
+            self.assert_qmp(result, 'return', {})
+
+            result = self.vm.qmp('block-stream', job_id='stream',
+                                 device='ro-top', base_node='base')
+            self.assert_qmp(result, 'error/desc', 'Block node is read-only')
+
+            result = self.vm.qmp('blockdev-del', node_name='ro-top')
+            self.assert_qmp(result, 'return', {})
 
 
 class TestParallelOps(iotests.QMPTestCase):
