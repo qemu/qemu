@@ -542,7 +542,7 @@ class VM(qtest.QEMUQtestMachine):
 
     # Returns None on success, and an error string on failure
     def run_job(self, job, auto_finalize=True, auto_dismiss=False,
-                pre_finalize=None, wait=60.0):
+                pre_finalize=None, use_log=True, wait=60.0):
         match_device = {'data': {'device': job}}
         match_id = {'data': {'id': job}}
         events = [
@@ -557,7 +557,8 @@ class VM(qtest.QEMUQtestMachine):
         while True:
             ev = filter_qmp_event(self.events_wait(events))
             if ev['event'] != 'JOB_STATUS_CHANGE':
-                log(ev)
+                if use_log:
+                    log(ev)
                 continue
             status = ev['data']['status']
             if status == 'aborting':
@@ -565,13 +566,20 @@ class VM(qtest.QEMUQtestMachine):
                 for j in result['return']:
                     if j['id'] == job:
                         error = j['error']
-                        log('Job failed: %s' % (j['error']))
+                        if use_log:
+                            log('Job failed: %s' % (j['error']))
             elif status == 'pending' and not auto_finalize:
                 if pre_finalize:
                     pre_finalize()
-                self.qmp_log('job-finalize', id=job)
+                if use_log:
+                    self.qmp_log('job-finalize', id=job)
+                else:
+                    self.qmp('job-finalize', id=job)
             elif status == 'concluded' and not auto_dismiss:
-                self.qmp_log('job-dismiss', id=job)
+                if use_log:
+                    self.qmp_log('job-dismiss', id=job)
+                else:
+                    self.qmp('job-dismiss', id=job)
             elif status == 'null':
                 return error
 
