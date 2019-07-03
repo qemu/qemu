@@ -42,6 +42,8 @@ static int ati_bpp_from_datatype(ATIVGAState *s)
     }
 }
 
+#define DEFAULT_CNTL (s->regs.dp_gui_master_cntl & GMC_DST_PITCH_OFFSET_CNTL)
+
 void ati_2d_blt(ATIVGAState *s)
 {
     /* FIXME it is probably more complex than this and may need to be */
@@ -51,6 +53,22 @@ void ati_2d_blt(ATIVGAState *s)
             s->vga.vbe_start_addr, surface_data(ds), surface_stride(ds),
             surface_bits_per_pixel(ds),
             (s->regs.dp_mix & GMC_ROP3_MASK) >> 16);
+    int bpp = ati_bpp_from_datatype(s);
+    int dst_stride = DEFAULT_CNTL ? s->regs.dst_pitch : s->regs.default_pitch;
+    uint8_t *dst_bits = s->vga.vram_ptr + (DEFAULT_CNTL ?
+                        s->regs.dst_offset : s->regs.default_offset);
+
+    if (s->dev_id == PCI_DEVICE_ID_ATI_RAGE128_PF) {
+        dst_bits += s->regs.crtc_offset & 0x07ffffff;
+        dst_stride *= bpp;
+    }
+    uint8_t *end = s->vga.vram_ptr + s->vga.vram_size;
+    if (dst_bits >= end ||
+        dst_bits + s->regs.dst_x + (s->regs.dst_y + s->regs.dst_height) *
+        dst_stride >= end) {
+        qemu_log_mask(LOG_UNIMP, "blt outside vram not implemented\n");
+        return;
+    }
     DPRINTF("%d %d %d, %d %d %d, (%d,%d) -> (%d,%d) %dx%d\n",
             s->regs.src_offset, s->regs.dst_offset, s->regs.default_offset,
             s->regs.src_pitch, s->regs.dst_pitch, s->regs.default_pitch,
@@ -59,41 +77,28 @@ void ati_2d_blt(ATIVGAState *s)
     switch (s->regs.dp_mix & GMC_ROP3_MASK) {
     case ROP3_SRCCOPY:
     {
-        uint8_t *src_bits, *dst_bits, *end;
-        int src_stride, dst_stride, bpp = ati_bpp_from_datatype(s);
-        src_bits = s->vga.vram_ptr +
-                   (s->regs.dp_gui_master_cntl & GMC_SRC_PITCH_OFFSET_CNTL ?
-                    s->regs.src_offset : s->regs.default_offset);
-        dst_bits = s->vga.vram_ptr +
-                   (s->regs.dp_gui_master_cntl & GMC_DST_PITCH_OFFSET_CNTL ?
-                    s->regs.dst_offset : s->regs.default_offset);
-        src_stride = (s->regs.dp_gui_master_cntl & GMC_SRC_PITCH_OFFSET_CNTL ?
-                      s->regs.src_pitch : s->regs.default_pitch);
-        dst_stride = (s->regs.dp_gui_master_cntl & GMC_DST_PITCH_OFFSET_CNTL ?
-                      s->regs.dst_pitch : s->regs.default_pitch);
+        int src_stride = DEFAULT_CNTL ?
+                         s->regs.src_pitch : s->regs.default_pitch;
+        uint8_t *src_bits = s->vga.vram_ptr + (DEFAULT_CNTL ?
+                            s->regs.src_offset : s->regs.default_offset);
 
         if (s->dev_id == PCI_DEVICE_ID_ATI_RAGE128_PF) {
             src_bits += s->regs.crtc_offset & 0x07ffffff;
-            dst_bits += s->regs.crtc_offset & 0x07ffffff;
             src_stride *= bpp;
-            dst_stride *= bpp;
         }
+        if (src_bits >= end ||
+            src_bits + s->regs.src_x + (s->regs.src_y + s->regs.dst_height) *
+            src_stride >= end) {
+            qemu_log_mask(LOG_UNIMP, "blt outside vram not implemented\n");
+            return;
+        }
+
         src_stride /= sizeof(uint32_t);
         dst_stride /= sizeof(uint32_t);
-
         DPRINTF("pixman_blt(%p, %p, %d, %d, %d, %d, %d, %d, %d, %d, %d, %d)\n",
                 src_bits, dst_bits, src_stride, dst_stride, bpp, bpp,
                 s->regs.src_x, s->regs.src_y, s->regs.dst_x, s->regs.dst_y,
                 s->regs.dst_width, s->regs.dst_height);
-        end = s->vga.vram_ptr + s->vga.vram_size;
-        if (src_bits >= end || dst_bits >= end ||
-            src_bits + s->regs.src_x + (s->regs.src_y + s->regs.dst_height) *
-            src_stride * sizeof(uint32_t) >= end ||
-            dst_bits + s->regs.dst_x + (s->regs.dst_y + s->regs.dst_height) *
-            dst_stride * sizeof(uint32_t) >= end) {
-            qemu_log_mask(LOG_UNIMP, "blt outside vram not implemented\n");
-            return;
-        }
         pixman_blt((uint32_t *)src_bits, (uint32_t *)dst_bits,
                    src_stride, dst_stride, bpp, bpp,
                    s->regs.src_x, s->regs.src_y,
@@ -115,20 +120,7 @@ void ati_2d_blt(ATIVGAState *s)
     case ROP3_BLACKNESS:
     case ROP3_WHITENESS:
     {
-        uint8_t *dst_bits, *end;
-        int dst_stride, bpp = ati_bpp_from_datatype(s);
         uint32_t filler = 0;
-        dst_bits = s->vga.vram_ptr +
-                   (s->regs.dp_gui_master_cntl & GMC_DST_PITCH_OFFSET_CNTL ?
-                    s->regs.dst_offset : s->regs.default_offset);
-        dst_stride = (s->regs.dp_gui_master_cntl & GMC_DST_PITCH_OFFSET_CNTL ?
-                      s->regs.dst_pitch : s->regs.default_pitch);
-
-        if (s->dev_id == PCI_DEVICE_ID_ATI_RAGE128_PF) {
-            dst_bits += s->regs.crtc_offset & 0x07ffffff;
-            dst_stride *= bpp;
-        }
-        dst_stride /= sizeof(uint32_t);
 
         switch (s->regs.dp_mix & GMC_ROP3_MASK) {
         case ROP3_PATCOPY:
@@ -144,22 +136,16 @@ void ati_2d_blt(ATIVGAState *s)
             break;
         }
 
+        dst_stride /= sizeof(uint32_t);
         DPRINTF("pixman_fill(%p, %d, %d, %d, %d, %d, %d, %x)\n",
                 dst_bits, dst_stride, bpp,
                 s->regs.dst_x, s->regs.dst_y,
                 s->regs.dst_width, s->regs.dst_height,
                 filler);
-        end = s->vga.vram_ptr + s->vga.vram_size;
-        if (dst_bits >= end ||
-            dst_bits + s->regs.dst_x + (s->regs.dst_y + s->regs.dst_height) *
-            dst_stride * sizeof(uint32_t) >= end) {
-            qemu_log_mask(LOG_UNIMP, "blt outside vram not implemented\n");
-            return;
-        }
         pixman_fill((uint32_t *)dst_bits, dst_stride, bpp,
-                   s->regs.dst_x, s->regs.dst_y,
-                   s->regs.dst_width, s->regs.dst_height,
-                   filler);
+                    s->regs.dst_x, s->regs.dst_y,
+                    s->regs.dst_width, s->regs.dst_height,
+                    filler);
         if (dst_bits >= s->vga.vram_ptr + s->vga.vbe_start_addr &&
             dst_bits < s->vga.vram_ptr + s->vga.vbe_start_addr +
             s->vga.vbe_regs[VBE_DISPI_INDEX_YRES] * s->vga.vbe_line_offset) {
