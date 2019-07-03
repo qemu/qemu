@@ -363,6 +363,31 @@ class TestParallelOps(iotests.QMPTestCase):
         self.wait_until_completed()
         self.assert_no_active_block_jobs()
 
+    # In this case the base node of the stream job is the commit job's
+    # filter node.  stream does not have a real dependency on its base
+    # node, so even though commit removes it when it is done, there is
+    # no conflict.
+    def test_overlapping_5(self):
+        self.assert_no_active_block_jobs()
+
+        # Commit from node2 into node0
+        result = self.vm.qmp('block-commit', device='drive0',
+                             top_node='node2', base_node='node0',
+                             filter_node_name='commit-filter', speed=1024*1024)
+        self.assert_qmp(result, 'return', {})
+
+        # Stream from node2 into node4
+        result = self.vm.qmp('block-stream', device='node4',
+                             base_node='commit-filter', job_id='node4')
+        self.assert_qmp(result, 'return', {})
+
+        result = self.vm.qmp('block-job-set-speed', device='drive0', speed=0)
+        self.assert_qmp(result, 'return', {})
+
+        self.vm.run_job(job='drive0', auto_dismiss=True, use_log=False)
+        self.vm.run_job(job='node4', auto_dismiss=True, use_log=False)
+        self.assert_no_active_block_jobs()
+
     # Test a block-stream and a block-commit job in parallel
     # Here the stream job is supposed to finish quickly in order to reproduce
     # the scenario that triggers the bug fixed in 3d5d319e1221 and 1a63a907507
