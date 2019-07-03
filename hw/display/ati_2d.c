@@ -124,15 +124,15 @@ void ati_2d_blt(ATIVGAState *s)
 
         switch (s->regs.dp_mix & GMC_ROP3_MASK) {
         case ROP3_PATCOPY:
-            filler = bswap32(s->regs.dp_brush_frgd_clr);
+            filler = s->regs.dp_brush_frgd_clr;
             break;
         case ROP3_BLACKNESS:
-            filler = rgb_to_pixel32(s->vga.palette[0], s->vga.palette[1],
-                                    s->vga.palette[2]) << 8 | 0xff;
+            filler = 0xffUL << 24 | rgb_to_pixel32(s->vga.palette[0],
+                     s->vga.palette[1], s->vga.palette[2]);
             break;
         case ROP3_WHITENESS:
-            filler = rgb_to_pixel32(s->vga.palette[3], s->vga.palette[4],
-                                    s->vga.palette[5]) << 8 | 0xff;
+            filler = 0xffUL << 24 | rgb_to_pixel32(s->vga.palette[3],
+                     s->vga.palette[4], s->vga.palette[5]);
             break;
         }
 
