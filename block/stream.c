@@ -78,8 +78,8 @@ static int stream_prepare(Job *job)
                 base_fmt = base->drv->format_name;
             }
         }
-        ret = bdrv_change_backing_file(bs, base_id, base_fmt);
         bdrv_set_backing_hd(bs, base, &local_err);
+        ret = bdrv_change_backing_file(bs, base_id, base_fmt);
         if (local_err) {
             error_report_err(local_err);
             return -EPERM;
