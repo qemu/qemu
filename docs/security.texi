@@ -129,3 +129,39 @@ those resources that were granted to it.
 system calls that are not needed by QEMU, thereby reducing the host kernel
 attack surface.
 @end itemize
+
+@section Sensitive configurations
+
+There are aspects of QEMU that can have security implications which users &
+management applications must be aware of.
+
+@subsection Monitor console (QMP and HMP)
+
+The monitor console (whether used with QMP or HMP) provides an interface
+to dynamically control many aspects of QEMU's runtime operation. Many of the
+commands exposed will instruct QEMU to access content on the host file system
+and/or trigger spawning of external processes.
+
+For example, the @code{migrate} command allows for the spawning of arbitrary
+processes for the purpose of tunnelling the migration data stream. The
+@code{blockdev-add} command instructs QEMU to open arbitrary files, exposing
+their content to the guest as a virtual disk.
+
+Unless QEMU is otherwise confined using technologies such as SELinux, AppArmor,
+or Linux namespaces, the monitor console should be considered to have privileges
+equivalent to those of the user account QEMU is running under.
+
+It is further important to consider the security of the character device backend
+over which the monitor console is exposed. It needs to have protection against
+malicious third parties which might try to make unauthorized connections, or
+perform man-in-the-middle attacks. Many of the character device backends do not
+satisfy this requirement and so must not be used for the monitor console.
+
+The general recommendation is that the monitor console should be exposed over
+a UNIX domain socket backend to the local host only. Use of the TCP based
+character device backend is inappropriate unless configured to use both TLS
+encryption and authorization control policy on client connections.
+
+In summary, the monitor console is considered a privileged control interface to
+QEMU and as such should only be made accessible to a trusted management
+application or user.
