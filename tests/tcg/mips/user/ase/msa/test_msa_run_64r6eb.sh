@@ -55,6 +55,14 @@ $PATH_TO_QEMU -cpu I6400  /tmp/test_msa_bset_d_64r6eb
 # Fixed Multiply
 # --------------
 #
+$PATH_TO_QEMU -cpu I6400  /tmp/test_msa_madd_q_h_64r6eb
+$PATH_TO_QEMU -cpu I6400  /tmp/test_msa_madd_q_w_64r6eb
+$PATH_TO_QEMU -cpu I6400  /tmp/test_msa_maddr_q_h_64r6eb
+$PATH_TO_QEMU -cpu I6400  /tmp/test_msa_maddr_q_w_64r6eb
+$PATH_TO_QEMU -cpu I6400  /tmp/test_msa_msub_q_h_64r6eb
+$PATH_TO_QEMU -cpu I6400  /tmp/test_msa_msub_q_w_64r6eb
+$PATH_TO_QEMU -cpu I6400  /tmp/test_msa_msubr_q_h_64r6eb
+$PATH_TO_QEMU -cpu I6400  /tmp/test_msa_msubr_q_w_64r6eb
 $PATH_TO_QEMU -cpu I6400  /tmp/test_msa_mul_q_h_64r6eb
 $PATH_TO_QEMU -cpu I6400  /tmp/test_msa_mul_q_w_64r6eb
 $PATH_TO_QEMU -cpu I6400  /tmp/test_msa_mulr_q_h_64r6eb
@@ -271,14 +279,14 @@ $PATH_TO_QEMU -cpu I6400  /tmp/test_msa_subs_u_b_64r6eb
 $PATH_TO_QEMU -cpu I6400  /tmp/test_msa_subs_u_h_64r6eb
 $PATH_TO_QEMU -cpu I6400  /tmp/test_msa_subs_u_w_64r6eb
 $PATH_TO_QEMU -cpu I6400  /tmp/test_msa_subs_u_d_64r6eb
-$PATH_TO_QEMU -cpu I6400  /tmp/test_msa_subsuu_s_b_64r6eb
-$PATH_TO_QEMU -cpu I6400  /tmp/test_msa_subsuu_s_h_64r6eb
-$PATH_TO_QEMU -cpu I6400  /tmp/test_msa_subsuu_s_w_64r6eb
-$PATH_TO_QEMU -cpu I6400  /tmp/test_msa_subsuu_s_d_64r6eb
 $PATH_TO_QEMU -cpu I6400  /tmp/test_msa_subsus_u_b_64r6eb
 $PATH_TO_QEMU -cpu I6400  /tmp/test_msa_subsus_u_h_64r6eb
 $PATH_TO_QEMU -cpu I6400  /tmp/test_msa_subsus_u_w_64r6eb
 $PATH_TO_QEMU -cpu I6400  /tmp/test_msa_subsus_u_d_64r6eb
+$PATH_TO_QEMU -cpu I6400  /tmp/test_msa_subsuu_s_b_64r6eb
+$PATH_TO_QEMU -cpu I6400  /tmp/test_msa_subsuu_s_h_64r6eb
+$PATH_TO_QEMU -cpu I6400  /tmp/test_msa_subsuu_s_w_64r6eb
+$PATH_TO_QEMU -cpu I6400  /tmp/test_msa_subsuu_s_d_64r6eb
 $PATH_TO_QEMU -cpu I6400  /tmp/test_msa_subv_b_64r6eb
 $PATH_TO_QEMU -cpu I6400  /tmp/test_msa_subv_h_64r6eb
 $PATH_TO_QEMU -cpu I6400  /tmp/test_msa_subv_w_64r6eb

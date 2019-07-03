@@ -1,14 +1,44 @@
 config R4K
     bool
+    select ISA_BUS
+    select SERIAL_ISA
+    select I8259
+    select I8254
+    select MC146818RTC
+    imply VGA_ISA
+    imply NE2000_ISA
+    select IDE_ISA
+    select PCKBD
+    select PFLASH_CFI01
 
 config MALTA
     bool
 
 config MIPSSIM
     bool
+    select ISA_BUS
+    select SERIAL_ISA
+    select MIPSNET
 
 config JAZZ
     bool
+    select ISA_BUS
+    select RC4030
+    select I8259
+    select I8254
+    select I8257
+    select PCSPK
+    select VGA_ISA_MM
+    select G364FB
+    select DP8393X
+    select ESP
+    select FDC
+    select MC146818RTC
+    select PCKBD
+    select SERIAL
+    select PARALLEL
+    select DS1225Y
+    select JAZZ_LED
 
 config FULONG
     bool

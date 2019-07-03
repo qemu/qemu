@@ -72,9 +72,6 @@
  * --------
  *
  * +---------------+----------------------------------------------------------+
- * | BMNZ.V        | Vector Bit Move If Not Zero                              |
- * | BMZ.V         | Vector Bit Move If Zero                                  |
- * | BSEL.V        | Vector Bit Select                                        |
  * | BINSL.B       | Vector Bit Insert Left (byte)                            |
  * | BINSL.H       | Vector Bit Insert Left (halfword)                        |
  * | BINSL.W       | Vector Bit Insert Left (word)                            |
@@ -83,6 +80,9 @@
  * | BINSR.H       | Vector Bit Insert Right (halfword)                       |
  * | BINSR.W       | Vector Bit Insert Right (word)                           |
  * | BINSR.D       | Vector Bit Insert Right (doubleword)                     |
+ * | BMNZ.V        | Vector Bit Move If Not Zero                              |
+ * | BMZ.V         | Vector Bit Move If Zero                                  |
+ * | BSEL.V        | Vector Bit Select                                        |
  * +---------------+----------------------------------------------------------+
  */
 
@@ -179,12 +179,12 @@
  * | ADDV.H        | Vector Add (halfword)                                    |
  * | ADDV.W        | Vector Add (word)                                        |
  * | ADDV.D        | Vector Add (doubleword)                                  |
- * | HSUB_S.H      | Vector Signed Horizontal Add (halfword)                  |
- * | HSUB_S.W      | Vector Signed Horizontal Add (word)                      |
- * | HSUB_S.D      | Vector Signed Horizontal Add (doubleword)                |
- * | HSUB_U.H      | Vector Unigned Horizontal Add (halfword)                 |
- * | HSUB_U.W      | Vector Unigned Horizontal Add (word)                     |
- * | HSUB_U.D      | Vector Unigned Horizontal Add (doubleword)               |
+ * | HADD_S.H      | Vector Signed Horizontal Add (halfword)                  |
+ * | HADD_S.W      | Vector Signed Horizontal Add (word)                      |
+ * | HADD_S.D      | Vector Signed Horizontal Add (doubleword)                |
+ * | HADD_U.H      | Vector Unigned Horizontal Add (halfword)                 |
+ * | HADD_U.W      | Vector Unigned Horizontal Add (word)                     |
+ * | HADD_U.D      | Vector Unigned Horizontal Add (doubleword)               |
  * +---------------+----------------------------------------------------------+
  */
 
@@ -279,6 +279,18 @@
  * | DOTP_U.H      | Vector Unsigned Dot Product (halfword)                   |
  * | DOTP_U.W      | Vector Unsigned Dot Product (word)                       |
  * | DOTP_U.D      | Vector Unsigned Dot Product (doubleword)                 |
+ * | DPADD_S.H     | Vector Signed Dot Product (halfword)                     |
+ * | DPADD_S.W     | Vector Signed Dot Product (word)                         |
+ * | DPADD_S.D     | Vector Signed Dot Product (doubleword)                   |
+ * | DPADD_U.H     | Vector Unsigned Dot Product (halfword)                   |
+ * | DPADD_U.W     | Vector Unsigned Dot Product (word)                       |
+ * | DPADD_U.D     | Vector Unsigned Dot Product (doubleword)                 |
+ * | DPSUB_S.H     | Vector Signed Dot Product (halfword)                     |
+ * | DPSUB_S.W     | Vector Signed Dot Product (word)                         |
+ * | DPSUB_S.D     | Vector Signed Dot Product (doubleword)                   |
+ * | DPSUB_U.H     | Vector Unsigned Dot Product (halfword)                   |
+ * | DPSUB_U.W     | Vector Unsigned Dot Product (word)                       |
+ * | DPSUB_U.D     | Vector Unsigned Dot Product (doubleword)                 |
  * +---------------+----------------------------------------------------------+
  */
 
@@ -389,14 +401,14 @@
  * | SUBS_U.H      | Vector Unsigned Saturated Subtract (of Uns.) (halfword)  |
  * | SUBS_U.W      | Vector Unsigned Saturated Subtract (of Uns.) (word)      |
  * | SUBS_U.D      | Vector Unsigned Saturated Subtract (of Uns.) (doubleword)|
- * | SUBSUS_S.B    | Vector Uns. Sat. Subtract (of S. from Uns.) (byte)       |
- * | SUBSUS_S.H    | Vector Uns. Sat. Subtract (of S. from Uns.) (halfword)   |
- * | SUBSUS_S.W    | Vector Uns. Sat. Subtract (of S. from Uns.) (word)       |
- * | SUBSUS_S.D    | Vector Uns. Sat. Subtract (of S. from Uns.) (doubleword) |
- * | SUBSUU_U.B    | Vector Signed Saturated Subtract (of Uns.) (byte)        |
- * | SUBSUU_U.H    | Vector Signed Saturated Subtract (of Uns.) (halfword)    |
- * | SUBSUU_U.W    | Vector Signed Saturated Subtract (of Uns.) (word)        |
- * | SUBSUU_U.D    | Vector Signed Saturated Subtract (of Uns.) (doubleword)  |
+ * | SUBSUS_U.B    | Vector Uns. Sat. Subtract (of S. from Uns.) (byte)       |
+ * | SUBSUS_U.H    | Vector Uns. Sat. Subtract (of S. from Uns.) (halfword)   |
+ * | SUBSUS_U.W    | Vector Uns. Sat. Subtract (of S. from Uns.) (word)       |
+ * | SUBSUS_U.D    | Vector Uns. Sat. Subtract (of S. from Uns.) (doubleword) |
+ * | SUBSUU_S.B    | Vector Signed Saturated Subtract (of Uns.) (byte)        |
+ * | SUBSUU_S.H    | Vector Signed Saturated Subtract (of Uns.) (halfword)    |
+ * | SUBSUU_S.W    | Vector Signed Saturated Subtract (of Uns.) (word)        |
+ * | SUBSUU_S.D    | Vector Signed Saturated Subtract (of Uns.) (doubleword)  |
  * | SUBV.B        | Vector Subtract (byte)                                   |
  * | SUBV.H        | Vector Subtract (halfword)                               |
  * | SUBV.W        | Vector Subtract (word)                                   |
@@ -447,6 +459,18 @@
  */
 
 /* TODO: insert Logic group helpers here */
+
+
+/*
+ * Move
+ * ----
+ *
+ * +---------------+----------------------------------------------------------+
+ * | MOVE.V        | Vector Move                                              |
+ * +---------------+----------------------------------------------------------+
+ */
+
+/* TODO: insert Move group helpers here */
 
 
 /*
@@ -3826,35 +3850,65 @@ void helper_msa_fmin_df(CPUMIPSState *env, uint32_t df, uint32_t wd,
     wr_t *pwd = &(env->active_fpu.fpr[wd].wr);
     wr_t *pws = &(env->active_fpu.fpr[ws].wr);
     wr_t *pwt = &(env->active_fpu.fpr[wt].wr);
-    uint32_t i;
 
     clear_msacsr_cause(env);
 
-    switch (df) {
-    case DF_WORD:
-        for (i = 0; i < DF_ELEMENTS(DF_WORD); i++) {
-            if (NUMBER_QNAN_PAIR(pws->w[i], pwt->w[i], 32, status)) {
-                MSA_FLOAT_MAXOP(pwx->w[i], min, pws->w[i], pws->w[i], 32);
-            } else if (NUMBER_QNAN_PAIR(pwt->w[i], pws->w[i], 32, status)) {
-                MSA_FLOAT_MAXOP(pwx->w[i], min, pwt->w[i], pwt->w[i], 32);
-            } else {
-                MSA_FLOAT_MAXOP(pwx->w[i], min, pws->w[i], pwt->w[i], 32);
-            }
+    if (df == DF_WORD) {
+
+        if (NUMBER_QNAN_PAIR(pws->w[0], pwt->w[0], 32, status)) {
+            MSA_FLOAT_MAXOP(pwx->w[0], min, pws->w[0], pws->w[0], 32);
+        } else if (NUMBER_QNAN_PAIR(pwt->w[0], pws->w[0], 32, status)) {
+            MSA_FLOAT_MAXOP(pwx->w[0], min, pwt->w[0], pwt->w[0], 32);
+        } else {
+            MSA_FLOAT_MAXOP(pwx->w[0], min, pws->w[0], pwt->w[0], 32);
         }
-        break;
-    case DF_DOUBLE:
-        for (i = 0; i < DF_ELEMENTS(DF_DOUBLE); i++) {
-            if (NUMBER_QNAN_PAIR(pws->d[i], pwt->d[i], 64, status)) {
-                MSA_FLOAT_MAXOP(pwx->d[i], min, pws->d[i], pws->d[i], 64);
-            } else if (NUMBER_QNAN_PAIR(pwt->d[i], pws->d[i], 64, status)) {
-                MSA_FLOAT_MAXOP(pwx->d[i], min, pwt->d[i], pwt->d[i], 64);
-            } else {
-                MSA_FLOAT_MAXOP(pwx->d[i], min, pws->d[i], pwt->d[i], 64);
-            }
+
+        if (NUMBER_QNAN_PAIR(pws->w[1], pwt->w[1], 32, status)) {
+            MSA_FLOAT_MAXOP(pwx->w[1], min, pws->w[1], pws->w[1], 32);
+        } else if (NUMBER_QNAN_PAIR(pwt->w[1], pws->w[1], 32, status)) {
+            MSA_FLOAT_MAXOP(pwx->w[1], min, pwt->w[1], pwt->w[1], 32);
+        } else {
+            MSA_FLOAT_MAXOP(pwx->w[1], min, pws->w[1], pwt->w[1], 32);
         }
-        break;
-    default:
+
+        if (NUMBER_QNAN_PAIR(pws->w[2], pwt->w[2], 32, status)) {
+            MSA_FLOAT_MAXOP(pwx->w[2], min, pws->w[2], pws->w[2], 32);
+        } else if (NUMBER_QNAN_PAIR(pwt->w[2], pws->w[2], 32, status)) {
+            MSA_FLOAT_MAXOP(pwx->w[2], min, pwt->w[2], pwt->w[2], 32);
+        } else {
+            MSA_FLOAT_MAXOP(pwx->w[2], min, pws->w[2], pwt->w[2], 32);
+        }
+
+        if (NUMBER_QNAN_PAIR(pws->w[3], pwt->w[3], 32, status)) {
+            MSA_FLOAT_MAXOP(pwx->w[3], min, pws->w[3], pws->w[3], 32);
+        } else if (NUMBER_QNAN_PAIR(pwt->w[3], pws->w[3], 32, status)) {
+            MSA_FLOAT_MAXOP(pwx->w[3], min, pwt->w[3], pwt->w[3], 32);
+        } else {
+            MSA_FLOAT_MAXOP(pwx->w[3], min, pws->w[3], pwt->w[3], 32);
+        }
+
+    } else if (df == DF_DOUBLE) {
+
+        if (NUMBER_QNAN_PAIR(pws->d[0], pwt->d[0], 64, status)) {
+            MSA_FLOAT_MAXOP(pwx->d[0], min, pws->d[0], pws->d[0], 64);
+        } else if (NUMBER_QNAN_PAIR(pwt->d[0], pws->d[0], 64, status)) {
+            MSA_FLOAT_MAXOP(pwx->d[0], min, pwt->d[0], pwt->d[0], 64);
+        } else {
+            MSA_FLOAT_MAXOP(pwx->d[0], min, pws->d[0], pwt->d[0], 64);
+        }
+
+        if (NUMBER_QNAN_PAIR(pws->d[1], pwt->d[1], 64, status)) {
+            MSA_FLOAT_MAXOP(pwx->d[1], min, pws->d[1], pws->d[1], 64);
+        } else if (NUMBER_QNAN_PAIR(pwt->d[1], pws->d[1], 64, status)) {
+            MSA_FLOAT_MAXOP(pwx->d[1], min, pwt->d[1], pwt->d[1], 64);
+        } else {
+            MSA_FLOAT_MAXOP(pwx->d[1], min, pws->d[1], pwt->d[1], 64);
+        }
+
+    } else {
+
         assert(0);
+
     }
 
     check_msacsr_cause(env, GETPC());
@@ -3870,22 +3924,18 @@ void helper_msa_fmin_a_df(CPUMIPSState *env, uint32_t df, uint32_t wd,
     wr_t *pwd = &(env->active_fpu.fpr[wd].wr);
     wr_t *pws = &(env->active_fpu.fpr[ws].wr);
     wr_t *pwt = &(env->active_fpu.fpr[wt].wr);
-    uint32_t i;
 
     clear_msacsr_cause(env);
 
-    switch (df) {
-    case DF_WORD:
-        for (i = 0; i < DF_ELEMENTS(DF_WORD); i++) {
-            FMAXMIN_A(min, max, pwx->w[i], pws->w[i], pwt->w[i], 32, status);
-        }
-        break;
-    case DF_DOUBLE:
-        for (i = 0; i < DF_ELEMENTS(DF_DOUBLE); i++) {
-            FMAXMIN_A(min, max, pwx->d[i], pws->d[i], pwt->d[i], 64, status);
-        }
-        break;
-    default:
+    if (df == DF_WORD) {
+        FMAXMIN_A(min, max, pwx->w[0], pws->w[0], pwt->w[0], 32, status);
+        FMAXMIN_A(min, max, pwx->w[1], pws->w[1], pwt->w[1], 32, status);
+        FMAXMIN_A(min, max, pwx->w[2], pws->w[2], pwt->w[2], 32, status);
+        FMAXMIN_A(min, max, pwx->w[3], pws->w[3], pwt->w[3], 32, status);
+    } else if (df == DF_DOUBLE) {
+        FMAXMIN_A(min, max, pwx->d[0], pws->d[0], pwt->d[0], 64, status);
+        FMAXMIN_A(min, max, pwx->d[1], pws->d[1], pwt->d[1], 64, status);
+    } else {
         assert(0);
     }
 
@@ -3897,40 +3947,70 @@ void helper_msa_fmin_a_df(CPUMIPSState *env, uint32_t df, uint32_t wd,
 void helper_msa_fmax_df(CPUMIPSState *env, uint32_t df, uint32_t wd,
         uint32_t ws, uint32_t wt)
 {
-    float_status *status = &env->active_tc.msa_fp_status;
+     float_status *status = &env->active_tc.msa_fp_status;
     wr_t wx, *pwx = &wx;
     wr_t *pwd = &(env->active_fpu.fpr[wd].wr);
     wr_t *pws = &(env->active_fpu.fpr[ws].wr);
     wr_t *pwt = &(env->active_fpu.fpr[wt].wr);
-    uint32_t i;
 
     clear_msacsr_cause(env);
 
-    switch (df) {
-    case DF_WORD:
-        for (i = 0; i < DF_ELEMENTS(DF_WORD); i++) {
-            if (NUMBER_QNAN_PAIR(pws->w[i], pwt->w[i], 32, status)) {
-                MSA_FLOAT_MAXOP(pwx->w[i], max, pws->w[i], pws->w[i], 32);
-            } else if (NUMBER_QNAN_PAIR(pwt->w[i], pws->w[i], 32, status)) {
-                MSA_FLOAT_MAXOP(pwx->w[i], max, pwt->w[i], pwt->w[i], 32);
-            } else {
-                MSA_FLOAT_MAXOP(pwx->w[i], max, pws->w[i], pwt->w[i], 32);
-            }
+    if (df == DF_WORD) {
+
+        if (NUMBER_QNAN_PAIR(pws->w[0], pwt->w[0], 32, status)) {
+            MSA_FLOAT_MAXOP(pwx->w[0], max, pws->w[0], pws->w[0], 32);
+        } else if (NUMBER_QNAN_PAIR(pwt->w[0], pws->w[0], 32, status)) {
+            MSA_FLOAT_MAXOP(pwx->w[0], max, pwt->w[0], pwt->w[0], 32);
+        } else {
+            MSA_FLOAT_MAXOP(pwx->w[0], max, pws->w[0], pwt->w[0], 32);
         }
-        break;
-    case DF_DOUBLE:
-        for (i = 0; i < DF_ELEMENTS(DF_DOUBLE); i++) {
-            if (NUMBER_QNAN_PAIR(pws->d[i], pwt->d[i], 64, status)) {
-                MSA_FLOAT_MAXOP(pwx->d[i], max, pws->d[i], pws->d[i], 64);
-            } else if (NUMBER_QNAN_PAIR(pwt->d[i], pws->d[i], 64, status)) {
-                MSA_FLOAT_MAXOP(pwx->d[i], max, pwt->d[i], pwt->d[i], 64);
-            } else {
-                MSA_FLOAT_MAXOP(pwx->d[i], max, pws->d[i], pwt->d[i], 64);
-            }
+
+        if (NUMBER_QNAN_PAIR(pws->w[1], pwt->w[1], 32, status)) {
+            MSA_FLOAT_MAXOP(pwx->w[1], max, pws->w[1], pws->w[1], 32);
+        } else if (NUMBER_QNAN_PAIR(pwt->w[1], pws->w[1], 32, status)) {
+            MSA_FLOAT_MAXOP(pwx->w[1], max, pwt->w[1], pwt->w[1], 32);
+        } else {
+            MSA_FLOAT_MAXOP(pwx->w[1], max, pws->w[1], pwt->w[1], 32);
         }
-        break;
-    default:
+
+        if (NUMBER_QNAN_PAIR(pws->w[2], pwt->w[2], 32, status)) {
+            MSA_FLOAT_MAXOP(pwx->w[2], max, pws->w[2], pws->w[2], 32);
+        } else if (NUMBER_QNAN_PAIR(pwt->w[2], pws->w[2], 32, status)) {
+            MSA_FLOAT_MAXOP(pwx->w[2], max, pwt->w[2], pwt->w[2], 32);
+        } else {
+            MSA_FLOAT_MAXOP(pwx->w[2], max, pws->w[2], pwt->w[2], 32);
+        }
+
+        if (NUMBER_QNAN_PAIR(pws->w[3], pwt->w[3], 32, status)) {
+            MSA_FLOAT_MAXOP(pwx->w[3], max, pws->w[3], pws->w[3], 32);
+        } else if (NUMBER_QNAN_PAIR(pwt->w[3], pws->w[3], 32, status)) {
+            MSA_FLOAT_MAXOP(pwx->w[3], max, pwt->w[3], pwt->w[3], 32);
+        } else {
+            MSA_FLOAT_MAXOP(pwx->w[3], max, pws->w[3], pwt->w[3], 32);
+        }
+
+    } else if (df == DF_DOUBLE) {
+
+        if (NUMBER_QNAN_PAIR(pws->d[0], pwt->d[0], 64, status)) {
+            MSA_FLOAT_MAXOP(pwx->d[0], max, pws->d[0], pws->d[0], 64);
+        } else if (NUMBER_QNAN_PAIR(pwt->d[0], pws->d[0], 64, status)) {
+            MSA_FLOAT_MAXOP(pwx->d[0], max, pwt->d[0], pwt->d[0], 64);
+        } else {
+            MSA_FLOAT_MAXOP(pwx->d[0], max, pws->d[0], pwt->d[0], 64);
+        }
+
+        if (NUMBER_QNAN_PAIR(pws->d[1], pwt->d[1], 64, status)) {
+            MSA_FLOAT_MAXOP(pwx->d[1], max, pws->d[1], pws->d[1], 64);
+        } else if (NUMBER_QNAN_PAIR(pwt->d[1], pws->d[1], 64, status)) {
+            MSA_FLOAT_MAXOP(pwx->d[1], max, pwt->d[1], pwt->d[1], 64);
+        } else {
+            MSA_FLOAT_MAXOP(pwx->d[1], max, pws->d[1], pwt->d[1], 64);
+        }
+
+    } else {
+
         assert(0);
+
     }
 
     check_msacsr_cause(env, GETPC());
@@ -3946,22 +4026,18 @@ void helper_msa_fmax_a_df(CPUMIPSState *env, uint32_t df, uint32_t wd,
     wr_t *pwd = &(env->active_fpu.fpr[wd].wr);
     wr_t *pws = &(env->active_fpu.fpr[ws].wr);
     wr_t *pwt = &(env->active_fpu.fpr[wt].wr);
-    uint32_t i;
 
     clear_msacsr_cause(env);
 
-    switch (df) {
-    case DF_WORD:
-        for (i = 0; i < DF_ELEMENTS(DF_WORD); i++) {
-            FMAXMIN_A(max, min, pwx->w[i], pws->w[i], pwt->w[i], 32, status);
-        }
-        break;
-    case DF_DOUBLE:
-        for (i = 0; i < DF_ELEMENTS(DF_DOUBLE); i++) {
-            FMAXMIN_A(max, min, pwx->d[i], pws->d[i], pwt->d[i], 64, status);
-        }
-        break;
-    default:
+    if (df == DF_WORD) {
+        FMAXMIN_A(max, min, pwx->w[0], pws->w[0], pwt->w[0], 32, status);
+        FMAXMIN_A(max, min, pwx->w[1], pws->w[1], pwt->w[1], 32, status);
+        FMAXMIN_A(max, min, pwx->w[2], pws->w[2], pwt->w[2], 32, status);
+        FMAXMIN_A(max, min, pwx->w[3], pws->w[3], pwt->w[3], 32, status);
+    } else if (df == DF_DOUBLE) {
+        FMAXMIN_A(max, min, pwx->d[0], pws->d[0], pwt->d[0], 64, status);
+        FMAXMIN_A(max, min, pwx->d[1], pws->d[1], pwt->d[1], 64, status);
+    } else {
         assert(0);
     }
 
@@ -3982,9 +4058,11 @@ void helper_msa_fclass_df(CPUMIPSState *env, uint32_t df,
         pwd->w[1] = float_class_s(pws->w[1], status);
         pwd->w[2] = float_class_s(pws->w[2], status);
         pwd->w[3] = float_class_s(pws->w[3], status);
-    } else {
+    } else if (df == DF_DOUBLE) {
         pwd->d[0] = float_class_d(pws->d[0], status);
         pwd->d[1] = float_class_d(pws->d[1], status);
+    } else {
+        assert(0);
     }
 }
 
