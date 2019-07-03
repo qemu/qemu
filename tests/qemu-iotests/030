@@ -154,7 +154,7 @@ class TestSingleDrive(iotests.QMPTestCase):
 class TestParallelOps(iotests.QMPTestCase):
     num_ops = 4 # Number of parallel block-stream operations
     num_imgs = num_ops * 2 + 1
-    image_len = num_ops * 512 * 1024
+    image_len = num_ops * 4 * 1024 * 1024
     imgs = []
 
     def setUp(self):
@@ -176,11 +176,11 @@ class TestParallelOps(iotests.QMPTestCase):
         # Put data into the images we are copying data from
         odd_img_indexes = [x for x in reversed(range(self.num_imgs)) if x % 2 == 1]
         for i in range(len(odd_img_indexes)):
-            # Alternate between 256KB and 512KB.
+            # Alternate between 2MB and 4MB.
             # This way jobs will not finish in the same order they were created
-            num_kb = 256 + 256 * (i % 2)
+            num_mb = 2 + 2 * (i % 2)
             qemu_io('-f', iotests.imgfmt,
-                    '-c', 'write -P 0xFF %dk %dk' % (i * 512, num_kb),
+                    '-c', 'write -P 0xFF %dM %dM' % (i * 4, num_mb),
                     self.imgs[odd_img_indexes[i]])
 
         # Attach the drive to the VM
@@ -211,6 +211,10 @@ class TestParallelOps(iotests.QMPTestCase):
             job_id = 'stream-%s' % node_name
             pending_jobs.append(job_id)
             result = self.vm.qmp('block-stream', device=node_name, job_id=job_id, base=self.imgs[i-2], speed=512*1024)
+            self.assert_qmp(result, 'return', {})
+
+        for job in pending_jobs:
+            result = self.vm.qmp('block-job-set-speed', device=job, speed=0)
             self.assert_qmp(result, 'return', {})
 
         # Wait for all jobs to be finished.
@@ -260,6 +264,9 @@ class TestParallelOps(iotests.QMPTestCase):
         result = self.vm.qmp('block-commit', device='drive0', base=self.imgs[0], top=self.imgs[1], job_id='commit-node0')
         self.assert_qmp(result, 'error/class', 'GenericError')
 
+        result = self.vm.qmp('block-job-set-speed', device='stream-node4', speed=0)
+        self.assert_qmp(result, 'return', {})
+
         self.wait_until_completed(drive='stream-node4')
         self.assert_no_active_block_jobs()
 
@@ -289,6 +296,9 @@ class TestParallelOps(iotests.QMPTestCase):
         result = self.vm.qmp('block-stream', device='drive0', base=self.imgs[5], job_id='stream-drive0')
         self.assert_qmp(result, 'error/class', 'GenericError')
 
+        result = self.vm.qmp('block-job-set-speed', device='commit-node3', speed=0)
+        self.assert_qmp(result, 'return', {})
+
         self.wait_until_completed(drive='commit-node3')
 
     # Similar to test_overlapping_2, but here block-commit doesn't use the 'top' parameter.
@@ -309,6 +319,9 @@ class TestParallelOps(iotests.QMPTestCase):
         self.assert_qmp(event, 'data/type', 'commit')
         self.assert_qmp_absent(event, 'data/error')
 
+        result = self.vm.qmp('block-job-set-speed', device='commit-drive0', speed=0)
+        self.assert_qmp(result, 'return', {})
+
         result = self.vm.qmp('block-job-complete', device='commit-drive0')
         self.assert_qmp(result, 'return', {})
 
@@ -321,12 +334,17 @@ class TestParallelOps(iotests.QMPTestCase):
         self.assert_no_active_block_jobs()
 
         # Commit from node2 into node0
-        result = self.vm.qmp('block-commit', device='drive0', top=self.imgs[2], base=self.imgs[0])
+        result = self.vm.qmp('block-commit', device='drive0',
+                             top=self.imgs[2], base=self.imgs[0],
+                             speed=1024*1024)
         self.assert_qmp(result, 'return', {})
 
         # Stream from node2 into node4
         result = self.vm.qmp('block-stream', device='node4', base_node='node2', job_id='node4')
         self.assert_qmp(result, 'error/class', 'GenericError')
+
+        result = self.vm.qmp('block-job-set-speed', device='drive0', speed=0)
+        self.assert_qmp(result, 'return', {})
 
         self.wait_until_completed()
         self.assert_no_active_block_jobs()
@@ -377,6 +395,10 @@ class TestParallelOps(iotests.QMPTestCase):
         # Commit from the active layer into node5
         result = self.vm.qmp('block-commit', device='drive0', base=self.imgs[5], speed=1024*1024)
         self.assert_qmp(result, 'return', {})
+
+        for job in ['drive0', 'node4']:
+            result = self.vm.qmp('block-job-set-speed', device=job, speed=0)
+            self.assert_qmp(result, 'return', {})
 
         # Wait for all jobs to be finished.
         pending_jobs = ['node4', 'drive0']
