@@ -538,7 +538,7 @@ static void ati_mm_write(void *opaque, hwaddr addr,
         break;
     case GPIO_DVI_DDC:
         if (s->dev_id != PCI_DEVICE_ID_ATI_RAGE128_PF) {
-            s->regs.gpio_dvi_ddc = ati_i2c(s->bbi2c, data, 0);
+            s->regs.gpio_dvi_ddc = ati_i2c(&s->bbi2c, data, 0);
         }
         break;
     case GPIO_MONID ... GPIO_MONID + 3:
@@ -554,7 +554,7 @@ static void ati_mm_write(void *opaque, hwaddr addr,
              */
             if ((s->regs.gpio_monid & BIT(25)) &&
                 addr <= GPIO_MONID + 2 && addr + size > GPIO_MONID + 2) {
-                s->regs.gpio_monid = ati_i2c(s->bbi2c, s->regs.gpio_monid, 1);
+                s->regs.gpio_monid = ati_i2c(&s->bbi2c, s->regs.gpio_monid, 1);
             }
         }
         break;
@@ -856,7 +856,7 @@ static void ati_vga_realize(PCIDevice *dev, Error **errp)
 
     /* ddc, edid */
     I2CBus *i2cbus = i2c_init_bus(DEVICE(s), "ati-vga.ddc");
-    s->bbi2c = bitbang_i2c_init(i2cbus);
+    bitbang_i2c_init(&s->bbi2c, i2cbus);
     I2CSlave *i2cddc = I2C_SLAVE(qdev_create(BUS(i2cbus), TYPE_I2CDDC));
     i2c_set_slave_address(i2cddc, 0x50);
 
@@ -885,7 +885,6 @@ static void ati_vga_exit(PCIDevice *dev)
     ATIVGAState *s = ATI_VGA(dev);
 
     graphic_console_close(s->vga.con);
-    g_free(s->bbi2c);
 }
 
 static Property ati_vga_properties[] = {

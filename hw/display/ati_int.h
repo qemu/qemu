@@ -88,7 +88,7 @@ typedef struct ATIVGAState {
     uint16_t cursor_size;
     uint32_t cursor_offset;
     QEMUCursor *cursor;
-    bitbang_i2c_interface *bbi2c;
+    bitbang_i2c_interface bbi2c;
     MemoryRegion io;
     MemoryRegion mm;
     ATIVGARegs regs;
