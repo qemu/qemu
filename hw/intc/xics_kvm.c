@@ -257,6 +257,9 @@ int ics_set_kvm_state_one(ICSState *ics, int srcno, Error **errp)
         << KVM_XICS_PRIORITY_SHIFT;
     if (irq->priority != irq->saved_priority) {
         assert(irq->priority == 0xff);
+    }
+
+    if (irq->priority == 0xff) {
         state |= KVM_XICS_MASKED;
     }
 
