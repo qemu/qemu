@@ -1971,7 +1971,7 @@ static bool trans_VMOV_imm_dp(DisasContext *s, arg_VMOV_imm_dp *a)
 
         /* Set up the operands for the next iteration */
         veclen--;
-        vfp_advance_dreg(vd, delta_d);
+        vd = vfp_advance_dreg(vd, delta_d);
     }
 
     tcg_temp_free_i64(fd);
