@@ -44,6 +44,7 @@
 #define HME_SEBI_STAT                  0x100
 #define HME_SEBI_STAT_LINUXBUG         0x108
 #define HME_SEB_STAT_RXTOHOST          0x10000
+#define HME_SEB_STAT_NORXD             0x20000
 #define HME_SEB_STAT_MIFIRQ            0x800000
 #define HME_SEB_STAT_HOSTTOTX          0x1000000
 #define HME_SEB_STAT_TXALL             0x2000000
@@ -209,6 +210,8 @@ static void sunhme_update_irq(SunHMEState *s)
     }
 
     level = (seb ? 1 : 0);
+    trace_sunhme_update_irq(mifmask, mif, sebmask, seb, level);
+
     pci_set_irq(d, level);
 }
 
@@ -371,10 +374,20 @@ static void sunhme_mac_write(void *opaque, hwaddr addr,
                           uint64_t val, unsigned size)
 {
     SunHMEState *s = SUNHME(opaque);
+    uint64_t oldval = s->macregs[addr >> 2];
 
     trace_sunhme_mac_write(addr, val);
 
     s->macregs[addr >> 2] = val;
+
+    switch (addr) {
+    case HME_MACI_RXCFG:
+        if (!(oldval & HME_MAC_RXCFG_ENABLE) &&
+             (val & HME_MAC_RXCFG_ENABLE)) {
+            qemu_flush_queued_packets(qemu_get_queue(s->nic));
+        }
+        break;
+    }
 }
 
 static uint64_t sunhme_mac_read(void *opaque, hwaddr addr,
@@ -647,7 +660,7 @@ static int sunhme_can_receive(NetClientState *nc)
 {
     SunHMEState *s = qemu_get_nic_opaque(nc);
 
-    return s->macregs[HME_MAC_RXCFG_ENABLE >> 2] & HME_MAC_RXCFG_ENABLE;
+    return s->macregs[HME_MACI_RXCFG >> 2] & HME_MAC_RXCFG_ENABLE;
 }
 
 static void sunhme_link_status_changed(NetClientState *nc)
@@ -716,7 +729,7 @@ static ssize_t sunhme_receive(NetClientState *nc, const uint8_t *buf,
 
     /* Do nothing if MAC RX disabled */
     if (!(s->macregs[HME_MACI_RXCFG >> 2] & HME_MAC_RXCFG_ENABLE)) {
-        return -1;
+        return 0;
     }
 
     trace_sunhme_rx_filter_destmac(buf[0], buf[1], buf[2],
@@ -745,14 +758,14 @@ static ssize_t sunhme_receive(NetClientState *nc, const uint8_t *buf,
                 /* Didn't match hash filter */
                 trace_sunhme_rx_filter_hash_nomatch();
                 trace_sunhme_rx_filter_reject();
-                return 0;
+                return -1;
             } else {
                 trace_sunhme_rx_filter_hash_match();
             }
         } else {
             /* Not for us */
             trace_sunhme_rx_filter_reject();
-            return 0;
+            return -1;
         }
     } else {
         trace_sunhme_rx_filter_promisc_match();
@@ -774,6 +787,14 @@ static ssize_t sunhme_receive(NetClientState *nc, const uint8_t *buf,
 
     pci_dma_read(d, rb + cr * HME_DESC_SIZE, &status, 4);
     pci_dma_read(d, rb + cr * HME_DESC_SIZE + 4, &buffer, 4);
+
+    /* If we don't own the current descriptor then indicate overflow error */
+    if (!(status & HME_XD_OWN)) {
+        s->sebregs[HME_SEBI_STAT >> 2] |= HME_SEB_STAT_NORXD;
+        sunhme_update_irq(s);
+        trace_sunhme_rx_norxd();
+        return -1;
+    }
 
     rxoffset = (s->erxregs[HME_ERXI_CFG >> 2] & HME_ERX_CFG_BYTEOFFSET) >>
                 HME_ERX_CFG_BYTEOFFSET_SHIFT;
