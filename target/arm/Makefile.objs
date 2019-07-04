@@ -1,4 +1,4 @@
-obj-y += arm-semi.o
+obj-$(CONFIG_TCG) += arm-semi.o
 obj-y += helper.o vfp_helper.o
 obj-y += cpu.o gdbstub.o
 obj-$(TARGET_AARCH64) += cpu64.o gdbstub64.o
