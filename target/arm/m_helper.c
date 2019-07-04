@@ -537,8 +537,8 @@ void HELPER(v7m_blxns)(CPUARMState *env, uint32_t dest)
     }
 
     /* Note that these stores can throw exceptions on MPU faults */
-    cpu_stl_data(env, sp, nextinst);
-    cpu_stl_data(env, sp + 4, saved_psr);
+    cpu_stl_data_ra(env, sp, nextinst, GETPC());
+    cpu_stl_data_ra(env, sp + 4, saved_psr, GETPC());
 
     env->regs[13] = sp;
     env->regs[14] = 0xfeffffff;
@@ -953,6 +953,7 @@ void HELPER(v7m_vlstm)(CPUARMState *env, uint32_t fptr)
     /* fptr is the value of Rn, the frame pointer we store the FP regs to */
     bool s = env->v7m.fpccr[M_REG_S] & R_V7M_FPCCR_S_MASK;
     bool lspact = env->v7m.fpccr[s] & R_V7M_FPCCR_LSPACT_MASK;
+    uintptr_t ra = GETPC();
 
     assert(env->v7m.secure);
 
@@ -978,7 +979,7 @@ void HELPER(v7m_vlstm)(CPUARMState *env, uint32_t fptr)
      * Note that we do not use v7m_stack_write() here, because the
      * accesses should not set the FSR bits for stacking errors if they
      * fail. (In pseudocode terms, they are AccType_NORMAL, not AccType_STACK
-     * or AccType_LAZYFP). Faults in cpu_stl_data() will throw exceptions
+     * or AccType_LAZYFP). Faults in cpu_stl_data_ra() will throw exceptions
      * and longjmp out.
      */
     if (!(env->v7m.fpccr[M_REG_S] & R_V7M_FPCCR_LSPEN_MASK)) {
@@ -994,10 +995,10 @@ void HELPER(v7m_vlstm)(CPUARMState *env, uint32_t fptr)
             if (i >= 16) {
                 faddr += 8; /* skip the slot for the FPSCR */
             }
-            cpu_stl_data(env, faddr, slo);
-            cpu_stl_data(env, faddr + 4, shi);
+            cpu_stl_data_ra(env, faddr, slo, ra);
+            cpu_stl_data_ra(env, faddr + 4, shi, ra);
         }
-        cpu_stl_data(env, fptr + 0x40, vfp_get_fpscr(env));
+        cpu_stl_data_ra(env, fptr + 0x40, vfp_get_fpscr(env), ra);
 
         /*
          * If TS is 0 then s0 to s15 and FPSCR are UNKNOWN; we choose to
@@ -1018,6 +1019,8 @@ void HELPER(v7m_vlstm)(CPUARMState *env, uint32_t fptr)
 
 void HELPER(v7m_vlldm)(CPUARMState *env, uint32_t fptr)
 {
+    uintptr_t ra = GETPC();
+
     /* fptr is the value of Rn, the frame pointer we load the FP regs from */
     assert(env->v7m.secure);
 
@@ -1051,13 +1054,13 @@ void HELPER(v7m_vlldm)(CPUARMState *env, uint32_t fptr)
                 faddr += 8; /* skip the slot for the FPSCR */
             }
 
-            slo = cpu_ldl_data(env, faddr);
-            shi = cpu_ldl_data(env, faddr + 4);
+            slo = cpu_ldl_data_ra(env, faddr, ra);
+            shi = cpu_ldl_data_ra(env, faddr + 4, ra);
 
             dn = (uint64_t) shi << 32 | slo;
             *aa32_vfp_dreg(env, i / 2) = dn;
         }
-        fpscr = cpu_ldl_data(env, fptr + 0x40);
+        fpscr = cpu_ldl_data_ra(env, fptr + 0x40, ra);
         vfp_set_fpscr(env, fpscr);
     }
 
