@@ -44,6 +44,13 @@ enum timer_ctrl_op {
     op_pulse_enable
 };
 
+/*
+ * Minimum value of the reload register to filter out short period
+ * timers which have a noticeable impact in emulation. 5us should be
+ * enough, use 20us for "safety".
+ */
+#define TIMER_MIN_NS (20 * SCALE_US)
+
 /**
  * Avoid mutual references between AspeedTimerCtrlState and AspeedTimer
  * structs, as it's a waste of memory. The ptimer BH callback needs to know
@@ -96,6 +103,14 @@ static inline uint32_t calculate_ticks(struct AspeedTimer *t, uint64_t now_ns)
     uint64_t ticks = muldiv64(delta_ns, rate, NANOSECONDS_PER_SECOND);
 
     return t->reload - MIN(t->reload, ticks);
+}
+
+static uint32_t calculate_min_ticks(AspeedTimer *t, uint32_t value)
+{
+    uint32_t rate = calculate_rate(t);
+    uint32_t min_ticks = muldiv64(TIMER_MIN_NS, rate, NANOSECONDS_PER_SECOND);
+
+    return  value < min_ticks ? min_ticks : value;
 }
 
 static inline uint64_t calculate_time(struct AspeedTimer *t, uint32_t ticks)
@@ -261,7 +276,7 @@ static void aspeed_timer_set_value(AspeedTimerCtrlState *s, int timer, int reg,
     switch (reg) {
     case TIMER_REG_RELOAD:
         old_reload = t->reload;
-        t->reload = value;
+        t->reload = calculate_min_ticks(t, value);
 
         /* If the reload value was not previously set, or zero, and
          * the current value is valid, try to start the timer if it is
