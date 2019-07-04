@@ -812,15 +812,45 @@ void armv7m_nvic_get_pending_irq_info(void *opaque,
 int armv7m_nvic_complete_irq(void *opaque, int irq, bool secure)
 {
     NVICState *s = (NVICState *)opaque;
-    VecInfo *vec;
+    VecInfo *vec = NULL;
     int ret;
 
     assert(irq > ARMV7M_EXCP_RESET && irq < s->num_irq);
 
-    if (secure && exc_is_banked(irq)) {
-        vec = &s->sec_vectors[irq];
-    } else {
-        vec = &s->vectors[irq];
+    /*
+     * For negative priorities, v8M will forcibly deactivate the appropriate
+     * NMI or HardFault regardless of what interrupt we're being asked to
+     * deactivate (compare the DeActivate() pseudocode). This is a guard
+     * against software returning from NMI or HardFault with a corrupted
+     * IPSR and leaving the CPU in a negative-priority state.
+     * v7M does not do this, but simply deactivates the requested interrupt.
+     */
+    if (arm_feature(&s->cpu->env, ARM_FEATURE_V8)) {
+        switch (armv7m_nvic_raw_execution_priority(s)) {
+        case -1:
+            if (s->cpu->env.v7m.aircr & R_V7M_AIRCR_BFHFNMINS_MASK) {
+                vec = &s->vectors[ARMV7M_EXCP_HARD];
+            } else {
+                vec = &s->sec_vectors[ARMV7M_EXCP_HARD];
+            }
+            break;
+        case -2:
+            vec = &s->vectors[ARMV7M_EXCP_NMI];
+            break;
+        case -3:
+            vec = &s->sec_vectors[ARMV7M_EXCP_HARD];
+            break;
+        default:
+            break;
+        }
+    }
+
+    if (!vec) {
+        if (secure && exc_is_banked(irq)) {
+            vec = &s->sec_vectors[irq];
+        } else {
+            vec = &s->vectors[irq];
+        }
     }
 
     trace_nvic_complete_irq(irq, secure);
@@ -830,7 +860,19 @@ int armv7m_nvic_complete_irq(void *opaque, int irq, bool secure)
         return -1;
     }
 
-    ret = nvic_rettobase(s);
+    /*
+     * If this is a configurable exception and it is currently
+     * targeting the opposite security state from the one we're trying
+     * to complete it for, this counts as an illegal exception return.
+     * We still need to deactivate whatever vector the logic above has
+     * selected, though, as it might not be the same as the one for the
+     * requested exception number.
+     */
+    if (!exc_is_banked(irq) && exc_targets_secure(s, irq) != secure) {
+        ret = -1;
+    } else {
+        ret = nvic_rettobase(s);
+    }
 
     vec->active = 0;
     if (vec->level) {

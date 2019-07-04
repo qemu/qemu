@@ -75,10 +75,16 @@ static void systick_timer_tick(void *opaque)
     }
 }
 
-static uint64_t systick_read(void *opaque, hwaddr addr, unsigned size)
+static MemTxResult systick_read(void *opaque, hwaddr addr, uint64_t *data,
+                                unsigned size, MemTxAttrs attrs)
 {
     SysTickState *s = opaque;
     uint32_t val;
+
+    if (attrs.user) {
+        /* Generate BusFault for unprivileged accesses */
+        return MEMTX_ERROR;
+    }
 
     switch (addr) {
     case 0x0: /* SysTick Control and Status.  */
@@ -121,13 +127,20 @@ static uint64_t systick_read(void *opaque, hwaddr addr, unsigned size)
     }
 
     trace_systick_read(addr, val, size);
-    return val;
+    *data = val;
+    return MEMTX_OK;
 }
 
-static void systick_write(void *opaque, hwaddr addr,
-                          uint64_t value, unsigned size)
+static MemTxResult systick_write(void *opaque, hwaddr addr,
+                                 uint64_t value, unsigned size,
+                                 MemTxAttrs attrs)
 {
     SysTickState *s = opaque;
+
+    if (attrs.user) {
+        /* Generate BusFault for unprivileged accesses */
+        return MEMTX_ERROR;
+    }
 
     trace_systick_write(addr, value, size);
 
@@ -172,11 +185,12 @@ static void systick_write(void *opaque, hwaddr addr,
         qemu_log_mask(LOG_GUEST_ERROR,
                       "SysTick: Bad write offset 0x%" HWADDR_PRIx "\n", addr);
     }
+    return MEMTX_OK;
 }
 
 static const MemoryRegionOps systick_ops = {
-    .read = systick_read,
-    .write = systick_write,
+    .read_with_attrs = systick_read,
+    .write_with_attrs = systick_write,
     .endianness = DEVICE_NATIVE_ENDIAN,
     .valid.min_access_size = 4,
     .valid.max_access_size = 4,
