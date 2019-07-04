@@ -18,7 +18,8 @@ import logging
 import time
 import datetime
 sys.path.append(os.path.join(os.path.dirname(__file__), '..', '..', 'python'))
-from qemu import QEMUMachine, kvm_available
+from qemu import kvm_available
+from qemu.machine import QEMUMachine
 import subprocess
 import hashlib
 import optparse

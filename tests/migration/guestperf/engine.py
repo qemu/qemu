@@ -30,7 +30,7 @@ from guestperf.timings import TimingRecord, Timings
 
 sys.path.append(os.path.join(os.path.dirname(__file__),
                              '..', '..', '..', 'python'))
-import qemu
+from qemu.machine import QEMUMachine
 
 
 class Engine(object):
@@ -386,17 +386,17 @@ class Engine(object):
             dstmonaddr = "/var/tmp/qemu-dst-%d-monitor.sock" % os.getpid()
         srcmonaddr = "/var/tmp/qemu-src-%d-monitor.sock" % os.getpid()
 
-        src = qemu.QEMUMachine(self._binary,
-                               args=self._get_src_args(hardware),
-                               wrapper=self._get_src_wrapper(hardware),
-                               name="qemu-src-%d" % os.getpid(),
-                               monitor_address=srcmonaddr)
+        src = QEMUMachine(self._binary,
+                          args=self._get_src_args(hardware),
+                          wrapper=self._get_src_wrapper(hardware),
+                          name="qemu-src-%d" % os.getpid(),
+                          monitor_address=srcmonaddr)
 
-        dst = qemu.QEMUMachine(self._binary,
-                               args=self._get_dst_args(hardware, uri),
-                               wrapper=self._get_dst_wrapper(hardware),
-                               name="qemu-dst-%d" % os.getpid(),
-                               monitor_address=dstmonaddr)
+        dst = QEMUMachine(self._binary,
+                          args=self._get_dst_args(hardware, uri),
+                          wrapper=self._get_dst_wrapper(hardware),
+                          name="qemu-dst-%d" % os.getpid(),
+                          monitor_address=dstmonaddr)
 
         try:
             src.launch()

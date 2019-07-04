@@ -251,3 +251,11 @@ Note that if you are exposing the export via /dev/nbd0, it is easier
 to just export the entire image and then mount only /dev/nbd0p1 than
 it is to reinvoke @command{qemu-nbd -c /dev/nbd0} limited to just a
 subset of the image.
+
+@section Build system
+
+@subsection Python 2 support (since 4.1.0)
+
+In the future, QEMU will require Python 3 to be available at
+build time.  Support for Python 2 in scripts shipped with QEMU
+is deprecated.
