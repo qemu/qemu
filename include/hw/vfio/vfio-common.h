@@ -74,11 +74,6 @@ typedef struct VFIOContainer {
     int error;
     bool initialized;
     unsigned long pgsizes;
-    /*
-     * This assumes the host IOMMU can support only a single
-     * contiguous IOVA window.  We may need to generalize that in
-     * future
-     */
     QLIST_HEAD(, VFIOGuestIOMMU) giommu_list;
     QLIST_HEAD(, VFIOHostDMAWindow) hostwin_list;
     QLIST_HEAD(, VFIOGroup) group_list;
