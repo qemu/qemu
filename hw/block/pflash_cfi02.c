@@ -317,6 +317,8 @@ static uint64_t pflash_read(void *opaque, hwaddr offset, unsigned int width)
     boff = offset & 0xFF;
     if (pfl->width == 2) {
         boff = boff >> 1;
+    } else if (pfl->width == 4) {
+        boff = boff >> 2;
     }
     switch (pfl->cmd) {
     default:
@@ -447,6 +449,8 @@ static void pflash_write(void *opaque, hwaddr offset, uint64_t value,
     boff = offset;
     if (pfl->width == 2) {
         boff = boff >> 1;
+    } else if (pfl->width == 4) {
+        boff = boff >> 2;
     }
     /* Only the least-significant 11 bits are used in most cases. */
     boff &= 0x7FF;
@@ -706,7 +710,6 @@ static void pflash_write(void *opaque, hwaddr offset, uint64_t value,
 static const MemoryRegionOps pflash_cfi02_ops = {
     .read = pflash_read,
     .write = pflash_write,
-    .impl.max_access_size = 2,
     .valid.min_access_size = 1,
     .valid.max_access_size = 4,
     .endianness = DEVICE_NATIVE_ENDIAN,
