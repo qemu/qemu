@@ -484,7 +484,7 @@ static void text_console_resize(QemuConsole *s)
     if (s->width < w1)
         w1 = s->width;
 
-    cells = g_new(TextCell, s->width * s->total_height);
+    cells = g_new(TextCell, s->width * s->total_height + 1);
     for(y = 0; y < s->total_height; y++) {
         c = &cells[y * s->width];
         if (w1 > 0) {
@@ -541,6 +541,9 @@ static void update_xy(QemuConsole *s, int x, int y)
         y2 += s->total_height;
     }
     if (y2 < s->height) {
+        if (x >= s->width) {
+            x = s->width - 1;
+        }
         c = &s->cells[y1 * s->width + x];
         vga_putcharxy(s, x, y2, c->ch,
                       &(c->t_attrib));
@@ -787,6 +790,9 @@ static void console_handle_escape(QemuConsole *s)
 static void console_clear_xy(QemuConsole *s, int x, int y)
 {
     int y1 = (s->y_base + y) % s->total_height;
+    if (x >= s->width) {
+        x = s->width - 1;
+    }
     TextCell *c = &s->cells[y1 * s->width + x];
     c->ch = ' ';
     c->t_attrib = s->t_attrib_default;
@@ -992,7 +998,7 @@ static void console_putchar(QemuConsole *s, int ch)
                     break;
                 case 1:
                     /* clear from beginning of line */
-                    for (x = 0; x <= s->x; x++) {
+                    for (x = 0; x <= s->x && x < s->width; x++) {
                         console_clear_xy(s, x, s->y);
                     }
                     break;
