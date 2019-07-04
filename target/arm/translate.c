@@ -11594,7 +11594,14 @@ static void disas_thumb_insn(DisasContext *s, uint32_t insn)
                 gen_nop_hint(s, (insn >> 4) & 0xf);
                 break;
             }
-            /* If Then.  */
+            /*
+             * IT (If-Then)
+             *
+             * Combinations of firstcond and mask which set up an 0b1111
+             * condition are UNPREDICTABLE; we take the CONSTRAINED
+             * UNPREDICTABLE choice to treat 0b1111 the same as 0b1110,
+             * i.e. both meaning "execute always".
+             */
             s->condexec_cond = (insn >> 4) & 0xe;
             s->condexec_mask = insn & 0x1f;
             /* No actual code generated for this insn, just setup state.  */
@@ -12128,7 +12135,11 @@ static void thumb_tr_translate_insn(DisasContextBase *dcbase, CPUState *cpu)
     if (dc->condexec_mask && !thumb_insn_is_unconditional(dc, insn)) {
         uint32_t cond = dc->condexec_cond;
 
-        if (cond != 0x0e) {     /* Skip conditional when condition is AL. */
+        /*
+         * Conditionally skip the insn. Note that both 0xe and 0xf mean
+         * "always"; 0xf is not "never".
+         */
+        if (cond < 0x0e) {
             arm_skip_unless(dc, cond);
         }
     }
