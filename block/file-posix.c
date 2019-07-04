@@ -1038,15 +1038,13 @@ static void raw_reopen_abort(BDRVReopenState *state)
     s->reopen_state = NULL;
 }
 
-static int hdev_get_max_transfer_length(BlockDriverState *bs, int fd)
+static int sg_get_max_transfer_length(int fd)
 {
 #ifdef BLKSECTGET
     int max_bytes = 0;
-    short max_sectors = 0;
-    if (bs->sg && ioctl(fd, BLKSECTGET, &max_bytes) == 0) {
+
+    if (ioctl(fd, BLKSECTGET, &max_bytes) == 0) {
         return max_bytes;
-    } else if (!bs->sg && ioctl(fd, BLKSECTGET, &max_sectors) == 0) {
-        return max_sectors << BDRV_SECTOR_BITS;
     } else {
         return -errno;
     }
@@ -1055,25 +1053,31 @@ static int hdev_get_max_transfer_length(BlockDriverState *bs, int fd)
 #endif
 }
 
-static int hdev_get_max_segments(const struct stat *st)
+static int sg_get_max_segments(int fd)
 {
 #ifdef CONFIG_LINUX
     char buf[32];
     const char *end;
-    char *sysfspath;
+    char *sysfspath = NULL;
     int ret;
-    int fd = -1;
+    int sysfd = -1;
     long max_segments;
+    struct stat st;
+
+    if (fstat(fd, &st)) {
+        ret = -errno;
+        goto out;
+    }
 
     sysfspath = g_strdup_printf("/sys/dev/block/%u:%u/queue/max_segments",
-                                major(st->st_rdev), minor(st->st_rdev));
-    fd = open(sysfspath, O_RDONLY);
-    if (fd == -1) {
+                                major(st.st_rdev), minor(st.st_rdev));
+    sysfd = open(sysfspath, O_RDONLY);
+    if (sysfd == -1) {
         ret = -errno;
         goto out;
     }
     do {
-        ret = read(fd, buf, sizeof(buf) - 1);
+        ret = read(sysfd, buf, sizeof(buf) - 1);
     } while (ret == -1 && errno == EINTR);
     if (ret < 0) {
         ret = -errno;
@@ -1090,8 +1094,8 @@ static int hdev_get_max_segments(const struct stat *st)
     }
 
 out:
-    if (fd != -1) {
-        close(fd);
+    if (sysfd != -1) {
+        close(sysfd);
     }
     g_free(sysfspath);
     return ret;
@@ -1103,19 +1107,17 @@ out:
 static void raw_refresh_limits(BlockDriverState *bs, Error **errp)
 {
     BDRVRawState *s = bs->opaque;
-    struct stat st;
 
-    if (!fstat(s->fd, &st)) {
-        if (S_ISBLK(st.st_mode) || S_ISCHR(st.st_mode)) {
-            int ret = hdev_get_max_transfer_length(bs, s->fd);
-            if (ret > 0 && ret <= BDRV_REQUEST_MAX_BYTES) {
-                bs->bl.max_transfer = pow2floor(ret);
-            }
-            ret = hdev_get_max_segments(&st);
-            if (ret > 0) {
-                bs->bl.max_transfer = MIN(bs->bl.max_transfer,
-                                          ret * getpagesize());
-            }
+    if (bs->sg) {
+        int ret = sg_get_max_transfer_length(s->fd);
+
+        if (ret > 0 && ret <= BDRV_REQUEST_MAX_BYTES) {
+            bs->bl.max_transfer = pow2floor(ret);
+        }
+
+        ret = sg_get_max_segments(s->fd);
+        if (ret > 0) {
+            bs->bl.max_transfer = MIN(bs->bl.max_transfer, ret * getpagesize());
         }
     }
 
