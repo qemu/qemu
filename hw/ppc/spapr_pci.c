@@ -2093,7 +2093,8 @@ static Property spapr_phb_properties[] = {
                        0x800000000000000ULL),
     DEFINE_PROP_BOOL("ddw", SpaprPhbState, ddw_enabled, true),
     DEFINE_PROP_UINT64("pgsz", SpaprPhbState, page_size_mask,
-                       (1ULL << 12) | (1ULL << 16)),
+                       (1ULL << 12) | (1ULL << 16)
+                       | (1ULL << 21) | (1ULL << 24)),
     DEFINE_PROP_UINT32("numa_node", SpaprPhbState, numa_node, -1),
     DEFINE_PROP_BOOL("pre-2.8-migration", SpaprPhbState,
                      pre_2_8_migration, false),
