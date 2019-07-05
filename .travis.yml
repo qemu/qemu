@@ -43,6 +43,7 @@ addons:
       - glib
       - pixman
       - gnu-sed
+    update: true
 
 
 # The channel name "irc.oftc.net#qemu" is encrypted against qemu/qemu
@@ -80,7 +81,7 @@ script:
 matrix:
   include:
     - env:
-        - CONFIG="--disable-system"
+        - CONFIG="--disable-system --static"
 
 
     # we split the system builds as it takes a while to build them all

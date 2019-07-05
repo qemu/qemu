@@ -34,10 +34,8 @@ class NetBSDVM(basevm.BaseVM):
         img_tmp_xz = img + ".tmp.xz"
         img_tmp = img + ".tmp"
         sys.stderr.write("Extracting the image...\n")
-        subprocess.check_call(["cp", "-f", cimg, img_tmp_xz])
-        subprocess.check_call(["xz", "-dvf", img_tmp_xz])
-        if os.path.exists(img):
-            os.remove(img)
+        subprocess.check_call(["ln", "-f", cimg, img_tmp_xz])
+        subprocess.check_call(["xz", "--keep", "-dvf", img_tmp_xz])
         os.rename(img_tmp, img)
 
 if __name__ == "__main__":
