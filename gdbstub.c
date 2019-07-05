@@ -1,6 +1,10 @@
 /*
  * gdb server stub
  *
+ * This implements a subset of the remote protocol as described in:
+ *
+ *   https://sourceware.org/gdb/onlinedocs/gdb/Remote-Protocol.html
+ *
  * Copyright (c) 2003-2005 Fabrice Bellard
  *
  * This library is free software; you can redistribute it and/or
@@ -15,6 +19,8 @@
  *
  * You should have received a copy of the GNU Lesser General Public
  * License along with this library; if not, see <http://www.gnu.org/licenses/>.
+ *
+ * SPDX-License-Identifier: LGPL-2.0+
  */
 
 #include "qemu/osdep.h"
