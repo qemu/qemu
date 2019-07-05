@@ -1913,13 +1913,6 @@ static void virtio_pci_generic_class_init(ObjectClass *klass, void *data)
     dc->props = virtio_pci_generic_properties;
 }
 
-/* Used when the generic type and the base type is the same */
-static void virtio_pci_generic_base_class_init(ObjectClass *klass, void *data)
-{
-    virtio_pci_base_class_init(klass, data);
-    virtio_pci_generic_class_init(klass, NULL);
-}
-
 static void virtio_pci_transitional_instance_init(Object *obj)
 {
     VirtIOPCIProxy *proxy = VIRTIO_PCI(obj);
@@ -1938,15 +1931,15 @@ static void virtio_pci_non_transitional_instance_init(Object *obj)
 
 void virtio_pci_types_register(const VirtioPCIDeviceTypeInfo *t)
 {
+    char *base_name = NULL;
     TypeInfo base_type_info = {
         .name          = t->base_name,
         .parent        = t->parent ? t->parent : TYPE_VIRTIO_PCI,
         .instance_size = t->instance_size,
         .instance_init = t->instance_init,
         .class_size    = t->class_size,
-        .class_init    = virtio_pci_base_class_init,
-        .class_data    = (void *)t,
         .abstract      = true,
+        .interfaces    = t->interfaces,
     };
     TypeInfo generic_type_info = {
         .name = t->generic_name,
@@ -1961,13 +1954,20 @@ void virtio_pci_types_register(const VirtioPCIDeviceTypeInfo *t)
 
     if (!base_type_info.name) {
         /* No base type -> register a single generic device type */
-        base_type_info.name = t->generic_name;
-        base_type_info.class_init = virtio_pci_generic_base_class_init;
-        base_type_info.interfaces = generic_type_info.interfaces;
-        base_type_info.abstract = false;
-        generic_type_info.name = NULL;
+        /* use intermediate %s-base-type to add generic device props */
+        base_name = g_strdup_printf("%s-base-type", t->generic_name);
+        base_type_info.name = base_name;
+        base_type_info.class_init = virtio_pci_generic_class_init;
+
+        generic_type_info.parent = base_name;
+        generic_type_info.class_init = virtio_pci_base_class_init;
+        generic_type_info.class_data = (void *)t;
+
         assert(!t->non_transitional_name);
         assert(!t->transitional_name);
+    } else {
+        base_type_info.class_init = virtio_pci_base_class_init;
+        base_type_info.class_data = (void *)t;
     }
 
     type_register(&base_type_info);
@@ -2005,6 +2005,7 @@ void virtio_pci_types_register(const VirtioPCIDeviceTypeInfo *t)
         };
         type_register(&transitional_type_info);
     }
+    g_free(base_name);
 }
 
 /* virtio-pci-bus */

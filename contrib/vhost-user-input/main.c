@@ -17,6 +17,10 @@
 #include "standard-headers/linux/virtio_input.h"
 #include "qapi/error.h"
 
+enum {
+    VHOST_USER_INPUT_MAX_QUEUES = 2,
+};
+
 typedef struct virtio_input_event virtio_input_event;
 typedef struct virtio_input_config virtio_input_config;
 
@@ -384,7 +388,12 @@ main(int argc, char *argv[])
         g_printerr("Invalid vhost-user socket.\n");
         exit(EXIT_FAILURE);
     }
-    vug_init(&vi.dev, fd, vi_panic, &vuiface);
+
+    if (!vug_init(&vi.dev, VHOST_USER_INPUT_MAX_QUEUES, fd, vi_panic,
+                  &vuiface)) {
+        g_printerr("Failed to initialize libvhost-user-glib.\n");
+        exit(EXIT_FAILURE);
+    }
 
     loop = g_main_loop_new(NULL, FALSE);
     g_main_loop_run(loop);

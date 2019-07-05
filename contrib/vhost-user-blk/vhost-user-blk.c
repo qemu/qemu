@@ -25,6 +25,10 @@
 #include <sys/ioctl.h>
 #endif
 
+enum {
+    VHOST_USER_BLK_MAX_QUEUES = 8,
+};
+
 struct virtio_blk_inhdr {
     unsigned char status;
 };
@@ -334,12 +338,6 @@ static void vub_process_vq(VuDev *vu_dev, int idx)
     VuVirtq *vq;
     int ret;
 
-    if ((idx < 0) || (idx >= VHOST_MAX_NR_VIRTQUEUE)) {
-        fprintf(stderr, "VQ Index out of range: %d\n", idx);
-        vub_panic_cb(vu_dev, NULL);
-        return;
-    }
-
     gdev = container_of(vu_dev, VugDev, parent);
     vdev_blk = container_of(gdev, VubDev, parent);
     assert(vdev_blk);
@@ -631,7 +629,11 @@ int main(int argc, char **argv)
         vdev_blk->enable_ro = true;
     }
 
-    vug_init(&vdev_blk->parent, csock, vub_panic_cb, &vub_iface);
+    if (!vug_init(&vdev_blk->parent, VHOST_USER_BLK_MAX_QUEUES, csock,
+                  vub_panic_cb, &vub_iface)) {
+        fprintf(stderr, "Failed to initialized libvhost-user-glib\n");
+        goto err;
+    }
 
     g_main_loop_run(vdev_blk->loop);
 

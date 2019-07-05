@@ -25,6 +25,10 @@
 #include "virgl.h"
 #include "vugbm.h"
 
+enum {
+    VHOST_USER_GPU_MAX_QUEUES = 2,
+};
+
 struct virtio_gpu_simple_resource {
     uint32_t resource_id;
     uint32_t width;
@@ -1169,7 +1173,10 @@ main(int argc, char *argv[])
         exit(EXIT_FAILURE);
     }
 
-    vug_init(&g.dev, fd, vg_panic, &vuiface);
+    if (!vug_init(&g.dev, VHOST_USER_GPU_MAX_QUEUES, fd, vg_panic, &vuiface)) {
+        g_printerr("Failed to initialize libvhost-user-glib.\n");
+        exit(EXIT_FAILURE);
+    }
 
     loop = g_main_loop_new(NULL, FALSE);
     g_main_loop_run(loop);
