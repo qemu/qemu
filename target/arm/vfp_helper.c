@@ -197,6 +197,8 @@ void HELPER(vfp_set_fpscr)(CPUARMState *env, uint32_t val)
         val &= 0xf7c0009f;
     }
 
+    vfp_set_fpscr_to_host(env, val);
+
     /*
      * We don't implement trapped exception handling, so the
      * trap enable bits, IDE|IXE|UFE|OFE|DZE|IOE are all RAZ/WI (not RES0!)
@@ -217,8 +219,6 @@ void HELPER(vfp_set_fpscr)(CPUARMState *env, uint32_t val)
     env->vfp.qc[1] = 0;
     env->vfp.qc[2] = 0;
     env->vfp.qc[3] = 0;
-
-    vfp_set_fpscr_to_host(env, val);
 }
 
 void vfp_set_fpscr(CPUARMState *env, uint32_t val)
