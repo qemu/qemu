@@ -597,12 +597,10 @@ static void test_acpi_one(const char *params, test_data *data)
     test_acpi_rxsdt_table(data);
     test_acpi_fadt_table(data);
 
-    if (iasl) {
-        if (getenv(ACPI_REBUILD_EXPECTED_AML)) {
-            dump_aml_files(data, true);
-        } else {
-            test_acpi_asl(data);
-        }
+    if (getenv(ACPI_REBUILD_EXPECTED_AML)) {
+        dump_aml_files(data, true);
+    } else if (iasl) {
+        test_acpi_asl(data);
     }
 
     /*
