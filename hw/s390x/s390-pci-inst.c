@@ -1209,8 +1209,10 @@ int stpcifc_service_call(S390CPU *cpu, uint8_t r1, uint64_t fiba, uint8_t ar,
      * FH Enabled bit is set to one in states of ENABLED, BLOCKED or ERROR. */
     case ZPCI_FS_ERROR:
         fib.fc |= 0x20;
+        /* fallthrough */
     case ZPCI_FS_BLOCKED:
         fib.fc |= 0x40;
+        /* fallthrough */
     case ZPCI_FS_ENABLED:
         fib.fc |= 0x80;
         if (pbdev->iommu->enabled) {
