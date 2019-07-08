@@ -688,11 +688,13 @@ if __name__ == '__main__':
 
     data = KconfigData(mode)
     parser = KconfigParser(data)
+    external_vars = set()
     for arg in argv[3:]:
         m = re.match(r'^(CONFIG_[A-Z0-9_]+)=([yn]?)$', arg)
         if m is not None:
             name, value = m.groups()
             parser.do_assignment(name, value == 'y')
+            external_vars.add(name[7:])
         else:
             fp = open(arg, 'r')
             parser.parse_file(fp)
@@ -700,7 +702,8 @@ if __name__ == '__main__':
 
     config = data.compute_config()
     for key in sorted(config.keys()):
-        print ('CONFIG_%s=%s' % (key, ('y' if config[key] else 'n')))
+        if key not in external_vars:
+            print ('CONFIG_%s=%s' % (key, ('y' if config[key] else 'n')))
 
     deps = open(argv[2], 'w')
     for fname in data.previously_included:

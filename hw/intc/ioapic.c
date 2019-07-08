@@ -245,8 +245,8 @@ void ioapic_eoi_broadcast(int vector)
             s->ioredtbl[n] = entry & ~IOAPIC_LVT_REMOTE_IRR;
 
             if (!(entry & IOAPIC_LVT_MASKED) && (s->irr & (1 << n))) {
-                ++s->irq_eoi[vector];
-                if (s->irq_eoi[vector] >= SUCCESSIVE_IRQ_MAX_COUNT) {
+                ++s->irq_eoi[n];
+                if (s->irq_eoi[n] >= SUCCESSIVE_IRQ_MAX_COUNT) {
                     /*
                      * Real hardware does not deliver the interrupt immediately
                      * during eoi broadcast, and this lets a buggy guest make
@@ -254,16 +254,16 @@ void ioapic_eoi_broadcast(int vector)
                      * level-triggered interrupt. Emulate this behavior if we
                      * detect an interrupt storm.
                      */
-                    s->irq_eoi[vector] = 0;
+                    s->irq_eoi[n] = 0;
                     timer_mod_anticipate(s->delayed_ioapic_service_timer,
                                          qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL) +
                                          NANOSECONDS_PER_SECOND / 100);
-                    trace_ioapic_eoi_delayed_reassert(vector);
+                    trace_ioapic_eoi_delayed_reassert(n);
                 } else {
                     ioapic_service(s);
                 }
             } else {
-                s->irq_eoi[vector] = 0;
+                s->irq_eoi[n] = 0;
             }
         }
     }
@@ -380,6 +380,7 @@ ioapic_mem_write(void *opaque, hwaddr addr, uint64_t val,
                 /* restore RO bits */
                 s->ioredtbl[index] &= IOAPIC_RW_BITS;
                 s->ioredtbl[index] |= ro_bits;
+                s->irq_eoi[index] = 0;
                 ioapic_fix_edge_remote_irr(&s->ioredtbl[index]);
                 ioapic_service(s);
             }
