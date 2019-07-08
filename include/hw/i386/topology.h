@@ -47,6 +47,7 @@ typedef uint32_t apic_id_t;
 
 typedef struct X86CPUTopoInfo {
     unsigned pkg_id;
+    unsigned die_id;
     unsigned core_id;
     unsigned smt_id;
 } X86CPUTopoInfo;
@@ -62,87 +63,120 @@ static unsigned apicid_bitwidth_for_count(unsigned count)
 
 /* Bit width of the SMT_ID (thread ID) field on the APIC ID
  */
-static inline unsigned apicid_smt_width(unsigned nr_cores, unsigned nr_threads)
+static inline unsigned apicid_smt_width(unsigned nr_dies,
+                                        unsigned nr_cores,
+                                        unsigned nr_threads)
 {
     return apicid_bitwidth_for_count(nr_threads);
 }
 
 /* Bit width of the Core_ID field
  */
-static inline unsigned apicid_core_width(unsigned nr_cores, unsigned nr_threads)
+static inline unsigned apicid_core_width(unsigned nr_dies,
+                                         unsigned nr_cores,
+                                         unsigned nr_threads)
 {
     return apicid_bitwidth_for_count(nr_cores);
 }
 
+/* Bit width of the Die_ID field */
+static inline unsigned apicid_die_width(unsigned nr_dies,
+                                        unsigned nr_cores,
+                                        unsigned nr_threads)
+{
+    return apicid_bitwidth_for_count(nr_dies);
+}
+
 /* Bit offset of the Core_ID field
  */
-static inline unsigned apicid_core_offset(unsigned nr_cores,
+static inline unsigned apicid_core_offset(unsigned nr_dies,
+                                          unsigned nr_cores,
                                           unsigned nr_threads)
 {
-    return apicid_smt_width(nr_cores, nr_threads);
+    return apicid_smt_width(nr_dies, nr_cores, nr_threads);
+}
+
+/* Bit offset of the Die_ID field */
+static inline unsigned apicid_die_offset(unsigned nr_dies,
+                                          unsigned nr_cores,
+                                           unsigned nr_threads)
+{
+    return apicid_core_offset(nr_dies, nr_cores, nr_threads) +
+           apicid_core_width(nr_dies, nr_cores, nr_threads);
 }
 
 /* Bit offset of the Pkg_ID (socket ID) field
  */
-static inline unsigned apicid_pkg_offset(unsigned nr_cores, unsigned nr_threads)
+static inline unsigned apicid_pkg_offset(unsigned nr_dies,
+                                         unsigned nr_cores,
+                                         unsigned nr_threads)
 {
-    return apicid_core_offset(nr_cores, nr_threads) +
-           apicid_core_width(nr_cores, nr_threads);
+    return apicid_die_offset(nr_dies, nr_cores, nr_threads) +
+           apicid_die_width(nr_dies, nr_cores, nr_threads);
 }
 
 /* Make APIC ID for the CPU based on Pkg_ID, Core_ID, SMT_ID
  *
  * The caller must make sure core_id < nr_cores and smt_id < nr_threads.
  */
-static inline apic_id_t apicid_from_topo_ids(unsigned nr_cores,
+static inline apic_id_t apicid_from_topo_ids(unsigned nr_dies,
+                                             unsigned nr_cores,
                                              unsigned nr_threads,
                                              const X86CPUTopoInfo *topo)
 {
-    return (topo->pkg_id  << apicid_pkg_offset(nr_cores, nr_threads)) |
-           (topo->core_id << apicid_core_offset(nr_cores, nr_threads)) |
+    return (topo->pkg_id  << apicid_pkg_offset(nr_dies, nr_cores, nr_threads)) |
+           (topo->die_id  << apicid_die_offset(nr_dies, nr_cores, nr_threads)) |
+          (topo->core_id << apicid_core_offset(nr_dies, nr_cores, nr_threads)) |
            topo->smt_id;
 }
 
 /* Calculate thread/core/package IDs for a specific topology,
  * based on (contiguous) CPU index
  */
-static inline void x86_topo_ids_from_idx(unsigned nr_cores,
+static inline void x86_topo_ids_from_idx(unsigned nr_dies,
+                                         unsigned nr_cores,
                                          unsigned nr_threads,
                                          unsigned cpu_index,
                                          X86CPUTopoInfo *topo)
 {
-    unsigned core_index = cpu_index / nr_threads;
+    topo->pkg_id = cpu_index / (nr_dies * nr_cores * nr_threads);
+    topo->die_id = cpu_index / (nr_cores * nr_threads) % nr_dies;
+    topo->core_id = cpu_index / nr_threads % nr_cores;
     topo->smt_id = cpu_index % nr_threads;
-    topo->core_id = core_index % nr_cores;
-    topo->pkg_id = core_index / nr_cores;
 }
 
 /* Calculate thread/core/package IDs for a specific topology,
  * based on APIC ID
  */
 static inline void x86_topo_ids_from_apicid(apic_id_t apicid,
+                                            unsigned nr_dies,
                                             unsigned nr_cores,
                                             unsigned nr_threads,
                                             X86CPUTopoInfo *topo)
 {
     topo->smt_id = apicid &
-                   ~(0xFFFFFFFFUL << apicid_smt_width(nr_cores, nr_threads));
-    topo->core_id = (apicid >> apicid_core_offset(nr_cores, nr_threads)) &
-                   ~(0xFFFFFFFFUL << apicid_core_width(nr_cores, nr_threads));
-    topo->pkg_id = apicid >> apicid_pkg_offset(nr_cores, nr_threads);
+            ~(0xFFFFFFFFUL << apicid_smt_width(nr_dies, nr_cores, nr_threads));
+    topo->core_id =
+            (apicid >> apicid_core_offset(nr_dies, nr_cores, nr_threads)) &
+            ~(0xFFFFFFFFUL << apicid_core_width(nr_dies, nr_cores, nr_threads));
+    topo->die_id =
+            (apicid >> apicid_die_offset(nr_dies, nr_cores, nr_threads)) &
+            ~(0xFFFFFFFFUL << apicid_die_width(nr_dies, nr_cores, nr_threads));
+    topo->pkg_id = apicid >> apicid_pkg_offset(nr_dies, nr_cores, nr_threads);
 }
 
 /* Make APIC ID for the CPU 'cpu_index'
  *
  * 'cpu_index' is a sequential, contiguous ID for the CPU.
  */
-static inline apic_id_t x86_apicid_from_cpu_idx(unsigned nr_cores,
+static inline apic_id_t x86_apicid_from_cpu_idx(unsigned nr_dies,
+                                                unsigned nr_cores,
                                                 unsigned nr_threads,
                                                 unsigned cpu_index)
 {
     X86CPUTopoInfo topo;
-    x86_topo_ids_from_idx(nr_cores, nr_threads, cpu_index, &topo);
-    return apicid_from_topo_ids(nr_cores, nr_threads, &topo);
+    x86_topo_ids_from_idx(nr_dies, nr_cores, nr_threads, cpu_index, &topo);
+    return apicid_from_topo_ids(nr_dies, nr_cores, nr_threads, &topo);
 }
 
 #endif /* HW_I386_TOPOLOGY_H */

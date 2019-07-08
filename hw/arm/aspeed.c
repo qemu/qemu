@@ -187,7 +187,7 @@ static void aspeed_board_init(MachineState *machine,
                             &error_abort);
     object_property_set_int(OBJECT(&bmc->soc), cfg->num_cs, "num-cs",
                             &error_abort);
-    object_property_set_int(OBJECT(&bmc->soc), smp_cpus, "num-cpus",
+    object_property_set_int(OBJECT(&bmc->soc), machine->smp.cpus, "num-cpus",
                             &error_abort);
     if (machine->kernel_filename) {
         /*

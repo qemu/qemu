@@ -371,6 +371,7 @@ static void riscv_virt_board_init(MachineState *machine)
     char *plic_hart_config;
     size_t plic_hart_config_len;
     int i;
+    unsigned int smp_cpus = machine->smp.cpus;
     void *fdt;
 
     /* Initialize SOC */

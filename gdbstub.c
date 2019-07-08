@@ -34,6 +34,7 @@
 #include "sysemu/sysemu.h"
 #include "exec/gdbstub.h"
 #include "hw/cpu/cluster.h"
+#include "hw/boards.h"
 #endif
 
 #define MAX_PACKET_LENGTH 4096
@@ -1171,6 +1172,9 @@ static int gdb_handle_vcont(GDBState *s, const char *p)
     CPU_FOREACH(cpu) {
         max_cpus = max_cpus <= cpu->cpu_index ? cpu->cpu_index + 1 : max_cpus;
     }
+#else
+    MachineState *ms = MACHINE(qdev_get_machine());
+    unsigned int max_cpus = ms->smp.max_cpus;
 #endif
     /* uninitialised CPUs stay 0 */
     newstates = g_new0(char, max_cpus);

@@ -226,6 +226,8 @@ MachineInfoList *qmp_query_machines(Error **errp)
         info->name = g_strdup(mc->name);
         info->cpu_max = !mc->max_cpus ? 1 : mc->max_cpus;
         info->hotpluggable_cpus = mc->has_hotpluggable_cpus;
+        info->numa_mem_supported = mc->numa_mem_supported;
+        info->deprecated = !!mc->deprecation_reason;
 
         entry = g_malloc0(sizeof(*entry));
         entry->value = info;
@@ -264,7 +266,7 @@ void qmp_cpu_add(int64_t id, Error **errp)
 
     mc = MACHINE_GET_CLASS(current_machine);
     if (mc->hot_add_cpu) {
-        mc->hot_add_cpu(id, errp);
+        mc->hot_add_cpu(current_machine, id, errp);
     } else {
         error_setg(errp, "Not supported");
     }

@@ -1451,6 +1451,10 @@ int kvm_arch_init_vcpu(CPUState *cs)
             }
             break;
         }
+        case 0x1f:
+            if (env->nr_dies < 2) {
+                break;
+            }
         case 4:
         case 0xb:
         case 0xd:
@@ -1458,6 +1462,11 @@ int kvm_arch_init_vcpu(CPUState *cs)
                 if (i == 0xd && j == 64) {
                     break;
                 }
+
+                if (i == 0x1f && j == 64) {
+                    break;
+                }
+
                 c->function = i;
                 c->flags = KVM_CPUID_FLAG_SIGNIFCANT_INDEX;
                 c->index = j;
@@ -1467,6 +1476,9 @@ int kvm_arch_init_vcpu(CPUState *cs)
                     break;
                 }
                 if (i == 0xb && !(c->ecx & 0xff00)) {
+                    break;
+                }
+                if (i == 0x1f && !(c->ecx & 0xff00)) {
                     break;
                 }
                 if (i == 0xd && c->eax == 0) {

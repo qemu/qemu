@@ -72,6 +72,7 @@ static void machine_hppa_init(MachineState *machine)
     MemoryRegion *ram_region;
     MemoryRegion *cpu_region;
     long i;
+    unsigned int smp_cpus = machine->smp.cpus;
 
     ram_size = machine->ram_size;
 
@@ -240,8 +241,9 @@ static void machine_hppa_init(MachineState *machine)
     cpu[0]->env.gr[21] = smp_cpus;
 }
 
-static void hppa_machine_reset(void)
+static void hppa_machine_reset(MachineState *ms)
 {
+    unsigned int smp_cpus = ms->smp.cpus;
     int i;
 
     qemu_devices_reset();

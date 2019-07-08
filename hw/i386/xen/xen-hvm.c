@@ -756,6 +756,8 @@ static ioreq_t *cpu_get_ioreq_from_shared_memory(XenIOState *state, int vcpu)
 /* retval--the number of ioreq packet */
 static ioreq_t *cpu_get_ioreq(XenIOState *state)
 {
+    MachineState *ms = MACHINE(qdev_get_machine());
+    unsigned int max_cpus = ms->smp.max_cpus;
     int i;
     evtchn_port_t port;
 
@@ -1383,6 +1385,8 @@ static int xen_map_ioreq_server(XenIOState *state)
 
 void xen_hvm_init(PCMachineState *pcms, MemoryRegion **ram_memory)
 {
+    MachineState *ms = MACHINE(pcms);
+    unsigned int max_cpus = ms->smp.max_cpus;
     int i, rc;
     xen_pfn_t ioreq_pfn;
     XenIOState *state;

@@ -328,6 +328,7 @@ static void create_secure_ram(SBSAMachineState *sms,
 
 static void create_gic(SBSAMachineState *sms, qemu_irq *pic)
 {
+    unsigned int smp_cpus = MACHINE(sms)->smp.cpus;
     DeviceState *gicdev;
     SysBusDevice *gicbusdev;
     const char *gictype;
@@ -585,6 +586,8 @@ static void *sbsa_ref_dtb(const struct arm_boot_info *binfo, int *fdt_size)
 
 static void sbsa_ref_init(MachineState *machine)
 {
+    unsigned int smp_cpus = machine->smp.cpus;
+    unsigned int max_cpus = machine->smp.max_cpus;
     SBSAMachineState *sms = SBSA_MACHINE(machine);
     MachineClass *mc = MACHINE_GET_CLASS(machine);
     MemoryRegion *sysmem = get_system_memory();
@@ -727,6 +730,7 @@ static uint64_t sbsa_ref_cpu_mp_affinity(SBSAMachineState *sms, int idx)
 
 static const CPUArchIdList *sbsa_ref_possible_cpu_arch_ids(MachineState *ms)
 {
+    unsigned int max_cpus = ms->smp.max_cpus;
     SBSAMachineState *sms = SBSA_MACHINE(ms);
     int n;
 

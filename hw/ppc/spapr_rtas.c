@@ -235,6 +235,8 @@ static void rtas_ibm_get_system_parameter(PowerPCCPU *cpu,
                                           target_ulong args,
                                           uint32_t nret, target_ulong rets)
 {
+    MachineState *ms = MACHINE(qdev_get_machine());
+    unsigned int max_cpus = ms->smp.max_cpus;
     target_ulong parameter = rtas_ld(args, 0);
     target_ulong buffer = rtas_ld(args, 1);
     target_ulong length = rtas_ld(args, 2);
@@ -248,7 +250,7 @@ static void rtas_ibm_get_system_parameter(PowerPCCPU *cpu,
                                           "MaxPlatProcs=%d",
                                           max_cpus,
                                           current_machine->ram_size / MiB,
-                                          smp_cpus,
+                                          ms->smp.cpus,
                                           max_cpus);
         ret = sysparm_st(buffer, length, param_val, strlen(param_val) + 1);
         g_free(param_val);

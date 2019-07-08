@@ -101,6 +101,7 @@ static void ppc_heathrow_init(MachineState *machine)
     DeviceState *dev, *pic_dev;
     BusState *adb_bus;
     int bios_size;
+    unsigned int smp_cpus = machine->smp.cpus;
     uint16_t ppc_boot_device;
     DriveInfo *hd[MAX_IDE_BUS * MAX_IDE_DEVS];
     void *fw_cfg;
@@ -324,7 +325,7 @@ static void ppc_heathrow_init(MachineState *machine)
     sysbus_mmio_map(s, 1, CFG_ADDR + 2);
 
     fw_cfg_add_i16(fw_cfg, FW_CFG_NB_CPUS, (uint16_t)smp_cpus);
-    fw_cfg_add_i16(fw_cfg, FW_CFG_MAX_CPUS, (uint16_t)max_cpus);
+    fw_cfg_add_i16(fw_cfg, FW_CFG_MAX_CPUS, (uint16_t)machine->smp.max_cpus);
     fw_cfg_add_i64(fw_cfg, FW_CFG_RAM_SIZE, (uint64_t)ram_size);
     fw_cfg_add_i16(fw_cfg, FW_CFG_MACHINE_ID, ARCH_HEATHROW);
     fw_cfg_add_i32(fw_cfg, FW_CFG_KERNEL_ADDR, kernel_base);

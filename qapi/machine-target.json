@@ -279,6 +279,12 @@
 #            to introspect properties configurable using -cpu or -global.
 #            (since 2.9)
 #
+# @alias-of: Name of CPU model this model is an alias for.  The target of the
+#            CPU model alias may change depending on the machine type.
+#            Management software is supposed to translate CPU model aliases
+#            in the VM configuration, because aliases may stop being
+#            migration-safe in the future (since 4.1)
+#
 # @unavailable-features is a list of QOM property names that
 # represent CPU model attributes that prevent the CPU from running.
 # If the QOM property is read-only, that means there's no known
@@ -302,7 +308,8 @@
             '*migration-safe': 'bool',
             'static': 'bool',
             '*unavailable-features': [ 'str' ],
-            'typename': 'str' },
+            'typename': 'str',
+            '*alias-of' : 'str' },
   'if': 'defined(TARGET_PPC) || defined(TARGET_ARM) || defined(TARGET_I386) || defined(TARGET_S390X) || defined(TARGET_MIPS)' }
 
 ##

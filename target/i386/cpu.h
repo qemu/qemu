@@ -736,6 +736,7 @@ typedef uint32_t FeatureWordArray[FEATURE_WORDS];
 #define CPUID_TOPOLOGY_LEVEL_INVALID  (0U << 8)
 #define CPUID_TOPOLOGY_LEVEL_SMT      (1U << 8)
 #define CPUID_TOPOLOGY_LEVEL_CORE     (2U << 8)
+#define CPUID_TOPOLOGY_LEVEL_DIE      (5U << 8)
 
 /* MSR Feature Bits */
 #define MSR_ARCH_CAP_RDCL_NO    (1U << 0)
@@ -1385,6 +1386,8 @@ typedef struct CPUX86State {
     uint64_t xss;
 
     TPRAccess tpr_access_type;
+
+    unsigned nr_dies;
 } CPUX86State;
 
 struct kvm_msrs;
@@ -1406,7 +1409,7 @@ struct X86CPU {
     CPUNegativeOffsetState neg;
     CPUX86State env;
 
-    int hyperv_spinlock_attempts;
+    uint32_t hyperv_spinlock_attempts;
     char *hyperv_vendor_id;
     bool hyperv_synic_kvm_only;
     uint64_t hyperv_features;
@@ -1414,6 +1417,12 @@ struct X86CPU {
 
     bool check_cpuid;
     bool enforce_cpuid;
+    /*
+     * Force features to be enabled even if the host doesn't support them.
+     * This is dangerous and should be done only for testing CPUID
+     * compatibility.
+     */
+    bool force_features;
     bool expose_kvm;
     bool expose_tcg;
     bool migratable;
@@ -1438,7 +1447,7 @@ struct X86CPU {
     } mwait;
 
     /* Features that were filtered out because of missing host capabilities */
-    uint32_t filtered_features[FEATURE_WORDS];
+    FeatureWordArray filtered_features;
 
     /* Enable PMU CPUID bits. This can't be enabled by default yet because
      * it doesn't have ABI stability guarantees, as it passes all PMU CPUID
@@ -1498,6 +1507,7 @@ struct X86CPU {
 
     int32_t node_id; /* NUMA node this CPU belongs to */
     int32_t socket_id;
+    int32_t die_id;
     int32_t core_id;
     int32_t thread_id;
 
@@ -1918,6 +1928,28 @@ void apic_handle_tpr_access_report(DeviceState *d, target_ulong ip,
  * are already present in the kvm_default_props table.
  */
 void x86_cpu_change_kvm_default(const char *prop, const char *value);
+
+/* Special values for X86CPUVersion: */
+
+/* Resolve to latest CPU version */
+#define CPU_VERSION_LATEST -1
+
+/*
+ * Resolve to version defined by current machine type.
+ * See x86_cpu_set_default_version()
+ */
+#define CPU_VERSION_AUTO   -2
+
+/* Don't resolve to any versioned CPU models, like old QEMU versions */
+#define CPU_VERSION_LEGACY  0
+
+typedef int X86CPUVersion;
+
+/*
+ * Set default CPU model version for CPU models having
+ * version == CPU_VERSION_AUTO.
+ */
+void x86_cpu_set_default_version(X86CPUVersion version);
 
 /* Return name of 32-bit register, from a R_* constant */
 const char *get_register_name_32(unsigned int reg);

@@ -458,7 +458,7 @@ static void boston_mach_init(MachineState *machine)
                           sizeof(s->cps), TYPE_MIPS_CPS);
     object_property_set_str(OBJECT(&s->cps), machine->cpu_type, "cpu-type",
                             &err);
-    object_property_set_int(OBJECT(&s->cps), smp_cpus, "num-vp", &err);
+    object_property_set_int(OBJECT(&s->cps), machine->smp.cpus, "num-vp", &err);
     object_property_set_bool(OBJECT(&s->cps), true, "realized", &err);
 
     if (err != NULL) {

@@ -308,6 +308,7 @@ static int ppce500_load_device_tree(PPCE500MachineState *pms,
                                     bool dry_run)
 {
     MachineState *machine = MACHINE(pms);
+    unsigned int smp_cpus = machine->smp.cpus;
     const PPCE500MachineClass *pmc = PPCE500_MACHINE_GET_CLASS(pms);
     CPUPPCState *env = first_cpu->env_ptr;
     int ret = -1;
@@ -735,6 +736,7 @@ static DeviceState *ppce500_init_mpic_qemu(PPCE500MachineState *pms,
     SysBusDevice *s;
     int i, j, k;
     MachineState *machine = MACHINE(pms);
+    unsigned int smp_cpus = machine->smp.cpus;
     const PPCE500MachineClass *pmc = PPCE500_MACHINE_GET_CLASS(pms);
 
     dev = qdev_create(NULL, TYPE_OPENPIC);
@@ -847,6 +849,7 @@ void ppce500_init(MachineState *machine)
     struct boot_info *boot_info;
     int dt_size;
     int i;
+    unsigned int smp_cpus = machine->smp.cpus;
     /* irq num for pin INTA, INTB, INTC and INTD is 1, 2, 3 and
      * 4 respectively */
     unsigned int pci_irq_nrs[PCI_NUM_PINS] = {1, 2, 3, 4};

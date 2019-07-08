@@ -105,7 +105,7 @@ static void sabrelite_init(MachineState *machine)
     sabrelite_binfo.kernel_filename = machine->kernel_filename;
     sabrelite_binfo.kernel_cmdline = machine->kernel_cmdline;
     sabrelite_binfo.initrd_filename = machine->initrd_filename;
-    sabrelite_binfo.nb_cpus = smp_cpus;
+    sabrelite_binfo.nb_cpus = machine->smp.cpus;
     sabrelite_binfo.secure_boot = true;
     sabrelite_binfo.write_secondary_boot = sabrelite_write_secondary;
     sabrelite_binfo.secondary_cpu_reset_hook = sabrelite_reset_secondary;
