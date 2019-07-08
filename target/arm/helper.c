@@ -5283,10 +5283,10 @@ uint32_t sve_zcr_len_for_el(CPUARMState *env, int el)
     if (el <= 1) {
         zcr_len = MIN(zcr_len, 0xf & (uint32_t)env->vfp.zcr_el[1]);
     }
-    if (el < 2 && arm_feature(env, ARM_FEATURE_EL2)) {
+    if (el <= 2 && arm_feature(env, ARM_FEATURE_EL2)) {
         zcr_len = MIN(zcr_len, 0xf & (uint32_t)env->vfp.zcr_el[2]);
     }
-    if (el < 3 && arm_feature(env, ARM_FEATURE_EL3)) {
+    if (arm_feature(env, ARM_FEATURE_EL3)) {
         zcr_len = MIN(zcr_len, 0xf & (uint32_t)env->vfp.zcr_el[3]);
     }
     return zcr_len;
