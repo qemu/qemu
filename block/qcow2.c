@@ -4823,9 +4823,9 @@ static int qcow2_amend_options(BlockDriverState *bs, QemuOpts *opts,
             compat = qemu_opt_get(opts, BLOCK_OPT_COMPAT_LEVEL);
             if (!compat) {
                 /* preserve default */
-            } else if (!strcmp(compat, "0.10")) {
+            } else if (!strcmp(compat, "0.10") || !strcmp(compat, "v2")) {
                 new_version = 2;
-            } else if (!strcmp(compat, "1.1")) {
+            } else if (!strcmp(compat, "1.1") || !strcmp(compat, "v3")) {
                 new_version = 3;
             } else {
                 error_setg(errp, "Unknown compatibility level %s", compat);
@@ -5098,7 +5098,7 @@ static QemuOptsList qcow2_create_opts = {
         {
             .name = BLOCK_OPT_COMPAT_LEVEL,
             .type = QEMU_OPT_STRING,
-            .help = "Compatibility level (0.10 or 1.1)"
+            .help = "Compatibility level (v2 [0.10] or v3 [1.1])"
         },
         {
             .name = BLOCK_OPT_BACKING_FILE,
