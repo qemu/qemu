@@ -254,8 +254,6 @@ static void sbsa_flash_map(SBSAMachineState *sms,
      * sysmem is the system memory space. secure_sysmem is the secure view
      * of the system, and the first flash device should be made visible only
      * there. The second flash device is visible to both secure and nonsecure.
-     * If sysmem == secure_sysmem this means there is no separate Secure
-     * address space and both flash devices are generally visible.
      */
     hwaddr flashsize = sbsa_ref_memmap[SBSA_FLASH].size / 2;
     hwaddr flashbase = sbsa_ref_memmap[SBSA_FLASH].base;
@@ -591,7 +589,7 @@ static void sbsa_ref_init(MachineState *machine)
     SBSAMachineState *sms = SBSA_MACHINE(machine);
     MachineClass *mc = MACHINE_GET_CLASS(machine);
     MemoryRegion *sysmem = get_system_memory();
-    MemoryRegion *secure_sysmem = NULL;
+    MemoryRegion *secure_sysmem = g_new(MemoryRegion, 1);
     MemoryRegion *ram = g_new(MemoryRegion, 1);
     bool firmware_loaded;
     const CPUArchIdList *possible_cpus;
@@ -615,13 +613,11 @@ static void sbsa_ref_init(MachineState *machine)
      * containing the system memory at low priority; any secure-only
      * devices go in at higher priority and take precedence.
      */
-    secure_sysmem = g_new(MemoryRegion, 1);
     memory_region_init(secure_sysmem, OBJECT(machine), "secure-memory",
                        UINT64_MAX);
     memory_region_add_subregion_overlap(secure_sysmem, 0, sysmem, -1);
 
-    firmware_loaded = sbsa_firmware_init(sms, sysmem,
-                                         secure_sysmem ?: sysmem);
+    firmware_loaded = sbsa_firmware_init(sms, sysmem, secure_sysmem);
 
     if (machine->kernel_filename && firmware_loaded) {
         error_report("sbsa-ref: No fw_cfg device on this machine, "
