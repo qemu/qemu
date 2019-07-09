@@ -1292,7 +1292,7 @@ int qemu_savevm_state_complete_precopy(QEMUFile *f, bool iterable_only,
     }
 
     if (iterable_only) {
-        return 0;
+        goto flush;
     }
 
     vmdesc = qjson_new();
@@ -1353,6 +1353,7 @@ int qemu_savevm_state_complete_precopy(QEMUFile *f, bool iterable_only,
     }
     qjson_destroy(vmdesc);
 
+flush:
     qemu_fflush(f);
     return 0;
 }
