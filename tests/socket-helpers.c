@@ -30,7 +30,16 @@
 # define EAI_ADDRFAMILY 0
 #endif
 
-int socket_can_bind_connect(const char *hostname)
+/*
+ * @hostname: a DNS name or numeric IP address
+ *
+ * Check whether it is possible to bind & connect to ports
+ * on the DNS name or IP address @hostname. If an IP address
+ * is used, it must not be a wildcard address.
+ *
+ * Returns 0 on success, -1 on error with errno set
+ */
+static int socket_can_bind_connect(const char *hostname, int family)
 {
     int lfd = -1, cfd = -1, afd = -1;
     struct addrinfo ai, *res = NULL;
@@ -44,7 +53,7 @@ int socket_can_bind_connect(const char *hostname)
 
     memset(&ai, 0, sizeof(ai));
     ai.ai_flags = AI_CANONNAME | AI_ADDRCONFIG;
-    ai.ai_family = AF_UNSPEC;
+    ai.ai_family = family;
     ai.ai_socktype = SOCK_STREAM;
 
     /* lookup */
@@ -129,7 +138,7 @@ int socket_check_protocol_support(bool *has_ipv4, bool *has_ipv6)
 {
     *has_ipv4 = *has_ipv6 = false;
 
-    if (socket_can_bind_connect("127.0.0.1") < 0) {
+    if (socket_can_bind_connect("127.0.0.1", PF_INET) < 0) {
         if (errno != EADDRNOTAVAIL) {
             return -1;
         }
@@ -137,7 +146,7 @@ int socket_check_protocol_support(bool *has_ipv4, bool *has_ipv6)
         *has_ipv4 = true;
     }
 
-    if (socket_can_bind_connect("::1") < 0) {
+    if (socket_can_bind_connect("::1", PF_INET6) < 0) {
         if (errno != EADDRNOTAVAIL) {
             return -1;
         }
