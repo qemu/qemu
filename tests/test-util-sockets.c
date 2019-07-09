@@ -242,7 +242,8 @@ int main(int argc, char **argv)
      * with either IPv4 or IPv6 disabled.
      */
     if (socket_check_protocol_support(&has_ipv4, &has_ipv6) < 0) {
-        return 1;
+        g_printerr("socket_check_protocol_support() failed\n");
+        goto end;
     }
 
     if (has_ipv4) {
@@ -264,5 +265,6 @@ int main(int argc, char **argv)
                         test_socket_fd_pass_num_nocli);
     }
 
+end:
     return g_test_run();
 }

@@ -566,7 +566,8 @@ int main(int argc, char **argv)
      * with either IPv4 or IPv6 disabled.
      */
     if (socket_check_protocol_support(&has_ipv4, &has_ipv6) < 0) {
-        return 1;
+        g_printerr("socket_check_protocol_support() failed\n");
+        goto end;
     }
 
     if (has_ipv4) {
@@ -595,5 +596,6 @@ int main(int argc, char **argv)
                     test_io_channel_unix_listen_cleanup);
 #endif /* _WIN32 */
 
+end:
     return g_test_run();
 }

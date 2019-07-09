@@ -1365,7 +1365,8 @@ int main(int argc, char **argv)
     g_test_init(&argc, &argv, NULL);
 
     if (socket_check_protocol_support(&has_ipv4, &has_ipv6) < 0) {
-        return -1;
+        g_printerr("socket_check_protocol_support() failed\n");
+        goto end;
     }
 
     module_call_init(MODULE_INIT_QOM);
@@ -1465,5 +1466,6 @@ int main(int argc, char **argv)
     g_test_add_func("/char/hotswap", char_hotswap_test);
     g_test_add_func("/char/websocket", char_websock_test);
 
+end:
     return g_test_run();
 }
