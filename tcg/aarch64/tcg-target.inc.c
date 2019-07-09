@@ -2226,7 +2226,7 @@ static void tcg_out_op(TCGContext *s, TCGOpcode opc,
 
     case INDEX_op_extract2_i64:
     case INDEX_op_extract2_i32:
-        tcg_out_extr(s, ext, a0, a1, a2, args[3]);
+        tcg_out_extr(s, ext, a0, REG0(2), REG0(1), args[3]);
         break;
 
     case INDEX_op_add2_i32:
