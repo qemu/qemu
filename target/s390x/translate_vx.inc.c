@@ -577,8 +577,8 @@ static DisasJumpType op_vllez(DisasContext *s, DisasOps *o)
             enr = 0;
             break;
         }
-    default:
         /* fallthrough */
+    default:
         gen_program_exception(s, PGM_SPECIFICATION);
         return DISAS_NORETURN;
     }
