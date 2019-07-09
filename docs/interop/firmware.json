@@ -13,7 +13,7 @@
 # = Firmware
 ##
 
-{ 'include' : 'common.json' }
+{ 'include' : 'machine.json' }
 { 'include' : 'block-core.json' }
 
 ##

@@ -1342,29 +1342,6 @@
 { 'command': 'query-fdsets', 'returns': ['FdsetInfo'] }
 
 ##
-# @TargetInfo:
-#
-# Information describing the QEMU target.
-#
-# @arch: the target architecture
-#
-# Since: 1.2.0
-##
-{ 'struct': 'TargetInfo',
-  'data': { 'arch': 'SysEmuTarget' } }
-
-##
-# @query-target:
-#
-# Return information about the target for this QEMU
-#
-# Returns: TargetInfo
-#
-# Since: 1.2.0
-##
-{ 'command': 'query-target', 'returns': 'TargetInfo' }
-
-##
 # @AcpiTableOptions:
 #
 # Specify an ACPI table on the command line to load.
