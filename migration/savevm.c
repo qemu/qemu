@@ -1247,8 +1247,7 @@ void qemu_savevm_state_complete_postcopy(QEMUFile *f)
 }
 
 static
-int qemu_savevm_state_complete_precopy_iterable(QEMUFile *f, bool in_postcopy,
-                                                bool iterable_only)
+int qemu_savevm_state_complete_precopy_iterable(QEMUFile *f, bool in_postcopy)
 {
     SaveStateEntry *se;
     int ret;
@@ -1257,7 +1256,6 @@ int qemu_savevm_state_complete_precopy_iterable(QEMUFile *f, bool in_postcopy,
         if (!se->ops ||
             (in_postcopy && se->ops->has_postcopy &&
              se->ops->has_postcopy(se->opaque)) ||
-            (in_postcopy && !iterable_only) ||
             !se->ops->save_live_complete_precopy) {
             continue;
         }
@@ -1369,10 +1367,11 @@ int qemu_savevm_state_complete_precopy(QEMUFile *f, bool iterable_only,
 
     cpu_synchronize_all_states();
 
-    ret = qemu_savevm_state_complete_precopy_iterable(f, in_postcopy,
-                                                      iterable_only);
-    if (ret) {
-        return ret;
+    if (!in_postcopy || iterable_only) {
+        ret = qemu_savevm_state_complete_precopy_iterable(f, in_postcopy);
+        if (ret) {
+            return ret;
+        }
     }
 
     if (iterable_only) {
