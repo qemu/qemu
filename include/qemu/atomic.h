@@ -88,6 +88,13 @@
 #define smp_read_barrier_depends()   barrier()
 #endif
 
+/*
+ * A signal barrier forces all pending local memory ops to be observed before
+ * a SIGSEGV is delivered to the *same* thread.  In practice this is exactly
+ * the same as barrier(), but since we have the correct builtin, use it.
+ */
+#define signal_barrier()    __atomic_signal_fence(__ATOMIC_SEQ_CST)
+
 /* Sanity check that the size of an atomic operation isn't "overly large".
  * Despite the fact that e.g. i686 has 64-bit atomic operations, we do not
  * want to use them because we ought not need them, and this lets us do a
@@ -306,6 +313,10 @@
 
 #ifndef smp_read_barrier_depends
 #define smp_read_barrier_depends()   barrier()
+#endif
+
+#ifndef signal_barrier
+#define signal_barrier()    barrier()
 #endif
 
 /* These will only be atomic if the processor does the fetch or store
