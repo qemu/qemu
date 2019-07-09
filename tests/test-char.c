@@ -15,6 +15,7 @@
 #include "io/channel-socket.h"
 #include "qapi/qobject-input-visitor.h"
 #include "qapi/qapi-visit-sockets.h"
+#include "socket-helpers.h"
 
 static bool quit;
 
@@ -1356,10 +1357,16 @@ static void char_hotswap_test(void)
 
 int main(int argc, char **argv)
 {
+    bool has_ipv4, has_ipv6;
+
     qemu_init_main_loop(&error_abort);
     socket_init();
 
     g_test_init(&argc, &argv, NULL);
+
+    if (socket_check_protocol_support(&has_ipv4, &has_ipv6) < 0) {
+        return -1;
+    }
 
     module_call_init(MODULE_INIT_QOM);
     qemu_add_opts(&qemu_chardev_opts);
@@ -1438,10 +1445,12 @@ int main(int argc, char **argv)
     g_test_add_data_func("/char/socket/client/wait-conn-fdpass/" # name, \
                          &client6 ##name, char_socket_client_test)
 
-    SOCKET_SERVER_TEST(tcp, &tcpaddr);
-    SOCKET_CLIENT_TEST(tcp, &tcpaddr);
-    g_test_add_data_func("/char/socket/server/two-clients/tcp", &tcpaddr,
-                         char_socket_server_two_clients_test);
+    if (has_ipv4) {
+        SOCKET_SERVER_TEST(tcp, &tcpaddr);
+        SOCKET_CLIENT_TEST(tcp, &tcpaddr);
+        g_test_add_data_func("/char/socket/server/two-clients/tcp", &tcpaddr,
+                             char_socket_server_two_clients_test);
+    }
 #ifndef WIN32
     SOCKET_SERVER_TEST(unix, &unixaddr);
     SOCKET_CLIENT_TEST(unix, &unixaddr);
