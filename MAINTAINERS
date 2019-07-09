@@ -1274,6 +1274,7 @@ Machine core
 M: Eduardo Habkost <ehabkost@redhat.com>
 M: Marcel Apfelbaum <marcel.apfelbaum@gmail.com>
 S: Supported
+F: hw/core/cpu.c
 F: hw/core/machine-qmp-cmds.c
 F: hw/core/machine.c
 F: hw/core/null-machine.c
@@ -1281,10 +1282,9 @@ F: hw/core/numa.c
 F: hw/cpu/cluster.c
 F: qapi/machine.json
 F: qapi/machine-target.json
-F: qom/cpu.c
 F: include/hw/boards.h
+F: include/hw/core/cpu.h
 F: include/hw/cpu/cluster.h
-F: include/qom/cpu.h
 F: include/sysemu/numa.h
 T: git https://github.com/ehabkost/qemu.git machine-next
 
@@ -2048,12 +2048,10 @@ F: hw/core/qdev*
 F: include/hw/qdev*
 F: include/monitor/qdev.h
 F: include/qom/
-X: include/qom/cpu.h
 F: qapi/qom.json
 F: qapi/qdev.json
 F: qdev-monitor.c
 F: qom/
-X: qom/cpu.c
 F: tests/check-qom-interface.c
 F: tests/check-qom-proplist.c
 F: tests/test-qdev-global-props.c

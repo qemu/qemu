@@ -20,7 +20,7 @@
 #ifndef QEMU_S390_CPU_QOM_H
 #define QEMU_S390_CPU_QOM_H
 
-#include "qom/cpu.h"
+#include "hw/core/cpu.h"
 
 #define TYPE_S390_CPU "s390x-cpu"
 

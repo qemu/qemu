@@ -2,7 +2,7 @@
 #define OPENPIC_H
 
 #include "hw/sysbus.h"
-#include "qom/cpu.h"
+#include "hw/core/cpu.h"
 
 #define MAX_CPU     32
 #define MAX_MSI     8

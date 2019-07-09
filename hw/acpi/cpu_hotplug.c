@@ -12,7 +12,7 @@
 #include "qemu/osdep.h"
 #include "hw/acpi/cpu_hotplug.h"
 #include "qapi/error.h"
-#include "qom/cpu.h"
+#include "hw/core/cpu.h"
 #include "hw/i386/pc.h"
 #include "qemu/error-report.h"
 

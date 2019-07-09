@@ -34,7 +34,7 @@
 #include "qapi/opts-visitor.h"
 #include "qapi/qapi-visit-machine.h"
 #include "sysemu/qtest.h"
-#include "qom/cpu.h"
+#include "hw/core/cpu.h"
 #include "hw/mem/pc-dimm.h"
 #include "migration/vmstate.h"
 #include "hw/boards.h"

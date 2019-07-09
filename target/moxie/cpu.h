@@ -46,7 +46,7 @@ typedef struct CPUMoxieState {
     struct {} end_reset_fields;
 } CPUMoxieState;
 
-#include "qom/cpu.h"
+#include "hw/core/cpu.h"
 
 #define TYPE_MOXIE_CPU "moxie-cpu"
 

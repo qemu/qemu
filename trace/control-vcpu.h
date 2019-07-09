@@ -12,7 +12,7 @@
 
 #include "control.h"
 #include "event-internal.h"
-#include "qom/cpu.h"
+#include "hw/core/cpu.h"
 
 /**
  * trace_event_get_vcpu_state:

@@ -29,7 +29,7 @@
 #include "qapi/error.h"
 #include "qemu/main-loop.h"
 #include "qemu/module.h"
-#include "qom/cpu.h"
+#include "hw/core/cpu.h"
 
 #define PTIMER_POLICY                       \
     (PTIMER_POLICY_WRAP_AFTER_ONE_PERIOD |  \

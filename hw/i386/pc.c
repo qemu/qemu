@@ -76,7 +76,7 @@
 #include "qapi/error.h"
 #include "qapi/qapi-visit-common.h"
 #include "qapi/visitor.h"
-#include "qom/cpu.h"
+#include "hw/core/cpu.h"
 #include "hw/nmi.h"
 #include "hw/usb.h"
 #include "hw/i386/intel_iommu.h"

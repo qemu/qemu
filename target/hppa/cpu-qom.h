@@ -20,7 +20,7 @@
 #ifndef QEMU_HPPA_CPU_QOM_H
 #define QEMU_HPPA_CPU_QOM_H
 
-#include "qom/cpu.h"
+#include "hw/core/cpu.h"
 
 #define TYPE_HPPA_CPU "hppa-cpu"
 

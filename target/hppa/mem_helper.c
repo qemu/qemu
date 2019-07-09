@@ -21,7 +21,7 @@
 #include "cpu.h"
 #include "exec/exec-all.h"
 #include "exec/helper-proto.h"
-#include "qom/cpu.h"
+#include "hw/core/cpu.h"
 #include "trace.h"
 
 #ifdef CONFIG_USER_ONLY

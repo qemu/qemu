@@ -22,7 +22,7 @@
 #include "exec/cpu-common.h"
 #include "exec/memory.h"
 #include "qemu/thread.h"
-#include "qom/cpu.h"
+#include "hw/core/cpu.h"
 #include "qemu/rcu.h"
 
 #define EXCP_INTERRUPT 	0x10000 /* async interruption */

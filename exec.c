@@ -937,7 +937,7 @@ void cpu_exec_unrealizefn(CPUState *cpu)
 Property cpu_common_props[] = {
 #ifndef CONFIG_USER_ONLY
     /* Create a memory property for softmmu CPU object,
-     * so users can wire up its memory. (This can't go in qom/cpu.c
+     * so users can wire up its memory. (This can't go in hw/core/cpu.c
      * because that file is compiled only once for both user-mode
      * and system builds.) The default if no link is set up is to use
      * the system address space.

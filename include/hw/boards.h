@@ -9,7 +9,7 @@
 #include "qapi/qapi-types-machine.h"
 #include "qemu/module.h"
 #include "qom/object.h"
-#include "qom/cpu.h"
+#include "hw/core/cpu.h"
 
 /**
  * memory_region_allocate_system_memory - Allocate a board's main memory

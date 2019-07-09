@@ -16,7 +16,7 @@
 #include "qemu/main-loop.h"
 #include "qemu/module.h"
 #include "arm-powerctl.h"
-#include "qom/cpu.h"
+#include "hw/core/cpu.h"
 
 #ifndef DEBUG_IMX6_SRC
 #define DEBUG_IMX6_SRC 0

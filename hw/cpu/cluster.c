@@ -21,7 +21,7 @@
 #include "qemu/osdep.h"
 #include "hw/cpu/cluster.h"
 #include "hw/qdev-properties.h"
-#include "qom/cpu.h"
+#include "hw/core/cpu.h"
 #include "qapi/error.h"
 #include "qemu/module.h"
 #include "qemu/cutils.h"

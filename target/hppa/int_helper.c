@@ -22,7 +22,7 @@
 #include "qemu/log.h"
 #include "cpu.h"
 #include "exec/helper-proto.h"
-#include "qom/cpu.h"
+#include "hw/core/cpu.h"
 
 #ifndef CONFIG_USER_ONLY
 static void eval_interrupt(HPPACPU *cpu)

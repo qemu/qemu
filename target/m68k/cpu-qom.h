@@ -20,7 +20,7 @@
 #ifndef QEMU_M68K_CPU_QOM_H
 #define QEMU_M68K_CPU_QOM_H
 
-#include "qom/cpu.h"
+#include "hw/core/cpu.h"
 
 #define TYPE_M68K_CPU "m68k-cpu"
 

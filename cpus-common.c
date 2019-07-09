@@ -20,7 +20,7 @@
 #include "qemu/osdep.h"
 #include "qemu/main-loop.h"
 #include "exec/cpu-common.h"
-#include "qom/cpu.h"
+#include "hw/core/cpu.h"
 #include "sysemu/cpus.h"
 
 static QemuMutex qemu_cpu_list_lock;
