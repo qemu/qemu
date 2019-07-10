@@ -399,7 +399,7 @@ in any one source bitmap, the target bitmap will mark that segment dirty.
        "arguments": {
          "node": "drive0",
          "target": "new_bitmap",
-         "bitmaps: [ "bitmap0" ]
+         "bitmaps": [ "bitmap0" ]
        }
      }
 
@@ -1437,7 +1437,7 @@ applied:
    .. code:: json
 
     <- {
-         "timestamp": {...}
+         "timestamp": {...},
          "data": {
            "device": "drive0",
            "type": "backup",
