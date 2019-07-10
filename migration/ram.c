@@ -2962,7 +2962,6 @@ static void postcopy_chunk_hostpages_pass(MigrationState *ms, bool unsent_pass,
     }
 
     while (run_start < pages) {
-        bool do_fixup = false;
         unsigned long fixup_start_addr;
         unsigned long host_offset;
 
@@ -2972,7 +2971,6 @@ static void postcopy_chunk_hostpages_pass(MigrationState *ms, bool unsent_pass,
          */
         host_offset = run_start % host_ratio;
         if (host_offset) {
-            do_fixup = true;
             fixup_start_addr = run_start - host_offset;
             /*
              * This host page has gone, the next loop iteration starts
@@ -2994,7 +2992,6 @@ static void postcopy_chunk_hostpages_pass(MigrationState *ms, bool unsent_pass,
              */
             host_offset = run_end % host_ratio;
             if (host_offset) {
-                do_fixup = true;
                 fixup_start_addr = run_end - host_offset;
                 /*
                  * This host page has gone, the next loop iteration starts
@@ -3010,7 +3007,7 @@ static void postcopy_chunk_hostpages_pass(MigrationState *ms, bool unsent_pass,
             }
         }
 
-        if (do_fixup) {
+        if (host_offset) {
             unsigned long page;
 
             /* Tell the destination to discard this page */
