@@ -3022,15 +3022,15 @@ fi
 ##########################################
 # SDL probe
 
-# Look for sdl configuration program (pkg-config or sdl-config).  Try
-# sdl-config even without cross prefix, and favour pkg-config over sdl-config.
+# Look for sdl configuration program (pkg-config or sdl2-config).  Try
+# sdl2-config even without cross prefix, and favour pkg-config over sdl2-config.
 
 sdl_probe ()
 {
   if $pkg_config sdl2 --exists; then
     sdlconfig="$pkg_config sdl2"
     sdlversion=$($sdlconfig --modversion 2>/dev/null)
-  elif has ${sdl_config}; then
+  elif has "$sdl2_config"; then
     sdlconfig="$sdl2_config"
     sdlversion=$($sdlconfig --version)
   else
@@ -3041,7 +3041,7 @@ sdl_probe ()
     # no need to do the rest
     return
   fi
-  if test -n "$cross_prefix" && test "$(basename "$sdlconfig")" = sdl-config; then
+  if test -n "$cross_prefix" && test "$(basename "$sdlconfig")" = sdl2-config; then
     echo warning: using "\"$sdlconfig\"" to detect cross-compiled sdl >&2
   fi
 
@@ -8023,7 +8023,6 @@ preserve_env PKG_CONFIG
 preserve_env PKG_CONFIG_LIBDIR
 preserve_env PKG_CONFIG_PATH
 preserve_env PYTHON
-preserve_env SDL_CONFIG
 preserve_env SDL2_CONFIG
 preserve_env SMBD
 preserve_env STRIP
