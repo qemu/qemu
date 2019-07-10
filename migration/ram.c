@@ -2973,10 +2973,12 @@ static void postcopy_chunk_hostpages_pass(MigrationState *ms, bool unsent_pass,
         host_offset = run_start % host_ratio;
         if (host_offset) {
             do_fixup = true;
-            run_start -= host_offset;
-            fixup_start_addr = run_start;
-            /* For the next pass */
-            run_start = run_start + host_ratio;
+            fixup_start_addr = run_start - host_offset;
+            /*
+             * This host page has gone, the next loop iteration starts
+             * from after the fixup
+             */
+            run_start = fixup_start_addr + host_ratio;
         } else {
             /* Find the end of this run */
             unsigned long run_end;
