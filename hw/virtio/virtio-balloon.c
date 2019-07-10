@@ -615,6 +615,22 @@ virtio_balloon_free_page_report_notify(NotifierWithReturn *n, void *data)
     return 0;
 }
 
+static size_t virtio_balloon_config_size(VirtIOBalloon *s)
+{
+    uint64_t features = s->host_features;
+
+    if (s->qemu_4_0_config_size) {
+        return sizeof(struct virtio_balloon_config);
+    }
+    if (virtio_has_feature(features, VIRTIO_BALLOON_F_PAGE_POISON)) {
+        return sizeof(struct virtio_balloon_config);
+    }
+    if (virtio_has_feature(features, VIRTIO_BALLOON_F_FREE_PAGE_HINT)) {
+        return offsetof(struct virtio_balloon_config, poison_val);
+    }
+    return offsetof(struct virtio_balloon_config, free_page_report_cmd_id);
+}
+
 static void virtio_balloon_get_config(VirtIODevice *vdev, uint8_t *config_data)
 {
     VirtIOBalloon *dev = VIRTIO_BALLOON(vdev);
@@ -635,7 +651,7 @@ static void virtio_balloon_get_config(VirtIODevice *vdev, uint8_t *config_data)
     }
 
     trace_virtio_balloon_get_config(config.num_pages, config.actual);
-    memcpy(config_data, &config, sizeof(struct virtio_balloon_config));
+    memcpy(config_data, &config, virtio_balloon_config_size(dev));
 }
 
 static int build_dimm_list(Object *obj, void *opaque)
@@ -679,7 +695,7 @@ static void virtio_balloon_set_config(VirtIODevice *vdev,
     uint32_t oldactual = dev->actual;
     ram_addr_t vm_ram_size = get_current_ram_size();
 
-    memcpy(&config, config_data, sizeof(struct virtio_balloon_config));
+    memcpy(&config, config_data, virtio_balloon_config_size(dev));
     dev->actual = le32_to_cpu(config.actual);
     if (dev->actual != oldactual) {
         qapi_event_send_balloon_change(vm_ram_size -
@@ -766,7 +782,7 @@ static void virtio_balloon_device_realize(DeviceState *dev, Error **errp)
     int ret;
 
     virtio_init(vdev, "virtio-balloon", VIRTIO_ID_BALLOON,
-                sizeof(struct virtio_balloon_config));
+                virtio_balloon_config_size(s));
 
     ret = qemu_add_balloon_handler(virtio_balloon_to_target,
                                    virtio_balloon_stat, s);
@@ -897,6 +913,12 @@ static Property virtio_balloon_properties[] = {
                     VIRTIO_BALLOON_F_DEFLATE_ON_OOM, false),
     DEFINE_PROP_BIT("free-page-hint", VirtIOBalloon, host_features,
                     VIRTIO_BALLOON_F_FREE_PAGE_HINT, false),
+    /* QEMU 4.0 accidentally changed the config size even when free-page-hint
+     * is disabled, resulting in QEMU 3.1 migration incompatibility.  This
+     * property retains this quirk for QEMU 4.1 machine types.
+     */
+    DEFINE_PROP_BOOL("qemu-4-0-config-size", VirtIOBalloon,
+                     qemu_4_0_config_size, false),
     DEFINE_PROP_LINK("iothread", VirtIOBalloon, iothread, TYPE_IOTHREAD,
                      IOThread *),
     DEFINE_PROP_END_OF_LIST(),
