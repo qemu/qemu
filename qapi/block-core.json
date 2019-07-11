@@ -5178,10 +5178,11 @@
 # @off: no preallocation
 # @metadata: preallocate only for metadata
 # @falloc: like @full preallocation but allocate disk space by
-#          posix_fallocate() rather than writing zeros.
-# @full: preallocate all data by writing zeros to device to ensure disk
-#        space is really available. @full preallocation also sets up
-#        metadata correctly.
+#          posix_fallocate() rather than writing data.
+# @full: preallocate all data by writing it to the device to ensure
+#        disk space is really available. This data may or may not be
+#        zero, depending on the image format and storage.
+#        @full preallocation also sets up metadata correctly.
 #
 # Since: 2.2
 ##
