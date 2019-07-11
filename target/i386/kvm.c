@@ -1711,15 +1711,15 @@ int kvm_arch_init_vcpu(CPUState *cs)
     max_nested_state_len = kvm_max_nested_state_length();
     if (max_nested_state_len > 0) {
         assert(max_nested_state_len >= offsetof(struct kvm_nested_state, data));
-        env->nested_state = g_malloc0(max_nested_state_len);
 
-        env->nested_state->size = max_nested_state_len;
+        if (cpu_has_vmx(env)) {
+            struct kvm_vmx_nested_state_hdr *vmx_hdr;
 
-        if (IS_INTEL_CPU(env)) {
-            struct kvm_vmx_nested_state_hdr *vmx_hdr =
-                &env->nested_state->hdr.vmx;
-
+            env->nested_state = g_malloc0(max_nested_state_len);
+            env->nested_state->size = max_nested_state_len;
             env->nested_state->format = KVM_STATE_NESTED_FORMAT_VMX;
+
+            vmx_hdr = &env->nested_state->hdr.vmx;
             vmx_hdr->vmxon_pa = -1ull;
             vmx_hdr->vmcs12_pa = -1ull;
         }
@@ -3515,7 +3515,7 @@ static int kvm_put_nested_state(X86CPU *cpu)
     CPUX86State *env = &cpu->env;
     int max_nested_state_len = kvm_max_nested_state_length();
 
-    if (max_nested_state_len <= 0) {
+    if (!env->nested_state) {
         return 0;
     }
 
@@ -3529,7 +3529,7 @@ static int kvm_get_nested_state(X86CPU *cpu)
     int max_nested_state_len = kvm_max_nested_state_length();
     int ret;
 
-    if (max_nested_state_len <= 0) {
+    if (!env->nested_state) {
         return 0;
     }
 
