@@ -7159,7 +7159,7 @@ if test "$live_block_migration" = "yes" ; then
 fi
 
 if test "$tpm" = "yes"; then
-  echo 'CONFIG_TPM=$(CONFIG_SOFTMMU)' >> $config_host_mak
+  echo 'CONFIG_TPM=y' >> $config_host_mak
 fi
 
 echo "TRACE_BACKENDS=$trace_backends" >> $config_host_mak
