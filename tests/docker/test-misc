@@ -1,0 +1,22 @@
+#!/bin/bash -e
+#
+# Build the miscellaneous components
+#
+# Copyright (c) 2019 Linaro Ltd.
+#
+# Authors:
+#  Alex Bennée <alex.bennee@linaro.org>
+#
+# This work is licensed under the terms of the GNU GPL, version 2 or later.
+# See the COPYING file in the top-level directory.
+#
+# SPDX-License-Identifier: GPL-2.0-or-later
+
+. common.rc
+
+cd "$BUILD_DIR"
+
+# build everything else but QEMU
+configure_qemu --disable-user --disable-system --enable-docs --enable-tools
+build_qemu
+install_qemu
