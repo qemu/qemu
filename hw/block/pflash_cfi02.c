@@ -367,6 +367,7 @@ static uint64_t pflash_read(void *opaque, hwaddr offset, unsigned int width)
     case 0x30: /* Sector Erase */
         /* Toggle bit 2 during erase, but not program. */
         toggle_dq2(pfl);
+        /* fall through */
     case 0xA0: /* Program */
         /* Toggle bit 6 */
         toggle_dq6(pfl);
