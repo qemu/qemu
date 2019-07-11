@@ -199,7 +199,7 @@ persistence, and recording state can be adjusted at creation time.
 
  to create a new, actively recording persistent bitmap:
 
- .. code:: json
+ .. code-block:: QMP
 
   -> { "execute": "block-dirty-bitmap-add",
        "arguments": {
@@ -220,7 +220,7 @@ persistence, and recording state can be adjusted at creation time.
  To create a new, disabled (``-recording``), transient bitmap that tracks
  changes in 32KiB segments:
 
- .. code:: json
+ .. code-block:: QMP
 
   -> { "execute": "block-dirty-bitmap-add",
        "arguments": {
@@ -254,7 +254,7 @@ Deletes a bitmap. Bitmaps that are ``+busy`` cannot be removed.
 
  Remove a bitmap named ``bitmap0`` from node ``drive0``:
 
- .. code:: json
+ .. code-block:: QMP
 
   -> { "execute": "block-dirty-bitmap-remove",
        "arguments": {
@@ -280,7 +280,7 @@ Clears all dirty bits from a bitmap. ``+busy`` bitmaps cannot be cleared.
 
  Clear all dirty bits from bitmap ``bitmap0`` on node ``drive0``:
 
- .. code:: json
+ .. code-block:: QMP
 
   -> { "execute": "block-dirty-bitmap-clear",
        "arguments": {
@@ -309,7 +309,7 @@ begin being recorded. ``+busy`` bitmaps cannot be enabled.
 
  To set ``+recording`` on bitmap ``bitmap0`` on node ``drive0``:
 
- .. code:: json
+ .. code-block:: QMP
 
   -> { "execute": "block-dirty-bitmap-enable",
        "arguments": {
@@ -347,7 +347,7 @@ writes to begin being ignored. ``+busy`` bitmaps cannot be disabled.
 
  To set ``-recording`` on bitmap ``bitmap0`` on node ``drive0``:
 
- .. code:: json
+ .. code-block:: QMP
 
   -> { "execute": "block-dirty-bitmap-disable",
        "arguments": {
@@ -393,13 +393,13 @@ in any one source bitmap, the target bitmap will mark that segment dirty.
  ``drive0``. If ``new_bitmap`` was empty prior to this command, this achieves
  a copy.
 
- .. code:: json
+ .. code-block:: QMP
 
   -> { "execute": "block-dirty-bitmap-merge",
        "arguments": {
          "node": "drive0",
          "target": "new_bitmap",
-         "bitmaps: [ "bitmap0" ]
+         "bitmaps": [ "bitmap0" ]
        }
      }
 
@@ -424,7 +424,7 @@ attached to nodes serving as the root for guest devices.
  API. This result highlights a bitmap ``bitmap0`` attached to the root node of
  device ``drive0``.
 
- .. code:: json
+ .. code-block:: QMP
 
   -> {
        "execute": "query-block",
@@ -562,7 +562,7 @@ new, empty bitmap that records writes from this point in time forward.
           destination. These writes will be recorded in the bitmap
           accordingly.
 
-.. code:: json
+.. code-block:: QMP
 
   -> {
        "execute": "transaction",
@@ -650,7 +650,7 @@ Example: Resetting an Incremental Backup Anchor Point
 If we want to start a new backup chain with an existing bitmap, we can also
 use a transaction to reset the bitmap while making a new full backup:
 
-.. code:: json
+.. code-block:: QMP
 
   -> {
        "execute": "transaction",
@@ -730,7 +730,7 @@ Example: First Incremental Backup
 
 #. Issue an incremental backup command:
 
-   .. code:: json
+   .. code-block:: QMP
 
     -> {
          "execute": "drive-backup",
@@ -788,7 +788,7 @@ Example: Second Incremental Backup
 #. Issue a new incremental backup command. The only difference here is that we
    have changed the target image below.
 
-   .. code:: json
+   .. code-block:: QMP
 
     -> {
          "execute": "drive-backup",
@@ -869,7 +869,7 @@ image:
 #. Issue a new incremental backup command. Apart from the new destination
    image, there is no difference from the last two examples.
 
-   .. code:: json
+   .. code-block:: QMP
 
     -> {
          "execute": "drive-backup",
@@ -932,7 +932,7 @@ point in time.
 
 #. Create a full (anchor) backup for each drive, with accompanying bitmaps:
 
-   .. code:: json
+   .. code-block:: QMP
 
     -> {
          "execute": "transaction",
@@ -1018,7 +1018,7 @@ point in time.
 
 #. Issue a multi-drive incremental push backup transaction:
 
-   .. code:: json
+   .. code-block:: QMP
 
     -> {
          "execute": "transaction",
@@ -1121,7 +1121,7 @@ described above. This example demonstrates the single-job failure case:
 
 #. Attempt to create an incremental backup via QMP:
 
-   .. code:: json
+   .. code-block:: QMP
 
     -> {
          "execute": "drive-backup",
@@ -1139,7 +1139,7 @@ described above. This example demonstrates the single-job failure case:
 
 #. Receive a pair of events indicating failure:
 
-   .. code:: json
+   .. code-block:: QMP
 
     <- {
          "timestamp": {...},
@@ -1175,7 +1175,7 @@ described above. This example demonstrates the single-job failure case:
 #. Retry the command after fixing the underlying problem, such as
    freeing up space on the backup volume:
 
-   .. code:: json
+   .. code-block:: QMP
 
     -> {
          "execute": "drive-backup",
@@ -1193,7 +1193,7 @@ described above. This example demonstrates the single-job failure case:
 
 #. Receive confirmation that the job completed successfully:
 
-   .. code:: json
+   .. code-block:: QMP
 
     <- {
          "timestamp": {...},
@@ -1233,7 +1233,7 @@ and one succeeds:
 
 #. Issue the transaction to start a backup of both drives.
 
-   .. code:: json
+   .. code-block:: QMP
 
     -> {
          "execute": "transaction",
@@ -1267,13 +1267,13 @@ and one succeeds:
 #. Receive notice that the Transaction was accepted, and jobs were
    launched:
 
-   .. code:: json
+   .. code-block:: QMP
 
     <- { "return": {} }
 
 #. Receive notice that the first job has completed:
 
-   .. code:: json
+   .. code-block:: QMP
 
     <- {
          "timestamp": {...},
@@ -1289,7 +1289,7 @@ and one succeeds:
 
 #. Receive notice that the second job has failed:
 
-   .. code:: json
+   .. code-block:: QMP
 
     <- {
          "timestamp": {...},
@@ -1365,7 +1365,7 @@ applied:
 
 #. Issue the multi-drive incremental backup transaction:
 
-   .. code:: json
+   .. code-block:: QMP
 
     -> {
          "execute": "transaction",
@@ -1401,13 +1401,13 @@ applied:
 
 #. Receive notice that the Transaction was accepted, and jobs were launched:
 
-   .. code:: json
+   .. code-block:: QMP
 
     <- { "return": {} }
 
 #. Receive notification that the backup job for ``drive1`` has failed:
 
-   .. code:: json
+   .. code-block:: QMP
 
     <- {
          "timestamp": {...},
@@ -1434,10 +1434,10 @@ applied:
 
 #. Receive notification that the job for ``drive0`` has been cancelled:
 
-   .. code:: json
+   .. code-block:: QMP
 
     <- {
-         "timestamp": {...}
+         "timestamp": {...},
          "data": {
            "device": "drive0",
            "type": "backup",
