@@ -15,7 +15,12 @@ add_project_link_arguments(config_host['QEMU_LDFLAGS'].split(),
 add_project_arguments(config_host['QEMU_INCLUDES'].split(),
                       language: ['c', 'cpp', 'objc'])
 
-add_languages('cpp', required: false, native: false)
+python = import('python').find_installation()
+
+link_language = meson.get_external_property('link_language', 'cpp')
+if link_language == 'cpp'
+  add_languages('cpp', required: true, native: false)
+endif
 if host_machine.system() == 'darwin'
   add_languages('objc', required: false, native: false)
 endif
