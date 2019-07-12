@@ -20,6 +20,7 @@ import hashlib
 import atexit
 import uuid
 import argparse
+import enum
 import tempfile
 import re
 import signal
@@ -38,6 +39,26 @@ FILTERED_ENV_NAMES = ['ftp_proxy', 'http_proxy', 'https_proxy']
 
 DEVNULL = open(os.devnull, 'wb')
 
+class EngineEnum(enum.IntEnum):
+    AUTO = 1
+    DOCKER = 2
+    PODMAN = 3
+
+    def __str__(self):
+        return self.name.lower()
+
+    def __repr__(self):
+        return str(self)
+
+    @staticmethod
+    def argparse(s):
+        try:
+            return EngineEnum[s.upper()]
+        except KeyError:
+            return s
+
+
+USE_ENGINE = EngineEnum.AUTO
 
 def _text_checksum(text):
     """Calculate a digest string unique to the text content"""
@@ -48,9 +69,14 @@ def _file_checksum(filename):
     return _text_checksum(open(filename, 'rb').read())
 
 
-def _guess_docker_command():
-    """ Guess a working docker command or raise exception if not found"""
-    commands = [["docker"], ["sudo", "-n", "docker"]]
+def _guess_engine_command():
+    """ Guess a working engine command or raise exception if not found"""
+    commands = []
+
+    if USE_ENGINE in [EngineEnum.AUTO, EngineEnum.PODMAN]:
+        commands += [["podman"]]
+    if USE_ENGINE in [EngineEnum.AUTO, EngineEnum.DOCKER]:
+        commands += [["docker"], ["sudo", "-n", "docker"]]
     for cmd in commands:
         try:
             # docker version will return the client details in stdout
@@ -61,7 +87,7 @@ def _guess_docker_command():
         except OSError:
             pass
     commands_txt = "\n".join(["  " + " ".join(x) for x in commands])
-    raise Exception("Cannot find working docker command. Tried:\n%s" %
+    raise Exception("Cannot find working engine command. Tried:\n%s" %
                     commands_txt)
 
 
@@ -190,7 +216,7 @@ def _dockerfile_preprocess(df):
 class Docker(object):
     """ Running Docker commands """
     def __init__(self):
-        self._command = _guess_docker_command()
+        self._command = _guess_engine_command()
         self._instances = []
         atexit.register(self._kill_instances)
         signal.signal(signal.SIGTERM, self._kill_instances)
@@ -340,6 +366,11 @@ class RunCommand(SubCommand):
         if args.run_as_current_user:
             uid = os.getuid()
             argv = [ "-u", str(uid) ] + argv
+            docker = Docker()
+            if docker._command[0] == "podman":
+                argv = [ "--uidmap", "%d:0:1" % uid,
+                         "--uidmap", "0:1:%d" % uid,
+                         "--uidmap", "%d:%d:64536" % (uid + 1, uid + 1)] + argv
         return Docker().run(argv, args.keep, quiet=args.quiet)
 
 
@@ -507,6 +538,8 @@ class ProbeCommand(SubCommand):
                 print("yes")
             elif docker._command[0] == "sudo":
                 print("sudo")
+            elif docker._command[0] == "podman":
+                print("podman")
         except Exception:
             print("no")
 
@@ -602,9 +635,13 @@ class CheckCommand(SubCommand):
 
 
 def main():
+    global USE_ENGINE
+
     parser = argparse.ArgumentParser(description="A Docker helper",
                                      usage="%s <subcommand> ..." %
                                      os.path.basename(sys.argv[0]))
+    parser.add_argument("--engine", type=EngineEnum.argparse, choices=list(EngineEnum),
+                        help="specify which container engine to use")
     subparsers = parser.add_subparsers(title="subcommands", help=None)
     for cls in SubCommand.__subclasses__():
         cmd = cls()
@@ -613,6 +650,7 @@ def main():
         cmd.args(subp)
         subp.set_defaults(cmdobj=cmd)
     args, argv = parser.parse_known_args()
+    USE_ENGINE = args.engine
     return args.cmdobj.run(args, argv)
 
 
