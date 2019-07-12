@@ -402,13 +402,6 @@ TEXI2MAN = $(call quiet-command, \
 %.8:
 	$(call TEXI2MAN)
 
-GEN_SUBST = $(call quiet-command, \
-	sed -e "s!@libexecdir@!$(libexecdir)!g" < $< > $@, \
-	"GEN","$@")
-
-%.json: %.json.in
-	$(call GEN_SUBST)
-
 # Support for building multiple output files by atomically executing
 # a single rule which depends on several input files (so the rule
 # will be executed exactly once, not once per output file, and
