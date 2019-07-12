@@ -389,6 +389,14 @@ static void test_acpi_asl(test_data *data)
         all_tables_match = all_tables_match &&
             test_acpi_find_diff_allowed(exp_sdt);
 
+        /*
+         *  don't try to decompile if IASL isn't present, in this case user
+         * will just 'get binary file mismatch' warnings and test failure
+         */
+        if (!iasl) {
+            continue;
+        }
+
         err = load_asl(data->tables, sdt);
         asl = normalize_asl(sdt->asl);
 
@@ -430,6 +438,11 @@ static void test_acpi_asl(test_data *data)
         }
         g_string_free(asl, true);
         g_string_free(exp_asl, true);
+    }
+    if (!iasl && !all_tables_match) {
+        fprintf(stderr, "to see ASL diff between mismatched files install IASL,"
+                " rebuild QEMU from scratch and re-run tests with V=1"
+                " environment variable set");
     }
     g_assert(all_tables_match);
 
@@ -597,12 +610,10 @@ static void test_acpi_one(const char *params, test_data *data)
     test_acpi_rxsdt_table(data);
     test_acpi_fadt_table(data);
 
-    if (iasl) {
-        if (getenv(ACPI_REBUILD_EXPECTED_AML)) {
-            dump_aml_files(data, true);
-        } else {
-            test_acpi_asl(data);
-        }
+    if (getenv(ACPI_REBUILD_EXPECTED_AML)) {
+        dump_aml_files(data, true);
+    } else {
+        test_acpi_asl(data);
     }
 
     /*

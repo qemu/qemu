@@ -57,7 +57,7 @@ static uint64_t virtio_pmem_pci_get_plugged_size(const MemoryDeviceState *md,
     MemoryRegion *mr = vpc->get_memory_region(pmem, errp);
 
     /* the plugged size corresponds to the region size */
-    return mr ? 0 : memory_region_size(mr);
+    return mr ? memory_region_size(mr) : 0;
 }
 
 static void virtio_pmem_pci_fill_device_info(const MemoryDeviceState *md,
@@ -113,8 +113,6 @@ static void virtio_pmem_pci_instance_init(Object *obj)
 static const VirtioPCIDeviceTypeInfo virtio_pmem_pci_info = {
     .base_name             = TYPE_VIRTIO_PMEM_PCI,
     .generic_name          = "virtio-pmem-pci",
-    .transitional_name     = "virtio-pmem-pci-transitional",
-    .non_transitional_name = "virtio-pmem-pci-non-transitional",
     .instance_size = sizeof(VirtIOPMEMPCI),
     .instance_init = virtio_pmem_pci_instance_init,
     .class_init    = virtio_pmem_pci_class_init,
