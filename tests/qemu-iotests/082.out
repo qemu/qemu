@@ -47,7 +47,7 @@ Supported options:
   backing_file=<str>     - File name of a base image
   backing_fmt=<str>      - Image format of the base image
   cluster_size=<size>    - qcow2 cluster size
-  compat=<str>           - Compatibility level (0.10 or 1.1)
+  compat=<str>           - Compatibility level (v2 [0.10] or v3 [1.1])
   data_file=<str>        - File name of an external data file
   data_file_raw=<bool (on/off)> - The external data file must stay valid as a raw image
   encrypt.cipher-alg=<str> - Name of encryption cipher algorithm
@@ -70,7 +70,7 @@ Supported options:
   backing_file=<str>     - File name of a base image
   backing_fmt=<str>      - Image format of the base image
   cluster_size=<size>    - qcow2 cluster size
-  compat=<str>           - Compatibility level (0.10 or 1.1)
+  compat=<str>           - Compatibility level (v2 [0.10] or v3 [1.1])
   data_file=<str>        - File name of an external data file
   data_file_raw=<bool (on/off)> - The external data file must stay valid as a raw image
   encrypt.cipher-alg=<str> - Name of encryption cipher algorithm
@@ -93,7 +93,7 @@ Supported options:
   backing_file=<str>     - File name of a base image
   backing_fmt=<str>      - Image format of the base image
   cluster_size=<size>    - qcow2 cluster size
-  compat=<str>           - Compatibility level (0.10 or 1.1)
+  compat=<str>           - Compatibility level (v2 [0.10] or v3 [1.1])
   data_file=<str>        - File name of an external data file
   data_file_raw=<bool (on/off)> - The external data file must stay valid as a raw image
   encrypt.cipher-alg=<str> - Name of encryption cipher algorithm
@@ -116,7 +116,7 @@ Supported options:
   backing_file=<str>     - File name of a base image
   backing_fmt=<str>      - Image format of the base image
   cluster_size=<size>    - qcow2 cluster size
-  compat=<str>           - Compatibility level (0.10 or 1.1)
+  compat=<str>           - Compatibility level (v2 [0.10] or v3 [1.1])
   data_file=<str>        - File name of an external data file
   data_file_raw=<bool (on/off)> - The external data file must stay valid as a raw image
   encrypt.cipher-alg=<str> - Name of encryption cipher algorithm
@@ -139,7 +139,7 @@ Supported options:
   backing_file=<str>     - File name of a base image
   backing_fmt=<str>      - Image format of the base image
   cluster_size=<size>    - qcow2 cluster size
-  compat=<str>           - Compatibility level (0.10 or 1.1)
+  compat=<str>           - Compatibility level (v2 [0.10] or v3 [1.1])
   data_file=<str>        - File name of an external data file
   data_file_raw=<bool (on/off)> - The external data file must stay valid as a raw image
   encrypt.cipher-alg=<str> - Name of encryption cipher algorithm
@@ -162,7 +162,7 @@ Supported options:
   backing_file=<str>     - File name of a base image
   backing_fmt=<str>      - Image format of the base image
   cluster_size=<size>    - qcow2 cluster size
-  compat=<str>           - Compatibility level (0.10 or 1.1)
+  compat=<str>           - Compatibility level (v2 [0.10] or v3 [1.1])
   data_file=<str>        - File name of an external data file
   data_file_raw=<bool (on/off)> - The external data file must stay valid as a raw image
   encrypt.cipher-alg=<str> - Name of encryption cipher algorithm
@@ -185,7 +185,7 @@ Supported options:
   backing_file=<str>     - File name of a base image
   backing_fmt=<str>      - Image format of the base image
   cluster_size=<size>    - qcow2 cluster size
-  compat=<str>           - Compatibility level (0.10 or 1.1)
+  compat=<str>           - Compatibility level (v2 [0.10] or v3 [1.1])
   data_file=<str>        - File name of an external data file
   data_file_raw=<bool (on/off)> - The external data file must stay valid as a raw image
   encrypt.cipher-alg=<str> - Name of encryption cipher algorithm
@@ -208,7 +208,7 @@ Supported options:
   backing_file=<str>     - File name of a base image
   backing_fmt=<str>      - Image format of the base image
   cluster_size=<size>    - qcow2 cluster size
-  compat=<str>           - Compatibility level (0.10 or 1.1)
+  compat=<str>           - Compatibility level (v2 [0.10] or v3 [1.1])
   data_file=<str>        - File name of an external data file
   data_file_raw=<bool (on/off)> - The external data file must stay valid as a raw image
   encrypt.cipher-alg=<str> - Name of encryption cipher algorithm
@@ -246,7 +246,7 @@ Supported qcow2 options:
   backing_file=<str>     - File name of a base image
   backing_fmt=<str>      - Image format of the base image
   cluster_size=<size>    - qcow2 cluster size
-  compat=<str>           - Compatibility level (0.10 or 1.1)
+  compat=<str>           - Compatibility level (v2 [0.10] or v3 [1.1])
   data_file=<str>        - File name of an external data file
   data_file_raw=<bool (on/off)> - The external data file must stay valid as a raw image
   encrypt.cipher-alg=<str> - Name of encryption cipher algorithm
@@ -327,7 +327,7 @@ Supported options:
   backing_file=<str>     - File name of a base image
   backing_fmt=<str>      - Image format of the base image
   cluster_size=<size>    - qcow2 cluster size
-  compat=<str>           - Compatibility level (0.10 or 1.1)
+  compat=<str>           - Compatibility level (v2 [0.10] or v3 [1.1])
   data_file=<str>        - File name of an external data file
   data_file_raw=<bool (on/off)> - The external data file must stay valid as a raw image
   encrypt.cipher-alg=<str> - Name of encryption cipher algorithm
@@ -350,7 +350,7 @@ Supported options:
   backing_file=<str>     - File name of a base image
   backing_fmt=<str>      - Image format of the base image
   cluster_size=<size>    - qcow2 cluster size
-  compat=<str>           - Compatibility level (0.10 or 1.1)
+  compat=<str>           - Compatibility level (v2 [0.10] or v3 [1.1])
   data_file=<str>        - File name of an external data file
   data_file_raw=<bool (on/off)> - The external data file must stay valid as a raw image
   encrypt.cipher-alg=<str> - Name of encryption cipher algorithm
@@ -373,7 +373,7 @@ Supported options:
   backing_file=<str>     - File name of a base image
   backing_fmt=<str>      - Image format of the base image
   cluster_size=<size>    - qcow2 cluster size
-  compat=<str>           - Compatibility level (0.10 or 1.1)
+  compat=<str>           - Compatibility level (v2 [0.10] or v3 [1.1])
   data_file=<str>        - File name of an external data file
   data_file_raw=<bool (on/off)> - The external data file must stay valid as a raw image
   encrypt.cipher-alg=<str> - Name of encryption cipher algorithm
@@ -396,7 +396,7 @@ Supported options:
   backing_file=<str>     - File name of a base image
   backing_fmt=<str>      - Image format of the base image
   cluster_size=<size>    - qcow2 cluster size
-  compat=<str>           - Compatibility level (0.10 or 1.1)
+  compat=<str>           - Compatibility level (v2 [0.10] or v3 [1.1])
   data_file=<str>        - File name of an external data file
   data_file_raw=<bool (on/off)> - The external data file must stay valid as a raw image
   encrypt.cipher-alg=<str> - Name of encryption cipher algorithm
@@ -419,7 +419,7 @@ Supported options:
   backing_file=<str>     - File name of a base image
   backing_fmt=<str>      - Image format of the base image
   cluster_size=<size>    - qcow2 cluster size
-  compat=<str>           - Compatibility level (0.10 or 1.1)
+  compat=<str>           - Compatibility level (v2 [0.10] or v3 [1.1])
   data_file=<str>        - File name of an external data file
   data_file_raw=<bool (on/off)> - The external data file must stay valid as a raw image
   encrypt.cipher-alg=<str> - Name of encryption cipher algorithm
@@ -442,7 +442,7 @@ Supported options:
   backing_file=<str>     - File name of a base image
   backing_fmt=<str>      - Image format of the base image
   cluster_size=<size>    - qcow2 cluster size
-  compat=<str>           - Compatibility level (0.10 or 1.1)
+  compat=<str>           - Compatibility level (v2 [0.10] or v3 [1.1])
   data_file=<str>        - File name of an external data file
   data_file_raw=<bool (on/off)> - The external data file must stay valid as a raw image
   encrypt.cipher-alg=<str> - Name of encryption cipher algorithm
@@ -465,7 +465,7 @@ Supported options:
   backing_file=<str>     - File name of a base image
   backing_fmt=<str>      - Image format of the base image
   cluster_size=<size>    - qcow2 cluster size
-  compat=<str>           - Compatibility level (0.10 or 1.1)
+  compat=<str>           - Compatibility level (v2 [0.10] or v3 [1.1])
   data_file=<str>        - File name of an external data file
   data_file_raw=<bool (on/off)> - The external data file must stay valid as a raw image
   encrypt.cipher-alg=<str> - Name of encryption cipher algorithm
@@ -488,7 +488,7 @@ Supported options:
   backing_file=<str>     - File name of a base image
   backing_fmt=<str>      - Image format of the base image
   cluster_size=<size>    - qcow2 cluster size
-  compat=<str>           - Compatibility level (0.10 or 1.1)
+  compat=<str>           - Compatibility level (v2 [0.10] or v3 [1.1])
   data_file=<str>        - File name of an external data file
   data_file_raw=<bool (on/off)> - The external data file must stay valid as a raw image
   encrypt.cipher-alg=<str> - Name of encryption cipher algorithm
@@ -526,7 +526,7 @@ Supported qcow2 options:
   backing_file=<str>     - File name of a base image
   backing_fmt=<str>      - Image format of the base image
   cluster_size=<size>    - qcow2 cluster size
-  compat=<str>           - Compatibility level (0.10 or 1.1)
+  compat=<str>           - Compatibility level (v2 [0.10] or v3 [1.1])
   data_file=<str>        - File name of an external data file
   data_file_raw=<bool (on/off)> - The external data file must stay valid as a raw image
   encrypt.cipher-alg=<str> - Name of encryption cipher algorithm
@@ -618,7 +618,7 @@ Creation options for 'qcow2':
   backing_file=<str>     - File name of a base image
   backing_fmt=<str>      - Image format of the base image
   cluster_size=<size>    - qcow2 cluster size
-  compat=<str>           - Compatibility level (0.10 or 1.1)
+  compat=<str>           - Compatibility level (v2 [0.10] or v3 [1.1])
   data_file=<str>        - File name of an external data file
   data_file_raw=<bool (on/off)> - The external data file must stay valid as a raw image
   encrypt.cipher-alg=<str> - Name of encryption cipher algorithm
@@ -642,7 +642,7 @@ Creation options for 'qcow2':
   backing_file=<str>     - File name of a base image
   backing_fmt=<str>      - Image format of the base image
   cluster_size=<size>    - qcow2 cluster size
-  compat=<str>           - Compatibility level (0.10 or 1.1)
+  compat=<str>           - Compatibility level (v2 [0.10] or v3 [1.1])
   data_file=<str>        - File name of an external data file
   data_file_raw=<bool (on/off)> - The external data file must stay valid as a raw image
   encrypt.cipher-alg=<str> - Name of encryption cipher algorithm
@@ -666,7 +666,7 @@ Creation options for 'qcow2':
   backing_file=<str>     - File name of a base image
   backing_fmt=<str>      - Image format of the base image
   cluster_size=<size>    - qcow2 cluster size
-  compat=<str>           - Compatibility level (0.10 or 1.1)
+  compat=<str>           - Compatibility level (v2 [0.10] or v3 [1.1])
   data_file=<str>        - File name of an external data file
   data_file_raw=<bool (on/off)> - The external data file must stay valid as a raw image
   encrypt.cipher-alg=<str> - Name of encryption cipher algorithm
@@ -690,7 +690,7 @@ Creation options for 'qcow2':
   backing_file=<str>     - File name of a base image
   backing_fmt=<str>      - Image format of the base image
   cluster_size=<size>    - qcow2 cluster size
-  compat=<str>           - Compatibility level (0.10 or 1.1)
+  compat=<str>           - Compatibility level (v2 [0.10] or v3 [1.1])
   data_file=<str>        - File name of an external data file
   data_file_raw=<bool (on/off)> - The external data file must stay valid as a raw image
   encrypt.cipher-alg=<str> - Name of encryption cipher algorithm
@@ -714,7 +714,7 @@ Creation options for 'qcow2':
   backing_file=<str>     - File name of a base image
   backing_fmt=<str>      - Image format of the base image
   cluster_size=<size>    - qcow2 cluster size
-  compat=<str>           - Compatibility level (0.10 or 1.1)
+  compat=<str>           - Compatibility level (v2 [0.10] or v3 [1.1])
   data_file=<str>        - File name of an external data file
   data_file_raw=<bool (on/off)> - The external data file must stay valid as a raw image
   encrypt.cipher-alg=<str> - Name of encryption cipher algorithm
@@ -738,7 +738,7 @@ Creation options for 'qcow2':
   backing_file=<str>     - File name of a base image
   backing_fmt=<str>      - Image format of the base image
   cluster_size=<size>    - qcow2 cluster size
-  compat=<str>           - Compatibility level (0.10 or 1.1)
+  compat=<str>           - Compatibility level (v2 [0.10] or v3 [1.1])
   data_file=<str>        - File name of an external data file
   data_file_raw=<bool (on/off)> - The external data file must stay valid as a raw image
   encrypt.cipher-alg=<str> - Name of encryption cipher algorithm
@@ -762,7 +762,7 @@ Creation options for 'qcow2':
   backing_file=<str>     - File name of a base image
   backing_fmt=<str>      - Image format of the base image
   cluster_size=<size>    - qcow2 cluster size
-  compat=<str>           - Compatibility level (0.10 or 1.1)
+  compat=<str>           - Compatibility level (v2 [0.10] or v3 [1.1])
   data_file=<str>        - File name of an external data file
   data_file_raw=<bool (on/off)> - The external data file must stay valid as a raw image
   encrypt.cipher-alg=<str> - Name of encryption cipher algorithm
@@ -786,7 +786,7 @@ Creation options for 'qcow2':
   backing_file=<str>     - File name of a base image
   backing_fmt=<str>      - Image format of the base image
   cluster_size=<size>    - qcow2 cluster size
-  compat=<str>           - Compatibility level (0.10 or 1.1)
+  compat=<str>           - Compatibility level (v2 [0.10] or v3 [1.1])
   data_file=<str>        - File name of an external data file
   data_file_raw=<bool (on/off)> - The external data file must stay valid as a raw image
   encrypt.cipher-alg=<str> - Name of encryption cipher algorithm
@@ -827,7 +827,7 @@ Creation options for 'qcow2':
   backing_file=<str>     - File name of a base image
   backing_fmt=<str>      - Image format of the base image
   cluster_size=<size>    - qcow2 cluster size
-  compat=<str>           - Compatibility level (0.10 or 1.1)
+  compat=<str>           - Compatibility level (v2 [0.10] or v3 [1.1])
   data_file=<str>        - File name of an external data file
   data_file_raw=<bool (on/off)> - The external data file must stay valid as a raw image
   encrypt.cipher-alg=<str> - Name of encryption cipher algorithm
