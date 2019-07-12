@@ -333,8 +333,13 @@ class RunCommand(SubCommand):
     def args(self, parser):
         parser.add_argument("--keep", action="store_true",
                             help="Don't remove image when command completes")
+        parser.add_argument("--run-as-current-user", action="store_true",
+                            help="Run container using the current user's uid")
 
     def run(self, args, argv):
+        if args.run_as_current_user:
+            uid = os.getuid()
+            argv = [ "-u", str(uid) ] + argv
         return Docker().run(argv, args.keep, quiet=args.quiet)
 
 
