@@ -49,7 +49,6 @@
 char *exec_path;
 
 int singlestep;
-static const char *filename;
 static const char *argv0;
 static int gdbstub_port;
 static envlist_t *envlist;
@@ -586,7 +585,6 @@ static int parse_args(int argc, char **argv)
         exit(EXIT_FAILURE);
     }
 
-    filename = argv[optind];
     exec_path = argv[optind];
 
     return optind;
@@ -657,9 +655,9 @@ int main(int argc, char **argv, char **envp)
 
     execfd = qemu_getauxval(AT_EXECFD);
     if (execfd == 0) {
-        execfd = open(filename, O_RDONLY);
+        execfd = open(exec_path, O_RDONLY);
         if (execfd < 0) {
-            printf("Error while loading %s: %s\n", filename, strerror(errno));
+            printf("Error while loading %s: %s\n", exec_path, strerror(errno));
             _exit(EXIT_FAILURE);
         }
     }
@@ -784,10 +782,10 @@ int main(int argc, char **argv, char **envp)
     cpu->opaque = ts;
     task_settid(ts);
 
-    ret = loader_exec(execfd, filename, target_argv, target_environ, regs,
+    ret = loader_exec(execfd, exec_path, target_argv, target_environ, regs,
         info, &bprm);
     if (ret != 0) {
-        printf("Error while loading %s: %s\n", filename, strerror(-ret));
+        printf("Error while loading %s: %s\n", exec_path, strerror(-ret));
         _exit(EXIT_FAILURE);
     }
 
