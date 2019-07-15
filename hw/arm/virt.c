@@ -1674,7 +1674,7 @@ static void machvirt_init(MachineState *machine)
                                     &machine->device_memory->mr);
     }
 
-    virt_flash_fdt(vms, sysmem, secure_sysmem);
+    virt_flash_fdt(vms, sysmem, secure_sysmem ?: sysmem);
 
     create_gic(vms, pic);
 

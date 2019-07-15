@@ -1202,28 +1202,47 @@ static void lqspi_load_cache(void *opaque, hwaddr addr)
     }
 }
 
-static uint64_t
-lqspi_read(void *opaque, hwaddr addr, unsigned int size)
+static MemTxResult lqspi_read(void *opaque, hwaddr addr, uint64_t *value,
+                              unsigned size, MemTxAttrs attrs)
 {
-    XilinxQSPIPS *q = opaque;
-    uint32_t ret;
+    XilinxQSPIPS *q = XILINX_QSPIPS(opaque);
 
     if (addr >= q->lqspi_cached_addr &&
             addr <= q->lqspi_cached_addr + LQSPI_CACHE_SIZE - 4) {
         uint8_t *retp = &q->lqspi_buf[addr - q->lqspi_cached_addr];
-        ret = cpu_to_le32(*(uint32_t *)retp);
-        DB_PRINT_L(1, "addr: %08x, data: %08x\n", (unsigned)addr,
-                   (unsigned)ret);
-        return ret;
-    } else {
-        lqspi_load_cache(opaque, addr);
-        return lqspi_read(opaque, addr, size);
+        *value = cpu_to_le32(*(uint32_t *)retp);
+        DB_PRINT_L(1, "addr: %08" HWADDR_PRIx ", data: %08" PRIx64 "\n",
+                   addr, *value);
+        return MEMTX_OK;
     }
+
+    lqspi_load_cache(opaque, addr);
+    return lqspi_read(opaque, addr, value, size, attrs);
+}
+
+static MemTxResult lqspi_write(void *opaque, hwaddr offset, uint64_t value,
+                               unsigned size, MemTxAttrs attrs)
+{
+    /*
+     * From UG1085, Chapter 24 (Quad-SPI controllers):
+     * - Writes are ignored
+     * - AXI writes generate an external AXI slave error (SLVERR)
+     */
+    qemu_log_mask(LOG_GUEST_ERROR, "%s Unexpected %u-bit access to 0x%" PRIx64
+                                   " (value: 0x%" PRIx64 "\n",
+                  __func__, size << 3, offset, value);
+
+    return MEMTX_ERROR;
 }
 
 static const MemoryRegionOps lqspi_ops = {
-    .read = lqspi_read,
+    .read_with_attrs = lqspi_read,
+    .write_with_attrs = lqspi_write,
     .endianness = DEVICE_NATIVE_ENDIAN,
+    .impl = {
+        .min_access_size = 4,
+        .max_access_size = 4,
+    },
     .valid = {
         .min_access_size = 1,
         .max_access_size = 4
