@@ -6745,6 +6745,7 @@ static void gen_mthc0(DisasContext *ctx, TCGv arg, int reg, int sel)
         default:
             goto cp0_unimplemented;
         }
+        break;
     case CP0_REGISTER_17:
         switch (sel) {
         case 0:
