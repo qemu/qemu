@@ -32,3 +32,5 @@ if have_system
                             'code-map', '@INPUT0@', e[0], e[1]])
   endforeach
 endif
+
+subdir('shader')
