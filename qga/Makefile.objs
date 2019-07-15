@@ -1,1 +1,0 @@
-qga-vss-dll-obj-$(CONFIG_QGA_VSS) += vss-win32/
