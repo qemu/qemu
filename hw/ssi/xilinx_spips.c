@@ -1220,8 +1220,24 @@ static MemTxResult lqspi_read(void *opaque, hwaddr addr, uint64_t *value,
     return lqspi_read(opaque, addr, value, size, attrs);
 }
 
+static MemTxResult lqspi_write(void *opaque, hwaddr offset, uint64_t value,
+                               unsigned size, MemTxAttrs attrs)
+{
+    /*
+     * From UG1085, Chapter 24 (Quad-SPI controllers):
+     * - Writes are ignored
+     * - AXI writes generate an external AXI slave error (SLVERR)
+     */
+    qemu_log_mask(LOG_GUEST_ERROR, "%s Unexpected %u-bit access to 0x%" PRIx64
+                                   " (value: 0x%" PRIx64 "\n",
+                  __func__, size << 3, offset, value);
+
+    return MEMTX_ERROR;
+}
+
 static const MemoryRegionOps lqspi_ops = {
     .read_with_attrs = lqspi_read,
+    .write_with_attrs = lqspi_write,
     .endianness = DEVICE_NATIVE_ENDIAN,
     .valid = {
         .min_access_size = 1,
