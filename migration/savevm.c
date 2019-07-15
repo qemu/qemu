@@ -1863,7 +1863,6 @@ static void loadvm_postcopy_handle_run_bh(void *opaque)
     }
 
     trace_loadvm_postcopy_handle_run_cpu_sync();
-    cpu_synchronize_all_post_init();
 
     trace_loadvm_postcopy_handle_run_vmstart();
 
