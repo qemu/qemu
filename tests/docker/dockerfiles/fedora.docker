@@ -52,6 +52,7 @@ ENV PACKAGES \
     mingw32-libpng \
     mingw32-libtasn1 \
     mingw32-nettle \
+    mingw32-nsis \
     mingw32-pixman \
     mingw32-pkg-config \
     mingw32-SDL2 \
