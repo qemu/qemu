@@ -885,6 +885,9 @@ struct BlockDriverState {
 
     /* Only read/written by whoever has set active_flush_req to true.  */
     unsigned int flushed_gen;             /* Flushed write generation */
+
+    /* BdrvChild links to this node may never be frozen */
+    bool never_freeze;
 };
 
 struct BlockBackendRootState {

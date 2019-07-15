@@ -1551,6 +1551,10 @@ static BlockJob *mirror_start_job(
     if (!filter_node_name) {
         mirror_top_bs->implicit = true;
     }
+
+    /* So that we can always drop this node */
+    mirror_top_bs->never_freeze = true;
+
     mirror_top_bs->total_sectors = bs->total_sectors;
     mirror_top_bs->supported_write_flags = BDRV_REQ_WRITE_UNCHANGED;
     mirror_top_bs->supported_zero_flags = BDRV_REQ_WRITE_UNCHANGED |

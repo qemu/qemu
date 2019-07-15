@@ -298,6 +298,10 @@ void commit_start(const char *job_id, BlockDriverState *bs,
     if (!filter_node_name) {
         commit_top_bs->implicit = true;
     }
+
+    /* So that we can always drop this node */
+    commit_top_bs->never_freeze = true;
+
     commit_top_bs->total_sectors = top->total_sectors;
 
     bdrv_append(commit_top_bs, top, &local_err);

@@ -36,7 +36,9 @@ class TestSingleDrive(iotests.QMPTestCase):
         qemu_img('create', '-f', iotests.imgfmt, '-o', 'backing_file=%s' % mid_img, test_img)
         qemu_io('-f', 'raw', '-c', 'write -P 0x1 0 512', backing_img)
         qemu_io('-f', iotests.imgfmt, '-c', 'write -P 0x1 524288 512', mid_img)
-        self.vm = iotests.VM().add_drive("blkdebug::" + test_img, "backing.node-name=mid")
+        self.vm = iotests.VM().add_drive("blkdebug::" + test_img,
+                                         "backing.node-name=mid," +
+                                         "backing.backing.node-name=base")
         self.vm.launch()
 
     def tearDown(self):
@@ -144,17 +146,43 @@ class TestSingleDrive(iotests.QMPTestCase):
 
     def test_device_not_found(self):
         result = self.vm.qmp('block-stream', device='nonexistent')
-        self.assert_qmp(result, 'error/class', 'GenericError')
+        self.assert_qmp(result, 'error/desc',
+            'Cannot find device=nonexistent nor node_name=nonexistent')
 
     def test_job_id_missing(self):
         result = self.vm.qmp('block-stream', device='mid')
-        self.assert_qmp(result, 'error/class', 'GenericError')
+        self.assert_qmp(result, 'error/desc', "Invalid job ID ''")
+
+    def test_read_only(self):
+        # Create a new file that we can attach (we need a read-only top)
+        with iotests.FilePath('ro-top.img') as ro_top_path:
+            qemu_img('create', '-f', iotests.imgfmt, ro_top_path,
+                     str(self.image_len))
+
+            result = self.vm.qmp('blockdev-add',
+                                 node_name='ro-top',
+                                 driver=iotests.imgfmt,
+                                 read_only=True,
+                                 file={
+                                     'driver': 'file',
+                                     'filename': ro_top_path,
+                                     'read-only': True
+                                 },
+                                 backing='mid')
+            self.assert_qmp(result, 'return', {})
+
+            result = self.vm.qmp('block-stream', job_id='stream',
+                                 device='ro-top', base_node='base')
+            self.assert_qmp(result, 'error/desc', 'Block node is read-only')
+
+            result = self.vm.qmp('blockdev-del', node_name='ro-top')
+            self.assert_qmp(result, 'return', {})
 
 
 class TestParallelOps(iotests.QMPTestCase):
     num_ops = 4 # Number of parallel block-stream operations
     num_imgs = num_ops * 2 + 1
-    image_len = num_ops * 512 * 1024
+    image_len = num_ops * 4 * 1024 * 1024
     imgs = []
 
     def setUp(self):
@@ -176,11 +204,11 @@ class TestParallelOps(iotests.QMPTestCase):
         # Put data into the images we are copying data from
         odd_img_indexes = [x for x in reversed(range(self.num_imgs)) if x % 2 == 1]
         for i in range(len(odd_img_indexes)):
-            # Alternate between 256KB and 512KB.
+            # Alternate between 2MB and 4MB.
             # This way jobs will not finish in the same order they were created
-            num_kb = 256 + 256 * (i % 2)
+            num_mb = 2 + 2 * (i % 2)
             qemu_io('-f', iotests.imgfmt,
-                    '-c', 'write -P 0xFF %dk %dk' % (i * 512, num_kb),
+                    '-c', 'write -P 0xFF %dM %dM' % (i * 4, num_mb),
                     self.imgs[odd_img_indexes[i]])
 
         # Attach the drive to the VM
@@ -213,6 +241,10 @@ class TestParallelOps(iotests.QMPTestCase):
             result = self.vm.qmp('block-stream', device=node_name, job_id=job_id, base=self.imgs[i-2], speed=512*1024)
             self.assert_qmp(result, 'return', {})
 
+        for job in pending_jobs:
+            result = self.vm.qmp('block-job-set-speed', device=job, speed=0)
+            self.assert_qmp(result, 'return', {})
+
         # Wait for all jobs to be finished.
         while len(pending_jobs) > 0:
             for event in self.vm.get_qmp_events(wait=True):
@@ -241,24 +273,33 @@ class TestParallelOps(iotests.QMPTestCase):
         self.assert_qmp(result, 'return', {})
 
         result = self.vm.qmp('block-stream', device='node5', job_id='stream-node5', base=self.imgs[2])
-        self.assert_qmp(result, 'error/class', 'GenericError')
+        self.assert_qmp(result, 'error/desc',
+            "Node 'node4' is busy: block device is in use by block job: stream")
 
         result = self.vm.qmp('block-stream', device='node3', job_id='stream-node3', base=self.imgs[2])
-        self.assert_qmp(result, 'error/class', 'GenericError')
+        self.assert_qmp(result, 'error/desc',
+            "Node 'node3' is busy: block device is in use by block job: stream")
 
         result = self.vm.qmp('block-stream', device='node4', job_id='stream-node4-v2')
-        self.assert_qmp(result, 'error/class', 'GenericError')
+        self.assert_qmp(result, 'error/desc',
+            "Node 'node4' is busy: block device is in use by block job: stream")
 
         # block-commit should also fail if it touches nodes used by the stream job
         result = self.vm.qmp('block-commit', device='drive0', base=self.imgs[4], job_id='commit-node4')
-        self.assert_qmp(result, 'error/class', 'GenericError')
+        self.assert_qmp(result, 'error/desc',
+            "Node 'node4' is busy: block device is in use by block job: stream")
 
         result = self.vm.qmp('block-commit', device='drive0', base=self.imgs[1], top=self.imgs[3], job_id='commit-node1')
-        self.assert_qmp(result, 'error/class', 'GenericError')
+        self.assert_qmp(result, 'error/desc',
+            "Node 'node3' is busy: block device is in use by block job: stream")
 
         # This fails because it needs to modify the backing string in node2, which is blocked
         result = self.vm.qmp('block-commit', device='drive0', base=self.imgs[0], top=self.imgs[1], job_id='commit-node0')
-        self.assert_qmp(result, 'error/class', 'GenericError')
+        self.assert_qmp(result, 'error/desc',
+            "Node 'node2' is busy: block device is in use by block job: stream")
+
+        result = self.vm.qmp('block-job-set-speed', device='stream-node4', speed=0)
+        self.assert_qmp(result, 'return', {})
 
         self.wait_until_completed(drive='stream-node4')
         self.assert_no_active_block_jobs()
@@ -274,20 +315,28 @@ class TestParallelOps(iotests.QMPTestCase):
         self.assert_qmp(result, 'return', {})
 
         result = self.vm.qmp('block-stream', device='node3', job_id='stream-node3')
-        self.assert_qmp(result, 'error/class', 'GenericError')
+        self.assert_qmp(result, 'error/desc',
+            "Node 'node3' is busy: block device is in use by block job: commit")
 
         result = self.vm.qmp('block-stream', device='node6', base=self.imgs[2], job_id='stream-node6')
-        self.assert_qmp(result, 'error/class', 'GenericError')
+        self.assert_qmp(result, 'error/desc',
+            "Node 'node5' is busy: block device is in use by block job: commit")
 
         result = self.vm.qmp('block-stream', device='node4', base=self.imgs[2], job_id='stream-node4')
-        self.assert_qmp(result, 'error/class', 'GenericError')
+        self.assert_qmp(result, 'error/desc',
+            "Node 'node4' is busy: block device is in use by block job: commit")
 
         result = self.vm.qmp('block-stream', device='node6', base=self.imgs[4], job_id='stream-node6-v2')
-        self.assert_qmp(result, 'error/class', 'GenericError')
+        self.assert_qmp(result, 'error/desc',
+            "Node 'node5' is busy: block device is in use by block job: commit")
 
         # This fails because block-commit currently blocks the active layer even if it's not used
         result = self.vm.qmp('block-stream', device='drive0', base=self.imgs[5], job_id='stream-drive0')
-        self.assert_qmp(result, 'error/class', 'GenericError')
+        self.assert_qmp(result, 'error/desc',
+            "Node 'drive0' is busy: block device is in use by block job: commit")
+
+        result = self.vm.qmp('block-job-set-speed', device='commit-node3', speed=0)
+        self.assert_qmp(result, 'return', {})
 
         self.wait_until_completed(drive='commit-node3')
 
@@ -302,12 +351,16 @@ class TestParallelOps(iotests.QMPTestCase):
         self.assert_qmp(result, 'return', {})
 
         result = self.vm.qmp('block-stream', device='node5', base=self.imgs[3], job_id='stream-node6')
-        self.assert_qmp(result, 'error/class', 'GenericError')
+        self.assert_qmp(result, 'error/desc',
+            "Node 'node5' is busy: block device is in use by block job: commit")
 
         event = self.vm.event_wait(name='BLOCK_JOB_READY')
         self.assert_qmp(event, 'data/device', 'commit-drive0')
         self.assert_qmp(event, 'data/type', 'commit')
         self.assert_qmp_absent(event, 'data/error')
+
+        result = self.vm.qmp('block-job-set-speed', device='commit-drive0', speed=0)
+        self.assert_qmp(result, 'return', {})
 
         result = self.vm.qmp('block-job-complete', device='commit-drive0')
         self.assert_qmp(result, 'return', {})
@@ -315,20 +368,51 @@ class TestParallelOps(iotests.QMPTestCase):
         self.wait_until_completed(drive='commit-drive0')
 
     # In this case the base node of the stream job is the same as the
-    # top node of commit job. Since block-commit removes the top node
-    # when it finishes, this is not allowed.
+    # top node of commit job. Since this results in the commit filter
+    # node being part of the stream chain, this is not allowed.
     def test_overlapping_4(self):
         self.assert_no_active_block_jobs()
 
         # Commit from node2 into node0
-        result = self.vm.qmp('block-commit', device='drive0', top=self.imgs[2], base=self.imgs[0])
+        result = self.vm.qmp('block-commit', device='drive0',
+                             top=self.imgs[2], base=self.imgs[0],
+                             filter_node_name='commit-filter', speed=1024*1024)
         self.assert_qmp(result, 'return', {})
 
         # Stream from node2 into node4
         result = self.vm.qmp('block-stream', device='node4', base_node='node2', job_id='node4')
-        self.assert_qmp(result, 'error/class', 'GenericError')
+        self.assert_qmp(result, 'error/desc',
+            "Cannot freeze 'backing' link to 'commit-filter'")
+
+        result = self.vm.qmp('block-job-set-speed', device='drive0', speed=0)
+        self.assert_qmp(result, 'return', {})
 
         self.wait_until_completed()
+        self.assert_no_active_block_jobs()
+
+    # In this case the base node of the stream job is the commit job's
+    # filter node.  stream does not have a real dependency on its base
+    # node, so even though commit removes it when it is done, there is
+    # no conflict.
+    def test_overlapping_5(self):
+        self.assert_no_active_block_jobs()
+
+        # Commit from node2 into node0
+        result = self.vm.qmp('block-commit', device='drive0',
+                             top_node='node2', base_node='node0',
+                             filter_node_name='commit-filter', speed=1024*1024)
+        self.assert_qmp(result, 'return', {})
+
+        # Stream from node2 into node4
+        result = self.vm.qmp('block-stream', device='node4',
+                             base_node='commit-filter', job_id='node4')
+        self.assert_qmp(result, 'return', {})
+
+        result = self.vm.qmp('block-job-set-speed', device='drive0', speed=0)
+        self.assert_qmp(result, 'return', {})
+
+        self.vm.run_job(job='drive0', auto_dismiss=True, use_log=False)
+        self.vm.run_job(job='node4', auto_dismiss=True, use_log=False)
         self.assert_no_active_block_jobs()
 
     # Test a block-stream and a block-commit job in parallel
@@ -378,6 +462,10 @@ class TestParallelOps(iotests.QMPTestCase):
         result = self.vm.qmp('block-commit', device='drive0', base=self.imgs[5], speed=1024*1024)
         self.assert_qmp(result, 'return', {})
 
+        for job in ['drive0', 'node4']:
+            result = self.vm.qmp('block-job-set-speed', device=job, speed=0)
+            self.assert_qmp(result, 'return', {})
+
         # Wait for all jobs to be finished.
         pending_jobs = ['node4', 'drive0']
         while len(pending_jobs) > 0:
@@ -406,19 +494,23 @@ class TestParallelOps(iotests.QMPTestCase):
 
         # Error: the base node does not exist
         result = self.vm.qmp('block-stream', device='node4', base_node='none', job_id='stream')
-        self.assert_qmp(result, 'error/class', 'GenericError')
+        self.assert_qmp(result, 'error/desc',
+            'Cannot find device= nor node_name=none')
 
         # Error: the base node is not a backing file of the top node
         result = self.vm.qmp('block-stream', device='node4', base_node='node6', job_id='stream')
-        self.assert_qmp(result, 'error/class', 'GenericError')
+        self.assert_qmp(result, 'error/desc',
+            "Node 'node6' is not a backing image of 'node4'")
 
         # Error: the base node is the same as the top node
         result = self.vm.qmp('block-stream', device='node4', base_node='node4', job_id='stream')
-        self.assert_qmp(result, 'error/class', 'GenericError')
+        self.assert_qmp(result, 'error/desc',
+            "Node 'node4' is not a backing image of 'node4'")
 
         # Error: cannot specify 'base' and 'base-node' at the same time
         result = self.vm.qmp('block-stream', device='node4', base=self.imgs[2], base_node='node2', job_id='stream')
-        self.assert_qmp(result, 'error/class', 'GenericError')
+        self.assert_qmp(result, 'error/desc',
+            "'base' and 'base-node' cannot be specified at the same time")
 
         # Success: the base node is a backing file of the top node
         result = self.vm.qmp('block-stream', device='node4', base_node='node2', job_id='stream')
@@ -851,7 +943,7 @@ class TestSetSpeed(iotests.QMPTestCase):
         self.assert_no_active_block_jobs()
 
         result = self.vm.qmp('block-stream', device='drive0', speed=-1)
-        self.assert_qmp(result, 'error/class', 'GenericError')
+        self.assert_qmp(result, 'error/desc', "Invalid parameter 'speed'")
 
         self.assert_no_active_block_jobs()
 
@@ -860,7 +952,7 @@ class TestSetSpeed(iotests.QMPTestCase):
         self.assert_qmp(result, 'return', {})
 
         result = self.vm.qmp('block-job-set-speed', device='drive0', speed=-1)
-        self.assert_qmp(result, 'error/class', 'GenericError')
+        self.assert_qmp(result, 'error/desc', "Invalid parameter 'speed'")
 
         self.cancel_and_wait(resume=True)
 
