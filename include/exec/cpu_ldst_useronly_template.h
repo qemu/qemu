@@ -64,61 +64,75 @@
 static inline RES_TYPE
 glue(glue(cpu_ld, USUFFIX), MEMSUFFIX)(CPUArchState *env, abi_ptr ptr)
 {
-#if !defined(CODE_ACCESS)
+#ifdef CODE_ACCESS
+    RES_TYPE ret;
+    set_helper_retaddr(1);
+    ret = glue(glue(ld, USUFFIX), _p)(g2h(ptr));
+    clear_helper_retaddr();
+    return ret;
+#else
     trace_guest_mem_before_exec(
         env_cpu(env), ptr,
         trace_mem_build_info(SHIFT, false, MO_TE, false));
-#endif
     return glue(glue(ld, USUFFIX), _p)(g2h(ptr));
+#endif
 }
 
+#ifndef CODE_ACCESS
 static inline RES_TYPE
 glue(glue(glue(cpu_ld, USUFFIX), MEMSUFFIX), _ra)(CPUArchState *env,
                                                   abi_ptr ptr,
                                                   uintptr_t retaddr)
 {
     RES_TYPE ret;
-    helper_retaddr = retaddr;
+    set_helper_retaddr(retaddr);
     ret = glue(glue(cpu_ld, USUFFIX), MEMSUFFIX)(env, ptr);
-    helper_retaddr = 0;
+    clear_helper_retaddr();
     return ret;
 }
+#endif
 
 #if DATA_SIZE <= 2
 static inline int
 glue(glue(cpu_lds, SUFFIX), MEMSUFFIX)(CPUArchState *env, abi_ptr ptr)
 {
-#if !defined(CODE_ACCESS)
+#ifdef CODE_ACCESS
+    int ret;
+    set_helper_retaddr(1);
+    ret = glue(glue(lds, SUFFIX), _p)(g2h(ptr));
+    clear_helper_retaddr();
+    return ret;
+#else
     trace_guest_mem_before_exec(
         env_cpu(env), ptr,
         trace_mem_build_info(SHIFT, true, MO_TE, false));
-#endif
     return glue(glue(lds, SUFFIX), _p)(g2h(ptr));
+#endif
 }
 
+#ifndef CODE_ACCESS
 static inline int
 glue(glue(glue(cpu_lds, SUFFIX), MEMSUFFIX), _ra)(CPUArchState *env,
                                                   abi_ptr ptr,
                                                   uintptr_t retaddr)
 {
     int ret;
-    helper_retaddr = retaddr;
+    set_helper_retaddr(retaddr);
     ret = glue(glue(cpu_lds, SUFFIX), MEMSUFFIX)(env, ptr);
-    helper_retaddr = 0;
+    clear_helper_retaddr();
     return ret;
 }
-#endif
+#endif /* CODE_ACCESS */
+#endif /* DATA_SIZE <= 2 */
 
 #ifndef CODE_ACCESS
 static inline void
 glue(glue(cpu_st, SUFFIX), MEMSUFFIX)(CPUArchState *env, abi_ptr ptr,
                                       RES_TYPE v)
 {
-#if !defined(CODE_ACCESS)
     trace_guest_mem_before_exec(
         env_cpu(env), ptr,
         trace_mem_build_info(SHIFT, false, MO_TE, true));
-#endif
     glue(glue(st, SUFFIX), _p)(g2h(ptr), v);
 }
 
@@ -128,9 +142,9 @@ glue(glue(glue(cpu_st, SUFFIX), MEMSUFFIX), _ra)(CPUArchState *env,
                                                   RES_TYPE v,
                                                   uintptr_t retaddr)
 {
-    helper_retaddr = retaddr;
+    set_helper_retaddr(retaddr);
     glue(glue(cpu_st, SUFFIX), MEMSUFFIX)(env, ptr, v);
-    helper_retaddr = 0;
+    clear_helper_retaddr();
 }
 #endif
 

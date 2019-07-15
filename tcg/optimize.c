@@ -1213,8 +1213,8 @@ void tcg_optimize(TCGContext *s)
                 if (opc == INDEX_op_extract2_i64) {
                     tmp = (v1 >> op->args[3]) | (v2 << (64 - op->args[3]));
                 } else {
-                    tmp = (v1 >> op->args[3]) | (v2 << (32 - op->args[3]));
-                    tmp = (int32_t)tmp;
+                    tmp = (int32_t)(((uint32_t)v1 >> op->args[3]) |
+                                    ((uint32_t)v2 << (32 - op->args[3])));
                 }
                 tcg_opt_gen_movi(s, op, op->args[0], tmp);
                 break;
