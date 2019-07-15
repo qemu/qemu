@@ -199,11 +199,36 @@ static int pl031_pre_save(void *opaque)
 {
     PL031State *s = opaque;
 
-    /* tick_offset is base_time - rtc_clock base time.  Instead, we want to
-     * store the base time relative to the QEMU_CLOCK_VIRTUAL for backwards-compatibility.  */
+    /*
+     * The PL031 device model code uses the tick_offset field, which is
+     * the offset between what the guest RTC should read and what the
+     * QEMU rtc_clock reads:
+     *  guest_rtc = rtc_clock + tick_offset
+     * and so
+     *  tick_offset = guest_rtc - rtc_clock
+     *
+     * We want to migrate this offset, which sounds straightforward.
+     * Unfortunately older versions of QEMU migrated a conversion of this
+     * offset into an offset from the vm_clock. (This was in turn an
+     * attempt to be compatible with even older QEMU versions, but it
+     * has incorrect behaviour if the rtc_clock is not the same as the
+     * vm_clock.) So we put the actual tick_offset into a migration
+     * subsection, and the backwards-compatible time-relative-to-vm_clock
+     * in the main migration state.
+     *
+     * Calculate base time relative to QEMU_CLOCK_VIRTUAL:
+     */
     int64_t delta = qemu_clock_get_ns(rtc_clock) - qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL);
     s->tick_offset_vmstate = s->tick_offset + delta / NANOSECONDS_PER_SECOND;
 
+    return 0;
+}
+
+static int pl031_pre_load(void *opaque)
+{
+    PL031State *s = opaque;
+
+    s->tick_offset_migrated = false;
     return 0;
 }
 
@@ -211,17 +236,57 @@ static int pl031_post_load(void *opaque, int version_id)
 {
     PL031State *s = opaque;
 
-    int64_t delta = qemu_clock_get_ns(rtc_clock) - qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL);
-    s->tick_offset = s->tick_offset_vmstate - delta / NANOSECONDS_PER_SECOND;
+    /*
+     * If we got the tick_offset subsection, then we can just use
+     * the value in that. Otherwise the source is an older QEMU and
+     * has given us the offset from the vm_clock; convert it back to
+     * an offset from the rtc_clock. This will cause time to incorrectly
+     * go backwards compared to the host RTC, but this is unavoidable.
+     */
+
+    if (!s->tick_offset_migrated) {
+        int64_t delta = qemu_clock_get_ns(rtc_clock) -
+            qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL);
+        s->tick_offset = s->tick_offset_vmstate -
+            delta / NANOSECONDS_PER_SECOND;
+    }
     pl031_set_alarm(s);
     return 0;
 }
+
+static int pl031_tick_offset_post_load(void *opaque, int version_id)
+{
+    PL031State *s = opaque;
+
+    s->tick_offset_migrated = true;
+    return 0;
+}
+
+static bool pl031_tick_offset_needed(void *opaque)
+{
+    PL031State *s = opaque;
+
+    return s->migrate_tick_offset;
+}
+
+static const VMStateDescription vmstate_pl031_tick_offset = {
+    .name = "pl031/tick-offset",
+    .version_id = 1,
+    .minimum_version_id = 1,
+    .needed = pl031_tick_offset_needed,
+    .post_load = pl031_tick_offset_post_load,
+    .fields = (VMStateField[]) {
+        VMSTATE_UINT32(tick_offset, PL031State),
+        VMSTATE_END_OF_LIST()
+    }
+};
 
 static const VMStateDescription vmstate_pl031 = {
     .name = "pl031",
     .version_id = 1,
     .minimum_version_id = 1,
     .pre_save = pl031_pre_save,
+    .pre_load = pl031_pre_load,
     .post_load = pl031_post_load,
     .fields = (VMStateField[]) {
         VMSTATE_UINT32(tick_offset_vmstate, PL031State),
@@ -231,7 +296,25 @@ static const VMStateDescription vmstate_pl031 = {
         VMSTATE_UINT32(im, PL031State),
         VMSTATE_UINT32(is, PL031State),
         VMSTATE_END_OF_LIST()
+    },
+    .subsections = (const VMStateDescription*[]) {
+        &vmstate_pl031_tick_offset,
+        NULL
     }
+};
+
+static Property pl031_properties[] = {
+    /*
+     * True to correctly migrate the tick offset of the RTC. False to
+     * obtain backward migration compatibility with older QEMU versions,
+     * at the expense of the guest RTC going backwards compared with the
+     * host RTC when the VM is saved/restored if using -rtc host.
+     * (Even if set to 'true' older QEMU can migrate forward to newer QEMU;
+     * 'false' also permits newer QEMU to migrate to older QEMU.)
+     */
+    DEFINE_PROP_BOOL("migrate-tick-offset",
+                     PL031State, migrate_tick_offset, true),
+    DEFINE_PROP_END_OF_LIST()
 };
 
 static void pl031_class_init(ObjectClass *klass, void *data)
@@ -239,6 +322,7 @@ static void pl031_class_init(ObjectClass *klass, void *data)
     DeviceClass *dc = DEVICE_CLASS(klass);
 
     dc->vmsd = &vmstate_pl031;
+    dc->props = pl031_properties;
 }
 
 static const TypeInfo pl031_info = {
