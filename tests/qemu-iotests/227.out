@@ -2,7 +2,7 @@ QA output created by 227
 
 === blockstats with -drive if=virtio ===
 
-Testing: -drive driver=null-co,if=virtio
+Testing: -drive driver=null-co,read-zeroes=on,if=virtio
 {
     QMP_VERSION
 }
@@ -150,7 +150,7 @@ Testing: -blockdev driver=null-co,node-name=null
 
 === blockstats with -blockdev and -device ===
 
-Testing: -blockdev driver=null-co,node-name=null -device virtio-blk,drive=null,id=virtio0
+Testing: -blockdev driver=null-co,read-zeroes=on,node-name=null -device virtio-blk,drive=null,id=virtio0
 {
     QMP_VERSION
 }
