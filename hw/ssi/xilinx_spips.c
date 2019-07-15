@@ -1221,6 +1221,10 @@ lqspi_read(void *opaque, hwaddr addr, unsigned int size)
 static const MemoryRegionOps lqspi_ops = {
     .read = lqspi_read,
     .endianness = DEVICE_NATIVE_ENDIAN,
+    .impl = {
+        .min_access_size = 4,
+        .max_access_size = 4,
+    },
     .valid = {
         .min_access_size = 1,
         .max_access_size = 4
