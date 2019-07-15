@@ -667,6 +667,81 @@ static void trans_vsr(DisasContext *ctx)
     tcg_temp_free_i64(tmp);
 }
 
+/*
+ * vgbbd VRT,VRB - Vector Gather Bits by Bytes by Doubleword
+ *
+ * All ith bits (i in range 1 to 8) of each byte of doubleword element in source
+ * register are concatenated and placed into ith byte of appropriate doubleword
+ * element in destination register.
+ *
+ * Following solution is done for both doubleword elements of source register
+ * in parallel, in order to reduce the number of instructions needed(that's why
+ * arrays are used):
+ * First, both doubleword elements of source register vB are placed in
+ * appropriate element of array avr. Bits are gathered in 2x8 iterations(2 for
+ * loops). In first iteration bit 1 of byte 1, bit 2 of byte 2,... bit 8 of
+ * byte 8 are in their final spots so avr[i], i={0,1} can be and-ed with
+ * tcg_mask. For every following iteration, both avr[i] and tcg_mask variables
+ * have to be shifted right for 7 and 8 places, respectively, in order to get
+ * bit 1 of byte 2, bit 2 of byte 3.. bit 7 of byte 8 in their final spots so
+ * shifted avr values(saved in tmp) can be and-ed with new value of tcg_mask...
+ * After first 8 iteration(first loop), all the first bits are in their final
+ * places, all second bits but second bit from eight byte are in their places...
+ * only 1 eight bit from eight byte is in it's place). In second loop we do all
+ * operations symmetrically, in order to get other half of bits in their final
+ * spots. Results for first and second doubleword elements are saved in
+ * result[0] and result[1] respectively. In the end those results are saved in
+ * appropriate doubleword element of destination register vD.
+ */
+static void trans_vgbbd(DisasContext *ctx)
+{
+    int VT = rD(ctx->opcode);
+    int VB = rB(ctx->opcode);
+    TCGv_i64 tmp = tcg_temp_new_i64();
+    uint64_t mask = 0x8040201008040201ULL;
+    int i, j;
+
+    TCGv_i64 result[2];
+    result[0] = tcg_temp_new_i64();
+    result[1] = tcg_temp_new_i64();
+    TCGv_i64 avr[2];
+    avr[0] = tcg_temp_new_i64();
+    avr[1] = tcg_temp_new_i64();
+    TCGv_i64 tcg_mask = tcg_temp_new_i64();
+
+    tcg_gen_movi_i64(tcg_mask, mask);
+    for (j = 0; j < 2; j++) {
+        get_avr64(avr[j], VB, j);
+        tcg_gen_and_i64(result[j], avr[j], tcg_mask);
+    }
+    for (i = 1; i < 8; i++) {
+        tcg_gen_movi_i64(tcg_mask, mask >> (i * 8));
+        for (j = 0; j < 2; j++) {
+            tcg_gen_shri_i64(tmp, avr[j], i * 7);
+            tcg_gen_and_i64(tmp, tmp, tcg_mask);
+            tcg_gen_or_i64(result[j], result[j], tmp);
+        }
+    }
+    for (i = 1; i < 8; i++) {
+        tcg_gen_movi_i64(tcg_mask, mask << (i * 8));
+        for (j = 0; j < 2; j++) {
+            tcg_gen_shli_i64(tmp, avr[j], i * 7);
+            tcg_gen_and_i64(tmp, tmp, tcg_mask);
+            tcg_gen_or_i64(result[j], result[j], tmp);
+        }
+    }
+    for (j = 0; j < 2; j++) {
+        set_avr64(VT, result[j], j);
+    }
+
+    tcg_temp_free_i64(tmp);
+    tcg_temp_free_i64(tcg_mask);
+    tcg_temp_free_i64(result[0]);
+    tcg_temp_free_i64(result[1]);
+    tcg_temp_free_i64(avr[0]);
+    tcg_temp_free_i64(avr[1]);
+}
+
 GEN_VXFORM(vmuloub, 4, 0);
 GEN_VXFORM(vmulouh, 4, 1);
 GEN_VXFORM(vmulouw, 4, 2);
@@ -1211,7 +1286,7 @@ GEN_VXFORM_DUAL(vclzd, PPC_NONE, PPC2_ALTIVEC_207, \
                 vpopcntd, PPC_NONE, PPC2_ALTIVEC_207)
 GEN_VXFORM(vbpermd, 6, 23);
 GEN_VXFORM(vbpermq, 6, 21);
-GEN_VXFORM_NOA(vgbbd, 6, 20);
+GEN_VXFORM_TRANS(vgbbd, 6, 20);
 GEN_VXFORM(vpmsumb, 4, 16)
 GEN_VXFORM(vpmsumh, 4, 17)
 GEN_VXFORM(vpmsumw, 4, 18)
