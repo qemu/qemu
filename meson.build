@@ -158,6 +158,7 @@ have_block = have_system or have_tools
 
 # Generators
 
+genh = []
 qapi_gen = find_program('scripts/qapi-gen.py')
 qapi_gen_depends = [ meson.source_root() / 'scripts/qapi/__init__.py',
                      meson.source_root() / 'scripts/qapi/commands.py',
@@ -182,6 +183,17 @@ tracetool = [
   python, files('scripts/tracetool.py'),
    '--backend=' + config_host['TRACE_BACKENDS']
 ]
+
+qemu_version_cmd = [find_program('scripts/qemu-version.sh'),
+                    meson.current_source_dir(),
+                    config_host['PKGVERSION'], config_host['VERSION']]
+qemu_version = custom_target('qemu-version.h',
+                             output: 'qemu-version.h',
+                             command: qemu_version_cmd,
+                             capture: true,
+                             build_by_default: true,
+                             build_always_stale: true)
+genh += qemu_version
 
 # Collect sourcesets.
 
@@ -282,8 +294,6 @@ trace_events_subdirs += [
   'target/sparc',
   'util',
 ]
-
-genh = []
 
 subdir('qapi')
 subdir('qobject')
