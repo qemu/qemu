@@ -459,24 +459,6 @@ SATCVT(sd, uw, int64_t, uint32_t, 0, UINT32_MAX)
 #undef SATCVT
 #undef SATCVTU
 
-void helper_lvsl(ppc_avr_t *r, target_ulong sh)
-{
-    int i, j = (sh & 0xf);
-
-    for (i = 0; i < ARRAY_SIZE(r->u8); i++) {
-        r->VsrB(i) = j++;
-    }
-}
-
-void helper_lvsr(ppc_avr_t *r, target_ulong sh)
-{
-    int i, j = 0x10 - (sh & 0xf);
-
-    for (i = 0; i < ARRAY_SIZE(r->u8); i++) {
-        r->VsrB(i) = j++;
-    }
-}
-
 void helper_mtvscr(CPUPPCState *env, uint32_t vscr)
 {
     env->vscr = vscr & ~(1u << VSCR_SAT);

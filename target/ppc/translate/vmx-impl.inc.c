@@ -142,38 +142,6 @@ GEN_VR_STVE(bx, 0x07, 0x04, 1);
 GEN_VR_STVE(hx, 0x07, 0x05, 2);
 GEN_VR_STVE(wx, 0x07, 0x06, 4);
 
-static void gen_lvsl(DisasContext *ctx)
-{
-    TCGv_ptr rd;
-    TCGv EA;
-    if (unlikely(!ctx->altivec_enabled)) {
-        gen_exception(ctx, POWERPC_EXCP_VPU);
-        return;
-    }
-    EA = tcg_temp_new();
-    gen_addr_reg_index(ctx, EA);
-    rd = gen_avr_ptr(rD(ctx->opcode));
-    gen_helper_lvsl(rd, EA);
-    tcg_temp_free(EA);
-    tcg_temp_free_ptr(rd);
-}
-
-static void gen_lvsr(DisasContext *ctx)
-{
-    TCGv_ptr rd;
-    TCGv EA;
-    if (unlikely(!ctx->altivec_enabled)) {
-        gen_exception(ctx, POWERPC_EXCP_VPU);
-        return;
-    }
-    EA = tcg_temp_new();
-    gen_addr_reg_index(ctx, EA);
-    rd = gen_avr_ptr(rD(ctx->opcode));
-    gen_helper_lvsr(rd, EA);
-    tcg_temp_free(EA);
-    tcg_temp_free_ptr(rd);
-}
-
 static void gen_mfvscr(DisasContext *ctx)
 {
     TCGv_i32 t;
@@ -314,6 +282,16 @@ static void glue(gen_, name)(DisasContext *ctx)                         \
     tcg_temp_free_ptr(ra);                                              \
     tcg_temp_free_ptr(rb);                                              \
     tcg_temp_free_ptr(rd);                                              \
+}
+
+#define GEN_VXFORM_TRANS(name, opc2, opc3)                              \
+static void glue(gen_, name)(DisasContext *ctx)                         \
+{                                                                       \
+    if (unlikely(!ctx->altivec_enabled)) {                              \
+        gen_exception(ctx, POWERPC_EXCP_VPU);                           \
+        return;                                                         \
+    }                                                                   \
+    trans_##name(ctx);                                                  \
 }
 
 #define GEN_VXFORM_ENV(name, opc2, opc3)                                \
@@ -515,6 +493,83 @@ static void gen_vmrgow(DisasContext *ctx)
     tcg_temp_free_i64(avr);
 }
 
+/*
+ * lvsl VRT,RA,RB - Load Vector for Shift Left
+ *
+ * Let the EA be the sum (rA|0)+(rB). Let sh=EA[28–31].
+ * Let X be the 32-byte value 0x00 || 0x01 || 0x02 || ... || 0x1E || 0x1F.
+ * Bytes sh:sh+15 of X are placed into vD.
+ */
+static void trans_lvsl(DisasContext *ctx)
+{
+    int VT = rD(ctx->opcode);
+    TCGv_i64 result = tcg_temp_new_i64();
+    TCGv_i64 sh = tcg_temp_new_i64();
+    TCGv EA = tcg_temp_new();
+
+    /* Get sh(from description) by anding EA with 0xf. */
+    gen_addr_reg_index(ctx, EA);
+    tcg_gen_extu_tl_i64(sh, EA);
+    tcg_gen_andi_i64(sh, sh, 0xfULL);
+
+    /*
+     * Create bytes sh:sh+7 of X(from description) and place them in
+     * higher doubleword of vD.
+     */
+    tcg_gen_muli_i64(sh, sh, 0x0101010101010101ULL);
+    tcg_gen_addi_i64(result, sh, 0x0001020304050607ull);
+    set_avr64(VT, result, true);
+    /*
+     * Create bytes sh+8:sh+15 of X(from description) and place them in
+     * lower doubleword of vD.
+     */
+    tcg_gen_addi_i64(result, sh, 0x08090a0b0c0d0e0fULL);
+    set_avr64(VT, result, false);
+
+    tcg_temp_free_i64(result);
+    tcg_temp_free_i64(sh);
+    tcg_temp_free(EA);
+}
+
+/*
+ * lvsr VRT,RA,RB - Load Vector for Shift Right
+ *
+ * Let the EA be the sum (rA|0)+(rB). Let sh=EA[28–31].
+ * Let X be the 32-byte value 0x00 || 0x01 || 0x02 || ... || 0x1E || 0x1F.
+ * Bytes (16-sh):(31-sh) of X are placed into vD.
+ */
+static void trans_lvsr(DisasContext *ctx)
+{
+    int VT = rD(ctx->opcode);
+    TCGv_i64 result = tcg_temp_new_i64();
+    TCGv_i64 sh = tcg_temp_new_i64();
+    TCGv EA = tcg_temp_new();
+
+
+    /* Get sh(from description) by anding EA with 0xf. */
+    gen_addr_reg_index(ctx, EA);
+    tcg_gen_extu_tl_i64(sh, EA);
+    tcg_gen_andi_i64(sh, sh, 0xfULL);
+
+    /*
+     * Create bytes (16-sh):(23-sh) of X(from description) and place them in
+     * higher doubleword of vD.
+     */
+    tcg_gen_muli_i64(sh, sh, 0x0101010101010101ULL);
+    tcg_gen_subfi_i64(result, 0x1011121314151617ULL, sh);
+    set_avr64(VT, result, true);
+    /*
+     * Create bytes (24-sh):(32-sh) of X(from description) and place them in
+     * lower doubleword of vD.
+     */
+    tcg_gen_subfi_i64(result, 0x18191a1b1c1d1e1fULL, sh);
+    set_avr64(VT, result, false);
+
+    tcg_temp_free_i64(result);
+    tcg_temp_free_i64(sh);
+    tcg_temp_free(EA);
+}
+
 GEN_VXFORM(vmuloub, 4, 0);
 GEN_VXFORM(vmulouh, 4, 1);
 GEN_VXFORM(vmulouw, 4, 2);
@@ -662,6 +717,8 @@ GEN_VXFORM_DUAL(vmrgow, PPC_NONE, PPC2_ALTIVEC_207,
 GEN_VXFORM_HETRO(vextubrx, 6, 28)
 GEN_VXFORM_HETRO(vextuhrx, 6, 29)
 GEN_VXFORM_HETRO(vextuwrx, 6, 30)
+GEN_VXFORM_TRANS(lvsl, 6, 31)
+GEN_VXFORM_TRANS(lvsr, 6, 32)
 GEN_VXFORM_DUAL(vmrgew, PPC_NONE, PPC2_ALTIVEC_207, \
                 vextuwrx, PPC_NONE, PPC2_ISA300)
 
