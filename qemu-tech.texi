@@ -3,10 +3,7 @@
 
 @menu
 * CPU emulation::
-* Translator Internals::
-* QEMU compared to other emulators::
 * Managed start up options::
-* Bibliography::
 @end menu
 
 @node CPU emulation
