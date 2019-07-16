@@ -19,7 +19,7 @@ block-obj-$(CONFIG_REPLICATION) += replication.o
 
 block-obj-m = block/
 
-crypto-obj-y = crypto/
+crypto-obj-y = crypto/libcrypto.fa
 
 io-obj-y = io/
 
