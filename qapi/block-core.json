@@ -4212,13 +4212,17 @@
 #
 # @file             Node to create the image format on
 # @size             Size of the virtual disk in bytes
+# @preallocation    Preallocation mode for the new image
+#                   (since: 4.2)
+#                   (default: off; allowed values: off, metadata, falloc, full)
 #
 # Since: 2.12
 ##
 { 'struct': 'BlockdevCreateOptionsLUKS',
   'base': 'QCryptoBlockCreateOptionsLUKS',
   'data': { 'file':             'BlockdevRef',
-            'size':             'size' } }
+            'size':             'size',
+            '*preallocation':   'PreallocMode' } }
 
 ##
 # @BlockdevCreateOptionsNfs:
