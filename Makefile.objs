@@ -1,6 +1,6 @@
 #######################################################################
 # Common libraries for tools and emulators
-qom-obj-y = qom/
+qom-obj-y = qom/libqom.fa
 
 #######################################################################
 # code used by both qemu system emulation and qemu-img
