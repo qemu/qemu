@@ -278,9 +278,13 @@ static uint32_t pflash_read(PFlashCFI01 *pfl, hwaddr offset,
         /* This should never happen : reset state & treat it as a read */
         DPRINTF("%s: unknown command state: %x\n", __func__, pfl->cmd);
         pfl->wcycle = 0;
-        pfl->cmd = 0;
+        /*
+         * The command 0x00 is not assigned by the CFI open standard,
+         * but QEMU historically uses it for the READ_ARRAY command (0xff).
+         */
+        pfl->cmd = 0x00;
         /* fall through to read code */
-    case 0x00:
+    case 0x00: /* This model reset value for READ_ARRAY (not CFI compliant) */
         /* Flash area read */
         ret = pflash_data_read(pfl, offset, width, be);
         break;
@@ -449,7 +453,7 @@ static void pflash_write(PFlashCFI01 *pfl, hwaddr offset,
     case 0:
         /* read mode */
         switch (cmd) {
-        case 0x00: /* ??? */
+        case 0x00: /* This model reset value for READ_ARRAY (not CFI) */
             goto reset_flash;
         case 0x10: /* Single Byte Program */
         case 0x40: /* Single Byte Program */
@@ -646,7 +650,7 @@ static void pflash_write(PFlashCFI01 *pfl, hwaddr offset,
     trace_pflash_reset();
     memory_region_rom_device_set_romd(&pfl->mem, true);
     pfl->wcycle = 0;
-    pfl->cmd = 0;
+    pfl->cmd = 0x00; /* This model reset value for READ_ARRAY (not CFI) */
 }
 
 
@@ -762,7 +766,11 @@ static void pflash_cfi01_realize(DeviceState *dev, Error **errp)
     }
 
     pfl->wcycle = 0;
-    pfl->cmd = 0;
+    /*
+     * The command 0x00 is not assigned by the CFI open standard,
+     * but QEMU historically uses it for the READ_ARRAY command (0xff).
+     */
+    pfl->cmd = 0x00;
     pfl->status = 0x80; /* WSM ready */
     /* Hardcoded CFI table */
     /* Standard "QRY" string */
