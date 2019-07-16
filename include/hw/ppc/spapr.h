@@ -154,8 +154,6 @@ struct SpaprMachineState {
 
     hwaddr rma_size;
     int vrma_adjust;
-    ssize_t rtas_size;
-    void *rtas_blob;
     uint32_t fdt_size;
     uint32_t fdt_initial_size;
     void *fdt_blob;

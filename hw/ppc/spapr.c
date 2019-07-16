@@ -96,7 +96,6 @@
  * We load our kernel at 4M, leaving space for SLOF initial image
  */
 #define FDT_MAX_SIZE            0x100000
-#define RTAS_MAX_SIZE           0x10000
 #define RTAS_MAX_ADDR           0x80000000 /* RTAS must stay below that */
 #define FW_MAX_SIZE             0x400000
 #define FW_FILE_NAME            "slof.bin"
@@ -1723,8 +1722,7 @@ static void spapr_machine_reset(MachineState *machine)
 {
     SpaprMachineState *spapr = SPAPR_MACHINE(machine);
     PowerPCCPU *first_ppc_cpu;
-    uint32_t rtas_limit;
-    hwaddr rtas_addr, fdt_addr;
+    hwaddr fdt_addr;
     void *fdt;
     int rc;
 
@@ -1788,13 +1786,9 @@ static void spapr_machine_reset(MachineState *machine)
      * or just below 2GB, whichever is lower, so that it can be
      * processed with 32-bit real mode code if necessary
      */
-    rtas_limit = MIN(spapr->rma_size, RTAS_MAX_ADDR);
-    rtas_addr = rtas_limit - RTAS_MAX_SIZE;
-    fdt_addr = rtas_addr - FDT_MAX_SIZE;
+    fdt_addr = MIN(spapr->rma_size, RTAS_MAX_ADDR) - FDT_MAX_SIZE;
 
     fdt = spapr_build_fdt(spapr);
-
-    spapr_load_rtas(spapr, fdt, rtas_addr);
 
     rc = fdt_pack(fdt);
 
@@ -2954,28 +2948,6 @@ static void spapr_machine_init(MachineState *machine)
     if (smc->dr_lmb_enabled) {
         spapr_create_lmb_dr_connectors(spapr);
     }
-
-    filename = qemu_find_file(QEMU_FILE_TYPE_BIOS, "spapr-rtas.bin");
-    if (!filename) {
-        error_report("Could not find LPAR rtas '%s'", "spapr-rtas.bin");
-        exit(1);
-    }
-    spapr->rtas_size = get_image_size(filename);
-    if (spapr->rtas_size < 0) {
-        error_report("Could not get size of LPAR rtas '%s'", filename);
-        exit(1);
-    }
-    spapr->rtas_blob = g_malloc(spapr->rtas_size);
-    if (load_image_size(filename, spapr->rtas_blob, spapr->rtas_size) < 0) {
-        error_report("Could not load LPAR rtas '%s'", filename);
-        exit(1);
-    }
-    if (spapr->rtas_size > RTAS_MAX_SIZE) {
-        error_report("RTAS too big ! 0x%zx bytes (max is 0x%x)",
-                     (size_t)spapr->rtas_size, RTAS_MAX_SIZE);
-        exit(1);
-    }
-    g_free(filename);
 
     /* Set up RTAS event infrastructure */
     spapr_events_init(spapr);
