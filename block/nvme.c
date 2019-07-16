@@ -318,7 +318,7 @@ static bool nvme_process_completion(BDRVNVMeState *s, NVMeQueuePair *q)
     while (q->inflight) {
         int16_t cid;
         c = (NvmeCqe *)&q->cq.queue[q->cq.head * NVME_CQ_ENTRY_BYTES];
-        if (!c->cid || (le16_to_cpu(c->status) & 0x1) == q->cq_phase) {
+        if ((le16_to_cpu(c->status) & 0x1) == q->cq_phase) {
             break;
         }
         q->cq.head = (q->cq.head + 1) % NVME_QUEUE_SIZE;
@@ -342,10 +342,7 @@ static bool nvme_process_completion(BDRVNVMeState *s, NVMeQueuePair *q)
         qemu_mutex_unlock(&q->lock);
         req.cb(req.opaque, nvme_translate_error(c));
         qemu_mutex_lock(&q->lock);
-        c->cid = cpu_to_le16(0);
         q->inflight--;
-        /* Flip Phase Tag bit. */
-        c->status = cpu_to_le16(le16_to_cpu(c->status) ^ 0x1);
         progress = true;
     }
     if (progress) {
