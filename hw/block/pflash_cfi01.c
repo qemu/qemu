@@ -454,7 +454,7 @@ static void pflash_write(PFlashCFI01 *pfl, hwaddr offset,
         /* read mode */
         switch (cmd) {
         case 0x00: /* This model reset value for READ_ARRAY (not CFI) */
-            goto reset_flash;
+            goto mode_read_array;
         case 0x10: /* Single Byte Program */
         case 0x40: /* Single Byte Program */
             DPRINTF("%s: Single Byte Program\n", __func__);
@@ -477,7 +477,7 @@ static void pflash_write(PFlashCFI01 *pfl, hwaddr offset,
         case 0x50: /* Clear status bits */
             DPRINTF("%s: Clear status bits\n", __func__);
             pfl->status = 0x0;
-            goto reset_flash;
+            goto mode_read_array;
         case 0x60: /* Block (un)lock */
             DPRINTF("%s: Block unlock\n", __func__);
             break;
@@ -502,10 +502,10 @@ static void pflash_write(PFlashCFI01 *pfl, hwaddr offset,
             break;
         case 0xf0: /* Probe for AMD flash */
             DPRINTF("%s: Probe for AMD flash\n", __func__);
-            goto reset_flash;
-        case 0xff: /* Read array mode */
+            goto mode_read_array;
+        case 0xff: /* Read Array */
             DPRINTF("%s: Read array mode\n", __func__);
-            goto reset_flash;
+            goto mode_read_array;
         default:
             goto error_flash;
         }
@@ -531,8 +531,8 @@ static void pflash_write(PFlashCFI01 *pfl, hwaddr offset,
             if (cmd == 0xd0) { /* confirm */
                 pfl->wcycle = 0;
                 pfl->status |= 0x80;
-            } else if (cmd == 0xff) { /* read array mode */
-                goto reset_flash;
+            } else if (cmd == 0xff) { /* Read Array */
+                goto mode_read_array;
             } else
                 goto error_flash;
 
@@ -558,16 +558,16 @@ static void pflash_write(PFlashCFI01 *pfl, hwaddr offset,
             } else if (cmd == 0x01) {
                 pfl->wcycle = 0;
                 pfl->status |= 0x80;
-            } else if (cmd == 0xff) {
-                goto reset_flash;
+            } else if (cmd == 0xff) { /* Read Array */
+                goto mode_read_array;
             } else {
                 DPRINTF("%s: Unknown (un)locking command\n", __func__);
-                goto reset_flash;
+                goto mode_read_array;
             }
             break;
         case 0x98:
-            if (cmd == 0xff) {
-                goto reset_flash;
+            if (cmd == 0xff) { /* Read Array */
+                goto mode_read_array;
             } else {
                 DPRINTF("%s: leaving query mode\n", __func__);
             }
@@ -627,7 +627,7 @@ static void pflash_write(PFlashCFI01 *pfl, hwaddr offset,
                     " the data is already written to storage!\n"
                     "Flash device reset into READ mode.\n",
                     __func__);
-                goto reset_flash;
+                goto mode_read_array;
             }
             break;
         default:
@@ -637,7 +637,7 @@ static void pflash_write(PFlashCFI01 *pfl, hwaddr offset,
     default:
         /* Should never happen */
         DPRINTF("%s: invalid write state\n",  __func__);
-        goto reset_flash;
+        goto mode_read_array;
     }
     return;
 
@@ -646,7 +646,7 @@ static void pflash_write(PFlashCFI01 *pfl, hwaddr offset,
                   "(offset " TARGET_FMT_plx ", wcycle 0x%x cmd 0x%x value 0x%x)"
                   "\n", __func__, offset, pfl->wcycle, pfl->cmd, value);
 
- reset_flash:
+ mode_read_array:
     trace_pflash_reset();
     memory_region_rom_device_set_romd(&pfl->mem, true);
     pfl->wcycle = 0;
