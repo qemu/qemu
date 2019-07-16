@@ -51,6 +51,7 @@ config PC_ACPI
 config I440FX
     bool
     imply E1000_PCI
+    imply VMPORT
     select PC_PCI
     select PC_ACPI
     select ACPI_SMBUS
@@ -58,7 +59,6 @@ config I440FX
     select IDE_PIIX
     select DIMM
     select SMBIOS
-    select VMPORT
     select VMMOUSE
     select FW_CFG_DMA
 
@@ -77,6 +77,7 @@ config Q35
     imply VTD
     imply AMD_IOMMU
     imply E1000E_PCI_EXPRESS
+    imply VMPORT
     select PC_PCI
     select PC_ACPI
     select PCI_EXPRESS_Q35
@@ -84,7 +85,6 @@ config Q35
     select AHCI_ICH9
     select DIMM
     select SMBIOS
-    select VMPORT
     select VMMOUSE
     select FW_CFG_DMA
 

@@ -225,9 +225,9 @@ static inline unsigned exp_random(double mean)
 
 static int iscsi_translate_sense(struct scsi_sense *sense)
 {
-    return - scsi_sense_to_errno(sense->key,
-                                 (sense->ascq & 0xFF00) >> 8,
-                                 sense->ascq & 0xFF);
+    return scsi_sense_to_errno(sense->key,
+                               (sense->ascq & 0xFF00) >> 8,
+                               sense->ascq & 0xFF);
 }
 
 /* Called (via iscsi_service) with QemuMutex held.  */
@@ -244,13 +244,6 @@ iscsi_co_generic_cb(struct iscsi_context *iscsi, int status,
 
     if (status != SCSI_STATUS_GOOD) {
         if (iTask->retries++ < ISCSI_CMD_RETRIES) {
-            if (status == SCSI_STATUS_CHECK_CONDITION
-                && task->sense.key == SCSI_SENSE_UNIT_ATTENTION) {
-                error_report("iSCSI CheckCondition: %s",
-                             iscsi_get_error(iscsi));
-                iTask->do_retry = 1;
-                goto out;
-            }
             if (status == SCSI_STATUS_BUSY ||
                 status == SCSI_STATUS_TIMEOUT ||
                 status == SCSI_STATUS_TASK_SET_FULL) {
@@ -272,14 +265,20 @@ iscsi_co_generic_cb(struct iscsi_context *iscsi, int status,
                 timer_mod(&iTask->retry_timer,
                           qemu_clock_get_ms(QEMU_CLOCK_REALTIME) + retry_time);
                 iTask->do_retry = 1;
-                return;
+            }
+        } else if (status == SCSI_STATUS_CHECK_CONDITION) {
+            int error = iscsi_translate_sense(&task->sense);
+            if (error == EAGAIN) {
+                error_report("iSCSI CheckCondition: %s",
+                             iscsi_get_error(iscsi));
+                iTask->do_retry = 1;
+            } else {
+                iTask->err_code = -error;
+                iTask->err_str = g_strdup(iscsi_get_error(iscsi));
             }
         }
-        iTask->err_code = iscsi_translate_sense(&task->sense);
-        iTask->err_str = g_strdup(iscsi_get_error(iscsi));
     }
 
-out:
     if (iTask->co) {
         aio_bh_schedule_oneshot(iTask->iscsilun->aio_context,
                                  iscsi_co_generic_bh_cb, iTask);
@@ -974,7 +973,7 @@ iscsi_aio_ioctl_cb(struct iscsi_context *iscsi, int status,
     if (status < 0) {
         error_report("Failed to ioctl(SG_IO) to iSCSI lun. %s",
                      iscsi_get_error(iscsi));
-        acb->status = iscsi_translate_sense(&acb->task->sense);
+        acb->status = -iscsi_translate_sense(&acb->task->sense);
     }
 
     acb->ioh->driver_status = 0;

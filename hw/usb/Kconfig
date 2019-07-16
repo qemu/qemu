@@ -19,13 +19,16 @@ config USB_OHCI_PCI
 
 config USB_EHCI
     bool
-    default y if PCI_DEVICES
-    depends on PCI
     select USB
+
+config USB_EHCI_PCI
+    bool
+    default y if PCI_DEVICES
+    select USB_EHCI
 
 config USB_EHCI_SYSBUS
     bool
-    select USB
+    select USB_EHCI
 
 config USB_XHCI
     bool
@@ -37,7 +40,7 @@ config USB_XHCI_NEC
     bool
     default y if PCI_DEVICES
     depends on PCI
-    select USB
+    select USB_XHCI
 
 config USB_MUSB
     bool

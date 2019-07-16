@@ -336,14 +336,50 @@ int scsi_convert_sense(uint8_t *in_buf, int in_len,
     }
 }
 
+static bool scsi_sense_is_guest_recoverable(int key, int asc, int ascq)
+{
+    switch (key) {
+    case NO_SENSE:
+    case RECOVERED_ERROR:
+    case UNIT_ATTENTION:
+    case ABORTED_COMMAND:
+        return true;
+    case NOT_READY:
+    case ILLEGAL_REQUEST:
+    case DATA_PROTECT:
+        /* Parse ASCQ */
+        break;
+    default:
+        return false;
+    }
+
+    switch ((asc << 8) | ascq) {
+    case 0x1a00: /* PARAMETER LIST LENGTH ERROR */
+    case 0x2000: /* INVALID OPERATION CODE */
+    case 0x2400: /* INVALID FIELD IN CDB */
+    case 0x2500: /* LOGICAL UNIT NOT SUPPORTED */
+    case 0x2600: /* INVALID FIELD IN PARAMETER LIST */
+
+    case 0x2104: /* UNALIGNED WRITE COMMAND */
+    case 0x2105: /* WRITE BOUNDARY VIOLATION */
+    case 0x2106: /* ATTEMPT TO READ INVALID DATA */
+    case 0x550e: /* INSUFFICIENT ZONE RESOURCES */
+
+    case 0x0401: /* NOT READY, IN PROGRESS OF BECOMING READY */
+    case 0x0402: /* NOT READY, INITIALIZING COMMAND REQUIRED */
+        return true;
+    default:
+        return false;
+    }
+}
+
 int scsi_sense_to_errno(int key, int asc, int ascq)
 {
     switch (key) {
     case NO_SENSE:
     case RECOVERED_ERROR:
     case UNIT_ATTENTION:
-        /* These sense keys are not errors */
-        return 0;
+        return EAGAIN;
     case ABORTED_COMMAND: /* COMMAND ABORTED */
         return ECANCELED;
     case NOT_READY:
@@ -372,7 +408,7 @@ int scsi_sense_to_errno(int key, int asc, int ascq)
     case 0x2700: /* WRITE PROTECTED */
         return EACCES;
     case 0x0401: /* NOT READY, IN PROGRESS OF BECOMING READY */
-        return EAGAIN;
+        return EINPROGRESS;
     case 0x0402: /* NOT READY, INITIALIZING COMMAND REQUIRED */
         return ENOTCONN;
     default:
@@ -389,6 +425,17 @@ int scsi_sense_buf_to_errno(const uint8_t *in_buf, size_t in_len)
 
     sense = scsi_parse_sense_buf(in_buf, in_len);
     return scsi_sense_to_errno(sense.key, sense.asc, sense.ascq);
+}
+
+bool scsi_sense_buf_is_guest_recoverable(const uint8_t *in_buf, size_t in_len)
+{
+    SCSISense sense;
+    if (in_len < 1) {
+        return false;
+    }
+
+    sense = scsi_parse_sense_buf(in_buf, in_len);
+    return scsi_sense_is_guest_recoverable(sense.key, sense.asc, sense.ascq);
 }
 
 const char *scsi_command_name(uint8_t cmd)

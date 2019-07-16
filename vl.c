@@ -2890,6 +2890,8 @@ int main(int argc, char **argv, char **envp)
     char *dir, **dirs;
     BlockdevOptionsQueue bdo_queue = QSIMPLEQ_HEAD_INITIALIZER(bdo_queue);
 
+    os_set_line_buffering();
+
     error_init(argv[0]);
     module_call_init(MODULE_INIT_TRACE);
 
@@ -4245,8 +4247,6 @@ int main(int argc, char **argv, char **envp)
         /* fall back to the -kernel/-append */
         semihosting_arg_fallback(kernel_filename, kernel_cmdline);
     }
-
-    os_set_line_buffering();
 
     /* spice needs the timers to be initialized by this point */
     qemu_spice_init();

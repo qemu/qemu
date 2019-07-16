@@ -11,3 +11,4 @@ config MILKYMIST
     select PFLASH_CFI01
     select FRAMEBUFFER
     select SD
+    select USB_OHCI
