@@ -55,3 +55,6 @@
 [submodule "slirp"]
 	path = slirp
 	url = https://git.qemu.org/git/libslirp.git
+[submodule "roms/opensbi"]
+	path = roms/opensbi
+	url = 	https://git.qemu.org/git/opensbi.git

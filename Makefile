@@ -770,7 +770,10 @@ palcode-clipper \
 u-boot.e500 u-boot-sam460-20100605.bin \
 qemu_vga.ndrv \
 edk2-licenses.txt \
-hppa-firmware.img
+hppa-firmware.img \
+opensbi-riscv32-virt-fw_jump.bin \
+opensbi-riscv64-sifive_u-fw_jump.bin opensbi-riscv64-virt-fw_jump.bin
+
 
 DESCS=50-edk2-i386-secure.json 50-edk2-x86_64-secure.json \
 60-edk2-aarch64.json 60-edk2-arm.json 60-edk2-i386.json 60-edk2-x86_64.json
