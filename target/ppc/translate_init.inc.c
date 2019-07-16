@@ -9440,14 +9440,13 @@ static void fix_opcode_tables(opc_handler_t **ppc_opcodes)
 static void create_ppc_opcodes(PowerPCCPU *cpu, Error **errp)
 {
     PowerPCCPUClass *pcc = POWERPC_CPU_GET_CLASS(cpu);
-    CPUPPCState *env = &cpu->env;
     opcode_t *opc;
 
-    fill_new_table(env->opcodes, PPC_CPU_OPCODES_LEN);
+    fill_new_table(cpu->opcodes, PPC_CPU_OPCODES_LEN);
     for (opc = opcodes; opc < &opcodes[ARRAY_SIZE(opcodes)]; opc++) {
         if (((opc->handler.type & pcc->insns_flags) != 0) ||
             ((opc->handler.type2 & pcc->insns_flags2) != 0)) {
-            if (register_insn(env->opcodes, opc) < 0) {
+            if (register_insn(cpu->opcodes, opc) < 0) {
                 error_setg(errp, "ERROR initializing PowerPC instruction "
                            "0x%02x 0x%02x 0x%02x", opc->opc1, opc->opc2,
                            opc->opc3);
@@ -9455,7 +9454,7 @@ static void create_ppc_opcodes(PowerPCCPU *cpu, Error **errp)
             }
         }
     }
-    fix_opcode_tables(env->opcodes);
+    fix_opcode_tables(cpu->opcodes);
     fflush(stdout);
     fflush(stderr);
 }
@@ -10023,7 +10022,6 @@ static void ppc_cpu_unrealize(DeviceState *dev, Error **errp)
 {
     PowerPCCPU *cpu = POWERPC_CPU(dev);
     PowerPCCPUClass *pcc = POWERPC_CPU_GET_CLASS(cpu);
-    CPUPPCState *env = &cpu->env;
     Error *local_err = NULL;
     opc_handler_t **table, **table_2;
     int i, j, k;
@@ -10035,11 +10033,11 @@ static void ppc_cpu_unrealize(DeviceState *dev, Error **errp)
     }
 
     for (i = 0; i < PPC_CPU_OPCODES_LEN; i++) {
-        if (env->opcodes[i] == &invalid_handler) {
+        if (cpu->opcodes[i] == &invalid_handler) {
             continue;
         }
-        if (is_indirect_opcode(env->opcodes[i])) {
-            table = ind_table(env->opcodes[i]);
+        if (is_indirect_opcode(cpu->opcodes[i])) {
+            table = ind_table(cpu->opcodes[i]);
             for (j = 0; j < PPC_CPU_INDIRECT_OPCODES_LEN; j++) {
                 if (table[j] == &invalid_handler) {
                     continue;
@@ -10057,7 +10055,7 @@ static void ppc_cpu_unrealize(DeviceState *dev, Error **errp)
                                              ~PPC_INDIRECT));
                 }
             }
-            g_free((opc_handler_t *)((uintptr_t)env->opcodes[i] &
+            g_free((opc_handler_t *)((uintptr_t)cpu->opcodes[i] &
                 ~PPC_INDIRECT));
         }
     }
