@@ -1963,6 +1963,7 @@ static target_ulong h_update_dt(PowerPCCPU *cpu, SpaprMachineState *spapr,
 
 static spapr_hcall_fn papr_hypercall_table[(MAX_HCALL_OPCODE / 4) + 1];
 static spapr_hcall_fn kvmppc_hypercall_table[KVMPPC_HCALL_MAX - KVMPPC_HCALL_BASE + 1];
+static spapr_hcall_fn svm_hypercall_table[(SVM_HCALL_MAX - SVM_HCALL_BASE) / 4 + 1];
 
 void spapr_register_hypercall(target_ulong opcode, spapr_hcall_fn fn)
 {
@@ -1972,6 +1973,11 @@ void spapr_register_hypercall(target_ulong opcode, spapr_hcall_fn fn)
         assert((opcode & 0x3) == 0);
 
         slot = &papr_hypercall_table[opcode / 4];
+    } else if (opcode >= SVM_HCALL_BASE && opcode <= SVM_HCALL_MAX) {
+        /* we only have SVM-related hcall numbers assigned in multiples of 4 */
+        assert((opcode & 0x3) == 0);
+
+        slot = &svm_hypercall_table[(opcode - SVM_HCALL_BASE) / 4];
     } else {
         assert((opcode >= KVMPPC_HCALL_BASE) && (opcode <= KVMPPC_HCALL_MAX));
 
@@ -1990,6 +1996,13 @@ target_ulong spapr_hypercall(PowerPCCPU *cpu, target_ulong opcode,
     if ((opcode <= MAX_HCALL_OPCODE)
         && ((opcode & 0x3) == 0)) {
         spapr_hcall_fn fn = papr_hypercall_table[opcode / 4];
+
+        if (fn) {
+            return fn(cpu, spapr, opcode, args);
+        }
+    } else if ((opcode >= SVM_HCALL_BASE) &&
+               (opcode <= SVM_HCALL_MAX)) {
+        spapr_hcall_fn fn = svm_hypercall_table[(opcode - SVM_HCALL_BASE) / 4];
 
         if (fn) {
             return fn(cpu, spapr, opcode, args);

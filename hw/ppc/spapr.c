@@ -79,6 +79,7 @@
 #include "qemu/cutils.h"
 #include "hw/ppc/spapr_cpu_core.h"
 #include "hw/mem/memory-device.h"
+#include "hw/ppc/spapr_tpm_proxy.h"
 
 #include <libfdt.h>
 
@@ -4036,6 +4037,29 @@ static void spapr_phb_unplug_request(HotplugHandler *hotplug_dev,
     }
 }
 
+static void spapr_tpm_proxy_plug(HotplugHandler *hotplug_dev, DeviceState *dev,
+                                 Error **errp)
+{
+    SpaprMachineState *spapr = SPAPR_MACHINE(OBJECT(hotplug_dev));
+    SpaprTpmProxy *tpm_proxy = SPAPR_TPM_PROXY(dev);
+
+    if (spapr->tpm_proxy != NULL) {
+        error_setg(errp, "Only one TPM proxy can be specified for this machine");
+        return;
+    }
+
+    spapr->tpm_proxy = tpm_proxy;
+}
+
+static void spapr_tpm_proxy_unplug(HotplugHandler *hotplug_dev, DeviceState *dev)
+{
+    SpaprMachineState *spapr = SPAPR_MACHINE(OBJECT(hotplug_dev));
+
+    object_property_set_bool(OBJECT(dev), false, "realized", NULL);
+    object_unparent(OBJECT(dev));
+    spapr->tpm_proxy = NULL;
+}
+
 static void spapr_machine_device_plug(HotplugHandler *hotplug_dev,
                                       DeviceState *dev, Error **errp)
 {
@@ -4045,6 +4069,8 @@ static void spapr_machine_device_plug(HotplugHandler *hotplug_dev,
         spapr_core_plug(hotplug_dev, dev, errp);
     } else if (object_dynamic_cast(OBJECT(dev), TYPE_SPAPR_PCI_HOST_BRIDGE)) {
         spapr_phb_plug(hotplug_dev, dev, errp);
+    } else if (object_dynamic_cast(OBJECT(dev), TYPE_SPAPR_TPM_PROXY)) {
+        spapr_tpm_proxy_plug(hotplug_dev, dev, errp);
     }
 }
 
@@ -4057,6 +4083,8 @@ static void spapr_machine_device_unplug(HotplugHandler *hotplug_dev,
         spapr_core_unplug(hotplug_dev, dev);
     } else if (object_dynamic_cast(OBJECT(dev), TYPE_SPAPR_PCI_HOST_BRIDGE)) {
         spapr_phb_unplug(hotplug_dev, dev);
+    } else if (object_dynamic_cast(OBJECT(dev), TYPE_SPAPR_TPM_PROXY)) {
+        spapr_tpm_proxy_unplug(hotplug_dev, dev);
     }
 }
 
@@ -4091,6 +4119,8 @@ static void spapr_machine_device_unplug_request(HotplugHandler *hotplug_dev,
             return;
         }
         spapr_phb_unplug_request(hotplug_dev, dev, errp);
+    } else if (object_dynamic_cast(OBJECT(dev), TYPE_SPAPR_TPM_PROXY)) {
+        spapr_tpm_proxy_unplug(hotplug_dev, dev);
     }
 }
 
@@ -4111,7 +4141,8 @@ static HotplugHandler *spapr_get_hotplug_handler(MachineState *machine,
 {
     if (object_dynamic_cast(OBJECT(dev), TYPE_PC_DIMM) ||
         object_dynamic_cast(OBJECT(dev), TYPE_SPAPR_CPU_CORE) ||
-        object_dynamic_cast(OBJECT(dev), TYPE_SPAPR_PCI_HOST_BRIDGE)) {
+        object_dynamic_cast(OBJECT(dev), TYPE_SPAPR_PCI_HOST_BRIDGE) ||
+        object_dynamic_cast(OBJECT(dev), TYPE_SPAPR_TPM_PROXY)) {
         return HOTPLUG_HANDLER(machine);
     }
     if (object_dynamic_cast(OBJECT(dev), TYPE_PCI_DEVICE)) {

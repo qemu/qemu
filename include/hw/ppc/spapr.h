@@ -10,6 +10,7 @@
 #include "hw/ppc/spapr_irq.h"
 #include "hw/ppc/spapr_xive.h"  /* For SpaprXive */
 #include "hw/ppc/xics.h"        /* For ICSState */
+#include "hw/ppc/spapr_tpm_proxy.h"
 
 struct SpaprVioBus;
 struct SpaprPhbState;
@@ -203,6 +204,7 @@ struct SpaprMachineState {
     SpaprCapabilities def, eff, mig;
 
     unsigned gpu_numa_id;
+    SpaprTpmProxy *tpm_proxy;
 };
 
 #define H_SUCCESS         0
@@ -507,6 +509,15 @@ struct SpaprMachineState {
 #define KVMPPC_H_CAS            (KVMPPC_HCALL_BASE + 0x2)
 #define KVMPPC_H_UPDATE_DT      (KVMPPC_HCALL_BASE + 0x3)
 #define KVMPPC_HCALL_MAX        KVMPPC_H_UPDATE_DT
+
+/*
+ * The hcall range 0xEF00 to 0xEF80 is reserved for use in facilitating
+ * Secure VM mode via an Ultravisor / Protected Execution Facility
+ */
+#define SVM_HCALL_BASE              0xEF00
+#define SVM_H_TPM_COMM              0xEF10
+#define SVM_HCALL_MAX               SVM_H_TPM_COMM
+
 
 typedef struct SpaprDeviceTreeUpdateHeader {
     uint32_t version_id;
