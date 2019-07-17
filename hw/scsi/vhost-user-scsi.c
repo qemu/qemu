@@ -125,7 +125,7 @@ static void vhost_user_scsi_unrealize(DeviceState *dev, Error **errp)
     vhost_dev_cleanup(&vsc->dev);
     g_free(vqs);
 
-    virtio_scsi_common_unrealize(dev, errp);
+    virtio_scsi_common_unrealize(dev);
     vhost_user_cleanup(&s->vhost_user);
 }
 

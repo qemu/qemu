@@ -262,7 +262,7 @@ static void vhost_scsi_unrealize(DeviceState *dev, Error **errp)
     vhost_dev_cleanup(&vsc->dev);
     g_free(vqs);
 
-    virtio_scsi_common_unrealize(dev, errp);
+    virtio_scsi_common_unrealize(dev);
 }
 
 static Property vhost_scsi_properties[] = {
