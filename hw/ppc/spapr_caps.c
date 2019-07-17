@@ -793,7 +793,7 @@ void spapr_caps_add_properties(SpaprMachineClass *smc, Error **errp)
 
     for (i = 0; i < ARRAY_SIZE(capability_table); i++) {
         SpaprCapabilityInfo *cap = &capability_table[i];
-        const char *name = g_strdup_printf("cap-%s", cap->name);
+        char *name = g_strdup_printf("cap-%s", cap->name);
         char *desc;
 
         object_class_property_add(klass, name, cap->type,
@@ -801,11 +801,13 @@ void spapr_caps_add_properties(SpaprMachineClass *smc, Error **errp)
                                   NULL, cap, &local_err);
         if (local_err) {
             error_propagate(errp, local_err);
+            g_free(name);
             return;
         }
 
         desc = g_strdup_printf("%s", cap->description);
         object_class_property_set_description(klass, name, desc, &local_err);
+        g_free(name);
         g_free(desc);
         if (local_err) {
             error_propagate(errp, local_err);
