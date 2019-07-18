@@ -1549,6 +1549,22 @@ static void xive_router_end_notify(XiveRouter *xrtr, uint8_t end_blk,
          * On HW, follows a "Broadcast Backlog" to IVPEs
          */
     }
+
+    /*
+     * If activated, escalate notification using the ESe PQ bits and
+     * the EAS in w4-5
+     */
+    if (!xive_end_is_escalate(&end)) {
+        return;
+    }
+
+    /*
+     * The END trigger becomes an Escalation trigger
+     */
+    xive_router_end_notify(xrtr,
+                           xive_get_field32(END_W4_ESC_END_BLOCK, end.w4),
+                           xive_get_field32(END_W4_ESC_END_INDEX, end.w4),
+                           xive_get_field32(END_W5_ESC_END_DATA,  end.w5));
 }
 
 void xive_router_notify(XiveNotifier *xn, uint32_t lisn)
