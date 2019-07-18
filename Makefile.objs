@@ -98,5 +98,4 @@ version-obj-$(CONFIG_WIN32) += $(BUILD_DIR)/version.o
 # FIXME: a few definitions from qapi/qapi-types.o and
 # qapi/qapi-visit.o are needed by libqemuutil.a.  These should be
 # extracted into a QAPI schema module, or perhaps a separate schema.
-qga-obj-y = qga/
 qga-vss-dll-obj-y = qga/

@@ -129,7 +129,7 @@ ifndef CONFIG_TSAN
 # https://github.com/google/sanitizers/issues/1116
 check-unit-$(CONFIG_SOFTMMU) += tests/test-char$(EXESUF)
 check-unit-$(CONFIG_SOFTMMU) += tests/test-qdev-global-props$(EXESUF)
-ifneq (,$(findstring qemu-ga,$(TOOLS)))
+ifeq ($(CONFIG_GUEST_AGENT),y)
 check-unit-$(call land,$(CONFIG_LINUX),$(CONFIG_VIRTIO_SERIAL)) += tests/test-qga$(EXESUF)
 endif
 endif
@@ -603,7 +603,7 @@ tests/migration/initrd-stress.img: tests/migration/stress$(EXESUF)
 
 include $(SRC_PATH)/tests/qtest/Makefile.include
 
-tests/test-qga$(EXESUF): qemu-ga$(EXESUF)
+tests/test-qga$(EXESUF): qga/qemu-ga$(EXESUF)
 tests/test-qga$(EXESUF): tests/test-qga.o $(qtest-obj-y)
 tests/vhost-user-bridge$(EXESUF): tests/vhost-user-bridge.o $(test-util-obj-y) libvhost-user.a
 tests/qemu-iotests/socket_scm_helper$(EXESUF): tests/qemu-iotests/socket_scm_helper.o
