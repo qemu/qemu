@@ -84,8 +84,7 @@ endif
 
 include $(SRC_PATH)/rules.mak
 
-# notempy and lor are defined in rules.mak
-CONFIG_TOOLS := $(call notempty,$(TOOLS))
+# lor is defined in rules.mak
 CONFIG_BLOCK := $(call lor,$(CONFIG_SOFTMMU),$(CONFIG_TOOLS))
 
 # Create QEMU_PKGVERSION and FULL_VERSION strings
@@ -809,7 +808,7 @@ ifdef CONFIG_POSIX
 	$(INSTALL_DATA) docs/interop/qemu-qmp-ref.7 "$(DESTDIR)$(mandir)/man7"
 	$(INSTALL_DATA) docs/qemu-block-drivers.7 "$(DESTDIR)$(mandir)/man7"
 	$(INSTALL_DATA) docs/qemu-cpu-models.7 "$(DESTDIR)$(mandir)/man7"
-ifneq ($(TOOLS),)
+ifeq ($(CONFIG_TOOLS),y)
 	$(INSTALL_DATA) qemu-img.1 "$(DESTDIR)$(mandir)/man1"
 	$(INSTALL_DIR) "$(DESTDIR)$(mandir)/man8"
 	$(INSTALL_DATA) qemu-nbd.8 "$(DESTDIR)$(mandir)/man8"
