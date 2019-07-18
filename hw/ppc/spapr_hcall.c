@@ -1070,6 +1070,72 @@ static target_ulong h_cede(PowerPCCPU *cpu, SpaprMachineState *spapr,
     return H_SUCCESS;
 }
 
+static target_ulong h_confer(PowerPCCPU *cpu, SpaprMachineState *spapr,
+                           target_ulong opcode, target_ulong *args)
+{
+    target_long target = args[0];
+    uint32_t dispatch = args[1];
+    CPUState *cs = CPU(cpu);
+    SpaprCpuState *spapr_cpu;
+
+    /*
+     * -1 means confer to all other CPUs without dispatch counter check,
+     *  otherwise it's a targeted confer.
+     */
+    if (target != -1) {
+        PowerPCCPU *target_cpu = spapr_find_cpu(target);
+        uint32_t target_dispatch;
+
+        if (!target_cpu) {
+            return H_PARAMETER;
+        }
+
+        spapr_cpu = spapr_cpu_state(target_cpu);
+
+        /*
+         * target == self is a special case, we wait until prodded, without
+         * dispatch counter check.
+         */
+        if (cpu == target_cpu) {
+            if (spapr_cpu->prod) {
+                spapr_cpu->prod = false;
+
+                return H_SUCCESS;
+            }
+
+            cs->halted = 1;
+            cs->exception_index = EXCP_HALTED;
+            cs->exit_request = 1;
+
+            return H_SUCCESS;
+        }
+
+        if (!spapr_cpu->vpa_addr || ((dispatch & 1) == 0)) {
+            return H_SUCCESS;
+        }
+
+        target_dispatch = ldl_be_phys(cs->as,
+                                  spapr_cpu->vpa_addr + VPA_DISPATCH_COUNTER);
+        if (target_dispatch != dispatch) {
+            return H_SUCCESS;
+        }
+
+        /*
+         * The targeted confer does not do anything special beyond yielding
+         * the current vCPU, but even this should be better than nothing.
+         * At least for single-threaded tcg, it gives the target a chance to
+         * run before we run again. Multi-threaded tcg does not really do
+         * anything with EXCP_YIELD yet.
+         */
+    }
+
+    cs->exception_index = EXCP_YIELD;
+    cs->exit_request = 1;
+    cpu_loop_exit(cs);
+
+    return H_SUCCESS;
+}
+
 static target_ulong h_prod(PowerPCCPU *cpu, SpaprMachineState *spapr,
                            target_ulong opcode, target_ulong *args)
 {
@@ -1915,6 +1981,7 @@ static void hypercall_register_types(void)
     /* hcall-splpar */
     spapr_register_hypercall(H_REGISTER_VPA, h_register_vpa);
     spapr_register_hypercall(H_CEDE, h_cede);
+    spapr_register_hypercall(H_CONFER, h_confer);
     spapr_register_hypercall(H_PROD, h_prod);
 
     spapr_register_hypercall(H_SIGNAL_SYS_RESET, h_signal_sys_reset);
