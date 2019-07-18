@@ -306,6 +306,7 @@ void audio_pcm_init_info (struct audio_pcm_info *info, struct audsettings *as)
 
     case AUDIO_FORMAT_S16:
         sign = 1;
+        /* fall through */
     case AUDIO_FORMAT_U16:
         bits = 16;
         shift = 1;
@@ -313,6 +314,7 @@ void audio_pcm_init_info (struct audio_pcm_info *info, struct audsettings *as)
 
     case AUDIO_FORMAT_S32:
         sign = 1;
+        /* fall through */
     case AUDIO_FORMAT_U32:
         bits = 32;
         shift = 2;
