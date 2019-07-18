@@ -146,7 +146,6 @@ static void spapr_xive_end_pic_print_info(SpaprXive *xive, XiveEND *end,
                    priority, qindex, qentries, qaddr_base, qgen);
 
     xive_end_queue_pic_print_info(end, 6, mon);
-    monitor_printf(mon, "]");
 }
 
 void spapr_xive_pic_print_info(SpaprXive *xive, Monitor *mon)
