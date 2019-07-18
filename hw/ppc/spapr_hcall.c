@@ -1070,6 +1070,62 @@ static target_ulong h_cede(PowerPCCPU *cpu, SpaprMachineState *spapr,
     return H_SUCCESS;
 }
 
+/*
+ * Confer to self, aka join. Cede could use the same pattern as well, if
+ * EXCP_HLT can be changed to ECXP_HALTED.
+ */
+static target_ulong h_confer_self(PowerPCCPU *cpu)
+{
+    CPUState *cs = CPU(cpu);
+    SpaprCpuState *spapr_cpu = spapr_cpu_state(cpu);
+
+    if (spapr_cpu->prod) {
+        spapr_cpu->prod = false;
+        return H_SUCCESS;
+    }
+    cs->halted = 1;
+    cs->exception_index = EXCP_HALTED;
+    cs->exit_request = 1;
+
+    return H_SUCCESS;
+}
+
+static target_ulong h_join(PowerPCCPU *cpu, SpaprMachineState *spapr,
+                           target_ulong opcode, target_ulong *args)
+{
+    CPUPPCState *env = &cpu->env;
+    CPUState *cs;
+    bool last_unjoined = true;
+
+    if (env->msr & (1ULL << MSR_EE)) {
+        return H_BAD_MODE;
+    }
+
+    /*
+     * Must not join the last CPU running. Interestingly, no such restriction
+     * for H_CONFER-to-self, but that is probably not intended to be used
+     * when H_JOIN is available.
+     */
+    CPU_FOREACH(cs) {
+        PowerPCCPU *c = POWERPC_CPU(cs);
+        CPUPPCState *e = &c->env;
+        if (c == cpu) {
+            continue;
+        }
+
+        /* Don't have a way to indicate joined, so use halted && MSR[EE]=0 */
+        if (!cs->halted || (e->msr & (1ULL << MSR_EE))) {
+            last_unjoined = false;
+            break;
+        }
+    }
+    if (last_unjoined) {
+        return H_CONTINUE;
+    }
+
+    return h_confer_self(cpu);
+}
+
 static target_ulong h_confer(PowerPCCPU *cpu, SpaprMachineState *spapr,
                            target_ulong opcode, target_ulong *args)
 {
@@ -1090,26 +1146,15 @@ static target_ulong h_confer(PowerPCCPU *cpu, SpaprMachineState *spapr,
             return H_PARAMETER;
         }
 
-        spapr_cpu = spapr_cpu_state(target_cpu);
-
         /*
          * target == self is a special case, we wait until prodded, without
          * dispatch counter check.
          */
         if (cpu == target_cpu) {
-            if (spapr_cpu->prod) {
-                spapr_cpu->prod = false;
-
-                return H_SUCCESS;
-            }
-
-            cs->halted = 1;
-            cs->exception_index = EXCP_HALTED;
-            cs->exit_request = 1;
-
-            return H_SUCCESS;
+            return h_confer_self(cpu);
         }
 
+        spapr_cpu = spapr_cpu_state(target_cpu);
         if (!spapr_cpu->vpa_addr || ((dispatch & 1) == 0)) {
             return H_SUCCESS;
         }
@@ -1983,6 +2028,9 @@ static void hypercall_register_types(void)
     spapr_register_hypercall(H_CEDE, h_cede);
     spapr_register_hypercall(H_CONFER, h_confer);
     spapr_register_hypercall(H_PROD, h_prod);
+
+    /* hcall-join */
+    spapr_register_hypercall(H_JOIN, h_join);
 
     spapr_register_hypercall(H_SIGNAL_SYS_RESET, h_signal_sys_reset);
 
