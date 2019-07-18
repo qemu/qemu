@@ -4312,6 +4312,7 @@ static void spapr_cpu_exec_enter(PPCVirtualHypervisor *vhyp, PowerPCCPU *cpu)
 
     /* These are only called by TCG, KVM maintains dispatch state */
 
+    spapr_cpu->prod = false;
     if (spapr_cpu->vpa_addr) {
         CPUState *cs = CPU(cpu);
         uint32_t dispatch;
