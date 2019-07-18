@@ -1411,46 +1411,22 @@ static bool xive_presenter_match(XiveRouter *xrtr, uint8_t format,
  *
  * The parameters represent what is sent on the PowerBus
  */
-static void xive_presenter_notify(XiveRouter *xrtr, uint8_t format,
+static bool xive_presenter_notify(XiveRouter *xrtr, uint8_t format,
                                   uint8_t nvt_blk, uint32_t nvt_idx,
                                   bool cam_ignore, uint8_t priority,
                                   uint32_t logic_serv)
 {
-    XiveNVT nvt;
     XiveTCTXMatch match = { .tctx = NULL, .ring = 0 };
     bool found;
-
-    /* NVT cache lookup */
-    if (xive_router_get_nvt(xrtr, nvt_blk, nvt_idx, &nvt)) {
-        qemu_log_mask(LOG_GUEST_ERROR, "XIVE: no NVT %x/%x\n",
-                      nvt_blk, nvt_idx);
-        return;
-    }
-
-    if (!xive_nvt_is_valid(&nvt)) {
-        qemu_log_mask(LOG_GUEST_ERROR, "XIVE: NVT %x/%x is invalid\n",
-                      nvt_blk, nvt_idx);
-        return;
-    }
 
     found = xive_presenter_match(xrtr, format, nvt_blk, nvt_idx, cam_ignore,
                                  priority, logic_serv, &match);
     if (found) {
         ipb_update(&match.tctx->regs[match.ring], priority);
         xive_tctx_notify(match.tctx, match.ring);
-        return;
     }
 
-    /* Record the IPB in the associated NVT structure */
-    ipb_update((uint8_t *) &nvt.w4, priority);
-    xive_router_write_nvt(xrtr, nvt_blk, nvt_idx, &nvt, 4);
-
-    /*
-     * If no matching NVT is dispatched on a HW thread :
-     * - update the NVT structure if backlog is activated
-     * - escalate (ESe PQ bits and EAS in w4-5) if escalation is
-     *   activated
-     */
+    return found;
 }
 
 /*
@@ -1464,6 +1440,10 @@ static void xive_router_end_notify(XiveRouter *xrtr, uint8_t end_blk,
     XiveEND end;
     uint8_t priority;
     uint8_t format;
+    uint8_t nvt_blk;
+    uint32_t nvt_idx;
+    XiveNVT nvt;
+    bool found;
 
     /* END cache lookup */
     if (xive_router_get_end(xrtr, end_blk, end_idx, &end)) {
@@ -1522,14 +1502,53 @@ static void xive_router_end_notify(XiveRouter *xrtr, uint8_t end_blk,
     /*
      * Follows IVPE notification
      */
-    xive_presenter_notify(xrtr, format,
-                          xive_get_field32(END_W6_NVT_BLOCK, end.w6),
-                          xive_get_field32(END_W6_NVT_INDEX, end.w6),
+    nvt_blk = xive_get_field32(END_W6_NVT_BLOCK, end.w6);
+    nvt_idx = xive_get_field32(END_W6_NVT_INDEX, end.w6);
+
+    /* NVT cache lookup */
+    if (xive_router_get_nvt(xrtr, nvt_blk, nvt_idx, &nvt)) {
+        qemu_log_mask(LOG_GUEST_ERROR, "XIVE: no NVT %x/%x\n",
+                      nvt_blk, nvt_idx);
+        return;
+    }
+
+    if (!xive_nvt_is_valid(&nvt)) {
+        qemu_log_mask(LOG_GUEST_ERROR, "XIVE: NVT %x/%x is invalid\n",
+                      nvt_blk, nvt_idx);
+        return;
+    }
+
+    found = xive_presenter_notify(xrtr, format, nvt_blk, nvt_idx,
                           xive_get_field32(END_W7_F0_IGNORE, end.w7),
                           priority,
                           xive_get_field32(END_W7_F1_LOG_SERVER_ID, end.w7));
 
     /* TODO: Auto EOI. */
+
+    if (found) {
+        return;
+    }
+
+    /*
+     * If no matching NVT is dispatched on a HW thread :
+     * - specific VP: update the NVT structure if backlog is activated
+     * - logical server : forward request to IVPE (not supported)
+     */
+    if (xive_end_is_backlog(&end)) {
+        if (format == 1) {
+            qemu_log_mask(LOG_GUEST_ERROR,
+                          "XIVE: END %x/%x invalid config: F1 & backlog\n",
+                          end_blk, end_idx);
+            return;
+        }
+        /* Record the IPB in the associated NVT structure */
+        ipb_update((uint8_t *) &nvt.w4, priority);
+        xive_router_write_nvt(xrtr, nvt_blk, nvt_idx, &nvt, 4);
+
+        /*
+         * On HW, follows a "Broadcast Backlog" to IVPEs
+         */
+    }
 }
 
 void xive_router_notify(XiveNotifier *xn, uint32_t lisn)
