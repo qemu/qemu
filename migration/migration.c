@@ -3103,8 +3103,7 @@ static MigIterateState migration_iteration_run(MigrationState *s)
 
     if (pending_size && pending_size >= s->threshold_size) {
         /* Still a significant amount to transfer */
-        if (migrate_postcopy() && !in_postcopy &&
-            pend_pre <= s->threshold_size &&
+        if (!in_postcopy && pend_pre <= s->threshold_size &&
             atomic_read(&s->start_postcopy)) {
             if (postcopy_start(s)) {
                 error_report("%s: postcopy failed to start", __func__);
