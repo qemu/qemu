@@ -1430,6 +1430,27 @@ static bool xive_presenter_notify(XiveRouter *xrtr, uint8_t format,
 }
 
 /*
+ * Notification using the END ESe/ESn bit (Event State Buffer for
+ * escalation and notification). Profide futher coalescing in the
+ * Router.
+ */
+static bool xive_router_end_es_notify(XiveRouter *xrtr, uint8_t end_blk,
+                                      uint32_t end_idx, XiveEND *end,
+                                      uint32_t end_esmask)
+{
+    uint8_t pq = xive_get_field32(end_esmask, end->w1);
+    bool notify = xive_esb_trigger(&pq);
+
+    if (pq != xive_get_field32(end_esmask, end->w1)) {
+        end->w1 = xive_set_field32(end_esmask, end->w1, pq);
+        xive_router_write_end(xrtr, end_blk, end_idx, end, 1);
+    }
+
+    /* ESe/n[Q]=1 : end of notification */
+    return notify;
+}
+
+/*
  * An END trigger can come from an event trigger (IPI or HW) or from
  * another chip. We don't model the PowerBus but the END trigger
  * message has the same parameters than in the function below.
@@ -1485,16 +1506,9 @@ static void xive_router_end_notify(XiveRouter *xrtr, uint8_t end_blk,
      * even futher coalescing in the Router
      */
     if (!xive_end_is_notify(&end)) {
-        uint8_t pq = xive_get_field32(END_W1_ESn, end.w1);
-        bool notify = xive_esb_trigger(&pq);
-
-        if (pq != xive_get_field32(END_W1_ESn, end.w1)) {
-            end.w1 = xive_set_field32(END_W1_ESn, end.w1, pq);
-            xive_router_write_end(xrtr, end_blk, end_idx, &end, 1);
-        }
-
         /* ESn[Q]=1 : end of notification */
-        if (!notify) {
+        if (!xive_router_end_es_notify(xrtr, end_blk, end_idx,
+                                       &end, END_W1_ESn)) {
             return;
         }
     }
@@ -1556,6 +1570,18 @@ static void xive_router_end_notify(XiveRouter *xrtr, uint8_t end_blk,
      */
     if (!xive_end_is_escalate(&end)) {
         return;
+    }
+
+    /*
+     * Check the END ESe (Event State Buffer for escalation) for even
+     * futher coalescing in the Router
+     */
+    if (!xive_end_is_uncond_escalation(&end)) {
+        /* ESe[Q]=1 : end of notification */
+        if (!xive_router_end_es_notify(xrtr, end_blk, end_idx,
+                                       &end, END_W1_ESe)) {
+            return;
+        }
     }
 
     /*
