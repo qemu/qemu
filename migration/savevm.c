@@ -2437,7 +2437,7 @@ retry:
         case QEMU_VM_COMMAND:
             ret = loadvm_process_command(f);
             trace_qemu_loadvm_state_section_command(ret);
-            if ((ret < 0) || (ret & LOADVM_QUIT)) {
+            if ((ret < 0) || (ret == LOADVM_QUIT)) {
                 goto out;
             }
             break;
