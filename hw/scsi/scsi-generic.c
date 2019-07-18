@@ -254,24 +254,28 @@ static void scsi_read_complete(void * opaque, int ret)
 
     r->len = -1;
 
-    /*
-     * Check if this is a VPD Block Limits request that
-     * resulted in sense error but would need emulation.
-     * In this case, emulate a valid VPD response.
-     */
-    if (s->needs_vpd_bl_emulation && ret == 0 &&
-        (r->io_header.driver_status & SG_ERR_DRIVER_SENSE) &&
-        r->req.cmd.buf[0] == INQUIRY &&
-        (r->req.cmd.buf[1] & 0x01) &&
-        r->req.cmd.buf[2] == 0xb0) {
+    if (r->io_header.driver_status & SG_ERR_DRIVER_SENSE) {
         SCSISense sense =
             scsi_parse_sense_buf(r->req.sense, r->io_header.sb_len_wr);
-        if (sense.key == ILLEGAL_REQUEST) {
+
+        /*
+         * Check if this is a VPD Block Limits request that
+         * resulted in sense error but would need emulation.
+         * In this case, emulate a valid VPD response.
+         */
+        if (sense.key == ILLEGAL_REQUEST &&
+            s->needs_vpd_bl_emulation &&
+            r->req.cmd.buf[0] == INQUIRY &&
+            (r->req.cmd.buf[1] & 0x01) &&
+            r->req.cmd.buf[2] == 0xb0) {
             len = scsi_generic_emulate_block_limits(r, s);
             /*
-             * No need to let scsi_read_complete go on and handle an
+             * It's okay to jup to req_complete: no need to
+             * let scsi_handle_inquiry_reply handle an
              * INQUIRY VPD BL request we created manually.
              */
+        }
+        if (sense.key) {
             goto req_complete;
         }
     }
