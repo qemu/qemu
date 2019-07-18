@@ -225,6 +225,8 @@ static wint_t console_getch(enum maybe_keycode *maybe_keycode)
     case ERR:
         ret = -1;
         break;
+    default:
+        abort();
     }
     return ret;
 }
