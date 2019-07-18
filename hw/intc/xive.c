@@ -1486,6 +1486,13 @@ static void xive_router_end_notify(XiveRouter *xrtr, uint8_t end_blk,
     }
 
     /*
+     * When the END is silent, we skip the notification part.
+     */
+    if (xive_end_is_silent_escalation(&end)) {
+        goto do_escalation;
+    }
+
+    /*
      * The W7 format depends on the F bit in W6. It defines the type
      * of the notification :
      *
@@ -1564,6 +1571,7 @@ static void xive_router_end_notify(XiveRouter *xrtr, uint8_t end_blk,
          */
     }
 
+do_escalation:
     /*
      * If activated, escalate notification using the ESe PQ bits and
      * the EAS in w4-5
