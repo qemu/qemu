@@ -911,10 +911,11 @@ static bool bdrv_child_cb_drained_poll(BdrvChild *child)
     return bdrv_drain_poll(bs, false, NULL, false);
 }
 
-static void bdrv_child_cb_drained_end(BdrvChild *child)
+static void bdrv_child_cb_drained_end(BdrvChild *child,
+                                      int *drained_end_counter)
 {
     BlockDriverState *bs = child->opaque;
-    bdrv_drained_end(bs);
+    bdrv_drained_end_no_poll(bs, drained_end_counter);
 }
 
 static void bdrv_child_cb_attach(BdrvChild *child)
@@ -5923,9 +5924,11 @@ static void bdrv_attach_aio_context(BlockDriverState *bs,
 void bdrv_set_aio_context_ignore(BlockDriverState *bs,
                                  AioContext *new_context, GSList **ignore)
 {
+    AioContext *old_context = bdrv_get_aio_context(bs);
+    AioContext *current_context = qemu_get_current_aio_context();
     BdrvChild *child;
 
-    if (bdrv_get_aio_context(bs) == new_context) {
+    if (old_context == new_context) {
         return;
     }
 
@@ -5949,13 +5952,31 @@ void bdrv_set_aio_context_ignore(BlockDriverState *bs,
 
     bdrv_detach_aio_context(bs);
 
-    /* This function executes in the old AioContext so acquire the new one in
-     * case it runs in a different thread.
-     */
-    aio_context_acquire(new_context);
+    /* Acquire the new context, if necessary */
+    if (current_context != new_context) {
+        aio_context_acquire(new_context);
+    }
+
     bdrv_attach_aio_context(bs, new_context);
+
+    /*
+     * If this function was recursively called from
+     * bdrv_set_aio_context_ignore(), there may be nodes in the
+     * subtree that have not yet been moved to the new AioContext.
+     * Release the old one so bdrv_drained_end() can poll them.
+     */
+    if (current_context != old_context) {
+        aio_context_release(old_context);
+    }
+
     bdrv_drained_end(bs);
-    aio_context_release(new_context);
+
+    if (current_context != old_context) {
+        aio_context_acquire(old_context);
+    }
+    if (current_context != new_context) {
+        aio_context_release(new_context);
+    }
 }
 
 static bool bdrv_parent_can_set_aio_context(BdrvChild *c, AioContext *ctx,

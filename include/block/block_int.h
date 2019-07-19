@@ -664,11 +664,15 @@ struct BdrvChildRole {
      * These functions must not change the graph (and therefore also must not
      * call aio_poll(), which could change the graph indirectly).
      *
+     * If drained_end() schedules background operations, it must atomically
+     * increment *drained_end_counter for each such operation and atomically
+     * decrement it once the operation has settled.
+     *
      * Note that this can be nested. If drained_begin() was called twice, new
      * I/O is allowed only after drained_end() was called twice, too.
      */
     void (*drained_begin)(BdrvChild *child);
-    void (*drained_end)(BdrvChild *child);
+    void (*drained_end)(BdrvChild *child, int *drained_end_counter);
 
     /*
      * Returns whether the parent has pending requests for the child. This
