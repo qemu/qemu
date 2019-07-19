@@ -222,8 +222,25 @@
   IOCTL(SIOCGIWNAME, IOC_W | IOC_R, MK_PTR(MK_STRUCT(STRUCT_char_ifreq)))
   IOCTL(SIOCSPGRP, IOC_W, MK_PTR(TYPE_INT)) /* pid_t */
   IOCTL(SIOCGPGRP, IOC_R, MK_PTR(TYPE_INT)) /* pid_t */
-  IOCTL(SIOCGSTAMP, IOC_R, MK_PTR(MK_STRUCT(STRUCT_timeval)))
-  IOCTL(SIOCGSTAMPNS, IOC_R, MK_PTR(MK_STRUCT(STRUCT_timespec)))
+
+  /*
+   * We can't use IOCTL_SPECIAL() because it will set
+   * host_cmd to XXX_OLD and XXX_NEW and these macros
+   * are not defined with kernel prior to 5.2.
+   * We must set host_cmd to the same value as in target_cmd
+   * otherwise the consistency check in syscall_init()
+   * will trigger an error.
+   * host_cmd is ignored by the do_ioctl_XXX() helpers.
+   * FIXME: create a macro to define this kind of entry
+   */
+  { TARGET_SIOCGSTAMP_OLD, TARGET_SIOCGSTAMP_OLD,
+    "SIOCGSTAMP_OLD", IOC_R, do_ioctl_SIOCGSTAMP },
+  { TARGET_SIOCGSTAMPNS_OLD, TARGET_SIOCGSTAMPNS_OLD,
+    "SIOCGSTAMPNS_OLD", IOC_R, do_ioctl_SIOCGSTAMPNS },
+  { TARGET_SIOCGSTAMP_NEW, TARGET_SIOCGSTAMP_NEW,
+    "SIOCGSTAMP_NEW", IOC_R, do_ioctl_SIOCGSTAMP },
+  { TARGET_SIOCGSTAMPNS_NEW, TARGET_SIOCGSTAMPNS_NEW,
+    "SIOCGSTAMPNS_NEW", IOC_R, do_ioctl_SIOCGSTAMPNS },
 
   IOCTL(RNDGETENTCNT, IOC_R, MK_PTR(TYPE_INT))
   IOCTL(RNDADDTOENTCNT, IOC_W, MK_PTR(TYPE_INT))
