@@ -763,7 +763,7 @@ sev_guest_init(const char *id)
                                         "reduced-phys-bits", NULL);
     if (s->reduced_phys_bits < 1) {
         error_report("%s: reduced_phys_bits check failed, it should be >=1,"
-                     "' requested '%d'", __func__, s->reduced_phys_bits);
+                     " requested '%d'", __func__, s->reduced_phys_bits);
         goto err;
     }
 
@@ -783,7 +783,7 @@ sev_guest_init(const char *id)
     ret = sev_platform_ioctl(s->sev_fd, SEV_PLATFORM_STATUS, &status,
                              &fw_error);
     if (ret) {
-        error_report("%s: failed to get platform status ret=%d"
+        error_report("%s: failed to get platform status ret=%d "
                      "fw_error='%d: %s'", __func__, ret, fw_error,
                      fw_error_to_str(fw_error));
         goto err;
