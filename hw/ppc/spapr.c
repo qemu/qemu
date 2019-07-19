@@ -1168,6 +1168,7 @@ static void spapr_dt_ov5_platform_support(SpaprMachineState *spapr, void *fdt,
 static void spapr_dt_chosen(SpaprMachineState *spapr, void *fdt)
 {
     MachineState *machine = MACHINE(spapr);
+    SpaprMachineClass *smc = SPAPR_MACHINE_GET_CLASS(machine);
     int chosen;
     const char *boot_device = machine->boot_order;
     char *stdout_path = spapr_vio_stdout_path(spapr->vio_bus);
@@ -1223,6 +1224,11 @@ static void spapr_dt_chosen(SpaprMachineState *spapr, void *fdt)
          */
         _FDT(fdt_setprop_string(fdt, chosen, "linux,stdout-path", stdout_path));
         _FDT(fdt_setprop_string(fdt, chosen, "stdout-path", stdout_path));
+    }
+
+    /* We can deal with BAR reallocation just fine, advertise it to the guest */
+    if (smc->linux_pci_probe) {
+        _FDT(fdt_setprop_cell(fdt, chosen, "linux,pci-probe-only", 0));
     }
 
     spapr_dt_ov5_platform_support(spapr, fdt, chosen);
@@ -4476,6 +4482,7 @@ static void spapr_machine_class_init(ObjectClass *oc, void *data)
     spapr_caps_add_properties(smc, &error_abort);
     smc->irq = &spapr_irq_dual;
     smc->dr_phb_enabled = true;
+    smc->linux_pci_probe = true;
 }
 
 static const TypeInfo spapr_machine_info = {
@@ -4535,12 +4542,14 @@ DEFINE_SPAPR_MACHINE(4_2, "4.2", true);
  */
 static void spapr_machine_4_1_class_options(MachineClass *mc)
 {
+    SpaprMachineClass *smc = SPAPR_MACHINE_CLASS(mc);
     static GlobalProperty compat[] = {
         /* Only allow 4kiB and 64kiB IOMMU pagesizes */
         { TYPE_SPAPR_PCI_HOST_BRIDGE, "pgsz", "0x11000" },
     };
 
     spapr_machine_4_2_class_options(mc);
+    smc->linux_pci_probe = false;
     compat_props_add(mc->compat_props, hw_compat_4_1, hw_compat_4_1_len);
     compat_props_add(mc->compat_props, compat, G_N_ELEMENTS(compat));
 }
