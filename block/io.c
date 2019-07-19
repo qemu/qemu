@@ -42,8 +42,8 @@ static void bdrv_parent_cb_resize(BlockDriverState *bs);
 static int coroutine_fn bdrv_co_do_pwrite_zeroes(BlockDriverState *bs,
     int64_t offset, int bytes, BdrvRequestFlags flags);
 
-void bdrv_parent_drained_begin(BlockDriverState *bs, BdrvChild *ignore,
-                               bool ignore_bds_parents)
+static void bdrv_parent_drained_begin(BlockDriverState *bs, BdrvChild *ignore,
+                                      bool ignore_bds_parents)
 {
     BdrvChild *c, *next;
 
@@ -64,8 +64,8 @@ void bdrv_parent_drained_end_single(BdrvChild *c)
     }
 }
 
-void bdrv_parent_drained_end(BlockDriverState *bs, BdrvChild *ignore,
-                             bool ignore_bds_parents)
+static void bdrv_parent_drained_end(BlockDriverState *bs, BdrvChild *ignore,
+                                    bool ignore_bds_parents)
 {
     BdrvChild *c, *next;
 

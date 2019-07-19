@@ -601,15 +601,6 @@ void bdrv_io_plug(BlockDriverState *bs);
 void bdrv_io_unplug(BlockDriverState *bs);
 
 /**
- * bdrv_parent_drained_begin:
- *
- * Begin a quiesced section of all users of @bs. This is part of
- * bdrv_drained_begin.
- */
-void bdrv_parent_drained_begin(BlockDriverState *bs, BdrvChild *ignore,
-                               bool ignore_bds_parents);
-
-/**
  * bdrv_parent_drained_begin_single:
  *
  * Begin a quiesced section for the parent of @c. If @poll is true, wait for
@@ -623,15 +614,6 @@ void bdrv_parent_drained_begin_single(BdrvChild *c, bool poll);
  * End a quiesced section for the parent of @c.
  */
 void bdrv_parent_drained_end_single(BdrvChild *c);
-
-/**
- * bdrv_parent_drained_end:
- *
- * End a quiesced section of all users of @bs. This is part of
- * bdrv_drained_end.
- */
-void bdrv_parent_drained_end(BlockDriverState *bs, BdrvChild *ignore,
-                             bool ignore_bds_parents);
 
 /**
  * bdrv_drain_poll:
