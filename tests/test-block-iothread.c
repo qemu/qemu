@@ -348,8 +348,8 @@ static void test_sync_op(const void *opaque)
     if (t->blkfn) {
         t->blkfn(blk);
     }
-    aio_context_release(ctx);
     blk_set_aio_context(blk, qemu_get_aio_context(), &error_abort);
+    aio_context_release(ctx);
 
     bdrv_unref(bs);
     blk_unref(blk);
@@ -476,6 +476,7 @@ static void test_propagate_basic(void)
 {
     IOThread *iothread = iothread_new();
     AioContext *ctx = iothread_get_aio_context(iothread);
+    AioContext *main_ctx;
     BlockBackend *blk;
     BlockDriverState *bs_a, *bs_b, *bs_verify;
     QDict *options;
@@ -504,12 +505,14 @@ static void test_propagate_basic(void)
     g_assert(bdrv_get_aio_context(bs_b) == ctx);
 
     /* Switch the AioContext back */
-    ctx = qemu_get_aio_context();
-    blk_set_aio_context(blk, ctx, &error_abort);
-    g_assert(blk_get_aio_context(blk) == ctx);
-    g_assert(bdrv_get_aio_context(bs_a) == ctx);
-    g_assert(bdrv_get_aio_context(bs_verify) == ctx);
-    g_assert(bdrv_get_aio_context(bs_b) == ctx);
+    main_ctx = qemu_get_aio_context();
+    aio_context_acquire(ctx);
+    blk_set_aio_context(blk, main_ctx, &error_abort);
+    aio_context_release(ctx);
+    g_assert(blk_get_aio_context(blk) == main_ctx);
+    g_assert(bdrv_get_aio_context(bs_a) == main_ctx);
+    g_assert(bdrv_get_aio_context(bs_verify) == main_ctx);
+    g_assert(bdrv_get_aio_context(bs_b) == main_ctx);
 
     bdrv_unref(bs_verify);
     bdrv_unref(bs_b);
@@ -534,6 +537,7 @@ static void test_propagate_diamond(void)
 {
     IOThread *iothread = iothread_new();
     AioContext *ctx = iothread_get_aio_context(iothread);
+    AioContext *main_ctx;
     BlockBackend *blk;
     BlockDriverState *bs_a, *bs_b, *bs_c, *bs_verify;
     QDict *options;
@@ -573,13 +577,15 @@ static void test_propagate_diamond(void)
     g_assert(bdrv_get_aio_context(bs_c) == ctx);
 
     /* Switch the AioContext back */
-    ctx = qemu_get_aio_context();
-    blk_set_aio_context(blk, ctx, &error_abort);
-    g_assert(blk_get_aio_context(blk) == ctx);
-    g_assert(bdrv_get_aio_context(bs_verify) == ctx);
-    g_assert(bdrv_get_aio_context(bs_a) == ctx);
-    g_assert(bdrv_get_aio_context(bs_b) == ctx);
-    g_assert(bdrv_get_aio_context(bs_c) == ctx);
+    main_ctx = qemu_get_aio_context();
+    aio_context_acquire(ctx);
+    blk_set_aio_context(blk, main_ctx, &error_abort);
+    aio_context_release(ctx);
+    g_assert(blk_get_aio_context(blk) == main_ctx);
+    g_assert(bdrv_get_aio_context(bs_verify) == main_ctx);
+    g_assert(bdrv_get_aio_context(bs_a) == main_ctx);
+    g_assert(bdrv_get_aio_context(bs_b) == main_ctx);
+    g_assert(bdrv_get_aio_context(bs_c) == main_ctx);
 
     blk_unref(blk);
     bdrv_unref(bs_verify);
@@ -685,7 +691,9 @@ static void test_attach_second_node(void)
     g_assert(bdrv_get_aio_context(bs) == ctx);
     g_assert(bdrv_get_aio_context(filter) == ctx);
 
+    aio_context_acquire(ctx);
     blk_set_aio_context(blk, main_ctx, &error_abort);
+    aio_context_release(ctx);
     g_assert(blk_get_aio_context(blk) == main_ctx);
     g_assert(bdrv_get_aio_context(bs) == main_ctx);
     g_assert(bdrv_get_aio_context(filter) == main_ctx);
@@ -712,7 +720,9 @@ static void test_attach_preserve_blk_ctx(void)
     g_assert(bdrv_get_aio_context(bs) == ctx);
 
     /* Remove the node again */
+    aio_context_acquire(ctx);
     blk_remove_bs(blk);
+    aio_context_release(ctx);
     g_assert(blk_get_aio_context(blk) == ctx);
     g_assert(bdrv_get_aio_context(bs) == qemu_get_aio_context());
 
@@ -721,7 +731,9 @@ static void test_attach_preserve_blk_ctx(void)
     g_assert(blk_get_aio_context(blk) == ctx);
     g_assert(bdrv_get_aio_context(bs) == ctx);
 
+    aio_context_acquire(ctx);
     blk_set_aio_context(blk, qemu_get_aio_context(), &error_abort);
+    aio_context_release(ctx);
     bdrv_unref(bs);
     blk_unref(blk);
 }
