@@ -519,8 +519,8 @@ static QObject *parse_literal(JSONParserContext *ctxt)
             }
             assert(ret == -ERANGE);
         }
-        /* fall through to JSON_FLOAT */
     }
+    /* fall through to JSON_FLOAT */
     case JSON_FLOAT:
         /* FIXME dependent on locale; a pervasive issue in QEMU */
         /* FIXME our lexer matches RFC 8259 in forbidding Inf or NaN,
