@@ -1532,6 +1532,7 @@ typedef struct TestDropBackingBlockJob {
     BlockJob common;
     bool should_complete;
     bool *did_complete;
+    BlockDriverState *detach_also;
 } TestDropBackingBlockJob;
 
 static int coroutine_fn test_drop_backing_job_run(Job *job, Error **errp)
@@ -1552,6 +1553,7 @@ static void test_drop_backing_job_commit(Job *job)
         container_of(job, TestDropBackingBlockJob, common.job);
 
     bdrv_set_backing_hd(blk_bs(s->common.blk), NULL, &error_abort);
+    bdrv_set_backing_hd(s->detach_also, NULL, &error_abort);
 
     *s->did_complete = true;
 }
@@ -1571,9 +1573,6 @@ static const BlockJobDriver test_drop_backing_job_driver = {
  * Creates a child node with three parent nodes on it, and then runs a
  * block job on the final one, parent-node-2.
  *
- * (TODO: parent-node-0 currently serves no purpose, but will as of a
- * follow-up patch.)
- *
  * The job is then asked to complete before a section where the child
  * is drained.
  *
@@ -1585,7 +1584,7 @@ static const BlockJobDriver test_drop_backing_job_driver = {
  *
  * Ending the drain on parent-node-1 will poll the AioContext, which
  * lets job_exit() and thus test_drop_backing_job_commit() run.  That
- * function removes the child as parent-node-2's backing file.
+ * function first removes the child as parent-node-2's backing file.
  *
  * In old (and buggy) implementations, there are two problems with
  * that:
@@ -1604,6 +1603,34 @@ static const BlockJobDriver test_drop_backing_job_driver = {
  * bdrv_replace_child_noperm() therefore must call drained_end() on
  * the parent only if it really is still drained because the child is
  * drained.
+ *
+ * If removing child from parent-node-2 was successful (as it should
+ * be), test_drop_backing_job_commit() will then also remove the child
+ * from parent-node-0.
+ *
+ * With an old version of our drain infrastructure ((A) above), that
+ * resulted in the following flow:
+ *
+ * 1. child attempts to leave its drained section.  The call recurses
+ *    to its parents.
+ *
+ * 2. parent-node-2 leaves the drained section.  Polling in
+ *    bdrv_drain_invoke() will schedule job_exit().
+ *
+ * 3. parent-node-1 leaves the drained section.  Polling in
+ *    bdrv_drain_invoke() will run job_exit(), thus disconnecting
+ *    parent-node-0 from the child node.
+ *
+ * 4. bdrv_parent_drained_end() uses a QLIST_FOREACH_SAFE() loop to
+ *    iterate over the parents.  Thus, it now accesses the BdrvChild
+ *    object that used to connect parent-node-0 and the child node.
+ *    However, that object no longer exists, so it accesses a dangling
+ *    pointer.
+ *
+ * The solution is to only poll once when running a bdrv_drained_end()
+ * operation, specifically at the end when all drained_end()
+ * operations for all involved nodes have been scheduled.
+ * Note that this also solves (A) above, thus hiding (B).
  */
 static void test_blockjob_commit_by_drained_end(void)
 {
@@ -1627,6 +1654,7 @@ static void test_blockjob_commit_by_drained_end(void)
                            bs_parents[2], 0, BLK_PERM_ALL, 0, 0, NULL, NULL,
                            &error_abort);
 
+    job->detach_also = bs_parents[0];
     job->did_complete = &job_has_completed;
 
     job_start(&job->common.job);
