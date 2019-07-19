@@ -314,7 +314,7 @@ rtas_event_log_to_source(SpaprMachineState *spapr, int log_type)
             g_assert(source->enabled);
             break;
         }
-        /* fall back to epow for legacy hotplug interrupt source */
+        /* fall through back to epow for legacy hotplug interrupt source */
     case RTAS_LOG_TYPE_EPOW:
         source = spapr_event_sources_get_source(spapr->event_sources,
                                                 EVENT_CLASS_EPOW);
