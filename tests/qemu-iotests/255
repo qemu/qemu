@@ -132,4 +132,4 @@ with iotests.FilePath('src.qcow2') as src_path, \
     vm.qmp_log('block-job-cancel', device='job0')
     vm.qmp_log('quit')
 
-    vm.shutdown()
+    vm.shutdown(has_quit=True)

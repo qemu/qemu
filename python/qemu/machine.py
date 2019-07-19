@@ -329,13 +329,14 @@ class QEMUMachine(object):
         self._load_io_log()
         self._post_shutdown()
 
-    def shutdown(self):
+    def shutdown(self, has_quit=False):
         """
         Terminate the VM and clean up
         """
         if self.is_running():
             try:
-                self._qmp.cmd('quit')
+                if not has_quit:
+                    self._qmp.cmd('quit')
                 self._qmp.close()
             except:
                 self._popen.kill()
