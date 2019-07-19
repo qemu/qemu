@@ -76,9 +76,9 @@ static void bdrv_parent_drained_end(BlockDriverState *bs, BdrvChild *ignore,
                                     bool ignore_bds_parents,
                                     int *drained_end_counter)
 {
-    BdrvChild *c, *next;
+    BdrvChild *c;
 
-    QLIST_FOREACH_SAFE(c, &bs->parents, next_parent, next) {
+    QLIST_FOREACH(c, &bs->parents, next_parent) {
         if (c == ignore || (ignore_bds_parents && c->role->parent_is_bds)) {
             continue;
         }
@@ -456,7 +456,7 @@ static void bdrv_do_drained_end(BlockDriverState *bs, bool recursive,
                                 BdrvChild *parent, bool ignore_bds_parents,
                                 int *drained_end_counter)
 {
-    BdrvChild *child, *next;
+    BdrvChild *child;
     int old_quiesce_counter;
 
     assert(drained_end_counter != NULL);
@@ -481,7 +481,7 @@ static void bdrv_do_drained_end(BlockDriverState *bs, bool recursive,
     if (recursive) {
         assert(!ignore_bds_parents);
         bs->recursive_quiesce_counter--;
-        QLIST_FOREACH_SAFE(child, &bs->children, next, next) {
+        QLIST_FOREACH(child, &bs->children, next) {
             bdrv_do_drained_end(child->bs, true, child, ignore_bds_parents,
                                 drained_end_counter);
         }
