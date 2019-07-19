@@ -618,6 +618,13 @@ void bdrv_parent_drained_begin(BlockDriverState *bs, BdrvChild *ignore,
 void bdrv_parent_drained_begin_single(BdrvChild *c, bool poll);
 
 /**
+ * bdrv_parent_drained_end_single:
+ *
+ * End a quiesced section for the parent of @c.
+ */
+void bdrv_parent_drained_end_single(BdrvChild *c);
+
+/**
  * bdrv_parent_drained_end:
  *
  * End a quiesced section of all users of @bs. This is part of

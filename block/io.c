@@ -55,6 +55,15 @@ void bdrv_parent_drained_begin(BlockDriverState *bs, BdrvChild *ignore,
     }
 }
 
+void bdrv_parent_drained_end_single(BdrvChild *c)
+{
+    assert(c->parent_quiesce_counter > 0);
+    c->parent_quiesce_counter--;
+    if (c->role->drained_end) {
+        c->role->drained_end(c);
+    }
+}
+
 void bdrv_parent_drained_end(BlockDriverState *bs, BdrvChild *ignore,
                              bool ignore_bds_parents)
 {
@@ -64,9 +73,7 @@ void bdrv_parent_drained_end(BlockDriverState *bs, BdrvChild *ignore,
         if (c == ignore || (ignore_bds_parents && c->role->parent_is_bds)) {
             continue;
         }
-        if (c->role->drained_end) {
-            c->role->drained_end(c);
-        }
+        bdrv_parent_drained_end_single(c);
     }
 }
 
@@ -96,6 +103,7 @@ static bool bdrv_parent_drained_poll(BlockDriverState *bs, BdrvChild *ignore,
 
 void bdrv_parent_drained_begin_single(BdrvChild *c, bool poll)
 {
+    c->parent_quiesce_counter++;
     if (c->role->drained_begin) {
         c->role->drained_begin(c);
     }

@@ -2251,24 +2251,19 @@ static void bdrv_replace_child_noperm(BdrvChild *child,
         if (child->role->detach) {
             child->role->detach(child);
         }
-        if (old_bs->quiesce_counter && child->role->drained_end) {
-            int num = old_bs->quiesce_counter;
-            if (child->role->parent_is_bds) {
-                num -= bdrv_drain_all_count;
-            }
-            assert(num >= 0);
-            for (i = 0; i < num; i++) {
-                child->role->drained_end(child);
-            }
+        while (child->parent_quiesce_counter) {
+            bdrv_parent_drained_end_single(child);
         }
         QLIST_REMOVE(child, next_parent);
+    } else {
+        assert(child->parent_quiesce_counter == 0);
     }
 
     child->bs = new_bs;
 
     if (new_bs) {
         QLIST_INSERT_HEAD(&new_bs->parents, child, next_parent);
-        if (new_bs->quiesce_counter && child->role->drained_begin) {
+        if (new_bs->quiesce_counter) {
             int num = new_bs->quiesce_counter;
             if (child->role->parent_is_bds) {
                 num -= bdrv_drain_all_count;
