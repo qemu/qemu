@@ -18,14 +18,23 @@
 #include "hmacpriv.h"
 #include <nettle/hmac.h>
 
+#if CONFIG_NETTLE_VERSION_MAJOR < 3
+typedef unsigned int hmac_length_t;
+#else
+typedef size_t hmac_length_t;
+#endif
+
 typedef void (*qcrypto_nettle_hmac_setkey)(void *ctx,
-              size_t key_length, const uint8_t *key);
+                                           hmac_length_t key_length,
+                                           const uint8_t *key);
 
 typedef void (*qcrypto_nettle_hmac_update)(void *ctx,
-              size_t length, const uint8_t *data);
+                                           hmac_length_t length,
+                                           const uint8_t *data);
 
 typedef void (*qcrypto_nettle_hmac_digest)(void *ctx,
-              size_t length, uint8_t *digest);
+                                           hmac_length_t length,
+                                           uint8_t *digest);
 
 typedef struct QCryptoHmacNettle QCryptoHmacNettle;
 struct QCryptoHmacNettle {
@@ -135,7 +144,7 @@ qcrypto_nettle_hmac_bytesv(QCryptoHmac *hmac,
                            Error **errp)
 {
     QCryptoHmacNettle *ctx;
-    int i;
+    size_t i;
 
     ctx = (QCryptoHmacNettle *)hmac->opaque;
 

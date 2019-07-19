@@ -120,6 +120,7 @@ obj-$(CONFIG_TCG) += fpu/softfloat.o
 obj-y += target/$(TARGET_BASE_ARCH)/
 obj-y += disas.o
 obj-$(call notempty,$(TARGET_XML_FILES)) += gdbstub-xml.o
+LIBS := $(libs_cpu) $(LIBS)
 
 #########################################################
 # Linux user emulator target
