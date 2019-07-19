@@ -577,7 +577,7 @@ static void pflash_write(void *opaque, hwaddr offset, uint64_t value,
                 pfl->cmd = 0x98;
                 return;
             }
-            /* No break here */
+            /* fall through */
         default:
             DPRINTF("%s: invalid write for command %02x\n",
                     __func__, pfl->cmd);
