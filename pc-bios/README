@@ -63,3 +63,14 @@
   ARM. Licensing information is given in "edk2-licenses.txt". The image files
   are described by the JSON documents in the "pc-bios/descriptors" directory,
   which conform to the "docs/interop/firmware.json" schema.
+
+- OpenSBI (https://github.com/riscv/opensbi) aims to provide an open-source
+  reference implementation of the RISC-V Supervisor Binary Interface (SBI)
+  specifications for platform-specific firmwares executing in M-mode. For all
+  supported platforms, OpenSBI provides several runtime firmware examples.
+  These example firmwares can be used to replace the legacy riscv-pk bootloader
+  and enable the use of well-known bootloaders such as U-Boot.
+  OpenSBI is distributed under the terms of the BSD 2-clause license
+  ("Simplified BSD License" or "FreeBSD License", SPDX: BSD-2-Clause). OpenSBI
+  source code also contains code reused from other projects desribed here:
+  https://github.com/riscv/opensbi/blob/master/ThirdPartyNotices.md.

@@ -1,13 +1,18 @@
-The following points clarify the QEMU license:
+The QEMU distribution includes both the QEMU emulator and
+various firmware files.  These are separate programs that are
+distributed together for our users' convenience, and they have
+separate licenses.
 
-1) QEMU as a whole is released under the GNU General Public License,
-version 2.
+The following points clarify the license of the QEMU emulator:
 
-2) Parts of QEMU have specific licenses which are compatible with the
-GNU General Public License, version 2. Hence each source file contains
-its own licensing information.  Source files with no licensing information
-are released under the GNU General Public License, version 2 or (at your
-option) any later version.
+1) The QEMU emulator as a whole is released under the GNU General
+Public License, version 2.
+
+2) Parts of the QEMU emulator have specific licenses which are compatible
+with the GNU General Public License, version 2. Hence each source file
+contains its own licensing information.  Source files with no licensing
+information are released under the GNU General Public License, version
+2 or (at your option) any later version.
 
 As of July 2013, contributions under version 2 of the GNU General Public
 License (and no later version) are only accepted for the following files
