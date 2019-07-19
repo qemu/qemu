@@ -4480,6 +4480,17 @@ int main(int argc, char **argv, char **envp)
      */
     migration_shutdown();
 
+    /*
+     * We must cancel all block jobs while the block layer is drained,
+     * or cancelling will be affected by throttling and thus may block
+     * for an extended period of time.
+     * vm_shutdown() will bdrv_drain_all(), so we may as well include
+     * it in the drained section.
+     * We do not need to end this section, because we do not want any
+     * requests happening from here on anyway.
+     */
+    bdrv_drain_all_begin();
+
     /* No more vcpu or device emulation activity beyond this point */
     vm_shutdown();
 

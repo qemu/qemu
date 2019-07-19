@@ -664,11 +664,15 @@ struct BdrvChildRole {
      * These functions must not change the graph (and therefore also must not
      * call aio_poll(), which could change the graph indirectly).
      *
+     * If drained_end() schedules background operations, it must atomically
+     * increment *drained_end_counter for each such operation and atomically
+     * decrement it once the operation has settled.
+     *
      * Note that this can be nested. If drained_begin() was called twice, new
      * I/O is allowed only after drained_end() was called twice, too.
      */
     void (*drained_begin)(BdrvChild *child);
-    void (*drained_end)(BdrvChild *child);
+    void (*drained_end)(BdrvChild *child, int *drained_end_counter);
 
     /*
      * Returns whether the parent has pending requests for the child. This
@@ -728,6 +732,15 @@ struct BdrvChild {
      * detached from the parent.
      */
     bool frozen;
+
+    /*
+     * How many times the parent of this child has been drained
+     * (through role->drained_*).
+     * Usually, this is equal to bs->quiesce_counter (potentially
+     * reduced by bdrv_drain_all_count).  It may differ while the
+     * child is entering or leaving a drained section.
+     */
+    int parent_quiesce_counter;
 
     QLIST_ENTRY(BdrvChild) next;
     QLIST_ENTRY(BdrvChild) next_parent;

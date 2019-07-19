@@ -57,7 +57,7 @@ echo
 echo '=== blockstats with -drive if=virtio ==='
 echo
 
-run_qemu -drive driver=null-co,if=virtio <<EOF
+run_qemu -drive driver=null-co,read-zeroes=on,if=virtio <<EOF
 { "execute": "qmp_capabilities" }
 { "execute": "query-blockstats"}
 { "execute": "quit" }
@@ -87,7 +87,7 @@ echo
 echo '=== blockstats with -blockdev and -device ==='
 echo
 
-run_qemu -blockdev driver=null-co,node-name=null -device virtio-blk,drive=null,id=virtio0 <<EOF
+run_qemu -blockdev driver=null-co,read-zeroes=on,node-name=null -device virtio-blk,drive=null,id=virtio0 <<EOF
 { "execute": "qmp_capabilities" }
 { "execute": "query-blockstats"}
 { "execute": "quit" }

@@ -1527,6 +1527,150 @@ static void test_set_aio_context(void)
     iothread_join(b);
 }
 
+
+typedef struct TestDropBackingBlockJob {
+    BlockJob common;
+    bool should_complete;
+    bool *did_complete;
+    BlockDriverState *detach_also;
+} TestDropBackingBlockJob;
+
+static int coroutine_fn test_drop_backing_job_run(Job *job, Error **errp)
+{
+    TestDropBackingBlockJob *s =
+        container_of(job, TestDropBackingBlockJob, common.job);
+
+    while (!s->should_complete) {
+        job_sleep_ns(job, 0);
+    }
+
+    return 0;
+}
+
+static void test_drop_backing_job_commit(Job *job)
+{
+    TestDropBackingBlockJob *s =
+        container_of(job, TestDropBackingBlockJob, common.job);
+
+    bdrv_set_backing_hd(blk_bs(s->common.blk), NULL, &error_abort);
+    bdrv_set_backing_hd(s->detach_also, NULL, &error_abort);
+
+    *s->did_complete = true;
+}
+
+static const BlockJobDriver test_drop_backing_job_driver = {
+    .job_driver = {
+        .instance_size  = sizeof(TestDropBackingBlockJob),
+        .free           = block_job_free,
+        .user_resume    = block_job_user_resume,
+        .drain          = block_job_drain,
+        .run            = test_drop_backing_job_run,
+        .commit         = test_drop_backing_job_commit,
+    }
+};
+
+/**
+ * Creates a child node with three parent nodes on it, and then runs a
+ * block job on the final one, parent-node-2.
+ *
+ * The job is then asked to complete before a section where the child
+ * is drained.
+ *
+ * Ending this section will undrain the child's parents, first
+ * parent-node-2, then parent-node-1, then parent-node-0 -- the parent
+ * list is in reverse order of how they were added.  Ending the drain
+ * on parent-node-2 will resume the job, thus completing it and
+ * scheduling job_exit().
+ *
+ * Ending the drain on parent-node-1 will poll the AioContext, which
+ * lets job_exit() and thus test_drop_backing_job_commit() run.  That
+ * function first removes the child as parent-node-2's backing file.
+ *
+ * In old (and buggy) implementations, there are two problems with
+ * that:
+ * (A) bdrv_drain_invoke() polls for every node that leaves the
+ *     drained section.  This means that job_exit() is scheduled
+ *     before the child has left the drained section.  Its
+ *     quiesce_counter is therefore still 1 when it is removed from
+ *     parent-node-2.
+ *
+ * (B) bdrv_replace_child_noperm() calls drained_end() on the old
+ *     child's parents as many times as the child is quiesced.  This
+ *     means it will call drained_end() on parent-node-2 once.
+ *     Because parent-node-2 is no longer quiesced at this point, this
+ *     will fail.
+ *
+ * bdrv_replace_child_noperm() therefore must call drained_end() on
+ * the parent only if it really is still drained because the child is
+ * drained.
+ *
+ * If removing child from parent-node-2 was successful (as it should
+ * be), test_drop_backing_job_commit() will then also remove the child
+ * from parent-node-0.
+ *
+ * With an old version of our drain infrastructure ((A) above), that
+ * resulted in the following flow:
+ *
+ * 1. child attempts to leave its drained section.  The call recurses
+ *    to its parents.
+ *
+ * 2. parent-node-2 leaves the drained section.  Polling in
+ *    bdrv_drain_invoke() will schedule job_exit().
+ *
+ * 3. parent-node-1 leaves the drained section.  Polling in
+ *    bdrv_drain_invoke() will run job_exit(), thus disconnecting
+ *    parent-node-0 from the child node.
+ *
+ * 4. bdrv_parent_drained_end() uses a QLIST_FOREACH_SAFE() loop to
+ *    iterate over the parents.  Thus, it now accesses the BdrvChild
+ *    object that used to connect parent-node-0 and the child node.
+ *    However, that object no longer exists, so it accesses a dangling
+ *    pointer.
+ *
+ * The solution is to only poll once when running a bdrv_drained_end()
+ * operation, specifically at the end when all drained_end()
+ * operations for all involved nodes have been scheduled.
+ * Note that this also solves (A) above, thus hiding (B).
+ */
+static void test_blockjob_commit_by_drained_end(void)
+{
+    BlockDriverState *bs_child, *bs_parents[3];
+    TestDropBackingBlockJob *job;
+    bool job_has_completed = false;
+    int i;
+
+    bs_child = bdrv_new_open_driver(&bdrv_test, "child-node", BDRV_O_RDWR,
+                                    &error_abort);
+
+    for (i = 0; i < 3; i++) {
+        char name[32];
+        snprintf(name, sizeof(name), "parent-node-%i", i);
+        bs_parents[i] = bdrv_new_open_driver(&bdrv_test, name, BDRV_O_RDWR,
+                                             &error_abort);
+        bdrv_set_backing_hd(bs_parents[i], bs_child, &error_abort);
+    }
+
+    job = block_job_create("job", &test_drop_backing_job_driver, NULL,
+                           bs_parents[2], 0, BLK_PERM_ALL, 0, 0, NULL, NULL,
+                           &error_abort);
+
+    job->detach_also = bs_parents[0];
+    job->did_complete = &job_has_completed;
+
+    job_start(&job->common.job);
+
+    job->should_complete = true;
+    bdrv_drained_begin(bs_child);
+    g_assert(!job_has_completed);
+    bdrv_drained_end(bs_child);
+    g_assert(job_has_completed);
+
+    bdrv_unref(bs_parents[0]);
+    bdrv_unref(bs_parents[1]);
+    bdrv_unref(bs_parents[2]);
+    bdrv_unref(bs_child);
+}
+
 int main(int argc, char **argv)
 {
     int ret;
@@ -1609,6 +1753,9 @@ int main(int argc, char **argv)
     g_test_add_func("/bdrv-drain/attach/drain", test_append_to_drained);
 
     g_test_add_func("/bdrv-drain/set_aio_context", test_set_aio_context);
+
+    g_test_add_func("/bdrv-drain/blockjob/commit_by_drained_end",
+                    test_blockjob_commit_by_drained_end);
 
     ret = g_test_run();
     qemu_event_destroy(&done_event);

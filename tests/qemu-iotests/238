@@ -31,7 +31,7 @@ else:
 vm = iotests.VM()
 vm.launch()
 
-log(vm.qmp('blockdev-add', node_name='hd0', driver='null-co'))
+log(vm.qmp('blockdev-add', node_name='hd0', driver='null-co', read_zeroes=True))
 log(vm.qmp('object-add', qom_type='iothread', id='iothread0'))
 log(vm.qmp('device_add', id='scsi0', driver=virtio_scsi_device, iothread='iothread0'))
 log(vm.qmp('device_add', id='scsi-hd0', driver='scsi-hd', drive='hd0'))

@@ -251,11 +251,11 @@ echo
 # Cannot use the test image because cache=none might not work on the host FS
 # Use cdrom so that we won't get errors about missing media
 
-run_qemu -drive driver=null-co,cache=none
-run_qemu -drive driver=null-co,cache=directsync
-run_qemu -drive driver=null-co,cache=writeback
-run_qemu -drive driver=null-co,cache=writethrough
-run_qemu -drive driver=null-co,cache=unsafe
+run_qemu -drive driver=null-co,read-zeroes=on,cache=none
+run_qemu -drive driver=null-co,read-zeroes=on,cache=directsync
+run_qemu -drive driver=null-co,read-zeroes=on,cache=writeback
+run_qemu -drive driver=null-co,read-zeroes=on,cache=writethrough
+run_qemu -drive driver=null-co,read-zeroes=on,cache=unsafe
 run_qemu -drive driver=null-co,cache=invalid_value
 
 # Can't test direct=on here because O_DIRECT might not be supported on this FS

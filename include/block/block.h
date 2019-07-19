@@ -601,15 +601,6 @@ void bdrv_io_plug(BlockDriverState *bs);
 void bdrv_io_unplug(BlockDriverState *bs);
 
 /**
- * bdrv_parent_drained_begin:
- *
- * Begin a quiesced section of all users of @bs. This is part of
- * bdrv_drained_begin.
- */
-void bdrv_parent_drained_begin(BlockDriverState *bs, BdrvChild *ignore,
-                               bool ignore_bds_parents);
-
-/**
  * bdrv_parent_drained_begin_single:
  *
  * Begin a quiesced section for the parent of @c. If @poll is true, wait for
@@ -618,13 +609,14 @@ void bdrv_parent_drained_begin(BlockDriverState *bs, BdrvChild *ignore,
 void bdrv_parent_drained_begin_single(BdrvChild *c, bool poll);
 
 /**
- * bdrv_parent_drained_end:
+ * bdrv_parent_drained_end_single:
  *
- * End a quiesced section of all users of @bs. This is part of
- * bdrv_drained_end.
+ * End a quiesced section for the parent of @c.
+ *
+ * This polls @bs's AioContext until all scheduled sub-drained_ends
+ * have settled, which may result in graph changes.
  */
-void bdrv_parent_drained_end(BlockDriverState *bs, BdrvChild *ignore,
-                             bool ignore_bds_parents);
+void bdrv_parent_drained_end_single(BdrvChild *c);
 
 /**
  * bdrv_drain_poll:
@@ -672,8 +664,30 @@ void bdrv_subtree_drained_begin(BlockDriverState *bs);
  * bdrv_drained_end:
  *
  * End a quiescent section started by bdrv_drained_begin().
+ *
+ * This polls @bs's AioContext until all scheduled sub-drained_ends
+ * have settled.  On one hand, that may result in graph changes.  On
+ * the other, this requires that all involved nodes (@bs and all of
+ * its parents) are in the same AioContext, and that the caller has
+ * acquired it.
+ * If there are any nodes that are in different contexts from @bs,
+ * these contexts must not be acquired.
  */
 void bdrv_drained_end(BlockDriverState *bs);
+
+/**
+ * bdrv_drained_end_no_poll:
+ *
+ * Same as bdrv_drained_end(), but do not poll for the subgraph to
+ * actually become unquiesced.  Therefore, no graph changes will occur
+ * with this function.
+ *
+ * *drained_end_counter is incremented for every background operation
+ * that is scheduled, and will be decremented for every operation once
+ * it settles.  The caller must poll until it reaches 0.  The counter
+ * should be accessed using atomic operations only.
+ */
+void bdrv_drained_end_no_poll(BlockDriverState *bs, int *drained_end_counter);
 
 /**
  * End a quiescent section started by bdrv_subtree_drained_begin().

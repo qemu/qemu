@@ -92,9 +92,10 @@ class TestSingleDrive(ImageCommitTestCase):
 
         self.vm.add_device("scsi-hd,id=scsi0,drive=drive0")
         self.vm.launch()
+        self.has_quit = False
 
     def tearDown(self):
-        self.vm.shutdown()
+        self.vm.shutdown(has_quit=self.has_quit)
         os.remove(test_img)
         os.remove(mid_img)
         os.remove(backing_img)
@@ -108,6 +109,43 @@ class TestSingleDrive(ImageCommitTestCase):
         self.run_commit_test("mid", "base", node_names=True)
         self.assertEqual(-1, qemu_io('-f', 'raw', '-c', 'read -P 0xab 0 524288', backing_img).find("verification failed"))
         self.assertEqual(-1, qemu_io('-f', 'raw', '-c', 'read -P 0xef 524288 524288', backing_img).find("verification failed"))
+
+    def test_commit_with_filter_and_quit(self):
+        result = self.vm.qmp('object-add', qom_type='throttle-group', id='tg')
+        self.assert_qmp(result, 'return', {})
+
+        # Add a filter outside of the backing chain
+        result = self.vm.qmp('blockdev-add', driver='throttle', node_name='filter', throttle_group='tg', file='mid')
+        self.assert_qmp(result, 'return', {})
+
+        result = self.vm.qmp('block-commit', device='drive0')
+        self.assert_qmp(result, 'return', {})
+
+        # Quit immediately, thus forcing a simultaneous cancel of the
+        # block job and a bdrv_drain_all()
+        result = self.vm.qmp('quit')
+        self.assert_qmp(result, 'return', {})
+
+        self.has_quit = True
+
+    # Same as above, but this time we add the filter after starting the job
+    def test_commit_plus_filter_and_quit(self):
+        result = self.vm.qmp('object-add', qom_type='throttle-group', id='tg')
+        self.assert_qmp(result, 'return', {})
+
+        result = self.vm.qmp('block-commit', device='drive0')
+        self.assert_qmp(result, 'return', {})
+
+        # Add a filter outside of the backing chain
+        result = self.vm.qmp('blockdev-add', driver='throttle', node_name='filter', throttle_group='tg', file='mid')
+        self.assert_qmp(result, 'return', {})
+
+        # Quit immediately, thus forcing a simultaneous cancel of the
+        # block job and a bdrv_drain_all()
+        result = self.vm.qmp('quit')
+        self.assert_qmp(result, 'return', {})
+
+        self.has_quit = True
 
     def test_device_not_found(self):
         result = self.vm.qmp('block-commit', device='nonexistent', top='%s' % mid_img)
