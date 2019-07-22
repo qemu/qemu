@@ -1237,22 +1237,6 @@ static int blk_prw(BlockBackend *blk, int64_t offset, uint8_t *buf,
     return rwco.ret;
 }
 
-int blk_pread_unthrottled(BlockBackend *blk, int64_t offset, uint8_t *buf,
-                          int count)
-{
-    int ret;
-
-    ret = blk_check_byte_request(blk, offset, count);
-    if (ret < 0) {
-        return ret;
-    }
-
-    blk_root_drained_begin(blk->root);
-    ret = blk_pread(blk, offset, buf, count);
-    blk_root_drained_end(blk->root, NULL);
-    return ret;
-}
-
 int blk_pwrite_zeroes(BlockBackend *blk, int64_t offset,
                       int bytes, BdrvRequestFlags flags)
 {
