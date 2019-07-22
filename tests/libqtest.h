@@ -688,16 +688,6 @@ static inline void qmp_eventwait(const char *event)
 }
 
 /**
- * hmp:
- * @fmt...: HMP command to send to QEMU, formats arguments like sprintf().
- *
- * Send HMP command to QEMU via QMP's human-monitor-command.
- *
- * Returns: the command's output.  The caller should g_free() it.
- */
-char *hmp(const char *fmt, ...) GCC_FMT_ATTR(1, 2);
-
-/**
  * get_irq:
  * @num: Interrupt to observe.
  *

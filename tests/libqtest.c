@@ -1130,17 +1130,6 @@ void qmp_assert_success(const char *fmt, ...)
     qobject_unref(response);
 }
 
-char *hmp(const char *fmt, ...)
-{
-    va_list ap;
-    char *ret;
-
-    va_start(ap, fmt);
-    ret = qtest_vhmp(global_qtest, fmt, ap);
-    va_end(ap);
-    return ret;
-}
-
 bool qtest_big_endian(QTestState *s)
 {
     return s->big_endian;
