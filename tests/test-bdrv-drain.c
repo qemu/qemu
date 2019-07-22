@@ -100,6 +100,13 @@ static void bdrv_test_child_perm(BlockDriverState *bs, BdrvChild *c,
                               nperm, nshared);
 }
 
+static int bdrv_test_change_backing_file(BlockDriverState *bs,
+                                         const char *backing_file,
+                                         const char *backing_fmt)
+{
+    return 0;
+}
+
 static BlockDriver bdrv_test = {
     .format_name            = "test",
     .instance_size          = sizeof(BDRVTestState),
@@ -111,6 +118,8 @@ static BlockDriver bdrv_test = {
     .bdrv_co_drain_end      = bdrv_test_co_drain_end,
 
     .bdrv_child_perm        = bdrv_test_child_perm,
+
+    .bdrv_change_backing_file = bdrv_test_change_backing_file,
 };
 
 static void aio_ret_cb(void *opaque, int ret)
@@ -1671,6 +1680,161 @@ static void test_blockjob_commit_by_drained_end(void)
     bdrv_unref(bs_child);
 }
 
+
+typedef struct TestSimpleBlockJob {
+    BlockJob common;
+    bool should_complete;
+    bool *did_complete;
+} TestSimpleBlockJob;
+
+static int coroutine_fn test_simple_job_run(Job *job, Error **errp)
+{
+    TestSimpleBlockJob *s = container_of(job, TestSimpleBlockJob, common.job);
+
+    while (!s->should_complete) {
+        job_sleep_ns(job, 0);
+    }
+
+    return 0;
+}
+
+static void test_simple_job_clean(Job *job)
+{
+    TestSimpleBlockJob *s = container_of(job, TestSimpleBlockJob, common.job);
+    *s->did_complete = true;
+}
+
+static const BlockJobDriver test_simple_job_driver = {
+    .job_driver = {
+        .instance_size  = sizeof(TestSimpleBlockJob),
+        .free           = block_job_free,
+        .user_resume    = block_job_user_resume,
+        .drain          = block_job_drain,
+        .run            = test_simple_job_run,
+        .clean          = test_simple_job_clean,
+    },
+};
+
+static int drop_intermediate_poll_update_filename(BdrvChild *child,
+                                                  BlockDriverState *new_base,
+                                                  const char *filename,
+                                                  Error **errp)
+{
+    /*
+     * We are free to poll here, which may change the block graph, if
+     * it is not drained.
+     */
+
+    /* If the job is not drained: Complete it, schedule job_exit() */
+    aio_poll(qemu_get_current_aio_context(), false);
+    /* If the job is not drained: Run job_exit(), finish the job */
+    aio_poll(qemu_get_current_aio_context(), false);
+
+    return 0;
+}
+
+/**
+ * Test a poll in the midst of bdrv_drop_intermediate().
+ *
+ * bdrv_drop_intermediate() calls BdrvChildRole.update_filename(),
+ * which can yield or poll.  This may lead to graph changes, unless
+ * the whole subtree in question is drained.
+ *
+ * We test this on the following graph:
+ *
+ *                    Job
+ *
+ *                     |
+ *                  job-node
+ *                     |
+ *                     v
+ *
+ *                  job-node
+ *
+ *                     |
+ *                  backing
+ *                     |
+ *                     v
+ *
+ * node-2 --chain--> node-1 --chain--> node-0
+ *
+ * We drop node-1 with bdrv_drop_intermediate(top=node-1, base=node-0).
+ *
+ * This first updates node-2's backing filename by invoking
+ * drop_intermediate_poll_update_filename(), which polls twice.  This
+ * causes the job to finish, which in turns causes the job-node to be
+ * deleted.
+ *
+ * bdrv_drop_intermediate() uses a QLIST_FOREACH_SAFE() loop, so it
+ * already has a pointer to the BdrvChild edge between job-node and
+ * node-1.  When it tries to handle that edge, we probably get a
+ * segmentation fault because the object no longer exists.
+ *
+ *
+ * The solution is for bdrv_drop_intermediate() to drain top's
+ * subtree.  This prevents graph changes from happening just because
+ * BdrvChildRole.update_filename() yields or polls.  Thus, the block
+ * job is paused during that drained section and must finish before or
+ * after.
+ *
+ * (In addition, bdrv_replace_child() must keep the job paused.)
+ */
+static void test_drop_intermediate_poll(void)
+{
+    static BdrvChildRole chain_child_role;
+    BlockDriverState *chain[3];
+    TestSimpleBlockJob *job;
+    BlockDriverState *job_node;
+    bool job_has_completed = false;
+    int i;
+    int ret;
+
+    chain_child_role = child_backing;
+    chain_child_role.update_filename = drop_intermediate_poll_update_filename;
+
+    for (i = 0; i < 3; i++) {
+        char name[32];
+        snprintf(name, 32, "node-%i", i);
+
+        chain[i] = bdrv_new_open_driver(&bdrv_test, name, 0, &error_abort);
+    }
+
+    job_node = bdrv_new_open_driver(&bdrv_test, "job-node", BDRV_O_RDWR,
+                                    &error_abort);
+    bdrv_set_backing_hd(job_node, chain[1], &error_abort);
+
+    /*
+     * Establish the chain last, so the chain links are the first
+     * elements in the BDS.parents lists
+     */
+    for (i = 0; i < 3; i++) {
+        if (i) {
+            /* Takes the reference to chain[i - 1] */
+            chain[i]->backing = bdrv_attach_child(chain[i], chain[i - 1],
+                                                  "chain", &chain_child_role,
+                                                  &error_abort);
+        }
+    }
+
+    job = block_job_create("job", &test_simple_job_driver, NULL, job_node,
+                           0, BLK_PERM_ALL, 0, 0, NULL, NULL, &error_abort);
+
+    /* The job has a reference now */
+    bdrv_unref(job_node);
+
+    job->did_complete = &job_has_completed;
+
+    job_start(&job->common.job);
+    job->should_complete = true;
+
+    g_assert(!job_has_completed);
+    ret = bdrv_drop_intermediate(chain[1], chain[0], NULL);
+    g_assert(ret == 0);
+    g_assert(job_has_completed);
+
+    bdrv_unref(chain[2]);
+}
+
 int main(int argc, char **argv)
 {
     int ret;
@@ -1756,6 +1920,9 @@ int main(int argc, char **argv)
 
     g_test_add_func("/bdrv-drain/blockjob/commit_by_drained_end",
                     test_blockjob_commit_by_drained_end);
+
+    g_test_add_func("/bdrv-drain/bdrv_drop_intermediate/poll",
+                    test_drop_intermediate_poll);
 
     ret = g_test_run();
     qemu_event_destroy(&done_event);
