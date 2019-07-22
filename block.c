@@ -5914,6 +5914,8 @@ static void bdrv_attach_aio_context(BlockDriverState *bs,
  * Changes the AioContext used for fd handlers, timers, and BHs by this
  * BlockDriverState and all its children and parents.
  *
+ * Must be called from the main AioContext.
+ *
  * The caller must own the AioContext lock for the old AioContext of bs, but it
  * must not own the AioContext lock for new_context (unless new_context is the
  * same as the current context of bs).
@@ -5925,8 +5927,9 @@ void bdrv_set_aio_context_ignore(BlockDriverState *bs,
                                  AioContext *new_context, GSList **ignore)
 {
     AioContext *old_context = bdrv_get_aio_context(bs);
-    AioContext *current_context = qemu_get_current_aio_context();
     BdrvChild *child;
+
+    g_assert(qemu_get_current_aio_context() == qemu_get_aio_context());
 
     if (old_context == new_context) {
         return;
@@ -5953,7 +5956,7 @@ void bdrv_set_aio_context_ignore(BlockDriverState *bs,
     bdrv_detach_aio_context(bs);
 
     /* Acquire the new context, if necessary */
-    if (current_context != new_context) {
+    if (qemu_get_aio_context() != new_context) {
         aio_context_acquire(new_context);
     }
 
@@ -5965,16 +5968,16 @@ void bdrv_set_aio_context_ignore(BlockDriverState *bs,
      * subtree that have not yet been moved to the new AioContext.
      * Release the old one so bdrv_drained_end() can poll them.
      */
-    if (current_context != old_context) {
+    if (qemu_get_aio_context() != old_context) {
         aio_context_release(old_context);
     }
 
     bdrv_drained_end(bs);
 
-    if (current_context != old_context) {
+    if (qemu_get_aio_context() != old_context) {
         aio_context_acquire(old_context);
     }
-    if (current_context != new_context) {
+    if (qemu_get_aio_context() != new_context) {
         aio_context_release(new_context);
     }
 }

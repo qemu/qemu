@@ -102,8 +102,11 @@ typedef struct {
     size_t doorbell_scale;
     bool write_cache_supported;
     EventNotifier irq_notifier;
+
     uint64_t nsze; /* Namespace size reported by identify command */
     int nsid;      /* The namespace id to read/write data. */
+    size_t blkshift;
+
     uint64_t max_transfer;
     bool plugged;
 
@@ -217,7 +220,7 @@ static NVMeQueuePair *nvme_create_queue_pair(BlockDriverState *bs,
         error_propagate(errp, local_err);
         goto fail;
     }
-    q->cq.doorbell = &s->regs->doorbells[idx * 2 * s->doorbell_scale + 1];
+    q->cq.doorbell = &s->regs->doorbells[(idx * 2 + 1) * s->doorbell_scale];
 
     return q;
 fail:
@@ -315,7 +318,7 @@ static bool nvme_process_completion(BDRVNVMeState *s, NVMeQueuePair *q)
     while (q->inflight) {
         int16_t cid;
         c = (NvmeCqe *)&q->cq.queue[q->cq.head * NVME_CQ_ENTRY_BYTES];
-        if (!c->cid || (le16_to_cpu(c->status) & 0x1) == q->cq_phase) {
+        if ((le16_to_cpu(c->status) & 0x1) == q->cq_phase) {
             break;
         }
         q->cq.head = (q->cq.head + 1) % NVME_QUEUE_SIZE;
@@ -339,10 +342,7 @@ static bool nvme_process_completion(BDRVNVMeState *s, NVMeQueuePair *q)
         qemu_mutex_unlock(&q->lock);
         req.cb(req.opaque, nvme_translate_error(c));
         qemu_mutex_lock(&q->lock);
-        c->cid = cpu_to_le16(0);
         q->inflight--;
-        /* Flip Phase Tag bit. */
-        c->status = cpu_to_le16(le16_to_cpu(c->status) ^ 0x1);
         progress = true;
     }
     if (progress) {
@@ -418,8 +418,9 @@ static void nvme_identify(BlockDriverState *bs, int namespace, Error **errp)
     BDRVNVMeState *s = bs->opaque;
     NvmeIdCtrl *idctrl;
     NvmeIdNs *idns;
+    NvmeLBAF *lbaf;
     uint8_t *resp;
-    int r;
+    int r, hwsect_size;
     uint64_t iova;
     NvmeCmd cmd = {
         .opcode = NVME_ADM_CMD_IDENTIFY,
@@ -466,7 +467,22 @@ static void nvme_identify(BlockDriverState *bs, int namespace, Error **errp)
     }
 
     s->nsze = le64_to_cpu(idns->nsze);
+    lbaf = &idns->lbaf[NVME_ID_NS_FLBAS_INDEX(idns->flbas)];
 
+    if (lbaf->ms) {
+        error_setg(errp, "Namespaces with metadata are not yet supported");
+        goto out;
+    }
+
+    hwsect_size = 1 << lbaf->ds;
+
+    if (hwsect_size < BDRV_SECTOR_SIZE || hwsect_size > s->page_size) {
+        error_setg(errp, "Namespace has unsupported block size (%d)",
+                hwsect_size);
+        goto out;
+    }
+
+    s->blkshift = lbaf->ds;
 out:
     qemu_vfio_dma_unmap(s->vfio, resp);
     qemu_vfree(resp);
@@ -785,8 +801,22 @@ fail:
 static int64_t nvme_getlength(BlockDriverState *bs)
 {
     BDRVNVMeState *s = bs->opaque;
+    return s->nsze << s->blkshift;
+}
 
-    return s->nsze << BDRV_SECTOR_BITS;
+static int64_t nvme_get_blocksize(BlockDriverState *bs)
+{
+    BDRVNVMeState *s = bs->opaque;
+    assert(s->blkshift >= BDRV_SECTOR_BITS);
+    return 1 << s->blkshift;
+}
+
+static int nvme_probe_blocksizes(BlockDriverState *bs, BlockSizes *bsz)
+{
+    int64_t blocksize = nvme_get_blocksize(bs);
+    bsz->phys = blocksize;
+    bsz->log = blocksize;
+    return 0;
 }
 
 /* Called with s->dma_map_lock */
@@ -917,13 +947,14 @@ static coroutine_fn int nvme_co_prw_aligned(BlockDriverState *bs,
     BDRVNVMeState *s = bs->opaque;
     NVMeQueuePair *ioq = s->queues[1];
     NVMeRequest *req;
-    uint32_t cdw12 = (((bytes >> BDRV_SECTOR_BITS) - 1) & 0xFFFF) |
+
+    uint32_t cdw12 = (((bytes >> s->blkshift) - 1) & 0xFFFF) |
                        (flags & BDRV_REQ_FUA ? 1 << 30 : 0);
     NvmeCmd cmd = {
         .opcode = is_write ? NVME_CMD_WRITE : NVME_CMD_READ,
         .nsid = cpu_to_le32(s->nsid),
-        .cdw10 = cpu_to_le32((offset >> BDRV_SECTOR_BITS) & 0xFFFFFFFF),
-        .cdw11 = cpu_to_le32(((offset >> BDRV_SECTOR_BITS) >> 32) & 0xFFFFFFFF),
+        .cdw10 = cpu_to_le32((offset >> s->blkshift) & 0xFFFFFFFF),
+        .cdw11 = cpu_to_le32(((offset >> s->blkshift) >> 32) & 0xFFFFFFFF),
         .cdw12 = cpu_to_le32(cdw12),
     };
     NVMeCoData data = {
@@ -1154,6 +1185,7 @@ static BlockDriver bdrv_nvme = {
     .bdrv_file_open           = nvme_file_open,
     .bdrv_close               = nvme_close,
     .bdrv_getlength           = nvme_getlength,
+    .bdrv_probe_blocksizes    = nvme_probe_blocksizes,
 
     .bdrv_co_preadv           = nvme_co_preadv,
     .bdrv_co_pwritev          = nvme_co_pwritev,
