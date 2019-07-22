@@ -656,6 +656,7 @@ common_ss.add(files('cpus-common.c'))
 
 subdir('softmmu')
 subdir('monitor')
+subdir('replay')
 
 # needed for fuzzing binaries
 subdir('tests/qtest/libqos')
