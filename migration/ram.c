@@ -4334,7 +4334,7 @@ static int ram_load(QEMUFile *f, void *opaque, int version_id)
     seq_iter++;
 
     if (version_id != 4) {
-        ret = -EINVAL;
+        return -EINVAL;
     }
 
     if (!migrate_use_compression()) {
