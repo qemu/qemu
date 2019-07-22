@@ -34,11 +34,11 @@
 
 #define BALLOON_PAGE_SIZE  (1 << VIRTIO_BALLOON_PFN_SHIFT)
 
-struct PartiallyBalloonedPage {
+typedef struct PartiallyBalloonedPage {
     ram_addr_t base_gpa;
     long subpages;
     unsigned long *bitmap;
-};
+} PartiallyBalloonedPage;
 
 static void virtio_balloon_pbp_free(PartiallyBalloonedPage *pbp)
 {
@@ -68,11 +68,11 @@ static bool virtio_balloon_pbp_matches(PartiallyBalloonedPage *pbp,
 }
 
 static void balloon_inflate_page(VirtIOBalloon *balloon,
-                                 MemoryRegion *mr, hwaddr mr_offset)
+                                 MemoryRegion *mr, hwaddr mr_offset,
+                                 PartiallyBalloonedPage **pbp)
 {
     void *addr = memory_region_get_ram_ptr(mr) + mr_offset;
     ram_addr_t rb_offset, rb_aligned_offset, base_gpa;
-    PartiallyBalloonedPage **pbp = &balloon->pbp;
     RAMBlock *rb;
     size_t rb_page_size;
     int subpages;
@@ -148,12 +148,6 @@ static void balloon_deflate_page(VirtIOBalloon *balloon,
      * host address? */
     rb = qemu_ram_block_from_host(addr, false, &rb_offset);
     rb_page_size = qemu_ram_pagesize(rb);
-
-    if (balloon->pbp) {
-        /* Let's play safe and always reset the pbp on deflation requests. */
-        virtio_balloon_pbp_free(balloon->pbp);
-        balloon->pbp = NULL;
-    }
 
     host_addr = (void *)((uintptr_t)addr & ~(rb_page_size - 1));
 
@@ -336,6 +330,7 @@ static void balloon_stats_set_poll_interval(Object *obj, Visitor *v,
 static void virtio_balloon_handle_output(VirtIODevice *vdev, VirtQueue *vq)
 {
     VirtIOBalloon *s = VIRTIO_BALLOON(vdev);
+    PartiallyBalloonedPage *pbp = NULL;
     VirtQueueElement *elem;
     MemoryRegionSection section;
 
@@ -344,7 +339,7 @@ static void virtio_balloon_handle_output(VirtIODevice *vdev, VirtQueue *vq)
         uint32_t pfn;
         elem = virtqueue_pop(vq, sizeof(VirtQueueElement));
         if (!elem) {
-            return;
+            break;
         }
 
         while (iov_to_buf(elem->out_sg, elem->out_num, offset, &pfn, 4) == 4) {
@@ -373,7 +368,7 @@ static void virtio_balloon_handle_output(VirtIODevice *vdev, VirtQueue *vq)
             if (!qemu_balloon_is_inhibited()) {
                 if (vq == s->ivq) {
                     balloon_inflate_page(s, section.mr,
-                                         section.offset_within_region);
+                                         section.offset_within_region, &pbp);
                 } else if (vq == s->dvq) {
                     balloon_deflate_page(s, section.mr, section.offset_within_region);
                 } else {
@@ -387,6 +382,8 @@ static void virtio_balloon_handle_output(VirtIODevice *vdev, VirtQueue *vq)
         virtio_notify(vdev, vq);
         g_free(elem);
     }
+
+    virtio_balloon_pbp_free(pbp);
 }
 
 static void virtio_balloon_receive_stats(VirtIODevice *vdev, VirtQueue *vq)
