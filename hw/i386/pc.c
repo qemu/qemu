@@ -2834,6 +2834,13 @@ static void pc_machine_reset(MachineState *machine)
     }
 }
 
+static void pc_machine_wakeup(MachineState *machine)
+{
+    cpu_synchronize_all_states();
+    pc_machine_reset(machine);
+    cpu_synchronize_all_post_reset();
+}
+
 static CpuInstanceProperties
 pc_cpu_index_to_props(MachineState *ms, unsigned cpu_index)
 {
@@ -2946,6 +2953,7 @@ static void pc_machine_class_init(ObjectClass *oc, void *data)
     mc->block_default_type = IF_IDE;
     mc->max_cpus = 255;
     mc->reset = pc_machine_reset;
+    mc->wakeup = pc_machine_wakeup;
     hc->pre_plug = pc_machine_device_pre_plug_cb;
     hc->plug = pc_machine_device_plug_cb;
     hc->unplug_request = pc_machine_device_unplug_request_cb;
