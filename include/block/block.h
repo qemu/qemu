@@ -667,11 +667,9 @@ void bdrv_subtree_drained_begin(BlockDriverState *bs);
  *
  * This polls @bs's AioContext until all scheduled sub-drained_ends
  * have settled.  On one hand, that may result in graph changes.  On
- * the other, this requires that all involved nodes (@bs and all of
- * its parents) are in the same AioContext, and that the caller has
- * acquired it.
- * If there are any nodes that are in different contexts from @bs,
- * these contexts must not be acquired.
+ * the other, this requires that the caller either runs in the main
+ * loop; or that all involved nodes (@bs and all of its parents) are
+ * in the caller's AioContext.
  */
 void bdrv_drained_end(BlockDriverState *bs);
 
