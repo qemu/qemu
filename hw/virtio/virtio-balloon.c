@@ -117,7 +117,7 @@ static void balloon_deflate_page(VirtIOBalloon *balloon,
     void *addr = memory_region_get_ram_ptr(mr) + offset;
     RAMBlock *rb;
     size_t rb_page_size;
-    ram_addr_t ram_offset, host_page_base;
+    ram_addr_t ram_offset;
     void *host_addr;
     int ret;
 
@@ -125,27 +125,11 @@ static void balloon_deflate_page(VirtIOBalloon *balloon,
      * host address? */
     rb = qemu_ram_block_from_host(addr, false, &ram_offset);
     rb_page_size = qemu_ram_pagesize(rb);
-    host_page_base = ram_offset & ~(rb_page_size - 1);
 
-    if (balloon->pbp
-        && rb == balloon->pbp->rb
-        && host_page_base == balloon->pbp->base) {
-        int subpages = rb_page_size / BALLOON_PAGE_SIZE;
-
-        /*
-         * This means the guest has asked to discard some of the 4kiB
-         * subpages of a host page, but then changed its mind and
-         * asked to keep them after all.  It's exceedingly unlikely
-         * for a guest to do this in practice, but handle it anyway,
-         * since getting it wrong could mean discarding memory the
-         * guest is still using. */
-        clear_bit((ram_offset - balloon->pbp->base) / BALLOON_PAGE_SIZE,
-                  balloon->pbp->bitmap);
-
-        if (bitmap_empty(balloon->pbp->bitmap, subpages)) {
-            g_free(balloon->pbp);
-            balloon->pbp = NULL;
-        }
+    if (balloon->pbp) {
+        /* Let's play safe and always reset the pbp on deflation requests. */
+        g_free(balloon->pbp);
+        balloon->pbp = NULL;
     }
 
     host_addr = (void *)((uintptr_t)addr & ~(rb_page_size - 1));
