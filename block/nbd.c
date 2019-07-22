@@ -640,12 +640,11 @@ static coroutine_fn int nbd_co_receive_one_chunk(
                                           request_ret, qiov, payload, errp);
 
     if (ret < 0) {
+        memset(reply, 0, sizeof(*reply));
         s->quit = true;
     } else {
         /* For assert at loop start in nbd_connection_entry */
-        if (reply) {
-            *reply = s->reply;
-        }
+        *reply = s->reply;
         s->reply.handle = 0;
     }
 
