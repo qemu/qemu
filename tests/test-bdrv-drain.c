@@ -686,6 +686,7 @@ static void test_iothread_common(enum drain_type drain_type, int drain_thread)
                               &error_abort);
     s = bs->opaque;
     blk_insert_bs(blk, bs, &error_abort);
+    blk_set_disable_request_queuing(blk, true);
 
     blk_set_aio_context(blk, ctx_a, &error_abort);
     aio_context_acquire(ctx_a);

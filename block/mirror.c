@@ -1636,6 +1636,7 @@ static BlockJob *mirror_start_job(
         blk_set_force_allow_inactivate(s->target);
     }
     blk_set_allow_aio_context_change(s->target, true);
+    blk_set_disable_request_queuing(s->target, true);
 
     s->replaces = g_strdup(replaces);
     s->on_source_error = on_source_error;
