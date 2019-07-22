@@ -323,7 +323,7 @@ else
         echo "to acquire QEMU source archives. Non-GIT builds are only"
         echo "supported with source archives linked from:"
         echo
-        echo "  https://www.qemu.org/download/"
+        echo "  https://www.qemu.org/download/#source"
         echo
         echo "Developers working with GIT can use scripts/archive-source.sh"
         echo "if they need to create valid source archives."
