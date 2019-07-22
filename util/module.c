@@ -179,11 +179,10 @@ void module_load_one(const char *prefix, const char *lib_name)
 
     module_name = g_strdup_printf("%s%s", prefix, lib_name);
 
-    if (g_hash_table_lookup(loaded_modules, module_name)) {
+    if (!g_hash_table_add(loaded_modules, module_name)) {
         g_free(module_name);
         return;
     }
-    g_hash_table_insert(loaded_modules, module_name, module_name);
 
     exec_dir = qemu_get_exec_dir();
     search_dir = getenv("QEMU_MODULE_DIR");
