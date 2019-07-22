@@ -217,6 +217,36 @@ static void rtas_stop_self(PowerPCCPU *cpu, SpaprMachineState *spapr,
     qemu_cpu_kick(cs);
 }
 
+static void rtas_ibm_suspend_me(PowerPCCPU *cpu, SpaprMachineState *spapr,
+                           uint32_t token, uint32_t nargs,
+                           target_ulong args,
+                           uint32_t nret, target_ulong rets)
+{
+    CPUState *cs;
+
+    if (nargs != 0 || nret != 1) {
+        rtas_st(rets, 0, RTAS_OUT_PARAM_ERROR);
+        return;
+    }
+
+    CPU_FOREACH(cs) {
+        PowerPCCPU *c = POWERPC_CPU(cs);
+        CPUPPCState *e = &c->env;
+        if (c == cpu) {
+            continue;
+        }
+
+        /* See h_join */
+        if (!cs->halted || (e->msr & (1ULL << MSR_EE))) {
+            rtas_st(rets, 0, H_MULTI_THREADS_ACTIVE);
+            return;
+        }
+    }
+
+    qemu_system_suspend_request();
+    rtas_st(rets, 0, RTAS_OUT_SUCCESS);
+}
+
 static inline int sysparm_st(target_ulong addr, target_ulong len,
                              const void *val, uint16_t vallen)
 {
@@ -484,6 +514,8 @@ static void core_rtas_register_types(void)
                         rtas_query_cpu_stopped_state);
     spapr_rtas_register(RTAS_START_CPU, "start-cpu", rtas_start_cpu);
     spapr_rtas_register(RTAS_STOP_SELF, "stop-self", rtas_stop_self);
+    spapr_rtas_register(RTAS_IBM_SUSPEND_ME, "ibm,suspend-me",
+                        rtas_ibm_suspend_me);
     spapr_rtas_register(RTAS_IBM_GET_SYSTEM_PARAMETER,
                         "ibm,get-system-parameter",
                         rtas_ibm_get_system_parameter);

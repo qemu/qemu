@@ -3083,6 +3083,13 @@ static void spapr_machine_init(MachineState *machine)
 
     qemu_register_boot_set(spapr_boot_set, spapr);
 
+    /*
+     * Nothing needs to be done to resume a suspended guest because
+     * suspending does not change the machine state, so no need for
+     * a ->wakeup method.
+     */
+    qemu_register_wakeup_support();
+
     if (kvm_enabled()) {
         /* to stop and start vmclock */
         qemu_add_vm_change_state_handler(cpu_ppc_clock_vm_state_change,
