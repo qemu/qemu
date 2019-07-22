@@ -1835,6 +1835,311 @@ static void test_drop_intermediate_poll(void)
     bdrv_unref(chain[2]);
 }
 
+
+typedef struct BDRVReplaceTestState {
+    bool was_drained;
+    bool was_undrained;
+    bool has_read;
+
+    int drain_count;
+
+    bool yield_before_read;
+    Coroutine *io_co;
+    Coroutine *drain_co;
+} BDRVReplaceTestState;
+
+static void bdrv_replace_test_close(BlockDriverState *bs)
+{
+}
+
+/**
+ * If @bs has a backing file:
+ *   Yield if .yield_before_read is true (and wait for drain_begin to
+ *   wake us up).
+ *   Forward the read to bs->backing.  Set .has_read to true.
+ *   If drain_begin has woken us, wake it in turn.
+ *
+ * Otherwise:
+ *   Set .has_read to true and return success.
+ */
+static int coroutine_fn bdrv_replace_test_co_preadv(BlockDriverState *bs,
+                                                    uint64_t offset,
+                                                    uint64_t bytes,
+                                                    QEMUIOVector *qiov,
+                                                    int flags)
+{
+    BDRVReplaceTestState *s = bs->opaque;
+
+    if (bs->backing) {
+        int ret;
+
+        g_assert(!s->drain_count);
+
+        s->io_co = qemu_coroutine_self();
+        if (s->yield_before_read) {
+            s->yield_before_read = false;
+            qemu_coroutine_yield();
+        }
+        s->io_co = NULL;
+
+        ret = bdrv_preadv(bs->backing, offset, qiov);
+        s->has_read = true;
+
+        /* Wake up drain_co if it runs */
+        if (s->drain_co) {
+            aio_co_wake(s->drain_co);
+        }
+
+        return ret;
+    }
+
+    s->has_read = true;
+    return 0;
+}
+
+/**
+ * If .drain_count is 0, wake up .io_co if there is one; and set
+ * .was_drained.
+ * Increment .drain_count.
+ */
+static void coroutine_fn bdrv_replace_test_co_drain_begin(BlockDriverState *bs)
+{
+    BDRVReplaceTestState *s = bs->opaque;
+
+    if (!s->drain_count) {
+        /* Keep waking io_co up until it is done */
+        s->drain_co = qemu_coroutine_self();
+        while (s->io_co) {
+            aio_co_wake(s->io_co);
+            s->io_co = NULL;
+            qemu_coroutine_yield();
+        }
+        s->drain_co = NULL;
+
+        s->was_drained = true;
+    }
+    s->drain_count++;
+}
+
+/**
+ * Reduce .drain_count, set .was_undrained once it reaches 0.
+ * If .drain_count reaches 0 and the node has a backing file, issue a
+ * read request.
+ */
+static void coroutine_fn bdrv_replace_test_co_drain_end(BlockDriverState *bs)
+{
+    BDRVReplaceTestState *s = bs->opaque;
+
+    g_assert(s->drain_count > 0);
+    if (!--s->drain_count) {
+        int ret;
+
+        s->was_undrained = true;
+
+        if (bs->backing) {
+            char data;
+            QEMUIOVector qiov = QEMU_IOVEC_INIT_BUF(qiov, &data, 1);
+
+            /* Queue a read request post-drain */
+            ret = bdrv_replace_test_co_preadv(bs, 0, 1, &qiov, 0);
+            g_assert(ret >= 0);
+        }
+    }
+}
+
+static BlockDriver bdrv_replace_test = {
+    .format_name            = "replace_test",
+    .instance_size          = sizeof(BDRVReplaceTestState),
+
+    .bdrv_close             = bdrv_replace_test_close,
+    .bdrv_co_preadv         = bdrv_replace_test_co_preadv,
+
+    .bdrv_co_drain_begin    = bdrv_replace_test_co_drain_begin,
+    .bdrv_co_drain_end      = bdrv_replace_test_co_drain_end,
+
+    .bdrv_child_perm        = bdrv_format_default_perms,
+};
+
+static void coroutine_fn test_replace_child_mid_drain_read_co(void *opaque)
+{
+    int ret;
+    char data;
+
+    ret = blk_co_pread(opaque, 0, 1, &data, 0);
+    g_assert(ret >= 0);
+}
+
+/**
+ * We test two things:
+ * (1) bdrv_replace_child_noperm() must not undrain the parent if both
+ *     children are drained.
+ * (2) bdrv_replace_child_noperm() must never flush I/O requests to a
+ *     drained child.  If the old child is drained, it must flush I/O
+ *     requests after the new one has been attached.  If the new child
+ *     is drained, it must flush I/O requests before the old one is
+ *     detached.
+ *
+ * To do so, we create one parent node and two child nodes; then
+ * attach one of the children (old_child_bs) to the parent, then
+ * drain both old_child_bs and new_child_bs according to
+ * old_drain_count and new_drain_count, respectively, and finally
+ * we invoke bdrv_replace_node() to replace old_child_bs by
+ * new_child_bs.
+ *
+ * The test block driver we use here (bdrv_replace_test) has a read
+ * function that:
+ * - For the parent node, can optionally yield, and then forwards the
+ *   read to bdrv_preadv(),
+ * - For the child node, just returns immediately.
+ *
+ * If the read yields, the drain_begin function will wake it up.
+ *
+ * The drain_end function issues a read on the parent once it is fully
+ * undrained (which simulates requests starting to come in again).
+ */
+static void do_test_replace_child_mid_drain(int old_drain_count,
+                                            int new_drain_count)
+{
+    BlockBackend *parent_blk;
+    BlockDriverState *parent_bs;
+    BlockDriverState *old_child_bs, *new_child_bs;
+    BDRVReplaceTestState *parent_s;
+    BDRVReplaceTestState *old_child_s, *new_child_s;
+    Coroutine *io_co;
+    int i;
+
+    parent_bs = bdrv_new_open_driver(&bdrv_replace_test, "parent", 0,
+                                     &error_abort);
+    parent_s = parent_bs->opaque;
+
+    parent_blk = blk_new(qemu_get_aio_context(),
+                         BLK_PERM_CONSISTENT_READ, BLK_PERM_ALL);
+    blk_insert_bs(parent_blk, parent_bs, &error_abort);
+
+    old_child_bs = bdrv_new_open_driver(&bdrv_replace_test, "old-child", 0,
+                                        &error_abort);
+    new_child_bs = bdrv_new_open_driver(&bdrv_replace_test, "new-child", 0,
+                                        &error_abort);
+    old_child_s = old_child_bs->opaque;
+    new_child_s = new_child_bs->opaque;
+
+    /* So that we can read something */
+    parent_bs->total_sectors = 1;
+    old_child_bs->total_sectors = 1;
+    new_child_bs->total_sectors = 1;
+
+    bdrv_ref(old_child_bs);
+    parent_bs->backing = bdrv_attach_child(parent_bs, old_child_bs, "child",
+                                           &child_backing, &error_abort);
+
+    for (i = 0; i < old_drain_count; i++) {
+        bdrv_drained_begin(old_child_bs);
+    }
+    for (i = 0; i < new_drain_count; i++) {
+        bdrv_drained_begin(new_child_bs);
+    }
+
+    if (!old_drain_count) {
+        /*
+         * Start a read operation that will yield, so it will not
+         * complete before the node is drained.
+         */
+        parent_s->yield_before_read = true;
+        io_co = qemu_coroutine_create(test_replace_child_mid_drain_read_co,
+                                      parent_blk);
+        qemu_coroutine_enter(io_co);
+    }
+
+    /* If we have started a read operation, it should have yielded */
+    g_assert(!parent_s->has_read);
+
+    /* Reset drained status so we can see what bdrv_replace_node() does */
+    parent_s->was_drained = false;
+    parent_s->was_undrained = false;
+
+    g_assert(parent_bs->quiesce_counter == old_drain_count);
+    bdrv_replace_node(old_child_bs, new_child_bs, &error_abort);
+    g_assert(parent_bs->quiesce_counter == new_drain_count);
+
+    if (!old_drain_count && !new_drain_count) {
+        /*
+         * From undrained to undrained drains and undrains the parent,
+         * because bdrv_replace_node() contains a drained section for
+         * @old_child_bs.
+         */
+        g_assert(parent_s->was_drained && parent_s->was_undrained);
+    } else if (!old_drain_count && new_drain_count) {
+        /*
+         * From undrained to drained should drain the parent and keep
+         * it that way.
+         */
+        g_assert(parent_s->was_drained && !parent_s->was_undrained);
+    } else if (old_drain_count && !new_drain_count) {
+        /*
+         * From drained to undrained should undrain the parent and
+         * keep it that way.
+         */
+        g_assert(!parent_s->was_drained && parent_s->was_undrained);
+    } else /* if (old_drain_count && new_drain_count) */ {
+        /*
+         * From drained to drained must not undrain the parent at any
+         * point
+         */
+        g_assert(!parent_s->was_drained && !parent_s->was_undrained);
+    }
+
+    if (!old_drain_count || !new_drain_count) {
+        /*
+         * If !old_drain_count, we have started a read request before
+         * bdrv_replace_node().  If !new_drain_count, the parent must
+         * have been undrained at some point, and
+         * bdrv_replace_test_co_drain_end() starts a read request
+         * then.
+         */
+        g_assert(parent_s->has_read);
+    } else {
+        /*
+         * If the parent was never undrained, there is no way to start
+         * a read request.
+         */
+        g_assert(!parent_s->has_read);
+    }
+
+    /* A drained child must have not received any request */
+    g_assert(!(old_drain_count && old_child_s->has_read));
+    g_assert(!(new_drain_count && new_child_s->has_read));
+
+    for (i = 0; i < new_drain_count; i++) {
+        bdrv_drained_end(new_child_bs);
+    }
+    for (i = 0; i < old_drain_count; i++) {
+        bdrv_drained_end(old_child_bs);
+    }
+
+    /*
+     * By now, bdrv_replace_test_co_drain_end() must have been called
+     * at some point while the new child was attached to the parent.
+     */
+    g_assert(parent_s->has_read);
+    g_assert(new_child_s->has_read);
+
+    blk_unref(parent_blk);
+    bdrv_unref(parent_bs);
+    bdrv_unref(old_child_bs);
+    bdrv_unref(new_child_bs);
+}
+
+static void test_replace_child_mid_drain(void)
+{
+    int old_drain_count, new_drain_count;
+
+    for (old_drain_count = 0; old_drain_count < 2; old_drain_count++) {
+        for (new_drain_count = 0; new_drain_count < 2; new_drain_count++) {
+            do_test_replace_child_mid_drain(old_drain_count, new_drain_count);
+        }
+    }
+}
+
 int main(int argc, char **argv)
 {
     int ret;
@@ -1923,6 +2228,9 @@ int main(int argc, char **argv)
 
     g_test_add_func("/bdrv-drain/bdrv_drop_intermediate/poll",
                     test_drop_intermediate_poll);
+
+    g_test_add_func("/bdrv-drain/replace_child/mid-drain",
+                    test_replace_child_mid_drain);
 
     ret = g_test_run();
     qemu_event_destroy(&done_event);
