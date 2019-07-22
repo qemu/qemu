@@ -1189,9 +1189,10 @@ void qtest_cb_for_every_machine(void (*cb)(const char *machine),
     QObject *qobj;
     QString *qstr;
     const char *mname;
+    QTestState *qts;
 
-    qtest_start("-machine none");
-    response = qmp("{ 'execute': 'query-machines' }");
+    qts = qtest_init("-machine none");
+    response = qtest_qmp(qts, "{ 'execute': 'query-machines' }");
     g_assert(response);
     list = qdict_get_qlist(response, "return");
     g_assert(list);
@@ -1209,7 +1210,7 @@ void qtest_cb_for_every_machine(void (*cb)(const char *machine),
         }
     }
 
-    qtest_end();
+    qtest_quit(qts);
     qobject_unref(response);
 }
 
