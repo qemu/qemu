@@ -343,8 +343,8 @@ static void virtio_balloon_handle_output(VirtIODevice *vdev, VirtQueue *vq)
         }
 
         while (iov_to_buf(elem->out_sg, elem->out_num, offset, &pfn, 4) == 4) {
+            unsigned int p = virtio_ldl_p(vdev, &pfn);
             hwaddr pa;
-            int p = virtio_ldl_p(vdev, &pfn);
 
             pa = (hwaddr) p << VIRTIO_BALLOON_PFN_SHIFT;
             offset += 4;
