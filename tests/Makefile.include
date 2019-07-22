@@ -149,6 +149,7 @@ check-block-$(call land,$(CONFIG_POSIX),$(CONFIG_SOFTMMU)) += tests/check-block.
 
 check-qtest-generic-y += tests/qmp-test$(EXESUF)
 check-qtest-generic-y += tests/qmp-cmd-test$(EXESUF)
+check-qtest-generic-$(CONFIG_MODULES) += tests/modules-test$(EXESUF)
 
 check-qtest-generic-y += tests/device-introspect-test$(EXESUF)
 check-qtest-generic-y += tests/cdrom-test$(EXESUF)
