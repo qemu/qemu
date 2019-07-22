@@ -128,6 +128,11 @@ bool kvm_has_adjust_clock_stable(void)
     return (ret == KVM_CLOCK_TSC_STABLE);
 }
 
+bool kvm_has_exception_payload(void)
+{
+    return has_exception_payload;
+}
+
 bool kvm_allows_irq0_override(void)
 {
     return !kvm_irqchip_in_kernel() || kvm_has_gsi_routing();
@@ -1342,7 +1347,6 @@ static int hyperv_init_vcpu(X86CPU *cpu)
 }
 
 static Error *invtsc_mig_blocker;
-static Error *nested_virt_mig_blocker;
 
 #define KVM_MAX_CPUID_ENTRIES  100
 
@@ -1653,22 +1657,6 @@ int kvm_arch_init_vcpu(CPUState *cs)
                                   !!(c->ecx & CPUID_EXT_SMX);
     }
 
-    if (cpu_has_vmx(env) && !nested_virt_mig_blocker &&
-        ((kvm_max_nested_state_length() <= 0) || !has_exception_payload)) {
-        error_setg(&nested_virt_mig_blocker,
-                   "Kernel do not provide required capabilities for "
-                   "nested virtualization migration. "
-                   "(CAP_NESTED_STATE=%d, CAP_EXCEPTION_PAYLOAD=%d)",
-                   kvm_max_nested_state_length() > 0,
-                   has_exception_payload);
-        r = migrate_add_blocker(nested_virt_mig_blocker, &local_err);
-        if (local_err) {
-            error_report_err(local_err);
-            error_free(nested_virt_mig_blocker);
-            return r;
-        }
-    }
-
     if (env->mcg_cap & MCG_LMCE_P) {
         has_msr_mcg_ext_ctl = has_msr_feature_control = true;
     }
@@ -1683,7 +1671,7 @@ int kvm_arch_init_vcpu(CPUState *cs)
             if (local_err) {
                 error_report_err(local_err);
                 error_free(invtsc_mig_blocker);
-                goto fail2;
+                return r;
             }
         }
     }
@@ -1723,15 +1711,15 @@ int kvm_arch_init_vcpu(CPUState *cs)
     max_nested_state_len = kvm_max_nested_state_length();
     if (max_nested_state_len > 0) {
         assert(max_nested_state_len >= offsetof(struct kvm_nested_state, data));
-        env->nested_state = g_malloc0(max_nested_state_len);
 
-        env->nested_state->size = max_nested_state_len;
+        if (cpu_has_vmx(env)) {
+            struct kvm_vmx_nested_state_hdr *vmx_hdr;
 
-        if (IS_INTEL_CPU(env)) {
-            struct kvm_vmx_nested_state_hdr *vmx_hdr =
-                &env->nested_state->hdr.vmx;
-
+            env->nested_state = g_malloc0(max_nested_state_len);
+            env->nested_state->size = max_nested_state_len;
             env->nested_state->format = KVM_STATE_NESTED_FORMAT_VMX;
+
+            vmx_hdr = &env->nested_state->hdr.vmx;
             vmx_hdr->vmxon_pa = -1ull;
             vmx_hdr->vmcs12_pa = -1ull;
         }
@@ -1752,8 +1740,6 @@ int kvm_arch_init_vcpu(CPUState *cs)
 
  fail:
     migrate_del_blocker(invtsc_mig_blocker);
- fail2:
-    migrate_del_blocker(nested_virt_mig_blocker);
 
     return r;
 }
@@ -3529,7 +3515,7 @@ static int kvm_put_nested_state(X86CPU *cpu)
     CPUX86State *env = &cpu->env;
     int max_nested_state_len = kvm_max_nested_state_length();
 
-    if (max_nested_state_len <= 0) {
+    if (!env->nested_state) {
         return 0;
     }
 
@@ -3543,7 +3529,7 @@ static int kvm_get_nested_state(X86CPU *cpu)
     int max_nested_state_len = kvm_max_nested_state_length();
     int ret;
 
-    if (max_nested_state_len <= 0) {
+    if (!env->nested_state) {
         return 0;
     }
 

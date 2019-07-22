@@ -59,12 +59,67 @@ static void check_bitmap_copy_with_offset(void)
     g_free(bmap3);
 }
 
+typedef void (*bmap_set_func)(unsigned long *map, long i, long len);
+static void bitmap_set_case(bmap_set_func set_func)
+{
+    unsigned long *bmap;
+    int offset;
+
+    bmap = bitmap_new(BMAP_SIZE);
+
+    /* Both Aligned, set bits [BITS_PER_LONG, 3*BITS_PER_LONG] */
+    set_func(bmap, BITS_PER_LONG, 2 * BITS_PER_LONG);
+    g_assert_cmpuint(bmap[1], ==, -1ul);
+    g_assert_cmpuint(bmap[2], ==, -1ul);
+    g_assert_cmpint(find_first_bit(bmap, BITS_PER_LONG), ==, BITS_PER_LONG);
+    g_assert_cmpint(find_next_zero_bit(bmap, 3 * BITS_PER_LONG, BITS_PER_LONG),
+                    ==, 3 * BITS_PER_LONG);
+
+    for (offset = 0; offset <= BITS_PER_LONG; offset++) {
+        bitmap_clear(bmap, 0, BMAP_SIZE);
+        /* End Aligned, set bits [BITS_PER_LONG - offset, 3*BITS_PER_LONG] */
+        set_func(bmap, BITS_PER_LONG - offset, 2 * BITS_PER_LONG + offset);
+        g_assert_cmpuint(bmap[1], ==, -1ul);
+        g_assert_cmpuint(bmap[2], ==, -1ul);
+        g_assert_cmpint(find_first_bit(bmap, BITS_PER_LONG),
+                        ==, BITS_PER_LONG - offset);
+        g_assert_cmpint(find_next_zero_bit(bmap,
+                                           3 * BITS_PER_LONG,
+                                           BITS_PER_LONG - offset),
+                        ==, 3 * BITS_PER_LONG);
+    }
+
+    for (offset = 0; offset <= BITS_PER_LONG; offset++) {
+        bitmap_clear(bmap, 0, BMAP_SIZE);
+        /* Start Aligned, set bits [BITS_PER_LONG, 3*BITS_PER_LONG + offset] */
+        set_func(bmap, BITS_PER_LONG, 2 * BITS_PER_LONG + offset);
+        g_assert_cmpuint(bmap[1], ==, -1ul);
+        g_assert_cmpuint(bmap[2], ==, -1ul);
+        g_assert_cmpint(find_first_bit(bmap, BITS_PER_LONG),
+                        ==, BITS_PER_LONG);
+        g_assert_cmpint(find_next_zero_bit(bmap,
+                                           3 * BITS_PER_LONG + offset,
+                                           BITS_PER_LONG),
+                        ==, 3 * BITS_PER_LONG + offset);
+    }
+
+    g_free(bmap);
+}
+
+static void check_bitmap_set(void)
+{
+    bitmap_set_case(bitmap_set);
+    bitmap_set_case(bitmap_set_atomic);
+}
+
 int main(int argc, char **argv)
 {
     g_test_init(&argc, &argv, NULL);
 
     g_test_add_func("/bitmap/bitmap_copy_with_offset",
                     check_bitmap_copy_with_offset);
+    g_test_add_func("/bitmap/bitmap_set",
+                    check_bitmap_set);
 
     g_test_run();
 

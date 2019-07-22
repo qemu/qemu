@@ -1752,7 +1752,7 @@ disabled with --disable-FEATURE, default is enabled if available:
   guest-agent     build the QEMU Guest Agent
   guest-agent-msi build guest agent Windows MSI installation package
   pie             Position Independent Executables
-  modules         modules support
+  modules         modules support (non-Windows)
   debug-tcg       TCG debugging (default is disabled)
   debug-info      debugging information
   sparse          sparse checker
@@ -2005,6 +2005,11 @@ if compile_object "-Werror" "" ; then
   :
 else
   QEMU_CFLAGS="$QEMU_CFLAGS -Wno-missing-braces"
+fi
+
+# Our module code doesn't support Windows
+if test "$modules" = "yes" && test "$mingw32" = "yes" ; then
+  error_exit "Modules are not available for Windows"
 fi
 
 # Static linking is not possible with modules or PIE

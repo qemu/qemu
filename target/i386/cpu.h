@@ -1877,6 +1877,28 @@ static inline bool cpu_has_vmx(CPUX86State *env)
     return env->features[FEAT_1_ECX] & CPUID_EXT_VMX;
 }
 
+/*
+ * In order for a vCPU to enter VMX operation it must have CR4.VMXE set.
+ * Since it was set, CR4.VMXE must remain set as long as vCPU is in
+ * VMX operation. This is because CR4.VMXE is one of the bits set
+ * in MSR_IA32_VMX_CR4_FIXED1.
+ *
+ * There is one exception to above statement when vCPU enters SMM mode.
+ * When a vCPU enters SMM mode, it temporarily exit VMX operation and
+ * may also reset CR4.VMXE during execution in SMM mode.
+ * When vCPU exits SMM mode, vCPU state is restored to be in VMX operation
+ * and CR4.VMXE is restored to it's original value of being set.
+ *
+ * Therefore, when vCPU is not in SMM mode, we can infer whether
+ * VMX is being used by examining CR4.VMXE. Otherwise, we cannot
+ * know for certain.
+ */
+static inline bool cpu_vmx_maybe_enabled(CPUX86State *env)
+{
+    return cpu_has_vmx(env) &&
+           ((env->cr[4] & CR4_VMXE_MASK) || (env->hflags & HF_SMM_MASK));
+}
+
 /* fpu_helper.c */
 void update_fp_status(CPUX86State *env);
 void update_mxcsr_status(CPUX86State *env);
