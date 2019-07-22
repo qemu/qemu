@@ -35,16 +35,44 @@
 #define BALLOON_PAGE_SIZE  (1 << VIRTIO_BALLOON_PFN_SHIFT)
 
 struct PartiallyBalloonedPage {
-    RAMBlock *rb;
-    ram_addr_t base;
-    unsigned long bitmap[];
+    ram_addr_t base_gpa;
+    long subpages;
+    unsigned long *bitmap;
 };
+
+static void virtio_balloon_pbp_free(PartiallyBalloonedPage *pbp)
+{
+    if (!pbp) {
+        return;
+    }
+    g_free(pbp->bitmap);
+    g_free(pbp);
+}
+
+static PartiallyBalloonedPage *virtio_balloon_pbp_alloc(ram_addr_t base_gpa,
+                                                        long subpages)
+{
+    PartiallyBalloonedPage *pbp = g_new0(PartiallyBalloonedPage, 1);
+
+    pbp->base_gpa = base_gpa;
+    pbp->subpages = subpages;
+    pbp->bitmap = bitmap_new(subpages);
+
+    return pbp;
+}
+
+static bool virtio_balloon_pbp_matches(PartiallyBalloonedPage *pbp,
+                                       ram_addr_t base_gpa, long subpages)
+{
+    return pbp->subpages == subpages && pbp->base_gpa == base_gpa;
+}
 
 static void balloon_inflate_page(VirtIOBalloon *balloon,
                                  MemoryRegion *mr, hwaddr mr_offset)
 {
     void *addr = memory_region_get_ram_ptr(mr) + mr_offset;
-    ram_addr_t rb_offset, rb_aligned_offset;
+    ram_addr_t rb_offset, rb_aligned_offset, base_gpa;
+    PartiallyBalloonedPage **pbp = &balloon->pbp;
     RAMBlock *rb;
     size_t rb_page_size;
     int subpages;
@@ -75,39 +103,34 @@ static void balloon_inflate_page(VirtIOBalloon *balloon,
 
     rb_aligned_offset = QEMU_ALIGN_DOWN(rb_offset, rb_page_size);
     subpages = rb_page_size / BALLOON_PAGE_SIZE;
+    base_gpa = memory_region_get_ram_addr(mr) + mr_offset -
+               (rb_offset - rb_aligned_offset);
 
-    if (balloon->pbp
-        && (rb != balloon->pbp->rb
-            || rb_aligned_offset != balloon->pbp->base)) {
+    if (*pbp && !virtio_balloon_pbp_matches(*pbp, base_gpa, subpages)) {
         /* We've partially ballooned part of a host page, but now
          * we're trying to balloon part of a different one.  Too hard,
          * give up on the old partial page */
-        g_free(balloon->pbp);
-        balloon->pbp = NULL;
+        virtio_balloon_pbp_free(*pbp);
+        *pbp = NULL;
     }
 
-    if (!balloon->pbp) {
-        /* Starting on a new host page */
-        size_t bitlen = BITS_TO_LONGS(subpages) * sizeof(unsigned long);
-        balloon->pbp = g_malloc0(sizeof(PartiallyBalloonedPage) + bitlen);
-        balloon->pbp->rb = rb;
-        balloon->pbp->base = rb_aligned_offset;
+    if (!*pbp) {
+        *pbp = virtio_balloon_pbp_alloc(base_gpa, subpages);
     }
 
-    set_bit((rb_offset - balloon->pbp->base) / BALLOON_PAGE_SIZE,
-            balloon->pbp->bitmap);
+    set_bit((rb_offset - rb_aligned_offset) / BALLOON_PAGE_SIZE,
+            (*pbp)->bitmap);
 
-    if (bitmap_full(balloon->pbp->bitmap, subpages)) {
+    if (bitmap_full((*pbp)->bitmap, subpages)) {
         /* We've accumulated a full host page, we can actually discard
          * it now */
 
-        ram_block_discard_range(rb, balloon->pbp->base, rb_page_size);
+        ram_block_discard_range(rb, rb_aligned_offset, rb_page_size);
         /* We ignore errors from ram_block_discard_range(), because it
          * has already reported them, and failing to discard a balloon
          * page is not fatal */
-
-        g_free(balloon->pbp);
-        balloon->pbp = NULL;
+        virtio_balloon_pbp_free(*pbp);
+        *pbp = NULL;
     }
 }
 
@@ -128,7 +151,7 @@ static void balloon_deflate_page(VirtIOBalloon *balloon,
 
     if (balloon->pbp) {
         /* Let's play safe and always reset the pbp on deflation requests. */
-        g_free(balloon->pbp);
+        virtio_balloon_pbp_free(balloon->pbp);
         balloon->pbp = NULL;
     }
 
