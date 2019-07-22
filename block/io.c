@@ -217,13 +217,12 @@ static void coroutine_fn bdrv_drain_invoke_entry(void *opaque)
         bs->drv->bdrv_co_drain_end(bs);
     }
 
-    /* Set data->done before reading bs->wakeup.  */
+    /* Set data->done and decrement drained_end_counter before bdrv_wakeup() */
     atomic_mb_set(&data->done, true);
-    bdrv_dec_in_flight(bs);
-
     if (!data->begin) {
         atomic_dec(data->drained_end_counter);
     }
+    bdrv_dec_in_flight(bs);
 
     g_free(data);
 }
