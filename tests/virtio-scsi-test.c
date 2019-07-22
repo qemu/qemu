@@ -150,8 +150,10 @@ static QVirtioSCSIQueues *qvirtio_scsi_init(QVirtioDevice *dev)
 
 static void hotplug(void *obj, void *data, QGuestAllocator *alloc)
 {
-    qtest_qmp_device_add("scsi-hd", "scsihd", "{'drive': 'drv1'}");
-    qtest_qmp_device_del("scsihd");
+    QTestState *qts = global_qtest;
+
+    qtest_qmp_device_add(qts, "scsi-hd", "scsihd", "{'drive': 'drv1'}");
+    qtest_qmp_device_del(qts, "scsihd");
 }
 
 /* Test WRITE SAME with the lba not aligned */

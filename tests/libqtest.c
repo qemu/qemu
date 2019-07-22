@@ -1246,7 +1246,7 @@ QDict *qtest_qmp_receive_success(QTestState *s,
 /*
  * Generic hot-plugging test via the device_add QMP command.
  */
-void qtest_qmp_device_add(const char *driver, const char *id,
+void qtest_qmp_device_add(QTestState *qts, const char *driver, const char *id,
                           const char *fmt, ...)
 {
     QDict *args, *response;
@@ -1260,7 +1260,8 @@ void qtest_qmp_device_add(const char *driver, const char *id,
     qdict_put_str(args, "driver", driver);
     qdict_put_str(args, "id", id);
 
-    response = qmp("{'execute': 'device_add', 'arguments': %p}", args);
+    response = qtest_qmp(qts, "{'execute': 'device_add', 'arguments': %p}",
+                         args);
     g_assert(response);
     g_assert(!qdict_haskey(response, "event")); /* We don't expect any events */
     g_assert(!qdict_haskey(response, "error"));
@@ -1293,19 +1294,17 @@ static void device_deleted_cb(void *opaque, const char *name, QDict *data)
  *
  * But the order of arrival may vary - so we've got to detect both.
  */
-void qtest_qmp_device_del(const char *id)
+void qtest_qmp_device_del(QTestState *qts, const char *id)
 {
     bool got_event = false;
     QDict *rsp;
 
-    qtest_qmp_send(global_qtest,
-                   "{'execute': 'device_del', 'arguments': {'id': %s}}",
+    qtest_qmp_send(qts, "{'execute': 'device_del', 'arguments': {'id': %s}}",
                    id);
-    rsp = qtest_qmp_receive_success(global_qtest, device_deleted_cb,
-                                    &got_event);
+    rsp = qtest_qmp_receive_success(qts, device_deleted_cb, &got_event);
     qobject_unref(rsp);
     if (!got_event) {
-        rsp = qtest_qmp_receive(global_qtest);
+        rsp = qtest_qmp_receive(qts);
         g_assert_cmpstr(qdict_get_try_str(rsp, "event"),
                         ==, "DEVICE_DELETED");
         qobject_unref(rsp);

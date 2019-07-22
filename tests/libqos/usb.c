@@ -37,20 +37,20 @@ void uhci_port_test(struct qhc *hc, int port, uint16_t expect)
     g_assert((value & mask) == (expect & mask));
 }
 
-void usb_test_hotplug(const char *hcd_id, const char *port,
+void usb_test_hotplug(QTestState *qts, const char *hcd_id, const char *port,
                       void (*port_check)(void))
 {
     char *id = g_strdup_printf("usbdev%s", port);
     char *bus = g_strdup_printf("%s.0", hcd_id);
 
-    qtest_qmp_device_add("usb-tablet", id, "{'port': %s, 'bus': %s}",
+    qtest_qmp_device_add(qts, "usb-tablet", id, "{'port': %s, 'bus': %s}",
                          port, bus);
 
     if (port_check) {
         port_check();
     }
 
-    qtest_qmp_device_del(id);
+    qtest_qmp_device_del(qts, id);
 
     g_free(bus);
     g_free(id);

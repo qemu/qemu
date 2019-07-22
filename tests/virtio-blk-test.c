@@ -690,7 +690,7 @@ static void pci_hotplug(void *obj, void *data, QGuestAllocator *t_alloc)
     QTestState *qts = dev1->pdev->bus->qts;
 
     /* plug secondary disk */
-    qtest_qmp_device_add("virtio-blk-pci", "drv1",
+    qtest_qmp_device_add(qts, "virtio-blk-pci", "drv1",
                          "{'addr': %s, 'drive': 'drive1'}",
                          stringify(PCI_SLOT_HP) ".0");
 

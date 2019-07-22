@@ -946,6 +946,7 @@ void qtest_cb_for_every_machine(void (*cb)(const char *machine),
 
 /**
  * qtest_qmp_device_add:
+ * @qts: QTestState instance to operate on
  * @driver: Name of the device that should be added
  * @id: Identification string
  * @fmt...: QMP message to send to qemu, formatted like
@@ -954,16 +955,17 @@ void qtest_cb_for_every_machine(void (*cb)(const char *machine),
  *
  * Generic hot-plugging test via the device_add QMP command.
  */
-void qtest_qmp_device_add(const char *driver, const char *id, const char *fmt,
-                          ...) GCC_FMT_ATTR(3, 4);
+void qtest_qmp_device_add(QTestState *qts, const char *driver, const char *id,
+                          const char *fmt, ...) GCC_FMT_ATTR(4, 5);
 
 /**
  * qtest_qmp_device_del:
+ * @qts: QTestState instance to operate on
  * @id: Identification string
  *
  * Generic hot-unplugging test via the device_del QMP command.
  */
-void qtest_qmp_device_del(const char *id);
+void qtest_qmp_device_del(QTestState *qts, const char *id);
 
 /**
  * qmp_rsp_is_err:
