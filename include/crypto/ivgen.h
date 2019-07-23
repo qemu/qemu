@@ -203,4 +203,6 @@ QCryptoHashAlgorithm qcrypto_ivgen_get_hash(QCryptoIVGen *ivgen);
  */
 void qcrypto_ivgen_free(QCryptoIVGen *ivgen);
 
+G_DEFINE_AUTOPTR_CLEANUP_FUNC(QCryptoIVGen, qcrypto_ivgen_free)
+
 #endif /* QCRYPTO_IVGEN_H */
