@@ -7,11 +7,13 @@
 FROM qemu:debian9
 MAINTAINER Philippe Mathieu-Daudé <f4bug@amsat.org>
 
-RUN DEBIAN_FRONTEND=noninteractive eatmydata \
-    apt-get build-dep -yy qemu
+RUN apt update && \
+    DEBIAN_FRONTEND=noninteractive eatmydata \
+    apt build-dep -yy qemu
 
-RUN DEBIAN_FRONTEND=noninteractive eatmydata \
-    apt-get install -y --no-install-recommends \
+RUN apt update && \
+    DEBIAN_FRONTEND=noninteractive eatmydata \
+    apt install -y --no-install-recommends \
         libbz2-dev \
         liblzo2-dev \
         librdmacm-dev \
@@ -19,8 +21,9 @@ RUN DEBIAN_FRONTEND=noninteractive eatmydata \
         libvte-dev
 
 # virgl
-RUN DEBIAN_FRONTEND=noninteractive eatmydata \
-    apt-get install -y --no-install-recommends \
+RUN apt update && \
+    DEBIAN_FRONTEND=noninteractive eatmydata \
+    apt install -y --no-install-recommends \
         libegl1-mesa-dev \
         libepoxy-dev \
         libgbm-dev
@@ -29,8 +32,9 @@ RUN git clone https://anongit.freedesktop.org/git/virglrenderer.git /usr/src/vir
 RUN cd /usr/src/virglrenderer && ./autogen.sh && ./configure --with-glx --disable-tests && make install
 
 # netmap
-RUN DEBIAN_FRONTEND=noninteractive eatmydata \
-    apt-get install -y --no-install-recommends \
+RUN apt update && \
+    DEBIAN_FRONTEND=noninteractive eatmydata \
+    apt install -y --no-install-recommends \
         linux-headers-amd64
 RUN git clone https://github.com/luigirizzo/netmap.git /usr/src/netmap
 RUN cd /usr/src/netmap && git checkout v11.3

@@ -6,7 +6,8 @@
 #
 FROM qemu:debian-sid
 
-RUN DEBIAN_FRONTEND=noninteractive eatmydata \
-    apt-get install -y --no-install-recommends \
+RUN apt update && \
+    DEBIAN_FRONTEND=noninteractive eatmydata \
+    apt install -y --no-install-recommends \
         gcc-mips64-linux-gnuabi64 \
         libc6-dev-mips64-cross

@@ -18,8 +18,8 @@ RUN cat /etc/apt/sources.list | sed -ne "s/^deb\ \(\[.*\]\ \)\?\(.*\)/deb-src \2
 
 # Setup some basic tools we need
 RUN apt-get update && \
-    DEBIAN_FRONTEND=noninteractive apt-get install -yy eatmydata
-RUN DEBIAN_FRONTEND=noninteractive eatmydata \
+    DEBIAN_FRONTEND=noninteractive apt install -yy eatmydata && \
+    DEBIAN_FRONTEND=noninteractive eatmydata \
     apt-get install -y --no-install-recommends \
         bison \
         build-essential \

@@ -6,7 +6,8 @@
 #
 FROM qemu:debian-sid
 
-RUN DEBIAN_FRONTEND=noninteractive eatmydata \
-    apt-get install -y --no-install-recommends \
+RUN apt update && \
+    DEBIAN_FRONTEND=noninteractive eatmydata \
+    apt install -y --no-install-recommends \
         gcc-sh4-linux-gnu \
         libc6-dev-sh4-cross
