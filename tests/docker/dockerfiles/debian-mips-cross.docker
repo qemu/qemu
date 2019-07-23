@@ -9,20 +9,22 @@ MAINTAINER Philippe Mathieu-Daudé <f4bug@amsat.org>
 
 # Add the foreign architecture we want and install dependencies
 RUN dpkg --add-architecture mips
-RUN apt-get update
-RUN DEBIAN_FRONTEND=noninteractive eatmydata \
-    apt-get install -y --no-install-recommends \
+RUN apt update && \
+    DEBIAN_FRONTEND=noninteractive eatmydata \
+    apt install -y --no-install-recommends \
         gcc-mips-linux-gnu
 
-RUN DEBIAN_FRONTEND=noninteractive eatmydata \
-    apt-get build-dep -yy -a mips qemu
+RUN apt update && \
+    DEBIAN_FRONTEND=noninteractive eatmydata \
+    apt build-dep -yy -a mips qemu
 
 # Specify the cross prefix for this image (see tests/docker/common.rc)
 ENV QEMU_CONFIGURE_OPTS --cross-prefix=mips-linux-gnu-
 
 # Install extra libraries to increase code coverage
-RUN DEBIAN_FRONTEND=noninteractive eatmydata \
-    apt-get install -y --no-install-recommends \
+RUN apt update && \
+    DEBIAN_FRONTEND=noninteractive eatmydata \
+    apt install -y --no-install-recommends \
         libbz2-dev:mips \
         liblzo2-dev:mips \
         librdmacm-dev:mips \

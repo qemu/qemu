@@ -15,9 +15,9 @@ MAINTAINER Philippe Mathieu-Daudé <f4bug@amsat.org>
 RUN cat /etc/apt/sources.list | sed "s/^deb\ /deb-src /" >> /etc/apt/sources.list
 
 # Setup some basic tools we need
-RUN apt-get update && \
-    DEBIAN_FRONTEND=noninteractive apt install -yy eatmydata
-RUN DEBIAN_FRONTEND=noninteractive eatmydata \
+RUN apt update && \
+    DEBIAN_FRONTEND=noninteractive apt-get install -yy eatmydata && \
+    DEBIAN_FRONTEND=noninteractive eatmydata \
     apt-get install -y --no-install-recommends \
         bison \
         binutils-multiarch \

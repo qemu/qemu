@@ -62,7 +62,7 @@ echo "* Prepared to run command:"
 echo "  $CMD"
 echo "* Hit Ctrl-D to continue, or type 'exit 1' to abort"
 echo
-$SHELL
+$SHELL --noprofile --norc
 
 if "$CMD"; then
     exit 0
@@ -72,7 +72,7 @@ elif test -n "$DEBUG"; then
     echo "* Hit Ctrl-D to exit"
     echo
     # Force error after shell exits
-    $SHELL && exit 1
+    $SHELL --noprofile --norc && exit 1
 else
     exit 1
 fi

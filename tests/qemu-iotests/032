@@ -52,7 +52,7 @@ _make_test_img 64M
 
 # Allocate every other cluster so that afterwards a big write request will
 # actually loop a while and issue many I/O requests for the lower layer
-for i in $(seq 0 128 4096); do echo "write ${i}k 64k"; done | $QEMU_IO "$TEST_IMG" | _filter_qemu_io
+for ((i=0;i<=4096;i+=128)); do echo "write ${i}k 64k"; done | $QEMU_IO "$TEST_IMG" | _filter_qemu_io
 
 echo
 echo === AIO request during close ===

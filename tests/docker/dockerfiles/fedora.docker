@@ -52,6 +52,7 @@ ENV PACKAGES \
     mingw32-libpng \
     mingw32-libtasn1 \
     mingw32-nettle \
+    mingw32-nsis \
     mingw32-pixman \
     mingw32-pkg-config \
     mingw32-SDL2 \
@@ -76,6 +77,7 @@ ENV PACKAGES \
     perl-Test-Harness \
     pixman-devel \
     python3 \
+    python3-sphinx \
     PyYAML \
     rdma-core-devel \
     SDL2-devel \
@@ -85,6 +87,7 @@ ENV PACKAGES \
     systemd-devel \
     systemtap-sdt-devel \
     tar \
+    texinfo \
     usbredir-devel \
     virglrenderer-devel \
     vte291-devel \
@@ -95,4 +98,5 @@ ENV QEMU_CONFIGURE_OPTS --python=/usr/bin/python3
 
 RUN dnf install -y $PACKAGES
 RUN rpm -q $PACKAGES | sort > /packages.txt
+ENV PATH $PATH:/usr/libexec/python3-sphinx/
 ENV FEATURES mingw clang pyyaml asan

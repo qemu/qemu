@@ -8,8 +8,8 @@
 FROM debian:stretch-slim
 
 RUN apt-get update && \
-    DEBIAN_FRONTEND=noninteractive apt install -yy eatmydata
-RUN DEBIAN_FRONTEND=noninteractive eatmydata \
+    DEBIAN_FRONTEND=noninteractive apt install -yy eatmydata && \
+    DEBIAN_FRONTEND=noninteractive eatmydata \
     apt-get install -y --no-install-recommends \
         bison \
         build-essential \

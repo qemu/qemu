@@ -7,11 +7,10 @@ env:
   matrix:
     - IMAGE=debian-amd64
       TARGET_LIST=x86_64-softmmu,x86_64-linux-user
-    # currently disabled as the mxe.cc repos are down
-    # - IMAGE=debian-win32-cross
-    #   TARGET_LIST=arm-softmmu,i386-softmmu,lm32-softmmu
-    # - IMAGE=debian-win64-cross
-    #   TARGET_LIST=aarch64-softmmu,sparc64-softmmu,x86_64-softmmu
+    - IMAGE=debian-win32-cross
+      TARGET_LIST=arm-softmmu,i386-softmmu,lm32-softmmu
+    - IMAGE=debian-win64-cross
+      TARGET_LIST=aarch64-softmmu,sparc64-softmmu,x86_64-softmmu
     - IMAGE=debian-armel-cross
       TARGET_LIST=arm-softmmu,arm-linux-user,armeb-linux-user
     - IMAGE=debian-armhf-cross

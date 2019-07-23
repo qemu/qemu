@@ -49,7 +49,7 @@ echo "creating image"
 _make_test_img $size
 
 generate_requests() {
-    for i in $(seq 0 63); do
+    for ((i=0;i<=63;i++)); do
         echo "aio_write ${i}M 512"
         echo "aio_write ${i}M 512"
         echo "aio_write ${i}M 512"

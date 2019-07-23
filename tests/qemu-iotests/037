@@ -61,7 +61,7 @@ backing_io()
     local pattern=0
     local cur_sec=0
 
-    for i in $(seq 0 $((sectors - 1))); do
+    for ((i=0;i<=$((sectors - 1));i++)); do
         cur_sec=$((offset / 512 + i))
         pattern=$(( ( (cur_sec % 256) + (cur_sec / 256)) % 256 ))
 

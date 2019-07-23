@@ -488,7 +488,7 @@ testlist options
 BEGIN        { for (t='$start'; t<='$end'; t++) printf "%03d\n",t }' \
         | while read id
         do
-            if grep -s "^$id " "$source_iotests/group" >/dev/null
+            if grep -s "^$id\( \|\$\)" "$source_iotests/group" >/dev/null
             then
                 # in group file ... OK
                 echo $id >>$tmp.list
@@ -547,7 +547,7 @@ else
         touch $tmp.list
     else
         # no test numbers, do everything from group file
-        sed -n -e '/^[0-9][0-9][0-9]*/s/[         ].*//p' <"$source_iotests/group" >$tmp.list
+        sed -n -e '/^[0-9][0-9][0-9]*/s/^\([0-9]*\).*/\1/p' <"$source_iotests/group" >$tmp.list
     fi
 fi
 

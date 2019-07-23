@@ -7,18 +7,20 @@ FROM qemu:debian9
 
 # Add the foreign architecture we want and install dependencies
 RUN dpkg --add-architecture arm64
-RUN apt update
-RUN DEBIAN_FRONTEND=noninteractive eatmydata \
-    apt-get install -y --no-install-recommends \
+RUN apt update && \
+    DEBIAN_FRONTEND=noninteractive eatmydata \
+    apt install -y --no-install-recommends \
         crossbuild-essential-arm64
-RUN DEBIAN_FRONTEND=noninteractive eatmydata \
-    apt-get build-dep -yy -a arm64 qemu
+RUN apt update && \
+    DEBIAN_FRONTEND=noninteractive eatmydata \
+    apt build-dep -yy -a arm64 qemu
 
 # Specify the cross prefix for this image (see tests/docker/common.rc)
 ENV QEMU_CONFIGURE_OPTS --cross-prefix=aarch64-linux-gnu-
 
-RUN DEBIAN_FRONTEND=noninteractive eatmydata \
-    apt-get install -y --no-install-recommends \
+RUN apt update && \
+    DEBIAN_FRONTEND=noninteractive eatmydata \
+    apt install -y --no-install-recommends \
         libbz2-dev:arm64 \
         liblzo2-dev:arm64 \
         librdmacm-dev:arm64 \
