@@ -434,8 +434,13 @@ static void pnv_dt_isa(PnvMachineState *pnv, void *fdt)
         .fdt = fdt,
         .offset = isa_offset,
     };
+    uint32_t phandle;
 
     _FDT((fdt_setprop(fdt, isa_offset, "primary", NULL, 0)));
+
+    phandle = qemu_fdt_alloc_phandle(fdt);
+    assert(phandle > 0);
+    _FDT((fdt_setprop_cell(fdt, isa_offset, "phandle", phandle)));
 
     /* ISA devices are not necessarily parented to the ISA bus so we
      * can not use object_child_foreach() */
