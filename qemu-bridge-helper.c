@@ -119,6 +119,13 @@ static int parse_acl_file(const char *filename, ACLList *acl_list)
         }
         *argend = 0;
 
+        if (!g_str_equal(cmd, "include") && strlen(arg) >= IFNAMSIZ) {
+            fprintf(stderr, "name `%s' too long: %zu\n", arg, strlen(arg));
+            fclose(f);
+            errno = EINVAL;
+            return -1;
+        }
+
         if (strcmp(cmd, "deny") == 0) {
             acl_rule = g_malloc(sizeof(*acl_rule));
             if (strcmp(arg, "all") == 0) {
@@ -267,6 +274,10 @@ int main(int argc, char **argv)
 
     if (bridge == NULL || unixfd == -1) {
         usage();
+        return EXIT_FAILURE;
+    }
+    if (strlen(bridge) >= IFNAMSIZ) {
+        fprintf(stderr, "name `%s' too long: %zu\n", bridge, strlen(bridge));
         return EXIT_FAILURE;
     }
 
