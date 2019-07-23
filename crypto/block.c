@@ -299,14 +299,12 @@ static int do_qcrypto_block_cipher_encdec(QCryptoCipher *cipher,
                                           QCryptoCipherEncDecFunc func,
                                           Error **errp)
 {
-    uint8_t *iv;
+    g_autofree uint8_t *iv = niv ? g_new0(uint8_t, niv) : NULL;
     int ret = -1;
     uint64_t startsector = offset / sectorsize;
 
     assert(QEMU_IS_ALIGNED(offset, sectorsize));
     assert(QEMU_IS_ALIGNED(len, sectorsize));
-
-    iv = niv ? g_new0(uint8_t, niv) : NULL;
 
     while (len > 0) {
         size_t nbytes;
@@ -320,19 +318,19 @@ static int do_qcrypto_block_cipher_encdec(QCryptoCipher *cipher,
             }
 
             if (ret < 0) {
-                goto cleanup;
+                return -1;
             }
 
             if (qcrypto_cipher_setiv(cipher,
                                      iv, niv,
                                      errp) < 0) {
-                goto cleanup;
+                return -1;
             }
         }
 
         nbytes = len > sectorsize ? sectorsize : len;
         if (func(cipher, buf, buf, nbytes, errp) < 0) {
-            goto cleanup;
+            return -1;
         }
 
         startsector++;
@@ -340,10 +338,7 @@ static int do_qcrypto_block_cipher_encdec(QCryptoCipher *cipher,
         len -= nbytes;
     }
 
-    ret = 0;
- cleanup:
-    g_free(iv);
-    return ret;
+    return 0;
 }
 
 
