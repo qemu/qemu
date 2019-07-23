@@ -22,7 +22,7 @@ do_is_allocated() {
     local step=$3
     local count=$4
 
-    for i in `seq 1 $count`; do
+    for ((i=1;i<=$count;i++)); do
         echo alloc $(( start + (i - 1) * step )) $size
     done
 }
@@ -40,7 +40,7 @@ do_io() {
     local pattern=$6
 
     echo === IO: pattern $pattern >&2
-    for i in `seq 1 $count`; do
+    for ((i=1;i<=$count;i++)); do
         echo $op -P $pattern $(( start + (i - 1) * step )) $size
     done
 }
