@@ -106,6 +106,9 @@ RequestExecutionLevel admin
 ;--------------------------------
 
 ; The stuff to install.
+;
+; Remember to keep the "Uninstall" section in sync.
+
 Section "${PRODUCT} (required)"
 
     SectionIn RO
@@ -122,6 +125,10 @@ Section "${PRODUCT} (required)"
     File "${BINDIR}\*.bmp"
     File "${BINDIR}\*.bin"
     File "${BINDIR}\*.dtb"
+    File "${BINDIR}\*.fd"
+    File "${BINDIR}\*.img"
+    File "${BINDIR}\*.lid"
+    File "${BINDIR}\*.ndrv"
     File "${BINDIR}\*.rom"
     File "${BINDIR}\openbios-*"
 
@@ -210,6 +217,10 @@ Section "Uninstall"
     Delete "$INSTDIR\*.bin"
     Delete "$INSTDIR\*.dll"
     Delete "$INSTDIR\*.dtb"
+    Delete "$INSTDIR\*.fd"
+    Delete "$INSTDIR\*.img"
+    Delete "$INSTDIR\*.lid"
+    Delete "$INSTDIR\*.ndrv"
     Delete "$INSTDIR\*.rom"
     Delete "$INSTDIR\openbios-*"
     Delete "$INSTDIR\qemu-img.exe"
