@@ -459,9 +459,17 @@ void aio_co_schedule(AioContext *ctx, Coroutine *co)
         abort();
     }
 
+    /* The coroutine might run and release the last ctx reference before we
+     * invoke qemu_bh_schedule().  Take a reference to keep ctx alive until
+     * we're done.
+     */
+    aio_context_ref(ctx);
+
     QSLIST_INSERT_HEAD_ATOMIC(&ctx->scheduled_coroutines,
                               co, co_scheduled_next);
     qemu_bh_schedule(ctx->co_schedule_bh);
+
+    aio_context_unref(ctx);
 }
 
 void aio_co_wake(struct Coroutine *co)
