@@ -1111,13 +1111,13 @@ QDict *qmp(const char *fmt, ...)
     return response;
 }
 
-void qmp_assert_success(const char *fmt, ...)
+void qtest_qmp_assert_success(QTestState *qts, const char *fmt, ...)
 {
     va_list ap;
     QDict *response;
 
     va_start(ap, fmt);
-    response = qtest_vqmp(global_qtest, fmt, ap);
+    response = qtest_vqmp(qts, fmt, ap);
     va_end(ap);
 
     g_assert(response);

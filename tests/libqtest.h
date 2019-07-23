@@ -666,7 +666,8 @@ static inline void qtest_end(void)
 QDict *qmp(const char *fmt, ...) GCC_FMT_ATTR(1, 2);
 
 /**
- * qmp_assert_success:
+ * qtest_qmp_assert_success:
+ * @qts: QTestState instance to operate on
  * @fmt...: QMP message to send to qemu, formatted like
  * qobject_from_jsonf_nofail().  See parse_escape() for what's
  * supported after '%'.
@@ -674,7 +675,8 @@ QDict *qmp(const char *fmt, ...) GCC_FMT_ATTR(1, 2);
  * Sends a QMP message to QEMU and asserts that a 'return' key is present in
  * the response.
  */
-void qmp_assert_success(const char *fmt, ...) GCC_FMT_ATTR(1, 2);
+void qtest_qmp_assert_success(QTestState *qts, const char *fmt, ...)
+    GCC_FMT_ATTR(2, 3);
 
 /*
  * qmp_eventwait:
