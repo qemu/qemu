@@ -1,4 +1,5 @@
-obj-y += translate.o op_helper.o cpu_helper.o cpu.o csr.o fpu_helper.o gdbstub.o pmp.o
+obj-y += translate.o op_helper.o cpu_helper.o cpu.o csr.o fpu_helper.o gdbstub.o
+obj-$(CONFIG_SOFTMMU) += pmp.o
 
 DECODETREE = $(SRC_PATH)/scripts/decodetree.py
 

@@ -28,8 +28,6 @@
 #include "qapi/error.h"
 #include "cpu.h"
 
-#ifndef CONFIG_USER_ONLY
-
 #define RISCV_DEBUG_PMP 0
 #define PMP_DEBUG(fmt, ...)                                                    \
     do {                                                                       \
@@ -382,5 +380,3 @@ target_ulong pmpaddr_csr_read(CPURISCVState *env, uint32_t addr_index)
         return 0;
     }
 }
-
-#endif
