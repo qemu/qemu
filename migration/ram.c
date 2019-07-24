@@ -2850,12 +2850,9 @@ void ram_postcopy_migrated_memory_release(MigrationState *ms)
  *       with the dirtymap; so a '1' means it's either dirty or unsent.
  *
  * @ms: current migration state
- * @pds: state for postcopy
  * @block: RAMBlock to discard
  */
-static int postcopy_send_discard_bm_ram(MigrationState *ms,
-                                        PostcopyDiscardState *pds,
-                                        RAMBlock *block)
+static int postcopy_send_discard_bm_ram(MigrationState *ms, RAMBlock *block)
 {
     unsigned long end = block->used_length >> TARGET_PAGE_BITS;
     unsigned long current;
@@ -2876,7 +2873,7 @@ static int postcopy_send_discard_bm_ram(MigrationState *ms,
         } else {
             discard_length = zero - one;
         }
-        postcopy_discard_send_range(ms, pds, one, discard_length);
+        postcopy_discard_send_range(ms, one, discard_length);
         current = one + discard_length;
     }
 
@@ -2902,16 +2899,15 @@ static int postcopy_each_ram_send_discard(MigrationState *ms)
     int ret;
 
     RAMBLOCK_FOREACH_NOT_IGNORED(block) {
-        PostcopyDiscardState *pds =
-            postcopy_discard_send_init(ms, block->idstr);
+        postcopy_discard_send_init(ms, block->idstr);
 
         /*
          * Postcopy sends chunks of bitmap over the wire, but it
          * just needs indexes at this point, avoids it having
          * target page specific code.
          */
-        ret = postcopy_send_discard_bm_ram(ms, pds, block);
-        postcopy_discard_send_finish(ms, pds);
+        ret = postcopy_send_discard_bm_ram(ms, block);
+        postcopy_discard_send_finish(ms);
         if (ret) {
             return ret;
         }
@@ -2934,11 +2930,9 @@ static int postcopy_each_ram_send_discard(MigrationState *ms)
  * @unsent_pass: if true we need to canonicalize partially unsent host pages
  *               otherwise we need to canonicalize partially dirty host pages
  * @block: block that contains the page we want to canonicalize
- * @pds: state for postcopy
  */
 static void postcopy_chunk_hostpages_pass(MigrationState *ms, bool unsent_pass,
-                                          RAMBlock *block,
-                                          PostcopyDiscardState *pds)
+                                          RAMBlock *block)
 {
     RAMState *rs = ram_state;
     unsigned long *bitmap = block->bmap;
@@ -3018,8 +3012,7 @@ static void postcopy_chunk_hostpages_pass(MigrationState *ms, bool unsent_pass,
                  *     (any partially sent pages were already discarded
                  *     by the previous unsent_pass)
                  */
-                postcopy_discard_send_range(ms, pds, fixup_start_addr,
-                                            host_ratio);
+                postcopy_discard_send_range(ms, fixup_start_addr, host_ratio);
             }
 
             /* Clean up the bitmap */
@@ -3062,18 +3055,17 @@ static void postcopy_chunk_hostpages_pass(MigrationState *ms, bool unsent_pass,
  */
 static int postcopy_chunk_hostpages(MigrationState *ms, RAMBlock *block)
 {
-    PostcopyDiscardState *pds =
-        postcopy_discard_send_init(ms, block->idstr);
+    postcopy_discard_send_init(ms, block->idstr);
 
     /* First pass: Discard all partially sent host pages */
-    postcopy_chunk_hostpages_pass(ms, true, block, pds);
+    postcopy_chunk_hostpages_pass(ms, true, block);
     /*
      * Second pass: Ensure that all partially dirty host pages are made
      * fully dirty.
      */
-    postcopy_chunk_hostpages_pass(ms, false, block, pds);
+    postcopy_chunk_hostpages_pass(ms, false, block);
 
-    postcopy_discard_send_finish(ms, pds);
+    postcopy_discard_send_finish(ms);
     return 0;
 }
 

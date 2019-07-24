@@ -1377,22 +1377,16 @@ void postcopy_fault_thread_notify(MigrationIncomingState *mis)
  *   asking to discard individual ranges.
  *
  * @ms: The current migration state.
- * @offset: the bitmap offset of the named RAMBlock in the migration
- *   bitmap.
+ * @offset: the bitmap offset of the named RAMBlock in the migration bitmap.
  * @name: RAMBlock that discards will operate on.
- *
- * returns: a new PDS.
  */
-PostcopyDiscardState *postcopy_discard_send_init(MigrationState *ms,
-                                                 const char *name)
+static PostcopyDiscardState pds = {0};
+void postcopy_discard_send_init(MigrationState *ms, const char *name)
 {
-    PostcopyDiscardState *res = g_malloc0(sizeof(PostcopyDiscardState));
-
-    if (res) {
-        res->ramblock_name = name;
-    }
-
-    return res;
+    pds.ramblock_name = name;
+    pds.cur_entry = 0;
+    pds.nsentwords = 0;
+    pds.nsentcmds = 0;
 }
 
 /**
@@ -1401,30 +1395,29 @@ PostcopyDiscardState *postcopy_discard_send_init(MigrationState *ms,
  *   be sent later.
  *
  * @ms: Current migration state.
- * @pds: Structure initialised by postcopy_discard_send_init().
  * @start,@length: a range of pages in the migration bitmap in the
  *   RAM block passed to postcopy_discard_send_init() (length=1 is one page)
  */
-void postcopy_discard_send_range(MigrationState *ms, PostcopyDiscardState *pds,
-                                unsigned long start, unsigned long length)
+void postcopy_discard_send_range(MigrationState *ms, unsigned long start,
+                                 unsigned long length)
 {
     size_t tp_size = qemu_target_page_size();
     /* Convert to byte offsets within the RAM block */
-    pds->start_list[pds->cur_entry] = start  * tp_size;
-    pds->length_list[pds->cur_entry] = length * tp_size;
-    trace_postcopy_discard_send_range(pds->ramblock_name, start, length);
-    pds->cur_entry++;
-    pds->nsentwords++;
+    pds.start_list[pds.cur_entry] = start  * tp_size;
+    pds.length_list[pds.cur_entry] = length * tp_size;
+    trace_postcopy_discard_send_range(pds.ramblock_name, start, length);
+    pds.cur_entry++;
+    pds.nsentwords++;
 
-    if (pds->cur_entry == MAX_DISCARDS_PER_COMMAND) {
+    if (pds.cur_entry == MAX_DISCARDS_PER_COMMAND) {
         /* Full set, ship it! */
         qemu_savevm_send_postcopy_ram_discard(ms->to_dst_file,
-                                              pds->ramblock_name,
-                                              pds->cur_entry,
-                                              pds->start_list,
-                                              pds->length_list);
-        pds->nsentcmds++;
-        pds->cur_entry = 0;
+                                              pds.ramblock_name,
+                                              pds.cur_entry,
+                                              pds.start_list,
+                                              pds.length_list);
+        pds.nsentcmds++;
+        pds.cur_entry = 0;
     }
 }
 
@@ -1433,24 +1426,21 @@ void postcopy_discard_send_range(MigrationState *ms, PostcopyDiscardState *pds,
  * bitmap code. Sends any outstanding discard messages, frees the PDS
  *
  * @ms: Current migration state.
- * @pds: Structure initialised by postcopy_discard_send_init().
  */
-void postcopy_discard_send_finish(MigrationState *ms, PostcopyDiscardState *pds)
+void postcopy_discard_send_finish(MigrationState *ms)
 {
     /* Anything unsent? */
-    if (pds->cur_entry) {
+    if (pds.cur_entry) {
         qemu_savevm_send_postcopy_ram_discard(ms->to_dst_file,
-                                              pds->ramblock_name,
-                                              pds->cur_entry,
-                                              pds->start_list,
-                                              pds->length_list);
-        pds->nsentcmds++;
+                                              pds.ramblock_name,
+                                              pds.cur_entry,
+                                              pds.start_list,
+                                              pds.length_list);
+        pds.nsentcmds++;
     }
 
-    trace_postcopy_discard_send_finish(pds->ramblock_name, pds->nsentwords,
-                                       pds->nsentcmds);
-
-    g_free(pds);
+    trace_postcopy_discard_send_finish(pds.ramblock_name, pds.nsentwords,
+                                       pds.nsentcmds);
 }
 
 /*
