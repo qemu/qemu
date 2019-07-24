@@ -2075,6 +2075,30 @@ static int coroutine_fn vhdx_co_check(BlockDriverState *bs,
     return 0;
 }
 
+static int vhdx_has_zero_init(BlockDriverState *bs)
+{
+    BDRVVHDXState *s = bs->opaque;
+    int state;
+
+    /*
+     * Check the subformat: Fixed images have all BAT entries present,
+     * dynamic images have none (right after creation).  It is
+     * therefore enough to check the first BAT entry.
+     */
+    if (!s->bat_entries) {
+        return 1;
+    }
+
+    state = s->bat[0] & VHDX_BAT_STATE_BIT_MASK;
+    if (state == PAYLOAD_BLOCK_FULLY_PRESENT) {
+        /* Fixed subformat */
+        return bdrv_has_zero_init(bs->file->bs);
+    }
+
+    /* Dynamic subformat */
+    return 1;
+}
+
 static QemuOptsList vhdx_create_opts = {
     .name = "vhdx-create-opts",
     .head = QTAILQ_HEAD_INITIALIZER(vhdx_create_opts.head),
@@ -2128,7 +2152,7 @@ static BlockDriver bdrv_vhdx = {
     .bdrv_co_create_opts    = vhdx_co_create_opts,
     .bdrv_get_info          = vhdx_get_info,
     .bdrv_co_check          = vhdx_co_check,
-    .bdrv_has_zero_init     = bdrv_has_zero_init_1,
+    .bdrv_has_zero_init     = vhdx_has_zero_init,
 
     .create_opts            = &vhdx_create_opts,
 };
