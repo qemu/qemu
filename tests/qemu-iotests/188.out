@@ -15,4 +15,8 @@ read 16777216/16777216 bytes at offset 0
 
 == verify open failure with wrong password ==
 qemu-io: can't open: Invalid password, cannot unlock any keyslot
+
+== verify that has_zero_init returns false when preallocating ==
+Formatting 'TEST_DIR/t.IMGFMT.orig', fmt=IMGFMT size=16777216
+Images are identical.
 *** done
