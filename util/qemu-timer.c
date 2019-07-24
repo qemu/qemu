@@ -47,8 +47,6 @@ typedef struct QEMUClock {
     /* We rely on BQL to protect the timerlists */
     QLIST_HEAD(, QEMUTimerList) timerlists;
 
-    int64_t last;
-
     QEMUClockType type;
     bool enabled;
 } QEMUClock;
@@ -129,7 +127,6 @@ static void qemu_clock_init(QEMUClockType type, QEMUTimerListNotifyCB *notify_cb
 
     clock->type = type;
     clock->enabled = (type == QEMU_CLOCK_VIRTUAL ? false : true);
-    clock->last = INT64_MIN;
     QLIST_INIT(&clock->timerlists);
     main_loop_tlg.tl[type] = timerlist_new(type, notify_cb, NULL);
 }
@@ -627,9 +624,6 @@ int64_t timerlistgroup_deadline_ns(QEMUTimerListGroup *tlg)
 
 int64_t qemu_clock_get_ns(QEMUClockType type)
 {
-    int64_t now;
-    QEMUClock *clock = qemu_clock_ptr(type);
-
     switch (type) {
     case QEMU_CLOCK_REALTIME:
         return get_clock();
@@ -641,24 +635,10 @@ int64_t qemu_clock_get_ns(QEMUClockType type)
             return cpu_get_clock();
         }
     case QEMU_CLOCK_HOST:
-        now = REPLAY_CLOCK(REPLAY_CLOCK_HOST, get_clock_realtime());
-        clock->last = now;
-        return now;
+        return REPLAY_CLOCK(REPLAY_CLOCK_HOST, get_clock_realtime());
     case QEMU_CLOCK_VIRTUAL_RT:
         return REPLAY_CLOCK(REPLAY_CLOCK_VIRTUAL_RT, cpu_get_clock());
     }
-}
-
-uint64_t qemu_clock_get_last(QEMUClockType type)
-{
-    QEMUClock *clock = qemu_clock_ptr(type);
-    return clock->last;
-}
-
-void qemu_clock_set_last(QEMUClockType type, uint64_t last)
-{
-    QEMUClock *clock = qemu_clock_ptr(type);
-    clock->last = last;
 }
 
 void init_clocks(QEMUTimerListNotifyCB *notify_cb)
