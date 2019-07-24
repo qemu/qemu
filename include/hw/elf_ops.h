@@ -525,7 +525,7 @@ static int glue(load_elf, SZ)(const char *name, int fd,
                     snprintf(label, sizeof(label), "phdr #%d: %s", i, name);
 
                     /* rom_add_elf_program() seize the ownership of 'data' */
-                    rom_add_elf_program(label, data, file_size, mem_size,
+                    rom_add_elf_program(label, NULL, data, file_size, mem_size,
                                         addr, as);
                 } else {
                     address_space_write(as ? as : &address_space_memory,

@@ -838,6 +838,7 @@ struct Rom {
     int isrom;
     char *fw_dir;
     char *fw_file;
+    GMappedFile *mapped_file;
 
     bool committed;
 
@@ -848,10 +849,25 @@ struct Rom {
 static FWCfgState *fw_cfg;
 static QTAILQ_HEAD(, Rom) roms = QTAILQ_HEAD_INITIALIZER(roms);
 
-/* rom->data must be heap-allocated (do not use with rom_add_elf_program()) */
+/*
+ * rom->data can be heap-allocated or memory-mapped (e.g. when added with
+ * rom_add_elf_program())
+ */
+static void rom_free_data(Rom *rom)
+{
+    if (rom->mapped_file) {
+        g_mapped_file_unref(rom->mapped_file);
+        rom->mapped_file = NULL;
+    } else {
+        g_free(rom->data);
+    }
+
+    rom->data = NULL;
+}
+
 static void rom_free(Rom *rom)
 {
-    g_free(rom->data);
+    rom_free_data(rom);
     g_free(rom->path);
     g_free(rom->name);
     g_free(rom->fw_dir);
@@ -1058,11 +1074,12 @@ MemoryRegion *rom_add_blob(const char *name, const void *blob, size_t len,
 
 /* This function is specific for elf program because we don't need to allocate
  * all the rom. We just allocate the first part and the rest is just zeros. This
- * is why romsize and datasize are different. Also, this function seize the
- * memory ownership of "data", so we don't have to allocate and copy the buffer.
+ * is why romsize and datasize are different. Also, this function takes its own
+ * reference to "mapped_file", so we don't have to allocate and copy the buffer.
  */
-int rom_add_elf_program(const char *name, void *data, size_t datasize,
-                        size_t romsize, hwaddr addr, AddressSpace *as)
+int rom_add_elf_program(const char *name, GMappedFile *mapped_file, void *data,
+                        size_t datasize, size_t romsize, hwaddr addr,
+                        AddressSpace *as)
 {
     Rom *rom;
 
@@ -1073,6 +1090,12 @@ int rom_add_elf_program(const char *name, void *data, size_t datasize,
     rom->romsize  = romsize;
     rom->data     = data;
     rom->as       = as;
+
+    if (mapped_file && data) {
+        g_mapped_file_ref(mapped_file);
+        rom->mapped_file = mapped_file;
+    }
+
     rom_insert(rom);
     return 0;
 }
@@ -1107,8 +1130,7 @@ static void rom_reset(void *unused)
         }
         if (rom->isrom) {
             /* rom needs to be written only once */
-            g_free(rom->data);
-            rom->data = NULL;
+            rom_free_data(rom);
         }
         /*
          * The rom loader is really on the same level as firmware in the guest
