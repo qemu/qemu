@@ -257,6 +257,23 @@ for min_sparse in 4k 8k; do
     $QEMU_IMG map --output=json "$TEST_IMG".orig | _filter_qemu_img_map
 done
 
+
+echo
+echo '=== -n to a non-zero image ==='
+echo
+
+# Keep source zero
+_make_test_img 64M
+
+# Output is not zero, but has bdrv_has_zero_init() == 1
+TEST_IMG="$TEST_IMG".orig _make_test_img 64M
+$QEMU_IO -c "write -P 42 0 64k" "$TEST_IMG".orig | _filter_qemu_io
+
+# Convert with -n, which should not assume that the target is zeroed
+$QEMU_IMG convert -O $IMGFMT -n "$TEST_IMG" "$TEST_IMG".orig
+
+$QEMU_IMG compare "$TEST_IMG" "$TEST_IMG".orig
+
 # success, all done
 echo '*** done'
 rm -f $seq.full
