@@ -4431,14 +4431,25 @@ static const TypeInfo spapr_machine_info = {
     type_init(spapr_machine_register_##suffix)
 
 /*
- * pseries-4.1
+ * pseries-4.2
  */
-static void spapr_machine_4_1_class_options(MachineClass *mc)
+static void spapr_machine_4_2_class_options(MachineClass *mc)
 {
     /* Defaults for the latest behaviour inherited from the base class */
 }
 
-DEFINE_SPAPR_MACHINE(4_1, "4.1", true);
+DEFINE_SPAPR_MACHINE(4_2, "4.2", true);
+
+/*
+ * pseries-4.1
+ */
+static void spapr_machine_4_1_class_options(MachineClass *mc)
+{
+    spapr_machine_4_2_class_options(mc);
+    compat_props_add(mc->compat_props, hw_compat_4_1, hw_compat_4_1_len);
+}
+
+DEFINE_SPAPR_MACHINE(4_1, "4.1", false);
 
 /*
  * pseries-4.0
