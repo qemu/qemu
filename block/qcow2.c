@@ -4632,6 +4632,33 @@ static ImageInfoSpecific *qcow2_get_specific_info(BlockDriverState *bs,
     return spec_info;
 }
 
+static int qcow2_has_zero_init(BlockDriverState *bs)
+{
+    BDRVQcow2State *s = bs->opaque;
+    bool preallocated;
+
+    if (qemu_in_coroutine()) {
+        qemu_co_mutex_lock(&s->lock);
+    }
+    /*
+     * Check preallocation status: Preallocated images have all L2
+     * tables allocated, nonpreallocated images have none.  It is
+     * therefore enough to check the first one.
+     */
+    preallocated = s->l1_size > 0 && s->l1_table[0] != 0;
+    if (qemu_in_coroutine()) {
+        qemu_co_mutex_unlock(&s->lock);
+    }
+
+    if (!preallocated) {
+        return 1;
+    } else if (bs->encrypted) {
+        return 0;
+    } else {
+        return bdrv_has_zero_init(s->data_file->bs);
+    }
+}
+
 static int qcow2_save_vmstate(BlockDriverState *bs, QEMUIOVector *qiov,
                               int64_t pos)
 {
@@ -5187,7 +5214,7 @@ BlockDriver bdrv_qcow2 = {
     .bdrv_child_perm      = bdrv_format_default_perms,
     .bdrv_co_create_opts  = qcow2_co_create_opts,
     .bdrv_co_create       = qcow2_co_create,
-    .bdrv_has_zero_init = bdrv_has_zero_init_1,
+    .bdrv_has_zero_init   = qcow2_has_zero_init,
     .bdrv_has_zero_init_truncate = bdrv_has_zero_init_1,
     .bdrv_co_block_status = qcow2_co_block_status,
 
