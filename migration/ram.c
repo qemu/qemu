@@ -677,6 +677,8 @@ typedef struct {
     QemuMutex mutex;
     /* is this channel thread running */
     bool running;
+    /* should this thread finish */
+    bool quit;
     /* array of pages to receive */
     MultiFDPages_t *pages;
     /* packet allocated len */
@@ -1266,6 +1268,7 @@ static void multifd_recv_terminate_threads(Error *err)
         MultiFDRecvParams *p = &multifd_recv_state->params[i];
 
         qemu_mutex_lock(&p->mutex);
+        p->quit = true;
         /* We could arrive here for two reasons:
            - normal quit, i.e. everything went fine, just finished
            - error quit: We close the channels so the channel threads
@@ -1288,6 +1291,7 @@ int multifd_load_cleanup(Error **errp)
         MultiFDRecvParams *p = &multifd_recv_state->params[i];
 
         if (p->running) {
+            p->quit = true;
             qemu_thread_join(&p->thread);
         }
         object_unref(OBJECT(p->c));
@@ -1350,6 +1354,10 @@ static void *multifd_recv_thread(void *opaque)
     while (true) {
         uint32_t used;
         uint32_t flags;
+
+        if (p->quit) {
+            break;
+        }
 
         ret = qio_channel_read_all_eof(p->c, (void *)p->packet,
                                        p->packet_len, &local_err);
@@ -1422,6 +1430,7 @@ int multifd_load_setup(void)
 
         qemu_mutex_init(&p->mutex);
         qemu_sem_init(&p->sem_sync, 0);
+        p->quit = false;
         p->id = i;
         p->pages = multifd_pages_init(page_count);
         p->packet_len = sizeof(MultiFDPacket_t)
