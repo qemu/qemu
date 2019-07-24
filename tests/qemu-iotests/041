@@ -741,8 +741,15 @@ class TestUnbackedSource(iotests.QMPTestCase):
     def setUp(self):
         qemu_img('create', '-f', iotests.imgfmt, test_img,
                  str(TestUnbackedSource.image_len))
-        self.vm = iotests.VM().add_drive(test_img)
+        self.vm = iotests.VM()
         self.vm.launch()
+        result = self.vm.qmp('blockdev-add', node_name='drive0',
+                             driver=iotests.imgfmt,
+                             file={
+                                 'driver': 'file',
+                                 'filename': test_img,
+                             })
+        self.assert_qmp(result, 'return', {})
 
     def tearDown(self):
         self.vm.shutdown()
@@ -751,7 +758,7 @@ class TestUnbackedSource(iotests.QMPTestCase):
 
     def test_absolute_paths_full(self):
         self.assert_no_active_block_jobs()
-        result = self.vm.qmp('drive-mirror', device='drive0',
+        result = self.vm.qmp('drive-mirror', job_id='drive0', device='drive0',
                              sync='full', target=target_img,
                              mode='absolute-paths')
         self.assert_qmp(result, 'return', {})
@@ -760,7 +767,7 @@ class TestUnbackedSource(iotests.QMPTestCase):
 
     def test_absolute_paths_top(self):
         self.assert_no_active_block_jobs()
-        result = self.vm.qmp('drive-mirror', device='drive0',
+        result = self.vm.qmp('drive-mirror', job_id='drive0', device='drive0',
                              sync='top', target=target_img,
                              mode='absolute-paths')
         self.assert_qmp(result, 'return', {})
@@ -769,12 +776,59 @@ class TestUnbackedSource(iotests.QMPTestCase):
 
     def test_absolute_paths_none(self):
         self.assert_no_active_block_jobs()
-        result = self.vm.qmp('drive-mirror', device='drive0',
+        result = self.vm.qmp('drive-mirror', job_id='drive0', device='drive0',
                              sync='none', target=target_img,
                              mode='absolute-paths')
         self.assert_qmp(result, 'return', {})
         self.complete_and_wait()
         self.assert_no_active_block_jobs()
+
+    def test_existing_full(self):
+        qemu_img('create', '-f', iotests.imgfmt, target_img,
+                 str(self.image_len))
+        qemu_io('-c', 'write -P 42 0 64k', target_img)
+
+        self.assert_no_active_block_jobs()
+        result = self.vm.qmp('drive-mirror', job_id='drive0', device='drive0',
+                             sync='full', target=target_img, mode='existing')
+        self.assert_qmp(result, 'return', {})
+        self.complete_and_wait()
+        self.assert_no_active_block_jobs()
+
+        result = self.vm.qmp('blockdev-del', node_name='drive0')
+        self.assert_qmp(result, 'return', {})
+
+        self.assertTrue(iotests.compare_images(test_img, target_img),
+                        'target image does not match source after mirroring')
+
+    def test_blockdev_full(self):
+        qemu_img('create', '-f', iotests.imgfmt, target_img,
+                 str(self.image_len))
+        qemu_io('-c', 'write -P 42 0 64k', target_img)
+
+        result = self.vm.qmp('blockdev-add', node_name='target',
+                             driver=iotests.imgfmt,
+                             file={
+                                 'driver': 'file',
+                                 'filename': target_img,
+                             })
+        self.assert_qmp(result, 'return', {})
+
+        self.assert_no_active_block_jobs()
+        result = self.vm.qmp('blockdev-mirror', job_id='drive0', device='drive0',
+                             sync='full', target='target')
+        self.assert_qmp(result, 'return', {})
+        self.complete_and_wait()
+        self.assert_no_active_block_jobs()
+
+        result = self.vm.qmp('blockdev-del', node_name='drive0')
+        self.assert_qmp(result, 'return', {})
+
+        result = self.vm.qmp('blockdev-del', node_name='target')
+        self.assert_qmp(result, 'return', {})
+
+        self.assertTrue(iotests.compare_images(test_img, target_img),
+                        'target image does not match source after mirroring')
 
 class TestGranularity(iotests.QMPTestCase):
     image_len = 10 * 1024 * 1024 # MB
