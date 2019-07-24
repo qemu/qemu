@@ -228,28 +228,6 @@ void qemu_clock_enable(QEMUClockType type, bool enabled);
 void qemu_start_warp_timer(void);
 
 /**
- * qemu_clock_register_reset_notifier:
- * @type: the clock type
- * @notifier: the notifier function
- *
- * Register a notifier function to call when the clock
- * concerned is reset.
- */
-void qemu_clock_register_reset_notifier(QEMUClockType type,
-                                        Notifier *notifier);
-
-/**
- * qemu_clock_unregister_reset_notifier:
- * @type: the clock type
- * @notifier: the notifier function
- *
- * Unregister a notifier function to call when the clock
- * concerned is reset.
- */
-void qemu_clock_unregister_reset_notifier(QEMUClockType type,
-                                          Notifier *notifier);
-
-/**
  * qemu_clock_run_timers:
  * @type: clock on which to operate
  *
