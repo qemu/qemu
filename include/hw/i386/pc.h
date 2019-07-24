@@ -41,6 +41,7 @@ struct PCMachineState {
     FWCfgState *fw_cfg;
     qemu_irq *gsi;
     PFlashCFI01 *flash[2];
+    GMappedFile *initrd_mapped_file;
 
     /* Configuration options: */
     uint64_t max_ram_below_4g;
