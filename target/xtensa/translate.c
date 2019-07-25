@@ -539,9 +539,6 @@ static void gen_waiti(DisasContext *dc, uint32_t imm4)
         gen_io_start();
     }
     gen_helper_waiti(cpu_env, pc, intlevel);
-    if (tb_cflags(dc->base.tb) & CF_USE_ICOUNT) {
-        gen_io_end();
-    }
     tcg_temp_free(pc);
     tcg_temp_free(intlevel);
 }
@@ -2215,9 +2212,6 @@ static void translate_rsr_ccount(DisasContext *dc, const OpcodeArg arg[],
     }
     gen_helper_update_ccount(cpu_env);
     tcg_gen_mov_i32(arg[0].out, cpu_SR[par[0]]);
-    if (tb_cflags(dc->base.tb) & CF_USE_ICOUNT) {
-        gen_io_end();
-    }
 #endif
 }
 
@@ -2607,9 +2601,6 @@ static void translate_wsr_ccompare(DisasContext *dc, const OpcodeArg arg[],
     tcg_gen_mov_i32(cpu_SR[par[0]], arg[0].in);
     gen_helper_update_ccompare(cpu_env, tmp);
     tcg_temp_free(tmp);
-    if (tb_cflags(dc->base.tb) & CF_USE_ICOUNT) {
-        gen_io_end();
-    }
 #endif
 }
 
@@ -2621,9 +2612,6 @@ static void translate_wsr_ccount(DisasContext *dc, const OpcodeArg arg[],
         gen_io_start();
     }
     gen_helper_wsr_ccount(cpu_env, arg[0].in);
-    if (tb_cflags(dc->base.tb) & CF_USE_ICOUNT) {
-        gen_io_end();
-    }
 #endif
 }
 
@@ -2830,9 +2818,6 @@ static void translate_xsr_ccount(DisasContext *dc, const OpcodeArg arg[],
     tcg_gen_mov_i32(arg[0].out, tmp);
     tcg_temp_free(tmp);
 
-    if (tb_cflags(dc->base.tb) & CF_USE_ICOUNT) {
-        gen_io_end();
-    }
 #endif
 }
 

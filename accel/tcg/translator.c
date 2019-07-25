@@ -90,7 +90,6 @@ void translator_loop(const TranslatorOps *ops, DisasContextBase *db,
             /* Accept I/O on the last instruction.  */
             gen_io_start();
             ops->translate_insn(db, cpu);
-            gen_io_end();
         } else {
             ops->translate_insn(db, cpu);
         }

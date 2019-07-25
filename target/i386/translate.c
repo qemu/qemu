@@ -5381,7 +5381,6 @@ static target_ulong disas_insn(DisasContext *s, CPUState *cpu)
             gen_op_mov_reg_v(s, dflag, rm, s->T0);
             set_cc_op(s, CC_OP_EFLAGS);
             if (tb_cflags(s->base.tb) & CF_USE_ICOUNT) {
-                gen_io_end();
                 gen_jmp(s, s->pc - s->cs_base);
             }
             break;
@@ -6443,7 +6442,6 @@ static target_ulong disas_insn(DisasContext *s, CPUState *cpu)
         gen_op_mov_reg_v(s, ot, R_EAX, s->T1);
         gen_bpt_io(s, s->tmp2_i32, ot);
         if (tb_cflags(s->base.tb) & CF_USE_ICOUNT) {
-            gen_io_end();
             gen_jmp(s, s->pc - s->cs_base);
         }
         break;
@@ -6464,7 +6462,6 @@ static target_ulong disas_insn(DisasContext *s, CPUState *cpu)
         gen_helper_out_func(ot, s->tmp2_i32, s->tmp3_i32);
         gen_bpt_io(s, s->tmp2_i32, ot);
         if (tb_cflags(s->base.tb) & CF_USE_ICOUNT) {
-            gen_io_end();
             gen_jmp(s, s->pc - s->cs_base);
         }
         break;
@@ -6482,7 +6479,6 @@ static target_ulong disas_insn(DisasContext *s, CPUState *cpu)
         gen_op_mov_reg_v(s, ot, R_EAX, s->T1);
         gen_bpt_io(s, s->tmp2_i32, ot);
         if (tb_cflags(s->base.tb) & CF_USE_ICOUNT) {
-            gen_io_end();
             gen_jmp(s, s->pc - s->cs_base);
         }
         break;
@@ -6502,7 +6498,6 @@ static target_ulong disas_insn(DisasContext *s, CPUState *cpu)
         gen_helper_out_func(ot, s->tmp2_i32, s->tmp3_i32);
         gen_bpt_io(s, s->tmp2_i32, ot);
         if (tb_cflags(s->base.tb) & CF_USE_ICOUNT) {
-            gen_io_end();
             gen_jmp(s, s->pc - s->cs_base);
         }
         break;
@@ -7206,7 +7201,6 @@ static target_ulong disas_insn(DisasContext *s, CPUState *cpu)
         }
         gen_helper_rdtsc(cpu_env);
         if (tb_cflags(s->base.tb) & CF_USE_ICOUNT) {
-            gen_io_end();
             gen_jmp(s, s->pc - s->cs_base);
         }
         break;
@@ -7666,7 +7660,6 @@ static target_ulong disas_insn(DisasContext *s, CPUState *cpu)
             }
             gen_helper_rdtscp(cpu_env);
             if (tb_cflags(s->base.tb) & CF_USE_ICOUNT) {
-                gen_io_end();
                 gen_jmp(s, s->pc - s->cs_base);
             }
             break;
@@ -8036,9 +8029,6 @@ static target_ulong disas_insn(DisasContext *s, CPUState *cpu)
                     gen_op_mov_v_reg(s, ot, s->T0, rm);
                     gen_helper_write_crN(cpu_env, tcg_const_i32(reg),
                                          s->T0);
-                    if (tb_cflags(s->base.tb) & CF_USE_ICOUNT) {
-                        gen_io_end();
-                    }
                     gen_jmp_im(s, s->pc - s->cs_base);
                     gen_eob(s);
                 } else {

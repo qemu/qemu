@@ -2161,7 +2161,6 @@ static bool trans_mfctl(DisasContext *ctx, arg_mfctl *a)
         if (tb_cflags(ctx->base.tb) & CF_USE_ICOUNT) {
             gen_io_start();
             gen_helper_read_interval_timer(tmp);
-            gen_io_end();
             ctx->base.is_jmp = DISAS_IAQ_N_STALE;
         } else {
             gen_helper_read_interval_timer(tmp);
