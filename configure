@@ -3751,7 +3751,6 @@ int main(void)
 EOF
   if compile_prog "" "$cap_libs" ; then
     cap_ng=yes
-    libs_tools="$cap_libs $libs_tools"
   else
     if test "$cap_ng" = "yes" ; then
       feature_not_found "cap_ng" "Install libcap-ng devel"
