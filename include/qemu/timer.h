@@ -62,13 +62,15 @@ typedef enum {
  * The following attributes are available:
  *
  * QEMU_TIMER_ATTR_EXTERNAL: drives external subsystem
+ * QEMU_TIMER_ATTR_ALL: mask for all existing attributes
  *
  * Timers with this attribute do not recorded in rr mode, therefore it could be
  * used for the subsystems that operate outside the guest core. Applicable only
  * with virtual clock type.
  */
 
-#define QEMU_TIMER_ATTR_EXTERNAL BIT(0)
+#define QEMU_TIMER_ATTR_EXTERNAL ((int)BIT(0))
+#define QEMU_TIMER_ATTR_ALL      0xffffffff
 
 typedef struct QEMUTimerList QEMUTimerList;
 
@@ -177,6 +179,8 @@ bool qemu_clock_use_for_deadline(QEMUClockType type);
 /**
  * qemu_clock_deadline_ns_all:
  * @type: the clock type
+ * @attr_mask: mask for the timer attributes that are included
+ *             in deadline calculation
  *
  * Calculate the deadline across all timer lists associated
  * with a clock (as opposed to just the default one)
@@ -184,7 +188,7 @@ bool qemu_clock_use_for_deadline(QEMUClockType type);
  *
  * Returns: time until expiry in nanoseconds or -1
  */
-int64_t qemu_clock_deadline_ns_all(QEMUClockType type);
+int64_t qemu_clock_deadline_ns_all(QEMUClockType type, int attr_mask);
 
 /**
  * qemu_clock_get_main_loop_timerlist:
