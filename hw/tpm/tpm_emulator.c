@@ -81,6 +81,40 @@ typedef struct TPMEmulator {
     TPMBlobBuffers state_blobs;
 } TPMEmulator;
 
+struct tpm_error {
+    uint32_t tpm_result;
+    const char *string;
+};
+
+static const struct tpm_error tpm_errors[] = {
+    /* TPM 1.2 error codes */
+    { TPM_BAD_PARAMETER   , "a parameter is bad" },
+    { TPM_FAIL            , "operation failed" },
+    { TPM_KEYNOTFOUND     , "key could not be found" },
+    { TPM_BAD_PARAM_SIZE  , "bad parameter size"},
+    { TPM_ENCRYPT_ERROR   , "encryption error" },
+    { TPM_DECRYPT_ERROR   , "decryption error" },
+    { TPM_BAD_KEY_PROPERTY, "bad key property" },
+    { TPM_BAD_MODE        , "bad (encryption) mode" },
+    { TPM_BAD_VERSION     , "bad version identifier" },
+    { TPM_BAD_LOCALITY    , "bad locality" },
+    /* TPM 2 error codes */
+    { TPM_RC_FAILURE     , "operation failed" },
+    { TPM_RC_LOCALITY    , "bad locality"     },
+    { TPM_RC_INSUFFICIENT, "insufficient amount of data" },
+};
+
+static const char *tpm_emulator_strerror(uint32_t tpm_result)
+{
+    size_t i;
+
+    for (i = 0; i < ARRAY_SIZE(tpm_errors); i++) {
+        if (tpm_errors[i].tpm_result == tpm_result) {
+            return tpm_errors[i].string;
+        }
+    }
+    return "";
+}
 
 static int tpm_emulator_ctrlcmd(TPMEmulator *tpm, unsigned long cmd, void *msg,
                                 size_t msg_len_in, size_t msg_len_out)
@@ -263,7 +297,8 @@ static int tpm_emulator_stop_tpm(TPMBackend *tb)
 
     res = be32_to_cpu(res);
     if (res) {
-        error_report("tpm-emulator: TPM result for CMD_STOP: 0x%x", res);
+        error_report("tpm-emulator: TPM result for CMD_STOP: 0x%x %s", res,
+                     tpm_emulator_strerror(res));
         return -1;
     }
 
@@ -292,8 +327,9 @@ static int tpm_emulator_set_buffer_size(TPMBackend *tb,
 
     psbs.u.resp.tpm_result = be32_to_cpu(psbs.u.resp.tpm_result);
     if (psbs.u.resp.tpm_result != 0) {
-        error_report("tpm-emulator: TPM result for set buffer size : 0x%x",
-                     psbs.u.resp.tpm_result);
+        error_report("tpm-emulator: TPM result for set buffer size : 0x%x %s",
+                     psbs.u.resp.tpm_result,
+                     tpm_emulator_strerror(psbs.u.resp.tpm_result));
         return -1;
     }
 
@@ -338,7 +374,8 @@ static int tpm_emulator_startup_tpm_resume(TPMBackend *tb, size_t buffersize,
 
     res = be32_to_cpu(init.u.resp.tpm_result);
     if (res) {
-        error_report("tpm-emulator: TPM result for CMD_INIT: 0x%x", res);
+        error_report("tpm-emulator: TPM result for CMD_INIT: 0x%x %s", res,
+                     tpm_emulator_strerror(res));
         goto err_exit;
     }
     return 0;
@@ -398,8 +435,9 @@ static int tpm_emulator_reset_tpm_established_flag(TPMBackend *tb,
 
     res = be32_to_cpu(reset_est.u.resp.tpm_result);
     if (res) {
-        error_report("tpm-emulator: TPM result for rest establixhed flag: 0x%x",
-                     res);
+        error_report(
+            "tpm-emulator: TPM result for rest established flag: 0x%x %s",
+            res, tpm_emulator_strerror(res));
         return -1;
     }
 
@@ -637,7 +675,8 @@ static int tpm_emulator_get_state_blob(TPMEmulator *tpm_emu,
     res = be32_to_cpu(pgs.u.resp.tpm_result);
     if (res != 0 && (res & 0x800) == 0) {
         error_report("tpm-emulator: Getting the stateblob (type %d) failed "
-                     "with a TPM error 0x%x", type, res);
+                     "with a TPM error 0x%x %s", type, res,
+                     tpm_emulator_strerror(res));
         return -1;
     }
 
@@ -757,7 +796,8 @@ static int tpm_emulator_set_state_blob(TPMEmulator *tpm_emu,
     tpm_result = be32_to_cpu(pss.u.resp.tpm_result);
     if (tpm_result != 0) {
         error_report("tpm-emulator: Setting the stateblob (type %d) failed "
-                     "with a TPM error 0x%x", type, tpm_result);
+                     "with a TPM error 0x%x %s", type, tpm_result,
+                     tpm_emulator_strerror(tpm_result));
         return -1;
     }
 
@@ -887,8 +927,8 @@ static void tpm_emulator_shutdown(TPMEmulator *tpm_emu)
         error_report("tpm-emulator: Could not cleanly shutdown the TPM: %s",
                      strerror(errno));
     } else if (res != 0) {
-        error_report("tpm-emulator: TPM result for sutdown: 0x%x",
-                     be32_to_cpu(res));
+        error_report("tpm-emulator: TPM result for shutdown: 0x%x %s",
+                     be32_to_cpu(res), tpm_emulator_strerror(be32_to_cpu(res)));
     }
 }
 
