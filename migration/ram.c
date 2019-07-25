@@ -4318,40 +4318,26 @@ static void colo_flush_ram_cache(void)
     trace_colo_flush_ram_cache_end();
 }
 
-static int ram_load(QEMUFile *f, void *opaque, int version_id)
+/**
+ * ram_load_precopy: load pages in precopy case
+ *
+ * Returns 0 for success or -errno in case of error
+ *
+ * Called in precopy mode by ram_load().
+ * rcu_read_lock is taken prior to this being called.
+ *
+ * @f: QEMUFile where to send the data
+ */
+static int ram_load_precopy(QEMUFile *f)
 {
-    int flags = 0, ret = 0, invalid_flags = 0;
-    static uint64_t seq_iter;
-    int len = 0;
-    /*
-     * If system is running in postcopy mode, page inserts to host memory must
-     * be atomic
-     */
-    bool postcopy_running = postcopy_is_running();
+    int flags = 0, ret = 0, invalid_flags = 0, len = 0;
     /* ADVISE is earlier, it shows the source has the postcopy capability on */
     bool postcopy_advised = postcopy_is_advised();
-
-    seq_iter++;
-
-    if (version_id != 4) {
-        return -EINVAL;
-    }
-
     if (!migrate_use_compression()) {
         invalid_flags |= RAM_SAVE_FLAG_COMPRESS_PAGE;
     }
-    /* This RCU critical section can be very long running.
-     * When RCU reclaims in the code start to become numerous,
-     * it will be necessary to reduce the granularity of this
-     * critical section.
-     */
-    rcu_read_lock();
 
-    if (postcopy_running) {
-        ret = ram_load_postcopy(f);
-    }
-
-    while (!postcopy_running && !ret && !(flags & RAM_SAVE_FLAG_EOS)) {
+    while (!ret && !(flags & RAM_SAVE_FLAG_EOS)) {
         ram_addr_t addr, total_ram_bytes;
         void *host = NULL;
         uint8_t ch;
@@ -4500,6 +4486,39 @@ static int ram_load(QEMUFile *f, void *opaque, int version_id)
         if (!ret) {
             ret = qemu_file_get_error(f);
         }
+    }
+
+    return ret;
+}
+
+static int ram_load(QEMUFile *f, void *opaque, int version_id)
+{
+    int ret = 0;
+    static uint64_t seq_iter;
+    /*
+     * If system is running in postcopy mode, page inserts to host memory must
+     * be atomic
+     */
+    bool postcopy_running = postcopy_is_running();
+
+    seq_iter++;
+
+    if (version_id != 4) {
+        return -EINVAL;
+    }
+
+    /*
+     * This RCU critical section can be very long running.
+     * When RCU reclaims in the code start to become numerous,
+     * it will be necessary to reduce the granularity of this
+     * critical section.
+     */
+    rcu_read_lock();
+
+    if (postcopy_running) {
+        ret = ram_load_postcopy(f);
+    } else {
+        ret = ram_load_precopy(f);
     }
 
     ret |= wait_for_decompress_done();
