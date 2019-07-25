@@ -1501,6 +1501,7 @@ int kvm_arch_init_vcpu(CPUState *cs)
                 c = &cpuid_data.entries[cpuid_i++];
             }
             break;
+        case 0x7:
         case 0x14: {
             uint32_t times;
 
@@ -1513,7 +1514,7 @@ int kvm_arch_init_vcpu(CPUState *cs)
             for (j = 1; j <= times; ++j) {
                 if (cpuid_i == KVM_MAX_CPUID_ENTRIES) {
                     fprintf(stderr, "cpuid_data is full, no space for "
-                                "cpuid(eax:0x14,ecx:0x%x)\n", j);
+                                "cpuid(eax:0x%x,ecx:0x%x)\n", i, j);
                     abort();
                 }
                 c = &cpuid_data.entries[cpuid_i++];
