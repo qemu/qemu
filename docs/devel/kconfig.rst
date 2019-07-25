@@ -267,7 +267,7 @@ the default configuration by uncommenting lines in the first group,
 or commenting out lines in the second group.
 
 It is also possible to run QEMU's configure script with the
-``--with-default-devices`` option.  When this is done, everything defaults
+``--without-default-devices`` option.  When this is done, everything defaults
 to ``n`` unless it is ``select``ed or explicitly switched on in the
 ``.mak`` files.  In other words, ``default`` and ``imply`` directives
 are disabled.  When QEMU is built with this option, the user will probably
