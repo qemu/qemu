@@ -36,7 +36,6 @@
 
 typedef struct PartiallyBalloonedPage {
     ram_addr_t base_gpa;
-    long subpages;
     unsigned long *bitmap;
 } PartiallyBalloonedPage;
 
@@ -55,16 +54,15 @@ static PartiallyBalloonedPage *virtio_balloon_pbp_alloc(ram_addr_t base_gpa,
     PartiallyBalloonedPage *pbp = g_new0(PartiallyBalloonedPage, 1);
 
     pbp->base_gpa = base_gpa;
-    pbp->subpages = subpages;
     pbp->bitmap = bitmap_new(subpages);
 
     return pbp;
 }
 
 static bool virtio_balloon_pbp_matches(PartiallyBalloonedPage *pbp,
-                                       ram_addr_t base_gpa, long subpages)
+                                       ram_addr_t base_gpa)
 {
-    return pbp->subpages == subpages && pbp->base_gpa == base_gpa;
+    return pbp->base_gpa == base_gpa;
 }
 
 static void balloon_inflate_page(VirtIOBalloon *balloon,
@@ -106,7 +104,7 @@ static void balloon_inflate_page(VirtIOBalloon *balloon,
     base_gpa = memory_region_get_ram_addr(mr) + mr_offset -
                (rb_offset - rb_aligned_offset);
 
-    if (*pbp && !virtio_balloon_pbp_matches(*pbp, base_gpa, subpages)) {
+    if (*pbp && !virtio_balloon_pbp_matches(*pbp, base_gpa)) {
         /* We've partially ballooned part of a host page, but now
          * we're trying to balloon part of a different one.  Too hard,
          * give up on the old partial page */
