@@ -39,7 +39,16 @@ struct tpm_resp_hdr {
 #define TPM_TAG_RSP_AUTH1_COMMAND 0xc5
 #define TPM_TAG_RSP_AUTH2_COMMAND 0xc6
 
+#define TPM_BAD_PARAMETER         3
 #define TPM_FAIL                  9
+#define TPM_KEYNOTFOUND           13
+#define TPM_BAD_PARAM_SIZE        25
+#define TPM_ENCRYPT_ERROR         32
+#define TPM_DECRYPT_ERROR         33
+#define TPM_BAD_KEY_PROPERTY      40
+#define TPM_BAD_MODE              44
+#define TPM_BAD_VERSION           46
+#define TPM_BAD_LOCALITY          61
 
 #define TPM_ORD_ContinueSelfTest  0x53
 #define TPM_ORD_GetTicks          0xf1
@@ -58,5 +67,9 @@ struct tpm_resp_hdr {
 #define TPM2_CAP_TPM_PROPERTIES   0x6
 
 #define TPM2_PT_MAX_COMMAND_SIZE  0x11e
+
+#define TPM_RC_INSUFFICIENT       0x9a
+#define TPM_RC_FAILURE            0x101
+#define TPM_RC_LOCALITY           0x907
 
 #endif /* TPM_TPM_INT_H */
