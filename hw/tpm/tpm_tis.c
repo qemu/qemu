@@ -910,7 +910,9 @@ static void tpm_tis_reset(DeviceState *dev)
         s->rw_offset = 0;
     }
 
-    tpm_backend_startup_tpm(s->be_driver, s->be_buffer_size);
+    if (tpm_backend_startup_tpm(s->be_driver, s->be_buffer_size) < 0) {
+        exit(1);
+    }
 }
 
 /* persistent state handling */
