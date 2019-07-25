@@ -542,7 +542,8 @@ static int coroutine_fn vdi_co_block_status(BlockDriverState *bs,
     *map = s->header.offset_data + (uint64_t)bmap_entry * s->block_size +
         index_in_block;
     *file = bs->file->bs;
-    return BDRV_BLOCK_DATA | BDRV_BLOCK_OFFSET_VALID;
+    return BDRV_BLOCK_DATA | BDRV_BLOCK_OFFSET_VALID |
+        (s->header.image_type == VDI_TYPE_STATIC ? BDRV_BLOCK_RECURSE : 0);
 }
 
 static int coroutine_fn
