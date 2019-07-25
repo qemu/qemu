@@ -151,6 +151,8 @@ typedef struct TaskState {
      */
     int signal_pending;
 
+    /* This thread's sigaltstack, if it has one */
+    struct target_sigaltstack sigaltstack_used;
 } __attribute__((aligned(16))) TaskState;
 
 extern char *exec_path;
