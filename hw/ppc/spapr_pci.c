@@ -2080,6 +2080,8 @@ static void spapr_phb_reset(DeviceState *qdev)
     if (spapr_phb_eeh_available(SPAPR_PCI_HOST_BRIDGE(qdev))) {
         spapr_phb_vfio_reset(qdev);
     }
+
+    g_hash_table_remove_all(sphb->msi);
 }
 
 static Property spapr_phb_properties[] = {
