@@ -1755,10 +1755,6 @@ static void spapr_machine_reset(MachineState *machine)
         ppc_set_compat(first_ppc_cpu, spapr->max_compat_pvr, &error_fatal);
     }
 
-    if (!SPAPR_MACHINE_GET_CLASS(spapr)->legacy_irq_allocation) {
-        spapr_irq_msi_reset(spapr);
-    }
-
     /*
      * This is fixing some of the default configuration of the XIVE
      * devices. To be called after the reset of the machine devices.

@@ -59,11 +59,6 @@ void spapr_irq_msi_free(SpaprMachineState *spapr, int irq, uint32_t num)
     bitmap_clear(spapr->irq_map, irq - SPAPR_IRQ_MSI, num);
 }
 
-void spapr_irq_msi_reset(SpaprMachineState *spapr)
-{
-    bitmap_clear(spapr->irq_map, 0, spapr->irq_map_nr);
-}
-
 static void spapr_irq_init_kvm(SpaprMachineState *spapr,
                                   SpaprIrq *irq, Error **errp)
 {
@@ -731,6 +726,8 @@ int spapr_irq_post_load(SpaprMachineState *spapr, int version_id)
 
 void spapr_irq_reset(SpaprMachineState *spapr, Error **errp)
 {
+    assert(!spapr->irq_map || bitmap_empty(spapr->irq_map, spapr->irq_map_nr));
+
     if (spapr->irq->reset) {
         spapr->irq->reset(spapr, errp);
     }
