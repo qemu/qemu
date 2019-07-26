@@ -1772,14 +1772,18 @@ static void lo_release(fuse_req_t req, fuse_ino_t ino,
                        struct fuse_file_info *fi)
 {
     struct lo_data *lo = lo_data(req);
-    int fd;
+    struct lo_map_elem *elem;
+    int fd = -1;
 
     (void)ino;
 
-    fd = lo_fi_fd(req, fi);
-
     pthread_mutex_lock(&lo->mutex);
-    lo_map_remove(&lo->fd_map, fi->fh);
+    elem = lo_map_get(&lo->fd_map, fi->fh);
+    if (elem) {
+        fd = elem->fd;
+        elem = NULL;
+        lo_map_remove(&lo->fd_map, fi->fh);
+    }
     pthread_mutex_unlock(&lo->mutex);
 
     close(fd);
