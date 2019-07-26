@@ -218,11 +218,12 @@ typedef struct PL330Queue {
 
 static const VMStateDescription vmstate_pl330_queue = {
     .name = "pl330_queue",
-    .version_id = 1,
-    .minimum_version_id = 1,
+    .version_id = 2,
+    .minimum_version_id = 2,
     .fields = (VMStateField[]) {
-        VMSTATE_STRUCT_VARRAY_UINT32(queue, PL330Queue, queue_size, 1,
-                                 vmstate_pl330_queue_entry, PL330QueueEntry),
+        VMSTATE_STRUCT_VARRAY_POINTER_UINT32(queue, PL330Queue, queue_size,
+                                             vmstate_pl330_queue_entry,
+                                             PL330QueueEntry),
         VMSTATE_END_OF_LIST()
     }
 };
@@ -278,12 +279,12 @@ struct PL330State {
 
 static const VMStateDescription vmstate_pl330 = {
     .name = "pl330",
-    .version_id = 1,
-    .minimum_version_id = 1,
+    .version_id = 2,
+    .minimum_version_id = 2,
     .fields = (VMStateField[]) {
         VMSTATE_STRUCT(manager, PL330State, 0, vmstate_pl330_chan, PL330Chan),
-        VMSTATE_STRUCT_VARRAY_UINT32(chan, PL330State, num_chnls, 0,
-                                     vmstate_pl330_chan, PL330Chan),
+        VMSTATE_STRUCT_VARRAY_POINTER_UINT32(chan, PL330State, num_chnls,
+                                             vmstate_pl330_chan, PL330Chan),
         VMSTATE_VBUFFER_UINT32(lo_seqn, PL330State, 1, NULL, num_chnls),
         VMSTATE_VBUFFER_UINT32(hi_seqn, PL330State, 1, NULL, num_chnls),
         VMSTATE_STRUCT(fifo, PL330State, 0, vmstate_pl330_fifo, PL330Fifo),
