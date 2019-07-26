@@ -180,6 +180,11 @@ void stop_all_tasks(void)
 void init_task_state(TaskState *ts)
 {
     ts->used = 1;
+    ts->sigaltstack_used = (struct target_sigaltstack) {
+        .ss_sp = 0,
+        .ss_size = 0,
+        .ss_flags = TARGET_SS_DISABLE,
+    };
 }
 
 CPUArchState *cpu_copy(CPUArchState *env)

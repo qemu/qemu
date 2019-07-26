@@ -19,7 +19,6 @@
 
 #ifndef SIGNAL_COMMON_H
 #define SIGNAL_COMMON_H
-extern struct target_sigaltstack target_sigaltstack_used;
 
 int on_sig_stack(unsigned long sp);
 int sas_ss_flags(unsigned long sp);
