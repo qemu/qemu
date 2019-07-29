@@ -781,7 +781,27 @@ void hbitmap_truncate(HBitmap *hb, uint64_t size)
 
 bool hbitmap_can_merge(const HBitmap *a, const HBitmap *b)
 {
-    return (a->size == b->size) && (a->granularity == b->granularity);
+    return (a->orig_size == b->orig_size);
+}
+
+/**
+ * hbitmap_sparse_merge: performs dst = dst | src
+ * works with differing granularities.
+ * best used when src is sparsely populated.
+ */
+static void hbitmap_sparse_merge(HBitmap *dst, const HBitmap *src)
+{
+    uint64_t offset = 0;
+    uint64_t count = src->orig_size;
+
+    while (hbitmap_next_dirty_area(src, &offset, &count)) {
+        hbitmap_set(dst, offset, count);
+        offset += count;
+        if (offset >= src->orig_size) {
+            break;
+        }
+        count = src->orig_size - offset;
+    }
 }
 
 /**
@@ -812,10 +832,24 @@ bool hbitmap_merge(const HBitmap *a, const HBitmap *b, HBitmap *result)
         return true;
     }
 
+    if (a->granularity != b->granularity) {
+        if ((a != result) && (b != result)) {
+            hbitmap_reset_all(result);
+        }
+        if (a != result) {
+            hbitmap_sparse_merge(result, a);
+        }
+        if (b != result) {
+            hbitmap_sparse_merge(result, b);
+        }
+        return true;
+    }
+
     /* This merge is O(size), as BITS_PER_LONG and HBITMAP_LEVELS are constant.
      * It may be possible to improve running times for sparsely populated maps
      * by using hbitmap_iter_next, but this is suboptimal for dense maps.
      */
+    assert(a->size == b->size);
     for (i = HBITMAP_LEVELS - 1; i >= 0; i--) {
         for (j = 0; j < a->sizes[i]; j++) {
             result->levels[i][j] = a->levels[i][j] | b->levels[i][j];
