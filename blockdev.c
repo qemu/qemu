@@ -2136,6 +2136,51 @@ static void block_dirty_bitmap_merge_prepare(BlkActionState *common,
                                                 errp);
 }
 
+static BdrvDirtyBitmap *do_block_dirty_bitmap_remove(
+        const char *node, const char *name, bool release,
+        BlockDriverState **bitmap_bs, Error **errp);
+
+static void block_dirty_bitmap_remove_prepare(BlkActionState *common,
+                                              Error **errp)
+{
+    BlockDirtyBitmap *action;
+    BlockDirtyBitmapState *state = DO_UPCAST(BlockDirtyBitmapState,
+                                             common, common);
+
+    if (action_check_completion_mode(common, errp) < 0) {
+        return;
+    }
+
+    action = common->action->u.block_dirty_bitmap_remove.data;
+
+    state->bitmap = do_block_dirty_bitmap_remove(action->node, action->name,
+                                                 false, &state->bs, errp);
+    if (state->bitmap) {
+        bdrv_dirty_bitmap_skip_store(state->bitmap, true);
+        bdrv_dirty_bitmap_set_busy(state->bitmap, true);
+    }
+}
+
+static void block_dirty_bitmap_remove_abort(BlkActionState *common)
+{
+    BlockDirtyBitmapState *state = DO_UPCAST(BlockDirtyBitmapState,
+                                             common, common);
+
+    if (state->bitmap) {
+        bdrv_dirty_bitmap_skip_store(state->bitmap, false);
+        bdrv_dirty_bitmap_set_busy(state->bitmap, false);
+    }
+}
+
+static void block_dirty_bitmap_remove_commit(BlkActionState *common)
+{
+    BlockDirtyBitmapState *state = DO_UPCAST(BlockDirtyBitmapState,
+                                             common, common);
+
+    bdrv_dirty_bitmap_set_busy(state->bitmap, false);
+    bdrv_release_dirty_bitmap(state->bs, state->bitmap);
+}
+
 static void abort_prepare(BlkActionState *common, Error **errp)
 {
     error_setg(errp, "Transaction aborted using Abort action");
@@ -2212,6 +2257,12 @@ static const BlkActionOps actions[] = {
         .prepare = block_dirty_bitmap_merge_prepare,
         .commit = block_dirty_bitmap_free_backup,
         .abort = block_dirty_bitmap_restore,
+    },
+    [TRANSACTION_ACTION_KIND_BLOCK_DIRTY_BITMAP_REMOVE] = {
+        .instance_size = sizeof(BlockDirtyBitmapState),
+        .prepare = block_dirty_bitmap_remove_prepare,
+        .commit = block_dirty_bitmap_remove_commit,
+        .abort = block_dirty_bitmap_remove_abort,
     },
     /* Where are transactions for MIRROR, COMMIT and STREAM?
      * Although these blockjobs use transaction callbacks like the backup job,
@@ -2871,20 +2922,21 @@ void qmp_block_dirty_bitmap_add(const char *node, const char *name,
     bdrv_dirty_bitmap_set_persistence(bitmap, persistent);
 }
 
-void qmp_block_dirty_bitmap_remove(const char *node, const char *name,
-                                   Error **errp)
+static BdrvDirtyBitmap *do_block_dirty_bitmap_remove(
+        const char *node, const char *name, bool release,
+        BlockDriverState **bitmap_bs, Error **errp)
 {
     BlockDriverState *bs;
     BdrvDirtyBitmap *bitmap;
 
     bitmap = block_dirty_bitmap_lookup(node, name, &bs, errp);
     if (!bitmap || !bs) {
-        return;
+        return NULL;
     }
 
     if (bdrv_dirty_bitmap_check(bitmap, BDRV_BITMAP_BUSY | BDRV_BITMAP_RO,
                                 errp)) {
-        return;
+        return NULL;
     }
 
     if (bdrv_dirty_bitmap_get_persistence(bitmap)) {
@@ -2894,13 +2946,28 @@ void qmp_block_dirty_bitmap_remove(const char *node, const char *name,
         aio_context_acquire(aio_context);
         bdrv_remove_persistent_dirty_bitmap(bs, name, &local_err);
         aio_context_release(aio_context);
+
         if (local_err != NULL) {
             error_propagate(errp, local_err);
-            return;
+            return NULL;
         }
     }
 
-    bdrv_release_dirty_bitmap(bs, bitmap);
+    if (release) {
+        bdrv_release_dirty_bitmap(bs, bitmap);
+    }
+
+    if (bitmap_bs) {
+        *bitmap_bs = bs;
+    }
+
+    return release ? NULL : bitmap;
+}
+
+void qmp_block_dirty_bitmap_remove(const char *node, const char *name,
+                                   Error **errp)
+{
+    do_block_dirty_bitmap_remove(node, name, true, NULL, errp);
 }
 
 /**
