@@ -3491,7 +3491,7 @@ static BlockJob *do_backup_common(BackupCommon *backup,
                        "when providing a bitmap");
             return NULL;
         }
-        if (bdrv_dirty_bitmap_check(bmap, BDRV_BITMAP_DEFAULT, errp)) {
+        if (bdrv_dirty_bitmap_check(bmap, BDRV_BITMAP_ALLOW_RO, errp)) {
             return NULL;
         }
     }

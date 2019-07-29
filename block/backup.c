@@ -617,6 +617,12 @@ BlockJob *backup_job_create(const char *job_id, BlockDriverState *bs,
             return NULL;
         }
 
+        /* If we need to write to this bitmap, check that we can: */
+        if (bitmap_mode != BITMAP_SYNC_MODE_NEVER &&
+            bdrv_dirty_bitmap_check(sync_bitmap, BDRV_BITMAP_DEFAULT, errp)) {
+            return NULL;
+        }
+
         /* Create a new bitmap, and freeze/disable this one. */
         if (bdrv_dirty_bitmap_create_successor(bs, sync_bitmap, errp) < 0) {
             return NULL;
