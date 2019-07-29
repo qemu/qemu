@@ -2318,6 +2318,7 @@ static void scsi_disk_unit_attention_reported(SCSIDevice *dev)
 static void scsi_realize(SCSIDevice *dev, Error **errp)
 {
     SCSIDiskState *s = DO_UPCAST(SCSIDiskState, qdev, dev);
+    bool read_only;
 
     if (!s->qdev.conf.blk) {
         error_setg(errp, "drive property not set");
@@ -2351,8 +2352,13 @@ static void scsi_realize(SCSIDevice *dev, Error **errp)
             return;
         }
     }
-    if (!blkconf_apply_backend_options(&dev->conf,
-                                       blk_is_read_only(s->qdev.conf.blk),
+
+    read_only = blk_is_read_only(s->qdev.conf.blk);
+    if (dev->type == TYPE_ROM) {
+        read_only = true;
+    }
+
+    if (!blkconf_apply_backend_options(&dev->conf, read_only,
                                        dev->type == TYPE_DISK, errp)) {
         return;
     }
