@@ -51,6 +51,7 @@ typedef struct DisasContext {
     bool abs2008;
     bool mi;
     int gi;
+    bool crcp;
 } DisasContext;
 
 #define DISAS_STOP       DISAS_TARGET_0
@@ -181,6 +182,7 @@ bool gen_lsa(DisasContext *ctx, int rd, int rt, int rs, int sa);
 bool gen_dlsa(DisasContext *ctx, int rd, int rt, int rs, int sa);
 
 void gen_rdhwr(DisasContext *ctx, int rt, int rd, int sel);
+void gen_crc32(DisasContext *ctx, int rd, int rs, int rt, int sz, int crc32c);
 
 extern TCGv cpu_gpr[32], cpu_PC;
 #if defined(TARGET_MIPS64)
