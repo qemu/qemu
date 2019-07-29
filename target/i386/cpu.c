@@ -2472,7 +2472,7 @@ static X86CPUDefinition builtin_x86_defs[] = {
         .model_id = "Intel Xeon Processor (Icelake)",
     },
     {
-        .name = "SnowRidge-Server",
+        .name = "Snowridge",
         .level = 27,
         .vendor = CPUID_VENDOR_INTEL,
         .family = 6,
@@ -2490,7 +2490,6 @@ static X86CPUDefinition builtin_x86_defs[] = {
             CPUID_FXSR | CPUID_SSE | CPUID_SSE2,
         .features[FEAT_1_ECX] =
             CPUID_EXT_SSE3 | CPUID_EXT_PCLMULQDQ | CPUID_EXT_MONITOR |
-            CPUID_EXT_VMX |
             CPUID_EXT_SSSE3 |
             CPUID_EXT_CX16 |
             CPUID_EXT_SSE41 |
