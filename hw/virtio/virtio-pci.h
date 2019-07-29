@@ -15,7 +15,6 @@
 #ifndef QEMU_VIRTIO_PCI_H
 #define QEMU_VIRTIO_PCI_H
 
-#include "qapi/error.h"
 #include "hw/pci/msi.h"
 #include "hw/virtio/virtio-bus.h"
 
@@ -119,12 +118,6 @@ typedef struct VirtIOPCIQueue {
   uint32_t used[2];
 } VirtIOPCIQueue;
 
-typedef enum {
-    VIRTIO_PCI_MODE_LEGACY,
-    VIRTIO_PCI_MODE_TRANSITIONAL,
-    VIRTIO_PCI_MODE_MODERN,
-} VirtIOPCIMode;
-
 struct VirtIOPCIProxy {
     PCIDevice pci_dev;
     MemoryRegion bar;
@@ -149,7 +142,6 @@ struct VirtIOPCIProxy {
     bool disable_modern;
     bool ignore_backend_features;
     OnOffAuto disable_legacy;
-    VirtIOPCIMode mode;
     uint32_t class_code;
     uint32_t nvectors;
     uint32_t dfselect;
@@ -164,34 +156,23 @@ struct VirtIOPCIProxy {
 
 static inline bool virtio_pci_modern(VirtIOPCIProxy *proxy)
 {
-    return proxy->mode != VIRTIO_PCI_MODE_LEGACY;
+    return !proxy->disable_modern;
 }
 
 static inline bool virtio_pci_legacy(VirtIOPCIProxy *proxy)
 {
-    return proxy->mode != VIRTIO_PCI_MODE_MODERN;
+    return proxy->disable_legacy == ON_OFF_AUTO_OFF;
 }
 
-static inline bool virtio_pci_force_virtio_1(VirtIOPCIProxy *proxy,
-                                             Error **errp)
+static inline void virtio_pci_force_virtio_1(VirtIOPCIProxy *proxy)
 {
-    if (proxy->disable_legacy == ON_OFF_AUTO_OFF) {
-        error_setg(errp, "Unable to set disable-legacy=off on a virtio-1.0 "
-                   "only device");
-        return false;
-    }
-    if (proxy->disable_modern == true) {
-        error_setg(errp, "Unable to set disable-modern=on on a virtio-1.0 "
-                   "only device");
-        return false;
-    }
-    proxy->mode = VIRTIO_PCI_MODE_MODERN;
-    return true;
+    proxy->disable_modern = false;
+    proxy->disable_legacy = ON_OFF_AUTO_ON;
 }
 
 static inline void virtio_pci_disable_modern(VirtIOPCIProxy *proxy)
 {
-    proxy->mode = VIRTIO_PCI_MODE_LEGACY;
+    proxy->disable_modern = true;
 }
 
 /*

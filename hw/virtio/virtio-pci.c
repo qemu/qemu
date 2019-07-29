@@ -1723,22 +1723,16 @@ static void virtio_pci_realize(PCIDevice *pci_dev, Error **errp)
                        /* PCI BAR regions must be powers of 2 */
                        pow2ceil(proxy->notify.offset + proxy->notify.size));
 
-    if ((proxy->disable_legacy == ON_OFF_AUTO_ON) ||
-        ((proxy->disable_legacy == ON_OFF_AUTO_AUTO) && pcie_port)) {
-        if (proxy->disable_modern) {
-            error_setg(errp, "device cannot work as neither modern nor "
-                       "legacy mode is enabled");
-            error_append_hint(errp, "Set either disable-modern or "
-                              "disable-legacy to off\n");
-            return;
-        }
-        proxy->mode = VIRTIO_PCI_MODE_MODERN;
-    } else {
-        if (proxy->disable_modern) {
-            proxy->mode = VIRTIO_PCI_MODE_LEGACY;
-        } else {
-            proxy->mode = VIRTIO_PCI_MODE_TRANSITIONAL;
-        }
+    if (proxy->disable_legacy == ON_OFF_AUTO_AUTO) {
+        proxy->disable_legacy = pcie_port ? ON_OFF_AUTO_ON : ON_OFF_AUTO_OFF;
+    }
+
+    if (!virtio_pci_modern(proxy) && !virtio_pci_legacy(proxy)) {
+        error_setg(errp, "device cannot work as neither modern nor legacy mode"
+                   " is enabled");
+        error_append_hint(errp, "Set either disable-modern or disable-legacy"
+                          " to off\n");
+        return;
     }
 
     if (pcie_port && pci_is_express(pci_dev)) {
