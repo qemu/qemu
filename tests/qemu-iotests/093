@@ -367,10 +367,8 @@ class ThrottleTestGroupNames(iotests.QMPTestCase):
 class ThrottleTestRemovableMedia(iotests.QMPTestCase):
     def setUp(self):
         self.vm = iotests.VM()
-        if iotests.qemu_default_machine == 's390-ccw-virtio':
-            self.vm.add_device("virtio-scsi-ccw,id=virtio-scsi")
-        else:
-            self.vm.add_device("virtio-scsi-pci,id=virtio-scsi")
+        self.vm.add_device("{},id=virtio-scsi".format(
+            iotests.get_virtio_scsi_device()))
         self.vm.launch()
 
     def tearDown(self):
