@@ -85,6 +85,59 @@ GROUPS = [
         Pattern('0xdd', 0x3fc0000)]), # New; leaving a gap to the right
 ]
 
+
+class EmulatedBitmap:
+    def __init__(self, granularity=GRANULARITY):
+        self._bits = set()
+        self.granularity = granularity
+
+    def dirty_bits(self, bits):
+        self._bits |= set(bits)
+
+    def dirty_group(self, n):
+        self.dirty_bits(GROUPS[n].bits(self.granularity))
+
+    def clear(self):
+        self._bits = set()
+
+    def clear_bits(self, bits):
+        self._bits -= set(bits)
+
+    def clear_bit(self, bit):
+        self.clear_bits({bit})
+
+    def clear_group(self, n):
+        self.clear_bits(GROUPS[n].bits(self.granularity))
+
+    @property
+    def first_bit(self):
+        return sorted(self.bits)[0]
+
+    @property
+    def bits(self):
+        return self._bits
+
+    @property
+    def count(self):
+        return len(self.bits)
+
+    def compare(self, qmp_bitmap):
+        """
+        Print a nice human-readable message checking that a bitmap as reported
+        by the QMP interface has as many bits set as we expect it to.
+        """
+
+        name = qmp_bitmap.get('name', '(anonymous)')
+        log("= Checking Bitmap {:s} =".format(name))
+
+        want = self.count
+        have = qmp_bitmap['count'] // qmp_bitmap['granularity']
+
+        log("expecting {:d} dirty sectors; have {:d}. {:s}".format(
+            want, have, "OK!" if want == have else "ERROR!"))
+        log('')
+
+
 class Drive:
     """Represents, vaguely, a drive attached to a VM.
     Includes format, graph, and device information."""
@@ -195,27 +248,6 @@ def perform_writes(drive, n):
     log('')
     return bitmaps
 
-def calculate_bits(groups=None):
-    """Calculate how many bits we expect to see dirtied."""
-    if groups:
-        bits = set.union(*(GROUPS[group].bits(GRANULARITY) for group in groups))
-        return len(bits)
-    return 0
-
-def bitmap_comparison(bitmap, groups=None, want=0):
-    """
-    Print a nice human-readable message checking that this bitmap has as
-    many bits set as we expect it to.
-    """
-    log("= Checking Bitmap {:s} =".format(bitmap.get('name', '(anonymous)')))
-
-    if groups:
-        want = calculate_bits(groups)
-    have = bitmap['count'] // bitmap['granularity']
-
-    log("expecting {:d} dirty sectors; have {:d}. {:s}".format(
-        want, have, "OK!" if want == have else "ERROR!"))
-    log('')
 
 def compare_images(image, reference, baseimg=None, expected_match=True):
     """
@@ -321,12 +353,13 @@ def test_bitmap_sync(bsync_mode, failure=None):
         vm.qmp_log("block-dirty-bitmap-add", node=drive0.name,
                    name="bitmap0", granularity=GRANULARITY)
         log('')
+        ebitmap = EmulatedBitmap()
 
         # 1 - Writes and Reference Backup
         bitmaps = perform_writes(drive0, 1)
-        dirty_groups = {1}
+        ebitmap.dirty_group(1)
         bitmap = get_bitmap(bitmaps, drive0.device, 'bitmap0')
-        bitmap_comparison(bitmap, groups=dirty_groups)
+        ebitmap.compare(bitmap)
         reference_backup(drive0, 1, fbackup1)
 
         # 1 - Bitmap Backup (Optional induced failure)
@@ -342,54 +375,47 @@ def test_bitmap_sync(bsync_mode, failure=None):
             log('')
             bitmaps = perform_writes(drive0, 2)
             # Named bitmap (static, should be unchanged)
-            bitmap_comparison(get_bitmap(bitmaps, drive0.device, 'bitmap0'),
-                              groups=dirty_groups)
+            ebitmap.compare(get_bitmap(bitmaps, drive0.device, 'bitmap0'))
             # Anonymous bitmap (dynamic, shows new writes)
-            bitmap_comparison(get_bitmap(bitmaps, drive0.device, '',
-                                         recording=True), groups={2})
-            dirty_groups.add(2)
+            anonymous = EmulatedBitmap()
+            anonymous.dirty_group(2)
+            anonymous.compare(get_bitmap(bitmaps, drive0.device, '',
+                                         recording=True))
+
+            # Simulate the order in which this will happen:
+            # group 1 gets cleared first, then group two gets written.
+            if ((bsync_mode == 'on-success' and not failure) or
+                (bsync_mode == 'always')):
+                ebitmap.clear_group(1)
+            ebitmap.dirty_group(2)
 
         vm.run_job(job, auto_dismiss=True, auto_finalize=False,
                    pre_finalize=_callback,
                    cancel=(failure == 'simulated'))
         bitmaps = query_bitmaps(vm)
-        bitmap = get_bitmap(bitmaps, drive0.device, 'bitmap0')
         log(bitmaps, indent=2)
         log('')
 
-        if ((bsync_mode == 'on-success' and not failure) or
-                (bsync_mode == 'always' and failure != 'intermediate')):
-            dirty_groups.remove(1)
-
         if bsync_mode == 'always' and failure == 'intermediate':
             # We manage to copy one sector (one bit) before the error.
-            bitmap_comparison(bitmap,
-                              want=calculate_bits(groups=dirty_groups) - 1)
-        else:
-            bitmap_comparison(bitmap, groups=dirty_groups)
+            ebitmap.clear_bit(ebitmap.first_bit)
+        ebitmap.compare(get_bitmap(bitmaps, drive0.device, 'bitmap0'))
 
         # 2 - Writes and Reference Backup
         bitmaps = perform_writes(drive0, 3)
-        dirty_groups.add(3)
-        bitmap = get_bitmap(bitmaps, drive0.device, 'bitmap0')
-        if bsync_mode == 'always' and failure == 'intermediate':
-            # We're one bit short, still.
-            bitmap_comparison(bitmap,
-                              want=calculate_bits(groups=dirty_groups) - 1)
-        else:
-            bitmap_comparison(bitmap, groups=dirty_groups)
+        ebitmap.dirty_group(3)
+        ebitmap.compare(get_bitmap(bitmaps, drive0.device, 'bitmap0'))
         reference_backup(drive0, 2, fbackup2)
 
         # 2 - Bitmap Backup (In failure modes, this is a recovery.)
         job = bitmap_backup(drive0, 2, bsync2, "bitmap0", bsync_mode)
         vm.run_job(job, auto_dismiss=True, auto_finalize=False)
         bitmaps = query_bitmaps(vm)
-        bitmap = get_bitmap(bitmaps, drive0.device, 'bitmap0')
         log(bitmaps, indent=2)
         log('')
-        bitmap_comparison(bitmap, groups={}
-                          if bsync_mode != 'never'
-                          else dirty_groups)
+        if bsync_mode != 'never':
+            ebitmap.clear()
+        ebitmap.compare(get_bitmap(bitmaps, drive0.device, 'bitmap0'))
 
         log('--- Cleanup ---\n')
         vm.qmp_log("block-dirty-bitmap-remove",
