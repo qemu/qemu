@@ -102,9 +102,7 @@ static int parse_acl_file(const char *filename, ACLList *acl_list)
 
         if (arg == NULL) {
             fprintf(stderr, "Invalid config line:\n  %s\n", line);
-            fclose(f);
-            errno = EINVAL;
-            return -1;
+            goto err;
         }
 
         *arg = 0;
@@ -118,6 +116,11 @@ static int parse_acl_file(const char *filename, ACLList *acl_list)
             argend--;
         }
         *argend = 0;
+
+        if (!g_str_equal(cmd, "include") && strlen(arg) >= IFNAMSIZ) {
+            fprintf(stderr, "name `%s' too long: %zu\n", arg, strlen(arg));
+            goto err;
+        }
 
         if (strcmp(cmd, "deny") == 0) {
             acl_rule = g_malloc(sizeof(*acl_rule));
@@ -142,15 +145,18 @@ static int parse_acl_file(const char *filename, ACLList *acl_list)
             parse_acl_file(arg, acl_list);
         } else {
             fprintf(stderr, "Unknown command `%s'\n", cmd);
-            fclose(f);
-            errno = EINVAL;
-            return -1;
+            goto err;
         }
     }
 
     fclose(f);
-
     return 0;
+
+err:
+    fclose(f);
+    errno = EINVAL;
+    return -1;
+
 }
 
 static bool has_vnet_hdr(int fd)
@@ -267,6 +273,10 @@ int main(int argc, char **argv)
 
     if (bridge == NULL || unixfd == -1) {
         usage();
+        return EXIT_FAILURE;
+    }
+    if (strlen(bridge) >= IFNAMSIZ) {
+        fprintf(stderr, "name `%s' too long: %zu\n", bridge, strlen(bridge));
         return EXIT_FAILURE;
     }
 
