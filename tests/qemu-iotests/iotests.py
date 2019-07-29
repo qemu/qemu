@@ -541,7 +541,23 @@ class VM(qtest.QEMUQtestMachine):
 
     # Returns None on success, and an error string on failure
     def run_job(self, job, auto_finalize=True, auto_dismiss=False,
-                pre_finalize=None, use_log=True, wait=60.0):
+                pre_finalize=None, cancel=False, use_log=True, wait=60.0):
+        """
+        run_job moves a job from creation through to dismissal.
+
+        :param job: String. ID of recently-launched job
+        :param auto_finalize: Bool. True if the job was launched with
+                              auto_finalize. Defaults to True.
+        :param auto_dismiss: Bool. True if the job was launched with
+                             auto_dismiss=True. Defaults to False.
+        :param pre_finalize: Callback. A callable that takes no arguments to be
+                             invoked prior to issuing job-finalize, if any.
+        :param cancel: Bool. When true, cancels the job after the pre_finalize
+                       callback.
+        :param use_log: Bool. When false, does not log QMP messages.
+        :param wait: Float. Timeout value specifying how long to wait for any
+                     event, in seconds. Defaults to 60.0.
+        """
         match_device = {'data': {'device': job}}
         match_id = {'data': {'id': job}}
         events = [
@@ -570,7 +586,11 @@ class VM(qtest.QEMUQtestMachine):
             elif status == 'pending' and not auto_finalize:
                 if pre_finalize:
                     pre_finalize()
-                if use_log:
+                if cancel and use_log:
+                    self.qmp_log('job-cancel', id=job)
+                elif cancel:
+                    self.qmp('job-cancel', id=job)
+                elif use_log:
                     self.qmp_log('job-finalize', id=job)
                 else:
                     self.qmp('job-finalize', id=job)
