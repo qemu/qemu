@@ -785,8 +785,9 @@ bool hbitmap_can_merge(const HBitmap *a, const HBitmap *b)
 }
 
 /**
- * Given HBitmaps A and B, let A := A (BITOR) B.
- * Bitmap B will not be modified.
+ * Given HBitmaps A and B, let R := A (BITOR) B.
+ * Bitmaps A and B will not be modified,
+ *     except when bitmap R is an alias of A or B.
  *
  * @return true if the merge was successful,
  *         false if it was not attempted.
@@ -801,7 +802,13 @@ bool hbitmap_merge(const HBitmap *a, const HBitmap *b, HBitmap *result)
     }
     assert(hbitmap_can_merge(b, result));
 
-    if (hbitmap_count(b) == 0) {
+    if ((!hbitmap_count(a) && result == b) ||
+        (!hbitmap_count(b) && result == a)) {
+        return true;
+    }
+
+    if (!hbitmap_count(a) && !hbitmap_count(b)) {
+        hbitmap_reset_all(result);
         return true;
     }
 
