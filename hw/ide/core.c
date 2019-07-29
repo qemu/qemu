@@ -723,9 +723,6 @@ static void ide_sector_read_cb(void *opaque, int ret)
     s->pio_aiocb = NULL;
     s->status &= ~BUSY_STAT;
 
-    if (ret == -ECANCELED) {
-        return;
-    }
     if (ret != 0) {
         if (ide_handle_rw_error(s, -ret, IDE_RETRY_PIO |
                                 IDE_RETRY_READ)) {
@@ -840,10 +837,6 @@ static void ide_dma_cb(void *opaque, int ret)
     int64_t sector_num;
     uint64_t offset;
     bool stay_active = false;
-
-    if (ret == -ECANCELED) {
-        return;
-    }
 
     if (ret == -EINVAL) {
         ide_dma_error(s);
@@ -976,10 +969,6 @@ static void ide_sector_write_cb(void *opaque, int ret)
     IDEState *s = opaque;
     int n;
 
-    if (ret == -ECANCELED) {
-        return;
-    }
-
     s->pio_aiocb = NULL;
     s->status &= ~BUSY_STAT;
 
@@ -1059,9 +1048,6 @@ static void ide_flush_cb(void *opaque, int ret)
 
     s->pio_aiocb = NULL;
 
-    if (ret == -ECANCELED) {
-        return;
-    }
     if (ret < 0) {
         /* XXX: What sector number to set here? */
         if (ide_handle_rw_error(s, -ret, IDE_RETRY_FLUSH)) {
