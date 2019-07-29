@@ -150,7 +150,7 @@ expecting 7 dirty sectors; have 7. OK!
 {"execute": "job-cancel", "arguments": {"id": "backup_1"}}
 {"return": {}}
 {"data": {"id": "backup_1", "type": "backup"}, "event": "BLOCK_JOB_PENDING", "timestamp": {"microseconds": "USECS", "seconds": "SECS"}}
-{"data": {"device": "backup_1", "len": 67108864, "offset": 67108864, "speed": 0, "type": "backup"}, "event": "BLOCK_JOB_CANCELLED", "timestamp": {"microseconds": "USECS", "seconds": "SECS"}}
+{"data": {"device": "backup_1", "len": 393216, "offset": 393216, "speed": 0, "type": "backup"}, "event": "BLOCK_JOB_CANCELLED", "timestamp": {"microseconds": "USECS", "seconds": "SECS"}}
 {
   "bitmaps": {
     "device0": [
@@ -228,7 +228,7 @@ expecting 15 dirty sectors; have 15. OK!
 {"execute": "job-finalize", "arguments": {"id": "backup_2"}}
 {"return": {}}
 {"data": {"id": "backup_2", "type": "backup"}, "event": "BLOCK_JOB_PENDING", "timestamp": {"microseconds": "USECS", "seconds": "SECS"}}
-{"data": {"device": "backup_2", "len": 67108864, "offset": 67108864, "speed": 0, "type": "backup"}, "event": "BLOCK_JOB_COMPLETED", "timestamp": {"microseconds": "USECS", "seconds": "SECS"}}
+{"data": {"device": "backup_2", "len": 983040, "offset": 983040, "speed": 0, "type": "backup"}, "event": "BLOCK_JOB_COMPLETED", "timestamp": {"microseconds": "USECS", "seconds": "SECS"}}
 {
   "bitmaps": {
     "device0": [
@@ -367,7 +367,7 @@ expecting 6 dirty sectors; have 6. OK!
 {"execute": "blockdev-backup", "arguments": {"auto-finalize": false, "bitmap": "bitmap0", "bitmap-mode": "never", "device": "drive0", "job-id": "backup_1", "sync": "bitmap", "target": "backup_target_1"}}
 {"return": {}}
 {"data": {"action": "report", "device": "backup_1", "operation": "read"}, "event": "BLOCK_JOB_ERROR", "timestamp": {"microseconds": "USECS", "seconds": "SECS"}}
-{"data": {"device": "backup_1", "error": "Input/output error", "len": 67108864, "offset": 66781184, "speed": 0, "type": "backup"}, "event": "BLOCK_JOB_COMPLETED", "timestamp": {"microseconds": "USECS", "seconds": "SECS"}}
+{"data": {"device": "backup_1", "error": "Input/output error", "len": 393216, "offset": 65536, "speed": 0, "type": "backup"}, "event": "BLOCK_JOB_COMPLETED", "timestamp": {"microseconds": "USECS", "seconds": "SECS"}}
 {
   "bitmaps": {
     "device0": [
@@ -445,7 +445,7 @@ expecting 14 dirty sectors; have 14. OK!
 {"execute": "job-finalize", "arguments": {"id": "backup_2"}}
 {"return": {}}
 {"data": {"id": "backup_2", "type": "backup"}, "event": "BLOCK_JOB_PENDING", "timestamp": {"microseconds": "USECS", "seconds": "SECS"}}
-{"data": {"device": "backup_2", "len": 67108864, "offset": 67108864, "speed": 0, "type": "backup"}, "event": "BLOCK_JOB_COMPLETED", "timestamp": {"microseconds": "USECS", "seconds": "SECS"}}
+{"data": {"device": "backup_2", "len": 917504, "offset": 917504, "speed": 0, "type": "backup"}, "event": "BLOCK_JOB_COMPLETED", "timestamp": {"microseconds": "USECS", "seconds": "SECS"}}
 {
   "bitmaps": {
     "device0": [
@@ -633,7 +633,7 @@ expecting 7 dirty sectors; have 7. OK!
 {"execute": "job-finalize", "arguments": {"id": "backup_1"}}
 {"return": {}}
 {"data": {"id": "backup_1", "type": "backup"}, "event": "BLOCK_JOB_PENDING", "timestamp": {"microseconds": "USECS", "seconds": "SECS"}}
-{"data": {"device": "backup_1", "len": 67108864, "offset": 67108864, "speed": 0, "type": "backup"}, "event": "BLOCK_JOB_COMPLETED", "timestamp": {"microseconds": "USECS", "seconds": "SECS"}}
+{"data": {"device": "backup_1", "len": 393216, "offset": 393216, "speed": 0, "type": "backup"}, "event": "BLOCK_JOB_COMPLETED", "timestamp": {"microseconds": "USECS", "seconds": "SECS"}}
 {
   "bitmaps": {
     "device0": [
@@ -711,7 +711,7 @@ expecting 15 dirty sectors; have 15. OK!
 {"execute": "job-finalize", "arguments": {"id": "backup_2"}}
 {"return": {}}
 {"data": {"id": "backup_2", "type": "backup"}, "event": "BLOCK_JOB_PENDING", "timestamp": {"microseconds": "USECS", "seconds": "SECS"}}
-{"data": {"device": "backup_2", "len": 67108864, "offset": 67108864, "speed": 0, "type": "backup"}, "event": "BLOCK_JOB_COMPLETED", "timestamp": {"microseconds": "USECS", "seconds": "SECS"}}
+{"data": {"device": "backup_2", "len": 983040, "offset": 983040, "speed": 0, "type": "backup"}, "event": "BLOCK_JOB_COMPLETED", "timestamp": {"microseconds": "USECS", "seconds": "SECS"}}
 {
   "bitmaps": {
     "device0": [
@@ -899,7 +899,7 @@ expecting 7 dirty sectors; have 7. OK!
 {"execute": "job-cancel", "arguments": {"id": "backup_1"}}
 {"return": {}}
 {"data": {"id": "backup_1", "type": "backup"}, "event": "BLOCK_JOB_PENDING", "timestamp": {"microseconds": "USECS", "seconds": "SECS"}}
-{"data": {"device": "backup_1", "len": 67108864, "offset": 67108864, "speed": 0, "type": "backup"}, "event": "BLOCK_JOB_CANCELLED", "timestamp": {"microseconds": "USECS", "seconds": "SECS"}}
+{"data": {"device": "backup_1", "len": 393216, "offset": 393216, "speed": 0, "type": "backup"}, "event": "BLOCK_JOB_CANCELLED", "timestamp": {"microseconds": "USECS", "seconds": "SECS"}}
 {
   "bitmaps": {
     "device0": [
@@ -977,7 +977,7 @@ expecting 15 dirty sectors; have 15. OK!
 {"execute": "job-finalize", "arguments": {"id": "backup_2"}}
 {"return": {}}
 {"data": {"id": "backup_2", "type": "backup"}, "event": "BLOCK_JOB_PENDING", "timestamp": {"microseconds": "USECS", "seconds": "SECS"}}
-{"data": {"device": "backup_2", "len": 67108864, "offset": 67108864, "speed": 0, "type": "backup"}, "event": "BLOCK_JOB_COMPLETED", "timestamp": {"microseconds": "USECS", "seconds": "SECS"}}
+{"data": {"device": "backup_2", "len": 983040, "offset": 983040, "speed": 0, "type": "backup"}, "event": "BLOCK_JOB_COMPLETED", "timestamp": {"microseconds": "USECS", "seconds": "SECS"}}
 {
   "bitmaps": {
     "device0": [
@@ -1116,7 +1116,7 @@ expecting 6 dirty sectors; have 6. OK!
 {"execute": "blockdev-backup", "arguments": {"auto-finalize": false, "bitmap": "bitmap0", "bitmap-mode": "on-success", "device": "drive0", "job-id": "backup_1", "sync": "bitmap", "target": "backup_target_1"}}
 {"return": {}}
 {"data": {"action": "report", "device": "backup_1", "operation": "read"}, "event": "BLOCK_JOB_ERROR", "timestamp": {"microseconds": "USECS", "seconds": "SECS"}}
-{"data": {"device": "backup_1", "error": "Input/output error", "len": 67108864, "offset": 66781184, "speed": 0, "type": "backup"}, "event": "BLOCK_JOB_COMPLETED", "timestamp": {"microseconds": "USECS", "seconds": "SECS"}}
+{"data": {"device": "backup_1", "error": "Input/output error", "len": 393216, "offset": 65536, "speed": 0, "type": "backup"}, "event": "BLOCK_JOB_COMPLETED", "timestamp": {"microseconds": "USECS", "seconds": "SECS"}}
 {
   "bitmaps": {
     "device0": [
@@ -1194,7 +1194,7 @@ expecting 14 dirty sectors; have 14. OK!
 {"execute": "job-finalize", "arguments": {"id": "backup_2"}}
 {"return": {}}
 {"data": {"id": "backup_2", "type": "backup"}, "event": "BLOCK_JOB_PENDING", "timestamp": {"microseconds": "USECS", "seconds": "SECS"}}
-{"data": {"device": "backup_2", "len": 67108864, "offset": 67108864, "speed": 0, "type": "backup"}, "event": "BLOCK_JOB_COMPLETED", "timestamp": {"microseconds": "USECS", "seconds": "SECS"}}
+{"data": {"device": "backup_2", "len": 917504, "offset": 917504, "speed": 0, "type": "backup"}, "event": "BLOCK_JOB_COMPLETED", "timestamp": {"microseconds": "USECS", "seconds": "SECS"}}
 {
   "bitmaps": {
     "device0": [
@@ -1382,7 +1382,7 @@ expecting 7 dirty sectors; have 7. OK!
 {"execute": "job-finalize", "arguments": {"id": "backup_1"}}
 {"return": {}}
 {"data": {"id": "backup_1", "type": "backup"}, "event": "BLOCK_JOB_PENDING", "timestamp": {"microseconds": "USECS", "seconds": "SECS"}}
-{"data": {"device": "backup_1", "len": 67108864, "offset": 67108864, "speed": 0, "type": "backup"}, "event": "BLOCK_JOB_COMPLETED", "timestamp": {"microseconds": "USECS", "seconds": "SECS"}}
+{"data": {"device": "backup_1", "len": 393216, "offset": 393216, "speed": 0, "type": "backup"}, "event": "BLOCK_JOB_COMPLETED", "timestamp": {"microseconds": "USECS", "seconds": "SECS"}}
 {
   "bitmaps": {
     "device0": [
@@ -1460,7 +1460,7 @@ expecting 12 dirty sectors; have 12. OK!
 {"execute": "job-finalize", "arguments": {"id": "backup_2"}}
 {"return": {}}
 {"data": {"id": "backup_2", "type": "backup"}, "event": "BLOCK_JOB_PENDING", "timestamp": {"microseconds": "USECS", "seconds": "SECS"}}
-{"data": {"device": "backup_2", "len": 67108864, "offset": 67108864, "speed": 0, "type": "backup"}, "event": "BLOCK_JOB_COMPLETED", "timestamp": {"microseconds": "USECS", "seconds": "SECS"}}
+{"data": {"device": "backup_2", "len": 786432, "offset": 786432, "speed": 0, "type": "backup"}, "event": "BLOCK_JOB_COMPLETED", "timestamp": {"microseconds": "USECS", "seconds": "SECS"}}
 {
   "bitmaps": {
     "device0": [
@@ -1648,7 +1648,7 @@ expecting 7 dirty sectors; have 7. OK!
 {"execute": "job-cancel", "arguments": {"id": "backup_1"}}
 {"return": {}}
 {"data": {"id": "backup_1", "type": "backup"}, "event": "BLOCK_JOB_PENDING", "timestamp": {"microseconds": "USECS", "seconds": "SECS"}}
-{"data": {"device": "backup_1", "len": 67108864, "offset": 67108864, "speed": 0, "type": "backup"}, "event": "BLOCK_JOB_CANCELLED", "timestamp": {"microseconds": "USECS", "seconds": "SECS"}}
+{"data": {"device": "backup_1", "len": 393216, "offset": 393216, "speed": 0, "type": "backup"}, "event": "BLOCK_JOB_CANCELLED", "timestamp": {"microseconds": "USECS", "seconds": "SECS"}}
 {
   "bitmaps": {
     "device0": [
@@ -1726,7 +1726,7 @@ expecting 12 dirty sectors; have 12. OK!
 {"execute": "job-finalize", "arguments": {"id": "backup_2"}}
 {"return": {}}
 {"data": {"id": "backup_2", "type": "backup"}, "event": "BLOCK_JOB_PENDING", "timestamp": {"microseconds": "USECS", "seconds": "SECS"}}
-{"data": {"device": "backup_2", "len": 67108864, "offset": 67108864, "speed": 0, "type": "backup"}, "event": "BLOCK_JOB_COMPLETED", "timestamp": {"microseconds": "USECS", "seconds": "SECS"}}
+{"data": {"device": "backup_2", "len": 786432, "offset": 786432, "speed": 0, "type": "backup"}, "event": "BLOCK_JOB_COMPLETED", "timestamp": {"microseconds": "USECS", "seconds": "SECS"}}
 {
   "bitmaps": {
     "device0": [
@@ -1865,7 +1865,7 @@ expecting 6 dirty sectors; have 6. OK!
 {"execute": "blockdev-backup", "arguments": {"auto-finalize": false, "bitmap": "bitmap0", "bitmap-mode": "always", "device": "drive0", "job-id": "backup_1", "sync": "bitmap", "target": "backup_target_1"}}
 {"return": {}}
 {"data": {"action": "report", "device": "backup_1", "operation": "read"}, "event": "BLOCK_JOB_ERROR", "timestamp": {"microseconds": "USECS", "seconds": "SECS"}}
-{"data": {"device": "backup_1", "error": "Input/output error", "len": 67108864, "offset": 66781184, "speed": 0, "type": "backup"}, "event": "BLOCK_JOB_COMPLETED", "timestamp": {"microseconds": "USECS", "seconds": "SECS"}}
+{"data": {"device": "backup_1", "error": "Input/output error", "len": 393216, "offset": 65536, "speed": 0, "type": "backup"}, "event": "BLOCK_JOB_COMPLETED", "timestamp": {"microseconds": "USECS", "seconds": "SECS"}}
 {
   "bitmaps": {
     "device0": [
@@ -1943,7 +1943,7 @@ expecting 13 dirty sectors; have 13. OK!
 {"execute": "job-finalize", "arguments": {"id": "backup_2"}}
 {"return": {}}
 {"data": {"id": "backup_2", "type": "backup"}, "event": "BLOCK_JOB_PENDING", "timestamp": {"microseconds": "USECS", "seconds": "SECS"}}
-{"data": {"device": "backup_2", "len": 67108864, "offset": 67108864, "speed": 0, "type": "backup"}, "event": "BLOCK_JOB_COMPLETED", "timestamp": {"microseconds": "USECS", "seconds": "SECS"}}
+{"data": {"device": "backup_2", "len": 851968, "offset": 851968, "speed": 0, "type": "backup"}, "event": "BLOCK_JOB_COMPLETED", "timestamp": {"microseconds": "USECS", "seconds": "SECS"}}
 {
   "bitmaps": {
     "device0": [
@@ -2131,7 +2131,7 @@ expecting 7 dirty sectors; have 7. OK!
 {"execute": "job-finalize", "arguments": {"id": "backup_1"}}
 {"return": {}}
 {"data": {"id": "backup_1", "type": "backup"}, "event": "BLOCK_JOB_PENDING", "timestamp": {"microseconds": "USECS", "seconds": "SECS"}}
-{"data": {"device": "backup_1", "len": 67108864, "offset": 67108864, "speed": 0, "type": "backup"}, "event": "BLOCK_JOB_COMPLETED", "timestamp": {"microseconds": "USECS", "seconds": "SECS"}}
+{"data": {"device": "backup_1", "len": 393216, "offset": 393216, "speed": 0, "type": "backup"}, "event": "BLOCK_JOB_COMPLETED", "timestamp": {"microseconds": "USECS", "seconds": "SECS"}}
 {
   "bitmaps": {
     "device0": [
@@ -2209,7 +2209,7 @@ expecting 12 dirty sectors; have 12. OK!
 {"execute": "job-finalize", "arguments": {"id": "backup_2"}}
 {"return": {}}
 {"data": {"id": "backup_2", "type": "backup"}, "event": "BLOCK_JOB_PENDING", "timestamp": {"microseconds": "USECS", "seconds": "SECS"}}
-{"data": {"device": "backup_2", "len": 67108864, "offset": 67108864, "speed": 0, "type": "backup"}, "event": "BLOCK_JOB_COMPLETED", "timestamp": {"microseconds": "USECS", "seconds": "SECS"}}
+{"data": {"device": "backup_2", "len": 786432, "offset": 786432, "speed": 0, "type": "backup"}, "event": "BLOCK_JOB_COMPLETED", "timestamp": {"microseconds": "USECS", "seconds": "SECS"}}
 {
   "bitmaps": {
     "device0": [
