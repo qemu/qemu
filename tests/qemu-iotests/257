@@ -207,31 +207,37 @@ def get_bitmap(bitmaps, drivename, name, recording=None):
                 return bitmap
     return None
 
+def blockdev_backup(vm, device, target, sync, **kwargs):
+    # Strip any arguments explicitly nulled by the caller:
+    kwargs = {key: val for key, val in kwargs.items() if val is not None}
+    result = vm.qmp_log('blockdev-backup',
+                        device=device,
+                        target=target,
+                        sync=sync,
+                        **kwargs)
+    return result
+
+def blockdev_backup_mktarget(drive, target_id, filepath, sync, **kwargs):
+    target_drive = Drive(filepath, vm=drive.vm)
+    target_drive.create_target(target_id, drive.fmt, drive.size)
+    blockdev_backup(drive.vm, drive.name, target_id, sync, **kwargs)
+
 def reference_backup(drive, n, filepath):
     log("--- Reference Backup #{:d} ---\n".format(n))
     target_id = "ref_target_{:d}".format(n)
     job_id = "ref_backup_{:d}".format(n)
-    target_drive = Drive(filepath, vm=drive.vm)
-
-    target_drive.create_target(target_id, drive.fmt, drive.size)
-    drive.vm.qmp_log("blockdev-backup",
-                     job_id=job_id, device=drive.name,
-                     target=target_id, sync="full")
+    blockdev_backup_mktarget(drive, target_id, filepath, "full",
+                             job_id=job_id)
     drive.vm.run_job(job_id, auto_dismiss=True)
     log('')
 
-def bitmap_backup(drive, n, filepath, bitmap, bitmap_mode):
-    log("--- Bitmap Backup #{:d} ---\n".format(n))
-    target_id = "bitmap_target_{:d}".format(n)
-    job_id = "bitmap_backup_{:d}".format(n)
-    target_drive = Drive(filepath, vm=drive.vm)
-
-    target_drive.create_target(target_id, drive.fmt, drive.size)
-    drive.vm.qmp_log("blockdev-backup", job_id=job_id, device=drive.name,
-                     target=target_id, sync="bitmap",
-                     bitmap_mode=bitmap_mode,
-                     bitmap=bitmap,
-                     auto_finalize=False)
+def backup(drive, n, filepath, sync, **kwargs):
+    log("--- Test Backup #{:d} ---\n".format(n))
+    target_id = "backup_target_{:d}".format(n)
+    job_id = "backup_{:d}".format(n)
+    kwargs.setdefault('auto-finalize', False)
+    blockdev_backup_mktarget(drive, target_id, filepath, sync,
+                             job_id=job_id, **kwargs)
     return job_id
 
 def perform_writes(drive, n):
@@ -263,7 +269,7 @@ def compare_images(image, reference, baseimg=None, expected_match=True):
         "OK!" if ret == expected_ret else "ERROR!"),
         filters=[iotests.filter_testfiles])
 
-def test_bitmap_sync(bsync_mode, failure=None):
+def test_bitmap_sync(bsync_mode, msync_mode='bitmap', failure=None):
     """
     Test bitmap backup routines.
 
@@ -291,7 +297,7 @@ def test_bitmap_sync(bsync_mode, failure=None):
                              fbackup0, fbackup1, fbackup2), \
          iotests.VM() as vm:
 
-        mode = "Bitmap Sync Mode {:s}".format(bsync_mode)
+        mode = "Mode {:s}; Bitmap Sync {:s}".format(msync_mode, bsync_mode)
         preposition = "with" if failure else "without"
         cond = "{:s} {:s}".format(preposition,
                                   "{:s} failure".format(failure) if failure
@@ -362,12 +368,13 @@ def test_bitmap_sync(bsync_mode, failure=None):
         ebitmap.compare(bitmap)
         reference_backup(drive0, 1, fbackup1)
 
-        # 1 - Bitmap Backup (Optional induced failure)
+        # 1 - Test Backup (w/ Optional induced failure)
         if failure == 'intermediate':
             # Activate blkdebug induced failure for second-to-next read
             log(vm.hmp_qemu_io(drive0.name, 'flush'))
             log('')
-        job = bitmap_backup(drive0, 1, bsync1, "bitmap0", bsync_mode)
+        job = backup(drive0, 1, bsync1, msync_mode,
+                     bitmap="bitmap0", bitmap_mode=bsync_mode)
 
         def _callback():
             """Issue writes while the job is open to test bitmap divergence."""
@@ -408,7 +415,8 @@ def test_bitmap_sync(bsync_mode, failure=None):
         reference_backup(drive0, 2, fbackup2)
 
         # 2 - Bitmap Backup (In failure modes, this is a recovery.)
-        job = bitmap_backup(drive0, 2, bsync2, "bitmap0", bsync_mode)
+        job = backup(drive0, 2, bsync2, "bitmap",
+                     bitmap="bitmap0", bitmap_mode=bsync_mode)
         vm.run_job(job, auto_dismiss=True, auto_finalize=False)
         bitmaps = query_bitmaps(vm)
         log(bitmaps, indent=2)
@@ -442,7 +450,7 @@ def test_bitmap_sync(bsync_mode, failure=None):
 def main():
     for bsync_mode in ("never", "on-success", "always"):
         for failure in ("simulated", "intermediate", None):
-            test_bitmap_sync(bsync_mode, failure)
+            test_bitmap_sync(bsync_mode, "bitmap", failure)
 
 if __name__ == '__main__':
     iotests.script_main(main, supported_fmts=['qcow2'])
