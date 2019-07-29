@@ -3626,78 +3626,25 @@ BlockJob *do_blockdev_backup(BlockdevBackup *backup, JobTxn *txn,
 {
     BlockDriverState *bs;
     BlockDriverState *target_bs;
-    Error *local_err = NULL;
-    BdrvDirtyBitmap *bmap = NULL;
     AioContext *aio_context;
-    BlockJob *job = NULL;
-    int job_flags = JOB_DEFAULT;
-    int ret;
-
-    if (!backup->has_speed) {
-        backup->speed = 0;
-    }
-    if (!backup->has_on_source_error) {
-        backup->on_source_error = BLOCKDEV_ON_ERROR_REPORT;
-    }
-    if (!backup->has_on_target_error) {
-        backup->on_target_error = BLOCKDEV_ON_ERROR_REPORT;
-    }
-    if (!backup->has_job_id) {
-        backup->job_id = NULL;
-    }
-    if (!backup->has_auto_finalize) {
-        backup->auto_finalize = true;
-    }
-    if (!backup->has_auto_dismiss) {
-        backup->auto_dismiss = true;
-    }
-    if (!backup->has_compress) {
-        backup->compress = false;
-    }
+    BlockJob *job;
 
     bs = bdrv_lookup_bs(backup->device, backup->device, errp);
     if (!bs) {
         return NULL;
     }
 
+    target_bs = bdrv_lookup_bs(backup->target, backup->target, errp);
+    if (!target_bs) {
+        return NULL;
+    }
+
     aio_context = bdrv_get_aio_context(bs);
     aio_context_acquire(aio_context);
 
-    target_bs = bdrv_lookup_bs(backup->target, backup->target, errp);
-    if (!target_bs) {
-        goto out;
-    }
+    job = do_backup_common(qapi_BlockdevBackup_base(backup),
+                           bs, target_bs, aio_context, txn, errp);
 
-    ret = bdrv_try_set_aio_context(target_bs, aio_context, errp);
-    if (ret < 0) {
-        goto out;
-    }
-
-    if (backup->has_bitmap) {
-        bmap = bdrv_find_dirty_bitmap(bs, backup->bitmap);
-        if (!bmap) {
-            error_setg(errp, "Bitmap '%s' could not be found", backup->bitmap);
-            goto out;
-        }
-        if (bdrv_dirty_bitmap_check(bmap, BDRV_BITMAP_DEFAULT, errp)) {
-            goto out;
-        }
-    }
-
-    if (!backup->auto_finalize) {
-        job_flags |= JOB_MANUAL_FINALIZE;
-    }
-    if (!backup->auto_dismiss) {
-        job_flags |= JOB_MANUAL_DISMISS;
-    }
-    job = backup_job_create(backup->job_id, bs, target_bs, backup->speed,
-                            backup->sync, bmap, backup->compress,
-                            backup->on_source_error, backup->on_target_error,
-                            job_flags, NULL, NULL, txn, &local_err);
-    if (local_err != NULL) {
-        error_propagate(errp, local_err);
-    }
-out:
     aio_context_release(aio_context);
     return job;
 }
