@@ -1135,6 +1135,20 @@
   'data': ['top', 'full', 'none', 'incremental'] }
 
 ##
+# @BitmapSyncMode:
+#
+# An enumeration of possible behaviors for the synchronization of a bitmap
+# when used for data copy operations.
+#
+# @on-success: The bitmap is only synced when the operation is successful.
+#              This is the behavior always used for 'INCREMENTAL' backups.
+#
+# Since: 4.2
+##
+{ 'enum': 'BitmapSyncMode',
+  'data': ['on-success'] }
+
+##
 # @MirrorCopyMode:
 #
 # An enumeration whose values tell the mirror block job when to
