@@ -697,7 +697,7 @@ BlockJob *backup_job_create(const char *job_id, BlockDriverState *bs,
         return NULL;
     }
 
-    if (sync_mode == MIRROR_SYNC_MODE_BITMAP) {
+    if (sync_bitmap) {
         /* If we need to write to this bitmap, check that we can: */
         if (bitmap_mode != BITMAP_SYNC_MODE_NEVER &&
             bdrv_dirty_bitmap_check(sync_bitmap, BDRV_BITMAP_DEFAULT, errp)) {
@@ -708,12 +708,6 @@ BlockJob *backup_job_create(const char *job_id, BlockDriverState *bs,
         if (bdrv_dirty_bitmap_create_successor(bs, sync_bitmap, errp) < 0) {
             return NULL;
         }
-    } else if (sync_bitmap) {
-        error_setg(errp,
-                   "a bitmap was given to backup_job_create, "
-                   "but it received an incompatible sync_mode (%s)",
-                   MirrorSyncMode_str(sync_mode));
-        return NULL;
     }
 
     len = bdrv_getlength(bs);

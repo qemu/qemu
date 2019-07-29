@@ -1352,13 +1352,15 @@
 # @speed: the maximum speed, in bytes per second. The default is 0,
 #         for unlimited.
 #
-# @bitmap: the name of a dirty bitmap if sync is "bitmap" or "incremental".
+# @bitmap: The name of a dirty bitmap to use.
 #          Must be present if sync is "bitmap" or "incremental".
+#          Can be present if sync is "full" or "top".
 #          Must not be present otherwise.
 #          (Since 2.4 (drive-backup), 3.1 (blockdev-backup))
 #
 # @bitmap-mode: Specifies the type of data the bitmap should contain after
-#               the operation concludes. Must be present if sync is "bitmap".
+#               the operation concludes.
+#               Must be present if a bitmap was provided,
 #               Must NOT be present otherwise. (Since 4.2)
 #
 # @compress: true to compress data, if the target format supports it.
