@@ -1149,10 +1149,13 @@
 # @never: The bitmap is never synchronized with the operation, and is
 #         treated solely as a read-only manifest of blocks to copy.
 #
+# @always: The bitmap is always synchronized with the operation,
+#          regardless of whether or not the operation was successful.
+#
 # Since: 4.2
 ##
 { 'enum': 'BitmapSyncMode',
-  'data': ['on-success', 'never'] }
+  'data': ['on-success', 'never', 'always'] }
 
 ##
 # @MirrorCopyMode:
