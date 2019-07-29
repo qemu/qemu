@@ -451,16 +451,22 @@ static int coroutine_fn backup_loop(BackupBlockJob *job)
     return ret;
 }
 
-/* init copy_bitmap from sync_bitmap */
-static void backup_incremental_init_copy_bitmap(BackupBlockJob *job)
+static void backup_init_copy_bitmap(BackupBlockJob *job)
 {
-    bool ret = bdrv_dirty_bitmap_merge_internal(job->copy_bitmap,
-                                                job->sync_bitmap,
-                                                NULL, true);
-    assert(ret);
+    bool ret;
+    uint64_t estimate;
 
-    job_progress_set_remaining(&job->common.job,
-                               bdrv_get_dirty_count(job->copy_bitmap));
+    if (job->sync_mode == MIRROR_SYNC_MODE_BITMAP) {
+        ret = bdrv_dirty_bitmap_merge_internal(job->copy_bitmap,
+                                               job->sync_bitmap,
+                                               NULL, true);
+        assert(ret);
+    } else {
+        bdrv_set_dirty_bitmap(job->copy_bitmap, 0, job->len);
+    }
+
+    estimate = bdrv_get_dirty_count(job->copy_bitmap);
+    job_progress_set_remaining(&job->common.job, estimate);
 }
 
 static int coroutine_fn backup_run(Job *job, Error **errp)
@@ -472,12 +478,7 @@ static int coroutine_fn backup_run(Job *job, Error **errp)
     QLIST_INIT(&s->inflight_reqs);
     qemu_co_rwlock_init(&s->flush_rwlock);
 
-    if (s->sync_mode == MIRROR_SYNC_MODE_BITMAP) {
-        backup_incremental_init_copy_bitmap(s);
-    } else {
-        bdrv_set_dirty_bitmap(s->copy_bitmap, 0, s->len);
-        job_progress_set_remaining(job, s->len);
-    }
+    backup_init_copy_bitmap(s);
 
     s->before_write.notify = backup_before_write_notify;
     bdrv_add_before_write_notifier(bs, &s->before_write);
