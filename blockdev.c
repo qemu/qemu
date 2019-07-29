@@ -3427,20 +3427,16 @@ out:
     aio_context_release(aio_context);
 }
 
-static BlockJob *do_drive_backup(DriveBackup *backup, JobTxn *txn,
-                                 Error **errp)
+/* Common QMP interface for drive-backup and blockdev-backup */
+static BlockJob *do_backup_common(BackupCommon *backup,
+                                  BlockDriverState *bs,
+                                  BlockDriverState *target_bs,
+                                  AioContext *aio_context,
+                                  JobTxn *txn, Error **errp)
 {
-    BlockDriverState *bs;
-    BlockDriverState *target_bs;
-    BlockDriverState *source = NULL;
     BlockJob *job = NULL;
     BdrvDirtyBitmap *bmap = NULL;
-    AioContext *aio_context;
-    QDict *options = NULL;
-    Error *local_err = NULL;
-    int flags, job_flags = JOB_DEFAULT;
-    int64_t size;
-    bool set_backing_hd = false;
+    int job_flags = JOB_DEFAULT;
     int ret;
 
     if (!backup->has_speed) {
@@ -3451,9 +3447,6 @@ static BlockJob *do_drive_backup(DriveBackup *backup, JobTxn *txn,
     }
     if (!backup->has_on_target_error) {
         backup->on_target_error = BLOCKDEV_ON_ERROR_REPORT;
-    }
-    if (!backup->has_mode) {
-        backup->mode = NEW_IMAGE_MODE_ABSOLUTE_PATHS;
     }
     if (!backup->has_job_id) {
         backup->job_id = NULL;
@@ -3466,6 +3459,54 @@ static BlockJob *do_drive_backup(DriveBackup *backup, JobTxn *txn,
     }
     if (!backup->has_compress) {
         backup->compress = false;
+    }
+
+    ret = bdrv_try_set_aio_context(target_bs, aio_context, errp);
+    if (ret < 0) {
+        return NULL;
+    }
+
+    if (backup->has_bitmap) {
+        bmap = bdrv_find_dirty_bitmap(bs, backup->bitmap);
+        if (!bmap) {
+            error_setg(errp, "Bitmap '%s' could not be found", backup->bitmap);
+            return NULL;
+        }
+        if (bdrv_dirty_bitmap_check(bmap, BDRV_BITMAP_DEFAULT, errp)) {
+            return NULL;
+        }
+    }
+
+    if (!backup->auto_finalize) {
+        job_flags |= JOB_MANUAL_FINALIZE;
+    }
+    if (!backup->auto_dismiss) {
+        job_flags |= JOB_MANUAL_DISMISS;
+    }
+
+    job = backup_job_create(backup->job_id, bs, target_bs, backup->speed,
+                            backup->sync, bmap, backup->compress,
+                            backup->on_source_error, backup->on_target_error,
+                            job_flags, NULL, NULL, txn, errp);
+    return job;
+}
+
+static BlockJob *do_drive_backup(DriveBackup *backup, JobTxn *txn,
+                                 Error **errp)
+{
+    BlockDriverState *bs;
+    BlockDriverState *target_bs;
+    BlockDriverState *source = NULL;
+    BlockJob *job = NULL;
+    AioContext *aio_context;
+    QDict *options = NULL;
+    Error *local_err = NULL;
+    int flags;
+    int64_t size;
+    bool set_backing_hd = false;
+
+    if (!backup->has_mode) {
+        backup->mode = NEW_IMAGE_MODE_ABSOLUTE_PATHS;
     }
 
     bs = bdrv_lookup_bs(backup->device, backup->device, errp);
@@ -3543,12 +3584,6 @@ static BlockJob *do_drive_backup(DriveBackup *backup, JobTxn *txn,
         goto out;
     }
 
-    ret = bdrv_try_set_aio_context(target_bs, aio_context, errp);
-    if (ret < 0) {
-        bdrv_unref(target_bs);
-        goto out;
-    }
-
     if (set_backing_hd) {
         bdrv_set_backing_hd(target_bs, source, &local_err);
         if (local_err) {
@@ -3556,31 +3591,8 @@ static BlockJob *do_drive_backup(DriveBackup *backup, JobTxn *txn,
         }
     }
 
-    if (backup->has_bitmap) {
-        bmap = bdrv_find_dirty_bitmap(bs, backup->bitmap);
-        if (!bmap) {
-            error_setg(errp, "Bitmap '%s' could not be found", backup->bitmap);
-            goto unref;
-        }
-        if (bdrv_dirty_bitmap_check(bmap, BDRV_BITMAP_DEFAULT, errp)) {
-            goto unref;
-        }
-    }
-    if (!backup->auto_finalize) {
-        job_flags |= JOB_MANUAL_FINALIZE;
-    }
-    if (!backup->auto_dismiss) {
-        job_flags |= JOB_MANUAL_DISMISS;
-    }
-
-    job = backup_job_create(backup->job_id, bs, target_bs, backup->speed,
-                            backup->sync, bmap, backup->compress,
-                            backup->on_source_error, backup->on_target_error,
-                            job_flags, NULL, NULL, txn, &local_err);
-    if (local_err != NULL) {
-        error_propagate(errp, local_err);
-        goto unref;
-    }
+    job = do_backup_common(qapi_DriveBackup_base(backup),
+                           bs, target_bs, aio_context, txn, errp);
 
 unref:
     bdrv_unref(target_bs);
