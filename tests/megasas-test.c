@@ -75,7 +75,8 @@ static void megasas_register_nodes(void)
 {
     QOSGraphEdgeOptions opts = {
         .extra_device_opts = "addr=04.0,id=scsi0",
-        .before_cmd_line = "-drive id=drv0,if=none,file=null-co://,format=raw",
+        .before_cmd_line = "-drive id=drv0,if=none,file=null-co://,"
+                           "file.read-zeroes=on,format=raw",
         .after_cmd_line = "-device scsi-hd,bus=scsi0.0,drive=drv0",
     };
 

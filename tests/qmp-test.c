@@ -187,7 +187,7 @@ static void send_cmd_that_blocks(QTestState *s, const char *id)
                    " 'arguments': {"
                    " 'driver': 'blkdebug', 'node-name': %s,"
                    " 'config': %s,"
-                   " 'image': { 'driver': 'null-co' } } }",
+                   " 'image': { 'driver': 'null-co', 'read-zeroes': true } } }",
                    id, id, fifo_name);
 }
 

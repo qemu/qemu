@@ -753,8 +753,10 @@ static void *virtio_blk_test_setup(GString *cmd_line, void *arg)
     char *tmp_path = drive_create();
 
     g_string_append_printf(cmd_line,
-                           " -drive if=none,id=drive0,file=%s,format=raw,auto-read-only=off "
-                           "-drive if=none,id=drive1,file=null-co://,format=raw ",
+                           " -drive if=none,id=drive0,file=%s,"
+                           "format=raw,auto-read-only=off "
+                           "-drive if=none,id=drive1,file=null-co://,"
+                           "file.read-zeroes=on,format=raw ",
                            tmp_path);
 
     return arg;

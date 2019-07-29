@@ -239,7 +239,8 @@ fail:
 static void *virtio_scsi_hotplug_setup(GString *cmd_line, void *arg)
 {
     g_string_append(cmd_line,
-                    " -drive id=drv1,if=none,file=null-co://,format=raw");
+                    " -drive id=drv1,if=none,file=null-co://,"
+                    "file.read-zeroes=on,format=raw");
     return arg;
 }
 
@@ -247,6 +248,7 @@ static void *virtio_scsi_setup(GString *cmd_line, void *arg)
 {
     g_string_append(cmd_line,
                     " -drive file=blkdebug::null-co://,"
+                    "file.image.read-zeroes=on,"
                     "if=none,id=dr1,format=raw,file.align=4k "
                     "-device scsi-hd,drive=dr1,lun=0,scsi-id=1");
     return arg;
@@ -256,7 +258,7 @@ static void *virtio_scsi_setup_iothread(GString *cmd_line, void *arg)
 {
     g_string_append(cmd_line,
                     " -object iothread,id=thread0"
-                    " -blockdev driver=null-co,node-name=null0"
+                    " -blockdev driver=null-co,read-zeroes=on,node-name=null0"
                     " -device scsi-hd,drive=null0");
     return arg;
 }
