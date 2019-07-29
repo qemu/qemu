@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 #
-# Test external snapshot with bitmap copying.
+# Test external snapshot with bitmap copying and moving.
 #
 # Copyright (c) 2019 Virtuozzo International GmbH. All rights reserved.
 #
@@ -32,6 +32,10 @@ vm = iotests.VM().add_drive(disk, opts='node-name=base')
 vm.launch()
 
 vm.qmp_log('block-dirty-bitmap-add', node='drive0', name='bitmap0')
+vm.qmp_log('block-dirty-bitmap-add', node='drive0', name='bitmap1',
+           persistent=True)
+vm.qmp_log('block-dirty-bitmap-add', node='drive0', name='bitmap2',
+           persistent=True)
 
 vm.hmp_qemu_io('drive0', 'write 0 512K')
 
@@ -39,16 +43,38 @@ vm.qmp_log('transaction', indent=2, actions=[
     {'type': 'blockdev-snapshot-sync',
      'data': {'device': 'drive0', 'snapshot-file': top,
               'snapshot-node-name': 'snap'}},
+
+    # copy non-persistent bitmap0
     {'type': 'block-dirty-bitmap-add',
      'data': {'node': 'snap', 'name': 'bitmap0'}},
     {'type': 'block-dirty-bitmap-merge',
      'data': {'node': 'snap', 'target': 'bitmap0',
-              'bitmaps': [{'node': 'base', 'name': 'bitmap0'}]}}
+              'bitmaps': [{'node': 'base', 'name': 'bitmap0'}]}},
+
+    # copy persistent bitmap1, original will be saved to base image
+    {'type': 'block-dirty-bitmap-add',
+     'data': {'node': 'snap', 'name': 'bitmap1', 'persistent': True}},
+    {'type': 'block-dirty-bitmap-merge',
+     'data': {'node': 'snap', 'target': 'bitmap1',
+              'bitmaps': [{'node': 'base', 'name': 'bitmap1'}]}},
+
+    # move persistent bitmap2, original will be removed and not saved
+    # to base image
+    {'type': 'block-dirty-bitmap-add',
+     'data': {'node': 'snap', 'name': 'bitmap2', 'persistent': True}},
+    {'type': 'block-dirty-bitmap-merge',
+     'data': {'node': 'snap', 'target': 'bitmap2',
+              'bitmaps': [{'node': 'base', 'name': 'bitmap2'}]}},
+    {'type': 'block-dirty-bitmap-remove',
+     'data': {'node': 'base', 'name': 'bitmap2'}}
 ], filters=[iotests.filter_qmp_testfiles])
 
 result = vm.qmp('query-block')['return'][0]
 log("query-block: device = {}, node-name = {}, dirty-bitmaps:".format(
     result['device'], result['inserted']['node-name']))
 log(result['dirty-bitmaps'], indent=2)
+log("\nbitmaps in backing image:")
+log(result['inserted']['image']['backing-image']['format-specific'] \
+    ['data']['bitmaps'], indent=2)
 
 vm.shutdown()
