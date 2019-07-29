@@ -86,6 +86,7 @@ static void spapr_irq_init_kvm(SpaprMachineState *spapr,
          * emulated mode
          */
         error_prepend(&local_err, "kernel_irqchip allowed but unavailable: ");
+        error_append_hint(&local_err, "Falling back to kernel-irqchip=off\n");
         warn_report_err(local_err);
     }
 }

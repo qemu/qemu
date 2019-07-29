@@ -430,17 +430,6 @@ fail:
 
 void xics_kvm_disconnect(SpaprMachineState *spapr, Error **errp)
 {
-    /* The KVM XICS device is not in use */
-    if (kernel_xics_fd == -1) {
-        return;
-    }
-
-    if (!kvm_enabled() || !kvm_check_extension(kvm_state, KVM_CAP_IRQ_XICS)) {
-        error_setg(errp,
-                   "KVM and IRQ_XICS capability must be present for KVM XICS device");
-        return;
-    }
-
     /*
      * Only on P9 using the XICS-on XIVE KVM device:
      *
