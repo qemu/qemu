@@ -1,0 +1,416 @@
+#!/usr/bin/env python
+#
+# Test bitmap-sync backups (incremental, differential, and partials)
+#
+# Copyright (c) 2019 John Snow for Red Hat, Inc.
+#
+# This program is free software; you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation; either version 2 of the License, or
+# (at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with this program.  If not, see <http://www.gnu.org/licenses/>.
+#
+# owner=jsnow@redhat.com
+
+from collections import namedtuple
+import math
+import os
+
+import iotests
+from iotests import log, qemu_img
+
+SIZE = 64 * 1024 * 1024
+GRANULARITY = 64 * 1024
+
+Pattern = namedtuple('Pattern', ['byte', 'offset', 'size'])
+def mkpattern(byte, offset, size=GRANULARITY):
+    """Constructor for Pattern() with default size"""
+    return Pattern(byte, offset, size)
+
+class PatternGroup:
+    """Grouping of Pattern objects. Initialize with an iterable of Patterns."""
+    def __init__(self, patterns):
+        self.patterns = patterns
+
+    def bits(self, granularity):
+        """Calculate the unique bits dirtied by this pattern grouping"""
+        res = set()
+        for pattern in self.patterns:
+            lower = pattern.offset // granularity
+            upper = (pattern.offset + pattern.size - 1) // granularity
+            res = res | set(range(lower, upper + 1))
+        return res
+
+GROUPS = [
+    PatternGroup([
+        # Batch 0: 4 clusters
+        mkpattern('0x49', 0x0000000),
+        mkpattern('0x6c', 0x0100000),   # 1M
+        mkpattern('0x6f', 0x2000000),   # 32M
+        mkpattern('0x76', 0x3ff0000)]), # 64M - 64K
+    PatternGroup([
+        # Batch 1: 6 clusters (3 new)
+        mkpattern('0x65', 0x0000000),   # Full overwrite
+        mkpattern('0x77', 0x00f8000),   # Partial-left (1M-32K)
+        mkpattern('0x72', 0x2008000),   # Partial-right (32M+32K)
+        mkpattern('0x69', 0x3fe0000)]), # Adjacent-left (64M - 128K)
+    PatternGroup([
+        # Batch 2: 7 clusters (3 new)
+        mkpattern('0x74', 0x0010000),   # Adjacent-right
+        mkpattern('0x69', 0x00e8000),   # Partial-left  (1M-96K)
+        mkpattern('0x6e', 0x2018000),   # Partial-right (32M+96K)
+        mkpattern('0x67', 0x3fe0000,
+                  2*GRANULARITY)]),     # Overwrite [(64M-128K)-64M)
+    PatternGroup([
+        # Batch 3: 8 clusters (5 new)
+        # Carefully chosen such that nothing re-dirties the one cluster
+        # that copies out successfully before failure in Group #1.
+        mkpattern('0xaa', 0x0010000,
+                  3*GRANULARITY),       # Overwrite and 2x Adjacent-right
+        mkpattern('0xbb', 0x00d8000),   # Partial-left (1M-160K)
+        mkpattern('0xcc', 0x2028000),   # Partial-right (32M+160K)
+        mkpattern('0xdd', 0x3fc0000)]), # New; leaving a gap to the right
+]
+
+class Drive:
+    """Represents, vaguely, a drive attached to a VM.
+    Includes format, graph, and device information."""
+
+    def __init__(self, path, vm=None):
+        self.path = path
+        self.vm = vm
+        self.fmt = None
+        self.size = None
+        self.node = None
+        self.device = None
+
+    @property
+    def name(self):
+        return self.node or self.device
+
+    def img_create(self, fmt, size):
+        self.fmt = fmt
+        self.size = size
+        iotests.qemu_img_create('-f', self.fmt, self.path, str(self.size))
+
+    def create_target(self, name, fmt, size):
+        basename = os.path.basename(self.path)
+        file_node_name = "file_{}".format(basename)
+        vm = self.vm
+
+        log(vm.command('blockdev-create', job_id='bdc-file-job',
+                       options={
+                           'driver': 'file',
+                           'filename': self.path,
+                           'size': 0,
+                       }))
+        vm.run_job('bdc-file-job')
+        log(vm.command('blockdev-add', driver='file',
+                       node_name=file_node_name, filename=self.path))
+
+        log(vm.command('blockdev-create', job_id='bdc-fmt-job',
+                       options={
+                           'driver': fmt,
+                           'file': file_node_name,
+                           'size': size,
+                       }))
+        vm.run_job('bdc-fmt-job')
+        log(vm.command('blockdev-add', driver=fmt,
+                       node_name=name,
+                       file=file_node_name))
+        self.fmt = fmt
+        self.size = size
+        self.node = name
+
+def query_bitmaps(vm):
+    res = vm.qmp("query-block")
+    return {"bitmaps": {device['device'] or device['qdev']:
+                        device.get('dirty-bitmaps', []) for
+                        device in res['return']}}
+
+def get_bitmap(bitmaps, drivename, name, recording=None):
+    """
+    get a specific bitmap from the object returned by query_bitmaps.
+    :param recording: If specified, filter results by the specified value.
+    """
+    for bitmap in bitmaps['bitmaps'][drivename]:
+        if bitmap.get('name', '') == name:
+            if recording is None:
+                return bitmap
+            elif bitmap.get('recording') == recording:
+                return bitmap
+    return None
+
+def reference_backup(drive, n, filepath):
+    log("--- Reference Backup #{:d} ---\n".format(n))
+    target_id = "ref_target_{:d}".format(n)
+    job_id = "ref_backup_{:d}".format(n)
+    target_drive = Drive(filepath, vm=drive.vm)
+
+    target_drive.create_target(target_id, drive.fmt, drive.size)
+    drive.vm.qmp_log("blockdev-backup",
+                     job_id=job_id, device=drive.name,
+                     target=target_id, sync="full")
+    drive.vm.run_job(job_id, auto_dismiss=True)
+    log('')
+
+def bitmap_backup(drive, n, filepath, bitmap, bitmap_mode):
+    log("--- Bitmap Backup #{:d} ---\n".format(n))
+    target_id = "bitmap_target_{:d}".format(n)
+    job_id = "bitmap_backup_{:d}".format(n)
+    target_drive = Drive(filepath, vm=drive.vm)
+
+    target_drive.create_target(target_id, drive.fmt, drive.size)
+    drive.vm.qmp_log("blockdev-backup", job_id=job_id, device=drive.name,
+                     target=target_id, sync="bitmap",
+                     bitmap_mode=bitmap_mode,
+                     bitmap=bitmap,
+                     auto_finalize=False)
+    return job_id
+
+def perform_writes(drive, n):
+    log("--- Write #{:d} ---\n".format(n))
+    for pattern in GROUPS[n].patterns:
+        cmd = "write -P{:s} 0x{:07x} 0x{:x}".format(
+            pattern.byte,
+            pattern.offset,
+            pattern.size)
+        log(cmd)
+        log(drive.vm.hmp_qemu_io(drive.name, cmd))
+    bitmaps = query_bitmaps(drive.vm)
+    log(bitmaps, indent=2)
+    log('')
+    return bitmaps
+
+def calculate_bits(groups=None):
+    """Calculate how many bits we expect to see dirtied."""
+    if groups:
+        bits = set.union(*(GROUPS[group].bits(GRANULARITY) for group in groups))
+        return len(bits)
+    return 0
+
+def bitmap_comparison(bitmap, groups=None, want=0):
+    """
+    Print a nice human-readable message checking that this bitmap has as
+    many bits set as we expect it to.
+    """
+    log("= Checking Bitmap {:s} =".format(bitmap.get('name', '(anonymous)')))
+
+    if groups:
+        want = calculate_bits(groups)
+    have = bitmap['count'] // bitmap['granularity']
+
+    log("expecting {:d} dirty sectors; have {:d}. {:s}".format(
+        want, have, "OK!" if want == have else "ERROR!"))
+    log('')
+
+def compare_images(image, reference, baseimg=None, expected_match=True):
+    """
+    Print a nice human-readable message comparing these images.
+    """
+    expected_ret = 0 if expected_match else 1
+    if baseimg:
+        assert qemu_img("rebase", "-u", "-b", baseimg, image) == 0
+    ret = qemu_img("compare", image, reference)
+    log('qemu_img compare "{:s}" "{:s}" ==> {:s}, {:s}'.format(
+        image, reference,
+        "Identical" if ret == 0 else "Mismatch",
+        "OK!" if ret == expected_ret else "ERROR!"),
+        filters=[iotests.filter_testfiles])
+
+def test_bitmap_sync(bsync_mode, failure=None):
+    """
+    Test bitmap backup routines.
+
+    :param bsync_mode: Is the Bitmap Sync mode, and can be any of:
+        - on-success: This is the "incremental" style mode. Bitmaps are
+                      synchronized to what was copied out only on success.
+                      (Partial images must be discarded.)
+        - never:      This is the "differential" style mode.
+                      Bitmaps are never synchronized.
+        - always:     This is a "best effort" style mode.
+                      Bitmaps are always synchronized, regardless of failure.
+                      (Partial images must be kept.)
+
+    :param failure: Is the (optional) failure mode, and can be any of:
+        - None:         No failure. Test the normative path. Default.
+        - simulated:    Cancel the job right before it completes.
+                        This also tests writes "during" the job.
+        - intermediate: This tests a job that fails mid-process and produces
+                        an incomplete backup. Testing limitations prevent
+                        testing competing writes.
+    """
+    with iotests.FilePaths(['img', 'bsync1', 'bsync2',
+                            'fbackup0', 'fbackup1', 'fbackup2']) as \
+                            (img_path, bsync1, bsync2,
+                             fbackup0, fbackup1, fbackup2), \
+         iotests.VM() as vm:
+
+        mode = "Bitmap Sync Mode {:s}".format(bsync_mode)
+        preposition = "with" if failure else "without"
+        cond = "{:s} {:s}".format(preposition,
+                                  "{:s} failure".format(failure) if failure
+                                  else "failure")
+        log("\n=== {:s} {:s} ===\n".format(mode, cond))
+
+        log('--- Preparing image & VM ---\n')
+        drive0 = Drive(img_path, vm=vm)
+        drive0.img_create(iotests.imgfmt, SIZE)
+        vm.add_device("{},id=scsi0".format(iotests.get_virtio_scsi_device()))
+        vm.launch()
+
+        file_config = {
+            'driver': 'file',
+            'filename': drive0.path
+        }
+
+        if failure == 'intermediate':
+            file_config = {
+                'driver': 'blkdebug',
+                'image': file_config,
+                'set-state': [{
+                    'event': 'flush_to_disk',
+                    'state': 1,
+                    'new_state': 2
+                }, {
+                    'event': 'read_aio',
+                    'state': 2,
+                    'new_state': 3
+                }],
+                'inject-error': [{
+                    'event': 'read_aio',
+                    'errno': 5,
+                    'state': 3,
+                    'immediately': False,
+                    'once': True
+                }]
+            }
+
+        vm.qmp_log('blockdev-add',
+                   filters=[iotests.filter_qmp_testfiles],
+                   node_name="drive0",
+                   driver=drive0.fmt,
+                   file=file_config)
+        drive0.node = 'drive0'
+        drive0.device = 'device0'
+        # Use share-rw to allow writes directly to the node;
+        # The anonymous block-backend for this configuration prevents us
+        # from using HMP's qemu-io commands to address the device.
+        vm.qmp_log("device_add", id=drive0.device,
+                   drive=drive0.name, driver="scsi-hd",
+                   share_rw=True)
+        log('')
+
+        # 0 - Writes and Reference Backup
+        perform_writes(drive0, 0)
+        reference_backup(drive0, 0, fbackup0)
+        log('--- Add Bitmap ---\n')
+        vm.qmp_log("block-dirty-bitmap-add", node=drive0.name,
+                   name="bitmap0", granularity=GRANULARITY)
+        log('')
+
+        # 1 - Writes and Reference Backup
+        bitmaps = perform_writes(drive0, 1)
+        dirty_groups = {1}
+        bitmap = get_bitmap(bitmaps, drive0.device, 'bitmap0')
+        bitmap_comparison(bitmap, groups=dirty_groups)
+        reference_backup(drive0, 1, fbackup1)
+
+        # 1 - Bitmap Backup (Optional induced failure)
+        if failure == 'intermediate':
+            # Activate blkdebug induced failure for second-to-next read
+            log(vm.hmp_qemu_io(drive0.name, 'flush'))
+            log('')
+        job = bitmap_backup(drive0, 1, bsync1, "bitmap0", bsync_mode)
+
+        def _callback():
+            """Issue writes while the job is open to test bitmap divergence."""
+            # Note: when `failure` is 'intermediate', this isn't called.
+            log('')
+            bitmaps = perform_writes(drive0, 2)
+            # Named bitmap (static, should be unchanged)
+            bitmap_comparison(get_bitmap(bitmaps, drive0.device, 'bitmap0'),
+                              groups=dirty_groups)
+            # Anonymous bitmap (dynamic, shows new writes)
+            bitmap_comparison(get_bitmap(bitmaps, drive0.device, '',
+                                         recording=True), groups={2})
+            dirty_groups.add(2)
+
+        vm.run_job(job, auto_dismiss=True, auto_finalize=False,
+                   pre_finalize=_callback,
+                   cancel=(failure == 'simulated'))
+        bitmaps = query_bitmaps(vm)
+        bitmap = get_bitmap(bitmaps, drive0.device, 'bitmap0')
+        log(bitmaps, indent=2)
+        log('')
+
+        if ((bsync_mode == 'on-success' and not failure) or
+                (bsync_mode == 'always' and failure != 'intermediate')):
+            dirty_groups.remove(1)
+
+        if bsync_mode == 'always' and failure == 'intermediate':
+            # We manage to copy one sector (one bit) before the error.
+            bitmap_comparison(bitmap,
+                              want=calculate_bits(groups=dirty_groups) - 1)
+        else:
+            bitmap_comparison(bitmap, groups=dirty_groups)
+
+        # 2 - Writes and Reference Backup
+        bitmaps = perform_writes(drive0, 3)
+        dirty_groups.add(3)
+        bitmap = get_bitmap(bitmaps, drive0.device, 'bitmap0')
+        if bsync_mode == 'always' and failure == 'intermediate':
+            # We're one bit short, still.
+            bitmap_comparison(bitmap,
+                              want=calculate_bits(groups=dirty_groups) - 1)
+        else:
+            bitmap_comparison(bitmap, groups=dirty_groups)
+        reference_backup(drive0, 2, fbackup2)
+
+        # 2 - Bitmap Backup (In failure modes, this is a recovery.)
+        job = bitmap_backup(drive0, 2, bsync2, "bitmap0", bsync_mode)
+        vm.run_job(job, auto_dismiss=True, auto_finalize=False)
+        bitmaps = query_bitmaps(vm)
+        bitmap = get_bitmap(bitmaps, drive0.device, 'bitmap0')
+        log(bitmaps, indent=2)
+        log('')
+        bitmap_comparison(bitmap, groups={}
+                          if bsync_mode != 'never'
+                          else dirty_groups)
+
+        log('--- Cleanup ---\n')
+        vm.qmp_log("block-dirty-bitmap-remove",
+                   node=drive0.name, name="bitmap0")
+        log(query_bitmaps(vm), indent=2)
+        vm.shutdown()
+        log('')
+
+        log('--- Verification ---\n')
+        # 'simulated' failures will actually all pass here because we canceled
+        # while "pending". This is actually undefined behavior,
+        # don't rely on this to be true!
+        compare_images(bsync1, fbackup1, baseimg=fbackup0,
+                       expected_match=failure != 'intermediate')
+        if not failure or bsync_mode == 'always':
+            # Always keep the last backup on success or when using 'always'
+            base = bsync1
+        else:
+            base = fbackup0
+        compare_images(bsync2, fbackup2, baseimg=base)
+        compare_images(img_path, fbackup2)
+        log('')
+
+def main():
+    for bsync_mode in ("never", "on-success", "always"):
+        for failure in ("simulated", "intermediate", None):
+            test_bitmap_sync(bsync_mode, failure)
+
+if __name__ == '__main__':
+    iotests.script_main(main, supported_fmts=['qcow2'])
