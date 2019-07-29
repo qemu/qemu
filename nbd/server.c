@@ -2004,7 +2004,7 @@ static unsigned int bitmap_to_extents(BdrvDirtyBitmap *bitmap, uint64_t offset,
     bdrv_dirty_bitmap_lock(bitmap);
 
     it = bdrv_dirty_iter_new(bitmap);
-    dirty = bdrv_get_dirty_locked(NULL, bitmap, offset);
+    dirty = bdrv_dirty_bitmap_get_locked(bitmap, offset);
 
     assert(begin < overall_end && nb_extents);
     while (begin < overall_end && i < nb_extents) {

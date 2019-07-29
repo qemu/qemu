@@ -509,14 +509,19 @@ BlockDirtyInfoList *bdrv_query_dirty_bitmaps(BlockDriverState *bs)
 }
 
 /* Called within bdrv_dirty_bitmap_lock..unlock */
-bool bdrv_get_dirty_locked(BlockDriverState *bs, BdrvDirtyBitmap *bitmap,
-                           int64_t offset)
+bool bdrv_dirty_bitmap_get_locked(BdrvDirtyBitmap *bitmap, int64_t offset)
 {
-    if (bitmap) {
-        return hbitmap_get(bitmap->bitmap, offset);
-    } else {
-        return false;
-    }
+    return hbitmap_get(bitmap->bitmap, offset);
+}
+
+bool bdrv_dirty_bitmap_get(BdrvDirtyBitmap *bitmap, int64_t offset)
+{
+    bool ret;
+    bdrv_dirty_bitmap_lock(bitmap);
+    ret = bdrv_dirty_bitmap_get_locked(bitmap, offset);
+    bdrv_dirty_bitmap_unlock(bitmap);
+
+    return ret;
 }
 
 /**
