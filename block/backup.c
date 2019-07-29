@@ -38,7 +38,10 @@ typedef struct CowRequest {
 typedef struct BackupBlockJob {
     BlockJob common;
     BlockBackend *target;
+
     BdrvDirtyBitmap *sync_bitmap;
+    BdrvDirtyBitmap *copy_bitmap;
+
     MirrorSyncMode sync_mode;
     BitmapSyncMode bitmap_mode;
     BlockdevOnError on_source_error;
@@ -51,7 +54,6 @@ typedef struct BackupBlockJob {
     NotifierWithReturn before_write;
     QLIST_HEAD(, CowRequest) inflight_reqs;
 
-    HBitmap *copy_bitmap;
     bool use_copy_range;
     int64_t copy_range_size;
 
@@ -113,7 +115,7 @@ static int coroutine_fn backup_cow_with_bounce_buffer(BackupBlockJob *job,
     int write_flags = job->serialize_target_writes ? BDRV_REQ_SERIALISING : 0;
 
     assert(QEMU_IS_ALIGNED(start, job->cluster_size));
-    hbitmap_reset(job->copy_bitmap, start, job->cluster_size);
+    bdrv_reset_dirty_bitmap(job->copy_bitmap, start, job->cluster_size);
     nbytes = MIN(job->cluster_size, job->len - start);
     if (!*bounce_buffer) {
         *bounce_buffer = blk_blockalign(blk, job->cluster_size);
@@ -146,7 +148,7 @@ static int coroutine_fn backup_cow_with_bounce_buffer(BackupBlockJob *job,
 
     return nbytes;
 fail:
-    hbitmap_set(job->copy_bitmap, start, job->cluster_size);
+    bdrv_set_dirty_bitmap(job->copy_bitmap, start, job->cluster_size);
     return ret;
 
 }
@@ -169,12 +171,14 @@ static int coroutine_fn backup_cow_with_offload(BackupBlockJob *job,
     assert(QEMU_IS_ALIGNED(start, job->cluster_size));
     nbytes = MIN(job->copy_range_size, end - start);
     nr_clusters = DIV_ROUND_UP(nbytes, job->cluster_size);
-    hbitmap_reset(job->copy_bitmap, start, job->cluster_size * nr_clusters);
+    bdrv_reset_dirty_bitmap(job->copy_bitmap, start,
+                            job->cluster_size * nr_clusters);
     ret = blk_co_copy_range(blk, start, job->target, start, nbytes,
                             read_flags, write_flags);
     if (ret < 0) {
         trace_backup_do_cow_copy_range_fail(job, start, ret);
-        hbitmap_set(job->copy_bitmap, start, job->cluster_size * nr_clusters);
+        bdrv_set_dirty_bitmap(job->copy_bitmap, start,
+                              job->cluster_size * nr_clusters);
         return ret;
     }
 
@@ -204,13 +208,14 @@ static int coroutine_fn backup_do_cow(BackupBlockJob *job,
     while (start < end) {
         int64_t dirty_end;
 
-        if (!hbitmap_get(job->copy_bitmap, start)) {
+        if (!bdrv_dirty_bitmap_get(job->copy_bitmap, start)) {
             trace_backup_do_cow_skip(job, start);
             start += job->cluster_size;
             continue; /* already copied */
         }
 
-        dirty_end = hbitmap_next_zero(job->copy_bitmap, start, (end - start));
+        dirty_end = bdrv_dirty_bitmap_next_zero(job->copy_bitmap, start,
+                                                (end - start));
         if (dirty_end < 0) {
             dirty_end = end;
         }
@@ -307,14 +312,16 @@ static void backup_abort(Job *job)
 static void backup_clean(Job *job)
 {
     BackupBlockJob *s = container_of(job, BackupBlockJob, common.job);
+    BlockDriverState *bs = blk_bs(s->common.blk);
+
+    if (s->copy_bitmap) {
+        bdrv_release_dirty_bitmap(bs, s->copy_bitmap);
+        s->copy_bitmap = NULL;
+    }
+
     assert(s->target);
     blk_unref(s->target);
     s->target = NULL;
-
-    if (s->copy_bitmap) {
-        hbitmap_free(s->copy_bitmap);
-        s->copy_bitmap = NULL;
-    }
 }
 
 void backup_do_checkpoint(BlockJob *job, Error **errp)
@@ -329,7 +336,7 @@ void backup_do_checkpoint(BlockJob *job, Error **errp)
         return;
     }
 
-    hbitmap_set(backup_job->copy_bitmap, 0, backup_job->len);
+    bdrv_set_dirty_bitmap(backup_job->copy_bitmap, 0, backup_job->len);
 }
 
 static void backup_drain(BlockJob *job)
@@ -398,59 +405,52 @@ static bool bdrv_is_unallocated_range(BlockDriverState *bs,
 
 static int coroutine_fn backup_loop(BackupBlockJob *job)
 {
-    int ret;
     bool error_is_read;
     int64_t offset;
-    HBitmapIter hbi;
+    BdrvDirtyBitmapIter *bdbi;
     BlockDriverState *bs = blk_bs(job->common.blk);
+    int ret = 0;
 
-    hbitmap_iter_init(&hbi, job->copy_bitmap, 0);
-    while ((offset = hbitmap_iter_next(&hbi)) != -1) {
+    bdbi = bdrv_dirty_iter_new(job->copy_bitmap);
+    while ((offset = bdrv_dirty_iter_next(bdbi)) != -1) {
         if (job->sync_mode == MIRROR_SYNC_MODE_TOP &&
             bdrv_is_unallocated_range(bs, offset, job->cluster_size))
         {
-            hbitmap_reset(job->copy_bitmap, offset, job->cluster_size);
+            bdrv_reset_dirty_bitmap(job->copy_bitmap, offset,
+                                    job->cluster_size);
             continue;
         }
 
         do {
             if (yield_and_check(job)) {
-                return 0;
+                goto out;
             }
             ret = backup_do_cow(job, offset,
                                 job->cluster_size, &error_is_read, false);
             if (ret < 0 && backup_error_action(job, error_is_read, -ret) ==
                            BLOCK_ERROR_ACTION_REPORT)
             {
-                return ret;
+                goto out;
             }
         } while (ret < 0);
     }
 
-    return 0;
+ out:
+    bdrv_dirty_iter_free(bdbi);
+    return ret;
 }
 
 /* init copy_bitmap from sync_bitmap */
 static void backup_incremental_init_copy_bitmap(BackupBlockJob *job)
 {
-    uint64_t offset = 0;
-    uint64_t bytes = job->len;
-
-    while (bdrv_dirty_bitmap_next_dirty_area(job->sync_bitmap,
-                                             &offset, &bytes))
-    {
-        hbitmap_set(job->copy_bitmap, offset, bytes);
-
-        offset += bytes;
-        if (offset >= job->len) {
-            break;
-        }
-        bytes = job->len - offset;
-    }
+    bool ret = bdrv_dirty_bitmap_merge_internal(job->copy_bitmap,
+                                                job->sync_bitmap,
+                                                NULL, true);
+    assert(ret);
 
     /* TODO job_progress_set_remaining() would make more sense */
     job_progress_update(&job->common.job,
-        job->len - hbitmap_count(job->copy_bitmap));
+                        job->len - bdrv_get_dirty_count(job->copy_bitmap));
 }
 
 static int coroutine_fn backup_run(Job *job, Error **errp)
@@ -467,7 +467,7 @@ static int coroutine_fn backup_run(Job *job, Error **errp)
     if (s->sync_mode == MIRROR_SYNC_MODE_BITMAP) {
         backup_incremental_init_copy_bitmap(s);
     } else {
-        hbitmap_set(s->copy_bitmap, 0, s->len);
+        bdrv_set_dirty_bitmap(s->copy_bitmap, 0, s->len);
     }
 
     s->before_write.notify = backup_before_write_notify;
@@ -560,7 +560,7 @@ BlockJob *backup_job_create(const char *job_id, BlockDriverState *bs,
     BackupBlockJob *job = NULL;
     int ret;
     int64_t cluster_size;
-    HBitmap *copy_bitmap = NULL;
+    BdrvDirtyBitmap *copy_bitmap = NULL;
 
     assert(bs);
     assert(target);
@@ -630,7 +630,11 @@ BlockJob *backup_job_create(const char *job_id, BlockDriverState *bs,
         goto error;
     }
 
-    copy_bitmap = hbitmap_alloc(len, ctz32(cluster_size));
+    copy_bitmap = bdrv_create_dirty_bitmap(bs, cluster_size, NULL, errp);
+    if (!copy_bitmap) {
+        goto error;
+    }
+    bdrv_disable_dirty_bitmap(copy_bitmap);
 
     /* job->len is fixed, so we can't allow resize */
     job = block_job_create(job_id, &backup_job_driver, txn, bs,
@@ -682,7 +686,7 @@ BlockJob *backup_job_create(const char *job_id, BlockDriverState *bs,
  error:
     if (copy_bitmap) {
         assert(!job || !job->copy_bitmap);
-        hbitmap_free(copy_bitmap);
+        bdrv_release_dirty_bitmap(bs, copy_bitmap);
     }
     if (sync_bitmap) {
         bdrv_reclaim_dirty_bitmap(bs, sync_bitmap, NULL);
