@@ -576,6 +576,10 @@ BlockJob *backup_job_create(const char *job_id, BlockDriverState *bs,
     assert(bs);
     assert(target);
 
+    /* QMP interface protects us from these cases */
+    assert(sync_mode != MIRROR_SYNC_MODE_INCREMENTAL);
+    assert(sync_bitmap || sync_mode != MIRROR_SYNC_MODE_BITMAP);
+
     if (bs == target) {
         error_setg(errp, "Source and target cannot be the same");
         return NULL;
@@ -607,16 +611,7 @@ BlockJob *backup_job_create(const char *job_id, BlockDriverState *bs,
         return NULL;
     }
 
-    /* QMP interface should have handled translating this to bitmap mode */
-    assert(sync_mode != MIRROR_SYNC_MODE_INCREMENTAL);
-
     if (sync_mode == MIRROR_SYNC_MODE_BITMAP) {
-        if (!sync_bitmap) {
-            error_setg(errp, "must provide a valid bitmap name for "
-                       "'%s' sync mode", MirrorSyncMode_str(sync_mode));
-            return NULL;
-        }
-
         /* If we need to write to this bitmap, check that we can: */
         if (bitmap_mode != BITMAP_SYNC_MODE_NEVER &&
             bdrv_dirty_bitmap_check(sync_bitmap, BDRV_BITMAP_DEFAULT, errp)) {

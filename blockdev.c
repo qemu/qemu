@@ -3529,6 +3529,16 @@ static BlockJob *do_backup_common(BackupCommon *backup,
         return NULL;
     }
 
+    if ((backup->sync == MIRROR_SYNC_MODE_BITMAP) ||
+        (backup->sync == MIRROR_SYNC_MODE_INCREMENTAL)) {
+        /* done before desugaring 'incremental' to print the right message */
+        if (!backup->has_bitmap) {
+            error_setg(errp, "must provide a valid bitmap name for "
+                       "'%s' sync mode", MirrorSyncMode_str(backup->sync));
+            return NULL;
+        }
+    }
+
     if (backup->sync == MIRROR_SYNC_MODE_INCREMENTAL) {
         if (backup->has_bitmap_mode &&
             backup->bitmap_mode != BITMAP_SYNC_MODE_ON_SUCCESS) {
