@@ -58,6 +58,7 @@ typedef struct BackupBlockJob {
     int64_t copy_range_size;
 
     bool serialize_target_writes;
+    bool initializing_bitmap;
 } BackupBlockJob;
 
 static const BlockJobDriver backup_job_driver;
@@ -227,6 +228,35 @@ static int backup_is_cluster_allocated(BackupBlockJob *s, int64_t offset,
     }
 }
 
+/**
+ * Reset bits in copy_bitmap starting at offset if they represent unallocated
+ * data in the image. May reset subsequent contiguous bits.
+ * @return 0 when the cluster at @offset was unallocated,
+ *         1 otherwise, and -ret on error.
+ */
+static int64_t backup_bitmap_reset_unallocated(BackupBlockJob *s,
+                                               int64_t offset, int64_t *count)
+{
+    int ret;
+    int64_t clusters, bytes, estimate;
+
+    ret = backup_is_cluster_allocated(s, offset, &clusters);
+    if (ret < 0) {
+        return ret;
+    }
+
+    bytes = clusters * s->cluster_size;
+
+    if (!ret) {
+        bdrv_reset_dirty_bitmap(s->copy_bitmap, offset, bytes);
+        estimate = bdrv_get_dirty_count(s->copy_bitmap);
+        job_progress_set_remaining(&s->common.job, estimate);
+    }
+
+    *count = bytes;
+    return ret;
+}
+
 static int coroutine_fn backup_do_cow(BackupBlockJob *job,
                                       int64_t offset, uint64_t bytes,
                                       bool *error_is_read,
@@ -236,6 +266,7 @@ static int coroutine_fn backup_do_cow(BackupBlockJob *job,
     int ret = 0;
     int64_t start, end; /* bytes */
     void *bounce_buffer = NULL;
+    int64_t status_bytes;
 
     qemu_co_rwlock_rdlock(&job->flush_rwlock);
 
@@ -260,6 +291,17 @@ static int coroutine_fn backup_do_cow(BackupBlockJob *job,
                                                 (end - start));
         if (dirty_end < 0) {
             dirty_end = end;
+        }
+
+        if (job->initializing_bitmap) {
+            ret = backup_bitmap_reset_unallocated(job, start, &status_bytes);
+            if (ret == 0) {
+                trace_backup_do_cow_skip_range(job, start, status_bytes);
+                start += status_bytes;
+                continue;
+            }
+            /* Clamp to known allocated region */
+            dirty_end = MIN(dirty_end, start + status_bytes);
         }
 
         trace_backup_do_cow_process(job, start);
@@ -446,18 +488,9 @@ static int coroutine_fn backup_loop(BackupBlockJob *job)
     int64_t offset;
     BdrvDirtyBitmapIter *bdbi;
     int ret = 0;
-    int64_t dummy;
 
     bdbi = bdrv_dirty_iter_new(job->copy_bitmap);
     while ((offset = bdrv_dirty_iter_next(bdbi)) != -1) {
-        if (job->sync_mode == MIRROR_SYNC_MODE_TOP &&
-            !backup_is_cluster_allocated(job, offset, &dummy))
-        {
-            bdrv_reset_dirty_bitmap(job->copy_bitmap, offset,
-                                    job->cluster_size);
-            continue;
-        }
-
         do {
             if (yield_and_check(job)) {
                 goto out;
@@ -488,6 +521,13 @@ static void backup_init_copy_bitmap(BackupBlockJob *job)
                                                NULL, true);
         assert(ret);
     } else {
+        if (job->sync_mode == MIRROR_SYNC_MODE_TOP) {
+            /*
+             * We can't hog the coroutine to initialize this thoroughly.
+             * Set a flag and resume work when we are able to yield safely.
+             */
+            job->initializing_bitmap = true;
+        }
         bdrv_set_dirty_bitmap(job->copy_bitmap, 0, job->len);
     }
 
@@ -509,6 +549,26 @@ static int coroutine_fn backup_run(Job *job, Error **errp)
     s->before_write.notify = backup_before_write_notify;
     bdrv_add_before_write_notifier(bs, &s->before_write);
 
+    if (s->sync_mode == MIRROR_SYNC_MODE_TOP) {
+        int64_t offset = 0;
+        int64_t count;
+
+        for (offset = 0; offset < s->len; ) {
+            if (yield_and_check(s)) {
+                ret = -ECANCELED;
+                goto out;
+            }
+
+            ret = backup_bitmap_reset_unallocated(s, offset, &count);
+            if (ret < 0) {
+                goto out;
+            }
+
+            offset += count;
+        }
+        s->initializing_bitmap = false;
+    }
+
     if (s->sync_mode == MIRROR_SYNC_MODE_NONE) {
         /* All bits are set in copy_bitmap to allow any cluster to be copied.
          * This does not actually require them to be copied. */
@@ -521,6 +581,7 @@ static int coroutine_fn backup_run(Job *job, Error **errp)
         ret = backup_loop(s);
     }
 
+ out:
     notifier_with_return_remove(&s->before_write);
 
     /* wait until pending backup_do_cow() calls have completed */
