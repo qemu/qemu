@@ -283,6 +283,12 @@ def test_bitmap_sync(bsync_mode, msync_mode='bitmap', failure=None):
                       Bitmaps are always synchronized, regardless of failure.
                       (Partial images must be kept.)
 
+    :param msync_mode: The mirror sync mode to use for the first backup.
+                       Can be any one of:
+        - bitmap: Backups based on bitmap manifest.
+        - full:   Full backups.
+        - top:    Full backups of the top layer only.
+
     :param failure: Is the (optional) failure mode, and can be any of:
         - None:         No failure. Test the normative path. Default.
         - simulated:    Cancel the job right before it completes.
@@ -393,7 +399,7 @@ def test_bitmap_sync(bsync_mode, msync_mode='bitmap', failure=None):
             # group 1 gets cleared first, then group two gets written.
             if ((bsync_mode == 'on-success' and not failure) or
                 (bsync_mode == 'always')):
-                ebitmap.clear_group(1)
+                ebitmap.clear()
             ebitmap.dirty_group(2)
 
         vm.run_job(job, auto_dismiss=True, auto_finalize=False,
@@ -404,8 +410,19 @@ def test_bitmap_sync(bsync_mode, msync_mode='bitmap', failure=None):
         log('')
 
         if bsync_mode == 'always' and failure == 'intermediate':
+            # TOP treats anything allocated as dirty, expect to see:
+            if msync_mode == 'top':
+                ebitmap.dirty_group(0)
+
             # We manage to copy one sector (one bit) before the error.
             ebitmap.clear_bit(ebitmap.first_bit)
+
+            # Full returns all bits set except what was copied/skipped
+            if msync_mode == 'full':
+                fail_bit = ebitmap.first_bit
+                ebitmap.clear()
+                ebitmap.dirty_bits(range(fail_bit, SIZE // GRANULARITY))
+
         ebitmap.compare(get_bitmap(bitmaps, drive0.device, 'bitmap0'))
 
         # 2 - Writes and Reference Backup
@@ -499,10 +516,25 @@ def test_backup_api():
                 'bitmap404': ['on-success', 'always', 'never', None],
                 'bitmap0':   [None],
             },
+            'full': {
+                None:        ['on-success', 'always', 'never'],
+                'bitmap404': ['on-success', 'always', 'never', None],
+                'bitmap0':   ['never', None],
+            },
+            'top': {
+                None:        ['on-success', 'always', 'never'],
+                'bitmap404': ['on-success', 'always', 'never', None],
+                'bitmap0':   ['never', None],
+            },
+            'none': {
+                None:        ['on-success', 'always', 'never'],
+                'bitmap404': ['on-success', 'always', 'never', None],
+                'bitmap0':   ['on-success', 'always', 'never', None],
+            }
         }
 
         # Dicts, as always, are not stably-ordered prior to 3.7, so use tuples:
-        for sync_mode in ('incremental', 'bitmap'):
+        for sync_mode in ('incremental', 'bitmap', 'full', 'top', 'none'):
             log("-- Sync mode {:s} tests --\n".format(sync_mode))
             for bitmap in (None, 'bitmap404', 'bitmap0'):
                 for policy in error_cases[sync_mode][bitmap]:
@@ -516,6 +548,11 @@ def main():
     for bsync_mode in ("never", "on-success", "always"):
         for failure in ("simulated", "intermediate", None):
             test_bitmap_sync(bsync_mode, "bitmap", failure)
+
+    for sync_mode in ('full', 'top'):
+        for bsync_mode in ('on-success', 'always'):
+            for failure in ('simulated', 'intermediate', None):
+                test_bitmap_sync(bsync_mode, sync_mode, failure)
 
     test_backup_api()
 
