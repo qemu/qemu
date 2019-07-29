@@ -185,6 +185,48 @@ static int coroutine_fn backup_cow_with_offload(BackupBlockJob *job,
     return nbytes;
 }
 
+/*
+ * Check if the cluster starting at offset is allocated or not.
+ * return via pnum the number of contiguous clusters sharing this allocation.
+ */
+static int backup_is_cluster_allocated(BackupBlockJob *s, int64_t offset,
+                                       int64_t *pnum)
+{
+    BlockDriverState *bs = blk_bs(s->common.blk);
+    int64_t count, total_count = 0;
+    int64_t bytes = s->len - offset;
+    int ret;
+
+    assert(QEMU_IS_ALIGNED(offset, s->cluster_size));
+
+    while (true) {
+        ret = bdrv_is_allocated(bs, offset, bytes, &count);
+        if (ret < 0) {
+            return ret;
+        }
+
+        total_count += count;
+
+        if (ret || count == 0) {
+            /*
+             * ret: partial segment(s) are considered allocated.
+             * otherwise: unallocated tail is treated as an entire segment.
+             */
+            *pnum = DIV_ROUND_UP(total_count, s->cluster_size);
+            return ret;
+        }
+
+        /* Unallocated segment(s) with uncertain following segment(s) */
+        if (total_count >= s->cluster_size) {
+            *pnum = total_count / s->cluster_size;
+            return 0;
+        }
+
+        offset += count;
+        bytes -= count;
+    }
+}
+
 static int coroutine_fn backup_do_cow(BackupBlockJob *job,
                                       int64_t offset, uint64_t bytes,
                                       bool *error_is_read,
@@ -398,34 +440,18 @@ static bool coroutine_fn yield_and_check(BackupBlockJob *job)
     return false;
 }
 
-static bool bdrv_is_unallocated_range(BlockDriverState *bs,
-                                      int64_t offset, int64_t bytes)
-{
-    int64_t end = offset + bytes;
-
-    while (offset < end && !bdrv_is_allocated(bs, offset, bytes, &bytes)) {
-        if (bytes == 0) {
-            return true;
-        }
-        offset += bytes;
-        bytes = end - offset;
-    }
-
-    return offset >= end;
-}
-
 static int coroutine_fn backup_loop(BackupBlockJob *job)
 {
     bool error_is_read;
     int64_t offset;
     BdrvDirtyBitmapIter *bdbi;
-    BlockDriverState *bs = blk_bs(job->common.blk);
     int ret = 0;
+    int64_t dummy;
 
     bdbi = bdrv_dirty_iter_new(job->copy_bitmap);
     while ((offset = bdrv_dirty_iter_next(bdbi)) != -1) {
         if (job->sync_mode == MIRROR_SYNC_MODE_TOP &&
-            bdrv_is_unallocated_range(bs, offset, job->cluster_size))
+            !backup_is_cluster_allocated(job, offset, &dummy))
         {
             bdrv_reset_dirty_bitmap(job->copy_bitmap, offset,
                                     job->cluster_size);
