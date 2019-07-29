@@ -38,9 +38,9 @@ typedef struct CowRequest {
 typedef struct BackupBlockJob {
     BlockJob common;
     BlockBackend *target;
-    /* bitmap for sync=incremental */
     BdrvDirtyBitmap *sync_bitmap;
     MirrorSyncMode sync_mode;
+    BitmapSyncMode bitmap_mode;
     BlockdevOnError on_source_error;
     BlockdevOnError on_target_error;
     CoRwlock flush_rwlock;
@@ -461,7 +461,7 @@ static int coroutine_fn backup_run(Job *job, Error **errp)
 
     job_progress_set_remaining(job, s->len);
 
-    if (s->sync_mode == MIRROR_SYNC_MODE_INCREMENTAL) {
+    if (s->sync_mode == MIRROR_SYNC_MODE_BITMAP) {
         backup_incremental_init_copy_bitmap(s);
     } else {
         hbitmap_set(s->copy_bitmap, 0, s->len);
@@ -545,6 +545,7 @@ static int64_t backup_calculate_cluster_size(BlockDriverState *target,
 BlockJob *backup_job_create(const char *job_id, BlockDriverState *bs,
                   BlockDriverState *target, int64_t speed,
                   MirrorSyncMode sync_mode, BdrvDirtyBitmap *sync_bitmap,
+                  BitmapSyncMode bitmap_mode,
                   bool compress,
                   BlockdevOnError on_source_error,
                   BlockdevOnError on_target_error,
@@ -592,10 +593,13 @@ BlockJob *backup_job_create(const char *job_id, BlockDriverState *bs,
         return NULL;
     }
 
-    if (sync_mode == MIRROR_SYNC_MODE_INCREMENTAL) {
+    /* QMP interface should have handled translating this to bitmap mode */
+    assert(sync_mode != MIRROR_SYNC_MODE_INCREMENTAL);
+
+    if (sync_mode == MIRROR_SYNC_MODE_BITMAP) {
         if (!sync_bitmap) {
             error_setg(errp, "must provide a valid bitmap name for "
-                             "\"incremental\" sync mode");
+                       "'%s' sync mode", MirrorSyncMode_str(sync_mode));
             return NULL;
         }
 
@@ -605,8 +609,8 @@ BlockJob *backup_job_create(const char *job_id, BlockDriverState *bs,
         }
     } else if (sync_bitmap) {
         error_setg(errp,
-                   "a sync_bitmap was provided to backup_run, "
-                   "but received an incompatible sync_mode (%s)",
+                   "a bitmap was given to backup_job_create, "
+                   "but it received an incompatible sync_mode (%s)",
                    MirrorSyncMode_str(sync_mode));
         return NULL;
     }
@@ -649,8 +653,8 @@ BlockJob *backup_job_create(const char *job_id, BlockDriverState *bs,
     job->on_source_error = on_source_error;
     job->on_target_error = on_target_error;
     job->sync_mode = sync_mode;
-    job->sync_bitmap = sync_mode == MIRROR_SYNC_MODE_INCREMENTAL ?
-                       sync_bitmap : NULL;
+    job->sync_bitmap = sync_bitmap;
+    job->bitmap_mode = bitmap_mode;
     job->compress = compress;
 
     /* Detect image-fleecing (and similar) schemes */
