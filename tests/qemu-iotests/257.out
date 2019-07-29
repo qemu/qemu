@@ -2245,3 +2245,88 @@ qemu_img compare "TEST_DIR/PID-bsync1" "TEST_DIR/PID-fbackup1" ==> Identical, OK
 qemu_img compare "TEST_DIR/PID-bsync2" "TEST_DIR/PID-fbackup2" ==> Identical, OK!
 qemu_img compare "TEST_DIR/PID-img" "TEST_DIR/PID-fbackup2" ==> Identical, OK!
 
+
+=== API failure tests ===
+
+--- Preparing image & VM ---
+
+{"execute": "blockdev-add", "arguments": {"driver": "qcow2", "file": {"driver": "file", "filename": "TEST_DIR/PID-img"}, "node-name": "drive0"}}
+{"return": {}}
+{"execute": "device_add", "arguments": {"drive": "drive0", "driver": "scsi-hd", "id": "device0"}}
+{"return": {}}
+
+{}
+{"execute": "job-dismiss", "arguments": {"id": "bdc-file-job"}}
+{"return": {}}
+{}
+{}
+{"execute": "job-dismiss", "arguments": {"id": "bdc-fmt-job"}}
+{"return": {}}
+{}
+
+{"execute": "block-dirty-bitmap-add", "arguments": {"granularity": 65536, "name": "bitmap0", "node": "drive0"}}
+{"return": {}}
+
+-- Testing invalid QMP commands --
+
+-- Sync mode incremental tests --
+
+{"execute": "blockdev-backup", "arguments": {"bitmap-mode": "on-success", "device": "drive0", "job-id": "api_job", "sync": "incremental", "target": "backup_target"}}
+{"error": {"class": "GenericError", "desc": "must provide a valid bitmap name for 'incremental' sync mode"}}
+
+{"execute": "blockdev-backup", "arguments": {"bitmap-mode": "always", "device": "drive0", "job-id": "api_job", "sync": "incremental", "target": "backup_target"}}
+{"error": {"class": "GenericError", "desc": "must provide a valid bitmap name for 'incremental' sync mode"}}
+
+{"execute": "blockdev-backup", "arguments": {"bitmap-mode": "never", "device": "drive0", "job-id": "api_job", "sync": "incremental", "target": "backup_target"}}
+{"error": {"class": "GenericError", "desc": "must provide a valid bitmap name for 'incremental' sync mode"}}
+
+{"execute": "blockdev-backup", "arguments": {"device": "drive0", "job-id": "api_job", "sync": "incremental", "target": "backup_target"}}
+{"error": {"class": "GenericError", "desc": "must provide a valid bitmap name for 'incremental' sync mode"}}
+
+{"execute": "blockdev-backup", "arguments": {"bitmap": "bitmap404", "bitmap-mode": "on-success", "device": "drive0", "job-id": "api_job", "sync": "incremental", "target": "backup_target"}}
+{"error": {"class": "GenericError", "desc": "Bitmap 'bitmap404' could not be found"}}
+
+{"execute": "blockdev-backup", "arguments": {"bitmap": "bitmap404", "bitmap-mode": "always", "device": "drive0", "job-id": "api_job", "sync": "incremental", "target": "backup_target"}}
+{"error": {"class": "GenericError", "desc": "Bitmap sync mode must be 'on-success' when using sync mode 'incremental'"}}
+
+{"execute": "blockdev-backup", "arguments": {"bitmap": "bitmap404", "bitmap-mode": "never", "device": "drive0", "job-id": "api_job", "sync": "incremental", "target": "backup_target"}}
+{"error": {"class": "GenericError", "desc": "Bitmap sync mode must be 'on-success' when using sync mode 'incremental'"}}
+
+{"execute": "blockdev-backup", "arguments": {"bitmap": "bitmap404", "device": "drive0", "job-id": "api_job", "sync": "incremental", "target": "backup_target"}}
+{"error": {"class": "GenericError", "desc": "Bitmap 'bitmap404' could not be found"}}
+
+{"execute": "blockdev-backup", "arguments": {"bitmap": "bitmap0", "bitmap-mode": "always", "device": "drive0", "job-id": "api_job", "sync": "incremental", "target": "backup_target"}}
+{"error": {"class": "GenericError", "desc": "Bitmap sync mode must be 'on-success' when using sync mode 'incremental'"}}
+
+{"execute": "blockdev-backup", "arguments": {"bitmap": "bitmap0", "bitmap-mode": "never", "device": "drive0", "job-id": "api_job", "sync": "incremental", "target": "backup_target"}}
+{"error": {"class": "GenericError", "desc": "Bitmap sync mode must be 'on-success' when using sync mode 'incremental'"}}
+
+-- Sync mode bitmap tests --
+
+{"execute": "blockdev-backup", "arguments": {"bitmap-mode": "on-success", "device": "drive0", "job-id": "api_job", "sync": "bitmap", "target": "backup_target"}}
+{"error": {"class": "GenericError", "desc": "must provide a valid bitmap name for 'bitmap' sync mode"}}
+
+{"execute": "blockdev-backup", "arguments": {"bitmap-mode": "always", "device": "drive0", "job-id": "api_job", "sync": "bitmap", "target": "backup_target"}}
+{"error": {"class": "GenericError", "desc": "must provide a valid bitmap name for 'bitmap' sync mode"}}
+
+{"execute": "blockdev-backup", "arguments": {"bitmap-mode": "never", "device": "drive0", "job-id": "api_job", "sync": "bitmap", "target": "backup_target"}}
+{"error": {"class": "GenericError", "desc": "must provide a valid bitmap name for 'bitmap' sync mode"}}
+
+{"execute": "blockdev-backup", "arguments": {"device": "drive0", "job-id": "api_job", "sync": "bitmap", "target": "backup_target"}}
+{"error": {"class": "GenericError", "desc": "must provide a valid bitmap name for 'bitmap' sync mode"}}
+
+{"execute": "blockdev-backup", "arguments": {"bitmap": "bitmap404", "bitmap-mode": "on-success", "device": "drive0", "job-id": "api_job", "sync": "bitmap", "target": "backup_target"}}
+{"error": {"class": "GenericError", "desc": "Bitmap 'bitmap404' could not be found"}}
+
+{"execute": "blockdev-backup", "arguments": {"bitmap": "bitmap404", "bitmap-mode": "always", "device": "drive0", "job-id": "api_job", "sync": "bitmap", "target": "backup_target"}}
+{"error": {"class": "GenericError", "desc": "Bitmap 'bitmap404' could not be found"}}
+
+{"execute": "blockdev-backup", "arguments": {"bitmap": "bitmap404", "bitmap-mode": "never", "device": "drive0", "job-id": "api_job", "sync": "bitmap", "target": "backup_target"}}
+{"error": {"class": "GenericError", "desc": "Bitmap 'bitmap404' could not be found"}}
+
+{"execute": "blockdev-backup", "arguments": {"bitmap": "bitmap404", "device": "drive0", "job-id": "api_job", "sync": "bitmap", "target": "backup_target"}}
+{"error": {"class": "GenericError", "desc": "Bitmap 'bitmap404' could not be found"}}
+
+{"execute": "blockdev-backup", "arguments": {"bitmap": "bitmap0", "device": "drive0", "job-id": "api_job", "sync": "bitmap", "target": "backup_target"}}
+{"error": {"class": "GenericError", "desc": "Bitmap sync mode must be given when providing a bitmap"}}
+

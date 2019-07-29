@@ -447,10 +447,77 @@ def test_bitmap_sync(bsync_mode, msync_mode='bitmap', failure=None):
         compare_images(img_path, fbackup2)
         log('')
 
+def test_backup_api():
+    """
+    Test malformed and prohibited invocations of the backup API.
+    """
+    with iotests.FilePaths(['img', 'bsync1']) as \
+         (img_path, backup_path), \
+         iotests.VM() as vm:
+
+        log("\n=== API failure tests ===\n")
+        log('--- Preparing image & VM ---\n')
+        drive0 = Drive(img_path, vm=vm)
+        drive0.img_create(iotests.imgfmt, SIZE)
+        vm.add_device("{},id=scsi0".format(iotests.get_virtio_scsi_device()))
+        vm.launch()
+
+        file_config = {
+            'driver': 'file',
+            'filename': drive0.path
+        }
+
+        vm.qmp_log('blockdev-add',
+                   filters=[iotests.filter_qmp_testfiles],
+                   node_name="drive0",
+                   driver=drive0.fmt,
+                   file=file_config)
+        drive0.node = 'drive0'
+        drive0.device = 'device0'
+        vm.qmp_log("device_add", id=drive0.device,
+                   drive=drive0.name, driver="scsi-hd")
+        log('')
+
+        target0 = Drive(backup_path, vm=vm)
+        target0.create_target("backup_target", drive0.fmt, drive0.size)
+        log('')
+
+        vm.qmp_log("block-dirty-bitmap-add", node=drive0.name,
+                   name="bitmap0", granularity=GRANULARITY)
+        log('')
+
+        log('-- Testing invalid QMP commands --\n')
+
+        error_cases = {
+            'incremental': {
+                None:        ['on-success', 'always', 'never', None],
+                'bitmap404': ['on-success', 'always', 'never', None],
+                'bitmap0':   ['always', 'never']
+            },
+            'bitmap': {
+                None:        ['on-success', 'always', 'never', None],
+                'bitmap404': ['on-success', 'always', 'never', None],
+                'bitmap0':   [None],
+            },
+        }
+
+        # Dicts, as always, are not stably-ordered prior to 3.7, so use tuples:
+        for sync_mode in ('incremental', 'bitmap'):
+            log("-- Sync mode {:s} tests --\n".format(sync_mode))
+            for bitmap in (None, 'bitmap404', 'bitmap0'):
+                for policy in error_cases[sync_mode][bitmap]:
+                    blockdev_backup(drive0.vm, drive0.name, "backup_target",
+                                    sync_mode, job_id='api_job',
+                                    bitmap=bitmap, bitmap_mode=policy)
+                    log('')
+
+
 def main():
     for bsync_mode in ("never", "on-success", "always"):
         for failure in ("simulated", "intermediate", None):
             test_bitmap_sync(bsync_mode, "bitmap", failure)
+
+    test_backup_api()
 
 if __name__ == '__main__':
     iotests.script_main(main, supported_fmts=['qcow2'])
