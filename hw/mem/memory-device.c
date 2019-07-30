@@ -185,7 +185,6 @@ static uint64_t memory_device_get_free_addr(MachineState *ms,
     if (!range_contains_range(&as, &new)) {
         error_setg(errp, "could not find position in guest address space for "
                    "memory device - memory fragmented due to alignments");
-        goto out;
     }
 out:
     g_slist_free(list);
