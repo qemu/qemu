@@ -7,6 +7,10 @@ config PTIMER
 config FITLOADER
     bool
 
+config GENERIC_LOADER
+    bool
+    default y
+
 config OR_IRQ
     bool
 
