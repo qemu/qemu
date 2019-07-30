@@ -53,6 +53,8 @@ struct PCIESlot {
     PCIExpLinkSpeed speed;
     PCIExpLinkWidth width;
 
+    /* Disable ACS (really for a pcie_root_port) */
+    bool        disable_acs;
     QLIST_ENTRY(PCIESlot) next;
 };
 
