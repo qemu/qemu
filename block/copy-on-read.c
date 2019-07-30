@@ -56,16 +56,14 @@ static void cor_child_perm(BlockDriverState *bs, BdrvChild *c,
                            uint64_t perm, uint64_t shared,
                            uint64_t *nperm, uint64_t *nshared)
 {
-    if (c == NULL) {
-        *nperm = (perm & PERM_PASSTHROUGH) | BLK_PERM_WRITE_UNCHANGED;
-        *nshared = (shared & PERM_PASSTHROUGH) | PERM_UNCHANGED;
-        return;
-    }
+    *nperm = perm & PERM_PASSTHROUGH;
+    *nshared = (shared & PERM_PASSTHROUGH) | PERM_UNCHANGED;
 
-    *nperm = (perm & PERM_PASSTHROUGH) |
-             (c->perm & PERM_UNCHANGED);
-    *nshared = (shared & PERM_PASSTHROUGH) |
-               (c->shared_perm & PERM_UNCHANGED);
+    /* We must not request write permissions for an inactive node, the child
+     * cannot provide it. */
+    if (!(bs->open_flags & BDRV_O_INACTIVE)) {
+        *nperm |= BLK_PERM_WRITE_UNCHANGED;
+    }
 }
 
 
