@@ -42,10 +42,14 @@ class ChangeBaseClass(iotests.QMPTestCase):
     has_opened = False
     has_closed = False
 
+    device_name = 'qdev0'
+    use_drive = False
+
     def process_events(self):
         for event in self.vm.get_qmp_events(wait=False):
             if (event['event'] == 'DEVICE_TRAY_MOVED' and
-                event['data']['device'] == 'drive0'):
+                (event['data']['device'] == 'drive0' or
+                 event['data']['id'] == self.device_name)):
                 if event['data']['tray-open'] == False:
                     self.has_closed = True
                 else:
@@ -69,9 +73,11 @@ class ChangeBaseClass(iotests.QMPTestCase):
 
 class GeneralChangeTestsBaseClass(ChangeBaseClass):
 
-    device_name = 'qdev0'
-
     def test_change(self):
+        # 'change' requires a drive name, so skip the test for blockdev
+        if not self.use_drive:
+            return
+
         result = self.vm.qmp('change', device='drive0', target=new_img,
                                        arg=iotests.imgfmt)
         self.assert_qmp(result, 'return', {})
@@ -298,7 +304,13 @@ class TestInitiallyFilled(GeneralChangeTestsBaseClass):
         qemu_img('create', '-f', iotests.imgfmt, old_img, '1440k')
         qemu_img('create', '-f', iotests.imgfmt, new_img, '1440k')
         self.vm = iotests.VM()
-        self.vm.add_drive(old_img, 'media=%s' % self.media, 'none')
+        if self.use_drive:
+            self.vm.add_drive(old_img, 'media=%s' % self.media, 'none')
+        else:
+            self.vm.add_blockdev([ 'node-name=drive0',
+                                   'driver=%s' % iotests.imgfmt,
+                                   'file.driver=file',
+                                   'file.filename=%s' % old_img ])
         if self.interface == 'scsi':
             self.vm.add_device('virtio-scsi-pci')
         self.vm.add_device('%s,drive=drive0,id=%s' %
@@ -333,11 +345,14 @@ class TestInitiallyEmpty(GeneralChangeTestsBaseClass):
 
     def setUp(self):
         qemu_img('create', '-f', iotests.imgfmt, new_img, '1440k')
-        self.vm = iotests.VM().add_drive(None, 'media=%s' % self.media, 'none')
+        self.vm = iotests.VM()
+        if self.use_drive:
+            self.vm.add_drive(None, 'media=%s' % self.media, 'none')
         if self.interface == 'scsi':
             self.vm.add_device('virtio-scsi-pci')
-        self.vm.add_device('%s,drive=drive0,id=%s' %
+        self.vm.add_device('%s,%sid=%s' %
                            (interface_to_device_name(self.interface),
+                            'drive=drive0,' if self.use_drive else '',
                             self.device_name))
         self.vm.launch()
 
@@ -363,13 +378,15 @@ def create_basic_test_classes():
                                                ('disk', 'floppy', False) ]:
 
         for case in [ TestInitiallyFilled, TestInitiallyEmpty ]:
+            for use_drive in [ True, False ]:
+                attr = { 'media': media,
+                         'interface': interface,
+                         'has_real_tray': has_real_tray,
+                         'use_drive': use_drive }
 
-            attr = { 'media': media,
-                     'interface': interface,
-                     'has_real_tray': has_real_tray }
-
-            name = '%s_%s_%s' % (case.__name__, media, interface)
-            globals()[name] = type(name, (case, ), attr)
+                name = '%s_%s_%s_%s' % (case.__name__, media, interface,
+                                        'drive' if use_drive else 'blockdev')
+                globals()[name] = type(name, (case, ), attr)
 
 create_basic_test_classes()
 
