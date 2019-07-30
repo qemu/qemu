@@ -294,15 +294,15 @@ class GeneralChangeTestsBaseClass(ChangeBaseClass):
 class TestInitiallyFilled(GeneralChangeTestsBaseClass):
     was_empty = False
 
-    def setUp(self, media, interface):
+    def setUp(self):
         qemu_img('create', '-f', iotests.imgfmt, old_img, '1440k')
         qemu_img('create', '-f', iotests.imgfmt, new_img, '1440k')
         self.vm = iotests.VM()
-        self.vm.add_drive(old_img, 'media=%s' % media, 'none')
-        if interface == 'scsi':
+        self.vm.add_drive(old_img, 'media=%s' % self.media, 'none')
+        if self.interface == 'scsi':
             self.vm.add_device('virtio-scsi-pci')
         self.vm.add_device('%s,drive=drive0,id=%s' %
-                           (interface_to_device_name(interface),
+                           (interface_to_device_name(self.interface),
                             self.device_name))
         self.vm.launch()
 
@@ -331,13 +331,13 @@ class TestInitiallyFilled(GeneralChangeTestsBaseClass):
 class TestInitiallyEmpty(GeneralChangeTestsBaseClass):
     was_empty = True
 
-    def setUp(self, media, interface):
+    def setUp(self):
         qemu_img('create', '-f', iotests.imgfmt, new_img, '1440k')
-        self.vm = iotests.VM().add_drive(None, 'media=%s' % media, 'none')
-        if interface == 'scsi':
+        self.vm = iotests.VM().add_drive(None, 'media=%s' % self.media, 'none')
+        if self.interface == 'scsi':
             self.vm.add_device('virtio-scsi-pci')
         self.vm.add_device('%s,drive=drive0,id=%s' %
-                           (interface_to_device_name(interface),
+                           (interface_to_device_name(self.interface),
                             self.device_name))
         self.vm.launch()
 
@@ -355,50 +355,23 @@ class TestInitiallyEmpty(GeneralChangeTestsBaseClass):
         # Should be a no-op
         self.assert_qmp(result, 'return', {})
 
-class TestCDInitiallyFilled(TestInitiallyFilled):
-    TestInitiallyFilled = TestInitiallyFilled
-    has_real_tray = True
+# Do this in a function to avoid leaking variables like case into the global
+# name space (otherwise tests would be run for the abstract base classes)
+def create_basic_test_classes():
+    for (media, interface, has_real_tray) in [ ('cdrom', 'ide', True),
+                                               ('cdrom', 'scsi', True),
+                                               ('disk', 'floppy', False) ]:
 
-    def setUp(self):
-        self.TestInitiallyFilled.setUp(self, 'cdrom', 'ide')
+        for case in [ TestInitiallyFilled, TestInitiallyEmpty ]:
 
-class TestCDInitiallyEmpty(TestInitiallyEmpty):
-    TestInitiallyEmpty = TestInitiallyEmpty
-    has_real_tray = True
+            attr = { 'media': media,
+                     'interface': interface,
+                     'has_real_tray': has_real_tray }
 
-    def setUp(self):
-        self.TestInitiallyEmpty.setUp(self, 'cdrom', 'ide')
+            name = '%s_%s_%s' % (case.__name__, media, interface)
+            globals()[name] = type(name, (case, ), attr)
 
-class TestSCSICDInitiallyFilled(TestInitiallyFilled):
-    TestInitiallyFilled = TestInitiallyFilled
-    has_real_tray = True
-
-    def setUp(self):
-        self.TestInitiallyFilled.setUp(self, 'cdrom', 'scsi')
-
-class TestSCSICDInitiallyEmpty(TestInitiallyEmpty):
-    TestInitiallyEmpty = TestInitiallyEmpty
-    has_real_tray = True
-
-    def setUp(self):
-        self.TestInitiallyEmpty.setUp(self, 'cdrom', 'scsi')
-
-class TestFloppyInitiallyFilled(TestInitiallyFilled):
-    TestInitiallyFilled = TestInitiallyFilled
-    has_real_tray = False
-
-    def setUp(self):
-        self.TestInitiallyFilled.setUp(self, 'disk', 'floppy')
-
-class TestFloppyInitiallyEmpty(TestInitiallyEmpty):
-    TestInitiallyEmpty = TestInitiallyEmpty
-    has_real_tray = False
-
-    def setUp(self):
-        self.TestInitiallyEmpty.setUp(self, 'disk', 'floppy')
-        # FDDs not having a real tray and there not being a medium inside the
-        # tray at startup means the tray will be considered open
-        self.has_opened = True
+create_basic_test_classes()
 
 class TestChangeReadOnly(ChangeBaseClass):
     device_name = 'qdev0'
