@@ -105,7 +105,7 @@ typedef struct {
 
     uint64_t nsze; /* Namespace size reported by identify command */
     int nsid;      /* The namespace id to read/write data. */
-    size_t blkshift;
+    int blkshift;
 
     uint64_t max_transfer;
     bool plugged;
@@ -420,7 +420,7 @@ static void nvme_identify(BlockDriverState *bs, int namespace, Error **errp)
     NvmeIdNs *idns;
     NvmeLBAF *lbaf;
     uint8_t *resp;
-    int r, hwsect_size;
+    int r;
     uint64_t iova;
     NvmeCmd cmd = {
         .opcode = NVME_ADM_CMD_IDENTIFY,
@@ -474,11 +474,11 @@ static void nvme_identify(BlockDriverState *bs, int namespace, Error **errp)
         goto out;
     }
 
-    hwsect_size = 1 << lbaf->ds;
-
-    if (hwsect_size < BDRV_SECTOR_SIZE || hwsect_size > s->page_size) {
-        error_setg(errp, "Namespace has unsupported block size (%d)",
-                hwsect_size);
+    if (lbaf->ds < BDRV_SECTOR_BITS || lbaf->ds > 12 ||
+        (1 << lbaf->ds) > s->page_size)
+    {
+        error_setg(errp, "Namespace has unsupported block size (2^%d)",
+                   lbaf->ds);
         goto out;
     }
 
@@ -804,16 +804,16 @@ static int64_t nvme_getlength(BlockDriverState *bs)
     return s->nsze << s->blkshift;
 }
 
-static int64_t nvme_get_blocksize(BlockDriverState *bs)
+static uint32_t nvme_get_blocksize(BlockDriverState *bs)
 {
     BDRVNVMeState *s = bs->opaque;
-    assert(s->blkshift >= BDRV_SECTOR_BITS);
-    return 1 << s->blkshift;
+    assert(s->blkshift >= BDRV_SECTOR_BITS && s->blkshift <= 12);
+    return UINT32_C(1) << s->blkshift;
 }
 
 static int nvme_probe_blocksizes(BlockDriverState *bs, BlockSizes *bsz)
 {
-    int64_t blocksize = nvme_get_blocksize(bs);
+    uint32_t blocksize = nvme_get_blocksize(bs);
     bsz->phys = blocksize;
     bsz->log = blocksize;
     return 0;
