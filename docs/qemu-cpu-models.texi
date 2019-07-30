@@ -2,6 +2,8 @@
 QEMU / KVM CPU model configuration
 @c man end
 
+@set qemu_system_x86 qemu-system-x86_64
+
 @c man begin DESCRIPTION
 
 @menu
@@ -578,25 +580,25 @@ CPU models / features in QEMU and libvirt
 @item Host passthrough
 
 @example
-   $ qemu-system-x86_64 -cpu host
+   $ @value{qemu_system_x86} -cpu host
 @end example
 
 With feature customization:
 
 @example
-   $ qemu-system-x86_64 -cpu host,-vmx,...
+   $ @value{qemu_system_x86} -cpu host,-vmx,...
 @end example
 
 @item Named CPU models
 
 @example
-   $ qemu-system-x86_64 -cpu Westmere
+   $ @value{qemu_system_x86} -cpu Westmere
 @end example
 
 With feature customization:
 
 @example
-   $ qemu-system-x86_64 -cpu Westmere,+pcid,...
+   $ @value{qemu_system_x86} -cpu Westmere,+pcid,...
 @end example
 
 @end table

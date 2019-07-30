@@ -2,6 +2,8 @@
 QEMU block driver reference manual
 @c man end
 
+@set qemu_system qemu-system-x86_64
+
 @c man begin DESCRIPTION
 
 @node disk_images_formats
@@ -405,7 +407,7 @@ QEMU can automatically create a virtual FAT disk image from a
 directory tree. In order to use it, just type:
 
 @example
-qemu-system-i386 linux.img -hdb fat:/my_directory
+@value{qemu_system} linux.img -hdb fat:/my_directory
 @end example
 
 Then you access access to all the files in the @file{/my_directory}
@@ -415,14 +417,14 @@ them via SAMBA or NFS. The default access is @emph{read-only}.
 Floppies can be emulated with the @code{:floppy:} option:
 
 @example
-qemu-system-i386 linux.img -fda fat:floppy:/my_directory
+@value{qemu_system} linux.img -fda fat:floppy:/my_directory
 @end example
 
 A read/write support is available for testing (beta stage) with the
 @code{:rw:} option:
 
 @example
-qemu-system-i386 linux.img -fda fat:floppy:rw:/my_directory
+@value{qemu_system} linux.img -fda fat:floppy:rw:/my_directory
 @end example
 
 What you should @emph{never} do:
@@ -440,14 +442,14 @@ QEMU can access directly to block device exported using the Network Block Device
 protocol.
 
 @example
-qemu-system-i386 linux.img -hdb nbd://my_nbd_server.mydomain.org:1024/
+@value{qemu_system} linux.img -hdb nbd://my_nbd_server.mydomain.org:1024/
 @end example
 
 If the NBD server is located on the same host, you can use an unix socket instead
 of an inet socket:
 
 @example
-qemu-system-i386 linux.img -hdb nbd+unix://?socket=/tmp/my_socket
+@value{qemu_system} linux.img -hdb nbd+unix://?socket=/tmp/my_socket
 @end example
 
 In this case, the block device must be exported using qemu-nbd:
@@ -464,23 +466,23 @@ qemu-nbd --socket=/tmp/my_socket --share=2 my_disk.qcow2
 @noindent
 and then you can use it with two guests:
 @example
-qemu-system-i386 linux1.img -hdb nbd+unix://?socket=/tmp/my_socket
-qemu-system-i386 linux2.img -hdb nbd+unix://?socket=/tmp/my_socket
+@value{qemu_system} linux1.img -hdb nbd+unix://?socket=/tmp/my_socket
+@value{qemu_system} linux2.img -hdb nbd+unix://?socket=/tmp/my_socket
 @end example
 
 If the nbd-server uses named exports (supported since NBD 2.9.18, or with QEMU's
 own embedded NBD server), you must specify an export name in the URI:
 @example
-qemu-system-i386 -cdrom nbd://localhost/debian-500-ppc-netinst
-qemu-system-i386 -cdrom nbd://localhost/openSUSE-11.1-ppc-netinst
+@value{qemu_system} -cdrom nbd://localhost/debian-500-ppc-netinst
+@value{qemu_system} -cdrom nbd://localhost/openSUSE-11.1-ppc-netinst
 @end example
 
 The URI syntax for NBD is supported since QEMU 1.3.  An alternative syntax is
 also available.  Here are some example of the older syntax:
 @example
-qemu-system-i386 linux.img -hdb nbd:my_nbd_server.mydomain.org:1024
-qemu-system-i386 linux2.img -hdb nbd:unix:/tmp/my_socket
-qemu-system-i386 -cdrom nbd:localhost:10809:exportname=debian-500-ppc-netinst
+@value{qemu_system} linux.img -hdb nbd:my_nbd_server.mydomain.org:1024
+@value{qemu_system} linux2.img -hdb nbd:unix:/tmp/my_socket
+@value{qemu_system} -cdrom nbd:localhost:10809:exportname=debian-500-ppc-netinst
 @end example
 
 @node disk_images_sheepdog
@@ -505,7 +507,7 @@ qemu-img convert @var{filename} sheepdog:///@var{image}
 
 You can boot from the Sheepdog disk image with the command:
 @example
-qemu-system-i386 sheepdog:///@var{image}
+@value{qemu_system} sheepdog:///@var{image}
 @end example
 
 You can also create a snapshot of the Sheepdog image like qcow2.
@@ -517,7 +519,7 @@ where @var{tag} is a tag name of the newly created snapshot.
 To boot from the Sheepdog snapshot, specify the tag name of the
 snapshot.
 @example
-qemu-system-i386 sheepdog:///@var{image}#@var{tag}
+@value{qemu_system} sheepdog:///@var{image}#@var{tag}
 @end example
 
 You can create a cloned image from the existing snapshot.
@@ -530,14 +532,14 @@ is its tag name.
 You can use an unix socket instead of an inet socket:
 
 @example
-qemu-system-i386 sheepdog+unix:///@var{image}?socket=@var{path}
+@value{qemu_system} sheepdog+unix:///@var{image}?socket=@var{path}
 @end example
 
 If the Sheepdog daemon doesn't run on the local host, you need to
 specify one of the Sheepdog servers to connect to.
 @example
 qemu-img create sheepdog://@var{hostname}:@var{port}/@var{image} @var{size}
-qemu-system-i386 sheepdog://@var{hostname}:@var{port}/@var{image}
+@value{qemu_system} sheepdog://@var{hostname}:@var{port}/@var{image}
 @end example
 
 @node disk_images_iscsi
@@ -627,7 +629,7 @@ cat >iscsi.conf <<EOF
   header-digest = "CRC32C"
 EOF
 
-qemu-system-i386 -drive file=iscsi://127.0.0.1/iqn.qemu.test/1 \
+@value{qemu_system} -drive file=iscsi://127.0.0.1/iqn.qemu.test/1 \
     -readconfig iscsi.conf
 @end example
 
@@ -646,7 +648,7 @@ tgtadm --lld iscsi --mode logicalunit --op new --tid 1 --lun 2 \
     -b /IMAGES/cd.iso --device-type=cd
 tgtadm --lld iscsi --op bind --mode target --tid 1 -I ALL
 
-qemu-system-i386 -iscsi initiator-name=iqn.qemu.test:my-initiator \
+@value{qemu_system} -iscsi initiator-name=iqn.qemu.test:my-initiator \
     -boot d -drive file=iscsi://127.0.0.1/iqn.qemu.test/1 \
     -cdrom iscsi://127.0.0.1/iqn.qemu.test/2
 @end example
@@ -659,11 +661,11 @@ GlusterFS is a user space distributed file system.
 You can boot from the GlusterFS disk image with the command:
 @example
 URI:
-qemu-system-x86_64 -drive file=gluster[+@var{type}]://[@var{host}[:@var{port}]]/@var{volume}/@var{path}
+@value{qemu_system} -drive file=gluster[+@var{type}]://[@var{host}[:@var{port}]]/@var{volume}/@var{path}
                                [?socket=...][,file.debug=9][,file.logfile=...]
 
 JSON:
-qemu-system-x86_64 'json:@{"driver":"qcow2",
+@value{qemu_system} 'json:@{"driver":"qcow2",
                            "file":@{"driver":"gluster",
                                     "volume":"testvol","path":"a.img","debug":9,"logfile":"...",
                                     "server":[@{"type":"tcp","host":"...","port":"..."@},
@@ -711,22 +713,22 @@ qemu-img create gluster://@var{host}/@var{volume}/@var{path} @var{size}
 
 Examples
 @example
-qemu-system-x86_64 -drive file=gluster://1.2.3.4/testvol/a.img
-qemu-system-x86_64 -drive file=gluster+tcp://1.2.3.4/testvol/a.img
-qemu-system-x86_64 -drive file=gluster+tcp://1.2.3.4:24007/testvol/dir/a.img
-qemu-system-x86_64 -drive file=gluster+tcp://[1:2:3:4:5:6:7:8]/testvol/dir/a.img
-qemu-system-x86_64 -drive file=gluster+tcp://[1:2:3:4:5:6:7:8]:24007/testvol/dir/a.img
-qemu-system-x86_64 -drive file=gluster+tcp://server.domain.com:24007/testvol/dir/a.img
-qemu-system-x86_64 -drive file=gluster+unix:///testvol/dir/a.img?socket=/tmp/glusterd.socket
-qemu-system-x86_64 -drive file=gluster+rdma://1.2.3.4:24007/testvol/a.img
-qemu-system-x86_64 -drive file=gluster://1.2.3.4/testvol/a.img,file.debug=9,file.logfile=/var/log/qemu-gluster.log
-qemu-system-x86_64 'json:@{"driver":"qcow2",
+@value{qemu_system} -drive file=gluster://1.2.3.4/testvol/a.img
+@value{qemu_system} -drive file=gluster+tcp://1.2.3.4/testvol/a.img
+@value{qemu_system} -drive file=gluster+tcp://1.2.3.4:24007/testvol/dir/a.img
+@value{qemu_system} -drive file=gluster+tcp://[1:2:3:4:5:6:7:8]/testvol/dir/a.img
+@value{qemu_system} -drive file=gluster+tcp://[1:2:3:4:5:6:7:8]:24007/testvol/dir/a.img
+@value{qemu_system} -drive file=gluster+tcp://server.domain.com:24007/testvol/dir/a.img
+@value{qemu_system} -drive file=gluster+unix:///testvol/dir/a.img?socket=/tmp/glusterd.socket
+@value{qemu_system} -drive file=gluster+rdma://1.2.3.4:24007/testvol/a.img
+@value{qemu_system} -drive file=gluster://1.2.3.4/testvol/a.img,file.debug=9,file.logfile=/var/log/qemu-gluster.log
+@value{qemu_system} 'json:@{"driver":"qcow2",
                            "file":@{"driver":"gluster",
                                     "volume":"testvol","path":"a.img",
                                     "debug":9,"logfile":"/var/log/qemu-gluster.log",
                                     "server":[@{"type":"tcp","host":"1.2.3.4","port":24007@},
                                               @{"type":"unix","socket":"/var/run/glusterd.socket"@}]@}@}'
-qemu-system-x86_64 -drive driver=qcow2,file.driver=gluster,file.volume=testvol,file.path=/path/a.img,
+@value{qemu_system} -drive driver=qcow2,file.driver=gluster,file.volume=testvol,file.path=/path/a.img,
                                        file.debug=9,file.logfile=/var/log/qemu-gluster.log,
                                        file.server.0.type=tcp,file.server.0.host=1.2.3.4,file.server.0.port=24007,
                                        file.server.1.type=unix,file.server.1.socket=/var/run/glusterd.socket
@@ -739,13 +741,13 @@ You can access disk images located on a remote ssh server
 by using the ssh protocol:
 
 @example
-qemu-system-x86_64 -drive file=ssh://[@var{user}@@]@var{server}[:@var{port}]/@var{path}[?host_key_check=@var{host_key_check}]
+@value{qemu_system} -drive file=ssh://[@var{user}@@]@var{server}[:@var{port}]/@var{path}[?host_key_check=@var{host_key_check}]
 @end example
 
 Alternative syntax using properties:
 
 @example
-qemu-system-x86_64 -drive file.driver=ssh[,file.user=@var{user}],file.host=@var{server}[,file.port=@var{port}],file.path=@var{path}[,file.host_key_check=@var{host_key_check}]
+@value{qemu_system} -drive file.driver=ssh[,file.user=@var{user}],file.host=@var{server}[,file.port=@var{port}],file.path=@var{path}[,file.host_key_check=@var{host_key_check}]
 @end example
 
 @var{ssh} is the protocol.
@@ -808,13 +810,13 @@ driver.  For example:
 # echo 0000:06:0d.0 > /sys/bus/pci/devices/0000:06:0d.0/driver/unbind
 # echo 1102 0002 > /sys/bus/pci/drivers/vfio-pci/new_id
 
-# qemu-system-x86_64 -drive file=nvme://@var{host}:@var{bus}:@var{slot}.@var{func}/@var{namespace}
+# @value{qemu_system} -drive file=nvme://@var{host}:@var{bus}:@var{slot}.@var{func}/@var{namespace}
 @end example
 
 Alternative syntax using properties:
 
 @example
-qemu-system-x86_64 -drive file.driver=nvme,file.device=@var{host}:@var{bus}:@var{slot}.@var{func},file.namespace=@var{namespace}
+@value{qemu_system} -drive file.driver=nvme,file.device=@var{host}:@var{bus}:@var{slot}.@var{func},file.namespace=@var{namespace}
 @end example
 
 @var{host}:@var{bus}:@var{slot}.@var{func} is the NVMe controller's PCI device
