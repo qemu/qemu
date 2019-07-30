@@ -207,10 +207,11 @@ class GeneralChangeTestsBaseClass(ChangeBaseClass):
             self.assert_qmp(result, 'return[0]/tray_open', False)
         self.assert_qmp(result, 'return[0]/inserted/image/filename', new_img)
 
-    def test_cycle(self):
+    def test_cycle(self, read_only_node=False):
         result = self.vm.qmp('blockdev-add',
                              node_name='new',
                              driver=iotests.imgfmt,
+                             read_only=read_only_node,
                              file={'filename': new_img,
                                     'driver': 'file'})
         self.assert_qmp(result, 'return', {})
@@ -256,6 +257,9 @@ class GeneralChangeTestsBaseClass(ChangeBaseClass):
         if self.has_real_tray:
             self.assert_qmp(result, 'return[0]/tray_open', False)
         self.assert_qmp(result, 'return[0]/inserted/image/filename', new_img)
+
+    def test_cycle_read_only_media(self):
+        self.test_cycle(True)
 
     def test_close_on_closed(self):
         result = self.vm.qmp('blockdev-close-tray', id=self.device_name)
