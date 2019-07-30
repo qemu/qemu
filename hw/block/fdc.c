@@ -514,6 +514,7 @@ static void floppy_drive_realize(DeviceState *qdev, Error **errp)
     FloppyDrive *dev = FLOPPY_DRIVE(qdev);
     FloppyBus *bus = FLOPPY_BUS(qdev->parent_bus);
     FDrive *drive;
+    bool read_only;
     int ret;
 
     if (dev->unit == -1) {
@@ -542,6 +543,12 @@ static void floppy_drive_realize(DeviceState *qdev, Error **errp)
         dev->conf.blk = blk_new(qemu_get_aio_context(), 0, BLK_PERM_ALL);
         ret = blk_attach_dev(dev->conf.blk, qdev);
         assert(ret == 0);
+
+        /* Don't take write permissions on an empty drive to allow attaching a
+         * read-only node later */
+        read_only = true;
+    } else {
+        read_only = !blk_bs(dev->conf.blk) || blk_is_read_only(dev->conf.blk);
     }
 
     blkconf_blocksizes(&dev->conf);
@@ -559,9 +566,7 @@ static void floppy_drive_realize(DeviceState *qdev, Error **errp)
     dev->conf.rerror = BLOCKDEV_ON_ERROR_AUTO;
     dev->conf.werror = BLOCKDEV_ON_ERROR_AUTO;
 
-    if (!blkconf_apply_backend_options(&dev->conf,
-                                       blk_is_read_only(dev->conf.blk),
-                                       false, errp)) {
+    if (!blkconf_apply_backend_options(&dev->conf, read_only, false, errp)) {
         return;
     }
 
