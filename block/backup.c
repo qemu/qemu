@@ -50,14 +50,13 @@ typedef struct BackupBlockJob {
     uint64_t len;
     uint64_t bytes_read;
     int64_t cluster_size;
-    bool compress;
     NotifierWithReturn before_write;
     QLIST_HEAD(, CowRequest) inflight_reqs;
 
     bool use_copy_range;
     int64_t copy_range_size;
 
-    bool serialize_target_writes;
+    BdrvRequestFlags write_flags;
     bool initializing_bitmap;
 } BackupBlockJob;
 
@@ -113,10 +112,6 @@ static int coroutine_fn backup_cow_with_bounce_buffer(BackupBlockJob *job,
     BlockBackend *blk = job->common.blk;
     int nbytes;
     int read_flags = is_write_notifier ? BDRV_REQ_NO_SERIALISING : 0;
-    int write_flags =
-            (job->serialize_target_writes ? BDRV_REQ_SERIALISING : 0) |
-            (job->compress ? BDRV_REQ_WRITE_COMPRESSED : 0);
-
 
     assert(QEMU_IS_ALIGNED(start, job->cluster_size));
     bdrv_reset_dirty_bitmap(job->copy_bitmap, start, job->cluster_size);
@@ -135,7 +130,7 @@ static int coroutine_fn backup_cow_with_bounce_buffer(BackupBlockJob *job,
     }
 
     ret = blk_co_pwrite(job->target, start, nbytes, *bounce_buffer,
-                        write_flags);
+                        job->write_flags);
     if (ret < 0) {
         trace_backup_do_cow_write_fail(job, start, ret);
         if (error_is_read) {
@@ -163,7 +158,6 @@ static int coroutine_fn backup_cow_with_offload(BackupBlockJob *job,
     BlockBackend *blk = job->common.blk;
     int nbytes;
     int read_flags = is_write_notifier ? BDRV_REQ_NO_SERIALISING : 0;
-    int write_flags = job->serialize_target_writes ? BDRV_REQ_SERIALISING : 0;
 
     assert(QEMU_IS_ALIGNED(job->copy_range_size, job->cluster_size));
     assert(QEMU_IS_ALIGNED(start, job->cluster_size));
@@ -172,7 +166,7 @@ static int coroutine_fn backup_cow_with_offload(BackupBlockJob *job,
     bdrv_reset_dirty_bitmap(job->copy_bitmap, start,
                             job->cluster_size * nr_clusters);
     ret = blk_co_copy_range(blk, start, job->target, start, nbytes,
-                            read_flags, write_flags);
+                            read_flags, job->write_flags);
     if (ret < 0) {
         trace_backup_do_cow_copy_range_fail(job, start, ret);
         bdrv_set_dirty_bitmap(job->copy_bitmap, start,
@@ -751,10 +745,16 @@ BlockJob *backup_job_create(const char *job_id, BlockDriverState *bs,
     job->sync_mode = sync_mode;
     job->sync_bitmap = sync_bitmap;
     job->bitmap_mode = bitmap_mode;
-    job->compress = compress;
 
-    /* Detect image-fleecing (and similar) schemes */
-    job->serialize_target_writes = bdrv_chain_contains(target, bs);
+    /*
+     * Set write flags:
+     * 1. Detect image-fleecing (and similar) schemes
+     * 2. Handle compression
+     */
+    job->write_flags =
+        (bdrv_chain_contains(target, bs) ? BDRV_REQ_SERIALISING : 0) |
+        (compress ? BDRV_REQ_WRITE_COMPRESSED : 0);
+
     job->cluster_size = cluster_size;
     job->copy_bitmap = copy_bitmap;
     copy_bitmap = NULL;
