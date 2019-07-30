@@ -3615,7 +3615,7 @@ static BlockJob *do_drive_backup(DriveBackup *backup, JobTxn *txn,
     BlockDriverState *source = NULL;
     BlockJob *job = NULL;
     AioContext *aio_context;
-    QDict *options = NULL;
+    QDict *options;
     Error *local_err = NULL;
     int flags;
     int64_t size;
@@ -3688,10 +3688,10 @@ static BlockJob *do_drive_backup(DriveBackup *backup, JobTxn *txn,
         goto out;
     }
 
+    options = qdict_new();
+    qdict_put_str(options, "discard", "unmap");
+    qdict_put_str(options, "detect-zeroes", "unmap");
     if (backup->format) {
-        if (!options) {
-            options = qdict_new();
-        }
         qdict_put_str(options, "driver", backup->format);
     }
 

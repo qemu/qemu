@@ -113,7 +113,10 @@ static int coroutine_fn backup_cow_with_bounce_buffer(BackupBlockJob *job,
     BlockBackend *blk = job->common.blk;
     int nbytes;
     int read_flags = is_write_notifier ? BDRV_REQ_NO_SERIALISING : 0;
-    int write_flags = job->serialize_target_writes ? BDRV_REQ_SERIALISING : 0;
+    int write_flags =
+            (job->serialize_target_writes ? BDRV_REQ_SERIALISING : 0) |
+            (job->compress ? BDRV_REQ_WRITE_COMPRESSED : 0);
+
 
     assert(QEMU_IS_ALIGNED(start, job->cluster_size));
     bdrv_reset_dirty_bitmap(job->copy_bitmap, start, job->cluster_size);
@@ -131,14 +134,8 @@ static int coroutine_fn backup_cow_with_bounce_buffer(BackupBlockJob *job,
         goto fail;
     }
 
-    if (buffer_is_zero(*bounce_buffer, nbytes)) {
-        ret = blk_co_pwrite_zeroes(job->target, start,
-                                   nbytes, write_flags | BDRV_REQ_MAY_UNMAP);
-    } else {
-        ret = blk_co_pwrite(job->target, start,
-                            nbytes, *bounce_buffer, write_flags |
-                            (job->compress ? BDRV_REQ_WRITE_COMPRESSED : 0));
-    }
+    ret = blk_co_pwrite(job->target, start, nbytes, *bounce_buffer,
+                        write_flags);
     if (ret < 0) {
         trace_backup_do_cow_write_fail(job, start, ret);
         if (error_is_read) {
