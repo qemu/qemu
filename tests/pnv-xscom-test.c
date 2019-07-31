@@ -77,9 +77,15 @@ static void test_xscom_cfam_id(QTestState *qts, const PnvChip *chip)
 static void test_cfam_id(const void *data)
 {
     const PnvChip *chip = data;
+    const char *machine = "powernv8";
     QTestState *qts;
 
-    qts = qtest_initf("-M powernv,accel=tcg -cpu %s", chip->cpu_model);
+    if (chip->chip_type == PNV_CHIP_POWER9) {
+        machine = "powernv9";
+    }
+
+    qts = qtest_initf("-M %s,accel=tcg -cpu %s",
+                      machine, chip->cpu_model);
     test_xscom_cfam_id(qts, chip);
     qtest_quit(qts);
 }
@@ -113,8 +119,14 @@ static void test_core(const void *data)
 {
     const PnvChip *chip = data;
     QTestState *qts;
+    const char *machine = "powernv8";
 
-    qts = qtest_initf("-M powernv,accel=tcg -cpu %s", chip->cpu_model);
+    if (chip->chip_type == PNV_CHIP_POWER9) {
+        machine = "powernv9";
+    }
+
+    qts = qtest_initf("-M %s,accel=tcg -cpu %s",
+                      machine, chip->cpu_model);
     test_xscom_core(qts, chip);
     qtest_quit(qts);
 }
