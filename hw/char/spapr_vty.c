@@ -59,25 +59,19 @@ static int vty_getchars(SpaprVioDevice *sdev, uint8_t *buf, int max)
     int n = 0;
 
     while ((n < max) && (dev->out != dev->in)) {
-        buf[n++] = dev->buf[dev->out++ % VTERM_BUFSIZE];
-
-        /* PowerVM's vty implementation has a bug where it inserts a
-         * \0 after every \r going to the guest.  Existing guests have
-         * a workaround for this which removes every \0 immediately
-         * following a \r, so here we make ourselves bug-for-bug
-         * compatible, so that the guest won't drop a real \0-after-\r
-         * that happens to occur in a binary stream. */
-        if (buf[n - 1] == '\r') {
-            if (n < max) {
-                buf[n++] = '\0';
-            } else {
-                /* No room for the extra \0, roll back and try again
-                 * next time */
-                dev->out--;
-                n--;
-                break;
-            }
+        /*
+         * Long ago, PowerVM's vty implementation had a bug where it
+         * inserted a \0 after every \r going to the guest.  Existing
+         * guests have a workaround for this which removes every \0
+         * immediately following a \r.  To avoid triggering this
+         * workaround, we stop before inserting a \0 if the preceding
+         * character in the output buffer is a \r.
+         */
+        if (n > 0 && (buf[n - 1] == '\r') &&
+                (dev->buf[dev->out % VTERM_BUFSIZE] == '\0')) {
+            break;
         }
+        buf[n++] = dev->buf[dev->out++ % VTERM_BUFSIZE];
     }
 
     qemu_chr_fe_accept_input(&dev->chardev);
