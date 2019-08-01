@@ -376,11 +376,9 @@ void dump_mmu(CPUSPARCState *env)
     CPUState *cs = env_cpu(env);
     target_ulong va, va1, va2;
     unsigned int n, m, o;
-    hwaddr pde_ptr, pa;
+    hwaddr pa;
     uint32_t pde;
 
-    pde_ptr = (env->mmuregs[1] << 4) + (env->mmuregs[2] << 2);
-    pde = ldl_phys(cs->as, pde_ptr);
     qemu_printf("Root ptr: " TARGET_FMT_plx ", ctx: %d\n",
                 (hwaddr)env->mmuregs[1] << 4, env->mmuregs[2]);
     for (n = 0, va = 0; n < 256; n++, va += 16 * 1024 * 1024) {
