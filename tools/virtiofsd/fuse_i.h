@@ -61,6 +61,7 @@ struct fuse_session {
     struct fuse_req list;
     struct fuse_req interrupts;
     pthread_mutex_t lock;
+    pthread_rwlock_t init_rwlock;
     int got_destroy;
     int broken_splice_nonblock;
     uint64_t notify_ctr;

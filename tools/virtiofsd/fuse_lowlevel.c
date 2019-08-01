@@ -2428,6 +2428,19 @@ void fuse_session_process_buf_int(struct fuse_session *se,
     req->ctx.pid = in->pid;
     req->ch = ch;
 
+    /*
+     * INIT and DESTROY requests are serialized, all other request types
+     * run in parallel.  This prevents races between FUSE_INIT and ordinary
+     * requests, FUSE_INIT and FUSE_INIT, FUSE_INIT and FUSE_DESTROY, and
+     * FUSE_DESTROY and FUSE_DESTROY.
+     */
+    if (in->opcode == FUSE_INIT || in->opcode == CUSE_INIT ||
+        in->opcode == FUSE_DESTROY) {
+        pthread_rwlock_wrlock(&se->init_rwlock);
+    } else {
+        pthread_rwlock_rdlock(&se->init_rwlock);
+    }
+
     err = EIO;
     if (!se->got_init) {
         enum fuse_opcode expected;
@@ -2485,10 +2498,13 @@ void fuse_session_process_buf_int(struct fuse_session *se,
     } else {
         fuse_ll_ops[in->opcode].func(req, in->nodeid, &iter);
     }
+
+    pthread_rwlock_unlock(&se->init_rwlock);
     return;
 
 reply_err:
     fuse_reply_err(req, err);
+    pthread_rwlock_unlock(&se->init_rwlock);
 }
 
 #define LL_OPTION(n, o, v)                     \
@@ -2531,6 +2547,7 @@ void fuse_session_destroy(struct fuse_session *se)
             se->op.destroy(se->userdata);
         }
     }
+    pthread_rwlock_destroy(&se->init_rwlock);
     pthread_mutex_destroy(&se->lock);
     free(se->cuse_data);
     if (se->fd != -1) {
@@ -2610,6 +2627,7 @@ struct fuse_session *fuse_session_new(struct fuse_args *args,
     list_init_req(&se->list);
     list_init_req(&se->interrupts);
     fuse_mutex_init(&se->lock);
+    pthread_rwlock_init(&se->init_rwlock, NULL);
 
     memcpy(&se->op, op, op_size);
     se->owner = getuid();
