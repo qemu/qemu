@@ -583,6 +583,22 @@ class VM(qtest.QEMUQtestMachine):
             elif status == 'null':
                 return error
 
+    def enable_migration_events(self, name):
+        log('Enabling migration QMP events on %s...' % name)
+        log(self.qmp('migrate-set-capabilities', capabilities=[
+            {
+                'capability': 'events',
+                'state': True
+            }
+        ]))
+
+    def wait_migration(self):
+        while True:
+            event = self.event_wait('MIGRATION')
+            log(event, filters=[filter_qmp_event])
+            if event['data']['status'] == 'completed':
+                break
+
     def node_info(self, node_name):
         nodes = self.qmp('query-named-block-nodes')
         for x in nodes['return']:
