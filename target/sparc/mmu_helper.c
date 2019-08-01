@@ -288,11 +288,20 @@ target_ulong mmu_probe(CPUSPARCState *env, target_ulong address, int mmulev)
     CPUState *cs = env_cpu(env);
     hwaddr pde_ptr;
     uint32_t pde;
+    MemTxResult result;
+
+    /*
+     * TODO: MMU probe operations are supposed to set the fault
+     * status registers, but we don't do this.
+     */
 
     /* Context base + context number */
     pde_ptr = (hwaddr)(env->mmuregs[1] << 4) +
         (env->mmuregs[2] << 2);
-    pde = ldl_phys(cs->as, pde_ptr);
+    pde = address_space_ldl(cs->as, pde_ptr, MEMTXATTRS_UNSPECIFIED, &result);
+    if (result != MEMTX_OK) {
+        return 0;
+    }
 
     switch (pde & PTE_ENTRYTYPE_MASK) {
     default:
@@ -305,7 +314,11 @@ target_ulong mmu_probe(CPUSPARCState *env, target_ulong address, int mmulev)
             return pde;
         }
         pde_ptr = ((address >> 22) & ~3) + ((pde & ~3) << 4);
-        pde = ldl_phys(cs->as, pde_ptr);
+        pde = address_space_ldl(cs->as, pde_ptr,
+                                MEMTXATTRS_UNSPECIFIED, &result);
+        if (result != MEMTX_OK) {
+            return 0;
+        }
 
         switch (pde & PTE_ENTRYTYPE_MASK) {
         default:
@@ -319,7 +332,11 @@ target_ulong mmu_probe(CPUSPARCState *env, target_ulong address, int mmulev)
                 return pde;
             }
             pde_ptr = ((address & 0xfc0000) >> 16) + ((pde & ~3) << 4);
-            pde = ldl_phys(cs->as, pde_ptr);
+            pde = address_space_ldl(cs->as, pde_ptr,
+                                    MEMTXATTRS_UNSPECIFIED, &result);
+            if (result != MEMTX_OK) {
+                return 0;
+            }
 
             switch (pde & PTE_ENTRYTYPE_MASK) {
             default:
@@ -333,7 +350,11 @@ target_ulong mmu_probe(CPUSPARCState *env, target_ulong address, int mmulev)
                     return pde;
                 }
                 pde_ptr = ((address & 0x3f000) >> 10) + ((pde & ~3) << 4);
-                pde = ldl_phys(cs->as, pde_ptr);
+                pde = address_space_ldl(cs->as, pde_ptr,
+                                        MEMTXATTRS_UNSPECIFIED, &result);
+                if (result != MEMTX_OK) {
+                    return 0;
+                }
 
                 switch (pde & PTE_ENTRYTYPE_MASK) {
                 default:
