@@ -72,6 +72,7 @@ struct fuse_session {
     int   vu_listen_fd;
     int   vu_socketfd;
     struct fv_VuDev *virtio_dev;
+    int thread_pool_size;
 };
 
 struct fuse_chan {

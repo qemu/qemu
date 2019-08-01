@@ -572,10 +572,11 @@ static void *fv_queue_thread(void *opaque)
     struct fv_QueueInfo *qi = opaque;
     struct VuDev *dev = &qi->virtio_dev->dev;
     struct VuVirtq *q = vu_get_queue(dev, qi->qidx);
+    struct fuse_session *se = qi->virtio_dev->se;
     GThreadPool *pool;
 
-    pool = g_thread_pool_new(fv_queue_worker, qi, 1 /* TODO max_threads */,
-                             TRUE, NULL);
+    pool = g_thread_pool_new(fv_queue_worker, qi, se->thread_pool_size, TRUE,
+                             NULL);
     if (!pool) {
         fuse_log(FUSE_LOG_ERR, "%s: g_thread_pool_new failed\n", __func__);
         return NULL;
