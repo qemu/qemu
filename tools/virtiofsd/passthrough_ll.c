@@ -1371,26 +1371,6 @@ static void unref_inode_lolocked(struct lo_data *lo, struct lo_inode *inode,
     }
 }
 
-static int unref_all_inodes_cb(gpointer key, gpointer value, gpointer user_data)
-{
-    struct lo_inode *inode = value;
-    struct lo_data *lo = user_data;
-
-    inode->nlookup = 0;
-    lo_map_remove(&lo->ino_map, inode->fuse_ino);
-    close(inode->fd);
-    lo_inode_put(lo, &inode); /* Drop our refcount from lo_do_lookup() */
-
-    return TRUE;
-}
-
-static void unref_all_inodes(struct lo_data *lo)
-{
-    pthread_mutex_lock(&lo->mutex);
-    g_hash_table_foreach_remove(lo->inodes, unref_all_inodes_cb, lo);
-    pthread_mutex_unlock(&lo->mutex);
-}
-
 static void lo_forget_one(fuse_req_t req, fuse_ino_t ino, uint64_t nlookup)
 {
     struct lo_data *lo = lo_data(req);
@@ -2477,7 +2457,26 @@ static void lo_lseek(fuse_req_t req, fuse_ino_t ino, off_t off, int whence,
 static void lo_destroy(void *userdata)
 {
     struct lo_data *lo = (struct lo_data *)userdata;
-    unref_all_inodes(lo);
+
+    /*
+     * Normally lo->mutex must be taken when traversing lo->inodes but
+     * lo_destroy() is a serialized request so no races are possible here.
+     *
+     * In addition, we cannot acquire lo->mutex since unref_inode() takes it
+     * too and this would result in a recursive lock.
+     */
+    while (true) {
+        GHashTableIter iter;
+        gpointer key, value;
+
+        g_hash_table_iter_init(&iter, lo->inodes);
+        if (!g_hash_table_iter_next(&iter, &key, &value)) {
+            break;
+        }
+
+        struct lo_inode *inode = value;
+        unref_inode_lolocked(lo, inode, inode->nlookup);
+    }
 }
 
 static struct fuse_lowlevel_ops lo_oper = {
