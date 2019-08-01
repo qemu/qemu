@@ -718,26 +718,36 @@ uint64_t helper_ld_asi(CPUSPARCState *env, target_ulong addr,
     case ASI_M_DATAC_DATA: /* SparcStation 5 D-cache data */
         break;
     case 0x21 ... 0x2f: /* MMU passthrough, 0x100000000 to 0xfffffffff */
+    {
+        MemTxResult result;
+        hwaddr access_addr = (hwaddr)addr | ((hwaddr)(asi & 0xf) << 32);
+
         switch (size) {
         case 1:
-            ret = ldub_phys(cs->as, (hwaddr)addr
-                            | ((hwaddr)(asi & 0xf) << 32));
+            ret = address_space_ldub(cs->as, access_addr,
+                                     MEMTXATTRS_UNSPECIFIED, &result);
             break;
         case 2:
-            ret = lduw_phys(cs->as, (hwaddr)addr
-                            | ((hwaddr)(asi & 0xf) << 32));
+            ret = address_space_lduw(cs->as, access_addr,
+                                     MEMTXATTRS_UNSPECIFIED, &result);
             break;
         default:
         case 4:
-            ret = ldl_phys(cs->as, (hwaddr)addr
-                           | ((hwaddr)(asi & 0xf) << 32));
+            ret = address_space_ldl(cs->as, access_addr,
+                                    MEMTXATTRS_UNSPECIFIED, &result);
             break;
         case 8:
-            ret = ldq_phys(cs->as, (hwaddr)addr
-                           | ((hwaddr)(asi & 0xf) << 32));
+            ret = address_space_ldq(cs->as, access_addr,
+                                    MEMTXATTRS_UNSPECIFIED, &result);
             break;
         }
+
+        if (result != MEMTX_OK) {
+            sparc_raise_mmu_fault(cs, access_addr, false, false, false,
+                                  size, GETPC());
+        }
         break;
+    }
     case 0x30: /* Turbosparc secondary cache diagnostic */
     case 0x31: /* Turbosparc RAM snoop */
     case 0x32: /* Turbosparc page table descriptor diagnostic */
@@ -1053,24 +1063,31 @@ void helper_st_asi(CPUSPARCState *env, target_ulong addr, uint64_t val,
         break;
     case 0x21 ... 0x2f: /* MMU passthrough, 0x100000000 to 0xfffffffff */
         {
+            MemTxResult result;
+            hwaddr access_addr = (hwaddr)addr | ((hwaddr)(asi & 0xf) << 32);
+
             switch (size) {
             case 1:
-                stb_phys(cs->as, (hwaddr)addr
-                         | ((hwaddr)(asi & 0xf) << 32), val);
+                address_space_stb(cs->as, access_addr, val,
+                                  MEMTXATTRS_UNSPECIFIED, &result);
                 break;
             case 2:
-                stw_phys(cs->as, (hwaddr)addr
-                         | ((hwaddr)(asi & 0xf) << 32), val);
+                address_space_stw(cs->as, access_addr, val,
+                                  MEMTXATTRS_UNSPECIFIED, &result);
                 break;
             case 4:
             default:
-                stl_phys(cs->as, (hwaddr)addr
-                         | ((hwaddr)(asi & 0xf) << 32), val);
+                address_space_stl(cs->as, access_addr, val,
+                                  MEMTXATTRS_UNSPECIFIED, &result);
                 break;
             case 8:
-                stq_phys(cs->as, (hwaddr)addr
-                         | ((hwaddr)(asi & 0xf) << 32), val);
+                address_space_stq(cs->as, access_addr, val,
+                                  MEMTXATTRS_UNSPECIFIED, &result);
                 break;
+            }
+            if (result != MEMTX_OK) {
+                sparc_raise_mmu_fault(cs, access_addr, true, false, false,
+                                      size, GETPC());
             }
         }
         break;
