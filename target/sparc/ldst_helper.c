@@ -1943,11 +1943,19 @@ void helper_st_asi(CPUSPARCState *env, target_ulong addr, target_ulong val,
 #endif /* TARGET_SPARC64 */
 
 #if !defined(CONFIG_USER_ONLY)
-void sparc_cpu_unassigned_access(CPUState *cs, hwaddr addr,
-                                 bool is_write, bool is_exec, int is_asi,
-                                 unsigned size)
+
+void sparc_cpu_do_transaction_failed(CPUState *cs, hwaddr physaddr,
+                                     vaddr addr, unsigned size,
+                                     MMUAccessType access_type,
+                                     int mmu_idx, MemTxAttrs attrs,
+                                     MemTxResult response, uintptr_t retaddr)
 {
-    sparc_raise_mmu_fault(cs, addr, is_write, is_exec, is_asi, size, GETPC());
+    bool is_write = access_type == MMU_DATA_STORE;
+    bool is_exec = access_type == MMU_INST_FETCH;
+    bool is_asi = false;
+
+    sparc_raise_mmu_fault(cs, physaddr, is_write, is_exec,
+                          is_asi, size, retaddr);
 }
 #endif
 

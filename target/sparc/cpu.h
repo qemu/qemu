@@ -614,9 +614,11 @@ static inline int tlb_compare_context(const SparcTLBEntry *tlb,
 
 /* cpu-exec.c */
 #if !defined(CONFIG_USER_ONLY)
-void sparc_cpu_unassigned_access(CPUState *cpu, hwaddr addr,
-                                 bool is_write, bool is_exec, int is_asi,
-                                 unsigned size);
+void sparc_cpu_do_transaction_failed(CPUState *cs, hwaddr physaddr,
+                                     vaddr addr, unsigned size,
+                                     MMUAccessType access_type,
+                                     int mmu_idx, MemTxAttrs attrs,
+                                     MemTxResult response, uintptr_t retaddr);
 #if defined(TARGET_SPARC64)
 hwaddr cpu_get_phys_page_nofault(CPUSPARCState *env, target_ulong addr,
                                            int mmu_idx);
