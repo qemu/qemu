@@ -422,6 +422,99 @@ static void dump_asi(const char *txt, target_ulong addr, int asi, int size,
 }
 #endif
 
+#ifndef CONFIG_USER_ONLY
+#ifndef TARGET_SPARC64
+static void sparc_raise_mmu_fault(CPUState *cs, hwaddr addr,
+                                  bool is_write, bool is_exec, int is_asi,
+                                  unsigned size, uintptr_t retaddr)
+{
+    SPARCCPU *cpu = SPARC_CPU(cs);
+    CPUSPARCState *env = &cpu->env;
+    int fault_type;
+
+#ifdef DEBUG_UNASSIGNED
+    if (is_asi) {
+        printf("Unassigned mem %s access of %d byte%s to " TARGET_FMT_plx
+               " asi 0x%02x from " TARGET_FMT_lx "\n",
+               is_exec ? "exec" : is_write ? "write" : "read", size,
+               size == 1 ? "" : "s", addr, is_asi, env->pc);
+    } else {
+        printf("Unassigned mem %s access of %d byte%s to " TARGET_FMT_plx
+               " from " TARGET_FMT_lx "\n",
+               is_exec ? "exec" : is_write ? "write" : "read", size,
+               size == 1 ? "" : "s", addr, env->pc);
+    }
+#endif
+    /* Don't overwrite translation and access faults */
+    fault_type = (env->mmuregs[3] & 0x1c) >> 2;
+    if ((fault_type > 4) || (fault_type == 0)) {
+        env->mmuregs[3] = 0; /* Fault status register */
+        if (is_asi) {
+            env->mmuregs[3] |= 1 << 16;
+        }
+        if (env->psrs) {
+            env->mmuregs[3] |= 1 << 5;
+        }
+        if (is_exec) {
+            env->mmuregs[3] |= 1 << 6;
+        }
+        if (is_write) {
+            env->mmuregs[3] |= 1 << 7;
+        }
+        env->mmuregs[3] |= (5 << 2) | 2;
+        /* SuperSPARC will never place instruction fault addresses in the FAR */
+        if (!is_exec) {
+            env->mmuregs[4] = addr; /* Fault address register */
+        }
+    }
+    /* overflow (same type fault was not read before another fault) */
+    if (fault_type == ((env->mmuregs[3] & 0x1c)) >> 2) {
+        env->mmuregs[3] |= 1;
+    }
+
+    if ((env->mmuregs[0] & MMU_E) && !(env->mmuregs[0] & MMU_NF)) {
+        int tt = is_exec ? TT_CODE_ACCESS : TT_DATA_ACCESS;
+        cpu_raise_exception_ra(env, tt, retaddr);
+    }
+
+    /*
+     * flush neverland mappings created during no-fault mode,
+     * so the sequential MMU faults report proper fault types
+     */
+    if (env->mmuregs[0] & MMU_NF) {
+        tlb_flush(cs);
+    }
+}
+#else
+static void sparc_raise_mmu_fault(CPUState *cs, hwaddr addr,
+                                  bool is_write, bool is_exec, int is_asi,
+                                  unsigned size, uintptr_t retaddr)
+{
+    SPARCCPU *cpu = SPARC_CPU(cs);
+    CPUSPARCState *env = &cpu->env;
+
+#ifdef DEBUG_UNASSIGNED
+    printf("Unassigned mem access to " TARGET_FMT_plx " from " TARGET_FMT_lx
+           "\n", addr, env->pc);
+#endif
+
+    if (is_exec) { /* XXX has_hypervisor */
+        if (env->lsu & (IMMU_E)) {
+            cpu_raise_exception_ra(env, TT_CODE_ACCESS, retaddr);
+        } else if (cpu_has_hypervisor(env) && !(env->hpstate & HS_PRIV)) {
+            cpu_raise_exception_ra(env, TT_INSN_REAL_TRANSLATION_MISS, retaddr);
+        }
+    } else {
+        if (env->lsu & (DMMU_E)) {
+            cpu_raise_exception_ra(env, TT_DATA_ACCESS, retaddr);
+        } else if (cpu_has_hypervisor(env) && !(env->hpstate & HS_PRIV)) {
+            cpu_raise_exception_ra(env, TT_DATA_REAL_TRANSLATION_MISS, retaddr);
+        }
+    }
+}
+#endif
+#endif
+
 #ifndef TARGET_SPARC64
 #ifndef CONFIG_USER_ONLY
 
@@ -688,7 +781,7 @@ uint64_t helper_ld_asi(CPUSPARCState *env, target_ulong addr,
         break;
     case ASI_USERTXT: /* User code access, XXX */
     default:
-        cpu_unassigned_access(cs, addr, false, false, asi, size);
+        sparc_raise_mmu_fault(cs, addr, false, false, asi, size, GETPC());
         ret = 0;
         break;
 
@@ -1026,7 +1119,7 @@ void helper_st_asi(CPUSPARCState *env, target_ulong addr, uint64_t val,
     case ASI_USERTXT: /* User code access, XXX */
     case ASI_KERNELTXT: /* Supervisor code access, XXX */
     default:
-        cpu_unassigned_access(cs, addr, true, false, asi, size);
+        sparc_raise_mmu_fault(cs, addr, true, false, asi, size, GETPC());
         break;
 
     case ASI_USERDATA: /* User data access */
@@ -1292,7 +1385,7 @@ uint64_t helper_ld_asi(CPUSPARCState *env, target_ulong addr,
                 ret = env->immu.tag_access;
                 break;
             default:
-                cpu_unassigned_access(cs, addr, false, false, 1, size);
+                sparc_raise_mmu_fault(cs, addr, false, false, 1, size, GETPC());
                 ret = 0;
             }
             break;
@@ -1358,7 +1451,7 @@ uint64_t helper_ld_asi(CPUSPARCState *env, target_ulong addr,
                 ret = env->dmmu.physical_watchpoint;
                 break;
             default:
-                cpu_unassigned_access(cs, addr, false, false, 1, size);
+                sparc_raise_mmu_fault(cs, addr, false, false, 1, size, GETPC());
                 ret = 0;
             }
             break;
@@ -1407,7 +1500,7 @@ uint64_t helper_ld_asi(CPUSPARCState *env, target_ulong addr,
     case ASI_SCRATCHPAD: /* UA2005 privileged scratchpad */
         if (unlikely((addr >= 0x20) && (addr < 0x30))) {
             /* Hyperprivileged access only */
-            cpu_unassigned_access(cs, addr, false, false, 1, size);
+            sparc_raise_mmu_fault(cs, addr, false, false, 1, size, GETPC());
         }
         /* fall through */
     case ASI_HYP_SCRATCHPAD: /* UA2005 hyperprivileged scratchpad */
@@ -1425,7 +1518,7 @@ uint64_t helper_ld_asi(CPUSPARCState *env, target_ulong addr,
             ret = env->dmmu.mmu_secondary_context;
             break;
         default:
-          cpu_unassigned_access(cs, addr, true, false, 1, size);
+          sparc_raise_mmu_fault(cs, addr, true, false, 1, size, GETPC());
         }
         break;
     case ASI_DCACHE_DATA:     /* D-cache data */
@@ -1448,7 +1541,7 @@ uint64_t helper_ld_asi(CPUSPARCState *env, target_ulong addr,
     case ASI_DMMU_DEMAP:          /* D-MMU demap, WO */
     case ASI_INTR_W:              /* Interrupt vector, WO */
     default:
-        cpu_unassigned_access(cs, addr, false, false, 1, size);
+        sparc_raise_mmu_fault(cs, addr, false, false, 1, size, GETPC());
         ret = 0;
         break;
     }
@@ -1622,7 +1715,7 @@ void helper_st_asi(CPUSPARCState *env, target_ulong addr, target_ulong val,
             case 8:
                 return;
             default:
-                cpu_unassigned_access(cs, addr, true, false, 1, size);
+                sparc_raise_mmu_fault(cs, addr, true, false, 1, size, GETPC());
                 break;
             }
 
@@ -1706,7 +1799,7 @@ void helper_st_asi(CPUSPARCState *env, target_ulong addr, target_ulong val,
                 env->dmmu.physical_watchpoint = val;
                 break;
             default:
-                cpu_unassigned_access(cs, addr, true, false, 1, size);
+                sparc_raise_mmu_fault(cs, addr, true, false, 1, size, GETPC());
                 break;
             }
 
@@ -1750,7 +1843,7 @@ void helper_st_asi(CPUSPARCState *env, target_ulong addr, target_ulong val,
     case ASI_SCRATCHPAD: /* UA2005 privileged scratchpad */
         if (unlikely((addr >= 0x20) && (addr < 0x30))) {
             /* Hyperprivileged access only */
-            cpu_unassigned_access(cs, addr, true, false, 1, size);
+            sparc_raise_mmu_fault(cs, addr, true, false, 1, size, GETPC());
         }
         /* fall through */
     case ASI_HYP_SCRATCHPAD: /* UA2005 hyperprivileged scratchpad */
@@ -1776,7 +1869,7 @@ void helper_st_asi(CPUSPARCState *env, target_ulong addr, target_ulong val,
                                   (1 << MMU_KERNEL_SECONDARY_IDX));
               break;
           default:
-              cpu_unassigned_access(cs, addr, true, false, 1, size);
+              sparc_raise_mmu_fault(cs, addr, true, false, 1, size, GETPC());
           }
         }
         return;
@@ -1808,7 +1901,7 @@ void helper_st_asi(CPUSPARCState *env, target_ulong addr, target_ulong val,
     case ASI_PNFL: /* Primary no-fault LE, RO */
     case ASI_SNFL: /* Secondary no-fault LE, RO */
     default:
-        cpu_unassigned_access(cs, addr, true, false, 1, size);
+        sparc_raise_mmu_fault(cs, addr, true, false, 1, size, GETPC());
         return;
     }
 }
@@ -1816,94 +1909,12 @@ void helper_st_asi(CPUSPARCState *env, target_ulong addr, target_ulong val,
 #endif /* TARGET_SPARC64 */
 
 #if !defined(CONFIG_USER_ONLY)
-#ifndef TARGET_SPARC64
 void sparc_cpu_unassigned_access(CPUState *cs, hwaddr addr,
                                  bool is_write, bool is_exec, int is_asi,
                                  unsigned size)
 {
-    SPARCCPU *cpu = SPARC_CPU(cs);
-    CPUSPARCState *env = &cpu->env;
-    int fault_type;
-
-#ifdef DEBUG_UNASSIGNED
-    if (is_asi) {
-        printf("Unassigned mem %s access of %d byte%s to " TARGET_FMT_plx
-               " asi 0x%02x from " TARGET_FMT_lx "\n",
-               is_exec ? "exec" : is_write ? "write" : "read", size,
-               size == 1 ? "" : "s", addr, is_asi, env->pc);
-    } else {
-        printf("Unassigned mem %s access of %d byte%s to " TARGET_FMT_plx
-               " from " TARGET_FMT_lx "\n",
-               is_exec ? "exec" : is_write ? "write" : "read", size,
-               size == 1 ? "" : "s", addr, env->pc);
-    }
-#endif
-    /* Don't overwrite translation and access faults */
-    fault_type = (env->mmuregs[3] & 0x1c) >> 2;
-    if ((fault_type > 4) || (fault_type == 0)) {
-        env->mmuregs[3] = 0; /* Fault status register */
-        if (is_asi) {
-            env->mmuregs[3] |= 1 << 16;
-        }
-        if (env->psrs) {
-            env->mmuregs[3] |= 1 << 5;
-        }
-        if (is_exec) {
-            env->mmuregs[3] |= 1 << 6;
-        }
-        if (is_write) {
-            env->mmuregs[3] |= 1 << 7;
-        }
-        env->mmuregs[3] |= (5 << 2) | 2;
-        /* SuperSPARC will never place instruction fault addresses in the FAR */
-        if (!is_exec) {
-            env->mmuregs[4] = addr; /* Fault address register */
-        }
-    }
-    /* overflow (same type fault was not read before another fault) */
-    if (fault_type == ((env->mmuregs[3] & 0x1c)) >> 2) {
-        env->mmuregs[3] |= 1;
-    }
-
-    if ((env->mmuregs[0] & MMU_E) && !(env->mmuregs[0] & MMU_NF)) {
-        int tt = is_exec ? TT_CODE_ACCESS : TT_DATA_ACCESS;
-        cpu_raise_exception_ra(env, tt, GETPC());
-    }
-
-    /* flush neverland mappings created during no-fault mode,
-       so the sequential MMU faults report proper fault types */
-    if (env->mmuregs[0] & MMU_NF) {
-        tlb_flush(cs);
-    }
+    sparc_raise_mmu_fault(cs, addr, is_write, is_exec, is_asi, size, GETPC());
 }
-#else
-void sparc_cpu_unassigned_access(CPUState *cs, hwaddr addr,
-                                 bool is_write, bool is_exec, int is_asi,
-                                 unsigned size)
-{
-    SPARCCPU *cpu = SPARC_CPU(cs);
-    CPUSPARCState *env = &cpu->env;
-
-#ifdef DEBUG_UNASSIGNED
-    printf("Unassigned mem access to " TARGET_FMT_plx " from " TARGET_FMT_lx
-           "\n", addr, env->pc);
-#endif
-
-    if (is_exec) { /* XXX has_hypervisor */
-        if (env->lsu & (IMMU_E)) {
-            cpu_raise_exception_ra(env, TT_CODE_ACCESS, GETPC());
-        } else if (cpu_has_hypervisor(env) && !(env->hpstate & HS_PRIV)) {
-            cpu_raise_exception_ra(env, TT_INSN_REAL_TRANSLATION_MISS, GETPC());
-        }
-    } else {
-        if (env->lsu & (DMMU_E)) {
-            cpu_raise_exception_ra(env, TT_DATA_ACCESS, GETPC());
-        } else if (cpu_has_hypervisor(env) && !(env->hpstate & HS_PRIV)) {
-            cpu_raise_exception_ra(env, TT_DATA_REAL_TRANSLATION_MISS, GETPC());
-        }
-    }
-}
-#endif
 #endif
 
 #if !defined(CONFIG_USER_ONLY)
