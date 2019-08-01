@@ -880,6 +880,9 @@ void helper_st_asi(CPUSPARCState *env, target_ulong addr, uint64_t val,
             }
             break;
         case 0x01c00100: /* MXCC stream source */
+        {
+            int i;
+
             if (size == 8) {
                 env->mxccregs[0] = val;
             } else {
@@ -887,20 +890,27 @@ void helper_st_asi(CPUSPARCState *env, target_ulong addr, uint64_t val,
                               "%08x: unimplemented access size: %d\n", addr,
                               size);
             }
-            env->mxccdata[0] = ldq_phys(cs->as,
-                                        (env->mxccregs[0] & 0xffffffffULL) +
-                                        0);
-            env->mxccdata[1] = ldq_phys(cs->as,
-                                        (env->mxccregs[0] & 0xffffffffULL) +
-                                        8);
-            env->mxccdata[2] = ldq_phys(cs->as,
-                                        (env->mxccregs[0] & 0xffffffffULL) +
-                                        16);
-            env->mxccdata[3] = ldq_phys(cs->as,
-                                        (env->mxccregs[0] & 0xffffffffULL) +
-                                        24);
+
+            for (i = 0; i < 4; i++) {
+                MemTxResult result;
+                hwaddr access_addr = (env->mxccregs[0] & 0xffffffffULL) + 8 * i;
+
+                env->mxccdata[i] = address_space_ldq(cs->as,
+                                                     access_addr,
+                                                     MEMTXATTRS_UNSPECIFIED,
+                                                     &result);
+                if (result != MEMTX_OK) {
+                    /* TODO: investigate whether this is the right behaviour */
+                    sparc_raise_mmu_fault(cs, access_addr, false, false,
+                                          false, size, GETPC());
+                }
+            }
             break;
+        }
         case 0x01c00200: /* MXCC stream destination */
+        {
+            int i;
+
             if (size == 8) {
                 env->mxccregs[1] = val;
             } else {
@@ -908,15 +918,22 @@ void helper_st_asi(CPUSPARCState *env, target_ulong addr, uint64_t val,
                               "%08x: unimplemented access size: %d\n", addr,
                               size);
             }
-            stq_phys(cs->as, (env->mxccregs[1] & 0xffffffffULL) +  0,
-                     env->mxccdata[0]);
-            stq_phys(cs->as, (env->mxccregs[1] & 0xffffffffULL) +  8,
-                     env->mxccdata[1]);
-            stq_phys(cs->as, (env->mxccregs[1] & 0xffffffffULL) + 16,
-                     env->mxccdata[2]);
-            stq_phys(cs->as, (env->mxccregs[1] & 0xffffffffULL) + 24,
-                     env->mxccdata[3]);
+
+            for (i = 0; i < 4; i++) {
+                MemTxResult result;
+                hwaddr access_addr = (env->mxccregs[1] & 0xffffffffULL) + 8 * i;
+
+                address_space_stq(cs->as, access_addr, env->mxccdata[i],
+                                  MEMTXATTRS_UNSPECIFIED, &result);
+
+                if (result != MEMTX_OK) {
+                    /* TODO: investigate whether this is the right behaviour */
+                    sparc_raise_mmu_fault(cs, access_addr, true, false,
+                                          false, size, GETPC());
+                }
+            }
             break;
+        }
         case 0x01c00a00: /* MXCC control register */
             if (size == 8) {
                 env->mxccregs[3] = val;
