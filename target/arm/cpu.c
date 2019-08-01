@@ -266,6 +266,14 @@ static void arm_cpu_reset(CPUState *s)
              * on ARM_FEATURE_V8 (we don't let the guest see the bit).
              */
             env->v7m.aircr = R_V7M_AIRCR_BFHFNMINS_MASK;
+            /*
+             * Set NSACR to indicate "NS access permitted to everything";
+             * this avoids having to have all the tests of it being
+             * conditional on ARM_FEATURE_M_SECURITY. Note also that from
+             * v8.1M the guest-visible value of NSACR in a CPU without the
+             * Security Extension is 0xcff.
+             */
+            env->v7m.nsacr = 0xcff;
         }
 
         /* In v7M the reset value of this bit is IMPDEF, but ARM recommends
