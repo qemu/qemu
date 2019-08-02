@@ -111,18 +111,6 @@ static const MemoryRegionOps dma_dummy_ops = {
 #define MAGNUM_BIOS_SIZE_MAX 0x7e000
 #define MAGNUM_BIOS_SIZE (BIOS_SIZE < MAGNUM_BIOS_SIZE_MAX ? BIOS_SIZE : MAGNUM_BIOS_SIZE_MAX)
 
-static CPUUnassignedAccess real_do_unassigned_access;
-static void mips_jazz_do_unassigned_access(CPUState *cpu, hwaddr addr,
-                                           bool is_write, bool is_exec,
-                                           int opaque, unsigned size)
-{
-    if (!is_exec) {
-        /* ignore invalid access (ie do not raise exception) */
-        return;
-    }
-    (*real_do_unassigned_access)(cpu, addr, is_write, is_exec, opaque, size);
-}
-
 static void (*real_do_transaction_failed)(CPUState *cpu, hwaddr physaddr,
                                           vaddr addr, unsigned size,
                                           MMUAccessType access_type,
@@ -184,9 +172,8 @@ static void mips_jazz_init(MachineState *machine,
      * However, we can't simply add a global memory region to catch
      * everything, as this would make all accesses including instruction
      * accesses be ignored and not raise exceptions.
-     * So instead we hijack either the do_unassigned_access method or
-     * the do_transaction_failed method on the CPU, and do not raise exceptions
-     * for data access.
+     * So instead we hijack the do_transaction_failed method on the CPU, and
+     * do not raise exceptions for data access.
      *
      * NOTE: this behaviour of raising exceptions for bad instruction
      * fetches but not bad data accesses was added in commit 54e755588cf1e9
@@ -197,14 +184,8 @@ static void mips_jazz_init(MachineState *machine,
      * memory region that catches all memory accesses, as we do on Malta.
      */
     cc = CPU_GET_CLASS(cpu);
-    if (cc->do_unassigned_access) {
-        real_do_unassigned_access = cc->do_unassigned_access;
-        cc->do_unassigned_access = mips_jazz_do_unassigned_access;
-    }
-    if (cc->do_transaction_failed) {
-        real_do_transaction_failed = cc->do_transaction_failed;
-        cc->do_transaction_failed = mips_jazz_do_transaction_failed;
-    }
+    real_do_transaction_failed = cc->do_transaction_failed;
+    cc->do_transaction_failed = mips_jazz_do_transaction_failed;
 
     /* allocate RAM */
     memory_region_allocate_system_memory(ram, NULL, "mips_jazz.ram",
