@@ -217,6 +217,15 @@ void kvm_arm_set_cpu_features_from_host(ARMCPU *cpu);
 bool kvm_arm_aarch32_supported(CPUState *cs);
 
 /**
+ * bool kvm_arm_pmu_supported:
+ * @cs: CPUState
+ *
+ * Returns: true if the KVM VCPU can enable its PMU
+ * and false otherwise.
+ */
+bool kvm_arm_pmu_supported(CPUState *cs);
+
+/**
  * kvm_arm_get_max_vm_ipa_size - Returns the number of bits in the
  * IPA address space supported by KVM
  *
@@ -257,6 +266,11 @@ static inline void kvm_arm_set_cpu_features_from_host(ARMCPU *cpu)
 }
 
 static inline bool kvm_arm_aarch32_supported(CPUState *cs)
+{
+    return false;
+}
+
+static inline bool kvm_arm_pmu_supported(CPUState *cs)
 {
     return false;
 }
