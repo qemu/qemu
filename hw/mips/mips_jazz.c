@@ -123,6 +123,28 @@ static void mips_jazz_do_unassigned_access(CPUState *cpu, hwaddr addr,
     (*real_do_unassigned_access)(cpu, addr, is_write, is_exec, opaque, size);
 }
 
+static void (*real_do_transaction_failed)(CPUState *cpu, hwaddr physaddr,
+                                          vaddr addr, unsigned size,
+                                          MMUAccessType access_type,
+                                          int mmu_idx, MemTxAttrs attrs,
+                                          MemTxResult response,
+                                          uintptr_t retaddr);
+
+static void mips_jazz_do_transaction_failed(CPUState *cs, hwaddr physaddr,
+                                            vaddr addr, unsigned size,
+                                            MMUAccessType access_type,
+                                            int mmu_idx, MemTxAttrs attrs,
+                                            MemTxResult response,
+                                            uintptr_t retaddr)
+{
+    if (access_type != MMU_INST_FETCH) {
+        /* ignore invalid access (ie do not raise exception) */
+        return;
+    }
+    (*real_do_transaction_failed)(cs, physaddr, addr, size, access_type,
+                                  mmu_idx, attrs, response, retaddr);
+}
+
 static void mips_jazz_init(MachineState *machine,
                            enum jazz_model_e jazz_model)
 {
@@ -157,16 +179,32 @@ static void mips_jazz_init(MachineState *machine,
     env = &cpu->env;
     qemu_register_reset(main_cpu_reset, cpu);
 
-    /* Chipset returns 0 in invalid reads and do not raise data exceptions.
+    /*
+     * Chipset returns 0 in invalid reads and do not raise data exceptions.
      * However, we can't simply add a global memory region to catch
-     * everything, as memory core directly call unassigned_mem_read/write
-     * on some invalid accesses, which call do_unassigned_access on the
-     * CPU, which raise an exception.
-     * Handle that case by hijacking the do_unassigned_access method on
-     * the CPU, and do not raise exceptions for data access. */
+     * everything, as this would make all accesses including instruction
+     * accesses be ignored and not raise exceptions.
+     * So instead we hijack either the do_unassigned_access method or
+     * the do_transaction_failed method on the CPU, and do not raise exceptions
+     * for data access.
+     *
+     * NOTE: this behaviour of raising exceptions for bad instruction
+     * fetches but not bad data accesses was added in commit 54e755588cf1e9
+     * to restore behaviour broken by c658b94f6e8c206, but it is not clear
+     * whether the real hardware behaves this way. It is possible that
+     * real hardware ignores bad instruction fetches as well -- if so then
+     * we could replace this hijacking of CPU methods with a simple global
+     * memory region that catches all memory accesses, as we do on Malta.
+     */
     cc = CPU_GET_CLASS(cpu);
-    real_do_unassigned_access = cc->do_unassigned_access;
-    cc->do_unassigned_access = mips_jazz_do_unassigned_access;
+    if (cc->do_unassigned_access) {
+        real_do_unassigned_access = cc->do_unassigned_access;
+        cc->do_unassigned_access = mips_jazz_do_unassigned_access;
+    }
+    if (cc->do_transaction_failed) {
+        real_do_transaction_failed = cc->do_transaction_failed;
+        cc->do_transaction_failed = mips_jazz_do_transaction_failed;
+    }
 
     /* allocate RAM */
     memory_region_allocate_system_memory(ram, NULL, "mips_jazz.ram",
