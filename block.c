@@ -2168,16 +2168,8 @@ void bdrv_filter_default_perms(BlockDriverState *bs, BdrvChild *c,
                                uint64_t perm, uint64_t shared,
                                uint64_t *nperm, uint64_t *nshared)
 {
-    if (c == NULL) {
-        *nperm = perm & DEFAULT_PERM_PASSTHROUGH;
-        *nshared = (shared & DEFAULT_PERM_PASSTHROUGH) | DEFAULT_PERM_UNCHANGED;
-        return;
-    }
-
-    *nperm = (perm & DEFAULT_PERM_PASSTHROUGH) |
-             (c->perm & DEFAULT_PERM_UNCHANGED);
-    *nshared = (shared & DEFAULT_PERM_PASSTHROUGH) |
-               (c->shared_perm & DEFAULT_PERM_UNCHANGED);
+    *nperm = perm & DEFAULT_PERM_PASSTHROUGH;
+    *nshared = (shared & DEFAULT_PERM_PASSTHROUGH) | DEFAULT_PERM_UNCHANGED;
 }
 
 void bdrv_format_default_perms(BlockDriverState *bs, BdrvChild *c,
