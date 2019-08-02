@@ -1911,6 +1911,11 @@ static bool migrate_prepare(MigrationState *s, bool blk, bool blk_inc,
     }
 
     migrate_init(s);
+    /*
+     * set ram_counters memory to zero for a
+     * new migration
+     */
+    memset(&ram_counters, 0, sizeof(ram_counters));
 
     return true;
 }
@@ -3034,6 +3039,17 @@ static void migration_calculate_complete(MigrationState *s)
     }
 }
 
+static void update_iteration_initial_status(MigrationState *s)
+{
+    /*
+     * Update these three fields at the same time to avoid mismatch info lead
+     * wrong speed calculation.
+     */
+    s->iteration_start_time = qemu_clock_get_ms(QEMU_CLOCK_REALTIME);
+    s->iteration_initial_bytes = migration_total_bytes(s);
+    s->iteration_initial_pages = ram_get_total_transferred_pages();
+}
+
 static void migration_update_counters(MigrationState *s,
                                       int64_t current_time)
 {
@@ -3069,9 +3085,7 @@ static void migration_update_counters(MigrationState *s,
 
     qemu_file_reset_rate_limit(s->to_dst_file);
 
-    s->iteration_start_time = current_time;
-    s->iteration_initial_bytes = current_bytes;
-    s->iteration_initial_pages = ram_get_total_transferred_pages();
+    update_iteration_initial_status(s);
 
     trace_migrate_transferred(transferred, time_spent,
                               bandwidth, s->threshold_size);
@@ -3194,7 +3208,7 @@ static void *migration_thread(void *opaque)
     rcu_register_thread();
 
     object_ref(OBJECT(s));
-    s->iteration_start_time = qemu_clock_get_ms(QEMU_CLOCK_REALTIME);
+    update_iteration_initial_status(s);
 
     qemu_savevm_state_header(s->to_dst_file);
 
@@ -3259,8 +3273,7 @@ static void *migration_thread(void *opaque)
              * the local variables. This is important to avoid
              * breaking transferred_bytes and bandwidth calculation
              */
-            s->iteration_start_time = qemu_clock_get_ms(QEMU_CLOCK_REALTIME);
-            s->iteration_initial_bytes = 0;
+            update_iteration_initial_status(s);
         }
 
         current_time = qemu_clock_get_ms(QEMU_CLOCK_REALTIME);
