@@ -155,6 +155,51 @@ class LinuxSSH(Test):
 
     def run_common_commands(self):
         self.ssh_command_output_contains(
+            'cat /proc/cpuinfo',
+            '24Kc')
+        self.ssh_command_output_contains(
+            'uname -m',
+            'mips')
+        self.ssh_command_output_contains(
+            'uname -r',
+            '3.2.0-4-4kc-malta')
+        self.ssh_command_output_contains(
+            'cat /proc/interrupts',
+            'timer')
+        self.ssh_command_output_contains(
+            'cat /proc/interrupts',
+            'i8042')
+        self.ssh_command_output_contains(
+            'cat /proc/interrupts',
+            'serial')
+        self.ssh_command_output_contains(
+            'cat /proc/interrupts',
+            'ata_piix')
+        self.ssh_command_output_contains(
+            'cat /proc/interrupts',
+            'eth0')
+        self.ssh_command_output_contains(
+            'cat /proc/interrupts',
+            'eth0')
+        self.ssh_command_output_contains(
+            'cat /proc/devices',
+            'input')
+        self.ssh_command_output_contains(
+            'cat /proc/devices',
+            'usb')
+        self.ssh_command_output_contains(
+            'cat /proc/devices',
+            'fb')
+        self.ssh_command_output_contains(
+            'cat /proc/ioports',
+            'serial')
+        self.ssh_command_output_contains(
+            'cat /proc/ioports',
+            'ata_piix')
+        self.ssh_command_output_contains(
+            'cat /proc/ioports',
+            'piix4_smbus')
+        self.ssh_command_output_contains(
             'lspci -d 11ab:4620',
             'GT-64120')
         self.ssh_command_output_contains(
