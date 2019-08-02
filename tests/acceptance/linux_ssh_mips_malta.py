@@ -145,27 +145,33 @@ class LinuxSSH(Test):
         self.ssh_disconnect_vm()
         self.wait_for_console_pattern('Power down')
 
+    def ssh_command_output_contains(self, cmd, exp):
+        stdout, _ = self.ssh_command(cmd)
+        for line in stdout:
+            if exp in line:
+                break
+        else:
+            self.fail('"%s" output does not contain "%s"' % (cmd, exp))
+
     def run_common_commands(self):
-        stdout, stderr = self.ssh_command('lspci -d 11ab:4620')
-        self.assertIn(True, ["GT-64120" in line for line in stdout])
-
-        stdout, stderr = self.ssh_command('cat /sys/bus/i2c/devices/i2c-0/name')
-        self.assertIn(True, ["SMBus PIIX4 adapter" in line
-                             for line in stdout])
-
-        stdout, stderr = self.ssh_command('cat /proc/mtd')
-        self.assertIn(True, ["YAMON" in line
-                             for line in stdout])
-
+        self.ssh_command_output_contains(
+            'lspci -d 11ab:4620',
+            'GT-64120')
+        self.ssh_command_output_contains(
+            'cat /sys/bus/i2c/devices/i2c-0/name',
+            'SMBus PIIX4 adapter')
+        self.ssh_command_output_contains(
+            'cat /proc/mtd',
+            'YAMON')
         # Empty 'Board Config'
-        stdout, stderr = self.ssh_command('md5sum /dev/mtd2ro')
-        self.assertIn(True, ["0dfbe8aa4c20b52e1b8bf3cb6cbdf193" in line
-                             for line in stdout])
+        self.ssh_command_output_contains(
+            'md5sum /dev/mtd2ro',
+            '0dfbe8aa4c20b52e1b8bf3cb6cbdf193')
 
     def check_mips_malta(self, endianess, kernel_path, uname_m):
         self.boot_debian_wheezy_image_and_ssh_login(endianess, kernel_path)
 
-        stdout, stderr = self.ssh_command('uname -a')
+        stdout, _ = self.ssh_command('uname -a')
         self.assertIn(True, [uname_m + " GNU/Linux" in line for line in stdout])
 
         self.run_common_commands()
