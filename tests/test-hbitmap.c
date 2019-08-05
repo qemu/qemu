@@ -1004,6 +1004,15 @@ static void test_hbitmap_next_zero_4(TestHBitmapData *data, const void *unused)
     test_hbitmap_next_zero_do(data, 4);
 }
 
+static void test_hbitmap_next_zero_after_truncate(TestHBitmapData *data,
+                                                  const void *unused)
+{
+    hbitmap_test_init(data, L1, 0);
+    hbitmap_test_truncate_impl(data, L1 * 2);
+    hbitmap_set(data->hb, 0, L1);
+    test_hbitmap_next_zero_check(data, 0);
+}
+
 static void test_hbitmap_next_dirty_area_check(TestHBitmapData *data,
                                                uint64_t offset,
                                                uint64_t count)
@@ -1104,6 +1113,15 @@ static void test_hbitmap_next_dirty_area_4(TestHBitmapData *data,
     test_hbitmap_next_dirty_area_do(data, 4);
 }
 
+static void test_hbitmap_next_dirty_area_after_truncate(TestHBitmapData *data,
+                                                        const void *unused)
+{
+    hbitmap_test_init(data, L1, 0);
+    hbitmap_test_truncate_impl(data, L1 * 2);
+    hbitmap_set(data->hb, L1 + 1, 1);
+    test_hbitmap_next_dirty_area_check(data, 0, UINT64_MAX);
+}
+
 int main(int argc, char **argv)
 {
     g_test_init(&argc, &argv, NULL);
@@ -1169,6 +1187,8 @@ int main(int argc, char **argv)
                      test_hbitmap_next_zero_0);
     hbitmap_test_add("/hbitmap/next_zero/next_zero_4",
                      test_hbitmap_next_zero_4);
+    hbitmap_test_add("/hbitmap/next_zero/next_zero_after_truncate",
+                     test_hbitmap_next_zero_after_truncate);
 
     hbitmap_test_add("/hbitmap/next_dirty_area/next_dirty_area_0",
                      test_hbitmap_next_dirty_area_0);
@@ -1176,6 +1196,8 @@ int main(int argc, char **argv)
                      test_hbitmap_next_dirty_area_1);
     hbitmap_test_add("/hbitmap/next_dirty_area/next_dirty_area_4",
                      test_hbitmap_next_dirty_area_4);
+    hbitmap_test_add("/hbitmap/next_dirty_area/next_dirty_area_after_truncate",
+                     test_hbitmap_next_dirty_area_after_truncate);
 
     g_test_run();
 
