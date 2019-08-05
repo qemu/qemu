@@ -212,25 +212,28 @@ class TestIncrementalBackupBase(iotests.QMPTestCase):
         return bitmap
 
 
-    def prepare_backup(self, bitmap=None, parent=None):
+    def prepare_backup(self, bitmap=None, parent=None, **kwargs):
         if bitmap is None:
             bitmap = self.bitmaps[-1]
         if parent is None:
             parent, _ = bitmap.last_target()
 
         target, _ = bitmap.new_target()
-        self.img_create(target, bitmap.drive['fmt'], parent=parent)
+        self.img_create(target, bitmap.drive['fmt'], parent=parent,
+                        **kwargs)
         return target
 
 
     def create_incremental(self, bitmap=None, parent=None,
-                           parentFormat=None, validate=True):
+                           parentFormat=None, validate=True,
+                           target=None):
         if bitmap is None:
             bitmap = self.bitmaps[-1]
         if parent is None:
             parent, _ = bitmap.last_target()
 
-        target = self.prepare_backup(bitmap, parent)
+        if target is None:
+            target = self.prepare_backup(bitmap, parent)
         res = self.do_qmp_backup(job_id=bitmap.drive['id'],
                                  device=bitmap.drive['id'],
                                  sync='incremental', bitmap=bitmap.name,
@@ -571,6 +574,33 @@ class TestIncrementalBackup(TestIncrementalBackupBase):
         self.assertRaises(AssertionError, self.add_bitmap,
                           'bitmap0', self.drives[0],
                           granularity=64000)
+
+    def test_growing_before_backup(self):
+        '''
+        Test: Add a bitmap, truncate the image, write past the old
+              end, do a backup.
+
+        Incremental backup should not ignore dirty bits past the old
+        image end.
+        '''
+        self.assert_no_active_block_jobs()
+
+        self.create_anchor_backup()
+
+        self.add_bitmap('bitmap0', self.drives[0])
+
+        res = self.vm.qmp('block_resize', device=self.drives[0]['id'],
+                          size=(65 * 1048576))
+        self.assert_qmp(res, 'return', {})
+
+        # Dirty the image past the old end
+        self.vm.hmp_qemu_io(self.drives[0]['id'], 'write 64M 64k')
+
+        target = self.prepare_backup(size='65M')
+        self.create_incremental(target=target)
+
+        self.vm.shutdown()
+        self.check_backups()
 
 
 class TestIncrementalBackupBlkdebug(TestIncrementalBackupBase):
