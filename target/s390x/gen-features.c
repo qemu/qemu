@@ -698,9 +698,12 @@ static uint16_t qemu_V4_0[] = {
     S390_FEAT_ZPCI,
 };
 
-static uint16_t qemu_LATEST[] = {
+static uint16_t qemu_V4_1[] = {
     S390_FEAT_STFLE_53,
     S390_FEAT_VECTOR,
+};
+
+static uint16_t qemu_LATEST[] = {
 };
 
 /* add all new definitions before this point */
@@ -824,6 +827,7 @@ static FeatGroupDefSpec QemuFeatDef[] = {
     QEMU_FEAT_INITIALIZER(V2_11),
     QEMU_FEAT_INITIALIZER(V3_1),
     QEMU_FEAT_INITIALIZER(V4_0),
+    QEMU_FEAT_INITIALIZER(V4_1),
     QEMU_FEAT_INITIALIZER(LATEST),
     QEMU_FEAT_INITIALIZER(MAX),
 };
