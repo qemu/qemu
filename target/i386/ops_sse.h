@@ -710,102 +710,134 @@ void helper_cvtsq2sd(CPUX86State *env, ZMMReg *d, uint64_t val)
 #endif
 
 /* float to integer */
+
+/*
+ * x86 mandates that we return the indefinite integer value for the result
+ * of any float-to-integer conversion that raises the 'invalid' exception.
+ * Wrap the softfloat functions to get this behaviour.
+ */
+#define WRAP_FLOATCONV(RETTYPE, FN, FLOATTYPE, INDEFVALUE)              \
+    static inline RETTYPE x86_##FN(FLOATTYPE a, float_status *s)        \
+    {                                                                   \
+        int oldflags, newflags;                                         \
+        RETTYPE r;                                                      \
+                                                                        \
+        oldflags = get_float_exception_flags(s);                        \
+        set_float_exception_flags(0, s);                                \
+        r = FN(a, s);                                                   \
+        newflags = get_float_exception_flags(s);                        \
+        if (newflags & float_flag_invalid) {                            \
+            r = INDEFVALUE;                                             \
+        }                                                               \
+        set_float_exception_flags(newflags | oldflags, s);              \
+        return r;                                                       \
+    }
+
+WRAP_FLOATCONV(int32_t, float32_to_int32, float32, INT32_MIN)
+WRAP_FLOATCONV(int32_t, float32_to_int32_round_to_zero, float32, INT32_MIN)
+WRAP_FLOATCONV(int32_t, float64_to_int32, float64, INT32_MIN)
+WRAP_FLOATCONV(int32_t, float64_to_int32_round_to_zero, float64, INT32_MIN)
+WRAP_FLOATCONV(int64_t, float32_to_int64, float32, INT64_MIN)
+WRAP_FLOATCONV(int64_t, float32_to_int64_round_to_zero, float32, INT64_MIN)
+WRAP_FLOATCONV(int64_t, float64_to_int64, float64, INT64_MIN)
+WRAP_FLOATCONV(int64_t, float64_to_int64_round_to_zero, float64, INT64_MIN)
+
 void helper_cvtps2dq(CPUX86State *env, ZMMReg *d, ZMMReg *s)
 {
-    d->ZMM_L(0) = float32_to_int32(s->ZMM_S(0), &env->sse_status);
-    d->ZMM_L(1) = float32_to_int32(s->ZMM_S(1), &env->sse_status);
-    d->ZMM_L(2) = float32_to_int32(s->ZMM_S(2), &env->sse_status);
-    d->ZMM_L(3) = float32_to_int32(s->ZMM_S(3), &env->sse_status);
+    d->ZMM_L(0) = x86_float32_to_int32(s->ZMM_S(0), &env->sse_status);
+    d->ZMM_L(1) = x86_float32_to_int32(s->ZMM_S(1), &env->sse_status);
+    d->ZMM_L(2) = x86_float32_to_int32(s->ZMM_S(2), &env->sse_status);
+    d->ZMM_L(3) = x86_float32_to_int32(s->ZMM_S(3), &env->sse_status);
 }
 
 void helper_cvtpd2dq(CPUX86State *env, ZMMReg *d, ZMMReg *s)
 {
-    d->ZMM_L(0) = float64_to_int32(s->ZMM_D(0), &env->sse_status);
-    d->ZMM_L(1) = float64_to_int32(s->ZMM_D(1), &env->sse_status);
+    d->ZMM_L(0) = x86_float64_to_int32(s->ZMM_D(0), &env->sse_status);
+    d->ZMM_L(1) = x86_float64_to_int32(s->ZMM_D(1), &env->sse_status);
     d->ZMM_Q(1) = 0;
 }
 
 void helper_cvtps2pi(CPUX86State *env, MMXReg *d, ZMMReg *s)
 {
-    d->MMX_L(0) = float32_to_int32(s->ZMM_S(0), &env->sse_status);
-    d->MMX_L(1) = float32_to_int32(s->ZMM_S(1), &env->sse_status);
+    d->MMX_L(0) = x86_float32_to_int32(s->ZMM_S(0), &env->sse_status);
+    d->MMX_L(1) = x86_float32_to_int32(s->ZMM_S(1), &env->sse_status);
 }
 
 void helper_cvtpd2pi(CPUX86State *env, MMXReg *d, ZMMReg *s)
 {
-    d->MMX_L(0) = float64_to_int32(s->ZMM_D(0), &env->sse_status);
-    d->MMX_L(1) = float64_to_int32(s->ZMM_D(1), &env->sse_status);
+    d->MMX_L(0) = x86_float64_to_int32(s->ZMM_D(0), &env->sse_status);
+    d->MMX_L(1) = x86_float64_to_int32(s->ZMM_D(1), &env->sse_status);
 }
 
 int32_t helper_cvtss2si(CPUX86State *env, ZMMReg *s)
 {
-    return float32_to_int32(s->ZMM_S(0), &env->sse_status);
+    return x86_float32_to_int32(s->ZMM_S(0), &env->sse_status);
 }
 
 int32_t helper_cvtsd2si(CPUX86State *env, ZMMReg *s)
 {
-    return float64_to_int32(s->ZMM_D(0), &env->sse_status);
+    return x86_float64_to_int32(s->ZMM_D(0), &env->sse_status);
 }
 
 #ifdef TARGET_X86_64
 int64_t helper_cvtss2sq(CPUX86State *env, ZMMReg *s)
 {
-    return float32_to_int64(s->ZMM_S(0), &env->sse_status);
+    return x86_float32_to_int64(s->ZMM_S(0), &env->sse_status);
 }
 
 int64_t helper_cvtsd2sq(CPUX86State *env, ZMMReg *s)
 {
-    return float64_to_int64(s->ZMM_D(0), &env->sse_status);
+    return x86_float64_to_int64(s->ZMM_D(0), &env->sse_status);
 }
 #endif
 
 /* float to integer truncated */
 void helper_cvttps2dq(CPUX86State *env, ZMMReg *d, ZMMReg *s)
 {
-    d->ZMM_L(0) = float32_to_int32_round_to_zero(s->ZMM_S(0), &env->sse_status);
-    d->ZMM_L(1) = float32_to_int32_round_to_zero(s->ZMM_S(1), &env->sse_status);
-    d->ZMM_L(2) = float32_to_int32_round_to_zero(s->ZMM_S(2), &env->sse_status);
-    d->ZMM_L(3) = float32_to_int32_round_to_zero(s->ZMM_S(3), &env->sse_status);
+    d->ZMM_L(0) = x86_float32_to_int32_round_to_zero(s->ZMM_S(0), &env->sse_status);
+    d->ZMM_L(1) = x86_float32_to_int32_round_to_zero(s->ZMM_S(1), &env->sse_status);
+    d->ZMM_L(2) = x86_float32_to_int32_round_to_zero(s->ZMM_S(2), &env->sse_status);
+    d->ZMM_L(3) = x86_float32_to_int32_round_to_zero(s->ZMM_S(3), &env->sse_status);
 }
 
 void helper_cvttpd2dq(CPUX86State *env, ZMMReg *d, ZMMReg *s)
 {
-    d->ZMM_L(0) = float64_to_int32_round_to_zero(s->ZMM_D(0), &env->sse_status);
-    d->ZMM_L(1) = float64_to_int32_round_to_zero(s->ZMM_D(1), &env->sse_status);
+    d->ZMM_L(0) = x86_float64_to_int32_round_to_zero(s->ZMM_D(0), &env->sse_status);
+    d->ZMM_L(1) = x86_float64_to_int32_round_to_zero(s->ZMM_D(1), &env->sse_status);
     d->ZMM_Q(1) = 0;
 }
 
 void helper_cvttps2pi(CPUX86State *env, MMXReg *d, ZMMReg *s)
 {
-    d->MMX_L(0) = float32_to_int32_round_to_zero(s->ZMM_S(0), &env->sse_status);
-    d->MMX_L(1) = float32_to_int32_round_to_zero(s->ZMM_S(1), &env->sse_status);
+    d->MMX_L(0) = x86_float32_to_int32_round_to_zero(s->ZMM_S(0), &env->sse_status);
+    d->MMX_L(1) = x86_float32_to_int32_round_to_zero(s->ZMM_S(1), &env->sse_status);
 }
 
 void helper_cvttpd2pi(CPUX86State *env, MMXReg *d, ZMMReg *s)
 {
-    d->MMX_L(0) = float64_to_int32_round_to_zero(s->ZMM_D(0), &env->sse_status);
-    d->MMX_L(1) = float64_to_int32_round_to_zero(s->ZMM_D(1), &env->sse_status);
+    d->MMX_L(0) = x86_float64_to_int32_round_to_zero(s->ZMM_D(0), &env->sse_status);
+    d->MMX_L(1) = x86_float64_to_int32_round_to_zero(s->ZMM_D(1), &env->sse_status);
 }
 
 int32_t helper_cvttss2si(CPUX86State *env, ZMMReg *s)
 {
-    return float32_to_int32_round_to_zero(s->ZMM_S(0), &env->sse_status);
+    return x86_float32_to_int32_round_to_zero(s->ZMM_S(0), &env->sse_status);
 }
 
 int32_t helper_cvttsd2si(CPUX86State *env, ZMMReg *s)
 {
-    return float64_to_int32_round_to_zero(s->ZMM_D(0), &env->sse_status);
+    return x86_float64_to_int32_round_to_zero(s->ZMM_D(0), &env->sse_status);
 }
 
 #ifdef TARGET_X86_64
 int64_t helper_cvttss2sq(CPUX86State *env, ZMMReg *s)
 {
-    return float32_to_int64_round_to_zero(s->ZMM_S(0), &env->sse_status);
+    return x86_float32_to_int64_round_to_zero(s->ZMM_S(0), &env->sse_status);
 }
 
 int64_t helper_cvttsd2sq(CPUX86State *env, ZMMReg *s)
 {
-    return float64_to_int64_round_to_zero(s->ZMM_D(0), &env->sse_status);
+    return x86_float64_to_int64_round_to_zero(s->ZMM_D(0), &env->sse_status);
 }
 #endif
 
