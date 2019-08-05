@@ -1481,6 +1481,15 @@ static void bdrv_mirror_top_child_perm(BlockDriverState *bs, BdrvChild *c,
     *nshared = BLK_PERM_ALL;
 }
 
+static void bdrv_mirror_top_refresh_limits(BlockDriverState *bs, Error **errp)
+{
+    MirrorBDSOpaque *s = bs->opaque;
+
+    if (s && s->job && s->job->copy_mode == MIRROR_COPY_MODE_WRITE_BLOCKING) {
+        bs->bl.request_alignment = s->job->granularity;
+    }
+}
+
 /* Dummy node that provides consistent read to its users without requiring it
  * from its backing file and that allows writes on the backing file chain. */
 static BlockDriver bdrv_mirror_top = {
@@ -1493,6 +1502,7 @@ static BlockDriver bdrv_mirror_top = {
     .bdrv_co_block_status       = bdrv_co_block_status_from_backing,
     .bdrv_refresh_filename      = bdrv_mirror_top_refresh_filename,
     .bdrv_child_perm            = bdrv_mirror_top_child_perm,
+    .bdrv_refresh_limits        = bdrv_mirror_top_refresh_limits,
 };
 
 static BlockJob *mirror_start_job(
@@ -1635,6 +1645,25 @@ static BlockJob *mirror_start_job(
     s->unmap = unmap;
     if (auto_complete) {
         s->should_complete = true;
+    }
+
+    /*
+     * Must be called before we start tracking writes, but after
+     *
+     *     ((MirrorBlockJob *)
+     *         ((MirrorBDSOpaque *)
+     *             mirror_top_bs->opaque
+     *         )->job
+     *     )->copy_mode
+     *
+     * has the correct value.
+     * (We start tracking writes as of the following
+     * bdrv_create_dirty_bitmap() call.)
+     */
+    bdrv_refresh_limits(mirror_top_bs, &local_err);
+    if (local_err) {
+        error_propagate(errp, local_err);
+        goto fail;
     }
 
     s->dirty_bitmap = bdrv_create_dirty_bitmap(bs, granularity, NULL, errp);
