@@ -748,8 +748,7 @@ static void qtest_event(void *opaque, int event)
         break;
     }
 }
-
-void qtest_init(const char *qtest_chrdev, const char *qtest_log, Error **errp)
+void qtest_server_init(const char *qtest_chrdev, const char *qtest_log, Error **errp)
 {
     Chardev *chr;
 
