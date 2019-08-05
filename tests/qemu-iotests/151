@@ -114,6 +114,31 @@ class TestActiveMirror(iotests.QMPTestCase):
     def testActiveIOFlushed(self):
         self.doActiveIO(True)
 
+    def testUnalignedActiveIO(self):
+        # Fill the source image
+        result = self.vm.hmp_qemu_io('source', 'write -P 1 0 2M')
+
+        # Start the block job (very slowly)
+        result = self.vm.qmp('blockdev-mirror',
+                             job_id='mirror',
+                             filter_node_name='mirror-node',
+                             device='source-node',
+                             target='target-node',
+                             sync='full',
+                             copy_mode='write-blocking',
+                             buf_size=(1048576 // 4),
+                             speed=1)
+        self.assert_qmp(result, 'return', {})
+
+        # Start an unaligned request to a dirty area
+        result = self.vm.hmp_qemu_io('source', 'write -P 2 %i 1' % (1048576 + 42))
+
+        # Let the job finish
+        result = self.vm.qmp('block-job-set-speed', device='mirror', speed=0)
+        self.assert_qmp(result, 'return', {})
+        self.complete_and_wait(drive='mirror')
+
+        self.potential_writes_in_flight = False
 
 
 if __name__ == '__main__':
