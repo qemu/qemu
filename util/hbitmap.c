@@ -53,7 +53,9 @@
  */
 
 struct HBitmap {
-    /* Size of the bitmap, as requested in hbitmap_alloc. */
+    /*
+     * Size of the bitmap, as requested in hbitmap_alloc or in hbitmap_truncate.
+     */
     uint64_t orig_size;
 
     /* Number of total bits in the bottom level.  */
@@ -731,6 +733,8 @@ void hbitmap_truncate(HBitmap *hb, uint64_t size)
     unsigned i;
     uint64_t num_elements = size;
     uint64_t old;
+
+    hb->orig_size = size;
 
     /* Size comes in as logical elements, adjust for granularity. */
     size = (size + (1ULL << hb->granularity) - 1) >> hb->granularity;
