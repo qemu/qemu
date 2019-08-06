@@ -514,7 +514,7 @@ static int create_qp(PVRDMADev *dev, union pvrdma_cmd_req *req,
                                      cmd->recv_cq_handle, rings, &resp->qpn);
     if (resp->hdr.err) {
         destroy_qp_rings(rings);
-        return rc;
+        goto out;
     }
 
     resp->max_send_wr = cmd->max_send_wr;
