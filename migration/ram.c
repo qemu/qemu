@@ -2955,7 +2955,6 @@ static void postcopy_chunk_hostpages_pass(MigrationState *ms, bool unsent_pass,
     }
 
     while (run_start < pages) {
-        unsigned long fixup_start_addr;
         unsigned long host_offset;
 
         /*
@@ -2963,45 +2962,26 @@ static void postcopy_chunk_hostpages_pass(MigrationState *ms, bool unsent_pass,
          * page, then we need to fixup this host page.
          */
         host_offset = run_start % host_ratio;
-        if (host_offset) {
-            fixup_start_addr = run_start - host_offset;
-            /*
-             * This host page has gone, the next loop iteration starts
-             * from after the fixup
-             */
-            run_start = fixup_start_addr + host_ratio;
-        } else {
+        if (!host_offset) {
             /* Find the end of this run */
-            unsigned long run_end;
             if (unsent_pass) {
-                run_end = find_next_bit(unsentmap, pages, run_start + 1);
+                run_start = find_next_bit(unsentmap, pages, run_start + 1);
             } else {
-                run_end = find_next_zero_bit(bitmap, pages, run_start + 1);
+                run_start = find_next_zero_bit(bitmap, pages, run_start + 1);
             }
             /*
              * If the end isn't at the start of a host page, then the
              * run doesn't finish at the end of a host page
              * and we need to discard.
              */
-            host_offset = run_end % host_ratio;
-            if (host_offset) {
-                fixup_start_addr = run_end - host_offset;
-                /*
-                 * This host page has gone, the next loop iteration starts
-                 * from after the fixup
-                 */
-                run_start = fixup_start_addr + host_ratio;
-            } else {
-                /*
-                 * No discards on this iteration, next loop starts from
-                 * next sent/dirty page
-                 */
-                run_start = run_end + 1;
-            }
+            host_offset = run_start % host_ratio;
         }
 
         if (host_offset) {
             unsigned long page;
+            unsigned long fixup_start_addr = QEMU_ALIGN_DOWN(run_start,
+                                                             host_ratio);
+            run_start = QEMU_ALIGN_UP(run_start, host_ratio);
 
             /* Tell the destination to discard this page */
             if (unsent_pass || !test_bit(fixup_start_addr, unsentmap)) {
