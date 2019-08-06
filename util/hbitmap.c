@@ -476,6 +476,10 @@ void hbitmap_reset(HBitmap *hb, uint64_t start, uint64_t count)
     /* Compute range in the last layer.  */
     uint64_t first;
     uint64_t last = start + count - 1;
+    uint64_t gran = 1ULL << hb->granularity;
+
+    assert(QEMU_IS_ALIGNED(start, gran));
+    assert(QEMU_IS_ALIGNED(count, gran) || (start + count == hb->orig_size));
 
     trace_hbitmap_reset(hb, start, count,
                         start >> hb->granularity, last >> hb->granularity);
