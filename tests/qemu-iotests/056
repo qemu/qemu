@@ -133,6 +133,7 @@ class BackupTest(iotests.QMPTestCase):
         self.vm = iotests.VM()
         self.test_img = img_create('test')
         self.dest_img = img_create('dest')
+        self.ref_img = img_create('ref')
         self.vm.add_drive(self.test_img)
         self.vm.launch()
 
@@ -140,6 +141,7 @@ class BackupTest(iotests.QMPTestCase):
         self.vm.shutdown()
         try_remove(self.test_img)
         try_remove(self.dest_img)
+        try_remove(self.ref_img)
 
     def hmp_io_writes(self, drive, patterns):
         for pattern in patterns:
@@ -176,6 +178,43 @@ class BackupTest(iotests.QMPTestCase):
             # Failure.
             self.assert_qmp(event, 'data/error', qerror)
             return False
+
+    def test_overlapping_writes(self):
+        # Write something to back up
+        self.hmp_io_writes('drive0', [('42', '0M', '2M')])
+
+        # Create a reference backup
+        self.qmp_backup_and_wait(device='drive0', format=iotests.imgfmt,
+                                 sync='full', target=self.ref_img,
+                                 auto_dismiss=False)
+        res = self.vm.qmp('block-job-dismiss', id='drive0')
+        self.assert_qmp(res, 'return', {})
+
+        # Now to the test backup: We simulate the following guest
+        # writes:
+        # (1) [1M + 64k, 1M + 128k): Afterwards, everything in that
+        #     area should be in the target image, and we must not copy
+        #     it again (because the source image has changed now)
+        #     (64k is the job's cluster size)
+        # (2) [1M, 2M): The backup job must not get overeager.  It
+        #     must copy [1M, 1M + 64k) and [1M + 128k, 2M) separately,
+        #     but not the area in between.
+
+        self.qmp_backup(device='drive0', format=iotests.imgfmt, sync='full',
+                        target=self.dest_img, speed=1, auto_dismiss=False)
+
+        self.hmp_io_writes('drive0', [('23', '%ik' % (1024 + 64), '64k'),
+                                      ('66', '1M', '1M')])
+
+        # Let the job complete
+        res = self.vm.qmp('block-job-set-speed', device='drive0', speed=0)
+        self.assert_qmp(res, 'return', {})
+        self.qmp_backup_wait('drive0')
+        res = self.vm.qmp('block-job-dismiss', id='drive0')
+        self.assert_qmp(res, 'return', {})
+
+        self.assertTrue(iotests.compare_images(self.ref_img, self.dest_img),
+                        'target image does not match reference image')
 
     def test_dismiss_false(self):
         res = self.vm.qmp('query-block-jobs')
