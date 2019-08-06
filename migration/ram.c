@@ -2955,14 +2955,12 @@ static void postcopy_chunk_hostpages_pass(MigrationState *ms, bool unsent_pass,
     }
 
     while (run_start < pages) {
-        unsigned long host_offset;
 
         /*
          * If the start of this run of pages is in the middle of a host
          * page, then we need to fixup this host page.
          */
-        host_offset = run_start % host_ratio;
-        if (!host_offset) {
+        if (QEMU_IS_ALIGNED(run_start, host_ratio)) {
             /* Find the end of this run */
             if (unsent_pass) {
                 run_start = find_next_bit(unsentmap, pages, run_start + 1);
@@ -2974,10 +2972,9 @@ static void postcopy_chunk_hostpages_pass(MigrationState *ms, bool unsent_pass,
              * run doesn't finish at the end of a host page
              * and we need to discard.
              */
-            host_offset = run_start % host_ratio;
         }
 
-        if (host_offset) {
+        if (!QEMU_IS_ALIGNED(run_start, host_ratio)) {
             unsigned long page;
             unsigned long fixup_start_addr = QEMU_ALIGN_DOWN(run_start,
                                                              host_ratio);
