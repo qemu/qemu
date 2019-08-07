@@ -31,7 +31,7 @@
 
 all:
 -include ../../config-host.mak
--include ../../../$(TARGET_DIR)/config-target.mak
+-include ../config-$(TARGET).mak
 
 # for including , in command strings
 COMMA := ,
@@ -63,12 +63,6 @@ CFLAGS=
 QEMU_CFLAGS=
 LDFLAGS=
 
-# The QEMU for this TARGET
-ifdef CONFIG_USER_ONLY
-QEMU=../../../$(TARGET_DIR)/qemu-$(TARGET_NAME)
-else
-QEMU=../../../$(TARGET_DIR)/qemu-system-$(TARGET_NAME)
-endif
 QEMU_OPTS=
 
 

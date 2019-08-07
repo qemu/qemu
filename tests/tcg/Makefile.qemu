@@ -8,17 +8,22 @@
 # to do it for us.
 #
 
-# The per ARCH makefile, if it exists, holds extra information about
+include $(SRC_PATH)/rules.mak
+
+# The configure script fills in extra information about
 # useful docker images or alternative compiler flags.
 
-include $(TARGET_DIR)config-target.mak
-include $(SRC_PATH)/rules.mak
-include $(wildcard \
-	$(SRC_PATH)/tests/tcg/$(TARGET_BASE_ARCH)/Makefile.include \
-	$(SRC_PATH)/tests/tcg/$(TARGET_NAME)/Makefile.include)
+CROSS_CC_GUEST:=
+DOCKER_IMAGE:=
+-include $(BUILD_DIR)/tests/tcg/config-$(TARGET).mak
 
 GUEST_BUILD=
 TCG_MAKE=../Makefile.target
+
+# We also need the Docker make rules to depend on
+SKIP_DOCKER_BUILD=1
+include $(SRC_PATH)/tests/docker/Makefile.include
+
 # Support installed Cross Compilers
 
 ifdef CROSS_CC_GUEST
@@ -26,11 +31,11 @@ ifdef CROSS_CC_GUEST
 .PHONY: cross-build-guest-tests
 cross-build-guest-tests:
 	$(call quiet-command, \
-	   (mkdir -p tests/tcg/$(TARGET_DIR) && cd tests/tcg/$(TARGET_DIR) && \
-	    $(MAKE) -f $(TCG_MAKE) TARGET_DIR="$(TARGET_DIR)" CC="$(CROSS_CC_GUEST)" \
+	   (mkdir -p tests/tcg/$(TARGET) && cd tests/tcg/$(TARGET) && \
+	    $(MAKE) -f $(TCG_MAKE) TARGET="$(TARGET)" CC="$(CROSS_CC_GUEST)" \
 			SRC_PATH="$(SRC_PATH)" BUILD_STATIC=$(CROSS_CC_GUEST_STATIC) \
-			EXTRA_CFLAGS=$(CROSS_CC_GUEST_CFLAGS)), \
-	"BUILD","$(TARGET_NAME) guest-tests with $(CROSS_CC_GUEST)")
+			EXTRA_CFLAGS="$(CROSS_CC_GUEST_CFLAGS)"), \
+	"BUILD","$(TARGET) guest-tests with $(CROSS_CC_GUEST)")
 
 GUEST_BUILD=cross-build-guest-tests
 
@@ -38,30 +43,24 @@ endif
 
 # Support building with Docker
 
-ifeq ($(HAVE_USER_DOCKER)$(GUEST_BUILD),y)
 ifneq ($(DOCKER_IMAGE),)
 
-# We also need the Docker make rules to depend on
-SKIP_DOCKER_BUILD=1
-include $(SRC_PATH)/tests/docker/Makefile.include
-
 DOCKER_COMPILE_CMD="$(DOCKER_SCRIPT) cc \
-		--cc $(DOCKER_CROSS_COMPILER) \
+		--cc $(DOCKER_CROSS_CC_GUEST) \
 		-i qemu:$(DOCKER_IMAGE) \
 		-s $(SRC_PATH) -- "
 
 .PHONY: docker-build-guest-tests
 docker-build-guest-tests: docker-image-$(DOCKER_IMAGE)
 	$(call quiet-command, \
-	  (mkdir -p tests/tcg/$(TARGET_DIR) && cd tests/tcg/$(TARGET_DIR) && \
-	   $(MAKE) -f $(TCG_MAKE) TARGET_DIR="$(TARGET_DIR)" CC=$(DOCKER_COMPILE_CMD) \
+	  (mkdir -p tests/tcg/$(TARGET) && cd tests/tcg/$(TARGET) && \
+	   $(MAKE) -f $(TCG_MAKE) TARGET="$(TARGET)" CC=$(DOCKER_COMPILE_CMD) \
 			SRC_PATH="$(SRC_PATH)" BUILD_STATIC=y \
-			EXTRA_CFLAGS=$(DOCKER_CROSS_COMPILER_CFLAGS)), \
-	"BUILD","$(TARGET_NAME) guest-tests with docker qemu:$(DOCKER_IMAGE)")
+			EXTRA_CFLAGS="$(CROSS_CC_GUEST_CFLAGS)"), \
+	"BUILD","$(TARGET) guest-tests with docker qemu:$(DOCKER_IMAGE)")
 
 GUEST_BUILD=docker-build-guest-tests
 
-endif
 endif
 
 # Final targets
@@ -75,22 +74,22 @@ guest-tests: $(GUEST_BUILD)
 
 run-guest-tests: guest-tests
 	$(call quiet-command, \
-	(cd tests/tcg/$(TARGET_DIR) && \
-	 $(MAKE) -f $(TCG_MAKE) TARGET_DIR="$(TARGET_DIR)" \
+	(cd tests/tcg/$(TARGET) && \
+	 $(MAKE) -f $(TCG_MAKE) TARGET="$(TARGET)" \
 	 		SRC_PATH="$(SRC_PATH)" SPEED=$(SPEED) run), \
 	"RUN", "tests for $(TARGET_NAME)")
 
 else
 guest-tests:
 	$(call quiet-command, /bin/true, "BUILD", \
-		"$(TARGET_DIR) guest-tests SKIPPED")
+		"$(TARGET) guest-tests SKIPPED")
 
 run-guest-tests:
 	$(call quiet-command, /bin/true, "RUN", \
-		"tests for $(TARGET_DIR) SKIPPED")
+		"tests for $(TARGET) SKIPPED")
 endif
 
 # It doesn't matter if these don't exits
 .PHONY: clean-guest-tests
 clean-guest-tests:
-	rm -rf tests/tcg/$(TARGET_DIR)
+	rm -rf tests/tcg/$(TARGET)

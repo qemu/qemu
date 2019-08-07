@@ -7,24 +7,12 @@
 # selection of required docker targets before we invoke a sub-make for
 # each target.
 
-# First we need the target makefile which tells us the target architecture
-CROSS_CC_GUEST:=
--include $(BUILD_DIR)/$(PROBE_TARGET)/config-target.mak
-
-# Then we load up the target architecture makefiles which tell us
-# about the compilers
 DOCKER_IMAGE:=
 
--include $(SRC_PATH)/tests/tcg/$(TARGET_BASE_ARCH)/Makefile.include
--include $(SRC_PATH)/tests/tcg/$(TARGET_NAME)/Makefile.include
+-include $(BUILD_DIR)/tests/tcg/config-$(PROBE_TARGET).mak
 
-ifndef CROSS_CC_GUEST
 ifneq ($(DOCKER_IMAGE),)
 build-tcg-tests-$(PROBE_TARGET): docker-image-$(DOCKER_IMAGE)
+$(BUILD_DIR)/tests/tcg/config_$(PROBE_TARGET).mak: config-host.mak
+config-host.mak: $(SRC_PATH)/tests/tcg/configure.sh
 endif
-endif
-
-# Clean-up
-# undefine TARGET_NAME
-# undefine TARGET_BASE_ARCH
-# undefine TARGET_ABI_DIR
