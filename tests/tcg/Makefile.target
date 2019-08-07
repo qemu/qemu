@@ -29,8 +29,9 @@
 # We also expect to be in the tests build dir for the FOO-(linux-user|softmmu).
 #
 
+all:
 -include ../../config-host.mak
--include ../config-target.mak
+-include ../../../$(TARGET_DIR)/config-target.mak
 
 # for including , in command strings
 COMMA := ,
@@ -64,9 +65,9 @@ LDFLAGS=
 
 # The QEMU for this TARGET
 ifdef CONFIG_USER_ONLY
-QEMU=../qemu-$(TARGET_NAME)
+QEMU=../../../$(TARGET_DIR)/qemu-$(TARGET_NAME)
 else
-QEMU=../qemu-system-$(TARGET_NAME)
+QEMU=../../../$(TARGET_DIR)/qemu-system-$(TARGET_NAME)
 endif
 QEMU_OPTS=
 
@@ -82,10 +83,7 @@ ifdef CONFIG_USER_ONLY
 # The order we include is important. We include multiarch, base arch
 # and finally arch if it's not the same as base arch.
 -include $(SRC_PATH)/tests/tcg/multiarch/Makefile.target
--include $(SRC_PATH)/tests/tcg/$(TARGET_BASE_ARCH)/Makefile.target
-ifneq ($(TARGET_BASE_ARCH),$(TARGET_NAME))
 -include $(SRC_PATH)/tests/tcg/$(TARGET_NAME)/Makefile.target
-endif
 
 # Add the common build options
 CFLAGS+=-Wall -O0 -g -fno-strict-aliasing
@@ -101,10 +99,7 @@ else
 # are expected to provide their own build recipes.
 -include $(SRC_PATH)/tests/tcg/minilib/Makefile.target
 -include $(SRC_PATH)/tests/tcg/multiarch/system/Makefile.softmmu-target
--include $(SRC_PATH)/tests/tcg/$(TARGET_BASE_ARCH)/Makefile.softmmu-target
-ifneq ($(TARGET_BASE_ARCH),$(TARGET_NAME))
 -include $(SRC_PATH)/tests/tcg/$(TARGET_NAME)/Makefile.softmmu-target
-endif
 
 endif
 

@@ -3,8 +3,6 @@
 # ARM SoftMMU tests - included from tests/tcg/Makefile
 #
 
-ifeq ($(TARGET_ABI_DIR),arm)
-
 ARM_SRC=$(SRC_PATH)/tests/tcg/arm
 
 # Set search path for all sources
@@ -25,5 +23,3 @@ LDFLAGS+=-nostdlib -N -static
 test-armv6m-undef: EXTRA_CFLAGS+=-mcpu=cortex-m0
 
 run-test-armv6m-undef: QEMU_OPTS+=-semihosting -M microbit -kernel
-
-endif
