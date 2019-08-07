@@ -1499,6 +1499,11 @@ static void usbredir_check_bulk_receiving(USBRedirDevice *dev)
     for (i = EP2I(USB_DIR_IN); i < MAX_ENDPOINTS; i++) {
         dev->endpoint[i].bulk_receiving_enabled = 0;
     }
+
+    if (dev->interface_info.interface_count == NO_INTERFACE_INFO) {
+        return;
+    }
+
     for (i = 0; i < dev->interface_info.interface_count; i++) {
         quirks = usb_get_quirks(dev->device_info.vendor_id,
                                 dev->device_info.product_id,
