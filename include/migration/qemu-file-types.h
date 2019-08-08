@@ -161,6 +161,10 @@ static inline void qemu_get_sbe64s(QEMUFile *f, int64_t *pv)
     qemu_get_be64s(f, (uint64_t *)pv);
 }
 
+size_t qemu_get_counted_string(QEMUFile *f, char buf[256]);
+
+void qemu_put_counted_string(QEMUFile *f, const char *name);
+
 int qemu_file_rate_limit(QEMUFile *f);
 
 #endif
