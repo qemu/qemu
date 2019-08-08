@@ -605,14 +605,7 @@ static void gen_sar(TCGv_i32 dest, TCGv_i32 t0, TCGv_i32 t1)
 
 static void shifter_out_im(TCGv_i32 var, int shift)
 {
-    if (shift == 0) {
-        tcg_gen_andi_i32(cpu_CF, var, 1);
-    } else {
-        tcg_gen_shri_i32(cpu_CF, var, shift);
-        if (shift != 31) {
-            tcg_gen_andi_i32(cpu_CF, cpu_CF, 1);
-        }
-    }
+    tcg_gen_extract_i32(cpu_CF, var, shift, 1);
 }
 
 /* Shift by immediate.  Includes special handling for shift == 0.  */
