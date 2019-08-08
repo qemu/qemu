@@ -22,6 +22,7 @@
 #include "qemu.h"
 #include "cpu_loop-common.h"
 #include "elf.h"
+#include "internal.h"
 
 # ifdef TARGET_ABI_MIPSO32
 #  define MIPS_SYS(name, args) args,
