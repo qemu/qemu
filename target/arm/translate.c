@@ -8754,19 +8754,16 @@ static void disas_arm_insn(DisasContext *s, unsigned int insn)
                         shift = (insn >> 7) & 0x1f;
                         if (insn & (1 << 6)) {
                             /* pkhtb */
-                            if (shift == 0)
+                            if (shift == 0) {
                                 shift = 31;
+                            }
                             tcg_gen_sari_i32(tmp2, tmp2, shift);
-                            tcg_gen_andi_i32(tmp, tmp, 0xffff0000);
-                            tcg_gen_ext16u_i32(tmp2, tmp2);
+                            tcg_gen_deposit_i32(tmp, tmp, tmp2, 0, 16);
                         } else {
                             /* pkhbt */
-                            if (shift)
-                                tcg_gen_shli_i32(tmp2, tmp2, shift);
-                            tcg_gen_ext16u_i32(tmp, tmp);
-                            tcg_gen_andi_i32(tmp2, tmp2, 0xffff0000);
+                            tcg_gen_shli_i32(tmp2, tmp2, shift);
+                            tcg_gen_deposit_i32(tmp, tmp2, tmp, 0, 16);
                         }
-                        tcg_gen_or_i32(tmp, tmp, tmp2);
                         tcg_temp_free_i32(tmp2);
                         store_reg(s, rd, tmp);
                     } else if ((insn & 0x00200020) == 0x00200000) {
@@ -9802,19 +9799,16 @@ static void disas_thumb2_insn(DisasContext *s, uint32_t insn)
             shift = ((insn >> 10) & 0x1c) | ((insn >> 6) & 0x3);
             if (insn & (1 << 5)) {
                 /* pkhtb */
-                if (shift == 0)
+                if (shift == 0) {
                     shift = 31;
+                }
                 tcg_gen_sari_i32(tmp2, tmp2, shift);
-                tcg_gen_andi_i32(tmp, tmp, 0xffff0000);
-                tcg_gen_ext16u_i32(tmp2, tmp2);
+                tcg_gen_deposit_i32(tmp, tmp, tmp2, 0, 16);
             } else {
                 /* pkhbt */
-                if (shift)
-                    tcg_gen_shli_i32(tmp2, tmp2, shift);
-                tcg_gen_ext16u_i32(tmp, tmp);
-                tcg_gen_andi_i32(tmp2, tmp2, 0xffff0000);
+                tcg_gen_shli_i32(tmp2, tmp2, shift);
+                tcg_gen_deposit_i32(tmp, tmp2, tmp, 0, 16);
             }
-            tcg_gen_or_i32(tmp, tmp, tmp2);
             tcg_temp_free_i32(tmp2);
             store_reg(s, rd, tmp);
         } else {
