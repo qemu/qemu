@@ -962,17 +962,7 @@ static void dec_load(DisasContext *dc)
         switch (size) {
             case 1:
             {
-                /* 00 -> 11
-                   01 -> 10
-                   10 -> 10
-                   11 -> 00 */
-                TCGv low = tcg_temp_new();
-
-                tcg_gen_andi_tl(low, addr, 3);
-                tcg_gen_sub_tl(low, tcg_const_tl(3), low);
-                tcg_gen_andi_tl(addr, addr, ~3);
-                tcg_gen_or_tl(addr, addr, low);
-                tcg_temp_free(low);
+                tcg_gen_xori_tl(addr, addr, 3);
                 break;
             }
 
@@ -1006,9 +996,16 @@ static void dec_load(DisasContext *dc)
     tcg_gen_qemu_ld_i32(v, addr, mem_index, mop);
 
     if ((dc->cpu->env.pvr.regs[2] & PVR2_UNALIGNED_EXC_MASK) && size > 1) {
+        TCGv_i32 t0 = tcg_const_i32(0);
+        TCGv_i32 treg = tcg_const_i32(dc->rd);
+        TCGv_i32 tsize = tcg_const_i32(size - 1);
+
         tcg_gen_movi_i64(cpu_SR[SR_PC], dc->pc);
-        gen_helper_memalign(cpu_env, addr, tcg_const_i32(dc->rd),
-                            tcg_const_i32(0), tcg_const_i32(size - 1));
+        gen_helper_memalign(cpu_env, addr, treg, t0, tsize);
+
+        tcg_temp_free_i32(t0);
+        tcg_temp_free_i32(treg);
+        tcg_temp_free_i32(tsize);
     }
 
     if (ex) {
@@ -1095,17 +1092,7 @@ static void dec_store(DisasContext *dc)
         switch (size) {
             case 1:
             {
-                /* 00 -> 11
-                   01 -> 10
-                   10 -> 10
-                   11 -> 00 */
-                TCGv low = tcg_temp_new();
-
-                tcg_gen_andi_tl(low, addr, 3);
-                tcg_gen_sub_tl(low, tcg_const_tl(3), low);
-                tcg_gen_andi_tl(addr, addr, ~3);
-                tcg_gen_or_tl(addr, addr, low);
-                tcg_temp_free(low);
+                tcg_gen_xori_tl(addr, addr, 3);
                 break;
             }
 
@@ -1124,6 +1111,10 @@ static void dec_store(DisasContext *dc)
 
     /* Verify alignment if needed.  */
     if ((dc->cpu->env.pvr.regs[2] & PVR2_UNALIGNED_EXC_MASK) && size > 1) {
+        TCGv_i32 t1 = tcg_const_i32(1);
+        TCGv_i32 treg = tcg_const_i32(dc->rd);
+        TCGv_i32 tsize = tcg_const_i32(size - 1);
+
         tcg_gen_movi_i64(cpu_SR[SR_PC], dc->pc);
         /* FIXME: if the alignment is wrong, we should restore the value
          *        in memory. One possible way to achieve this is to probe
@@ -1131,8 +1122,11 @@ static void dec_store(DisasContext *dc)
          *        the alignment checks in between the probe and the mem
          *        access.
          */
-        gen_helper_memalign(cpu_env, addr, tcg_const_i32(dc->rd),
-                            tcg_const_i32(1), tcg_const_i32(size - 1));
+        gen_helper_memalign(cpu_env, addr, treg, t1, tsize);
+
+        tcg_temp_free_i32(t1);
+        tcg_temp_free_i32(treg);
+        tcg_temp_free_i32(tsize);
     }
 
     if (ex) {
