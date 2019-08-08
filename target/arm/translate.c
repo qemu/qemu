@@ -376,34 +376,6 @@ static void gen_revsh(TCGv_i32 var)
     tcg_gen_ext16s_i32(var, var);
 }
 
-/* Return (b << 32) + a. Mark inputs as dead */
-static TCGv_i64 gen_addq_msw(TCGv_i64 a, TCGv_i32 b)
-{
-    TCGv_i64 tmp64 = tcg_temp_new_i64();
-
-    tcg_gen_extu_i32_i64(tmp64, b);
-    tcg_temp_free_i32(b);
-    tcg_gen_shli_i64(tmp64, tmp64, 32);
-    tcg_gen_add_i64(a, tmp64, a);
-
-    tcg_temp_free_i64(tmp64);
-    return a;
-}
-
-/* Return (b << 32) - a. Mark inputs as dead. */
-static TCGv_i64 gen_subq_msw(TCGv_i64 a, TCGv_i32 b)
-{
-    TCGv_i64 tmp64 = tcg_temp_new_i64();
-
-    tcg_gen_extu_i32_i64(tmp64, b);
-    tcg_temp_free_i32(b);
-    tcg_gen_shli_i64(tmp64, tmp64, 32);
-    tcg_gen_sub_i64(a, tmp64, a);
-
-    tcg_temp_free_i64(tmp64);
-    return a;
-}
-
 /* 32x32->64 multiply.  Marks inputs as dead.  */
 static TCGv_i64 gen_mulu_i64_i32(TCGv_i32 a, TCGv_i32 b)
 {
@@ -8857,23 +8829,27 @@ static void disas_arm_insn(DisasContext *s, unsigned int insn)
                            (SMMUL, SMMLA, SMMLS) */
                         tmp = load_reg(s, rm);
                         tmp2 = load_reg(s, rs);
-                        tmp64 = gen_muls_i64_i32(tmp, tmp2);
+                        tcg_gen_muls2_i32(tmp2, tmp, tmp, tmp2);
 
                         if (rd != 15) {
-                            tmp = load_reg(s, rd);
+                            tmp3 = load_reg(s, rd);
                             if (insn & (1 << 6)) {
-                                tmp64 = gen_subq_msw(tmp64, tmp);
+                                tcg_gen_sub_i32(tmp, tmp, tmp3);
                             } else {
-                                tmp64 = gen_addq_msw(tmp64, tmp);
+                                tcg_gen_add_i32(tmp, tmp, tmp3);
                             }
+                            tcg_temp_free_i32(tmp3);
                         }
                         if (insn & (1 << 5)) {
-                            tcg_gen_addi_i64(tmp64, tmp64, 0x80000000u);
+                            /*
+                             * Adding 0x80000000 to the 64-bit quantity
+                             * means that we have carry in to the high
+                             * word when the low word has the high bit set.
+                             */
+                            tcg_gen_shri_i32(tmp2, tmp2, 31);
+                            tcg_gen_add_i32(tmp, tmp, tmp2);
                         }
-                        tcg_gen_shri_i64(tmp64, tmp64, 32);
-                        tmp = tcg_temp_new_i32();
-                        tcg_gen_extrl_i64_i32(tmp, tmp64);
-                        tcg_temp_free_i64(tmp64);
+                        tcg_temp_free_i32(tmp2);
                         store_reg(s, rn, tmp);
                         break;
                     case 0:
@@ -10099,22 +10075,26 @@ static void disas_thumb2_insn(DisasContext *s, uint32_t insn)
                   }
                 break;
             case 5: case 6: /* 32 * 32 -> 32msb (SMMUL, SMMLA, SMMLS) */
-                tmp64 = gen_muls_i64_i32(tmp, tmp2);
+                tcg_gen_muls2_i32(tmp2, tmp, tmp, tmp2);
                 if (rs != 15) {
-                    tmp = load_reg(s, rs);
+                    tmp3 = load_reg(s, rs);
                     if (insn & (1 << 20)) {
-                        tmp64 = gen_addq_msw(tmp64, tmp);
+                        tcg_gen_add_i32(tmp, tmp, tmp3);
                     } else {
-                        tmp64 = gen_subq_msw(tmp64, tmp);
+                        tcg_gen_sub_i32(tmp, tmp, tmp3);
                     }
+                    tcg_temp_free_i32(tmp3);
                 }
                 if (insn & (1 << 4)) {
-                    tcg_gen_addi_i64(tmp64, tmp64, 0x80000000u);
+                    /*
+                     * Adding 0x80000000 to the 64-bit quantity
+                     * means that we have carry in to the high
+                     * word when the low word has the high bit set.
+                     */
+                    tcg_gen_shri_i32(tmp2, tmp2, 31);
+                    tcg_gen_add_i32(tmp, tmp, tmp2);
                 }
-                tcg_gen_shri_i64(tmp64, tmp64, 32);
-                tmp = tcg_temp_new_i32();
-                tcg_gen_extrl_i64_i32(tmp, tmp64);
-                tcg_temp_free_i64(tmp64);
+                tcg_temp_free_i32(tmp2);
                 break;
             case 7: /* Unsigned sum of absolute differences.  */
                 gen_helper_usad8(tmp, tmp, tmp2);
