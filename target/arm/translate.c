@@ -8811,8 +8811,7 @@ static void disas_arm_insn(DisasContext *s, unsigned int insn)
                         shift = (insn >> 10) & 3;
                         /* ??? In many cases it's not necessary to do a
                            rotate, a shift is sufficient.  */
-                        if (shift != 0)
-                            tcg_gen_rotri_i32(tmp, tmp, shift * 8);
+                        tcg_gen_rotri_i32(tmp, tmp, shift * 8);
                         op1 = (insn >> 20) & 7;
                         switch (op1) {
                         case 0: gen_sxtb16(tmp);  break;
@@ -9889,8 +9888,7 @@ static void disas_thumb2_insn(DisasContext *s, uint32_t insn)
             shift = (insn >> 4) & 3;
             /* ??? In many cases it's not necessary to do a
                rotate, a shift is sufficient.  */
-            if (shift != 0)
-                tcg_gen_rotri_i32(tmp, tmp, shift * 8);
+            tcg_gen_rotri_i32(tmp, tmp, shift * 8);
             op = (insn >> 20) & 7;
             switch (op) {
             case 0: gen_sxth(tmp);   break;
@@ -10617,11 +10615,10 @@ static void disas_thumb2_insn(DisasContext *s, uint32_t insn)
                     case 7:
                         goto illegal_op;
                     default: /* Saturate.  */
-                        if (shift) {
-                            if (op & 1)
-                                tcg_gen_sari_i32(tmp, tmp, shift);
-                            else
-                                tcg_gen_shli_i32(tmp, tmp, shift);
+                        if (op & 1) {
+                            tcg_gen_sari_i32(tmp, tmp, shift);
+                        } else {
+                            tcg_gen_shli_i32(tmp, tmp, shift);
                         }
                         tmp2 = tcg_const_i32(imm);
                         if (op & 4) {
@@ -10812,9 +10809,7 @@ static void disas_thumb2_insn(DisasContext *s, uint32_t insn)
                     goto illegal_op;
                 }
                 tmp = load_reg(s, rm);
-                if (shift) {
-                    tcg_gen_shli_i32(tmp, tmp, shift);
-                }
+                tcg_gen_shli_i32(tmp, tmp, shift);
                 tcg_gen_add_i32(addr, addr, tmp);
                 tcg_temp_free_i32(tmp);
                 break;
