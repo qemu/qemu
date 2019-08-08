@@ -7964,8 +7964,7 @@ static void disas_arm_insn(DisasContext *s, unsigned int insn)
                 /* CPSR = immediate */
                 val = insn & 0xff;
                 shift = ((insn >> 8) & 0xf) * 2;
-                if (shift)
-                    val = (val >> shift) | (val << (32 - shift));
+                val = ror32(val, shift);
                 i = ((insn & (1 << 22)) != 0);
                 if (gen_set_psr_im(s, msr_mask(s, (insn >> 16) & 0xf, i),
                                    i, val)) {
@@ -8228,9 +8227,7 @@ static void disas_arm_insn(DisasContext *s, unsigned int insn)
             /* immediate operand */
             val = insn & 0xff;
             shift = ((insn >> 8) & 0xf) * 2;
-            if (shift) {
-                val = (val >> shift) | (val << (32 - shift));
-            }
+            val = ror32(val, shift);
             tmp2 = tcg_temp_new_i32();
             tcg_gen_movi_i32(tmp2, val);
             if (logic_cc && shift) {
