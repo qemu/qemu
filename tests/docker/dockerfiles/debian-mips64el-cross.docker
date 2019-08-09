@@ -21,6 +21,7 @@ RUN apt update && \
 
 # Specify the cross prefix for this image (see tests/docker/common.rc)
 ENV QEMU_CONFIGURE_OPTS --cross-prefix=mips64el-linux-gnuabi64-
+ENV DEF_TARGET_LIST mips64el-softmmu,mips64el-linux-user
 
 # Install extra libraries to increase code coverage
 RUN apt update && \
