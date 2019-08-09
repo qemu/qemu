@@ -219,5 +219,10 @@ _filter_nbd()
         -e 's#\(foo\|PORT/\?\|.sock\): Failed to .*$#\1#'
 }
 
+_filter_qmp_empty_return()
+{
+    grep -v '{"return": {}}'
+}
+
 # make sure this script returns success
 true

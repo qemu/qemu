@@ -58,16 +58,21 @@ test_blockjob()
               }}}" \
         'return'
 
+    # If "$2" is an event, we may or may not see it before the
+    # {"return": {}}.  Therefore, filter the {"return": {}} out both
+    # here and in the next command.  (Naturally, if we do not see it
+    # here, we will see it before the next command can be executed,
+    # so it will appear in the next _send_qemu_cmd's output.)
     _send_qemu_cmd $QEMU_HANDLE \
         "$1" \
         "$2" \
-        | _filter_img_create
+        | _filter_img_create | _filter_qmp_empty_return
 
     # We want this to return an error because the block job is still running
     _send_qemu_cmd $QEMU_HANDLE \
         "{'execute': 'blockdev-del',
           'arguments': {'node-name': 'drv0'}}" \
-        'error' | _filter_generated_node_ids
+        'error' | _filter_generated_node_ids | _filter_qmp_empty_return
 
     _send_qemu_cmd $QEMU_HANDLE \
         "{'execute': 'block-job-cancel',
