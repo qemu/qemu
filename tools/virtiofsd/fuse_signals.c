@@ -12,6 +12,7 @@
 #include "fuse_i.h"
 #include "fuse_lowlevel.h"
 
+#include <errno.h>
 #include <signal.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -47,13 +48,15 @@ static int set_one_signal_handler(int sig, void (*handler)(int), int remove)
     sa.sa_flags = 0;
 
     if (sigaction(sig, NULL, &old_sa) == -1) {
-        perror("fuse: cannot get old signal handler");
+        fuse_log(FUSE_LOG_ERR, "fuse: cannot get old signal handler: %s\n",
+                 strerror(errno));
         return -1;
     }
 
     if (old_sa.sa_handler == (remove ? handler : SIG_DFL) &&
         sigaction(sig, &sa, NULL) == -1) {
-        perror("fuse: cannot set signal handler");
+        fuse_log(FUSE_LOG_ERR, "fuse: cannot set signal handler: %s\n",
+                 strerror(errno));
         return -1;
     }
     return 0;
