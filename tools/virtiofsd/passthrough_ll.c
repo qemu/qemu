@@ -37,6 +37,7 @@
 
 #include "qemu/osdep.h"
 #include "fuse_virtio.h"
+#include "fuse_log.h"
 #include "fuse_lowlevel.h"
 #include <assert.h>
 #include <cap-ng.h>
@@ -140,6 +141,7 @@ static const struct fuse_opt lo_opts[] = {
     FUSE_OPT_END
 };
 static bool use_syslog = false;
+static int current_log_level;
 
 static void unref_inode(struct lo_data *lo, struct lo_inode *inode, uint64_t n);
 
@@ -458,11 +460,6 @@ static int lo_fd(fuse_req_t req, fuse_ino_t ino)
     return inode ? inode->fd : -1;
 }
 
-static bool lo_debug(fuse_req_t req)
-{
-    return lo_data(req)->debug != 0;
-}
-
 static void lo_init(void *userdata, struct fuse_conn_info *conn)
 {
     struct lo_data *lo = (struct lo_data *)userdata;
@@ -472,15 +469,11 @@ static void lo_init(void *userdata, struct fuse_conn_info *conn)
     }
 
     if (lo->writeback && conn->capable & FUSE_CAP_WRITEBACK_CACHE) {
-        if (lo->debug) {
-            fuse_log(FUSE_LOG_DEBUG, "lo_init: activating writeback\n");
-        }
+        fuse_log(FUSE_LOG_DEBUG, "lo_init: activating writeback\n");
         conn->want |= FUSE_CAP_WRITEBACK_CACHE;
     }
     if (lo->flock && conn->capable & FUSE_CAP_FLOCK_LOCKS) {
-        if (lo->debug) {
-            fuse_log(FUSE_LOG_DEBUG, "lo_init: activating flock locks\n");
-        }
+        fuse_log(FUSE_LOG_DEBUG, "lo_init: activating flock locks\n");
         conn->want |= FUSE_CAP_FLOCK_LOCKS;
     }
 }
@@ -823,10 +816,8 @@ static int lo_do_lookup(fuse_req_t req, fuse_ino_t parent, const char *name,
     }
     e->ino = inode->fuse_ino;
 
-    if (lo_debug(req)) {
-        fuse_log(FUSE_LOG_DEBUG, "  %lli/%s -> %lli\n",
-                 (unsigned long long)parent, name, (unsigned long long)e->ino);
-    }
+    fuse_log(FUSE_LOG_DEBUG, "  %lli/%s -> %lli\n", (unsigned long long)parent,
+             name, (unsigned long long)e->ino);
 
     return 0;
 
@@ -843,10 +834,8 @@ static void lo_lookup(fuse_req_t req, fuse_ino_t parent, const char *name)
     struct fuse_entry_param e;
     int err;
 
-    if (lo_debug(req)) {
-        fuse_log(FUSE_LOG_DEBUG, "lo_lookup(parent=%" PRIu64 ", name=%s)\n",
-                 parent, name);
-    }
+    fuse_log(FUSE_LOG_DEBUG, "lo_lookup(parent=%" PRIu64 ", name=%s)\n", parent,
+             name);
 
     /*
      * Don't use is_safe_path_component(), allow "." and ".." for NFS export
@@ -971,10 +960,8 @@ static void lo_mknod_symlink(fuse_req_t req, fuse_ino_t parent,
         goto out;
     }
 
-    if (lo_debug(req)) {
-        fuse_log(FUSE_LOG_DEBUG, "  %lli/%s -> %lli\n",
-                 (unsigned long long)parent, name, (unsigned long long)e.ino);
-    }
+    fuse_log(FUSE_LOG_DEBUG, "  %lli/%s -> %lli\n", (unsigned long long)parent,
+             name, (unsigned long long)e.ino);
 
     fuse_reply_entry(req, &e);
     return;
@@ -1074,10 +1061,8 @@ static void lo_link(fuse_req_t req, fuse_ino_t ino, fuse_ino_t parent,
     pthread_mutex_unlock(&lo->mutex);
     e.ino = inode->fuse_ino;
 
-    if (lo_debug(req)) {
-        fuse_log(FUSE_LOG_DEBUG, "  %lli/%s -> %lli\n",
-                 (unsigned long long)parent, name, (unsigned long long)e.ino);
-    }
+    fuse_log(FUSE_LOG_DEBUG, "  %lli/%s -> %lli\n", (unsigned long long)parent,
+             name, (unsigned long long)e.ino);
 
     fuse_reply_entry(req, &e);
     return;
@@ -1171,11 +1156,9 @@ static void lo_forget_one(fuse_req_t req, fuse_ino_t ino, uint64_t nlookup)
         return;
     }
 
-    if (lo_debug(req)) {
-        fuse_log(FUSE_LOG_DEBUG, "  forget %lli %lli -%lli\n",
-                 (unsigned long long)ino, (unsigned long long)inode->refcount,
-                 (unsigned long long)nlookup);
-    }
+    fuse_log(FUSE_LOG_DEBUG, "  forget %lli %lli -%lli\n",
+             (unsigned long long)ino, (unsigned long long)inode->refcount,
+             (unsigned long long)nlookup);
 
     unref_inode(lo, inode, nlookup);
 }
@@ -1445,10 +1428,8 @@ static void lo_create(fuse_req_t req, fuse_ino_t parent, const char *name,
     int err;
     struct lo_cred old = {};
 
-    if (lo_debug(req)) {
-        fuse_log(FUSE_LOG_DEBUG, "lo_create(parent=%" PRIu64 ", name=%s)\n",
-                 parent, name);
-    }
+    fuse_log(FUSE_LOG_DEBUG, "lo_create(parent=%" PRIu64 ", name=%s)\n", parent,
+             name);
 
     if (!is_safe_path_component(name)) {
         fuse_reply_err(req, EINVAL);
@@ -1525,10 +1506,8 @@ static void lo_open(fuse_req_t req, fuse_ino_t ino, struct fuse_file_info *fi)
     char buf[64];
     struct lo_data *lo = lo_data(req);
 
-    if (lo_debug(req)) {
-        fuse_log(FUSE_LOG_DEBUG, "lo_open(ino=%" PRIu64 ", flags=%d)\n", ino,
-                 fi->flags);
-    }
+    fuse_log(FUSE_LOG_DEBUG, "lo_open(ino=%" PRIu64 ", flags=%d)\n", ino,
+             fi->flags);
 
     /*
      * With writeback cache, kernel may send read requests even
@@ -1644,12 +1623,10 @@ static void lo_read(fuse_req_t req, fuse_ino_t ino, size_t size, off_t offset,
 {
     struct fuse_bufvec buf = FUSE_BUFVEC_INIT(size);
 
-    if (lo_debug(req)) {
-        fuse_log(FUSE_LOG_DEBUG,
-                 "lo_read(ino=%" PRIu64 ", size=%zd, "
-                 "off=%lu)\n",
-                 ino, size, (unsigned long)offset);
-    }
+    fuse_log(FUSE_LOG_DEBUG,
+             "lo_read(ino=%" PRIu64 ", size=%zd, "
+             "off=%lu)\n",
+             ino, size, (unsigned long)offset);
 
     buf.buf[0].flags = FUSE_BUF_IS_FD | FUSE_BUF_FD_SEEK;
     buf.buf[0].fd = lo_fi_fd(req, fi);
@@ -1671,11 +1648,9 @@ static void lo_write_buf(fuse_req_t req, fuse_ino_t ino,
     out_buf.buf[0].fd = lo_fi_fd(req, fi);
     out_buf.buf[0].pos = off;
 
-    if (lo_debug(req)) {
-        fuse_log(FUSE_LOG_DEBUG,
-                 "lo_write(ino=%" PRIu64 ", size=%zd, off=%lu)\n", ino,
-                 out_buf.buf[0].size, (unsigned long)off);
-    }
+    fuse_log(FUSE_LOG_DEBUG,
+             "lo_write_buf(ino=%" PRIu64 ", size=%zd, off=%lu)\n", ino,
+             out_buf.buf[0].size, (unsigned long)off);
 
     /*
      * If kill_priv is set, drop CAP_FSETID which should lead to kernel
@@ -1774,11 +1749,8 @@ static void lo_getxattr(fuse_req_t req, fuse_ino_t ino, const char *name,
         goto out;
     }
 
-    if (lo_debug(req)) {
-        fuse_log(FUSE_LOG_DEBUG,
-                 "lo_getxattr(ino=%" PRIu64 ", name=%s size=%zd)\n", ino, name,
-                 size);
-    }
+    fuse_log(FUSE_LOG_DEBUG, "lo_getxattr(ino=%" PRIu64 ", name=%s size=%zd)\n",
+             ino, name, size);
 
     if (inode->is_symlink) {
         /* Sorry, no race free way to getxattr on symlink. */
@@ -1852,10 +1824,8 @@ static void lo_listxattr(fuse_req_t req, fuse_ino_t ino, size_t size)
         goto out;
     }
 
-    if (lo_debug(req)) {
-        fuse_log(FUSE_LOG_DEBUG, "lo_listxattr(ino=%" PRIu64 ", size=%zd)\n",
-                 ino, size);
-    }
+    fuse_log(FUSE_LOG_DEBUG, "lo_listxattr(ino=%" PRIu64 ", size=%zd)\n", ino,
+             size);
 
     if (inode->is_symlink) {
         /* Sorry, no race free way to listxattr on symlink. */
@@ -1929,11 +1899,8 @@ static void lo_setxattr(fuse_req_t req, fuse_ino_t ino, const char *name,
         goto out;
     }
 
-    if (lo_debug(req)) {
-        fuse_log(FUSE_LOG_DEBUG,
-                 "lo_setxattr(ino=%" PRIu64 ", name=%s value=%s size=%zd)\n",
-                 ino, name, value, size);
-    }
+    fuse_log(FUSE_LOG_DEBUG, "lo_setxattr(ino=%" PRIu64
+             ", name=%s value=%s size=%zd)\n", ino, name, value, size);
 
     if (inode->is_symlink) {
         /* Sorry, no race free way to setxattr on symlink. */
@@ -1978,10 +1945,8 @@ static void lo_removexattr(fuse_req_t req, fuse_ino_t ino, const char *name)
         goto out;
     }
 
-    if (lo_debug(req)) {
-        fuse_log(FUSE_LOG_DEBUG, "lo_removexattr(ino=%" PRIu64 ", name=%s)\n",
-                 ino, name);
-    }
+    fuse_log(FUSE_LOG_DEBUG, "lo_removexattr(ino=%" PRIu64 ", name=%s)\n", ino,
+             name);
 
     if (inode->is_symlink) {
         /* Sorry, no race free way to setxattr on symlink. */
@@ -2303,6 +2268,10 @@ static void setup_nofile_rlimit(void)
 
 static void log_func(enum fuse_log_level level, const char *fmt, va_list ap)
 {
+    if (current_log_level < level) {
+        return;
+    }
+
     if (use_syslog) {
         int priority = LOG_ERR;
         switch (level) {
@@ -2401,8 +2370,19 @@ int main(int argc, char *argv[])
         return 1;
     }
 
+    /*
+     * log_level is 0 if not configured via cmd options (0 is LOG_EMERG,
+     * and we don't use this log level).
+     */
+    if (opts.log_level != 0) {
+        current_log_level = opts.log_level;
+    }
     lo.debug = opts.debug;
+    if (lo.debug) {
+        current_log_level = FUSE_LOG_DEBUG;
+    }
     lo.root.refcount = 2;
+
     if (lo.source) {
         struct stat stat;
         int res;

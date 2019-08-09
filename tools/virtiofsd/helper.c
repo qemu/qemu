@@ -34,7 +34,6 @@
         t, offsetof(struct fuse_cmdline_opts, p), v \
     }
 
-
 static const struct fuse_opt fuse_helper_opts[] = {
     FUSE_HELPER_OPT("-h", show_help),
     FUSE_HELPER_OPT("--help", show_help),
@@ -55,6 +54,10 @@ static const struct fuse_opt fuse_helper_opts[] = {
     FUSE_OPT_KEY("subtype=", FUSE_OPT_KEY_KEEP),
     FUSE_HELPER_OPT("max_idle_threads=%u", max_idle_threads),
     FUSE_HELPER_OPT("--syslog", syslog),
+    FUSE_HELPER_OPT_VALUE("log_level=debug", log_level, FUSE_LOG_DEBUG),
+    FUSE_HELPER_OPT_VALUE("log_level=info", log_level, FUSE_LOG_INFO),
+    FUSE_HELPER_OPT_VALUE("log_level=warn", log_level, FUSE_LOG_WARNING),
+    FUSE_HELPER_OPT_VALUE("log_level=err", log_level, FUSE_LOG_ERR),
     FUSE_OPT_END
 };
 
@@ -142,6 +145,9 @@ void fuse_cmdline_help(void)
            "    --syslog                   log to syslog (default stderr)\n"
            "    -f                         foreground operation\n"
            "    --daemonize                run in background\n"
+           "    -o log_level=<level>       log level, default to \"info\"\n"
+           "                               level could be one of \"debug, "
+           "info, warn, err\"\n"
            "    -o max_idle_threads        the maximum number of idle worker "
            "threads\n"
            "                               allowed (default: 10)\n"
