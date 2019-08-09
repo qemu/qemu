@@ -299,6 +299,7 @@ struct MachineState {
     CPUArchIdList *possible_cpus;
     CpuTopology smp;
     struct NVDIMMState *nvdimms_state;
+    struct NumaState *numa_state;
 };
 
 #define DEFINE_MACHINE(namestr, machine_initfn) \
