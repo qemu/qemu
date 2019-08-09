@@ -1361,10 +1361,7 @@ static void n8x0_init(MachineState *machine,
 
     if (machine->kernel_filename) {
         /* Or at the linux loader.  */
-        binfo->kernel_filename = machine->kernel_filename;
-        binfo->kernel_cmdline = machine->kernel_cmdline;
-        binfo->initrd_filename = machine->initrd_filename;
-        arm_load_kernel(s->mpu->cpu, binfo);
+        arm_load_kernel(s->mpu->cpu, machine, binfo);
 
         qemu_register_reset(n8x0_boot_init, s);
     }

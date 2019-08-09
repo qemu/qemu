@@ -242,9 +242,6 @@ static void aspeed_board_init(MachineState *machine,
         write_boot_rom(drive0, FIRMWARE_ADDR, fl->size, &error_abort);
     }
 
-    aspeed_board_binfo.kernel_filename = machine->kernel_filename;
-    aspeed_board_binfo.initrd_filename = machine->initrd_filename;
-    aspeed_board_binfo.kernel_cmdline = machine->kernel_cmdline;
     aspeed_board_binfo.ram_size = ram_size;
     aspeed_board_binfo.loader_start = sc->info->memmap[ASPEED_SDRAM];
     aspeed_board_binfo.nb_cpus = bmc->soc.num_cpus;
@@ -253,7 +250,7 @@ static void aspeed_board_init(MachineState *machine,
         cfg->i2c_init(bmc);
     }
 
-    arm_load_kernel(ARM_CPU(first_cpu), &aspeed_board_binfo);
+    arm_load_kernel(ARM_CPU(first_cpu), machine, &aspeed_board_binfo);
 }
 
 static void palmetto_bmc_i2c_init(AspeedBoardState *bmc)

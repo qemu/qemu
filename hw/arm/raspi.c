@@ -157,13 +157,9 @@ static void setup_boot(MachineState *machine, int version, size_t ram_size)
 
         binfo.entry = firmware_addr;
         binfo.firmware_loaded = true;
-    } else {
-        binfo.kernel_filename = machine->kernel_filename;
-        binfo.kernel_cmdline = machine->kernel_cmdline;
-        binfo.initrd_filename = machine->initrd_filename;
     }
 
-    arm_load_kernel(ARM_CPU(first_cpu), &binfo);
+    arm_load_kernel(ARM_CPU(first_cpu), machine, &binfo);
 }
 
 static void raspi_init(MachineState *machine, int version)

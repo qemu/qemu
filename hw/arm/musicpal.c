@@ -1573,9 +1573,6 @@ static struct arm_boot_info musicpal_binfo = {
 
 static void musicpal_init(MachineState *machine)
 {
-    const char *kernel_filename = machine->kernel_filename;
-    const char *kernel_cmdline = machine->kernel_cmdline;
-    const char *initrd_filename = machine->initrd_filename;
     ARMCPU *cpu;
     qemu_irq pic[32];
     DeviceState *dev;
@@ -1704,10 +1701,7 @@ static void musicpal_init(MachineState *machine)
     sysbus_connect_irq(s, 0, pic[MP_AUDIO_IRQ]);
 
     musicpal_binfo.ram_size = MP_RAM_DEFAULT_SIZE;
-    musicpal_binfo.kernel_filename = kernel_filename;
-    musicpal_binfo.kernel_cmdline = kernel_cmdline;
-    musicpal_binfo.initrd_filename = initrd_filename;
-    arm_load_kernel(cpu, &musicpal_binfo);
+    arm_load_kernel(cpu, machine, &musicpal_binfo);
 }
 
 static void musicpal_machine_init(MachineClass *mc)

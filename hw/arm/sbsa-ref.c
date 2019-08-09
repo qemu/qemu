@@ -711,13 +711,12 @@ static void sbsa_ref_init(MachineState *machine)
     create_pcie(sms, pic);
 
     sms->bootinfo.ram_size = machine->ram_size;
-    sms->bootinfo.kernel_filename = machine->kernel_filename;
     sms->bootinfo.nb_cpus = smp_cpus;
     sms->bootinfo.board_id = -1;
     sms->bootinfo.loader_start = sbsa_ref_memmap[SBSA_MEM].base;
     sms->bootinfo.get_dtb = sbsa_ref_dtb;
     sms->bootinfo.firmware_loaded = firmware_loaded;
-    arm_load_kernel(ARM_CPU(first_cpu), &sms->bootinfo);
+    arm_load_kernel(ARM_CPU(first_cpu), machine, &sms->bootinfo);
 }
 
 static uint64_t sbsa_ref_cpu_mp_affinity(SBSAMachineState *sms, int idx)

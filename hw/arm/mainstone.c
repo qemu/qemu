@@ -176,11 +176,8 @@ static void mainstone_common_init(MemoryRegion *address_space_mem,
     smc91c111_init(&nd_table[0], MST_ETH_PHYS,
                     qdev_get_gpio_in(mst_irq, ETHERNET_IRQ));
 
-    mainstone_binfo.kernel_filename = machine->kernel_filename;
-    mainstone_binfo.kernel_cmdline = machine->kernel_cmdline;
-    mainstone_binfo.initrd_filename = machine->initrd_filename;
     mainstone_binfo.board_id = arm_id;
-    arm_load_kernel(mpu->cpu, &mainstone_binfo);
+    arm_load_kernel(mpu->cpu, machine, &mainstone_binfo);
 }
 
 static void mainstone_init(MachineState *machine)

@@ -375,11 +375,8 @@ static void versatile_init(MachineState *machine, int board_id)
     }
 
     versatile_binfo.ram_size = machine->ram_size;
-    versatile_binfo.kernel_filename = machine->kernel_filename;
-    versatile_binfo.kernel_cmdline = machine->kernel_cmdline;
-    versatile_binfo.initrd_filename = machine->initrd_filename;
     versatile_binfo.board_id = board_id;
-    arm_load_kernel(cpu, &versatile_binfo);
+    arm_load_kernel(cpu, machine, &versatile_binfo);
 }
 
 static void vpb_init(MachineState *machine)

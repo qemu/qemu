@@ -131,7 +131,7 @@ struct arm_boot_info {
  * before sysbus-fdt arm_register_platform_bus_fdt_creator. Indeed the
  * machine init done notifiers are called in registration reverse order.
  */
-void arm_load_kernel(ARMCPU *cpu, struct arm_boot_info *info);
+void arm_load_kernel(ARMCPU *cpu, MachineState *ms, struct arm_boot_info *info);
 
 AddressSpace *arm_boot_address_space(ARMCPU *cpu,
                                      const struct arm_boot_info *info);
@@ -158,7 +158,7 @@ AddressSpace *arm_boot_address_space(ARMCPU *cpu,
  * Note: Must not be called unless have_dtb(binfo) is true.
  */
 int arm_load_dtb(hwaddr addr, const struct arm_boot_info *binfo,
-                 hwaddr addr_limit, AddressSpace *as);
+                 hwaddr addr_limit, AddressSpace *as, MachineState *ms);
 
 /* Write a secure board setup routine with a dummy handler for SMCs */
 void arm_write_secure_board_setup_dummy_smc(ARMCPU *cpu,

@@ -25,9 +25,6 @@ static struct arm_boot_info collie_binfo = {
 
 static void collie_init(MachineState *machine)
 {
-    const char *kernel_filename = machine->kernel_filename;
-    const char *kernel_cmdline = machine->kernel_cmdline;
-    const char *initrd_filename = machine->initrd_filename;
     StrongARMState *s;
     DriveInfo *dinfo;
     MemoryRegion *sysmem = get_system_memory();
@@ -46,11 +43,8 @@ static void collie_init(MachineState *machine)
 
     sysbus_create_simple("scoop", 0x40800000, NULL);
 
-    collie_binfo.kernel_filename = kernel_filename;
-    collie_binfo.kernel_cmdline = kernel_cmdline;
-    collie_binfo.initrd_filename = initrd_filename;
     collie_binfo.board_id = 0x208;
-    arm_load_kernel(s->cpu, &collie_binfo);
+    arm_load_kernel(s->cpu, machine, &collie_binfo);
 }
 
 static void collie_machine_init(MachineClass *mc)
