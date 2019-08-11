@@ -41,6 +41,10 @@
 #define GPIO_DVI_DDC                            0x0064
 #define GPIO_MONID                              0x0068
 #define I2C_CNTL_1                              0x0094
+#define AMCGPIO_MASK_MIR                        0x009c
+#define AMCGPIO_A_MIR                           0x00a0
+#define AMCGPIO_Y_MIR                           0x00a4
+#define AMCGPIO_EN_MIR                          0x00a8
 #define PALETTE_INDEX                           0x00b0
 #define PALETTE_DATA                            0x00b4
 #define CNFG_CNTL                               0x00e0
