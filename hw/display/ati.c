@@ -564,12 +564,15 @@ static void ati_mm_write(void *opaque, hwaddr addr,
                                addr - GPIO_MONID, data, size);
             /*
              * Rage128p accesses DDC used to get EDID via these bits.
-             * Only touch i2c when write overlaps 3rd byte because some
-             * drivers access this reg via multiple partial writes and
-             * without this spurious bits would be sent.
+             * Because some drivers access this via multiple byte writes
+             * we have to be careful when we send bits to avoid spurious
+             * changes in bitbang_i2c state. So only do it when mask is set
+             * and either the enable bits are changed or output bits changed
+             * while enabled.
              */
             if ((s->regs.gpio_monid & BIT(25)) &&
-                addr <= GPIO_MONID + 2 && addr + size > GPIO_MONID + 2) {
+                ((addr <= GPIO_MONID + 2 && addr + size > GPIO_MONID + 2) ||
+                 (addr == GPIO_MONID && (s->regs.gpio_monid & 0x60000)))) {
                 s->regs.gpio_monid = ati_i2c(&s->bbi2c, s->regs.gpio_monid, 1);
             }
         }
