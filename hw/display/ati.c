@@ -207,7 +207,7 @@ static void ati_cursor_draw_line(VGACommonState *vga, uint8_t *d, int scr_y)
                 }
             } else {
                 color = (xbits & BIT(7) ? s->regs.cur_color1 :
-                                          s->regs.cur_color0) << 8 | 0xff;
+                                          s->regs.cur_color0) | 0xff000000;
             }
             if (vga->hw_cursor_x + i * 8 + j >= h) {
                 return; /* end of screen, don't span to next line */
