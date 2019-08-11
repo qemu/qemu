@@ -90,7 +90,9 @@ static void ati_vga_switch_mode(ATIVGAState *s)
             DPRINTF("Switching to %dx%d %d %d @ %x\n", h, v, stride, bpp, offs);
             vbe_ioport_write_index(&s->vga, 0, VBE_DISPI_INDEX_ENABLE);
             vbe_ioport_write_data(&s->vga, 0, VBE_DISPI_DISABLED);
-            s->vga.big_endian_fb = false;
+            s->vga.big_endian_fb = (s->regs.config_cntl & APER_0_ENDIAN ||
+                                    s->regs.config_cntl & APER_1_ENDIAN ?
+                                    true : false);
             /* reset VBE regs then set up mode */
             s->vga.vbe_regs[VBE_DISPI_INDEX_XRES] = h;
             s->vga.vbe_regs[VBE_DISPI_INDEX_YRES] = v;
@@ -309,6 +311,9 @@ static uint64_t ati_mm_read(void *opaque, hwaddr addr, unsigned int size)
         break;
     case PALETTE_DATA:
         val = vga_ioport_read(&s->vga, VGA_PEL_D);
+        break;
+    case CNFG_CNTL:
+        val = s->regs.config_cntl;
         break;
     case CNFG_MEMSIZE:
         val = s->vga.vram_size;
@@ -603,6 +608,9 @@ static void ati_mm_write(void *opaque, hwaddr addr,
         vga_ioport_write(&s->vga, VGA_PEL_D, data & 0xff);
         data >>= 8;
         vga_ioport_write(&s->vga, VGA_PEL_D, data & 0xff);
+        break;
+    case CNFG_CNTL:
+        s->regs.config_cntl = data;
         break;
     case CRTC_H_TOTAL_DISP:
         s->regs.crtc_h_total_disp = data & 0x07ff07ff;

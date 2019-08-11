@@ -317,6 +317,8 @@
 #define X_MPLL_REF_DIV_MASK                     0x000000FF
 
 /* Config control values (CONFIG_CNTL) */
+#define APER_0_ENDIAN                           0x00000003
+#define APER_1_ENDIAN                           0x0000000c
 #define CFG_VGA_IO_DIS                          0x00000400
 
 /* CRTC control values (CRTC_GEN_CNTL) */
