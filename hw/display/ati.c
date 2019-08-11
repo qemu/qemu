@@ -307,6 +307,21 @@ static uint64_t ati_mm_read(void *opaque, hwaddr addr, unsigned int size)
     case CNFG_MEMSIZE:
         val = s->vga.vram_size;
         break;
+    case CONFIG_APER_0_BASE:
+    case CONFIG_APER_1_BASE:
+        val = pci_default_read_config(&s->dev,
+                                      PCI_BASE_ADDRESS_0, size) & 0xfffffff0;
+        break;
+    case CONFIG_APER_SIZE:
+        val = s->vga.vram_size;
+        break;
+    case CONFIG_REG_1_BASE:
+        val = pci_default_read_config(&s->dev,
+                                      PCI_BASE_ADDRESS_2, size) & 0xfffffff0;
+        break;
+    case CONFIG_REG_APER_SIZE:
+        val = memory_region_size(&s->mm);
+        break;
     case MC_STATUS:
         val = 5;
         break;
