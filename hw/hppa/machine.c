@@ -11,6 +11,7 @@
 #include "hw/loader.h"
 #include "hw/boards.h"
 #include "qemu/error-report.h"
+#include "sysemu/reset.h"
 #include "sysemu/sysemu.h"
 #include "hw/timer/mc146818rtc.h"
 #include "hw/ide.h"

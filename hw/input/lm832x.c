@@ -23,6 +23,7 @@
 #include "hw/i2c/i2c.h"
 #include "qemu/module.h"
 #include "qemu/timer.h"
+#include "sysemu/reset.h"
 #include "ui/console.h"
 
 #define TYPE_LM8323 "lm8323"

@@ -14,6 +14,7 @@
 #include "target/ppc/cpu.h"
 #include "sysemu/cpus.h"
 #include "sysemu/dma.h"
+#include "sysemu/reset.h"
 #include "hw/qdev-properties.h"
 #include "monitor/monitor.h"
 #include "hw/ppc/xive.h"

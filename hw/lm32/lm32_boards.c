@@ -30,6 +30,7 @@
 #include "lm32_hwsetup.h"
 #include "lm32.h"
 #include "exec/address-spaces.h"
+#include "sysemu/reset.h"
 #include "sysemu/sysemu.h"
 
 typedef struct {

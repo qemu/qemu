@@ -23,6 +23,7 @@
 #include "qapi/error.h"
 #include "sysemu/sysemu.h"
 #include "sysemu/numa.h"
+#include "sysemu/reset.h"
 #include "sysemu/cpus.h"
 #include "sysemu/device_tree.h"
 #include "hw/hw.h"

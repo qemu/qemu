@@ -7,6 +7,7 @@
  * All peripherial devices are attached to this "bus" with
  * the standard PC ISA addresses.
 */
+
 #include "qemu/osdep.h"
 #include "qemu/units.h"
 #include "qapi/error.h"
@@ -33,6 +34,7 @@
 #include "hw/timer/i8254.h"
 #include "exec/address-spaces.h"
 #include "sysemu/qtest.h"
+#include "sysemu/reset.h"
 #include "qemu/error-report.h"
 
 #define MAX_IDE_BUS 2

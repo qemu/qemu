@@ -34,6 +34,7 @@
 #include "qom/cpu.h"
 #include "hw/sysbus.h"
 #include "sysemu/dma.h"
+#include "sysemu/reset.h"
 #include "hw/loader.h"
 #include "qapi/error.h"
 #include "qemu/module.h"

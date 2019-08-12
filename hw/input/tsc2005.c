@@ -22,6 +22,7 @@
 #include "qemu/log.h"
 #include "hw/hw.h"
 #include "qemu/timer.h"
+#include "sysemu/reset.h"
 #include "ui/console.h"
 #include "hw/input/tsc2xxx.h"
 #include "trace.h"

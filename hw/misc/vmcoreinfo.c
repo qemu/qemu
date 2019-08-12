@@ -13,6 +13,7 @@
 #include "qemu/osdep.h"
 #include "qapi/error.h"
 #include "qemu/module.h"
+#include "sysemu/reset.h"
 #include "hw/nvram/fw_cfg.h"
 #include "hw/misc/vmcoreinfo.h"
 

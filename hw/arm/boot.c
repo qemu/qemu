@@ -18,6 +18,7 @@
 #include "sysemu/kvm.h"
 #include "sysemu/sysemu.h"
 #include "sysemu/numa.h"
+#include "sysemu/reset.h"
 #include "hw/boards.h"
 #include "hw/loader.h"
 #include "elf.h"

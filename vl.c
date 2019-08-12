@@ -30,6 +30,7 @@
 #include "qemu/cutils.h"
 #include "qemu/help_option.h"
 #include "qemu/uuid.h"
+#include "sysemu/reset.h"
 #include "sysemu/seccomp.h"
 #include "sysemu/tcg.h"
 

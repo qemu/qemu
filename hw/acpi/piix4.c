@@ -18,6 +18,7 @@
  * Contributions after 2012-01-13 are licensed under the terms of the
  * GNU GPL, version 2 or (at your option) any later version.
  */
+
 #include "qemu/osdep.h"
 #include "hw/hw.h"
 #include "hw/i386/pc.h"
@@ -25,6 +26,7 @@
 #include "hw/i2c/pm_smbus.h"
 #include "hw/pci/pci.h"
 #include "hw/acpi/acpi.h"
+#include "sysemu/reset.h"
 #include "sysemu/sysemu.h"
 #include "qapi/error.h"
 #include "qemu/range.h"

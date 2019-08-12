@@ -21,6 +21,7 @@
 #include "hw/ppc/ppc.h"
 #include "hw/pci/pci.h"
 #include "sysemu/block-backend.h"
+#include "sysemu/reset.h"
 #include "ppc440.h"
 
 /*****************************************************************************/

@@ -48,6 +48,7 @@
 #include "hw/hw.h"
 #include "disas/disas.h"
 #include "monitor/monitor.h"
+#include "sysemu/reset.h"
 #include "sysemu/sysemu.h"
 #include "uboot_image.h"
 #include "hw/loader.h"

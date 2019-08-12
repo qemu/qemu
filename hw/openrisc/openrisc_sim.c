@@ -32,6 +32,7 @@
 #include "sysemu/sysemu.h"
 #include "hw/sysbus.h"
 #include "sysemu/qtest.h"
+#include "sysemu/reset.h"
 
 #define KERNEL_LOAD_ADDR 0x100
 

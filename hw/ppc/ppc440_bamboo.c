@@ -31,6 +31,7 @@
 #include "ppc405.h"
 #include "sysemu/sysemu.h"
 #include "sysemu/qtest.h"
+#include "sysemu/reset.h"
 #include "hw/sysbus.h"
 
 #define BINARY_DEVICE_TREE_FILE "bamboo.dtb"

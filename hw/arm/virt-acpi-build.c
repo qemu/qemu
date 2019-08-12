@@ -44,6 +44,7 @@
 #include "hw/pci/pci.h"
 #include "hw/arm/virt.h"
 #include "sysemu/numa.h"
+#include "sysemu/reset.h"
 #include "kvm_arm.h"
 
 #define ARM_SPI_BASE 32

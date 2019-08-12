@@ -26,6 +26,7 @@
 #include "internal.h"
 #include "kvm_s390x.h"
 #include "sysemu/kvm.h"
+#include "sysemu/reset.h"
 #include "qemu/timer.h"
 #include "qemu/error-report.h"
 #include "qemu/module.h"

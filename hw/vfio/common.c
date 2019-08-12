@@ -34,6 +34,7 @@
 #include "qemu/range.h"
 #include "sysemu/balloon.h"
 #include "sysemu/kvm.h"
+#include "sysemu/reset.h"
 #include "trace.h"
 #include "qapi/error.h"
 

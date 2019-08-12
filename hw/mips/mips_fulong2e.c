@@ -44,6 +44,7 @@
 #include "hw/timer/i8254.h"
 #include "exec/address-spaces.h"
 #include "sysemu/qtest.h"
+#include "sysemu/reset.h"
 #include "qemu/error-report.h"
 
 #define DEBUG_FULONG2E_INIT

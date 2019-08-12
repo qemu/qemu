@@ -31,6 +31,7 @@
 #include "chardev/char-fe.h"
 #include "hw/isa/isa.h"
 #include "hw/char/parallel.h"
+#include "sysemu/reset.h"
 #include "sysemu/sysemu.h"
 #include "trace.h"
 

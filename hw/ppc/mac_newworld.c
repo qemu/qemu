@@ -68,6 +68,7 @@
 #include "elf.h"
 #include "qemu/error-report.h"
 #include "sysemu/kvm.h"
+#include "sysemu/reset.h"
 #include "kvm_ppc.h"
 #include "hw/usb.h"
 #include "exec/address-spaces.h"

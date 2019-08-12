@@ -16,7 +16,6 @@
 #include "qapi/error.h"
 #include "cpu.h"
 #include "sysemu/memory_mapping.h"
-#include "sysemu/reset.h"
 #include "migration/vmstate.h"
 #include "tpm_ppi.h"
 #include "trace.h"

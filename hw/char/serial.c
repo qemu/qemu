@@ -28,6 +28,7 @@
 #include "chardev/char-serial.h"
 #include "qapi/error.h"
 #include "qemu/timer.h"
+#include "sysemu/reset.h"
 #include "qemu/error-report.h"
 #include "trace.h"
 

@@ -49,6 +49,7 @@
 #include "hw/nvram/eeprom93xx.h"
 #include "sysemu/sysemu.h"
 #include "sysemu/dma.h"
+#include "sysemu/reset.h"
 #include "qemu/bitops.h"
 #include "qemu/module.h"
 #include "qapi/error.h"

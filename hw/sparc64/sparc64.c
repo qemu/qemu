@@ -28,6 +28,7 @@
 #include "hw/char/serial.h"
 #include "hw/sparc/sparc64.h"
 #include "qemu/timer.h"
+#include "sysemu/reset.h"
 #include "trace.h"
 
 

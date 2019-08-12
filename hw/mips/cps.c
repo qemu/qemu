@@ -24,6 +24,7 @@
 #include "hw/mips/mips.h"
 #include "hw/mips/cpudevs.h"
 #include "sysemu/kvm.h"
+#include "sysemu/reset.h"
 
 qemu_irq get_cps_irq(MIPSCPSState *s, int pin_number)
 {

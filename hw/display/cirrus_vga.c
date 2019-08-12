@@ -35,6 +35,7 @@
 #include "qemu/osdep.h"
 #include "qemu/module.h"
 #include "qemu/units.h"
+#include "sysemu/reset.h"
 #include "qapi/error.h"
 #include "trace.h"
 #include "hw/hw.h"

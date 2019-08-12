@@ -23,6 +23,7 @@
 #include "qapi/error.h"
 #include "cpu.h"
 #include "sysemu/qtest.h"
+#include "sysemu/reset.h"
 #include "hw/boards.h"
 #include "hw/hw.h"
 #include "hw/arm/boot.h"

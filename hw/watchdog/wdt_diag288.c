@@ -12,6 +12,7 @@
  */
 
 #include "qemu/osdep.h"
+#include "sysemu/reset.h"
 #include "sysemu/watchdog.h"
 #include "hw/sysbus.h"
 #include "qemu/timer.h"

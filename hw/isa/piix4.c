@@ -28,6 +28,7 @@
 #include "hw/pci/pci.h"
 #include "hw/isa/isa.h"
 #include "hw/sysbus.h"
+#include "sysemu/reset.h"
 
 PCIDevice *piix4_dev;
 

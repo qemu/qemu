@@ -30,6 +30,7 @@
 #include "qemu/module.h"
 #include "sysemu/sysemu.h"
 #include "sysemu/dma.h"
+#include "sysemu/reset.h"
 
 #include "hw/ide/pci.h"
 #include "trace.h"

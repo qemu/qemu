@@ -31,6 +31,7 @@
 #include "qemu/timer.h"
 #include "sysemu/sysemu.h"
 #include "sysemu/replay.h"
+#include "sysemu/reset.h"
 #include "hw/timer/mc146818rtc.h"
 #include "qapi/error.h"
 #include "qapi/qapi-commands-misc-target.h"

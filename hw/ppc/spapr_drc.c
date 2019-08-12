@@ -23,6 +23,7 @@
 #include "hw/ppc/spapr.h" /* for RTAS return codes */
 #include "hw/pci-host/spapr.h" /* spapr_phb_remove_pci_device_cb callback */
 #include "sysemu/device_tree.h"
+#include "sysemu/reset.h"
 #include "trace.h"
 
 #define DRC_CONTAINER_PATH "/dr-connector"

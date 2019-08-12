@@ -27,6 +27,7 @@
 #include "qemu/error-report.h"
 #include "qemu/option.h"
 #include "s390-pci-bus.h"
+#include "sysemu/reset.h"
 #include "hw/s390x/storage-keys.h"
 #include "hw/s390x/storage-attributes.h"
 #include "hw/s390x/event-facility.h"

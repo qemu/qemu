@@ -29,6 +29,7 @@
 #include "sysemu/sysemu.h"
 #include "hw/arm/soc_dma.h"
 #include "sysemu/qtest.h"
+#include "sysemu/reset.h"
 #include "qemu/range.h"
 #include "hw/sysbus.h"
 #include "qemu/cutils.h"
