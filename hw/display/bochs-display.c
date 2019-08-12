@@ -297,9 +297,10 @@ static void bochs_display_realize(PCIDevice *dev, Error **errp)
     }
 
     if (pci_bus_is_express(pci_get_bus(dev))) {
-        dev->cap_present |= QEMU_PCI_CAP_EXPRESS;
         ret = pcie_endpoint_cap_init(dev, 0x80);
         assert(ret > 0);
+    } else {
+        dev->cap_present &= ~QEMU_PCI_CAP_EXPRESS;
     }
 
     memory_region_set_log(&s->vram, true, DIRTY_MEMORY_VGA);
@@ -322,11 +323,15 @@ static void bochs_display_set_big_endian_fb(Object *obj, bool value,
 
 static void bochs_display_init(Object *obj)
 {
+    PCIDevice *dev = PCI_DEVICE(obj);
+
     /* Expose framebuffer byteorder via QOM */
     object_property_add_bool(obj, "big-endian-framebuffer",
                              bochs_display_get_big_endian_fb,
                              bochs_display_set_big_endian_fb,
                              NULL);
+
+    dev->cap_present |= QEMU_PCI_CAP_EXPRESS;
 }
 
 static void bochs_display_exit(PCIDevice *dev)
