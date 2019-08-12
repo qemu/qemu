@@ -10,6 +10,8 @@
 #ifndef SOFTMMU_SEMI_H
 #define SOFTMMU_SEMI_H
 
+#include "cpu.h"
+
 static inline uint64_t softmmu_tget64(CPUArchState *env, target_ulong addr)
 {
     uint64_t val;

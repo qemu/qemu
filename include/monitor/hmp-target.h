@@ -25,6 +25,8 @@
 #ifndef MONITOR_HMP_TARGET_H
 #define MONITOR_HMP_TARGET_H
 
+#include "cpu.h"
+
 #define MD_TLONG 0
 #define MD_I32   1
 

@@ -3,8 +3,11 @@
  *
  * This file is licensed under the GNU GPL.
  */
+
 #ifndef QEMU_SHARPSL_H
 #define QEMU_SHARPSL_H
+
+#include "exec/hwaddr.h"
 
 #define zaurus_printf(format, ...)	\
     fprintf(stderr, "%s: " format, __func__, ##__VA_ARGS__)

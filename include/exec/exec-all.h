@@ -20,6 +20,7 @@
 #ifndef EXEC_ALL_H
 #define EXEC_ALL_H
 
+#include "cpu.h"
 #include "exec/tb-context.h"
 #include "sysemu/cpus.h"
 

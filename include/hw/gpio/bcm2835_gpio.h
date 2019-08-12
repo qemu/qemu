@@ -15,6 +15,7 @@
 #define BCM2835_GPIO_H
 
 #include "hw/sd/sd.h"
+#include "hw/sysbus.h"
 
 typedef struct BCM2835GpioState {
     SysBusDevice parent_obj;

@@ -1,6 +1,8 @@
 #ifndef HW_PCI_HOST_SABRE_H
 #define HW_PCI_HOST_SABRE_H
 
+#include "hw/pci/pci.h"
+#include "hw/pci/pci_host.h"
 #include "hw/sparc/sun4u_iommu.h"
 
 #define MAX_IVEC 0x40

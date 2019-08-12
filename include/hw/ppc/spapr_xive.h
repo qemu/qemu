@@ -10,7 +10,9 @@
 #ifndef PPC_SPAPR_XIVE_H
 #define PPC_SPAPR_XIVE_H
 
+#include "hw/ppc/spapr_irq.h"
 #include "hw/ppc/xive.h"
+#include "sysemu/sysemu.h"
 
 #define TYPE_SPAPR_XIVE "spapr-xive"
 #define SPAPR_XIVE(obj) OBJECT_CHECK(SpaprXive, (obj), TYPE_SPAPR_XIVE)

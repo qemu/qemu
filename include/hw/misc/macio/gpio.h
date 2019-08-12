@@ -26,6 +26,9 @@
 #ifndef MACIO_GPIO_H
 #define MACIO_GPIO_H
 
+#include "hw/ppc/openpic.h"
+#include "hw/sysbus.h"
+
 #define TYPE_MACIO_GPIO "macio-gpio"
 #define MACIO_GPIO(obj) OBJECT_CHECK(MacIOGPIOState, (obj), TYPE_MACIO_GPIO)
 

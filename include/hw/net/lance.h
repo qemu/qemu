@@ -31,6 +31,7 @@
 
 #include "net/net.h"
 #include "hw/net/pcnet.h"
+#include "hw/sysbus.h"
 
 #define TYPE_LANCE "lance"
 #define SYSBUS_PCNET(obj) \

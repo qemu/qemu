@@ -21,6 +21,9 @@
 #ifndef HW_RISCV_HART_H
 #define HW_RISCV_HART_H
 
+#include "hw/sysbus.h"
+#include "target/riscv/cpu.h"
+
 #define TYPE_RISCV_HART_ARRAY "riscv.hart_array"
 
 #define RISCV_HART_ARRAY(obj) \

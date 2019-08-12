@@ -14,6 +14,8 @@
 #ifndef QEMU_RATELIMIT_H
 #define QEMU_RATELIMIT_H
 
+#include "qemu/timer.h"
+
 typedef struct {
     int64_t slice_start_time;
     int64_t slice_end_time;

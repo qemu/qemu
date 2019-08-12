@@ -25,6 +25,8 @@
 #ifndef MC146818RTC_REGS_H
 #define MC146818RTC_REGS_H
 
+#include "qemu/timer.h"
+
 #define RTC_ISA_IRQ 8
 
 #define RTC_SECONDS             0

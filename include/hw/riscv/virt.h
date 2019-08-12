@@ -19,6 +19,9 @@
 #ifndef HW_RISCV_VIRT_H
 #define HW_RISCV_VIRT_H
 
+#include "hw/riscv/riscv_hart.h"
+#include "hw/sysbus.h"
+
 typedef struct {
     /*< private >*/
     SysBusDevice parent_obj;

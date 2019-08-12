@@ -10,6 +10,7 @@
 #ifndef WDT_ASPEED_H
 #define WDT_ASPEED_H
 
+#include "hw/misc/aspeed_scu.h"
 #include "hw/sysbus.h"
 
 #define TYPE_ASPEED_WDT "aspeed.wdt"

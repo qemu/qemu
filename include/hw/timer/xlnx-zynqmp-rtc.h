@@ -28,6 +28,7 @@
 #define HW_TIMER_XLNX_ZYNQMP_RTC_H
 
 #include "hw/register.h"
+#include "hw/sysbus.h"
 
 #define TYPE_XLNX_ZYNQMP_RTC "xlnx-zynmp.rtc"
 

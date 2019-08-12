@@ -9,9 +9,11 @@
  * This work is licensed under the terms of the GNU LGPL, version 2 or later.
  * See the COPYING.LIB file in the top-level directory.
  */
+
 #ifndef BLOCK_WRITE_THRESHOLD_H
 #define BLOCK_WRITE_THRESHOLD_H
 
+#include "block/block_int.h"
 
 /*
  * bdrv_write_threshold_set:

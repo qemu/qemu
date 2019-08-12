@@ -20,6 +20,8 @@
 #ifndef EXEC_TB_HASH_H
 #define EXEC_TB_HASH_H
 
+#include "exec/cpu-defs.h"
+#include "exec/exec-all.h"
 #include "qemu/xxhash.h"
 
 #ifdef CONFIG_SOFTMMU

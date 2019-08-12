@@ -10,6 +10,8 @@
 #ifndef MIPS_CMGCR_H
 #define MIPS_CMGCR_H
 
+#include "hw/sysbus.h"
+
 #define TYPE_MIPS_GCR "mips-gcr"
 #define MIPS_GCR(obj) OBJECT_CHECK(MIPSGCRState, (obj), TYPE_MIPS_GCR)
 

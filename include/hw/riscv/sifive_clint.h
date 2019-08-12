@@ -20,6 +20,8 @@
 #ifndef HW_SIFIVE_CLINT_H
 #define HW_SIFIVE_CLINT_H
 
+#include "hw/sysbus.h"
+
 #define TYPE_SIFIVE_CLINT "riscv.sifive.clint"
 
 #define SIFIVE_CLINT(obj) \

@@ -24,6 +24,7 @@
 
 #include "hw/hw.h"
 #include "exec/memory.h"
+#include "hw/i386/ioapic.h"
 #include "hw/sysbus.h"
 #include "qemu/notify.h"
 

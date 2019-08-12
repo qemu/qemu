@@ -2,6 +2,7 @@
 #define ALLWINNER_A10_PIT_H
 
 #include "hw/ptimer.h"
+#include "hw/sysbus.h"
 
 #define TYPE_AW_A10_PIT "allwinner-A10-timer"
 #define AW_A10_PIT(obj) OBJECT_CHECK(AwA10PITState, (obj), TYPE_AW_A10_PIT)

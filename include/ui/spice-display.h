@@ -18,6 +18,7 @@
 #ifndef UI_SPICE_DISPLAY_H
 #define UI_SPICE_DISPLAY_H
 
+#include <spice.h>
 #include <spice/ipc_ring.h>
 #include <spice/enums.h>
 #include <spice/qxl_dev.h>
