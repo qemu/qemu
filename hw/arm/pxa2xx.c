@@ -20,6 +20,7 @@
 #include "hw/char/serial.h"
 #include "hw/i2c/i2c.h"
 #include "hw/irq.h"
+#include "hw/qdev-properties.h"
 #include "hw/ssi/ssi.h"
 #include "chardev/char-fe.h"
 #include "sysemu/blockdev.h"

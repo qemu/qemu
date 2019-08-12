@@ -32,7 +32,6 @@
 #include "sysemu/sysemu.h"
 #include "sysemu/tcg.h"
 #include "sysemu/accel.h"
-#include "hw/qdev-properties.h"
 #include "hw/boards.h"
 #include "migration/vmstate.h"
 

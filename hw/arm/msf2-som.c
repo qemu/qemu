@@ -27,6 +27,7 @@
 #include "qapi/error.h"
 #include "qemu/error-report.h"
 #include "hw/boards.h"
+#include "hw/qdev-properties.h"
 #include "hw/arm/boot.h"
 #include "exec/address-spaces.h"
 #include "hw/arm/msf2-soc.h"

@@ -31,6 +31,7 @@
 #include "qemu/error-report.h"
 
 #include "hw/irq.h"
+#include "hw/qdev-properties.h"
 #include "hw/ssi/aspeed_smc.h"
 
 /* CE Type Setting Register */

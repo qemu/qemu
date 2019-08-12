@@ -3,7 +3,7 @@
 
 /* Devices attached directly to the main system bus.  */
 
-#include "hw/qdev.h"
+#include "hw/qdev-core.h"
 #include "exec/memory.h"
 
 #define QDEV_MAX_MMIO 32

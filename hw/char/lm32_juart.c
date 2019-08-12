@@ -25,6 +25,7 @@
 #include "chardev/char-fe.h"
 
 #include "hw/char/lm32_juart.h"
+#include "hw/qdev-properties.h"
 
 enum {
     LM32_JUART_MIN_SAVE_VERSION = 0,

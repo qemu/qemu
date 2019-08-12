@@ -10,6 +10,7 @@
 
 #include "qemu/osdep.h"
 #include "hw/misc/arm11scu.h"
+#include "hw/qdev-properties.h"
 #include "qemu/log.h"
 #include "qemu/module.h"
 

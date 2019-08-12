@@ -32,6 +32,7 @@
 #include "qemu/module.h"
 #include "qemu/timer.h"
 #include "hw/input/hid.h"
+#include "hw/qdev-properties.h"
 
 /* HID interface requests */
 #define GET_REPORT   0xa101

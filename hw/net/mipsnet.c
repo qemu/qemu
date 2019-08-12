@@ -1,5 +1,6 @@
 #include "qemu/osdep.h"
 #include "hw/irq.h"
+#include "hw/qdev-properties.h"
 #include "net/net.h"
 #include "qemu/module.h"
 #include "trace.h"

@@ -54,6 +54,7 @@
 
 #include "qemu/osdep.h"
 #include "qemu/log.h"
+#include "hw/hw.h"
 #include "hw/sysbus.h"
 #include "migration/vmstate.h"
 #include "qemu/timer.h"

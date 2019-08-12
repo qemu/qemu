@@ -25,6 +25,7 @@
 
 #include "qemu/osdep.h"
 #include "hw/ppc/mac.h"
+#include "hw/qdev-properties.h"
 #include "migration/vmstate.h"
 #include "hw/misc/macio/macio.h"
 #include "hw/misc/macio/gpio.h"

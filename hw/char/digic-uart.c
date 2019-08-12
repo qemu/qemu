@@ -34,6 +34,7 @@
 #include "qemu/module.h"
 
 #include "hw/char/digic-uart.h"
+#include "hw/qdev-properties.h"
 
 enum {
     ST_RX_RDY = (1 << 0),

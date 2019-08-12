@@ -29,7 +29,7 @@
 #define XICS_H
 
 #include "exec/memory.h"
-#include "hw/qdev.h"
+#include "hw/qdev-core.h"
 
 #define XICS_IPI        0x2
 #define XICS_BUID       0x1

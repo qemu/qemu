@@ -30,6 +30,7 @@
 
 #include "qemu/osdep.h"
 #include "hw/pci-host/q35.h"
+#include "hw/qdev-properties.h"
 #include "migration/vmstate.h"
 #include "qapi/error.h"
 #include "qapi/visitor.h"

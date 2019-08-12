@@ -18,6 +18,7 @@
 #include "hw/acpi/aml-build.h"
 #include "hw/acpi/vmgenid.h"
 #include "hw/nvram/fw_cfg.h"
+#include "hw/qdev-properties.h"
 #include "migration/vmstate.h"
 #include "sysemu/reset.h"
 #include "sysemu/sysemu.h"

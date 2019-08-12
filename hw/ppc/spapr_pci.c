@@ -47,6 +47,7 @@
 #include "hw/pci/pci_bus.h"
 #include "hw/pci/pci_ids.h"
 #include "hw/ppc/spapr_drc.h"
+#include "hw/qdev-properties.h"
 #include "sysemu/device_tree.h"
 #include "sysemu/kvm.h"
 #include "sysemu/hostmem.h"

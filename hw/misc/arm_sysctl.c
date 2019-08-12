@@ -9,6 +9,7 @@
 
 #include "qemu/osdep.h"
 #include "hw/irq.h"
+#include "hw/qdev-properties.h"
 #include "qemu/timer.h"
 #include "qemu/bitops.h"
 #include "hw/sysbus.h"

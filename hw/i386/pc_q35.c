@@ -40,6 +40,7 @@
 #include "kvm_i386.h"
 #include "hw/kvm/clock.h"
 #include "hw/pci-host/q35.h"
+#include "hw/qdev-properties.h"
 #include "exec/address-spaces.h"
 #include "hw/i386/pc.h"
 #include "hw/i386/ich9.h"

@@ -21,6 +21,7 @@
 #include "qemu/osdep.h"
 #include "qemu-common.h"
 #include "hw/pci/pci.h"
+#include "hw/qdev-properties.h"
 #include "sysemu/dma.h"
 #include "sysemu/block-backend.h"
 #include "hw/pci/msi.h"

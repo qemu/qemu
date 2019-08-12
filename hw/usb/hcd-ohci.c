@@ -34,6 +34,7 @@
 #include "migration/vmstate.h"
 #include "hw/sysbus.h"
 #include "hw/qdev-dma.h"
+#include "hw/qdev-properties.h"
 #include "trace.h"
 #include "hcd-ohci.h"
 

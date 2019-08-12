@@ -27,6 +27,7 @@
 #include "sysemu/sysemu.h"
 #include "hw/irq.h"
 #include "hw/ptimer.h"
+#include "hw/qdev-properties.h"
 
 #define R_STATUS      0
 #define R_CONTROL     1

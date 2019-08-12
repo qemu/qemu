@@ -19,6 +19,7 @@
 #include "qemu/timer.h"
 #include "hw/virtio/virtio.h"
 #include "hw/mem/pc-dimm.h"
+#include "hw/qdev-properties.h"
 #include "sysemu/balloon.h"
 #include "hw/virtio/virtio-balloon.h"
 #include "exec/address-spaces.h"

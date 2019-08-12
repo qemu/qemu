@@ -27,6 +27,7 @@
 
 #include "hw/irq.h"
 #include "hw/net/cadence_gem.h"
+#include "hw/qdev-properties.h"
 #include "migration/vmstate.h"
 #include "qapi/error.h"
 #include "qemu/log.h"

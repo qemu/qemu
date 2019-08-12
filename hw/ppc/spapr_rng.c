@@ -27,6 +27,7 @@
 #include "sysemu/device_tree.h"
 #include "sysemu/rng.h"
 #include "hw/ppc/spapr.h"
+#include "hw/qdev-properties.h"
 #include "kvm_ppc.h"
 
 #define SPAPR_RNG(obj) \

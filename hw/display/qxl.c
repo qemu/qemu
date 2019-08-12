@@ -29,6 +29,7 @@
 #include "qemu/main-loop.h"
 #include "qemu/module.h"
 #include "sysemu/sysemu.h"
+#include "hw/qdev-properties.h"
 #include "migration/blocker.h"
 #include "migration/vmstate.h"
 #include "trace.h"

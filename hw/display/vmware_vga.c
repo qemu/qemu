@@ -30,6 +30,7 @@
 #include "trace.h"
 #include "ui/vnc.h"
 #include "hw/pci/pci.h"
+#include "hw/qdev-properties.h"
 #include "migration/vmstate.h"
 
 #undef VERBOSE

@@ -47,6 +47,7 @@
 #include "io/channel-buffer.h"
 #include "migration/colo.h"
 #include "hw/boards.h"
+#include "hw/qdev-properties.h"
 #include "monitor/monitor.h"
 #include "net/announce.h"
 

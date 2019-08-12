@@ -20,6 +20,7 @@
 #include "qapi/qmp/qstring.h"
 #include "hw/xen/xen_common.h"
 #include "hw/block/xen_blkif.h"
+#include "hw/qdev-properties.h"
 #include "hw/xen/xen-block.h"
 #include "hw/xen/xen-backend.h"
 #include "sysemu/blockdev.h"

@@ -18,6 +18,7 @@
 #include "qemu/module.h"
 
 #include "hw/nvram/fw_cfg.h"
+#include "hw/qdev-properties.h"
 #include "hw/misc/pvpanic.h"
 
 /* The bit of supported pv event */

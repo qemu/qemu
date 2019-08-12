@@ -37,6 +37,7 @@
 #include "hw/i2c/smbus_eeprom.h"
 #include "hw/usb/hcd-ehci.h"
 #include "hw/ppc/fdt.h"
+#include "hw/qdev-properties.h"
 
 #include <libfdt.h>
 

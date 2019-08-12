@@ -26,6 +26,7 @@
 #define HW_PCSPK_H
 
 #include "hw/isa/isa.h"
+#include "hw/qdev-properties.h"
 
 #define TYPE_PC_SPEAKER "isa-pcspk"
 

@@ -22,6 +22,7 @@
 #include "qemu/units.h"
 #include "qapi/error.h"
 #include "hw/pci/pci_bridge.h"
+#include "hw/qdev-properties.h"
 #include "hw/irq.h"
 #include "hw/pci-host/xilinx-pcie.h"
 

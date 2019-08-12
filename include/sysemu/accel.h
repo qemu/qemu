@@ -24,7 +24,6 @@
 #define HW_ACCEL_H
 
 #include "qom/object.h"
-#include "hw/qdev-properties.h"
 #include "exec/hwaddr.h"
 
 typedef struct AccelState {

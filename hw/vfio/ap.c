@@ -26,6 +26,7 @@
 #include "kvm_s390x.h"
 #include "migration/vmstate.h"
 #include "sysemu/sysemu.h"
+#include "hw/qdev-properties.h"
 #include "hw/s390x/ap-bridge.h"
 #include "exec/address-spaces.h"
 

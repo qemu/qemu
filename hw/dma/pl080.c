@@ -16,6 +16,7 @@
 #include "hw/dma/pl080.h"
 #include "hw/hw.h"
 #include "hw/irq.h"
+#include "hw/qdev-properties.h"
 #include "qapi/error.h"
 
 #define PL080_CONF_E    0x1

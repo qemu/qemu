@@ -25,6 +25,7 @@
 
 #include "qemu/osdep.h"
 #include "hw/isa/pc87312.h"
+#include "hw/qdev-properties.h"
 #include "migration/vmstate.h"
 #include "qapi/error.h"
 #include "qemu/error-report.h"

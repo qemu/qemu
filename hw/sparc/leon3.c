@@ -31,6 +31,7 @@
 #include "hw/irq.h"
 #include "qemu/timer.h"
 #include "hw/ptimer.h"
+#include "hw/qdev-properties.h"
 #include "sysemu/sysemu.h"
 #include "sysemu/qtest.h"
 #include "sysemu/reset.h"

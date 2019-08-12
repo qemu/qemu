@@ -25,6 +25,7 @@
 #include "qemu/osdep.h"
 #include "hw/irq.h"
 #include "hw/pci/pci.h"
+#include "hw/qdev-properties.h"
 #include "migration/vmstate.h"
 #include "ne2000.h"
 #include "sysemu/sysemu.h"

@@ -34,6 +34,7 @@
 #include "chardev/char.h"
 #include "hw/irq.h"
 #include "hw/pci/pci.h"
+#include "hw/qdev-properties.h"
 #include "migration/vmstate.h"
 #include "net/can_emu.h"
 

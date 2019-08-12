@@ -26,7 +26,7 @@
  */
 
 #include "exec/memory.h"
-#include "hw/qdev.h"
+#include "hw/qdev-core.h"
 #include "qemu/iov.h"
 #include "qemu/queue.h"
 

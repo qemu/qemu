@@ -23,6 +23,7 @@
 #include "hw/usb.h"
 #include "qemu/module.h"
 #include "hw/pci/pci.h"
+#include "hw/qdev-properties.h"
 
 #include "hcd-xhci.h"
 

@@ -17,6 +17,7 @@
 #include "hw/ppc/spapr_xive.h"
 #include "hw/ppc/xics.h"
 #include "hw/ppc/xics_spapr.h"
+#include "hw/qdev-properties.h"
 #include "cpu-models.h"
 #include "sysemu/kvm.h"
 

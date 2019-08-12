@@ -34,6 +34,7 @@
 #include "sysemu/block-backend.h"
 #include "sysemu/blockdev.h"
 #include "hw/block/block.h"
+#include "hw/qdev-properties.h"
 #include "sysemu/dma.h"
 #include "qemu/cutils.h"
 #include "trace.h"

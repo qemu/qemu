@@ -27,6 +27,7 @@
 #include "migration/vmstate.h"
 #include "hw/registerfields.h"
 #include "hw/misc/iotkit-sysctl.h"
+#include "hw/qdev-properties.h"
 #include "target/arm/arm-powerctl.h"
 #include "target/arm/cpu.h"
 

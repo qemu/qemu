@@ -29,6 +29,7 @@
 #include "qemu/error-report.h"
 #include "qemu/module.h"
 #include "hw/loader.h"
+#include "hw/qdev-properties.h"
 #include "migration/vmstate.h"
 
 #define IPMI_NETFN_CHASSIS            0x00

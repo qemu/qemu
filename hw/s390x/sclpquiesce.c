@@ -13,7 +13,6 @@
  */
 
 #include "qemu/osdep.h"
-#include "hw/qdev.h"
 #include "sysemu/sysemu.h"
 #include "hw/s390x/sclp.h"
 #include "migration/vmstate.h"

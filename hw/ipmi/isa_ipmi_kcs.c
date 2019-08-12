@@ -29,6 +29,7 @@
 #include "hw/ipmi/ipmi.h"
 #include "hw/irq.h"
 #include "hw/isa/isa.h"
+#include "hw/qdev-properties.h"
 #include "migration/vmstate.h"
 
 #define IPMI_KCS_OBF_BIT        0

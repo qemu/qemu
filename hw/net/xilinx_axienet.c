@@ -23,6 +23,7 @@
  */
 
 #include "qemu/osdep.h"
+#include "hw/hw.h"
 #include "hw/sysbus.h"
 #include "qapi/error.h"
 #include "qemu/log.h"
@@ -32,6 +33,7 @@
 
 #include "hw/hw.h"
 #include "hw/irq.h"
+#include "hw/qdev-properties.h"
 #include "hw/stream.h"
 
 #define DPHY(x)

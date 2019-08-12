@@ -24,6 +24,7 @@
 #include "qemu/module.h"
 #include "hw/sysbus.h"
 #include "target/riscv/cpu.h"
+#include "hw/qdev-properties.h"
 #include "hw/riscv/sifive_clint.h"
 #include "qemu/timer.h"
 

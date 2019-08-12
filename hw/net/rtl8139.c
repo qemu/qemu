@@ -54,6 +54,7 @@
 #include <zlib.h>
 
 #include "hw/pci/pci.h"
+#include "hw/qdev-properties.h"
 #include "migration/vmstate.h"
 #include "sysemu/dma.h"
 #include "qemu/module.h"

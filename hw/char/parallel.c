@@ -30,6 +30,7 @@
 #include "chardev/char-fe.h"
 #include "hw/irq.h"
 #include "hw/isa/isa.h"
+#include "hw/qdev-properties.h"
 #include "migration/vmstate.h"
 #include "hw/char/parallel.h"
 #include "sysemu/reset.h"

@@ -19,6 +19,7 @@
 #include "qemu/osdep.h"
 #include "ati_int.h"
 #include "ati_regs.h"
+#include "hw/qdev-properties.h"
 #include "vga_regs.h"
 #include "qemu/log.h"
 #include "qemu/module.h"

@@ -32,6 +32,7 @@
 #include "cpu.h"
 #include "hw/boards.h"
 #include "hw/irq.h"
+#include "hw/qdev-properties.h"
 #include "hw/sysbus.h"
 #include "migration/vmstate.h"
 #include "strongarm.h"

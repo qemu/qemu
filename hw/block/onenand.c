@@ -23,6 +23,7 @@
 #include "hw/hw.h"
 #include "hw/block/flash.h"
 #include "hw/irq.h"
+#include "hw/qdev-properties.h"
 #include "sysemu/block-backend.h"
 #include "exec/memory.h"
 #include "hw/sysbus.h"

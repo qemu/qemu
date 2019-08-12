@@ -26,6 +26,7 @@
 #include "qemu/osdep.h"
 #include "hw/pci/pci_host.h"
 #include "hw/ppc/mac.h"
+#include "hw/qdev-properties.h"
 #include "hw/pci/pci.h"
 #include "hw/intc/heathrow_pic.h"
 #include "hw/irq.h"

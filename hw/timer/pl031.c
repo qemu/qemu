@@ -16,6 +16,7 @@
 #include "hw/timer/pl031.h"
 #include "migration/vmstate.h"
 #include "hw/irq.h"
+#include "hw/qdev-properties.h"
 #include "hw/sysbus.h"
 #include "qemu/timer.h"
 #include "sysemu/sysemu.h"

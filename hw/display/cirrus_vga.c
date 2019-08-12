@@ -39,6 +39,7 @@
 #include "qapi/error.h"
 #include "trace.h"
 #include "hw/pci/pci.h"
+#include "hw/qdev-properties.h"
 #include "migration/vmstate.h"
 #include "ui/pixel_ops.h"
 #include "cirrus_vga_internal.h"

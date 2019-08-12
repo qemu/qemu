@@ -26,7 +26,7 @@
 #ifndef ADB_H
 #define ADB_H
 
-#include "hw/qdev.h"
+#include "hw/qdev-core.h"
 
 #define MAX_ADB_DEVICES 16
 

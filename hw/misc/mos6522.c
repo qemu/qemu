@@ -28,6 +28,7 @@
 #include "hw/input/adb.h"
 #include "hw/irq.h"
 #include "hw/misc/mos6522.h"
+#include "hw/qdev-properties.h"
 #include "migration/vmstate.h"
 #include "qemu/timer.h"
 #include "sysemu/sysemu.h"

@@ -29,6 +29,7 @@
 #include "ui/console.h"
 #include "hw/input/hid.h"
 #include "hw/irq.h"
+#include "hw/qdev-properties.h"
 #include "qemu/error-report.h"
 #include "qemu/module.h"
 

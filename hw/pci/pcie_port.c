@@ -20,6 +20,7 @@
 
 #include "qemu/osdep.h"
 #include "hw/pci/pcie_port.h"
+#include "hw/qdev-properties.h"
 #include "qemu/module.h"
 #include "hw/hotplug.h"
 

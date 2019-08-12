@@ -11,7 +11,7 @@
 #ifndef HW_S390_TOD_H
 #define HW_S390_TOD_H
 
-#include "hw/qdev.h"
+#include "hw/qdev-core.h"
 #include "target/s390x/s390-tod.h"
 
 typedef struct S390TOD {

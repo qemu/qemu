@@ -17,6 +17,7 @@
 #include "qemu/osdep.h"
 #include "hw/irq.h"
 #include "hw/ppc/e500-ccsr.h"
+#include "hw/qdev-properties.h"
 #include "migration/vmstate.h"
 #include "hw/pci/pci.h"
 #include "hw/pci/pci_host.h"

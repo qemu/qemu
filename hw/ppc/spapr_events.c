@@ -29,7 +29,6 @@
 #include "qapi/error.h"
 #include "cpu.h"
 #include "sysemu/sysemu.h"
-#include "hw/qdev.h"
 #include "sysemu/device_tree.h"
 
 #include "hw/ppc/fdt.h"

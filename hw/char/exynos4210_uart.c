@@ -30,6 +30,7 @@
 
 #include "hw/arm/exynos4210.h"
 #include "hw/irq.h"
+#include "hw/qdev-properties.h"
 
 #undef DEBUG_UART
 #undef DEBUG_UART_EXTEND

@@ -20,6 +20,7 @@
 #include "net/checksum.h"
 #include "net/eth.h"
 #include "hw/net/mii.h"
+#include "hw/qdev-properties.h"
 #include "migration/vmstate.h"
 
 /* For crc32 */

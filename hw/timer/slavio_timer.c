@@ -26,6 +26,7 @@
 #include "qemu/timer.h"
 #include "hw/irq.h"
 #include "hw/ptimer.h"
+#include "hw/qdev-properties.h"
 #include "hw/sysbus.h"
 #include "migration/vmstate.h"
 #include "trace.h"

@@ -26,6 +26,7 @@
 #include "qemu/osdep.h"
 #include "hw/i386/pc.h"
 #include "hw/isa/i8259_internal.h"
+#include "hw/qdev-properties.h"
 #include "migration/vmstate.h"
 #include "monitor/monitor.h"
 

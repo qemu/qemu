@@ -12,8 +12,8 @@
 #ifndef HW_S390_IPL_H
 #define HW_S390_IPL_H
 
-#include "hw/qdev.h"
 #include "cpu.h"
+#include "hw/qdev-core.h"
 
 struct IplBlockCcw {
     uint8_t  reserved0[85];

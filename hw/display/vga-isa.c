@@ -31,6 +31,7 @@
 #include "qemu/module.h"
 #include "qemu/timer.h"
 #include "hw/loader.h"
+#include "hw/qdev-properties.h"
 
 #define TYPE_ISA_VGA "isa-vga"
 #define ISA_VGA(obj) OBJECT_CHECK(ISAVGAState, (obj), TYPE_ISA_VGA)

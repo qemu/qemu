@@ -6,7 +6,6 @@
 #include "exec/memory.h"
 #include "sysemu/blockdev.h"
 #include "sysemu/accel.h"
-#include "hw/qdev.h"
 #include "qapi/qapi-types-machine.h"
 #include "qemu/module.h"
 #include "qom/object.h"

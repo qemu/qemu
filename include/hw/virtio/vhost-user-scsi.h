@@ -17,7 +17,6 @@
 #ifndef VHOST_USER_SCSI_H
 #define VHOST_USER_SCSI_H
 
-#include "hw/qdev.h"
 #include "hw/virtio/virtio-scsi.h"
 #include "hw/virtio/vhost.h"
 #include "hw/virtio/vhost-user.h"

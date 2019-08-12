@@ -16,7 +16,7 @@
 #include <libfdt.h>
 #include "qom/object.h"
 #include "sysemu/sysemu.h"
-#include "hw/qdev.h"
+#include "hw/qdev-core.h"
 #include "qapi/error.h"
 
 #define TYPE_SPAPR_DR_CONNECTOR "spapr-dr-connector"

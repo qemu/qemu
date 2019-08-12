@@ -30,6 +30,7 @@
 #include "sysemu/reset.h"
 #include "hw/boards.h"
 #include "hw/loader.h"
+#include "hw/qdev-properties.h"
 #include "elf.h"
 #include "milkymist-hw.h"
 #include "hw/display/milkymist_tmu2.h"

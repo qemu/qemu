@@ -25,6 +25,7 @@
 #include "migration/vmstate.h"
 #include "qemu/module.h"
 #include "hw/irq.h"
+#include "hw/qdev-properties.h"
 #include "hw/arm/exynos4210.h"
 
 enum ExtGicId {

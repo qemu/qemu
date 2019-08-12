@@ -33,6 +33,7 @@
 #include "trace.h"
 #include "hw/irq.h"
 #include "hw/platform-bus.h"
+#include "hw/qdev-properties.h"
 #include "sysemu/kvm.h"
 
 /*

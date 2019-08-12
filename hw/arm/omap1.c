@@ -26,6 +26,7 @@
 #include "hw/boards.h"
 #include "hw/hw.h"
 #include "hw/irq.h"
+#include "hw/qdev-properties.h"
 #include "hw/arm/boot.h"
 #include "hw/arm/omap.h"
 #include "sysemu/sysemu.h"

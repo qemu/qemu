@@ -30,6 +30,7 @@
 #include "hw/block/block.h"
 #include "hw/pci/msix.h"
 #include "hw/pci/pci.h"
+#include "hw/qdev-properties.h"
 #include "migration/vmstate.h"
 #include "sysemu/sysemu.h"
 #include "qapi/error.h"

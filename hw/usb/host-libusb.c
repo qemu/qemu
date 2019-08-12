@@ -48,6 +48,7 @@
 #include "sysemu/sysemu.h"
 #include "trace.h"
 
+#include "hw/qdev-properties.h"
 #include "hw/usb.h"
 
 /* ------------------------------------------------------------------------ */

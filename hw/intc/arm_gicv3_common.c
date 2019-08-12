@@ -26,6 +26,7 @@
 #include "qemu/module.h"
 #include "qom/cpu.h"
 #include "hw/intc/arm_gicv3_common.h"
+#include "hw/qdev-properties.h"
 #include "migration/vmstate.h"
 #include "gicv3_internal.h"
 #include "hw/arm/linux-boot-if.h"

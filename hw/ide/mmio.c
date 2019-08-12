@@ -30,6 +30,7 @@
 #include "sysemu/dma.h"
 
 #include "hw/ide/internal.h"
+#include "hw/qdev-properties.h"
 
 /***********************************************************/
 /* MMIO based ide port

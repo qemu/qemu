@@ -10,6 +10,7 @@
 
 #include "qemu/osdep.h"
 #include "hw/misc/a9scu.h"
+#include "hw/qdev-properties.h"
 #include "migration/vmstate.h"
 #include "qemu/module.h"
 

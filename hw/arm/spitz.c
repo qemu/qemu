@@ -16,6 +16,7 @@
 #include "hw/arm/boot.h"
 #include "sysemu/sysemu.h"
 #include "hw/pcmcia.h"
+#include "hw/qdev-properties.h"
 #include "hw/i2c/i2c.h"
 #include "hw/irq.h"
 #include "hw/ssi/ssi.h"

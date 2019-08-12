@@ -3,7 +3,7 @@
 
 /* PCMCIA/Cardbus */
 
-#include "hw/qdev.h"
+#include "hw/qdev-core.h"
 
 typedef struct PCMCIASocket {
     qemu_irq irq;

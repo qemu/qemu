@@ -29,6 +29,7 @@
 #include "sysemu/reset.h"
 #include "hw/boards.h"
 #include "hw/nvram/fw_cfg.h"
+#include "hw/qdev-properties.h"
 #include "hw/sysbus.h"
 #include "migration/qemu-file-types.h"
 #include "migration/vmstate.h"

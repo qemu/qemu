@@ -28,6 +28,7 @@
 #include "qemu/module.h"
 #include "qemu/bcd.h"
 #include "hw/irq.h"
+#include "hw/qdev-properties.h"
 #include "qemu/timer.h"
 #include "sysemu/sysemu.h"
 #include "sysemu/replay.h"

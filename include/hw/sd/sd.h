@@ -30,7 +30,7 @@
 #ifndef HW_SD_H
 #define HW_SD_H
 
-#include "hw/qdev.h"
+#include "hw/qdev-core.h"
 
 #define OUT_OF_RANGE		(1 << 31)
 #define ADDRESS_ERROR		(1 << 30)

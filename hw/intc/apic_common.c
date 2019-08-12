@@ -29,7 +29,7 @@
 #include "trace.h"
 #include "sysemu/hax.h"
 #include "sysemu/kvm.h"
-#include "hw/qdev.h"
+#include "hw/qdev-properties.h"
 #include "hw/sysbus.h"
 #include "migration/qemu-file-types.h"
 #include "migration/vmstate.h"

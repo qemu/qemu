@@ -38,6 +38,7 @@
 #include "migration/register.h"
 #include "cpu_models.h"
 #include "hw/nmi.h"
+#include "hw/qdev-properties.h"
 #include "hw/s390x/tod.h"
 
 S390CPU *s390_cpu_addr2state(uint16_t cpu_addr)

@@ -20,7 +20,6 @@
 #include "hw/pci/pci_ids.h"
 #include "hw/pci/msi.h"
 #include "hw/pci/msix.h"
-#include "hw/qdev-core.h"
 #include "hw/qdev-properties.h"
 #include "cpu.h"
 #include "trace.h"

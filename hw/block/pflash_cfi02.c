@@ -35,6 +35,7 @@
 #include "qemu/osdep.h"
 #include "hw/block/block.h"
 #include "hw/block/flash.h"
+#include "hw/qdev-properties.h"
 #include "qapi/error.h"
 #include "qemu/bitmap.h"
 #include "qemu/timer.h"

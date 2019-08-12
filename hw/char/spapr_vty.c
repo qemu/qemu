@@ -3,12 +3,12 @@
 #include "qemu/module.h"
 #include "qapi/error.h"
 #include "cpu.h"
-#include "hw/qdev.h"
 #include "migration/vmstate.h"
 #include "chardev/char-fe.h"
 #include "hw/irq.h"
 #include "hw/ppc/spapr.h"
 #include "hw/ppc/spapr_vio.h"
+#include "hw/qdev-properties.h"
 
 #define VTERM_BUFSIZE   16
 

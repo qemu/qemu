@@ -9,7 +9,6 @@
 #include "qapi/error.h"
 #include "qemu-common.h"
 
-#include "hw/qdev.h"
 #include "hw/virtio/virtio-input.h"
 
 static int vhost_input_config_change(struct vhost_dev *dev)

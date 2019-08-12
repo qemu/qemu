@@ -23,6 +23,7 @@
 #include "hw/ppc/spapr_xive.h"
 #include "hw/ppc/xive.h"
 #include "hw/ppc/xive_regs.h"
+#include "hw/qdev-properties.h"
 
 /*
  * XIVE Virtualization Controller BAR and Thread Managment BAR that we

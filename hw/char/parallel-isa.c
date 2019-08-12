@@ -8,9 +8,11 @@
  *
  * SPDX-License-Identifier: MIT
  */
+
 #include "qemu/osdep.h"
 #include "sysemu/sysemu.h"
 #include "hw/isa/isa.h"
+#include "hw/qdev-properties.h"
 #include "hw/char/parallel.h"
 
 static void parallel_init(ISABus *bus, int index, Chardev *chr)

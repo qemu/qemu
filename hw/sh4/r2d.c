@@ -33,6 +33,7 @@
 #include "sysemu/sysemu.h"
 #include "hw/boards.h"
 #include "hw/pci/pci.h"
+#include "hw/qdev-properties.h"
 #include "net/net.h"
 #include "sh7750_regs.h"
 #include "hw/ide.h"

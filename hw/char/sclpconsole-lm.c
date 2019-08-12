@@ -14,7 +14,6 @@
  */
 
 #include "qemu/osdep.h"
-#include "hw/qdev.h"
 #include "qemu/thread.h"
 #include "qemu/error-report.h"
 #include "qemu/module.h"
@@ -23,6 +22,7 @@
 #include "hw/s390x/sclp.h"
 #include "migration/vmstate.h"
 #include "hw/s390x/event-facility.h"
+#include "hw/qdev-properties.h"
 #include "hw/s390x/ebcdic.h"
 
 #define SIZE_BUFFER 4096

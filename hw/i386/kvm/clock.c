@@ -24,6 +24,7 @@
 #include "migration/vmstate.h"
 #include "hw/sysbus.h"
 #include "hw/kvm/clock.h"
+#include "hw/qdev-properties.h"
 #include "qapi/error.h"
 
 #include <linux/kvm.h>

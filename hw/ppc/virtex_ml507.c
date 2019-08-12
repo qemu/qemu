@@ -43,6 +43,7 @@
 
 #include "hw/ppc/ppc.h"
 #include "hw/ppc/ppc4xx.h"
+#include "hw/qdev-properties.h"
 #include "ppc405.h"
 
 #define EPAPR_MAGIC    (0x45504150)

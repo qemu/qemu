@@ -14,6 +14,7 @@
 #include "hw/m68k/mcf.h"
 #include "hw/m68k/mcf_fec.h"
 #include "hw/net/mii.h"
+#include "hw/qdev-properties.h"
 #include "hw/sysbus.h"
 /* For crc32 */
 #include <zlib.h>

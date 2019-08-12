@@ -19,6 +19,7 @@
 #include "hw/registerfields.h"
 #include "hw/irq.h"
 #include "hw/misc/tz-ppc.h"
+#include "hw/qdev-properties.h"
 
 static void tz_ppc_update_irq(TZPPC *s)
 {

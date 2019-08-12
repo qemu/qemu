@@ -41,6 +41,7 @@
 #include "target/ppc/mmu-hash64.h"
 
 #include "hw/ppc/xics.h"
+#include "hw/qdev-properties.h"
 #include "hw/ppc/pnv_xscom.h"
 
 #include "hw/isa/isa.h"

@@ -14,6 +14,7 @@
 #include "hw/isa/vt82c686.h"
 #include "hw/i2c/i2c.h"
 #include "hw/pci/pci.h"
+#include "hw/qdev-properties.h"
 #include "hw/isa/isa.h"
 #include "hw/isa/superio.h"
 #include "hw/sysbus.h"

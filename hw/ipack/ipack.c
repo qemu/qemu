@@ -13,6 +13,7 @@
 #include "qemu/module.h"
 #include "hw/ipack/ipack.h"
 #include "hw/irq.h"
+#include "hw/qdev-properties.h"
 #include "migration/vmstate.h"
 
 IPackDevice *ipack_device_find(IPackBus *bus, int32_t slot)

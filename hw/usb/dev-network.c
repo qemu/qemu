@@ -25,6 +25,7 @@
 
 #include "qemu/osdep.h"
 #include "qapi/error.h"
+#include "hw/qdev-properties.h"
 #include "hw/usb.h"
 #include "migration/vmstate.h"
 #include "desc.h"

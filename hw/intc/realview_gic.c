@@ -12,6 +12,7 @@
 #include "qemu/module.h"
 #include "hw/intc/realview_gic.h"
 #include "hw/irq.h"
+#include "hw/qdev-properties.h"
 
 static void realview_gic_set_irq(void *opaque, int irq, int level)
 {

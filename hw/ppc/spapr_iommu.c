@@ -22,7 +22,6 @@
 #include "qemu/log.h"
 #include "qemu/module.h"
 #include "sysemu/kvm.h"
-#include "hw/qdev.h"
 #include "kvm_ppc.h"
 #include "migration/vmstate.h"
 #include "sysemu/dma.h"

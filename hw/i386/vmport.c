@@ -26,7 +26,6 @@
 #include "hw/i386/pc.h"
 #include "hw/input/i8042.h"
 #include "sysemu/hw_accel.h"
-#include "hw/qdev.h"
 #include "qemu/log.h"
 #include "trace.h"
 

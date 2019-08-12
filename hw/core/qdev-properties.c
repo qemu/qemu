@@ -1,6 +1,6 @@
 #include "qemu/osdep.h"
 #include "net/net.h"
-#include "hw/qdev.h"
+#include "hw/qdev-properties.h"
 #include "qapi/error.h"
 #include "hw/pci/pci.h"
 #include "qapi/qapi-types-block.h"
