@@ -25,7 +25,6 @@
 #include "qemu/osdep.h"
 #include "qemu/units.h"
 #include "cpu.h"
-#include "hw/hw.h"
 #include "hw/boards.h"
 #include "hw/char/serial.h"
 #include "hw/misc/unimp.h"

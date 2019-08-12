@@ -12,7 +12,6 @@
 
 #include "qemu/osdep.h"
 #include "qapi/error.h"
-#include "hw/hw.h"
 #include "hw/arm/pxa.h"
 #include "hw/arm/boot.h"
 #include "sysemu/sysemu.h"

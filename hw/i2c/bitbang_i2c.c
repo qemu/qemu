@@ -11,7 +11,6 @@
  */
 
 #include "qemu/osdep.h"
-#include "hw/hw.h"
 #include "hw/irq.h"
 #include "hw/i2c/bitbang_i2c.h"
 #include "hw/sysbus.h"

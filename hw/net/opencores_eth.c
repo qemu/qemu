@@ -32,7 +32,6 @@
  */
 
 #include "qemu/osdep.h"
-#include "hw/hw.h"
 #include "hw/irq.h"
 #include "hw/net/mii.h"
 #include "hw/sysbus.h"

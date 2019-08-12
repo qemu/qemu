@@ -19,7 +19,6 @@
 
 #include "qemu/osdep.h"
 #include "qemu/error-report.h"
-#include "hw/hw.h"
 #include "qemu/log.h"
 #include "qemu/module.h"
 #include "sysemu/kvm.h"

@@ -26,7 +26,6 @@
 #include "qemu/units.h"
 #include "qapi/error.h"
 #include "cpu.h"
-#include "hw/hw.h"
 #include "hw/ppc/ppc.h"
 #include "hw/boards.h"
 #include "hw/i2c/ppc4xx_i2c.h"

@@ -33,7 +33,6 @@
 #include "io/channel-socket.h"
 #include "sysemu/tpm_backend.h"
 #include "tpm_int.h"
-#include "hw/hw.h"
 #include "tpm_util.h"
 #include "tpm_ioctl.h"
 #include "migration/blocker.h"

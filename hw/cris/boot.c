@@ -24,7 +24,6 @@
 
 #include "qemu/osdep.h"
 #include "cpu.h"
-#include "hw/hw.h"
 #include "hw/loader.h"
 #include "elf.h"
 #include "boot.h"

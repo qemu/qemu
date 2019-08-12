@@ -25,7 +25,6 @@
 #ifndef HW_I8254_H
 #define HW_I8254_H
 
-#include "hw/hw.h"
 #include "hw/qdev.h"
 #include "hw/isa/isa.h"
 

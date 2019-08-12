@@ -21,7 +21,6 @@
 #include "qemu/units.h"
 #include "qapi/error.h"
 #include "qemu/cutils.h"
-#include "hw/hw.h"
 #include "hw/pci/pci.h"
 #include "hw/pci/msi.h"
 #include "hw/pci/msix.h"

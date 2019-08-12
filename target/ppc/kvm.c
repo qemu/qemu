@@ -37,6 +37,7 @@
 #include "hw/sysbus.h"
 #include "hw/ppc/spapr.h"
 #include "hw/ppc/spapr_cpu_core.h"
+#include "hw/hw.h"
 #include "hw/ppc/ppc.h"
 #include "migration/qemu-file-types.h"
 #include "sysemu/watchdog.h"

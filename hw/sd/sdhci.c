@@ -26,7 +26,6 @@
 #include "qemu/units.h"
 #include "qemu/error-report.h"
 #include "qapi/error.h"
-#include "hw/hw.h"
 #include "hw/irq.h"
 #include "sysemu/dma.h"
 #include "qemu/timer.h"

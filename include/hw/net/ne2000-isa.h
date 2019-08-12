@@ -10,7 +10,6 @@
 #ifndef HW_NET_NE2000_ISA_H
 #define HW_NET_NE2000_ISA_H
 
-#include "hw/hw.h"
 #include "hw/qdev.h"
 #include "hw/isa/isa.h"
 #include "net/net.h"

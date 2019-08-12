@@ -32,7 +32,6 @@
 #include "qemu/sockets.h"
 #include "qapi/error.h"
 #include "chardev/char.h"
-#include "hw/hw.h"
 #include "hw/irq.h"
 #include "hw/pci/pci.h"
 #include "migration/vmstate.h"

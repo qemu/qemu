@@ -19,6 +19,7 @@
 #include "sysemu/sysemu.h"
 #include "hw/boards.h"
 #include "hw/char/serial.h"
+#include "hw/hw.h"
 #include "qemu/timer.h"
 #include "hw/ptimer.h"
 #include "hw/block/flash.h"

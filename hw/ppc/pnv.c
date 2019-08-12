@@ -26,7 +26,6 @@
 #include "sysemu/reset.h"
 #include "sysemu/cpus.h"
 #include "sysemu/device_tree.h"
-#include "hw/hw.h"
 #include "target/ppc/cpu.h"
 #include "qemu/log.h"
 #include "hw/ppc/fdt.h"

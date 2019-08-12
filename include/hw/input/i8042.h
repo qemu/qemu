@@ -8,7 +8,6 @@
 #ifndef HW_INPUT_I8042_H
 #define HW_INPUT_I8042_H
 
-#include "hw/hw.h"
 #include "hw/isa/isa.h"
 
 #define TYPE_I8042 "i8042"

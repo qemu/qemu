@@ -25,7 +25,6 @@
 #include "qemu/osdep.h"
 #include <sys/signal.h>
 
-#include "hw/hw.h"
 #include "hw/sysbus.h"
 #include "hw/boards.h"
 #include "qemu/log.h"

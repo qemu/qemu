@@ -23,7 +23,6 @@
 #include "qemu/units.h"
 #include "qapi/error.h"
 #include "cpu.h"
-#include "hw/hw.h"
 #include "hw/i386/pc.h"
 #include "hw/dma/i8257.h"
 #include "hw/isa/superio.h"

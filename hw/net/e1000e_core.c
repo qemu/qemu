@@ -37,6 +37,7 @@
 #include "sysemu/sysemu.h"
 #include "net/net.h"
 #include "net/tap.h"
+#include "hw/hw.h"
 #include "hw/pci/msi.h"
 #include "hw/pci/msix.h"
 

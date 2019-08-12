@@ -26,7 +26,6 @@
 #define HW_STM32F2XX_SPI_H
 
 #include "hw/sysbus.h"
-#include "hw/hw.h"
 #include "hw/ssi/ssi.h"
 
 #define STM_SPI_CR1     0x00

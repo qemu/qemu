@@ -20,7 +20,6 @@
 #ifndef HW_GPEX_H
 #define HW_GPEX_H
 
-#include "hw/hw.h"
 #include "hw/sysbus.h"
 #include "hw/pci/pci.h"
 #include "hw/pci/pcie_host.h"

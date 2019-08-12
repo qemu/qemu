@@ -8,7 +8,6 @@
  */
 
 #include "qemu/osdep.h"
-#include "hw/hw.h"
 #include "hw/input/gamepad.h"
 #include "hw/irq.h"
 #include "migration/vmstate.h"

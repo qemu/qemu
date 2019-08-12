@@ -1,6 +1,5 @@
 #include "qemu/osdep.h"
 #include "qemu/units.h"
-#include "hw/hw.h"
 #include "hw/sh4/sh.h"
 #include "hw/loader.h"
 #include "sysemu/qtest.h"

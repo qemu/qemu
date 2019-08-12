@@ -20,7 +20,6 @@
 #include "qemu/osdep.h"
 #include "qemu/log.h"
 #include "qemu/module.h"
-#include "hw/hw.h"
 #include "hw/i2c/i2c.h"
 #include "hw/irq.h"
 #include "hw/arm/omap.h"

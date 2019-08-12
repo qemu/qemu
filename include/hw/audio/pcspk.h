@@ -25,7 +25,6 @@
 #ifndef HW_PCSPK_H
 #define HW_PCSPK_H
 
-#include "hw/hw.h"
 #include "hw/isa/isa.h"
 
 #define TYPE_PC_SPEAKER "isa-pcspk"

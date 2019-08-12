@@ -21,7 +21,6 @@
 #ifndef AMD_IOMMU_H
 #define AMD_IOMMU_H
 
-#include "hw/hw.h"
 #include "hw/pci/pci.h"
 #include "hw/i386/x86-iommu.h"
 

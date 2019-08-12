@@ -22,7 +22,6 @@
 #include "e500-ccsr.h"
 #include "net/net.h"
 #include "qemu/config-file.h"
-#include "hw/hw.h"
 #include "hw/char/serial.h"
 #include "hw/pci/pci.h"
 #include "hw/boards.h"

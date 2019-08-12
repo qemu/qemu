@@ -11,7 +11,6 @@
 #include "qemu/osdep.h"
 #include "cpu.h"
 #include "hw/sh4/sh_intc.h"
-#include "hw/hw.h"
 #include "hw/irq.h"
 #include "hw/sh4/sh.h"
 

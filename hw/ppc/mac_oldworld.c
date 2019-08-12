@@ -28,7 +28,6 @@
 #include "qemu-common.h"
 #include "qemu/units.h"
 #include "qapi/error.h"
-#include "hw/hw.h"
 #include "hw/ppc/ppc.h"
 #include "mac.h"
 #include "hw/input/adb.h"

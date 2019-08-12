@@ -1,7 +1,6 @@
 #ifndef HW_ICH9_H
 #define HW_ICH9_H
 
-#include "hw/hw.h"
 #include "hw/isa/isa.h"
 #include "hw/sysbus.h"
 #include "hw/i386/pc.h"

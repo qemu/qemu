@@ -15,7 +15,6 @@
 
 #include "qemu/osdep.h"
 
-#include "hw/hw.h"
 #include "hw/irq.h"
 #include "hw/pci/pci.h"
 #include "hw/scsi/scsi.h"

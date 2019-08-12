@@ -24,7 +24,6 @@ extern bool hvf_allowed;
 #include <Hypervisor/hv_vmx.h>
 #include <Hypervisor/hv_error.h>
 #include "target/i386/cpu.h"
-#include "hw/hw.h"
 uint32_t hvf_get_supported_cpuid(uint32_t func, uint32_t idx,
                                  int reg);
 #define hvf_enabled() (hvf_allowed)

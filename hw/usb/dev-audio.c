@@ -34,7 +34,6 @@
 #include "hw/usb.h"
 #include "migration/vmstate.h"
 #include "desc.h"
-#include "hw/hw.h"
 #include "audio/audio.h"
 
 #define USBAUDIO_VENDOR_NUM     0x46f4 /* CRC16() of "QEMU" */

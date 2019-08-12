@@ -24,7 +24,6 @@
 #include "qemu/module.h"
 #include "qemu/error-report.h"
 #include "qapi/error.h"
-#include "hw/hw.h"
 #include "ui/console.h"
 #include "hw/display/i2c-ddc.h"
 #include "trace.h"

@@ -19,7 +19,6 @@
 
 #include "qemu/osdep.h"
 
-#include "hw/hw.h"
 #include "migration/vmstate.h"
 #include "monitor/monitor.h"
 #include "qemu/module.h"

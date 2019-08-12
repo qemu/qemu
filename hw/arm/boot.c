@@ -12,7 +12,6 @@
 #include "qemu/error-report.h"
 #include "qapi/error.h"
 #include <libfdt.h>
-#include "hw/hw.h"
 #include "hw/arm/boot.h"
 #include "hw/arm/linux-boot-if.h"
 #include "sysemu/kvm.h"

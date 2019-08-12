@@ -25,6 +25,7 @@
 #include "sysemu/tcg.h"
 #include "exec/exec-all.h"
 #include "trace.h"
+#include "hw/hw.h"
 #include "hw/s390x/storage-keys.h"
 
 /* #define DEBUG_S390 */

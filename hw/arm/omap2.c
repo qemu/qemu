@@ -25,7 +25,6 @@
 #include "sysemu/qtest.h"
 #include "sysemu/reset.h"
 #include "hw/boards.h"
-#include "hw/hw.h"
 #include "hw/irq.h"
 #include "hw/arm/boot.h"
 #include "hw/arm/omap.h"

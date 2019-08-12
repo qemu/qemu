@@ -21,6 +21,7 @@
  */
 
 #include "qemu/osdep.h"
+#include "hw/hw.h"
 #include "hw/irq.h"
 #include "hw/timer/a9gtimer.h"
 #include "migration/vmstate.h"

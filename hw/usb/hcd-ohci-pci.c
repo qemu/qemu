@@ -19,7 +19,6 @@
  */
 
 #include "qemu/osdep.h"
-#include "hw/hw.h"
 #include "qapi/error.h"
 #include "qemu/timer.h"
 #include "hw/usb.h"

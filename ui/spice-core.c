@@ -34,7 +34,6 @@
 #include "qemu/notify.h"
 #include "qemu/option.h"
 #include "migration/misc.h"
-#include "hw/hw.h"
 #include "hw/pci/pci_bus.h"
 #include "ui/spice-display.h"
 

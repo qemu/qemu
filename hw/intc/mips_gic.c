@@ -13,7 +13,6 @@
 #include "qemu/log.h"
 #include "qemu/module.h"
 #include "qapi/error.h"
-#include "hw/hw.h"
 #include "hw/sysbus.h"
 #include "exec/memory.h"
 #include "sysemu/sysemu.h"

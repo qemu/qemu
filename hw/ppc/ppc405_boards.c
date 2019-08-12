@@ -27,7 +27,6 @@
 #include "qapi/error.h"
 #include "qemu-common.h"
 #include "cpu.h"
-#include "hw/hw.h"
 #include "hw/ppc/ppc.h"
 #include "ppc405.h"
 #include "hw/timer/m48t59.h"

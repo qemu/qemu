@@ -18,7 +18,6 @@
  */
 
 #include "qemu/osdep.h"
-#include "hw/hw.h"
 #include "sysemu/dma.h"
 #include "qapi/error.h"
 #include "qapi/qapi-types-block.h"

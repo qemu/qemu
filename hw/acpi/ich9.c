@@ -25,7 +25,6 @@
  */
 
 #include "qemu/osdep.h"
-#include "hw/hw.h"
 #include "qapi/error.h"
 #include "qapi/visitor.h"
 #include "hw/i386/pc.h"

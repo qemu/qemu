@@ -1,5 +1,4 @@
 #include "qemu/osdep.h"
-#include "hw/hw.h"
 #include "hw/pci/pci.h"
 #include "hw/virtio/virtio-gpu.h"
 #include "qapi/error.h"

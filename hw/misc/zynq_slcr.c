@@ -15,7 +15,6 @@
  */
 
 #include "qemu/osdep.h"
-#include "hw/hw.h"
 #include "qemu/timer.h"
 #include "hw/sysbus.h"
 #include "migration/vmstate.h"

@@ -38,7 +38,6 @@
 #include "sysemu/reset.h"
 #include "qapi/error.h"
 #include "trace.h"
-#include "hw/hw.h"
 #include "hw/pci/pci.h"
 #include "migration/vmstate.h"
 #include "ui/pixel_ops.h"

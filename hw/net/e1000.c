@@ -26,7 +26,6 @@
 
 
 #include "qemu/osdep.h"
-#include "hw/hw.h"
 #include "hw/pci/pci.h"
 #include "migration/vmstate.h"
 #include "net/net.h"

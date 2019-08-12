@@ -35,7 +35,6 @@
  */
 
 #include "qemu/osdep.h"
-#include "hw/hw.h"
 #include "hw/irq.h"
 #include "hw/ppc/mac.h"
 #include "hw/pci/pci.h"

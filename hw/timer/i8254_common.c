@@ -24,7 +24,6 @@
  */
 
 #include "qemu/osdep.h"
-#include "hw/hw.h"
 #include "hw/isa/isa.h"
 #include "qemu/module.h"
 #include "qemu/timer.h"

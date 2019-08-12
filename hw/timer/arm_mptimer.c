@@ -20,6 +20,7 @@
  */
 
 #include "qemu/osdep.h"
+#include "hw/hw.h"
 #include "hw/irq.h"
 #include "hw/ptimer.h"
 #include "hw/timer/arm_mptimer.h"

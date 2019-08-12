@@ -25,7 +25,6 @@
 #include "qemu/osdep.h"
 #include "hw/sysbus.h"
 #include "migration/vmstate.h"
-#include "hw/hw.h"
 #include "qemu/log.h"
 #include "qemu/module.h"
 #include "hw/adc/stm32f2xx_adc.h"

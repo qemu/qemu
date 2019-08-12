@@ -35,7 +35,6 @@
 #include "qemu/bcd.h"
 #include "hw/ptimer.h"
 
-#include "hw/hw.h"
 #include "hw/irq.h"
 #include "sysemu/sysemu.h"
 

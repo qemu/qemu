@@ -26,7 +26,6 @@
 #include "qemu/module.h"
 #include "qemu/units.h"
 #include "qapi/error.h"
-#include "hw/hw.h"
 #include "hw/loader.h"
 #include "trace.h"
 #include "ui/vnc.h"

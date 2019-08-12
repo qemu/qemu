@@ -3,7 +3,6 @@
  */
 #include "qemu/osdep.h"
 #include "qapi/error.h"
-#include "hw/hw.h"
 #include "hw/i386/pc.h"
 #include "qemu/error-report.h"
 #include "ui/console.h"

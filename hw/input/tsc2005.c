@@ -20,7 +20,6 @@
 
 #include "qemu/osdep.h"
 #include "qemu/log.h"
-#include "hw/hw.h"
 #include "qemu/timer.h"
 #include "sysemu/reset.h"
 #include "ui/console.h"

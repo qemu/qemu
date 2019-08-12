@@ -14,7 +14,6 @@
 #include <xenstore.h>
 #include "hw/xen/interface/io/xenbus.h"
 
-#include "hw/hw.h"
 #include "hw/xen/xen.h"
 #include "hw/pci/pci.h"
 #include "qemu/queue.h"

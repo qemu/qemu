@@ -24,7 +24,6 @@
 
 #include "qemu/osdep.h"
 #include "qemu-common.h"
-#include "hw/hw.h"
 #include "hw/mips/mips.h"
 #include "hw/mips/cpudevs.h"
 #include "hw/i386/pc.h"

@@ -14,7 +14,6 @@
 #include "qemu/osdep.h"
 #include "qapi/error.h"
 #include "qemu/host-utils.h"
-#include "hw/hw.h"
 #include "hw/irq.h"
 #include "hw/display/tc6393xb.h"
 #include "exec/memory.h"

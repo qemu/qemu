@@ -28,7 +28,6 @@
 #include "qemu/osdep.h"
 #include "qemu/log.h"
 #include "chardev/char.h"
-#include "hw/hw.h"
 #include "hw/irq.h"
 #include "migration/vmstate.h"
 #include "net/can_emu.h"

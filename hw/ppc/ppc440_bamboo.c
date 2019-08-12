@@ -17,7 +17,6 @@
 #include "qemu-common.h"
 #include "qemu/error-report.h"
 #include "net/net.h"
-#include "hw/hw.h"
 #include "hw/pci/pci.h"
 #include "hw/boards.h"
 #include "sysemu/kvm.h"

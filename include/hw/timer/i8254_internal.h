@@ -25,7 +25,6 @@
 #ifndef QEMU_I8254_INTERNAL_H
 #define QEMU_I8254_INTERNAL_H
 
-#include "hw/hw.h"
 #include "hw/isa/isa.h"
 #include "hw/timer/i8254.h"
 #include "qemu/timer.h"

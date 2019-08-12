@@ -19,7 +19,6 @@
 
 #include "qemu/osdep.h"
 #include "qapi/error.h"
-#include "hw/hw.h"
 #include "audio/audio.h"
 #include "sysemu/sysemu.h"
 #include "sysemu/qtest.h"

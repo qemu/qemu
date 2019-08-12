@@ -1,7 +1,6 @@
 #include "qemu/osdep.h"
 #include "cpu.h"
 #include "internal.h"
-#include "hw/hw.h"
 #include "migration/cpu.h"
 
 static int cpu_post_load(void *opaque, int version_id)

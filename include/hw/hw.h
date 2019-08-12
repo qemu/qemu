@@ -1,4 +1,3 @@
-/* Declarations for use by hardware emulation.  */
 #ifndef QEMU_HW_H
 #define QEMU_HW_H
 

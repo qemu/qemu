@@ -49,7 +49,6 @@
 #include "qemu/osdep.h"
 #include "qemu-common.h"
 #include "qapi/error.h"
-#include "hw/hw.h"
 #include "hw/ppc/ppc.h"
 #include "hw/ppc/mac.h"
 #include "hw/input/adb.h"

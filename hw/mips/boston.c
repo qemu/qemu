@@ -23,7 +23,6 @@
 #include "exec/address-spaces.h"
 #include "hw/boards.h"
 #include "hw/char/serial.h"
-#include "hw/hw.h"
 #include "hw/ide/pci.h"
 #include "hw/ide/ahci.h"
 #include "hw/loader.h"

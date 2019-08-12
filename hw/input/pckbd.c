@@ -24,7 +24,6 @@
 
 #include "qemu/osdep.h"
 #include "qemu/log.h"
-#include "hw/hw.h"
 #include "hw/isa/isa.h"
 #include "migration/vmstate.h"
 #include "hw/i386/pc.h"

@@ -18,7 +18,6 @@
  * with this program; if not, see <http://www.gnu.org/licenses/>.
  */
 #include "qemu/osdep.h"
-#include "hw/hw.h"
 #include "qemu/timer.h"
 #include "hw/arm/omap.h"
 struct omap_synctimer_s {

@@ -1,7 +1,6 @@
 #ifndef VHOST_H
 #define VHOST_H
 
-#include "hw/hw.h"
 #include "hw/virtio/vhost-backend.h"
 #include "hw/virtio/virtio.h"
 #include "exec/memory.h"

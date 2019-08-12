@@ -29,7 +29,6 @@
 #include "qemu/sockets.h"
 #include "sysemu/tpm_backend.h"
 #include "tpm_int.h"
-#include "hw/hw.h"
 #include "qapi/clone-visitor.h"
 #include "qapi/qapi-visit-tpm.h"
 #include "tpm_util.h"

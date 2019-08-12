@@ -20,7 +20,6 @@
 
 #include "qemu/osdep.h"
 #include "cpu.h"
-#include "hw/hw.h"
 #include "migration/vmstate.h"
 #include "qemu/timer.h"
 

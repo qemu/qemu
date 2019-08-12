@@ -24,7 +24,6 @@
 
 #include "qemu/osdep.h"
 #include "cpu.h"
-#include "hw/hw.h"
 #include "hw/ppc/ppc.h"
 #include "qemu/timer.h"
 #include "sysemu/reset.h"

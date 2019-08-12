@@ -22,7 +22,6 @@
 #ifndef QEMU_IOAPIC_INTERNAL_H
 #define QEMU_IOAPIC_INTERNAL_H
 
-#include "hw/hw.h"
 #include "exec/memory.h"
 #include "hw/i386/ioapic.h"
 #include "hw/sysbus.h"

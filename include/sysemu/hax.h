@@ -37,7 +37,6 @@ void hax_cpu_synchronize_pre_loadvm(CPUState *cpu);
 
 int hax_enabled(void);
 
-#include "hw/hw.h"
 #include "qemu/bitops.h"
 #include "exec/memory.h"
 int hax_vcpu_destroy(CPUState *cpu);

@@ -8,7 +8,6 @@
  */
 
 #include "qemu/osdep.h"
-#include "hw/hw.h"
 #include "hw/irq.h"
 #include "qemu/timer.h"
 #include "sysemu/sysemu.h"

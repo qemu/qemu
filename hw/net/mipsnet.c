@@ -1,5 +1,4 @@
 #include "qemu/osdep.h"
-#include "hw/hw.h"
 #include "hw/irq.h"
 #include "net/net.h"
 #include "qemu/module.h"

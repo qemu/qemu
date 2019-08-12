@@ -32,7 +32,6 @@
 #include "cpu.h"
 
 #include "hw/sysbus.h"
-#include "hw/hw.h"
 #include "hw/char/serial.h"
 #include "sysemu/sysemu.h"
 #include "hw/boards.h"

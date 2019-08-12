@@ -39,7 +39,6 @@
 
 #include "qemu/osdep.h"
 #include "qemu/error-report.h"
-#include "hw/hw.h"
 #include "hw/pci/pci.h"
 #include "hw/i386/pc.h"
 #include "hw/irq.h"

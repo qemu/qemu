@@ -18,7 +18,6 @@
  */
 
 #include "qemu/osdep.h"
-#include "hw/hw.h"
 #include "hw/irq.h"
 #include "ui/console.h"
 #include "hw/arm/omap.h"

@@ -22,7 +22,6 @@
 
 #include "qemu/osdep.h"
 #include "qemu/main-loop.h"
-#include "hw/hw.h"
 #include "hw/irq.h"
 #include "hw/mips/cpudevs.h"
 #include "cpu.h"

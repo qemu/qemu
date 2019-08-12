@@ -15,7 +15,6 @@
  */
 
 #include "qemu/osdep.h"
-#include "hw/hw.h"
 #include "hw/irq.h"
 #include "hw/ppc/e500-ccsr.h"
 #include "migration/vmstate.h"

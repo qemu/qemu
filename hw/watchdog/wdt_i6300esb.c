@@ -24,7 +24,6 @@
 #include "qemu/module.h"
 #include "qemu/timer.h"
 #include "sysemu/watchdog.h"
-#include "hw/hw.h"
 #include "hw/pci/pci.h"
 #include "migration/vmstate.h"
 

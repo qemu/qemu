@@ -15,7 +15,6 @@
 #define QEMU_VIRTIO_H
 
 #include "exec/memory.h"
-#include "hw/hw.h"
 #include "net/net.h"
 #include "hw/qdev.h"
 #include "sysemu/sysemu.h"

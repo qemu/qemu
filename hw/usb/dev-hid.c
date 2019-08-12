@@ -24,7 +24,6 @@
  */
 
 #include "qemu/osdep.h"
-#include "hw/hw.h"
 #include "ui/console.h"
 #include "hw/usb.h"
 #include "migration/vmstate.h"

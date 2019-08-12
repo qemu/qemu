@@ -26,7 +26,6 @@
 #include "config-devices.h"
 
 #include "qemu/units.h"
-#include "hw/hw.h"
 #include "hw/loader.h"
 #include "hw/i386/pc.h"
 #include "hw/i386/apic.h"

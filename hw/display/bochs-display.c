@@ -8,7 +8,6 @@
 #include "qemu/osdep.h"
 #include "qemu/module.h"
 #include "qemu/units.h"
-#include "hw/hw.h"
 #include "hw/pci/pci.h"
 #include "migration/vmstate.h"
 #include "hw/display/bochs-vbe.h"

@@ -15,6 +15,7 @@
 #include "hw/pci/pci_host.h"
 #include "hw/i386/pc.h"
 #include "hw/irq.h"
+#include "hw/hw.h"
 #include "hw/i386/apic-msidef.h"
 #include "hw/xen/xen_common.h"
 #include "hw/xen/xen-legacy-backend.h"

@@ -56,6 +56,7 @@
 #include "hw/nmi.h"
 #include "sysemu/replay.h"
 #include "hw/boards.h"
+#include "hw/hw.h"
 
 #ifdef CONFIG_LINUX
 

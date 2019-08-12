@@ -26,6 +26,7 @@
 #include "qemu/osdep.h"
 #include "qapi/error.h"
 #include "hw/display/bcm2835_fb.h"
+#include "hw/hw.h"
 #include "hw/irq.h"
 #include "framebuffer.h"
 #include "ui/pixel_ops.h"

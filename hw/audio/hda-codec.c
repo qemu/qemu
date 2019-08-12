@@ -18,7 +18,6 @@
  */
 
 #include "qemu/osdep.h"
-#include "hw/hw.h"
 #include "hw/pci/pci.h"
 #include "intel-hda.h"
 #include "migration/vmstate.h"

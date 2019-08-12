@@ -55,7 +55,6 @@ int main(int argc, char **argv)
 
 #include "qemu/error-report.h"
 #include "qemu/sockets.h"
-#include "hw/hw.h"
 #include "sysemu/accel.h"
 #include "hw/usb.h"
 #include "hw/isa/isa.h"

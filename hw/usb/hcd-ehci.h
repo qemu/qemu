@@ -18,7 +18,6 @@
 #ifndef HW_USB_HCD_EHCI_H
 #define HW_USB_HCD_EHCI_H
 
-#include "hw/hw.h"
 #include "qemu/timer.h"
 #include "hw/usb.h"
 #include "sysemu/dma.h"

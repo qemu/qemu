@@ -22,6 +22,7 @@
 #include <linux/vfio.h>
 #include <sys/ioctl.h>
 
+#include "hw/hw.h"
 #include "hw/pci/msi.h"
 #include "hw/pci/msix.h"
 #include "hw/pci/pci_bridge.h"
