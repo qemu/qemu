@@ -26,6 +26,7 @@
 #include "hw/sysbus.h"
 #include "qemu/module.h"
 #include "hw/hw.h"
+#include "hw/irq.h"
 
 #define D(x)
 

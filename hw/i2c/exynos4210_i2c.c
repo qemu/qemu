@@ -25,6 +25,7 @@
 #include "qemu/timer.h"
 #include "hw/sysbus.h"
 #include "hw/i2c/i2c.h"
+#include "hw/irq.h"
 
 #ifndef EXYNOS4_I2C_DEBUG
 #define EXYNOS4_I2C_DEBUG                 0

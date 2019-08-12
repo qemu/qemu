@@ -11,7 +11,6 @@
 #ifndef HW_DISPLAY_BLIZZARD_H
 #define HW_DISPLAY_BLIZZARD_H
 
-#include "hw/irq.h"
 
 void *s1d13745_init(qemu_irq gpio_int);
 void s1d13745_write(void *opaque, int dc, uint16_t value);

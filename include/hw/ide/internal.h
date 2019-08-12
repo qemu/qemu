@@ -7,6 +7,7 @@
  * non-internal declarations are in hw/ide.h
  */
 #include "hw/ide.h"
+#include "hw/irq.h"
 #include "hw/isa/isa.h"
 #include "sysemu/dma.h"
 #include "sysemu/sysemu.h"

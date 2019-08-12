@@ -9,7 +9,6 @@
 #include "exec/cpu-common.h"
 #include "qom/object.h"
 #include "exec/memory.h"
-#include "hw/irq.h"
 #include "migration/vmstate.h"
 
 void QEMU_NORETURN hw_error(const char *fmt, ...) GCC_FMT_ATTR(1, 2);

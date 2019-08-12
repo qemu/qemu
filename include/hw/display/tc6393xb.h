@@ -13,7 +13,6 @@
 #define HW_DISPLAY_TC6393XB_H
 
 #include "exec/memory.h"
-#include "hw/irq.h"
 
 typedef struct TC6393xbState TC6393xbState;
 

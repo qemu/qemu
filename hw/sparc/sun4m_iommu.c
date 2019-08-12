@@ -23,6 +23,7 @@
  */
 
 #include "qemu/osdep.h"
+#include "hw/irq.h"
 #include "hw/sparc/sun4m_iommu.h"
 #include "hw/sysbus.h"
 #include "qemu/module.h"

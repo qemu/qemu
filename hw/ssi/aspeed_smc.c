@@ -29,6 +29,7 @@
 #include "qemu/module.h"
 #include "qemu/error-report.h"
 
+#include "hw/irq.h"
 #include "hw/ssi/aspeed_smc.h"
 
 /* CE Type Setting Register */

@@ -35,6 +35,7 @@
 #include "qemu/error-report.h"
 #include "qemu/option.h"
 #include "hw/hotplug.h"
+#include "hw/irq.h"
 #include "hw/boards.h"
 #include "hw/sysbus.h"
 

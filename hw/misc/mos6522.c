@@ -27,6 +27,7 @@
 #include "qemu/osdep.h"
 #include "hw/hw.h"
 #include "hw/input/adb.h"
+#include "hw/irq.h"
 #include "hw/misc/mos6522.h"
 #include "qemu/timer.h"
 #include "sysemu/sysemu.h"

@@ -23,6 +23,7 @@
 
 #include "qemu/osdep.h"
 #include "hw/hw.h"
+#include "hw/irq.h"
 #include "hw/sysbus.h"
 #include "trace.h"
 #include "chardev/char-fe.h"

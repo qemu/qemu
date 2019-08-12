@@ -39,6 +39,7 @@
 
 #include "qemu/osdep.h"
 #include "hw/hw.h"
+#include "hw/irq.h"
 #include "hw/ppc/mac_dbdma.h"
 #include "qemu/main-loop.h"
 #include "qemu/module.h"

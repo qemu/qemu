@@ -45,6 +45,7 @@
 #include "hw/platform-bus.h"
 #include "hw/net/fsl_etsec/etsec.h"
 #include "hw/i2c/i2c.h"
+#include "hw/irq.h"
 
 #define EPAPR_MAGIC                (0x45504150)
 #define BINARY_DEVICE_TREE_FILE    "mpc8544ds.dtb"

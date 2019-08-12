@@ -14,6 +14,7 @@
 
 #include "qemu/osdep.h"
 #include "hw/intc/bcm2835_ic.h"
+#include "hw/irq.h"
 #include "qemu/log.h"
 #include "qemu/module.h"
 

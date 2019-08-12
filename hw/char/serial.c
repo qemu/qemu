@@ -25,6 +25,7 @@
 
 #include "qemu/osdep.h"
 #include "hw/char/serial.h"
+#include "hw/irq.h"
 #include "chardev/char-serial.h"
 #include "qapi/error.h"
 #include "qemu/timer.h"

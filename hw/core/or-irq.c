@@ -23,6 +23,7 @@
  */
 
 #include "qemu/osdep.h"
+#include "hw/irq.h"
 #include "hw/or-irq.h"
 #include "qemu/module.h"
 

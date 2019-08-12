@@ -29,6 +29,7 @@
 #include "qemu/osdep.h"
 #include "sysemu/sysemu.h"
 #include "hw/sysbus.h"
+#include "hw/irq.h"
 #include "hw/ptimer.h"
 #include "etsec.h"
 #include "registers.h"

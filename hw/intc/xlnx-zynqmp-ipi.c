@@ -32,6 +32,7 @@
 #include "qemu/log.h"
 #include "qemu/module.h"
 #include "hw/intc/xlnx-zynqmp-ipi.h"
+#include "hw/irq.h"
 
 #ifndef XLNX_ZYNQMP_IPI_ERR_DEBUG
 #define XLNX_ZYNQMP_IPI_ERR_DEBUG 0

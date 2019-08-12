@@ -21,6 +21,7 @@
 
 #include "qemu/osdep.h"
 #include "standard-headers/linux/virtio_mmio.h"
+#include "hw/irq.h"
 #include "hw/sysbus.h"
 #include "hw/virtio/virtio.h"
 #include "migration/qemu-file-types.h"

@@ -16,6 +16,7 @@
 #include "trace.h"
 #include "hw/sysbus.h"
 #include "hw/registerfields.h"
+#include "hw/irq.h"
 #include "hw/misc/tz-ppc.h"
 
 static void tz_ppc_update_irq(TZPPC *s)

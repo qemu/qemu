@@ -32,6 +32,7 @@
 #include "qemu/module.h"
 
 #include "hw/arm/exynos4210.h"
+#include "hw/irq.h"
 
 //#define DEBUG_COMBINER
 

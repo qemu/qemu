@@ -21,7 +21,6 @@
 #define HW_ARM_OMAP_H
 
 #include "exec/memory.h"
-#include "hw/irq.h"
 #include "hw/input/tsc2xxx.h"
 #include "target/arm/cpu-qom.h"
 #include "qemu/log.h"

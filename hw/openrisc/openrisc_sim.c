@@ -23,6 +23,7 @@
 #include "qapi/error.h"
 #include "cpu.h"
 #include "hw/hw.h"
+#include "hw/irq.h"
 #include "hw/boards.h"
 #include "elf.h"
 #include "hw/char/serial.h"

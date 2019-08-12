@@ -23,6 +23,7 @@
 #include "qemu/log.h"
 #include "qemu/module.h"
 #include "hw/i2c/aspeed_i2c.h"
+#include "hw/irq.h"
 
 /* I2C Global Register */
 

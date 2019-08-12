@@ -2,7 +2,6 @@
 #define HW_FDC_H
 
 #include "exec/hwaddr.h"
-#include "hw/irq.h"
 #include "qapi/qapi-types-block.h"
 
 /* fdc.c */

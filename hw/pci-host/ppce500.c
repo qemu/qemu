@@ -16,6 +16,7 @@
 
 #include "qemu/osdep.h"
 #include "hw/hw.h"
+#include "hw/irq.h"
 #include "hw/ppc/e500-ccsr.h"
 #include "hw/pci/pci.h"
 #include "hw/pci/pci_host.h"

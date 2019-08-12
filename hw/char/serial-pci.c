@@ -29,6 +29,7 @@
 #include "qapi/error.h"
 #include "qemu/module.h"
 #include "hw/char/serial.h"
+#include "hw/irq.h"
 #include "hw/pci/pci.h"
 
 typedef struct PCISerialState {

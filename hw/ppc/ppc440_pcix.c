@@ -24,6 +24,7 @@
 #include "qemu/log.h"
 #include "qemu/module.h"
 #include "hw/hw.h"
+#include "hw/irq.h"
 #include "hw/ppc/ppc.h"
 #include "hw/ppc/ppc4xx.h"
 #include "hw/pci/pci.h"

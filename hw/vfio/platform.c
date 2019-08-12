@@ -29,6 +29,7 @@
 #include "qemu/queue.h"
 #include "hw/sysbus.h"
 #include "trace.h"
+#include "hw/irq.h"
 #include "hw/platform-bus.h"
 #include "sysemu/kvm.h"
 

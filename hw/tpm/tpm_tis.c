@@ -23,6 +23,7 @@
  */
 
 #include "qemu/osdep.h"
+#include "hw/irq.h"
 #include "hw/isa/isa.h"
 #include "qapi/error.h"
 #include "qemu/module.h"

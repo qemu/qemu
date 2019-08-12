@@ -28,6 +28,7 @@
 #include "qemu/osdep.h"
 #include "cpu.h"
 #include "hw/hw.h"
+#include "hw/irq.h"
 #include "qemu/log.h"
 #include "qemu/timer.h"
 

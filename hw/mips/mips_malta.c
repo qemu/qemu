@@ -43,6 +43,7 @@
 #include "qemu/log.h"
 #include "hw/mips/bios.h"
 #include "hw/ide.h"
+#include "hw/irq.h"
 #include "hw/loader.h"
 #include "elf.h"
 #include "hw/timer/mc146818rtc.h"

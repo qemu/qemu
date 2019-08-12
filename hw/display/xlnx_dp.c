@@ -27,6 +27,7 @@
 #include "qemu/log.h"
 #include "qemu/module.h"
 #include "hw/display/xlnx_dp.h"
+#include "hw/irq.h"
 
 #ifndef DEBUG_DP
 #define DEBUG_DP 0

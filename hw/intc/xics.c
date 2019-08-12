@@ -37,6 +37,7 @@
 #include "qapi/visitor.h"
 #include "monitor/monitor.h"
 #include "hw/intc/intc.h"
+#include "hw/irq.h"
 #include "sysemu/kvm.h"
 #include "sysemu/reset.h"
 

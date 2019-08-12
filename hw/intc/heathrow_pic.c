@@ -28,6 +28,7 @@
 #include "hw/ppc/mac.h"
 #include "qemu/module.h"
 #include "hw/intc/heathrow_pic.h"
+#include "hw/irq.h"
 #include "trace.h"
 
 static inline int heathrow_check_irq(HeathrowPICState *pic)

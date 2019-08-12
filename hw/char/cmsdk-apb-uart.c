@@ -25,6 +25,7 @@
 #include "chardev/char-fe.h"
 #include "chardev/char-serial.h"
 #include "hw/char/cmsdk-apb-uart.h"
+#include "hw/irq.h"
 
 REG32(DATA, 0)
 REG32(STATE, 4)

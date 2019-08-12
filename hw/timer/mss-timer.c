@@ -27,6 +27,7 @@
 #include "qemu/main-loop.h"
 #include "qemu/module.h"
 #include "qemu/log.h"
+#include "hw/irq.h"
 #include "hw/timer/mss-timer.h"
 
 #ifndef MSS_TIMER_ERR_DEBUG

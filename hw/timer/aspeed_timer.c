@@ -11,6 +11,7 @@
 
 #include "qemu/osdep.h"
 #include "qapi/error.h"
+#include "hw/irq.h"
 #include "hw/sysbus.h"
 #include "hw/timer/aspeed_timer.h"
 #include "qemu/bitops.h"

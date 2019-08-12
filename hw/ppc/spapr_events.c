@@ -24,6 +24,7 @@
  * THE SOFTWARE.
  *
  */
+
 #include "qemu/osdep.h"
 #include "qapi/error.h"
 #include "cpu.h"
@@ -35,6 +36,7 @@
 #include "hw/ppc/spapr.h"
 #include "hw/ppc/spapr_vio.h"
 #include "hw/pci/pci.h"
+#include "hw/irq.h"
 #include "hw/pci-host/spapr.h"
 #include "hw/ppc/spapr_drc.h"
 #include "qemu/help_option.h"

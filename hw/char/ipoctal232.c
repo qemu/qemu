@@ -10,6 +10,7 @@
 
 #include "qemu/osdep.h"
 #include "hw/ipack/ipack.h"
+#include "hw/irq.h"
 #include "qemu/bitops.h"
 #include "qemu/module.h"
 #include "chardev/char-fe.h"

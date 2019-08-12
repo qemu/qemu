@@ -28,6 +28,7 @@
 #include "qemu/module.h"
 #include "sysemu/watchdog.h"
 #include "hw/sysbus.h"
+#include "hw/irq.h"
 #include "hw/registerfields.h"
 #include "hw/watchdog/cmsdk-apb-watchdog.h"
 

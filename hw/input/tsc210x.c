@@ -27,6 +27,7 @@
 #include "ui/console.h"
 #include "hw/arm/omap.h"            /* For I2SCodec */
 #include "hw/input/tsc2xxx.h"
+#include "hw/irq.h"
 
 #define TSC_DATA_REGISTERS_PAGE		0x0
 #define TSC_CONTROL_REGISTERS_PAGE	0x1

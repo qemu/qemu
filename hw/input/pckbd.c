@@ -28,6 +28,7 @@
 #include "hw/isa/isa.h"
 #include "hw/i386/pc.h"
 #include "hw/input/ps2.h"
+#include "hw/irq.h"
 #include "hw/input/i8042.h"
 #include "sysemu/reset.h"
 #include "sysemu/sysemu.h"

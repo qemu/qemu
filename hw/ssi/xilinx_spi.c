@@ -31,6 +31,7 @@
 #include "qemu/module.h"
 #include "qemu/fifo8.h"
 
+#include "hw/irq.h"
 #include "hw/ssi/ssi.h"
 
 #ifdef XILINX_SPI_ERR_DEBUG

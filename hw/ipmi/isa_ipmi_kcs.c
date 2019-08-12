@@ -28,6 +28,7 @@
 #include "qapi/error.h"
 #include "hw/hw.h"
 #include "hw/ipmi/ipmi.h"
+#include "hw/irq.h"
 #include "hw/isa/isa.h"
 
 #define IPMI_KCS_OBF_BIT        0

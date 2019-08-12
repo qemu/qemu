@@ -19,6 +19,7 @@
 #include "hw/registerfields.h"
 #include "hw/arm/armsse.h"
 #include "hw/arm/boot.h"
+#include "hw/irq.h"
 
 /* Format of the System Information block SYS_CONFIG register */
 typedef enum SysConfigFormat {

@@ -20,6 +20,7 @@
 #include "sysemu/sysemu.h"
 #include "qemu/error-report.h"
 #include "hw/char/pl011.h"
+#include "hw/irq.h"
 
 #define TYPE_INTEGRATOR_CM "integrator_core"
 #define INTEGRATOR_CM(obj) \

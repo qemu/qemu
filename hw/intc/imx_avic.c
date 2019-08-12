@@ -17,6 +17,7 @@
 
 #include "qemu/osdep.h"
 #include "hw/intc/imx_avic.h"
+#include "hw/irq.h"
 #include "qemu/log.h"
 #include "qemu/module.h"
 

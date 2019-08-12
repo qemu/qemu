@@ -9,6 +9,7 @@
 
 #include "qemu/osdep.h"
 #include "hw/i2c/i2c.h"
+#include "hw/irq.h"
 #include "qemu/module.h"
 
 #define TYPE_MAX7310 "max7310"

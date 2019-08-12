@@ -8,6 +8,7 @@
  */
 
 #include "qemu/osdep.h"
+#include "hw/irq.h"
 #include "hw/sysbus.h"
 #include "ui/console.h"
 #include "framebuffer.h"

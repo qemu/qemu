@@ -33,6 +33,7 @@
 #include "hw/hw.h"
 #include "hw/ppc/mac.h"
 #include "hw/input/adb.h"
+#include "hw/irq.h"
 #include "hw/misc/mos6522.h"
 #include "hw/misc/macio/gpio.h"
 #include "hw/misc/macio/pmu.h"

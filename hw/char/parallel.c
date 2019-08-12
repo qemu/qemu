@@ -29,6 +29,7 @@
 #include "hw/hw.h"
 #include "chardev/char-parallel.h"
 #include "chardev/char-fe.h"
+#include "hw/irq.h"
 #include "hw/isa/isa.h"
 #include "hw/char/parallel.h"
 #include "sysemu/reset.h"

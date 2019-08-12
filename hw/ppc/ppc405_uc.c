@@ -30,6 +30,7 @@
 #include "hw/ppc/ppc.h"
 #include "hw/boards.h"
 #include "hw/i2c/ppc4xx_i2c.h"
+#include "hw/irq.h"
 #include "ppc405.h"
 #include "hw/char/serial.h"
 #include "qemu/timer.h"

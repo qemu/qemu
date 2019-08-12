@@ -2,7 +2,6 @@
 #define SH_INTC_H
 
 #include "exec/memory.h"
-#include "hw/irq.h"
 
 typedef unsigned char intc_enum;
 

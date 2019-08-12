@@ -27,6 +27,7 @@
 
 #include "qemu/osdep.h"
 #include "hw/hw.h"
+#include "hw/irq.h"
 #include "hw/xtensa/mx_pic.h"
 #include "qemu/log.h"
 

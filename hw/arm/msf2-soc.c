@@ -27,6 +27,7 @@
 #include "qapi/error.h"
 #include "exec/address-spaces.h"
 #include "hw/char/serial.h"
+#include "hw/irq.h"
 #include "hw/boards.h"
 #include "hw/arm/msf2-soc.h"
 #include "hw/misc/unimp.h"

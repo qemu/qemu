@@ -11,7 +11,6 @@
 #ifndef HW_NET_LAN9118_H
 #define HW_NET_LAN9118_H
 
-#include "hw/irq.h"
 #include "net/net.h"
 
 #define TYPE_LAN9118 "lan9118"

@@ -29,6 +29,7 @@
 #include "qemu/log.h"
 #include "qemu/module.h"
 #include "hw/char/cadence_uart.h"
+#include "hw/irq.h"
 
 #ifdef CADENCE_UART_ERR_DEBUG
 #define DB_PRINT(...) do { \

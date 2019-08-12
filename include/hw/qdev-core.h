@@ -4,7 +4,6 @@
 #include "qemu/queue.h"
 #include "qemu/bitmap.h"
 #include "qom/object.h"
-#include "hw/irq.h"
 #include "hw/hotplug.h"
 #include "sysemu/sysemu.h"
 

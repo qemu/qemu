@@ -26,6 +26,7 @@
 #include "trace.h"
 #include "hw/lm32/lm32_pic.h"
 #include "hw/intc/intc.h"
+#include "hw/irq.h"
 
 #define TYPE_LM32_PIC "lm32-pic"
 #define LM32_PIC(obj) OBJECT_CHECK(LM32PicState, (obj), TYPE_LM32_PIC)

@@ -37,6 +37,7 @@
 
 #include "qemu/osdep.h"
 #include "qemu/log.h"
+#include "hw/irq.h"
 #include "hw/qdev.h"
 #include "net/net.h"
 #include "net/eth.h"

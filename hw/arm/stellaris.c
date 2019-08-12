@@ -22,6 +22,7 @@
 #include "hw/arm/armv7m.h"
 #include "hw/char/pl011.h"
 #include "hw/input/gamepad.h"
+#include "hw/irq.h"
 #include "hw/watchdog/cmsdk-apb-watchdog.h"
 #include "hw/misc/unimp.h"
 #include "cpu.h"

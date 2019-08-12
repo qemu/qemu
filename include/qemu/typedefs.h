@@ -119,9 +119,18 @@ typedef struct VirtIODevice VirtIODevice;
 typedef struct Visitor Visitor;
 
 /*
+ * Pointer types
+ * Such typedefs should be limited to cases where the typedef's users
+ * are oblivious of its "pointer-ness".
+ * Please keep this list in case-insensitive alphabetical order.
+ */
+typedef struct IRQState *qemu_irq;
+
+/*
  * Function types
  */
 typedef void SaveStateHandler(QEMUFile *f, void *opaque);
 typedef int LoadStateHandler(QEMUFile *f, void *opaque, int version_id);
+typedef void (*qemu_irq_handler)(void *opaque, int n, int level);
 
 #endif /* QEMU_TYPEDEFS_H */

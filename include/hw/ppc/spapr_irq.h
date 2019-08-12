@@ -10,7 +10,6 @@
 #ifndef HW_SPAPR_IRQ_H
 #define HW_SPAPR_IRQ_H
 
-#include "hw/irq.h"
 #include "target/ppc/cpu-qom.h"
 
 /*

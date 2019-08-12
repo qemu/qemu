@@ -28,6 +28,7 @@
 #include "chardev/char-serial.h"
 
 #include "hw/arm/exynos4210.h"
+#include "hw/irq.h"
 
 #undef DEBUG_UART
 #undef DEBUG_UART_EXTEND

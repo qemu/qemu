@@ -21,6 +21,7 @@
 #include "hw/boards.h"
 #include "hw/display/tc6393xb.h"
 #include "hw/i2c/i2c.h"
+#include "hw/irq.h"
 #include "hw/ssi/ssi.h"
 #include "hw/sysbus.h"
 #include "exec/address-spaces.h"

@@ -14,6 +14,7 @@
 #include "hw/isa/i8259_internal.h"
 #include "qemu/module.h"
 #include "hw/i386/apic_internal.h"
+#include "hw/irq.h"
 #include "sysemu/kvm.h"
 
 #define TYPE_KVM_I8259 "kvm-i8259"

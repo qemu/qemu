@@ -27,6 +27,7 @@
 #include "qapi/error.h"
 #include "cpu.h"
 #include "hw/hw.h"
+#include "hw/irq.h"
 #include "hw/sysbus.h"
 #include "hw/pci/pci.h"
 #include "hw/pci/msi.h"

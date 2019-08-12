@@ -31,6 +31,7 @@
 #include "qemu-common.h"
 #include "cpu.h"
 #include "hw/boards.h"
+#include "hw/irq.h"
 #include "hw/sysbus.h"
 #include "strongarm.h"
 #include "qemu/error-report.h"

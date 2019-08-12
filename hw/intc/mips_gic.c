@@ -21,6 +21,7 @@
 #include "sysemu/reset.h"
 #include "kvm_mips.h"
 #include "hw/intc/mips_gic.h"
+#include "hw/irq.h"
 
 static void mips_gic_set_vp_irq(MIPSGICState *gic, int vp, int pin)
 {

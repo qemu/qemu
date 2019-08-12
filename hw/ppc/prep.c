@@ -39,6 +39,7 @@
 #include "qemu/error-report.h"
 #include "qemu/log.h"
 #include "hw/ide.h"
+#include "hw/irq.h"
 #include "hw/loader.h"
 #include "hw/timer/mc146818rtc.h"
 #include "hw/isa/pc87312.h"

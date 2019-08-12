@@ -34,6 +34,7 @@
 #include "qemu/units.h"
 #include "hw/qdev.h"
 #include "hw/hw.h"
+#include "hw/irq.h"
 #include "hw/registerfields.h"
 #include "sysemu/block-backend.h"
 #include "hw/sd/sd.h"

@@ -24,6 +24,7 @@
 #include "qapi/error.h"
 #include "qapi/visitor.h"
 #include "hw/hw.h"
+#include "hw/irq.h"
 #include "qemu/log.h"
 #include "sysemu/sysemu.h"
 #include "hw/boards.h"

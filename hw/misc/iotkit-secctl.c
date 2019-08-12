@@ -16,6 +16,7 @@
 #include "trace.h"
 #include "hw/sysbus.h"
 #include "hw/registerfields.h"
+#include "hw/irq.h"
 #include "hw/misc/iotkit-secctl.h"
 
 /* Registers in the secure privilege control block */

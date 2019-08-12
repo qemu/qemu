@@ -29,6 +29,7 @@
 #include "qemu-common.h"
 #include "cpu.h"
 #include "hw/hw.h"
+#include "hw/irq.h"
 #include "qemu/timer.h"
 #include "hw/ptimer.h"
 #include "sysemu/sysemu.h"

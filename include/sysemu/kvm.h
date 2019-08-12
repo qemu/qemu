@@ -17,7 +17,6 @@
 #include "qemu/queue.h"
 #include "qom/cpu.h"
 #include "exec/memattrs.h"
-#include "hw/irq.h"
 
 #ifdef NEED_CPU_H
 # ifdef CONFIG_KVM

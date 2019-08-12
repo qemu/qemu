@@ -13,6 +13,7 @@
 #include "qemu/log.h"
 #include "qemu/module.h"
 #include "hw/dma/pl080.h"
+#include "hw/irq.h"
 #include "qapi/error.h"
 
 #define PL080_CONF_E    0x1

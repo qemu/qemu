@@ -16,6 +16,7 @@
 #include "trace.h"
 #include "hw/sysbus.h"
 #include "hw/registerfields.h"
+#include "hw/irq.h"
 #include "hw/misc/tz-mpc.h"
 
 /* Our IOMMU has two IOMMU indexes, one for secure transactions and one for

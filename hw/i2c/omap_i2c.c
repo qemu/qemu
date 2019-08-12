@@ -22,6 +22,7 @@
 #include "qemu/module.h"
 #include "hw/hw.h"
 #include "hw/i2c/i2c.h"
+#include "hw/irq.h"
 #include "hw/arm/omap.h"
 #include "hw/sysbus.h"
 #include "qemu/error-report.h"
