@@ -24,6 +24,7 @@
 #include "hw/boards.h"
 #include "exec/address-spaces.h"
 #include "sysemu/kvm.h"
+#include "sysemu/sysemu.h"
 #include "kvm_arm.h"
 
 #define GIC_NUM_SPI_INTR 160

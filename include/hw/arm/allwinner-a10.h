@@ -7,7 +7,6 @@
 #include "hw/timer/allwinner-a10-pit.h"
 #include "hw/intc/allwinner-a10-pic.h"
 #include "hw/net/allwinner_emac.h"
-#include "hw/ide/pci.h"
 #include "hw/ide/ahci.h"
 
 #include "sysemu/sysemu.h"
