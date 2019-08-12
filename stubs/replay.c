@@ -1,6 +1,5 @@
 #include "qemu/osdep.h"
 #include "sysemu/replay.h"
-#include "sysemu/sysemu.h"
 
 ReplayMode replay_mode;
 

@@ -29,7 +29,6 @@
 #include "hw/i386/apic_internal.h"
 #include "qemu/main-loop.h"
 #include "sysemu/accel.h"
-#include "sysemu/sysemu.h"
 #include "target/i386/cpu.h"
 
 // TODO: taskswitch handling

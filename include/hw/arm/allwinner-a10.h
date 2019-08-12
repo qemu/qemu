@@ -9,7 +9,6 @@
 #include "hw/net/allwinner_emac.h"
 #include "hw/ide/ahci.h"
 
-#include "sysemu/sysemu.h"
 #include "target/arm/cpu.h"
 
 

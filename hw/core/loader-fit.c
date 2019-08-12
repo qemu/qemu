@@ -26,7 +26,6 @@
 #include "qemu/cutils.h"
 #include "qemu/error-report.h"
 #include "sysemu/device_tree.h"
-#include "sysemu/sysemu.h"
 
 #include <libfdt.h>
 #include <zlib.h>

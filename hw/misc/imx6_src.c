@@ -11,7 +11,6 @@
 #include "qemu/osdep.h"
 #include "hw/misc/imx6_src.h"
 #include "migration/vmstate.h"
-#include "sysemu/sysemu.h"
 #include "qemu/bitops.h"
 #include "qemu/log.h"
 #include "qemu/main-loop.h"

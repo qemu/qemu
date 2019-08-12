@@ -24,7 +24,6 @@
 #include "migration/vmstate.h"
 #include "qemu/error-report.h"
 #include "qemu/module.h"
-#include "sysemu/sysemu.h"
 #include "chardev/char-fe.h"
 #include "chardev/char-serial.h"
 

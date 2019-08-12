@@ -25,7 +25,6 @@
 
 #include "qemu/osdep.h"
 #include "sysemu/accel.h"
-#include "sysemu/sysemu.h"
 #include "sysemu/tcg.h"
 #include "qom/object.h"
 #include "cpu.h"

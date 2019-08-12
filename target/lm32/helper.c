@@ -21,7 +21,6 @@
 #include "cpu.h"
 #include "exec/exec-all.h"
 #include "qemu/host-utils.h"
-#include "sysemu/sysemu.h"
 #include "hw/semihosting/semihost.h"
 #include "exec/log.h"
 

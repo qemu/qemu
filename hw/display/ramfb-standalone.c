@@ -6,7 +6,6 @@
 #include "hw/isa/isa.h"
 #include "hw/display/ramfb.h"
 #include "ui/console.h"
-#include "sysemu/sysemu.h"
 
 #define RAMFB(obj) OBJECT_CHECK(RAMFBStandaloneState, (obj), TYPE_RAMFB_DEVICE)
 

@@ -29,7 +29,6 @@
 #include "hw/irq.h"
 #include "migration/vmstate.h"
 #include "qemu/bitops.h"
-#include "sysemu/sysemu.h"
 #include "sysemu/dma.h"
 #include "qemu/log.h"
 #include "qemu/module.h"

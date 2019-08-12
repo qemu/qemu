@@ -28,7 +28,6 @@
 #include "exec/softmmu-semi.h"
 #endif
 #include "qemu/log.h"
-#include "sysemu/sysemu.h"
 
 #define HOSTED_EXIT  0
 #define HOSTED_INIT_SIM 1

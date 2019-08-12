@@ -16,7 +16,6 @@
 #include "hw/misc/imx7_gpr.h"
 #include "qemu/log.h"
 #include "qemu/module.h"
-#include "sysemu/sysemu.h"
 
 #include "trace.h"
 

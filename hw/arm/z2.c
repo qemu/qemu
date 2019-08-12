@@ -19,7 +19,6 @@
 #include "hw/ssi/ssi.h"
 #include "migration/vmstate.h"
 #include "hw/boards.h"
-#include "sysemu/sysemu.h"
 #include "hw/block/flash.h"
 #include "ui/console.h"
 #include "hw/audio/wm8750.h"

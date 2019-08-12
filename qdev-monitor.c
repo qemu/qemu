@@ -32,6 +32,7 @@
 #include "qemu/option.h"
 #include "qemu/qemu-print.h"
 #include "sysemu/block-backend.h"
+#include "sysemu/sysemu.h"
 #include "migration/misc.h"
 
 /*

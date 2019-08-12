@@ -20,7 +20,6 @@
 #include "qemu/module.h"
 #include "trace.h"
 #include "qapi/error.h"
-#include "sysemu/sysemu.h"
 #include "hw/sysbus.h"
 #include "migration/vmstate.h"
 #include "hw/registerfields.h"

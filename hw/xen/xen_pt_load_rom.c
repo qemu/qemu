@@ -9,7 +9,6 @@
 #include "hw/loader.h"
 #include "monitor/monitor.h"
 #include "qemu/range.h"
-#include "sysemu/sysemu.h"
 #include "hw/pci/pci.h"
 #include "xen_pt.h"
 

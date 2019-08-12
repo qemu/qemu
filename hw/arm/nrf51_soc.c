@@ -14,7 +14,6 @@
 #include "hw/sysbus.h"
 #include "hw/misc/unimp.h"
 #include "exec/address-spaces.h"
-#include "sysemu/sysemu.h"
 #include "qemu/log.h"
 #include "cpu.h"
 

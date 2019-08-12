@@ -18,7 +18,6 @@
 #include "hw/display/ramfb.h"
 #include "ui/console.h"
 #include "sysemu/reset.h"
-#include "sysemu/sysemu.h"
 
 struct QEMU_PACKED RAMFBCfg {
     uint64_t addr;

@@ -28,7 +28,6 @@
 #include "qemu/module.h"
 #include "ui/input.h"
 #include "hw/input/adb-keys.h"
-#include "sysemu/sysemu.h"
 #include "adb-internal.h"
 #include "trace.h"
 

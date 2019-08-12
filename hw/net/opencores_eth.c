@@ -39,7 +39,6 @@
 #include "net/net.h"
 #include "qemu/module.h"
 #include "net/eth.h"
-#include "sysemu/sysemu.h"
 #include "trace.h"
 
 /* RECSMALL is not used because it breaks tap networking in linux:

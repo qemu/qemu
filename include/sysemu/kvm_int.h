@@ -10,7 +10,6 @@
 #define QEMU_KVM_INT_H
 
 #include "exec/memory.h"
-#include "sysemu/sysemu.h"
 #include "sysemu/accel.h"
 #include "sysemu/kvm.h"
 

@@ -28,7 +28,6 @@
 #include "exec/log.h"
 #include "qemu/error-report.h"
 #include "qemu/qemu-print.h"
-#include "sysemu/sysemu.h"
 #include "sysemu/tcg.h"
 #include "hw/boards.h"
 #include "hw/qdev-properties.h"

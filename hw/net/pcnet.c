@@ -43,7 +43,6 @@
 #include "net/net.h"
 #include "net/eth.h"
 #include "qemu/timer.h"
-#include "sysemu/sysemu.h"
 #include "trace.h"
 
 #include "pcnet.h"

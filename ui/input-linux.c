@@ -10,7 +10,6 @@
 #include "qemu/main-loop.h"
 #include "qemu/module.h"
 #include "qemu/sockets.h"
-#include "sysemu/sysemu.h"
 #include "ui/input.h"
 #include "qom/object_interfaces.h"
 #include "sysemu/iothread.h"

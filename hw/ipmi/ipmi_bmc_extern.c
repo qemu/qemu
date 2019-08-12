@@ -33,7 +33,6 @@
 #include "qapi/error.h"
 #include "qemu/timer.h"
 #include "chardev/char-fe.h"
-#include "sysemu/sysemu.h"
 #include "hw/ipmi/ipmi.h"
 #include "hw/qdev-properties.h"
 #include "migration/vmstate.h"

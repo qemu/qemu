@@ -26,7 +26,6 @@
 #include "qemu/module.h"
 #include "hw/sysbus.h"
 #include "migration/vmstate.h"
-#include "sysemu/sysemu.h"
 #include "trace.h"
 #include "qapi/error.h"
 #include "sysemu/block-backend.h"

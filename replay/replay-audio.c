@@ -13,7 +13,6 @@
 #include "qemu/error-report.h"
 #include "sysemu/replay.h"
 #include "replay-internal.h"
-#include "sysemu/sysemu.h"
 #include "audio/audio.h"
 
 void replay_audio_out(int *played)

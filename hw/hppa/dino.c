@@ -16,7 +16,6 @@
 #include "qapi/error.h"
 #include "cpu.h"
 #include "hw/irq.h"
-#include "sysemu/sysemu.h"
 #include "hw/pci/pci.h"
 #include "hw/pci/pci_bus.h"
 #include "migration/vmstate.h"

@@ -29,7 +29,6 @@
 #include "hw/irq.h"
 #include "migration/vmstate.h"
 #include "ne2000.h"
-#include "sysemu/sysemu.h"
 #include "trace.h"
 
 /* debug NE2000 card */

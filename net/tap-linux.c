@@ -32,7 +32,6 @@
 #include <net/if.h>
 #include <sys/ioctl.h>
 
-#include "sysemu/sysemu.h"
 #include "qapi/error.h"
 #include "qemu/error-report.h"
 #include "qemu/cutils.h"

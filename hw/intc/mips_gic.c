@@ -15,7 +15,6 @@
 #include "qapi/error.h"
 #include "hw/sysbus.h"
 #include "exec/memory.h"
-#include "sysemu/sysemu.h"
 #include "sysemu/kvm.h"
 #include "sysemu/reset.h"
 #include "kvm_mips.h"

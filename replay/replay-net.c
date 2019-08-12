@@ -13,7 +13,6 @@
 #include "qemu/error-report.h"
 #include "sysemu/replay.h"
 #include "replay-internal.h"
-#include "sysemu/sysemu.h"
 #include "net/net.h"
 #include "net/filter.h"
 #include "qemu/iov.h"
