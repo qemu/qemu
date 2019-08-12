@@ -20,8 +20,6 @@
 #ifndef QEMU_RANGE_H
 #define QEMU_RANGE_H
 
-#include "qemu/queue.h"
-
 /*
  * Operations on 64 bit address ranges.
  * Notes:

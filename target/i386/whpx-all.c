@@ -20,7 +20,6 @@
 #include "qemu/main-loop.h"
 #include "hw/boards.h"
 #include "qemu/error-report.h"
-#include "qemu/queue.h"
 #include "qapi/error.h"
 #include "migration/blocker.h"
 #include "whp-dispatch.h"

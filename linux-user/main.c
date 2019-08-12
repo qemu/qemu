@@ -28,6 +28,7 @@
 #include "qapi/error.h"
 #include "qemu.h"
 #include "qemu/path.h"
+#include "qemu/queue.h"
 #include "qemu/config-file.h"
 #include "qemu/cutils.h"
 #include "qemu/error-report.h"

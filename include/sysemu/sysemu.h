@@ -3,7 +3,6 @@
 /* Misc. things related to the system emulator.  */
 
 #include "qapi/qapi-types-run-state.h"
-#include "qemu/queue.h"
 #include "qemu/timer.h"
 #include "qemu/notify.h"
 #include "qemu/main-loop.h"

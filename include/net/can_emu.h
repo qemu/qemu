@@ -28,6 +28,7 @@
 #ifndef NET_CAN_EMU_H
 #define NET_CAN_EMU_H
 
+#include "qemu/queue.h"
 #include "qom/object.h"
 
 /* NOTE: the following two structures is copied from <linux/can.h>. */

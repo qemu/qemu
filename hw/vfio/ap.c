@@ -20,7 +20,6 @@
 #include "hw/s390x/ap-device.h"
 #include "qemu/error-report.h"
 #include "qemu/module.h"
-#include "qemu/queue.h"
 #include "qemu/option.h"
 #include "qemu/config-file.h"
 #include "cpu.h"

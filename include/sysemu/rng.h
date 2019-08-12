@@ -13,6 +13,7 @@
 #ifndef QEMU_RNG_H
 #define QEMU_RNG_H
 
+#include "qemu/queue.h"
 #include "qom/object.h"
 
 #define TYPE_RNG_BACKEND "rng-backend"

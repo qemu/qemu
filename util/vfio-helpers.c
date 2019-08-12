@@ -17,7 +17,6 @@
 #include "exec/ramlist.h"
 #include "exec/cpu-common.h"
 #include "trace.h"
-#include "qemu/queue.h"
 #include "qemu/error-report.h"
 #include "standard-headers/linux/pci_regs.h"
 #include "qemu/event_notifier.h"

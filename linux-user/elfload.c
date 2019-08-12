@@ -8,6 +8,7 @@
 #include "qemu.h"
 #include "disas/disas.h"
 #include "qemu/path.h"
+#include "qemu/queue.h"
 #include "qemu/guest-random.h"
 
 #ifdef _ARCH_PPC64
