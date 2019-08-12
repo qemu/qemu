@@ -31,13 +31,13 @@ obj-$(CONFIG_MILKYMIST_TMU2) += milkymist-tmu2.o
 milkymist-tmu2.o-cflags := $(X11_CFLAGS) $(OPENGL_CFLAGS)
 milkymist-tmu2.o-libs := $(X11_LIBS) $(OPENGL_LIBS)
 
-obj-$(CONFIG_OMAP) += omap_dss.o
+common-obj-$(CONFIG_OMAP) += omap_dss.o
 obj-$(CONFIG_OMAP) += omap_lcdc.o
-obj-$(CONFIG_PXA2XX) += pxa2xx_lcd.o
-obj-$(CONFIG_RASPI) += bcm2835_fb.o
-obj-$(CONFIG_SM501) += sm501.o
-obj-$(CONFIG_TCX) += tcx.o
-obj-$(CONFIG_CG3) += cg3.o
+common-obj-$(CONFIG_PXA2XX) += pxa2xx_lcd.o
+common-obj-$(CONFIG_RASPI) += bcm2835_fb.o
+common-obj-$(CONFIG_SM501) += sm501.o
+common-obj-$(CONFIG_TCX) += tcx.o
+common-obj-$(CONFIG_CG3) += cg3.o
 
 obj-$(CONFIG_VGA) += vga.o
 
@@ -53,7 +53,7 @@ virtio-gpu.o-cflags := $(VIRGL_CFLAGS)
 virtio-gpu.o-libs += $(VIRGL_LIBS)
 virtio-gpu-3d.o-cflags := $(VIRGL_CFLAGS)
 virtio-gpu-3d.o-libs += $(VIRGL_LIBS)
-obj-$(CONFIG_DPCD) += dpcd.o
-obj-$(CONFIG_XLNX_ZYNQMP_ARM) += xlnx_dp.o
+common-obj-$(CONFIG_DPCD) += dpcd.o
+common-obj-$(CONFIG_XLNX_ZYNQMP_ARM) += xlnx_dp.o
 
-obj-$(CONFIG_ATI_VGA) += ati.o ati_2d.o ati_dbg.o
+common-obj-$(CONFIG_ATI_VGA) += ati.o ati_2d.o ati_dbg.o
