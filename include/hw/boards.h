@@ -3,6 +3,7 @@
 #ifndef HW_BOARDS_H
 #define HW_BOARDS_H
 
+#include "exec/memory.h"
 #include "sysemu/blockdev.h"
 #include "sysemu/accel.h"
 #include "hw/qdev.h"

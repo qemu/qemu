@@ -28,6 +28,7 @@
 #ifndef XICS_H
 #define XICS_H
 
+#include "exec/memory.h"
 #include "hw/qdev.h"
 
 #define XICS_IPI        0x2

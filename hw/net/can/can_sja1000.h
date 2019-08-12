@@ -27,6 +27,7 @@
 #ifndef HW_CAN_SJA1000_H
 #define HW_CAN_SJA1000_H
 
+#include "exec/hwaddr.h"
 #include "net/can_emu.h"
 
 #define CAN_SJA_MEM_SIZE      128

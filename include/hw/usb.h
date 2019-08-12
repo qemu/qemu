@@ -25,6 +25,7 @@
  * THE SOFTWARE.
  */
 
+#include "exec/memory.h"
 #include "hw/qdev.h"
 #include "qemu/iov.h"
 #include "qemu/queue.h"

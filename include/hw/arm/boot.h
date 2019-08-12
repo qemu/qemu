@@ -11,7 +11,6 @@
 #ifndef HW_ARM_BOOT_H
 #define HW_ARM_BOOT_H
 
-#include "exec/memory.h"
 #include "target/arm/cpu-qom.h"
 #include "qemu/notify.h"
 

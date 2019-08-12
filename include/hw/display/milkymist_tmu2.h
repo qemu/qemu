@@ -27,6 +27,7 @@
 #ifndef HW_DISPLAY_MILKYMIST_TMU2_H
 #define HW_DISPLAY_MILKYMIST_TMU2_H
 
+#include "exec/hwaddr.h"
 #include "hw/qdev.h"
 
 #if defined(CONFIG_X11) && defined(CONFIG_OPENGL)

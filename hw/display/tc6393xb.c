@@ -17,6 +17,7 @@
 #include "hw/hw.h"
 #include "hw/irq.h"
 #include "hw/display/tc6393xb.h"
+#include "exec/memory.h"
 #include "hw/block/flash.h"
 #include "ui/console.h"
 #include "ui/pixel_ops.h"
