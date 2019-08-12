@@ -415,24 +415,6 @@ float64_gen2(float64 xa, float64 xb, float_status *s,
 }
 
 /*----------------------------------------------------------------------------
-| Returns the fraction bits of the half-precision floating-point value `a'.
-*----------------------------------------------------------------------------*/
-
-static inline uint32_t extractFloat16Frac(float16 a)
-{
-    return float16_val(a) & 0x3ff;
-}
-
-/*----------------------------------------------------------------------------
-| Returns the exponent bits of the half-precision floating-point value `a'.
-*----------------------------------------------------------------------------*/
-
-static inline int extractFloat16Exp(float16 a)
-{
-    return (float16_val(a) >> 10) & 0x1f;
-}
-
-/*----------------------------------------------------------------------------
 | Returns the fraction bits of the single-precision floating-point value `a'.
 *----------------------------------------------------------------------------*/
 
@@ -3306,6 +3288,55 @@ float64 float64_silence_nan(float64 a, float_status *status)
     return float64_pack_raw(p);
 }
 
+
+/*----------------------------------------------------------------------------
+| If `a' is denormal and we are in flush-to-zero mode then set the
+| input-denormal exception and return zero. Otherwise just return the value.
+*----------------------------------------------------------------------------*/
+
+static bool parts_squash_denormal(FloatParts p, float_status *status)
+{
+    if (p.exp == 0 && p.frac != 0) {
+        float_raise(float_flag_input_denormal, status);
+        return true;
+    }
+
+    return false;
+}
+
+float16 float16_squash_input_denormal(float16 a, float_status *status)
+{
+    if (status->flush_inputs_to_zero) {
+        FloatParts p = float16_unpack_raw(a);
+        if (parts_squash_denormal(p, status)) {
+            return float16_set_sign(float16_zero, p.sign);
+        }
+    }
+    return a;
+}
+
+float32 float32_squash_input_denormal(float32 a, float_status *status)
+{
+    if (status->flush_inputs_to_zero) {
+        FloatParts p = float32_unpack_raw(a);
+        if (parts_squash_denormal(p, status)) {
+            return float32_set_sign(float32_zero, p.sign);
+        }
+    }
+    return a;
+}
+
+float64 float64_squash_input_denormal(float64 a, float_status *status)
+{
+    if (status->flush_inputs_to_zero) {
+        FloatParts p = float64_unpack_raw(a);
+        if (parts_squash_denormal(p, status)) {
+            return float64_set_sign(float64_zero, p.sign);
+        }
+    }
+    return a;
+}
+
 /*----------------------------------------------------------------------------
 | Takes a 64-bit fixed-point value `absZ' with binary point between bits 6
 | and 7, and returns the properly rounded 32-bit integer corresponding to the
@@ -3483,21 +3514,6 @@ static int64_t roundAndPackUint64(flag zSign, uint64_t absZ0,
 }
 
 /*----------------------------------------------------------------------------
-| If `a' is denormal and we are in flush-to-zero mode then set the
-| input-denormal exception and return zero. Otherwise just return the value.
-*----------------------------------------------------------------------------*/
-float32 float32_squash_input_denormal(float32 a, float_status *status)
-{
-    if (status->flush_inputs_to_zero) {
-        if (extractFloat32Exp(a) == 0 && extractFloat32Frac(a) != 0) {
-            float_raise(float_flag_input_denormal, status);
-            return make_float32(float32_val(a) & 0x80000000);
-        }
-    }
-    return a;
-}
-
-/*----------------------------------------------------------------------------
 | Normalizes the subnormal single-precision floating-point value represented
 | by the denormalized significand `aSig'.  The normalized exponent and
 | significand are stored at the locations pointed to by `zExpPtr' and
@@ -3633,21 +3649,6 @@ static float32
     return roundAndPackFloat32(zSign, zExp - shiftCount, zSig<<shiftCount,
                                status);
 
-}
-
-/*----------------------------------------------------------------------------
-| If `a' is denormal and we are in flush-to-zero mode then set the
-| input-denormal exception and return zero. Otherwise just return the value.
-*----------------------------------------------------------------------------*/
-float64 float64_squash_input_denormal(float64 a, float_status *status)
-{
-    if (status->flush_inputs_to_zero) {
-        if (extractFloat64Exp(a) == 0 && extractFloat64Frac(a) != 0) {
-            float_raise(float_flag_input_denormal, status);
-            return make_float64(float64_val(a) & (1ULL << 63));
-        }
-    }
-    return a;
 }
 
 /*----------------------------------------------------------------------------
@@ -4979,21 +4980,6 @@ int float32_unordered_quiet(float32 a, float32 b, float_status *status)
         return 1;
     }
     return 0;
-}
-
-/*----------------------------------------------------------------------------
-| If `a' is denormal and we are in flush-to-zero mode then set the
-| input-denormal exception and return zero. Otherwise just return the value.
-*----------------------------------------------------------------------------*/
-float16 float16_squash_input_denormal(float16 a, float_status *status)
-{
-    if (status->flush_inputs_to_zero) {
-        if (extractFloat16Exp(a) == 0 && extractFloat16Frac(a) != 0) {
-            float_raise(float_flag_input_denormal, status);
-            return make_float16(float16_val(a) & 0x8000);
-        }
-    }
-    return a;
 }
 
 /*----------------------------------------------------------------------------
