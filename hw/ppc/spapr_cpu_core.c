@@ -14,7 +14,6 @@
 #include "migration/vmstate.h"
 #include "target/ppc/cpu.h"
 #include "hw/ppc/spapr.h"
-#include "hw/boards.h"
 #include "qapi/error.h"
 #include "sysemu/cpus.h"
 #include "sysemu/kvm.h"

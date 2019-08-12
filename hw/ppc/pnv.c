@@ -45,6 +45,7 @@
 #include "hw/ppc/pnv_xscom.h"
 
 #include "hw/isa/isa.h"
+#include "hw/boards.h"
 #include "hw/char/serial.h"
 #include "hw/timer/mc146818rtc.h"
 

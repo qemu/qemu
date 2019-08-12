@@ -27,7 +27,6 @@
 #include "qapi/error.h"
 #include "cpu.h"
 #include "hw/ppc/ppc.h"
-#include "hw/boards.h"
 #include "hw/i2c/ppc4xx_i2c.h"
 #include "hw/irq.h"
 #include "ppc405.h"

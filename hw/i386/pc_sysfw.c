@@ -32,7 +32,6 @@
 #include "qemu/units.h"
 #include "hw/sysbus.h"
 #include "hw/i386/pc.h"
-#include "hw/boards.h"
 #include "hw/loader.h"
 #include "hw/qdev-properties.h"
 #include "sysemu/sysemu.h"

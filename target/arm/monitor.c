@@ -21,7 +21,6 @@
  */
 
 #include "qemu/osdep.h"
-#include "hw/boards.h"
 #include "kvm_arm.h"
 #include "qapi/qapi-commands-misc-target.h"
 

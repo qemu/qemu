@@ -23,7 +23,6 @@
 
 #include "qemu/osdep.h"
 #include "sysemu/cryptodev.h"
-#include "hw/boards.h"
 #include "qapi/error.h"
 #include "qapi/visitor.h"
 #include "qemu/config-file.h"

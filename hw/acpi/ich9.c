@@ -31,6 +31,7 @@
 #include "hw/pci/pci.h"
 #include "migration/vmstate.h"
 #include "qemu/timer.h"
+#include "qom/cpu.h"
 #include "sysemu/reset.h"
 #include "sysemu/sysemu.h"
 #include "hw/acpi/acpi.h"
