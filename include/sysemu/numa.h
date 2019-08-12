@@ -4,7 +4,10 @@
 #include "qemu/bitmap.h"
 #include "sysemu/sysemu.h"
 #include "sysemu/hostmem.h"
-#include "hw/boards.h"
+#include "qapi/qapi-types-machine.h"
+#include "exec/cpu-common.h"
+
+struct CPUArchId;
 
 extern int nb_numa_nodes;   /* Number of NUMA nodes */
 extern bool have_numa_distance;
@@ -32,5 +35,7 @@ void numa_legacy_auto_assign_ram(MachineClass *mc, NodeInfo *nodes,
                                  int nb_nodes, ram_addr_t size);
 void numa_default_auto_assign_ram(MachineClass *mc, NodeInfo *nodes,
                                   int nb_nodes, ram_addr_t size);
-void numa_cpu_pre_plug(const CPUArchId *slot, DeviceState *dev, Error **errp);
+void numa_cpu_pre_plug(const struct CPUArchId *slot, DeviceState *dev,
+                       Error **errp);
+
 #endif
