@@ -20,12 +20,12 @@
 #include "exec/hwaddr.h"
 #include "exec/memattrs.h"
 #include "exec/ramlist.h"
+#include "qemu/bswap.h"
 #include "qemu/queue.h"
 #include "qemu/int128.h"
 #include "qemu/notify.h"
 #include "qom/object.h"
 #include "qemu/rcu.h"
-#include "hw/qdev-core.h"
 
 #define RAM_ADDR_INVALID (~(ram_addr_t)0)
 
@@ -205,6 +205,12 @@ struct MemoryRegionOps {
     } impl;
 };
 
+typedef struct MemoryRegionClass {
+    /* private */
+    ObjectClass parent_class;
+} MemoryRegionClass;
+
+
 enum IOMMUMemoryRegionAttr {
     IOMMU_ATTR_SPAPR_TCE_FD
 };
@@ -237,7 +243,7 @@ enum IOMMUMemoryRegionAttr {
  */
 typedef struct IOMMUMemoryRegionClass {
     /* private */
-    struct DeviceClass parent_class;
+    MemoryRegionClass parent_class;
 
     /*
      * Return a TLB entry that contains a given address.

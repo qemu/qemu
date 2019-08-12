@@ -8,6 +8,7 @@
 #define PCNET_LOOPTEST_NOCRC	2
 
 #include "exec/memory.h"
+#include "hw/irq.h"
 
 /* BUS CONFIGURATION REGISTERS */
 #define BCR_MSRDA    0

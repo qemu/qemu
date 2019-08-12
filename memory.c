@@ -3245,6 +3245,7 @@ void memory_region_init_rom_device(MemoryRegion *mr,
 static const TypeInfo memory_region_info = {
     .parent             = TYPE_OBJECT,
     .name               = TYPE_MEMORY_REGION,
+    .class_size         = sizeof(MemoryRegionClass),
     .instance_size      = sizeof(MemoryRegion),
     .instance_init      = memory_region_initfn,
     .instance_finalize  = memory_region_finalize,
