@@ -23,6 +23,7 @@
  */
 
 #include "qemu/osdep.h"
+#include "sysemu/hostmem.h"
 #include "sysemu/numa.h"
 #include "exec/cpu-common.h"
 #include "exec/ramlist.h"

@@ -117,13 +117,6 @@ extern QEMUClockType rtc_clock;
 extern const char *mem_path;
 extern int mem_prealloc;
 
-#define MAX_NODES 128
-#define NUMA_NODE_UNASSIGNED MAX_NODES
-#define NUMA_DISTANCE_MIN         10
-#define NUMA_DISTANCE_DEFAULT     20
-#define NUMA_DISTANCE_MAX         254
-#define NUMA_DISTANCE_UNREACHABLE 255
-
 #define MAX_OPTION_ROMS 16
 typedef struct QEMUOptionRom {
     const char *name;
