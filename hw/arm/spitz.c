@@ -14,6 +14,7 @@
 #include "qapi/error.h"
 #include "hw/arm/pxa.h"
 #include "hw/arm/boot.h"
+#include "sysemu/runstate.h"
 #include "sysemu/sysemu.h"
 #include "hw/pcmcia.h"
 #include "hw/qdev-properties.h"

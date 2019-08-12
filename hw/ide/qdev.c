@@ -30,6 +30,7 @@
 #include "sysemu/blockdev.h"
 #include "hw/block/block.h"
 #include "sysemu/sysemu.h"
+#include "sysemu/runstate.h"
 #include "qapi/visitor.h"
 
 /* --------------------------------- */

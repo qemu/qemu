@@ -30,6 +30,7 @@
 #include "qemu/units.h"
 #include "qapi/error.h"
 #include "qemu/timer.h"
+#include "sysemu/runstate.h"
 #include "sysemu/sysemu.h"
 #include "qapi/qmp/qerror.h"
 #include "qemu/error-report.h"

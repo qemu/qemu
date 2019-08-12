@@ -33,7 +33,7 @@
 #include "qemu/timer.h"
 #include "qom/cpu.h"
 #include "sysemu/reset.h"
-#include "sysemu/sysemu.h"
+#include "sysemu/runstate.h"
 #include "hw/acpi/acpi.h"
 #include "hw/acpi/tco.h"
 #include "exec/address-spaces.h"

@@ -45,11 +45,13 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  */
+
 #include "qemu/osdep.h"
 #include "qemu-common.h"
 #include "qemu/error-report.h"
 
 #include "sysemu/hvf.h"
+#include "sysemu/runstate.h"
 #include "hvf-i386.h"
 #include "vmcs.h"
 #include "vmx.h"
@@ -68,7 +70,6 @@
 #include "hw/i386/apic_internal.h"
 #include "qemu/main-loop.h"
 #include "sysemu/accel.h"
-#include "sysemu/sysemu.h"
 #include "target/i386/cpu.h"
 
 HVFState *hvf_state;

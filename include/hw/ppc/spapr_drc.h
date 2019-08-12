@@ -15,7 +15,7 @@
 
 #include <libfdt.h>
 #include "qom/object.h"
-#include "sysemu/sysemu.h"
+#include "sysemu/runstate.h"
 #include "hw/qdev-core.h"
 #include "qapi/error.h"
 

@@ -31,7 +31,7 @@
 #include "hw/irq.h"
 #include "hw/input/i8042.h"
 #include "sysemu/reset.h"
-#include "sysemu/sysemu.h"
+#include "sysemu/runstate.h"
 
 #include "trace.h"
 

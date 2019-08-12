@@ -41,7 +41,6 @@
 #include "sysemu/kvm.h"
 #include "sysemu/hax.h"
 #include "sysemu/hvf.h"
-#include "sysemu/sysemu.h"
 #include "sysemu/whpx.h"
 #include "exec/exec-all.h"
 
@@ -56,6 +55,7 @@
 #include "tcg.h"
 #include "hw/nmi.h"
 #include "sysemu/replay.h"
+#include "sysemu/runstate.h"
 #include "hw/boards.h"
 #include "hw/hw.h"
 

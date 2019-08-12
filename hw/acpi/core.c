@@ -20,7 +20,6 @@
  */
 
 #include "qemu/osdep.h"
-#include "sysemu/sysemu.h"
 #include "hw/irq.h"
 #include "hw/acpi/acpi.h"
 #include "hw/nvram/fw_cfg.h"
@@ -32,6 +31,7 @@
 #include "qemu/error-report.h"
 #include "qemu/module.h"
 #include "qemu/option.h"
+#include "sysemu/runstate.h"
 
 struct acpi_table_header {
     uint16_t _length;         /* our length, not actual part of the hdr */

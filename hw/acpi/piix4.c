@@ -28,6 +28,7 @@
 #include "hw/qdev-properties.h"
 #include "hw/acpi/acpi.h"
 #include "sysemu/reset.h"
+#include "sysemu/runstate.h"
 #include "sysemu/sysemu.h"
 #include "qapi/error.h"
 #include "qemu/range.h"

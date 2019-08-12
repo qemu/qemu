@@ -52,7 +52,7 @@
 #include "hw/sysbus.h"
 #include "migration/vmstate.h"
 #include "sysemu/blockdev.h"
-#include "sysemu/sysemu.h"
+#include "sysemu/runstate.h"
 #include "trace.h"
 
 /* #define PFLASH_DEBUG */

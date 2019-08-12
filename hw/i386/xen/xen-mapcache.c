@@ -17,7 +17,7 @@
 #include "hw/xen/xen-legacy-backend.h"
 #include "qemu/bitmap.h"
 
-#include "sysemu/sysemu.h"
+#include "sysemu/runstate.h"
 #include "sysemu/xen-mapcache.h"
 #include "trace.h"
 

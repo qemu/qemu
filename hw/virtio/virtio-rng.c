@@ -13,11 +13,12 @@
 #include "qapi/error.h"
 #include "qemu/iov.h"
 #include "qemu/module.h"
+#include "qemu/timer.h"
 #include "hw/virtio/virtio.h"
 #include "hw/qdev-properties.h"
 #include "hw/virtio/virtio-rng.h"
 #include "sysemu/rng.h"
-#include "sysemu/sysemu.h"
+#include "sysemu/runstate.h"
 #include "qom/object_interfaces.h"
 #include "trace.h"
 

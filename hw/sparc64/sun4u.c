@@ -42,6 +42,7 @@
 #include "hw/block/fdc.h"
 #include "net/net.h"
 #include "qemu/timer.h"
+#include "sysemu/runstate.h"
 #include "sysemu/sysemu.h"
 #include "hw/boards.h"
 #include "hw/nvram/sun_nvram.h"

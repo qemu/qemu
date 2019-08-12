@@ -29,7 +29,7 @@
 #include "qapi/error.h"
 #include "qemu/module.h"
 #include "qemu/timer.h"
-#include "sysemu/sysemu.h"
+#include "sysemu/runstate.h"
 #include "hw/timer/i8254.h"
 #include "hw/timer/i8254_internal.h"
 #include "sysemu/kvm.h"

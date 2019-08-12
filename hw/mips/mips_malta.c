@@ -52,6 +52,7 @@
 #include "qemu/host-utils.h"
 #include "sysemu/qtest.h"
 #include "sysemu/reset.h"
+#include "sysemu/runstate.h"
 #include "qapi/error.h"
 #include "qemu/error-report.h"
 #include "hw/empty_slot.h"

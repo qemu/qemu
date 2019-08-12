@@ -37,6 +37,7 @@
 #include "qemu/log.h"
 #include "sysemu/sysemu.h"
 #include "sysemu/hw_accel.h"
+#include "sysemu/runstate.h"
 #include "sysemu/device_tree.h"
 #include "exec/gdbstub.h"
 #include "exec/ram_addr.h"

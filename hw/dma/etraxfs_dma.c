@@ -26,8 +26,8 @@
 #include "hw/hw.h"
 #include "hw/irq.h"
 #include "qemu/main-loop.h"
+#include "sysemu/runstate.h"
 #include "exec/address-spaces.h"
-#include "sysemu/sysemu.h"
 
 #include "hw/cris/etraxfs_dma.h"
 

@@ -29,6 +29,7 @@
 #include "hw/irq.h"
 #include "hw/audio/wm8750.h"
 #include "sysemu/block-backend.h"
+#include "sysemu/runstate.h"
 #include "exec/address-spaces.h"
 #include "ui/pixel_ops.h"
 

@@ -29,7 +29,7 @@
 #include "exec/memory-internal.h"
 #include "exec/ram_addr.h"
 #include "sysemu/kvm.h"
-#include "sysemu/sysemu.h"
+#include "sysemu/runstate.h"
 #include "sysemu/tcg.h"
 #include "sysemu/accel.h"
 #include "hw/boards.h"

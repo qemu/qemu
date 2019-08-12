@@ -37,7 +37,7 @@
 #include "migration/vmstate.h"
 #include "hw/pci-host/pam.h"
 #include "sysemu/reset.h"
-#include "sysemu/sysemu.h"
+#include "sysemu/runstate.h"
 #include "hw/i386/ioapic.h"
 #include "qapi/visitor.h"
 #include "qemu/error-report.h"

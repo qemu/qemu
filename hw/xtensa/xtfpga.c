@@ -43,6 +43,7 @@
 #include "chardev/char.h"
 #include "sysemu/device_tree.h"
 #include "sysemu/reset.h"
+#include "sysemu/runstate.h"
 #include "qemu/error-report.h"
 #include "qemu/option.h"
 #include "bootparam.h"

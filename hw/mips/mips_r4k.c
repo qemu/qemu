@@ -34,6 +34,7 @@
 #include "exec/address-spaces.h"
 #include "sysemu/qtest.h"
 #include "sysemu/reset.h"
+#include "sysemu/runstate.h"
 #include "qemu/error-report.h"
 
 #define MAX_IDE_BUS 2

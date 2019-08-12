@@ -44,6 +44,7 @@
 #include "sysemu/balloon.h"
 #include "qemu/timer.h"
 #include "sysemu/hw_accel.h"
+#include "sysemu/runstate.h"
 #include "authz/list.h"
 #include "qapi/util.h"
 #include "sysemu/blockdev.h"

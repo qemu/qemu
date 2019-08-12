@@ -11,7 +11,7 @@
 #include "hw/irq.h"
 #include "hw/qdev-properties.h"
 #include "qemu/timer.h"
-#include "sysemu/sysemu.h"
+#include "sysemu/runstate.h"
 #include "hw/arm/pxa.h"
 #include "hw/sysbus.h"
 #include "migration/vmstate.h"

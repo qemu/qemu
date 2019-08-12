@@ -26,6 +26,7 @@
 #include "hw/loader.h"
 #include "net/net.h"
 #include "sysemu/kvm.h"
+#include "sysemu/runstate.h"
 #include "sysemu/sysemu.h"
 #include "hw/boards.h"
 #include "exec/address-spaces.h"

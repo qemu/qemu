@@ -21,7 +21,7 @@
 #include "exec/helper-proto.h"
 #include "kvm-consts.h"
 #include "qemu/main-loop.h"
-#include "sysemu/sysemu.h"
+#include "sysemu/runstate.h"
 #include "internals.h"
 #include "arm-powerctl.h"
 

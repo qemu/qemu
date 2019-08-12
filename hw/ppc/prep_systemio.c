@@ -30,7 +30,7 @@
 #include "exec/address-spaces.h"
 #include "qemu/error-report.h" /* for error_report() */
 #include "qemu/module.h"
-#include "sysemu/sysemu.h" /* for vm_stop() */
+#include "sysemu/runstate.h"
 #include "cpu.h"
 #include "trace.h"
 

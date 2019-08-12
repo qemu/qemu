@@ -37,7 +37,7 @@
 #include "qapi/error.h"
 #include "qemu/cutils.h"
 #include "sysemu/replay.h"
-
+#include "sysemu/runstate.h"
 #include "hw/ide/internal.h"
 #include "trace.h"
 

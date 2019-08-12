@@ -35,6 +35,7 @@
 #include "qemu/range.h"
 #include "qemu/units.h"
 #include "sysemu/kvm.h"
+#include "sysemu/runstate.h"
 #include "sysemu/sysemu.h"
 #include "pci.h"
 #include "trace.h"

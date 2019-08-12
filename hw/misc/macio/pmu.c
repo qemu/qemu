@@ -39,7 +39,7 @@
 #include "hw/misc/macio/gpio.h"
 #include "hw/misc/macio/pmu.h"
 #include "qemu/timer.h"
-#include "sysemu/sysemu.h"
+#include "sysemu/runstate.h"
 #include "qemu/cutils.h"
 #include "qemu/log.h"
 #include "qemu/module.h"

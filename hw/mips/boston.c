@@ -38,6 +38,7 @@
 #include "sysemu/device_tree.h"
 #include "sysemu/sysemu.h"
 #include "sysemu/qtest.h"
+#include "sysemu/runstate.h"
 
 #include <libfdt.h>
 

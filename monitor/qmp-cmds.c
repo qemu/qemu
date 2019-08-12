@@ -26,6 +26,7 @@
 #include "ui/qemu-spice.h"
 #include "ui/vnc.h"
 #include "sysemu/kvm.h"
+#include "sysemu/runstate.h"
 #include "sysemu/arch_init.h"
 #include "sysemu/blockdev.h"
 #include "sysemu/block-backend.h"

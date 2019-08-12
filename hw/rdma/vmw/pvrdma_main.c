@@ -23,7 +23,6 @@
 #include "hw/qdev-properties.h"
 #include "cpu.h"
 #include "trace.h"
-#include "sysemu/sysemu.h"
 #include "monitor/monitor.h"
 #include "hw/rdma/rdma.h"
 
@@ -34,6 +33,7 @@
 #include <infiniband/verbs.h>
 #include "pvrdma.h"
 #include "standard-headers/rdma/vmw_pvrdma-abi.h"
+#include "sysemu/runstate.h"
 #include "standard-headers/drivers/infiniband/hw/vmw_pvrdma/pvrdma_dev_api.h"
 #include "pvrdma_qp_ops.h"
 

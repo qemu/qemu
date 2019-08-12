@@ -1,7 +1,7 @@
 #include "qemu/osdep.h"
 #include "qapi/error.h"
 #include "sysemu/hw_accel.h"
-#include "sysemu/sysemu.h"
+#include "sysemu/runstate.h"
 #include "qemu/log.h"
 #include "qemu/main-loop.h"
 #include "qemu/module.h"

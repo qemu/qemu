@@ -29,6 +29,7 @@
 #include "hw/qdev-properties.h"
 #include "hw/timer/m48t59.h"
 #include "qemu/timer.h"
+#include "sysemu/runstate.h"
 #include "sysemu/sysemu.h"
 #include "hw/sysbus.h"
 #include "exec/address-spaces.h"

@@ -30,10 +30,10 @@
 #include "qapi/error.h"
 #include "qapi/qobject-input-visitor.h"
 #include "qapi/qapi-visit-audio.h"
-#include "sysemu/sysemu.h"
 #include "qemu/cutils.h"
 #include "qemu/module.h"
 #include "sysemu/replay.h"
+#include "sysemu/runstate.h"
 #include "trace.h"
 
 #define AUDIO_CAP "audio"

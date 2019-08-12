@@ -21,7 +21,7 @@
 
 #include "qemu/osdep.h"
 #include "qxl.h"
-#include "sysemu/sysemu.h"
+#include "sysemu/runstate.h"
 #include "trace.h"
 
 static void qxl_blit(PCIQXLDevice *qxl, QXLRect *rect)

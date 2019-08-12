@@ -18,6 +18,7 @@
 #include "hw/net/smc91c111.h"
 #include "net/net.h"
 #include "exec/address-spaces.h"
+#include "sysemu/runstate.h"
 #include "sysemu/sysemu.h"
 #include "qemu/error-report.h"
 #include "hw/char/pl011.h"

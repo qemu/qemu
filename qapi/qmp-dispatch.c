@@ -16,8 +16,8 @@
 #include "qapi/qmp/dispatch.h"
 #include "qapi/qmp/qdict.h"
 #include "qapi/qmp/qjson.h"
+#include "sysemu/runstate.h"
 #include "qapi/qmp/qbool.h"
-#include "sysemu/sysemu.h"
 
 static QDict *qmp_dispatch_check_obj(const QObject *request, bool allow_oob,
                                      Error **errp)

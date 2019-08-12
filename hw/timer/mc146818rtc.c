@@ -33,6 +33,7 @@
 #include "sysemu/sysemu.h"
 #include "sysemu/replay.h"
 #include "sysemu/reset.h"
+#include "sysemu/runstate.h"
 #include "hw/timer/mc146818rtc.h"
 #include "migration/vmstate.h"
 #include "qapi/error.h"

@@ -21,6 +21,7 @@
 #include "cpu.h"
 #include "exec/exec-all.h"
 #include "exec/helper-proto.h"
+#include "sysemu/runstate.h"
 #include "sysemu/sysemu.h"
 #include "qemu/timer.h"
 

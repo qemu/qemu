@@ -30,6 +30,7 @@
 #include "hw/sysbus.h"
 #include "hw/sh4/sh.h"
 #include "sysemu/reset.h"
+#include "sysemu/runstate.h"
 #include "sysemu/sysemu.h"
 #include "hw/boards.h"
 #include "hw/pci/pci.h"

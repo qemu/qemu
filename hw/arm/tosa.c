@@ -13,6 +13,7 @@
 
 #include "qemu/osdep.h"
 #include "qapi/error.h"
+#include "sysemu/runstate.h"
 #include "hw/arm/pxa.h"
 #include "hw/arm/boot.h"
 #include "hw/arm/sharpsl.h"
@@ -24,7 +25,6 @@
 #include "hw/ssi/ssi.h"
 #include "hw/sysbus.h"
 #include "exec/address-spaces.h"
-#include "sysemu/sysemu.h"
 
 #define TOSA_RAM    0x04000000
 #define TOSA_ROM	0x00800000

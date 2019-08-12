@@ -36,6 +36,7 @@
 #include "hw/sparc/sparc32_dma.h"
 #include "hw/block/fdc.h"
 #include "sysemu/reset.h"
+#include "sysemu/runstate.h"
 #include "sysemu/sysemu.h"
 #include "net/net.h"
 #include "hw/boards.h"

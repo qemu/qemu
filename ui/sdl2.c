@@ -28,6 +28,7 @@
 #include "ui/console.h"
 #include "ui/input.h"
 #include "ui/sdl2.h"
+#include "sysemu/runstate.h"
 #include "sysemu/sysemu.h"
 
 static int sdl2_num_outputs;

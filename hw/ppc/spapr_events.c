@@ -28,8 +28,8 @@
 #include "qemu/osdep.h"
 #include "qapi/error.h"
 #include "cpu.h"
-#include "sysemu/sysemu.h"
 #include "sysemu/device_tree.h"
+#include "sysemu/runstate.h"
 
 #include "hw/ppc/fdt.h"
 #include "hw/ppc/spapr.h"

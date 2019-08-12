@@ -16,15 +16,16 @@
  * You should have received a copy of the GNU Lesser General Public
  * License along with this library; if not, see <http://www.gnu.org/licenses/>.
  */
+
 #include "qemu/osdep.h"
 
 #include "cpu.h"
 #include "exec/exec-all.h"
 #include "exec/log.h"
-#include "sysemu/sysemu.h"
 
 #if !defined(CONFIG_USER_ONLY)
 #include "hw/sh4/sh_intc.h"
+#include "sysemu/runstate.h"
 #endif
 
 #define MMU_OK                   0
