@@ -1,10 +1,26 @@
 #ifndef QEMU_TYPEDEFS_H
 #define QEMU_TYPEDEFS_H
 
-/* A load of opaque types so that device init declarations don't have to
-   pull in all the real definitions.  */
+/*
+ * This header is for selectively avoiding #include just to get a
+ * typedef name.
+ *
+ * Declaring a typedef name in its "obvious" place can result in
+ * inclusion cycles, in particular for complete struct and union
+ * types that need more types for their members.  It can also result
+ * in headers pulling in many more headers, slowing down builds.
+ *
+ * You can break such cycles and unwanted dependencies by declaring
+ * the typedef name here.
+ *
+ * For struct types used in only a few headers, judicious use of the
+ * struct tag instead of the typedef name is commonly preferable.
+ */
 
-/* Please keep this list in case-insensitive alphabetical order */
+/*
+ * Incomplete struct types
+ * Please keep this list in case-insensitive alphabetical order.
+ */
 typedef struct AdapterInfo AdapterInfo;
 typedef struct AddressSpace AddressSpace;
 typedef struct AioContext AioContext;
@@ -101,6 +117,10 @@ typedef struct SHPCDevice SHPCDevice;
 typedef struct SSIBus SSIBus;
 typedef struct VirtIODevice VirtIODevice;
 typedef struct Visitor Visitor;
+
+/*
+ * Function types
+ */
 typedef void SaveStateHandler(QEMUFile *f, void *opaque);
 typedef int LoadStateHandler(QEMUFile *f, void *opaque, int version_id);
 
