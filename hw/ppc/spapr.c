@@ -42,6 +42,7 @@
 #include "sysemu/hw_accel.h"
 #include "kvm_ppc.h"
 #include "migration/misc.h"
+#include "migration/qemu-file-types.h"
 #include "migration/global_state.h"
 #include "migration/register.h"
 #include "mmu-hash64.h"

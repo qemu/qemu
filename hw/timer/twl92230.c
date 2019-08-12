@@ -24,6 +24,7 @@
 #include "hw/hw.h"
 #include "qemu/timer.h"
 #include "hw/i2c/i2c.h"
+#include "migration/qemu-file-types.h"
 #include "sysemu/sysemu.h"
 #include "ui/console.h"
 #include "qemu/bcd.h"

@@ -5,6 +5,7 @@
 #include "qemu/module.h"
 #include "qemu/option.h"
 #include "hw/scsi/scsi.h"
+#include "migration/qemu-file-types.h"
 #include "scsi/constants.h"
 #include "hw/qdev.h"
 #include "sysemu/block-backend.h"

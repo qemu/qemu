@@ -26,6 +26,7 @@
 # include <scsi/sg.h>
 #endif
 #include "hw/virtio/virtio-bus.h"
+#include "migration/qemu-file-types.h"
 #include "hw/virtio/virtio-access.h"
 
 /* Config size before the discard support (hide associated config fields) */

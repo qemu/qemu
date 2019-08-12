@@ -11,7 +11,6 @@
 #include "exec/memory.h"
 #include "hw/irq.h"
 #include "migration/vmstate.h"
-#include "migration/qemu-file-types.h"
 
 void QEMU_NORETURN hw_error(const char *fmt, ...) GCC_FMT_ATTR(1, 2);
 

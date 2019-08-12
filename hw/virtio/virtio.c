@@ -19,6 +19,7 @@
 #include "qemu/error-report.h"
 #include "qemu/module.h"
 #include "hw/virtio/virtio.h"
+#include "migration/qemu-file-types.h"
 #include "qemu/atomic.h"
 #include "hw/virtio/virtio-bus.h"
 #include "hw/virtio/virtio-access.h"

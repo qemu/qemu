@@ -20,6 +20,7 @@
 #include "hw/pci/msix.h"
 #include "hw/pci/pci.h"
 #include "hw/xen/xen.h"
+#include "migration/qemu-file-types.h"
 #include "qemu/range.h"
 #include "qapi/error.h"
 #include "trace.h"

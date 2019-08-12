@@ -25,6 +25,7 @@
 #include "qemu/error-report.h"
 #include "qemu/module.h"
 #include "hw/scsi/scsi.h"
+#include "migration/qemu-file-types.h"
 #include "hw/scsi/emulation.h"
 #include "scsi/constants.h"
 #include "sysemu/sysemu.h"

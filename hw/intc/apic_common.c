@@ -31,6 +31,7 @@
 #include "sysemu/kvm.h"
 #include "hw/qdev.h"
 #include "hw/sysbus.h"
+#include "migration/qemu-file-types.h"
 
 static int apic_irq_delivered;
 bool apic_report_tpr_access;

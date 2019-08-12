@@ -18,6 +18,7 @@
 #include "trace.h"
 #include "sysemu/dma.h"
 #include "hw/virtio/virtio.h"
+#include "migration/qemu-file-types.h"
 #include "hw/virtio/virtio-gpu.h"
 #include "hw/virtio/virtio-gpu-bswap.h"
 #include "hw/virtio/virtio-gpu-pixman.h"

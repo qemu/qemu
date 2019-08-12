@@ -4,6 +4,7 @@
 #define MIGRATION_CPU_H
 
 #include "exec/cpu-defs.h"
+#include "migration/qemu-file-types.h"
 
 #if TARGET_LONG_BITS == 64
 #define qemu_put_betl qemu_put_be64

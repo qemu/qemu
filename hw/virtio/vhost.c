@@ -26,6 +26,7 @@
 #include "hw/virtio/virtio-bus.h"
 #include "hw/virtio/virtio-access.h"
 #include "migration/blocker.h"
+#include "migration/qemu-file-types.h"
 #include "sysemu/dma.h"
 #include "trace.h"
 
