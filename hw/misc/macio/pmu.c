@@ -32,6 +32,7 @@
 #include "qemu-common.h"
 #include "hw/hw.h"
 #include "hw/ppc/mac.h"
+#include "migration/vmstate.h"
 #include "hw/input/adb.h"
 #include "hw/irq.h"
 #include "hw/misc/mos6522.h"

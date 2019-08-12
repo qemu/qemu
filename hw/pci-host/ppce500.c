@@ -18,6 +18,7 @@
 #include "hw/hw.h"
 #include "hw/irq.h"
 #include "hw/ppc/e500-ccsr.h"
+#include "migration/vmstate.h"
 #include "hw/pci/pci.h"
 #include "hw/pci/pci_host.h"
 #include "qemu/bswap.h"

@@ -45,6 +45,7 @@
 #include "hw/irq.h"
 #include "hw/mips/mips.h"
 #include "hw/pci/pci_host.h"
+#include "migration/vmstate.h"
 #include "sysemu/reset.h"
 #include "sysemu/sysemu.h"
 #include "exec/address-spaces.h"

@@ -19,6 +19,7 @@
 #include "qemu/module.h"
 
 #include "hw/s390x/sclp.h"
+#include "migration/vmstate.h"
 #include "hw/s390x/event-facility.h"
 #include "chardev/char-fe.h"
 

@@ -1,5 +1,6 @@
 #include "qemu/osdep.h"
 #include "hw/boards.h"
+#include "migration/vmstate.h"
 #include "hw/acpi/cpu.h"
 #include "qapi/error.h"
 #include "qapi/qapi-events-misc.h"

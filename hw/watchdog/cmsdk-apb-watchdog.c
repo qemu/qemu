@@ -31,6 +31,7 @@
 #include "hw/irq.h"
 #include "hw/registerfields.h"
 #include "hw/watchdog/cmsdk-apb-watchdog.h"
+#include "migration/vmstate.h"
 
 REG32(WDOGLOAD, 0x0)
 REG32(WDOGVALUE, 0x4)

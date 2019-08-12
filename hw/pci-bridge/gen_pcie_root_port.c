@@ -15,6 +15,7 @@
 #include "qemu/module.h"
 #include "hw/pci/msix.h"
 #include "hw/pci/pcie_port.h"
+#include "migration/vmstate.h"
 
 #define TYPE_GEN_PCIE_ROOT_PORT                "pcie-root-port"
 #define GEN_PCIE_ROOT_PORT(obj) \

@@ -18,6 +18,7 @@
 #include "hw/isa/isa.h"
 #include "hw/isa/superio.h"
 #include "hw/sysbus.h"
+#include "migration/vmstate.h"
 #include "hw/mips/mips.h"
 #include "hw/isa/apm.h"
 #include "hw/acpi/acpi.h"

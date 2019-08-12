@@ -37,6 +37,7 @@
 #include "tpm_util.h"
 #include "tpm_ioctl.h"
 #include "migration/blocker.h"
+#include "migration/vmstate.h"
 #include "qapi/error.h"
 #include "qapi/clone-visitor.h"
 #include "qapi/qapi-visit-tpm.h"

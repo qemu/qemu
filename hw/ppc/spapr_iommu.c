@@ -25,6 +25,7 @@
 #include "sysemu/kvm.h"
 #include "hw/qdev.h"
 #include "kvm_ppc.h"
+#include "migration/vmstate.h"
 #include "sysemu/dma.h"
 #include "exec/address-spaces.h"
 #include "trace.h"

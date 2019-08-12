@@ -32,6 +32,7 @@
 #include "hw/char/serial.h"
 #include "hw/irq.h"
 #include "hw/pci/pci.h"
+#include "migration/vmstate.h"
 
 #define PCI_SERIAL_MAX_PORTS 4
 

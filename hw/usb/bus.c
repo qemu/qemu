@@ -6,6 +6,7 @@
 #include "qemu/error-report.h"
 #include "qemu/module.h"
 #include "sysemu/sysemu.h"
+#include "migration/vmstate.h"
 #include "monitor/monitor.h"
 #include "trace.h"
 #include "qemu/cutils.h"

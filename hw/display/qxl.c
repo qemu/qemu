@@ -29,6 +29,7 @@
 #include "qemu/module.h"
 #include "sysemu/sysemu.h"
 #include "migration/blocker.h"
+#include "migration/vmstate.h"
 #include "trace.h"
 
 #include "qxl.h"

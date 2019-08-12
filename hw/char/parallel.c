@@ -31,6 +31,7 @@
 #include "chardev/char-fe.h"
 #include "hw/irq.h"
 #include "hw/isa/isa.h"
+#include "migration/vmstate.h"
 #include "hw/char/parallel.h"
 #include "sysemu/reset.h"
 #include "sysemu/sysemu.h"

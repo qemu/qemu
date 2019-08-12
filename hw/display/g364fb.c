@@ -27,6 +27,7 @@
 #include "ui/pixel_ops.h"
 #include "trace.h"
 #include "hw/sysbus.h"
+#include "migration/vmstate.h"
 
 typedef struct G364State {
     /* hardware */

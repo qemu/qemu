@@ -25,6 +25,7 @@
 #include "hw/hw.h"
 #include "hw/irq.h"
 #include "hw/sysbus.h"
+#include "migration/vmstate.h"
 #include "sysemu/sysemu.h"
 #include "trace.h"
 #include "qemu/timer.h"

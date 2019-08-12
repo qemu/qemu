@@ -25,6 +25,7 @@
 #include "sysemu/watchdog.h"
 #include "hw/hw.h"
 #include "hw/isa/isa.h"
+#include "migration/vmstate.h"
 
 /*#define IB700_DEBUG 1*/
 

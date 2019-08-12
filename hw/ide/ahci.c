@@ -25,6 +25,7 @@
 #include "hw/hw.h"
 #include "hw/pci/msi.h"
 #include "hw/pci/pci.h"
+#include "migration/vmstate.h"
 
 #include "qemu/error-report.h"
 #include "qemu/log.h"

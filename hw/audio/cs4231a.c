@@ -29,6 +29,7 @@
 #include "hw/irq.h"
 #include "hw/isa/isa.h"
 #include "hw/qdev.h"
+#include "migration/vmstate.h"
 #include "qemu/module.h"
 #include "qemu/timer.h"
 #include "qapi/error.h"

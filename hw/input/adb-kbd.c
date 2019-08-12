@@ -24,6 +24,7 @@
 
 #include "qemu/osdep.h"
 #include "hw/input/adb.h"
+#include "migration/vmstate.h"
 #include "qemu/module.h"
 #include "ui/input.h"
 #include "hw/input/adb-keys.h"

@@ -44,6 +44,7 @@
 #include "qemu/units.h"
 #include "hw/hw.h"
 #include "hw/pci/pci.h"
+#include "migration/vmstate.h"
 #include "net/net.h"
 #include "net/eth.h"
 #include "hw/nvram/eeprom93xx.h"

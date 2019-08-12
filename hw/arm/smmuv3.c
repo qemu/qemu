@@ -21,6 +21,7 @@
 #include "hw/irq.h"
 #include "sysemu/sysemu.h"
 #include "hw/sysbus.h"
+#include "migration/vmstate.h"
 #include "hw/qdev-core.h"
 #include "hw/pci/pci.h"
 #include "exec/address-spaces.h"

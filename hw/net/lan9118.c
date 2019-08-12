@@ -12,6 +12,7 @@
 
 #include "qemu/osdep.h"
 #include "hw/sysbus.h"
+#include "migration/vmstate.h"
 #include "net/net.h"
 #include "net/eth.h"
 #include "hw/irq.h"

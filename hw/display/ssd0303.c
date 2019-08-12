@@ -13,6 +13,7 @@
 
 #include "qemu/osdep.h"
 #include "hw/i2c/i2c.h"
+#include "migration/vmstate.h"
 #include "qemu/module.h"
 #include "ui/console.h"
 

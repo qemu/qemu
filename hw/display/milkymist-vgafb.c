@@ -33,6 +33,7 @@
 #include "qemu/module.h"
 
 #define BITS 8
+#include "migration/vmstate.h"
 #include "milkymist-vgafb_template.h"
 #define BITS 15
 #include "milkymist-vgafb_template.h"

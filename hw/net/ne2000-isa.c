@@ -26,6 +26,7 @@
 #include "hw/isa/isa.h"
 #include "hw/net/ne2000-isa.h"
 #include "hw/qdev.h"
+#include "migration/vmstate.h"
 #include "ne2000.h"
 #include "sysemu/sysemu.h"
 #include "qapi/error.h"

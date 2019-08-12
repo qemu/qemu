@@ -20,6 +20,7 @@
 #include <linux/vfio.h>
 
 #include "hw/vfio/vfio-platform.h"
+#include "migration/vmstate.h"
 #include "qemu/error-report.h"
 #include "qemu/module.h"
 #include "qemu/range.h"

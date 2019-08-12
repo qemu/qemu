@@ -30,6 +30,7 @@
 #include "hw/ipmi/ipmi.h"
 #include "hw/irq.h"
 #include "hw/isa/isa.h"
+#include "migration/vmstate.h"
 
 /* Control register */
 #define IPMI_BT_CLR_WR_BIT         0

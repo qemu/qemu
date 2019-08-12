@@ -36,6 +36,7 @@
 #include "hw/irq.h"
 #include "hw/isa/isa.h"
 #include "hw/sysbus.h"
+#include "migration/vmstate.h"
 #include "hw/block/block.h"
 #include "sysemu/block-backend.h"
 #include "sysemu/blockdev.h"

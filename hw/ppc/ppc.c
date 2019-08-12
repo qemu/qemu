@@ -35,6 +35,7 @@
 #include "qemu/error-report.h"
 #include "sysemu/kvm.h"
 #include "kvm_ppc.h"
+#include "migration/vmstate.h"
 #include "trace.h"
 
 //#define PPC_DEBUG_IRQ

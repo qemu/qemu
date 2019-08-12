@@ -35,6 +35,7 @@
 #include "qapi/error.h"
 #include "mptsas.h"
 #include "migration/qemu-file-types.h"
+#include "migration/vmstate.h"
 #include "mpi.h"
 
 #define NAA_LOCALLY_ASSIGNED_ID 0x3ULL

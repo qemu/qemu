@@ -34,6 +34,7 @@
 #include "sysemu/kvm.h"
 #include "sysemu/device_tree.h"
 #include "kvm_ppc.h"
+#include "migration/vmstate.h"
 #include "sysemu/qtest.h"
 
 #include "hw/ppc/spapr.h"

@@ -26,6 +26,7 @@
 #include "sysemu/block-backend.h"
 #include "exec/memory.h"
 #include "hw/sysbus.h"
+#include "migration/vmstate.h"
 #include "qemu/error-report.h"
 #include "qemu/log.h"
 #include "qemu/module.h"

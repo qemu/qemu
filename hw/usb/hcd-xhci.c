@@ -25,6 +25,7 @@
 #include "qemu/module.h"
 #include "qemu/queue.h"
 #include "hw/usb.h"
+#include "migration/vmstate.h"
 #include "hw/pci/pci.h"
 #include "hw/pci/msi.h"
 #include "hw/pci/msix.h"

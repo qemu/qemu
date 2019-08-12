@@ -30,6 +30,7 @@
 #include "chardev/char.h"
 #include "hw/hw.h"
 #include "hw/irq.h"
+#include "migration/vmstate.h"
 #include "net/can_emu.h"
 
 #include "can_sja1000.h"

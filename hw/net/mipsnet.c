@@ -5,6 +5,7 @@
 #include "qemu/module.h"
 #include "trace.h"
 #include "hw/sysbus.h"
+#include "migration/vmstate.h"
 
 /* MIPSnet register offsets */
 

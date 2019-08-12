@@ -27,6 +27,7 @@
 
 #include "qemu/osdep.h"
 #include "hw/sysbus.h"
+#include "migration/vmstate.h"
 #include "hw/register.h"
 #include "qemu/bitops.h"
 #include "qemu/log.h"

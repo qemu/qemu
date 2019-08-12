@@ -33,6 +33,7 @@
 #include "hw/char/serial.h"
 #include "ui/console.h"
 #include "hw/sysbus.h"
+#include "migration/vmstate.h"
 #include "hw/pci/pci.h"
 #include "hw/i2c/i2c.h"
 #include "hw/display/i2c-ddc.h"

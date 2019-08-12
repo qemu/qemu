@@ -39,6 +39,7 @@
 #include "qemu/log.h"
 #include "hw/irq.h"
 #include "hw/qdev.h"
+#include "migration/vmstate.h"
 #include "net/net.h"
 #include "net/eth.h"
 #include "qemu/timer.h"

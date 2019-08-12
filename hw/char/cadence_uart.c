@@ -23,6 +23,7 @@
 
 #include "qemu/osdep.h"
 #include "hw/sysbus.h"
+#include "migration/vmstate.h"
 #include "chardev/char-fe.h"
 #include "chardev/char-serial.h"
 #include "qemu/timer.h"

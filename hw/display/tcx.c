@@ -29,6 +29,7 @@
 #include "ui/pixel_ops.h"
 #include "hw/loader.h"
 #include "hw/sysbus.h"
+#include "migration/vmstate.h"
 #include "qemu/error-report.h"
 #include "qemu/module.h"
 

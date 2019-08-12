@@ -26,6 +26,7 @@
 #include "hw/i2c/i2c.h"
 #include "hw/irq.h"
 #include "migration/qemu-file-types.h"
+#include "migration/vmstate.h"
 #include "sysemu/sysemu.h"
 #include "ui/console.h"
 #include "qemu/bcd.h"

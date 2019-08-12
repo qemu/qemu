@@ -35,6 +35,7 @@
 #include "qemu/error-report.h"
 #include "qemu/module.h"
 #include "qapi/visitor.h"
+#include "migration/vmstate.h"
 #include "monitor/monitor.h"
 #include "hw/intc/intc.h"
 #include "hw/irq.h"

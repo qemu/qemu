@@ -9,6 +9,7 @@
 
 #include "qemu/osdep.h"
 #include "hw/sysbus.h"
+#include "migration/vmstate.h"
 #include "net/net.h"
 #include "hw/irq.h"
 #include "hw/net/smc91c111.h"

@@ -21,6 +21,7 @@
 #include "sysemu/kvm.h"
 #include "sysemu/hw_accel.h"
 #include "kvm_i386.h"
+#include "migration/vmstate.h"
 #include "hw/sysbus.h"
 #include "hw/kvm/clock.h"
 #include "qapi/error.h"

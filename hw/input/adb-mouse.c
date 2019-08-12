@@ -25,6 +25,7 @@
 #include "qemu/osdep.h"
 #include "ui/console.h"
 #include "hw/input/adb.h"
+#include "migration/vmstate.h"
 #include "qemu/module.h"
 #include "adb-internal.h"
 #include "trace.h"

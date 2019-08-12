@@ -33,6 +33,7 @@
 #include "hw/boards.h"
 #include "hw/irq.h"
 #include "hw/sysbus.h"
+#include "migration/vmstate.h"
 #include "strongarm.h"
 #include "qemu/error-report.h"
 #include "hw/arm/boot.h"

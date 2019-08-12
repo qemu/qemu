@@ -33,6 +33,7 @@
 #include "qapi/qapi-visit-machine.h"
 #include "sysemu/qtest.h"
 #include "hw/mem/pc-dimm.h"
+#include "migration/vmstate.h"
 #include "hw/mem/memory-device.h"
 #include "qemu/option.h"
 #include "qemu/config-file.h"

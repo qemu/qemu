@@ -17,6 +17,7 @@
 #include "qemu/module.h"
 
 #include "hw/usb.h"
+#include "migration/vmstate.h"
 #include "desc.h"
 #include "hw/scsi/scsi.h"
 #include "scsi/constants.h"

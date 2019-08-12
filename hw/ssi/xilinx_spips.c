@@ -35,6 +35,7 @@
 #include "hw/register.h"
 #include "sysemu/dma.h"
 #include "migration/blocker.h"
+#include "migration/vmstate.h"
 
 #ifndef XILINX_SPIPS_ERR_DEBUG
 #define XILINX_SPIPS_ERR_DEBUG 0

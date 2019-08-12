@@ -1,7 +1,6 @@
 #ifndef QEMU_FIFO8_H
 #define QEMU_FIFO8_H
 
-#include "migration/vmstate.h"
 
 typedef struct {
     /* All fields are private */

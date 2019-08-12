@@ -34,6 +34,7 @@
 #include "qemu/module.h"
 #include "hw/hw.h"
 #include "hw/pci/pci.h"
+#include "migration/vmstate.h"
 #include "trace.h"
 
 #define TYPE_XEN_PV_DEVICE  "xen-pvdevice"

@@ -31,6 +31,7 @@
 #include "trace.h"
 #include "ui/vnc.h"
 #include "hw/pci/pci.h"
+#include "migration/vmstate.h"
 
 #undef VERBOSE
 #define HW_RECT_ACCEL

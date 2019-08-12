@@ -10,6 +10,7 @@
 #include "qemu/units.h"
 #include "hw/hw.h"
 #include "hw/pci/pci.h"
+#include "migration/vmstate.h"
 #include "hw/display/bochs-vbe.h"
 #include "hw/display/edid.h"
 

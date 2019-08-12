@@ -17,6 +17,7 @@
 #include "hw/hw.h"
 #include "hw/irq.h"
 #include "hw/misc/zynq-xadc.h"
+#include "migration/vmstate.h"
 #include "qemu/timer.h"
 #include "sysemu/sysemu.h"
 #include "qemu/log.h"

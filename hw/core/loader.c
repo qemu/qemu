@@ -47,6 +47,7 @@
 #include "qapi/error.h"
 #include "hw/hw.h"
 #include "disas/disas.h"
+#include "migration/vmstate.h"
 #include "monitor/monitor.h"
 #include "sysemu/reset.h"
 #include "sysemu/sysemu.h"

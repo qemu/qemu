@@ -28,6 +28,7 @@
 #include "audio/audio.h"
 #include "hw/boards.h"
 #include "hw/sysbus.h"
+#include "migration/vmstate.h"
 #include "exec/address-spaces.h"
 #include "cpu.h"
 

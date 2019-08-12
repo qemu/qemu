@@ -31,6 +31,7 @@
 #include "hw/irq.h"
 #include "hw/usb/ehci-regs.h"
 #include "hw/usb/hcd-ehci.h"
+#include "migration/vmstate.h"
 #include "trace.h"
 #include "qemu/error-report.h"
 

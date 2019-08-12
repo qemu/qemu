@@ -36,6 +36,7 @@
 #include "qemu/module.h"
 
 #include "m48t59-internal.h"
+#include "migration/vmstate.h"
 
 #define TYPE_M48TXX_SYS_BUS "sysbus-m48txx"
 #define M48TXX_SYS_BUS_GET_CLASS(obj) \

@@ -24,6 +24,7 @@
 #include "qapi/error.h"
 #include "sysemu/sysemu.h"
 #include "hw/sysbus.h"
+#include "migration/vmstate.h"
 #include "hw/registerfields.h"
 #include "hw/misc/iotkit-sysctl.h"
 #include "target/arm/arm-powerctl.h"

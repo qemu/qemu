@@ -17,6 +17,7 @@
 #include "hw/hw.h"
 #include "audio/audio.h"
 #include "lm4549.h"
+#include "migration/vmstate.h"
 
 #if 0
 #define LM4549_DEBUG  1

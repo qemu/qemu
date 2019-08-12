@@ -16,6 +16,7 @@
 #include "qemu/osdep.h"
 #include "qemu/module.h"
 #include "hw/i2c/i2c.h"
+#include "migration/vmstate.h"
 #include "hw/display/i2c-ddc.h"
 #include "trace.h"
 

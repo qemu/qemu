@@ -33,6 +33,7 @@
 #include "trace.h"
 #include "qapi/error.h"
 #include "mfi.h"
+#include "migration/vmstate.h"
 
 #define MEGASAS_VERSION_GEN1 "1.70"
 #define MEGASAS_VERSION_GEN2 "1.80"

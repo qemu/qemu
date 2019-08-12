@@ -50,6 +50,7 @@
 #include "qemu/module.h"
 #include "qemu/option.h"
 #include "hw/sysbus.h"
+#include "migration/vmstate.h"
 #include "sysemu/blockdev.h"
 #include "sysemu/sysemu.h"
 #include "trace.h"

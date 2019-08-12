@@ -17,6 +17,7 @@
 #include "qemu/module.h"
 #include "hw/char/nrf51_uart.h"
 #include "hw/irq.h"
+#include "migration/vmstate.h"
 #include "trace.h"
 
 static void nrf51_uart_update_irq(NRF51UARTState *s)

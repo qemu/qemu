@@ -21,6 +21,7 @@
 #include "qemu/module.h"
 #include "sysemu/dma.h"
 #include "hw/ide/internal.h"
+#include "migration/vmstate.h"
 #include "ahci_internal.h"
 
 #include "trace.h"

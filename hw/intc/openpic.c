@@ -42,6 +42,7 @@
 #include "hw/ppc/openpic.h"
 #include "hw/ppc/ppc_e500.h"
 #include "hw/sysbus.h"
+#include "migration/vmstate.h"
 #include "hw/pci/msi.h"
 #include "qapi/error.h"
 #include "qemu/bitops.h"

@@ -29,6 +29,7 @@
 #include "qemu/error-report.h"
 #include "ui/console.h"
 #include "hw/sysbus.h"
+#include "migration/vmstate.h"
 #include "hw/irq.h"
 #include "hw/loader.h"
 #include "qemu/log.h"

@@ -14,6 +14,7 @@
 #include "qemu/module.h"
 #include "hw/hw.h"
 #include "hw/sysbus.h"
+#include "migration/vmstate.h"
 #include "sysemu/sysemu.h"
 #include "hw/misc/mips_cmgcr.h"
 #include "hw/misc/mips_cpc.h"

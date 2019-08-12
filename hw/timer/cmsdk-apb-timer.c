@@ -37,6 +37,7 @@
 #include "hw/irq.h"
 #include "hw/registerfields.h"
 #include "hw/timer/cmsdk-apb-timer.h"
+#include "migration/vmstate.h"
 
 REG32(CTRL, 0)
     FIELD(CTRL, EN, 0, 1)

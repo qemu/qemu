@@ -24,6 +24,7 @@
 #include "exec/address-spaces.h"
 #include "hw/arm/nrf51.h"
 #include "hw/nvram/nrf51_nvm.h"
+#include "migration/vmstate.h"
 
 /*
  * FICR Registers Assignments

@@ -18,6 +18,7 @@
 #include "hw/i2c/i2c.h"
 #include "hw/irq.h"
 #include "hw/ssi/ssi.h"
+#include "migration/vmstate.h"
 #include "hw/boards.h"
 #include "sysemu/sysemu.h"
 #include "hw/block/flash.h"

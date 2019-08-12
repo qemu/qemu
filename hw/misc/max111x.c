@@ -13,6 +13,7 @@
 #include "qemu/osdep.h"
 #include "hw/irq.h"
 #include "hw/ssi/ssi.h"
+#include "migration/vmstate.h"
 #include "qemu/module.h"
 
 typedef struct {

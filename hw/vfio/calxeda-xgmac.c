@@ -13,6 +13,7 @@
 
 #include "qemu/osdep.h"
 #include "hw/vfio/vfio-calxeda-xgmac.h"
+#include "migration/vmstate.h"
 #include "qemu/module.h"
 
 static void calxeda_xgmac_realize(DeviceState *dev, Error **errp)

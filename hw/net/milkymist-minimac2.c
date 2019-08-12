@@ -28,6 +28,7 @@
 #include "hw/hw.h"
 #include "hw/irq.h"
 #include "hw/sysbus.h"
+#include "migration/vmstate.h"
 #include "trace.h"
 #include "net/net.h"
 #include "qemu/log.h"

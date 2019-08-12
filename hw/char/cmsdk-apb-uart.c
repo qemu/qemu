@@ -21,6 +21,7 @@
 #include "qapi/error.h"
 #include "trace.h"
 #include "hw/sysbus.h"
+#include "migration/vmstate.h"
 #include "hw/registerfields.h"
 #include "chardev/char-fe.h"
 #include "chardev/char-serial.h"

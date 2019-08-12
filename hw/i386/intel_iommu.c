@@ -35,6 +35,7 @@
 #include "sysemu/kvm.h"
 #include "hw/i386/apic_internal.h"
 #include "kvm_i386.h"
+#include "migration/vmstate.h"
 #include "trace.h"
 
 /* context entry operations */

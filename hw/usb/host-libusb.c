@@ -40,6 +40,7 @@
 #include <libusb.h>
 
 #include "qapi/error.h"
+#include "migration/vmstate.h"
 #include "monitor/monitor.h"
 #include "qemu/error-report.h"
 #include "qemu/module.h"

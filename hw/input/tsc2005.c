@@ -26,6 +26,7 @@
 #include "ui/console.h"
 #include "hw/input/tsc2xxx.h"
 #include "hw/irq.h"
+#include "migration/vmstate.h"
 #include "trace.h"
 
 #define TSC_CUT_RESOLUTION(value, p)	((value) >> (16 - (p ? 12 : 10)))

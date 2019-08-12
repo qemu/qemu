@@ -28,6 +28,7 @@
 
 #include "pl041.h"
 #include "lm4549.h"
+#include "migration/vmstate.h"
 
 #if 0
 #define PL041_DEBUG_LEVEL 1

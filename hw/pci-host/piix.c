@@ -34,6 +34,7 @@
 #include "qemu/range.h"
 #include "hw/xen/xen.h"
 #include "migration/qemu-file-types.h"
+#include "migration/vmstate.h"
 #include "hw/pci-host/pam.h"
 #include "sysemu/reset.h"
 #include "sysemu/sysemu.h"

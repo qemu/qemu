@@ -14,6 +14,7 @@
 #include "hw/irq.h"
 #include "hw/sysbus.h"
 #include "hw/timer/aspeed_timer.h"
+#include "migration/vmstate.h"
 #include "qemu/bitops.h"
 #include "qemu/timer.h"
 #include "qemu/log.h"

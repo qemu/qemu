@@ -16,6 +16,7 @@
 #include "hw/arm/nrf51.h"
 #include "hw/irq.h"
 #include "hw/misc/nrf51_rng.h"
+#include "migration/vmstate.h"
 #include "qemu/guest-random.h"
 
 static void update_irq(NRF51RNGState *s)

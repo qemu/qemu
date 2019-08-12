@@ -26,6 +26,7 @@
 #include "qemu/log.h"
 #include "hw/hw.h"
 #include "hw/input/ps2.h"
+#include "migration/vmstate.h"
 #include "ui/console.h"
 #include "ui/input.h"
 #include "sysemu/reset.h"

@@ -32,6 +32,7 @@
 #include "hw/nvram/fw_cfg.h"
 #include "hw/sysbus.h"
 #include "migration/qemu-file-types.h"
+#include "migration/vmstate.h"
 #include "trace.h"
 #include "qemu/error-report.h"
 #include "qemu/option.h"

@@ -25,6 +25,7 @@
 #include "hw/pci/pci_bridge.h"
 #include "hw/pci/pci_host.h"
 #include "hw/pci/pcie_port.h"
+#include "migration/vmstate.h"
 #include "hw/irq.h"
 #include "hw/pci-host/designware.h"
 

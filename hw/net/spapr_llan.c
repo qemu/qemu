@@ -33,6 +33,7 @@
 #include "qemu/module.h"
 #include "net/net.h"
 #include "hw/qdev.h"
+#include "migration/vmstate.h"
 #include "hw/ppc/spapr.h"
 #include "hw/ppc/spapr_vio.h"
 #include "sysemu/sysemu.h"

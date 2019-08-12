@@ -21,6 +21,7 @@
 #include "qemu/log.h"
 #include "qemu/module.h"
 #include "hw/i2c/microbit_i2c.h"
+#include "migration/vmstate.h"
 
 static const uint32_t twi_read_sequence[] = {0x5A, 0x5A, 0x40};
 

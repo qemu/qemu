@@ -37,6 +37,7 @@
 #include "sysemu/sysemu.h"
 #include "trace.h"
 #include "hw/timer/xlnx-zynqmp-rtc.h"
+#include "migration/vmstate.h"
 
 #ifndef XLNX_ZYNQMP_RTC_ERR_DEBUG
 #define XLNX_ZYNQMP_RTC_ERR_DEBUG 0

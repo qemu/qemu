@@ -32,6 +32,7 @@
 #include "target/ppc/mmu-hash64.h"
 #include "cpu-models.h"
 #include "kvm_ppc.h"
+#include "migration/vmstate.h"
 #include "sysemu/qtest.h"
 #include "sysemu/tcg.h"
 

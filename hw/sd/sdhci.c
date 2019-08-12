@@ -32,6 +32,7 @@
 #include "qemu/timer.h"
 #include "qemu/bitops.h"
 #include "hw/sd/sdhci.h"
+#include "migration/vmstate.h"
 #include "sdhci-internal.h"
 #include "qemu/log.h"
 #include "qemu/module.h"

@@ -43,6 +43,7 @@
 #include "qemu/host-utils.h"
 #include "qemu/module.h"
 #include "hw/sysbus.h"
+#include "migration/vmstate.h"
 #include "trace.h"
 
 #define PFLASH_DEBUG false

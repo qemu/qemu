@@ -4,7 +4,6 @@
 /* NOR flash devices */
 
 #include "exec/memory.h"
-#include "migration/vmstate.h"
 
 /* pflash_cfi01.c */
 

@@ -13,6 +13,7 @@
 
 #include "qemu/osdep.h"
 #include "hw/ppc/spapr_ovec.h"
+#include "migration/vmstate.h"
 #include "qemu/bitmap.h"
 #include "exec/address-spaces.h"
 #include "qemu/error-report.h"

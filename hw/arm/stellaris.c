@@ -24,6 +24,7 @@
 #include "hw/input/gamepad.h"
 #include "hw/irq.h"
 #include "hw/watchdog/cmsdk-apb-watchdog.h"
+#include "migration/vmstate.h"
 #include "hw/misc/unimp.h"
 #include "cpu.h"
 

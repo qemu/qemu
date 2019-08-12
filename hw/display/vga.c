@@ -34,6 +34,7 @@
 #include "ui/pixel_ops.h"
 #include "qemu/timer.h"
 #include "hw/xen/xen.h"
+#include "migration/vmstate.h"
 #include "trace.h"
 
 //#define DEBUG_VGA_MEM

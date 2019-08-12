@@ -26,6 +26,7 @@
 #include "hw/hw.h"
 #include "hw/irq.h"
 #include "hw/sysbus.h"
+#include "migration/vmstate.h"
 #include "qemu/module.h"
 #include "hw/char/escc.h"
 #include "ui/console.h"

@@ -4,6 +4,7 @@
 #include "hw/mem/pc-dimm.h"
 #include "hw/boards.h"
 #include "hw/qdev-core.h"
+#include "migration/vmstate.h"
 #include "trace.h"
 #include "qapi/error.h"
 #include "qapi/qapi-events-misc.h"

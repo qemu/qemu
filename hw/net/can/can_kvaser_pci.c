@@ -39,6 +39,7 @@
 #include "hw/hw.h"
 #include "hw/irq.h"
 #include "hw/pci/pci.h"
+#include "migration/vmstate.h"
 #include "net/can_emu.h"
 
 #include "can_sja1000.h"

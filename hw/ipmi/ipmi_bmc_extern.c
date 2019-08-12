@@ -35,6 +35,7 @@
 #include "chardev/char-fe.h"
 #include "sysemu/sysemu.h"
 #include "hw/ipmi/ipmi.h"
+#include "migration/vmstate.h"
 
 #define VM_MSG_CHAR        0xA0 /* Marks end of message */
 #define VM_CMD_CHAR        0xA1 /* Marks end of a command */

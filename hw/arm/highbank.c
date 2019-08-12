@@ -21,6 +21,7 @@
 #include "qemu-common.h"
 #include "qapi/error.h"
 #include "hw/sysbus.h"
+#include "migration/vmstate.h"
 #include "hw/arm/boot.h"
 #include "hw/loader.h"
 #include "net/net.h"

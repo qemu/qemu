@@ -32,6 +32,7 @@
 #include "net/net.h"
 #include "migration.h"
 #include "migration/snapshot.h"
+#include "migration/vmstate.h"
 #include "migration/misc.h"
 #include "migration/register.h"
 #include "migration/global_state.h"

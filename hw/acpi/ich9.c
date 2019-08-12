@@ -30,6 +30,7 @@
 #include "qapi/visitor.h"
 #include "hw/i386/pc.h"
 #include "hw/pci/pci.h"
+#include "migration/vmstate.h"
 #include "qemu/timer.h"
 #include "sysemu/reset.h"
 #include "sysemu/sysemu.h"

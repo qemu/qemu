@@ -9,6 +9,7 @@
 
 #include "qemu/osdep.h"
 #include "hw/sysbus.h"
+#include "migration/vmstate.h"
 #include "qemu/timer.h"
 #include "hw/qdev.h"
 #include "hw/irq.h"

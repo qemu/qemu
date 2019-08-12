@@ -27,6 +27,7 @@
 #include "hw/pci/msix.h"
 #include "sysemu/kvm.h"
 #include "migration/blocker.h"
+#include "migration/vmstate.h"
 #include "qemu/error-report.h"
 #include "qemu/event_notifier.h"
 #include "qemu/module.h"

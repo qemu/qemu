@@ -14,6 +14,7 @@
 #include "qapi/error.h"
 #include "cpu.h"
 #include "hw/sysbus.h"
+#include "migration/vmstate.h"
 #include "qemu/timer.h"
 #include "hw/intc/armv7m_nvic.h"
 #include "hw/irq.h"

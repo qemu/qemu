@@ -26,6 +26,7 @@
 #include "qemu/osdep.h"
 #include "hw/hw.h"
 #include "hw/pcmcia.h"
+#include "migration/vmstate.h"
 #include "qemu/module.h"
 #include "sysemu/dma.h"
 

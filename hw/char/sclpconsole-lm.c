@@ -21,6 +21,7 @@
 #include "chardev/char-fe.h"
 
 #include "hw/s390x/sclp.h"
+#include "migration/vmstate.h"
 #include "hw/s390x/event-facility.h"
 #include "hw/s390x/ebcdic.h"
 

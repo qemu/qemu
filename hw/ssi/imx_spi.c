@@ -11,6 +11,7 @@
 #include "qemu/osdep.h"
 #include "hw/irq.h"
 #include "hw/ssi/imx_spi.h"
+#include "migration/vmstate.h"
 #include "sysemu/sysemu.h"
 #include "qemu/log.h"
 #include "qemu/module.h"

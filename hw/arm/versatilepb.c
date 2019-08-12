@@ -11,6 +11,7 @@
 #include "qapi/error.h"
 #include "cpu.h"
 #include "hw/sysbus.h"
+#include "migration/vmstate.h"
 #include "hw/arm/boot.h"
 #include "hw/net/smc91c111.h"
 #include "net/net.h"

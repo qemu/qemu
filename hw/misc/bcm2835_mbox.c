@@ -12,6 +12,7 @@
 #include "qapi/error.h"
 #include "hw/irq.h"
 #include "hw/misc/bcm2835_mbox.h"
+#include "migration/vmstate.h"
 #include "qemu/log.h"
 #include "qemu/module.h"
 

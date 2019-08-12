@@ -26,6 +26,7 @@
 #include "qemu/log.h"
 #include "hw/hw.h"
 #include "hw/isa/isa.h"
+#include "migration/vmstate.h"
 #include "hw/i386/pc.h"
 #include "hw/input/ps2.h"
 #include "hw/irq.h"

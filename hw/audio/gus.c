@@ -30,6 +30,7 @@
 #include "audio/audio.h"
 #include "hw/irq.h"
 #include "hw/isa/isa.h"
+#include "migration/vmstate.h"
 #include "gusemu.h"
 #include "gustate.h"
 

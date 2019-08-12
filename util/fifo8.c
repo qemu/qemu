@@ -13,6 +13,7 @@
  */
 
 #include "qemu/osdep.h"
+#include "migration/vmstate.h"
 #include "qemu/fifo8.h"
 
 void fifo8_create(Fifo8 *fifo, uint32_t capacity)

@@ -24,6 +24,7 @@
 #include "hw/isa/apm.h"
 #include "hw/hw.h"
 #include "hw/pci/pci.h"
+#include "migration/vmstate.h"
 
 //#define DEBUG
 

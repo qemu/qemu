@@ -29,6 +29,7 @@
 #include "qemu/osdep.h"
 #include "hw/dma/xlnx-zdma.h"
 #include "hw/irq.h"
+#include "migration/vmstate.h"
 #include "qemu/bitops.h"
 #include "qemu/log.h"
 #include "qemu/module.h"

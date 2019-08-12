@@ -9,6 +9,7 @@
 
 #include "qemu/osdep.h"
 #include "hw/sysbus.h"
+#include "migration/vmstate.h"
 #include "hw/irq.h"
 #include "hw/ssi/pl022.h"
 #include "hw/ssi/ssi.h"

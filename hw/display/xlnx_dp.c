@@ -28,6 +28,7 @@
 #include "qemu/module.h"
 #include "hw/display/xlnx_dp.h"
 #include "hw/irq.h"
+#include "migration/vmstate.h"
 
 #ifndef DEBUG_DP
 #define DEBUG_DP 0

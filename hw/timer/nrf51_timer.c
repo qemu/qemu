@@ -17,6 +17,7 @@
 #include "hw/arm/nrf51.h"
 #include "hw/irq.h"
 #include "hw/timer/nrf51_timer.h"
+#include "migration/vmstate.h"
 #include "trace.h"
 
 #define TIMER_CLK_FREQ 16000000UL

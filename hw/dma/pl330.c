@@ -18,6 +18,7 @@
 #include "qemu-common.h"
 #include "hw/irq.h"
 #include "hw/sysbus.h"
+#include "migration/vmstate.h"
 #include "qapi/error.h"
 #include "qemu/timer.h"
 #include "sysemu/dma.h"

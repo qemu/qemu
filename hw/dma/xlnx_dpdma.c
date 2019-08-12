@@ -28,6 +28,7 @@
 #include "qemu/module.h"
 #include "hw/dma/xlnx_dpdma.h"
 #include "hw/irq.h"
+#include "migration/vmstate.h"
 
 #ifndef DEBUG_DPDMA
 #define DEBUG_DPDMA 0

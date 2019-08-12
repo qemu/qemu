@@ -16,6 +16,7 @@
 #include "sysemu/dma.h"
 #include "sysemu/reset.h"
 #include "hw/qdev-properties.h"
+#include "migration/vmstate.h"
 #include "monitor/monitor.h"
 #include "hw/irq.h"
 #include "hw/ppc/xive.h"

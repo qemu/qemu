@@ -35,6 +35,7 @@
 #include "hw/timer/hpet.h"
 #include "hw/sysbus.h"
 #include "hw/timer/mc146818rtc.h"
+#include "migration/vmstate.h"
 #include "hw/timer/i8254.h"
 
 //#define HPET_DEBUG
