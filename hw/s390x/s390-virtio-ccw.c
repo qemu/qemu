@@ -40,6 +40,7 @@
 #include "hw/nmi.h"
 #include "hw/qdev-properties.h"
 #include "hw/s390x/tod.h"
+#include "sysemu/sysemu.h"
 
 S390CPU *s390_cpu_addr2state(uint16_t cpu_addr)
 {

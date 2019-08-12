@@ -19,6 +19,7 @@
 #include "hw/s390x/css.h"
 #include "hw/s390x/css-bridge.h"
 #include "hw/s390x/s390-ccw.h"
+#include "sysemu/sysemu.h"
 
 IOInstEnding s390_ccw_cmd_request(SubchDev *sch)
 {

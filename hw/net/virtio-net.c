@@ -31,6 +31,7 @@
 #include "hw/virtio/virtio-access.h"
 #include "migration/misc.h"
 #include "standard-headers/linux/ethtool.h"
+#include "sysemu/sysemu.h"
 #include "trace.h"
 
 #define VIRTIO_NET_VM_VERSION    11

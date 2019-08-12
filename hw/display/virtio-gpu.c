@@ -17,6 +17,7 @@
 #include "ui/console.h"
 #include "trace.h"
 #include "sysemu/dma.h"
+#include "sysemu/sysemu.h"
 #include "hw/virtio/virtio.h"
 #include "migration/qemu-file-types.h"
 #include "hw/virtio/virtio-gpu.h"

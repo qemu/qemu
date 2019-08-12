@@ -28,6 +28,7 @@
 #include "hw/virtio/virtio.h"
 #include "hw/virtio/virtio-access.h"
 #include "chardev/char-fe.h"
+#include "sysemu/sysemu.h"
 
 /* Features supported by the host application */
 static const int user_feature_bits[] = {

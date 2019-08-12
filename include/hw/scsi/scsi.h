@@ -4,7 +4,6 @@
 #include "block/aio.h"
 #include "hw/block/block.h"
 #include "hw/qdev-core.h"
-#include "sysemu/sysemu.h"
 #include "scsi/utils.h"
 #include "qemu/notify.h"
 

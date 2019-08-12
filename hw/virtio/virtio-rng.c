@@ -17,6 +17,7 @@
 #include "hw/qdev-properties.h"
 #include "hw/virtio/virtio-rng.h"
 #include "sysemu/rng.h"
+#include "sysemu/sysemu.h"
 #include "qom/object_interfaces.h"
 #include "trace.h"
 

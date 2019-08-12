@@ -26,6 +26,7 @@
 #include "hw/qdev-properties.h"
 #include "hw/virtio/virtio-access.h"
 #include "sysemu/dma.h"
+#include "sysemu/sysemu.h"
 
 /*
  * The alignment to use between consumer and producer parts of vring.

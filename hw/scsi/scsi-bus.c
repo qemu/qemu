@@ -10,6 +10,7 @@
 #include "scsi/constants.h"
 #include "sysemu/block-backend.h"
 #include "sysemu/blockdev.h"
+#include "sysemu/sysemu.h"
 #include "trace.h"
 #include "sysemu/dma.h"
 #include "qemu/cutils.h"
