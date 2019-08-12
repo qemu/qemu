@@ -15,6 +15,7 @@
 #define HW_VIRTIO_PMEM_H
 
 #include "hw/virtio/virtio.h"
+#include "qapi/qapi-types-misc.h"
 #include "sysemu/hostmem.h"
 
 #define TYPE_VIRTIO_PMEM "virtio-pmem"

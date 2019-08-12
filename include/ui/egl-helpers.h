@@ -4,7 +4,6 @@
 #include <epoxy/gl.h>
 #include <epoxy/egl.h>
 #include <gbm.h>
-#include "qapi/qapi-types-ui.h"
 #include "ui/console.h"
 #include "ui/shader.h"
 

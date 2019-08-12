@@ -2,7 +2,6 @@
 #define BLOCK_H
 
 #include "block/aio.h"
-#include "qapi/qapi-types-block-core.h"
 #include "block/aio-wait.h"
 #include "qemu/iov.h"
 #include "qemu/coroutine.h"

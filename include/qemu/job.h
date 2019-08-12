@@ -26,7 +26,7 @@
 #ifndef JOB_H
 #define JOB_H
 
-#include "qapi/qapi-types-block-core.h"
+#include "qapi/qapi-types-job.h"
 #include "qemu/queue.h"
 #include "qemu/coroutine.h"
 #include "block/aio.h"

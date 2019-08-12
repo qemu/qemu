@@ -22,7 +22,6 @@
 #define QAUTHZ_LISTFILE_H
 
 #include "authz/list.h"
-#include "qapi/qapi-types-authz.h"
 #include "qemu/filemonitor.h"
 
 #define TYPE_QAUTHZ_LIST_FILE "authz-list-file"

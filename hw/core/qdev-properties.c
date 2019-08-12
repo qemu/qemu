@@ -3,6 +3,8 @@
 #include "hw/qdev.h"
 #include "qapi/error.h"
 #include "hw/pci/pci.h"
+#include "qapi/qapi-types-block.h"
+#include "qapi/qapi-types-misc.h"
 #include "qapi/qmp/qerror.h"
 #include "qemu/ctype.h"
 #include "qemu/error-report.h"

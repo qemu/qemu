@@ -21,6 +21,7 @@
 #include "hw/hw.h"
 #include "sysemu/dma.h"
 #include "qapi/error.h"
+#include "qapi/qapi-types-block.h"
 #include "qemu/error-report.h"
 #include "qemu/module.h"
 #include "hw/ide/internal.h"

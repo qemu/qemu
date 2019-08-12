@@ -1,8 +1,6 @@
 #ifndef QEMU_QDEV_PROPERTIES_H
 #define QEMU_QDEV_PROPERTIES_H
 
-#include "qapi/qapi-types-block.h"
-#include "qapi/qapi-types-misc.h"
 #include "hw/qdev-core.h"
 
 /*** qdev-properties.c ***/

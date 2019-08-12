@@ -33,6 +33,7 @@
 #include "sysemu/sev.h"
 #include "qapi/error.h"
 #include "sev_i386.h"
+#include "qapi/qapi-commands-misc-target.h"
 #include "qapi/qapi-commands-misc.h"
 
 /* Perform linear address sign extension */

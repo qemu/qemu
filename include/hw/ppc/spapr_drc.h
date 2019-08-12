@@ -14,7 +14,6 @@
 #define HW_SPAPR_DRC_H
 
 #include <libfdt.h>
-#include "qapi/qapi-types-run-state.h"
 #include "qom/object.h"
 #include "sysemu/sysemu.h"
 #include "hw/qdev.h"
