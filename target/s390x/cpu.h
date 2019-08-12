@@ -163,7 +163,7 @@ struct S390CPU {
 
 
 #ifndef CONFIG_USER_ONLY
-extern const struct VMStateDescription vmstate_s390_cpu;
+extern const VMStateDescription vmstate_s390_cpu;
 #endif
 
 /* distinguish between 24 bit and 31 bit addressing */

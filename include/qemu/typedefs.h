@@ -117,6 +117,7 @@ typedef struct SHPCDevice SHPCDevice;
 typedef struct SSIBus SSIBus;
 typedef struct VirtIODevice VirtIODevice;
 typedef struct Visitor Visitor;
+typedef struct VMStateDescription VMStateDescription;
 
 /*
  * Pointer types

@@ -195,7 +195,7 @@ struct LM32CPU {
 
 
 #ifndef CONFIG_USER_ONLY
-extern const struct VMStateDescription vmstate_lm32_cpu;
+extern const VMStateDescription vmstate_lm32_cpu;
 #endif
 
 void lm32_cpu_do_interrupt(CPUState *cpu);

@@ -1516,7 +1516,7 @@ struct X86CPU {
 
 
 #ifndef CONFIG_USER_ONLY
-extern struct VMStateDescription vmstate_x86_cpu;
+extern VMStateDescription vmstate_x86_cpu;
 #endif
 
 /**
