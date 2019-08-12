@@ -27,6 +27,7 @@
 #include "hw/isa/isa.h"
 #include "migration/vmstate.h"
 #include "qemu/error-report.h"
+#include "qemu/main-loop.h"
 #include "qemu/timer.h"
 #include "sysemu/sysemu.h"
 #include "sysemu/blockdev.h"

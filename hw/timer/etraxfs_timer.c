@@ -26,6 +26,7 @@
 #include "hw/sysbus.h"
 #include "sysemu/reset.h"
 #include "sysemu/sysemu.h"
+#include "qemu/main-loop.h"
 #include "qemu/module.h"
 #include "qemu/timer.h"
 #include "hw/irq.h"

@@ -13,6 +13,7 @@
 #include "sysemu/replay.h"
 #include "replay-internal.h"
 #include "qemu/error-report.h"
+#include "qemu/main-loop.h"
 #include "sysemu/sysemu.h"
 
 /* Mutex to protect reading and writing events to the log.

@@ -17,6 +17,7 @@
 #include "qapi/error.h"
 #include "qemu/error-report.h"
 #include "qemu/iov.h"
+#include "qemu/main-loop.h"
 #include "qemu/sockets.h"
 #include "virtio-9p.h"
 #include "fsdev/qemu-fsdev.h"

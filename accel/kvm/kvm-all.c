@@ -34,6 +34,7 @@
 #include "exec/ram_addr.h"
 #include "exec/address-spaces.h"
 #include "qemu/event_notifier.h"
+#include "qemu/main-loop.h"
 #include "trace.h"
 #include "hw/irq.h"
 #include "sysemu/sev.h"

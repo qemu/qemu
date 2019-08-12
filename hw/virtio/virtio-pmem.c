@@ -15,6 +15,7 @@
 #include "qapi/error.h"
 #include "qemu-common.h"
 #include "qemu/error-report.h"
+#include "qemu/main-loop.h"
 #include "hw/virtio/virtio-pmem.h"
 #include "hw/virtio/virtio-access.h"
 #include "standard-headers/linux/virtio_ids.h"

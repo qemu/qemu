@@ -27,6 +27,7 @@
 #include "sysemu/dma.h"
 #include "hw/pci/msi.h"
 #include "qemu/iov.h"
+#include "qemu/main-loop.h"
 #include "qemu/module.h"
 #include "hw/scsi/scsi.h"
 #include "scsi/constants.h"

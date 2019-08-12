@@ -33,7 +33,6 @@
 #include "qemu/timer.h"
 #include "qemu/hbitmap.h"
 #include "block/snapshot.h"
-#include "qemu/main-loop.h"
 #include "qemu/throttle.h"
 
 #define BLOCK_FLAG_LAZY_REFCOUNTS   8

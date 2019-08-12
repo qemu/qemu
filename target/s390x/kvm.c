@@ -32,6 +32,7 @@
 #include "qemu/error-report.h"
 #include "qemu/timer.h"
 #include "qemu/units.h"
+#include "qemu/main-loop.h"
 #include "qemu/mmap-alloc.h"
 #include "qemu/log.h"
 #include "sysemu/sysemu.h"

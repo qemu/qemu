@@ -15,10 +15,12 @@
  *  You should have received a copy of the GNU General Public License
  *  along with this program; if not, see <http://www.gnu.org/licenses/>.
  */
+
 #include "qemu/osdep.h"
 #include "cpu.h"
 #include "exec/helper-proto.h"
 #include "kvm-consts.h"
+#include "qemu/main-loop.h"
 #include "sysemu/sysemu.h"
 #include "internals.h"
 #include "arm-powerctl.h"

@@ -9,6 +9,7 @@
 #include "qemu/osdep.h"
 #include "qemu/units.h"
 #include "qemu/error-report.h"
+#include "qemu/main-loop.h"
 #include "qapi/error.h"
 #include "qemu-common.h"
 #include "cpu.h"

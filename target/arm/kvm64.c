@@ -21,6 +21,7 @@
 #include "qemu/timer.h"
 #include "qemu/error-report.h"
 #include "qemu/host-utils.h"
+#include "qemu/main-loop.h"
 #include "exec/gdbstub.h"
 #include "sysemu/sysemu.h"
 #include "sysemu/kvm.h"

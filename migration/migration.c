@@ -16,6 +16,7 @@
 #include "qemu/osdep.h"
 #include "qemu/cutils.h"
 #include "qemu/error-report.h"
+#include "qemu/main-loop.h"
 #include "migration/blocker.h"
 #include "exec.h"
 #include "fd.h"

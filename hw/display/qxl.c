@@ -26,6 +26,7 @@
 #include "qemu/timer.h"
 #include "qemu/queue.h"
 #include "qemu/atomic.h"
+#include "qemu/main-loop.h"
 #include "qemu/module.h"
 #include "sysemu/sysemu.h"
 #include "migration/blocker.h"

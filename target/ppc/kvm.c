@@ -47,6 +47,7 @@
 #include "exec/ram_addr.h"
 #include "sysemu/hostmem.h"
 #include "qemu/cutils.h"
+#include "qemu/main-loop.h"
 #include "qemu/mmap-alloc.h"
 #include "elf.h"
 #include "sysemu/kvm_int.h"

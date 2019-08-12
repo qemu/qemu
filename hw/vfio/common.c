@@ -31,6 +31,7 @@
 #include "exec/memory.h"
 #include "hw/hw.h"
 #include "qemu/error-report.h"
+#include "qemu/main-loop.h"
 #include "qemu/range.h"
 #include "sysemu/balloon.h"
 #include "sysemu/kvm.h"

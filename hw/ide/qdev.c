@@ -22,6 +22,7 @@
 #include "qapi/error.h"
 #include "qapi/qapi-types-block.h"
 #include "qemu/error-report.h"
+#include "qemu/main-loop.h"
 #include "qemu/module.h"
 #include "hw/ide/internal.h"
 #include "sysemu/block-backend.h"

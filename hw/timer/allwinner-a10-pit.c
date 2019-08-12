@@ -22,6 +22,7 @@
 #include "hw/timer/allwinner-a10-pit.h"
 #include "migration/vmstate.h"
 #include "qemu/log.h"
+#include "qemu/main-loop.h"
 #include "qemu/module.h"
 
 static void a10_pit_update_irq(AwA10PITState *s)

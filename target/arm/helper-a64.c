@@ -23,6 +23,7 @@
 #include "exec/helper-proto.h"
 #include "qemu/host-utils.h"
 #include "qemu/log.h"
+#include "qemu/main-loop.h"
 #include "sysemu/sysemu.h"
 #include "qemu/bitops.h"
 #include "internals.h"

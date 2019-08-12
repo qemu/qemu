@@ -15,6 +15,7 @@
 #include "fsdev/qemu-fsdev.h"
 #include "qemu/thread.h"
 #include "qemu/coroutine.h"
+#include "qemu/main-loop.h"
 #include "coth.h"
 
 int coroutine_fn v9fs_co_st_gen(V9fsPDU *pdu, V9fsPath *path, mode_t st_mode,

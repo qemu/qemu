@@ -21,6 +21,7 @@
 #include "qapi/error.h"
 #include "qapi/qapi-events-block.h"
 #include "qemu/id.h"
+#include "qemu/main-loop.h"
 #include "qemu/option.h"
 #include "trace.h"
 #include "migration/misc.h"

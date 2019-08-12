@@ -21,6 +21,7 @@
 
 #include "qemu/osdep.h"
 #include "qemu/error-report.h"
+#include "qemu/main-loop.h"
 #include "qapi/error.h"
 #include "hw/sysbus.h"
 #include "exec/address-spaces.h"

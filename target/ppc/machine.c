@@ -7,6 +7,7 @@
 #include "mmu-hash64.h"
 #include "migration/cpu.h"
 #include "qapi/error.h"
+#include "qemu/main-loop.h"
 #include "kvm_ppc.h"
 #include "exec/helper-proto.h"
 

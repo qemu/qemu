@@ -15,6 +15,7 @@
 #include "hw/9pfs/xen-9pfs.h"
 #include "qapi/error.h"
 #include "qemu/config-file.h"
+#include "qemu/main-loop.h"
 #include "qemu/option.h"
 #include "fsdev/qemu-fsdev.h"
 

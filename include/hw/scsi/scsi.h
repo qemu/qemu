@@ -2,6 +2,7 @@
 #define QEMU_HW_SCSI_H
 
 #include "hw/qdev.h"
+#include "block/aio.h"
 #include "hw/block/block.h"
 #include "sysemu/sysemu.h"
 #include "scsi/utils.h"

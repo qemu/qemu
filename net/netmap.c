@@ -38,6 +38,7 @@
 #include "qapi/error.h"
 #include "qemu/iov.h"
 #include "qemu/cutils.h"
+#include "qemu/main-loop.h"
 
 typedef struct NetmapState {
     NetClientState      nc;

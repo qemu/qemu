@@ -23,6 +23,7 @@
 #include "io/channel-buffer.h"
 #include "trace.h"
 #include "qemu/error-report.h"
+#include "qemu/main-loop.h"
 #include "qemu/rcu.h"
 #include "migration/failover.h"
 #ifdef CONFIG_REPLICATION

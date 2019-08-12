@@ -43,6 +43,7 @@
 #include "migration/vmstate.h"
 #include "monitor/monitor.h"
 #include "qemu/error-report.h"
+#include "qemu/main-loop.h"
 #include "qemu/module.h"
 #include "sysemu/sysemu.h"
 #include "trace.h"

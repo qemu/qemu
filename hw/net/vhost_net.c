@@ -22,7 +22,7 @@
 #include "hw/virtio/virtio-net.h"
 #include "net/vhost_net.h"
 #include "qemu/error-report.h"
-
+#include "qemu/main-loop.h"
 
 #include <sys/socket.h>
 #include <net/if.h>

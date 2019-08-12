@@ -34,6 +34,7 @@
 #include "etsec.h"
 #include "registers.h"
 #include "qemu/log.h"
+#include "qemu/main-loop.h"
 #include "qemu/module.h"
 
 /* #define HEX_DUMP */

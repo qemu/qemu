@@ -5,7 +5,6 @@
 #include "qapi/qapi-types-run-state.h"
 #include "qemu/timer.h"
 #include "qemu/notify.h"
-#include "qemu/main-loop.h"
 #include "qemu/bitmap.h"
 #include "qemu/uuid.h"
 #include "qom/object.h"

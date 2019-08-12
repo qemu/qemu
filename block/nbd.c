@@ -33,6 +33,7 @@
 #include "qemu/uri.h"
 #include "qemu/option.h"
 #include "qemu/cutils.h"
+#include "qemu/main-loop.h"
 
 #include "qapi/qapi-visit-sockets.h"
 #include "qapi/qmp/qstring.h"

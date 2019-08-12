@@ -2,6 +2,7 @@
 #include "cpu.h"
 #include "exec/helper-proto.h"
 #include "qemu/host-utils.h"
+#include "qemu/main-loop.h"
 
 #include "hw/lm32/lm32_pic.h"
 #include "hw/char/lm32_juart.h"

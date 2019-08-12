@@ -30,6 +30,7 @@
 #include "block/qdict.h"
 #include "qemu/error-report.h"
 #include "module_block.h"
+#include "qemu/main-loop.h"
 #include "qemu/module.h"
 #include "qapi/error.h"
 #include "qapi/qmp/qdict.h"

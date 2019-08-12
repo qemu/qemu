@@ -60,6 +60,7 @@
 #include "sysemu/qtest.h"
 #include "qemu/cutils.h"
 #include "qemu/help_option.h"
+#include "qemu/main-loop.h"
 #include "qemu/throttle-options.h"
 
 static QTAILQ_HEAD(, BlockDriverState) monitor_bdrv_states =

@@ -24,6 +24,7 @@
 #include "sysemu/hw_accel.h"
 #include "qemu/notify.h"
 #include "qemu/log.h"
+#include "qemu/main-loop.h"
 #include "exec/log.h"
 #include "qemu/error-report.h"
 #include "qemu/qemu-print.h"

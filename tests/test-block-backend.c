@@ -26,6 +26,7 @@
 #include "block/block.h"
 #include "sysemu/block-backend.h"
 #include "qapi/error.h"
+#include "qemu/main-loop.h"
 
 static void test_drain_aio_error_flush_cb(void *opaque, int ret)
 {

@@ -21,6 +21,7 @@
 #include "qapi/visitor.h"
 #include "qemu/bitops.h"
 #include "qemu/error-report.h"
+#include "qemu/main-loop.h"
 #include "qemu/qemu-print.h"
 #include "qom/object.h"
 #include "trace-root.h"

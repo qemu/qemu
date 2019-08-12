@@ -5,6 +5,7 @@
  *
  * SPDX-License-Identifier: GPL-2.0-or-later
  */
+
 #include "qemu/osdep.h"
 #include "qemu/units.h"
 #include "target/arm/idau.h"
@@ -14,6 +15,7 @@
 #include "exec/gdbstub.h"
 #include "exec/helper-proto.h"
 #include "qemu/host-utils.h"
+#include "qemu/main-loop.h"
 #include "sysemu/sysemu.h"
 #include "qemu/bitops.h"
 #include "qemu/crc32c.h"
