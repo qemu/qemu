@@ -6,7 +6,6 @@
 #error Cannot include hw/hw.h from user emulation
 #endif
 
-#include "exec/cpu-common.h"
 #include "qom/object.h"
 #include "exec/memory.h"
 #include "migration/vmstate.h"

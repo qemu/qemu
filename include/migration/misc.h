@@ -14,7 +14,6 @@
 #ifndef MIGRATION_MISC_H
 #define MIGRATION_MISC_H
 
-#include "exec/cpu-common.h"
 #include "qemu/notify.h"
 #include "qapi/qapi-types-net.h"
 

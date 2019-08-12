@@ -26,7 +26,6 @@
 #define PPC4XX_H
 
 #include "hw/ppc/ppc.h"
-#include "exec/cpu-common.h"
 #include "exec/memory.h"
 
 /* PowerPC 4xx core initialization */

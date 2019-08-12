@@ -42,7 +42,6 @@
 #define NO_CPU_IO_DEFS
 #include "cpu.h"
 
-#include "exec/cpu-common.h"
 #include "exec/exec-all.h"
 
 #if !defined(CONFIG_USER_ONLY)

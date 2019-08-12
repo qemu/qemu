@@ -26,6 +26,7 @@
 #define MIGRATION_QEMU_FILE_H
 
 #include <zlib.h>
+#include "exec/cpu-common.h"
 
 /* Read a chunk of data from a file at the given position.  The pos argument
  * can be ignored if the file is only be used for streaming.  The number of
