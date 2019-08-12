@@ -35,7 +35,7 @@
 #include "sysemu/block-backend.h"
 #include "qemu/error-report.h"
 #include "sysemu/qtest.h"
-
+#include "sysemu/sysemu.h"
 
 typedef struct NiagaraBoardState {
     MemoryRegion hv_ram;

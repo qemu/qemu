@@ -35,6 +35,7 @@
 #include "monitor/monitor.h"
 #include "net/net.h"
 #include "sysemu/numa.h"
+#include "sysemu/sysemu.h"
 #include "hw/loader.h"
 #include "qemu/error-report.h"
 #include "qemu/range.h"

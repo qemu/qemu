@@ -57,6 +57,7 @@
 #include "io/channel-buffer.h"
 #include "io/channel-file.h"
 #include "sysemu/replay.h"
+#include "sysemu/sysemu.h"
 #include "qjson.h"
 #include "migration/colo.h"
 #include "qemu/bitmap.h"

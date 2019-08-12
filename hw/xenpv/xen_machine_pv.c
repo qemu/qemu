@@ -28,6 +28,7 @@
 #include "hw/xen/xen-legacy-backend.h"
 #include "hw/xen/xen-bus.h"
 #include "sysemu/block-backend.h"
+#include "sysemu/sysemu.h"
 
 static void xen_init_pv(MachineState *machine)
 {

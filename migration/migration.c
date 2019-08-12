@@ -21,6 +21,7 @@
 #include "exec.h"
 #include "fd.h"
 #include "socket.h"
+#include "sysemu/sysemu.h"
 #include "rdma.h"
 #include "ram.h"
 #include "migration/global_state.h"

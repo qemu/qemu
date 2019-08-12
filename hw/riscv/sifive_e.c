@@ -46,6 +46,7 @@
 #include "hw/riscv/boot.h"
 #include "chardev/char.h"
 #include "sysemu/arch_init.h"
+#include "sysemu/sysemu.h"
 #include "exec/address-spaces.h"
 
 static const struct MemmapEntry {

@@ -40,6 +40,7 @@
 #include "sysemu/arch_init.h"
 #include "sysemu/device_tree.h"
 #include "sysemu/qtest.h"
+#include "sysemu/sysemu.h"
 #include "exec/address-spaces.h"
 
 #include <libfdt.h>

@@ -41,6 +41,7 @@
 #include "sysemu/kvm.h"
 #include "sysemu/hax.h"
 #include "sysemu/hvf.h"
+#include "sysemu/sysemu.h"
 #include "sysemu/whpx.h"
 #include "exec/exec-all.h"
 
