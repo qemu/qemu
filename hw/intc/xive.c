@@ -615,12 +615,31 @@ static int vmstate_xive_tctx_pre_save(void *opaque)
     return 0;
 }
 
+static int vmstate_xive_tctx_post_load(void *opaque, int version_id)
+{
+    Error *local_err = NULL;
+
+    if (kvm_irqchip_in_kernel()) {
+        /*
+         * Required for hotplugged CPU, for which the state comes
+         * after all states of the machine.
+         */
+        kvmppc_xive_cpu_set_state(XIVE_TCTX(opaque), &local_err);
+        if (local_err) {
+            error_report_err(local_err);
+            return -1;
+        }
+    }
+
+    return 0;
+}
+
 static const VMStateDescription vmstate_xive_tctx = {
     .name = TYPE_XIVE_TCTX,
     .version_id = 1,
     .minimum_version_id = 1,
     .pre_save = vmstate_xive_tctx_pre_save,
-    .post_load = NULL, /* handled by the sPAPRxive model */
+    .post_load = vmstate_xive_tctx_post_load,
     .fields = (VMStateField[]) {
         VMSTATE_BUFFER(regs, XiveTCTX),
         VMSTATE_END_OF_LIST()
