@@ -72,10 +72,16 @@ static void kvm_cpu_disable_all(void)
  * XIVE Thread Interrupt Management context (KVM)
  */
 
-static void kvmppc_xive_cpu_set_state(XiveTCTX *tctx, Error **errp)
+void kvmppc_xive_cpu_set_state(XiveTCTX *tctx, Error **errp)
 {
+    SpaprXive *xive = SPAPR_MACHINE(qdev_get_machine())->xive;
     uint64_t state[2];
     int ret;
+
+    /* The KVM XIVE device is not in use yet */
+    if (xive->fd == -1) {
+        return;
+    }
 
     /* word0 and word1 of the OS ring. */
     state[0] = *((uint64_t *) &tctx->regs[TM_QW1_OS]);
@@ -655,7 +661,16 @@ int kvmppc_xive_post_load(SpaprXive *xive, int version_id)
         }
     }
 
-    /* Restore the thread interrupt contexts */
+    /*
+     * Restore the thread interrupt contexts of initial CPUs.
+     *
+     * The context of hotplugged CPUs is restored later, by the
+     * 'post_load' handler of the XiveTCTX model because they are not
+     * available at the time the SpaprXive 'post_load' method is
+     * called. We can not restore the context of all CPUs in the
+     * 'post_load' handler of XiveTCTX because the machine is not
+     * necessarily connected to the KVM device at that time.
+     */
     CPU_FOREACH(cs) {
         PowerPCCPU *cpu = POWERPC_CPU(cs);
 
