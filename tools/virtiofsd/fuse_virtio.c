@@ -13,11 +13,12 @@
 
 #include "qemu/osdep.h"
 #include "qemu/iov.h"
-#include "fuse_virtio.h"
+#include "qapi/error.h"
 #include "fuse_i.h"
 #include "standard-headers/linux/fuse.h"
 #include "fuse_misc.h"
 #include "fuse_opt.h"
+#include "fuse_virtio.h"
 
 #include <assert.h>
 #include <errno.h>
@@ -743,6 +744,42 @@ int virtio_loop(struct fuse_session *se)
     return 0;
 }
 
+static void strreplace(char *s, char old, char new)
+{
+    for (; *s; ++s) {
+        if (*s == old) {
+            *s = new;
+        }
+    }
+}
+
+static bool fv_socket_lock(struct fuse_session *se)
+{
+    g_autofree gchar *sk_name = NULL;
+    g_autofree gchar *pidfile = NULL;
+    g_autofree gchar *dir = NULL;
+    Error *local_err = NULL;
+
+    dir = qemu_get_local_state_pathname("run/virtiofsd");
+
+    if (g_mkdir_with_parents(dir, S_IRWXU) < 0) {
+        fuse_log(FUSE_LOG_ERR, "%s: Failed to create directory %s: %s",
+                 __func__, dir, strerror(errno));
+        return false;
+    }
+
+    sk_name = g_strdup(se->vu_socket_path);
+    strreplace(sk_name, '/', '.');
+    pidfile = g_strdup_printf("%s/%s.pid", dir, sk_name);
+
+    if (!qemu_write_pidfile(pidfile, &local_err)) {
+        error_report_err(local_err);
+        return false;
+    }
+
+    return true;
+}
+
 static int fv_create_listen_socket(struct fuse_session *se)
 {
     struct sockaddr_un un;
@@ -755,6 +792,16 @@ static int fv_create_listen_socket(struct fuse_session *se)
 
     if (strlen(se->vu_socket_path) >= sizeof(un.sun_path)) {
         fuse_log(FUSE_LOG_ERR, "Socket path too long\n");
+        return -1;
+    }
+
+    if (!strlen(se->vu_socket_path)) {
+        fuse_log(FUSE_LOG_ERR, "Socket path is empty\n");
+        return -1;
+    }
+
+    /* Check the vu_socket_path is already used */
+    if (!fv_socket_lock(se)) {
         return -1;
     }
 
