@@ -504,6 +504,18 @@ struct MemoryRegionSection {
     bool nonvolatile;
 };
 
+static inline bool MemoryRegionSection_eq(MemoryRegionSection *a,
+                                          MemoryRegionSection *b)
+{
+    return a->mr == b->mr &&
+           a->fv == b->fv &&
+           a->offset_within_region == b->offset_within_region &&
+           a->offset_within_address_space == b->offset_within_address_space &&
+           int128_eq(a->size, b->size) &&
+           a->readonly == b->readonly &&
+           a->nonvolatile == b->nonvolatile;
+}
+
 /**
  * memory_region_init: Initialize a memory region
  *
