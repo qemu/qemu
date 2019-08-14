@@ -1,0 +1,22 @@
+#
+# Docker x86_64 cross target
+#
+# This docker target is used on non-x86_64 machines which need the
+# x86_64 cross compilers installed.
+#
+FROM qemu:debian10
+MAINTAINER Alex Bennée <alex.bennee@linaro.org>
+
+# Add the foreign architecture we want and install dependencies
+RUN dpkg --add-architecture amd64
+RUN apt update && \
+    DEBIAN_FRONTEND=noninteractive eatmydata \
+    apt install -y --no-install-recommends \
+        crossbuild-essential-amd64
+RUN apt update && \
+    DEBIAN_FRONTEND=noninteractive eatmydata \
+    apt build-dep -yy -a amd64 --arch-only qemu
+
+# Specify the cross prefix for this image (see tests/docker/common.rc)
+ENV QEMU_CONFIGURE_OPTS --cross-prefix=x86_64-linux-gnu-
+ENV DEF_TARGET_LIST x86_64-softmmu,x86_64-linux-user,i386-softmmu,i386-linux-user

@@ -89,7 +89,13 @@ endif
 
 # Enforce dependencies for composite images
 docker-image-debian9-mxe: docker-image-debian9
+ifeq ($(ARCH),x86_64)
 docker-image-debian-amd64: docker-image-debian9
+DOCKER_PARTIAL_IMAGES += debian-amd64-cross
+else
+docker-image-debian-amd64-cross: docker-image-debian10
+DOCKER_PARTIAL_IMAGES += debian-amd64
+endif
 docker-image-debian-armel-cross: docker-image-debian9
 docker-image-debian-armhf-cross: docker-image-debian9
 docker-image-debian-mips-cross: docker-image-debian9
