@@ -997,6 +997,8 @@ static void multifd_send_terminate_threads(Error *err)
 {
     int i;
 
+    trace_multifd_send_terminate_threads(err != NULL);
+
     if (err) {
         MigrationState *s = migrate_get_current();
         migrate_set_error(s, err);
@@ -1257,6 +1259,8 @@ struct {
 static void multifd_recv_terminate_threads(Error *err)
 {
     int i;
+
+    trace_multifd_recv_terminate_threads(err != NULL);
 
     if (err) {
         MigrationState *s = migrate_get_current();
