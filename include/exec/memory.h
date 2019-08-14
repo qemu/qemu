@@ -495,10 +495,10 @@ static inline FlatView *address_space_to_flatview(AddressSpace *as)
  * @nonvolatile: this section is non-volatile
  */
 struct MemoryRegionSection {
+    Int128 size;
     MemoryRegion *mr;
     FlatView *fv;
     hwaddr offset_within_region;
-    Int128 size;
     hwaddr offset_within_address_space;
     bool readonly;
     bool nonvolatile;
