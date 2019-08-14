@@ -67,6 +67,18 @@ static void bitmap_set_case(bmap_set_func set_func)
 
     bmap = bitmap_new(BMAP_SIZE);
 
+    /* Set one bit at offset in second word */
+    for (offset = 0; offset <= BITS_PER_LONG; offset++) {
+        bitmap_clear(bmap, 0, BMAP_SIZE);
+        set_func(bmap, BITS_PER_LONG + offset, 1);
+        g_assert_cmpint(find_first_bit(bmap, 2 * BITS_PER_LONG),
+                        ==, BITS_PER_LONG + offset);
+        g_assert_cmpint(find_next_zero_bit(bmap,
+                                           3 * BITS_PER_LONG,
+                                           BITS_PER_LONG + offset),
+                        ==, BITS_PER_LONG + offset + 1);
+    }
+
     /* Both Aligned, set bits [BITS_PER_LONG, 3*BITS_PER_LONG] */
     set_func(bmap, BITS_PER_LONG, 2 * BITS_PER_LONG);
     g_assert_cmpuint(bmap[1], ==, -1ul);
