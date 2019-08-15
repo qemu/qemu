@@ -50,6 +50,8 @@ typedef struct DisasContext {
     uint32_t svc_imm;
     int aarch64;
     int current_el;
+    /* Debug target exception level for single-step exceptions */
+    int debug_target_el;
     GHashTable *cp_regs;
     uint64_t features; /* CPU features bits */
     /* Because unallocated encodings generate different exception syndrome
@@ -70,8 +72,6 @@ typedef struct DisasContext {
      * ie A64 LDX*, LDAX*, A32/T32 LDREX*, LDAEX*.
      */
     bool is_ldex;
-    /* True if a single-step exception will be taken to the current EL */
-    bool ss_same_el;
     /* True if v8.3-PAuth is active.  */
     bool pauth_active;
     /* True with v8.5-BTI and SCTLR_ELx.BT* set.  */
@@ -251,8 +251,15 @@ static inline void gen_exception(int excp, uint32_t syndrome,
 /* Generate an architectural singlestep exception */
 static inline void gen_swstep_exception(DisasContext *s, int isv, int ex)
 {
-    gen_exception(EXCP_UDEF, syn_swstep(s->ss_same_el, isv, ex),
-                  default_exception_el(s));
+    bool same_el = (s->debug_target_el == s->current_el);
+
+    /*
+     * If singlestep is targeting a lower EL than the current one,
+     * then s->ss_active must be false and we can never get here.
+     */
+    assert(s->debug_target_el >= s->current_el);
+
+    gen_exception(EXCP_UDEF, syn_swstep(same_el, isv, ex), s->debug_target_el);
 }
 
 /*

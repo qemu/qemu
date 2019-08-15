@@ -11882,7 +11882,9 @@ static void arm_tr_init_disas_context(DisasContextBase *dcbase, CPUState *cs)
     dc->ss_active = FIELD_EX32(tb_flags, TBFLAG_ANY, SS_ACTIVE);
     dc->pstate_ss = FIELD_EX32(tb_flags, TBFLAG_ANY, PSTATE_SS);
     dc->is_ldex = false;
-    dc->ss_same_el = false; /* Can't be true since EL_d must be AArch64 */
+    if (!arm_feature(env, ARM_FEATURE_M)) {
+        dc->debug_target_el = FIELD_EX32(tb_flags, TBFLAG_ANY, DEBUG_TARGET_EL);
+    }
 
     dc->page_start = dc->base.pc_first & TARGET_PAGE_MASK;
 

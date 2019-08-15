@@ -11170,6 +11170,12 @@ void cpu_get_tb_cpu_state(CPUARMState *env, target_ulong *pc,
         }
     }
 
+    if (!arm_feature(env, ARM_FEATURE_M)) {
+        int target_el = arm_debug_target_el(env);
+
+        flags = FIELD_DP32(flags, TBFLAG_ANY, DEBUG_TARGET_EL, target_el);
+    }
+
     *pflags = flags;
     *cs_base = 0;
 }
