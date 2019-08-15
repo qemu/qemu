@@ -1,1 +1,2 @@
+subdir('core')
 subdir('xen')
