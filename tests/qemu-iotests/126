@@ -33,6 +33,8 @@ status=1	# failure is the default!
 
 # Needs backing file support
 _supported_fmt qcow qcow2 qed vmdk
+_unsupported_imgopts "subformat=monolithicFlat" \
+                     "subformat=twoGbMaxExtentFlat"
 # This is the default protocol (and we want to test the difference between
 # colons which separate a protocol prefix from the rest and colons which are
 # just part of the filename, so we cannot test protocols which require a prefix)
