@@ -2021,6 +2021,12 @@ static THREAD int tls_var;
 int main(void) { return tls_var; }
 
 EOF
+  # check we support --no-pie first...
+  if compile_prog "-Werror -fno-pie" "-no-pie"; then
+    CFLAGS_NOPIE="-fno-pie"
+    LDFLAGS_NOPIE="-nopie"
+  fi
+
   if compile_prog "-fPIE -DPIE" "-pie"; then
     QEMU_CFLAGS="-fPIE -DPIE $QEMU_CFLAGS"
     LDFLAGS="-pie $LDFLAGS"
@@ -2035,11 +2041,6 @@ EOF
       echo "Disabling PIE due to missing toolchain support"
       pie="no"
     fi
-  fi
-
-  if compile_prog "-Werror -fno-pie" "-nopie"; then
-    CFLAGS_NOPIE="-fno-pie"
-    LDFLAGS_NOPIE="-nopie"
   fi
 fi
 
