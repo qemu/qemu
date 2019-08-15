@@ -13,7 +13,7 @@ RUN apt update && \
         crossbuild-essential-arm64
 RUN apt update && \
     DEBIAN_FRONTEND=noninteractive eatmydata \
-    apt build-dep -yy -a arm64 qemu
+    apt build-dep -yy -a arm64 --arch-only qemu
 
 # Specify the cross prefix for this image (see tests/docker/common.rc)
 ENV QEMU_CONFIGURE_OPTS --cross-prefix=aarch64-linux-gnu-

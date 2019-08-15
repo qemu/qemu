@@ -17,7 +17,7 @@ RUN apt update && \
 
 RUN apt update && \
     DEBIAN_FRONTEND=noninteractive eatmydata \
-    apt build-dep -yy -a s390x qemu
+    apt build-dep -yy -a s390x --arch-only qemu
 
 # Specify the cross prefix for this image (see tests/docker/common.rc)
 ENV QEMU_CONFIGURE_OPTS --cross-prefix=s390x-linux-gnu-
