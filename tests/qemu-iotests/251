@@ -40,6 +40,7 @@ trap "_cleanup; exit \$status" 0 1 2 3 15
 _supported_fmt generic
 _supported_proto file
 _supported_os Linux
+_unsupported_imgopts "subformat=streamOptimized"
 
 if [ "$IMGOPTSSYNTAX" = "true" ]; then
     # We use json:{} filenames here, so we cannot work with additional options.

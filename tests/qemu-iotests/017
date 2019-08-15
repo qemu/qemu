@@ -41,7 +41,8 @@ trap "_cleanup; exit \$status" 0 1 2 3 15
 _supported_fmt qcow qcow2 vmdk qed
 _supported_proto generic
 _unsupported_proto vxhs
-_unsupported_imgopts "subformat=monolithicFlat" "subformat=twoGbMaxExtentFlat"
+_unsupported_imgopts "subformat=monolithicFlat" "subformat=twoGbMaxExtentFlat" \
+                     "subformat=streamOptimized"
 
 TEST_OFFSETS="0 4294967296"
 
