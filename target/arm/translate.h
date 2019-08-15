@@ -10,7 +10,6 @@ typedef struct DisasContext {
     DisasContextBase base;
     const ARMISARegisters *isar;
 
-    target_ulong pc;
     /* The address of the current instruction being translated. */
     target_ulong pc_curr;
     target_ulong page_start;

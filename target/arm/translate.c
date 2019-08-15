@@ -1036,7 +1036,7 @@ static inline void gen_blxns(DisasContext *s, int rm)
      * We do however need to set the PC, because the blxns helper reads it.
      * The blxns helper may throw an exception.
      */
-    gen_set_pc_im(s, s->pc);
+    gen_set_pc_im(s, s->base.pc_next);
     gen_helper_v7m_blxns(cpu_env, var);
     tcg_temp_free_i32(var);
     s->base.is_jmp = DISAS_EXIT;
@@ -1222,7 +1222,7 @@ static inline void gen_hvc(DisasContext *s, int imm16)
      * for single stepping.)
      */
     s->svc_imm = imm16;
-    gen_set_pc_im(s, s->pc);
+    gen_set_pc_im(s, s->base.pc_next);
     s->base.is_jmp = DISAS_HVC;
 }
 
@@ -1237,14 +1237,14 @@ static inline void gen_smc(DisasContext *s)
     tmp = tcg_const_i32(syn_aa32_smc());
     gen_helper_pre_smc(cpu_env, tmp);
     tcg_temp_free_i32(tmp);
-    gen_set_pc_im(s, s->pc);
+    gen_set_pc_im(s, s->base.pc_next);
     s->base.is_jmp = DISAS_SMC;
 }
 
 static void gen_exception_internal_insn(DisasContext *s, int offset, int excp)
 {
     gen_set_condexec(s);
-    gen_set_pc_im(s, s->pc - offset);
+    gen_set_pc_im(s, s->base.pc_next - offset);
     gen_exception_internal(excp);
     s->base.is_jmp = DISAS_NORETURN;
 }
@@ -1253,7 +1253,7 @@ static void gen_exception_insn(DisasContext *s, int offset, int excp,
                                int syn, uint32_t target_el)
 {
     gen_set_condexec(s);
-    gen_set_pc_im(s, s->pc - offset);
+    gen_set_pc_im(s, s->base.pc_next - offset);
     gen_exception(excp, syn, target_el);
     s->base.is_jmp = DISAS_NORETURN;
 }
@@ -1263,7 +1263,7 @@ static void gen_exception_bkpt_insn(DisasContext *s, int offset, uint32_t syn)
     TCGv_i32 tcg_syn;
 
     gen_set_condexec(s);
-    gen_set_pc_im(s, s->pc - offset);
+    gen_set_pc_im(s, s->base.pc_next - offset);
     tcg_syn = tcg_const_i32(syn);
     gen_helper_exception_bkpt_insn(cpu_env, tcg_syn);
     tcg_temp_free_i32(tcg_syn);
@@ -1273,7 +1273,7 @@ static void gen_exception_bkpt_insn(DisasContext *s, int offset, uint32_t syn)
 /* Force a TB lookup after an instruction that changes the CPU state.  */
 static inline void gen_lookup_tb(DisasContext *s)
 {
-    tcg_gen_movi_i32(cpu_R[15], s->pc);
+    tcg_gen_movi_i32(cpu_R[15], s->base.pc_next);
     s->base.is_jmp = DISAS_EXIT;
 }
 
@@ -2909,7 +2909,7 @@ static inline bool use_goto_tb(DisasContext *s, target_ulong dest)
 {
 #ifndef CONFIG_USER_ONLY
     return (s->base.tb->pc & TARGET_PAGE_MASK) == (dest & TARGET_PAGE_MASK) ||
-           ((s->pc - 1) & TARGET_PAGE_MASK) == (dest & TARGET_PAGE_MASK);
+           ((s->base.pc_next - 1) & TARGET_PAGE_MASK) == (dest & TARGET_PAGE_MASK);
 #else
     return true;
 #endif
@@ -3279,17 +3279,17 @@ static void gen_nop_hint(DisasContext *s, int val)
          */
     case 1: /* yield */
         if (!(tb_cflags(s->base.tb) & CF_PARALLEL)) {
-            gen_set_pc_im(s, s->pc);
+            gen_set_pc_im(s, s->base.pc_next);
             s->base.is_jmp = DISAS_YIELD;
         }
         break;
     case 3: /* wfi */
-        gen_set_pc_im(s, s->pc);
+        gen_set_pc_im(s, s->base.pc_next);
         s->base.is_jmp = DISAS_WFI;
         break;
     case 2: /* wfe */
         if (!(tb_cflags(s->base.tb) & CF_PARALLEL)) {
-            gen_set_pc_im(s, s->pc);
+            gen_set_pc_im(s, s->base.pc_next);
             s->base.is_jmp = DISAS_WFE;
         }
         break;
@@ -7240,7 +7240,7 @@ static int disas_coproc_insn(DisasContext *s, uint32_t insn)
             if (isread) {
                 return 1;
             }
-            gen_set_pc_im(s, s->pc);
+            gen_set_pc_im(s, s->base.pc_next);
             s->base.is_jmp = DISAS_WFI;
             return 0;
         default:
@@ -7804,7 +7804,7 @@ static void disas_arm_insn(DisasContext *s, unsigned int insn)
                  * self-modifying code correctly and also to take
                  * any pending interrupts immediately.
                  */
-                gen_goto_tb(s, 0, s->pc);
+                gen_goto_tb(s, 0, s->base.pc_next);
                 return;
             case 7: /* sb */
                 if ((insn & 0xf) || !dc_isar_feature(aa32_sb, s)) {
@@ -7815,7 +7815,7 @@ static void disas_arm_insn(DisasContext *s, unsigned int insn)
                  * for TCG; MB and end the TB instead.
                  */
                 tcg_gen_mb(TCG_MO_ALL | TCG_BAR_SC);
-                gen_goto_tb(s, 0, s->pc);
+                gen_goto_tb(s, 0, s->base.pc_next);
                 return;
             default:
                 goto illegal_op;
@@ -7871,7 +7871,7 @@ static void disas_arm_insn(DisasContext *s, unsigned int insn)
             int32_t offset;
 
             tmp = tcg_temp_new_i32();
-            tcg_gen_movi_i32(tmp, s->pc);
+            tcg_gen_movi_i32(tmp, s->base.pc_next);
             store_reg(s, 14, tmp);
             /* Sign-extend the 24-bit offset */
             offset = (((int32_t)insn) << 8) >> 8;
@@ -8056,7 +8056,7 @@ static void disas_arm_insn(DisasContext *s, unsigned int insn)
             /* branch link/exchange thumb (blx) */
             tmp = load_reg(s, rm);
             tmp2 = tcg_temp_new_i32();
-            tcg_gen_movi_i32(tmp2, s->pc);
+            tcg_gen_movi_i32(tmp2, s->base.pc_next);
             store_reg(s, 14, tmp2);
             gen_bx(s, tmp);
             break;
@@ -9222,7 +9222,7 @@ static void disas_arm_insn(DisasContext *s, unsigned int insn)
                 /* branch (and link) */
                 if (insn & (1 << 24)) {
                     tmp = tcg_temp_new_i32();
-                    tcg_gen_movi_i32(tmp, s->pc);
+                    tcg_gen_movi_i32(tmp, s->base.pc_next);
                     store_reg(s, 14, tmp);
                 }
                 offset = sextract32(insn << 2, 0, 26);
@@ -9244,7 +9244,7 @@ static void disas_arm_insn(DisasContext *s, unsigned int insn)
             break;
         case 0xf:
             /* swi */
-            gen_set_pc_im(s, s->pc);
+            gen_set_pc_im(s, s->base.pc_next);
             s->svc_imm = extract32(insn, 0, 24);
             s->base.is_jmp = DISAS_SWI;
             break;
@@ -10326,7 +10326,7 @@ static void disas_thumb2_insn(DisasContext *s, uint32_t insn)
 
                 if (insn & (1 << 14)) {
                     /* Branch and link.  */
-                    tcg_gen_movi_i32(cpu_R[14], s->pc | 1);
+                    tcg_gen_movi_i32(cpu_R[14], s->base.pc_next | 1);
                 }
 
                 offset += read_pc(s);
@@ -10449,7 +10449,7 @@ static void disas_thumb2_insn(DisasContext *s, uint32_t insn)
                              * and also to take any pending interrupts
                              * immediately.
                              */
-                            gen_goto_tb(s, 0, s->pc);
+                            gen_goto_tb(s, 0, s->base.pc_next);
                             break;
                         case 7: /* sb */
                             if ((insn & 0xf) || !dc_isar_feature(aa32_sb, s)) {
@@ -10460,7 +10460,7 @@ static void disas_thumb2_insn(DisasContext *s, uint32_t insn)
                              * for TCG; MB and end the TB instead.
                              */
                             tcg_gen_mb(TCG_MO_ALL | TCG_BAR_SC);
-                            gen_goto_tb(s, 0, s->pc);
+                            gen_goto_tb(s, 0, s->base.pc_next);
                             break;
                         default:
                             goto illegal_op;
@@ -11121,7 +11121,7 @@ static void disas_thumb_insn(DisasContext *s, uint32_t insn)
                 /* BLX/BX */
                 tmp = load_reg(s, rm);
                 if (link) {
-                    val = (uint32_t)s->pc | 1;
+                    val = (uint32_t)s->base.pc_next | 1;
                     tmp2 = tcg_temp_new_i32();
                     tcg_gen_movi_i32(tmp2, val);
                     store_reg(s, 14, tmp2);
@@ -11695,7 +11695,7 @@ static void disas_thumb_insn(DisasContext *s, uint32_t insn)
 
         if (cond == 0xf) {
             /* swi */
-            gen_set_pc_im(s, s->pc);
+            gen_set_pc_im(s, s->base.pc_next);
             s->svc_imm = extract32(insn, 0, 8);
             s->base.is_jmp = DISAS_SWI;
             break;
@@ -11724,7 +11724,7 @@ static void disas_thumb_insn(DisasContext *s, uint32_t insn)
             tcg_gen_andi_i32(tmp, tmp, 0xfffffffc);
 
             tmp2 = tcg_temp_new_i32();
-            tcg_gen_movi_i32(tmp2, s->pc | 1);
+            tcg_gen_movi_i32(tmp2, s->base.pc_next | 1);
             store_reg(s, 14, tmp2);
             gen_bx(s, tmp);
             break;
@@ -11749,7 +11749,7 @@ static void disas_thumb_insn(DisasContext *s, uint32_t insn)
             tcg_gen_addi_i32(tmp, tmp, offset);
 
             tmp2 = tcg_temp_new_i32();
-            tcg_gen_movi_i32(tmp2, s->pc | 1);
+            tcg_gen_movi_i32(tmp2, s->base.pc_next | 1);
             store_reg(s, 14, tmp2);
             gen_bx(s, tmp);
         } else {
@@ -11769,16 +11769,16 @@ undef:
 
 static bool insn_crosses_page(CPUARMState *env, DisasContext *s)
 {
-    /* Return true if the insn at dc->pc might cross a page boundary.
+    /* Return true if the insn at dc->base.pc_next might cross a page boundary.
      * (False positives are OK, false negatives are not.)
      * We know this is a Thumb insn, and our caller ensures we are
-     * only called if dc->pc is less than 4 bytes from the page
+     * only called if dc->base.pc_next is less than 4 bytes from the page
      * boundary, so we cross the page if the first 16 bits indicate
      * that this is a 32 bit insn.
      */
-    uint16_t insn = arm_lduw_code(env, s->pc, s->sctlr_b);
+    uint16_t insn = arm_lduw_code(env, s->base.pc_next, s->sctlr_b);
 
-    return !thumb_insn_is_16bit(s, s->pc, insn);
+    return !thumb_insn_is_16bit(s, s->base.pc_next, insn);
 }
 
 static void arm_tr_init_disas_context(DisasContextBase *dcbase, CPUState *cs)
@@ -11790,7 +11790,6 @@ static void arm_tr_init_disas_context(DisasContextBase *dcbase, CPUState *cs)
     uint32_t condexec, core_mmu_idx;
 
     dc->isar = &cpu->isar;
-    dc->pc = dc->base.pc_first;
     dc->condjmp = 0;
 
     dc->aarch64 = 0;
@@ -11922,7 +11921,7 @@ static void arm_tr_insn_start(DisasContextBase *dcbase, CPUState *cpu)
 {
     DisasContext *dc = container_of(dcbase, DisasContext, base);
 
-    tcg_gen_insn_start(dc->pc,
+    tcg_gen_insn_start(dc->base.pc_next,
                        (dc->condexec_cond << 4) | (dc->condexec_mask >> 1),
                        0);
     dc->insn_start = tcg_last_op();
@@ -11935,7 +11934,7 @@ static bool arm_tr_breakpoint_check(DisasContextBase *dcbase, CPUState *cpu,
 
     if (bp->flags & BP_CPU) {
         gen_set_condexec(dc);
-        gen_set_pc_im(dc, dc->pc);
+        gen_set_pc_im(dc, dc->base.pc_next);
         gen_helper_check_breakpoints(cpu_env);
         /* End the TB early; it's likely not going to be executed */
         dc->base.is_jmp = DISAS_TOO_MANY;
@@ -11948,7 +11947,7 @@ static bool arm_tr_breakpoint_check(DisasContextBase *dcbase, CPUState *cpu,
            tb->size below does the right thing.  */
         /* TODO: Advance PC by correct instruction length to
          * avoid disassembler error messages */
-        dc->pc += 2;
+        dc->base.pc_next += 2;
         dc->base.is_jmp = DISAS_NORETURN;
     }
 
@@ -11959,7 +11958,7 @@ static bool arm_pre_translate_insn(DisasContext *dc)
 {
 #ifdef CONFIG_USER_ONLY
     /* Intercept jump to the magic kernel page.  */
-    if (dc->pc >= 0xffff0000) {
+    if (dc->base.pc_next >= 0xffff0000) {
         /* We always get here via a jump, so know we are not in a
            conditional execution block.  */
         gen_exception_internal(EXCP_KERNEL_TRAP);
@@ -11994,7 +11993,6 @@ static void arm_post_translate_insn(DisasContext *dc)
         gen_set_label(dc->condlabel);
         dc->condjmp = 0;
     }
-    dc->base.pc_next = dc->pc;
     translator_loop_temp_check(&dc->base);
 }
 
@@ -12008,10 +12006,10 @@ static void arm_tr_translate_insn(DisasContextBase *dcbase, CPUState *cpu)
         return;
     }
 
-    dc->pc_curr = dc->pc;
-    insn = arm_ldl_code(env, dc->pc, dc->sctlr_b);
+    dc->pc_curr = dc->base.pc_next;
+    insn = arm_ldl_code(env, dc->base.pc_next, dc->sctlr_b);
     dc->insn = insn;
-    dc->pc += 4;
+    dc->base.pc_next += 4;
     disas_arm_insn(dc, insn);
 
     arm_post_translate_insn(dc);
@@ -12077,15 +12075,15 @@ static void thumb_tr_translate_insn(DisasContextBase *dcbase, CPUState *cpu)
         return;
     }
 
-    dc->pc_curr = dc->pc;
-    insn = arm_lduw_code(env, dc->pc, dc->sctlr_b);
-    is_16bit = thumb_insn_is_16bit(dc, dc->pc, insn);
-    dc->pc += 2;
+    dc->pc_curr = dc->base.pc_next;
+    insn = arm_lduw_code(env, dc->base.pc_next, dc->sctlr_b);
+    is_16bit = thumb_insn_is_16bit(dc, dc->base.pc_next, insn);
+    dc->base.pc_next += 2;
     if (!is_16bit) {
-        uint32_t insn2 = arm_lduw_code(env, dc->pc, dc->sctlr_b);
+        uint32_t insn2 = arm_lduw_code(env, dc->base.pc_next, dc->sctlr_b);
 
         insn = insn << 16 | insn2;
-        dc->pc += 2;
+        dc->base.pc_next += 2;
     }
     dc->insn = insn;
 
@@ -12133,8 +12131,8 @@ static void thumb_tr_translate_insn(DisasContextBase *dcbase, CPUState *cpu)
      * but isn't very efficient).
      */
     if (dc->base.is_jmp == DISAS_NEXT
-        && (dc->pc - dc->page_start >= TARGET_PAGE_SIZE
-            || (dc->pc - dc->page_start >= TARGET_PAGE_SIZE - 3
+        && (dc->base.pc_next - dc->page_start >= TARGET_PAGE_SIZE
+            || (dc->base.pc_next - dc->page_start >= TARGET_PAGE_SIZE - 3
                 && insn_crosses_page(env, dc)))) {
         dc->base.is_jmp = DISAS_TOO_MANY;
     }
@@ -12179,7 +12177,7 @@ static void arm_tr_tb_stop(DisasContextBase *dcbase, CPUState *cpu)
         case DISAS_NEXT:
         case DISAS_TOO_MANY:
         case DISAS_UPDATE:
-            gen_set_pc_im(dc, dc->pc);
+            gen_set_pc_im(dc, dc->base.pc_next);
             /* fall through */
         default:
             /* FIXME: Single stepping a WFI insn will not halt the CPU. */
@@ -12200,13 +12198,13 @@ static void arm_tr_tb_stop(DisasContextBase *dcbase, CPUState *cpu)
         switch(dc->base.is_jmp) {
         case DISAS_NEXT:
         case DISAS_TOO_MANY:
-            gen_goto_tb(dc, 1, dc->pc);
+            gen_goto_tb(dc, 1, dc->base.pc_next);
             break;
         case DISAS_JUMP:
             gen_goto_ptr();
             break;
         case DISAS_UPDATE:
-            gen_set_pc_im(dc, dc->pc);
+            gen_set_pc_im(dc, dc->base.pc_next);
             /* fall through */
         default:
             /* indicate that the hash table must be used to find the next TB */
@@ -12252,15 +12250,12 @@ static void arm_tr_tb_stop(DisasContextBase *dcbase, CPUState *cpu)
         gen_set_label(dc->condlabel);
         gen_set_condexec(dc);
         if (unlikely(is_singlestepping(dc))) {
-            gen_set_pc_im(dc, dc->pc);
+            gen_set_pc_im(dc, dc->base.pc_next);
             gen_singlestep_exception(dc);
         } else {
-            gen_goto_tb(dc, 1, dc->pc);
+            gen_goto_tb(dc, 1, dc->base.pc_next);
         }
     }
-
-    /* Functions above can change dc->pc, so re-align db->pc_next */
-    dc->base.pc_next = dc->pc;
 }
 
 static void arm_tr_disas_log(const DisasContextBase *dcbase, CPUState *cpu)
