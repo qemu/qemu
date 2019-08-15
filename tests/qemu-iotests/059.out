@@ -2049,10 +2049,14 @@ wrote 512/512 bytes at offset 10240
 512 bytes, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
 
 === Testing monolithicFlat with internally generated JSON file name ===
+--- blkdebug ---
 Formatting 'TEST_DIR/t.IMGFMT', fmt=IMGFMT size=67108864
 format name: IMGFMT
 cluster size: 0 bytes
 vm state offset: 0 bytes
+--- quorum ---
+Formatting 'TEST_DIR/t.IMGFMT', fmt=IMGFMT size=67108864
+qemu-img: Could not open $QUORUM_FILE: Cannot use relative paths with VMDK descriptor file $QUORUM_FILE: Cannot generate a base directory for quorum nodes
 
 === Testing version 3 ===
 image: TEST_DIR/iotest-version3.IMGFMT
