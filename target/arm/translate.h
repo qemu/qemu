@@ -2,6 +2,7 @@
 #define TARGET_ARM_TRANSLATE_H
 
 #include "exec/translator.h"
+#include "internals.h"
 
 
 /* internal defines */
@@ -230,6 +231,28 @@ static inline void gen_ss_advance(DisasContext *s)
         s->pstate_ss = 0;
         clear_pstate_bits(PSTATE_SS);
     }
+}
+
+static inline void gen_exception(int excp, uint32_t syndrome,
+                                 uint32_t target_el)
+{
+    TCGv_i32 tcg_excp = tcg_const_i32(excp);
+    TCGv_i32 tcg_syn = tcg_const_i32(syndrome);
+    TCGv_i32 tcg_el = tcg_const_i32(target_el);
+
+    gen_helper_exception_with_syndrome(cpu_env, tcg_excp,
+                                       tcg_syn, tcg_el);
+
+    tcg_temp_free_i32(tcg_el);
+    tcg_temp_free_i32(tcg_syn);
+    tcg_temp_free_i32(tcg_excp);
+}
+
+/* Generate an architectural singlestep exception */
+static inline void gen_swstep_exception(DisasContext *s, int isv, int ex)
+{
+    gen_exception(EXCP_UDEF, syn_swstep(s->ss_same_el, isv, ex),
+                  default_exception_el(s));
 }
 
 /*
