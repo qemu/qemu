@@ -1173,7 +1173,7 @@ int main(int argc, char **argv)
     }
 
     export = nbd_export_new(bs, dev_offset, fd_size, export_name,
-                            export_description, bitmap, nbdflags,
+                            export_description, bitmap, nbdflags, shared > 1,
                             nbd_export_closed, writethrough, NULL,
                             &error_fatal);
 
