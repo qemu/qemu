@@ -25,7 +25,7 @@ void unallocated_encoding(DisasContext *s);
         qemu_log_mask(LOG_UNIMP,                                         \
                       "%s:%d: unsupported instruction encoding 0x%08x "  \
                       "at pc=%016" PRIx64 "\n",                          \
-                      __FILE__, __LINE__, insn, s->pc - 4);              \
+                      __FILE__, __LINE__, insn, s->pc_curr);             \
         unallocated_encoding(s);                                         \
     } while (0)
 

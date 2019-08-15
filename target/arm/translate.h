@@ -11,6 +11,8 @@ typedef struct DisasContext {
     const ARMISARegisters *isar;
 
     target_ulong pc;
+    /* The address of the current instruction being translated. */
+    target_ulong pc_curr;
     target_ulong page_start;
     uint32_t insn;
     /* Nonzero if this instruction has been conditionally skipped.  */
