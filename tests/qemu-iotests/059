@@ -114,9 +114,12 @@ $QEMU_IMG convert -f qcow2 -O vmdk -o subformat=streamOptimized "$TEST_IMG.qcow2
 
 echo
 echo "=== Testing monolithicFlat with internally generated JSON file name ==="
+# Should work, because bdrv_dirname() works fine with blkdebug
 IMGOPTS="subformat=monolithicFlat" _make_test_img 64M
-$QEMU_IO -c "open -o driver=$IMGFMT,file.driver=blkdebug,file.image.filename=$TEST_IMG,file.inject-error.0.event=read_aio" 2>&1 \
-    | _filter_testdir | _filter_imgfmt
+$QEMU_IO -c "open -o driver=$IMGFMT,file.driver=blkdebug,file.image.filename=$TEST_IMG,file.inject-error.0.event=read_aio" \
+         -c info \
+    2>&1 \
+    | _filter_testdir | _filter_imgfmt | _filter_img_info
 _cleanup_test_img
 
 echo

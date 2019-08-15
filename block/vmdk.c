@@ -1076,8 +1076,7 @@ static const char *next_line(const char *s)
 }
 
 static int vmdk_parse_extents(const char *desc, BlockDriverState *bs,
-                              const char *desc_file_path, QDict *options,
-                              Error **errp)
+                              QDict *options, Error **errp)
 {
     int ret;
     int matches;
@@ -1087,6 +1086,7 @@ static int vmdk_parse_extents(const char *desc, BlockDriverState *bs,
     const char *p, *np;
     int64_t sectors = 0;
     int64_t flat_offset;
+    char *desc_file_dir = NULL;
     char *extent_path;
     BdrvChild *extent_file;
     BDRVVmdkState *s = bs->opaque;
@@ -1130,16 +1130,23 @@ static int vmdk_parse_extents(const char *desc, BlockDriverState *bs,
             continue;
         }
 
-        if (!path_is_absolute(fname) && !path_has_protocol(fname) &&
-            !desc_file_path[0])
-        {
-            bdrv_refresh_filename(bs->file->bs);
-            error_setg(errp, "Cannot use relative extent paths with VMDK "
-                       "descriptor file '%s'", bs->file->bs->filename);
-            return -EINVAL;
-        }
+        if (path_is_absolute(fname)) {
+            extent_path = g_strdup(fname);
+        } else {
+            if (!desc_file_dir) {
+                desc_file_dir = bdrv_dirname(bs->file->bs, errp);
+                if (!desc_file_dir) {
+                    bdrv_refresh_filename(bs->file->bs);
+                    error_prepend(errp, "Cannot use relative paths with VMDK "
+                                  "descriptor file '%s': ",
+                                  bs->file->bs->filename);
+                    ret = -EINVAL;
+                    goto out;
+                }
+            }
 
-        extent_path = path_combine(desc_file_path, fname);
+            extent_path = g_strconcat(desc_file_dir, fname, NULL);
+        }
 
         ret = snprintf(extent_opt_prefix, 32, "extents.%d", s->num_extents);
         assert(ret < 32);
@@ -1149,7 +1156,8 @@ static int vmdk_parse_extents(const char *desc, BlockDriverState *bs,
         g_free(extent_path);
         if (local_err) {
             error_propagate(errp, local_err);
-            return -EINVAL;
+            ret = -EINVAL;
+            goto out;
         }
 
         /* save to extents array */
@@ -1160,7 +1168,7 @@ static int vmdk_parse_extents(const char *desc, BlockDriverState *bs,
                             0, 0, 0, 0, 0, &extent, errp);
             if (ret < 0) {
                 bdrv_unref_child(bs, extent_file);
-                return ret;
+                goto out;
             }
             extent->flat_start_offset = flat_offset << 9;
         } else if (!strcmp(type, "SPARSE") || !strcmp(type, "VMFSSPARSE")) {
@@ -1175,24 +1183,27 @@ static int vmdk_parse_extents(const char *desc, BlockDriverState *bs,
             g_free(buf);
             if (ret) {
                 bdrv_unref_child(bs, extent_file);
-                return ret;
+                goto out;
             }
             extent = &s->extents[s->num_extents - 1];
         } else if (!strcmp(type, "SESPARSE")) {
             ret = vmdk_open_se_sparse(bs, extent_file, bs->open_flags, errp);
             if (ret) {
                 bdrv_unref_child(bs, extent_file);
-                return ret;
+                goto out;
             }
             extent = &s->extents[s->num_extents - 1];
         } else {
             error_setg(errp, "Unsupported extent type '%s'", type);
             bdrv_unref_child(bs, extent_file);
-            return -ENOTSUP;
+            ret = -ENOTSUP;
+            goto out;
         }
         extent->type = g_strdup(type);
     }
-    return 0;
+
+    ret = 0;
+    goto out;
 
 invalid:
     np = next_line(p);
@@ -1201,7 +1212,11 @@ invalid:
         np--;
     }
     error_setg(errp, "Invalid extent line: %.*s", (int)(np - p), p);
-    return -EINVAL;
+    ret = -EINVAL;
+
+out:
+    g_free(desc_file_dir);
+    return ret;
 }
 
 static int vmdk_open_desc_file(BlockDriverState *bs, int flags, char *buf,
@@ -1228,8 +1243,7 @@ static int vmdk_open_desc_file(BlockDriverState *bs, int flags, char *buf,
     }
     s->create_type = g_strdup(ct);
     s->desc_offset = 0;
-    ret = vmdk_parse_extents(buf, bs, bs->file->bs->exact_filename, options,
-                             errp);
+    ret = vmdk_parse_extents(buf, bs, options, errp);
 exit:
     return ret;
 }
