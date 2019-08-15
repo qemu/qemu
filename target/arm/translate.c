@@ -9246,11 +9246,11 @@ static void disas_arm_insn(DisasContext *s, unsigned int insn)
     }
 }
 
-static bool thumb_insn_is_16bit(DisasContext *s, uint32_t insn)
+static bool thumb_insn_is_16bit(DisasContext *s, uint32_t pc, uint32_t insn)
 {
-    /* Return true if this is a 16 bit instruction. We must be precise
-     * about this (matching the decode).  We assume that s->pc still
-     * points to the first 16 bits of the insn.
+    /*
+     * Return true if this is a 16 bit instruction. We must be precise
+     * about this (matching the decode).
      */
     if ((insn >> 11) < 0x1d) {
         /* Definitely a 16-bit instruction */
@@ -9270,7 +9270,7 @@ static bool thumb_insn_is_16bit(DisasContext *s, uint32_t insn)
         return false;
     }
 
-    if ((insn >> 11) == 0x1e && s->pc - s->page_start < TARGET_PAGE_SIZE - 3) {
+    if ((insn >> 11) == 0x1e && pc - s->page_start < TARGET_PAGE_SIZE - 3) {
         /* 0b1111_0xxx_xxxx_xxxx : BL/BLX prefix, and the suffix
          * is not on the next page; we merge this into a 32-bit
          * insn.
@@ -11809,7 +11809,7 @@ static bool insn_crosses_page(CPUARMState *env, DisasContext *s)
      */
     uint16_t insn = arm_lduw_code(env, s->pc, s->sctlr_b);
 
-    return !thumb_insn_is_16bit(s, insn);
+    return !thumb_insn_is_16bit(s, s->pc, insn);
 }
 
 static void arm_tr_init_disas_context(DisasContextBase *dcbase, CPUState *cs)
@@ -12108,7 +12108,7 @@ static void thumb_tr_translate_insn(DisasContextBase *dcbase, CPUState *cpu)
     }
 
     insn = arm_lduw_code(env, dc->pc, dc->sctlr_b);
-    is_16bit = thumb_insn_is_16bit(dc, insn);
+    is_16bit = thumb_insn_is_16bit(dc, dc->pc, insn);
     dc->pc += 2;
     if (!is_16bit) {
         uint32_t insn2 = arm_lduw_code(env, dc->pc, dc->sctlr_b);
