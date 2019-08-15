@@ -1734,6 +1734,16 @@ static int vmdk_write_extent(VmdkExtent *extent, int64_t cluster_offset,
     if (extent->compressed) {
         void *compressed_data;
 
+        /* Only whole clusters */
+        if (offset_in_cluster ||
+            n_bytes > (extent->cluster_sectors * SECTOR_SIZE) ||
+            (n_bytes < (extent->cluster_sectors * SECTOR_SIZE) &&
+             offset + n_bytes != extent->end_sector * SECTOR_SIZE))
+        {
+            ret = -EINVAL;
+            goto out;
+        }
+
         if (!extent->has_marker) {
             ret = -EINVAL;
             goto out;
