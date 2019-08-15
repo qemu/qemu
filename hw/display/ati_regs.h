@@ -34,6 +34,7 @@
 #define BUS_CNTL                                0x0030
 #define BUS_CNTL1                               0x0034
 #define GEN_INT_CNTL                            0x0040
+#define GEN_INT_STATUS                          0x0044
 #define CRTC_GEN_CNTL                           0x0050
 #define CRTC_EXT_CNTL                           0x0054
 #define DAC_CNTL                                0x0058
@@ -315,6 +316,11 @@
 #define XCLK_SRC_SEL_MASK                       0x00000007
 #define XPLL_FB_DIV_MASK                        0x0000FF00
 #define X_MPLL_REF_DIV_MASK                     0x000000FF
+
+/* GEN_INT_CNTL) */
+#define CRTC_VBLANK_INT                         0x00000001
+#define CRTC_VLINE_INT                          0x00000002
+#define CRTC_VSYNC_INT                          0x00000004
 
 /* Config control values (CONFIG_CNTL) */
 #define APER_0_ENDIAN                           0x00000003

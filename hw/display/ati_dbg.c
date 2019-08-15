@@ -16,6 +16,7 @@ static struct ati_regdesc ati_reg_names[] = {
     {"BUS_CNTL", 0x0030},
     {"BUS_CNTL1", 0x0034},
     {"GEN_INT_CNTL", 0x0040},
+    {"GEN_INT_STATUS", 0x0044},
     {"CRTC_GEN_CNTL", 0x0050},
     {"CRTC_EXT_CNTL", 0x0054},
     {"DAC_CNTL", 0x0058},

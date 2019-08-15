@@ -243,6 +243,21 @@ static uint64_t ati_i2c(bitbang_i2c_interface *i2c, uint64_t data, int base)
     return data;
 }
 
+static void ati_vga_update_irq(ATIVGAState *s)
+{
+    pci_set_irq(&s->dev, !!(s->regs.gen_int_status & s->regs.gen_int_cntl));
+}
+
+static void ati_vga_vblank_irq(void *opaque)
+{
+    ATIVGAState *s = opaque;
+
+    timer_mod(&s->vblank_timer, qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL) +
+              NANOSECONDS_PER_SECOND / 60);
+    s->regs.gen_int_status |= CRTC_VBLANK_INT;
+    ati_vga_update_irq(s);
+}
+
 static inline uint64_t ati_reg_read_offs(uint32_t reg, int offs,
                                          unsigned int size)
 {
@@ -283,6 +298,12 @@ static uint64_t ati_mm_read(void *opaque, hwaddr addr, unsigned int size)
                                 addr - (BIOS_0_SCRATCH + i * 4), size);
         break;
     }
+    case GEN_INT_CNTL:
+        val = s->regs.gen_int_cntl;
+        break;
+    case GEN_INT_STATUS:
+        val = s->regs.gen_int_status;
+        break;
     case CRTC_GEN_CNTL ... CRTC_GEN_CNTL + 3:
         val = ati_reg_read_offs(s->regs.crtc_gen_cntl,
                                 addr - CRTC_GEN_CNTL, size);
@@ -512,6 +533,21 @@ static void ati_mm_write(void *opaque, hwaddr addr,
                            addr - (BIOS_0_SCRATCH + i * 4), data, size);
         break;
     }
+    case GEN_INT_CNTL:
+        s->regs.gen_int_cntl = data;
+        if (data & CRTC_VBLANK_INT) {
+            ati_vga_vblank_irq(s);
+        } else {
+            timer_del(&s->vblank_timer);
+            ati_vga_update_irq(s);
+        }
+        break;
+    case GEN_INT_STATUS:
+        data &= (s->dev_id == PCI_DEVICE_ID_ATI_RAGE128_PF ?
+                 0x000f040fUL : 0xfc080effUL);
+        s->regs.gen_int_status &= ~data;
+        ati_vga_update_irq(s);
+        break;
     case CRTC_GEN_CNTL ... CRTC_GEN_CNTL + 3:
     {
         uint32_t val = s->regs.crtc_gen_cntl;
@@ -902,11 +938,18 @@ static void ati_vga_realize(PCIDevice *dev, Error **errp)
     pci_register_bar(dev, 0, PCI_BASE_ADDRESS_MEM_PREFETCH, &vga->vram);
     pci_register_bar(dev, 1, PCI_BASE_ADDRESS_SPACE_IO, &s->io);
     pci_register_bar(dev, 2, PCI_BASE_ADDRESS_SPACE_MEMORY, &s->mm);
+
+    /* most interrupts are not yet emulated but MacOS needs at least VBlank */
+    dev->config[PCI_INTERRUPT_PIN] = 1;
+    timer_init_ns(&s->vblank_timer, QEMU_CLOCK_VIRTUAL, ati_vga_vblank_irq, s);
 }
 
 static void ati_vga_reset(DeviceState *dev)
 {
     ATIVGAState *s = ATI_VGA(dev);
+
+    timer_del(&s->vblank_timer);
+    ati_vga_update_irq(s);
 
     /* reset vga */
     vga_common_reset(&s->vga);
@@ -917,6 +960,7 @@ static void ati_vga_exit(PCIDevice *dev)
 {
     ATIVGAState *s = ATI_VGA(dev);
 
+    timer_del(&s->vblank_timer);
     graphic_console_close(s->vga.con);
 }
 
