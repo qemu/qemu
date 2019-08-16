@@ -828,7 +828,11 @@ static void read_cache_sizes(BlockDriverState *bs, QemuOpts *opts,
     bool l2_cache_entry_size_set;
     int min_refcount_cache = MIN_REFCOUNT_CACHE_SIZE * s->cluster_size;
     uint64_t virtual_disk_size = bs->total_sectors * BDRV_SECTOR_SIZE;
-    uint64_t max_l2_cache = virtual_disk_size / (s->cluster_size / 8);
+    uint64_t max_l2_entries = DIV_ROUND_UP(virtual_disk_size, s->cluster_size);
+    /* An L2 table is always one cluster in size so the max cache size
+     * should be a multiple of the cluster size. */
+    uint64_t max_l2_cache = ROUND_UP(max_l2_entries * sizeof(uint64_t),
+                                     s->cluster_size);
 
     combined_cache_size_set = qemu_opt_get(opts, QCOW2_OPT_CACHE_SIZE);
     l2_cache_size_set = qemu_opt_get(opts, QCOW2_OPT_L2_CACHE_SIZE);
