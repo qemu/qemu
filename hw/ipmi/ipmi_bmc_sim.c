@@ -1228,6 +1228,8 @@ static void get_watchdog_timer(IPMIBmcSim *ibs,
     rsp_buffer_push(rsp, ibs->watchdog_action);
     rsp_buffer_push(rsp, ibs->watchdog_pretimeout);
     rsp_buffer_push(rsp, ibs->watchdog_expired);
+    rsp_buffer_push(rsp, ibs->watchdog_timeout & 0xff);
+    rsp_buffer_push(rsp, (ibs->watchdog_timeout >> 8) & 0xff);
     if (ibs->watchdog_running) {
         long timeout;
         timeout = ((ibs->watchdog_expiry - ipmi_getmonotime() + 50000000)
