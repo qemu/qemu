@@ -13,7 +13,7 @@
 
 #include "qemu/osdep.h"
 #include "qapi/error.h"
-#include "hw/hw.h"
+#include "sysemu/runstate.h"
 #include "hw/arm/pxa.h"
 #include "hw/arm/boot.h"
 #include "hw/arm/sharpsl.h"
@@ -21,10 +21,10 @@
 #include "hw/boards.h"
 #include "hw/display/tc6393xb.h"
 #include "hw/i2c/i2c.h"
+#include "hw/irq.h"
 #include "hw/ssi/ssi.h"
 #include "hw/sysbus.h"
 #include "exec/address-spaces.h"
-#include "sysemu/sysemu.h"
 
 #define TOSA_RAM    0x04000000
 #define TOSA_ROM	0x00800000

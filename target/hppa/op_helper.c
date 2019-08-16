@@ -22,8 +22,8 @@
 #include "exec/exec-all.h"
 #include "exec/helper-proto.h"
 #include "exec/cpu_ldst.h"
-#include "sysemu/sysemu.h"
 #include "qemu/timer.h"
+#include "sysemu/runstate.h"
 #include "fpu/softfloat.h"
 #include "trace.h"
 

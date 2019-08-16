@@ -25,7 +25,6 @@
 #include "qemu/osdep.h"
 #include "qemu/option.h"
 #include "cpu.h"
-#include "hw/hw.h"
 #include "hw/nvram/fw_cfg.h"
 #include "multiboot.h"
 #include "hw/loader.h"

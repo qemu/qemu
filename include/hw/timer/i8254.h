@@ -25,8 +25,7 @@
 #ifndef HW_I8254_H
 #define HW_I8254_H
 
-#include "hw/hw.h"
-#include "hw/qdev.h"
+#include "hw/qdev-properties.h"
 #include "hw/isa/isa.h"
 
 #define PIT_FREQ 1193182

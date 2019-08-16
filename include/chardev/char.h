@@ -2,8 +2,8 @@
 #define QEMU_CHAR_H
 
 #include "qapi/qapi-types-char.h"
-#include "qemu/main-loop.h"
 #include "qemu/bitmap.h"
+#include "qemu/thread.h"
 #include "qom/object.h"
 
 #define IAC_EOR 239

@@ -13,7 +13,6 @@
 #include "qapi/error.h"
 #include "sysemu/replay.h"
 #include "replay-internal.h"
-#include "sysemu/sysemu.h"
 #include "monitor/monitor.h"
 #include "qapi/qmp/qstring.h"
 #include "qemu/error-report.h"

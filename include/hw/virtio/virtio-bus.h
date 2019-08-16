@@ -25,8 +25,7 @@
 #ifndef VIRTIO_BUS_H
 #define VIRTIO_BUS_H
 
-#include "hw/qdev.h"
-#include "sysemu/sysemu.h"
+#include "hw/qdev-core.h"
 #include "hw/virtio/virtio.h"
 
 #define TYPE_VIRTIO_BUS "virtio-bus"

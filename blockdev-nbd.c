@@ -15,7 +15,6 @@
 #include "hw/block/block.h"
 #include "qapi/error.h"
 #include "qapi/qapi-commands-block.h"
-#include "sysemu/sysemu.h"
 #include "block/nbd.h"
 #include "io/channel-socket.h"
 #include "io/net-listener.h"

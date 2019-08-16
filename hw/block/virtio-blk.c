@@ -18,7 +18,10 @@
 #include "qemu/error-report.h"
 #include "trace.h"
 #include "hw/block/block.h"
+#include "hw/qdev-properties.h"
 #include "sysemu/blockdev.h"
+#include "sysemu/sysemu.h"
+#include "sysemu/runstate.h"
 #include "hw/virtio/virtio-blk.h"
 #include "dataplane/virtio-blk.h"
 #include "scsi/constants.h"
@@ -26,6 +29,7 @@
 # include <scsi/sg.h>
 #endif
 #include "hw/virtio/virtio-bus.h"
+#include "migration/qemu-file-types.h"
 #include "hw/virtio/virtio-access.h"
 
 /* Config size before the discard support (hide associated config fields) */

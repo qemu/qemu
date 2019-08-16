@@ -22,6 +22,8 @@
 #include "chardev/char.h"
 #include "chardev/char-fe.h"
 #include "target/riscv/cpu.h"
+#include "hw/hw.h"
+#include "hw/irq.h"
 #include "hw/riscv/sifive_uart.h"
 
 /*

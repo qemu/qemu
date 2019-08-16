@@ -25,8 +25,10 @@
 #include "qemu/osdep.h"
 #include "qapi/error.h"
 #include "cpu.h" /* FIXME: why does this use TARGET_PAGE_ALIGN? */
-#include "hw/hw.h"
+#include "hw/irq.h"
+#include "hw/qdev-properties.h"
 #include "hw/sysbus.h"
+#include "migration/vmstate.h"
 #include "trace.h"
 #include "net/net.h"
 #include "qemu/log.h"

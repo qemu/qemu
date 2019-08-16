@@ -16,7 +16,6 @@
 #define VHOST_USER_BLK_H
 
 #include "standard-headers/linux/virtio_blk.h"
-#include "hw/qdev.h"
 #include "hw/block/block.h"
 #include "chardev/char-fe.h"
 #include "hw/virtio/vhost.h"

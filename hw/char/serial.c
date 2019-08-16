@@ -25,9 +25,13 @@
 
 #include "qemu/osdep.h"
 #include "hw/char/serial.h"
+#include "hw/irq.h"
+#include "migration/vmstate.h"
 #include "chardev/char-serial.h"
 #include "qapi/error.h"
 #include "qemu/timer.h"
+#include "sysemu/reset.h"
+#include "sysemu/runstate.h"
 #include "qemu/error-report.h"
 #include "trace.h"
 

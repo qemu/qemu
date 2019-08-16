@@ -39,12 +39,14 @@
 
 #include "qemu/osdep.h"
 #include "qemu/error-report.h"
-#include "hw/hw.h"
 #include "hw/pci/pci.h"
 #include "hw/i386/pc.h"
+#include "hw/irq.h"
 #include "hw/mips/mips.h"
 #include "hw/pci/pci_host.h"
-#include "sysemu/sysemu.h"
+#include "migration/vmstate.h"
+#include "sysemu/reset.h"
+#include "sysemu/runstate.h"
 #include "exec/address-spaces.h"
 
 //#define DEBUG_BONITO

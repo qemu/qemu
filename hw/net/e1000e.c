@@ -40,8 +40,11 @@
 #include "qemu/module.h"
 #include "qemu/range.h"
 #include "sysemu/sysemu.h"
+#include "hw/hw.h"
 #include "hw/pci/msi.h"
 #include "hw/pci/msix.h"
+#include "hw/qdev-properties.h"
+#include "migration/vmstate.h"
 
 #include "e1000_regs.h"
 

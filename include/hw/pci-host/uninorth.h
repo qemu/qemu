@@ -25,8 +25,7 @@
 #ifndef UNINORTH_H
 #define UNINORTH_H
 
-#include "hw/hw.h"
-
+#include "hw/pci/pci_host.h"
 #include "hw/ppc/openpic.h"
 
 /* UniNorth version */

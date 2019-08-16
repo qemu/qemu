@@ -18,6 +18,8 @@
 #ifndef CHRP_NVRAM_H
 #define CHRP_NVRAM_H
 
+#include "qemu/bswap.h"
+
 /* OpenBIOS NVRAM partition */
 typedef struct {
     uint8_t signature;

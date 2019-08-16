@@ -30,9 +30,6 @@ def c_macro_to_format(macro):
     if macro.startswith("PRI"):
         return macro[3]
 
-    if macro == "TARGET_FMT_plx":
-        return "%016x"
-
     raise Exception("Unhandled macro '%s'" % macro)
 
 def c_fmt_to_stap(fmt):

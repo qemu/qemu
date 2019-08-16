@@ -12,7 +12,7 @@
  */
 
 #include "qemu/osdep.h"
-#include "hw/hw.h"
+#include "migration/vmstate.h"
 #include "hw/block/flash.h"
 
 /*

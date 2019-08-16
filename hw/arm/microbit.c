@@ -17,6 +17,7 @@
 
 #include "hw/arm/nrf51_soc.h"
 #include "hw/i2c/microbit_i2c.h"
+#include "hw/qdev-properties.h"
 
 typedef struct {
     MachineState parent;

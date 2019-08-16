@@ -11,7 +11,6 @@
 
 #include "qemu/osdep.h"
 #include "qemu/units.h"
-#include "hw/boards.h"
 #include "cpu.h"
 #include "migration/qemu-file.h"
 #include "migration/register.h"

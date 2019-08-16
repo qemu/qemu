@@ -27,7 +27,10 @@
 #include "qemu/main-loop.h"
 #include "qemu/module.h"
 #include "qemu/log.h"
+#include "hw/irq.h"
+#include "hw/qdev-properties.h"
 #include "hw/timer/mss-timer.h"
+#include "migration/vmstate.h"
 
 #ifndef MSS_TIMER_ERR_DEBUG
 #define MSS_TIMER_ERR_DEBUG  0

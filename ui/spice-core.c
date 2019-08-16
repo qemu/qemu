@@ -19,9 +19,10 @@
 #include <spice.h>
 
 #include "sysemu/sysemu.h"
-
+#include "sysemu/runstate.h"
 #include "ui/qemu-spice.h"
 #include "qemu/error-report.h"
+#include "qemu/main-loop.h"
 #include "qemu/module.h"
 #include "qemu/thread.h"
 #include "qemu/timer.h"
@@ -34,7 +35,6 @@
 #include "qemu/notify.h"
 #include "qemu/option.h"
 #include "migration/misc.h"
-#include "hw/hw.h"
 #include "hw/pci/pci_bus.h"
 #include "ui/spice-display.h"
 

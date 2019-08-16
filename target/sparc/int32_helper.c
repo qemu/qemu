@@ -20,8 +20,8 @@
 #include "qemu/osdep.h"
 #include "cpu.h"
 #include "trace.h"
-#include "sysemu/sysemu.h"
 #include "exec/log.h"
+#include "sysemu/runstate.h"
 
 #define DEBUG_PCALL
 

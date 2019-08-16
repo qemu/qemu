@@ -23,6 +23,7 @@
 #ifndef HW_SMBUS_EEPROM_H
 #define HW_SMBUS_EEPROM_H
 
+#include "exec/cpu-common.h"
 #include "hw/i2c/i2c.h"
 
 void smbus_eeprom_init_one(I2CBus *bus, uint8_t address, uint8_t *eeprom_buf);

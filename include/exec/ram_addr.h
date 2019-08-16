@@ -20,6 +20,7 @@
 #define RAM_ADDR_H
 
 #ifndef CONFIG_USER_ONLY
+#include "cpu.h"
 #include "hw/xen/xen.h"
 #include "sysemu/tcg.h"
 #include "exec/ramlist.h"

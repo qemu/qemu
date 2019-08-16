@@ -1,7 +1,6 @@
 #ifndef QEMU_ARCH_INIT_H
 #define QEMU_ARCH_INIT_H
 
-#include "qapi/qapi-types-misc.h"
 
 enum {
     QEMU_ARCH_ALL = -1,

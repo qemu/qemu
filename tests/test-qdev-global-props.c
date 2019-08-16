@@ -24,7 +24,7 @@
 
 #include "qemu/osdep.h"
 
-#include "hw/qdev.h"
+#include "hw/qdev-properties.h"
 #include "qom/object.h"
 #include "qapi/visitor.h"
 

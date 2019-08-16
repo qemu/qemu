@@ -15,6 +15,7 @@
 #include "fsdev/qemu-fsdev.h"
 #include "qemu/thread.h"
 #include "qemu/coroutine.h"
+#include "qemu/main-loop.h"
 #include "coth.h"
 
 static ssize_t __readlink(V9fsState *s, V9fsPath *path, V9fsString *buf)

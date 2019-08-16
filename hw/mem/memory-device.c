@@ -11,7 +11,6 @@
 
 #include "qemu/osdep.h"
 #include "hw/mem/memory-device.h"
-#include "hw/qdev.h"
 #include "qapi/error.h"
 #include "hw/boards.h"
 #include "qemu/range.h"

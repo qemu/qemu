@@ -27,7 +27,8 @@
 #ifndef HW_DISPLAY_MILKYMIST_TMU2_H
 #define HW_DISPLAY_MILKYMIST_TMU2_H
 
-#include "hw/qdev.h"
+#include "exec/hwaddr.h"
+#include "hw/qdev-core.h"
 
 #if defined(CONFIG_X11) && defined(CONFIG_OPENGL)
 DeviceState *milkymist_tmu2_create(hwaddr base, qemu_irq irq);

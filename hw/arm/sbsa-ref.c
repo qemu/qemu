@@ -24,6 +24,7 @@
 #include "qemu/units.h"
 #include "sysemu/device_tree.h"
 #include "sysemu/numa.h"
+#include "sysemu/runstate.h"
 #include "sysemu/sysemu.h"
 #include "exec/address-spaces.h"
 #include "exec/hwaddr.h"
@@ -36,6 +37,7 @@
 #include "hw/intc/arm_gicv3_common.h"
 #include "hw/loader.h"
 #include "hw/pci-host/gpex.h"
+#include "hw/qdev-properties.h"
 #include "hw/usb.h"
 #include "net/net.h"
 

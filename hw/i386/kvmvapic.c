@@ -16,9 +16,11 @@
 #include "sysemu/cpus.h"
 #include "sysemu/hw_accel.h"
 #include "sysemu/kvm.h"
+#include "sysemu/runstate.h"
 #include "hw/i386/apic_internal.h"
 #include "hw/sysbus.h"
 #include "hw/boards.h"
+#include "migration/vmstate.h"
 #include "tcg/tcg.h"
 
 #define VAPIC_IO_PORT           0x7e

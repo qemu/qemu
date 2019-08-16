@@ -21,10 +21,13 @@
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
  * THE SOFTWARE.
  */
+
 #include "qemu/osdep.h"
 #include "hw/hw.h"
+#include "hw/irq.h"
+#include "qemu/main-loop.h"
+#include "sysemu/runstate.h"
 #include "exec/address-spaces.h"
-#include "sysemu/sysemu.h"
 
 #include "hw/cris/etraxfs_dma.h"
 

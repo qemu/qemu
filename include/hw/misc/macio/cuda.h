@@ -26,6 +26,8 @@
 #ifndef CUDA_H
 #define CUDA_H
 
+#include "hw/misc/mos6522.h"
+
 /* CUDA commands (2nd byte) */
 #define CUDA_WARM_START                0x0
 #define CUDA_AUTOPOLL                  0x1

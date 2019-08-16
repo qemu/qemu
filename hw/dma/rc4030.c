@@ -24,9 +24,10 @@
 
 #include "qemu/osdep.h"
 #include "qemu/units.h"
-#include "hw/hw.h"
+#include "hw/irq.h"
 #include "hw/mips/mips.h"
 #include "hw/sysbus.h"
+#include "migration/vmstate.h"
 #include "qemu/timer.h"
 #include "qemu/log.h"
 #include "qemu/module.h"

@@ -9,8 +9,8 @@
 #ifndef HW_SPAPR_CPU_CORE_H
 #define HW_SPAPR_CPU_CORE_H
 
-#include "hw/qdev.h"
 #include "hw/cpu/core.h"
+#include "hw/qdev-core.h"
 #include "target/ppc/cpu-qom.h"
 #include "target/ppc/cpu.h"
 

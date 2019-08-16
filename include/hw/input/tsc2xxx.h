@@ -11,7 +11,6 @@
 #ifndef HW_INPUT_TSC2XXX_H
 #define HW_INPUT_TSC2XXX_H
 
-#include "hw/irq.h"
 #include "ui/console.h"
 
 typedef struct uWireSlave {

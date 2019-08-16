@@ -1,7 +1,6 @@
 #ifndef HW_PARALLEL_H
 #define HW_PARALLEL_H
 
-#include "exec/memory.h"
 #include "hw/isa/isa.h"
 #include "chardev/char.h"
 

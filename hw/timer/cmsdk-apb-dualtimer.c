@@ -23,8 +23,11 @@
 #include "qemu/main-loop.h"
 #include "qemu/module.h"
 #include "hw/sysbus.h"
+#include "hw/irq.h"
+#include "hw/qdev-properties.h"
 #include "hw/registerfields.h"
 #include "hw/timer/cmsdk-apb-dualtimer.h"
+#include "migration/vmstate.h"
 
 REG32(TIMER1LOAD, 0x0)
 REG32(TIMER1VALUE, 0x4)

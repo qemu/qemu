@@ -14,11 +14,11 @@
 #ifndef QEMU_MIGRATION_H
 #define QEMU_MIGRATION_H
 
+#include "exec/cpu-common.h"
+#include "hw/qdev-core.h"
 #include "qapi/qapi-types-migration.h"
 #include "qemu/thread.h"
-#include "exec/cpu-common.h"
 #include "qemu/coroutine_int.h"
-#include "hw/qdev.h"
 #include "io/channel.h"
 #include "net/announce.h"
 

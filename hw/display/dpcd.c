@@ -30,6 +30,7 @@
 #include "qemu/log.h"
 #include "qemu/module.h"
 #include "hw/misc/auxbus.h"
+#include "migration/vmstate.h"
 #include "hw/display/dpcd.h"
 
 #ifndef DEBUG_DPCD

@@ -19,10 +19,12 @@
  *
  * Cache implementation inspired by hw/i386/intel_iommu.c
  */
+
 #include "qemu/osdep.h"
 #include "hw/i386/pc.h"
 #include "hw/pci/msi.h"
 #include "hw/pci/pci_bus.h"
+#include "migration/vmstate.h"
 #include "amd_iommu.h"
 #include "qapi/error.h"
 #include "qemu/error-report.h"

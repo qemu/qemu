@@ -22,9 +22,9 @@
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
  * THE SOFTWARE.
  */
+
 #include "qemu/osdep.h"
 #include "cpu.h"
-#include "hw/hw.h"
 #include "hw/timer/m48t59.h"
 #include "hw/char/serial.h"
 #include "hw/block/fdc.h"
@@ -38,6 +38,7 @@
 #include "qemu/error-report.h"
 #include "qemu/log.h"
 #include "hw/ide.h"
+#include "hw/irq.h"
 #include "hw/loader.h"
 #include "hw/timer/mc146818rtc.h"
 #include "hw/isa/pc87312.h"
@@ -45,6 +46,7 @@
 #include "sysemu/arch_init.h"
 #include "sysemu/kvm.h"
 #include "sysemu/qtest.h"
+#include "sysemu/reset.h"
 #include "exec/address-spaces.h"
 #include "trace.h"
 #include "elf.h"

@@ -1,7 +1,6 @@
 #ifndef APM_H
 #define APM_H
 
-#include "hw/hw.h"
 #include "exec/memory.h"
 
 #define APM_CNT_IOPORT  0xb2

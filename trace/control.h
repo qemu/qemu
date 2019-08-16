@@ -120,22 +120,6 @@ static const char * trace_event_get_name(TraceEvent *ev);
     ((id ##_ENABLED) && id ##_BACKEND_DSTATE())
 
 /**
- * trace_event_get_vcpu_state:
- * @vcpu: Target vCPU.
- * @id: Event identifier name.
- *
- * Get the tracing state of an event (both static and dynamic) for the given
- * vCPU.
- *
- * If the event has the disabled property, the check will have no performance
- * impact.
- */
-#define trace_event_get_vcpu_state(vcpu, id)                            \
-    ((id ##_ENABLED) &&                                                 \
-     trace_event_get_vcpu_state_dynamic_by_vcpu_id(                     \
-         vcpu, _ ## id ## _EVENT.vcpu_id))
-
-/**
  * trace_event_get_state_static:
  * @id: Event identifier.
  *
@@ -154,14 +138,6 @@ static bool trace_event_get_state_static(TraceEvent *ev);
  * If the event has the 'vcpu' property, gets the OR'ed state of all vCPUs.
  */
 static bool trace_event_get_state_dynamic(TraceEvent *ev);
-
-/**
- * trace_event_get_vcpu_state_dynamic:
- *
- * Get the dynamic tracing state of an event for the given vCPU.
- */
-static bool trace_event_get_vcpu_state_dynamic(CPUState *vcpu, TraceEvent *ev);
-
 
 /**
  * trace_event_set_state_dynamic:

@@ -28,16 +28,19 @@
 #include "qemu/osdep.h"
 #include "qapi/error.h"
 #include "cpu.h"
-#include "hw/hw.h"
 #include "trace.h"
 #include "qemu/timer.h"
 #include "hw/ppc/xics.h"
+#include "hw/qdev-properties.h"
 #include "qemu/error-report.h"
 #include "qemu/module.h"
 #include "qapi/visitor.h"
+#include "migration/vmstate.h"
 #include "monitor/monitor.h"
 #include "hw/intc/intc.h"
+#include "hw/irq.h"
 #include "sysemu/kvm.h"
+#include "sysemu/reset.h"
 
 void icp_pic_print_info(ICPState *icp, Monitor *mon)
 {

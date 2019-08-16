@@ -19,9 +19,12 @@
 
 #include "qemu/osdep.h"
 #include "hw/sysbus.h"
+#include "migration/vmstate.h"
 #include "net/net.h"
 #include "qemu/fifo8.h"
+#include "hw/irq.h"
 #include "hw/net/allwinner_emac.h"
+#include "hw/qdev-properties.h"
 #include "qemu/log.h"
 #include "qemu/module.h"
 #include <zlib.h>

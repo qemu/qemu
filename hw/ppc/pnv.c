@@ -23,9 +23,10 @@
 #include "qapi/error.h"
 #include "sysemu/sysemu.h"
 #include "sysemu/numa.h"
+#include "sysemu/reset.h"
+#include "sysemu/runstate.h"
 #include "sysemu/cpus.h"
 #include "sysemu/device_tree.h"
-#include "hw/hw.h"
 #include "target/ppc/cpu.h"
 #include "qemu/log.h"
 #include "hw/ppc/fdt.h"
@@ -41,9 +42,11 @@
 #include "target/ppc/mmu-hash64.h"
 
 #include "hw/ppc/xics.h"
+#include "hw/qdev-properties.h"
 #include "hw/ppc/pnv_xscom.h"
 
 #include "hw/isa/isa.h"
+#include "hw/boards.h"
 #include "hw/char/serial.h"
 #include "hw/timer/mc146818rtc.h"
 

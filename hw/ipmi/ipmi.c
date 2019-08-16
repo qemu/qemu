@@ -23,10 +23,10 @@
  */
 
 #include "qemu/osdep.h"
-#include "hw/hw.h"
 #include "hw/ipmi/ipmi.h"
-#include "sysemu/sysemu.h"
+#include "hw/qdev-properties.h"
 #include "qom/object_interfaces.h"
+#include "sysemu/runstate.h"
 #include "qapi/error.h"
 #include "qapi/qapi-commands-misc.h"
 #include "qapi/visitor.h"

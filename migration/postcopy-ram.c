@@ -25,6 +25,7 @@
 #include "ram.h"
 #include "qapi/error.h"
 #include "qemu/notify.h"
+#include "qemu/rcu.h"
 #include "sysemu/sysemu.h"
 #include "sysemu/balloon.h"
 #include "qemu/error-report.h"

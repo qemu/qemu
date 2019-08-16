@@ -29,6 +29,7 @@
 #include "sysemu/block-backend.h"
 #include "qapi/error.h"
 #include "qapi/qmp/qdict.h"
+#include "qemu/main-loop.h"
 
 static BlockBackend *open_image(const char *path,
                                 uint64_t perm, uint64_t shared_perm,

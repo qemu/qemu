@@ -13,13 +13,14 @@
 
 #include "qemu/osdep.h"
 #include "qemu/iov.h"
+#include "qemu/main-loop.h"
 #include "qemu/module.h"
-#include "hw/qdev.h"
 #include "qapi/error.h"
 #include "qemu/error-report.h"
 
 #include "hw/virtio/virtio.h"
 #include "hw/virtio/virtio-crypto.h"
+#include "hw/qdev-properties.h"
 #include "hw/virtio/virtio-access.h"
 #include "standard-headers/linux/virtio_ids.h"
 #include "sysemu/cryptodev-vhost.h"

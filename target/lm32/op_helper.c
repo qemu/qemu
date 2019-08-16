@@ -2,6 +2,8 @@
 #include "cpu.h"
 #include "exec/helper-proto.h"
 #include "qemu/host-utils.h"
+#include "qemu/main-loop.h"
+#include "sysemu/runstate.h"
 
 #include "hw/lm32/lm32_pic.h"
 #include "hw/char/lm32_juart.h"
@@ -10,7 +12,6 @@
 #include "exec/cpu_ldst.h"
 
 #ifndef CONFIG_USER_ONLY
-#include "sysemu/sysemu.h"
 #endif
 
 #if !defined(CONFIG_USER_ONLY)

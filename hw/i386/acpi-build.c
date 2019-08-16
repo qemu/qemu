@@ -46,8 +46,10 @@
 #include "hw/boards.h"
 #include "sysemu/tpm_backend.h"
 #include "hw/timer/mc146818rtc_regs.h"
+#include "migration/vmstate.h"
 #include "hw/mem/memory-device.h"
 #include "sysemu/numa.h"
+#include "sysemu/reset.h"
 
 /* Supported chipsets: */
 #include "hw/acpi/piix4.h"

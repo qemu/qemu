@@ -18,7 +18,6 @@
  */
 
 #include "qemu/osdep.h"
-#include "hw/hw.h"
 #include "qemu/host-utils.h"
 #include "qemu/module.h"
 #include "qemu/error-report.h"

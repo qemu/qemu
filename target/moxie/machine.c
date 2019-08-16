@@ -1,7 +1,5 @@
 #include "qemu/osdep.h"
 #include "cpu.h"
-#include "hw/hw.h"
-#include "hw/boards.h"
 #include "machine.h"
 #include "migration/cpu.h"
 

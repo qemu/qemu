@@ -21,8 +21,7 @@
 #ifndef HW_SOC_DMA_H
 #define HW_SOC_DMA_H
 
-#include "exec/memory.h"
-#include "hw/irq.h"
+#include "exec/hwaddr.h"
 
 struct soc_dma_s;
 struct soc_dma_ch_s;

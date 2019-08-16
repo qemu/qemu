@@ -26,6 +26,7 @@
 #define ASPEED_SMC_H
 
 #include "hw/ssi/ssi.h"
+#include "hw/sysbus.h"
 
 typedef struct AspeedSegments {
     hwaddr addr;

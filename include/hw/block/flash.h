@@ -3,7 +3,7 @@
 
 /* NOR flash devices */
 
-#include "exec/memory.h"
+#include "exec/hwaddr.h"
 
 /* pflash_cfi01.c */
 

@@ -19,7 +19,9 @@
 #include "qapi/error.h"
 #include "qapi/visitor.h"
 #include <sys/ioctl.h>
+#include "hw/hw.h"
 #include "hw/nvram/fw_cfg.h"
+#include "hw/qdev-properties.h"
 #include "pci.h"
 #include "trace.h"
 

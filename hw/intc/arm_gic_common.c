@@ -23,6 +23,8 @@
 #include "qemu/module.h"
 #include "gic_internal.h"
 #include "hw/arm/linux-boot-if.h"
+#include "hw/qdev-properties.h"
+#include "migration/vmstate.h"
 
 static int gic_pre_save(void *opaque)
 {

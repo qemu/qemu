@@ -27,8 +27,8 @@
 #include <windows.h>
 #include <mmsystem.h>
 #include "qemu-common.h"
-#include "sysemu/sysemu.h"
 #include "qemu-options.h"
+#include "sysemu/runstate.h"
 
 /***********************************************************/
 /* Functions missing in mingw */

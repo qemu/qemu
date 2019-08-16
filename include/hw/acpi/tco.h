@@ -6,9 +6,11 @@
  * This work is licensed under the terms of the GNU GPL, version 2 or later.
  * See the COPYING file in the top-level directory.
  */
+
 #ifndef HW_ACPI_TCO_H
 #define HW_ACPI_TCO_H
 
+#include "exec/memory.h"
 
 /* As per ICH9 spec, the internal timer has an error of ~0.6s on every tick */
 #define TCO_TICK_NSEC 600000000LL

@@ -25,6 +25,9 @@
 #ifndef PPC4XX_H
 #define PPC4XX_H
 
+#include "hw/ppc/ppc.h"
+#include "exec/memory.h"
+
 /* PowerPC 4xx core initialization */
 PowerPCCPU *ppc4xx_init(const char *cpu_model,
                         clk_setup_t *cpu_clk, clk_setup_t *tb_clk,

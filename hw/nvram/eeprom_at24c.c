@@ -11,8 +11,8 @@
 
 #include "qapi/error.h"
 #include "qemu/module.h"
-#include "hw/hw.h"
 #include "hw/i2c/i2c.h"
+#include "hw/qdev-properties.h"
 #include "sysemu/block-backend.h"
 
 /* #define DEBUG_AT24C */

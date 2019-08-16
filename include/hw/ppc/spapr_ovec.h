@@ -38,7 +38,6 @@
 #define SPAPR_OVEC_H
 
 #include "cpu.h"
-#include "migration/vmstate.h"
 
 typedef struct SpaprOptionVector SpaprOptionVector;
 

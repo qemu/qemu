@@ -1,0 +1,29 @@
+# -*- Mode: Python -*-
+
+##
+# = QMP errors
+##
+
+##
+# @QapiErrorClass:
+#
+# QEMU error classes
+#
+# @GenericError: this is used for errors that don't require a specific error
+#                class. This should be the default case for most errors
+#
+# @CommandNotFound: the requested command has not been found
+#
+# @DeviceNotActive: a device has failed to be become active
+#
+# @DeviceNotFound: the requested device has not been found
+#
+# @KVMMissingCap: the requested operation can't be fulfilled because a
+#                 required KVM capability is missing
+#
+# Since: 1.2
+##
+{ 'enum': 'QapiErrorClass',
+  # Keep this in sync with ErrorClass in error.h
+  'data': [ 'GenericError', 'CommandNotFound',
+            'DeviceNotActive', 'DeviceNotFound', 'KVMMissingCap' ] }

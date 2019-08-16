@@ -26,8 +26,6 @@
 #ifndef HW_SERIAL_H
 #define HW_SERIAL_H
 
-#include "hw/hw.h"
-#include "sysemu/sysemu.h"
 #include "chardev/char-fe.h"
 #include "exec/memory.h"
 #include "qemu/fifo8.h"

@@ -26,6 +26,7 @@
 
 #include "io/channel.h"
 #include "chardev/char.h"
+#include "qemu/main-loop.h"
 
 /* Can only be used for read */
 GSource *io_add_watch_poll(Chardev *chr,

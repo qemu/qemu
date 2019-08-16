@@ -24,6 +24,8 @@
 
 #include "qemu/osdep.h"
 #include "hw/char/stm32f2xx_usart.h"
+#include "hw/irq.h"
+#include "hw/qdev-properties.h"
 #include "qemu/log.h"
 #include "qemu/module.h"
 

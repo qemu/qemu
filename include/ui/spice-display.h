@@ -18,6 +18,7 @@
 #ifndef UI_SPICE_DISPLAY_H
 #define UI_SPICE_DISPLAY_H
 
+#include <spice.h>
 #include <spice/ipc_ring.h>
 #include <spice/enums.h>
 #include <spice/qxl_dev.h>
@@ -25,7 +26,6 @@
 #include "qemu/thread.h"
 #include "ui/qemu-pixman.h"
 #include "ui/console.h"
-#include "sysemu/sysemu.h"
 
 #if defined(CONFIG_OPENGL_DMABUF)
 # if SPICE_SERVER_VERSION >= 0x000d01 /* release 0.13.1 */

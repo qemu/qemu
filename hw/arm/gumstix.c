@@ -36,7 +36,6 @@
 
 #include "qemu/osdep.h"
 #include "qemu/error-report.h"
-#include "hw/hw.h"
 #include "hw/arm/pxa.h"
 #include "net/net.h"
 #include "hw/block/flash.h"

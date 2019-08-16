@@ -12,7 +12,7 @@
 #ifndef VMCOREINFO_H
 #define VMCOREINFO_H
 
-#include "hw/qdev.h"
+#include "hw/qdev-core.h"
 #include "standard-headers/linux/qemu_fw_cfg.h"
 
 #define VMCOREINFO_DEVICE "vmcoreinfo"

@@ -2,6 +2,7 @@
 #define INPUT_H
 
 #include "qapi/qapi-types-ui.h"
+#include "qemu/notify.h"
 
 #define INPUT_EVENT_MASK_KEY   (1<<INPUT_EVENT_KIND_KEY)
 #define INPUT_EVENT_MASK_BTN   (1<<INPUT_EVENT_KIND_BTN)

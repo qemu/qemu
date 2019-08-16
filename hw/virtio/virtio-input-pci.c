@@ -9,6 +9,7 @@
 #include "qemu/osdep.h"
 
 #include "virtio-pci.h"
+#include "hw/qdev-properties.h"
 #include "hw/virtio/virtio-input.h"
 #include "qemu/module.h"
 

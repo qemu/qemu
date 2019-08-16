@@ -30,7 +30,8 @@
 #include "qemu-common.h"
 #include "hax-i386.h"
 #include "sysemu/accel.h"
-#include "sysemu/sysemu.h"
+#include "sysemu/reset.h"
+#include "sysemu/runstate.h"
 #include "qemu/main-loop.h"
 #include "hw/boards.h"
 

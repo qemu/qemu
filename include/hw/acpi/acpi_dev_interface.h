@@ -1,8 +1,10 @@
 #ifndef ACPI_DEV_INTERFACE_H
 #define ACPI_DEV_INTERFACE_H
 
+#include "qapi/qapi-types-misc.h"
 #include "qom/object.h"
 #include "hw/boards.h"
+#include "hw/qdev-core.h"
 
 /* These values are part of guest ABI, and can not be changed */
 typedef enum {

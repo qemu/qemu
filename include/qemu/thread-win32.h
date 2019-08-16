@@ -47,6 +47,6 @@ struct QemuThread {
 };
 
 /* Only valid for joinable threads.  */
-HANDLE qemu_thread_get_handle(QemuThread *thread);
+HANDLE qemu_thread_get_handle(struct QemuThread *thread);
 
 #endif

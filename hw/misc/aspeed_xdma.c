@@ -9,7 +9,9 @@
 #include "qemu/osdep.h"
 #include "qemu/log.h"
 #include "qemu/error-report.h"
+#include "hw/irq.h"
 #include "hw/misc/aspeed_xdma.h"
+#include "migration/vmstate.h"
 #include "qapi/error.h"
 
 #include "trace.h"

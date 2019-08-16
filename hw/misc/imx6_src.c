@@ -10,9 +10,10 @@
 
 #include "qemu/osdep.h"
 #include "hw/misc/imx6_src.h"
-#include "sysemu/sysemu.h"
+#include "migration/vmstate.h"
 #include "qemu/bitops.h"
 #include "qemu/log.h"
+#include "qemu/main-loop.h"
 #include "qemu/module.h"
 #include "arm-powerctl.h"
 #include "qom/cpu.h"

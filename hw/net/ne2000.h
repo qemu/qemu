@@ -2,7 +2,6 @@
 #define HW_NE2000_H
 
 #include "qemu/units.h"
-#include "hw/hw.h"
 #include "net/net.h"
 
 #define NE2000_PMEM_SIZE    (32 * KiB)

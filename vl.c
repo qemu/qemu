@@ -25,11 +25,14 @@
 #include "qemu/osdep.h"
 #include "qemu-common.h"
 #include "qemu/units.h"
+#include "hw/qdev-properties.h"
 #include "qapi/error.h"
 #include "qemu-version.h"
 #include "qemu/cutils.h"
 #include "qemu/help_option.h"
 #include "qemu/uuid.h"
+#include "sysemu/reset.h"
+#include "sysemu/runstate.h"
 #include "sysemu/seccomp.h"
 #include "sysemu/tcg.h"
 
@@ -54,7 +57,6 @@ int main(int argc, char **argv)
 
 #include "qemu/error-report.h"
 #include "qemu/sockets.h"
-#include "hw/hw.h"
 #include "sysemu/accel.h"
 #include "hw/usb.h"
 #include "hw/isa/isa.h"
@@ -65,7 +67,6 @@ int main(int argc, char **argv)
 #include "hw/firmware/smbios.h"
 #include "hw/acpi/acpi.h"
 #include "hw/xen/xen.h"
-#include "hw/qdev.h"
 #include "hw/loader.h"
 #include "monitor/qdev.h"
 #include "sysemu/bt.h"
@@ -1362,14 +1363,14 @@ static int machine_help_func(QemuOpts *opts, MachineState *machine)
     return 1;
 }
 
-struct vm_change_state_entry {
+struct VMChangeStateEntry {
     VMChangeStateHandler *cb;
     void *opaque;
-    QTAILQ_ENTRY(vm_change_state_entry) entries;
+    QTAILQ_ENTRY(VMChangeStateEntry) entries;
     int priority;
 };
 
-static QTAILQ_HEAD(, vm_change_state_entry) vm_change_state_head;
+static QTAILQ_HEAD(, VMChangeStateEntry) vm_change_state_head;
 
 /**
  * qemu_add_vm_change_state_handler_prio:

@@ -24,9 +24,10 @@
  */
 
 #include "qemu/osdep.h"
-#include "hw/hw.h"
 #include "hw/isa/isa.h"
+#include "migration/vmstate.h"
 #include "qemu/error-report.h"
+#include "qemu/main-loop.h"
 #include "qemu/timer.h"
 #include "sysemu/sysemu.h"
 #include "sysemu/blockdev.h"
@@ -36,7 +37,7 @@
 #include "qapi/error.h"
 #include "qemu/cutils.h"
 #include "sysemu/replay.h"
-
+#include "sysemu/runstate.h"
 #include "hw/ide/internal.h"
 #include "trace.h"
 

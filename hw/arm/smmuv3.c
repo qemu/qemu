@@ -17,9 +17,9 @@
  */
 
 #include "qemu/osdep.h"
-#include "hw/boards.h"
-#include "sysemu/sysemu.h"
+#include "hw/irq.h"
 #include "hw/sysbus.h"
+#include "migration/vmstate.h"
 #include "hw/qdev-core.h"
 #include "hw/pci/pci.h"
 #include "exec/address-spaces.h"

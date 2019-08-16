@@ -24,13 +24,13 @@
  */
 
 #include "qemu/osdep.h"
-#include "hw/hw.h"
 #include "hw/pci/pci.h"
+#include "migration/vmstate.h"
 #include "qemu/module.h"
 #include "sysemu/block-backend.h"
-#include "sysemu/sysemu.h"
 #include "sysemu/blockdev.h"
 #include "sysemu/dma.h"
+#include "sysemu/reset.h"
 
 #include "hw/ide/pci.h"
 #include "trace.h"

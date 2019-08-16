@@ -9,10 +9,14 @@
 
 #include "qemu/osdep.h"
 #include "hw/sysbus.h"
+#include "migration/vmstate.h"
 #include "exec/address-spaces.h"
 #include "qemu/log.h"
 #include "qemu/module.h"
 #include "hw/dma/pl080.h"
+#include "hw/hw.h"
+#include "hw/irq.h"
+#include "hw/qdev-properties.h"
 #include "qapi/error.h"
 
 #define PL080_CONF_E    0x1

@@ -8,7 +8,6 @@
 #include "hw/pci/pci_host.h"
 #include "hw/ide.h"
 #include "hw/i386/pc.h"
-#include "hw/irq.h"
 
 
 PCIBus *typhoon_init(ram_addr_t, ISABus **, qemu_irq *, AlphaCPU *[4],

@@ -24,6 +24,7 @@
 #include "cpu.h"
 #include "exec/memory.h"
 #include "qemu/timer.h"
+#include "target/i386/cpu-qom.h"
 
 /* APIC Local Vector Table */
 #define APIC_LVT_TIMER                  0

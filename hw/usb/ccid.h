@@ -10,7 +10,7 @@
 #ifndef CCID_H
 #define CCID_H
 
-#include "hw/qdev.h"
+#include "hw/qdev-core.h"
 
 typedef struct CCIDCardState CCIDCardState;
 typedef struct CCIDCardInfo CCIDCardInfo;

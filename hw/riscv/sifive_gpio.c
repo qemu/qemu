@@ -13,7 +13,9 @@
 
 #include "qemu/osdep.h"
 #include "qemu/log.h"
+#include "hw/irq.h"
 #include "hw/riscv/sifive_gpio.h"
+#include "migration/vmstate.h"
 #include "trace.h"
 
 static void update_output_irq(SIFIVEGPIOState *s)

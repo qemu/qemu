@@ -32,8 +32,9 @@
 #include "qemu/osdep.h"
 #include "qapi/error.h"
 #include "qemu/module.h"
-#include "hw/hw.h"
 #include "hw/pci/pci.h"
+#include "hw/qdev-properties.h"
+#include "migration/vmstate.h"
 #include "trace.h"
 
 #define TYPE_XEN_PV_DEVICE  "xen-pvdevice"

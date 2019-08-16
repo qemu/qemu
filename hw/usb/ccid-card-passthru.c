@@ -13,6 +13,8 @@
 #include "qemu/units.h"
 #include <libcacard.h>
 #include "chardev/char-fe.h"
+#include "hw/qdev-properties.h"
+#include "migration/vmstate.h"
 #include "qemu/error-report.h"
 #include "qemu/module.h"
 #include "qemu/sockets.h"

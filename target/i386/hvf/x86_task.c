@@ -27,10 +27,8 @@
 #include <Hypervisor/hv_vmx.h>
 
 #include "hw/i386/apic_internal.h"
-#include "hw/boards.h"
 #include "qemu/main-loop.h"
 #include "sysemu/accel.h"
-#include "sysemu/sysemu.h"
 #include "target/i386/cpu.h"
 
 // TODO: taskswitch handling

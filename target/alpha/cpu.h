@@ -277,7 +277,7 @@ struct AlphaCPU {
 
 
 #ifndef CONFIG_USER_ONLY
-extern const struct VMStateDescription vmstate_alpha_cpu;
+extern const VMStateDescription vmstate_alpha_cpu;
 #endif
 
 void alpha_cpu_do_interrupt(CPUState *cpu);

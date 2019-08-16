@@ -20,14 +20,15 @@
 #include "monitor/monitor.h"
 #include "sysemu/kvm.h"
 #include "sysemu/dump.h"
-#include "sysemu/sysemu.h"
 #include "sysemu/memory_mapping.h"
+#include "sysemu/runstate.h"
 #include "sysemu/cpus.h"
 #include "qapi/error.h"
 #include "qapi/qapi-commands-dump.h"
 #include "qapi/qapi-events-dump.h"
 #include "qapi/qmp/qerror.h"
 #include "qemu/error-report.h"
+#include "qemu/main-loop.h"
 #include "hw/misc/vmcoreinfo.h"
 
 #ifdef TARGET_X86_64

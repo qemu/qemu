@@ -22,9 +22,9 @@
 #include "qemu/units.h"
 #include "qemu/error-report.h"
 #include "exec/cpu-defs.h"
+#include "hw/boards.h"
 #include "hw/loader.h"
 #include "hw/riscv/boot.h"
-#include "hw/boards.h"
 #include "elf.h"
 #include "sysemu/qtest.h"
 

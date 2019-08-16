@@ -12,6 +12,7 @@
  */
 
 #include "qemu/osdep.h"
+#include "hw/irq.h"
 #include "hw/net/ftgmac100.h"
 #include "sysemu/dma.h"
 #include "qemu/log.h"
@@ -19,6 +20,8 @@
 #include "net/checksum.h"
 #include "net/eth.h"
 #include "hw/net/mii.h"
+#include "hw/qdev-properties.h"
+#include "migration/vmstate.h"
 
 /* For crc32 */
 #include <zlib.h>

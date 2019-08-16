@@ -6,7 +6,6 @@
 
 #include "qemu/osdep.h"
 #include "qemu/module.h"
-#include "hw/hw.h"
 #include "hw/pcmcia.h"
 
 static const TypeInfo pcmcia_card_type_info = {

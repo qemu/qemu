@@ -21,7 +21,6 @@
 #ifndef DESIGNWARE_H
 #define DESIGNWARE_H
 
-#include "hw/hw.h"
 #include "hw/sysbus.h"
 #include "hw/pci/pci.h"
 #include "hw/pci/pci_bus.h"

@@ -28,8 +28,6 @@
 #endif
 
 #include "qemu/bswap.h"
-#include "qemu/queue.h"
-#include "qemu/main-loop.h"
 
 /* This is all part of the "official" NBD API.
  *

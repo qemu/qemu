@@ -17,11 +17,12 @@
  * License along with this library; if not, see
  * <http://www.gnu.org/licenses/>.
  */
+
 #include "qemu/osdep.h"
-#include "hw/hw.h"
 #include "hw/boards.h"
 #include "hw/i2c/pm_smbus.h"
 #include "hw/i2c/smbus_master.h"
+#include "migration/vmstate.h"
 
 #define SMBHSTSTS       0x00
 #define SMBHSTCNT       0x02

@@ -18,13 +18,14 @@
  */
 
 #include "qemu/osdep.h"
-#include "hw/hw.h"
 #include "hw/sysbus.h"
+#include "migration/vmstate.h"
 #include "qemu/module.h"
 #include "trace.h"
 #include "chardev/char-fe.h"
 
 #include "hw/char/lm32_juart.h"
+#include "hw/qdev-properties.h"
 
 enum {
     LM32_JUART_MIN_SAVE_VERSION = 0,

@@ -13,10 +13,10 @@
  */
 
 #include "qemu/osdep.h"
-#include "hw/qdev.h"
-#include "sysemu/sysemu.h"
 #include "hw/s390x/sclp.h"
+#include "migration/vmstate.h"
 #include "qemu/module.h"
+#include "sysemu/runstate.h"
 #include "hw/s390x/event-facility.h"
 
 typedef struct SignalQuiesce {

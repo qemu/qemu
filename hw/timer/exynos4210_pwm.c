@@ -23,12 +23,14 @@
 #include "qemu/osdep.h"
 #include "qemu/log.h"
 #include "hw/sysbus.h"
+#include "migration/vmstate.h"
 #include "qemu/timer.h"
 #include "qemu/main-loop.h"
 #include "qemu/module.h"
 #include "hw/ptimer.h"
 
 #include "hw/arm/exynos4210.h"
+#include "hw/irq.h"
 
 //#define DEBUG_PWM
 

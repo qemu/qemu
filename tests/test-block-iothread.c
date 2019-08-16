@@ -28,6 +28,7 @@
 #include "sysemu/block-backend.h"
 #include "qapi/error.h"
 #include "qapi/qmp/qdict.h"
+#include "qemu/main-loop.h"
 #include "iothread.h"
 
 static int coroutine_fn bdrv_test_co_prwv(BlockDriverState *bs,

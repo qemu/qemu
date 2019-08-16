@@ -7,10 +7,9 @@
 #include "hw/timer/allwinner-a10-pit.h"
 #include "hw/intc/allwinner-a10-pic.h"
 #include "hw/net/allwinner_emac.h"
-#include "hw/ide/pci.h"
 #include "hw/ide/ahci.h"
 
-#include "sysemu/sysemu.h"
+#include "target/arm/cpu.h"
 
 
 #define AW_A10_PIC_REG_BASE     0x01c20400

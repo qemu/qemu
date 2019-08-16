@@ -6,7 +6,6 @@
 #define INITRD_PAGE_MASK (~((1 << 16) - 1))
 
 #include "exec/memory.h"
-#include "hw/irq.h"
 
 /* gt64xxx.c */
 PCIBus *gt64120_register(qemu_irq *pic);

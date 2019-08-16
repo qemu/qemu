@@ -12,7 +12,6 @@
 
 #include "exec/memory.h"
 #include "exec/address-spaces.h"
-#include "hw/hw.h"
 #include "block/block.h"
 #include "block/accounting.h"
 

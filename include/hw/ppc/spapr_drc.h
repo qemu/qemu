@@ -14,10 +14,9 @@
 #define HW_SPAPR_DRC_H
 
 #include <libfdt.h>
-#include "qapi/qapi-types-run-state.h"
 #include "qom/object.h"
-#include "sysemu/sysemu.h"
-#include "hw/qdev.h"
+#include "sysemu/runstate.h"
+#include "hw/qdev-core.h"
 #include "qapi/error.h"
 
 #define TYPE_SPAPR_DR_CONNECTOR "spapr-dr-connector"

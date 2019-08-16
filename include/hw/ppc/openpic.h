@@ -2,7 +2,6 @@
 #define OPENPIC_H
 
 #include "hw/sysbus.h"
-#include "hw/qdev-core.h"
 #include "qom/cpu.h"
 
 #define MAX_CPU     32

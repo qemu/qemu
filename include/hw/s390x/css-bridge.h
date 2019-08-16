@@ -12,8 +12,9 @@
 
 #ifndef HW_S390X_CSS_BRIDGE_H
 #define HW_S390X_CSS_BRIDGE_H
+
 #include "qom/object.h"
-#include "hw/qdev-core.h"
+#include "hw/sysbus.h"
 
 /* virtual css bridge */
 typedef struct VirtualCssBridge {

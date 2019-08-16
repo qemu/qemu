@@ -33,7 +33,9 @@
 #include "exec/address-spaces.h"
 #include "hw/arm/exynos4210.h"
 #include "hw/net/lan9118.h"
+#include "hw/qdev-properties.h"
 #include "hw/boards.h"
+#include "hw/irq.h"
 
 #define SMDK_LAN9118_BASE_ADDR      0x05000000
 

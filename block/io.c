@@ -32,6 +32,7 @@
 #include "qemu/cutils.h"
 #include "qapi/error.h"
 #include "qemu/error-report.h"
+#include "qemu/main-loop.h"
 
 #define NOT_DONE 0x7fffffff /* used while emulated sync operation in progress */
 

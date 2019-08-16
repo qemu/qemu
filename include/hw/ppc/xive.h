@@ -141,7 +141,6 @@
 #define PPC_XIVE_H
 
 #include "sysemu/kvm.h"
-#include "hw/qdev-core.h"
 #include "hw/sysbus.h"
 #include "hw/ppc/xive_regs.h"
 

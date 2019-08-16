@@ -26,7 +26,6 @@
 #define HW_STM32F2XX_SYSCFG_H
 
 #include "hw/sysbus.h"
-#include "hw/hw.h"
 
 #define SYSCFG_MEMRMP  0x00
 #define SYSCFG_PMC     0x04

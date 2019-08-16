@@ -20,7 +20,6 @@
 #include "hw/vfio/vfio-common.h"
 #include "qemu/event_notifier.h"
 #include "qemu/queue.h"
-#include "hw/irq.h"
 
 #define TYPE_VFIO_PLATFORM "vfio-platform"
 

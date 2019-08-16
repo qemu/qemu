@@ -37,11 +37,12 @@
 
 #include "qemu/osdep.h"
 #include "qemu/log.h"
-#include "hw/qdev.h"
+#include "hw/irq.h"
+#include "hw/qdev-properties.h"
+#include "migration/vmstate.h"
 #include "net/net.h"
 #include "net/eth.h"
 #include "qemu/timer.h"
-#include "sysemu/sysemu.h"
 #include "trace.h"
 
 #include "pcnet.h"

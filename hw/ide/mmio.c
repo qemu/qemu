@@ -24,12 +24,13 @@
  */
 
 #include "qemu/osdep.h"
-#include "hw/hw.h"
 #include "hw/sysbus.h"
+#include "migration/vmstate.h"
 #include "qemu/module.h"
 #include "sysemu/dma.h"
 
 #include "hw/ide/internal.h"
+#include "hw/qdev-properties.h"
 
 /***********************************************************/
 /* MMIO based ide port

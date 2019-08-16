@@ -32,11 +32,11 @@
 
 #include "qemu/osdep.h"
 #include "qemu/units.h"
-#include "hw/qdev.h"
-#include "hw/hw.h"
+#include "hw/irq.h"
 #include "hw/registerfields.h"
 #include "sysemu/block-backend.h"
 #include "hw/sd/sd.h"
+#include "migration/vmstate.h"
 #include "qapi/error.h"
 #include "qemu/bitmap.h"
 #include "hw/qdev-properties.h"

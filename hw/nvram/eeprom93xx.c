@@ -36,8 +36,9 @@
  */
 
 #include "qemu/osdep.h"
-#include "hw/hw.h"
 #include "hw/nvram/eeprom93xx.h"
+#include "migration/qemu-file-types.h"
+#include "migration/vmstate.h"
 
 /* Debug EEPROM emulation. */
 //~ #define DEBUG_EEPROM

@@ -24,7 +24,7 @@
 #include "hw/hw.h"
 #include "hw/irq.h"
 #include "hw/misc/cbus.h"
-#include "sysemu/sysemu.h"
+#include "sysemu/runstate.h"
 
 //#define DEBUG
 

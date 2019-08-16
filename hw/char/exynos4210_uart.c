@@ -21,13 +21,15 @@
 
 #include "qemu/osdep.h"
 #include "hw/sysbus.h"
+#include "migration/vmstate.h"
 #include "qemu/error-report.h"
 #include "qemu/module.h"
-#include "sysemu/sysemu.h"
 #include "chardev/char-fe.h"
 #include "chardev/char-serial.h"
 
 #include "hw/arm/exynos4210.h"
+#include "hw/irq.h"
+#include "hw/qdev-properties.h"
 
 #undef DEBUG_UART
 #undef DEBUG_UART_EXTEND

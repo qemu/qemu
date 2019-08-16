@@ -36,8 +36,10 @@
 #include "qemu/sockets.h"
 #include "qapi/error.h"
 #include "chardev/char.h"
-#include "hw/hw.h"
+#include "hw/irq.h"
 #include "hw/pci/pci.h"
+#include "hw/qdev-properties.h"
+#include "migration/vmstate.h"
 #include "net/can_emu.h"
 
 #include "can_sja1000.h"

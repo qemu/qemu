@@ -1,7 +1,7 @@
 #ifndef QEMU_HW_CHAR_LM32_JUART_H
 #define QEMU_HW_CHAR_LM32_JUART_H
 
-#include "hw/qdev.h"
+#include "hw/qdev-core.h"
 
 #define TYPE_LM32_JUART "lm32-juart"
 

@@ -12,7 +12,7 @@
 #ifndef S390_STORAGE_KEYS_H
 #define S390_STORAGE_KEYS_H
 
-#include "hw/qdev.h"
+#include "hw/qdev-core.h"
 #include "monitor/monitor.h"
 
 #define TYPE_S390_SKEYS "s390-skeys"

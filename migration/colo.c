@@ -23,6 +23,8 @@
 #include "io/channel-buffer.h"
 #include "trace.h"
 #include "qemu/error-report.h"
+#include "qemu/main-loop.h"
+#include "qemu/rcu.h"
 #include "migration/failover.h"
 #ifdef CONFIG_REPLICATION
 #include "replication.h"
@@ -33,6 +35,7 @@
 #include "qapi/qapi-events-migration.h"
 #include "qapi/qmp/qerror.h"
 #include "sysemu/cpus.h"
+#include "sysemu/runstate.h"
 #include "net/filter.h"
 
 static bool vmstate_loading;

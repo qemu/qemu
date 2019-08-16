@@ -17,7 +17,6 @@
 
 #include "qemu/thread.h"
 #include "qemu/coroutine.h"
-#include "qemu/main-loop.h"
 #include "9p.h"
 
 /*

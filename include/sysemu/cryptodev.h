@@ -23,6 +23,7 @@
 #ifndef CRYPTODEV_H
 #define CRYPTODEV_H
 
+#include "qemu/queue.h"
 #include "qom/object.h"
 
 /**

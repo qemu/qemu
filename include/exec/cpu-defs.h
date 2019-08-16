@@ -25,7 +25,6 @@
 
 #include "qemu/host-utils.h"
 #include "qemu/thread.h"
-#include "qemu/queue.h"
 #ifdef CONFIG_TCG
 #include "tcg-target.h"
 #endif

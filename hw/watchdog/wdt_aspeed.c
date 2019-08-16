@@ -15,8 +15,10 @@
 #include "qemu/timer.h"
 #include "sysemu/watchdog.h"
 #include "hw/misc/aspeed_scu.h"
+#include "hw/qdev-properties.h"
 #include "hw/sysbus.h"
 #include "hw/watchdog/wdt_aspeed.h"
+#include "migration/vmstate.h"
 
 #define WDT_STATUS                      (0x00 / 4)
 #define WDT_RELOAD_VALUE                (0x04 / 4)

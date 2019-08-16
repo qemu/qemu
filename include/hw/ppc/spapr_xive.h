@@ -10,6 +10,7 @@
 #ifndef PPC_SPAPR_XIVE_H
 #define PPC_SPAPR_XIVE_H
 
+#include "hw/ppc/spapr_irq.h"
 #include "hw/ppc/xive.h"
 
 #define TYPE_SPAPR_XIVE "spapr-xive"

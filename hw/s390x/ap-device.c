@@ -10,7 +10,6 @@
 #include "qemu/osdep.h"
 #include "qemu/module.h"
 #include "qapi/error.h"
-#include "hw/qdev.h"
 #include "hw/s390x/ap-device.h"
 
 static void ap_class_init(ObjectClass *klass, void *data)

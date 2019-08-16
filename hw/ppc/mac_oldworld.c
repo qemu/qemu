@@ -28,8 +28,8 @@
 #include "qemu-common.h"
 #include "qemu/units.h"
 #include "qapi/error.h"
-#include "hw/hw.h"
 #include "hw/ppc/ppc.h"
+#include "hw/qdev-properties.h"
 #include "mac.h"
 #include "hw/input/adb.h"
 #include "sysemu/sysemu.h"
@@ -47,6 +47,7 @@
 #include "elf.h"
 #include "qemu/error-report.h"
 #include "sysemu/kvm.h"
+#include "sysemu/reset.h"
 #include "kvm_ppc.h"
 #include "exec/address-spaces.h"
 

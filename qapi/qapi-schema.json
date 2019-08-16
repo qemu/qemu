@@ -80,6 +80,7 @@
 # stable order, it's best to include each sub-schema just once, or
 # include it first right here.
 
+{ 'include': 'error.json' }
 { 'include': 'common.json' }
 { 'include': 'sockets.json' }
 { 'include': 'run-state.json' }

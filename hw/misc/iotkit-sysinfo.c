@@ -22,10 +22,10 @@
 #include "qemu/module.h"
 #include "trace.h"
 #include "qapi/error.h"
-#include "sysemu/sysemu.h"
 #include "hw/sysbus.h"
 #include "hw/registerfields.h"
 #include "hw/misc/iotkit-sysinfo.h"
+#include "hw/qdev-properties.h"
 
 REG32(SYS_VERSION, 0x0)
 REG32(SYS_CONFIG, 0x4)

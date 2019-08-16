@@ -24,7 +24,6 @@
  */
 
 #include "qemu/osdep.h"
-#include "exec/cpu-common.h"
 #include "tcg-op.h"
 
 #define CASE_OP_32_64(x)                        \

@@ -19,6 +19,7 @@
 
 #include "qemu/osdep.h"
 #include "qapi/error.h"
+#include "qemu/queue.h"
 #include "trace.h"
 #include "nbd-internal.h"
 #include "qemu/cutils.h"

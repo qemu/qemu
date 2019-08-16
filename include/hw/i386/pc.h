@@ -12,7 +12,6 @@
 #include "qemu/range.h"
 #include "qemu/bitmap.h"
 #include "qemu/module.h"
-#include "sysemu/sysemu.h"
 #include "hw/pci/pci.h"
 #include "hw/mem/pc-dimm.h"
 #include "hw/mem/nvdimm.h"

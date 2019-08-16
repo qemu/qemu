@@ -148,7 +148,7 @@ hwaddr cpu_mips_translate_address(CPUMIPSState *env, target_ulong address,
 #define cpu_signal_handler cpu_mips_signal_handler
 
 #ifndef CONFIG_USER_ONLY
-extern const struct VMStateDescription vmstate_mips_cpu;
+extern const VMStateDescription vmstate_mips_cpu;
 #endif
 
 static inline bool cpu_mips_hw_interrupts_enabled(CPUMIPSState *env)

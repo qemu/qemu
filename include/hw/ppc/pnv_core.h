@@ -21,6 +21,7 @@
 #define PPC_PNV_CORE_H
 
 #include "hw/cpu/core.h"
+#include "target/ppc/cpu.h"
 
 #define TYPE_PNV_CORE "powernv-cpu-core"
 #define PNV_CORE(obj) \

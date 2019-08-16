@@ -27,10 +27,10 @@
 #include "cpu.h"
 #include <sys/ioctl.h>
 #include "exec/address-spaces.h"
-#include "hw/hw.h"
 #include "hw/ppc/openpic.h"
 #include "hw/ppc/openpic_kvm.h"
 #include "hw/pci/msi.h"
+#include "hw/qdev-properties.h"
 #include "hw/sysbus.h"
 #include "sysemu/kvm.h"
 #include "qemu/log.h"

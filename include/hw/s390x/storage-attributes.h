@@ -12,7 +12,7 @@
 #ifndef S390_STORAGE_ATTRIBUTES_H
 #define S390_STORAGE_ATTRIBUTES_H
 
-#include "hw/qdev.h"
+#include "hw/qdev-core.h"
 #include "monitor/monitor.h"
 
 #define TYPE_S390_STATTRIB "s390-storage_attributes"

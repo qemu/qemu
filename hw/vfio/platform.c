@@ -20,16 +20,19 @@
 #include <linux/vfio.h>
 
 #include "hw/vfio/vfio-platform.h"
+#include "migration/vmstate.h"
 #include "qemu/error-report.h"
+#include "qemu/main-loop.h"
 #include "qemu/module.h"
 #include "qemu/range.h"
-#include "sysemu/sysemu.h"
 #include "exec/memory.h"
 #include "exec/address-spaces.h"
 #include "qemu/queue.h"
 #include "hw/sysbus.h"
 #include "trace.h"
+#include "hw/irq.h"
 #include "hw/platform-bus.h"
+#include "hw/qdev-properties.h"
 #include "sysemu/kvm.h"
 
 /*

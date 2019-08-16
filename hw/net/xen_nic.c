@@ -24,7 +24,6 @@
 #include <sys/ioctl.h>
 #include <sys/wait.h>
 
-#include "hw/hw.h"
 #include "net/net.h"
 #include "net/checksum.h"
 #include "net/util.h"

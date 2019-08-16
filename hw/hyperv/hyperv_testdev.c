@@ -15,7 +15,6 @@
 #include "qemu/main-loop.h"
 #include "qemu/module.h"
 #include "qemu/queue.h"
-#include "hw/qdev.h"
 #include "hw/isa/isa.h"
 #include "hw/hyperv/hyperv.h"
 

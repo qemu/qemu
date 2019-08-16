@@ -22,9 +22,9 @@
 #include "exec/exec-all.h"
 #include "qemu/qemu-print.h"
 #include "sysemu/kvm.h"
+#include "sysemu/runstate.h"
 #include "kvm_i386.h"
 #ifndef CONFIG_USER_ONLY
-#include "sysemu/sysemu.h"
 #include "sysemu/tcg.h"
 #include "sysemu/hw_accel.h"
 #include "monitor/monitor.h"

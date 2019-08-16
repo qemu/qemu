@@ -20,6 +20,8 @@
 #include "qemu/osdep.h"
 #include "qemu/units.h"
 #include "hw/isa/isa.h"
+#include "hw/qdev-properties.h"
+#include "migration/vmstate.h"
 #include "exec/address-spaces.h"
 #include "hw/boards.h"
 #include "qapi/error.h"

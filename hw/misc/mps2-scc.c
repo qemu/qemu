@@ -22,8 +22,10 @@
 #include "qemu/module.h"
 #include "trace.h"
 #include "hw/sysbus.h"
+#include "migration/vmstate.h"
 #include "hw/registerfields.h"
 #include "hw/misc/mps2-scc.h"
+#include "hw/qdev-properties.h"
 
 REG32(CFG0, 0)
 REG32(CFG1, 4)

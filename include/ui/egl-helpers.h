@@ -4,6 +4,8 @@
 #include <epoxy/gl.h>
 #include <epoxy/egl.h>
 #include <gbm.h>
+#include "ui/console.h"
+#include "ui/shader.h"
 
 extern EGLDisplay *qemu_egl_display;
 extern EGLConfig qemu_egl_config;

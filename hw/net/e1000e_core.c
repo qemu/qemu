@@ -34,11 +34,12 @@
 */
 
 #include "qemu/osdep.h"
-#include "sysemu/sysemu.h"
 #include "net/net.h"
 #include "net/tap.h"
+#include "hw/hw.h"
 #include "hw/pci/msi.h"
 #include "hw/pci/msix.h"
+#include "sysemu/runstate.h"
 
 #include "net_tx_pkt.h"
 #include "net_rx_pkt.h"

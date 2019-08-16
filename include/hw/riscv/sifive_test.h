@@ -19,6 +19,8 @@
 #ifndef HW_SIFIVE_TEST_H
 #define HW_SIFIVE_TEST_H
 
+#include "hw/sysbus.h"
+
 #define TYPE_SIFIVE_TEST "riscv.sifive.test"
 
 #define SIFIVE_TEST(obj) \

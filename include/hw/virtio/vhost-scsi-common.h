@@ -14,7 +14,6 @@
 #ifndef VHOST_SCSI_COMMON_H
 #define VHOST_SCSI_COMMON_H
 
-#include "hw/qdev.h"
 #include "hw/virtio/virtio-scsi.h"
 #include "hw/virtio/vhost.h"
 #include "hw/fw-path-provider.h"

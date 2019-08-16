@@ -10,9 +10,8 @@
 #ifndef HW_NET_NE2000_ISA_H
 #define HW_NET_NE2000_ISA_H
 
-#include "hw/hw.h"
-#include "hw/qdev.h"
 #include "hw/isa/isa.h"
+#include "hw/qdev-properties.h"
 #include "net/net.h"
 
 #define TYPE_ISA_NE2000 "ne2k_isa"

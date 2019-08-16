@@ -47,6 +47,7 @@
 
 #include "trace.h"
 #include "ui/input.h"
+#include "sysemu/runstate.h"
 #include "sysemu/sysemu.h"
 #include "keymaps.h"
 #include "chardev/char.h"

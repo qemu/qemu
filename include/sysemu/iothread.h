@@ -16,6 +16,7 @@
 
 #include "block/aio.h"
 #include "qemu/thread.h"
+#include "qom/object.h"
 
 #define TYPE_IOTHREAD "iothread"
 

@@ -31,7 +31,6 @@
 #include "qemu/error-report.h"
 #include "sysemu/device_tree.h"
 #include "hw/platform-bus.h"
-#include "sysemu/sysemu.h"
 #include "hw/vfio/vfio-platform.h"
 #include "hw/vfio/vfio-calxeda-xgmac.h"
 #include "hw/vfio/vfio-amd-xgbe.h"

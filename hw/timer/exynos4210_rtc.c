@@ -28,14 +28,15 @@
 #include "qemu/osdep.h"
 #include "qemu-common.h"
 #include "qemu/log.h"
+#include "qemu/main-loop.h"
 #include "qemu/module.h"
 #include "hw/sysbus.h"
+#include "migration/vmstate.h"
 #include "qemu/timer.h"
 #include "qemu/bcd.h"
 #include "hw/ptimer.h"
 
-#include "hw/hw.h"
-#include "sysemu/sysemu.h"
+#include "hw/irq.h"
 
 #include "hw/arm/exynos4210.h"
 

@@ -37,9 +37,9 @@
  */
 
 #include "qemu/osdep.h"
-#include "hw/hw.h"
 #include "hw/block/block.h"
 #include "hw/block/flash.h"
+#include "hw/qdev-properties.h"
 #include "sysemu/block-backend.h"
 #include "qapi/error.h"
 #include "qemu/timer.h"
@@ -50,8 +50,9 @@
 #include "qemu/module.h"
 #include "qemu/option.h"
 #include "hw/sysbus.h"
+#include "migration/vmstate.h"
 #include "sysemu/blockdev.h"
-#include "sysemu/sysemu.h"
+#include "sysemu/runstate.h"
 #include "trace.h"
 
 /* #define PFLASH_DEBUG */

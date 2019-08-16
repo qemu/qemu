@@ -10,6 +10,8 @@
 #ifndef HW_SPAPR_IRQ_H
 #define HW_SPAPR_IRQ_H
 
+#include "target/ppc/cpu-qom.h"
+
 /*
  * IRQ range offsets per device type
  */

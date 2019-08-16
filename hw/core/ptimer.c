@@ -5,10 +5,11 @@
  *
  * This code is licensed under the GNU LGPL.
  */
+
 #include "qemu/osdep.h"
-#include "hw/hw.h"
 #include "qemu/timer.h"
 #include "hw/ptimer.h"
+#include "migration/vmstate.h"
 #include "qemu/host-utils.h"
 #include "sysemu/replay.h"
 #include "sysemu/qtest.h"

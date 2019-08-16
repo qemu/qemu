@@ -26,8 +26,9 @@
 
 #include "qemu/osdep.h"
 #include "hw/sysbus.h"
+#include "migration/vmstate.h"
 #include "qemu/module.h"
-#include "sysemu/sysemu.h"
+#include "sysemu/runstate.h"
 
 #ifndef DEBUG_PMU
 #define DEBUG_PMU           0

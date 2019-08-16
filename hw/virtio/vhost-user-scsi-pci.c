@@ -22,6 +22,7 @@
 #include "hw/virtio/virtio.h"
 #include "hw/virtio/virtio-scsi.h"
 #include "hw/pci/pci.h"
+#include "hw/qdev-properties.h"
 #include "qapi/error.h"
 #include "qemu/error-report.h"
 #include "qemu/module.h"

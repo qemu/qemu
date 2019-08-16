@@ -15,6 +15,9 @@
 #ifndef XILINX_UARTLITE_H
 #define XILINX_UARTLITE_H
 
+#include "hw/qdev-properties.h"
+#include "hw/sysbus.h"
+
 static inline DeviceState *xilinx_uartlite_create(hwaddr addr,
                                         qemu_irq irq,
                                         Chardev *chr)

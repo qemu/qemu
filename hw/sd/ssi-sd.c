@@ -13,6 +13,8 @@
 #include "qemu/osdep.h"
 #include "sysemu/blockdev.h"
 #include "hw/ssi/ssi.h"
+#include "migration/vmstate.h"
+#include "hw/qdev-properties.h"
 #include "hw/sd/sd.h"
 #include "qapi/error.h"
 #include "qemu/module.h"

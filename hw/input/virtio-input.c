@@ -10,8 +10,8 @@
 #include "qemu/module.h"
 #include "trace.h"
 
-#include "hw/qdev.h"
 #include "hw/virtio/virtio.h"
+#include "hw/qdev-properties.h"
 #include "hw/virtio/virtio-input.h"
 
 #include "standard-headers/linux/input.h"

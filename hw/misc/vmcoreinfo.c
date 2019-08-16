@@ -13,7 +13,9 @@
 #include "qemu/osdep.h"
 #include "qapi/error.h"
 #include "qemu/module.h"
+#include "sysemu/reset.h"
 #include "hw/nvram/fw_cfg.h"
+#include "migration/vmstate.h"
 #include "hw/misc/vmcoreinfo.h"
 
 static void fw_cfg_vmci_write(void *dev, off_t offset, size_t len)

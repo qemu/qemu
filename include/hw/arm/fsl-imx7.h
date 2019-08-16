@@ -38,7 +38,6 @@
 #include "hw/net/imx_fec.h"
 #include "hw/pci-host/designware.h"
 #include "hw/usb/chipidea.h"
-#include "exec/memory.h"
 #include "cpu.h"
 
 #define TYPE_FSL_IMX7 "fsl,imx7"

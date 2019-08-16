@@ -20,7 +20,9 @@
 #include "qemu/osdep.h"
 #include "hw/pci/pci.h"
 #include "hw/i386/pc.h"
+#include "hw/irq.h"
 #include "hw/timer/i8254.h"
+#include "migration/vmstate.h"
 #include "hw/audio/pcspk.h"
 
 #define TYPE_I82378 "i82378"

@@ -26,10 +26,12 @@
  */
 
 #include "qemu/osdep.h"
-#include "hw/hw.h"
+#include "hw/irq.h"
+#include "hw/qdev-properties.h"
 #include "hw/sparc/sparc32_dma.h"
 #include "hw/sparc/sun4m_iommu.h"
 #include "hw/sysbus.h"
+#include "migration/vmstate.h"
 #include "sysemu/dma.h"
 #include "qapi/error.h"
 #include "qemu/module.h"

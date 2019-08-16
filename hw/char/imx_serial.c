@@ -20,7 +20,9 @@
 
 #include "qemu/osdep.h"
 #include "hw/char/imx_serial.h"
-#include "sysemu/sysemu.h"
+#include "hw/irq.h"
+#include "hw/qdev-properties.h"
+#include "migration/vmstate.h"
 #include "qemu/log.h"
 #include "qemu/module.h"
 

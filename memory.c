@@ -21,6 +21,7 @@
 #include "qapi/visitor.h"
 #include "qemu/bitops.h"
 #include "qemu/error-report.h"
+#include "qemu/main-loop.h"
 #include "qemu/qemu-print.h"
 #include "qom/object.h"
 #include "trace-root.h"
@@ -28,10 +29,9 @@
 #include "exec/memory-internal.h"
 #include "exec/ram_addr.h"
 #include "sysemu/kvm.h"
-#include "sysemu/sysemu.h"
+#include "sysemu/runstate.h"
 #include "sysemu/tcg.h"
 #include "sysemu/accel.h"
-#include "hw/qdev-properties.h"
 #include "hw/boards.h"
 #include "migration/vmstate.h"
 
@@ -3245,6 +3245,7 @@ void memory_region_init_rom_device(MemoryRegion *mr,
 static const TypeInfo memory_region_info = {
     .parent             = TYPE_OBJECT,
     .name               = TYPE_MEMORY_REGION,
+    .class_size         = sizeof(MemoryRegionClass),
     .instance_size      = sizeof(MemoryRegion),
     .instance_init      = memory_region_initfn,
     .instance_finalize  = memory_region_finalize,

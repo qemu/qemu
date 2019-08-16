@@ -20,8 +20,8 @@
 
 #include "qemu/osdep.h"
 #include "qemu-common.h"
-#include "hw/hw.h"
 #include "hw/pci/pci.h"
+#include "hw/qdev-properties.h"
 #include "sysemu/dma.h"
 #include "sysemu/block-backend.h"
 #include "hw/pci/msi.h"
@@ -33,6 +33,7 @@
 #include "trace.h"
 #include "qapi/error.h"
 #include "mfi.h"
+#include "migration/vmstate.h"
 
 #define MEGASAS_VERSION_GEN1 "1.70"
 #define MEGASAS_VERSION_GEN2 "1.80"

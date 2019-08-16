@@ -14,10 +14,10 @@
 #ifndef QEMU_VIRTIO_H
 #define QEMU_VIRTIO_H
 
-#include "hw/hw.h"
+#include "exec/memory.h"
+#include "hw/qdev-core.h"
 #include "net/net.h"
-#include "hw/qdev.h"
-#include "sysemu/sysemu.h"
+#include "migration/vmstate.h"
 #include "qemu/event_notifier.h"
 #include "standard-headers/linux/virtio_config.h"
 #include "standard-headers/linux/virtio_ring.h"

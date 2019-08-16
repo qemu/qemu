@@ -17,6 +17,8 @@
 #include "qemu/log.h"
 #include "qemu/module.h"
 #include "hw/misc/msf2-sysreg.h"
+#include "hw/qdev-properties.h"
+#include "migration/vmstate.h"
 #include "qemu/error-report.h"
 #include "trace.h"
 

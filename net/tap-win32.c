@@ -33,8 +33,8 @@
 #include "clients.h"            /* net_init_tap */
 #include "net/net.h"
 #include "net/tap.h"            /* tap_has_ufo, ... */
-#include "sysemu/sysemu.h"
 #include "qemu/error-report.h"
+#include "qemu/main-loop.h"
 #include <windows.h>
 #include <winioctl.h>
 

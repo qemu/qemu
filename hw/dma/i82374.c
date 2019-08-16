@@ -26,6 +26,8 @@
 #include "qapi/error.h"
 #include "qemu/module.h"
 #include "hw/isa/isa.h"
+#include "hw/qdev-properties.h"
+#include "migration/vmstate.h"
 #include "hw/dma/i8257.h"
 
 #define TYPE_I82374 "i82374"

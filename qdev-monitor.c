@@ -18,7 +18,6 @@
  */
 
 #include "qemu/osdep.h"
-#include "hw/qdev.h"
 #include "hw/sysbus.h"
 #include "monitor/monitor.h"
 #include "monitor/qdev.h"
@@ -33,6 +32,7 @@
 #include "qemu/option.h"
 #include "qemu/qemu-print.h"
 #include "sysemu/block-backend.h"
+#include "sysemu/sysemu.h"
 #include "migration/misc.h"
 
 /*

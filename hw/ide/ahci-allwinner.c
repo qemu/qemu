@@ -16,11 +16,11 @@
  */
 
 #include "qemu/osdep.h"
-#include "hw/hw.h"
 #include "qemu/error-report.h"
 #include "qemu/module.h"
 #include "sysemu/dma.h"
 #include "hw/ide/internal.h"
+#include "migration/vmstate.h"
 #include "ahci_internal.h"
 
 #include "trace.h"

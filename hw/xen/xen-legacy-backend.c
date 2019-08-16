@@ -25,10 +25,11 @@
 #include "qemu/osdep.h"
 #include <sys/signal.h>
 
-#include "hw/hw.h"
 #include "hw/sysbus.h"
 #include "hw/boards.h"
+#include "hw/qdev-properties.h"
 #include "qemu/log.h"
+#include "qemu/main-loop.h"
 #include "qapi/error.h"
 #include "hw/xen/xen-legacy-backend.h"
 #include "hw/xen/xen_pvdev.h"

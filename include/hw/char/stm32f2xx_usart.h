@@ -27,7 +27,6 @@
 
 #include "hw/sysbus.h"
 #include "chardev/char-fe.h"
-#include "hw/hw.h"
 
 #define USART_SR   0x00
 #define USART_DR   0x04

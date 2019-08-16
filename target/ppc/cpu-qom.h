@@ -203,7 +203,7 @@ typedef struct PPCTimebase {
     int64_t time_of_the_day_ns;
 } PPCTimebase;
 
-extern const struct VMStateDescription vmstate_ppc_timebase;
+extern const VMStateDescription vmstate_ppc_timebase;
 
 #define VMSTATE_PPC_TIMEBASE_V(_field, _state, _version) {            \
     .name       = (stringify(_field)),                                \

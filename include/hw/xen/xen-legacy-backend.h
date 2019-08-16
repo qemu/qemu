@@ -3,7 +3,6 @@
 
 #include "hw/xen/xen_common.h"
 #include "hw/xen/xen_pvdev.h"
-#include "sysemu/sysemu.h"
 #include "net/net.h"
 
 #define TYPE_XENSYSDEV "xen-sysdev"

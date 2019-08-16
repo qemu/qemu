@@ -21,8 +21,10 @@
 #include "qapi/error.h"
 #include "trace.h"
 #include "hw/sysbus.h"
+#include "migration/vmstate.h"
 #include "hw/registerfields.h"
 #include "hw/misc/mps2-fpgaio.h"
+#include "hw/qdev-properties.h"
 #include "qemu/timer.h"
 
 REG32(LED0, 0)

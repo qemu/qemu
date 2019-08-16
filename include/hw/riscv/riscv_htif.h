@@ -20,10 +20,8 @@
 #ifndef HW_RISCV_HTIF_H
 #define HW_RISCV_HTIF_H
 
-#include "hw/hw.h"
 #include "chardev/char.h"
 #include "chardev/char-fe.h"
-#include "sysemu/sysemu.h"
 #include "exec/memory.h"
 #include "target/riscv/cpu.h"
 

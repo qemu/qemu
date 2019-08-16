@@ -5,7 +5,6 @@
  */
 #include "qemu/osdep.h"
 #include "qemu/bitmap.h"
-#include "qemu/queue.h"
 #include "ui/console.h"
 #include "ui/input.h"
 #include "ui/kbd-state.h"

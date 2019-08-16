@@ -6,9 +6,11 @@
  *
  * This code is licensed under the GPL.
  */
+
 #include "qemu/osdep.h"
-#include "hw/hw.h"
 #include "hw/input/gamepad.h"
+#include "hw/irq.h"
+#include "migration/vmstate.h"
 #include "ui/console.h"
 
 typedef struct {

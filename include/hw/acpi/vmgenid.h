@@ -2,7 +2,7 @@
 #define ACPI_VMGENID_H
 
 #include "hw/acpi/bios-linker-loader.h"
-#include "hw/qdev.h"
+#include "hw/qdev-core.h"
 #include "qemu/uuid.h"
 
 #define VMGENID_DEVICE           "vmgenid"

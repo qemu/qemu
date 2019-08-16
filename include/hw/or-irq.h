@@ -25,7 +25,6 @@
 #ifndef HW_OR_IRQ_H
 #define HW_OR_IRQ_H
 
-#include "hw/irq.h"
 #include "hw/sysbus.h"
 #include "qom/object.h"
 

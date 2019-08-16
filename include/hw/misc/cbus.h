@@ -13,7 +13,6 @@
 #ifndef HW_MISC_CBUS_H
 #define HW_MISC_CBUS_H
 
-#include "hw/irq.h"
 
 typedef struct {
     qemu_irq clk;

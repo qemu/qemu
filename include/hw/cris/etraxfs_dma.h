@@ -1,6 +1,8 @@
 #ifndef HW_ETRAXFS_DMA_H
 #define HW_ETRAXFS_DMA_H
 
+#include "exec/hwaddr.h"
+
 struct dma_context_metadata {
 	/* data descriptor md */
 	uint16_t metadata;

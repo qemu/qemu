@@ -33,9 +33,9 @@
  */
 
 #include "qemu/osdep.h"
-#include "hw/hw.h"
 #include "hw/block/block.h"
 #include "hw/block/flash.h"
+#include "hw/qdev-properties.h"
 #include "qapi/error.h"
 #include "qemu/bitmap.h"
 #include "qemu/timer.h"
@@ -43,6 +43,7 @@
 #include "qemu/host-utils.h"
 #include "qemu/module.h"
 #include "hw/sysbus.h"
+#include "migration/vmstate.h"
 #include "trace.h"
 
 #define PFLASH_DEBUG false

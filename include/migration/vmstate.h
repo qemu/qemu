@@ -28,7 +28,6 @@
 #define QEMU_VMSTATE_H
 
 typedef struct VMStateInfo VMStateInfo;
-typedef struct VMStateDescription VMStateDescription;
 typedef struct VMStateField VMStateField;
 
 /* VMStateInfo allows customized migration of objects that don't fit in

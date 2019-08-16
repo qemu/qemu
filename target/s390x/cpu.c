@@ -26,6 +26,7 @@
 #include "internal.h"
 #include "kvm_s390x.h"
 #include "sysemu/kvm.h"
+#include "sysemu/reset.h"
 #include "qemu/timer.h"
 #include "qemu/error-report.h"
 #include "qemu/module.h"
@@ -36,7 +37,6 @@
 #include "sysemu/hw_accel.h"
 #include "hw/qdev-properties.h"
 #ifndef CONFIG_USER_ONLY
-#include "hw/hw.h"
 #include "hw/boards.h"
 #include "sysemu/arch_init.h"
 #include "sysemu/sysemu.h"

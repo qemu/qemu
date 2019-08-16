@@ -11,9 +11,10 @@
 
 #include "qemu/osdep.h"
 #include "sysemu/replay.h"
+#include "sysemu/runstate.h"
 #include "replay-internal.h"
 #include "qemu/error-report.h"
-#include "sysemu/sysemu.h"
+#include "qemu/main-loop.h"
 
 /* Mutex to protect reading and writing events to the log.
    data_kind and has_unread_data are also protected

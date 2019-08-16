@@ -20,7 +20,7 @@
 
 #include "qemu/osdep.h"
 #include "cpu.h"
-#include "hw/hw.h"
+#include "migration/vmstate.h"
 #include "qemu/timer.h"
 
 #define TIMER_PERIOD 50 /* 50 ns period for 20 MHz timer */

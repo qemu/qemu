@@ -15,7 +15,6 @@
 #define HW_S390_SCLP_H
 
 #include "hw/sysbus.h"
-#include "hw/qdev.h"
 #include "target/s390x/cpu-qom.h"
 
 #define SCLP_CMD_CODE_MASK                      0xffff00ff

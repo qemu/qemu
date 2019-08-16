@@ -21,7 +21,7 @@
 #include "cpu.h"
 #include "exec/exec-all.h"
 #include "qemu/log.h"
-#include "sysemu/sysemu.h"
+#include "sysemu/runstate.h"
 #include "exec/helper-proto.h"
 
 void helper_raise_interrupt(CPUX86State *env, int intno, int next_eip_addend)
