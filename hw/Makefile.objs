@@ -17,7 +17,6 @@ devices-dirs-y += intc/
 devices-dirs-$(CONFIG_IPACK) += ipack/
 devices-dirs-$(CONFIG_IPMI) += ipmi/
 devices-dirs-y += isa/
-devices-dirs-y += misc/
 endif
 
 common-obj-y += $(devices-dirs-y)

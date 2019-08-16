@@ -1,5 +1,6 @@
 subdir('core')
 subdir('mem')
+subdir('misc')
 subdir('net')
 subdir('nubus')
 subdir('nvram')

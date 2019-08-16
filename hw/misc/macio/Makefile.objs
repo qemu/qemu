@@ -1,5 +1,0 @@
-common-obj-y += macio.o
-common-obj-$(CONFIG_CUDA) += cuda.o
-common-obj-$(CONFIG_MAC_PMU) += pmu.o
-common-obj-$(CONFIG_MAC_DBDMA) += mac_dbdma.o
-common-obj-$(CONFIG_MACIO_GPIO) += gpio.o
