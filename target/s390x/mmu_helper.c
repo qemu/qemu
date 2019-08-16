@@ -421,13 +421,27 @@ nodat:
             return 0;
         }
 
-        if (*flags & PAGE_READ) {
-            key |= SK_R;
+        switch (rw) {
+        case MMU_DATA_LOAD:
+        case MMU_INST_FETCH:
+            /*
+             * The TLB entry has to remain write-protected on read-faults if
+             * the storage key does not indicate a change already. Otherwise
+             * we might miss setting the change bit on write accesses.
+             */
+            if (!(key & SK_C)) {
+                *flags &= ~PAGE_WRITE;
+            }
+            break;
+        case MMU_DATA_STORE:
+            key |= SK_C;
+            break;
+        default:
+            g_assert_not_reached();
         }
 
-        if (*flags & PAGE_WRITE) {
-            key |= SK_C;
-        }
+        /* Any store/fetch sets the reference bit */
+        key |= SK_R;
 
         r = skeyclass->set_skeys(ss, *raddr / TARGET_PAGE_SIZE, 1, &key);
         if (r) {
