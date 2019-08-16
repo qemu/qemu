@@ -2421,6 +2421,14 @@ static void pc_cpu_pre_plug(HotplugHandler *hotplug_dev,
         int max_socket = (ms->smp.max_cpus - 1) /
                                 smp_threads / smp_cores / pcms->smp_dies;
 
+        /*
+         * die-id was optional in QEMU 4.0 and older, so keep it optional
+         * if there's only one die per socket.
+         */
+        if (cpu->die_id < 0 && pcms->smp_dies == 1) {
+            cpu->die_id = 0;
+        }
+
         if (cpu->socket_id < 0) {
             error_setg(errp, "CPU socket-id is not set");
             return;
