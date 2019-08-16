@@ -350,8 +350,9 @@ int mmu_translate(CPUS390XState *env, target_ulong vaddr, int rw, uint64_t asc,
 {
     static S390SKeysState *ss;
     static S390SKeysClass *skeyclass;
-    int r = -1;
+    uint64_t asce;
     uint8_t key;
+    int r;
 
     if (unlikely(!ss)) {
         ss = s390_get_skeys_device();
@@ -381,36 +382,21 @@ int mmu_translate(CPUS390XState *env, target_ulong vaddr, int rw, uint64_t asc,
 
     if (!(env->psw.mask & PSW_MASK_DAT)) {
         *raddr = vaddr;
-        r = 0;
-        goto out;
+        goto nodat;
     }
 
     switch (asc) {
     case PSW_ASC_PRIMARY:
         PTE_DPRINTF("%s: asc=primary\n", __func__);
-        r = mmu_translate_asce(env, vaddr, asc, env->cregs[1], raddr, flags,
-                               rw, exc);
+        asce = env->cregs[1];
         break;
     case PSW_ASC_HOME:
         PTE_DPRINTF("%s: asc=home\n", __func__);
-        r = mmu_translate_asce(env, vaddr, asc, env->cregs[13], raddr, flags,
-                               rw, exc);
+        asce = env->cregs[13];
         break;
     case PSW_ASC_SECONDARY:
         PTE_DPRINTF("%s: asc=secondary\n", __func__);
-        /*
-         * Instruction: Primary
-         * Data: Secondary
-         */
-        if (rw == MMU_INST_FETCH) {
-            r = mmu_translate_asce(env, vaddr, PSW_ASC_PRIMARY, env->cregs[1],
-                                   raddr, flags, rw, exc);
-            *flags &= ~(PAGE_READ | PAGE_WRITE);
-        } else {
-            r = mmu_translate_asce(env, vaddr, PSW_ASC_SECONDARY, env->cregs[7],
-                                   raddr, flags, rw, exc);
-            *flags &= ~(PAGE_EXEC);
-        }
+        asce = env->cregs[7];
         break;
     case PSW_ASC_ACCREG:
     default:
@@ -418,11 +404,17 @@ int mmu_translate(CPUS390XState *env, target_ulong vaddr, int rw, uint64_t asc,
         break;
     }
 
- out:
+    /* perform the DAT translation */
+    r = mmu_translate_asce(env, vaddr, asc, asce, raddr, flags, rw, exc);
+    if (r) {
+        return r;
+    }
+
+nodat:
     /* Convert real address -> absolute address */
     *raddr = mmu_real2abs(env, *raddr);
 
-    if (r == 0 && *raddr < ram_size) {
+    if (*raddr < ram_size) {
         r = skeyclass->get_skeys(ss, *raddr / TARGET_PAGE_SIZE, 1, &key);
         if (r) {
             trace_get_skeys_nonzero(r);
@@ -444,7 +436,7 @@ int mmu_translate(CPUS390XState *env, target_ulong vaddr, int rw, uint64_t asc,
         }
     }
 
-    return r;
+    return 0;
 }
 
 /**
