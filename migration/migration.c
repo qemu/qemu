@@ -823,6 +823,25 @@ bool migration_is_setup_or_active(int state)
     }
 }
 
+static void populate_time_info(MigrationInfo *info, MigrationState *s)
+{
+    info->has_status = true;
+    info->has_setup_time = true;
+    info->setup_time = s->setup_time;
+    if (s->state == MIGRATION_STATUS_COMPLETED) {
+        info->has_total_time = true;
+        info->total_time = s->total_time;
+        info->has_downtime = true;
+        info->downtime = s->downtime;
+    } else {
+        info->has_total_time = true;
+        info->total_time = qemu_clock_get_ms(QEMU_CLOCK_REALTIME) -
+                           s->start_time;
+        info->has_expected_downtime = true;
+        info->expected_downtime = s->expected_downtime;
+    }
+}
+
 static void populate_ram_info(MigrationInfo *info, MigrationState *s)
 {
     info->has_ram = true;
@@ -908,16 +927,8 @@ static void fill_source_migration_info(MigrationInfo *info)
     case MIGRATION_STATUS_DEVICE:
     case MIGRATION_STATUS_POSTCOPY_PAUSED:
     case MIGRATION_STATUS_POSTCOPY_RECOVER:
-         /* TODO add some postcopy stats */
-        info->has_status = true;
-        info->has_total_time = true;
-        info->total_time = qemu_clock_get_ms(QEMU_CLOCK_REALTIME)
-            - s->start_time;
-        info->has_expected_downtime = true;
-        info->expected_downtime = s->expected_downtime;
-        info->has_setup_time = true;
-        info->setup_time = s->setup_time;
-
+        /* TODO add some postcopy stats */
+        populate_time_info(info, s);
         populate_ram_info(info, s);
         populate_disk_info(info);
         break;
@@ -926,14 +937,7 @@ static void fill_source_migration_info(MigrationInfo *info)
         /* TODO: display COLO specific information (checkpoint info etc.) */
         break;
     case MIGRATION_STATUS_COMPLETED:
-        info->has_status = true;
-        info->has_total_time = true;
-        info->total_time = s->total_time;
-        info->has_downtime = true;
-        info->downtime = s->downtime;
-        info->has_setup_time = true;
-        info->setup_time = s->setup_time;
-
+        populate_time_info(info, s);
         populate_ram_info(info, s);
         break;
     case MIGRATION_STATUS_FAILED:
@@ -1695,7 +1699,6 @@ void migrate_init(MigrationState *s)
      * parameters/capabilities that the user set, and
      * locks.
      */
-    s->bytes_xfer = 0;
     s->cleanup_bh = 0;
     s->to_dst_file = NULL;
     s->state = MIGRATION_STATUS_NONE;
@@ -1908,6 +1911,11 @@ static bool migrate_prepare(MigrationState *s, bool blk, bool blk_inc,
     }
 
     migrate_init(s);
+    /*
+     * set ram_counters memory to zero for a
+     * new migration
+     */
+    memset(&ram_counters, 0, sizeof(ram_counters));
 
     return true;
 }
@@ -2963,6 +2971,7 @@ static MigThrError migration_detect_error(MigrationState *s)
 {
     int ret;
     int state = s->state;
+    Error *local_error = NULL;
 
     if (state == MIGRATION_STATUS_CANCELLING ||
         state == MIGRATION_STATUS_CANCELLED) {
@@ -2971,11 +2980,16 @@ static MigThrError migration_detect_error(MigrationState *s)
     }
 
     /* Try to detect any file errors */
-    ret = qemu_file_get_error(s->to_dst_file);
-
+    ret = qemu_file_get_error_obj(s->to_dst_file, &local_error);
     if (!ret) {
         /* Everything is fine */
+        assert(!local_error);
         return MIG_THR_ERR_NONE;
+    }
+
+    if (local_error) {
+        migrate_set_error(s, local_error);
+        error_free(local_error);
     }
 
     if (state == MIGRATION_STATUS_POSTCOPY_ACTIVE && ret == -EIO) {
@@ -3025,6 +3039,17 @@ static void migration_calculate_complete(MigrationState *s)
     }
 }
 
+static void update_iteration_initial_status(MigrationState *s)
+{
+    /*
+     * Update these three fields at the same time to avoid mismatch info lead
+     * wrong speed calculation.
+     */
+    s->iteration_start_time = qemu_clock_get_ms(QEMU_CLOCK_REALTIME);
+    s->iteration_initial_bytes = migration_total_bytes(s);
+    s->iteration_initial_pages = ram_get_total_transferred_pages();
+}
+
 static void migration_update_counters(MigrationState *s,
                                       int64_t current_time)
 {
@@ -3060,9 +3085,7 @@ static void migration_update_counters(MigrationState *s,
 
     qemu_file_reset_rate_limit(s->to_dst_file);
 
-    s->iteration_start_time = current_time;
-    s->iteration_initial_bytes = current_bytes;
-    s->iteration_initial_pages = ram_get_total_transferred_pages();
+    update_iteration_initial_status(s);
 
     trace_migrate_transferred(transferred, time_spent,
                               bandwidth, s->threshold_size);
@@ -3093,8 +3116,7 @@ static MigIterateState migration_iteration_run(MigrationState *s)
 
     if (pending_size && pending_size >= s->threshold_size) {
         /* Still a significant amount to transfer */
-        if (migrate_postcopy() && !in_postcopy &&
-            pend_pre <= s->threshold_size &&
+        if (!in_postcopy && pend_pre <= s->threshold_size &&
             atomic_read(&s->start_postcopy)) {
             if (postcopy_start(s)) {
                 error_report("%s: postcopy failed to start", __func__);
@@ -3186,7 +3208,7 @@ static void *migration_thread(void *opaque)
     rcu_register_thread();
 
     object_ref(OBJECT(s));
-    s->iteration_start_time = qemu_clock_get_ms(QEMU_CLOCK_REALTIME);
+    update_iteration_initial_status(s);
 
     qemu_savevm_state_header(s->to_dst_file);
 
@@ -3251,8 +3273,7 @@ static void *migration_thread(void *opaque)
              * the local variables. This is important to avoid
              * breaking transferred_bytes and bandwidth calculation
              */
-            s->iteration_start_time = qemu_clock_get_ms(QEMU_CLOCK_REALTIME);
-            s->iteration_initial_bytes = 0;
+            update_iteration_initial_status(s);
         }
 
         current_time = qemu_clock_get_ms(QEMU_CLOCK_REALTIME);

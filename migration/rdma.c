@@ -3140,7 +3140,7 @@ static size_t qemu_rdma_save_page(QEMUFile *f, void *opaque,
 
     CHECK_ERROR_STATE();
 
-    if (migrate_get_current()->state == MIGRATION_STATUS_POSTCOPY_ACTIVE) {
+    if (migration_in_postcopy()) {
         rcu_read_unlock();
         return RAM_SAVE_CONTROL_NOT_SUPP;
     }
@@ -3775,7 +3775,7 @@ static int qemu_rdma_registration_start(QEMUFile *f, void *opaque,
 
     CHECK_ERROR_STATE();
 
-    if (migrate_get_current()->state == MIGRATION_STATUS_POSTCOPY_ACTIVE) {
+    if (migration_in_postcopy()) {
         rcu_read_unlock();
         return 0;
     }
@@ -3810,7 +3810,7 @@ static int qemu_rdma_registration_stop(QEMUFile *f, void *opaque,
 
     CHECK_ERROR_STATE();
 
-    if (migrate_get_current()->state == MIGRATION_STATUS_POSTCOPY_ACTIVE) {
+    if (migration_in_postcopy()) {
         rcu_read_unlock();
         return 0;
     }

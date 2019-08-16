@@ -33,7 +33,8 @@
 static ssize_t channel_writev_buffer(void *opaque,
                                      struct iovec *iov,
                                      int iovcnt,
-                                     int64_t pos)
+                                     int64_t pos,
+                                     Error **errp)
 {
     QIOChannel *ioc = QIO_CHANNEL(opaque);
     ssize_t done = 0;
@@ -47,7 +48,7 @@ static ssize_t channel_writev_buffer(void *opaque,
 
     while (nlocal_iov > 0) {
         ssize_t len;
-        len = qio_channel_writev(ioc, local_iov, nlocal_iov, NULL);
+        len = qio_channel_writev(ioc, local_iov, nlocal_iov, errp);
         if (len == QIO_CHANNEL_ERR_BLOCK) {
             if (qemu_in_coroutine()) {
                 qio_channel_yield(ioc, G_IO_OUT);
@@ -57,7 +58,6 @@ static ssize_t channel_writev_buffer(void *opaque,
             continue;
         }
         if (len < 0) {
-            /* XXX handle Error objects */
             done = -EIO;
             goto cleanup;
         }
@@ -75,13 +75,14 @@ static ssize_t channel_writev_buffer(void *opaque,
 static ssize_t channel_get_buffer(void *opaque,
                                   uint8_t *buf,
                                   int64_t pos,
-                                  size_t size)
+                                  size_t size,
+                                  Error **errp)
 {
     QIOChannel *ioc = QIO_CHANNEL(opaque);
     ssize_t ret;
 
     do {
-        ret = qio_channel_read(ioc, (char *)buf, size, NULL);
+        ret = qio_channel_read(ioc, (char *)buf, size, errp);
         if (ret < 0) {
             if (ret == QIO_CHANNEL_ERR_BLOCK) {
                 if (qemu_in_coroutine()) {
@@ -90,7 +91,6 @@ static ssize_t channel_get_buffer(void *opaque,
                     qio_channel_wait(ioc, G_IO_IN);
                 }
             } else {
-                /* XXX handle Error * object */
                 return -EIO;
             }
         }
@@ -100,18 +100,20 @@ static ssize_t channel_get_buffer(void *opaque,
 }
 
 
-static int channel_close(void *opaque)
+static int channel_close(void *opaque, Error **errp)
 {
+    int ret;
     QIOChannel *ioc = QIO_CHANNEL(opaque);
-    qio_channel_close(ioc, NULL);
+    ret = qio_channel_close(ioc, errp);
     object_unref(OBJECT(ioc));
-    return 0;
+    return ret;
 }
 
 
 static int channel_shutdown(void *opaque,
                             bool rd,
-                            bool wr)
+                            bool wr,
+                            Error **errp)
 {
     QIOChannel *ioc = QIO_CHANNEL(opaque);
 
@@ -125,8 +127,7 @@ static int channel_shutdown(void *opaque,
         } else {
             mode = QIO_CHANNEL_SHUTDOWN_WRITE;
         }
-        if (qio_channel_shutdown(ioc, mode, NULL) < 0) {
-            /* XXX handler Error * object */
+        if (qio_channel_shutdown(ioc, mode, errp) < 0) {
             return -EIO;
         }
     }
@@ -135,11 +136,12 @@ static int channel_shutdown(void *opaque,
 
 
 static int channel_set_blocking(void *opaque,
-                                bool enabled)
+                                bool enabled,
+                                Error **errp)
 {
     QIOChannel *ioc = QIO_CHANNEL(opaque);
 
-    if (qio_channel_set_blocking(ioc, enabled, NULL) < 0) {
+    if (qio_channel_set_blocking(ioc, enabled, errp) < 0) {
         return -1;
     }
     return 0;

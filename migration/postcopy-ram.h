@@ -43,10 +43,8 @@ int postcopy_ram_prepare_discard(MigrationIncomingState *mis);
 
 /*
  * Called at the start of each RAMBlock by the bitmap code.
- * Returns a new PDS
  */
-PostcopyDiscardState *postcopy_discard_send_init(MigrationState *ms,
-                                                 const char *name);
+void postcopy_discard_send_init(MigrationState *ms, const char *name);
 
 /*
  * Called by the bitmap code for each chunk to discard.
@@ -55,15 +53,14 @@ PostcopyDiscardState *postcopy_discard_send_init(MigrationState *ms,
  * @start,@length: a range of pages in the migration bitmap in the
  *  RAM block passed to postcopy_discard_send_init() (length=1 is one page)
  */
-void postcopy_discard_send_range(MigrationState *ms, PostcopyDiscardState *pds,
-                                 unsigned long start, unsigned long length);
+void postcopy_discard_send_range(MigrationState *ms, unsigned long start,
+                                 unsigned long length);
 
 /*
  * Called at the end of each RAMBlock by the bitmap code.
- * Sends any outstanding discard messages, frees the PDS.
+ * Sends any outstanding discard messages.
  */
-void postcopy_discard_send_finish(MigrationState *ms,
-                                  PostcopyDiscardState *pds);
+void postcopy_discard_send_finish(MigrationState *ms);
 
 /*
  * Place a page (from) at (host) efficiently
