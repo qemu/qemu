@@ -14,6 +14,7 @@
 #include "fuse_lowlevel.h"
 #include <assert.h>
 #include <errno.h>
+#include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
 
@@ -31,6 +32,43 @@ size_t fuse_buf_size(const struct fuse_bufvec *bufv)
     }
 
     return size;
+}
+
+__attribute__((unused))
+static ssize_t fuse_buf_writev(struct fuse_buf *out_buf,
+                               struct fuse_bufvec *in_buf)
+{
+    ssize_t res, i, j;
+    size_t iovcnt = in_buf->count;
+    struct iovec *iov;
+    int fd = out_buf->fd;
+
+    iov = calloc(iovcnt, sizeof(struct iovec));
+    if (!iov) {
+        return -ENOMEM;
+    }
+
+    for (i = 0, j = 0; i < iovcnt; i++) {
+        /* Skip the buf with 0 size */
+        if (in_buf->buf[i].size) {
+            iov[j].iov_base = in_buf->buf[i].mem;
+            iov[j].iov_len = in_buf->buf[i].size;
+            j++;
+        }
+    }
+
+    if (out_buf->flags & FUSE_BUF_FD_SEEK) {
+        res = pwritev(fd, iov, iovcnt, out_buf->pos);
+    } else {
+        res = writev(fd, iov, iovcnt);
+    }
+
+    if (res == -1) {
+        res = -errno;
+    }
+
+    free(iov);
+    return res;
 }
 
 static size_t min_size(size_t s1, size_t s2)
