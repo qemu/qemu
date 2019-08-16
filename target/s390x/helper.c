@@ -58,6 +58,11 @@ hwaddr s390_cpu_get_phys_page_debug(CPUState *cs, vaddr vaddr)
         vaddr &= 0x7fffffff;
     }
 
+    /* We want to read the code (e.g., see what we are single-stepping).*/
+    if (asc != PSW_ASC_HOME) {
+        asc = PSW_ASC_PRIMARY;
+    }
+
     if (mmu_translate(env, vaddr, MMU_INST_FETCH, asc, &raddr, &prot, false)) {
         return -1;
     }
