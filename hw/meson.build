@@ -1,5 +1,6 @@
 subdir('core')
 subdir('mem')
+subdir('net')
 subdir('nubus')
 subdir('nvram')
 subdir('pci')
