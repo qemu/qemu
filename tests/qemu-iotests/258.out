@@ -1,0 +1,33 @@
+Running tests:
+
+=== Commit and stream finish concurrently (letting stream write) ===
+
+{"execute": "object-add", "arguments": {"id": "tg", "props": {"x-iops-write": 1, "x-iops-write-max": 1}, "qom-type": "throttle-group"}}
+{"return": {}}
+{"execute": "blockdev-add", "arguments": {"backing": {"backing": {"backing": {"backing": {"driver": "raw", "file": {"driver": "file", "filename": "TEST_DIR/PID-node0.img"}, "node-name": "node0"}, "driver": "IMGFMT", "file": {"driver": "file", "filename": "TEST_DIR/PID-node1.img"}, "node-name": "node1"}, "driver": "IMGFMT", "file": {"driver": "file", "filename": "TEST_DIR/PID-node2.img"}, "node-name": "node2"}, "driver": "IMGFMT", "file": {"driver": "file", "filename": "TEST_DIR/PID-node3.img"}, "node-name": "node3"}, "driver": "IMGFMT", "file": {"driver": "throttle", "file": {"driver": "file", "filename": "TEST_DIR/PID-node4.img"}, "throttle-group": "tg"}, "node-name": "node4"}}
+{"return": {}}
+{"execute": "block-commit", "arguments": {"auto-finalize": false, "base-node": "node0", "device": "node4", "filter-node-name": "commit-filter", "job-id": "commit", "top-node": "node1"}}
+{"return": {}}
+{"execute": "block-stream", "arguments": {"base-node": "commit-filter", "device": "node3", "job-id": "stream"}}
+{"return": {}}
+{"execute": "job-finalize", "arguments": {"id": "commit"}}
+{"return": {}}
+{"data": {"id": "commit", "type": "commit"}, "event": "BLOCK_JOB_PENDING", "timestamp": {"microseconds": "USECS", "seconds": "SECS"}}
+{"data": {"device": "commit", "len": 67108864, "offset": 67108864, "speed": 0, "type": "commit"}, "event": "BLOCK_JOB_COMPLETED", "timestamp": {"microseconds": "USECS", "seconds": "SECS"}}
+{"data": {"device": "stream", "len": 67108864, "offset": 67108864, "speed": 0, "type": "stream"}, "event": "BLOCK_JOB_COMPLETED", "timestamp": {"microseconds": "USECS", "seconds": "SECS"}}
+
+=== Commit and stream finish concurrently (letting commit write) ===
+
+{"execute": "object-add", "arguments": {"id": "tg", "props": {"x-iops-write": 1, "x-iops-write-max": 1}, "qom-type": "throttle-group"}}
+{"return": {}}
+{"execute": "blockdev-add", "arguments": {"backing": {"backing": {"backing": {"backing": {"driver": "raw", "file": {"driver": "throttle", "file": {"driver": "file", "filename": "TEST_DIR/PID-node0.img"}, "throttle-group": "tg"}, "node-name": "node0"}, "driver": "IMGFMT", "file": {"driver": "file", "filename": "TEST_DIR/PID-node1.img"}, "node-name": "node1"}, "driver": "IMGFMT", "file": {"driver": "file", "filename": "TEST_DIR/PID-node2.img"}, "node-name": "node2"}, "driver": "IMGFMT", "file": {"driver": "file", "filename": "TEST_DIR/PID-node3.img"}, "node-name": "node3"}, "driver": "IMGFMT", "file": {"driver": "file", "filename": "TEST_DIR/PID-node4.img"}, "node-name": "node4"}}
+{"return": {}}
+{"execute": "block-commit", "arguments": {"auto-finalize": false, "base-node": "node0", "device": "node4", "filter-node-name": "commit-filter", "job-id": "commit", "top-node": "node1"}}
+{"return": {}}
+{"execute": "block-stream", "arguments": {"base-node": "commit-filter", "device": "node3", "job-id": "stream"}}
+{"return": {}}
+{"data": {"device": "stream", "len": 67108864, "offset": 67108864, "speed": 0, "type": "stream"}, "event": "BLOCK_JOB_COMPLETED", "timestamp": {"microseconds": "USECS", "seconds": "SECS"}}
+{"execute": "job-finalize", "arguments": {"id": "commit"}}
+{"return": {}}
+{"data": {"id": "commit", "type": "commit"}, "event": "BLOCK_JOB_PENDING", "timestamp": {"microseconds": "USECS", "seconds": "SECS"}}
+{"data": {"device": "commit", "len": 67108864, "offset": 67108864, "speed": 0, "type": "commit"}, "event": "BLOCK_JOB_COMPLETED", "timestamp": {"microseconds": "USECS", "seconds": "SECS"}}

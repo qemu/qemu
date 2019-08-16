@@ -26,22 +26,6 @@ import os
 iotests.verify_image_format(supported_fmts=['qcow2'])
 iotests.verify_platform(['linux'])
 
-def enable_migration_events(vm, name):
-    iotests.log('Enabling migration QMP events on %s...' % name)
-    iotests.log(vm.qmp('migrate-set-capabilities', capabilities=[
-        {
-            'capability': 'events',
-            'state': True
-        }
-    ]))
-
-def wait_migration(vm):
-    while True:
-        event = vm.event_wait('MIGRATION')
-        iotests.log(event, filters=[iotests.filter_qmp_event])
-        if event['data']['status'] == 'completed':
-            break
-
 with iotests.FilePath('img') as img_path, \
      iotests.FilePath('backing') as backing_path, \
      iotests.FilePath('mig_fifo_a') as fifo_a, \
@@ -62,7 +46,7 @@ with iotests.FilePath('img') as img_path, \
          .add_blockdev('%s,file=drive0-backing-file,node-name=drive0-backing' % (iotests.imgfmt))
          .launch())
 
-    enable_migration_events(vm_a, 'A')
+    vm_a.enable_migration_events('A')
 
     iotests.log('Launching destination VM...')
     (vm_b.add_blockdev('file,filename=%s,node-name=drive0-file' % (img_path))
@@ -72,7 +56,7 @@ with iotests.FilePath('img') as img_path, \
          .add_incoming("exec: cat '%s'" % (fifo_a))
          .launch())
 
-    enable_migration_events(vm_b, 'B')
+    vm_b.enable_migration_events('B')
 
     # Add a child node that was created after the parent node. The reverse case
     # is covered by the -blockdev options above.
@@ -85,9 +69,9 @@ with iotests.FilePath('img') as img_path, \
     iotests.log(vm_a.qmp('migrate', uri='exec:cat >%s' % (fifo_a)))
     with iotests.Timeout(3, 'Migration does not complete'):
         # Wait for the source first (which includes setup=setup)
-        wait_migration(vm_a)
+        vm_a.wait_migration()
         # Wait for the destination second (which does not)
-        wait_migration(vm_b)
+        vm_b.wait_migration()
 
     iotests.log(vm_a.qmp('query-migrate')['return']['status'])
     iotests.log(vm_b.qmp('query-migrate')['return']['status'])
@@ -105,7 +89,7 @@ with iotests.FilePath('img') as img_path, \
          .add_incoming("exec: cat '%s'" % (fifo_b))
          .launch())
 
-    enable_migration_events(vm_a, 'A')
+    vm_a.enable_migration_events('A')
 
     iotests.log(vm_a.qmp('blockdev-snapshot', node='drive0-backing',
                          overlay='drive0'))
@@ -114,9 +98,9 @@ with iotests.FilePath('img') as img_path, \
     iotests.log(vm_b.qmp('migrate', uri='exec:cat >%s' % (fifo_b)))
     with iotests.Timeout(3, 'Migration does not complete'):
         # Wait for the source first (which includes setup=setup)
-        wait_migration(vm_b)
+        vm_b.wait_migration()
         # Wait for the destination second (which does not)
-        wait_migration(vm_a)
+        vm_a.wait_migration()
 
     iotests.log(vm_a.qmp('query-migrate')['return']['status'])
     iotests.log(vm_b.qmp('query-migrate')['return']['status'])

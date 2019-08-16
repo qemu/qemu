@@ -644,6 +644,7 @@ BlockJob *backup_job_create(const char *job_id, BlockDriverState *bs,
     if (ret < 0) {
         goto error;
     }
+    blk_set_disable_request_queuing(job->target, true);
 
     job->on_source_error = on_source_error;
     job->on_target_error = on_target_error;

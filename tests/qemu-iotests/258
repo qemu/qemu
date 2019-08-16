@@ -1,0 +1,163 @@
+#!/usr/bin/env python
+#
+# Very specific tests for adjacent commit/stream block jobs
+#
+# Copyright (C) 2019 Red Hat, Inc.
+#
+# This program is free software; you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation; either version 2 of the License, or
+# (at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with this program.  If not, see <http://www.gnu.org/licenses/>.
+#
+# Creator/Owner: Max Reitz <mreitz@redhat.com>
+
+import iotests
+from iotests import log, qemu_img, qemu_io_silent, \
+        filter_qmp_testfiles, filter_qmp_imgfmt
+
+# Need backing file and change-backing-file support
+iotests.verify_image_format(supported_fmts=['qcow2', 'qed'])
+iotests.verify_platform(['linux'])
+
+
+# Returns a node for blockdev-add
+def node(node_name, path, backing=None, fmt=None, throttle=None):
+    if fmt is None:
+        fmt = iotests.imgfmt
+
+    res = {
+        'node-name': node_name,
+        'driver': fmt,
+        'file': {
+            'driver': 'file',
+            'filename': path
+        }
+    }
+
+    if backing is not None:
+        res['backing'] = backing
+
+    if throttle:
+        res['file'] = {
+            'driver': 'throttle',
+            'throttle-group': throttle,
+            'file': res['file']
+        }
+
+    return res
+
+# Finds a node in the debug block graph
+def find_graph_node(graph, node_id):
+    return next(node for node in graph['nodes'] if node['id'] == node_id)
+
+
+def test_concurrent_finish(write_to_stream_node):
+    log('')
+    log('=== Commit and stream finish concurrently (letting %s write) ===' % \
+        ('stream' if write_to_stream_node else 'commit'))
+    log('')
+
+    # All chosen in such a way that when the commit job wants to
+    # finish, it polls and thus makes stream finish concurrently --
+    # and the other way around, depending on whether the commit job
+    # is finalized before stream completes or not.
+
+    with iotests.FilePath('node4.img') as node4_path, \
+         iotests.FilePath('node3.img') as node3_path, \
+         iotests.FilePath('node2.img') as node2_path, \
+         iotests.FilePath('node1.img') as node1_path, \
+         iotests.FilePath('node0.img') as node0_path, \
+         iotests.VM() as vm:
+
+        # It is important to use raw for the base layer (so that
+        # permissions are just handed through to the protocol layer)
+        assert qemu_img('create', '-f', 'raw', node0_path, '64M') == 0
+
+        stream_throttle=None
+        commit_throttle=None
+
+        for path in [node1_path, node2_path, node3_path, node4_path]:
+            assert qemu_img('create', '-f', iotests.imgfmt, path, '64M') == 0
+
+        if write_to_stream_node:
+            # This is what (most of the time) makes commit finish
+            # earlier and then pull in stream
+            assert qemu_io_silent(node2_path,
+                                  '-c', 'write %iK 64K' % (65536 - 192),
+                                  '-c', 'write %iK 64K' % (65536 -  64)) == 0
+
+            stream_throttle='tg'
+        else:
+            # And this makes stream finish earlier
+            assert qemu_io_silent(node1_path,
+                                  '-c', 'write %iK 64K' % (65536 - 64)) == 0
+
+            commit_throttle='tg'
+
+        vm.launch()
+
+        vm.qmp_log('object-add',
+                   qom_type='throttle-group',
+                   id='tg',
+                   props={
+                       'x-iops-write': 1,
+                       'x-iops-write-max': 1
+                   })
+
+        vm.qmp_log('blockdev-add',
+                   filters=[filter_qmp_testfiles, filter_qmp_imgfmt],
+                   **node('node4', node4_path, throttle=stream_throttle,
+                     backing=node('node3', node3_path,
+                     backing=node('node2', node2_path,
+                     backing=node('node1', node1_path,
+                     backing=node('node0', node0_path, throttle=commit_throttle,
+                                  fmt='raw'))))))
+
+        vm.qmp_log('block-commit',
+                   job_id='commit',
+                   device='node4',
+                   filter_node_name='commit-filter',
+                   top_node='node1',
+                   base_node='node0',
+                   auto_finalize=False)
+
+        vm.qmp_log('block-stream',
+                   job_id='stream',
+                   device='node3',
+                   base_node='commit-filter')
+
+        if write_to_stream_node:
+            vm.run_job('commit', auto_finalize=False, auto_dismiss=True)
+            vm.run_job('stream', auto_finalize=True, auto_dismiss=True)
+        else:
+            # No, the jobs do not really finish concurrently here,
+            # the stream job does complete strictly before commit.
+            # But still, this is close enough for what we want to
+            # test.
+            vm.run_job('stream', auto_finalize=True, auto_dismiss=True)
+            vm.run_job('commit', auto_finalize=False, auto_dismiss=True)
+
+        # Assert that the backing node of node3 is node 0 now
+        graph = vm.qmp('x-debug-query-block-graph')['return']
+        for edge in graph['edges']:
+            if edge['name'] == 'backing' and \
+               find_graph_node(graph, edge['parent'])['name'] == 'node3':
+                assert find_graph_node(graph, edge['child'])['name'] == 'node0'
+                break
+
+
+def main():
+    log('Running tests:')
+    test_concurrent_finish(True)
+    test_concurrent_finish(False)
+
+if __name__ == '__main__':
+    main()

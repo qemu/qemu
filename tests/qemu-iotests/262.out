@@ -1,0 +1,17 @@
+Launching source VM...
+Enabling migration QMP events on A...
+{"return": {}}
+Launching destination VM...
+Enabling migration QMP events on B...
+{"return": {}}
+Starting migration to B...
+{"return": {}}
+{"data": {"status": "setup"}, "event": "MIGRATION", "timestamp": {"microseconds": "USECS", "seconds": "SECS"}}
+{"data": {"status": "active"}, "event": "MIGRATION", "timestamp": {"microseconds": "USECS", "seconds": "SECS"}}
+{"data": {"status": "completed"}, "event": "MIGRATION", "timestamp": {"microseconds": "USECS", "seconds": "SECS"}}
+{"data": {"status": "active"}, "event": "MIGRATION", "timestamp": {"microseconds": "USECS", "seconds": "SECS"}}
+{"data": {"status": "completed"}, "event": "MIGRATION", "timestamp": {"microseconds": "USECS", "seconds": "SECS"}}
+completed
+completed
+{"return": {"running": false, "singlestep": false, "status": "postmigrate"}}
+{"return": {"running": true, "singlestep": false, "status": "running"}}

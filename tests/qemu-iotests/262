@@ -1,0 +1,82 @@
+#!/usr/bin/env python
+#
+# Copyright (C) 2019 Red Hat, Inc.
+#
+# This program is free software; you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation; either version 2 of the License, or
+# (at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with this program.  If not, see <http://www.gnu.org/licenses/>.
+#
+# Creator/Owner: Kevin Wolf <kwolf@redhat.com>
+#
+# Test migration with filter drivers present. Keep everything in an
+# iothread just for fun.
+
+import iotests
+import os
+
+iotests.verify_image_format(supported_fmts=['qcow2'])
+iotests.verify_platform(['linux'])
+
+with iotests.FilePath('img') as img_path, \
+     iotests.FilePath('mig_fifo') as fifo, \
+     iotests.VM(path_suffix='a') as vm_a, \
+     iotests.VM(path_suffix='b') as vm_b:
+
+    def add_opts(vm):
+        vm.add_object('iothread,id=iothread0')
+        vm.add_object('throttle-group,id=tg0,x-bps-total=65536')
+        vm.add_blockdev('file,filename=%s,node-name=drive0-file' % (img_path))
+        vm.add_blockdev('%s,file=drive0-file,node-name=drive0-fmt' % (iotests.imgfmt))
+        vm.add_blockdev('copy-on-read,file=drive0-fmt,node-name=drive0-cor')
+        vm.add_blockdev('throttle,file=drive0-cor,node-name=drive0-throttle,throttle-group=tg0')
+        vm.add_blockdev('blkdebug,image=drive0-throttle,node-name=drive0-dbg')
+        vm.add_blockdev('null-co,node-name=null,read-zeroes=on')
+        vm.add_blockdev('blkverify,test=drive0-dbg,raw=null,node-name=drive0-verify')
+
+        if iotests.supports_quorum():
+            vm.add_blockdev('quorum,children.0=drive0-verify,vote-threshold=1,node-name=drive0-quorum')
+            root = "drive0-quorum"
+        else:
+            root = "drive0-verify"
+
+        vm.add_device('virtio-blk,drive=%s,iothread=iothread0' % root)
+
+    iotests.qemu_img_pipe('create', '-f', iotests.imgfmt, img_path, '64M')
+
+    os.mkfifo(fifo)
+
+    iotests.log('Launching source VM...')
+    add_opts(vm_a)
+    vm_a.launch()
+
+    vm_a.enable_migration_events('A')
+
+    iotests.log('Launching destination VM...')
+    add_opts(vm_b)
+    vm_b.add_incoming("exec: cat '%s'" % (fifo))
+    vm_b.launch()
+
+    vm_b.enable_migration_events('B')
+
+    iotests.log('Starting migration to B...')
+    iotests.log(vm_a.qmp('migrate', uri='exec:cat >%s' % (fifo)))
+    with iotests.Timeout(3, 'Migration does not complete'):
+        # Wait for the source first (which includes setup=setup)
+        vm_a.wait_migration()
+        # Wait for the destination second (which does not)
+        vm_b.wait_migration()
+
+    iotests.log(vm_a.qmp('query-migrate')['return']['status'])
+    iotests.log(vm_b.qmp('query-migrate')['return']['status'])
+
+    iotests.log(vm_a.qmp('query-status'))
+    iotests.log(vm_b.qmp('query-status'))

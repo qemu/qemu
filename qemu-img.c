@@ -2231,6 +2231,11 @@ static int img_convert(int argc, char **argv)
         goto fail_getopt;
     }
 
+    if (skip_create && options) {
+        warn_report("-o has no effect when skipping image creation");
+        warn_report("This will become an error in future QEMU versions.");
+    }
+
     s.src_num = argc - optind - 1;
     out_filename = s.src_num >= 1 ? argv[argc - 1] : NULL;
 

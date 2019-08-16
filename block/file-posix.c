@@ -323,6 +323,7 @@ static void raw_probe_alignment(BlockDriverState *bs, int fd, Error **errp)
     BDRVRawState *s = bs->opaque;
     char *buf;
     size_t max_align = MAX(MAX_BLOCKSIZE, getpagesize());
+    size_t alignments[] = {1, 512, 1024, 2048, 4096};
 
     /* For SCSI generic devices the alignment is not really used.
        With buffered I/O, we don't have any restrictions. */
@@ -349,25 +350,38 @@ static void raw_probe_alignment(BlockDriverState *bs, int fd, Error **errp)
     }
 #endif
 
-    /* If we could not get the sizes so far, we can only guess them */
-    if (!s->buf_align) {
+    /*
+     * If we could not get the sizes so far, we can only guess them. First try
+     * to detect request alignment, since it is more likely to succeed. Then
+     * try to detect buf_align, which cannot be detected in some cases (e.g.
+     * Gluster). If buf_align cannot be detected, we fallback to the value of
+     * request_alignment.
+     */
+
+    if (!bs->bl.request_alignment) {
+        int i;
         size_t align;
-        buf = qemu_memalign(max_align, 2 * max_align);
-        for (align = 512; align <= max_align; align <<= 1) {
-            if (raw_is_io_aligned(fd, buf + align, max_align)) {
-                s->buf_align = align;
+        buf = qemu_memalign(max_align, max_align);
+        for (i = 0; i < ARRAY_SIZE(alignments); i++) {
+            align = alignments[i];
+            if (raw_is_io_aligned(fd, buf, align)) {
+                /* Fallback to safe value. */
+                bs->bl.request_alignment = (align != 1) ? align : max_align;
                 break;
             }
         }
         qemu_vfree(buf);
     }
 
-    if (!bs->bl.request_alignment) {
+    if (!s->buf_align) {
+        int i;
         size_t align;
-        buf = qemu_memalign(s->buf_align, max_align);
-        for (align = 512; align <= max_align; align <<= 1) {
-            if (raw_is_io_aligned(fd, buf, align)) {
-                bs->bl.request_alignment = align;
+        buf = qemu_memalign(max_align, 2 * max_align);
+        for (i = 0; i < ARRAY_SIZE(alignments); i++) {
+            align = alignments[i];
+            if (raw_is_io_aligned(fd, buf + align, max_align)) {
+                /* Fallback to request_aligment. */
+                s->buf_align = (align != 1) ? align : bs->bl.request_alignment;
                 break;
             }
         }

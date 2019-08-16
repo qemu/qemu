@@ -2169,16 +2169,8 @@ void bdrv_filter_default_perms(BlockDriverState *bs, BdrvChild *c,
                                uint64_t perm, uint64_t shared,
                                uint64_t *nperm, uint64_t *nshared)
 {
-    if (c == NULL) {
-        *nperm = perm & DEFAULT_PERM_PASSTHROUGH;
-        *nshared = (shared & DEFAULT_PERM_PASSTHROUGH) | DEFAULT_PERM_UNCHANGED;
-        return;
-    }
-
-    *nperm = (perm & DEFAULT_PERM_PASSTHROUGH) |
-             (c->perm & DEFAULT_PERM_UNCHANGED);
-    *nshared = (shared & DEFAULT_PERM_PASSTHROUGH) |
-               (c->shared_perm & DEFAULT_PERM_UNCHANGED);
+    *nperm = perm & DEFAULT_PERM_PASSTHROUGH;
+    *nshared = (shared & DEFAULT_PERM_PASSTHROUGH) | DEFAULT_PERM_UNCHANGED;
 }
 
 void bdrv_format_default_perms(BlockDriverState *bs, BdrvChild *c,
@@ -2239,13 +2231,27 @@ static void bdrv_replace_child_noperm(BdrvChild *child,
                                       BlockDriverState *new_bs)
 {
     BlockDriverState *old_bs = child->bs;
-    int i;
+    int new_bs_quiesce_counter;
+    int drain_saldo;
 
     assert(!child->frozen);
 
     if (old_bs && new_bs) {
         assert(bdrv_get_aio_context(old_bs) == bdrv_get_aio_context(new_bs));
     }
+
+    new_bs_quiesce_counter = (new_bs ? new_bs->quiesce_counter : 0);
+    drain_saldo = new_bs_quiesce_counter - child->parent_quiesce_counter;
+
+    /*
+     * If the new child node is drained but the old one was not, flush
+     * all outstanding requests to the old child node.
+     */
+    while (drain_saldo > 0 && child->role->drained_begin) {
+        bdrv_parent_drained_begin_single(child, true);
+        drain_saldo--;
+    }
+
     if (old_bs) {
         /* Detach first so that the recursive drain sections coming from @child
          * are already gone and we only end the drain sections that came from
@@ -2253,28 +2259,22 @@ static void bdrv_replace_child_noperm(BdrvChild *child,
         if (child->role->detach) {
             child->role->detach(child);
         }
-        while (child->parent_quiesce_counter) {
-            bdrv_parent_drained_end_single(child);
-        }
         QLIST_REMOVE(child, next_parent);
-    } else {
-        assert(child->parent_quiesce_counter == 0);
     }
 
     child->bs = new_bs;
 
     if (new_bs) {
         QLIST_INSERT_HEAD(&new_bs->parents, child, next_parent);
-        if (new_bs->quiesce_counter) {
-            int num = new_bs->quiesce_counter;
-            if (child->role->parent_is_bds) {
-                num -= bdrv_drain_all_count;
-            }
-            assert(num >= 0);
-            for (i = 0; i < num; i++) {
-                bdrv_parent_drained_begin_single(child, true);
-            }
-        }
+
+        /*
+         * Detaching the old node may have led to the new node's
+         * quiesce_counter having been decreased.  Not a problem, we
+         * just need to recognize this here and then invoke
+         * drained_end appropriately more often.
+         */
+        assert(new_bs->quiesce_counter <= new_bs_quiesce_counter);
+        drain_saldo += new_bs->quiesce_counter - new_bs_quiesce_counter;
 
         /* Attach only after starting new drained sections, so that recursive
          * drain sections coming from @child don't get an extra .drained_begin
@@ -2282,6 +2282,15 @@ static void bdrv_replace_child_noperm(BdrvChild *child,
         if (child->role->attach) {
             child->role->attach(child);
         }
+    }
+
+    /*
+     * If the old child node was drained but the new one is not, allow
+     * requests to come in only after the new node has been attached.
+     */
+    while (drain_saldo < 0 && child->role->drained_end) {
+        bdrv_parent_drained_end_single(child);
+        drain_saldo++;
     }
 }
 
@@ -4500,6 +4509,7 @@ int bdrv_drop_intermediate(BlockDriverState *top, BlockDriverState *base,
     int ret = -EIO;
 
     bdrv_ref(top);
+    bdrv_subtree_drained_begin(top);
 
     if (!top->drv || !base->drv) {
         goto exit;
@@ -4571,6 +4581,7 @@ int bdrv_drop_intermediate(BlockDriverState *top, BlockDriverState *base,
 
     ret = 0;
 exit:
+    bdrv_subtree_drained_end(top);
     bdrv_unref(top);
     return ret;
 }
