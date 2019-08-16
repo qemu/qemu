@@ -97,7 +97,7 @@ void qmp_send_response(MonitorQMP *mon, const QDict *rsp)
 }
 
 /*
- * Emit QMP response @rsp with ID @id to @mon.
+ * Emit QMP response @rsp to @mon.
  * Null @rsp can only happen for commands with QCO_NO_SUCCESS_RESP.
  * Nothing is emitted then.
  */
