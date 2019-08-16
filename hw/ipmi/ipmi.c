@@ -28,9 +28,8 @@
 #include "qom/object_interfaces.h"
 #include "sysemu/runstate.h"
 #include "qapi/error.h"
-#include "qapi/qapi-commands-misc.h"
-#include "qapi/visitor.h"
 #include "qemu/module.h"
+#include "hw/nmi.h"
 
 static uint32_t ipmi_current_uuid = 1;
 
@@ -60,7 +59,8 @@ static int ipmi_do_hw_op(IPMIInterface *s, enum ipmi_op op, int checkonly)
         if (checkonly) {
             return 0;
         }
-        qmp_inject_nmi(NULL);
+        /* We don't care what CPU we use. */
+        nmi_monitor_handle(0, NULL);
         return 0;
 
     case IPMI_SHUTDOWN_VIA_ACPI_OVERTEMP:
