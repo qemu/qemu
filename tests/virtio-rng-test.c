@@ -22,7 +22,7 @@ static void rng_hotplug(void *obj, void *data, QGuestAllocator *alloc)
 
     const char *arch = qtest_get_arch();
 
-    qtest_qmp_device_add("virtio-rng-pci", "rng1",
+    qtest_qmp_device_add(qts, "virtio-rng-pci", "rng1",
                          "{'addr': %s}", stringify(PCI_SLOT_HP));
 
     if (strcmp(arch, "i386") == 0 || strcmp(arch, "x86_64") == 0) {

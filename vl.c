@@ -4197,7 +4197,7 @@ int main(int argc, char **argv, char **envp)
     migration_object_init();
 
     if (qtest_chrdev) {
-        qtest_init(qtest_chrdev, qtest_log, &error_fatal);
+        qtest_server_init(qtest_chrdev, qtest_log, &error_fatal);
     }
 
     machine_opts = qemu_get_machine_opts();

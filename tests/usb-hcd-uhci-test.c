@@ -43,21 +43,24 @@ static void test_port_2(void)
 
 static void test_uhci_hotplug(void)
 {
-    usb_test_hotplug("uhci", "2", test_port_2);
+    usb_test_hotplug(global_qtest, "uhci", "2", test_port_2);
 }
 
 static void test_usb_storage_hotplug(void)
 {
-    qtest_qmp_device_add("usb-storage", "usbdev0", "{'drive': 'drive0'}");
+    QTestState *qts = global_qtest;
 
-    qtest_qmp_device_del("usbdev0");
+    qtest_qmp_device_add(qts, "usb-storage", "usbdev0", "{'drive': 'drive0'}");
+
+    qtest_qmp_device_del(qts, "usbdev0");
 }
 
 int main(int argc, char **argv)
 {
     const char *arch = qtest_get_arch();
     const char *cmd = "-device piix3-usb-uhci,id=uhci,addr=1d.0"
-                      " -drive id=drive0,if=none,file=null-co://,format=raw"
+                      " -drive id=drive0,if=none,file=null-co://,"
+                      "file.read-zeroes=on,format=raw"
                       " -device usb-tablet,bus=uhci.0,port=1";
     int ret;
 

@@ -45,15 +45,18 @@ static void virtio_serial_nop(void)
 
 static void virtio_serial_hotplug(void)
 {
-    global_qtest = qtest_initf("-device virtio-serial-ccw");
-    qtest_qmp_device_add("virtserialport", "hp-port", "{}");
-    qtest_qmp_device_del("hp-port");
-    qtest_end();
+    QTestState *qts = qtest_initf("-device virtio-serial-ccw");
+
+    qtest_qmp_device_add(qts, "virtserialport", "hp-port", "{}");
+    qtest_qmp_device_del(qts, "hp-port");
+
+    qtest_quit(qts);
 }
 
 static void virtio_blk_nop(void)
 {
-    global_qtest = qtest_initf("-drive if=none,id=drv0,file=null-co://,format=raw "
+    global_qtest = qtest_initf("-drive if=none,id=drv0,file=null-co://,"
+                               "file.read-zeroes=on,format=raw "
                                 "-device virtio-blk-ccw,drive=drv0");
     qtest_end();
 }
@@ -78,14 +81,16 @@ static void virtio_scsi_nop(void)
 
 static void virtio_scsi_hotplug(void)
 {
-    global_qtest = qtest_initf("-drive if=none,id=drv0,file=null-co://,format=raw "
-                                "-drive if=none,id=drv1,file=null-co://,format=raw "
+    QTestState *s = qtest_initf("-drive if=none,id=drv0,file=null-co://,"
+                                "file.read-zeroes=on,format=raw "
+                                "-drive if=none,id=drv1,file=null-co://,"
+                                "file.read-zeroes=on,format=raw "
                                 "-device virtio-scsi-ccw "
                                 "-device scsi-hd,drive=drv0");
-    qtest_qmp_device_add("scsi-hd", "scsihd", "{'drive': 'drv1'}");
-    qtest_qmp_device_del("scsihd");
+    qtest_qmp_device_add(s, "scsi-hd", "scsihd", "{'drive': 'drv1'}");
+    qtest_qmp_device_del(s, "scsihd");
 
-    qtest_end();
+    qtest_quit(s);
 }
 
 int main(int argc, char **argv)

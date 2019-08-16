@@ -389,7 +389,7 @@ static void test_ivshmem_hotplug(void)
     qts = qtest_init("-object memory-backend-ram,size=1M,id=mb1");
 
     global_qtest = qts;  /* TODO: Get rid of global_qtest here */
-    qtest_qmp_device_add("ivshmem-plain", "iv1",
+    qtest_qmp_device_add(qts, "ivshmem-plain", "iv1",
                          "{'addr': %s, 'memdev': 'mb1'}",
                          stringify(PCI_SLOT_HP));
     if (strcmp(arch, "ppc64") != 0) {
