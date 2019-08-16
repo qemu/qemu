@@ -1502,12 +1502,12 @@ static ssize_t handle_aiocb_write_zeroes_block(RawPosixAIOData *aiocb)
         } while (errno == EINTR);
 
         ret = translate_err(-errno);
+        if (ret == -ENOTSUP) {
+            s->has_write_zeroes = false;
+        }
     }
 #endif
 
-    if (ret == -ENOTSUP) {
-        s->has_write_zeroes = false;
-    }
     return ret;
 }
 
