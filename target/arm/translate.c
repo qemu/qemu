@@ -7191,6 +7191,13 @@ static int disas_coproc_insn(DisasContext *s, uint32_t insn)
             tcg_temp_free_ptr(tmpptr);
             tcg_temp_free_i32(tcg_syn);
             tcg_temp_free_i32(tcg_isread);
+        } else if (ri->type & ARM_CP_RAISES_EXC) {
+            /*
+             * The readfn or writefn might raise an exception;
+             * synchronize the CPU state in case it does.
+             */
+            gen_set_condexec(s);
+            gen_set_pc_im(s, s->pc_curr);
         }
 
         /* Handle special cases first */
