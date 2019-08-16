@@ -1,2 +1,0 @@
-common-obj-y += pcmcia.o
-common-obj-$(CONFIG_PXA2XX) += pxa2xx.o
