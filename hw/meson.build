@@ -1,6 +1,7 @@
 subdir('core')
 subdir('mem')
 subdir('nubus')
+subdir('pci-host')
 subdir('pcmcia')
 subdir('rtc')
 subdir('scsi')
