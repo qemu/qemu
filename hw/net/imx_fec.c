@@ -593,6 +593,8 @@ static void imx_enet_do_tx(IMXFECState *s, uint32_t index)
             if (bd.option & ENET_BD_TX_INT) {
                 s->regs[ENET_EIR] |= int_txf;
             }
+            /* Indicate that we've updated the last buffer descriptor. */
+            bd.last_buffer = ENET_BD_BDU;
         }
         if (bd.option & ENET_BD_TX_INT) {
             s->regs[ENET_EIR] |= int_txb;
@@ -1242,6 +1244,8 @@ static ssize_t imx_enet_receive(NetClientState *nc, const uint8_t *buf,
             /* Last buffer in frame.  */
             bd.flags |= flags | ENET_BD_L;
             FEC_PRINTF("rx frame flags %04x\n", bd.flags);
+            /* Indicate that we've updated the last buffer descriptor. */
+            bd.last_buffer = ENET_BD_BDU;
             if (bd.option & ENET_BD_RX_INT) {
                 s->regs[ENET_EIR] |= ENET_INT_RXF;
             }

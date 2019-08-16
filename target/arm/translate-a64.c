@@ -253,40 +253,26 @@ static void gen_exception_internal(int excp)
     tcg_temp_free_i32(tcg_excp);
 }
 
-static void gen_exception(int excp, uint32_t syndrome, uint32_t target_el)
+static void gen_exception_internal_insn(DisasContext *s, uint64_t pc, int excp)
 {
-    TCGv_i32 tcg_excp = tcg_const_i32(excp);
-    TCGv_i32 tcg_syn = tcg_const_i32(syndrome);
-    TCGv_i32 tcg_el = tcg_const_i32(target_el);
-
-    gen_helper_exception_with_syndrome(cpu_env, tcg_excp,
-                                       tcg_syn, tcg_el);
-    tcg_temp_free_i32(tcg_el);
-    tcg_temp_free_i32(tcg_syn);
-    tcg_temp_free_i32(tcg_excp);
-}
-
-static void gen_exception_internal_insn(DisasContext *s, int offset, int excp)
-{
-    gen_a64_set_pc_im(s->pc - offset);
+    gen_a64_set_pc_im(pc);
     gen_exception_internal(excp);
     s->base.is_jmp = DISAS_NORETURN;
 }
 
-static void gen_exception_insn(DisasContext *s, int offset, int excp,
+static void gen_exception_insn(DisasContext *s, uint64_t pc, int excp,
                                uint32_t syndrome, uint32_t target_el)
 {
-    gen_a64_set_pc_im(s->pc - offset);
+    gen_a64_set_pc_im(pc);
     gen_exception(excp, syndrome, target_el);
     s->base.is_jmp = DISAS_NORETURN;
 }
 
-static void gen_exception_bkpt_insn(DisasContext *s, int offset,
-                                    uint32_t syndrome)
+static void gen_exception_bkpt_insn(DisasContext *s, uint32_t syndrome)
 {
     TCGv_i32 tcg_syn;
 
-    gen_a64_set_pc_im(s->pc - offset);
+    gen_a64_set_pc_im(s->pc_curr);
     tcg_syn = tcg_const_i32(syndrome);
     gen_helper_exception_bkpt_insn(cpu_env, tcg_syn);
     tcg_temp_free_i32(tcg_syn);
@@ -305,8 +291,7 @@ static void gen_step_complete_exception(DisasContext *s)
      * of the exception, and our syndrome information is always correct.
      */
     gen_ss_advance(s);
-    gen_exception(EXCP_UDEF, syn_swstep(s->ss_same_el, 1, s->is_ldex),
-                  default_exception_el(s));
+    gen_swstep_exception(s, 1, s->is_ldex);
     s->base.is_jmp = DISAS_NORETURN;
 }
 
@@ -351,13 +336,6 @@ static inline void gen_goto_tb(DisasContext *s, int n, uint64_t dest)
             s->base.is_jmp = DISAS_NORETURN;
         }
     }
-}
-
-void unallocated_encoding(DisasContext *s)
-{
-    /* Unallocated and reserved encodings are uncategorized */
-    gen_exception_insn(s, 4, EXCP_UDEF, syn_uncategorized(),
-                       default_exception_el(s));
 }
 
 static void init_tmp_a64_array(DisasContext *s)
@@ -1128,8 +1106,8 @@ static inline bool fp_access_check(DisasContext *s)
         return true;
     }
 
-    gen_exception_insn(s, 4, EXCP_UDEF, syn_fp_access_trap(1, 0xe, false),
-                       s->fp_excp_el);
+    gen_exception_insn(s, s->pc_curr, EXCP_UDEF,
+                       syn_fp_access_trap(1, 0xe, false), s->fp_excp_el);
     return false;
 }
 
@@ -1139,7 +1117,7 @@ static inline bool fp_access_check(DisasContext *s)
 bool sve_access_check(DisasContext *s)
 {
     if (s->sve_excp_el) {
-        gen_exception_insn(s, 4, EXCP_UDEF, syn_sve_access_trap(),
+        gen_exception_insn(s, s->pc_curr, EXCP_UDEF, syn_sve_access_trap(),
                            s->sve_excp_el);
         return false;
     }
@@ -1248,11 +1226,11 @@ static inline AArch64DecodeFn *lookup_disas_fn(const AArch64DecodeTable *table,
  */
 static void disas_uncond_b_imm(DisasContext *s, uint32_t insn)
 {
-    uint64_t addr = s->pc + sextract32(insn, 0, 26) * 4 - 4;
+    uint64_t addr = s->pc_curr + sextract32(insn, 0, 26) * 4;
 
     if (insn & (1U << 31)) {
         /* BL Branch with link */
-        tcg_gen_movi_i64(cpu_reg(s, 30), s->pc);
+        tcg_gen_movi_i64(cpu_reg(s, 30), s->base.pc_next);
     }
 
     /* B Branch / BL Branch with link */
@@ -1276,7 +1254,7 @@ static void disas_comp_b_imm(DisasContext *s, uint32_t insn)
     sf = extract32(insn, 31, 1);
     op = extract32(insn, 24, 1); /* 0: CBZ; 1: CBNZ */
     rt = extract32(insn, 0, 5);
-    addr = s->pc + sextract32(insn, 5, 19) * 4 - 4;
+    addr = s->pc_curr + sextract32(insn, 5, 19) * 4;
 
     tcg_cmp = read_cpu_reg(s, rt, sf);
     label_match = gen_new_label();
@@ -1285,7 +1263,7 @@ static void disas_comp_b_imm(DisasContext *s, uint32_t insn)
     tcg_gen_brcondi_i64(op ? TCG_COND_NE : TCG_COND_EQ,
                         tcg_cmp, 0, label_match);
 
-    gen_goto_tb(s, 0, s->pc);
+    gen_goto_tb(s, 0, s->base.pc_next);
     gen_set_label(label_match);
     gen_goto_tb(s, 1, addr);
 }
@@ -1305,7 +1283,7 @@ static void disas_test_b_imm(DisasContext *s, uint32_t insn)
 
     bit_pos = (extract32(insn, 31, 1) << 5) | extract32(insn, 19, 5);
     op = extract32(insn, 24, 1); /* 0: TBZ; 1: TBNZ */
-    addr = s->pc + sextract32(insn, 5, 14) * 4 - 4;
+    addr = s->pc_curr + sextract32(insn, 5, 14) * 4;
     rt = extract32(insn, 0, 5);
 
     tcg_cmp = tcg_temp_new_i64();
@@ -1316,7 +1294,7 @@ static void disas_test_b_imm(DisasContext *s, uint32_t insn)
     tcg_gen_brcondi_i64(op ? TCG_COND_NE : TCG_COND_EQ,
                         tcg_cmp, 0, label_match);
     tcg_temp_free_i64(tcg_cmp);
-    gen_goto_tb(s, 0, s->pc);
+    gen_goto_tb(s, 0, s->base.pc_next);
     gen_set_label(label_match);
     gen_goto_tb(s, 1, addr);
 }
@@ -1336,7 +1314,7 @@ static void disas_cond_b_imm(DisasContext *s, uint32_t insn)
         unallocated_encoding(s);
         return;
     }
-    addr = s->pc + sextract32(insn, 5, 19) * 4 - 4;
+    addr = s->pc_curr + sextract32(insn, 5, 19) * 4;
     cond = extract32(insn, 0, 4);
 
     reset_btype(s);
@@ -1344,7 +1322,7 @@ static void disas_cond_b_imm(DisasContext *s, uint32_t insn)
         /* genuinely conditional branches */
         TCGLabel *label_match = gen_new_label();
         arm_gen_test_cc(cond, label_match);
-        gen_goto_tb(s, 0, s->pc);
+        gen_goto_tb(s, 0, s->base.pc_next);
         gen_set_label(label_match);
         gen_goto_tb(s, 1, addr);
     } else {
@@ -1505,7 +1483,7 @@ static void handle_sync(DisasContext *s, uint32_t insn,
          * any pending interrupts immediately.
          */
         reset_btype(s);
-        gen_goto_tb(s, 0, s->pc);
+        gen_goto_tb(s, 0, s->base.pc_next);
         return;
 
     case 7: /* SB */
@@ -1517,7 +1495,7 @@ static void handle_sync(DisasContext *s, uint32_t insn,
          * MB and end the TB instead.
          */
         tcg_gen_mb(TCG_MO_ALL | TCG_BAR_SC);
-        gen_goto_tb(s, 0, s->pc);
+        gen_goto_tb(s, 0, s->base.pc_next);
         return;
 
     default:
@@ -1720,7 +1698,7 @@ static void handle_sys(DisasContext *s, uint32_t insn, bool isread,
         TCGv_i32 tcg_syn, tcg_isread;
         uint32_t syndrome;
 
-        gen_a64_set_pc_im(s->pc - 4);
+        gen_a64_set_pc_im(s->pc_curr);
         tmpptr = tcg_const_ptr(ri);
         syndrome = syn_aa64_sysregtrap(op0, op1, op2, crn, crm, rt, isread);
         tcg_syn = tcg_const_i32(syndrome);
@@ -1873,8 +1851,8 @@ static void disas_exc(DisasContext *s, uint32_t insn)
         switch (op2_ll) {
         case 1:                                                     /* SVC */
             gen_ss_advance(s);
-            gen_exception_insn(s, 0, EXCP_SWI, syn_aa64_svc(imm16),
-                               default_exception_el(s));
+            gen_exception_insn(s, s->base.pc_next, EXCP_SWI,
+                               syn_aa64_svc(imm16), default_exception_el(s));
             break;
         case 2:                                                     /* HVC */
             if (s->current_el == 0) {
@@ -1884,22 +1862,24 @@ static void disas_exc(DisasContext *s, uint32_t insn)
             /* The pre HVC helper handles cases when HVC gets trapped
              * as an undefined insn by runtime configuration.
              */
-            gen_a64_set_pc_im(s->pc - 4);
+            gen_a64_set_pc_im(s->pc_curr);
             gen_helper_pre_hvc(cpu_env);
             gen_ss_advance(s);
-            gen_exception_insn(s, 0, EXCP_HVC, syn_aa64_hvc(imm16), 2);
+            gen_exception_insn(s, s->base.pc_next, EXCP_HVC,
+                               syn_aa64_hvc(imm16), 2);
             break;
         case 3:                                                     /* SMC */
             if (s->current_el == 0) {
                 unallocated_encoding(s);
                 break;
             }
-            gen_a64_set_pc_im(s->pc - 4);
+            gen_a64_set_pc_im(s->pc_curr);
             tmp = tcg_const_i32(syn_aa64_smc(imm16));
             gen_helper_pre_smc(cpu_env, tmp);
             tcg_temp_free_i32(tmp);
             gen_ss_advance(s);
-            gen_exception_insn(s, 0, EXCP_SMC, syn_aa64_smc(imm16), 3);
+            gen_exception_insn(s, s->base.pc_next, EXCP_SMC,
+                               syn_aa64_smc(imm16), 3);
             break;
         default:
             unallocated_encoding(s);
@@ -1912,7 +1892,7 @@ static void disas_exc(DisasContext *s, uint32_t insn)
             break;
         }
         /* BRK */
-        gen_exception_bkpt_insn(s, 4, syn_aa64_bkpt(imm16));
+        gen_exception_bkpt_insn(s, syn_aa64_bkpt(imm16));
         break;
     case 2:
         if (op2_ll != 0) {
@@ -1936,7 +1916,7 @@ static void disas_exc(DisasContext *s, uint32_t insn)
                 break;
             }
 #endif
-            gen_exception_internal_insn(s, 0, EXCP_SEMIHOST);
+            gen_exception_internal_insn(s, s->base.pc_next, EXCP_SEMIHOST);
         } else {
             unsupported_encoding(s, insn);
         }
@@ -2029,7 +2009,7 @@ static void disas_uncond_b_reg(DisasContext *s, uint32_t insn)
         gen_a64_set_pc(s, dst);
         /* BLR also needs to load return address */
         if (opc == 1) {
-            tcg_gen_movi_i64(cpu_reg(s, 30), s->pc);
+            tcg_gen_movi_i64(cpu_reg(s, 30), s->base.pc_next);
         }
         break;
 
@@ -2056,7 +2036,7 @@ static void disas_uncond_b_reg(DisasContext *s, uint32_t insn)
         gen_a64_set_pc(s, dst);
         /* BLRAA also needs to load return address */
         if (opc == 9) {
-            tcg_gen_movi_i64(cpu_reg(s, 30), s->pc);
+            tcg_gen_movi_i64(cpu_reg(s, 30), s->base.pc_next);
         }
         break;
 
@@ -2615,7 +2595,7 @@ static void disas_ld_lit(DisasContext *s, uint32_t insn)
 
     tcg_rt = cpu_reg(s, rt);
 
-    clean_addr = tcg_const_i64((s->pc - 4) + imm);
+    clean_addr = tcg_const_i64(s->pc_curr + imm);
     if (is_vector) {
         do_fp_ld(s, rt, clean_addr, size);
     } else {
@@ -3594,7 +3574,7 @@ static void disas_pc_rel_adr(DisasContext *s, uint32_t insn)
     offset = sextract64(insn, 5, 19);
     offset = offset << 2 | extract32(insn, 29, 2);
     rd = extract32(insn, 0, 5);
-    base = s->pc - 4;
+    base = s->pc_curr;
 
     if (page) {
         /* ADRP (page based) */
@@ -11533,7 +11513,7 @@ static void disas_simd_three_reg_same_fp16(DisasContext *s, uint32_t insn)
                 break;
             default:
                 fprintf(stderr, "%s: insn %#04x, fpop %#2x @ %#" PRIx64 "\n",
-                        __func__, insn, fpopcode, s->pc);
+                        __func__, insn, fpopcode, s->pc_curr);
                 g_assert_not_reached();
             }
 
@@ -14044,9 +14024,10 @@ static void disas_a64_insn(CPUARMState *env, DisasContext *s)
 {
     uint32_t insn;
 
-    insn = arm_ldl_code(env, s->pc, s->sctlr_b);
+    s->pc_curr = s->base.pc_next;
+    insn = arm_ldl_code(env, s->base.pc_next, s->sctlr_b);
     s->insn = insn;
-    s->pc += 4;
+    s->base.pc_next += 4;
 
     s->fp_access_checked = false;
 
@@ -14077,7 +14058,8 @@ static void disas_a64_insn(CPUARMState *env, DisasContext *s)
             if (s->btype != 0
                 && s->guarded_page
                 && !btype_destination_ok(insn, s->bt, s->btype)) {
-                gen_exception_insn(s, 4, EXCP_UDEF, syn_btitrap(s->btype),
+                gen_exception_insn(s, s->pc_curr, EXCP_UDEF,
+                                   syn_btitrap(s->btype),
                                    default_exception_el(s));
                 return;
             }
@@ -14143,7 +14125,6 @@ static void aarch64_tr_init_disas_context(DisasContextBase *dcbase,
     int bound, core_mmu_idx;
 
     dc->isar = &arm_cpu->isar;
-    dc->pc = dc->base.pc_first;
     dc->condjmp = 0;
 
     dc->aarch64 = 1;
@@ -14194,7 +14175,7 @@ static void aarch64_tr_init_disas_context(DisasContextBase *dcbase,
     dc->ss_active = FIELD_EX32(tb_flags, TBFLAG_ANY, SS_ACTIVE);
     dc->pstate_ss = FIELD_EX32(tb_flags, TBFLAG_ANY, PSTATE_SS);
     dc->is_ldex = false;
-    dc->ss_same_el = (arm_debug_target_el(env) == dc->current_el);
+    dc->debug_target_el = FIELD_EX32(tb_flags, TBFLAG_ANY, DEBUG_TARGET_EL);
 
     /* Bound the number of insns to execute to those left on the page.  */
     bound = -(dc->base.pc_first | TARGET_PAGE_MASK) / 4;
@@ -14216,7 +14197,7 @@ static void aarch64_tr_insn_start(DisasContextBase *dcbase, CPUState *cpu)
 {
     DisasContext *dc = container_of(dcbase, DisasContext, base);
 
-    tcg_gen_insn_start(dc->pc, 0, 0);
+    tcg_gen_insn_start(dc->base.pc_next, 0, 0);
     dc->insn_start = tcg_last_op();
 }
 
@@ -14226,18 +14207,18 @@ static bool aarch64_tr_breakpoint_check(DisasContextBase *dcbase, CPUState *cpu,
     DisasContext *dc = container_of(dcbase, DisasContext, base);
 
     if (bp->flags & BP_CPU) {
-        gen_a64_set_pc_im(dc->pc);
+        gen_a64_set_pc_im(dc->base.pc_next);
         gen_helper_check_breakpoints(cpu_env);
         /* End the TB early; it likely won't be executed */
         dc->base.is_jmp = DISAS_TOO_MANY;
     } else {
-        gen_exception_internal_insn(dc, 0, EXCP_DEBUG);
+        gen_exception_internal_insn(dc, dc->base.pc_next, EXCP_DEBUG);
         /* The address covered by the breakpoint must be
            included in [tb->pc, tb->pc + tb->size) in order
            to for it to be properly cleared -- thus we
            increment the PC here so that the logic setting
            tb->size below does the right thing.  */
-        dc->pc += 4;
+        dc->base.pc_next += 4;
         dc->base.is_jmp = DISAS_NORETURN;
     }
 
@@ -14261,14 +14242,12 @@ static void aarch64_tr_translate_insn(DisasContextBase *dcbase, CPUState *cpu)
          * bits should be zero.
          */
         assert(dc->base.num_insns == 1);
-        gen_exception(EXCP_UDEF, syn_swstep(dc->ss_same_el, 0, 0),
-                      default_exception_el(dc));
+        gen_swstep_exception(dc, 0, 0);
         dc->base.is_jmp = DISAS_NORETURN;
     } else {
         disas_a64_insn(env, dc);
     }
 
-    dc->base.pc_next = dc->pc;
     translator_loop_temp_check(&dc->base);
 }
 
@@ -14284,7 +14263,7 @@ static void aarch64_tr_tb_stop(DisasContextBase *dcbase, CPUState *cpu)
          */
         switch (dc->base.is_jmp) {
         default:
-            gen_a64_set_pc_im(dc->pc);
+            gen_a64_set_pc_im(dc->base.pc_next);
             /* fall through */
         case DISAS_EXIT:
         case DISAS_JUMP:
@@ -14301,11 +14280,11 @@ static void aarch64_tr_tb_stop(DisasContextBase *dcbase, CPUState *cpu)
         switch (dc->base.is_jmp) {
         case DISAS_NEXT:
         case DISAS_TOO_MANY:
-            gen_goto_tb(dc, 1, dc->pc);
+            gen_goto_tb(dc, 1, dc->base.pc_next);
             break;
         default:
         case DISAS_UPDATE:
-            gen_a64_set_pc_im(dc->pc);
+            gen_a64_set_pc_im(dc->base.pc_next);
             /* fall through */
         case DISAS_EXIT:
             tcg_gen_exit_tb(NULL, 0);
@@ -14317,11 +14296,11 @@ static void aarch64_tr_tb_stop(DisasContextBase *dcbase, CPUState *cpu)
         case DISAS_SWI:
             break;
         case DISAS_WFE:
-            gen_a64_set_pc_im(dc->pc);
+            gen_a64_set_pc_im(dc->base.pc_next);
             gen_helper_wfe(cpu_env);
             break;
         case DISAS_YIELD:
-            gen_a64_set_pc_im(dc->pc);
+            gen_a64_set_pc_im(dc->base.pc_next);
             gen_helper_yield(cpu_env);
             break;
         case DISAS_WFI:
@@ -14331,7 +14310,7 @@ static void aarch64_tr_tb_stop(DisasContextBase *dcbase, CPUState *cpu)
              */
             TCGv_i32 tmp = tcg_const_i32(4);
 
-            gen_a64_set_pc_im(dc->pc);
+            gen_a64_set_pc_im(dc->base.pc_next);
             gen_helper_wfi(cpu_env, tmp);
             tcg_temp_free_i32(tmp);
             /* The helper doesn't necessarily throw an exception, but we
@@ -14342,9 +14321,6 @@ static void aarch64_tr_tb_stop(DisasContextBase *dcbase, CPUState *cpu)
         }
         }
     }
-
-    /* Functions above can change dc->pc, so re-align db->pc_next */
-    dc->base.pc_next = dc->pc;
 }
 
 static void aarch64_tr_disas_log(const DisasContextBase *dcbase,

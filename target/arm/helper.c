@@ -5302,6 +5302,7 @@ static void zcr_write(CPUARMState *env, const ARMCPRegInfo *ri,
     int new_len;
 
     /* Bits other than [3:0] are RAZ/WI.  */
+    QEMU_BUILD_BUG_ON(ARM_MAX_VQ > 16);
     raw_write(env, ri, value & 0xf);
 
     /*
@@ -11170,6 +11171,12 @@ void cpu_get_tb_cpu_state(CPUARMState *env, target_ulong *pc,
         if (env->v7m.fpccr[is_secure] & R_V7M_FPCCR_LSPACT_MASK) {
             flags = FIELD_DP32(flags, TBFLAG_A32, LSPACT, 1);
         }
+    }
+
+    if (!arm_feature(env, ARM_FEATURE_M)) {
+        int target_el = arm_debug_target_el(env);
+
+        flags = FIELD_DP32(flags, TBFLAG_ANY, DEBUG_TARGET_EL, target_el);
     }
 
     *pflags = flags;
