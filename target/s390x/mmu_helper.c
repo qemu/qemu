@@ -423,7 +423,8 @@ int mmu_translate(CPUS390XState *env, target_ulong vaddr, int rw, uint64_t asc,
     *raddr = mmu_real2abs(env, *raddr);
 
     if (r == 0 && *raddr < ram_size) {
-        if (skeyclass->get_skeys(ss, *raddr / TARGET_PAGE_SIZE, 1, &key)) {
+        r = skeyclass->get_skeys(ss, *raddr / TARGET_PAGE_SIZE, 1, &key);
+        if (r) {
             trace_get_skeys_nonzero(r);
             return 0;
         }
@@ -436,7 +437,8 @@ int mmu_translate(CPUS390XState *env, target_ulong vaddr, int rw, uint64_t asc,
             key |= SK_C;
         }
 
-        if (skeyclass->set_skeys(ss, *raddr / TARGET_PAGE_SIZE, 1, &key)) {
+        r = skeyclass->set_skeys(ss, *raddr / TARGET_PAGE_SIZE, 1, &key);
+        if (r) {
             trace_set_skeys_nonzero(r);
             return 0;
         }
