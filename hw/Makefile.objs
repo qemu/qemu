@@ -6,7 +6,6 @@ devices-dirs-y += audio/
 devices-dirs-y += block/
 devices-dirs-y += char/
 devices-dirs-y += cpu/
-devices-dirs-y += display/
 endif
 
 common-obj-y += $(devices-dirs-y)
