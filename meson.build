@@ -787,6 +787,10 @@ foreach target : target_dirs
   if target.endswith('-softmmu')
     qemu_target_name = 'qemu-system-' + target_name
     target_type='system'
+    hw_dir = target_name == 'sparc64' ? 'sparc64' : arch
+    hw = hw_arch[hw_dir].apply(config_target, strict: false)
+    arch_srcs += hw.sources()
+
     arch_srcs += config_devices_h[target]
   else
     target_type='user'

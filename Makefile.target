@@ -170,13 +170,6 @@ LIBS := $(LIBS) $(VDE_LIBS) $(SLIRP_LIBS)
 LIBS := $(LIBS) $(LIBUSB_LIBS) $(SMARTCARD_LIBS) $(USB_REDIR_LIBS)
 LIBS := $(LIBS) $(VIRGL_LIBS)
 
-# Hardware support
-ifeq ($(TARGET_NAME), sparc64)
-obj-y += hw/sparc64/
-else
-obj-y += hw/$(TARGET_BASE_ARCH)/
-endif
-
 generated-files-y += hmp-commands.h hmp-commands-info.h
 
 endif # CONFIG_SOFTMMU

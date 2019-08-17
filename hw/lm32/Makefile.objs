@@ -1,3 +1,0 @@
-# LM32 boards
-obj-$(CONFIG_LM32) += lm32_boards.o
-obj-$(CONFIG_MILKYMIST) += milkymist.o
