@@ -1,3 +1,4 @@
+subdir('char')
 subdir('core')
 subdir('cpu')
 subdir('display')

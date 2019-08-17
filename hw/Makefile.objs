@@ -4,7 +4,6 @@ devices-dirs-y += acpi/
 devices-dirs-y += adc/
 devices-dirs-y += audio/
 devices-dirs-y += block/
-devices-dirs-y += char/
 endif
 
 common-obj-y += $(devices-dirs-y)
