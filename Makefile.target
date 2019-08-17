@@ -156,7 +156,6 @@ endif #CONFIG_BSD_USER
 ifdef CONFIG_SOFTMMU
 obj-y += softmmu/
 obj-y += gdbstub.o
-obj-y += hw/
 LIBS := $(libs_softmmu) $(LIBS)
 
 # Temporary until emulators are linked by Meson
@@ -184,20 +183,6 @@ endif # CONFIG_SOFTMMU
 
 dummy := $(call unnest-vars,,obj-y)
 all-obj-y := $(obj-y)
-
-#
-# common-obj-m has some crap here, probably as side effect from
-# unnest-vars recursing into target directories to fill obj-y and not
-# properly handling the -m case.
-#
-# Clear common-obj-m as workaround.  Fixes suspious dependency errors
-# when building devices as modules.  A bit hackish, but should be ok
-# as long as we do not have any target-specific modules.
-#
-# The meson-based build system currently in development doesn't need
-# unnest-vars and will obsolete this workaround.
-#
-common-obj-m :=
 
 include $(SRC_PATH)/Makefile.objs
 dummy := $(call fix-paths,../,, \

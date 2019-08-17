@@ -61,17 +61,9 @@ common-obj-$(if $(CONFIG_RBD),m) += block-rbd$(DSOSUF)
 common-obj-$(if $(CONFIG_LZFSE),m) += block-dmg-lzfse$(DSOSUF)
 common-obj-$(if $(and $(CONFIG_BZIP2),$(CONFIG_DMG)),m) += block-dmg-bz2$(DSOSUF)
 
-common-obj-y += hw/
-common-obj-m += hw/
-
 common-obj-y += libqmp.fa
 
 endif # CONFIG_SOFTMMU
-
-#######################################################################
-# Target-independent parts used in system and user emulation
-
-common-obj-y += hw/
 
 ######################################################################
 # Resource file for Windows executables

@@ -1,9 +1,0 @@
-common-obj-y  = 9p.o 9p-util.o
-common-obj-y += 9p-local.o 9p-xattr.o
-common-obj-y += 9p-xattr-user.o 9p-posix-acl.o
-common-obj-y += coth.o cofs.o codir.o cofile.o
-common-obj-y += coxattr.o 9p-synth.o
-common-obj-y += 9p-proxy.o
-
-common-obj-$(CONFIG_XEN) += xen-9p-backend.o
-obj-$(CONFIG_VIRTIO_9P) += virtio-9p-device.o

@@ -1,8 +1,0 @@
-ifeq ($(CONFIG_SOFTMMU), y)
-devices-dirs-$(call lor,$(CONFIG_VIRTIO_9P),$(call land,$(CONFIG_VIRTFS),$(CONFIG_XEN))) += 9pfs/
-endif
-
-common-obj-y += $(devices-dirs-y)
-common-obj-m += display/
-common-obj-m += usb/
-obj-y += $(devices-dirs-y)
