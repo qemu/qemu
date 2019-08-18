@@ -1992,20 +1992,6 @@ fi
 # Remove old dependency files to make sure that they get properly regenerated
 rm -f */config-devices.mak.d
 
-# Remove syscall_nr.h to be sure they will be regenerated in the build
-# directory, not in the source directory
-for arch in alpha hppa m68k xtensa sh4 microblaze arm ppc s390x sparc sparc64 \
-    i386 x86_64 mips mips64 ; do
-    # remove the file if it has been generated in the source directory
-    rm -f "${source_path}/linux-user/${arch}/syscall_nr.h"
-    # remove the dependency files
-    for target in ${arch}*-linux-user ; do
-        test -d "${target}" && find "${target}" -type f -name "*.d" \
-             -exec grep -q "${source_path}/linux-user/${arch}/syscall_nr.h" {} \; \
-             -print | while read file ; do rm "${file}" "${file%.d}.o" ; done
-    done
-done
-
 if test -z "$python"
 then
     error_exit "Python not found. Use --python=/path/to/python"
@@ -7999,18 +7985,22 @@ gdb_xml_files=""
 TARGET_ARCH="$target_name"
 TARGET_BASE_ARCH=""
 TARGET_ABI_DIR=""
+TARGET_SYSTBL_ABI=""
+TARGET_SYSTBL=""
 
 case "$target_name" in
   i386)
     mttcg="yes"
 	gdb_xml_files="i386-32bit.xml"
     TARGET_SYSTBL_ABI=i386
+    TARGET_SYSTBL=syscall_32.tbl
   ;;
   x86_64)
     TARGET_BASE_ARCH=i386
     TARGET_SYSTBL_ABI=common,64
+    TARGET_SYSTBL=syscall_64.tbl
     mttcg="yes"
-	gdb_xml_files="i386-64bit.xml"
+    gdb_xml_files="i386-64bit.xml"
   ;;
   alpha)
     mttcg="yes"
@@ -8058,6 +8048,7 @@ case "$target_name" in
     TARGET_ARCH=mips
     echo "TARGET_ABI_MIPSO32=y" >> $config_target_mak
     TARGET_SYSTBL_ABI=o32
+    TARGET_SYSTBL=syscall_o32.tbl
   ;;
   mipsn32|mipsn32el)
     mttcg="yes"
@@ -8066,6 +8057,7 @@ case "$target_name" in
     echo "TARGET_ABI_MIPSN32=y" >> $config_target_mak
     echo "TARGET_ABI32=y" >> $config_target_mak
     TARGET_SYSTBL_ABI=n32
+    TARGET_SYSTBL=syscall_n32.tbl
   ;;
   mips64|mips64el)
     mttcg="no"
@@ -8073,6 +8065,7 @@ case "$target_name" in
     TARGET_BASE_ARCH=mips
     echo "TARGET_ABI_MIPSN64=y" >> $config_target_mak
     TARGET_SYSTBL_ABI=n64
+    TARGET_SYSTBL=syscall_n64.tbl
   ;;
   moxie)
   ;;
@@ -8171,6 +8164,9 @@ esac
 if [ "$TARGET_BASE_ARCH" = "" ]; then
   TARGET_BASE_ARCH=$TARGET_ARCH
 fi
+if [ "$TARGET_SYSTBL_ABI" != "" ] && [ "$TARGET_SYSTBL" = "" ]; then
+  TARGET_SYSTBL=syscall.tbl
+fi
 
 symlink "$source_path/Makefile.target" "$target_dir/Makefile"
 
@@ -8191,6 +8187,7 @@ if [ "$HOST_VARIANT_DIR" != "" ]; then
 fi
 if [ "$TARGET_SYSTBL_ABI" != "" ]; then
     echo "TARGET_SYSTBL_ABI=$TARGET_SYSTBL_ABI" >> $config_target_mak
+    echo "TARGET_SYSTBL=$TARGET_SYSTBL" >> $config_target_mak
 fi
 
 if supported_xen_target $target; then

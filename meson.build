@@ -705,6 +705,10 @@ subdir('net')
 subdir('replay')
 subdir('hw')
 subdir('accel')
+subdir('linux-user')
+
+linux_user_ss.add(files('gdbstub.c', 'thunk.c'))
+specific_ss.add_all(when: 'CONFIG_LINUX_USER', if_true: linux_user_ss)
 
 # needed for fuzzing binaries
 subdir('tests/qtest/libqos')
@@ -802,6 +806,7 @@ foreach target : target_dirs
 
     arch_srcs += config_devices_h[target]
   else
+    abi = config_target['TARGET_ABI_DIR']
     target_type='user'
     qemu_target_name = 'qemu-' + target_name
     if 'CONFIG_LINUX_USER' in config_target
@@ -812,8 +817,17 @@ foreach target : target_dirs
     endif
     target_inc += include_directories(
       base_dir,
-      base_dir / config_target['TARGET_ABI_DIR'],
+      base_dir / abi,
     )
+    if 'CONFIG_LINUX_USER' in config_target
+      dir = base_dir / abi
+      arch_srcs += files(dir / 'signal.c', dir / 'cpu_loop.c')
+      if config_target.has_key('TARGET_SYSTBL_ABI')
+        arch_srcs += \
+          syscall_nr_generators[abi].process(base_dir / abi / config_target['TARGET_SYSTBL'],
+                                             extra_args : config_target['TARGET_SYSTBL_ABI'])
+      endif
+    endif
   endif
 
   t = target_arch[arch].apply(config_target, strict: false)

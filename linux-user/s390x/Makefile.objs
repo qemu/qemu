@@ -1,5 +1,0 @@
-generated-files-y += linux-user/s390x/syscall_nr.h
-
-syshdr := $(SRC_PATH)/linux-user/s390x/syscallhdr.sh
-%/syscall_nr.h: $(SRC_PATH)/linux-user/s390x/syscall.tbl $(syshdr)
-	$(call quiet-command, sh $(syshdr) $< $@ $(TARGET_SYSTBL_ABI),"GEN","$@")
