@@ -61,11 +61,6 @@ static int no_run_out (HWVoiceOut *hw, int live)
     return decr;
 }
 
-static int no_write (SWVoiceOut *sw, void *buf, int len)
-{
-    return audio_pcm_sw_write(sw, buf, len);
-}
-
 static int no_init_out(HWVoiceOut *hw, struct audsettings *as, void *drv_opaque)
 {
     audio_pcm_init_info (&hw->info, as);
@@ -118,18 +113,6 @@ static int no_run_in (HWVoiceIn *hw)
     return samples;
 }
 
-static int no_read (SWVoiceIn *sw, void *buf, int size)
-{
-    /* use custom code here instead of audio_pcm_sw_read() to avoid
-     * useless resampling/mixing */
-    int samples = size >> sw->info.shift;
-    int total = sw->hw->total_samples_captured - sw->total_hw_samples_acquired;
-    int to_clear = MIN (samples, total);
-    sw->total_hw_samples_acquired += total;
-    audio_pcm_info_clear_buf (&sw->info, buf, to_clear);
-    return to_clear << sw->info.shift;
-}
-
 static int no_ctl_in (HWVoiceIn *hw, int cmd, ...)
 {
     (void) hw;
@@ -151,13 +134,11 @@ static struct audio_pcm_ops no_pcm_ops = {
     .init_out = no_init_out,
     .fini_out = no_fini_out,
     .run_out  = no_run_out,
-    .write    = no_write,
     .ctl_out  = no_ctl_out,
 
     .init_in  = no_init_in,
     .fini_in  = no_fini_in,
     .run_in   = no_run_in,
-    .read     = no_read,
     .ctl_in   = no_ctl_in
 };
 

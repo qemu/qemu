@@ -84,11 +84,6 @@ static int wav_run_out (HWVoiceOut *hw, int live)
     return decr;
 }
 
-static int wav_write_out (SWVoiceOut *sw, void *buf, int len)
-{
-    return audio_pcm_sw_write (sw, buf, len);
-}
-
 /* VICE code: Store number as little endian. */
 static void le_store (uint8_t *buf, uint32_t val, int len)
 {
@@ -240,7 +235,6 @@ static struct audio_pcm_ops wav_pcm_ops = {
     .init_out = wav_init_out,
     .fini_out = wav_fini_out,
     .run_out  = wav_run_out,
-    .write    = wav_write_out,
     .ctl_out  = wav_ctl_out,
 };
 

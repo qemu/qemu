@@ -454,11 +454,6 @@ static int dsound_ctl_out (HWVoiceOut *hw, int cmd, ...)
     return 0;
 }
 
-static int dsound_write (SWVoiceOut *sw, void *buf, int len)
-{
-    return audio_pcm_sw_write (sw, buf, len);
-}
-
 static int dsound_run_out (HWVoiceOut *hw, int live)
 {
     int err;
@@ -643,11 +638,6 @@ static int dsound_ctl_in (HWVoiceIn *hw, int cmd, ...)
         break;
     }
     return 0;
-}
-
-static int dsound_read (SWVoiceIn *sw, void *buf, int len)
-{
-    return audio_pcm_sw_read (sw, buf, len);
 }
 
 static int dsound_run_in (HWVoiceIn *hw)
@@ -856,13 +846,11 @@ static struct audio_pcm_ops dsound_pcm_ops = {
     .init_out = dsound_init_out,
     .fini_out = dsound_fini_out,
     .run_out  = dsound_run_out,
-    .write    = dsound_write,
     .ctl_out  = dsound_ctl_out,
 
     .init_in  = dsound_init_in,
     .fini_in  = dsound_fini_in,
     .run_in   = dsound_run_in,
-    .read     = dsound_read,
     .ctl_in   = dsound_ctl_in
 };
 

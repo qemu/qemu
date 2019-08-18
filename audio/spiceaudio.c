@@ -192,11 +192,6 @@ static int line_out_run (HWVoiceOut *hw, int live)
     return decr;
 }
 
-static int line_out_write (SWVoiceOut *sw, void *buf, int len)
-{
-    return audio_pcm_sw_write (sw, buf, len);
-}
-
 static int line_out_ctl (HWVoiceOut *hw, int cmd, ...)
 {
     SpiceVoiceOut *out = container_of (hw, SpiceVoiceOut, hw);
@@ -325,11 +320,6 @@ static int line_in_run (HWVoiceIn *hw)
     return num_samples;
 }
 
-static int line_in_read (SWVoiceIn *sw, void *buf, int size)
-{
-    return audio_pcm_sw_read (sw, buf, size);
-}
-
 static int line_in_ctl (HWVoiceIn *hw, int cmd, ...)
 {
     SpiceVoiceIn *in = container_of (hw, SpiceVoiceIn, hw);
@@ -377,13 +367,11 @@ static struct audio_pcm_ops audio_callbacks = {
     .init_out = line_out_init,
     .fini_out = line_out_fini,
     .run_out  = line_out_run,
-    .write    = line_out_write,
     .ctl_out  = line_out_ctl,
 
     .init_in  = line_in_init,
     .fini_in  = line_in_fini,
     .run_in   = line_in_run,
-    .read     = line_in_read,
     .ctl_in   = line_in_ctl,
 };
 

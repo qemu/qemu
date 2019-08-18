@@ -295,11 +295,6 @@ static int qpa_run_out (HWVoiceOut *hw, int live)
     return decr;
 }
 
-static int qpa_write (SWVoiceOut *sw, void *buf, int len)
-{
-    return audio_pcm_sw_write (sw, buf, len);
-}
-
 /* capture */
 static void *qpa_thread_in (void *arg)
 {
@@ -386,11 +381,6 @@ static int qpa_run_in (HWVoiceIn *hw)
         audio_pt_unlock(&pa->pt, __func__);
     }
     return incr;
-}
-
-static int qpa_read (SWVoiceIn *sw, void *buf, int len)
-{
-    return audio_pcm_sw_read (sw, buf, len);
 }
 
 static pa_sample_format_t audfmt_to_pa (AudioFormat afmt, int endianness)
@@ -1016,13 +1006,11 @@ static struct audio_pcm_ops qpa_pcm_ops = {
     .init_out = qpa_init_out,
     .fini_out = qpa_fini_out,
     .run_out  = qpa_run_out,
-    .write    = qpa_write,
     .ctl_out  = qpa_ctl_out,
 
     .init_in  = qpa_init_in,
     .fini_in  = qpa_fini_in,
     .run_in   = qpa_run_in,
-    .read     = qpa_read,
     .ctl_in   = qpa_ctl_in
 };
 
