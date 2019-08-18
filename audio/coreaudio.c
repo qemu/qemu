@@ -43,9 +43,9 @@ typedef struct coreaudioVoiceOut {
     UInt32 audioDevicePropertyBufferFrameSize;
     AudioStreamBasicDescription outputStreamBasicDescription;
     AudioDeviceIOProcID ioprocid;
-    int live;
-    int decr;
-    int rpos;
+    size_t live;
+    size_t decr;
+    size_t rpos;
 } coreaudioVoiceOut;
 
 #if MAC_OS_X_VERSION_MAX_ALLOWED >= MAC_OS_X_VERSION_10_6
@@ -397,9 +397,9 @@ static int coreaudio_unlock (coreaudioVoiceOut *core, const char *fn_name)
     return 0;
 }
 
-static int coreaudio_run_out (HWVoiceOut *hw, int live)
+static size_t coreaudio_run_out(HWVoiceOut *hw, size_t live)
 {
-    int decr;
+    size_t decr;
     coreaudioVoiceOut *core = (coreaudioVoiceOut *) hw;
 
     if (coreaudio_lock (core, "coreaudio_run_out")) {

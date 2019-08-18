@@ -30,30 +30,30 @@ typedef struct {
 
 typedef struct {
     HWVoiceOut hw;
-    int done;
-    int live;
-    int decr;
-    int rpos;
+    size_t done;
+    size_t live;
+    size_t decr;
+    size_t rpos;
     pa_stream *stream;
     void *pcm_buf;
     struct audio_pt pt;
     paaudio *g;
-    int samples;
+    size_t samples;
 } PAVoiceOut;
 
 typedef struct {
     HWVoiceIn hw;
-    int done;
-    int dead;
-    int incr;
-    int wpos;
+    size_t done;
+    size_t dead;
+    size_t incr;
+    size_t wpos;
     pa_stream *stream;
     void *pcm_buf;
     struct audio_pt pt;
     const void *read_data;
     size_t read_index, read_length;
     paaudio *g;
-    int samples;
+    size_t samples;
 } PAVoiceIn;
 
 static void qpa_conn_fini(PAConnection *c);
@@ -219,7 +219,7 @@ static void *qpa_thread_out (void *arg)
     }
 
     for (;;) {
-        int decr, to_mix, rpos;
+        size_t decr, to_mix, rpos;
 
         for (;;) {
             if (pa->done) {
@@ -244,7 +244,7 @@ static void *qpa_thread_out (void *arg)
 
         while (to_mix) {
             int error;
-            int chunk = MIN (to_mix, hw->samples - rpos);
+            size_t chunk = MIN (to_mix, hw->samples - rpos);
             struct st_sample *src = hw->mix_buf + rpos;
 
             hw->clip (pa->pcm_buf, src, chunk);
@@ -273,9 +273,9 @@ static void *qpa_thread_out (void *arg)
     return NULL;
 }
 
-static int qpa_run_out (HWVoiceOut *hw, int live)
+static size_t qpa_run_out(HWVoiceOut *hw, size_t live)
 {
-    int decr;
+    size_t decr;
     PAVoiceOut *pa = (PAVoiceOut *) hw;
 
     if (audio_pt_lock(&pa->pt, __func__)) {
@@ -306,7 +306,7 @@ static void *qpa_thread_in (void *arg)
     }
 
     for (;;) {
-        int incr, to_grab, wpos;
+        size_t incr, to_grab, wpos;
 
         for (;;) {
             if (pa->done) {
@@ -331,7 +331,7 @@ static void *qpa_thread_in (void *arg)
 
         while (to_grab) {
             int error;
-            int chunk = MIN (to_grab, hw->samples - wpos);
+            size_t chunk = MIN (to_grab, hw->samples - wpos);
             void *buf = advance (pa->pcm_buf, wpos);
 
             if (qpa_simple_read (pa, buf,
@@ -359,9 +359,9 @@ static void *qpa_thread_in (void *arg)
     return NULL;
 }
 
-static int qpa_run_in (HWVoiceIn *hw)
+static size_t qpa_run_in(HWVoiceIn *hw)
 {
-    int live, incr, dead;
+    size_t live, incr, dead;
     PAVoiceIn *pa = (PAVoiceIn *) hw;
 
     if (audio_pt_lock(&pa->pt, __func__)) {
@@ -582,8 +582,8 @@ static int qpa_init_out(HWVoiceOut *hw, struct audsettings *as,
     pa->pcm_buf = audio_calloc(__func__, hw->samples, 1 << hw->info.shift);
     pa->rpos = hw->rpos;
     if (!pa->pcm_buf) {
-        dolog ("Could not allocate buffer (%d bytes)\n",
-               hw->samples << hw->info.shift);
+        dolog("Could not allocate buffer (%zu bytes)\n",
+              hw->samples << hw->info.shift);
         goto fail2;
     }
 
@@ -650,8 +650,8 @@ static int qpa_init_in(HWVoiceIn *hw, struct audsettings *as, void *drv_opaque)
     pa->pcm_buf = audio_calloc(__func__, hw->samples, 1 << hw->info.shift);
     pa->wpos = hw->wpos;
     if (!pa->pcm_buf) {
-        dolog ("Could not allocate buffer (%d bytes)\n",
-               hw->samples << hw->info.shift);
+        dolog("Could not allocate buffer (%zu bytes)\n",
+              hw->samples << hw->info.shift);
         goto fail2;
     }
 

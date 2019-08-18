@@ -681,10 +681,10 @@ static void alsa_write_pending (ALSAVoiceOut *alsa)
     }
 }
 
-static int alsa_run_out (HWVoiceOut *hw, int live)
+static size_t alsa_run_out(HWVoiceOut *hw, size_t live)
 {
     ALSAVoiceOut *alsa = (ALSAVoiceOut *) hw;
-    int decr;
+    size_t decr;
     snd_pcm_sframes_t avail;
 
     avail = alsa_get_avail (alsa->handle);
@@ -739,8 +739,8 @@ static int alsa_init_out(HWVoiceOut *hw, struct audsettings *as,
 
     alsa->pcm_buf = audio_calloc(__func__, obt.samples, 1 << hw->info.shift);
     if (!alsa->pcm_buf) {
-        dolog ("Could not allocate DAC buffer (%d samples, each %d bytes)\n",
-               hw->samples, 1 << hw->info.shift);
+        dolog("Could not allocate DAC buffer (%zu samples, each %d bytes)\n",
+              hw->samples, 1 << hw->info.shift);
         alsa_anal_close1 (&handle);
         return -1;
     }
@@ -841,8 +841,8 @@ static int alsa_init_in(HWVoiceIn *hw, struct audsettings *as, void *drv_opaque)
 
     alsa->pcm_buf = audio_calloc(__func__, hw->samples, 1 << hw->info.shift);
     if (!alsa->pcm_buf) {
-        dolog ("Could not allocate ADC buffer (%d samples, each %d bytes)\n",
-               hw->samples, 1 << hw->info.shift);
+        dolog("Could not allocate ADC buffer (%zu samples, each %d bytes)\n",
+              hw->samples, 1 << hw->info.shift);
         alsa_anal_close1 (&handle);
         return -1;
     }
@@ -863,17 +863,17 @@ static void alsa_fini_in (HWVoiceIn *hw)
     alsa->pcm_buf = NULL;
 }
 
-static int alsa_run_in (HWVoiceIn *hw)
+static size_t alsa_run_in(HWVoiceIn *hw)
 {
     ALSAVoiceIn *alsa = (ALSAVoiceIn *) hw;
     int hwshift = hw->info.shift;
     int i;
-    int live = audio_pcm_hw_get_live_in (hw);
-    int dead = hw->samples - live;
-    int decr;
+    size_t live = audio_pcm_hw_get_live_in (hw);
+    size_t dead = hw->samples - live;
+    size_t decr;
     struct {
-        int add;
-        int len;
+        size_t add;
+        size_t len;
     } bufs[2] = {
         { .add = hw->wpos, .len = 0 },
         { .add = 0,        .len = 0 }
@@ -913,7 +913,7 @@ static int alsa_run_in (HWVoiceIn *hw)
         }
     }
 
-    decr = MIN (dead, avail);
+    decr = MIN(dead, avail);
     if (!decr) {
         return 0;
     }

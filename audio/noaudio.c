@@ -41,10 +41,10 @@ typedef struct NoVoiceIn {
     int64_t old_ticks;
 } NoVoiceIn;
 
-static int no_run_out (HWVoiceOut *hw, int live)
+static size_t no_run_out(HWVoiceOut *hw, size_t live)
 {
     NoVoiceOut *no = (NoVoiceOut *) hw;
-    int decr, samples;
+    size_t decr, samples;
     int64_t now;
     int64_t ticks;
     int64_t bytes;
@@ -52,7 +52,7 @@ static int no_run_out (HWVoiceOut *hw, int live)
     now = qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL);
     ticks = now - no->old_ticks;
     bytes = muldiv64(ticks, hw->info.bytes_per_second, NANOSECONDS_PER_SECOND);
-    bytes = MIN(bytes, INT_MAX);
+    bytes = MIN(bytes, SIZE_MAX);
     samples = bytes >> hw->info.shift;
 
     no->old_ticks = now;
@@ -92,12 +92,12 @@ static void no_fini_in (HWVoiceIn *hw)
     (void) hw;
 }
 
-static int no_run_in (HWVoiceIn *hw)
+static size_t no_run_in(HWVoiceIn *hw)
 {
     NoVoiceIn *no = (NoVoiceIn *) hw;
-    int live = audio_pcm_hw_get_live_in (hw);
-    int dead = hw->samples - live;
-    int samples = 0;
+    size_t live = audio_pcm_hw_get_live_in(hw);
+    size_t dead = hw->samples - live;
+    size_t samples = 0;
 
     if (dead) {
         int64_t now = qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL);
@@ -106,7 +106,7 @@ static int no_run_in (HWVoiceIn *hw)
             muldiv64(ticks, hw->info.bytes_per_second, NANOSECONDS_PER_SECOND);
 
         no->old_ticks = now;
-        bytes = MIN (bytes, INT_MAX);
+        bytes = MIN (bytes, SIZE_MAX);
         samples = bytes >> hw->info.shift;
         samples = MIN (samples, dead);
     }

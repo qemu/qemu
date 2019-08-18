@@ -75,16 +75,16 @@ static void glue (audio_pcm_hw_free_resources_, TYPE) (HW *hw)
     HWBUF = NULL;
 }
 
-static int glue (audio_pcm_hw_alloc_resources_, TYPE) (HW *hw)
+static bool glue(audio_pcm_hw_alloc_resources_, TYPE)(HW *hw)
 {
     HWBUF = audio_calloc(__func__, hw->samples, sizeof(struct st_sample));
     if (!HWBUF) {
-        dolog ("Could not allocate " NAME " buffer (%d samples)\n",
-               hw->samples);
-        return -1;
+        dolog("Could not allocate " NAME " buffer (%zu samples)\n",
+              hw->samples);
+        return false;
     }
 
-    return 0;
+    return true;
 }
 
 static void glue (audio_pcm_sw_free_resources_, TYPE) (SW *sw)
@@ -265,7 +265,7 @@ static HW *glue(audio_pcm_hw_add_new_, TYPE)(AudioState *s,
     }
 
     if (audio_bug(__func__, hw->samples <= 0)) {
-        dolog ("hw->samples=%d\n", hw->samples);
+        dolog("hw->samples=%zd\n", hw->samples);
         goto err1;
     }
 
@@ -279,7 +279,7 @@ static HW *glue(audio_pcm_hw_add_new_, TYPE)(AudioState *s,
         [hw->info.swap_endianness]
         [audio_bits_to_index (hw->info.bits)];
 
-    if (glue (audio_pcm_hw_alloc_resources_, TYPE) (hw)) {
+    if (!glue(audio_pcm_hw_alloc_resources_, TYPE)(hw)) {
         goto err1;
     }
 

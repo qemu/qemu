@@ -40,10 +40,10 @@ typedef struct WAVVoiceOut {
     int total_samples;
 } WAVVoiceOut;
 
-static int wav_run_out (HWVoiceOut *hw, int live)
+static size_t wav_run_out(HWVoiceOut *hw, size_t live)
 {
     WAVVoiceOut *wav = (WAVVoiceOut *) hw;
-    int rpos, decr, samples;
+    size_t rpos, decr, samples;
     uint8_t *dst;
     struct st_sample *src;
     int64_t now = qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL);
@@ -139,8 +139,8 @@ static int wav_init_out(HWVoiceOut *hw, struct audsettings *as,
     hw->samples = 1024;
     wav->pcm_buf = audio_calloc(__func__, hw->samples, 1 << hw->info.shift);
     if (!wav->pcm_buf) {
-        dolog ("Could not allocate buffer (%d bytes)\n",
-               hw->samples << hw->info.shift);
+        dolog("Could not allocate buffer (%zu bytes)\n",
+              hw->samples << hw->info.shift);
         return -1;
     }
 

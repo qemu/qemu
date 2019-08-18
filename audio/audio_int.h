@@ -61,12 +61,12 @@ typedef struct HWVoiceOut {
 
     f_sample *clip;
 
-    int rpos;
+    size_t rpos;
     uint64_t ts_helper;
 
     struct st_sample *mix_buf;
 
-    int samples;
+    size_t samples;
     QLIST_HEAD (sw_out_listhead, SWVoiceOut) sw_head;
     QLIST_HEAD (sw_cap_listhead, SWVoiceCap) cap_head;
     int ctl_caps;
@@ -82,13 +82,13 @@ typedef struct HWVoiceIn {
 
     t_sample *conv;
 
-    int wpos;
-    int total_samples_captured;
+    size_t wpos;
+    size_t total_samples_captured;
     uint64_t ts_helper;
 
     struct st_sample *conv_buf;
 
-    int samples;
+    size_t samples;
     QLIST_HEAD (sw_in_listhead, SWVoiceIn) sw_head;
     int ctl_caps;
     struct audio_pcm_ops *pcm_ops;
@@ -103,7 +103,7 @@ struct SWVoiceOut {
     int64_t ratio;
     struct st_sample *buf;
     void *rate;
-    int total_hw_samples_mixed;
+    size_t total_hw_samples_mixed;
     int active;
     int empty;
     HWVoiceOut *hw;
@@ -120,7 +120,7 @@ struct SWVoiceIn {
     struct audio_pcm_info info;
     int64_t ratio;
     void *rate;
-    int total_hw_samples_acquired;
+    size_t total_hw_samples_acquired;
     struct st_sample *buf;
     f_sample *clip;
     HWVoiceIn *hw;
@@ -149,12 +149,12 @@ struct audio_driver {
 struct audio_pcm_ops {
     int  (*init_out)(HWVoiceOut *hw, struct audsettings *as, void *drv_opaque);
     void (*fini_out)(HWVoiceOut *hw);
-    int  (*run_out) (HWVoiceOut *hw, int live);
+    size_t (*run_out)(HWVoiceOut *hw, size_t live);
     int  (*ctl_out) (HWVoiceOut *hw, int cmd, ...);
 
     int  (*init_in) (HWVoiceIn *hw, struct audsettings *as, void *drv_opaque);
     void (*fini_in) (HWVoiceIn *hw);
-    int  (*run_in)  (HWVoiceIn *hw);
+    size_t (*run_in)(HWVoiceIn *hw);
     int  (*ctl_in)  (HWVoiceIn *hw, int cmd, ...);
 };
 
@@ -208,10 +208,10 @@ audio_driver *audio_driver_lookup(const char *name);
 void audio_pcm_init_info (struct audio_pcm_info *info, struct audsettings *as);
 void audio_pcm_info_clear_buf (struct audio_pcm_info *info, void *buf, int len);
 
-int  audio_pcm_hw_get_live_in (HWVoiceIn *hw);
+size_t audio_pcm_hw_get_live_in(HWVoiceIn *hw);
 
-int audio_pcm_hw_clip_out (HWVoiceOut *hw, void *pcm_buf,
-                           int live, int pending);
+size_t audio_pcm_hw_clip_out(HWVoiceOut *hw, void *pcm_buf,
+                             size_t live, size_t pending);
 
 int audio_bug (const char *funcname, int cond);
 void *audio_calloc (const char *funcname, int nmemb, size_t size);
@@ -224,7 +224,7 @@ void audio_run(AudioState *s, const char *msg);
 
 #define VOICE_VOLUME_CAP (1 << VOICE_VOLUME)
 
-static inline int audio_ring_dist (int dst, int src, int len)
+static inline size_t audio_ring_dist(size_t dst, size_t src, size_t len)
 {
     return (dst >= src) ? (dst - src) : (len - src + dst);
 }

@@ -41,8 +41,8 @@
 
 typedef struct SDLVoiceOut {
     HWVoiceOut hw;
-    int live;
-    int decr;
+    size_t live;
+    size_t decr;
 } SDLVoiceOut;
 
 static struct SDLAudioState {
@@ -184,22 +184,22 @@ static void sdl_callback (void *opaque, Uint8 *buf, int len)
     SDLVoiceOut *sdl = opaque;
     SDLAudioState *s = &glob_sdl;
     HWVoiceOut *hw = &sdl->hw;
-    int samples = len >> hw->info.shift;
-    int to_mix, decr;
+    size_t samples = len >> hw->info.shift;
+    size_t to_mix, decr;
 
     if (s->exit || !sdl->live) {
         return;
     }
 
-    /* dolog ("in callback samples=%d live=%d\n", samples, sdl->live); */
+    /* dolog ("in callback samples=%zu live=%zu\n", samples, sdl->live); */
 
     to_mix = MIN(samples, sdl->live);
     decr = to_mix;
     while (to_mix) {
-        int chunk = MIN(to_mix, hw->samples - hw->rpos);
+        size_t chunk = MIN(to_mix, hw->samples - hw->rpos);
         struct st_sample *src = hw->mix_buf + hw->rpos;
 
-        /* dolog ("in callback to_mix %d, chunk %d\n", to_mix, chunk); */
+        /* dolog ("in callback to_mix %zu, chunk %zu\n", to_mix, chunk); */
         hw->clip(buf, src, chunk);
         hw->rpos = (hw->rpos + chunk) % hw->samples;
         to_mix -= chunk;
@@ -209,7 +209,7 @@ static void sdl_callback (void *opaque, Uint8 *buf, int len)
     sdl->live -= decr;
     sdl->decr += decr;
 
-    /* dolog ("done len=%d\n", len); */
+    /* dolog ("done len=%zu\n", len); */
 
     /* SDL2 does not clear the remaining buffer for us, so do it on our own */
     if (samples) {
@@ -217,9 +217,9 @@ static void sdl_callback (void *opaque, Uint8 *buf, int len)
     }
 }
 
-static int sdl_run_out (HWVoiceOut *hw, int live)
+static size_t sdl_run_out(HWVoiceOut *hw, size_t live)
 {
-    int decr;
+    size_t decr;
     SDLVoiceOut *sdl = (SDLVoiceOut *) hw;
 
     SDL_LockAudio();

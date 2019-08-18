@@ -152,11 +152,11 @@ static void line_out_fini (HWVoiceOut *hw)
     spice_server_remove_interface (&out->sin.base);
 }
 
-static int line_out_run (HWVoiceOut *hw, int live)
+static size_t line_out_run (HWVoiceOut *hw, size_t live)
 {
     SpiceVoiceOut *out = container_of (hw, SpiceVoiceOut, hw);
-    int rpos, decr;
-    int samples;
+    size_t rpos, decr;
+    size_t samples;
 
     if (!live) {
         return 0;
@@ -275,12 +275,12 @@ static void line_in_fini (HWVoiceIn *hw)
     spice_server_remove_interface (&in->sin.base);
 }
 
-static int line_in_run (HWVoiceIn *hw)
+static size_t line_in_run(HWVoiceIn *hw)
 {
     SpiceVoiceIn *in = container_of (hw, SpiceVoiceIn, hw);
-    int num_samples;
+    size_t num_samples;
     int ready;
-    int len[2];
+    size_t len[2];
     uint64_t delta_samp;
     const uint32_t *samples;
 
