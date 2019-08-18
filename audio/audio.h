@@ -27,6 +27,7 @@
 
 #include "qemu/queue.h"
 #include "qapi/qapi-types-audio.h"
+#include "hw/qdev-properties.h"
 
 typedef void (*audio_callback_fn) (void *opaque, int avail);
 
@@ -180,5 +181,8 @@ void audio_legacy_help(void);
 
 AudioState *audio_state_by_name(const char *name);
 const char *audio_get_id(QEMUSoundCard *card);
+
+#define DEFINE_AUDIO_PROPERTIES(_s, _f)         \
+    DEFINE_PROP_AUDIODEV("audiodev", _s, _f)
 
 #endif /* QEMU_AUDIO_H */
