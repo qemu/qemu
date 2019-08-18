@@ -163,20 +163,20 @@ static int line_out_run (HWVoiceOut *hw, int live)
     }
 
     decr = rate_get_samples (&hw->info, &out->rate);
-    decr = audio_MIN (live, decr);
+    decr = MIN (live, decr);
 
     samples = decr;
     rpos = hw->rpos;
     while (samples) {
         int left_till_end_samples = hw->samples - rpos;
-        int len = audio_MIN (samples, left_till_end_samples);
+        int len = MIN (samples, left_till_end_samples);
 
         if (!out->frame) {
             spice_server_playback_get_buffer (&out->sin, &out->frame, &out->fsize);
             out->fpos = out->frame;
         }
         if (out->frame) {
-            len = audio_MIN (len, out->fsize);
+            len = MIN (len, out->fsize);
             hw->clip (out->fpos, hw->mix_buf + rpos, len);
             out->fsize -= len;
             out->fpos  += len;
@@ -294,7 +294,7 @@ static int line_in_run (HWVoiceIn *hw)
     }
 
     delta_samp = rate_get_samples (&hw->info, &in->rate);
-    num_samples = audio_MIN (num_samples, delta_samp);
+    num_samples = MIN (num_samples, delta_samp);
 
     ready = spice_server_record_get_samples (&in->sin, in->samples, num_samples);
     samples = in->samples;
@@ -304,7 +304,7 @@ static int line_in_run (HWVoiceIn *hw)
         ready = LINE_IN_SAMPLES;
     }
 
-    num_samples = audio_MIN (ready, num_samples);
+    num_samples = MIN (ready, num_samples);
 
     if (hw->wpos + num_samples > hw->samples) {
         len[0] = hw->samples - hw->wpos;

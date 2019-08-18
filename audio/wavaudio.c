@@ -59,12 +59,12 @@ static int wav_run_out (HWVoiceOut *hw, int live)
     }
 
     wav->old_ticks = now;
-    decr = audio_MIN (live, samples);
+    decr = MIN (live, samples);
     samples = decr;
     rpos = hw->rpos;
     while (samples) {
         int left_till_end_samples = hw->samples - rpos;
-        int convert_samples = audio_MIN (samples, left_till_end_samples);
+        int convert_samples = MIN (samples, left_till_end_samples);
 
         src = hw->mix_buf + rpos;
         dst = advance (wav->pcm_buf, rpos << hw->info.shift);

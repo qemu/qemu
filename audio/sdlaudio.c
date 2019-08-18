@@ -193,10 +193,10 @@ static void sdl_callback (void *opaque, Uint8 *buf, int len)
 
     /* dolog ("in callback samples=%d live=%d\n", samples, sdl->live); */
 
-    to_mix = audio_MIN(samples, sdl->live);
+    to_mix = MIN(samples, sdl->live);
     decr = to_mix;
     while (to_mix) {
-        int chunk = audio_MIN(to_mix, hw->samples - hw->rpos);
+        int chunk = MIN(to_mix, hw->samples - hw->rpos);
         struct st_sample *src = hw->mix_buf + hw->rpos;
 
         /* dolog ("in callback to_mix %d, chunk %d\n", to_mix, chunk); */
@@ -236,7 +236,7 @@ static int sdl_run_out (HWVoiceOut *hw, int live)
                 sdl->live);
     }
 
-    decr = audio_MIN (sdl->decr, live);
+    decr = MIN (sdl->decr, live);
     sdl->decr -= decr;
 
     sdl->live = live;

@@ -388,7 +388,7 @@ static void oss_write_pending (OSSVoiceOut *oss)
         int samples_written;
         ssize_t bytes_written;
         int samples_till_end = hw->samples - oss->wpos;
-        int samples_to_write = audio_MIN (oss->pending, samples_till_end);
+        int samples_to_write = MIN (oss->pending, samples_till_end);
         int bytes_to_write = samples_to_write << hw->info.shift;
         void *pcm = advance (oss->pcm_buf, oss->wpos << hw->info.shift);
 
@@ -437,7 +437,7 @@ static int oss_run_out (HWVoiceOut *hw, int live)
 
         pos = hw->rpos << hw->info.shift;
         bytes = audio_ring_dist (cntinfo.ptr, pos, bufsize);
-        decr = audio_MIN (bytes >> hw->info.shift, live);
+        decr = MIN (bytes >> hw->info.shift, live);
     }
     else {
         err = ioctl (oss->fd, SNDCTL_DSP_GETOSPACE, &abinfo);
@@ -456,7 +456,7 @@ static int oss_run_out (HWVoiceOut *hw, int live)
             return 0;
         }
 
-        decr = audio_MIN (abinfo.bytes >> hw->info.shift, live);
+        decr = MIN (abinfo.bytes >> hw->info.shift, live);
         if (!decr) {
             return 0;
         }

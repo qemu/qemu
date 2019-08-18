@@ -535,7 +535,7 @@ static int audio_pcm_hw_find_min_in (HWVoiceIn *hw)
 
     for (sw = hw->sw_head.lh_first; sw; sw = sw->entries.le_next) {
         if (sw->active) {
-            m = audio_MIN (m, sw->total_hw_samples_acquired);
+            m = MIN (m, sw->total_hw_samples_acquired);
         }
     }
     return m;
@@ -555,14 +555,14 @@ int audio_pcm_hw_clip_out (HWVoiceOut *hw, void *pcm_buf,
                            int live, int pending)
 {
     int left = hw->samples - pending;
-    int len = audio_MIN (left, live);
+    int len = MIN (left, live);
     int clipped = 0;
 
     while (len) {
         struct st_sample *src = hw->mix_buf + hw->rpos;
         uint8_t *dst = advance (pcm_buf, hw->rpos << hw->info.shift);
         int samples_till_end_of_buf = hw->samples - hw->rpos;
-        int samples_to_clip = audio_MIN (len, samples_till_end_of_buf);
+        int samples_to_clip = MIN (len, samples_till_end_of_buf);
 
         hw->clip (dst, src, samples_to_clip);
 
@@ -616,7 +616,7 @@ int audio_pcm_sw_read (SWVoiceIn *sw, void *buf, int size)
     }
 
     swlim = (live * sw->ratio) >> 32;
-    swlim = audio_MIN (swlim, samples);
+    swlim = MIN (swlim, samples);
 
     while (swlim) {
         src = hw->conv_buf + rpos;
@@ -664,7 +664,7 @@ static int audio_pcm_hw_find_min_out (HWVoiceOut *hw, int *nb_livep)
 
     for (sw = hw->sw_head.lh_first; sw; sw = sw->entries.le_next) {
         if (sw->active || !sw->empty) {
-            m = audio_MIN (m, sw->total_hw_samples_mixed);
+            m = MIN (m, sw->total_hw_samples_mixed);
             nb_live += 1;
         }
     }
@@ -727,7 +727,7 @@ int audio_pcm_sw_write (SWVoiceOut *sw, void *buf, int size)
 
     dead = hwsamples - live;
     swlim = ((int64_t) dead << 32) / sw->ratio;
-    swlim = audio_MIN (swlim, samples);
+    swlim = MIN (swlim, samples);
     if (swlim) {
         sw->conv (sw->buf, buf, swlim);
 
@@ -739,7 +739,7 @@ int audio_pcm_sw_write (SWVoiceOut *sw, void *buf, int size)
     while (swlim) {
         dead = hwsamples - live;
         left = hwsamples - wpos;
-        blck = audio_MIN (dead, left);
+        blck = MIN (dead, left);
         if (!blck) {
             break;
         }
@@ -1031,7 +1031,7 @@ static void audio_capture_mix_and_clear (HWVoiceOut *hw, int rpos, int samples)
             n = samples;
             while (n) {
                 int till_end_of_hw = hw->samples - rpos2;
-                int to_write = audio_MIN (till_end_of_hw, n);
+                int to_write = MIN (till_end_of_hw, n);
                 int bytes = to_write << hw->info.shift;
                 int written;
 
@@ -1049,7 +1049,7 @@ static void audio_capture_mix_and_clear (HWVoiceOut *hw, int rpos, int samples)
         }
     }
 
-    n = audio_MIN (samples, hw->samples - rpos);
+    n = MIN (samples, hw->samples - rpos);
     mixeng_clear (hw->mix_buf + rpos, n);
     mixeng_clear (hw->mix_buf, samples - n);
 }
@@ -1205,7 +1205,7 @@ static void audio_run_capture (AudioState *s)
         rpos = hw->rpos;
         while (live) {
             int left = hw->samples - rpos;
-            int to_capture = audio_MIN (live, left);
+            int to_capture = MIN (live, left);
             struct st_sample *src;
             struct capture_callback *cb;
 

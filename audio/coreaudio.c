@@ -413,7 +413,7 @@ static int coreaudio_run_out (HWVoiceOut *hw, int live)
                 core->live);
     }
 
-    decr = audio_MIN (core->decr, live);
+    decr = MIN (core->decr, live);
     core->decr -= decr;
 
     core->live = live - decr;

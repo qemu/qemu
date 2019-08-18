@@ -634,7 +634,7 @@ static void alsa_write_pending (ALSAVoiceOut *alsa)
 
     while (alsa->pending) {
         int left_till_end_samples = hw->samples - alsa->wpos;
-        int len = audio_MIN (alsa->pending, left_till_end_samples);
+        int len = MIN (alsa->pending, left_till_end_samples);
         char *src = advance (alsa->pcm_buf, alsa->wpos << hw->info.shift);
 
         while (len) {
@@ -697,7 +697,7 @@ static int alsa_run_out (HWVoiceOut *hw, int live)
         return 0;
     }
 
-    decr = audio_MIN (live, avail);
+    decr = MIN (live, avail);
     decr = audio_pcm_hw_clip_out (hw, alsa->pcm_buf, decr, alsa->pending);
     alsa->pending += decr;
     alsa_write_pending (alsa);
@@ -915,7 +915,7 @@ static int alsa_run_in (HWVoiceIn *hw)
         }
     }
 
-    decr = audio_MIN (dead, avail);
+    decr = MIN (dead, avail);
     if (!decr) {
         return 0;
     }
