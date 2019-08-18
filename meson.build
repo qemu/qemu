@@ -704,6 +704,7 @@ subdir('monitor')
 subdir('net')
 subdir('replay')
 subdir('hw')
+subdir('accel')
 
 # needed for fuzzing binaries
 subdir('tests/qtest/libqos')
