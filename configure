@@ -3217,6 +3217,34 @@ else
     pvrdma="no"
 fi
 
+# Let's see if enhanced reg_mr is supported
+if test "$pvrdma" = "yes" ; then
+
+cat > $TMPC <<EOF &&
+#include <infiniband/verbs.h>
+
+int
+main(void)
+{
+    struct ibv_mr *mr;
+    struct ibv_pd *pd = NULL;
+    size_t length = 10;
+    uint64_t iova = 0;
+    int access = 0;
+    void *addr = NULL;
+
+    mr = ibv_reg_mr_iova(pd, addr, length, iova, access);
+
+    ibv_dereg_mr(mr);
+
+    return 0;
+}
+EOF
+    if ! compile_prog "" "-libverbs"; then
+        QEMU_CFLAGS="$QEMU_CFLAGS -DLEGACY_RDMA_REG_MR"
+    fi
+fi
+
 ##########################################
 # VNC SASL detection
 if test "$vnc" = "yes" && test "$vnc_sasl" != "no" ; then
