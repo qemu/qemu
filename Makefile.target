@@ -141,9 +141,6 @@ ifdef CONFIG_BSD_USER
 QEMU_CFLAGS+=-I$(SRC_PATH)/bsd-user -I$(SRC_PATH)/bsd-user/$(TARGET_ABI_DIR) \
 			 -I$(SRC_PATH)/bsd-user/$(HOST_VARIANT_DIR)
 
-obj-y += bsd-user/
-obj-y += gdbstub.o
-
 endif #CONFIG_BSD_USER
 
 #########################################################

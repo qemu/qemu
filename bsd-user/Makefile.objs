@@ -1,2 +1,0 @@
-obj-y = main.o bsdload.o elfload.o mmap.o signal.o strace.o syscall.o \
-	        uaccess.o
