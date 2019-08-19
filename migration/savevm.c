@@ -1100,7 +1100,7 @@ void qemu_savevm_state_setup(QEMUFile *f)
         if (!se->ops || !se->ops->save_setup) {
             continue;
         }
-        if (se->ops && se->ops->is_active) {
+        if (se->ops->is_active) {
             if (!se->ops->is_active(se->opaque)) {
                 continue;
             }
@@ -1131,7 +1131,7 @@ int qemu_savevm_state_resume_prepare(MigrationState *s)
         if (!se->ops || !se->ops->resume_prepare) {
             continue;
         }
-        if (se->ops && se->ops->is_active) {
+        if (se->ops->is_active) {
             if (!se->ops->is_active(se->opaque)) {
                 continue;
             }
@@ -1227,7 +1227,7 @@ void qemu_savevm_state_complete_postcopy(QEMUFile *f)
         if (!se->ops || !se->ops->save_live_complete_postcopy) {
             continue;
         }
-        if (se->ops && se->ops->is_active) {
+        if (se->ops->is_active) {
             if (!se->ops->is_active(se->opaque)) {
                 continue;
             }
@@ -1264,7 +1264,7 @@ int qemu_savevm_state_complete_precopy_iterable(QEMUFile *f, bool in_postcopy)
             continue;
         }
 
-        if (se->ops && se->ops->is_active) {
+        if (se->ops->is_active) {
             if (!se->ops->is_active(se->opaque)) {
                 continue;
             }
@@ -1413,7 +1413,7 @@ void qemu_savevm_state_pending(QEMUFile *f, uint64_t threshold_size,
         if (!se->ops || !se->ops->save_live_pending) {
             continue;
         }
-        if (se->ops && se->ops->is_active) {
+        if (se->ops->is_active) {
             if (!se->ops->is_active(se->opaque)) {
                 continue;
             }
@@ -2334,7 +2334,7 @@ static int qemu_loadvm_state_setup(QEMUFile *f)
         if (!se->ops || !se->ops->load_setup) {
             continue;
         }
-        if (se->ops && se->ops->is_active) {
+        if (se->ops->is_active) {
             if (!se->ops->is_active(se->opaque)) {
                 continue;
             }
