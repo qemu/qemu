@@ -708,25 +708,8 @@ static bool gen_shift(DisasContext *ctx, arg_r *a,
 #include "insn_trans/trans_rvd.inc.c"
 #include "insn_trans/trans_privileged.inc.c"
 
-/*
- * Auto-generated decoder.
- * Note that the 16-bit decoder reuses some of the trans_* functions
- * initially declared by the 32-bit decoder, which results in duplicate
- * declaration warnings.  Suppress them.
- */
-#ifdef CONFIG_PRAGMA_DIAGNOSTIC_AVAILABLE
-# pragma GCC diagnostic push
-# pragma GCC diagnostic ignored "-Wredundant-decls"
-# ifdef __clang__
-#  pragma GCC diagnostic ignored "-Wtypedef-redefinition"
-# endif
-#endif
-
+/* Include the auto-generated decoder for 16 bit insn */
 #include "decode_insn16.inc.c"
-
-#ifdef CONFIG_PRAGMA_DIAGNOSTIC_AVAILABLE
-# pragma GCC diagnostic pop
-#endif
 
 static void decode_opc(DisasContext *ctx)
 {
