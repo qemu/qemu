@@ -3,7 +3,7 @@
  *
  * Emulates a very simple machine model similar to the one used by the
  * proprietary MIPS emulator.
- * 
+ *
  * Copyright (c) 2007 Thiemo Seufer
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
@@ -76,8 +76,9 @@ static int64_t load_kernel(void)
                            (uint64_t *)&kernel_high, big_endian,
                            EM_MIPS, 1, 0);
     if (kernel_size >= 0) {
-        if ((entry & ~0x7fffffffULL) == 0x80000000)
+        if ((entry & ~0x7fffffffULL) == 0x80000000) {
             entry = (int32_t)entry;
+        }
     } else {
         error_report("could not load kernel '%s': %s",
                      loaderparams.kernel_filename,
@@ -89,9 +90,10 @@ static int64_t load_kernel(void)
     initrd_size = 0;
     initrd_offset = 0;
     if (loaderparams.initrd_filename) {
-        initrd_size = get_image_size (loaderparams.initrd_filename);
+        initrd_size = get_image_size(loaderparams.initrd_filename);
         if (initrd_size > 0) {
-            initrd_offset = (kernel_high + ~INITRD_PAGE_MASK) & INITRD_PAGE_MASK;
+            initrd_offset = (kernel_high + ~INITRD_PAGE_MASK) &
+                            INITRD_PAGE_MASK;
             if (initrd_offset + initrd_size > loaderparams.ram_size) {
                 error_report("memory too small for initial ram disk '%s'",
                              loaderparams.initrd_filename);
@@ -175,8 +177,9 @@ mips_mipssim_init(MachineState *machine)
     /* Map the BIOS / boot exception handler. */
     memory_region_add_subregion(address_space_mem, 0x1fc00000LL, bios);
     /* Load a BIOS / boot exception handler image. */
-    if (bios_name == NULL)
+    if (bios_name == NULL) {
         bios_name = BIOS_FILENAME;
+    }
     filename = qemu_find_file(QEMU_FILE_TYPE_BIOS, bios_name);
     if (filename) {
         bios_size = load_image_targphys(filename, 0x1fc00000LL, BIOS_SIZE);
@@ -212,8 +215,10 @@ mips_mipssim_init(MachineState *machine)
                              get_system_io(), 0, 0x00010000);
     memory_region_add_subregion(get_system_memory(), 0x1fd00000, isa);
 
-    /* A single 16450 sits at offset 0x3f8. It is attached to
-       MIPS CPU INT2, which is interrupt 4. */
+    /*
+     * A single 16450 sits at offset 0x3f8. It is attached to
+     * MIPS CPU INT2, which is interrupt 4.
+     */
     if (serial_hd(0))
         serial_init(0x3f8, env->irq[4], 115200, serial_hd(0),
                     get_system_io());
