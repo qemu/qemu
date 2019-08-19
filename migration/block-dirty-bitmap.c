@@ -326,7 +326,7 @@ static int init_dirty_bitmap_migration(void)
 
     /* unset migration flags here, to not roll back it */
     QSIMPLEQ_FOREACH(dbms, &dirty_bitmap_mig_state.dbms_list, entry) {
-        bdrv_dirty_bitmap_set_migration(dbms->bitmap, true);
+        bdrv_dirty_bitmap_skip_store(dbms->bitmap, true);
     }
 
     if (QSIMPLEQ_EMPTY(&dirty_bitmap_mig_state.dbms_list)) {

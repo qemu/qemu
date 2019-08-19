@@ -41,6 +41,7 @@ mirror_yield_in_flight(void *s, int64_t offset, int in_flight) "s %p offset %" P
 backup_do_cow_enter(void *job, int64_t start, int64_t offset, uint64_t bytes) "job %p start %" PRId64 " offset %" PRId64 " bytes %" PRIu64
 backup_do_cow_return(void *job, int64_t offset, uint64_t bytes, int ret) "job %p offset %" PRId64 " bytes %" PRIu64 " ret %d"
 backup_do_cow_skip(void *job, int64_t start) "job %p start %"PRId64
+backup_do_cow_skip_range(void *job, int64_t start, uint64_t bytes) "job %p start %"PRId64" bytes %"PRId64
 backup_do_cow_process(void *job, int64_t start) "job %p start %"PRId64
 backup_do_cow_read_fail(void *job, int64_t start, int ret) "job %p start %"PRId64" ret %d"
 backup_do_cow_write_fail(void *job, int64_t start, int ret) "job %p start %"PRId64" ret %d"

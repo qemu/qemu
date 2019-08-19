@@ -2136,6 +2136,51 @@ static void block_dirty_bitmap_merge_prepare(BlkActionState *common,
                                                 errp);
 }
 
+static BdrvDirtyBitmap *do_block_dirty_bitmap_remove(
+        const char *node, const char *name, bool release,
+        BlockDriverState **bitmap_bs, Error **errp);
+
+static void block_dirty_bitmap_remove_prepare(BlkActionState *common,
+                                              Error **errp)
+{
+    BlockDirtyBitmap *action;
+    BlockDirtyBitmapState *state = DO_UPCAST(BlockDirtyBitmapState,
+                                             common, common);
+
+    if (action_check_completion_mode(common, errp) < 0) {
+        return;
+    }
+
+    action = common->action->u.block_dirty_bitmap_remove.data;
+
+    state->bitmap = do_block_dirty_bitmap_remove(action->node, action->name,
+                                                 false, &state->bs, errp);
+    if (state->bitmap) {
+        bdrv_dirty_bitmap_skip_store(state->bitmap, true);
+        bdrv_dirty_bitmap_set_busy(state->bitmap, true);
+    }
+}
+
+static void block_dirty_bitmap_remove_abort(BlkActionState *common)
+{
+    BlockDirtyBitmapState *state = DO_UPCAST(BlockDirtyBitmapState,
+                                             common, common);
+
+    if (state->bitmap) {
+        bdrv_dirty_bitmap_skip_store(state->bitmap, false);
+        bdrv_dirty_bitmap_set_busy(state->bitmap, false);
+    }
+}
+
+static void block_dirty_bitmap_remove_commit(BlkActionState *common)
+{
+    BlockDirtyBitmapState *state = DO_UPCAST(BlockDirtyBitmapState,
+                                             common, common);
+
+    bdrv_dirty_bitmap_set_busy(state->bitmap, false);
+    bdrv_release_dirty_bitmap(state->bs, state->bitmap);
+}
+
 static void abort_prepare(BlkActionState *common, Error **errp)
 {
     error_setg(errp, "Transaction aborted using Abort action");
@@ -2212,6 +2257,12 @@ static const BlkActionOps actions[] = {
         .prepare = block_dirty_bitmap_merge_prepare,
         .commit = block_dirty_bitmap_free_backup,
         .abort = block_dirty_bitmap_restore,
+    },
+    [TRANSACTION_ACTION_KIND_BLOCK_DIRTY_BITMAP_REMOVE] = {
+        .instance_size = sizeof(BlockDirtyBitmapState),
+        .prepare = block_dirty_bitmap_remove_prepare,
+        .commit = block_dirty_bitmap_remove_commit,
+        .abort = block_dirty_bitmap_remove_abort,
     },
     /* Where are transactions for MIRROR, COMMIT and STREAM?
      * Although these blockjobs use transaction callbacks like the backup job,
@@ -2813,7 +2864,6 @@ void qmp_block_dirty_bitmap_add(const char *node, const char *name,
 {
     BlockDriverState *bs;
     BdrvDirtyBitmap *bitmap;
-    AioContext *aio_context = NULL;
 
     if (!name || name[0] == '\0') {
         error_setg(errp, "Bitmap name cannot be empty");
@@ -2849,16 +2899,20 @@ void qmp_block_dirty_bitmap_add(const char *node, const char *name,
     }
 
     if (persistent) {
-        aio_context = bdrv_get_aio_context(bs);
+        AioContext *aio_context = bdrv_get_aio_context(bs);
+        bool ok;
+
         aio_context_acquire(aio_context);
-        if (!bdrv_can_store_new_dirty_bitmap(bs, name, granularity, errp)) {
-            goto out;
+        ok = bdrv_can_store_new_dirty_bitmap(bs, name, granularity, errp);
+        aio_context_release(aio_context);
+        if (!ok) {
+            return;
         }
     }
 
     bitmap = bdrv_create_dirty_bitmap(bs, granularity, name, errp);
     if (bitmap == NULL) {
-        goto out;
+        return;
     }
 
     if (disabled) {
@@ -2866,45 +2920,54 @@ void qmp_block_dirty_bitmap_add(const char *node, const char *name,
     }
 
     bdrv_dirty_bitmap_set_persistence(bitmap, persistent);
- out:
-    if (aio_context) {
-        aio_context_release(aio_context);
+}
+
+static BdrvDirtyBitmap *do_block_dirty_bitmap_remove(
+        const char *node, const char *name, bool release,
+        BlockDriverState **bitmap_bs, Error **errp)
+{
+    BlockDriverState *bs;
+    BdrvDirtyBitmap *bitmap;
+
+    bitmap = block_dirty_bitmap_lookup(node, name, &bs, errp);
+    if (!bitmap || !bs) {
+        return NULL;
     }
+
+    if (bdrv_dirty_bitmap_check(bitmap, BDRV_BITMAP_BUSY | BDRV_BITMAP_RO,
+                                errp)) {
+        return NULL;
+    }
+
+    if (bdrv_dirty_bitmap_get_persistence(bitmap)) {
+        AioContext *aio_context = bdrv_get_aio_context(bs);
+        Error *local_err = NULL;
+
+        aio_context_acquire(aio_context);
+        bdrv_remove_persistent_dirty_bitmap(bs, name, &local_err);
+        aio_context_release(aio_context);
+
+        if (local_err != NULL) {
+            error_propagate(errp, local_err);
+            return NULL;
+        }
+    }
+
+    if (release) {
+        bdrv_release_dirty_bitmap(bs, bitmap);
+    }
+
+    if (bitmap_bs) {
+        *bitmap_bs = bs;
+    }
+
+    return release ? NULL : bitmap;
 }
 
 void qmp_block_dirty_bitmap_remove(const char *node, const char *name,
                                    Error **errp)
 {
-    BlockDriverState *bs;
-    BdrvDirtyBitmap *bitmap;
-    Error *local_err = NULL;
-    AioContext *aio_context = NULL;
-
-    bitmap = block_dirty_bitmap_lookup(node, name, &bs, errp);
-    if (!bitmap || !bs) {
-        return;
-    }
-
-    if (bdrv_dirty_bitmap_check(bitmap, BDRV_BITMAP_BUSY | BDRV_BITMAP_RO,
-                                errp)) {
-        return;
-    }
-
-    if (bdrv_dirty_bitmap_get_persistence(bitmap)) {
-        aio_context = bdrv_get_aio_context(bs);
-        aio_context_acquire(aio_context);
-        bdrv_remove_persistent_dirty_bitmap(bs, name, &local_err);
-        if (local_err != NULL) {
-            error_propagate(errp, local_err);
-            goto out;
-        }
-    }
-
-    bdrv_release_dirty_bitmap(bs, bitmap);
- out:
-    if (aio_context) {
-        aio_context_release(aio_context);
-    }
+    do_block_dirty_bitmap_remove(node, name, true, NULL, errp);
 }
 
 /**
@@ -3427,20 +3490,16 @@ out:
     aio_context_release(aio_context);
 }
 
-static BlockJob *do_drive_backup(DriveBackup *backup, JobTxn *txn,
-                                 Error **errp)
+/* Common QMP interface for drive-backup and blockdev-backup */
+static BlockJob *do_backup_common(BackupCommon *backup,
+                                  BlockDriverState *bs,
+                                  BlockDriverState *target_bs,
+                                  AioContext *aio_context,
+                                  JobTxn *txn, Error **errp)
 {
-    BlockDriverState *bs;
-    BlockDriverState *target_bs;
-    BlockDriverState *source = NULL;
     BlockJob *job = NULL;
     BdrvDirtyBitmap *bmap = NULL;
-    AioContext *aio_context;
-    QDict *options = NULL;
-    Error *local_err = NULL;
-    int flags, job_flags = JOB_DEFAULT;
-    int64_t size;
-    bool set_backing_hd = false;
+    int job_flags = JOB_DEFAULT;
     int ret;
 
     if (!backup->has_speed) {
@@ -3451,9 +3510,6 @@ static BlockJob *do_drive_backup(DriveBackup *backup, JobTxn *txn,
     }
     if (!backup->has_on_target_error) {
         backup->on_target_error = BLOCKDEV_ON_ERROR_REPORT;
-    }
-    if (!backup->has_mode) {
-        backup->mode = NEW_IMAGE_MODE_ABSOLUTE_PATHS;
     }
     if (!backup->has_job_id) {
         backup->job_id = NULL;
@@ -3466,6 +3522,107 @@ static BlockJob *do_drive_backup(DriveBackup *backup, JobTxn *txn,
     }
     if (!backup->has_compress) {
         backup->compress = false;
+    }
+
+    ret = bdrv_try_set_aio_context(target_bs, aio_context, errp);
+    if (ret < 0) {
+        return NULL;
+    }
+
+    if ((backup->sync == MIRROR_SYNC_MODE_BITMAP) ||
+        (backup->sync == MIRROR_SYNC_MODE_INCREMENTAL)) {
+        /* done before desugaring 'incremental' to print the right message */
+        if (!backup->has_bitmap) {
+            error_setg(errp, "must provide a valid bitmap name for "
+                       "'%s' sync mode", MirrorSyncMode_str(backup->sync));
+            return NULL;
+        }
+    }
+
+    if (backup->sync == MIRROR_SYNC_MODE_INCREMENTAL) {
+        if (backup->has_bitmap_mode &&
+            backup->bitmap_mode != BITMAP_SYNC_MODE_ON_SUCCESS) {
+            error_setg(errp, "Bitmap sync mode must be '%s' "
+                       "when using sync mode '%s'",
+                       BitmapSyncMode_str(BITMAP_SYNC_MODE_ON_SUCCESS),
+                       MirrorSyncMode_str(backup->sync));
+            return NULL;
+        }
+        backup->has_bitmap_mode = true;
+        backup->sync = MIRROR_SYNC_MODE_BITMAP;
+        backup->bitmap_mode = BITMAP_SYNC_MODE_ON_SUCCESS;
+    }
+
+    if (backup->has_bitmap) {
+        bmap = bdrv_find_dirty_bitmap(bs, backup->bitmap);
+        if (!bmap) {
+            error_setg(errp, "Bitmap '%s' could not be found", backup->bitmap);
+            return NULL;
+        }
+        if (!backup->has_bitmap_mode) {
+            error_setg(errp, "Bitmap sync mode must be given "
+                       "when providing a bitmap");
+            return NULL;
+        }
+        if (bdrv_dirty_bitmap_check(bmap, BDRV_BITMAP_ALLOW_RO, errp)) {
+            return NULL;
+        }
+
+        /* This does not produce a useful bitmap artifact: */
+        if (backup->sync == MIRROR_SYNC_MODE_NONE) {
+            error_setg(errp, "sync mode '%s' does not produce meaningful bitmap"
+                       " outputs", MirrorSyncMode_str(backup->sync));
+            return NULL;
+        }
+
+        /* If the bitmap isn't used for input or output, this is useless: */
+        if (backup->bitmap_mode == BITMAP_SYNC_MODE_NEVER &&
+            backup->sync != MIRROR_SYNC_MODE_BITMAP) {
+            error_setg(errp, "Bitmap sync mode '%s' has no meaningful effect"
+                       " when combined with sync mode '%s'",
+                       BitmapSyncMode_str(backup->bitmap_mode),
+                       MirrorSyncMode_str(backup->sync));
+            return NULL;
+        }
+    }
+
+    if (!backup->has_bitmap && backup->has_bitmap_mode) {
+        error_setg(errp, "Cannot specify bitmap sync mode without a bitmap");
+        return NULL;
+    }
+
+    if (!backup->auto_finalize) {
+        job_flags |= JOB_MANUAL_FINALIZE;
+    }
+    if (!backup->auto_dismiss) {
+        job_flags |= JOB_MANUAL_DISMISS;
+    }
+
+    job = backup_job_create(backup->job_id, bs, target_bs, backup->speed,
+                            backup->sync, bmap, backup->bitmap_mode,
+                            backup->compress,
+                            backup->on_source_error,
+                            backup->on_target_error,
+                            job_flags, NULL, NULL, txn, errp);
+    return job;
+}
+
+static BlockJob *do_drive_backup(DriveBackup *backup, JobTxn *txn,
+                                 Error **errp)
+{
+    BlockDriverState *bs;
+    BlockDriverState *target_bs;
+    BlockDriverState *source = NULL;
+    BlockJob *job = NULL;
+    AioContext *aio_context;
+    QDict *options;
+    Error *local_err = NULL;
+    int flags;
+    int64_t size;
+    bool set_backing_hd = false;
+
+    if (!backup->has_mode) {
+        backup->mode = NEW_IMAGE_MODE_ABSOLUTE_PATHS;
     }
 
     bs = bdrv_lookup_bs(backup->device, backup->device, errp);
@@ -3531,21 +3688,15 @@ static BlockJob *do_drive_backup(DriveBackup *backup, JobTxn *txn,
         goto out;
     }
 
+    options = qdict_new();
+    qdict_put_str(options, "discard", "unmap");
+    qdict_put_str(options, "detect-zeroes", "unmap");
     if (backup->format) {
-        if (!options) {
-            options = qdict_new();
-        }
         qdict_put_str(options, "driver", backup->format);
     }
 
     target_bs = bdrv_open(backup->target, NULL, options, flags, errp);
     if (!target_bs) {
-        goto out;
-    }
-
-    ret = bdrv_try_set_aio_context(target_bs, aio_context, errp);
-    if (ret < 0) {
-        bdrv_unref(target_bs);
         goto out;
     }
 
@@ -3556,31 +3707,8 @@ static BlockJob *do_drive_backup(DriveBackup *backup, JobTxn *txn,
         }
     }
 
-    if (backup->has_bitmap) {
-        bmap = bdrv_find_dirty_bitmap(bs, backup->bitmap);
-        if (!bmap) {
-            error_setg(errp, "Bitmap '%s' could not be found", backup->bitmap);
-            goto unref;
-        }
-        if (bdrv_dirty_bitmap_check(bmap, BDRV_BITMAP_DEFAULT, errp)) {
-            goto unref;
-        }
-    }
-    if (!backup->auto_finalize) {
-        job_flags |= JOB_MANUAL_FINALIZE;
-    }
-    if (!backup->auto_dismiss) {
-        job_flags |= JOB_MANUAL_DISMISS;
-    }
-
-    job = backup_job_create(backup->job_id, bs, target_bs, backup->speed,
-                            backup->sync, bmap, backup->compress,
-                            backup->on_source_error, backup->on_target_error,
-                            job_flags, NULL, NULL, txn, &local_err);
-    if (local_err != NULL) {
-        error_propagate(errp, local_err);
-        goto unref;
-    }
+    job = do_backup_common(qapi_DriveBackup_base(backup),
+                           bs, target_bs, aio_context, txn, errp);
 
 unref:
     bdrv_unref(target_bs);
@@ -3614,78 +3742,25 @@ BlockJob *do_blockdev_backup(BlockdevBackup *backup, JobTxn *txn,
 {
     BlockDriverState *bs;
     BlockDriverState *target_bs;
-    Error *local_err = NULL;
-    BdrvDirtyBitmap *bmap = NULL;
     AioContext *aio_context;
-    BlockJob *job = NULL;
-    int job_flags = JOB_DEFAULT;
-    int ret;
-
-    if (!backup->has_speed) {
-        backup->speed = 0;
-    }
-    if (!backup->has_on_source_error) {
-        backup->on_source_error = BLOCKDEV_ON_ERROR_REPORT;
-    }
-    if (!backup->has_on_target_error) {
-        backup->on_target_error = BLOCKDEV_ON_ERROR_REPORT;
-    }
-    if (!backup->has_job_id) {
-        backup->job_id = NULL;
-    }
-    if (!backup->has_auto_finalize) {
-        backup->auto_finalize = true;
-    }
-    if (!backup->has_auto_dismiss) {
-        backup->auto_dismiss = true;
-    }
-    if (!backup->has_compress) {
-        backup->compress = false;
-    }
+    BlockJob *job;
 
     bs = bdrv_lookup_bs(backup->device, backup->device, errp);
     if (!bs) {
         return NULL;
     }
 
+    target_bs = bdrv_lookup_bs(backup->target, backup->target, errp);
+    if (!target_bs) {
+        return NULL;
+    }
+
     aio_context = bdrv_get_aio_context(bs);
     aio_context_acquire(aio_context);
 
-    target_bs = bdrv_lookup_bs(backup->target, backup->target, errp);
-    if (!target_bs) {
-        goto out;
-    }
+    job = do_backup_common(qapi_BlockdevBackup_base(backup),
+                           bs, target_bs, aio_context, txn, errp);
 
-    ret = bdrv_try_set_aio_context(target_bs, aio_context, errp);
-    if (ret < 0) {
-        goto out;
-    }
-
-    if (backup->has_bitmap) {
-        bmap = bdrv_find_dirty_bitmap(bs, backup->bitmap);
-        if (!bmap) {
-            error_setg(errp, "Bitmap '%s' could not be found", backup->bitmap);
-            goto out;
-        }
-        if (bdrv_dirty_bitmap_check(bmap, BDRV_BITMAP_DEFAULT, errp)) {
-            goto out;
-        }
-    }
-
-    if (!backup->auto_finalize) {
-        job_flags |= JOB_MANUAL_FINALIZE;
-    }
-    if (!backup->auto_dismiss) {
-        job_flags |= JOB_MANUAL_DISMISS;
-    }
-    job = backup_job_create(backup->job_id, bs, target_bs, backup->speed,
-                            backup->sync, bmap, backup->compress,
-                            backup->on_source_error, backup->on_target_error,
-                            job_flags, NULL, NULL, txn, &local_err);
-    if (local_err != NULL) {
-        error_propagate(errp, local_err);
-    }
-out:
     aio_context_release(aio_context);
     return job;
 }
