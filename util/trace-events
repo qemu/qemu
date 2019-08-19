@@ -64,6 +64,9 @@ lockcnt_futex_wait(const void *lockcnt, int val) "lockcnt %p waiting on %d"
 lockcnt_futex_wait_resume(const void *lockcnt, int new) "lockcnt %p after wait: %d"
 lockcnt_futex_wake(const void *lockcnt) "lockcnt %p waking up one waiter"
 
+# qemu-sockets.c
+socket_listen(int num) "backlog: %d"
+
 # qemu-thread-common.h
 qemu_mutex_lock(void *mutex, const char *file, const int line) "waiting on mutex %p (%s:%d)"
 qemu_mutex_locked(void *mutex, const char *file, const int line) "taken mutex %p (%s:%d)"

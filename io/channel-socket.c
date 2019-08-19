@@ -202,7 +202,7 @@ int qio_channel_socket_listen_sync(QIOChannelSocket *ioc,
     int fd;
 
     trace_qio_channel_socket_listen_sync(ioc, addr);
-    fd = socket_listen(addr, errp);
+    fd = socket_listen(addr, 1, errp);
     if (fd < 0) {
         trace_qio_channel_socket_listen_fail(ioc);
         return -1;
