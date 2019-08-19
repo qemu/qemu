@@ -2928,7 +2928,7 @@ static int postcopy_each_ram_send_discard(MigrationState *ms)
 }
 
 /**
- * postcopy_chunk_hostpages_pass: canocalize bitmap in hostpages
+ * postcopy_chunk_hostpages_pass: canonicalize bitmap in hostpages
  *
  * Helper for postcopy_chunk_hostpages; it's called twice to
  * canonicalize the two bitmaps, that are similar, but one is
@@ -2990,18 +2990,6 @@ static void postcopy_chunk_hostpages_pass(MigrationState *ms, bool unsent_pass,
             unsigned long fixup_start_addr = QEMU_ALIGN_DOWN(run_start,
                                                              host_ratio);
             run_start = QEMU_ALIGN_UP(run_start, host_ratio);
-
-            /* Tell the destination to discard this page */
-            if (unsent_pass || !test_bit(fixup_start_addr, unsentmap)) {
-                /* For the unsent_pass we:
-                 *     discard partially sent pages
-                 * For the !unsent_pass (dirty) we:
-                 *     discard partially dirty pages that were sent
-                 *     (any partially sent pages were already discarded
-                 *     by the previous unsent_pass)
-                 */
-                postcopy_discard_send_range(ms, fixup_start_addr, host_ratio);
-            }
 
             /* Clean up the bitmap */
             for (page = fixup_start_addr;
