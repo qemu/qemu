@@ -58,10 +58,17 @@ uint64_t helper_todouble(uint32_t arg)
     uint64_t ret;
 
     if (likely(abs_arg >= 0x00800000)) {
-        /* Normalized operand, or Inf, or NaN.  */
-        ret  = (uint64_t)extract32(arg, 30, 2) << 62;
-        ret |= ((extract32(arg, 30, 1) ^ 1) * (uint64_t)7) << 59;
-        ret |= (uint64_t)extract32(arg, 0, 30) << 29;
+        if (unlikely(extract32(arg, 23, 8) == 0xff)) {
+            /* Inf or NAN.  */
+            ret  = (uint64_t)extract32(arg, 31, 1) << 63;
+            ret |= (uint64_t)0x7ff << 52;
+            ret |= (uint64_t)extract32(arg, 0, 23) << 29;
+        } else {
+            /* Normalized operand.  */
+            ret  = (uint64_t)extract32(arg, 30, 2) << 62;
+            ret |= ((extract32(arg, 30, 1) ^ 1) * (uint64_t)7) << 59;
+            ret |= (uint64_t)extract32(arg, 0, 30) << 29;
+        }
     } else {
         /* Zero or Denormalized operand.  */
         ret = (uint64_t)extract32(arg, 31, 1) << 63;
