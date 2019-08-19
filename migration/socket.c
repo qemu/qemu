@@ -181,7 +181,7 @@ static void socket_start_incoming_migration(SocketAddress *saddr,
 
     qio_net_listener_set_name(listener, "migration-socket-listener");
 
-    if (qio_net_listener_open_sync(listener, saddr, errp) < 0) {
+    if (qio_net_listener_open_sync(listener, saddr, 1, errp) < 0) {
         object_unref(OBJECT(listener));
         return;
     }

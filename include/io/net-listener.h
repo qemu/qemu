@@ -95,6 +95,7 @@ void qio_net_listener_set_name(QIONetListener *listener,
  * qio_net_listener_open_sync:
  * @listener: the network listener object
  * @addr: the address to listen on
+ * @num: the amount of expected connections
  * @errp: pointer to a NULL initialized error object
  *
  * Synchronously open a listening connection on all
@@ -104,6 +105,7 @@ void qio_net_listener_set_name(QIONetListener *listener,
  */
 int qio_net_listener_open_sync(QIONetListener *listener,
                                SocketAddress *addr,
+                               int num,
                                Error **errp);
 
 /**
