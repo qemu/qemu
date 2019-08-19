@@ -1387,12 +1387,12 @@ static IP_ADAPTER_ADDRESSES *guest_get_adapters_addresses(Error **errp)
 static char *guest_wctomb_dup(WCHAR *wstr)
 {
     char *str;
-    size_t i;
+    size_t str_size;
 
-    i = wcslen(wstr) + 1;
-    str = g_malloc(i);
-    WideCharToMultiByte(CP_ACP, WC_COMPOSITECHECK,
-                        wstr, -1, str, i, NULL, NULL);
+    str_size = WideCharToMultiByte(CP_UTF8, 0, wstr, -1, NULL, 0, NULL, NULL);
+    /* add 1 to str_size for NULL terminator */
+    str = g_malloc(str_size + 1);
+    WideCharToMultiByte(CP_UTF8, 0, wstr, -1, str, str_size, NULL, NULL);
     return str;
 }
 
