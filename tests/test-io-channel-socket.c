@@ -57,7 +57,7 @@ static void test_io_channel_setup_sync(SocketAddress *listen_addr,
     QIOChannelSocket *lioc;
 
     lioc = qio_channel_socket_new();
-    qio_channel_socket_listen_sync(lioc, listen_addr, &error_abort);
+    qio_channel_socket_listen_sync(lioc, listen_addr, 1, &error_abort);
 
     if (listen_addr->type == SOCKET_ADDRESS_TYPE_INET) {
         SocketAddress *laddr = qio_channel_socket_get_local_address(

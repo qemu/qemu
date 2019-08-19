@@ -76,7 +76,7 @@ void *tpm_emu_ctrl_thread(void *data)
     QIOChannelSocket *lioc = qio_channel_socket_new();
     QIOChannel *ioc;
 
-    qio_channel_socket_listen_sync(lioc, s->addr, &error_abort);
+    qio_channel_socket_listen_sync(lioc, s->addr, 1, &error_abort);
 
     g_mutex_lock(&s->data_mutex);
     s->data_cond_signal = true;

@@ -197,12 +197,13 @@ void qio_channel_socket_connect_async(QIOChannelSocket *ioc,
 
 int qio_channel_socket_listen_sync(QIOChannelSocket *ioc,
                                    SocketAddress *addr,
+                                   int num,
                                    Error **errp)
 {
     int fd;
 
-    trace_qio_channel_socket_listen_sync(ioc, addr);
-    fd = socket_listen(addr, 1, errp);
+    trace_qio_channel_socket_listen_sync(ioc, addr, num);
+    fd = socket_listen(addr, num, errp);
     if (fd < 0) {
         trace_qio_channel_socket_listen_fail(ioc);
         return -1;
@@ -226,7 +227,7 @@ static void qio_channel_socket_listen_worker(QIOTask *task,
     SocketAddress *addr = opaque;
     Error *err = NULL;
 
-    qio_channel_socket_listen_sync(ioc, addr, &err);
+    qio_channel_socket_listen_sync(ioc, addr, 1, &err);
 
     qio_task_set_error(task, err);
 }

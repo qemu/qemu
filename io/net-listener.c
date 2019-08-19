@@ -82,7 +82,7 @@ int qio_net_listener_open_sync(QIONetListener *listener,
     for (i = 0; i < nresaddrs; i++) {
         QIOChannelSocket *sioc = qio_channel_socket_new();
 
-        if (qio_channel_socket_listen_sync(sioc, resaddrs[i],
+        if (qio_channel_socket_listen_sync(sioc, resaddrs[i], 1,
                                            err ? NULL : &err) == 0) {
             success = true;
 

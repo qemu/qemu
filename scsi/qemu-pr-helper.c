@@ -1005,7 +1005,8 @@ int main(int argc, char **argv)
             .u.q_unix.path = socket_path,
         };
         server_ioc = qio_channel_socket_new();
-        if (qio_channel_socket_listen_sync(server_ioc, &saddr, &local_err) < 0) {
+        if (qio_channel_socket_listen_sync(server_ioc, &saddr,
+                                           1, &local_err) < 0) {
             object_unref(OBJECT(server_ioc));
             error_report_err(local_err);
             return 1;
