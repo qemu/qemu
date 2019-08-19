@@ -73,11 +73,20 @@ uint64_t helper_todouble(uint32_t arg)
         /* Zero or Denormalized operand.  */
         ret = (uint64_t)extract32(arg, 31, 1) << 63;
         if (unlikely(abs_arg != 0)) {
-            /* Denormalized operand.  */
-            int shift = clz32(abs_arg) - 9;
-            int exp = -126 - shift + 1023;
+            /*
+             * Denormalized operand.
+             * Shift fraction so that the msb is in the implicit bit position.
+             * Thus, shift is in the range [1:23].
+             */
+            int shift = clz32(abs_arg) - 8;
+            /*
+             * The first 3 terms compute the float64 exponent.  We then bias
+             * this result by -1 so that we can swallow the implicit bit below.
+             */
+            int exp = -126 - shift + 1023 - 1;
+
             ret |= (uint64_t)exp << 52;
-            ret |= abs_arg << (shift + 29);
+            ret += (uint64_t)abs_arg << (52 - 23 + shift);
         }
     }
     return ret;
