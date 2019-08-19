@@ -1025,9 +1025,6 @@ static void ncq_cb(void *opaque, int ret)
     IDEState *ide_state = &ncq_tfs->drive->port.ifs[0];
 
     ncq_tfs->aiocb = NULL;
-    if (ret == -ECANCELED) {
-        return;
-    }
 
     if (ret < 0) {
         bool is_read = ncq_tfs->cmd == READ_FPDMA_QUEUED;
