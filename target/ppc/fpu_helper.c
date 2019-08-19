@@ -2871,10 +2871,14 @@ void helper_xscvqpdp(CPUPPCState *env, uint32_t opcode,
 
 uint64_t helper_xscvdpspn(CPUPPCState *env, uint64_t xb)
 {
+    uint64_t result;
+
     float_status tstat = env->fp_status;
     set_float_exception_flags(0, &tstat);
 
-    return (uint64_t)float64_to_float32(xb, &tstat) << 32;
+    result = (uint64_t)float64_to_float32(xb, &tstat);
+    /* hardware replicates result to both words of the doubleword result.  */
+    return (result << 32) | result;
 }
 
 uint64_t helper_xscvspdpn(CPUPPCState *env, uint64_t xb)
