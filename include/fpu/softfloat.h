@@ -82,8 +82,6 @@ this code that are retained.
 #ifndef SOFTFLOAT_H
 #define SOFTFLOAT_H
 
-#define LIT64( a ) a##LL
-
 /*----------------------------------------------------------------------------
 | Software IEC/IEEE floating-point ordering relations
 *----------------------------------------------------------------------------*/
@@ -95,68 +93,7 @@ enum {
 };
 
 #include "fpu/softfloat-types.h"
-
-static inline void set_float_detect_tininess(int val, float_status *status)
-{
-    status->float_detect_tininess = val;
-}
-static inline void set_float_rounding_mode(int val, float_status *status)
-{
-    status->float_rounding_mode = val;
-}
-static inline void set_float_exception_flags(int val, float_status *status)
-{
-    status->float_exception_flags = val;
-}
-static inline void set_floatx80_rounding_precision(int val,
-                                                   float_status *status)
-{
-    status->floatx80_rounding_precision = val;
-}
-static inline void set_flush_to_zero(flag val, float_status *status)
-{
-    status->flush_to_zero = val;
-}
-static inline void set_flush_inputs_to_zero(flag val, float_status *status)
-{
-    status->flush_inputs_to_zero = val;
-}
-static inline void set_default_nan_mode(flag val, float_status *status)
-{
-    status->default_nan_mode = val;
-}
-static inline void set_snan_bit_is_one(flag val, float_status *status)
-{
-    status->snan_bit_is_one = val;
-}
-static inline int get_float_detect_tininess(float_status *status)
-{
-    return status->float_detect_tininess;
-}
-static inline int get_float_rounding_mode(float_status *status)
-{
-    return status->float_rounding_mode;
-}
-static inline int get_float_exception_flags(float_status *status)
-{
-    return status->float_exception_flags;
-}
-static inline int get_floatx80_rounding_precision(float_status *status)
-{
-    return status->floatx80_rounding_precision;
-}
-static inline flag get_flush_to_zero(float_status *status)
-{
-    return status->flush_to_zero;
-}
-static inline flag get_flush_inputs_to_zero(float_status *status)
-{
-    return status->flush_inputs_to_zero;
-}
-static inline flag get_default_nan_mode(float_status *status)
-{
-    return status->default_nan_mode;
-}
+#include "fpu/softfloat-helpers.h"
 
 /*----------------------------------------------------------------------------
 | Routine to raise any or all of the software IEC/IEEE floating-point

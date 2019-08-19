@@ -19,7 +19,7 @@
 
 #include "cpu.h"
 #include "exec/exec-all.h"
-#include "fpu/softfloat.h"
+#include "fpu/softfloat-helpers.h"
 #include "qemu/qemu-print.h"
 
 enum {

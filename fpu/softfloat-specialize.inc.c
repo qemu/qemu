@@ -196,11 +196,11 @@ floatx80 floatx80_default_nan(float_status *status)
     /* None of the targets that have snan_bit_is_one use floatx80.  */
     assert(!snan_bit_is_one(status));
 #if defined(TARGET_M68K)
-    r.low = LIT64(0xFFFFFFFFFFFFFFFF);
+    r.low = UINT64_C(0xFFFFFFFFFFFFFFFF);
     r.high = 0x7FFF;
 #else
     /* X86 */
-    r.low = LIT64(0xC000000000000000);
+    r.low = UINT64_C(0xC000000000000000);
     r.high = 0xFFFF;
 #endif
     return r;
@@ -212,9 +212,9 @@ floatx80 floatx80_default_nan(float_status *status)
 
 #define floatx80_infinity_high 0x7FFF
 #if defined(TARGET_M68K)
-#define floatx80_infinity_low  LIT64(0x0000000000000000)
+#define floatx80_infinity_low  UINT64_C(0x0000000000000000)
 #else
-#define floatx80_infinity_low  LIT64(0x8000000000000000)
+#define floatx80_infinity_low  UINT64_C(0x8000000000000000)
 #endif
 
 const floatx80 floatx80_infinity
@@ -667,7 +667,7 @@ int float64_is_signaling_nan(float64 a_, float_status *status)
         return ((a << 1) >= 0xFFF0000000000000ULL);
     } else {
         return (((a >> 51) & 0xFFF) == 0xFFE)
-            && (a & LIT64(0x0007FFFFFFFFFFFF));
+            && (a & UINT64_C(0x0007FFFFFFFFFFFF));
     }
 #endif
 }
@@ -707,7 +707,7 @@ static float64 commonNaNToFloat64(commonNaNT a, float_status *status)
     if (mantissa) {
         return make_float64(
               (((uint64_t) a.sign) << 63)
-            | LIT64(0x7FF0000000000000)
+            | UINT64_C(0x7FF0000000000000)
             | (a.high >> 12));
     } else {
         return float64_default_nan(status);
@@ -790,7 +790,7 @@ int floatx80_is_quiet_nan(floatx80 a, float_status *status)
             && (a.low == aLow);
     } else {
         return ((a.high & 0x7FFF) == 0x7FFF)
-            && (LIT64(0x8000000000000000) <= ((uint64_t)(a.low << 1)));
+            && (UINT64_C(0x8000000000000000) <= ((uint64_t)(a.low << 1)));
     }
 #endif
 }
@@ -812,7 +812,7 @@ int floatx80_is_signaling_nan(floatx80 a, float_status *status)
     } else {
         uint64_t aLow;
 
-        aLow = a.low & ~LIT64(0x4000000000000000);
+        aLow = a.low & ~UINT64_C(0x4000000000000000);
         return ((a.high & 0x7FFF) == 0x7FFF)
             && (uint64_t)(aLow << 1)
             && (a.low == aLow);
@@ -829,7 +829,7 @@ floatx80 floatx80_silence_nan(floatx80 a, float_status *status)
 {
     /* None of the targets that have snan_bit_is_one use floatx80.  */
     assert(!snan_bit_is_one(status));
-    a.low |= LIT64(0xC000000000000000);
+    a.low |= UINT64_C(0xC000000000000000);
     return a;
 }
 
@@ -874,7 +874,7 @@ static floatx80 commonNaNToFloatx80(commonNaNT a, float_status *status)
     }
 
     if (a.high >> 1) {
-        z.low = LIT64(0x8000000000000000) | a.high >> 1;
+        z.low = UINT64_C(0x8000000000000000) | a.high >> 1;
         z.high = (((uint16_t)a.sign) << 15) | 0x7FFF;
     } else {
         z = floatx80_default_nan(status);
@@ -969,7 +969,7 @@ int float128_is_signaling_nan(float128 a, float_status *status)
             && (a.low || (a.high & 0x0000FFFFFFFFFFFFULL));
     } else {
         return (((a.high >> 47) & 0xFFFF) == 0xFFFE)
-            && (a.low || (a.high & LIT64(0x00007FFFFFFFFFFF)));
+            && (a.low || (a.high & UINT64_C(0x00007FFFFFFFFFFF)));
     }
 #endif
 }
@@ -987,7 +987,7 @@ float128 float128_silence_nan(float128 a, float_status *status)
     if (snan_bit_is_one(status)) {
         return float128_default_nan(status);
     } else {
-        a.high |= LIT64(0x0000800000000000);
+        a.high |= UINT64_C(0x0000800000000000);
         return a;
     }
 #endif
@@ -1025,7 +1025,7 @@ static float128 commonNaNToFloat128(commonNaNT a, float_status *status)
     }
 
     shift128Right(a.high, a.low, 16, &z.high, &z.low);
-    z.high |= (((uint64_t)a.sign) << 63) | LIT64(0x7FFF000000000000);
+    z.high |= (((uint64_t)a.sign) << 63) | UINT64_C(0x7FFF000000000000);
     return z;
 }
 

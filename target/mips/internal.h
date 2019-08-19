@@ -7,6 +7,7 @@
 #ifndef MIPS_INTERNAL_H
 #define MIPS_INTERNAL_H
 
+#include "fpu/softfloat-helpers.h"
 
 /* MMU types, the first four entries have the same layout as the
    CP0C0_MT field.  */
@@ -224,6 +225,12 @@ static inline void restore_flush_mode(CPUMIPSState *env)
 {
     set_flush_to_zero((env->active_fpu.fcr31 & (1 << FCR31_FS)) != 0,
                       &env->active_fpu.fp_status);
+}
+
+static inline void restore_snan_bit_mode(CPUMIPSState *env)
+{
+    set_snan_bit_is_one((env->active_fpu.fcr31 & (1 << FCR31_NAN2008)) == 0,
+                        &env->active_fpu.fp_status);
 }
 
 static inline void restore_fp_status(CPUMIPSState *env)
