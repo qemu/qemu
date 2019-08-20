@@ -27,7 +27,9 @@
 #include "hw/pci/pci.h"
 #include "hw/mem/nvdimm.h"
 
-GlobalProperty hw_compat_4_1[] = {};
+GlobalProperty hw_compat_4_1[] = {
+    { "virtio-pci", "x-pcie-flr-init", "off" },
+};
 const size_t hw_compat_4_1_len = G_N_ELEMENTS(hw_compat_4_1);
 
 GlobalProperty hw_compat_4_0[] = {

@@ -601,6 +601,10 @@ static void virtio_write_config(PCIDevice *pci_dev, uint32_t address,
 
     pci_default_write_config(pci_dev, address, val, len);
 
+    if (proxy->flags & VIRTIO_PCI_FLAG_INIT_FLR) {
+        pcie_cap_flr_write_config(pci_dev, address, val, len);
+    }
+
     if (range_covers_byte(address, len, PCI_COMMAND) &&
         !(pci_dev->config[PCI_COMMAND] & PCI_COMMAND_MASTER)) {
         virtio_pci_stop_ioeventfd(proxy);
@@ -1777,6 +1781,10 @@ static void virtio_pci_realize(PCIDevice *pci_dev, Error **errp)
             pcie_ats_init(pci_dev, 256);
         }
 
+        if (proxy->flags & VIRTIO_PCI_FLAG_INIT_FLR) {
+            /* Set Function Level Reset capability bit */
+            pcie_cap_flr_init(pci_dev);
+        }
     } else {
         /*
          * make future invocations of pci_is_express() return false
@@ -1844,6 +1852,8 @@ static Property virtio_pci_properties[] = {
                     VIRTIO_PCI_FLAG_INIT_LNKCTL_BIT, true),
     DEFINE_PROP_BIT("x-pcie-pm-init", VirtIOPCIProxy, flags,
                     VIRTIO_PCI_FLAG_INIT_PM_BIT, true),
+    DEFINE_PROP_BIT("x-pcie-flr-init", VirtIOPCIProxy, flags,
+                    VIRTIO_PCI_FLAG_INIT_FLR_BIT, true),
     DEFINE_PROP_END_OF_LIST(),
 };
 
