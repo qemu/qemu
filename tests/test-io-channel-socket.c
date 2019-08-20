@@ -113,7 +113,7 @@ static void test_io_channel_setup_async(SocketAddress *listen_addr,
 
     lioc = qio_channel_socket_new();
     qio_channel_socket_listen_async(
-        lioc, listen_addr,
+        lioc, listen_addr, 1,
         test_io_channel_complete, &data, NULL, NULL);
 
     g_main_loop_run(data.loop);
