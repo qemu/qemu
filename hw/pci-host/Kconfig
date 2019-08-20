@@ -2,8 +2,9 @@ config PAM
     bool
 
 config PREP_PCI
-    select PCI
     bool
+    select PCI
+    select OR_IRQ
 
 config GRACKLE_PCI
     select PCI

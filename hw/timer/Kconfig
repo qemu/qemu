@@ -34,9 +34,6 @@ config TWL92230
     bool
     depends on I2C
 
-config XLNX_ZYNQMP
-    bool
-
 config ALTERA_TIMER
     bool
     select PTIMER
