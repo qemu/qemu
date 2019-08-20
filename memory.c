@@ -855,8 +855,39 @@ static void address_space_update_ioeventfds(AddressSpace *as)
     flatview_unref(view);
 }
 
+/*
+ * Notify the memory listeners about the coalesced IO change events of
+ * range `cmr'.  Only the part that has intersection of the specified
+ * FlatRange will be sent.
+ */
+static void flat_range_coalesced_io_notify(FlatRange *fr, AddressSpace *as,
+                                           CoalescedMemoryRange *cmr, bool add)
+{
+    AddrRange tmp;
+
+    tmp = addrrange_shift(cmr->addr,
+                          int128_sub(fr->addr.start,
+                                     int128_make64(fr->offset_in_region)));
+    if (!addrrange_intersects(tmp, fr->addr)) {
+        return;
+    }
+    tmp = addrrange_intersection(tmp, fr->addr);
+
+    if (add) {
+        MEMORY_LISTENER_UPDATE_REGION(fr, as, Forward, coalesced_io_add,
+                                      int128_get64(tmp.start),
+                                      int128_get64(tmp.size));
+    } else {
+        MEMORY_LISTENER_UPDATE_REGION(fr, as, Reverse, coalesced_io_del,
+                                      int128_get64(tmp.start),
+                                      int128_get64(tmp.size));
+    }
+}
+
 static void flat_range_coalesced_io_del(FlatRange *fr, AddressSpace *as)
 {
+    CoalescedMemoryRange *cmr;
+
     if (!fr->has_coalesced_range) {
         return;
     }
@@ -865,16 +896,15 @@ static void flat_range_coalesced_io_del(FlatRange *fr, AddressSpace *as)
         return;
     }
 
-    MEMORY_LISTENER_UPDATE_REGION(fr, as, Reverse, coalesced_io_del,
-                                  int128_get64(fr->addr.start),
-                                  int128_get64(fr->addr.size));
+    QTAILQ_FOREACH(cmr, &fr->mr->coalesced, link) {
+        flat_range_coalesced_io_notify(fr, as, cmr, false);
+    }
 }
 
 static void flat_range_coalesced_io_add(FlatRange *fr, AddressSpace *as)
 {
     MemoryRegion *mr = fr->mr;
     CoalescedMemoryRange *cmr;
-    AddrRange tmp;
 
     if (QTAILQ_EMPTY(&mr->coalesced)) {
         return;
@@ -885,16 +915,7 @@ static void flat_range_coalesced_io_add(FlatRange *fr, AddressSpace *as)
     }
 
     QTAILQ_FOREACH(cmr, &mr->coalesced, link) {
-        tmp = addrrange_shift(cmr->addr,
-                              int128_sub(fr->addr.start,
-                                         int128_make64(fr->offset_in_region)));
-        if (!addrrange_intersects(tmp, fr->addr)) {
-            continue;
-        }
-        tmp = addrrange_intersection(tmp, fr->addr);
-        MEMORY_LISTENER_UPDATE_REGION(fr, as, Forward, coalesced_io_add,
-                                      int128_get64(tmp.start),
-                                      int128_get64(tmp.size));
+        flat_range_coalesced_io_notify(fr, as, cmr, true);
     }
 }
 
