@@ -626,7 +626,6 @@ static void test_acpi_one(const char *params, test_data *data)
         test_smbios_structs(data);
     }
 
-    assert(!global_qtest);
     qtest_quit(data->qts);
     g_free(args);
 }
