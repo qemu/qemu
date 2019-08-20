@@ -4332,6 +4332,13 @@ other options.
 
 The @option{share} boolean option is @var{on} by default with memfd.
 
+@item -object rng-builtin,id=@var{id}
+
+Creates a random number generator backend which obtains entropy from
+QEMU builtin functions. The @option{id} parameter is a unique ID that
+will be used to reference this entropy backend from the @option{virtio-rng}
+device.
+
 @item -object rng-random,id=@var{id},filename=@var{/dev/random}
 
 Creates a random number generator backend which obtains entropy from
