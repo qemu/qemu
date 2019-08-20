@@ -1578,6 +1578,7 @@ typedef struct ImgConvertState {
     bool has_zero_init;
     bool compressed;
     bool unallocated_blocks_are_zero;
+    bool target_is_new;
     bool target_has_backing;
     int64_t target_backing_sectors; /* negative if unknown */
     bool wr_in_order;
@@ -1975,9 +1976,11 @@ static int convert_do_copy(ImgConvertState *s)
     int64_t sector_num = 0;
 
     /* Check whether we have zero initialisation or can get it efficiently */
-    s->has_zero_init = s->min_sparse && !s->target_has_backing
-                     ? bdrv_has_zero_init(blk_bs(s->target))
-                     : false;
+    if (s->target_is_new && s->min_sparse && !s->target_has_backing) {
+        s->has_zero_init = bdrv_has_zero_init(blk_bs(s->target));
+    } else {
+        s->has_zero_init = false;
+    }
 
     if (!s->has_zero_init && !s->target_has_backing &&
         bdrv_can_write_zeroes_with_unmap(blk_bs(s->target)))
@@ -2427,6 +2430,8 @@ static int img_convert(int argc, char **argv)
             goto out;
         }
     }
+
+    s.target_is_new = !skip_create;
 
     flags = s.min_sparse ? (BDRV_O_RDWR | BDRV_O_UNMAP) : BDRV_O_RDWR;
     ret = bdrv_parse_cache_mode(cache, &flags, &writethrough);

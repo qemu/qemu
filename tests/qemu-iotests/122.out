@@ -220,4 +220,12 @@ convert -c -S 8k
 { "start": 9216, "length": 8192, "depth": 0, "zero": true, "data": false},
 { "start": 17408, "length": 1024, "depth": 0, "zero": false, "data": true},
 { "start": 18432, "length": 67090432, "depth": 0, "zero": true, "data": false}]
+
+=== -n to a non-zero image ===
+
+Formatting 'TEST_DIR/t.IMGFMT', fmt=IMGFMT size=67108864
+Formatting 'TEST_DIR/t.IMGFMT.orig', fmt=IMGFMT size=67108864
+wrote 65536/65536 bytes at offset 0
+64 KiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
+Images are identical.
 *** done

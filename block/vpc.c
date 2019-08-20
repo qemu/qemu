@@ -737,7 +737,7 @@ static int coroutine_fn vpc_co_block_status(BlockDriverState *bs,
         *pnum = bytes;
         *map = offset;
         *file = bs->file->bs;
-        return BDRV_BLOCK_RAW | BDRV_BLOCK_OFFSET_VALID;
+        return BDRV_BLOCK_DATA | BDRV_BLOCK_OFFSET_VALID | BDRV_BLOCK_RECURSE;
     }
 
     qemu_co_mutex_lock(&s->lock);

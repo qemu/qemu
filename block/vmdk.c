@@ -1692,6 +1692,9 @@ static int coroutine_fn vmdk_co_block_status(BlockDriverState *bs,
         if (!extent->compressed) {
             ret |= BDRV_BLOCK_OFFSET_VALID;
             *map = cluster_offset + index_in_cluster;
+            if (extent->flat) {
+                ret |= BDRV_BLOCK_RECURSE;
+            }
         }
         *file = extent->file->bs;
         break;

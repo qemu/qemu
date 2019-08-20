@@ -48,7 +48,7 @@ SECRETALT="secret,id=sec0,data=platypus"
 
 _make_test_img --object $SECRET -o "encrypt.format=luks,encrypt.key-secret=sec0,encrypt.iter-time=10" $size
 
-IMGSPEC="driver=$IMGFMT,file.filename=$TEST_IMG,encrypt.key-secret=sec0"
+IMGSPEC="driver=$IMGFMT,encrypt.key-secret=sec0,file.filename=$TEST_IMG"
 
 QEMU_IO_OPTIONS=$QEMU_IO_OPTIONS_NO_FMT
 
@@ -67,6 +67,24 @@ $QEMU_IO --object $SECRET -c "read -P 0xa 0 $size"  --image-opts $IMGSPEC | _fil
 echo
 echo "== verify open failure with wrong password =="
 $QEMU_IO --object $SECRETALT -c "read -P 0xa 0 $size" --image-opts $IMGSPEC | _filter_qemu_io | _filter_testdir
+
+_cleanup_test_img
+
+echo
+echo "== verify that has_zero_init returns false when preallocating =="
+
+# Empty source file
+if [ -n "$TEST_IMG_FILE" ]; then
+    TEST_IMG_FILE="${TEST_IMG_FILE}.orig" _make_test_img $size
+else
+    TEST_IMG="${TEST_IMG}.orig" _make_test_img $size
+fi
+
+$QEMU_IMG convert -O "$IMGFMT" --object $SECRET \
+    -o "encrypt.format=luks,encrypt.key-secret=sec0,encrypt.iter-time=10,preallocation=metadata" \
+    "${TEST_IMG}.orig" "$TEST_IMG"
+
+$QEMU_IMG compare --object $SECRET --image-opts "${IMGSPEC}.orig" "$IMGSPEC"
 
 
 # success, all done

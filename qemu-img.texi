@@ -666,8 +666,8 @@ Supported options:
 @item preallocation
 Preallocation mode (allowed values: @code{off}, @code{falloc}, @code{full}).
 @code{falloc} mode preallocates space for image by calling posix_fallocate().
-@code{full} mode preallocates space for image by writing zeros to underlying
-storage.
+@code{full} mode preallocates space for image by writing data to underlying
+storage.  This data may or may not be zero, depending on the storage location.
 @end table
 
 @item qcow2

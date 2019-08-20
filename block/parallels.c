@@ -835,7 +835,7 @@ static int parallels_open(BlockDriverState *bs, QDict *options, int flags,
         goto fail_options;
     }
 
-    if (!bdrv_has_zero_init(bs->file->bs)) {
+    if (!bdrv_has_zero_init_truncate(bs->file->bs)) {
         s->prealloc_mode = PRL_PREALLOC_MODE_FALLOCATE;
     }
 

@@ -542,7 +542,8 @@ static int coroutine_fn vdi_co_block_status(BlockDriverState *bs,
     *map = s->header.offset_data + (uint64_t)bmap_entry * s->block_size +
         index_in_block;
     *file = bs->file->bs;
-    return BDRV_BLOCK_DATA | BDRV_BLOCK_OFFSET_VALID;
+    return BDRV_BLOCK_DATA | BDRV_BLOCK_OFFSET_VALID |
+        (s->header.image_type == VDI_TYPE_STATIC ? BDRV_BLOCK_RECURSE : 0);
 }
 
 static int coroutine_fn
@@ -988,6 +989,17 @@ static void vdi_close(BlockDriverState *bs)
     error_free(s->migration_blocker);
 }
 
+static int vdi_has_zero_init(BlockDriverState *bs)
+{
+    BDRVVdiState *s = bs->opaque;
+
+    if (s->header.image_type == VDI_TYPE_STATIC) {
+        return bdrv_has_zero_init(bs->file->bs);
+    } else {
+        return 1;
+    }
+}
+
 static QemuOptsList vdi_create_opts = {
     .name = "vdi-create-opts",
     .head = QTAILQ_HEAD_INITIALIZER(vdi_create_opts.head),
@@ -1028,7 +1040,7 @@ static BlockDriver bdrv_vdi = {
     .bdrv_child_perm          = bdrv_format_default_perms,
     .bdrv_co_create      = vdi_co_create,
     .bdrv_co_create_opts = vdi_co_create_opts,
-    .bdrv_has_zero_init = bdrv_has_zero_init_1,
+    .bdrv_has_zero_init  = vdi_has_zero_init,
     .bdrv_co_block_status = vdi_co_block_status,
     .bdrv_make_empty = vdi_make_empty,
 
