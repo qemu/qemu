@@ -350,6 +350,79 @@ static void qemu_io_free(void *p)
     qemu_vfree(p);
 }
 
+/*
+ * qemu_io_alloc_from_file()
+ *
+ * Allocates the buffer and populates it with the content of the given file
+ * up to @len bytes. If the file length is less than @len, then the buffer
+ * is populated with the file content cyclically.
+ *
+ * @blk - the block backend where the buffer content is going to be written to
+ * @len - the buffer length
+ * @file_name - the file to read the content from
+ *
+ * Returns: the buffer pointer on success
+ *          NULL on error
+ */
+static void *qemu_io_alloc_from_file(BlockBackend *blk, size_t len,
+                                     const char *file_name)
+{
+    char *buf, *buf_origin;
+    FILE *f = fopen(file_name, "r");
+    int pattern_len;
+
+    if (!f) {
+        perror(file_name);
+        return NULL;
+    }
+
+    if (qemuio_misalign) {
+        len += MISALIGN_OFFSET;
+    }
+
+    buf_origin = buf = blk_blockalign(blk, len);
+
+    if (qemuio_misalign) {
+        buf_origin += MISALIGN_OFFSET;
+        buf += MISALIGN_OFFSET;
+        len -= MISALIGN_OFFSET;
+    }
+
+    pattern_len = fread(buf_origin, 1, len, f);
+
+    if (ferror(f)) {
+        perror(file_name);
+        goto error;
+    }
+
+    if (pattern_len == 0) {
+        fprintf(stderr, "%s: file is empty\n", file_name);
+        goto error;
+    }
+
+    fclose(f);
+
+    if (len > pattern_len) {
+        len -= pattern_len;
+        buf += pattern_len;
+
+        while (len > 0) {
+            size_t len_to_copy = MIN(pattern_len, len);
+
+            memcpy(buf, buf_origin, len_to_copy);
+
+            len -= len_to_copy;
+            buf += len_to_copy;
+        }
+    }
+
+    return buf_origin;
+
+error:
+    qemu_io_free(buf_origin);
+    return NULL;
+}
+
 static void dump_buffer(const void *buffer, int64_t offset, int64_t len)
 {
     uint64_t i;
@@ -948,6 +1021,7 @@ static void write_help(void)
 " -n, -- with -z, don't allow slow fallback\n"
 " -p, -- ignored for backwards compatibility\n"
 " -P, -- use different pattern to fill file\n"
+" -s, -- use a pattern file to fill the write buffer\n"
 " -C, -- report statistics in a machine parsable format\n"
 " -q, -- quiet mode, do not show I/O statistics\n"
 " -u, -- with -z, allow unmapping\n"
@@ -964,7 +1038,7 @@ static const cmdinfo_t write_cmd = {
     .perm       = BLK_PERM_WRITE,
     .argmin     = 2,
     .argmax     = -1,
-    .args       = "[-bcCfnquz] [-P pattern] off len",
+    .args       = "[-bcCfnquz] [-P pattern | -s source_file] off len",
     .oneline    = "writes a number of bytes at a specified offset",
     .help       = write_help,
 };
@@ -973,7 +1047,7 @@ static int write_f(BlockBackend *blk, int argc, char **argv)
 {
     struct timespec t1, t2;
     bool Cflag = false, qflag = false, bflag = false;
-    bool Pflag = false, zflag = false, cflag = false;
+    bool Pflag = false, zflag = false, cflag = false, sflag = false;
     int flags = 0;
     int c, cnt, ret;
     char *buf = NULL;
@@ -982,8 +1056,9 @@ static int write_f(BlockBackend *blk, int argc, char **argv)
     /* Some compilers get confused and warn if this is not initialized.  */
     int64_t total = 0;
     int pattern = 0xcd;
+    const char *file_name = NULL;
 
-    while ((c = getopt(argc, argv, "bcCfnpP:quz")) != -1) {
+    while ((c = getopt(argc, argv, "bcCfnpP:qs:uz")) != -1) {
         switch (c) {
         case 'b':
             bflag = true;
@@ -1012,6 +1087,10 @@ static int write_f(BlockBackend *blk, int argc, char **argv)
             break;
         case 'q':
             qflag = true;
+            break;
+        case 's':
+            sflag = true;
+            file_name = optarg;
             break;
         case 'u':
             flags |= BDRV_REQ_MAY_UNMAP;
@@ -1050,8 +1129,9 @@ static int write_f(BlockBackend *blk, int argc, char **argv)
         return -EINVAL;
     }
 
-    if (zflag && Pflag) {
-        printf("-z and -P cannot be specified at the same time\n");
+    if (zflag + Pflag + sflag > 1) {
+        printf("Only one of -z, -P, and -s "
+               "can be specified at the same time\n");
         return -EINVAL;
     }
 
@@ -1087,7 +1167,14 @@ static int write_f(BlockBackend *blk, int argc, char **argv)
     }
 
     if (!zflag) {
-        buf = qemu_io_alloc(blk, count, pattern);
+        if (sflag) {
+            buf = qemu_io_alloc_from_file(blk, count, file_name);
+            if (!buf) {
+                return -EINVAL;
+            }
+        } else {
+            buf = qemu_io_alloc(blk, count, pattern);
+        }
     }
 
     clock_gettime(CLOCK_MONOTONIC, &t1);
