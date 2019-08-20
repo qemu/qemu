@@ -2887,12 +2887,40 @@ void helper_xscvqpdp(CPUPPCState *env, uint32_t opcode,
 
 uint64_t helper_xscvdpspn(CPUPPCState *env, uint64_t xb)
 {
-    uint64_t result;
+    uint64_t result, sign, exp, frac;
 
     float_status tstat = env->fp_status;
     set_float_exception_flags(0, &tstat);
 
-    result = (uint64_t)float64_to_float32(xb, &tstat);
+    sign = extract64(xb, 63,  1);
+    exp  = extract64(xb, 52, 11);
+    frac = extract64(xb,  0, 52) | 0x10000000000000ULL;
+
+    if (unlikely(exp == 0 && extract64(frac, 0, 52) != 0)) {
+        /* DP denormal operand.  */
+        /* Exponent override to DP min exp.  */
+        exp = 1;
+        /* Implicit bit override to 0.  */
+        frac = deposit64(frac, 53, 1, 0);
+    }
+
+    if (unlikely(exp < 897 && frac != 0)) {
+        /* SP tiny operand.  */
+        if (897 - exp > 63) {
+            frac = 0;
+        } else {
+            /* Denormalize until exp = SP min exp.  */
+            frac >>= (897 - exp);
+        }
+        /* Exponent override to SP min exp - 1.  */
+        exp = 896;
+    }
+
+    result = sign << 31;
+    result |= extract64(exp, 10, 1) << 30;
+    result |= extract64(exp, 0, 7) << 23;
+    result |= extract64(frac, 29, 23);
+
     /* hardware replicates result to both words of the doubleword result.  */
     return (result << 32) | result;
 }
