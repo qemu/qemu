@@ -14,7 +14,6 @@
 
 #include "hw/virtio/virtio.h"
 #include "sysemu/rng.h"
-#include "sysemu/rng-random.h"
 #include "standard-headers/linux/virtio_rng.h"
 
 #define TYPE_VIRTIO_RNG "virtio-rng-device"
@@ -27,7 +26,6 @@ struct VirtIORNGConf {
     RngBackend *rng;
     uint64_t max_bytes;
     uint32_t period_ms;
-    RngRandom *default_backend;
 };
 
 typedef struct VirtIORNG {
