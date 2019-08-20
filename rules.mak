@@ -199,9 +199,6 @@ ne = $(if $(subst $2,,$1)$(subst $1,,$2),y,n)
 isempty = $(if $1,n,y)
 notempty = $(if $1,y,n)
 
-# Generate files with tracetool
-TRACETOOL=$(PYTHON) $(SRC_PATH)/scripts/tracetool.py
-
 .PHONY: clean-timestamp
 clean-timestamp:
 	rm -f *.timestamp
