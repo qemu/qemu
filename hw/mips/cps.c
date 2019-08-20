@@ -38,8 +38,10 @@ static void mips_cps_init(Object *obj)
     SysBusDevice *sbd = SYS_BUS_DEVICE(obj);
     MIPSCPSState *s = MIPS_CPS(obj);
 
-    /* Cover entire address space as there do not seem to be any
-     * constraints for the base address of CPC and GIC. */
+    /*
+     * Cover entire address space as there do not seem to be any
+     * constraints for the base address of CPC and GIC.
+     */
     memory_region_init(&s->container, obj, "mips-cps-container", UINT64_MAX);
     sysbus_init_mmio(sbd, &s->container);
 }
