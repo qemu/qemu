@@ -19,7 +19,6 @@
 #include "hw/virtio/virtio-rng.h"
 #include "sysemu/rng.h"
 #include "sysemu/runstate.h"
-#include "sysemu/rng-random.h"
 #include "qom/object_interfaces.h"
 #include "trace.h"
 
@@ -193,7 +192,7 @@ static void virtio_rng_device_realize(DeviceState *dev, Error **errp)
     }
 
     if (vrng->conf.rng == NULL) {
-        Object *default_backend = object_new(TYPE_RNG_RANDOM);
+        Object *default_backend = object_new(TYPE_RNG_BUILTIN);
 
         user_creatable_complete(USER_CREATABLE(default_backend),
                                 &local_err);
