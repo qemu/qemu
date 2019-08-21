@@ -8781,17 +8781,9 @@ static void decode_32Bit_opc(DisasContext *ctx)
     }
 }
 
-static void decode_opc(DisasContext *ctx)
+static bool tricore_insn_is_16bit(uint32_t insn)
 {
-    /* 16-Bit Instruction */
-    if ((ctx->opcode & 0x1) == 0) {
-        ctx->pc_succ_insn = ctx->base.pc_next + 2;
-        decode_16Bit_opc(ctx);
-    /* 32-Bit Instruction */
-    } else {
-        ctx->pc_succ_insn = ctx->base.pc_next + 4;
-        decode_32Bit_opc(ctx);
-    }
+    return (insn & 0x1) == 0;
 }
 
 static void tricore_tr_init_disas_context(DisasContextBase *dcbase,
@@ -8829,20 +8821,49 @@ static bool tricore_tr_breakpoint_check(DisasContextBase *dcbase, CPUState *cpu,
     return true;
 }
 
+static bool insn_crosses_page(CPUTriCoreState *env, DisasContext *ctx)
+{
+    /*
+     * Return true if the insn at ctx->base.pc_next might cross a page boundary.
+     * (False positives are OK, false negatives are not.)
+     * Our caller ensures we are only called if dc->base.pc_next is less than
+     * 4 bytes from the page boundary, so we cross the page if the first
+     * 16 bits indicate that this is a 32 bit insn.
+     */
+    uint16_t insn = cpu_lduw_code(env, ctx->base.pc_next);
+
+    return !tricore_insn_is_16bit(insn);
+}
+
+
 static void tricore_tr_translate_insn(DisasContextBase *dcbase, CPUState *cpu)
 {
     DisasContext *ctx = container_of(dcbase, DisasContext, base);
     CPUTriCoreState *env = cpu->env_ptr;
+    uint16_t insn_lo;
+    bool is_16bit;
 
-    ctx->opcode = cpu_ldl_code(env, ctx->base.pc_next);
-    decode_opc(ctx);
+    insn_lo = cpu_lduw_code(env, ctx->base.pc_next);
+    is_16bit = tricore_insn_is_16bit(insn_lo);
+    if (is_16bit) {
+        ctx->opcode = insn_lo;
+        ctx->pc_succ_insn = ctx->base.pc_next + 2;
+        decode_16Bit_opc(ctx);
+    } else {
+        uint32_t insn_hi = cpu_lduw_code(env, ctx->base.pc_next + 2);
+        ctx->opcode = insn_hi << 16 | insn_lo;
+        ctx->pc_succ_insn = ctx->base.pc_next + 4;
+        decode_32Bit_opc(ctx);
+    }
     ctx->base.pc_next = ctx->pc_succ_insn;
 
     if (ctx->base.is_jmp == DISAS_NEXT) {
         target_ulong page_start;
 
         page_start = ctx->base.pc_first & TARGET_PAGE_MASK;
-        if (ctx->base.pc_next - page_start >= TARGET_PAGE_SIZE) {
+        if (ctx->base.pc_next - page_start >= TARGET_PAGE_SIZE
+            || (ctx->base.pc_next - page_start >= TARGET_PAGE_SIZE - 3
+                && insn_crosses_page(env, ctx))) {
             ctx->base.is_jmp = DISAS_TOO_MANY;
         }
     }
