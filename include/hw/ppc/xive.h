@@ -148,13 +148,11 @@
  * XIVE Notifier (Interface between Source and Router)
  */
 
-typedef struct XiveNotifier {
-    Object parent;
-} XiveNotifier;
+typedef struct XiveNotifier XiveNotifier;
 
 #define TYPE_XIVE_NOTIFIER "xive-notifier"
 #define XIVE_NOTIFIER(obj)                                     \
-    OBJECT_CHECK(XiveNotifier, (obj), TYPE_XIVE_NOTIFIER)
+    INTERFACE_CHECK(XiveNotifier, (obj), TYPE_XIVE_NOTIFIER)
 #define XIVE_NOTIFIER_CLASS(klass)                                     \
     OBJECT_CLASS_CHECK(XiveNotifierClass, (klass), TYPE_XIVE_NOTIFIER)
 #define XIVE_NOTIFIER_GET_CLASS(obj)                                   \
@@ -356,8 +354,6 @@ typedef struct XiveRouterClass {
     XiveTCTX *(*get_tctx)(XiveRouter *xrtr, CPUState *cs);
 } XiveRouterClass;
 
-void xive_eas_pic_print_info(XiveEAS *eas, uint32_t lisn, Monitor *mon);
-
 int xive_router_get_eas(XiveRouter *xrtr, uint8_t eas_blk, uint32_t eas_idx,
                         XiveEAS *eas);
 int xive_router_get_end(XiveRouter *xrtr, uint8_t end_blk, uint32_t end_idx,
@@ -398,9 +394,6 @@ typedef struct XiveENDSource {
  * and the least favored level 0xFF.
  */
 #define XIVE_PRIORITY_MAX  7
-
-void xive_end_pic_print_info(XiveEND *end, uint32_t end_idx, Monitor *mon);
-void xive_end_queue_pic_print_info(XiveEND *end, uint32_t width, Monitor *mon);
 
 /*
  * XIVE Thread Interrupt Management Aera (TIMA)

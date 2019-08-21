@@ -338,10 +338,6 @@ static void rtas_ibm_change_msi(PowerPCCPU *cpu, SpaprMachineState *spapr,
             return;
         }
 
-        if (!smc->legacy_irq_allocation) {
-            spapr_irq_msi_free(spapr, msi->first_irq, msi->num);
-        }
-        spapr_irq_free(spapr, msi->first_irq, msi->num);
         if (msi_present(pdev)) {
             spapr_msi_setmsg(pdev, 0, false, 0, 0);
         }
@@ -411,10 +407,6 @@ static void rtas_ibm_change_msi(PowerPCCPU *cpu, SpaprMachineState *spapr,
 
     /* Release previous MSIs */
     if (msi) {
-        if (!smc->legacy_irq_allocation) {
-            spapr_irq_msi_free(spapr, msi->first_irq, msi->num);
-        }
-        spapr_irq_free(spapr, msi->first_irq, msi->num);
         g_hash_table_remove(phb->msi, &config_addr);
     }
 
@@ -1808,6 +1800,19 @@ static void spapr_phb_unrealize(DeviceState *dev, Error **errp)
     memory_region_del_subregion(get_system_memory(), &sphb->mem32window);
 }
 
+static void spapr_phb_destroy_msi(gpointer opaque)
+{
+    SpaprMachineState *spapr = SPAPR_MACHINE(qdev_get_machine());
+    SpaprMachineClass *smc = SPAPR_MACHINE_GET_CLASS(spapr);
+    spapr_pci_msi *msi = opaque;
+
+    if (!smc->legacy_irq_allocation) {
+        spapr_irq_msi_free(spapr, msi->first_irq, msi->num);
+    }
+    spapr_irq_free(spapr, msi->first_irq, msi->num);
+    g_free(msi);
+}
+
 static void spapr_phb_realize(DeviceState *dev, Error **errp)
 {
     /* We don't use SPAPR_MACHINE() in order to exit gracefully if the user
@@ -2019,7 +2024,8 @@ static void spapr_phb_realize(DeviceState *dev, Error **errp)
                                     spapr_tce_get_iommu(tcet));
     }
 
-    sphb->msi = g_hash_table_new_full(g_int_hash, g_int_equal, g_free, g_free);
+    sphb->msi = g_hash_table_new_full(g_int_hash, g_int_equal, g_free,
+                                      spapr_phb_destroy_msi);
     return;
 
 unrealize:
@@ -2074,6 +2080,8 @@ static void spapr_phb_reset(DeviceState *qdev)
     if (spapr_phb_eeh_available(SPAPR_PCI_HOST_BRIDGE(qdev))) {
         spapr_phb_vfio_reset(qdev);
     }
+
+    g_hash_table_remove_all(sphb->msi);
 }
 
 static Property spapr_phb_properties[] = {
@@ -2093,7 +2101,8 @@ static Property spapr_phb_properties[] = {
                        0x800000000000000ULL),
     DEFINE_PROP_BOOL("ddw", SpaprPhbState, ddw_enabled, true),
     DEFINE_PROP_UINT64("pgsz", SpaprPhbState, page_size_mask,
-                       (1ULL << 12) | (1ULL << 16)),
+                       (1ULL << 12) | (1ULL << 16)
+                       | (1ULL << 21) | (1ULL << 24)),
     DEFINE_PROP_UINT32("numa_node", SpaprPhbState, numa_node, -1),
     DEFINE_PROP_BOOL("pre-2.8-migration", SpaprPhbState,
                      pre_2_8_migration, false),

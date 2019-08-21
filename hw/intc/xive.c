@@ -337,6 +337,17 @@ static void xive_tm_set_os_pending(XiveTCTX *tctx, hwaddr offset,
     xive_tctx_notify(tctx, TM_QW1_OS);
 }
 
+static uint64_t xive_tm_pull_os_ctx(XiveTCTX *tctx, hwaddr offset,
+                                    unsigned size)
+{
+    uint32_t qw1w2_prev = xive_tctx_word2(&tctx->regs[TM_QW1_OS]);
+    uint32_t qw1w2;
+
+    qw1w2 = xive_set_field32(TM_QW1W2_VO, qw1w2_prev, 0);
+    memcpy(&tctx->regs[TM_QW1_OS + TM_WORD2], &qw1w2, 4);
+    return qw1w2;
+}
+
 /*
  * Define a mapping of "special" operations depending on the TIMA page
  * offset and the size of the operation.
@@ -363,6 +374,8 @@ static const XiveTmOp xive_tm_operations[] = {
     /* MMIOs above 2K : special operations with side effects */
     { XIVE_TM_OS_PAGE, TM_SPC_ACK_OS_REG,     2, NULL, xive_tm_ack_os_reg },
     { XIVE_TM_OS_PAGE, TM_SPC_SET_OS_PENDING, 1, xive_tm_set_os_pending, NULL },
+    { XIVE_TM_HV_PAGE, TM_SPC_PULL_OS_CTX,    4, NULL, xive_tm_pull_os_ctx },
+    { XIVE_TM_HV_PAGE, TM_SPC_PULL_OS_CTX,    8, NULL, xive_tm_pull_os_ctx },
     { XIVE_TM_HV_PAGE, TM_SPC_ACK_HV_REG,     2, NULL, xive_tm_ack_hv_reg },
     { XIVE_TM_HV_PAGE, TM_SPC_PULL_POOL_CTX,  4, NULL, xive_tm_pull_pool_ctx },
     { XIVE_TM_HV_PAGE, TM_SPC_PULL_POOL_CTX,  8, NULL, xive_tm_pull_pool_ctx },
@@ -406,7 +419,7 @@ void xive_tctx_tm_write(XiveTCTX *tctx, hwaddr offset, uint64_t value,
     if (offset & 0x800) {
         xto = xive_tm_find_op(offset, size, true);
         if (!xto) {
-            qemu_log_mask(LOG_GUEST_ERROR, "XIVE: invalid write access at TIMA"
+            qemu_log_mask(LOG_GUEST_ERROR, "XIVE: invalid write access at TIMA "
                           "@%"HWADDR_PRIx"\n", offset);
         } else {
             xto->write_handler(tctx, offset, value, size);
@@ -1145,6 +1158,7 @@ void xive_end_queue_pic_print_info(XiveEND *end, uint32_t width, Monitor *mon)
                        be32_to_cpu(qdata));
         qindex = (qindex + 1) & (qentries - 1);
     }
+    monitor_printf(mon, "]");
 }
 
 void xive_end_pic_print_info(XiveEND *end, uint32_t end_idx, Monitor *mon)
@@ -1155,24 +1169,36 @@ void xive_end_pic_print_info(XiveEND *end, uint32_t end_idx, Monitor *mon)
     uint32_t qsize = xive_get_field32(END_W0_QSIZE, end->w0);
     uint32_t qentries = 1 << (qsize + 10);
 
-    uint32_t nvt = xive_get_field32(END_W6_NVT_INDEX, end->w6);
+    uint32_t nvt_blk = xive_get_field32(END_W6_NVT_BLOCK, end->w6);
+    uint32_t nvt_idx = xive_get_field32(END_W6_NVT_INDEX, end->w6);
     uint8_t priority = xive_get_field32(END_W7_F0_PRIORITY, end->w7);
+    uint8_t pq;
 
     if (!xive_end_is_valid(end)) {
         return;
     }
 
-    monitor_printf(mon, "  %08x %c%c%c%c%c prio:%d nvt:%04x eq:@%08"PRIx64
-                   "% 6d/%5d ^%d", end_idx,
+    pq = xive_get_field32(END_W1_ESn, end->w1);
+
+    monitor_printf(mon, "  %08x %c%c %c%c%c%c%c%c%c prio:%d nvt:%02x/%04x",
+                   end_idx,
+                   pq & XIVE_ESB_VAL_P ? 'P' : '-',
+                   pq & XIVE_ESB_VAL_Q ? 'Q' : '-',
                    xive_end_is_valid(end)    ? 'v' : '-',
                    xive_end_is_enqueue(end)  ? 'q' : '-',
                    xive_end_is_notify(end)   ? 'n' : '-',
                    xive_end_is_backlog(end)  ? 'b' : '-',
                    xive_end_is_escalate(end) ? 'e' : '-',
-                   priority, nvt, qaddr_base, qindex, qentries, qgen);
+                   xive_end_is_uncond_escalation(end)   ? 'u' : '-',
+                   xive_end_is_silent_escalation(end)   ? 's' : '-',
+                   priority, nvt_blk, nvt_idx);
 
-    xive_end_queue_pic_print_info(end, 6, mon);
-    monitor_printf(mon, "]\n");
+    if (qaddr_base) {
+        monitor_printf(mon, " eq:@%08"PRIx64"% 6d/%5d ^%d",
+                       qaddr_base, qindex, qentries, qgen);
+        xive_end_queue_pic_print_info(end, 6, mon);
+    }
+    monitor_printf(mon, "\n");
 }
 
 static void xive_end_enqueue(XiveEND *end, uint32_t data)
@@ -1198,6 +1224,29 @@ static void xive_end_enqueue(XiveEND *end, uint32_t data)
         end->w1 = xive_set_field32(END_W1_GENERATION, end->w1, qgen);
     }
     end->w1 = xive_set_field32(END_W1_PAGE_OFF, end->w1, qindex);
+}
+
+void xive_end_eas_pic_print_info(XiveEND *end, uint32_t end_idx,
+                                   Monitor *mon)
+{
+    XiveEAS *eas = (XiveEAS *) &end->w4;
+    uint8_t pq;
+
+    if (!xive_end_is_escalate(end)) {
+        return;
+    }
+
+    pq = xive_get_field32(END_W1_ESe, end->w1);
+
+    monitor_printf(mon, "  %08x %c%c %c%c end:%02x/%04x data:%08x\n",
+                   end_idx,
+                   pq & XIVE_ESB_VAL_P ? 'P' : '-',
+                   pq & XIVE_ESB_VAL_Q ? 'Q' : '-',
+                   xive_eas_is_valid(eas) ? 'V' : ' ',
+                   xive_eas_is_masked(eas) ? 'M' : ' ',
+                   (uint8_t)  xive_get_field64(EAS_END_BLOCK, eas->w),
+                   (uint32_t) xive_get_field64(EAS_END_INDEX, eas->w),
+                   (uint32_t) xive_get_field64(EAS_END_DATA, eas->w));
 }
 
 /*
@@ -1398,46 +1447,43 @@ static bool xive_presenter_match(XiveRouter *xrtr, uint8_t format,
  *
  * The parameters represent what is sent on the PowerBus
  */
-static void xive_presenter_notify(XiveRouter *xrtr, uint8_t format,
+static bool xive_presenter_notify(XiveRouter *xrtr, uint8_t format,
                                   uint8_t nvt_blk, uint32_t nvt_idx,
                                   bool cam_ignore, uint8_t priority,
                                   uint32_t logic_serv)
 {
-    XiveNVT nvt;
     XiveTCTXMatch match = { .tctx = NULL, .ring = 0 };
     bool found;
-
-    /* NVT cache lookup */
-    if (xive_router_get_nvt(xrtr, nvt_blk, nvt_idx, &nvt)) {
-        qemu_log_mask(LOG_GUEST_ERROR, "XIVE: no NVT %x/%x\n",
-                      nvt_blk, nvt_idx);
-        return;
-    }
-
-    if (!xive_nvt_is_valid(&nvt)) {
-        qemu_log_mask(LOG_GUEST_ERROR, "XIVE: NVT %x/%x is invalid\n",
-                      nvt_blk, nvt_idx);
-        return;
-    }
 
     found = xive_presenter_match(xrtr, format, nvt_blk, nvt_idx, cam_ignore,
                                  priority, logic_serv, &match);
     if (found) {
         ipb_update(&match.tctx->regs[match.ring], priority);
         xive_tctx_notify(match.tctx, match.ring);
-        return;
     }
 
-    /* Record the IPB in the associated NVT structure */
-    ipb_update((uint8_t *) &nvt.w4, priority);
-    xive_router_write_nvt(xrtr, nvt_blk, nvt_idx, &nvt, 4);
+    return found;
+}
 
-    /*
-     * If no matching NVT is dispatched on a HW thread :
-     * - update the NVT structure if backlog is activated
-     * - escalate (ESe PQ bits and EAS in w4-5) if escalation is
-     *   activated
-     */
+/*
+ * Notification using the END ESe/ESn bit (Event State Buffer for
+ * escalation and notification). Profide futher coalescing in the
+ * Router.
+ */
+static bool xive_router_end_es_notify(XiveRouter *xrtr, uint8_t end_blk,
+                                      uint32_t end_idx, XiveEND *end,
+                                      uint32_t end_esmask)
+{
+    uint8_t pq = xive_get_field32(end_esmask, end->w1);
+    bool notify = xive_esb_trigger(&pq);
+
+    if (pq != xive_get_field32(end_esmask, end->w1)) {
+        end->w1 = xive_set_field32(end_esmask, end->w1, pq);
+        xive_router_write_end(xrtr, end_blk, end_idx, end, 1);
+    }
+
+    /* ESe/n[Q]=1 : end of notification */
+    return notify;
 }
 
 /*
@@ -1451,6 +1497,10 @@ static void xive_router_end_notify(XiveRouter *xrtr, uint8_t end_blk,
     XiveEND end;
     uint8_t priority;
     uint8_t format;
+    uint8_t nvt_blk;
+    uint32_t nvt_idx;
+    XiveNVT nvt;
+    bool found;
 
     /* END cache lookup */
     if (xive_router_get_end(xrtr, end_blk, end_idx, &end)) {
@@ -1469,6 +1519,13 @@ static void xive_router_end_notify(XiveRouter *xrtr, uint8_t end_blk,
         xive_end_enqueue(&end, end_data);
         /* Enqueuing event data modifies the EQ toggle and index */
         xive_router_write_end(xrtr, end_blk, end_idx, &end, 1);
+    }
+
+    /*
+     * When the END is silent, we skip the notification part.
+     */
+    if (xive_end_is_silent_escalation(&end)) {
+        goto do_escalation;
     }
 
     /*
@@ -1492,16 +1549,9 @@ static void xive_router_end_notify(XiveRouter *xrtr, uint8_t end_blk,
      * even futher coalescing in the Router
      */
     if (!xive_end_is_notify(&end)) {
-        uint8_t pq = xive_get_field32(END_W1_ESn, end.w1);
-        bool notify = xive_esb_trigger(&pq);
-
-        if (pq != xive_get_field32(END_W1_ESn, end.w1)) {
-            end.w1 = xive_set_field32(END_W1_ESn, end.w1, pq);
-            xive_router_write_end(xrtr, end_blk, end_idx, &end, 1);
-        }
-
         /* ESn[Q]=1 : end of notification */
-        if (!notify) {
+        if (!xive_router_end_es_notify(xrtr, end_blk, end_idx,
+                                       &end, END_W1_ESn)) {
             return;
         }
     }
@@ -1509,14 +1559,82 @@ static void xive_router_end_notify(XiveRouter *xrtr, uint8_t end_blk,
     /*
      * Follows IVPE notification
      */
-    xive_presenter_notify(xrtr, format,
-                          xive_get_field32(END_W6_NVT_BLOCK, end.w6),
-                          xive_get_field32(END_W6_NVT_INDEX, end.w6),
+    nvt_blk = xive_get_field32(END_W6_NVT_BLOCK, end.w6);
+    nvt_idx = xive_get_field32(END_W6_NVT_INDEX, end.w6);
+
+    /* NVT cache lookup */
+    if (xive_router_get_nvt(xrtr, nvt_blk, nvt_idx, &nvt)) {
+        qemu_log_mask(LOG_GUEST_ERROR, "XIVE: no NVT %x/%x\n",
+                      nvt_blk, nvt_idx);
+        return;
+    }
+
+    if (!xive_nvt_is_valid(&nvt)) {
+        qemu_log_mask(LOG_GUEST_ERROR, "XIVE: NVT %x/%x is invalid\n",
+                      nvt_blk, nvt_idx);
+        return;
+    }
+
+    found = xive_presenter_notify(xrtr, format, nvt_blk, nvt_idx,
                           xive_get_field32(END_W7_F0_IGNORE, end.w7),
                           priority,
                           xive_get_field32(END_W7_F1_LOG_SERVER_ID, end.w7));
 
     /* TODO: Auto EOI. */
+
+    if (found) {
+        return;
+    }
+
+    /*
+     * If no matching NVT is dispatched on a HW thread :
+     * - specific VP: update the NVT structure if backlog is activated
+     * - logical server : forward request to IVPE (not supported)
+     */
+    if (xive_end_is_backlog(&end)) {
+        if (format == 1) {
+            qemu_log_mask(LOG_GUEST_ERROR,
+                          "XIVE: END %x/%x invalid config: F1 & backlog\n",
+                          end_blk, end_idx);
+            return;
+        }
+        /* Record the IPB in the associated NVT structure */
+        ipb_update((uint8_t *) &nvt.w4, priority);
+        xive_router_write_nvt(xrtr, nvt_blk, nvt_idx, &nvt, 4);
+
+        /*
+         * On HW, follows a "Broadcast Backlog" to IVPEs
+         */
+    }
+
+do_escalation:
+    /*
+     * If activated, escalate notification using the ESe PQ bits and
+     * the EAS in w4-5
+     */
+    if (!xive_end_is_escalate(&end)) {
+        return;
+    }
+
+    /*
+     * Check the END ESe (Event State Buffer for escalation) for even
+     * futher coalescing in the Router
+     */
+    if (!xive_end_is_uncond_escalation(&end)) {
+        /* ESe[Q]=1 : end of notification */
+        if (!xive_router_end_es_notify(xrtr, end_blk, end_idx,
+                                       &end, END_W1_ESe)) {
+            return;
+        }
+    }
+
+    /*
+     * The END trigger becomes an Escalation trigger
+     */
+    xive_router_end_notify(xrtr,
+                           xive_get_field32(END_W4_ESC_END_BLOCK, end.w4),
+                           xive_get_field32(END_W4_ESC_END_INDEX, end.w4),
+                           xive_get_field32(END_W5_ESC_END_DATA,  end.w5));
 }
 
 void xive_router_notify(XiveNotifier *xn, uint32_t lisn)

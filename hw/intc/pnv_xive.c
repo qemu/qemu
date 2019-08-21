@@ -1595,6 +1595,15 @@ void pnv_xive_pic_print_info(PnvXive *xive, Monitor *mon)
         }
         xive_end_pic_print_info(&end, i, mon);
     }
+
+    monitor_printf(mon, "XIVE[%x] END Escalation %08x .. %08x\n", blk, 0,
+                   nr_ends - 1);
+    for (i = 0; i < nr_ends; i++) {
+        if (xive_router_get_end(xrtr, blk, i, &end)) {
+            break;
+        }
+        xive_end_eas_pic_print_info(&end, i, mon);
+    }
 }
 
 static void pnv_xive_reset(void *dev)

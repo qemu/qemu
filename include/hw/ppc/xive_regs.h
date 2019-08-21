@@ -131,6 +131,8 @@ typedef struct XiveEAS {
 #define xive_eas_is_valid(eas)   (be64_to_cpu((eas)->w) & EAS_VALID)
 #define xive_eas_is_masked(eas)  (be64_to_cpu((eas)->w) & EAS_MASKED)
 
+void xive_eas_pic_print_info(XiveEAS *eas, uint32_t lisn, Monitor *mon);
+
 static inline uint64_t xive_get_field64(uint64_t mask, uint64_t word)
 {
     return (be64_to_cpu(word) & mask) >> ctz64(mask);
@@ -210,12 +212,20 @@ typedef struct XiveEND {
 #define xive_end_is_notify(end)   (be32_to_cpu((end)->w0) & END_W0_UCOND_NOTIFY)
 #define xive_end_is_backlog(end)  (be32_to_cpu((end)->w0) & END_W0_BACKLOG)
 #define xive_end_is_escalate(end) (be32_to_cpu((end)->w0) & END_W0_ESCALATE_CTL)
+#define xive_end_is_uncond_escalation(end)              \
+    (be32_to_cpu((end)->w0) & END_W0_UNCOND_ESCALATE)
+#define xive_end_is_silent_escalation(end)              \
+    (be32_to_cpu((end)->w0) & END_W0_SILENT_ESCALATE)
 
 static inline uint64_t xive_end_qaddr(XiveEND *end)
 {
     return ((uint64_t) be32_to_cpu(end->w2) & 0x0fffffff) << 32 |
         be32_to_cpu(end->w3);
 }
+
+void xive_end_pic_print_info(XiveEND *end, uint32_t end_idx, Monitor *mon);
+void xive_end_queue_pic_print_info(XiveEND *end, uint32_t width, Monitor *mon);
+void xive_end_eas_pic_print_info(XiveEND *end, uint32_t end_idx, Monitor *mon);
 
 /* Notification Virtual Target (NVT) */
 typedef struct XiveNVT {
