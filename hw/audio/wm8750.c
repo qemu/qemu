@@ -70,7 +70,7 @@ static inline void wm8750_in_load(WM8750State *s)
 {
     if (s->idx_in + s->req_in <= sizeof(s->data_in))
         return;
-    s->idx_in = audio_MAX(0, (int) sizeof(s->data_in) - s->req_in);
+    s->idx_in = MAX(0, (int) sizeof(s->data_in) - s->req_in);
     AUD_read(*s->in[0], s->data_in + s->idx_in,
              sizeof(s->data_in) - s->idx_in);
 }
@@ -101,7 +101,7 @@ static void wm8750_audio_out_cb(void *opaque, int free_b)
         wm8750_out_flush(s);
     } else
         s->req_out = free_b - s->idx_out;
- 
+
     s->data_req(s->opaque, s->req_out >> 2, s->req_in >> 2);
 }
 
@@ -702,6 +702,11 @@ void wm8750_set_bclk_in(void *opaque, int new_hz)
     wm8750_clk_update(s, 1);
 }
 
+static Property wm8750_properties[] = {
+    DEFINE_AUDIO_PROPERTIES(WM8750State, card),
+    DEFINE_PROP_END_OF_LIST(),
+};
+
 static void wm8750_class_init(ObjectClass *klass, void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
@@ -712,6 +717,7 @@ static void wm8750_class_init(ObjectClass *klass, void *data)
     sc->recv = wm8750_rx;
     sc->send = wm8750_tx;
     dc->vmsd = &vmstate_wm8750;
+    dc->props = wm8750_properties;
 }
 
 static const TypeInfo wm8750_info = {

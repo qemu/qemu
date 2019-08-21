@@ -40,10 +40,10 @@ typedef struct WAVVoiceOut {
     int total_samples;
 } WAVVoiceOut;
 
-static int wav_run_out (HWVoiceOut *hw, int live)
+static size_t wav_run_out(HWVoiceOut *hw, size_t live)
 {
     WAVVoiceOut *wav = (WAVVoiceOut *) hw;
-    int rpos, decr, samples;
+    size_t rpos, decr, samples;
     uint8_t *dst;
     struct st_sample *src;
     int64_t now = qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL);
@@ -59,12 +59,12 @@ static int wav_run_out (HWVoiceOut *hw, int live)
     }
 
     wav->old_ticks = now;
-    decr = audio_MIN (live, samples);
+    decr = MIN (live, samples);
     samples = decr;
     rpos = hw->rpos;
     while (samples) {
         int left_till_end_samples = hw->samples - rpos;
-        int convert_samples = audio_MIN (samples, left_till_end_samples);
+        int convert_samples = MIN (samples, left_till_end_samples);
 
         src = hw->mix_buf + rpos;
         dst = advance (wav->pcm_buf, rpos << hw->info.shift);
@@ -82,11 +82,6 @@ static int wav_run_out (HWVoiceOut *hw, int live)
 
     hw->rpos = rpos;
     return decr;
-}
-
-static int wav_write_out (SWVoiceOut *sw, void *buf, int len)
-{
-    return audio_pcm_sw_write (sw, buf, len);
 }
 
 /* VICE code: Store number as little endian. */
@@ -144,8 +139,8 @@ static int wav_init_out(HWVoiceOut *hw, struct audsettings *as,
     hw->samples = 1024;
     wav->pcm_buf = audio_calloc(__func__, hw->samples, 1 << hw->info.shift);
     if (!wav->pcm_buf) {
-        dolog ("Could not allocate buffer (%d bytes)\n",
-               hw->samples << hw->info.shift);
+        dolog("Could not allocate buffer (%zu bytes)\n",
+              hw->samples << hw->info.shift);
         return -1;
     }
 
@@ -240,7 +235,6 @@ static struct audio_pcm_ops wav_pcm_ops = {
     .init_out = wav_init_out,
     .fini_out = wav_fini_out,
     .run_out  = wav_run_out,
-    .write    = wav_write_out,
     .ctl_out  = wav_ctl_out,
 };
 

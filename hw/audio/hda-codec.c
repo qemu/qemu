@@ -235,10 +235,10 @@ static void hda_audio_input_timer(void *opaque)
         goto out_timer;
     }
 
-    int64_t to_transfer = audio_MIN(wpos - rpos, wanted_rpos - rpos);
+    int64_t to_transfer = MIN(wpos - rpos, wanted_rpos - rpos);
     while (to_transfer) {
         uint32_t start = (rpos & B_MASK);
-        uint32_t chunk = audio_MIN(B_SIZE - start, to_transfer);
+        uint32_t chunk = MIN(B_SIZE - start, to_transfer);
         int rc = hda_codec_xfer(
                 &st->state->hda, st->stream, false, st->buf + start, chunk);
         if (!rc) {
@@ -263,13 +263,13 @@ static void hda_audio_input_cb(void *opaque, int avail)
     int64_t wpos = st->wpos;
     int64_t rpos = st->rpos;
 
-    int64_t to_transfer = audio_MIN(B_SIZE - (wpos - rpos), avail);
+    int64_t to_transfer = MIN(B_SIZE - (wpos - rpos), avail);
 
     hda_timer_sync_adjust(st, -((wpos - rpos) + to_transfer - (B_SIZE >> 1)));
 
     while (to_transfer) {
         uint32_t start = (uint32_t) (wpos & B_MASK);
-        uint32_t chunk = (uint32_t) audio_MIN(B_SIZE - start, to_transfer);
+        uint32_t chunk = (uint32_t) MIN(B_SIZE - start, to_transfer);
         uint32_t read = AUD_read(st->voice.in, st->buf + start, chunk);
         wpos += read;
         to_transfer -= read;
@@ -299,10 +299,10 @@ static void hda_audio_output_timer(void *opaque)
         goto out_timer;
     }
 
-    int64_t to_transfer = audio_MIN(B_SIZE - (wpos - rpos), wanted_wpos - wpos);
+    int64_t to_transfer = MIN(B_SIZE - (wpos - rpos), wanted_wpos - wpos);
     while (to_transfer) {
         uint32_t start = (wpos & B_MASK);
-        uint32_t chunk = audio_MIN(B_SIZE - start, to_transfer);
+        uint32_t chunk = MIN(B_SIZE - start, to_transfer);
         int rc = hda_codec_xfer(
                 &st->state->hda, st->stream, true, st->buf + start, chunk);
         if (!rc) {
@@ -327,7 +327,7 @@ static void hda_audio_output_cb(void *opaque, int avail)
     int64_t wpos = st->wpos;
     int64_t rpos = st->rpos;
 
-    int64_t to_transfer = audio_MIN(wpos - rpos, avail);
+    int64_t to_transfer = MIN(wpos - rpos, avail);
 
     if (wpos - rpos == B_SIZE) {
         /* drop buffer, reset timer adjust */
@@ -342,7 +342,7 @@ static void hda_audio_output_cb(void *opaque, int avail)
 
     while (to_transfer) {
         uint32_t start = (uint32_t) (rpos & B_MASK);
-        uint32_t chunk = (uint32_t) audio_MIN(B_SIZE - start, to_transfer);
+        uint32_t chunk = (uint32_t) MIN(B_SIZE - start, to_transfer);
         uint32_t written = AUD_write(st->voice.out, st->buf + start, chunk);
         rpos += written;
         to_transfer -= written;
@@ -841,6 +841,7 @@ static const VMStateDescription vmstate_hda_audio = {
 };
 
 static Property hda_audio_properties[] = {
+    DEFINE_AUDIO_PROPERTIES(HDAAudioState, card),
     DEFINE_PROP_UINT32("debug", HDAAudioState, debug,   0),
     DEFINE_PROP_BOOL("mixer", HDAAudioState, mixer,  true),
     DEFINE_PROP_BOOL("use-timer", HDAAudioState, use_timer,  true),

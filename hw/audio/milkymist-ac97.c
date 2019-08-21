@@ -185,7 +185,7 @@ static void ac97_in_cb(void *opaque, int avail_b)
     MilkymistAC97State *s = opaque;
     uint8_t buf[4096];
     uint32_t remaining = s->regs[R_U_REMAINING];
-    int temp = audio_MIN(remaining, avail_b);
+    int temp = MIN(remaining, avail_b);
     uint32_t addr = s->regs[R_U_ADDR];
     int transferred = 0;
 
@@ -199,7 +199,7 @@ static void ac97_in_cb(void *opaque, int avail_b)
     while (temp) {
         int acquired, to_copy;
 
-        to_copy = audio_MIN(temp, sizeof(buf));
+        to_copy = MIN(temp, sizeof(buf));
         acquired = AUD_read(s->voice_in, buf, to_copy);
         if (!acquired) {
             break;
@@ -228,7 +228,7 @@ static void ac97_out_cb(void *opaque, int free_b)
     MilkymistAC97State *s = opaque;
     uint8_t buf[4096];
     uint32_t remaining = s->regs[R_D_REMAINING];
-    int temp = audio_MIN(remaining, free_b);
+    int temp = MIN(remaining, free_b);
     uint32_t addr = s->regs[R_D_ADDR];
     int transferred = 0;
 
@@ -242,7 +242,7 @@ static void ac97_out_cb(void *opaque, int free_b)
     while (temp) {
         int copied, to_copy;
 
-        to_copy = audio_MIN(temp, sizeof(buf));
+        to_copy = MIN(temp, sizeof(buf));
         cpu_physical_memory_read(addr, buf, to_copy);
         copied = AUD_write(s->voice_out, buf, to_copy);
         if (!copied) {
@@ -330,6 +330,11 @@ static const VMStateDescription vmstate_milkymist_ac97 = {
     }
 };
 
+static Property milkymist_ac97_properties[] = {
+    DEFINE_AUDIO_PROPERTIES(MilkymistAC97State, card),
+    DEFINE_PROP_END_OF_LIST(),
+};
+
 static void milkymist_ac97_class_init(ObjectClass *klass, void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
@@ -337,6 +342,7 @@ static void milkymist_ac97_class_init(ObjectClass *klass, void *data)
     dc->realize = milkymist_ac97_realize;
     dc->reset = milkymist_ac97_reset;
     dc->vmsd = &vmstate_milkymist_ac97;
+    dc->props = milkymist_ac97_properties;
 }
 
 static const TypeInfo milkymist_ac97_info = {

@@ -41,10 +41,10 @@ typedef struct NoVoiceIn {
     int64_t old_ticks;
 } NoVoiceIn;
 
-static int no_run_out (HWVoiceOut *hw, int live)
+static size_t no_run_out(HWVoiceOut *hw, size_t live)
 {
     NoVoiceOut *no = (NoVoiceOut *) hw;
-    int decr, samples;
+    size_t decr, samples;
     int64_t now;
     int64_t ticks;
     int64_t bytes;
@@ -52,18 +52,13 @@ static int no_run_out (HWVoiceOut *hw, int live)
     now = qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL);
     ticks = now - no->old_ticks;
     bytes = muldiv64(ticks, hw->info.bytes_per_second, NANOSECONDS_PER_SECOND);
-    bytes = audio_MIN(bytes, INT_MAX);
+    bytes = MIN(bytes, SIZE_MAX);
     samples = bytes >> hw->info.shift;
 
     no->old_ticks = now;
-    decr = audio_MIN (live, samples);
+    decr = MIN (live, samples);
     hw->rpos = (hw->rpos + decr) % hw->samples;
     return decr;
-}
-
-static int no_write (SWVoiceOut *sw, void *buf, int len)
-{
-    return audio_pcm_sw_write(sw, buf, len);
 }
 
 static int no_init_out(HWVoiceOut *hw, struct audsettings *as, void *drv_opaque)
@@ -97,12 +92,12 @@ static void no_fini_in (HWVoiceIn *hw)
     (void) hw;
 }
 
-static int no_run_in (HWVoiceIn *hw)
+static size_t no_run_in(HWVoiceIn *hw)
 {
     NoVoiceIn *no = (NoVoiceIn *) hw;
-    int live = audio_pcm_hw_get_live_in (hw);
-    int dead = hw->samples - live;
-    int samples = 0;
+    size_t live = audio_pcm_hw_get_live_in(hw);
+    size_t dead = hw->samples - live;
+    size_t samples = 0;
 
     if (dead) {
         int64_t now = qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL);
@@ -111,23 +106,11 @@ static int no_run_in (HWVoiceIn *hw)
             muldiv64(ticks, hw->info.bytes_per_second, NANOSECONDS_PER_SECOND);
 
         no->old_ticks = now;
-        bytes = audio_MIN (bytes, INT_MAX);
+        bytes = MIN (bytes, SIZE_MAX);
         samples = bytes >> hw->info.shift;
-        samples = audio_MIN (samples, dead);
+        samples = MIN (samples, dead);
     }
     return samples;
-}
-
-static int no_read (SWVoiceIn *sw, void *buf, int size)
-{
-    /* use custom code here instead of audio_pcm_sw_read() to avoid
-     * useless resampling/mixing */
-    int samples = size >> sw->info.shift;
-    int total = sw->hw->total_samples_captured - sw->total_hw_samples_acquired;
-    int to_clear = audio_MIN (samples, total);
-    sw->total_hw_samples_acquired += total;
-    audio_pcm_info_clear_buf (&sw->info, buf, to_clear);
-    return to_clear << sw->info.shift;
 }
 
 static int no_ctl_in (HWVoiceIn *hw, int cmd, ...)
@@ -151,13 +134,11 @@ static struct audio_pcm_ops no_pcm_ops = {
     .init_out = no_init_out,
     .fini_out = no_fini_out,
     .run_out  = no_run_out,
-    .write    = no_write,
     .ctl_out  = no_ctl_out,
 
     .init_in  = no_init_in,
     .fini_in  = no_fini_in,
     .run_in   = no_run_in,
-    .read     = no_read,
     .ctl_in   = no_ctl_in
 };
 

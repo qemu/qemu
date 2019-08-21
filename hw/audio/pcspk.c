@@ -103,7 +103,7 @@ static void pcspk_callback(void *opaque, int free)
     }
 
     while (free > 0) {
-        n = audio_MIN(s->samples - s->play_pos, (unsigned int)free);
+        n = MIN(s->samples - s->play_pos, (unsigned int)free);
         n = AUD_write(s->voice, &s->sample_buf[s->play_pos], n);
         if (!n)
             break;
@@ -209,6 +209,7 @@ static const VMStateDescription vmstate_spk = {
 };
 
 static Property pcspk_properties[] = {
+    DEFINE_AUDIO_PROPERTIES(PCSpkState, card),
     DEFINE_PROP_UINT32("iobase", PCSpkState, iobase,  -1),
     DEFINE_PROP_BOOL("migrate", PCSpkState, migrate,  true),
     DEFINE_PROP_END_OF_LIST(),

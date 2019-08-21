@@ -110,33 +110,28 @@ static void oss_anal_close (int *fdp)
 
 static void oss_helper_poll_out (void *opaque)
 {
-    (void) opaque;
-    audio_run ("oss_poll_out");
+    AudioState *s = opaque;
+    audio_run(s, "oss_poll_out");
 }
 
 static void oss_helper_poll_in (void *opaque)
 {
-    (void) opaque;
-    audio_run ("oss_poll_in");
+    AudioState *s = opaque;
+    audio_run(s, "oss_poll_in");
 }
 
 static void oss_poll_out (HWVoiceOut *hw)
 {
     OSSVoiceOut *oss = (OSSVoiceOut *) hw;
 
-    qemu_set_fd_handler (oss->fd, NULL, oss_helper_poll_out, NULL);
+    qemu_set_fd_handler(oss->fd, NULL, oss_helper_poll_out, hw->s);
 }
 
 static void oss_poll_in (HWVoiceIn *hw)
 {
     OSSVoiceIn *oss = (OSSVoiceIn *) hw;
 
-    qemu_set_fd_handler (oss->fd, oss_helper_poll_in, NULL, NULL);
-}
-
-static int oss_write (SWVoiceOut *sw, void *buf, int len)
-{
-    return audio_pcm_sw_write (sw, buf, len);
+    qemu_set_fd_handler(oss->fd, oss_helper_poll_in, NULL, hw->s);
 }
 
 static int aud_to_ossfmt (AudioFormat fmt, int endianness)
@@ -388,7 +383,7 @@ static void oss_write_pending (OSSVoiceOut *oss)
         int samples_written;
         ssize_t bytes_written;
         int samples_till_end = hw->samples - oss->wpos;
-        int samples_to_write = audio_MIN (oss->pending, samples_till_end);
+        int samples_to_write = MIN (oss->pending, samples_till_end);
         int bytes_to_write = samples_to_write << hw->info.shift;
         void *pcm = advance (oss->pcm_buf, oss->wpos << hw->info.shift);
 
@@ -416,13 +411,14 @@ static void oss_write_pending (OSSVoiceOut *oss)
     }
 }
 
-static int oss_run_out (HWVoiceOut *hw, int live)
+static size_t oss_run_out(HWVoiceOut *hw, size_t live)
 {
     OSSVoiceOut *oss = (OSSVoiceOut *) hw;
-    int err, decr;
+    int err;
+    size_t decr;
     struct audio_buf_info abinfo;
     struct count_info cntinfo;
-    int bufsize;
+    size_t bufsize;
 
     bufsize = hw->samples << hw->info.shift;
 
@@ -437,7 +433,7 @@ static int oss_run_out (HWVoiceOut *hw, int live)
 
         pos = hw->rpos << hw->info.shift;
         bytes = audio_ring_dist (cntinfo.ptr, pos, bufsize);
-        decr = audio_MIN (bytes >> hw->info.shift, live);
+        decr = MIN (bytes >> hw->info.shift, live);
     }
     else {
         err = ioctl (oss->fd, SNDCTL_DSP_GETOSPACE, &abinfo);
@@ -456,7 +452,7 @@ static int oss_run_out (HWVoiceOut *hw, int live)
             return 0;
         }
 
-        decr = audio_MIN (abinfo.bytes >> hw->info.shift, live);
+        decr = MIN (abinfo.bytes >> hw->info.shift, live);
         if (!decr) {
             return 0;
         }
@@ -481,8 +477,8 @@ static void oss_fini_out (HWVoiceOut *hw)
         if (oss->mmapped) {
             err = munmap (oss->pcm_buf, hw->samples << hw->info.shift);
             if (err) {
-                oss_logerr (errno, "Failed to unmap buffer %p, size %d\n",
-                            oss->pcm_buf, hw->samples << hw->info.shift);
+                oss_logerr(errno, "Failed to unmap buffer %p, size %zu\n",
+                           oss->pcm_buf, hw->samples << hw->info.shift);
             }
         }
         else {
@@ -548,8 +544,8 @@ static int oss_init_out(HWVoiceOut *hw, struct audsettings *as,
             0
             );
         if (oss->pcm_buf == MAP_FAILED) {
-            oss_logerr (errno, "Failed to map %d bytes of DAC\n",
-                        hw->samples << hw->info.shift);
+            oss_logerr(errno, "Failed to map %zu bytes of DAC\n",
+                       hw->samples << hw->info.shift);
         }
         else {
             int err;
@@ -573,8 +569,8 @@ static int oss_init_out(HWVoiceOut *hw, struct audsettings *as,
             if (!oss->mmapped) {
                 err = munmap (oss->pcm_buf, hw->samples << hw->info.shift);
                 if (err) {
-                    oss_logerr (errno, "Failed to unmap buffer %p size %d\n",
-                                oss->pcm_buf, hw->samples << hw->info.shift);
+                    oss_logerr(errno, "Failed to unmap buffer %p size %zu\n",
+                               oss->pcm_buf, hw->samples << hw->info.shift);
                 }
             }
         }
@@ -586,7 +582,7 @@ static int oss_init_out(HWVoiceOut *hw, struct audsettings *as,
                                     1 << hw->info.shift);
         if (!oss->pcm_buf) {
             dolog (
-                "Could not allocate DAC buffer (%d samples, each %d bytes)\n",
+                "Could not allocate DAC buffer (%zu samples, each %d bytes)\n",
                 hw->samples,
                 1 << hw->info.shift
                 );
@@ -698,8 +694,8 @@ static int oss_init_in(HWVoiceIn *hw, struct audsettings *as, void *drv_opaque)
     hw->samples = (obt.nfrags * obt.fragsize) >> hw->info.shift;
     oss->pcm_buf = audio_calloc(__func__, hw->samples, 1 << hw->info.shift);
     if (!oss->pcm_buf) {
-        dolog ("Could not allocate ADC buffer (%d samples, each %d bytes)\n",
-               hw->samples, 1 << hw->info.shift);
+        dolog("Could not allocate ADC buffer (%zu samples, each %d bytes)\n",
+              hw->samples, 1 << hw->info.shift);
         oss_anal_close (&fd);
         return -1;
     }
@@ -719,17 +715,17 @@ static void oss_fini_in (HWVoiceIn *hw)
     oss->pcm_buf = NULL;
 }
 
-static int oss_run_in (HWVoiceIn *hw)
+static size_t oss_run_in(HWVoiceIn *hw)
 {
     OSSVoiceIn *oss = (OSSVoiceIn *) hw;
     int hwshift = hw->info.shift;
     int i;
-    int live = audio_pcm_hw_get_live_in (hw);
-    int dead = hw->samples - live;
+    size_t live = audio_pcm_hw_get_live_in (hw);
+    size_t dead = hw->samples - live;
     size_t read_samples = 0;
     struct {
-        int add;
-        int len;
+        size_t add;
+        size_t len;
     } bufs[2] = {
         { .add = hw->wpos, .len = 0 },
         { .add = 0,        .len = 0 }
@@ -756,9 +752,9 @@ static int oss_run_in (HWVoiceIn *hw)
 
             if (nread > 0) {
                 if (nread & hw->info.align) {
-                    dolog ("warning: Misaligned read %zd (requested %d), "
-                           "alignment %d\n", nread, bufs[i].add << hwshift,
-                           hw->info.align + 1);
+                    dolog("warning: Misaligned read %zd (requested %zu), "
+                          "alignment %d\n", nread, bufs[i].add << hwshift,
+                          hw->info.align + 1);
                 }
                 read_samples += nread >> hwshift;
                 hw->conv (hw->conv_buf + bufs[i].add, p, nread >> hwshift);
@@ -771,9 +767,9 @@ static int oss_run_in (HWVoiceIn *hw)
                     case EAGAIN:
                         break;
                     default:
-                        oss_logerr (
+                        oss_logerr(
                             errno,
-                            "Failed to read %d bytes of audio (to %p)\n",
+                            "Failed to read %zu bytes of audio (to %p)\n",
                             bufs[i].len, p
                             );
                         break;
@@ -786,11 +782,6 @@ static int oss_run_in (HWVoiceIn *hw)
 
     hw->wpos = (hw->wpos + read_samples) % hw->samples;
     return read_samples;
-}
-
-static int oss_read (SWVoiceIn *sw, void *buf, int size)
-{
-    return audio_pcm_sw_read (sw, buf, size);
 }
 
 static int oss_ctl_in (HWVoiceIn *hw, int cmd, ...)
@@ -855,13 +846,11 @@ static struct audio_pcm_ops oss_pcm_ops = {
     .init_out = oss_init_out,
     .fini_out = oss_fini_out,
     .run_out  = oss_run_out,
-    .write    = oss_write,
     .ctl_out  = oss_ctl_out,
 
     .init_in  = oss_init_in,
     .fini_in  = oss_fini_in,
     .run_in   = oss_run_in,
-    .read     = oss_read,
     .ctl_in   = oss_ctl_in
 };
 

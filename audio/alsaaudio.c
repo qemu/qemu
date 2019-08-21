@@ -39,6 +39,7 @@ struct pollhlp {
     struct pollfd *pfds;
     int count;
     int mask;
+    AudioState *s;
 };
 
 typedef struct ALSAVoiceOut {
@@ -199,11 +200,11 @@ static void alsa_poll_handler (void *opaque)
         break;
 
     case SND_PCM_STATE_PREPARED:
-        audio_run ("alsa run (prepared)");
+        audio_run(hlp->s, "alsa run (prepared)");
         break;
 
     case SND_PCM_STATE_RUNNING:
-        audio_run ("alsa run (running)");
+        audio_run(hlp->s, "alsa run (running)");
         break;
 
     default:
@@ -267,11 +268,6 @@ static int alsa_poll_in (HWVoiceIn *hw)
     ALSAVoiceIn *alsa = (ALSAVoiceIn *) hw;
 
     return alsa_poll_helper (alsa->handle, &alsa->pollhlp, POLLIN);
-}
-
-static int alsa_write (SWVoiceOut *sw, void *buf, int len)
-{
-    return audio_pcm_sw_write (sw, buf, len);
 }
 
 static snd_pcm_format_t aud_to_alsafmt (AudioFormat fmt, int endianness)
@@ -634,7 +630,7 @@ static void alsa_write_pending (ALSAVoiceOut *alsa)
 
     while (alsa->pending) {
         int left_till_end_samples = hw->samples - alsa->wpos;
-        int len = audio_MIN (alsa->pending, left_till_end_samples);
+        int len = MIN (alsa->pending, left_till_end_samples);
         char *src = advance (alsa->pcm_buf, alsa->wpos << hw->info.shift);
 
         while (len) {
@@ -685,10 +681,10 @@ static void alsa_write_pending (ALSAVoiceOut *alsa)
     }
 }
 
-static int alsa_run_out (HWVoiceOut *hw, int live)
+static size_t alsa_run_out(HWVoiceOut *hw, size_t live)
 {
     ALSAVoiceOut *alsa = (ALSAVoiceOut *) hw;
-    int decr;
+    size_t decr;
     snd_pcm_sframes_t avail;
 
     avail = alsa_get_avail (alsa->handle);
@@ -697,7 +693,7 @@ static int alsa_run_out (HWVoiceOut *hw, int live)
         return 0;
     }
 
-    decr = audio_MIN (live, avail);
+    decr = MIN (live, avail);
     decr = audio_pcm_hw_clip_out (hw, alsa->pcm_buf, decr, alsa->pending);
     alsa->pending += decr;
     alsa_write_pending (alsa);
@@ -743,12 +739,13 @@ static int alsa_init_out(HWVoiceOut *hw, struct audsettings *as,
 
     alsa->pcm_buf = audio_calloc(__func__, obt.samples, 1 << hw->info.shift);
     if (!alsa->pcm_buf) {
-        dolog ("Could not allocate DAC buffer (%d samples, each %d bytes)\n",
-               hw->samples, 1 << hw->info.shift);
+        dolog("Could not allocate DAC buffer (%zu samples, each %d bytes)\n",
+              hw->samples, 1 << hw->info.shift);
         alsa_anal_close1 (&handle);
         return -1;
     }
 
+    alsa->pollhlp.s = hw->s;
     alsa->handle = handle;
     alsa->dev = dev;
     return 0;
@@ -844,12 +841,13 @@ static int alsa_init_in(HWVoiceIn *hw, struct audsettings *as, void *drv_opaque)
 
     alsa->pcm_buf = audio_calloc(__func__, hw->samples, 1 << hw->info.shift);
     if (!alsa->pcm_buf) {
-        dolog ("Could not allocate ADC buffer (%d samples, each %d bytes)\n",
-               hw->samples, 1 << hw->info.shift);
+        dolog("Could not allocate ADC buffer (%zu samples, each %d bytes)\n",
+              hw->samples, 1 << hw->info.shift);
         alsa_anal_close1 (&handle);
         return -1;
     }
 
+    alsa->pollhlp.s = hw->s;
     alsa->handle = handle;
     alsa->dev = dev;
     return 0;
@@ -865,17 +863,17 @@ static void alsa_fini_in (HWVoiceIn *hw)
     alsa->pcm_buf = NULL;
 }
 
-static int alsa_run_in (HWVoiceIn *hw)
+static size_t alsa_run_in(HWVoiceIn *hw)
 {
     ALSAVoiceIn *alsa = (ALSAVoiceIn *) hw;
     int hwshift = hw->info.shift;
     int i;
-    int live = audio_pcm_hw_get_live_in (hw);
-    int dead = hw->samples - live;
-    int decr;
+    size_t live = audio_pcm_hw_get_live_in (hw);
+    size_t dead = hw->samples - live;
+    size_t decr;
     struct {
-        int add;
-        int len;
+        size_t add;
+        size_t len;
     } bufs[2] = {
         { .add = hw->wpos, .len = 0 },
         { .add = 0,        .len = 0 }
@@ -915,7 +913,7 @@ static int alsa_run_in (HWVoiceIn *hw)
         }
     }
 
-    decr = audio_MIN (dead, avail);
+    decr = MIN(dead, avail);
     if (!decr) {
         return 0;
     }
@@ -983,11 +981,6 @@ static int alsa_run_in (HWVoiceIn *hw)
  exit:
     hw->wpos = (hw->wpos + read_samples) % hw->samples;
     return read_samples;
-}
-
-static int alsa_read (SWVoiceIn *sw, void *buf, int size)
-{
-    return audio_pcm_sw_read (sw, buf, size);
 }
 
 static int alsa_ctl_in (HWVoiceIn *hw, int cmd, ...)
@@ -1073,13 +1066,11 @@ static struct audio_pcm_ops alsa_pcm_ops = {
     .init_out = alsa_init_out,
     .fini_out = alsa_fini_out,
     .run_out  = alsa_run_out,
-    .write    = alsa_write,
     .ctl_out  = alsa_ctl_out,
 
     .init_in  = alsa_init_in,
     .fini_in  = alsa_fini_in,
     .run_in   = alsa_run_in,
-    .read     = alsa_read,
     .ctl_in   = alsa_ctl_in,
 };
 

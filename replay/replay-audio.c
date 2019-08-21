@@ -15,18 +15,18 @@
 #include "replay-internal.h"
 #include "audio/audio.h"
 
-void replay_audio_out(int *played)
+void replay_audio_out(size_t *played)
 {
     if (replay_mode == REPLAY_MODE_RECORD) {
         g_assert(replay_mutex_locked());
         replay_save_instructions();
         replay_put_event(EVENT_AUDIO_OUT);
-        replay_put_dword(*played);
+        replay_put_qword(*played);
     } else if (replay_mode == REPLAY_MODE_PLAY) {
         g_assert(replay_mutex_locked());
         replay_account_executed_instructions();
         if (replay_next_event_is(EVENT_AUDIO_OUT)) {
-            *played = replay_get_dword();
+            *played = replay_get_qword();
             replay_finish_event();
         } else {
             error_report("Missing audio out event in the replay log");
@@ -35,7 +35,7 @@ void replay_audio_out(int *played)
     }
 }
 
-void replay_audio_in(int *recorded, void *samples, int *wpos, int size)
+void replay_audio_in(size_t *recorded, void *samples, size_t *wpos, size_t size)
 {
     int pos;
     uint64_t left, right;
@@ -43,8 +43,8 @@ void replay_audio_in(int *recorded, void *samples, int *wpos, int size)
         g_assert(replay_mutex_locked());
         replay_save_instructions();
         replay_put_event(EVENT_AUDIO_IN);
-        replay_put_dword(*recorded);
-        replay_put_dword(*wpos);
+        replay_put_qword(*recorded);
+        replay_put_qword(*wpos);
         for (pos = (*wpos - *recorded + size) % size ; pos != *wpos
              ; pos = (pos + 1) % size) {
             audio_sample_to_uint64(samples, pos, &left, &right);
@@ -55,8 +55,8 @@ void replay_audio_in(int *recorded, void *samples, int *wpos, int size)
         g_assert(replay_mutex_locked());
         replay_account_executed_instructions();
         if (replay_next_event_is(EVENT_AUDIO_IN)) {
-            *recorded = replay_get_dword();
-            *wpos = replay_get_dword();
+            *recorded = replay_get_qword();
+            *wpos = replay_get_qword();
             for (pos = (*wpos - *recorded + size) % size ; pos != *wpos
                  ; pos = (pos + 1) % size) {
                 left = replay_get_qword();

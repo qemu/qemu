@@ -43,9 +43,9 @@ typedef struct coreaudioVoiceOut {
     UInt32 audioDevicePropertyBufferFrameSize;
     AudioStreamBasicDescription outputStreamBasicDescription;
     AudioDeviceIOProcID ioprocid;
-    int live;
-    int decr;
-    int rpos;
+    size_t live;
+    size_t decr;
+    size_t rpos;
 } coreaudioVoiceOut;
 
 #if MAC_OS_X_VERSION_MAX_ALLOWED >= MAC_OS_X_VERSION_10_6
@@ -397,9 +397,9 @@ static int coreaudio_unlock (coreaudioVoiceOut *core, const char *fn_name)
     return 0;
 }
 
-static int coreaudio_run_out (HWVoiceOut *hw, int live)
+static size_t coreaudio_run_out(HWVoiceOut *hw, size_t live)
 {
-    int decr;
+    size_t decr;
     coreaudioVoiceOut *core = (coreaudioVoiceOut *) hw;
 
     if (coreaudio_lock (core, "coreaudio_run_out")) {
@@ -413,7 +413,7 @@ static int coreaudio_run_out (HWVoiceOut *hw, int live)
                 core->live);
     }
 
-    decr = audio_MIN (core->decr, live);
+    decr = MIN (core->decr, live);
     core->decr -= decr;
 
     core->live = live - decr;
@@ -487,11 +487,6 @@ static OSStatus audioDeviceIOProc(
 
     coreaudio_unlock (core, "audioDeviceIOProc");
     return 0;
-}
-
-static int coreaudio_write (SWVoiceOut *sw, void *buf, int len)
-{
-    return audio_pcm_sw_write (sw, buf, len);
 }
 
 static int coreaudio_init_out(HWVoiceOut *hw, struct audsettings *as,
@@ -692,7 +687,6 @@ static struct audio_pcm_ops coreaudio_pcm_ops = {
     .init_out = coreaudio_init_out,
     .fini_out = coreaudio_fini_out,
     .run_out  = coreaudio_run_out,
-    .write    = coreaudio_write,
     .ctl_out  = coreaudio_ctl_out
 };
 

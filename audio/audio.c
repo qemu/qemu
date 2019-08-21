@@ -87,7 +87,8 @@ audio_driver *audio_driver_lookup(const char *name)
     return NULL;
 }
 
-static AudioState glob_audio_state;
+static QTAILQ_HEAD(AudioStateHead, AudioState) audio_states =
+    QTAILQ_HEAD_INITIALIZER(audio_states);
 
 const struct mixeng_volume nominal_volume = {
     .mute = 0,
@@ -99,6 +100,8 @@ const struct mixeng_volume nominal_volume = {
     .l = 1ULL << 32,
 #endif
 };
+
+static bool legacy_config = true;
 
 #ifdef AUDIO_IS_FLAWLESS_AND_NO_CHECKS_ARE_REQURIED
 #error No its not
@@ -306,6 +309,7 @@ void audio_pcm_init_info (struct audio_pcm_info *info, struct audsettings *as)
 
     case AUDIO_FORMAT_S16:
         sign = 1;
+        /* fall through */
     case AUDIO_FORMAT_U16:
         bits = 16;
         shift = 1;
@@ -313,6 +317,7 @@ void audio_pcm_init_info (struct audio_pcm_info *info, struct audsettings *as)
 
     case AUDIO_FORMAT_S32:
         sign = 1;
+        /* fall through */
     case AUDIO_FORMAT_U32:
         bits = 32;
         shift = 2;
@@ -399,12 +404,10 @@ static void noop_conv (struct st_sample *dst, const void *src, int samples)
     (void) samples;
 }
 
-static CaptureVoiceOut *audio_pcm_capture_find_specific (
-    struct audsettings *as
-    )
+static CaptureVoiceOut *audio_pcm_capture_find_specific(AudioState *s,
+                                                        struct audsettings *as)
 {
     CaptureVoiceOut *cap;
-    AudioState *s = &glob_audio_state;
 
     for (cap = s->cap_head.lh_first; cap; cap = cap->entries.le_next) {
         if (audio_pcm_info_eq (&cap->hw.info, as)) {
@@ -481,7 +484,7 @@ static void audio_detach_capture (HWVoiceOut *hw)
 
 static int audio_attach_capture (HWVoiceOut *hw)
 {
-    AudioState *s = &glob_audio_state;
+    AudioState *s = hw->s;
     CaptureVoiceOut *cap;
 
     audio_detach_capture (hw);
@@ -525,41 +528,41 @@ static int audio_attach_capture (HWVoiceOut *hw)
 /*
  * Hard voice (capture)
  */
-static int audio_pcm_hw_find_min_in (HWVoiceIn *hw)
+static size_t audio_pcm_hw_find_min_in (HWVoiceIn *hw)
 {
     SWVoiceIn *sw;
-    int m = hw->total_samples_captured;
+    size_t m = hw->total_samples_captured;
 
     for (sw = hw->sw_head.lh_first; sw; sw = sw->entries.le_next) {
         if (sw->active) {
-            m = audio_MIN (m, sw->total_hw_samples_acquired);
+            m = MIN (m, sw->total_hw_samples_acquired);
         }
     }
     return m;
 }
 
-int audio_pcm_hw_get_live_in (HWVoiceIn *hw)
+size_t audio_pcm_hw_get_live_in(HWVoiceIn *hw)
 {
-    int live = hw->total_samples_captured - audio_pcm_hw_find_min_in (hw);
-    if (audio_bug(__func__, live < 0 || live > hw->samples)) {
-        dolog ("live=%d hw->samples=%d\n", live, hw->samples);
+    size_t live = hw->total_samples_captured - audio_pcm_hw_find_min_in (hw);
+    if (audio_bug(__func__, live > hw->samples)) {
+        dolog("live=%zu hw->samples=%zu\n", live, hw->samples);
         return 0;
     }
     return live;
 }
 
-int audio_pcm_hw_clip_out (HWVoiceOut *hw, void *pcm_buf,
-                           int live, int pending)
+size_t audio_pcm_hw_clip_out(HWVoiceOut *hw, void *pcm_buf,
+                             size_t live, size_t pending)
 {
-    int left = hw->samples - pending;
-    int len = audio_MIN (left, live);
-    int clipped = 0;
+    size_t left = hw->samples - pending;
+    size_t len = MIN (left, live);
+    size_t clipped = 0;
 
     while (len) {
         struct st_sample *src = hw->mix_buf + hw->rpos;
         uint8_t *dst = advance (pcm_buf, hw->rpos << hw->info.shift);
-        int samples_till_end_of_buf = hw->samples - hw->rpos;
-        int samples_to_clip = audio_MIN (len, samples_till_end_of_buf);
+        size_t samples_till_end_of_buf = hw->samples - hw->rpos;
+        size_t samples_to_clip = MIN (len, samples_till_end_of_buf);
 
         hw->clip (dst, src, samples_to_clip);
 
@@ -573,14 +576,14 @@ int audio_pcm_hw_clip_out (HWVoiceOut *hw, void *pcm_buf,
 /*
  * Soft voice (capture)
  */
-static int audio_pcm_sw_get_rpos_in (SWVoiceIn *sw)
+static size_t audio_pcm_sw_get_rpos_in(SWVoiceIn *sw)
 {
     HWVoiceIn *hw = sw->hw;
-    int live = hw->total_samples_captured - sw->total_hw_samples_acquired;
-    int rpos;
+    ssize_t live = hw->total_samples_captured - sw->total_hw_samples_acquired;
+    ssize_t rpos;
 
     if (audio_bug(__func__, live < 0 || live > hw->samples)) {
-        dolog ("live=%d hw->samples=%d\n", live, hw->samples);
+        dolog("live=%zu hw->samples=%zu\n", live, hw->samples);
         return 0;
     }
 
@@ -593,17 +596,17 @@ static int audio_pcm_sw_get_rpos_in (SWVoiceIn *sw)
     }
 }
 
-int audio_pcm_sw_read (SWVoiceIn *sw, void *buf, int size)
+static size_t audio_pcm_sw_read(SWVoiceIn *sw, void *buf, size_t size)
 {
     HWVoiceIn *hw = sw->hw;
-    int samples, live, ret = 0, swlim, isamp, osamp, rpos, total = 0;
+    size_t samples, live, ret = 0, swlim, isamp, osamp, rpos, total = 0;
     struct st_sample *src, *dst = sw->buf;
 
     rpos = audio_pcm_sw_get_rpos_in (sw) % hw->samples;
 
     live = hw->total_samples_captured - sw->total_hw_samples_acquired;
-    if (audio_bug(__func__, live < 0 || live > hw->samples)) {
-        dolog ("live_in=%d hw->samples=%d\n", live, hw->samples);
+    if (audio_bug(__func__, live > hw->samples)) {
+        dolog("live_in=%zu hw->samples=%zu\n", live, hw->samples);
         return 0;
     }
 
@@ -613,13 +616,13 @@ int audio_pcm_sw_read (SWVoiceIn *sw, void *buf, int size)
     }
 
     swlim = (live * sw->ratio) >> 32;
-    swlim = audio_MIN (swlim, samples);
+    swlim = MIN (swlim, samples);
 
     while (swlim) {
         src = hw->conv_buf + rpos;
-        isamp = hw->wpos - rpos;
-        /* XXX: <= ? */
-        if (isamp <= 0) {
+        if (hw->wpos > rpos) {
+            isamp = hw->wpos - rpos;
+        } else {
             isamp = hw->samples - rpos;
         }
 
@@ -627,11 +630,6 @@ int audio_pcm_sw_read (SWVoiceIn *sw, void *buf, int size)
             break;
         }
         osamp = swlim;
-
-        if (audio_bug(__func__, osamp < 0)) {
-            dolog ("osamp=%d\n", osamp);
-            return 0;
-        }
 
         st_rate_flow (sw->rate, src, dst, &isamp, &osamp);
         swlim -= osamp;
@@ -653,15 +651,15 @@ int audio_pcm_sw_read (SWVoiceIn *sw, void *buf, int size)
 /*
  * Hard voice (playback)
  */
-static int audio_pcm_hw_find_min_out (HWVoiceOut *hw, int *nb_livep)
+static size_t audio_pcm_hw_find_min_out (HWVoiceOut *hw, int *nb_livep)
 {
     SWVoiceOut *sw;
-    int m = INT_MAX;
+    size_t m = SIZE_MAX;
     int nb_live = 0;
 
     for (sw = hw->sw_head.lh_first; sw; sw = sw->entries.le_next) {
         if (sw->active || !sw->empty) {
-            m = audio_MIN (m, sw->total_hw_samples_mixed);
+            m = MIN (m, sw->total_hw_samples_mixed);
             nb_live += 1;
         }
     }
@@ -670,9 +668,9 @@ static int audio_pcm_hw_find_min_out (HWVoiceOut *hw, int *nb_livep)
     return m;
 }
 
-static int audio_pcm_hw_get_live_out (HWVoiceOut *hw, int *nb_live)
+static size_t audio_pcm_hw_get_live_out (HWVoiceOut *hw, int *nb_live)
 {
-    int smin;
+    size_t smin;
     int nb_live1;
 
     smin = audio_pcm_hw_find_min_out (hw, &nb_live1);
@@ -681,10 +679,10 @@ static int audio_pcm_hw_get_live_out (HWVoiceOut *hw, int *nb_live)
     }
 
     if (nb_live1) {
-        int live = smin;
+        size_t live = smin;
 
-        if (audio_bug(__func__, live < 0 || live > hw->samples)) {
-            dolog ("live=%d hw->samples=%d\n", live, hw->samples);
+        if (audio_bug(__func__, live > hw->samples)) {
+            dolog("live=%zu hw->samples=%zu\n", live, hw->samples);
             return 0;
         }
         return live;
@@ -695,10 +693,10 @@ static int audio_pcm_hw_get_live_out (HWVoiceOut *hw, int *nb_live)
 /*
  * Soft voice (playback)
  */
-int audio_pcm_sw_write (SWVoiceOut *sw, void *buf, int size)
+static size_t audio_pcm_sw_write(SWVoiceOut *sw, void *buf, size_t size)
 {
-    int hwsamples, samples, isamp, osamp, wpos, live, dead, left, swlim, blck;
-    int ret = 0, pos = 0, total = 0;
+    size_t hwsamples, samples, isamp, osamp, wpos, live, dead, left, swlim, blck;
+    size_t ret = 0, pos = 0, total = 0;
 
     if (!sw) {
         return size;
@@ -707,8 +705,8 @@ int audio_pcm_sw_write (SWVoiceOut *sw, void *buf, int size)
     hwsamples = sw->hw->samples;
 
     live = sw->total_hw_samples_mixed;
-    if (audio_bug(__func__, live < 0 || live > hwsamples)) {
-        dolog ("live=%d hw->samples=%d\n", live, hwsamples);
+    if (audio_bug(__func__, live > hwsamples)) {
+        dolog("live=%zu hw->samples=%zu\n", live, hwsamples);
         return 0;
     }
 
@@ -724,7 +722,7 @@ int audio_pcm_sw_write (SWVoiceOut *sw, void *buf, int size)
 
     dead = hwsamples - live;
     swlim = ((int64_t) dead << 32) / sw->ratio;
-    swlim = audio_MIN (swlim, samples);
+    swlim = MIN (swlim, samples);
     if (swlim) {
         sw->conv (sw->buf, buf, swlim);
 
@@ -736,7 +734,7 @@ int audio_pcm_sw_write (SWVoiceOut *sw, void *buf, int size)
     while (swlim) {
         dead = hwsamples - live;
         left = hwsamples - wpos;
-        blck = audio_MIN (dead, left);
+        blck = MIN (dead, left);
         if (!blck) {
             break;
         }
@@ -762,7 +760,7 @@ int audio_pcm_sw_write (SWVoiceOut *sw, void *buf, int size)
 
 #ifdef DEBUG_OUT
     dolog (
-        "%s: write size %d ret %d total sw %d\n",
+        "%s: write size %zu ret %zu total sw %zu\n",
         SW_NAME (sw),
         size >> sw->info.shift,
         ret,
@@ -789,19 +787,15 @@ static void audio_pcm_print_info (const char *cap, struct audio_pcm_info *info)
 /*
  * Timer
  */
-
-static bool audio_timer_running;
-static uint64_t audio_timer_last;
-
-static int audio_is_timer_needed (void)
+static int audio_is_timer_needed(AudioState *s)
 {
     HWVoiceIn *hwi = NULL;
     HWVoiceOut *hwo = NULL;
 
-    while ((hwo = audio_pcm_hw_find_any_enabled_out (hwo))) {
+    while ((hwo = audio_pcm_hw_find_any_enabled_out(s, hwo))) {
         if (!hwo->poll_mode) return 1;
     }
-    while ((hwi = audio_pcm_hw_find_any_enabled_in (hwi))) {
+    while ((hwi = audio_pcm_hw_find_any_enabled_in(s, hwi))) {
         if (!hwi->poll_mode) return 1;
     }
     return 0;
@@ -809,18 +803,18 @@ static int audio_is_timer_needed (void)
 
 static void audio_reset_timer (AudioState *s)
 {
-    if (audio_is_timer_needed ()) {
+    if (audio_is_timer_needed(s)) {
         timer_mod_anticipate_ns(s->ts,
             qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL) + s->period_ticks);
-        if (!audio_timer_running) {
-            audio_timer_running = true;
-            audio_timer_last = qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL);
+        if (!s->timer_running) {
+            s->timer_running = true;
+            s->timer_last = qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL);
             trace_audio_timer_start(s->period_ticks / SCALE_MS);
         }
     } else {
         timer_del(s->ts);
-        if (audio_timer_running) {
-            audio_timer_running = false;
+        if (s->timer_running) {
+            s->timer_running = false;
             trace_audio_timer_stop();
         }
     }
@@ -832,20 +826,20 @@ static void audio_timer (void *opaque)
     AudioState *s = opaque;
 
     now = qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL);
-    diff = now - audio_timer_last;
+    diff = now - s->timer_last;
     if (diff > s->period_ticks * 3 / 2) {
         trace_audio_timer_delayed(diff / SCALE_MS);
     }
-    audio_timer_last = now;
+    s->timer_last = now;
 
-    audio_run("timer");
+    audio_run(s, "timer");
     audio_reset_timer(s);
 }
 
 /*
  * Public API
  */
-int AUD_write (SWVoiceOut *sw, void *buf, int size)
+size_t AUD_write(SWVoiceOut *sw, void *buf, size_t size)
 {
     if (!sw) {
         /* XXX: Consider options */
@@ -857,10 +851,10 @@ int AUD_write (SWVoiceOut *sw, void *buf, int size)
         return 0;
     }
 
-    return sw->hw->pcm_ops->write(sw, buf, size);
+    return audio_pcm_sw_write(sw, buf, size);
 }
 
-int AUD_read (SWVoiceIn *sw, void *buf, int size)
+size_t AUD_read(SWVoiceIn *sw, void *buf, size_t size)
 {
     if (!sw) {
         /* XXX: Consider options */
@@ -872,7 +866,7 @@ int AUD_read (SWVoiceIn *sw, void *buf, int size)
         return 0;
     }
 
-    return sw->hw->pcm_ops->read(sw, buf, size);
+    return audio_pcm_sw_read(sw, buf, size);
 }
 
 int AUD_get_buffer_size_out (SWVoiceOut *sw)
@@ -890,7 +884,7 @@ void AUD_set_active_out (SWVoiceOut *sw, int on)
 
     hw = sw->hw;
     if (sw->active != on) {
-        AudioState *s = &glob_audio_state;
+        AudioState *s = sw->s;
         SWVoiceOut *temp_sw;
         SWVoiceCap *sc;
 
@@ -937,7 +931,7 @@ void AUD_set_active_in (SWVoiceIn *sw, int on)
 
     hw = sw->hw;
     if (sw->active != on) {
-        AudioState *s = &glob_audio_state;
+        AudioState *s = sw->s;
         SWVoiceIn *temp_sw;
 
         if (on) {
@@ -969,17 +963,17 @@ void AUD_set_active_in (SWVoiceIn *sw, int on)
     }
 }
 
-static int audio_get_avail (SWVoiceIn *sw)
+static size_t audio_get_avail (SWVoiceIn *sw)
 {
-    int live;
+    size_t live;
 
     if (!sw) {
         return 0;
     }
 
     live = sw->hw->total_samples_captured - sw->total_hw_samples_acquired;
-    if (audio_bug(__func__, live < 0 || live > sw->hw->samples)) {
-        dolog ("live=%d sw->hw->samples=%d\n", live, sw->hw->samples);
+    if (audio_bug(__func__, live > sw->hw->samples)) {
+        dolog("live=%zu sw->hw->samples=%zu\n", live, sw->hw->samples);
         return 0;
     }
 
@@ -992,9 +986,9 @@ static int audio_get_avail (SWVoiceIn *sw)
     return (((int64_t) live << 32) / sw->ratio) << sw->info.shift;
 }
 
-static int audio_get_free (SWVoiceOut *sw)
+static size_t audio_get_free(SWVoiceOut *sw)
 {
-    int live, dead;
+    size_t live, dead;
 
     if (!sw) {
         return 0;
@@ -1002,8 +996,8 @@ static int audio_get_free (SWVoiceOut *sw)
 
     live = sw->total_hw_samples_mixed;
 
-    if (audio_bug(__func__, live < 0 || live > sw->hw->samples)) {
-        dolog ("live=%d sw->hw->samples=%d\n", live, sw->hw->samples);
+    if (audio_bug(__func__, live > sw->hw->samples)) {
+        dolog("live=%zu sw->hw->samples=%zu\n", live, sw->hw->samples);
         return 0;
     }
 
@@ -1018,9 +1012,10 @@ static int audio_get_free (SWVoiceOut *sw)
     return (((int64_t) dead << 32) / sw->ratio) << sw->info.shift;
 }
 
-static void audio_capture_mix_and_clear (HWVoiceOut *hw, int rpos, int samples)
+static void audio_capture_mix_and_clear(HWVoiceOut *hw, size_t rpos,
+                                        size_t samples)
 {
-    int n;
+    size_t n;
 
     if (hw->enabled) {
         SWVoiceCap *sc;
@@ -1031,17 +1026,17 @@ static void audio_capture_mix_and_clear (HWVoiceOut *hw, int rpos, int samples)
 
             n = samples;
             while (n) {
-                int till_end_of_hw = hw->samples - rpos2;
-                int to_write = audio_MIN (till_end_of_hw, n);
-                int bytes = to_write << hw->info.shift;
-                int written;
+                size_t till_end_of_hw = hw->samples - rpos2;
+                size_t to_write = MIN(till_end_of_hw, n);
+                size_t bytes = to_write << hw->info.shift;
+                size_t written;
 
                 sw->buf = hw->mix_buf + rpos2;
                 written = audio_pcm_sw_write (sw, NULL, bytes);
                 if (written - bytes) {
-                    dolog ("Could not mix %d bytes into a capture "
-                           "buffer, mixed %d\n",
-                           bytes, written);
+                    dolog("Could not mix %zu bytes into a capture "
+                          "buffer, mixed %zu\n",
+                          bytes, written);
                     break;
                 }
                 n -= to_write;
@@ -1050,9 +1045,9 @@ static void audio_capture_mix_and_clear (HWVoiceOut *hw, int rpos, int samples)
         }
     }
 
-    n = audio_MIN (samples, hw->samples - rpos);
-    mixeng_clear (hw->mix_buf + rpos, n);
-    mixeng_clear (hw->mix_buf, samples - n);
+    n = MIN(samples, hw->samples - rpos);
+    mixeng_clear(hw->mix_buf + rpos, n);
+    mixeng_clear(hw->mix_buf, samples - n);
 }
 
 static void audio_run_out (AudioState *s)
@@ -1060,17 +1055,17 @@ static void audio_run_out (AudioState *s)
     HWVoiceOut *hw = NULL;
     SWVoiceOut *sw;
 
-    while ((hw = audio_pcm_hw_find_any_enabled_out (hw))) {
-        int played;
-        int live, free, nb_live, cleanup_required, prev_rpos;
+    while ((hw = audio_pcm_hw_find_any_enabled_out(s, hw))) {
+        size_t played, live, prev_rpos, free;
+        int nb_live, cleanup_required;
 
         live = audio_pcm_hw_get_live_out (hw, &nb_live);
         if (!nb_live) {
             live = 0;
         }
 
-        if (audio_bug(__func__, live < 0 || live > hw->samples)) {
-            dolog ("live=%d hw->samples=%d\n", live, hw->samples);
+        if (audio_bug(__func__, live > hw->samples)) {
+            dolog ("live=%zu hw->samples=%zu\n", live, hw->samples);
             continue;
         }
 
@@ -1105,13 +1100,13 @@ static void audio_run_out (AudioState *s)
         played = hw->pcm_ops->run_out (hw, live);
         replay_audio_out(&played);
         if (audio_bug(__func__, hw->rpos >= hw->samples)) {
-            dolog ("hw->rpos=%d hw->samples=%d played=%d\n",
-                   hw->rpos, hw->samples, played);
+            dolog("hw->rpos=%zu hw->samples=%zu played=%zu\n",
+                  hw->rpos, hw->samples, played);
             hw->rpos = 0;
         }
 
 #ifdef DEBUG_OUT
-        dolog ("played=%d\n", played);
+        dolog("played=%zu\n", played);
 #endif
 
         if (played) {
@@ -1126,8 +1121,8 @@ static void audio_run_out (AudioState *s)
             }
 
             if (audio_bug(__func__, played > sw->total_hw_samples_mixed)) {
-                dolog ("played=%d sw->total_hw_samples_mixed=%d\n",
-                       played, sw->total_hw_samples_mixed);
+                dolog("played=%zu sw->total_hw_samples_mixed=%zu\n",
+                      played, sw->total_hw_samples_mixed);
                 played = sw->total_hw_samples_mixed;
             }
 
@@ -1165,9 +1160,9 @@ static void audio_run_in (AudioState *s)
 {
     HWVoiceIn *hw = NULL;
 
-    while ((hw = audio_pcm_hw_find_any_enabled_in (hw))) {
+    while ((hw = audio_pcm_hw_find_any_enabled_in(s, hw))) {
         SWVoiceIn *sw;
-        int captured = 0, min;
+        size_t captured = 0, min;
 
         if (replay_mode != REPLAY_MODE_PLAY) {
             captured = hw->pcm_ops->run_in(hw);
@@ -1182,7 +1177,7 @@ static void audio_run_in (AudioState *s)
             sw->total_hw_samples_acquired -= min;
 
             if (sw->active) {
-                int avail;
+                size_t avail;
 
                 avail = audio_get_avail (sw);
                 if (avail > 0) {
@@ -1198,15 +1193,15 @@ static void audio_run_capture (AudioState *s)
     CaptureVoiceOut *cap;
 
     for (cap = s->cap_head.lh_first; cap; cap = cap->entries.le_next) {
-        int live, rpos, captured;
+        size_t live, rpos, captured;
         HWVoiceOut *hw = &cap->hw;
         SWVoiceOut *sw;
 
         captured = live = audio_pcm_hw_get_live_out (hw, NULL);
         rpos = hw->rpos;
         while (live) {
-            int left = hw->samples - rpos;
-            int to_capture = audio_MIN (live, left);
+            size_t left = hw->samples - rpos;
+            size_t to_capture = MIN(live, left);
             struct st_sample *src;
             struct capture_callback *cb;
 
@@ -1229,8 +1224,8 @@ static void audio_run_capture (AudioState *s)
             }
 
             if (audio_bug(__func__, captured > sw->total_hw_samples_mixed)) {
-                dolog ("captured=%d sw->total_hw_samples_mixed=%d\n",
-                       captured, sw->total_hw_samples_mixed);
+                dolog("captured=%zu sw->total_hw_samples_mixed=%zu\n",
+                      captured, sw->total_hw_samples_mixed);
                 captured = sw->total_hw_samples_mixed;
             }
 
@@ -1240,13 +1235,12 @@ static void audio_run_capture (AudioState *s)
     }
 }
 
-void audio_run (const char *msg)
+void audio_run(AudioState *s, const char *msg)
 {
-    AudioState *s = &glob_audio_state;
+    audio_run_out(s);
+    audio_run_in(s);
+    audio_run_capture(s);
 
-    audio_run_out (s);
-    audio_run_in (s);
-    audio_run_capture (s);
 #ifdef DEBUG_POLL
     {
         static double prevtime;
@@ -1271,8 +1265,8 @@ static int audio_driver_init(AudioState *s, struct audio_driver *drv,
     s->drv_opaque = drv->init(dev);
 
     if (s->drv_opaque) {
-        audio_init_nb_voices_out (drv);
-        audio_init_nb_voices_in (drv);
+        audio_init_nb_voices_out(s, drv);
+        audio_init_nb_voices_in(s, drv);
         s->drv = drv;
         return 0;
     }
@@ -1293,11 +1287,11 @@ static void audio_vm_change_state_handler (void *opaque, int running,
     int op = running ? VOICE_ENABLE : VOICE_DISABLE;
 
     s->vm_running = running;
-    while ((hwo = audio_pcm_hw_find_any_enabled_out (hwo))) {
+    while ((hwo = audio_pcm_hw_find_any_enabled_out(s, hwo))) {
         hwo->pcm_ops->ctl_out(hwo, op);
     }
 
-    while ((hwi = audio_pcm_hw_find_any_enabled_in (hwi))) {
+    while ((hwi = audio_pcm_hw_find_any_enabled_in(s, hwi))) {
         hwi->pcm_ops->ctl_in(hwi, op);
     }
     audio_reset_timer (s);
@@ -1310,14 +1304,12 @@ bool audio_is_cleaning_up(void)
     return is_cleaning_up;
 }
 
-void audio_cleanup(void)
+static void free_audio_state(AudioState *s)
 {
-    AudioState *s = &glob_audio_state;
     HWVoiceOut *hwo, *hwon;
     HWVoiceIn *hwi, *hwin;
 
-    is_cleaning_up = true;
-    QLIST_FOREACH_SAFE(hwo, &glob_audio_state.hw_head_out, entries, hwon) {
+    QLIST_FOREACH_SAFE(hwo, &s->hw_head_out, entries, hwon) {
         SWVoiceCap *sc;
 
         if (hwo->enabled) {
@@ -1336,7 +1328,7 @@ void audio_cleanup(void)
         QLIST_REMOVE(hwo, entries);
     }
 
-    QLIST_FOREACH_SAFE(hwi, &glob_audio_state.hw_head_in, entries, hwin) {
+    QLIST_FOREACH_SAFE(hwi, &s->hw_head_in, entries, hwin) {
         if (hwi->enabled) {
             hwi->pcm_ops->ctl_in (hwi, VOICE_DISABLE);
         }
@@ -1352,6 +1344,23 @@ void audio_cleanup(void)
     if (s->dev) {
         qapi_free_Audiodev(s->dev);
         s->dev = NULL;
+    }
+
+    if (s->ts) {
+        timer_free(s->ts);
+        s->ts = NULL;
+    }
+
+    g_free(s);
+}
+
+void audio_cleanup(void)
+{
+    is_cleaning_up = true;
+    while (!QTAILQ_EMPTY(&audio_states)) {
+        AudioState *s = QTAILQ_FIRST(&audio_states);
+        QTAILQ_REMOVE(&audio_states, s, list);
+        free_audio_state(s);
     }
 }
 
@@ -1379,28 +1388,34 @@ static AudiodevListEntry *audiodev_find(
     return NULL;
 }
 
-static int audio_init(Audiodev *dev)
+/*
+ * if we have dev, this function was called because of an -audiodev argument =>
+ *   initialize a new state with it
+ * if dev == NULL => legacy implicit initialization, return the already created
+ *   state or create a new one
+ */
+static AudioState *audio_init(Audiodev *dev, const char *name)
 {
+    static bool atexit_registered;
     size_t i;
     int done = 0;
     const char *drvname = NULL;
     VMChangeStateEntry *e;
-    AudioState *s = &glob_audio_state;
+    AudioState *s;
     struct audio_driver *driver;
     /* silence gcc warning about uninitialized variable */
     AudiodevListHead head = QSIMPLEQ_HEAD_INITIALIZER(head);
 
-    if (s->drv) {
-        if (dev) {
-            dolog("Cannot create more than one audio backend, sorry\n");
-            qapi_free_Audiodev(dev);
-        }
-        return -1;
-    }
-
     if (dev) {
         /* -audiodev option */
+        legacy_config = false;
         drvname = AudiodevDriver_str(dev->driver);
+    } else if (!QTAILQ_EMPTY(&audio_states)) {
+        if (!legacy_config) {
+            dolog("You must specify an audiodev= for the device %s\n", name);
+            exit(1);
+        }
+        return QTAILQ_FIRST(&audio_states);
     } else {
         /* legacy implicit initialization */
         head = audio_handle_legacy_opts();
@@ -1414,12 +1429,18 @@ static int audio_init(Audiodev *dev)
         dev = QSIMPLEQ_FIRST(&head)->dev;
         audio_validate_opts(dev, &error_abort);
     }
+
+    s = g_malloc0(sizeof(AudioState));
     s->dev = dev;
 
     QLIST_INIT (&s->hw_head_out);
     QLIST_INIT (&s->hw_head_in);
     QLIST_INIT (&s->cap_head);
-    atexit(audio_cleanup);
+    if (!atexit_registered) {
+        atexit(audio_cleanup);
+        atexit_registered = true;
+    }
+    QTAILQ_INSERT_TAIL(&audio_states, s, list);
 
     s->ts = timer_new_ns(QEMU_CLOCK_VIRTUAL, audio_timer, s);
 
@@ -1484,7 +1505,7 @@ static int audio_init(Audiodev *dev)
 
     QLIST_INIT (&s->card_head);
     vmstate_register (NULL, 0, &vmstate_audio, s);
-    return 0;
+    return s;
 }
 
 void audio_free_audiodev_list(AudiodevListHead *head)
@@ -1499,10 +1520,13 @@ void audio_free_audiodev_list(AudiodevListHead *head)
 
 void AUD_register_card (const char *name, QEMUSoundCard *card)
 {
-    audio_init(NULL);
+    if (!card->state) {
+        card->state = audio_init(NULL, name);
+    }
+
     card->name = g_strdup (name);
     memset (&card->entries, 0, sizeof (card->entries));
-    QLIST_INSERT_HEAD (&glob_audio_state.card_head, card, entries);
+    QLIST_INSERT_HEAD(&card->state->card_head, card, entries);
 }
 
 void AUD_remove_card (QEMUSoundCard *card)
@@ -1512,15 +1536,23 @@ void AUD_remove_card (QEMUSoundCard *card)
 }
 
 
-CaptureVoiceOut *AUD_add_capture (
+CaptureVoiceOut *AUD_add_capture(
+    AudioState *s,
     struct audsettings *as,
     struct audio_capture_ops *ops,
     void *cb_opaque
     )
 {
-    AudioState *s = &glob_audio_state;
     CaptureVoiceOut *cap;
     struct capture_callback *cb;
+
+    if (!s) {
+        if (!legacy_config) {
+            dolog("You must specify audiodev when trying to capture\n");
+            return NULL;
+        }
+        s = audio_init(NULL, NULL);
+    }
 
     if (audio_validate_settings (as)) {
         dolog ("Invalid settings were passed when trying to add capture\n");
@@ -1532,7 +1564,7 @@ CaptureVoiceOut *AUD_add_capture (
     cb->ops = *ops;
     cb->opaque = cb_opaque;
 
-    cap = audio_pcm_capture_find_specific (as);
+    cap = audio_pcm_capture_find_specific(s, as);
     if (cap) {
         QLIST_INSERT_HEAD (&cap->cb_head, cb, entries);
         return cap;
@@ -1544,6 +1576,7 @@ CaptureVoiceOut *AUD_add_capture (
         cap = g_malloc0(sizeof(*cap));
 
         hw = &cap->hw;
+        hw->s = s;
         QLIST_INIT (&hw->sw_head);
         QLIST_INIT (&cap->cb_head);
 
@@ -1564,7 +1597,7 @@ CaptureVoiceOut *AUD_add_capture (
         QLIST_INSERT_HEAD (&s->cap_head, cap, entries);
         QLIST_INSERT_HEAD (&cap->cb_head, cb, entries);
 
-        QLIST_FOREACH(hw, &glob_audio_state.hw_head_out, entries) {
+        QLIST_FOREACH(hw, &s->hw_head_out, entries) {
             audio_attach_capture (hw);
         }
         return cap;
@@ -1749,7 +1782,7 @@ void audio_init_audiodevs(void)
     AudiodevListEntry *e;
 
     QSIMPLEQ_FOREACH(e, &audiodevs, next) {
-        audio_init(e->dev);
+        audio_init(e->dev, NULL);
     }
 }
 
@@ -1809,4 +1842,26 @@ int audio_buffer_bytes(AudiodevPerDirectionOptions *pdo,
 {
     return audio_buffer_samples(pdo, as, def_usecs) *
         audioformat_bytes_per_sample(as->fmt);
+}
+
+AudioState *audio_state_by_name(const char *name)
+{
+    AudioState *s;
+    QTAILQ_FOREACH(s, &audio_states, list) {
+        assert(s->dev);
+        if (strcmp(name, s->dev->id) == 0) {
+            return s;
+        }
+    }
+    return NULL;
+}
+
+const char *audio_get_id(QEMUSoundCard *card)
+{
+    if (card->state) {
+        assert(card->state->dev);
+        return card->state->dev->id;
+    } else {
+        return "";
+    }
 }

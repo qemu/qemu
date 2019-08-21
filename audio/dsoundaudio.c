@@ -454,24 +454,20 @@ static int dsound_ctl_out (HWVoiceOut *hw, int cmd, ...)
     return 0;
 }
 
-static int dsound_write (SWVoiceOut *sw, void *buf, int len)
-{
-    return audio_pcm_sw_write (sw, buf, len);
-}
-
-static int dsound_run_out (HWVoiceOut *hw, int live)
+static size_t dsound_run_out(HWVoiceOut *hw, size_t live)
 {
     int err;
     HRESULT hr;
     DSoundVoiceOut *ds = (DSoundVoiceOut *) hw;
     LPDIRECTSOUNDBUFFER dsb = ds->dsound_buffer;
-    int len, hwshift;
+    size_t len;
+    int hwshift;
     DWORD blen1, blen2;
     DWORD len1, len2;
     DWORD decr;
     DWORD wpos, ppos, old_pos;
     LPVOID p1, p2;
-    int bufsize;
+    size_t bufsize;
     dsound *s = ds->s;
     AudiodevDsoundOptions *dso = &s->dev->u.dsound;
 
@@ -538,9 +534,9 @@ static int dsound_run_out (HWVoiceOut *hw, int live)
         }
     }
 
-    if (audio_bug(__func__, len < 0 || len > bufsize)) {
-        dolog ("len=%d bufsize=%d old_pos=%ld ppos=%ld\n",
-               len, bufsize, old_pos, ppos);
+    if (audio_bug(__func__, len > bufsize)) {
+        dolog("len=%zu bufsize=%zu old_pos=%ld ppos=%ld\n",
+              len, bufsize, old_pos, ppos);
         return 0;
     }
 
@@ -645,18 +641,13 @@ static int dsound_ctl_in (HWVoiceIn *hw, int cmd, ...)
     return 0;
 }
 
-static int dsound_read (SWVoiceIn *sw, void *buf, int len)
-{
-    return audio_pcm_sw_read (sw, buf, len);
-}
-
-static int dsound_run_in (HWVoiceIn *hw)
+static size_t dsound_run_in(HWVoiceIn *hw)
 {
     int err;
     HRESULT hr;
     DSoundVoiceIn *ds = (DSoundVoiceIn *) hw;
     LPDIRECTSOUNDCAPTUREBUFFER dscb = ds->dsound_capture_buffer;
-    int live, len, dead;
+    size_t live, len, dead;
     DWORD blen1, blen2;
     DWORD len1, len2;
     DWORD decr;
@@ -707,7 +698,7 @@ static int dsound_run_in (HWVoiceIn *hw)
     if (!len) {
         return 0;
     }
-    len = audio_MIN (len, dead);
+    len = MIN (len, dead);
 
     err = dsound_lock_in (
         dscb,
@@ -856,13 +847,11 @@ static struct audio_pcm_ops dsound_pcm_ops = {
     .init_out = dsound_init_out,
     .fini_out = dsound_fini_out,
     .run_out  = dsound_run_out,
-    .write    = dsound_write,
     .ctl_out  = dsound_ctl_out,
 
     .init_in  = dsound_init_in,
     .fini_in  = dsound_fini_in,
     .run_in   = dsound_run_in,
-    .read     = dsound_read,
     .ctl_in   = dsound_ctl_in
 };
 

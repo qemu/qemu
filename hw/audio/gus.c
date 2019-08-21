@@ -119,7 +119,7 @@ static void GUS_callback (void *opaque, int free)
     GUSState *s = opaque;
 
     samples = free >> s->shift;
-    to_play = audio_MIN (samples, s->left);
+    to_play = MIN (samples, s->left);
 
     while (to_play) {
         int written = write_audio (s, to_play);
@@ -134,7 +134,7 @@ static void GUS_callback (void *opaque, int free)
         net += written;
     }
 
-    samples = audio_MIN (samples, s->samples);
+    samples = MIN (samples, s->samples);
     if (samples) {
         gus_mixvoices (&s->emu, s->freq, samples, s->mixbuf);
 
@@ -194,7 +194,7 @@ static int GUS_read_DMA (void *opaque, int nchan, int dma_pos, int dma_len)
     ldebug ("read DMA %#x %d\n", dma_pos, dma_len);
     mode = k->has_autoinitialization(s->isa_dma, s->emu.gusdma);
     while (left) {
-        int to_copy = audio_MIN ((size_t) left, sizeof (tmpbuf));
+        int to_copy = MIN ((size_t) left, sizeof (tmpbuf));
         int copied;
 
         ldebug ("left=%d to_copy=%d pos=%d\n", left, to_copy, pos);
@@ -299,6 +299,7 @@ static int GUS_init (ISABus *bus)
 }
 
 static Property gus_properties[] = {
+    DEFINE_AUDIO_PROPERTIES(GUSState, card),
     DEFINE_PROP_UINT32 ("freq",    GUSState, freq,        44100),
     DEFINE_PROP_UINT32 ("iobase",  GUSState, port,        0x240),
     DEFINE_PROP_UINT32 ("irq",     GUSState, emu.gusirq,  7),
