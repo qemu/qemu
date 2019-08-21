@@ -772,7 +772,7 @@ static time_t qemu_ref_timedate(QEMUClockType clock)
     switch (clock) {
     case QEMU_CLOCK_REALTIME:
         value -= rtc_realtime_clock_offset;
-        /* no break */
+        /* fall through */
     case QEMU_CLOCK_VIRTUAL:
         value += rtc_ref_start_datetime;
         break;
