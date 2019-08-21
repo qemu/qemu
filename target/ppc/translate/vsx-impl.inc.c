@@ -1308,7 +1308,7 @@ static void gen_##name(DisasContext *ctx)                                     \
     }                                                                         \
     xt = gen_vsr_ptr(xT(ctx->opcode));                                        \
     xa = gen_vsr_ptr(xA(ctx->opcode));                                        \
-    if (ctx->opcode & PPC_BIT(25)) {                                          \
+    if (ctx->opcode & PPC_BIT32(25)) {                                        \
         /*                                                                    \
          * AxT + B                                                            \
          */                                                                   \
