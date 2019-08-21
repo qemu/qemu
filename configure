@@ -223,6 +223,25 @@ path_of() {
     return 1
 }
 
+version_ge () {
+    local_ver1=`echo $1 | tr . ' '`
+    local_ver2=`echo $2 | tr . ' '`
+    while true; do
+        set x $local_ver1
+        local_first=${2-0}
+        # shift 2 does nothing if there are less than 2 arguments
+        shift; shift
+        local_ver1=$*
+        set x $local_ver2
+        # the second argument finished, the first must be greater or equal
+        test $# = 1 && return 0
+        test $local_first -lt $2 && return 1
+        test $local_first -gt $2 && return 0
+        shift; shift
+        local_ver2=$*
+    done
+}
+
 have_backend () {
     echo "$trace_backends" | grep "$1" >/dev/null
 }
@@ -963,6 +982,7 @@ fi
 # python 2.x, but some distros have it as python 3.x, so
 # we check that too
 python=
+explicit_python=no
 for binary in "${PYTHON-python3}" python
 do
     if has "$binary"
@@ -1046,7 +1066,7 @@ for opt do
   ;;
   --install=*) install="$optarg"
   ;;
-  --python=*) python="$optarg"
+  --python=*) python="$optarg" ; explicit_python=yes
   ;;
   --sphinx-build=*) sphinx_build="$optarg"
   ;;
@@ -2027,15 +2047,52 @@ python_version=$($python -c 'import sys; print("%d.%d.%d" % (sys.version_info[0]
 # Suppress writing compiled files
 python="$python -B"
 
-if ! has "$meson"
-then
-    error_exit "Meson not found. Use --meson=/path/to/meson"
+if test -z "$meson"; then
+    if test "$explicit_python" = no && has meson && version_ge "$(meson --version)" 0.55.0; then
+        meson=meson
+    elif test -e "${source_path}/.git" && test $git_update = 'yes' ; then
+        meson=git
+    elif test -e "${source_path}/meson/meson.py" ; then
+        meson=internal
+    else
+        if test "$explicit_python" = yes; then
+            error_exit "--python requires using QEMU's embedded Meson distribution, but it was not found."
+        else
+            error_exit "Meson not found.  Use --meson=/path/to/meson"
+        fi
+    fi
+else
+    # Meson uses its own Python interpreter to invoke other Python scripts,
+    # but the user wants to use the one they specified with --python.
+    #
+    # We do not want to override the distro Python interpreter (and sometimes
+    # cannot: for example in Homebrew /usr/bin/meson is a bash script), so
+    # just require --meson=git|internal together with --python.
+    if test "$explicit_python" = yes; then
+        case "$meson" in
+            git | internal) ;;
+            *) error_exit "--python requires using QEMU's embedded Meson distribution." ;;
+        esac
+    fi
 fi
-meson=$(command -v $meson)
 
-if ! $python -c 'import pkg_resources' > /dev/null 2>&1; then
-  error_exit "Python setuptools not found"
+if test "$meson" = git; then
+    git_submodules="${git_submodules} meson"
 fi
+if test "$git_update" = yes; then
+    (cd "${source_path}" && GIT="$git" "./scripts/git-submodule.sh" update "$git_submodules")
+fi
+
+case "$meson" in
+    git | internal)
+        if ! $python -c 'import pkg_resources' > /dev/null 2>&1; then
+            error_exit "Python setuptools not found"
+        fi
+        meson="$python ${source_path}/meson/meson.py"
+        ;;
+    *) meson=$(command -v meson) ;;
+esac
+
 
 # Check that the C compiler works. Doing this here before testing
 # the host CPU ensures that we had a valid CC to autodetect the
