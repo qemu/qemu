@@ -100,7 +100,19 @@ pointer, you're guaranteed that it is used to modify the storage
 it points to, or it is aliased to another pointer that is.
 
 2.3. Typedefs
-Typedefs are used to eliminate the redundant 'struct' keyword.
+
+Typedefs are used to eliminate the redundant 'struct' keyword, since type
+names have a different style than other identifiers ("CamelCase" versus
+"snake_case").  Each named struct type should have a CamelCase name and a
+corresponding typedef.
+
+Since certain C compilers choke on duplicated typedefs, you should avoid
+them and declare a typedef only in one header file.  For common types,
+you can use "include/qemu/typedefs.h" for example.  However, as a matter
+of convenience it is also perfectly fine to use forward struct
+definitions instead of typedefs in headers and function prototypes; this
+avoids problems with duplicated typedefs and reduces the need to include
+headers from other headers.
 
 2.4. Reserved namespaces in C and POSIX
 Underscore capital, double underscore, and underscore 't' suffixes should be

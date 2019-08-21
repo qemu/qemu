@@ -96,7 +96,6 @@ typedef struct RTCState {
     uint32_t irq_coalesced;
     uint32_t period;
     QEMUTimer *coalesced_timer;
-    Notifier clock_reset_notifier;
     LostTickPolicy lost_tick_policy;
     Notifier suspend_notifier;
     QLIST_ENTRY(RTCState) link;
@@ -889,20 +888,6 @@ static const VMStateDescription vmstate_rtc = {
     }
 };
 
-static void rtc_notify_clock_reset(Notifier *notifier, void *data)
-{
-    RTCState *s = container_of(notifier, RTCState, clock_reset_notifier);
-    int64_t now = *(int64_t *)data;
-
-    rtc_set_date_from_host(ISA_DEVICE(s));
-    periodic_timer_update(s, now, 0);
-    check_update_timer(s);
-
-    if (s->lost_tick_policy == LOST_TICK_POLICY_SLEW) {
-        rtc_coalesced_timer_update(s);
-    }
-}
-
 /* set CMOS shutdown status register (index 0xF) as S3_resume(0xFE)
    BIOS will read it and start S3 resume at POST Entry */
 static void rtc_notify_suspend(Notifier *notifier, void *data)
@@ -987,10 +972,6 @@ static void rtc_realizefn(DeviceState *dev, Error **errp)
     s->periodic_timer = timer_new_ns(rtc_clock, rtc_periodic_timer, s);
     s->update_timer = timer_new_ns(rtc_clock, rtc_update_timer, s);
     check_update_timer(s);
-
-    s->clock_reset_notifier.notify = rtc_notify_clock_reset;
-    qemu_clock_register_reset_notifier(rtc_clock,
-                                       &s->clock_reset_notifier);
 
     s->suspend_notifier.notify = rtc_notify_suspend;
     qemu_register_suspend_notifier(&s->suspend_notifier);

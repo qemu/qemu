@@ -69,12 +69,6 @@ static int cpu_get_free_index(void)
     return cpu_index;
 }
 
-static void finish_safe_work(CPUState *cpu)
-{
-    cpu_exec_start(cpu);
-    cpu_exec_end(cpu);
-}
-
 void cpu_list_add(CPUState *cpu)
 {
     qemu_mutex_lock(&qemu_cpu_list_lock);
@@ -86,8 +80,6 @@ void cpu_list_add(CPUState *cpu)
     }
     QTAILQ_INSERT_TAIL_RCU(&cpus, cpu, node);
     qemu_mutex_unlock(&qemu_cpu_list_lock);
-
-    finish_safe_work(cpu);
 }
 
 void cpu_list_remove(CPUState *cpu)

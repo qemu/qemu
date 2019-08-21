@@ -7431,11 +7431,16 @@ for target in $target_list; do
 target_dir="$target"
 config_target_mak=$target_dir/config-target.mak
 target_name=$(echo $target | cut -d '-' -f 1)
+target_aligned_only="no"
+case "$target_name" in
+  alpha|hppa|mips64el|mips64|mipsel|mips|mipsn32|mipsn32el|sh4|sh4eb|sparc|sparc64|sparc32plus|xtensa|xtensaeb)
+  target_aligned_only="yes"
+  ;;
+esac
 target_bigendian="no"
-
 case "$target_name" in
   armeb|aarch64_be|hppa|lm32|m68k|microblaze|mips|mipsn32|mips64|moxie|or1k|ppc|ppc64|ppc64abi32|s390x|sh4eb|sparc|sparc64|sparc32plus|xtensaeb)
-  target_bigendian=yes
+  target_bigendian="yes"
   ;;
 esac
 target_softmmu="no"
@@ -7716,6 +7721,9 @@ if supported_hvf_target $target; then
 fi
 if supported_whpx_target $target; then
     echo "CONFIG_WHPX=y" >> $config_target_mak
+fi
+if test "$target_aligned_only" = "yes" ; then
+  echo "TARGET_ALIGNED_ONLY=y" >> $config_target_mak
 fi
 if test "$target_bigendian" = "yes" ; then
   echo "TARGET_WORDS_BIGENDIAN=y" >> $config_target_mak

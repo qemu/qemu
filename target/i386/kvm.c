@@ -193,6 +193,7 @@ static int kvm_get_tsc(CPUState *cs)
         return 0;
     }
 
+    memset(&msr_data, 0, sizeof(msr_data));
     msr_data.info.nmsrs = 1;
     msr_data.entries[0].index = MSR_IA32_TSC;
     env->tsc_valid = !runstate_is_running();
@@ -1500,6 +1501,7 @@ int kvm_arch_init_vcpu(CPUState *cs)
                 c = &cpuid_data.entries[cpuid_i++];
             }
             break;
+        case 0x7:
         case 0x14: {
             uint32_t times;
 
@@ -1512,7 +1514,7 @@ int kvm_arch_init_vcpu(CPUState *cs)
             for (j = 1; j <= times; ++j) {
                 if (cpuid_i == KVM_MAX_CPUID_ENTRIES) {
                     fprintf(stderr, "cpuid_data is full, no space for "
-                                "cpuid(eax:0x14,ecx:0x%x)\n", j);
+                                "cpuid(eax:0x%x,ecx:0x%x)\n", i, j);
                     abort();
                 }
                 c = &cpuid_data.entries[cpuid_i++];
@@ -1709,6 +1711,7 @@ int kvm_arch_init_vcpu(CPUState *cs)
 
     if (has_xsave) {
         env->xsave_buf = qemu_memalign(4096, sizeof(struct kvm_xsave));
+        memset(env->xsave_buf, 0, sizeof(struct kvm_xsave));
     }
 
     max_nested_state_len = kvm_max_nested_state_length();
@@ -1785,6 +1788,8 @@ void kvm_arch_reset_vcpu(X86CPU *cpu)
 
         hyperv_x86_synic_reset(cpu);
     }
+    /* enabled by default */
+    env->poll_control_msr = 1;
 }
 
 void kvm_arch_do_init_vcpu(X86CPU *cpu)
@@ -1840,107 +1845,104 @@ static int kvm_get_supported_feature_msrs(KVMState *s)
 
 static int kvm_get_supported_msrs(KVMState *s)
 {
-    static int kvm_supported_msrs;
     int ret = 0;
+    struct kvm_msr_list msr_list, *kvm_msr_list;
 
-    /* first time */
-    if (kvm_supported_msrs == 0) {
-        struct kvm_msr_list msr_list, *kvm_msr_list;
+    /*
+     *  Obtain MSR list from KVM.  These are the MSRs that we must
+     *  save/restore.
+     */
+    msr_list.nmsrs = 0;
+    ret = kvm_ioctl(s, KVM_GET_MSR_INDEX_LIST, &msr_list);
+    if (ret < 0 && ret != -E2BIG) {
+        return ret;
+    }
+    /*
+     * Old kernel modules had a bug and could write beyond the provided
+     * memory. Allocate at least a safe amount of 1K.
+     */
+    kvm_msr_list = g_malloc0(MAX(1024, sizeof(msr_list) +
+                                          msr_list.nmsrs *
+                                          sizeof(msr_list.indices[0])));
 
-        kvm_supported_msrs = -1;
+    kvm_msr_list->nmsrs = msr_list.nmsrs;
+    ret = kvm_ioctl(s, KVM_GET_MSR_INDEX_LIST, kvm_msr_list);
+    if (ret >= 0) {
+        int i;
 
-        /* Obtain MSR list from KVM.  These are the MSRs that we must
-         * save/restore */
-        msr_list.nmsrs = 0;
-        ret = kvm_ioctl(s, KVM_GET_MSR_INDEX_LIST, &msr_list);
-        if (ret < 0 && ret != -E2BIG) {
-            return ret;
-        }
-        /* Old kernel modules had a bug and could write beyond the provided
-           memory. Allocate at least a safe amount of 1K. */
-        kvm_msr_list = g_malloc0(MAX(1024, sizeof(msr_list) +
-                                              msr_list.nmsrs *
-                                              sizeof(msr_list.indices[0])));
-
-        kvm_msr_list->nmsrs = msr_list.nmsrs;
-        ret = kvm_ioctl(s, KVM_GET_MSR_INDEX_LIST, kvm_msr_list);
-        if (ret >= 0) {
-            int i;
-
-            for (i = 0; i < kvm_msr_list->nmsrs; i++) {
-                switch (kvm_msr_list->indices[i]) {
-                case MSR_STAR:
-                    has_msr_star = true;
-                    break;
-                case MSR_VM_HSAVE_PA:
-                    has_msr_hsave_pa = true;
-                    break;
-                case MSR_TSC_AUX:
-                    has_msr_tsc_aux = true;
-                    break;
-                case MSR_TSC_ADJUST:
-                    has_msr_tsc_adjust = true;
-                    break;
-                case MSR_IA32_TSCDEADLINE:
-                    has_msr_tsc_deadline = true;
-                    break;
-                case MSR_IA32_SMBASE:
-                    has_msr_smbase = true;
-                    break;
-                case MSR_SMI_COUNT:
-                    has_msr_smi_count = true;
-                    break;
-                case MSR_IA32_MISC_ENABLE:
-                    has_msr_misc_enable = true;
-                    break;
-                case MSR_IA32_BNDCFGS:
-                    has_msr_bndcfgs = true;
-                    break;
-                case MSR_IA32_XSS:
-                    has_msr_xss = true;
-                    break;
-                case HV_X64_MSR_CRASH_CTL:
-                    has_msr_hv_crash = true;
-                    break;
-                case HV_X64_MSR_RESET:
-                    has_msr_hv_reset = true;
-                    break;
-                case HV_X64_MSR_VP_INDEX:
-                    has_msr_hv_vpindex = true;
-                    break;
-                case HV_X64_MSR_VP_RUNTIME:
-                    has_msr_hv_runtime = true;
-                    break;
-                case HV_X64_MSR_SCONTROL:
-                    has_msr_hv_synic = true;
-                    break;
-                case HV_X64_MSR_STIMER0_CONFIG:
-                    has_msr_hv_stimer = true;
-                    break;
-                case HV_X64_MSR_TSC_FREQUENCY:
-                    has_msr_hv_frequencies = true;
-                    break;
-                case HV_X64_MSR_REENLIGHTENMENT_CONTROL:
-                    has_msr_hv_reenlightenment = true;
-                    break;
-                case MSR_IA32_SPEC_CTRL:
-                    has_msr_spec_ctrl = true;
-                    break;
-                case MSR_VIRT_SSBD:
-                    has_msr_virt_ssbd = true;
-                    break;
-                case MSR_IA32_ARCH_CAPABILITIES:
-                    has_msr_arch_capabs = true;
-                    break;
-                case MSR_IA32_CORE_CAPABILITY:
-                    has_msr_core_capabs = true;
-                    break;
-                }
+        for (i = 0; i < kvm_msr_list->nmsrs; i++) {
+            switch (kvm_msr_list->indices[i]) {
+            case MSR_STAR:
+                has_msr_star = true;
+                break;
+            case MSR_VM_HSAVE_PA:
+                has_msr_hsave_pa = true;
+                break;
+            case MSR_TSC_AUX:
+                has_msr_tsc_aux = true;
+                break;
+            case MSR_TSC_ADJUST:
+                has_msr_tsc_adjust = true;
+                break;
+            case MSR_IA32_TSCDEADLINE:
+                has_msr_tsc_deadline = true;
+                break;
+            case MSR_IA32_SMBASE:
+                has_msr_smbase = true;
+                break;
+            case MSR_SMI_COUNT:
+                has_msr_smi_count = true;
+                break;
+            case MSR_IA32_MISC_ENABLE:
+                has_msr_misc_enable = true;
+                break;
+            case MSR_IA32_BNDCFGS:
+                has_msr_bndcfgs = true;
+                break;
+            case MSR_IA32_XSS:
+                has_msr_xss = true;
+                break;
+            case HV_X64_MSR_CRASH_CTL:
+                has_msr_hv_crash = true;
+                break;
+            case HV_X64_MSR_RESET:
+                has_msr_hv_reset = true;
+                break;
+            case HV_X64_MSR_VP_INDEX:
+                has_msr_hv_vpindex = true;
+                break;
+            case HV_X64_MSR_VP_RUNTIME:
+                has_msr_hv_runtime = true;
+                break;
+            case HV_X64_MSR_SCONTROL:
+                has_msr_hv_synic = true;
+                break;
+            case HV_X64_MSR_STIMER0_CONFIG:
+                has_msr_hv_stimer = true;
+                break;
+            case HV_X64_MSR_TSC_FREQUENCY:
+                has_msr_hv_frequencies = true;
+                break;
+            case HV_X64_MSR_REENLIGHTENMENT_CONTROL:
+                has_msr_hv_reenlightenment = true;
+                break;
+            case MSR_IA32_SPEC_CTRL:
+                has_msr_spec_ctrl = true;
+                break;
+            case MSR_VIRT_SSBD:
+                has_msr_virt_ssbd = true;
+                break;
+            case MSR_IA32_ARCH_CAPABILITIES:
+                has_msr_arch_capabs = true;
+                break;
+            case MSR_IA32_CORE_CAPABILITY:
+                has_msr_core_capabs = true;
+                break;
             }
         }
-
-        g_free(kvm_msr_list);
     }
+
+    g_free(kvm_msr_list);
 
     return ret;
 }
@@ -2493,6 +2495,11 @@ static int kvm_put_msrs(X86CPU *cpu, int level)
         if (env->features[FEAT_KVM] & (1 << KVM_FEATURE_STEAL_TIME)) {
             kvm_msr_entry_add(cpu, MSR_KVM_STEAL_TIME, env->steal_time_msr);
         }
+
+        if (env->features[FEAT_KVM] & (1 << KVM_FEATURE_POLL_CONTROL)) {
+            kvm_msr_entry_add(cpu, MSR_KVM_POLL_CONTROL, env->poll_control_msr);
+        }
+
         if (has_architectural_pmu_version > 0) {
             if (has_architectural_pmu_version > 1) {
                 /* Stop the counter.  */
@@ -2878,6 +2885,9 @@ static int kvm_get_msrs(X86CPU *cpu)
     if (env->features[FEAT_KVM] & (1 << KVM_FEATURE_STEAL_TIME)) {
         kvm_msr_entry_add(cpu, MSR_KVM_STEAL_TIME, 0);
     }
+    if (env->features[FEAT_KVM] & (1 << KVM_FEATURE_POLL_CONTROL)) {
+        kvm_msr_entry_add(cpu, MSR_KVM_POLL_CONTROL, 1);
+    }
     if (has_architectural_pmu_version > 0) {
         if (has_architectural_pmu_version > 1) {
             kvm_msr_entry_add(cpu, MSR_CORE_PERF_FIXED_CTR_CTRL, 0);
@@ -3112,6 +3122,10 @@ static int kvm_get_msrs(X86CPU *cpu)
         case MSR_KVM_STEAL_TIME:
             env->steal_time_msr = msrs[i].data;
             break;
+        case MSR_KVM_POLL_CONTROL: {
+            env->poll_control_msr = msrs[i].data;
+            break;
+        }
         case MSR_CORE_PERF_FIXED_CTR_CTRL:
             env->msr_fixed_ctr_ctrl = msrs[i].data;
             break;
@@ -3480,6 +3494,7 @@ static int kvm_put_debugregs(X86CPU *cpu)
         return 0;
     }
 
+    memset(&dbgregs, 0, sizeof(dbgregs));
     for (i = 0; i < 4; i++) {
         dbgregs.db[i] = env->dr[i];
     }

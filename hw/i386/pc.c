@@ -1244,17 +1244,21 @@ static void load_linux(PCMachineState *pcms,
 
             /* load initrd */
             if (initrd_filename) {
+                GMappedFile *mapped_file;
                 gsize initrd_size;
                 gchar *initrd_data;
                 GError *gerr = NULL;
 
-                if (!g_file_get_contents(initrd_filename, &initrd_data,
-                            &initrd_size, &gerr)) {
+                mapped_file = g_mapped_file_new(initrd_filename, false, &gerr);
+                if (!mapped_file) {
                     fprintf(stderr, "qemu: error reading initrd %s: %s\n",
                             initrd_filename, gerr->message);
                     exit(1);
                 }
+                pcms->initrd_mapped_file = mapped_file;
 
+                initrd_data = g_mapped_file_get_contents(mapped_file);
+                initrd_size = g_mapped_file_get_length(mapped_file);
                 initrd_max = pcms->below_4g_mem_size - pcmc->acpi_data_size - 1;
                 if (initrd_size >= initrd_max) {
                     fprintf(stderr, "qemu: initrd is too large, cannot support."
@@ -1381,6 +1385,7 @@ static void load_linux(PCMachineState *pcms,
 
     /* load initrd */
     if (initrd_filename) {
+        GMappedFile *mapped_file;
         gsize initrd_size;
         gchar *initrd_data;
         GError *gerr = NULL;
@@ -1390,12 +1395,16 @@ static void load_linux(PCMachineState *pcms,
             exit(1);
         }
 
-        if (!g_file_get_contents(initrd_filename, &initrd_data,
-                                 &initrd_size, &gerr)) {
+        mapped_file = g_mapped_file_new(initrd_filename, false, &gerr);
+        if (!mapped_file) {
             fprintf(stderr, "qemu: error reading initrd %s: %s\n",
                     initrd_filename, gerr->message);
             exit(1);
         }
+        pcms->initrd_mapped_file = mapped_file;
+
+        initrd_data = g_mapped_file_get_contents(mapped_file);
+        initrd_size = g_mapped_file_get_length(mapped_file);
         if (initrd_size >= initrd_max) {
             fprintf(stderr, "qemu: initrd is too large, cannot support."
                     "(max: %"PRIu32", need %"PRId64")\n",

@@ -1931,7 +1931,6 @@ void gen_intermediate_code(CPUState *cs, TranslationBlock *tb, int max_insns)
                code.  */
             cpu_abort(cs, "IO on conditional branch instruction");
         }
-        gen_io_end();
     }
 
     /* At this stage dc->condjmp will only be set when the skipped
