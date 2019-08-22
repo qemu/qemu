@@ -262,6 +262,8 @@ char *qtest_hmp(QTestState *s, const char *fmt, ...) GCC_FMT_ATTR(2, 3);
 char *qtest_vhmp(QTestState *s, const char *fmt, va_list ap)
     GCC_FMT_ATTR(2, 0);
 
+void qtest_module_load(QTestState *s, const char *prefix, const char *libname);
+
 /**
  * qtest_get_irq:
  * @s: #QTestState instance to operate on.

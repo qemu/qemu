@@ -811,6 +811,12 @@ bool qtest_get_irq(QTestState *s, int num)
     return s->irq_level[num];
 }
 
+void qtest_module_load(QTestState *s, const char *prefix, const char *libname)
+{
+    qtest_sendf(s, "module_load %s %s\n", prefix, libname);
+    qtest_rsp(s, 0);
+}
+
 static int64_t qtest_clock_rsp(QTestState *s)
 {
     gchar **words;

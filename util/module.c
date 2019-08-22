@@ -156,8 +156,10 @@ out:
 }
 #endif
 
-void module_load_one(const char *prefix, const char *lib_name)
+bool module_load_one(const char *prefix, const char *lib_name)
 {
+    bool success = false;
+
 #ifdef CONFIG_MODULES
     char *fname = NULL;
     char *exec_dir;
@@ -170,7 +172,7 @@ void module_load_one(const char *prefix, const char *lib_name)
 
     if (!g_module_supported()) {
         fprintf(stderr, "Module is not supported by system.\n");
-        return;
+        return false;
     }
 
     if (!loaded_modules) {
@@ -179,11 +181,10 @@ void module_load_one(const char *prefix, const char *lib_name)
 
     module_name = g_strdup_printf("%s%s", prefix, lib_name);
 
-    if (g_hash_table_lookup(loaded_modules, module_name)) {
+    if (!g_hash_table_add(loaded_modules, module_name)) {
         g_free(module_name);
-        return;
+        return true;
     }
-    g_hash_table_insert(loaded_modules, module_name, module_name);
 
     exec_dir = qemu_get_exec_dir();
     search_dir = getenv("QEMU_MODULE_DIR");
@@ -206,8 +207,13 @@ void module_load_one(const char *prefix, const char *lib_name)
         fname = NULL;
         /* Try loading until loaded a module file */
         if (!ret) {
+            success = true;
             break;
         }
+    }
+
+    if (!success) {
+        g_hash_table_remove(loaded_modules, module_name);
     }
 
     for (i = 0; i < n_dirs; i++) {
@@ -215,4 +221,5 @@ void module_load_one(const char *prefix, const char *lib_name)
     }
 
 #endif
+    return success;
 }
