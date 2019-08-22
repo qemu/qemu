@@ -1436,12 +1436,15 @@ STEXI
 ETEXI
 
 DEF("usb", 0, QEMU_OPTION_usb,
-    "-usb            enable the USB driver (if it is not used by default yet)\n",
+    "-usb            enable on-board USB host controller (if not enabled by default)\n",
     QEMU_ARCH_ALL)
 STEXI
 @item -usb
 @findex -usb
-Enable the USB driver (if it is not used by default yet).
+Enable USB emulation on machine types with an on-board USB host controller (if
+not enabled by default).  Note that on-board USB host controllers may not
+support USB 3.0.  In this case @option{-device qemu-xhci} can be used instead
+on machines with PCI.
 ETEXI
 
 DEF("usbdevice", HAS_ARG, QEMU_OPTION_usbdevice,
