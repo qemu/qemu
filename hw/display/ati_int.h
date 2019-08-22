@@ -9,6 +9,7 @@
 #ifndef ATI_INT_H
 #define ATI_INT_H
 
+#include "qemu/timer.h"
 #include "hw/pci/pci.h"
 #include "hw/i2c/bitbang_i2c.h"
 #include "vga_int.h"
@@ -33,12 +34,15 @@
 typedef struct ATIVGARegs {
     uint32_t mm_index;
     uint32_t bios_scratch[8];
+    uint32_t gen_int_cntl;
+    uint32_t gen_int_status;
     uint32_t crtc_gen_cntl;
     uint32_t crtc_ext_cntl;
     uint32_t dac_cntl;
     uint32_t gpio_vga_ddc;
     uint32_t gpio_dvi_ddc;
     uint32_t gpio_monid;
+    uint32_t config_cntl;
     uint32_t crtc_h_total_disp;
     uint32_t crtc_h_sync_strt_wid;
     uint32_t crtc_v_total_disp;
@@ -88,6 +92,7 @@ typedef struct ATIVGAState {
     uint16_t cursor_size;
     uint32_t cursor_offset;
     QEMUCursor *cursor;
+    QEMUTimer vblank_timer;
     bitbang_i2c_interface bbi2c;
     MemoryRegion io;
     MemoryRegion mm;
