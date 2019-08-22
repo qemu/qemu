@@ -320,6 +320,7 @@ static int decode_ste(SMMUv3State *s, SMMUTransCfg *cfg,
     uint32_t config;
 
     if (!STE_VALID(ste)) {
+        qemu_log_mask(LOG_GUEST_ERROR, "invalid STE\n");
         goto bad_ste;
     }
 
