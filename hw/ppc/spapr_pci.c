@@ -1700,11 +1700,13 @@ static void spapr_pci_unplug_request(HotplugHandler *plug_handler,
                 state = func_drck->dr_entity_sense(func_drc);
                 if (state == SPAPR_DR_ENTITY_SENSE_PRESENT
                     && !spapr_drc_unplug_requested(func_drc)) {
-                    error_setg(errp,
-                               "PCI: slot %d, function %d still present. "
-                               "Must unplug all non-0 functions first.",
-                               slotnr, i);
-                    return;
+                    /*
+                     * Attempting to remove function 0 of a multifunction
+                     * device will will cascade into removing all child
+                     * functions, even if their unplug weren't requested
+                     * beforehand.
+                     */
+                    spapr_drc_detach(func_drc);
                 }
             }
         }
