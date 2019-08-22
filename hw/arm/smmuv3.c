@@ -320,7 +320,9 @@ static int decode_ste(SMMUv3State *s, SMMUTransCfg *cfg,
     uint32_t config;
 
     if (!STE_VALID(ste)) {
-        qemu_log_mask(LOG_GUEST_ERROR, "invalid STE\n");
+        if (!event->inval_ste_allowed) {
+            qemu_log_mask(LOG_GUEST_ERROR, "invalid STE\n");
+        }
         goto bad_ste;
     }
 
@@ -407,8 +409,10 @@ static int smmu_find_ste(SMMUv3State *s, uint32_t sid, STE *ste,
 
         if (!span) {
             /* l2ptr is not valid */
-            qemu_log_mask(LOG_GUEST_ERROR,
-                          "invalid sid=%d (L1STD span=0)\n", sid);
+            if (!event->inval_ste_allowed) {
+                qemu_log_mask(LOG_GUEST_ERROR,
+                              "invalid sid=%d (L1STD span=0)\n", sid);
+            }
             event->type = SMMU_EVT_C_BAD_STREAMID;
             return -EINVAL;
         }
@@ -603,7 +607,9 @@ static IOMMUTLBEntry smmuv3_translate(IOMMUMemoryRegion *mr, hwaddr addr,
     SMMUDevice *sdev = container_of(mr, SMMUDevice, iommu);
     SMMUv3State *s = sdev->smmu;
     uint32_t sid = smmu_get_sid(sdev);
-    SMMUEventInfo event = {.type = SMMU_EVT_NONE, .sid = sid};
+    SMMUEventInfo event = {.type = SMMU_EVT_NONE,
+                           .sid = sid,
+                           .inval_ste_allowed = false};
     SMMUPTWEventInfo ptw_info = {};
     SMMUTranslationStatus status;
     SMMUState *bs = ARM_SMMU(s);
@@ -796,16 +802,13 @@ static void smmuv3_notify_iova(IOMMUMemoryRegion *mr,
                                dma_addr_t iova)
 {
     SMMUDevice *sdev = container_of(mr, SMMUDevice, iommu);
-    SMMUEventInfo event = {};
+    SMMUEventInfo event = {.inval_ste_allowed = true};
     SMMUTransTableInfo *tt;
     SMMUTransCfg *cfg;
     IOMMUTLBEntry entry;
 
     cfg = smmuv3_get_config(sdev, &event);
     if (!cfg) {
-        qemu_log_mask(LOG_GUEST_ERROR,
-                      "%s error decoding the configuration for iommu mr=%s\n",
-                      __func__, mr->parent_obj.name);
         return;
     }
 
