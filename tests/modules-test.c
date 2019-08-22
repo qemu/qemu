@@ -4,7 +4,7 @@
 static void test_modules_load(const void *data)
 {
     QTestState *qts;
-    const char **args = data;
+    const char **args = (const char **)data;
 
     qts = qtest_init(NULL);
     qtest_module_load(qts, args[0], args[1]);
