@@ -53,9 +53,6 @@ int main(int argc, char *argv[])
 #ifdef CONFIG_SDL
         "ui-", "sdl",
 #endif
-#if defined(CONFIG_SPICE) && defined(CONFIG_GIO)
-        "ui-", "spice-app",
-#endif
     };
     int i;
 
