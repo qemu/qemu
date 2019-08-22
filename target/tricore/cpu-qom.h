@@ -18,7 +18,7 @@
 #ifndef QEMU_TRICORE_CPU_QOM_H
 #define QEMU_TRICORE_CPU_QOM_H
 
-#include "qom/cpu.h"
+#include "hw/core/cpu.h"
 
 
 #define TYPE_TRICORE_CPU "tricore-cpu"

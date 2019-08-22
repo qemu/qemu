@@ -8,6 +8,7 @@ common-obj-y += irq.o
 common-obj-y += hotplug.o
 common-obj-$(CONFIG_SOFTMMU) += nmi.o
 common-obj-$(CONFIG_SOFTMMU) += vm-change-state-handler.o
+common-obj-y += cpu.o
 
 common-obj-$(CONFIG_EMPTY_SLOT) += empty_slot.o
 common-obj-$(CONFIG_XILINX_AXI) += stream.o

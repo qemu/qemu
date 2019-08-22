@@ -129,7 +129,7 @@ vcpu guest_cpu_enter(void)
 # Targets: all
 vcpu guest_cpu_exit(void)
 
-# qom/cpu.c
+# hw/core/cpu.c
 
 # Reset the state of a virtual (guest) CPU
 #

@@ -44,7 +44,7 @@
 #include "hw/xen/xen.h"
 #include "migration/qemu-file-types.h"
 #include "migration/vmstate.h"
-#include "qom/cpu.h"
+#include "hw/core/cpu.h"
 #include "trace.h"
 
 #define GPE_BASE 0xafe0

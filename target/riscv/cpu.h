@@ -20,7 +20,7 @@
 #ifndef RISCV_CPU_H
 #define RISCV_CPU_H
 
-#include "qom/cpu.h"
+#include "hw/core/cpu.h"
 #include "exec/cpu-defs.h"
 #include "fpu/softfloat-types.h"
 

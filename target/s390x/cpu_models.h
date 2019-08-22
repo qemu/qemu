@@ -15,7 +15,7 @@
 
 #include "cpu_features.h"
 #include "gen-features.h"
-#include "qom/cpu.h"
+#include "hw/core/cpu.h"
 
 /* static CPU definition */
 struct S390CPUDef {

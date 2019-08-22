@@ -21,7 +21,7 @@
 #define OPENRISC_CPU_H
 
 #include "exec/cpu-defs.h"
-#include "qom/cpu.h"
+#include "hw/core/cpu.h"
 
 /* cpu_openrisc_map_address_* in CPUOpenRISCTLBContext need this decl.  */
 struct OpenRISCCPU;

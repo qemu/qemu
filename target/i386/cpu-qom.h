@@ -20,7 +20,7 @@
 #ifndef QEMU_I386_CPU_QOM_H
 #define QEMU_I386_CPU_QOM_H
 
-#include "qom/cpu.h"
+#include "hw/core/cpu.h"
 #include "qemu/notify.h"
 
 #ifdef TARGET_X86_64

@@ -49,7 +49,7 @@
 #include "mmu-hash64.h"
 #include "mmu-book3s-v3.h"
 #include "cpu-models.h"
-#include "qom/cpu.h"
+#include "hw/core/cpu.h"
 
 #include "hw/boards.h"
 #include "hw/ppc/ppc.h"

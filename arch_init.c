@@ -106,14 +106,3 @@ int xen_available(void)
     return 0;
 #endif
 }
-
-
-TargetInfo *qmp_query_target(Error **errp)
-{
-    TargetInfo *info = g_malloc0(sizeof(*info));
-
-    info->arch = qapi_enum_parse(&SysEmuTarget_lookup, TARGET_NAME, -1,
-                                 &error_abort);
-
-    return info;
-}
