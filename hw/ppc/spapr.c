@@ -3078,7 +3078,7 @@ static void spapr_machine_init(MachineState *machine)
      * interface, this is a legacy from the sPAPREnvironment structure
      * which predated MachineState but had a similar function */
     vmstate_register(NULL, 0, &vmstate_spapr, spapr);
-    register_savevm_live(NULL, "spapr/htab", -1, 1,
+    register_savevm_live("spapr/htab", -1, 1,
                          &savevm_htab_handlers, spapr);
 
     qbus_set_hotplug_handler(sysbus_get_default(), OBJECT(machine),
