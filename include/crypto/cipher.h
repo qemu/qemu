@@ -170,6 +170,8 @@ QCryptoCipher *qcrypto_cipher_new(QCryptoCipherAlgorithm alg,
  */
 void qcrypto_cipher_free(QCryptoCipher *cipher);
 
+G_DEFINE_AUTOPTR_CLEANUP_FUNC(QCryptoCipher, qcrypto_cipher_free)
+
 /**
  * qcrypto_cipher_encrypt:
  * @cipher: the cipher object

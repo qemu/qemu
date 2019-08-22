@@ -425,14 +425,13 @@ qcrypto_block_luks_load_key(QCryptoBlock *block,
                             Error **errp)
 {
     QCryptoBlockLUKS *luks = block->opaque;
-    uint8_t *splitkey;
+    g_autofree uint8_t *splitkey = NULL;
     size_t splitkeylen;
-    uint8_t *possiblekey;
-    int ret = -1;
+    g_autofree uint8_t *possiblekey = NULL;
     ssize_t rv;
-    QCryptoCipher *cipher = NULL;
+    g_autoptr(QCryptoCipher) cipher = NULL;
     uint8_t keydigest[QCRYPTO_BLOCK_LUKS_DIGEST_LEN];
-    QCryptoIVGen *ivgen = NULL;
+    g_autoptr(QCryptoIVGen) ivgen = NULL;
     size_t niv;
 
     if (slot->active != QCRYPTO_BLOCK_LUKS_KEY_SLOT_ENABLED) {
@@ -456,7 +455,7 @@ qcrypto_block_luks_load_key(QCryptoBlock *block,
                        slot->iterations,
                        possiblekey, masterkeylen,
                        errp) < 0) {
-        goto cleanup;
+        return -1;
     }
 
     /*
@@ -472,7 +471,7 @@ qcrypto_block_luks_load_key(QCryptoBlock *block,
                   opaque,
                   errp);
     if (rv < 0) {
-        goto cleanup;
+        return -1;
     }
 
 
@@ -482,7 +481,7 @@ qcrypto_block_luks_load_key(QCryptoBlock *block,
                                 possiblekey, masterkeylen,
                                 errp);
     if (!cipher) {
-        goto cleanup;
+        return -1;
     }
 
     niv = qcrypto_cipher_get_iv_len(cipheralg,
@@ -493,7 +492,7 @@ qcrypto_block_luks_load_key(QCryptoBlock *block,
                               possiblekey, masterkeylen,
                               errp);
     if (!ivgen) {
-        goto cleanup;
+        return -1;
     }
 
 
@@ -512,7 +511,7 @@ qcrypto_block_luks_load_key(QCryptoBlock *block,
                                             splitkey,
                                             splitkeylen,
                                             errp) < 0) {
-        goto cleanup;
+        return -1;
     }
 
     /*
@@ -525,7 +524,7 @@ qcrypto_block_luks_load_key(QCryptoBlock *block,
                                splitkey,
                                masterkey,
                                errp) < 0) {
-        goto cleanup;
+        return -1;
     }
 
 
@@ -544,26 +543,18 @@ qcrypto_block_luks_load_key(QCryptoBlock *block,
                        luks->header.master_key_iterations,
                        keydigest, G_N_ELEMENTS(keydigest),
                        errp) < 0) {
-        goto cleanup;
+        return -1;
     }
 
     if (memcmp(keydigest, luks->header.master_key_digest,
                QCRYPTO_BLOCK_LUKS_DIGEST_LEN) == 0) {
         /* Success, we got the right master key */
-        ret = 1;
-        goto cleanup;
+        return 1;
     }
 
     /* Fail, user's password was not valid for this key slot,
      * tell caller to try another slot */
-    ret = 0;
-
- cleanup:
-    qcrypto_ivgen_free(ivgen);
-    qcrypto_cipher_free(cipher);
-    g_free(splitkey);
-    g_free(possiblekey);
-    return ret;
+    return 0;
 }
 
 
@@ -644,7 +635,7 @@ qcrypto_block_luks_open(QCryptoBlock *block,
     int ret = 0;
     size_t i;
     ssize_t rv;
-    uint8_t *masterkey = NULL;
+    g_autofree uint8_t *masterkey = NULL;
     size_t masterkeylen;
     char *ivgen_name, *ivhash_name;
     QCryptoCipherMode ciphermode;
@@ -653,7 +644,7 @@ qcrypto_block_luks_open(QCryptoBlock *block,
     QCryptoCipherAlgorithm ivcipheralg;
     QCryptoHashAlgorithm hash;
     QCryptoHashAlgorithm ivhash;
-    char *password = NULL;
+    g_autofree char *password = NULL;
 
     if (!(flags & QCRYPTO_BLOCK_OPEN_NO_IO)) {
         if (!options->u.luks.key_secret) {
@@ -856,17 +847,12 @@ qcrypto_block_luks_open(QCryptoBlock *block,
     luks->ivgen_hash_alg = ivhash;
     luks->hash_alg = hash;
 
-    g_free(masterkey);
-    g_free(password);
-
     return 0;
 
  fail:
-    g_free(masterkey);
     qcrypto_block_free_cipher(block);
     qcrypto_ivgen_free(block->ivgen);
     g_free(luks);
-    g_free(password);
     return ret;
 }
 
@@ -891,20 +877,20 @@ qcrypto_block_luks_create(QCryptoBlock *block,
     QCryptoBlockLUKS *luks;
     QCryptoBlockCreateOptionsLUKS luks_opts;
     Error *local_err = NULL;
-    uint8_t *masterkey = NULL;
-    uint8_t *slotkey = NULL;
-    uint8_t *splitkey = NULL;
+    g_autofree uint8_t *masterkey = NULL;
+    g_autofree uint8_t *slotkey = NULL;
+    g_autofree uint8_t *splitkey = NULL;
     size_t splitkeylen = 0;
     size_t i;
-    QCryptoCipher *cipher = NULL;
-    QCryptoIVGen *ivgen = NULL;
-    char *password;
+    g_autoptr(QCryptoCipher) cipher = NULL;
+    g_autoptr(QCryptoIVGen) ivgen = NULL;
+    g_autofree char *password = NULL;
     const char *cipher_alg;
     const char *cipher_mode;
     const char *ivgen_alg;
     const char *ivgen_hash_alg = NULL;
     const char *hash_alg;
-    char *cipher_mode_spec = NULL;
+    g_autofree char *cipher_mode_spec = NULL;
     QCryptoCipherAlgorithm ivcipheralg = 0;
     uint64_t iters;
 
@@ -1311,15 +1297,7 @@ qcrypto_block_luks_create(QCryptoBlock *block,
     luks->hash_alg = luks_opts.hash_alg;
 
     memset(masterkey, 0, luks->header.key_bytes);
-    g_free(masterkey);
     memset(slotkey, 0, luks->header.key_bytes);
-    g_free(slotkey);
-    g_free(splitkey);
-    g_free(password);
-    g_free(cipher_mode_spec);
-
-    qcrypto_ivgen_free(ivgen);
-    qcrypto_cipher_free(cipher);
 
     return 0;
 
@@ -1327,17 +1305,9 @@ qcrypto_block_luks_create(QCryptoBlock *block,
     if (masterkey) {
         memset(masterkey, 0, luks->header.key_bytes);
     }
-    g_free(masterkey);
     if (slotkey) {
         memset(slotkey, 0, luks->header.key_bytes);
     }
-    g_free(slotkey);
-    g_free(splitkey);
-    g_free(password);
-    g_free(cipher_mode_spec);
-
-    qcrypto_ivgen_free(ivgen);
-    qcrypto_cipher_free(cipher);
 
     qcrypto_block_free_cipher(block);
     qcrypto_ivgen_free(block->ivgen);

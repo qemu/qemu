@@ -19,12 +19,12 @@
 /* Ask for warnings for anything that was marked deprecated in
  * the defined version, or before. It is a candidate for rewrite.
  */
-#define GLIB_VERSION_MIN_REQUIRED GLIB_VERSION_2_40
+#define GLIB_VERSION_MIN_REQUIRED GLIB_VERSION_2_48
 
 /* Ask for warnings if code tries to use function that did not
  * exist in the defined version. These risk breaking builds
  */
-#define GLIB_VERSION_MAX_ALLOWED GLIB_VERSION_2_40
+#define GLIB_VERSION_MAX_ALLOWED GLIB_VERSION_2_48
 
 #pragma GCC diagnostic push
 #pragma GCC diagnostic ignored "-Wdeprecated-declarations"
@@ -63,26 +63,6 @@
  * without generating warnings.
  */
 
-static inline gboolean g_strv_contains_qemu(const gchar *const *strv,
-                                            const gchar *str)
-{
-#if GLIB_CHECK_VERSION(2, 44, 0)
-    return g_strv_contains(strv, str);
-#else
-    g_return_val_if_fail(strv != NULL, FALSE);
-    g_return_val_if_fail(str != NULL, FALSE);
-
-    for (; *strv != NULL; strv++) {
-        if (g_str_equal(str, *strv)) {
-            return TRUE;
-        }
-    }
-
-    return FALSE;
-#endif
-}
-#define g_strv_contains(a, b) g_strv_contains_qemu(a, b)
-
 #if defined(_WIN32) && !GLIB_CHECK_VERSION(2, 50, 0)
 /*
  * g_poll has a problem on Windows when using
@@ -90,24 +70,6 @@ static inline gboolean g_strv_contains_qemu(const gchar *const *strv,
  */
 #define g_poll(fds, nfds, timeout) g_poll_fixed(fds, nfds, timeout)
 gint g_poll_fixed(GPollFD *fds, guint nfds, gint timeout);
-#endif
-
-
-#ifndef g_assert_cmpmem
-#define g_assert_cmpmem(m1, l1, m2, l2)                                        \
-    do {                                                                       \
-        gconstpointer __m1 = m1, __m2 = m2;                                    \
-        int __l1 = l1, __l2 = l2;                                              \
-        if (__l1 != __l2) {                                                    \
-            g_assertion_message_cmpnum(                                        \
-                G_LOG_DOMAIN, __FILE__, __LINE__, G_STRFUNC,                   \
-                #l1 " (len(" #m1 ")) == " #l2 " (len(" #m2 "))", __l1, "==",   \
-                __l2, 'i');                                                    \
-        } else if (memcmp(__m1, __m2, __l1) != 0) {                            \
-            g_assertion_message(G_LOG_DOMAIN, __FILE__, __LINE__, G_STRFUNC,   \
-                                "assertion failed (" #m1 " == " #m2 ")");      \
-        }                                                                      \
-    } while (0)
 #endif
 
 #pragma GCC diagnostic pop

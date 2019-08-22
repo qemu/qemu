@@ -3636,7 +3636,7 @@ fi
 ##########################################
 # glib support probe
 
-glib_req_ver=2.40
+glib_req_ver=2.48
 glib_modules=gthread-2.0
 if test "$modules" = yes; then
     glib_modules="$glib_modules gmodule-export-2.0"

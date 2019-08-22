@@ -65,6 +65,8 @@ QCryptoHmac *qcrypto_hmac_new(QCryptoHashAlgorithm alg,
  */
 void qcrypto_hmac_free(QCryptoHmac *hmac);
 
+G_DEFINE_AUTOPTR_CLEANUP_FUNC(QCryptoHmac, qcrypto_hmac_free)
+
 /**
  * qcrypto_hmac_bytesv:
  * @hmac: the hmac object
