@@ -1,0 +1,6 @@
+QA output created by 265
+--- Writing to the image ---
+Formatting 'TEST_DIR/t.IMGFMT', fmt=IMGFMT size=1048576
+--- Verifying its content ---
+Content verified.
+*** done
