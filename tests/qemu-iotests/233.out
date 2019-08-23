@@ -37,7 +37,7 @@ disk size: unavailable
 exports available: 1
  export: ''
   size:  67108864
-  flags: 0x4ed ( flush fua trim zeroes df cache )
+  flags: 0xced ( flush fua trim zeroes df cache fast-zero )
   min block: 1
   opt block: 4096
   max block: 33554432

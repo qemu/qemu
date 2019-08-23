@@ -1513,7 +1513,8 @@ NBDExport *nbd_export_new(BlockDriverState *bs, uint64_t dev_offset,
             exp->nbdflags |= NBD_FLAG_CAN_MULTI_CONN;
         }
     } else {
-        exp->nbdflags |= NBD_FLAG_SEND_TRIM | NBD_FLAG_SEND_WRITE_ZEROES;
+        exp->nbdflags |= (NBD_FLAG_SEND_TRIM | NBD_FLAG_SEND_WRITE_ZEROES |
+                          NBD_FLAG_SEND_FAST_ZERO);
     }
     assert(size <= INT64_MAX - dev_offset);
     exp->size = QEMU_ALIGN_DOWN(size, BDRV_SECTOR_SIZE);
@@ -2166,7 +2167,7 @@ static int nbd_co_receive_request(NBDRequestData *req, NBDRequest *request,
     if (request->type == NBD_CMD_READ && client->structured_reply) {
         valid_flags |= NBD_CMD_FLAG_DF;
     } else if (request->type == NBD_CMD_WRITE_ZEROES) {
-        valid_flags |= NBD_CMD_FLAG_NO_HOLE;
+        valid_flags |= NBD_CMD_FLAG_NO_HOLE | NBD_CMD_FLAG_FAST_ZERO;
     } else if (request->type == NBD_CMD_BLOCK_STATUS) {
         valid_flags |= NBD_CMD_FLAG_REQ_ONE;
     }
@@ -2304,6 +2305,9 @@ static coroutine_fn int nbd_handle_request(NBDClient *client,
         }
         if (!(request->flags & NBD_CMD_FLAG_NO_HOLE)) {
             flags |= BDRV_REQ_MAY_UNMAP;
+        }
+        if (request->flags & NBD_CMD_FLAG_FAST_ZERO) {
+            flags |= BDRV_REQ_NO_FALLBACK;
         }
         ret = blk_pwrite_zeroes(exp->blk, request->from + exp->dev_offset,
                                 request->len, flags);
