@@ -107,4 +107,14 @@ typedef enum MemOp {
     MO_SSIZE = MO_SIZE | MO_SIGN,
 } MemOp;
 
+/* Size in bytes to MemOp.  */
+static inline unsigned size_memop(unsigned size)
+{
+    /*
+     * FIXME: No-op to aid conversion of memory_region_dispatch_{read|write}
+     * "unsigned size" operand into a "MemOp op".
+     */
+    return size;
+}
+
 #endif
