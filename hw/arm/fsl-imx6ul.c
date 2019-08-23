@@ -34,7 +34,7 @@ static void fsl_imx6ul_init(Object *obj)
     int i;
 
     object_initialize_child(obj, "cpu0", &s->cpu, sizeof(s->cpu),
-                            "cortex-a7-" TYPE_ARM_CPU, &error_abort, NULL);
+                            ARM_CPU_TYPE_NAME("cortex-a7"), &error_abort, NULL);
 
     /*
      * A7MPCORE

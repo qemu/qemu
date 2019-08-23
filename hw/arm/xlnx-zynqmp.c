@@ -196,8 +196,8 @@ static void xlnx_zynqmp_create_rpu(MachineState *ms, XlnxZynqMPState *s,
 
         object_initialize_child(OBJECT(&s->rpu_cluster), "rpu-cpu[*]",
                                 &s->rpu_cpu[i], sizeof(s->rpu_cpu[i]),
-                                "cortex-r5f-" TYPE_ARM_CPU, &error_abort,
-                                NULL);
+                                ARM_CPU_TYPE_NAME("cortex-r5f"),
+                                &error_abort, NULL);
 
         name = object_get_canonical_path_component(OBJECT(&s->rpu_cpu[i]));
         if (strcmp(name, boot_cpu)) {
@@ -237,8 +237,8 @@ static void xlnx_zynqmp_init(Object *obj)
     for (i = 0; i < num_apus; i++) {
         object_initialize_child(OBJECT(&s->apu_cluster), "apu-cpu[*]",
                                 &s->apu_cpu[i], sizeof(s->apu_cpu[i]),
-                                "cortex-a53-" TYPE_ARM_CPU, &error_abort,
-                                NULL);
+                                ARM_CPU_TYPE_NAME("cortex-a53"),
+                                &error_abort, NULL);
     }
 
     sysbus_init_child_obj(obj, "gic", &s->gic, sizeof(s->gic),
