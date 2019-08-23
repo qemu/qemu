@@ -698,7 +698,8 @@ int xen_device_frontend_scanf(XenDevice *xendev, const char *key,
 }
 
 static void xen_device_frontend_set_state(XenDevice *xendev,
-                                          enum xenbus_state state)
+                                          enum xenbus_state state,
+                                          bool publish)
 {
     const char *type = object_get_typename(OBJECT(xendev));
 
@@ -710,7 +711,9 @@ static void xen_device_frontend_set_state(XenDevice *xendev,
                                     xs_strstate(state));
 
     xendev->frontend_state = state;
-    xen_device_frontend_printf(xendev, "state", "%u", state);
+    if (publish) {
+        xen_device_frontend_printf(xendev, "state", "%u", state);
+    }
 }
 
 static void xen_device_frontend_changed(void *opaque)
@@ -726,7 +729,7 @@ static void xen_device_frontend_changed(void *opaque)
         state = XenbusStateUnknown;
     }
 
-    xen_device_frontend_set_state(xendev, state);
+    xen_device_frontend_set_state(xendev, state, false);
 
     if (state == XenbusStateInitialising &&
         xendev->backend_state == XenbusStateClosed &&
@@ -1169,7 +1172,7 @@ static void xen_device_realize(DeviceState *dev, Error **errp)
     xen_device_frontend_printf(xendev, "backend-id", "%u",
                                xenbus->backend_id);
 
-    xen_device_frontend_set_state(xendev, XenbusStateInitialising);
+    xen_device_frontend_set_state(xendev, XenbusStateInitialising, true);
 
     xendev->exit.notify = xen_device_exit;
     qemu_add_exit_notifier(&xendev->exit);
