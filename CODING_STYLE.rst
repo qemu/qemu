@@ -441,6 +441,91 @@ In addition, QEMU assumes that the compiler does not use the latitude
 given in C99 and C11 to treat aspects of signed '<<' as undefined, as
 documented in the GNU Compiler Collection manual starting at version 4.0.
 
+Automatic memory deallocation
+=============================
+
+QEMU has a mandatory dependency either the GCC or CLang compiler. As
+such it has the freedom to make use of a C language extension for
+automatically running a cleanup function when a stack variable goes
+out of scope. This can be used to simplify function cleanup paths,
+often allowing many goto jumps to be eliminated, through automatic
+free'ing of memory.
+
+The GLib2 library provides a number of functions/macros for enabling
+automatic cleanup:
+
+  `<https://developer.gnome.org/glib/stable/glib-Miscellaneous-Macros.html>`_
+
+Most notably:
+
+* g_autofree - will invoke g_free() on the variable going out of scope
+
+* g_autoptr - for structs / objects, will invoke the cleanup func created
+  by a previous use of G_DEFINE_AUTOPTR_CLEANUP_FUNC. This is
+  supported for most GLib data types and GObjects
+
+For example, instead of
+
+.. code-block:: c
+
+    int somefunc(void) {
+        int ret = -1;
+        char *foo = g_strdup_printf("foo%", "wibble");
+        GList *bar = .....
+
+        if (eek) {
+           goto cleanup;
+        }
+
+        ret = 0;
+
+      cleanup:
+        g_free(foo);
+        g_list_free(bar);
+        return ret;
+    }
+
+Using g_autofree/g_autoptr enables the code to be written as:
+
+.. code-block:: c
+
+    int somefunc(void) {
+        g_autofree char *foo = g_strdup_printf("foo%", "wibble");
+        g_autoptr (GList) bar = .....
+
+        if (eek) {
+           return -1;
+        }
+
+        return 0;
+    }
+
+While this generally results in simpler, less leak-prone code, there
+are still some caveats to beware of
+
+* Variables declared with g_auto* MUST always be initialized,
+  otherwise the cleanup function will use uninitialized stack memory
+
+* If a variable declared with g_auto* holds a value which must
+  live beyond the life of the function, that value must be saved
+  and the original variable NULL'd out. This can be simpler using
+  g_steal_pointer
+
+
+.. code-block:: c
+
+    char *somefunc(void) {
+        g_autofree char *foo = g_strdup_printf("foo%", "wibble");
+        g_autoptr (GList) bar = .....
+
+        if (eek) {
+           return NULL;
+        }
+
+        return g_steal_pointer(&foo);
+    }
+
+
 Error handling and reporting
 ============================
 
