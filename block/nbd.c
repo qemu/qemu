@@ -1044,6 +1044,10 @@ static int nbd_client_co_pwrite_zeroes(BlockDriverState *bs, int64_t offset,
     if (!(flags & BDRV_REQ_MAY_UNMAP)) {
         request.flags |= NBD_CMD_FLAG_NO_HOLE;
     }
+    if (flags & BDRV_REQ_NO_FALLBACK) {
+        assert(s->info.flags & NBD_FLAG_SEND_FAST_ZERO);
+        request.flags |= NBD_CMD_FLAG_FAST_ZERO;
+    }
 
     if (!bytes) {
         return 0;
@@ -1239,6 +1243,9 @@ static int nbd_client_connect(BlockDriverState *bs, Error **errp)
     }
     if (s->info.flags & NBD_FLAG_SEND_WRITE_ZEROES) {
         bs->supported_zero_flags |= BDRV_REQ_MAY_UNMAP;
+        if (s->info.flags & NBD_FLAG_SEND_FAST_ZERO) {
+            bs->supported_zero_flags |= BDRV_REQ_NO_FALLBACK;
+        }
     }
 
     s->sioc = sioc;
