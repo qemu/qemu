@@ -16,7 +16,7 @@
 #define TRACE_MEM_ST (1ULL << 5)    /* store (y/n) */
 
 static inline uint8_t trace_mem_build_info(
-    int size_shift, bool sign_extend, TCGMemOp endianness, bool store)
+    int size_shift, bool sign_extend, MemOp endianness, bool store)
 {
     uint8_t res;
 
@@ -33,7 +33,7 @@ static inline uint8_t trace_mem_build_info(
     return res;
 }
 
-static inline uint8_t trace_mem_get_info(TCGMemOp op, bool store)
+static inline uint8_t trace_mem_get_info(MemOp op, bool store)
 {
     return trace_mem_build_info(op & MO_SIZE, !!(op & MO_SIGN),
                                 op & MO_BSWAP, store);

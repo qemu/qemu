@@ -18,7 +18,7 @@
  * this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-static inline bool gen_lr(DisasContext *ctx, arg_atomic *a, TCGMemOp mop)
+static inline bool gen_lr(DisasContext *ctx, arg_atomic *a, MemOp mop)
 {
     TCGv src1 = tcg_temp_new();
     /* Put addr in load_res, data in load_val.  */
@@ -37,7 +37,7 @@ static inline bool gen_lr(DisasContext *ctx, arg_atomic *a, TCGMemOp mop)
     return true;
 }
 
-static inline bool gen_sc(DisasContext *ctx, arg_atomic *a, TCGMemOp mop)
+static inline bool gen_sc(DisasContext *ctx, arg_atomic *a, MemOp mop)
 {
     TCGv src1 = tcg_temp_new();
     TCGv src2 = tcg_temp_new();
@@ -82,8 +82,8 @@ static inline bool gen_sc(DisasContext *ctx, arg_atomic *a, TCGMemOp mop)
 }
 
 static bool gen_amo(DisasContext *ctx, arg_atomic *a,
-                    void(*func)(TCGv, TCGv, TCGv, TCGArg, TCGMemOp),
-                    TCGMemOp mop)
+                    void(*func)(TCGv, TCGv, TCGv, TCGArg, MemOp),
+                    MemOp mop)
 {
     TCGv src1 = tcg_temp_new();
     TCGv src2 = tcg_temp_new();

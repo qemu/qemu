@@ -2526,7 +2526,7 @@ typedef struct DisasContext {
     int32_t CP0_Config5;
     /* Routine used to access memory */
     int mem_idx;
-    TCGMemOp default_tcg_memop_mask;
+    MemOp default_tcg_memop_mask;
     uint32_t hflags, saved_hflags;
     target_ulong btarget;
     bool ulri;
@@ -3706,7 +3706,7 @@ static void gen_st(DisasContext *ctx, uint32_t opc, int rt,
 
 /* Store conditional */
 static void gen_st_cond(DisasContext *ctx, int rt, int base, int offset,
-                        TCGMemOp tcg_mo, bool eva)
+                        MemOp tcg_mo, bool eva)
 {
     TCGv addr, t0, val;
     TCGLabel *l1 = gen_new_label();
@@ -4549,7 +4549,7 @@ static void gen_HILO(DisasContext *ctx, uint32_t opc, int acc, int reg)
 }
 
 static inline void gen_r6_ld(target_long addr, int reg, int memidx,
-                             TCGMemOp memop)
+                             MemOp memop)
 {
     TCGv t0 = tcg_const_tl(addr);
     tcg_gen_qemu_ld_tl(t0, t0, memidx, memop);
@@ -21827,7 +21827,7 @@ static int decode_nanomips_32_48_opc(CPUMIPSState *env, DisasContext *ctx)
                              extract32(ctx->opcode, 0, 8);
                     TCGv va = tcg_temp_new();
                     TCGv t1 = tcg_temp_new();
-                    TCGMemOp memop = (extract32(ctx->opcode, 8, 3)) ==
+                    MemOp memop = (extract32(ctx->opcode, 8, 3)) ==
                                       NM_P_LS_UAWM ? MO_UNALN : 0;
 
                     count = (count == 0) ? 8 : count;

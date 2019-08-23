@@ -62,7 +62,7 @@ static inline void assert_fp_access_checked(DisasContext *s)
  * the FP/vector register Qn.
  */
 static inline int vec_reg_offset(DisasContext *s, int regno,
-                                 int element, TCGMemOp size)
+                                 int element, MemOp size)
 {
     int element_size = 1 << size;
     int offs = element * element_size;

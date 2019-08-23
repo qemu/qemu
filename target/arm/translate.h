@@ -23,7 +23,7 @@ typedef struct DisasContext {
     int condexec_cond;
     int thumb;
     int sctlr_b;
-    TCGMemOp be_data;
+    MemOp be_data;
 #if !defined(CONFIG_USER_ONLY)
     int user;
 #endif

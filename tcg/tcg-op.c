@@ -2714,7 +2714,7 @@ void tcg_gen_lookup_and_goto_ptr(void)
     }
 }
 
-static inline TCGMemOp tcg_canonicalize_memop(TCGMemOp op, bool is64, bool st)
+static inline MemOp tcg_canonicalize_memop(MemOp op, bool is64, bool st)
 {
     /* Trigger the asserts within as early as possible.  */
     (void)get_alignment_bits(op);
@@ -2743,7 +2743,7 @@ static inline TCGMemOp tcg_canonicalize_memop(TCGMemOp op, bool is64, bool st)
 }
 
 static void gen_ldst_i32(TCGOpcode opc, TCGv_i32 val, TCGv addr,
-                         TCGMemOp memop, TCGArg idx)
+                         MemOp memop, TCGArg idx)
 {
     TCGMemOpIdx oi = make_memop_idx(memop, idx);
 #if TARGET_LONG_BITS == 32
@@ -2758,7 +2758,7 @@ static void gen_ldst_i32(TCGOpcode opc, TCGv_i32 val, TCGv addr,
 }
 
 static void gen_ldst_i64(TCGOpcode opc, TCGv_i64 val, TCGv addr,
-                         TCGMemOp memop, TCGArg idx)
+                         MemOp memop, TCGArg idx)
 {
     TCGMemOpIdx oi = make_memop_idx(memop, idx);
 #if TARGET_LONG_BITS == 32
@@ -2788,9 +2788,9 @@ static void tcg_gen_req_mo(TCGBar type)
     }
 }
 
-void tcg_gen_qemu_ld_i32(TCGv_i32 val, TCGv addr, TCGArg idx, TCGMemOp memop)
+void tcg_gen_qemu_ld_i32(TCGv_i32 val, TCGv addr, TCGArg idx, MemOp memop)
 {
-    TCGMemOp orig_memop;
+    MemOp orig_memop;
 
     tcg_gen_req_mo(TCG_MO_LD_LD | TCG_MO_ST_LD);
     memop = tcg_canonicalize_memop(memop, 0, 0);
@@ -2825,7 +2825,7 @@ void tcg_gen_qemu_ld_i32(TCGv_i32 val, TCGv addr, TCGArg idx, TCGMemOp memop)
     }
 }
 
-void tcg_gen_qemu_st_i32(TCGv_i32 val, TCGv addr, TCGArg idx, TCGMemOp memop)
+void tcg_gen_qemu_st_i32(TCGv_i32 val, TCGv addr, TCGArg idx, MemOp memop)
 {
     TCGv_i32 swap = NULL;
 
@@ -2858,9 +2858,9 @@ void tcg_gen_qemu_st_i32(TCGv_i32 val, TCGv addr, TCGArg idx, TCGMemOp memop)
     }
 }
 
-void tcg_gen_qemu_ld_i64(TCGv_i64 val, TCGv addr, TCGArg idx, TCGMemOp memop)
+void tcg_gen_qemu_ld_i64(TCGv_i64 val, TCGv addr, TCGArg idx, MemOp memop)
 {
-    TCGMemOp orig_memop;
+    MemOp orig_memop;
 
     if (TCG_TARGET_REG_BITS == 32 && (memop & MO_SIZE) < MO_64) {
         tcg_gen_qemu_ld_i32(TCGV_LOW(val), addr, idx, memop);
@@ -2911,7 +2911,7 @@ void tcg_gen_qemu_ld_i64(TCGv_i64 val, TCGv addr, TCGArg idx, TCGMemOp memop)
     }
 }
 
-void tcg_gen_qemu_st_i64(TCGv_i64 val, TCGv addr, TCGArg idx, TCGMemOp memop)
+void tcg_gen_qemu_st_i64(TCGv_i64 val, TCGv addr, TCGArg idx, MemOp memop)
 {
     TCGv_i64 swap = NULL;
 
@@ -2953,7 +2953,7 @@ void tcg_gen_qemu_st_i64(TCGv_i64 val, TCGv addr, TCGArg idx, TCGMemOp memop)
     }
 }
 
-static void tcg_gen_ext_i32(TCGv_i32 ret, TCGv_i32 val, TCGMemOp opc)
+static void tcg_gen_ext_i32(TCGv_i32 ret, TCGv_i32 val, MemOp opc)
 {
     switch (opc & MO_SSIZE) {
     case MO_SB:
@@ -2974,7 +2974,7 @@ static void tcg_gen_ext_i32(TCGv_i32 ret, TCGv_i32 val, TCGMemOp opc)
     }
 }
 
-static void tcg_gen_ext_i64(TCGv_i64 ret, TCGv_i64 val, TCGMemOp opc)
+static void tcg_gen_ext_i64(TCGv_i64 ret, TCGv_i64 val, MemOp opc)
 {
     switch (opc & MO_SSIZE) {
     case MO_SB:
@@ -3034,7 +3034,7 @@ static void * const table_cmpxchg[16] = {
 };
 
 void tcg_gen_atomic_cmpxchg_i32(TCGv_i32 retv, TCGv addr, TCGv_i32 cmpv,
-                                TCGv_i32 newv, TCGArg idx, TCGMemOp memop)
+                                TCGv_i32 newv, TCGArg idx, MemOp memop)
 {
     memop = tcg_canonicalize_memop(memop, 0, 0);
 
@@ -3078,7 +3078,7 @@ void tcg_gen_atomic_cmpxchg_i32(TCGv_i32 retv, TCGv addr, TCGv_i32 cmpv,
 }
 
 void tcg_gen_atomic_cmpxchg_i64(TCGv_i64 retv, TCGv addr, TCGv_i64 cmpv,
-                                TCGv_i64 newv, TCGArg idx, TCGMemOp memop)
+                                TCGv_i64 newv, TCGArg idx, MemOp memop)
 {
     memop = tcg_canonicalize_memop(memop, 1, 0);
 
@@ -3142,7 +3142,7 @@ void tcg_gen_atomic_cmpxchg_i64(TCGv_i64 retv, TCGv addr, TCGv_i64 cmpv,
 }
 
 static void do_nonatomic_op_i32(TCGv_i32 ret, TCGv addr, TCGv_i32 val,
-                                TCGArg idx, TCGMemOp memop, bool new_val,
+                                TCGArg idx, MemOp memop, bool new_val,
                                 void (*gen)(TCGv_i32, TCGv_i32, TCGv_i32))
 {
     TCGv_i32 t1 = tcg_temp_new_i32();
@@ -3160,7 +3160,7 @@ static void do_nonatomic_op_i32(TCGv_i32 ret, TCGv addr, TCGv_i32 val,
 }
 
 static void do_atomic_op_i32(TCGv_i32 ret, TCGv addr, TCGv_i32 val,
-                             TCGArg idx, TCGMemOp memop, void * const table[])
+                             TCGArg idx, MemOp memop, void * const table[])
 {
     gen_atomic_op_i32 gen;
 
@@ -3185,7 +3185,7 @@ static void do_atomic_op_i32(TCGv_i32 ret, TCGv addr, TCGv_i32 val,
 }
 
 static void do_nonatomic_op_i64(TCGv_i64 ret, TCGv addr, TCGv_i64 val,
-                                TCGArg idx, TCGMemOp memop, bool new_val,
+                                TCGArg idx, MemOp memop, bool new_val,
                                 void (*gen)(TCGv_i64, TCGv_i64, TCGv_i64))
 {
     TCGv_i64 t1 = tcg_temp_new_i64();
@@ -3203,7 +3203,7 @@ static void do_nonatomic_op_i64(TCGv_i64 ret, TCGv addr, TCGv_i64 val,
 }
 
 static void do_atomic_op_i64(TCGv_i64 ret, TCGv addr, TCGv_i64 val,
-                             TCGArg idx, TCGMemOp memop, void * const table[])
+                             TCGArg idx, MemOp memop, void * const table[])
 {
     memop = tcg_canonicalize_memop(memop, 1, 0);
 
@@ -3257,7 +3257,7 @@ static void * const table_##NAME[16] = {                                \
     WITH_ATOMIC64([MO_64 | MO_BE] = gen_helper_atomic_##NAME##q_be)     \
 };                                                                      \
 void tcg_gen_atomic_##NAME##_i32                                        \
-    (TCGv_i32 ret, TCGv addr, TCGv_i32 val, TCGArg idx, TCGMemOp memop) \
+    (TCGv_i32 ret, TCGv addr, TCGv_i32 val, TCGArg idx, MemOp memop)    \
 {                                                                       \
     if (tcg_ctx->tb_cflags & CF_PARALLEL) {                             \
         do_atomic_op_i32(ret, addr, val, idx, memop, table_##NAME);     \
@@ -3267,7 +3267,7 @@ void tcg_gen_atomic_##NAME##_i32                                        \
     }                                                                   \
 }                                                                       \
 void tcg_gen_atomic_##NAME##_i64                                        \
-    (TCGv_i64 ret, TCGv addr, TCGv_i64 val, TCGArg idx, TCGMemOp memop) \
+    (TCGv_i64 ret, TCGv addr, TCGv_i64 val, TCGArg idx, MemOp memop)    \
 {                                                                       \
     if (tcg_ctx->tb_cflags & CF_PARALLEL) {                             \
         do_atomic_op_i64(ret, addr, val, idx, memop, table_##NAME);     \

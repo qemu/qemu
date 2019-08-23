@@ -1423,7 +1423,7 @@ static inline void tcg_out_rev16(TCGContext *s, TCGReg rd, TCGReg rn)
     tcg_out_insn(s, 3507, REV16, TCG_TYPE_I32, rd, rn);
 }
 
-static inline void tcg_out_sxt(TCGContext *s, TCGType ext, TCGMemOp s_bits,
+static inline void tcg_out_sxt(TCGContext *s, TCGType ext, MemOp s_bits,
                                TCGReg rd, TCGReg rn)
 {
     /* Using ALIASes SXTB, SXTH, SXTW, of SBFM Xd, Xn, #0, #7|15|31 */
@@ -1431,7 +1431,7 @@ static inline void tcg_out_sxt(TCGContext *s, TCGType ext, TCGMemOp s_bits,
     tcg_out_sbfm(s, ext, rd, rn, 0, bits);
 }
 
-static inline void tcg_out_uxt(TCGContext *s, TCGMemOp s_bits,
+static inline void tcg_out_uxt(TCGContext *s, MemOp s_bits,
                                TCGReg rd, TCGReg rn)
 {
     /* Using ALIASes UXTB, UXTH of UBFM Wd, Wn, #0, #7|15 */
@@ -1580,8 +1580,8 @@ static inline void tcg_out_adr(TCGContext *s, TCGReg rd, void *target)
 static bool tcg_out_qemu_ld_slow_path(TCGContext *s, TCGLabelQemuLdst *lb)
 {
     TCGMemOpIdx oi = lb->oi;
-    TCGMemOp opc = get_memop(oi);
-    TCGMemOp size = opc & MO_SIZE;
+    MemOp opc = get_memop(oi);
+    MemOp size = opc & MO_SIZE;
 
     if (!reloc_pc19(lb->label_ptr[0], s->code_ptr)) {
         return false;
@@ -1605,8 +1605,8 @@ static bool tcg_out_qemu_ld_slow_path(TCGContext *s, TCGLabelQemuLdst *lb)
 static bool tcg_out_qemu_st_slow_path(TCGContext *s, TCGLabelQemuLdst *lb)
 {
     TCGMemOpIdx oi = lb->oi;
-    TCGMemOp opc = get_memop(oi);
-    TCGMemOp size = opc & MO_SIZE;
+    MemOp opc = get_memop(oi);
+    MemOp size = opc & MO_SIZE;
 
     if (!reloc_pc19(lb->label_ptr[0], s->code_ptr)) {
         return false;
@@ -1649,7 +1649,7 @@ QEMU_BUILD_BUG_ON(offsetof(CPUTLBDescFast, table) != 8);
    slow path for the failure case, which will be patched later when finalizing
    the slow path. Generated code returns the host addend in X1,
    clobbers X0,X2,X3,TMP. */
-static void tcg_out_tlb_read(TCGContext *s, TCGReg addr_reg, TCGMemOp opc,
+static void tcg_out_tlb_read(TCGContext *s, TCGReg addr_reg, MemOp opc,
                              tcg_insn_unit **label_ptr, int mem_index,
                              bool is_read)
 {
@@ -1709,11 +1709,11 @@ static void tcg_out_tlb_read(TCGContext *s, TCGReg addr_reg, TCGMemOp opc,
 
 #endif /* CONFIG_SOFTMMU */
 
-static void tcg_out_qemu_ld_direct(TCGContext *s, TCGMemOp memop, TCGType ext,
+static void tcg_out_qemu_ld_direct(TCGContext *s, MemOp memop, TCGType ext,
                                    TCGReg data_r, TCGReg addr_r,
                                    TCGType otype, TCGReg off_r)
 {
-    const TCGMemOp bswap = memop & MO_BSWAP;
+    const MemOp bswap = memop & MO_BSWAP;
 
     switch (memop & MO_SSIZE) {
     case MO_UB:
@@ -1765,11 +1765,11 @@ static void tcg_out_qemu_ld_direct(TCGContext *s, TCGMemOp memop, TCGType ext,
     }
 }
 
-static void tcg_out_qemu_st_direct(TCGContext *s, TCGMemOp memop,
+static void tcg_out_qemu_st_direct(TCGContext *s, MemOp memop,
                                    TCGReg data_r, TCGReg addr_r,
                                    TCGType otype, TCGReg off_r)
 {
-    const TCGMemOp bswap = memop & MO_BSWAP;
+    const MemOp bswap = memop & MO_BSWAP;
 
     switch (memop & MO_SIZE) {
     case MO_8:
@@ -1804,7 +1804,7 @@ static void tcg_out_qemu_st_direct(TCGContext *s, TCGMemOp memop,
 static void tcg_out_qemu_ld(TCGContext *s, TCGReg data_reg, TCGReg addr_reg,
                             TCGMemOpIdx oi, TCGType ext)
 {
-    TCGMemOp memop = get_memop(oi);
+    MemOp memop = get_memop(oi);
     const TCGType otype = TARGET_LONG_BITS == 64 ? TCG_TYPE_I64 : TCG_TYPE_I32;
 #ifdef CONFIG_SOFTMMU
     unsigned mem_index = get_mmuidx(oi);
@@ -1829,7 +1829,7 @@ static void tcg_out_qemu_ld(TCGContext *s, TCGReg data_reg, TCGReg addr_reg,
 static void tcg_out_qemu_st(TCGContext *s, TCGReg data_reg, TCGReg addr_reg,
                             TCGMemOpIdx oi)
 {
-    TCGMemOp memop = get_memop(oi);
+    MemOp memop = get_memop(oi);
     const TCGType otype = TARGET_LONG_BITS == 64 ? TCG_TYPE_I64 : TCG_TYPE_I32;
 #ifdef CONFIG_SOFTMMU
     unsigned mem_index = get_mmuidx(oi);

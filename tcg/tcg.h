@@ -26,6 +26,7 @@
 #define TCG_H
 
 #include "cpu.h"
+#include "exec/memop.h"
 #include "exec/tb-context.h"
 #include "qemu/bitops.h"
 #include "qemu/queue.h"
@@ -309,103 +310,13 @@ typedef enum TCGType {
 #endif
 } TCGType;
 
-/* Constants for qemu_ld and qemu_st for the Memory Operation field.  */
-typedef enum TCGMemOp {
-    MO_8     = 0,
-    MO_16    = 1,
-    MO_32    = 2,
-    MO_64    = 3,
-    MO_SIZE  = 3,   /* Mask for the above.  */
-
-    MO_SIGN  = 4,   /* Sign-extended, otherwise zero-extended.  */
-
-    MO_BSWAP = 8,   /* Host reverse endian.  */
-#ifdef HOST_WORDS_BIGENDIAN
-    MO_LE    = MO_BSWAP,
-    MO_BE    = 0,
-#else
-    MO_LE    = 0,
-    MO_BE    = MO_BSWAP,
-#endif
-#ifdef TARGET_WORDS_BIGENDIAN
-    MO_TE    = MO_BE,
-#else
-    MO_TE    = MO_LE,
-#endif
-
-    /*
-     * MO_UNALN accesses are never checked for alignment.
-     * MO_ALIGN accesses will result in a call to the CPU's
-     * do_unaligned_access hook if the guest address is not aligned.
-     * The default depends on whether the target CPU defines
-     * TARGET_ALIGNED_ONLY.
-     *
-     * Some architectures (e.g. ARMv8) need the address which is aligned
-     * to a size more than the size of the memory access.
-     * Some architectures (e.g. SPARCv9) need an address which is aligned,
-     * but less strictly than the natural alignment.
-     *
-     * MO_ALIGN supposes the alignment size is the size of a memory access.
-     *
-     * There are three options:
-     * - unaligned access permitted (MO_UNALN).
-     * - an alignment to the size of an access (MO_ALIGN);
-     * - an alignment to a specified size, which may be more or less than
-     *   the access size (MO_ALIGN_x where 'x' is a size in bytes);
-     */
-    MO_ASHIFT = 4,
-    MO_AMASK = 7 << MO_ASHIFT,
-#ifdef TARGET_ALIGNED_ONLY
-    MO_ALIGN = 0,
-    MO_UNALN = MO_AMASK,
-#else
-    MO_ALIGN = MO_AMASK,
-    MO_UNALN = 0,
-#endif
-    MO_ALIGN_2  = 1 << MO_ASHIFT,
-    MO_ALIGN_4  = 2 << MO_ASHIFT,
-    MO_ALIGN_8  = 3 << MO_ASHIFT,
-    MO_ALIGN_16 = 4 << MO_ASHIFT,
-    MO_ALIGN_32 = 5 << MO_ASHIFT,
-    MO_ALIGN_64 = 6 << MO_ASHIFT,
-
-    /* Combinations of the above, for ease of use.  */
-    MO_UB    = MO_8,
-    MO_UW    = MO_16,
-    MO_UL    = MO_32,
-    MO_SB    = MO_SIGN | MO_8,
-    MO_SW    = MO_SIGN | MO_16,
-    MO_SL    = MO_SIGN | MO_32,
-    MO_Q     = MO_64,
-
-    MO_LEUW  = MO_LE | MO_UW,
-    MO_LEUL  = MO_LE | MO_UL,
-    MO_LESW  = MO_LE | MO_SW,
-    MO_LESL  = MO_LE | MO_SL,
-    MO_LEQ   = MO_LE | MO_Q,
-
-    MO_BEUW  = MO_BE | MO_UW,
-    MO_BEUL  = MO_BE | MO_UL,
-    MO_BESW  = MO_BE | MO_SW,
-    MO_BESL  = MO_BE | MO_SL,
-    MO_BEQ   = MO_BE | MO_Q,
-
-    MO_TEUW  = MO_TE | MO_UW,
-    MO_TEUL  = MO_TE | MO_UL,
-    MO_TESW  = MO_TE | MO_SW,
-    MO_TESL  = MO_TE | MO_SL,
-    MO_TEQ   = MO_TE | MO_Q,
-
-    MO_SSIZE = MO_SIZE | MO_SIGN,
-} TCGMemOp;
-
 /**
  * get_alignment_bits
- * @memop: TCGMemOp value
+ * @memop: MemOp value
  *
  * Extract the alignment size from the memop.
  */
-static inline unsigned get_alignment_bits(TCGMemOp memop)
+static inline unsigned get_alignment_bits(MemOp memop)
 {
     unsigned a = memop & MO_AMASK;
 
@@ -1186,7 +1097,7 @@ static inline size_t tcg_current_code_size(TCGContext *s)
     return tcg_ptr_byte_diff(s->code_ptr, s->code_buf);
 }
 
-/* Combine the TCGMemOp and mmu_idx parameters into a single value.  */
+/* Combine the MemOp and mmu_idx parameters into a single value.  */
 typedef uint32_t TCGMemOpIdx;
 
 /**
@@ -1196,7 +1107,7 @@ typedef uint32_t TCGMemOpIdx;
  *
  * Encode these values into a single parameter.
  */
-static inline TCGMemOpIdx make_memop_idx(TCGMemOp op, unsigned idx)
+static inline TCGMemOpIdx make_memop_idx(MemOp op, unsigned idx)
 {
     tcg_debug_assert(idx <= 15);
     return (op << 4) | idx;
@@ -1208,7 +1119,7 @@ static inline TCGMemOpIdx make_memop_idx(TCGMemOp op, unsigned idx)
  *
  * Extract the memory operation from the combined value.
  */
-static inline TCGMemOp get_memop(TCGMemOpIdx oi)
+static inline MemOp get_memop(TCGMemOpIdx oi)
 {
     return oi >> 4;
 }

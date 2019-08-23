@@ -1133,7 +1133,7 @@ static void *atomic_mmu_lookup(CPUArchState *env, target_ulong addr,
     uintptr_t index = tlb_index(env, mmu_idx, addr);
     CPUTLBEntry *tlbe = tlb_entry(env, mmu_idx, addr);
     target_ulong tlb_addr = tlb_addr_write(tlbe);
-    TCGMemOp mop = get_memop(oi);
+    MemOp mop = get_memop(oi);
     int a_bits = get_alignment_bits(mop);
     int s_bits = mop & MO_SIZE;
     void *hostaddr;
