@@ -33,6 +33,7 @@ trap "exit \$status" 0 1 2 3 15
 . ./common.filter
 
 _supported_os Linux
+_require_drivers throttle
 
 do_run_qemu()
 {

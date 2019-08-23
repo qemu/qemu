@@ -520,5 +520,19 @@ _require_command()
     [ -x "$c" ] || _notrun "$1 utility required, skipped this test"
 }
 
+# Check that a set of drivers has been whitelisted in the QEMU binary
+#
+_require_drivers()
+{
+    available=$($QEMU -drive format=help | \
+                sed -e '/Supported formats:/!d' -e 's/Supported formats://')
+    for driver
+    do
+        if ! echo "$available" | grep -q " $driver\( \|$\)"; then
+            _notrun "$driver not available"
+        fi
+    done
+}
+
 # make sure this script returns success
 true
