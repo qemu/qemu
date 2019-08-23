@@ -55,6 +55,11 @@ static int system_errno_to_nbd_errno(int err)
         return NBD_ENOSPC;
     case EOVERFLOW:
         return NBD_EOVERFLOW;
+    case ENOTSUP:
+#if ENOTSUP != EOPNOTSUPP
+    case EOPNOTSUPP:
+#endif
+        return NBD_ENOTSUP;
     case ESHUTDOWN:
         return NBD_ESHUTDOWN;
     case EINVAL:

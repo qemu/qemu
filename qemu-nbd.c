@@ -294,6 +294,7 @@ static int qemu_nbd_client_list(SocketAddress *saddr, QCryptoTLSCreds *tls,
                 [NBD_FLAG_CAN_MULTI_CONN_BIT]       = "multi",
                 [NBD_FLAG_SEND_RESIZE_BIT]          = "resize",
                 [NBD_FLAG_SEND_CACHE_BIT]           = "cache",
+                [NBD_FLAG_SEND_FAST_ZERO_BIT]       = "fast-zero",
             };
 
             printf("  size:  %" PRIu64 "\n", list[i].size);
