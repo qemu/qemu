@@ -1815,6 +1815,11 @@ void HELPER(sske)(CPUS390XState *env, uint64_t r1, uint64_t r2)
 
     key = (uint8_t) r1;
     skeyclass->set_skeys(ss, addr / TARGET_PAGE_SIZE, 1, &key);
+   /*
+    * As we can only flush by virtual address and not all the entries
+    * that point to a physical address we have to flush the whole TLB.
+    */
+    tlb_flush_all_cpus_synced(env_cpu(env));
 }
 
 /* reset reference bit extended */
@@ -1843,6 +1848,11 @@ uint32_t HELPER(rrbe)(CPUS390XState *env, uint64_t r2)
     if (skeyclass->set_skeys(ss, r2 / TARGET_PAGE_SIZE, 1, &key)) {
         return 0;
     }
+   /*
+    * As we can only flush by virtual address and not all the entries
+    * that point to a physical address we have to flush the whole TLB.
+    */
+    tlb_flush_all_cpus_synced(env_cpu(env));
 
     /*
      * cc

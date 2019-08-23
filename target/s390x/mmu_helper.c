@@ -335,6 +335,75 @@ static int mmu_translate_asce(CPUS390XState *env, target_ulong vaddr,
     return r;
 }
 
+static void mmu_handle_skey(target_ulong addr, int rw, int *flags)
+{
+    static S390SKeysClass *skeyclass;
+    static S390SKeysState *ss;
+    uint8_t key;
+    int rc;
+
+    if (unlikely(addr >= ram_size)) {
+        return;
+    }
+
+    if (unlikely(!ss)) {
+        ss = s390_get_skeys_device();
+        skeyclass = S390_SKEYS_GET_CLASS(ss);
+    }
+
+    /*
+     * Whenever we create a new TLB entry, we set the storage key reference
+     * bit. In case we allow write accesses, we set the storage key change
+     * bit. Whenever the guest changes the storage key, we have to flush the
+     * TLBs of all CPUs (the whole TLB or all affected entries), so that the
+     * next reference/change will result in an MMU fault and make us properly
+     * update the storage key here.
+     *
+     * Note 1: "record of references ... is not necessarily accurate",
+     *         "change bit may be set in case no storing has occurred".
+     *         -> We can set reference/change bits even on exceptions.
+     * Note 2: certain accesses seem to ignore storage keys. For example,
+     *         DAT translation does not set reference bits for table accesses.
+     *
+     * TODO: key-controlled protection. Only CPU accesses make use of the
+     *       PSW key. CSS accesses are different - we have to pass in the key.
+     *
+     * TODO: we have races between getting and setting the key.
+     */
+    rc = skeyclass->get_skeys(ss, addr / TARGET_PAGE_SIZE, 1, &key);
+    if (rc) {
+        trace_get_skeys_nonzero(rc);
+        return;
+    }
+
+    switch (rw) {
+    case MMU_DATA_LOAD:
+    case MMU_INST_FETCH:
+        /*
+         * The TLB entry has to remain write-protected on read-faults if
+         * the storage key does not indicate a change already. Otherwise
+         * we might miss setting the change bit on write accesses.
+         */
+        if (!(key & SK_C)) {
+            *flags &= ~PAGE_WRITE;
+        }
+        break;
+    case MMU_DATA_STORE:
+        key |= SK_C;
+        break;
+    default:
+        g_assert_not_reached();
+    }
+
+    /* Any store/fetch sets the reference bit */
+    key |= SK_R;
+
+    rc = skeyclass->set_skeys(ss, addr / TARGET_PAGE_SIZE, 1, &key);
+    if (rc) {
+        trace_set_skeys_nonzero(rc);
+    }
+}
+
 /**
  * Translate a virtual (logical) address into a physical (absolute) address.
  * @param vaddr  the virtual address
@@ -348,15 +417,9 @@ static int mmu_translate_asce(CPUS390XState *env, target_ulong vaddr,
 int mmu_translate(CPUS390XState *env, target_ulong vaddr, int rw, uint64_t asc,
                   target_ulong *raddr, int *flags, bool exc)
 {
-    static S390SKeysState *ss;
-    static S390SKeysClass *skeyclass;
-    int r = -1;
-    uint8_t key;
+    uint64_t asce;
+    int r;
 
-    if (unlikely(!ss)) {
-        ss = s390_get_skeys_device();
-        skeyclass = S390_SKEYS_GET_CLASS(ss);
-    }
 
     *flags = PAGE_READ | PAGE_WRITE | PAGE_EXEC;
     if (is_low_address(vaddr & TARGET_PAGE_MASK) && lowprot_enabled(env, asc)) {
@@ -381,36 +444,21 @@ int mmu_translate(CPUS390XState *env, target_ulong vaddr, int rw, uint64_t asc,
 
     if (!(env->psw.mask & PSW_MASK_DAT)) {
         *raddr = vaddr;
-        r = 0;
-        goto out;
+        goto nodat;
     }
 
     switch (asc) {
     case PSW_ASC_PRIMARY:
         PTE_DPRINTF("%s: asc=primary\n", __func__);
-        r = mmu_translate_asce(env, vaddr, asc, env->cregs[1], raddr, flags,
-                               rw, exc);
+        asce = env->cregs[1];
         break;
     case PSW_ASC_HOME:
         PTE_DPRINTF("%s: asc=home\n", __func__);
-        r = mmu_translate_asce(env, vaddr, asc, env->cregs[13], raddr, flags,
-                               rw, exc);
+        asce = env->cregs[13];
         break;
     case PSW_ASC_SECONDARY:
         PTE_DPRINTF("%s: asc=secondary\n", __func__);
-        /*
-         * Instruction: Primary
-         * Data: Secondary
-         */
-        if (rw == MMU_INST_FETCH) {
-            r = mmu_translate_asce(env, vaddr, PSW_ASC_PRIMARY, env->cregs[1],
-                                   raddr, flags, rw, exc);
-            *flags &= ~(PAGE_READ | PAGE_WRITE);
-        } else {
-            r = mmu_translate_asce(env, vaddr, PSW_ASC_SECONDARY, env->cregs[7],
-                                   raddr, flags, rw, exc);
-            *flags &= ~(PAGE_EXEC);
-        }
+        asce = env->cregs[7];
         break;
     case PSW_ASC_ACCREG:
     default:
@@ -418,31 +466,18 @@ int mmu_translate(CPUS390XState *env, target_ulong vaddr, int rw, uint64_t asc,
         break;
     }
 
- out:
+    /* perform the DAT translation */
+    r = mmu_translate_asce(env, vaddr, asc, asce, raddr, flags, rw, exc);
+    if (r) {
+        return r;
+    }
+
+nodat:
     /* Convert real address -> absolute address */
     *raddr = mmu_real2abs(env, *raddr);
 
-    if (r == 0 && *raddr < ram_size) {
-        if (skeyclass->get_skeys(ss, *raddr / TARGET_PAGE_SIZE, 1, &key)) {
-            trace_get_skeys_nonzero(r);
-            return 0;
-        }
-
-        if (*flags & PAGE_READ) {
-            key |= SK_R;
-        }
-
-        if (*flags & PAGE_WRITE) {
-            key |= SK_C;
-        }
-
-        if (skeyclass->set_skeys(ss, *raddr / TARGET_PAGE_SIZE, 1, &key)) {
-            trace_set_skeys_nonzero(r);
-            return 0;
-        }
-    }
-
-    return r;
+    mmu_handle_skey(*raddr, rw, flags);
+    return 0;
 }
 
 /**
@@ -559,6 +594,6 @@ int mmu_translate_real(CPUS390XState *env, target_ulong raddr, int rw,
 
     *addr = mmu_real2abs(env, raddr & TARGET_PAGE_MASK);
 
-    /* TODO: storage key handling */
+    mmu_handle_skey(*addr, rw, flags);
     return 0;
 }
