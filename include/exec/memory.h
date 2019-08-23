@@ -2211,6 +2211,9 @@ address_space_write_cached(MemoryRegionCache *cache, hwaddr addr,
     }
 }
 
+/* enum device_endian to MemOp.  */
+MemOp devend_memop(enum device_endian end);
+
 #endif
 
 #endif

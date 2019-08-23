@@ -3364,8 +3364,13 @@ static MemTxResult flatview_write_continue(FlatView *fv, hwaddr addr,
             /* XXX: could force current_cpu to NULL to avoid
                potential bugs */
             val = ldn_p(buf, l);
+            /*
+             * TODO: Merge bswap from ldn_p into memory_region_dispatch_write
+             * by using ldn_he_p and dropping MO_TE to get a host-endian value.
+             */
             result |= memory_region_dispatch_write(mr, addr1, val,
-                                                   size_memop(l), attrs);
+                                                   size_memop(l) | MO_TE,
+                                                   attrs);
         } else {
             /* RAM case */
             ptr = qemu_ram_ptr_length(mr->ram_block, addr1, &l, false);
@@ -3426,8 +3431,12 @@ MemTxResult flatview_read_continue(FlatView *fv, hwaddr addr,
             /* I/O case */
             release_lock |= prepare_mmio_access(mr);
             l = memory_access_size(mr, l, addr1);
+            /*
+             * TODO: Merge bswap from stn_p into memory_region_dispatch_read
+             * by using stn_he_p and dropping MO_TE to get a host-endian value.
+             */
             result |= memory_region_dispatch_read(mr, addr1, &val,
-                                                  size_memop(l), attrs);
+                                                  size_memop(l) | MO_TE, attrs);
             stn_p(buf, l, val);
         } else {
             /* RAM case */

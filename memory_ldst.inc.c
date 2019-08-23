@@ -38,7 +38,9 @@ static inline uint32_t glue(address_space_ldl_internal, SUFFIX)(ARG1_DECL,
         release_lock |= prepare_mmio_access(mr);
 
         /* I/O case */
-        r = memory_region_dispatch_read(mr, addr1, &val, MO_32, attrs);
+        /* TODO: Merge bswap32 into memory_region_dispatch_read.  */
+        r = memory_region_dispatch_read(mr, addr1, &val,
+                                        MO_32 | devend_memop(endian), attrs);
 #if defined(TARGET_WORDS_BIGENDIAN)
         if (endian == DEVICE_LITTLE_ENDIAN) {
             val = bswap32(val);
@@ -114,7 +116,9 @@ static inline uint64_t glue(address_space_ldq_internal, SUFFIX)(ARG1_DECL,
         release_lock |= prepare_mmio_access(mr);
 
         /* I/O case */
-        r = memory_region_dispatch_read(mr, addr1, &val, MO_64, attrs);
+        /* TODO: Merge bswap64 into memory_region_dispatch_read.  */
+        r = memory_region_dispatch_read(mr, addr1, &val,
+                                        MO_64 | devend_memop(endian), attrs);
 #if defined(TARGET_WORDS_BIGENDIAN)
         if (endian == DEVICE_LITTLE_ENDIAN) {
             val = bswap64(val);
@@ -224,7 +228,9 @@ static inline uint32_t glue(address_space_lduw_internal, SUFFIX)(ARG1_DECL,
         release_lock |= prepare_mmio_access(mr);
 
         /* I/O case */
-        r = memory_region_dispatch_read(mr, addr1, &val, MO_16, attrs);
+        /* TODO: Merge bswap16 into memory_region_dispatch_read.  */
+        r = memory_region_dispatch_read(mr, addr1, &val,
+                                        MO_16 | devend_memop(endian), attrs);
 #if defined(TARGET_WORDS_BIGENDIAN)
         if (endian == DEVICE_LITTLE_ENDIAN) {
             val = bswap16(val);
@@ -346,7 +352,9 @@ static inline void glue(address_space_stl_internal, SUFFIX)(ARG1_DECL,
             val = bswap32(val);
         }
 #endif
-        r = memory_region_dispatch_write(mr, addr1, val, MO_32, attrs);
+        /* TODO: Merge bswap32 into memory_region_dispatch_write.  */
+        r = memory_region_dispatch_write(mr, addr1, val,
+                                         MO_32 | devend_memop(endian), attrs);
     } else {
         /* RAM case */
         ptr = qemu_map_ram_ptr(mr->ram_block, addr1);
@@ -451,7 +459,9 @@ static inline void glue(address_space_stw_internal, SUFFIX)(ARG1_DECL,
             val = bswap16(val);
         }
 #endif
-        r = memory_region_dispatch_write(mr, addr1, val, MO_16, attrs);
+        /* TODO: Merge bswap16 into memory_region_dispatch_write.  */
+        r = memory_region_dispatch_write(mr, addr1, val,
+                                         MO_16 | devend_memop(endian), attrs);
     } else {
         /* RAM case */
         ptr = qemu_map_ram_ptr(mr->ram_block, addr1);
@@ -524,7 +534,9 @@ static void glue(address_space_stq_internal, SUFFIX)(ARG1_DECL,
             val = bswap64(val);
         }
 #endif
-        r = memory_region_dispatch_write(mr, addr1, val, MO_64, attrs);
+        /* TODO: Merge bswap64 into memory_region_dispatch_write.  */
+        r = memory_region_dispatch_write(mr, addr1, val,
+                                         MO_64 | devend_memop(endian), attrs);
     } else {
         /* RAM case */
         ptr = qemu_map_ram_ptr(mr->ram_block, addr1);

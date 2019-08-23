@@ -3285,3 +3285,21 @@ static void memory_register_types(void)
 }
 
 type_init(memory_register_types)
+
+MemOp devend_memop(enum device_endian end)
+{
+    static MemOp conv[] = {
+        [DEVICE_LITTLE_ENDIAN] = MO_LE,
+        [DEVICE_BIG_ENDIAN] = MO_BE,
+        [DEVICE_NATIVE_ENDIAN] = MO_TE,
+        [DEVICE_HOST_ENDIAN] = 0,
+    };
+    switch (end) {
+    case DEVICE_LITTLE_ENDIAN:
+    case DEVICE_BIG_ENDIAN:
+    case DEVICE_NATIVE_ENDIAN:
+        return conv[end];
+    default:
+        g_assert_not_reached();
+    }
+}
