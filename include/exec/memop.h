@@ -12,6 +12,8 @@
 #ifndef MEMOP_H
 #define MEMOP_H
 
+#include "qemu/host-utils.h"
+
 typedef enum MemOp {
     MO_8     = 0,
     MO_16    = 1,
@@ -107,14 +109,20 @@ typedef enum MemOp {
     MO_SSIZE = MO_SIZE | MO_SIGN,
 } MemOp;
 
-/* Size in bytes to MemOp.  */
-static inline unsigned size_memop(unsigned size)
+/* MemOp to size in bytes.  */
+static inline unsigned memop_size(MemOp op)
 {
-    /*
-     * FIXME: No-op to aid conversion of memory_region_dispatch_{read|write}
-     * "unsigned size" operand into a "MemOp op".
-     */
-    return size;
+    return 1 << (op & MO_SIZE);
+}
+
+/* Size in bytes to MemOp.  */
+static inline MemOp size_memop(unsigned size)
+{
+#ifdef CONFIG_DEBUG_TCG
+    /* Power of 2 up to 8.  */
+    assert((size & (size - 1)) == 0 && size >= 1 && size <= 8);
+#endif
+    return ctz32(size);
 }
 
 #endif
