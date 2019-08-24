@@ -4165,7 +4165,6 @@ void bdrv_replace_node(BlockDriverState *from, BlockDriverState *to,
 {
     BdrvChild *c, *next;
     GSList *list = NULL, *p;
-    uint64_t old_perm, old_shared;
     uint64_t perm = 0, shared = BLK_PERM_ALL;
     int ret;
 
@@ -4211,8 +4210,8 @@ void bdrv_replace_node(BlockDriverState *from, BlockDriverState *to,
         bdrv_unref(from);
     }
 
-    bdrv_get_cumulative_perm(to, &old_perm, &old_shared);
-    bdrv_set_perm(to, old_perm | perm, old_shared | shared);
+    bdrv_get_cumulative_perm(to, &perm, &shared);
+    bdrv_set_perm(to, perm, shared);
 
 out:
     g_slist_free(list);
