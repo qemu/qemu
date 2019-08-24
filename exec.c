@@ -1138,9 +1138,8 @@ void cpu_watchpoint_remove_all(CPUState *cpu, int mask)
  * partially or completely with the address range covered by the
  * access).
  */
-static inline bool cpu_watchpoint_address_matches(CPUWatchpoint *wp,
-                                                  vaddr addr,
-                                                  vaddr len)
+static inline bool watchpoint_address_matches(CPUWatchpoint *wp,
+                                              vaddr addr, vaddr len)
 {
     /* We know the lengths are non-zero, but a little caution is
      * required to avoid errors in the case where the range ends
@@ -1151,6 +1150,20 @@ static inline bool cpu_watchpoint_address_matches(CPUWatchpoint *wp,
     vaddr addrend = addr + len - 1;
 
     return !(addr > wpend || wp->vaddr > addrend);
+}
+
+/* Return flags for watchpoints that match addr + prot.  */
+int cpu_watchpoint_address_matches(CPUState *cpu, vaddr addr, vaddr len)
+{
+    CPUWatchpoint *wp;
+    int ret = 0;
+
+    QTAILQ_FOREACH(wp, &cpu->watchpoints, entry) {
+        if (watchpoint_address_matches(wp, addr, TARGET_PAGE_SIZE)) {
+            ret |= wp->flags;
+        }
+    }
+    return ret;
 }
 #endif /* !CONFIG_USER_ONLY */
 
@@ -1459,7 +1472,7 @@ hwaddr memory_region_section_get_iotlb(CPUState *cpu,
                                        target_ulong *address)
 {
     hwaddr iotlb;
-    CPUWatchpoint *wp;
+    int flags, match;
 
     if (memory_region_is_ram(section->mr)) {
         /* Normal RAM.  */
@@ -1477,17 +1490,17 @@ hwaddr memory_region_section_get_iotlb(CPUState *cpu,
         iotlb += xlat;
     }
 
-    /* Make accesses to pages with watchpoints go via the
-       watchpoint trap routines.  */
-    QTAILQ_FOREACH(wp, &cpu->watchpoints, entry) {
-        if (cpu_watchpoint_address_matches(wp, vaddr, TARGET_PAGE_SIZE)) {
-            /* Avoid trapping reads of pages with a write breakpoint. */
-            if ((prot & PAGE_WRITE) || (wp->flags & BP_MEM_READ)) {
-                iotlb = PHYS_SECTION_WATCH + paddr;
-                *address |= TLB_MMIO;
-                break;
-            }
-        }
+    /* Avoid trapping reads of pages with a write breakpoint. */
+    match = (prot & PAGE_READ ? BP_MEM_READ : 0)
+          | (prot & PAGE_WRITE ? BP_MEM_WRITE : 0);
+    flags = cpu_watchpoint_address_matches(cpu, vaddr, TARGET_PAGE_SIZE);
+    if (flags & match) {
+        /*
+         * Make accesses to pages with watchpoints go via the
+         * watchpoint trap routines.
+         */
+        iotlb = PHYS_SECTION_WATCH + paddr;
+        *address |= TLB_MMIO;
     }
 
     return iotlb;
@@ -2806,7 +2819,7 @@ void cpu_check_watchpoint(CPUState *cpu, vaddr addr, vaddr len,
 
     addr = cc->adjust_watchpoint_address(cpu, addr, len);
     QTAILQ_FOREACH(wp, &cpu->watchpoints, entry) {
-        if (cpu_watchpoint_address_matches(wp, addr, len)
+        if (watchpoint_address_matches(wp, addr, len)
             && (wp->flags & flags)) {
             if (flags == BP_MEM_READ) {
                 wp->flags |= BP_WATCHPOINT_HIT_READ;
