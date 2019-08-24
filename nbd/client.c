@@ -1,5 +1,5 @@
 /*
- *  Copyright (C) 2016-2018 Red Hat, Inc.
+ *  Copyright (C) 2016-2019 Red Hat, Inc.
  *  Copyright (C) 2005  Anthony Liguori <anthony@codemonkey.ws>
  *
  *  Network Block Device Client Side
@@ -142,17 +142,18 @@ static int nbd_receive_option_reply(QIOChannel *ioc, uint32_t opt,
     return 0;
 }
 
-/* If reply represents success, return 1 without further action.
- * If reply represents an error, consume the optional payload of
- * the packet on ioc.  Then return 0 for unsupported (so the client
- * can fall back to other approaches), or -1 with errp set for other
- * errors.
+/*
+ * If reply represents success, return 1 without further action.  If
+ * reply represents an error, consume the optional payload of the
+ * packet on ioc.  Then return 0 for unsupported (so the client can
+ * fall back to other approaches), where @strict determines if only
+ * ERR_UNSUP or all errors fit that category, or -1 with errp set for
+ * other errors.
  */
 static int nbd_handle_reply_err(QIOChannel *ioc, NBDOptionReply *reply,
-                                Error **errp)
+                                bool strict, Error **errp)
 {
-    char *msg = NULL;
-    int result = -1;
+    g_autofree char *msg = NULL;
 
     if (!(reply->type & (1 << 31))) {
         return 1;
@@ -163,26 +164,28 @@ static int nbd_handle_reply_err(QIOChannel *ioc, NBDOptionReply *reply,
             error_setg(errp, "server error %" PRIu32
                        " (%s) message is too long",
                        reply->type, nbd_rep_lookup(reply->type));
-            goto cleanup;
+            goto err;
         }
         msg = g_malloc(reply->length + 1);
         if (nbd_read(ioc, msg, reply->length, NULL, errp) < 0) {
             error_prepend(errp, "Failed to read option error %" PRIu32
                           " (%s) message: ",
                           reply->type, nbd_rep_lookup(reply->type));
-            goto cleanup;
+            goto err;
         }
         msg[reply->length] = '\0';
         trace_nbd_server_error_msg(reply->type,
                                    nbd_reply_type_lookup(reply->type), msg);
     }
 
-    switch (reply->type) {
-    case NBD_REP_ERR_UNSUP:
-        trace_nbd_reply_err_unsup(reply->option, nbd_opt_lookup(reply->option));
-        result = 0;
-        goto cleanup;
+    if (reply->type == NBD_REP_ERR_UNSUP || !strict) {
+        trace_nbd_reply_err_ignored(reply->option,
+                                    nbd_opt_lookup(reply->option),
+                                    reply->type, nbd_rep_lookup(reply->type));
+        return 0;
+    }
 
+    switch (reply->type) {
     case NBD_REP_ERR_POLICY:
         error_setg(errp, "Denied by server for option %" PRIu32 " (%s)",
                    reply->option, nbd_opt_lookup(reply->option));
@@ -227,12 +230,9 @@ static int nbd_handle_reply_err(QIOChannel *ioc, NBDOptionReply *reply,
         error_append_hint(errp, "server reported: %s\n", msg);
     }
 
- cleanup:
-    g_free(msg);
-    if (result < 0) {
-        nbd_send_opt_abort(ioc);
-    }
-    return result;
+ err:
+    nbd_send_opt_abort(ioc);
+    return -1;
 }
 
 /* nbd_receive_list:
@@ -257,7 +257,7 @@ static int nbd_receive_list(QIOChannel *ioc, char **name, char **description,
     if (nbd_receive_option_reply(ioc, NBD_OPT_LIST, &reply, errp) < 0) {
         return -1;
     }
-    error = nbd_handle_reply_err(ioc, &reply, errp);
+    error = nbd_handle_reply_err(ioc, &reply, true, errp);
     if (error <= 0) {
         return error;
     }
@@ -363,7 +363,7 @@ static int nbd_opt_info_or_go(QIOChannel *ioc, uint32_t opt,
         if (nbd_receive_option_reply(ioc, opt, &reply, errp) < 0) {
             return -1;
         }
-        error = nbd_handle_reply_err(ioc, &reply, errp);
+        error = nbd_handle_reply_err(ioc, &reply, true, errp);
         if (error <= 0) {
             return error;
         }
@@ -538,12 +538,15 @@ static int nbd_receive_query_exports(QIOChannel *ioc,
     }
 }
 
-/* nbd_request_simple_option: Send an option request, and parse the reply
+/*
+ * nbd_request_simple_option: Send an option request, and parse the reply.
+ * @strict controls whether ERR_UNSUP or all errors produce 0 status.
  * return 1 for successful negotiation,
  *        0 if operation is unsupported,
  *        -1 with errp set for any other error
  */
-static int nbd_request_simple_option(QIOChannel *ioc, int opt, Error **errp)
+static int nbd_request_simple_option(QIOChannel *ioc, int opt, bool strict,
+                                     Error **errp)
 {
     NBDOptionReply reply;
     int error;
@@ -555,7 +558,7 @@ static int nbd_request_simple_option(QIOChannel *ioc, int opt, Error **errp)
     if (nbd_receive_option_reply(ioc, opt, &reply, errp) < 0) {
         return -1;
     }
-    error = nbd_handle_reply_err(ioc, &reply, errp);
+    error = nbd_handle_reply_err(ioc, &reply, strict, errp);
     if (error <= 0) {
         return error;
     }
@@ -587,7 +590,7 @@ static QIOChannel *nbd_receive_starttls(QIOChannel *ioc,
     QIOChannelTLS *tioc;
     struct NBDTLSHandshakeData data = { 0 };
 
-    ret = nbd_request_simple_option(ioc, NBD_OPT_STARTTLS, errp);
+    ret = nbd_request_simple_option(ioc, NBD_OPT_STARTTLS, true, errp);
     if (ret <= 0) {
         if (ret == 0) {
             error_setg(errp, "Server don't support STARTTLS option");
@@ -687,7 +690,7 @@ static int nbd_receive_one_meta_context(QIOChannel *ioc,
         return -1;
     }
 
-    ret = nbd_handle_reply_err(ioc, &reply, errp);
+    ret = nbd_handle_reply_err(ioc, &reply, false, errp);
     if (ret <= 0) {
         return ret;
     }
@@ -943,7 +946,7 @@ static int nbd_start_negotiate(AioContext *aio_context, QIOChannel *ioc,
             if (structured_reply) {
                 result = nbd_request_simple_option(ioc,
                                                    NBD_OPT_STRUCTURED_REPLY,
-                                                   errp);
+                                                   false, errp);
                 if (result < 0) {
                     return -EINVAL;
                 }
