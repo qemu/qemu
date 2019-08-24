@@ -206,7 +206,7 @@ static int GCC_FMT_ATTR(4, 0)
 nbd_negotiate_send_rep_verr(NBDClient *client, uint32_t type,
                             Error **errp, const char *fmt, va_list va)
 {
-    char *msg;
+    g_autofree char *msg = NULL;
     int ret;
     size_t len;
 
@@ -216,18 +216,14 @@ nbd_negotiate_send_rep_verr(NBDClient *client, uint32_t type,
     trace_nbd_negotiate_send_rep_err(msg);
     ret = nbd_negotiate_send_rep_len(client, type, len, errp);
     if (ret < 0) {
-        goto out;
+        return ret;
     }
     if (nbd_write(client->ioc, msg, len, errp) < 0) {
         error_prepend(errp, "write failed (error message): ");
-        ret = -EIO;
-    } else {
-        ret = 0;
+        return -EIO;
     }
 
-out:
-    g_free(msg);
-    return ret;
+    return 0;
 }
 
 /* Send an error reply.

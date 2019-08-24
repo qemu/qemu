@@ -247,12 +247,11 @@ static int nbd_handle_reply_err(QIOChannel *ioc, NBDOptionReply *reply,
 static int nbd_receive_list(QIOChannel *ioc, char **name, char **description,
                             Error **errp)
 {
-    int ret = -1;
     NBDOptionReply reply;
     uint32_t len;
     uint32_t namelen;
-    char *local_name = NULL;
-    char *local_desc = NULL;
+    g_autofree char *local_name = NULL;
+    g_autofree char *local_desc = NULL;
     int error;
 
     if (nbd_receive_option_reply(ioc, NBD_OPT_LIST, &reply, errp) < 0) {
@@ -298,7 +297,7 @@ static int nbd_receive_list(QIOChannel *ioc, char **name, char **description,
     local_name = g_malloc(namelen + 1);
     if (nbd_read(ioc, local_name, namelen, "export name", errp) < 0) {
         nbd_send_opt_abort(ioc);
-        goto out;
+        return -1;
     }
     local_name[namelen] = '\0';
     len -= namelen;
@@ -306,24 +305,17 @@ static int nbd_receive_list(QIOChannel *ioc, char **name, char **description,
         local_desc = g_malloc(len + 1);
         if (nbd_read(ioc, local_desc, len, "export description", errp) < 0) {
             nbd_send_opt_abort(ioc);
-            goto out;
+            return -1;
         }
         local_desc[len] = '\0';
     }
 
     trace_nbd_receive_list(local_name, local_desc ?: "");
-    *name = local_name;
-    local_name = NULL;
+    *name = g_steal_pointer(&local_name);
     if (description) {
-        *description = local_desc;
-        local_desc = NULL;
+        *description = g_steal_pointer(&local_desc);
     }
-    ret = 1;
-
- out:
-    g_free(local_name);
-    g_free(local_desc);
-    return ret;
+    return 1;
 }
 
 
