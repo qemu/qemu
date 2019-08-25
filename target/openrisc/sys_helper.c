@@ -199,13 +199,13 @@ target_ulong HELPER(mfspr)(CPUOpenRISCState *env, target_ulong rd,
         return env->vr;
 
     case TO_SPR(0, 1): /* UPR */
-        return env->upr;    /* TT, DM, IM, UP present */
+        return env->upr;
 
     case TO_SPR(0, 2): /* CPUCFGR */
         return env->cpucfgr;
 
     case TO_SPR(0, 3): /* DMMUCFGR */
-        return env->dmmucfgr;    /* 1Way, 64 entries */
+        return env->dmmucfgr;
 
     case TO_SPR(0, 4): /* IMMUCFGR */
         return env->immucfgr;
