@@ -39,10 +39,6 @@ void HELPER(mtspr)(CPUOpenRISCState *env, target_ulong spr, target_ulong rb)
     int idx;
 
     switch (spr) {
-    case TO_SPR(0, 0): /* VR */
-        env->vr = rb;
-        break;
-
     case TO_SPR(0, 11): /* EVBAR */
         env->evbar = rb;
         break;
@@ -60,10 +56,6 @@ void HELPER(mtspr)(CPUOpenRISCState *env, target_ulong spr, target_ulong rb)
 
     case TO_SPR(0, 17): /* SR */
         cpu_set_sr(env, rb);
-        break;
-
-    case TO_SPR(0, 18): /* PPC */
-        env->ppc = rb;
         break;
 
     case TO_SPR(0, 32): /* EPCR */
@@ -204,7 +196,7 @@ target_ulong HELPER(mfspr)(CPUOpenRISCState *env, target_ulong rd,
 
     switch (spr) {
     case TO_SPR(0, 0): /* VR */
-        return env->vr & SPR_VR;
+        return env->vr;
 
     case TO_SPR(0, 1): /* UPR */
         return env->upr;    /* TT, DM, IM, UP present */

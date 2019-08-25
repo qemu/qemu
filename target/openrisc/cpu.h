@@ -68,9 +68,6 @@ enum {
                                       (reg) |= ((v & 0x1f) << 2);\
                                   } while (0)
 
-/* Version Register */
-#define SPR_VR 0xFFFF003F
-
 /* Interrupt */
 #define NR_IRQS  32
 
