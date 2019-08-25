@@ -131,7 +131,7 @@ static void openrisc_any_initfn(Object *obj)
     cpu->env.avr = 0x01010000;  /* Architecture v1.1 */
 
     cpu->env.upr = UPR_UP | UPR_DMP | UPR_IMP | UPR_PICP | UPR_TTP | UPR_PMP;
-    cpu->env.cpucfgr = CPUCFGR_NSGF | CPUCFGR_OB32S |
+    cpu->env.cpucfgr = CPUCFGR_NSGF | CPUCFGR_OB32S | CPUCFGR_OF32S |
                        CPUCFGR_AVRP | CPUCFGR_EVBARP;
 
     /* 1Way, TLB_SIZE entries.  */
