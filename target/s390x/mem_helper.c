@@ -1443,9 +1443,7 @@ static uint32_t do_csst(CPUS390XState *env, uint32_t r3, uint64_t a1,
     }
 
     /* Sanity check writability of the store address.  */
-#ifndef CONFIG_USER_ONLY
-    probe_write(env, a2, 0, mem_idx, ra);
-#endif
+    probe_write(env, a2, 1 << sc, mem_idx, ra);
 
     /*
      * Note that the compare-and-swap is atomic, and the store is atomic,
