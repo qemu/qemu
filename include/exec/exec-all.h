@@ -260,8 +260,6 @@ void tlb_set_page_with_attrs(CPUState *cpu, target_ulong vaddr,
 void tlb_set_page(CPUState *cpu, target_ulong vaddr,
                   hwaddr paddr, int prot,
                   int mmu_idx, target_ulong size);
-void probe_write(CPUArchState *env, target_ulong addr, int size, int mmu_idx,
-                 uintptr_t retaddr);
 #else
 static inline void tlb_init(CPUState *cpu)
 {
@@ -312,6 +310,8 @@ static inline void tlb_flush_by_mmuidx_all_cpus_synced(CPUState *cpu,
 {
 }
 #endif
+void probe_write(CPUArchState *env, target_ulong addr, int size, int mmu_idx,
+                 uintptr_t retaddr);
 
 #define CODE_GEN_ALIGN           16 /* must be >= of the size of a icache line */
 
