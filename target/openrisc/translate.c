@@ -799,6 +799,19 @@ static bool trans_l_nop(DisasContext *dc, arg_l_nop *a)
     return true;
 }
 
+static bool trans_l_adrp(DisasContext *dc, arg_l_adrp *a)
+{
+    if (!check_v1_3(dc)) {
+        return false;
+    }
+    check_r0_write(dc, a->d);
+
+    tcg_gen_movi_i32(cpu_R(dc, a->d),
+                     (dc->base.pc_next & TARGET_PAGE_MASK) +
+                     ((target_long)a->i << TARGET_PAGE_BITS));
+    return true;
+}
+
 static bool trans_l_addi(DisasContext *dc, arg_rri *a)
 {
     TCGv t0;

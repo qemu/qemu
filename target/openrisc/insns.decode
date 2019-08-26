@@ -102,6 +102,8 @@ l_maci          010011 ----- a:5 i:s16
 l_movhi         000110 d:5 ----0 k:16
 l_macrc         000110 d:5 ----1 00000000 00000000
 
+l_adrp          000010 d:5 i:s21
+
 ####
 # Arithmetic Instructions
 ####
