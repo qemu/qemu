@@ -1135,7 +1135,7 @@ TESTS_RESULTS_DIR=$(BUILD_DIR)/tests/results
 AVOCADO_SHOW=app
 AVOCADO_TAGS=$(patsubst %-softmmu,-t arch:%, $(filter %-softmmu,$(TARGET_DIRS)))
 
-ifneq ($(findstring v2,"v$(PYTHON_VERSION)"),v2)
+ifneq ($(PYTHON2),y)
 $(TESTS_VENV_DIR): $(TESTS_VENV_REQ)
 	$(call quiet-command, \
             $(PYTHON) -m venv --system-site-packages $@, \
