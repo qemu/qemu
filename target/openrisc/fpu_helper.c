@@ -78,7 +78,7 @@ uint64_t HELPER(ftoid)(CPUOpenRISCState *env, uint64_t val)
 
 uint32_t HELPER(ftois)(CPUOpenRISCState *env, uint32_t val)
 {
-    return float32_to_int32(val, &env->fp_status);
+    return float32_to_int32_round_to_zero(val, &env->fp_status);
 }
 
 #define FLOAT_CALC(name)                                                  \
