@@ -413,6 +413,8 @@ static inline void cpu_set_sr(CPUOpenRISCState *env, uint32_t val)
     env->sr = (val & ~(SR_F | SR_CY | SR_OV)) | SR_FO;
 }
 
+void cpu_set_fpcsr(CPUOpenRISCState *env, uint32_t val);
+
 #define CPU_INTERRUPT_TIMER   CPU_INTERRUPT_TGT_INT_0
 
 #endif /* OPENRISC_CPU_H */

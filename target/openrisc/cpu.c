@@ -55,6 +55,7 @@ static void openrisc_cpu_reset(CPUState *s)
     cpu->env.sr = SR_FO | SR_SM;
     cpu->env.lock_addr = -1;
     s->exception_index = -1;
+    cpu_set_fpcsr(&cpu->env, 0);
 
 #ifndef CONFIG_USER_ONLY
     cpu->env.picmr = 0x00000000;

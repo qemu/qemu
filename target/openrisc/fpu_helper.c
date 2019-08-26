@@ -61,6 +61,19 @@ void HELPER(update_fpcsr)(CPUOpenRISCState *env)
     }
 }
 
+void cpu_set_fpcsr(CPUOpenRISCState *env, uint32_t val)
+{
+    static const int rm_to_sf[] = {
+        float_round_nearest_even,
+        float_round_to_zero,
+        float_round_up,
+        float_round_down
+    };
+
+    env->fpcsr = val & 0x7ff;
+    set_float_rounding_mode(rm_to_sf[extract32(val, 1, 2)], &env->fp_status);
+}
+
 uint64_t HELPER(itofd)(CPUOpenRISCState *env, uint64_t val)
 {
     return int64_to_float64(val, &env->fp_status);
