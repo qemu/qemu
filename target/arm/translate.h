@@ -99,8 +99,6 @@ typedef struct DisasCompare {
     bool value_global;
 } DisasCompare;
 
-void unallocated_encoding(DisasContext *s);
-
 /* Share the TCG temporaries common between 32 and 64 bit modes.  */
 extern TCGv_i32 cpu_NF, cpu_ZF, cpu_CF, cpu_VF;
 extern TCGv_i64 cpu_exclusive_addr;

@@ -1231,13 +1231,6 @@ static void gen_exception_bkpt_insn(DisasContext *s, uint32_t syn)
     s->base.is_jmp = DISAS_NORETURN;
 }
 
-void unallocated_encoding(DisasContext *s)
-{
-    /* Unallocated and reserved encodings are uncategorized */
-    gen_exception_insn(s, s->pc_curr, EXCP_UDEF, syn_uncategorized(),
-                       default_exception_el(s));
-}
-
 /* Force a TB lookup after an instruction that changes the CPU state.  */
 static inline void gen_lookup_tb(DisasContext *s)
 {
@@ -1268,7 +1261,8 @@ static inline void gen_hlt(DisasContext *s, int imm)
         return;
     }
 
-    unallocated_encoding(s);
+    gen_exception_insn(s, s->pc_curr, EXCP_UDEF, syn_uncategorized(),
+                       default_exception_el(s));
 }
 
 static inline void gen_add_data_offset(DisasContext *s, unsigned int insn,
@@ -7580,7 +7574,8 @@ static void gen_srs(DisasContext *s,
     }
 
     if (undef) {
-        unallocated_encoding(s);
+        gen_exception_insn(s, s->pc_curr, EXCP_UDEF, syn_uncategorized(),
+                           default_exception_el(s));
         return;
     }
 
@@ -9201,7 +9196,8 @@ static void disas_arm_insn(DisasContext *s, unsigned int insn)
             break;
         default:
         illegal_op:
-            unallocated_encoding(s);
+            gen_exception_insn(s, s->pc_curr, EXCP_UDEF, syn_uncategorized(),
+                               default_exception_el(s));
             break;
         }
     }
@@ -10886,7 +10882,8 @@ static void disas_thumb2_insn(DisasContext *s, uint32_t insn)
     }
     return;
 illegal_op:
-    unallocated_encoding(s);
+    gen_exception_insn(s, s->pc_curr, EXCP_UDEF, syn_uncategorized(),
+                       default_exception_el(s));
 }
 
 static void disas_thumb_insn(DisasContext *s, uint32_t insn)
@@ -11709,7 +11706,8 @@ static void disas_thumb_insn(DisasContext *s, uint32_t insn)
     return;
 illegal_op:
 undef:
-    unallocated_encoding(s);
+    gen_exception_insn(s, s->pc_curr, EXCP_UDEF, syn_uncategorized(),
+                       default_exception_el(s));
 }
 
 static bool insn_crosses_page(CPUARMState *env, DisasContext *s)
