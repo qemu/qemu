@@ -129,7 +129,7 @@ static void openrisc_any_initfn(Object *obj)
 
     cpu->env.vr = 0x13000040;   /* Obsolete VER + UVRP for new SPRs */
     cpu->env.vr2 = 0;           /* No version specific id */
-    cpu->env.avr = 0x01010000;  /* Architecture v1.1 */
+    cpu->env.avr = 0x01030000;  /* Architecture v1.3 */
 
     cpu->env.upr = UPR_UP | UPR_DMP | UPR_IMP | UPR_PICP | UPR_TTP | UPR_PMP;
     cpu->env.cpucfgr = CPUCFGR_NSGF | CPUCFGR_OB32S | CPUCFGR_OF32S |
