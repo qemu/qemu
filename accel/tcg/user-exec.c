@@ -191,6 +191,8 @@ static inline int handle_cpu_signal(uintptr_t pc, siginfo_t *info,
 void probe_write(CPUArchState *env, target_ulong addr, int size, int mmu_idx,
                  uintptr_t retaddr)
 {
+    g_assert(-(addr | TARGET_PAGE_MASK) >= size);
+
     if (!guest_addr_valid(addr) ||
         page_check_range(addr, size, PAGE_WRITE) < 0) {
         CPUState *cpu = env_cpu(env);

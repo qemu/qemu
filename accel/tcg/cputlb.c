@@ -1088,6 +1088,8 @@ void probe_write(CPUArchState *env, target_ulong addr, int size, int mmu_idx,
     CPUTLBEntry *entry = tlb_entry(env, mmu_idx, addr);
     target_ulong tlb_addr = tlb_addr_write(entry);
 
+    g_assert(-(addr | TARGET_PAGE_MASK) >= size);
+
     if (unlikely(!tlb_hit(tlb_addr, addr))) {
         if (!VICTIM_TLB_HIT(addr_write, addr)) {
             tlb_fill(env_cpu(env), addr, size, MMU_DATA_STORE,
