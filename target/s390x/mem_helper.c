@@ -2623,7 +2623,7 @@ void probe_write_access(CPUS390XState *env, uint64_t addr, uint64_t len,
 #else
     /* test the actual access, not just any access to the page due to LAP */
     while (len) {
-        const uint64_t pagelen = -(addr | -TARGET_PAGE_MASK);
+        const uint64_t pagelen = -(addr | TARGET_PAGE_MASK);
         const uint64_t curlen = MIN(pagelen, len);
 
         probe_write(env, addr, curlen, cpu_mmu_index(env, false), ra);
