@@ -1685,7 +1685,7 @@ void audio_create_pdos(Audiodev *dev)
         }                                                           \
         if (!dev->u.driver.has_out) {                               \
             dev->u.driver.out = g_malloc0(                          \
-                sizeof(AudiodevAlsaPerDirectionOptions));           \
+                sizeof(Audiodev##pdo_name##PerDirectionOptions));   \
             dev->u.driver.has_out = true;                           \
         }                                                           \
         break
