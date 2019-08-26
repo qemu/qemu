@@ -630,19 +630,15 @@ static void do_float_check_status(CPUPPCState *env, uintptr_t raddr)
 {
     CPUState *cs = env_cpu(env);
     int status = get_float_exception_flags(&env->fp_status);
-    bool inexact_happened = false;
 
     if (status & float_flag_overflow) {
         float_overflow_excp(env);
     } else if (status & float_flag_underflow) {
         float_underflow_excp(env);
-    } else if (status & float_flag_inexact) {
-        float_inexact_excp(env);
-        inexact_happened = true;
     }
-
-    /* if the inexact flag was not set */
-    if (inexact_happened == false) {
+    if (status & float_flag_inexact) {
+        float_inexact_excp(env);
+    } else {
         env->fpscr &= ~(1 << FPSCR_FI); /* clear the FPSCR[FI] bit */
     }
 
