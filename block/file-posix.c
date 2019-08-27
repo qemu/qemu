@@ -380,7 +380,7 @@ static void raw_probe_alignment(BlockDriverState *bs, int fd, Error **errp)
         for (i = 0; i < ARRAY_SIZE(alignments); i++) {
             align = alignments[i];
             if (raw_is_io_aligned(fd, buf + align, max_align)) {
-                /* Fallback to request_aligment. */
+                /* Fallback to request_alignment. */
                 s->buf_align = (align != 1) ? align : bs->bl.request_alignment;
                 break;
             }
