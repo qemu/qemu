@@ -2161,6 +2161,7 @@ static TRBCCode xhci_address_slot(XHCIState *xhci, unsigned int slotid,
                                   DeviceOutRequest | USB_REQ_SET_ADDRESS,
                                   slotid, 0, 0, NULL);
         assert(p.status != USB_RET_ASYNC);
+        usb_packet_cleanup(&p);
     }
 
     res = xhci_enable_ep(xhci, slotid, 1, octx+32, ep0_ctx);
