@@ -27,7 +27,7 @@ Formatting 'TEST_DIR/t.IMGFMT', fmt=IMGFMT size=1073741824000 subformat=twoGbMax
 image: TEST_DIR/t.vmdk
 file format: vmdk
 virtual size: 0.977 TiB (1073741824000 bytes)
-disk size: 16 KiB
+disk size: 1.97 MiB
 Format specific information:
     cid: XXXXXXXX
     parent cid: XXXXXXXX

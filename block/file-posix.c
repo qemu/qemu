@@ -1749,6 +1749,43 @@ static int handle_aiocb_discard(void *opaque)
     return ret;
 }
 
+/*
+ * Help alignment probing by allocating the first block.
+ *
+ * When reading with direct I/O from unallocated area on Gluster backed by XFS,
+ * reading succeeds regardless of request length. In this case we fallback to
+ * safe alignment which is not optimal. Allocating the first block avoids this
+ * fallback.
+ *
+ * fd may be opened with O_DIRECT, but we don't know the buffer alignment or
+ * request alignment, so we use safe values.
+ *
+ * Returns: 0 on success, -errno on failure. Since this is an optimization,
+ * caller may ignore failures.
+ */
+static int allocate_first_block(int fd, size_t max_size)
+{
+    size_t write_size = (max_size < MAX_BLOCKSIZE)
+        ? BDRV_SECTOR_SIZE
+        : MAX_BLOCKSIZE;
+    size_t max_align = MAX(MAX_BLOCKSIZE, getpagesize());
+    void *buf;
+    ssize_t n;
+    int ret;
+
+    buf = qemu_memalign(max_align, write_size);
+    memset(buf, 0, write_size);
+
+    do {
+        n = pwrite(fd, buf, write_size, 0);
+    } while (n == -1 && errno == EINTR);
+
+    ret = (n == -1) ? -errno : 0;
+
+    qemu_vfree(buf);
+    return ret;
+}
+
 static int handle_aiocb_truncate(void *opaque)
 {
     RawPosixAIOData *aiocb = opaque;
@@ -1788,6 +1825,17 @@ static int handle_aiocb_truncate(void *opaque)
                 /* posix_fallocate() doesn't set errno. */
                 error_setg_errno(errp, -result,
                                  "Could not preallocate new data");
+            } else if (current_length == 0) {
+                /*
+                 * posix_fallocate() uses fallocate() if the filesystem
+                 * supports it, or fallback to manually writing zeroes. If
+                 * fallocate() was used, unaligned reads from the fallocated
+                 * area in raw_probe_alignment() will succeed, hence we need to
+                 * allocate the first block.
+                 *
+                 * Optimize future alignment probing; ignore failures.
+                 */
+                allocate_first_block(fd, offset);
             }
         } else {
             result = 0;
@@ -1849,6 +1897,9 @@ static int handle_aiocb_truncate(void *opaque)
         if (ftruncate(fd, offset) != 0) {
             result = -errno;
             error_setg_errno(errp, -result, "Could not resize file");
+        } else if (current_length == 0 && offset > current_length) {
+            /* Optimize future alignment probing; ignore failures. */
+            allocate_first_block(fd, offset);
         }
         return result;
     default:
