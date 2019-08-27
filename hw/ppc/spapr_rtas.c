@@ -266,6 +266,7 @@ static void rtas_ibm_get_system_parameter(PowerPCCPU *cpu,
                                           target_ulong args,
                                           uint32_t nret, target_ulong rets)
 {
+    PowerPCCPUClass *pcc = POWERPC_CPU_GET_CLASS(cpu);
     MachineState *ms = MACHINE(qdev_get_machine());
     unsigned int max_cpus = ms->smp.max_cpus;
     target_ulong parameter = rtas_ld(args, 0);
@@ -283,6 +284,20 @@ static void rtas_ibm_get_system_parameter(PowerPCCPU *cpu,
                                           current_machine->ram_size / MiB,
                                           ms->smp.cpus,
                                           max_cpus);
+        if (pcc->n_host_threads > 0) {
+            char *hostthr_val, *old = param_val;
+
+            /*
+             * Add HostThrs property. This property is not present in PAPR but
+             * is expected by some guests to communicate the number of physical
+             * host threads per core on the system so that they can scale
+             * information which varies based on the thread configuration.
+             */
+            hostthr_val = g_strdup_printf(",HostThrs=%d", pcc->n_host_threads);
+            param_val = g_strconcat(param_val, hostthr_val, NULL);
+            g_free(hostthr_val);
+            g_free(old);
+        }
         ret = sysparm_st(buffer, length, param_val, strlen(param_val) + 1);
         g_free(param_val);
         break;
