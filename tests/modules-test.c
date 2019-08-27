@@ -1,12 +1,14 @@
 #include "qemu/osdep.h"
 #include "libqtest.h"
 
+const char common_args[] = "-nodefaults -machine none";
+
 static void test_modules_load(const void *data)
 {
     QTestState *qts;
     const char **args = (const char **)data;
 
-    qts = qtest_init(NULL);
+    qts = qtest_init(common_args);
     qtest_module_load(qts, args[0], args[1]);
     qtest_quit(qts);
 }
