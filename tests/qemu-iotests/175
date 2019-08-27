@@ -49,6 +49,23 @@ _filter_blocks()
         -e "s/blocks=$((extra_blocks + img_size / 512))\\(\$\\|[^0-9]\\)/max allocation/"
 }
 
+# Resize image using block_resize.
+# Parameter 1: image path
+# Parameter 2: new size
+_block_resize()
+{
+    local path=$1
+    local size=$2
+
+    $QEMU -qmp stdio -nographic -nodefaults \
+        -blockdev file,node-name=file,filename=$path,cache.direct=on \
+        <<EOF
+{'execute': 'qmp_capabilities'}
+{'execute': 'block_resize', 'arguments': {'node-name': 'file', 'size': $size}}
+{'execute': 'quit'}
+EOF
+}
+
 # get standard environment, filters and checks
 . ./common.rc
 . ./common.filter
@@ -56,6 +73,9 @@ _filter_blocks()
 _supported_fmt raw
 _supported_proto file
 _supported_os Linux
+
+_default_cache_mode none
+_supported_cache_modes none directsync
 
 size=$((1 * 1024 * 1024))
 
@@ -77,6 +97,14 @@ for mode in off full falloc; do
     echo "== creating image with preallocation $mode =="
     IMGOPTS=preallocation=$mode _make_test_img $size | _filter_imgfmt
     stat -c "size=%s, blocks=%b" $TEST_IMG | _filter_blocks $extra_blocks $min_blocks $size
+done
+
+for new_size in 4096 1048576; do
+    echo
+    echo "== resize empty image with block_resize =="
+    _make_test_img 0 | _filter_imgfmt
+    _block_resize $TEST_IMG $new_size >/dev/null
+    stat -c "size=%s, blocks=%b" $TEST_IMG | _filter_blocks $extra_blocks $min_blocks $new_size
 done
 
 # success, all done
