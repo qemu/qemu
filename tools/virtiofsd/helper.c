@@ -40,6 +40,7 @@ static const struct fuse_opt fuse_helper_opts[] = {
     FUSE_HELPER_OPT("--help", show_help),
     FUSE_HELPER_OPT("-V", show_version),
     FUSE_HELPER_OPT("--version", show_version),
+    FUSE_HELPER_OPT("--print-capabilities", print_capabilities),
     FUSE_HELPER_OPT("-d", debug),
     FUSE_HELPER_OPT("debug", debug),
     FUSE_HELPER_OPT("-d", foreground),
@@ -135,6 +136,7 @@ void fuse_cmdline_help(void)
 {
     printf("    -h   --help                print help\n"
            "    -V   --version             print version\n"
+           "    --print-capabilities       print vhost-user.json\n"
            "    -d   -o debug              enable debug output (implies -f)\n"
            "    -f                         foreground operation\n"
            "    --daemonize                run in background\n"
