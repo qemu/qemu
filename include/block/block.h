@@ -143,7 +143,6 @@ typedef struct HDGeometry {
 
 #define BDRV_SECTOR_BITS   9
 #define BDRV_SECTOR_SIZE   (1ULL << BDRV_SECTOR_BITS)
-#define BDRV_SECTOR_MASK   ~(BDRV_SECTOR_SIZE - 1)
 
 #define BDRV_REQUEST_MAX_SECTORS MIN(SIZE_MAX >> BDRV_SECTOR_BITS, \
                                      INT_MAX >> BDRV_SECTOR_BITS)
@@ -195,7 +194,6 @@ typedef struct HDGeometry {
 #define BDRV_BLOCK_ALLOCATED    0x10
 #define BDRV_BLOCK_EOF          0x20
 #define BDRV_BLOCK_RECURSE      0x40
-#define BDRV_BLOCK_OFFSET_MASK  BDRV_SECTOR_MASK
 
 typedef QSIMPLEQ_HEAD(BlockReopenQueue, BlockReopenQueueEntry) BlockReopenQueue;
 
