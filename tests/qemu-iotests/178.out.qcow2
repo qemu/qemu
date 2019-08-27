@@ -101,7 +101,7 @@ converted image file size in bytes: 196608
 == raw input image with data (human) ==
 
 Formatting 'TEST_DIR/t.qcow2', fmt=IMGFMT size=1073741824
-required size: 393216
+required size: 458752
 fully allocated size: 1074135040
 wrote 512/512 bytes at offset 512
 512 bytes, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
@@ -257,7 +257,7 @@ converted image file size in bytes: 196608
 
 Formatting 'TEST_DIR/t.qcow2', fmt=IMGFMT size=1073741824
 {
-    "required": 393216,
+    "required": 458752,
     "fully-allocated": 1074135040
 }
 wrote 512/512 bytes at offset 512
