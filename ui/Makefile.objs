@@ -49,7 +49,9 @@ curses.mo-objs := curses.o
 curses.mo-cflags := $(CURSES_CFLAGS) $(ICONV_CFLAGS)
 curses.mo-libs := $(CURSES_LIBS) $(ICONV_LIBS)
 
-common-obj-$(call land,$(CONFIG_SPICE),$(CONFIG_GIO)) += spice-app.mo
+ifeq ($(CONFIG_GIO)$(CONFIG_SPICE),yy)
+common-obj-$(if $(CONFIG_MODULES),m,y) += spice-app.mo
+endif
 spice-app.mo-objs := spice-app.o
 spice-app.mo-cflags := $(GIO_CFLAGS)
 spice-app.mo-libs := $(GIO_LIBS)
