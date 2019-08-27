@@ -329,6 +329,7 @@ endif
 
 ifdef CONFIG_LINUX
 HELPERS-y += virtiofsd$(EXESUF)
+vhost-user-json-y += tools/virtiofsd/50-qemu-virtiofsd.json
 endif
 
 # Sphinx does not allow building manuals into the same directory as
