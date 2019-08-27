@@ -33,6 +33,13 @@
  * - standard integers types (uint8_t, uint16_t, etc)
  * They are provided by stdint.h of the standard headers.
  *
+ * Before using the different macros, you need to provide the following
+ * macros:
+ * - xen_mb()  a memory barrier
+ * - xen_rmb() a read memory barrier
+ * - xen_wmb() a write memory barrier
+ * Example of those can be found in xenctrl.h.
+ *
  * In addition, if you intend to use the FLEX macros, you also need to
  * provide the following, before invoking the FLEX macros:
  * - size_t
@@ -41,12 +48,6 @@
  * These declarations are provided by string.h of the standard headers,
  * and grant_table.h from the Xen public headers.
  */
-
-#if __XEN_INTERFACE_VERSION__ < 0x00030208
-#define xen_mb()  mb()
-#define xen_rmb() rmb()
-#define xen_wmb() wmb()
-#endif
 
 typedef unsigned int RING_IDX;
 
