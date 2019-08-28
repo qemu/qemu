@@ -234,7 +234,14 @@ class X86CPUModelAliases(avocado_qemu.Test):
 
         self.validate_aliases(cpus)
 
-    def test_Cascadelake_arch_capabilities_result(self):
+
+class CascadelakeArchCapabilities(avocado_qemu.Test):
+    """
+    Validation of Cascadelake arch-capabilities
+
+    :avocado: tags=arch:x86_64
+    """
+    def test_4_1(self):
         # machine-type only:
         vm = self.get_vm()
         vm.add_args('-S')
@@ -243,8 +250,8 @@ class X86CPUModelAliases(avocado_qemu.Test):
         vm.launch()
         self.assertFalse(get_cpu_prop(vm, 'arch-capabilities'),
                          'pc-i440fx-4.1 + Cascadelake-Server should not have arch-capabilities')
-        vm.shutdown()
 
+    def test_4_0(self):
         vm = self.get_vm()
         vm.add_args('-S')
         vm.set_machine('pc-i440fx-4.0')
@@ -252,8 +259,8 @@ class X86CPUModelAliases(avocado_qemu.Test):
         vm.launch()
         self.assertFalse(get_cpu_prop(vm, 'arch-capabilities'),
                          'pc-i440fx-4.0 + Cascadelake-Server should not have arch-capabilities')
-        vm.shutdown()
 
+    def test_set_4_0(self):
         # command line must override machine-type if CPU model is not versioned:
         vm = self.get_vm()
         vm.add_args('-S')
@@ -262,8 +269,8 @@ class X86CPUModelAliases(avocado_qemu.Test):
         vm.launch()
         self.assertTrue(get_cpu_prop(vm, 'arch-capabilities'),
                         'pc-i440fx-4.0 + Cascadelake-Server,+arch-capabilities should have arch-capabilities')
-        vm.shutdown()
 
+    def test_unset_4_1(self):
         vm = self.get_vm()
         vm.add_args('-S')
         vm.set_machine('pc-i440fx-4.1')
@@ -271,8 +278,8 @@ class X86CPUModelAliases(avocado_qemu.Test):
         vm.launch()
         self.assertFalse(get_cpu_prop(vm, 'arch-capabilities'),
                          'pc-i440fx-4.1 + Cascadelake-Server,-arch-capabilities should not have arch-capabilities')
-        vm.shutdown()
 
+    def test_v1_4_0(self):
         # versioned CPU model overrides machine-type:
         vm = self.get_vm()
         vm.add_args('-S')
@@ -281,8 +288,8 @@ class X86CPUModelAliases(avocado_qemu.Test):
         vm.launch()
         self.assertFalse(get_cpu_prop(vm, 'arch-capabilities'),
                          'pc-i440fx-4.0 + Cascadelake-Server-v1 should not have arch-capabilities')
-        vm.shutdown()
 
+    def test_v2_4_0(self):
         vm = self.get_vm()
         vm.add_args('-S')
         vm.set_machine('pc-i440fx-4.0')
@@ -290,8 +297,8 @@ class X86CPUModelAliases(avocado_qemu.Test):
         vm.launch()
         self.assertTrue(get_cpu_prop(vm, 'arch-capabilities'),
                          'pc-i440fx-4.0 + Cascadelake-Server-v2 should have arch-capabilities')
-        vm.shutdown()
 
+    def test_v1_set_4_0(self):
         # command line must override machine-type and versioned CPU model:
         vm = self.get_vm()
         vm.add_args('-S')
@@ -300,8 +307,8 @@ class X86CPUModelAliases(avocado_qemu.Test):
         vm.launch()
         self.assertTrue(get_cpu_prop(vm, 'arch-capabilities'),
                          'pc-i440fx-4.0 + Cascadelake-Server-v1,+arch-capabilities should have arch-capabilities')
-        vm.shutdown()
 
+    def test_v2_unset_4_1(self):
         vm = self.get_vm()
         vm.add_args('-S')
         vm.set_machine('pc-i440fx-4.1')
