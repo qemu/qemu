@@ -1914,6 +1914,7 @@ static void xhci_kick_epctx(XHCIEPContext *epctx, unsigned int streamid)
             }
             usb_handle_packet(xfer->packet.ep->dev, &xfer->packet);
             if (xfer->packet.status == USB_RET_NAK) {
+                xhci_xfer_unmap(xfer);
                 return;
             }
             xhci_try_complete_packet(xfer);
