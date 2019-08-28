@@ -350,6 +350,9 @@ typedef struct mips_def_t mips_def_t;
 #define CP0_REG12__STATUS          0
 #define CP0_REG12__INTCTL          1
 #define CP0_REG12__SRSCTL          2
+#define CP0_REG12__SRSMAP          3
+#define CP0_REG12__VIEW_IPL        4
+#define CP0_REG12__SRSMAP2         5
 #define CP0_REG12__GUESTCTL0       6
 #define CP0_REG12__GTOFFSET        7
 /* CP0 Register 13 */

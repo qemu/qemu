@@ -7177,21 +7177,21 @@ static void gen_mfc0(DisasContext *ctx, TCGv arg, int reg, int sel)
         break;
     case CP0_REGISTER_12:
         switch (sel) {
-        case 0:
+        case CP0_REG12__STATUS:
             gen_mfc0_load32(arg, offsetof(CPUMIPSState, CP0_Status));
             register_name = "Status";
             break;
-        case 1:
+        case CP0_REG12__INTCTL:
             check_insn(ctx, ISA_MIPS32R2);
             gen_mfc0_load32(arg, offsetof(CPUMIPSState, CP0_IntCtl));
             register_name = "IntCtl";
             break;
-        case 2:
+        case CP0_REG12__SRSCTL:
             check_insn(ctx, ISA_MIPS32R2);
             gen_mfc0_load32(arg, offsetof(CPUMIPSState, CP0_SRSCtl));
             register_name = "SRSCtl";
             break;
-        case 3:
+        case CP0_REG12__SRSMAP:
             check_insn(ctx, ISA_MIPS32R2);
             gen_mfc0_load32(arg, offsetof(CPUMIPSState, CP0_SRSMap));
             register_name = "SRSMap";
@@ -7893,7 +7893,7 @@ static void gen_mtc0(DisasContext *ctx, TCGv arg, int reg, int sel)
         break;
     case CP0_REGISTER_12:
         switch (sel) {
-        case 0:
+        case CP0_REG12__STATUS:
             save_cpu_state(ctx, 1);
             gen_helper_mtc0_status(cpu_env, arg);
             /* DISAS_STOP isn't good enough here, hflags may have changed. */
@@ -7901,21 +7901,21 @@ static void gen_mtc0(DisasContext *ctx, TCGv arg, int reg, int sel)
             ctx->base.is_jmp = DISAS_EXIT;
             register_name = "Status";
             break;
-        case 1:
+        case CP0_REG12__INTCTL:
             check_insn(ctx, ISA_MIPS32R2);
             gen_helper_mtc0_intctl(cpu_env, arg);
             /* Stop translation as we may have switched the execution mode */
             ctx->base.is_jmp = DISAS_STOP;
             register_name = "IntCtl";
             break;
-        case 2:
+        case CP0_REG12__SRSCTL:
             check_insn(ctx, ISA_MIPS32R2);
             gen_helper_mtc0_srsctl(cpu_env, arg);
             /* Stop translation as we may have switched the execution mode */
             ctx->base.is_jmp = DISAS_STOP;
             register_name = "SRSCtl";
             break;
-        case 3:
+        case CP0_REG12__SRSMAP:
             check_insn(ctx, ISA_MIPS32R2);
             gen_mtc0_store32(arg, offsetof(CPUMIPSState, CP0_SRSMap));
             /* Stop translation as we may have switched the execution mode */
@@ -8652,21 +8652,21 @@ static void gen_dmfc0(DisasContext *ctx, TCGv arg, int reg, int sel)
         break;
     case CP0_REGISTER_12:
         switch (sel) {
-        case 0:
+        case CP0_REG12__STATUS:
             gen_mfc0_load32(arg, offsetof(CPUMIPSState, CP0_Status));
             register_name = "Status";
             break;
-        case 1:
+        case CP0_REG12__INTCTL:
             check_insn(ctx, ISA_MIPS32R2);
             gen_mfc0_load32(arg, offsetof(CPUMIPSState, CP0_IntCtl));
             register_name = "IntCtl";
             break;
-        case 2:
+        case CP0_REG12__SRSCTL:
             check_insn(ctx, ISA_MIPS32R2);
             gen_mfc0_load32(arg, offsetof(CPUMIPSState, CP0_SRSCtl));
             register_name = "SRSCtl";
             break;
-        case 3:
+        case CP0_REG12__SRSMAP:
             check_insn(ctx, ISA_MIPS32R2);
             gen_mfc0_load32(arg, offsetof(CPUMIPSState, CP0_SRSMap));
             register_name = "SRSMap";
@@ -9356,7 +9356,7 @@ static void gen_dmtc0(DisasContext *ctx, TCGv arg, int reg, int sel)
         break;
     case CP0_REGISTER_12:
         switch (sel) {
-        case 0:
+        case CP0_REG12__STATUS:
             save_cpu_state(ctx, 1);
             gen_helper_mtc0_status(cpu_env, arg);
             /* DISAS_STOP isn't good enough here, hflags may have changed. */
@@ -9364,21 +9364,21 @@ static void gen_dmtc0(DisasContext *ctx, TCGv arg, int reg, int sel)
             ctx->base.is_jmp = DISAS_EXIT;
             register_name = "Status";
             break;
-        case 1:
+        case CP0_REG12__INTCTL:
             check_insn(ctx, ISA_MIPS32R2);
             gen_helper_mtc0_intctl(cpu_env, arg);
             /* Stop translation as we may have switched the execution mode */
             ctx->base.is_jmp = DISAS_STOP;
             register_name = "IntCtl";
             break;
-        case 2:
+        case CP0_REG12__SRSCTL:
             check_insn(ctx, ISA_MIPS32R2);
             gen_helper_mtc0_srsctl(cpu_env, arg);
             /* Stop translation as we may have switched the execution mode */
             ctx->base.is_jmp = DISAS_STOP;
             register_name = "SRSCtl";
             break;
-        case 3:
+        case CP0_REG12__SRSMAP:
             check_insn(ctx, ISA_MIPS32R2);
             gen_mtc0_store32(arg, offsetof(CPUMIPSState, CP0_SRSMap));
             /* Stop translation as we may have switched the execution mode */
