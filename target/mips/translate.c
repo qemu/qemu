@@ -6889,7 +6889,7 @@ static void gen_mfc0(DisasContext *ctx, TCGv arg, int reg, int sel)
         break;
     case CP0_REGISTER_02:
         switch (sel) {
-        case 0:
+        case CP0_REG02__ENTRYLO0:
             {
                 TCGv_i64 tmp = tcg_temp_new_i64();
                 tcg_gen_ld_i64(tmp, cpu_env,
@@ -6906,37 +6906,37 @@ static void gen_mfc0(DisasContext *ctx, TCGv arg, int reg, int sel)
             }
             register_name = "EntryLo0";
             break;
-        case 1:
+        case CP0_REG02__TCSTATUS:
             CP0_CHECK(ctx->insn_flags & ASE_MT);
             gen_helper_mfc0_tcstatus(arg, cpu_env);
             register_name = "TCStatus";
             break;
-        case 2:
+        case CP0_REG02__TCBIND:
             CP0_CHECK(ctx->insn_flags & ASE_MT);
             gen_helper_mfc0_tcbind(arg, cpu_env);
             register_name = "TCBind";
             break;
-        case 3:
+        case CP0_REG02__TCRESTART:
             CP0_CHECK(ctx->insn_flags & ASE_MT);
             gen_helper_mfc0_tcrestart(arg, cpu_env);
             register_name = "TCRestart";
             break;
-        case 4:
+        case CP0_REG02__TCHALT:
             CP0_CHECK(ctx->insn_flags & ASE_MT);
             gen_helper_mfc0_tchalt(arg, cpu_env);
             register_name = "TCHalt";
             break;
-        case 5:
+        case CP0_REG02__TCCONTEXT:
             CP0_CHECK(ctx->insn_flags & ASE_MT);
             gen_helper_mfc0_tccontext(arg, cpu_env);
             register_name = "TCContext";
             break;
-        case 6:
+        case CP0_REG02__TCSCHEDULE:
             CP0_CHECK(ctx->insn_flags & ASE_MT);
             gen_helper_mfc0_tcschedule(arg, cpu_env);
             register_name = "TCSchedule";
             break;
-        case 7:
+        case CP0_REG02__TCSCHEFBACK:
             CP0_CHECK(ctx->insn_flags & ASE_MT);
             gen_helper_mfc0_tcschefback(arg, cpu_env);
             register_name = "TCScheFBack";
@@ -7650,41 +7650,41 @@ static void gen_mtc0(DisasContext *ctx, TCGv arg, int reg, int sel)
         break;
     case CP0_REGISTER_02:
         switch (sel) {
-        case 0:
+        case CP0_REG02__ENTRYLO0:
             gen_helper_mtc0_entrylo0(cpu_env, arg);
             register_name = "EntryLo0";
             break;
-        case 1:
+        case CP0_REG02__TCSTATUS:
             CP0_CHECK(ctx->insn_flags & ASE_MT);
             gen_helper_mtc0_tcstatus(cpu_env, arg);
             register_name = "TCStatus";
             break;
-        case 2:
+        case CP0_REG02__TCBIND:
             CP0_CHECK(ctx->insn_flags & ASE_MT);
             gen_helper_mtc0_tcbind(cpu_env, arg);
             register_name = "TCBind";
             break;
-        case 3:
+        case CP0_REG02__TCRESTART:
             CP0_CHECK(ctx->insn_flags & ASE_MT);
             gen_helper_mtc0_tcrestart(cpu_env, arg);
             register_name = "TCRestart";
             break;
-        case 4:
+        case CP0_REG02__TCHALT:
             CP0_CHECK(ctx->insn_flags & ASE_MT);
             gen_helper_mtc0_tchalt(cpu_env, arg);
             register_name = "TCHalt";
             break;
-        case 5:
+        case CP0_REG02__TCCONTEXT:
             CP0_CHECK(ctx->insn_flags & ASE_MT);
             gen_helper_mtc0_tccontext(cpu_env, arg);
             register_name = "TCContext";
             break;
-        case 6:
+        case CP0_REG02__TCSCHEDULE:
             CP0_CHECK(ctx->insn_flags & ASE_MT);
             gen_helper_mtc0_tcschedule(cpu_env, arg);
             register_name = "TCSchedule";
             break;
-        case 7:
+        case CP0_REG02__TCSCHEFBACK:
             CP0_CHECK(ctx->insn_flags & ASE_MT);
             gen_helper_mtc0_tcschefback(cpu_env, arg);
             register_name = "TCScheFBack";
@@ -8395,41 +8395,41 @@ static void gen_dmfc0(DisasContext *ctx, TCGv arg, int reg, int sel)
         break;
     case CP0_REGISTER_02:
         switch (sel) {
-        case 0:
+        case CP0_REG02__ENTRYLO0:
             tcg_gen_ld_tl(arg, cpu_env, offsetof(CPUMIPSState, CP0_EntryLo0));
             register_name = "EntryLo0";
             break;
-        case 1:
+        case CP0_REG02__TCSTATUS:
             CP0_CHECK(ctx->insn_flags & ASE_MT);
             gen_helper_mfc0_tcstatus(arg, cpu_env);
             register_name = "TCStatus";
             break;
-        case 2:
+        case CP0_REG02__TCBIND:
             CP0_CHECK(ctx->insn_flags & ASE_MT);
             gen_helper_mfc0_tcbind(arg, cpu_env);
             register_name = "TCBind";
             break;
-        case 3:
+        case CP0_REG02__TCRESTART:
             CP0_CHECK(ctx->insn_flags & ASE_MT);
             gen_helper_dmfc0_tcrestart(arg, cpu_env);
             register_name = "TCRestart";
             break;
-        case 4:
+        case CP0_REG02__TCHALT:
             CP0_CHECK(ctx->insn_flags & ASE_MT);
             gen_helper_dmfc0_tchalt(arg, cpu_env);
             register_name = "TCHalt";
             break;
-        case 5:
+        case CP0_REG02__TCCONTEXT:
             CP0_CHECK(ctx->insn_flags & ASE_MT);
             gen_helper_dmfc0_tccontext(arg, cpu_env);
             register_name = "TCContext";
             break;
-        case 6:
+        case CP0_REG02__TCSCHEDULE:
             CP0_CHECK(ctx->insn_flags & ASE_MT);
             gen_helper_dmfc0_tcschedule(arg, cpu_env);
             register_name = "TCSchedule";
             break;
-        case 7:
+        case CP0_REG02__TCSCHEFBACK:
             CP0_CHECK(ctx->insn_flags & ASE_MT);
             gen_helper_dmfc0_tcschefback(arg, cpu_env);
             register_name = "TCScheFBack";
@@ -9108,41 +9108,41 @@ static void gen_dmtc0(DisasContext *ctx, TCGv arg, int reg, int sel)
         break;
     case CP0_REGISTER_02:
         switch (sel) {
-        case 0:
+        case CP0_REG02__ENTRYLO0:
             gen_helper_dmtc0_entrylo0(cpu_env, arg);
             register_name = "EntryLo0";
             break;
-        case 1:
+        case CP0_REG02__TCSTATUS:
             CP0_CHECK(ctx->insn_flags & ASE_MT);
             gen_helper_mtc0_tcstatus(cpu_env, arg);
             register_name = "TCStatus";
             break;
-        case 2:
+        case CP0_REG02__TCBIND:
             CP0_CHECK(ctx->insn_flags & ASE_MT);
             gen_helper_mtc0_tcbind(cpu_env, arg);
             register_name = "TCBind";
             break;
-        case 3:
+        case CP0_REG02__TCRESTART:
             CP0_CHECK(ctx->insn_flags & ASE_MT);
             gen_helper_mtc0_tcrestart(cpu_env, arg);
             register_name = "TCRestart";
             break;
-        case 4:
+        case CP0_REG02__TCHALT:
             CP0_CHECK(ctx->insn_flags & ASE_MT);
             gen_helper_mtc0_tchalt(cpu_env, arg);
             register_name = "TCHalt";
             break;
-        case 5:
+        case CP0_REG02__TCCONTEXT:
             CP0_CHECK(ctx->insn_flags & ASE_MT);
             gen_helper_mtc0_tccontext(cpu_env, arg);
             register_name = "TCContext";
             break;
-        case 6:
+        case CP0_REG02__TCSCHEDULE:
             CP0_CHECK(ctx->insn_flags & ASE_MT);
             gen_helper_mtc0_tcschedule(cpu_env, arg);
             register_name = "TCSchedule";
             break;
-        case 7:
+        case CP0_REG02__TCSCHEFBACK:
             CP0_CHECK(ctx->insn_flags & ASE_MT);
             gen_helper_mtc0_tcschefback(cpu_env, arg);
             register_name = "TCScheFBack";

@@ -292,6 +292,13 @@ typedef struct mips_def_t mips_def_t;
 #define CP0_REG01__VPEOPT          7
 /* CP0 Register 02 */
 #define CP0_REG02__ENTRYLO0        0
+#define CP0_REG02__TCSTATUS        1
+#define CP0_REG02__TCBIND          2
+#define CP0_REG02__TCRESTART       3
+#define CP0_REG02__TCHALT          4
+#define CP0_REG02__TCCONTEXT       5
+#define CP0_REG02__TCSCHEDULE      6
+#define CP0_REG02__TCSCHEFBACK     7
 /* CP0 Register 03 */
 #define CP0_REG03__ENTRYLO1        0
 #define CP0_REG03__GLOBALNUM       1
