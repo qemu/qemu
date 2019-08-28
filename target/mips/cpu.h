@@ -357,6 +357,8 @@ typedef struct mips_def_t mips_def_t;
 #define CP0_REG12__GTOFFSET        7
 /* CP0 Register 13 */
 #define CP0_REG13__CAUSE           0
+#define CP0_REG13__VIEW_RIPL       4
+#define CP0_REG13__NESTEDEXC       5
 /* CP0 Register 14 */
 #define CP0_REG14__EPC             0
 /* CP0 Register 15 */
