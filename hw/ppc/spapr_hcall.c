@@ -1765,8 +1765,7 @@ static target_ulong h_client_architecture_support(PowerPCCPU *cpu,
             exit(EXIT_FAILURE);
         }
     }
-    spapr->cas_legacy_guest_workaround = !spapr_ovec_test(ov1_guest,
-                                                          OV1_PPC_3_00);
+    spapr->cas_pre_isa3_guest = !spapr_ovec_test(ov1_guest, OV1_PPC_3_00);
     spapr_ovec_cleanup(ov1_guest);
     if (!spapr->cas_reboot) {
         /* If spapr_machine_reset() did not set up a HPT but one is necessary

@@ -175,7 +175,7 @@ struct SpaprMachineState {
 
     /* ibm,client-architecture-support option negotiation */
     bool cas_reboot;
-    bool cas_legacy_guest_workaround;
+    bool cas_pre_isa3_guest;
     SpaprOptionVector *ov5;         /* QEMU-supported option vectors */
     SpaprOptionVector *ov5_cas;     /* negotiated (via CAS) option vectors */
     uint32_t max_compat_pvr;

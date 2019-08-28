@@ -220,8 +220,7 @@ static int spapr_fixup_cpu_numa_dt(void *fdt, int offset, PowerPCCPU *cpu)
 /* Populate the "ibm,pa-features" property */
 static void spapr_populate_pa_features(SpaprMachineState *spapr,
                                        PowerPCCPU *cpu,
-                                       void *fdt, int offset,
-                                       bool legacy_guest)
+                                       void *fdt, int offset)
 {
     uint8_t pa_features_206[] = { 6, 0,
         0xf6, 0x1f, 0xc7, 0x00, 0x80, 0xc0 };
@@ -287,7 +286,7 @@ static void spapr_populate_pa_features(SpaprMachineState *spapr,
     if ((spapr_get_cap(spapr, SPAPR_CAP_HTM) != 0) && pa_size > 24) {
         pa_features[24] |= 0x80;    /* Transactional memory support */
     }
-    if (legacy_guest && pa_size > 40) {
+    if (spapr->cas_pre_isa3_guest && pa_size > 40) {
         /* Workaround for broken kernels that attempt (guest) radix
          * mode when they can't handle it, if they see the radix bit set
          * in pa-features. So hide it from them. */
@@ -350,8 +349,7 @@ static int spapr_fixup_cpu_dt(void *fdt, SpaprMachineState *spapr)
             return ret;
         }
 
-        spapr_populate_pa_features(spapr, cpu, fdt, offset,
-                                   spapr->cas_legacy_guest_workaround);
+        spapr_populate_pa_features(spapr, cpu, fdt, offset);
     }
     return ret;
 }
@@ -553,7 +551,7 @@ static void spapr_populate_cpu_dt(CPUState *cs, void *fdt, int offset,
                           page_sizes_prop, page_sizes_prop_size)));
     }
 
-    spapr_populate_pa_features(spapr, cpu, fdt, offset, false);
+    spapr_populate_pa_features(spapr, cpu, fdt, offset);
 
     _FDT((fdt_setprop_cell(fdt, offset, "ibm,chip-id",
                            cs->cpu_index / vcpus_per_socket)));
