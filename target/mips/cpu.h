@@ -405,6 +405,12 @@ typedef struct mips_def_t mips_def_t;
 /* CP0 Register 22 */
 /* CP0 Register 23 */
 #define CP0_REG23__DEBUG           0
+#define CP0_REG23__TRACECONTROL    1
+#define CP0_REG23__TRACECONTROL2   2
+#define CP0_REG23__USERTRACEDATA1  3
+#define CP0_REG23__TRACEIBPC       4
+#define CP0_REG23__TRACEDBPC       5
+#define CP0_REG23__DEBUG2          6
 /* CP0 Register 24 */
 #define CP0_REG24__DEPC            0
 /* CP0 Register 25 */
