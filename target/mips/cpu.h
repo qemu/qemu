@@ -321,6 +321,12 @@ typedef struct mips_def_t mips_def_t;
 #define CP0_REG05__PWSIZE          7
 /* CP0 Register 06 */
 #define CP0_REG06__WIRED           0
+#define CP0_REG06__SRSCONF0        1
+#define CP0_REG06__SRSCONF1        2
+#define CP0_REG06__SRSCONF2        3
+#define CP0_REG06__SRSCONF3        4
+#define CP0_REG06__SRSCONF4        5
+#define CP0_REG06__PWCTL           6
 /* CP0 Register 07 */
 #define CP0_REG07__HWRENA          0
 /* CP0 Register 08 */
