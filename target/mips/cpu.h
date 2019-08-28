@@ -302,6 +302,7 @@ typedef struct mips_def_t mips_def_t;
 /* CP0 Register 03 */
 #define CP0_REG03__ENTRYLO1        0
 #define CP0_REG03__GLOBALNUM       1
+#define CP0_REG03__TCOPT           7
 /* CP0 Register 04 */
 #define CP0_REG04__CONTEXT         0
 #define CP0_REG04__USERLOCAL       2
