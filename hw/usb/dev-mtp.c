@@ -2038,25 +2038,35 @@ static void usb_mtp_realize(USBDevice *dev, Error **errp)
 {
     MTPState *s = USB_MTP(dev);
 
-    usb_desc_create_serial(dev);
-    usb_desc_init(dev);
-    QTAILQ_INIT(&s->objects);
-    if (s->desc == NULL) {
-        if (s->root == NULL) {
-            error_setg(errp, "usb-mtp: rootdir property must be configured");
-            return;
-        }
-        s->desc = strrchr(s->root, '/');
-        if (s->desc && s->desc[0]) {
-            s->desc = g_strdup(s->desc + 1);
-        } else {
-            s->desc = g_strdup("none");
-        }
+    if ((s->root == NULL) || !g_path_is_absolute(s->root)) {
+        error_setg(errp, "usb-mtp: rootdir must be configured and be an absolute path");
+        return;
     }
+
+    if (access(s->root, R_OK) != 0) {
+        error_setg(errp, "usb-mtp: rootdir does not exist/not readable");
+        return;
+    } else if (!s->readonly && access(s->root, W_OK) != 0) {
+        error_setg(errp, "usb-mtp: rootdir does not have write permissions");
+        return;
+    }
+
     /* Mark store as RW */
     if (!s->readonly) {
         s->flags |= (1 << MTP_FLAG_WRITABLE);
     }
+
+    if (s->desc == NULL) {
+        /*
+         * This does not check if path exists
+         * but we have the checks above
+         */
+        s->desc = g_path_get_basename(s->root);
+    }
+
+    usb_desc_create_serial(dev);
+    usb_desc_init(dev);
+    QTAILQ_INIT(&s->objects);
 
 }
 
