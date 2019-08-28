@@ -41,13 +41,6 @@ static void spapr_cpu_reset(void *opaque)
      * using an RTAS call */
     cs->halted = 1;
 
-    /* Set compatibility mode to match the boot CPU, which was either set
-     * by the machine reset code or by CAS. This should never fail.
-     * At startup the value is already set for all the CPUs
-     * but we need this when we hotplug a new CPU
-     */
-    ppc_set_compat(cpu, POWERPC_CPU(first_cpu)->compat_pvr, &error_abort);
-
     env->spr[SPR_HIOR] = 0;
 
     lpcr = env->spr[SPR_LPCR];
