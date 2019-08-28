@@ -367,6 +367,7 @@ typedef struct mips_def_t mips_def_t;
 #define CP0_REG15__EBASE           1
 #define CP0_REG15__CDMMBASE        2
 #define CP0_REG15__CMGCRBASE       3
+#define CP0_REG15__BEVVA           4
 /* CP0 Register 16 */
 #define CP0_REG16__CONFIG          0
 #define CP0_REG16__CONFIG1         1

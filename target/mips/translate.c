@@ -7223,17 +7223,17 @@ static void gen_mfc0(DisasContext *ctx, TCGv arg, int reg, int sel)
         break;
     case CP0_REGISTER_15:
         switch (sel) {
-        case 0:
+        case CP0_REG15__PRID:
             gen_mfc0_load32(arg, offsetof(CPUMIPSState, CP0_PRid));
             register_name = "PRid";
             break;
-        case 1:
+        case CP0_REG15__EBASE:
             check_insn(ctx, ISA_MIPS32R2);
             tcg_gen_ld_tl(arg, cpu_env, offsetof(CPUMIPSState, CP0_EBase));
             tcg_gen_ext32s_tl(arg, arg);
             register_name = "EBase";
             break;
-        case 3:
+        case CP0_REG15__CMGCRBASE:
             check_insn(ctx, ISA_MIPS32R2);
             CP0_CHECK(ctx->cmgcr);
             tcg_gen_ld_tl(arg, cpu_env, offsetof(CPUMIPSState, CP0_CMGCRBase));
@@ -7956,11 +7956,11 @@ static void gen_mtc0(DisasContext *ctx, TCGv arg, int reg, int sel)
         break;
     case CP0_REGISTER_15:
         switch (sel) {
-        case 0:
+        case CP0_REG15__PRID:
             /* ignored */
             register_name = "PRid";
             break;
-        case 1:
+        case CP0_REG15__EBASE:
             check_insn(ctx, ISA_MIPS32R2);
             gen_helper_mtc0_ebase(cpu_env, arg);
             register_name = "EBase";
@@ -8697,16 +8697,16 @@ static void gen_dmfc0(DisasContext *ctx, TCGv arg, int reg, int sel)
         break;
     case CP0_REGISTER_15:
         switch (sel) {
-        case 0:
+        case CP0_REG15__PRID:
             gen_mfc0_load32(arg, offsetof(CPUMIPSState, CP0_PRid));
             register_name = "PRid";
             break;
-        case 1:
+        case CP0_REG15__EBASE:
             check_insn(ctx, ISA_MIPS32R2);
             tcg_gen_ld_tl(arg, cpu_env, offsetof(CPUMIPSState, CP0_EBase));
             register_name = "EBase";
             break;
-        case 3:
+        case CP0_REG15__CMGCRBASE:
             check_insn(ctx, ISA_MIPS32R2);
             CP0_CHECK(ctx->cmgcr);
             tcg_gen_ld_tl(arg, cpu_env, offsetof(CPUMIPSState, CP0_CMGCRBase));
@@ -9419,11 +9419,11 @@ static void gen_dmtc0(DisasContext *ctx, TCGv arg, int reg, int sel)
         break;
     case CP0_REGISTER_15:
         switch (sel) {
-        case 0:
+        case CP0_REG15__PRID:
             /* ignored */
             register_name = "PRid";
             break;
-        case 1:
+        case CP0_REG15__EBASE:
             check_insn(ctx, ISA_MIPS32R2);
             gen_helper_mtc0_ebase(cpu_env, arg);
             register_name = "EBase";
