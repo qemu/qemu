@@ -233,12 +233,12 @@ typedef struct mips_def_t mips_def_t;
  *
  * 0   DataLo            DataHi            ErrorEPC          DESAVE
  * 1   TagLo             TagHi
- * 2   DataLo1           DataHi                              KScratch<n>
- * 3   TagLo1            TagHi                               KScratch<n>
- * 4   DataLo2           DataHi                              KScratch<n>
- * 5   TagLo2            TagHi                               KScratch<n>
- * 6   DataLo3           DataHi                              KScratch<n>
- * 7   TagLo3            TagHi                               KScratch<n>
+ * 2   DataLo1           DataHi1                             KScratch<n>
+ * 3   TagLo1            TagHi1                              KScratch<n>
+ * 4   DataLo2           DataHi2                             KScratch<n>
+ * 5   TagLo2            TagHi2                              KScratch<n>
+ * 6   DataLo3           DataHi3                             KScratch<n>
+ * 7   TagLo3            TagHi3                              KScratch<n>
  *
  */
 #define CP0_REGISTER_00     0
@@ -436,8 +436,14 @@ typedef struct mips_def_t mips_def_t;
 #define CP0_REG28__TAGLO3          6
 #define CP0_REG28__DATALO3         7
 /* CP0 Register 29 */
-#define CP0_REG29__IDATAHI         1
-#define CP0_REG29__DDATAHI         3
+#define CP0_REG29__TAGHI           0
+#define CP0_REG29__DATAHI          1
+#define CP0_REG29__TAGHI1          2
+#define CP0_REG29__DATAHI1         3
+#define CP0_REG29__TAGHI2          4
+#define CP0_REG29__DATAHI2         5
+#define CP0_REG29__TAGHI3          6
+#define CP0_REG29__DATAHI3         7
 /* CP0 Register 30 */
 #define CP0_REG30__ERROREPC        0
 /* CP0 Register 31 */
