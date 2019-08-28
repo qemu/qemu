@@ -1504,6 +1504,8 @@ store_helper(CPUArchState *env, target_ulong addr, uint64_t val,
         uintptr_t index2;
         CPUTLBEntry *entry2;
         target_ulong page2, tlb_addr2;
+        size_t size2;
+
     do_unaligned_access:
         /*
          * Ensure the second page is in the TLB.  Note that the first page
@@ -1511,13 +1513,14 @@ store_helper(CPUArchState *env, target_ulong addr, uint64_t val,
          * cannot evict the first.
          */
         page2 = (addr + size) & TARGET_PAGE_MASK;
+        size2 = (addr + size) & ~TARGET_PAGE_MASK;
         index2 = tlb_index(env, mmu_idx, page2);
         entry2 = tlb_entry(env, mmu_idx, page2);
         tlb_addr2 = tlb_addr_write(entry2);
         if (!tlb_hit_page(tlb_addr2, page2)
             && !victim_tlb_hit(env, mmu_idx, index2, tlb_off,
                                page2 & TARGET_PAGE_MASK)) {
-            tlb_fill(env_cpu(env), page2, size, MMU_DATA_STORE,
+            tlb_fill(env_cpu(env), page2, size2, MMU_DATA_STORE,
                      mmu_idx, retaddr);
         }
 
