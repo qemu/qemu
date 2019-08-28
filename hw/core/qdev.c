@@ -889,7 +889,8 @@ static void device_set_realized(Object *obj, bool value, Error **errp)
         dev->canonical_path = object_get_canonical_path(OBJECT(dev));
 
         if (qdev_get_vmsd(dev)) {
-            if (vmstate_register_with_alias_id(dev, -1, qdev_get_vmsd(dev), dev,
+            if (vmstate_register_with_alias_id(VMSTATE_IF(dev),
+                                               -1, qdev_get_vmsd(dev), dev,
                                                dev->instance_id_alias,
                                                dev->alias_required_for_version,
                                                &local_err) < 0) {
@@ -923,7 +924,7 @@ static void device_set_realized(Object *obj, bool value, Error **errp)
                                      local_err ? NULL : &local_err);
         }
         if (qdev_get_vmsd(dev)) {
-            vmstate_unregister(dev, qdev_get_vmsd(dev), dev);
+            vmstate_unregister(VMSTATE_IF(dev), qdev_get_vmsd(dev), dev);
         }
         if (dc->unrealize) {
             dc->unrealize(dev, local_err ? NULL : &local_err);
@@ -947,7 +948,7 @@ child_realize_fail:
     }
 
     if (qdev_get_vmsd(dev)) {
-        vmstate_unregister(dev, qdev_get_vmsd(dev), dev);
+        vmstate_unregister(VMSTATE_IF(dev), qdev_get_vmsd(dev), dev);
     }
 
 post_realize_fail:

@@ -2853,7 +2853,8 @@ static void virtio_net_handle_migration_primary(VirtIONet *n,
 
     if (migration_in_setup(s) && !should_be_hidden) {
         if (failover_unplug_primary(n)) {
-            vmstate_unregister(n->primary_dev, qdev_get_vmsd(n->primary_dev),
+            vmstate_unregister(VMSTATE_IF(n->primary_dev),
+                    qdev_get_vmsd(n->primary_dev),
                     n->primary_dev);
             qapi_event_send_unplug_primary(n->primary_device_id);
             atomic_set(&n->primary_should_be_hidden, true);

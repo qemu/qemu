@@ -76,6 +76,6 @@ int register_savevm_live(const char *idstr,
                          const SaveVMHandlers *ops,
                          void *opaque);
 
-void unregister_savevm(DeviceState *dev, const char *idstr, void *opaque);
+void unregister_savevm(VMStateIf *obj, const char *idstr, void *opaque);
 
 #endif

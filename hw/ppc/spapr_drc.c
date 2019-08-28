@@ -511,7 +511,7 @@ static void realize(DeviceState *d, Error **errp)
         error_propagate(errp, err);
         return;
     }
-    vmstate_register(DEVICE(drc), spapr_drc_index(drc), &vmstate_spapr_drc,
+    vmstate_register(VMSTATE_IF(drc), spapr_drc_index(drc), &vmstate_spapr_drc,
                      drc);
     trace_spapr_drc_realize_complete(spapr_drc_index(drc));
 }
@@ -523,7 +523,7 @@ static void unrealize(DeviceState *d, Error **errp)
     gchar *name;
 
     trace_spapr_drc_unrealize(spapr_drc_index(drc));
-    vmstate_unregister(DEVICE(drc), &vmstate_spapr_drc, drc);
+    vmstate_unregister(VMSTATE_IF(drc), &vmstate_spapr_drc, drc);
     root_container = container_get(object_get_root(), DRC_CONTAINER_PATH);
     name = g_strdup_printf("%x", spapr_drc_index(drc));
     object_property_del(root_container, name, errp);
@@ -619,7 +619,8 @@ static void realize_physical(DeviceState *d, Error **errp)
         return;
     }
 
-    vmstate_register(DEVICE(drcp), spapr_drc_index(SPAPR_DR_CONNECTOR(drcp)),
+    vmstate_register(VMSTATE_IF(drcp),
+                     spapr_drc_index(SPAPR_DR_CONNECTOR(drcp)),
                      &vmstate_spapr_drc_physical, drcp);
     qemu_register_reset(drc_physical_reset, drcp);
 }
@@ -635,7 +636,7 @@ static void unrealize_physical(DeviceState *d, Error **errp)
         return;
     }
 
-    vmstate_unregister(DEVICE(drcp), &vmstate_spapr_drc_physical, drcp);
+    vmstate_unregister(VMSTATE_IF(drcp), &vmstate_spapr_drc_physical, drcp);
     qemu_unregister_reset(drc_physical_reset, drcp);
 }
 
