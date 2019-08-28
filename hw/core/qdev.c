@@ -1087,9 +1087,18 @@ static void device_unparent(Object *obj)
     }
 }
 
+static char *
+device_vmstate_if_get_id(VMStateIf *obj)
+{
+    DeviceState *dev = DEVICE(obj);
+
+    return qdev_get_dev_path(dev);
+}
+
 static void device_class_init(ObjectClass *class, void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(class);
+    VMStateIfClass *vc = VMSTATE_IF_CLASS(class);
 
     class->unparent = device_unparent;
 
@@ -1101,6 +1110,7 @@ static void device_class_init(ObjectClass *class, void *data)
      */
     dc->hotpluggable = true;
     dc->user_creatable = true;
+    vc->get_id = device_vmstate_if_get_id;
 }
 
 void device_class_set_parent_reset(DeviceClass *dc,
@@ -1158,6 +1168,10 @@ static const TypeInfo device_type_info = {
     .class_init = device_class_init,
     .abstract = true,
     .class_size = sizeof(DeviceClass),
+    .interfaces = (InterfaceInfo[]) {
+        { TYPE_VMSTATE_IF },
+        { }
+    }
 };
 
 static void qdev_register_types(void)
