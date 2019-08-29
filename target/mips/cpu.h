@@ -395,6 +395,10 @@ typedef struct mips_def_t mips_def_t;
 #define CP0_REG19__WATCHHI1        1
 #define CP0_REG19__WATCHHI2        2
 #define CP0_REG19__WATCHHI3        3
+#define CP0_REG19__WATCHHI4        4
+#define CP0_REG19__WATCHHI5        5
+#define CP0_REG19__WATCHHI6        6
+#define CP0_REG19__WATCHHI7        7
 /* CP0 Register 20 */
 #define CP0_REG20__XCONTEXT        0
 /* CP0 Register 21 */
