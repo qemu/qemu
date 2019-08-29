@@ -8831,7 +8831,16 @@ static void disas_arm_insn(DisasContext *s, unsigned int insn)
                         if (rd != 15) {
                             tmp3 = load_reg(s, rd);
                             if (insn & (1 << 6)) {
-                                tcg_gen_sub_i32(tmp, tmp, tmp3);
+                                /*
+                                 * For SMMLS, we need a 64-bit subtract.
+                                 * Borrow caused by a non-zero multiplicand
+                                 * lowpart, and the correct result lowpart
+                                 * for rounding.
+                                 */
+                                TCGv_i32 zero = tcg_const_i32(0);
+                                tcg_gen_sub2_i32(tmp2, tmp, zero, tmp3,
+                                                 tmp2, tmp);
+                                tcg_temp_free_i32(zero);
                             } else {
                                 tcg_gen_add_i32(tmp, tmp, tmp3);
                             }
@@ -10075,7 +10084,14 @@ static void disas_thumb2_insn(DisasContext *s, uint32_t insn)
                     if (insn & (1 << 20)) {
                         tcg_gen_add_i32(tmp, tmp, tmp3);
                     } else {
-                        tcg_gen_sub_i32(tmp, tmp, tmp3);
+                        /*
+                         * For SMMLS, we need a 64-bit subtract.
+                         * Borrow caused by a non-zero multiplicand lowpart,
+                         * and the correct result lowpart for rounding.
+                         */
+                        TCGv_i32 zero = tcg_const_i32(0);
+                        tcg_gen_sub2_i32(tmp2, tmp, zero, tmp3, tmp2, tmp);
+                        tcg_temp_free_i32(zero);
                     }
                     tcg_temp_free_i32(tmp3);
                 }
