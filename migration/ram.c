@@ -1112,6 +1112,7 @@ static void *multifd_send_thread(void *opaque)
     rcu_register_thread();
 
     if (multifd_send_initial_packet(p, &local_err) < 0) {
+        ret = -1;
         goto out;
     }
     /* initial packet */
@@ -1179,9 +1180,7 @@ out:
      * who pay attention to me.
      */
     if (ret != 0) {
-        if (flags & MULTIFD_FLAG_SYNC) {
-            qemu_sem_post(&p->sem_sync);
-        }
+        qemu_sem_post(&p->sem_sync);
         qemu_sem_post(&multifd_send_state->channels_ready);
     }
 
