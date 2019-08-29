@@ -305,7 +305,9 @@ typedef struct mips_def_t mips_def_t;
 #define CP0_REG03__TCOPT           7
 /* CP0 Register 04 */
 #define CP0_REG04__CONTEXT         0
+#define CP0_REG04__CONTEXTCONFIG   1
 #define CP0_REG04__USERLOCAL       2
+#define CP0_REG04__XCONTEXTCONFIG  3
 #define CP0_REG04__DBGCONTEXTID    4
 #define CP0_REG00__MMID            5
 /* CP0 Register 05 */
