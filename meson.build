@@ -109,6 +109,26 @@ pam = not_found
 if 'CONFIG_AUTH_PAM' in config_host
   pam = cc.find_library('pam')
 endif
+libaio = cc.find_library('aio', required: false)
+zlib = not_found
+if 'CONFIG_ZLIB' in config_host
+  zlib = declare_dependency(compile_args: config_host['ZLIB_CFLAGS'].split(),
+                            link_args: config_host['ZLIB_LIBS'].split())
+endif
+linux_io_uring = not_found
+if 'CONFIG_LINUX_IO_URING' in config_host
+  linux_io_uring = declare_dependency(compile_args: config_host['LINUX_IO_URING_CFLAGS'].split(),
+                                      link_args: config_host['LINUX_IO_URING_LIBS'].split())
+endif
+libxml2 = not_found
+if 'CONFIG_LIBXML2' in config_host
+  libxml2 = declare_dependency(compile_args: config_host['LIBXML2_CFLAGS'].split(),
+                               link_args: config_host['LIBXML2_LIBS'].split())
+endif
+libnfs = not_found
+if 'CONFIG_LIBNFS' in config_host
+  libnfs = declare_dependency(link_args: config_host['LIBNFS_LIBS'].split())
+endif
 libattr = not_found
 if 'CONFIG_ATTR' in config_host
   libattr = declare_dependency(link_args: config_host['LIBATTR_LIBS'].split())
@@ -133,6 +153,11 @@ if 'CONFIG_LIBISCSI' in config_host
   libiscsi = declare_dependency(compile_args: config_host['LIBISCSI_CFLAGS'].split(),
                                 link_args: config_host['LIBISCSI_LIBS'].split())
 endif
+zstd = not_found
+if 'CONFIG_ZSTD' in config_host
+  zstd = declare_dependency(compile_args: config_host['ZSTD_CFLAGS'].split(),
+                            link_args: config_host['ZSTD_LIBS'].split())
+endif
 gbm = not_found
 if 'CONFIG_GBM' in config_host
   gbm = declare_dependency(compile_args: config_host['GBM_CFLAGS'].split(),
@@ -151,6 +176,28 @@ endif
 libudev = not_found
 if 'CONFIG_LIBUDEV' in config_host
   libudev = declare_dependency(link_args: config_host['LIBUDEV_LIBS'].split())
+endif
+rbd = not_found
+if 'CONFIG_RBD' in config_host
+  rbd = declare_dependency(link_args: config_host['RBD_LIBS'].split())
+endif
+glusterfs = not_found
+if 'CONFIG_GLUSTERFS' in config_host
+  glusterfs = declare_dependency(compile_args: config_host['GLUSTERFS_CFLAGS'].split(),
+                                 link_args: config_host['GLUSTERFS_LIBS'].split())
+endif
+libssh = not_found
+if 'CONFIG_LIBSSH' in config_host
+  libssh = declare_dependency(compile_args: config_host['LIBSSH_CFLAGS'].split(),
+                              link_args: config_host['LIBSSH_LIBS'].split())
+endif
+libbzip2 = not_found
+if 'CONFIG_BZIP2' in config_host
+  libbzip2 = declare_dependency(link_args: config_host['BZIP2_LIBS'].split())
+endif
+liblzfse = not_found
+if 'CONFIG_LZFSE' in config_host
+  liblzfse = declare_dependency(link_args: config_host['LZFSE_LIBS'].split())
 endif
 
 create_config = find_program('scripts/create_config')
@@ -458,6 +505,18 @@ subdir('chardev')
 subdir('fsdev')
 subdir('target')
 
+block_ss.add(files(
+  'block.c',
+  'blockjob.c',
+  'job.c',
+  'qemu-io-cmds.c',
+))
+block_ss.add(when: 'CONFIG_REPLICATION', if_true: files('replication.c'))
+
+subdir('nbd')
+subdir('scsi')
+subdir('block')
+
 block_mods = []
 softmmu_mods = []
 foreach d, list : modules
@@ -491,6 +550,16 @@ qemu_syms = custom_target('qemu.syms', output: 'qemu.syms',
                              input: [libqemuutil, softmmu_mods],
                              capture: true,
                              command: [undefsym, nm, '@INPUT@'])
+
+block_ss = block_ss.apply(config_host, strict: false)
+libblock = static_library('block', block_ss.sources() + genh,
+                          dependencies: block_ss.dependencies(),
+                          link_depends: block_syms,
+                          name_suffix: 'fa',
+                          build_by_default: false)
+
+block = declare_dependency(link_whole: [libblock],
+                           link_args: '@block.syms')
 
 foreach m : block_mods + softmmu_mods
   shared_module(m.name(),
