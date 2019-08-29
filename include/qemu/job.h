@@ -220,13 +220,6 @@ struct JobDriver {
      */
     void (*complete)(Job *job, Error **errp);
 
-    /*
-     * If the callback is not NULL, it will be invoked when the job has to be
-     * synchronously cancelled or completed; it should drain any activities
-     * as required to ensure progress.
-     */
-    void (*drain)(Job *job);
-
     /**
      * If the callback is not NULL, prepare will be invoked when all the jobs
      * belonging to the same transaction complete; or upon this job's completion
@@ -469,12 +462,6 @@ bool job_user_paused(Job *job);
  * Must be paired with a preceding job_user_pause.
  */
 void job_user_resume(Job *job, Error **errp);
-
-/*
- * Drain any activities as required to ensure progress. This can be called in a
- * loop to synchronously complete a job.
- */
-void job_drain(Job *job);
 
 /**
  * Get the next element from the list of block jobs after @job, or the
