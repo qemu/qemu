@@ -7,6 +7,9 @@ QEMU Coding Style
 Please use the script checkpatch.pl in the scripts directory to check
 patches before submitting.
 
+Formatting and style
+********************
+
 Whitespace
 ==========
 
@@ -204,6 +207,9 @@ comment anyway.)
 
 Rationale: Consistency, and ease of visually picking out a multiline
 comment from the surrounding code.
+
+Language usage
+**************
 
 Preprocessor
 ============
@@ -525,6 +531,9 @@ are still some caveats to beware of
         return g_steal_pointer(&foo);
     }
 
+
+QEMU Specific Idioms
+********************
 
 Error handling and reporting
 ============================
