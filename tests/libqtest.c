@@ -1243,28 +1243,37 @@ QDict *qtest_qmp_receive_success(QTestState *s,
 }
 
 /*
- * Generic hot-plugging test via the device_add QMP command.
+ * Generic hot-plugging test via the device_add QMP commands.
  */
+void qtest_qmp_device_add_qdict(QTestState *qts, const char *drv,
+                                const QDict *arguments)
+{
+    QDict *resp;
+    QDict *args = arguments ? qdict_clone_shallow(arguments) : qdict_new();
+
+    g_assert(!qdict_haskey(args, "driver"));
+    qdict_put_str(args, "driver", drv);
+    resp = qtest_qmp(qts, "{'execute': 'device_add', 'arguments': %p}", args);
+    g_assert(resp);
+    g_assert(!qdict_haskey(resp, "event")); /* We don't expect any events */
+    g_assert(!qdict_haskey(resp, "error"));
+    qobject_unref(resp);
+}
+
 void qtest_qmp_device_add(QTestState *qts, const char *driver, const char *id,
                           const char *fmt, ...)
 {
-    QDict *args, *response;
+    QDict *args;
     va_list ap;
 
     va_start(ap, fmt);
     args = qdict_from_vjsonf_nofail(fmt, ap);
     va_end(ap);
 
-    g_assert(!qdict_haskey(args, "driver") && !qdict_haskey(args, "id"));
-    qdict_put_str(args, "driver", driver);
+    g_assert(!qdict_haskey(args, "id"));
     qdict_put_str(args, "id", id);
 
-    response = qtest_qmp(qts, "{'execute': 'device_add', 'arguments': %p}",
-                         args);
-    g_assert(response);
-    g_assert(!qdict_haskey(response, "event")); /* We don't expect any events */
-    g_assert(!qdict_haskey(response, "error"));
-    qobject_unref(response);
+    qtest_qmp_device_add_qdict(qts, driver, args);
 }
 
 static void device_deleted_cb(void *opaque, const char *name, QDict *data)
