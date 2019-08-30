@@ -188,8 +188,8 @@ static inline int handle_cpu_signal(uintptr_t pc, siginfo_t *info,
     g_assert_not_reached();
 }
 
-void probe_write(CPUArchState *env, target_ulong addr, int size, int mmu_idx,
-                 uintptr_t retaddr)
+void *probe_write(CPUArchState *env, target_ulong addr, int size, int mmu_idx,
+                  uintptr_t retaddr)
 {
     g_assert(-(addr | TARGET_PAGE_MASK) >= size);
 
@@ -202,6 +202,8 @@ void probe_write(CPUArchState *env, target_ulong addr, int size, int mmu_idx,
                      retaddr);
         g_assert_not_reached();
     }
+
+    return size ? g2h(addr) : NULL;
 }
 
 #if defined(__i386__)

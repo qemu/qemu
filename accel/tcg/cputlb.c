@@ -1078,11 +1078,11 @@ tb_page_addr_t get_page_addr_code(CPUArchState *env, target_ulong addr)
 /* Probe for whether the specified guest write access is permitted.
  * If it is not permitted then an exception will be taken in the same
  * way as if this were a real write access (and we will not return).
- * Otherwise the function will return, and there will be a valid
- * entry in the TLB for this access.
+ * If the size is 0 or the page requires I/O access, returns NULL; otherwise,
+ * returns the address of the host page similar to tlb_vaddr_to_host().
  */
-void probe_write(CPUArchState *env, target_ulong addr, int size, int mmu_idx,
-                 uintptr_t retaddr)
+void *probe_write(CPUArchState *env, target_ulong addr, int size, int mmu_idx,
+                  uintptr_t retaddr)
 {
     uintptr_t index = tlb_index(env, mmu_idx, addr);
     CPUTLBEntry *entry = tlb_entry(env, mmu_idx, addr);
@@ -1101,12 +1101,23 @@ void probe_write(CPUArchState *env, target_ulong addr, int size, int mmu_idx,
         tlb_addr = tlb_addr_write(entry);
     }
 
+    if (!size) {
+        return NULL;
+    }
+
     /* Handle watchpoints.  */
-    if ((tlb_addr & TLB_WATCHPOINT) && size > 0) {
+    if (tlb_addr & TLB_WATCHPOINT) {
         cpu_check_watchpoint(env_cpu(env), addr, size,
                              env_tlb(env)->d[mmu_idx].iotlb[index].attrs,
                              BP_MEM_WRITE, retaddr);
     }
+
+    if (tlb_addr & (TLB_NOTDIRTY | TLB_MMIO)) {
+        /* I/O access */
+        return NULL;
+    }
+
+    return (void *)((uintptr_t)addr + entry->addend);
 }
 
 void *tlb_vaddr_to_host(CPUArchState *env, abi_ptr addr,
