@@ -1075,30 +1075,51 @@ tb_page_addr_t get_page_addr_code(CPUArchState *env, target_ulong addr)
     return qemu_ram_addr_from_host_nofail(p);
 }
 
-/* Probe for whether the specified guest write access is permitted.
- * If it is not permitted then an exception will be taken in the same
- * way as if this were a real write access (and we will not return).
+/*
+ * Probe for whether the specified guest access is permitted. If it is not
+ * permitted then an exception will be taken in the same way as if this
+ * were a real access (and we will not return).
  * If the size is 0 or the page requires I/O access, returns NULL; otherwise,
  * returns the address of the host page similar to tlb_vaddr_to_host().
  */
-void *probe_write(CPUArchState *env, target_ulong addr, int size, int mmu_idx,
-                  uintptr_t retaddr)
+void *probe_access(CPUArchState *env, target_ulong addr, int size,
+                   MMUAccessType access_type, int mmu_idx, uintptr_t retaddr)
 {
     uintptr_t index = tlb_index(env, mmu_idx, addr);
     CPUTLBEntry *entry = tlb_entry(env, mmu_idx, addr);
-    target_ulong tlb_addr = tlb_addr_write(entry);
+    target_ulong tlb_addr;
+    size_t elt_ofs;
+    int wp_access;
 
     g_assert(-(addr | TARGET_PAGE_MASK) >= size);
 
+    switch (access_type) {
+    case MMU_DATA_LOAD:
+        elt_ofs = offsetof(CPUTLBEntry, addr_read);
+        wp_access = BP_MEM_READ;
+        break;
+    case MMU_DATA_STORE:
+        elt_ofs = offsetof(CPUTLBEntry, addr_write);
+        wp_access = BP_MEM_WRITE;
+        break;
+    case MMU_INST_FETCH:
+        elt_ofs = offsetof(CPUTLBEntry, addr_code);
+        wp_access = BP_MEM_READ;
+        break;
+    default:
+        g_assert_not_reached();
+    }
+    tlb_addr = tlb_read_ofs(entry, elt_ofs);
+
     if (unlikely(!tlb_hit(tlb_addr, addr))) {
-        if (!VICTIM_TLB_HIT(addr_write, addr)) {
-            tlb_fill(env_cpu(env), addr, size, MMU_DATA_STORE,
-                     mmu_idx, retaddr);
+        if (!victim_tlb_hit(env, mmu_idx, index, elt_ofs,
+                            addr & TARGET_PAGE_MASK)) {
+            tlb_fill(env_cpu(env), addr, size, access_type, mmu_idx, retaddr);
             /* TLB resize via tlb_fill may have moved the entry. */
             index = tlb_index(env, mmu_idx, addr);
             entry = tlb_entry(env, mmu_idx, addr);
         }
-        tlb_addr = tlb_addr_write(entry);
+        tlb_addr = tlb_read_ofs(entry, elt_ofs);
     }
 
     if (!size) {
@@ -1109,7 +1130,7 @@ void *probe_write(CPUArchState *env, target_ulong addr, int size, int mmu_idx,
     if (tlb_addr & TLB_WATCHPOINT) {
         cpu_check_watchpoint(env_cpu(env), addr, size,
                              env_tlb(env)->d[mmu_idx].iotlb[index].attrs,
-                             BP_MEM_WRITE, retaddr);
+                             wp_access, retaddr);
     }
 
     if (tlb_addr & (TLB_NOTDIRTY | TLB_MMIO)) {
