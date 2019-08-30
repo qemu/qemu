@@ -1791,7 +1791,39 @@ long qemu_maxrampagesize(void)
 #ifdef CONFIG_POSIX
 static int64_t get_file_size(int fd)
 {
-    int64_t size = lseek(fd, 0, SEEK_END);
+    int64_t size;
+#if defined(__linux__)
+    struct stat st;
+
+    if (fstat(fd, &st) < 0) {
+        return -errno;
+    }
+
+    /* Special handling for devdax character devices */
+    if (S_ISCHR(st.st_mode)) {
+        g_autofree char *subsystem_path = NULL;
+        g_autofree char *subsystem = NULL;
+
+        subsystem_path = g_strdup_printf("/sys/dev/char/%d:%d/subsystem",
+                                         major(st.st_rdev), minor(st.st_rdev));
+        subsystem = g_file_read_link(subsystem_path, NULL);
+
+        if (subsystem && g_str_has_suffix(subsystem, "/dax")) {
+            g_autofree char *size_path = NULL;
+            g_autofree char *size_str = NULL;
+
+            size_path = g_strdup_printf("/sys/dev/char/%d:%d/size",
+                                    major(st.st_rdev), minor(st.st_rdev));
+
+            if (g_file_get_contents(size_path, &size_str, NULL, NULL)) {
+                return g_ascii_strtoll(size_str, NULL, 0);
+            }
+        }
+    }
+#endif /* defined(__linux__) */
+
+    /* st.st_size may be zero for special files yet lseek(2) works */
+    size = lseek(fd, 0, SEEK_END);
     if (size < 0) {
         return -errno;
     }
