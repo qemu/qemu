@@ -96,7 +96,7 @@ static void ZRLE_ENCODE(VncState *vs, int x, int y, int w, int h,
 static void ZRLE_ENCODE_TILE(VncState *vs, ZRLE_PIXEL *data, int w, int h,
                              int zywrle_level)
 {
-    VncPalette *palette = &vs->zrle.palette;
+    VncPalette *palette = &vs->zrle->palette;
 
     int runs = 0;
     int single_pixels = 0;
