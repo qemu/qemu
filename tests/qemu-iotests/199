@@ -115,4 +115,5 @@ class TestDirtyBitmapPostcopyMigration(iotests.QMPTestCase):
         self.assert_qmp(result, 'return/sha256', sha256);
 
 if __name__ == '__main__':
-    iotests.main(supported_fmts=['qcow2'], supported_cache_modes=['none'])
+    iotests.main(supported_fmts=['qcow2'], supported_cache_modes=['none'],
+                 supported_protocols=['file'])
