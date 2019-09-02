@@ -1,0 +1,153 @@
+#!/usr/bin/env python
+#
+# Test VPC and file image creation
+#
+# Copyright (C) 2019 Red Hat, Inc.
+#
+# This program is free software; you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation; either version 2 of the License, or
+# (at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with this program.  If not, see <http://www.gnu.org/licenses/>.
+#
+
+import iotests
+from iotests import imgfmt
+
+
+def blockdev_create(vm, options):
+    result = vm.qmp_log('blockdev-create', job_id='job0', options=options,
+                        filters=[iotests.filter_qmp_testfiles])
+
+    if 'return' in result:
+        assert result['return'] == {}
+        vm.run_job('job0')
+
+
+# Successful image creation (defaults)
+def implicit_defaults(vm, file_path):
+    iotests.log("=== Successful image creation (defaults) ===")
+    iotests.log("")
+
+    # 8 heads, 964 cyls/head, 17 secs/cyl
+    # (Close to 64 MB)
+    size = 8 * 964 * 17 * 512
+
+    blockdev_create(vm, { 'driver': imgfmt,
+                          'file': 'protocol-node',
+                          'size': size })
+
+
+# Successful image creation (explicit defaults)
+def explicit_defaults(vm, file_path):
+    iotests.log("=== Successful image creation (explicit defaults) ===")
+    iotests.log("")
+
+    # 16 heads, 964 cyls/head, 17 secs/cyl
+    # (Close to 128 MB)
+    size = 16 * 964 * 17 * 512
+
+    blockdev_create(vm, { 'driver': imgfmt,
+                          'file': 'protocol-node',
+                          'size': size,
+                          'subformat': 'dynamic',
+                          'force-size': False })
+
+
+# Successful image creation (non-default options)
+def non_defaults(vm, file_path):
+    iotests.log("=== Successful image creation (non-default options) ===")
+    iotests.log("")
+
+    # Not representable in CHS (fine with force-size=True)
+    size = 1048576
+
+    blockdev_create(vm, { 'driver': imgfmt,
+                          'file': 'protocol-node',
+                          'size': size,
+                          'subformat': 'fixed',
+                          'force-size': True })
+
+
+# Size not representable in CHS with force-size=False
+def non_chs_size_without_force(vm, file_path):
+    iotests.log("=== Size not representable in CHS ===")
+    iotests.log("")
+
+    # Not representable in CHS (will not work with force-size=False)
+    size = 1048576
+
+    blockdev_create(vm, { 'driver': imgfmt,
+                          'file': 'protocol-node',
+                          'size': size,
+                          'force-size': False })
+
+
+# Zero size
+def zero_size(vm, file_path):
+    iotests.log("=== Zero size===")
+    iotests.log("")
+
+    blockdev_create(vm, { 'driver': imgfmt,
+                          'file': 'protocol-node',
+                          'size': 0 })
+
+
+# Maximum CHS size
+def maximum_chs_size(vm, file_path):
+    iotests.log("=== Maximum CHS size===")
+    iotests.log("")
+
+    blockdev_create(vm, { 'driver': imgfmt,
+                          'file': 'protocol-node',
+                          'size': 16 * 65535 * 255 * 512 })
+
+
+# Actual maximum size
+def maximum_size(vm, file_path):
+    iotests.log("=== Actual maximum size===")
+    iotests.log("")
+
+    blockdev_create(vm, { 'driver': imgfmt,
+                          'file': 'protocol-node',
+                          'size': 0xff000000 * 512,
+                          'force-size': True })
+
+
+def main():
+    for test_func in [implicit_defaults, explicit_defaults, non_defaults,
+                      non_chs_size_without_force, zero_size, maximum_chs_size,
+                      maximum_size]:
+
+        with iotests.FilePath('t.vpc') as file_path, \
+             iotests.VM() as vm:
+
+            vm.launch()
+
+            iotests.log('--- Creating empty file ---')
+            blockdev_create(vm, { 'driver': 'file',
+                                  'filename': file_path,
+                                  'size': 0 })
+
+            vm.qmp_log('blockdev-add', driver='file', filename=file_path,
+                       node_name='protocol-node',
+                       filters=[iotests.filter_qmp_testfiles])
+            iotests.log('')
+
+            print_info = test_func(vm, file_path)
+            iotests.log('')
+
+            vm.shutdown()
+            iotests.img_info_log(file_path)
+
+
+iotests.script_main(main,
+                    supported_fmts=['vpc'],
+                    supported_protocols=['file'])
