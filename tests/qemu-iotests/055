@@ -563,4 +563,5 @@ class TestDriveCompression(iotests.QMPTestCase):
                                         target='drive1')
 
 if __name__ == '__main__':
-    iotests.main(supported_fmts=['raw', 'qcow2'])
+    iotests.main(supported_fmts=['raw', 'qcow2'],
+                 supported_protocols=['file'])

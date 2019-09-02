@@ -170,4 +170,5 @@ class TestShrink1M(ShrinkBaseClass):
 ShrinkBaseClass = None
 
 if __name__ == '__main__':
-    iotests.main(supported_fmts=['raw', 'qcow2'])
+    iotests.main(supported_fmts=['raw', 'qcow2'],
+                 supported_protocols=['file'])

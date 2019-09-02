@@ -83,4 +83,5 @@ class TestStopWithBlockJob(iotests.QMPTestCase):
         self.do_test_stop("block-commit", device="drive0")
 
 if __name__ == '__main__':
-    iotests.main(supported_fmts=["qcow2"])
+    iotests.main(supported_fmts=["qcow2"],
+                 supported_protocols=["file"])
