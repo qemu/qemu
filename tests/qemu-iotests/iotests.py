@@ -830,7 +830,8 @@ def execute_unittest(output, verbosity, debug):
 
 def execute_test(test_function=None,
                  supported_fmts=[], supported_oses=['linux'],
-                 supported_cache_modes=[], unsupported_fmts=[]):
+                 supported_cache_modes=[], unsupported_fmts=[],
+                 supported_protocols=[], unsupported_protocols=[]):
     """Run either unittest or script-style tests."""
 
     # We are using TEST_DIR and QEMU_DEFAULT_MACHINE as proxies to
@@ -844,6 +845,7 @@ def execute_test(test_function=None,
     debug = '-d' in sys.argv
     verbosity = 1
     verify_image_format(supported_fmts, unsupported_fmts)
+    verify_protocol(supported_protocols, unsupported_protocols)
     verify_platform(supported_oses)
     verify_cache_mode(supported_cache_modes)
 
