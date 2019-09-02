@@ -63,4 +63,5 @@ class TestInvalidateAutoclear(iotests.QMPTestCase):
             self.assertEqual(f.read(1), b'\x00')
 
 if __name__ == '__main__':
-    iotests.main(supported_fmts=['qcow2'])
+    iotests.main(supported_fmts=['qcow2'],
+                 supported_protocols=['file'])

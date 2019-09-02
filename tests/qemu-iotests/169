@@ -227,4 +227,5 @@ for cmb in list(itertools.product((True, False), repeat=2)):
                      'do_test_migration_resume_source', *list(cmb))
 
 if __name__ == '__main__':
-    iotests.main(supported_fmts=['qcow2'])
+    iotests.main(supported_fmts=['qcow2'],
+                 supported_protocols=['file'])
