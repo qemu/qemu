@@ -287,6 +287,5 @@ class BuiltinNBD(NBDBlockdevAddBase):
 
 
 if __name__ == '__main__':
-    # Need to support image creation
-    iotests.main(supported_fmts=['vpc', 'parallels', 'qcow', 'vdi', 'qcow2',
-                                 'vmdk', 'raw', 'vhdx', 'qed'])
+    iotests.main(supported_fmts=['raw'],
+                 supported_protocols=['nbd'])
