@@ -295,64 +295,6 @@ static void spapr_populate_pa_features(SpaprMachineState *spapr,
     _FDT((fdt_setprop(fdt, offset, "ibm,pa-features", pa_features, pa_size)));
 }
 
-static int spapr_fixup_cpu_dt(void *fdt, SpaprMachineState *spapr)
-{
-    MachineState *ms = MACHINE(spapr);
-    int ret = 0, offset, cpus_offset;
-    CPUState *cs;
-    char cpu_model[32];
-    uint32_t pft_size_prop[] = {0, cpu_to_be32(spapr->htab_shift)};
-
-    CPU_FOREACH(cs) {
-        PowerPCCPU *cpu = POWERPC_CPU(cs);
-        DeviceClass *dc = DEVICE_GET_CLASS(cs);
-        int index = spapr_get_vcpu_id(cpu);
-        int compat_smt = MIN(ms->smp.threads, ppc_compat_max_vthreads(cpu));
-
-        if (!spapr_is_thread0_in_vcore(spapr, cpu)) {
-            continue;
-        }
-
-        snprintf(cpu_model, 32, "%s@%x", dc->fw_name, index);
-
-        cpus_offset = fdt_path_offset(fdt, "/cpus");
-        if (cpus_offset < 0) {
-            cpus_offset = fdt_add_subnode(fdt, 0, "cpus");
-            if (cpus_offset < 0) {
-                return cpus_offset;
-            }
-        }
-        offset = fdt_subnode_offset(fdt, cpus_offset, cpu_model);
-        if (offset < 0) {
-            offset = fdt_add_subnode(fdt, cpus_offset, cpu_model);
-            if (offset < 0) {
-                return offset;
-            }
-        }
-
-        ret = fdt_setprop(fdt, offset, "ibm,pft-size",
-                          pft_size_prop, sizeof(pft_size_prop));
-        if (ret < 0) {
-            return ret;
-        }
-
-        if (ms->numa_state->num_nodes > 1) {
-            ret = spapr_fixup_cpu_numa_dt(fdt, offset, cpu);
-            if (ret < 0) {
-                return ret;
-            }
-        }
-
-        ret = spapr_fixup_cpu_smt_dt(fdt, offset, cpu, compat_smt);
-        if (ret < 0) {
-            return ret;
-        }
-
-        spapr_populate_pa_features(spapr, cpu, fdt, offset);
-    }
-    return ret;
-}
-
 static hwaddr spapr_node0_size(MachineState *machine)
 {
     if (machine->numa_state->num_nodes) {
@@ -983,11 +925,13 @@ static bool spapr_hotplugged_dev_before_cas(void)
     return false;
 }
 
+static void *spapr_build_fdt(SpaprMachineState *spapr);
+
 int spapr_h_cas_compose_response(SpaprMachineState *spapr,
                                  target_ulong addr, target_ulong size,
                                  SpaprOptionVector *ov5_updates)
 {
-    void *fdt, *fdt_skel;
+    void *fdt;
     SpaprDeviceTreeUpdateHeader hdr = { .version_id = 1 };
 
     if (spapr_hotplugged_dev_before_cas()) {
@@ -1003,25 +947,7 @@ int spapr_h_cas_compose_response(SpaprMachineState *spapr,
 
     size -= sizeof(hdr);
 
-    /* Create skeleton */
-    fdt_skel = g_malloc0(size);
-    _FDT((fdt_create(fdt_skel, size)));
-    _FDT((fdt_finish_reservemap(fdt_skel)));
-    _FDT((fdt_begin_node(fdt_skel, "")));
-    _FDT((fdt_end_node(fdt_skel)));
-    _FDT((fdt_finish(fdt_skel)));
-    fdt = g_malloc0(size);
-    _FDT((fdt_open_into(fdt_skel, fdt, size)));
-    g_free(fdt_skel);
-
-    /* Fixup cpu nodes */
-    _FDT((spapr_fixup_cpu_dt(fdt, spapr)));
-
-    if (spapr_dt_cas_updates(spapr, fdt, ov5_updates)) {
-        return -1;
-    }
-
-    /* Pack resulting tree */
+    fdt = spapr_build_fdt(spapr);
     _FDT((fdt_pack(fdt)));
 
     if (fdt_totalsize(fdt) + sizeof(hdr) > size) {
@@ -1033,7 +959,11 @@ int spapr_h_cas_compose_response(SpaprMachineState *spapr,
     cpu_physical_memory_write(addr, &hdr, sizeof(hdr));
     cpu_physical_memory_write(addr + sizeof(hdr), fdt, fdt_totalsize(fdt));
     trace_spapr_cas_continue(fdt_totalsize(fdt) + sizeof(hdr));
-    g_free(fdt);
+
+    g_free(spapr->fdt_blob);
+    spapr->fdt_size = fdt_totalsize(fdt);
+    spapr->fdt_initial_size = spapr->fdt_size;
+    spapr->fdt_blob = fdt;
 
     return 0;
 }
