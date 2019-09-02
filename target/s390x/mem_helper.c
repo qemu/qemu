@@ -768,8 +768,8 @@ static inline uint32_t do_mvcl(CPUS390XState *env,
                                uint64_t *src, uint64_t *srclen,
                                uint16_t pad, int wordsize, uintptr_t ra)
 {
-    uint64_t len = MIN(*srclen, *destlen);
-    uint32_t cc;
+    int len = MIN(*destlen, -(*dest | TARGET_PAGE_MASK));
+    int i, cc;
 
     if (*destlen == *srclen) {
         cc = 0;
@@ -779,32 +779,40 @@ static inline uint32_t do_mvcl(CPUS390XState *env,
         cc = 2;
     }
 
-    /* Copy the src array */
-    fast_memmove(env, *dest, *src, len, ra);
-    *src += len;
-    *srclen -= len;
-    *dest += len;
-    *destlen -= len;
+    if (!*destlen) {
+        return cc;
+    }
 
-    /* Pad the remaining area */
-    if (wordsize == 1) {
-        fast_memset(env, *dest, pad, *destlen, ra);
-        *dest += *destlen;
-        *destlen = 0;
+    /*
+     * Only perform one type of type of operation (move/pad) at a time.
+     * Stay within single pages.
+     */
+    if (*srclen) {
+        /* Copy the src array */
+        len = MIN(MIN(*srclen, -(*src | TARGET_PAGE_MASK)), len);
+        *destlen -= len;
+        *srclen -= len;
+        fast_memmove(env, *dest, *src, len, ra);
+        *src = wrap_address(env, *src + len);
+        *dest = wrap_address(env, *dest + len);
+    } else if (wordsize == 1) {
+        /* Pad the remaining area */
+        *destlen -= len;
+        fast_memset(env, *dest, pad, len, ra);
+        *dest = wrap_address(env, *dest + len);
     } else {
-        /* If remaining length is odd, pad with odd byte first.  */
-        if (*destlen & 1) {
-            cpu_stb_data_ra(env, *dest, pad & 0xff, ra);
-            *dest += 1;
-            *destlen -= 1;
-        }
-        /* The remaining length is even, pad using words.  */
-        for (; *destlen; *dest += 2, *destlen -= 2) {
-            cpu_stw_data_ra(env, *dest, pad, ra);
+        /* The remaining length selects the padding byte. */
+        for (i = 0; i < len; (*destlen)--, i++) {
+            if (*destlen & 1) {
+                cpu_stb_data_ra(env, *dest, pad, ra);
+            } else {
+                cpu_stb_data_ra(env, *dest, pad >> 8, ra);
+            }
+            *dest = wrap_address(env, *dest + 1);
         }
     }
 
-    return cc;
+    return *destlen ? 3 : cc;
 }
 
 /* move long */
