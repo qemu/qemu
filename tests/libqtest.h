@@ -708,4 +708,13 @@ void qmp_assert_error_class(QDict *rsp, const char *class);
  */
 bool qtest_probe_child(QTestState *s);
 
+/**
+ * qtest_set_expected_status:
+ * @s: QTestState instance to operate on.
+ * @status: an expected exit status.
+ *
+ * Set expected exit status of the child.
+ */
+void qtest_set_expected_status(QTestState *s, int status);
+
 #endif
