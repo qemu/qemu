@@ -34,7 +34,7 @@ class Vnc(Test):
         self.assertEqual(set_password_response['error']['desc'],
                          'Could not set password')
 
-    def test_vnc_change_password_requires_a_password(self):
+    def test_change_password_requires_a_password(self):
         self.vm.add_args('-nodefaults', '-S', '-vnc', ':0')
         self.vm.launch()
         self.assertTrue(self.vm.qmp('query-vnc')['return']['enabled'])
@@ -48,7 +48,7 @@ class Vnc(Test):
         self.assertEqual(set_password_response['error']['desc'],
                          'Could not set password')
 
-    def test_vnc_change_password(self):
+    def test_change_password(self):
         self.vm.add_args('-nodefaults', '-S', '-vnc', ':0,password')
         self.vm.launch()
         self.assertTrue(self.vm.qmp('query-vnc')['return']['enabled'])
