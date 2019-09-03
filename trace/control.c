@@ -165,6 +165,12 @@ void trace_list_events(void)
     while ((ev = trace_event_iter_next(&iter)) != NULL) {
         fprintf(stderr, "%s\n", trace_event_get_name(ev));
     }
+#ifdef CONFIG_TRACE_DTRACE
+    fprintf(stderr, "This list of names of trace points may be incomplete "
+                    "when using the DTrace/SystemTap backends.\n"
+                    "Run 'qemu-trace-stap list %s' to print the full list.\n",
+            error_get_progname());
+#endif
 }
 
 static void do_trace_enable_events(const char *line_buf)
