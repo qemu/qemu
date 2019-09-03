@@ -2140,6 +2140,15 @@ bool migrate_ignore_shared(void)
     return s->enabled_capabilities[MIGRATION_CAPABILITY_X_IGNORE_SHARED];
 }
 
+bool migrate_validate_uuid(void)
+{
+    MigrationState *s;
+
+    s = migrate_get_current();
+
+    return s->enabled_capabilities[MIGRATION_CAPABILITY_VALIDATE_UUID];
+}
+
 bool migrate_use_events(void)
 {
     MigrationState *s;
