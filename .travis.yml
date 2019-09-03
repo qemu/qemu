@@ -70,6 +70,9 @@ env:
     - TEST_CMD="make check -j3 V=1"
     # This is broadly a list of "mainline" softmmu targets which have support across the major distros
     - MAIN_SOFTMMU_TARGETS="aarch64-softmmu,arm-softmmu,i386-softmmu,mips-softmmu,mips64-softmmu,ppc64-softmmu,riscv64-softmmu,s390x-softmmu,x86_64-softmmu"
+    - CCACHE_SLOPPINESS="include_file_ctime,include_file_mtime"
+    - CCACHE_MAXSIZE=1G
+
 
 git:
   # we want to do this ourselves
@@ -77,10 +80,13 @@ git:
 
 
 before_script:
+  - command -v ccache && ccache --zero-stats
   - mkdir -p ${BUILD_DIR} && cd ${BUILD_DIR}
   - ${SRC_DIR}/configure ${BASE_CONFIG} ${CONFIG} || { cat config.log && exit 1; }
 script:
   - make -j3 && travis_retry ${TEST_CMD}
+after_script:
+  - command -v ccache && ccache --show-stats
 
 
 matrix:
