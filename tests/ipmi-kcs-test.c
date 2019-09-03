@@ -24,8 +24,7 @@
 
 #include "qemu/osdep.h"
 
-
-#include "libqtest.h"
+#include "libqtest-single.h"
 
 #define IPMI_IRQ        5
 

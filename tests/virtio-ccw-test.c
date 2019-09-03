@@ -14,7 +14,7 @@
  */
 
 #include "qemu/osdep.h"
-#include "libqtest.h"
+#include "libqtest-single.h"
 #include "libqos/virtio.h"
 
 static void virtio_balloon_nop(void)

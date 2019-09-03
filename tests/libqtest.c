@@ -35,8 +35,6 @@
 #define SOCKET_TIMEOUT 50
 #define SOCKET_MAX_FDS 16
 
-QTestState *global_qtest;
-
 struct QTestState
 {
     int fd;

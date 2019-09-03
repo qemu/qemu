@@ -22,8 +22,6 @@
 
 typedef struct QTestState QTestState;
 
-extern QTestState *global_qtest;
-
 /**
  * qtest_initf:
  * @fmt...: Format for creating other arguments to pass to QEMU, formatted
@@ -640,8 +638,6 @@ void qtest_add_abrt_handler(GHookFunc fn, const void *data);
  */
 void qtest_qmp_assert_success(QTestState *qts, const char *fmt, ...)
     GCC_FMT_ATTR(2, 3);
-
-#include "libqtest-single.h"
 
 QDict *qmp_fd_receive(int fd);
 void qmp_fd_vsend_fds(int fd, int *fds, size_t fds_num,

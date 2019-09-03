@@ -9,7 +9,7 @@
  */
 
 #include "qemu/osdep.h"
-#include "libqtest.h"
+#include "libqtest-single.h"
 #include "qemu/bswap.h"
 #include "qemu/module.h"
 #include "standard-headers/linux/virtio_blk.h"

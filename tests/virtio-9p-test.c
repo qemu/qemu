@@ -8,7 +8,7 @@
  */
 
 #include "qemu/osdep.h"
-#include "libqtest.h"
+#include "libqtest-single.h"
 #include "qemu/module.h"
 #include "hw/9pfs/9p.h"
 #include "hw/9pfs/9p-synth.h"

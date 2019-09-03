@@ -9,7 +9,7 @@
  */
 
 #include "qemu/osdep.h"
-#include "libqtest.h"
+#include "libqtest-single.h"
 #include "qemu/module.h"
 #include "scsi/constants.h"
 #include "libqos/libqos-pc.h"

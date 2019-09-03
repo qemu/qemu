@@ -15,7 +15,7 @@
 #include "qemu/osdep.h"
 #include <glib/gstdio.h>
 
-#include "libqtest.h"
+#include "libqtest-single.h"
 #include "tpm-tests.h"
 
 static bool

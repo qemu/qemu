@@ -11,6 +11,10 @@
 #ifndef LIBQTEST_SINGLE_H
 #define LIBQTEST_SINGLE_H
 
+#include "libqtest.h"
+
+QTestState *global_qtest __attribute__((common, weak));
+
 /**
  * qtest_start:
  * @args: other arguments to pass to QEMU

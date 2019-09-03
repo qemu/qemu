@@ -8,7 +8,7 @@
  */
 
 #include "qemu/osdep.h"
-#include "libqtest.h"
+#include "libqtest-single.h"
 #include "libqos/libqos.h"
 #include "libqos/usb.h"
 #include "libqos/libqos-pc.h"

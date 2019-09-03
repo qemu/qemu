@@ -8,7 +8,7 @@
  */
 
 #include "qemu/osdep.h"
-#include "libqtest.h"
+#include "libqtest-single.h"
 
 #define HDA_ID "hda0"
 #define CODEC_DEVICES " -device hda-output,bus=" HDA_ID ".0" \
