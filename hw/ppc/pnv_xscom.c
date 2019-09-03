@@ -106,6 +106,16 @@ static uint64_t xscom_read_default(PnvChip *chip, uint32_t pcba)
     case 0x201302a:     /* CAPP stuff */
     case 0x2013801:     /* CAPP stuff */
     case 0x2013802:     /* CAPP stuff */
+
+        /* P9 CAPP regs */
+    case 0x2010841:
+    case 0x2010842:
+    case 0x201082a:
+    case 0x2010828:
+    case 0x4010841:
+    case 0x4010842:
+    case 0x401082a:
+    case 0x4010828:
         return 0;
     default:
         return -1;
@@ -137,6 +147,16 @@ static bool xscom_write_default(PnvChip *chip, uint32_t pcba, uint64_t val)
     case 0x201302a:     /* CAPP stuff */
     case 0x2013801:     /* CAPP stuff */
     case 0x2013802:     /* CAPP stuff */
+
+        /* P9 CAPP regs */
+    case 0x2010841:
+    case 0x2010842:
+    case 0x201082a:
+    case 0x2010828:
+    case 0x4010841:
+    case 0x4010842:
+    case 0x401082a:
+    case 0x4010828:
 
         /* P8 PRD registers */
     case PRD_P8_IPOLL_REG_MASK:

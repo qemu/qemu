@@ -1168,6 +1168,7 @@ static void spapr_dt_ov5_platform_support(SpaprMachineState *spapr, void *fdt,
 static void spapr_dt_chosen(SpaprMachineState *spapr, void *fdt)
 {
     MachineState *machine = MACHINE(spapr);
+    SpaprMachineClass *smc = SPAPR_MACHINE_GET_CLASS(machine);
     int chosen;
     const char *boot_device = machine->boot_order;
     char *stdout_path = spapr_vio_stdout_path(spapr->vio_bus);
@@ -1223,6 +1224,11 @@ static void spapr_dt_chosen(SpaprMachineState *spapr, void *fdt)
          */
         _FDT(fdt_setprop_string(fdt, chosen, "linux,stdout-path", stdout_path));
         _FDT(fdt_setprop_string(fdt, chosen, "stdout-path", stdout_path));
+    }
+
+    /* We can deal with BAR reallocation just fine, advertise it to the guest */
+    if (smc->linux_pci_probe) {
+        _FDT(fdt_setprop_cell(fdt, chosen, "linux,pci-probe-only", 0));
     }
 
     spapr_dt_ov5_platform_support(spapr, fdt, chosen);
@@ -1752,7 +1758,7 @@ static void spapr_machine_reset(MachineState *machine)
         spapr_ovec_cleanup(spapr->ov5_cas);
         spapr->ov5_cas = spapr_ovec_new();
 
-        ppc_set_compat(first_ppc_cpu, spapr->max_compat_pvr, &error_fatal);
+        ppc_set_compat_all(spapr->max_compat_pvr, &error_fatal);
     }
 
     /*
@@ -3829,6 +3835,7 @@ static void spapr_core_plug(HotplugHandler *hotplug_dev, DeviceState *dev,
     CPUArchId *core_slot;
     int index;
     bool hotplugged = spapr_drc_hotplugged(dev);
+    int i;
 
     core_slot = spapr_find_cpu_slot(MACHINE(hotplug_dev), cc->core_id, &index);
     if (!core_slot) {
@@ -3862,11 +3869,24 @@ static void spapr_core_plug(HotplugHandler *hotplug_dev, DeviceState *dev,
     core_slot->cpu = OBJECT(dev);
 
     if (smc->pre_2_10_has_unused_icps) {
-        int i;
-
         for (i = 0; i < cc->nr_threads; i++) {
             cs = CPU(core->threads[i]);
             pre_2_10_vmstate_unregister_dummy_icp(cs->cpu_index);
+        }
+    }
+
+    /*
+     * Set compatibility mode to match the boot CPU, which was either set
+     * by the machine reset code or by CAS.
+     */
+    if (hotplugged) {
+        for (i = 0; i < cc->nr_threads; i++) {
+            ppc_set_compat(core->threads[i], POWERPC_CPU(first_cpu)->compat_pvr,
+                           &local_err);
+            if (local_err) {
+                error_propagate(errp, local_err);
+                return;
+            }
         }
     }
 }
@@ -4470,6 +4490,7 @@ static void spapr_machine_class_init(ObjectClass *oc, void *data)
     spapr_caps_add_properties(smc, &error_abort);
     smc->irq = &spapr_irq_dual;
     smc->dr_phb_enabled = true;
+    smc->linux_pci_probe = true;
 }
 
 static const TypeInfo spapr_machine_info = {
@@ -4529,12 +4550,14 @@ DEFINE_SPAPR_MACHINE(4_2, "4.2", true);
  */
 static void spapr_machine_4_1_class_options(MachineClass *mc)
 {
+    SpaprMachineClass *smc = SPAPR_MACHINE_CLASS(mc);
     static GlobalProperty compat[] = {
         /* Only allow 4kiB and 64kiB IOMMU pagesizes */
         { TYPE_SPAPR_PCI_HOST_BRIDGE, "pgsz", "0x11000" },
     };
 
     spapr_machine_4_2_class_options(mc);
+    smc->linux_pci_probe = false;
     compat_props_add(mc->compat_props, hw_compat_4_1, hw_compat_4_1_len);
     compat_props_add(mc->compat_props, compat, G_N_ELEMENTS(compat));
 }

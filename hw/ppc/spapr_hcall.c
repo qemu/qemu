@@ -1811,7 +1811,7 @@ static target_ulong h_client_architecture_support(PowerPCCPU *cpu,
     spapr_ovec_cleanup(ov5_updates);
 
     if (spapr->cas_reboot) {
-        qemu_system_reset_request(SHUTDOWN_CAUSE_GUEST_RESET);
+        qemu_system_reset_request(SHUTDOWN_CAUSE_SUBSYSTEM_RESET);
     }
 
     return H_SUCCESS;

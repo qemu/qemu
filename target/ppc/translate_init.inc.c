@@ -8770,6 +8770,7 @@ POWERPC_FAMILY(POWER8)(ObjectClass *oc, void *data)
     pcc->handle_mmu_fault = ppc_hash64_handle_mmu_fault;
     pcc->hash64_opts = &ppc_hash64_opts_POWER7;
     pcc->lrg_decr_bits = 32;
+    pcc->n_host_threads = 8;
 #endif
     pcc->excp_model = POWERPC_EXCP_POWER8;
     pcc->bus_model = PPC_FLAGS_INPUT_POWER7;
@@ -8981,6 +8982,7 @@ POWERPC_FAMILY(POWER9)(ObjectClass *oc, void *data)
     pcc->hash64_opts = &ppc_hash64_opts_POWER7;
     pcc->radix_page_info = &POWER9_radix_page_info;
     pcc->lrg_decr_bits = 56;
+    pcc->n_host_threads = 4;
 #endif
     pcc->excp_model = POWERPC_EXCP_POWER9;
     pcc->bus_model = PPC_FLAGS_INPUT_POWER9;
@@ -10460,6 +10462,10 @@ static void ppc_cpu_reset(CPUState *s)
     env->pending_interrupts = 0;
     s->exception_index = POWERPC_EXCP_NONE;
     env->error_code = 0;
+
+    /* tininess for underflow is detected before rounding */
+    set_float_detect_tininess(float_tininess_before_rounding,
+                              &env->fp_status);
 
     for (i = 0; i < ARRAY_SIZE(env->spr_cb); i++) {
         ppc_spr_t *spr = &env->spr_cb[i];

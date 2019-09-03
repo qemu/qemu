@@ -121,6 +121,7 @@ struct SpaprMachineClass {
     bool legacy_irq_allocation;
     bool broken_host_serial_model; /* present real host info to the guest */
     bool pre_4_1_migration; /* don't migrate hpt-max-page-size */
+    bool linux_pci_probe;
 
     void (*phb_placement)(SpaprMachineState *spapr, uint32_t index,
                           uint64_t *buid, hwaddr *pio, 
