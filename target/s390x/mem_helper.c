@@ -1980,10 +1980,13 @@ uint32_t HELPER(mvcs)(CPUS390XState *env, uint64_t l, uint64_t a1, uint64_t a2)
         s390_program_interrupt(env, PGM_SPECIAL_OP, ILEN_AUTO, ra);
     }
 
+    l = wrap_length32(env, l);
     if (l > 256) {
         /* max 256 */
         l = 256;
         cc = 3;
+    } else if (!l) {
+        return cc;
     }
 
     /* XXX replace w/ memcpy */
@@ -2009,10 +2012,13 @@ uint32_t HELPER(mvcp)(CPUS390XState *env, uint64_t l, uint64_t a1, uint64_t a2)
         s390_program_interrupt(env, PGM_SPECIAL_OP, ILEN_AUTO, ra);
     }
 
+    l = wrap_length32(env, l);
     if (l > 256) {
         /* max 256 */
         l = 256;
         cc = 3;
+    } else if (!l) {
+        return cc;
     }
 
     /* XXX replace w/ memcpy */
