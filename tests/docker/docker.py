@@ -536,9 +536,9 @@ class ProbeCommand(SubCommand):
         try:
             docker = Docker()
             if docker._command[0] == "docker":
-                print("yes")
+                print("docker")
             elif docker._command[0] == "sudo":
-                print("sudo")
+                print("sudo docker")
             elif docker._command[0] == "podman":
                 print("podman")
         except Exception:
@@ -651,7 +651,8 @@ def main():
         cmd.args(subp)
         subp.set_defaults(cmdobj=cmd)
     args, argv = parser.parse_known_args()
-    USE_ENGINE = args.engine
+    if args.engine:
+        USE_ENGINE = args.engine
     return args.cmdobj.run(args, argv)
 
 

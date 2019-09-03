@@ -495,7 +495,7 @@ qed="yes"
 parallels="yes"
 sheepdog="yes"
 libxml2=""
-docker="no"
+container="no"
 debug_mutex="no"
 libpmem=""
 default_devices="yes"
@@ -5894,14 +5894,14 @@ EOF
 fi
 
 ##########################################
-# Docker and cross-compiler support
+# Container based cross-compiler support
 #
 # This is specifically for building test
 # cases for foreign architectures, not
 # cross-compiling QEMU itself.
 
-if has "docker"; then
-    docker=$($python $source_path/tests/docker/docker.py probe)
+if has "docker" || has "podman"; then
+    container=$($python $source_path/tests/docker/docker.py probe)
 fi
 
 ##########################################
@@ -6474,7 +6474,7 @@ echo "qed support       $qed"
 echo "parallels support $parallels"
 echo "sheepdog support  $sheepdog"
 echo "capstone          $capstone"
-echo "docker            $docker"
+echo "container support $container"
 echo "libpmem support   $libpmem"
 echo "libudev           $libudev"
 echo "default devices   $default_devices"
