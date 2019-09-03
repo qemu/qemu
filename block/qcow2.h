@@ -420,6 +420,7 @@ typedef struct QCowL2Meta
      * from @cow_start and @cow_end into one single write operation.
      */
     QEMUIOVector *data_qiov;
+    size_t data_qiov_offset;
 
     /** Pointer to next L2Meta of the same write request */
     struct QCowL2Meta *next;
