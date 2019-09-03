@@ -101,6 +101,18 @@ static bool qvirtio_mmio_get_config_isr_status(QVirtioDevice *d)
     return false;
 }
 
+static void qvirtio_mmio_wait_config_isr_status(QVirtioDevice *d,
+                                                gint64 timeout_us)
+{
+    QVirtioMMIODevice *dev = container_of(d, QVirtioMMIODevice, vdev);
+    gint64 start_time = g_get_monotonic_time();
+
+    do {
+        g_assert(g_get_monotonic_time() - start_time <= timeout_us);
+        qtest_clock_step(dev->qts, 100);
+    } while (!qvirtio_mmio_get_config_isr_status(d));
+}
+
 static void qvirtio_mmio_queue_select(QVirtioDevice *d, uint16_t index)
 {
     QVirtioMMIODevice *dev = container_of(d, QVirtioMMIODevice, vdev);
@@ -179,7 +191,7 @@ const QVirtioBus qvirtio_mmio = {
     .get_status = qvirtio_mmio_get_status,
     .set_status = qvirtio_mmio_set_status,
     .get_queue_isr_status = qvirtio_mmio_get_queue_isr_status,
-    .get_config_isr_status = qvirtio_mmio_get_config_isr_status,
+    .wait_config_isr_status = qvirtio_mmio_wait_config_isr_status,
     .queue_select = qvirtio_mmio_queue_select,
     .get_queue_size = qvirtio_mmio_get_queue_size,
     .set_queue_address = qvirtio_mmio_set_queue_address,

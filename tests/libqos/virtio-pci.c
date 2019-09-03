@@ -175,6 +175,18 @@ static bool qvirtio_pci_get_config_isr_status(QVirtioDevice *d)
     }
 }
 
+static void qvirtio_pci_wait_config_isr_status(QVirtioDevice *d,
+                                               gint64 timeout_us)
+{
+    QVirtioPCIDevice *dev = container_of(d, QVirtioPCIDevice, vdev);
+    gint64 start_time = g_get_monotonic_time();
+
+    do {
+        g_assert(g_get_monotonic_time() - start_time <= timeout_us);
+        qtest_clock_step(dev->pdev->bus->qts, 100);
+    } while (!qvirtio_pci_get_config_isr_status(d));
+}
+
 static void qvirtio_pci_queue_select(QVirtioDevice *d, uint16_t index)
 {
     QVirtioPCIDevice *dev = container_of(d, QVirtioPCIDevice, vdev);
@@ -257,7 +269,7 @@ const QVirtioBus qvirtio_pci = {
     .get_status = qvirtio_pci_get_status,
     .set_status = qvirtio_pci_set_status,
     .get_queue_isr_status = qvirtio_pci_get_queue_isr_status,
-    .get_config_isr_status = qvirtio_pci_get_config_isr_status,
+    .wait_config_isr_status = qvirtio_pci_wait_config_isr_status,
     .queue_select = qvirtio_pci_queue_select,
     .get_queue_size = qvirtio_pci_get_queue_size,
     .set_queue_address = qvirtio_pci_set_queue_address,

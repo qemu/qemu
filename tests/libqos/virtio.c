@@ -82,13 +82,13 @@ void qvirtio_set_driver_ok(QVirtioDevice *d)
                     VIRTIO_CONFIG_S_DRIVER | VIRTIO_CONFIG_S_ACKNOWLEDGE);
 }
 
-void qvirtio_wait_queue_isr(QVirtioDevice *d,
+void qvirtio_wait_queue_isr(QTestState *qts, QVirtioDevice *d,
                             QVirtQueue *vq, gint64 timeout_us)
 {
     gint64 start_time = g_get_monotonic_time();
 
     for (;;) {
-        clock_step(100);
+        qtest_clock_step(qts, 100);
         if (d->bus->get_queue_isr_status(d, vq)) {
             return;
         }
@@ -109,8 +109,8 @@ uint8_t qvirtio_wait_status_byte_no_isr(QTestState *qts, QVirtioDevice *d,
     gint64 start_time = g_get_monotonic_time();
     uint8_t val;
 
-    while ((val = readb(addr)) == 0xff) {
-        clock_step(100);
+    while ((val = qtest_readb(qts, addr)) == 0xff) {
+        qtest_clock_step(qts, 100);
         g_assert(!d->bus->get_queue_isr_status(d, vq));
         g_assert(g_get_monotonic_time() - start_time <= timeout_us);
     }
@@ -137,7 +137,7 @@ void qvirtio_wait_used_elem(QTestState *qts, QVirtioDevice *d,
     for (;;) {
         uint32_t got_desc_idx;
 
-        clock_step(100);
+        qtest_clock_step(qts, 100);
 
         if (d->bus->get_queue_isr_status(d, vq) &&
             qvirtqueue_get_buf(qts, vq, &got_desc_idx, len)) {
@@ -151,15 +151,7 @@ void qvirtio_wait_used_elem(QTestState *qts, QVirtioDevice *d,
 
 void qvirtio_wait_config_isr(QVirtioDevice *d, gint64 timeout_us)
 {
-    gint64 start_time = g_get_monotonic_time();
-
-    for (;;) {
-        clock_step(100);
-        if (d->bus->get_config_isr_status(d)) {
-            return;
-        }
-        g_assert(g_get_monotonic_time() - start_time <= timeout_us);
-    }
+    d->bus->wait_config_isr_status(d, timeout_us);
 }
 
 void qvring_init(QTestState *qts, const QGuestAllocator *alloc, QVirtQueue *vq,
