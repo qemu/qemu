@@ -52,6 +52,19 @@ static inline bool psw_key_valid(CPUS390XState *env, uint8_t psw_key)
     return true;
 }
 
+static bool is_destructive_overlap(CPUS390XState *env, uint64_t dest,
+                                   uint64_t src, uint32_t len)
+{
+    if (!len || src == dest) {
+        return false;
+    }
+    /* Take care of wrapping at the end of address space. */
+    if (unlikely(wrap_address(env, src + len - 1) < src)) {
+        return dest > src || dest <= wrap_address(env, src + len - 1);
+    }
+    return dest > src && dest <= src + len - 1;
+}
+
 /* Reduce the length so that addr + len doesn't cross a page boundary.  */
 static inline uint32_t adj_len_to_page(uint32_t len, uint64_t addr)
 {
@@ -787,7 +800,11 @@ uint32_t HELPER(mvcl)(CPUS390XState *env, uint32_t r1, uint32_t r2)
     uint8_t pad = env->regs[r2 + 1] >> 24;
     uint32_t cc;
 
-    cc = do_mvcl(env, &dest, &destlen, &src, &srclen, pad, 1, ra);
+    if (is_destructive_overlap(env, dest, src, MIN(srclen, destlen))) {
+        cc = 3;
+    } else {
+        cc = do_mvcl(env, &dest, &destlen, &src, &srclen, pad, 1, ra);
+    }
 
     env->regs[r1 + 1] = deposit64(env->regs[r1 + 1], 0, 24, destlen);
     env->regs[r2 + 1] = deposit64(env->regs[r2 + 1], 0, 24, srclen);
