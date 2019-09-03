@@ -1412,8 +1412,9 @@ static AudioState *audio_init(Audiodev *dev, const char *name)
         drvname = AudiodevDriver_str(dev->driver);
     } else if (!QTAILQ_EMPTY(&audio_states)) {
         if (!legacy_config) {
-            dolog("You must specify an audiodev= for the device %s\n", name);
-            exit(1);
+            dolog("Device %s: audiodev default parameter is deprecated, please "
+                  "specify audiodev=%s\n", name,
+                  QTAILQ_FIRST(&audio_states)->dev->id);
         }
         return QTAILQ_FIRST(&audio_states);
     } else {
@@ -1548,8 +1549,7 @@ CaptureVoiceOut *AUD_add_capture(
 
     if (!s) {
         if (!legacy_config) {
-            dolog("You must specify audiodev when trying to capture\n");
-            return NULL;
+            dolog("Capturing without setting an audiodev is deprecated\n");
         }
         s = audio_init(NULL, NULL);
     }
@@ -1685,7 +1685,7 @@ void audio_create_pdos(Audiodev *dev)
         }                                                           \
         if (!dev->u.driver.has_out) {                               \
             dev->u.driver.out = g_malloc0(                          \
-                sizeof(AudiodevAlsaPerDirectionOptions));           \
+                sizeof(Audiodev##pdo_name##PerDirectionOptions));   \
             dev->u.driver.has_out = true;                           \
         }                                                           \
         break

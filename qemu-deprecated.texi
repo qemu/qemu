@@ -72,6 +72,13 @@ backend settings instead of environment variables.  To ease migration to
 the new format, the ``-audiodev-help'' option can be used to convert
 the current values of the environment variables to ``-audiodev'' options.
 
+@subsection Creating sound card devices and vnc without audiodev= property (since 4.2)
+
+When not using the deprecated legacy audio config, each sound card
+should specify an @code{audiodev=} property.  Additionally, when using
+vnc, you should specify an @code{audiodev=} propery if you plan to
+transmit audio through the VNC protocol.
+
 @subsection -mon ...,control=readline,pretty=on|off (since 4.1)
 
 The @code{pretty=on|off} switch has no effect for HMP monitors, but is
