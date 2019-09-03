@@ -9,6 +9,8 @@ cache:
   timeout: 1200
   ccache: true
   pip: true
+  directories:
+  - $HOME/avocado/data/cache
 
 
 addons:
