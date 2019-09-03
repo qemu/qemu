@@ -1,0 +1,5 @@
+# These are build artefacts which only appear when you are doing
+# builds directly in the source tree.
+config-*.mak
+*-softmmu/
+*-linux-user/
