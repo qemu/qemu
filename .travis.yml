@@ -120,11 +120,13 @@ matrix:
 
     - env:
         - CONFIG="--enable-debug --enable-debug-tcg --disable-user"
+        - CACHE_NAME="${TRAVIS_BRANCH}-linux-gcc-debug"
 
 
     # TCG debug can be run just on it's own and is mostly agnostic to user/softmmu distinctions
     - env:
         - CONFIG="--enable-debug-tcg --disable-system"
+        - CACHE_NAME="${TRAVIS_BRANCH}-linux-gcc-debug"
 
 
     - env:
