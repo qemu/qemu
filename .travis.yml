@@ -5,7 +5,8 @@ dist: xenial
 language: c
 compiler:
   - gcc
-cache: ccache
+cache:
+  ccache: true
 
 
 addons:
