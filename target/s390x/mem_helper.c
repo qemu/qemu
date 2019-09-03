@@ -798,19 +798,51 @@ uint32_t HELPER(mvcl)(CPUS390XState *env, uint32_t r1, uint32_t r2)
     uint64_t srclen = env->regs[r2 + 1] & 0xffffff;
     uint64_t src = get_address(env, r2);
     uint8_t pad = env->regs[r2 + 1] >> 24;
-    uint32_t cc;
+    uint32_t cc, cur_len;
 
     if (is_destructive_overlap(env, dest, src, MIN(srclen, destlen))) {
         cc = 3;
+    } else if (srclen == destlen) {
+        cc = 0;
+    } else if (destlen < srclen) {
+        cc = 1;
     } else {
-        cc = do_mvcl(env, &dest, &destlen, &src, &srclen, pad, 1, ra);
+        cc = 2;
     }
 
-    env->regs[r1 + 1] = deposit64(env->regs[r1 + 1], 0, 24, destlen);
-    env->regs[r2 + 1] = deposit64(env->regs[r2 + 1], 0, 24, srclen);
-    set_address_zero(env, r1, dest);
-    set_address_zero(env, r2, src);
+    /* We might have to zero-out some bits even if there was no action. */
+    if (unlikely(!destlen || cc == 3)) {
+        set_address_zero(env, r2, src);
+        set_address_zero(env, r1, dest);
+        return cc;
+    } else if (!srclen) {
+        set_address_zero(env, r2, src);
+    }
 
+    /*
+     * Only perform one type of type of operation (move/pad) in one step.
+     * Stay within single pages.
+     */
+    while (destlen) {
+        cur_len = MIN(destlen, -(dest | TARGET_PAGE_MASK));
+        if (!srclen) {
+            fast_memset(env, dest, pad, cur_len, ra);
+        } else {
+            cur_len = MIN(MIN(srclen, -(src | TARGET_PAGE_MASK)), cur_len);
+
+            fast_memmove(env, dest, src, cur_len, ra);
+            src = wrap_address(env, src + cur_len);
+            srclen -= cur_len;
+            env->regs[r2 + 1] = deposit64(env->regs[r2 + 1], 0, 24, srclen);
+            set_address_zero(env, r2, src);
+        }
+        dest = wrap_address(env, dest + cur_len);
+        destlen -= cur_len;
+        env->regs[r1 + 1] = deposit64(env->regs[r1 + 1], 0, 24, destlen);
+        set_address_zero(env, r1, dest);
+
+        /* TODO: Deliver interrupts. */
+    }
     return cc;
 }
 
