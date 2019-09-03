@@ -162,7 +162,7 @@ class LinuxSSH(Test):
         self.assertIn(True, ["0dfbe8aa4c20b52e1b8bf3cb6cbdf193" in line
                              for line in stdout])
 
-    def do_test_mips_malta(self, endianess, kernel_path, uname_m):
+    def check_mips_malta(self, endianess, kernel_path, uname_m):
         self.boot_debian_wheezy_image_and_ssh_login(endianess, kernel_path)
 
         stdout, stderr = self.ssh_command('uname -a')
@@ -184,7 +184,7 @@ class LinuxSSH(Test):
         kernel_hash = '592e384a4edc16dade52a6cd5c785c637bcbc9ad'
         kernel_path = self.fetch_asset(kernel_url, asset_hash=kernel_hash)
 
-        self.do_test_mips_malta('be', kernel_path, 'mips')
+        self.check_mips_malta('be', kernel_path, 'mips')
 
     @skipIf(os.getenv('CONTINUOUS_INTEGRATION'), 'Running on Travis-CI')
     def test_mips_malta32el_kernel3_2_0(self):
@@ -199,7 +199,7 @@ class LinuxSSH(Test):
         kernel_hash = 'a66bea5a8adaa2cb3d36a1d4e0ccdb01be8f6c2a'
         kernel_path = self.fetch_asset(kernel_url, asset_hash=kernel_hash)
 
-        self.do_test_mips_malta('le', kernel_path, 'mips')
+        self.check_mips_malta('le', kernel_path, 'mips')
 
     @skipIf(os.getenv('CONTINUOUS_INTEGRATION'), 'Running on Travis-CI')
     def test_mips_malta64eb_kernel3_2_0(self):
@@ -213,7 +213,7 @@ class LinuxSSH(Test):
                       'vmlinux-3.2.0-4-5kc-malta')
         kernel_hash = 'db6eea7de35d36c77d8c165b6bcb222e16eb91db'
         kernel_path = self.fetch_asset(kernel_url, asset_hash=kernel_hash)
-        self.do_test_mips_malta('be', kernel_path, 'mips64')
+        self.check_mips_malta('be', kernel_path, 'mips64')
 
     @skipIf(os.getenv('CONTINUOUS_INTEGRATION'), 'Running on Travis-CI')
     def test_mips_malta64el_kernel3_2_0(self):
@@ -227,4 +227,4 @@ class LinuxSSH(Test):
                       'vmlinux-3.2.0-4-5kc-malta')
         kernel_hash = '6a7f77245acf231415a0e8b725d91ed2f3487794'
         kernel_path = self.fetch_asset(kernel_url, asset_hash=kernel_hash)
-        self.do_test_mips_malta('le', kernel_path, 'mips64')
+        self.check_mips_malta('le', kernel_path, 'mips64')

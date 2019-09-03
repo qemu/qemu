@@ -1864,7 +1864,7 @@ if ! $python -c 'import sys; sys.exit(sys.version_info < (2,7))'; then
 fi
 
 # Preserve python version since some functionality is dependent on it
-python_version=$($python -V 2>&1 | sed -e 's/Python\ //')
+python_version=$($python -c 'import sys; print("%d.%d.%d" % (sys.version_info[0], sys.version_info[1], sys.version_info[2]))' 2>/dev/null)
 
 # Suppress writing compiled files
 python="$python -B"
@@ -6511,6 +6511,7 @@ if ! $python -c 'import sys; sys.exit(sys.version_info < (3,0))'; then
   echo
   echo "warning: Python 2 support is deprecated" >&2
   echo "warning: Python 3 will be required for building future versions of QEMU" >&2
+  python2="y"
 fi
 
 config_host_mak="config-host.mak"
@@ -7333,7 +7334,7 @@ echo "INSTALL_DATA=$install -c -m 0644" >> $config_host_mak
 echo "INSTALL_PROG=$install -c -m 0755" >> $config_host_mak
 echo "INSTALL_LIB=$install -c -m 0644" >> $config_host_mak
 echo "PYTHON=$python" >> $config_host_mak
-echo "PYTHON_VERSION=$python_version" >> $config_host_mak
+echo "PYTHON2=$python2" >> $config_host_mak
 echo "CC=$cc" >> $config_host_mak
 if $iasl -h > /dev/null 2>&1; then
   echo "IASL=$iasl" >> $config_host_mak
