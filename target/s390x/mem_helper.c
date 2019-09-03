@@ -672,6 +672,13 @@ uint64_t HELPER(clst)(CPUS390XState *env, uint64_t c, uint64_t s1, uint64_t s2)
 /* move page */
 uint32_t HELPER(mvpg)(CPUS390XState *env, uint64_t r0, uint64_t r1, uint64_t r2)
 {
+    const bool f = extract64(r0, 11, 1);
+    const bool s = extract64(r0, 10, 1);
+
+    if ((f && s) || extract64(r0, 12, 4)) {
+        s390_program_interrupt(env, PGM_SPECIFICATION, ILEN_AUTO, GETPC());
+    }
+
     /* ??? missing r0 handling, which includes access keys, but more
        importantly optional suppression of the exception!  */
     fast_memmove(env, r1, r2, TARGET_PAGE_SIZE, GETPC());
