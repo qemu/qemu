@@ -6,6 +6,7 @@ language: c
 compiler:
   - gcc
 cache:
+  timeout: 1200
   ccache: true
 
 
