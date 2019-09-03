@@ -8,6 +8,7 @@ compiler:
 cache:
   timeout: 1200
   ccache: true
+  pip: true
 
 
 addons:
