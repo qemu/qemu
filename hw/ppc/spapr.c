@@ -1179,11 +1179,16 @@ static void spapr_dt_chosen(SpaprMachineState *spapr, void *fdt)
 
     _FDT(chosen = fdt_add_subnode(fdt, 0, "chosen"));
 
-    _FDT(fdt_setprop_string(fdt, chosen, "bootargs", machine->kernel_cmdline));
-    _FDT(fdt_setprop_cell(fdt, chosen, "linux,initrd-start",
-                          spapr->initrd_base));
-    _FDT(fdt_setprop_cell(fdt, chosen, "linux,initrd-end",
-                          spapr->initrd_base + spapr->initrd_size));
+    if (machine->kernel_cmdline && machine->kernel_cmdline[0]) {
+        _FDT(fdt_setprop_string(fdt, chosen, "bootargs",
+                                machine->kernel_cmdline));
+    }
+    if (spapr->initrd_size) {
+        _FDT(fdt_setprop_cell(fdt, chosen, "linux,initrd-start",
+                              spapr->initrd_base));
+        _FDT(fdt_setprop_cell(fdt, chosen, "linux,initrd-end",
+                              spapr->initrd_base + spapr->initrd_size));
+    }
 
     if (spapr->kernel_size) {
         uint64_t kprop[2] = { cpu_to_be64(KERNEL_LOAD_ADDR),
