@@ -6,6 +6,12 @@ language: c
 compiler:
   - gcc
 cache:
+  # There is one cache per branch and compiler version.
+  # characteristics of each job are used to identify the cache:
+  # - OS name (currently, linux, osx, or windows)
+  # - OS distribution (for Linux, xenial, trusty, or precise)
+  # - macOS image name (e.g., xcode7.2)
+  # - Names and values of visible environment variables set in .travis.yml or Settings panel
   timeout: 1200
   ccache: true
   pip: true
