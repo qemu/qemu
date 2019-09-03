@@ -469,6 +469,25 @@ static inline uint64_t get_address(CPUS390XState *env, int reg)
     return wrap_address(env, env->regs[reg]);
 }
 
+/*
+ * Store the address to the given register, zeroing out unused leftmost
+ * bits in bit positions 32-63 (24-bit and 31-bit mode only).
+ */
+static inline void set_address_zero(CPUS390XState *env, int reg,
+                                    uint64_t address)
+{
+    if (env->psw.mask & PSW_MASK_64) {
+        env->regs[reg] = address;
+    } else {
+        if (!(env->psw.mask & PSW_MASK_32)) {
+            address &= 0x00ffffff;
+        } else {
+            address &= 0x7fffffff;
+        }
+        env->regs[reg] = deposit64(env->regs[reg], 0, 32, address);
+    }
+}
+
 static inline void set_address(CPUS390XState *env, int reg, uint64_t address)
 {
     if (env->psw.mask & PSW_MASK_64) {
@@ -772,8 +791,8 @@ uint32_t HELPER(mvcl)(CPUS390XState *env, uint32_t r1, uint32_t r2)
 
     env->regs[r1 + 1] = deposit64(env->regs[r1 + 1], 0, 24, destlen);
     env->regs[r2 + 1] = deposit64(env->regs[r2 + 1], 0, 24, srclen);
-    set_address(env, r1, dest);
-    set_address(env, r2, src);
+    set_address_zero(env, r1, dest);
+    set_address_zero(env, r2, src);
 
     return cc;
 }
