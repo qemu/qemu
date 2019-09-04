@@ -37,6 +37,8 @@
 &mrs_reg         rd r
 &msr_bank        rn r sysm
 &mrs_bank        rd r sysm
+&ldst_rr         p w u rn rt rm shimm shtype
+&ldst_ri         p w u rn rt imm
 
 # Data-processing (register)
 
@@ -222,3 +224,121 @@ HLT              .... 0001 0000 .... .... .... 0111 ....      @i16
 BKPT             .... 0001 0010 .... .... .... 0111 ....      @i16
 HVC              .... 0001 0100 .... .... .... 0111 ....      @i16
 SMC              ---- 0001 0110 0000 0000 0000 0111 imm:4     &i
+
+# Load/Store Dual, Half, Signed Byte (register)
+
+@ldst_rr_p1w     ---- ...1 u:1 . w:1 . rn:4 rt:4 .... .... rm:4 \
+                 &ldst_rr p=1 shimm=0 shtype=0
+@ldst_rr_pw0     ---- ...0 u:1 . 0   . rn:4 rt:4 .... .... rm:4 \
+                 &ldst_rr p=0 w=0 shimm=0 shtype=0
+
+STRH_rr          .... 000. .0.0 .... .... 0000 1011 ....      @ldst_rr_pw0
+STRH_rr          .... 000. .0.0 .... .... 0000 1011 ....      @ldst_rr_p1w
+
+LDRD_rr          .... 000. .0.0 .... .... 0000 1101 ....      @ldst_rr_pw0
+LDRD_rr          .... 000. .0.0 .... .... 0000 1101 ....      @ldst_rr_p1w
+
+STRD_rr          .... 000. .0.0 .... .... 0000 1111 ....      @ldst_rr_pw0
+STRD_rr          .... 000. .0.0 .... .... 0000 1111 ....      @ldst_rr_p1w
+
+LDRH_rr          .... 000. .0.1 .... .... 0000 1011 ....      @ldst_rr_pw0
+LDRH_rr          .... 000. .0.1 .... .... 0000 1011 ....      @ldst_rr_p1w
+
+LDRSB_rr         .... 000. .0.1 .... .... 0000 1101 ....      @ldst_rr_pw0
+LDRSB_rr         .... 000. .0.1 .... .... 0000 1101 ....      @ldst_rr_p1w
+
+LDRSH_rr         .... 000. .0.1 .... .... 0000 1111 ....      @ldst_rr_pw0
+LDRSH_rr         .... 000. .0.1 .... .... 0000 1111 ....      @ldst_rr_p1w
+
+# Note the unpriv load/stores use the previously invalid P=0, W=1 encoding,
+# and act as normal post-indexed (P=0, W=0).
+@ldst_rr_p0w1    ---- ...0 u:1 . 1   . rn:4 rt:4 .... .... rm:4 \
+                 &ldst_rr p=0 w=0 shimm=0 shtype=0
+
+STRHT_rr         .... 000. .0.0 .... .... 0000 1011 ....      @ldst_rr_p0w1
+LDRHT_rr         .... 000. .0.1 .... .... 0000 1011 ....      @ldst_rr_p0w1
+LDRSBT_rr        .... 000. .0.1 .... .... 0000 1101 ....      @ldst_rr_p0w1
+LDRSHT_rr        .... 000. .0.1 .... .... 0000 1111 ....      @ldst_rr_p0w1
+
+# Load/Store word and unsigned byte (register)
+
+@ldst_rs_p1w     ---- ...1 u:1 . w:1 . rn:4 rt:4 shimm:5 shtype:2 . rm:4 \
+                 &ldst_rr p=1
+@ldst_rs_pw0     ---- ...0 u:1 . 0   . rn:4 rt:4 shimm:5 shtype:2 . rm:4 \
+                 &ldst_rr p=0 w=0
+
+STR_rr           .... 011. .0.0 .... .... .... ...0 ....      @ldst_rs_pw0
+STR_rr           .... 011. .0.0 .... .... .... ...0 ....      @ldst_rs_p1w
+STRB_rr          .... 011. .1.0 .... .... .... ...0 ....      @ldst_rs_pw0
+STRB_rr          .... 011. .1.0 .... .... .... ...0 ....      @ldst_rs_p1w
+
+LDR_rr           .... 011. .0.1 .... .... .... ...0 ....      @ldst_rs_pw0
+LDR_rr           .... 011. .0.1 .... .... .... ...0 ....      @ldst_rs_p1w
+LDRB_rr          .... 011. .1.1 .... .... .... ...0 ....      @ldst_rs_pw0
+LDRB_rr          .... 011. .1.1 .... .... .... ...0 ....      @ldst_rs_p1w
+
+@ldst_rs_p0w1    ---- ...0 u:1 . 1   . rn:4 rt:4 shimm:5 shtype:2 . rm:4 \
+                 &ldst_rr p=0 w=0
+
+STRT_rr          .... 011. .0.0 .... .... .... ...0 ....      @ldst_rs_p0w1
+STRBT_rr         .... 011. .1.0 .... .... .... ...0 ....      @ldst_rs_p0w1
+LDRT_rr          .... 011. .0.1 .... .... .... ...0 ....      @ldst_rs_p0w1
+LDRBT_rr         .... 011. .1.1 .... .... .... ...0 ....      @ldst_rs_p0w1
+
+# Load/Store Dual, Half, Signed Byte (immediate)
+
+%imm8s_8_0       8:4 0:4
+@ldst_ri8_p1w    ---- ...1 u:1 . w:1 . rn:4 rt:4 .... .... .... \
+                 &ldst_ri imm=%imm8s_8_0 p=1
+@ldst_ri8_pw0    ---- ...0 u:1 . 0   . rn:4 rt:4 .... .... .... \
+                 &ldst_ri imm=%imm8s_8_0 p=0 w=0
+
+STRH_ri          .... 000. .1.0 .... .... .... 1011 ....      @ldst_ri8_pw0
+STRH_ri          .... 000. .1.0 .... .... .... 1011 ....      @ldst_ri8_p1w
+
+LDRD_ri_a32      .... 000. .1.0 .... .... .... 1101 ....      @ldst_ri8_pw0
+LDRD_ri_a32      .... 000. .1.0 .... .... .... 1101 ....      @ldst_ri8_p1w
+
+STRD_ri_a32      .... 000. .1.0 .... .... .... 1111 ....      @ldst_ri8_pw0
+STRD_ri_a32      .... 000. .1.0 .... .... .... 1111 ....      @ldst_ri8_p1w
+
+LDRH_ri          .... 000. .1.1 .... .... .... 1011 ....      @ldst_ri8_pw0
+LDRH_ri          .... 000. .1.1 .... .... .... 1011 ....      @ldst_ri8_p1w
+
+LDRSB_ri         .... 000. .1.1 .... .... .... 1101 ....      @ldst_ri8_pw0
+LDRSB_ri         .... 000. .1.1 .... .... .... 1101 ....      @ldst_ri8_p1w
+
+LDRSH_ri         .... 000. .1.1 .... .... .... 1111 ....      @ldst_ri8_pw0
+LDRSH_ri         .... 000. .1.1 .... .... .... 1111 ....      @ldst_ri8_p1w
+
+# Note the unpriv load/stores use the previously invalid P=0, W=1 encoding,
+# and act as normal post-indexed (P=0, W=0).
+@ldst_ri8_p0w1   ---- ...0 u:1 . 1   . rn:4 rt:4 .... .... .... \
+                 &ldst_ri imm=%imm8s_8_0 p=0 w=0
+
+STRHT_ri         .... 000. .1.0 .... .... .... 1011 ....      @ldst_ri8_p0w1
+LDRHT_ri         .... 000. .1.1 .... .... .... 1011 ....      @ldst_ri8_p0w1
+LDRSBT_ri        .... 000. .1.1 .... .... .... 1101 ....      @ldst_ri8_p0w1
+LDRSHT_ri        .... 000. .1.1 .... .... .... 1111 ....      @ldst_ri8_p0w1
+
+# Load/Store word and unsigned byte (immediate)
+
+@ldst_ri12_p1w   ---- ...1 u:1 . w:1 . rn:4 rt:4 imm:12       &ldst_ri p=1
+@ldst_ri12_pw0   ---- ...0 u:1 . 0   . rn:4 rt:4 imm:12       &ldst_ri p=0 w=0
+
+STR_ri           .... 010. .0.0 .... .... ............        @ldst_ri12_p1w
+STR_ri           .... 010. .0.0 .... .... ............        @ldst_ri12_pw0
+STRB_ri          .... 010. .1.0 .... .... ............        @ldst_ri12_p1w
+STRB_ri          .... 010. .1.0 .... .... ............        @ldst_ri12_pw0
+
+LDR_ri           .... 010. .0.1 .... .... ............        @ldst_ri12_p1w
+LDR_ri           .... 010. .0.1 .... .... ............        @ldst_ri12_pw0
+LDRB_ri          .... 010. .1.1 .... .... ............        @ldst_ri12_p1w
+LDRB_ri          .... 010. .1.1 .... .... ............        @ldst_ri12_pw0
+
+@ldst_ri12_p0w1  ---- ...0 u:1 . 1 . rn:4 rt:4 imm:12         &ldst_ri p=0 w=0
+
+STRT_ri          .... 010. .0.0 .... .... ............        @ldst_ri12_p0w1
+STRBT_ri         .... 010. .1.0 .... .... ............        @ldst_ri12_p0w1
+LDRT_ri          .... 010. .0.1 .... .... ............        @ldst_ri12_p0w1
+LDRBT_ri         .... 010. .1.1 .... .... ............        @ldst_ri12_p0w1

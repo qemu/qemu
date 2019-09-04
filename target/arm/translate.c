@@ -1265,62 +1265,6 @@ static inline void gen_hlt(DisasContext *s, int imm)
     unallocated_encoding(s);
 }
 
-static inline void gen_add_data_offset(DisasContext *s, unsigned int insn,
-                                       TCGv_i32 var)
-{
-    int val, rm, shift, shiftop;
-    TCGv_i32 offset;
-
-    if (!(insn & (1 << 25))) {
-        /* immediate */
-        val = insn & 0xfff;
-        if (!(insn & (1 << 23)))
-            val = -val;
-        if (val != 0)
-            tcg_gen_addi_i32(var, var, val);
-    } else {
-        /* shift/register */
-        rm = (insn) & 0xf;
-        shift = (insn >> 7) & 0x1f;
-        shiftop = (insn >> 5) & 3;
-        offset = load_reg(s, rm);
-        gen_arm_shift_im(offset, shiftop, shift, 0);
-        if (!(insn & (1 << 23)))
-            tcg_gen_sub_i32(var, var, offset);
-        else
-            tcg_gen_add_i32(var, var, offset);
-        tcg_temp_free_i32(offset);
-    }
-}
-
-static inline void gen_add_datah_offset(DisasContext *s, unsigned int insn,
-                                        int extra, TCGv_i32 var)
-{
-    int val, rm;
-    TCGv_i32 offset;
-
-    if (insn & (1 << 22)) {
-        /* immediate */
-        val = (insn & 0xf) | ((insn >> 4) & 0xf0);
-        if (!(insn & (1 << 23)))
-            val = -val;
-        val += extra;
-        if (val != 0)
-            tcg_gen_addi_i32(var, var, val);
-    } else {
-        /* register */
-        if (extra)
-            tcg_gen_addi_i32(var, var, extra);
-        rm = (insn) & 0xf;
-        offset = load_reg(s, rm);
-        if (!(insn & (1 << 23)))
-            tcg_gen_sub_i32(var, var, offset);
-        else
-            tcg_gen_add_i32(var, var, offset);
-        tcg_temp_free_i32(offset);
-    }
-}
-
 static TCGv_ptr get_fpstatus_ptr(int neon)
 {
     TCGv_ptr statusptr = tcg_temp_new_ptr();
@@ -7658,6 +7602,11 @@ static int times_2(DisasContext *s, int x)
     return x * 2;
 }
 
+static int times_4(DisasContext *s, int x)
+{
+    return x * 4;
+}
+
 /* Return only the rotation part of T32ExpandImm.  */
 static int t32_expandimm_rot(DisasContext *s, int x)
 {
@@ -8577,6 +8526,353 @@ static bool trans_SMC(DisasContext *s, arg_SMC *a)
 }
 
 /*
+ * Load/store register index
+ */
+
+static ISSInfo make_issinfo(DisasContext *s, int rd, bool p, bool w)
+{
+    ISSInfo ret;
+
+    /* ISS not valid if writeback */
+    if (p && !w) {
+        ret = rd;
+    } else {
+        ret = ISSInvalid;
+    }
+    return ret;
+}
+
+static TCGv_i32 op_addr_rr_pre(DisasContext *s, arg_ldst_rr *a)
+{
+    TCGv_i32 addr = load_reg(s, a->rn);
+
+    if (s->v8m_stackcheck && a->rn == 13 && a->w) {
+        gen_helper_v8m_stackcheck(cpu_env, addr);
+    }
+
+    if (a->p) {
+        TCGv_i32 ofs = load_reg(s, a->rm);
+        gen_arm_shift_im(ofs, a->shtype, a->shimm, 0);
+        if (a->u) {
+            tcg_gen_add_i32(addr, addr, ofs);
+        } else {
+            tcg_gen_sub_i32(addr, addr, ofs);
+        }
+        tcg_temp_free_i32(ofs);
+    }
+    return addr;
+}
+
+static void op_addr_rr_post(DisasContext *s, arg_ldst_rr *a,
+                            TCGv_i32 addr, int address_offset)
+{
+    if (!a->p) {
+        TCGv_i32 ofs = load_reg(s, a->rm);
+        gen_arm_shift_im(ofs, a->shtype, a->shimm, 0);
+        if (a->u) {
+            tcg_gen_add_i32(addr, addr, ofs);
+        } else {
+            tcg_gen_sub_i32(addr, addr, ofs);
+        }
+        tcg_temp_free_i32(ofs);
+    } else if (!a->w) {
+        tcg_temp_free_i32(addr);
+        return;
+    }
+    tcg_gen_addi_i32(addr, addr, address_offset);
+    store_reg(s, a->rn, addr);
+}
+
+static bool op_load_rr(DisasContext *s, arg_ldst_rr *a,
+                       MemOp mop, int mem_idx)
+{
+    ISSInfo issinfo = make_issinfo(s, a->rt, a->p, a->w);
+    TCGv_i32 addr, tmp;
+
+    addr = op_addr_rr_pre(s, a);
+
+    tmp = tcg_temp_new_i32();
+    gen_aa32_ld_i32(s, tmp, addr, mem_idx, mop | s->be_data);
+    disas_set_da_iss(s, mop, issinfo);
+
+    /*
+     * Perform base writeback before the loaded value to
+     * ensure correct behavior with overlapping index registers.
+     */
+    op_addr_rr_post(s, a, addr, 0);
+    store_reg_from_load(s, a->rt, tmp);
+    return true;
+}
+
+static bool op_store_rr(DisasContext *s, arg_ldst_rr *a,
+                        MemOp mop, int mem_idx)
+{
+    ISSInfo issinfo = make_issinfo(s, a->rt, a->p, a->w) | ISSIsWrite;
+    TCGv_i32 addr, tmp;
+
+    addr = op_addr_rr_pre(s, a);
+
+    tmp = load_reg(s, a->rt);
+    gen_aa32_st_i32(s, tmp, addr, mem_idx, mop | s->be_data);
+    disas_set_da_iss(s, mop, issinfo);
+    tcg_temp_free_i32(tmp);
+
+    op_addr_rr_post(s, a, addr, 0);
+    return true;
+}
+
+static bool trans_LDRD_rr(DisasContext *s, arg_ldst_rr *a)
+{
+    int mem_idx = get_mem_index(s);
+    TCGv_i32 addr, tmp;
+
+    if (!ENABLE_ARCH_5TE) {
+        return false;
+    }
+    if (a->rt & 1) {
+        unallocated_encoding(s);
+        return true;
+    }
+    addr = op_addr_rr_pre(s, a);
+
+    tmp = tcg_temp_new_i32();
+    gen_aa32_ld_i32(s, tmp, addr, mem_idx, MO_UL | s->be_data);
+    store_reg(s, a->rt, tmp);
+
+    tcg_gen_addi_i32(addr, addr, 4);
+
+    tmp = tcg_temp_new_i32();
+    gen_aa32_ld_i32(s, tmp, addr, mem_idx, MO_UL | s->be_data);
+    store_reg(s, a->rt + 1, tmp);
+
+    /* LDRD w/ base writeback is undefined if the registers overlap.  */
+    op_addr_rr_post(s, a, addr, -4);
+    return true;
+}
+
+static bool trans_STRD_rr(DisasContext *s, arg_ldst_rr *a)
+{
+    int mem_idx = get_mem_index(s);
+    TCGv_i32 addr, tmp;
+
+    if (!ENABLE_ARCH_5TE) {
+        return false;
+    }
+    if (a->rt & 1) {
+        unallocated_encoding(s);
+        return true;
+    }
+    addr = op_addr_rr_pre(s, a);
+
+    tmp = load_reg(s, a->rt);
+    gen_aa32_st_i32(s, tmp, addr, mem_idx, MO_UL | s->be_data);
+    tcg_temp_free_i32(tmp);
+
+    tcg_gen_addi_i32(addr, addr, 4);
+
+    tmp = load_reg(s, a->rt + 1);
+    gen_aa32_st_i32(s, tmp, addr, mem_idx, MO_UL | s->be_data);
+    tcg_temp_free_i32(tmp);
+
+    op_addr_rr_post(s, a, addr, -4);
+    return true;
+}
+
+/*
+ * Load/store immediate index
+ */
+
+static TCGv_i32 op_addr_ri_pre(DisasContext *s, arg_ldst_ri *a)
+{
+    int ofs = a->imm;
+
+    if (!a->u) {
+        ofs = -ofs;
+    }
+
+    if (s->v8m_stackcheck && a->rn == 13 && a->w) {
+        /*
+         * Stackcheck. Here we know 'addr' is the current SP;
+         * U is set if we're moving SP up, else down. It is
+         * UNKNOWN whether the limit check triggers when SP starts
+         * below the limit and ends up above it; we chose to do so.
+         */
+        if (!a->u) {
+            TCGv_i32 newsp = tcg_temp_new_i32();
+            tcg_gen_addi_i32(newsp, cpu_R[13], ofs);
+            gen_helper_v8m_stackcheck(cpu_env, newsp);
+            tcg_temp_free_i32(newsp);
+        } else {
+            gen_helper_v8m_stackcheck(cpu_env, cpu_R[13]);
+        }
+    }
+
+    return add_reg_for_lit(s, a->rn, a->p ? ofs : 0);
+}
+
+static void op_addr_ri_post(DisasContext *s, arg_ldst_ri *a,
+                            TCGv_i32 addr, int address_offset)
+{
+    if (!a->p) {
+        if (a->u) {
+            address_offset += a->imm;
+        } else {
+            address_offset -= a->imm;
+        }
+    } else if (!a->w) {
+        tcg_temp_free_i32(addr);
+        return;
+    }
+    tcg_gen_addi_i32(addr, addr, address_offset);
+    store_reg(s, a->rn, addr);
+}
+
+static bool op_load_ri(DisasContext *s, arg_ldst_ri *a,
+                       MemOp mop, int mem_idx)
+{
+    ISSInfo issinfo = make_issinfo(s, a->rt, a->p, a->w);
+    TCGv_i32 addr, tmp;
+
+    addr = op_addr_ri_pre(s, a);
+
+    tmp = tcg_temp_new_i32();
+    gen_aa32_ld_i32(s, tmp, addr, mem_idx, mop | s->be_data);
+    disas_set_da_iss(s, mop, issinfo);
+
+    /*
+     * Perform base writeback before the loaded value to
+     * ensure correct behavior with overlapping index registers.
+     */
+    op_addr_ri_post(s, a, addr, 0);
+    store_reg_from_load(s, a->rt, tmp);
+    return true;
+}
+
+static bool op_store_ri(DisasContext *s, arg_ldst_ri *a,
+                        MemOp mop, int mem_idx)
+{
+    ISSInfo issinfo = make_issinfo(s, a->rt, a->p, a->w) | ISSIsWrite;
+    TCGv_i32 addr, tmp;
+
+    addr = op_addr_ri_pre(s, a);
+
+    tmp = load_reg(s, a->rt);
+    gen_aa32_st_i32(s, tmp, addr, mem_idx, mop | s->be_data);
+    disas_set_da_iss(s, mop, issinfo);
+    tcg_temp_free_i32(tmp);
+
+    op_addr_ri_post(s, a, addr, 0);
+    return true;
+}
+
+static bool op_ldrd_ri(DisasContext *s, arg_ldst_ri *a, int rt2)
+{
+    int mem_idx = get_mem_index(s);
+    TCGv_i32 addr, tmp;
+
+    addr = op_addr_ri_pre(s, a);
+
+    tmp = tcg_temp_new_i32();
+    gen_aa32_ld_i32(s, tmp, addr, mem_idx, MO_UL | s->be_data);
+    store_reg(s, a->rt, tmp);
+
+    tcg_gen_addi_i32(addr, addr, 4);
+
+    tmp = tcg_temp_new_i32();
+    gen_aa32_ld_i32(s, tmp, addr, mem_idx, MO_UL | s->be_data);
+    store_reg(s, rt2, tmp);
+
+    /* LDRD w/ base writeback is undefined if the registers overlap.  */
+    op_addr_ri_post(s, a, addr, -4);
+    return true;
+}
+
+static bool trans_LDRD_ri_a32(DisasContext *s, arg_ldst_ri *a)
+{
+    if (!ENABLE_ARCH_5TE || (a->rt & 1)) {
+        return false;
+    }
+    return op_ldrd_ri(s, a, a->rt + 1);
+}
+
+static bool trans_LDRD_ri_t32(DisasContext *s, arg_ldst_ri2 *a)
+{
+    arg_ldst_ri b = {
+        .u = a->u, .w = a->w, .p = a->p,
+        .rn = a->rn, .rt = a->rt, .imm = a->imm
+    };
+    return op_ldrd_ri(s, &b, a->rt2);
+}
+
+static bool op_strd_ri(DisasContext *s, arg_ldst_ri *a, int rt2)
+{
+    int mem_idx = get_mem_index(s);
+    TCGv_i32 addr, tmp;
+
+    addr = op_addr_ri_pre(s, a);
+
+    tmp = load_reg(s, a->rt);
+    gen_aa32_st_i32(s, tmp, addr, mem_idx, MO_UL | s->be_data);
+    tcg_temp_free_i32(tmp);
+
+    tcg_gen_addi_i32(addr, addr, 4);
+
+    tmp = load_reg(s, rt2);
+    gen_aa32_st_i32(s, tmp, addr, mem_idx, MO_UL | s->be_data);
+    tcg_temp_free_i32(tmp);
+
+    op_addr_ri_post(s, a, addr, -4);
+    return true;
+}
+
+static bool trans_STRD_ri_a32(DisasContext *s, arg_ldst_ri *a)
+{
+    if (!ENABLE_ARCH_5TE || (a->rt & 1)) {
+        return false;
+    }
+    return op_strd_ri(s, a, a->rt + 1);
+}
+
+static bool trans_STRD_ri_t32(DisasContext *s, arg_ldst_ri2 *a)
+{
+    arg_ldst_ri b = {
+        .u = a->u, .w = a->w, .p = a->p,
+        .rn = a->rn, .rt = a->rt, .imm = a->imm
+    };
+    return op_strd_ri(s, &b, a->rt2);
+}
+
+#define DO_LDST(NAME, WHICH, MEMOP) \
+static bool trans_##NAME##_ri(DisasContext *s, arg_ldst_ri *a)        \
+{                                                                     \
+    return op_##WHICH##_ri(s, a, MEMOP, get_mem_index(s));            \
+}                                                                     \
+static bool trans_##NAME##T_ri(DisasContext *s, arg_ldst_ri *a)       \
+{                                                                     \
+    return op_##WHICH##_ri(s, a, MEMOP, get_a32_user_mem_index(s));   \
+}                                                                     \
+static bool trans_##NAME##_rr(DisasContext *s, arg_ldst_rr *a)        \
+{                                                                     \
+    return op_##WHICH##_rr(s, a, MEMOP, get_mem_index(s));            \
+}                                                                     \
+static bool trans_##NAME##T_rr(DisasContext *s, arg_ldst_rr *a)       \
+{                                                                     \
+    return op_##WHICH##_rr(s, a, MEMOP, get_a32_user_mem_index(s));   \
+}
+
+DO_LDST(LDR, load, MO_UL)
+DO_LDST(LDRB, load, MO_UB)
+DO_LDST(LDRH, load, MO_UW)
+DO_LDST(LDRSB, load, MO_SB)
+DO_LDST(LDRSH, load, MO_SW)
+
+DO_LDST(STR, store, MO_UL)
+DO_LDST(STRB, store, MO_UB)
+DO_LDST(STRH, store, MO_UW)
+
+#undef DO_LDST
+
+/*
  * Legacy decoder.
  */
 
@@ -9033,100 +9329,9 @@ static void disas_arm_insn(DisasContext *s, unsigned int insn)
                     }
                 }
             } else {
-                int address_offset;
-                bool load = insn & (1 << 20);
-                bool wbit = insn & (1 << 21);
-                bool pbit = insn & (1 << 24);
-                bool doubleword = false;
-                ISSInfo issinfo;
-
-                /* Misc load/store */
-                rn = (insn >> 16) & 0xf;
-                rd = (insn >> 12) & 0xf;
-
-                /* ISS not valid if writeback */
-                issinfo = (pbit & !wbit) ? rd : ISSInvalid;
-
-                if (!load && (sh & 2)) {
-                    /* doubleword */
-                    ARCH(5TE);
-                    if (rd & 1) {
-                        /* UNPREDICTABLE; we choose to UNDEF */
-                        goto illegal_op;
-                    }
-                    load = (sh & 1) == 0;
-                    doubleword = true;
-                }
-
-                addr = load_reg(s, rn);
-                if (pbit) {
-                    gen_add_datah_offset(s, insn, 0, addr);
-                }
-                address_offset = 0;
-
-                if (doubleword) {
-                    if (!load) {
-                        /* store */
-                        tmp = load_reg(s, rd);
-                        gen_aa32_st32(s, tmp, addr, get_mem_index(s));
-                        tcg_temp_free_i32(tmp);
-                        tcg_gen_addi_i32(addr, addr, 4);
-                        tmp = load_reg(s, rd + 1);
-                        gen_aa32_st32(s, tmp, addr, get_mem_index(s));
-                        tcg_temp_free_i32(tmp);
-                    } else {
-                        /* load */
-                        tmp = tcg_temp_new_i32();
-                        gen_aa32_ld32u(s, tmp, addr, get_mem_index(s));
-                        store_reg(s, rd, tmp);
-                        tcg_gen_addi_i32(addr, addr, 4);
-                        tmp = tcg_temp_new_i32();
-                        gen_aa32_ld32u(s, tmp, addr, get_mem_index(s));
-                        rd++;
-                    }
-                    address_offset = -4;
-                } else if (load) {
-                    /* load */
-                    tmp = tcg_temp_new_i32();
-                    switch (sh) {
-                    case 1:
-                        gen_aa32_ld16u_iss(s, tmp, addr, get_mem_index(s),
-                                           issinfo);
-                        break;
-                    case 2:
-                        gen_aa32_ld8s_iss(s, tmp, addr, get_mem_index(s),
-                                          issinfo);
-                        break;
-                    default:
-                    case 3:
-                        gen_aa32_ld16s_iss(s, tmp, addr, get_mem_index(s),
-                                           issinfo);
-                        break;
-                    }
-                } else {
-                    /* store */
-                    tmp = load_reg(s, rd);
-                    gen_aa32_st16_iss(s, tmp, addr, get_mem_index(s), issinfo);
-                    tcg_temp_free_i32(tmp);
-                }
-                /* Perform base writeback before the loaded value to
-                   ensure correct behavior with overlapping index registers.
-                   ldrd with base writeback is undefined if the
-                   destination and index registers overlap.  */
-                if (!pbit) {
-                    gen_add_datah_offset(s, insn, address_offset, addr);
-                    store_reg(s, rn, addr);
-                } else if (wbit) {
-                    if (address_offset)
-                        tcg_gen_addi_i32(addr, addr, address_offset);
-                    store_reg(s, rn, addr);
-                } else {
-                    tcg_temp_free_i32(addr);
-                }
-                if (load) {
-                    /* Complete the load.  */
-                    store_reg(s, rd, tmp);
-                }
+                /* Extra load/store (register) instructions */
+                /* All done in decodetree.  Reach here for illegal ops.  */
+                goto illegal_op;
             }
             break;
         case 0x4:
@@ -9443,58 +9648,8 @@ static void disas_arm_insn(DisasContext *s, unsigned int insn)
                 break;
             }
         do_ldst:
-            /* Check for undefined extension instructions
-             * per the ARM Bible IE:
-             * xxxx 0111 1111 xxxx  xxxx xxxx 1111 xxxx
-             */
-            sh = (0xf << 20) | (0xf << 4);
-            if (op1 == 0x7 && ((insn & sh) == sh))
-            {
-                goto illegal_op;
-            }
-            /* load/store byte/word */
-            rn = (insn >> 16) & 0xf;
-            rd = (insn >> 12) & 0xf;
-            tmp2 = load_reg(s, rn);
-            if ((insn & 0x01200000) == 0x00200000) {
-                /* ldrt/strt */
-                i = get_a32_user_mem_index(s);
-            } else {
-                i = get_mem_index(s);
-            }
-            if (insn & (1 << 24))
-                gen_add_data_offset(s, insn, tmp2);
-            if (insn & (1 << 20)) {
-                /* load */
-                tmp = tcg_temp_new_i32();
-                if (insn & (1 << 22)) {
-                    gen_aa32_ld8u_iss(s, tmp, tmp2, i, rd);
-                } else {
-                    gen_aa32_ld32u_iss(s, tmp, tmp2, i, rd);
-                }
-            } else {
-                /* store */
-                tmp = load_reg(s, rd);
-                if (insn & (1 << 22)) {
-                    gen_aa32_st8_iss(s, tmp, tmp2, i, rd);
-                } else {
-                    gen_aa32_st32_iss(s, tmp, tmp2, i, rd);
-                }
-                tcg_temp_free_i32(tmp);
-            }
-            if (!(insn & (1 << 24))) {
-                gen_add_data_offset(s, insn, tmp2);
-                store_reg(s, rn, tmp2);
-            } else if (insn & (1 << 21)) {
-                store_reg(s, rn, tmp2);
-            } else {
-                tcg_temp_free_i32(tmp2);
-            }
-            if (insn & (1 << 20)) {
-                /* Complete the load.  */
-                store_reg_from_load(s, rd, tmp);
-            }
-            break;
+            /* All done in decodetree.  Reach here for illegal ops.  */
+            goto illegal_op;
         case 0x08:
         case 0x09:
             {
@@ -9795,75 +9950,8 @@ static void disas_thumb2_insn(DisasContext *s, uint32_t insn)
                     s->condexec_mask = 0;
                 }
             } else if (insn & 0x01200000) {
-                /* 0b1110_1000_x11x_xxxx_xxxx_xxxx_xxxx_xxxx
-                 *  - load/store dual (post-indexed)
-                 * 0b1111_1001_x10x_xxxx_xxxx_xxxx_xxxx_xxxx
-                 *  - load/store dual (literal and immediate)
-                 * 0b1111_1001_x11x_xxxx_xxxx_xxxx_xxxx_xxxx
-                 *  - load/store dual (pre-indexed)
-                 */
-                bool wback = extract32(insn, 21, 1);
-
-                if (rn == 15 && (insn & (1 << 21))) {
-                    /* UNPREDICTABLE */
-                    goto illegal_op;
-                }
-
-                addr = add_reg_for_lit(s, rn, 0);
-                offset = (insn & 0xff) * 4;
-                if ((insn & (1 << 23)) == 0) {
-                    offset = -offset;
-                }
-
-                if (s->v8m_stackcheck && rn == 13 && wback) {
-                    /*
-                     * Here 'addr' is the current SP; if offset is +ve we're
-                     * moving SP up, else down. It is UNKNOWN whether the limit
-                     * check triggers when SP starts below the limit and ends
-                     * up above it; check whichever of the current and final
-                     * SP is lower, so QEMU will trigger in that situation.
-                     */
-                    if ((int32_t)offset < 0) {
-                        TCGv_i32 newsp = tcg_temp_new_i32();
-
-                        tcg_gen_addi_i32(newsp, addr, offset);
-                        gen_helper_v8m_stackcheck(cpu_env, newsp);
-                        tcg_temp_free_i32(newsp);
-                    } else {
-                        gen_helper_v8m_stackcheck(cpu_env, addr);
-                    }
-                }
-
-                if (insn & (1 << 24)) {
-                    tcg_gen_addi_i32(addr, addr, offset);
-                    offset = 0;
-                }
-                if (insn & (1 << 20)) {
-                    /* ldrd */
-                    tmp = tcg_temp_new_i32();
-                    gen_aa32_ld32u(s, tmp, addr, get_mem_index(s));
-                    store_reg(s, rs, tmp);
-                    tcg_gen_addi_i32(addr, addr, 4);
-                    tmp = tcg_temp_new_i32();
-                    gen_aa32_ld32u(s, tmp, addr, get_mem_index(s));
-                    store_reg(s, rd, tmp);
-                } else {
-                    /* strd */
-                    tmp = load_reg(s, rs);
-                    gen_aa32_st32(s, tmp, addr, get_mem_index(s));
-                    tcg_temp_free_i32(tmp);
-                    tcg_gen_addi_i32(addr, addr, 4);
-                    tmp = load_reg(s, rd);
-                    gen_aa32_st32(s, tmp, addr, get_mem_index(s));
-                    tcg_temp_free_i32(tmp);
-                }
-                if (wback) {
-                    /* Base writeback.  */
-                    tcg_gen_addi_i32(addr, addr, offset - 4);
-                    store_reg(s, rn, addr);
-                } else {
-                    tcg_temp_free_i32(addr);
-                }
+                /* load/store dual, in decodetree */
+                goto illegal_op;
             } else if ((insn & (1 << 23)) == 0) {
                 /* 0b1110_1000_010x_xxxx_xxxx_xxxx_xxxx_xxxx
                  * - load/store exclusive word
@@ -10746,184 +10834,15 @@ static void disas_thumb2_insn(DisasContext *s, uint32_t insn)
             }
         }
         break;
-    case 12: /* Load/store single data item.  */
-        {
-        int postinc = 0;
-        int writeback = 0;
-        int memidx;
-        ISSInfo issinfo;
-
+    case 12:
         if ((insn & 0x01100000) == 0x01000000) {
             if (disas_neon_ls_insn(s, insn)) {
                 goto illegal_op;
             }
             break;
         }
-        op = ((insn >> 21) & 3) | ((insn >> 22) & 4);
-        if (rs == 15) {
-            if (!(insn & (1 << 20))) {
-                goto illegal_op;
-            }
-            if (op != 2) {
-                /* Byte or halfword load space with dest == r15 : memory hints.
-                 * Catch them early so we don't emit pointless addressing code.
-                 * This space is a mix of:
-                 *  PLD/PLDW/PLI,  which we implement as NOPs (note that unlike
-                 *     the ARM encodings, PLDW space doesn't UNDEF for non-v7MP
-                 *     cores)
-                 *  unallocated hints, which must be treated as NOPs
-                 *  UNPREDICTABLE space, which we NOP or UNDEF depending on
-                 *     which is easiest for the decoding logic
-                 *  Some space which must UNDEF
-                 */
-                int op1 = (insn >> 23) & 3;
-                int op2 = (insn >> 6) & 0x3f;
-                if (op & 2) {
-                    goto illegal_op;
-                }
-                if (rn == 15) {
-                    /* UNPREDICTABLE, unallocated hint or
-                     * PLD/PLDW/PLI (literal)
-                     */
-                    return;
-                }
-                if (op1 & 1) {
-                    return; /* PLD/PLDW/PLI or unallocated hint */
-                }
-                if ((op2 == 0) || ((op2 & 0x3c) == 0x30)) {
-                    return; /* PLD/PLDW/PLI or unallocated hint */
-                }
-                /* UNDEF space, or an UNPREDICTABLE */
-                goto illegal_op;
-            }
-        }
-        memidx = get_mem_index(s);
-        imm = insn & 0xfff;
-        if (insn & (1 << 23)) {
-            /* PC relative or Positive offset.  */
-            addr = add_reg_for_lit(s, rn, imm);
-        } else if (rn == 15) {
-            /* PC relative with negative offset.  */
-            addr = add_reg_for_lit(s, rn, -imm);
-        } else {
-            addr = load_reg(s, rn);
-            imm = insn & 0xff;
-            switch ((insn >> 8) & 0xf) {
-            case 0x0: /* Shifted Register.  */
-                shift = (insn >> 4) & 0xf;
-                if (shift > 3) {
-                    tcg_temp_free_i32(addr);
-                    goto illegal_op;
-                }
-                tmp = load_reg(s, rm);
-                tcg_gen_shli_i32(tmp, tmp, shift);
-                tcg_gen_add_i32(addr, addr, tmp);
-                tcg_temp_free_i32(tmp);
-                break;
-            case 0xc: /* Negative offset.  */
-                tcg_gen_addi_i32(addr, addr, -imm);
-                break;
-            case 0xe: /* User privilege.  */
-                tcg_gen_addi_i32(addr, addr, imm);
-                memidx = get_a32_user_mem_index(s);
-                break;
-            case 0x9: /* Post-decrement.  */
-                imm = -imm;
-                /* Fall through.  */
-            case 0xb: /* Post-increment.  */
-                postinc = 1;
-                writeback = 1;
-                break;
-            case 0xd: /* Pre-decrement.  */
-                imm = -imm;
-                /* Fall through.  */
-            case 0xf: /* Pre-increment.  */
-                writeback = 1;
-                break;
-            default:
-                tcg_temp_free_i32(addr);
-                goto illegal_op;
-            }
-        }
-
-        issinfo = writeback ? ISSInvalid : rs;
-
-        if (s->v8m_stackcheck && rn == 13 && writeback) {
-            /*
-             * Stackcheck. Here we know 'addr' is the current SP;
-             * if imm is +ve we're moving SP up, else down. It is
-             * UNKNOWN whether the limit check triggers when SP starts
-             * below the limit and ends up above it; we chose to do so.
-             */
-            if ((int32_t)imm < 0) {
-                TCGv_i32 newsp = tcg_temp_new_i32();
-
-                tcg_gen_addi_i32(newsp, addr, imm);
-                gen_helper_v8m_stackcheck(cpu_env, newsp);
-                tcg_temp_free_i32(newsp);
-            } else {
-                gen_helper_v8m_stackcheck(cpu_env, addr);
-            }
-        }
-
-        if (writeback && !postinc) {
-            tcg_gen_addi_i32(addr, addr, imm);
-        }
-
-        if (insn & (1 << 20)) {
-            /* Load.  */
-            tmp = tcg_temp_new_i32();
-            switch (op) {
-            case 0:
-                gen_aa32_ld8u_iss(s, tmp, addr, memidx, issinfo);
-                break;
-            case 4:
-                gen_aa32_ld8s_iss(s, tmp, addr, memidx, issinfo);
-                break;
-            case 1:
-                gen_aa32_ld16u_iss(s, tmp, addr, memidx, issinfo);
-                break;
-            case 5:
-                gen_aa32_ld16s_iss(s, tmp, addr, memidx, issinfo);
-                break;
-            case 2:
-                gen_aa32_ld32u_iss(s, tmp, addr, memidx, issinfo);
-                break;
-            default:
-                tcg_temp_free_i32(tmp);
-                tcg_temp_free_i32(addr);
-                goto illegal_op;
-            }
-            store_reg_from_load(s, rs, tmp);
-        } else {
-            /* Store.  */
-            tmp = load_reg(s, rs);
-            switch (op) {
-            case 0:
-                gen_aa32_st8_iss(s, tmp, addr, memidx, issinfo);
-                break;
-            case 1:
-                gen_aa32_st16_iss(s, tmp, addr, memidx, issinfo);
-                break;
-            case 2:
-                gen_aa32_st32_iss(s, tmp, addr, memidx, issinfo);
-                break;
-            default:
-                tcg_temp_free_i32(tmp);
-                tcg_temp_free_i32(addr);
-                goto illegal_op;
-            }
-            tcg_temp_free_i32(tmp);
-        }
-        if (postinc)
-            tcg_gen_addi_i32(addr, addr, imm);
-        if (writeback) {
-            store_reg(s, rn, addr);
-        } else {
-            tcg_temp_free_i32(addr);
-        }
-        }
-        break;
+        /* Load/store single data item, in decodetree */
+        goto illegal_op;
     default:
         goto illegal_op;
     }
