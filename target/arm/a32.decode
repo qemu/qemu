@@ -21,3 +21,31 @@
 # All of the insn that have a COND field in insn[31:28] are here.
 # All insns that have 0xf in insn[31:28] are in a32-uncond.decode.
 #
+
+&s_rrr_shi       s rd rn rm shim shty
+
+# Data-processing (register)
+
+@s_rrr_shi       ---- ... .... s:1 rn:4 rd:4 shim:5 shty:2 . rm:4 \
+                 &s_rrr_shi
+@s_rxr_shi       ---- ... .... s:1 .... rd:4 shim:5 shty:2 . rm:4 \
+                 &s_rrr_shi rn=0
+@S_xrr_shi       ---- ... .... .   rn:4 .... shim:5 shty:2 . rm:4 \
+                 &s_rrr_shi s=1 rd=0
+
+AND_rrri         .... 000 0000 . .... .... ..... .. 0 ....    @s_rrr_shi
+EOR_rrri         .... 000 0001 . .... .... ..... .. 0 ....    @s_rrr_shi
+SUB_rrri         .... 000 0010 . .... .... ..... .. 0 ....    @s_rrr_shi
+RSB_rrri         .... 000 0011 . .... .... ..... .. 0 ....    @s_rrr_shi
+ADD_rrri         .... 000 0100 . .... .... ..... .. 0 ....    @s_rrr_shi
+ADC_rrri         .... 000 0101 . .... .... ..... .. 0 ....    @s_rrr_shi
+SBC_rrri         .... 000 0110 . .... .... ..... .. 0 ....    @s_rrr_shi
+RSC_rrri         .... 000 0111 . .... .... ..... .. 0 ....    @s_rrr_shi
+TST_xrri         .... 000 1000 1 .... 0000 ..... .. 0 ....    @S_xrr_shi
+TEQ_xrri         .... 000 1001 1 .... 0000 ..... .. 0 ....    @S_xrr_shi
+CMP_xrri         .... 000 1010 1 .... 0000 ..... .. 0 ....    @S_xrr_shi
+CMN_xrri         .... 000 1011 1 .... 0000 ..... .. 0 ....    @S_xrr_shi
+ORR_rrri         .... 000 1100 . .... .... ..... .. 0 ....    @s_rrr_shi
+MOV_rxri         .... 000 1101 . 0000 .... ..... .. 0 ....    @s_rxr_shi
+BIC_rrri         .... 000 1110 . .... .... ..... .. 0 ....    @s_rrr_shi
+MVN_rxri         .... 000 1111 . 0000 .... ..... .. 0 ....    @s_rxr_shi

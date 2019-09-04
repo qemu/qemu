@@ -7691,6 +7691,204 @@ static void arm_skip_unless(DisasContext *s, uint32_t cond)
 #include "decode-a32-uncond.inc.c"
 #include "decode-t32.inc.c"
 
+/* Helpers to swap operands for reverse-subtract.  */
+static void gen_rsb(TCGv_i32 dst, TCGv_i32 a, TCGv_i32 b)
+{
+    tcg_gen_sub_i32(dst, b, a);
+}
+
+static void gen_rsb_CC(TCGv_i32 dst, TCGv_i32 a, TCGv_i32 b)
+{
+    gen_sub_CC(dst, b, a);
+}
+
+static void gen_rsc(TCGv_i32 dest, TCGv_i32 a, TCGv_i32 b)
+{
+    gen_sub_carry(dest, b, a);
+}
+
+static void gen_rsc_CC(TCGv_i32 dest, TCGv_i32 a, TCGv_i32 b)
+{
+    gen_sbc_CC(dest, b, a);
+}
+
+/*
+ * Helpers for the data processing routines.
+ *
+ * After the computation store the results back.
+ * This may be suppressed altogether (STREG_NONE), require a runtime
+ * check against the stack limits (STREG_SP_CHECK), or generate an
+ * exception return.  Oh, or store into a register.
+ *
+ * Always return true, indicating success for a trans_* function.
+ */
+typedef enum {
+   STREG_NONE,
+   STREG_NORMAL,
+   STREG_SP_CHECK,
+   STREG_EXC_RET,
+} StoreRegKind;
+
+static bool store_reg_kind(DisasContext *s, int rd,
+                            TCGv_i32 val, StoreRegKind kind)
+{
+    switch (kind) {
+    case STREG_NONE:
+        tcg_temp_free_i32(val);
+        return true;
+    case STREG_NORMAL:
+        /* See ALUWritePC: Interworking only from a32 mode. */
+        if (s->thumb) {
+            store_reg(s, rd, val);
+        } else {
+            store_reg_bx(s, rd, val);
+        }
+        return true;
+    case STREG_SP_CHECK:
+        store_sp_checked(s, val);
+        return true;
+    case STREG_EXC_RET:
+        gen_exception_return(s, val);
+        return true;
+    }
+    g_assert_not_reached();
+}
+
+/*
+ * Data Processing (register)
+ *
+ * Operate, with set flags, one register source,
+ * one immediate shifted register source, and a destination.
+ */
+static bool op_s_rrr_shi(DisasContext *s, arg_s_rrr_shi *a,
+                         void (*gen)(TCGv_i32, TCGv_i32, TCGv_i32),
+                         int logic_cc, StoreRegKind kind)
+{
+    TCGv_i32 tmp1, tmp2;
+
+    tmp2 = load_reg(s, a->rm);
+    gen_arm_shift_im(tmp2, a->shty, a->shim, logic_cc);
+    tmp1 = load_reg(s, a->rn);
+
+    gen(tmp1, tmp1, tmp2);
+    tcg_temp_free_i32(tmp2);
+
+    if (logic_cc) {
+        gen_logic_CC(tmp1);
+    }
+    return store_reg_kind(s, a->rd, tmp1, kind);
+}
+
+static bool op_s_rxr_shi(DisasContext *s, arg_s_rrr_shi *a,
+                         void (*gen)(TCGv_i32, TCGv_i32),
+                         int logic_cc, StoreRegKind kind)
+{
+    TCGv_i32 tmp;
+
+    tmp = load_reg(s, a->rm);
+    gen_arm_shift_im(tmp, a->shty, a->shim, logic_cc);
+
+    gen(tmp, tmp);
+    if (logic_cc) {
+        gen_logic_CC(tmp);
+    }
+    return store_reg_kind(s, a->rd, tmp, kind);
+}
+
+#define DO_ANY3(NAME, OP, L, K)                                         \
+    static bool trans_##NAME##_rrri(DisasContext *s, arg_s_rrr_shi *a)  \
+    { StoreRegKind k = (K); return op_s_rrr_shi(s, a, OP, L, k); }
+
+#define DO_ANY2(NAME, OP, L, K)                                         \
+    static bool trans_##NAME##_rxri(DisasContext *s, arg_s_rrr_shi *a)  \
+    { StoreRegKind k = (K); return op_s_rxr_shi(s, a, OP, L, k); }
+
+#define DO_CMP2(NAME, OP, L)                                            \
+    static bool trans_##NAME##_xrri(DisasContext *s, arg_s_rrr_shi *a)  \
+    { return op_s_rrr_shi(s, a, OP, L, STREG_NONE); }
+
+DO_ANY3(AND, tcg_gen_and_i32, a->s, STREG_NORMAL)
+DO_ANY3(EOR, tcg_gen_xor_i32, a->s, STREG_NORMAL)
+DO_ANY3(ORR, tcg_gen_or_i32, a->s, STREG_NORMAL)
+DO_ANY3(BIC, tcg_gen_andc_i32, a->s, STREG_NORMAL)
+
+DO_ANY3(RSB, a->s ? gen_rsb_CC : gen_rsb, false, STREG_NORMAL)
+DO_ANY3(ADC, a->s ? gen_adc_CC : gen_add_carry, false, STREG_NORMAL)
+DO_ANY3(SBC, a->s ? gen_sbc_CC : gen_sub_carry, false, STREG_NORMAL)
+DO_ANY3(RSC, a->s ? gen_rsc_CC : gen_rsc, false, STREG_NORMAL)
+
+DO_CMP2(TST, tcg_gen_and_i32, true)
+DO_CMP2(TEQ, tcg_gen_xor_i32, true)
+DO_CMP2(CMN, gen_add_CC, false)
+DO_CMP2(CMP, gen_sub_CC, false)
+
+DO_ANY3(ADD, a->s ? gen_add_CC : tcg_gen_add_i32, false,
+        a->rd == 13 && a->rn == 13 ? STREG_SP_CHECK : STREG_NORMAL)
+
+/*
+ * Note for the computation of StoreRegKind we return out of the
+ * middle of the functions that are expanded by DO_ANY3, and that
+ * we modify a->s via that parameter before it is used by OP.
+ */
+DO_ANY3(SUB, a->s ? gen_sub_CC : tcg_gen_sub_i32, false,
+        ({
+            StoreRegKind ret = STREG_NORMAL;
+            if (a->rd == 15 && a->s) {
+                /*
+                 * See ALUExceptionReturn:
+                 * In User mode, UNPREDICTABLE; we choose UNDEF.
+                 * In Hyp mode, UNDEFINED.
+                 */
+                if (IS_USER(s) || s->current_el == 2) {
+                    unallocated_encoding(s);
+                    return true;
+                }
+                /* There is no writeback of nzcv to PSTATE.  */
+                a->s = 0;
+                ret = STREG_EXC_RET;
+            } else if (a->rd == 13 && a->rn == 13) {
+                ret = STREG_SP_CHECK;
+            }
+            ret;
+        }))
+
+DO_ANY2(MOV, tcg_gen_mov_i32, a->s,
+        ({
+            StoreRegKind ret = STREG_NORMAL;
+            if (a->rd == 15 && a->s) {
+                /*
+                 * See ALUExceptionReturn:
+                 * In User mode, UNPREDICTABLE; we choose UNDEF.
+                 * In Hyp mode, UNDEFINED.
+                 */
+                if (IS_USER(s) || s->current_el == 2) {
+                    unallocated_encoding(s);
+                    return true;
+                }
+                /* There is no writeback of nzcv to PSTATE.  */
+                a->s = 0;
+                ret = STREG_EXC_RET;
+            } else if (a->rd == 13) {
+                ret = STREG_SP_CHECK;
+            }
+            ret;
+        }))
+
+DO_ANY2(MVN, tcg_gen_not_i32, a->s, STREG_NORMAL)
+
+/*
+ * ORN is only available with T32, so there is no register-shifted-register
+ * form of the insn.  Using the DO_ANY3 macro would create an unused function.
+ */
+static bool trans_ORN_rrri(DisasContext *s, arg_s_rrr_shi *a)
+{
+    return op_s_rrr_shi(s, a, tcg_gen_orc_i32, a->s, STREG_NORMAL);
+}
+
+#undef DO_ANY3
+#undef DO_ANY2
+#undef DO_CMP2
+
 /*
  * Legacy decoder.
  */
@@ -9305,13 +9503,6 @@ static bool thumb_insn_is_16bit(DisasContext *s, uint32_t pc, uint32_t insn)
     return true;
 }
 
-/* Return true if this is a Thumb-2 logical op.  */
-static int
-thumb2_logic_op(int op)
-{
-    return (op < 8);
-}
-
 /* Generate code for a Thumb-2 data processing operation.  If CONDS is nonzero
    then set condition code flags based on the result of the operation.
    If SHIFTER_OUT is nonzero then set the carry flag for logical operations
@@ -9399,8 +9590,6 @@ static void disas_thumb2_insn(DisasContext *s, uint32_t insn)
     TCGv_i32 addr;
     TCGv_i64 tmp64;
     int op;
-    int shiftop;
-    int conds;
     int logic_cc;
 
     /*
@@ -9830,33 +10019,8 @@ static void disas_thumb2_insn(DisasContext *s, uint32_t insn)
             store_reg(s, rd, tmp);
         } else {
             /* Data processing register constant shift.  */
-            if (rn == 15) {
-                tmp = tcg_temp_new_i32();
-                tcg_gen_movi_i32(tmp, 0);
-            } else {
-                tmp = load_reg(s, rn);
-            }
-            tmp2 = load_reg(s, rm);
-
-            shiftop = (insn >> 4) & 3;
-            shift = ((insn >> 6) & 3) | ((insn >> 10) & 0x1c);
-            conds = (insn & (1 << 20)) != 0;
-            logic_cc = (conds && thumb2_logic_op(op));
-            gen_arm_shift_im(tmp2, shiftop, shift, logic_cc);
-            if (gen_thumb2_data_op(s, op, conds, 0, tmp, tmp2))
-                goto illegal_op;
-            tcg_temp_free_i32(tmp2);
-            if (rd == 13 &&
-                ((op == 2 && rn == 15) ||
-                 (op == 8 && rn == 13) ||
-                 (op == 13 && rn == 13))) {
-                /* MOV SP, ... or ADD SP, SP, ... or SUB SP, SP, ... */
-                store_sp_checked(s, tmp);
-            } else if (rd != 15) {
-                store_reg(s, rd, tmp);
-            } else {
-                tcg_temp_free_i32(tmp);
-            }
+            /* All done in decodetree.  Reach here for illegal ops.  */
+            goto illegal_op;
         }
         break;
     case 13: /* Misc data processing.  */

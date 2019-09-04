@@ -18,3 +18,46 @@
 #
 # This file is processed by scripts/decodetree.py
 #
+
+&s_rrr_shi       !extern s rd rn rm shim shty
+
+# Data-processing (register)
+
+%imm5_12_6       12:3 6:2
+
+@s_rrr_shi       ....... .... s:1 rn:4 .... rd:4 .. shty:2 rm:4 \
+                 &s_rrr_shi shim=%imm5_12_6
+@s_rxr_shi       ....... .... s:1 .... .... rd:4 .. shty:2 rm:4 \
+                 &s_rrr_shi shim=%imm5_12_6 rn=0
+@S_xrr_shi       ....... .... .   rn:4 .... .... .. shty:2 rm:4 \
+                 &s_rrr_shi shim=%imm5_12_6 s=1 rd=0
+
+{
+  TST_xrri       1110101 0000 1 .... 0 ... 1111 .... ....     @S_xrr_shi
+  AND_rrri       1110101 0000 . .... 0 ... .... .... ....     @s_rrr_shi
+}
+BIC_rrri         1110101 0001 . .... 0 ... .... .... ....     @s_rrr_shi
+{
+  MOV_rxri       1110101 0010 . 1111 0 ... .... .... ....     @s_rxr_shi
+  ORR_rrri       1110101 0010 . .... 0 ... .... .... ....     @s_rrr_shi
+}
+{
+  MVN_rxri       1110101 0011 . 1111 0 ... .... .... ....     @s_rxr_shi
+  ORN_rrri       1110101 0011 . .... 0 ... .... .... ....     @s_rrr_shi
+}
+{
+  TEQ_xrri       1110101 0100 1 .... 0 ... 1111 .... ....     @S_xrr_shi
+  EOR_rrri       1110101 0100 . .... 0 ... .... .... ....     @s_rrr_shi
+}
+# PKHBT, PKHTB at opc1 = 0110
+{
+  CMN_xrri       1110101 1000 1 .... 0 ... 1111 .... ....     @S_xrr_shi
+  ADD_rrri       1110101 1000 . .... 0 ... .... .... ....     @s_rrr_shi
+}
+ADC_rrri         1110101 1010 . .... 0 ... .... .... ....     @s_rrr_shi
+SBC_rrri         1110101 1011 . .... 0 ... .... .... ....     @s_rrr_shi
+{
+  CMP_xrri       1110101 1101 1 .... 0 ... 1111 .... ....     @S_xrr_shi
+  SUB_rrri       1110101 1101 . .... 0 ... .... .... ....     @s_rrr_shi
+}
+RSB_rrri         1110101 1110 . .... 0 ... .... .... ....     @s_rrr_shi
