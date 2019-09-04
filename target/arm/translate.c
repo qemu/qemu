@@ -355,7 +355,7 @@ static void gen_smul_dual(TCGv_i32 a, TCGv_i32 b)
 }
 
 /* Byteswap each halfword.  */
-static void gen_rev16(TCGv_i32 var)
+static void gen_rev16(TCGv_i32 dest, TCGv_i32 var)
 {
     TCGv_i32 tmp = tcg_temp_new_i32();
     TCGv_i32 mask = tcg_const_i32(0x00ff00ff);
@@ -363,17 +363,17 @@ static void gen_rev16(TCGv_i32 var)
     tcg_gen_and_i32(tmp, tmp, mask);
     tcg_gen_and_i32(var, var, mask);
     tcg_gen_shli_i32(var, var, 8);
-    tcg_gen_or_i32(var, var, tmp);
+    tcg_gen_or_i32(dest, var, tmp);
     tcg_temp_free_i32(mask);
     tcg_temp_free_i32(tmp);
 }
 
 /* Byteswap low halfword and sign extend.  */
-static void gen_revsh(TCGv_i32 var)
+static void gen_revsh(TCGv_i32 dest, TCGv_i32 var)
 {
     tcg_gen_ext16u_i32(var, var);
     tcg_gen_bswap16_i32(var, var);
-    tcg_gen_ext16s_i32(var, var);
+    tcg_gen_ext16s_i32(dest, var);
 }
 
 /* 32x32->64 multiply.  Marks inputs as dead.  */
@@ -426,7 +426,7 @@ static void gen_swap_half(TCGv_i32 var)
     t0 = (t0 + t1) ^ tmp;
  */
 
-static void gen_add16(TCGv_i32 t0, TCGv_i32 t1)
+static void gen_add16(TCGv_i32 dest, TCGv_i32 t0, TCGv_i32 t1)
 {
     TCGv_i32 tmp = tcg_temp_new_i32();
     tcg_gen_xor_i32(tmp, t0, t1);
@@ -434,9 +434,8 @@ static void gen_add16(TCGv_i32 t0, TCGv_i32 t1)
     tcg_gen_andi_i32(t0, t0, ~0x8000);
     tcg_gen_andi_i32(t1, t1, ~0x8000);
     tcg_gen_add_i32(t0, t0, t1);
-    tcg_gen_xor_i32(t0, t0, tmp);
+    tcg_gen_xor_i32(dest, t0, tmp);
     tcg_temp_free_i32(tmp);
-    tcg_temp_free_i32(t1);
 }
 
 /* Set N and Z flags from var.  */
@@ -6356,7 +6355,7 @@ static int disas_neon_data_insn(DisasContext *s, uint32_t insn)
                             }
                             break;
                         case NEON_2RM_VREV16:
-                            gen_rev16(tmp);
+                            gen_rev16(tmp, tmp);
                             break;
                         case NEON_2RM_VCLS:
                             switch (size) {
@@ -9334,12 +9333,224 @@ DO_PAR_ADDSUB(UHSUB8, gen_helper_uhsub8)
 #undef DO_PAR_ADDSUB_GE
 
 /*
+ * Packing, unpacking, saturation, and reversal
+ */
+
+static bool trans_PKH(DisasContext *s, arg_PKH *a)
+{
+    TCGv_i32 tn, tm;
+    int shift = a->imm;
+
+    if (s->thumb
+        ? !arm_dc_feature(s, ARM_FEATURE_THUMB_DSP)
+        : !ENABLE_ARCH_6) {
+        return false;
+    }
+
+    tn = load_reg(s, a->rn);
+    tm = load_reg(s, a->rm);
+    if (a->tb) {
+        /* PKHTB */
+        if (shift == 0) {
+            shift = 31;
+        }
+        tcg_gen_sari_i32(tm, tm, shift);
+        tcg_gen_deposit_i32(tn, tn, tm, 0, 16);
+    } else {
+        /* PKHBT */
+        tcg_gen_shli_i32(tm, tm, shift);
+        tcg_gen_deposit_i32(tn, tm, tn, 0, 16);
+    }
+    tcg_temp_free_i32(tm);
+    store_reg(s, a->rd, tn);
+    return true;
+}
+
+static bool op_sat(DisasContext *s, arg_sat *a,
+                   void (*gen)(TCGv_i32, TCGv_env, TCGv_i32, TCGv_i32))
+{
+    TCGv_i32 tmp, satimm;
+    int shift = a->imm;
+
+    if (!ENABLE_ARCH_6) {
+        return false;
+    }
+
+    tmp = load_reg(s, a->rn);
+    if (a->sh) {
+        tcg_gen_sari_i32(tmp, tmp, shift ? shift : 31);
+    } else {
+        tcg_gen_shli_i32(tmp, tmp, shift);
+    }
+
+    satimm = tcg_const_i32(a->satimm);
+    gen(tmp, cpu_env, tmp, satimm);
+    tcg_temp_free_i32(satimm);
+
+    store_reg(s, a->rd, tmp);
+    return true;
+}
+
+static bool trans_SSAT(DisasContext *s, arg_sat *a)
+{
+    return op_sat(s, a, gen_helper_ssat);
+}
+
+static bool trans_USAT(DisasContext *s, arg_sat *a)
+{
+    return op_sat(s, a, gen_helper_usat);
+}
+
+static bool trans_SSAT16(DisasContext *s, arg_sat *a)
+{
+    if (s->thumb && !arm_dc_feature(s, ARM_FEATURE_THUMB_DSP)) {
+        return false;
+    }
+    return op_sat(s, a, gen_helper_ssat16);
+}
+
+static bool trans_USAT16(DisasContext *s, arg_sat *a)
+{
+    if (s->thumb && !arm_dc_feature(s, ARM_FEATURE_THUMB_DSP)) {
+        return false;
+    }
+    return op_sat(s, a, gen_helper_usat16);
+}
+
+static bool op_xta(DisasContext *s, arg_rrr_rot *a,
+                   void (*gen_extract)(TCGv_i32, TCGv_i32),
+                   void (*gen_add)(TCGv_i32, TCGv_i32, TCGv_i32))
+{
+    TCGv_i32 tmp;
+
+    if (!ENABLE_ARCH_6) {
+        return false;
+    }
+
+    tmp = load_reg(s, a->rm);
+    /*
+     * TODO: In many cases we could do a shift instead of a rotate.
+     * Combined with a simple extend, that becomes an extract.
+     */
+    tcg_gen_rotri_i32(tmp, tmp, a->rot * 8);
+    gen_extract(tmp, tmp);
+
+    if (a->rn != 15) {
+        TCGv_i32 tmp2 = load_reg(s, a->rn);
+        gen_add(tmp, tmp, tmp2);
+        tcg_temp_free_i32(tmp2);
+    }
+    store_reg(s, a->rd, tmp);
+    return true;
+}
+
+static bool trans_SXTAB(DisasContext *s, arg_rrr_rot *a)
+{
+    return op_xta(s, a, tcg_gen_ext8s_i32, tcg_gen_add_i32);
+}
+
+static bool trans_SXTAH(DisasContext *s, arg_rrr_rot *a)
+{
+    return op_xta(s, a, tcg_gen_ext16s_i32, tcg_gen_add_i32);
+}
+
+static bool trans_SXTAB16(DisasContext *s, arg_rrr_rot *a)
+{
+    if (s->thumb && !arm_dc_feature(s, ARM_FEATURE_THUMB_DSP)) {
+        return false;
+    }
+    return op_xta(s, a, gen_helper_sxtb16, gen_add16);
+}
+
+static bool trans_UXTAB(DisasContext *s, arg_rrr_rot *a)
+{
+    return op_xta(s, a, tcg_gen_ext8u_i32, tcg_gen_add_i32);
+}
+
+static bool trans_UXTAH(DisasContext *s, arg_rrr_rot *a)
+{
+    return op_xta(s, a, tcg_gen_ext16u_i32, tcg_gen_add_i32);
+}
+
+static bool trans_UXTAB16(DisasContext *s, arg_rrr_rot *a)
+{
+    if (s->thumb && !arm_dc_feature(s, ARM_FEATURE_THUMB_DSP)) {
+        return false;
+    }
+    return op_xta(s, a, gen_helper_uxtb16, gen_add16);
+}
+
+static bool trans_SEL(DisasContext *s, arg_rrr *a)
+{
+    TCGv_i32 t1, t2, t3;
+
+    if (s->thumb
+        ? !arm_dc_feature(s, ARM_FEATURE_THUMB_DSP)
+        : !ENABLE_ARCH_6) {
+        return false;
+    }
+
+    t1 = load_reg(s, a->rn);
+    t2 = load_reg(s, a->rm);
+    t3 = tcg_temp_new_i32();
+    tcg_gen_ld_i32(t3, cpu_env, offsetof(CPUARMState, GE));
+    gen_helper_sel_flags(t1, t3, t1, t2);
+    tcg_temp_free_i32(t3);
+    tcg_temp_free_i32(t2);
+    store_reg(s, a->rd, t1);
+    return true;
+}
+
+static bool op_rr(DisasContext *s, arg_rr *a,
+                  void (*gen)(TCGv_i32, TCGv_i32))
+{
+    TCGv_i32 tmp;
+
+    tmp = load_reg(s, a->rm);
+    gen(tmp, tmp);
+    store_reg(s, a->rd, tmp);
+    return true;
+}
+
+static bool trans_REV(DisasContext *s, arg_rr *a)
+{
+    if (!ENABLE_ARCH_6) {
+        return false;
+    }
+    return op_rr(s, a, tcg_gen_bswap32_i32);
+}
+
+static bool trans_REV16(DisasContext *s, arg_rr *a)
+{
+    if (!ENABLE_ARCH_6) {
+        return false;
+    }
+    return op_rr(s, a, gen_rev16);
+}
+
+static bool trans_REVSH(DisasContext *s, arg_rr *a)
+{
+    if (!ENABLE_ARCH_6) {
+        return false;
+    }
+    return op_rr(s, a, gen_revsh);
+}
+
+static bool trans_RBIT(DisasContext *s, arg_rr *a)
+{
+    if (!ENABLE_ARCH_6T2) {
+        return false;
+    }
+    return op_rr(s, a, gen_helper_rbit);
+}
+
+/*
  * Legacy decoder.
  */
 
 static void disas_arm_insn(DisasContext *s, unsigned int insn)
 {
-    unsigned int cond, val, op1, i, shift, rm, rs, rn, rd, sh;
+    unsigned int cond, val, op1, i, rm, rs, rn, rd;
     TCGv_i32 tmp;
     TCGv_i32 tmp2;
     TCGv_i32 tmp3;
@@ -9648,112 +9859,9 @@ static void disas_arm_insn(DisasContext *s, unsigned int insn)
                     /* Done by decodetree */
                     goto illegal_op;
                 case 1:
-                    if ((insn & 0x00700020) == 0) {
-                        /* Halfword pack.  */
-                        tmp = load_reg(s, rn);
-                        tmp2 = load_reg(s, rm);
-                        shift = (insn >> 7) & 0x1f;
-                        if (insn & (1 << 6)) {
-                            /* pkhtb */
-                            if (shift == 0) {
-                                shift = 31;
-                            }
-                            tcg_gen_sari_i32(tmp2, tmp2, shift);
-                            tcg_gen_deposit_i32(tmp, tmp, tmp2, 0, 16);
-                        } else {
-                            /* pkhbt */
-                            tcg_gen_shli_i32(tmp2, tmp2, shift);
-                            tcg_gen_deposit_i32(tmp, tmp2, tmp, 0, 16);
-                        }
-                        tcg_temp_free_i32(tmp2);
-                        store_reg(s, rd, tmp);
-                    } else if ((insn & 0x00200020) == 0x00200000) {
-                        /* [us]sat */
-                        tmp = load_reg(s, rm);
-                        shift = (insn >> 7) & 0x1f;
-                        if (insn & (1 << 6)) {
-                            if (shift == 0)
-                                shift = 31;
-                            tcg_gen_sari_i32(tmp, tmp, shift);
-                        } else {
-                            tcg_gen_shli_i32(tmp, tmp, shift);
-                        }
-                        sh = (insn >> 16) & 0x1f;
-                        tmp2 = tcg_const_i32(sh);
-                        if (insn & (1 << 22))
-                          gen_helper_usat(tmp, cpu_env, tmp, tmp2);
-                        else
-                          gen_helper_ssat(tmp, cpu_env, tmp, tmp2);
-                        tcg_temp_free_i32(tmp2);
-                        store_reg(s, rd, tmp);
-                    } else if ((insn & 0x00300fe0) == 0x00200f20) {
-                        /* [us]sat16 */
-                        tmp = load_reg(s, rm);
-                        sh = (insn >> 16) & 0x1f;
-                        tmp2 = tcg_const_i32(sh);
-                        if (insn & (1 << 22))
-                          gen_helper_usat16(tmp, cpu_env, tmp, tmp2);
-                        else
-                          gen_helper_ssat16(tmp, cpu_env, tmp, tmp2);
-                        tcg_temp_free_i32(tmp2);
-                        store_reg(s, rd, tmp);
-                    } else if ((insn & 0x00700fe0) == 0x00000fa0) {
-                        /* Select bytes.  */
-                        tmp = load_reg(s, rn);
-                        tmp2 = load_reg(s, rm);
-                        tmp3 = tcg_temp_new_i32();
-                        tcg_gen_ld_i32(tmp3, cpu_env, offsetof(CPUARMState, GE));
-                        gen_helper_sel_flags(tmp, tmp3, tmp, tmp2);
-                        tcg_temp_free_i32(tmp3);
-                        tcg_temp_free_i32(tmp2);
-                        store_reg(s, rd, tmp);
-                    } else if ((insn & 0x000003e0) == 0x00000060) {
-                        tmp = load_reg(s, rm);
-                        shift = (insn >> 10) & 3;
-                        /* ??? In many cases it's not necessary to do a
-                           rotate, a shift is sufficient.  */
-                        tcg_gen_rotri_i32(tmp, tmp, shift * 8);
-                        op1 = (insn >> 20) & 7;
-                        switch (op1) {
-                        case 0: gen_sxtb16(tmp);  break;
-                        case 2: gen_sxtb(tmp);    break;
-                        case 3: gen_sxth(tmp);    break;
-                        case 4: gen_uxtb16(tmp);  break;
-                        case 6: gen_uxtb(tmp);    break;
-                        case 7: gen_uxth(tmp);    break;
-                        default: goto illegal_op;
-                        }
-                        if (rn != 15) {
-                            tmp2 = load_reg(s, rn);
-                            if ((op1 & 3) == 0) {
-                                gen_add16(tmp, tmp2);
-                            } else {
-                                tcg_gen_add_i32(tmp, tmp, tmp2);
-                                tcg_temp_free_i32(tmp2);
-                            }
-                        }
-                        store_reg(s, rd, tmp);
-                    } else if ((insn & 0x003f0f60) == 0x003f0f20) {
-                        /* rev */
-                        tmp = load_reg(s, rm);
-                        if (insn & (1 << 22)) {
-                            if (insn & (1 << 7)) {
-                                gen_revsh(tmp);
-                            } else {
-                                ARCH(6T2);
-                                gen_helper_rbit(tmp, tmp);
-                            }
-                        } else {
-                            if (insn & (1 << 7))
-                                gen_rev16(tmp);
-                            else
-                                tcg_gen_bswap32_i32(tmp, tmp);
-                        }
-                        store_reg(s, rd, tmp);
-                    } else {
-                        goto illegal_op;
-                    }
-                    break;
+                    /* Halfword pack, [US]SAT, [US]SAT16, SEL, REV et al */
+                    /* Done by decodetree */
+                    goto illegal_op;
                 case 2: /* Multiplies (Type 3).  */
                     switch ((insn >> 20) & 0x7) {
                     case 5:
@@ -10098,7 +10206,7 @@ static bool thumb_insn_is_16bit(DisasContext *s, uint32_t pc, uint32_t insn)
 /* Translate a 32-bit thumb instruction. */
 static void disas_thumb2_insn(DisasContext *s, uint32_t insn)
 {
-    uint32_t imm, shift, offset;
+    uint32_t imm, offset;
     uint32_t rd, rn, rm, rs;
     TCGv_i32 tmp;
     TCGv_i32 tmp2;
@@ -10353,151 +10461,18 @@ static void disas_thumb2_insn(DisasContext *s, uint32_t insn)
         }
         break;
     case 5:
-
-        op = (insn >> 21) & 0xf;
-        if (op == 6) {
-            if (!arm_dc_feature(s, ARM_FEATURE_THUMB_DSP)) {
-                goto illegal_op;
-            }
-            /* Halfword pack.  */
-            tmp = load_reg(s, rn);
-            tmp2 = load_reg(s, rm);
-            shift = ((insn >> 10) & 0x1c) | ((insn >> 6) & 0x3);
-            if (insn & (1 << 5)) {
-                /* pkhtb */
-                if (shift == 0) {
-                    shift = 31;
-                }
-                tcg_gen_sari_i32(tmp2, tmp2, shift);
-                tcg_gen_deposit_i32(tmp, tmp, tmp2, 0, 16);
-            } else {
-                /* pkhbt */
-                tcg_gen_shli_i32(tmp2, tmp2, shift);
-                tcg_gen_deposit_i32(tmp, tmp2, tmp, 0, 16);
-            }
-            tcg_temp_free_i32(tmp2);
-            store_reg(s, rd, tmp);
-        } else {
-            /* Data processing register constant shift.  */
-            /* All done in decodetree.  Reach here for illegal ops.  */
-            goto illegal_op;
-        }
-        break;
+        /* All in decodetree */
+        goto illegal_op;
     case 13: /* Misc data processing.  */
         op = ((insn >> 22) & 6) | ((insn >> 7) & 1);
         if (op < 4 && (insn & 0xf000) != 0xf000)
             goto illegal_op;
         switch (op) {
         case 0: /* Register controlled shift, in decodetree */
-            goto illegal_op;
-        case 1: /* Sign/zero extend.  */
-            op = (insn >> 20) & 7;
-            switch (op) {
-            case 0: /* SXTAH, SXTH */
-            case 1: /* UXTAH, UXTH */
-            case 4: /* SXTAB, SXTB */
-            case 5: /* UXTAB, UXTB */
-                break;
-            case 2: /* SXTAB16, SXTB16 */
-            case 3: /* UXTAB16, UXTB16 */
-                if (!arm_dc_feature(s, ARM_FEATURE_THUMB_DSP)) {
-                    goto illegal_op;
-                }
-                break;
-            default:
-                goto illegal_op;
-            }
-            if (rn != 15) {
-                if (!arm_dc_feature(s, ARM_FEATURE_THUMB_DSP)) {
-                    goto illegal_op;
-                }
-            }
-            tmp = load_reg(s, rm);
-            shift = (insn >> 4) & 3;
-            /* ??? In many cases it's not necessary to do a
-               rotate, a shift is sufficient.  */
-            tcg_gen_rotri_i32(tmp, tmp, shift * 8);
-            op = (insn >> 20) & 7;
-            switch (op) {
-            case 0: gen_sxth(tmp);   break;
-            case 1: gen_uxth(tmp);   break;
-            case 2: gen_sxtb16(tmp); break;
-            case 3: gen_uxtb16(tmp); break;
-            case 4: gen_sxtb(tmp);   break;
-            case 5: gen_uxtb(tmp);   break;
-            default:
-                g_assert_not_reached();
-            }
-            if (rn != 15) {
-                tmp2 = load_reg(s, rn);
-                if ((op >> 1) == 1) {
-                    gen_add16(tmp, tmp2);
-                } else {
-                    tcg_gen_add_i32(tmp, tmp, tmp2);
-                    tcg_temp_free_i32(tmp2);
-                }
-            }
-            store_reg(s, rd, tmp);
-            break;
+        case 1: /* Sign/zero extend, in decodetree */
         case 2: /* SIMD add/subtract, in decodetree */
+        case 3: /* Other data processing, in decodetree */
             goto illegal_op;
-        case 3: /* Other data processing.  */
-            op = ((insn >> 17) & 0x38) | ((insn >> 4) & 7);
-            if (op < 4) {
-                /* Saturating add/subtract.  */
-                /* All done in decodetree.  Reach here for illegal ops.  */
-                goto illegal_op;
-            } else {
-                switch (op) {
-                case 0x0a: /* rbit */
-                case 0x08: /* rev */
-                case 0x09: /* rev16 */
-                case 0x0b: /* revsh */
-                    break;
-                case 0x10: /* sel */
-                    if (!arm_dc_feature(s, ARM_FEATURE_THUMB_DSP)) {
-                        goto illegal_op;
-                    }
-                    break;
-                case 0x18: /* clz, in decodetree */
-                case 0x20: /* crc32/crc32c, in decodetree */
-                case 0x21:
-                case 0x22:
-                case 0x28:
-                case 0x29:
-                case 0x2a:
-                    goto illegal_op;
-                default:
-                    goto illegal_op;
-                }
-                tmp = load_reg(s, rn);
-                switch (op) {
-                case 0x0a: /* rbit */
-                    gen_helper_rbit(tmp, tmp);
-                    break;
-                case 0x08: /* rev */
-                    tcg_gen_bswap32_i32(tmp, tmp);
-                    break;
-                case 0x09: /* rev16 */
-                    gen_rev16(tmp);
-                    break;
-                case 0x0b: /* revsh */
-                    gen_revsh(tmp);
-                    break;
-                case 0x10: /* sel */
-                    tmp2 = load_reg(s, rm);
-                    tmp3 = tcg_temp_new_i32();
-                    tcg_gen_ld_i32(tmp3, cpu_env, offsetof(CPUARMState, GE));
-                    gen_helper_sel_flags(tmp, tmp3, tmp, tmp2);
-                    tcg_temp_free_i32(tmp3);
-                    tcg_temp_free_i32(tmp2);
-                    break;
-                default:
-                    g_assert_not_reached();
-                }
-            }
-            store_reg(s, rd, tmp);
-            break;
         case 4: case 5: /* 32-bit multiply.  Sum of absolute differences.  */
             switch ((insn >> 20) & 7) {
             case 0: /* 32 x 32 -> 32 */
@@ -10851,60 +10826,8 @@ static void disas_thumb2_insn(DisasContext *s, uint32_t insn)
                  *  - Data-processing (plain binary immediate)
                  */
                 if (insn & (1 << 24)) {
-                    if (insn & (1 << 20))
-                        goto illegal_op;
-                    /* Bitfield/Saturate.  */
-                    op = (insn >> 21) & 7;
-                    imm = insn & 0x1f;
-                    shift = ((insn >> 6) & 3) | ((insn >> 10) & 0x1c);
-                    if (rn == 15) {
-                        tmp = tcg_temp_new_i32();
-                        tcg_gen_movi_i32(tmp, 0);
-                    } else {
-                        tmp = load_reg(s, rn);
-                    }
-                    switch (op) {
-                    case 2: /* Signed bitfield extract, in decodetree */
-                    case 6: /* Unsigned bitfield extract, in decodetree */
-                    case 3: /* Bitfield insert/clear, in decodetree */
-                    case 7:
-                        goto illegal_op;
-                    default: /* Saturate.  */
-                        if (op & 1) {
-                            tcg_gen_sari_i32(tmp, tmp, shift);
-                        } else {
-                            tcg_gen_shli_i32(tmp, tmp, shift);
-                        }
-                        tmp2 = tcg_const_i32(imm);
-                        if (op & 4) {
-                            /* Unsigned.  */
-                            if ((op & 1) && shift == 0) {
-                                if (!arm_dc_feature(s, ARM_FEATURE_THUMB_DSP)) {
-                                    tcg_temp_free_i32(tmp);
-                                    tcg_temp_free_i32(tmp2);
-                                    goto illegal_op;
-                                }
-                                gen_helper_usat16(tmp, cpu_env, tmp, tmp2);
-                            } else {
-                                gen_helper_usat(tmp, cpu_env, tmp, tmp2);
-                            }
-                        } else {
-                            /* Signed.  */
-                            if ((op & 1) && shift == 0) {
-                                if (!arm_dc_feature(s, ARM_FEATURE_THUMB_DSP)) {
-                                    tcg_temp_free_i32(tmp);
-                                    tcg_temp_free_i32(tmp2);
-                                    goto illegal_op;
-                                }
-                                gen_helper_ssat16(tmp, cpu_env, tmp, tmp2);
-                            } else {
-                                gen_helper_ssat(tmp, cpu_env, tmp, tmp2);
-                            }
-                        }
-                        tcg_temp_free_i32(tmp2);
-                        break;
-                    }
-                    store_reg(s, rd, tmp);
+                    /* Bitfield/Saturate, in decodetree */
+                    goto illegal_op;
                 } else {
                     imm = ((insn & 0x04000000) >> 15)
                           | ((insn & 0x7000) >> 4) | (insn & 0xff);
@@ -11596,8 +11519,8 @@ static void disas_thumb_insn(DisasContext *s, uint32_t insn)
             tmp = load_reg(s, rn);
             switch (op1) {
             case 0: tcg_gen_bswap32_i32(tmp, tmp); break;
-            case 1: gen_rev16(tmp); break;
-            case 3: gen_revsh(tmp); break;
+            case 1: gen_rev16(tmp, tmp); break;
+            case 3: gen_revsh(tmp, tmp); break;
             default:
                 g_assert_not_reached();
             }

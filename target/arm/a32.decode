@@ -28,6 +28,7 @@
 &s_rri_rot       s rn rd imm rot
 &s_rrrr          s rd rn rm ra
 &rrrr            rd rn rm ra
+&rrr_rot         rd rn rm rot
 &rrr             rd rn rm
 &rr              rd rm
 &ri              rd imm
@@ -43,6 +44,8 @@
 &ldrex           rn rt rt2 imm
 &bfx             rd rn lsb widthm1
 &bfi             rd rn lsb msb
+&sat             rd rn satimm imm sh
+&pkh             rd rn rm imm tb
 
 # Data-processing (register)
 
@@ -454,3 +457,32 @@ UHSAX            .... 0110 0111 .... .... 1111 0101 ....      @rndm
 UHSUB16          .... 0110 0111 .... .... 1111 0111 ....      @rndm
 UHADD8           .... 0110 0111 .... .... 1111 1001 ....      @rndm
 UHSUB8           .... 0110 0111 .... .... 1111 1111 ....      @rndm
+
+# Packing, unpacking, saturation, and reversal
+
+PKH              ---- 0110 1000 rn:4 rd:4 imm:5 tb:1 01 rm:4  &pkh
+
+@sat             ---- .... ... satimm:5  rd:4 imm:5 sh:1 .. rn:4  &sat
+@sat16           ---- .... .... satimm:4 rd:4 .... .... rn:4 \
+                 &sat imm=0 sh=0
+
+SSAT             .... 0110 101. .... .... .... ..01 ....      @sat
+USAT             .... 0110 111. .... .... .... ..01 ....      @sat
+
+SSAT16           .... 0110 1010 .... .... 1111 0011 ....      @sat16
+USAT16           .... 0110 1110 .... .... 1111 0011 ....      @sat16
+
+@rrr_rot         ---- .... .... rn:4 rd:4 rot:2 ...... rm:4   &rrr_rot
+
+SXTAB16          .... 0110 1000 .... .... ..00 0111 ....      @rrr_rot
+SXTAB            .... 0110 1010 .... .... ..00 0111 ....      @rrr_rot
+SXTAH            .... 0110 1011 .... .... ..00 0111 ....      @rrr_rot
+UXTAB16          .... 0110 1100 .... .... ..00 0111 ....      @rrr_rot
+UXTAB            .... 0110 1110 .... .... ..00 0111 ....      @rrr_rot
+UXTAH            .... 0110 1111 .... .... ..00 0111 ....      @rrr_rot
+
+SEL              .... 0110 1000 .... .... 1111 1011 ....      @rndm
+REV              .... 0110 1011 1111 .... 1111 0011 ....      @rdm
+REV16            .... 0110 1011 1111 .... 1111 1011 ....      @rdm
+REVSH            .... 0110 1111 1111 .... 1111 1011 ....      @rdm
+RBIT             .... 0110 1111 1111 .... 1111 0011 ....      @rdm
