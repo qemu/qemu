@@ -219,7 +219,7 @@ static inline void generate_trap(DisasContext *ctx, int class, int tin);
 /* Functions for load/save to/from memory */
 
 static inline void gen_offset_ld(DisasContext *ctx, TCGv r1, TCGv r2,
-                                 int16_t con, TCGMemOp mop)
+                                 int16_t con, MemOp mop)
 {
     TCGv temp = tcg_temp_new();
     tcg_gen_addi_tl(temp, r2, con);
@@ -228,7 +228,7 @@ static inline void gen_offset_ld(DisasContext *ctx, TCGv r1, TCGv r2,
 }
 
 static inline void gen_offset_st(DisasContext *ctx, TCGv r1, TCGv r2,
-                                 int16_t con, TCGMemOp mop)
+                                 int16_t con, MemOp mop)
 {
     TCGv temp = tcg_temp_new();
     tcg_gen_addi_tl(temp, r2, con);
@@ -276,7 +276,7 @@ static void gen_offset_ld_2regs(TCGv rh, TCGv rl, TCGv base, int16_t con,
 }
 
 static void gen_st_preincr(DisasContext *ctx, TCGv r1, TCGv r2, int16_t off,
-                           TCGMemOp mop)
+                           MemOp mop)
 {
     TCGv temp = tcg_temp_new();
     tcg_gen_addi_tl(temp, r2, off);
@@ -286,7 +286,7 @@ static void gen_st_preincr(DisasContext *ctx, TCGv r1, TCGv r2, int16_t off,
 }
 
 static void gen_ld_preincr(DisasContext *ctx, TCGv r1, TCGv r2, int16_t off,
-                           TCGMemOp mop)
+                           MemOp mop)
 {
     TCGv temp = tcg_temp_new();
     tcg_gen_addi_tl(temp, r2, off);

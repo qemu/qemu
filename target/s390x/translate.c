@@ -152,7 +152,7 @@ static inline int vec_full_reg_offset(uint8_t reg)
     return offsetof(CPUS390XState, vregs[reg][0]);
 }
 
-static inline int vec_reg_offset(uint8_t reg, uint8_t enr, TCGMemOp es)
+static inline int vec_reg_offset(uint8_t reg, uint8_t enr, MemOp es)
 {
     /* Convert element size (es) - e.g. MO_8 - to bytes */
     const uint8_t bytes = 1 << es;
@@ -2262,7 +2262,7 @@ static DisasJumpType op_csst(DisasContext *s, DisasOps *o)
 #ifndef CONFIG_USER_ONLY
 static DisasJumpType op_csp(DisasContext *s, DisasOps *o)
 {
-    TCGMemOp mop = s->insn->data;
+    MemOp mop = s->insn->data;
     TCGv_i64 addr, old, cc;
     TCGLabel *lab = gen_new_label();
 
@@ -3228,7 +3228,7 @@ static DisasJumpType op_lm64(DisasContext *s, DisasOps *o)
 static DisasJumpType op_lpd(DisasContext *s, DisasOps *o)
 {
     TCGv_i64 a1, a2;
-    TCGMemOp mop = s->insn->data;
+    MemOp mop = s->insn->data;
 
     /* In a parallel context, stop the world and single step.  */
     if (tb_cflags(s->base.tb) & CF_PARALLEL) {

@@ -681,7 +681,7 @@ static bool trans_l_lwa(DisasContext *dc, arg_load *a)
     return true;
 }
 
-static void do_load(DisasContext *dc, arg_load *a, TCGMemOp mop)
+static void do_load(DisasContext *dc, arg_load *a, MemOp mop)
 {
     TCGv ea;
 
@@ -763,7 +763,7 @@ static bool trans_l_swa(DisasContext *dc, arg_store *a)
     return true;
 }
 
-static void do_store(DisasContext *dc, arg_store *a, TCGMemOp mop)
+static void do_store(DisasContext *dc, arg_store *a, MemOp mop)
 {
     TCGv t0 = tcg_temp_new();
     tcg_gen_addi_tl(t0, cpu_R[a->a], a->i);

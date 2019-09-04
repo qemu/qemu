@@ -919,7 +919,7 @@ static void dec_load(DisasContext *dc)
     unsigned int size;
     bool rev = false, ex = false, ea = false;
     int mem_index = cpu_mmu_index(&dc->cpu->env, false);
-    TCGMemOp mop;
+    MemOp mop;
 
     mop = dc->opcode & 3;
     size = 1 << mop;
@@ -1035,7 +1035,7 @@ static void dec_store(DisasContext *dc)
     unsigned int size;
     bool rev = false, ex = false, ea = false;
     int mem_index = cpu_mmu_index(&dc->cpu->env, false);
-    TCGMemOp mop;
+    MemOp mop;
 
     mop = dc->opcode & 3;
     size = 1 << mop;
