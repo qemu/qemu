@@ -161,8 +161,9 @@ static void aspeed_soc_init(Object *obj)
                                 &error_abort, NULL);
     }
 
+    snprintf(typename, sizeof(typename), "aspeed.scu-%s", socname);
     sysbus_init_child_obj(obj, "scu", OBJECT(&s->scu), sizeof(s->scu),
-                          TYPE_ASPEED_SCU);
+                          typename);
     qdev_prop_set_uint32(DEVICE(&s->scu), "silicon-rev",
                          sc->info->silicon_rev);
     object_property_add_alias(obj, "hw-strap1", OBJECT(&s->scu),

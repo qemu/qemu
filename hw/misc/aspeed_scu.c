@@ -166,23 +166,10 @@ static uint32_t aspeed_scu_get_random(void)
 
 static void aspeed_scu_set_apb_freq(AspeedSCUState *s)
 {
-    uint32_t apb_divider;
-
-    switch (s->silicon_rev) {
-    case AST2400_A0_SILICON_REV:
-    case AST2400_A1_SILICON_REV:
-        apb_divider = 2;
-        break;
-    case AST2500_A0_SILICON_REV:
-    case AST2500_A1_SILICON_REV:
-        apb_divider = 4;
-        break;
-    default:
-        g_assert_not_reached();
-    }
+    AspeedSCUClass *asc = ASPEED_SCU_GET_CLASS(s);
 
     s->apb_freq = s->hpll / (SCU_CLK_GET_PCLK_DIV(s->regs[CLK_SEL]) + 1)
-        / apb_divider;
+        / asc->apb_divider;
 }
 
 static uint64_t aspeed_scu_read(void *opaque, hwaddr offset, unsigned size)
@@ -303,7 +290,7 @@ static const uint32_t hpll_ast2400_freqs[][4] = {
     { 400, 375, 350, 425 }, /* 25MHz */
 };
 
-static uint32_t aspeed_scu_calc_hpll_ast2400(AspeedSCUState *s)
+static uint32_t aspeed_2400_scu_calc_hpll(AspeedSCUState *s)
 {
     uint32_t hpll_reg = s->regs[HPLL_PARAM];
     uint8_t freq_select;
@@ -334,7 +321,7 @@ static uint32_t aspeed_scu_calc_hpll_ast2400(AspeedSCUState *s)
     return hpll_ast2400_freqs[clk_25m_in][freq_select] * 1000000;
 }
 
-static uint32_t aspeed_scu_calc_hpll_ast2500(AspeedSCUState *s)
+static uint32_t aspeed_2500_scu_calc_hpll(AspeedSCUState *s)
 {
     uint32_t hpll_reg   = s->regs[HPLL_PARAM];
     uint32_t multiplier = 1;
@@ -357,25 +344,9 @@ static uint32_t aspeed_scu_calc_hpll_ast2500(AspeedSCUState *s)
 static void aspeed_scu_reset(DeviceState *dev)
 {
     AspeedSCUState *s = ASPEED_SCU(dev);
-    const uint32_t *reset;
-    uint32_t (*calc_hpll)(AspeedSCUState *s);
+    AspeedSCUClass *asc = ASPEED_SCU_GET_CLASS(dev);
 
-    switch (s->silicon_rev) {
-    case AST2400_A0_SILICON_REV:
-    case AST2400_A1_SILICON_REV:
-        reset = ast2400_a0_resets;
-        calc_hpll = aspeed_scu_calc_hpll_ast2400;
-        break;
-    case AST2500_A0_SILICON_REV:
-    case AST2500_A1_SILICON_REV:
-        reset = ast2500_a1_resets;
-        calc_hpll = aspeed_scu_calc_hpll_ast2500;
-        break;
-    default:
-        g_assert_not_reached();
-    }
-
-    memcpy(s->regs, reset, sizeof(s->regs));
+    memcpy(s->regs, asc->resets, sizeof(s->regs));
     s->regs[SILICON_REV] = s->silicon_rev;
     s->regs[HW_STRAP1] = s->hw_strap1;
     s->regs[HW_STRAP2] = s->hw_strap2;
@@ -385,7 +356,7 @@ static void aspeed_scu_reset(DeviceState *dev)
      * All registers are set. Now compute the frequencies of the main clocks
      */
     s->clkin = aspeed_scu_get_clkin(s);
-    s->hpll = calc_hpll(s);
+    s->hpll = asc->calc_hpll(s);
     aspeed_scu_set_apb_freq(s);
 }
 
@@ -459,11 +430,51 @@ static const TypeInfo aspeed_scu_info = {
     .parent = TYPE_SYS_BUS_DEVICE,
     .instance_size = sizeof(AspeedSCUState),
     .class_init = aspeed_scu_class_init,
+    .class_size    = sizeof(AspeedSCUClass),
+    .abstract      = true,
+};
+
+static void aspeed_2400_scu_class_init(ObjectClass *klass, void *data)
+{
+    DeviceClass *dc = DEVICE_CLASS(klass);
+    AspeedSCUClass *asc = ASPEED_SCU_CLASS(klass);
+
+    dc->desc = "ASPEED 2400 System Control Unit";
+    asc->resets = ast2400_a0_resets;
+    asc->calc_hpll = aspeed_2400_scu_calc_hpll;
+    asc->apb_divider = 2;
+}
+
+static const TypeInfo aspeed_2400_scu_info = {
+    .name = TYPE_ASPEED_2400_SCU,
+    .parent = TYPE_ASPEED_SCU,
+    .instance_size = sizeof(AspeedSCUState),
+    .class_init = aspeed_2400_scu_class_init,
+};
+
+static void aspeed_2500_scu_class_init(ObjectClass *klass, void *data)
+{
+    DeviceClass *dc = DEVICE_CLASS(klass);
+    AspeedSCUClass *asc = ASPEED_SCU_CLASS(klass);
+
+    dc->desc = "ASPEED 2500 System Control Unit";
+    asc->resets = ast2500_a1_resets;
+    asc->calc_hpll = aspeed_2500_scu_calc_hpll;
+    asc->apb_divider = 4;
+}
+
+static const TypeInfo aspeed_2500_scu_info = {
+    .name = TYPE_ASPEED_2500_SCU,
+    .parent = TYPE_ASPEED_SCU,
+    .instance_size = sizeof(AspeedSCUState),
+    .class_init = aspeed_2500_scu_class_init,
 };
 
 static void aspeed_scu_register_types(void)
 {
     type_register_static(&aspeed_scu_info);
+    type_register_static(&aspeed_2400_scu_info);
+    type_register_static(&aspeed_2500_scu_info);
 }
 
 type_init(aspeed_scu_register_types);
