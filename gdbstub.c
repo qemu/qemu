@@ -1820,11 +1820,15 @@ static void handle_read_all_regs(GdbCmdContext *gdb_ctx, void *user_ctx)
 
 static void handle_file_io(GdbCmdContext *gdb_ctx, void *user_ctx)
 {
-    if (gdb_ctx->num_params >= 2 && gdb_ctx->s->current_syscall_cb) {
+    if (gdb_ctx->num_params >= 1 && gdb_ctx->s->current_syscall_cb) {
         target_ulong ret, err;
 
         ret = (target_ulong)gdb_ctx->params[0].val_ull;
-        err = (target_ulong)gdb_ctx->params[1].val_ull;
+        if (gdb_ctx->num_params >= 2) {
+            err = (target_ulong)gdb_ctx->params[1].val_ull;
+        } else {
+            err = 0;
+        }
         gdb_ctx->s->current_syscall_cb(gdb_ctx->s->c_cpu, ret, err);
         gdb_ctx->s->current_syscall_cb = NULL;
     }
@@ -2588,7 +2592,9 @@ static int gdb_handle_packet(GDBState *s, const char *line_buf)
         break;
     }
 
-    run_cmd_parser(s, line_buf, cmd_parser);
+    if (cmd_parser) {
+        run_cmd_parser(s, line_buf, cmd_parser);
+    }
 
     return RS_IDLE;
 }

@@ -1,4 +1,4 @@
-#!/usr/bin/env python2
+#!/usr/bin/env python3
 #
 # Docker controlling module
 #
@@ -11,7 +11,6 @@
 # or (at your option) any later version. See the COPYING file in
 # the top-level directory.
 
-from __future__ import print_function
 import os
 import sys
 import subprocess
@@ -25,10 +24,7 @@ import tempfile
 import re
 import signal
 from tarfile import TarFile, TarInfo
-try:
-    from StringIO import StringIO
-except ImportError:
-    from io import StringIO
+from io import StringIO
 from shutil import copy, rmtree
 from pwd import getpwuid
 from datetime import datetime, timedelta
@@ -62,11 +58,13 @@ USE_ENGINE = EngineEnum.AUTO
 
 def _text_checksum(text):
     """Calculate a digest string unique to the text content"""
-    return hashlib.sha1(text).hexdigest()
+    return hashlib.sha1(text.encode('utf-8')).hexdigest()
 
+def _read_dockerfile(path):
+    return open(path, 'rt', encoding='utf-8').read()
 
 def _file_checksum(filename):
-    return _text_checksum(open(filename, 'rb').read())
+    return _text_checksum(_read_dockerfile(filename))
 
 
 def _guess_engine_command():
@@ -192,7 +190,7 @@ def _read_qemu_dockerfile(img_name):
 
     df = os.path.join(os.path.dirname(__file__), "dockerfiles",
                       img_name + ".docker")
-    return open(df, "r").read()
+    return _read_dockerfile(df)
 
 
 def _dockerfile_preprocess(df):
@@ -262,6 +260,7 @@ class Docker(object):
     def _output(self, cmd, **kwargs):
         return subprocess.check_output(self._command + cmd,
                                        stderr=subprocess.STDOUT,
+                                       encoding='utf-8',
                                        **kwargs)
 
     def inspect_tag(self, tag):
@@ -283,7 +282,9 @@ class Docker(object):
         if argv is None:
             argv = []
 
-        tmp_df = tempfile.NamedTemporaryFile(dir=docker_dir, suffix=".docker")
+        tmp_df = tempfile.NamedTemporaryFile(mode="w+t",
+                                             encoding='utf-8',
+                                             dir=docker_dir, suffix=".docker")
         tmp_df.write(dockerfile)
 
         if user:
@@ -396,7 +397,7 @@ class BuildCommand(SubCommand):
                             help="Dockerfile name")
 
     def run(self, args, argv):
-        dockerfile = open(args.dockerfile, "rb").read()
+        dockerfile = _read_dockerfile(args.dockerfile)
         tag = args.tag
 
         dkr = Docker()
@@ -442,7 +443,7 @@ class BuildCommand(SubCommand):
                 cksum += [(filename, _file_checksum(filename))]
 
             argv += ["--build-arg=" + k.lower() + "=" + v
-                     for k, v in os.environ.iteritems()
+                     for k, v in os.environ.items()
                      if k.lower() in FILTERED_ENV_NAMES]
             dkr.build_image(tag, docker_dir, dockerfile,
                             quiet=args.quiet, user=args.user, argv=argv,
@@ -611,7 +612,7 @@ class CheckCommand(SubCommand):
                 print("Need a dockerfile for tag:%s" % (tag))
                 return 1
 
-            dockerfile = open(args.dockerfile, "rb").read()
+            dockerfile = _read_dockerfile(args.dockerfile)
 
             if dkr.image_matches_dockerfile(tag, dockerfile):
                 if not args.quiet:

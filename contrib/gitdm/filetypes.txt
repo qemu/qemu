@@ -34,7 +34,7 @@
 #   If there is an filetype which is not in order but has values, it will
 #   be added at the end.
 #
-order build,tests,code,documentation,devel-doc,blobs
+order build,interface,tests,code,documentation,devel-doc,blobs
 
 #
 #
