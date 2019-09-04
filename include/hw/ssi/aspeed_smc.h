@@ -46,6 +46,8 @@ typedef struct AspeedSMCController {
     hwaddr flash_window_base;
     uint32_t flash_window_size;
     bool has_dma;
+    hwaddr dma_flash_mask;
+    hwaddr dma_dram_mask;
     uint32_t nregs;
 } AspeedSMCController;
 
@@ -100,6 +102,10 @@ typedef struct AspeedSMCState {
 
     /* for DMA support */
     uint64_t sdram_base;
+
+    AddressSpace flash_as;
+    MemoryRegion *dram_mr;
+    AddressSpace dram_as;
 
     AspeedSMCFlash *flashes;
 

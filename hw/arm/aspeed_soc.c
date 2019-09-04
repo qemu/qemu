@@ -191,6 +191,8 @@ static void aspeed_soc_init(Object *obj)
                           typename);
     object_property_add_alias(obj, "num-cs", OBJECT(&s->fmc), "num-cs",
                               &error_abort);
+    object_property_add_alias(obj, "dram", OBJECT(&s->fmc), "dram",
+                              &error_abort);
 
     for (i = 0; i < sc->info->spis_num; i++) {
         snprintf(typename, sizeof(typename), "aspeed.spi%d-%s", i + 1, socname);

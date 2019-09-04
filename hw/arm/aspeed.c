@@ -190,6 +190,8 @@ static void aspeed_board_init(MachineState *machine,
                             &error_abort);
     object_property_set_int(OBJECT(&bmc->soc), machine->smp.cpus, "num-cpus",
                             &error_abort);
+    object_property_set_link(OBJECT(&bmc->soc), OBJECT(&bmc->ram_container),
+                             "dram", &error_abort);
     if (machine->kernel_filename) {
         /*
          * When booting with a -kernel command line there is no u-boot
