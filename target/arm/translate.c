@@ -9863,7 +9863,7 @@ static bool op_stm(DisasContext *s, arg_ldst_block *a, int min_n)
 
     list = a->list;
     n = ctpop16(list);
-    if (n < min_n) {
+    if (n < min_n || a->rn == 15) {
         unallocated_encoding(s);
         return true;
     }
@@ -9943,7 +9943,7 @@ static bool do_ldm(DisasContext *s, arg_ldst_block *a, int min_n)
 
     list = a->list;
     n = ctpop16(list);
-    if (n < min_n) {
+    if (n < min_n || a->rn == 15) {
         unallocated_encoding(s);
         return true;
     }
@@ -9983,6 +9983,7 @@ static bool do_ldm(DisasContext *s, arg_ldst_block *a, int min_n)
     op_addr_block_post(s, a, addr, n);
 
     if (loaded_base) {
+        /* Note that we reject base == pc above.  */
         store_reg(s, a->rn, loaded_var);
     }
 
