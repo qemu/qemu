@@ -9221,6 +9221,104 @@ static bool trans_LDAH(DisasContext *s, arg_LDA *a)
 }
 
 /*
+ * Media instructions
+ */
+
+static bool trans_USADA8(DisasContext *s, arg_USADA8 *a)
+{
+    TCGv_i32 t1, t2;
+
+    if (!ENABLE_ARCH_6) {
+        return false;
+    }
+
+    t1 = load_reg(s, a->rn);
+    t2 = load_reg(s, a->rm);
+    gen_helper_usad8(t1, t1, t2);
+    tcg_temp_free_i32(t2);
+    if (a->ra != 15) {
+        t2 = load_reg(s, a->ra);
+        tcg_gen_add_i32(t1, t1, t2);
+        tcg_temp_free_i32(t2);
+    }
+    store_reg(s, a->rd, t1);
+    return true;
+}
+
+static bool op_bfx(DisasContext *s, arg_UBFX *a, bool u)
+{
+    TCGv_i32 tmp;
+    int width = a->widthm1 + 1;
+    int shift = a->lsb;
+
+    if (!ENABLE_ARCH_6T2) {
+        return false;
+    }
+    if (shift + width > 32) {
+        /* UNPREDICTABLE; we choose to UNDEF */
+        unallocated_encoding(s);
+        return true;
+    }
+
+    tmp = load_reg(s, a->rn);
+    if (u) {
+        tcg_gen_extract_i32(tmp, tmp, shift, width);
+    } else {
+        tcg_gen_sextract_i32(tmp, tmp, shift, width);
+    }
+    store_reg(s, a->rd, tmp);
+    return true;
+}
+
+static bool trans_SBFX(DisasContext *s, arg_SBFX *a)
+{
+    return op_bfx(s, a, false);
+}
+
+static bool trans_UBFX(DisasContext *s, arg_UBFX *a)
+{
+    return op_bfx(s, a, true);
+}
+
+static bool trans_BFCI(DisasContext *s, arg_BFCI *a)
+{
+    TCGv_i32 tmp;
+    int msb = a->msb, lsb = a->lsb;
+    int width;
+
+    if (!ENABLE_ARCH_6T2) {
+        return false;
+    }
+    if (msb < lsb) {
+        /* UNPREDICTABLE; we choose to UNDEF */
+        unallocated_encoding(s);
+        return true;
+    }
+
+    width = msb + 1 - lsb;
+    if (a->rn == 15) {
+        /* BFC */
+        tmp = tcg_const_i32(0);
+    } else {
+        /* BFI */
+        tmp = load_reg(s, a->rn);
+    }
+    if (width != 32) {
+        TCGv_i32 tmp2 = load_reg(s, a->rd);
+        tcg_gen_deposit_i32(tmp, tmp2, tmp, lsb, width);
+        tcg_temp_free_i32(tmp2);
+    }
+    store_reg(s, a->rd, tmp);
+    return true;
+}
+
+static bool trans_UDF(DisasContext *s, arg_UDF *a)
+{
+    unallocated_encoding(s);
+    return true;
+}
+
+/*
  * Legacy decoder.
  */
 
@@ -9769,65 +9867,9 @@ static void disas_arm_insn(DisasContext *s, unsigned int insn)
                     }
                     break;
                 case 3:
-                    op1 = ((insn >> 17) & 0x38) | ((insn >> 5) & 7);
-                    switch (op1) {
-                    case 0: /* Unsigned sum of absolute differences.  */
-                        ARCH(6);
-                        tmp = load_reg(s, rm);
-                        tmp2 = load_reg(s, rs);
-                        gen_helper_usad8(tmp, tmp, tmp2);
-                        tcg_temp_free_i32(tmp2);
-                        if (rd != 15) {
-                            tmp2 = load_reg(s, rd);
-                            tcg_gen_add_i32(tmp, tmp, tmp2);
-                            tcg_temp_free_i32(tmp2);
-                        }
-                        store_reg(s, rn, tmp);
-                        break;
-                    case 0x20: case 0x24: case 0x28: case 0x2c:
-                        /* Bitfield insert/clear.  */
-                        ARCH(6T2);
-                        shift = (insn >> 7) & 0x1f;
-                        i = (insn >> 16) & 0x1f;
-                        if (i < shift) {
-                            /* UNPREDICTABLE; we choose to UNDEF */
-                            goto illegal_op;
-                        }
-                        i = i + 1 - shift;
-                        if (rm == 15) {
-                            tmp = tcg_temp_new_i32();
-                            tcg_gen_movi_i32(tmp, 0);
-                        } else {
-                            tmp = load_reg(s, rm);
-                        }
-                        if (i != 32) {
-                            tmp2 = load_reg(s, rd);
-                            tcg_gen_deposit_i32(tmp, tmp2, tmp, shift, i);
-                            tcg_temp_free_i32(tmp2);
-                        }
-                        store_reg(s, rd, tmp);
-                        break;
-                    case 0x12: case 0x16: case 0x1a: case 0x1e: /* sbfx */
-                    case 0x32: case 0x36: case 0x3a: case 0x3e: /* ubfx */
-                        ARCH(6T2);
-                        tmp = load_reg(s, rm);
-                        shift = (insn >> 7) & 0x1f;
-                        i = ((insn >> 16) & 0x1f) + 1;
-                        if (shift + i > 32)
-                            goto illegal_op;
-                        if (i < 32) {
-                            if (op1 & 0x20) {
-                                tcg_gen_extract_i32(tmp, tmp, shift, i);
-                            } else {
-                                tcg_gen_sextract_i32(tmp, tmp, shift, i);
-                            }
-                        }
-                        store_reg(s, rd, tmp);
-                        break;
-                    default:
-                        goto illegal_op;
-                    }
-                    break;
+                    /* USAD, BFI, BFC, SBFX, UBFX */
+                    /* Done by decodetree */
+                    goto illegal_op;
                 }
                 break;
             }
@@ -10466,10 +10508,9 @@ static void disas_thumb2_insn(DisasContext *s, uint32_t insn)
             case 0: /* 32 x 32 -> 32 */
             case 1: /* 16 x 16 -> 32 */
             case 3: /* 32 * 16 -> 32msb */
+            case 7: /* Unsigned sum of absolute differences.  */
                 /* in decodetree */
                 goto illegal_op;
-            case 7: /* Unsigned sum of absolute differences.  */
-                break;
             case 2: /* Dual multiply add.  */
             case 4: /* Dual multiply subtract.  */
             case 5: case 6: /* 32 * 32 -> 32msb (SMMUL, SMMLA, SMMLS) */
@@ -10533,15 +10574,6 @@ static void disas_thumb2_insn(DisasContext *s, uint32_t insn)
                     tcg_gen_add_i32(tmp, tmp, tmp2);
                 }
                 tcg_temp_free_i32(tmp2);
-                break;
-            case 7: /* Unsigned sum of absolute differences.  */
-                gen_helper_usad8(tmp, tmp, tmp2);
-                tcg_temp_free_i32(tmp2);
-                if (rs != 15) {
-                    tmp2 = load_reg(s, rs);
-                    tcg_gen_add_i32(tmp, tmp, tmp2);
-                    tcg_temp_free_i32(tmp2);
-                }
                 break;
             }
             store_reg(s, rd, tmp);
@@ -10837,32 +10869,9 @@ static void disas_thumb2_insn(DisasContext *s, uint32_t insn)
                         tmp = load_reg(s, rn);
                     }
                     switch (op) {
-                    case 2: /* Signed bitfield extract.  */
-                        imm++;
-                        if (shift + imm > 32)
-                            goto illegal_op;
-                        if (imm < 32) {
-                            tcg_gen_sextract_i32(tmp, tmp, shift, imm);
-                        }
-                        break;
-                    case 6: /* Unsigned bitfield extract.  */
-                        imm++;
-                        if (shift + imm > 32)
-                            goto illegal_op;
-                        if (imm < 32) {
-                            tcg_gen_extract_i32(tmp, tmp, shift, imm);
-                        }
-                        break;
-                    case 3: /* Bitfield insert/clear.  */
-                        if (imm < shift)
-                            goto illegal_op;
-                        imm = imm + 1 - shift;
-                        if (imm != 32) {
-                            tmp2 = load_reg(s, rd);
-                            tcg_gen_deposit_i32(tmp, tmp2, tmp, shift, imm);
-                            tcg_temp_free_i32(tmp2);
-                        }
-                        break;
+                    case 2: /* Signed bitfield extract, in decodetree */
+                    case 6: /* Unsigned bitfield extract, in decodetree */
+                    case 3: /* Bitfield insert/clear, in decodetree */
                     case 7:
                         goto illegal_op;
                     default: /* Saturate.  */

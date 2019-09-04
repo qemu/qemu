@@ -38,6 +38,8 @@
 &ldst_ri         !extern p w u rn rt imm
 &strex           !extern rn rd rt rt2 imm
 &ldrex           !extern rn rt rt2 imm
+&bfx             !extern rd rn lsb widthm1
+&bfi             !extern rd rn lsb msb
 
 # Data-processing (register)
 
@@ -144,6 +146,19 @@ RSB_rri          1111 0.0 1110 . .... 0 ... .... ........     @s_rri_rot
   SUB_rri        1111 0.1 0101 0 .... 0 ... .... ........     @s0_rri_12
 }
 
+# Saturate, bitfield
+
+@bfx             .... .... ... . rn:4 . ... rd:4 .. . widthm1:5 \
+                 &bfx lsb=%imm5_12_6
+@bfi             .... .... ... . rn:4 . ... rd:4 .. . msb:5 \
+                 &bfi lsb=%imm5_12_6
+
+SBFX             1111 0011 010 0 .... 0 ... .... ..0.....     @bfx
+UBFX             1111 0011 110 0 .... 0 ... .... ..0.....     @bfx
+
+# bfc is bfi w/ rn=15
+BFCI             1111 0011 011 0 .... 0 ... .... ..0.....     @bfi
+
 # Multiply and multiply accumulate
 
 @s0_rnadm        .... .... .... rn:4 ra:4 rd:4 .... rm:4      &s_rrrr s=0
@@ -191,6 +206,9 @@ SMLALBB          1111 1011 1100 .... .... .... 1000 ....      @rnadm
 SMLALBT          1111 1011 1100 .... .... .... 1001 ....      @rnadm
 SMLALTB          1111 1011 1100 .... .... .... 1010 ....      @rnadm
 SMLALTT          1111 1011 1100 .... .... .... 1011 ....      @rnadm
+
+# usad8 is usada8 w/ ra=15
+USADA8           1111 1011 0111 .... .... .... 0000 ....      @rnadm
 
 # Data-processing (two source registers)
 
@@ -254,6 +272,7 @@ CLZ              1111 1010 1011 ---- 1111 .... 1000 ....      @rdm
   SMC            1111 0111 1111 imm:4 1000 0000 0000 0000     &i
   HVC            1111 0111 1110 ....  1000 .... .... ....     \
                  &i imm=%imm16_16_0
+  UDF            1111 0111 1111 ---- 1010 ---- ---- ----
 }
 
 # Load/store (register, immediate, literal)

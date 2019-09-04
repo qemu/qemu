@@ -41,6 +41,8 @@
 &ldst_ri         p w u rn rt imm
 &strex           rn rd rt rt2 imm
 &ldrex           rn rt rt2 imm
+&bfx             rd rn lsb widthm1
+&bfi             rd rn lsb msb
 
 # Data-processing (register)
 
@@ -390,3 +392,21 @@ LDAEXH           .... 0001 1111 .... .... 1110 1001 1111      @ldrex
 LDA              .... 0001 1001 .... .... 1100 1001 1111      @ldrex
 LDAB             .... 0001 1101 .... .... 1100 1001 1111      @ldrex
 LDAH             .... 0001 1111 .... .... 1100 1001 1111      @ldrex
+
+# Media instructions
+
+# usad8 is usada8 w/ ra=15
+USADA8           ---- 0111 1000 rd:4 ra:4 rm:4 0001 rn:4
+
+# ubfx and sbfx
+@bfx             ---- .... ... widthm1:5 rd:4 lsb:5 ... rn:4  &bfx
+
+SBFX             .... 0111 101 ..... .... ..... 101 ....      @bfx
+UBFX             .... 0111 111 ..... .... ..... 101 ....      @bfx
+
+# bfc is bfi w/ rn=15
+BFCI             ---- 0111 110 msb:5 rd:4 lsb:5 001 rn:4      &bfi
+
+# While we could get UDEF by not including this, add the pattern for
+# documentation and to conflict with any other typos in this file.
+UDF              1110 0111 1111 ---- ---- ---- 1111 ----
