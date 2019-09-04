@@ -8171,6 +8171,117 @@ DO_QADDSUB(QDSUB, false, true)
 #undef DO_QADDSUB
 
 /*
+ * Halfword multiply and multiply accumulate
+ */
+
+static bool op_smlaxxx(DisasContext *s, arg_rrrr *a,
+                       int add_long, bool nt, bool mt)
+{
+    TCGv_i32 t0, t1;
+    TCGv_i64 t64;
+
+    if (s->thumb
+        ? !arm_dc_feature(s, ARM_FEATURE_THUMB_DSP)
+        : !ENABLE_ARCH_5TE) {
+        return false;
+    }
+
+    t0 = load_reg(s, a->rn);
+    t1 = load_reg(s, a->rm);
+    gen_mulxy(t0, t1, nt, mt);
+    tcg_temp_free_i32(t1);
+
+    switch (add_long) {
+    case 0:
+        store_reg(s, a->rd, t0);
+        break;
+    case 1:
+        t1 = load_reg(s, a->ra);
+        gen_helper_add_setq(t0, cpu_env, t0, t1);
+        tcg_temp_free_i32(t1);
+        store_reg(s, a->rd, t0);
+        break;
+    case 2:
+        t64 = tcg_temp_new_i64();
+        tcg_gen_ext_i32_i64(t64, t0);
+        tcg_temp_free_i32(t0);
+        gen_addq(s, t64, a->ra, a->rd);
+        gen_storeq_reg(s, a->ra, a->rd, t64);
+        tcg_temp_free_i64(t64);
+        break;
+    default:
+        g_assert_not_reached();
+    }
+    return true;
+}
+
+#define DO_SMLAX(NAME, add, nt, mt) \
+static bool trans_##NAME(DisasContext *s, arg_rrrr *a)     \
+{                                                          \
+    return op_smlaxxx(s, a, add, nt, mt);                  \
+}
+
+DO_SMLAX(SMULBB, 0, 0, 0)
+DO_SMLAX(SMULBT, 0, 0, 1)
+DO_SMLAX(SMULTB, 0, 1, 0)
+DO_SMLAX(SMULTT, 0, 1, 1)
+
+DO_SMLAX(SMLABB, 1, 0, 0)
+DO_SMLAX(SMLABT, 1, 0, 1)
+DO_SMLAX(SMLATB, 1, 1, 0)
+DO_SMLAX(SMLATT, 1, 1, 1)
+
+DO_SMLAX(SMLALBB, 2, 0, 0)
+DO_SMLAX(SMLALBT, 2, 0, 1)
+DO_SMLAX(SMLALTB, 2, 1, 0)
+DO_SMLAX(SMLALTT, 2, 1, 1)
+
+#undef DO_SMLAX
+
+static bool op_smlawx(DisasContext *s, arg_rrrr *a, bool add, bool mt)
+{
+    TCGv_i32 t0, t1;
+    TCGv_i64 t64;
+
+    if (!ENABLE_ARCH_5TE) {
+        return false;
+    }
+
+    t0 = load_reg(s, a->rn);
+    t1 = load_reg(s, a->rm);
+    if (mt) {
+        tcg_gen_sari_i32(t1, t1, 16);
+    } else {
+        gen_sxth(t1);
+    }
+    t64 = gen_muls_i64_i32(t0, t1);
+    tcg_gen_shri_i64(t64, t64, 16);
+    t1 = tcg_temp_new_i32();
+    tcg_gen_extrl_i64_i32(t1, t64);
+    tcg_temp_free_i64(t64);
+    if (add) {
+        t0 = load_reg(s, a->ra);
+        gen_helper_add_setq(t1, cpu_env, t1, t0);
+        tcg_temp_free_i32(t0);
+    }
+    store_reg(s, a->rd, t1);
+    return true;
+}
+
+#define DO_SMLAWX(NAME, add, mt) \
+static bool trans_##NAME(DisasContext *s, arg_rrrr *a)     \
+{                                                          \
+    return op_smlawx(s, a, add, mt);                       \
+}
+
+DO_SMLAWX(SMULWB, 0, 0)
+DO_SMLAWX(SMULWT, 0, 1)
+DO_SMLAWX(SMLAWB, 1, 0)
+DO_SMLAWX(SMLAWT, 1, 1)
+
+#undef DO_SMLAWX
+
+/*
  * Legacy decoder.
  */
 
@@ -8636,56 +8747,13 @@ static void disas_arm_insn(DisasContext *s, unsigned int insn)
             }
             break;
         }
-        case 0x8: /* signed multiply */
+        case 0x8:
         case 0xa:
         case 0xc:
         case 0xe:
-            ARCH(5TE);
-            rs = (insn >> 8) & 0xf;
-            rn = (insn >> 12) & 0xf;
-            rd = (insn >> 16) & 0xf;
-            if (op1 == 1) {
-                /* (32 * 16) >> 16 */
-                tmp = load_reg(s, rm);
-                tmp2 = load_reg(s, rs);
-                if (sh & 4)
-                    tcg_gen_sari_i32(tmp2, tmp2, 16);
-                else
-                    gen_sxth(tmp2);
-                tmp64 = gen_muls_i64_i32(tmp, tmp2);
-                tcg_gen_shri_i64(tmp64, tmp64, 16);
-                tmp = tcg_temp_new_i32();
-                tcg_gen_extrl_i64_i32(tmp, tmp64);
-                tcg_temp_free_i64(tmp64);
-                if ((sh & 2) == 0) {
-                    tmp2 = load_reg(s, rn);
-                    gen_helper_add_setq(tmp, cpu_env, tmp, tmp2);
-                    tcg_temp_free_i32(tmp2);
-                }
-                store_reg(s, rd, tmp);
-            } else {
-                /* 16 * 16 */
-                tmp = load_reg(s, rm);
-                tmp2 = load_reg(s, rs);
-                gen_mulxy(tmp, tmp2, sh & 2, sh & 4);
-                tcg_temp_free_i32(tmp2);
-                if (op1 == 2) {
-                    tmp64 = tcg_temp_new_i64();
-                    tcg_gen_ext_i32_i64(tmp64, tmp);
-                    tcg_temp_free_i32(tmp);
-                    gen_addq(s, tmp64, rn, rd);
-                    gen_storeq_reg(s, rn, rd, tmp64);
-                    tcg_temp_free_i64(tmp64);
-                } else {
-                    if (op1 == 0) {
-                        tmp2 = load_reg(s, rn);
-                        gen_helper_add_setq(tmp, cpu_env, tmp, tmp2);
-                        tcg_temp_free_i32(tmp2);
-                    }
-                    store_reg(s, rd, tmp);
-                }
-            }
-            break;
+            /* Halfword multiply and multiply accumulate.  */
+            /* All done in decodetree.  Reach here for illegal ops.  */
+            goto illegal_op;
         default:
             goto illegal_op;
         }
@@ -10143,13 +10211,14 @@ static void disas_thumb2_insn(DisasContext *s, uint32_t insn)
             break;
         case 4: case 5: /* 32-bit multiply.  Sum of absolute differences.  */
             switch ((insn >> 20) & 7) {
-            case 0: /* 32 x 32 -> 32, in decodetree */
+            case 0: /* 32 x 32 -> 32 */
+            case 1: /* 16 x 16 -> 32 */
+            case 3: /* 32 * 16 -> 32msb */
+                /* in decodetree */
                 goto illegal_op;
             case 7: /* Unsigned sum of absolute differences.  */
                 break;
-            case 1: /* 16 x 16 -> 32 */
             case 2: /* Dual multiply add.  */
-            case 3: /* 32 * 16 -> 32msb */
             case 4: /* Dual multiply subtract.  */
             case 5: case 6: /* 32 * 32 -> 32msb (SMMUL, SMMLA, SMMLS) */
                 if (!arm_dc_feature(s, ARM_FEATURE_THUMB_DSP)) {
@@ -10161,15 +10230,6 @@ static void disas_thumb2_insn(DisasContext *s, uint32_t insn)
             tmp = load_reg(s, rn);
             tmp2 = load_reg(s, rm);
             switch ((insn >> 20) & 7) {
-            case 1: /* 16 x 16 -> 32 */
-                gen_mulxy(tmp, tmp2, op & 2, op & 1);
-                tcg_temp_free_i32(tmp2);
-                if (rs != 15) {
-                    tmp2 = load_reg(s, rs);
-                    gen_helper_add_setq(tmp, cpu_env, tmp, tmp2);
-                    tcg_temp_free_i32(tmp2);
-                }
-                break;
             case 2: /* Dual multiply add.  */
             case 4: /* Dual multiply subtract.  */
                 if (op)
@@ -10186,23 +10246,6 @@ static void disas_thumb2_insn(DisasContext *s, uint32_t insn)
                     gen_helper_add_setq(tmp, cpu_env, tmp, tmp2);
                 }
                 tcg_temp_free_i32(tmp2);
-                if (rs != 15)
-                  {
-                    tmp2 = load_reg(s, rs);
-                    gen_helper_add_setq(tmp, cpu_env, tmp, tmp2);
-                    tcg_temp_free_i32(tmp2);
-                  }
-                break;
-            case 3: /* 32 * 16 -> 32msb */
-                if (op)
-                    tcg_gen_sari_i32(tmp2, tmp2, 16);
-                else
-                    gen_sxth(tmp2);
-                tmp64 = gen_muls_i64_i32(tmp, tmp2);
-                tcg_gen_shri_i64(tmp64, tmp64, 16);
-                tmp = tcg_temp_new_i32();
-                tcg_gen_extrl_i64_i32(tmp, tmp64);
-                tcg_temp_free_i64(tmp64);
                 if (rs != 15)
                   {
                     tmp2 = load_reg(s, rs);
@@ -10290,29 +10333,10 @@ static void disas_thumb2_insn(DisasContext *s, uint32_t insn)
                 gen_storeq_reg(s, rs, rd, tmp64);
                 tcg_temp_free_i64(tmp64);
             } else {
-                if ((op & 0x20) || !(op & 8)) {
-                    /* Signed/unsigned 64-bit multiply, in decodetree */
-                    tcg_temp_free_i32(tmp2);
-                    tcg_temp_free_i32(tmp);
-                    goto illegal_op;
-                }
-                /* smlalxy */
-                if (!arm_dc_feature(s, ARM_FEATURE_THUMB_DSP)) {
-                    tcg_temp_free_i32(tmp2);
-                    tcg_temp_free_i32(tmp);
-                    goto illegal_op;
-                }
-                gen_mulxy(tmp, tmp2, op & 2, op & 1);
+                /* Signed/unsigned 64-bit multiply, in decodetree */
                 tcg_temp_free_i32(tmp2);
-                tmp64 = tcg_temp_new_i64();
-                tcg_gen_ext_i32_i64(tmp64, tmp);
                 tcg_temp_free_i32(tmp);
-                if (op & 0x40) {
-                    /* 64-bit accumulate.  */
-                    gen_addq(s, tmp64, rs, rd);
-                }
-                gen_storeq_reg(s, rs, rd, tmp64);
-                tcg_temp_free_i64(tmp64);
+                goto illegal_op;
             }
             break;
         }
