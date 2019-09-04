@@ -78,7 +78,7 @@ _qemu_proc_exec()
 {
     local VALGRIND_LOGFILE="$1"
     shift
-    if [ "${VALGRIND_QEMU}" == "y" ]; then
+    if [[ "${VALGRIND_QEMU}" == "y" && "${NO_VALGRIND}" != "y" ]]; then
         exec valgrind --log-file="${VALGRIND_LOGFILE}" --error-exitcode=99 "$@"
     else
         exec "$@"
@@ -89,7 +89,7 @@ _qemu_proc_valgrind_log()
 {
     local VALGRIND_LOGFILE="$1"
     local RETVAL="$2"
-    if [ "${VALGRIND_QEMU}" == "y" ]; then
+    if [[ "${VALGRIND_QEMU}" == "y" && "${NO_VALGRIND}" != "y" ]]; then
         if [ $RETVAL == 99 ]; then
             cat "${VALGRIND_LOGFILE}"
         fi
@@ -167,6 +167,14 @@ _qemu_vxhs_wrapper()
     RETVAL=$?
     _qemu_proc_valgrind_log "${VALGRIND_LOGFILE}" $RETVAL
     return $RETVAL
+}
+
+# Valgrind bug #409141 https://bugs.kde.org/show_bug.cgi?id=409141
+# Until valgrind 3.16+ is ubiquitous, we must work around a hang in
+# valgrind when issuing sigkill. Disable valgrind for this invocation.
+_NO_VALGRIND()
+{
+    NO_VALGRIND="y" "$@"
 }
 
 export QEMU=_qemu_wrapper
