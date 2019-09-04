@@ -355,14 +355,19 @@ static uint32_t do_helper_xc(CPUS390XState *env, uint32_t l, uint64_t dest,
                              uint64_t src, uintptr_t ra)
 {
     const int mmu_idx = cpu_mmu_index(env, false);
-    S390Access desta;
+    S390Access srca1, srca2, desta;
     uint32_t i;
     uint8_t c = 0;
 
     HELPER_LOG("%s l %d dest %" PRIx64 " src %" PRIx64 "\n",
                __func__, l, dest, src);
 
-    desta = access_prepare(env, dest, l + 1, MMU_DATA_STORE, mmu_idx, ra);
+    /* XC always processes one more byte than specified - maximum is 256 */
+    l++;
+
+    srca1 = access_prepare(env, src, l, MMU_DATA_LOAD, mmu_idx, ra);
+    srca2 = access_prepare(env, dest, l, MMU_DATA_LOAD, mmu_idx, ra);
+    desta = access_prepare(env, dest, l, MMU_DATA_STORE, mmu_idx, ra);
 
     /* xor with itself is the same as memset(0) */
     if (src == dest) {
@@ -370,11 +375,12 @@ static uint32_t do_helper_xc(CPUS390XState *env, uint32_t l, uint64_t dest,
         return 0;
     }
 
-    for (i = 0; i <= l; i++) {
-        uint8_t x = cpu_ldub_data_ra(env, src + i, ra);
-        x ^= cpu_ldub_data_ra(env, dest + i, ra);
+    for (i = 0; i < l; i++) {
+        const uint8_t x = access_get_byte(env, &srca1, i, ra) ^
+                          access_get_byte(env, &srca2, i, ra);
+
         c |= x;
-        cpu_stb_data_ra(env, dest + i, x, ra);
+        access_set_byte(env, &desta, i, x, ra);
     }
     return c != 0;
 }
