@@ -438,8 +438,9 @@ static uint32_t do_helper_mvc(CPUS390XState *env, uint32_t l, uint64_t dest,
         access_memmove(env, &desta, &srca, ra);
     } else {
         for (i = 0; i < l; i++) {
-            uint8_t x = cpu_ldub_data_ra(env, src + i, ra);
-            cpu_stb_data_ra(env, dest + i, x, ra);
+            uint8_t byte = access_get_byte(env, &srca, i, ra);
+
+            access_set_byte(env, &desta, i, byte, ra);
         }
     }
 
