@@ -338,6 +338,13 @@ static inline void gen_goto_tb(DisasContext *s, int n, uint64_t dest)
     }
 }
 
+void unallocated_encoding(DisasContext *s)
+{
+    /* Unallocated and reserved encodings are uncategorized */
+    gen_exception_insn(s, s->pc_curr, EXCP_UDEF, syn_uncategorized(),
+                       default_exception_el(s));
+}
+
 static void init_tmp_a64_array(DisasContext *s)
 {
 #ifdef CONFIG_DEBUG_TCG
@@ -1707,6 +1714,12 @@ static void handle_sys(DisasContext *s, uint32_t insn, bool isread,
         tcg_temp_free_ptr(tmpptr);
         tcg_temp_free_i32(tcg_syn);
         tcg_temp_free_i32(tcg_isread);
+    } else if (ri->type & ARM_CP_RAISES_EXC) {
+        /*
+         * The readfn or writefn might raise an exception;
+         * synchronize the CPU state in case it does.
+         */
+        gen_a64_set_pc_im(s->pc_curr);
     }
 
     /* Handle special cases first */
