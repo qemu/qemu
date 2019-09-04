@@ -1,0 +1,12 @@
+QA output created by 150
+
+=== Mapping sparse conversion ===
+
+Offset          Length          File
+0               0x1000          TEST_DIR/t.IMGFMT
+
+=== Mapping non-sparse conversion ===
+
+Offset          Length          File
+0               0x100000        TEST_DIR/t.IMGFMT
+*** done

@@ -47,7 +47,8 @@ _supported_proto file
 _supported_os Linux
 _unsupported_imgopts "subformat=monolithicFlat" \
                      "subformat=twoGbMaxExtentFlat" \
-                     "subformat=twoGbMaxExtentSparse"
+                     "subformat=twoGbMaxExtentSparse" \
+                     "subformat=streamOptimized"
 
 TEST_OFFSETS="0 4294967296"
 CLUSTER_SIZE=65536

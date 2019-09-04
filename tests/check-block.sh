@@ -21,6 +21,11 @@ if grep -q "TARGET_GPROF=y" *-softmmu/config-target.mak 2>/dev/null ; then
     exit 0
 fi
 
+if grep -q "CFLAGS.*-fsanitize" config-host.mak 2>/dev/null ; then
+    echo "Sanitizers are enabled ==> Not running the qemu-iotests."
+    exit 0
+fi
+
 if [ -z "$(find . -name 'qemu-system-*' -print)" ]; then
     echo "No qemu-system binary available ==> Not running the qemu-iotests."
     exit 0

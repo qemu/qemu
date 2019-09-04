@@ -43,7 +43,8 @@ _supported_fmt generic
 _supported_proto generic
 _supported_os Linux
 _unsupported_imgopts "subformat=twoGbMaxExtentFlat" \
-                     "subformat=twoGbMaxExtentSparse"
+                     "subformat=twoGbMaxExtentSparse" \
+                     "subformat=streamOptimized"
 
 # vpc is limited to 127GB, so we can't test it here
 if [ "$IMGFMT" = "vpc" ]; then

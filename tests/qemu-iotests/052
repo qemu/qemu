@@ -40,7 +40,7 @@ _supported_fmt generic
 _supported_proto file
 
 # Don't do O_DIRECT on tmpfs
-_supported_cache_modes "writeback" "writethrough" "unsafe"
+_supported_cache_modes writeback writethrough unsafe
 
 size=128M
 _make_test_img $size

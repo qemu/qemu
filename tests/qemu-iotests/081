@@ -41,6 +41,7 @@ trap "_cleanup; exit \$status" 0 1 2 3 15
 _supported_fmt raw
 _supported_proto file
 _supported_os Linux
+_require_drivers quorum
 
 do_run_qemu()
 {
@@ -54,9 +55,6 @@ run_qemu()
     do_run_qemu "$@" 2>&1 | _filter_testdir | _filter_qemu | _filter_qmp\
                           | _filter_qemu_io | _filter_generated_node_ids
 }
-
-test_quorum=$($QEMU_IMG --help|grep quorum)
-[ "$test_quorum" = "" ] && _supported_fmt quorum
 
 quorum="driver=raw,file.driver=quorum,file.vote-threshold=2"
 quorum="$quorum,file.children.0.file.filename=$TEST_DIR/1.raw"

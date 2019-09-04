@@ -50,6 +50,7 @@ _supported_fmt generic
 _supported_proto generic
 # LUKS support may be possible, but it complicates things.
 _unsupported_fmt luks
+_unsupported_imgopts "subformat=streamOptimized"
 
 echo
 echo '=== Copy-on-read ==='

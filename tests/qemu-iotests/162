@@ -39,9 +39,7 @@ trap "_cleanup; exit \$status" 0 1 2 3 15
 . ./common.filter
 
 _supported_fmt generic
-
-test_ssh=$($QEMU_IMG --help | grep '^Supported formats:.* ssh\( \|$\)')
-[ "$test_ssh" = "" ] && _notrun "ssh support required"
+_require_drivers ssh
 
 echo
 echo '=== NBD ==='

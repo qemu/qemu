@@ -39,7 +39,8 @@ trap "_cleanup; exit \$status" 0 1 2 3 15
 _supported_fmt qcow2 vmdk vhdx qed
 _supported_proto generic
 _unsupported_imgopts "subformat=twoGbMaxExtentFlat" \
-                     "subformat=twoGbMaxExtentSparse"
+                     "subformat=twoGbMaxExtentSparse" \
+                     "subformat=streamOptimized"
 
 echo
 echo "creating large image"

@@ -41,8 +41,8 @@ trap "_cleanup; exit \$status" 0 1 2 3 15
 # Currently only qcow2 supports rebasing
 _supported_fmt qcow2
 _supported_proto file
-_default_cache_mode "writethrough"
-_supported_cache_modes "writethrough" "none"
+_default_cache_mode writethrough
+_supported_cache_modes writethrough none
 # The refcount table tests expect a certain minimum width for refcount entries
 # (so that the refcount table actually needs to grow); that minimum is 16 bits,
 # being the default refcount entry width.

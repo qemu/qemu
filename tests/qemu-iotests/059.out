@@ -13,21 +13,21 @@ Formatting 'TEST_DIR/t.IMGFMT', fmt=IMGFMT size=67108864
 qemu-io: can't open device TEST_DIR/t.vmdk: L1 size too big
 
 === Testing monolithicFlat creation and opening ===
-Formatting 'TEST_DIR/t.IMGFMT', fmt=IMGFMT size=2147483648 subformat=monolithicFlat
+Formatting 'TEST_DIR/t.IMGFMT', fmt=IMGFMT size=2147483648
 image: TEST_DIR/t.IMGFMT
 file format: IMGFMT
 virtual size: 2 GiB (2147483648 bytes)
 
 === Testing monolithicFlat with zeroed_grain ===
 qemu-img: TEST_DIR/t.IMGFMT: Flat image can't enable zeroed grain
-Formatting 'TEST_DIR/t.IMGFMT', fmt=IMGFMT size=2147483648 subformat=monolithicFlat
+Formatting 'TEST_DIR/t.IMGFMT', fmt=IMGFMT size=2147483648
 
 === Testing big twoGbMaxExtentFlat ===
-Formatting 'TEST_DIR/t.IMGFMT', fmt=IMGFMT size=1073741824000 subformat=twoGbMaxExtentFlat
+Formatting 'TEST_DIR/t.IMGFMT', fmt=IMGFMT size=1073741824000
 image: TEST_DIR/t.vmdk
 file format: vmdk
 virtual size: 0.977 TiB (1073741824000 bytes)
-disk size: 16 KiB
+disk size: 1.97 MiB
 Format specific information:
     cid: XXXXXXXX
     parent cid: XXXXXXXX
@@ -2038,7 +2038,7 @@ Format specific information:
 qemu-img: Could not open 'TEST_DIR/t.IMGFMT': Invalid extent line: RW 12582912 VMFS "dummy.IMGFMT" 1
 
 === Testing truncated sparse ===
-Formatting 'TEST_DIR/t.IMGFMT', fmt=IMGFMT size=107374182400 subformat=monolithicSparse
+Formatting 'TEST_DIR/t.IMGFMT', fmt=IMGFMT size=107374182400
 qemu-img: Could not open 'TEST_DIR/t.IMGFMT': File truncated, expecting at least 13172736 bytes
 
 === Converting to streamOptimized from image with small cluster size===
@@ -2049,8 +2049,14 @@ wrote 512/512 bytes at offset 10240
 512 bytes, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
 
 === Testing monolithicFlat with internally generated JSON file name ===
-Formatting 'TEST_DIR/t.IMGFMT', fmt=IMGFMT size=67108864 subformat=monolithicFlat
-qemu-io: can't open: Cannot use relative extent paths with VMDK descriptor file 'json:{"image": {"driver": "file", "filename": "TEST_DIR/t.IMGFMT"}, "driver": "blkdebug", "inject-error.0.event": "read_aio"}'
+--- blkdebug ---
+Formatting 'TEST_DIR/t.IMGFMT', fmt=IMGFMT size=67108864
+format name: IMGFMT
+cluster size: 0 bytes
+vm state offset: 0 bytes
+--- quorum ---
+Formatting 'TEST_DIR/t.IMGFMT', fmt=IMGFMT size=67108864
+qemu-img: Could not open $QUORUM_FILE: Cannot use relative paths with VMDK descriptor file $QUORUM_FILE: Cannot generate a base directory for quorum nodes
 
 === Testing version 3 ===
 image: TEST_DIR/iotest-version3.IMGFMT
@@ -2259,7 +2265,7 @@ read 512/512 bytes at offset 64931328
 512 bytes, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
 
 === Testing 4TB monolithicFlat creation and IO ===
-Formatting 'TEST_DIR/t.IMGFMT', fmt=IMGFMT size=4398046511104 subformat=monolithicFlat
+Formatting 'TEST_DIR/t.IMGFMT', fmt=IMGFMT size=4398046511104
 image: TEST_DIR/t.IMGFMT
 file format: IMGFMT
 virtual size: 4 TiB (4398046511104 bytes)
@@ -2333,7 +2339,7 @@ read 1024/1024 bytes at offset 966367641600
 1 KiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
 
 === Testing qemu-img map on extents ===
-Formatting 'TEST_DIR/t.IMGFMT', fmt=IMGFMT size=33285996544 subformat=monolithicSparse
+Formatting 'TEST_DIR/t.IMGFMT', fmt=IMGFMT size=33285996544
 wrote 1024/1024 bytes at offset 65024
 1 KiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
 wrote 1024/1024 bytes at offset 2147483136
@@ -2344,7 +2350,7 @@ Offset          Length          Mapped to       File
 0               0x20000         0x3f0000        TEST_DIR/t.vmdk
 0x7fff0000      0x20000         0x410000        TEST_DIR/t.vmdk
 0x140000000     0x10000         0x430000        TEST_DIR/t.vmdk
-Formatting 'TEST_DIR/t.IMGFMT', fmt=IMGFMT size=33285996544 subformat=twoGbMaxExtentSparse
+Formatting 'TEST_DIR/t.IMGFMT', fmt=IMGFMT size=33285996544
 wrote 1024/1024 bytes at offset 65024
 1 KiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
 wrote 1024/1024 bytes at offset 2147483136
