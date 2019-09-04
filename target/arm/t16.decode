@@ -272,3 +272,10 @@ LDM_t16         1011 110 ......... \
 %imm11_0x2      0:s11 !function=times_2
 
 B               11100 ...........               &i imm=%imm11_0x2
+
+# thumb_insn_is_16bit() ensures we won't be decoding these as
+# T16 instructions for a Thumb2 CPU, so these patterns must be
+# a Thumb1 split BL/BLX.
+BLX_suffix      11101 imm:11                    &i
+BL_BLX_prefix   11110 imm:s11                   &i
+BL_suffix       11111 imm:11                    &i
