@@ -296,9 +296,6 @@ static const TypeInfo aer915_info = {
 
 static void z2_init(MachineState *machine)
 {
-    const char *kernel_filename = machine->kernel_filename;
-    const char *kernel_cmdline = machine->kernel_cmdline;
-    const char *initrd_filename = machine->initrd_filename;
     MemoryRegion *address_space_mem = get_system_memory();
     uint32_t sector_len = 0x10000;
     PXA2xxState *mpu;
@@ -352,11 +349,8 @@ static void z2_init(MachineState *machine)
     qdev_connect_gpio_out(mpu->gpio, Z2_GPIO_LCD_CS,
                           qemu_allocate_irq(z2_lcd_cs, z2_lcd, 0));
 
-    z2_binfo.kernel_filename = kernel_filename;
-    z2_binfo.kernel_cmdline = kernel_cmdline;
-    z2_binfo.initrd_filename = initrd_filename;
     z2_binfo.board_id = 0x6dd;
-    arm_load_kernel(mpu->cpu, &z2_binfo);
+    arm_load_kernel(mpu->cpu, machine, &z2_binfo);
 }
 
 static void z2_machine_init(MachineClass *mc)

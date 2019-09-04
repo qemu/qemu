@@ -441,14 +441,11 @@ static void versal_virt_init(MachineState *machine)
                                         0, &s->soc.fpd.apu.mr, 0);
 
     s->binfo.ram_size = machine->ram_size;
-    s->binfo.kernel_filename = machine->kernel_filename;
-    s->binfo.kernel_cmdline = machine->kernel_cmdline;
-    s->binfo.initrd_filename = machine->initrd_filename;
     s->binfo.loader_start = 0x0;
     s->binfo.get_dtb = versal_virt_get_dtb;
     s->binfo.modify_dtb = versal_virt_modify_dtb;
     if (machine->kernel_filename) {
-        arm_load_kernel(s->soc.fpd.apu.cpu[0], &s->binfo);
+        arm_load_kernel(s->soc.fpd.apu.cpu[0], machine, &s->binfo);
     } else {
         AddressSpace *as = arm_boot_address_space(s->soc.fpd.apu.cpu[0],
                                                   &s->binfo);
@@ -457,7 +454,7 @@ static void versal_virt_init(MachineState *machine)
         s->binfo.loader_start = 0x1000;
         s->binfo.dtb_limit = 0x1000000;
         if (arm_load_dtb(s->binfo.loader_start,
-                         &s->binfo, s->binfo.dtb_limit, as) < 0) {
+                         &s->binfo, s->binfo.dtb_limit, as, machine) < 0) {
             exit(EXIT_FAILURE);
         }
     }

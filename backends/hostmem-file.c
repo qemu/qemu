@@ -67,12 +67,12 @@ file_backend_memory_alloc(HostMemoryBackend *backend, Error **errp)
         uint64_t size;
 
         size = qemu_get_pmem_size(fb->mem_path, &local_err);
-        if (!size) {
+        if (local_err) {
             error_propagate(errp, local_err);
             return;
         }
 
-        if (backend->size > size) {
+        if (size && backend->size > size) {
             error_setg(errp, "size property %" PRIu64 " is larger than "
                        "pmem file \"%s\" size %" PRIu64, backend->size,
                        fb->mem_path, size);

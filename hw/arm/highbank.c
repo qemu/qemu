@@ -236,9 +236,6 @@ enum cxmachines {
 static void calxeda_init(MachineState *machine, enum cxmachines machine_id)
 {
     ram_addr_t ram_size = machine->ram_size;
-    const char *kernel_filename = machine->kernel_filename;
-    const char *kernel_cmdline = machine->kernel_cmdline;
-    const char *initrd_filename = machine->initrd_filename;
     DeviceState *dev = NULL;
     SysBusDevice *busdev;
     qemu_irq pic[128];
@@ -390,9 +387,6 @@ static void calxeda_init(MachineState *machine, enum cxmachines machine_id)
     /* TODO create and connect IDE devices for ide_drive_get() */
 
     highbank_binfo.ram_size = ram_size;
-    highbank_binfo.kernel_filename = kernel_filename;
-    highbank_binfo.kernel_cmdline = kernel_cmdline;
-    highbank_binfo.initrd_filename = initrd_filename;
     /* highbank requires a dtb in order to boot, and the dtb will override
      * the board ID. The following value is ignored, so set it to -1 to be
      * clear that the value is meaningless.
@@ -412,7 +406,7 @@ static void calxeda_init(MachineState *machine, enum cxmachines machine_id)
                     "may not boot.");
     }
 
-    arm_load_kernel(ARM_CPU(first_cpu), &highbank_binfo);
+    arm_load_kernel(ARM_CPU(first_cpu), machine, &highbank_binfo);
 }
 
 static void highbank_init(MachineState *machine)

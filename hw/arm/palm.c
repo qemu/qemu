@@ -187,9 +187,6 @@ static struct arm_boot_info palmte_binfo = {
 
 static void palmte_init(MachineState *machine)
 {
-    const char *kernel_filename = machine->kernel_filename;
-    const char *kernel_cmdline = machine->kernel_cmdline;
-    const char *initrd_filename = machine->initrd_filename;
     MemoryRegion *address_space_mem = get_system_memory();
     struct omap_mpu_state_s *mpu;
     int flash_size = 0x00800000;
@@ -249,16 +246,13 @@ static void palmte_init(MachineState *machine)
         }
     }
 
-    if (!rom_loaded && !kernel_filename && !qtest_enabled()) {
+    if (!rom_loaded && !machine->kernel_filename && !qtest_enabled()) {
         fprintf(stderr, "Kernel or ROM image must be specified\n");
         exit(1);
     }
 
     /* Load the kernel.  */
-    palmte_binfo.kernel_filename = kernel_filename;
-    palmte_binfo.kernel_cmdline = kernel_cmdline;
-    palmte_binfo.initrd_filename = initrd_filename;
-    arm_load_kernel(mpu->cpu, &palmte_binfo);
+    arm_load_kernel(mpu->cpu, machine, &palmte_binfo);
 }
 
 static void palmte_machine_init(MachineClass *mc)

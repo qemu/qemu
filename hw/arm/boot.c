@@ -17,6 +17,7 @@
 #include "sysemu/kvm.h"
 #include "sysemu/sysemu.h"
 #include "sysemu/numa.h"
+#include "hw/boards.h"
 #include "sysemu/reset.h"
 #include "hw/loader.h"
 #include "elf.h"
@@ -523,7 +524,7 @@ static void fdt_add_psci_node(void *fdt)
 }
 
 int arm_load_dtb(hwaddr addr, const struct arm_boot_info *binfo,
-                 hwaddr addr_limit, AddressSpace *as)
+                 hwaddr addr_limit, AddressSpace *as, MachineState *ms)
 {
     void *fdt = NULL;
     int size, rc, n = 0;
@@ -597,10 +598,10 @@ int arm_load_dtb(hwaddr addr, const struct arm_boot_info *binfo,
     }
     g_strfreev(node_path);
 
-    if (nb_numa_nodes > 0) {
+    if (ms->numa_state != NULL && ms->numa_state->num_nodes > 0) {
         mem_base = binfo->loader_start;
-        for (i = 0; i < nb_numa_nodes; i++) {
-            mem_len = numa_info[i].node_mem;
+        for (i = 0; i < ms->numa_state->num_nodes; i++) {
+            mem_len = ms->numa_state->nodes[i].node_mem;
             rc = fdt_add_memory_node(fdt, acells, mem_base,
                                      scells, mem_len, i);
             if (rc < 0) {
@@ -626,9 +627,9 @@ int arm_load_dtb(hwaddr addr, const struct arm_boot_info *binfo,
         qemu_fdt_add_subnode(fdt, "/chosen");
     }
 
-    if (binfo->kernel_cmdline && *binfo->kernel_cmdline) {
+    if (ms->kernel_cmdline && *ms->kernel_cmdline) {
         rc = qemu_fdt_setprop_string(fdt, "/chosen", "bootargs",
-                                     binfo->kernel_cmdline);
+                                     ms->kernel_cmdline);
         if (rc < 0) {
             fprintf(stderr, "couldn't set /chosen/bootargs\n");
             goto fail;
@@ -1260,7 +1261,7 @@ static void arm_setup_firmware_boot(ARMCPU *cpu, struct arm_boot_info *info)
      */
 }
 
-void arm_load_kernel(ARMCPU *cpu, struct arm_boot_info *info)
+void arm_load_kernel(ARMCPU *cpu, MachineState *ms, struct arm_boot_info *info)
 {
     CPUState *cs;
     AddressSpace *as = arm_boot_address_space(cpu, info);
@@ -1281,7 +1282,9 @@ void arm_load_kernel(ARMCPU *cpu, struct arm_boot_info *info)
      * doesn't support secure.
      */
     assert(!(info->secure_board_setup && kvm_enabled()));
-
+    info->kernel_filename = ms->kernel_filename;
+    info->kernel_cmdline = ms->kernel_cmdline;
+    info->initrd_filename = ms->initrd_filename;
     info->dtb_filename = qemu_opt_get(qemu_get_machine_opts(), "dtb");
     info->dtb_limit = 0;
 
@@ -1293,7 +1296,7 @@ void arm_load_kernel(ARMCPU *cpu, struct arm_boot_info *info)
     }
 
     if (!info->skip_dtb_autoload && have_dtb(info)) {
-        if (arm_load_dtb(info->dtb_start, info, info->dtb_limit, as) < 0) {
+        if (arm_load_dtb(info->dtb_start, info, info->dtb_limit, as, ms) < 0) {
             exit(1);
         }
     }

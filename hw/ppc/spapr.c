@@ -336,7 +336,7 @@ static int spapr_fixup_cpu_dt(void *fdt, SpaprMachineState *spapr)
             return ret;
         }
 
-        if (nb_numa_nodes > 1) {
+        if (ms->numa_state->num_nodes > 1) {
             ret = spapr_fixup_cpu_numa_dt(fdt, offset, cpu);
             if (ret < 0) {
                 return ret;
@@ -356,11 +356,11 @@ static int spapr_fixup_cpu_dt(void *fdt, SpaprMachineState *spapr)
 
 static hwaddr spapr_node0_size(MachineState *machine)
 {
-    if (nb_numa_nodes) {
+    if (machine->numa_state->num_nodes) {
         int i;
-        for (i = 0; i < nb_numa_nodes; ++i) {
-            if (numa_info[i].node_mem) {
-                return MIN(pow2floor(numa_info[i].node_mem),
+        for (i = 0; i < machine->numa_state->num_nodes; ++i) {
+            if (machine->numa_state->nodes[i].node_mem) {
+                return MIN(pow2floor(machine->numa_state->nodes[i].node_mem),
                            machine->ram_size);
             }
         }
@@ -403,12 +403,12 @@ static int spapr_populate_memory(SpaprMachineState *spapr, void *fdt)
 {
     MachineState *machine = MACHINE(spapr);
     hwaddr mem_start, node_size;
-    int i, nb_nodes = nb_numa_nodes;
-    NodeInfo *nodes = numa_info;
+    int i, nb_nodes = machine->numa_state->num_nodes;
+    NodeInfo *nodes = machine->numa_state->nodes;
     NodeInfo ramnode;
 
     /* No NUMA nodes, assume there is just one node with whole RAM */
-    if (!nb_numa_nodes) {
+    if (!nb_nodes) {
         nb_nodes = 1;
         ramnode.node_mem = machine->ram_size;
         nodes = &ramnode;
@@ -559,7 +559,7 @@ static void spapr_populate_cpu_dt(CPUState *cs, void *fdt, int offset,
     _FDT((fdt_setprop(fdt, offset, "ibm,pft-size",
                       pft_size_prop, sizeof(pft_size_prop))));
 
-    if (nb_numa_nodes > 1) {
+    if (ms->numa_state->num_nodes > 1) {
         _FDT(spapr_fixup_cpu_numa_dt(fdt, offset, cpu));
     }
 
@@ -866,6 +866,7 @@ static int spapr_populate_drmem_v1(SpaprMachineState *spapr, void *fdt,
 static int spapr_populate_drconf_memory(SpaprMachineState *spapr, void *fdt)
 {
     MachineState *machine = MACHINE(spapr);
+    int nb_numa_nodes = machine->numa_state->num_nodes;
     int ret, i, offset;
     uint64_t lmb_size = SPAPR_MEMORY_BLOCK_SIZE;
     uint32_t prop_lmb_size[] = {0, cpu_to_be32(lmb_size)};
@@ -1747,7 +1748,7 @@ static void spapr_machine_reset(MachineState *machine)
      * The final value of spapr->gpu_numa_id is going to be written to
      * max-associativity-domains in spapr_build_fdt().
      */
-    spapr->gpu_numa_id = MAX(1, nb_numa_nodes);
+    spapr->gpu_numa_id = MAX(1, machine->numa_state->num_nodes);
     qemu_devices_reset();
 
     /*
@@ -2545,12 +2546,12 @@ static void spapr_validate_node_memory(MachineState *machine, Error **errp)
         return;
     }
 
-    for (i = 0; i < nb_numa_nodes; i++) {
-        if (numa_info[i].node_mem % SPAPR_MEMORY_BLOCK_SIZE) {
+    for (i = 0; i < machine->numa_state->num_nodes; i++) {
+        if (machine->numa_state->nodes[i].node_mem % SPAPR_MEMORY_BLOCK_SIZE) {
             error_setg(errp,
                        "Node %d memory size 0x%" PRIx64
                        " is not aligned to %" PRIu64 " MiB",
-                       i, numa_info[i].node_mem,
+                       i, machine->numa_state->nodes[i].node_mem,
                        SPAPR_MEMORY_BLOCK_SIZE / MiB);
             return;
         }
@@ -4198,7 +4199,7 @@ spapr_cpu_index_to_props(MachineState *machine, unsigned cpu_index)
 
 static int64_t spapr_get_default_cpu_node_id(const MachineState *ms, int idx)
 {
-    return idx / ms->smp.cores % nb_numa_nodes;
+    return idx / ms->smp.cores % ms->numa_state->num_nodes;
 }
 
 static const CPUArchIdList *spapr_possible_cpu_arch_ids(MachineState *machine)

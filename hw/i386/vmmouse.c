@@ -258,6 +258,7 @@ static void vmmouse_reset(DeviceState *d)
     VMMouseState *s = VMMOUSE(d);
 
     s->queue_size = VMMOUSE_QUEUE_SIZE;
+    s->nb_queue = 0;
 
     vmmouse_disable(s);
 }

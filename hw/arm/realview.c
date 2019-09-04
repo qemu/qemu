@@ -351,13 +351,10 @@ static void realview_init(MachineState *machine,
     memory_region_add_subregion(sysmem, SMP_BOOT_ADDR, ram_hack);
 
     realview_binfo.ram_size = ram_size;
-    realview_binfo.kernel_filename = machine->kernel_filename;
-    realview_binfo.kernel_cmdline = machine->kernel_cmdline;
-    realview_binfo.initrd_filename = machine->initrd_filename;
     realview_binfo.nb_cpus = smp_cpus;
     realview_binfo.board_id = realview_board_id[board_type];
     realview_binfo.loader_start = (board_type == BOARD_PB_A8 ? 0x70000000 : 0);
-    arm_load_kernel(ARM_CPU(first_cpu), &realview_binfo);
+    arm_load_kernel(ARM_CPU(first_cpu), machine, &realview_binfo);
 }
 
 static void realview_eb_init(MachineState *machine)
