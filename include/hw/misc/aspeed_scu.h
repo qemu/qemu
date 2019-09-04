@@ -32,10 +32,6 @@ typedef struct AspeedSCUState {
     uint32_t hw_strap1;
     uint32_t hw_strap2;
     uint32_t hw_prot_key;
-
-    uint32_t clkin;
-    uint32_t hpll;
-    uint32_t apb_freq;
 } AspeedSCUState;
 
 #define AST2400_A0_SILICON_REV   0x02000303U
@@ -56,11 +52,13 @@ typedef struct  AspeedSCUClass {
     SysBusDeviceClass parent_class;
 
     const uint32_t *resets;
-    uint32_t (*calc_hpll)(AspeedSCUState *s);
+    uint32_t (*calc_hpll)(AspeedSCUState *s, uint32_t hpll_reg);
     uint32_t apb_divider;
 }  AspeedSCUClass;
 
 #define ASPEED_SCU_PROT_KEY      0x1688A8A8
+
+uint32_t aspeed_scu_get_apb_freq(AspeedSCUState *s);
 
 /*
  * Extracted from Aspeed SDK v00.03.21. Fixes and extra definitions

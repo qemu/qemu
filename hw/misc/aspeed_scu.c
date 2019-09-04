@@ -164,11 +164,12 @@ static uint32_t aspeed_scu_get_random(void)
     return num;
 }
 
-static void aspeed_scu_set_apb_freq(AspeedSCUState *s)
+uint32_t aspeed_scu_get_apb_freq(AspeedSCUState *s)
 {
     AspeedSCUClass *asc = ASPEED_SCU_GET_CLASS(s);
+    uint32_t hpll = asc->calc_hpll(s, s->regs[HPLL_PARAM]);
 
-    s->apb_freq = s->hpll / (SCU_CLK_GET_PCLK_DIV(s->regs[CLK_SEL]) + 1)
+    return hpll / (SCU_CLK_GET_PCLK_DIV(s->regs[CLK_SEL]) + 1)
         / asc->apb_divider;
 }
 
@@ -228,7 +229,6 @@ static void aspeed_scu_write(void *opaque, hwaddr offset, uint64_t data,
         return;
     case CLK_SEL:
         s->regs[reg] = data;
-        aspeed_scu_set_apb_freq(s);
         break;
     case HW_STRAP1:
         if (ASPEED_IS_AST2500(s->regs[SILICON_REV])) {
@@ -290,11 +290,11 @@ static const uint32_t hpll_ast2400_freqs[][4] = {
     { 400, 375, 350, 425 }, /* 25MHz */
 };
 
-static uint32_t aspeed_2400_scu_calc_hpll(AspeedSCUState *s)
+static uint32_t aspeed_2400_scu_calc_hpll(AspeedSCUState *s, uint32_t hpll_reg)
 {
-    uint32_t hpll_reg = s->regs[HPLL_PARAM];
     uint8_t freq_select;
     bool clk_25m_in;
+    uint32_t clkin = aspeed_scu_get_clkin(s);
 
     if (hpll_reg & SCU_AST2400_H_PLL_OFF) {
         return 0;
@@ -311,7 +311,7 @@ static uint32_t aspeed_2400_scu_calc_hpll(AspeedSCUState *s)
             multiplier = (2 - od) * ((n + 2) / (d + 1));
         }
 
-        return s->clkin * multiplier;
+        return clkin * multiplier;
     }
 
     /* HW strapping */
@@ -321,10 +321,10 @@ static uint32_t aspeed_2400_scu_calc_hpll(AspeedSCUState *s)
     return hpll_ast2400_freqs[clk_25m_in][freq_select] * 1000000;
 }
 
-static uint32_t aspeed_2500_scu_calc_hpll(AspeedSCUState *s)
+static uint32_t aspeed_2500_scu_calc_hpll(AspeedSCUState *s, uint32_t hpll_reg)
 {
-    uint32_t hpll_reg   = s->regs[HPLL_PARAM];
     uint32_t multiplier = 1;
+    uint32_t clkin = aspeed_scu_get_clkin(s);
 
     if (hpll_reg & SCU_H_PLL_OFF) {
         return 0;
@@ -338,7 +338,7 @@ static uint32_t aspeed_2500_scu_calc_hpll(AspeedSCUState *s)
         multiplier = ((m + 1) / (n + 1)) / (p + 1);
     }
 
-    return s->clkin * multiplier;
+    return clkin * multiplier;
 }
 
 static void aspeed_scu_reset(DeviceState *dev)
@@ -351,13 +351,6 @@ static void aspeed_scu_reset(DeviceState *dev)
     s->regs[HW_STRAP1] = s->hw_strap1;
     s->regs[HW_STRAP2] = s->hw_strap2;
     s->regs[PROT_KEY] = s->hw_prot_key;
-
-    /*
-     * All registers are set. Now compute the frequencies of the main clocks
-     */
-    s->clkin = aspeed_scu_get_clkin(s);
-    s->hpll = asc->calc_hpll(s);
-    aspeed_scu_set_apb_freq(s);
 }
 
 static uint32_t aspeed_silicon_revs[] = {
