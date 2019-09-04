@@ -112,10 +112,6 @@ static const int aspeed_soc_ast2400_irqmap[] = {
 
 #define aspeed_soc_ast2500_irqmap aspeed_soc_ast2400_irqmap
 
-static const char *aspeed_soc_ast2400_typenames[] = { "aspeed.smc.spi" };
-static const char *aspeed_soc_ast2500_typenames[] = {
-    "aspeed.smc.ast2500-spi1", "aspeed.smc.ast2500-spi2" };
-
 static const AspeedSoCInfo aspeed_socs[] = {
     {
         .name         = "ast2400-a1",
@@ -123,9 +119,6 @@ static const AspeedSoCInfo aspeed_socs[] = {
         .silicon_rev  = AST2400_A1_SILICON_REV,
         .sram_size    = 0x8000,
         .spis_num     = 1,
-        .fmc_typename = "aspeed.smc.fmc",
-        .spi_typename = aspeed_soc_ast2400_typenames,
-        .gpio_typename = "aspeed.gpio-ast2400",
         .wdts_num     = 2,
         .irqmap       = aspeed_soc_ast2400_irqmap,
         .memmap       = aspeed_soc_ast2400_memmap,
@@ -136,9 +129,6 @@ static const AspeedSoCInfo aspeed_socs[] = {
         .silicon_rev  = AST2500_A1_SILICON_REV,
         .sram_size    = 0x9000,
         .spis_num     = 2,
-        .fmc_typename = "aspeed.smc.ast2500-fmc",
-        .spi_typename = aspeed_soc_ast2500_typenames,
-        .gpio_typename = "aspeed.gpio-ast2500",
         .wdts_num     = 3,
         .irqmap       = aspeed_soc_ast2500_irqmap,
         .memmap       = aspeed_soc_ast2500_memmap,
@@ -158,6 +148,12 @@ static void aspeed_soc_init(Object *obj)
     AspeedSoCState *s = ASPEED_SOC(obj);
     AspeedSoCClass *sc = ASPEED_SOC_GET_CLASS(s);
     int i;
+    char socname[8];
+    char typename[64];
+
+    if (sscanf(sc->info->name, "%7s", socname) != 1) {
+        g_assert_not_reached();
+    }
 
     for (i = 0; i < sc->info->num_cpus; i++) {
         object_initialize_child(obj, "cpu[*]", OBJECT(&s->cpu[i]),
@@ -190,14 +186,16 @@ static void aspeed_soc_init(Object *obj)
     sysbus_init_child_obj(obj, "i2c", OBJECT(&s->i2c), sizeof(s->i2c),
                           TYPE_ASPEED_I2C);
 
+    snprintf(typename, sizeof(typename), "aspeed.fmc-%s", socname);
     sysbus_init_child_obj(obj, "fmc", OBJECT(&s->fmc), sizeof(s->fmc),
-                          sc->info->fmc_typename);
+                          typename);
     object_property_add_alias(obj, "num-cs", OBJECT(&s->fmc), "num-cs",
                               &error_abort);
 
     for (i = 0; i < sc->info->spis_num; i++) {
+        snprintf(typename, sizeof(typename), "aspeed.spi%d-%s", i + 1, socname);
         sysbus_init_child_obj(obj, "spi[*]", OBJECT(&s->spi[i]),
-                              sizeof(s->spi[i]), sc->info->spi_typename[i]);
+                              sizeof(s->spi[i]), typename);
     }
 
     sysbus_init_child_obj(obj, "sdmc", OBJECT(&s->sdmc), sizeof(s->sdmc),
@@ -226,8 +224,9 @@ static void aspeed_soc_init(Object *obj)
     sysbus_init_child_obj(obj, "xdma", OBJECT(&s->xdma), sizeof(s->xdma),
                           TYPE_ASPEED_XDMA);
 
+    snprintf(typename, sizeof(typename), "aspeed.gpio-%s", socname);
     sysbus_init_child_obj(obj, "gpio", OBJECT(&s->gpio), sizeof(s->gpio),
-                          sc->info->gpio_typename);
+                          typename);
 }
 
 static void aspeed_soc_realize(DeviceState *dev, Error **errp)

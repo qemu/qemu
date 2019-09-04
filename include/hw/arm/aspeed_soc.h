@@ -61,9 +61,6 @@ typedef struct AspeedSoCInfo {
     uint32_t silicon_rev;
     uint64_t sram_size;
     int spis_num;
-    const char *fmc_typename;
-    const char **spi_typename;
-    const char *gpio_typename;
     int wdts_num;
     const int *irqmap;
     const hwaddr *memmap;
