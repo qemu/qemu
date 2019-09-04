@@ -318,10 +318,18 @@ class Docker(object):
             return False
         return checksum == _text_checksum(_dockerfile_preprocess(dockerfile))
 
-    def run(self, cmd, keep, quiet):
+    def run(self, cmd, keep, quiet, as_user=False):
         label = uuid.uuid1().hex
         if not keep:
             self._instances.append(label)
+
+        if as_user:
+            uid = os.getuid()
+            cmd = [ "-u", str(uid) ] + cmd
+            # podman requires a bit more fiddling
+            if self._command[0] == "podman":
+                argv.insert(0, '--userns=keep-id')
+
         ret = self._do_check(["run", "--label",
                              "com.qemu.instance.uuid=" + label] + cmd,
                              quiet=quiet)
@@ -364,13 +372,8 @@ class RunCommand(SubCommand):
                             help="Run container using the current user's uid")
 
     def run(self, args, argv):
-        if args.run_as_current_user:
-            uid = os.getuid()
-            argv = [ "-u", str(uid) ] + argv
-            docker = Docker()
-            if docker._command[0] == "podman":
-                argv.insert(0, '--userns=keep-id')
-        return Docker().run(argv, args.keep, quiet=args.quiet)
+        return Docker().run(argv, args.keep, quiet=args.quiet,
+                            as_user=args.run_as_current_user)
 
 
 class BuildCommand(SubCommand):
@@ -554,8 +557,6 @@ class CcCommand(SubCommand):
                             help="The docker image in which to run cc")
         parser.add_argument("--cc", default="cc",
                             help="The compiler executable to call")
-        parser.add_argument("--user",
-                            help="The user-id to run under")
         parser.add_argument("--source-path", "-s", nargs="*", dest="paths",
                             help="""Extra paths to (ro) mount into container for
                             reading sources""")
@@ -569,11 +570,10 @@ class CcCommand(SubCommand):
         if args.paths:
             for p in args.paths:
                 cmd += ["-v", "%s:%s:ro,z" % (p, p)]
-        if args.user:
-            cmd += ["-u", args.user]
         cmd += [args.image, args.cc]
         cmd += argv
-        return Docker().command("run", cmd, args.quiet)
+        return Docker().run(cmd, False, quiet=args.quiet,
+                            as_user=True)
 
 
 class CheckCommand(SubCommand):
