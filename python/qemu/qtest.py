@@ -96,7 +96,7 @@ class QEMUQtestMachine(QEMUMachine):
     def _base_args(self):
         args = super(QEMUQtestMachine, self)._base_args()
         args.extend(['-qtest', 'unix:path=' + self._qtest_path,
-                     '-machine', 'accel=qtest'])
+                     '-accel', 'qtest'])
         return args
 
     def _pre_launch(self):
