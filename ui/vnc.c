@@ -3765,7 +3765,7 @@ static int vnc_display_listen(VncDisplay *vd,
         qio_net_listener_set_name(vd->listener, "vnc-listen");
         for (i = 0; i < nsaddr; i++) {
             if (qio_net_listener_open_sync(vd->listener,
-                                           saddr[i],
+                                           saddr[i], 1,
                                            errp) < 0)  {
                 return -1;
             }
@@ -3780,7 +3780,7 @@ static int vnc_display_listen(VncDisplay *vd,
         qio_net_listener_set_name(vd->wslistener, "vnc-ws-listen");
         for (i = 0; i < nwsaddr; i++) {
             if (qio_net_listener_open_sync(vd->wslistener,
-                                           wsaddr[i],
+                                           wsaddr[i], 1,
                                            errp) < 0)  {
                 return -1;
             }

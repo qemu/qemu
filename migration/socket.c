@@ -178,10 +178,15 @@ static void socket_start_incoming_migration(SocketAddress *saddr,
 {
     QIONetListener *listener = qio_net_listener_new();
     size_t i;
+    int num = 1;
 
     qio_net_listener_set_name(listener, "migration-socket-listener");
 
-    if (qio_net_listener_open_sync(listener, saddr, errp) < 0) {
+    if (migrate_use_multifd()) {
+        num = migrate_multifd_channels();
+    }
+
+    if (qio_net_listener_open_sync(listener, saddr, num, errp) < 0) {
         object_unref(OBJECT(listener));
         return;
     }

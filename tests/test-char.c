@@ -667,7 +667,7 @@ char_socket_addr_to_opt_str(SocketAddress *addr, bool fd_pass,
         char *optstr;
         g_assert(!reconnect);
         if (is_listen) {
-            qio_channel_socket_listen_sync(ioc, addr, &error_abort);
+            qio_channel_socket_listen_sync(ioc, addr, 1, &error_abort);
         } else {
             qio_channel_socket_connect_sync(ioc, addr, &error_abort);
         }
@@ -892,7 +892,7 @@ static void char_socket_client_test(gconstpointer opaque)
      */
     ioc = qio_channel_socket_new();
     g_assert_nonnull(ioc);
-    qio_channel_socket_listen_sync(ioc, config->addr, &error_abort);
+    qio_channel_socket_listen_sync(ioc, config->addr, 1, &error_abort);
     addr = qio_channel_socket_get_local_address(ioc, &error_abort);
     g_assert_nonnull(addr);
 

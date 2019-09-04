@@ -215,7 +215,7 @@ static gboolean ga_channel_open(GAChannel *c, const gchar *path,
                 return false;
             }
 
-            fd = socket_listen(addr, &local_err);
+            fd = socket_listen(addr, 1, &local_err);
             qapi_free_SocketAddress(addr);
             if (local_err != NULL) {
                 g_critical("%s", error_get_pretty(local_err));

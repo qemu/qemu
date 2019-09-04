@@ -1170,7 +1170,7 @@ static int qmp_chardev_open_socket_server(Chardev *chr,
     qio_net_listener_set_name(s->listener, name);
     g_free(name);
 
-    if (qio_net_listener_open_sync(s->listener, s->addr, errp) < 0) {
+    if (qio_net_listener_open_sync(s->listener, s->addr, 1, errp) < 0) {
         object_unref(OBJECT(s->listener));
         s->listener = NULL;
         return -1;

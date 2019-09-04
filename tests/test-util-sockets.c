@@ -93,7 +93,7 @@ static void test_socket_fd_pass_name_good(void)
     g_assert_cmpint(fd, !=, mon_fd);
     close(fd);
 
-    fd = socket_listen(&addr, &error_abort);
+    fd = socket_listen(&addr, 1, &error_abort);
     g_assert_cmpint(fd, !=, -1);
     g_assert_cmpint(fd, !=, mon_fd);
     close(fd);
@@ -124,7 +124,7 @@ static void test_socket_fd_pass_name_bad(void)
     g_assert_cmpint(fd, ==, -1);
     error_free_or_abort(&err);
 
-    fd = socket_listen(&addr, &err);
+    fd = socket_listen(&addr, 1, &err);
     g_assert_cmpint(fd, ==, -1);
     error_free_or_abort(&err);
 
@@ -151,7 +151,7 @@ static void test_socket_fd_pass_name_nomon(void)
     g_assert_cmpint(fd, ==, -1);
     error_free_or_abort(&err);
 
-    fd = socket_listen(&addr, &err);
+    fd = socket_listen(&addr, 1, &err);
     g_assert_cmpint(fd, ==, -1);
     error_free_or_abort(&err);
 
@@ -174,7 +174,7 @@ static void test_socket_fd_pass_num_good(void)
     fd = socket_connect(&addr, &error_abort);
     g_assert_cmpint(fd, ==, sfd);
 
-    fd = socket_listen(&addr, &error_abort);
+    fd = socket_listen(&addr, 1, &error_abort);
     g_assert_cmpint(fd, ==, sfd);
 
     g_free(addr.u.fd.str);
@@ -197,7 +197,7 @@ static void test_socket_fd_pass_num_bad(void)
     g_assert_cmpint(fd, ==, -1);
     error_free_or_abort(&err);
 
-    fd = socket_listen(&addr, &err);
+    fd = socket_listen(&addr, 1, &err);
     g_assert_cmpint(fd, ==, -1);
     error_free_or_abort(&err);
 
@@ -220,7 +220,7 @@ static void test_socket_fd_pass_num_nocli(void)
     g_assert_cmpint(fd, ==, -1);
     error_free_or_abort(&err);
 
-    fd = socket_listen(&addr, &err);
+    fd = socket_listen(&addr, 1, &err);
     g_assert_cmpint(fd, ==, -1);
     error_free_or_abort(&err);
 

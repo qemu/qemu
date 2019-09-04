@@ -197,12 +197,13 @@ void qio_channel_socket_connect_async(QIOChannelSocket *ioc,
 
 int qio_channel_socket_listen_sync(QIOChannelSocket *ioc,
                                    SocketAddress *addr,
+                                   int num,
                                    Error **errp)
 {
     int fd;
 
-    trace_qio_channel_socket_listen_sync(ioc, addr);
-    fd = socket_listen(addr, errp);
+    trace_qio_channel_socket_listen_sync(ioc, addr, num);
+    fd = socket_listen(addr, num, errp);
     if (fd < 0) {
         trace_qio_channel_socket_listen_fail(ioc);
         return -1;
@@ -219,14 +220,27 @@ int qio_channel_socket_listen_sync(QIOChannelSocket *ioc,
 }
 
 
+struct QIOChannelListenWorkerData {
+    SocketAddress *addr;
+    int num; /* amount of expected connections */
+};
+
+static void qio_channel_listen_worker_free(gpointer opaque)
+{
+    struct QIOChannelListenWorkerData *data = opaque;
+
+    qapi_free_SocketAddress(data->addr);
+    g_free(data);
+}
+
 static void qio_channel_socket_listen_worker(QIOTask *task,
                                              gpointer opaque)
 {
     QIOChannelSocket *ioc = QIO_CHANNEL_SOCKET(qio_task_get_source(task));
-    SocketAddress *addr = opaque;
+    struct QIOChannelListenWorkerData *data = opaque;
     Error *err = NULL;
 
-    qio_channel_socket_listen_sync(ioc, addr, &err);
+    qio_channel_socket_listen_sync(ioc, data->addr, data->num, &err);
 
     qio_task_set_error(task, err);
 }
@@ -234,6 +248,7 @@ static void qio_channel_socket_listen_worker(QIOTask *task,
 
 void qio_channel_socket_listen_async(QIOChannelSocket *ioc,
                                      SocketAddress *addr,
+                                     int num,
                                      QIOTaskFunc callback,
                                      gpointer opaque,
                                      GDestroyNotify destroy,
@@ -241,16 +256,18 @@ void qio_channel_socket_listen_async(QIOChannelSocket *ioc,
 {
     QIOTask *task = qio_task_new(
         OBJECT(ioc), callback, opaque, destroy);
-    SocketAddress *addrCopy;
+    struct QIOChannelListenWorkerData *data;
 
-    addrCopy = QAPI_CLONE(SocketAddress, addr);
+    data = g_new0(struct QIOChannelListenWorkerData, 1);
+    data->addr = QAPI_CLONE(SocketAddress, addr);
+    data->num = num;
 
     /* socket_listen() blocks in DNS lookups, so we must use a thread */
-    trace_qio_channel_socket_listen_async(ioc, addr);
+    trace_qio_channel_socket_listen_async(ioc, addr, num);
     qio_task_run_in_thread(task,
                            qio_channel_socket_listen_worker,
-                           addrCopy,
-                           (GDestroyNotify)qapi_free_SocketAddress,
+                           data,
+                           qio_channel_listen_worker_free,
                            context);
 }
 
