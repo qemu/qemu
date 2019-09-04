@@ -10082,6 +10082,18 @@ static bool trans_BLX_i(DisasContext *s, arg_BLX_i *a)
 }
 
 /*
+ * Supervisor call
+ */
+
+static bool trans_SVC(DisasContext *s, arg_SVC *a)
+{
+    gen_set_pc_im(s, s->base.pc_next);
+    s->svc_imm = a->imm;
+    s->base.is_jmp = DISAS_SWI;
+    return true;
+}
+
+/*
  * Legacy decoder.
  */
 
@@ -10348,6 +10360,7 @@ static void disas_arm_insn(DisasContext *s, unsigned int insn)
         case 0x09:
         case 0xa:
         case 0xb:
+        case 0xf:
             /* All done in decodetree.  Reach here for illegal ops.  */
             goto illegal_op;
         case 0xc:
@@ -10362,12 +10375,6 @@ static void disas_arm_insn(DisasContext *s, unsigned int insn)
                 /* Coprocessor.  */
                 goto illegal_op;
             }
-            break;
-        case 0xf:
-            /* swi */
-            gen_set_pc_im(s, s->base.pc_next);
-            s->svc_imm = extract32(insn, 0, 24);
-            s->base.is_jmp = DISAS_SWI;
             break;
         default:
         illegal_op:
