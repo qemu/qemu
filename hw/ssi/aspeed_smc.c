@@ -989,6 +989,7 @@ static void aspeed_smc_dma_rw(AspeedSMCState *s)
         s->regs[R_DMA_FLASH_ADDR] += 4;
         s->regs[R_DMA_DRAM_ADDR] += 4;
         s->regs[R_DMA_LEN] -= 4;
+        s->regs[R_DMA_CHECKSUM] += data;
     }
 }
 
