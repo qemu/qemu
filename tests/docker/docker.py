@@ -258,10 +258,16 @@ class Docker(object):
         return self._do_kill_instances(True)
 
     def _output(self, cmd, **kwargs):
-        return subprocess.check_output(self._command + cmd,
-                                       stderr=subprocess.STDOUT,
-                                       encoding='utf-8',
-                                       **kwargs)
+        if sys.version_info[1] >= 6:
+            return subprocess.check_output(self._command + cmd,
+                                           stderr=subprocess.STDOUT,
+                                           encoding='utf-8',
+                                           **kwargs)
+        else:
+            return subprocess.check_output(self._command + cmd,
+                                           stderr=subprocess.STDOUT,
+                                           **kwargs).decode('utf-8')
+
 
     def inspect_tag(self, tag):
         try:
