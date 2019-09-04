@@ -369,9 +369,7 @@ class RunCommand(SubCommand):
             argv = [ "-u", str(uid) ] + argv
             docker = Docker()
             if docker._command[0] == "podman":
-                argv = [ "--uidmap", "%d:0:1" % uid,
-                         "--uidmap", "0:1:%d" % uid,
-                         "--uidmap", "%d:%d:64536" % (uid + 1, uid + 1)] + argv
+                argv.insert(0, '--userns=keep-id')
         return Docker().run(argv, args.keep, quiet=args.quiet)
 
 
