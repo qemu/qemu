@@ -11,6 +11,10 @@
 #include "block/block_int.h"
 #include "qemu/uri.h"
 
+#ifdef CONFIG_GLUSTERFS_FTRUNCATE_HAS_STAT
+# define glfs_ftruncate(fd, offset) glfs_ftruncate(fd, offset, NULL, NULL)
+#endif
+
 typedef struct GlusterAIOCB {
     int64_t size;
     int ret;
