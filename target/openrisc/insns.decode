@@ -22,6 +22,9 @@
 &ab             a b
 &dal            d a l
 &ai             a i
+&dab_pair       d a b dp ap bp
+&ab_pair        a b ap bp
+&da_pair        d a dp ap
 
 ####
 # System Instructions
@@ -98,6 +101,8 @@ l_maci          010011 ----- a:5 i:s16
 
 l_movhi         000110 d:5 ----0 k:16
 l_macrc         000110 d:5 ----1 00000000 00000000
+
+l_adrp          000010 d:5 i:s21
 
 ####
 # Arithmetic Instructions
@@ -187,3 +192,43 @@ lf_sfgt_s       110010 ----- a:5 b:5 --- 00001010
 lf_sfge_s       110010 ----- a:5 b:5 --- 00001011
 lf_sflt_s       110010 ----- a:5 b:5 --- 00001100
 lf_sfle_s       110010 ----- a:5 b:5 --- 00001101
+lf_sfueq_s      110010 ----- a:5 b:5 --- 00101000
+lf_sfuge_s      110010 ----- a:5 b:5 --- 00101011
+lf_sfugt_s      110010 ----- a:5 b:5 --- 00101010
+lf_sfule_s      110010 ----- a:5 b:5 --- 00101101
+lf_sfult_s      110010 ----- a:5 b:5 --- 00101100
+lf_sfun_s       110010 ----- a:5 b:5 --- 00101110
+
+####
+# DP Instructions
+####
+
+@dab_pair       ...... d:5   a:5 b:5   dp:1 ap:1 bp:1 ........  &dab_pair
+@ab_pair        ...... ..... a:5 b:5   .    ap:1 bp:1 ........  &ab_pair
+@da_pair        ...... d:5   a:5 ..... dp:1 ap:1 .    ........  &da_pair
+
+lf_add_d        110010 ..... ..... ..... ... 00010000  @dab_pair
+lf_sub_d        110010 ..... ..... ..... ... 00010001  @dab_pair
+lf_mul_d        110010 ..... ..... ..... ... 00010010  @dab_pair
+lf_div_d        110010 ..... ..... ..... ... 00010011  @dab_pair
+lf_rem_d        110010 ..... ..... ..... ... 00010110  @dab_pair
+lf_madd_d       110010 ..... ..... ..... ... 00010111  @dab_pair
+
+lf_itof_d       110010 ..... ..... 00000 ..0 00010100  @da_pair
+lf_ftoi_d       110010 ..... ..... 00000 ..0 00010101  @da_pair
+
+lf_stod_d       110010 d:5 a:5 00000 dp:1 0 0 00110100
+lf_dtos_d       110010 d:5 a:5 00000 0 ap:1 0 00110101
+
+lf_sfeq_d       110010 00000 ..... ..... 0.. 00011000  @ab_pair
+lf_sfne_d       110010 00000 ..... ..... 0.. 00011001  @ab_pair
+lf_sfgt_d       110010 00000 ..... ..... 0.. 00011010  @ab_pair
+lf_sfge_d       110010 00000 ..... ..... 0.. 00011011  @ab_pair
+lf_sflt_d       110010 00000 ..... ..... 0.. 00011100  @ab_pair
+lf_sfle_d       110010 00000 ..... ..... 0.. 00011101  @ab_pair
+lf_sfueq_d      110010 00000 ..... ..... 0.. 00111000  @ab_pair
+lf_sfuge_d      110010 00000 ..... ..... 0.. 00111011  @ab_pair
+lf_sfugt_d      110010 00000 ..... ..... 0.. 00111010  @ab_pair
+lf_sfule_d      110010 00000 ..... ..... 0.. 00111101  @ab_pair
+lf_sfult_d      110010 00000 ..... ..... 0.. 00111100  @ab_pair
+lf_sfun_d       110010 00000 ..... ..... 0.. 00111110  @ab_pair

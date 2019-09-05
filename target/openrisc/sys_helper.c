@@ -37,12 +37,10 @@ void HELPER(mtspr)(CPUOpenRISCState *env, target_ulong spr, target_ulong rb)
     CPUState *cs = env_cpu(env);
     target_ulong mr;
     int idx;
+#endif
 
     switch (spr) {
-    case TO_SPR(0, 0): /* VR */
-        env->vr = rb;
-        break;
-
+#ifndef CONFIG_USER_ONLY
     case TO_SPR(0, 11): /* EVBAR */
         env->evbar = rb;
         break;
@@ -60,10 +58,6 @@ void HELPER(mtspr)(CPUOpenRISCState *env, target_ulong spr, target_ulong rb)
 
     case TO_SPR(0, 17): /* SR */
         cpu_set_sr(env, rb);
-        break;
-
-    case TO_SPR(0, 18): /* PPC */
-        env->ppc = rb;
         break;
 
     case TO_SPR(0, 32): /* EPCR */
@@ -187,10 +181,12 @@ void HELPER(mtspr)(CPUOpenRISCState *env, target_ulong spr, target_ulong rb)
         }
         cpu_openrisc_timer_update(cpu);
         break;
-    default:
+#endif
+
+    case TO_SPR(0, 20): /* FPCSR */
+        cpu_set_fpcsr(env, rb);
         break;
     }
-#endif
 }
 
 target_ulong HELPER(mfspr)(CPUOpenRISCState *env, target_ulong rd,
@@ -201,22 +197,30 @@ target_ulong HELPER(mfspr)(CPUOpenRISCState *env, target_ulong rd,
     OpenRISCCPU *cpu = env_archcpu(env);
     CPUState *cs = env_cpu(env);
     int idx;
+#endif
 
     switch (spr) {
+#ifndef CONFIG_USER_ONLY
     case TO_SPR(0, 0): /* VR */
-        return env->vr & SPR_VR;
+        return env->vr;
 
     case TO_SPR(0, 1): /* UPR */
-        return env->upr;    /* TT, DM, IM, UP present */
+        return env->upr;
 
     case TO_SPR(0, 2): /* CPUCFGR */
         return env->cpucfgr;
 
     case TO_SPR(0, 3): /* DMMUCFGR */
-        return env->dmmucfgr;    /* 1Way, 64 entries */
+        return env->dmmucfgr;
 
     case TO_SPR(0, 4): /* IMMUCFGR */
         return env->immucfgr;
+
+    case TO_SPR(0, 9): /* VR2 */
+        return env->vr2;
+
+    case TO_SPR(0, 10): /* AVR */
+        return env->avr;
 
     case TO_SPR(0, 11): /* EVBAR */
         return env->evbar;
@@ -305,11 +309,11 @@ target_ulong HELPER(mfspr)(CPUOpenRISCState *env, target_ulong rd,
     case TO_SPR(10, 1): /* TTCR */
         cpu_openrisc_count_update(cpu);
         return cpu_openrisc_count_get(cpu);
-
-    default:
-        break;
-    }
 #endif
+
+    case TO_SPR(0, 20): /* FPCSR */
+        return env->fpcsr;
+    }
 
     /* for rd is passed in, if rd unchanged, just keep it back.  */
     return rd;

@@ -30,6 +30,8 @@ DEF_HELPER_FLAGS_2(itofd, TCG_CALL_NO_RWG, i64, env, i64)
 DEF_HELPER_FLAGS_2(itofs, TCG_CALL_NO_RWG, i32, env, i32)
 DEF_HELPER_FLAGS_2(ftoid, TCG_CALL_NO_RWG, i64, env, i64)
 DEF_HELPER_FLAGS_2(ftois, TCG_CALL_NO_RWG, i32, env, i32)
+DEF_HELPER_FLAGS_2(stod, TCG_CALL_NO_RWG, i64, env, i32)
+DEF_HELPER_FLAGS_2(dtos, TCG_CALL_NO_RWG, i32, env, i64)
 
 DEF_HELPER_FLAGS_4(float_madd_s, TCG_CALL_NO_RWG, i32, env, i32, i32, i32)
 DEF_HELPER_FLAGS_4(float_madd_d, TCG_CALL_NO_RWG, i64, env, i64, i64, i64)
@@ -50,6 +52,10 @@ DEF_HELPER_FLAGS_3(float_ ## op ## _d, TCG_CALL_NO_RWG, tl, env, i64, i64)
 FOP_CMP(eq)
 FOP_CMP(lt)
 FOP_CMP(le)
+FOP_CMP(un)
+FOP_CMP(ueq)
+FOP_CMP(ule)
+FOP_CMP(ult)
 #undef FOP_CMP
 
 /* interrupt */
