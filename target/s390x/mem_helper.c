@@ -925,15 +925,17 @@ static inline uint32_t do_mvcl(CPUS390XState *env,
         access_memset(env, &desta, pad, ra);
         *dest = wrap_address(env, *dest + len);
     } else {
+        desta = access_prepare(env, *dest, len, MMU_DATA_STORE, mmu_idx, ra);
+
         /* The remaining length selects the padding byte. */
         for (i = 0; i < len; (*destlen)--, i++) {
             if (*destlen & 1) {
-                cpu_stb_data_ra(env, *dest, pad, ra);
+                access_set_byte(env, &desta, i, pad, ra);
             } else {
-                cpu_stb_data_ra(env, *dest, pad >> 8, ra);
+                access_set_byte(env, &desta, i, pad >> 8, ra);
             }
-            *dest = wrap_address(env, *dest + 1);
         }
+        *dest = wrap_address(env, *dest + len);
     }
 
     return *destlen ? 3 : cc;
