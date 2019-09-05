@@ -700,18 +700,18 @@ uint32_t HELPER(mvpg)(CPUS390XState *env, uint64_t r0, uint64_t r1, uint64_t r2)
     return 0; /* data moved */
 }
 
-/* string copy (c is string terminator) */
-uint64_t HELPER(mvst)(CPUS390XState *env, uint64_t c, uint64_t d, uint64_t s)
+/* string copy */
+uint32_t HELPER(mvst)(CPUS390XState *env, uint32_t r1, uint32_t r2)
 {
+    const uint64_t d = get_address(env, r1);
+    const uint64_t s = get_address(env, r2);
+    const uint8_t c = env->regs[0];
     uintptr_t ra = GETPC();
     uint32_t len;
 
-    if (c & 0xffffff00ull) {
+    if (env->regs[0] & 0xffffff00ull) {
         s390_program_interrupt(env, PGM_SPECIFICATION, ILEN_AUTO, ra);
     }
-    c = c & 0xff;
-    d = wrap_address(env, d);
-    s = wrap_address(env, s);
 
     /* Lest we fail to service interrupts in a timely manner, limit the
        amount of work we're willing to do.  For now, let's cap at 8k.  */
@@ -719,17 +719,13 @@ uint64_t HELPER(mvst)(CPUS390XState *env, uint64_t c, uint64_t d, uint64_t s)
         uint8_t v = cpu_ldub_data_ra(env, s + len, ra);
         cpu_stb_data_ra(env, d + len, v, ra);
         if (v == c) {
-            /* Complete.  Set CC=1 and advance R1.  */
-            env->cc_op = 1;
-            env->retxl = s;
-            return d + len;
+            set_address_zero(env, r1, d + len);
+            return 1;
         }
     }
-
-    /* Incomplete.  Set CC=3 and signal to advance R1 and R2.  */
-    env->cc_op = 3;
-    env->retxl = s + len;
-    return d + len;
+    set_address_zero(env, r1, d + len);
+    set_address_zero(env, r2, s + len);
+    return 3;
 }
 
 /* load access registers r1 to r3 from memory at a2 */
