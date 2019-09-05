@@ -2535,11 +2535,6 @@ so should only be used with trusted guest OS.
 
 @c man end
 
-@node QEMU Guest Agent
-@chapter QEMU Guest Agent invocation
-
-@include qemu-ga.texi
-
 @node QEMU User space emulator
 @chapter QEMU User space emulator
 
