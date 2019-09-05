@@ -866,23 +866,33 @@ uint32_t HELPER(mvpg)(CPUS390XState *env, uint64_t r0, uint64_t r1, uint64_t r2)
 /* string copy */
 uint32_t HELPER(mvst)(CPUS390XState *env, uint32_t r1, uint32_t r2)
 {
+    const int mmu_idx = cpu_mmu_index(env, false);
     const uint64_t d = get_address(env, r1);
     const uint64_t s = get_address(env, r2);
     const uint8_t c = env->regs[0];
+    const int len = MIN(-(d | TARGET_PAGE_MASK), -(s | TARGET_PAGE_MASK));
+    S390Access srca, desta;
     uintptr_t ra = GETPC();
-    uint32_t len;
+    int i;
 
     if (env->regs[0] & 0xffffff00ull) {
         s390_program_interrupt(env, PGM_SPECIFICATION, ILEN_AUTO, ra);
     }
 
-    /* Lest we fail to service interrupts in a timely manner, limit the
-       amount of work we're willing to do.  For now, let's cap at 8k.  */
-    for (len = 0; len < 0x2000; ++len) {
-        uint8_t v = cpu_ldub_data_ra(env, s + len, ra);
-        cpu_stb_data_ra(env, d + len, v, ra);
+    /*
+     * Our access should not exceed single pages, as we must not report access
+     * exceptions exceeding the actually copied range (which we don't know at
+     * this point). We might over-indicate watchpoints within the pages
+     * (if we ever care, we have to limit processing to a single byte).
+     */
+    srca = access_prepare(env, s, len, MMU_DATA_LOAD, mmu_idx, ra);
+    desta = access_prepare(env, d, len, MMU_DATA_STORE, mmu_idx, ra);
+    for (i = 0; i < len; i++) {
+        const uint8_t v = access_get_byte(env, &srca, i, ra);
+
+        access_set_byte(env, &desta, i, v, ra);
         if (v == c) {
-            set_address_zero(env, r1, d + len);
+            set_address_zero(env, r1, d + i);
             return 1;
         }
     }
