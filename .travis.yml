@@ -26,6 +26,7 @@ addons:
       - libaio-dev
       - libattr1-dev
       - libbrlapi-dev
+      - libcap-dev
       - libcap-ng-dev
       - libgcc-4.8-dev
       - libgnutls-dev
