@@ -15,7 +15,7 @@
 
 #include "hw/acpi/tpm.h"
 #include "io/channel-socket.h"
-#include "libqtest.h"
+#include "libqtest-single.h"
 #include "qemu/module.h"
 #include "tpm-emu.h"
 

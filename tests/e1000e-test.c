@@ -26,7 +26,7 @@
 
 #include "qemu/osdep.h"
 #include "qemu-common.h"
-#include "libqtest.h"
+#include "libqtest-single.h"
 #include "qemu-common.h"
 #include "libqos/pci-pc.h"
 #include "qemu/sockets.h"

@@ -13,7 +13,7 @@
 
 #include "qemu/osdep.h"
 
-#include "libqtest.h"
+#include "libqtest-single.h"
 #include "qemu/timer.h"
 #include "hw/timer/mc146818rtc_regs.h"
 

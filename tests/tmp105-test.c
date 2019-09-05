@@ -9,7 +9,7 @@
 
 #include "qemu/osdep.h"
 
-#include "libqtest.h"
+#include "libqtest-single.h"
 #include "libqos/qgraph.h"
 #include "libqos/i2c.h"
 #include "qapi/qmp/qdict.h"

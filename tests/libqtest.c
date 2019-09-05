@@ -35,8 +35,6 @@
 #define SOCKET_TIMEOUT 50
 #define SOCKET_MAX_FDS 16
 
-QTestState *global_qtest;
-
 struct QTestState
 {
     int fd;
@@ -1104,17 +1102,6 @@ void qtest_memset(QTestState *s, uint64_t addr, uint8_t pattern, size_t size)
 {
     qtest_sendf(s, "memset 0x%" PRIx64 " 0x%zx 0x%02x\n", addr, size, pattern);
     qtest_rsp(s, 0);
-}
-
-QDict *qmp(const char *fmt, ...)
-{
-    va_list ap;
-    QDict *response;
-
-    va_start(ap, fmt);
-    response = qtest_vqmp(global_qtest, fmt, ap);
-    va_end(ap);
-    return response;
 }
 
 void qtest_qmp_assert_success(QTestState *qts, const char *fmt, ...)

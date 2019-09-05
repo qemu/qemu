@@ -9,7 +9,7 @@
 
 #include "qemu/osdep.h"
 #include "qemu/timer.h"
-#include "libqtest.h"
+#include "libqtest-single.h"
 
 #define TIMER_BLOCK_SCALE(s)    ((((s) & 0xff) + 1) * 10)
 

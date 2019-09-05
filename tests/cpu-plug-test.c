@@ -10,7 +10,7 @@
 #include "qemu/osdep.h"
 
 #include "qemu-common.h"
-#include "libqtest.h"
+#include "libqtest-single.h"
 #include "qapi/qmp/qdict.h"
 
 struct PlugTestData {

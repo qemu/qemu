@@ -11,6 +11,9 @@
 @paragraphindent 0
 @c %**end of header
 
+@set qemu_system qemu-system-x86_64
+@set qemu_system_x86 qemu-system-x86_64
+
 @ifinfo
 @direntry
 * QEMU: (qemu-doc).    The QEMU Emulator User Documentation.
@@ -207,12 +210,12 @@ Note that, by default, GUS shares IRQ(7) with parallel ports and so
 QEMU must be told to not have parallel ports to have working GUS.
 
 @example
-qemu-system-i386 dos.img -soundhw gus -parallel none
+@value{qemu_system_x86} dos.img -soundhw gus -parallel none
 @end example
 
 Alternatively:
 @example
-qemu-system-i386 dos.img -device gus,irq=5
+@value{qemu_system_x86} dos.img -device gus,irq=5
 @end example
 
 Or some other unclaimed IRQ.
@@ -225,10 +228,11 @@ CS4231A is the chip used in Windows Sound System and GUSMAX products
 @section Quick Start
 @cindex quick start
 
-Download and uncompress the linux image (@file{linux.img}) and type:
+Download and uncompress a hard disk image with Linux installed (e.g.
+@file{linux.img}) and type:
 
 @example
-qemu-system-i386 linux.img
+@value{qemu_system} linux.img
 @end example
 
 Linux should boot and give you a prompt.
@@ -238,7 +242,7 @@ Linux should boot and give you a prompt.
 
 @example
 @c man begin SYNOPSIS
-@command{qemu-system-i386} [@var{options}] [@var{disk_image}]
+@command{@value{qemu_system}} [@var{options}] [@var{disk_image}]
 @c man end
 @end example
 
@@ -278,21 +282,21 @@ is specified in seconds. The default is 0 which means no timeout. Libiscsi
 
 Example (without authentication):
 @example
-qemu-system-i386 -iscsi initiator-name=iqn.2001-04.com.example:my-initiator \
+@value{qemu_system} -iscsi initiator-name=iqn.2001-04.com.example:my-initiator \
                  -cdrom iscsi://192.0.2.1/iqn.2001-04.com.example/2 \
                  -drive file=iscsi://192.0.2.1/iqn.2001-04.com.example/1
 @end example
 
 Example (CHAP username/password via URL):
 @example
-qemu-system-i386 -drive file=iscsi://user%password@@192.0.2.1/iqn.2001-04.com.example/1
+@value{qemu_system} -drive file=iscsi://user%password@@192.0.2.1/iqn.2001-04.com.example/1
 @end example
 
 Example (CHAP username/password via environment variables):
 @example
 LIBISCSI_CHAP_USERNAME="user" \
 LIBISCSI_CHAP_PASSWORD="password" \
-qemu-system-i386 -drive file=iscsi://192.0.2.1/iqn.2001-04.com.example/1
+@value{qemu_system} -drive file=iscsi://192.0.2.1/iqn.2001-04.com.example/1
 @end example
 
 @item NBD
@@ -307,12 +311,12 @@ Syntax for specifying a NBD device using Unix Domain Sockets
 
 Example for TCP
 @example
-qemu-system-i386 --drive file=nbd:192.0.2.1:30000
+@value{qemu_system} --drive file=nbd:192.0.2.1:30000
 @end example
 
 Example for Unix Domain Sockets
 @example
-qemu-system-i386 --drive file=nbd:unix:/tmp/nbd-socket
+@value{qemu_system} --drive file=nbd:unix:/tmp/nbd-socket
 @end example
 
 @item SSH
@@ -320,8 +324,8 @@ QEMU supports SSH (Secure Shell) access to remote disks.
 
 Examples:
 @example
-qemu-system-i386 -drive file=ssh://user@@host/path/to/disk.img
-qemu-system-i386 -drive file.driver=ssh,file.user=user,file.host=host,file.port=22,file.path=/path/to/disk.img
+@value{qemu_system} -drive file=ssh://user@@host/path/to/disk.img
+@value{qemu_system} -drive file.driver=ssh,file.user=user,file.host=host,file.port=22,file.path=/path/to/disk.img
 @end example
 
 Currently authentication must be done using ssh-agent.  Other
@@ -339,7 +343,7 @@ sheepdog[+tcp|+unix]://[host:port]/vdiname[?socket=path][#snapid|#tag]
 
 Example
 @example
-qemu-system-i386 --drive file=sheepdog://192.0.2.1:30000/MyVirtualMachine
+@value{qemu_system} --drive file=sheepdog://192.0.2.1:30000/MyVirtualMachine
 @end example
 
 See also @url{https://sheepdog.github.io/sheepdog/}.
@@ -365,17 +369,17 @@ JSON:
 Example
 @example
 URI:
-qemu-system-x86_64 --drive file=gluster://192.0.2.1/testvol/a.img,
+@value{qemu_system} --drive file=gluster://192.0.2.1/testvol/a.img,
 @                               file.debug=9,file.logfile=/var/log/qemu-gluster.log
 
 JSON:
-qemu-system-x86_64 'json:@{"driver":"qcow2",
+@value{qemu_system} 'json:@{"driver":"qcow2",
 @                          "file":@{"driver":"gluster",
 @                                   "volume":"testvol","path":"a.img",
 @                                   "debug":9,"logfile":"/var/log/qemu-gluster.log",
 @                                   "server":[@{"type":"tcp","host":"1.2.3.4","port":24007@},
 @                                             @{"type":"unix","socket":"/var/run/glusterd.socket"@}]@}@}'
-qemu-system-x86_64 -drive driver=qcow2,file.driver=gluster,file.volume=testvol,file.path=/path/a.img,
+@value{qemu_system} -drive driver=qcow2,file.driver=gluster,file.volume=testvol,file.path=/path/a.img,
 @                                      file.debug=9,file.logfile=/var/log/qemu-gluster.log,
 @                                      file.server.0.type=tcp,file.server.0.host=1.2.3.4,file.server.0.port=24007,
 @                                      file.server.1.type=unix,file.server.1.socket=/var/run/glusterd.socket
@@ -440,9 +444,9 @@ of <protocol>.
 
 Example: boot from a remote Fedora 20 live ISO image
 @example
-qemu-system-x86_64 --drive media=cdrom,file=http://dl.fedoraproject.org/pub/fedora/linux/releases/20/Live/x86_64/Fedora-Live-Desktop-x86_64-20-1.iso,readonly
+@value{qemu_system_x86} --drive media=cdrom,file=http://dl.fedoraproject.org/pub/fedora/linux/releases/20/Live/x86_64/Fedora-Live-Desktop-x86_64-20-1.iso,readonly
 
-qemu-system-x86_64 --drive media=cdrom,file.driver=http,file.url=http://dl.fedoraproject.org/pub/fedora/linux/releases/20/Live/x86_64/Fedora-Live-Desktop-x86_64-20-1.iso,readonly
+@value{qemu_system_x86} --drive media=cdrom,file.driver=http,file.url=http://dl.fedoraproject.org/pub/fedora/linux/releases/20/Live/x86_64/Fedora-Live-Desktop-x86_64-20-1.iso,readonly
 @end example
 
 Example: boot from a remote Fedora 20 cloud image using a local overlay for
@@ -450,7 +454,7 @@ writes, copy-on-read, and a readahead of 64k
 @example
 qemu-img create -f qcow2 -o backing_file='json:@{"file.driver":"http",, "file.url":"https://dl.fedoraproject.org/pub/fedora/linux/releases/20/Images/x86_64/Fedora-x86_64-20-20131211.1-sda.qcow2",, "file.readahead":"64k"@}' /tmp/Fedora-x86_64-20-20131211.1-sda.qcow2
 
-qemu-system-x86_64 -drive file=/tmp/Fedora-x86_64-20-20131211.1-sda.qcow2,copy-on-read=on
+@value{qemu_system_x86} -drive file=/tmp/Fedora-x86_64-20-20131211.1-sda.qcow2,copy-on-read=on
 @end example
 
 Example: boot from an image stored on a VMware vSphere server with a self-signed
@@ -459,7 +463,7 @@ of 10 seconds.
 @example
 qemu-img create -f qcow2 -o backing_file='json:@{"file.driver":"https",, "file.url":"https://user:password@@vsphere.example.com/folder/test/test-flat.vmdk?dcPath=Datacenter&dsName=datastore1",, "file.sslverify":"off",, "file.readahead":"64k",, "file.timeout":10@}' /tmp/test.qcow2
 
-qemu-system-x86_64 -drive file=/tmp/test.qcow2
+@value{qemu_system_x86} -drive file=/tmp/test.qcow2
 @end example
 
 @end table
@@ -826,7 +830,7 @@ On Linux hosts, a shared memory device is available.  The basic syntax
 is:
 
 @example
-qemu-system-x86_64 -device ivshmem-plain,memdev=@var{hostmem}
+@value{qemu_system_x86} -device ivshmem-plain,memdev=@var{hostmem}
 @end example
 
 where @var{hostmem} names a host memory backend.  For a POSIX shared
@@ -847,7 +851,7 @@ memory server is:
 ivshmem-server -p @var{pidfile} -S @var{path} -m @var{shm-name} -l @var{shm-size} -n @var{vectors}
 
 # Then start your qemu instances with matching arguments
-qemu-system-x86_64 -device ivshmem-doorbell,vectors=@var{vectors},chardev=@var{id}
+@value{qemu_system_x86} -device ivshmem-doorbell,vectors=@var{vectors},chardev=@var{id}
                  -chardev socket,path=@var{path},id=@var{id}
 @end example
 
@@ -872,7 +876,7 @@ Instead of specifying the <shm size> using POSIX shm, you may specify
 a memory backend that has hugepage support:
 
 @example
-qemu-system-x86_64 -object memory-backend-file,size=1G,mem-path=/dev/hugepages/my-shmem-file,share,id=mb1
+@value{qemu_system_x86} -object memory-backend-file,size=1G,mem-path=/dev/hugepages/my-shmem-file,share,id=mb1
                  -device ivshmem-plain,memdev=mb1
 @end example
 
@@ -888,7 +892,7 @@ kernel testing.
 
 The syntax is:
 @example
-qemu-system-i386 -kernel arch/i386/boot/bzImage -hda root-2.4.20.img -append "root=/dev/hda"
+@value{qemu_system} -kernel bzImage -hda rootdisk.img -append "root=/dev/hda"
 @end example
 
 Use @option{-kernel} to provide the Linux kernel image and
@@ -903,7 +907,7 @@ If you do not need graphical output, you can disable it and redirect
 the virtual serial port and the QEMU monitor to the console with the
 @option{-nographic} option. The typical command line is:
 @example
-qemu-system-i386 -kernel arch/i386/boot/bzImage -hda root-2.4.20.img \
+@value{qemu_system} -kernel bzImage -hda rootdisk.img \
                  -append "root=/dev/hda console=ttyS0" -nographic
 @end example
 
@@ -969,7 +973,7 @@ Network adapter that supports CDC ethernet and RNDIS protocols.  @var{id}
 specifies a netdev defined with @code{-netdev @dots{},id=@var{id}}.
 For instance, user-mode networking can be used with
 @example
-qemu-system-i386 [...] -netdev user,id=net0 -device usb-net,netdev=net0
+@value{qemu_system} [...] -netdev user,id=net0 -device usb-net,netdev=net0
 @end example
 @item usb-ccid
 Smartcard reader device
@@ -988,7 +992,7 @@ no type is given, the HCI logic corresponds to @code{-bt hci,vlan=0}.
 This USB device implements the USB Transport Layer of HCI.  Example
 usage:
 @example
-@command{qemu-system-i386} [...@var{OPTIONS}...] @option{-usbdevice} bt:hci,vlan=3 @option{-bt} device:keyboard,vlan=3
+@command{@value{qemu_system}} [...@var{OPTIONS}...] @option{-usbdevice} bt:hci,vlan=3 @option{-bt} device:keyboard,vlan=3
 @end example
 @end table
 
@@ -1065,7 +1069,7 @@ For this setup it is recommended to restrict it to listen on a UNIX domain
 socket only. For example
 
 @example
-qemu-system-i386 [...OPTIONS...] -vnc unix:/home/joebloggs/.qemu-myvm-vnc
+@value{qemu_system} [...OPTIONS...] -vnc unix:/home/joebloggs/.qemu-myvm-vnc
 @end example
 
 This ensures that only users on local box with read/write access to that
@@ -1088,7 +1092,7 @@ is running the password is set with the monitor. Until the monitor is used to
 set the password all clients will be rejected.
 
 @example
-qemu-system-i386 [...OPTIONS...] -vnc :1,password -monitor stdio
+@value{qemu_system} [...OPTIONS...] -vnc :1,password -monitor stdio
 (qemu) change vnc password
 Password: ********
 (qemu)
@@ -1105,7 +1109,7 @@ support provides a secure session, but no authentication. This allows any
 client to connect, and provides an encrypted session.
 
 @example
-qemu-system-i386 [...OPTIONS...] \
+@value{qemu_system} [...OPTIONS...] \
   -object tls-creds-x509,id=tls0,dir=/etc/pki/qemu,endpoint=server,verify-peer=no \
   -vnc :1,tls-creds=tls0 -monitor stdio
 @end example
@@ -1127,7 +1131,7 @@ same syntax as previously, but with @code{verify-peer} set to @code{yes}
 instead.
 
 @example
-qemu-system-i386 [...OPTIONS...] \
+@value{qemu_system} [...OPTIONS...] \
   -object tls-creds-x509,id=tls0,dir=/etc/pki/qemu,endpoint=server,verify-peer=yes \
   -vnc :1,tls-creds=tls0 -monitor stdio
 @end example
@@ -1140,7 +1144,7 @@ Finally, the previous method can be combined with VNC password authentication
 to provide two layers of authentication for clients.
 
 @example
-qemu-system-i386 [...OPTIONS...] \
+@value{qemu_system} [...OPTIONS...] \
   -object tls-creds-x509,id=tls0,dir=/etc/pki/qemu,endpoint=server,verify-peer=yes \
   -vnc :1,tls-creds=tls0,password -monitor stdio
 (qemu) change vnc password
@@ -1165,7 +1169,7 @@ used for authentication, but assuming use of one supporting SSF,
 then QEMU can be launched with:
 
 @example
-qemu-system-i386 [...OPTIONS...] -vnc :1,sasl -monitor stdio
+@value{qemu_system} [...OPTIONS...] -vnc :1,sasl -monitor stdio
 @end example
 
 @node vnc_sec_certificate_sasl
@@ -1179,7 +1183,7 @@ credentials. This can be enabled, by combining the 'sasl' option
 with the aforementioned TLS + x509 options:
 
 @example
-qemu-system-i386 [...OPTIONS...] \
+@value{qemu_system} [...OPTIONS...] \
   -object tls-creds-x509,id=tls0,dir=/etc/pki/qemu,endpoint=server,verify-peer=yes \
   -vnc :1,tls-creds=tls0,sasl -monitor stdio
 @end example
@@ -1512,13 +1516,13 @@ To load server credentials with client certificate validation
 enabled
 
 @example
-$QEMU -object tls-creds-x509,id=tls0,dir=/etc/pki/qemu,endpoint=server
+@value{qemu_system} -object tls-creds-x509,id=tls0,dir=/etc/pki/qemu,endpoint=server
 @end example
 
 while to load client credentials use
 
 @example
-$QEMU -object tls-creds-x509,id=tls0,dir=/etc/pki/qemu,endpoint=client
+@value{qemu_system} -object tls-creds-x509,id=tls0,dir=/etc/pki/qemu,endpoint=client
 @end example
 
 Network services which support TLS will all have a @code{tls-creds}
@@ -1526,7 +1530,7 @@ parameter which expects the ID of the TLS credentials object. For
 example with VNC:
 
 @example
-$QEMU -vnc 0.0.0.0:0,tls-creds=tls0
+@value{qemu_system} -vnc 0.0.0.0:0,tls-creds=tls0
 @end example
 
 @node tls_psk
@@ -1574,8 +1578,7 @@ QEMU has a primitive support to work with gdb, so that you can do
 In order to use gdb, launch QEMU with the '-s' option. It will wait for a
 gdb connection:
 @example
-qemu-system-i386 -s -kernel arch/i386/boot/bzImage -hda root-2.4.20.img \
-                    -append "root=/dev/hda"
+@value{qemu_system} -s -kernel bzImage -hda rootdisk.img -append "root=/dev/hda"
 Connected to host network interface: tun0
 Waiting gdb connection on port 1234
 @end example
