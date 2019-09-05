@@ -522,31 +522,34 @@ void HELPER(mvn)(CPUS390XState *env, uint32_t l, uint64_t dest, uint64_t src)
 /* move with offset  */
 void HELPER(mvo)(CPUS390XState *env, uint32_t l, uint64_t dest, uint64_t src)
 {
+    const int mmu_idx = cpu_mmu_index(env, false);
+    /* MVO always processes one more byte than specified - maximum is 16 */
+    const int len_dest = (l >> 4) + 1;
+    const int len_src = (l & 0xf) + 1;
     uintptr_t ra = GETPC();
-    int len_dest = l >> 4;
-    int len_src = l & 0xf;
     uint8_t byte_dest, byte_src;
-    int i;
+    S390Access srca, desta;
+    int i, j;
 
-    src += len_src;
-    dest += len_dest;
+    srca = access_prepare(env, src, len_src, MMU_DATA_LOAD, mmu_idx, ra);
+    desta = access_prepare(env, dest, len_dest, MMU_DATA_STORE, mmu_idx, ra);
 
     /* Handle rightmost byte */
-    byte_src = cpu_ldub_data_ra(env, src, ra);
-    byte_dest = cpu_ldub_data_ra(env, dest, ra);
+    byte_dest = cpu_ldub_data_ra(env, dest + len_dest - 1, ra);
+    byte_src = access_get_byte(env, &srca, len_src - 1, ra);
     byte_dest = (byte_dest & 0x0f) | (byte_src << 4);
-    cpu_stb_data_ra(env, dest, byte_dest, ra);
+    access_set_byte(env, &desta, len_dest - 1, byte_dest, ra);
 
     /* Process remaining bytes from right to left */
-    for (i = 1; i <= len_dest; i++) {
+    for (i = len_dest - 2, j = len_src - 2; i >= 0; i--, j--) {
         byte_dest = byte_src >> 4;
-        if (len_src - i >= 0) {
-            byte_src = cpu_ldub_data_ra(env, src - i, ra);
+        if (j >= 0) {
+            byte_src = access_get_byte(env, &srca, j, ra);
         } else {
             byte_src = 0;
         }
         byte_dest |= byte_src << 4;
-        cpu_stb_data_ra(env, dest - i, byte_dest, ra);
+        access_set_byte(env, &desta, i, byte_dest, ra);
     }
 }
 
