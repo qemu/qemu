@@ -706,6 +706,9 @@ uint64_t HELPER(mvst)(CPUS390XState *env, uint64_t c, uint64_t d, uint64_t s)
     uintptr_t ra = GETPC();
     uint32_t len;
 
+    if (c & 0xffffff00ull) {
+        s390_program_interrupt(env, PGM_SPECIFICATION, ILEN_AUTO, ra);
+    }
     c = c & 0xff;
     d = wrap_address(env, d);
     s = wrap_address(env, s);
