@@ -500,13 +500,22 @@ void HELPER(mvcin)(CPUS390XState *env, uint32_t l, uint64_t dest, uint64_t src)
 /* move numerics  */
 void HELPER(mvn)(CPUS390XState *env, uint32_t l, uint64_t dest, uint64_t src)
 {
+    const int mmu_idx = cpu_mmu_index(env, false);
+    S390Access srca1, srca2, desta;
     uintptr_t ra = GETPC();
     int i;
 
-    for (i = 0; i <= l; i++) {
-        uint8_t v = cpu_ldub_data_ra(env, dest + i, ra) & 0xf0;
-        v |= cpu_ldub_data_ra(env, src + i, ra) & 0x0f;
-        cpu_stb_data_ra(env, dest + i, v, ra);
+    /* MVN always copies one more byte than specified - maximum is 256 */
+    l++;
+
+    srca1 = access_prepare(env, src, l, MMU_DATA_LOAD, mmu_idx, ra);
+    srca2 = access_prepare(env, dest, l, MMU_DATA_LOAD, mmu_idx, ra);
+    desta = access_prepare(env, dest, l, MMU_DATA_STORE, mmu_idx, ra);
+    for (i = 0; i < l; i++) {
+        const uint8_t x = (access_get_byte(env, &srca1, i, ra) & 0x0f) |
+                          (access_get_byte(env, &srca2, i, ra) & 0xf0);
+
+        access_set_byte(env, &desta, i, x, ra);
     }
 }
 
