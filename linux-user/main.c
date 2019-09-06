@@ -706,13 +706,6 @@ int main(int argc, char **argv, char **envp)
         reserved_va = max_reserved_va & qemu_host_page_mask;
     }
 
-    if (getenv("QEMU_STRACE")) {
-        do_strace = 1;
-    }
-
-    if (seed_optarg == NULL) {
-        seed_optarg = getenv("QEMU_RAND_SEED");
-    }
     {
         Error *err = NULL;
         if (seed_optarg != NULL) {
