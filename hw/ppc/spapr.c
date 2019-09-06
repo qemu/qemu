@@ -1739,16 +1739,6 @@ static void spapr_machine_reset(MachineState *machine)
         spapr_setup_hpt_and_vrma(spapr);
     }
 
-    /*
-     * NVLink2-connected GPU RAM needs to be placed on a separate NUMA node.
-     * We assign a new numa ID per GPU in spapr_pci_collect_nvgpu() which is
-     * called from vPHB reset handler so we initialize the counter here.
-     * If no NUMA is configured from the QEMU side, we start from 1 as GPU RAM
-     * must be equally distant from any other node.
-     * The final value of spapr->gpu_numa_id is going to be written to
-     * max-associativity-domains in spapr_build_fdt().
-     */
-    spapr->gpu_numa_id = MAX(1, machine->numa_state->num_nodes);
     qemu_devices_reset();
 
     /*
@@ -2886,6 +2876,17 @@ static void spapr_machine_init(MachineState *machine)
         }
 
     }
+
+    /*
+     * NVLink2-connected GPU RAM needs to be placed on a separate NUMA node.
+     * We assign a new numa ID per GPU in spapr_pci_collect_nvgpu() which is
+     * called from vPHB reset handler so we initialize the counter here.
+     * If no NUMA is configured from the QEMU side, we start from 1 as GPU RAM
+     * must be equally distant from any other node.
+     * The final value of spapr->gpu_numa_id is going to be written to
+     * max-associativity-domains in spapr_build_fdt().
+     */
+    spapr->gpu_numa_id = MAX(1, machine->numa_state->num_nodes);
 
     if ((!kvm_enabled() || kvmppc_has_cap_mmu_radix()) &&
         ppc_type_check_compat(machine->cpu_type, CPU_POWERPC_LOGICAL_3_00, 0,
