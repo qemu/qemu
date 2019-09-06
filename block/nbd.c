@@ -1044,6 +1044,10 @@ static int nbd_client_co_pwrite_zeroes(BlockDriverState *bs, int64_t offset,
     if (!(flags & BDRV_REQ_MAY_UNMAP)) {
         request.flags |= NBD_CMD_FLAG_NO_HOLE;
     }
+    if (flags & BDRV_REQ_NO_FALLBACK) {
+        assert(s->info.flags & NBD_FLAG_SEND_FAST_ZERO);
+        request.flags |= NBD_CMD_FLAG_FAST_ZERO;
+    }
 
     if (!bytes) {
         return 0;
@@ -1239,6 +1243,9 @@ static int nbd_client_connect(BlockDriverState *bs, Error **errp)
     }
     if (s->info.flags & NBD_FLAG_SEND_WRITE_ZEROES) {
         bs->supported_zero_flags |= BDRV_REQ_MAY_UNMAP;
+        if (s->info.flags & NBD_FLAG_SEND_FAST_ZERO) {
+            bs->supported_zero_flags |= BDRV_REQ_NO_FALLBACK;
+        }
     }
 
     s->sioc = sioc;
@@ -1374,7 +1381,7 @@ static bool nbd_has_filename_options_conflict(QDict *options, Error **errp)
 static void nbd_parse_filename(const char *filename, QDict *options,
                                Error **errp)
 {
-    char *file;
+    g_autofree char *file = NULL;
     char *export_name;
     const char *host_spec;
     const char *unixpath;
@@ -1396,7 +1403,7 @@ static void nbd_parse_filename(const char *filename, QDict *options,
     export_name = strstr(file, EN_OPTSTR);
     if (export_name) {
         if (export_name[strlen(EN_OPTSTR)] == 0) {
-            goto out;
+            return;
         }
         export_name[0] = 0; /* truncate 'file' */
         export_name += strlen(EN_OPTSTR);
@@ -1407,11 +1414,11 @@ static void nbd_parse_filename(const char *filename, QDict *options,
     /* extract the host_spec - fail if it's not nbd:... */
     if (!strstart(file, "nbd:", &host_spec)) {
         error_setg(errp, "File name string for NBD must start with 'nbd:'");
-        goto out;
+        return;
     }
 
     if (!*host_spec) {
-        goto out;
+        return;
     }
 
     /* are we a UNIX or TCP socket? */
@@ -1431,9 +1438,6 @@ static void nbd_parse_filename(const char *filename, QDict *options,
     out_inet:
         qapi_free_InetSocketAddress(addr);
     }
-
-out:
-    g_free(file);
 }
 
 static bool nbd_process_legacy_socket_options(QDict *output_options,

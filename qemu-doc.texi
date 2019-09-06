@@ -301,9 +301,16 @@ LIBISCSI_CHAP_PASSWORD="password" \
 
 @item NBD
 QEMU supports NBD (Network Block Devices) both using TCP protocol as well
-as Unix Domain Sockets.
+as Unix Domain Sockets.  With TCP, the default port is 10809.
 
-Syntax for specifying a NBD device using TCP
+Syntax for specifying a NBD device using TCP, in preferred URI form:
+``nbd://<server-ip>[:<port>]/[<export>]''
+
+Syntax for specifying a NBD device using Unix Domain Sockets; remember
+that '?' is a shell glob character and may need quoting:
+``nbd+unix:///[<export>]?socket=<domain-socket>''
+
+Older syntax that is also recognized:
 ``nbd:<server-ip>:<port>[:exportname=<export>]''
 
 Syntax for specifying a NBD device using Unix Domain Sockets
