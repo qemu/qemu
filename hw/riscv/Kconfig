@@ -19,6 +19,7 @@ config SIFIVE_U
     select CADENCE
     select HART
     select SIFIVE
+    select UNIMP
 
 config SPIKE
     bool
