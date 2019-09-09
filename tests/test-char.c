@@ -1355,6 +1355,18 @@ static void char_hotswap_test(void)
     g_free(chr_args);
 }
 
+static SocketAddress tcpaddr = {
+    .type = SOCKET_ADDRESS_TYPE_INET,
+    .u.inet.host = (char *)"127.0.0.1",
+    .u.inet.port = (char *)"0",
+};
+#ifndef WIN32
+static SocketAddress unixaddr = {
+    .type = SOCKET_ADDRESS_TYPE_UNIX,
+    .u.q_unix.path = (char *)"test-char.sock",
+};
+#endif
+
 int main(int argc, char **argv)
 {
     bool has_ipv4, has_ipv6;
@@ -1390,26 +1402,14 @@ int main(int argc, char **argv)
     g_test_add_func("/char/file-fifo", char_file_fifo_test);
 #endif
 
-    SocketAddress tcpaddr = {
-        .type = SOCKET_ADDRESS_TYPE_INET,
-        .u.inet.host = (char *)"127.0.0.1",
-        .u.inet.port = (char *)"0",
-    };
-#ifndef WIN32
-    SocketAddress unixaddr = {
-        .type = SOCKET_ADDRESS_TYPE_UNIX,
-        .u.q_unix.path = (char *)"test-char.sock",
-    };
-#endif
-
 #define SOCKET_SERVER_TEST(name, addr)                                  \
-    CharSocketServerTestConfig server1 ## name =                        \
+    static CharSocketServerTestConfig server1 ## name =                 \
         { addr, false, false };                                         \
-    CharSocketServerTestConfig server2 ## name =                        \
+    static CharSocketServerTestConfig server2 ## name =                 \
         { addr, true, false };                                          \
-    CharSocketServerTestConfig server3 ## name =                        \
+    static CharSocketServerTestConfig server3 ## name =                 \
         { addr, false, true };                                          \
-    CharSocketServerTestConfig server4 ## name =                        \
+    static CharSocketServerTestConfig server4 ## name =                 \
         { addr, true, true };                                           \
     g_test_add_data_func("/char/socket/server/mainloop/" # name,        \
                          &server1 ##name, char_socket_server_test);     \
@@ -1421,17 +1421,17 @@ int main(int argc, char **argv)
                          &server4 ##name, char_socket_server_test)
 
 #define SOCKET_CLIENT_TEST(name, addr)                                  \
-    CharSocketClientTestConfig client1 ## name =                        \
+    static CharSocketClientTestConfig client1 ## name =                 \
         { addr, NULL, false, false };                                   \
-    CharSocketClientTestConfig client2 ## name =                        \
+    static CharSocketClientTestConfig client2 ## name =                 \
         { addr, NULL, true, false };                                    \
-    CharSocketClientTestConfig client3 ## name =                        \
+    static CharSocketClientTestConfig client3 ## name =                 \
         { addr, ",reconnect=1", false };                                \
-    CharSocketClientTestConfig client4 ## name =                        \
+    static CharSocketClientTestConfig client4 ## name =                 \
         { addr, ",reconnect=1", true };                                 \
-    CharSocketClientTestConfig client5 ## name =                        \
+    static CharSocketClientTestConfig client5 ## name =                 \
         { addr, NULL, false, true };                                    \
-    CharSocketClientTestConfig client6 ## name =                        \
+    static CharSocketClientTestConfig client6 ## name =                 \
         { addr, NULL, true, true };                                     \
     g_test_add_data_func("/char/socket/client/mainloop/" # name,        \
                          &client1 ##name, char_socket_client_test);     \
