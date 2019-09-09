@@ -515,7 +515,7 @@ generated-files-y += tests/include/test-qapi-events-sub-module.h
 generated-files-y += tests/test-qapi-events-sub-sub-module.h
 generated-files-y += tests/test-qapi-introspect.h
 
-QEMU_CFLAGS += -I$(SRC_PATH)/tests
+QEMU_CFLAGS += -I$(SRC_PATH)/tests -I$(SRC_PATH)/tests/qtest
 
 
 # Deps that are common to various different sets of tests below
@@ -648,18 +648,18 @@ tests/qapi-schema/doc-good.test.texi: $(SRC_PATH)/tests/qapi-schema/doc-good.jso
 	@mv tests/qapi-schema/doc-good-qapi-doc.texi $@
 	@rm -f tests/qapi-schema/doc-good-qapi-*.[ch] tests/qapi-schema/doc-good-qmp-*.[ch]
 
-tests/dbus-vmstate1.h tests/dbus-vmstate1.c: tests/dbus-vmstate1-gen-timestamp ;
-tests/dbus-vmstate1-gen-timestamp: $(SRC_PATH)/tests/dbus-vmstate1.xml
+tests/qtest/dbus-vmstate1.h tests/qtest/dbus-vmstate1.c: tests/qtest/dbus-vmstate1-gen-timestamp ;
+tests/qtest/dbus-vmstate1-gen-timestamp: $(SRC_PATH)/tests/qtest/dbus-vmstate1.xml
 	$(call quiet-command,$(GDBUS_CODEGEN) $< \
-		--interface-prefix org.qemu --generate-c-code tests/dbus-vmstate1, \
+		--interface-prefix org.qemu --generate-c-code tests/qtest/dbus-vmstate1, \
 		"GEN","$(@:%-timestamp=%)")
 	@>$@
 
-tests/dbus-vmstate-test.o-cflags := -DSRCDIR="$(SRC_PATH)"
-tests/dbus-vmstate1.o-cflags := $(GIO_CFLAGS)
-tests/dbus-vmstate1.o-libs := $(GIO_LIBS)
+tests/qtest/dbus-vmstate-test.o-cflags := -DSRCDIR="$(SRC_PATH)"
+tests/qtest/dbus-vmstate1.o-cflags := $(GIO_CFLAGS)
+tests/qtest/dbus-vmstate1.o-libs := $(GIO_LIBS)
 
-tests/dbus-vmstate-test.o: tests/dbus-vmstate1.h
+tests/qtest/dbus-vmstate-test.o: tests/qtest/dbus-vmstate1.h
 
 tests/test-string-output-visitor$(EXESUF): tests/test-string-output-visitor.o $(test-qapi-obj-y)
 tests/test-string-input-visitor$(EXESUF): tests/test-string-input-visitor.o $(test-qapi-obj-y)
@@ -708,12 +708,12 @@ tests/test-authz-pam$(EXESUF): tests/test-authz-pam.o $(test-authz-obj-y)
 tests/test-io-task$(EXESUF): tests/test-io-task.o $(test-io-obj-y)
 tests/test-io-channel-socket$(EXESUF): tests/test-io-channel-socket.o \
         tests/io-channel-helpers.o tests/socket-helpers.o $(test-io-obj-y)
-tests/tpm-crb-swtpm-test$(EXESUF): tests/tpm-crb-swtpm-test.o tests/tpm-emu.o \
-	tests/tpm-util.o tests/tpm-tests.o $(test-io-obj-y)
-tests/tpm-crb-test$(EXESUF): tests/tpm-crb-test.o tests/tpm-emu.o $(test-io-obj-y)
-tests/tpm-tis-swtpm-test$(EXESUF): tests/tpm-tis-swtpm-test.o tests/tpm-emu.o \
-	tests/tpm-util.o tests/tpm-tests.o $(test-io-obj-y)
-tests/tpm-tis-test$(EXESUF): tests/tpm-tis-test.o tests/tpm-emu.o $(test-io-obj-y)
+tests/qtest/tpm-crb-swtpm-test$(EXESUF): tests/qtest/tpm-crb-swtpm-test.o tests/qtest/tpm-emu.o \
+	tests/qtest/tpm-util.o tests/qtest/tpm-tests.o $(test-io-obj-y)
+tests/qtest/tpm-crb-test$(EXESUF): tests/qtest/tpm-crb-test.o tests/qtest/tpm-emu.o $(test-io-obj-y)
+tests/qtest/tpm-tis-swtpm-test$(EXESUF): tests/qtest/tpm-tis-swtpm-test.o tests/qtest/tpm-emu.o \
+	tests/qtest/tpm-util.o tests/qtest/tpm-tests.o $(test-io-obj-y)
+tests/qtest/tpm-tis-test$(EXESUF): tests/qtest/tpm-tis-test.o tests/qtest/tpm-emu.o $(test-io-obj-y)
 tests/test-io-channel-file$(EXESUF): tests/test-io-channel-file.o \
         tests/io-channel-helpers.o $(test-io-obj-y)
 tests/test-io-channel-tls$(EXESUF): tests/test-io-channel-tls.o \
@@ -743,7 +743,7 @@ libqos-pc-obj-y += tests/libqos/ahci.o
 libqos-usb-obj-y = $(libqos-spapr-obj-y) $(libqos-pc-obj-y) tests/libqos/usb.o
 
 # Devices
-qos-test-obj-y = tests/qos-test.o $(libqgraph-obj-y)
+qos-test-obj-y = tests/qtest/qos-test.o $(libqgraph-obj-y)
 qos-test-obj-y += $(libqos-pc-obj-y) $(libqos-spapr-obj-y)
 qos-test-obj-y += tests/libqos/e1000e.o
 qos-test-obj-y += tests/libqos/i2c.o
@@ -776,98 +776,98 @@ qos-test-obj-y += tests/libqos/ppc64_pseries-machine.o
 qos-test-obj-y += tests/libqos/x86_64_pc-machine.o
 
 # Tests
-qos-test-obj-y += tests/ac97-test.o
-qos-test-obj-y += tests/ds1338-test.o
-qos-test-obj-y += tests/e1000-test.o
-qos-test-obj-y += tests/e1000e-test.o
-qos-test-obj-y += tests/eepro100-test.o
-qos-test-obj-y += tests/es1370-test.o
-qos-test-obj-y += tests/ipoctal232-test.o
-qos-test-obj-y += tests/megasas-test.o
-qos-test-obj-y += tests/ne2000-test.o
-qos-test-obj-y += tests/nvme-test.o
-qos-test-obj-y += tests/pca9552-test.o
-qos-test-obj-y += tests/pci-test.o
-qos-test-obj-y += tests/pcnet-test.o
-qos-test-obj-y += tests/sdhci-test.o
-qos-test-obj-y += tests/spapr-phb-test.o
-qos-test-obj-y += tests/tmp105-test.o
-qos-test-obj-y += tests/usb-hcd-ohci-test.o $(libqos-usb-obj-y)
-qos-test-obj-$(CONFIG_VHOST_NET_USER) += tests/vhost-user-test.o $(chardev-obj-y) $(test-io-obj-y)
-qos-test-obj-y += tests/virtio-test.o
-qos-test-obj-$(CONFIG_VIRTFS) += tests/virtio-9p-test.o
-qos-test-obj-y += tests/virtio-blk-test.o
-qos-test-obj-y += tests/virtio-net-test.o
-qos-test-obj-y += tests/virtio-rng-test.o
-qos-test-obj-y += tests/virtio-scsi-test.o
-qos-test-obj-y += tests/virtio-serial-test.o
-qos-test-obj-y += tests/vmxnet3-test.o
+qos-test-obj-y += tests/qtest/ac97-test.o
+qos-test-obj-y += tests/qtest/ds1338-test.o
+qos-test-obj-y += tests/qtest/e1000-test.o
+qos-test-obj-y += tests/qtest/e1000e-test.o
+qos-test-obj-y += tests/qtest/eepro100-test.o
+qos-test-obj-y += tests/qtest/es1370-test.o
+qos-test-obj-y += tests/qtest/ipoctal232-test.o
+qos-test-obj-y += tests/qtest/megasas-test.o
+qos-test-obj-y += tests/qtest/ne2000-test.o
+qos-test-obj-y += tests/qtest/nvme-test.o
+qos-test-obj-y += tests/qtest/pca9552-test.o
+qos-test-obj-y += tests/qtest/pci-test.o
+qos-test-obj-y += tests/qtest/pcnet-test.o
+qos-test-obj-y += tests/qtest/sdhci-test.o
+qos-test-obj-y += tests/qtest/spapr-phb-test.o
+qos-test-obj-y += tests/qtest/tmp105-test.o
+qos-test-obj-y += tests/qtest/usb-hcd-ohci-test.o $(libqos-usb-obj-y)
+qos-test-obj-$(CONFIG_VHOST_NET_USER) += tests/qtest/vhost-user-test.o $(chardev-obj-y) $(test-io-obj-y)
+qos-test-obj-y += tests/qtest/virtio-test.o
+qos-test-obj-$(CONFIG_VIRTFS) += tests/qtest/virtio-9p-test.o
+qos-test-obj-y += tests/qtest/virtio-blk-test.o
+qos-test-obj-y += tests/qtest/virtio-net-test.o
+qos-test-obj-y += tests/qtest/virtio-rng-test.o
+qos-test-obj-y += tests/qtest/virtio-scsi-test.o
+qos-test-obj-y += tests/qtest/virtio-serial-test.o
+qos-test-obj-y += tests/qtest/vmxnet3-test.o
 
 check-unit-y += tests/test-qgraph$(EXESUF)
 tests/test-qgraph$(EXESUF): tests/test-qgraph.o $(libqgraph-obj-y)
 
 check-qtest-generic-y += qos-test
-tests/qos-test$(EXESUF): $(qos-test-obj-y)
+tests/qtest/qos-test$(EXESUF): $(qos-test-obj-y)
 
-tests/qmp-test$(EXESUF): tests/qmp-test.o
-tests/qmp-cmd-test$(EXESUF): tests/qmp-cmd-test.o
-tests/device-introspect-test$(EXESUF): tests/device-introspect-test.o
-tests/rtc-test$(EXESUF): tests/rtc-test.o
-tests/m48t59-test$(EXESUF): tests/m48t59-test.o
-tests/hexloader-test$(EXESUF): tests/hexloader-test.o
-tests/pflash-cfi02$(EXESUF): tests/pflash-cfi02-test.o
-tests/endianness-test$(EXESUF): tests/endianness-test.o
-tests/prom-env-test$(EXESUF): tests/prom-env-test.o $(libqos-obj-y)
-tests/rtas-test$(EXESUF): tests/rtas-test.o $(libqos-spapr-obj-y)
-tests/fdc-test$(EXESUF): tests/fdc-test.o
-tests/ide-test$(EXESUF): tests/ide-test.o $(libqos-pc-obj-y)
-tests/ahci-test$(EXESUF): tests/ahci-test.o $(libqos-pc-obj-y) qemu-img$(EXESUF)
-tests/ipmi-kcs-test$(EXESUF): tests/ipmi-kcs-test.o
-tests/ipmi-bt-test$(EXESUF): tests/ipmi-bt-test.o
-tests/hd-geo-test$(EXESUF): tests/hd-geo-test.o $(libqos-obj-y)
-tests/boot-order-test$(EXESUF): tests/boot-order-test.o $(libqos-obj-y)
-tests/boot-serial-test$(EXESUF): tests/boot-serial-test.o $(libqos-obj-y)
-tests/bios-tables-test$(EXESUF): tests/bios-tables-test.o \
-	tests/boot-sector.o tests/acpi-utils.o $(libqos-obj-y)
-tests/pxe-test$(EXESUF): tests/pxe-test.o tests/boot-sector.o $(libqos-obj-y)
-tests/microbit-test$(EXESUF): tests/microbit-test.o
-tests/m25p80-test$(EXESUF): tests/m25p80-test.o
-tests/i440fx-test$(EXESUF): tests/i440fx-test.o $(libqos-pc-obj-y)
-tests/q35-test$(EXESUF): tests/q35-test.o $(libqos-pc-obj-y)
-tests/fw_cfg-test$(EXESUF): tests/fw_cfg-test.o $(libqos-pc-obj-y)
-tests/rtl8139-test$(EXESUF): tests/rtl8139-test.o $(libqos-pc-obj-y)
-tests/pnv-xscom-test$(EXESUF): tests/pnv-xscom-test.o
-tests/wdt_ib700-test$(EXESUF): tests/wdt_ib700-test.o
-tests/tco-test$(EXESUF): tests/tco-test.o $(libqos-pc-obj-y)
-tests/virtio-ccw-test$(EXESUF): tests/virtio-ccw-test.o
-tests/display-vga-test$(EXESUF): tests/display-vga-test.o
-tests/qom-test$(EXESUF): tests/qom-test.o
-tests/test-hmp$(EXESUF): tests/test-hmp.o
-tests/machine-none-test$(EXESUF): tests/machine-none-test.o
-tests/device-plug-test$(EXESUF): tests/device-plug-test.o
-tests/drive_del-test$(EXESUF): tests/drive_del-test.o
-tests/pvpanic-test$(EXESUF): tests/pvpanic-test.o
-tests/i82801b11-test$(EXESUF): tests/i82801b11-test.o
-tests/intel-hda-test$(EXESUF): tests/intel-hda-test.o
-tests/ioh3420-test$(EXESUF): tests/ioh3420-test.o
-tests/usb-hcd-uhci-test$(EXESUF): tests/usb-hcd-uhci-test.o $(libqos-usb-obj-y)
-tests/usb-hcd-ehci-test$(EXESUF): tests/usb-hcd-ehci-test.o $(libqos-usb-obj-y)
-tests/usb-hcd-xhci-test$(EXESUF): tests/usb-hcd-xhci-test.o $(libqos-usb-obj-y)
-tests/cpu-plug-test$(EXESUF): tests/cpu-plug-test.o
-tests/migration-test$(EXESUF): tests/migration-test.o tests/migration-helpers.o
-tests/qemu-iotests/socket_scm_helper$(EXESUF): tests/qemu-iotests/socket_scm_helper.o
-tests/test-netfilter$(EXESUF): tests/test-netfilter.o $(qtest-obj-y)
-tests/test-filter-mirror$(EXESUF): tests/test-filter-mirror.o $(qtest-obj-y)
-tests/test-filter-redirector$(EXESUF): tests/test-filter-redirector.o $(qtest-obj-y)
-tests/test-x86-cpuid-compat$(EXESUF): tests/test-x86-cpuid-compat.o $(qtest-obj-y)
-tests/ivshmem-test$(EXESUF): tests/ivshmem-test.o contrib/ivshmem-server/ivshmem-server.o $(libqos-pc-obj-y) $(libqos-spapr-obj-y)
-tests/dbus-vmstate-test$(EXESUF): tests/dbus-vmstate-test.o tests/migration-helpers.o tests/dbus-vmstate1.o $(libqos-pc-obj-y) $(libqos-spapr-obj-y)
-tests/vhost-user-bridge$(EXESUF): tests/vhost-user-bridge.o $(test-util-obj-y) libvhost-user.a
-tests/test-arm-mptimer$(EXESUF): tests/test-arm-mptimer.o
-tests/numa-test$(EXESUF): tests/numa-test.o
-tests/vmgenid-test$(EXESUF): tests/vmgenid-test.o tests/boot-sector.o tests/acpi-utils.o
-tests/cdrom-test$(EXESUF): tests/cdrom-test.o tests/boot-sector.o $(libqos-obj-y)
-tests/arm-cpu-features$(EXESUF): tests/arm-cpu-features.o
+tests/qtest/qmp-test$(EXESUF): tests/qtest/qmp-test.o
+tests/qtest/qmp-cmd-test$(EXESUF): tests/qtest/qmp-cmd-test.o
+tests/qtest/device-introspect-test$(EXESUF): tests/qtest/device-introspect-test.o
+tests/qtest/rtc-test$(EXESUF): tests/qtest/rtc-test.o
+tests/qtest/m48t59-test$(EXESUF): tests/qtest/m48t59-test.o
+tests/qtest/hexloader-test$(EXESUF): tests/qtest/hexloader-test.o
+tests/qtest/pflash-cfi02$(EXESUF): tests/qtest/pflash-cfi02-test.o
+tests/qtest/endianness-test$(EXESUF): tests/qtest/endianness-test.o
+tests/qtest/prom-env-test$(EXESUF): tests/qtest/prom-env-test.o $(libqos-obj-y)
+tests/qtest/rtas-test$(EXESUF): tests/qtest/rtas-test.o $(libqos-spapr-obj-y)
+tests/qtest/fdc-test$(EXESUF): tests/qtest/fdc-test.o
+tests/qtest/ide-test$(EXESUF): tests/qtest/ide-test.o $(libqos-pc-obj-y)
+tests/qtest/ahci-test$(EXESUF): tests/qtest/ahci-test.o $(libqos-pc-obj-y) qemu-img$(EXESUF)
+tests/qtest/ipmi-kcs-test$(EXESUF): tests/qtest/ipmi-kcs-test.o
+tests/qtest/ipmi-bt-test$(EXESUF): tests/qtest/ipmi-bt-test.o
+tests/qtest/hd-geo-test$(EXESUF): tests/qtest/hd-geo-test.o $(libqos-obj-y)
+tests/qtest/boot-order-test$(EXESUF): tests/qtest/boot-order-test.o $(libqos-obj-y)
+tests/qtest/boot-serial-test$(EXESUF): tests/qtest/boot-serial-test.o $(libqos-obj-y)
+tests/qtest/bios-tables-test$(EXESUF): tests/qtest/bios-tables-test.o \
+	tests/qtest/boot-sector.o tests/qtest/acpi-utils.o $(libqos-obj-y)
+tests/qtest/pxe-test$(EXESUF): tests/qtest/pxe-test.o tests/qtest/boot-sector.o $(libqos-obj-y)
+tests/qtest/microbit-test$(EXESUF): tests/qtest/microbit-test.o
+tests/qtest/m25p80-test$(EXESUF): tests/qtest/m25p80-test.o
+tests/qtest/i440fx-test$(EXESUF): tests/qtest/i440fx-test.o $(libqos-pc-obj-y)
+tests/qtest/q35-test$(EXESUF): tests/qtest/q35-test.o $(libqos-pc-obj-y)
+tests/qtest/fw_cfg-test$(EXESUF): tests/qtest/fw_cfg-test.o $(libqos-pc-obj-y)
+tests/qtest/rtl8139-test$(EXESUF): tests/qtest/rtl8139-test.o $(libqos-pc-obj-y)
+tests/qtest/pnv-xscom-test$(EXESUF): tests/qtest/pnv-xscom-test.o
+tests/qtest/wdt_ib700-test$(EXESUF): tests/qtest/wdt_ib700-test.o
+tests/qtest/tco-test$(EXESUF): tests/qtest/tco-test.o $(libqos-pc-obj-y)
+tests/qtest/virtio-ccw-test$(EXESUF): tests/qtest/virtio-ccw-test.o
+tests/qtest/display-vga-test$(EXESUF): tests/qtest/display-vga-test.o
+tests/qtest/qom-test$(EXESUF): tests/qtest/qom-test.o
+tests/qtest/test-hmp$(EXESUF): tests/qtest/test-hmp.o
+tests/qtest/machine-none-test$(EXESUF): tests/qtest/machine-none-test.o
+tests/qtest/device-plug-test$(EXESUF): tests/qtest/device-plug-test.o
+tests/qtest/drive_del-test$(EXESUF): tests/qtest/drive_del-test.o
+tests/qtest/pvpanic-test$(EXESUF): tests/qtest/pvpanic-test.o
+tests/qtest/i82801b11-test$(EXESUF): tests/qtest/i82801b11-test.o
+tests/qtest/intel-hda-test$(EXESUF): tests/qtest/intel-hda-test.o
+tests/qtest/ioh3420-test$(EXESUF): tests/qtest/ioh3420-test.o
+tests/qtest/usb-hcd-uhci-test$(EXESUF): tests/qtest/usb-hcd-uhci-test.o $(libqos-usb-obj-y)
+tests/qtest/usb-hcd-ehci-test$(EXESUF): tests/qtest/usb-hcd-ehci-test.o $(libqos-usb-obj-y)
+tests/qtest/usb-hcd-xhci-test$(EXESUF): tests/qtest/usb-hcd-xhci-test.o $(libqos-usb-obj-y)
+tests/qtest/cpu-plug-test$(EXESUF): tests/qtest/cpu-plug-test.o
+tests/qtest/migration-test$(EXESUF): tests/qtest/migration-test.o tests/qtest/migration-helpers.o
+tests/qtest/qemu-iotests/qtest/socket_scm_helper$(EXESUF): tests/qtest/qemu-iotests/qtest/socket_scm_helper.o
+tests/qtest/test-netfilter$(EXESUF): tests/qtest/test-netfilter.o $(qtest-obj-y)
+tests/qtest/test-filter-mirror$(EXESUF): tests/qtest/test-filter-mirror.o $(qtest-obj-y)
+tests/qtest/test-filter-redirector$(EXESUF): tests/qtest/test-filter-redirector.o $(qtest-obj-y)
+tests/qtest/test-x86-cpuid-compat$(EXESUF): tests/qtest/test-x86-cpuid-compat.o $(qtest-obj-y)
+tests/qtest/ivshmem-test$(EXESUF): tests/qtest/ivshmem-test.o contrib/ivshmem-server/ivshmem-server.o $(libqos-pc-obj-y) $(libqos-spapr-obj-y)
+tests/qtest/dbus-vmstate-test$(EXESUF): tests/qtest/dbus-vmstate-test.o tests/qtest/migration-helpers.o tests/qtest/dbus-vmstate1.o $(libqos-pc-obj-y) $(libqos-spapr-obj-y)
+tests/qtest/vhost-user-bridge$(EXESUF): tests/qtest/vhost-user-bridge.o $(test-util-obj-y) libvhost-user.a
+tests/qtest/test-arm-mptimer$(EXESUF): tests/qtest/test-arm-mptimer.o
+tests/qtest/numa-test$(EXESUF): tests/qtest/numa-test.o
+tests/qtest/vmgenid-test$(EXESUF): tests/qtest/vmgenid-test.o tests/qtest/boot-sector.o tests/qtest/acpi-utils.o
+tests/qtest/cdrom-test$(EXESUF): tests/qtest/cdrom-test.o tests/qtest/boot-sector.o $(libqos-obj-y)
+tests/qtest/arm-cpu-features$(EXESUF): tests/qtest/arm-cpu-features.o
 
 tests/migration/stress$(EXESUF): tests/migration/stress.o
 	$(call quiet-command, $(LINKPROG) -static -O3 $(PTHREAD_LIB) -o $@ $< ,"LINK","$(TARGET_DIR)$@")
@@ -886,13 +886,13 @@ tests/migration/initrd-stress.img: tests/migration/stress$(EXESUF)
 TARGETS=$(patsubst %-softmmu,%, $(filter %-softmmu,$(TARGET_DIRS)))
 ifeq ($(CONFIG_POSIX),y)
 QTEST_TARGETS = $(TARGETS)
-check-qtest-y=$(foreach TARGET,$(TARGETS), $(check-qtest-$(TARGET)-y:%=tests/%$(EXESUF)))
-check-qtest-y += $(check-qtest-generic-y:%=tests/%$(EXESUF))
+check-qtest-y=$(foreach TARGET,$(TARGETS), $(check-qtest-$(TARGET)-y:%=tests/qtest/%$(EXESUF)))
+check-qtest-y += $(check-qtest-generic-y:%=tests/qtest/%$(EXESUF))
 else
 QTEST_TARGETS =
 endif
 
-qtest-obj-y = tests/libqtest.o $(test-util-obj-y)
+qtest-obj-y = tests/qtest/libqtest.o $(test-util-obj-y)
 $(check-qtest-y): $(qtest-obj-y)
 
 tests/test-qga$(EXESUF): qemu-ga$(EXESUF)
@@ -937,7 +937,7 @@ endef
 
 .PHONY: $(patsubst %, check-qtest-%, $(QTEST_TARGETS))
 $(patsubst %, check-qtest-%, $(QTEST_TARGETS)): check-qtest-%: %-softmmu/all $(check-qtest-y)
-	$(call do_test_human,$(check-qtest-$*-y:%=tests/%$(EXESUF)) $(check-qtest-generic-y:%=tests/%$(EXESUF)), \
+	$(call do_test_human,$(check-qtest-$*-y:%=tests/qtest/%$(EXESUF)) $(check-qtest-generic-y:%=tests/qtest/%$(EXESUF)), \
 	  QTEST_QEMU_BINARY=$*-softmmu/qemu-system-$* \
 	  QTEST_QEMU_IMG=qemu-img$(EXESUF))
 
@@ -950,7 +950,7 @@ check-speed: $(check-speed-y)
 # gtester tests with TAP output
 
 $(patsubst %, check-report-qtest-%.tap, $(QTEST_TARGETS)): check-report-qtest-%.tap: %-softmmu/all $(check-qtest-y)
-	$(call do_test_tap, $(check-qtest-$*-y:%=tests/%$(EXESUF)) $(check-qtest-generic-y:%=tests/%$(EXESUF)), \
+	$(call do_test_tap, $(check-qtest-$*-y:%=tests/qtest/%$(EXESUF)) $(check-qtest-generic-y:%=tests/qtest/%$(EXESUF)), \
 	  QTEST_QEMU_BINARY=$*-softmmu/qemu-system-$* \
 	  QTEST_QEMU_IMG=qemu-img$(EXESUF))
 
@@ -1215,10 +1215,10 @@ check-block: $(patsubst %,check-%, $(check-block-y))
 endif
 check: check-block check-qapi-schema check-unit check-softfloat check-qtest check-decodetree
 check-clean:
-	rm -rf $(check-unit-y) tests/*.o $(QEMU_IOTESTS_HELPERS-y)
-	rm -rf $(sort $(foreach target,$(SYSEMU_TARGET_LIST), $(check-qtest-$(target)-y:%=tests/%$(EXESUF))) $(check-qtest-generic-y:%=tests/%$(EXESUF)))
+	rm -rf $(check-unit-y) tests/*.o tests/*/*.o $(QEMU_IOTESTS_HELPERS-y)
+	rm -rf $(sort $(foreach target,$(SYSEMU_TARGET_LIST), $(check-qtest-$(target)-y:%=tests/qtest/%$(EXESUF))) $(check-qtest-generic-y:%=tests/qtest/%$(EXESUF)))
 	rm -f tests/test-qapi-gen-timestamp
-	rm -f tests/dbus-vmstate1-gen-timestamp
+	rm -f tests/qtest/dbus-vmstate1-gen-timestamp
 	rm -rf $(TESTS_VENV_DIR) $(TESTS_RESULTS_DIR)
 
 clean: check-clean
@@ -1228,6 +1228,7 @@ clean: check-clean
 all: $(QEMU_IOTESTS_HELPERS-y)
 
 -include $(wildcard tests/*.d)
+-include $(wildcard tests/qtest/*.d)
 -include $(wildcard tests/libqos/*.d)
 
 endif
