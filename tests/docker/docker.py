@@ -111,7 +111,7 @@ def _get_so_libs(executable):
     libs = []
     ldd_re = re.compile(r"(/.*/)(\S*)")
     try:
-        ldd_output = subprocess.check_output(["ldd", executable])
+        ldd_output = subprocess.check_output(["ldd", executable]).decode('utf-8')
         for line in ldd_output.split("\n"):
             search = ldd_re.search(line)
             if search and len(search.groups()) == 2:
