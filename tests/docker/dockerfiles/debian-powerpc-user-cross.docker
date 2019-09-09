@@ -8,8 +8,14 @@
 # debootstrapped qemu:debian-powerpc-user but doesn't need any extra
 # magic once it is setup.
 #
+# It can be used to build old versions of QEMU, current versions need
+# newer dependencies than Jessie provides.
+#
 FROM qemu:debian-powerpc-user
 
 RUN echo man-db man-db/auto-update boolean false | debconf-set-selections
 RUN apt-get update && \
-    DEBIAN_FRONTEND=noninteractive apt-get build-dep -yy qemu
+        DEBIAN_FRONTEND=noninteractive apt-get build-dep -yy qemu
+
+ENV QEMU_CONFIGURE_OPTS --disable-werror
+ENV DEF_TARGET_LIST powerpc-softmmu,arm-linux-user,aarch64-linux-user
