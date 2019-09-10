@@ -172,10 +172,6 @@ static int curl_sock_cb(CURL *curl, curl_socket_t fd, int action,
 
     QLIST_FOREACH(socket, &state->sockets, next) {
         if (socket->fd == fd) {
-            if (action == CURL_POLL_REMOVE) {
-                QLIST_REMOVE(socket, next);
-                g_free(socket);
-            }
             break;
         }
     }
@@ -185,7 +181,6 @@ static int curl_sock_cb(CURL *curl, curl_socket_t fd, int action,
         socket->state = state;
         QLIST_INSERT_HEAD(&state->sockets, socket, next);
     }
-    socket = NULL;
 
     trace_curl_sock_cb(action, (int)fd);
     switch (action) {
@@ -205,6 +200,11 @@ static int curl_sock_cb(CURL *curl, curl_socket_t fd, int action,
             aio_set_fd_handler(s->aio_context, fd, false,
                                NULL, NULL, NULL, NULL);
             break;
+    }
+
+    if (action == CURL_POLL_REMOVE) {
+        QLIST_REMOVE(socket, next);
+        g_free(socket);
     }
 
     return 0;
