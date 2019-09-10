@@ -1554,7 +1554,8 @@ F: include/hw/virtio/virtio-input.h
 F: contrib/vhost-user-input/*
 
 virtio-serial
-M: Amit Shah <amit@kernel.org>
+M: Laurent Vivier <lvivier@redhat.com>
+R: Amit Shah <amit@kernel.org>
 S: Supported
 F: hw/char/virtio-serial-bus.c
 F: hw/char/virtio-console.c
@@ -1563,7 +1564,8 @@ F: tests/virtio-console-test.c
 F: tests/virtio-serial-test.c
 
 virtio-rng
-M: Amit Shah <amit@kernel.org>
+M: Laurent Vivier <lvivier@redhat.com>
+R: Amit Shah <amit@kernel.org>
 S: Supported
 F: hw/virtio/virtio-rng.c
 F: include/hw/virtio/virtio-rng.h
