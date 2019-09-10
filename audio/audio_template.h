@@ -425,14 +425,17 @@ SW *glue (AUD_open_, TYPE) (
     struct audsettings *as
     )
 {
-    AudioState *s = card->state;
-    AudiodevPerDirectionOptions *pdo = glue(audio_get_pdo_, TYPE)(s->dev);
+    AudioState *s;
+    AudiodevPerDirectionOptions *pdo;
 
     if (audio_bug(__func__, !card || !name || !callback_fn || !as)) {
         dolog ("card=%p name=%p callback_fn=%p as=%p\n",
                card, name, callback_fn, as);
         goto fail;
     }
+
+    s = card->state;
+    pdo = glue(audio_get_pdo_, TYPE)(s->dev);
 
     ldebug ("open %s, freq %d, nchannels %d, fmt %d\n",
             name, as->freq, as->nchannels, as->fmt);
