@@ -560,7 +560,7 @@ static void xen_device_backend_changed(void *opaque)
      * backend state to Closed.
      */
     if (xendev->backend_state == XenbusStateClosing &&
-        !xen_device_state_is_active(state)) {
+        !xen_device_state_is_active(xendev->frontend_state)) {
         xen_device_backend_set_state(xendev, XenbusStateClosed);
     }
 
