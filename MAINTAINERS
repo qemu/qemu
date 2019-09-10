@@ -1102,9 +1102,9 @@ F: pc-bios/slof.bin
 F: docs/specs/ppc-spapr-hcalls.txt
 F: docs/specs/ppc-spapr-hotplug.txt
 F: tests/qtest/spapr*
-F: tests/libqos/*spapr*
+F: tests/qtest/libqos/*spapr*
 F: tests/qtest/rtas*
-F: tests/libqos/rtas*
+F: tests/qtest/libqos/rtas*
 
 PowerNV (Non-Virtualized)
 M: Cédric Le Goater <clg@kaod.org>
@@ -1363,7 +1363,7 @@ F: hw/block/hd-geometry.c
 F: tests/qtest/ide-test.c
 F: tests/qtest/ahci-test.c
 F: tests/qtest/cdrom-test.c
-F: tests/libqos/ahci*
+F: tests/qtest/libqos/ahci*
 T: git https://github.com/jnsnow/qemu.git ide
 
 IPMI
@@ -1776,7 +1776,7 @@ F: hw/nvram/fw_cfg.c
 F: stubs/fw_cfg.c
 F: include/hw/nvram/fw_cfg.h
 F: include/standard-headers/linux/qemu_fw_cfg.h
-F: tests/libqos/fw_cfg.c
+F: tests/qtest/libqos/fw_cfg.c
 F: tests/qtest/fw_cfg-test.c
 T: git https://github.com/philmd/qemu.git fw_cfg-next
 
@@ -2137,7 +2137,6 @@ R: Paolo Bonzini <pbonzini@redhat.com>
 S: Maintained
 F: qtest.c
 F: accel/qtest.c
-F: tests/libqos/
 F: tests/qtest/
 
 Register API
