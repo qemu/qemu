@@ -23,7 +23,7 @@ class FedoraVM(basevm.BaseVM):
     name = "fedora"
     arch = "x86_64"
 
-    base = "http://dl.fedoraproject.org/pub/fedora/linux/releases/30/"
+    base = "https://archives.fedoraproject.org/pub/archive/fedora/linux/releases/30/"
     link = base + "Server/x86_64/iso/Fedora-Server-netinst-x86_64-30-1.2.iso"
     repo = base + "Server/x86_64/os/"
     full = base + "Everything/x86_64/os/"

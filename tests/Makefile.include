@@ -1059,26 +1059,29 @@ BUILD_TCG_TARGET_RULES=$(patsubst %,build-tcg-tests-%, $(TARGET_DIRS))
 CLEAN_TCG_TARGET_RULES=$(patsubst %,clean-tcg-tests-%, $(TARGET_DIRS))
 RUN_TCG_TARGET_RULES=$(patsubst %,run-tcg-tests-%, $(TARGET_DIRS))
 
-ifeq ($(HAVE_USER_DOCKER),y)
 # Probe for the Docker Builds needed for each build
 $(foreach PROBE_TARGET,$(TARGET_DIRS), 				\
-	$(eval -include $(SRC_PATH)/tests/tcg/Makefile.probe) 	\
-	$(if $(DOCKER_PREREQ), 					\
-		$(eval build-tcg-tests-$(PROBE_TARGET): $(DOCKER_PREREQ))))
-endif
+	$(eval -include $(SRC_PATH)/tests/tcg/Makefile.prereqs))
 
 build-tcg-tests-%:
-	$(call quiet-command,$(MAKE) $(SUBDIR_MAKEFLAGS) -C $* V="$(V)" \
-		SKIP_DOCKER_BUILD=1 TARGET_DIR="$*/" guest-tests, \
+	$(call quiet-command,$(MAKE) $(SUBDIR_MAKEFLAGS) \
+		-f $(SRC_PATH)/tests/tcg/Makefile.qemu \
+		SRC_PATH=$(SRC_PATH) \
+	       	V="$(V)" TARGET="$*" guest-tests, \
 		"BUILD", "TCG tests for $*")
 
-run-tcg-tests-%: % build-tcg-tests-%
-	$(call quiet-command,$(MAKE) $(SUBDIR_MAKEFLAGS) -C $* V="$(V)" \
-		SKIP_DOCKER_BUILD=1 TARGET_DIR="$*/" run-guest-tests, \
+run-tcg-tests-%: build-tcg-tests-% %/all
+	$(call quiet-command,$(MAKE) $(SUBDIR_MAKEFLAGS) \
+		-f $(SRC_PATH)/tests/tcg/Makefile.qemu \
+		SRC_PATH=$(SRC_PATH) SPEED="$(SPEED)" \
+		V="$(V)" TARGET="$*" run-guest-tests, \
 		"RUN", "TCG tests for $*")
 
 clean-tcg-tests-%:
-	$(call quiet-command,$(MAKE) $(SUBDIR_MAKEFLAGS) -C $* V="$(V)" TARGET_DIR="$*/" clean-guest-tests,)
+	$(call quiet-command,$(MAKE) $(SUBDIR_MAKEFLAGS) \
+		-f $(SRC_PATH)/tests/tcg/Makefile.qemu \
+		SRC_PATH=$(SRC_PATH) TARGET="$*" clean-guest-tests, \
+		"CLEAN", "TCG tests for $*")
 
 .PHONY: build-tcg
 build-tcg: $(BUILD_TCG_TARGET_RULES)

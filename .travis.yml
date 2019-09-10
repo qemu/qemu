@@ -5,7 +5,18 @@ dist: xenial
 language: c
 compiler:
   - gcc
-cache: ccache
+cache:
+  # There is one cache per branch and compiler version.
+  # characteristics of each job are used to identify the cache:
+  # - OS name (currently, linux, osx, or windows)
+  # - OS distribution (for Linux, xenial, trusty, or precise)
+  # - macOS image name (e.g., xcode7.2)
+  # - Names and values of visible environment variables set in .travis.yml or Settings panel
+  timeout: 1200
+  ccache: true
+  pip: true
+  directories:
+  - $HOME/avocado/data/cache
 
 
 addons:
@@ -15,6 +26,7 @@ addons:
       - libaio-dev
       - libattr1-dev
       - libbrlapi-dev
+      - libcap-dev
       - libcap-ng-dev
       - libgcc-4.8-dev
       - libgnutls-dev
@@ -40,6 +52,7 @@ addons:
       - gcovr
   homebrew:
     packages:
+      - ccache
       - glib
       - pixman
       - gnu-sed
@@ -65,6 +78,9 @@ env:
     - TEST_CMD="make check -j3 V=1"
     # This is broadly a list of "mainline" softmmu targets which have support across the major distros
     - MAIN_SOFTMMU_TARGETS="aarch64-softmmu,arm-softmmu,i386-softmmu,mips-softmmu,mips64-softmmu,ppc64-softmmu,riscv64-softmmu,s390x-softmmu,x86_64-softmmu"
+    - CCACHE_SLOPPINESS="include_file_ctime,include_file_mtime"
+    - CCACHE_MAXSIZE=1G
+
 
 git:
   # we want to do this ourselves
@@ -72,25 +88,32 @@ git:
 
 
 before_script:
+  - if [ "$TRAVIS_OS_NAME" == "osx" ] ; then export PATH="/usr/local/opt/ccache/libexec:$PATH" ; fi
+  - command -v ccache && ccache --zero-stats
   - mkdir -p ${BUILD_DIR} && cd ${BUILD_DIR}
   - ${SRC_DIR}/configure ${BASE_CONFIG} ${CONFIG} || { cat config.log && exit 1; }
 script:
   - make -j3 && travis_retry ${TEST_CMD}
+after_script:
+  - command -v ccache && ccache --show-stats
 
 
 matrix:
   include:
     - env:
         - CONFIG="--disable-system --static"
+        - CACHE_NAME="${TRAVIS_BRANCH}-linux-gcc-default"
 
 
     # we split the system builds as it takes a while to build them all
     - env:
         - CONFIG="--disable-user --target-list=${MAIN_SOFTMMU_TARGETS}"
+        - CACHE_NAME="${TRAVIS_BRANCH}-linux-gcc-default"
 
 
     - env:
         - CONFIG="--disable-user --target-list-exclude=${MAIN_SOFTMMU_TARGETS}"
+        - CACHE_NAME="${TRAVIS_BRANCH}-linux-gcc-default"
 
 
     # Just build tools and run minimal unit and softfloat checks
@@ -98,14 +121,18 @@ matrix:
         - BASE_CONFIG="--enable-tools"
         - CONFIG="--disable-user --disable-system"
         - TEST_CMD="make check-unit check-softfloat -j3"
+        - CACHE_NAME="${TRAVIS_BRANCH}-linux-gcc-default"
+
 
     - env:
         - CONFIG="--enable-debug --enable-debug-tcg --disable-user"
+        - CACHE_NAME="${TRAVIS_BRANCH}-linux-gcc-debug"
 
 
     # TCG debug can be run just on it's own and is mostly agnostic to user/softmmu distinctions
     - env:
         - CONFIG="--enable-debug-tcg --disable-system"
+        - CACHE_NAME="${TRAVIS_BRANCH}-linux-gcc-debug"
 
 
     - env:
@@ -115,6 +142,7 @@ matrix:
     # Module builds are mostly of interest to major distros
     - env:
         - CONFIG="--enable-modules --target-list=${MAIN_SOFTMMU_TARGETS}"
+        - CACHE_NAME="${TRAVIS_BRANCH}-linux-gcc-default"
 
 
     # Alternate coroutines implementations are only really of interest to KVM users
@@ -134,6 +162,7 @@ matrix:
         - BUILD_DIR="out-of-tree/build/dir" SRC_DIR="../../.."
         - BASE_CONFIG="--enable-tools --enable-docs"
         - CONFIG="--target-list=x86_64-softmmu,aarch64-linux-user"
+        - CACHE_NAME="${TRAVIS_BRANCH}-linux-gcc-default"
       addons:
         apt:
           packages:
@@ -145,11 +174,13 @@ matrix:
     # Test with Clang for compile portability (Travis uses clang-5.0)
     - env:
         - CONFIG="--disable-system"
+        - CACHE_NAME="${TRAVIS_BRANCH}-linux-clang-default"
       compiler: clang
 
 
     - env:
         - CONFIG="--disable-user --target-list=${MAIN_SOFTMMU_TARGETS}"
+        - CACHE_NAME="${TRAVIS_BRANCH}-linux-clang-default"
       compiler: clang
 
 
@@ -162,6 +193,7 @@ matrix:
 
     - env:
         - CONFIG="--disable-user --target-list-exclude=${MAIN_SOFTMMU_TARGETS}"
+        - CACHE_NAME="${TRAVIS_BRANCH}-linux-clang-default"
       compiler: clang
 
 
@@ -175,6 +207,7 @@ matrix:
     # We manually include builds which we disable "make check" for
     - env:
         - CONFIG="--without-default-devices --disable-user"
+        - CACHE_NAME="${TRAVIS_BRANCH}-linux-gcc-default"
         - TEST_CMD=""
 
 
@@ -218,6 +251,7 @@ matrix:
     # Python builds
     - env:
         - CONFIG="--target-list=x86_64-softmmu"
+        - CACHE_NAME="${TRAVIS_BRANCH}-linux-gcc-default"
       language: python
       python:
         - "3.4"
@@ -225,6 +259,7 @@ matrix:
 
     - env:
         - CONFIG="--target-list=x86_64-softmmu"
+        - CACHE_NAME="${TRAVIS_BRANCH}-linux-gcc-default"
       language: python
       python:
         - "3.6"
@@ -296,8 +331,11 @@ matrix:
     - env:
         - CONFIG="--disable-system"
         - TEST_CMD="make -j3 check-tcg V=1"
+        - CACHE_NAME="${TRAVIS_BRANCH}-linux-gcc-default"
+
 
     # Run check-tcg against softmmu targets
     - env:
         - CONFIG="--target-list=xtensa-softmmu,arm-softmmu,aarch64-softmmu,alpha-softmmu"
         - TEST_CMD="make -j3 check-tcg V=1"
+        - CACHE_NAME="${TRAVIS_BRANCH}-linux-gcc-default"

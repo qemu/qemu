@@ -16,7 +16,7 @@ RUN apt update && \
 
 RUN apt update && \
     DEBIAN_FRONTEND=noninteractive eatmydata \
-    apt build-dep -yy -a mipsel qemu
+    apt build-dep -yy -a mipsel --arch-only qemu
 
 # Specify the cross prefix for this image (see tests/docker/common.rc)
 ENV QEMU_CONFIGURE_OPTS --cross-prefix=mipsel-linux-gnu-
