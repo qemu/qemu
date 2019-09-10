@@ -485,6 +485,11 @@ static int glue(load_elf, SZ)(const char *name, int fd,
                 }
             }
 
+            if (mem_size > INT_MAX - total_size) {
+                ret = ELF_LOAD_TOO_BIG;
+                goto fail;
+            }
+
             /* address_offset is hack for kernel images that are
                linked at the wrong physical address.  */
             if (translate_fn) {
