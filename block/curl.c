@@ -229,7 +229,6 @@ static size_t curl_read_cb(void *ptr, size_t size, size_t nmemb, void *opaque)
 {
     CURLState *s = ((CURLState*)opaque);
     size_t realsize = size * nmemb;
-    int i;
 
     trace_curl_read_cb(realsize);
 
@@ -244,32 +243,6 @@ static size_t curl_read_cb(void *ptr, size_t size, size_t nmemb, void *opaque)
     realsize = MIN(realsize, s->buf_len - s->buf_off);
     memcpy(s->orig_buf + s->buf_off, ptr, realsize);
     s->buf_off += realsize;
-
-    for(i=0; i<CURL_NUM_ACB; i++) {
-        CURLAIOCB *acb = s->acb[i];
-
-        if (!acb)
-            continue;
-
-        if ((s->buf_off >= acb->end)) {
-            size_t request_length = acb->bytes;
-
-            qemu_iovec_from_buf(acb->qiov, 0, s->orig_buf + acb->start,
-                                acb->end - acb->start);
-
-            if (acb->end - acb->start < request_length) {
-                size_t offset = acb->end - acb->start;
-                qemu_iovec_memset(acb->qiov, offset, 0,
-                                  request_length - offset);
-            }
-
-            acb->ret = 0;
-            s->acb[i] = NULL;
-            qemu_mutex_unlock(&s->s->mutex);
-            aio_co_wake(acb->co);
-            qemu_mutex_lock(&s->s->mutex);
-        }
-    }
 
 read_end:
     /* curl will error out if we do not return this value */
@@ -351,13 +324,14 @@ static void curl_multi_check_completion(BDRVCURLState *s)
             break;
 
         if (msg->msg == CURLMSG_DONE) {
+            int i;
             CURLState *state = NULL;
+            bool error = msg->data.result != CURLE_OK;
+
             curl_easy_getinfo(msg->easy_handle, CURLINFO_PRIVATE,
                               (char **)&state);
 
-            /* ACBs for successful messages get completed in curl_read_cb */
-            if (msg->data.result != CURLE_OK) {
-                int i;
+            if (error) {
                 static int errcount = 100;
 
                 /* Don't lose the original error message from curl, since
@@ -369,20 +343,35 @@ static void curl_multi_check_completion(BDRVCURLState *s)
                         error_report("curl: further errors suppressed");
                     }
                 }
+            }
 
-                for (i = 0; i < CURL_NUM_ACB; i++) {
-                    CURLAIOCB *acb = state->acb[i];
+            for (i = 0; i < CURL_NUM_ACB; i++) {
+                CURLAIOCB *acb = state->acb[i];
 
-                    if (acb == NULL) {
-                        continue;
-                    }
-
-                    acb->ret = -EIO;
-                    state->acb[i] = NULL;
-                    qemu_mutex_unlock(&s->mutex);
-                    aio_co_wake(acb->co);
-                    qemu_mutex_lock(&s->mutex);
+                if (acb == NULL) {
+                    continue;
                 }
+
+                if (!error) {
+                    /* Assert that we have read all data */
+                    assert(state->buf_off >= acb->end);
+
+                    qemu_iovec_from_buf(acb->qiov, 0,
+                                        state->orig_buf + acb->start,
+                                        acb->end - acb->start);
+
+                    if (acb->end - acb->start < acb->bytes) {
+                        size_t offset = acb->end - acb->start;
+                        qemu_iovec_memset(acb->qiov, offset, 0,
+                                          acb->bytes - offset);
+                    }
+                }
+
+                acb->ret = error ? -EIO : 0;
+                state->acb[i] = NULL;
+                qemu_mutex_unlock(&s->mutex);
+                aio_co_wake(acb->co);
+                qemu_mutex_lock(&s->mutex);
             }
 
             curl_clean_state(state);
