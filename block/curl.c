@@ -392,24 +392,19 @@ static void curl_multi_check_completion(BDRVCURLState *s)
 }
 
 /* Called with s->mutex held.  */
-static void curl_multi_do_locked(CURLSocket *ready_socket)
+static void curl_multi_do_locked(CURLSocket *socket)
 {
-    CURLSocket *socket, *next_socket;
-    CURLState *s = ready_socket->state;
+    BDRVCURLState *s = socket->state->s;
     int running;
     int r;
 
-    if (!s->s->multi) {
+    if (!s->multi) {
         return;
     }
 
-    /* Need to use _SAFE because curl_multi_socket_action() may trigger
-     * curl_sock_cb() which might modify this list */
-    QLIST_FOREACH_SAFE(socket, &s->sockets, next, next_socket) {
-        do {
-            r = curl_multi_socket_action(s->s->multi, socket->fd, 0, &running);
-        } while (r == CURLM_CALL_MULTI_PERFORM);
-    }
+    do {
+        r = curl_multi_socket_action(s->multi, socket->fd, 0, &running);
+    } while (r == CURLM_CALL_MULTI_PERFORM);
 }
 
 static void curl_multi_do(void *arg)
