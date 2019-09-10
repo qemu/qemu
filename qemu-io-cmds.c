@@ -401,6 +401,7 @@ static void *qemu_io_alloc_from_file(BlockBackend *blk, size_t len,
     }
 
     fclose(f);
+    f = NULL;
 
     if (len > pattern_len) {
         len -= pattern_len;
@@ -420,6 +421,9 @@ static void *qemu_io_alloc_from_file(BlockBackend *blk, size_t len,
 
 error:
     qemu_io_free(buf_origin);
+    if (f) {
+        fclose(f);
+    }
     return NULL;
 }
 
