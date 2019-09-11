@@ -114,9 +114,6 @@ static void spapr_irq_init_xics(SpaprMachineState *spapr, int nr_irqs,
     xics_spapr_init(spapr);
 }
 
-#define ICS_IRQ_FREE(ics, srcno)   \
-    (!((ics)->irqs[(srcno)].flags & (XICS_FLAGS_IRQ_MASK)))
-
 static int spapr_irq_claim_xics(SpaprMachineState *spapr, int irq, bool lsi,
                                 Error **errp)
 {
@@ -129,7 +126,7 @@ static int spapr_irq_claim_xics(SpaprMachineState *spapr, int irq, bool lsi,
         return -1;
     }
 
-    if (!ICS_IRQ_FREE(ics, irq - ics->offset)) {
+    if (!ics_irq_free(ics, irq - ics->offset)) {
         error_setg(errp, "IRQ %d is not free", irq);
         return -1;
     }
@@ -147,7 +144,7 @@ static void spapr_irq_free_xics(SpaprMachineState *spapr, int irq, int num)
     if (ics_valid_irq(ics, irq)) {
         trace_spapr_irq_free(0, irq, num);
         for (i = srcno; i < srcno + num; ++i) {
-            if (ICS_IRQ_FREE(ics, i)) {
+            if (ics_irq_free(ics, i)) {
                 trace_spapr_irq_free_warn(0, i);
             }
             memset(&ics->irqs[i], 0, sizeof(ICSIRQState));
@@ -767,7 +764,7 @@ static int ics_find_free_block(ICSState *ics, int num, int alignnum)
             return -1;
         }
         for (i = first; i < first + num; ++i) {
-            if (!ICS_IRQ_FREE(ics, i)) {
+            if (!ics_irq_free(ics, i)) {
                 break;
             }
         }
