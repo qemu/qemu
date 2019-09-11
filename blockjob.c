@@ -175,14 +175,23 @@ static const BdrvChildRole child_job = {
 
 void block_job_remove_all_bdrv(BlockJob *job)
 {
-    GSList *l;
-    for (l = job->nodes; l; l = l->next) {
+    /*
+     * bdrv_root_unref_child() may reach child_job_[can_]set_aio_ctx(),
+     * which will also traverse job->nodes, so consume the list one by
+     * one to make sure that such a concurrent access does not attempt
+     * to process an already freed BdrvChild.
+     */
+    while (job->nodes) {
+        GSList *l = job->nodes;
         BdrvChild *c = l->data;
+
+        job->nodes = l->next;
+
         bdrv_op_unblock_all(c->bs, job->blocker);
         bdrv_root_unref_child(c);
+
+        g_slist_free_1(l);
     }
-    g_slist_free(job->nodes);
-    job->nodes = NULL;
 }
 
 bool block_job_has_bdrv(BlockJob *job, BlockDriverState *bs)
