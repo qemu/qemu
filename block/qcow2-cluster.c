@@ -1351,13 +1351,7 @@ static int handle_alloc(BlockDriverState *bs, uint64_t guest_offset,
     }
 
     entry = be64_to_cpu(l2_slice[l2_index]);
-
-    /* For the moment, overwrite compressed clusters one by one */
-    if (entry & QCOW_OFLAG_COMPRESSED) {
-        nb_clusters = 1;
-    } else {
-        nb_clusters = count_cow_clusters(bs, nb_clusters, l2_slice, l2_index);
-    }
+    nb_clusters = count_cow_clusters(bs, nb_clusters, l2_slice, l2_index);
 
     /* This function is only called when there were no non-COW clusters, so if
      * we can't find any unallocated or COW clusters either, something is
