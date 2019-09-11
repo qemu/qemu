@@ -381,8 +381,16 @@ int qemu_fclose(QEMUFile *f)
     return ret;
 }
 
-static void add_to_iovec(QEMUFile *f, const uint8_t *buf, size_t size,
-                         bool may_free)
+/*
+ * Add buf to iovec. Do flush if iovec is full.
+ *
+ * Return values:
+ * 1 iovec is full and flushed
+ * 0 iovec is not flushed
+ *
+ */
+static int add_to_iovec(QEMUFile *f, const uint8_t *buf, size_t size,
+                        bool may_free)
 {
     /* check for adjacent buffer and coalesce them */
     if (f->iovcnt > 0 && buf == f->iov[f->iovcnt - 1].iov_base +
@@ -400,6 +408,19 @@ static void add_to_iovec(QEMUFile *f, const uint8_t *buf, size_t size,
 
     if (f->iovcnt >= MAX_IOV_SIZE) {
         qemu_fflush(f);
+        return 1;
+    }
+
+    return 0;
+}
+
+static void add_buf_to_iovec(QEMUFile *f, size_t len)
+{
+    if (!add_to_iovec(f, f->buf + f->buf_index, len, false)) {
+        f->buf_index += len;
+        if (f->buf_index == IO_BUF_SIZE) {
+            qemu_fflush(f);
+        }
     }
 }
 
@@ -429,11 +450,7 @@ void qemu_put_buffer(QEMUFile *f, const uint8_t *buf, size_t size)
         }
         memcpy(f->buf + f->buf_index, buf, l);
         f->bytes_xfer += l;
-        add_to_iovec(f, f->buf + f->buf_index, l, false);
-        f->buf_index += l;
-        if (f->buf_index == IO_BUF_SIZE) {
-            qemu_fflush(f);
-        }
+        add_buf_to_iovec(f, l);
         if (qemu_file_get_error(f)) {
             break;
         }
@@ -450,11 +467,7 @@ void qemu_put_byte(QEMUFile *f, int v)
 
     f->buf[f->buf_index] = v;
     f->bytes_xfer++;
-    add_to_iovec(f, f->buf + f->buf_index, 1, false);
-    f->buf_index++;
-    if (f->buf_index == IO_BUF_SIZE) {
-        qemu_fflush(f);
-    }
+    add_buf_to_iovec(f, 1);
 }
 
 void qemu_file_skip(QEMUFile *f, int size)
@@ -760,11 +773,7 @@ ssize_t qemu_put_compression_data(QEMUFile *f, z_stream *stream,
     }
 
     qemu_put_be32(f, blen);
-    add_to_iovec(f, f->buf + f->buf_index, blen, false);
-    f->buf_index += blen;
-    if (f->buf_index == IO_BUF_SIZE) {
-        qemu_fflush(f);
-    }
+    add_buf_to_iovec(f, blen);
     return blen + sizeof(int32_t);
 }
 
