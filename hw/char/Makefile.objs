@@ -13,14 +13,13 @@ common-obj-$(CONFIG_XILINX) += xilinx_uartlite.o
 common-obj-$(CONFIG_XEN) += xen_console.o
 common-obj-$(CONFIG_CADENCE) += cadence_uart.o
 
-obj-$(CONFIG_EXYNOS4) += exynos4210_uart.o
-obj-$(CONFIG_COLDFIRE) += mcf_uart.o
-obj-$(CONFIG_OMAP) += omap_uart.o
-obj-$(CONFIG_SH4) += sh_serial.o
-obj-$(CONFIG_PSERIES) += spapr_vty.o
-obj-$(CONFIG_DIGIC) += digic-uart.o
-obj-$(CONFIG_STM32F2XX_USART) += stm32f2xx_usart.o
-obj-$(CONFIG_RASPI) += bcm2835_aux.o
+common-obj-$(CONFIG_EXYNOS4) += exynos4210_uart.o
+common-obj-$(CONFIG_COLDFIRE) += mcf_uart.o
+common-obj-$(CONFIG_OMAP) += omap_uart.o
+common-obj-$(CONFIG_SH4) += sh_serial.o
+common-obj-$(CONFIG_DIGIC) += digic-uart.o
+common-obj-$(CONFIG_STM32F2XX_USART) += stm32f2xx_usart.o
+common-obj-$(CONFIG_RASPI) += bcm2835_aux.o
 
 common-obj-$(CONFIG_CMSDK_APB_UART) += cmsdk-apb-uart.o
 common-obj-$(CONFIG_ETRAXFS) += etraxfs_ser.o
@@ -33,4 +32,5 @@ common-obj-$(CONFIG_MILKYMIST) += milkymist-uart.o
 common-obj-$(CONFIG_SCLPCONSOLE) += sclpconsole.o sclpconsole-lm.o
 
 obj-$(CONFIG_VIRTIO) += virtio-serial-bus.o
+obj-$(CONFIG_PSERIES) += spapr_vty.o
 obj-$(CONFIG_TERMINAL3270) += terminal3270.o

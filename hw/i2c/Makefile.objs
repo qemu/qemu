@@ -9,5 +9,5 @@ common-obj-$(CONFIG_IMX_I2C) += imx_i2c.o
 common-obj-$(CONFIG_ASPEED_SOC) += aspeed_i2c.o
 common-obj-$(CONFIG_NRF51_SOC) += microbit_i2c.o
 common-obj-$(CONFIG_MPC_I2C) += mpc_i2c.o
-obj-$(CONFIG_OMAP) += omap_i2c.o
-obj-$(CONFIG_PPC4XX) += ppc4xx_i2c.o
+common-obj-$(CONFIG_OMAP) += omap_i2c.o
+common-obj-$(CONFIG_PPC4XX) += ppc4xx_i2c.o

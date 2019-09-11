@@ -8,9 +8,9 @@ common-obj-$(CONFIG_XILINX_AXI) += xilinx_axidma.o
 common-obj-$(CONFIG_ZYNQ_DEVCFG) += xlnx-zynq-devcfg.o
 common-obj-$(CONFIG_ETRAXFS) += etraxfs_dma.o
 common-obj-$(CONFIG_STP2000) += sparc32_dma.o
-obj-$(CONFIG_XLNX_ZYNQMP_ARM) += xlnx_dpdma.o
+common-obj-$(CONFIG_XLNX_ZYNQMP_ARM) += xlnx_dpdma.o
 common-obj-$(CONFIG_XLNX_ZYNQMP_ARM) += xlnx-zdma.o
 
-obj-$(CONFIG_OMAP) += omap_dma.o soc_dma.o
-obj-$(CONFIG_PXA2XX) += pxa2xx_dma.o
+common-obj-$(CONFIG_OMAP) += omap_dma.o soc_dma.o
+common-obj-$(CONFIG_PXA2XX) += pxa2xx_dma.o
 common-obj-$(CONFIG_RASPI) += bcm2835_dma.o

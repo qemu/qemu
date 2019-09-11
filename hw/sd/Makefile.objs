@@ -4,8 +4,8 @@ common-obj-$(CONFIG_SD) += sd.o core.o sdmmc-internal.o
 common-obj-$(CONFIG_SDHCI) += sdhci.o
 common-obj-$(CONFIG_SDHCI_PCI) += sdhci-pci.o
 
-obj-$(CONFIG_MILKYMIST) += milkymist-memcard.o
-obj-$(CONFIG_OMAP) += omap_mmc.o
-obj-$(CONFIG_PXA2XX) += pxa2xx_mmci.o
-obj-$(CONFIG_RASPI) += bcm2835_sdhost.o
-obj-$(CONFIG_ASPEED_SOC) += aspeed_sdhci.o
+common-obj-$(CONFIG_MILKYMIST) += milkymist-memcard.o
+common-obj-$(CONFIG_OMAP) += omap_mmc.o
+common-obj-$(CONFIG_PXA2XX) += pxa2xx_mmci.o
+common-obj-$(CONFIG_RASPI) += bcm2835_sdhost.o
+common-obj-$(CONFIG_ASPEED_SOC) += aspeed_sdhci.o

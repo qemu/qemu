@@ -27,7 +27,6 @@
 #include "qemu/osdep.h"
 #include "qemu/log.h"
 #include "qemu/module.h"
-#include "cpu.h"
 #include "hw/i2c/ppc4xx_i2c.h"
 #include "hw/irq.h"
 

@@ -10,7 +10,7 @@ common-obj-$(CONFIG_ONENAND) += onenand.o
 common-obj-$(CONFIG_NVME_PCI) += nvme.o
 common-obj-$(CONFIG_SWIM) += swim.o
 
-obj-$(CONFIG_SH4) += tc58128.o
+common-obj-$(CONFIG_SH4) += tc58128.o
 
 obj-$(CONFIG_VIRTIO_BLK) += virtio-blk.o
 obj-$(CONFIG_VHOST_USER_BLK) += vhost-user-blk.o
