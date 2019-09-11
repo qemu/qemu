@@ -64,9 +64,13 @@ void qmp_blockdev_create(const char *job_id, BlockdevCreateOptions *options,
     const char *fmt = BlockdevDriver_str(options->driver);
     BlockDriver *drv = bdrv_find_format(fmt);
 
+    if (!drv) {
+        error_setg(errp, "Block driver '%s' not found or not supported", fmt);
+        return;
+    }
+
     /* If the driver is in the schema, we know that it exists. But it may not
      * be whitelisted. */
-    assert(drv);
     if (bdrv_uses_whitelist() && !bdrv_is_whitelisted(drv, false)) {
         error_setg(errp, "Driver is not whitelisted");
         return;
