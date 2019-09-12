@@ -13,6 +13,7 @@ Contents:
    :maxdepth: 2
 
    bitmaps
+   dbus
    live-block-operations
    pr-helper
    qemu-ga

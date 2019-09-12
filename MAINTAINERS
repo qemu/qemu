@@ -2206,6 +2206,11 @@ F: tests/migration-test.c
 F: docs/devel/migration.rst
 F: qapi/migration.json
 
+D-Bus
+M: Marc-André Lureau <marcandre.lureau@redhat.com>
+S: Maintained
+F: docs/interop/dbus.rst
+
 Seccomp
 M: Eduardo Otubo <otubo@redhat.com>
 S: Supported
