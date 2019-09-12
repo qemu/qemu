@@ -308,7 +308,7 @@ int kvm_vm_check_attr(KVMState *s, uint32_t group, uint64_t attr);
 int kvm_device_check_attr(int fd, uint32_t group, uint64_t attr);
 
 /**
- * kvm_device_access - set or get value of a specific vm attribute
+ * kvm_device_access - set or get value of a specific device attribute
  * @fd: The device file descriptor
  * @group: the group
  * @attr: the attribute of that group to set or get
