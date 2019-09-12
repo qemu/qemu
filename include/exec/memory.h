@@ -2201,8 +2201,25 @@ address_space_write_cached(MemoryRegionCache *cache, hwaddr addr,
     }
 }
 
+#ifdef NEED_CPU_H
 /* enum device_endian to MemOp.  */
-MemOp devend_memop(enum device_endian end);
+static inline MemOp devend_memop(enum device_endian end)
+{
+    QEMU_BUILD_BUG_ON(DEVICE_HOST_ENDIAN != DEVICE_LITTLE_ENDIAN &&
+                      DEVICE_HOST_ENDIAN != DEVICE_BIG_ENDIAN);
+
+#if defined(HOST_WORDS_BIGENDIAN) != defined(TARGET_WORDS_BIGENDIAN)
+    /* Swap if non-host endianness or native (target) endianness */
+    return (end == DEVICE_HOST_ENDIAN) ? 0 : MO_BSWAP;
+#else
+    const int non_host_endianness =
+        DEVICE_LITTLE_ENDIAN ^ DEVICE_BIG_ENDIAN ^ DEVICE_HOST_ENDIAN;
+
+    /* In this case, native (target) endianness needs no swap.  */
+    return (end == non_host_endianness) ? MO_BSWAP : 0;
+#endif
+}
+#endif
 
 #endif
 
