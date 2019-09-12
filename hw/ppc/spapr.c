@@ -81,6 +81,8 @@
 #include "hw/mem/memory-device.h"
 #include "hw/ppc/spapr_tpm_proxy.h"
 
+#include "monitor/monitor.h"
+
 #include <libfdt.h>
 
 /* SLOF memory layout:
@@ -4354,6 +4356,8 @@ static void spapr_pic_print_info(InterruptStatsProvider *obj,
     SpaprMachineState *spapr = SPAPR_MACHINE(obj);
 
     spapr->irq->print_info(spapr, mon);
+    monitor_printf(mon, "irqchip: %s\n",
+                   kvm_irqchip_in_kernel() ? "in-kernel" : "emulated");
 }
 
 int spapr_get_vcpu_id(PowerPCCPU *cpu)
