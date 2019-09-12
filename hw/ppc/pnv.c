@@ -953,6 +953,10 @@ static void pnv_chip_power8_realize(DeviceState *dev, Error **errp)
         return;
     }
     pnv_xscom_add_subregion(chip, PNV_XSCOM_OCC_BASE, &chip8->occ.xscom_regs);
+
+    /* OCC SRAM model */
+    memory_region_add_subregion(get_system_memory(), PNV_OCC_COMMON_AREA(chip),
+                                &chip8->occ.sram_regs);
 }
 
 static void pnv_chip_power8e_class_init(ObjectClass *klass, void *data)
@@ -1141,6 +1145,10 @@ static void pnv_chip_power9_realize(DeviceState *dev, Error **errp)
         return;
     }
     pnv_xscom_add_subregion(chip, PNV9_XSCOM_OCC_BASE, &chip9->occ.xscom_regs);
+
+    /* OCC SRAM model */
+    memory_region_add_subregion(get_system_memory(), PNV9_OCC_COMMON_AREA(chip),
+                                &chip9->occ.sram_regs);
 }
 
 static void pnv_chip_power9_class_init(ObjectClass *klass, void *data)
