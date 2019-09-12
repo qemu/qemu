@@ -28,6 +28,10 @@
 #include "hw/core/cpu.h"
 #include "cpu.h"
 #include "exec/exec-all.h"
+#ifndef CONFIG_USER_ONLY
+#include "hw/boards.h"
+#endif
+
 #include "plugin.h"
 
 /*
@@ -58,7 +62,7 @@ QemuOptsList qemu_plugin_opts = {
     },
 };
 
-typedef int (*qemu_plugin_install_func_t)(qemu_plugin_id_t, int, char **);
+typedef int (*qemu_plugin_install_func_t)(qemu_plugin_id_t, const qemu_info_t *, int, char **);
 
 extern struct qemu_plugin_state plugin;
 
@@ -145,7 +149,7 @@ static uint64_t xorshift64star(uint64_t x)
     return x * UINT64_C(2685821657736338717);
 }
 
-static int plugin_load(struct qemu_plugin_desc *desc)
+static int plugin_load(struct qemu_plugin_desc *desc, const qemu_info_t *info)
 {
     qemu_plugin_install_func_t install;
     struct qemu_plugin_ctx *ctx;
@@ -193,7 +197,7 @@ static int plugin_load(struct qemu_plugin_desc *desc)
     }
     QTAILQ_INSERT_TAIL(&plugin.ctxs, ctx, entry);
     ctx->installing = true;
-    rc = install(ctx->id, desc->argc, desc->argv);
+    rc = install(ctx->id, info, desc->argc, desc->argv);
     ctx->installing = false;
     if (rc) {
         error_report("%s: qemu_plugin_install returned error code %d",
@@ -241,11 +245,22 @@ static void plugin_desc_free(struct qemu_plugin_desc *desc)
 int qemu_plugin_load_list(QemuPluginList *head)
 {
     struct qemu_plugin_desc *desc, *next;
+    g_autofree qemu_info_t *info = g_new0(qemu_info_t, 1);
+
+    info->target_name = TARGET_NAME;
+#ifndef CONFIG_USER_ONLY
+    MachineState *ms = MACHINE(qdev_get_machine());
+    info->system_emulation = true;
+    info->system.smp_vcpus = ms->smp.cpus;
+    info->system.max_vcpus = ms->smp.max_cpus;
+#else
+    info->system_emulation = false;
+#endif
 
     QTAILQ_FOREACH_SAFE(desc, head, entry, next) {
         int err;
 
-        err = plugin_load(desc);
+        err = plugin_load(desc, info);
         if (err) {
             return err;
         }

@@ -38,9 +38,27 @@
 
 typedef uint64_t qemu_plugin_id_t;
 
+typedef struct {
+    /* string describing architecture */
+    const char *target_name;
+    /* is this a full system emulation? */
+    bool system_emulation;
+    union {
+        /*
+         * smp_vcpus may change if vCPUs can be hot-plugged, max_vcpus
+         * is the system-wide limit.
+         */
+        struct {
+            int smp_vcpus;
+            int max_vcpus;
+        } system;
+    };
+} qemu_info_t;
+
 /**
  * qemu_plugin_install() - Install a plugin
  * @id: this plugin's opaque ID
+ * @info: a block describing some details about the guest
  * @argc: number of arguments
  * @argv: array of arguments (@argc elements)
  *
@@ -49,10 +67,14 @@ typedef uint64_t qemu_plugin_id_t;
  * Note: Calling qemu_plugin_uninstall() from this function is a bug. To raise
  * an error during install, return !0.
  *
+ * Note: @info is only live during the call. Copy any information we
+ * want to keep.
+ *
  * Note: @argv remains valid throughout the lifetime of the loaded plugin.
  */
-QEMU_PLUGIN_EXPORT int qemu_plugin_install(qemu_plugin_id_t id, int argc,
-                                           char **argv);
+QEMU_PLUGIN_EXPORT int qemu_plugin_install(qemu_plugin_id_t id,
+                                           const qemu_info_t *info,
+                                           int argc, char **argv);
 
 /*
  * Prototypes for the various callback styles we will be registering
