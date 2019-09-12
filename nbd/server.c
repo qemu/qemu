@@ -1297,6 +1297,11 @@ static coroutine_fn int nbd_negotiate(NBDClient *client, Error **errp)
         return ret;
     }
 
+    /* Attach the channel to the same AioContext as the export */
+    if (client->exp && client->exp->ctx) {
+        qio_channel_attach_aio_context(client->ioc, client->exp->ctx);
+    }
+
     assert(!client->optlen);
     trace_nbd_negotiate_success();
 
