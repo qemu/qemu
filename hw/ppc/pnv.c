@@ -860,6 +860,11 @@ static void pnv_chip_power8_instance_init(Object *obj)
                             TYPE_PNV8_OCC, &error_abort, NULL);
     object_property_add_const_link(OBJECT(&chip8->occ), "psi",
                                    OBJECT(&chip8->psi), &error_abort);
+
+    object_initialize_child(obj, "homer",  &chip8->homer, sizeof(chip8->homer),
+                            TYPE_PNV8_HOMER, &error_abort, NULL);
+    object_property_add_const_link(OBJECT(&chip8->homer), "chip", obj,
+                                   &error_abort);
 }
 
 static void pnv_chip_icp_realize(Pnv8Chip *chip8, Error **errp)
@@ -957,6 +962,16 @@ static void pnv_chip_power8_realize(DeviceState *dev, Error **errp)
     /* OCC SRAM model */
     memory_region_add_subregion(get_system_memory(), PNV_OCC_COMMON_AREA(chip),
                                 &chip8->occ.sram_regs);
+
+    /* HOMER */
+    object_property_set_bool(OBJECT(&chip8->homer), true, "realized",
+                             &local_err);
+    if (local_err) {
+        error_propagate(errp, local_err);
+        return;
+    }
+    memory_region_add_subregion(get_system_memory(), PNV_HOMER_BASE(chip),
+                                &chip8->homer.regs);
 }
 
 static void pnv_chip_power8e_class_init(ObjectClass *klass, void *data)
@@ -1039,6 +1054,11 @@ static void pnv_chip_power9_instance_init(Object *obj)
                             TYPE_PNV9_OCC, &error_abort, NULL);
     object_property_add_const_link(OBJECT(&chip9->occ), "psi",
                                    OBJECT(&chip9->psi), &error_abort);
+
+    object_initialize_child(obj, "homer",  &chip9->homer, sizeof(chip9->homer),
+                            TYPE_PNV9_HOMER, &error_abort, NULL);
+    object_property_add_const_link(OBJECT(&chip9->homer), "chip", obj,
+                                   &error_abort);
 }
 
 static void pnv_chip_quad_realize(Pnv9Chip *chip9, Error **errp)
@@ -1149,6 +1169,16 @@ static void pnv_chip_power9_realize(DeviceState *dev, Error **errp)
     /* OCC SRAM model */
     memory_region_add_subregion(get_system_memory(), PNV9_OCC_COMMON_AREA(chip),
                                 &chip9->occ.sram_regs);
+
+    /* HOMER */
+    object_property_set_bool(OBJECT(&chip9->homer), true, "realized",
+                             &local_err);
+    if (local_err) {
+        error_propagate(errp, local_err);
+        return;
+    }
+    memory_region_add_subregion(get_system_memory(), PNV9_HOMER_BASE(chip),
+                                &chip9->homer.regs);
 }
 
 static void pnv_chip_power9_class_init(ObjectClass *klass, void *data)

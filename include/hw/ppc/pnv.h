@@ -26,6 +26,7 @@
 #include "hw/ppc/pnv_lpc.h"
 #include "hw/ppc/pnv_psi.h"
 #include "hw/ppc/pnv_occ.h"
+#include "hw/ppc/pnv_homer.h"
 #include "hw/ppc/pnv_xive.h"
 #include "hw/ppc/pnv_core.h"
 
@@ -76,6 +77,7 @@ typedef struct Pnv8Chip {
     PnvLpcController lpc;
     Pnv8Psi      psi;
     PnvOCC       occ;
+    PnvHomer     homer;
 } Pnv8Chip;
 
 #define TYPE_PNV9_CHIP "pnv9-chip"
@@ -90,6 +92,7 @@ typedef struct Pnv9Chip {
     Pnv9Psi      psi;
     PnvLpcController lpc;
     PnvOCC       occ;
+    PnvHomer     homer;
 
     uint32_t     nr_quads;
     PnvQuad      *quads;
