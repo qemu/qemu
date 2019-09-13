@@ -1,1 +1,1 @@
-tests/qapi-schema/doc-no-symbol.json:3: Expression documentation required
+tests/qapi-schema/doc-no-symbol.json:3: Definition documentation required

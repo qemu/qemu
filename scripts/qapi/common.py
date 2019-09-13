@@ -103,11 +103,11 @@ class QAPISemError(QAPIError):
 
 class QAPIDoc(object):
     """
-    A documentation comment block, either expression or free-form
+    A documentation comment block, either definition or free-form
 
-    Expression documentation blocks consist of
+    Definition documentation blocks consist of
 
-    * a body section: one line naming the expression, followed by an
+    * a body section: one line naming the definition, followed by an
       overview (any number of lines)
 
     * argument sections: a description of each argument (for commands
@@ -200,9 +200,9 @@ class QAPIDoc(object):
         Process a line of documentation text in the body section.
 
         If this a symbol line and it is the section's first line, this
-        is an expression documentation block for that symbol.
+        is a definition documentation block for that symbol.
 
-        If it's an expression documentation block, another symbol line
+        If it's a definition documentation block, another symbol line
         begins the argument section for the argument named by it, and
         a section tag begins an additional section.  Start that
         section and append the line to it.
@@ -220,7 +220,7 @@ class QAPIDoc(object):
             if not self.symbol:
                 raise QAPIParseError(self._parser, "Invalid name")
         elif self.symbol:
-            # This is an expression documentation block
+            # This is a definition documentation block
             if name.startswith('@') and name.endswith(':'):
                 self._append_line = self._append_args_line
                 self._append_args_line(line)
@@ -428,7 +428,7 @@ class QAPISchemaParser(object):
                 pragma = expr['pragma']
                 if not isinstance(pragma, dict):
                     raise QAPISemError(
-                        info, "Value of 'pragma' must be a dictionary")
+                        info, "Value of 'pragma' must be an object")
                 for name, value in pragma.items():
                     self._pragma(name, value, info)
             else:
@@ -437,7 +437,7 @@ class QAPISchemaParser(object):
                 if cur_doc:
                     if not cur_doc.symbol:
                         raise QAPISemError(
-                            cur_doc.info, "Expression documentation required")
+                            cur_doc.info, "Definition documentation required")
                     expr_elem['doc'] = cur_doc
                 self.exprs.append(expr_elem)
             cur_doc = None
@@ -789,7 +789,7 @@ def check_type(info, source, value,
 
     if not isinstance(value, OrderedDict):
         raise QAPISemError(info,
-                           "%s should be a dictionary or type name" % source)
+                           "%s should be an object or type name" % source)
 
     # value is a dictionary, check that each member is okay
     for (key, arg) in value.items():
@@ -971,8 +971,8 @@ def check_enum(expr, info):
                            "Enum '%s' requires a string for 'prefix'" % name)
 
     for member in members:
-        source = "dictionary member of enum '%s'" % name
-        check_known_keys(info, source, member, ['name'], ['if'])
+        check_known_keys(info, "member of enum '%s'" % name, member,
+                         ['name'], ['if'])
         check_if(member, info)
         check_name(info, "Member of enum '%s'" % name, member['name'],
                    enum_member=True)
@@ -1081,7 +1081,7 @@ def check_exprs(exprs):
 
         if not doc and doc_required:
             raise QAPISemError(info,
-                               "Expression missing documentation comment")
+                               "Definition missing documentation comment")
 
         if 'enum' in expr:
             meta = 'enum'
