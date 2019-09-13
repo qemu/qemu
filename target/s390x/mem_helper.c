@@ -528,7 +528,15 @@ static inline void set_address(CPUS390XState *env, int reg, uint64_t address)
     }
 }
 
-static inline uint64_t wrap_length(CPUS390XState *env, uint64_t length)
+static inline uint64_t wrap_length32(CPUS390XState *env, uint64_t length)
+{
+    if (!(env->psw.mask & PSW_MASK_64)) {
+        return (uint32_t)length;
+    }
+    return length;
+}
+
+static inline uint64_t wrap_length31(CPUS390XState *env, uint64_t length)
 {
     if (!(env->psw.mask & PSW_MASK_64)) {
         /* 24-Bit and 31-Bit mode */
@@ -539,7 +547,7 @@ static inline uint64_t wrap_length(CPUS390XState *env, uint64_t length)
 
 static inline uint64_t get_length(CPUS390XState *env, int reg)
 {
-    return wrap_length(env, env->regs[reg]);
+    return wrap_length31(env, env->regs[reg]);
 }
 
 static inline void set_length(CPUS390XState *env, int reg, uint64_t length)
@@ -2378,7 +2386,7 @@ uint32_t HELPER(mvcos)(CPUS390XState *env, uint64_t dest, uint64_t src,
         s390_program_interrupt(env, PGM_PRIVILEGED, 6, ra);
     }
 
-    len = wrap_length(env, len);
+    len = wrap_length32(env, len);
     if (len > 4096) {
         cc = 3;
         len = 4096;
