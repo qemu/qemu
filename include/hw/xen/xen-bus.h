@@ -22,6 +22,8 @@ typedef struct XenDevice {
     DeviceState qdev;
     domid_t frontend_id;
     char *name;
+    struct xs_handle *xsh;
+    XenWatchList *watch_list;
     char *backend_path, *frontend_path;
     enum xenbus_state backend_state, frontend_state;
     Notifier exit;

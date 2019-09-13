@@ -29,6 +29,8 @@ xen_device_backend_changed(const char *type, char *name) "type: %s name: %s"
 xen_device_frontend_state(const char *type, char *name, const char *state) "type: %s name: %s -> %s"
 xen_device_frontend_changed(const char *type, char *name) "type: %s name: %s"
 xen_device_unplug(const char *type, char *name) "type: %s name: %s"
+xen_device_add_watch(const char *type, char *name, const char *node, const char *key) "type: %s name: %s node: %s key: %s"
+xen_device_remove_watch(const char *type, char *name, const char *node, const char *key) "type: %s name: %s node: %s key: %s"
 
 # xen-bus-helper.c
 xs_node_create(const char *node) "%s"

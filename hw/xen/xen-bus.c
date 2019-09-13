@@ -235,11 +235,11 @@ static void watch_list_remove(XenWatchList *watch_list, XenWatch *watch,
 
 static XenWatch *xen_bus_add_watch(XenBus *xenbus, const char *node,
                                    const char *key, XenWatchHandler handler,
-                                   void *opaque, Error **errp)
+                                   Error **errp)
 {
     trace_xen_bus_add_watch(node, key);
 
-    return watch_list_add(xenbus->watch_list, node, key, handler, opaque,
+    return watch_list_add(xenbus->watch_list, node, key, handler, xenbus,
                           errp);
 }
 
@@ -433,7 +433,7 @@ static void xen_bus_realize(BusState *bus, Error **errp)
 
     xenbus->backend_watch =
         xen_bus_add_watch(xenbus, "", /* domain root node */
-                          "backend", xen_bus_enumerate, xenbus, &local_err);
+                          "backend", xen_bus_enumerate, &local_err);
     if (local_err) {
         /* This need not be treated as a hard error so don't propagate */
         error_reportf_err(local_err,
@@ -621,6 +621,31 @@ static void xen_device_backend_changed(void *opaque)
     }
 }
 
+static XenWatch *xen_device_add_watch(XenDevice *xendev, const char *node,
+                                      const char *key,
+                                      XenWatchHandler handler,
+                                      Error **errp)
+{
+    const char *type = object_get_typename(OBJECT(xendev));
+
+    trace_xen_device_add_watch(type, xendev->name, node, key);
+
+    return watch_list_add(xendev->watch_list, node, key, handler, xendev,
+                          errp);
+}
+
+static void xen_device_remove_watch(XenDevice *xendev, XenWatch *watch,
+                                    Error **errp)
+{
+    const char *type = object_get_typename(OBJECT(xendev));
+
+    trace_xen_device_remove_watch(type, xendev->name, watch->node,
+                                  watch->key);
+
+    watch_list_remove(xendev->watch_list, watch, errp);
+}
+
+
 static void xen_device_backend_create(XenDevice *xendev, Error **errp)
 {
     XenBus *xenbus = XEN_BUS(qdev_get_parent_bus(DEVICE(xendev)));
@@ -645,9 +670,9 @@ static void xen_device_backend_create(XenDevice *xendev, Error **errp)
     }
 
     xendev->backend_state_watch =
-        xen_bus_add_watch(xenbus, xendev->backend_path,
-                          "state", xen_device_backend_changed,
-                          xendev, &local_err);
+        xen_device_add_watch(xendev, xendev->backend_path,
+                             "state", xen_device_backend_changed,
+                             &local_err);
     if (local_err) {
         error_propagate_prepend(errp, local_err,
                                 "failed to watch backend state: ");
@@ -655,9 +680,9 @@ static void xen_device_backend_create(XenDevice *xendev, Error **errp)
     }
 
     xendev->backend_online_watch =
-        xen_bus_add_watch(xenbus, xendev->backend_path,
-                          "online", xen_device_backend_changed,
-                          xendev, &local_err);
+        xen_device_add_watch(xendev, xendev->backend_path,
+                             "online", xen_device_backend_changed,
+                             &local_err);
     if (local_err) {
         error_propagate_prepend(errp, local_err,
                                 "failed to watch backend online: ");
@@ -671,12 +696,12 @@ static void xen_device_backend_destroy(XenDevice *xendev)
     Error *local_err = NULL;
 
     if (xendev->backend_online_watch) {
-        xen_bus_remove_watch(xenbus, xendev->backend_online_watch, NULL);
+        xen_device_remove_watch(xendev, xendev->backend_online_watch, NULL);
         xendev->backend_online_watch = NULL;
     }
 
     if (xendev->backend_state_watch) {
-        xen_bus_remove_watch(xenbus, xendev->backend_state_watch, NULL);
+        xen_device_remove_watch(xendev, xendev->backend_state_watch, NULL);
         xendev->backend_state_watch = NULL;
     }
 
@@ -812,8 +837,8 @@ static void xen_device_frontend_create(XenDevice *xendev, Error **errp)
     }
 
     xendev->frontend_state_watch =
-        xen_bus_add_watch(xenbus, xendev->frontend_path, "state",
-                          xen_device_frontend_changed, xendev, &local_err);
+        xen_device_add_watch(xendev, xendev->frontend_path, "state",
+                             xen_device_frontend_changed, &local_err);
     if (local_err) {
         error_propagate_prepend(errp, local_err,
                                 "failed to watch frontend state: ");
@@ -826,7 +851,8 @@ static void xen_device_frontend_destroy(XenDevice *xendev)
     Error *local_err = NULL;
 
     if (xendev->frontend_state_watch) {
-        xen_bus_remove_watch(xenbus, xendev->frontend_state_watch, NULL);
+        xen_device_remove_watch(xendev, xendev->frontend_state_watch,
+                                NULL);
         xendev->frontend_state_watch = NULL;
     }
 
@@ -1122,6 +1148,16 @@ static void xen_device_unrealize(DeviceState *dev, Error **errp)
         xendev->xgth = NULL;
     }
 
+    if (xendev->watch_list) {
+        watch_list_destroy(xendev->watch_list);
+        xendev->watch_list = NULL;
+    }
+
+    if (xendev->xsh) {
+        xs_close(xendev->xsh);
+        xendev->xsh = NULL;
+    }
+
     g_free(xendev->name);
     xendev->name = NULL;
 }
@@ -1163,6 +1199,14 @@ static void xen_device_realize(DeviceState *dev, Error **errp)
     }
 
     trace_xen_device_realize(type, xendev->name);
+
+    xendev->xsh = xs_open(0);
+    if (!xendev->xsh) {
+        error_setg_errno(errp, errno, "failed xs_open");
+        goto unrealize;
+    }
+
+    xendev->watch_list = watch_list_create(xendev->xsh);
 
     xendev->xgth = xengnttab_open(NULL, 0);
     if (!xendev->xgth) {
