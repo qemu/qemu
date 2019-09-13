@@ -23,6 +23,15 @@ enum MyEnum
 object Empty1
 object Empty2
     base Empty1
+object q_obj_Union-base
+    member type: EnumOne optional=False
+object Union
+    base q_obj_Union-base
+    tag type
+    case value1: q_empty
+    case value2: q_empty
+    case value3: q_empty
+    case value4: q_empty
 command user_def_cmd0 Empty2 -> Empty2
    gen=True success_response=True boxed=False oob=False preconfig=False
 enum QEnumTwo

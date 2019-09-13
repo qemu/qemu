@@ -436,8 +436,7 @@ Union types are used to let the user choose between several different
 variants for an object.  There are two flavors: simple (no
 discriminator or base), and flat (both discriminator and base).  A union
 type is defined using a data dictionary as explained in the following
-paragraphs.  The data dictionary for either type of union must not
-be empty.
+paragraphs.  Unions must have at least one branch.
 
 A simple union type defines a mapping from automatic discriminator
 values to data types like in this example:

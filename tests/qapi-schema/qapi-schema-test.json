@@ -25,6 +25,11 @@
 { 'struct': 'Empty1', 'data': { } }
 { 'struct': 'Empty2', 'base': 'Empty1', 'data': { } }
 
+# Likewise for an empty flat union
+{ 'union': 'Union',
+  'base': { 'type': 'EnumOne' }, 'discriminator': 'type',
+  'data': { } }
+
 { 'command': 'user_def_cmd0', 'data': 'Empty2', 'returns': 'Empty2' }
 
 # for testing override of default naming heuristic

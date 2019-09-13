@@ -852,7 +852,7 @@ def check_union(expr, info):
 
     # With no discriminator it is a simple union.
     if discriminator is None:
-        enum_define = None
+        enum_values = members.keys()
         allow_metas = ['built-in', 'union', 'alternate', 'struct', 'enum']
         if base is not None:
             raise QAPISemError(info, "Simple union '%s' must not have a base" %
@@ -885,16 +885,17 @@ def check_union(expr, info):
                                'must not be conditional' %
                                (base, discriminator, name))
         enum_define = enum_types.get(discriminator_value['type'])
-        allow_metas = ['struct']
         # Do not allow string discriminator
         if not enum_define:
             raise QAPISemError(info,
                                "Discriminator '%s' must be of enumeration "
                                "type" % discriminator)
+        enum_values = enum_get_names(enum_define)
+        allow_metas = ['struct']
 
-    # Check every branch; don't allow an empty union
-    if len(members) == 0:
-        raise QAPISemError(info, "Union '%s' cannot have empty 'data'" % name)
+    if (len(enum_values) == 0):
+        raise QAPISemError(info, "Union '%s' has no branches" % name)
+
     for (key, value) in members.items():
         check_name(info, "Member of union '%s'" % name, key)
 
@@ -907,8 +908,8 @@ def check_union(expr, info):
 
         # If the discriminator names an enum type, then all members
         # of 'data' must also be members of the enum type.
-        if enum_define:
-            if key not in enum_get_names(enum_define):
+        if discriminator is not None:
+            if key not in enum_values:
                 raise QAPISemError(info,
                                    "Discriminator value '%s' is not found in "
                                    "enum '%s'"
@@ -1578,7 +1579,6 @@ class QAPISchemaObjectTypeVariants(object):
         assert bool(tag_member) != bool(tag_name)
         assert (isinstance(tag_name, str) or
                 isinstance(tag_member, QAPISchemaObjectTypeMember))
-        assert len(variants) > 0
         for v in variants:
             assert isinstance(v, QAPISchemaObjectTypeVariant)
         self._tag_name = tag_name
