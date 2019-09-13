@@ -1,3 +1,0 @@
-# we don't support full Unicode strings, yet
-# { 'command': 'é' }
-{ 'command': '\u00e9' }
