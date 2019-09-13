@@ -210,10 +210,16 @@ static inline void stl_phys_notdirty(AddressSpace *as, hwaddr addr, uint32_t val
 /* page related stuff */
 
 #ifdef TARGET_PAGE_BITS_VARY
-extern bool target_page_bits_decided;
-extern int target_page_bits;
-#define TARGET_PAGE_BITS ({ assert(target_page_bits_decided); \
-                            target_page_bits; })
+typedef struct {
+    bool decided;
+    int bits;
+} TargetPageBits;
+#if defined(CONFIG_ATTRIBUTE_ALIAS) || !defined(IN_EXEC_VARY)
+extern const TargetPageBits target_page;
+#else
+extern TargetPageBits target_page;
+#endif
+#define TARGET_PAGE_BITS   ({ assert(target_page.decided); target_page.bits; })
 #else
 #define TARGET_PAGE_BITS_MIN TARGET_PAGE_BITS
 #endif
