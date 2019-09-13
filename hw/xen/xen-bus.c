@@ -157,18 +157,60 @@ static void free_watch(XenWatch *watch)
     g_free(watch);
 }
 
-static XenWatch *xen_bus_add_watch(XenBus *xenbus, const char *node,
-                                   const char *key, XenWatchHandler handler,
-                                   void *opaque, Error **errp)
+struct XenWatchList {
+    struct xs_handle *xsh;
+    NotifierList notifiers;
+};
+
+static void watch_list_event(void *opaque)
+{
+    XenWatchList *watch_list = opaque;
+    char **v;
+    const char *token;
+
+    v = xs_check_watch(watch_list->xsh);
+    if (!v) {
+        return;
+    }
+
+    token = v[XS_WATCH_TOKEN];
+
+    notifier_list_notify(&watch_list->notifiers, (void *)token);
+
+    free(v);
+}
+
+static XenWatchList *watch_list_create(struct xs_handle *xsh)
+{
+    XenWatchList *watch_list = g_new0(XenWatchList, 1);
+
+    g_assert(xsh);
+
+    watch_list->xsh = xsh;
+    notifier_list_init(&watch_list->notifiers);
+    qemu_set_fd_handler(xs_fileno(watch_list->xsh), watch_list_event, NULL,
+                        watch_list);
+
+    return watch_list;
+}
+
+static void watch_list_destroy(XenWatchList *watch_list)
+{
+    g_assert(notifier_list_empty(&watch_list->notifiers));
+    qemu_set_fd_handler(xs_fileno(watch_list->xsh), NULL, NULL, NULL);
+    g_free(watch_list);
+}
+
+static XenWatch *watch_list_add(XenWatchList *watch_list, const char *node,
+                                const char *key, XenWatchHandler handler,
+                                void *opaque, Error **errp)
 {
     XenWatch *watch = new_watch(node, key, handler, opaque);
     Error *local_err = NULL;
 
-    trace_xen_bus_add_watch(watch->node, watch->key, watch->token);
+    notifier_list_add(&watch_list->notifiers, &watch->notifier);
 
-    notifier_list_add(&xenbus->watch_notifiers, &watch->notifier);
-
-    xs_node_watch(xenbus->xsh, node, key, watch->token, &local_err);
+    xs_node_watch(watch_list->xsh, node, key, watch->token, &local_err);
     if (local_err) {
         error_propagate(errp, local_err);
 
@@ -181,16 +223,32 @@ static XenWatch *xen_bus_add_watch(XenBus *xenbus, const char *node,
     return watch;
 }
 
-static void xen_bus_remove_watch(XenBus *xenbus, XenWatch *watch,
-                                 Error **errp)
+static void watch_list_remove(XenWatchList *watch_list, XenWatch *watch,
+                              Error **errp)
 {
-    trace_xen_bus_remove_watch(watch->node, watch->key, watch->token);
-
-    xs_node_unwatch(xenbus->xsh, watch->node, watch->key, watch->token,
+    xs_node_unwatch(watch_list->xsh, watch->node, watch->key, watch->token,
                     errp);
 
     notifier_remove(&watch->notifier);
     free_watch(watch);
+}
+
+static XenWatch *xen_bus_add_watch(XenBus *xenbus, const char *node,
+                                   const char *key, XenWatchHandler handler,
+                                   void *opaque, Error **errp)
+{
+    trace_xen_bus_add_watch(node, key);
+
+    return watch_list_add(xenbus->watch_list, node, key, handler, opaque,
+                          errp);
+}
+
+static void xen_bus_remove_watch(XenBus *xenbus, XenWatch *watch,
+                                 Error **errp)
+{
+    trace_xen_bus_remove_watch(watch->node, watch->key);
+
+    watch_list_remove(xenbus->watch_list, watch, errp);
 }
 
 static void xen_bus_backend_create(XenBus *xenbus, const char *type,
@@ -338,35 +396,14 @@ static void xen_bus_unrealize(BusState *bus, Error **errp)
         xenbus->backend_watch = NULL;
     }
 
-    if (!xenbus->xsh) {
-        return;
+    if (xenbus->watch_list) {
+        watch_list_destroy(xenbus->watch_list);
+        xenbus->watch_list = NULL;
     }
 
-    qemu_set_fd_handler(xs_fileno(xenbus->xsh), NULL, NULL, NULL);
-
-    xs_close(xenbus->xsh);
-}
-
-static void xen_bus_watch(void *opaque)
-{
-    XenBus *xenbus = opaque;
-    char **v;
-    const char *token;
-
-    g_assert(xenbus->xsh);
-
-    v = xs_check_watch(xenbus->xsh);
-    if (!v) {
-        return;
+    if (xenbus->xsh) {
+        xs_close(xenbus->xsh);
     }
-
-    token = v[XS_WATCH_TOKEN];
-
-    trace_xen_bus_watch(token);
-
-    notifier_list_notify(&xenbus->watch_notifiers, (void *)token);
-
-    free(v);
 }
 
 static void xen_bus_realize(BusState *bus, Error **errp)
@@ -390,9 +427,7 @@ static void xen_bus_realize(BusState *bus, Error **errp)
         xenbus->backend_id = 0; /* Assume lack of node means dom0 */
     }
 
-    notifier_list_init(&xenbus->watch_notifiers);
-    qemu_set_fd_handler(xs_fileno(xenbus->xsh), xen_bus_watch, NULL,
-                        xenbus);
+    xenbus->watch_list = watch_list_create(xenbus->xsh);
 
     module_call_init(MODULE_INIT_XEN_BACKEND);
 

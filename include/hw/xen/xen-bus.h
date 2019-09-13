@@ -14,6 +14,7 @@
 
 typedef void (*XenWatchHandler)(void *opaque);
 
+typedef struct XenWatchList XenWatchList;
 typedef struct XenWatch XenWatch;
 typedef struct XenEventChannel XenEventChannel;
 
@@ -63,7 +64,7 @@ typedef struct XenBus {
     BusState qbus;
     domid_t backend_id;
     struct xs_handle *xsh;
-    NotifierList watch_notifiers;
+    XenWatchList *watch_list;
     XenWatch *backend_watch;
 } XenBus;
 
