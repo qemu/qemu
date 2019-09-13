@@ -256,4 +256,5 @@ class TestSnapshotDelete(ImageSnapshotTestCase):
         self.assert_qmp(result, 'error/class', 'GenericError')
 
 if __name__ == '__main__':
-    iotests.main(supported_fmts=['qcow2'])
+    iotests.main(supported_fmts=['qcow2'],
+                 supported_protocols=['file'])

@@ -717,4 +717,5 @@ if __name__ == '__main__':
                        iotests.qemu_default_machine)
     # Need to support image creation
     iotests.main(supported_fmts=['vpc', 'parallels', 'qcow', 'vdi', 'qcow2',
-                                 'vmdk', 'raw', 'vhdx', 'qed'])
+                                 'vmdk', 'raw', 'vhdx', 'qed'],
+                 supported_protocols=['file'])

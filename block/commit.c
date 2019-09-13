@@ -216,7 +216,6 @@ static const BlockJobDriver commit_job_driver = {
         .job_type      = JOB_TYPE_COMMIT,
         .free          = block_job_free,
         .user_resume   = block_job_user_resume,
-        .drain         = block_job_drain,
         .run           = commit_run,
         .prepare       = commit_prepare,
         .abort         = commit_abort,

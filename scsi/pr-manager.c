@@ -39,7 +39,6 @@ static int pr_manager_worker(void *opaque)
     int fd = data->fd;
     int r;
 
-    g_free(data);
     trace_pr_manager_run(fd, hdr->cmdp[0], hdr->cmdp[1]);
 
     /* The reference was taken in pr_manager_execute.  */

@@ -130,6 +130,7 @@ echo
 
 # Whether lazy-refcounts was actually enabled can easily be tested: Check if
 # the dirty bit is set after a crash
+_NO_VALGRIND \
 $QEMU_IO \
     -c "reopen -o lazy-refcounts=on,overlap-check=blubb" \
     -c "write -P 0x5a 0 512" \

@@ -425,21 +425,6 @@ void backup_do_checkpoint(BlockJob *job, Error **errp)
     bdrv_set_dirty_bitmap(backup_job->copy_bitmap, 0, backup_job->len);
 }
 
-static void backup_drain(BlockJob *job)
-{
-    BackupBlockJob *s = container_of(job, BackupBlockJob, common);
-
-    /* Need to keep a reference in case blk_drain triggers execution
-     * of backup_complete...
-     */
-    if (s->target) {
-        BlockBackend *target = s->target;
-        blk_ref(target);
-        blk_drain(target);
-        blk_unref(target);
-    }
-}
-
 static BlockErrorAction backup_error_action(BackupBlockJob *job,
                                             bool read, int error)
 {
@@ -588,13 +573,11 @@ static const BlockJobDriver backup_job_driver = {
         .job_type               = JOB_TYPE_BACKUP,
         .free                   = block_job_free,
         .user_resume            = block_job_user_resume,
-        .drain                  = block_job_drain,
         .run                    = backup_run,
         .commit                 = backup_commit,
         .abort                  = backup_abort,
         .clean                  = backup_clean,
-    },
-    .drain                  = backup_drain,
+    }
 };
 
 static int64_t backup_calculate_cluster_size(BlockDriverState *target,

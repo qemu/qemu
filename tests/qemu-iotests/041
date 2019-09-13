@@ -1122,4 +1122,5 @@ class TestOrphanedSource(iotests.QMPTestCase):
         self.assert_qmp(result, 'error/class', 'GenericError')
 
 if __name__ == '__main__':
-    iotests.main(supported_fmts=['qcow2', 'qed'])
+    iotests.main(supported_fmts=['qcow2', 'qed'],
+                 supported_protocols=['file'])
