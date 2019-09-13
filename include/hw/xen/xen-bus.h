@@ -32,7 +32,9 @@ typedef struct XenDevice {
     XenWatch *backend_online_watch;
     xengnttab_handle *xgth;
     bool feature_grant_copy;
+    bool inactive;
     QLIST_HEAD(, XenEventChannel) event_channels;
+    QLIST_ENTRY(XenDevice) list;
 } XenDevice;
 
 typedef char *(*XenDeviceGetName)(XenDevice *xendev, Error **errp);
@@ -68,6 +70,7 @@ typedef struct XenBus {
     struct xs_handle *xsh;
     XenWatchList *watch_list;
     XenWatch *backend_watch;
+    QLIST_HEAD(, XenDevice) inactive_devices;
 } XenBus;
 
 typedef struct XenBusClass {

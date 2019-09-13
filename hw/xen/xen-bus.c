@@ -340,13 +340,18 @@ static void xen_bus_type_enumerate(XenBus *xenbus, const char *type)
     for (i = 0; i < n; i++) {
         char *backend_path = g_strdup_printf("%s/%s", domain_path,
                                              backend[i]);
-        enum xenbus_state backend_state;
+        enum xenbus_state state;
+        unsigned int online;
 
         if (xs_node_scanf(xenbus->xsh, XBT_NULL, backend_path, "state",
-                          NULL, "%u", &backend_state) != 1)
-            backend_state = XenbusStateUnknown;
+                          NULL, "%u", &state) != 1)
+            state = XenbusStateUnknown;
 
-        if (backend_state == XenbusStateInitialising) {
+        if (xs_node_scanf(xenbus->xsh, XBT_NULL, backend_path, "online",
+                          NULL, "%u", &online) != 1)
+            online = 0;
+
+        if (online && state == XenbusStateInitialising) {
             Error *local_err = NULL;
 
             xen_bus_backend_create(xenbus, type, backend[i], backend_path,
@@ -365,9 +370,8 @@ out:
     g_free(domain_path);
 }
 
-static void xen_bus_enumerate(void *opaque)
+static void xen_bus_enumerate(XenBus *xenbus)
 {
-    XenBus *xenbus = opaque;
     char **type;
     unsigned int i, n;
 
@@ -383,6 +387,45 @@ static void xen_bus_enumerate(void *opaque)
     }
 
     free(type);
+}
+
+static void xen_bus_device_cleanup(XenDevice *xendev)
+{
+    const char *type = object_get_typename(OBJECT(xendev));
+    Error *local_err = NULL;
+
+    trace_xen_bus_device_cleanup(type, xendev->name);
+
+    g_assert(!xendev->backend_online);
+
+    if (!xen_backend_try_device_destroy(xendev, &local_err)) {
+        object_unparent(OBJECT(xendev));
+    }
+
+    if (local_err) {
+        error_report_err(local_err);
+    }
+}
+
+static void xen_bus_cleanup(XenBus *xenbus)
+{
+    XenDevice *xendev, *next;
+
+    trace_xen_bus_cleanup();
+
+    QLIST_FOREACH_SAFE(xendev, &xenbus->inactive_devices, list, next) {
+        g_assert(xendev->inactive);
+        QLIST_REMOVE(xendev, list);
+        xen_bus_device_cleanup(xendev);
+    }
+}
+
+static void xen_bus_backend_changed(void *opaque)
+{
+    XenBus *xenbus = opaque;
+
+    xen_bus_enumerate(xenbus);
+    xen_bus_cleanup(xenbus);
 }
 
 static void xen_bus_unrealize(BusState *bus, Error **errp)
@@ -433,7 +476,7 @@ static void xen_bus_realize(BusState *bus, Error **errp)
 
     xenbus->backend_watch =
         xen_bus_add_watch(xenbus, "", /* domain root node */
-                          "backend", xen_bus_enumerate, &local_err);
+                          "backend", xen_bus_backend_changed, &local_err);
     if (local_err) {
         /* This need not be treated as a hard error so don't propagate */
         error_reportf_err(local_err,
@@ -555,9 +598,9 @@ static void xen_device_backend_set_online(XenDevice *xendev, bool online)
  * Tell from the state whether the frontend is likely alive,
  * i.e. it will react to a change of state of the backend.
  */
-static bool xen_device_state_is_active(enum xenbus_state state)
+static bool xen_device_frontend_is_active(XenDevice *xendev)
 {
-    switch (state) {
+    switch (xendev->frontend_state) {
     case XenbusStateInitWait:
     case XenbusStateInitialised:
     case XenbusStateConnected:
@@ -594,30 +637,31 @@ static void xen_device_backend_changed(void *opaque)
      * state to Closing, but there is no active frontend then set the
      * backend state to Closed.
      */
-    if (xendev->backend_state == XenbusStateClosing &&
-        !xen_device_state_is_active(xendev->frontend_state)) {
+    if (state == XenbusStateClosing &&
+        !xen_device_frontend_is_active(xendev)) {
         xen_device_backend_set_state(xendev, XenbusStateClosed);
     }
 
     /*
      * If a backend is still 'online' then we should leave it alone but,
-     * if a backend is not 'online', then the device should be destroyed
-     * once the state is Closed.
+     * if a backend is not 'online', then the device is a candidate
+     * for destruction. Hence add it to the 'inactive' list to be cleaned
+     * by xen_bus_cleanup().
      */
-    if (!xendev->backend_online &&
-        (xendev->backend_state == XenbusStateClosed ||
-         xendev->backend_state == XenbusStateInitialising ||
-         xendev->backend_state == XenbusStateInitWait ||
-         xendev->backend_state == XenbusStateUnknown)) {
-        Error *local_err = NULL;
+    if (!online &&
+        (state == XenbusStateClosed ||  state == XenbusStateInitialising ||
+         state == XenbusStateInitWait || state == XenbusStateUnknown) &&
+        !xendev->inactive) {
+        XenBus *xenbus = XEN_BUS(qdev_get_parent_bus(DEVICE(xendev)));
 
-        if (!xen_backend_try_device_destroy(xendev, &local_err)) {
-            object_unparent(OBJECT(xendev));
-        }
+        xendev->inactive = true;
+        QLIST_INSERT_HEAD(&xenbus->inactive_devices, xendev, list);
 
-        if (local_err) {
-            error_report_err(local_err);
-        }
+        /*
+         * Re-write the state to cause a XenBus backend_watch notification,
+         * resulting in a call to xen_bus_cleanup().
+         */
+        xen_device_backend_printf(xendev, "state", "%u", state);
     }
 }
 
