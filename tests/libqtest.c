@@ -41,6 +41,7 @@ struct QTestState
     int qmp_fd;
     pid_t qemu_pid;  /* our child QEMU process */
     int wstatus;
+    int expected_status;
     bool big_endian;
     bool irq_level[MAX_IRQ];
     GString *rx;
@@ -111,6 +112,11 @@ bool qtest_probe_child(QTestState *s)
     return false;
 }
 
+void qtest_set_expected_status(QTestState *s, int status)
+{
+    s->expected_status = status;
+}
+
 static void kill_qemu(QTestState *s)
 {
     pid_t pid = s->qemu_pid;
@@ -124,24 +130,23 @@ static void kill_qemu(QTestState *s)
     }
 
     /*
-     * We expect qemu to exit with status 0; anything else is
+     * Check whether qemu exited with expected exit status; anything else is
      * fishy and should be logged with as much detail as possible.
      */
     wstatus = s->wstatus;
-    if (wstatus) {
-        if (WIFEXITED(wstatus)) {
-            fprintf(stderr, "%s:%d: kill_qemu() tried to terminate QEMU "
-                    "process but encountered exit status %d\n",
-                    __FILE__, __LINE__, WEXITSTATUS(wstatus));
-        } else if (WIFSIGNALED(wstatus)) {
-            int sig = WTERMSIG(wstatus);
-            const char *signame = strsignal(sig) ?: "unknown ???";
-            const char *dump = WCOREDUMP(wstatus) ? " (core dumped)" : "";
+    if (WIFEXITED(wstatus) && WEXITSTATUS(wstatus) != s->expected_status) {
+        fprintf(stderr, "%s:%d: kill_qemu() tried to terminate QEMU "
+                "process but encountered exit status %d (expected %d)\n",
+                __FILE__, __LINE__, WEXITSTATUS(wstatus), s->expected_status);
+        abort();
+    } else if (WIFSIGNALED(wstatus)) {
+        int sig = WTERMSIG(wstatus);
+        const char *signame = strsignal(sig) ?: "unknown ???";
+        const char *dump = WCOREDUMP(wstatus) ? " (core dumped)" : "";
 
-            fprintf(stderr, "%s:%d: kill_qemu() detected QEMU death "
-                    "from signal %d (%s)%s\n",
-                    __FILE__, __LINE__, sig, signame, dump);
-        }
+        fprintf(stderr, "%s:%d: kill_qemu() detected QEMU death "
+                "from signal %d (%s)%s\n",
+                __FILE__, __LINE__, sig, signame, dump);
         abort();
     }
 }
@@ -246,6 +251,7 @@ QTestState *qtest_init_without_qmp_handshake(const char *extra_args)
     g_test_message("starting QEMU: %s", command);
 
     s->wstatus = 0;
+    s->expected_status = 0;
     s->qemu_pid = fork();
     if (s->qemu_pid == 0) {
         setenv("QEMU_AUDIO_DRV", "none", true);

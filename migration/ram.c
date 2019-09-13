@@ -1112,6 +1112,7 @@ static void *multifd_send_thread(void *opaque)
     rcu_register_thread();
 
     if (multifd_send_initial_packet(p, &local_err) < 0) {
+        ret = -1;
         goto out;
     }
     /* initial packet */
@@ -1179,9 +1180,7 @@ out:
      * who pay attention to me.
      */
     if (ret != 0) {
-        if (flags & MULTIFD_FLAG_SYNC) {
-            qemu_sem_post(&p->sem_sync);
-        }
+        qemu_sem_post(&p->sem_sync);
         qemu_sem_post(&multifd_send_state->channels_ready);
     }
 
@@ -4676,5 +4675,5 @@ static SaveVMHandlers savevm_ram_handlers = {
 void ram_mig_init(void)
 {
     qemu_mutex_init(&XBZRLE.lock);
-    register_savevm_live(NULL, "ram", 0, 4, &savevm_ram_handlers, &ram_state);
+    register_savevm_live("ram", 0, 4, &savevm_ram_handlers, &ram_state);
 }

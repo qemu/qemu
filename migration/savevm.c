@@ -256,6 +256,7 @@ typedef struct SaveState {
     uint32_t target_page_bits;
     uint32_t caps_count;
     MigrationCapability *capabilities;
+    QemuUUID uuid;
 } SaveState;
 
 static SaveState savevm_state = {
@@ -307,6 +308,7 @@ static int configuration_pre_save(void *opaque)
             state->capabilities[j++] = i;
         }
     }
+    state->uuid = qemu_uuid;
 
     return 0;
 }
@@ -464,6 +466,48 @@ static const VMStateDescription vmstate_capabilites = {
     }
 };
 
+static bool vmstate_uuid_needed(void *opaque)
+{
+    return qemu_uuid_set && migrate_validate_uuid();
+}
+
+static int vmstate_uuid_post_load(void *opaque, int version_id)
+{
+    SaveState *state = opaque;
+    char uuid_src[UUID_FMT_LEN + 1];
+    char uuid_dst[UUID_FMT_LEN + 1];
+
+    if (!qemu_uuid_set) {
+        /*
+         * It's warning because user might not know UUID in some cases,
+         * e.g. load an old snapshot
+         */
+        qemu_uuid_unparse(&state->uuid, uuid_src);
+        warn_report("UUID is received %s, but local uuid isn't set",
+                     uuid_src);
+        return 0;
+    }
+    if (!qemu_uuid_is_equal(&state->uuid, &qemu_uuid)) {
+        qemu_uuid_unparse(&state->uuid, uuid_src);
+        qemu_uuid_unparse(&qemu_uuid, uuid_dst);
+        error_report("UUID received is %s and local is %s", uuid_src, uuid_dst);
+        return -EINVAL;
+    }
+    return 0;
+}
+
+static const VMStateDescription vmstate_uuid = {
+    .name = "configuration/uuid",
+    .version_id = 1,
+    .minimum_version_id = 1,
+    .needed = vmstate_uuid_needed,
+    .post_load = vmstate_uuid_post_load,
+    .fields = (VMStateField[]) {
+        VMSTATE_UINT8_ARRAY_V(uuid.data, SaveState, sizeof(QemuUUID), 1),
+        VMSTATE_END_OF_LIST()
+    }
+};
+
 static const VMStateDescription vmstate_configuration = {
     .name = "configuration",
     .version_id = 1,
@@ -478,6 +522,7 @@ static const VMStateDescription vmstate_configuration = {
     .subsections = (const VMStateDescription*[]) {
         &vmstate_target_page_bits,
         &vmstate_capabilites,
+        &vmstate_uuid,
         NULL
     }
 };
@@ -684,8 +729,7 @@ static void savevm_state_handler_insert(SaveStateEntry *nse)
    of the system, so instance_id should be removed/replaced.
    Meanwhile pass -1 as instance_id if you do not already have a clearly
    distinguishing id for all instances of your device class. */
-int register_savevm_live(DeviceState *dev,
-                         const char *idstr,
+int register_savevm_live(const char *idstr,
                          int instance_id,
                          int version_id,
                          const SaveVMHandlers *ops,
@@ -704,26 +748,6 @@ int register_savevm_live(DeviceState *dev,
         se->is_ram = 1;
     }
 
-    if (dev) {
-        char *id = qdev_get_dev_path(dev);
-        if (id) {
-            if (snprintf(se->idstr, sizeof(se->idstr), "%s/", id) >=
-                sizeof(se->idstr)) {
-                error_report("Path too long for VMState (%s)", id);
-                g_free(id);
-                g_free(se);
-
-                return -1;
-            }
-            g_free(id);
-
-            se->compat = g_new0(CompatEntry, 1);
-            pstrcpy(se->compat->idstr, sizeof(se->compat->idstr), idstr);
-            se->compat->instance_id = instance_id == -1 ?
-                         calculate_compat_instance_id(idstr) : instance_id;
-            instance_id = -1;
-        }
-    }
     pstrcat(se->idstr, sizeof(se->idstr), idstr);
 
     if (instance_id == -1) {
@@ -1100,7 +1124,7 @@ void qemu_savevm_state_setup(QEMUFile *f)
         if (!se->ops || !se->ops->save_setup) {
             continue;
         }
-        if (se->ops && se->ops->is_active) {
+        if (se->ops->is_active) {
             if (!se->ops->is_active(se->opaque)) {
                 continue;
             }
@@ -1131,7 +1155,7 @@ int qemu_savevm_state_resume_prepare(MigrationState *s)
         if (!se->ops || !se->ops->resume_prepare) {
             continue;
         }
-        if (se->ops && se->ops->is_active) {
+        if (se->ops->is_active) {
             if (!se->ops->is_active(se->opaque)) {
                 continue;
             }
@@ -1227,7 +1251,7 @@ void qemu_savevm_state_complete_postcopy(QEMUFile *f)
         if (!se->ops || !se->ops->save_live_complete_postcopy) {
             continue;
         }
-        if (se->ops && se->ops->is_active) {
+        if (se->ops->is_active) {
             if (!se->ops->is_active(se->opaque)) {
                 continue;
             }
@@ -1264,7 +1288,7 @@ int qemu_savevm_state_complete_precopy_iterable(QEMUFile *f, bool in_postcopy)
             continue;
         }
 
-        if (se->ops && se->ops->is_active) {
+        if (se->ops->is_active) {
             if (!se->ops->is_active(se->opaque)) {
                 continue;
             }
@@ -1413,7 +1437,7 @@ void qemu_savevm_state_pending(QEMUFile *f, uint64_t threshold_size,
         if (!se->ops || !se->ops->save_live_pending) {
             continue;
         }
-        if (se->ops && se->ops->is_active) {
+        if (se->ops->is_active) {
             if (!se->ops->is_active(se->opaque)) {
                 continue;
             }
@@ -2334,7 +2358,7 @@ static int qemu_loadvm_state_setup(QEMUFile *f)
         if (!se->ops || !se->ops->load_setup) {
             continue;
         }
-        if (se->ops && se->ops->is_active) {
+        if (se->ops->is_active) {
             if (!se->ops->is_active(se->opaque)) {
                 continue;
             }

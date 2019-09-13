@@ -733,7 +733,7 @@ void dirty_bitmap_mig_init(void)
 {
     QSIMPLEQ_INIT(&dirty_bitmap_mig_state.dbms_list);
 
-    register_savevm_live(NULL, "dirty-bitmap", 0, 1,
+    register_savevm_live("dirty-bitmap", 0, 1,
                          &savevm_dirty_bitmap_handlers,
                          &dirty_bitmap_mig_state);
 }

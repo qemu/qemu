@@ -415,6 +415,9 @@
 #
 # @x-ignore-shared: If enabled, QEMU will not migrate shared memory (since 4.0)
 #
+# @validate-uuid: Send the UUID of the source to allow the destination
+#                 to ensure it is the same. (since 4.2)
+#
 # Since: 1.2
 ##
 { 'enum': 'MigrationCapability',
@@ -422,7 +425,7 @@
            'compress', 'events', 'postcopy-ram', 'x-colo', 'release-ram',
            'block', 'return-path', 'pause-before-switchover', 'multifd',
            'dirty-bitmaps', 'postcopy-blocktime', 'late-block-activate',
-           'x-ignore-shared' ] }
+           'x-ignore-shared', 'validate-uuid' ] }
 
 ##
 # @MigrationCapabilityStatus:

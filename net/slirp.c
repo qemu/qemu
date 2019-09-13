@@ -576,7 +576,7 @@ static int net_slirp_init(NetClientState *peer, const char *model,
      * specific version?
      */
     g_assert(slirp_state_version() == 4);
-    register_savevm_live(NULL, "slirp", 0, slirp_state_version(),
+    register_savevm_live("slirp", 0, slirp_state_version(),
                          &savevm_slirp_state, s->slirp);
 
     s->poll_notifier.notify = net_slirp_poll_notify;
