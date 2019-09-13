@@ -8,6 +8,9 @@ ARM_SRC=$(SRC_PATH)/tests/tcg/arm
 # Set search path for all sources
 VPATH 		+= $(ARM_SRC)
 
+# Multiarch Tests
+float_madds: CFLAGS+=-mfpu=neon-vfpv4
+
 # Basic Hello World
 ARM_TESTS = hello-arm
 hello-arm: CFLAGS+=-marm -ffreestanding

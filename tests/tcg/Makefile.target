@@ -55,6 +55,15 @@ diff-out = $(call quiet-command, diff -q $1.out $2 || \
 # $1 = test name, $2 = reason
 skip-test = @printf "  SKIPPED %s on $(TARGET_NAME) because %s\n" $1 $2
 
+# $1 = test name, $2 = reference
+# As above but only diff if reference file exists, otherwise the test
+# passes if it managed to complete with a status of zero
+conditional-diff-out = 							\
+	$(if $(wildcard $2), 						\
+		$(call diff-out,$1,$2), 				\
+		$(call skip-test,"$1 check","no reference"))
+
+
 # Tests we are building
 TESTS=
 
