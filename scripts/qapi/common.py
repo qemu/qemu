@@ -783,9 +783,8 @@ def check_if(expr, info):
         check_if_str(ifcond, info)
 
 
-def check_type(info, source, value, allow_array=False,
-               allow_dict=False, allow_optional=False,
-               allow_metas=[]):
+def check_type(info, source, value,
+               allow_array=False, allow_dict=False, allow_metas=[]):
     global all_names
 
     if value is None:
@@ -821,7 +820,7 @@ def check_type(info, source, value, allow_array=False,
     # value is a dictionary, check that each member is okay
     for (key, arg) in value.items():
         check_name(info, "Member of %s" % source, key,
-                   allow_optional=allow_optional)
+                   allow_optional=True)
         if c_name(key, False) == 'u' or c_name(key, False).startswith('has_'):
             raise QAPISemError(info, "Member of %s uses reserved name '%s'"
                                % (source, key))
@@ -843,14 +842,14 @@ def check_command(expr, info):
     if boxed:
         args_meta += ['union', 'alternate']
     check_type(info, "'data' for command '%s'" % name,
-               expr.get('data'), allow_dict=not boxed, allow_optional=True,
+               expr.get('data'), allow_dict=not boxed,
                allow_metas=args_meta)
     returns_meta = ['union', 'struct']
     if name in returns_whitelist:
         returns_meta += ['built-in', 'alternate', 'enum']
     check_type(info, "'returns' for command '%s'" % name,
                expr.get('returns'), allow_array=True,
-               allow_optional=True, allow_metas=returns_meta)
+               allow_metas=returns_meta)
 
 
 def check_event(expr, info):
@@ -861,7 +860,7 @@ def check_event(expr, info):
     if boxed:
         meta += ['union', 'alternate']
     check_type(info, "'data' for event '%s'" % name,
-               expr.get('data'), allow_dict=not boxed, allow_optional=True,
+               expr.get('data'), allow_dict=not boxed,
                allow_metas=meta)
 
 
@@ -889,7 +888,7 @@ def check_union(expr, info):
     else:
         # The object must have a string or dictionary 'base'.
         check_type(info, "'base' for union '%s'" % name,
-                   base, allow_dict=True, allow_optional=True,
+                   base, allow_dict=True,
                    allow_metas=['struct'])
         if not base:
             raise QAPISemError(info, "Flat union '%s' must have a base"
@@ -1012,7 +1011,7 @@ def check_struct(expr, info):
     features = expr.get('features')
 
     check_type(info, "'data' for struct '%s'" % name, members,
-               allow_dict=True, allow_optional=True)
+               allow_dict=True)
     check_type(info, "'base' for struct '%s'" % name, expr.get('base'),
                allow_metas=['struct'])
 
