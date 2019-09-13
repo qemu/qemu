@@ -589,12 +589,6 @@ static void kvm_s390_flic_realize(DeviceState *dev, Error **errp)
         goto fail;
     }
     flic_state->fd = -1;
-    if (!kvm_check_extension(kvm_state, KVM_CAP_DEVICE_CTRL)) {
-        error_setg_errno(&errp_local, errno, "KVM is missing capability"
-                         " KVM_CAP_DEVICE_CTRL");
-        trace_flic_no_device_api(errno);
-        goto fail;
-    }
 
     cd.type = KVM_DEV_TYPE_FLIC;
     ret = kvm_vm_ioctl(kvm_state, KVM_CREATE_DEVICE, &cd);

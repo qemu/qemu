@@ -75,7 +75,6 @@ xics_ics_simple_eoi(int nr) "ics_eoi: irq 0x%x"
 
 # s390_flic_kvm.c
 flic_create_device(int err) "flic: create device failed %d"
-flic_no_device_api(int err) "flic: no Device Contral API support %d"
 flic_reset_failed(int err) "flic: reset failed %d"
 
 # s390_flic.c
