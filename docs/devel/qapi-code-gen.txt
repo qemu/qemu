@@ -178,14 +178,11 @@ While the C code starts numbering at 0, it is better to use explicit
 comparisons to enum values than implicit comparisons to 0; the C code
 will also include a generated enum member ending in _MAX for tracking
 the size of the enum, useful when using common functions for
-converting between strings and enum values.  Since the wire format
-always passes by name, it is acceptable to reorder or add new
-enumeration members in any location without breaking clients of Client
-JSON Protocol; however, removing enum values would break
-compatibility.  For any struct that has a member that will only contain
-a finite set of string values, using an enum type for that member is
-better than open-coding the member to be type 'str'.
+converting between strings and enum values.
 
+For any struct that has a member that will only contain a finite set
+of string values, using an enum type for that member is better than
+open-coding the member to be type 'str'.
 
 === Struct types ===
 
@@ -202,34 +199,6 @@ name.  An example of a struct is:
 
 The use of '*' as a prefix to the name means the member is optional in
 the corresponding JSON protocol usage.
-
-The default initialization value of an optional argument should not be changed
-between versions of QEMU unless the new default maintains backward
-compatibility to the user-visible behavior of the old default.
-
-With proper documentation, this policy still allows some flexibility; for
-example, documenting that a default of 0 picks an optimal buffer size allows
-one release to declare the optimal size at 512 while another release declares
-the optimal size at 4096 - the user-visible behavior is not the bytes used by
-the buffer, but the fact that the buffer was optimal size.
-
-On input structures (only mentioned in the 'data' side of a command), changing
-from mandatory to optional is safe (older clients will supply the option, and
-newer clients can benefit from the default); changing from optional to
-mandatory is backwards incompatible (older clients may be omitting the option,
-and must continue to work).
-
-On output structures (only mentioned in the 'returns' side of a command),
-changing from mandatory to optional is in general unsafe (older clients may be
-expecting the member, and could crash if it is missing), although it
-can be done if the only way that the optional argument will be omitted
-is when it is triggered by the presence of a new input flag to the
-command that older clients don't know to send.  Changing from optional
-to mandatory is safe.
-
-A structure that is used in both input and output of various commands
-must consider the backwards compatibility constraints of both directions
-of use.
 
 A struct definition can specify another struct as its base.
 In this case, the members of the base type are included as top-level members
@@ -1035,6 +1004,66 @@ SchemaInfo.
 As explained above, type names are not part of the wire ABI.  Not even
 the names of built-in types.  Clients should examine member
 "json-type" instead of hard-coding names of built-in types.
+
+
+== Compatibility considerations ==
+
+Maintaining backward compatibility at the Client JSON Protocol level
+while evolving the schema requires some care.  This section is about
+syntactic compatibility, which is necessary, but not sufficient, for
+actual compatibility.
+
+Clients send commands with argument data, and receive command
+responses with return data and events with event data.
+
+Adding opt-in functionality to the send direction is backwards
+compatible: adding commands, optional arguments, enumeration values,
+union and alternate branches; turning an argument type into an
+alternate of that type; making mandatory arguments optional.  Clients
+oblivious of the new functionality continue to work.
+
+Incompatible changes include removing commands, command arguments,
+enumeration values, union and alternate branches, adding mandatory
+command arguments, and making optional arguments mandatory.
+
+The specified behavior of an absent optional argument should remain
+the same.  With proper documentation, this policy still allows some
+flexibility; for example, when an optional 'buffer-size' argument is
+specified to default to a sensible buffer size, the actual default
+value can still be changed.  The specified default behavior is not the
+exact size of the buffer, only that the default size is sensible.
+
+Adding functionality to the receive direction is generally backwards
+compatible: adding events, adding return and event data members.
+Clients are expected to ignore the ones they don't know.
+
+Removing "unreachable" stuff like events that can't be triggered
+anymore, optional return or event data members that can't be sent
+anymore, and return or event data member (enumeration) values that
+can't be sent anymore makes no difference to clients, except for
+introspection.  The latter can conceivably confuse clients, so tread
+carefully.
+
+Incompatible changes include removing return and event data members.
+
+Any change to a command definition's 'data' or one of the types used
+there (recursively) needs to consider send direction compatibility.
+
+Any change to a command definition's 'return', an event definition's
+'data', or one of the types used there (recursively) needs to consider
+receive direction compatibility.
+
+Any change to types used in both contexts need to consider both.
+
+Members of enumeration types, complex types and alternate types may be
+reordered freely.  For enumerations and alternate types, this doesn't
+affect the wire encoding.  For complex types, this might make the
+implementation emit JSON object members in a different order, which
+the Client JSON Protocol permits.
+
+Since type names are not visible in the Client JSON Protocol, types
+may be freely renamed.  Even certain refactorings are invisible, such
+as splitting members from one type into a common base type.
 
 
 == Code generation ==
