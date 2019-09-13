@@ -16,65 +16,54 @@ well as the QEMU Guest Agent (QGA) for communicating with the guest.
 The remainder of this document uses "Client JSON Protocol" when
 referring to the wire contents of a QMP or QGA connection.
 
-To map Client JSON Protocol interfaces to the native C QAPI
-implementations, a JSON-based schema is used to define types and
-function signatures, and a set of scripts is used to generate types,
-signatures, and marshaling/dispatch code. This document will describe
-how the schemas, scripts, and resulting code are used.
+To map between Client JSON Protocol interfaces and the native C API,
+we generate C code from a QAPI schema.  This document describes the
+QAPI schema language, and how it gets mapped to the Client JSON
+Protocol and to C.  It additionally provides guidance on maintaining
+Client JSON Protocol compatibility.
 
 
-== QMP/Guest agent schema ==
+== The QAPI schema language ==
 
-A QAPI schema file is designed to be loosely based on JSON
-(http://www.ietf.org/rfc/rfc8259.txt) with changes for quoting style
-and the use of comments; a QAPI schema file is then parsed by a python
-code generation program.  A valid QAPI schema consists of a series of
-top-level expressions, with no commas between them.  Where
-dictionaries (JSON objects) are used, they are parsed as python
-OrderedDicts so that ordering is preserved (for predictable layout of
-generated C structs and parameter lists).  Ordering doesn't matter
-between top-level expressions or the keys within an expression, but
-does matter within dictionary values for 'data' and 'returns' members
-of a single expression.  QAPI schema input is written using 'single
-quotes' instead of JSON's "double quotes" (in contrast, Client JSON
-Protocol uses no comments, and while input accepts 'single quotes' as
-an extension, output is strict JSON using only "double quotes").  As
-in JSON, trailing commas are not permitted in arrays or dictionaries.
-Input must be ASCII (although QMP supports full Unicode strings, the
-QAPI parser does not).  At present, there is no place where a QAPI
-schema requires the use of JSON numbers or null.
+The QAPI schema defines the Client JSON Protocol's commands and
+events, as well as types used by them.  Forward references are
+allowed.
+
+It is permissible for the schema to contain additional types not used
+by any commands or events, for the side effect of generated C code
+used internally.
+
+There are several kinds of types: simple types (a number of built-in
+types, such as 'int' and 'str'; as well as enumerations), arrays,
+complex types (structs and two flavors of unions), and alternate types
+(a choice between other types).
 
 
-=== Comments ===
+=== Schema syntax ===
 
-Comments are allowed; anything between an unquoted # and the following
-newline is ignored.
+Syntax is loosely based on JSON (http://www.ietf.org/rfc/rfc8259.txt).
+Differences:
 
+* Comments: start with a hash character (#) that is not part of a
+  string, and extend to the end of the line.
 
-=== Schema overview ===
+* Strings are enclosed in 'single quotes', not "double quotes".
 
-The schema sets up a series of types, as well as commands and events
-that will use those types.  Forward references are allowed: the parser
-scans in two passes, where the first pass learns all type names, and
-the second validates the schema and generates the code.  This allows
-the definition of complex structs that can have mutually recursive
-types, and allows for indefinite nesting of Client JSON Protocol that
-satisfies the schema.  A type name should not be defined more than
-once.  It is permissible for the schema to contain additional types
-not used by any commands or events in the Client JSON Protocol, for
-the side effect of generated C code used internally.
+* Strings are restricted to printable ASCII, and escape sequences to
+  just '\\'.
 
-There are eight top-level expressions recognized by the parser:
-'include', 'pragma', 'command', 'struct', 'enum', 'union',
-'alternate', and 'event'.  There are several groups of types: simple
-types (a number of built-in types, such as 'int' and 'str'; as well as
-enumerations), complex types (structs and two flavors of unions), and
-alternate types (a choice between other types).  The 'command' and
-'event' expressions can refer to existing types by name, or list an
-anonymous type as a dictionary. Listing a type name inside an array
-refers to a single-dimension array of that type; multi-dimension
-arrays are not directly supported (although an array of a complex
-struct that contains an array member is possible).
+* Numbers are not supported.
+
+A QAPI schema consists of a series of top-level expressions (JSON
+objects).  Code and documentation is generated in schema definition
+order.  Code order should not matter.
+
+The order of keys within JSON objects does not matter unless
+explicitly noted.
+
+There are eight kinds of top-level expressions: 'include', 'pragma',
+'command', 'struct', 'enum', 'union', 'alternate', and 'event'.  These
+are discussed in detail below.
 
 In the rest of this document, usage lines are given for each
 expression type, with literal strings written in lower case and
