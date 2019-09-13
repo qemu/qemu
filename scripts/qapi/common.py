@@ -515,6 +515,7 @@ class QAPISchemaParser(object):
             elif self.tok in '{}:,[]':
                 return
             elif self.tok == "'":
+                # Note: we accept only printable ASCII
                 string = ''
                 esc = False
                 while True:
@@ -523,17 +524,9 @@ class QAPISchemaParser(object):
                     if ch == '\n':
                         raise QAPIParseError(self, 'Missing terminating "\'"')
                     if esc:
-                        if ch == 'b':
-                            string += '\b'
-                        elif ch == 'f':
-                            string += '\f'
-                        elif ch == 'n':
-                            string += '\n'
-                        elif ch == 'r':
-                            string += '\r'
-                        elif ch == 't':
-                            string += '\t'
-                        elif ch == 'u':
+                        # Note: we don't recognize escape sequences
+                        # for control characters
+                        if ch == 'u':
                             value = 0
                             for _ in range(0, 4):
                                 ch = self.src[self.cursor]
@@ -552,20 +545,21 @@ class QAPISchemaParser(object):
                                                      'For now, \\u escape '
                                                      'only supports non-zero '
                                                      'values up to \\u007f')
-                            string += chr(value)
-                        elif ch in '\\/\'"':
-                            string += ch
-                        else:
+                            ch = chr(value)
+                        elif ch not in '\\/\'"':
                             raise QAPIParseError(self,
                                                  "Unknown escape \\%s" % ch)
                         esc = False
                     elif ch == '\\':
                         esc = True
+                        continue
                     elif ch == "'":
                         self.val = string
                         return
-                    else:
-                        string += ch
+                    if ord(ch) < 32 or ord(ch) >= 127:
+                        raise QAPIParseError(
+                            self, "Funny character in string")
+                    string += ch
             elif self.src.startswith('true', self.pos):
                 self.val = True
                 self.cursor += 3
