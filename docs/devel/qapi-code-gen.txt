@@ -117,9 +117,9 @@ Example:
 
 ==== Expression documentation ====
 
-Each expression that isn't an include directive may be preceded by a
-documentation block.  Such blocks are called expression documentation
-blocks.
+Expressions other than include and pragma directives may be preceded
+by a documentation block.  Such blocks are called expression
+documentation blocks.
 
 When documentation is required (see pragma 'doc-required'), expression
 documentation blocks are mandatory.
@@ -243,8 +243,9 @@ underscore.
 
 Event names should be ALL_CAPS with words separated by underscore.
 
-Member names starting with 'has-' or 'has_' are reserved for the
-generator, which uses them for tracking optional members.
+Member name 'u' and names starting with 'has-' or 'has_' are reserved
+for the generator, which uses them for unions and for tracking
+optional members.
 
 Any name (command, event, type, member, or enum value) beginning with
 "x-" is marked experimental, and may be withdrawn or changed
@@ -460,15 +461,14 @@ discriminator value, as in these examples:
 
 The generated C code uses a struct containing a union. Additionally,
 an implicit C enum 'NameKind' is created, corresponding to the union
-'Name', for accessing the various branches of the union.  No branch of
-the union can be named 'max', as this would collide with the implicit
-enum.  The value for each branch can be of any type.
+'Name', for accessing the various branches of the union.  The value
+for each branch can be of any type.
 
 A flat union definition avoids nesting on the wire, and specifies a
 set of common members that occur in all variants of the union.  The
 'base' key must specify either a type name (the type must be a
 struct, not a union), or a dictionary representing an anonymous type.
-All branches of the union must be complex types, and the top-level
+All branches of the union must be struct types, and the top-level
 members of the union dictionary on the wire will be combination of
 members from both the base type and the appropriate branch type (when
 merging two dictionaries, there must be no keys in common).  The
@@ -578,8 +578,8 @@ The 'returns' member describes what will appear in the "return" member
 of a Client JSON Protocol reply on successful completion of a command.
 The member is optional from the command declaration; if absent, the
 "return" member will be an empty dictionary.  If 'returns' is present,
-it must be the string name of a complex or built-in type, a
-one-element array containing the name of a complex or built-in type.
+it must be the string name of a complex type, or a
+one-element array containing the name of a complex type.
 To return anything else, you have to list the command in pragma
 'returns-whitelist'.  If you do this, the command cannot be extended
 to return additional information in the future.  Use of
@@ -691,13 +691,11 @@ started with --preconfig.
 Usage: { 'event': STRING, '*data': COMPLEX-TYPE-NAME-OR-DICT,
          '*boxed': true }
 
-Events are defined with the keyword 'event'.  It is not allowed to
-name an event 'MAX', since the generator also produces a C enumeration
-of all event names with a generated _MAX value at the end.  When
-'data' is also specified, additional info will be included in the
-event, with similar semantics to a 'struct' expression.  Finally there
-will be C API generated in qapi-events.h; when called by QEMU code, a
-message with timestamp will be emitted on the wire.
+Events are defined with the keyword 'event'.  When 'data' is also
+specified, additional info will be included in the event, with similar
+semantics to a 'struct' expression.  Finally there will be C API
+generated in qapi-events.h; when called by QEMU code, a message with
+timestamp will be emitted on the wire.
 
 An example event is:
 
