@@ -221,6 +221,8 @@ command boxed-struct UserDefZero -> None
    gen=True success_response=True boxed=True oob=False preconfig=False
 command boxed-union UserDefListUnion -> None
    gen=True success_response=True boxed=True oob=False preconfig=False
+command boxed-empty Empty1 -> None
+   gen=True success_response=True boxed=True oob=False preconfig=False
 command test-flags-command None -> None
    gen=True success_response=True boxed=False oob=True preconfig=True
 object UserDefOptions
@@ -253,6 +255,8 @@ event EVENT_D q_obj_EVENT_D-arg
 event EVENT_E UserDefZero
    boxed=True
 event EVENT_F UserDefFlatUnion
+   boxed=True
+event EVENT_G Empty1
    boxed=True
 enum __org.qemu_x-Enum
     member __org.qemu_x-value

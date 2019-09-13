@@ -311,7 +311,6 @@ qapi-schema += args-array-empty.json
 qapi-schema += args-array-unknown.json
 qapi-schema += args-bad-boxed.json
 qapi-schema += args-boxed-anon.json
-qapi-schema += args-boxed-empty.json
 qapi-schema += args-boxed-string.json
 qapi-schema += args-int.json
 qapi-schema += args-invalid.json

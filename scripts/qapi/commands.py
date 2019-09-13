@@ -30,7 +30,7 @@ def gen_call(name, arg_type, boxed, ret_type):
 
     argstr = ''
     if boxed:
-        assert arg_type and not arg_type.is_empty()
+        assert arg_type
         argstr = '&arg, '
     elif arg_type:
         assert not arg_type.variants
@@ -96,7 +96,7 @@ def gen_marshal_decl(name):
 
 
 def gen_marshal(name, arg_type, boxed, ret_type):
-    have_args = arg_type and not arg_type.is_empty()
+    have_args = boxed or (arg_type and not arg_type.is_empty())
 
     ret = mcgen('''
 

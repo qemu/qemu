@@ -1687,12 +1687,7 @@ class QAPISchemaCommand(QAPISchemaEntity):
             self.arg_type = schema.lookup_type(self._arg_type_name)
             assert isinstance(self.arg_type, QAPISchemaObjectType)
             self.arg_type.check(schema)
-            if self.boxed:
-                if self.arg_type.is_empty():
-                    raise QAPISemError(self.info,
-                                       "Cannot use 'boxed' with empty type")
-            else:
-                assert not self.arg_type.variants
+            assert not self.arg_type.variants or self.boxed
         elif self.boxed:
             raise QAPISemError(self.info, "Use of 'boxed' requires 'data'")
         if self._ret_type_name:
@@ -1721,12 +1716,7 @@ class QAPISchemaEvent(QAPISchemaEntity):
             self.arg_type = schema.lookup_type(self._arg_type_name)
             assert isinstance(self.arg_type, QAPISchemaObjectType)
             self.arg_type.check(schema)
-            if self.boxed:
-                if self.arg_type.is_empty():
-                    raise QAPISemError(self.info,
-                                       "Cannot use 'boxed' with empty type")
-            else:
-                assert not self.arg_type.variants
+            assert not self.arg_type.variants or self.boxed
         elif self.boxed:
             raise QAPISemError(self.info, "Use of 'boxed' requires 'data'")
 

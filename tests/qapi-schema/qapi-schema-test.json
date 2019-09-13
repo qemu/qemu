@@ -149,6 +149,7 @@
 { 'command': 'guest-sync', 'data': { 'arg': 'any' }, 'returns': 'any' }
 { 'command': 'boxed-struct', 'boxed': true, 'data': 'UserDefZero' }
 { 'command': 'boxed-union', 'data': 'UserDefListUnion', 'boxed': true }
+{ 'command': 'boxed-empty', 'boxed': true, 'data': 'Empty1' }
 
 # Smoke test on out-of-band and allow-preconfig-test
 { 'command': 'test-flags-command', 'allow-oob': true, 'allow-preconfig': true }
@@ -181,6 +182,7 @@
   'data': { 'a' : 'EventStructOne', 'b' : 'str', '*c': 'str', '*enum3': 'EnumOne' } }
 { 'event': 'EVENT_E', 'boxed': true, 'data': 'UserDefZero' }
 { 'event': 'EVENT_F', 'boxed': true, 'data': 'UserDefFlatUnion' }
+{ 'event': 'EVENT_G', 'boxed': true, 'data': 'Empty1' }
 
 # test that we correctly compile downstream extensions, as well as munge
 # ticklish names
