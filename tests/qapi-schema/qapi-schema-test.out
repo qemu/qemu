@@ -252,7 +252,7 @@ event EVENT_D q_obj_EVENT_D-arg
    boxed=False
 event EVENT_E UserDefZero
    boxed=True
-event EVENT_F UserDefAlternate
+event EVENT_F UserDefFlatUnion
    boxed=True
 enum __org.qemu_x-Enum
     member __org.qemu_x-value

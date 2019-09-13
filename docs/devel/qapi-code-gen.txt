@@ -612,9 +612,9 @@ the command.  Normally, 'data' is a dictionary for an anonymous type,
 or names a struct type (possibly empty, but not a union), and its
 members are passed as separate arguments to this function.  If the
 command definition includes a key 'boxed' with the boolean value true,
-then 'data' is instead the name of any non-empty complex type
-(struct, union, or alternate), and a pointer to that QAPI type is
-passed as a single argument.
+then 'data' is instead the name of any non-empty complex type (struct
+or union), and a pointer to that QAPI type is passed as a single
+argument.
 
 The generator also emits a marshalling function that extracts
 arguments for the user's function out of an input QDict, calls the
@@ -714,9 +714,9 @@ The generator emits a function to send the event.  Normally, 'data' is
 a dictionary for an anonymous type, or names a struct type (possibly
 empty, but not a union), and its members are passed as separate
 arguments to this function.  If the event definition includes a key
-'boxed' with the boolean value true, then 'data' is instead the name of
-any non-empty complex type (struct, union, or alternate), and a
-pointer to that QAPI type is passed as a single argument.
+'boxed' with the boolean value true, then 'data' is instead the name
+of any non-empty complex type (struct or union), and a pointer to that
+QAPI type is passed as a single argument.
 
 
 === Features ===

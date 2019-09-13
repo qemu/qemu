@@ -840,7 +840,7 @@ def check_command(expr, info):
 
     args_meta = ['struct']
     if boxed:
-        args_meta += ['union', 'alternate']
+        args_meta += ['union']
     check_type(info, "'data' for command '%s'" % name,
                expr.get('data'), allow_dict=not boxed,
                allow_metas=args_meta)
@@ -858,7 +858,7 @@ def check_event(expr, info):
 
     meta = ['struct']
     if boxed:
-        meta += ['union', 'alternate']
+        meta += ['union']
     check_type(info, "'data' for event '%s'" % name,
                expr.get('data'), allow_dict=not boxed,
                allow_metas=meta)
@@ -1690,9 +1690,6 @@ class QAPISchemaAlternateType(QAPISchemaType):
         visitor.visit_alternate_type(self.name, self.info, self.ifcond,
                                      self.variants)
 
-    def is_empty(self):
-        return False
-
 
 class QAPISchemaCommand(QAPISchemaEntity):
     def __init__(self, name, info, doc, ifcond, arg_type, ret_type,
@@ -1714,15 +1711,13 @@ class QAPISchemaCommand(QAPISchemaEntity):
         QAPISchemaEntity.check(self, schema)
         if self._arg_type_name:
             self.arg_type = schema.lookup_type(self._arg_type_name)
-            assert (isinstance(self.arg_type, QAPISchemaObjectType) or
-                    isinstance(self.arg_type, QAPISchemaAlternateType))
+            assert isinstance(self.arg_type, QAPISchemaObjectType)
             self.arg_type.check(schema)
             if self.boxed:
                 if self.arg_type.is_empty():
                     raise QAPISemError(self.info,
                                        "Cannot use 'boxed' with empty type")
             else:
-                assert not isinstance(self.arg_type, QAPISchemaAlternateType)
                 assert not self.arg_type.variants
         elif self.boxed:
             raise QAPISemError(self.info, "Use of 'boxed' requires 'data'")
@@ -1750,15 +1745,13 @@ class QAPISchemaEvent(QAPISchemaEntity):
         QAPISchemaEntity.check(self, schema)
         if self._arg_type_name:
             self.arg_type = schema.lookup_type(self._arg_type_name)
-            assert (isinstance(self.arg_type, QAPISchemaObjectType) or
-                    isinstance(self.arg_type, QAPISchemaAlternateType))
+            assert isinstance(self.arg_type, QAPISchemaObjectType)
             self.arg_type.check(schema)
             if self.boxed:
                 if self.arg_type.is_empty():
                     raise QAPISemError(self.info,
                                        "Cannot use 'boxed' with empty type")
             else:
-                assert not isinstance(self.arg_type, QAPISchemaAlternateType)
                 assert not self.arg_type.variants
         elif self.boxed:
             raise QAPISemError(self.info, "Use of 'boxed' requires 'data'")

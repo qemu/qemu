@@ -180,7 +180,7 @@
 { 'event': 'EVENT_D',
   'data': { 'a' : 'EventStructOne', 'b' : 'str', '*c': 'str', '*enum3': 'EnumOne' } }
 { 'event': 'EVENT_E', 'boxed': true, 'data': 'UserDefZero' }
-{ 'event': 'EVENT_F', 'boxed': true, 'data': 'UserDefAlternate' }
+{ 'event': 'EVENT_F', 'boxed': true, 'data': 'UserDefFlatUnion' }
 
 # test that we correctly compile downstream extensions, as well as munge
 # ticklish names
