@@ -920,11 +920,9 @@ def check_alternate(expr, info):
     members = expr['data']
     types_seen = {}
 
-    # Check every branch; require at least two branches
-    if len(members) < 2:
+    if len(members) == 0:
         raise QAPISemError(info,
-                           "Alternate '%s' should have at least two branches "
-                           "in 'data'" % name)
+                           "Alternate '%s' cannot have empty 'data'" % name)
     for (key, value) in members.items():
         check_name(info, "Member of alternate '%s'" % name, key)
         check_known_keys(info,
