@@ -3017,11 +3017,35 @@ static void qio_channel_rdma_set_aio_fd_handler(QIOChannel *ioc,
     }
 }
 
+struct rdma_close_rcu {
+    struct rcu_head rcu;
+    RDMAContext *rdmain;
+    RDMAContext *rdmaout;
+};
+
+/* callback from qio_channel_rdma_close via call_rcu */
+static void qio_channel_rdma_close_rcu(struct rdma_close_rcu *rcu)
+{
+    if (rcu->rdmain) {
+        qemu_rdma_cleanup(rcu->rdmain);
+    }
+
+    if (rcu->rdmaout) {
+        qemu_rdma_cleanup(rcu->rdmaout);
+    }
+
+    g_free(rcu->rdmain);
+    g_free(rcu->rdmaout);
+    g_free(rcu);
+}
+
 static int qio_channel_rdma_close(QIOChannel *ioc,
                                   Error **errp)
 {
     QIOChannelRDMA *rioc = QIO_CHANNEL_RDMA(ioc);
     RDMAContext *rdmain, *rdmaout;
+    struct rdma_close_rcu *rcu = g_new(struct rdma_close_rcu, 1);
+
     trace_qemu_rdma_close();
 
     rdmain = rioc->rdmain;
@@ -3034,18 +3058,9 @@ static int qio_channel_rdma_close(QIOChannel *ioc,
         atomic_rcu_set(&rioc->rdmaout, NULL);
     }
 
-    synchronize_rcu();
-
-    if (rdmain) {
-        qemu_rdma_cleanup(rdmain);
-    }
-
-    if (rdmaout) {
-        qemu_rdma_cleanup(rdmaout);
-    }
-
-    g_free(rdmain);
-    g_free(rdmaout);
+    rcu->rdmain = rdmain;
+    rcu->rdmaout = rdmaout;
+    call_rcu(rcu, qio_channel_rdma_close_rcu, rcu);
 
     return 0;
 }
