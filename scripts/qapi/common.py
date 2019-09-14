@@ -672,26 +672,6 @@ def find_alternate_member_qtype(qapi_type):
     return None
 
 
-# Return the discriminator enum define if discriminator is specified as an
-# enum type, otherwise return None.
-def discriminator_find_enum_define(expr):
-    base = expr.get('base')
-    discriminator = expr.get('discriminator')
-
-    if not (discriminator and base):
-        return None
-
-    base_members = find_base_members(base)
-    if not base_members:
-        return None
-
-    discriminator_value = base_members.get(discriminator)
-    if not discriminator_value:
-        return None
-
-    return enum_types.get(discriminator_value['type'])
-
-
 # Names must be letters, numbers, -, and _.  They must start with letter,
 # except for downstream extensions which must start with __RFQDN_.
 # Dots are only valid in the downstream extension prefix.
@@ -722,7 +702,7 @@ def check_name(info, source, name, allow_optional=False,
         raise QAPISemError(info, "%s uses invalid name '%s'" % (source, name))
 
 
-def add_name(name, info, meta, implicit=False):
+def add_name(name, info, meta):
     global all_names
     check_name(info, "'%s'" % meta, name)
     # FIXME should reject names that differ only in '_' vs. '.'
@@ -730,7 +710,7 @@ def add_name(name, info, meta, implicit=False):
     if name in all_names:
         raise QAPISemError(info, "%s '%s' is already defined"
                            % (all_names[name], name))
-    if not implicit and (name.endswith('Kind') or name.endswith('List')):
+    if name.endswith('Kind') or name.endswith('List'):
         raise QAPISemError(info, "%s '%s' should not end in '%s'"
                            % (meta, name, name[-4:]))
     all_names[name] = meta
@@ -1137,21 +1117,6 @@ def check_exprs(exprs):
         if doc and doc.symbol != name:
             raise QAPISemError(info, "Definition of '%s' follows documentation"
                                " for '%s'" % (name, doc.symbol))
-
-    # Try again for hidden UnionKind enum
-    for expr_elem in exprs:
-        expr = expr_elem['expr']
-
-        if 'include' in expr:
-            continue
-        if 'union' in expr and not discriminator_find_enum_define(expr):
-            name = '%sKind' % expr['union']
-        elif 'alternate' in expr:
-            name = '%sKind' % expr['alternate']
-        else:
-            continue
-        enum_types[name] = {'enum': name}
-        add_name(name, info, 'enum', implicit=True)
 
     # Validate that exprs make sense
     for expr_elem in exprs:
