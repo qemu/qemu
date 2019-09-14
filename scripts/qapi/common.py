@@ -214,7 +214,7 @@ class QAPIDoc(object):
         # recognized, and get silently treated as ordinary text
         if not self.symbol and not self.body.text and line.startswith('@'):
             if not line.endswith(':'):
-                raise QAPIParseError(self._parser, "Line should end with :")
+                raise QAPIParseError(self._parser, "Line should end with ':'")
             self.symbol = line[1:-1]
             # FIXME invalid names other than the empty string aren't flagged
             if not self.symbol:
@@ -470,7 +470,7 @@ class QAPISchemaParser(object):
             else:
                 fobj = open(incl_fname, 'r')
         except IOError as e:
-            raise QAPISemError(info, '%s: %s' % (e.strerror, incl_fname))
+            raise QAPISemError(info, "%s: %s" % (e.strerror, incl_fname))
         return QAPISchemaParser(fobj, previously_included, info)
 
     def _pragma(self, name, value, info):
@@ -522,7 +522,7 @@ class QAPISchemaParser(object):
                     ch = self.src[self.cursor]
                     self.cursor += 1
                     if ch == '\n':
-                        raise QAPIParseError(self, 'Missing terminating "\'"')
+                        raise QAPIParseError(self, "Missing terminating \"'\"")
                     if esc:
                         # Note: we recognize only \\ because we have
                         # no use for funny characters in strings
@@ -559,7 +559,7 @@ class QAPISchemaParser(object):
                 self.line += 1
                 self.line_pos = self.cursor
             elif not self.tok.isspace():
-                raise QAPIParseError(self, 'Stray "%s"' % self.tok)
+                raise QAPIParseError(self, "Stray '%s'" % self.tok)
 
     def get_members(self):
         expr = OrderedDict()
@@ -567,24 +567,24 @@ class QAPISchemaParser(object):
             self.accept()
             return expr
         if self.tok != "'":
-            raise QAPIParseError(self, 'Expected string or "}"')
+            raise QAPIParseError(self, "Expected string or '}'")
         while True:
             key = self.val
             self.accept()
             if self.tok != ':':
-                raise QAPIParseError(self, 'Expected ":"')
+                raise QAPIParseError(self, "Expected ':'")
             self.accept()
             if key in expr:
-                raise QAPIParseError(self, 'Duplicate key "%s"' % key)
+                raise QAPIParseError(self, "Duplicate key '%s'" % key)
             expr[key] = self.get_expr(True)
             if self.tok == '}':
                 self.accept()
                 return expr
             if self.tok != ',':
-                raise QAPIParseError(self, 'Expected "," or "}"')
+                raise QAPIParseError(self, "Expected ',' or '}'")
             self.accept()
             if self.tok != "'":
-                raise QAPIParseError(self, 'Expected string')
+                raise QAPIParseError(self, "Expected string")
 
     def get_values(self):
         expr = []
@@ -592,20 +592,20 @@ class QAPISchemaParser(object):
             self.accept()
             return expr
         if self.tok not in "{['tfn":
-            raise QAPIParseError(self, 'Expected "{", "[", "]", string, '
-                                 'boolean or "null"')
+            raise QAPIParseError(
+                self, "Expected '{', '[', ']', string, boolean or 'null'")
         while True:
             expr.append(self.get_expr(True))
             if self.tok == ']':
                 self.accept()
                 return expr
             if self.tok != ',':
-                raise QAPIParseError(self, 'Expected "," or "]"')
+                raise QAPIParseError(self, "Expected ',' or ']'")
             self.accept()
 
     def get_expr(self, nested):
         if self.tok != '{' and not nested:
-            raise QAPIParseError(self, 'Expected "{"')
+            raise QAPIParseError(self, "Expected '{'")
         if self.tok == '{':
             self.accept()
             expr = self.get_members()
@@ -616,8 +616,8 @@ class QAPISchemaParser(object):
             expr = self.val
             self.accept()
         else:
-            raise QAPIParseError(self, 'Expected "{", "[", string, '
-                                 'boolean or "null"')
+            raise QAPIParseError(
+                self, "Expected '{', '[', string, boolean or 'null'")
         return expr
 
     def get_doc(self, info):
@@ -881,9 +881,10 @@ def check_union(expr, info):
                                "struct '%s'"
                                % (discriminator, base))
         if discriminator_value.get('if'):
-            raise QAPISemError(info, 'The discriminator %s.%s for union %s '
-                               'must not be conditional' %
-                               (base, discriminator, name))
+            raise QAPISemError(
+                info,
+                "The discriminator %s.%s for union %s must not be conditional"
+                % (base, discriminator, name))
         enum_define = enum_types.get(discriminator_value['type'])
         # Do not allow string discriminator
         if not enum_define:
