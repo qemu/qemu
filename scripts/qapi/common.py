@@ -1190,7 +1190,7 @@ class QAPISchemaEntity(object):
         return not self.info
 
     def visit(self, visitor):
-        pass
+        assert self._checked
 
 
 class QAPISchemaVisitor(object):
@@ -1245,6 +1245,7 @@ class QAPISchemaInclude(QAPISchemaEntity):
         self.fname = fname
 
     def visit(self, visitor):
+        QAPISchemaEntity.visit(self, visitor)
         visitor.visit_include(self.fname, self.info)
 
 
@@ -1309,6 +1310,7 @@ class QAPISchemaBuiltinType(QAPISchemaType):
         return self.json_type()
 
     def visit(self, visitor):
+        QAPISchemaType.visit(self, visitor)
         visitor.visit_builtin_type(self.name, self.info, self.json_type())
 
 
@@ -1344,6 +1346,7 @@ class QAPISchemaEnumType(QAPISchemaType):
         return 'string'
 
     def visit(self, visitor):
+        QAPISchemaType.visit(self, visitor)
         visitor.visit_enum_type(self.name, self.info, self.ifcond,
                                 self.members, self.prefix)
 
@@ -1386,6 +1389,7 @@ class QAPISchemaArrayType(QAPISchemaType):
         return 'array of ' + elt_doc_type
 
     def visit(self, visitor):
+        QAPISchemaType.visit(self, visitor)
         visitor.visit_array_type(self.name, self.info, self.ifcond,
                                  self.element_type)
 
@@ -1461,6 +1465,7 @@ class QAPISchemaObjectType(QAPISchemaType):
     # and update seen to track the members seen so far. Report any errors
     # on behalf of info, which is not necessarily self.info
     def check_clash(self, info, seen):
+        assert self._checked
         assert not self.variants       # not implemented
         for m in self.members:
             m.check_clash(info, seen)
@@ -1498,6 +1503,7 @@ class QAPISchemaObjectType(QAPISchemaType):
         return 'object'
 
     def visit(self, visitor):
+        QAPISchemaType.visit(self, visitor)
         visitor.visit_object_type(self.name, self.info, self.ifcond,
                                   self.base, self.local_members, self.variants,
                                   self.features)
@@ -1665,6 +1671,7 @@ class QAPISchemaAlternateType(QAPISchemaType):
         return 'value'
 
     def visit(self, visitor):
+        QAPISchemaType.visit(self, visitor)
         visitor.visit_alternate_type(self.name, self.info, self.ifcond,
                                      self.variants)
 
@@ -1698,6 +1705,7 @@ class QAPISchemaCommand(QAPISchemaEntity):
             assert isinstance(self.ret_type, QAPISchemaType)
 
     def visit(self, visitor):
+        QAPISchemaEntity.visit(self, visitor)
         visitor.visit_command(self.name, self.info, self.ifcond,
                               self.arg_type, self.ret_type,
                               self.gen, self.success_response,
@@ -1723,6 +1731,7 @@ class QAPISchemaEvent(QAPISchemaEntity):
             raise QAPISemError(self.info, "Use of 'boxed' requires 'data'")
 
     def visit(self, visitor):
+        QAPISchemaEntity.visit(self, visitor)
         visitor.visit_event(self.name, self.info, self.ifcond,
                             self.arg_type, self.boxed)
 
