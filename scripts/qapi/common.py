@@ -1406,7 +1406,7 @@ class QAPISchemaObjectType(QAPISchemaType):
         if self.members is False:               # check for cycles
             raise QAPISemError(self.info,
                                "Object %s contains itself" % self.name)
-        if self.members:
+        if self.members is not None:            # already checked
             return
         self.members = False                    # mark as being checked
         seen = OrderedDict()
