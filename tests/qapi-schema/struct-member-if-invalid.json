@@ -1,0 +1,4 @@
+# Cover member with invalid 'if'
+# FIXME not rejected, would generate '#if True\n'
+{ 'struct': 'Stru',
+  'data': { 'member': { 'type': 'int', 'if': true } } }

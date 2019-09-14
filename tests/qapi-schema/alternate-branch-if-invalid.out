@@ -1,0 +1,16 @@
+module None
+object q_empty
+enum QType
+    prefix QTYPE
+    member none
+    member qnull
+    member qnum
+    member qstring
+    member qdict
+    member qlist
+    member qbool
+module alternate-branch-if-invalid.json
+alternate Alt
+    tag type
+    case branch: int
+        if [' ']

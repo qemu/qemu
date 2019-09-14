@@ -1,0 +1,5 @@
+# Cover feature with invalid 'if'
+# FIXME not rejected, misinterpreted as unconditional
+{ 'struct': 'Stru',
+  'data': {},
+  'features': [{'name': 'f', 'if': null }] }

@@ -1,0 +1,4 @@
+# Cover alternative with invalid 'if'
+# FIXME not rejected, would generate '#if  \n'
+{ 'alternate': 'Alt',
+  'data': { 'branch': { 'type': 'int', 'if': ' ' } } }

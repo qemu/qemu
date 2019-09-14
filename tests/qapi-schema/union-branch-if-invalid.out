@@ -1,0 +1,23 @@
+module None
+object q_empty
+enum QType
+    prefix QTYPE
+    member none
+    member qnull
+    member qnum
+    member qstring
+    member qdict
+    member qlist
+    member qbool
+module union-branch-if-invalid.json
+enum Branches
+    member branch1
+object Stru
+    member member: str optional=False
+object q_obj_Uni-base
+    member tag: Branches optional=False
+object Uni
+    base q_obj_Uni-base
+    tag tag
+    case branch1: Stru
+        if ['']
