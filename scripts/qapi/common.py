@@ -1155,7 +1155,7 @@ class QAPISchemaEntity(object):
     def __init__(self, name, info, doc, ifcond=None):
         assert name is None or isinstance(name, str)
         self.name = name
-        self.module = None
+        self._module = None
         # For explicitly defined entities, info points to the (explicit)
         # definition.  For builtins (and their arrays), info is None.
         # For implicitly defined entities, info points to a place that
@@ -1164,21 +1164,27 @@ class QAPISchemaEntity(object):
         self.info = info
         self.doc = doc
         self._ifcond = ifcond or []
+        self._checked = False
 
     def c_name(self):
         return c_name(self.name)
 
     def check(self, schema):
-        if isinstance(self._ifcond, QAPISchemaType):
-            # inherit the condition from a type
-            typ = self._ifcond
-            typ.check(schema)
-            self.ifcond = typ.ifcond
-        else:
-            self.ifcond = self._ifcond
+        assert not self._checked
         if self.info:
-            self.module = os.path.relpath(self.info['file'],
-                                          os.path.dirname(schema.fname))
+            self._module = os.path.relpath(self.info['file'],
+                                           os.path.dirname(schema.fname))
+        self._checked = True
+
+    @property
+    def ifcond(self):
+        assert self._checked
+        return self._ifcond
+
+    @property
+    def module(self):
+        assert self._checked
+        return self._module
 
     def is_implicit(self):
         return not self.info
@@ -1353,9 +1359,16 @@ class QAPISchemaArrayType(QAPISchemaType):
         QAPISchemaType.check(self, schema)
         self.element_type = schema.lookup_type(self._element_type_name)
         assert self.element_type
-        self.element_type.check(schema)
-        self.module = self.element_type.module
-        self.ifcond = self.element_type.ifcond
+
+    @property
+    def ifcond(self):
+        assert self._checked
+        return self.element_type.ifcond
+
+    @property
+    def module(self):
+        assert self._checked
+        return self.element_type.module
 
     def is_implicit(self):
         return True
@@ -1402,13 +1415,20 @@ class QAPISchemaObjectType(QAPISchemaType):
         self.features = features
 
     def check(self, schema):
-        QAPISchemaType.check(self, schema)
-        if self.members is False:               # check for cycles
+        # This calls another type T's .check() exactly when the C
+        # struct emitted by gen_object() contains that T's C struct
+        # (pointers don't count).
+        if self.members is not None:
+            # A previous .check() completed: nothing to do
+            return
+        if self._checked:
+            # Recursed: C struct contains itself
             raise QAPISemError(self.info,
                                "Object %s contains itself" % self.name)
-        if self.members is not None:            # already checked
-            return
-        self.members = False                    # mark as being checked
+
+        QAPISchemaType.check(self, schema)
+        assert self._checked and self.members is None
+
         seen = OrderedDict()
         if self._base_name:
             self.base = schema.lookup_type(self._base_name)
@@ -1420,10 +1440,11 @@ class QAPISchemaObjectType(QAPISchemaType):
             m.check_clash(self.info, seen)
             if self.doc:
                 self.doc.connect_member(m)
-        self.members = seen.values()
+        members = seen.values()
+
         if self.variants:
             self.variants.check(schema, seen)
-            assert self.variants.tag_member in self.members
+            assert self.variants.tag_member in members
             self.variants.check_clash(self.info, seen)
 
         # Features are in a name space separate from members
@@ -1434,6 +1455,8 @@ class QAPISchemaObjectType(QAPISchemaType):
         if self.doc:
             self.doc.check()
 
+        self.members = members  # mark completed
+
     # Check that the members of this type do not cause duplicate JSON members,
     # and update seen to track the members seen so far. Report any errors
     # on behalf of info, which is not necessarily self.info
@@ -1441,6 +1464,15 @@ class QAPISchemaObjectType(QAPISchemaType):
         assert not self.variants       # not implemented
         for m in self.members:
             m.check_clash(info, seen)
+
+    @property
+    def ifcond(self):
+        assert self._checked
+        if isinstance(self._ifcond, QAPISchemaType):
+            # Simple union wrapper type inherits from wrapped type;
+            # see _make_implicit_object_type()
+            return self._ifcond.ifcond
+        return self._ifcond
 
     def is_implicit(self):
         # See QAPISchema._make_implicit_object_type(), as well as
@@ -1658,7 +1690,6 @@ class QAPISchemaCommand(QAPISchemaEntity):
         if self._arg_type_name:
             self.arg_type = schema.lookup_type(self._arg_type_name)
             assert isinstance(self.arg_type, QAPISchemaObjectType)
-            self.arg_type.check(schema)
             assert not self.arg_type.variants or self.boxed
         elif self.boxed:
             raise QAPISemError(self.info, "Use of 'boxed' requires 'data'")
@@ -1687,7 +1718,6 @@ class QAPISchemaEvent(QAPISchemaEntity):
         if self._arg_type_name:
             self.arg_type = schema.lookup_type(self._arg_type_name)
             assert isinstance(self.arg_type, QAPISchemaObjectType)
-            self.arg_type.check(schema)
             assert not self.arg_type.variants or self.boxed
         elif self.boxed:
             raise QAPISemError(self.info, "Use of 'boxed' requires 'data'")
