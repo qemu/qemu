@@ -1,11 +1,11 @@
-# we require the discriminator to be non-optional
-# FIXME reports "discriminator 'switch' is not a member of base struct 'Base'"
+# discriminator '*switch' isn't a member of base, 'switch' is
+# reports "does not allow optional name", which is good enough
 { 'enum': 'Enum', 'data': [ 'one', 'two' ] }
 { 'struct': 'Base',
   'data': { '*switch': 'Enum' } }
 { 'struct': 'Branch', 'data': { 'name': 'str' } }
 { 'union': 'MyUnion',
   'base': 'Base',
-  'discriminator': 'switch',
+  'discriminator': '*switch',
   'data': { 'one': 'Branch',
             'two': 'Branch' } }

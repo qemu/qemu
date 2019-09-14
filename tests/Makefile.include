@@ -388,6 +388,7 @@ qapi-schema += flat-union-bad-discriminator.json
 qapi-schema += flat-union-base-any.json
 qapi-schema += flat-union-base-union.json
 qapi-schema += flat-union-clash-member.json
+qapi-schema += flat-union-discriminator-bad-name.json
 qapi-schema += flat-union-empty.json
 qapi-schema += flat-union-inline.json
 qapi-schema += flat-union-inline-invalid-dict.json
