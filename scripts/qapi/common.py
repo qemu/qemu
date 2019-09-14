@@ -742,8 +742,9 @@ def check_if(expr, info):
         if not isinstance(ifcond, str):
             raise QAPISemError(
                 info, "'if' condition must be a string or a list of strings")
-        if ifcond == '':
-            raise QAPISemError(info, "'if' condition '' makes no sense")
+        if ifcond.strip() == '':
+            raise QAPISemError(info, "'if' condition '%s' makes no sense"
+                               % ifcond)
 
     ifcond = expr.get('if')
     if ifcond is None:
