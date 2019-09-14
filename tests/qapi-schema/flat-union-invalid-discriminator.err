@@ -1,1 +1,1 @@
-tests/qapi-schema/flat-union-invalid-discriminator.json:13: Discriminator 'enum_wrong' is not a member of base struct 'TestBase'
+tests/qapi-schema/flat-union-invalid-discriminator.json:11: Discriminator 'enum_wrong' is not a member of base struct 'OrderedDict([('enum1', {'type': 'TestEnum'})])'
