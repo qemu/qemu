@@ -402,6 +402,7 @@ qapi-schema += flat-union-no-base.json
 qapi-schema += flat-union-optional-discriminator.json
 qapi-schema += flat-union-string-discriminator.json
 qapi-schema += funny-char.json
+qapi-schema += funny-word.json
 qapi-schema += ident-with-escape.json
 qapi-schema += include-before-err.json
 qapi-schema += include-cycle.json
