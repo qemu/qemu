@@ -1011,18 +1011,18 @@ def check_struct(expr, info):
             check_name(info, "Feature of struct %s" % name, f['name'])
 
 
-def check_known_keys(info, source, keys, required, optional):
+def check_known_keys(info, source, value, required, optional):
 
     def pprint(elems):
         return ', '.join("'" + e + "'" for e in sorted(elems))
 
-    missing = set(required) - set(keys)
+    missing = set(required) - set(value)
     if missing:
         raise QAPISemError(info, "Key%s %s %s missing from %s"
                            % ('s' if len(missing) > 1 else '', pprint(missing),
                               'are' if len(missing) > 1 else 'is', source))
     allowed = set(required + optional)
-    unknown = set(keys) - allowed
+    unknown = set(value) - allowed
     if unknown:
         raise QAPISemError(info, "Unknown key%s %s in %s\nValid keys are %s."
                            % ('s' if len(unknown) > 1 else '', pprint(unknown),
@@ -1035,7 +1035,7 @@ def check_keys(expr, info, meta, required, optional=[]):
         raise QAPISemError(info, "'%s' key must have a string value" % meta)
     required = required + [meta]
     source = "%s '%s'" % (meta, name)
-    check_known_keys(info, source, expr.keys(), required, optional)
+    check_known_keys(info, source, expr, required, optional)
     for (key, value) in expr.items():
         if key in ['gen', 'success-response'] and value is not False:
             raise QAPISemError(info,
