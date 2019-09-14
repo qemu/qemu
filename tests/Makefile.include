@@ -427,6 +427,7 @@ qapi-schema += pragma-doc-required-crap.json
 qapi-schema += pragma-extra-junk.json
 qapi-schema += pragma-name-case-whitelist-crap.json
 qapi-schema += pragma-non-dict.json
+qapi-schema += pragma-unknown.json
 qapi-schema += pragma-returns-whitelist-crap.json
 qapi-schema += qapi-schema-test.json
 qapi-schema += quoted-structural-chars.json
