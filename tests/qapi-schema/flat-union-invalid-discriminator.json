@@ -1,4 +1,3 @@
-# FIXME error message shows base as OrderedDict
 { 'enum': 'TestEnum',
   'data': [ 'value1', 'value2' ] }
 

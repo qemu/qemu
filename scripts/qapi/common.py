@@ -877,14 +877,13 @@ def check_union(expr, info):
         discriminator_value = base_members.get(discriminator)
         if not discriminator_value:
             raise QAPISemError(info,
-                               "Discriminator '%s' is not a member of base "
-                               "struct '%s'"
-                               % (discriminator, base))
+                               "Discriminator '%s' is not a member of 'base'"
+                               % discriminator)
         if discriminator_value.get('if'):
             raise QAPISemError(
                 info,
-                "The discriminator %s.%s for union %s must not be conditional"
-                % (base, discriminator, name))
+                "The discriminator '%s' for union %s must not be conditional"
+                % (discriminator, name))
         enum_define = enum_types.get(discriminator_value['type'])
         # Do not allow string discriminator
         if not enum_define:
