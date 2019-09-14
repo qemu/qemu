@@ -804,6 +804,7 @@ def check_type(info, source, value,
         check_known_keys(info, "member '%s' of %s" % (key, source),
                          arg, ['type'], ['if'])
         check_if(arg, info)
+        normalize_if(arg)
         check_type(info, "Member '%s' of %s" % (key, source),
                    arg['type'], allow_array=True,
                    allow_metas=['built-in', 'union', 'alternate', 'struct',
@@ -904,6 +905,7 @@ def check_union(expr, info):
         check_known_keys(info, "member '%s' of union '%s'" % (key, name),
                          value, ['type'], ['if'])
         check_if(value, info)
+        normalize_if(value)
         # Each value must name a known type
         check_type(info, "Member '%s' of union '%s'" % (key, name),
                    value['type'],
@@ -933,6 +935,7 @@ def check_alternate(expr, info):
                          "member '%s' of alternate '%s'" % (key, name),
                          value, ['type'], ['if'])
         check_if(value, info)
+        normalize_if(value)
         typ = value['type']
 
         # Ensure alternates have no type conflicts.
@@ -978,6 +981,7 @@ def check_enum(expr, info):
         check_known_keys(info, "member of enum '%s'" % name, member,
                          ['name'], ['if'])
         check_if(member, info)
+        normalize_if(member)
         check_name(info, "Member of enum '%s'" % name, member['name'],
                    enum_member=True)
 
@@ -1003,6 +1007,7 @@ def check_struct(expr, info):
                              ['name'], ['if'])
 
             check_if(f, info)
+            normalize_if(f)
             check_name(info, "Feature of struct %s" % name, f['name'])
 
 
@@ -1067,6 +1072,12 @@ def normalize_features(features):
                        for f in features]
 
 
+def normalize_if(expr):
+    ifcond = expr.get('if')
+    if isinstance(ifcond, str):
+        expr['if'] = [ifcond]
+
+
 def check_exprs(exprs):
     global all_names
 
@@ -1123,6 +1134,7 @@ def check_exprs(exprs):
         else:
             raise QAPISemError(expr_elem['info'],
                                "Expression is missing metatype")
+        normalize_if(expr)
         name = expr[meta]
         add_name(name, info, meta)
         if doc and doc.symbol != name:
@@ -1177,14 +1189,6 @@ def check_exprs(exprs):
 # Schema compiler frontend
 #
 
-def listify_cond(ifcond):
-    if not ifcond:
-        return []
-    if not isinstance(ifcond, list):
-        return [ifcond]
-    return ifcond
-
-
 class QAPISchemaEntity(object):
     def __init__(self, name, info, doc, ifcond=None):
         assert name is None or isinstance(name, str)
@@ -1197,7 +1201,7 @@ class QAPISchemaEntity(object):
         # such place).
         self.info = info
         self.doc = doc
-        self._ifcond = ifcond  # self.ifcond is set only after .check()
+        self._ifcond = ifcond or []
 
     def c_name(self):
         return c_name(self.name)
@@ -1209,7 +1213,7 @@ class QAPISchemaEntity(object):
             typ.check(schema)
             self.ifcond = typ.ifcond
         else:
-            self.ifcond = listify_cond(self._ifcond)
+            self.ifcond = self._ifcond
         if self.info:
             self.module = os.path.relpath(self.info['file'],
                                           os.path.dirname(schema.fname))
@@ -1515,7 +1519,7 @@ class QAPISchemaMember(object):
     def __init__(self, name, ifcond=None):
         assert isinstance(name, str)
         self.name = name
-        self.ifcond = listify_cond(ifcond)
+        self.ifcond = ifcond or []
         self.owner = None
 
     def set_owner(self, name):
