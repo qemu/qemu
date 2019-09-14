@@ -559,7 +559,11 @@ class QAPISchemaParser(object):
                 self.line += 1
                 self.line_pos = self.cursor
             elif not self.tok.isspace():
-                raise QAPIParseError(self, "Stray '%s'" % self.tok)
+                # Show up to next structural, whitespace or quote
+                # character
+                match = re.match('[^[\\]{}:,\\s\'"]+',
+                                 self.src[self.cursor-1:])
+                raise QAPIParseError(self, "Stray '%s'" % match.group(0))
 
     def get_members(self):
         expr = OrderedDict()
