@@ -52,7 +52,7 @@ Differences:
 * Strings are restricted to printable ASCII, and escape sequences to
   just '\\'.
 
-* Numbers are not supported.
+* Numbers and null are not supported.
 
 A second layer of syntax defines the sequences of JSON texts that are
 a correctly structured QAPI schema.  We provide a grammar for this
@@ -67,7 +67,7 @@ syntax in an EBNF-like notation:
   expression A separated by ,
 * Grouping: expression ( A ) matches expression A
 * JSON's structural characters are terminals: { } [ ] : ,
-* JSON's literal names are terminals: false true null
+* JSON's literal names are terminals: false true
 * String literals enclosed in 'single quotes' are terminal, and match
   this JSON string, with a leading '*' stripped off
 * When JSON object member's name starts with '*', the member is

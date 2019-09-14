@@ -548,10 +548,6 @@ class QAPISchemaParser(object):
                 self.val = False
                 self.cursor += 4
                 return
-            elif self.src.startswith('null', self.pos):
-                self.val = None
-                self.cursor += 3
-                return
             elif self.tok == '\n':
                 if self.cursor == len(self.src):
                     self.tok = None
