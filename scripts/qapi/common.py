@@ -1029,9 +1029,7 @@ def check_known_keys(info, source, keys, required, optional):
                               source, pprint(allowed)))
 
 
-def check_keys(expr_elem, meta, required, optional=[]):
-    expr = expr_elem['expr']
-    info = expr_elem['info']
+def check_keys(expr, info, meta, required, optional=[]):
     name = expr[meta]
     if not isinstance(name, str):
         raise QAPISemError(info, "'%s' key must have a string value" % meta)
@@ -1100,40 +1098,39 @@ def check_exprs(exprs):
 
         if 'enum' in expr:
             meta = 'enum'
-            check_keys(expr_elem, 'enum', ['data'], ['if', 'prefix'])
+            check_keys(expr, info, 'enum', ['data'], ['if', 'prefix'])
             normalize_enum(expr)
             enum_types[expr[meta]] = expr
         elif 'union' in expr:
             meta = 'union'
-            check_keys(expr_elem, 'union', ['data'],
+            check_keys(expr, info, 'union', ['data'],
                        ['base', 'discriminator', 'if'])
             normalize_members(expr.get('base'))
             normalize_members(expr['data'])
             union_types[expr[meta]] = expr
         elif 'alternate' in expr:
             meta = 'alternate'
-            check_keys(expr_elem, 'alternate', ['data'], ['if'])
+            check_keys(expr, info, 'alternate', ['data'], ['if'])
             normalize_members(expr['data'])
         elif 'struct' in expr:
             meta = 'struct'
-            check_keys(expr_elem, 'struct', ['data'],
+            check_keys(expr, info, 'struct', ['data'],
                        ['base', 'if', 'features'])
             normalize_members(expr['data'])
             normalize_features(expr.get('features'))
             struct_types[expr[meta]] = expr
         elif 'command' in expr:
             meta = 'command'
-            check_keys(expr_elem, 'command', [],
+            check_keys(expr, info, 'command', [],
                        ['data', 'returns', 'gen', 'success-response',
                         'boxed', 'allow-oob', 'allow-preconfig', 'if'])
             normalize_members(expr.get('data'))
         elif 'event' in expr:
             meta = 'event'
-            check_keys(expr_elem, 'event', [], ['data', 'boxed', 'if'])
+            check_keys(expr, info, 'event', [], ['data', 'boxed', 'if'])
             normalize_members(expr.get('data'))
         else:
-            raise QAPISemError(expr_elem['info'],
-                               "Expression is missing metatype")
+            raise QAPISemError(info, "Expression is missing metatype")
         normalize_if(expr)
         name = expr[meta]
         add_name(name, info, meta)
