@@ -803,6 +803,7 @@ def check_type(info, source, value,
         # an optional argument.
         check_known_keys(info, "member '%s' of %s" % (key, source),
                          arg, ['type'], ['if'])
+        check_if(arg, info)
         check_type(info, "Member '%s' of %s" % (key, source),
                    arg['type'], allow_array=True,
                    allow_metas=['built-in', 'union', 'alternate', 'struct',
@@ -902,6 +903,7 @@ def check_union(expr, info):
 
         check_known_keys(info, "member '%s' of union '%s'" % (key, name),
                          value, ['type'], ['if'])
+        check_if(value, info)
         # Each value must name a known type
         check_type(info, "Member '%s' of union '%s'" % (key, name),
                    value['type'],
@@ -930,6 +932,7 @@ def check_alternate(expr, info):
         check_known_keys(info,
                          "member '%s' of alternate '%s'" % (key, name),
                          value, ['type'], ['if'])
+        check_if(value, info)
         typ = value['type']
 
         # Ensure alternates have no type conflicts.

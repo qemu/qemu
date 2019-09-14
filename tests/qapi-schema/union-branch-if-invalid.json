@@ -1,5 +1,4 @@
 # Cover branch with invalid 'if'
-# FIXME not rejected, would generate '#if \n'
 { 'enum': 'Branches', 'data': ['branch1'] }
 { 'struct': 'Stru', 'data': { 'member': 'str' } }
 { 'union': 'Uni',
