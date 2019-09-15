@@ -2069,7 +2069,8 @@ static coroutine_fn int qcow2_co_preadv_part(BlockDriverState *bs,
 
                 assert(QEMU_IS_ALIGNED(offset, BDRV_SECTOR_SIZE));
                 assert(QEMU_IS_ALIGNED(cur_bytes, BDRV_SECTOR_SIZE));
-                if (qcow2_co_decrypt(bs, cluster_offset, offset,
+                if (qcow2_co_decrypt(bs, cluster_offset + offset_in_cluster,
+                                     offset,
                                      cluster_data, cur_bytes) < 0) {
                     ret = -EIO;
                     goto fail;
@@ -2288,7 +2289,7 @@ static coroutine_fn int qcow2_co_pwritev_part(
             qemu_iovec_to_buf(qiov, qiov_offset + bytes_done,
                               cluster_data, cur_bytes);
 
-            if (qcow2_co_encrypt(bs, cluster_offset, offset,
+            if (qcow2_co_encrypt(bs, cluster_offset + offset_in_cluster, offset,
                                  cluster_data, cur_bytes) < 0) {
                 ret = -EIO;
                 goto out_unlocked;
