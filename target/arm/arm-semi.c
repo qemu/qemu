@@ -114,8 +114,13 @@ static inline uint32_t set_swi_errno(TaskState *ts, uint32_t code)
     return code;
 }
 #else
+static target_ulong syscall_err;
+
 static inline uint32_t set_swi_errno(CPUARMState *env, uint32_t code)
 {
+    if (code == (uint32_t)-1) {
+        syscall_err = errno;
+    }
     return code;
 }
 
@@ -123,10 +128,6 @@ static inline uint32_t set_swi_errno(CPUARMState *env, uint32_t code)
 #endif
 
 static target_ulong arm_semi_syscall_len;
-
-#if !defined(CONFIG_USER_ONLY)
-static target_ulong syscall_err;
-#endif
 
 static void arm_semi_cb(CPUState *cs, target_ulong ret, target_ulong err)
 {
