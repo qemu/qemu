@@ -936,15 +936,15 @@ static void pc_build_smbios(PCMachineState *pcms)
     }
 }
 
-static FWCfgState *fw_cfg_arch_create(PCMachineState *pcms,
-                                      const CPUArchIdList *cpus,
+static FWCfgState *fw_cfg_arch_create(MachineState *ms,
                                       uint16_t boot_cpus,
                                       uint16_t apic_id_limit)
 {
     FWCfgState *fw_cfg;
     uint64_t *numa_fw_cfg;
     int i;
-    MachineState *ms = MACHINE(pcms);
+    MachineClass *mc = MACHINE_GET_CLASS(ms);
+    const CPUArchIdList *cpus = mc->possible_cpu_arch_ids(ms);
     int nb_numa_nodes = ms->numa_state->num_nodes;
 
     fw_cfg = fw_cfg_init_io_dma(FW_CFG_IO_BASE, FW_CFG_IO_BASE + 4,
@@ -1869,7 +1869,7 @@ void pc_memory_init(PCMachineState *pcms,
                                         option_rom_mr,
                                         1);
 
-    fw_cfg = fw_cfg_arch_create(pcms, mc->possible_cpu_arch_ids(machine),
+    fw_cfg = fw_cfg_arch_create(machine,
                                 pcms->boot_cpus, pcms->apic_id_limit);
 
     rom_set_fw(fw_cfg);
