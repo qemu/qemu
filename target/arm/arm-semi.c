@@ -213,26 +213,45 @@ static GuestFD *get_guestfd(int guestfd)
     return gf;
 }
 
-#ifdef CONFIG_USER_ONLY
-static inline uint32_t set_swi_errno(TaskState *ts, uint32_t code)
-{
-    if (code == (uint32_t)-1)
-        ts->swi_errno = errno;
-    return code;
-}
-#else
+/*
+ * The semihosting API has no concept of its errno being thread-safe,
+ * as the API design predates SMP CPUs and was intended as a simple
+ * real-hardware set of debug functionality. For QEMU, we make the
+ * errno be per-thread in linux-user mode; in softmmu it is a simple
+ * global, and we assume that the guest takes care of avoiding any races.
+ */
+#ifndef CONFIG_USER_ONLY
 static target_ulong syscall_err;
+
+#include "exec/softmmu-semi.h"
+#endif
 
 static inline uint32_t set_swi_errno(CPUARMState *env, uint32_t code)
 {
     if (code == (uint32_t)-1) {
+#ifdef CONFIG_USER_ONLY
+        CPUState *cs = env_cpu(env);
+        TaskState *ts = cs->opaque;
+
+        ts->swi_errno = errno;
+#else
         syscall_err = errno;
+#endif
     }
     return code;
 }
 
-#include "exec/softmmu-semi.h"
+static inline uint32_t get_swi_errno(CPUARMState *env)
+{
+#ifdef CONFIG_USER_ONLY
+    CPUState *cs = env_cpu(env);
+    TaskState *ts = cs->opaque;
+
+    return ts->swi_errno;
+#else
+    return syscall_err;
 #endif
+}
 
 static target_ulong arm_semi_syscall_len;
 
@@ -379,12 +398,12 @@ static target_ulong arm_gdb_syscall(ARMCPU *cpu, gdb_syscall_complete_cb cb,
     if (is_a64(env)) {                                  \
         if (get_user_u64(arg ## n, args + (n) * 8)) {   \
             errno = EFAULT;                             \
-            return set_swi_errno(ts, -1);               \
+            return set_swi_errno(env, -1);              \
         }                                               \
     } else {                                            \
         if (get_user_u32(arg ## n, args + (n) * 4)) {   \
             errno = EFAULT;                             \
-            return set_swi_errno(ts, -1);               \
+            return set_swi_errno(env, -1);              \
         }                                               \
     }                                                   \
 } while (0)
@@ -413,11 +432,6 @@ target_ulong do_arm_semihosting(CPUARMState *env)
     int nr;
     uint32_t ret;
     uint32_t len;
-#ifdef CONFIG_USER_ONLY
-    TaskState *ts = cs->opaque;
-#else
-    CPUARMState *ts = env;
-#endif
     GuestFD *gf;
 
     if (is_a64(env)) {
@@ -440,19 +454,19 @@ target_ulong do_arm_semihosting(CPUARMState *env)
         s = lock_user_string(arg0);
         if (!s) {
             errno = EFAULT;
-            return set_swi_errno(ts, -1);
+            return set_swi_errno(env, -1);
         }
         if (arg1 >= 12) {
             unlock_user(s, arg0, 0);
             errno = EINVAL;
-            return set_swi_errno(ts, -1);
+            return set_swi_errno(env, -1);
         }
 
         guestfd = alloc_guestfd();
         if (guestfd < 0) {
             unlock_user(s, arg0, 0);
             errno = EMFILE;
-            return set_swi_errno(ts, -1);
+            return set_swi_errno(env, -1);
         }
 
         if (strcmp(s, ":tt") == 0) {
@@ -466,7 +480,7 @@ target_ulong do_arm_semihosting(CPUARMState *env)
             ret = arm_gdb_syscall(cpu, arm_semi_open_cb, "open,%s,%x,1a4", arg0,
                                   (int)arg2+1, gdb_open_modeflags[arg1]);
         } else {
-            ret = set_swi_errno(ts, open(s, open_modeflags[arg1], 0644));
+            ret = set_swi_errno(env, open(s, open_modeflags[arg1], 0644));
             if (ret == (uint32_t)-1) {
                 dealloc_guestfd(guestfd);
             } else {
@@ -483,13 +497,13 @@ target_ulong do_arm_semihosting(CPUARMState *env)
         gf = get_guestfd(arg0);
         if (!gf) {
             errno = EBADF;
-            return set_swi_errno(ts, -1);
+            return set_swi_errno(env, -1);
         }
 
         if (use_gdb_syscalls()) {
             ret = arm_gdb_syscall(cpu, arm_semi_cb, "close,%x", gf->hostfd);
         } else {
-            ret = set_swi_errno(ts, close(gf->hostfd));
+            ret = set_swi_errno(env, close(gf->hostfd));
         }
         dealloc_guestfd(arg0);
         return ret;
@@ -507,7 +521,7 @@ target_ulong do_arm_semihosting(CPUARMState *env)
         gf = get_guestfd(arg0);
         if (!gf) {
             errno = EBADF;
-            return set_swi_errno(ts, -1);
+            return set_swi_errno(env, -1);
         }
 
         if (use_gdb_syscalls()) {
@@ -520,7 +534,7 @@ target_ulong do_arm_semihosting(CPUARMState *env)
                 /* Return bytes not written on error */
                 return len;
             }
-            ret = set_swi_errno(ts, write(gf->hostfd, s, len));
+            ret = set_swi_errno(env, write(gf->hostfd, s, len));
             unlock_user(s, arg1, 0);
             if (ret == (uint32_t)-1) {
                 ret = 0;
@@ -537,7 +551,7 @@ target_ulong do_arm_semihosting(CPUARMState *env)
         gf = get_guestfd(arg0);
         if (!gf) {
             errno = EBADF;
-            return set_swi_errno(ts, -1);
+            return set_swi_errno(env, -1);
         }
 
         if (use_gdb_syscalls()) {
@@ -551,7 +565,7 @@ target_ulong do_arm_semihosting(CPUARMState *env)
                 return len;
             }
             do {
-                ret = set_swi_errno(ts, read(gf->hostfd, s, len));
+                ret = set_swi_errno(env, read(gf->hostfd, s, len));
             } while (ret == -1 && errno == EINTR);
             unlock_user(s, arg1, len);
             if (ret == (uint32_t)-1) {
@@ -569,7 +583,7 @@ target_ulong do_arm_semihosting(CPUARMState *env)
         gf = get_guestfd(arg0);
         if (!gf) {
             errno = EBADF;
-            return set_swi_errno(ts, -1);
+            return set_swi_errno(env, -1);
         }
 
         if (use_gdb_syscalls()) {
@@ -584,14 +598,14 @@ target_ulong do_arm_semihosting(CPUARMState *env)
         gf = get_guestfd(arg0);
         if (!gf) {
             errno = EBADF;
-            return set_swi_errno(ts, -1);
+            return set_swi_errno(env, -1);
         }
 
         if (use_gdb_syscalls()) {
             return arm_gdb_syscall(cpu, arm_semi_cb, "lseek,%x,%x,0",
                                    gf->hostfd, arg1);
         } else {
-            ret = set_swi_errno(ts, lseek(gf->hostfd, arg1, SEEK_SET));
+            ret = set_swi_errno(env, lseek(gf->hostfd, arg1, SEEK_SET));
             if (ret == (uint32_t)-1)
               return -1;
             return 0;
@@ -602,7 +616,7 @@ target_ulong do_arm_semihosting(CPUARMState *env)
         gf = get_guestfd(arg0);
         if (!gf) {
             errno = EBADF;
-            return set_swi_errno(ts, -1);
+            return set_swi_errno(env, -1);
         }
 
         if (use_gdb_syscalls()) {
@@ -610,7 +624,7 @@ target_ulong do_arm_semihosting(CPUARMState *env)
                                    gf->hostfd, arm_flen_buf(cpu));
         } else {
             struct stat buf;
-            ret = set_swi_errno(ts, fstat(gf->hostfd, &buf));
+            ret = set_swi_errno(env, fstat(gf->hostfd, &buf));
             if (ret == (uint32_t)-1)
                 return -1;
             return buf.st_size;
@@ -628,9 +642,9 @@ target_ulong do_arm_semihosting(CPUARMState *env)
             s = lock_user_string(arg0);
             if (!s) {
                 errno = EFAULT;
-                return set_swi_errno(ts, -1);
+                return set_swi_errno(env, -1);
             }
-            ret =  set_swi_errno(ts, remove(s));
+            ret =  set_swi_errno(env, remove(s));
             unlock_user(s, arg0, 0);
         }
         return ret;
@@ -648,9 +662,9 @@ target_ulong do_arm_semihosting(CPUARMState *env)
             s2 = lock_user_string(arg2);
             if (!s || !s2) {
                 errno = EFAULT;
-                ret = set_swi_errno(ts, -1);
+                ret = set_swi_errno(env, -1);
             } else {
-                ret = set_swi_errno(ts, rename(s, s2));
+                ret = set_swi_errno(env, rename(s, s2));
             }
             if (s2)
                 unlock_user(s2, arg2, 0);
@@ -661,7 +675,7 @@ target_ulong do_arm_semihosting(CPUARMState *env)
     case TARGET_SYS_CLOCK:
         return clock() / (CLOCKS_PER_SEC / 100);
     case TARGET_SYS_TIME:
-        return set_swi_errno(ts, time(NULL));
+        return set_swi_errno(env, time(NULL));
     case TARGET_SYS_SYSTEM:
         GET_ARG(0);
         GET_ARG(1);
@@ -672,18 +686,14 @@ target_ulong do_arm_semihosting(CPUARMState *env)
             s = lock_user_string(arg0);
             if (!s) {
                 errno = EFAULT;
-                return set_swi_errno(ts, -1);
+                return set_swi_errno(env, -1);
             }
-            ret = set_swi_errno(ts, system(s));
+            ret = set_swi_errno(env, system(s));
             unlock_user(s, arg0, 0);
             return ret;
         }
     case TARGET_SYS_ERRNO:
-#ifdef CONFIG_USER_ONLY
-        return ts->swi_errno;
-#else
-        return syscall_err;
-#endif
+        return get_swi_errno(env);
     case TARGET_SYS_GET_CMDLINE:
         {
             /* Build a command-line from the original argv.
@@ -706,6 +716,8 @@ target_ulong do_arm_semihosting(CPUARMState *env)
             int status = 0;
 #if !defined(CONFIG_USER_ONLY)
             const char *cmdline;
+#else
+            TaskState *ts = cs->opaque;
 #endif
             GET_ARG(0);
             GET_ARG(1);
@@ -733,21 +745,21 @@ target_ulong do_arm_semihosting(CPUARMState *env)
             if (output_size > input_size) {
                 /* Not enough space to store command-line arguments.  */
                 errno = E2BIG;
-                return set_swi_errno(ts, -1);
+                return set_swi_errno(env, -1);
             }
 
             /* Adjust the command-line length.  */
             if (SET_ARG(1, output_size - 1)) {
                 /* Couldn't write back to argument block */
                 errno = EFAULT;
-                return set_swi_errno(ts, -1);
+                return set_swi_errno(env, -1);
             }
 
             /* Lock the buffer on the ARM side.  */
             output_buffer = lock_user(VERIFY_WRITE, arg0, output_size, 0);
             if (!output_buffer) {
                 errno = EFAULT;
-                return set_swi_errno(ts, -1);
+                return set_swi_errno(env, -1);
             }
 
             /* Copy the command-line arguments.  */
@@ -763,7 +775,7 @@ target_ulong do_arm_semihosting(CPUARMState *env)
             if (copy_from_user(output_buffer, ts->info->arg_start,
                                output_size)) {
                 errno = EFAULT;
-                status = set_swi_errno(ts, -1);
+                status = set_swi_errno(env, -1);
                 goto out;
             }
 
@@ -785,6 +797,9 @@ target_ulong do_arm_semihosting(CPUARMState *env)
             target_ulong retvals[4];
             target_ulong limit;
             int i;
+#ifdef CONFIG_USER_ONLY
+            TaskState *ts = cs->opaque;
+#endif
 
             GET_ARG(0);
 
@@ -834,7 +849,7 @@ target_ulong do_arm_semihosting(CPUARMState *env)
                 if (fail) {
                     /* Couldn't write back to argument block */
                     errno = EFAULT;
-                    return set_swi_errno(ts, -1);
+                    return set_swi_errno(env, -1);
                 }
             }
             return 0;
