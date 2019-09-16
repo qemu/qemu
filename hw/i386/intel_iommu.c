@@ -2936,10 +2936,6 @@ static void vtd_iommu_notify_flag_changed(IOMMUMemoryRegion *iommu,
     VTDAddressSpace *vtd_as = container_of(iommu, VTDAddressSpace, iommu);
     IntelIOMMUState *s = vtd_as->iommu_state;
 
-    if (!s->caching_mode && new & IOMMU_NOTIFIER_MAP) {
-        vtd_panic_require_caching_mode();
-    }
-
     /* Update per-address-space notifier flags */
     vtd_as->notifier_flags = new;
 
