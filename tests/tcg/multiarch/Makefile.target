@@ -17,11 +17,11 @@ MULTIARCH_TESTS  =$(filter-out float_helpers, $(MULTIARCH_SRCS:.c=))
 #
 
 
-float_madds: LDFLAGS+=-lm
-float_madds: float_madds.c float_helpers.c
+float_%: LDFLAGS+=-lm
+float_%: float_%.c float_helpers.c
 	$(CC) $(CFLAGS) $(EXTRA_CFLAGS) $< $(MULTIARCH_SRC)/float_helpers.c -o $@ $(LDFLAGS)
 
-run-float_madds: float_madds
+run-float_%: float_%
 	$(call run-test,$<, $(QEMU) $(QEMU_OPTS) $<,"$< on $(TARGET_NAME)")
 	$(call conditional-diff-out,$<,$(SRC_PATH)/tests/tcg/$(TARGET_NAME)/$<.ref)
 
