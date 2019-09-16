@@ -115,6 +115,14 @@ todo_include_todos = False
 # with "option::" in the document being processed. Turn that off.
 suppress_warnings = ["ref.option"]
 
+# The rst_epilog fragment is effectively included in every rST file.
+# We use it to define substitutions based on build config that
+# can then be used in the documentation. The fallback if the
+# environment variable is not set is for the benefit of readthedocs
+# style document building; our Makefile always sets the variable.
+confdir = os.getenv('CONFDIR', "/etc/qemu")
+rst_epilog = ".. |CONFDIR| replace:: ``" + confdir + "``\n"
+
 # -- Options for HTML output ----------------------------------------------
 
 # The theme to use for HTML and HTML Help pages.  See the documentation for
@@ -192,14 +200,8 @@ latex_documents = [
 
 
 # -- Options for manual page output ---------------------------------------
-
-# One entry per manual page. List of tuples
-# (source start file, name, description, authors, manual section).
-man_pages = [
-    (master_doc, 'qemu', u'QEMU Documentation',
-     [author], 1)
-]
-
+# Individual manual/conf.py can override this to create man pages
+man_pages = []
 
 # -- Options for Texinfo output -------------------------------------------
 

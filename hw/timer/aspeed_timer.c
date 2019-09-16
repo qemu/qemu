@@ -93,7 +93,8 @@ static inline uint32_t calculate_rate(struct AspeedTimer *t)
 {
     AspeedTimerCtrlState *s = timer_to_ctrl(t);
 
-    return timer_external_clock(t) ? TIMER_CLOCK_EXT_HZ : s->scu->apb_freq;
+    return timer_external_clock(t) ? TIMER_CLOCK_EXT_HZ :
+        aspeed_scu_get_apb_freq(s->scu);
 }
 
 static inline uint32_t calculate_ticks(struct AspeedTimer *t, uint64_t now_ns)

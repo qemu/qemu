@@ -23,6 +23,7 @@
 #include "hw/watchdog/wdt_aspeed.h"
 #include "hw/net/ftgmac100.h"
 #include "target/arm/cpu.h"
+#include "hw/gpio/aspeed_gpio.h"
 
 #define ASPEED_SPIS_NUM  2
 #define ASPEED_WDTS_NUM  3
@@ -48,6 +49,7 @@ typedef struct AspeedSoCState {
     AspeedSDMCState sdmc;
     AspeedWDTState wdt[ASPEED_WDTS_NUM];
     FTGMAC100State ftgmac100[ASPEED_MACS_NUM];
+    AspeedGPIOState gpio;
 } AspeedSoCState;
 
 #define TYPE_ASPEED_SOC "aspeed-soc"
@@ -59,8 +61,6 @@ typedef struct AspeedSoCInfo {
     uint32_t silicon_rev;
     uint64_t sram_size;
     int spis_num;
-    const char *fmc_typename;
-    const char **spi_typename;
     int wdts_num;
     const int *irqmap;
     const hwaddr *memmap;
