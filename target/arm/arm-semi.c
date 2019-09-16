@@ -217,10 +217,21 @@ static target_ulong arm_gdb_syscall(ARMCPU *cpu, gdb_syscall_complete_cb cb,
     gdb_do_syscallv(cb, fmt, va);
     va_end(va);
 
-    /* FIXME: we are implicitly relying on the syscall completing
-     * before this point, which is not guaranteed. We should
-     * put in an explicit synchronization between this and
-     * the callback function.
+    /*
+     * FIXME: in softmmu mode, the gdbstub will schedule our callback
+     * to occur, but will not actually call it to complete the syscall
+     * until after this function has returned and we are back in the
+     * CPU main loop. Therefore callers to this function must not
+     * do anything with its return value, because it is not necessarily
+     * the result of the syscall, but could just be the old value of X0.
+     * The only thing safe to do with this is that the callers of
+     * do_arm_semihosting() will write it straight back into X0.
+     * (In linux-user mode, the callback will have happened before
+     * gdb_do_syscallv() returns.)
+     *
+     * We should tidy this up so neither this function nor
+     * do_arm_semihosting() return a value, so the mistake of
+     * doing something with the return value is not possible to make.
      */
 
     return is_a64(env) ? env->xregs[0] : env->regs[0];
