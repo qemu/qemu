@@ -374,7 +374,7 @@ static BdrvDirtyBitmap *load_bitmap(BlockDriverState *bs,
 fail:
     g_free(bitmap_table);
     if (bitmap != NULL) {
-        bdrv_release_dirty_bitmap(bs, bitmap);
+        bdrv_release_dirty_bitmap(bitmap);
     }
 
     return NULL;
@@ -941,7 +941,7 @@ fail:
 static void release_dirty_bitmap_helper(gpointer bitmap,
                                         gpointer bs)
 {
-    bdrv_release_dirty_bitmap(bs, bitmap);
+    bdrv_release_dirty_bitmap(bitmap);
 }
 
 /* for g_slist_foreach for GSList of BdrvDirtyBitmap* elements */
@@ -1577,7 +1577,7 @@ void qcow2_store_persistent_dirty_bitmaps(BlockDriverState *bs, Error **errp)
             continue;
         }
 
-        bdrv_release_dirty_bitmap(bs, bm->dirty_bitmap);
+        bdrv_release_dirty_bitmap(bm->dirty_bitmap);
     }
 
     bitmap_list_free(bm_list);

@@ -60,7 +60,7 @@ void block_copy_state_free(BlockCopyState *s)
         return;
     }
 
-    bdrv_release_dirty_bitmap(s->source->bs, s->copy_bitmap);
+    bdrv_release_dirty_bitmap(s->copy_bitmap);
     g_free(s);
 }
 

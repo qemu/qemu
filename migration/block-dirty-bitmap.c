@@ -474,7 +474,7 @@ static int dirty_bitmap_load_start(QEMUFile *f, DirtyBitmapLoadState *s)
     if (flags & DIRTY_BITMAP_MIG_START_FLAG_ENABLED) {
         DirtyBitmapLoadBitmapState *b;
 
-        bdrv_dirty_bitmap_create_successor(s->bs, s->bitmap, &local_err);
+        bdrv_dirty_bitmap_create_successor(s->bitmap, &local_err);
         if (local_err) {
             error_report_err(local_err);
             return -EINVAL;
@@ -535,13 +535,12 @@ static void dirty_bitmap_load_complete(QEMUFile *f, DirtyBitmapLoadState *s)
         bdrv_dirty_bitmap_lock(s->bitmap);
         if (enabled_bitmaps == NULL) {
             /* in postcopy */
-            bdrv_reclaim_dirty_bitmap_locked(s->bs, s->bitmap, &error_abort);
+            bdrv_reclaim_dirty_bitmap_locked(s->bitmap, &error_abort);
             bdrv_enable_dirty_bitmap_locked(s->bitmap);
         } else {
             /* target not started, successor must be empty */
             int64_t count = bdrv_get_dirty_count(s->bitmap);
-            BdrvDirtyBitmap *ret = bdrv_reclaim_dirty_bitmap_locked(s->bs,
-                                                                    s->bitmap,
+            BdrvDirtyBitmap *ret = bdrv_reclaim_dirty_bitmap_locked(s->bitmap,
                                                                     NULL);
             /* bdrv_reclaim_dirty_bitmap can fail only on no successor (it
              * must be) or on merge fail, but merge can't fail when second

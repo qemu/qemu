@@ -2178,7 +2178,7 @@ static void block_dirty_bitmap_remove_commit(BlkActionState *common)
                                              common, common);
 
     bdrv_dirty_bitmap_set_busy(state->bitmap, false);
-    bdrv_release_dirty_bitmap(state->bs, state->bitmap);
+    bdrv_release_dirty_bitmap(state->bitmap);
 }
 
 static void abort_prepare(BlkActionState *common, Error **errp)
@@ -2940,7 +2940,7 @@ static BdrvDirtyBitmap *do_block_dirty_bitmap_remove(
     }
 
     if (release) {
-        bdrv_release_dirty_bitmap(bs, bitmap);
+        bdrv_release_dirty_bitmap(bitmap);
     }
 
     if (bitmap_bs) {
@@ -3072,7 +3072,7 @@ static BdrvDirtyBitmap *do_block_dirty_bitmap_merge(
     bdrv_merge_dirty_bitmap(dst, anon, backup, errp);
 
  out:
-    bdrv_release_dirty_bitmap(bs, anon);
+    bdrv_release_dirty_bitmap(anon);
     return dst;
 }
 
