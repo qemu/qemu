@@ -248,8 +248,8 @@ bochs_co_preadv(BlockDriverState *bs, uint64_t offset, uint64_t bytes,
     QEMUIOVector local_qiov;
     int ret;
 
-    assert((offset & (BDRV_SECTOR_SIZE - 1)) == 0);
-    assert((bytes & (BDRV_SECTOR_SIZE - 1)) == 0);
+    assert(QEMU_IS_ALIGNED(offset, BDRV_SECTOR_SIZE));
+    assert(QEMU_IS_ALIGNED(bytes, BDRV_SECTOR_SIZE));
 
     qemu_iovec_init(&local_qiov, qiov->niov);
     qemu_co_mutex_lock(&s->lock);

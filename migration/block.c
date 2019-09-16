@@ -906,7 +906,7 @@ static int block_load(QEMUFile *f, void *opaque, int version_id)
     do {
         addr = qemu_get_be64(f);
 
-        flags = addr & ~BDRV_SECTOR_MASK;
+        flags = addr & (BDRV_SECTOR_SIZE - 1);
         addr >>= BDRV_SECTOR_BITS;
 
         if (flags & BLK_MIG_FLAG_DEVICE_BLOCK) {
