@@ -277,6 +277,9 @@ class Event(object):
         if fmt.find("%m") != -1 or fmt_trans.find("%m") != -1:
             raise ValueError("Event format '%m' is forbidden, pass the error "
                              "as an explicit trace argument")
+        if fmt.endswith(r'\n"'):
+            raise ValueError("Event format must not end with a newline "
+                             "character")
 
         if len(fmt_trans) > 0:
             fmt = [fmt_trans, fmt]
