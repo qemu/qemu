@@ -386,6 +386,8 @@ static target_ulong arm_gdb_syscall(ARMCPU *cpu, gdb_syscall_complete_cb cb,
 typedef uint32_t sys_closefn(ARMCPU *cpu, GuestFD *gf);
 typedef uint32_t sys_writefn(ARMCPU *cpu, GuestFD *gf,
                              target_ulong buf, uint32_t len);
+typedef uint32_t sys_readfn(ARMCPU *cpu, GuestFD *gf,
+                            target_ulong buf, uint32_t len);
 
 static uint32_t host_closefn(ARMCPU *cpu, GuestFD *gf)
 {
@@ -413,6 +415,27 @@ static uint32_t host_writefn(ARMCPU *cpu, GuestFD *gf,
     return len - ret;
 }
 
+static uint32_t host_readfn(ARMCPU *cpu, GuestFD *gf,
+                            target_ulong buf, uint32_t len)
+{
+    uint32_t ret;
+    CPUARMState *env = &cpu->env;
+    char *s = lock_user(VERIFY_WRITE, buf, len, 0);
+    if (!s) {
+        /* return bytes not read */
+        return len;
+    }
+    do {
+        ret = set_swi_errno(env, read(gf->hostfd, s, len));
+    } while (ret == -1 && errno == EINTR);
+    unlock_user(s, buf, len);
+    if (ret == (uint32_t)-1) {
+        ret = 0;
+    }
+    /* Return bytes not read */
+    return len - ret;
+}
+
 static uint32_t gdb_closefn(ARMCPU *cpu, GuestFD *gf)
 {
     return arm_gdb_syscall(cpu, arm_semi_cb, "close,%x", gf->hostfd);
@@ -426,19 +449,30 @@ static uint32_t gdb_writefn(ARMCPU *cpu, GuestFD *gf,
                            gf->hostfd, buf, len);
 }
 
+static uint32_t gdb_readfn(ARMCPU *cpu, GuestFD *gf,
+                           target_ulong buf, uint32_t len)
+{
+    arm_semi_syscall_len = len;
+    return arm_gdb_syscall(cpu, arm_semi_cb, "read,%x,%x,%x",
+                           gf->hostfd, buf, len);
+}
+
 typedef struct GuestFDFunctions {
     sys_closefn *closefn;
     sys_writefn *writefn;
+    sys_readfn *readfn;
 } GuestFDFunctions;
 
 static const GuestFDFunctions guestfd_fns[] = {
     [GuestFDHost] = {
         .closefn = host_closefn,
         .writefn = host_writefn,
+        .readfn = host_readfn,
     },
     [GuestFDGDB] = {
         .closefn = gdb_closefn,
         .writefn = gdb_writefn,
+        .readfn = gdb_readfn,
     },
 };
 
@@ -584,26 +618,7 @@ target_ulong do_arm_semihosting(CPUARMState *env)
             return set_swi_errno(env, -1);
         }
 
-        if (use_gdb_syscalls()) {
-            arm_semi_syscall_len = len;
-            return arm_gdb_syscall(cpu, arm_semi_cb, "read,%x,%x,%x",
-                                   gf->hostfd, arg1, len);
-        } else {
-            s = lock_user(VERIFY_WRITE, arg1, len, 0);
-            if (!s) {
-                /* return bytes not read */
-                return len;
-            }
-            do {
-                ret = set_swi_errno(env, read(gf->hostfd, s, len));
-            } while (ret == -1 && errno == EINTR);
-            unlock_user(s, arg1, len);
-            if (ret == (uint32_t)-1) {
-                ret = 0;
-            }
-            /* Return bytes not read */
-            return len - ret;
-        }
+        return guestfd_fns[gf->type].readfn(cpu, gf, arg1, len);
     case TARGET_SYS_READC:
         qemu_log_mask(LOG_UNIMP, "%s: SYS_READC not implemented", __func__);
         return 0;
