@@ -280,6 +280,7 @@ void qdev_set_legacy_instance_id(DeviceState *dev, int alias_id,
                                  int required_for_version);
 HotplugHandler *qdev_get_bus_hotplug_handler(DeviceState *dev);
 HotplugHandler *qdev_get_machine_hotplug_handler(DeviceState *dev);
+bool qdev_hotplug_allowed(DeviceState *dev, Error **errp);
 /**
  * qdev_get_hotplug_handler: Get handler responsible for device wiring
  *

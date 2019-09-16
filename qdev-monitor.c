@@ -615,6 +615,13 @@ DeviceState *qdev_device_add(QemuOpts *opts, Error **errp)
     /* create device */
     dev = DEVICE(object_new(driver));
 
+    /* Check whether the hotplug is allowed by the machine */
+    if (qdev_hotplug && !qdev_hotplug_allowed(dev, &err)) {
+        /* Error must be set in the machine hook */
+        assert(err);
+        goto err_del_dev;
+    }
+
     if (bus) {
         qdev_set_parent_bus(dev, bus);
     } else if (qdev_hotplug && !qdev_get_machine_hotplug_handler(dev)) {
