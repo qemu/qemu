@@ -259,17 +259,11 @@ static void arm_semi_cb(CPUState *cs, target_ulong ret, target_ulong err)
 {
     ARMCPU *cpu = ARM_CPU(cs);
     CPUARMState *env = &cpu->env;
-#ifdef CONFIG_USER_ONLY
-    TaskState *ts = cs->opaque;
-#endif
     target_ulong reg0 = is_a64(env) ? env->xregs[0] : env->regs[0];
 
     if (ret == (target_ulong)-1) {
-#ifdef CONFIG_USER_ONLY
-        ts->swi_errno = err;
-#else
-        syscall_err = err;
-#endif
+        errno = err;
+        set_swi_errno(env, -1);
         reg0 = ret;
     } else {
         /* Fixup syscalls that use nonstardard return conventions.  */
@@ -326,11 +320,8 @@ static void arm_semi_flen_cb(CPUState *cs, target_ulong ret, target_ulong err)
     } else {
         env->regs[0] = size;
     }
-#ifdef CONFIG_USER_ONLY
-    ((TaskState *)cs->opaque)->swi_errno = err;
-#else
-    syscall_err = err;
-#endif
+    errno = err;
+    set_swi_errno(env, -1);
 }
 
 static int arm_semi_open_guestfd;
@@ -339,15 +330,9 @@ static void arm_semi_open_cb(CPUState *cs, target_ulong ret, target_ulong err)
 {
     ARMCPU *cpu = ARM_CPU(cs);
     CPUARMState *env = &cpu->env;
-#ifdef CONFIG_USER_ONLY
-    TaskState *ts = cs->opaque;
-#endif
     if (ret == (target_ulong)-1) {
-#ifdef CONFIG_USER_ONLY
-        ts->swi_errno = err;
-#else
-        syscall_err = err;
-#endif
+        errno = err;
+        set_swi_errno(env, -1);
         dealloc_guestfd(arm_semi_open_guestfd);
     } else {
         associate_guestfd(arm_semi_open_guestfd, ret);
