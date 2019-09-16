@@ -31,7 +31,6 @@
 struct BdrvDirtyBitmap {
     QemuMutex *mutex;
     HBitmap *bitmap;            /* Dirty bitmap implementation */
-    HBitmap *meta;              /* Meta dirty bitmap */
     bool busy;                  /* Bitmap is busy, it can't be used via QMP */
     BdrvDirtyBitmap *successor; /* Anonymous child, if any. */
     char *name;                 /* Optional non-empty unique ID */
@@ -125,36 +124,6 @@ BdrvDirtyBitmap *bdrv_create_dirty_bitmap(BlockDriverState *bs,
     QLIST_INSERT_HEAD(&bs->dirty_bitmaps, bitmap, list);
     bdrv_dirty_bitmaps_unlock(bs);
     return bitmap;
-}
-
-/* bdrv_create_meta_dirty_bitmap
- *
- * Create a meta dirty bitmap that tracks the changes of bits in @bitmap. I.e.
- * when a dirty status bit in @bitmap is changed (either from reset to set or
- * the other way around), its respective meta dirty bitmap bit will be marked
- * dirty as well.
- *
- * @bitmap: the block dirty bitmap for which to create a meta dirty bitmap.
- * @chunk_size: how many bytes of bitmap data does each bit in the meta bitmap
- * track.
- */
-void bdrv_create_meta_dirty_bitmap(BdrvDirtyBitmap *bitmap,
-                                   int chunk_size)
-{
-    assert(!bitmap->meta);
-    qemu_mutex_lock(bitmap->mutex);
-    bitmap->meta = hbitmap_create_meta(bitmap->bitmap,
-                                       chunk_size * BITS_PER_BYTE);
-    qemu_mutex_unlock(bitmap->mutex);
-}
-
-void bdrv_release_meta_dirty_bitmap(BdrvDirtyBitmap *bitmap)
-{
-    assert(bitmap->meta);
-    qemu_mutex_lock(bitmap->mutex);
-    hbitmap_free_meta(bitmap->bitmap);
-    bitmap->meta = NULL;
-    qemu_mutex_unlock(bitmap->mutex);
 }
 
 int64_t bdrv_dirty_bitmap_size(const BdrvDirtyBitmap *bitmap)
@@ -320,7 +289,6 @@ static void bdrv_release_dirty_bitmap_locked(BdrvDirtyBitmap *bitmap)
     assert(!bitmap->active_iterators);
     assert(!bdrv_dirty_bitmap_busy(bitmap));
     assert(!bdrv_dirty_bitmap_has_successor(bitmap));
-    assert(!bitmap->meta);
     QLIST_REMOVE(bitmap, list);
     hbitmap_free(bitmap->bitmap);
     g_free(bitmap->name);
@@ -666,15 +634,6 @@ BdrvDirtyBitmapIter *bdrv_dirty_iter_new(BdrvDirtyBitmap *bitmap)
     return iter;
 }
 
-BdrvDirtyBitmapIter *bdrv_dirty_meta_iter_new(BdrvDirtyBitmap *bitmap)
-{
-    BdrvDirtyBitmapIter *iter = g_new(BdrvDirtyBitmapIter, 1);
-    hbitmap_iter_init(&iter->hbi, bitmap->meta, 0);
-    iter->bitmap = bitmap;
-    bitmap->active_iterators++;
-    return iter;
-}
-
 void bdrv_dirty_iter_free(BdrvDirtyBitmapIter *iter)
 {
     if (!iter) {
@@ -819,11 +778,6 @@ void bdrv_set_dirty_iter(BdrvDirtyBitmapIter *iter, int64_t offset)
 int64_t bdrv_get_dirty_count(BdrvDirtyBitmap *bitmap)
 {
     return hbitmap_count(bitmap->bitmap);
-}
-
-int64_t bdrv_get_meta_dirty_count(BdrvDirtyBitmap *bitmap)
-{
-    return hbitmap_count(bitmap->meta);
 }
 
 bool bdrv_dirty_bitmap_readonly(const BdrvDirtyBitmap *bitmap)
