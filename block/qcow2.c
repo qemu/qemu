@@ -1972,17 +1972,117 @@ out:
     return ret;
 }
 
+static coroutine_fn int
+qcow2_co_preadv_encrypted(BlockDriverState *bs,
+                           uint64_t file_cluster_offset,
+                           uint64_t offset,
+                           uint64_t bytes,
+                           QEMUIOVector *qiov,
+                           uint64_t qiov_offset)
+{
+    int ret;
+    BDRVQcow2State *s = bs->opaque;
+    uint8_t *buf;
+
+    assert(bs->encrypted && s->crypto);
+    assert(bytes <= QCOW_MAX_CRYPT_CLUSTERS * s->cluster_size);
+
+    /*
+     * For encrypted images, read everything into a temporary
+     * contiguous buffer on which the AES functions can work.
+     * Also, decryption in a separate buffer is better as it
+     * prevents the guest from learning information about the
+     * encrypted nature of the virtual disk.
+     */
+
+    buf = qemu_try_blockalign(s->data_file->bs, bytes);
+    if (buf == NULL) {
+        return -ENOMEM;
+    }
+
+    BLKDBG_EVENT(bs->file, BLKDBG_READ_AIO);
+    ret = bdrv_co_pread(s->data_file,
+                        file_cluster_offset + offset_into_cluster(s, offset),
+                        bytes, buf, 0);
+    if (ret < 0) {
+        goto fail;
+    }
+
+    assert(QEMU_IS_ALIGNED(offset, BDRV_SECTOR_SIZE));
+    assert(QEMU_IS_ALIGNED(bytes, BDRV_SECTOR_SIZE));
+    if (qcow2_co_decrypt(bs,
+                         file_cluster_offset + offset_into_cluster(s, offset),
+                         offset, buf, bytes) < 0)
+    {
+        ret = -EIO;
+        goto fail;
+    }
+    qemu_iovec_from_buf(qiov, qiov_offset, buf, bytes);
+
+fail:
+    qemu_vfree(buf);
+
+    return ret;
+}
+
+static coroutine_fn int qcow2_co_preadv_task(BlockDriverState *bs,
+                                             QCow2ClusterType cluster_type,
+                                             uint64_t file_cluster_offset,
+                                             uint64_t offset, uint64_t bytes,
+                                             QEMUIOVector *qiov,
+                                             size_t qiov_offset)
+{
+    BDRVQcow2State *s = bs->opaque;
+    int offset_in_cluster = offset_into_cluster(s, offset);
+
+    switch (cluster_type) {
+    case QCOW2_CLUSTER_ZERO_PLAIN:
+    case QCOW2_CLUSTER_ZERO_ALLOC:
+        /* Both zero types are handled in qcow2_co_preadv_part */
+        g_assert_not_reached();
+
+    case QCOW2_CLUSTER_UNALLOCATED:
+        assert(bs->backing); /* otherwise handled in qcow2_co_preadv_part */
+
+        BLKDBG_EVENT(bs->file, BLKDBG_READ_BACKING_AIO);
+        return bdrv_co_preadv_part(bs->backing, offset, bytes,
+                                   qiov, qiov_offset, 0);
+
+    case QCOW2_CLUSTER_COMPRESSED:
+        return qcow2_co_preadv_compressed(bs, file_cluster_offset,
+                                          offset, bytes, qiov, qiov_offset);
+
+    case QCOW2_CLUSTER_NORMAL:
+        if ((file_cluster_offset & 511) != 0) {
+            return -EIO;
+        }
+
+        if (bs->encrypted) {
+            return qcow2_co_preadv_encrypted(bs, file_cluster_offset,
+                                             offset, bytes, qiov, qiov_offset);
+        }
+
+        BLKDBG_EVENT(bs->file, BLKDBG_READ_AIO);
+        return bdrv_co_preadv_part(s->data_file,
+                                   file_cluster_offset + offset_in_cluster,
+                                   bytes, qiov, qiov_offset, 0);
+
+    default:
+        g_assert_not_reached();
+    }
+
+    g_assert_not_reached();
+}
+
 static coroutine_fn int qcow2_co_preadv_part(BlockDriverState *bs,
                                              uint64_t offset, uint64_t bytes,
                                              QEMUIOVector *qiov,
                                              size_t qiov_offset, int flags)
 {
     BDRVQcow2State *s = bs->opaque;
-    int offset_in_cluster;
     int ret;
     unsigned int cur_bytes; /* number of bytes in current iteration */
     uint64_t cluster_offset = 0;
-    uint8_t *cluster_data = NULL;
 
     while (bytes != 0) {
 
@@ -1997,112 +2097,29 @@ static coroutine_fn int qcow2_co_preadv_part(BlockDriverState *bs,
         ret = qcow2_get_cluster_offset(bs, offset, &cur_bytes, &cluster_offset);
         qemu_co_mutex_unlock(&s->lock);
         if (ret < 0) {
-            goto fail;
+            return ret;
         }
 
-        offset_in_cluster = offset_into_cluster(s, offset);
-
-        switch (ret) {
-        case QCOW2_CLUSTER_UNALLOCATED:
-
-            if (bs->backing) {
-                BLKDBG_EVENT(bs->file, BLKDBG_READ_BACKING_AIO);
-                ret = bdrv_co_preadv_part(bs->backing, offset, cur_bytes,
-                                          qiov, qiov_offset, 0);
-                if (ret < 0) {
-                    goto fail;
-                }
-            } else {
-                /* Note: in this case, no need to wait */
-                qemu_iovec_memset(qiov, qiov_offset, 0, cur_bytes);
-            }
-            break;
-
-        case QCOW2_CLUSTER_ZERO_PLAIN:
-        case QCOW2_CLUSTER_ZERO_ALLOC:
+        if (ret == QCOW2_CLUSTER_ZERO_PLAIN ||
+            ret == QCOW2_CLUSTER_ZERO_ALLOC ||
+            (ret == QCOW2_CLUSTER_UNALLOCATED && !bs->backing))
+        {
             qemu_iovec_memset(qiov, qiov_offset, 0, cur_bytes);
-            break;
-
-        case QCOW2_CLUSTER_COMPRESSED:
-            ret = qcow2_co_preadv_compressed(bs, cluster_offset,
-                                             offset, cur_bytes,
-                                             qiov, qiov_offset);
+        } else {
+            ret = qcow2_co_preadv_task(bs, ret,
+                                       cluster_offset, offset, cur_bytes,
+                                       qiov, qiov_offset);
             if (ret < 0) {
-                goto fail;
+                return ret;
             }
-
-            break;
-
-        case QCOW2_CLUSTER_NORMAL:
-            if ((cluster_offset & 511) != 0) {
-                ret = -EIO;
-                goto fail;
-            }
-
-            if (bs->encrypted) {
-                assert(s->crypto);
-
-                /*
-                 * For encrypted images, read everything into a temporary
-                 * contiguous buffer on which the AES functions can work.
-                 */
-                if (!cluster_data) {
-                    cluster_data =
-                        qemu_try_blockalign(s->data_file->bs,
-                                            QCOW_MAX_CRYPT_CLUSTERS
-                                            * s->cluster_size);
-                    if (cluster_data == NULL) {
-                        ret = -ENOMEM;
-                        goto fail;
-                    }
-                }
-
-                assert(cur_bytes <= QCOW_MAX_CRYPT_CLUSTERS * s->cluster_size);
-
-                BLKDBG_EVENT(bs->file, BLKDBG_READ_AIO);
-                ret = bdrv_co_pread(s->data_file,
-                                    cluster_offset + offset_in_cluster,
-                                    cur_bytes, cluster_data, 0);
-                if (ret < 0) {
-                    goto fail;
-                }
-
-                assert(QEMU_IS_ALIGNED(offset, BDRV_SECTOR_SIZE));
-                assert(QEMU_IS_ALIGNED(cur_bytes, BDRV_SECTOR_SIZE));
-                if (qcow2_co_decrypt(bs, cluster_offset + offset_in_cluster,
-                                     offset,
-                                     cluster_data, cur_bytes) < 0) {
-                    ret = -EIO;
-                    goto fail;
-                }
-                qemu_iovec_from_buf(qiov, qiov_offset, cluster_data, cur_bytes);
-            } else {
-                BLKDBG_EVENT(bs->file, BLKDBG_READ_AIO);
-                ret = bdrv_co_preadv_part(s->data_file,
-                                          cluster_offset + offset_in_cluster,
-                                          cur_bytes, qiov, qiov_offset, 0);
-                if (ret < 0) {
-                    goto fail;
-                }
-            }
-            break;
-
-        default:
-            g_assert_not_reached();
-            ret = -EIO;
-            goto fail;
         }
 
         bytes -= cur_bytes;
         offset += cur_bytes;
         qiov_offset += cur_bytes;
     }
-    ret = 0;
 
-fail:
-    qemu_vfree(cluster_data);
-
-    return ret;
+    return 0;
 }
 
 /* Check if it's possible to merge a write request with the writing of
