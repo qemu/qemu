@@ -283,9 +283,7 @@ static int init_dirty_bitmap_migration(void)
     for (bs = bdrv_next_all_states(NULL); bs; bs = bdrv_next_all_states(bs)) {
         const char *name = bdrv_get_device_or_node_name(bs);
 
-        for (bitmap = bdrv_dirty_bitmap_next(bs, NULL); bitmap;
-             bitmap = bdrv_dirty_bitmap_next(bs, bitmap))
-        {
+        FOR_EACH_DIRTY_BITMAP(bs, bitmap) {
             if (!bdrv_dirty_bitmap_name(bitmap)) {
                 continue;
             }

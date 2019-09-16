@@ -1488,9 +1488,7 @@ void qcow2_store_persistent_dirty_bitmaps(BlockDriverState *bs, Error **errp)
     }
 
     /* check constraints and names */
-    for (bitmap = bdrv_dirty_bitmap_next(bs, NULL); bitmap != NULL;
-         bitmap = bdrv_dirty_bitmap_next(bs, bitmap))
-    {
+    FOR_EACH_DIRTY_BITMAP(bs, bitmap) {
         const char *name = bdrv_dirty_bitmap_name(bitmap);
         uint32_t granularity = bdrv_dirty_bitmap_granularity(bitmap);
         Qcow2Bitmap *bm;
@@ -1610,9 +1608,7 @@ int qcow2_reopen_bitmaps_ro(BlockDriverState *bs, Error **errp)
         return -EINVAL;
     }
 
-    for (bitmap = bdrv_dirty_bitmap_next(bs, NULL); bitmap != NULL;
-         bitmap = bdrv_dirty_bitmap_next(bs, bitmap))
-    {
+    FOR_EACH_DIRTY_BITMAP(bs, bitmap) {
         if (bdrv_dirty_bitmap_get_persistence(bitmap)) {
             bdrv_dirty_bitmap_set_readonly(bitmap, true);
         }

@@ -851,11 +851,14 @@ bool bdrv_has_changed_persistent_bitmaps(BlockDriverState *bs)
     return false;
 }
 
-BdrvDirtyBitmap *bdrv_dirty_bitmap_next(BlockDriverState *bs,
-                                        BdrvDirtyBitmap *bitmap)
+BdrvDirtyBitmap *bdrv_dirty_bitmap_first(BlockDriverState *bs)
 {
-    return bitmap == NULL ? QLIST_FIRST(&bs->dirty_bitmaps) :
-                            QLIST_NEXT(bitmap, list);
+    return QLIST_FIRST(&bs->dirty_bitmaps);
+}
+
+BdrvDirtyBitmap *bdrv_dirty_bitmap_next(BdrvDirtyBitmap *bitmap)
+{
+    return QLIST_NEXT(bitmap, list);
 }
 
 char *bdrv_dirty_bitmap_sha256(const BdrvDirtyBitmap *bitmap, Error **errp)

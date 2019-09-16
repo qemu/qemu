@@ -96,8 +96,13 @@ bool bdrv_dirty_bitmap_get_autoload(const BdrvDirtyBitmap *bitmap);
 bool bdrv_dirty_bitmap_get_persistence(BdrvDirtyBitmap *bitmap);
 bool bdrv_dirty_bitmap_inconsistent(const BdrvDirtyBitmap *bitmap);
 bool bdrv_has_changed_persistent_bitmaps(BlockDriverState *bs);
-BdrvDirtyBitmap *bdrv_dirty_bitmap_next(BlockDriverState *bs,
-                                        BdrvDirtyBitmap *bitmap);
+
+BdrvDirtyBitmap *bdrv_dirty_bitmap_first(BlockDriverState *bs);
+BdrvDirtyBitmap *bdrv_dirty_bitmap_next(BdrvDirtyBitmap *bitmap);
+#define FOR_EACH_DIRTY_BITMAP(bs, bitmap) \
+for (bitmap = bdrv_dirty_bitmap_first(bs); bitmap; \
+     bitmap = bdrv_dirty_bitmap_next(bitmap))
+
 char *bdrv_dirty_bitmap_sha256(const BdrvDirtyBitmap *bitmap, Error **errp);
 int64_t bdrv_dirty_bitmap_next_zero(BdrvDirtyBitmap *bitmap, uint64_t offset,
                                     uint64_t bytes);
