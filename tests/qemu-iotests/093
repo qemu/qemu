@@ -267,13 +267,12 @@ class ThrottleTestCoroutine(ThrottleTestCase):
     test_img = "null-co://"
 
 class ThrottleTestGroupNames(iotests.QMPTestCase):
-    test_img = "null-aio://"
     max_drives = 3
 
     def setUp(self):
         self.vm = iotests.VM()
         for i in range(0, self.max_drives):
-            self.vm.add_drive(self.test_img,
+            self.vm.add_drive("null-co://",
                               "throttling.iops-total=100,file.read-zeroes=on")
         self.vm.launch()
 
@@ -376,10 +375,10 @@ class ThrottleTestRemovableMedia(iotests.QMPTestCase):
 
     def test_removable_media(self):
         # Add a couple of dummy nodes named cd0 and cd1
-        result = self.vm.qmp("blockdev-add", driver="null-aio",
+        result = self.vm.qmp("blockdev-add", driver="null-co",
                              read_zeroes=True, node_name="cd0")
         self.assert_qmp(result, 'return', {})
-        result = self.vm.qmp("blockdev-add", driver="null-aio",
+        result = self.vm.qmp("blockdev-add", driver="null-co",
                              read_zeroes=True, node_name="cd1")
         self.assert_qmp(result, 'return', {})
 

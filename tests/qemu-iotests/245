@@ -598,7 +598,7 @@ class TestBlockdevReopen(iotests.QMPTestCase):
         ##################
         ###### null ######
         ##################
-        opts = {'driver': 'null-aio', 'node-name': 'root', 'size': 1024}
+        opts = {'driver': 'null-co', 'node-name': 'root', 'size': 1024}
 
         result = self.vm.qmp('blockdev-add', conv_keys = False, **opts)
         self.assert_qmp(result, 'return', {})
