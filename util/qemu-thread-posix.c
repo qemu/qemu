@@ -36,6 +36,18 @@ static void error_exit(int err, const char *msg)
     abort();
 }
 
+static void compute_abs_deadline(struct timespec *ts, int ms)
+{
+    struct timeval tv;
+    gettimeofday(&tv, NULL);
+    ts->tv_nsec = tv.tv_usec * 1000 + (ms % 1000) * 1000000;
+    ts->tv_sec = tv.tv_sec + ms / 1000;
+    if (ts->tv_nsec >= 1000000000) {
+        ts->tv_sec++;
+        ts->tv_nsec -= 1000000000;
+    }
+}
+
 void qemu_mutex_init(QemuMutex *mutex)
 {
     int err;
@@ -164,6 +176,23 @@ void qemu_cond_wait_impl(QemuCond *cond, QemuMutex *mutex, const char *file, con
         error_exit(err, __func__);
 }
 
+bool qemu_cond_timedwait_impl(QemuCond *cond, QemuMutex *mutex, int ms,
+                              const char *file, const int line)
+{
+    int err;
+    struct timespec ts;
+
+    assert(cond->initialized);
+    trace_qemu_mutex_unlock(mutex, file, line);
+    compute_abs_deadline(&ts, ms);
+    err = pthread_cond_timedwait(&cond->cond, &mutex->lock, &ts);
+    trace_qemu_mutex_locked(mutex, file, line);
+    if (err && err != ETIMEDOUT) {
+        error_exit(err, __func__);
+    }
+    return err != ETIMEDOUT;
+}
+
 void qemu_sem_init(QemuSemaphore *sem, int init)
 {
     int rc;
@@ -236,18 +265,6 @@ void qemu_sem_post(QemuSemaphore *sem)
         error_exit(errno, __func__);
     }
 #endif
-}
-
-static void compute_abs_deadline(struct timespec *ts, int ms)
-{
-    struct timeval tv;
-    gettimeofday(&tv, NULL);
-    ts->tv_nsec = tv.tv_usec * 1000 + (ms % 1000) * 1000000;
-    ts->tv_sec = tv.tv_sec + ms / 1000;
-    if (ts->tv_nsec >= 1000000000) {
-        ts->tv_sec++;
-        ts->tv_nsec -= 1000000000;
-    }
 }
 
 int qemu_sem_timedwait(QemuSemaphore *sem, int ms)

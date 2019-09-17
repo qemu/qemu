@@ -338,6 +338,8 @@ const char *load_elf_strerror(int error)
         return "The image is from incompatible architecture";
     case ELF_LOAD_WRONG_ENDIAN:
         return "The image has incorrect endianness";
+    case ELF_LOAD_TOO_BIG:
+        return "The image segments are too big to load";
     default:
         return "Unknown error";
     }

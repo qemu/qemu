@@ -89,6 +89,7 @@ int load_image_gzipped(const char *filename, hwaddr addr, uint64_t max_sz);
 #define ELF_LOAD_NOT_ELF      -2
 #define ELF_LOAD_WRONG_ARCH   -3
 #define ELF_LOAD_WRONG_ENDIAN -4
+#define ELF_LOAD_TOO_BIG      -5
 const char *load_elf_strerror(int error);
 
 /** load_elf_ram_sym:

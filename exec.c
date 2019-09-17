@@ -227,8 +227,7 @@ static void phys_map_node_reserve(PhysPageMap *map, unsigned nodes)
 {
     static unsigned alloc_hint = 16;
     if (map->nodes_nb + nodes > map->nodes_nb_alloc) {
-        map->nodes_nb_alloc = MAX(map->nodes_nb_alloc, alloc_hint);
-        map->nodes_nb_alloc = MAX(map->nodes_nb_alloc, map->nodes_nb + nodes);
+        map->nodes_nb_alloc = MAX(alloc_hint, map->nodes_nb + nodes);
         map->nodes = g_renew(Node, map->nodes, map->nodes_nb_alloc);
         alloc_hint = map->nodes_nb_alloc;
     }
@@ -255,7 +254,7 @@ static uint32_t phys_map_node_alloc(PhysPageMap *map, bool leaf)
 }
 
 static void phys_page_set_level(PhysPageMap *map, PhysPageEntry *lp,
-                                hwaddr *index, hwaddr *nb, uint16_t leaf,
+                                hwaddr *index, uint64_t *nb, uint16_t leaf,
                                 int level)
 {
     PhysPageEntry *p;
@@ -281,7 +280,7 @@ static void phys_page_set_level(PhysPageMap *map, PhysPageEntry *lp,
 }
 
 static void phys_page_set(AddressSpaceDispatch *d,
-                          hwaddr index, hwaddr nb,
+                          hwaddr index, uint64_t nb,
                           uint16_t leaf)
 {
     /* Wildly overreserve - it doesn't matter much. */
@@ -325,7 +324,8 @@ static void phys_page_compact(PhysPageEntry *lp, Node *nodes)
     assert(valid_ptr < P_L2_SIZE);
 
     /* Don't compress if it won't fit in the # of bits we have. */
-    if (lp->skip + p[valid_ptr].skip >= (1 << 3)) {
+    if (P_L2_LEVELS >= (1 << 6) &&
+        lp->skip + p[valid_ptr].skip >= (1 << 6)) {
         return;
     }
 
@@ -1492,8 +1492,8 @@ hwaddr memory_region_section_get_iotlb(CPUState *cpu,
 
 #if !defined(CONFIG_USER_ONLY)
 
-static int subpage_register (subpage_t *mmio, uint32_t start, uint32_t end,
-                             uint16_t section);
+static int subpage_register(subpage_t *mmio, uint32_t start, uint32_t end,
+                            uint16_t section);
 static subpage_t *subpage_init(FlatView *fv, hwaddr base);
 
 static void *(*phys_mem_alloc)(size_t size, uint64_t *align, bool shared) =
@@ -1791,7 +1791,39 @@ long qemu_maxrampagesize(void)
 #ifdef CONFIG_POSIX
 static int64_t get_file_size(int fd)
 {
-    int64_t size = lseek(fd, 0, SEEK_END);
+    int64_t size;
+#if defined(__linux__)
+    struct stat st;
+
+    if (fstat(fd, &st) < 0) {
+        return -errno;
+    }
+
+    /* Special handling for devdax character devices */
+    if (S_ISCHR(st.st_mode)) {
+        g_autofree char *subsystem_path = NULL;
+        g_autofree char *subsystem = NULL;
+
+        subsystem_path = g_strdup_printf("/sys/dev/char/%d:%d/subsystem",
+                                         major(st.st_rdev), minor(st.st_rdev));
+        subsystem = g_file_read_link(subsystem_path, NULL);
+
+        if (subsystem && g_str_has_suffix(subsystem, "/dax")) {
+            g_autofree char *size_path = NULL;
+            g_autofree char *size_str = NULL;
+
+            size_path = g_strdup_printf("/sys/dev/char/%d:%d/size",
+                                    major(st.st_rdev), minor(st.st_rdev));
+
+            if (g_file_get_contents(size_path, &size_str, NULL, NULL)) {
+                return g_ascii_strtoll(size_str, NULL, 0);
+            }
+        }
+    }
+#endif /* defined(__linux__) */
+
+    /* st.st_size may be zero for special files yet lseek(2) works */
+    size = lseek(fd, 0, SEEK_END);
     if (size < 0) {
         return -errno;
     }
@@ -2914,8 +2946,8 @@ static const MemoryRegionOps subpage_ops = {
     .endianness = DEVICE_NATIVE_ENDIAN,
 };
 
-static int subpage_register (subpage_t *mmio, uint32_t start, uint32_t end,
-                             uint16_t section)
+static int subpage_register(subpage_t *mmio, uint32_t start, uint32_t end,
+                            uint16_t section)
 {
     int idx, eidx;
 
@@ -2938,6 +2970,7 @@ static subpage_t *subpage_init(FlatView *fv, hwaddr base)
 {
     subpage_t *mmio;
 
+    /* mmio->sub_section is set to PHYS_SECTION_UNASSIGNED with g_malloc0 */
     mmio = g_malloc0(sizeof(subpage_t) + TARGET_PAGE_SIZE * sizeof(uint16_t));
     mmio->fv = fv;
     mmio->base = base;
@@ -2948,7 +2981,6 @@ static subpage_t *subpage_init(FlatView *fv, hwaddr base)
     printf("%s: %p base " TARGET_FMT_plx " len %08x\n", __func__,
            mmio, base, TARGET_PAGE_SIZE);
 #endif
-    subpage_register(mmio, 0, TARGET_PAGE_SIZE-1, PHYS_SECTION_UNASSIGNED);
 
     return mmio;
 }
