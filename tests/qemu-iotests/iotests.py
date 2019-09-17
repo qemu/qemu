@@ -838,6 +838,11 @@ class QMPTestCase(unittest.TestCase):
             return self.pause_wait(job_id)
         return result
 
+    def case_skip(self, reason):
+        '''Skip this test case'''
+        case_notrun(reason)
+        self.skipTest(reason)
+
 
 def notrun(reason):
     '''Skip this test suite'''
@@ -849,7 +854,11 @@ def notrun(reason):
     sys.exit(0)
 
 def case_notrun(reason):
-    '''Skip this test case'''
+    '''Mark this test case as not having been run (without actually
+    skipping it, that is left to the caller).  See
+    QMPTestCase.case_skip() for a variant that actually skips the
+    current test case.'''
+
     # Each test in qemu-iotests has a number ("seq")
     seq = os.path.basename(sys.argv[0])
 
@@ -950,8 +959,15 @@ def execute_unittest(output, verbosity, debug):
         unittest.main(testRunner=runner)
     finally:
         if not debug:
-            sys.stderr.write(re.sub(r'Ran (\d+) tests? in [\d.]+s',
-                                    r'Ran \1 tests', output.getvalue()))
+            out = output.getvalue()
+            out = re.sub(r'Ran (\d+) tests? in [\d.]+s', r'Ran \1 tests', out)
+
+            # Hide skipped tests from the reference output
+            out = re.sub(r'OK \(skipped=\d+\)', 'OK', out)
+            out_first_line, out_rest = out.split('\n', 1)
+            out = out_first_line.replace('s', '.') + '\n' + out_rest
+
+            sys.stderr.write(out)
 
 def execute_test(test_function=None,
                  supported_fmts=[], supported_oses=['linux'],
