@@ -930,8 +930,12 @@ def skip_if_unsupported(required_formats=[], read_only=False):
        Runs the test if all the required formats are whitelisted'''
     def skip_test_decorator(func):
         def func_wrapper(test_case: QMPTestCase, *args, **kwargs):
-            usf_list = list(set(required_formats) -
-                            set(supported_formats(read_only)))
+            if callable(required_formats):
+                fmts = required_formats(test_case)
+            else:
+                fmts = required_formats
+
+            usf_list = list(set(fmts) - set(supported_formats(read_only)))
             if usf_list:
                 test_case.case_skip('{}: formats {} are not whitelisted'.format(
                     test_case, usf_list))
