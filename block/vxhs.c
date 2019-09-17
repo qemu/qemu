@@ -22,6 +22,7 @@
 #include "qapi/error.h"
 #include "qemu/uuid.h"
 #include "crypto/tlscredsx509.h"
+#include "sysemu/replay.h"
 
 #define VXHS_OPT_FILENAME           "filename"
 #define VXHS_OPT_VDISK_ID           "vdisk-id"
@@ -105,8 +106,8 @@ static void vxhs_iio_callback(void *ctx, uint32_t opcode, uint32_t error)
             trace_vxhs_iio_callback(error);
         }
 
-        aio_bh_schedule_oneshot(bdrv_get_aio_context(acb->common.bs),
-                                vxhs_complete_aio_bh, acb);
+        replay_bh_schedule_oneshot_event(bdrv_get_aio_context(acb->common.bs),
+                                         vxhs_complete_aio_bh, acb);
         break;
 
     default:
