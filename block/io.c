@@ -3347,20 +3347,19 @@ int coroutine_fn bdrv_co_truncate(BdrvChild *child, int64_t offset,
         goto out;
     }
 
-    if (!drv->bdrv_co_truncate) {
-        if (bs->file && drv->is_filter) {
-            ret = bdrv_co_truncate(bs->file, offset, prealloc, errp);
-            goto out;
-        }
+    if (drv->bdrv_co_truncate) {
+        ret = drv->bdrv_co_truncate(bs, offset, prealloc, errp);
+    } else if (bs->file && drv->is_filter) {
+        ret = bdrv_co_truncate(bs->file, offset, prealloc, errp);
+    } else {
         error_setg(errp, "Image format driver does not support resize");
         ret = -ENOTSUP;
         goto out;
     }
-
-    ret = drv->bdrv_co_truncate(bs, offset, prealloc, errp);
     if (ret < 0) {
         goto out;
     }
+
     ret = refresh_total_sectors(bs, offset >> BDRV_SECTOR_BITS);
     if (ret < 0) {
         error_setg_errno(errp, -ret, "Could not refresh total sector count");
