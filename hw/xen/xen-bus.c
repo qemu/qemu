@@ -857,6 +857,13 @@ static void xen_device_frontend_changed(void *opaque)
     }
 }
 
+static bool xen_device_frontend_exists(XenDevice *xendev)
+{
+    enum xenbus_state state;
+
+    return (xen_device_frontend_scanf(xendev, "state", "%u", &state) == 1);
+}
+
 static void xen_device_frontend_create(XenDevice *xendev, Error **errp)
 {
     XenBus *xenbus = XEN_BUS(qdev_get_parent_bus(DEVICE(xendev)));
@@ -865,19 +872,25 @@ static void xen_device_frontend_create(XenDevice *xendev, Error **errp)
 
     xendev->frontend_path = xen_device_get_frontend_path(xendev);
 
-    perms[0].id = xendev->frontend_id;
-    perms[0].perms = XS_PERM_NONE;
-    perms[1].id = xenbus->backend_id;
-    perms[1].perms = XS_PERM_READ | XS_PERM_WRITE;
+    /*
+     * The frontend area may have already been created by a legacy
+     * toolstack.
+     */
+    if (!xen_device_frontend_exists(xendev)) {
+        perms[0].id = xendev->frontend_id;
+        perms[0].perms = XS_PERM_NONE;
+        perms[1].id = xenbus->backend_id;
+        perms[1].perms = XS_PERM_READ | XS_PERM_WRITE;
 
-    g_assert(xenbus->xsh);
+        g_assert(xenbus->xsh);
 
-    xs_node_create(xenbus->xsh, XBT_NULL, xendev->frontend_path, perms,
-                   ARRAY_SIZE(perms), &local_err);
-    if (local_err) {
-        error_propagate_prepend(errp, local_err,
-                                "failed to create frontend: ");
-        return;
+        xs_node_create(xenbus->xsh, XBT_NULL, xendev->frontend_path, perms,
+                       ARRAY_SIZE(perms), &local_err);
+        if (local_err) {
+            error_propagate_prepend(errp, local_err,
+                                    "failed to create frontend: ");
+            return;
+        }
     }
 
     xendev->frontend_state_watch =
@@ -1290,12 +1303,14 @@ static void xen_device_realize(DeviceState *dev, Error **errp)
     xen_device_backend_set_online(xendev, true);
     xen_device_backend_set_state(xendev, XenbusStateInitWait);
 
-    xen_device_frontend_printf(xendev, "backend", "%s",
-                               xendev->backend_path);
-    xen_device_frontend_printf(xendev, "backend-id", "%u",
-                               xenbus->backend_id);
+    if (!xen_device_frontend_exists(xendev)) {
+        xen_device_frontend_printf(xendev, "backend", "%s",
+                                   xendev->backend_path);
+        xen_device_frontend_printf(xendev, "backend-id", "%u",
+                                   xenbus->backend_id);
 
-    xen_device_frontend_set_state(xendev, XenbusStateInitialising, true);
+        xen_device_frontend_set_state(xendev, XenbusStateInitialising, true);
+    }
 
     xendev->exit.notify = xen_device_exit;
     qemu_add_exit_notifier(&xendev->exit);
