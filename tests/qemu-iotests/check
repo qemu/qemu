@@ -633,6 +633,12 @@ then
     export SOCKET_SCM_HELPER="$build_iotests/socket_scm_helper"
 fi
 
+python_usable=false
+if $PYTHON -c 'import sys; sys.exit(0 if sys.version_info >= (3,6) else 1)'
+then
+    python_usable=true
+fi
+
 default_machine=$($QEMU_PROG -machine help | sed -n '/(default)/ s/ .*//p')
 default_alias_machine=$($QEMU_PROG -machine help | \
    sed -n "/(alias of $default_machine)/ { s/ .*//p; q; }")
@@ -809,7 +815,12 @@ do
         start=$(_wallclock)
 
         if [ "$(head -n 1 "$source_iotests/$seq")" == "#!/usr/bin/env python" ]; then
-            run_command="$PYTHON $seq"
+            if $python_usable; then
+                run_command="$PYTHON $seq"
+            else
+                run_command="false"
+                echo "Unsupported Python version" > $seq.notrun
+            fi
         else
             run_command="./$seq"
         fi
