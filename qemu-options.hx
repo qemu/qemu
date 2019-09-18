@@ -445,7 +445,7 @@ DEF("audiodev", HAS_ARG, QEMU_OPTION_audiodev,
 #ifdef CONFIG_AUDIO_ALSA
     "-audiodev alsa,id=id[,prop[=value][,...]]\n"
     "                in|out.dev= name of the audio device to use\n"
-    "                in|out.period-len= length of period in microseconds\n"
+    "                in|out.period-length= length of period in microseconds\n"
     "                in|out.try-poll= attempt to use poll mode\n"
     "                threshold= threshold (in microseconds) when playback starts\n"
 #endif
@@ -545,7 +545,7 @@ ALSA specific options are:
 Specify the ALSA @var{device} to use for input and/or output.  Default
 is @code{default}.
 
-@item in|out.period-len=@var{usecs}
+@item in|out.period-length=@var{usecs}
 Sets the period length in microseconds.
 
 @item in|out.try-poll=on|off
