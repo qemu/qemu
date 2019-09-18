@@ -31,3 +31,7 @@ config ACPI_VMGENID
     bool
     default y
     depends on PC
+
+config ACPI_HW_REDUCED
+    bool
+    depends on ACPI
