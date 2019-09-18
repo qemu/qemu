@@ -220,8 +220,8 @@ static void dfp_set_FPRF_from_FRT_with_context(struct PPC_DFP *dfp,
     default:
         assert(0); /* should never get here */
     }
-    dfp->env->fpscr &= ~(0x1F << 12);
-    dfp->env->fpscr |= (fprf << 12);
+    dfp->env->fpscr &= ~FP_FPRF;
+    dfp->env->fpscr |= (fprf << FPSCR_FPRF);
 }
 
 static void dfp_set_FPRF_from_FRT(struct PPC_DFP *dfp)
@@ -369,8 +369,8 @@ static void dfp_set_CRBF_from_T(struct PPC_DFP *dfp)
 
 static void dfp_set_FPCC_from_CRBF(struct PPC_DFP *dfp)
 {
-    dfp->env->fpscr &= ~(0xF << 12);
-    dfp->env->fpscr |= (dfp->crbf << 12);
+    dfp->env->fpscr &= ~FP_FPCC;
+    dfp->env->fpscr |= (dfp->crbf << FPSCR_FPCC);
 }
 
 static inline void dfp_makeQNaN(decNumber *dn)
