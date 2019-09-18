@@ -3291,8 +3291,12 @@ static void bdrv_parent_cb_resize(BlockDriverState *bs)
 
 /**
  * Truncate file to 'offset' bytes (needed only for file protocols)
+ *
+ * If 'exact' is true, the file must be resized to exactly the given
+ * 'offset'.  Otherwise, it is sufficient for the node to be at least
+ * 'offset' bytes in length.
  */
-int coroutine_fn bdrv_co_truncate(BdrvChild *child, int64_t offset,
+int coroutine_fn bdrv_co_truncate(BdrvChild *child, int64_t offset, bool exact,
                                   PreallocMode prealloc, Error **errp)
 {
     BlockDriverState *bs = child->bs;
@@ -3348,9 +3352,9 @@ int coroutine_fn bdrv_co_truncate(BdrvChild *child, int64_t offset,
     }
 
     if (drv->bdrv_co_truncate) {
-        ret = drv->bdrv_co_truncate(bs, offset, prealloc, errp);
+        ret = drv->bdrv_co_truncate(bs, offset, exact, prealloc, errp);
     } else if (bs->file && drv->is_filter) {
-        ret = bdrv_co_truncate(bs->file, offset, prealloc, errp);
+        ret = bdrv_co_truncate(bs->file, offset, exact, prealloc, errp);
     } else {
         error_setg(errp, "Image format driver does not support resize");
         ret = -ENOTSUP;
@@ -3381,6 +3385,7 @@ out:
 typedef struct TruncateCo {
     BdrvChild *child;
     int64_t offset;
+    bool exact;
     PreallocMode prealloc;
     Error **errp;
     int ret;
@@ -3389,18 +3394,19 @@ typedef struct TruncateCo {
 static void coroutine_fn bdrv_truncate_co_entry(void *opaque)
 {
     TruncateCo *tco = opaque;
-    tco->ret = bdrv_co_truncate(tco->child, tco->offset, tco->prealloc,
-                                tco->errp);
+    tco->ret = bdrv_co_truncate(tco->child, tco->offset, tco->exact,
+                                tco->prealloc, tco->errp);
     aio_wait_kick();
 }
 
-int bdrv_truncate(BdrvChild *child, int64_t offset, PreallocMode prealloc,
-                  Error **errp)
+int bdrv_truncate(BdrvChild *child, int64_t offset, bool exact,
+                  PreallocMode prealloc, Error **errp)
 {
     Coroutine *co;
     TruncateCo tco = {
         .child      = child,
         .offset     = offset,
+        .exact      = exact,
         .prealloc   = prealloc,
         .errp       = errp,
         .ret        = NOT_DONE,

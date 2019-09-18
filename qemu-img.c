@@ -3831,7 +3831,7 @@ static int img_resize(int argc, char **argv)
         }
     }
 
-    ret = blk_truncate(blk, total_size, prealloc, &err);
+    ret = blk_truncate(blk, total_size, false, prealloc, &err);
     if (ret < 0) {
         error_report_err(err);
         goto out;

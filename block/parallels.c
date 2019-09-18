@@ -203,7 +203,7 @@ static int64_t allocate_clusters(BlockDriverState *bs, int64_t sector_num,
         } else {
             ret = bdrv_truncate(bs->file,
                                 (s->data_end + space) << BDRV_SECTOR_BITS,
-                                PREALLOC_MODE_OFF, NULL);
+                                false, PREALLOC_MODE_OFF, NULL);
         }
         if (ret < 0) {
             return ret;
@@ -487,7 +487,7 @@ static int coroutine_fn parallels_co_check(BlockDriverState *bs,
         res->leaks += count;
         if (fix & BDRV_FIX_LEAKS) {
             Error *local_err = NULL;
-            ret = bdrv_truncate(bs->file, res->image_end_offset,
+            ret = bdrv_truncate(bs->file, res->image_end_offset, false,
                                 PREALLOC_MODE_OFF, &local_err);
             if (ret < 0) {
                 error_report_err(local_err);
@@ -880,7 +880,7 @@ static void parallels_close(BlockDriverState *bs)
     if ((bs->open_flags & BDRV_O_RDWR) && !(bs->open_flags & BDRV_O_INACTIVE)) {
         s->header->inuse = 0;
         parallels_update_header(bs);
-        bdrv_truncate(bs->file, s->data_end << BDRV_SECTOR_BITS,
+        bdrv_truncate(bs->file, s->data_end << BDRV_SECTOR_BITS, false,
                       PREALLOC_MODE_OFF, NULL);
     }
 

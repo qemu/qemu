@@ -334,8 +334,23 @@ struct BlockDriver {
      * bdrv_parse_filename.
      */
     const char *protocol_name;
+
+    /*
+     * Truncate @bs to @offset bytes using the given @prealloc mode
+     * when growing.  Modes other than PREALLOC_MODE_OFF should be
+     * rejected when shrinking @bs.
+     *
+     * If @exact is true, @bs must be resized to exactly @offset.
+     * Otherwise, it is sufficient for @bs (if it is a host block
+     * device and thus there is no way to resize it) to be at least
+     * @offset bytes in length.
+     *
+     * If @exact is true and this function fails but would succeed
+     * with @exact = false, it should return -ENOTSUP.
+     */
     int coroutine_fn (*bdrv_co_truncate)(BlockDriverState *bs, int64_t offset,
-                                         PreallocMode prealloc, Error **errp);
+                                         bool exact, PreallocMode prealloc,
+                                         Error **errp);
 
     int64_t (*bdrv_getlength)(BlockDriverState *bs);
     bool has_variable_length;

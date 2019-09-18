@@ -878,8 +878,8 @@ static int coroutine_fn mirror_run(Job *job, Error **errp)
         }
 
         if (s->bdev_length > base_length) {
-            ret = blk_truncate(s->target, s->bdev_length, PREALLOC_MODE_OFF,
-                               NULL);
+            ret = blk_truncate(s->target, s->bdev_length, false,
+                               PREALLOC_MODE_OFF, NULL);
             if (ret < 0) {
                 goto immediate_exit;
             }

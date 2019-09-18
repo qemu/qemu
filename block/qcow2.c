@@ -3074,8 +3074,8 @@ static int coroutine_fn preallocate_co(BlockDriverState *bs, uint64_t offset,
         if (mode == PREALLOC_MODE_METADATA) {
             mode = PREALLOC_MODE_OFF;
         }
-        ret = bdrv_co_truncate(s->data_file, host_offset + cur_bytes, mode,
-                               errp);
+        ret = bdrv_co_truncate(s->data_file, host_offset + cur_bytes, false,
+                               mode, errp);
         if (ret < 0) {
             return ret;
         }
@@ -3489,7 +3489,8 @@ qcow2_co_create(BlockdevCreateOptions *create_options, Error **errp)
     }
 
     /* Okay, now that we have a valid image, let's give it the right size */
-    ret = blk_truncate(blk, qcow2_opts->size, qcow2_opts->preallocation, errp);
+    ret = blk_truncate(blk, qcow2_opts->size, false, qcow2_opts->preallocation,
+                       errp);
     if (ret < 0) {
         error_prepend(errp, "Could not resize image: ");
         goto out;
@@ -3937,7 +3938,8 @@ fail:
 }
 
 static int coroutine_fn qcow2_co_truncate(BlockDriverState *bs, int64_t offset,
-                                          PreallocMode prealloc, Error **errp)
+                                          bool exact, PreallocMode prealloc,
+                                          Error **errp)
 {
     BDRVQcow2State *s = bs->opaque;
     uint64_t old_length;
@@ -4026,7 +4028,7 @@ static int coroutine_fn qcow2_co_truncate(BlockDriverState *bs, int64_t offset,
             Error *local_err = NULL;
 
             bdrv_co_truncate(bs->file, (last_cluster + 1) * s->cluster_size,
-                             PREALLOC_MODE_OFF, &local_err);
+                             false, PREALLOC_MODE_OFF, &local_err);
             if (local_err) {
                 warn_reportf_err(local_err,
                                  "Failed to truncate the tail of the image: ");
@@ -4043,7 +4045,7 @@ static int coroutine_fn qcow2_co_truncate(BlockDriverState *bs, int64_t offset,
     switch (prealloc) {
     case PREALLOC_MODE_OFF:
         if (has_data_file(bs)) {
-            ret = bdrv_co_truncate(s->data_file, offset, prealloc, errp);
+            ret = bdrv_co_truncate(s->data_file, offset, false, prealloc, errp);
             if (ret < 0) {
                 goto fail;
             }
@@ -4128,7 +4130,7 @@ static int coroutine_fn qcow2_co_truncate(BlockDriverState *bs, int64_t offset,
         /* Allocate the data area */
         new_file_size = allocation_start +
                         nb_new_data_clusters * s->cluster_size;
-        ret = bdrv_co_truncate(bs->file, new_file_size, prealloc, errp);
+        ret = bdrv_co_truncate(bs->file, new_file_size, false, prealloc, errp);
         if (ret < 0) {
             error_prepend(errp, "Failed to resize underlying file: ");
             qcow2_free_clusters(bs, allocation_start,
@@ -4231,7 +4233,7 @@ qcow2_co_pwritev_compressed_part(BlockDriverState *bs,
         if (len < 0) {
             return len;
         }
-        return bdrv_co_truncate(bs->file, len, PREALLOC_MODE_OFF, NULL);
+        return bdrv_co_truncate(bs->file, len, false, PREALLOC_MODE_OFF, NULL);
     }
 
     if (offset_into_cluster(s, offset)) {
@@ -4468,7 +4470,7 @@ static int make_completely_empty(BlockDriverState *bs)
         goto fail;
     }
 
-    ret = bdrv_truncate(bs->file, (3 + l1_clusters) * s->cluster_size,
+    ret = bdrv_truncate(bs->file, (3 + l1_clusters) * s->cluster_size, false,
                         PREALLOC_MODE_OFF, &local_err);
     if (ret < 0) {
         error_report_err(local_err);
@@ -5308,7 +5310,7 @@ static int qcow2_amend_options(BlockDriverState *bs, QemuOpts *opts,
             return ret;
         }
 
-        ret = blk_truncate(blk, new_size, PREALLOC_MODE_OFF, errp);
+        ret = blk_truncate(blk, new_size, false, PREALLOC_MODE_OFF, errp);
         blk_unref(blk);
         if (ret < 0) {
             return ret;

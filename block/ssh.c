@@ -1295,7 +1295,8 @@ static int64_t ssh_getlength(BlockDriverState *bs)
 }
 
 static int coroutine_fn ssh_co_truncate(BlockDriverState *bs, int64_t offset,
-                                        PreallocMode prealloc, Error **errp)
+                                        bool exact, PreallocMode prealloc,
+                                        Error **errp)
 {
     BDRVSSHState *s = bs->opaque;
 

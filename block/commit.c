@@ -155,7 +155,7 @@ static int coroutine_fn commit_run(Job *job, Error **errp)
     }
 
     if (base_len < len) {
-        ret = blk_truncate(s->base, len, PREALLOC_MODE_OFF, NULL);
+        ret = blk_truncate(s->base, len, false, PREALLOC_MODE_OFF, NULL);
         if (ret) {
             goto out;
         }
@@ -471,7 +471,8 @@ int bdrv_commit(BlockDriverState *bs)
      * grow the backing file image if possible.  If not possible,
      * we must return an error */
     if (length > backing_length) {
-        ret = blk_truncate(backing, length, PREALLOC_MODE_OFF, &local_err);
+        ret = blk_truncate(backing, length, false, PREALLOC_MODE_OFF,
+                           &local_err);
         if (ret < 0) {
             error_report_err(local_err);
             goto ro_cleanup;
