@@ -439,7 +439,7 @@ DEF("audiodev", HAS_ARG, QEMU_OPTION_audiodev,
     "                in|out.format= sample format to use with fixed settings\n"
     "                valid values: s8, s16, s32, u8, u16, u32\n"
     "                in|out.voices= number of voices to use\n"
-    "                in|out.buffer-len= length of buffer in microseconds\n"
+    "                in|out.buffer-length= length of buffer in microseconds\n"
     "-audiodev none,id=id,[,prop[=value][,...]]\n"
     "                dummy driver that discards all output\n"
 #ifdef CONFIG_AUDIO_ALSA
@@ -524,7 +524,7 @@ Valid values are: @code{s8}, @code{s16}, @code{s32}, @code{u8},
 @item in|out.voices=@var{voices}
 Specify the number of @var{voices} to use.  Default is 1.
 
-@item in|out.buffer=@var{usecs}
+@item in|out.buffer-length=@var{usecs}
 Sets the size of the buffer in microseconds.
 
 @end table
