@@ -2033,6 +2033,7 @@ static int coroutine_fn raw_co_truncate(BlockDriverState *bs, int64_t offset,
     }
 
     if (S_ISREG(st.st_mode)) {
+        /* Always resizes to the exact @offset */
         return raw_regular_truncate(bs, s->fd, offset, prealloc, errp);
     }
 
@@ -2043,7 +2044,12 @@ static int coroutine_fn raw_co_truncate(BlockDriverState *bs, int64_t offset,
     }
 
     if (S_ISCHR(st.st_mode) || S_ISBLK(st.st_mode)) {
-        if (offset > raw_getlength(bs)) {
+        int64_t cur_length = raw_getlength(bs);
+
+        if (offset != cur_length && exact) {
+            error_setg(errp, "Cannot resize device files");
+            return -ENOTSUP;
+        } else if (offset > cur_length) {
             error_setg(errp, "Cannot grow device files");
             return -EINVAL;
         }
