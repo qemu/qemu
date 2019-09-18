@@ -5323,7 +5323,11 @@ static int qcow2_amend_options(BlockDriverState *bs, QemuOpts *opts,
             return ret;
         }
 
-        ret = blk_truncate(blk, new_size, false, PREALLOC_MODE_OFF, errp);
+        /*
+         * Amending image options should ensure that the image has
+         * exactly the given new values, so pass exact=true here.
+         */
+        ret = blk_truncate(blk, new_size, true, PREALLOC_MODE_OFF, errp);
         blk_unref(blk);
         if (ret < 0) {
             return ret;

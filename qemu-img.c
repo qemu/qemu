@@ -3831,7 +3831,12 @@ static int img_resize(int argc, char **argv)
         }
     }
 
-    ret = blk_truncate(blk, total_size, false, prealloc, &err);
+    /*
+     * The user expects the image to have the desired size after
+     * resizing, so pass @exact=true.  It is of no use to report
+     * success when the image has not actually been resized.
+     */
+    ret = blk_truncate(blk, total_size, true, prealloc, &err);
     if (ret < 0) {
         error_report_err(err);
         goto out;

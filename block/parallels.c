@@ -487,7 +487,12 @@ static int coroutine_fn parallels_co_check(BlockDriverState *bs,
         res->leaks += count;
         if (fix & BDRV_FIX_LEAKS) {
             Error *local_err = NULL;
-            ret = bdrv_truncate(bs->file, res->image_end_offset, false,
+
+            /*
+             * In order to really repair the image, we must shrink it.
+             * That means we have to pass exact=true.
+             */
+            ret = bdrv_truncate(bs->file, res->image_end_offset, true,
                                 PREALLOC_MODE_OFF, &local_err);
             if (ret < 0) {
                 error_report_err(local_err);
@@ -880,7 +885,9 @@ static void parallels_close(BlockDriverState *bs)
     if ((bs->open_flags & BDRV_O_RDWR) && !(bs->open_flags & BDRV_O_INACTIVE)) {
         s->header->inuse = 0;
         parallels_update_header(bs);
-        bdrv_truncate(bs->file, s->data_end << BDRV_SECTOR_BITS, false,
+
+        /* errors are ignored, so we might as well pass exact=true */
+        bdrv_truncate(bs->file, s->data_end << BDRV_SECTOR_BITS, true,
                       PREALLOC_MODE_OFF, NULL);
     }
 

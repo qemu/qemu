@@ -1710,7 +1710,12 @@ static int truncate_f(BlockBackend *blk, int argc, char **argv)
         return offset;
     }
 
-    ret = blk_truncate(blk, offset, false, PREALLOC_MODE_OFF, &local_err);
+    /*
+     * qemu-io is a debugging tool, so let us be strict here and pass
+     * exact=true.  It is better to err on the "emit more errors" side
+     * than to be overly permissive.
+     */
+    ret = blk_truncate(blk, offset, true, PREALLOC_MODE_OFF, &local_err);
     if (ret < 0) {
         error_report_err(local_err);
         return ret;
