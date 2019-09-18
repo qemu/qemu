@@ -22,6 +22,8 @@ config ARM_VIRT
     select ACPI_PCI
     select MEM_DEVICE
     select DIMM
+    select ACPI_MEMORY_HOTPLUG
+    select ACPI_HW_REDUCED
 
 config CHEETAH
     bool
