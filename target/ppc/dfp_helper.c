@@ -48,7 +48,7 @@ static void dfp_prepare_rounding_mode(decContext *context, uint64_t fpscr)
 {
     enum rounding rnd;
 
-    switch ((fpscr >> 32) & 0x7) {
+    switch ((fpscr & FP_DRN) >> FPSCR_DRN0) {
     case 0:
         rnd = DEC_ROUND_HALF_EVEN;
         break;
