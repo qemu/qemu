@@ -4027,6 +4027,13 @@ static int coroutine_fn qcow2_co_truncate(BlockDriverState *bs, int64_t offset,
         if ((last_cluster + 1) * s->cluster_size < old_file_size) {
             Error *local_err = NULL;
 
+            /*
+             * Do not pass @exact here: It will not help the user if
+             * we get an error here just because they wanted to shrink
+             * their qcow2 image (on a block device) with qemu-img.
+             * (And on the qcow2 layer, the @exact requirement is
+             * always fulfilled, so there is no need to pass it on.)
+             */
             bdrv_co_truncate(bs->file, (last_cluster + 1) * s->cluster_size,
                              false, PREALLOC_MODE_OFF, &local_err);
             if (local_err) {
@@ -4045,7 +4052,12 @@ static int coroutine_fn qcow2_co_truncate(BlockDriverState *bs, int64_t offset,
     switch (prealloc) {
     case PREALLOC_MODE_OFF:
         if (has_data_file(bs)) {
-            ret = bdrv_co_truncate(s->data_file, offset, false, prealloc, errp);
+            /*
+             * If the caller wants an exact resize, the external data
+             * file should be resized to the exact target size, too,
+             * so we pass @exact here.
+             */
+            ret = bdrv_co_truncate(s->data_file, offset, exact, prealloc, errp);
             if (ret < 0) {
                 goto fail;
             }
@@ -4130,6 +4142,7 @@ static int coroutine_fn qcow2_co_truncate(BlockDriverState *bs, int64_t offset,
         /* Allocate the data area */
         new_file_size = allocation_start +
                         nb_new_data_clusters * s->cluster_size;
+        /* Image file grows, so @exact does not matter */
         ret = bdrv_co_truncate(bs->file, new_file_size, false, prealloc, errp);
         if (ret < 0) {
             error_prepend(errp, "Failed to resize underlying file: ");

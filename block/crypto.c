@@ -311,7 +311,7 @@ block_crypto_co_truncate(BlockDriverState *bs, int64_t offset, bool exact,
 
     offset += payload_offset;
 
-    return bdrv_co_truncate(bs->file, offset, false, prealloc, errp);
+    return bdrv_co_truncate(bs->file, offset, exact, prealloc, errp);
 }
 
 static void block_crypto_close(BlockDriverState *bs)
