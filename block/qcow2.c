@@ -3391,12 +3391,6 @@ qcow2_co_create(BlockdevCreateOptions *create_options, Error **errp)
     }
     blk_set_allow_write_beyond_eof(blk, true);
 
-    /* Clear the protocol layer and preallocate it if necessary */
-    ret = blk_truncate(blk, 0, PREALLOC_MODE_OFF, errp);
-    if (ret < 0) {
-        goto out;
-    }
-
     /* Write the header */
     QEMU_BUILD_BUG_ON((1 << MIN_CLUSTER_BITS) < sizeof(*header));
     header = g_malloc0(cluster_size);

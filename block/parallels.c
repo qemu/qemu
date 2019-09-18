@@ -563,11 +563,6 @@ static int coroutine_fn parallels_co_create(BlockdevCreateOptions* opts,
     blk_set_allow_write_beyond_eof(blk, true);
 
     /* Create image format */
-    ret = blk_truncate(blk, 0, PREALLOC_MODE_OFF, errp);
-    if (ret < 0) {
-        goto out;
-    }
-
     bat_entries = DIV_ROUND_UP(total_size, cl_size);
     bat_sectors = DIV_ROUND_UP(bat_entry_off(bat_entries), cl_size);
     bat_sectors = (bat_sectors *  cl_size) >> BDRV_SECTOR_BITS;
