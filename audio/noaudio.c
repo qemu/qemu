@@ -33,33 +33,27 @@
 
 typedef struct NoVoiceOut {
     HWVoiceOut hw;
-    int64_t old_ticks;
+    RateCtl rate;
 } NoVoiceOut;
 
 typedef struct NoVoiceIn {
     HWVoiceIn hw;
-    int64_t old_ticks;
+    RateCtl rate;
 } NoVoiceIn;
 
 static size_t no_write(HWVoiceOut *hw, void *buf, size_t len)
 {
     NoVoiceOut *no = (NoVoiceOut *) hw;
-    int64_t now;
-    int64_t ticks;
-    int64_t bytes;
-
-    now = qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL);
-    ticks = now - no->old_ticks;
-    bytes = muldiv64(ticks, hw->info.bytes_per_second, NANOSECONDS_PER_SECOND);
-
-    no->old_ticks = now;
-    return MIN(len, bytes);
+    return audio_rate_get_bytes(&hw->info, &no->rate, len);
 }
 
 static int no_init_out(HWVoiceOut *hw, struct audsettings *as, void *drv_opaque)
 {
+    NoVoiceOut *no = (NoVoiceOut *) hw;
+
     audio_pcm_init_info (&hw->info, as);
     hw->samples = 1024;
+    audio_rate_start(&no->rate);
     return 0;
 }
 
@@ -70,15 +64,21 @@ static void no_fini_out (HWVoiceOut *hw)
 
 static int no_ctl_out (HWVoiceOut *hw, int cmd, ...)
 {
-    (void) hw;
-    (void) cmd;
+    NoVoiceOut *no = (NoVoiceOut *) hw;
+
+    if (cmd == VOICE_ENABLE) {
+        audio_rate_start(&no->rate);
+    }
     return 0;
 }
 
 static int no_init_in(HWVoiceIn *hw, struct audsettings *as, void *drv_opaque)
 {
+    NoVoiceIn *no = (NoVoiceIn *) hw;
+
     audio_pcm_init_info (&hw->info, as);
     hw->samples = 1024;
+    audio_rate_start(&no->rate);
     return 0;
 }
 
@@ -89,25 +89,20 @@ static void no_fini_in (HWVoiceIn *hw)
 
 static size_t no_read(HWVoiceIn *hw, void *buf, size_t size)
 {
-    size_t to_clear;
     NoVoiceIn *no = (NoVoiceIn *) hw;
+    int64_t bytes = audio_rate_get_bytes(&hw->info, &no->rate, size);
 
-    int64_t now = qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL);
-    int64_t ticks = now - no->old_ticks;
-    int64_t bytes =
-        muldiv64(ticks, hw->info.bytes_per_second, NANOSECONDS_PER_SECOND);
-
-    no->old_ticks = now;
-    to_clear = MIN(bytes, size);
-
-    audio_pcm_info_clear_buf(&hw->info, buf, to_clear >> hw->info.shift);
-    return to_clear;
+    audio_pcm_info_clear_buf(&hw->info, buf, bytes >> hw->info.shift);
+    return bytes;
 }
 
 static int no_ctl_in (HWVoiceIn *hw, int cmd, ...)
 {
-    (void) hw;
-    (void) cmd;
+    NoVoiceIn *no = (NoVoiceIn *) hw;
+
+    if (cmd == VOICE_ENABLE) {
+        audio_rate_start(&no->rate);
+    }
     return 0;
 }
 
