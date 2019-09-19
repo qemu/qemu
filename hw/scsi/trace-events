@@ -28,7 +28,7 @@ mptsas_mmio_read(void *dev, uint32_t addr, uint32_t val) "dev %p addr 0x%08x val
 mptsas_mmio_unhandled_read(void *dev, uint32_t addr) "dev %p addr 0x%08x"
 mptsas_mmio_unhandled_write(void *dev, uint32_t addr, uint32_t val) "dev %p addr 0x%08x value 0x%x"
 mptsas_mmio_write(void *dev, uint32_t addr, uint32_t val) "dev %p addr 0x%08x value 0x%x"
-mptsas_process_message(void *dev, int msg, uint32_t ctx) "dev %p cmd %d context 0x%08x\n"
+mptsas_process_message(void *dev, int msg, uint32_t ctx) "dev %p cmd %d context 0x%08x"
 mptsas_process_scsi_io_request(void *dev, int bus, int target, int lun, uint64_t len) "dev %p dev %d:%d:%d length %"PRIu64""
 mptsas_reset(void *dev) "dev %p "
 mptsas_scsi_overflow(void *dev, uint32_t ctx, uint64_t req, uint64_t found) "dev %p context 0x%08x: %"PRIu64"/%"PRIu64""
