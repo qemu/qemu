@@ -75,6 +75,12 @@ void cpu_exec_step_atomic(CPUState *cpu);
 bool set_preferred_target_page_bits(int bits);
 
 /**
+ * finalize_target_page_bits:
+ * Commit the final value set by set_preferred_target_page_bits.
+ */
+void finalize_target_page_bits(void);
+
+/**
  * Sends a (part of) iovec down a socket, yielding when the socket is full, or
  * Receives data into a (part of) iovec from a socket,
  * yielding when there is no data in the socket.
