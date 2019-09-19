@@ -9,13 +9,13 @@ import os
 import re
 import base64
 import logging
-import paramiko
 import time
 
 from avocado import skipUnless
 from avocado_qemu import Test
 from avocado.utils import process
 from avocado.utils import archive
+from avocado.utils import ssh
 
 
 class LinuxSSH(Test):
@@ -26,35 +26,19 @@ class LinuxSSH(Test):
     VM_IP = '127.0.0.1'
 
     IMAGE_INFO = {
-        'be': {
-            'image_url': 'https://people.debian.org/~aurel32/qemu/mips/'
-                         'debian_wheezy_mips_standard.qcow2',
-            'image_hash': '8987a63270df67345b2135a6b7a4885a35e392d5',
-            'rsa_hostkey': b'AAAAB3NzaC1yc2EAAAADAQABAAABAQCca1VitiyLAdQOld'
-                           b'zT43IOEVJZ0wHD78GJi8wDAjMiYWUzNSSn0rXGQsINHuH5'
-                           b'IlF+kBZsHinb/FtKCAyS9a8uCHhQI4SuB4QhAb0+39MlUw'
-                           b'Mm0CLkctgM2eUUZ6MQMQvDlqnue6CCkxN62EZYbaxmby7j'
-                           b'CQa1125o1HRKBvdGm2zrJWxXAfA+f1v6jHLyE8Jnu83eQ+'
-                           b'BFY25G+Vzx1PVc3zQBwJ8r0NGTRqy2//oWQP0h+bMsgeFe'
-                           b'KH/J3RJM22vg6+I4JAdBFcxnK+l781h1FuRxOn4O/Xslbg'
-                           b'go6WtB4V4TOsw2E/KfxI5IZ/icxF+swVcnvF46Hf3uQc/0'
-                           b'BBqb',
-        },
-        'le': {
-            'image_url': 'https://people.debian.org/~aurel32/qemu/mipsel/'
-                         'debian_wheezy_mipsel_standard.qcow2',
-            'image_hash': '7866764d9de3ef536ffca24c9fb9f04ffdb45802',
-            'rsa_hostkey': b'AAAAB3NzaC1yc2EAAAADAQABAAABAQClXJlBT71HL5yKvv'
-                           b'gfC7jmxSWx5zSBCzET6CLZczwAafSIs7YKfNOy/dQTxhuk'
-                           b'yIGFUugZFoF3E9PzdhunuyvyTd56MPoNIqFbb5rGokwU5I'
-                           b'TOx3dBHZR0mClypL6MVrwe0bsiIb8GhF1zioNwcsaAZnAi'
-                           b'KfXStVDtXvn/kLLq+xLABYt48CC5KYWoFaCoICskLAY+qo'
-                           b'L+LWyAnQisj4jAH8VSaSKIImFpfkHWEXPhHcC4ZBlDKtnH'
-                           b'po9vhfCHgnfW3Pzrqmk8BI4HysqPFVmJWkJGlGUL+sGeg3'
-                           b'ZZolAYuDXGuBrw8ooPJq2v2dOH+z6dyD2q/ypmAbyPqj5C'
-                           b'rc8H',
-        },
-    }
+        'be': {'image_url': ('https://people.debian.org/~aurel32/qemu/mips/'
+                             'debian_wheezy_mips_standard.qcow2'),
+               'image_hash': '8987a63270df67345b2135a6b7a4885a35e392d5'},
+        'le': {'image_url': ('https://people.debian.org/~aurel32/qemu/mipsel/'
+                             'debian_wheezy_mipsel_standard.qcow2'),
+               'image_hash': '7866764d9de3ef536ffca24c9fb9f04ffdb45802'}
+        }
+
+
+    @skipUnless(ssh.SSH_CLIENT_BINARY, 'No SSH client available')
+    @skipUnless(os.getenv('AVOCADO_TIMEOUT_EXPECTED'), 'Test might timeout')
+    def setUp(self):
+        super(LinuxSSH, self).setUp()
 
     def wait_for_console_pattern(self, success_message,
                                  failure_message='Oops'):
@@ -78,23 +62,14 @@ class LinuxSSH(Test):
         self.log.debug("sshd listening on port:" + port)
         return port
 
-    def ssh_connect(self, username, password, rsa_hostkey_b64=None):
+    def ssh_connect(self, username, password):
         self.ssh_logger = logging.getLogger('ssh')
-        self.ssh_username = username
-        self.ssh_ps1 = '# ' if username is 'root' else '$ '
-        self.ssh_client = paramiko.SSHClient()
         port = self.get_portfwd()
-        if rsa_hostkey_b64:
-            rsa_hostkey_bin = base64.b64decode(rsa_hostkey_b64)
-            rsa_hostkey = paramiko.RSAKey(data = rsa_hostkey_bin)
-            ipport = '[%s]:%s' % (self.VM_IP, port)
-            self.ssh_logger.debug('ipport ' + ipport)
-            self.ssh_client.get_host_keys().add(ipport, 'ssh-rsa', rsa_hostkey)
+        self.ssh_session = ssh.Session(self.VM_IP, port=int(port),
+                                       user=username, password=password)
         for i in range(10):
             try:
-                self.ssh_client.connect(self.VM_IP, int(port),
-                                        username, password, banner_timeout=90)
-                self.ssh_logger.info("Entering interactive session.")
+                self.ssh_session.connect()
                 return
             except:
                 time.sleep(4)
@@ -102,15 +77,15 @@ class LinuxSSH(Test):
         self.fail("sshd timeout")
 
     def ssh_disconnect_vm(self):
-        self.ssh_client.close()
+        self.ssh_session.quit()
 
     def ssh_command(self, command, is_root=True):
-        self.ssh_logger.info(self.ssh_ps1 + command)
-        stdin, stdout, stderr = self.ssh_client.exec_command(command)
-        stdout_lines = [line.strip('\n') for line in stdout]
+        self.ssh_logger.info(command)
+        result = self.ssh_session.cmd(command)
+        stdout_lines = [line.rstrip() for line in result.stdout_text.splitlines()]
         for line in stdout_lines:
             self.ssh_logger.info(line)
-        stderr_lines = [line.strip('\n') for line in stderr]
+        stderr_lines = [line.rstrip() for line in result.stderr_text.splitlines()]
         for line in stderr_lines:
             self.ssh_logger.warning(line)
         return stdout_lines, stderr_lines
@@ -119,7 +94,6 @@ class LinuxSSH(Test):
         image_url = self.IMAGE_INFO[endianess]['image_url']
         image_hash = self.IMAGE_INFO[endianess]['image_hash']
         image_path = self.fetch_asset(image_url, asset_hash=image_hash)
-        rsa_hostkey_b64 = self.IMAGE_INFO[endianess]['rsa_hostkey']
 
         self.vm.set_machine('malta')
         self.vm.set_console()
@@ -138,7 +112,7 @@ class LinuxSSH(Test):
         self.wait_for_console_pattern(console_pattern)
         self.log.info('sshd ready')
 
-        self.ssh_connect('root', 'root', rsa_hostkey_b64=rsa_hostkey_b64)
+        self.ssh_connect('root', 'root')
 
     def shutdown_via_ssh(self):
         self.ssh_command('poweroff')
@@ -222,7 +196,6 @@ class LinuxSSH(Test):
         self.run_common_commands()
         self.shutdown_via_ssh()
 
-    @skipUnless(os.getenv('AVOCADO_TIMEOUT_EXPECTED'), 'Test might timeout')
     def test_mips_malta32eb_kernel3_2_0(self):
         """
         :avocado: tags=arch:mips
@@ -237,7 +210,6 @@ class LinuxSSH(Test):
 
         self.check_mips_malta('be', kernel_path, 'mips')
 
-    @skipUnless(os.getenv('AVOCADO_TIMEOUT_EXPECTED'), 'Test might timeout')
     def test_mips_malta32el_kernel3_2_0(self):
         """
         :avocado: tags=arch:mipsel
@@ -252,7 +224,6 @@ class LinuxSSH(Test):
 
         self.check_mips_malta('le', kernel_path, 'mips')
 
-    @skipUnless(os.getenv('AVOCADO_TIMEOUT_EXPECTED'), 'Test might timeout')
     def test_mips_malta64eb_kernel3_2_0(self):
         """
         :avocado: tags=arch:mips64
@@ -266,7 +237,6 @@ class LinuxSSH(Test):
         kernel_path = self.fetch_asset(kernel_url, asset_hash=kernel_hash)
         self.check_mips_malta('be', kernel_path, 'mips64')
 
-    @skipUnless(os.getenv('AVOCADO_TIMEOUT_EXPECTED'), 'Test might timeout')
     def test_mips_malta64el_kernel3_2_0(self):
         """
         :avocado: tags=arch:mips64el
