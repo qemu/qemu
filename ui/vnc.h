@@ -338,10 +338,10 @@ struct VncState
     /* Encoding specific, if you add something here, don't forget to
      *  update vnc_async_encoding_start()
      */
-    VncTight tight;
+    VncTight *tight;
     VncZlib zlib;
     VncHextile hextile;
-    VncZrle zrle;
+    VncZrle *zrle;
     VncZywrle zywrle;
 
     Notifier mouse_mode_notifier;
