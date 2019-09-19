@@ -7,3 +7,4 @@ TESTS+=exrl-trt
 TESTS+=exrl-trtr
 TESTS+=pack
 TESTS+=mvo
+TESTS+=mvc
