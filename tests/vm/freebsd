@@ -39,6 +39,7 @@ class FreeBSDVM(basevm.BaseVM):
         "bash",
         "gmake",
         "gsed",
+        "gettext",
 
         # libs: crypto
         "gnutls",

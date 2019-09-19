@@ -569,6 +569,7 @@ secret_keyring=""
 libdaxctl=""
 meson=""
 skip_meson=no
+gettext=""
 
 bogus_os="no"
 malloc_trim=""
@@ -1160,6 +1161,10 @@ for opt do
   --disable-vnc) vnc="disabled"
   ;;
   --enable-vnc) vnc="enabled"
+  ;;
+  --disable-gettext) gettext="false"
+  ;;
+  --enable-gettext) gettext="true"
   ;;
   --oss-lib=*) oss_lib="$optarg"
   ;;
@@ -3030,6 +3035,19 @@ if test "$whpx" != "no" ; then
         fi
         whpx="no"
     fi
+fi
+
+##########################################
+# gettext probe
+if test "$gettext" != "false" ; then
+  if has xgettext; then
+    gettext=true
+  else
+    if test "$gettext" = "true" ; then
+      feature_not_found "gettext" "Install xgettext binary"
+    fi
+    gettext=false
+  fi
 fi
 
 ##########################################
@@ -8099,7 +8117,7 @@ DIRS="$DIRS docs docs/interop fsdev scsi"
 DIRS="$DIRS pc-bios/optionrom pc-bios/s390-ccw"
 DIRS="$DIRS roms/seabios"
 LINKS="Makefile"
-LINKS="$LINKS tests/tcg/lm32/Makefile po/Makefile"
+LINKS="$LINKS tests/tcg/lm32/Makefile"
 LINKS="$LINKS tests/tcg/Makefile.target"
 LINKS="$LINKS pc-bios/optionrom/Makefile pc-bios/keymaps"
 LINKS="$LINKS pc-bios/s390-ccw/Makefile"
@@ -8231,6 +8249,7 @@ NINJA=$PWD/ninjatool $meson setup \
         -Db_coverage=$(if test "$gcov" = yes; then echo true; else echo false; fi) \
 	-Dsdl=$sdl -Dsdl_image=$sdl_image \
 	-Dvnc=$vnc -Dvnc_sasl=$vnc_sasl -Dvnc_jpeg=$vnc_jpeg -Dvnc_png=$vnc_png \
+	-Dgettext=$gettext \
         $cross_arg \
         "$PWD" "$source_path"
 

@@ -36,6 +36,7 @@ class OpenBSDVM(basevm.BaseVM):
         "bash",
         "gmake",
         "gsed",
+        "gettext",
 
         # libs: usb
         "libusb1",

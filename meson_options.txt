@@ -1,3 +1,4 @@
+option('gettext', type : 'boolean', value : true)
 option('sdl', type : 'feature', value : 'auto')
 option('sdl_image', type : 'feature', value : 'auto')
 option('vnc', type : 'feature', value : 'enabled')
