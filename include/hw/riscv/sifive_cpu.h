@@ -1,7 +1,8 @@
 /*
- * QEMU Test Finisher interface
+ * SiFive CPU types
  *
- * Copyright (c) 2018 SiFive, Inc.
+ * Copyright (c) 2017 SiFive, Inc.
+ * Copyright (c) 2019 Bin Meng <bmeng.cn@gmail.com>
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms and conditions of the GNU General Public License,
@@ -16,30 +17,15 @@
  * this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#ifndef HW_SIFIVE_TEST_H
-#define HW_SIFIVE_TEST_H
+#ifndef HW_SIFIVE_CPU_H
+#define HW_SIFIVE_CPU_H
 
-#include "hw/sysbus.h"
-
-#define TYPE_SIFIVE_TEST "riscv.sifive.test"
-
-#define SIFIVE_TEST(obj) \
-    OBJECT_CHECK(SiFiveTestState, (obj), TYPE_SIFIVE_TEST)
-
-typedef struct SiFiveTestState {
-    /*< private >*/
-    SysBusDevice parent_obj;
-
-    /*< public >*/
-    MemoryRegion mmio;
-} SiFiveTestState;
-
-enum {
-    FINISHER_FAIL = 0x3333,
-    FINISHER_PASS = 0x5555,
-    FINISHER_RESET = 0x7777
-};
-
-DeviceState *sifive_test_create(hwaddr addr);
-
+#if defined(TARGET_RISCV32)
+#define SIFIVE_E_CPU TYPE_RISCV_CPU_SIFIVE_E31
+#define SIFIVE_U_CPU TYPE_RISCV_CPU_SIFIVE_U34
+#elif defined(TARGET_RISCV64)
+#define SIFIVE_E_CPU TYPE_RISCV_CPU_SIFIVE_E51
+#define SIFIVE_U_CPU TYPE_RISCV_CPU_SIFIVE_U54
 #endif
+
+#endif /* HW_SIFIVE_CPU_H */
