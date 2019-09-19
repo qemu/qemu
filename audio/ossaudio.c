@@ -585,7 +585,8 @@ static int oss_ctl_out (HWVoiceOut *hw, int cmd, ...)
                 return 0;
             }
 
-            audio_pcm_info_clear_buf(&hw->info, hw->buf_emul, hw->samples);
+            audio_pcm_info_clear_buf(
+                &hw->info, hw->buf_emul, hw->mix_buf->size);
             trig = PCM_ENABLE_OUTPUT;
             if (ioctl (oss->fd, SNDCTL_DSP_SETTRIGGER, &trig) < 0) {
                 oss_logerr (
