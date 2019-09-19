@@ -28,9 +28,6 @@ import struct
 import subprocess
 import sys
 
-if sys.version_info.major == 2:
-    range = xrange
-
 test_img = os.path.join(iotests.test_dir, 'test.img')
 
 class TestRefcountTableGrowth(iotests.QMPTestCase):
