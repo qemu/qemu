@@ -215,7 +215,7 @@ class Docker(object):
     """ Running Docker commands """
     def __init__(self):
         self._command = _guess_engine_command()
-        self._instances = []
+        self._instance = None
         atexit.register(self._kill_instances)
         signal.signal(signal.SIGTERM, self._kill_instances)
         signal.signal(signal.SIGHUP, self._kill_instances)
@@ -234,21 +234,19 @@ class Docker(object):
         cmd = ["ps", "-q"]
         if not only_active:
             cmd.append("-a")
+
+        filter = "--filter=label=com.qemu.instance.uuid"
+        if only_known:
+            if self._instance:
+                filter += "=%s" % (self._instance)
+            else:
+                # no point trying to kill, we finished
+                return
+
+        print("filter=%s" % (filter))
+        cmd.append(filter)
         for i in self._output(cmd).split():
-            resp = self._output(["inspect", i])
-            labels = json.loads(resp)[0]["Config"]["Labels"]
-            active = json.loads(resp)[0]["State"]["Running"]
-            if not labels:
-                continue
-            instance_uuid = labels.get("com.qemu.instance.uuid", None)
-            if not instance_uuid:
-                continue
-            if only_known and instance_uuid not in self._instances:
-                continue
-            print("Terminating", i)
-            if active:
-                self._do(["kill", i])
-            self._do(["rm", i])
+            self._do(["rm", "-f", i])
 
     def clean(self):
         self._do_kill_instances(False, False)
@@ -325,9 +323,9 @@ class Docker(object):
         return checksum == _text_checksum(_dockerfile_preprocess(dockerfile))
 
     def run(self, cmd, keep, quiet, as_user=False):
-        label = uuid.uuid1().hex
+        label = uuid.uuid4().hex
         if not keep:
-            self._instances.append(label)
+            self._instance = label
 
         if as_user:
             uid = os.getuid()
@@ -340,7 +338,7 @@ class Docker(object):
                              "com.qemu.instance.uuid=" + label] + cmd,
                              quiet=quiet)
         if not keep:
-            self._instances.remove(label)
+            self._instance = None
         return ret
 
     def command(self, cmd, argv, quiet):
