@@ -51,7 +51,7 @@ typedef struct SpiceVoiceOut {
     SpiceRateCtl          rate;
     int                   active;
     uint32_t              *frame;
-    uint32_t              *fpos;
+    uint32_t              fpos;
     uint32_t              fsize;
 } SpiceVoiceOut;
 
@@ -60,7 +60,6 @@ typedef struct SpiceVoiceIn {
     SpiceRecordInstance   sin;
     SpiceRateCtl          rate;
     int                   active;
-    uint32_t              samples[LINE_IN_SAMPLES];
 } SpiceVoiceIn;
 
 static const SpicePlaybackInterface playback_sif = {
@@ -152,44 +151,40 @@ static void line_out_fini (HWVoiceOut *hw)
     spice_server_remove_interface (&out->sin.base);
 }
 
-static size_t line_out_run (HWVoiceOut *hw, size_t live)
+static void *line_out_get_buffer(HWVoiceOut *hw, size_t *size)
 {
-    SpiceVoiceOut *out = container_of (hw, SpiceVoiceOut, hw);
-    size_t rpos, decr;
-    size_t samples;
+    SpiceVoiceOut *out = container_of(hw, SpiceVoiceOut, hw);
+    size_t decr;
 
-    if (!live) {
-        return 0;
+    if (!out->frame) {
+        spice_server_playback_get_buffer(&out->sin, &out->frame, &out->fsize);
+        out->fpos = 0;
     }
 
-    decr = rate_get_samples (&hw->info, &out->rate);
-    decr = MIN (live, decr);
+    if (out->frame) {
+        decr = rate_get_samples(&hw->info, &out->rate);
+        decr = MIN(out->fsize - out->fpos, decr);
 
-    samples = decr;
-    rpos = hw->rpos;
-    while (samples) {
-        int left_till_end_samples = hw->samples - rpos;
-        int len = MIN (samples, left_till_end_samples);
-
-        if (!out->frame) {
-            spice_server_playback_get_buffer (&out->sin, &out->frame, &out->fsize);
-            out->fpos = out->frame;
-        }
-        if (out->frame) {
-            len = MIN (len, out->fsize);
-            hw->clip (out->fpos, hw->mix_buf + rpos, len);
-            out->fsize -= len;
-            out->fpos  += len;
-            if (out->fsize == 0) {
-                spice_server_playback_put_samples (&out->sin, out->frame);
-                out->frame = out->fpos = NULL;
-            }
-        }
-        rpos = (rpos + len) % hw->samples;
-        samples -= len;
+        *size = decr << hw->info.shift;
+    } else {
+        rate_start(&out->rate);
     }
-    hw->rpos = rpos;
-    return decr;
+    return out->frame + out->fpos;
+}
+
+static size_t line_out_put_buffer(HWVoiceOut *hw, void *buf, size_t size)
+{
+    SpiceVoiceOut *out = container_of(hw, SpiceVoiceOut, hw);
+
+    assert(buf == out->frame + out->fpos && out->fpos <= out->fsize);
+    out->fpos += size >> 2;
+
+    if (out->fpos == out->fsize) { /* buffer full */
+        spice_server_playback_put_samples(&out->sin, out->frame);
+        out->frame = NULL;
+    }
+
+    return size;
 }
 
 static int line_out_ctl (HWVoiceOut *hw, int cmd, ...)
@@ -211,9 +206,9 @@ static int line_out_ctl (HWVoiceOut *hw, int cmd, ...)
         }
         out->active = 0;
         if (out->frame) {
-            memset (out->fpos, 0, out->fsize << 2);
+            memset(out->frame + out->fpos, 0, (out->fsize - out->fpos) << 2);
             spice_server_playback_put_samples (&out->sin, out->frame);
-            out->frame = out->fpos = NULL;
+            out->frame = NULL;
         }
         spice_server_playback_stop (&out->sin);
         break;
@@ -275,49 +270,20 @@ static void line_in_fini (HWVoiceIn *hw)
     spice_server_remove_interface (&in->sin.base);
 }
 
-static size_t line_in_run(HWVoiceIn *hw)
+static size_t line_in_read(HWVoiceIn *hw, void *buf, size_t len)
 {
     SpiceVoiceIn *in = container_of (hw, SpiceVoiceIn, hw);
-    size_t num_samples;
-    int ready;
-    size_t len[2];
-    uint64_t delta_samp;
-    const uint32_t *samples;
+    uint64_t delta_samp = rate_get_samples(&hw->info, &in->rate);
+    uint64_t to_read = MIN(len >> 2, delta_samp);
+    size_t ready = spice_server_record_get_samples(&in->sin, buf, to_read);
 
-    if (!(num_samples = hw->samples - audio_pcm_hw_get_live_in (hw))) {
-        return 0;
-    }
-
-    delta_samp = rate_get_samples (&hw->info, &in->rate);
-    num_samples = MIN (num_samples, delta_samp);
-
-    ready = spice_server_record_get_samples (&in->sin, in->samples, num_samples);
-    samples = in->samples;
+    /* XXX: do we need this? */
     if (ready == 0) {
-        static const uint32_t silence[LINE_IN_SAMPLES];
-        samples = silence;
-        ready = LINE_IN_SAMPLES;
+        memset(buf, 0, to_read << 2);
+        ready = to_read;
     }
 
-    num_samples = MIN (ready, num_samples);
-
-    if (hw->wpos + num_samples > hw->samples) {
-        len[0] = hw->samples - hw->wpos;
-        len[1] = num_samples - len[0];
-    } else {
-        len[0] = num_samples;
-        len[1] = 0;
-    }
-
-    hw->conv (hw->conv_buf + hw->wpos, samples, len[0]);
-
-    if (len[1]) {
-        hw->conv (hw->conv_buf, samples + len[0], len[1]);
-    }
-
-    hw->wpos = (hw->wpos + num_samples) % hw->samples;
-
-    return num_samples;
+    return ready << 2;
 }
 
 static int line_in_ctl (HWVoiceIn *hw, int cmd, ...)
@@ -366,12 +332,14 @@ static int line_in_ctl (HWVoiceIn *hw, int cmd, ...)
 static struct audio_pcm_ops audio_callbacks = {
     .init_out = line_out_init,
     .fini_out = line_out_fini,
-    .run_out  = line_out_run,
+    .write    = audio_generic_write,
+    .get_buffer_out = line_out_get_buffer,
+    .put_buffer_out = line_out_put_buffer,
     .ctl_out  = line_out_ctl,
 
     .init_in  = line_in_init,
     .fini_in  = line_in_fini,
-    .run_in   = line_in_run,
+    .read     = line_in_read,
     .ctl_in   = line_in_ctl,
 };
 
