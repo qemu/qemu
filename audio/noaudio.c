@@ -62,14 +62,13 @@ static void no_fini_out (HWVoiceOut *hw)
     (void) hw;
 }
 
-static int no_ctl_out (HWVoiceOut *hw, int cmd, ...)
+static void no_enable_out(HWVoiceOut *hw, bool enable)
 {
     NoVoiceOut *no = (NoVoiceOut *) hw;
 
-    if (cmd == VOICE_ENABLE) {
+    if (enable) {
         audio_rate_start(&no->rate);
     }
-    return 0;
 }
 
 static int no_init_in(HWVoiceIn *hw, struct audsettings *as, void *drv_opaque)
@@ -96,14 +95,13 @@ static size_t no_read(HWVoiceIn *hw, void *buf, size_t size)
     return bytes;
 }
 
-static int no_ctl_in (HWVoiceIn *hw, int cmd, ...)
+static void no_enable_in(HWVoiceIn *hw, bool enable)
 {
     NoVoiceIn *no = (NoVoiceIn *) hw;
 
-    if (cmd == VOICE_ENABLE) {
+    if (enable) {
         audio_rate_start(&no->rate);
     }
-    return 0;
 }
 
 static void *no_audio_init(Audiodev *dev)
@@ -120,12 +118,12 @@ static struct audio_pcm_ops no_pcm_ops = {
     .init_out = no_init_out,
     .fini_out = no_fini_out,
     .write    = no_write,
-    .ctl_out  = no_ctl_out,
+    .enable_out = no_enable_out,
 
     .init_in  = no_init_in,
     .fini_in  = no_fini_in,
     .read     = no_read,
-    .ctl_in   = no_ctl_in
+    .enable_in = no_enable_in
 };
 
 static struct audio_driver no_audio_driver = {

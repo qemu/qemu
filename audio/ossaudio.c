@@ -563,60 +563,50 @@ static int oss_init_out(HWVoiceOut *hw, struct audsettings *as,
     return 0;
 }
 
-static int oss_ctl_out (HWVoiceOut *hw, int cmd, ...)
+static void oss_enable_out(HWVoiceOut *hw, bool enable)
 {
     int trig;
     OSSVoiceOut *oss = (OSSVoiceOut *) hw;
     AudiodevOssPerDirectionOptions *opdo = oss->dev->u.oss.out;
 
-    switch (cmd) {
-    case VOICE_ENABLE:
-        {
-            bool poll_mode = opdo->try_poll;
+    if (enable) {
+        bool poll_mode = opdo->try_poll;
 
-            ldebug ("enabling voice\n");
-            if (poll_mode) {
-                oss_poll_out (hw);
-                poll_mode = 0;
-            }
-            hw->poll_mode = poll_mode;
-
-            if (!oss->mmapped) {
-                return 0;
-            }
-
-            audio_pcm_info_clear_buf(
-                &hw->info, hw->buf_emul, hw->mix_buf->size);
-            trig = PCM_ENABLE_OUTPUT;
-            if (ioctl (oss->fd, SNDCTL_DSP_SETTRIGGER, &trig) < 0) {
-                oss_logerr (
-                    errno,
-                    "SNDCTL_DSP_SETTRIGGER PCM_ENABLE_OUTPUT failed\n"
-                    );
-                return -1;
-            }
+        ldebug("enabling voice\n");
+        if (poll_mode) {
+            oss_poll_out(hw);
+            poll_mode = 0;
         }
-        break;
+        hw->poll_mode = poll_mode;
 
-    case VOICE_DISABLE:
+        if (!oss->mmapped) {
+            return;
+        }
+
+        audio_pcm_info_clear_buf(&hw->info, hw->buf_emul, hw->mix_buf->size);
+        trig = PCM_ENABLE_OUTPUT;
+        if (ioctl(oss->fd, SNDCTL_DSP_SETTRIGGER, &trig) < 0) {
+            oss_logerr(errno,
+                       "SNDCTL_DSP_SETTRIGGER PCM_ENABLE_OUTPUT failed\n");
+            return;
+        }
+    } else {
         if (hw->poll_mode) {
             qemu_set_fd_handler (oss->fd, NULL, NULL, NULL);
             hw->poll_mode = 0;
         }
 
         if (!oss->mmapped) {
-            return 0;
+            return;
         }
 
         ldebug ("disabling voice\n");
         trig = 0;
         if (ioctl (oss->fd, SNDCTL_DSP_SETTRIGGER, &trig) < 0) {
             oss_logerr (errno, "SNDCTL_DSP_SETTRIGGER 0 failed\n");
-            return -1;
+            return;
         }
-        break;
     }
-    return 0;
 }
 
 static int oss_init_in(HWVoiceIn *hw, struct audsettings *as, void *drv_opaque)
@@ -703,32 +693,25 @@ static size_t oss_read(HWVoiceIn *hw, void *buf, size_t len)
     return pos;
 }
 
-static int oss_ctl_in (HWVoiceIn *hw, int cmd, ...)
+static void oss_enable_in(HWVoiceIn *hw, bool enable)
 {
     OSSVoiceIn *oss = (OSSVoiceIn *) hw;
     AudiodevOssPerDirectionOptions *opdo = oss->dev->u.oss.out;
 
-    switch (cmd) {
-    case VOICE_ENABLE:
-        {
-            bool poll_mode = opdo->try_poll;
+    if (enable) {
+        bool poll_mode = opdo->try_poll;
 
-            if (poll_mode) {
-                oss_poll_in (hw);
-                poll_mode = 0;
-            }
-            hw->poll_mode = poll_mode;
+        if (poll_mode) {
+            oss_poll_in(hw);
+            poll_mode = 0;
         }
-        break;
-
-    case VOICE_DISABLE:
+        hw->poll_mode = poll_mode;
+    } else {
         if (hw->poll_mode) {
             hw->poll_mode = 0;
             qemu_set_fd_handler (oss->fd, NULL, NULL, NULL);
         }
-        break;
     }
-    return 0;
 }
 
 static void oss_init_per_direction(AudiodevOssPerDirectionOptions *opdo)
@@ -767,12 +750,12 @@ static struct audio_pcm_ops oss_pcm_ops = {
     .write    = oss_write,
     .get_buffer_out = oss_get_buffer_out,
     .put_buffer_out = oss_put_buffer_out,
-    .ctl_out  = oss_ctl_out,
+    .enable_out = oss_enable_out,
 
     .init_in  = oss_init_in,
     .fini_in  = oss_fini_in,
     .read     = oss_read,
-    .ctl_in   = oss_ctl_in
+    .enable_in = oss_enable_in
 };
 
 static struct audio_driver oss_audio_driver = {

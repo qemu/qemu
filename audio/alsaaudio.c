@@ -731,34 +731,28 @@ static int alsa_voice_ctl (snd_pcm_t *handle, const char *typ, int ctl)
     return 0;
 }
 
-static int alsa_ctl_out (HWVoiceOut *hw, int cmd, ...)
+static void alsa_enable_out(HWVoiceOut *hw, bool enable)
 {
     ALSAVoiceOut *alsa = (ALSAVoiceOut *) hw;
     AudiodevAlsaPerDirectionOptions *apdo = alsa->dev->u.alsa.out;
 
-    switch (cmd) {
-    case VOICE_ENABLE:
-        {
-            bool poll_mode = apdo->try_poll;
+    if (enable) {
+        bool poll_mode = apdo->try_poll;
 
-            ldebug ("enabling voice\n");
-            if (poll_mode && alsa_poll_out (hw)) {
-                poll_mode = 0;
-            }
-            hw->poll_mode = poll_mode;
-            return alsa_voice_ctl (alsa->handle, "playback", VOICE_CTL_PREPARE);
+        ldebug("enabling voice\n");
+        if (poll_mode && alsa_poll_out(hw)) {
+            poll_mode = 0;
         }
-
-    case VOICE_DISABLE:
-        ldebug ("disabling voice\n");
+        hw->poll_mode = poll_mode;
+        alsa_voice_ctl(alsa->handle, "playback", VOICE_CTL_PREPARE);
+    } else {
+        ldebug("disabling voice\n");
         if (hw->poll_mode) {
             hw->poll_mode = 0;
-            alsa_fini_poll (&alsa->pollhlp);
+            alsa_fini_poll(&alsa->pollhlp);
         }
-        return alsa_voice_ctl (alsa->handle, "playback", VOICE_CTL_PAUSE);
+        alsa_voice_ctl(alsa->handle, "playback", VOICE_CTL_PAUSE);
     }
-
-    return -1;
 }
 
 static int alsa_init_in(HWVoiceIn *hw, struct audsettings *as, void *drv_opaque)
@@ -841,35 +835,29 @@ static size_t alsa_read(HWVoiceIn *hw, void *buf, size_t len)
     return pos;
 }
 
-static int alsa_ctl_in (HWVoiceIn *hw, int cmd, ...)
+static void alsa_enable_in(HWVoiceIn *hw, bool enable)
 {
     ALSAVoiceIn *alsa = (ALSAVoiceIn *) hw;
     AudiodevAlsaPerDirectionOptions *apdo = alsa->dev->u.alsa.in;
 
-    switch (cmd) {
-    case VOICE_ENABLE:
-        {
-            bool poll_mode = apdo->try_poll;
+    if (enable) {
+        bool poll_mode = apdo->try_poll;
 
-            ldebug ("enabling voice\n");
-            if (poll_mode && alsa_poll_in (hw)) {
-                poll_mode = 0;
-            }
-            hw->poll_mode = poll_mode;
-
-            return alsa_voice_ctl (alsa->handle, "capture", VOICE_CTL_START);
+        ldebug("enabling voice\n");
+        if (poll_mode && alsa_poll_in(hw)) {
+            poll_mode = 0;
         }
+        hw->poll_mode = poll_mode;
 
-    case VOICE_DISABLE:
+        alsa_voice_ctl(alsa->handle, "capture", VOICE_CTL_START);
+    } else {
         ldebug ("disabling voice\n");
         if (hw->poll_mode) {
             hw->poll_mode = 0;
-            alsa_fini_poll (&alsa->pollhlp);
+            alsa_fini_poll(&alsa->pollhlp);
         }
-        return alsa_voice_ctl (alsa->handle, "capture", VOICE_CTL_PAUSE);
+        alsa_voice_ctl(alsa->handle, "capture", VOICE_CTL_PAUSE);
     }
-
-    return -1;
 }
 
 static void alsa_init_per_direction(AudiodevAlsaPerDirectionOptions *apdo)
@@ -924,12 +912,12 @@ static struct audio_pcm_ops alsa_pcm_ops = {
     .init_out = alsa_init_out,
     .fini_out = alsa_fini_out,
     .write    = alsa_write,
-    .ctl_out  = alsa_ctl_out,
+    .enable_out = alsa_enable_out,
 
     .init_in  = alsa_init_in,
     .fini_in  = alsa_fini_in,
     .read     = alsa_read,
-    .ctl_in   = alsa_ctl_in,
+    .enable_in = alsa_enable_in,
 };
 
 static struct audio_driver alsa_audio_driver = {

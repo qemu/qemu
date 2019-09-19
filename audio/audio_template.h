@@ -254,7 +254,6 @@ static HW *glue(audio_pcm_hw_add_new_, TYPE)(AudioState *s,
 
     hw->s = s;
     hw->pcm_ops = drv->pcm_ops;
-    hw->ctl_caps = drv->ctl_caps;
 
     QLIST_INIT (&hw->sw_head);
 #ifdef DAC

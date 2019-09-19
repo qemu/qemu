@@ -361,7 +361,7 @@ static int dsound_open (dsound *s)
     return 0;
 }
 
-static int dsound_ctl_out (HWVoiceOut *hw, int cmd, ...)
+static void dsound_enable_out(HWVoiceOut *hw, bool enable)
 {
     HRESULT hr;
     DWORD status;
@@ -371,18 +371,17 @@ static int dsound_ctl_out (HWVoiceOut *hw, int cmd, ...)
 
     if (!dsb) {
         dolog ("Attempt to control voice without a buffer\n");
-        return 0;
+        return;
     }
 
-    switch (cmd) {
-    case VOICE_ENABLE:
+    if (enable) {
         if (dsound_get_status_out (dsb, &status, s)) {
-            return -1;
+            return;
         }
 
         if (status & DSBSTATUS_PLAYING) {
             dolog ("warning: Voice is already playing\n");
-            return 0;
+            return;
         }
 
         dsound_clear_sample (hw, dsb, s);
@@ -390,28 +389,24 @@ static int dsound_ctl_out (HWVoiceOut *hw, int cmd, ...)
         hr = IDirectSoundBuffer_Play (dsb, 0, 0, DSBPLAY_LOOPING);
         if (FAILED (hr)) {
             dsound_logerr (hr, "Could not start playing buffer\n");
-            return -1;
+            return;
         }
-        break;
-
-    case VOICE_DISABLE:
+    } else {
         if (dsound_get_status_out (dsb, &status, s)) {
-            return -1;
+            return;
         }
 
         if (status & DSBSTATUS_PLAYING) {
             hr = IDirectSoundBuffer_Stop (dsb);
             if (FAILED (hr)) {
                 dsound_logerr (hr, "Could not stop playing buffer\n");
-                return -1;
+                return;
             }
         }
         else {
             dolog ("warning: Voice is not playing\n");
         }
-        break;
     }
-    return 0;
 }
 
 static void *dsound_get_buffer_out(HWVoiceOut *hw, size_t *size)
@@ -461,7 +456,7 @@ static size_t dsound_put_buffer_out(HWVoiceOut *hw, void *buf, size_t len)
     return len;
 }
 
-static int dsound_ctl_in (HWVoiceIn *hw, int cmd, ...)
+static void dsound_enable_in(HWVoiceIn *hw, bool enable)
 {
     HRESULT hr;
     DWORD status;
@@ -470,18 +465,17 @@ static int dsound_ctl_in (HWVoiceIn *hw, int cmd, ...)
 
     if (!dscb) {
         dolog ("Attempt to control capture voice without a buffer\n");
-        return -1;
+        return;
     }
 
-    switch (cmd) {
-    case VOICE_ENABLE:
+    if (enable) {
         if (dsound_get_status_in (dscb, &status)) {
-            return -1;
+            return;
         }
 
         if (status & DSCBSTATUS_CAPTURING) {
             dolog ("warning: Voice is already capturing\n");
-            return 0;
+            return;
         }
 
         /* clear ?? */
@@ -489,28 +483,24 @@ static int dsound_ctl_in (HWVoiceIn *hw, int cmd, ...)
         hr = IDirectSoundCaptureBuffer_Start (dscb, DSCBSTART_LOOPING);
         if (FAILED (hr)) {
             dsound_logerr (hr, "Could not start capturing\n");
-            return -1;
+            return;
         }
-        break;
-
-    case VOICE_DISABLE:
+    } else {
         if (dsound_get_status_in (dscb, &status)) {
-            return -1;
+            return;
         }
 
         if (status & DSCBSTATUS_CAPTURING) {
             hr = IDirectSoundCaptureBuffer_Stop (dscb);
             if (FAILED (hr)) {
                 dsound_logerr (hr, "Could not stop capturing\n");
-                return -1;
+                return;
             }
         }
         else {
             dolog ("warning: Voice is not capturing\n");
         }
-        break;
     }
-    return 0;
 }
 
 static void *dsound_get_buffer_in(HWVoiceIn *hw, size_t *size)
@@ -674,14 +664,14 @@ static struct audio_pcm_ops dsound_pcm_ops = {
     .write    = audio_generic_write,
     .get_buffer_out = dsound_get_buffer_out,
     .put_buffer_out = dsound_put_buffer_out,
-    .ctl_out  = dsound_ctl_out,
+    .enable_out = dsound_enable_out,
 
     .init_in  = dsound_init_in,
     .fini_in  = dsound_fini_in,
     .read     = audio_generic_read,
     .get_buffer_in = dsound_get_buffer_in,
     .put_buffer_in = dsound_put_buffer_in,
-    .ctl_in   = dsound_ctl_in
+    .enable_in = dsound_enable_in,
 };
 
 static struct audio_driver dsound_audio_driver = {

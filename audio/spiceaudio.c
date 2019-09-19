@@ -153,22 +153,20 @@ static size_t line_out_put_buffer(HWVoiceOut *hw, void *buf, size_t size)
     return size;
 }
 
-static int line_out_ctl (HWVoiceOut *hw, int cmd, ...)
+static void line_out_enable(HWVoiceOut *hw, bool enable)
 {
     SpiceVoiceOut *out = container_of (hw, SpiceVoiceOut, hw);
 
-    switch (cmd) {
-    case VOICE_ENABLE:
+    if (enable) {
         if (out->active) {
-            break;
+            return;
         }
         out->active = 1;
         audio_rate_start(&out->rate);
         spice_server_playback_start (&out->sin);
-        break;
-    case VOICE_DISABLE:
+    } else {
         if (!out->active) {
-            break;
+            return;
         }
         out->active = 0;
         if (out->frame) {
@@ -177,29 +175,21 @@ static int line_out_ctl (HWVoiceOut *hw, int cmd, ...)
             out->frame = NULL;
         }
         spice_server_playback_stop (&out->sin);
-        break;
-    case VOICE_VOLUME:
-        {
-#if ((SPICE_INTERFACE_PLAYBACK_MAJOR >= 1) && (SPICE_INTERFACE_PLAYBACK_MINOR >= 2))
-            SWVoiceOut *sw;
-            va_list ap;
-            uint16_t vol[2];
-
-            va_start (ap, cmd);
-            sw = va_arg (ap, SWVoiceOut *);
-            va_end (ap);
-
-            vol[0] = sw->vol.l / ((1ULL << 16) + 1);
-            vol[1] = sw->vol.r / ((1ULL << 16) + 1);
-            spice_server_playback_set_volume (&out->sin, 2, vol);
-            spice_server_playback_set_mute (&out->sin, sw->vol.mute);
-#endif
-            break;
-        }
     }
-
-    return 0;
 }
+
+#if ((SPICE_INTERFACE_PLAYBACK_MAJOR >= 1) && (SPICE_INTERFACE_PLAYBACK_MINOR >= 2))
+static void line_out_volume(HWVoiceOut *hw, struct mixeng_volume *vol)
+{
+    SpiceVoiceOut *out = container_of(hw, SpiceVoiceOut, hw);
+    uint16_t svol[2];
+
+    svol[0] = vol->l / ((1ULL << 16) + 1);
+    svol[1] = vol->r / ((1ULL << 16) + 1);
+    spice_server_playback_set_volume(&out->sin, 2, svol);
+    spice_server_playback_set_mute(&out->sin, vol->mute);
+}
+#endif
 
 /* record */
 
@@ -251,48 +241,38 @@ static size_t line_in_read(HWVoiceIn *hw, void *buf, size_t len)
     return ready << 2;
 }
 
-static int line_in_ctl (HWVoiceIn *hw, int cmd, ...)
+static void line_in_enable(HWVoiceIn *hw, bool enable)
 {
     SpiceVoiceIn *in = container_of (hw, SpiceVoiceIn, hw);
 
-    switch (cmd) {
-    case VOICE_ENABLE:
+    if (enable) {
         if (in->active) {
-            break;
+            return;
         }
         in->active = 1;
         audio_rate_start(&in->rate);
         spice_server_record_start (&in->sin);
-        break;
-    case VOICE_DISABLE:
+    } else {
         if (!in->active) {
-            break;
+            return;
         }
         in->active = 0;
         spice_server_record_stop (&in->sin);
-        break;
-    case VOICE_VOLUME:
-        {
-#if ((SPICE_INTERFACE_RECORD_MAJOR >= 2) && (SPICE_INTERFACE_RECORD_MINOR >= 2))
-            SWVoiceIn *sw;
-            va_list ap;
-            uint16_t vol[2];
-
-            va_start (ap, cmd);
-            sw = va_arg (ap, SWVoiceIn *);
-            va_end (ap);
-
-            vol[0] = sw->vol.l / ((1ULL << 16) + 1);
-            vol[1] = sw->vol.r / ((1ULL << 16) + 1);
-            spice_server_record_set_volume (&in->sin, 2, vol);
-            spice_server_record_set_mute (&in->sin, sw->vol.mute);
-#endif
-            break;
-        }
     }
-
-    return 0;
 }
+
+#if ((SPICE_INTERFACE_RECORD_MAJOR >= 2) && (SPICE_INTERFACE_RECORD_MINOR >= 2))
+static void line_in_volume(HWVoiceIn *hw, struct mixeng_volume *vol)
+{
+    SpiceVoiceIn *in = container_of(hw, SpiceVoiceIn, hw);
+    uint16_t svol[2];
+
+    svol[0] = vol->l / ((1ULL << 16) + 1);
+    svol[1] = vol->r / ((1ULL << 16) + 1);
+    spice_server_record_set_volume(&in->sin, 2, svol);
+    spice_server_record_set_mute(&in->sin, vol->mute);
+}
+#endif
 
 static struct audio_pcm_ops audio_callbacks = {
     .init_out = line_out_init,
@@ -300,12 +280,19 @@ static struct audio_pcm_ops audio_callbacks = {
     .write    = audio_generic_write,
     .get_buffer_out = line_out_get_buffer,
     .put_buffer_out = line_out_put_buffer,
-    .ctl_out  = line_out_ctl,
+    .enable_out = line_out_enable,
+#if (SPICE_INTERFACE_PLAYBACK_MAJOR >= 1) && \
+        (SPICE_INTERFACE_PLAYBACK_MINOR >= 2)
+    .volume_out = line_out_volume,
+#endif
 
     .init_in  = line_in_init,
     .fini_in  = line_in_fini,
     .read     = line_in_read,
-    .ctl_in   = line_in_ctl,
+    .enable_in = line_in_enable,
+#if ((SPICE_INTERFACE_RECORD_MAJOR >= 2) && (SPICE_INTERFACE_RECORD_MINOR >= 2))
+    .volume_in = line_in_volume,
+#endif
 };
 
 static struct audio_driver spice_audio_driver = {
@@ -318,9 +305,6 @@ static struct audio_driver spice_audio_driver = {
     .max_voices_in  = 1,
     .voice_size_out = sizeof (SpiceVoiceOut),
     .voice_size_in  = sizeof (SpiceVoiceIn),
-#if ((SPICE_INTERFACE_PLAYBACK_MAJOR >= 1) && (SPICE_INTERFACE_PLAYBACK_MINOR >= 2))
-    .ctl_caps       = VOICE_VOLUME_CAP
-#endif
 };
 
 void qemu_spice_audio_init (void)
