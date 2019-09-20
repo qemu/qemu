@@ -705,13 +705,14 @@ void tlb_set_page_with_attrs(CPUState *cpu, target_ulong vaddr,
     MemoryRegionSection *section;
     unsigned int index;
     target_ulong address;
-    target_ulong code_address;
+    target_ulong write_address;
     uintptr_t addend;
     CPUTLBEntry *te, tn;
     hwaddr iotlb, xlat, sz, paddr_page;
     target_ulong vaddr_page;
     int asidx = cpu_asidx_from_attrs(cpu, attrs);
     int wp_flags;
+    bool is_ram, is_romd;
 
     assert_cpu_is_self(cpu);
 
@@ -740,18 +741,46 @@ void tlb_set_page_with_attrs(CPUState *cpu, target_ulong vaddr,
     if (attrs.byte_swap) {
         address |= TLB_BSWAP;
     }
-    if (!memory_region_is_ram(section->mr) &&
-        !memory_region_is_romd(section->mr)) {
-        /* IO memory case */
-        address |= TLB_MMIO;
-        addend = 0;
-    } else {
+
+    is_ram = memory_region_is_ram(section->mr);
+    is_romd = memory_region_is_romd(section->mr);
+
+    if (is_ram || is_romd) {
+        /* RAM and ROMD both have associated host memory. */
         addend = (uintptr_t)memory_region_get_ram_ptr(section->mr) + xlat;
+    } else {
+        /* I/O does not; force the host address to NULL. */
+        addend = 0;
     }
 
-    code_address = address;
-    iotlb = memory_region_section_get_iotlb(cpu, section, vaddr_page,
-                                            paddr_page, xlat, prot, &address);
+    write_address = address;
+    if (is_ram) {
+        iotlb = memory_region_get_ram_addr(section->mr) + xlat;
+        /*
+         * Computing is_clean is expensive; avoid all that unless
+         * the page is actually writable.
+         */
+        if (prot & PAGE_WRITE) {
+            if (section->readonly) {
+                write_address |= TLB_DISCARD_WRITE;
+            } else if (cpu_physical_memory_is_clean(iotlb)) {
+                write_address |= TLB_NOTDIRTY;
+            }
+        }
+    } else {
+        /* I/O or ROMD */
+        iotlb = memory_region_section_get_iotlb(cpu, section) + xlat;
+        /*
+         * Writes to romd devices must go through MMIO to enable write.
+         * Reads to romd devices go through the ram_ptr found above,
+         * but of course reads to I/O must go through MMIO.
+         */
+        write_address |= TLB_MMIO;
+        if (!is_romd) {
+            address = write_address;
+        }
+    }
+
     wp_flags = cpu_watchpoint_address_matches(cpu, vaddr_page,
                                               TARGET_PAGE_SIZE);
 
@@ -791,8 +820,8 @@ void tlb_set_page_with_attrs(CPUState *cpu, target_ulong vaddr,
     /*
      * At this point iotlb contains a physical section number in the lower
      * TARGET_PAGE_BITS, and either
-     *  + the ram_addr_t of the page base of the target RAM (if NOTDIRTY or ROM)
-     *  + the offset within section->mr of the page base (otherwise)
+     *  + the ram_addr_t of the page base of the target RAM (RAM)
+     *  + the offset within section->mr of the page base (I/O, ROMD)
      * We subtract the vaddr_page (which is page aligned and thus won't
      * disturb the low bits) to give an offset which can be added to the
      * (non-page-aligned) vaddr of the eventual memory access to get
@@ -815,25 +844,14 @@ void tlb_set_page_with_attrs(CPUState *cpu, target_ulong vaddr,
     }
 
     if (prot & PAGE_EXEC) {
-        tn.addr_code = code_address;
+        tn.addr_code = address;
     } else {
         tn.addr_code = -1;
     }
 
     tn.addr_write = -1;
     if (prot & PAGE_WRITE) {
-        tn.addr_write = address;
-        if (memory_region_is_romd(section->mr)) {
-            /* Use the MMIO path so that the device can switch states. */
-            tn.addr_write |= TLB_MMIO;
-        } else if (memory_region_is_ram(section->mr)) {
-            if (section->readonly) {
-                tn.addr_write |= TLB_DISCARD_WRITE;
-            } else if (cpu_physical_memory_is_clean(
-                        memory_region_get_ram_addr(section->mr) + xlat)) {
-                tn.addr_write |= TLB_NOTDIRTY;
-            }
-        }
+        tn.addr_write = write_address;
         if (prot & PAGE_WRITE_INV) {
             tn.addr_write |= TLB_INVALID_MASK;
         }

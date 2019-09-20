@@ -1459,26 +1459,10 @@ bool cpu_physical_memory_snapshot_get_dirty(DirtyBitmapSnapshot *snap,
 
 /* Called from RCU critical section */
 hwaddr memory_region_section_get_iotlb(CPUState *cpu,
-                                       MemoryRegionSection *section,
-                                       target_ulong vaddr,
-                                       hwaddr paddr, hwaddr xlat,
-                                       int prot,
-                                       target_ulong *address)
+                                       MemoryRegionSection *section)
 {
-    hwaddr iotlb;
-
-    if (memory_region_is_ram(section->mr)) {
-        /* Normal RAM.  */
-        iotlb = memory_region_get_ram_addr(section->mr) + xlat;
-    } else {
-        AddressSpaceDispatch *d;
-
-        d = flatview_to_dispatch(section->fv);
-        iotlb = section - d->map.sections;
-        iotlb += xlat;
-    }
-
-    return iotlb;
+    AddressSpaceDispatch *d = flatview_to_dispatch(section->fv);
+    return section - d->map.sections;
 }
 #endif /* defined(CONFIG_USER_ONLY) */
 
