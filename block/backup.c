@@ -223,8 +223,10 @@ fail:
     return NULL;
 }
 
-/* Copy range to target with a bounce buffer and return the bytes copied. If
- * error occurred, return a negative error number */
+/*
+ * Copy range to target with a bounce buffer and return the bytes copied. If
+ * error occurred, return a negative error number
+ */
 static int coroutine_fn block_copy_with_bounce_buffer(BlockCopyState *s,
                                                       int64_t start,
                                                       int64_t end,
@@ -269,8 +271,10 @@ fail:
 
 }
 
-/* Copy range to target and return the bytes copied. If error occurred, return a
- * negative error number. */
+/*
+ * Copy range to target and return the bytes copied. If error occurred, return a
+ * negative error number.
+ */
 static int coroutine_fn block_copy_with_offload(BlockCopyState *s,
                                                 int64_t start,
                                                 int64_t end,
@@ -341,7 +345,7 @@ static int block_copy_is_cluster_allocated(BlockCopyState *s, int64_t offset,
     }
 }
 
-/**
+/*
  * Reset bits in copy_bitmap starting at offset if they represent unallocated
  * data in the image. May reset subsequent contiguous bits.
  * @return 0 when the cluster at @offset was unallocated,
@@ -592,8 +596,10 @@ static bool coroutine_fn yield_and_check(BackupBlockJob *job)
         return true;
     }
 
-    /* We need to yield even for delay_ns = 0 so that bdrv_drain_all() can
-     * return. Without a yield, the VM would not reboot. */
+    /*
+     * We need to yield even for delay_ns = 0 so that bdrv_drain_all() can
+     * return. Without a yield, the VM would not reboot.
+     */
     delay_ns = block_job_ratelimit_get_delay(&job->common, job->bytes_read);
     job->bytes_read = 0;
     job_sleep_ns(&job->common.job, delay_ns);
@@ -692,11 +698,15 @@ static int coroutine_fn backup_run(Job *job, Error **errp)
     }
 
     if (s->sync_mode == MIRROR_SYNC_MODE_NONE) {
-        /* All bits are set in copy_bitmap to allow any cluster to be copied.
-         * This does not actually require them to be copied. */
+        /*
+         * All bits are set in copy_bitmap to allow any cluster to be copied.
+         * This does not actually require them to be copied.
+         */
         while (!job_is_cancelled(job)) {
-            /* Yield until the job is cancelled.  We just let our before_write
-             * notify callback service CoW requests. */
+            /*
+             * Yield until the job is cancelled.  We just let our before_write
+             * notify callback service CoW requests.
+             */
             job_yield(job);
         }
     } else {
