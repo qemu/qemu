@@ -161,7 +161,7 @@ static int coroutine_fn backup_cow_with_offload(BackupBlockJob *job,
 
     assert(QEMU_IS_ALIGNED(job->copy_range_size, job->cluster_size));
     assert(QEMU_IS_ALIGNED(start, job->cluster_size));
-    nbytes = MIN(job->copy_range_size, end - start);
+    nbytes = MIN(job->copy_range_size, MIN(end, job->len) - start);
     nr_clusters = DIV_ROUND_UP(nbytes, job->cluster_size);
     bdrv_reset_dirty_bitmap(job->copy_bitmap, start,
                             job->cluster_size * nr_clusters);
