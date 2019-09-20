@@ -88,7 +88,7 @@ static MemoryRegion *system_io;
 AddressSpace address_space_io;
 AddressSpace address_space_memory;
 
-MemoryRegion io_mem_rom, io_mem_notdirty;
+MemoryRegion io_mem_notdirty;
 static MemoryRegion io_mem_unassigned;
 #endif
 
@@ -192,7 +192,6 @@ typedef struct subpage_t {
 
 #define PHYS_SECTION_UNASSIGNED 0
 #define PHYS_SECTION_NOTDIRTY 1
-#define PHYS_SECTION_ROM 2
 
 static void io_mem_init(void);
 static void memory_map_init(void);
@@ -1475,8 +1474,6 @@ hwaddr memory_region_section_get_iotlb(CPUState *cpu,
         iotlb = memory_region_get_ram_addr(section->mr) + xlat;
         if (!section->readonly) {
             iotlb |= PHYS_SECTION_NOTDIRTY;
-        } else {
-            iotlb |= PHYS_SECTION_ROM;
         }
     } else {
         AddressSpaceDispatch *d;
@@ -3002,38 +2999,6 @@ static uint16_t dummy_section(PhysPageMap *map, FlatView *fv, MemoryRegion *mr)
     return phys_section_add(map, &section);
 }
 
-static void readonly_mem_write(void *opaque, hwaddr addr,
-                               uint64_t val, unsigned size)
-{
-    /* Ignore any write to ROM. */
-}
-
-static bool readonly_mem_accepts(void *opaque, hwaddr addr,
-                                 unsigned size, bool is_write,
-                                 MemTxAttrs attrs)
-{
-    return is_write;
-}
-
-/* This will only be used for writes, because reads are special cased
- * to directly access the underlying host ram.
- */
-static const MemoryRegionOps readonly_mem_ops = {
-    .write = readonly_mem_write,
-    .valid.accepts = readonly_mem_accepts,
-    .endianness = DEVICE_NATIVE_ENDIAN,
-    .valid = {
-        .min_access_size = 1,
-        .max_access_size = 8,
-        .unaligned = false,
-    },
-    .impl = {
-        .min_access_size = 1,
-        .max_access_size = 8,
-        .unaligned = false,
-    },
-};
-
 MemoryRegionSection *iotlb_to_section(CPUState *cpu,
                                       hwaddr index, MemTxAttrs attrs)
 {
@@ -3047,8 +3012,6 @@ MemoryRegionSection *iotlb_to_section(CPUState *cpu,
 
 static void io_mem_init(void)
 {
-    memory_region_init_io(&io_mem_rom, NULL, &readonly_mem_ops,
-                          NULL, NULL, UINT64_MAX);
     memory_region_init_io(&io_mem_unassigned, NULL, &unassigned_mem_ops, NULL,
                           NULL, UINT64_MAX);
 
@@ -3069,8 +3032,6 @@ AddressSpaceDispatch *address_space_dispatch_new(FlatView *fv)
     assert(n == PHYS_SECTION_UNASSIGNED);
     n = dummy_section(&d->map, fv, &io_mem_notdirty);
     assert(n == PHYS_SECTION_NOTDIRTY);
-    n = dummy_section(&d->map, fv, &io_mem_rom);
-    assert(n == PHYS_SECTION_ROM);
 
     d->phys_map  = (PhysPageEntry) { .ptr = PHYS_MAP_NODE_NIL, .skip = 1 };
 

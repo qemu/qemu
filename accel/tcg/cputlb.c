@@ -577,7 +577,8 @@ static void tlb_reset_dirty_range_locked(CPUTLBEntry *tlb_entry,
 {
     uintptr_t addr = tlb_entry->addr_write;
 
-    if ((addr & (TLB_INVALID_MASK | TLB_MMIO | TLB_NOTDIRTY)) == 0) {
+    if ((addr & (TLB_INVALID_MASK | TLB_MMIO |
+                 TLB_DISCARD_WRITE | TLB_NOTDIRTY)) == 0) {
         addr &= TARGET_PAGE_MASK;
         addr += tlb_entry->addend;
         if ((addr - start) < length) {
@@ -745,7 +746,6 @@ void tlb_set_page_with_attrs(CPUState *cpu, target_ulong vaddr,
         address |= TLB_MMIO;
         addend = 0;
     } else {
-        /* TLB_MMIO for rom/romd handled below */
         addend = (uintptr_t)memory_region_get_ram_ptr(section->mr) + xlat;
     }
 
@@ -822,16 +822,17 @@ void tlb_set_page_with_attrs(CPUState *cpu, target_ulong vaddr,
 
     tn.addr_write = -1;
     if (prot & PAGE_WRITE) {
-        if ((memory_region_is_ram(section->mr) && section->readonly)
-            || memory_region_is_romd(section->mr)) {
-            /* Write access calls the I/O callback.  */
-            tn.addr_write = address | TLB_MMIO;
-        } else if (memory_region_is_ram(section->mr)
-                   && cpu_physical_memory_is_clean(
-                       memory_region_get_ram_addr(section->mr) + xlat)) {
-            tn.addr_write = address | TLB_NOTDIRTY;
-        } else {
-            tn.addr_write = address;
+        tn.addr_write = address;
+        if (memory_region_is_romd(section->mr)) {
+            /* Use the MMIO path so that the device can switch states. */
+            tn.addr_write |= TLB_MMIO;
+        } else if (memory_region_is_ram(section->mr)) {
+            if (section->readonly) {
+                tn.addr_write |= TLB_DISCARD_WRITE;
+            } else if (cpu_physical_memory_is_clean(
+                        memory_region_get_ram_addr(section->mr) + xlat)) {
+                tn.addr_write |= TLB_NOTDIRTY;
+            }
         }
         if (prot & PAGE_WRITE_INV) {
             tn.addr_write |= TLB_INVALID_MASK;
@@ -904,7 +905,7 @@ static uint64_t io_readx(CPUArchState *env, CPUIOTLBEntry *iotlbentry,
     mr = section->mr;
     mr_offset = (iotlbentry->addr & TARGET_PAGE_MASK) + addr;
     cpu->mem_io_pc = retaddr;
-    if (mr != &io_mem_rom && mr != &io_mem_notdirty && !cpu->can_do_io) {
+    if (mr != &io_mem_notdirty && !cpu->can_do_io) {
         cpu_io_recompile(cpu, retaddr);
     }
 
@@ -945,7 +946,7 @@ static void io_writex(CPUArchState *env, CPUIOTLBEntry *iotlbentry,
     section = iotlb_to_section(cpu, iotlbentry->addr, iotlbentry->attrs);
     mr = section->mr;
     mr_offset = (iotlbentry->addr & TARGET_PAGE_MASK) + addr;
-    if (mr != &io_mem_rom && mr != &io_mem_notdirty && !cpu->can_do_io) {
+    if (mr != &io_mem_notdirty && !cpu->can_do_io) {
         cpu_io_recompile(cpu, retaddr);
     }
     cpu->mem_io_vaddr = addr;
@@ -1125,7 +1126,7 @@ void *probe_access(CPUArchState *env, target_ulong addr, int size,
     }
 
     /* Reject I/O access, or other required slow-path.  */
-    if (tlb_addr & (TLB_NOTDIRTY | TLB_MMIO | TLB_BSWAP)) {
+    if (tlb_addr & (TLB_NOTDIRTY | TLB_MMIO | TLB_BSWAP | TLB_DISCARD_WRITE)) {
         return NULL;
     }
 
@@ -1614,6 +1615,11 @@ store_helper(CPUArchState *env, target_ulong addr, uint64_t val,
         if (likely(tlb_addr & (TLB_MMIO | TLB_NOTDIRTY))) {
             io_writex(env, iotlbentry, mmu_idx, val, addr, retaddr,
                       op ^ (need_swap * MO_BSWAP));
+            return;
+        }
+
+        /* Ignore writes to ROM.  */
+        if (unlikely(tlb_addr & TLB_DISCARD_WRITE)) {
             return;
         }
 
