@@ -1404,12 +1404,13 @@ static Qcow2Bitmap *find_bitmap_by_name(Qcow2BitmapList *bm_list,
     return NULL;
 }
 
-int qcow2_remove_persistent_dirty_bitmap(BlockDriverState *bs, const char *name,
-                                         Error **errp)
+int coroutine_fn qcow2_co_remove_persistent_dirty_bitmap(BlockDriverState *bs,
+                                                         const char *name,
+                                                         Error **errp)
 {
     int ret;
     BDRVQcow2State *s = bs->opaque;
-    Qcow2Bitmap *bm;
+    Qcow2Bitmap *bm = NULL;
     Qcow2BitmapList *bm_list;
 
     if (s->nb_bitmaps == 0) {
@@ -1418,10 +1419,13 @@ int qcow2_remove_persistent_dirty_bitmap(BlockDriverState *bs, const char *name,
         return 0;
     }
 
+    qemu_co_mutex_lock(&s->lock);
+
     bm_list = bitmap_list_load(bs, s->bitmap_directory_offset,
                                s->bitmap_directory_size, errp);
     if (bm_list == NULL) {
-        return -EIO;
+        ret = -EIO;
+        goto out;
     }
 
     bm = find_bitmap_by_name(bm_list, name);
@@ -1441,6 +1445,8 @@ int qcow2_remove_persistent_dirty_bitmap(BlockDriverState *bs, const char *name,
     free_bitmap_clusters(bs, &bm->table);
 
 out:
+    qemu_co_mutex_unlock(&s->lock);
+
     bitmap_free(bm);
     bitmap_list_free(bm_list);
 
@@ -1615,10 +1621,10 @@ int qcow2_reopen_bitmaps_ro(BlockDriverState *bs, Error **errp)
     return 0;
 }
 
-bool qcow2_can_store_new_dirty_bitmap(BlockDriverState *bs,
-                                      const char *name,
-                                      uint32_t granularity,
-                                      Error **errp)
+bool coroutine_fn qcow2_co_can_store_new_dirty_bitmap(BlockDriverState *bs,
+                                                      const char *name,
+                                                      uint32_t granularity,
+                                                      Error **errp)
 {
     BDRVQcow2State *s = bs->opaque;
     bool found;
@@ -1655,8 +1661,10 @@ bool qcow2_can_store_new_dirty_bitmap(BlockDriverState *bs,
         goto fail;
     }
 
+    qemu_co_mutex_lock(&s->lock);
     bm_list = bitmap_list_load(bs, s->bitmap_directory_offset,
                                s->bitmap_directory_size, errp);
+    qemu_co_mutex_unlock(&s->lock);
     if (bm_list == NULL) {
         goto fail;
     }
