@@ -51,7 +51,7 @@ SEABIOS_EXTRAVERSION="-prebuilt.qemu.org"
 #
 EDK2_EFIROM = edk2/BaseTools/Source/C/bin/EfiRom
 
-default:
+default help:
 	@echo "nothing is build by default"
 	@echo "available build targets:"
 	@echo "  bios               -- update bios.bin (seabios)"
