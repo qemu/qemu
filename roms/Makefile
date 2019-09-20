@@ -141,6 +141,7 @@ build-efi-roms: build-pxe-roms
 #
 edk2-basetools:
 	$(MAKE) -C edk2/BaseTools \
+		PYTHON_COMMAND=$${EDK2_PYTHON_COMMAND:-python3} \
 		EXTRA_OPTFLAGS='$(EDK2_BASETOOLS_OPTFLAGS)' \
 		EXTRA_LDFLAGS='$(EDK2_BASETOOLS_LDFLAGS)'
 
