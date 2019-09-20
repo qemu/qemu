@@ -2940,15 +2940,14 @@ static BdrvDirtyBitmap *do_block_dirty_bitmap_remove(
     }
 
     if (bdrv_dirty_bitmap_get_persistence(bitmap)) {
+        int ret;
         AioContext *aio_context = bdrv_get_aio_context(bs);
-        Error *local_err = NULL;
 
         aio_context_acquire(aio_context);
-        bdrv_remove_persistent_dirty_bitmap(bs, name, &local_err);
+        ret = bdrv_remove_persistent_dirty_bitmap(bs, name, errp);
         aio_context_release(aio_context);
 
-        if (local_err != NULL) {
-            error_propagate(errp, local_err);
+        if (ret < 0) {
             return NULL;
         }
     }
