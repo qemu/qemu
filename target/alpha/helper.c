@@ -58,6 +58,13 @@ void cpu_alpha_store_fpcr(CPUAlphaState *env, uint64_t val)
      */
     uint32_t soft_fpcr = alpha_ieee_swcr_to_fpcr(env->swcr) >> 32;
     fpcr |= soft_fpcr & (FPCR_STATUS_MASK | FPCR_DNZ);
+
+    /*
+     * The IOV exception is disabled by the kernel with SWCR_TRAP_ENABLE_INV,
+     * which got mapped by alpha_ieee_swcr_to_fpcr to FPCR_INVD.
+     * Add FPCR_IOV to fpcr_exc_enable so that it is handled identically.
+     */
+    t |= CONVERT_BIT(soft_fpcr, FPCR_INVD, FPCR_IOV);
 #endif
 
     t |= CONVERT_BIT(fpcr, FPCR_INED, FPCR_INE);
