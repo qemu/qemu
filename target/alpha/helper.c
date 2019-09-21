@@ -69,14 +69,13 @@ void cpu_alpha_store_fpcr(CPUAlphaState *env, uint64_t val)
     env->fpcr_exc_enable = ~t & FPCR_STATUS_MASK;
 
     env->fpcr_dyn_round = rm_map[(fpcr & FPCR_DYN_MASK) >> FPCR_DYN_SHIFT];
-
-    env->fpcr_flush_to_zero = (fpcr & FPCR_UNFD) && (fpcr & FPCR_UNDZ);
     env->fp_status.flush_inputs_to_zero = (fpcr & FPCR_DNZ) != 0;
+
+    t = (fpcr & FPCR_UNFD) && (fpcr & FPCR_UNDZ);
 #ifdef CONFIG_USER_ONLY
-    if (env->swcr & SWCR_MAP_UMZ) {
-        env->fpcr_flush_to_zero = 1;
-    }
+    t |= (env->swcr & SWCR_MAP_UMZ) != 0;
 #endif
+    env->fpcr_flush_to_zero = t;
 }
 
 uint64_t helper_load_fpcr(CPUAlphaState *env)
