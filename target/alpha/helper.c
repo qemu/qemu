@@ -57,7 +57,7 @@ void cpu_alpha_store_fpcr(CPUAlphaState *env, uint64_t val)
      * the software exception mask.
      */
     uint32_t soft_fpcr = alpha_ieee_swcr_to_fpcr(env->swcr) >> 32;
-    fpcr |= soft_fpcr & FPCR_STATUS_MASK;
+    fpcr |= soft_fpcr & (FPCR_STATUS_MASK | FPCR_DNZ);
 #endif
 
     t |= CONVERT_BIT(fpcr, FPCR_INED, FPCR_INE);
@@ -73,9 +73,6 @@ void cpu_alpha_store_fpcr(CPUAlphaState *env, uint64_t val)
     env->fpcr_flush_to_zero = (fpcr & FPCR_UNFD) && (fpcr & FPCR_UNDZ);
     env->fp_status.flush_inputs_to_zero = (fpcr & FPCR_DNZ) != 0;
 #ifdef CONFIG_USER_ONLY
-    if (env->swcr & SWCR_MAP_DMZ) {
-        env->fp_status.flush_inputs_to_zero = 1;
-    }
     if (env->swcr & SWCR_MAP_UMZ) {
         env->fpcr_flush_to_zero = 1;
     }
