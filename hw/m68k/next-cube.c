@@ -60,6 +60,15 @@ typedef struct next_dma {
     uint32_t size;
 } next_dma;
 
+typedef struct NextRtc {
+    uint8_t ram[32];
+    uint8_t command;
+    uint8_t value;
+    uint8_t status;
+    uint8_t control;
+    uint8_t retval;
+} NextRtc;
+
 typedef struct {
     MachineState parent;
 
@@ -77,7 +86,7 @@ typedef struct {
     uint32_t scr1;
     uint32_t scr2;
 
-    uint8_t rtc_ram[32];
+    NextRtc rtc;
 } NeXTState;
 
 /* Thanks to NeXT forums for this */
@@ -105,11 +114,8 @@ static void nextscr2_write(NeXTState *s, uint32_t val, int size)
     static int led;
     static int phase;
     static uint8_t old_scr2;
-    static uint8_t rtc_command;
-    static uint8_t rtc_value;
-    static uint8_t rtc_status = 0x90;
-    static uint8_t rtc_return;
     uint8_t scr2_2;
+    NextRtc *rtc = &s->rtc;
 
     if (size == 4) {
         scr2_2 = (val >> 8) & 0xFF;
@@ -135,52 +141,52 @@ static void nextscr2_write(NeXTState *s, uint32_t val, int size)
         if (((old_scr2 & SCR2_RTCLK) != (scr2_2 & SCR2_RTCLK)) &&
                 ((scr2_2 & SCR2_RTCLK) == 0)) {
             if (phase < 8) {
-                rtc_command = (rtc_command << 1) |
-                              ((scr2_2 & SCR2_RTDATA) ? 1 : 0);
+                rtc->command = (rtc->command << 1) |
+                               ((scr2_2 & SCR2_RTDATA) ? 1 : 0);
             }
             if (phase >= 8 && phase < 16) {
-                rtc_value = (rtc_value << 1) | ((scr2_2 & SCR2_RTDATA) ? 1 : 0);
+                rtc->value = (rtc->value << 1) |
+                             ((scr2_2 & SCR2_RTDATA) ? 1 : 0);
 
                 /* if we read RAM register, output RT_DATA bit */
-                if (rtc_command <= 0x1F) {
+                if (rtc->command <= 0x1F) {
                     scr2_2 = scr2_2 & (~SCR2_RTDATA);
-                    if (s->rtc_ram[rtc_command] & (0x80 >> (phase - 8))) {
+                    if (rtc->ram[rtc->command] & (0x80 >> (phase - 8))) {
                         scr2_2 |= SCR2_RTDATA;
                     }
 
-                    rtc_return = (rtc_return << 1) |
-                                 ((scr2_2 & SCR2_RTDATA) ? 1 : 0);
+                    rtc->retval = (rtc->retval << 1) |
+                                  ((scr2_2 & SCR2_RTDATA) ? 1 : 0);
                 }
                 /* read the status 0x30 */
-                if (rtc_command == 0x30) {
+                if (rtc->command == 0x30) {
                     scr2_2 = scr2_2 & (~SCR2_RTDATA);
                     /* for now status = 0x98 (new rtc + FTU) */
-                    if (rtc_status & (0x80 >> (phase - 8))) {
+                    if (rtc->status & (0x80 >> (phase - 8))) {
                         scr2_2 |= SCR2_RTDATA;
                     }
 
-                    rtc_return = (rtc_return << 1) |
-                                 ((scr2_2 & SCR2_RTDATA) ? 1 : 0);
+                    rtc->retval = (rtc->retval << 1) |
+                                  ((scr2_2 & SCR2_RTDATA) ? 1 : 0);
                 }
                 /* read the status 0x31 */
-                if (rtc_command == 0x31) {
+                if (rtc->command == 0x31) {
                     scr2_2 = scr2_2 & (~SCR2_RTDATA);
-                    /* for now 0x00 */
-                    if (0x00 & (0x80 >> (phase - 8))) {
+                    if (rtc->control & (0x80 >> (phase - 8))) {
                         scr2_2 |= SCR2_RTDATA;
                     }
-                    rtc_return = (rtc_return << 1) |
-                                 ((scr2_2 & SCR2_RTDATA) ? 1 : 0);
+                    rtc->retval = (rtc->retval << 1) |
+                                  ((scr2_2 & SCR2_RTDATA) ? 1 : 0);
                 }
 
-                if ((rtc_command >= 0x20) && (rtc_command <= 0x2F)) {
+                if ((rtc->command >= 0x20) && (rtc->command <= 0x2F)) {
                     scr2_2 = scr2_2 & (~SCR2_RTDATA);
                     /* for now 0x00 */
                     time_t time_h = time(NULL);
                     struct tm *info = localtime(&time_h);
                     int ret = 0;
 
-                    switch (rtc_command) {
+                    switch (rtc->command) {
                     case 0x20:
                         ret = SCR2_TOBCD(info->tm_sec);
                         break;
@@ -205,22 +211,22 @@ static void nextscr2_write(NeXTState *s, uint32_t val, int size)
                     if (ret & (0x80 >> (phase - 8))) {
                         scr2_2 |= SCR2_RTDATA;
                     }
-                    rtc_return = (rtc_return << 1) |
-                                 ((scr2_2 & SCR2_RTDATA) ? 1 : 0);
+                    rtc->retval = (rtc->retval << 1) |
+                                  ((scr2_2 & SCR2_RTDATA) ? 1 : 0);
                 }
 
             }
 
             phase++;
             if (phase == 16) {
-                if (rtc_command >= 0x80 && rtc_command <= 0x9F) {
-                    s->rtc_ram[rtc_command - 0x80] = rtc_value;
+                if (rtc->command >= 0x80 && rtc->command <= 0x9F) {
+                    rtc->ram[rtc->command - 0x80] = rtc->value;
                 }
                 /* write to x30 register */
-                if (rtc_command == 0xB1) {
+                if (rtc->command == 0xB1) {
                     /* clear FTU */
-                    if (rtc_value & 0x04) {
-                        rtc_status = rtc_status & (~0x18);
+                    if (rtc->value & 0x04) {
+                        rtc->status = rtc->status & (~0x18);
                         s->int_status = s->int_status & (~0x04);
                     }
                 }
@@ -229,8 +235,8 @@ static void nextscr2_write(NeXTState *s, uint32_t val, int size)
     } else {
         /* else end or abort */
         phase = -1;
-        rtc_command = 0;
-        rtc_value = 0;
+        rtc->command = 0;
+        rtc->value = 0;
     }
     s->scr2 = val & 0xFFFF00FF;
     s->scr2 |= scr2_2 << 8;
@@ -881,9 +887,10 @@ static void next_cube_init(MachineState *machine)
     /*     0x0000XX00 << vital bits */
     ns->scr1 = 0x00011102;
     ns->scr2 = 0x00ff0c80;
+    ns->rtc.status = 0x90;
 
     /* Load RTC RAM - TODO: provide possibility to load contents from file */
-    memcpy(ns->rtc_ram, rtc_ram2, 32);
+    memcpy(ns->rtc.ram, rtc_ram2, 32);
 
     /* 64MB RAM starting at 0x04000000  */
     memory_region_allocate_system_memory(ram, NULL, "next.ram", ram_size);
