@@ -928,7 +928,6 @@ static uint64_t io_readx(CPUArchState *env, CPUIOTLBEntry *iotlbentry,
         cpu_io_recompile(cpu, retaddr);
     }
 
-    cpu->mem_io_vaddr = addr;
     cpu->mem_io_access_type = access_type;
 
     if (mr->global_locking && !qemu_mutex_iothread_locked()) {
@@ -968,7 +967,6 @@ static void io_writex(CPUArchState *env, CPUIOTLBEntry *iotlbentry,
     if (!cpu->can_do_io) {
         cpu_io_recompile(cpu, retaddr);
     }
-    cpu->mem_io_vaddr = addr;
     cpu->mem_io_pc = retaddr;
 
     if (mr->global_locking && !qemu_mutex_iothread_locked()) {
