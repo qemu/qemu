@@ -33,6 +33,7 @@
 #include "exec/helper-proto.h"
 #include "qemu/atomic.h"
 #include "qemu/atomic128.h"
+#include "translate-all.h"
 
 /* DEBUG defines, enable DEBUG_TLB_LOG to log to the CPU_LOG_MMU target */
 /* #define DEBUG_TLB */
@@ -1085,6 +1086,37 @@ tb_page_addr_t get_page_addr_code(CPUArchState *env, target_ulong addr)
     return qemu_ram_addr_from_host_nofail(p);
 }
 
+static void notdirty_write(CPUState *cpu, vaddr mem_vaddr, unsigned size,
+                           CPUIOTLBEntry *iotlbentry, uintptr_t retaddr)
+{
+    ram_addr_t ram_addr = mem_vaddr + iotlbentry->addr;
+
+    trace_memory_notdirty_write_access(mem_vaddr, ram_addr, size);
+
+    if (!cpu_physical_memory_get_dirty_flag(ram_addr, DIRTY_MEMORY_CODE)) {
+        struct page_collection *pages
+            = page_collection_lock(ram_addr, ram_addr + size);
+
+        /* We require mem_io_pc in tb_invalidate_phys_page_range.  */
+        cpu->mem_io_pc = retaddr;
+
+        tb_invalidate_phys_page_fast(pages, ram_addr, size);
+        page_collection_unlock(pages);
+    }
+
+    /*
+     * Set both VGA and migration bits for simplicity and to remove
+     * the notdirty callback faster.
+     */
+    cpu_physical_memory_set_dirty_range(ram_addr, size, DIRTY_CLIENTS_NOCODE);
+
+    /* We remove the notdirty callback only if the code has been flushed. */
+    if (!cpu_physical_memory_is_clean(ram_addr)) {
+        trace_memory_notdirty_set_dirty(mem_vaddr);
+        tlb_set_dirty(cpu, mem_vaddr);
+    }
+}
+
 /*
  * Probe for whether the specified guest access is permitted. If it is not
  * permitted then an exception will be taken in the same way as if this
@@ -1204,8 +1236,7 @@ void *tlb_vaddr_to_host(CPUArchState *env, abi_ptr addr,
 /* Probe for a read-modify-write atomic operation.  Do not allow unaligned
  * operations, or io operations to proceed.  Return the host address.  */
 static void *atomic_mmu_lookup(CPUArchState *env, target_ulong addr,
-                               TCGMemOpIdx oi, uintptr_t retaddr,
-                               NotDirtyInfo *ndi)
+                               TCGMemOpIdx oi, uintptr_t retaddr)
 {
     size_t mmu_idx = get_mmuidx(oi);
     uintptr_t index = tlb_index(env, mmu_idx, addr);
@@ -1265,12 +1296,9 @@ static void *atomic_mmu_lookup(CPUArchState *env, target_ulong addr,
 
     hostaddr = (void *)((uintptr_t)addr + tlbe->addend);
 
-    ndi->active = false;
     if (unlikely(tlb_addr & TLB_NOTDIRTY)) {
-        ndi->active = true;
-        memory_notdirty_write_prepare(ndi, env_cpu(env), addr,
-                                      qemu_ram_addr_from_host_nofail(hostaddr),
-                                      1 << s_bits);
+        notdirty_write(env_cpu(env), addr, 1 << s_bits,
+                       &env_tlb(env)->d[mmu_idx].iotlb[index], retaddr);
     }
 
     return hostaddr;
@@ -1641,27 +1669,12 @@ store_helper(CPUArchState *env, target_ulong addr, uint64_t val,
             return;
         }
 
-        haddr = (void *)((uintptr_t)addr + entry->addend);
-
         /* Handle clean RAM pages.  */
         if (tlb_addr & TLB_NOTDIRTY) {
-            NotDirtyInfo ndi;
-
-            /* We require mem_io_pc in tb_invalidate_phys_page_range.  */
-            env_cpu(env)->mem_io_pc = retaddr;
-
-            memory_notdirty_write_prepare(&ndi, env_cpu(env), addr,
-                                          addr + iotlbentry->addr, size);
-
-            if (unlikely(need_swap)) {
-                store_memop(haddr, val, op ^ MO_BSWAP);
-            } else {
-                store_memop(haddr, val, op);
-            }
-
-            memory_notdirty_write_complete(&ndi);
-            return;
+            notdirty_write(env_cpu(env), addr, size, iotlbentry, retaddr);
         }
+
+        haddr = (void *)((uintptr_t)addr + entry->addend);
 
         /*
          * Keep these two store_memop separate to ensure that the compiler
@@ -1793,14 +1806,9 @@ void helper_be_stq_mmu(CPUArchState *env, target_ulong addr, uint64_t val,
 #define EXTRA_ARGS     , TCGMemOpIdx oi, uintptr_t retaddr
 #define ATOMIC_NAME(X) \
     HELPER(glue(glue(glue(atomic_ ## X, SUFFIX), END), _mmu))
-#define ATOMIC_MMU_DECLS NotDirtyInfo ndi
-#define ATOMIC_MMU_LOOKUP atomic_mmu_lookup(env, addr, oi, retaddr, &ndi)
-#define ATOMIC_MMU_CLEANUP                              \
-    do {                                                \
-        if (unlikely(ndi.active)) {                     \
-            memory_notdirty_write_complete(&ndi);       \
-        }                                               \
-    } while (0)
+#define ATOMIC_MMU_DECLS
+#define ATOMIC_MMU_LOOKUP atomic_mmu_lookup(env, addr, oi, retaddr)
+#define ATOMIC_MMU_CLEANUP
 
 #define DATA_SIZE 1
 #include "atomic_template.h"
@@ -1828,7 +1836,7 @@ void helper_be_stq_mmu(CPUArchState *env, target_ulong addr, uint64_t val,
 #undef ATOMIC_MMU_LOOKUP
 #define EXTRA_ARGS         , TCGMemOpIdx oi
 #define ATOMIC_NAME(X)     HELPER(glue(glue(atomic_ ## X, SUFFIX), END))
-#define ATOMIC_MMU_LOOKUP  atomic_mmu_lookup(env, addr, oi, GETPC(), &ndi)
+#define ATOMIC_MMU_LOOKUP  atomic_mmu_lookup(env, addr, oi, GETPC())
 
 #define DATA_SIZE 1
 #include "atomic_template.h"

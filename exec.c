@@ -2718,50 +2718,6 @@ ram_addr_t qemu_ram_addr_from_host(void *ptr)
     return block->offset + offset;
 }
 
-/* Called within RCU critical section. */
-void memory_notdirty_write_prepare(NotDirtyInfo *ndi,
-                          CPUState *cpu,
-                          vaddr mem_vaddr,
-                          ram_addr_t ram_addr,
-                          unsigned size)
-{
-    ndi->cpu = cpu;
-    ndi->ram_addr = ram_addr;
-    ndi->mem_vaddr = mem_vaddr;
-    ndi->size = size;
-    ndi->pages = NULL;
-
-    trace_memory_notdirty_write_access(mem_vaddr, ram_addr, size);
-
-    assert(tcg_enabled());
-    if (!cpu_physical_memory_get_dirty_flag(ram_addr, DIRTY_MEMORY_CODE)) {
-        ndi->pages = page_collection_lock(ram_addr, ram_addr + size);
-        tb_invalidate_phys_page_fast(ndi->pages, ram_addr, size);
-    }
-}
-
-/* Called within RCU critical section. */
-void memory_notdirty_write_complete(NotDirtyInfo *ndi)
-{
-    if (ndi->pages) {
-        assert(tcg_enabled());
-        page_collection_unlock(ndi->pages);
-        ndi->pages = NULL;
-    }
-
-    /* Set both VGA and migration bits for simplicity and to remove
-     * the notdirty callback faster.
-     */
-    cpu_physical_memory_set_dirty_range(ndi->ram_addr, ndi->size,
-                                        DIRTY_CLIENTS_NOCODE);
-    /* we remove the notdirty callback only if the code has been
-       flushed */
-    if (!cpu_physical_memory_is_clean(ndi->ram_addr)) {
-        trace_memory_notdirty_set_dirty(ndi->mem_vaddr);
-        tlb_set_dirty(ndi->cpu, ndi->mem_vaddr);
-    }
-}
-
 /* Generate a debug exception if a watchpoint has been hit.  */
 void cpu_check_watchpoint(CPUState *cpu, vaddr addr, vaddr len,
                           MemTxAttrs attrs, int flags, uintptr_t ra)
