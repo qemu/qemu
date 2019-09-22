@@ -1983,8 +1983,7 @@ tb_invalidate_phys_page_range__locked(struct page_collection *pages,
  *
  * Called with mmap_lock held for user-mode emulation
  */
-void tb_invalidate_phys_page_range(tb_page_addr_t start, tb_page_addr_t end,
-                                   int is_cpu_write_access)
+void tb_invalidate_phys_page_range(tb_page_addr_t start, tb_page_addr_t end)
 {
     struct page_collection *pages;
     PageDesc *p;
@@ -1996,8 +1995,7 @@ void tb_invalidate_phys_page_range(tb_page_addr_t start, tb_page_addr_t end,
         return;
     }
     pages = page_collection_lock(start, end);
-    tb_invalidate_phys_page_range__locked(pages, p, start, end,
-                                          is_cpu_write_access);
+    tb_invalidate_phys_page_range__locked(pages, p, start, end, 0);
     page_collection_unlock(pages);
 }
 

@@ -1012,7 +1012,7 @@ const char *parse_cpu_option(const char *cpu_option)
 void tb_invalidate_phys_addr(target_ulong addr)
 {
     mmap_lock();
-    tb_invalidate_phys_page_range(addr, addr + 1, 0);
+    tb_invalidate_phys_page_range(addr, addr + 1);
     mmap_unlock();
 }
 
@@ -1039,7 +1039,7 @@ void tb_invalidate_phys_addr(AddressSpace *as, hwaddr addr, MemTxAttrs attrs)
         return;
     }
     ram_addr = memory_region_get_ram_addr(mr) + addr;
-    tb_invalidate_phys_page_range(ram_addr, ram_addr + 1, 0);
+    tb_invalidate_phys_page_range(ram_addr, ram_addr + 1);
     rcu_read_unlock();
 }
 
