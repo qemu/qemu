@@ -1396,7 +1396,7 @@ load_helper(CPUArchState *env, target_ulong addr, TCGMemOpIdx oi,
         res = ldq_le_p(haddr);
         break;
     default:
-        g_assert_not_reached();
+        qemu_build_not_reached();
     }
 
     return res;
@@ -1680,8 +1680,7 @@ store_helper(CPUArchState *env, target_ulong addr, uint64_t val,
         stq_le_p(haddr, val);
         break;
     default:
-        g_assert_not_reached();
-        break;
+        qemu_build_not_reached();
     }
 }
 
