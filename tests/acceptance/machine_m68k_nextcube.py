@@ -116,6 +116,6 @@ class NextCubeMachine(Test):
             if len(line):
                 console_logger.debug(line)
         self.assertIn('Testing the FPU, SCC', text)
-        self.assertIn('System test failed. Error code 51', text)
+        self.assertIn('System test failed. Error code', text)
         self.assertIn('Boot command', text)
         self.assertIn('Next>', text)
