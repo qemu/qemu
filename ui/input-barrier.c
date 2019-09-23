@@ -682,6 +682,13 @@ static void input_barrier_instance_init(Object *obj)
 {
     InputBarrier *ib = INPUT_BARRIER(obj);
 
+    /* always use generic keymaps */
+    if (keyboard_layout && !kbd_layout) {
+        /* We use X11 key id, so use VNC name2keysym */
+        kbd_layout = init_keyboard_layout(name2keysym, keyboard_layout,
+                                          &error_fatal);
+    }
+
     ib->saddr.type = SOCKET_ADDRESS_TYPE_INET;
     ib->saddr.u.inet.host = g_strdup("localhost");
     ib->saddr.u.inet.port = g_strdup("24800");
@@ -719,13 +726,6 @@ static void input_barrier_class_init(ObjectClass *oc, void *data)
     UserCreatableClass *ucc = USER_CREATABLE_CLASS(oc);
 
     ucc->complete = input_barrier_complete;
-
-    /* always use generic keymaps */
-    if (keyboard_layout) {
-        /* We use X11 key id, so use VNC name2keysym */
-        kbd_layout = init_keyboard_layout(name2keysym, keyboard_layout,
-                                          &error_fatal);
-    }
 }
 
 static const TypeInfo input_barrier_info = {
