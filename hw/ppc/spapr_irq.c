@@ -150,17 +150,6 @@ static void spapr_irq_free_xics(SpaprMachineState *spapr, int irq, int num)
     }
 }
 
-static qemu_irq spapr_qirq_xics(SpaprMachineState *spapr, int irq)
-{
-    ICSState *ics = spapr->ics;
-
-    if (ics_valid_irq(ics, irq)) {
-        return spapr->qirqs[irq];
-    }
-
-    return NULL;
-}
-
 static void spapr_irq_print_info_xics(SpaprMachineState *spapr, Monitor *mon)
 {
     CPUState *cs;
@@ -242,7 +231,6 @@ SpaprIrq spapr_irq_xics = {
     .init        = spapr_irq_init_xics,
     .claim       = spapr_irq_claim_xics,
     .free        = spapr_irq_free_xics,
-    .qirq        = spapr_qirq_xics,
     .print_info  = spapr_irq_print_info_xics,
     .dt_populate = spapr_dt_xics,
     .cpu_intc_create = spapr_irq_cpu_intc_create_xics,
@@ -298,20 +286,6 @@ static void spapr_irq_free_xive(SpaprMachineState *spapr, int irq, int num)
     for (i = irq; i < irq + num; ++i) {
         spapr_xive_irq_free(spapr->xive, i);
     }
-}
-
-static qemu_irq spapr_qirq_xive(SpaprMachineState *spapr, int irq)
-{
-    SpaprXive *xive = spapr->xive;
-
-    if ((irq < SPAPR_XIRQ_BASE) || (irq >= xive->nr_irqs)) {
-        return NULL;
-    }
-
-    /* The sPAPR machine/device should have claimed the IRQ before */
-    assert(xive_eas_is_valid(&xive->eat[irq]));
-
-    return spapr->qirqs[irq];
 }
 
 static void spapr_irq_print_info_xive(SpaprMachineState *spapr,
@@ -408,7 +382,6 @@ SpaprIrq spapr_irq_xive = {
     .init        = spapr_irq_init_xive,
     .claim       = spapr_irq_claim_xive,
     .free        = spapr_irq_free_xive,
-    .qirq        = spapr_qirq_xive,
     .print_info  = spapr_irq_print_info_xive,
     .dt_populate = spapr_dt_xive,
     .cpu_intc_create = spapr_irq_cpu_intc_create_xive,
@@ -480,11 +453,6 @@ static void spapr_irq_free_dual(SpaprMachineState *spapr, int irq, int num)
 {
     spapr_irq_xics.free(spapr, irq, num);
     spapr_irq_xive.free(spapr, irq, num);
-}
-
-static qemu_irq spapr_qirq_dual(SpaprMachineState *spapr, int irq)
-{
-    return spapr_irq_current(spapr)->qirq(spapr, irq);
 }
 
 static void spapr_irq_print_info_dual(SpaprMachineState *spapr, Monitor *mon)
@@ -581,7 +549,6 @@ SpaprIrq spapr_irq_dual = {
     .init        = spapr_irq_init_dual,
     .claim       = spapr_irq_claim_dual,
     .free        = spapr_irq_free_dual,
-    .qirq        = spapr_qirq_dual,
     .print_info  = spapr_irq_print_info_dual,
     .dt_populate = spapr_irq_dt_populate_dual,
     .cpu_intc_create = spapr_irq_cpu_intc_create_dual,
@@ -695,7 +662,25 @@ void spapr_irq_free(SpaprMachineState *spapr, int irq, int num)
 
 qemu_irq spapr_qirq(SpaprMachineState *spapr, int irq)
 {
-    return spapr->irq->qirq(spapr, irq);
+    /*
+     * This interface is basically for VIO and PHB devices to find the
+     * right qemu_irq to manipulate, so we only allow access to the
+     * external irqs for now.  Currently anything which needs to
+     * access the IPIs most naturally gets there via the guest side
+     * interfaces, we can change this if we need to in future.
+     */
+    assert(irq >= SPAPR_XIRQ_BASE);
+    assert(irq < (spapr->irq->nr_xirqs + SPAPR_XIRQ_BASE));
+
+    if (spapr->ics) {
+        assert(ics_valid_irq(spapr->ics, irq));
+    }
+    if (spapr->xive) {
+        assert(irq < spapr->xive->nr_irqs);
+        assert(xive_eas_is_valid(&spapr->xive->eat[irq]));
+    }
+
+    return spapr->qirqs[irq];
 }
 
 int spapr_irq_post_load(SpaprMachineState *spapr, int version_id)
@@ -798,7 +783,6 @@ SpaprIrq spapr_irq_xics_legacy = {
     .init        = spapr_irq_init_xics,
     .claim       = spapr_irq_claim_xics,
     .free        = spapr_irq_free_xics,
-    .qirq        = spapr_qirq_xics,
     .print_info  = spapr_irq_print_info_xics,
     .dt_populate = spapr_dt_xics,
     .cpu_intc_create = spapr_irq_cpu_intc_create_xics,
