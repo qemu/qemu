@@ -876,6 +876,15 @@ SRST
 ``-device isa-ipmi-bt,bmc=id[,ioport=val][,irq=val]``
     Like the KCS interface, but defines a BT interface. The default port
     is 0xe4 and the default interrupt is 5.
+
+``-device pci-ipmi-kcs,bmc=id``
+    Add a KCS IPMI interafce on the PCI bus.
+
+    ``bmc=id``
+        The BMC to connect to, one of ipmi-bmc-sim or ipmi-bmc-extern above.
+
+``-device pci-ipmi-bt,bmc=id``
+    Like the KCS interface, but defines a BT interface on the PCI bus.
 ERST
 
 DEF("name", HAS_ARG, QEMU_OPTION_name,
