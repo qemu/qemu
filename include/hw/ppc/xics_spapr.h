@@ -29,8 +29,6 @@
 
 #include "hw/ppc/spapr.h"
 
-#define XICS_NODENAME "interrupt-controller"
-
 #define TYPE_ICS_SPAPR "ics-spapr"
 #define ICS_SPAPR(obj) OBJECT_CHECK(ICSState, (obj), TYPE_ICS_SPAPR)
 
