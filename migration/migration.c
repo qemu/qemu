@@ -1659,7 +1659,14 @@ bool migration_in_postcopy(void)
 {
     MigrationState *s = migrate_get_current();
 
-    return (s->state == MIGRATION_STATUS_POSTCOPY_ACTIVE);
+    switch (s->state) {
+    case MIGRATION_STATUS_POSTCOPY_ACTIVE:
+    case MIGRATION_STATUS_POSTCOPY_PAUSED:
+    case MIGRATION_STATUS_POSTCOPY_RECOVER:
+        return true;
+    default:
+        return false;
+    }
 }
 
 bool migration_in_postcopy_after_devices(MigrationState *s)
