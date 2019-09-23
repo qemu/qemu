@@ -323,10 +323,10 @@ static int mpath_reconstruct_sense(int fd, int r, uint8_t *sense)
              */
             uint8_t cdb[6] = { TEST_UNIT_READY };
             int sz = 0;
-            int r = do_sgio(fd, cdb, sense, NULL, &sz, SG_DXFER_NONE);
+            int ret = do_sgio(fd, cdb, sense, NULL, &sz, SG_DXFER_NONE);
 
-            if (r != GOOD) {
-                return r;
+            if (ret != GOOD) {
+                return ret;
             }
             scsi_build_sense(sense, mpath_generic_sense(r));
             return CHECK_CONDITION;
