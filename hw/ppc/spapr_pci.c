@@ -721,9 +721,10 @@ static void pci_spapr_set_irq(void *opaque, int irq_num, int level)
      * corresponding qemu_irq.
      */
     SpaprPhbState *phb = opaque;
+    SpaprMachineState *spapr = SPAPR_MACHINE(qdev_get_machine());
 
     trace_spapr_pci_lsi_set(phb->dtbusname, irq_num, phb->lsi_table[irq_num].irq);
-    qemu_set_irq(spapr_phb_lsi_qirq(phb, irq_num), level);
+    qemu_set_irq(spapr_qirq(spapr, phb->lsi_table[irq_num].irq), level);
 }
 
 static PCIINTxRoute spapr_route_intx_pin_to_irq(void *opaque, int pin)
