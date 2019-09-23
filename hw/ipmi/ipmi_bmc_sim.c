@@ -223,7 +223,7 @@ struct IPMIBmcSim {
     uint8_t restart_cause;
 
     uint8_t acpi_power_state[2];
-    uint8_t uuid[16];
+    QemuUUID uuid;
 
     IPMISel sel;
     IPMISdr sdr;
@@ -477,7 +477,9 @@ static int attn_set(IPMIBmcSim *ibs)
 
 static int attn_irq_enabled(IPMIBmcSim *ibs)
 {
-    return (IPMI_BMC_MSG_INTS_ON(ibs) && IPMI_BMC_MSG_FLAG_RCV_MSG_QUEUE_SET(ibs))
+    return (IPMI_BMC_MSG_INTS_ON(ibs) &&
+            (IPMI_BMC_MSG_FLAG_RCV_MSG_QUEUE_SET(ibs) ||
+             IPMI_BMC_MSG_FLAG_WATCHDOG_TIMEOUT_MASK_SET(ibs)))
         || (IPMI_BMC_EVBUF_FULL_INT_ENABLED(ibs) &&
             IPMI_BMC_MSG_FLAG_EVT_BUF_FULL_SET(ibs));
 }
@@ -939,8 +941,19 @@ static void get_device_guid(IPMIBmcSim *ibs,
 {
     unsigned int i;
 
+    /* An uninitialized uuid is all zeros, use that to know if it is set. */
     for (i = 0; i < 16; i++) {
-        rsp_buffer_push(rsp, ibs->uuid[i]);
+        if (ibs->uuid.data[i]) {
+            goto uuid_set;
+        }
+    }
+    /* No uuid is set, return an error. */
+    rsp_buffer_set_error(rsp, IPMI_CC_INVALID_CMD);
+    return;
+
+ uuid_set:
+    for (i = 0; i < 16; i++) {
+        rsp_buffer_push(rsp, ibs->uuid.data[i]);
     }
 }
 
@@ -1194,7 +1207,7 @@ static void set_watchdog_timer(IPMIBmcSim *ibs,
         break;
 
     case IPMI_BMC_WATCHDOG_PRE_NMI:
-        if (!k->do_hw_op(s, IPMI_SEND_NMI, 1)) {
+        if (k->do_hw_op(s, IPMI_SEND_NMI, 1)) {
             /* NMI not supported. */
             rsp_buffer_set_error(rsp, IPMI_CC_INVALID_DATA_FIELD);
             return;
@@ -1228,6 +1241,8 @@ static void get_watchdog_timer(IPMIBmcSim *ibs,
     rsp_buffer_push(rsp, ibs->watchdog_action);
     rsp_buffer_push(rsp, ibs->watchdog_pretimeout);
     rsp_buffer_push(rsp, ibs->watchdog_expired);
+    rsp_buffer_push(rsp, ibs->watchdog_timeout & 0xff);
+    rsp_buffer_push(rsp, (ibs->watchdog_timeout >> 8) & 0xff);
     if (ibs->watchdog_running) {
         long timeout;
         timeout = ((ibs->watchdog_expiry - ipmi_getmonotime() + 50000000)
@@ -1982,12 +1997,6 @@ static void ipmi_sim_realize(DeviceState *dev, Error **errp)
     ibs->acpi_power_state[0] = 0;
     ibs->acpi_power_state[1] = 0;
 
-    if (qemu_uuid_set) {
-        memcpy(&ibs->uuid, &qemu_uuid, 16);
-    } else {
-        memset(&ibs->uuid, 0, 16);
-    }
-
     ipmi_init_sensors_from_sdrs(ibs);
     register_cmds(ibs);
 
@@ -2007,6 +2016,7 @@ static Property ipmi_sim_properties[] = {
     DEFINE_PROP_UINT8("fwrev2", IPMIBmcSim, fwrev2, 0),
     DEFINE_PROP_UINT32("mfg_id", IPMIBmcSim, mfg_id, 0),
     DEFINE_PROP_UINT16("product_id", IPMIBmcSim, product_id, 0),
+    DEFINE_PROP_UUID_NODEFAULT("guid", IPMIBmcSim, uuid),
     DEFINE_PROP_END_OF_LIST(),
 };
 

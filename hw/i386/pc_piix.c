@@ -283,15 +283,14 @@ else {
 
     if (pcmc->pci_enabled && acpi_enabled) {
         DeviceState *piix4_pm;
-        I2CBus *smbus;
 
         smi_irq = qemu_allocate_irq(pc_acpi_smi_interrupt, first_cpu, 0);
         /* TODO: Populate SPD eeprom data.  */
-        smbus = piix4_pm_init(pci_bus, piix3_devfn + 3, 0xb100,
-                              pcms->gsi[9], smi_irq,
-                              pc_machine_is_smm_enabled(pcms),
-                              &piix4_pm);
-        smbus_eeprom_init(smbus, 8, NULL, 0);
+        pcms->smbus = piix4_pm_init(pci_bus, piix3_devfn + 3, 0xb100,
+                                    pcms->gsi[9], smi_irq,
+                                    pc_machine_is_smm_enabled(pcms),
+                                    &piix4_pm);
+        smbus_eeprom_init(pcms->smbus, 8, NULL, 0);
 
         object_property_add_link(OBJECT(machine), PC_MACHINE_ACPI_DEVICE_PROP,
                                  TYPE_HOTPLUG_HANDLER,
@@ -476,6 +475,7 @@ static void pc_i440fx_3_1_machine_options(MachineClass *m)
 
     pc_i440fx_4_0_machine_options(m);
     m->is_default = 0;
+    pcmc->do_not_add_smb_acpi = true;
     m->smbus_no_migration_support = true;
     m->alias = NULL;
     pcmc->pvh_enabled = false;

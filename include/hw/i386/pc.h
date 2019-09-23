@@ -38,6 +38,7 @@ struct PCMachineState {
     HotplugHandler *acpi_dev;
     ISADevice *rtc;
     PCIBus *bus;
+    I2CBus *smbus;
     FWCfgState *fw_cfg;
     qemu_irq *gsi;
     PFlashCFI01 *flash[2];
@@ -117,6 +118,7 @@ typedef struct PCMachineClass {
     bool rsdp_in_ram;
     int legacy_acpi_table_size;
     unsigned acpi_data_size;
+    bool do_not_add_smb_acpi;
 
     /* SMBIOS compat: */
     bool smbios_defaults;

@@ -8,6 +8,9 @@ config PC
     imply HYPERV
     imply ISA_IPMI_KCS
     imply ISA_IPMI_BT
+    imply PCI_IPMI_KCS
+    imply PCI_IPMI_BT
+    imply IPMI_SSIF
     imply ISA_DEBUG
     imply PARALLEL
     imply PCI_DEVICES
