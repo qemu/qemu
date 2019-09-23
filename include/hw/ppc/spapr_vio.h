@@ -24,6 +24,7 @@
 
 #include "hw/ppc/spapr.h"
 #include "sysemu/dma.h"
+#include "hw/irq.h"
 
 #define TYPE_VIO_SPAPR_DEVICE "vio-spapr-device"
 #define VIO_SPAPR_DEVICE(obj) \
@@ -84,11 +85,11 @@ extern SpaprVioDevice *spapr_vio_find_by_reg(SpaprVioBus *bus, uint32_t reg);
 void spapr_dt_vdevice(SpaprVioBus *bus, void *fdt);
 extern gchar *spapr_vio_stdout_path(SpaprVioBus *bus);
 
-static inline qemu_irq spapr_vio_qirq(SpaprVioDevice *dev)
+static inline void spapr_vio_irq_pulse(SpaprVioDevice *dev)
 {
     SpaprMachineState *spapr = SPAPR_MACHINE(qdev_get_machine());
 
-    return spapr_qirq(spapr, dev->irq);
+    qemu_irq_pulse(spapr_qirq(spapr, dev->irq));
 }
 
 static inline bool spapr_vio_dma_valid(SpaprVioDevice *dev, uint64_t taddr,
