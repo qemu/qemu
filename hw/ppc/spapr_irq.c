@@ -210,7 +210,7 @@ static void spapr_irq_set_irq_xics(void *opaque, int srcno, int val)
 {
     SpaprMachineState *spapr = opaque;
 
-    ics_simple_set_irq(spapr->ics, srcno, val);
+    ics_set_irq(spapr->ics, srcno, val);
 }
 
 static void spapr_irq_reset_xics(SpaprMachineState *spapr, Error **errp)

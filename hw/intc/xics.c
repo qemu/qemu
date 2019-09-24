@@ -428,11 +428,11 @@ static void ics_resend_lsi(ICSState *ics, int srcno)
     }
 }
 
-static void ics_simple_set_irq_msi(ICSState *ics, int srcno, int val)
+static void ics_set_irq_msi(ICSState *ics, int srcno, int val)
 {
     ICSIRQState *irq = ics->irqs + srcno;
 
-    trace_xics_ics_simple_set_irq_msi(srcno, srcno + ics->offset);
+    trace_xics_ics_set_irq_msi(srcno, srcno + ics->offset);
 
     if (val) {
         if (irq->priority == 0xff) {
@@ -444,11 +444,11 @@ static void ics_simple_set_irq_msi(ICSState *ics, int srcno, int val)
     }
 }
 
-static void ics_simple_set_irq_lsi(ICSState *ics, int srcno, int val)
+static void ics_set_irq_lsi(ICSState *ics, int srcno, int val)
 {
     ICSIRQState *irq = ics->irqs + srcno;
 
-    trace_xics_ics_simple_set_irq_lsi(srcno, srcno + ics->offset);
+    trace_xics_ics_set_irq_lsi(srcno, srcno + ics->offset);
     if (val) {
         irq->status |= XICS_STATUS_ASSERTED;
     } else {
@@ -457,7 +457,7 @@ static void ics_simple_set_irq_lsi(ICSState *ics, int srcno, int val)
     ics_resend_lsi(ics, srcno);
 }
 
-void ics_simple_set_irq(void *opaque, int srcno, int val)
+void ics_set_irq(void *opaque, int srcno, int val)
 {
     ICSState *ics = (ICSState *)opaque;
 
@@ -467,13 +467,13 @@ void ics_simple_set_irq(void *opaque, int srcno, int val)
     }
 
     if (ics->irqs[srcno].flags & XICS_FLAGS_IRQ_LSI) {
-        ics_simple_set_irq_lsi(ics, srcno, val);
+        ics_set_irq_lsi(ics, srcno, val);
     } else {
-        ics_simple_set_irq_msi(ics, srcno, val);
+        ics_set_irq_msi(ics, srcno, val);
     }
 }
 
-static void ics_simple_write_xive_msi(ICSState *ics, int srcno)
+static void ics_write_xive_msi(ICSState *ics, int srcno)
 {
     ICSIRQState *irq = ics->irqs + srcno;
 
@@ -486,13 +486,13 @@ static void ics_simple_write_xive_msi(ICSState *ics, int srcno)
     icp_irq(ics, irq->server, srcno + ics->offset, irq->priority);
 }
 
-static void ics_simple_write_xive_lsi(ICSState *ics, int srcno)
+static void ics_write_xive_lsi(ICSState *ics, int srcno)
 {
     ics_resend_lsi(ics, srcno);
 }
 
-void ics_simple_write_xive(ICSState *ics, int srcno, int server,
-                           uint8_t priority, uint8_t saved_priority)
+void ics_write_xive(ICSState *ics, int srcno, int server,
+                    uint8_t priority, uint8_t saved_priority)
 {
     ICSIRQState *irq = ics->irqs + srcno;
 
@@ -500,13 +500,12 @@ void ics_simple_write_xive(ICSState *ics, int srcno, int server,
     irq->priority = priority;
     irq->saved_priority = saved_priority;
 
-    trace_xics_ics_simple_write_xive(ics->offset + srcno, srcno, server,
-                                     priority);
+    trace_xics_ics_write_xive(ics->offset + srcno, srcno, server, priority);
 
     if (ics->irqs[srcno].flags & XICS_FLAGS_IRQ_LSI) {
-        ics_simple_write_xive_lsi(ics, srcno);
+        ics_write_xive_lsi(ics, srcno);
     } else {
-        ics_simple_write_xive_msi(ics, srcno);
+        ics_write_xive_msi(ics, srcno);
     }
 }
 
