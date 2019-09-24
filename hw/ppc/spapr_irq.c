@@ -92,8 +92,7 @@ static void spapr_irq_init_kvm(SpaprMachineState *spapr,
  * XICS IRQ backend.
  */
 
-static void spapr_irq_init_xics(SpaprMachineState *spapr, int nr_xirqs,
-                                Error **errp)
+static void spapr_irq_init_xics(SpaprMachineState *spapr, Error **errp)
 {
     Object *obj;
     Error *local_err = NULL;
@@ -102,7 +101,8 @@ static void spapr_irq_init_xics(SpaprMachineState *spapr, int nr_xirqs,
     object_property_add_child(OBJECT(spapr), "ics", obj, &error_abort);
     object_property_add_const_link(obj, ICS_PROP_XICS, OBJECT(spapr),
                                    &error_fatal);
-    object_property_set_int(obj, nr_xirqs, "nr-irqs",  &error_fatal);
+    object_property_set_int(obj, spapr->irq->nr_xirqs,
+                            "nr-irqs",  &error_fatal);
     object_property_set_bool(obj, true, "realized", &local_err);
     if (local_err) {
         error_propagate(errp, local_err);
@@ -256,15 +256,15 @@ SpaprIrq spapr_irq_xics = {
 /*
  * XIVE IRQ backend.
  */
-static void spapr_irq_init_xive(SpaprMachineState *spapr, int nr_xirqs,
-                                Error **errp)
+static void spapr_irq_init_xive(SpaprMachineState *spapr, Error **errp)
 {
     uint32_t nr_servers = spapr_max_server_number(spapr);
     DeviceState *dev;
     int i;
 
     dev = qdev_create(NULL, TYPE_SPAPR_XIVE);
-    qdev_prop_set_uint32(dev, "nr-irqs", nr_xirqs + SPAPR_XIRQ_BASE);
+    qdev_prop_set_uint32(dev, "nr-irqs",
+                         spapr->irq->nr_xirqs + SPAPR_XIRQ_BASE);
     /*
      * 8 XIVE END structures per CPU. One for each available priority
      */
@@ -438,18 +438,17 @@ static SpaprIrq *spapr_irq_current(SpaprMachineState *spapr)
         &spapr_irq_xive : &spapr_irq_xics;
 }
 
-static void spapr_irq_init_dual(SpaprMachineState *spapr, int nr_xirqs,
-                                Error **errp)
+static void spapr_irq_init_dual(SpaprMachineState *spapr, Error **errp)
 {
     Error *local_err = NULL;
 
-    spapr_irq_xics.init(spapr, spapr_irq_xics.nr_xirqs, &local_err);
+    spapr_irq_xics.init(spapr, &local_err);
     if (local_err) {
         error_propagate(errp, local_err);
         return;
     }
 
-    spapr_irq_xive.init(spapr, spapr_irq_xive.nr_xirqs, &local_err);
+    spapr_irq_xive.init(spapr, &local_err);
     if (local_err) {
         error_propagate(errp, local_err);
         return;
@@ -678,7 +677,7 @@ void spapr_irq_init(SpaprMachineState *spapr, Error **errp)
         spapr_irq_msi_init(spapr, spapr->irq->nr_msis);
     }
 
-    spapr->irq->init(spapr, spapr->irq->nr_xirqs, errp);
+    spapr->irq->init(spapr, errp);
 
     spapr->qirqs = qemu_allocate_irqs(spapr->irq->set_irq, spapr,
                                       spapr->irq->nr_xirqs + SPAPR_XIRQ_BASE);

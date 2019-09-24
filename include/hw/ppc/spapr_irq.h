@@ -41,7 +41,7 @@ typedef struct SpaprIrq {
     uint32_t    nr_msis;
     uint8_t     ov5;
 
-    void (*init)(SpaprMachineState *spapr, int nr_irqs, Error **errp);
+    void (*init)(SpaprMachineState *spapr, Error **errp);
     int (*claim)(SpaprMachineState *spapr, int irq, bool lsi, Error **errp);
     void (*free)(SpaprMachineState *spapr, int irq, int num);
     qemu_irq (*qirq)(SpaprMachineState *spapr, int irq);
