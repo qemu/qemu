@@ -147,15 +147,6 @@ DOCKER_PARTIAL_IMAGES += fedora-i386-cross fedora-cris-cross
 # work around issues with poorly working multi-arch systems and broken
 # packages.
 
-# Jessie is the last supported release for powerpc, but multi-arch is
-# broken so we need a qemu-linux-user for this target
-docker-binfmt-image-debian-powerpc-user: DEB_ARCH = powerpc
-docker-binfmt-image-debian-powerpc-user: DEB_TYPE = jessie
-docker-binfmt-image-debian-powerpc-user: DEB_URL = http://snapshot.debian.org/archive/debian/20180615T211437Z
-docker-binfmt-image-debian-powerpc-user: EXECUTABLE = ${BUILD_DIR}/ppc-linux-user/qemu-ppc
-docker-image-debian-powerpc-user-cross: docker-binfmt-image-debian-powerpc-user
-DOCKER_USER_IMAGES += debian-powerpc-user
-
 # Expand all the pre-requistes for each docker image and test combination
 $(foreach i,$(filter-out $(DOCKER_PARTIAL_IMAGES),$(DOCKER_IMAGES)), \
 	$(foreach t,$(DOCKER_TESTS) $(DOCKER_TOOLS), \
