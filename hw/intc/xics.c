@@ -547,68 +547,13 @@ static void ics_eoi(ICSState *ics, uint32_t nr)
     }
 }
 
-static void ics_simple_reset(DeviceState *dev)
-{
-    ICSStateClass *icsc = ICS_BASE_GET_CLASS(dev);
-
-    icsc->parent_reset(dev);
-
-    if (kvm_irqchip_in_kernel()) {
-        Error *local_err = NULL;
-
-        ics_set_kvm_state(ICS_BASE(dev), &local_err);
-        if (local_err) {
-            error_report_err(local_err);
-        }
-    }
-}
-
-static void ics_simple_reset_handler(void *dev)
-{
-    ics_simple_reset(dev);
-}
-
-static void ics_simple_realize(DeviceState *dev, Error **errp)
-{
-    ICSState *ics = ICS_SIMPLE(dev);
-    ICSStateClass *icsc = ICS_BASE_GET_CLASS(ics);
-    Error *local_err = NULL;
-
-    icsc->parent_realize(dev, &local_err);
-    if (local_err) {
-        error_propagate(errp, local_err);
-        return;
-    }
-
-    qemu_register_reset(ics_simple_reset_handler, ics);
-}
-
-static void ics_simple_class_init(ObjectClass *klass, void *data)
-{
-    DeviceClass *dc = DEVICE_CLASS(klass);
-    ICSStateClass *isc = ICS_BASE_CLASS(klass);
-
-    device_class_set_parent_realize(dc, ics_simple_realize,
-                                    &isc->parent_realize);
-    device_class_set_parent_reset(dc, ics_simple_reset,
-                                  &isc->parent_reset);
-}
-
-static const TypeInfo ics_simple_info = {
-    .name = TYPE_ICS_SIMPLE,
-    .parent = TYPE_ICS_BASE,
-    .instance_size = sizeof(ICSState),
-    .class_init = ics_simple_class_init,
-    .class_size = sizeof(ICSStateClass),
-};
-
 static void ics_reset_irq(ICSIRQState *irq)
 {
     irq->priority = 0xff;
     irq->saved_priority = 0xff;
 }
 
-static void ics_base_reset(DeviceState *dev)
+static void ics_reset(DeviceState *dev)
 {
     ICSState *ics = ICS_BASE(dev);
     int i;
@@ -624,7 +569,53 @@ static void ics_base_reset(DeviceState *dev)
         ics_reset_irq(ics->irqs + i);
         ics->irqs[i].flags = flags[i];
     }
+
+    if (kvm_irqchip_in_kernel()) {
+        Error *local_err = NULL;
+
+        ics_set_kvm_state(ICS_BASE(dev), &local_err);
+        if (local_err) {
+            error_report_err(local_err);
+        }
+    }
 }
+
+static void ics_reset_handler(void *dev)
+{
+    ics_reset(dev);
+}
+
+static void ics_simple_realize(DeviceState *dev, Error **errp)
+{
+    ICSState *ics = ICS_SIMPLE(dev);
+    ICSStateClass *icsc = ICS_BASE_GET_CLASS(ics);
+    Error *local_err = NULL;
+
+    icsc->parent_realize(dev, &local_err);
+    if (local_err) {
+        error_propagate(errp, local_err);
+        return;
+    }
+
+    qemu_register_reset(ics_reset_handler, ics);
+}
+
+static void ics_simple_class_init(ObjectClass *klass, void *data)
+{
+    DeviceClass *dc = DEVICE_CLASS(klass);
+    ICSStateClass *isc = ICS_BASE_CLASS(klass);
+
+    device_class_set_parent_realize(dc, ics_simple_realize,
+                                    &isc->parent_realize);
+}
+
+static const TypeInfo ics_simple_info = {
+    .name = TYPE_ICS_SIMPLE,
+    .parent = TYPE_ICS_BASE,
+    .instance_size = sizeof(ICSState),
+    .class_init = ics_simple_class_init,
+    .class_size = sizeof(ICSStateClass),
+};
 
 static void ics_base_realize(DeviceState *dev, Error **errp)
 {
@@ -726,7 +717,7 @@ static void ics_base_class_init(ObjectClass *klass, void *data)
 
     dc->realize = ics_base_realize;
     dc->props = ics_base_properties;
-    dc->reset = ics_base_reset;
+    dc->reset = ics_reset;
     dc->vmsd = &vmstate_ics_base;
 }
 
