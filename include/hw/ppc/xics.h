@@ -106,10 +106,6 @@ struct ICSStateClass {
 
     DeviceRealize parent_realize;
     DeviceReset parent_reset;
-
-    void (*reject)(ICSState *s, uint32_t irq);
-    void (*resend)(ICSState *s);
-    void (*eoi)(ICSState *s, uint32_t irq);
 };
 
 struct ICSState {
