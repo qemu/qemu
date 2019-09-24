@@ -519,6 +519,10 @@ static const TypeInfo spapr_xive_info = {
     .instance_init = spapr_xive_instance_init,
     .instance_size = sizeof(SpaprXive),
     .class_init = spapr_xive_class_init,
+    .interfaces = (InterfaceInfo[]) {
+        { TYPE_SPAPR_INTC },
+        { }
+    },
 };
 
 static void spapr_xive_register_types(void)

@@ -343,6 +343,10 @@ static const TypeInfo ics_spapr_info = {
     .name = TYPE_ICS_SPAPR,
     .parent = TYPE_ICS,
     .class_init = ics_spapr_class_init,
+    .interfaces = (InterfaceInfo[]) {
+        { TYPE_SPAPR_INTC },
+        { }
+    },
 };
 
 static void xics_spapr_register_types(void)

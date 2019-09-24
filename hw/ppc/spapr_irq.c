@@ -23,6 +23,12 @@
 
 #include "trace.h"
 
+static const TypeInfo spapr_intc_info = {
+    .name = TYPE_SPAPR_INTC,
+    .parent = TYPE_INTERFACE,
+    .class_size = sizeof(SpaprInterruptControllerClass),
+};
+
 void spapr_irq_msi_init(SpaprMachineState *spapr, uint32_t nr_msis)
 {
     spapr->irq_map_nr = nr_msis;
@@ -762,3 +768,10 @@ SpaprIrq spapr_irq_xics_legacy = {
     .set_irq     = spapr_irq_set_irq_xics,
     .init_kvm    = spapr_irq_init_kvm_xics,
 };
+
+static void spapr_irq_register_types(void)
+{
+    type_register_static(&spapr_intc_info);
+}
+
+type_init(spapr_irq_register_types)
