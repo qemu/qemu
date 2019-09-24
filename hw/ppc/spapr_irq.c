@@ -133,16 +133,13 @@ static int spapr_irq_claim_xics(SpaprMachineState *spapr, int irq, bool lsi,
     return 0;
 }
 
-static void spapr_irq_free_xics(SpaprMachineState *spapr, int irq, int num)
+static void spapr_irq_free_xics(SpaprMachineState *spapr, int irq)
 {
     ICSState *ics = spapr->ics;
     uint32_t srcno = irq - ics->offset;
-    int i;
 
     if (ics_valid_irq(ics, irq)) {
-        for (i = srcno; i < srcno + num; ++i) {
-            memset(&ics->irqs[i], 0, sizeof(ICSIRQState));
-        }
+        memset(&ics->irqs[srcno], 0, sizeof(ICSIRQState));
     }
 }
 
@@ -269,13 +266,9 @@ static int spapr_irq_claim_xive(SpaprMachineState *spapr, int irq, bool lsi,
     return 0;
 }
 
-static void spapr_irq_free_xive(SpaprMachineState *spapr, int irq, int num)
+static void spapr_irq_free_xive(SpaprMachineState *spapr, int irq)
 {
-    int i;
-
-    for (i = irq; i < irq + num; ++i) {
-        spapr_xive_irq_free(spapr->xive, i);
-    }
+    spapr_xive_irq_free(spapr->xive, irq);
 }
 
 static void spapr_irq_print_info_xive(SpaprMachineState *spapr,
@@ -433,10 +426,10 @@ static int spapr_irq_claim_dual(SpaprMachineState *spapr, int irq, bool lsi,
     return ret;
 }
 
-static void spapr_irq_free_dual(SpaprMachineState *spapr, int irq, int num)
+static void spapr_irq_free_dual(SpaprMachineState *spapr, int irq)
 {
-    spapr_irq_xics.free(spapr, irq, num);
-    spapr_irq_xive.free(spapr, irq, num);
+    spapr_irq_xics.free(spapr, irq);
+    spapr_irq_xive.free(spapr, irq);
 }
 
 static void spapr_irq_print_info_dual(SpaprMachineState *spapr, Monitor *mon)
@@ -635,7 +628,11 @@ int spapr_irq_claim(SpaprMachineState *spapr, int irq, bool lsi, Error **errp)
 
 void spapr_irq_free(SpaprMachineState *spapr, int irq, int num)
 {
-    spapr->irq->free(spapr, irq, num);
+    int i;
+
+    for (i = irq; i < (irq + num); i++) {
+        spapr->irq->free(spapr, i);
+    }
 }
 
 qemu_irq spapr_qirq(SpaprMachineState *spapr, int irq)
