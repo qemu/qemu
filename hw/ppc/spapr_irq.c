@@ -92,7 +92,7 @@ static void spapr_irq_init_kvm(SpaprMachineState *spapr,
  * XICS IRQ backend.
  */
 
-static void spapr_irq_init_xics(SpaprMachineState *spapr, int nr_irqs,
+static void spapr_irq_init_xics(SpaprMachineState *spapr, int nr_xirqs,
                                 Error **errp)
 {
     Object *obj;
@@ -102,7 +102,7 @@ static void spapr_irq_init_xics(SpaprMachineState *spapr, int nr_irqs,
     object_property_add_child(OBJECT(spapr), "ics", obj, &error_abort);
     object_property_add_const_link(obj, ICS_PROP_XICS, OBJECT(spapr),
                                    &error_fatal);
-    object_property_set_int(obj, nr_irqs, "nr-irqs",  &error_fatal);
+    object_property_set_int(obj, nr_xirqs, "nr-irqs",  &error_fatal);
     object_property_set_bool(obj, true, "realized", &local_err);
     if (local_err) {
         error_propagate(errp, local_err);
@@ -234,13 +234,9 @@ static void spapr_irq_init_kvm_xics(SpaprMachineState *spapr, Error **errp)
     }
 }
 
-#define SPAPR_IRQ_XICS_NR_IRQS     0x1000
-#define SPAPR_IRQ_XICS_NR_MSIS     \
-    (XICS_IRQ_BASE + SPAPR_IRQ_XICS_NR_IRQS - SPAPR_IRQ_MSI)
-
 SpaprIrq spapr_irq_xics = {
-    .nr_irqs     = SPAPR_IRQ_XICS_NR_IRQS,
-    .nr_msis     = SPAPR_IRQ_XICS_NR_MSIS,
+    .nr_xirqs    = SPAPR_NR_XIRQS,
+    .nr_msis     = SPAPR_NR_MSIS,
     .ov5         = SPAPR_OV5_XIVE_LEGACY,
 
     .init        = spapr_irq_init_xics,
@@ -260,7 +256,7 @@ SpaprIrq spapr_irq_xics = {
 /*
  * XIVE IRQ backend.
  */
-static void spapr_irq_init_xive(SpaprMachineState *spapr, int nr_irqs,
+static void spapr_irq_init_xive(SpaprMachineState *spapr, int nr_xirqs,
                                 Error **errp)
 {
     uint32_t nr_servers = spapr_max_server_number(spapr);
@@ -268,7 +264,7 @@ static void spapr_irq_init_xive(SpaprMachineState *spapr, int nr_irqs,
     int i;
 
     dev = qdev_create(NULL, TYPE_SPAPR_XIVE);
-    qdev_prop_set_uint32(dev, "nr-irqs", nr_irqs);
+    qdev_prop_set_uint32(dev, "nr-irqs", nr_xirqs + SPAPR_XIRQ_BASE);
     /*
      * 8 XIVE END structures per CPU. One for each available priority
      */
@@ -308,7 +304,7 @@ static qemu_irq spapr_qirq_xive(SpaprMachineState *spapr, int irq)
 {
     SpaprXive *xive = spapr->xive;
 
-    if (irq >= xive->nr_irqs) {
+    if ((irq < SPAPR_XIRQ_BASE) || (irq >= xive->nr_irqs)) {
         return NULL;
     }
 
@@ -404,17 +400,9 @@ static void spapr_irq_init_kvm_xive(SpaprMachineState *spapr, Error **errp)
     }
 }
 
-/*
- * XIVE uses the full IRQ number space. Set it to 8K to be compatible
- * with XICS.
- */
-
-#define SPAPR_IRQ_XIVE_NR_IRQS     0x2000
-#define SPAPR_IRQ_XIVE_NR_MSIS     (SPAPR_IRQ_XIVE_NR_IRQS - SPAPR_IRQ_MSI)
-
 SpaprIrq spapr_irq_xive = {
-    .nr_irqs     = SPAPR_IRQ_XIVE_NR_IRQS,
-    .nr_msis     = SPAPR_IRQ_XIVE_NR_MSIS,
+    .nr_xirqs    = SPAPR_NR_XIRQS,
+    .nr_msis     = SPAPR_NR_MSIS,
     .ov5         = SPAPR_OV5_XIVE_EXPLOIT,
 
     .init        = spapr_irq_init_xive,
@@ -450,18 +438,18 @@ static SpaprIrq *spapr_irq_current(SpaprMachineState *spapr)
         &spapr_irq_xive : &spapr_irq_xics;
 }
 
-static void spapr_irq_init_dual(SpaprMachineState *spapr, int nr_irqs,
+static void spapr_irq_init_dual(SpaprMachineState *spapr, int nr_xirqs,
                                 Error **errp)
 {
     Error *local_err = NULL;
 
-    spapr_irq_xics.init(spapr, spapr_irq_xics.nr_irqs, &local_err);
+    spapr_irq_xics.init(spapr, spapr_irq_xics.nr_xirqs, &local_err);
     if (local_err) {
         error_propagate(errp, local_err);
         return;
     }
 
-    spapr_irq_xive.init(spapr, spapr_irq_xive.nr_irqs, &local_err);
+    spapr_irq_xive.init(spapr, spapr_irq_xive.nr_xirqs, &local_err);
     if (local_err) {
         error_propagate(errp, local_err);
         return;
@@ -586,12 +574,9 @@ static const char *spapr_irq_get_nodename_dual(SpaprMachineState *spapr)
 /*
  * Define values in sync with the XIVE and XICS backend
  */
-#define SPAPR_IRQ_DUAL_NR_IRQS     0x2000
-#define SPAPR_IRQ_DUAL_NR_MSIS     (SPAPR_IRQ_DUAL_NR_IRQS - SPAPR_IRQ_MSI)
-
 SpaprIrq spapr_irq_dual = {
-    .nr_irqs     = SPAPR_IRQ_DUAL_NR_IRQS,
-    .nr_msis     = SPAPR_IRQ_DUAL_NR_MSIS,
+    .nr_xirqs    = SPAPR_NR_XIRQS,
+    .nr_msis     = SPAPR_NR_MSIS,
     .ov5         = SPAPR_OV5_XIVE_BOTH,
 
     .init        = spapr_irq_init_dual,
@@ -693,10 +678,10 @@ void spapr_irq_init(SpaprMachineState *spapr, Error **errp)
         spapr_irq_msi_init(spapr, spapr->irq->nr_msis);
     }
 
-    spapr->irq->init(spapr, spapr->irq->nr_irqs, errp);
+    spapr->irq->init(spapr, spapr->irq->nr_xirqs, errp);
 
     spapr->qirqs = qemu_allocate_irqs(spapr->irq->set_irq, spapr,
-                                      spapr->irq->nr_irqs);
+                                      spapr->irq->nr_xirqs + SPAPR_XIRQ_BASE);
 }
 
 int spapr_irq_claim(SpaprMachineState *spapr, int irq, bool lsi, Error **errp)
@@ -804,11 +789,11 @@ int spapr_irq_find(SpaprMachineState *spapr, int num, bool align, Error **errp)
     return first + ics->offset;
 }
 
-#define SPAPR_IRQ_XICS_LEGACY_NR_IRQS     0x400
+#define SPAPR_IRQ_XICS_LEGACY_NR_XIRQS     0x400
 
 SpaprIrq spapr_irq_xics_legacy = {
-    .nr_irqs     = SPAPR_IRQ_XICS_LEGACY_NR_IRQS,
-    .nr_msis     = SPAPR_IRQ_XICS_LEGACY_NR_IRQS,
+    .nr_xirqs    = SPAPR_IRQ_XICS_LEGACY_NR_XIRQS,
+    .nr_msis     = SPAPR_IRQ_XICS_LEGACY_NR_XIRQS,
     .ov5         = SPAPR_OV5_XIVE_LEGACY,
 
     .init        = spapr_irq_init_xics,
