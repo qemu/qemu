@@ -469,7 +469,7 @@ static void pnv_psi_power8_instance_init(Object *obj)
     Pnv8Psi *psi8 = PNV8_PSI(obj);
 
     object_initialize_child(obj, "ics-psi",  &psi8->ics, sizeof(psi8->ics),
-                            TYPE_ICS_SIMPLE, &error_abort, NULL);
+                            TYPE_ICS, &error_abort, NULL);
 }
 
 static const uint8_t irq_to_xivr[] = {

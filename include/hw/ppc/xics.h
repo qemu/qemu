@@ -89,17 +89,13 @@ struct PnvICPState {
     uint32_t links[3];
 };
 
-#define TYPE_ICS_BASE "ics-base"
-#define ICS_BASE(obj) OBJECT_CHECK(ICSState, (obj), TYPE_ICS_BASE)
+#define TYPE_ICS "ics"
+#define ICS(obj) OBJECT_CHECK(ICSState, (obj), TYPE_ICS)
 
-/* Retain ics for sPAPR for migration from existing sPAPR guests */
-#define TYPE_ICS_SIMPLE "ics"
-#define ICS_SIMPLE(obj) OBJECT_CHECK(ICSState, (obj), TYPE_ICS_SIMPLE)
-
-#define ICS_BASE_CLASS(klass) \
-     OBJECT_CLASS_CHECK(ICSStateClass, (klass), TYPE_ICS_BASE)
-#define ICS_BASE_GET_CLASS(obj) \
-     OBJECT_GET_CLASS(ICSStateClass, (obj), TYPE_ICS_BASE)
+#define ICS_CLASS(klass) \
+     OBJECT_CLASS_CHECK(ICSStateClass, (klass), TYPE_ICS)
+#define ICS_GET_CLASS(obj) \
+     OBJECT_GET_CLASS(ICSStateClass, (obj), TYPE_ICS)
 
 struct ICSStateClass {
     DeviceClass parent_class;

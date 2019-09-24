@@ -555,7 +555,7 @@ static void ics_reset_irq(ICSIRQState *irq)
 
 static void ics_reset(DeviceState *dev)
 {
-    ICSState *ics = ICS_BASE(dev);
+    ICSState *ics = ICS(dev);
     int i;
     uint8_t flags[ics->nr_irqs];
 
@@ -573,7 +573,7 @@ static void ics_reset(DeviceState *dev)
     if (kvm_irqchip_in_kernel()) {
         Error *local_err = NULL;
 
-        ics_set_kvm_state(ICS_BASE(dev), &local_err);
+        ics_set_kvm_state(ICS(dev), &local_err);
         if (local_err) {
             error_report_err(local_err);
         }
@@ -585,47 +585,15 @@ static void ics_reset_handler(void *dev)
     ics_reset(dev);
 }
 
-static void ics_simple_realize(DeviceState *dev, Error **errp)
+static void ics_realize(DeviceState *dev, Error **errp)
 {
-    ICSState *ics = ICS_SIMPLE(dev);
-    ICSStateClass *icsc = ICS_BASE_GET_CLASS(ics);
+    ICSState *ics = ICS(dev);
     Error *local_err = NULL;
-
-    icsc->parent_realize(dev, &local_err);
-    if (local_err) {
-        error_propagate(errp, local_err);
-        return;
-    }
-
-    qemu_register_reset(ics_reset_handler, ics);
-}
-
-static void ics_simple_class_init(ObjectClass *klass, void *data)
-{
-    DeviceClass *dc = DEVICE_CLASS(klass);
-    ICSStateClass *isc = ICS_BASE_CLASS(klass);
-
-    device_class_set_parent_realize(dc, ics_simple_realize,
-                                    &isc->parent_realize);
-}
-
-static const TypeInfo ics_simple_info = {
-    .name = TYPE_ICS_SIMPLE,
-    .parent = TYPE_ICS_BASE,
-    .instance_size = sizeof(ICSState),
-    .class_init = ics_simple_class_init,
-    .class_size = sizeof(ICSStateClass),
-};
-
-static void ics_base_realize(DeviceState *dev, Error **errp)
-{
-    ICSState *ics = ICS_BASE(dev);
     Object *obj;
-    Error *err = NULL;
 
-    obj = object_property_get_link(OBJECT(dev), ICS_PROP_XICS, &err);
+    obj = object_property_get_link(OBJECT(dev), ICS_PROP_XICS, &local_err);
     if (!obj) {
-        error_propagate_prepend(errp, err,
+        error_propagate_prepend(errp, local_err,
                                 "required link '" ICS_PROP_XICS
                                 "' not found: ");
         return;
@@ -637,16 +605,18 @@ static void ics_base_realize(DeviceState *dev, Error **errp)
         return;
     }
     ics->irqs = g_malloc0(ics->nr_irqs * sizeof(ICSIRQState));
+
+    qemu_register_reset(ics_reset_handler, ics);
 }
 
-static void ics_base_instance_init(Object *obj)
+static void ics_instance_init(Object *obj)
 {
-    ICSState *ics = ICS_BASE(obj);
+    ICSState *ics = ICS(obj);
 
     ics->offset = XICS_IRQ_BASE;
 }
 
-static int ics_base_pre_save(void *opaque)
+static int ics_pre_save(void *opaque)
 {
     ICSState *ics = opaque;
 
@@ -657,7 +627,7 @@ static int ics_base_pre_save(void *opaque)
     return 0;
 }
 
-static int ics_base_post_load(void *opaque, int version_id)
+static int ics_post_load(void *opaque, int version_id)
 {
     ICSState *ics = opaque;
 
@@ -675,7 +645,7 @@ static int ics_base_post_load(void *opaque, int version_id)
     return 0;
 }
 
-static const VMStateDescription vmstate_ics_base_irq = {
+static const VMStateDescription vmstate_ics_irq = {
     .name = "ics/irq",
     .version_id = 2,
     .minimum_version_id = 1,
@@ -689,45 +659,44 @@ static const VMStateDescription vmstate_ics_base_irq = {
     },
 };
 
-static const VMStateDescription vmstate_ics_base = {
+static const VMStateDescription vmstate_ics = {
     .name = "ics",
     .version_id = 1,
     .minimum_version_id = 1,
-    .pre_save = ics_base_pre_save,
-    .post_load = ics_base_post_load,
+    .pre_save = ics_pre_save,
+    .post_load = ics_post_load,
     .fields = (VMStateField[]) {
         /* Sanity check */
         VMSTATE_UINT32_EQUAL(nr_irqs, ICSState, NULL),
 
         VMSTATE_STRUCT_VARRAY_POINTER_UINT32(irqs, ICSState, nr_irqs,
-                                             vmstate_ics_base_irq,
+                                             vmstate_ics_irq,
                                              ICSIRQState),
         VMSTATE_END_OF_LIST()
     },
 };
 
-static Property ics_base_properties[] = {
+static Property ics_properties[] = {
     DEFINE_PROP_UINT32("nr-irqs", ICSState, nr_irqs, 0),
     DEFINE_PROP_END_OF_LIST(),
 };
 
-static void ics_base_class_init(ObjectClass *klass, void *data)
+static void ics_class_init(ObjectClass *klass, void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
 
-    dc->realize = ics_base_realize;
-    dc->props = ics_base_properties;
+    dc->realize = ics_realize;
+    dc->props = ics_properties;
     dc->reset = ics_reset;
-    dc->vmsd = &vmstate_ics_base;
+    dc->vmsd = &vmstate_ics;
 }
 
-static const TypeInfo ics_base_info = {
-    .name = TYPE_ICS_BASE,
+static const TypeInfo ics_info = {
+    .name = TYPE_ICS,
     .parent = TYPE_DEVICE,
-    .abstract = true,
     .instance_size = sizeof(ICSState),
-    .instance_init = ics_base_instance_init,
-    .class_init = ics_base_class_init,
+    .instance_init = ics_instance_init,
+    .class_init = ics_class_init,
     .class_size = sizeof(ICSStateClass),
 };
 
@@ -767,8 +736,7 @@ void ics_set_irq_type(ICSState *ics, int srcno, bool lsi)
 
 static void xics_register_types(void)
 {
-    type_register_static(&ics_simple_info);
-    type_register_static(&ics_base_info);
+    type_register_static(&ics_info);
     type_register_static(&icp_info);
     type_register_static(&xics_fabric_info);
 }
