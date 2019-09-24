@@ -283,8 +283,18 @@ static void rtas_int_on(PowerPCCPU *cpu, SpaprMachineState *spapr,
     rtas_st(rets, 0, RTAS_OUT_SUCCESS);
 }
 
-void xics_spapr_init(SpaprMachineState *spapr)
+static void ics_spapr_realize(DeviceState *dev, Error **errp)
 {
+    ICSState *ics = ICS_SPAPR(dev);
+    ICSStateClass *icsc = ICS_GET_CLASS(ics);
+    Error *local_err = NULL;
+
+    icsc->parent_realize(dev, &local_err);
+    if (local_err) {
+        error_propagate(errp, local_err);
+        return;
+    }
+
     spapr_rtas_register(RTAS_IBM_SET_XIVE, "ibm,set-xive", rtas_set_xive);
     spapr_rtas_register(RTAS_IBM_GET_XIVE, "ibm,get-xive", rtas_get_xive);
     spapr_rtas_register(RTAS_IBM_INT_OFF, "ibm,int-off", rtas_int_off);
@@ -319,3 +329,25 @@ void spapr_dt_xics(SpaprMachineState *spapr, uint32_t nr_servers, void *fdt,
     _FDT(fdt_setprop_cell(fdt, node, "linux,phandle", phandle));
     _FDT(fdt_setprop_cell(fdt, node, "phandle", phandle));
 }
+
+static void ics_spapr_class_init(ObjectClass *klass, void *data)
+{
+    DeviceClass *dc = DEVICE_CLASS(klass);
+    ICSStateClass *isc = ICS_CLASS(klass);
+
+    device_class_set_parent_realize(dc, ics_spapr_realize,
+                                    &isc->parent_realize);
+}
+
+static const TypeInfo ics_spapr_info = {
+    .name = TYPE_ICS_SPAPR,
+    .parent = TYPE_ICS,
+    .class_init = ics_spapr_class_init,
+};
+
+static void xics_spapr_register_types(void)
+{
+    type_register_static(&ics_spapr_info);
+}
+
+type_init(xics_spapr_register_types)
