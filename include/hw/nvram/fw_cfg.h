@@ -99,6 +99,20 @@ void fw_cfg_add_bytes(FWCfgState *s, uint16_t key, void *data, size_t len);
 void fw_cfg_add_string(FWCfgState *s, uint16_t key, const char *value);
 
 /**
+ * fw_cfg_modify_string:
+ * @s: fw_cfg device being modified
+ * @key: selector key value for new fw_cfg item
+ * @value: NUL-terminated ascii string
+ *
+ * Replace the fw_cfg item available by selecting the given key. The new
+ * data will consist of a dynamically allocated copy of the provided string,
+ * including its NUL terminator. The data being replaced, assumed to have
+ * been dynamically allocated during an earlier call to either
+ * fw_cfg_add_string() or fw_cfg_modify_string(), is freed before returning.
+ */
+void fw_cfg_modify_string(FWCfgState *s, uint16_t key, const char *value);
+
+/**
  * fw_cfg_add_i16:
  * @s: fw_cfg device being modified
  * @key: selector key value for new fw_cfg item
@@ -137,6 +151,20 @@ void fw_cfg_modify_i16(FWCfgState *s, uint16_t key, uint16_t value);
 void fw_cfg_add_i32(FWCfgState *s, uint16_t key, uint32_t value);
 
 /**
+ * fw_cfg_modify_i32:
+ * @s: fw_cfg device being modified
+ * @key: selector key value for new fw_cfg item
+ * @value: 32-bit integer
+ *
+ * Replace the fw_cfg item available by selecting the given key. The new
+ * data will consist of a dynamically allocated copy of the given 32-bit
+ * value, converted to little-endian representation. The data being replaced,
+ * assumed to have been dynamically allocated during an earlier call to
+ * either fw_cfg_add_i32() or fw_cfg_modify_i32(), is freed before returning.
+ */
+void fw_cfg_modify_i32(FWCfgState *s, uint16_t key, uint32_t value);
+
+/**
  * fw_cfg_add_i64:
  * @s: fw_cfg device being modified
  * @key: selector key value for new fw_cfg item
@@ -147,6 +175,20 @@ void fw_cfg_add_i32(FWCfgState *s, uint16_t key, uint32_t value);
  * value, converted to little-endian representation.
  */
 void fw_cfg_add_i64(FWCfgState *s, uint16_t key, uint64_t value);
+
+/**
+ * fw_cfg_modify_i64:
+ * @s: fw_cfg device being modified
+ * @key: selector key value for new fw_cfg item
+ * @value: 64-bit integer
+ *
+ * Replace the fw_cfg item available by selecting the given key. The new
+ * data will consist of a dynamically allocated copy of the given 64-bit
+ * value, converted to little-endian representation. The data being replaced,
+ * assumed to have been dynamically allocated during an earlier call to
+ * either fw_cfg_add_i64() or fw_cfg_modify_i64(), is freed before returning.
+ */
+void fw_cfg_modify_i64(FWCfgState *s, uint16_t key, uint64_t value);
 
 /**
  * fw_cfg_add_file:
