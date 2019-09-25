@@ -129,7 +129,7 @@ static int mmu_translate_pte(CPUS390XState *env, target_ulong vaddr,
         *flags &= ~PAGE_WRITE;
     }
 
-    *raddr = pt_entry & ASCE_ORIGIN;
+    *raddr = pt_entry & TARGET_PAGE_MASK;
     return 0;
 }
 
