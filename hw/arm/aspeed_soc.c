@@ -214,10 +214,9 @@ static void aspeed_soc_init(Object *obj)
                               "max-ram-size", &error_abort);
 
     for (i = 0; i < sc->info->wdts_num; i++) {
+        snprintf(typename, sizeof(typename), "aspeed.wdt-%s", socname);
         sysbus_init_child_obj(obj, "wdt[*]", OBJECT(&s->wdt[i]),
-                              sizeof(s->wdt[i]), TYPE_ASPEED_WDT);
-        qdev_prop_set_uint32(DEVICE(&s->wdt[i]), "silicon-rev",
-                                    sc->info->silicon_rev);
+                              sizeof(s->wdt[i]), typename);
         object_property_add_const_link(OBJECT(&s->wdt[i]), "scu",
                                        OBJECT(&s->scu), &error_abort);
     }
@@ -384,13 +383,15 @@ static void aspeed_soc_realize(DeviceState *dev, Error **errp)
 
     /* Watch dog */
     for (i = 0; i < sc->info->wdts_num; i++) {
+        AspeedWDTClass *awc = ASPEED_WDT_GET_CLASS(&s->wdt[i]);
+
         object_property_set_bool(OBJECT(&s->wdt[i]), true, "realized", &err);
         if (err) {
             error_propagate(errp, err);
             return;
         }
         sysbus_mmio_map(SYS_BUS_DEVICE(&s->wdt[i]), 0,
-                        sc->info->memmap[ASPEED_WDT] + i * 0x20);
+                        sc->info->memmap[ASPEED_WDT] + i * awc->offset);
     }
 
     /* Net */
