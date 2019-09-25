@@ -57,7 +57,9 @@ typedef struct AspeedSoCState {
 #define TYPE_ASPEED_SOC "aspeed-soc"
 #define ASPEED_SOC(obj) OBJECT_CHECK(AspeedSoCState, (obj), TYPE_ASPEED_SOC)
 
-typedef struct AspeedSoCInfo {
+typedef struct AspeedSoCClass {
+    DeviceClass parent_class;
+
     const char *name;
     const char *cpu_type;
     uint32_t silicon_rev;
@@ -67,11 +69,6 @@ typedef struct AspeedSoCInfo {
     const int *irqmap;
     const hwaddr *memmap;
     uint32_t num_cpus;
-} AspeedSoCInfo;
-
-typedef struct AspeedSoCClass {
-    DeviceClass parent_class;
-    AspeedSoCInfo *info;
 } AspeedSoCClass;
 
 #define ASPEED_SOC_CLASS(klass)                                         \
