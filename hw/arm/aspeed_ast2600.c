@@ -44,6 +44,7 @@ static const hwaddr aspeed_soc_ast2600_memmap[] = {
     [ASPEED_SCU]       = 0x1E6E2000,
     [ASPEED_XDMA]      = 0x1E6E7000,
     [ASPEED_ADC]       = 0x1E6E9000,
+    [ASPEED_VIDEO]     = 0x1E700000,
     [ASPEED_SDHCI]     = 0x1E740000,
     [ASPEED_GPIO]      = 0x1E780000,
     [ASPEED_GPIO_1_8V] = 0x1E780800,
@@ -235,6 +236,10 @@ static void aspeed_soc_ast2600_realize(DeviceState *dev, Error **errp)
     /* IO space */
     create_unimplemented_device("aspeed_soc.io", sc->memmap[ASPEED_IOMEM],
                                 ASPEED_SOC_IOMEM_SIZE);
+
+    /* Video engine stub */
+    create_unimplemented_device("aspeed.video", sc->memmap[ASPEED_VIDEO],
+                                0x1000);
 
     if (s->num_cpus > sc->num_cpus) {
         warn_report("%s: invalid number of CPUs %d, using default %d",
