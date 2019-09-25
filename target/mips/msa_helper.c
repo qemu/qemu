@@ -207,6 +207,80 @@ void helper_msa_nlzc_d(CPUMIPSState *env, uint32_t wd, uint32_t ws)
     pwd->d[1]  = msa_nlzc_df(DF_DOUBLE, pws->d[1]);
 }
 
+static inline int64_t msa_pcnt_df(uint32_t df, int64_t arg)
+{
+    uint64_t x;
+
+    x = UNSIGNED(arg, df);
+
+    x = (x & 0x5555555555555555ULL) + ((x >>  1) & 0x5555555555555555ULL);
+    x = (x & 0x3333333333333333ULL) + ((x >>  2) & 0x3333333333333333ULL);
+    x = (x & 0x0F0F0F0F0F0F0F0FULL) + ((x >>  4) & 0x0F0F0F0F0F0F0F0FULL);
+    x = (x & 0x00FF00FF00FF00FFULL) + ((x >>  8) & 0x00FF00FF00FF00FFULL);
+    x = (x & 0x0000FFFF0000FFFFULL) + ((x >> 16) & 0x0000FFFF0000FFFFULL);
+    x = (x & 0x00000000FFFFFFFFULL) + ((x >> 32));
+
+    return x;
+}
+
+void helper_msa_pcnt_b(CPUMIPSState *env, uint32_t wd, uint32_t ws)
+{
+    wr_t *pwd = &(env->active_fpu.fpr[wd].wr);
+    wr_t *pws = &(env->active_fpu.fpr[ws].wr);
+
+    pwd->b[0]  = msa_pcnt_df(DF_BYTE, pws->b[0]);
+    pwd->b[1]  = msa_pcnt_df(DF_BYTE, pws->b[1]);
+    pwd->b[2]  = msa_pcnt_df(DF_BYTE, pws->b[2]);
+    pwd->b[3]  = msa_pcnt_df(DF_BYTE, pws->b[3]);
+    pwd->b[4]  = msa_pcnt_df(DF_BYTE, pws->b[4]);
+    pwd->b[5]  = msa_pcnt_df(DF_BYTE, pws->b[5]);
+    pwd->b[6]  = msa_pcnt_df(DF_BYTE, pws->b[6]);
+    pwd->b[7]  = msa_pcnt_df(DF_BYTE, pws->b[7]);
+    pwd->b[8]  = msa_pcnt_df(DF_BYTE, pws->b[8]);
+    pwd->b[9]  = msa_pcnt_df(DF_BYTE, pws->b[9]);
+    pwd->b[10] = msa_pcnt_df(DF_BYTE, pws->b[10]);
+    pwd->b[11] = msa_pcnt_df(DF_BYTE, pws->b[11]);
+    pwd->b[12] = msa_pcnt_df(DF_BYTE, pws->b[12]);
+    pwd->b[13] = msa_pcnt_df(DF_BYTE, pws->b[13]);
+    pwd->b[14] = msa_pcnt_df(DF_BYTE, pws->b[14]);
+    pwd->b[15] = msa_pcnt_df(DF_BYTE, pws->b[15]);
+}
+
+void helper_msa_pcnt_h(CPUMIPSState *env, uint32_t wd, uint32_t ws)
+{
+    wr_t *pwd = &(env->active_fpu.fpr[wd].wr);
+    wr_t *pws = &(env->active_fpu.fpr[ws].wr);
+
+    pwd->h[0]  = msa_pcnt_df(DF_HALF, pws->h[0]);
+    pwd->h[1]  = msa_pcnt_df(DF_HALF, pws->h[1]);
+    pwd->h[2]  = msa_pcnt_df(DF_HALF, pws->h[2]);
+    pwd->h[3]  = msa_pcnt_df(DF_HALF, pws->h[3]);
+    pwd->h[4]  = msa_pcnt_df(DF_HALF, pws->h[4]);
+    pwd->h[5]  = msa_pcnt_df(DF_HALF, pws->h[5]);
+    pwd->h[6]  = msa_pcnt_df(DF_HALF, pws->h[6]);
+    pwd->h[7]  = msa_pcnt_df(DF_HALF, pws->h[7]);
+}
+
+void helper_msa_pcnt_w(CPUMIPSState *env, uint32_t wd, uint32_t ws)
+{
+    wr_t *pwd = &(env->active_fpu.fpr[wd].wr);
+    wr_t *pws = &(env->active_fpu.fpr[ws].wr);
+
+    pwd->w[0]  = msa_pcnt_df(DF_WORD, pws->w[0]);
+    pwd->w[1]  = msa_pcnt_df(DF_WORD, pws->w[1]);
+    pwd->w[2]  = msa_pcnt_df(DF_WORD, pws->w[2]);
+    pwd->w[3]  = msa_pcnt_df(DF_WORD, pws->w[3]);
+}
+
+void helper_msa_pcnt_d(CPUMIPSState *env, uint32_t wd, uint32_t ws)
+{
+    wr_t *pwd = &(env->active_fpu.fpr[wd].wr);
+    wr_t *pws = &(env->active_fpu.fpr[ws].wr);
+
+    pwd->d[0]  = msa_pcnt_df(DF_DOUBLE, pws->d[0]);
+    pwd->d[1]  = msa_pcnt_df(DF_DOUBLE, pws->d[1]);
+}
+
 
 /*
  * Bit Move
@@ -2648,22 +2722,6 @@ void helper_msa_move_v(CPUMIPSState *env, uint32_t wd, uint32_t ws)
     msa_move_v(pwd, pws);
 }
 
-static inline int64_t msa_pcnt_df(uint32_t df, int64_t arg)
-{
-    uint64_t x;
-
-    x = UNSIGNED(arg, df);
-
-    x = (x & 0x5555555555555555ULL) + ((x >>  1) & 0x5555555555555555ULL);
-    x = (x & 0x3333333333333333ULL) + ((x >>  2) & 0x3333333333333333ULL);
-    x = (x & 0x0F0F0F0F0F0F0F0FULL) + ((x >>  4) & 0x0F0F0F0F0F0F0F0FULL);
-    x = (x & 0x00FF00FF00FF00FFULL) + ((x >>  8) & 0x00FF00FF00FF00FFULL);
-    x = (x & 0x0000FFFF0000FFFFULL) + ((x >> 16) & 0x0000FFFF0000FFFFULL);
-    x = (x & 0x00000000FFFFFFFFULL) + ((x >> 32));
-
-    return x;
-}
-
 void helper_msa_fill_df(CPUMIPSState *env, uint32_t df, uint32_t wd,
                         uint32_t rs)
 {
@@ -2696,59 +2754,6 @@ void helper_msa_fill_df(CPUMIPSState *env, uint32_t df, uint32_t wd,
     }
 }
 
-#define MSA_UNOP_DF(func) \
-void helper_msa_ ## func ## _df(CPUMIPSState *env, uint32_t df,         \
-                              uint32_t wd, uint32_t ws)                 \
-{                                                                       \
-    wr_t *pwd = &(env->active_fpu.fpr[wd].wr);                          \
-    wr_t *pws = &(env->active_fpu.fpr[ws].wr);                          \
-                                                                        \
-    switch (df) {                                                       \
-    case DF_BYTE:                                                       \
-        pwd->b[0]  = msa_ ## func ## _df(df, pws->b[0]);                \
-        pwd->b[1]  = msa_ ## func ## _df(df, pws->b[1]);                \
-        pwd->b[2]  = msa_ ## func ## _df(df, pws->b[2]);                \
-        pwd->b[3]  = msa_ ## func ## _df(df, pws->b[3]);                \
-        pwd->b[4]  = msa_ ## func ## _df(df, pws->b[4]);                \
-        pwd->b[5]  = msa_ ## func ## _df(df, pws->b[5]);                \
-        pwd->b[6]  = msa_ ## func ## _df(df, pws->b[6]);                \
-        pwd->b[7]  = msa_ ## func ## _df(df, pws->b[7]);                \
-        pwd->b[8]  = msa_ ## func ## _df(df, pws->b[8]);                \
-        pwd->b[9]  = msa_ ## func ## _df(df, pws->b[9]);                \
-        pwd->b[10] = msa_ ## func ## _df(df, pws->b[10]);               \
-        pwd->b[11] = msa_ ## func ## _df(df, pws->b[11]);               \
-        pwd->b[12] = msa_ ## func ## _df(df, pws->b[12]);               \
-        pwd->b[13] = msa_ ## func ## _df(df, pws->b[13]);               \
-        pwd->b[14] = msa_ ## func ## _df(df, pws->b[14]);               \
-        pwd->b[15] = msa_ ## func ## _df(df, pws->b[15]);               \
-        break;                                                          \
-    case DF_HALF:                                                       \
-        pwd->h[0] = msa_ ## func ## _df(df, pws->h[0]);                 \
-        pwd->h[1] = msa_ ## func ## _df(df, pws->h[1]);                 \
-        pwd->h[2] = msa_ ## func ## _df(df, pws->h[2]);                 \
-        pwd->h[3] = msa_ ## func ## _df(df, pws->h[3]);                 \
-        pwd->h[4] = msa_ ## func ## _df(df, pws->h[4]);                 \
-        pwd->h[5] = msa_ ## func ## _df(df, pws->h[5]);                 \
-        pwd->h[6] = msa_ ## func ## _df(df, pws->h[6]);                 \
-        pwd->h[7] = msa_ ## func ## _df(df, pws->h[7]);                 \
-        break;                                                          \
-    case DF_WORD:                                                       \
-        pwd->w[0] = msa_ ## func ## _df(df, pws->w[0]);                 \
-        pwd->w[1] = msa_ ## func ## _df(df, pws->w[1]);                 \
-        pwd->w[2] = msa_ ## func ## _df(df, pws->w[2]);                 \
-        pwd->w[3] = msa_ ## func ## _df(df, pws->w[3]);                 \
-        break;                                                          \
-    case DF_DOUBLE:                                                     \
-        pwd->d[0] = msa_ ## func ## _df(df, pws->d[0]);                 \
-        pwd->d[1] = msa_ ## func ## _df(df, pws->d[1]);                 \
-        break;                                                          \
-    default:                                                            \
-        assert(0);                                                      \
-    }                                                                   \
-}
-
-MSA_UNOP_DF(pcnt)
-#undef MSA_UNOP_DF
 
 #define FLOAT_ONE32 make_float32(0x3f8 << 20)
 #define FLOAT_ONE64 make_float64(0x3ffULL << 52)

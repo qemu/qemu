@@ -28958,9 +28958,6 @@ static void gen_msa_2r(CPUMIPSState *env, DisasContext *ctx)
 #endif
         gen_helper_msa_fill_df(cpu_env, tdf, twd, tws); /* trs */
         break;
-    case OPC_PCNT_df:
-        gen_helper_msa_pcnt_df(cpu_env, tdf, twd, tws);
-        break;
     case OPC_NLOC_df:
         switch (df) {
         case DF_BYTE:
@@ -28990,6 +28987,22 @@ static void gen_msa_2r(CPUMIPSState *env, DisasContext *ctx)
             break;
         case DF_DOUBLE:
             gen_helper_msa_nlzc_d(cpu_env, twd, tws);
+            break;
+        }
+        break;
+    case OPC_PCNT_df:
+        switch (df) {
+        case DF_BYTE:
+            gen_helper_msa_pcnt_b(cpu_env, twd, tws);
+            break;
+        case DF_HALF:
+            gen_helper_msa_pcnt_h(cpu_env, twd, tws);
+            break;
+        case DF_WORD:
+            gen_helper_msa_pcnt_w(cpu_env, twd, tws);
+            break;
+        case DF_DOUBLE:
+            gen_helper_msa_pcnt_d(cpu_env, twd, tws);
             break;
         }
         break;
