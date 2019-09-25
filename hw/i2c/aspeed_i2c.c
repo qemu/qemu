@@ -145,10 +145,12 @@ static inline bool aspeed_i2c_bus_is_enabled(AspeedI2CBus *bus)
 
 static inline void aspeed_i2c_bus_raise_interrupt(AspeedI2CBus *bus)
 {
+    AspeedI2CClass *aic = ASPEED_I2C_GET_CLASS(bus->controller);
+
     bus->intr_status &= bus->intr_ctrl;
     if (bus->intr_status) {
         bus->controller->intr_status |= 1 << bus->id;
-        qemu_irq_raise(bus->controller->irq);
+        qemu_irq_raise(aic->bus_get_irq(bus));
     }
 }
 
@@ -273,6 +275,7 @@ static void aspeed_i2c_bus_write(void *opaque, hwaddr offset,
                                  uint64_t value, unsigned size)
 {
     AspeedI2CBus *bus = opaque;
+    AspeedI2CClass *aic = ASPEED_I2C_GET_CLASS(bus->controller);
     bool handle_rx;
 
     switch (offset) {
@@ -299,7 +302,7 @@ static void aspeed_i2c_bus_write(void *opaque, hwaddr offset,
         bus->intr_status &= ~(value & 0x7FFF);
         if (!bus->intr_status) {
             bus->controller->intr_status &= ~(1 << bus->id);
-            qemu_irq_lower(bus->controller->irq);
+            qemu_irq_lower(aic->bus_get_irq(bus));
         }
         if (handle_rx && (bus->cmd & (I2CD_M_RX_CMD | I2CD_M_S_RX_CMD_LAST))) {
             aspeed_i2c_handle_rx_cmd(bus);
@@ -457,6 +460,8 @@ static void aspeed_i2c_realize(DeviceState *dev, Error **errp)
     for (i = 0; i < aic->num_busses; i++) {
         char name[32];
         int offset = i < aic->gap ? 1 : 5;
+
+        sysbus_init_irq(sbd, &s->busses[i].irq);
         snprintf(name, sizeof(name), "aspeed.i2c.%d", i);
         s->busses[i].controller = s;
         s->busses[i].id = i;
@@ -488,6 +493,11 @@ static const TypeInfo aspeed_i2c_info = {
     .abstract   = true,
 };
 
+static qemu_irq aspeed_2400_i2c_bus_get_irq(AspeedI2CBus *bus)
+{
+    return bus->controller->irq;
+}
+
 static void aspeed_2400_i2c_class_init(ObjectClass *klass, void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
@@ -498,6 +508,7 @@ static void aspeed_2400_i2c_class_init(ObjectClass *klass, void *data)
     aic->num_busses = 14;
     aic->reg_size = 0x40;
     aic->gap = 7;
+    aic->bus_get_irq = aspeed_2400_i2c_bus_get_irq;
 }
 
 static const TypeInfo aspeed_2400_i2c_info = {
@@ -505,6 +516,11 @@ static const TypeInfo aspeed_2400_i2c_info = {
     .parent = TYPE_ASPEED_I2C,
     .class_init = aspeed_2400_i2c_class_init,
 };
+
+static qemu_irq aspeed_2500_i2c_bus_get_irq(AspeedI2CBus *bus)
+{
+    return bus->controller->irq;
+}
 
 static void aspeed_2500_i2c_class_init(ObjectClass *klass, void *data)
 {
@@ -516,6 +532,7 @@ static void aspeed_2500_i2c_class_init(ObjectClass *klass, void *data)
     aic->num_busses = 14;
     aic->reg_size = 0x40;
     aic->gap = 7;
+    aic->bus_get_irq = aspeed_2500_i2c_bus_get_irq;
 }
 
 static const TypeInfo aspeed_2500_i2c_info = {
@@ -524,11 +541,36 @@ static const TypeInfo aspeed_2500_i2c_info = {
     .class_init = aspeed_2500_i2c_class_init,
 };
 
+static qemu_irq aspeed_2600_i2c_bus_get_irq(AspeedI2CBus *bus)
+{
+    return bus->irq;
+}
+
+static void aspeed_2600_i2c_class_init(ObjectClass *klass, void *data)
+{
+    DeviceClass *dc = DEVICE_CLASS(klass);
+    AspeedI2CClass *aic = ASPEED_I2C_CLASS(klass);
+
+    dc->desc = "ASPEED 2600 I2C Controller";
+
+    aic->num_busses = 16;
+    aic->reg_size = 0x80;
+    aic->gap = -1; /* no gap */
+    aic->bus_get_irq = aspeed_2600_i2c_bus_get_irq;
+}
+
+static const TypeInfo aspeed_2600_i2c_info = {
+    .name = TYPE_ASPEED_2600_I2C,
+    .parent = TYPE_ASPEED_I2C,
+    .class_init = aspeed_2600_i2c_class_init,
+};
+
 static void aspeed_i2c_register_types(void)
 {
     type_register_static(&aspeed_i2c_info);
     type_register_static(&aspeed_2400_i2c_info);
     type_register_static(&aspeed_2500_i2c_info);
+    type_register_static(&aspeed_2600_i2c_info);
 }
 
 type_init(aspeed_i2c_register_types)
