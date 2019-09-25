@@ -93,6 +93,27 @@ target_ulong mmu_real2abs(CPUS390XState *env, target_ulong raddr)
     return raddr;
 }
 
+static inline bool read_table_entry(CPUS390XState *env, hwaddr gaddr,
+                                    uint64_t *entry)
+{
+    CPUState *cs = env_cpu(env);
+
+    /*
+     * According to the PoP, these table addresses are "unpredictably real
+     * or absolute". Also, "it is unpredictable whether the address wraps
+     * or an addressing exception is recognized".
+     *
+     * We treat them as absolute addresses and don't wrap them.
+     */
+    if (unlikely(address_space_read(cs->as, gaddr, MEMTXATTRS_UNSPECIFIED,
+                                    (uint8_t *)entry, sizeof(*entry)) !=
+                 MEMTX_OK)) {
+        return false;
+    }
+    *entry = be64_to_cpu(*entry);
+    return true;
+}
+
 /* Decode page table entry (normal 4KB page) */
 static int mmu_translate_pte(CPUS390XState *env, target_ulong vaddr,
                              uint64_t asc, uint64_t pt_entry,
@@ -118,7 +139,6 @@ static int mmu_translate_segment(CPUS390XState *env, target_ulong vaddr,
                                  target_ulong *raddr, int *flags, int rw,
                                  bool exc)
 {
-    CPUState *cs = env_cpu(env);
     uint64_t origin, offs, pt_entry;
 
     if (st_entry & SEGMENT_ENTRY_RO) {
@@ -134,7 +154,9 @@ static int mmu_translate_segment(CPUS390XState *env, target_ulong vaddr,
     /* Look up 4KB page entry */
     origin = st_entry & SEGMENT_ENTRY_ORIGIN;
     offs  = (vaddr & VADDR_PX) >> 9;
-    pt_entry = ldq_phys(cs->as, origin + offs);
+    if (!read_table_entry(env, origin + offs, &pt_entry)) {
+        return PGM_ADDRESSING;
+    }
     return mmu_translate_pte(env, vaddr, asc, pt_entry, raddr, flags, rw, exc);
 }
 
@@ -144,7 +166,6 @@ static int mmu_translate_region(CPUS390XState *env, target_ulong vaddr,
                                 target_ulong *raddr, int *flags, int rw,
                                 bool exc)
 {
-    CPUState *cs = env_cpu(env);
     uint64_t origin, offs, new_entry;
     const int pchks[4] = {
         PGM_SEGMENT_TRANS, PGM_REG_THIRD_TRANS,
@@ -154,7 +175,9 @@ static int mmu_translate_region(CPUS390XState *env, target_ulong vaddr,
     origin = entry & REGION_ENTRY_ORIGIN;
     offs = (vaddr >> (17 + 11 * level / 4)) & 0x3ff8;
 
-    new_entry = ldq_phys(cs->as, origin + offs);
+    if (!read_table_entry(env, origin + offs, &new_entry)) {
+        return PGM_ADDRESSING;
+    }
 
     if ((new_entry & REGION_ENTRY_INV) != 0) {
         return pchks[level / 4];
