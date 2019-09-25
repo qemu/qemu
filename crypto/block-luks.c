@@ -622,9 +622,7 @@ qcrypto_block_luks_open(QCryptoBlock *block,
 {
     QCryptoBlockLUKS *luks = NULL;
     Error *local_err = NULL;
-    int ret = 0;
     size_t i;
-    ssize_t rv;
     g_autofree uint8_t *masterkey = NULL;
     char *ivgen_name, *ivhash_name;
     g_autofree char *password = NULL;
@@ -648,13 +646,11 @@ qcrypto_block_luks_open(QCryptoBlock *block,
 
     /* Read the entire LUKS header, minus the key material from
      * the underlying device */
-    rv = readfunc(block, 0,
-                  (uint8_t *)&luks->header,
-                  sizeof(luks->header),
-                  opaque,
-                  errp);
-    if (rv < 0) {
-        ret = rv;
+    if (readfunc(block, 0,
+                 (uint8_t *)&luks->header,
+                 sizeof(luks->header),
+                 opaque,
+                 errp) < 0) {
         goto fail;
     }
 
@@ -675,13 +671,11 @@ qcrypto_block_luks_open(QCryptoBlock *block,
     if (memcmp(luks->header.magic, qcrypto_block_luks_magic,
                QCRYPTO_BLOCK_LUKS_MAGIC_LEN) != 0) {
         error_setg(errp, "Volume is not in LUKS format");
-        ret = -EINVAL;
         goto fail;
     }
     if (luks->header.version != QCRYPTO_BLOCK_LUKS_VERSION) {
         error_setg(errp, "LUKS version %" PRIu32 " is not supported",
                    luks->header.version);
-        ret = -ENOTSUP;
         goto fail;
     }
 
@@ -697,7 +691,6 @@ qcrypto_block_luks_open(QCryptoBlock *block,
      */
     ivgen_name = strchr(cipher_mode, '-');
     if (!ivgen_name) {
-        ret = -EINVAL;
         error_setg(errp, "Unexpected cipher mode string format %s",
                    cipher_mode);
         goto fail;
@@ -715,7 +708,6 @@ qcrypto_block_luks_open(QCryptoBlock *block,
         luks->ivgen_hash_alg = qcrypto_block_luks_hash_name_lookup(ivhash_name,
                                                                    &local_err);
         if (local_err) {
-            ret = -ENOTSUP;
             error_propagate(errp, local_err);
             goto fail;
         }
@@ -724,7 +716,6 @@ qcrypto_block_luks_open(QCryptoBlock *block,
     luks->cipher_mode = qcrypto_block_luks_cipher_mode_lookup(cipher_mode,
                                                               &local_err);
     if (local_err) {
-        ret = -ENOTSUP;
         error_propagate(errp, local_err);
         goto fail;
     }
@@ -735,7 +726,6 @@ qcrypto_block_luks_open(QCryptoBlock *block,
                                               luks->header.master_key_len,
                                               &local_err);
     if (local_err) {
-        ret = -ENOTSUP;
         error_propagate(errp, local_err);
         goto fail;
     }
@@ -744,7 +734,6 @@ qcrypto_block_luks_open(QCryptoBlock *block,
             qcrypto_block_luks_hash_name_lookup(luks->header.hash_spec,
                                                 &local_err);
     if (local_err) {
-        ret = -ENOTSUP;
         error_propagate(errp, local_err);
         goto fail;
     }
@@ -752,14 +741,12 @@ qcrypto_block_luks_open(QCryptoBlock *block,
     luks->ivgen_alg = qcrypto_block_luks_ivgen_name_lookup(ivgen_name,
                                                            &local_err);
     if (local_err) {
-        ret = -ENOTSUP;
         error_propagate(errp, local_err);
         goto fail;
     }
 
     if (luks->ivgen_alg == QCRYPTO_IVGEN_ALG_ESSIV) {
         if (!ivhash_name) {
-            ret = -EINVAL;
             error_setg(errp, "Missing IV generator hash specification");
             goto fail;
         }
@@ -768,7 +755,6 @@ qcrypto_block_luks_open(QCryptoBlock *block,
                                                 luks->ivgen_hash_alg,
                                                 &local_err);
         if (local_err) {
-            ret = -ENOTSUP;
             error_propagate(errp, local_err);
             goto fail;
         }
@@ -795,7 +781,6 @@ qcrypto_block_luks_open(QCryptoBlock *block,
                                         masterkey,
                                         readfunc, opaque,
                                         errp) < 0) {
-            ret = -EACCES;
             goto fail;
         }
 
@@ -813,19 +798,16 @@ qcrypto_block_luks_open(QCryptoBlock *block,
                                          luks->header.master_key_len,
                                          errp);
         if (!block->ivgen) {
-            ret = -ENOTSUP;
             goto fail;
         }
 
-        ret = qcrypto_block_init_cipher(block,
-                                        luks->cipher_alg,
-                                        luks->cipher_mode,
-                                        masterkey,
-                                        luks->header.master_key_len,
-                                        n_threads,
-                                        errp);
-        if (ret < 0) {
-            ret = -ENOTSUP;
+        if (qcrypto_block_init_cipher(block,
+                                      luks->cipher_alg,
+                                      luks->cipher_mode,
+                                      masterkey,
+                                      luks->header.master_key_len,
+                                      n_threads,
+                                      errp) < 0) {
             goto fail;
         }
     }
@@ -834,14 +816,13 @@ qcrypto_block_luks_open(QCryptoBlock *block,
     block->payload_offset = luks->header.payload_offset_sector *
         block->sector_size;
 
-
     return 0;
 
  fail:
     qcrypto_block_free_cipher(block);
     qcrypto_ivgen_free(block->ivgen);
     g_free(luks);
-    return ret;
+    return -1;
 }
 
 
