@@ -118,11 +118,7 @@ static int spapr_irq_claim_xics(SpaprMachineState *spapr, int irq, bool lsi,
     ICSState *ics = spapr->ics;
 
     assert(ics);
-
-    if (!ics_valid_irq(ics, irq)) {
-        error_setg(errp, "IRQ %d is invalid", irq);
-        return -1;
-    }
+    assert(ics_valid_irq(ics, irq));
 
     if (!ics_irq_free(ics, irq - ics->offset)) {
         error_setg(errp, "IRQ %d is not free", irq);
@@ -138,9 +134,9 @@ static void spapr_irq_free_xics(SpaprMachineState *spapr, int irq)
     ICSState *ics = spapr->ics;
     uint32_t srcno = irq - ics->offset;
 
-    if (ics_valid_irq(ics, irq)) {
-        memset(&ics->irqs[srcno], 0, sizeof(ICSIRQState));
-    }
+    assert(ics_valid_irq(ics, irq));
+
+    memset(&ics->irqs[srcno], 0, sizeof(ICSIRQState));
 }
 
 static void spapr_irq_print_info_xics(SpaprMachineState *spapr, Monitor *mon)
@@ -623,12 +619,18 @@ void spapr_irq_init(SpaprMachineState *spapr, Error **errp)
 
 int spapr_irq_claim(SpaprMachineState *spapr, int irq, bool lsi, Error **errp)
 {
+    assert(irq >= SPAPR_XIRQ_BASE);
+    assert(irq < (spapr->irq->nr_xirqs + SPAPR_XIRQ_BASE));
+
     return spapr->irq->claim(spapr, irq, lsi, errp);
 }
 
 void spapr_irq_free(SpaprMachineState *spapr, int irq, int num)
 {
     int i;
+
+    assert(irq >= SPAPR_XIRQ_BASE);
+    assert((irq + num) <= (spapr->irq->nr_xirqs + SPAPR_XIRQ_BASE));
 
     for (i = irq; i < (irq + num); i++) {
         spapr->irq->free(spapr, i);
