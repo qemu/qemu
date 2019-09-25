@@ -30,6 +30,7 @@
 #include "qemu/error-report.h"
 #include "qapi/error.h"
 #include "exec/address-spaces.h"
+#include "qemu/units.h"
 
 #include "hw/irq.h"
 #include "hw/qdev-properties.h"
@@ -50,7 +51,7 @@
 #define   CONF_FLASH_TYPE0     0
 #define      CONF_FLASH_TYPE_NOR   0x0
 #define      CONF_FLASH_TYPE_NAND  0x1
-#define      CONF_FLASH_TYPE_SPI   0x2
+#define      CONF_FLASH_TYPE_SPI   0x2 /* AST2600 is SPI only */
 
 /* CE Control Register */
 #define R_CE_CTRL            (0x04 / 4)
@@ -71,8 +72,11 @@
 
 /* CEx Control Register */
 #define R_CTRL0           (0x10 / 4)
+#define   CTRL_IO_QPI              (1 << 31)
+#define   CTRL_IO_QUAD_DATA        (1 << 30)
 #define   CTRL_IO_DUAL_DATA        (1 << 29)
 #define   CTRL_IO_DUAL_ADDR_DATA   (1 << 28) /* Includes dummies */
+#define   CTRL_IO_QUAD_ADDR_DATA   (1 << 28) /* Includes dummies */
 #define   CTRL_CMD_SHIFT           16
 #define   CTRL_CMD_MASK            0xff
 #define   CTRL_DUMMY_HIGH_SHIFT    14
@@ -136,7 +140,7 @@
 /* Misc Control Register #2 */
 #define R_TIMINGS         (0x94 / 4)
 
-/* SPI controller registers and bits */
+/* SPI controller registers and bits (AST2400) */
 #define R_SPI_CONF        (0x00 / 4)
 #define   SPI_CONF_ENABLE_W0   0
 #define R_SPI_CTRL0       (0x4 / 4)
@@ -215,6 +219,35 @@ static uint32_t aspeed_smc_segment_to_reg(const AspeedSMCState *s,
                                           const AspeedSegments *seg);
 static void aspeed_smc_reg_to_segment(const AspeedSMCState *s, uint32_t reg,
                                       AspeedSegments *seg);
+
+/*
+ * AST2600 definitions
+ */
+#define ASPEED26_SOC_FMC_FLASH_BASE   0x20000000
+#define ASPEED26_SOC_SPI_FLASH_BASE   0x30000000
+#define ASPEED26_SOC_SPI2_FLASH_BASE  0x50000000
+
+static const AspeedSegments aspeed_segments_ast2600_fmc[] = {
+    { 0x0, 128 * MiB }, /* start address is readonly */
+    { 0x0, 0 }, /* disabled */
+    { 0x0, 0 }, /* disabled */
+};
+
+static const AspeedSegments aspeed_segments_ast2600_spi1[] = {
+    { 0x0, 128 * MiB }, /* start address is readonly */
+    { 0x0, 0 }, /* disabled */
+};
+
+static const AspeedSegments aspeed_segments_ast2600_spi2[] = {
+    { 0x0, 128 * MiB }, /* start address is readonly */
+    { 0x0, 0 }, /* disabled */
+    { 0x0, 0 }, /* disabled */
+};
+
+static uint32_t aspeed_2600_smc_segment_to_reg(const AspeedSMCState *s,
+                                               const AspeedSegments *seg);
+static void aspeed_2600_smc_reg_to_segment(const AspeedSMCState *s,
+                                           uint32_t reg, AspeedSegments *seg);
 
 static const AspeedSMCController controllers[] = {
     {
@@ -311,6 +344,51 @@ static const AspeedSMCController controllers[] = {
         .nregs             = ASPEED_SMC_R_MAX,
         .segment_to_reg    = aspeed_smc_segment_to_reg,
         .reg_to_segment    = aspeed_smc_reg_to_segment,
+    }, {
+        .name              = "aspeed.fmc-ast2600",
+        .r_conf            = R_CONF,
+        .r_ce_ctrl         = R_CE_CTRL,
+        .r_ctrl0           = R_CTRL0,
+        .r_timings         = R_TIMINGS,
+        .conf_enable_w0    = CONF_ENABLE_W0,
+        .max_slaves        = 3,
+        .segments          = aspeed_segments_ast2600_fmc,
+        .flash_window_base = ASPEED26_SOC_FMC_FLASH_BASE,
+        .flash_window_size = 0x10000000,
+        .has_dma           = true,
+        .nregs             = ASPEED_SMC_R_MAX,
+        .segment_to_reg    = aspeed_2600_smc_segment_to_reg,
+        .reg_to_segment    = aspeed_2600_smc_reg_to_segment,
+    }, {
+        .name              = "aspeed.spi1-ast2600",
+        .r_conf            = R_CONF,
+        .r_ce_ctrl         = R_CE_CTRL,
+        .r_ctrl0           = R_CTRL0,
+        .r_timings         = R_TIMINGS,
+        .conf_enable_w0    = CONF_ENABLE_W0,
+        .max_slaves        = 2,
+        .segments          = aspeed_segments_ast2600_spi1,
+        .flash_window_base = ASPEED26_SOC_SPI_FLASH_BASE,
+        .flash_window_size = 0x10000000,
+        .has_dma           = false,
+        .nregs             = ASPEED_SMC_R_MAX,
+        .segment_to_reg    = aspeed_2600_smc_segment_to_reg,
+        .reg_to_segment    = aspeed_2600_smc_reg_to_segment,
+    }, {
+        .name              = "aspeed.spi2-ast2600",
+        .r_conf            = R_CONF,
+        .r_ce_ctrl         = R_CE_CTRL,
+        .r_ctrl0           = R_CTRL0,
+        .r_timings         = R_TIMINGS,
+        .conf_enable_w0    = CONF_ENABLE_W0,
+        .max_slaves        = 3,
+        .segments          = aspeed_segments_ast2600_spi2,
+        .flash_window_base = ASPEED26_SOC_SPI2_FLASH_BASE,
+        .flash_window_size = 0x10000000,
+        .has_dma           = false,
+        .nregs             = ASPEED_SMC_R_MAX,
+        .segment_to_reg    = aspeed_2600_smc_segment_to_reg,
+        .reg_to_segment    = aspeed_2600_smc_reg_to_segment,
     },
 };
 
@@ -334,6 +412,40 @@ static void aspeed_smc_reg_to_segment(const AspeedSMCState *s,
 {
     seg->addr = ((reg >> SEG_START_SHIFT) & SEG_START_MASK) << 23;
     seg->size = (((reg >> SEG_END_SHIFT) & SEG_END_MASK) << 23) - seg->addr;
+}
+
+/*
+ * The Segment Registers of the AST2600 have a 1MB unit. The address
+ * range of a flash SPI slave is encoded with offsets in the overall
+ * controller window. The previous SoC AST2400 and AST2500 used
+ * absolute addresses. Only bits [27:20] are relevant and the end
+ * address is an upper bound limit.
+ */
+#define AST2600_SEG_ADDR_MASK 0x0ff00000
+
+static uint32_t aspeed_2600_smc_segment_to_reg(const AspeedSMCState *s,
+                                               const AspeedSegments *seg)
+{
+    uint32_t reg = 0;
+
+    /* Disabled segments have a nil register */
+    if (!seg->size) {
+        return 0;
+    }
+
+    reg |= (seg->addr & AST2600_SEG_ADDR_MASK) >> 16; /* start offset */
+    reg |= (seg->addr + seg->size - 1) & AST2600_SEG_ADDR_MASK; /* end offset */
+    return reg;
+}
+
+static void aspeed_2600_smc_reg_to_segment(const AspeedSMCState *s,
+                                           uint32_t reg, AspeedSegments *seg)
+{
+    uint32_t start_offset = (reg << 16) & AST2600_SEG_ADDR_MASK;
+    uint32_t end_offset = reg & AST2600_SEG_ADDR_MASK;
+
+    seg->addr = s->ctrl->flash_window_base + start_offset;
+    seg->size = end_offset + MiB - start_offset;
 }
 
 static bool aspeed_smc_flash_overlap(const AspeedSMCState *s,
@@ -470,8 +582,12 @@ static inline int aspeed_smc_flash_cmd(const AspeedSMCFlash *fl)
     const AspeedSMCState *s = fl->controller;
     int cmd = (s->regs[s->r_ctrl0 + fl->id] >> CTRL_CMD_SHIFT) & CTRL_CMD_MASK;
 
-    /* In read mode, the default SPI command is READ (0x3). In other
-     * modes, the command should necessarily be defined */
+    /*
+     * In read mode, the default SPI command is READ (0x3). In other
+     * modes, the command should necessarily be defined
+     *
+     * TODO: add support for READ4 (0x13) on AST2600
+     */
     if (aspeed_smc_flash_mode(fl) == CTRL_READMODE) {
         cmd = SPI_OP_READ;
     }
@@ -785,6 +901,14 @@ static void aspeed_smc_reset(DeviceState *d)
     for (i = 0; i < s->ctrl->max_slaves; ++i) {
         s->regs[R_SEG_ADDR0 + i] =
             s->ctrl->segment_to_reg(s, &s->ctrl->segments[i]);
+    }
+
+    /* HW strapping flash type for the AST2600 controllers  */
+    if (s->ctrl->segments == aspeed_segments_ast2600_fmc) {
+        /* flash type is fixed to SPI for all */
+        s->regs[s->r_conf] |= (CONF_FLASH_TYPE_SPI << CONF_FLASH_TYPE0);
+        s->regs[s->r_conf] |= (CONF_FLASH_TYPE_SPI << CONF_FLASH_TYPE1);
+        s->regs[s->r_conf] |= (CONF_FLASH_TYPE_SPI << CONF_FLASH_TYPE2);
     }
 
     /* HW strapping flash type for FMC controllers  */
