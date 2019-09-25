@@ -232,14 +232,14 @@ void kvmppc_xive_sync_source(SpaprXive *xive, uint32_t lisn, Error **errp)
  * only need to inform the KVM XIVE device about their type: LSI or
  * MSI.
  */
-void kvmppc_xive_source_reset_one(XiveSource *xsrc, int srcno, Error **errp)
+int kvmppc_xive_source_reset_one(XiveSource *xsrc, int srcno, Error **errp)
 {
     SpaprXive *xive = SPAPR_XIVE(xsrc->xive);
     uint64_t state = 0;
 
     /* The KVM XIVE device is not in use */
     if (xive->fd == -1) {
-        return;
+        return -ENODEV;
     }
 
     if (xive_source_irq_is_lsi(xsrc, srcno)) {
@@ -249,8 +249,8 @@ void kvmppc_xive_source_reset_one(XiveSource *xsrc, int srcno, Error **errp)
         }
     }
 
-    kvm_device_access(xive->fd, KVM_DEV_XIVE_GRP_SOURCE, srcno, &state,
-                      true, errp);
+    return kvm_device_access(xive->fd, KVM_DEV_XIVE_GRP_SOURCE, srcno, &state,
+                             true, errp);
 }
 
 static void kvmppc_xive_source_reset(XiveSource *xsrc, Error **errp)
