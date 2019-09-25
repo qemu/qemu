@@ -501,6 +501,129 @@ qcrypto_block_luks_load_header(QCryptoBlock *block,
 }
 
 /*
+ * Does basic sanity checks on the LUKS header
+ */
+static int
+qcrypto_block_luks_check_header(const QCryptoBlockLUKS *luks, Error **errp)
+{
+    if (memcmp(luks->header.magic, qcrypto_block_luks_magic,
+               QCRYPTO_BLOCK_LUKS_MAGIC_LEN) != 0) {
+        error_setg(errp, "Volume is not in LUKS format");
+        return -1;
+    }
+
+    if (luks->header.version != QCRYPTO_BLOCK_LUKS_VERSION) {
+        error_setg(errp, "LUKS version %" PRIu32 " is not supported",
+                   luks->header.version);
+        return -1;
+    }
+    return 0;
+}
+
+/*
+ * Parses the crypto parameters that are stored in the LUKS header
+ */
+
+static int
+qcrypto_block_luks_parse_header(QCryptoBlockLUKS *luks, Error **errp)
+{
+    g_autofree char *cipher_mode = g_strdup(luks->header.cipher_mode);
+    char *ivgen_name, *ivhash_name;
+    Error *local_err = NULL;
+
+    /*
+     * The cipher_mode header contains a string that we have
+     * to further parse, of the format
+     *
+     *    <cipher-mode>-<iv-generator>[:<iv-hash>]
+     *
+     * eg  cbc-essiv:sha256, cbc-plain64
+     */
+    ivgen_name = strchr(cipher_mode, '-');
+    if (!ivgen_name) {
+        error_setg(errp, "Unexpected cipher mode string format %s",
+                   luks->header.cipher_mode);
+        return -1;
+    }
+    *ivgen_name = '\0';
+    ivgen_name++;
+
+    ivhash_name = strchr(ivgen_name, ':');
+    if (!ivhash_name) {
+        luks->ivgen_hash_alg = 0;
+    } else {
+        *ivhash_name = '\0';
+        ivhash_name++;
+
+        luks->ivgen_hash_alg = qcrypto_block_luks_hash_name_lookup(ivhash_name,
+                                                                   &local_err);
+        if (local_err) {
+            error_propagate(errp, local_err);
+            return -1;
+        }
+    }
+
+    luks->cipher_mode = qcrypto_block_luks_cipher_mode_lookup(cipher_mode,
+                                                              &local_err);
+    if (local_err) {
+        error_propagate(errp, local_err);
+        return -1;
+    }
+
+    luks->cipher_alg =
+            qcrypto_block_luks_cipher_name_lookup(luks->header.cipher_name,
+                                                  luks->cipher_mode,
+                                                  luks->header.master_key_len,
+                                                  &local_err);
+    if (local_err) {
+        error_propagate(errp, local_err);
+        return -1;
+    }
+
+    luks->hash_alg =
+            qcrypto_block_luks_hash_name_lookup(luks->header.hash_spec,
+                                                &local_err);
+    if (local_err) {
+        error_propagate(errp, local_err);
+        return -1;
+    }
+
+    luks->ivgen_alg = qcrypto_block_luks_ivgen_name_lookup(ivgen_name,
+                                                           &local_err);
+    if (local_err) {
+        error_propagate(errp, local_err);
+        return -1;
+    }
+
+    if (luks->ivgen_alg == QCRYPTO_IVGEN_ALG_ESSIV) {
+        if (!ivhash_name) {
+            error_setg(errp, "Missing IV generator hash specification");
+            return -1;
+        }
+        luks->ivgen_cipher_alg =
+                qcrypto_block_luks_essiv_cipher(luks->cipher_alg,
+                                                luks->ivgen_hash_alg,
+                                                &local_err);
+        if (local_err) {
+            error_propagate(errp, local_err);
+            return -1;
+        }
+    } else {
+
+        /*
+         * Note we parsed the ivhash_name earlier in the cipher_mode
+         * spec string even with plain/plain64 ivgens, but we
+         * will ignore it, since it is irrelevant for these ivgens.
+         * This is for compat with dm-crypt which will silently
+         * ignore hash names with these ivgens rather than report
+         * an error about the invalid usage
+         */
+        luks->ivgen_cipher_alg = luks->cipher_alg;
+    }
+    return 0;
+}
+
+/*
  * Given a key slot, and user password, this will attempt to unlock
  * the master encryption key from the key slot.
  *
@@ -712,11 +835,8 @@ qcrypto_block_luks_open(QCryptoBlock *block,
                         Error **errp)
 {
     QCryptoBlockLUKS *luks = NULL;
-    Error *local_err = NULL;
     g_autofree uint8_t *masterkey = NULL;
-    char *ivgen_name, *ivhash_name;
     g_autofree char *password = NULL;
-    g_autofree char *cipher_mode = NULL;
 
     if (!(flags & QCRYPTO_BLOCK_OPEN_NO_IO)) {
         if (!options->u.luks.key_secret) {
@@ -738,105 +858,12 @@ qcrypto_block_luks_open(QCryptoBlock *block,
         goto fail;
     }
 
-    if (memcmp(luks->header.magic, qcrypto_block_luks_magic,
-               QCRYPTO_BLOCK_LUKS_MAGIC_LEN) != 0) {
-        error_setg(errp, "Volume is not in LUKS format");
-        goto fail;
-    }
-    if (luks->header.version != QCRYPTO_BLOCK_LUKS_VERSION) {
-        error_setg(errp, "LUKS version %" PRIu32 " is not supported",
-                   luks->header.version);
+    if (qcrypto_block_luks_check_header(luks, errp) < 0) {
         goto fail;
     }
 
-    cipher_mode = g_strdup(luks->header.cipher_mode);
-
-    /*
-     * The cipher_mode header contains a string that we have
-     * to further parse, of the format
-     *
-     *    <cipher-mode>-<iv-generator>[:<iv-hash>]
-     *
-     * eg  cbc-essiv:sha256, cbc-plain64
-     */
-    ivgen_name = strchr(cipher_mode, '-');
-    if (!ivgen_name) {
-        error_setg(errp, "Unexpected cipher mode string format %s",
-                   cipher_mode);
+    if (qcrypto_block_luks_parse_header(luks, errp) < 0) {
         goto fail;
-    }
-    *ivgen_name = '\0';
-    ivgen_name++;
-
-    ivhash_name = strchr(ivgen_name, ':');
-    if (!ivhash_name) {
-        luks->ivgen_hash_alg = 0;
-    } else {
-        *ivhash_name = '\0';
-        ivhash_name++;
-
-        luks->ivgen_hash_alg = qcrypto_block_luks_hash_name_lookup(ivhash_name,
-                                                                   &local_err);
-        if (local_err) {
-            error_propagate(errp, local_err);
-            goto fail;
-        }
-    }
-
-    luks->cipher_mode = qcrypto_block_luks_cipher_mode_lookup(cipher_mode,
-                                                              &local_err);
-    if (local_err) {
-        error_propagate(errp, local_err);
-        goto fail;
-    }
-
-    luks->cipher_alg =
-        qcrypto_block_luks_cipher_name_lookup(luks->header.cipher_name,
-                                              luks->cipher_mode,
-                                              luks->header.master_key_len,
-                                              &local_err);
-    if (local_err) {
-        error_propagate(errp, local_err);
-        goto fail;
-    }
-
-    luks->hash_alg =
-            qcrypto_block_luks_hash_name_lookup(luks->header.hash_spec,
-                                                &local_err);
-    if (local_err) {
-        error_propagate(errp, local_err);
-        goto fail;
-    }
-
-    luks->ivgen_alg = qcrypto_block_luks_ivgen_name_lookup(ivgen_name,
-                                                           &local_err);
-    if (local_err) {
-        error_propagate(errp, local_err);
-        goto fail;
-    }
-
-    if (luks->ivgen_alg == QCRYPTO_IVGEN_ALG_ESSIV) {
-        if (!ivhash_name) {
-            error_setg(errp, "Missing IV generator hash specification");
-            goto fail;
-        }
-        luks->ivgen_cipher_alg =
-                qcrypto_block_luks_essiv_cipher(luks->cipher_alg,
-                                                luks->ivgen_hash_alg,
-                                                &local_err);
-        if (local_err) {
-            error_propagate(errp, local_err);
-            goto fail;
-        }
-    } else {
-        /* Note we parsed the ivhash_name earlier in the cipher_mode
-         * spec string even with plain/plain64 ivgens, but we
-         * will ignore it, since it is irrelevant for these ivgens.
-         * This is for compat with dm-crypt which will silently
-         * ignore hash names with these ivgens rather than report
-         * an error about the invalid usage
-         */
-        luks->ivgen_cipher_alg = luks->cipher_alg;
     }
 
     if (!(flags & QCRYPTO_BLOCK_OPEN_NO_IO)) {
