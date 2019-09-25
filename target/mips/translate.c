@@ -28962,10 +28962,36 @@ static void gen_msa_2r(CPUMIPSState *env, DisasContext *ctx)
         gen_helper_msa_pcnt_df(cpu_env, tdf, twd, tws);
         break;
     case OPC_NLOC_df:
-        gen_helper_msa_nloc_df(cpu_env, tdf, twd, tws);
+        switch (df) {
+        case DF_BYTE:
+            gen_helper_msa_nloc_b(cpu_env, twd, tws);
+            break;
+        case DF_HALF:
+            gen_helper_msa_nloc_h(cpu_env, twd, tws);
+            break;
+        case DF_WORD:
+            gen_helper_msa_nloc_w(cpu_env, twd, tws);
+            break;
+        case DF_DOUBLE:
+            gen_helper_msa_nloc_d(cpu_env, twd, tws);
+            break;
+        }
         break;
     case OPC_NLZC_df:
-        gen_helper_msa_nlzc_df(cpu_env, tdf, twd, tws);
+        switch (df) {
+        case DF_BYTE:
+            gen_helper_msa_nlzc_b(cpu_env, twd, tws);
+            break;
+        case DF_HALF:
+            gen_helper_msa_nlzc_h(cpu_env, twd, tws);
+            break;
+        case DF_WORD:
+            gen_helper_msa_nlzc_w(cpu_env, twd, tws);
+            break;
+        case DF_DOUBLE:
+            gen_helper_msa_nlzc_d(cpu_env, twd, tws);
+            break;
+        }
         break;
     default:
         MIPS_INVAL("MSA instruction");

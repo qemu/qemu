@@ -65,7 +65,147 @@
  * +---------------+----------------------------------------------------------+
  */
 
-/* TODO: insert Bit Count group helpers here */
+static inline int64_t msa_nlzc_df(uint32_t df, int64_t arg)
+{
+    uint64_t x, y;
+    int n, c;
+
+    x = UNSIGNED(arg, df);
+    n = DF_BITS(df);
+    c = DF_BITS(df) / 2;
+
+    do {
+        y = x >> c;
+        if (y != 0) {
+            n = n - c;
+            x = y;
+        }
+        c = c >> 1;
+    } while (c != 0);
+
+    return n - x;
+}
+
+static inline int64_t msa_nloc_df(uint32_t df, int64_t arg)
+{
+    return msa_nlzc_df(df, UNSIGNED((~arg), df));
+}
+
+void helper_msa_nloc_b(CPUMIPSState *env, uint32_t wd, uint32_t ws)
+{
+    wr_t *pwd = &(env->active_fpu.fpr[wd].wr);
+    wr_t *pws = &(env->active_fpu.fpr[ws].wr);
+
+    pwd->b[0]  = msa_nloc_df(DF_BYTE, pws->b[0]);
+    pwd->b[1]  = msa_nloc_df(DF_BYTE, pws->b[1]);
+    pwd->b[2]  = msa_nloc_df(DF_BYTE, pws->b[2]);
+    pwd->b[3]  = msa_nloc_df(DF_BYTE, pws->b[3]);
+    pwd->b[4]  = msa_nloc_df(DF_BYTE, pws->b[4]);
+    pwd->b[5]  = msa_nloc_df(DF_BYTE, pws->b[5]);
+    pwd->b[6]  = msa_nloc_df(DF_BYTE, pws->b[6]);
+    pwd->b[7]  = msa_nloc_df(DF_BYTE, pws->b[7]);
+    pwd->b[8]  = msa_nloc_df(DF_BYTE, pws->b[8]);
+    pwd->b[9]  = msa_nloc_df(DF_BYTE, pws->b[9]);
+    pwd->b[10] = msa_nloc_df(DF_BYTE, pws->b[10]);
+    pwd->b[11] = msa_nloc_df(DF_BYTE, pws->b[11]);
+    pwd->b[12] = msa_nloc_df(DF_BYTE, pws->b[12]);
+    pwd->b[13] = msa_nloc_df(DF_BYTE, pws->b[13]);
+    pwd->b[14] = msa_nloc_df(DF_BYTE, pws->b[14]);
+    pwd->b[15] = msa_nloc_df(DF_BYTE, pws->b[15]);
+}
+
+void helper_msa_nloc_h(CPUMIPSState *env, uint32_t wd, uint32_t ws)
+{
+    wr_t *pwd = &(env->active_fpu.fpr[wd].wr);
+    wr_t *pws = &(env->active_fpu.fpr[ws].wr);
+
+    pwd->h[0]  = msa_nloc_df(DF_HALF, pws->h[0]);
+    pwd->h[1]  = msa_nloc_df(DF_HALF, pws->h[1]);
+    pwd->h[2]  = msa_nloc_df(DF_HALF, pws->h[2]);
+    pwd->h[3]  = msa_nloc_df(DF_HALF, pws->h[3]);
+    pwd->h[4]  = msa_nloc_df(DF_HALF, pws->h[4]);
+    pwd->h[5]  = msa_nloc_df(DF_HALF, pws->h[5]);
+    pwd->h[6]  = msa_nloc_df(DF_HALF, pws->h[6]);
+    pwd->h[7]  = msa_nloc_df(DF_HALF, pws->h[7]);
+}
+
+void helper_msa_nloc_w(CPUMIPSState *env, uint32_t wd, uint32_t ws)
+{
+    wr_t *pwd = &(env->active_fpu.fpr[wd].wr);
+    wr_t *pws = &(env->active_fpu.fpr[ws].wr);
+
+    pwd->w[0]  = msa_nloc_df(DF_WORD, pws->w[0]);
+    pwd->w[1]  = msa_nloc_df(DF_WORD, pws->w[1]);
+    pwd->w[2]  = msa_nloc_df(DF_WORD, pws->w[2]);
+    pwd->w[3]  = msa_nloc_df(DF_WORD, pws->w[3]);
+}
+
+void helper_msa_nloc_d(CPUMIPSState *env, uint32_t wd, uint32_t ws)
+{
+    wr_t *pwd = &(env->active_fpu.fpr[wd].wr);
+    wr_t *pws = &(env->active_fpu.fpr[ws].wr);
+
+    pwd->d[0]  = msa_nloc_df(DF_DOUBLE, pws->d[0]);
+    pwd->d[1]  = msa_nloc_df(DF_DOUBLE, pws->d[1]);
+}
+
+void helper_msa_nlzc_b(CPUMIPSState *env, uint32_t wd, uint32_t ws)
+{
+    wr_t *pwd = &(env->active_fpu.fpr[wd].wr);
+    wr_t *pws = &(env->active_fpu.fpr[ws].wr);
+
+    pwd->b[0]  = msa_nlzc_df(DF_BYTE, pws->b[0]);
+    pwd->b[1]  = msa_nlzc_df(DF_BYTE, pws->b[1]);
+    pwd->b[2]  = msa_nlzc_df(DF_BYTE, pws->b[2]);
+    pwd->b[3]  = msa_nlzc_df(DF_BYTE, pws->b[3]);
+    pwd->b[4]  = msa_nlzc_df(DF_BYTE, pws->b[4]);
+    pwd->b[5]  = msa_nlzc_df(DF_BYTE, pws->b[5]);
+    pwd->b[6]  = msa_nlzc_df(DF_BYTE, pws->b[6]);
+    pwd->b[7]  = msa_nlzc_df(DF_BYTE, pws->b[7]);
+    pwd->b[8]  = msa_nlzc_df(DF_BYTE, pws->b[8]);
+    pwd->b[9]  = msa_nlzc_df(DF_BYTE, pws->b[9]);
+    pwd->b[10] = msa_nlzc_df(DF_BYTE, pws->b[10]);
+    pwd->b[11] = msa_nlzc_df(DF_BYTE, pws->b[11]);
+    pwd->b[12] = msa_nlzc_df(DF_BYTE, pws->b[12]);
+    pwd->b[13] = msa_nlzc_df(DF_BYTE, pws->b[13]);
+    pwd->b[14] = msa_nlzc_df(DF_BYTE, pws->b[14]);
+    pwd->b[15] = msa_nlzc_df(DF_BYTE, pws->b[15]);
+}
+
+void helper_msa_nlzc_h(CPUMIPSState *env, uint32_t wd, uint32_t ws)
+{
+    wr_t *pwd = &(env->active_fpu.fpr[wd].wr);
+    wr_t *pws = &(env->active_fpu.fpr[ws].wr);
+
+    pwd->h[0]  = msa_nlzc_df(DF_HALF, pws->h[0]);
+    pwd->h[1]  = msa_nlzc_df(DF_HALF, pws->h[1]);
+    pwd->h[2]  = msa_nlzc_df(DF_HALF, pws->h[2]);
+    pwd->h[3]  = msa_nlzc_df(DF_HALF, pws->h[3]);
+    pwd->h[4]  = msa_nlzc_df(DF_HALF, pws->h[4]);
+    pwd->h[5]  = msa_nlzc_df(DF_HALF, pws->h[5]);
+    pwd->h[6]  = msa_nlzc_df(DF_HALF, pws->h[6]);
+    pwd->h[7]  = msa_nlzc_df(DF_HALF, pws->h[7]);
+}
+
+void helper_msa_nlzc_w(CPUMIPSState *env, uint32_t wd, uint32_t ws)
+{
+    wr_t *pwd = &(env->active_fpu.fpr[wd].wr);
+    wr_t *pws = &(env->active_fpu.fpr[ws].wr);
+
+    pwd->w[0]  = msa_nlzc_df(DF_WORD, pws->w[0]);
+    pwd->w[1]  = msa_nlzc_df(DF_WORD, pws->w[1]);
+    pwd->w[2]  = msa_nlzc_df(DF_WORD, pws->w[2]);
+    pwd->w[3]  = msa_nlzc_df(DF_WORD, pws->w[3]);
+}
+
+void helper_msa_nlzc_d(CPUMIPSState *env, uint32_t wd, uint32_t ws)
+{
+    wr_t *pwd = &(env->active_fpu.fpr[wd].wr);
+    wr_t *pws = &(env->active_fpu.fpr[ws].wr);
+
+    pwd->d[0]  = msa_nlzc_df(DF_DOUBLE, pws->d[0]);
+    pwd->d[1]  = msa_nlzc_df(DF_DOUBLE, pws->d[1]);
+}
 
 
 /*
@@ -2524,32 +2664,6 @@ static inline int64_t msa_pcnt_df(uint32_t df, int64_t arg)
     return x;
 }
 
-static inline int64_t msa_nlzc_df(uint32_t df, int64_t arg)
-{
-    uint64_t x, y;
-    int n, c;
-
-    x = UNSIGNED(arg, df);
-    n = DF_BITS(df);
-    c = DF_BITS(df) / 2;
-
-    do {
-        y = x >> c;
-        if (y != 0) {
-            n = n - c;
-            x = y;
-        }
-        c = c >> 1;
-    } while (c != 0);
-
-    return n - x;
-}
-
-static inline int64_t msa_nloc_df(uint32_t df, int64_t arg)
-{
-    return msa_nlzc_df(df, UNSIGNED((~arg), df));
-}
-
 void helper_msa_fill_df(CPUMIPSState *env, uint32_t df, uint32_t wd,
                         uint32_t rs)
 {
@@ -2633,8 +2747,6 @@ void helper_msa_ ## func ## _df(CPUMIPSState *env, uint32_t df,         \
     }                                                                   \
 }
 
-MSA_UNOP_DF(nlzc)
-MSA_UNOP_DF(nloc)
 MSA_UNOP_DF(pcnt)
 #undef MSA_UNOP_DF
 
