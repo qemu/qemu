@@ -887,6 +887,7 @@ DEF_HELPER_4(msa_mod_s_h, void, env, i32, i32, i32)
 DEF_HELPER_4(msa_mod_s_w, void, env, i32, i32, i32)
 DEF_HELPER_4(msa_mod_s_d, void, env, i32, i32, i32)
 
+DEF_HELPER_3(msa_move_v, void, env, i32, i32)
 
 DEF_HELPER_4(msa_andi_b, void, env, i32, i32, i32)
 DEF_HELPER_4(msa_ori_b, void, env, i32, i32, i32)
@@ -977,7 +978,6 @@ DEF_HELPER_5(msa_splati_df, void, env, i32, i32, i32, i32)
 DEF_HELPER_5(msa_insve_df, void, env, i32, i32, i32, i32)
 DEF_HELPER_3(msa_ctcmsa, void, env, tl, i32)
 DEF_HELPER_2(msa_cfcmsa, tl, env, i32)
-DEF_HELPER_3(msa_move_v, void, env, i32, i32)
 
 DEF_HELPER_5(msa_fcaf_df, void, env, i32, i32, i32, i32)
 DEF_HELPER_5(msa_fcun_df, void, env, i32, i32, i32, i32)

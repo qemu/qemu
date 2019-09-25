@@ -2022,7 +2022,19 @@ void helper_msa_mod_u_d(CPUMIPSState *env,
  * +---------------+----------------------------------------------------------+
  */
 
-/* TODO: insert Move group helpers here */
+static inline void msa_move_v(wr_t *pwd, wr_t *pws)
+{
+    pwd->d[0] = pws->d[0];
+    pwd->d[1] = pws->d[1];
+}
+
+void helper_msa_move_v(CPUMIPSState *env, uint32_t wd, uint32_t ws)
+{
+    wr_t *pwd = &(env->active_fpu.fpr[wd].wr);
+    wr_t *pws = &(env->active_fpu.fpr[ws].wr);
+
+    msa_move_v(pwd, pws);
+}
 
 
 /*
@@ -2078,15 +2090,6 @@ void helper_msa_mod_u_d(CPUMIPSState *env,
 
 /* TODO: insert Shift group helpers here */
 
-
-static inline void msa_move_v(wr_t *pwd, wr_t *pws)
-{
-    uint32_t i;
-
-    for (i = 0; i < DF_ELEMENTS(DF_DOUBLE); i++) {
-        pwd->d[i] = pws->d[i];
-    }
-}
 
 #define MSA_FN_IMM8(FUNC, DEST, OPERATION)                              \
 void helper_msa_ ## FUNC(CPUMIPSState *env, uint32_t wd, uint32_t ws,   \
@@ -3872,14 +3875,6 @@ target_ulong helper_msa_cfcmsa(CPUMIPSState *env, uint32_t cs)
         return env->active_tc.msacsr & MSACSR_MASK;
     }
     return 0;
-}
-
-void helper_msa_move_v(CPUMIPSState *env, uint32_t wd, uint32_t ws)
-{
-    wr_t *pwd = &(env->active_fpu.fpr[wd].wr);
-    wr_t *pws = &(env->active_fpu.fpr[ws].wr);
-
-    msa_move_v(pwd, pws);
 }
 
 void helper_msa_fill_df(CPUMIPSState *env, uint32_t df, uint32_t wd,
