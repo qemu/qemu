@@ -39,7 +39,8 @@ void spapr_irq_msi_free(SpaprMachineState *spapr, int irq, uint32_t num);
 typedef struct SpaprIrq {
     uint32_t    nr_xirqs;
     uint32_t    nr_msis;
-    uint8_t     ov5;
+    bool        xics;
+    bool        xive;
 
     void (*init)(SpaprMachineState *spapr, Error **errp);
     int (*claim)(SpaprMachineState *spapr, int irq, bool lsi, Error **errp);

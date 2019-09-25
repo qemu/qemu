@@ -1066,11 +1066,20 @@ static void spapr_dt_ov5_platform_support(SpaprMachineState *spapr, void *fdt,
     PowerPCCPU *first_ppc_cpu = POWERPC_CPU(first_cpu);
 
     char val[2 * 4] = {
-        23, spapr->irq->ov5, /* Xive mode. */
+        23, 0x00, /* XICS / XIVE mode */
         24, 0x00, /* Hash/Radix, filled in below. */
         25, 0x00, /* Hash options: Segment Tables == no, GTSE == no. */
         26, 0x40, /* Radix options: GTSE == yes. */
     };
+
+    if (spapr->irq->xics && spapr->irq->xive) {
+        val[1] = SPAPR_OV5_XIVE_BOTH;
+    } else if (spapr->irq->xive) {
+        val[1] = SPAPR_OV5_XIVE_EXPLOIT;
+    } else {
+        assert(spapr->irq->xics);
+        val[1] = SPAPR_OV5_XIVE_LEGACY;
+    }
 
     if (!ppc_check_compat(first_ppc_cpu, CPU_POWERPC_LOGICAL_3_00, 0,
                           first_ppc_cpu->compat_pvr)) {
@@ -1078,7 +1087,7 @@ static void spapr_dt_ov5_platform_support(SpaprMachineState *spapr, void *fdt,
          * If we're in a pre POWER9 compat mode then the guest should
          * do hash and use the legacy interrupt mode
          */
-        val[1] = 0x00; /* XICS */
+        val[1] = SPAPR_OV5_XIVE_LEGACY; /* XICS */
         val[3] = 0x00; /* Hash */
     } else if (kvm_enabled()) {
         if (kvmppc_has_cap_mmu_radix() && kvmppc_has_cap_mmu_hash_v3()) {
@@ -2767,7 +2776,7 @@ static void spapr_machine_init(MachineState *machine)
     spapr_ovec_set(spapr->ov5, OV5_DRMEM_V2);
 
     /* advertise XIVE on POWER9 machines */
-    if (spapr->irq->ov5 & (SPAPR_OV5_XIVE_EXPLOIT | SPAPR_OV5_XIVE_BOTH)) {
+    if (spapr->irq->xive) {
         spapr_ovec_set(spapr->ov5, OV5_XIVE_EXPLOIT);
     }
 

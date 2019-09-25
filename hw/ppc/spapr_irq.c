@@ -210,7 +210,8 @@ static void spapr_irq_init_kvm_xics(SpaprMachineState *spapr, Error **errp)
 SpaprIrq spapr_irq_xics = {
     .nr_xirqs    = SPAPR_NR_XIRQS,
     .nr_msis     = SPAPR_NR_MSIS,
-    .ov5         = SPAPR_OV5_XIVE_LEGACY,
+    .xics        = true,
+    .xive        = false,
 
     .init        = spapr_irq_init_xics,
     .claim       = spapr_irq_claim_xics,
@@ -350,7 +351,8 @@ static void spapr_irq_init_kvm_xive(SpaprMachineState *spapr, Error **errp)
 SpaprIrq spapr_irq_xive = {
     .nr_xirqs    = SPAPR_NR_XIRQS,
     .nr_msis     = SPAPR_NR_MSIS,
-    .ov5         = SPAPR_OV5_XIVE_EXPLOIT,
+    .xics        = false,
+    .xive        = true,
 
     .init        = spapr_irq_init_xive,
     .claim       = spapr_irq_claim_xive,
@@ -511,7 +513,8 @@ static void spapr_irq_set_irq_dual(void *opaque, int irq, int val)
 SpaprIrq spapr_irq_dual = {
     .nr_xirqs    = SPAPR_NR_XIRQS,
     .nr_msis     = SPAPR_NR_MSIS,
-    .ov5         = SPAPR_OV5_XIVE_BOTH,
+    .xics        = true,
+    .xive        = true,
 
     .init        = spapr_irq_init_dual,
     .claim       = spapr_irq_claim_dual,
@@ -754,7 +757,8 @@ int spapr_irq_find(SpaprMachineState *spapr, int num, bool align, Error **errp)
 SpaprIrq spapr_irq_xics_legacy = {
     .nr_xirqs    = SPAPR_IRQ_XICS_LEGACY_NR_XIRQS,
     .nr_msis     = SPAPR_IRQ_XICS_LEGACY_NR_XIRQS,
-    .ov5         = SPAPR_OV5_XIVE_LEGACY,
+    .xics        = true,
+    .xive        = false,
 
     .init        = spapr_irq_init_xics,
     .claim       = spapr_irq_claim_xics,
