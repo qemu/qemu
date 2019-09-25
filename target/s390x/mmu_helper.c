@@ -48,20 +48,6 @@ static void trigger_access_exception(CPUS390XState *env, uint32_t type,
     }
 }
 
-static void trigger_prot_fault(CPUS390XState *env, target_ulong vaddr,
-                               uint64_t asc, int rw, bool exc)
-{
-    uint64_t tec;
-
-    tec = vaddr | (rw == MMU_DATA_STORE ? FS_WRITE : FS_READ) | 4 | asc >> 46;
-
-    if (!exc) {
-        return;
-    }
-
-    trigger_access_exception(env, PGM_PROTECTION, ILEN_AUTO, tec);
-}
-
 static void trigger_page_fault(CPUS390XState *env, target_ulong vaddr,
                                uint32_t type, uint64_t asc, int rw, bool exc)
 {
@@ -229,7 +215,6 @@ static int mmu_translate_asce(CPUS390XState *env, target_ulong vaddr,
                               int *flags, int rw, bool exc)
 {
     int level;
-    int r;
 
     if (asce & ASCE_REAL_SPACE) {
         /* direct mapping */
@@ -277,14 +262,8 @@ static int mmu_translate_asce(CPUS390XState *env, target_ulong vaddr,
         break;
     }
 
-    r = mmu_translate_region(env, vaddr, asc, asce, level, raddr, flags, rw,
-                             exc);
-    if (!r && rw == MMU_DATA_STORE && !(*flags & PAGE_WRITE)) {
-        trigger_prot_fault(env, vaddr, asc, rw, exc);
-        return -1;
-    }
-
-    return r;
+    return mmu_translate_region(env, vaddr, asc, asce, level, raddr, flags, rw,
+                                exc);
 }
 
 static void mmu_handle_skey(target_ulong addr, int rw, int *flags)
@@ -369,6 +348,10 @@ static void mmu_handle_skey(target_ulong addr, int rw, int *flags)
 int mmu_translate(CPUS390XState *env, target_ulong vaddr, int rw, uint64_t asc,
                   target_ulong *raddr, int *flags, bool exc)
 {
+    /* Code accesses have an undefined ilc, let's use 2 bytes. */
+    const int ilen = (rw == MMU_INST_FETCH) ? 2 : ILEN_AUTO;
+    uint64_t tec = (vaddr & TARGET_PAGE_MASK) | (asc >> 46) |
+                   (rw == MMU_DATA_STORE ? FS_WRITE : FS_READ);
     uint64_t asce;
     int r;
 
@@ -419,6 +402,16 @@ int mmu_translate(CPUS390XState *env, target_ulong vaddr, int rw, uint64_t asc,
     r = mmu_translate_asce(env, vaddr, asc, asce, raddr, flags, rw, exc);
     if (r) {
         return r;
+    }
+
+    /* check for DAT protection */
+    if (unlikely(rw == MMU_DATA_STORE && !(*flags & PAGE_WRITE))) {
+        if (exc) {
+            /* DAT sets bit 61 only */
+            tec |= 0x4;
+            trigger_access_exception(env, PGM_PROTECTION, ilen, tec);
+        }
+        return -1;
     }
 
 nodat:
