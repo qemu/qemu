@@ -34,8 +34,7 @@ trap "_cleanup; exit \$status" 0 1 2 3 15
 
 get_image_size_on_host()
 {
-    $QEMU_IMG info -f "$IMGFMT" "$TEST_IMG" | grep "disk size" \
-        | sed -e 's/^[^0-9]*\([0-9]\+\).*$/\1/'
+    echo $(($(stat -c '%b * %B' "$TEST_IMG_FILE")))
 }
 
 # get standard environment and filters
