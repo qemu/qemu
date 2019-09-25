@@ -205,10 +205,9 @@ static void aspeed_soc_init(Object *obj)
                               sizeof(s->spi[i]), typename);
     }
 
+    snprintf(typename, sizeof(typename), "aspeed.sdmc-%s", socname);
     sysbus_init_child_obj(obj, "sdmc", OBJECT(&s->sdmc), sizeof(s->sdmc),
-                          TYPE_ASPEED_SDMC);
-    qdev_prop_set_uint32(DEVICE(&s->sdmc), "silicon-rev",
-                         sc->info->silicon_rev);
+                          typename);
     object_property_add_alias(obj, "ram-size", OBJECT(&s->sdmc),
                               "ram-size", &error_abort);
     object_property_add_alias(obj, "max-ram-size", OBJECT(&s->sdmc),
