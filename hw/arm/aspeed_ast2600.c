@@ -32,7 +32,9 @@ static const hwaddr aspeed_soc_ast2600_memmap[] = {
     [ASPEED_SPI1]      = 0x1E630000,
     [ASPEED_SPI2]      = 0x1E641000,
     [ASPEED_ETH1]      = 0x1E660000,
+    [ASPEED_ETH3]      = 0x1E670000,
     [ASPEED_ETH2]      = 0x1E680000,
+    [ASPEED_ETH4]      = 0x1E690000,
     [ASPEED_VIC]       = 0x1E6C0000,
     [ASPEED_SDMC]      = 0x1E6E0000,
     [ASPEED_SCU]       = 0x1E6E2000,
@@ -88,6 +90,9 @@ static const int aspeed_soc_ast2600_irqmap[] = {
     [ASPEED_I2C]       = 110,   /* 110 -> 125 */
     [ASPEED_ETH1]      = 2,
     [ASPEED_ETH2]      = 3,
+    [ASPEED_ETH3]      = 32,
+    [ASPEED_ETH4]      = 33,
+
 };
 
 static qemu_irq aspeed_soc_get_irq(AspeedSoCState *s, int ctrl)
@@ -173,7 +178,7 @@ static void aspeed_soc_ast2600_init(Object *obj)
                                        OBJECT(&s->scu), &error_abort);
     }
 
-    for (i = 0; i < ASPEED_MACS_NUM; i++) {
+    for (i = 0; i < sc->macs_num; i++) {
         sysbus_init_child_obj(obj, "ftgmac100[*]", OBJECT(&s->ftgmac100[i]),
                               sizeof(s->ftgmac100[i]), TYPE_FTGMAC100);
     }
@@ -397,7 +402,7 @@ static void aspeed_soc_ast2600_realize(DeviceState *dev, Error **errp)
     }
 
     /* Net */
-    for (i = 0; i < nb_nics; i++) {
+    for (i = 0; i < nb_nics && i < sc->macs_num; i++) {
         qdev_set_nic_properties(DEVICE(&s->ftgmac100[i]), &nd_table[i]);
         object_property_set_bool(OBJECT(&s->ftgmac100[i]), true, "aspeed",
                                  &err);
@@ -470,6 +475,7 @@ static void aspeed_soc_ast2600_class_init(ObjectClass *oc, void *data)
     sc->sram_size    = 0x10000;
     sc->spis_num     = 2;
     sc->wdts_num     = 4;
+    sc->macs_num     = 4;
     sc->irqmap       = aspeed_soc_ast2600_irqmap;
     sc->memmap       = aspeed_soc_ast2600_memmap;
     sc->num_cpus     = 2;

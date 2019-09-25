@@ -198,7 +198,7 @@ static void aspeed_soc_init(Object *obj)
                                        OBJECT(&s->scu), &error_abort);
     }
 
-    for (i = 0; i < ASPEED_MACS_NUM; i++) {
+    for (i = 0; i < sc->macs_num; i++) {
         sysbus_init_child_obj(obj, "ftgmac100[*]", OBJECT(&s->ftgmac100[i]),
                               sizeof(s->ftgmac100[i]), TYPE_FTGMAC100);
     }
@@ -372,7 +372,7 @@ static void aspeed_soc_realize(DeviceState *dev, Error **errp)
     }
 
     /* Net */
-    for (i = 0; i < nb_nics; i++) {
+    for (i = 0; i < nb_nics && i < sc->macs_num; i++) {
         qdev_set_nic_properties(DEVICE(&s->ftgmac100[i]), &nd_table[i]);
         object_property_set_bool(OBJECT(&s->ftgmac100[i]), true, "aspeed",
                                  &err);
@@ -455,6 +455,7 @@ static void aspeed_soc_ast2400_class_init(ObjectClass *oc, void *data)
     sc->sram_size    = 0x8000;
     sc->spis_num     = 1;
     sc->wdts_num     = 2;
+    sc->macs_num     = 2;
     sc->irqmap       = aspeed_soc_ast2400_irqmap;
     sc->memmap       = aspeed_soc_ast2400_memmap;
     sc->num_cpus     = 1;
@@ -478,6 +479,7 @@ static void aspeed_soc_ast2500_class_init(ObjectClass *oc, void *data)
     sc->sram_size    = 0x9000;
     sc->spis_num     = 2;
     sc->wdts_num     = 3;
+    sc->macs_num     = 2;
     sc->irqmap       = aspeed_soc_ast2500_irqmap;
     sc->memmap       = aspeed_soc_ast2500_memmap;
     sc->num_cpus     = 1;
