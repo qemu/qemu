@@ -466,6 +466,42 @@ void helper_msa_binsr_d(CPUMIPSState *env,
     pwd->d[1]  = msa_binsr_df(DF_DOUBLE, pwd->d[1],  pws->d[1],  pwt->d[1]);
 }
 
+void helper_msa_bmnz_v(CPUMIPSState *env, uint32_t wd, uint32_t ws, uint32_t wt)
+{
+    wr_t *pwd = &(env->active_fpu.fpr[wd].wr);
+    wr_t *pws = &(env->active_fpu.fpr[ws].wr);
+    wr_t *pwt = &(env->active_fpu.fpr[wt].wr);
+
+    pwd->d[0] = UNSIGNED(                                                     \
+        ((pwd->d[0] & (~pwt->d[0])) | (pws->d[0] & pwt->d[0])), DF_DOUBLE);
+    pwd->d[1] = UNSIGNED(                                                     \
+        ((pwd->d[1] & (~pwt->d[1])) | (pws->d[1] & pwt->d[1])), DF_DOUBLE);
+}
+
+void helper_msa_bmz_v(CPUMIPSState *env, uint32_t wd, uint32_t ws, uint32_t wt)
+{
+    wr_t *pwd = &(env->active_fpu.fpr[wd].wr);
+    wr_t *pws = &(env->active_fpu.fpr[ws].wr);
+    wr_t *pwt = &(env->active_fpu.fpr[wt].wr);
+
+    pwd->d[0] = UNSIGNED(                                                     \
+        ((pwd->d[0] & pwt->d[0]) | (pws->d[0] & (~pwt->d[0]))), DF_DOUBLE);
+    pwd->d[1] = UNSIGNED(                                                     \
+        ((pwd->d[1] & pwt->d[1]) | (pws->d[1] & (~pwt->d[1]))), DF_DOUBLE);
+}
+
+void helper_msa_bsel_v(CPUMIPSState *env, uint32_t wd, uint32_t ws, uint32_t wt)
+{
+    wr_t *pwd = &(env->active_fpu.fpr[wd].wr);
+    wr_t *pws = &(env->active_fpu.fpr[ws].wr);
+    wr_t *pwt = &(env->active_fpu.fpr[wt].wr);
+
+    pwd->d[0] = UNSIGNED(                                                     \
+        (pws->d[0] & (~pwd->d[0])) | (pwt->d[0] & pwd->d[0]), DF_DOUBLE);
+    pwd->d[1] = UNSIGNED(                                                     \
+        (pws->d[1] & (~pwd->d[1])) | (pwt->d[1] & pwd->d[1]), DF_DOUBLE);
+}
+
 
 /*
  * Bit Set
@@ -946,6 +982,9 @@ MSA_FN_IMM8(bmzi_b, pwd->b[i],
 MSA_FN_IMM8(bseli_b, pwd->b[i],
         BIT_SELECT(pwd->b[i], pws->b[i], i8, DF_BYTE))
 
+#undef BIT_SELECT
+#undef BIT_MOVE_IF_ZERO
+#undef BIT_MOVE_IF_NOT_ZERO
 #undef MSA_FN_IMM8
 
 #define SHF_POS(i, imm) (((i) & 0xfc) + (((imm) >> (2 * ((i) & 0x03))) & 0x03))
@@ -979,30 +1018,6 @@ void helper_msa_shf_df(CPUMIPSState *env, uint32_t df, uint32_t wd,
     }
     msa_move_v(pwd, pwx);
 }
-
-#define MSA_FN_VECTOR(FUNC, DEST, OPERATION)                            \
-void helper_msa_ ## FUNC(CPUMIPSState *env, uint32_t wd, uint32_t ws,   \
-        uint32_t wt)                                                    \
-{                                                                       \
-    wr_t *pwd = &(env->active_fpu.fpr[wd].wr);                          \
-    wr_t *pws = &(env->active_fpu.fpr[ws].wr);                          \
-    wr_t *pwt = &(env->active_fpu.fpr[wt].wr);                          \
-    uint32_t i;                                                         \
-    for (i = 0; i < DF_ELEMENTS(DF_DOUBLE); i++) {                      \
-        DEST = OPERATION;                                               \
-    }                                                                   \
-}
-
-MSA_FN_VECTOR(bmnz_v, pwd->d[i],
-        BIT_MOVE_IF_NOT_ZERO(pwd->d[i], pws->d[i], pwt->d[i], DF_DOUBLE))
-MSA_FN_VECTOR(bmz_v, pwd->d[i],
-        BIT_MOVE_IF_ZERO(pwd->d[i], pws->d[i], pwt->d[i], DF_DOUBLE))
-MSA_FN_VECTOR(bsel_v, pwd->d[i],
-        BIT_SELECT(pwd->d[i], pws->d[i], pwt->d[i], DF_DOUBLE))
-#undef BIT_MOVE_IF_NOT_ZERO
-#undef BIT_MOVE_IF_ZERO
-#undef BIT_SELECT
-#undef MSA_FN_VECTOR
 
 void helper_msa_and_v(CPUMIPSState *env, uint32_t wd, uint32_t ws, uint32_t wt)
 {
