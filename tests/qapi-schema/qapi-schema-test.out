@@ -23,6 +23,15 @@ enum MyEnum
 object Empty1
 object Empty2
     base Empty1
+object q_obj_Union-base
+    member type: EnumOne optional=False
+object Union
+    base q_obj_Union-base
+    tag type
+    case value1: q_empty
+    case value2: q_empty
+    case value3: q_empty
+    case value4: q_empty
 command user_def_cmd0 Empty2 -> Empty2
    gen=True success_response=True boxed=False oob=False preconfig=False
 enum QEnumTwo
@@ -221,6 +230,8 @@ command boxed-struct UserDefZero -> None
    gen=True success_response=True boxed=True oob=False preconfig=False
 command boxed-union UserDefListUnion -> None
    gen=True success_response=True boxed=True oob=False preconfig=False
+command boxed-empty Empty1 -> None
+   gen=True success_response=True boxed=True oob=False preconfig=False
 command test-flags-command None -> None
    gen=True success_response=True boxed=False oob=True preconfig=True
 object UserDefOptions
@@ -252,7 +263,9 @@ event EVENT_D q_obj_EVENT_D-arg
    boxed=False
 event EVENT_E UserDefZero
    boxed=True
-event EVENT_F UserDefAlternate
+event EVENT_F UserDefFlatUnion
+   boxed=True
+event EVENT_G Empty1
    boxed=True
 enum __org.qemu_x-Enum
     member __org.qemu_x-value
@@ -270,6 +283,9 @@ object __org.qemu_x-Union1
     member type: __org.qemu_x-Union1Kind optional=False
     tag type
     case __org.qemu_x-branch: q_obj_str-wrapper
+alternate __org.qemu_x-Alt1
+    tag type
+    case __org.qemu_x-branch: str
 array __org.qemu_x-Union1List __org.qemu_x-Union1
 object __org.qemu_x-Struct2
     member array: __org.qemu_x-Union1List optional=False
@@ -279,8 +295,7 @@ object __org.qemu_x-Union2
     case __org.qemu_x-value: __org.qemu_x-Struct2
 alternate __org.qemu_x-Alt
     tag type
-    case __org.qemu_x-branch: str
-    case b: __org.qemu_x-Base
+    case __org.qemu_x-branch: __org.qemu_x-Base
 event __ORG.QEMU_X-EVENT __org.qemu_x-Struct
    boxed=False
 array __org.qemu_x-EnumList __org.qemu_x-Enum

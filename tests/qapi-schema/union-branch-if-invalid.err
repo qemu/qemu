@@ -1,0 +1,1 @@
+tests/qapi-schema/union-branch-if-invalid.json:4: 'if' condition '' makes no sense

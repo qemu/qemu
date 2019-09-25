@@ -1,3 +1,0 @@
-# 'boxed' requires a non-empty type
-{ 'struct': 'Empty', 'data': {} }
-{ 'command': 'foo', 'boxed': true, 'data': 'Empty' }

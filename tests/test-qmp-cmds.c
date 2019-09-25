@@ -97,6 +97,10 @@ void qmp_boxed_union(UserDefListUnion *arg, Error **errp)
 {
 }
 
+void qmp_boxed_empty(Empty1 *arg, Error **errp)
+{
+}
+
 __org_qemu_x_Union1 *qmp___org_qemu_x_command(__org_qemu_x_EnumList *a,
                                               __org_qemu_x_StructList *b,
                                               __org_qemu_x_Union2 *c,
