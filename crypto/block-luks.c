@@ -419,7 +419,6 @@ qcrypto_block_luks_load_key(QCryptoBlock *block,
                             QCryptoCipherAlgorithm ivcipheralg,
                             QCryptoHashAlgorithm ivhash,
                             uint8_t *masterkey,
-                            size_t masterkeylen,
                             QCryptoBlockReadFunc readfunc,
                             void *opaque,
                             Error **errp)
@@ -438,9 +437,9 @@ qcrypto_block_luks_load_key(QCryptoBlock *block,
         return 0;
     }
 
-    splitkeylen = masterkeylen * slot->stripes;
+    splitkeylen = luks->header.master_key_len * slot->stripes;
     splitkey = g_new0(uint8_t, splitkeylen);
-    possiblekey = g_new0(uint8_t, masterkeylen);
+    possiblekey = g_new0(uint8_t, luks->header.master_key_len);
 
     /*
      * The user password is used to generate a (possible)
@@ -453,7 +452,7 @@ qcrypto_block_luks_load_key(QCryptoBlock *block,
                        (const uint8_t *)password, strlen(password),
                        slot->salt, QCRYPTO_BLOCK_LUKS_SALT_LEN,
                        slot->iterations,
-                       possiblekey, masterkeylen,
+                       possiblekey, luks->header.master_key_len,
                        errp) < 0) {
         return -1;
     }
@@ -478,7 +477,7 @@ qcrypto_block_luks_load_key(QCryptoBlock *block,
     /* Setup the cipher/ivgen that we'll use to try to decrypt
      * the split master key material */
     cipher = qcrypto_cipher_new(cipheralg, ciphermode,
-                                possiblekey, masterkeylen,
+                                possiblekey, luks->header.master_key_len,
                                 errp);
     if (!cipher) {
         return -1;
@@ -489,7 +488,7 @@ qcrypto_block_luks_load_key(QCryptoBlock *block,
     ivgen = qcrypto_ivgen_new(ivalg,
                               ivcipheralg,
                               ivhash,
-                              possiblekey, masterkeylen,
+                              possiblekey, luks->header.master_key_len,
                               errp);
     if (!ivgen) {
         return -1;
@@ -519,7 +518,7 @@ qcrypto_block_luks_load_key(QCryptoBlock *block,
      * it back together to get the actual master key.
      */
     if (qcrypto_afsplit_decode(hash,
-                               masterkeylen,
+                               luks->header.master_key_len,
                                slot->stripes,
                                splitkey,
                                masterkey,
@@ -537,11 +536,13 @@ qcrypto_block_luks_load_key(QCryptoBlock *block,
      * header
      */
     if (qcrypto_pbkdf2(hash,
-                       masterkey, masterkeylen,
+                       masterkey,
+                       luks->header.master_key_len,
                        luks->header.master_key_salt,
                        QCRYPTO_BLOCK_LUKS_SALT_LEN,
                        luks->header.master_key_iterations,
-                       keydigest, G_N_ELEMENTS(keydigest),
+                       keydigest,
+                       G_N_ELEMENTS(keydigest),
                        errp) < 0) {
         return -1;
     }
@@ -574,8 +575,7 @@ qcrypto_block_luks_find_key(QCryptoBlock *block,
                             QCryptoIVGenAlgorithm ivalg,
                             QCryptoCipherAlgorithm ivcipheralg,
                             QCryptoHashAlgorithm ivhash,
-                            uint8_t **masterkey,
-                            size_t *masterkeylen,
+                            uint8_t *masterkey,
                             QCryptoBlockReadFunc readfunc,
                             void *opaque,
                             Error **errp)
@@ -583,9 +583,6 @@ qcrypto_block_luks_find_key(QCryptoBlock *block,
     QCryptoBlockLUKS *luks = block->opaque;
     size_t i;
     int rv;
-
-    *masterkey = g_new0(uint8_t, luks->header.master_key_len);
-    *masterkeylen = luks->header.master_key_len;
 
     for (i = 0; i < QCRYPTO_BLOCK_LUKS_NUM_KEY_SLOTS; i++) {
         rv = qcrypto_block_luks_load_key(block,
@@ -597,8 +594,7 @@ qcrypto_block_luks_find_key(QCryptoBlock *block,
                                          ivalg,
                                          ivcipheralg,
                                          ivhash,
-                                         *masterkey,
-                                         *masterkeylen,
+                                         masterkey,
                                          readfunc,
                                          opaque,
                                          errp);
@@ -613,9 +609,6 @@ qcrypto_block_luks_find_key(QCryptoBlock *block,
     error_setg(errp, "Invalid password, cannot unlock any keyslot");
 
  error:
-    g_free(*masterkey);
-    *masterkey = NULL;
-    *masterkeylen = 0;
     return -1;
 }
 
@@ -636,7 +629,6 @@ qcrypto_block_luks_open(QCryptoBlock *block,
     size_t i;
     ssize_t rv;
     g_autofree uint8_t *masterkey = NULL;
-    size_t masterkeylen;
     char *ivgen_name, *ivhash_name;
     QCryptoCipherMode ciphermode;
     QCryptoCipherAlgorithm cipheralg;
@@ -802,6 +794,9 @@ qcrypto_block_luks_open(QCryptoBlock *block,
         /* Try to find which key slot our password is valid for
          * and unlock the master key from that slot.
          */
+
+        masterkey = g_new0(uint8_t, luks->header.master_key_len);
+
         if (qcrypto_block_luks_find_key(block,
                                         password,
                                         cipheralg, ciphermode,
@@ -809,7 +804,7 @@ qcrypto_block_luks_open(QCryptoBlock *block,
                                         ivalg,
                                         ivcipheralg,
                                         ivhash,
-                                        &masterkey, &masterkeylen,
+                                        masterkey,
                                         readfunc, opaque,
                                         errp) < 0) {
             ret = -EACCES;
@@ -825,7 +820,8 @@ qcrypto_block_luks_open(QCryptoBlock *block,
         block->ivgen = qcrypto_ivgen_new(ivalg,
                                          ivcipheralg,
                                          ivhash,
-                                         masterkey, masterkeylen,
+                                         masterkey,
+                                         luks->header.master_key_len,
                                          errp);
         if (!block->ivgen) {
             ret = -ENOTSUP;
@@ -833,7 +829,9 @@ qcrypto_block_luks_open(QCryptoBlock *block,
         }
 
         ret = qcrypto_block_init_cipher(block, cipheralg, ciphermode,
-                                        masterkey, masterkeylen, n_threads,
+                                        masterkey,
+                                        luks->header.master_key_len,
+                                        n_threads,
                                         errp);
         if (ret < 0) {
             ret = -ENOTSUP;
