@@ -48,26 +48,6 @@ static void trigger_access_exception(CPUS390XState *env, uint32_t type,
     }
 }
 
-static void trigger_page_fault(CPUS390XState *env, target_ulong vaddr,
-                               uint32_t type, uint64_t asc, int rw, bool exc)
-{
-    int ilen = ILEN_AUTO;
-    uint64_t tec;
-
-    tec = vaddr | (rw == MMU_DATA_STORE ? FS_WRITE : FS_READ) | asc >> 46;
-
-    if (!exc) {
-        return;
-    }
-
-    /* Code accesses have an undefined ilc.  */
-    if (rw == MMU_INST_FETCH) {
-        ilen = 2;
-    }
-
-    trigger_access_exception(env, type, ilen, tec);
-}
-
 /* check whether the address would be proteted by Low-Address Protection */
 static bool is_low_address(uint64_t addr)
 {
@@ -119,12 +99,10 @@ static int mmu_translate_pte(CPUS390XState *env, target_ulong vaddr,
                              target_ulong *raddr, int *flags, int rw, bool exc)
 {
     if (pt_entry & PAGE_INVALID) {
-        trigger_page_fault(env, vaddr, PGM_PAGE_TRANS, asc, rw, exc);
-        return -1;
+        return PGM_PAGE_TRANS;
     }
     if (pt_entry & PAGE_RES0) {
-        trigger_page_fault(env, vaddr, PGM_TRANS_SPEC, asc, rw, exc);
-        return -1;
+        return PGM_TRANS_SPEC;
     }
     if (pt_entry & PAGE_RO) {
         *flags &= ~PAGE_WRITE;
@@ -179,13 +157,11 @@ static int mmu_translate_region(CPUS390XState *env, target_ulong vaddr,
     new_entry = ldq_phys(cs->as, origin + offs);
 
     if ((new_entry & REGION_ENTRY_INV) != 0) {
-        trigger_page_fault(env, vaddr, pchks[level / 4], asc, rw, exc);
-        return -1;
+        return pchks[level / 4];
     }
 
     if ((new_entry & REGION_ENTRY_TYPE_MASK) != level) {
-        trigger_page_fault(env, vaddr, PGM_TRANS_SPEC, asc, rw, exc);
-        return -1;
+        return PGM_TRANS_SPEC;
     }
 
     if (level == ASCE_TYPE_SEGMENT) {
@@ -197,8 +173,7 @@ static int mmu_translate_region(CPUS390XState *env, target_ulong vaddr,
     offs = (vaddr >> (28 + 11 * (level - 4) / 4)) & 3;
     if (offs < ((new_entry & REGION_ENTRY_TF) >> 6)
         || offs > (new_entry & REGION_ENTRY_LENGTH)) {
-        trigger_page_fault(env, vaddr, pchks[level / 4 - 1], asc, rw, exc);
-        return -1;
+        return pchks[level / 4 - 1];
     }
 
     if ((env->cregs[0] & CR0_EDAT) && (new_entry & REGION_ENTRY_RO)) {
@@ -226,38 +201,31 @@ static int mmu_translate_asce(CPUS390XState *env, target_ulong vaddr,
     switch (level) {
     case ASCE_TYPE_REGION1:
         if ((vaddr >> 62) > (asce & ASCE_TABLE_LENGTH)) {
-            trigger_page_fault(env, vaddr, PGM_REG_FIRST_TRANS, asc, rw, exc);
-            return -1;
+            return PGM_REG_FIRST_TRANS;
         }
         break;
     case ASCE_TYPE_REGION2:
         if (vaddr & 0xffe0000000000000ULL) {
-            trigger_page_fault(env, vaddr, PGM_ASCE_TYPE, asc, rw, exc);
-            return -1;
+            return PGM_ASCE_TYPE;
         }
         if ((vaddr >> 51 & 3) > (asce & ASCE_TABLE_LENGTH)) {
-            trigger_page_fault(env, vaddr, PGM_REG_SEC_TRANS, asc, rw, exc);
-            return -1;
+            return PGM_REG_SEC_TRANS;
         }
         break;
     case ASCE_TYPE_REGION3:
         if (vaddr & 0xfffffc0000000000ULL) {
-            trigger_page_fault(env, vaddr, PGM_ASCE_TYPE, asc, rw, exc);
-            return -1;
+            return PGM_ASCE_TYPE;
         }
         if ((vaddr >> 40 & 3) > (asce & ASCE_TABLE_LENGTH)) {
-            trigger_page_fault(env, vaddr, PGM_REG_THIRD_TRANS, asc, rw, exc);
-            return -1;
+            return PGM_REG_THIRD_TRANS;
         }
         break;
     case ASCE_TYPE_SEGMENT:
         if (vaddr & 0xffffffff80000000ULL) {
-            trigger_page_fault(env, vaddr, PGM_ASCE_TYPE, asc, rw, exc);
-            return -1;
+            return PGM_ASCE_TYPE;
         }
         if ((vaddr >> 29 & 3) > (asce & ASCE_TABLE_LENGTH)) {
-            trigger_page_fault(env, vaddr, PGM_SEGMENT_TRANS, asc, rw, exc);
-            return -1;
+            return PGM_SEGMENT_TRANS;
         }
         break;
     }
@@ -400,8 +368,11 @@ int mmu_translate(CPUS390XState *env, target_ulong vaddr, int rw, uint64_t asc,
 
     /* perform the DAT translation */
     r = mmu_translate_asce(env, vaddr, asc, asce, raddr, flags, rw, exc);
-    if (r) {
-        return r;
+    if (unlikely(r)) {
+        if (exc) {
+            trigger_access_exception(env, r, ilen, tec);
+        }
+        return -1;
     }
 
     /* check for DAT protection */
