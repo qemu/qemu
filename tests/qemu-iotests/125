@@ -111,7 +111,7 @@ for GROWTH_SIZE in 16 48 80; do
                 if [ $file_length_2 -gt $file_length_1 ]; then
                     echo "ERROR (grow): Image length has grown from $file_length_1 to $file_length_2"
                 fi
-                if [ $create_mode != metadata ]; then
+                if [ $growth_mode != metadata ]; then
                     # The host size should not have grown either
                     if [ $host_size_2 -gt $host_size_1 ]; then
                         echo "ERROR (grow): Host size has grown from $host_size_1 to $host_size_2"
