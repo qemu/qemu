@@ -58,6 +58,7 @@ typedef struct AspeedTimerCtrlState {
 
     uint32_t ctrl;
     uint32_t ctrl2;
+    uint32_t ctrl3;
     AspeedTimer timers[ASPEED_TIMER_NR_TIMERS];
 
     AspeedSCUState *scu;
