@@ -114,107 +114,16 @@ static inline bool read_table_entry(CPUS390XState *env, hwaddr gaddr,
     return true;
 }
 
-/* Decode page table entry (normal 4KB page) */
-static int mmu_translate_pte(CPUS390XState *env, target_ulong vaddr,
-                             uint64_t asc, uint64_t pt_entry,
-                             target_ulong *raddr, int *flags, int rw, bool exc)
-{
-    if (pt_entry & PAGE_ENTRY_I) {
-        return PGM_PAGE_TRANS;
-    }
-    if (pt_entry & PAGE_ENTRY_0) {
-        return PGM_TRANS_SPEC;
-    }
-    if (pt_entry & PAGE_ENTRY_P) {
-        *flags &= ~PAGE_WRITE;
-    }
-
-    *raddr = pt_entry & TARGET_PAGE_MASK;
-    return 0;
-}
-
-/* Decode segment table entry */
-static int mmu_translate_segment(CPUS390XState *env, target_ulong vaddr,
-                                 uint64_t asc, uint64_t st_entry,
-                                 target_ulong *raddr, int *flags, int rw,
-                                 bool exc)
-{
-    uint64_t origin, offs, pt_entry;
-
-    if (st_entry & SEGMENT_ENTRY_P) {
-        *flags &= ~PAGE_WRITE;
-    }
-
-    if ((st_entry & SEGMENT_ENTRY_FC) && (env->cregs[0] & CR0_EDAT)) {
-        /* Decode EDAT1 segment frame absolute address (1MB page) */
-        *raddr = (st_entry & SEGMENT_ENTRY_SFAA) |
-                 (vaddr & ~SEGMENT_ENTRY_SFAA);
-        return 0;
-    }
-
-    /* Look up 4KB page entry */
-    origin = st_entry & SEGMENT_ENTRY_ORIGIN;
-    offs = VADDR_PAGE_TX(vaddr) * 8;
-    if (!read_table_entry(env, origin + offs, &pt_entry)) {
-        return PGM_ADDRESSING;
-    }
-    return mmu_translate_pte(env, vaddr, asc, pt_entry, raddr, flags, rw, exc);
-}
-
-/* Decode region table entries */
-static int mmu_translate_region(CPUS390XState *env, target_ulong vaddr,
-                                uint64_t asc, uint64_t entry, int level,
-                                target_ulong *raddr, int *flags, int rw,
-                                bool exc)
-{
-    uint64_t origin, offs, new_entry;
-    const int pchks[4] = {
-        PGM_SEGMENT_TRANS, PGM_REG_THIRD_TRANS,
-        PGM_REG_SEC_TRANS, PGM_REG_FIRST_TRANS
-    };
-
-    origin = entry & REGION_ENTRY_ORIGIN;
-    offs = (vaddr >> (17 + 11 * level / 4)) & 0x3ff8;
-
-    if (!read_table_entry(env, origin + offs, &new_entry)) {
-        return PGM_ADDRESSING;
-    }
-
-    if (new_entry & REGION_ENTRY_I) {
-        return pchks[level / 4];
-    }
-
-    if ((new_entry & REGION_ENTRY_TT) != level) {
-        return PGM_TRANS_SPEC;
-    }
-
-    if (level == ASCE_TYPE_SEGMENT) {
-        return mmu_translate_segment(env, vaddr, asc, new_entry, raddr, flags,
-                                     rw, exc);
-    }
-
-    /* Check region table offset and length */
-    offs = (vaddr >> (28 + 11 * (level - 4) / 4)) & 3;
-    if (offs < ((new_entry & REGION_ENTRY_TF) >> 6)
-        || offs > (new_entry & REGION_ENTRY_TL)) {
-        return pchks[level / 4 - 1];
-    }
-
-    if ((env->cregs[0] & CR0_EDAT) && (new_entry & REGION_ENTRY_P)) {
-        *flags &= ~PAGE_WRITE;
-    }
-
-    /* yet another region */
-    return mmu_translate_region(env, vaddr, asc, new_entry, level - 4,
-                                raddr, flags, rw, exc);
-}
-
 static int mmu_translate_asce(CPUS390XState *env, target_ulong vaddr,
                               uint64_t asc, uint64_t asce, target_ulong *raddr,
                               int *flags, int rw, bool exc)
 {
+    const bool edat1 = (env->cregs[0] & CR0_EDAT) &&
+                       s390_has_feat(S390_FEAT_EDAT);
     const int asce_tl = asce & ASCE_TABLE_LENGTH;
-    int level;
+    const int asce_p = asce & ASCE_PRIVATE_SPACE;
+    hwaddr gaddr = asce & ASCE_ORIGIN;
+    uint64_t entry;
 
     if (asce & ASCE_REAL_SPACE) {
         /* direct mapping */
@@ -222,12 +131,12 @@ static int mmu_translate_asce(CPUS390XState *env, target_ulong vaddr,
         return 0;
     }
 
-    level = asce & ASCE_TYPE_MASK;
-    switch (level) {
+    switch (asce & ASCE_TYPE_MASK) {
     case ASCE_TYPE_REGION1:
         if (VADDR_REGION1_TL(vaddr) > asce_tl) {
             return PGM_REG_FIRST_TRANS;
         }
+        gaddr += VADDR_REGION1_TX(vaddr) * 8;
         break;
     case ASCE_TYPE_REGION2:
         if (VADDR_REGION1_TX(vaddr)) {
@@ -236,6 +145,7 @@ static int mmu_translate_asce(CPUS390XState *env, target_ulong vaddr,
         if (VADDR_REGION2_TL(vaddr) > asce_tl) {
             return PGM_REG_SEC_TRANS;
         }
+        gaddr += VADDR_REGION2_TX(vaddr) * 8;
         break;
     case ASCE_TYPE_REGION3:
         if (VADDR_REGION1_TX(vaddr) || VADDR_REGION2_TX(vaddr)) {
@@ -244,6 +154,7 @@ static int mmu_translate_asce(CPUS390XState *env, target_ulong vaddr,
         if (VADDR_REGION3_TL(vaddr) > asce_tl) {
             return PGM_REG_THIRD_TRANS;
         }
+        gaddr += VADDR_REGION3_TX(vaddr) * 8;
         break;
     case ASCE_TYPE_SEGMENT:
         if (VADDR_REGION1_TX(vaddr) || VADDR_REGION2_TX(vaddr) ||
@@ -253,11 +164,108 @@ static int mmu_translate_asce(CPUS390XState *env, target_ulong vaddr,
         if (VADDR_SEGMENT_TL(vaddr) > asce_tl) {
             return PGM_SEGMENT_TRANS;
         }
+        gaddr += VADDR_SEGMENT_TX(vaddr) * 8;
         break;
     }
 
-    return mmu_translate_region(env, vaddr, asc, asce, level, raddr, flags, rw,
-                                exc);
+    switch (asce & ASCE_TYPE_MASK) {
+    case ASCE_TYPE_REGION1:
+        if (!read_table_entry(env, gaddr, &entry)) {
+            return PGM_ADDRESSING;
+        }
+        if (entry & REGION_ENTRY_I) {
+            return PGM_REG_FIRST_TRANS;
+        }
+        if ((entry & REGION_ENTRY_TT) != REGION_ENTRY_TT_REGION1) {
+            return PGM_TRANS_SPEC;
+        }
+        if (VADDR_REGION2_TL(vaddr) < (entry & REGION_ENTRY_TF) >> 6 ||
+            VADDR_REGION2_TL(vaddr) > (entry & REGION_ENTRY_TL)) {
+            return PGM_REG_SEC_TRANS;
+        }
+        if (edat1 && (entry & REGION_ENTRY_P)) {
+            *flags &= ~PAGE_WRITE;
+        }
+        gaddr = (entry & REGION_ENTRY_ORIGIN) + VADDR_REGION2_TX(vaddr) * 8;
+        /* fall through */
+    case ASCE_TYPE_REGION2:
+        if (!read_table_entry(env, gaddr, &entry)) {
+            return PGM_ADDRESSING;
+        }
+        if (entry & REGION_ENTRY_I) {
+            return PGM_REG_SEC_TRANS;
+        }
+        if ((entry & REGION_ENTRY_TT) != REGION_ENTRY_TT_REGION2) {
+            return PGM_TRANS_SPEC;
+        }
+        if (VADDR_REGION3_TL(vaddr) < (entry & REGION_ENTRY_TF) >> 6 ||
+            VADDR_REGION3_TL(vaddr) > (entry & REGION_ENTRY_TL)) {
+            return PGM_REG_THIRD_TRANS;
+        }
+        if (edat1 && (entry & REGION_ENTRY_P)) {
+            *flags &= ~PAGE_WRITE;
+        }
+        gaddr = (entry & REGION_ENTRY_ORIGIN) + VADDR_REGION3_TX(vaddr) * 8;
+        /* fall through */
+    case ASCE_TYPE_REGION3:
+        if (!read_table_entry(env, gaddr, &entry)) {
+            return PGM_ADDRESSING;
+        }
+        if (entry & REGION_ENTRY_I) {
+            return PGM_REG_THIRD_TRANS;
+        }
+        if ((entry & REGION_ENTRY_TT) != REGION_ENTRY_TT_REGION3) {
+            return PGM_TRANS_SPEC;
+        }
+        if (VADDR_SEGMENT_TL(vaddr) < (entry & REGION_ENTRY_TF) >> 6 ||
+            VADDR_SEGMENT_TL(vaddr) > (entry & REGION_ENTRY_TL)) {
+            return PGM_SEGMENT_TRANS;
+        }
+        if (edat1 && (entry & REGION_ENTRY_P)) {
+            *flags &= ~PAGE_WRITE;
+        }
+        gaddr = (entry & REGION_ENTRY_ORIGIN) + VADDR_SEGMENT_TX(vaddr) * 8;
+        /* fall through */
+    case ASCE_TYPE_SEGMENT:
+        if (!read_table_entry(env, gaddr, &entry)) {
+            return PGM_ADDRESSING;
+        }
+        if (entry & SEGMENT_ENTRY_I) {
+            return PGM_SEGMENT_TRANS;
+        }
+        if ((entry & SEGMENT_ENTRY_TT) != SEGMENT_ENTRY_TT_SEGMENT) {
+            return PGM_TRANS_SPEC;
+        }
+        if ((entry & SEGMENT_ENTRY_CS) && asce_p) {
+            return PGM_TRANS_SPEC;
+        }
+        if (entry & SEGMENT_ENTRY_P) {
+            *flags &= ~PAGE_WRITE;
+        }
+        if (edat1 && (entry & SEGMENT_ENTRY_FC)) {
+            *raddr = (entry & SEGMENT_ENTRY_SFAA) |
+                     (vaddr & ~SEGMENT_ENTRY_SFAA);
+            return 0;
+        }
+        gaddr = (entry & SEGMENT_ENTRY_ORIGIN) + VADDR_PAGE_TX(vaddr) * 8;
+        break;
+    }
+
+    if (!read_table_entry(env, gaddr, &entry)) {
+        return PGM_ADDRESSING;
+    }
+    if (entry & PAGE_ENTRY_I) {
+        return PGM_PAGE_TRANS;
+    }
+    if (entry & PAGE_ENTRY_0) {
+        return PGM_TRANS_SPEC;
+    }
+    if (entry & PAGE_ENTRY_P) {
+        *flags &= ~PAGE_WRITE;
+    }
+
+    *raddr = entry & TARGET_PAGE_MASK;
+    return 0;
 }
 
 static void mmu_handle_skey(target_ulong addr, int rw, int *flags)
