@@ -27,7 +27,7 @@
 #include "hw/sd/aspeed_sdhci.h"
 
 #define ASPEED_SPIS_NUM  2
-#define ASPEED_WDTS_NUM  3
+#define ASPEED_WDTS_NUM  4
 #define ASPEED_CPUS_NUM  2
 #define ASPEED_MACS_NUM  2
 
