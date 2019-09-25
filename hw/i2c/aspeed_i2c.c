@@ -408,10 +408,11 @@ static void aspeed_i2c_reset(DeviceState *dev)
 {
     int i;
     AspeedI2CState *s = ASPEED_I2C(dev);
+    AspeedI2CClass *aic = ASPEED_I2C_GET_CLASS(s);
 
     s->intr_status = 0;
 
-    for (i = 0; i < ASPEED_I2C_NR_BUSSES; i++) {
+    for (i = 0; i < aic->num_busses; i++) {
         s->busses[i].intr_ctrl = 0;
         s->busses[i].intr_status = 0;
         s->busses[i].cmd = 0;
@@ -421,7 +422,7 @@ static void aspeed_i2c_reset(DeviceState *dev)
 }
 
 /*
- * Address Definitions
+ * Address Definitions (AST2400 and AST2500)
  *
  *   0x000 ... 0x03F: Global Register
  *   0x040 ... 0x07F: Device 1
@@ -446,22 +447,24 @@ static void aspeed_i2c_realize(DeviceState *dev, Error **errp)
     int i;
     SysBusDevice *sbd = SYS_BUS_DEVICE(dev);
     AspeedI2CState *s = ASPEED_I2C(dev);
+    AspeedI2CClass *aic = ASPEED_I2C_GET_CLASS(s);
 
     sysbus_init_irq(sbd, &s->irq);
     memory_region_init_io(&s->iomem, OBJECT(s), &aspeed_i2c_ctrl_ops, s,
                           "aspeed.i2c", 0x1000);
     sysbus_init_mmio(sbd, &s->iomem);
 
-    for (i = 0; i < ASPEED_I2C_NR_BUSSES; i++) {
-        char name[16];
-        int offset = i < 7 ? 1 : 5;
+    for (i = 0; i < aic->num_busses; i++) {
+        char name[32];
+        int offset = i < aic->gap ? 1 : 5;
         snprintf(name, sizeof(name), "aspeed.i2c.%d", i);
         s->busses[i].controller = s;
         s->busses[i].id = i;
         s->busses[i].bus = i2c_init_bus(dev, name);
         memory_region_init_io(&s->busses[i].mr, OBJECT(dev),
-                              &aspeed_i2c_bus_ops, &s->busses[i], name, 0x40);
-        memory_region_add_subregion(&s->iomem, 0x40 * (i + offset),
+                              &aspeed_i2c_bus_ops, &s->busses[i], name,
+                              aic->reg_size);
+        memory_region_add_subregion(&s->iomem, aic->reg_size * (i + offset),
                                     &s->busses[i].mr);
     }
 }
@@ -481,11 +484,51 @@ static const TypeInfo aspeed_i2c_info = {
     .parent        = TYPE_SYS_BUS_DEVICE,
     .instance_size = sizeof(AspeedI2CState),
     .class_init    = aspeed_i2c_class_init,
+    .class_size = sizeof(AspeedI2CClass),
+    .abstract   = true,
+};
+
+static void aspeed_2400_i2c_class_init(ObjectClass *klass, void *data)
+{
+    DeviceClass *dc = DEVICE_CLASS(klass);
+    AspeedI2CClass *aic = ASPEED_I2C_CLASS(klass);
+
+    dc->desc = "ASPEED 2400 I2C Controller";
+
+    aic->num_busses = 14;
+    aic->reg_size = 0x40;
+    aic->gap = 7;
+}
+
+static const TypeInfo aspeed_2400_i2c_info = {
+    .name = TYPE_ASPEED_2400_I2C,
+    .parent = TYPE_ASPEED_I2C,
+    .class_init = aspeed_2400_i2c_class_init,
+};
+
+static void aspeed_2500_i2c_class_init(ObjectClass *klass, void *data)
+{
+    DeviceClass *dc = DEVICE_CLASS(klass);
+    AspeedI2CClass *aic = ASPEED_I2C_CLASS(klass);
+
+    dc->desc = "ASPEED 2500 I2C Controller";
+
+    aic->num_busses = 14;
+    aic->reg_size = 0x40;
+    aic->gap = 7;
+}
+
+static const TypeInfo aspeed_2500_i2c_info = {
+    .name = TYPE_ASPEED_2500_I2C,
+    .parent = TYPE_ASPEED_I2C,
+    .class_init = aspeed_2500_i2c_class_init,
 };
 
 static void aspeed_i2c_register_types(void)
 {
     type_register_static(&aspeed_i2c_info);
+    type_register_static(&aspeed_2400_i2c_info);
+    type_register_static(&aspeed_2500_i2c_info);
 }
 
 type_init(aspeed_i2c_register_types)
@@ -494,9 +537,10 @@ type_init(aspeed_i2c_register_types)
 I2CBus *aspeed_i2c_get_bus(DeviceState *dev, int busnr)
 {
     AspeedI2CState *s = ASPEED_I2C(dev);
+    AspeedI2CClass *aic = ASPEED_I2C_GET_CLASS(s);
     I2CBus *bus = NULL;
 
-    if (busnr >= 0 && busnr < ASPEED_I2C_NR_BUSSES) {
+    if (busnr >= 0 && busnr < aic->num_busses) {
         bus = s->busses[busnr].bus;
     }
 
