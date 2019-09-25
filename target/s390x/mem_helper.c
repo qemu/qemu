@@ -2252,9 +2252,9 @@ void HELPER(idte)(CPUS390XState *env, uint64_t r1, uint64_t r2, uint32_t m4)
             /* addresses are not wrapped in 24/31bit mode but table index is */
             raddr = table + ((index + i) & 0x7ff) * sizeof(entry);
             entry = cpu_ldq_real_ra(env, raddr, ra);
-            if (!(entry & REGION_ENTRY_INV)) {
+            if (!(entry & REGION_ENTRY_I)) {
                 /* we are allowed to not store if already invalid */
-                entry |= REGION_ENTRY_INV;
+                entry |= REGION_ENTRY_I;
                 cpu_stq_real_ra(env, raddr, entry, ra);
             }
         }
@@ -2279,17 +2279,17 @@ void HELPER(ipte)(CPUS390XState *env, uint64_t pto, uint64_t vaddr,
 
     /* Compute the page table entry address */
     pte_addr = (pto & SEGMENT_ENTRY_ORIGIN);
-    pte_addr += (vaddr & VADDR_PX) >> 9;
+    pte_addr += VADDR_PAGE_TX(vaddr) * 8;
 
     /* Mark the page table entry as invalid */
     pte = cpu_ldq_real_ra(env, pte_addr, ra);
-    pte |= PAGE_INVALID;
+    pte |= PAGE_ENTRY_I;
     cpu_stq_real_ra(env, pte_addr, pte, ra);
 
     /* XXX we exploit the fact that Linux passes the exact virtual
        address here - it's not obliged to! */
     if (m4 & 1) {
-        if (vaddr & ~VADDR_PX) {
+        if (vaddr & ~VADDR_PAGE_TX_MASK) {
             tlb_flush_page(cs, page);
             /* XXX 31-bit hack */
             tlb_flush_page(cs, page ^ 0x80000000);
@@ -2298,7 +2298,7 @@ void HELPER(ipte)(CPUS390XState *env, uint64_t pto, uint64_t vaddr,
             tlb_flush(cs);
         }
     } else {
-        if (vaddr & ~VADDR_PX) {
+        if (vaddr & ~VADDR_PAGE_TX_MASK) {
             tlb_flush_page_all_cpus_synced(cs, page);
             /* XXX 31-bit hack */
             tlb_flush_page_all_cpus_synced(cs, page ^ 0x80000000);

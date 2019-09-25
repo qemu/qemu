@@ -119,13 +119,13 @@ static int mmu_translate_pte(CPUS390XState *env, target_ulong vaddr,
                              uint64_t asc, uint64_t pt_entry,
                              target_ulong *raddr, int *flags, int rw, bool exc)
 {
-    if (pt_entry & PAGE_INVALID) {
+    if (pt_entry & PAGE_ENTRY_I) {
         return PGM_PAGE_TRANS;
     }
-    if (pt_entry & PAGE_RES0) {
+    if (pt_entry & PAGE_ENTRY_0) {
         return PGM_TRANS_SPEC;
     }
-    if (pt_entry & PAGE_RO) {
+    if (pt_entry & PAGE_ENTRY_P) {
         *flags &= ~PAGE_WRITE;
     }
 
@@ -141,19 +141,20 @@ static int mmu_translate_segment(CPUS390XState *env, target_ulong vaddr,
 {
     uint64_t origin, offs, pt_entry;
 
-    if (st_entry & SEGMENT_ENTRY_RO) {
+    if (st_entry & SEGMENT_ENTRY_P) {
         *flags &= ~PAGE_WRITE;
     }
 
     if ((st_entry & SEGMENT_ENTRY_FC) && (env->cregs[0] & CR0_EDAT)) {
         /* Decode EDAT1 segment frame absolute address (1MB page) */
-        *raddr = (st_entry & 0xfffffffffff00000ULL) | (vaddr & 0xfffff);
+        *raddr = (st_entry & SEGMENT_ENTRY_SFAA) |
+                 (vaddr & ~SEGMENT_ENTRY_SFAA);
         return 0;
     }
 
     /* Look up 4KB page entry */
     origin = st_entry & SEGMENT_ENTRY_ORIGIN;
-    offs  = (vaddr & VADDR_PX) >> 9;
+    offs = VADDR_PAGE_TX(vaddr) * 8;
     if (!read_table_entry(env, origin + offs, &pt_entry)) {
         return PGM_ADDRESSING;
     }
@@ -179,11 +180,11 @@ static int mmu_translate_region(CPUS390XState *env, target_ulong vaddr,
         return PGM_ADDRESSING;
     }
 
-    if ((new_entry & REGION_ENTRY_INV) != 0) {
+    if (new_entry & REGION_ENTRY_I) {
         return pchks[level / 4];
     }
 
-    if ((new_entry & REGION_ENTRY_TYPE_MASK) != level) {
+    if ((new_entry & REGION_ENTRY_TT) != level) {
         return PGM_TRANS_SPEC;
     }
 
@@ -195,11 +196,11 @@ static int mmu_translate_region(CPUS390XState *env, target_ulong vaddr,
     /* Check region table offset and length */
     offs = (vaddr >> (28 + 11 * (level - 4) / 4)) & 3;
     if (offs < ((new_entry & REGION_ENTRY_TF) >> 6)
-        || offs > (new_entry & REGION_ENTRY_LENGTH)) {
+        || offs > (new_entry & REGION_ENTRY_TL)) {
         return pchks[level / 4 - 1];
     }
 
-    if ((env->cregs[0] & CR0_EDAT) && (new_entry & REGION_ENTRY_RO)) {
+    if ((env->cregs[0] & CR0_EDAT) && (new_entry & REGION_ENTRY_P)) {
         *flags &= ~PAGE_WRITE;
     }
 
@@ -212,6 +213,7 @@ static int mmu_translate_asce(CPUS390XState *env, target_ulong vaddr,
                               uint64_t asc, uint64_t asce, target_ulong *raddr,
                               int *flags, int rw, bool exc)
 {
+    const int asce_tl = asce & ASCE_TABLE_LENGTH;
     int level;
 
     if (asce & ASCE_REAL_SPACE) {
@@ -223,31 +225,32 @@ static int mmu_translate_asce(CPUS390XState *env, target_ulong vaddr,
     level = asce & ASCE_TYPE_MASK;
     switch (level) {
     case ASCE_TYPE_REGION1:
-        if ((vaddr >> 62) > (asce & ASCE_TABLE_LENGTH)) {
+        if (VADDR_REGION1_TL(vaddr) > asce_tl) {
             return PGM_REG_FIRST_TRANS;
         }
         break;
     case ASCE_TYPE_REGION2:
-        if (vaddr & 0xffe0000000000000ULL) {
+        if (VADDR_REGION1_TX(vaddr)) {
             return PGM_ASCE_TYPE;
         }
-        if ((vaddr >> 51 & 3) > (asce & ASCE_TABLE_LENGTH)) {
+        if (VADDR_REGION2_TL(vaddr) > asce_tl) {
             return PGM_REG_SEC_TRANS;
         }
         break;
     case ASCE_TYPE_REGION3:
-        if (vaddr & 0xfffffc0000000000ULL) {
+        if (VADDR_REGION1_TX(vaddr) || VADDR_REGION2_TX(vaddr)) {
             return PGM_ASCE_TYPE;
         }
-        if ((vaddr >> 40 & 3) > (asce & ASCE_TABLE_LENGTH)) {
+        if (VADDR_REGION3_TL(vaddr) > asce_tl) {
             return PGM_REG_THIRD_TRANS;
         }
         break;
     case ASCE_TYPE_SEGMENT:
-        if (vaddr & 0xffffffff80000000ULL) {
+        if (VADDR_REGION1_TX(vaddr) || VADDR_REGION2_TX(vaddr) ||
+            VADDR_REGION3_TX(vaddr)) {
             return PGM_ASCE_TYPE;
         }
-        if ((vaddr >> 29 & 3) > (asce & ASCE_TABLE_LENGTH)) {
+        if (VADDR_SEGMENT_TL(vaddr) > asce_tl) {
             return PGM_SEGMENT_TRANS;
         }
         break;
