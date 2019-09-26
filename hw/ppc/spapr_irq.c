@@ -65,9 +65,9 @@ void spapr_irq_msi_free(SpaprMachineState *spapr, int irq, uint32_t num)
     bitmap_clear(spapr->irq_map, irq - SPAPR_IRQ_MSI, num);
 }
 
-static int spapr_irq_init_kvm(int (*fn)(SpaprInterruptController *, Error **),
-                              SpaprInterruptController *intc,
-                              Error **errp)
+int spapr_irq_init_kvm(int (*fn)(SpaprInterruptController *, Error **),
+                       SpaprInterruptController *intc,
+                       Error **errp)
 {
     MachineState *machine = MACHINE(qdev_get_machine());
     Error *local_err = NULL;
@@ -112,11 +112,6 @@ static int spapr_irq_post_load_xics(SpaprMachineState *spapr, int version_id)
     return 0;
 }
 
-static void spapr_irq_reset_xics(SpaprMachineState *spapr, Error **errp)
-{
-    spapr_irq_init_kvm(xics_kvm_connect, SPAPR_INTC(spapr->ics), errp);
-}
-
 SpaprIrq spapr_irq_xics = {
     .nr_xirqs    = SPAPR_NR_XIRQS,
     .nr_msis     = SPAPR_NR_MSIS,
@@ -124,7 +119,6 @@ SpaprIrq spapr_irq_xics = {
     .xive        = false,
 
     .post_load   = spapr_irq_post_load_xics,
-    .reset       = spapr_irq_reset_xics,
 };
 
 /*
@@ -136,26 +130,6 @@ static int spapr_irq_post_load_xive(SpaprMachineState *spapr, int version_id)
     return spapr_xive_post_load(spapr->xive, version_id);
 }
 
-static void spapr_irq_reset_xive(SpaprMachineState *spapr, Error **errp)
-{
-    CPUState *cs;
-
-    CPU_FOREACH(cs) {
-        PowerPCCPU *cpu = POWERPC_CPU(cs);
-
-        /* (TCG) Set the OS CAM line of the thread interrupt context. */
-        spapr_xive_set_tctx_os_cam(spapr_cpu_state(cpu)->tctx);
-    }
-
-    if (spapr_irq_init_kvm(kvmppc_xive_connect,
-                           SPAPR_INTC(spapr->xive), errp) < 0) {
-        return;
-    }
-
-    /* Activate the XIVE MMIOs */
-    spapr_xive_mmio_set_enabled(spapr->xive, true);
-}
-
 SpaprIrq spapr_irq_xive = {
     .nr_xirqs    = SPAPR_NR_XIRQS,
     .nr_msis     = SPAPR_NR_MSIS,
@@ -163,7 +137,6 @@ SpaprIrq spapr_irq_xive = {
     .xive        = true,
 
     .post_load   = spapr_irq_post_load_xive,
-    .reset       = spapr_irq_reset_xive,
 };
 
 /*
@@ -187,35 +160,7 @@ static SpaprIrq *spapr_irq_current(SpaprMachineState *spapr)
 
 static int spapr_irq_post_load_dual(SpaprMachineState *spapr, int version_id)
 {
-    /*
-     * Force a reset of the XIVE backend after migration. The machine
-     * defaults to XICS at startup.
-     */
-    if (spapr_ovec_test(spapr->ov5_cas, OV5_XIVE_EXPLOIT)) {
-        if (kvm_irqchip_in_kernel()) {
-            xics_kvm_disconnect(SPAPR_INTC(spapr->ics));
-        }
-        spapr_irq_xive.reset(spapr, &error_fatal);
-    }
-
     return spapr_irq_current(spapr)->post_load(spapr, version_id);
-}
-
-static void spapr_irq_reset_dual(SpaprMachineState *spapr, Error **errp)
-{
-    /*
-     * Deactivate the XIVE MMIOs. The XIVE backend will reenable them
-     * if selected.
-     */
-    spapr_xive_mmio_set_enabled(spapr->xive, false);
-
-    /* Destroy all KVM devices */
-    if (kvm_irqchip_in_kernel()) {
-        xics_kvm_disconnect(SPAPR_INTC(spapr->ics));
-        kvmppc_xive_disconnect(SPAPR_INTC(spapr->xive));
-    }
-
-    spapr_irq_current(spapr)->reset(spapr, errp);
 }
 
 /*
@@ -228,7 +173,6 @@ SpaprIrq spapr_irq_dual = {
     .xive        = true,
 
     .post_load   = spapr_irq_post_load_dual,
-    .reset       = spapr_irq_reset_dual,
 };
 
 
@@ -512,10 +456,6 @@ void spapr_irq_reset(SpaprMachineState *spapr, Error **errp)
     assert(!spapr->irq_map || bitmap_empty(spapr->irq_map, spapr->irq_map_nr));
 
     spapr_irq_update_active_intc(spapr);
-
-    if (spapr->irq->reset) {
-        spapr->irq->reset(spapr, errp);
-    }
 }
 
 int spapr_irq_get_phandle(SpaprMachineState *spapr, void *fdt, Error **errp)
@@ -651,7 +591,6 @@ SpaprIrq spapr_irq_xics_legacy = {
     .xive        = false,
 
     .post_load   = spapr_irq_post_load_xics,
-    .reset       = spapr_irq_reset_xics,
 };
 
 static void spapr_irq_register_types(void)

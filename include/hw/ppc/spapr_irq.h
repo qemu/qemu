@@ -84,7 +84,6 @@ typedef struct SpaprIrq {
     bool        xive;
 
     int (*post_load)(SpaprMachineState *spapr, int version_id);
-    void (*reset)(SpaprMachineState *spapr, Error **errp);
 } SpaprIrq;
 
 extern SpaprIrq spapr_irq_xics;
@@ -99,6 +98,9 @@ qemu_irq spapr_qirq(SpaprMachineState *spapr, int irq);
 int spapr_irq_post_load(SpaprMachineState *spapr, int version_id);
 void spapr_irq_reset(SpaprMachineState *spapr, Error **errp);
 int spapr_irq_get_phandle(SpaprMachineState *spapr, void *fdt, Error **errp);
+int spapr_irq_init_kvm(int (*fn)(SpaprInterruptController *, Error **),
+                       SpaprInterruptController *intc,
+                       Error **errp);
 
 /*
  * XICS legacy routines

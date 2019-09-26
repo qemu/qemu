@@ -640,6 +640,42 @@ static void spapr_xive_dt(SpaprInterruptController *intc, uint32_t nr_servers,
                      plat_res_int_priorities, sizeof(plat_res_int_priorities)));
 }
 
+static int spapr_xive_activate(SpaprInterruptController *intc, Error **errp)
+{
+    SpaprXive *xive = SPAPR_XIVE(intc);
+    CPUState *cs;
+
+    CPU_FOREACH(cs) {
+        PowerPCCPU *cpu = POWERPC_CPU(cs);
+
+        /* (TCG) Set the OS CAM line of the thread interrupt context. */
+        spapr_xive_set_tctx_os_cam(spapr_cpu_state(cpu)->tctx);
+    }
+
+    if (kvm_enabled()) {
+        int rc = spapr_irq_init_kvm(kvmppc_xive_connect, intc, errp);
+        if (rc < 0) {
+            return rc;
+        }
+    }
+
+    /* Activate the XIVE MMIOs */
+    spapr_xive_mmio_set_enabled(xive, true);
+
+    return 0;
+}
+
+static void spapr_xive_deactivate(SpaprInterruptController *intc)
+{
+    SpaprXive *xive = SPAPR_XIVE(intc);
+
+    spapr_xive_mmio_set_enabled(xive, false);
+
+    if (kvm_irqchip_in_kernel()) {
+        kvmppc_xive_disconnect(intc);
+    }
+}
+
 static void spapr_xive_class_init(ObjectClass *klass, void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
@@ -658,6 +694,8 @@ static void spapr_xive_class_init(ObjectClass *klass, void *data)
     xrc->write_nvt = spapr_xive_write_nvt;
     xrc->get_tctx = spapr_xive_get_tctx;
 
+    sicc->activate = spapr_xive_activate;
+    sicc->deactivate = spapr_xive_deactivate;
     sicc->cpu_intc_create = spapr_xive_cpu_intc_create;
     sicc->claim_irq = spapr_xive_claim_irq;
     sicc->free_irq = spapr_xive_free_irq;

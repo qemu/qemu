@@ -395,6 +395,21 @@ static void xics_spapr_print_info(SpaprInterruptController *intc, Monitor *mon)
     ics_pic_print_info(ics, mon);
 }
 
+static int xics_spapr_activate(SpaprInterruptController *intc, Error **errp)
+{
+    if (kvm_enabled()) {
+        return spapr_irq_init_kvm(xics_kvm_connect, intc, errp);
+    }
+    return 0;
+}
+
+static void xics_spapr_deactivate(SpaprInterruptController *intc)
+{
+    if (kvm_irqchip_in_kernel()) {
+        xics_kvm_disconnect(intc);
+    }
+}
+
 static void ics_spapr_class_init(ObjectClass *klass, void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
@@ -403,6 +418,8 @@ static void ics_spapr_class_init(ObjectClass *klass, void *data)
 
     device_class_set_parent_realize(dc, ics_spapr_realize,
                                     &isc->parent_realize);
+    sicc->activate = xics_spapr_activate;
+    sicc->deactivate = xics_spapr_deactivate;
     sicc->cpu_intc_create = xics_spapr_cpu_intc_create;
     sicc->claim_irq = xics_spapr_claim_irq;
     sicc->free_irq = xics_spapr_free_irq;
