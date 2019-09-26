@@ -723,8 +723,7 @@ typedef uint64_t FeatureWordArray[FEATURE_WORDS];
 #define CPUID_7_0_EBX_AVX512VL          (1U << 31)
 
 /* AVX-512 Vector Byte Manipulation Instruction */
-#define CPUID_7_0_ECX_AVX512BMI         (1U << 1)
-#define CPUID_7_0_ECX_VBMI              (1U << 1)
+#define CPUID_7_0_ECX_AVX512_VBMI       (1U << 1)
 /* User-Mode Instruction Prevention */
 #define CPUID_7_0_ECX_UMIP              (1U << 2)
 /* Protection Keys for User-mode Pages */
@@ -732,7 +731,7 @@ typedef uint64_t FeatureWordArray[FEATURE_WORDS];
 /* OS Enable Protection Keys */
 #define CPUID_7_0_ECX_OSPKE             (1U << 4)
 /* Additional AVX-512 Vector Byte Manipulation Instruction */
-#define CPUID_7_0_ECX_VBMI2             (1U << 6)
+#define CPUID_7_0_ECX_AVX512_VBMI2      (1U << 6)
 /* Galois Field New Instructions */
 #define CPUID_7_0_ECX_GFNI              (1U << 8)
 /* Vector AES Instructions */
