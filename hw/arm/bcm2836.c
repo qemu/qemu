@@ -126,7 +126,7 @@ static void bcm2836_realize(DeviceState *dev, Error **errp)
 
         /* set periphbase/CBAR value for CPU-local registers */
         object_property_set_int(OBJECT(&s->cpus[n]),
-                                BCM2836_PERI_BASE + MCORE_OFFSET,
+                                BCM2836_PERI_BASE + MSYNC_OFFSET,
                                 "reset-cbar", &err);
         if (err) {
             error_propagate(errp, err);

@@ -25,8 +25,7 @@
 #ifndef HW_ARM_RASPI_PLATFORM_H
 #define HW_ARM_RASPI_PLATFORM_H
 
-#define MCORE_OFFSET            0x0000   /* Fake frame buffer device
-                                          * (the multicore sync block) */
+#define MSYNC_OFFSET            0x0000   /* Multicore Sync Block */
 #define IC0_OFFSET              0x2000
 #define ST_OFFSET               0x3000   /* System Timer */
 #define MPHI_OFFSET             0x6000   /* Message-based Parallel Host Intf. */
@@ -37,9 +36,8 @@
 #define ARMCTRL_TIMER0_1_OFFSET (ARM_OFFSET + 0x400) /* Timer 0 and 1 */
 #define ARMCTRL_0_SBM_OFFSET    (ARM_OFFSET + 0x800) /* User 0 (ARM) Semaphores
                                                       * Doorbells & Mailboxes */
-#define PM_OFFSET               0x100000 /* Power Management, Reset controller
-                                          * and Watchdog registers */
-#define PCM_CLOCK_OFFSET        0x101098
+#define CPRMAN_OFFSET           0x100000 /* Power Management, Watchdog */
+#define CM_OFFSET               0x101000 /* Clock Management */
 #define RNG_OFFSET              0x104000
 #define GPIO_OFFSET             0x200000
 #define UART0_OFFSET            0x201000
@@ -47,11 +45,11 @@
 #define I2S_OFFSET              0x203000
 #define SPI0_OFFSET             0x204000
 #define BSC0_OFFSET             0x205000 /* BSC0 I2C/TWI */
-#define UART1_OFFSET            0x215000
-#define EMMC_OFFSET             0x300000
+#define AUX_OFFSET              0x215000 /* AUX: UART1/SPI1/SPI2 */
+#define EMMC1_OFFSET            0x300000
 #define SMI_OFFSET              0x600000
 #define BSC1_OFFSET             0x804000 /* BSC1 I2C/TWI */
-#define USB_OFFSET              0x980000 /* DTC_OTG USB controller */
+#define USB_OTG_OFFSET          0x980000 /* DTC_OTG USB controller */
 #define DMA15_OFFSET            0xE05000 /* DMA controller, channel 15 */
 
 /* GPU interrupts */
@@ -112,7 +110,7 @@
 #define INTERRUPT_SPI                  54
 #define INTERRUPT_I2SPCM               55
 #define INTERRUPT_SDIO                 56
-#define INTERRUPT_UART                 57
+#define INTERRUPT_UART0                57
 #define INTERRUPT_SLIMBUS              58
 #define INTERRUPT_VEC                  59
 #define INTERRUPT_CPG                  60
