@@ -36,6 +36,17 @@
 #define LO_IDX 0
 #endif
 
+static void get_dfp64(uint64_t *dst, uint64_t *dfp)
+{
+    dst[0] = dfp[0];
+}
+
+static void get_dfp128(uint64_t *dst, uint64_t *dfp)
+{
+    dst[0] = dfp[HI_IDX];
+    dst[1] = dfp[LO_IDX];
+}
+
 struct PPC_DFP {
     CPUPPCState *env;
     uint64_t t64[2], a64[2], b64[2];
@@ -129,7 +140,7 @@ static void dfp_prepare_decimal64(struct PPC_DFP *dfp, uint64_t *a,
     dfp->env = env;
 
     if (a) {
-        dfp->a64[0] = *a;
+        get_dfp64(dfp->a64, a);
         decimal64ToNumber((decimal64 *)dfp->a64, &dfp->a);
     } else {
         dfp->a64[0] = 0;
@@ -137,7 +148,7 @@ static void dfp_prepare_decimal64(struct PPC_DFP *dfp, uint64_t *a,
     }
 
     if (b) {
-        dfp->b64[0] = *b;
+        get_dfp64(dfp->b64, b);
         decimal64ToNumber((decimal64 *)dfp->b64, &dfp->b);
     } else {
         dfp->b64[0] = 0;
@@ -153,8 +164,7 @@ static void dfp_prepare_decimal128(struct PPC_DFP *dfp, uint64_t *a,
     dfp->env = env;
 
     if (a) {
-        dfp->a64[0] = a[HI_IDX];
-        dfp->a64[1] = a[LO_IDX];
+        get_dfp128(dfp->a64, a);
         decimal128ToNumber((decimal128 *)dfp->a64, &dfp->a);
     } else {
         dfp->a64[0] = dfp->a64[1] = 0;
@@ -162,8 +172,7 @@ static void dfp_prepare_decimal128(struct PPC_DFP *dfp, uint64_t *a,
     }
 
     if (b) {
-        dfp->b64[0] = b[HI_IDX];
-        dfp->b64[1] = b[LO_IDX];
+        get_dfp128(dfp->b64, b);
         decimal128ToNumber((decimal128 *)dfp->b64, &dfp->b);
     } else {
         dfp->b64[0] = dfp->b64[1] = 0;
@@ -617,10 +626,12 @@ uint32_t helper_##op(CPUPPCState *env, uint64_t *a, uint64_t *b)         \
 {                                                                        \
     struct PPC_DFP dfp;                                                  \
     unsigned k;                                                          \
+    uint64_t a64;                                                        \
                                                                          \
     dfp_prepare_decimal##size(&dfp, 0, b, env);                          \
                                                                          \
-    k = *a & 0x3F;                                                       \
+    get_dfp64(&a64, a);                                                  \
+    k = a64 & 0x3F;                                                      \
                                                                          \
     if (unlikely(decNumberIsSpecial(&dfp.b))) {                          \
         dfp.crbf = 1;                                                    \
@@ -817,10 +828,14 @@ void helper_##op(CPUPPCState *env, uint64_t *t, uint64_t *a,            \
                  uint64_t *b, uint32_t rmc)                             \
 {                                                                       \
     struct PPC_DFP dfp;                                                 \
-    int32_t ref_sig = *a & 0x3F;                                        \
+    uint64_t a64;                                                       \
+    int32_t ref_sig;                                                    \
     int32_t xmax = ((size) == 64) ? 369 : 6111;                         \
                                                                         \
     dfp_prepare_decimal##size(&dfp, 0, b, env);                         \
+                                                                        \
+    get_dfp64(&a64, a);                                                 \
+    ref_sig = a64 & 0x3f;                                               \
                                                                         \
     _dfp_reround(rmc, ref_sig, xmax, &dfp);                             \
     decimal##size##FromNumber((decimal##size *)dfp.t64, &dfp.t,         \
@@ -881,7 +896,12 @@ DFP_HELPER_RINT(drintnq, RINTN_PPs, 128)
 void helper_dctdp(CPUPPCState *env, uint64_t *t, uint64_t *b)
 {
     struct PPC_DFP dfp;
-    uint32_t b_short = *b;
+    uint64_t b64;
+    uint32_t b_short;
+
+    get_dfp64(&b64, b);
+    b_short = (uint32_t)b64;
+
     dfp_prepare_decimal64(&dfp, 0, 0, env);
     decimal32ToNumber((decimal32 *)&b_short, &dfp.t);
     decimal64FromNumber((decimal64 *)t, &dfp.t, &dfp.context);
@@ -891,8 +911,10 @@ void helper_dctdp(CPUPPCState *env, uint64_t *t, uint64_t *b)
 void helper_dctqpq(CPUPPCState *env, uint64_t *t, uint64_t *b)
 {
     struct PPC_DFP dfp;
+    uint64_t b64;
     dfp_prepare_decimal128(&dfp, 0, 0, env);
-    decimal64ToNumber((decimal64 *)b, &dfp.t);
+    get_dfp64(&b64, b);
+    decimal64ToNumber((decimal64 *)&b64, &dfp.t);
 
     dfp_check_for_VXSNAN_and_convert_to_QNaN(&dfp);
     dfp_set_FPRF_from_FRT(&dfp);
@@ -940,8 +962,10 @@ void helper_drdpq(CPUPPCState *env, uint64_t *t, uint64_t *b)
 void helper_##op(CPUPPCState *env, uint64_t *t, uint64_t *b)                   \
 {                                                                              \
     struct PPC_DFP dfp;                                                        \
+    uint64_t b64;                                                              \
     dfp_prepare_decimal##size(&dfp, 0, b, env);                                \
-    decNumberFromInt64(&dfp.t, (int64_t)(*b));                                 \
+    get_dfp64(&b64, b);                                                        \
+    decNumberFromInt64(&dfp.t, (int64_t)b64);                                  \
     decimal##size##FromNumber((decimal##size *)dfp.t64, &dfp.t, &dfp.context); \
     CFFIX_PPs(&dfp);                                                           \
                                                                                \
@@ -1183,10 +1207,12 @@ static void dfp_set_raw_exp_128(uint64_t *t, uint64_t raw)
 void helper_##op(CPUPPCState *env, uint64_t *t, uint64_t *a, uint64_t *b) \
 {                                                                         \
     struct PPC_DFP dfp;                                                   \
-    uint64_t raw_qnan, raw_snan, raw_inf, max_exp;                        \
+    uint64_t raw_qnan, raw_snan, raw_inf, max_exp, a64;                   \
     int bias;                                                             \
-    int64_t exp = *((int64_t *)a);                                        \
+    int64_t exp;                                                          \
                                                                           \
+    get_dfp64(&a64, a);                                                   \
+    exp = (int64_t)a64;                                                   \
     dfp_prepare_decimal##size(&dfp, 0, b, env);                           \
                                                                           \
     if ((size) == 64) {                                                   \
