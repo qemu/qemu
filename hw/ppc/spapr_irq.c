@@ -65,33 +65,35 @@ void spapr_irq_msi_free(SpaprMachineState *spapr, int irq, uint32_t num)
     bitmap_clear(spapr->irq_map, irq - SPAPR_IRQ_MSI, num);
 }
 
-static void spapr_irq_init_kvm(SpaprMachineState *spapr,
-                                  SpaprIrq *irq, Error **errp)
+static int spapr_irq_init_kvm(int (*fn)(SpaprInterruptController *, Error **),
+                              SpaprInterruptController *intc,
+                              Error **errp)
 {
-    MachineState *machine = MACHINE(spapr);
+    MachineState *machine = MACHINE(qdev_get_machine());
     Error *local_err = NULL;
 
     if (kvm_enabled() && machine_kernel_irqchip_allowed(machine)) {
-        irq->init_kvm(spapr, &local_err);
-        if (local_err && machine_kernel_irqchip_required(machine)) {
+        if (fn(intc, &local_err) < 0) {
+            if (machine_kernel_irqchip_required(machine)) {
+                error_prepend(&local_err,
+                              "kernel_irqchip requested but unavailable: ");
+                error_propagate(errp, local_err);
+                return -1;
+            }
+
+            /*
+             * We failed to initialize the KVM device, fallback to
+             * emulated mode
+             */
             error_prepend(&local_err,
-                          "kernel_irqchip requested but unavailable: ");
-            error_propagate(errp, local_err);
-            return;
+                          "kernel_irqchip allowed but unavailable: ");
+            error_append_hint(&local_err,
+                              "Falling back to kernel-irqchip=off\n");
+            warn_report_err(local_err);
         }
-
-        if (!local_err) {
-            return;
-        }
-
-        /*
-         * We failed to initialize the KVM device, fallback to
-         * emulated mode
-         */
-        error_prepend(&local_err, "kernel_irqchip allowed but unavailable: ");
-        error_append_hint(&local_err, "Falling back to kernel-irqchip=off\n");
-        warn_report_err(local_err);
     }
+
+    return 0;
 }
 
 /*
@@ -112,20 +114,7 @@ static int spapr_irq_post_load_xics(SpaprMachineState *spapr, int version_id)
 
 static void spapr_irq_reset_xics(SpaprMachineState *spapr, Error **errp)
 {
-    Error *local_err = NULL;
-
-    spapr_irq_init_kvm(spapr, &spapr_irq_xics, &local_err);
-    if (local_err) {
-        error_propagate(errp, local_err);
-        return;
-    }
-}
-
-static void spapr_irq_init_kvm_xics(SpaprMachineState *spapr, Error **errp)
-{
-    if (kvm_enabled()) {
-        xics_kvm_connect(SPAPR_INTC(spapr->ics), errp);
-    }
+    spapr_irq_init_kvm(xics_kvm_connect, SPAPR_INTC(spapr->ics), errp);
 }
 
 SpaprIrq spapr_irq_xics = {
@@ -136,7 +125,6 @@ SpaprIrq spapr_irq_xics = {
 
     .post_load   = spapr_irq_post_load_xics,
     .reset       = spapr_irq_reset_xics,
-    .init_kvm    = spapr_irq_init_kvm_xics,
 };
 
 /*
@@ -151,7 +139,6 @@ static int spapr_irq_post_load_xive(SpaprMachineState *spapr, int version_id)
 static void spapr_irq_reset_xive(SpaprMachineState *spapr, Error **errp)
 {
     CPUState *cs;
-    Error *local_err = NULL;
 
     CPU_FOREACH(cs) {
         PowerPCCPU *cpu = POWERPC_CPU(cs);
@@ -160,21 +147,13 @@ static void spapr_irq_reset_xive(SpaprMachineState *spapr, Error **errp)
         spapr_xive_set_tctx_os_cam(spapr_cpu_state(cpu)->tctx);
     }
 
-    spapr_irq_init_kvm(spapr, &spapr_irq_xive, &local_err);
-    if (local_err) {
-        error_propagate(errp, local_err);
+    if (spapr_irq_init_kvm(kvmppc_xive_connect,
+                           SPAPR_INTC(spapr->xive), errp) < 0) {
         return;
     }
 
     /* Activate the XIVE MMIOs */
     spapr_xive_mmio_set_enabled(spapr->xive, true);
-}
-
-static void spapr_irq_init_kvm_xive(SpaprMachineState *spapr, Error **errp)
-{
-    if (kvm_enabled()) {
-        kvmppc_xive_connect(SPAPR_INTC(spapr->xive), errp);
-    }
 }
 
 SpaprIrq spapr_irq_xive = {
@@ -185,7 +164,6 @@ SpaprIrq spapr_irq_xive = {
 
     .post_load   = spapr_irq_post_load_xive,
     .reset       = spapr_irq_reset_xive,
-    .init_kvm    = spapr_irq_init_kvm_xive,
 };
 
 /*
@@ -251,7 +229,6 @@ SpaprIrq spapr_irq_dual = {
 
     .post_load   = spapr_irq_post_load_dual,
     .reset       = spapr_irq_reset_dual,
-    .init_kvm    = NULL, /* should not be used */
 };
 
 
@@ -675,7 +652,6 @@ SpaprIrq spapr_irq_xics_legacy = {
 
     .post_load   = spapr_irq_post_load_xics,
     .reset       = spapr_irq_reset_xics,
-    .init_kvm    = spapr_irq_init_kvm_xics,
 };
 
 static void spapr_irq_register_types(void)

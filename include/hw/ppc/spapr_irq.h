@@ -85,7 +85,6 @@ typedef struct SpaprIrq {
 
     int (*post_load)(SpaprMachineState *spapr, int version_id);
     void (*reset)(SpaprMachineState *spapr, Error **errp);
-    void (*init_kvm)(SpaprMachineState *spapr, Error **errp);
 } SpaprIrq;
 
 extern SpaprIrq spapr_irq_xics;
