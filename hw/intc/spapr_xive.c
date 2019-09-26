@@ -553,6 +553,17 @@ static int spapr_xive_cpu_intc_create(SpaprInterruptController *intc,
     return 0;
 }
 
+static void spapr_xive_set_irq(SpaprInterruptController *intc, int irq, int val)
+{
+    SpaprXive *xive = SPAPR_XIVE(intc);
+
+    if (kvm_irqchip_in_kernel()) {
+        kvmppc_xive_source_set_irq(&xive->source, irq, val);
+    } else {
+        xive_source_set_irq(&xive->source, irq, val);
+    }
+}
+
 static void spapr_xive_class_init(ObjectClass *klass, void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
@@ -574,6 +585,7 @@ static void spapr_xive_class_init(ObjectClass *klass, void *data)
     sicc->cpu_intc_create = spapr_xive_cpu_intc_create;
     sicc->claim_irq = spapr_xive_claim_irq;
     sicc->free_irq = spapr_xive_free_irq;
+    sicc->set_irq = spapr_xive_set_irq;
 }
 
 static const TypeInfo spapr_xive_info = {

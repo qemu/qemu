@@ -123,14 +123,6 @@ static int spapr_irq_post_load_xics(SpaprMachineState *spapr, int version_id)
     return 0;
 }
 
-static void spapr_irq_set_irq_xics(void *opaque, int irq, int val)
-{
-    SpaprMachineState *spapr = opaque;
-    uint32_t srcno = irq - spapr->ics->offset;
-
-    ics_set_irq(spapr->ics, srcno, val);
-}
-
 static void spapr_irq_reset_xics(SpaprMachineState *spapr, Error **errp)
 {
     Error *local_err = NULL;
@@ -159,7 +151,6 @@ SpaprIrq spapr_irq_xics = {
     .dt_populate = spapr_dt_xics,
     .post_load   = spapr_irq_post_load_xics,
     .reset       = spapr_irq_reset_xics,
-    .set_irq     = spapr_irq_set_irq_xics,
     .init_kvm    = spapr_irq_init_kvm_xics,
 };
 
@@ -208,17 +199,6 @@ static void spapr_irq_reset_xive(SpaprMachineState *spapr, Error **errp)
     spapr_xive_mmio_set_enabled(spapr->xive, true);
 }
 
-static void spapr_irq_set_irq_xive(void *opaque, int irq, int val)
-{
-    SpaprMachineState *spapr = opaque;
-
-    if (kvm_irqchip_in_kernel()) {
-        kvmppc_xive_source_set_irq(&spapr->xive->source, irq, val);
-    } else {
-        xive_source_set_irq(&spapr->xive->source, irq, val);
-    }
-}
-
 static void spapr_irq_init_kvm_xive(SpaprMachineState *spapr, Error **errp)
 {
     if (kvm_enabled()) {
@@ -236,7 +216,6 @@ SpaprIrq spapr_irq_xive = {
     .dt_populate = spapr_dt_xive,
     .post_load   = spapr_irq_post_load_xive,
     .reset       = spapr_irq_reset_xive,
-    .set_irq     = spapr_irq_set_irq_xive,
     .init_kvm    = spapr_irq_init_kvm_xive,
 };
 
@@ -316,13 +295,6 @@ static void spapr_irq_reset_dual(SpaprMachineState *spapr, Error **errp)
     spapr_irq_current(spapr)->reset(spapr, errp);
 }
 
-static void spapr_irq_set_irq_dual(void *opaque, int irq, int val)
-{
-    SpaprMachineState *spapr = opaque;
-
-    spapr_irq_current(spapr)->set_irq(spapr, irq, val);
-}
-
 /*
  * Define values in sync with the XIVE and XICS backend
  */
@@ -336,7 +308,6 @@ SpaprIrq spapr_irq_dual = {
     .dt_populate = spapr_irq_dt_populate_dual,
     .post_load   = spapr_irq_post_load_dual,
     .reset       = spapr_irq_reset_dual,
-    .set_irq     = spapr_irq_set_irq_dual,
     .init_kvm    = NULL, /* should not be used */
 };
 
@@ -422,6 +393,15 @@ int spapr_irq_cpu_intc_create(SpaprMachineState *spapr,
     }
 
     return 0;
+}
+
+static void spapr_set_irq(void *opaque, int irq, int level)
+{
+    SpaprMachineState *spapr = SPAPR_MACHINE(opaque);
+    SpaprInterruptControllerClass *sicc
+        = SPAPR_INTC_GET_CLASS(spapr->active_intc);
+
+    sicc->set_irq(spapr->active_intc, irq, level);
 }
 
 void spapr_irq_init(SpaprMachineState *spapr, Error **errp)
@@ -513,7 +493,7 @@ void spapr_irq_init(SpaprMachineState *spapr, Error **errp)
         spapr_xive_hcall_init(spapr);
     }
 
-    spapr->qirqs = qemu_allocate_irqs(spapr->irq->set_irq, spapr,
+    spapr->qirqs = qemu_allocate_irqs(spapr_set_irq, spapr,
                                       spapr->irq->nr_xirqs + SPAPR_XIRQ_BASE);
 }
 
@@ -737,7 +717,6 @@ SpaprIrq spapr_irq_xics_legacy = {
     .dt_populate = spapr_dt_xics,
     .post_load   = spapr_irq_post_load_xics,
     .reset       = spapr_irq_reset_xics,
-    .set_irq     = spapr_irq_set_irq_xics,
     .init_kvm    = spapr_irq_init_kvm_xics,
 };
 

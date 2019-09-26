@@ -373,6 +373,14 @@ static void xics_spapr_free_irq(SpaprInterruptController *intc, int irq)
     memset(&ics->irqs[srcno], 0, sizeof(ICSIRQState));
 }
 
+static void xics_spapr_set_irq(SpaprInterruptController *intc, int irq, int val)
+{
+    ICSState *ics = ICS_SPAPR(intc);
+    uint32_t srcno = irq - ics->offset;
+
+    ics_set_irq(ics, srcno, val);
+}
+
 static void ics_spapr_class_init(ObjectClass *klass, void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
@@ -384,6 +392,7 @@ static void ics_spapr_class_init(ObjectClass *klass, void *data)
     sicc->cpu_intc_create = xics_spapr_cpu_intc_create;
     sicc->claim_irq = xics_spapr_claim_irq;
     sicc->free_irq = xics_spapr_free_irq;
+    sicc->set_irq = xics_spapr_set_irq;
 }
 
 static const TypeInfo ics_spapr_info = {
