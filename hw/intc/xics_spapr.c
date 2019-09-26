@@ -330,13 +330,31 @@ void spapr_dt_xics(SpaprMachineState *spapr, uint32_t nr_servers, void *fdt,
     _FDT(fdt_setprop_cell(fdt, node, "phandle", phandle));
 }
 
+static int xics_spapr_cpu_intc_create(SpaprInterruptController *intc,
+                                       PowerPCCPU *cpu, Error **errp)
+{
+    ICSState *ics = ICS_SPAPR(intc);
+    Object *obj;
+    SpaprCpuState *spapr_cpu = spapr_cpu_state(cpu);
+
+    obj = icp_create(OBJECT(cpu), TYPE_ICP, ics->xics, errp);
+    if (!obj) {
+        return -1;
+    }
+
+    spapr_cpu->icp = ICP(obj);
+    return 0;
+}
+
 static void ics_spapr_class_init(ObjectClass *klass, void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
     ICSStateClass *isc = ICS_CLASS(klass);
+    SpaprInterruptControllerClass *sicc = SPAPR_INTC_CLASS(klass);
 
     device_class_set_parent_realize(dc, ics_spapr_realize,
                                     &isc->parent_realize);
+    sicc->cpu_intc_create = xics_spapr_cpu_intc_create;
 }
 
 static const TypeInfo ics_spapr_info = {

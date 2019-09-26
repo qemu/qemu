@@ -138,23 +138,6 @@ static void spapr_irq_print_info_xics(SpaprMachineState *spapr, Monitor *mon)
     ics_pic_print_info(spapr->ics, mon);
 }
 
-static void spapr_irq_cpu_intc_create_xics(SpaprMachineState *spapr,
-                                           PowerPCCPU *cpu, Error **errp)
-{
-    Error *local_err = NULL;
-    Object *obj;
-    SpaprCpuState *spapr_cpu = spapr_cpu_state(cpu);
-
-    obj = icp_create(OBJECT(cpu), TYPE_ICP, XICS_FABRIC(spapr),
-                     &local_err);
-    if (local_err) {
-        error_propagate(errp, local_err);
-        return;
-    }
-
-    spapr_cpu->icp = ICP(obj);
-}
-
 static int spapr_irq_post_load_xics(SpaprMachineState *spapr, int version_id)
 {
     if (!kvm_irqchip_in_kernel()) {
@@ -203,7 +186,6 @@ SpaprIrq spapr_irq_xics = {
     .free        = spapr_irq_free_xics,
     .print_info  = spapr_irq_print_info_xics,
     .dt_populate = spapr_dt_xics,
-    .cpu_intc_create = spapr_irq_cpu_intc_create_xics,
     .post_load   = spapr_irq_post_load_xics,
     .reset       = spapr_irq_reset_xics,
     .set_irq     = spapr_irq_set_irq_xics,
@@ -237,28 +219,6 @@ static void spapr_irq_print_info_xive(SpaprMachineState *spapr,
     }
 
     spapr_xive_pic_print_info(spapr->xive, mon);
-}
-
-static void spapr_irq_cpu_intc_create_xive(SpaprMachineState *spapr,
-                                           PowerPCCPU *cpu, Error **errp)
-{
-    Error *local_err = NULL;
-    Object *obj;
-    SpaprCpuState *spapr_cpu = spapr_cpu_state(cpu);
-
-    obj = xive_tctx_create(OBJECT(cpu), XIVE_ROUTER(spapr->xive), &local_err);
-    if (local_err) {
-        error_propagate(errp, local_err);
-        return;
-    }
-
-    spapr_cpu->tctx = XIVE_TCTX(obj);
-
-    /*
-     * (TCG) Early setting the OS CAM line for hotplugged CPUs as they
-     * don't beneficiate from the reset of the XIVE IRQ backend
-     */
-    spapr_xive_set_tctx_os_cam(spapr_cpu->tctx);
 }
 
 static int spapr_irq_post_load_xive(SpaprMachineState *spapr, int version_id)
@@ -316,7 +276,6 @@ SpaprIrq spapr_irq_xive = {
     .free        = spapr_irq_free_xive,
     .print_info  = spapr_irq_print_info_xive,
     .dt_populate = spapr_dt_xive,
-    .cpu_intc_create = spapr_irq_cpu_intc_create_xive,
     .post_load   = spapr_irq_post_load_xive,
     .reset       = spapr_irq_reset_xive,
     .set_irq     = spapr_irq_set_irq_xive,
@@ -379,20 +338,6 @@ static void spapr_irq_dt_populate_dual(SpaprMachineState *spapr,
                                        uint32_t phandle)
 {
     spapr_irq_current(spapr)->dt_populate(spapr, nr_servers, fdt, phandle);
-}
-
-static void spapr_irq_cpu_intc_create_dual(SpaprMachineState *spapr,
-                                           PowerPCCPU *cpu, Error **errp)
-{
-    Error *local_err = NULL;
-
-    spapr_irq_xive.cpu_intc_create(spapr, cpu, &local_err);
-    if (local_err) {
-        error_propagate(errp, local_err);
-        return;
-    }
-
-    spapr_irq_xics.cpu_intc_create(spapr, cpu, errp);
 }
 
 static int spapr_irq_post_load_dual(SpaprMachineState *spapr, int version_id)
@@ -460,7 +405,6 @@ SpaprIrq spapr_irq_dual = {
     .free        = spapr_irq_free_dual,
     .print_info  = spapr_irq_print_info_dual,
     .dt_populate = spapr_irq_dt_populate_dual,
-    .cpu_intc_create = spapr_irq_cpu_intc_create_dual,
     .post_load   = spapr_irq_post_load_dual,
     .reset       = spapr_irq_reset_dual,
     .set_irq     = spapr_irq_set_irq_dual,
@@ -527,6 +471,30 @@ static int spapr_irq_check(SpaprMachineState *spapr, Error **errp)
 /*
  * sPAPR IRQ frontend routines for devices
  */
+#define ALL_INTCS(spapr_) \
+    { SPAPR_INTC((spapr_)->ics), SPAPR_INTC((spapr_)->xive), }
+
+int spapr_irq_cpu_intc_create(SpaprMachineState *spapr,
+                              PowerPCCPU *cpu, Error **errp)
+{
+    SpaprInterruptController *intcs[] = ALL_INTCS(spapr);
+    int i;
+    int rc;
+
+    for (i = 0; i < ARRAY_SIZE(intcs); i++) {
+        SpaprInterruptController *intc = intcs[i];
+        if (intc) {
+            SpaprInterruptControllerClass *sicc = SPAPR_INTC_GET_CLASS(intc);
+            rc = sicc->cpu_intc_create(intc, cpu, errp);
+            if (rc < 0) {
+                return rc;
+            }
+        }
+    }
+
+    return 0;
+}
+
 void spapr_irq_init(SpaprMachineState *spapr, Error **errp)
 {
     MachineState *machine = MACHINE(spapr);
@@ -762,7 +730,6 @@ SpaprIrq spapr_irq_xics_legacy = {
     .free        = spapr_irq_free_xics,
     .print_info  = spapr_irq_print_info_xics,
     .dt_populate = spapr_dt_xics,
-    .cpu_intc_create = spapr_irq_cpu_intc_create_xics,
     .post_load   = spapr_irq_post_load_xics,
     .reset       = spapr_irq_reset_xics,
     .set_irq     = spapr_irq_set_irq_xics,

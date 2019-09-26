@@ -495,10 +495,33 @@ static Property spapr_xive_properties[] = {
     DEFINE_PROP_END_OF_LIST(),
 };
 
+static int spapr_xive_cpu_intc_create(SpaprInterruptController *intc,
+                                      PowerPCCPU *cpu, Error **errp)
+{
+    SpaprXive *xive = SPAPR_XIVE(intc);
+    Object *obj;
+    SpaprCpuState *spapr_cpu = spapr_cpu_state(cpu);
+
+    obj = xive_tctx_create(OBJECT(cpu), XIVE_ROUTER(xive), errp);
+    if (!obj) {
+        return -1;
+    }
+
+    spapr_cpu->tctx = XIVE_TCTX(obj);
+
+    /*
+     * (TCG) Early setting the OS CAM line for hotplugged CPUs as they
+     * don't beneficiate from the reset of the XIVE IRQ backend
+     */
+    spapr_xive_set_tctx_os_cam(spapr_cpu->tctx);
+    return 0;
+}
+
 static void spapr_xive_class_init(ObjectClass *klass, void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
     XiveRouterClass *xrc = XIVE_ROUTER_CLASS(klass);
+    SpaprInterruptControllerClass *sicc = SPAPR_INTC_CLASS(klass);
 
     dc->desc    = "sPAPR XIVE Interrupt Controller";
     dc->props   = spapr_xive_properties;
@@ -511,6 +534,8 @@ static void spapr_xive_class_init(ObjectClass *klass, void *data)
     xrc->get_nvt = spapr_xive_get_nvt;
     xrc->write_nvt = spapr_xive_write_nvt;
     xrc->get_tctx = spapr_xive_get_tctx;
+
+    sicc->cpu_intc_create = spapr_xive_cpu_intc_create;
 }
 
 static const TypeInfo spapr_xive_info = {

@@ -43,7 +43,18 @@ typedef struct SpaprInterruptController SpaprInterruptController;
 
 typedef struct SpaprInterruptControllerClass {
     InterfaceClass parent;
+
+    /*
+     * These methods will typically be called on all intcs, active and
+     * inactive
+     */
+    int (*cpu_intc_create)(SpaprInterruptController *intc,
+                            PowerPCCPU *cpu, Error **errp);
 } SpaprInterruptControllerClass;
+
+int spapr_irq_cpu_intc_create(SpaprMachineState *spapr,
+                              PowerPCCPU *cpu, Error **errp);
+
 
 void spapr_irq_msi_init(SpaprMachineState *spapr, uint32_t nr_msis);
 int spapr_irq_msi_alloc(SpaprMachineState *spapr, uint32_t num, bool align,
@@ -61,8 +72,6 @@ typedef struct SpaprIrq {
     void (*print_info)(SpaprMachineState *spapr, Monitor *mon);
     void (*dt_populate)(SpaprMachineState *spapr, uint32_t nr_servers,
                         void *fdt, uint32_t phandle);
-    void (*cpu_intc_create)(SpaprMachineState *spapr, PowerPCCPU *cpu,
-                            Error **errp);
     int (*post_load)(SpaprMachineState *spapr, int version_id);
     void (*reset)(SpaprMachineState *spapr, Error **errp);
     void (*set_irq)(void *opaque, int srcno, int val);
