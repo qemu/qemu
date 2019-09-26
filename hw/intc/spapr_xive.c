@@ -564,6 +564,20 @@ static void spapr_xive_set_irq(SpaprInterruptController *intc, int irq, int val)
     }
 }
 
+static void spapr_xive_print_info(SpaprInterruptController *intc, Monitor *mon)
+{
+    SpaprXive *xive = SPAPR_XIVE(intc);
+    CPUState *cs;
+
+    CPU_FOREACH(cs) {
+        PowerPCCPU *cpu = POWERPC_CPU(cs);
+
+        xive_tctx_pic_print_info(spapr_cpu_state(cpu)->tctx, mon);
+    }
+
+    spapr_xive_pic_print_info(xive, mon);
+}
+
 static void spapr_xive_class_init(ObjectClass *klass, void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
@@ -586,6 +600,7 @@ static void spapr_xive_class_init(ObjectClass *klass, void *data)
     sicc->claim_irq = spapr_xive_claim_irq;
     sicc->free_irq = spapr_xive_free_irq;
     sicc->set_irq = spapr_xive_set_irq;
+    sicc->print_info = spapr_xive_print_info;
 }
 
 static const TypeInfo spapr_xive_info = {

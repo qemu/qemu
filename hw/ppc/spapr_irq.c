@@ -98,19 +98,6 @@ static void spapr_irq_init_kvm(SpaprMachineState *spapr,
  * XICS IRQ backend.
  */
 
-static void spapr_irq_print_info_xics(SpaprMachineState *spapr, Monitor *mon)
-{
-    CPUState *cs;
-
-    CPU_FOREACH(cs) {
-        PowerPCCPU *cpu = POWERPC_CPU(cs);
-
-        icp_pic_print_info(spapr_cpu_state(cpu)->icp, mon);
-    }
-
-    ics_pic_print_info(spapr->ics, mon);
-}
-
 static int spapr_irq_post_load_xics(SpaprMachineState *spapr, int version_id)
 {
     if (!kvm_irqchip_in_kernel()) {
@@ -147,7 +134,6 @@ SpaprIrq spapr_irq_xics = {
     .xics        = true,
     .xive        = false,
 
-    .print_info  = spapr_irq_print_info_xics,
     .dt_populate = spapr_dt_xics,
     .post_load   = spapr_irq_post_load_xics,
     .reset       = spapr_irq_reset_xics,
@@ -157,20 +143,6 @@ SpaprIrq spapr_irq_xics = {
 /*
  * XIVE IRQ backend.
  */
-
-static void spapr_irq_print_info_xive(SpaprMachineState *spapr,
-                                      Monitor *mon)
-{
-    CPUState *cs;
-
-    CPU_FOREACH(cs) {
-        PowerPCCPU *cpu = POWERPC_CPU(cs);
-
-        xive_tctx_pic_print_info(spapr_cpu_state(cpu)->tctx, mon);
-    }
-
-    spapr_xive_pic_print_info(spapr->xive, mon);
-}
 
 static int spapr_irq_post_load_xive(SpaprMachineState *spapr, int version_id)
 {
@@ -212,7 +184,6 @@ SpaprIrq spapr_irq_xive = {
     .xics        = false,
     .xive        = true,
 
-    .print_info  = spapr_irq_print_info_xive,
     .dt_populate = spapr_dt_xive,
     .post_load   = spapr_irq_post_load_xive,
     .reset       = spapr_irq_reset_xive,
@@ -236,11 +207,6 @@ static SpaprIrq *spapr_irq_current(SpaprMachineState *spapr)
 {
     return spapr_ovec_test(spapr->ov5_cas, OV5_XIVE_EXPLOIT) ?
         &spapr_irq_xive : &spapr_irq_xics;
-}
-
-static void spapr_irq_print_info_dual(SpaprMachineState *spapr, Monitor *mon)
-{
-    spapr_irq_current(spapr)->print_info(spapr, mon);
 }
 
 static void spapr_irq_dt_populate_dual(SpaprMachineState *spapr,
@@ -304,7 +270,6 @@ SpaprIrq spapr_irq_dual = {
     .xics        = true,
     .xive        = true,
 
-    .print_info  = spapr_irq_print_info_dual,
     .dt_populate = spapr_irq_dt_populate_dual,
     .post_load   = spapr_irq_post_load_dual,
     .reset       = spapr_irq_reset_dual,
@@ -402,6 +367,14 @@ static void spapr_set_irq(void *opaque, int irq, int level)
         = SPAPR_INTC_GET_CLASS(spapr->active_intc);
 
     sicc->set_irq(spapr->active_intc, irq, level);
+}
+
+void spapr_irq_print_info(SpaprMachineState *spapr, Monitor *mon)
+{
+    SpaprInterruptControllerClass *sicc
+        = SPAPR_INTC_GET_CLASS(spapr->active_intc);
+
+    sicc->print_info(spapr->active_intc, mon);
 }
 
 void spapr_irq_init(SpaprMachineState *spapr, Error **errp)
@@ -713,7 +686,6 @@ SpaprIrq spapr_irq_xics_legacy = {
     .xics        = true,
     .xive        = false,
 
-    .print_info  = spapr_irq_print_info_xics,
     .dt_populate = spapr_dt_xics,
     .post_load   = spapr_irq_post_load_xics,
     .reset       = spapr_irq_reset_xics,

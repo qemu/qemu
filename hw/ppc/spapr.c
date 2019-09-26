@@ -4266,7 +4266,7 @@ static void spapr_pic_print_info(InterruptStatsProvider *obj,
 {
     SpaprMachineState *spapr = SPAPR_MACHINE(obj);
 
-    spapr->irq->print_info(spapr, mon);
+    spapr_irq_print_info(spapr, mon);
     monitor_printf(mon, "irqchip: %s\n",
                    kvm_irqchip_in_kernel() ? "in-kernel" : "emulated");
 }

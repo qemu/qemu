@@ -381,6 +381,20 @@ static void xics_spapr_set_irq(SpaprInterruptController *intc, int irq, int val)
     ics_set_irq(ics, srcno, val);
 }
 
+static void xics_spapr_print_info(SpaprInterruptController *intc, Monitor *mon)
+{
+    ICSState *ics = ICS_SPAPR(intc);
+    CPUState *cs;
+
+    CPU_FOREACH(cs) {
+        PowerPCCPU *cpu = POWERPC_CPU(cs);
+
+        icp_pic_print_info(spapr_cpu_state(cpu)->icp, mon);
+    }
+
+    ics_pic_print_info(ics, mon);
+}
+
 static void ics_spapr_class_init(ObjectClass *klass, void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
@@ -393,6 +407,7 @@ static void ics_spapr_class_init(ObjectClass *klass, void *data)
     sicc->claim_irq = xics_spapr_claim_irq;
     sicc->free_irq = xics_spapr_free_irq;
     sicc->set_irq = xics_spapr_set_irq;
+    sicc->print_info = xics_spapr_print_info;
 }
 
 static const TypeInfo ics_spapr_info = {
