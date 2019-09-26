@@ -235,6 +235,7 @@ typedef union _ppc_vsr_t {
 } ppc_vsr_t;
 
 typedef ppc_vsr_t ppc_avr_t;
+typedef ppc_vsr_t ppc_fprp_t;
 
 #if !defined(CONFIG_USER_ONLY)
 /* Software TLB cache */

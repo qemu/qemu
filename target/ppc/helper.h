@@ -686,7 +686,7 @@ DEF_HELPER_3(store_601_batu, void, env, i32, tl)
 #endif
 
 #define dh_alias_fprp ptr
-#define dh_ctype_fprp uint64_t *
+#define dh_ctype_fprp ppc_fprp_t *
 #define dh_is_signed_fprp dh_is_signed_ptr
 
 DEF_HELPER_4(dadd, void, env, fprp, fprp, fprp)
