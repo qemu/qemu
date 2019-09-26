@@ -191,6 +191,16 @@ static void dfp_prepare_decimal128(struct PPC_DFP *dfp, ppc_fprp_t *a,
     }
 }
 
+static void dfp_finalize_decimal64(struct PPC_DFP *dfp)
+{
+    decimal64FromNumber((decimal64 *)&dfp->t64, &dfp->t, &dfp->context);
+}
+
+static void dfp_finalize_decimal128(struct PPC_DFP *dfp)
+{
+    decimal128FromNumber((decimal128 *)&dfp->t64, &dfp->t, &dfp->context);
+}
+
 static void dfp_set_FPSCR_flag(struct PPC_DFP *dfp, uint64_t flag,
                 uint64_t enabled)
 {
@@ -422,7 +432,7 @@ void helper_##op(CPUPPCState *env, ppc_fprp_t *t, ppc_fprp_t *a,               \
     struct PPC_DFP dfp;                                                        \
     dfp_prepare_decimal##size(&dfp, a, b, env);                                \
     dnop(&dfp.t, &dfp.a, &dfp.b, &dfp.context);                                \
-    decimal##size##FromNumber((decimal##size *)dfp.t64, &dfp.t, &dfp.context); \
+    dfp_finalize_decimal##size(&dfp);                                          \
     postprocs(&dfp);                                                           \
     if (size == 64) {                                                          \
         set_dfp64(t, dfp.t64);                                                 \
@@ -491,7 +501,7 @@ uint32_t helper_##op(CPUPPCState *env, ppc_fprp_t *a, ppc_fprp_t *b)           \
     struct PPC_DFP dfp;                                                        \
     dfp_prepare_decimal##size(&dfp, a, b, env);                                \
     dnop(&dfp.t, &dfp.a, &dfp.b, &dfp.context);                                \
-    decimal##size##FromNumber((decimal##size *)dfp.t64, &dfp.t, &dfp.context); \
+    dfp_finalize_decimal##size(&dfp);                                          \
     postprocs(&dfp);                                                           \
     return dfp.crbf;                                                           \
 }
@@ -741,8 +751,7 @@ void helper_##op(CPUPPCState *env, ppc_fprp_t *t, ppc_fprp_t *b,        \
     dfp.a.exponent = (int32_t)((int8_t)(te << 3) >> 3);                 \
                                                                         \
     dfp_quantize(rmc, &dfp);                                            \
-    decimal##size##FromNumber((decimal##size *)dfp.t64, &dfp.t,         \
-                              &dfp.context);                            \
+    dfp_finalize_decimal##size(&dfp);                                   \
     QUA_PPs(&dfp);                                                      \
                                                                         \
     if (size == 64) {                                                   \
@@ -764,8 +773,7 @@ void helper_##op(CPUPPCState *env, ppc_fprp_t *t, ppc_fprp_t *a,        \
     dfp_prepare_decimal##size(&dfp, a, b, env);                         \
                                                                         \
     dfp_quantize(rmc, &dfp);                                            \
-    decimal##size##FromNumber((decimal##size *)dfp.t64, &dfp.t,         \
-                              &dfp.context);                            \
+    dfp_finalize_decimal##size(&dfp);                                   \
     QUA_PPs(&dfp);                                                      \
                                                                         \
     if (size == 64) {                                                   \
@@ -847,8 +855,7 @@ void helper_##op(CPUPPCState *env, ppc_fprp_t *t, ppc_fprp_t *a,        \
     ref_sig = a64 & 0x3f;                                               \
                                                                         \
     _dfp_reround(rmc, ref_sig, xmax, &dfp);                             \
-    decimal##size##FromNumber((decimal##size *)dfp.t64, &dfp.t,         \
-                              &dfp.context);                            \
+    dfp_finalize_decimal##size(&dfp);                                   \
     QUA_PPs(&dfp);                                                      \
                                                                         \
     if (size == 64) {                                                   \
@@ -871,7 +878,7 @@ void helper_##op(CPUPPCState *env, ppc_fprp_t *t, ppc_fprp_t *b,               \
                                                                                \
     dfp_set_round_mode_from_immediate(r, rmc, &dfp);                           \
     decNumberToIntegralExact(&dfp.t, &dfp.b, &dfp.context);                    \
-    decimal##size##FromNumber((decimal##size *)dfp.t64, &dfp.t, &dfp.context); \
+    dfp_finalize_decimal##size(&dfp);                                          \
     postprocs(&dfp);                                                           \
                                                                                \
     if (size == 64) {                                                          \
@@ -911,7 +918,7 @@ void helper_dctdp(CPUPPCState *env, ppc_fprp_t *t, ppc_fprp_t *b)
 
     dfp_prepare_decimal64(&dfp, 0, 0, env);
     decimal32ToNumber((decimal32 *)&b_short, &dfp.t);
-    decimal64FromNumber((decimal64 *)&dfp.t64, &dfp.t, &dfp.context);
+    dfp_finalize_decimal64(&dfp);
     set_dfp64(t, dfp.t64);
     dfp_set_FPRF_from_FRT(&dfp);
 }
@@ -927,7 +934,7 @@ void helper_dctqpq(CPUPPCState *env, ppc_fprp_t *t, ppc_fprp_t *b)
     dfp_check_for_VXSNAN_and_convert_to_QNaN(&dfp);
     dfp_set_FPRF_from_FRT(&dfp);
 
-    decimal128FromNumber((decimal128 *)&dfp.t64, &dfp.t, &dfp.context);
+    dfp_finalize_decimal128(&dfp);
     set_dfp128(t, dfp.t64);
 }
 
@@ -963,7 +970,7 @@ void helper_drdpq(CPUPPCState *env, ppc_fprp_t *t, ppc_fprp_t *b)
     dfp_check_for_XX(&dfp);
 
     dfp.t64[0] = dfp.t64[1] = 0;
-    decimal64FromNumber((decimal64 *)dfp.t64, &dfp.t, &dfp.context);
+    dfp_finalize_decimal64(&dfp);
     set_dfp128(t, dfp.t64);
 }
 
@@ -975,7 +982,7 @@ void helper_##op(CPUPPCState *env, ppc_fprp_t *t, ppc_fprp_t *b)               \
     dfp_prepare_decimal##size(&dfp, 0, b, env);                                \
     get_dfp64(&b64, b);                                                        \
     decNumberFromInt64(&dfp.t, (int64_t)b64);                                  \
-    decimal##size##FromNumber((decimal##size *)dfp.t64, &dfp.t, &dfp.context); \
+    dfp_finalize_decimal##size(&dfp);                                          \
     CFFIX_PPs(&dfp);                                                           \
                                                                                \
     if (size == 64) {                                                          \
@@ -1155,8 +1162,7 @@ void helper_##op(CPUPPCState *env, ppc_fprp_t *t, ppc_fprp_t *b,             \
     if (s && sgn)  {                                                         \
         dfp.t.bits |= DECNEG;                                                \
     }                                                                        \
-    decimal##size##FromNumber((decimal##size *)dfp.t64, &dfp.t,              \
-                              &dfp.context);                                 \
+    dfp_finalize_decimal##size(&dfp);                                        \
     dfp_set_FPRF_from_FRT(&dfp);                                             \
     if ((size) == 64) {                                                      \
         set_dfp64(t, dfp.t64);                                               \
@@ -1259,8 +1265,7 @@ void helper_##op(CPUPPCState *env, ppc_fprp_t *t, ppc_fprp_t *a,          \
             dfp.t.bits &= ~DECSPECIAL;                                    \
         }                                                                 \
         dfp.t.exponent = exp - bias;                                      \
-        decimal##size##FromNumber((decimal##size *)dfp.t64, &dfp.t,       \
-                                  &dfp.context);                          \
+        dfp_finalize_decimal##size(&dfp);                                 \
     }                                                                     \
     if (size == 64) {                                                     \
         set_dfp64(t, dfp.t64);                                            \
@@ -1340,8 +1345,7 @@ void helper_##op(CPUPPCState *env, ppc_fprp_t *t, ppc_fprp_t *a,    \
             dfp.t.digits = max_digits - 1;                          \
         }                                                           \
                                                                     \
-        decimal##size##FromNumber((decimal##size *)dfp.t64, &dfp.t, \
-                                  &dfp.context);                    \
+        dfp_finalize_decimal##size(&dfp);                           \
     } else {                                                        \
         if ((size) == 64) {                                         \
             dfp.t64[0] = dfp.a64[0] & 0xFFFC000000000000ULL;        \
