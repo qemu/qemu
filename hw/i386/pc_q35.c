@@ -179,7 +179,7 @@ static void pc_q35_init(MachineState *machine)
         xen_hvm_init(pcms, &ram_memory);
     }
 
-    pc_cpus_init(pcms);
+    x86_cpus_init(pcms);
 
     kvmclock_create();
 

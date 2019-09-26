@@ -1019,8 +1019,8 @@ static bool load_elfboot(const char *kernel_filename,
     return true;
 }
 
-static void load_linux(PCMachineState *pcms,
-                       FWCfgState *fw_cfg)
+static void x86_load_linux(PCMachineState *pcms,
+                           FWCfgState *fw_cfg)
 {
     uint16_t protocol;
     int setup_size, kernel_size, cmdline_size;
@@ -1374,7 +1374,7 @@ void pc_acpi_smi_interrupt(void *opaque, int irq, int level)
     }
 }
 
-static void pc_new_cpu(PCMachineState *pcms, int64_t apic_id, Error **errp)
+static void x86_cpu_new(PCMachineState *pcms, int64_t apic_id, Error **errp)
 {
     Object *cpu = NULL;
     Error *local_err = NULL;
@@ -1490,14 +1490,14 @@ void pc_hot_add_cpu(MachineState *ms, const int64_t id, Error **errp)
         return;
     }
 
-    pc_new_cpu(PC_MACHINE(ms), apic_id, &local_err);
+    x86_cpu_new(PC_MACHINE(ms), apic_id, &local_err);
     if (local_err) {
         error_propagate(errp, local_err);
         return;
     }
 }
 
-void pc_cpus_init(PCMachineState *pcms)
+void x86_cpus_init(PCMachineState *pcms)
 {
     int i;
     const CPUArchIdList *possible_cpus;
@@ -1518,7 +1518,7 @@ void pc_cpus_init(PCMachineState *pcms)
                                                      ms->smp.max_cpus - 1) + 1;
     possible_cpus = mc->possible_cpu_arch_ids(ms);
     for (i = 0; i < ms->smp.cpus; i++) {
-        pc_new_cpu(pcms, possible_cpus->cpus[i].arch_id, &error_fatal);
+        x86_cpu_new(pcms, possible_cpus->cpus[i].arch_id, &error_fatal);
     }
 }
 
@@ -1621,7 +1621,7 @@ void xen_load_linux(PCMachineState *pcms)
     fw_cfg_add_i16(fw_cfg, FW_CFG_NB_CPUS, pcms->boot_cpus);
     rom_set_fw(fw_cfg);
 
-    load_linux(pcms, fw_cfg);
+    x86_load_linux(pcms, fw_cfg);
     for (i = 0; i < nb_option_roms; i++) {
         assert(!strcmp(option_rom[i].name, "linuxboot.bin") ||
                !strcmp(option_rom[i].name, "linuxboot_dma.bin") ||
@@ -1756,7 +1756,7 @@ void pc_memory_init(PCMachineState *pcms,
     }
 
     if (linux_boot) {
-        load_linux(pcms, fw_cfg);
+        x86_load_linux(pcms, fw_cfg);
     }
 
     for (i = 0; i < nb_option_roms; i++) {
@@ -2681,7 +2681,7 @@ static void pc_machine_wakeup(MachineState *machine)
 }
 
 static CpuInstanceProperties
-pc_cpu_index_to_props(MachineState *ms, unsigned cpu_index)
+x86_cpu_index_to_props(MachineState *ms, unsigned cpu_index)
 {
     MachineClass *mc = MACHINE_GET_CLASS(ms);
     const CPUArchIdList *possible_cpus = mc->possible_cpu_arch_ids(ms);
@@ -2690,7 +2690,7 @@ pc_cpu_index_to_props(MachineState *ms, unsigned cpu_index)
     return possible_cpus->cpus[cpu_index].props;
 }
 
-static int64_t pc_get_default_cpu_node_id(const MachineState *ms, int idx)
+static int64_t x86_get_default_cpu_node_id(const MachineState *ms, int idx)
 {
    X86CPUTopoInfo topo;
    PCMachineState *pcms = PC_MACHINE(ms);
@@ -2702,7 +2702,7 @@ static int64_t pc_get_default_cpu_node_id(const MachineState *ms, int idx)
    return topo.pkg_id % ms->numa_state->num_nodes;
 }
 
-static const CPUArchIdList *pc_possible_cpu_arch_ids(MachineState *ms)
+static const CPUArchIdList *x86_possible_cpu_arch_ids(MachineState *ms)
 {
     PCMachineState *pcms = PC_MACHINE(ms);
     int i;
@@ -2804,9 +2804,9 @@ static void pc_machine_class_init(ObjectClass *oc, void *data)
     assert(!mc->get_hotplug_handler);
     mc->get_hotplug_handler = pc_get_hotplug_handler;
     mc->hotplug_allowed = pc_hotplug_allowed;
-    mc->cpu_index_to_instance_props = pc_cpu_index_to_props;
-    mc->get_default_cpu_node_id = pc_get_default_cpu_node_id;
-    mc->possible_cpu_arch_ids = pc_possible_cpu_arch_ids;
+    mc->cpu_index_to_instance_props = x86_cpu_index_to_props;
+    mc->get_default_cpu_node_id = x86_get_default_cpu_node_id;
+    mc->possible_cpu_arch_ids = x86_possible_cpu_arch_ids;
     mc->auto_enable_numa_with_memhp = true;
     mc->has_hotpluggable_cpus = true;
     mc->default_boot_order = "cad";
