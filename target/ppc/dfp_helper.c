@@ -427,11 +427,7 @@ void helper_##op(CPUPPCState *env, ppc_fprp_t *t, ppc_fprp_t *a,               \
     dnop(&dfp.t, &dfp.a, &dfp.b, &dfp.context);                                \
     dfp_finalize_decimal##size(&dfp);                                          \
     postprocs(&dfp);                                                           \
-    if (size == 64) {                                                          \
-        set_dfp64(t, &dfp.vt);                                                 \
-    } else if (size == 128) {                                                  \
-        set_dfp128(t, &dfp.vt);                                                \
-    }                                                                          \
+    set_dfp##size(t, &dfp.vt);                                                 \
 }
 
 static void ADD_PPs(struct PPC_DFP *dfp)
@@ -747,11 +743,7 @@ void helper_##op(CPUPPCState *env, ppc_fprp_t *t, ppc_fprp_t *b,        \
     dfp_finalize_decimal##size(&dfp);                                   \
     QUA_PPs(&dfp);                                                      \
                                                                         \
-    if (size == 64) {                                                   \
-        set_dfp64(t, &dfp.vt);                                          \
-    } else if (size == 128) {                                           \
-        set_dfp128(t, &dfp.vt);                                         \
-    }                                                                   \
+    set_dfp##size(t, &dfp.vt);                                          \
 }
 
 DFP_HELPER_QUAI(dquai, 64)
@@ -769,11 +761,7 @@ void helper_##op(CPUPPCState *env, ppc_fprp_t *t, ppc_fprp_t *a,        \
     dfp_finalize_decimal##size(&dfp);                                   \
     QUA_PPs(&dfp);                                                      \
                                                                         \
-    if (size == 64) {                                                   \
-        set_dfp64(t, &dfp.vt);                                          \
-    } else if (size == 128) {                                           \
-        set_dfp128(t, &dfp.vt);                                         \
-    }                                                                   \
+    set_dfp##size(t, &dfp.vt);                                          \
 }
 
 DFP_HELPER_QUA(dqua, 64)
@@ -851,11 +839,7 @@ void helper_##op(CPUPPCState *env, ppc_fprp_t *t, ppc_fprp_t *a,        \
     dfp_finalize_decimal##size(&dfp);                                   \
     QUA_PPs(&dfp);                                                      \
                                                                         \
-    if (size == 64) {                                                   \
-        set_dfp64(t, &dfp.vt);                                          \
-    } else if (size == 128) {                                           \
-        set_dfp128(t, &dfp.vt);                                         \
-    }                                                                   \
+    set_dfp##size(t, &dfp.vt);                                          \
 }
 
 DFP_HELPER_RRND(drrnd, 64)
@@ -874,11 +858,7 @@ void helper_##op(CPUPPCState *env, ppc_fprp_t *t, ppc_fprp_t *b,               \
     dfp_finalize_decimal##size(&dfp);                                          \
     postprocs(&dfp);                                                           \
                                                                                \
-    if (size == 64) {                                                          \
-        set_dfp64(t, &dfp.vt);                                                 \
-    } else if (size == 128) {                                                  \
-        set_dfp128(t, &dfp.vt);                                                \
-    }                                                                          \
+    set_dfp##size(t, &dfp.vt);                                                 \
 }
 
 static void RINTX_PPs(struct PPC_DFP *dfp)
@@ -978,11 +958,7 @@ void helper_##op(CPUPPCState *env, ppc_fprp_t *t, ppc_fprp_t *b)               \
     dfp_finalize_decimal##size(&dfp);                                          \
     CFFIX_PPs(&dfp);                                                           \
                                                                                \
-    if (size == 64) {                                                          \
-        set_dfp64(t, &dfp.vt);                                                 \
-    } else if (size == 128) {                                                  \
-        set_dfp128(t, &dfp.vt);                                                \
-    }                                                                          \
+    set_dfp##size(t, &dfp.vt);                                                 \
 }
 
 static void CFFIX_PPs(struct PPC_DFP *dfp)
@@ -1088,11 +1064,7 @@ void helper_##op(CPUPPCState *env, ppc_fprp_t *t, ppc_fprp_t *b,          \
         dfp_set_sign_##size(&dfp.vt, sgn);                                \
     }                                                                     \
                                                                           \
-    if (size == 64) {                                                     \
-        set_dfp64(t, &dfp.vt);                                            \
-    } else if (size == 128) {                                             \
-        set_dfp128(t, &dfp.vt);                                           \
-    }                                                                     \
+    set_dfp##size(t, &dfp.vt);                                            \
 }
 
 DFP_HELPER_DEDPD(ddedpd, 64)
@@ -1160,11 +1132,7 @@ void helper_##op(CPUPPCState *env, ppc_fprp_t *t, ppc_fprp_t *b,             \
     }                                                                        \
     dfp_finalize_decimal##size(&dfp);                                        \
     dfp_set_FPRF_from_FRT(&dfp);                                             \
-    if ((size) == 64) {                                                      \
-        set_dfp64(t, &dfp.vt);                                               \
-    } else if ((size) == 128) {                                              \
-        set_dfp128(t, &dfp.vt);                                              \
-    }                                                                        \
+    set_dfp##size(t, &dfp.vt);                                               \
 }
 
 DFP_HELPER_ENBCD(denbcd, 64)
@@ -1264,11 +1232,7 @@ void helper_##op(CPUPPCState *env, ppc_fprp_t *t, ppc_fprp_t *a,          \
         dfp.t.exponent = exp - bias;                                      \
         dfp_finalize_decimal##size(&dfp);                                 \
     }                                                                     \
-    if (size == 64) {                                                     \
-        set_dfp64(t, &dfp.vt);                                            \
-    } else if (size == 128) {                                             \
-        set_dfp128(t, &dfp.vt);                                           \
-    }                                                                     \
+    set_dfp##size(t, &dfp.vt);                                            \
 }
 
 DFP_HELPER_IEX(diex, 64)
@@ -1356,11 +1320,7 @@ void helper_##op(CPUPPCState *env, ppc_fprp_t *t, ppc_fprp_t *a,    \
         }                                                           \
     }                                                               \
                                                                     \
-    if ((size) == 64) {                                             \
-        set_dfp64(t, &dfp.vt);                                      \
-    } else {                                                        \
-        set_dfp128(t, &dfp.vt);                                     \
-    }                                                               \
+    set_dfp##size(t, &dfp.vt);                                      \
 }
 
 DFP_HELPER_SHIFT(dscli, 64, 1)
