@@ -346,6 +346,33 @@ static int xics_spapr_cpu_intc_create(SpaprInterruptController *intc,
     return 0;
 }
 
+static int xics_spapr_claim_irq(SpaprInterruptController *intc, int irq,
+                                bool lsi, Error **errp)
+{
+    ICSState *ics = ICS_SPAPR(intc);
+
+    assert(ics);
+    assert(ics_valid_irq(ics, irq));
+
+    if (!ics_irq_free(ics, irq - ics->offset)) {
+        error_setg(errp, "IRQ %d is not free", irq);
+        return -EBUSY;
+    }
+
+    ics_set_irq_type(ics, irq - ics->offset, lsi);
+    return 0;
+}
+
+static void xics_spapr_free_irq(SpaprInterruptController *intc, int irq)
+{
+    ICSState *ics = ICS_SPAPR(intc);
+    uint32_t srcno = irq - ics->offset;
+
+    assert(ics_valid_irq(ics, irq));
+
+    memset(&ics->irqs[srcno], 0, sizeof(ICSIRQState));
+}
+
 static void ics_spapr_class_init(ObjectClass *klass, void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
@@ -355,6 +382,8 @@ static void ics_spapr_class_init(ObjectClass *klass, void *data)
     device_class_set_parent_realize(dc, ics_spapr_realize,
                                     &isc->parent_realize);
     sicc->cpu_intc_create = xics_spapr_cpu_intc_create;
+    sicc->claim_irq = xics_spapr_claim_irq;
+    sicc->free_irq = xics_spapr_free_irq;
 }
 
 static const TypeInfo ics_spapr_info = {

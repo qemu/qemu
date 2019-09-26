@@ -487,6 +487,42 @@ static const VMStateDescription vmstate_spapr_xive = {
     },
 };
 
+static int spapr_xive_claim_irq(SpaprInterruptController *intc, int lisn,
+                                bool lsi, Error **errp)
+{
+    SpaprXive *xive = SPAPR_XIVE(intc);
+    XiveSource *xsrc = &xive->source;
+
+    assert(lisn < xive->nr_irqs);
+
+    if (xive_eas_is_valid(&xive->eat[lisn])) {
+        error_setg(errp, "IRQ %d is not free", lisn);
+        return -EBUSY;
+    }
+
+    /*
+     * Set default values when allocating an IRQ number
+     */
+    xive->eat[lisn].w |= cpu_to_be64(EAS_VALID | EAS_MASKED);
+    if (lsi) {
+        xive_source_irq_set_lsi(xsrc, lisn);
+    }
+
+    if (kvm_irqchip_in_kernel()) {
+        return kvmppc_xive_source_reset_one(xsrc, lisn, errp);
+    }
+
+    return 0;
+}
+
+static void spapr_xive_free_irq(SpaprInterruptController *intc, int lisn)
+{
+    SpaprXive *xive = SPAPR_XIVE(intc);
+    assert(lisn < xive->nr_irqs);
+
+    xive->eat[lisn].w &= cpu_to_be64(~EAS_VALID);
+}
+
 static Property spapr_xive_properties[] = {
     DEFINE_PROP_UINT32("nr-irqs", SpaprXive, nr_irqs, 0),
     DEFINE_PROP_UINT32("nr-ends", SpaprXive, nr_ends, 0),
@@ -536,6 +572,8 @@ static void spapr_xive_class_init(ObjectClass *klass, void *data)
     xrc->get_tctx = spapr_xive_get_tctx;
 
     sicc->cpu_intc_create = spapr_xive_cpu_intc_create;
+    sicc->claim_irq = spapr_xive_claim_irq;
+    sicc->free_irq = spapr_xive_free_irq;
 }
 
 static const TypeInfo spapr_xive_info = {
@@ -556,39 +594,6 @@ static void spapr_xive_register_types(void)
 }
 
 type_init(spapr_xive_register_types)
-
-int spapr_xive_irq_claim(SpaprXive *xive, int lisn, bool lsi, Error **errp)
-{
-    XiveSource *xsrc = &xive->source;
-
-    assert(lisn < xive->nr_irqs);
-
-    if (xive_eas_is_valid(&xive->eat[lisn])) {
-        error_setg(errp, "IRQ %d is not free", lisn);
-        return -EBUSY;
-    }
-
-    /*
-     * Set default values when allocating an IRQ number
-     */
-    xive->eat[lisn].w |= cpu_to_be64(EAS_VALID | EAS_MASKED);
-    if (lsi) {
-        xive_source_irq_set_lsi(xsrc, lisn);
-    }
-
-    if (kvm_irqchip_in_kernel()) {
-        return kvmppc_xive_source_reset_one(xsrc, lisn, errp);
-    }
-
-    return 0;
-}
-
-void spapr_xive_irq_free(SpaprXive *xive, int lisn)
-{
-    assert(lisn < xive->nr_irqs);
-
-    xive->eat[lisn].w &= cpu_to_be64(~EAS_VALID);
-}
 
 /*
  * XIVE hcalls

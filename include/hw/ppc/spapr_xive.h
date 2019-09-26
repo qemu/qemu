@@ -54,8 +54,6 @@ typedef struct SpaprXive {
  */
 #define SPAPR_XIVE_BLOCK_ID 0x0
 
-int spapr_xive_irq_claim(SpaprXive *xive, int lisn, bool lsi, Error **errp);
-void spapr_xive_irq_free(SpaprXive *xive, int lisn);
 void spapr_xive_pic_print_info(SpaprXive *xive, Monitor *mon);
 int spapr_xive_post_load(SpaprXive *xive, int version_id);
 

@@ -50,6 +50,9 @@ typedef struct SpaprInterruptControllerClass {
      */
     int (*cpu_intc_create)(SpaprInterruptController *intc,
                             PowerPCCPU *cpu, Error **errp);
+    int (*claim_irq)(SpaprInterruptController *intc, int irq, bool lsi,
+                     Error **errp);
+    void (*free_irq)(SpaprInterruptController *intc, int irq);
 } SpaprInterruptControllerClass;
 
 int spapr_irq_cpu_intc_create(SpaprMachineState *spapr,
@@ -67,8 +70,6 @@ typedef struct SpaprIrq {
     bool        xics;
     bool        xive;
 
-    int (*claim)(SpaprMachineState *spapr, int irq, bool lsi, Error **errp);
-    void (*free)(SpaprMachineState *spapr, int irq);
     void (*print_info)(SpaprMachineState *spapr, Monitor *mon);
     void (*dt_populate)(SpaprMachineState *spapr, uint32_t nr_servers,
                         void *fdt, uint32_t phandle);

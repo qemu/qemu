@@ -98,33 +98,6 @@ static void spapr_irq_init_kvm(SpaprMachineState *spapr,
  * XICS IRQ backend.
  */
 
-static int spapr_irq_claim_xics(SpaprMachineState *spapr, int irq, bool lsi,
-                                Error **errp)
-{
-    ICSState *ics = spapr->ics;
-
-    assert(ics);
-    assert(ics_valid_irq(ics, irq));
-
-    if (!ics_irq_free(ics, irq - ics->offset)) {
-        error_setg(errp, "IRQ %d is not free", irq);
-        return -1;
-    }
-
-    ics_set_irq_type(ics, irq - ics->offset, lsi);
-    return 0;
-}
-
-static void spapr_irq_free_xics(SpaprMachineState *spapr, int irq)
-{
-    ICSState *ics = spapr->ics;
-    uint32_t srcno = irq - ics->offset;
-
-    assert(ics_valid_irq(ics, irq));
-
-    memset(&ics->irqs[srcno], 0, sizeof(ICSIRQState));
-}
-
 static void spapr_irq_print_info_xics(SpaprMachineState *spapr, Monitor *mon)
 {
     CPUState *cs;
@@ -182,8 +155,6 @@ SpaprIrq spapr_irq_xics = {
     .xics        = true,
     .xive        = false,
 
-    .claim       = spapr_irq_claim_xics,
-    .free        = spapr_irq_free_xics,
     .print_info  = spapr_irq_print_info_xics,
     .dt_populate = spapr_dt_xics,
     .post_load   = spapr_irq_post_load_xics,
@@ -195,17 +166,6 @@ SpaprIrq spapr_irq_xics = {
 /*
  * XIVE IRQ backend.
  */
-
-static int spapr_irq_claim_xive(SpaprMachineState *spapr, int irq, bool lsi,
-                                Error **errp)
-{
-    return spapr_xive_irq_claim(spapr->xive, irq, lsi, errp);
-}
-
-static void spapr_irq_free_xive(SpaprMachineState *spapr, int irq)
-{
-    spapr_xive_irq_free(spapr->xive, irq);
-}
 
 static void spapr_irq_print_info_xive(SpaprMachineState *spapr,
                                       Monitor *mon)
@@ -272,8 +232,6 @@ SpaprIrq spapr_irq_xive = {
     .xics        = false,
     .xive        = true,
 
-    .claim       = spapr_irq_claim_xive,
-    .free        = spapr_irq_free_xive,
     .print_info  = spapr_irq_print_info_xive,
     .dt_populate = spapr_dt_xive,
     .post_load   = spapr_irq_post_load_xive,
@@ -299,33 +257,6 @@ static SpaprIrq *spapr_irq_current(SpaprMachineState *spapr)
 {
     return spapr_ovec_test(spapr->ov5_cas, OV5_XIVE_EXPLOIT) ?
         &spapr_irq_xive : &spapr_irq_xics;
-}
-
-static int spapr_irq_claim_dual(SpaprMachineState *spapr, int irq, bool lsi,
-                                Error **errp)
-{
-    Error *local_err = NULL;
-    int ret;
-
-    ret = spapr_irq_xics.claim(spapr, irq, lsi, &local_err);
-    if (local_err) {
-        error_propagate(errp, local_err);
-        return ret;
-    }
-
-    ret = spapr_irq_xive.claim(spapr, irq, lsi, &local_err);
-    if (local_err) {
-        error_propagate(errp, local_err);
-        return ret;
-    }
-
-    return ret;
-}
-
-static void spapr_irq_free_dual(SpaprMachineState *spapr, int irq)
-{
-    spapr_irq_xics.free(spapr, irq);
-    spapr_irq_xive.free(spapr, irq);
 }
 
 static void spapr_irq_print_info_dual(SpaprMachineState *spapr, Monitor *mon)
@@ -401,8 +332,6 @@ SpaprIrq spapr_irq_dual = {
     .xics        = true,
     .xive        = true,
 
-    .claim       = spapr_irq_claim_dual,
-    .free        = spapr_irq_free_dual,
     .print_info  = spapr_irq_print_info_dual,
     .dt_populate = spapr_irq_dt_populate_dual,
     .post_load   = spapr_irq_post_load_dual,
@@ -572,8 +501,11 @@ void spapr_irq_init(SpaprMachineState *spapr, Error **errp)
 
         /* Enable the CPU IPIs */
         for (i = 0; i < nr_servers; ++i) {
-            if (spapr_xive_irq_claim(spapr->xive, SPAPR_IRQ_IPI + i,
-                                     false, errp) < 0) {
+            SpaprInterruptControllerClass *sicc
+                = SPAPR_INTC_GET_CLASS(spapr->xive);
+
+            if (sicc->claim_irq(SPAPR_INTC(spapr->xive), SPAPR_IRQ_IPI + i,
+                                false, errp) < 0) {
                 return;
             }
         }
@@ -587,21 +519,45 @@ void spapr_irq_init(SpaprMachineState *spapr, Error **errp)
 
 int spapr_irq_claim(SpaprMachineState *spapr, int irq, bool lsi, Error **errp)
 {
+    SpaprInterruptController *intcs[] = ALL_INTCS(spapr);
+    int i;
+    int rc;
+
     assert(irq >= SPAPR_XIRQ_BASE);
     assert(irq < (spapr->irq->nr_xirqs + SPAPR_XIRQ_BASE));
 
-    return spapr->irq->claim(spapr, irq, lsi, errp);
+    for (i = 0; i < ARRAY_SIZE(intcs); i++) {
+        SpaprInterruptController *intc = intcs[i];
+        if (intc) {
+            SpaprInterruptControllerClass *sicc = SPAPR_INTC_GET_CLASS(intc);
+            rc = sicc->claim_irq(intc, irq, lsi, errp);
+            if (rc < 0) {
+                return rc;
+            }
+        }
+    }
+
+    return 0;
 }
 
 void spapr_irq_free(SpaprMachineState *spapr, int irq, int num)
 {
-    int i;
+    SpaprInterruptController *intcs[] = ALL_INTCS(spapr);
+    int i, j;
 
     assert(irq >= SPAPR_XIRQ_BASE);
     assert((irq + num) <= (spapr->irq->nr_xirqs + SPAPR_XIRQ_BASE));
 
     for (i = irq; i < (irq + num); i++) {
-        spapr->irq->free(spapr, i);
+        for (j = 0; j < ARRAY_SIZE(intcs); j++) {
+            SpaprInterruptController *intc = intcs[j];
+
+            if (intc) {
+                SpaprInterruptControllerClass *sicc
+                    = SPAPR_INTC_GET_CLASS(intc);
+                sicc->free_irq(intc, i);
+            }
+        }
     }
 }
 
@@ -726,8 +682,6 @@ SpaprIrq spapr_irq_xics_legacy = {
     .xics        = true,
     .xive        = false,
 
-    .claim       = spapr_irq_claim_xics,
-    .free        = spapr_irq_free_xics,
     .print_info  = spapr_irq_print_info_xics,
     .dt_populate = spapr_dt_xics,
     .post_load   = spapr_irq_post_load_xics,
