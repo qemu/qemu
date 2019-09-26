@@ -2348,7 +2348,7 @@ static bool get_queued_page(RAMState *rs, PageSearchStatus *pss)
             dirty = test_bit(page, block->bmap);
             if (!dirty) {
                 trace_get_queued_page_not_dirty(block->idstr, (uint64_t)offset,
-                       page, test_bit(page, block->unsentmap));
+                                                page);
             } else {
                 trace_get_queued_page(block->idstr, (uint64_t)offset, page);
             }
@@ -2619,10 +2619,6 @@ static int ram_save_host_page(RAMState *rs, PageSearchStatus *pss,
         }
 
         pages += tmppages;
-        if (pss->block->unsentmap) {
-            clear_bit(pss->page, pss->block->unsentmap);
-        }
-
         pss->page++;
     } while ((pss->page & (pagesize_bits - 1)) &&
              offset_in_ramblock(pss->block, pss->page << TARGET_PAGE_BITS));
@@ -2776,8 +2772,6 @@ static void ram_save_cleanup(void *opaque)
         block->clear_bmap = NULL;
         g_free(block->bmap);
         block->bmap = NULL;
-        g_free(block->unsentmap);
-        block->unsentmap = NULL;
     }
 
     xbzrle_cleanup();
@@ -2857,8 +2851,6 @@ void ram_postcopy_migrated_memory_release(MigrationState *ms)
  * Returns zero on success
  *
  * Callback from postcopy_each_ram_send_discard for each RAMBlock
- * Note: At this point the 'unsentmap' is the processed bitmap combined
- *       with the dirtymap; so a '1' means it's either dirty or unsent.
  *
  * @ms: current migration state
  * @block: RAMBlock to discard
@@ -2867,17 +2859,17 @@ static int postcopy_send_discard_bm_ram(MigrationState *ms, RAMBlock *block)
 {
     unsigned long end = block->used_length >> TARGET_PAGE_BITS;
     unsigned long current;
-    unsigned long *unsentmap = block->unsentmap;
+    unsigned long *bitmap = block->bmap;
 
     for (current = 0; current < end; ) {
-        unsigned long one = find_next_bit(unsentmap, end, current);
+        unsigned long one = find_next_bit(bitmap, end, current);
         unsigned long zero, discard_length;
 
         if (one >= end) {
             break;
         }
 
-        zero = find_next_zero_bit(unsentmap, end, one + 1);
+        zero = find_next_zero_bit(bitmap, end, one + 1);
 
         if (zero >= end) {
             discard_length = end - one;
@@ -2928,7 +2920,7 @@ static int postcopy_each_ram_send_discard(MigrationState *ms)
 }
 
 /**
- * postcopy_chunk_hostpages_pass: canocalize bitmap in hostpages
+ * postcopy_chunk_hostpages_pass: canonicalize bitmap in hostpages
  *
  * Helper for postcopy_chunk_hostpages; it's called twice to
  * canonicalize the two bitmaps, that are similar, but one is
@@ -2938,16 +2930,12 @@ static int postcopy_each_ram_send_discard(MigrationState *ms)
  * clean, not a mix.  This function canonicalizes the bitmaps.
  *
  * @ms: current migration state
- * @unsent_pass: if true we need to canonicalize partially unsent host pages
- *               otherwise we need to canonicalize partially dirty host pages
  * @block: block that contains the page we want to canonicalize
  */
-static void postcopy_chunk_hostpages_pass(MigrationState *ms, bool unsent_pass,
-                                          RAMBlock *block)
+static void postcopy_chunk_hostpages_pass(MigrationState *ms, RAMBlock *block)
 {
     RAMState *rs = ram_state;
     unsigned long *bitmap = block->bmap;
-    unsigned long *unsentmap = block->unsentmap;
     unsigned int host_ratio = block->page_size / TARGET_PAGE_SIZE;
     unsigned long pages = block->used_length >> TARGET_PAGE_BITS;
     unsigned long run_start;
@@ -2957,13 +2945,8 @@ static void postcopy_chunk_hostpages_pass(MigrationState *ms, bool unsent_pass,
         return;
     }
 
-    if (unsent_pass) {
-        /* Find a sent page */
-        run_start = find_next_zero_bit(unsentmap, pages, 0);
-    } else {
-        /* Find a dirty page */
-        run_start = find_next_bit(bitmap, pages, 0);
-    }
+    /* Find a dirty page */
+    run_start = find_next_bit(bitmap, pages, 0);
 
     while (run_start < pages) {
 
@@ -2973,11 +2956,7 @@ static void postcopy_chunk_hostpages_pass(MigrationState *ms, bool unsent_pass,
          */
         if (QEMU_IS_ALIGNED(run_start, host_ratio)) {
             /* Find the end of this run */
-            if (unsent_pass) {
-                run_start = find_next_bit(unsentmap, pages, run_start + 1);
-            } else {
-                run_start = find_next_zero_bit(bitmap, pages, run_start + 1);
-            }
+            run_start = find_next_zero_bit(bitmap, pages, run_start + 1);
             /*
              * If the end isn't at the start of a host page, then the
              * run doesn't finish at the end of a host page
@@ -2991,24 +2970,9 @@ static void postcopy_chunk_hostpages_pass(MigrationState *ms, bool unsent_pass,
                                                              host_ratio);
             run_start = QEMU_ALIGN_UP(run_start, host_ratio);
 
-            /* Tell the destination to discard this page */
-            if (unsent_pass || !test_bit(fixup_start_addr, unsentmap)) {
-                /* For the unsent_pass we:
-                 *     discard partially sent pages
-                 * For the !unsent_pass (dirty) we:
-                 *     discard partially dirty pages that were sent
-                 *     (any partially sent pages were already discarded
-                 *     by the previous unsent_pass)
-                 */
-                postcopy_discard_send_range(ms, fixup_start_addr, host_ratio);
-            }
-
             /* Clean up the bitmap */
             for (page = fixup_start_addr;
                  page < fixup_start_addr + host_ratio; page++) {
-                /* All pages in this host page are now not sent */
-                set_bit(page, unsentmap);
-
                 /*
                  * Remark them as dirty, updating the count for any pages
                  * that weren't previously dirty.
@@ -3017,13 +2981,8 @@ static void postcopy_chunk_hostpages_pass(MigrationState *ms, bool unsent_pass,
             }
         }
 
-        if (unsent_pass) {
-            /* Find the next sent page for the next iteration */
-            run_start = find_next_zero_bit(unsentmap, pages, run_start);
-        } else {
-            /* Find the next dirty page for the next iteration */
-            run_start = find_next_bit(bitmap, pages, run_start);
-        }
+        /* Find the next dirty page for the next iteration */
+        run_start = find_next_bit(bitmap, pages, run_start);
     }
 }
 
@@ -3045,13 +3004,10 @@ static int postcopy_chunk_hostpages(MigrationState *ms, RAMBlock *block)
 {
     postcopy_discard_send_init(ms, block->idstr);
 
-    /* First pass: Discard all partially sent host pages */
-    postcopy_chunk_hostpages_pass(ms, true, block);
     /*
-     * Second pass: Ensure that all partially dirty host pages are made
-     * fully dirty.
+     * Ensure that all partially dirty host pages are made fully dirty.
      */
-    postcopy_chunk_hostpages_pass(ms, false, block);
+    postcopy_chunk_hostpages_pass(ms, block);
 
     postcopy_discard_send_finish(ms);
     return 0;
@@ -3089,19 +3045,6 @@ int ram_postcopy_send_discard_bitmap(MigrationState *ms)
     rs->last_page = 0;
 
     RAMBLOCK_FOREACH_NOT_IGNORED(block) {
-        unsigned long pages = block->used_length >> TARGET_PAGE_BITS;
-        unsigned long *bitmap = block->bmap;
-        unsigned long *unsentmap = block->unsentmap;
-
-        if (!unsentmap) {
-            /* We don't have a safe way to resize the sentmap, so
-             * if the bitmap was resized it will be NULL at this
-             * point.
-             */
-            error_report("migration ram resized during precopy phase");
-            rcu_read_unlock();
-            return -EINVAL;
-        }
         /* Deal with TPS != HPS and huge pages */
         ret = postcopy_chunk_hostpages(ms, block);
         if (ret) {
@@ -3109,12 +3052,9 @@ int ram_postcopy_send_discard_bitmap(MigrationState *ms)
             return ret;
         }
 
-        /*
-         * Update the unsentmap to be unsentmap = unsentmap | dirty
-         */
-        bitmap_or(unsentmap, unsentmap, bitmap, pages);
 #ifdef DEBUG_POSTCOPY
-        ram_debug_dump_bitmap(unsentmap, true, pages);
+        ram_debug_dump_bitmap(block->bmap, true,
+                              block->used_length >> TARGET_PAGE_BITS);
 #endif
     }
     trace_ram_postcopy_send_discard_bitmap();
@@ -3282,10 +3222,6 @@ static void ram_list_init_bitmaps(void)
             bitmap_set(block->bmap, 0, pages);
             block->clear_bmap_shift = shift;
             block->clear_bmap = bitmap_new(clear_bmap_size(pages, shift));
-            if (migrate_postcopy_ram()) {
-                block->unsentmap = bitmap_new(pages);
-                bitmap_set(block->unsentmap, 0, pages);
-            }
         }
     }
 }
