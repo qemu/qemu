@@ -124,7 +124,7 @@ static void spapr_irq_reset_xics(SpaprMachineState *spapr, Error **errp)
 static void spapr_irq_init_kvm_xics(SpaprMachineState *spapr, Error **errp)
 {
     if (kvm_enabled()) {
-        xics_kvm_connect(spapr, errp);
+        xics_kvm_connect(SPAPR_INTC(spapr->ics), errp);
     }
 }
 
@@ -173,7 +173,7 @@ static void spapr_irq_reset_xive(SpaprMachineState *spapr, Error **errp)
 static void spapr_irq_init_kvm_xive(SpaprMachineState *spapr, Error **errp)
 {
     if (kvm_enabled()) {
-        kvmppc_xive_connect(spapr->xive, errp);
+        kvmppc_xive_connect(SPAPR_INTC(spapr->xive), errp);
     }
 }
 
@@ -215,7 +215,7 @@ static int spapr_irq_post_load_dual(SpaprMachineState *spapr, int version_id)
      */
     if (spapr_ovec_test(spapr->ov5_cas, OV5_XIVE_EXPLOIT)) {
         if (kvm_irqchip_in_kernel()) {
-            xics_kvm_disconnect(spapr, &error_fatal);
+            xics_kvm_disconnect(SPAPR_INTC(spapr->ics));
         }
         spapr_irq_xive.reset(spapr, &error_fatal);
     }
@@ -225,8 +225,6 @@ static int spapr_irq_post_load_dual(SpaprMachineState *spapr, int version_id)
 
 static void spapr_irq_reset_dual(SpaprMachineState *spapr, Error **errp)
 {
-    Error *local_err = NULL;
-
     /*
      * Deactivate the XIVE MMIOs. The XIVE backend will reenable them
      * if selected.
@@ -235,18 +233,8 @@ static void spapr_irq_reset_dual(SpaprMachineState *spapr, Error **errp)
 
     /* Destroy all KVM devices */
     if (kvm_irqchip_in_kernel()) {
-        xics_kvm_disconnect(spapr, &local_err);
-        if (local_err) {
-            error_propagate(errp, local_err);
-            error_prepend(errp, "KVM XICS disconnect failed: ");
-            return;
-        }
-        kvmppc_xive_disconnect(spapr->xive, &local_err);
-        if (local_err) {
-            error_propagate(errp, local_err);
-            error_prepend(errp, "KVM XIVE disconnect failed: ");
-            return;
-        }
+        xics_kvm_disconnect(SPAPR_INTC(spapr->ics));
+        kvmppc_xive_disconnect(SPAPR_INTC(spapr->xive));
     }
 
     spapr_irq_current(spapr)->reset(spapr, errp);

@@ -68,8 +68,8 @@ int spapr_xive_end_to_target(uint8_t end_blk, uint32_t end_idx,
 /*
  * KVM XIVE device helpers
  */
-void kvmppc_xive_connect(SpaprXive *xive, Error **errp);
-void kvmppc_xive_disconnect(SpaprXive *xive, Error **errp);
+int kvmppc_xive_connect(SpaprInterruptController *intc, Error **errp);
+void kvmppc_xive_disconnect(SpaprInterruptController *intc);
 void kvmppc_xive_reset(SpaprXive *xive, Error **errp);
 void kvmppc_xive_set_source_config(SpaprXive *xive, uint32_t lisn, XiveEAS *eas,
                                    Error **errp);
