@@ -204,6 +204,7 @@ static int nbd_handle_reply_err(QIOChannel *ioc, NBDOptionReply *reply,
     case NBD_REP_ERR_TLS_REQD:
         error_setg(errp, "TLS negotiation required before option %" PRIu32
                    " (%s)", reply->option, nbd_opt_lookup(reply->option));
+        error_append_hint(errp, "Did you forget a valid tls-creds?\n");
         break;
 
     case NBD_REP_ERR_UNKNOWN:
