@@ -44,6 +44,9 @@ typedef struct SpaprInterruptController SpaprInterruptController;
 typedef struct SpaprInterruptControllerClass {
     InterfaceClass parent;
 
+    int (*activate)(SpaprInterruptController *intc, Error **errp);
+    void (*deactivate)(SpaprInterruptController *intc);
+
     /*
      * These methods will typically be called on all intcs, active and
      * inactive
@@ -54,6 +57,8 @@ typedef struct SpaprInterruptControllerClass {
                      Error **errp);
     void (*free_irq)(SpaprInterruptController *intc, int irq);
 } SpaprInterruptControllerClass;
+
+void spapr_irq_update_active_intc(SpaprMachineState *spapr);
 
 int spapr_irq_cpu_intc_create(SpaprMachineState *spapr,
                               PowerPCCPU *cpu, Error **errp);

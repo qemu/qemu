@@ -586,12 +586,15 @@ qemu_irq spapr_qirq(SpaprMachineState *spapr, int irq)
 
 int spapr_irq_post_load(SpaprMachineState *spapr, int version_id)
 {
+    spapr_irq_update_active_intc(spapr);
     return spapr->irq->post_load(spapr, version_id);
 }
 
 void spapr_irq_reset(SpaprMachineState *spapr, Error **errp)
 {
     assert(!spapr->irq_map || bitmap_empty(spapr->irq_map, spapr->irq_map_nr));
+
+    spapr_irq_update_active_intc(spapr);
 
     if (spapr->irq->reset) {
         spapr->irq->reset(spapr, errp);
@@ -617,6 +620,54 @@ int spapr_irq_get_phandle(SpaprMachineState *spapr, void *fdt, Error **errp)
     }
 
     return phandle;
+}
+
+static void set_active_intc(SpaprMachineState *spapr,
+                            SpaprInterruptController *new_intc)
+{
+    SpaprInterruptControllerClass *sicc;
+
+    assert(new_intc);
+
+    if (new_intc == spapr->active_intc) {
+        /* Nothing to do */
+        return;
+    }
+
+    if (spapr->active_intc) {
+        sicc = SPAPR_INTC_GET_CLASS(spapr->active_intc);
+        if (sicc->deactivate) {
+            sicc->deactivate(spapr->active_intc);
+        }
+    }
+
+    sicc = SPAPR_INTC_GET_CLASS(new_intc);
+    if (sicc->activate) {
+        sicc->activate(new_intc, &error_fatal);
+    }
+
+    spapr->active_intc = new_intc;
+}
+
+void spapr_irq_update_active_intc(SpaprMachineState *spapr)
+{
+    SpaprInterruptController *new_intc;
+
+    if (!spapr->ics) {
+        /*
+         * XXX before we run CAS, ov5_cas is initialized empty, which
+         * indicates XICS, even if we have ic-mode=xive.  TODO: clean
+         * up the CAS path so that we have a clearer way of handling
+         * this.
+         */
+        new_intc = SPAPR_INTC(spapr->xive);
+    } else if (spapr_ovec_test(spapr->ov5_cas, OV5_XIVE_EXPLOIT)) {
+        new_intc = SPAPR_INTC(spapr->xive);
+    } else {
+        new_intc = SPAPR_INTC(spapr->ics);
+    }
+
+    set_active_intc(spapr, new_intc);
 }
 
 /*
