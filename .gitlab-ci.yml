@@ -87,6 +87,7 @@ build-tci:
  - ../configure --enable-tcg-interpreter
       --target-list="$(for tg in $TARGETS; do echo -n ${tg}'-softmmu '; done)"
  - make -j2
+ - make run-tcg-tests-x86_64-softmmu
  - make tests/qtest/boot-serial-test tests/qtest/cdrom-test tests/qtest/pxe-test
  - for tg in $TARGETS ; do
      export QTEST_QEMU_BINARY="${tg}-softmmu/qemu-system-${tg}" ;
