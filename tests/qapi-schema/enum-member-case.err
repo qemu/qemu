@@ -1,2 +1,2 @@
 tests/qapi-schema/enum-member-case.json: In enum 'NoWayThisWillGetWhitelisted':
-tests/qapi-schema/enum-member-case.json:4: member of enum 'NoWayThisWillGetWhitelisted' uses uppercase in name 'Value'
+tests/qapi-schema/enum-member-case.json:4: 'data' member 'Value' uses uppercase in name

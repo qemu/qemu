@@ -1,2 +1,2 @@
 tests/qapi-schema/enum-bad-name.json: In enum 'MyEnum':
-tests/qapi-schema/enum-bad-name.json:3: member of enum 'MyEnum' uses invalid name 'not\possible'
+tests/qapi-schema/enum-bad-name.json:3: 'data' member 'not\possible' has an invalid name

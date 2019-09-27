@@ -1,2 +1,2 @@
 tests/qapi-schema/union-optional-branch.json: In union 'Union':
-tests/qapi-schema/union-optional-branch.json:2: member of union 'Union' uses invalid name '*a'
+tests/qapi-schema/union-optional-branch.json:2: 'data' member '*a' has an invalid name
