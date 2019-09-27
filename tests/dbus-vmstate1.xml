@@ -1,0 +1,12 @@
+<?xml version="1.0"?>
+<node name="/" xmlns:doc="http://www.freedesktop.org/dbus/1.0/doc.dtd">
+  <interface name="org.qemu.VMState1">
+    <property name="Id" type="s" access="read"/>
+    <method name="Load">
+      <arg type="ay" name="data" direction="in"/>
+    </method>
+    <method name="Save">
+      <arg type="ay" name="data" direction="out"/>
+    </method>
+  </interface>
+</node>
