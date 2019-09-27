@@ -13,6 +13,7 @@
 
 from __future__ import print_function
 from contextlib import contextmanager
+import copy
 import errno
 import os
 import re
@@ -53,34 +54,50 @@ struct_types = {}
 union_types = {}
 all_names = {}
 
+
 #
 # Parsing the schema into expressions
 #
 
+class QAPISourceInfo(object):
+    def __init__(self, fname, line, parent):
+        self.fname = fname
+        self.line = line
+        self.parent = parent
 
-def error_path(parent):
-    res = ''
-    while parent:
-        res = ('In file included from %s:%d:\n' % (parent['file'],
-                                                   parent['line'])) + res
-        parent = parent['parent']
-    return res
+    def next_line(self):
+        info = copy.copy(self)
+        info.line += 1
+        return info
+
+    def loc(self):
+        return '%s:%d' % (self.fname, self.line)
+
+    def include_path(self):
+        ret = ''
+        parent = self.parent
+        while parent:
+            ret = 'In file included from %s:\n' % parent.loc() + ret
+            parent = parent.parent
+        return ret
+
+    def __str__(self):
+        return self.include_path() + self.loc()
 
 
 class QAPIError(Exception):
-    def __init__(self, fname, line, col, incl_info, msg):
+    def __init__(self, info, col, msg):
         Exception.__init__(self)
-        self.fname = fname
-        self.line = line
+        self.info = info
         self.col = col
-        self.info = incl_info
         self.msg = msg
 
     def __str__(self):
-        loc = '%s:%d' % (self.fname, self.line)
+        loc = str(self.info)
         if self.col is not None:
+            assert self.info.line is not None
             loc += ':%s' % self.col
-        return error_path(self.info) + '%s: %s' % (loc, self.msg)
+        return loc + ': ' + self.msg
 
 
 class QAPIParseError(QAPIError):
@@ -91,14 +108,12 @@ class QAPIParseError(QAPIError):
                 col = (col + 7) % 8 + 1
             else:
                 col += 1
-        QAPIError.__init__(self, parser.fname, parser.line, col,
-                           parser.incl_info, msg)
+        QAPIError.__init__(self, parser.info, col, msg)
 
 
 class QAPISemError(QAPIError):
     def __init__(self, info, msg):
-        QAPIError.__init__(self, info['file'], info['line'], None,
-                           info['parent'], msg)
+        QAPIError.__init__(self, info, None, msg)
 
 
 class QAPIDoc(object):
@@ -382,12 +397,11 @@ class QAPISchemaParser(object):
     def __init__(self, fp, previously_included=[], incl_info=None):
         self.fname = fp.name
         previously_included.append(os.path.abspath(fp.name))
-        self.incl_info = incl_info
         self.src = fp.read()
         if self.src == '' or self.src[-1] != '\n':
             self.src += '\n'
         self.cursor = 0
-        self.line = 1
+        self.info = QAPISourceInfo(self.fname, 1, incl_info)
         self.line_pos = 0
         self.exprs = []
         self.docs = []
@@ -395,8 +409,7 @@ class QAPISchemaParser(object):
         cur_doc = None
 
         while self.tok is not None:
-            info = {'file': self.fname, 'line': self.line,
-                    'parent': self.incl_info}
+            info = self.info
             if self.tok == '#':
                 self.reject_expr_doc(cur_doc)
                 cur_doc = self.get_doc(info)
@@ -456,9 +469,9 @@ class QAPISchemaParser(object):
         # catch inclusion cycle
         inf = info
         while inf:
-            if incl_abs_fname == os.path.abspath(inf['file']):
+            if incl_abs_fname == os.path.abspath(inf.fname):
                 raise QAPISemError(info, "Inclusion loop for %s" % include)
-            inf = inf['parent']
+            inf = inf.parent
 
         # skip multiple include of the same file
         if incl_abs_fname in previously_included:
@@ -552,7 +565,7 @@ class QAPISchemaParser(object):
                 if self.cursor == len(self.src):
                     self.tok = None
                     return
-                self.line += 1
+                self.info = self.info.next_line()
                 self.line_pos = self.cursor
             elif not self.tok.isspace():
                 # Show up to next structural, whitespace or quote
@@ -1172,7 +1185,7 @@ class QAPISchemaEntity(object):
     def check(self, schema):
         assert not self._checked
         if self.info:
-            self._module = os.path.relpath(self.info['file'],
+            self._module = os.path.relpath(self.info.fname,
                                            os.path.dirname(schema.fname))
         self._checked = True
 
@@ -1781,9 +1794,9 @@ class QAPISchema(object):
         include = expr['include']
         assert doc is None
         main_info = info
-        while main_info['parent']:
-            main_info = main_info['parent']
-        fname = os.path.relpath(include, os.path.dirname(main_info['file']))
+        while main_info.parent:
+            main_info = main_info.parent
+        fname = os.path.relpath(include, os.path.dirname(main_info.fname))
         self._def_entity(QAPISchemaInclude(fname, info))
 
     def _def_builtin_type(self, name, json_type, c_type):
