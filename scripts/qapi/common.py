@@ -706,7 +706,7 @@ valid_name = re.compile(r'^(__[a-zA-Z0-9.-]+_)?'
                         '[a-zA-Z][a-zA-Z0-9_-]*$')
 
 
-def check_name(info, source, name,
+def check_name(name, info, source,
                allow_optional=False, enum_member=False, permit_upper=False):
     global valid_name
     membername = name
@@ -734,7 +734,7 @@ def check_name(info, source, name,
 
 def add_name(name, info, meta):
     global all_names
-    check_name(info, "'%s'" % meta, name, permit_upper=True)
+    check_name(name, info, "'%s'" % meta, permit_upper=True)
     # FIXME should reject names that differ only in '_' vs. '.'
     # vs. '-', because they're liable to clash in generated C.
     if name in all_names:
@@ -768,7 +768,7 @@ def check_if(expr, info):
         check_if_str(ifcond, info)
 
 
-def check_type(info, source, value,
+def check_type(value, info, source,
                allow_array=False, allow_dict=False, allow_metas=[]):
     global all_names
 
@@ -806,19 +806,17 @@ def check_type(info, source, value,
 
     # value is a dictionary, check that each member is okay
     for (key, arg) in value.items():
-        check_name(info, "member of %s" % source, key,
+        check_name(key, info, "member of %s" % source,
                    allow_optional=True, permit_upper=permit_upper)
         if c_name(key, False) == 'u' or c_name(key, False).startswith('has_'):
             raise QAPISemError(
                 info, "member of %s uses reserved name '%s'" % (source, key))
-        # Todo: allow dictionaries to represent default values of
-        # an optional argument.
-        check_known_keys(info, "member '%s' of %s" % (key, source),
-                         arg, ['type'], ['if'])
+        check_known_keys(arg, info, "member '%s' of %s" % (key, source),
+                         ['type'], ['if'])
         check_if(arg, info)
         normalize_if(arg)
-        check_type(info, "member '%s' of %s" % (key, source),
-                   arg['type'], allow_array=True,
+        check_type(arg['type'], info, "member '%s' of %s" % (key, source),
+                   allow_array=True,
                    allow_metas=['built-in', 'union', 'alternate', 'struct',
                                 'enum'])
 
@@ -830,15 +828,15 @@ def check_command(expr, info):
     args_meta = ['struct']
     if boxed:
         args_meta += ['union']
-    check_type(info, "'data' for command '%s'" % name,
-               expr.get('data'), allow_dict=not boxed,
-               allow_metas=args_meta)
+    check_type(expr.get('data'), info,
+               "'data' for command '%s'" % name,
+               allow_dict=not boxed, allow_metas=args_meta)
     returns_meta = ['union', 'struct']
     if name in returns_whitelist:
         returns_meta += ['built-in', 'alternate', 'enum']
-    check_type(info, "'returns' for command '%s'" % name,
-               expr.get('returns'), allow_array=True,
-               allow_metas=returns_meta)
+    check_type(expr.get('returns'), info,
+               "'returns' for command '%s'" % name,
+               allow_array=True, allow_metas=returns_meta)
 
 
 def check_event(expr, info):
@@ -848,9 +846,9 @@ def check_event(expr, info):
     meta = ['struct']
     if boxed:
         meta += ['union']
-    check_type(info, "'data' for event '%s'" % name,
-               expr.get('data'), allow_dict=not boxed,
-               allow_metas=meta)
+    check_type(expr.get('data'), info,
+               "'data' for event '%s'" % name,
+               allow_dict=not boxed, allow_metas=meta)
 
 
 def enum_get_names(expr):
@@ -876,9 +874,8 @@ def check_union(expr, info):
     # Else, it's a flat union.
     else:
         # The object must have a string or dictionary 'base'.
-        check_type(info, "'base' for union '%s'" % name,
-                   base, allow_dict=name,
-                   allow_metas=['struct'])
+        check_type(base, info, "'base' for union '%s'" % name,
+                   allow_dict=name, allow_metas=['struct'])
         if not base:
             raise QAPISemError(
                 info, "flat union '%s' must have a base" % name)
@@ -887,8 +884,8 @@ def check_union(expr, info):
 
         # The value of member 'discriminator' must name a non-optional
         # member of the base struct.
-        check_name(info, "discriminator of flat union '%s'" % name,
-                   discriminator)
+        check_name(discriminator, info,
+                   "discriminator of flat union '%s'" % name)
         discriminator_value = base_members.get(discriminator)
         if not discriminator_value:
             raise QAPISemError(info,
@@ -913,15 +910,16 @@ def check_union(expr, info):
         raise QAPISemError(info, "union '%s' has no branches" % name)
 
     for (key, value) in members.items():
-        check_name(info, "member of union '%s'" % name, key)
+        check_name(key, info, "member of union '%s'" % name)
 
-        check_known_keys(info, "member '%s' of union '%s'" % (key, name),
-                         value, ['type'], ['if'])
+        check_known_keys(value, info,
+                         "member '%s' of union '%s'" % (key, name),
+                         ['type'], ['if'])
         check_if(value, info)
         normalize_if(value)
         # Each value must name a known type
-        check_type(info, "member '%s' of union '%s'" % (key, name),
-                   value['type'],
+        check_type(value['type'], info,
+                   "member '%s' of union '%s'" % (key, name),
                    allow_array=not base, allow_metas=allow_metas)
 
         # If the discriminator names an enum type, then all members
@@ -943,16 +941,16 @@ def check_alternate(expr, info):
         raise QAPISemError(info,
                            "alternate '%s' cannot have empty 'data'" % name)
     for (key, value) in members.items():
-        check_name(info, "member of alternate '%s'" % name, key)
-        check_known_keys(info,
+        check_name(key, info, "member of alternate '%s'" % name)
+        check_known_keys(value, info,
                          "member '%s' of alternate '%s'" % (key, name),
-                         value, ['type'], ['if'])
+                         ['type'], ['if'])
         check_if(value, info)
         normalize_if(value)
         typ = value['type']
 
         # Ensure alternates have no type conflicts.
-        check_type(info, "member '%s' of alternate '%s'" % (key, name), typ,
+        check_type(typ, info, "member '%s' of alternate '%s'" % (key, name),
                    allow_metas=['built-in', 'union', 'struct', 'enum'])
         qtype = find_alternate_member_qtype(typ)
         if not qtype:
@@ -997,11 +995,11 @@ def check_enum(expr, info):
     permit_upper = name in name_case_whitelist
 
     for member in members:
-        check_known_keys(info, "member of enum '%s'" % name, member,
+        check_known_keys(member, info, "member of enum '%s'" % name,
                          ['name'], ['if'])
         check_if(member, info)
         normalize_if(member)
-        check_name(info, "member of enum '%s'" % name, member['name'],
+        check_name(member['name'], info, "member of enum '%s'" % name,
                    enum_member=True, permit_upper=permit_upper)
 
 
@@ -1010,9 +1008,9 @@ def check_struct(expr, info):
     members = expr['data']
     features = expr.get('features')
 
-    check_type(info, "'data' for struct '%s'" % name, members,
+    check_type(members, info, "'data' for struct '%s'" % name,
                allow_dict=name)
-    check_type(info, "'base' for struct '%s'" % name, expr.get('base'),
+    check_type(expr.get('base'), info, "'base' for struct '%s'" % name,
                allow_metas=['struct'])
 
     if features:
@@ -1021,15 +1019,15 @@ def check_struct(expr, info):
                 info, "struct '%s' requires an array for 'features'" % name)
         for f in features:
             assert isinstance(f, dict)
-            check_known_keys(info, "feature of struct %s" % name, f,
+            check_known_keys(f, info, "feature of struct %s" % name,
                              ['name'], ['if'])
 
             check_if(f, info)
             normalize_if(f)
-            check_name(info, "feature of struct %s" % name, f['name'])
+            check_name(f['name'], info, "feature of struct %s" % name)
 
 
-def check_known_keys(info, source, value, required, optional):
+def check_known_keys(value, info, source, required, optional):
 
     def pprint(elems):
         return ', '.join("'" + e + "'" for e in sorted(elems))
@@ -1057,7 +1055,7 @@ def check_keys(expr, info, meta, required, optional=[]):
         raise QAPISemError(info, "'%s' key must have a string value" % meta)
     required = required + [meta]
     source = "%s '%s'" % (meta, name)
-    check_known_keys(info, source, expr, required, optional)
+    check_known_keys(expr, info, source, required, optional)
     for (key, value) in expr.items():
         if key in ['gen', 'success-response'] and value is not False:
             raise QAPISemError(info,
