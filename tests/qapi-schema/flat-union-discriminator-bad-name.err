@@ -1,2 +1,2 @@
 tests/qapi-schema/flat-union-discriminator-bad-name.json: In union 'MyUnion':
-tests/qapi-schema/flat-union-discriminator-bad-name.json:7: Discriminator of flat union 'MyUnion' does not allow optional name '*switch'
+tests/qapi-schema/flat-union-discriminator-bad-name.json:7: discriminator of flat union 'MyUnion' does not allow optional name '*switch'

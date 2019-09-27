@@ -207,7 +207,7 @@ class QAPIDoc(object):
             return
 
         if line[0] != ' ':
-            raise QAPIParseError(self._parser, "Missing space after #")
+            raise QAPIParseError(self._parser, "missing space after #")
         line = line[1:]
         self._append_line(line)
 
@@ -241,11 +241,11 @@ class QAPIDoc(object):
         # recognized, and get silently treated as ordinary text
         if not self.symbol and not self.body.text and line.startswith('@'):
             if not line.endswith(':'):
-                raise QAPIParseError(self._parser, "Line should end with ':'")
+                raise QAPIParseError(self._parser, "line should end with ':'")
             self.symbol = line[1:-1]
             # FIXME invalid names other than the empty string aren't flagged
             if not self.symbol:
-                raise QAPIParseError(self._parser, "Invalid name")
+                raise QAPIParseError(self._parser, "invalid name")
         elif self.symbol:
             # This is a definition documentation block
             if name.startswith('@') and name.endswith(':'):
@@ -344,7 +344,7 @@ class QAPIDoc(object):
     def _start_symbol_section(self, symbols_dict, name):
         # FIXME invalid names other than the empty string aren't flagged
         if not name:
-            raise QAPIParseError(self._parser, "Invalid parameter name")
+            raise QAPIParseError(self._parser, "invalid parameter name")
         if name in symbols_dict:
             raise QAPIParseError(self._parser,
                                  "'%s' parameter name duplicated" % name)
@@ -362,7 +362,7 @@ class QAPIDoc(object):
     def _start_section(self, name=None):
         if name in ('Returns', 'Since') and self.has_section(name):
             raise QAPIParseError(self._parser,
-                                 "Duplicated '%s' section" % name)
+                                 "duplicated '%s' section" % name)
         self._end_section()
         self._section = QAPIDoc.Section(name)
         self.sections.append(self._section)
@@ -371,8 +371,9 @@ class QAPIDoc(object):
         if self._section:
             text = self._section.text = self._section.text.strip()
             if self._section.name and (not text or text.isspace()):
-                raise QAPIParseError(self._parser, "Empty doc section '%s'"
-                                     % self._section.name)
+                raise QAPIParseError(
+                    self._parser,
+                    "empty doc section '%s'" % self._section.name)
             self._section = None
 
     def _append_freeform(self, line):
@@ -400,7 +401,7 @@ class QAPIDoc(object):
         if bogus:
             raise QAPISemError(
                 self.info,
-                "The following documented members are not in "
+                "the following documented members are not in "
                 "the declaration: %s" % ", ".join(bogus))
 
 
@@ -432,11 +433,11 @@ class QAPISchemaParser(object):
             if 'include' in expr:
                 self.reject_expr_doc(cur_doc)
                 if len(expr) != 1:
-                    raise QAPISemError(info, "Invalid 'include' directive")
+                    raise QAPISemError(info, "invalid 'include' directive")
                 include = expr['include']
                 if not isinstance(include, str):
                     raise QAPISemError(info,
-                                       "Value of 'include' must be a string")
+                                       "value of 'include' must be a string")
                 incl_fname = os.path.join(os.path.dirname(self.fname),
                                           include)
                 self.exprs.append({'expr': {'include': incl_fname},
@@ -449,11 +450,11 @@ class QAPISchemaParser(object):
             elif "pragma" in expr:
                 self.reject_expr_doc(cur_doc)
                 if len(expr) != 1:
-                    raise QAPISemError(info, "Invalid 'pragma' directive")
+                    raise QAPISemError(info, "invalid 'pragma' directive")
                 pragma = expr['pragma']
                 if not isinstance(pragma, dict):
                     raise QAPISemError(
-                        info, "Value of 'pragma' must be an object")
+                        info, "value of 'pragma' must be an object")
                 for name, value in pragma.items():
                     self._pragma(name, value, info)
             else:
@@ -462,7 +463,7 @@ class QAPISchemaParser(object):
                 if cur_doc:
                     if not cur_doc.symbol:
                         raise QAPISemError(
-                            cur_doc.info, "Definition documentation required")
+                            cur_doc.info, "definition documentation required")
                     expr_elem['doc'] = cur_doc
                 self.exprs.append(expr_elem)
             cur_doc = None
@@ -473,7 +474,7 @@ class QAPISchemaParser(object):
         if doc and doc.symbol:
             raise QAPISemError(
                 doc.info,
-                "Documentation for '%s' is not followed by the definition"
+                "documentation for '%s' is not followed by the definition"
                 % doc.symbol)
 
     def _include(self, include, info, incl_fname, previously_included):
@@ -482,7 +483,7 @@ class QAPISchemaParser(object):
         inf = info
         while inf:
             if incl_abs_fname == os.path.abspath(inf.fname):
-                raise QAPISemError(info, "Inclusion loop for %s" % include)
+                raise QAPISemError(info, "inclusion loop for %s" % include)
             inf = inf.parent
 
         # skip multiple include of the same file
@@ -503,24 +504,24 @@ class QAPISchemaParser(object):
         if name == 'doc-required':
             if not isinstance(value, bool):
                 raise QAPISemError(info,
-                                   "Pragma 'doc-required' must be boolean")
+                                   "pragma 'doc-required' must be boolean")
             doc_required = value
         elif name == 'returns-whitelist':
             if (not isinstance(value, list)
                     or any([not isinstance(elt, str) for elt in value])):
-                raise QAPISemError(info,
-                                   "Pragma returns-whitelist must be"
-                                   " a list of strings")
+                raise QAPISemError(
+                    info,
+                    "pragma returns-whitelist must be a list of strings")
             returns_whitelist = value
         elif name == 'name-case-whitelist':
             if (not isinstance(value, list)
                     or any([not isinstance(elt, str) for elt in value])):
-                raise QAPISemError(info,
-                                   "Pragma name-case-whitelist must be"
-                                   " a list of strings")
+                raise QAPISemError(
+                    info,
+                    "pragma name-case-whitelist must be a list of strings")
             name_case_whitelist = value
         else:
-            raise QAPISemError(info, "Unknown pragma '%s'" % name)
+            raise QAPISemError(info, "unknown pragma '%s'" % name)
 
     def accept(self, skip_comment=True):
         while True:
@@ -547,13 +548,13 @@ class QAPISchemaParser(object):
                     ch = self.src[self.cursor]
                     self.cursor += 1
                     if ch == '\n':
-                        raise QAPIParseError(self, "Missing terminating \"'\"")
+                        raise QAPIParseError(self, "missing terminating \"'\"")
                     if esc:
                         # Note: we recognize only \\ because we have
                         # no use for funny characters in strings
                         if ch != '\\':
                             raise QAPIParseError(self,
-                                                 "Unknown escape \\%s" % ch)
+                                                 "unknown escape \\%s" % ch)
                         esc = False
                     elif ch == '\\':
                         esc = True
@@ -563,7 +564,7 @@ class QAPISchemaParser(object):
                         return
                     if ord(ch) < 32 or ord(ch) >= 127:
                         raise QAPIParseError(
-                            self, "Funny character in string")
+                            self, "funny character in string")
                     string += ch
             elif self.src.startswith('true', self.pos):
                 self.val = True
@@ -584,7 +585,7 @@ class QAPISchemaParser(object):
                 # character
                 match = re.match('[^[\\]{}:,\\s\'"]+',
                                  self.src[self.cursor-1:])
-                raise QAPIParseError(self, "Stray '%s'" % match.group(0))
+                raise QAPIParseError(self, "stray '%s'" % match.group(0))
 
     def get_members(self):
         expr = OrderedDict()
@@ -592,24 +593,24 @@ class QAPISchemaParser(object):
             self.accept()
             return expr
         if self.tok != "'":
-            raise QAPIParseError(self, "Expected string or '}'")
+            raise QAPIParseError(self, "expected string or '}'")
         while True:
             key = self.val
             self.accept()
             if self.tok != ':':
-                raise QAPIParseError(self, "Expected ':'")
+                raise QAPIParseError(self, "expected ':'")
             self.accept()
             if key in expr:
-                raise QAPIParseError(self, "Duplicate key '%s'" % key)
+                raise QAPIParseError(self, "duplicate key '%s'" % key)
             expr[key] = self.get_expr(True)
             if self.tok == '}':
                 self.accept()
                 return expr
             if self.tok != ',':
-                raise QAPIParseError(self, "Expected ',' or '}'")
+                raise QAPIParseError(self, "expected ',' or '}'")
             self.accept()
             if self.tok != "'":
-                raise QAPIParseError(self, "Expected string")
+                raise QAPIParseError(self, "expected string")
 
     def get_values(self):
         expr = []
@@ -618,19 +619,19 @@ class QAPISchemaParser(object):
             return expr
         if self.tok not in "{['tfn":
             raise QAPIParseError(
-                self, "Expected '{', '[', ']', string, boolean or 'null'")
+                self, "expected '{', '[', ']', string, boolean or 'null'")
         while True:
             expr.append(self.get_expr(True))
             if self.tok == ']':
                 self.accept()
                 return expr
             if self.tok != ',':
-                raise QAPIParseError(self, "Expected ',' or ']'")
+                raise QAPIParseError(self, "expected ',' or ']'")
             self.accept()
 
     def get_expr(self, nested):
         if self.tok != '{' and not nested:
-            raise QAPIParseError(self, "Expected '{'")
+            raise QAPIParseError(self, "expected '{'")
         if self.tok == '{':
             self.accept()
             expr = self.get_members()
@@ -642,13 +643,13 @@ class QAPISchemaParser(object):
             self.accept()
         else:
             raise QAPIParseError(
-                self, "Expected '{', '[', string, boolean or 'null'")
+                self, "expected '{', '[', string, boolean or 'null'")
         return expr
 
     def get_doc(self, info):
         if self.val != '##':
-            raise QAPIParseError(self, "Junk after '##' at start of "
-                                 "documentation comment")
+            raise QAPIParseError(
+                self, "junk after '##' at start of documentation comment")
 
         doc = QAPIDoc(self, info)
         self.accept(False)
@@ -656,8 +657,9 @@ class QAPISchemaParser(object):
             if self.val.startswith('##'):
                 # End of doc comment
                 if self.val != '##':
-                    raise QAPIParseError(self, "Junk after '##' at end of "
-                                         "documentation comment")
+                    raise QAPIParseError(
+                        self,
+                        "junk after '##' at end of documentation comment")
                 doc.end_comment()
                 self.accept()
                 return doc
@@ -665,7 +667,7 @@ class QAPISchemaParser(object):
                 doc.append(self.val)
             self.accept(False)
 
-        raise QAPIParseError(self, "Documentation comment must end with '##'")
+        raise QAPIParseError(self, "documentation comment must end with '##'")
 
 
 #
@@ -804,18 +806,18 @@ def check_type(info, source, value,
 
     # value is a dictionary, check that each member is okay
     for (key, arg) in value.items():
-        check_name(info, "Member of %s" % source, key,
+        check_name(info, "member of %s" % source, key,
                    allow_optional=True, permit_upper=permit_upper)
         if c_name(key, False) == 'u' or c_name(key, False).startswith('has_'):
-            raise QAPISemError(info, "Member of %s uses reserved name '%s'"
-                               % (source, key))
+            raise QAPISemError(
+                info, "member of %s uses reserved name '%s'" % (source, key))
         # Todo: allow dictionaries to represent default values of
         # an optional argument.
         check_known_keys(info, "member '%s' of %s" % (key, source),
                          arg, ['type'], ['if'])
         check_if(arg, info)
         normalize_if(arg)
-        check_type(info, "Member '%s' of %s" % (key, source),
+        check_type(info, "member '%s' of %s" % (key, source),
                    arg['type'], allow_array=True,
                    allow_metas=['built-in', 'union', 'alternate', 'struct',
                                 'enum'])
@@ -868,8 +870,8 @@ def check_union(expr, info):
         enum_values = members.keys()
         allow_metas = ['built-in', 'union', 'alternate', 'struct', 'enum']
         if base is not None:
-            raise QAPISemError(info, "Simple union '%s' must not have a base" %
-                               name)
+            raise QAPISemError(
+                info, "simple union '%s' must not have a base" % name)
 
     # Else, it's a flat union.
     else:
@@ -878,46 +880,47 @@ def check_union(expr, info):
                    base, allow_dict=name,
                    allow_metas=['struct'])
         if not base:
-            raise QAPISemError(info, "Flat union '%s' must have a base"
-                               % name)
+            raise QAPISemError(
+                info, "flat union '%s' must have a base" % name)
         base_members = find_base_members(base)
         assert base_members is not None
 
         # The value of member 'discriminator' must name a non-optional
         # member of the base struct.
-        check_name(info, "Discriminator of flat union '%s'" % name,
+        check_name(info, "discriminator of flat union '%s'" % name,
                    discriminator)
         discriminator_value = base_members.get(discriminator)
         if not discriminator_value:
             raise QAPISemError(info,
-                               "Discriminator '%s' is not a member of 'base'"
+                               "discriminator '%s' is not a member of 'base'"
                                % discriminator)
         if discriminator_value.get('if'):
             raise QAPISemError(
                 info,
-                "The discriminator '%s' for union %s must not be conditional"
+                "the discriminator '%s' for union %s must not be conditional"
                 % (discriminator, name))
         enum_define = enum_types.get(discriminator_value['type'])
         # Do not allow string discriminator
         if not enum_define:
-            raise QAPISemError(info,
-                               "Discriminator '%s' must be of enumeration "
-                               "type" % discriminator)
+            raise QAPISemError(
+                info,
+                "discriminator '%s' must be of enumeration type"
+                % discriminator)
         enum_values = enum_get_names(enum_define)
         allow_metas = ['struct']
 
     if (len(enum_values) == 0):
-        raise QAPISemError(info, "Union '%s' has no branches" % name)
+        raise QAPISemError(info, "union '%s' has no branches" % name)
 
     for (key, value) in members.items():
-        check_name(info, "Member of union '%s'" % name, key)
+        check_name(info, "member of union '%s'" % name, key)
 
         check_known_keys(info, "member '%s' of union '%s'" % (key, name),
                          value, ['type'], ['if'])
         check_if(value, info)
         normalize_if(value)
         # Each value must name a known type
-        check_type(info, "Member '%s' of union '%s'" % (key, name),
+        check_type(info, "member '%s' of union '%s'" % (key, name),
                    value['type'],
                    allow_array=not base, allow_metas=allow_metas)
 
@@ -925,10 +928,10 @@ def check_union(expr, info):
         # of 'data' must also be members of the enum type.
         if discriminator is not None:
             if key not in enum_values:
-                raise QAPISemError(info,
-                                   "Discriminator value '%s' is not found in "
-                                   "enum '%s'"
-                                   % (key, enum_define['enum']))
+                raise QAPISemError(
+                    info,
+                    "discriminator value '%s' is not found in enum '%s'"
+                    % (key, enum_define['enum']))
 
 
 def check_alternate(expr, info):
@@ -938,9 +941,9 @@ def check_alternate(expr, info):
 
     if len(members) == 0:
         raise QAPISemError(info,
-                           "Alternate '%s' cannot have empty 'data'" % name)
+                           "alternate '%s' cannot have empty 'data'" % name)
     for (key, value) in members.items():
-        check_name(info, "Member of alternate '%s'" % name, key)
+        check_name(info, "member of alternate '%s'" % name, key)
         check_known_keys(info,
                          "member '%s' of alternate '%s'" % (key, name),
                          value, ['type'], ['if'])
@@ -949,12 +952,14 @@ def check_alternate(expr, info):
         typ = value['type']
 
         # Ensure alternates have no type conflicts.
-        check_type(info, "Member '%s' of alternate '%s'" % (key, name), typ,
+        check_type(info, "member '%s' of alternate '%s'" % (key, name), typ,
                    allow_metas=['built-in', 'union', 'struct', 'enum'])
         qtype = find_alternate_member_qtype(typ)
         if not qtype:
-            raise QAPISemError(info, "Alternate '%s' member '%s' cannot use "
-                               "type '%s'" % (name, key, typ))
+            raise QAPISemError(
+                info,
+                "alternate '%s' member '%s' cannot use type '%s'"
+                % (name, key, typ))
         conflicting = set([qtype])
         if qtype == 'QTYPE_QSTRING':
             enum_expr = enum_types.get(typ)
@@ -969,9 +974,11 @@ def check_alternate(expr, info):
                 conflicting.add('QTYPE_QBOOL')
         for qt in conflicting:
             if qt in types_seen:
-                raise QAPISemError(info, "Alternate '%s' member '%s' can't "
-                                   "be distinguished from member '%s'"
-                                   % (name, key, types_seen[qt]))
+                raise QAPISemError(
+                    info,
+                    "alternate '%s' member '%s' can't be distinguished "
+                    "from member '%s'"
+                    % (name, key, types_seen[qt]))
             types_seen[qt] = key
 
 
@@ -982,10 +989,10 @@ def check_enum(expr, info):
 
     if not isinstance(members, list):
         raise QAPISemError(info,
-                           "Enum '%s' requires an array for 'data'" % name)
+                           "enum '%s' requires an array for 'data'" % name)
     if prefix is not None and not isinstance(prefix, str):
         raise QAPISemError(info,
-                           "Enum '%s' requires a string for 'prefix'" % name)
+                           "enum '%s' requires a string for 'prefix'" % name)
 
     permit_upper = name in name_case_whitelist
 
@@ -994,7 +1001,7 @@ def check_enum(expr, info):
                          ['name'], ['if'])
         check_if(member, info)
         normalize_if(member)
-        check_name(info, "Member of enum '%s'" % name, member['name'],
+        check_name(info, "member of enum '%s'" % name, member['name'],
                    enum_member=True, permit_upper=permit_upper)
 
 
@@ -1010,9 +1017,8 @@ def check_struct(expr, info):
 
     if features:
         if not isinstance(features, list):
-            raise QAPISemError(info,
-                               "Struct '%s' requires an array for 'features'" %
-                               name)
+            raise QAPISemError(
+                info, "struct '%s' requires an array for 'features'" % name)
         for f in features:
             assert isinstance(f, dict)
             check_known_keys(info, "feature of struct %s" % name, f,
@@ -1020,7 +1026,7 @@ def check_struct(expr, info):
 
             check_if(f, info)
             normalize_if(f)
-            check_name(info, "Feature of struct %s" % name, f['name'])
+            check_name(info, "feature of struct %s" % name, f['name'])
 
 
 def check_known_keys(info, source, value, required, optional):
@@ -1030,15 +1036,19 @@ def check_known_keys(info, source, value, required, optional):
 
     missing = set(required) - set(value)
     if missing:
-        raise QAPISemError(info, "Key%s %s %s missing from %s"
-                           % ('s' if len(missing) > 1 else '', pprint(missing),
-                              'are' if len(missing) > 1 else 'is', source))
+        raise QAPISemError(
+            info,
+            "key%s %s %s missing from %s"
+            % ('s' if len(missing) > 1 else '', pprint(missing),
+               'are' if len(missing) > 1 else 'is', source))
     allowed = set(required + optional)
     unknown = set(value) - allowed
     if unknown:
-        raise QAPISemError(info, "Unknown key%s %s in %s\nValid keys are %s."
-                           % ('s' if len(unknown) > 1 else '', pprint(unknown),
-                              source, pprint(allowed)))
+        raise QAPISemError(
+            info,
+            "unknown key%s %s in %s\nValid keys are %s."
+            % ('s' if len(unknown) > 1 else '', pprint(unknown),
+               source, pprint(allowed)))
 
 
 def check_keys(expr, info, meta, required, optional=[]):
@@ -1106,7 +1116,7 @@ def check_exprs(exprs):
 
         if not doc and doc_required:
             raise QAPISemError(info,
-                               "Definition missing documentation comment")
+                               "definition missing documentation comment")
 
         if 'enum' in expr:
             meta = 'enum'
@@ -1142,14 +1152,16 @@ def check_exprs(exprs):
             check_keys(expr, info, 'event', [], ['data', 'boxed', 'if'])
             normalize_members(expr.get('data'))
         else:
-            raise QAPISemError(info, "Expression is missing metatype")
+            raise QAPISemError(info, "expression is missing metatype")
         normalize_if(expr)
         name = expr[meta]
         add_name(name, info, meta)
         info.set_defn(meta, name)
         if doc and doc.symbol != name:
-            raise QAPISemError(info, "Definition of '%s' follows documentation"
-                               " for '%s'" % (name, doc.symbol))
+            raise QAPISemError(
+                info,
+                "definition of '%s' follows documentation for '%s'"
+                % (name, doc.symbol))
 
     # Validate that exprs make sense
     for expr_elem in exprs:
@@ -1462,7 +1474,7 @@ class QAPISchemaObjectType(QAPISchemaType):
         if self._checked:
             # Recursed: C struct contains itself
             raise QAPISemError(self.info,
-                               "Object %s contains itself" % self.name)
+                               "object %s contains itself" % self.name)
 
         QAPISchemaType.check(self, schema)
         assert self._checked and self.members is None
@@ -1734,7 +1746,7 @@ class QAPISchemaCommand(QAPISchemaEntity):
             assert isinstance(self.arg_type, QAPISchemaObjectType)
             assert not self.arg_type.variants or self.boxed
         elif self.boxed:
-            raise QAPISemError(self.info, "Use of 'boxed' requires 'data'")
+            raise QAPISemError(self.info, "use of 'boxed' requires 'data'")
         if self._ret_type_name:
             self.ret_type = schema.lookup_type(self._ret_type_name)
             assert isinstance(self.ret_type, QAPISchemaType)
@@ -1763,7 +1775,7 @@ class QAPISchemaEvent(QAPISchemaEntity):
             assert isinstance(self.arg_type, QAPISchemaObjectType)
             assert not self.arg_type.variants or self.boxed
         elif self.boxed:
-            raise QAPISemError(self.info, "Use of 'boxed' requires 'data'")
+            raise QAPISemError(self.info, "use of 'boxed' requires 'data'")
 
     def visit(self, visitor):
         QAPISchemaEntity.visit(self, visitor)

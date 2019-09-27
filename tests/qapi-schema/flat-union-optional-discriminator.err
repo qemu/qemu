@@ -1,2 +1,2 @@
 tests/qapi-schema/flat-union-optional-discriminator.json: In union 'MyUnion':
-tests/qapi-schema/flat-union-optional-discriminator.json:7: Discriminator 'switch' is not a member of 'base'
+tests/qapi-schema/flat-union-optional-discriminator.json:7: discriminator 'switch' is not a member of 'base'

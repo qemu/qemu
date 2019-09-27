@@ -1,2 +1,2 @@
 tests/qapi-schema/alternate-empty.json: In alternate 'Alt':
-tests/qapi-schema/alternate-empty.json:2: Alternate 'Alt' cannot have empty 'data'
+tests/qapi-schema/alternate-empty.json:2: alternate 'Alt' cannot have empty 'data'

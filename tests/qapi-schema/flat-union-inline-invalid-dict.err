@@ -1,2 +1,2 @@
 tests/qapi-schema/flat-union-inline-invalid-dict.json: In union 'TestUnion':
-tests/qapi-schema/flat-union-inline-invalid-dict.json:7: Key 'type' is missing from member 'value1' of union 'TestUnion'
+tests/qapi-schema/flat-union-inline-invalid-dict.json:7: key 'type' is missing from member 'value1' of union 'TestUnion'
