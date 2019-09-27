@@ -768,10 +768,12 @@ def check_type(value, info, source,
 
 def check_command(expr, info):
     name = expr['command']
+    args = expr.get('data')
     boxed = expr.get('boxed', False)
 
-    check_type(expr.get('data'), info,
-               "'data' for command '%s'" % name,
+    if boxed and args is None:
+        raise QAPISemError(info, "'boxed': true requires 'data'")
+    check_type(args, info, "'data' for command '%s'" % name,
                allow_dict=not boxed)
     check_type(expr.get('returns'), info,
                "'returns' for command '%s'" % name,
@@ -780,10 +782,12 @@ def check_command(expr, info):
 
 def check_event(expr, info):
     name = expr['event']
+    args = expr.get('data')
     boxed = expr.get('boxed', False)
 
-    check_type(expr.get('data'), info,
-               "'data' for event '%s'" % name,
+    if boxed and args is None:
+        raise QAPISemError(info, "'boxed': true requires 'data'")
+    check_type(args, info, "'data' for event '%s'" % name,
                allow_dict=not boxed)
 
 
@@ -1699,8 +1703,6 @@ class QAPISchemaCommand(QAPISchemaEntity):
                     self.info,
                     "command's 'data' can take %s only with 'boxed': true"
                     % self.arg_type.describe())
-        elif self.boxed:
-            raise QAPISemError(self.info, "use of 'boxed' requires 'data'")
         if self._ret_type_name:
             self.ret_type = schema.resolve_type(
                 self._ret_type_name, self.info, "command's 'returns'")
@@ -1748,8 +1750,6 @@ class QAPISchemaEvent(QAPISchemaEntity):
                     self.info,
                     "event's 'data' can take %s only with 'boxed': true"
                     % self.arg_type.describe())
-        elif self.boxed:
-            raise QAPISemError(self.info, "use of 'boxed' requires 'data'")
 
     def visit(self, visitor):
         QAPISchemaEntity.visit(self, visitor)
