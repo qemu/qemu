@@ -53,7 +53,12 @@ class QAPISourceInfo(object):
         return info
 
     def loc(self):
-        return '%s:%d' % (self.fname, self.line)
+        if self.fname is None:
+            return sys.argv[0]
+        ret = self.fname
+        if self.line is not None:
+            ret += ':%d' % self.line
+        return ret
 
     def in_defn(self):
         if self.defn_name:
@@ -383,14 +388,26 @@ class QAPIDoc(object):
 
 class QAPISchemaParser(object):
 
-    def __init__(self, fp, previously_included=[], incl_info=None):
-        self.fname = fp.name
-        previously_included.append(os.path.abspath(fp.name))
-        self.src = fp.read()
+    def __init__(self, fname, previously_included=[], incl_info=None):
+        previously_included.append(os.path.abspath(fname))
+
+        try:
+            if sys.version_info[0] >= 3:
+                fp = open(fname, 'r', encoding='utf-8')
+            else:
+                fp = open(fname, 'r')
+            self.src = fp.read()
+        except IOError as e:
+            raise QAPISemError(incl_info or QAPISourceInfo(None, None, None),
+                               "can't read %s file '%s': %s"
+                               % ("include" if incl_info else "schema",
+                                  fname,
+                                  e.strerror))
+
         if self.src == '' or self.src[-1] != '\n':
             self.src += '\n'
         self.cursor = 0
-        self.info = QAPISourceInfo(self.fname, 1, incl_info)
+        self.info = QAPISourceInfo(fname, 1, incl_info)
         self.line_pos = 0
         self.exprs = []
         self.docs = []
@@ -414,7 +431,7 @@ class QAPISchemaParser(object):
                 if not isinstance(include, str):
                     raise QAPISemError(info,
                                        "value of 'include' must be a string")
-                incl_fname = os.path.join(os.path.dirname(self.fname),
+                incl_fname = os.path.join(os.path.dirname(fname),
                                           include)
                 self.exprs.append({'expr': {'include': incl_fname},
                                    'info': info})
@@ -466,14 +483,7 @@ class QAPISchemaParser(object):
         if incl_abs_fname in previously_included:
             return None
 
-        try:
-            if sys.version_info[0] >= 3:
-                fobj = open(incl_fname, 'r', encoding='utf-8')
-            else:
-                fobj = open(incl_fname, 'r')
-        except IOError as e:
-            raise QAPISemError(info, "%s: %s" % (e.strerror, incl_fname))
-        return QAPISchemaParser(fobj, previously_included, info)
+        return QAPISchemaParser(incl_fname, previously_included, info)
 
     def _pragma(self, name, value, info):
         global doc_required, returns_whitelist, name_case_whitelist
@@ -1734,11 +1744,7 @@ class QAPISchemaEvent(QAPISchemaEntity):
 class QAPISchema(object):
     def __init__(self, fname):
         self.fname = fname
-        if sys.version_info[0] >= 3:
-            f = open(fname, 'r', encoding='utf-8')
-        else:
-            f = open(fname, 'r')
-        parser = QAPISchemaParser(f)
+        parser = QAPISchemaParser(fname)
         exprs = check_exprs(parser.exprs)
         self.docs = parser.docs
         self._entity_list = []
