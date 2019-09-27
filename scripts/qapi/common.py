@@ -692,22 +692,27 @@ def check_defn_name_str(name, info, meta):
             info, "%s name should not end in '%s'" % (meta, name[-4:]))
 
 
-def check_if(expr, info):
+def check_if(expr, info, source):
 
     def check_if_str(ifcond, info):
         if not isinstance(ifcond, str):
             raise QAPISemError(
-                info, "'if' condition must be a string or a list of strings")
+                info,
+                "'if' condition of %s must be a string or a list of strings"
+                % source)
         if ifcond.strip() == '':
-            raise QAPISemError(info, "'if' condition '%s' makes no sense"
-                               % ifcond)
+            raise QAPISemError(
+                info,
+                "'if' condition '%s' of %s makes no sense"
+                % (ifcond, source))
 
     ifcond = expr.get('if')
     if ifcond is None:
         return
     if isinstance(ifcond, list):
         if ifcond == []:
-            raise QAPISemError(info, "'if' condition [] is useless")
+            raise QAPISemError(
+                info, "'if' condition [] of %s is useless" % source)
         for elt in ifcond:
             check_if_str(elt, info)
     else:
@@ -752,7 +757,7 @@ def check_type(value, info, source,
         if c_name(key, False) == 'u' or c_name(key, False).startswith('has_'):
             raise QAPISemError(info, "%s uses reserved name" % key_source)
         check_known_keys(arg, info, key_source, ['type'], ['if'])
-        check_if(arg, info)
+        check_if(arg, info, key_source)
         normalize_if(arg)
         check_type(arg['type'], info, key_source, allow_array=True)
 
@@ -796,7 +801,7 @@ def check_union(expr, info):
         source = "'data' member '%s'" % key
         check_name_str(key, info, source)
         check_known_keys(value, info, source, ['type'], ['if'])
-        check_if(value, info)
+        check_if(value, info, source)
         normalize_if(value)
         check_type(value['type'], info, source, allow_array=not base)
 
@@ -810,7 +815,7 @@ def check_alternate(expr, info):
         source = "'data' member '%s'" % key
         check_name_str(key, info, source)
         check_known_keys(value, info, source, ['type'], ['if'])
-        check_if(value, info)
+        check_if(value, info, source)
         normalize_if(value)
         check_type(value['type'], info, source)
 
@@ -834,7 +839,7 @@ def check_enum(expr, info):
         source = "%s '%s'" % (source, member['name'])
         check_name_str(member['name'], info, source,
                        enum_member=True, permit_upper=permit_upper)
-        check_if(member, info)
+        check_if(member, info, source)
         normalize_if(member)
 
 
@@ -856,7 +861,7 @@ def check_struct(expr, info):
             check_name_is_str(f['name'], info, source)
             source = "%s '%s'" % (source, f['name'])
             check_name_str(f['name'], info, source)
-            check_if(f, info)
+            check_if(f, info, source)
             normalize_if(f)
 
 
@@ -994,7 +999,7 @@ def check_exprs(exprs):
             assert False, 'unexpected meta type'
 
         normalize_if(expr)
-        check_if(expr, info)
+        check_if(expr, info, meta)
         check_flags(expr, info)
 
         if doc:
