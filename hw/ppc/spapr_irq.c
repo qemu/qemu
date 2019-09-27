@@ -100,43 +100,22 @@ int spapr_irq_init_kvm(int (*fn)(SpaprInterruptController *, Error **),
  * XICS IRQ backend.
  */
 
-static int spapr_irq_post_load_xics(SpaprMachineState *spapr, int version_id)
-{
-    if (!kvm_irqchip_in_kernel()) {
-        CPUState *cs;
-        CPU_FOREACH(cs) {
-            PowerPCCPU *cpu = POWERPC_CPU(cs);
-            icp_resend(spapr_cpu_state(cpu)->icp);
-        }
-    }
-    return 0;
-}
-
 SpaprIrq spapr_irq_xics = {
     .nr_xirqs    = SPAPR_NR_XIRQS,
     .nr_msis     = SPAPR_NR_MSIS,
     .xics        = true,
     .xive        = false,
-
-    .post_load   = spapr_irq_post_load_xics,
 };
 
 /*
  * XIVE IRQ backend.
  */
 
-static int spapr_irq_post_load_xive(SpaprMachineState *spapr, int version_id)
-{
-    return spapr_xive_post_load(spapr->xive, version_id);
-}
-
 SpaprIrq spapr_irq_xive = {
     .nr_xirqs    = SPAPR_NR_XIRQS,
     .nr_msis     = SPAPR_NR_MSIS,
     .xics        = false,
     .xive        = true,
-
-    .post_load   = spapr_irq_post_load_xive,
 };
 
 /*
@@ -149,21 +128,6 @@ SpaprIrq spapr_irq_xive = {
  */
 
 /*
- * Returns the sPAPR IRQ backend negotiated by CAS. XICS is the
- * default.
- */
-static SpaprIrq *spapr_irq_current(SpaprMachineState *spapr)
-{
-    return spapr_ovec_test(spapr->ov5_cas, OV5_XIVE_EXPLOIT) ?
-        &spapr_irq_xive : &spapr_irq_xics;
-}
-
-static int spapr_irq_post_load_dual(SpaprMachineState *spapr, int version_id)
-{
-    return spapr_irq_current(spapr)->post_load(spapr, version_id);
-}
-
-/*
  * Define values in sync with the XIVE and XICS backend
  */
 SpaprIrq spapr_irq_dual = {
@@ -171,8 +135,6 @@ SpaprIrq spapr_irq_dual = {
     .nr_msis     = SPAPR_NR_MSIS,
     .xics        = true,
     .xive        = true,
-
-    .post_load   = spapr_irq_post_load_dual,
 };
 
 
@@ -447,8 +409,11 @@ qemu_irq spapr_qirq(SpaprMachineState *spapr, int irq)
 
 int spapr_irq_post_load(SpaprMachineState *spapr, int version_id)
 {
+    SpaprInterruptControllerClass *sicc;
+
     spapr_irq_update_active_intc(spapr);
-    return spapr->irq->post_load(spapr, version_id);
+    sicc = SPAPR_INTC_GET_CLASS(spapr->active_intc);
+    return sicc->post_load(spapr->active_intc, version_id);
 }
 
 void spapr_irq_reset(SpaprMachineState *spapr, Error **errp)
@@ -589,8 +554,6 @@ SpaprIrq spapr_irq_xics_legacy = {
     .nr_msis     = SPAPR_IRQ_XICS_LEGACY_NR_XIRQS,
     .xics        = true,
     .xive        = false,
-
-    .post_load   = spapr_irq_post_load_xics,
 };
 
 static void spapr_irq_register_types(void)

@@ -462,10 +462,10 @@ static int vmstate_spapr_xive_pre_save(void *opaque)
  * Called by the sPAPR IRQ backend 'post_load' method at the machine
  * level.
  */
-int spapr_xive_post_load(SpaprXive *xive, int version_id)
+static int spapr_xive_post_load(SpaprInterruptController *intc, int version_id)
 {
     if (kvm_irqchip_in_kernel()) {
-        return kvmppc_xive_post_load(xive, version_id);
+        return kvmppc_xive_post_load(SPAPR_XIVE(intc), version_id);
     }
 
     return 0;
@@ -702,6 +702,7 @@ static void spapr_xive_class_init(ObjectClass *klass, void *data)
     sicc->set_irq = spapr_xive_set_irq;
     sicc->print_info = spapr_xive_print_info;
     sicc->dt = spapr_xive_dt;
+    sicc->post_load = spapr_xive_post_load;
 }
 
 static const TypeInfo spapr_xive_info = {

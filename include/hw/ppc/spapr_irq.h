@@ -62,6 +62,7 @@ typedef struct SpaprInterruptControllerClass {
     void (*print_info)(SpaprInterruptController *intc, Monitor *mon);
     void (*dt)(SpaprInterruptController *intc, uint32_t nr_servers,
                void *fdt, uint32_t phandle);
+    int (*post_load)(SpaprInterruptController *intc, int version_id);
 } SpaprInterruptControllerClass;
 
 void spapr_irq_update_active_intc(SpaprMachineState *spapr);
@@ -82,8 +83,6 @@ typedef struct SpaprIrq {
     uint32_t    nr_msis;
     bool        xics;
     bool        xive;
-
-    int (*post_load)(SpaprMachineState *spapr, int version_id);
 } SpaprIrq;
 
 extern SpaprIrq spapr_irq_xics;

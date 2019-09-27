@@ -395,6 +395,18 @@ static void xics_spapr_print_info(SpaprInterruptController *intc, Monitor *mon)
     ics_pic_print_info(ics, mon);
 }
 
+static int xics_spapr_post_load(SpaprInterruptController *intc, int version_id)
+{
+    if (!kvm_irqchip_in_kernel()) {
+        CPUState *cs;
+        CPU_FOREACH(cs) {
+            PowerPCCPU *cpu = POWERPC_CPU(cs);
+            icp_resend(spapr_cpu_state(cpu)->icp);
+        }
+    }
+    return 0;
+}
+
 static int xics_spapr_activate(SpaprInterruptController *intc, Error **errp)
 {
     if (kvm_enabled()) {
@@ -426,6 +438,7 @@ static void ics_spapr_class_init(ObjectClass *klass, void *data)
     sicc->set_irq = xics_spapr_set_irq;
     sicc->print_info = xics_spapr_print_info;
     sicc->dt = xics_spapr_dt;
+    sicc->post_load = xics_spapr_post_load;
 }
 
 static const TypeInfo ics_spapr_info = {
