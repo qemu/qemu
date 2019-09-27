@@ -1759,6 +1759,11 @@ class QAPISchema(object):
         # because they're liable to clash in generated C.
         other_ent = self._entity_dict.get(ent.name)
         if other_ent:
+            if other_ent.info:
+                where = QAPIError(other_ent.info, None, "previous definition")
+                raise QAPISemError(
+                    ent.info,
+                    "'%s' is already defined\n%s" % (ent.name, where))
             raise QAPISemError(
                 ent.info, "%s is already defined" % other_ent.describe())
         self._entity_dict[ent.name] = ent
