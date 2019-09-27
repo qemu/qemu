@@ -756,7 +756,7 @@ def check_type(value, info, source,
                        allow_optional=True, permit_upper=permit_upper)
         if c_name(key, False) == 'u' or c_name(key, False).startswith('has_'):
             raise QAPISemError(info, "%s uses reserved name" % key_source)
-        check_known_keys(arg, info, key_source, ['type'], ['if'])
+        check_keys(arg, info, key_source, ['type'], ['if'])
         check_if(arg, info, key_source)
         normalize_if(arg)
         check_type(arg['type'], info, key_source, allow_array=True)
@@ -800,7 +800,7 @@ def check_union(expr, info):
     for (key, value) in members.items():
         source = "'data' member '%s'" % key
         check_name_str(key, info, source)
-        check_known_keys(value, info, source, ['type'], ['if'])
+        check_keys(value, info, source, ['type'], ['if'])
         check_if(value, info, source)
         normalize_if(value)
         check_type(value['type'], info, source, allow_array=not base)
@@ -814,7 +814,7 @@ def check_alternate(expr, info):
     for (key, value) in members.items():
         source = "'data' member '%s'" % key
         check_name_str(key, info, source)
-        check_known_keys(value, info, source, ['type'], ['if'])
+        check_keys(value, info, source, ['type'], ['if'])
         check_if(value, info, source)
         normalize_if(value)
         check_type(value['type'], info, source)
@@ -834,7 +834,7 @@ def check_enum(expr, info):
 
     for member in members:
         source = "'data' member"
-        check_known_keys(member, info, source, ['name'], ['if'])
+        check_keys(member, info, source, ['name'], ['if'])
         check_name_is_str(member['name'], info, source)
         source = "%s '%s'" % (source, member['name'])
         check_name_str(member['name'], info, source,
@@ -857,7 +857,7 @@ def check_struct(expr, info):
         for f in features:
             source = "'features' member"
             assert isinstance(f, dict)
-            check_known_keys(f, info, source, ['name'], ['if'])
+            check_keys(f, info, source, ['name'], ['if'])
             check_name_is_str(f['name'], info, source)
             source = "%s '%s'" % (source, f['name'])
             check_name_str(f['name'], info, source)
@@ -865,7 +865,7 @@ def check_struct(expr, info):
             normalize_if(f)
 
 
-def check_known_keys(value, info, source, required, optional):
+def check_keys(value, info, source, required, optional):
 
     def pprint(elems):
         return ', '.join("'" + e + "'" for e in sorted(elems))
@@ -885,10 +885,6 @@ def check_known_keys(value, info, source, required, optional):
             "%s has unknown key%s %s\nValid keys are %s."
             % (source, 's' if len(unknown) > 1 else '',
                pprint(unknown), pprint(allowed)))
-
-
-def check_keys(expr, info, meta, required, optional=[]):
-    check_known_keys(expr, info, meta, required + [meta], optional)
 
 
 def check_flags(expr, info):
@@ -966,33 +962,39 @@ def check_exprs(exprs):
                 info, "documentation comment is for '%s'" % doc.symbol)
 
         if meta == 'enum':
-            check_keys(expr, info, 'enum', ['data'], ['if', 'prefix'])
+            check_keys(expr, info, meta,
+                       ['enum', 'data'], ['if', 'prefix'])
             normalize_enum(expr)
             check_enum(expr, info)
         elif meta == 'union':
-            check_keys(expr, info, 'union', ['data'],
+            check_keys(expr, info, meta,
+                       ['union', 'data'],
                        ['base', 'discriminator', 'if'])
             normalize_members(expr.get('base'))
             normalize_members(expr['data'])
             check_union(expr, info)
         elif meta == 'alternate':
-            check_keys(expr, info, 'alternate', ['data'], ['if'])
+            check_keys(expr, info, meta,
+                       ['alternate', 'data'], ['if'])
             normalize_members(expr['data'])
             check_alternate(expr, info)
         elif meta == 'struct':
-            check_keys(expr, info, 'struct', ['data'],
-                       ['base', 'if', 'features'])
+            check_keys(expr, info, meta,
+                       ['struct', 'data'], ['base', 'if', 'features'])
             normalize_members(expr['data'])
             normalize_features(expr.get('features'))
             check_struct(expr, info)
         elif meta == 'command':
-            check_keys(expr, info, 'command', [],
-                       ['data', 'returns', 'gen', 'success-response',
-                        'boxed', 'allow-oob', 'allow-preconfig', 'if'])
+            check_keys(expr, info, meta,
+                       ['command'],
+                       ['data', 'returns', 'boxed', 'if',
+                        'gen', 'success-response', 'allow-oob',
+                        'allow-preconfig'])
             normalize_members(expr.get('data'))
             check_command(expr, info)
         elif meta == 'event':
-            check_keys(expr, info, 'event', [], ['data', 'boxed', 'if'])
+            check_keys(expr, info, meta,
+                       ['event'], ['data', 'boxed', 'if'])
             normalize_members(expr.get('data'))
             check_event(expr, info)
         else:
