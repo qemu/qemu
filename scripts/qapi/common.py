@@ -1574,9 +1574,10 @@ class QAPISchemaMember(object):
     """ Represents object members, enum members and features """
     role = 'member'
 
-    def __init__(self, name, ifcond=None):
+    def __init__(self, name, info, ifcond=None):
         assert isinstance(name, str)
         self.name = name
+        self.info = info
         self.ifcond = ifcond or []
         self.defined_in = None
 
@@ -1633,8 +1634,8 @@ class QAPISchemaFeature(QAPISchemaMember):
 
 
 class QAPISchemaObjectTypeMember(QAPISchemaMember):
-    def __init__(self, name, typ, optional, ifcond=None):
-        QAPISchemaMember.__init__(self, name, ifcond)
+    def __init__(self, name, info, typ, optional, ifcond=None):
+        QAPISchemaMember.__init__(self, name, info, ifcond)
         assert isinstance(typ, str)
         assert isinstance(optional, bool)
         self._type_name = typ
@@ -1648,7 +1649,7 @@ class QAPISchemaObjectTypeMember(QAPISchemaMember):
 
 
 class QAPISchemaObjectTypeVariants(object):
-    def __init__(self, tag_name, tag_member, variants):
+    def __init__(self, tag_name, info, tag_member, variants):
         # Flat unions pass tag_name but not tag_member.
         # Simple unions and alternates pass tag_member but not tag_name.
         # After check(), tag_member is always set, and tag_name remains
@@ -1659,6 +1660,7 @@ class QAPISchemaObjectTypeVariants(object):
         for v in variants:
             assert isinstance(v, QAPISchemaObjectTypeVariant)
         self._tag_name = tag_name
+        self.info = info
         self.tag_member = tag_member
         self.variants = variants
 
@@ -1678,8 +1680,8 @@ class QAPISchemaObjectTypeVariants(object):
             cases = set([v.name for v in self.variants])
             for m in self.tag_member.type.members:
                 if m.name not in cases:
-                    v = QAPISchemaObjectTypeVariant(m.name, 'q_empty',
-                                                    m.ifcond)
+                    v = QAPISchemaObjectTypeVariant(m.name, self.info,
+                                                    'q_empty', m.ifcond)
                     v.set_defined_in(self.tag_member.defined_in)
                     self.variants.append(v)
         assert self.variants
@@ -1703,8 +1705,9 @@ class QAPISchemaObjectTypeVariants(object):
 class QAPISchemaObjectTypeVariant(QAPISchemaObjectTypeMember):
     role = 'branch'
 
-    def __init__(self, name, typ, ifcond=None):
-        QAPISchemaObjectTypeMember.__init__(self, name, typ, False, ifcond)
+    def __init__(self, name, info, typ, ifcond=None):
+        QAPISchemaObjectTypeMember.__init__(self, name, info, typ,
+                                            False, ifcond)
 
 
 class QAPISchemaAlternateType(QAPISchemaType):
@@ -1880,23 +1883,26 @@ class QAPISchema(object):
 
         qtypes = ['none', 'qnull', 'qnum', 'qstring', 'qdict', 'qlist',
                   'qbool']
-        qtype_values = self._make_enum_members([{'name': n} for n in qtypes])
+        qtype_values = self._make_enum_members(
+            [{'name': n} for n in qtypes], None)
 
         self._def_entity(QAPISchemaEnumType('QType', None, None, None,
                                             qtype_values, 'QTYPE'))
 
-    def _make_features(self, features):
-        return [QAPISchemaFeature(f['name'], f.get('if')) for f in features]
+    def _make_features(self, features, info):
+        return [QAPISchemaFeature(f['name'], info, f.get('if'))
+                for f in features]
 
-    def _make_enum_members(self, values):
-        return [QAPISchemaEnumMember(v['name'], v.get('if'))
+    def _make_enum_members(self, values, info):
+        return [QAPISchemaEnumMember(v['name'], info, v.get('if'))
                 for v in values]
 
     def _make_implicit_enum_type(self, name, info, ifcond, values):
         # See also QAPISchemaObjectTypeMember.describe()
         name = name + 'Kind'    # reserved by check_defn_name_str()
         self._def_entity(QAPISchemaEnumType(
-            name, info, None, ifcond, self._make_enum_members(values), None))
+            name, info, None, ifcond, self._make_enum_members(values, info),
+            None))
         return name
 
     def _make_array_type(self, element_type, info):
@@ -1935,7 +1941,7 @@ class QAPISchema(object):
         ifcond = expr.get('if')
         self._def_entity(QAPISchemaEnumType(
             name, info, doc, ifcond,
-            self._make_enum_members(data), prefix))
+            self._make_enum_members(data, info), prefix))
 
     def _make_member(self, name, typ, ifcond, info):
         optional = False
@@ -1945,7 +1951,7 @@ class QAPISchema(object):
         if isinstance(typ, list):
             assert len(typ) == 1
             typ = self._make_array_type(typ[0], info)
-        return QAPISchemaObjectTypeMember(name, typ, optional, ifcond)
+        return QAPISchemaObjectTypeMember(name, info, typ, optional, ifcond)
 
     def _make_members(self, data, info):
         return [self._make_member(key, value['type'], value.get('if'), info)
@@ -1957,13 +1963,14 @@ class QAPISchema(object):
         data = expr['data']
         ifcond = expr.get('if')
         features = expr.get('features', [])
-        self._def_entity(QAPISchemaObjectType(name, info, doc, ifcond, base,
-                                              self._make_members(data, info),
-                                              None,
-                                              self._make_features(features)))
+        self._def_entity(QAPISchemaObjectType(
+            name, info, doc, ifcond, base,
+            self._make_members(data, info),
+            None,
+            self._make_features(features, info)))
 
-    def _make_variant(self, case, typ, ifcond):
-        return QAPISchemaObjectTypeVariant(case, typ, ifcond)
+    def _make_variant(self, case, typ, ifcond, info):
+        return QAPISchemaObjectTypeVariant(case, info, typ, ifcond)
 
     def _make_simple_variant(self, case, typ, ifcond, info):
         if isinstance(typ, list):
@@ -1972,7 +1979,7 @@ class QAPISchema(object):
         typ = self._make_implicit_object_type(
             typ, info, None, self.lookup_type(typ),
             'wrapper', [self._make_member('data', typ, None, info)])
-        return QAPISchemaObjectTypeVariant(case, typ, ifcond)
+        return QAPISchemaObjectTypeVariant(case, info, typ, ifcond)
 
     def _def_union_type(self, expr, info, doc):
         name = expr['union']
@@ -1986,7 +1993,8 @@ class QAPISchema(object):
                 name, info, doc, ifcond,
                 'base', self._make_members(base, info))
         if tag_name:
-            variants = [self._make_variant(key, value['type'], value.get('if'))
+            variants = [self._make_variant(key, value['type'],
+                                           value.get('if'), info)
                         for (key, value) in data.items()]
             members = []
         else:
@@ -1995,26 +2003,26 @@ class QAPISchema(object):
                         for (key, value) in data.items()]
             enum = [{'name': v.name, 'if': v.ifcond} for v in variants]
             typ = self._make_implicit_enum_type(name, info, ifcond, enum)
-            tag_member = QAPISchemaObjectTypeMember('type', typ, False)
+            tag_member = QAPISchemaObjectTypeMember('type', info, typ, False)
             members = [tag_member]
         self._def_entity(
             QAPISchemaObjectType(name, info, doc, ifcond, base, members,
-                                 QAPISchemaObjectTypeVariants(tag_name,
-                                                              tag_member,
-                                                              variants), []))
+                                 QAPISchemaObjectTypeVariants(
+                                     tag_name, info, tag_member, variants),
+                                 []))
 
     def _def_alternate_type(self, expr, info, doc):
         name = expr['alternate']
         data = expr['data']
         ifcond = expr.get('if')
-        variants = [self._make_variant(key, value['type'], value.get('if'))
+        variants = [self._make_variant(key, value['type'], value.get('if'),
+                                       info)
                     for (key, value) in data.items()]
-        tag_member = QAPISchemaObjectTypeMember('type', 'QType', False)
+        tag_member = QAPISchemaObjectTypeMember('type', info, 'QType', False)
         self._def_entity(
             QAPISchemaAlternateType(name, info, doc, ifcond,
-                                    QAPISchemaObjectTypeVariants(None,
-                                                                 tag_member,
-                                                                 variants)))
+                                    QAPISchemaObjectTypeVariants(
+                                        None, info, tag_member, variants)))
 
     def _def_command(self, expr, info, doc):
         name = expr['command']
@@ -2306,7 +2314,7 @@ const QEnumLookup %(c_name)s_lookup = {
 
 def gen_enum(name, members, prefix=None):
     # append automatically generated _MAX value
-    enum_members = members + [QAPISchemaEnumMember('_MAX')]
+    enum_members = members + [QAPISchemaEnumMember('_MAX', None)]
 
     ret = mcgen('''
 
