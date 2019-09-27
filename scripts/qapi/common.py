@@ -910,8 +910,6 @@ def check_known_keys(value, info, source, required, optional):
 
 def check_keys(expr, info, meta, required, optional=[]):
     name = expr[meta]
-    if not isinstance(name, str):
-        raise QAPISemError(info, "'%s' key must have a string value" % meta)
     required = required + [meta]
     source = "%s '%s'" % (meta, name)
     check_known_keys(expr, info, source, required, optional)
@@ -969,37 +967,18 @@ def check_exprs(exprs):
 
         if 'enum' in expr:
             meta = 'enum'
-            check_keys(expr, info, 'enum', ['data'], ['if', 'prefix'])
-            normalize_enum(expr)
         elif 'union' in expr:
             meta = 'union'
-            check_keys(expr, info, 'union', ['data'],
-                       ['base', 'discriminator', 'if'])
-            normalize_members(expr.get('base'))
-            normalize_members(expr['data'])
         elif 'alternate' in expr:
             meta = 'alternate'
-            check_keys(expr, info, 'alternate', ['data'], ['if'])
-            normalize_members(expr['data'])
         elif 'struct' in expr:
             meta = 'struct'
-            check_keys(expr, info, 'struct', ['data'],
-                       ['base', 'if', 'features'])
-            normalize_members(expr['data'])
-            normalize_features(expr.get('features'))
         elif 'command' in expr:
             meta = 'command'
-            check_keys(expr, info, 'command', [],
-                       ['data', 'returns', 'gen', 'success-response',
-                        'boxed', 'allow-oob', 'allow-preconfig', 'if'])
-            normalize_members(expr.get('data'))
         elif 'event' in expr:
             meta = 'event'
-            check_keys(expr, info, 'event', [], ['data', 'boxed', 'if'])
-            normalize_members(expr.get('data'))
         else:
             raise QAPISemError(info, "expression is missing metatype")
-        normalize_if(expr)
 
         name = expr[meta]
         check_name_is_str(name, info, "'%s'" % meta)
@@ -1013,20 +992,39 @@ def check_exprs(exprs):
                 % (name, doc.symbol))
 
         if meta == 'enum':
+            check_keys(expr, info, 'enum', ['data'], ['if', 'prefix'])
+            normalize_enum(expr)
             check_enum(expr, info)
         elif meta == 'union':
+            check_keys(expr, info, 'union', ['data'],
+                       ['base', 'discriminator', 'if'])
+            normalize_members(expr.get('base'))
+            normalize_members(expr['data'])
             check_union(expr, info)
         elif meta == 'alternate':
+            check_keys(expr, info, 'alternate', ['data'], ['if'])
+            normalize_members(expr['data'])
             check_alternate(expr, info)
         elif meta == 'struct':
+            check_keys(expr, info, 'struct', ['data'],
+                       ['base', 'if', 'features'])
+            normalize_members(expr['data'])
+            normalize_features(expr.get('features'))
             check_struct(expr, info)
         elif meta == 'command':
+            check_keys(expr, info, 'command', [],
+                       ['data', 'returns', 'gen', 'success-response',
+                        'boxed', 'allow-oob', 'allow-preconfig', 'if'])
+            normalize_members(expr.get('data'))
             check_command(expr, info)
         elif meta == 'event':
+            check_keys(expr, info, 'event', [], ['data', 'boxed', 'if'])
+            normalize_members(expr.get('data'))
             check_event(expr, info)
         else:
             assert False, 'unexpected meta type'
 
+        normalize_if(expr)
         check_if(expr, info)
         check_flags(expr, info)
 
