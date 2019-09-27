@@ -915,16 +915,17 @@ def check_keys(expr, info, meta, required, optional=[]):
     required = required + [meta]
     source = "%s '%s'" % (meta, name)
     check_known_keys(expr, info, source, required, optional)
-    for (key, value) in expr.items():
-        if key in ['gen', 'success-response'] and value is not False:
-            raise QAPISemError(info,
-                               "'%s' of %s '%s' should only use false value"
-                               % (key, meta, name))
-        if (key in ['boxed', 'allow-oob', 'allow-preconfig']
-                and value is not True):
-            raise QAPISemError(info,
-                               "'%s' of %s '%s' should only use true value"
-                               % (key, meta, name))
+
+
+def check_flags(expr, info):
+    for key in ['gen', 'success-response']:
+        if key in expr and expr[key] is not False:
+            raise QAPISemError(
+                info, "flag '%s' may only use false value" % key)
+    for key in ['boxed', 'allow-oob', 'allow-preconfig']:
+        if key in expr and expr[key] is not True:
+            raise QAPISemError(
+                info, "flag '%s' may only use true value" % key)
 
 
 def normalize_enum(expr):
@@ -1027,6 +1028,7 @@ def check_exprs(exprs):
             assert False, 'unexpected meta type'
 
         check_if(expr, info)
+        check_flags(expr, info)
 
         if doc:
             doc.check_expr(expr)
