@@ -21,25 +21,6 @@ import string
 import sys
 from collections import OrderedDict
 
-builtin_types = {
-    'null':     'QTYPE_QNULL',
-    'str':      'QTYPE_QSTRING',
-    'int':      'QTYPE_QNUM',
-    'number':   'QTYPE_QNUM',
-    'bool':     'QTYPE_QBOOL',
-    'int8':     'QTYPE_QNUM',
-    'int16':    'QTYPE_QNUM',
-    'int32':    'QTYPE_QNUM',
-    'int64':    'QTYPE_QNUM',
-    'uint8':    'QTYPE_QNUM',
-    'uint16':   'QTYPE_QNUM',
-    'uint32':   'QTYPE_QNUM',
-    'uint64':   'QTYPE_QNUM',
-    'size':     'QTYPE_QNUM',
-    'any':      None,           # any QType possible, actually
-    'QType':    'QTYPE_QSTRING',
-}
-
 # Are documentation comments required?
 doc_required = False
 
@@ -48,11 +29,6 @@ returns_whitelist = []
 
 # Whitelist of entities allowed to violate case conventions
 name_case_whitelist = []
-
-enum_types = {}
-struct_types = {}
-union_types = {}
-all_names = {}
 
 
 #
@@ -671,33 +647,8 @@ class QAPISchemaParser(object):
 
 
 #
-# Semantic analysis of schema expressions
-# TODO fold into QAPISchema
-# TODO catching name collisions in generated code would be nice
+# Check (context-free) schema expression structure
 #
-
-
-def find_base_members(base):
-    if isinstance(base, dict):
-        return base
-    base_struct_define = struct_types.get(base)
-    if not base_struct_define:
-        return None
-    return base_struct_define['data']
-
-
-# Return the qtype of an alternate branch, or None on error.
-def find_alternate_member_qtype(qapi_type):
-    if qapi_type in builtin_types:
-        return builtin_types[qapi_type]
-    elif qapi_type in struct_types:
-        return 'QTYPE_QDICT'
-    elif qapi_type in enum_types:
-        return 'QTYPE_QSTRING'
-    elif qapi_type in union_types:
-        return 'QTYPE_QDICT'
-    return None
-
 
 # Names must be letters, numbers, -, and _.  They must start with letter,
 # except for downstream extensions which must start with __RFQDN_.
@@ -748,16 +699,6 @@ def check_defn_name_str(name, info, meta):
             info, "%s '%s' should not end in '%s'" % (meta, name, name[-4:]))
 
 
-def add_name(name, info, meta):
-    global all_names
-    # FIXME should reject names that differ only in '_' vs. '.'
-    # vs. '-', because they're liable to clash in generated C.
-    if name in all_names:
-        raise QAPISemError(info, "%s '%s' is already defined"
-                           % (all_names[name], name))
-    all_names[name] = meta
-
-
 def check_if(expr, info):
 
     def check_if_str(ifcond, info):
@@ -781,13 +722,11 @@ def check_if(expr, info):
 
 
 def check_type(value, info, source,
-               allow_array=False, allow_dict=False, allow_metas=[]):
-    global all_names
-
+               allow_array=False, allow_dict=False):
     if value is None:
         return
 
-    # Check if array type for value is okay
+    # Array type
     if isinstance(value, list):
         if not allow_array:
             raise QAPISemError(info, "%s cannot be an array" % source)
@@ -795,18 +734,13 @@ def check_type(value, info, source,
             raise QAPISemError(info,
                                "%s: array type must contain single type name" %
                                source)
-        check_type(value[0], info, source, allow_metas=allow_metas)
         return
 
-    # Check if type name for value is okay
+    # Type name
     if isinstance(value, str):
-        if value not in all_names:
-            raise QAPISemError(info, "%s uses unknown type '%s'"
-                               % (source, value))
-        if not all_names[value] in allow_metas:
-            raise QAPISemError(info, "%s cannot use %s type '%s'" %
-                               (source, all_names[value], value))
         return
+
+    # Anonymous type
 
     if not allow_dict:
         raise QAPISemError(info, "%s should be a type name" % source)
@@ -829,43 +763,28 @@ def check_type(value, info, source,
         check_if(arg, info)
         normalize_if(arg)
         check_type(arg['type'], info, "member '%s' of %s" % (key, source),
-                   allow_array=True,
-                   allow_metas=['built-in', 'union', 'alternate', 'struct',
-                                'enum'])
+                   allow_array=True)
 
 
 def check_command(expr, info):
     name = expr['command']
     boxed = expr.get('boxed', False)
 
-    args_meta = ['struct']
-    if boxed:
-        args_meta += ['union']
     check_type(expr.get('data'), info,
                "'data' for command '%s'" % name,
-               allow_dict=not boxed, allow_metas=args_meta)
-    returns_meta = ['union', 'struct']
-    if name in returns_whitelist:
-        returns_meta += ['built-in', 'alternate', 'enum']
+               allow_dict=not boxed)
     check_type(expr.get('returns'), info,
                "'returns' for command '%s'" % name,
-               allow_array=True, allow_metas=returns_meta)
+               allow_array=True)
 
 
 def check_event(expr, info):
     name = expr['event']
     boxed = expr.get('boxed', False)
 
-    meta = ['struct']
-    if boxed:
-        meta += ['union']
     check_type(expr.get('data'), info,
                "'data' for event '%s'" % name,
-               allow_dict=not boxed, allow_metas=meta)
-
-
-def enum_get_names(expr):
-    return [e['name'] for e in expr['data']]
+               allow_dict=not boxed)
 
 
 def check_union(expr, info):
@@ -874,55 +793,18 @@ def check_union(expr, info):
     discriminator = expr.get('discriminator')
     members = expr['data']
 
-    # Two types of unions, determined by discriminator.
-
-    # With no discriminator it is a simple union.
-    if discriminator is None:
-        enum_values = members.keys()
-        allow_metas = ['built-in', 'union', 'alternate', 'struct', 'enum']
+    if discriminator is None:   # simple union
         if base is not None:
             raise QAPISemError(
                 info, "simple union '%s' must not have a base" % name)
-
-    # Else, it's a flat union.
-    else:
-        # The object must have a string or dictionary 'base'.
+    else:                       # flat union
         check_type(base, info, "'base' for union '%s'" % name,
-                   allow_dict=name, allow_metas=['struct'])
+                   allow_dict=name)
         if not base:
             raise QAPISemError(
                 info, "flat union '%s' must have a base" % name)
-        base_members = find_base_members(base)
-        assert base_members is not None
-
-        # The value of member 'discriminator' must name a non-optional
-        # member of the base struct.
         check_name_is_str(discriminator, info,
                           "discriminator of flat union '%s'" % name)
-        check_name_str(discriminator, info,
-                       "discriminator of flat union '%s'" % name)
-        discriminator_value = base_members.get(discriminator)
-        if not discriminator_value:
-            raise QAPISemError(info,
-                               "discriminator '%s' is not a member of 'base'"
-                               % discriminator)
-        if discriminator_value.get('if'):
-            raise QAPISemError(
-                info,
-                "the discriminator '%s' for union %s must not be conditional"
-                % (discriminator, name))
-        enum_define = enum_types.get(discriminator_value['type'])
-        # Do not allow string discriminator
-        if not enum_define:
-            raise QAPISemError(
-                info,
-                "discriminator '%s' must be of enumeration type"
-                % discriminator)
-        enum_values = enum_get_names(enum_define)
-        allow_metas = ['struct']
-
-    if (len(enum_values) == 0):
-        raise QAPISemError(info, "union '%s' has no branches" % name)
 
     for (key, value) in members.items():
         check_name_str(key, info, "member of union '%s'" % name)
@@ -931,25 +813,14 @@ def check_union(expr, info):
                          ['type'], ['if'])
         check_if(value, info)
         normalize_if(value)
-        # Each value must name a known type
         check_type(value['type'], info,
                    "member '%s' of union '%s'" % (key, name),
-                   allow_array=not base, allow_metas=allow_metas)
-
-        # If the discriminator names an enum type, then all members
-        # of 'data' must also be members of the enum type.
-        if discriminator is not None:
-            if key not in enum_values:
-                raise QAPISemError(
-                    info,
-                    "discriminator value '%s' is not found in enum '%s'"
-                    % (key, enum_define['enum']))
+                   allow_array=not base)
 
 
 def check_alternate(expr, info):
     name = expr['alternate']
     members = expr['data']
-    types_seen = {}
 
     if len(members) == 0:
         raise QAPISemError(info,
@@ -961,37 +832,8 @@ def check_alternate(expr, info):
                          ['type'], ['if'])
         check_if(value, info)
         normalize_if(value)
-        typ = value['type']
-
-        # Ensure alternates have no type conflicts.
-        check_type(typ, info, "member '%s' of alternate '%s'" % (key, name),
-                   allow_metas=['built-in', 'union', 'struct', 'enum'])
-        qtype = find_alternate_member_qtype(typ)
-        if not qtype:
-            raise QAPISemError(
-                info,
-                "alternate '%s' member '%s' cannot use type '%s'"
-                % (name, key, typ))
-        conflicting = set([qtype])
-        if qtype == 'QTYPE_QSTRING':
-            enum_expr = enum_types.get(typ)
-            if enum_expr:
-                for v in enum_get_names(enum_expr):
-                    if v in ['on', 'off']:
-                        conflicting.add('QTYPE_QBOOL')
-                    if re.match(r'[-+0-9.]', v): # lazy, could be tightened
-                        conflicting.add('QTYPE_QNUM')
-            else:
-                conflicting.add('QTYPE_QNUM')
-                conflicting.add('QTYPE_QBOOL')
-        for qt in conflicting:
-            if qt in types_seen:
-                raise QAPISemError(
-                    info,
-                    "alternate '%s' member '%s' can't be distinguished "
-                    "from member '%s'"
-                    % (name, key, types_seen[qt]))
-            types_seen[qt] = key
+        check_type(value['type'], info,
+                   "member '%s' of alternate '%s'" % (key, name))
 
 
 def check_enum(expr, info):
@@ -1024,8 +866,7 @@ def check_struct(expr, info):
 
     check_type(members, info, "'data' for struct '%s'" % name,
                allow_dict=name)
-    check_type(expr.get('base'), info, "'base' for struct '%s'" % name,
-               allow_metas=['struct'])
+    check_type(expr.get('base'), info, "'base' for struct '%s'" % name)
 
     if features:
         if not isinstance(features, list):
@@ -1111,13 +952,6 @@ def normalize_if(expr):
 
 
 def check_exprs(exprs):
-    global all_names
-
-    # Populate name table with names of built-in types
-    for builtin in builtin_types.keys():
-        all_names[builtin] = 'built-in'
-
-    # Learn the types and check for valid expression keys
     for expr_elem in exprs:
         expr = expr_elem['expr']
         info = expr_elem['info']
@@ -1134,14 +968,12 @@ def check_exprs(exprs):
             meta = 'enum'
             check_keys(expr, info, 'enum', ['data'], ['if', 'prefix'])
             normalize_enum(expr)
-            enum_types[expr[meta]] = expr
         elif 'union' in expr:
             meta = 'union'
             check_keys(expr, info, 'union', ['data'],
                        ['base', 'discriminator', 'if'])
             normalize_members(expr.get('base'))
             normalize_members(expr['data'])
-            union_types[expr[meta]] = expr
         elif 'alternate' in expr:
             meta = 'alternate'
             check_keys(expr, info, 'alternate', ['data'], ['if'])
@@ -1152,7 +984,6 @@ def check_exprs(exprs):
                        ['base', 'if', 'features'])
             normalize_members(expr['data'])
             normalize_features(expr.get('features'))
-            struct_types[expr[meta]] = expr
         elif 'command' in expr:
             meta = 'command'
             check_keys(expr, info, 'command', [],
@@ -1166,36 +997,29 @@ def check_exprs(exprs):
         else:
             raise QAPISemError(info, "expression is missing metatype")
         normalize_if(expr)
+
         name = expr[meta]
         check_name_is_str(name, info, "'%s'" % meta)
         info.set_defn(meta, name)
         check_defn_name_str(name, info, meta)
-        add_name(name, info, meta)
+
         if doc and doc.symbol != name:
             raise QAPISemError(
                 info,
                 "definition of '%s' follows documentation for '%s'"
                 % (name, doc.symbol))
 
-    # Validate that exprs make sense
-    for expr_elem in exprs:
-        expr = expr_elem['expr']
-        info = expr_elem['info']
-        doc = expr_elem.get('doc')
-
-        if 'include' in expr:
-            continue
-        if 'enum' in expr:
+        if meta == 'enum':
             check_enum(expr, info)
-        elif 'union' in expr:
+        elif meta == 'union':
             check_union(expr, info)
-        elif 'alternate' in expr:
+        elif meta == 'alternate':
             check_alternate(expr, info)
-        elif 'struct' in expr:
+        elif meta == 'struct':
             check_struct(expr, info)
-        elif 'command' in expr:
+        elif meta == 'command':
             check_command(expr, info)
-        elif 'event' in expr:
+        elif meta == 'event':
             check_event(expr, info)
         else:
             assert False, 'unexpected meta type'
@@ -1208,9 +1032,12 @@ def check_exprs(exprs):
 
 #
 # Schema compiler frontend
+# TODO catching name collisions in generated code would be nice
 #
 
 class QAPISchemaEntity(object):
+    meta = None
+
     def __init__(self, name, info, doc, ifcond=None):
         assert name is None or isinstance(name, str)
         self.name = name
@@ -1250,6 +1077,10 @@ class QAPISchemaEntity(object):
 
     def visit(self, visitor):
         assert self._checked
+
+    def describe(self):
+        assert self.meta
+        return "%s '%s'" % (self.meta, self.name)
 
 
 class QAPISchemaVisitor(object):
@@ -1341,8 +1172,14 @@ class QAPISchemaType(QAPISchemaEntity):
             return None
         return self.name
 
+    def describe(self):
+        assert self.meta
+        return "%s type '%s'" % (self.meta, self.name)
+
 
 class QAPISchemaBuiltinType(QAPISchemaType):
+    meta = 'built-in'
+
     def __init__(self, name, json_type, c_type):
         QAPISchemaType.__init__(self, name, None, None)
         assert not c_type or isinstance(c_type, str)
@@ -1374,6 +1211,8 @@ class QAPISchemaBuiltinType(QAPISchemaType):
 
 
 class QAPISchemaEnumType(QAPISchemaType):
+    meta = 'enum'
+
     def __init__(self, name, info, doc, ifcond, members, prefix):
         QAPISchemaType.__init__(self, name, info, doc, ifcond)
         for m in members:
@@ -1411,6 +1250,8 @@ class QAPISchemaEnumType(QAPISchemaType):
 
 
 class QAPISchemaArrayType(QAPISchemaType):
+    meta = 'array'
+
     def __init__(self, name, info, element_type):
         QAPISchemaType.__init__(self, name, info, None, None)
         assert isinstance(element_type, str)
@@ -1419,8 +1260,9 @@ class QAPISchemaArrayType(QAPISchemaType):
 
     def check(self, schema):
         QAPISchemaType.check(self, schema)
-        self.element_type = schema.lookup_type(self._element_type_name)
-        assert self.element_type
+        self.element_type = schema.resolve_type(
+            self._element_type_name, self.info,
+            self.info and self.info.defn_meta)
         assert not isinstance(self.element_type, QAPISchemaArrayType)
 
     @property
@@ -1453,6 +1295,10 @@ class QAPISchemaArrayType(QAPISchemaType):
         visitor.visit_array_type(self.name, self.info, self.ifcond,
                                  self.element_type)
 
+    def describe(self):
+        assert self.meta
+        return "%s type ['%s']" % (self.meta, self._element_type_name)
+
 
 class QAPISchemaObjectType(QAPISchemaType):
     def __init__(self, name, info, doc, ifcond,
@@ -1461,6 +1307,7 @@ class QAPISchemaObjectType(QAPISchemaType):
         # flat union has base, variants, and no local_members
         # simple union has local_members, variants, and no base
         QAPISchemaType.__init__(self, name, info, doc, ifcond)
+        self.meta = 'union' if variants else 'struct'
         assert base is None or isinstance(base, str)
         for m in local_members:
             assert isinstance(m, QAPISchemaObjectTypeMember)
@@ -1495,8 +1342,14 @@ class QAPISchemaObjectType(QAPISchemaType):
 
         seen = OrderedDict()
         if self._base_name:
-            self.base = schema.lookup_type(self._base_name)
-            assert isinstance(self.base, QAPISchemaObjectType)
+            self.base = schema.resolve_type(self._base_name, self.info,
+                                            "'base'")
+            if (not isinstance(self.base, QAPISchemaObjectType)
+                    or self.base.variants):
+                raise QAPISemError(
+                    self.info,
+                    "'base' requires a struct type, %s isn't"
+                    % self.base.describe())
             self.base.check(schema)
             self.base.check_clash(self.info, seen)
         for m in self.local_members:
@@ -1508,7 +1361,6 @@ class QAPISchemaObjectType(QAPISchemaType):
 
         if self.variants:
             self.variants.check(schema, seen)
-            assert self.variants.tag_member in members
             self.variants.check_clash(self.info, seen)
 
         # Features are in a name space separate from members
@@ -1646,8 +1498,8 @@ class QAPISchemaObjectTypeMember(QAPISchemaMember):
 
     def check(self, schema):
         assert self.defined_in
-        self.type = schema.lookup_type(self._type_name)
-        assert self.type
+        self.type = schema.resolve_type(self._type_name, self.info,
+                                        self.describe)
 
 
 class QAPISchemaObjectTypeVariants(object):
@@ -1671,12 +1523,40 @@ class QAPISchemaObjectTypeVariants(object):
             v.set_defined_in(name)
 
     def check(self, schema, seen):
-        if not self.tag_member:    # flat union
-            self.tag_member = seen[c_name(self._tag_name)]
-            assert self._tag_name == self.tag_member.name
-        assert isinstance(self.tag_member.type, QAPISchemaEnumType)
-        assert not self.tag_member.optional
-        assert self.tag_member.ifcond == []
+        if not self.tag_member: # flat union
+            self.tag_member = seen.get(c_name(self._tag_name))
+            base = "'base'"
+            # Pointing to the base type when not implicit would be
+            # nice, but we don't know it here
+            if not self.tag_member or self._tag_name != self.tag_member.name:
+                raise QAPISemError(
+                    self.info,
+                    "discriminator '%s' is not a member of %s"
+                    % (self._tag_name, base))
+            # Here we do:
+            base_type = schema.lookup_type(self.tag_member.defined_in)
+            assert base_type
+            if not base_type.is_implicit():
+                base = "base type '%s'" % self.tag_member.defined_in
+            if not isinstance(self.tag_member.type, QAPISchemaEnumType):
+                raise QAPISemError(
+                    self.info,
+                    "discriminator member '%s' of %s must be of enum type"
+                    % (self._tag_name, base))
+            if self.tag_member.optional:
+                raise QAPISemError(
+                    self.info,
+                    "discriminator member '%s' of %s must not be optional"
+                    % (self._tag_name, base))
+            if self.tag_member.ifcond:
+                raise QAPISemError(
+                    self.info,
+                    "discriminator member '%s' of %s must not be conditional"
+                    % (self._tag_name, base))
+        else:                   # simple union
+            assert isinstance(self.tag_member.type, QAPISchemaEnumType)
+            assert not self.tag_member.optional
+            assert self.tag_member.ifcond == []
         if self._tag_name:    # flat union
             # branches that are not explicitly covered get an empty type
             cases = set([v.name for v in self.variants])
@@ -1686,15 +1566,24 @@ class QAPISchemaObjectTypeVariants(object):
                                                     'q_empty', m.ifcond)
                     v.set_defined_in(self.tag_member.defined_in)
                     self.variants.append(v)
-        assert self.variants
+        if not self.variants:
+            raise QAPISemError(self.info, "union has no branches")
         for v in self.variants:
             v.check(schema)
             # Union names must match enum values; alternate names are
             # checked separately. Use 'seen' to tell the two apart.
             if seen:
-                assert v.name in self.tag_member.type.member_names()
-                assert (isinstance(v.type, QAPISchemaObjectType)
-                        and not v.type.variants)
+                if v.name not in self.tag_member.type.member_names():
+                    raise QAPISemError(
+                        self.info,
+                        "branch '%s' is not a value of %s"
+                        % (v.name, self.tag_member.type.describe()))
+                if (not isinstance(v.type, QAPISchemaObjectType)
+                        or v.type.variants):
+                    raise QAPISemError(
+                        self.info,
+                        "%s cannot use %s"
+                        % (v.describe(self.info), v.type.describe()))
                 v.type.check(schema)
 
     def check_clash(self, info, seen):
@@ -1713,6 +1602,8 @@ class QAPISchemaObjectTypeVariant(QAPISchemaObjectTypeMember):
 
 
 class QAPISchemaAlternateType(QAPISchemaType):
+    meta = 'alternate'
+
     def __init__(self, name, info, doc, ifcond, variants):
         QAPISchemaType.__init__(self, name, info, doc, ifcond)
         assert isinstance(variants, QAPISchemaObjectTypeVariants)
@@ -1730,9 +1621,34 @@ class QAPISchemaAlternateType(QAPISchemaType):
         # Alternate branch names have no relation to the tag enum values;
         # so we have to check for potential name collisions ourselves.
         seen = {}
+        types_seen = {}
         for v in self.variants.variants:
             v.check_clash(self.info, seen)
-            # TODO check conflicting qtypes
+            qtype = v.type.alternate_qtype()
+            if not qtype:
+                raise QAPISemError(
+                    self.info,
+                    "%s cannot use %s"
+                    % (v.describe(self.info), v.type.describe()))
+            conflicting = set([qtype])
+            if qtype == 'QTYPE_QSTRING':
+                if isinstance(v.type, QAPISchemaEnumType):
+                    for m in v.type.members:
+                        if m.name in ['on', 'off']:
+                            conflicting.add('QTYPE_QBOOL')
+                        if re.match(r'[-+0-9.]', m.name):
+                            # lazy, could be tightened
+                            conflicting.add('QTYPE_QNUM')
+                else:
+                    conflicting.add('QTYPE_QNUM')
+                    conflicting.add('QTYPE_QBOOL')
+            for qt in conflicting:
+                if qt in types_seen:
+                    raise QAPISemError(
+                        self.info,
+                        "%s can't be distinguished from '%s'"
+                        % (v.describe(self.info), types_seen[qt]))
+                types_seen[qt] = v.name
             if self.doc:
                 self.doc.connect_member(v)
         if self.doc:
@@ -1751,6 +1667,8 @@ class QAPISchemaAlternateType(QAPISchemaType):
 
 
 class QAPISchemaCommand(QAPISchemaEntity):
+    meta = 'command'
+
     def __init__(self, name, info, doc, ifcond, arg_type, ret_type,
                  gen, success_response, boxed, allow_oob, allow_preconfig):
         QAPISchemaEntity.__init__(self, name, info, doc, ifcond)
@@ -1769,14 +1687,32 @@ class QAPISchemaCommand(QAPISchemaEntity):
     def check(self, schema):
         QAPISchemaEntity.check(self, schema)
         if self._arg_type_name:
-            self.arg_type = schema.lookup_type(self._arg_type_name)
-            assert isinstance(self.arg_type, QAPISchemaObjectType)
-            assert not self.arg_type.variants or self.boxed
+            self.arg_type = schema.resolve_type(
+                self._arg_type_name, self.info, "command's 'data'")
+            if not isinstance(self.arg_type, QAPISchemaObjectType):
+                raise QAPISemError(
+                    self.info,
+                    "command's 'data' cannot take %s"
+                    % self.arg_type.describe())
+            if self.arg_type.variants and not self.boxed:
+                raise QAPISemError(
+                    self.info,
+                    "command's 'data' can take %s only with 'boxed': true"
+                    % self.arg_type.describe())
         elif self.boxed:
             raise QAPISemError(self.info, "use of 'boxed' requires 'data'")
         if self._ret_type_name:
-            self.ret_type = schema.lookup_type(self._ret_type_name)
-            assert isinstance(self.ret_type, QAPISchemaType)
+            self.ret_type = schema.resolve_type(
+                self._ret_type_name, self.info, "command's 'returns'")
+            if self.name not in returns_whitelist:
+                if not (isinstance(self.ret_type, QAPISchemaObjectType)
+                        or (isinstance(self.ret_type, QAPISchemaArrayType)
+                            and isinstance(self.ret_type.element_type,
+                                           QAPISchemaObjectType))):
+                    raise QAPISemError(
+                        self.info,
+                        "command's 'returns' cannot take %s"
+                        % self.ret_type.describe())
 
     def visit(self, visitor):
         QAPISchemaEntity.visit(self, visitor)
@@ -1788,6 +1724,8 @@ class QAPISchemaCommand(QAPISchemaEntity):
 
 
 class QAPISchemaEvent(QAPISchemaEntity):
+    meta = 'event'
+
     def __init__(self, name, info, doc, ifcond, arg_type, boxed):
         QAPISchemaEntity.__init__(self, name, info, doc, ifcond)
         assert not arg_type or isinstance(arg_type, str)
@@ -1798,9 +1736,18 @@ class QAPISchemaEvent(QAPISchemaEntity):
     def check(self, schema):
         QAPISchemaEntity.check(self, schema)
         if self._arg_type_name:
-            self.arg_type = schema.lookup_type(self._arg_type_name)
-            assert isinstance(self.arg_type, QAPISchemaObjectType)
-            assert not self.arg_type.variants or self.boxed
+            self.arg_type = schema.resolve_type(
+                self._arg_type_name, self.info, "event's 'data'")
+            if not isinstance(self.arg_type, QAPISchemaObjectType):
+                raise QAPISemError(
+                    self.info,
+                    "event's 'data' cannot take %s"
+                    % self.arg_type.describe())
+            if self.arg_type.variants and not self.boxed:
+                raise QAPISemError(
+                    self.info,
+                    "event's 'data' can take %s only with 'boxed': true"
+                    % self.arg_type.describe())
         elif self.boxed:
             raise QAPISemError(self.info, "use of 'boxed' requires 'data'")
 
@@ -1831,10 +1778,16 @@ class QAPISchema(object):
     def _def_entity(self, ent):
         # Only the predefined types are allowed to not have info
         assert ent.info or self._predefining
-        assert ent.name is None or ent.name not in self._entity_dict
         self._entity_list.append(ent)
-        if ent.name is not None:
-            self._entity_dict[ent.name] = ent
+        if ent.name is None:
+            return
+        # TODO reject names that differ only in '_' vs. '.'  vs. '-',
+        # because they're liable to clash in generated C.
+        other_ent = self._entity_dict.get(ent.name)
+        if other_ent:
+            raise QAPISemError(
+                ent.info, "%s is already defined" % other_ent.describe())
+        self._entity_dict[ent.name] = ent
 
     def lookup_entity(self, name, typ=None):
         ent = self._entity_dict.get(name)
@@ -1844,6 +1797,15 @@ class QAPISchema(object):
 
     def lookup_type(self, name):
         return self.lookup_entity(name, QAPISchemaType)
+
+    def resolve_type(self, name, info, what):
+        typ = self.lookup_type(name)
+        if not typ:
+            if callable(what):
+                what = what(info)
+            raise QAPISemError(
+                info, "%s uses unknown type '%s'" % (what, name))
+        return typ
 
     def _def_include(self, expr, info, doc):
         include = expr['include']
@@ -1930,7 +1892,7 @@ class QAPISchema(object):
             # But it's not tight: the disjunction need not imply it.  We
             # may end up compiling useless wrapper types.
             # TODO kill simple unions or implement the disjunction
-            assert ifcond == typ._ifcond # pylint: disable=protected-access
+            assert (ifcond or []) == typ._ifcond # pylint: disable=protected-access
         else:
             self._def_entity(QAPISchemaObjectType(name, info, doc, ifcond,
                                                   None, members, None, []))

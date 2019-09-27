@@ -1,5 +1,4 @@
 # we require the discriminator to be non-optional
-# FIXME reports "discriminator 'switch' is not a member of base struct 'Base'"
 { 'enum': 'Enum', 'data': [ 'one', 'two' ] }
 { 'struct': 'Base',
   'data': { '*switch': 'Enum' } }

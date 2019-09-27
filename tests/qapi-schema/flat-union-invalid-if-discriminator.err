@@ -1,2 +1,2 @@
 tests/qapi-schema/flat-union-invalid-if-discriminator.json: In union 'TestUnion':
-tests/qapi-schema/flat-union-invalid-if-discriminator.json:10: the discriminator 'enum1' for union TestUnion must not be conditional
+tests/qapi-schema/flat-union-invalid-if-discriminator.json:10: discriminator member 'enum1' of 'base' must not be conditional
