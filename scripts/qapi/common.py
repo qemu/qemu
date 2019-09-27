@@ -897,8 +897,10 @@ def check_union(expr, info):
 
         # The value of member 'discriminator' must name a non-optional
         # member of the base struct.
-        check_name(discriminator, info,
-                   "discriminator of flat union '%s'" % name)
+        check_name_is_str(discriminator, info,
+                          "discriminator of flat union '%s'" % name)
+        check_name_str(discriminator, info,
+                       "discriminator of flat union '%s'" % name)
         discriminator_value = base_members.get(discriminator)
         if not discriminator_value:
             raise QAPISemError(info,
