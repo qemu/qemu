@@ -27,7 +27,6 @@
 #define SPAPR_IRQ_MSI        (SPAPR_XIRQ_BASE + 0x0300)
 
 #define SPAPR_NR_XIRQS       0x1000
-#define SPAPR_NR_MSIS        (SPAPR_XIRQ_BASE + SPAPR_NR_XIRQS - SPAPR_IRQ_MSI)
 
 typedef struct SpaprMachineState SpaprMachineState;
 
@@ -73,14 +72,13 @@ void spapr_irq_print_info(SpaprMachineState *spapr, Monitor *mon);
 void spapr_irq_dt(SpaprMachineState *spapr, uint32_t nr_servers,
                   void *fdt, uint32_t phandle);
 
-void spapr_irq_msi_init(SpaprMachineState *spapr, uint32_t nr_msis);
+uint32_t spapr_irq_nr_msis(SpaprMachineState *spapr);
 int spapr_irq_msi_alloc(SpaprMachineState *spapr, uint32_t num, bool align,
                         Error **errp);
 void spapr_irq_msi_free(SpaprMachineState *spapr, int irq, uint32_t num);
 
 typedef struct SpaprIrq {
     uint32_t    nr_xirqs;
-    uint32_t    nr_msis;
     bool        xics;
     bool        xive;
 } SpaprIrq;

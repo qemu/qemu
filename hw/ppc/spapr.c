@@ -1267,7 +1267,7 @@ static void *spapr_build_fdt(SpaprMachineState *spapr)
     }
 
     QLIST_FOREACH(phb, &spapr->phbs, list) {
-        ret = spapr_dt_phb(phb, PHANDLE_INTC, fdt, spapr->irq->nr_msis, NULL);
+        ret = spapr_dt_phb(spapr, phb, PHANDLE_INTC, fdt, NULL);
         if (ret < 0) {
             error_report("couldn't setup PCI devices in fdt");
             exit(1);
@@ -3905,8 +3905,7 @@ int spapr_phb_dt_populate(SpaprDrc *drc, SpaprMachineState *spapr,
         return -1;
     }
 
-    if (spapr_dt_phb(sphb, intc_phandle, fdt, spapr->irq->nr_msis,
-                     fdt_start_offset)) {
+    if (spapr_dt_phb(spapr, sphb, intc_phandle, fdt, fdt_start_offset)) {
         error_setg(errp, "unable to create FDT node for PHB %d", sphb->index);
         return -1;
     }
