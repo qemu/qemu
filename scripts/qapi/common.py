@@ -1362,6 +1362,7 @@ class QAPISchemaArrayType(QAPISchemaType):
         QAPISchemaType.check(self, schema)
         self.element_type = schema.lookup_type(self._element_type_name)
         assert self.element_type
+        assert not isinstance(self.element_type, QAPISchemaArrayType)
 
     @property
     def ifcond(self):
@@ -1606,6 +1607,8 @@ class QAPISchemaObjectTypeVariants(object):
             self.tag_member = seen[c_name(self._tag_name)]
             assert self._tag_name == self.tag_member.name
         assert isinstance(self.tag_member.type, QAPISchemaEnumType)
+        assert not self.tag_member.optional
+        assert self.tag_member.ifcond == []
         if self._tag_name:    # flat union
             # branches that are not explicitly covered get an empty type
             cases = set([v.name for v in self.variants])
@@ -1615,20 +1618,21 @@ class QAPISchemaObjectTypeVariants(object):
                                                     m.ifcond)
                     v.set_owner(self.tag_member.owner)
                     self.variants.append(v)
+        assert self.variants
         for v in self.variants:
             v.check(schema)
             # Union names must match enum values; alternate names are
             # checked separately. Use 'seen' to tell the two apart.
             if seen:
                 assert v.name in self.tag_member.type.member_names()
-                assert isinstance(v.type, QAPISchemaObjectType)
+                assert (isinstance(v.type, QAPISchemaObjectType)
+                        and not v.type.variants)
                 v.type.check(schema)
 
     def check_clash(self, info, seen):
         for v in self.variants:
             # Reset seen map for each variant, since qapi names from one
             # branch do not affect another branch
-            assert isinstance(v.type, QAPISchemaObjectType)
             v.type.check_clash(info, dict(seen))
 
 
@@ -1659,6 +1663,7 @@ class QAPISchemaAlternateType(QAPISchemaType):
         seen = {}
         for v in self.variants.variants:
             v.check_clash(self.info, seen)
+            # TODO check conflicting qtypes
             if self.doc:
                 self.doc.connect_member(v)
         if self.doc:
