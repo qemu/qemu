@@ -816,8 +816,8 @@ def check_type(value, info, source,
 
     # value is a dictionary, check that each member is okay
     for (key, arg) in value.items():
-        check_name(key, info, "member of %s" % source,
-                   allow_optional=True, permit_upper=permit_upper)
+        check_name_str(key, info, "member of %s" % source,
+                       allow_optional=True, permit_upper=permit_upper)
         if c_name(key, False) == 'u' or c_name(key, False).startswith('has_'):
             raise QAPISemError(
                 info, "member of %s uses reserved name '%s'" % (source, key))
@@ -920,8 +920,7 @@ def check_union(expr, info):
         raise QAPISemError(info, "union '%s' has no branches" % name)
 
     for (key, value) in members.items():
-        check_name(key, info, "member of union '%s'" % name)
-
+        check_name_str(key, info, "member of union '%s'" % name)
         check_known_keys(value, info,
                          "member '%s' of union '%s'" % (key, name),
                          ['type'], ['if'])
@@ -951,7 +950,7 @@ def check_alternate(expr, info):
         raise QAPISemError(info,
                            "alternate '%s' cannot have empty 'data'" % name)
     for (key, value) in members.items():
-        check_name(key, info, "member of alternate '%s'" % name)
+        check_name_str(key, info, "member of alternate '%s'" % name)
         check_known_keys(value, info,
                          "member '%s' of alternate '%s'" % (key, name),
                          ['type'], ['if'])
