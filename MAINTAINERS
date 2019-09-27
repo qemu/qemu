@@ -2209,6 +2209,8 @@ F: qapi/migration.json
 D-Bus
 M: Marc-André Lureau <marcandre.lureau@redhat.com>
 S: Maintained
+F: util/dbus.c
+F: include/qemu/dbus.h
 F: docs/interop/dbus.rst
 
 Seccomp
