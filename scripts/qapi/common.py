@@ -704,8 +704,8 @@ valid_name = re.compile(r'^(__[a-zA-Z0-9.-]+_)?'
                         '[a-zA-Z][a-zA-Z0-9_-]*$')
 
 
-def check_name(info, source, name, allow_optional=False,
-               enum_member=False):
+def check_name(info, source, name,
+               allow_optional=False, enum_member=False, permit_upper=False):
     global valid_name
     membername = name
 
@@ -725,11 +725,14 @@ def check_name(info, source, name, allow_optional=False,
     if not valid_name.match(membername) or \
        c_name(membername, False).startswith('q_'):
         raise QAPISemError(info, "%s uses invalid name '%s'" % (source, name))
+    if not permit_upper and name.lower() != name:
+        raise QAPISemError(
+            info, "%s uses uppercase in name '%s'" % (source, name))
 
 
 def add_name(name, info, meta):
     global all_names
-    check_name(info, "'%s'" % meta, name)
+    check_name(info, "'%s'" % meta, name, permit_upper=True)
     # FIXME should reject names that differ only in '_' vs. '.'
     # vs. '-', because they're liable to clash in generated C.
     if name in all_names:
@@ -797,10 +800,12 @@ def check_type(info, source, value,
         raise QAPISemError(info,
                            "%s should be an object or type name" % source)
 
+    permit_upper = allow_dict in name_case_whitelist
+
     # value is a dictionary, check that each member is okay
     for (key, arg) in value.items():
         check_name(info, "Member of %s" % source, key,
-                   allow_optional=True)
+                   allow_optional=True, permit_upper=permit_upper)
         if c_name(key, False) == 'u' or c_name(key, False).startswith('has_'):
             raise QAPISemError(info, "Member of %s uses reserved name '%s'"
                                % (source, key))
@@ -870,7 +875,7 @@ def check_union(expr, info):
     else:
         # The object must have a string or dictionary 'base'.
         check_type(info, "'base' for union '%s'" % name,
-                   base, allow_dict=True,
+                   base, allow_dict=name,
                    allow_metas=['struct'])
         if not base:
             raise QAPISemError(info, "Flat union '%s' must have a base"
@@ -982,13 +987,15 @@ def check_enum(expr, info):
         raise QAPISemError(info,
                            "Enum '%s' requires a string for 'prefix'" % name)
 
+    permit_upper = name in name_case_whitelist
+
     for member in members:
         check_known_keys(info, "member of enum '%s'" % name, member,
                          ['name'], ['if'])
         check_if(member, info)
         normalize_if(member)
         check_name(info, "Member of enum '%s'" % name, member['name'],
-                   enum_member=True)
+                   enum_member=True, permit_upper=permit_upper)
 
 
 def check_struct(expr, info):
@@ -997,7 +1004,7 @@ def check_struct(expr, info):
     features = expr.get('features')
 
     check_type(info, "'data' for struct '%s'" % name, members,
-               allow_dict=True)
+               allow_dict=name)
     check_type(info, "'base' for struct '%s'" % name, expr.get('base'),
                allow_metas=['struct'])
 
@@ -1555,10 +1562,6 @@ class QAPISchemaMember(object):
 
     def check_clash(self, info, seen):
         cname = c_name(self.name)
-        if (cname.lower() != cname
-                and self.defined_in not in name_case_whitelist):
-            raise QAPISemError(info,
-                               "%s should not use uppercase" % self.describe())
         if cname in seen:
             raise QAPISemError(info, "%s collides with %s" %
                                (self.describe(), seen[cname].describe()))

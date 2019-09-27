@@ -1,2 +1,2 @@
-# Member names should be 'lower-case' unless the struct/command is whitelisted
+# Member names should be 'lower-case' unless the struct is whitelisted
 { 'command': 'no-way-this-will-get-whitelisted', 'data': { 'Arg': 'int' } }
