@@ -741,6 +741,13 @@ def check_name_str(name, info, source,
     assert not membername.startswith('*')
 
 
+def check_defn_name_str(name, info, meta):
+    check_name_str(name, info, meta, permit_upper=True)
+    if name.endswith('Kind') or name.endswith('List'):
+        raise QAPISemError(
+            info, "%s '%s' should not end in '%s'" % (meta, name, name[-4:]))
+
+
 def add_name(name, info, meta):
     global all_names
     # FIXME should reject names that differ only in '_' vs. '.'
@@ -748,9 +755,6 @@ def add_name(name, info, meta):
     if name in all_names:
         raise QAPISemError(info, "%s '%s' is already defined"
                            % (all_names[name], name))
-    if name.endswith('Kind') or name.endswith('List'):
-        raise QAPISemError(info, "%s '%s' should not end in '%s'"
-                           % (meta, name, name[-4:]))
     all_names[name] = meta
 
 
@@ -1162,7 +1166,7 @@ def check_exprs(exprs):
         name = expr[meta]
         check_name_is_str(name, info, "'%s'" % meta)
         info.set_defn(meta, name)
-        check_name_str(name, info, "'%s'" % meta, permit_upper=True)
+        check_defn_name_str(name, info, meta)
         add_name(name, info, meta)
         if doc and doc.symbol != name:
             raise QAPISemError(
@@ -1889,13 +1893,13 @@ class QAPISchema(object):
 
     def _make_implicit_enum_type(self, name, info, ifcond, values):
         # See also QAPISchemaObjectTypeMember.describe()
-        name = name + 'Kind'   # Use namespace reserved by add_name()
+        name = name + 'Kind'    # reserved by check_defn_name_str()
         self._def_entity(QAPISchemaEnumType(
             name, info, None, ifcond, self._make_enum_members(values), None))
         return name
 
     def _make_array_type(self, element_type, info):
-        name = element_type + 'List'   # Use namespace reserved by add_name()
+        name = element_type + 'List'    # reserved by check_defn_name_str()
         if not self.lookup_type(name):
             self._def_entity(QAPISchemaArrayType(name, info, element_type))
         return name
