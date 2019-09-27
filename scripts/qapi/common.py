@@ -708,11 +708,22 @@ valid_name = re.compile(r'^(__[a-zA-Z0-9.-]+_)?'
 
 def check_name(name, info, source,
                allow_optional=False, enum_member=False, permit_upper=False):
+    check_name_is_str(name, info, source)
+    check_name_str(name, info, source,
+                   allow_optional, enum_member, permit_upper)
+
+
+def check_name_is_str(name, info, source):
+    if not isinstance(name, str):
+        raise QAPISemError(info, "%s requires a string name" % source)
+
+
+def check_name_str(name, info, source,
+                   allow_optional=False, enum_member=False,
+                   permit_upper=False):
     global valid_name
     membername = name
 
-    if not isinstance(name, str):
-        raise QAPISemError(info, "%s requires a string name" % source)
     if name.startswith('*'):
         membername = name[1:]
         if not allow_optional:
@@ -734,7 +745,6 @@ def check_name(name, info, source,
 
 def add_name(name, info, meta):
     global all_names
-    check_name(name, info, "'%s'" % meta, permit_upper=True)
     # FIXME should reject names that differ only in '_' vs. '.'
     # vs. '-', because they're liable to clash in generated C.
     if name in all_names:
@@ -1153,8 +1163,10 @@ def check_exprs(exprs):
             raise QAPISemError(info, "expression is missing metatype")
         normalize_if(expr)
         name = expr[meta]
-        add_name(name, info, meta)
+        check_name_is_str(name, info, "'%s'" % meta)
         info.set_defn(meta, name)
+        check_name_str(name, info, "'%s'" % meta, permit_upper=True)
+        add_name(name, info, meta)
         if doc and doc.symbol != name:
             raise QAPISemError(
                 info,
