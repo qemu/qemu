@@ -1319,7 +1319,7 @@ class QAPISchemaEnumType(QAPISchemaType):
         QAPISchemaType.__init__(self, name, info, doc, ifcond)
         for m in members:
             assert isinstance(m, QAPISchemaEnumMember)
-            m.set_owner(name)
+            m.set_defined_in(name)
         assert prefix is None or isinstance(prefix, str)
         self.members = members
         self.prefix = prefix
@@ -1405,13 +1405,13 @@ class QAPISchemaObjectType(QAPISchemaType):
         assert base is None or isinstance(base, str)
         for m in local_members:
             assert isinstance(m, QAPISchemaObjectTypeMember)
-            m.set_owner(name)
+            m.set_defined_in(name)
         if variants is not None:
             assert isinstance(variants, QAPISchemaObjectTypeVariants)
-            variants.set_owner(name)
+            variants.set_defined_in(name)
         for f in features:
             assert isinstance(f, QAPISchemaFeature)
-            f.set_owner(name)
+            f.set_defined_in(name)
         self._base_name = base
         self.base = None
         self.local_members = local_members
@@ -1521,15 +1521,16 @@ class QAPISchemaMember(object):
         assert isinstance(name, str)
         self.name = name
         self.ifcond = ifcond or []
-        self.owner = None
+        self.defined_in = None
 
-    def set_owner(self, name):
-        assert not self.owner
-        self.owner = name
+    def set_defined_in(self, name):
+        assert not self.defined_in
+        self.defined_in = name
 
     def check_clash(self, info, seen):
         cname = c_name(self.name)
-        if cname.lower() != cname and self.owner not in name_case_whitelist:
+        if (cname.lower() != cname
+                and self.defined_in not in name_case_whitelist):
             raise QAPISemError(info,
                                "%s should not use uppercase" % self.describe())
         if cname in seen:
@@ -1537,27 +1538,27 @@ class QAPISchemaMember(object):
                                (self.describe(), seen[cname].describe()))
         seen[cname] = self
 
-    def _pretty_owner(self):
-        owner = self.owner
-        if owner.startswith('q_obj_'):
+    def _pretty_defined_in(self):
+        defined_in = self.defined_in
+        if defined_in.startswith('q_obj_'):
             # See QAPISchema._make_implicit_object_type() - reverse the
             # mapping there to create a nice human-readable description
-            owner = owner[6:]
-            if owner.endswith('-arg'):
-                return '(parameter of %s)' % owner[:-4]
-            elif owner.endswith('-base'):
-                return '(base of %s)' % owner[:-5]
+            defined_in = defined_in[6:]
+            if defined_in.endswith('-arg'):
+                return '(parameter of %s)' % defined_in[:-4]
+            elif defined_in.endswith('-base'):
+                return '(base of %s)' % defined_in[:-5]
             else:
-                assert owner.endswith('-wrapper')
+                assert defined_in.endswith('-wrapper')
                 # Unreachable and not implemented
                 assert False
-        if owner.endswith('Kind'):
+        if defined_in.endswith('Kind'):
             # See QAPISchema._make_implicit_enum_type()
-            return '(branch of %s)' % owner[:-4]
-        return '(%s of %s)' % (self.role, owner)
+            return '(branch of %s)' % defined_in[:-4]
+        return '(%s of %s)' % (self.role, defined_in)
 
     def describe(self):
-        return "'%s' %s" % (self.name, self._pretty_owner())
+        return "'%s' %s" % (self.name, self._pretty_defined_in())
 
 
 class QAPISchemaEnumMember(QAPISchemaMember):
@@ -1578,7 +1579,7 @@ class QAPISchemaObjectTypeMember(QAPISchemaMember):
         self.optional = optional
 
     def check(self, schema):
-        assert self.owner
+        assert self.defined_in
         self.type = schema.lookup_type(self._type_name)
         assert self.type
 
@@ -1598,9 +1599,9 @@ class QAPISchemaObjectTypeVariants(object):
         self.tag_member = tag_member
         self.variants = variants
 
-    def set_owner(self, name):
+    def set_defined_in(self, name):
         for v in self.variants:
-            v.set_owner(name)
+            v.set_defined_in(name)
 
     def check(self, schema, seen):
         if not self.tag_member:    # flat union
@@ -1616,7 +1617,7 @@ class QAPISchemaObjectTypeVariants(object):
                 if m.name not in cases:
                     v = QAPISchemaObjectTypeVariant(m.name, 'q_empty',
                                                     m.ifcond)
-                    v.set_owner(self.tag_member.owner)
+                    v.set_defined_in(self.tag_member.defined_in)
                     self.variants.append(v)
         assert self.variants
         for v in self.variants:
@@ -1648,8 +1649,8 @@ class QAPISchemaAlternateType(QAPISchemaType):
         QAPISchemaType.__init__(self, name, info, doc, ifcond)
         assert isinstance(variants, QAPISchemaObjectTypeVariants)
         assert variants.tag_member
-        variants.set_owner(name)
-        variants.tag_member.set_owner(self.name)
+        variants.set_defined_in(name)
+        variants.tag_member.set_defined_in(self.name)
         self.variants = variants
 
     def check(self, schema):
@@ -1829,7 +1830,7 @@ class QAPISchema(object):
                 for v in values]
 
     def _make_implicit_enum_type(self, name, info, ifcond, values):
-        # See also QAPISchemaObjectTypeMember._pretty_owner()
+        # See also QAPISchemaObjectTypeMember._pretty_defined_in()
         name = name + 'Kind'   # Use namespace reserved by add_name()
         self._def_entity(QAPISchemaEnumType(
             name, info, None, ifcond, self._make_enum_members(values), None))
@@ -1845,7 +1846,7 @@ class QAPISchema(object):
                                    role, members):
         if not members:
             return None
-        # See also QAPISchemaObjectTypeMember._pretty_owner()
+        # See also QAPISchemaObjectTypeMember._pretty_defined_in()
         name = 'q_obj_%s-%s' % (name, role)
         typ = self.lookup_entity(name, QAPISchemaObjectType)
         if typ:
