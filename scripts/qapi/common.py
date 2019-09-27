@@ -795,7 +795,8 @@ def check_type(value, info, source,
             raise QAPISemError(info,
                                "%s: array type must contain single type name" %
                                source)
-        value = value[0]
+        check_type(value[0], info, source, allow_metas=allow_metas)
+        return
 
     # Check if type name for value is okay
     if isinstance(value, str):
