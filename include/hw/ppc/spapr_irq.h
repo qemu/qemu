@@ -78,7 +78,6 @@ int spapr_irq_msi_alloc(SpaprMachineState *spapr, uint32_t num, bool align,
 void spapr_irq_msi_free(SpaprMachineState *spapr, int irq, uint32_t num);
 
 typedef struct SpaprIrq {
-    uint32_t    nr_xirqs;
     bool        xics;
     bool        xive;
 } SpaprIrq;
