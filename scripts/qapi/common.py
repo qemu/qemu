@@ -1575,31 +1575,41 @@ class QAPISchemaMember(object):
     def check_clash(self, info, seen):
         cname = c_name(self.name)
         if cname in seen:
-            raise QAPISemError(info, "%s collides with %s" %
-                               (self.describe(), seen[cname].describe()))
+            raise QAPISemError(
+                info,
+                "%s collides with %s"
+                % (self.describe(info), seen[cname].describe(info)))
         seen[cname] = self
 
-    def _pretty_defined_in(self):
+    def describe(self, info):
+        role = self.role
         defined_in = self.defined_in
+        assert defined_in
+
         if defined_in.startswith('q_obj_'):
             # See QAPISchema._make_implicit_object_type() - reverse the
             # mapping there to create a nice human-readable description
             defined_in = defined_in[6:]
             if defined_in.endswith('-arg'):
-                return '(parameter of %s)' % defined_in[:-4]
+                # Implicit type created for a command's dict 'data'
+                assert role == 'member'
+                role = 'parameter'
             elif defined_in.endswith('-base'):
-                return '(base of %s)' % defined_in[:-5]
+                # Implicit type created for a flat union's dict 'base'
+                role = 'base ' + role
             else:
+                # Implicit type created for a simple union's branch
                 assert defined_in.endswith('-wrapper')
                 # Unreachable and not implemented
                 assert False
-        if defined_in.endswith('Kind'):
+        elif defined_in.endswith('Kind'):
             # See QAPISchema._make_implicit_enum_type()
-            return '(branch of %s)' % defined_in[:-4]
-        return '(%s of %s)' % (self.role, defined_in)
-
-    def describe(self):
-        return "'%s' %s" % (self.name, self._pretty_defined_in())
+            # Implicit enum created for simple union's branches
+            assert role == 'value'
+            role = 'branch'
+        elif defined_in != info.defn_name:
+            return "%s '%s' of type '%s'" % (role, self.name, defined_in)
+        return "%s '%s'" % (role, self.name)
 
 
 class QAPISchemaEnumMember(QAPISchemaMember):
@@ -1871,7 +1881,7 @@ class QAPISchema(object):
                 for v in values]
 
     def _make_implicit_enum_type(self, name, info, ifcond, values):
-        # See also QAPISchemaObjectTypeMember._pretty_defined_in()
+        # See also QAPISchemaObjectTypeMember.describe()
         name = name + 'Kind'   # Use namespace reserved by add_name()
         self._def_entity(QAPISchemaEnumType(
             name, info, None, ifcond, self._make_enum_members(values), None))
@@ -1887,7 +1897,7 @@ class QAPISchema(object):
                                    role, members):
         if not members:
             return None
-        # See also QAPISchemaObjectTypeMember._pretty_defined_in()
+        # See also QAPISchemaObjectTypeMember.describe()
         name = 'q_obj_%s-%s' % (name, role)
         typ = self.lookup_entity(name, QAPISchemaObjectType)
         if typ:
