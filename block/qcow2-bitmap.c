@@ -1108,16 +1108,12 @@ int qcow2_reopen_bitmaps_rw(BlockDriverState *bs, Error **errp)
     Qcow2BitmapList *bm_list;
     Qcow2Bitmap *bm;
     GSList *ro_dirty_bitmaps = NULL;
-    int ret = 0;
+    int ret = -EINVAL;
+    bool need_header_update = false;
 
     if (s->nb_bitmaps == 0) {
         /* No bitmaps - nothing to do */
         return 0;
-    }
-
-    if (!can_write(bs)) {
-        error_setg(errp, "Can't write to the image on reopening bitmaps rw");
-        return -EINVAL;
     }
 
     bm_list = bitmap_list_load(bs, s->bitmap_directory_offset,
@@ -1128,31 +1124,74 @@ int qcow2_reopen_bitmaps_rw(BlockDriverState *bs, Error **errp)
 
     QSIMPLEQ_FOREACH(bm, bm_list, entry) {
         BdrvDirtyBitmap *bitmap = bdrv_find_dirty_bitmap(bs, bm->name);
-        if (bitmap == NULL) {
-            continue;
-        }
 
-        if (!bdrv_dirty_bitmap_readonly(bitmap)) {
-            error_setg(errp, "Bitmap %s was loaded prior to rw-reopen, but was "
-                       "not marked as readonly. This is a bug, something went "
-                       "wrong. All of the bitmaps may be corrupted", bm->name);
-            ret = -EINVAL;
+        if (!bitmap) {
+            error_setg(errp, "Unexpected bitmap '%s' in image '%s'",
+                       bm->name, bs->filename);
             goto out;
         }
 
-        bm->flags |= BME_FLAG_IN_USE;
-        ro_dirty_bitmaps = g_slist_append(ro_dirty_bitmaps, bitmap);
+        if (!(bm->flags & BME_FLAG_IN_USE)) {
+            if (!bdrv_dirty_bitmap_readonly(bitmap)) {
+                error_setg(errp, "Corruption: bitmap '%s' is not marked IN_USE "
+                           "in the image '%s' and not marked readonly in RAM",
+                           bm->name, bs->filename);
+                goto out;
+            }
+            if (bdrv_dirty_bitmap_inconsistent(bitmap)) {
+                error_setg(errp, "Corruption: bitmap '%s' is inconsistent but "
+                           "is not marked IN_USE in the image '%s'", bm->name,
+                           bs->filename);
+                goto out;
+            }
+
+            bm->flags |= BME_FLAG_IN_USE;
+            need_header_update = true;
+        } else {
+            /*
+             * What if flags already has BME_FLAG_IN_USE ?
+             *
+             * 1. if we are reopening RW -> RW it's OK, of course.
+             * 2. if we are reopening RO -> RW:
+             *   2.1 if @bitmap is inconsistent, it's OK. It means that it was
+             *       inconsistent (IN_USE) when we loaded it
+             *   2.2 if @bitmap is not inconsistent. This seems to be impossible
+             *       and implies third party interaction. Let's error-out for
+             *       safety.
+             */
+            if (bdrv_dirty_bitmap_readonly(bitmap) &&
+                !bdrv_dirty_bitmap_inconsistent(bitmap))
+            {
+                error_setg(errp, "Corruption: bitmap '%s' is marked IN_USE "
+                           "in the image '%s' but it is readonly and "
+                           "consistent in RAM",
+                           bm->name, bs->filename);
+                goto out;
+            }
+        }
+
+        if (bdrv_dirty_bitmap_readonly(bitmap)) {
+            ro_dirty_bitmaps = g_slist_append(ro_dirty_bitmaps, bitmap);
+        }
     }
 
-    if (ro_dirty_bitmaps != NULL) {
+    if (need_header_update) {
+        if (!can_write(bs->file->bs) || !(bs->file->perm & BLK_PERM_WRITE)) {
+            error_setg(errp, "Failed to reopen bitmaps rw: no write access "
+                       "the protocol file");
+            goto out;
+        }
+
         /* in_use flags must be updated */
         ret = update_ext_header_and_dir_in_place(bs, bm_list);
         if (ret < 0) {
-            error_setg_errno(errp, -ret, "Can't update bitmap directory");
+            error_setg_errno(errp, -ret, "Cannot update bitmap directory");
             goto out;
         }
-        g_slist_foreach(ro_dirty_bitmaps, set_readonly_helper, false);
     }
+
+    g_slist_foreach(ro_dirty_bitmaps, set_readonly_helper, false);
+    ret = 0;
 
 out:
     g_slist_free(ro_dirty_bitmaps);
