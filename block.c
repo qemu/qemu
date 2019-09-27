@@ -3486,10 +3486,16 @@ int bdrv_reopen_multiple(BlockReopenQueue *bs_queue, Error **errp)
         bs_entry->perms_checked = true;
     }
 
-    /* If we reach this point, we have success and just need to apply the
-     * changes
+    /*
+     * If we reach this point, we have success and just need to apply the
+     * changes.
+     *
+     * Reverse order is used to comfort qcow2 driver: on commit it need to write
+     * IN_USE flag to the image, to mark bitmaps in the image as invalid. But
+     * children are usually goes after parents in reopen-queue, so go from last
+     * to first element.
      */
-    QTAILQ_FOREACH(bs_entry, bs_queue, entry) {
+    QTAILQ_FOREACH_REVERSE(bs_entry, bs_queue, entry) {
         bdrv_reopen_commit(&bs_entry->state);
     }
 
