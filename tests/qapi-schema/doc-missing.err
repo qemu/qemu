@@ -1,1 +1,2 @@
-tests/qapi-schema/doc-missing.json:5: definition missing documentation comment
+tests/qapi-schema/doc-missing.json: In command 'undocumented':
+tests/qapi-schema/doc-missing.json:5: documentation comment required

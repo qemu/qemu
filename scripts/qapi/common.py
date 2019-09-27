@@ -933,10 +933,6 @@ def check_exprs(exprs):
         if 'include' in expr:
             continue
 
-        if not doc and doc_required:
-            raise QAPISemError(info,
-                               "definition missing documentation comment")
-
         if 'enum' in expr:
             meta = 'enum'
         elif 'union' in expr:
@@ -957,9 +953,14 @@ def check_exprs(exprs):
         info.set_defn(meta, name)
         check_defn_name_str(name, info, meta)
 
-        if doc and doc.symbol != name:
-            raise QAPISemError(
-                info, "documentation comment is for '%s'" % doc.symbol)
+        if doc:
+            if doc.symbol != name:
+                raise QAPISemError(
+                    info, "documentation comment is for '%s'" % doc.symbol)
+            doc.check_expr(expr)
+        elif doc_required:
+            raise QAPISemError(info,
+                               "documentation comment required")
 
         if meta == 'enum':
             check_keys(expr, info, meta,
@@ -1003,9 +1004,6 @@ def check_exprs(exprs):
         normalize_if(expr)
         check_if(expr, info, meta)
         check_flags(expr, info)
-
-        if doc:
-            doc.check_expr(expr)
 
     return exprs
 
