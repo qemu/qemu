@@ -1,5 +1,5 @@
 # discriminator '*switch' isn't a member of base, 'switch' is
-# reports "does not allow optional name", which is good enough
+# reports "uses invalid name", which is good enough
 { 'enum': 'Enum', 'data': [ 'one', 'two' ] }
 { 'struct': 'Base',
   'data': { '*switch': 'Enum' } }

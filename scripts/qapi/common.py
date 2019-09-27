@@ -724,11 +724,8 @@ def check_name_str(name, info, source,
     global valid_name
     membername = name
 
-    if name.startswith('*'):
+    if allow_optional and name.startswith('*'):
         membername = name[1:]
-        if not allow_optional:
-            raise QAPISemError(info, "%s does not allow optional name '%s'"
-                               % (source, name))
     # Enum members can start with a digit, because the generated C
     # code always prefixes it with the enum name
     if enum_member and membername[0].isdigit():
@@ -741,6 +738,7 @@ def check_name_str(name, info, source,
     if not permit_upper and name.lower() != name:
         raise QAPISemError(
             info, "%s uses uppercase in name '%s'" % (source, name))
+    assert not membername.startswith('*')
 
 
 def add_name(name, info, meta):
