@@ -64,6 +64,12 @@ class QAPISourceInfo(object):
         self.fname = fname
         self.line = line
         self.parent = parent
+        self.defn_meta = None
+        self.defn_name = None
+
+    def set_defn(self, meta, name):
+        self.defn_meta = meta
+        self.defn_name = name
 
     def next_line(self):
         info = copy.copy(self)
@@ -72,6 +78,12 @@ class QAPISourceInfo(object):
 
     def loc(self):
         return '%s:%d' % (self.fname, self.line)
+
+    def in_defn(self):
+        if self.defn_name:
+            return "%s: In %s '%s':\n" % (self.fname,
+                                          self.defn_meta, self.defn_name)
+        return ''
 
     def include_path(self):
         ret = ''
@@ -82,7 +94,7 @@ class QAPISourceInfo(object):
         return ret
 
     def __str__(self):
-        return self.include_path() + self.loc()
+        return self.include_path() + self.in_defn() + self.loc()
 
 
 class QAPIError(Exception):
@@ -1127,6 +1139,7 @@ def check_exprs(exprs):
         normalize_if(expr)
         name = expr[meta]
         add_name(name, info, meta)
+        info.set_defn(meta, name)
         if doc and doc.symbol != name:
             raise QAPISemError(info, "Definition of '%s' follows documentation"
                                " for '%s'" % (name, doc.symbol))

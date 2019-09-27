@@ -1,1 +1,2 @@
+tests/qapi-schema/union-empty.json: In union 'Union':
 tests/qapi-schema/union-empty.json:2: Union 'Union' has no branches
