@@ -925,8 +925,6 @@ def check_keys(expr, info, meta, required, optional=[]):
             raise QAPISemError(info,
                                "'%s' of %s '%s' should only use true value"
                                % (key, meta, name))
-        if key == 'if':
-            check_if(expr, info)
 
 
 def normalize_enum(expr):
@@ -1027,6 +1025,8 @@ def check_exprs(exprs):
             check_event(expr, info)
         else:
             assert False, 'unexpected meta type'
+
+        check_if(expr, info)
 
         if doc:
             doc.check_expr(expr)
