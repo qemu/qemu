@@ -586,6 +586,11 @@ static int tcg_target_const_match(tcg_target_long val, TCGType type,
 #define XXPERMDI   (OPCD(60) | (10 << 3) | 7)  /* v2.06, force ax=bx=tx=1 */
 #define XXSEL      (OPCD(60) | (3 << 4) | 0xf) /* v2.06, force ax=bx=cx=tx=1 */
 
+#define MFVSRD     (XO31(51) | 1)   /* v2.07, force sx=1 */
+#define MFVSRWZ    (XO31(115) | 1)  /* v2.07, force sx=1 */
+#define MTVSRD     (XO31(179) | 1)  /* v2.07, force tx=1 */
+#define MTVSRWZ    (XO31(243) | 1)  /* v2.07, force tx=1 */
+
 #define RT(r) ((r)<<21)
 #define RS(r) ((r)<<21)
 #define RA(r) ((r)<<16)
@@ -715,12 +720,27 @@ static bool tcg_out_mov(TCGContext *s, TCGType type, TCGReg ret, TCGReg arg)
         tcg_debug_assert(TCG_TARGET_REG_BITS == 64);
         /* fallthru */
     case TCG_TYPE_I32:
-        if (ret < TCG_REG_V0 && arg < TCG_REG_V0) {
-            tcg_out32(s, OR | SAB(arg, ret, arg));
-            break;
-        } else if (ret < TCG_REG_V0 || arg < TCG_REG_V0) {
-            /* Altivec does not support vector/integer moves.  */
-            return false;
+        if (ret < TCG_REG_V0) {
+            if (arg < TCG_REG_V0) {
+                tcg_out32(s, OR | SAB(arg, ret, arg));
+                break;
+            } else if (have_isa_2_07) {
+                tcg_out32(s, (type == TCG_TYPE_I32 ? MFVSRWZ : MFVSRD)
+                          | VRT(arg) | RA(ret));
+                break;
+            } else {
+                /* Altivec does not support vector->integer moves.  */
+                return false;
+            }
+        } else if (arg < TCG_REG_V0) {
+            if (have_isa_2_07) {
+                tcg_out32(s, (type == TCG_TYPE_I32 ? MTVSRWZ : MTVSRD)
+                          | VRT(ret) | RA(arg));
+                break;
+            } else {
+                /* Altivec does not support integer->vector moves.  */
+                return false;
+            }
         }
         /* fallthru */
     case TCG_TYPE_V64:
