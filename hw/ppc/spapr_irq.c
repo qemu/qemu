@@ -92,26 +92,6 @@ static void spapr_irq_init_kvm(SpaprMachineState *spapr,
  * XICS IRQ backend.
  */
 
-static void spapr_irq_init_xics(SpaprMachineState *spapr, Error **errp)
-{
-    Object *obj;
-    Error *local_err = NULL;
-
-    obj = object_new(TYPE_ICS_SPAPR);
-    object_property_add_child(OBJECT(spapr), "ics", obj, &error_abort);
-    object_property_add_const_link(obj, ICS_PROP_XICS, OBJECT(spapr),
-                                   &error_fatal);
-    object_property_set_int(obj, spapr->irq->nr_xirqs,
-                            "nr-irqs",  &error_fatal);
-    object_property_set_bool(obj, true, "realized", &local_err);
-    if (local_err) {
-        error_propagate(errp, local_err);
-        return;
-    }
-
-    spapr->ics = ICS_SPAPR(obj);
-}
-
 static int spapr_irq_claim_xics(SpaprMachineState *spapr, int irq, bool lsi,
                                 Error **errp)
 {
@@ -213,7 +193,6 @@ SpaprIrq spapr_irq_xics = {
     .xics        = true,
     .xive        = false,
 
-    .init        = spapr_irq_init_xics,
     .claim       = spapr_irq_claim_xics,
     .free        = spapr_irq_free_xics,
     .print_info  = spapr_irq_print_info_xics,
@@ -228,33 +207,6 @@ SpaprIrq spapr_irq_xics = {
 /*
  * XIVE IRQ backend.
  */
-static void spapr_irq_init_xive(SpaprMachineState *spapr, Error **errp)
-{
-    uint32_t nr_servers = spapr_max_server_number(spapr);
-    DeviceState *dev;
-    int i;
-
-    dev = qdev_create(NULL, TYPE_SPAPR_XIVE);
-    qdev_prop_set_uint32(dev, "nr-irqs",
-                         spapr->irq->nr_xirqs + SPAPR_XIRQ_BASE);
-    /*
-     * 8 XIVE END structures per CPU. One for each available priority
-     */
-    qdev_prop_set_uint32(dev, "nr-ends", nr_servers << 3);
-    qdev_init_nofail(dev);
-
-    spapr->xive = SPAPR_XIVE(dev);
-
-    /* Enable the CPU IPIs */
-    for (i = 0; i < nr_servers; ++i) {
-        if (spapr_xive_irq_claim(spapr->xive, SPAPR_IRQ_IPI + i,
-                                 false, errp) < 0) {
-            return;
-        }
-    }
-
-    spapr_xive_hcall_init(spapr);
-}
 
 static int spapr_irq_claim_xive(SpaprMachineState *spapr, int irq, bool lsi,
                                 Error **errp)
@@ -354,7 +306,6 @@ SpaprIrq spapr_irq_xive = {
     .xics        = false,
     .xive        = true,
 
-    .init        = spapr_irq_init_xive,
     .claim       = spapr_irq_claim_xive,
     .free        = spapr_irq_free_xive,
     .print_info  = spapr_irq_print_info_xive,
@@ -383,23 +334,6 @@ static SpaprIrq *spapr_irq_current(SpaprMachineState *spapr)
 {
     return spapr_ovec_test(spapr->ov5_cas, OV5_XIVE_EXPLOIT) ?
         &spapr_irq_xive : &spapr_irq_xics;
-}
-
-static void spapr_irq_init_dual(SpaprMachineState *spapr, Error **errp)
-{
-    Error *local_err = NULL;
-
-    spapr_irq_xics.init(spapr, &local_err);
-    if (local_err) {
-        error_propagate(errp, local_err);
-        return;
-    }
-
-    spapr_irq_xive.init(spapr, &local_err);
-    if (local_err) {
-        error_propagate(errp, local_err);
-        return;
-    }
 }
 
 static int spapr_irq_claim_dual(SpaprMachineState *spapr, int irq, bool lsi,
@@ -516,7 +450,6 @@ SpaprIrq spapr_irq_dual = {
     .xics        = true,
     .xive        = true,
 
-    .init        = spapr_irq_init_dual,
     .claim       = spapr_irq_claim_dual,
     .free        = spapr_irq_free_dual,
     .print_info  = spapr_irq_print_info_dual,
@@ -612,7 +545,67 @@ void spapr_irq_init(SpaprMachineState *spapr, Error **errp)
         spapr_irq_msi_init(spapr, spapr->irq->nr_msis);
     }
 
-    spapr->irq->init(spapr, errp);
+    if (spapr->irq->xics) {
+        Error *local_err = NULL;
+        Object *obj;
+
+        obj = object_new(TYPE_ICS_SPAPR);
+        object_property_add_child(OBJECT(spapr), "ics", obj, &local_err);
+        if (local_err) {
+            error_propagate(errp, local_err);
+            return;
+        }
+
+        object_property_add_const_link(obj, ICS_PROP_XICS, OBJECT(spapr),
+                                       &local_err);
+        if (local_err) {
+            error_propagate(errp, local_err);
+            return;
+        }
+
+        object_property_set_int(obj, spapr->irq->nr_xirqs, "nr-irqs",
+                                &local_err);
+        if (local_err) {
+            error_propagate(errp, local_err);
+            return;
+        }
+
+        object_property_set_bool(obj, true, "realized", &local_err);
+        if (local_err) {
+            error_propagate(errp, local_err);
+            return;
+        }
+
+        spapr->ics = ICS_SPAPR(obj);
+    }
+
+    if (spapr->irq->xive) {
+        uint32_t nr_servers = spapr_max_server_number(spapr);
+        DeviceState *dev;
+        int i;
+
+        dev = qdev_create(NULL, TYPE_SPAPR_XIVE);
+        qdev_prop_set_uint32(dev, "nr-irqs",
+                             spapr->irq->nr_xirqs + SPAPR_XIRQ_BASE);
+        /*
+         * 8 XIVE END structures per CPU. One for each available
+         * priority
+         */
+        qdev_prop_set_uint32(dev, "nr-ends", nr_servers << 3);
+        qdev_init_nofail(dev);
+
+        spapr->xive = SPAPR_XIVE(dev);
+
+        /* Enable the CPU IPIs */
+        for (i = 0; i < nr_servers; ++i) {
+            if (spapr_xive_irq_claim(spapr->xive, SPAPR_IRQ_IPI + i,
+                                     false, errp) < 0) {
+                return;
+            }
+        }
+
+        spapr_xive_hcall_init(spapr);
+    }
 
     spapr->qirqs = qemu_allocate_irqs(spapr->irq->set_irq, spapr,
                                       spapr->irq->nr_xirqs + SPAPR_XIRQ_BASE);
@@ -759,7 +752,6 @@ SpaprIrq spapr_irq_xics_legacy = {
     .xics        = true,
     .xive        = false,
 
-    .init        = spapr_irq_init_xics,
     .claim       = spapr_irq_claim_xics,
     .free        = spapr_irq_free_xics,
     .print_info  = spapr_irq_print_info_xics,
