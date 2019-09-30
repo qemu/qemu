@@ -508,6 +508,12 @@ static void set_active_intc(SpaprMachineState *spapr,
     }
 
     spapr->active_intc = new_intc;
+
+    /*
+     * We've changed the kernel irqchip, let VFIO devices know they
+     * need to readjust.
+     */
+    kvm_irqchip_change_notify();
 }
 
 void spapr_irq_update_active_intc(SpaprMachineState *spapr)
