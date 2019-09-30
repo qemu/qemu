@@ -471,11 +471,16 @@ static int tcg_target_const_match(tcg_target_long val, TCGType type,
 #define LXSDX      (XO31(588) | 1)  /* v2.06, force tx=1 */
 #define LXVDSX     (XO31(332) | 1)  /* v2.06, force tx=1 */
 #define LXSIWZX    (XO31(12) | 1)   /* v2.07, force tx=1 */
+#define LXV        (OPCD(61) | 8 | 1)  /* v3.00, force tx=1 */
+#define LXSD       (OPCD(57) | 2)   /* v3.00 */
+#define LXVWSX     (XO31(364) | 1)  /* v3.00, force tx=1 */
 
 #define STVX       XO31(231)
 #define STVEWX     XO31(199)
 #define STXSDX     (XO31(716) | 1)  /* v2.06, force sx=1 */
 #define STXSIWX    (XO31(140) | 1)  /* v2.07, force sx=1 */
+#define STXV       (OPCD(61) | 8 | 5) /* v3.00, force sx=1 */
+#define STXSD      (OPCD(61) | 2)   /* v3.00 */
 
 #define VADDSBS    VX4(768)
 #define VADDUBS    VX4(512)
@@ -1114,7 +1119,7 @@ static void tcg_out_mem_long(TCGContext *s, int opi, int opx, TCGReg rt,
                              TCGReg base, tcg_target_long offset)
 {
     tcg_target_long orig = offset, l0, l1, extra = 0, align = 0;
-    bool is_store = false;
+    bool is_int_store = false;
     TCGReg rs = TCG_REG_TMP1;
 
     switch (opi) {
@@ -1127,11 +1132,19 @@ static void tcg_out_mem_long(TCGContext *s, int opi, int opx, TCGReg rt,
             break;
         }
         break;
+    case LXSD:
+    case STXSD:
+        align = 3;
+        break;
+    case LXV:
+    case STXV:
+        align = 15;
+        break;
     case STD:
         align = 3;
         /* FALLTHRU */
     case STB: case STH: case STW:
-        is_store = true;
+        is_int_store = true;
         break;
     }
 
@@ -1140,7 +1153,7 @@ static void tcg_out_mem_long(TCGContext *s, int opi, int opx, TCGReg rt,
         if (rs == base) {
             rs = TCG_REG_R0;
         }
-        tcg_debug_assert(!is_store || rs != rt);
+        tcg_debug_assert(!is_int_store || rs != rt);
         tcg_out_movi(s, TCG_TYPE_PTR, rs, orig);
         tcg_out32(s, opx | TAB(rt & 31, base, rs));
         return;
@@ -1205,7 +1218,8 @@ static void tcg_out_ld(TCGContext *s, TCGType type, TCGReg ret,
     case TCG_TYPE_V64:
         tcg_debug_assert(ret >= TCG_REG_V0);
         if (have_vsx) {
-            tcg_out_mem_long(s, 0, LXSDX, ret, base, offset);
+            tcg_out_mem_long(s, have_isa_3_00 ? LXSD : 0, LXSDX,
+                             ret, base, offset);
             break;
         }
         tcg_debug_assert((offset & 7) == 0);
@@ -1217,7 +1231,8 @@ static void tcg_out_ld(TCGContext *s, TCGType type, TCGReg ret,
     case TCG_TYPE_V128:
         tcg_debug_assert(ret >= TCG_REG_V0);
         tcg_debug_assert((offset & 15) == 0);
-        tcg_out_mem_long(s, 0, LVX, ret, base, offset);
+        tcg_out_mem_long(s, have_isa_3_00 ? LXV : 0,
+                         LVX, ret, base, offset);
         break;
     default:
         g_assert_not_reached();
@@ -1258,7 +1273,8 @@ static void tcg_out_st(TCGContext *s, TCGType type, TCGReg arg,
     case TCG_TYPE_V64:
         tcg_debug_assert(arg >= TCG_REG_V0);
         if (have_vsx) {
-            tcg_out_mem_long(s, 0, STXSDX, arg, base, offset);
+            tcg_out_mem_long(s, have_isa_3_00 ? STXSD : 0,
+                             STXSDX, arg, base, offset);
             break;
         }
         tcg_debug_assert((offset & 7) == 0);
@@ -1271,7 +1287,8 @@ static void tcg_out_st(TCGContext *s, TCGType type, TCGReg arg,
         break;
     case TCG_TYPE_V128:
         tcg_debug_assert(arg >= TCG_REG_V0);
-        tcg_out_mem_long(s, 0, STVX, arg, base, offset);
+        tcg_out_mem_long(s, have_isa_3_00 ? STXV : 0,
+                         STVX, arg, base, offset);
         break;
     default:
         g_assert_not_reached();
@@ -3042,7 +3059,11 @@ static bool tcg_out_dupm_vec(TCGContext *s, TCGType type, unsigned vece,
     tcg_debug_assert(out >= TCG_REG_V0);
     switch (vece) {
     case MO_8:
-        tcg_out_mem_long(s, 0, LVEBX, out, base, offset);
+        if (have_isa_3_00) {
+            tcg_out_mem_long(s, LXV, LVX, out, base, offset & -16);
+        } else {
+            tcg_out_mem_long(s, 0, LVEBX, out, base, offset);
+        }
         elt = extract32(offset, 0, 4);
 #ifndef HOST_WORDS_BIGENDIAN
         elt ^= 15;
@@ -3051,7 +3072,11 @@ static bool tcg_out_dupm_vec(TCGContext *s, TCGType type, unsigned vece,
         break;
     case MO_16:
         tcg_debug_assert((offset & 1) == 0);
-        tcg_out_mem_long(s, 0, LVEHX, out, base, offset);
+        if (have_isa_3_00) {
+            tcg_out_mem_long(s, LXV | 8, LVX, out, base, offset & -16);
+        } else {
+            tcg_out_mem_long(s, 0, LVEHX, out, base, offset);
+        }
         elt = extract32(offset, 1, 3);
 #ifndef HOST_WORDS_BIGENDIAN
         elt ^= 7;
@@ -3059,6 +3084,10 @@ static bool tcg_out_dupm_vec(TCGContext *s, TCGType type, unsigned vece,
         tcg_out32(s, VSPLTH | VRT(out) | VRB(out) | (elt << 16));
         break;
     case MO_32:
+        if (have_isa_3_00) {
+            tcg_out_mem_long(s, 0, LXVWSX, out, base, offset);
+            break;
+        }
         tcg_debug_assert((offset & 3) == 0);
         tcg_out_mem_long(s, 0, LVEWX, out, base, offset);
         elt = extract32(offset, 2, 2);
