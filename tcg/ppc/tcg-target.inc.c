@@ -65,8 +65,7 @@
 static tcg_insn_unit *tb_ret_addr;
 
 TCGPowerISA have_isa;
-
-#define HAVE_ISEL      have_isa_2_06
+static bool have_isel;
 
 #ifndef CONFIG_SOFTMMU
 #define TCG_GUEST_BASE_REG 30
@@ -1100,7 +1099,7 @@ static void tcg_out_setcond(TCGContext *s, TCGType type, TCGCond cond,
     /* If we have ISEL, we can implement everything with 3 or 4 insns.
        All other cases below are also at least 3 insns, so speed up the
        code generator by not considering them and always using ISEL.  */
-    if (HAVE_ISEL) {
+    if (have_isel) {
         int isel, tab;
 
         tcg_out_cmp(s, cond, arg1, arg2, const_arg2, 7, type);
@@ -1203,7 +1202,7 @@ static void tcg_out_movcond(TCGContext *s, TCGType type, TCGCond cond,
 
     tcg_out_cmp(s, cond, c1, c2, const_c2, 7, type);
 
-    if (HAVE_ISEL) {
+    if (have_isel) {
         int isel = tcg_to_isel[cond];
 
         /* Swap the V operands if the operation indicates inversion.  */
@@ -1247,7 +1246,7 @@ static void tcg_out_cntxz(TCGContext *s, TCGType type, uint32_t opc,
     } else {
         tcg_out_cmp(s, TCG_COND_EQ, a1, 0, 1, 7, type);
         /* Note that the only other valid constant for a2 is 0.  */
-        if (HAVE_ISEL) {
+        if (have_isel) {
             tcg_out32(s, opc | RA(TCG_REG_R0) | RS(a1));
             tcg_out32(s, tcg_to_isel[TCG_COND_EQ] | TAB(a0, a2, TCG_REG_R0));
         } else if (!const_a2 && a0 == a2) {
@@ -2793,6 +2792,14 @@ static void tcg_target_init(TCGContext *s)
     if (hwcap2 & PPC_FEATURE2_ARCH_3_00) {
         have_isa = tcg_isa_3_00;
     }
+#endif
+
+#ifdef PPC_FEATURE2_HAS_ISEL
+    /* Prefer explicit instruction from the kernel. */
+    have_isel = (hwcap2 & PPC_FEATURE2_HAS_ISEL) != 0;
+#else
+    /* Fall back to knowing Power7 (2.06) has ISEL. */
+    have_isel = have_isa_2_06;
 #endif
 
     tcg_target_available_regs[TCG_TYPE_I32] = 0xffffffff;
