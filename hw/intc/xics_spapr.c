@@ -308,8 +308,8 @@ static void ics_spapr_realize(DeviceState *dev, Error **errp)
     spapr_register_hypercall(H_IPOLL, h_ipoll);
 }
 
-void spapr_dt_xics(SpaprMachineState *spapr, uint32_t nr_servers, void *fdt,
-                   uint32_t phandle)
+static void xics_spapr_dt(SpaprInterruptController *intc, uint32_t nr_servers,
+                          void *fdt, uint32_t phandle)
 {
     uint32_t interrupt_server_ranges_prop[] = {
         0, cpu_to_be32(nr_servers),
@@ -408,6 +408,7 @@ static void ics_spapr_class_init(ObjectClass *klass, void *data)
     sicc->free_irq = xics_spapr_free_irq;
     sicc->set_irq = xics_spapr_set_irq;
     sicc->print_info = xics_spapr_print_info;
+    sicc->dt = xics_spapr_dt;
 }
 
 static const TypeInfo ics_spapr_info = {

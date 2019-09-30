@@ -134,7 +134,6 @@ SpaprIrq spapr_irq_xics = {
     .xics        = true,
     .xive        = false,
 
-    .dt_populate = spapr_dt_xics,
     .post_load   = spapr_irq_post_load_xics,
     .reset       = spapr_irq_reset_xics,
     .init_kvm    = spapr_irq_init_kvm_xics,
@@ -184,7 +183,6 @@ SpaprIrq spapr_irq_xive = {
     .xics        = false,
     .xive        = true,
 
-    .dt_populate = spapr_dt_xive,
     .post_load   = spapr_irq_post_load_xive,
     .reset       = spapr_irq_reset_xive,
     .init_kvm    = spapr_irq_init_kvm_xive,
@@ -207,13 +205,6 @@ static SpaprIrq *spapr_irq_current(SpaprMachineState *spapr)
 {
     return spapr_ovec_test(spapr->ov5_cas, OV5_XIVE_EXPLOIT) ?
         &spapr_irq_xive : &spapr_irq_xics;
-}
-
-static void spapr_irq_dt_populate_dual(SpaprMachineState *spapr,
-                                       uint32_t nr_servers, void *fdt,
-                                       uint32_t phandle)
-{
-    spapr_irq_current(spapr)->dt_populate(spapr, nr_servers, fdt, phandle);
 }
 
 static int spapr_irq_post_load_dual(SpaprMachineState *spapr, int version_id)
@@ -270,7 +261,6 @@ SpaprIrq spapr_irq_dual = {
     .xics        = true,
     .xive        = true,
 
-    .dt_populate = spapr_irq_dt_populate_dual,
     .post_load   = spapr_irq_post_load_dual,
     .reset       = spapr_irq_reset_dual,
     .init_kvm    = NULL, /* should not be used */
@@ -375,6 +365,15 @@ void spapr_irq_print_info(SpaprMachineState *spapr, Monitor *mon)
         = SPAPR_INTC_GET_CLASS(spapr->active_intc);
 
     sicc->print_info(spapr->active_intc, mon);
+}
+
+void spapr_irq_dt(SpaprMachineState *spapr, uint32_t nr_servers,
+                  void *fdt, uint32_t phandle)
+{
+    SpaprInterruptControllerClass *sicc
+        = SPAPR_INTC_GET_CLASS(spapr->active_intc);
+
+    sicc->dt(spapr->active_intc, nr_servers, fdt, phandle);
 }
 
 void spapr_irq_init(SpaprMachineState *spapr, Error **errp)
@@ -686,7 +685,6 @@ SpaprIrq spapr_irq_xics_legacy = {
     .xics        = true,
     .xive        = false,
 
-    .dt_populate = spapr_dt_xics,
     .post_load   = spapr_irq_post_load_xics,
     .reset       = spapr_irq_reset_xics,
     .init_kvm    = spapr_irq_init_kvm_xics,
