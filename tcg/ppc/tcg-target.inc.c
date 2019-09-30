@@ -470,10 +470,12 @@ static int tcg_target_const_match(tcg_target_long val, TCGType type,
 #define LVEWX      XO31(71)
 #define LXSDX      (XO31(588) | 1)  /* v2.06, force tx=1 */
 #define LXVDSX     (XO31(332) | 1)  /* v2.06, force tx=1 */
+#define LXSIWZX    (XO31(12) | 1)   /* v2.07, force tx=1 */
 
 #define STVX       XO31(231)
 #define STVEWX     XO31(199)
 #define STXSDX     (XO31(716) | 1)  /* v2.06, force sx=1 */
+#define STXSIWX    (XO31(140) | 1)  /* v2.07, force sx=1 */
 
 #define VADDSBS    VX4(768)
 #define VADDUBS    VX4(512)
@@ -1156,6 +1158,10 @@ static void tcg_out_ld(TCGContext *s, TCGType type, TCGReg ret,
             tcg_out_mem_long(s, LWZ, LWZX, ret, base, offset);
             break;
         }
+        if (have_isa_2_07 && have_vsx) {
+            tcg_out_mem_long(s, 0, LXSIWZX, ret, base, offset);
+            break;
+        }
         tcg_debug_assert((offset & 3) == 0);
         tcg_out_mem_long(s, 0, LVEWX, ret, base, offset);
         shift = (offset - 4) & 0xc;
@@ -1203,6 +1209,11 @@ static void tcg_out_st(TCGContext *s, TCGType type, TCGReg arg,
             tcg_out_mem_long(s, STW, STWX, arg, base, offset);
             break;
         }
+        if (have_isa_2_07 && have_vsx) {
+            tcg_out_mem_long(s, 0, STXSIWX, arg, base, offset);
+            break;
+        }
+        assert((offset & 3) == 0);
         tcg_debug_assert((offset & 3) == 0);
         shift = (offset - 4) & 0xc;
         if (shift) {
