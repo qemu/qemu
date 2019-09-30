@@ -983,8 +983,8 @@ void pc_smp_parse(MachineState *ms, QemuOpts *opts)
 
 void pc_hot_add_cpu(MachineState *ms, const int64_t id, Error **errp)
 {
-    PCMachineState *pcms = PC_MACHINE(ms);
-    int64_t apic_id = x86_cpu_apic_id_from_index(pcms, id);
+    X86MachineState *x86ms = X86_MACHINE(ms);
+    int64_t apic_id = x86_cpu_apic_id_from_index(x86ms, id);
     Error *local_err = NULL;
 
     if (id < 0) {
@@ -999,7 +999,8 @@ void pc_hot_add_cpu(MachineState *ms, const int64_t id, Error **errp)
         return;
     }
 
-    x86_cpu_new(PC_MACHINE(ms), apic_id, &local_err);
+
+    x86_cpu_new(X86_MACHINE(ms), apic_id, &local_err);
     if (local_err) {
         error_propagate(errp, local_err);
         return;
@@ -1100,6 +1101,7 @@ void xen_load_linux(PCMachineState *pcms)
 {
     int i;
     FWCfgState *fw_cfg;
+    PCMachineClass *pcmc = PC_MACHINE_GET_CLASS(pcms);
     X86MachineState *x86ms = X86_MACHINE(pcms);
 
     assert(MACHINE(pcms)->kernel_filename != NULL);
@@ -1108,7 +1110,8 @@ void xen_load_linux(PCMachineState *pcms)
     fw_cfg_add_i16(fw_cfg, FW_CFG_NB_CPUS, x86ms->boot_cpus);
     rom_set_fw(fw_cfg);
 
-    x86_load_linux(pcms, fw_cfg);
+    x86_load_linux(x86ms, fw_cfg, pcmc->acpi_data_size,
+                   pcmc->pvh_enabled, pcmc->linuxboot_dma_enabled);
     for (i = 0; i < nb_option_roms; i++) {
         assert(!strcmp(option_rom[i].name, "linuxboot.bin") ||
                !strcmp(option_rom[i].name, "linuxboot_dma.bin") ||
@@ -1244,7 +1247,8 @@ void pc_memory_init(PCMachineState *pcms,
     }
 
     if (linux_boot) {
-        x86_load_linux(pcms, fw_cfg);
+        x86_load_linux(x86ms, fw_cfg, pcmc->acpi_data_size,
+                       pcmc->pvh_enabled, pcmc->linuxboot_dma_enabled);
     }
 
     for (i = 0; i < nb_option_roms; i++) {

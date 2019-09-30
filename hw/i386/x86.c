@@ -36,7 +36,6 @@
 #include "sysemu/sysemu.h"
 
 #include "hw/i386/x86.h"
-#include "hw/i386/pc.h"
 #include "target/i386/cpu.h"
 #include "hw/i386/topology.h"
 #include "hw/i386/fw_cfg.h"
@@ -61,11 +60,10 @@ static size_t pvh_start_addr;
  * no concept of "CPU index", and the NUMA tables on fw_cfg need the APIC ID of
  * all CPUs up to max_cpus.
  */
-uint32_t x86_cpu_apic_id_from_index(PCMachineState *pcms,
+uint32_t x86_cpu_apic_id_from_index(X86MachineState *x86ms,
                                     unsigned int cpu_index)
 {
-    MachineState *ms = MACHINE(pcms);
-    X86MachineState *x86ms = X86_MACHINE(pcms);
+    MachineState *ms = MACHINE(x86ms);
     X86MachineClass *x86mc = X86_MACHINE_GET_CLASS(x86ms);
     uint32_t correct_id;
     static bool warned;
@@ -84,14 +82,14 @@ uint32_t x86_cpu_apic_id_from_index(PCMachineState *pcms,
     }
 }
 
-void x86_cpu_new(PCMachineState *pcms, int64_t apic_id, Error **errp)
+
+void x86_cpu_new(X86MachineState *x86ms, int64_t apic_id, Error **errp)
 {
     Object *cpu = NULL;
     Error *local_err = NULL;
     CPUX86State *env = NULL;
-    X86MachineState *x86ms = X86_MACHINE(pcms);
 
-    cpu = object_new(MACHINE(pcms)->cpu_type);
+    cpu = object_new(MACHINE(x86ms)->cpu_type);
 
     env = &X86_CPU(cpu)->env;
     env->nr_dies = x86ms->smp_dies;
@@ -103,30 +101,28 @@ void x86_cpu_new(PCMachineState *pcms, int64_t apic_id, Error **errp)
     error_propagate(errp, local_err);
 }
 
-void x86_cpus_init(PCMachineState *pcms)
+void x86_cpus_init(X86MachineState *x86ms, int default_cpu_version)
 {
     int i;
     const CPUArchIdList *possible_cpus;
-    MachineState *ms = MACHINE(pcms);
-    MachineClass *mc = MACHINE_GET_CLASS(pcms);
-    PCMachineClass *pcmc = PC_MACHINE_CLASS(mc);
-    X86MachineState *x86ms = X86_MACHINE(pcms);
+    MachineState *ms = MACHINE(x86ms);
+    MachineClass *mc = MACHINE_GET_CLASS(x86ms);
 
-    x86_cpu_set_default_version(pcmc->default_cpu_version);
+    x86_cpu_set_default_version(default_cpu_version);
 
     /*
      * Calculates the limit to CPU APIC ID values
      *
      * Limit for the APIC ID value, so that all
-     * CPU APIC IDs are < pcms->apic_id_limit.
+     * CPU APIC IDs are < x86ms->apic_id_limit.
      *
      * This is used for FW_CFG_MAX_CPUS. See comments on fw_cfg_arch_create().
      */
-    x86ms->apic_id_limit = x86_cpu_apic_id_from_index(pcms,
+    x86ms->apic_id_limit = x86_cpu_apic_id_from_index(x86ms,
                                                       ms->smp.max_cpus - 1) + 1;
     possible_cpus = mc->possible_cpu_arch_ids(ms);
     for (i = 0; i < ms->smp.cpus; i++) {
-        x86_cpu_new(pcms, possible_cpus->cpus[i].arch_id, &error_fatal);
+        x86_cpu_new(x86ms, possible_cpus->cpus[i].arch_id, &error_fatal);
     }
 }
 
@@ -154,7 +150,6 @@ int64_t x86_get_default_cpu_node_id(const MachineState *ms, int idx)
 
 const CPUArchIdList *x86_possible_cpu_arch_ids(MachineState *ms)
 {
-    PCMachineState *pcms = PC_MACHINE(ms);
     X86MachineState *x86ms = X86_MACHINE(ms);
     int i;
     unsigned int max_cpus = ms->smp.max_cpus;
@@ -177,7 +172,7 @@ const CPUArchIdList *x86_possible_cpu_arch_ids(MachineState *ms)
         ms->possible_cpus->cpus[i].type = ms->cpu_type;
         ms->possible_cpus->cpus[i].vcpus_count = 1;
         ms->possible_cpus->cpus[i].arch_id =
-            x86_cpu_apic_id_from_index(pcms, i);
+            x86_cpu_apic_id_from_index(x86ms, i);
         x86_topo_ids_from_apicid(ms->possible_cpus->cpus[i].arch_id,
                                  x86ms->smp_dies, ms->smp.cores,
                                  ms->smp.threads, &topo);
@@ -335,8 +330,11 @@ static bool load_elfboot(const char *kernel_filename,
     return true;
 }
 
-void x86_load_linux(PCMachineState *pcms,
-                    FWCfgState *fw_cfg)
+void x86_load_linux(X86MachineState *x86ms,
+                    FWCfgState *fw_cfg,
+                    int acpi_data_size,
+                    bool pvh_enabled,
+                    bool linuxboot_dma_enabled)
 {
     uint16_t protocol;
     int setup_size, kernel_size, cmdline_size;
@@ -346,9 +344,7 @@ void x86_load_linux(PCMachineState *pcms,
     hwaddr real_addr, prot_addr, cmdline_addr, initrd_addr = 0;
     FILE *f;
     char *vmode;
-    MachineState *machine = MACHINE(pcms);
-    PCMachineClass *pcmc = PC_MACHINE_GET_CLASS(pcms);
-    X86MachineState *x86ms = X86_MACHINE(pcms);
+    MachineState *machine = MACHINE(x86ms);
     struct setup_data *setup_data;
     const char *kernel_filename = machine->kernel_filename;
     const char *initrd_filename = machine->initrd_filename;
@@ -395,7 +391,7 @@ void x86_load_linux(PCMachineState *pcms,
          * saving the PVH entry point used by the x86/HVM direct boot ABI.
          * If load_elfboot() is successful, populate the fw_cfg info.
          */
-        if (pcmc->pvh_enabled &&
+        if (pvh_enabled &&
             load_elfboot(kernel_filename, kernel_size,
                          header, pvh_start_addr, fw_cfg)) {
             fclose(f);
@@ -425,8 +421,7 @@ void x86_load_linux(PCMachineState *pcms,
 
                 initrd_data = g_mapped_file_get_contents(mapped_file);
                 initrd_size = g_mapped_file_get_length(mapped_file);
-                initrd_max =
-                    x86ms->below_4g_mem_size - pcmc->acpi_data_size - 1;
+                initrd_max = x86ms->below_4g_mem_size - acpi_data_size - 1;
                 if (initrd_size >= initrd_max) {
                     fprintf(stderr, "qemu: initrd is too large, cannot support."
                             "(max: %"PRIu32", need %"PRId64")\n",
@@ -494,8 +489,8 @@ void x86_load_linux(PCMachineState *pcms,
         initrd_max = 0x37ffffff;
     }
 
-    if (initrd_max >= x86ms->below_4g_mem_size - pcmc->acpi_data_size) {
-        initrd_max = x86ms->below_4g_mem_size - pcmc->acpi_data_size - 1;
+    if (initrd_max >= x86ms->below_4g_mem_size - acpi_data_size) {
+        initrd_max = x86ms->below_4g_mem_size - acpi_data_size - 1;
     }
 
     fw_cfg_add_i32(fw_cfg, FW_CFG_CMDLINE_ADDR, cmdline_addr);
@@ -652,7 +647,7 @@ void x86_load_linux(PCMachineState *pcms,
 
     option_rom[nb_option_roms].bootindex = 0;
     option_rom[nb_option_roms].name = "linuxboot.bin";
-    if (pcmc->linuxboot_dma_enabled && fw_cfg_dma_enabled(fw_cfg)) {
+    if (linuxboot_dma_enabled && fw_cfg_dma_enabled(fw_cfg)) {
         option_rom[nb_option_roms].name = "linuxboot_dma.bin";
     }
     nb_option_roms++;

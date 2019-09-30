@@ -75,10 +75,11 @@ typedef struct {
 #define X86_MACHINE_CLASS(class) \
     OBJECT_CLASS_CHECK(X86MachineClass, class, TYPE_X86_MACHINE)
 
-uint32_t x86_cpu_apic_id_from_index(PCMachineState *pcms,
+uint32_t x86_cpu_apic_id_from_index(X86MachineState *pcms,
                                     unsigned int cpu_index);
-void x86_cpu_new(PCMachineState *pcms, int64_t apic_id, Error **errp);
-void x86_cpus_init(PCMachineState *pcms);
+
+void x86_cpu_new(X86MachineState *pcms, int64_t apic_id, Error **errp);
+void x86_cpus_init(X86MachineState *pcms, int default_cpu_version);
 CpuInstanceProperties x86_cpu_index_to_props(MachineState *ms,
                                              unsigned cpu_index);
 int64_t x86_get_default_cpu_node_id(const MachineState *ms, int idx);
@@ -86,6 +87,10 @@ const CPUArchIdList *x86_possible_cpu_arch_ids(MachineState *ms);
 
 void x86_bios_rom_init(MemoryRegion *rom_memory, bool isapc_ram_fw);
 
-void x86_load_linux(PCMachineState *pcms, FWCfgState *fw_cfg);
+void x86_load_linux(X86MachineState *x86ms,
+                    FWCfgState *fw_cfg,
+                    int acpi_data_size,
+                    bool pvh_enabled,
+                    bool linuxboot_dma_enabled);
 
 #endif

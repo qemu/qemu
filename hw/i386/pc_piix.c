@@ -154,7 +154,7 @@ static void pc_init1(MachineState *machine,
         }
     }
 
-    x86_cpus_init(pcms);
+    x86_cpus_init(x86ms, pcmc->default_cpu_version);
 
     if (kvm_enabled() && pcmc->kvmclock_enabled) {
         kvmclock_create();
