@@ -575,7 +575,7 @@ int arm_load_dtb(hwaddr addr, const struct arm_boot_info *binfo,
         goto fail;
     }
 
-    if (scells < 2 && binfo->ram_size >= (1ULL << 32)) {
+    if (scells < 2 && binfo->ram_size >= 4 * GiB) {
         /* This is user error so deserves a friendlier error message
          * than the failure of setprop_sized_cells would provide
          */
@@ -754,6 +754,8 @@ static void do_cpu_reset(void *opaque)
                     (cs != first_cpu || !info->secure_board_setup)) {
                     /* Linux expects non-secure state */
                     env->cp15.scr_el3 |= SCR_NS;
+                    /* Set NSACR.{CP11,CP10} so NS can access the FPU */
+                    env->cp15.nsacr |= 3 << 10;
                 }
             }
 
@@ -1095,7 +1097,7 @@ static void arm_setup_direct_kernel_boot(ARMCPU *cpu,
      * we might still make a bad choice here.
      */
     info->initrd_start = info->loader_start +
-        MIN(info->ram_size / 2, 128 * 1024 * 1024);
+        MIN(info->ram_size / 2, 128 * MiB);
     if (image_high_addr) {
         info->initrd_start = MAX(info->initrd_start, image_high_addr);
     }
@@ -1155,13 +1157,13 @@ static void arm_setup_direct_kernel_boot(ARMCPU *cpu,
                  *
                  * Let's play safe and prealign it to 2MB to give us some space.
                  */
-                align = 2 * 1024 * 1024;
+                align = 2 * MiB;
             } else {
                 /*
                  * Some 32bit kernels will trash anything in the 4K page the
                  * initrd ends in, so make sure the DTB isn't caught up in that.
                  */
-                align = 4096;
+                align = 4 * KiB;
             }
 
             /* Place the DTB after the initrd in memory with alignment. */
@@ -1178,7 +1180,7 @@ static void arm_setup_direct_kernel_boot(ARMCPU *cpu,
                 info->loader_start + KERNEL_ARGS_ADDR;
             fixupcontext[FIXUP_ARGPTR_HI] =
                 (info->loader_start + KERNEL_ARGS_ADDR) >> 32;
-            if (info->ram_size >= (1ULL << 32)) {
+            if (info->ram_size >= 4 * GiB) {
                 error_report("RAM size must be less than 4GB to boot"
                              " Linux kernel using ATAGS (try passing a device tree"
                              " using -dtb)");
