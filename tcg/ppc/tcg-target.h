@@ -58,8 +58,16 @@ typedef enum {
     TCG_AREG0 = TCG_REG_R27
 } TCGReg;
 
-extern bool have_isa_2_06;
-extern bool have_isa_3_00;
+typedef enum {
+    tcg_isa_base,
+    tcg_isa_2_06,
+    tcg_isa_3_00,
+} TCGPowerISA;
+
+extern TCGPowerISA have_isa;
+
+#define have_isa_2_06  (have_isa >= tcg_isa_2_06)
+#define have_isa_3_00  (have_isa >= tcg_isa_3_00)
 
 /* optional instructions automatically implemented */
 #define TCG_TARGET_HAS_ext8u_i32        0 /* andi */

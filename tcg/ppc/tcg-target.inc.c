@@ -64,8 +64,7 @@
 
 static tcg_insn_unit *tb_ret_addr;
 
-bool have_isa_2_06;
-bool have_isa_3_00;
+TCGPowerISA have_isa;
 
 #define HAVE_ISA_2_06  have_isa_2_06
 #define HAVE_ISEL      have_isa_2_06
@@ -2787,12 +2786,13 @@ static void tcg_target_init(TCGContext *s)
     unsigned long hwcap = qemu_getauxval(AT_HWCAP);
     unsigned long hwcap2 = qemu_getauxval(AT_HWCAP2);
 
+    have_isa = tcg_isa_base;
     if (hwcap & PPC_FEATURE_ARCH_2_06) {
-        have_isa_2_06 = true;
+        have_isa = tcg_isa_2_06;
     }
 #ifdef PPC_FEATURE2_ARCH_3_00
     if (hwcap2 & PPC_FEATURE2_ARCH_3_00) {
-        have_isa_3_00 = true;
+        have_isa = tcg_isa_3_00;
     }
 #endif
 
