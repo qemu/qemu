@@ -596,11 +596,14 @@ static int tcg_target_const_match(tcg_target_long val, TCGType type,
 
 #define XXPERMDI   (OPCD(60) | (10 << 3) | 7)  /* v2.06, force ax=bx=tx=1 */
 #define XXSEL      (OPCD(60) | (3 << 4) | 0xf) /* v2.06, force ax=bx=cx=tx=1 */
+#define XXSPLTIB   (OPCD(60) | (360 << 1) | 1) /* v3.00, force tx=1 */
 
 #define MFVSRD     (XO31(51) | 1)   /* v2.07, force sx=1 */
 #define MFVSRWZ    (XO31(115) | 1)  /* v2.07, force sx=1 */
 #define MTVSRD     (XO31(179) | 1)  /* v2.07, force tx=1 */
 #define MTVSRWZ    (XO31(243) | 1)  /* v2.07, force tx=1 */
+#define MTVSRDD    (XO31(435) | 1)  /* v3.00, force tx=1 */
+#define MTVSRWS    (XO31(403) | 1)  /* v3.00, force tx=1 */
 
 #define RT(r) ((r)<<21)
 #define RS(r) ((r)<<21)
@@ -930,6 +933,10 @@ static void tcg_out_dupi_vec(TCGContext *s, TCGType type, TCGReg ret,
             tcg_out32(s, VSPLTISW | VRT(ret) | ((val & 31) << 16));
             return;
         }
+    }
+    if (have_isa_3_00 && val == (tcg_target_long)dup_const(MO_8, val)) {
+        tcg_out32(s, XXSPLTIB | VRT(ret) | ((val & 0xff) << 11));
+        return;
     }
 
     /*
@@ -3021,7 +3028,22 @@ static bool tcg_out_dup_vec(TCGContext *s, TCGType type, unsigned vece,
                             TCGReg dst, TCGReg src)
 {
     tcg_debug_assert(dst >= TCG_REG_V0);
-    tcg_debug_assert(src >= TCG_REG_V0);
+
+    /* Splat from integer reg allowed via constraints for v3.00.  */
+    if (src < TCG_REG_V0) {
+        tcg_debug_assert(have_isa_3_00);
+        switch (vece) {
+        case MO_64:
+            tcg_out32(s, MTVSRDD | VRT(dst) | RA(src) | RB(src));
+            return true;
+        case MO_32:
+            tcg_out32(s, MTVSRWS | VRT(dst) | RA(src));
+            return true;
+        default:
+            /* Fail, so that we fall back on either dupm or mov+dup.  */
+            return false;
+        }
+    }
 
     /*
      * Recall we use (or emulate) VSX integer loads, so the integer is
@@ -3482,6 +3504,7 @@ static const TCGTargetOpDef *tcg_target_op_def(TCGOpcode op)
     static const TCGTargetOpDef sub2
         = { .args_ct_str = { "r", "r", "rI", "rZM", "r", "r" } };
     static const TCGTargetOpDef v_r = { .args_ct_str = { "v", "r" } };
+    static const TCGTargetOpDef v_vr = { .args_ct_str = { "v", "vr" } };
     static const TCGTargetOpDef v_v = { .args_ct_str = { "v", "v" } };
     static const TCGTargetOpDef v_v_v = { .args_ct_str = { "v", "v", "v" } };
     static const TCGTargetOpDef v_v_v_v
@@ -3651,8 +3674,9 @@ static const TCGTargetOpDef *tcg_target_op_def(TCGOpcode op)
         return &v_v_v;
     case INDEX_op_not_vec:
     case INDEX_op_neg_vec:
-    case INDEX_op_dup_vec:
         return &v_v;
+    case INDEX_op_dup_vec:
+        return have_isa_3_00 ? &v_vr : &v_v;
     case INDEX_op_ld_vec:
     case INDEX_op_st_vec:
     case INDEX_op_dupm_vec:
