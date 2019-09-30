@@ -61,6 +61,7 @@ typedef enum {
 typedef enum {
     tcg_isa_base,
     tcg_isa_2_06,
+    tcg_isa_2_07,
     tcg_isa_3_00,
 } TCGPowerISA;
 
@@ -69,6 +70,7 @@ extern bool have_altivec;
 extern bool have_vsx;
 
 #define have_isa_2_06  (have_isa >= tcg_isa_2_06)
+#define have_isa_2_07  (have_isa >= tcg_isa_2_07)
 #define have_isa_3_00  (have_isa >= tcg_isa_3_00)
 
 /* optional instructions automatically implemented */
@@ -155,7 +157,7 @@ extern bool have_vsx;
 #define TCG_TARGET_HAS_v256             0
 
 #define TCG_TARGET_HAS_andc_vec         1
-#define TCG_TARGET_HAS_orc_vec          0
+#define TCG_TARGET_HAS_orc_vec          have_isa_2_07
 #define TCG_TARGET_HAS_not_vec          1
 #define TCG_TARGET_HAS_neg_vec          0
 #define TCG_TARGET_HAS_abs_vec          0
