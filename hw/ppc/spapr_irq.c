@@ -529,7 +529,7 @@ SpaprIrq spapr_irq_dual = {
 };
 
 
-static void spapr_irq_check(SpaprMachineState *spapr, Error **errp)
+static int spapr_irq_check(SpaprMachineState *spapr, Error **errp)
 {
     MachineState *machine = MACHINE(spapr);
 
@@ -545,7 +545,7 @@ static void spapr_irq_check(SpaprMachineState *spapr, Error **errp)
          */
         if (spapr->irq == &spapr_irq_dual) {
             spapr->irq = &spapr_irq_xics;
-            return;
+            return 0;
         }
 
         /*
@@ -565,7 +565,7 @@ static void spapr_irq_check(SpaprMachineState *spapr, Error **errp)
          */
         if (spapr->irq == &spapr_irq_xive) {
             error_setg(errp, "XIVE-only machines require a POWER9 CPU");
-            return;
+            return -1;
         }
     }
 
@@ -579,8 +579,10 @@ static void spapr_irq_check(SpaprMachineState *spapr, Error **errp)
         machine_kernel_irqchip_required(machine) &&
         xics_kvm_has_broken_disconnect(spapr)) {
         error_setg(errp, "KVM is too old to support ic-mode=dual,kernel-irqchip=on");
-        return;
+        return -1;
     }
+
+    return 0;
 }
 
 /*
@@ -589,7 +591,6 @@ static void spapr_irq_check(SpaprMachineState *spapr, Error **errp)
 void spapr_irq_init(SpaprMachineState *spapr, Error **errp)
 {
     MachineState *machine = MACHINE(spapr);
-    Error *local_err = NULL;
 
     if (machine_kernel_irqchip_split(machine)) {
         error_setg(errp, "kernel_irqchip split mode not supported on pseries");
@@ -602,9 +603,7 @@ void spapr_irq_init(SpaprMachineState *spapr, Error **errp)
         return;
     }
 
-    spapr_irq_check(spapr, &local_err);
-    if (local_err) {
-        error_propagate(errp, local_err);
+    if (spapr_irq_check(spapr, errp) < 0) {
         return;
     }
 
