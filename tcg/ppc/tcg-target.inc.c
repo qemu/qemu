@@ -66,7 +66,6 @@ static tcg_insn_unit *tb_ret_addr;
 
 TCGPowerISA have_isa;
 
-#define HAVE_ISA_2_06  have_isa_2_06
 #define HAVE_ISEL      have_isa_2_06
 
 #ifndef CONFIG_SOFTMMU
@@ -1797,7 +1796,7 @@ static void tcg_out_qemu_ld(TCGContext *s, const TCGArg *args, bool is_64)
         }
     } else {
         uint32_t insn = qemu_ldx_opc[opc & (MO_BSWAP | MO_SSIZE)];
-        if (!HAVE_ISA_2_06 && insn == LDBRX) {
+        if (!have_isa_2_06 && insn == LDBRX) {
             tcg_out32(s, ADDI | TAI(TCG_REG_R0, addrlo, 4));
             tcg_out32(s, LWBRX | TAB(datalo, rbase, addrlo));
             tcg_out32(s, LWBRX | TAB(TCG_REG_R0, rbase, TCG_REG_R0));
@@ -1869,7 +1868,7 @@ static void tcg_out_qemu_st(TCGContext *s, const TCGArg *args, bool is_64)
         }
     } else {
         uint32_t insn = qemu_stx_opc[opc & (MO_BSWAP | MO_SIZE)];
-        if (!HAVE_ISA_2_06 && insn == STDBRX) {
+        if (!have_isa_2_06 && insn == STDBRX) {
             tcg_out32(s, STWBRX | SAB(datalo, rbase, addrlo));
             tcg_out32(s, ADDI | TAI(TCG_REG_TMP1, addrlo, 4));
             tcg_out_shri64(s, TCG_REG_R0, datalo, 32);
