@@ -7,7 +7,7 @@
  *
  * Copyright (C) 2012-2014 Imagination Technologies Ltd.
  * Authors: Sanjay Lal <sanjayl@kymasys.com>
-*/
+ */
 
 #ifndef KVM_MIPS_H
 #define KVM_MIPS_H
