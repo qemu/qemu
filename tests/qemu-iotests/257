@@ -190,6 +190,7 @@ def blockdev_backup(vm, device, target, sync, **kwargs):
                         device=device,
                         target=target,
                         sync=sync,
+                        filter_node_name='backup-top',
                         **kwargs)
     return result
 
@@ -216,7 +217,7 @@ def backup(drive, n, filepath, sync, **kwargs):
                              job_id=job_id, **kwargs)
     return job_id
 
-def perform_writes(drive, n):
+def perform_writes(drive, n, filter_node_name=None):
     log("--- Write #{:d} ---\n".format(n))
     for pattern in GROUPS[n].patterns:
         cmd = "write -P{:s} 0x{:07x} 0x{:x}".format(
@@ -224,7 +225,7 @@ def perform_writes(drive, n):
             pattern.offset,
             pattern.size)
         log(cmd)
-        log(drive.vm.hmp_qemu_io(drive.node, cmd))
+        log(drive.vm.hmp_qemu_io(filter_node_name or drive.node, cmd))
     bitmaps = drive.vm.query_bitmaps()
     log({'bitmaps': bitmaps}, indent=2)
     log('')
@@ -355,7 +356,7 @@ def test_bitmap_sync(bsync_mode, msync_mode='bitmap', failure=None):
             """Issue writes while the job is open to test bitmap divergence."""
             # Note: when `failure` is 'intermediate', this isn't called.
             log('')
-            bitmaps = perform_writes(drive0, 2)
+            bitmaps = perform_writes(drive0, 2, filter_node_name='backup-top')
             # Named bitmap (static, should be unchanged)
             ebitmap.compare(vm.get_bitmap(drive0.node, 'bitmap0',
                                           bitmaps=bitmaps))

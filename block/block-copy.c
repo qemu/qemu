@@ -60,24 +60,22 @@ void block_copy_state_free(BlockCopyState *s)
         return;
     }
 
-    bdrv_release_dirty_bitmap(blk_bs(s->source), s->copy_bitmap);
-    blk_unref(s->source);
-    blk_unref(s->target);
+    bdrv_release_dirty_bitmap(s->source->bs, s->copy_bitmap);
     g_free(s);
 }
 
-BlockCopyState *block_copy_state_new(BlockDriverState *source,
-                                     BlockDriverState *target,
+BlockCopyState *block_copy_state_new(BdrvChild *source, BdrvChild *target,
                                      int64_t cluster_size,
                                      BdrvRequestFlags write_flags, Error **errp)
 {
     BlockCopyState *s;
-    int ret;
-    uint64_t no_resize = BLK_PERM_CONSISTENT_READ | BLK_PERM_WRITE |
-                         BLK_PERM_WRITE_UNCHANGED | BLK_PERM_GRAPH_MOD;
     BdrvDirtyBitmap *copy_bitmap;
+    uint32_t max_transfer =
+            MIN_NON_ZERO(INT_MAX, MIN_NON_ZERO(source->bs->bl.max_transfer,
+                                               target->bs->bl.max_transfer));
 
-    copy_bitmap = bdrv_create_dirty_bitmap(source, cluster_size, NULL, errp);
+    copy_bitmap = bdrv_create_dirty_bitmap(source->bs, cluster_size, NULL,
+                                           errp);
     if (!copy_bitmap) {
         return NULL;
     }
@@ -85,19 +83,15 @@ BlockCopyState *block_copy_state_new(BlockDriverState *source,
 
     s = g_new(BlockCopyState, 1);
     *s = (BlockCopyState) {
-        .source = blk_new(bdrv_get_aio_context(source),
-                          BLK_PERM_CONSISTENT_READ, no_resize),
-        .target = blk_new(bdrv_get_aio_context(target),
-                          BLK_PERM_WRITE, no_resize),
+        .source = source,
+        .target = target,
         .copy_bitmap = copy_bitmap,
         .cluster_size = cluster_size,
         .len = bdrv_dirty_bitmap_size(copy_bitmap),
         .write_flags = write_flags,
     };
 
-    s->copy_range_size = QEMU_ALIGN_DOWN(MIN(blk_get_max_transfer(s->source),
-                                             blk_get_max_transfer(s->target)),
-                                         s->cluster_size);
+    s->copy_range_size = QEMU_ALIGN_DOWN(max_transfer, cluster_size),
     /*
      * Set use_copy_range, consider the following:
      * 1. Compression is not supported for copy_range.
@@ -111,32 +105,7 @@ BlockCopyState *block_copy_state_new(BlockDriverState *source,
 
     QLIST_INIT(&s->inflight_reqs);
 
-    /*
-     * We just allow aio context change on our block backends. block_copy() user
-     * (now it's only backup) is responsible for source and target being in same
-     * aio context.
-     */
-    blk_set_disable_request_queuing(s->source, true);
-    blk_set_allow_aio_context_change(s->source, true);
-    blk_set_disable_request_queuing(s->target, true);
-    blk_set_allow_aio_context_change(s->target, true);
-
-    ret = blk_insert_bs(s->source, source, errp);
-    if (ret < 0) {
-        goto fail;
-    }
-
-    ret = blk_insert_bs(s->target, target, errp);
-    if (ret < 0) {
-        goto fail;
-    }
-
     return s;
-
-fail:
-    block_copy_state_free(s);
-
-    return NULL;
 }
 
 void block_copy_set_callbacks(
@@ -157,22 +126,20 @@ void block_copy_set_callbacks(
 static int coroutine_fn block_copy_with_bounce_buffer(BlockCopyState *s,
                                                       int64_t start,
                                                       int64_t end,
-                                                      bool is_write_notifier,
                                                       bool *error_is_read,
                                                       void **bounce_buffer)
 {
     int ret;
     int nbytes;
-    int read_flags = is_write_notifier ? BDRV_REQ_NO_SERIALISING : 0;
 
     assert(QEMU_IS_ALIGNED(start, s->cluster_size));
     bdrv_reset_dirty_bitmap(s->copy_bitmap, start, s->cluster_size);
     nbytes = MIN(s->cluster_size, s->len - start);
     if (!*bounce_buffer) {
-        *bounce_buffer = blk_blockalign(s->source, s->cluster_size);
+        *bounce_buffer = qemu_blockalign(s->source->bs, s->cluster_size);
     }
 
-    ret = blk_co_pread(s->source, start, nbytes, *bounce_buffer, read_flags);
+    ret = bdrv_co_pread(s->source, start, nbytes, *bounce_buffer, 0);
     if (ret < 0) {
         trace_block_copy_with_bounce_buffer_read_fail(s, start, ret);
         if (error_is_read) {
@@ -181,8 +148,8 @@ static int coroutine_fn block_copy_with_bounce_buffer(BlockCopyState *s,
         goto fail;
     }
 
-    ret = blk_co_pwrite(s->target, start, nbytes, *bounce_buffer,
-                        s->write_flags);
+    ret = bdrv_co_pwrite(s->target, start, nbytes, *bounce_buffer,
+                         s->write_flags);
     if (ret < 0) {
         trace_block_copy_with_bounce_buffer_write_fail(s, start, ret);
         if (error_is_read) {
@@ -204,13 +171,11 @@ fail:
  */
 static int coroutine_fn block_copy_with_offload(BlockCopyState *s,
                                                 int64_t start,
-                                                int64_t end,
-                                                bool is_write_notifier)
+                                                int64_t end)
 {
     int ret;
     int nr_clusters;
     int nbytes;
-    int read_flags = is_write_notifier ? BDRV_REQ_NO_SERIALISING : 0;
 
     assert(QEMU_IS_ALIGNED(s->copy_range_size, s->cluster_size));
     assert(QEMU_IS_ALIGNED(start, s->cluster_size));
@@ -218,8 +183,8 @@ static int coroutine_fn block_copy_with_offload(BlockCopyState *s,
     nr_clusters = DIV_ROUND_UP(nbytes, s->cluster_size);
     bdrv_reset_dirty_bitmap(s->copy_bitmap, start,
                             s->cluster_size * nr_clusters);
-    ret = blk_co_copy_range(s->source, start, s->target, start, nbytes,
-                            read_flags, s->write_flags);
+    ret = bdrv_co_copy_range(s->source, start, s->target, start, nbytes,
+                             0, s->write_flags);
     if (ret < 0) {
         trace_block_copy_with_offload_fail(s, start, ret);
         bdrv_set_dirty_bitmap(s->copy_bitmap, start,
@@ -237,7 +202,7 @@ static int coroutine_fn block_copy_with_offload(BlockCopyState *s,
 static int block_copy_is_cluster_allocated(BlockCopyState *s, int64_t offset,
                                            int64_t *pnum)
 {
-    BlockDriverState *bs = blk_bs(s->source);
+    BlockDriverState *bs = s->source->bs;
     int64_t count, total_count = 0;
     int64_t bytes = s->len - offset;
     int ret;
@@ -302,8 +267,7 @@ int64_t block_copy_reset_unallocated(BlockCopyState *s,
 
 int coroutine_fn block_copy(BlockCopyState *s,
                             int64_t start, uint64_t bytes,
-                            bool *error_is_read,
-                            bool is_write_notifier)
+                            bool *error_is_read)
 {
     int ret = 0;
     int64_t end = bytes + start; /* bytes */
@@ -315,7 +279,8 @@ int coroutine_fn block_copy(BlockCopyState *s,
      * block_copy() user is responsible for keeping source and target in same
      * aio context
      */
-    assert(blk_get_aio_context(s->source) == blk_get_aio_context(s->target));
+    assert(bdrv_get_aio_context(s->source->bs) ==
+           bdrv_get_aio_context(s->target->bs));
 
     assert(QEMU_IS_ALIGNED(start, s->cluster_size));
     assert(QEMU_IS_ALIGNED(end, s->cluster_size));
@@ -352,15 +317,13 @@ int coroutine_fn block_copy(BlockCopyState *s,
         trace_block_copy_process(s, start);
 
         if (s->use_copy_range) {
-            ret = block_copy_with_offload(s, start, dirty_end,
-                                          is_write_notifier);
+            ret = block_copy_with_offload(s, start, dirty_end);
             if (ret < 0) {
                 s->use_copy_range = false;
             }
         }
         if (!s->use_copy_range) {
             ret = block_copy_with_bounce_buffer(s, start, dirty_end,
-                                                is_write_notifier,
                                                 error_is_read, &bounce_buffer);
         }
         if (ret < 0) {

@@ -50,12 +50,11 @@ static coroutine_fn int backup_top_co_preadv(
 static coroutine_fn int backup_top_cbw(BlockDriverState *bs, uint64_t offset,
                                        uint64_t bytes)
 {
-    /*
-     * Here we'd like to use block_copy(), but block-copy need to be moved to
-     * use BdrvChildren to correctly use it in backup-top filter. It's a TODO.
-     */
+    BDRVBackupTopState *s = bs->opaque;
+    uint64_t end = QEMU_ALIGN_UP(offset + bytes, s->bcs->cluster_size);
+    uint64_t off = QEMU_ALIGN_DOWN(offset, s->bcs->cluster_size);
 
-    abort();
+    return block_copy(s->bcs, off, end - off, NULL);
 }
 
 static int coroutine_fn backup_top_co_pdiscard(BlockDriverState *bs,
@@ -228,14 +227,10 @@ BlockDriverState *bdrv_backup_top_append(BlockDriverState *source,
         goto failed_after_append;
     }
 
-    /*
-     * TODO: Create block-copy-state here (which will utilize @cluster_size and
-     * @write_flags parameters which are unused now). For this, block-copy
-     * should be refactored to use BdrvChildren.
-     */
-    state->bcs = NULL;
-    if (!state->bcs) {
-        error_setg(&local_err, "Cannot create block-copy-state");
+    state->bcs = block_copy_state_new(top->backing, state->target,
+                                      cluster_size, write_flags, &local_err);
+    if (local_err) {
+        error_prepend(&local_err, "Cannot create block-copy-state: ");
         goto failed_after_append;
     }
     *bcs = state->bcs;

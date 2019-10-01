@@ -27,8 +27,13 @@ typedef struct BlockCopyInFlightReq {
 typedef void (*ProgressBytesCallbackFunc)(int64_t bytes, void *opaque);
 typedef void (*ProgressResetCallbackFunc)(void *opaque);
 typedef struct BlockCopyState {
-    BlockBackend *source;
-    BlockBackend *target;
+    /*
+     * BdrvChild objects are not owned or managed by block-copy. They are
+     * provided by block-copy user and user is responsible for appropriate
+     * permissions on these children.
+     */
+    BdrvChild *source;
+    BdrvChild *target;
     BdrvDirtyBitmap *copy_bitmap;
     int64_t cluster_size;
     bool use_copy_range;
@@ -66,8 +71,7 @@ typedef struct BlockCopyState {
     void *progress_opaque;
 } BlockCopyState;
 
-BlockCopyState *block_copy_state_new(BlockDriverState *source,
-                                     BlockDriverState *target,
+BlockCopyState *block_copy_state_new(BdrvChild *source, BdrvChild *target,
                                      int64_t cluster_size,
                                      BdrvRequestFlags write_flags,
                                      Error **errp);
@@ -84,6 +88,6 @@ int64_t block_copy_reset_unallocated(BlockCopyState *s,
                                      int64_t offset, int64_t *count);
 
 int coroutine_fn block_copy(BlockCopyState *s, int64_t start, uint64_t bytes,
-                            bool *error_is_read, bool is_write_notifier);
+                            bool *error_is_read);
 
 #endif /* BLOCK_COPY_H */

@@ -2,6 +2,7 @@
  * QEMU backup
  *
  * Copyright (C) 2013 Proxmox Server Solutions
+ * Copyright (c) 2019 Virtuozzo International GmbH.
  *
  * Authors:
  *  Dietmar Maurer (dietmar@proxmox.com)
@@ -27,10 +28,13 @@
 #include "qemu/bitmap.h"
 #include "qemu/error-report.h"
 
+#include "block/backup-top.h"
+
 #define BACKUP_CLUSTER_SIZE_DEFAULT (1 << 16)
 
 typedef struct BackupBlockJob {
     BlockJob common;
+    BlockDriverState *backup_top;
     BlockDriverState *source_bs;
 
     BdrvDirtyBitmap *sync_bitmap;
@@ -39,11 +43,9 @@ typedef struct BackupBlockJob {
     BitmapSyncMode bitmap_mode;
     BlockdevOnError on_source_error;
     BlockdevOnError on_target_error;
-    CoRwlock flush_rwlock;
     uint64_t len;
     uint64_t bytes_read;
     int64_t cluster_size;
-    NotifierWithReturn before_write;
 
     BlockCopyState *bcs;
 } BackupBlockJob;
@@ -68,41 +70,21 @@ static void backup_progress_reset_callback(void *opaque)
 
 static int coroutine_fn backup_do_cow(BackupBlockJob *job,
                                       int64_t offset, uint64_t bytes,
-                                      bool *error_is_read,
-                                      bool is_write_notifier)
+                                      bool *error_is_read)
 {
     int ret = 0;
     int64_t start, end; /* bytes */
-
-    qemu_co_rwlock_rdlock(&job->flush_rwlock);
 
     start = QEMU_ALIGN_DOWN(offset, job->cluster_size);
     end = QEMU_ALIGN_UP(bytes + offset, job->cluster_size);
 
     trace_backup_do_cow_enter(job, start, offset, bytes);
 
-    ret = block_copy(job->bcs, start, end - start, error_is_read,
-                     is_write_notifier);
+    ret = block_copy(job->bcs, start, end - start, error_is_read);
 
     trace_backup_do_cow_return(job, offset, bytes, ret);
 
-    qemu_co_rwlock_unlock(&job->flush_rwlock);
-
     return ret;
-}
-
-static int coroutine_fn backup_before_write_notify(
-        NotifierWithReturn *notifier,
-        void *opaque)
-{
-    BackupBlockJob *job = container_of(notifier, BackupBlockJob, before_write);
-    BdrvTrackedRequest *req = opaque;
-
-    assert(req->bs == job->source_bs);
-    assert(QEMU_IS_ALIGNED(req->offset, BDRV_SECTOR_SIZE));
-    assert(QEMU_IS_ALIGNED(req->bytes, BDRV_SECTOR_SIZE));
-
-    return backup_do_cow(job, req->offset, req->bytes, NULL, true);
 }
 
 static void backup_cleanup_sync_bitmap(BackupBlockJob *job, int ret)
@@ -154,7 +136,7 @@ static void backup_clean(Job *job)
 {
     BackupBlockJob *s = container_of(job, BackupBlockJob, common.job);
 
-    block_copy_state_free(s->bcs);
+    bdrv_backup_top_drop(s->backup_top);
 }
 
 void backup_do_checkpoint(BlockJob *job, Error **errp)
@@ -220,8 +202,7 @@ static int coroutine_fn backup_loop(BackupBlockJob *job)
             if (yield_and_check(job)) {
                 goto out;
             }
-            ret = backup_do_cow(job, offset,
-                                job->cluster_size, &error_is_read, false);
+            ret = backup_do_cow(job, offset, job->cluster_size, &error_is_read);
             if (ret < 0 && backup_error_action(job, error_is_read, -ret) ==
                            BLOCK_ERROR_ACTION_REPORT)
             {
@@ -265,12 +246,7 @@ static int coroutine_fn backup_run(Job *job, Error **errp)
     BackupBlockJob *s = container_of(job, BackupBlockJob, common.job);
     int ret = 0;
 
-    qemu_co_rwlock_init(&s->flush_rwlock);
-
     backup_init_copy_bitmap(s);
-
-    s->before_write.notify = backup_before_write_notify;
-    bdrv_add_before_write_notifier(s->source_bs, &s->before_write);
 
     if (s->sync_mode == MIRROR_SYNC_MODE_TOP) {
         int64_t offset = 0;
@@ -309,12 +285,6 @@ static int coroutine_fn backup_run(Job *job, Error **errp)
     }
 
  out:
-    notifier_with_return_remove(&s->before_write);
-
-    /* wait until pending backup_do_cow() calls have completed */
-    qemu_co_rwlock_wrlock(&s->flush_rwlock);
-    qemu_co_rwlock_unlock(&s->flush_rwlock);
-
     return ret;
 }
 
@@ -372,6 +342,7 @@ BlockJob *backup_job_create(const char *job_id, BlockDriverState *bs,
                   MirrorSyncMode sync_mode, BdrvDirtyBitmap *sync_bitmap,
                   BitmapSyncMode bitmap_mode,
                   bool compress,
+                  const char *filter_node_name,
                   BlockdevOnError on_source_error,
                   BlockdevOnError on_target_error,
                   int creation_flags,
@@ -382,6 +353,8 @@ BlockJob *backup_job_create(const char *job_id, BlockDriverState *bs,
     BackupBlockJob *job = NULL;
     int64_t cluster_size;
     BdrvRequestFlags write_flags;
+    BlockDriverState *backup_top = NULL;
+    BlockCopyState *bcs = NULL;
 
     assert(bs);
     assert(target);
@@ -463,33 +436,35 @@ BlockJob *backup_job_create(const char *job_id, BlockDriverState *bs,
     write_flags = (bdrv_chain_contains(target, bs) ? BDRV_REQ_SERIALISING : 0) |
                   (compress ? BDRV_REQ_WRITE_COMPRESSED : 0),
 
+    backup_top = bdrv_backup_top_append(bs, target, filter_node_name,
+                                        cluster_size, write_flags, &bcs, errp);
+    if (!backup_top) {
+        goto error;
+    }
+
     /* job->len is fixed, so we can't allow resize */
-    job = block_job_create(job_id, &backup_job_driver, txn, bs, 0, BLK_PERM_ALL,
+    job = block_job_create(job_id, &backup_job_driver, txn, backup_top,
+                           0, BLK_PERM_ALL,
                            speed, creation_flags, cb, opaque, errp);
     if (!job) {
         goto error;
     }
 
+    job->backup_top = backup_top;
     job->source_bs = bs;
     job->on_source_error = on_source_error;
     job->on_target_error = on_target_error;
     job->sync_mode = sync_mode;
     job->sync_bitmap = sync_bitmap;
     job->bitmap_mode = bitmap_mode;
-
-    job->bcs = block_copy_state_new(bs, target, cluster_size, write_flags,
-                                    errp);
-    if (!job->bcs) {
-        goto error;
-    }
-
+    job->bcs = bcs;
     job->cluster_size = cluster_size;
     job->len = len;
 
-    block_copy_set_callbacks(job->bcs, backup_progress_bytes_callback,
+    block_copy_set_callbacks(bcs, backup_progress_bytes_callback,
                              backup_progress_reset_callback, job);
 
-    /* Required permissions are already taken by block-copy-state target */
+    /* Required permissions are already taken by backup-top target */
     block_job_add_bdrv(&job->common, "target", target, 0, BLK_PERM_ALL,
                        &error_abort);
 
@@ -502,6 +477,8 @@ BlockJob *backup_job_create(const char *job_id, BlockDriverState *bs,
     if (job) {
         backup_clean(&job->common.job);
         job_early_fail(&job->common.job);
+    } else if (backup_top) {
+        bdrv_backup_top_drop(backup_top);
     }
 
     return NULL;
