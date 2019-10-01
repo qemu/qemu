@@ -96,7 +96,7 @@ bool s390_cpu_tlb_fill(CPUState *cs, vaddr address, int size,
 {
     S390CPU *cpu = S390_CPU(cs);
 
-    trigger_pgm_exception(&cpu->env, PGM_ADDRESSING, ILEN_AUTO);
+    trigger_pgm_exception(&cpu->env, PGM_ADDRESSING, ILEN_UNWIND);
     /* On real machines this value is dropped into LowMem.  Since this
        is userland, simply put this someplace that cpu_loop can find it.  */
     cpu->env.__excp_addr = address;
@@ -179,24 +179,15 @@ bool s390_cpu_tlb_fill(CPUState *cs, vaddr address, int size,
         stq_phys(env_cpu(env)->as,
                  env->psa + offsetof(LowCore, trans_exc_code), tec);
     }
-    trigger_pgm_exception(env, excp, ILEN_AUTO);
-    cpu_restore_state(cs, retaddr, true);
 
     /*
-     * The ILC value for code accesses is undefined.  The important
-     * thing here is to *not* leave env->int_pgm_ilen set to ILEN_AUTO,
-     * which would cause do_program_interrupt to attempt to read from
-     * env->psw.addr again.  C.f. the condition in trigger_page_fault,
-     * but is not universally applied.
-     *
-     * ??? If we remove ILEN_AUTO, by moving the computation of ILEN
-     * into cpu_restore_state, then we may remove this entirely.
+     * For data accesses, ILEN will be filled in from the unwind info,
+     * within cpu_loop_exit_restore.  For code accesses, retaddr == 0,
+     * and so unwinding will not occur.  However, ILEN is also undefined
+     * for that case -- we choose to set ILEN = 2.
      */
-    if (access_type == MMU_INST_FETCH) {
-        env->int_pgm_ilen = 2;
-    }
-
-    cpu_loop_exit(cs);
+    trigger_pgm_exception(env, excp, 2);
+    cpu_loop_exit_restore(cs, retaddr);
 }
 
 static void do_program_interrupt(CPUS390XState *env)
