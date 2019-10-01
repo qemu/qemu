@@ -2361,34 +2361,23 @@ void HELPER(sturg)(CPUS390XState *env, uint64_t addr, uint64_t v1)
 /* load real address */
 uint64_t HELPER(lra)(CPUS390XState *env, uint64_t addr)
 {
-    CPUState *cs = env_cpu(env);
-    uint32_t cc = 0;
     uint64_t asc = env->psw.mask & PSW_MASK_ASC;
     uint64_t ret, tec;
-    int old_exc, flags, exc;
+    int flags, exc, cc;
 
     /* XXX incomplete - has more corner cases */
     if (!(env->psw.mask & PSW_MASK_64) && (addr >> 32)) {
         tcg_s390_program_interrupt(env, PGM_SPECIAL_OP, GETPC());
     }
 
-    old_exc = cs->exception_index;
     exc = mmu_translate(env, addr, 0, asc, &ret, &flags, &tec);
     if (exc) {
-        /*
-         * We don't care about ILEN or TEC, as we're not going to
-         * deliver the exception -- thus resetting exception_index below.
-         * TODO: clean this up.
-         */
-        trigger_pgm_exception(env, exc, ILEN_UNWIND);
         cc = 3;
-    }
-    if (cs->exception_index == EXCP_PGM) {
-        ret = env->int_pgm_code | 0x80000000;
+        ret = exc | 0x80000000;
     } else {
+        cc = 0;
         ret |= addr & ~TARGET_PAGE_MASK;
     }
-    cs->exception_index = old_exc;
 
     env->cc_op = cc;
     return ret;
