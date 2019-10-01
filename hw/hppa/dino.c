@@ -485,6 +485,7 @@ PCIBus *dino_init(MemoryRegion *addr_space,
         memory_region_init_alias(&s->pci_mem_alias[i], OBJECT(s),
                                  name, &s->pci_mem, addr,
                                  DINO_MEM_CHUNK_SIZE);
+        g_free(name);
     }
 
     /* Set up PCI view of memory: Bus master address space.  */
