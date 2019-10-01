@@ -34,15 +34,15 @@
 #include "hw/boards.h"
 #endif
 
-void QEMU_NORETURN tcg_s390_program_interrupt(CPUS390XState *env, uint32_t code,
-                                              int ilen, uintptr_t ra)
+void QEMU_NORETURN tcg_s390_program_interrupt(CPUS390XState *env,
+                                              uint32_t code, uintptr_t ra)
 {
     CPUState *cs = env_cpu(env);
 
     cpu_restore_state(cs, ra, true);
     qemu_log_mask(CPU_LOG_INT, "program interrupt at %#" PRIx64 "\n",
                   env->psw.addr);
-    trigger_pgm_exception(env, code, ilen);
+    trigger_pgm_exception(env, code, ILEN_UNWIND);
     cpu_loop_exit(cs);
 }
 
@@ -60,7 +60,7 @@ void QEMU_NORETURN tcg_s390_data_exception(CPUS390XState *env, uint32_t dxc,
     if (env->cregs[0] & CR0_AFP) {
         env->fpc = deposit32(env->fpc, 8, 8, dxc);
     }
-    tcg_s390_program_interrupt(env, PGM_DATA, ILEN_AUTO, ra);
+    tcg_s390_program_interrupt(env, PGM_DATA, ra);
 }
 
 void QEMU_NORETURN tcg_s390_vector_exception(CPUS390XState *env, uint32_t vxc,
@@ -75,7 +75,7 @@ void QEMU_NORETURN tcg_s390_vector_exception(CPUS390XState *env, uint32_t vxc,
 
     /* Always store the VXC into the FPC, without AFP it is undefined */
     env->fpc = deposit32(env->fpc, 8, 8, vxc);
-    tcg_s390_program_interrupt(env, PGM_VECTOR_PROCESSING, ILEN_AUTO, ra);
+    tcg_s390_program_interrupt(env, PGM_VECTOR_PROCESSING, ra);
 }
 
 void HELPER(data_exception)(CPUS390XState *env, uint32_t dxc)

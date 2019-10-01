@@ -40,7 +40,7 @@ void s390_program_interrupt(CPUS390XState *env, uint32_t code, int ilen,
     if (kvm_enabled()) {
         kvm_s390_program_interrupt(env_archcpu(env), code);
     } else if (tcg_enabled()) {
-        tcg_s390_program_interrupt(env, code, ilen, ra);
+        tcg_s390_program_interrupt(env, code, ra);
     } else {
         g_assert_not_reached();
     }
