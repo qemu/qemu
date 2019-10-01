@@ -451,25 +451,22 @@ nodat:
  * the MEMOP interface.
  */
 static int translate_pages(S390CPU *cpu, vaddr addr, int nr_pages,
-                           target_ulong *pages, bool is_write)
+                           target_ulong *pages, bool is_write, uint64_t *tec)
 {
     uint64_t asc = cpu->env.psw.mask & PSW_MASK_ASC;
     CPUS390XState *env = &cpu->env;
     int ret, i, pflags;
 
     for (i = 0; i < nr_pages; i++) {
-        uint64_t tec;
-
-        ret = mmu_translate(env, addr, is_write, asc, &pages[i], &pflags, &tec);
+        ret = mmu_translate(env, addr, is_write, asc, &pages[i], &pflags, tec);
         if (ret) {
-            trigger_access_exception(env, ret, ILEN_AUTO, tec);
-            return -EFAULT;
+            return ret;
         }
         if (!address_space_access_valid(&address_space_memory, pages[i],
                                         TARGET_PAGE_SIZE, is_write,
                                         MEMTXATTRS_UNSPECIFIED)) {
-            trigger_access_exception(env, PGM_ADDRESSING, ILEN_AUTO, 0);
-            return -EFAULT;
+            *tec = 0; /* unused */
+            return PGM_ADDRESSING;
         }
         addr += TARGET_PAGE_SIZE;
     }
@@ -497,6 +494,7 @@ int s390_cpu_virt_mem_rw(S390CPU *cpu, vaddr laddr, uint8_t ar, void *hostbuf,
 {
     int currlen, nr_pages, i;
     target_ulong *pages;
+    uint64_t tec;
     int ret;
 
     if (kvm_enabled()) {
@@ -510,8 +508,10 @@ int s390_cpu_virt_mem_rw(S390CPU *cpu, vaddr laddr, uint8_t ar, void *hostbuf,
                + 1;
     pages = g_malloc(nr_pages * sizeof(*pages));
 
-    ret = translate_pages(cpu, laddr, nr_pages, pages, is_write);
-    if (ret == 0 && hostbuf != NULL) {
+    ret = translate_pages(cpu, laddr, nr_pages, pages, is_write, &tec);
+    if (ret) {
+        trigger_access_exception(&cpu->env, ret, ILEN_AUTO, tec);
+    } else if (hostbuf != NULL) {
         /* Copy data by stepping through the area page by page */
         for (i = 0; i < nr_pages; i++) {
             currlen = MIN(len, TARGET_PAGE_SIZE - (laddr % TARGET_PAGE_SIZE));
