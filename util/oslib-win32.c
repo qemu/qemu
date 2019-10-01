@@ -585,7 +585,11 @@ int qemu_connect_wrap(int sockfd, const struct sockaddr *addr,
     int ret;
     ret = connect(sockfd, addr, addrlen);
     if (ret < 0) {
-        errno = socket_error();
+        if (WSAGetLastError() == WSAEWOULDBLOCK) {
+            errno = EINPROGRESS;
+        } else {
+            errno = socket_error();
+        }
     }
     return ret;
 }
