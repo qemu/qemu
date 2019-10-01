@@ -147,8 +147,8 @@ bool s390_cpu_tlb_fill(CPUState *cs, vaddr address, int size,
         if (!(env->psw.mask & PSW_MASK_64)) {
             vaddr &= 0x7fffffff;
         }
-        fail = mmu_translate_real(env, vaddr, access_type, &raddr, &prot);
-        excp = 0; /* exception already raised */
+        excp = mmu_translate_real(env, vaddr, access_type, &raddr, &prot, &tec);
+        fail = excp;
     } else {
         g_assert_not_reached();
     }

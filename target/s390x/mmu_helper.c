@@ -554,14 +554,11 @@ void s390_cpu_virt_mem_handle_exc(S390CPU *cpu, uintptr_t ra)
  * @param rw     0 = read, 1 = write, 2 = code fetch
  * @param addr   the translated address is stored to this pointer
  * @param flags  the PAGE_READ/WRITE/EXEC flags are stored to this pointer
- * @return       0 if the translation was successful, < 0 if a fault occurred
+ * @return       0 = success, != 0, the exception to raise
  */
 int mmu_translate_real(CPUS390XState *env, target_ulong raddr, int rw,
-                       target_ulong *addr, int *flags)
+                       target_ulong *addr, int *flags, uint64_t *tec)
 {
-    /* Code accesses have an undefined ilc, let's use 2 bytes. */
-    uint64_t tec = (raddr & TARGET_PAGE_MASK) |
-                   (rw == MMU_DATA_STORE ? FS_WRITE : FS_READ);
     const bool lowprot_enabled = env->cregs[0] & CR0_LOWPROT;
 
     *flags = PAGE_READ | PAGE_WRITE | PAGE_EXEC;
@@ -570,9 +567,10 @@ int mmu_translate_real(CPUS390XState *env, target_ulong raddr, int rw,
         *flags |= PAGE_WRITE_INV;
         if (is_low_address(raddr) && rw == MMU_DATA_STORE) {
             /* LAP sets bit 56 */
-            tec |= 0x80;
-            trigger_access_exception(env, PGM_PROTECTION, ILEN_AUTO, tec);
-            return -EACCES;
+            *tec = (raddr & TARGET_PAGE_MASK)
+                 | (rw == MMU_DATA_STORE ? FS_WRITE : FS_READ)
+                 | 0x80;
+            return PGM_PROTECTION;
         }
     }
 
