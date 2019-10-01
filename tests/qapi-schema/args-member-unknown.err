@@ -1,1 +1,2 @@
-tests/qapi-schema/args-member-unknown.json:2: Member 'member' of 'data' for command 'oops' uses unknown type 'NoSuchType'
+tests/qapi-schema/args-member-unknown.json: In command 'oops':
+tests/qapi-schema/args-member-unknown.json:2: parameter 'member' uses unknown type 'NoSuchType'

@@ -1,1 +1,2 @@
-tests/qapi-schema/args-member-case.json:2: 'Arg' (parameter of no-way-this-will-get-whitelisted) should not use uppercase
+tests/qapi-schema/args-member-case.json: In command 'no-way-this-will-get-whitelisted':
+tests/qapi-schema/args-member-case.json:2: 'data' member 'Arg' uses uppercase in name

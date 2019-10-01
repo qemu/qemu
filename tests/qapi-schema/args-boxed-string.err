@@ -1,1 +1,2 @@
-tests/qapi-schema/args-boxed-string.json:2: 'data' for command 'foo' cannot use built-in type 'str'
+tests/qapi-schema/args-boxed-string.json: In command 'foo':
+tests/qapi-schema/args-boxed-string.json:2: command's 'data' cannot take built-in type 'str'

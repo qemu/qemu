@@ -1,1 +1,2 @@
-tests/qapi-schema/flat-union-int-branch.json:8: Member 'value1' of union 'TestUnion' cannot use built-in type 'int'
+tests/qapi-schema/flat-union-int-branch.json: In union 'TestUnion':
+tests/qapi-schema/flat-union-int-branch.json:8: branch 'value1' cannot use built-in type 'int'

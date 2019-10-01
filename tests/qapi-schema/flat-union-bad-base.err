@@ -1,1 +1,2 @@
-tests/qapi-schema/flat-union-bad-base.json:8: 'string' (member of TestTypeA) collides with 'string' (base of TestUnion)
+tests/qapi-schema/flat-union-bad-base.json: In union 'TestUnion':
+tests/qapi-schema/flat-union-bad-base.json:8: member 'string' of type 'TestTypeA' collides with base member 'string'

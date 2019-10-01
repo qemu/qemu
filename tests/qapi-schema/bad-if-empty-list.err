@@ -1,1 +1,2 @@
-tests/qapi-schema/bad-if-empty-list.json:2: 'if' condition [] is useless
+tests/qapi-schema/bad-if-empty-list.json: In struct 'TestIfStruct':
+tests/qapi-schema/bad-if-empty-list.json:2: 'if' condition [] of struct is useless

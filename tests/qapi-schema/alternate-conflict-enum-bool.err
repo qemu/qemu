@@ -1,1 +1,2 @@
-tests/qapi-schema/alternate-conflict-enum-bool.json:4: Alternate 'Alt' member 'two' can't be distinguished from member 'one'
+tests/qapi-schema/alternate-conflict-enum-bool.json: In alternate 'Alt':
+tests/qapi-schema/alternate-conflict-enum-bool.json:4: branch 'two' can't be distinguished from 'one'

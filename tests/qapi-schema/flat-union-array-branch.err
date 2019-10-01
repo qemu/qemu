@@ -1,1 +1,2 @@
-tests/qapi-schema/flat-union-array-branch.json:8: Member 'value1' of union 'TestUnion' cannot be an array
+tests/qapi-schema/flat-union-array-branch.json: In union 'TestUnion':
+tests/qapi-schema/flat-union-array-branch.json:8: 'data' member 'value1' cannot be an array

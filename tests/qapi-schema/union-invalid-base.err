@@ -1,1 +1,2 @@
-tests/qapi-schema/union-invalid-base.json:8: 'base' for union 'TestUnion' cannot use built-in type 'int'
+tests/qapi-schema/union-invalid-base.json: In union 'TestUnion':
+tests/qapi-schema/union-invalid-base.json:8: 'base' requires a struct type, built-in type 'int' isn't

@@ -71,7 +71,7 @@
         'QapiErrorClass',           # all members, visible through errors
         'UuidInfo',                 # UUID, visible through query-uuid
         'X86CPURegister32',         # all members, visible indirectly through qom-get
-        'q_obj_CpuInfo-base'        # CPU, visible through query-cpu
+        'CpuInfo'                   # CPU, visible through query-cpu
     ] } }
 
 # Documentation generated with qapi-gen.py is in source order, with

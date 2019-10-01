@@ -1,1 +1,2 @@
-tests/qapi-schema/nested-struct-data.json:2: Member 'a' of 'data' for command 'foo' should be a type name
+tests/qapi-schema/nested-struct-data.json: In command 'foo':
+tests/qapi-schema/nested-struct-data.json:2: 'data' member 'a' should be a type name

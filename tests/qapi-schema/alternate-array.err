@@ -1,1 +1,2 @@
-tests/qapi-schema/alternate-array.json:5: Member 'two' of alternate 'Alt' cannot be an array
+tests/qapi-schema/alternate-array.json: In alternate 'Alt':
+tests/qapi-schema/alternate-array.json:5: 'data' member 'two' cannot be an array

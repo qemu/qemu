@@ -1,1 +1,2 @@
-tests/qapi-schema/allow-preconfig-test.json:2: 'allow-preconfig' of command 'allow-preconfig-test' should only use true value
+tests/qapi-schema/allow-preconfig-test.json: In command 'allow-preconfig-test':
+tests/qapi-schema/allow-preconfig-test.json:2: flag 'allow-preconfig' may only use true value

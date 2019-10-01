@@ -1,1 +1,2 @@
-tests/qapi-schema/enum-wrong-data.json:2: Enum 'MyEnum' requires an array for 'data'
+tests/qapi-schema/enum-wrong-data.json: In enum 'MyEnum':
+tests/qapi-schema/enum-wrong-data.json:2: 'data' must be an array
