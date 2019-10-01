@@ -1397,6 +1397,14 @@ static bool xive_presenter_match(XiveRouter *xrtr, uint8_t format,
         int ring;
 
         /*
+         * Skip partially initialized vCPUs. This can happen when
+         * vCPUs are hotplugged.
+         */
+        if (!tctx) {
+            continue;
+        }
+
+        /*
          * HW checks that the CPU is enabled in the Physical Thread
          * Enable Register (PTER).
          */
