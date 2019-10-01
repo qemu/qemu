@@ -446,20 +446,6 @@ BlockJob *backup_job_create(const char *job_id, BlockDriverState *bs,
         goto error;
     }
 
-    /* job->len is fixed, so we can't allow resize */
-    job = block_job_create(job_id, &backup_job_driver, txn, bs, 0, BLK_PERM_ALL,
-                           speed, creation_flags, cb, opaque, errp);
-    if (!job) {
-        goto error;
-    }
-
-    job->source_bs = bs;
-    job->on_source_error = on_source_error;
-    job->on_target_error = on_target_error;
-    job->sync_mode = sync_mode;
-    job->sync_bitmap = sync_bitmap;
-    job->bitmap_mode = bitmap_mode;
-
     /*
      * If source is in backing chain of target assume that target is going to be
      * used for "image fleecing", i.e. it should represent a kind of snapshot of
@@ -477,6 +463,20 @@ BlockJob *backup_job_create(const char *job_id, BlockDriverState *bs,
     write_flags = (bdrv_chain_contains(target, bs) ? BDRV_REQ_SERIALISING : 0) |
                   (compress ? BDRV_REQ_WRITE_COMPRESSED : 0),
 
+    /* job->len is fixed, so we can't allow resize */
+    job = block_job_create(job_id, &backup_job_driver, txn, bs, 0, BLK_PERM_ALL,
+                           speed, creation_flags, cb, opaque, errp);
+    if (!job) {
+        goto error;
+    }
+
+    job->source_bs = bs;
+    job->on_source_error = on_source_error;
+    job->on_target_error = on_target_error;
+    job->sync_mode = sync_mode;
+    job->sync_bitmap = sync_bitmap;
+    job->bitmap_mode = bitmap_mode;
+
     job->bcs = block_copy_state_new(bs, target, cluster_size, write_flags,
                                     backup_progress_bytes_callback,
                                     backup_progress_reset_callback, job, errp);
@@ -485,11 +485,11 @@ BlockJob *backup_job_create(const char *job_id, BlockDriverState *bs,
     }
 
     job->cluster_size = cluster_size;
+    job->len = len;
 
     /* Required permissions are already taken by block-copy-state target */
     block_job_add_bdrv(&job->common, "target", target, 0, BLK_PERM_ALL,
                        &error_abort);
-    job->len = len;
 
     return &job->common;
 
