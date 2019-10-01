@@ -66,12 +66,10 @@ void block_copy_state_free(BlockCopyState *s)
     g_free(s);
 }
 
-BlockCopyState *block_copy_state_new(
-        BlockDriverState *source, BlockDriverState *target,
-        int64_t cluster_size, BdrvRequestFlags write_flags,
-        ProgressBytesCallbackFunc progress_bytes_callback,
-        ProgressResetCallbackFunc progress_reset_callback,
-        void *progress_opaque, Error **errp)
+BlockCopyState *block_copy_state_new(BlockDriverState *source,
+                                     BlockDriverState *target,
+                                     int64_t cluster_size,
+                                     BdrvRequestFlags write_flags, Error **errp)
 {
     BlockCopyState *s;
     int ret;
@@ -95,9 +93,6 @@ BlockCopyState *block_copy_state_new(
         .cluster_size = cluster_size,
         .len = bdrv_dirty_bitmap_size(copy_bitmap),
         .write_flags = write_flags,
-        .progress_bytes_callback = progress_bytes_callback,
-        .progress_reset_callback = progress_reset_callback,
-        .progress_opaque = progress_opaque,
     };
 
     s->copy_range_size = QEMU_ALIGN_DOWN(MIN(blk_get_max_transfer(s->source),
@@ -142,6 +137,17 @@ fail:
     block_copy_state_free(s);
 
     return NULL;
+}
+
+void block_copy_set_callbacks(
+        BlockCopyState *s,
+        ProgressBytesCallbackFunc progress_bytes_callback,
+        ProgressResetCallbackFunc progress_reset_callback,
+        void *progress_opaque)
+{
+    s->progress_bytes_callback = progress_bytes_callback;
+    s->progress_reset_callback = progress_reset_callback;
+    s->progress_opaque = progress_opaque;
 }
 
 /*

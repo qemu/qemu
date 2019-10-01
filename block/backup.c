@@ -478,14 +478,16 @@ BlockJob *backup_job_create(const char *job_id, BlockDriverState *bs,
     job->bitmap_mode = bitmap_mode;
 
     job->bcs = block_copy_state_new(bs, target, cluster_size, write_flags,
-                                    backup_progress_bytes_callback,
-                                    backup_progress_reset_callback, job, errp);
+                                    errp);
     if (!job->bcs) {
         goto error;
     }
 
     job->cluster_size = cluster_size;
     job->len = len;
+
+    block_copy_set_callbacks(job->bcs, backup_progress_bytes_callback,
+                             backup_progress_reset_callback, job);
 
     /* Required permissions are already taken by block-copy-state target */
     block_job_add_bdrv(&job->common, "target", target, 0, BLK_PERM_ALL,

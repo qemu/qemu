@@ -66,12 +66,17 @@ typedef struct BlockCopyState {
     void *progress_opaque;
 } BlockCopyState;
 
-BlockCopyState *block_copy_state_new(
-        BlockDriverState *source, BlockDriverState *target,
-        int64_t cluster_size, BdrvRequestFlags write_flags,
+BlockCopyState *block_copy_state_new(BlockDriverState *source,
+                                     BlockDriverState *target,
+                                     int64_t cluster_size,
+                                     BdrvRequestFlags write_flags,
+                                     Error **errp);
+
+void block_copy_set_callbacks(
+        BlockCopyState *s,
         ProgressBytesCallbackFunc progress_bytes_callback,
         ProgressResetCallbackFunc progress_reset_callback,
-        void *progress_opaque, Error **errp);
+        void *progress_opaque);
 
 void block_copy_state_free(BlockCopyState *s);
 
