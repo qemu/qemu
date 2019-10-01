@@ -2364,8 +2364,8 @@ uint64_t HELPER(lra)(CPUS390XState *env, uint64_t addr)
     CPUState *cs = env_cpu(env);
     uint32_t cc = 0;
     uint64_t asc = env->psw.mask & PSW_MASK_ASC;
-    uint64_t ret;
-    int old_exc, flags;
+    uint64_t ret, tec;
+    int old_exc, flags, exc;
 
     /* XXX incomplete - has more corner cases */
     if (!(env->psw.mask & PSW_MASK_64) && (addr >> 32)) {
@@ -2373,7 +2373,14 @@ uint64_t HELPER(lra)(CPUS390XState *env, uint64_t addr)
     }
 
     old_exc = cs->exception_index;
-    if (mmu_translate(env, addr, 0, asc, &ret, &flags, true)) {
+    exc = mmu_translate(env, addr, 0, asc, &ret, &flags, &tec);
+    if (exc) {
+        /*
+         * We don't care about ILEN or TEC, as we're not going to
+         * deliver the exception -- thus resetting exception_index below.
+         * TODO: clean this up.
+         */
+        trigger_pgm_exception(env, exc, ILEN_UNWIND);
         cc = 3;
     }
     if (cs->exception_index == EXCP_PGM) {

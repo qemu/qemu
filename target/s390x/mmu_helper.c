@@ -365,20 +365,18 @@ static void mmu_handle_skey(target_ulong addr, int rw, int *flags)
  * @param raddr  the translated address is stored to this pointer
  * @param flags  the PAGE_READ/WRITE/EXEC flags are stored to this pointer
  * @param exc    true = inject a program check if a fault occurred
- * @return       0 if the translation was successful, -1 if a fault occurred
+ * @return       0 = success, != 0, the exception to raise
  */
 int mmu_translate(CPUS390XState *env, target_ulong vaddr, int rw, uint64_t asc,
-                  target_ulong *raddr, int *flags, bool exc)
+                  target_ulong *raddr, int *flags, uint64_t *tec)
 {
-    /* Code accesses have an undefined ilc, let's use 2 bytes. */
-    const int ilen = (rw == MMU_INST_FETCH) ? 2 : ILEN_AUTO;
-    uint64_t tec = (vaddr & TARGET_PAGE_MASK) | (asc >> 46) |
-                   (rw == MMU_DATA_STORE ? FS_WRITE : FS_READ);
     uint64_t asce;
     int r;
 
-
+    *tec = (vaddr & TARGET_PAGE_MASK) | (asc >> 46) |
+            (rw == MMU_DATA_STORE ? FS_WRITE : FS_READ);
     *flags = PAGE_READ | PAGE_WRITE | PAGE_EXEC;
+
     if (is_low_address(vaddr & TARGET_PAGE_MASK) && lowprot_enabled(env, asc)) {
         /*
          * If any part of this page is currently protected, make sure the
@@ -390,12 +388,9 @@ int mmu_translate(CPUS390XState *env, target_ulong vaddr, int rw, uint64_t asc,
          */
         *flags |= PAGE_WRITE_INV;
         if (is_low_address(vaddr) && rw == MMU_DATA_STORE) {
-            if (exc) {
-                /* LAP sets bit 56 */
-                tec |= 0x80;
-                trigger_access_exception(env, PGM_PROTECTION, ilen, tec);
-            }
-            return -EACCES;
+            /* LAP sets bit 56 */
+            *tec |= 0x80;
+            return PGM_PROTECTION;
         }
     }
 
@@ -425,30 +420,21 @@ int mmu_translate(CPUS390XState *env, target_ulong vaddr, int rw, uint64_t asc,
     /* perform the DAT translation */
     r = mmu_translate_asce(env, vaddr, asc, asce, raddr, flags, rw);
     if (unlikely(r)) {
-        if (exc) {
-            trigger_access_exception(env, r, ilen, tec);
-        }
-        return -1;
+        return r;
     }
 
     /* check for DAT protection */
     if (unlikely(rw == MMU_DATA_STORE && !(*flags & PAGE_WRITE))) {
-        if (exc) {
-            /* DAT sets bit 61 only */
-            tec |= 0x4;
-            trigger_access_exception(env, PGM_PROTECTION, ilen, tec);
-        }
-        return -1;
+        /* DAT sets bit 61 only */
+        *tec |= 0x4;
+        return PGM_PROTECTION;
     }
 
     /* check for Instruction-Execution-Protection */
     if (unlikely(rw == MMU_INST_FETCH && !(*flags & PAGE_EXEC))) {
-        if (exc) {
-            /* IEP sets bit 56 and 61 */
-            tec |= 0x84;
-            trigger_access_exception(env, PGM_PROTECTION, ilen, tec);
-        }
-        return -1;
+        /* IEP sets bit 56 and 61 */
+        *tec |= 0x84;
+        return PGM_PROTECTION;
     }
 
 nodat:
@@ -472,9 +458,12 @@ static int translate_pages(S390CPU *cpu, vaddr addr, int nr_pages,
     int ret, i, pflags;
 
     for (i = 0; i < nr_pages; i++) {
-        ret = mmu_translate(env, addr, is_write, asc, &pages[i], &pflags, true);
+        uint64_t tec;
+
+        ret = mmu_translate(env, addr, is_write, asc, &pages[i], &pflags, &tec);
         if (ret) {
-            return ret;
+            trigger_access_exception(env, ret, ILEN_AUTO, tec);
+            return -EFAULT;
         }
         if (!address_space_access_valid(&address_space_memory, pages[i],
                                         TARGET_PAGE_SIZE, is_write,

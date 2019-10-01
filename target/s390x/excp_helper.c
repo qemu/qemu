@@ -140,8 +140,8 @@ bool s390_cpu_tlb_fill(CPUState *cs, vaddr address, int size,
         if (!(env->psw.mask & PSW_MASK_64)) {
             vaddr &= 0x7fffffff;
         }
-        fail = mmu_translate(env, vaddr, access_type, asc, &raddr, &prot, true);
-        excp = 0; /* exception already raised */
+        excp = mmu_translate(env, vaddr, access_type, asc, &raddr, &prot, &tec);
+        fail = excp;
     } else if (mmu_idx == MMU_REAL_IDX) {
         /* 31-Bit mode */
         if (!(env->psw.mask & PSW_MASK_64)) {
