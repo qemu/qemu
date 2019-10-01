@@ -42,7 +42,7 @@ void QEMU_NORETURN tcg_s390_program_interrupt(CPUS390XState *env,
     cpu_restore_state(cs, ra, true);
     qemu_log_mask(CPU_LOG_INT, "program interrupt at %#" PRIx64 "\n",
                   env->psw.addr);
-    trigger_pgm_exception(env, code, ILEN_UNWIND);
+    trigger_pgm_exception(env, code);
     cpu_loop_exit(cs);
 }
 
@@ -96,7 +96,7 @@ bool s390_cpu_tlb_fill(CPUState *cs, vaddr address, int size,
 {
     S390CPU *cpu = S390_CPU(cs);
 
-    trigger_pgm_exception(&cpu->env, PGM_ADDRESSING, ILEN_UNWIND);
+    trigger_pgm_exception(&cpu->env, PGM_ADDRESSING);
     /* On real machines this value is dropped into LowMem.  Since this
        is userland, simply put this someplace that cpu_loop can find it.  */
     cpu->env.__excp_addr = address;
@@ -186,7 +186,8 @@ bool s390_cpu_tlb_fill(CPUState *cs, vaddr address, int size,
      * and so unwinding will not occur.  However, ILEN is also undefined
      * for that case -- we choose to set ILEN = 2.
      */
-    trigger_pgm_exception(env, excp, 2);
+    env->int_pgm_ilen = 2;
+    trigger_pgm_exception(env, excp);
     cpu_loop_exit_restore(cs, retaddr);
 }
 
