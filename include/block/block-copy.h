@@ -17,6 +17,13 @@
 
 #include "block/block.h"
 
+typedef struct BlockCopyInFlightReq {
+    int64_t start_byte;
+    int64_t end_byte;
+    QLIST_ENTRY(BlockCopyInFlightReq) list;
+    CoQueue wait_queue; /* coroutines blocked on this request */
+} BlockCopyInFlightReq;
+
 typedef void (*ProgressBytesCallbackFunc)(int64_t bytes, void *opaque);
 typedef void (*ProgressResetCallbackFunc)(void *opaque);
 typedef struct BlockCopyState {
@@ -27,6 +34,7 @@ typedef struct BlockCopyState {
     bool use_copy_range;
     int64_t copy_range_size;
     uint64_t len;
+    QLIST_HEAD(, BlockCopyInFlightReq) inflight_reqs;
 
     BdrvRequestFlags write_flags;
 

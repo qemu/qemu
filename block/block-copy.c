@@ -19,6 +19,41 @@
 #include "block/block-copy.h"
 #include "sysemu/block-backend.h"
 
+static void coroutine_fn block_copy_wait_inflight_reqs(BlockCopyState *s,
+                                                       int64_t start,
+                                                       int64_t end)
+{
+    BlockCopyInFlightReq *req;
+    bool waited;
+
+    do {
+        waited = false;
+        QLIST_FOREACH(req, &s->inflight_reqs, list) {
+            if (end > req->start_byte && start < req->end_byte) {
+                qemu_co_queue_wait(&req->wait_queue, NULL);
+                waited = true;
+                break;
+            }
+        }
+    } while (waited);
+}
+
+static void block_copy_inflight_req_begin(BlockCopyState *s,
+                                          BlockCopyInFlightReq *req,
+                                          int64_t start, int64_t end)
+{
+    req->start_byte = start;
+    req->end_byte = end;
+    qemu_co_queue_init(&req->wait_queue);
+    QLIST_INSERT_HEAD(&s->inflight_reqs, req, list);
+}
+
+static void coroutine_fn block_copy_inflight_req_end(BlockCopyInFlightReq *req)
+{
+    QLIST_REMOVE(req, list);
+    qemu_co_queue_restart_all(&req->wait_queue);
+}
+
 void block_copy_state_free(BlockCopyState *s)
 {
     if (!s) {
@@ -78,6 +113,8 @@ BlockCopyState *block_copy_state_new(
      */
     s->use_copy_range =
         !(write_flags & BDRV_REQ_WRITE_COMPRESSED) && s->copy_range_size > 0;
+
+    QLIST_INIT(&s->inflight_reqs);
 
     /*
      * We just allow aio context change on our block backends. block_copy() user
@@ -266,6 +303,7 @@ int coroutine_fn block_copy(BlockCopyState *s,
     int64_t end = bytes + start; /* bytes */
     void *bounce_buffer = NULL;
     int64_t status_bytes;
+    BlockCopyInFlightReq req;
 
     /*
      * block_copy() user is responsible for keeping source and target in same
@@ -275,6 +313,9 @@ int coroutine_fn block_copy(BlockCopyState *s,
 
     assert(QEMU_IS_ALIGNED(start, s->cluster_size));
     assert(QEMU_IS_ALIGNED(end, s->cluster_size));
+
+    block_copy_wait_inflight_reqs(s, start, bytes);
+    block_copy_inflight_req_begin(s, &req, start, end);
 
     while (start < end) {
         int64_t dirty_end;
@@ -328,6 +369,8 @@ int coroutine_fn block_copy(BlockCopyState *s,
     if (bounce_buffer) {
         qemu_vfree(bounce_buffer);
     }
+
+    block_copy_inflight_req_end(&req);
 
     return ret;
 }
