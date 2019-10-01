@@ -61,12 +61,12 @@ void handle_diag_308(CPUS390XState *env, uint64_t r1, uint64_t r3, uintptr_t ra)
     IplParameterBlock *iplb;
 
     if (env->psw.mask & PSW_MASK_PSTATE) {
-        s390_program_interrupt(env, PGM_PRIVILEGED, ILEN_AUTO, ra);
+        s390_program_interrupt(env, PGM_PRIVILEGED, ra);
         return;
     }
 
     if ((subcode & ~0x0ffffULL) || (subcode > 6)) {
-        s390_program_interrupt(env, PGM_SPECIFICATION, ILEN_AUTO, ra);
+        s390_program_interrupt(env, PGM_SPECIFICATION, ra);
         return;
     }
 
@@ -82,13 +82,13 @@ void handle_diag_308(CPUS390XState *env, uint64_t r1, uint64_t r3, uintptr_t ra)
         break;
     case 5:
         if ((r1 & 1) || (addr & 0x0fffULL)) {
-            s390_program_interrupt(env, PGM_SPECIFICATION, ILEN_AUTO, ra);
+            s390_program_interrupt(env, PGM_SPECIFICATION, ra);
             return;
         }
         if (!address_space_access_valid(&address_space_memory, addr,
                                         sizeof(IplParameterBlock), false,
                                         MEMTXATTRS_UNSPECIFIED)) {
-            s390_program_interrupt(env, PGM_ADDRESSING, ILEN_AUTO, ra);
+            s390_program_interrupt(env, PGM_ADDRESSING, ra);
             return;
         }
         iplb = g_new0(IplParameterBlock, 1);
@@ -112,13 +112,13 @@ out:
         return;
     case 6:
         if ((r1 & 1) || (addr & 0x0fffULL)) {
-            s390_program_interrupt(env, PGM_SPECIFICATION, ILEN_AUTO, ra);
+            s390_program_interrupt(env, PGM_SPECIFICATION, ra);
             return;
         }
         if (!address_space_access_valid(&address_space_memory, addr,
                                         sizeof(IplParameterBlock), true,
                                         MEMTXATTRS_UNSPECIFIED)) {
-            s390_program_interrupt(env, PGM_ADDRESSING, ILEN_AUTO, ra);
+            s390_program_interrupt(env, PGM_ADDRESSING, ra);
             return;
         }
         iplb = s390_ipl_get_iplb();
@@ -130,7 +130,7 @@ out:
         }
         return;
     default:
-        s390_program_interrupt(env, PGM_SPECIFICATION, ILEN_AUTO, ra);
+        s390_program_interrupt(env, PGM_SPECIFICATION, ra);
         break;
     }
 }
