@@ -373,6 +373,14 @@ void spapr_irq_init(SpaprMachineState *spapr, Error **errp)
 
     spapr->qirqs = qemu_allocate_irqs(spapr_set_irq, spapr,
                                       smc->nr_xirqs + SPAPR_XIRQ_BASE);
+
+    /*
+     * Mostly we don't actually need this until reset, except that not
+     * having this set up can cause VFIO devices to issue a
+     * false-positive warning during realize(), because they don't yet
+     * have an in-kernel irq chip.
+     */
+    spapr_irq_update_active_intc(spapr);
 }
 
 int spapr_irq_claim(SpaprMachineState *spapr, int irq, bool lsi, Error **errp)
@@ -528,7 +536,8 @@ void spapr_irq_update_active_intc(SpaprMachineState *spapr)
          * this.
          */
         new_intc = SPAPR_INTC(spapr->xive);
-    } else if (spapr_ovec_test(spapr->ov5_cas, OV5_XIVE_EXPLOIT)) {
+    } else if (spapr->ov5_cas
+               && spapr_ovec_test(spapr->ov5_cas, OV5_XIVE_EXPLOIT)) {
         new_intc = SPAPR_INTC(spapr->xive);
     } else {
         new_intc = SPAPR_INTC(spapr->ics);
