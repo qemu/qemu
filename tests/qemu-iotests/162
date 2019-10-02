@@ -46,7 +46,7 @@ echo '=== NBD ==='
 # NBD expects all of its arguments to be strings
 
 # So this should not crash
-$QEMU_IMG info 'json:{"driver": "nbd", "host": 42}'
+$QEMU_IMG info 'json:{"driver": "nbd", "host": -1}'
 
 # And this should not treat @port as if it had not been specified
 # (We need to set up a server here, because the error message for "Connection
