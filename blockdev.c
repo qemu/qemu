@@ -1966,7 +1966,6 @@ static void block_dirty_bitmap_add_prepare(BlkActionState *common,
     qmp_block_dirty_bitmap_add(action->node, action->name,
                                action->has_granularity, action->granularity,
                                action->has_persistent, action->persistent,
-                               action->has_autoload, action->autoload,
                                action->has_disabled, action->disabled,
                                &local_err);
 
@@ -2858,7 +2857,6 @@ out:
 void qmp_block_dirty_bitmap_add(const char *node, const char *name,
                                 bool has_granularity, uint32_t granularity,
                                 bool has_persistent, bool persistent,
-                                bool has_autoload, bool autoload,
                                 bool has_disabled, bool disabled,
                                 Error **errp)
 {
@@ -2888,10 +2886,6 @@ void qmp_block_dirty_bitmap_add(const char *node, const char *name,
 
     if (!has_persistent) {
         persistent = false;
-    }
-
-    if (has_autoload) {
-        warn_report("Autoload option is deprecated and its value is ignored");
     }
 
     if (!has_disabled) {
