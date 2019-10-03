@@ -1485,23 +1485,21 @@ static void pnv_machine_class_init(ObjectClass *oc, void *data)
         .parent        = TYPE_PNV9_CHIP,          \
     }
 
-#define DEFINE_PNV_MACHINE_TYPE(cpu, class_initfn)      \
-    {                                                   \
-        .name          = MACHINE_TYPE_NAME(cpu),        \
-        .parent        = TYPE_PNV_MACHINE,              \
-        .instance_size = sizeof(PnvMachineState),       \
-        .instance_init = pnv_machine_instance_init,     \
-        .class_init    = class_initfn,                  \
-        .interfaces = (InterfaceInfo[]) {               \
-            { TYPE_XICS_FABRIC },                       \
-            { TYPE_INTERRUPT_STATS_PROVIDER },          \
-            { },                                        \
-        },                                              \
-    }
-
 static const TypeInfo types[] = {
-    DEFINE_PNV_MACHINE_TYPE("powernv8", pnv_machine_power8_class_init),
-    DEFINE_PNV_MACHINE_TYPE("powernv9", pnv_machine_power9_class_init),
+    {
+        .name          = MACHINE_TYPE_NAME("powernv9"),
+        .parent        = TYPE_PNV_MACHINE,
+        .class_init    = pnv_machine_power9_class_init,
+    },
+    {
+        .name          = MACHINE_TYPE_NAME("powernv8"),
+        .parent        = TYPE_PNV_MACHINE,
+        .class_init    = pnv_machine_power8_class_init,
+        .interfaces = (InterfaceInfo[]) {
+            { TYPE_XICS_FABRIC },
+            { },
+        },
+    },
     {
         .name          = TYPE_PNV_MACHINE,
         .parent        = TYPE_MACHINE,
@@ -1510,7 +1508,6 @@ static const TypeInfo types[] = {
         .instance_init = pnv_machine_instance_init,
         .class_init    = pnv_machine_class_init,
         .interfaces = (InterfaceInfo[]) {
-            { TYPE_XICS_FABRIC },
             { TYPE_INTERRUPT_STATS_PROVIDER },
             { },
         },
