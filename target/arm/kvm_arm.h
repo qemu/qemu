@@ -253,6 +253,7 @@ int kvm_arm_vgic_probe(void);
 
 void kvm_arm_pmu_set_irq(CPUState *cs, int irq);
 void kvm_arm_pmu_init(CPUState *cs);
+int kvm_arm_set_irq(int cpu, int irqtype, int irq, int level);
 
 #else
 

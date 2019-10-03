@@ -744,6 +744,18 @@ int kvm_arm_vgic_probe(void)
     }
 }
 
+int kvm_arm_set_irq(int cpu, int irqtype, int irq, int level)
+{
+    int kvm_irq = (irqtype << KVM_ARM_IRQ_TYPE_SHIFT) | irq;
+    int cpu_idx1 = cpu % 256;
+    int cpu_idx2 = cpu / 256;
+
+    kvm_irq |= (cpu_idx1 << KVM_ARM_IRQ_VCPU_SHIFT) |
+               (cpu_idx2 << KVM_ARM_IRQ_VCPU2_SHIFT);
+
+    return kvm_set_irq(kvm_state, kvm_irq, !!level);
+}
+
 int kvm_arch_fixup_msi_route(struct kvm_irq_routing_entry *route,
                              uint64_t address, uint32_t data, PCIDevice *dev)
 {
