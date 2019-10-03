@@ -5,8 +5,8 @@
  * Copyright 2019 IBM Corp
  * SPDX-License-Identifier: GPL-2.0-or-later
  */
-#ifndef ASPEED_RTC_H
-#define ASPEED_RTC_H
+#ifndef HW_RTC_ASPEED_RTC_H
+#define HW_RTC_ASPEED_RTC_H
 
 #include <stdint.h>
 
@@ -27,4 +27,4 @@ typedef struct AspeedRtcState {
 #define TYPE_ASPEED_RTC "aspeed.rtc"
 #define ASPEED_RTC(obj) OBJECT_CHECK(AspeedRtcState, (obj), TYPE_ASPEED_RTC)
 
-#endif /* ASPEED_RTC_H */
+#endif /* HW_RTC_ASPEED_RTC_H */
