@@ -9,10 +9,6 @@ config ARM_MPTIMER
 config A9_GTIMER
     bool
 
-config DS1338
-    bool
-    depends on I2C
-
 config HPET
     bool
     default y if PC

@@ -1,3 +1,4 @@
+common-obj-$(CONFIG_DS1338) += ds1338.o
 common-obj-$(CONFIG_M41T80) += m41t80.o
 common-obj-$(CONFIG_M48T59) += m48t59.o
 ifeq ($(CONFIG_ISA_BUS),y)
