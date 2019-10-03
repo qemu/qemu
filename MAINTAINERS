@@ -1163,8 +1163,8 @@ Sun4v
 M: Artyom Tarasenko <atar4qemu@gmail.com>
 S: Maintained
 F: hw/sparc64/niagara.c
-F: hw/timer/sun4v-rtc.c
-F: include/hw/timer/sun4v-rtc.h
+F: hw/rtc/sun4v-rtc.c
+F: include/hw/rtc/sun4v-rtc.h
 
 Leon3
 M: Fabien Chouteau <chouteau@adacore.com>

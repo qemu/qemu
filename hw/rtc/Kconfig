@@ -10,3 +10,6 @@ config PL031
 
 config MC146818RTC
     bool
+
+config SUN4V_RTC
+    bool
