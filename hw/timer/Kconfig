@@ -27,9 +27,6 @@ config M41T80
 config M48T59
     bool
 
-config PL031
-    bool
-
 config TWL92230
     bool
     depends on I2C

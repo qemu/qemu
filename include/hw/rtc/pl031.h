@@ -11,10 +11,11 @@
  * GNU GPL, version 2 or (at your option) any later version.
  */
 
-#ifndef HW_TIMER_PL031_H
-#define HW_TIMER_PL031_H
+#ifndef HW_RTC_PL031_H
+#define HW_RTC_PL031_H
 
 #include "hw/sysbus.h"
+#include "qemu/timer.h"
 
 #define TYPE_PL031 "pl031"
 #define PL031(obj) OBJECT_CHECK(PL031State, (obj), TYPE_PL031)

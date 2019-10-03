@@ -1,0 +1,1 @@
+common-obj-$(CONFIG_PL031) += pl031.o

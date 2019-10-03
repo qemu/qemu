@@ -80,10 +80,3 @@ xlnx_zynqmp_rtc_gettime(int year, int month, int day, int hour, int min, int sec
 # nrf51_timer.c
 nrf51_timer_read(uint64_t addr, uint32_t value, unsigned size) "read addr 0x%" PRIx64 " data 0x%" PRIx32 " size %u"
 nrf51_timer_write(uint64_t addr, uint32_t value, unsigned size) "write addr 0x%" PRIx64 " data 0x%" PRIx32 " size %u"
-
-# pl031.c
-pl031_irq_state(int level) "irq state %d"
-pl031_read(uint32_t addr, uint32_t value) "addr 0x%08x value 0x%08x"
-pl031_write(uint32_t addr, uint32_t value) "addr 0x%08x value 0x%08x"
-pl031_alarm_raised(void) "alarm raised"
-pl031_set_alarm(uint32_t ticks) "alarm set for %u ticks"
