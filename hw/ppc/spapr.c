@@ -2496,6 +2496,7 @@ static CPUArchId *spapr_find_cpu_slot(MachineState *ms, uint32_t id, int *idx)
 static void spapr_set_vsmt_mode(SpaprMachineState *spapr, Error **errp)
 {
     MachineState *ms = MACHINE(spapr);
+    SpaprMachineClass *smc = SPAPR_MACHINE_GET_CLASS(spapr);
     Error *local_err = NULL;
     bool vsmt_user = !!spapr->vsmt;
     int kvm_smt = kvmppc_smt_threads();
@@ -2522,7 +2523,7 @@ static void spapr_set_vsmt_mode(SpaprMachineState *spapr, Error **errp)
             goto out;
         }
         /* In this case, spapr->vsmt has been set by the command line */
-    } else {
+    } else if (!smc->smp_threads_vsmt) {
         /*
          * Default VSMT value is tricky, because we need it to be as
          * consistent as possible (for migration), but this requires
@@ -2531,6 +2532,8 @@ static void spapr_set_vsmt_mode(SpaprMachineState *spapr, Error **errp)
          * overwhelmingly common case in production systems.
          */
         spapr->vsmt = MAX(8, smp_threads);
+    } else {
+        spapr->vsmt = smp_threads;
     }
 
     /* KVM: If necessary, set the SMT mode: */
@@ -4438,6 +4441,7 @@ static void spapr_machine_class_init(ObjectClass *oc, void *data)
     smc->irq = &spapr_irq_dual;
     smc->dr_phb_enabled = true;
     smc->linux_pci_probe = true;
+    smc->smp_threads_vsmt = true;
 }
 
 static const TypeInfo spapr_machine_info = {
@@ -4505,6 +4509,7 @@ static void spapr_machine_4_1_class_options(MachineClass *mc)
 
     spapr_machine_4_2_class_options(mc);
     smc->linux_pci_probe = false;
+    smc->smp_threads_vsmt = false;
     compat_props_add(mc->compat_props, hw_compat_4_1, hw_compat_4_1_len);
     compat_props_add(mc->compat_props, compat, G_N_ELEMENTS(compat));
 }

@@ -122,6 +122,7 @@ struct SpaprMachineClass {
     bool broken_host_serial_model; /* present real host info to the guest */
     bool pre_4_1_migration; /* don't migrate hpt-max-page-size */
     bool linux_pci_probe;
+    bool smp_threads_vsmt; /* set VSMT to smp_threads by default */
 
     void (*phb_placement)(SpaprMachineState *spapr, uint32_t index,
                           uint64_t *buid, hwaddr *pio, 
