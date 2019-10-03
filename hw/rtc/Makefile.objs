@@ -1,2 +1,6 @@
+common-obj-$(CONFIG_M48T59) += m48t59.o
+ifeq ($(CONFIG_ISA_BUS),y)
+common-obj-$(CONFIG_M48T59) += m48t59-isa.o
+endif
 common-obj-$(CONFIG_PL031) += pl031.o
 obj-$(CONFIG_MC146818RTC) += mc146818rtc.o

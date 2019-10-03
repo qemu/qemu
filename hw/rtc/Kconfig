@@ -1,3 +1,6 @@
+config M48T59
+    bool
+
 config PL031
     bool
 

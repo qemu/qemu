@@ -29,7 +29,7 @@
 #include "cpu.h"
 #include "hw/ppc/ppc.h"
 #include "ppc405.h"
-#include "hw/timer/m48t59.h"
+#include "hw/rtc/m48t59.h"
 #include "hw/block/flash.h"
 #include "sysemu/sysemu.h"
 #include "sysemu/qtest.h"

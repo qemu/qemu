@@ -1,5 +1,5 @@
 /*
- * QEMU M48T59 and M48T08 NVRAM emulation (ISA bus interface
+ * QEMU M48T59 and M48T08 NVRAM emulation (ISA bus interface)
  *
  * Copyright (c) 2003-2005, 2007 Jocelyn Mayer
  * Copyright (c) 2013 Hervé Poussineau
@@ -26,7 +26,7 @@
 #include "qemu/osdep.h"
 #include "hw/isa/isa.h"
 #include "hw/qdev-properties.h"
-#include "hw/timer/m48t59.h"
+#include "hw/rtc/m48t59.h"
 #include "m48t59-internal.h"
 #include "qemu/module.h"
 
