@@ -25,20 +25,20 @@ common-obj-$(CONFIG_MILKYMIST) += milkymist-sysctl.o
 common-obj-$(CONFIG_XLNX_ZYNQMP) += xlnx-zynqmp-rtc.o
 common-obj-$(CONFIG_NRF51_SOC) += nrf51_timer.o
 
-obj-$(CONFIG_ALTERA_TIMER) += altera_timer.o
-obj-$(CONFIG_EXYNOS4) += exynos4210_mct.o
-obj-$(CONFIG_EXYNOS4) += exynos4210_pwm.o
-obj-$(CONFIG_EXYNOS4) += exynos4210_rtc.o
-obj-$(CONFIG_OMAP) += omap_gptimer.o
-obj-$(CONFIG_OMAP) += omap_synctimer.o
-obj-$(CONFIG_PXA2XX) += pxa2xx_timer.o
-obj-$(CONFIG_SH4) += sh_timer.o
-obj-$(CONFIG_DIGIC) += digic-timer.o
-obj-$(CONFIG_MIPS_CPS) += mips_gictimer.o
+common-obj-$(CONFIG_ALTERA_TIMER) += altera_timer.o
+common-obj-$(CONFIG_EXYNOS4) += exynos4210_mct.o
+common-obj-$(CONFIG_EXYNOS4) += exynos4210_pwm.o
+common-obj-$(CONFIG_EXYNOS4) += exynos4210_rtc.o
+common-obj-$(CONFIG_OMAP) += omap_gptimer.o
+common-obj-$(CONFIG_OMAP) += omap_synctimer.o
+common-obj-$(CONFIG_PXA2XX) += pxa2xx_timer.o
+common-obj-$(CONFIG_SH4) += sh_timer.o
+common-obj-$(CONFIG_DIGIC) += digic-timer.o
+common-obj-$(CONFIG_MIPS_CPS) += mips_gictimer.o
 
 obj-$(CONFIG_MC146818RTC) += mc146818rtc.o
 
-obj-$(CONFIG_ALLWINNER_A10_PIT) += allwinner-a10-pit.o
+common-obj-$(CONFIG_ALLWINNER_A10_PIT) += allwinner-a10-pit.o
 
 common-obj-$(CONFIG_STM32F2XX_TIMER) += stm32f2xx_timer.o
 common-obj-$(CONFIG_ASPEED_SOC) += aspeed_timer.o aspeed_rtc.o
