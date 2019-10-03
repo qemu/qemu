@@ -35,9 +35,6 @@ config ALTERA_TIMER
     bool
     select PTIMER
 
-config MC146818RTC
-    bool
-
 config ALLWINNER_A10_PIT
     bool
     select PTIMER

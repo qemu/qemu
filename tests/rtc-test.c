@@ -15,7 +15,7 @@
 
 #include "libqtest-single.h"
 #include "qemu/timer.h"
-#include "hw/timer/mc146818rtc_regs.h"
+#include "hw/rtc/mc146818rtc_regs.h"
 
 #define UIP_HOLD_LENGTH           (8 * NANOSECONDS_PER_SECOND / 32768)
 

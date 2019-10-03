@@ -1,1 +1,2 @@
 common-obj-$(CONFIG_PL031) += pl031.o
+obj-$(CONFIG_MC146818RTC) += mc146818rtc.o

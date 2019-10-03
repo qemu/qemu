@@ -39,7 +39,7 @@
 #include "hw/scsi/esp.h"
 #include "hw/mips/bios.h"
 #include "hw/loader.h"
-#include "hw/timer/mc146818rtc.h"
+#include "hw/rtc/mc146818rtc.h"
 #include "hw/timer/i8254.h"
 #include "hw/display/vga.h"
 #include "hw/audio/pcspk.h"

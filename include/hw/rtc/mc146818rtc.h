@@ -1,8 +1,16 @@
-#ifndef MC146818RTC_H
-#define MC146818RTC_H
+/*
+ * QEMU MC146818 RTC emulation
+ *
+ * Copyright (c) 2003-2004 Fabrice Bellard
+ *
+ * SPDX-License-Identifier: MIT
+ */
+
+#ifndef HW_RTC_MC146818RTC_H
+#define HW_RTC_MC146818RTC_H
 
 #include "hw/isa/isa.h"
-#include "hw/timer/mc146818rtc_regs.h"
+#include "hw/rtc/mc146818rtc_regs.h"
 
 #define TYPE_MC146818_RTC "mc146818rtc"
 

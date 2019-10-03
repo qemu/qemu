@@ -22,10 +22,11 @@
  * THE SOFTWARE.
  */
 
-#ifndef MC146818RTC_REGS_H
-#define MC146818RTC_REGS_H
+#ifndef HW_RTC_MC146818RTC_REGS_H
+#define HW_RTC_MC146818RTC_REGS_H
 
 #include "qemu/timer.h"
+#include "qemu/host-utils.h"
 
 #define RTC_ISA_IRQ 8
 

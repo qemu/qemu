@@ -1,2 +1,5 @@
 config PL031
     bool
+
+config MC146818RTC
+    bool

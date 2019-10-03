@@ -42,7 +42,7 @@
 #include "elf.h"
 #include "migration/vmstate.h"
 #include "multiboot.h"
-#include "hw/timer/mc146818rtc.h"
+#include "hw/rtc/mc146818rtc.h"
 #include "hw/dma/i8257.h"
 #include "hw/timer/i8254.h"
 #include "hw/input/i8042.h"

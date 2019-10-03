@@ -14,7 +14,7 @@
 #include "alpha_sys.h"
 #include "qemu/error-report.h"
 #include "sysemu/sysemu.h"
-#include "hw/timer/mc146818rtc.h"
+#include "hw/rtc/mc146818rtc.h"
 #include "hw/ide.h"
 #include "hw/timer/i8254.h"
 #include "hw/isa/superio.h"
