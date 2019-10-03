@@ -19,7 +19,6 @@ common-obj-$(CONFIG_NRF51_SOC) += nrf51_timer.o
 common-obj-$(CONFIG_ALTERA_TIMER) += altera_timer.o
 common-obj-$(CONFIG_EXYNOS4) += exynos4210_mct.o
 common-obj-$(CONFIG_EXYNOS4) += exynos4210_pwm.o
-common-obj-$(CONFIG_EXYNOS4) += exynos4210_rtc.o
 common-obj-$(CONFIG_OMAP) += omap_gptimer.o
 common-obj-$(CONFIG_OMAP) += omap_synctimer.o
 common-obj-$(CONFIG_PXA2XX) += pxa2xx_timer.o
