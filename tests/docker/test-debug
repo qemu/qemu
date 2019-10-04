@@ -21,6 +21,7 @@ cd "$BUILD_DIR"
 OPTS="--cxx=clang++ --cc=clang --host-cc=clang"
 OPTS="--enable-debug --enable-sanitizers $OPTS"
 
+export ASAN_OPTIONS=detect_leaks=0
 build_qemu $OPTS
 check_qemu check V=1
 install_qemu

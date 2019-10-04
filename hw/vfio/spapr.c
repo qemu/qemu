@@ -17,6 +17,7 @@
 #include "hw/hw.h"
 #include "exec/ram_addr.h"
 #include "qemu/error-report.h"
+#include "qapi/error.h"
 #include "trace.h"
 
 static bool vfio_prereg_listener_skipped_section(MemoryRegionSection *section)
@@ -85,7 +86,8 @@ static void vfio_prereg_listener_region_add(MemoryListener *listener,
          */
         if (!container->initialized) {
             if (!container->error) {
-                container->error = ret;
+                error_setg_errno(&container->error, -ret,
+                                 "Memory registering failed");
             }
         } else {
             hw_error("vfio: Memory registering failed, unable to continue");

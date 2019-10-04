@@ -715,7 +715,8 @@ void cpu_x86_update_cr4(CPUX86State *env, uint32_t new_cr4)
 }
 
 #if !defined(CONFIG_USER_ONLY)
-hwaddr x86_cpu_get_phys_page_debug(CPUState *cs, vaddr addr)
+hwaddr x86_cpu_get_phys_page_attrs_debug(CPUState *cs, vaddr addr,
+                                         MemTxAttrs *attrs)
 {
     X86CPU *cpu = X86_CPU(cs);
     CPUX86State *env = &cpu->env;
@@ -724,6 +725,8 @@ hwaddr x86_cpu_get_phys_page_debug(CPUState *cs, vaddr addr)
     int32_t a20_mask;
     uint32_t page_offset;
     int page_size;
+
+    *attrs = cpu_get_mem_attrs(env);
 
     a20_mask = x86_get_a20_mask(env);
     if (!(env->cr[0] & CR0_PG_MASK)) {

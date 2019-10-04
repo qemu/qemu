@@ -273,6 +273,8 @@ static void mcf5208evb_init(MachineState *machine)
                      0xfc030000, pic + 36);
     }
 
+    g_free(pic);
+
     /*  0xfc000000 SCM.  */
     /*  0xfc004000 XBS.  */
     /*  0xfc008000 FlexBus CS.  */
