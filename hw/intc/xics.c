@@ -369,6 +369,11 @@ static void icp_class_init(ObjectClass *klass, void *data)
 
     dc->realize = icp_realize;
     dc->unrealize = icp_unrealize;
+    /*
+     * Reason: part of XICS interrupt controller, needs to be wired up
+     * by icp_create().
+     */
+    dc->user_creatable = false;
 }
 
 static const TypeInfo icp_info = {
@@ -689,6 +694,11 @@ static void ics_class_init(ObjectClass *klass, void *data)
     dc->props = ics_properties;
     dc->reset = ics_reset;
     dc->vmsd = &vmstate_ics;
+    /*
+     * Reason: part of XICS interrupt controller, needs to be wired up,
+     * e.g. by spapr_irq_init().
+     */
+    dc->user_creatable = false;
 }
 
 static const TypeInfo ics_info = {
