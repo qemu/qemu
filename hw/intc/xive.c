@@ -670,6 +670,11 @@ static void xive_tctx_class_init(ObjectClass *klass, void *data)
     dc->realize = xive_tctx_realize;
     dc->unrealize = xive_tctx_unrealize;
     dc->vmsd = &vmstate_xive_tctx;
+    /*
+     * Reason: part of XIVE interrupt controller, needs to be wired up
+     * by xive_tctx_create().
+     */
+    dc->user_creatable = false;
 }
 
 static const TypeInfo xive_tctx_info = {
@@ -1118,6 +1123,11 @@ static void xive_source_class_init(ObjectClass *klass, void *data)
     dc->props   = xive_source_properties;
     dc->realize = xive_source_realize;
     dc->vmsd    = &vmstate_xive_source;
+    /*
+     * Reason: part of XIVE interrupt controller, needs to be wired up,
+     * e.g. by spapr_xive_instance_init().
+     */
+    dc->user_creatable = false;
 }
 
 static const TypeInfo xive_source_info = {
@@ -1853,6 +1863,11 @@ static void xive_end_source_class_init(ObjectClass *klass, void *data)
     dc->desc    = "XIVE END Source";
     dc->props   = xive_end_source_properties;
     dc->realize = xive_end_source_realize;
+    /*
+     * Reason: part of XIVE interrupt controller, needs to be wired up,
+     * e.g. by spapr_xive_instance_init().
+     */
+    dc->user_creatable = false;
 }
 
 static const TypeInfo xive_end_source_info = {
