@@ -3149,8 +3149,7 @@ static MigIterateState migration_iteration_run(MigrationState *s)
             return MIG_ITERATE_SKIP;
         }
         /* Just another iteration step */
-        qemu_savevm_state_iterate(s->to_dst_file,
-            s->state == MIGRATION_STATUS_POSTCOPY_ACTIVE);
+        qemu_savevm_state_iterate(s->to_dst_file, in_postcopy);
     } else {
         trace_migration_thread_low_pending(pending_size);
         migration_completion(s);
