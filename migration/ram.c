@@ -4032,7 +4032,7 @@ static int ram_load_postcopy(QEMUFile *f)
     bool matches_target_page_size = false;
     MigrationIncomingState *mis = migration_incoming_get_current();
     /* Temporary page that is later 'placed' */
-    void *postcopy_host_page = postcopy_get_tmp_page(mis);
+    void *postcopy_host_page = mis->postcopy_tmp_page;
     void *last_host = NULL;
     bool all_zero = false;
 

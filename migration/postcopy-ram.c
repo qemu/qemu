@@ -1134,6 +1134,16 @@ int postcopy_ram_enable_notify(MigrationIncomingState *mis)
         return -1;
     }
 
+    mis->postcopy_tmp_page = mmap(NULL, mis->largest_page_size,
+                                  PROT_READ | PROT_WRITE, MAP_PRIVATE |
+                                  MAP_ANONYMOUS, -1, 0);
+    if (mis->postcopy_tmp_page == MAP_FAILED) {
+        mis->postcopy_tmp_page = NULL;
+        error_report("%s: Failed to map postcopy_tmp_page %s",
+                     __func__, strerror(errno));
+        return -1;
+    }
+
     /*
      * Ballooning can mark pages as absent while we're postcopying
      * that would cause false userfaults.
@@ -1260,30 +1270,6 @@ int postcopy_place_page_zero(MigrationIncomingState *mis, void *host,
     }
 }
 
-/*
- * Returns a target page of memory that can be mapped at a later point in time
- * using postcopy_place_page
- * The same address is used repeatedly, postcopy_place_page just takes the
- * backing page away.
- * Returns: Pointer to allocated page
- *
- */
-void *postcopy_get_tmp_page(MigrationIncomingState *mis)
-{
-    if (!mis->postcopy_tmp_page) {
-        mis->postcopy_tmp_page = mmap(NULL, mis->largest_page_size,
-                             PROT_READ | PROT_WRITE, MAP_PRIVATE |
-                             MAP_ANONYMOUS, -1, 0);
-        if (mis->postcopy_tmp_page == MAP_FAILED) {
-            mis->postcopy_tmp_page = NULL;
-            error_report("%s: %s", __func__, strerror(errno));
-            return NULL;
-        }
-    }
-
-    return mis->postcopy_tmp_page;
-}
-
 #else
 /* No target OS support, stubs just fail */
 void fill_destination_postcopy_migration_info(MigrationInfo *info)
@@ -1339,12 +1325,6 @@ int postcopy_place_page_zero(MigrationIncomingState *mis, void *host,
 {
     assert(0);
     return -1;
-}
-
-void *postcopy_get_tmp_page(MigrationIncomingState *mis)
-{
-    assert(0);
-    return NULL;
 }
 
 int postcopy_wake_shared(struct PostCopyFD *pcfd,

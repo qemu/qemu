@@ -100,13 +100,6 @@ typedef enum {
     POSTCOPY_INCOMING_END
 } PostcopyState;
 
-/*
- * Allocate a page of memory that can be mapped at a later point in time
- * using postcopy_place_page
- * Returns: Pointer to allocated page
- */
-void *postcopy_get_tmp_page(MigrationIncomingState *mis);
-
 PostcopyState postcopy_state_get(void);
 /* Set the state and return the old state */
 PostcopyState postcopy_state_set(PostcopyState new_state);
