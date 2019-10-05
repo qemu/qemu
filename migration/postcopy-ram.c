@@ -1145,6 +1145,22 @@ int postcopy_ram_enable_notify(MigrationIncomingState *mis)
     }
 
     /*
+     * Map large zero page when kernel can't use UFFDIO_ZEROPAGE for hugepages
+     */
+    mis->postcopy_tmp_zero_page = mmap(NULL, mis->largest_page_size,
+                                       PROT_READ | PROT_WRITE,
+                                       MAP_PRIVATE | MAP_ANONYMOUS,
+                                       -1, 0);
+    if (mis->postcopy_tmp_zero_page == MAP_FAILED) {
+        int e = errno;
+        mis->postcopy_tmp_zero_page = NULL;
+        error_report("%s: Failed to map large zero page %s",
+                     __func__, strerror(e));
+        return -e;
+    }
+    memset(mis->postcopy_tmp_zero_page, '\0', mis->largest_page_size);
+
+    /*
      * Ballooning can mark pages as absent while we're postcopying
      * that would cause false userfaults.
      */
@@ -1250,23 +1266,7 @@ int postcopy_place_page_zero(MigrationIncomingState *mis, void *host,
                                            qemu_ram_block_host_offset(rb,
                                                                       host));
     } else {
-        /* The kernel can't use UFFDIO_ZEROPAGE for hugepages */
-        if (!mis->postcopy_tmp_zero_page) {
-            mis->postcopy_tmp_zero_page = mmap(NULL, mis->largest_page_size,
-                                               PROT_READ | PROT_WRITE,
-                                               MAP_PRIVATE | MAP_ANONYMOUS,
-                                               -1, 0);
-            if (mis->postcopy_tmp_zero_page == MAP_FAILED) {
-                int e = errno;
-                mis->postcopy_tmp_zero_page = NULL;
-                error_report("%s: %s mapping large zero page",
-                             __func__, strerror(e));
-                return -e;
-            }
-            memset(mis->postcopy_tmp_zero_page, '\0', mis->largest_page_size);
-        }
-        return postcopy_place_page(mis, host, mis->postcopy_tmp_zero_page,
-                                   rb);
+        return postcopy_place_page(mis, host, mis->postcopy_tmp_zero_page, rb);
     }
 }
 
