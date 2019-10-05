@@ -334,7 +334,10 @@ try_again:
         g_assert(ret);
         g_assert_no_error(error);
         g_assert(exp_sdt.aml);
-        g_assert(exp_sdt.aml_len);
+        if (!exp_sdt.aml_len) {
+            fprintf(stderr, "Warning! zero length expected file '%s'\n",
+                    aml_file);
+        }
 
         g_array_append_val(exp_tables, exp_sdt);
     }
