@@ -768,9 +768,11 @@ static void mark_postcopy_blocktime_begin(uintptr_t addr, uint32_t ptid,
     atomic_xchg(&dc->page_fault_vcpu_time[cpu], low_time_offset);
     atomic_xchg(&dc->vcpu_addr[cpu], addr);
 
-    /* check it here, not at the begining of the function,
-     * due to, check could accur early than bitmap_set in
-     * qemu_ufd_copy_ioctl */
+    /*
+     * check it here, not at the beginning of the function,
+     * due to, check could occur early than bitmap_set in
+     * qemu_ufd_copy_ioctl
+     */
     already_received = ramblock_recv_bitmap_test(rb, (void *)addr);
     if (already_received) {
         atomic_xchg(&dc->vcpu_addr[cpu], 0);
