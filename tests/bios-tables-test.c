@@ -10,6 +10,33 @@
  * See the COPYING file in the top-level directory.
  */
 
+/*
+ * How to add or update the tests:
+ * Contributor:
+ * 1. add empty files for new tables, if any, under tests/data/acpi
+ * 2. list any changed files in tests/bios-tables-test-allowed-diff.h
+ * 3. commit the above *before* making changes that affect the tables
+ * Maintainer:
+ * After 1-3 above tests will pass but ignore differences with the expected files.
+ * You will also notice that tests/bios-tables-test-allowed-diff.h lists
+ * a bunch of files. This is your hint that you need to do the below:
+ * 4. Run
+ *      make check V=1
+ * this will produce a bunch of warnings about differences
+ * beween actual and expected ACPI tables. If you have IASL installed,
+ * they will also be disassembled so you can look at the disassembled
+ * output. If not - disassemble them yourself in any way you like.
+ * Look at the differences - make sure they make sense and match what the
+ * changes you are merging are supposed to do.
+ *
+ * 5. From build directory, run:
+ *      $(SRC_PATH)/tests/data/acpi/rebuild-expected-aml.sh
+ * 6. Now commit any changes.
+ * 7. Before doing a pull request, make sure tests/bios-tables-test-allowed-diff.h
+ *    is empty - this will ensure following changes to ACPI tables will
+ *    be noticed.
+ */
+
 #include "qemu/osdep.h"
 #include <glib/gstdio.h>
 #include "qemu-common.h"
