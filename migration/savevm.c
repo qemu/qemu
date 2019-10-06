@@ -1837,6 +1837,8 @@ static void *postcopy_ram_listen_thread(void *opaque)
 
     rcu_unregister_thread();
     mis->have_listen_thread = false;
+    postcopy_state_set(POSTCOPY_INCOMING_END);
+
     return NULL;
 }
 
