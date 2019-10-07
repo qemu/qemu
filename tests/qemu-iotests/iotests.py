@@ -35,6 +35,7 @@ from collections import OrderedDict
 sys.path.append(os.path.join(os.path.dirname(__file__), '..', '..', 'python'))
 from qemu import qtest
 
+assert sys.version_info >= (3,6)
 
 # This will not work if arguments contain spaces but is necessary if we
 # want to support the override options that ./check supports.
@@ -250,10 +251,7 @@ def image_size(img):
     return json.loads(r)['virtual-size']
 
 def is_str(val):
-    if sys.version_info.major >= 3:
-        return isinstance(val, str)
-    else:
-        return isinstance(val, str) or isinstance(val, unicode)
+    return isinstance(val, str)
 
 test_dir_re = re.compile(r"%s" % test_dir)
 def filter_test_dir(msg):
@@ -935,12 +933,7 @@ def execute_test(test_function=None,
     else:
         # We need to filter out the time taken from the output so that
         # qemu-iotest can reliably diff the results against master output.
-        if sys.version_info.major >= 3:
-            output = io.StringIO()
-        else:
-            # io.StringIO is for unicode strings, which is not what
-            # 2.x's test runner emits.
-            output = io.BytesIO()
+        output = io.StringIO()
 
     logging.basicConfig(level=(logging.DEBUG if debug else logging.WARN))
 
