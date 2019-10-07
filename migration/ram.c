@@ -181,14 +181,14 @@ int foreach_not_ignored_block(RAMBlockIterFunc func, void *opaque)
     RAMBlock *block;
     int ret = 0;
 
-    rcu_read_lock();
+    RCU_READ_LOCK_GUARD();
+
     RAMBLOCK_FOREACH_NOT_IGNORED(block) {
         ret = func(block, opaque);
         if (ret) {
             break;
         }
     }
-    rcu_read_unlock();
     return ret;
 }
 
@@ -1848,12 +1848,12 @@ static void migration_bitmap_sync(RAMState *rs)
     memory_global_dirty_log_sync();
 
     qemu_mutex_lock(&rs->bitmap_mutex);
-    rcu_read_lock();
-    RAMBLOCK_FOREACH_NOT_IGNORED(block) {
-        ramblock_sync_dirty_bitmap(rs, block);
+    WITH_RCU_READ_LOCK_GUARD() {
+        RAMBLOCK_FOREACH_NOT_IGNORED(block) {
+            ramblock_sync_dirty_bitmap(rs, block);
+        }
+        ram_counters.remaining = ram_bytes_remaining();
     }
-    ram_counters.remaining = ram_bytes_remaining();
-    rcu_read_unlock();
     qemu_mutex_unlock(&rs->bitmap_mutex);
 
     memory_global_after_dirty_log_sync();
@@ -2397,13 +2397,12 @@ static void migration_page_queue_free(RAMState *rs)
     /* This queue generally should be empty - but in the case of a failed
      * migration might have some droppings in.
      */
-    rcu_read_lock();
+    RCU_READ_LOCK_GUARD();
     QSIMPLEQ_FOREACH_SAFE(mspr, &rs->src_page_requests, next_req, next_mspr) {
         memory_region_unref(mspr->rb->mr);
         QSIMPLEQ_REMOVE_HEAD(&rs->src_page_requests, next_req);
         g_free(mspr);
     }
-    rcu_read_unlock();
 }
 
 /**
@@ -2424,7 +2423,8 @@ int ram_save_queue_pages(const char *rbname, ram_addr_t start, ram_addr_t len)
     RAMState *rs = ram_state;
 
     ram_counters.postcopy_requests++;
-    rcu_read_lock();
+    RCU_READ_LOCK_GUARD();
+
     if (!rbname) {
         /* Reuse last RAMBlock */
         ramblock = rs->last_req_rb;
@@ -2466,12 +2466,10 @@ int ram_save_queue_pages(const char *rbname, ram_addr_t start, ram_addr_t len)
     QSIMPLEQ_INSERT_TAIL(&rs->src_page_requests, new_entry, next_req);
     migration_make_urgent_request();
     qemu_mutex_unlock(&rs->src_page_req_mutex);
-    rcu_read_unlock();
 
     return 0;
 
 err:
-    rcu_read_unlock();
     return -1;
 }
 
@@ -2700,7 +2698,8 @@ static uint64_t ram_bytes_total_common(bool count_ignored)
     RAMBlock *block;
     uint64_t total = 0;
 
-    rcu_read_lock();
+    RCU_READ_LOCK_GUARD();
+
     if (count_ignored) {
         RAMBLOCK_FOREACH_MIGRATABLE(block) {
             total += block->used_length;
@@ -2710,7 +2709,6 @@ static uint64_t ram_bytes_total_common(bool count_ignored)
             total += block->used_length;
         }
     }
-    rcu_read_unlock();
     return total;
 }
 
@@ -3034,7 +3032,7 @@ int ram_postcopy_send_discard_bitmap(MigrationState *ms)
     RAMBlock *block;
     int ret;
 
-    rcu_read_lock();
+    RCU_READ_LOCK_GUARD();
 
     /* This should be our last sync, the src is now paused */
     migration_bitmap_sync(rs);
@@ -3048,7 +3046,6 @@ int ram_postcopy_send_discard_bitmap(MigrationState *ms)
         /* Deal with TPS != HPS and huge pages */
         ret = postcopy_chunk_hostpages(ms, block);
         if (ret) {
-            rcu_read_unlock();
             return ret;
         }
 
@@ -3060,7 +3057,6 @@ int ram_postcopy_send_discard_bitmap(MigrationState *ms)
     trace_ram_postcopy_send_discard_bitmap();
 
     ret = postcopy_each_ram_send_discard(ms);
-    rcu_read_unlock();
 
     return ret;
 }
@@ -3081,7 +3077,7 @@ int ram_discard_range(const char *rbname, uint64_t start, size_t length)
 
     trace_ram_discard_range(rbname, start, length);
 
-    rcu_read_lock();
+    RCU_READ_LOCK_GUARD();
     RAMBlock *rb = qemu_ram_block_by_name(rbname);
 
     if (!rb) {
@@ -3101,8 +3097,6 @@ int ram_discard_range(const char *rbname, uint64_t start, size_t length)
     ret = ram_block_discard_range(rb, start, length);
 
 err:
-    rcu_read_unlock();
-
     return ret;
 }
 
@@ -3231,13 +3225,12 @@ static void ram_init_bitmaps(RAMState *rs)
     /* For memory_global_dirty_log_start below.  */
     qemu_mutex_lock_iothread();
     qemu_mutex_lock_ramlist();
-    rcu_read_lock();
 
-    ram_list_init_bitmaps();
-    memory_global_dirty_log_start();
-    migration_bitmap_sync_precopy(rs);
-
-    rcu_read_unlock();
+    WITH_RCU_READ_LOCK_GUARD() {
+        ram_list_init_bitmaps();
+        memory_global_dirty_log_start();
+        migration_bitmap_sync_precopy(rs);
+    }
     qemu_mutex_unlock_ramlist();
     qemu_mutex_unlock_iothread();
 }
@@ -3424,55 +3417,57 @@ static int ram_save_iterate(QEMUFile *f, void *opaque)
         goto out;
     }
 
-    rcu_read_lock();
-    if (ram_list.version != rs->last_version) {
-        ram_state_reset(rs);
-    }
-
-    /* Read version before ram_list.blocks */
-    smp_rmb();
-
-    ram_control_before_iterate(f, RAM_CONTROL_ROUND);
-
-    t0 = qemu_clock_get_ns(QEMU_CLOCK_REALTIME);
-    i = 0;
-    while ((ret = qemu_file_rate_limit(f)) == 0 ||
-            !QSIMPLEQ_EMPTY(&rs->src_page_requests)) {
-        int pages;
-
-        if (qemu_file_get_error(f)) {
-            break;
+    WITH_RCU_READ_LOCK_GUARD() {
+        if (ram_list.version != rs->last_version) {
+            ram_state_reset(rs);
         }
 
-        pages = ram_find_and_save_block(rs, false);
-        /* no more pages to sent */
-        if (pages == 0) {
-            done = 1;
-            break;
-        }
+        /* Read version before ram_list.blocks */
+        smp_rmb();
 
-        if (pages < 0) {
-            qemu_file_set_error(f, pages);
-            break;
-        }
+        ram_control_before_iterate(f, RAM_CONTROL_ROUND);
 
-        rs->target_page_count += pages;
+        t0 = qemu_clock_get_ns(QEMU_CLOCK_REALTIME);
+        i = 0;
+        while ((ret = qemu_file_rate_limit(f)) == 0 ||
+                !QSIMPLEQ_EMPTY(&rs->src_page_requests)) {
+            int pages;
 
-        /* we want to check in the 1st loop, just in case it was the 1st time
-           and we had to sync the dirty bitmap.
-           qemu_clock_get_ns() is a bit expensive, so we only check each some
-           iterations
-        */
-        if ((i & 63) == 0) {
-            uint64_t t1 = (qemu_clock_get_ns(QEMU_CLOCK_REALTIME) - t0) / 1000000;
-            if (t1 > MAX_WAIT) {
-                trace_ram_save_iterate_big_wait(t1, i);
+            if (qemu_file_get_error(f)) {
                 break;
             }
+
+            pages = ram_find_and_save_block(rs, false);
+            /* no more pages to sent */
+            if (pages == 0) {
+                done = 1;
+                break;
+            }
+
+            if (pages < 0) {
+                qemu_file_set_error(f, pages);
+                break;
+            }
+
+            rs->target_page_count += pages;
+
+            /*
+             * we want to check in the 1st loop, just in case it was the 1st
+             * time and we had to sync the dirty bitmap.
+             * qemu_clock_get_ns() is a bit expensive, so we only check each
+             * some iterations
+             */
+            if ((i & 63) == 0) {
+                uint64_t t1 = (qemu_clock_get_ns(QEMU_CLOCK_REALTIME) - t0) /
+                              1000000;
+                if (t1 > MAX_WAIT) {
+                    trace_ram_save_iterate_big_wait(t1, i);
+                    break;
+                }
+            }
+            i++;
         }
-        i++;
     }
-    rcu_read_unlock();
 
     /*
      * Must occur before EOS (or any QEMUFile operation)
@@ -3510,35 +3505,33 @@ static int ram_save_complete(QEMUFile *f, void *opaque)
     RAMState *rs = *temp;
     int ret = 0;
 
-    rcu_read_lock();
-
-    if (!migration_in_postcopy()) {
-        migration_bitmap_sync_precopy(rs);
-    }
-
-    ram_control_before_iterate(f, RAM_CONTROL_FINISH);
-
-    /* try transferring iterative blocks of memory */
-
-    /* flush all remaining blocks regardless of rate limiting */
-    while (true) {
-        int pages;
-
-        pages = ram_find_and_save_block(rs, !migration_in_colo_state());
-        /* no more blocks to sent */
-        if (pages == 0) {
-            break;
+    WITH_RCU_READ_LOCK_GUARD() {
+        if (!migration_in_postcopy()) {
+            migration_bitmap_sync_precopy(rs);
         }
-        if (pages < 0) {
-            ret = pages;
-            break;
+
+        ram_control_before_iterate(f, RAM_CONTROL_FINISH);
+
+        /* try transferring iterative blocks of memory */
+
+        /* flush all remaining blocks regardless of rate limiting */
+        while (true) {
+            int pages;
+
+            pages = ram_find_and_save_block(rs, !migration_in_colo_state());
+            /* no more blocks to sent */
+            if (pages == 0) {
+                break;
+            }
+            if (pages < 0) {
+                ret = pages;
+                break;
+            }
         }
+
+        flush_compressed_data(rs);
+        ram_control_after_iterate(f, RAM_CONTROL_FINISH);
     }
-
-    flush_compressed_data(rs);
-    ram_control_after_iterate(f, RAM_CONTROL_FINISH);
-
-    rcu_read_unlock();
 
     multifd_send_sync_main(rs);
     qemu_put_be64(f, RAM_SAVE_FLAG_EOS);
@@ -3561,9 +3554,9 @@ static void ram_save_pending(QEMUFile *f, void *opaque, uint64_t max_size,
     if (!migration_in_postcopy() &&
         remaining_size < max_size) {
         qemu_mutex_lock_iothread();
-        rcu_read_lock();
-        migration_bitmap_sync_precopy(rs);
-        rcu_read_unlock();
+        WITH_RCU_READ_LOCK_GUARD() {
+            migration_bitmap_sync_precopy(rs);
+        }
         qemu_mutex_unlock_iothread();
         remaining_size = rs->migration_dirty_pages * TARGET_PAGE_SIZE;
     }
@@ -3907,7 +3900,13 @@ int colo_init_ram_cache(void)
             error_report("%s: Can't alloc memory for COLO cache of block %s,"
                          "size 0x" RAM_ADDR_FMT, __func__, block->idstr,
                          block->used_length);
-            goto out_locked;
+            RAMBLOCK_FOREACH_NOT_IGNORED(block) {
+                if (block->colo_cache) {
+                    qemu_anon_ram_free(block->colo_cache, block->used_length);
+                    block->colo_cache = NULL;
+                }
+            }
+            return -errno;
         }
         memcpy(block->colo_cache, block->host, block->used_length);
     }
@@ -3933,18 +3932,6 @@ int colo_init_ram_cache(void)
     memory_global_dirty_log_start();
 
     return 0;
-
-out_locked:
-
-    RAMBLOCK_FOREACH_NOT_IGNORED(block) {
-        if (block->colo_cache) {
-            qemu_anon_ram_free(block->colo_cache, block->used_length);
-            block->colo_cache = NULL;
-        }
-    }
-
-    rcu_read_unlock();
-    return -errno;
 }
 
 /* It is need to hold the global lock to call this helper */
@@ -3958,16 +3945,14 @@ void colo_release_ram_cache(void)
         block->bmap = NULL;
     }
 
-    rcu_read_lock();
-
-    RAMBLOCK_FOREACH_NOT_IGNORED(block) {
-        if (block->colo_cache) {
-            qemu_anon_ram_free(block->colo_cache, block->used_length);
-            block->colo_cache = NULL;
+    WITH_RCU_READ_LOCK_GUARD() {
+        RAMBLOCK_FOREACH_NOT_IGNORED(block) {
+            if (block->colo_cache) {
+                qemu_anon_ram_free(block->colo_cache, block->used_length);
+                block->colo_cache = NULL;
+            }
         }
     }
-
-    rcu_read_unlock();
     qemu_mutex_destroy(&ram_state->bitmap_mutex);
     g_free(ram_state);
     ram_state = NULL;
@@ -4205,31 +4190,30 @@ static void colo_flush_ram_cache(void)
     unsigned long offset = 0;
 
     memory_global_dirty_log_sync();
-    rcu_read_lock();
-    RAMBLOCK_FOREACH_NOT_IGNORED(block) {
-        ramblock_sync_dirty_bitmap(ram_state, block);
-    }
-    rcu_read_unlock();
-
-    trace_colo_flush_ram_cache_begin(ram_state->migration_dirty_pages);
-    rcu_read_lock();
-    block = QLIST_FIRST_RCU(&ram_list.blocks);
-
-    while (block) {
-        offset = migration_bitmap_find_dirty(ram_state, block, offset);
-
-        if (offset << TARGET_PAGE_BITS >= block->used_length) {
-            offset = 0;
-            block = QLIST_NEXT_RCU(block, next);
-        } else {
-            migration_bitmap_clear_dirty(ram_state, block, offset);
-            dst_host = block->host + (offset << TARGET_PAGE_BITS);
-            src_host = block->colo_cache + (offset << TARGET_PAGE_BITS);
-            memcpy(dst_host, src_host, TARGET_PAGE_SIZE);
+    WITH_RCU_READ_LOCK_GUARD() {
+        RAMBLOCK_FOREACH_NOT_IGNORED(block) {
+            ramblock_sync_dirty_bitmap(ram_state, block);
         }
     }
 
-    rcu_read_unlock();
+    trace_colo_flush_ram_cache_begin(ram_state->migration_dirty_pages);
+    WITH_RCU_READ_LOCK_GUARD() {
+        block = QLIST_FIRST_RCU(&ram_list.blocks);
+
+        while (block) {
+            offset = migration_bitmap_find_dirty(ram_state, block, offset);
+
+            if (offset << TARGET_PAGE_BITS >= block->used_length) {
+                offset = 0;
+                block = QLIST_NEXT_RCU(block, next);
+            } else {
+                migration_bitmap_clear_dirty(ram_state, block, offset);
+                dst_host = block->host + (offset << TARGET_PAGE_BITS);
+                src_host = block->colo_cache + (offset << TARGET_PAGE_BITS);
+                memcpy(dst_host, src_host, TARGET_PAGE_SIZE);
+            }
+        }
+    }
     trace_colo_flush_ram_cache_end();
 }
 
@@ -4428,16 +4412,15 @@ static int ram_load(QEMUFile *f, void *opaque, int version_id)
      * it will be necessary to reduce the granularity of this
      * critical section.
      */
-    rcu_read_lock();
+    WITH_RCU_READ_LOCK_GUARD() {
+        if (postcopy_running) {
+            ret = ram_load_postcopy(f);
+        } else {
+            ret = ram_load_precopy(f);
+        }
 
-    if (postcopy_running) {
-        ret = ram_load_postcopy(f);
-    } else {
-        ret = ram_load_precopy(f);
+        ret |= wait_for_decompress_done();
     }
-
-    ret |= wait_for_decompress_done();
-    rcu_read_unlock();
     trace_ram_load_complete(ret, seq_iter);
 
     if (!ret  && migration_incoming_in_colo_state()) {
