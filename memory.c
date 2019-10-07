@@ -779,14 +779,13 @@ FlatView *address_space_get_flatview(AddressSpace *as)
 {
     FlatView *view;
 
-    rcu_read_lock();
+    RCU_READ_LOCK_GUARD();
     do {
         view = address_space_to_flatview(as);
         /* If somebody has replaced as->current_map concurrently,
          * flatview_ref returns false.
          */
     } while (!flatview_ref(view));
-    rcu_read_unlock();
     return view;
 }
 
@@ -2166,12 +2165,11 @@ int memory_region_get_fd(MemoryRegion *mr)
 {
     int fd;
 
-    rcu_read_lock();
+    RCU_READ_LOCK_GUARD();
     while (mr->alias) {
         mr = mr->alias;
     }
     fd = mr->ram_block->fd;
-    rcu_read_unlock();
 
     return fd;
 }
@@ -2181,14 +2179,13 @@ void *memory_region_get_ram_ptr(MemoryRegion *mr)
     void *ptr;
     uint64_t offset = 0;
 
-    rcu_read_lock();
+    RCU_READ_LOCK_GUARD();
     while (mr->alias) {
         offset += mr->alias_offset;
         mr = mr->alias;
     }
     assert(mr->ram_block);
     ptr = qemu_map_ram_ptr(mr->ram_block, offset);
-    rcu_read_unlock();
 
     return ptr;
 }
@@ -2578,12 +2575,11 @@ MemoryRegionSection memory_region_find(MemoryRegion *mr,
                                        hwaddr addr, uint64_t size)
 {
     MemoryRegionSection ret;
-    rcu_read_lock();
+    RCU_READ_LOCK_GUARD();
     ret = memory_region_find_rcu(mr, addr, size);
     if (ret.mr) {
         memory_region_ref(ret.mr);
     }
-    rcu_read_unlock();
     return ret;
 }
 
@@ -2591,9 +2587,8 @@ bool memory_region_present(MemoryRegion *container, hwaddr addr)
 {
     MemoryRegion *mr;
 
-    rcu_read_lock();
+    RCU_READ_LOCK_GUARD();
     mr = memory_region_find_rcu(container, addr, 1).mr;
-    rcu_read_unlock();
     return mr && mr != container;
 }
 
