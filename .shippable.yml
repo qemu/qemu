@@ -27,8 +27,6 @@ env:
       TARGET_LIST=ppc64-softmmu,ppc64-linux-user,ppc64abi32-linux-user
 build:
   pre_ci:
-    # usually host ARCH is set by configure
-    - echo "ARCH=$(uname -m)" > config-host.mak
     - make docker-image-${IMAGE} V=1
   pre_ci_boot:
     image_name: qemu
