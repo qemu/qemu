@@ -1658,8 +1658,8 @@ do_escalation:
 void xive_router_notify(XiveNotifier *xn, uint32_t lisn)
 {
     XiveRouter *xrtr = XIVE_ROUTER(xn);
-    uint8_t eas_blk = XIVE_SRCNO_BLOCK(lisn);
-    uint32_t eas_idx = XIVE_SRCNO_INDEX(lisn);
+    uint8_t eas_blk = XIVE_EAS_BLOCK(lisn);
+    uint32_t eas_idx = XIVE_EAS_INDEX(lisn);
     XiveEAS eas;
 
     /* EAS cache lookup */
