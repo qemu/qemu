@@ -528,12 +528,15 @@ static void spapr_xive_register_types(void)
 
 type_init(spapr_xive_register_types)
 
-bool spapr_xive_irq_claim(SpaprXive *xive, uint32_t lisn, bool lsi)
+int spapr_xive_irq_claim(SpaprXive *xive, int lisn, bool lsi, Error **errp)
 {
     XiveSource *xsrc = &xive->source;
 
-    if (lisn >= xive->nr_irqs) {
-        return false;
+    assert(lisn < xive->nr_irqs);
+
+    if (xive_eas_is_valid(&xive->eat[lisn])) {
+        error_setg(errp, "IRQ %d is not free", lisn);
+        return -EBUSY;
     }
 
     /*
@@ -545,26 +548,17 @@ bool spapr_xive_irq_claim(SpaprXive *xive, uint32_t lisn, bool lsi)
     }
 
     if (kvm_irqchip_in_kernel()) {
-        Error *local_err = NULL;
-
-        kvmppc_xive_source_reset_one(xsrc, lisn, &local_err);
-        if (local_err) {
-            error_report_err(local_err);
-            return false;
-        }
+        return kvmppc_xive_source_reset_one(xsrc, lisn, errp);
     }
 
-    return true;
+    return 0;
 }
 
-bool spapr_xive_irq_free(SpaprXive *xive, uint32_t lisn)
+void spapr_xive_irq_free(SpaprXive *xive, int lisn)
 {
-    if (lisn >= xive->nr_irqs) {
-        return false;
-    }
+    assert(lisn < xive->nr_irqs);
 
     xive->eat[lisn].w &= cpu_to_be64(~EAS_VALID);
-    return true;
 }
 
 /*

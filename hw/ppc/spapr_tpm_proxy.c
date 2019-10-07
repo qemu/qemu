@@ -114,7 +114,7 @@ static target_ulong h_tpm_comm(PowerPCCPU *cpu,
         return H_FUNCTION;
     }
 
-    trace_spapr_h_tpm_comm(tpm_proxy->host_path ?: "null", op);
+    trace_spapr_h_tpm_comm(tpm_proxy->host_path, op);
 
     switch (op) {
     case TPM_COMM_OP_EXECUTE:

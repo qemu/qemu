@@ -1077,8 +1077,6 @@ F: hw/*/spapr*
 F: include/hw/*/spapr*
 F: hw/*/xics*
 F: include/hw/*/xics*
-F: pc-bios/spapr-rtas/*
-F: pc-bios/spapr-rtas.bin
 F: pc-bios/slof.bin
 F: docs/specs/ppc-spapr-hcalls.txt
 F: docs/specs/ppc-spapr-hotplug.txt

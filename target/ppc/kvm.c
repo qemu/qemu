@@ -993,6 +993,10 @@ int kvm_arch_put_registers(CPUState *cs, int level)
         }
 
         kvm_set_one_reg(cs, KVM_REG_PPC_TB_OFFSET, &env->tb_env->tb_offset);
+
+        if (level > KVM_PUT_RUNTIME_STATE) {
+            kvm_put_one_spr(cs, KVM_REG_PPC_DPDES, SPR_DPDES);
+        }
 #endif /* TARGET_PPC64 */
     }
 
@@ -1297,6 +1301,7 @@ int kvm_arch_get_registers(CPUState *cs)
         }
 
         kvm_get_one_reg(cs, KVM_REG_PPC_TB_OFFSET, &env->tb_env->tb_offset);
+        kvm_get_one_spr(cs, KVM_REG_PPC_DPDES, SPR_DPDES);
 #endif
     }
 

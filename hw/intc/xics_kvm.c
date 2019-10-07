@@ -190,6 +190,10 @@ void ics_get_kvm_state(ICSState *ics)
     for (i = 0; i < ics->nr_irqs; i++) {
         ICSIRQState *irq = &ics->irqs[i];
 
+        if (ics_irq_free(ics, i)) {
+            continue;
+        }
+
         kvm_device_access(kernel_xics_fd, KVM_DEV_XICS_GRP_SOURCES,
                           i + ics->offset, &state, false, &error_fatal);
 
@@ -300,6 +304,10 @@ int ics_set_kvm_state(ICSState *ics, Error **errp)
     for (i = 0; i < ics->nr_irqs; i++) {
         Error *local_err = NULL;
         int ret;
+
+        if (ics_irq_free(ics, i)) {
+            continue;
+        }
 
         ret = ics_set_kvm_state_one(ics, i, &local_err);
         if (ret < 0) {

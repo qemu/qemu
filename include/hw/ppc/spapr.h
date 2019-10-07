@@ -154,8 +154,6 @@ struct SpaprMachineState {
 
     hwaddr rma_size;
     int vrma_adjust;
-    ssize_t rtas_size;
-    void *rtas_blob;
     uint32_t fdt_size;
     uint32_t fdt_initial_size;
     void *fdt_blob;
@@ -175,7 +173,7 @@ struct SpaprMachineState {
 
     /* ibm,client-architecture-support option negotiation */
     bool cas_reboot;
-    bool cas_legacy_guest_workaround;
+    bool cas_pre_isa3_guest;
     SpaprOptionVector *ov5;         /* QEMU-supported option vectors */
     SpaprOptionVector *ov5_cas;     /* negotiated (via CAS) option vectors */
     uint32_t max_compat_pvr;

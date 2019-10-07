@@ -26,6 +26,7 @@
 #include "hw/ppc/pnv_lpc.h"
 #include "hw/ppc/pnv_psi.h"
 #include "hw/ppc/pnv_occ.h"
+#include "hw/ppc/pnv_homer.h"
 #include "hw/ppc/pnv_xive.h"
 #include "hw/ppc/pnv_core.h"
 
@@ -76,6 +77,7 @@ typedef struct Pnv8Chip {
     PnvLpcController lpc;
     Pnv8Psi      psi;
     PnvOCC       occ;
+    PnvHomer     homer;
 } Pnv8Chip;
 
 #define TYPE_PNV9_CHIP "pnv9-chip"
@@ -90,6 +92,7 @@ typedef struct Pnv9Chip {
     Pnv9Psi      psi;
     PnvLpcController lpc;
     PnvOCC       occ;
+    PnvHomer     homer;
 
     uint32_t     nr_quads;
     PnvQuad      *quads;
@@ -198,6 +201,16 @@ void pnv_bmc_powerdown(IPMIBmc *bmc);
 #define PNV_XSCOM_BASE(chip)                                            \
     (0x0003fc0000000000ull + ((uint64_t)(chip)->chip_id) * PNV_XSCOM_SIZE)
 
+#define PNV_OCC_COMMON_AREA_SIZE    0x0000000000700000ull
+#define PNV_OCC_COMMON_AREA(chip)                                       \
+    (0x7fff800000ull + ((uint64_t)PNV_CHIP_INDEX(chip) * \
+                         PNV_OCC_COMMON_AREA_SIZE))
+
+#define PNV_HOMER_SIZE              0x0000000000300000ull
+#define PNV_HOMER_BASE(chip)                                            \
+    (0x7ffd800000ull + ((uint64_t)PNV_CHIP_INDEX(chip)) * PNV_HOMER_SIZE)
+
+
 /*
  * XSCOM 0x20109CA defines the ICP BAR:
  *
@@ -256,4 +269,12 @@ void pnv_bmc_powerdown(IPMIBmc *bmc);
 #define PNV9_XSCOM_SIZE              0x0000000400000000ull
 #define PNV9_XSCOM_BASE(chip)        PNV9_CHIP_BASE(chip, 0x00603fc00000000ull)
 
+#define PNV9_OCC_COMMON_AREA_SIZE    0x0000000000700000ull
+#define PNV9_OCC_COMMON_AREA(chip)                                      \
+    (0x203fff800000ull + ((uint64_t)PNV_CHIP_INDEX(chip) * \
+                           PNV9_OCC_COMMON_AREA_SIZE))
+
+#define PNV9_HOMER_SIZE              0x0000000000300000ull
+#define PNV9_HOMER_BASE(chip)                                           \
+    (0x203ffd800000ull + ((uint64_t)PNV_CHIP_INDEX(chip)) * PNV9_HOMER_SIZE)
 #endif /* PPC_PNV_H */

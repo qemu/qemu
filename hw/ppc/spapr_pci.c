@@ -721,9 +721,10 @@ static void pci_spapr_set_irq(void *opaque, int irq_num, int level)
      * corresponding qemu_irq.
      */
     SpaprPhbState *phb = opaque;
+    SpaprMachineState *spapr = SPAPR_MACHINE(qdev_get_machine());
 
     trace_spapr_pci_lsi_set(phb->dtbusname, irq_num, phb->lsi_table[irq_num].irq);
-    qemu_set_irq(spapr_phb_lsi_qirq(phb, irq_num), level);
+    qemu_set_irq(spapr_qirq(spapr, phb->lsi_table[irq_num].irq), level);
 }
 
 static PCIINTxRoute spapr_route_intx_pin_to_irq(void *opaque, int pin)
@@ -835,7 +836,7 @@ static char *spapr_phb_get_loc_code(SpaprPhbState *sphb, PCIDevice *pdev)
 #define b_fff(x)        b_x((x), 8, 3)  /* function number */
 #define b_rrrrrrrr(x)   b_x((x), 0, 8)  /* register number */
 
-/* for 'reg'/'assigned-addresses' OF properties */
+/* for 'reg' OF properties */
 #define RESOURCE_CELLS_SIZE 2
 #define RESOURCE_CELLS_ADDRESS 3
 
@@ -849,17 +850,14 @@ typedef struct ResourceFields {
 
 typedef struct ResourceProps {
     ResourceFields reg[8];
-    ResourceFields assigned[7];
     uint32_t reg_len;
-    uint32_t assigned_len;
 } ResourceProps;
 
-/* fill in the 'reg'/'assigned-resources' OF properties for
+/* fill in the 'reg' OF properties for
  * a PCI device. 'reg' describes resource requirements for a
- * device's IO/MEM regions, 'assigned-addresses' describes the
- * actual resource assignments.
+ * device's IO/MEM regions.
  *
- * the properties are arrays of ('phys-addr', 'size') pairs describing
+ * the property is an array of ('phys-addr', 'size') pairs describing
  * the addressable regions of the PCI device, where 'phys-addr' is a
  * RESOURCE_CELLS_ADDRESS-tuple of 32-bit integers corresponding to
  * (phys.hi, phys.mid, phys.lo), and 'size' is a
@@ -888,18 +886,7 @@ typedef struct ResourceProps {
  * phys.mid and phys.lo correspond respectively to the hi/lo portions
  * of the actual address of the region.
  *
- * how the phys-addr/size values are used differ slightly between
- * 'reg' and 'assigned-addresses' properties. namely, 'reg' has
- * an additional description for the config space region of the
- * device, and in the case of QEMU has n=0 and phys.mid=phys.lo=0
- * to describe the region as relocatable, with an address-mapping
- * that corresponds directly to the PHB's address space for the
- * resource. 'assigned-addresses' always has n=1 set with an absolute
- * address assigned for the resource. in general, 'assigned-addresses'
- * won't be populated, since addresses for PCI devices are generally
- * unmapped initially and left to the guest to assign.
- *
- * note also that addresses defined in these properties are, at least
+ * note also that addresses defined in this property are, at least
  * for PAPR guests, relative to the PHBs IO/MEM windows, and
  * correspond directly to the addresses in the BARs.
  *
@@ -913,8 +900,8 @@ static void populate_resource_props(PCIDevice *d, ResourceProps *rp)
     uint32_t dev_id = (b_bbbbbbbb(bus_num) |
                        b_ddddd(PCI_SLOT(d->devfn)) |
                        b_fff(PCI_FUNC(d->devfn)));
-    ResourceFields *reg, *assigned;
-    int i, reg_idx = 0, assigned_idx = 0;
+    ResourceFields *reg;
+    int i, reg_idx = 0;
 
     /* config space region */
     reg = &rp->reg[reg_idx++];
@@ -943,21 +930,9 @@ static void populate_resource_props(PCIDevice *d, ResourceProps *rp)
         reg->phys_lo = 0;
         reg->size_hi = cpu_to_be32(d->io_regions[i].size >> 32);
         reg->size_lo = cpu_to_be32(d->io_regions[i].size);
-
-        if (d->io_regions[i].addr == PCI_BAR_UNMAPPED) {
-            continue;
-        }
-
-        assigned = &rp->assigned[assigned_idx++];
-        assigned->phys_hi = cpu_to_be32(be32_to_cpu(reg->phys_hi) | b_n(1));
-        assigned->phys_mid = cpu_to_be32(d->io_regions[i].addr >> 32);
-        assigned->phys_lo = cpu_to_be32(d->io_regions[i].addr);
-        assigned->size_hi = reg->size_hi;
-        assigned->size_lo = reg->size_lo;
     }
 
     rp->reg_len = reg_idx * sizeof(ResourceFields);
-    rp->assigned_len = assigned_idx * sizeof(ResourceFields);
 }
 
 typedef struct PCIClass PCIClass;
@@ -1471,8 +1446,6 @@ static int spapr_dt_pci_device(SpaprPhbState *sphb, PCIDevice *dev,
 
     populate_resource_props(dev, &rp);
     _FDT(fdt_setprop(fdt, offset, "reg", (uint8_t *)rp.reg, rp.reg_len));
-    _FDT(fdt_setprop(fdt, offset, "assigned-addresses",
-                     (uint8_t *)rp.assigned, rp.assigned_len));
 
     if (sphb->pcie_ecs && pci_is_express(dev)) {
         _FDT(fdt_setprop_cell(fdt, offset, "ibm,pci-config-space-type", 0x1));

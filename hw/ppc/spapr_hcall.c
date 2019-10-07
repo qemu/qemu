@@ -1765,8 +1765,7 @@ static target_ulong h_client_architecture_support(PowerPCCPU *cpu,
             exit(EXIT_FAILURE);
         }
     }
-    spapr->cas_legacy_guest_workaround = !spapr_ovec_test(ov1_guest,
-                                                          OV1_PPC_3_00);
+    spapr->cas_pre_isa3_guest = !spapr_ovec_test(ov1_guest, OV1_PPC_3_00);
     spapr_ovec_cleanup(ov1_guest);
     if (!spapr->cas_reboot) {
         /* If spapr_machine_reset() did not set up a HPT but one is necessary
@@ -1785,13 +1784,13 @@ static target_ulong h_client_architecture_support(PowerPCCPU *cpu,
      * terminate the boot.
      */
     if (guest_xive) {
-        if (spapr->irq->ov5 == SPAPR_OV5_XIVE_LEGACY) {
+        if (!spapr->irq->xive) {
             error_report(
 "Guest requested unavailable interrupt mode (XIVE), try the ic-mode=xive or ic-mode=dual machine property");
             exit(EXIT_FAILURE);
         }
     } else {
-        if (spapr->irq->ov5 == SPAPR_OV5_XIVE_EXPLOIT) {
+        if (!spapr->irq->xics) {
             error_report(
 "Guest requested unavailable interrupt mode (XICS), either don't set the ic-mode machine property or try ic-mode=xics or ic-mode=dual");
             exit(EXIT_FAILURE);
@@ -1805,7 +1804,7 @@ static target_ulong h_client_architecture_support(PowerPCCPU *cpu,
      */
     if (!spapr->cas_reboot) {
         spapr->cas_reboot = spapr_ovec_test(ov5_updates, OV5_XIVE_EXPLOIT)
-            && spapr->irq->ov5 & SPAPR_OV5_XIVE_BOTH;
+            && spapr->irq->xics && spapr->irq->xive;
     }
 
     spapr_ovec_cleanup(ov5_updates);
