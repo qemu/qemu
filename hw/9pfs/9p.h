@@ -236,13 +236,49 @@ struct V9fsFidState
     V9fsFidState *rclm_lst;
 };
 
-#define QPATH_INO_MASK        ((1ULL << 48) - 1)
+typedef enum AffixType_t {
+    AffixType_Prefix,
+    AffixType_Suffix, /* A.k.a. postfix. */
+} AffixType_t;
+
+/**
+ * @brief Unique affix of variable length.
+ *
+ * An affix is (currently) either a suffix or a prefix, which is either
+ * going to be prepended (prefix) or appended (suffix) with some other
+ * number for the goal to generate unique numbers. Accordingly the
+ * suffixes (or prefixes) we generate @b must all have the mathematical
+ * property of being suffix-free (or prefix-free in case of prefixes)
+ * so that no matter what number we concatenate the affix with, that we
+ * always reliably get unique numbers as result after concatenation.
+ */
+typedef struct VariLenAffix {
+    AffixType_t type; /* Whether this affix is a suffix or a prefix. */
+    uint64_t value; /* Actual numerical value of this affix. */
+    /*
+     * Lenght of the affix, that is how many (of the lowest) bits of @c value
+     * must be used for appending/prepending this affix to its final resulting,
+     * unique number.
+     */
+    int bits;
+} VariLenAffix;
+
+/* See qid_inode_prefix_hash_bits(). */
+typedef struct {
+    dev_t dev; /* FS device on host. */
+    /*
+     * How many (high) bits of the original inode number shall be used for
+     * hashing.
+     */
+    int prefix_bits;
+} QpdEntry;
 
 /* QID path prefix entry, see stat_to_qid */
 typedef struct {
     dev_t dev;
     uint16_t ino_prefix;
-    uint16_t qp_prefix;
+    uint32_t qp_affix_index;
+    VariLenAffix qp_affix;
 } QppEntry;
 
 /* QID path full entry, as above */
@@ -274,9 +310,11 @@ struct V9fsState
     V9fsConf fsconf;
     V9fsQID root_qid;
     dev_t dev_id;
+    struct qht qpd_table;
     struct qht qpp_table;
     struct qht qpf_table;
-    uint16_t qp_prefix_next;
+    uint64_t qp_ndevices; /* Amount of entries in qpd_table. */
+    uint16_t qp_affix_next;
     uint64_t qp_fullpath_next;
 };
 
