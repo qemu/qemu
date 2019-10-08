@@ -401,6 +401,7 @@ static void exynos4210_rtc_write(void *opaque, hwaddr offset,
         }
         break;
     case RTCCON:
+        ptimer_transaction_begin(s->ptimer_1Hz);
         if (value & RTC_ENABLE) {
             exynos4210_rtc_update_freq(s, value);
         }
@@ -430,6 +431,7 @@ static void exynos4210_rtc_write(void *opaque, hwaddr offset,
                 ptimer_stop(s->ptimer);
             }
         }
+        ptimer_transaction_commit(s->ptimer_1Hz);
         s->reg_rtccon = value;
         break;
     case TICCNT:
@@ -539,7 +541,9 @@ static void exynos4210_rtc_reset(DeviceState *d)
 
     exynos4210_rtc_update_freq(s, s->reg_rtccon);
     ptimer_stop(s->ptimer);
+    ptimer_transaction_begin(s->ptimer_1Hz);
     ptimer_stop(s->ptimer_1Hz);
+    ptimer_transaction_commit(s->ptimer_1Hz);
 }
 
 static const MemoryRegionOps exynos4210_rtc_ops = {
@@ -562,9 +566,11 @@ static void exynos4210_rtc_init(Object *obj)
     ptimer_set_freq(s->ptimer, RTC_BASE_FREQ);
     exynos4210_rtc_update_freq(s, 0);
 
-    bh = qemu_bh_new(exynos4210_rtc_1Hz_tick, s);
-    s->ptimer_1Hz = ptimer_init_with_bh(bh, PTIMER_POLICY_DEFAULT);
+    s->ptimer_1Hz = ptimer_init(exynos4210_rtc_1Hz_tick,
+                                s, PTIMER_POLICY_DEFAULT);
+    ptimer_transaction_begin(s->ptimer_1Hz);
     ptimer_set_freq(s->ptimer_1Hz, RTC_BASE_FREQ);
+    ptimer_transaction_commit(s->ptimer_1Hz);
 
     sysbus_init_irq(dev, &s->alm_irq);
     sysbus_init_irq(dev, &s->tick_irq);
