@@ -1246,10 +1246,17 @@ static int coroutine_fn bdrv_co_do_copy_on_readv(BdrvChild *child,
     int max_transfer = MIN_NON_ZERO(bs->bl.max_transfer,
                                     BDRV_REQUEST_MAX_BYTES);
     unsigned int progress = 0;
+    bool skip_write;
 
     if (!drv) {
         return -ENOMEDIUM;
     }
+
+    /*
+     * Do not write anything when the BDS is inactive.  That is not
+     * allowed, and it would not help.
+     */
+    skip_write = (bs->open_flags & BDRV_O_INACTIVE);
 
     /* FIXME We cannot require callers to have write permissions when all they
      * are doing is a read request. If we did things right, write permissions
@@ -1274,23 +1281,29 @@ static int coroutine_fn bdrv_co_do_copy_on_readv(BdrvChild *child,
     while (cluster_bytes) {
         int64_t pnum;
 
-        ret = bdrv_is_allocated(bs, cluster_offset,
-                                MIN(cluster_bytes, max_transfer), &pnum);
-        if (ret < 0) {
-            /* Safe to treat errors in querying allocation as if
-             * unallocated; we'll probably fail again soon on the
-             * read, but at least that will set a decent errno.
-             */
+        if (skip_write) {
+            ret = 1; /* "already allocated", so nothing will be copied */
             pnum = MIN(cluster_bytes, max_transfer);
-        }
+        } else {
+            ret = bdrv_is_allocated(bs, cluster_offset,
+                                    MIN(cluster_bytes, max_transfer), &pnum);
+            if (ret < 0) {
+                /*
+                 * Safe to treat errors in querying allocation as if
+                 * unallocated; we'll probably fail again soon on the
+                 * read, but at least that will set a decent errno.
+                 */
+                pnum = MIN(cluster_bytes, max_transfer);
+            }
 
-        /* Stop at EOF if the image ends in the middle of the cluster */
-        if (ret == 0 && pnum == 0) {
-            assert(progress >= bytes);
-            break;
-        }
+            /* Stop at EOF if the image ends in the middle of the cluster */
+            if (ret == 0 && pnum == 0) {
+                assert(progress >= bytes);
+                break;
+            }
 
-        assert(skip_bytes < pnum);
+            assert(skip_bytes < pnum);
+        }
 
         if (ret <= 0) {
             QEMUIOVector local_qiov;
