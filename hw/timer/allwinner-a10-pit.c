@@ -22,7 +22,6 @@
 #include "hw/timer/allwinner-a10-pit.h"
 #include "migration/vmstate.h"
 #include "qemu/log.h"
-#include "qemu/main-loop.h"
 #include "qemu/module.h"
 
 static void a10_pit_update_irq(AwA10PITState *s)
@@ -80,6 +79,7 @@ static uint64_t a10_pit_read(void *opaque, hwaddr offset, unsigned size)
     return 0;
 }
 
+/* Must be called inside a ptimer transaction block for s->timer[index] */
 static void a10_pit_set_freq(AwA10PITState *s, int index)
 {
     uint32_t prescaler, source, source_freq;
@@ -118,6 +118,7 @@ static void a10_pit_write(void *opaque, hwaddr offset, uint64_t value,
         switch (offset & 0x0f) {
         case AW_A10_PIT_TIMER_CONTROL:
             s->control[index] = value;
+            ptimer_transaction_begin(s->timer[index]);
             a10_pit_set_freq(s, index);
             if (s->control[index] & AW_A10_PIT_TIMER_RELOAD) {
                 ptimer_set_count(s->timer[index], s->interval[index]);
@@ -131,10 +132,13 @@ static void a10_pit_write(void *opaque, hwaddr offset, uint64_t value,
             } else {
                 ptimer_stop(s->timer[index]);
             }
+            ptimer_transaction_commit(s->timer[index]);
             break;
         case AW_A10_PIT_TIMER_INTERVAL:
             s->interval[index] = value;
+            ptimer_transaction_begin(s->timer[index]);
             ptimer_set_limit(s->timer[index], s->interval[index], 1);
+            ptimer_transaction_commit(s->timer[index]);
             break;
         case AW_A10_PIT_TIMER_COUNT:
             s->count[index] = value;
@@ -225,8 +229,10 @@ static void a10_pit_reset(DeviceState *dev)
         s->control[i] = AW_A10_PIT_DEFAULT_CLOCK;
         s->interval[i] = 0;
         s->count[i] = 0;
+        ptimer_transaction_begin(s->timer[i]);
         ptimer_stop(s->timer[i]);
         a10_pit_set_freq(s, i);
+        ptimer_transaction_commit(s->timer[i]);
     }
     s->watch_dog_mode = 0;
     s->watch_dog_control = 0;
@@ -255,7 +261,6 @@ static void a10_pit_init(Object *obj)
 {
     AwA10PITState *s = AW_A10_PIT(obj);
     SysBusDevice *sbd = SYS_BUS_DEVICE(obj);
-    QEMUBH * bh[AW_A10_PIT_TIMER_NR];
     uint8_t i;
 
     for (i = 0; i < AW_A10_PIT_TIMER_NR; i++) {
@@ -270,8 +275,7 @@ static void a10_pit_init(Object *obj)
 
         tc->container = s;
         tc->index = i;
-        bh[i] = qemu_bh_new(a10_pit_timer_cb, tc);
-        s->timer[i] = ptimer_init_with_bh(bh[i], PTIMER_POLICY_DEFAULT);
+        s->timer[i] = ptimer_init(a10_pit_timer_cb, tc, PTIMER_POLICY_DEFAULT);
     }
 }
 
