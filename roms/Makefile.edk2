@@ -46,8 +46,13 @@ all: $(foreach flashdev,$(flashdevs),../pc-bios/edk2-$(flashdev).fd.bz2) \
 # files.
 .INTERMEDIATE: $(foreach flashdev,$(flashdevs),../pc-bios/edk2-$(flashdev).fd)
 
+# Fetch edk2 submodule's submodules. If it is not in a git tree, assume
+# we're building from a tarball and that they've already been fetched by
+# make-release/tarball scripts.
 submodules:
-	cd edk2 && git submodule update --init --force
+	if test -d edk2/.git; then \
+		cd edk2 && git submodule update --init --force; \
+	fi
 
 # See notes on the ".NOTPARALLEL" target and the "+" indicator in
 # "tests/uefi-test-tools/Makefile".
