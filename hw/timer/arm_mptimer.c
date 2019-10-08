@@ -27,7 +27,6 @@
 #include "hw/timer/arm_mptimer.h"
 #include "migration/vmstate.h"
 #include "qapi/error.h"
-#include "qemu/main-loop.h"
 #include "qemu/module.h"
 #include "hw/core/cpu.h"
 
@@ -65,6 +64,7 @@ static inline uint32_t timerblock_scale(uint32_t control)
     return (((control >> 8) & 0xff) + 1) * 10;
 }
 
+/* Must be called within a ptimer transaction block */
 static inline void timerblock_set_count(struct ptimer_state *timer,
                                         uint32_t control, uint64_t *count)
 {
@@ -77,6 +77,7 @@ static inline void timerblock_set_count(struct ptimer_state *timer,
     ptimer_set_count(timer, *count);
 }
 
+/* Must be called within a ptimer transaction block */
 static inline void timerblock_run(struct ptimer_state *timer,
                                   uint32_t control, uint32_t load)
 {
@@ -124,6 +125,7 @@ static void timerblock_write(void *opaque, hwaddr addr,
     uint32_t control = tb->control;
     switch (addr) {
     case 0: /* Load */
+        ptimer_transaction_begin(tb->timer);
         /* Setting load to 0 stops the timer without doing the tick if
          * prescaler = 0.
          */
@@ -132,8 +134,10 @@ static void timerblock_write(void *opaque, hwaddr addr,
         }
         ptimer_set_limit(tb->timer, value, 1);
         timerblock_run(tb->timer, control, value);
+        ptimer_transaction_commit(tb->timer);
         break;
     case 4: /* Counter.  */
+        ptimer_transaction_begin(tb->timer);
         /* Setting counter to 0 stops the one-shot timer, or periodic with
          * load = 0, without doing the tick if prescaler = 0.
          */
@@ -143,8 +147,10 @@ static void timerblock_write(void *opaque, hwaddr addr,
         }
         timerblock_set_count(tb->timer, control, &value);
         timerblock_run(tb->timer, control, value);
+        ptimer_transaction_commit(tb->timer);
         break;
     case 8: /* Control.  */
+        ptimer_transaction_begin(tb->timer);
         if ((control & 3) != (value & 3)) {
             ptimer_stop(tb->timer);
         }
@@ -160,6 +166,7 @@ static void timerblock_write(void *opaque, hwaddr addr,
             timerblock_run(tb->timer, value, count);
         }
         tb->control = value;
+        ptimer_transaction_commit(tb->timer);
         break;
     case 12: /* Interrupt status.  */
         tb->status &= ~value;
@@ -212,9 +219,11 @@ static void timerblock_reset(TimerBlock *tb)
     tb->control = 0;
     tb->status = 0;
     if (tb->timer) {
+        ptimer_transaction_begin(tb->timer);
         ptimer_stop(tb->timer);
         ptimer_set_limit(tb->timer, 0, 1);
         ptimer_set_period(tb->timer, timerblock_scale(0));
+        ptimer_transaction_commit(tb->timer);
     }
 }
 
@@ -260,8 +269,7 @@ static void arm_mptimer_realize(DeviceState *dev, Error **errp)
      */
     for (i = 0; i < s->num_cpu; i++) {
         TimerBlock *tb = &s->timerblock[i];
-        QEMUBH *bh = qemu_bh_new(timerblock_tick, tb);
-        tb->timer = ptimer_init_with_bh(bh, PTIMER_POLICY);
+        tb->timer = ptimer_init(timerblock_tick, tb, PTIMER_POLICY);
         sysbus_init_irq(sbd, &tb->irq);
         memory_region_init_io(&tb->iomem, OBJECT(s), &timerblock_ops, tb,
                               "arm_mptimer_timerblock", 0x20);
