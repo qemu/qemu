@@ -92,6 +92,38 @@ typedef void (*ptimer_cb)(void *opaque);
 ptimer_state *ptimer_init_with_bh(QEMUBH *bh, uint8_t policy_mask);
 
 /**
+ * ptimer_init - Allocate and return a new ptimer
+ * @callback: function to call on ptimer expiry
+ * @callback_opaque: opaque pointer passed to @callback
+ * @policy: PTIMER_POLICY_* bits specifying behaviour
+ *
+ * The ptimer returned must be freed using ptimer_free().
+ *
+ * If a ptimer is created using this API then will use the
+ * transaction-based API for modifying ptimer state: all calls
+ * to functions which modify ptimer state:
+ *  - ptimer_set_period()
+ *  - ptimer_set_freq()
+ *  - ptimer_set_limit()
+ *  - ptimer_set_count()
+ *  - ptimer_run()
+ *  - ptimer_stop()
+ * must be between matched calls to ptimer_transaction_begin()
+ * and ptimer_transaction_commit(). When ptimer_transaction_commit()
+ * is called it will evaluate the state of the timer after all the
+ * changes in the transaction, and call the callback if necessary.
+ *
+ * The callback function is always called from within a transaction
+ * begin/commit block, so the callback should not call the
+ * ptimer_transaction_begin() function itself. If the callback changes
+ * the ptimer state such that another ptimer expiry is triggered, then
+ * the callback will be called a second time after the first call returns.
+ */
+ptimer_state *ptimer_init(ptimer_cb callback,
+                          void *callback_opaque,
+                          uint8_t policy_mask);
+
+/**
  * ptimer_free - Free a ptimer
  * @s: timer to free
  *
@@ -101,6 +133,28 @@ ptimer_state *ptimer_init_with_bh(QEMUBH *bh, uint8_t policy_mask);
 void ptimer_free(ptimer_state *s);
 
 /**
+ * ptimer_transaction_begin() - Start a ptimer modification transaction
+ *
+ * This function must be called before making any calls to functions
+ * which modify the ptimer's state (see the ptimer_init() documentation
+ * for a list of these), and must always have a matched call to
+ * ptimer_transaction_commit().
+ * It is an error to call this function for a BH-based ptimer;
+ * attempting to do this will trigger an assert.
+ */
+void ptimer_transaction_begin(ptimer_state *s);
+
+/**
+ * ptimer_transaction_commit() - Commit a ptimer modification transaction
+ *
+ * This function must be called after calls to functions which modify
+ * the ptimer's state, and completes the update of the ptimer. If the
+ * ptimer state now means that we should trigger the timer expiry
+ * callback, it will be called directly.
+ */
+void ptimer_transaction_commit(ptimer_state *s);
+
+/**
  * ptimer_set_period - Set counter increment interval in nanoseconds
  * @s: ptimer to configure
  * @period: period of the counter in nanoseconds
@@ -108,6 +162,9 @@ void ptimer_free(ptimer_state *s);
  * Note that if your counter behaviour is specified as having a
  * particular frequency rather than a period then ptimer_set_freq()
  * may be more appropriate.
+ *
+ * This function will assert if it is called outside a
+ * ptimer_transaction_begin/commit block, unless this is a bottom-half ptimer.
  */
 void ptimer_set_period(ptimer_state *s, int64_t period);
 
@@ -121,6 +178,9 @@ void ptimer_set_period(ptimer_state *s, int64_t period);
  * as setting the frequency then this function is more appropriate,
  * because it allows specifying an effective period which is
  * precise to fractions of a nanosecond, avoiding rounding errors.
+ *
+ * This function will assert if it is called outside a
+ * ptimer_transaction_begin/commit block, unless this is a bottom-half ptimer.
  */
 void ptimer_set_freq(ptimer_state *s, uint32_t freq);
 
@@ -148,6 +208,9 @@ uint64_t ptimer_get_limit(ptimer_state *s);
  * Set the limit value of the down-counter. The @reload flag can
  * be used to emulate the behaviour of timers which immediately
  * reload the counter when their reload register is written to.
+ *
+ * This function will assert if it is called outside a
+ * ptimer_transaction_begin/commit block, unless this is a bottom-half ptimer.
  */
 void ptimer_set_limit(ptimer_state *s, uint64_t limit, int reload);
 
@@ -169,6 +232,9 @@ uint64_t ptimer_get_count(ptimer_state *s);
  * Set the value of the down-counter. If the counter is currently
  * enabled this will arrange for a timer callback at the appropriate
  * point in the future.
+ *
+ * This function will assert if it is called outside a
+ * ptimer_transaction_begin/commit block, unless this is a bottom-half ptimer.
  */
 void ptimer_set_count(ptimer_state *s, uint64_t count);
 
@@ -183,6 +249,9 @@ void ptimer_set_count(ptimer_state *s, uint64_t count);
  * the counter value will then be reloaded from the limit and it will
  * start counting down again. If @oneshot is non-zero, then the counter
  * will disable itself when it reaches zero.
+ *
+ * This function will assert if it is called outside a
+ * ptimer_transaction_begin/commit block, unless this is a bottom-half ptimer.
  */
 void ptimer_run(ptimer_state *s, int oneshot);
 
@@ -195,6 +264,9 @@ void ptimer_run(ptimer_state *s, int oneshot);
  *
  * Note that this can cause it to "lose" time, even if it is immediately
  * restarted.
+ *
+ * This function will assert if it is called outside a
+ * ptimer_transaction_begin/commit block, unless this is a bottom-half ptimer.
  */
 void ptimer_stop(ptimer_state *s);
 
