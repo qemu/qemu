@@ -58,7 +58,6 @@
 #include "hw/sysbus.h"
 #include "migration/vmstate.h"
 #include "qemu/timer.h"
-#include "qemu/main-loop.h"
 #include "qemu/module.h"
 #include "hw/ptimer.h"
 
@@ -735,6 +734,7 @@ static uint32_t exynos4210_ltick_int_get_cnto(struct tick_timer *s)
 
 /*
  * Start local tick cnt timer.
+ * Must be called within exynos4210_ltick_tx_begin/commit block.
  */
 static void exynos4210_ltick_cnt_start(struct tick_timer *s)
 {
@@ -750,6 +750,7 @@ static void exynos4210_ltick_cnt_start(struct tick_timer *s)
 
 /*
  * Stop local tick cnt timer.
+ * Must be called within exynos4210_ltick_tx_begin/commit block.
  */
 static void exynos4210_ltick_cnt_stop(struct tick_timer *s)
 {
@@ -765,6 +766,18 @@ static void exynos4210_ltick_cnt_stop(struct tick_timer *s)
 
         s->cnt_run = 0;
     }
+}
+
+/* Start ptimer transaction for local tick timer */
+static void exynos4210_ltick_tx_begin(struct tick_timer *s)
+{
+    ptimer_transaction_begin(s->ptimer_tick);
+}
+
+/* Commit ptimer transaction for local tick timer */
+static void exynos4210_ltick_tx_commit(struct tick_timer *s)
+{
+    ptimer_transaction_commit(s->ptimer_tick);
 }
 
 /*
@@ -812,6 +825,7 @@ static uint32_t exynos4210_ltick_cnt_get_cnto(struct tick_timer *s)
 
 /*
  * Set new values of counters for CNT and INT timers
+ * Must be called within exynos4210_ltick_tx_begin/commit block.
  */
 static void exynos4210_ltick_set_cntb(struct tick_timer *s, uint32_t new_cnt,
         uint32_t new_int)
@@ -885,7 +899,9 @@ static void exynos4210_ltick_recalc_count(struct tick_timer *s)
 static void exynos4210_ltick_timer_init(struct tick_timer *s)
 {
     exynos4210_ltick_int_stop(s);
+    exynos4210_ltick_tx_begin(s);
     exynos4210_ltick_cnt_stop(s);
+    exynos4210_ltick_tx_commit(s);
 
     s->count = 0;
     s->distance = 0;
@@ -995,9 +1011,9 @@ static void exynos4210_mct_update_freq(Exynos4210MCTState *s)
         tx_ptimer_set_freq(s->g_timer.ptimer_frc, s->freq);
 
         /* local timer */
-        ptimer_set_freq(s->l_timer[0].tick_timer.ptimer_tick, s->freq);
+        tx_ptimer_set_freq(s->l_timer[0].tick_timer.ptimer_tick, s->freq);
         tx_ptimer_set_freq(s->l_timer[0].ptimer_frc, s->freq);
-        ptimer_set_freq(s->l_timer[1].tick_timer.ptimer_tick, s->freq);
+        tx_ptimer_set_freq(s->l_timer[1].tick_timer.ptimer_tick, s->freq);
         tx_ptimer_set_freq(s->l_timer[1].ptimer_frc, s->freq);
     }
 }
@@ -1304,6 +1320,7 @@ static void exynos4210_mct_write(void *opaque, hwaddr offset,
         s->l_timer[lt_i].reg.wstat |= L_WSTAT_TCON_WRITE;
         s->l_timer[lt_i].reg.tcon = value;
 
+        exynos4210_ltick_tx_begin(&s->l_timer[lt_i].tick_timer);
         /* Stop local CNT */
         if ((value & L_TCON_TICK_START) <
                 (old_val & L_TCON_TICK_START)) {
@@ -1331,6 +1348,7 @@ static void exynos4210_mct_write(void *opaque, hwaddr offset,
             DPRINTF("local timer[%d] start int\n", lt_i);
             exynos4210_ltick_int_start(&s->l_timer[lt_i].tick_timer);
         }
+        exynos4210_ltick_tx_commit(&s->l_timer[lt_i].tick_timer);
 
         /* Start or Stop local FRC if TCON changed */
         exynos4210_lfrc_tx_begin(&s->l_timer[lt_i]);
@@ -1356,8 +1374,10 @@ static void exynos4210_mct_write(void *opaque, hwaddr offset,
          * Due to this we should reload timer to nearest moment when CNT is
          * expired and then in event handler update tcntb to new TCNTB value.
          */
+        exynos4210_ltick_tx_begin(&s->l_timer[lt_i].tick_timer);
         exynos4210_ltick_set_cntb(&s->l_timer[lt_i].tick_timer, value,
                 s->l_timer[lt_i].tick_timer.icntb);
+        exynos4210_ltick_tx_commit(&s->l_timer[lt_i].tick_timer);
 
         s->l_timer[lt_i].reg.wstat |= L_WSTAT_TCNTB_WRITE;
         s->l_timer[lt_i].reg.cnt[L_REG_CNT_TCNTB] = value;
@@ -1486,7 +1506,6 @@ static void exynos4210_mct_init(Object *obj)
     int i;
     Exynos4210MCTState *s = EXYNOS4210_MCT(obj);
     SysBusDevice *dev = SYS_BUS_DEVICE(obj);
-    QEMUBH *bh[2];
 
     /* Global timer */
     s->g_timer.ptimer_frc = ptimer_init(exynos4210_gfrc_event, s,
@@ -1495,9 +1514,9 @@ static void exynos4210_mct_init(Object *obj)
 
     /* Local timers */
     for (i = 0; i < 2; i++) {
-        bh[0] = qemu_bh_new(exynos4210_ltick_event, &s->l_timer[i]);
         s->l_timer[i].tick_timer.ptimer_tick =
-            ptimer_init_with_bh(bh[0], PTIMER_POLICY_DEFAULT);
+            ptimer_init(exynos4210_ltick_event, &s->l_timer[i],
+                        PTIMER_POLICY_DEFAULT);
         s->l_timer[i].ptimer_frc =
             ptimer_init(exynos4210_lfrc_event, &s->l_timer[i],
                         PTIMER_POLICY_DEFAULT);
