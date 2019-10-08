@@ -317,10 +317,10 @@ static void imx_epit_realize(DeviceState *dev, Error **errp)
                           0x00001000);
     sysbus_init_mmio(sbd, &s->iomem);
 
-    s->timer_reload = ptimer_init(NULL, PTIMER_POLICY_DEFAULT);
+    s->timer_reload = ptimer_init_with_bh(NULL, PTIMER_POLICY_DEFAULT);
 
     bh = qemu_bh_new(imx_epit_cmp, s);
-    s->timer_cmp = ptimer_init(bh, PTIMER_POLICY_DEFAULT);
+    s->timer_cmp = ptimer_init_with_bh(bh, PTIMER_POLICY_DEFAULT);
 }
 
 static void imx_epit_class_init(ObjectClass *klass, void *data)

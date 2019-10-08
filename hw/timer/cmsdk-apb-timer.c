@@ -218,7 +218,7 @@ static void cmsdk_apb_timer_realize(DeviceState *dev, Error **errp)
     }
 
     bh = qemu_bh_new(cmsdk_apb_timer_tick, s);
-    s->timer = ptimer_init(bh,
+    s->timer = ptimer_init_with_bh(bh,
                            PTIMER_POLICY_WRAP_AFTER_ONE_PERIOD |
                            PTIMER_POLICY_TRIGGER_ONLY_ON_DECREMENT |
                            PTIMER_POLICY_NO_IMMEDIATE_RELOAD |

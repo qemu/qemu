@@ -358,7 +358,7 @@ const VMStateDescription vmstate_ptimer = {
     }
 };
 
-ptimer_state *ptimer_init(QEMUBH *bh, uint8_t policy_mask)
+ptimer_state *ptimer_init_with_bh(QEMUBH *bh, uint8_t policy_mask)
 {
     ptimer_state *s;
 

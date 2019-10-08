@@ -229,7 +229,7 @@ static void mss_timer_init(Object *obj)
         struct Msf2Timer *st = &t->timers[i];
 
         st->bh = qemu_bh_new(timer_hit, st);
-        st->ptimer = ptimer_init(st->bh, PTIMER_POLICY_DEFAULT);
+        st->ptimer = ptimer_init_with_bh(st->bh, PTIMER_POLICY_DEFAULT);
         ptimer_set_freq(st->ptimer, t->freq_hz);
         sysbus_init_irq(SYS_BUS_DEVICE(obj), &st->irq);
     }

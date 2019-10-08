@@ -72,7 +72,7 @@
  * ptimer_set_count() or ptimer_set_limit() will not trigger the timer
  * (though it will cause a reload). Only a counter decrement to "0"
  * will cause a trigger. Not compatible with NO_IMMEDIATE_TRIGGER;
- * ptimer_init() will assert() that you don't set both.
+ * ptimer_init_with_bh() will assert() that you don't set both.
  */
 #define PTIMER_POLICY_TRIGGER_ONLY_ON_DECREMENT (1 << 5)
 
@@ -81,7 +81,7 @@ typedef struct ptimer_state ptimer_state;
 typedef void (*ptimer_cb)(void *opaque);
 
 /**
- * ptimer_init - Allocate and return a new ptimer
+ * ptimer_init_with_bh - Allocate and return a new ptimer
  * @bh: QEMU bottom half which is run on timer expiry
  * @policy: PTIMER_POLICY_* bits specifying behaviour
  *
@@ -89,13 +89,13 @@ typedef void (*ptimer_cb)(void *opaque);
  * The ptimer takes ownership of @bh and will delete it
  * when the ptimer is eventually freed.
  */
-ptimer_state *ptimer_init(QEMUBH *bh, uint8_t policy_mask);
+ptimer_state *ptimer_init_with_bh(QEMUBH *bh, uint8_t policy_mask);
 
 /**
  * ptimer_free - Free a ptimer
  * @s: timer to free
  *
- * Free a ptimer created using ptimer_init() (including
+ * Free a ptimer created using ptimer_init_with_bh() (including
  * deleting the bottom half which it is using).
  */
 void ptimer_free(ptimer_state *s);
@@ -178,7 +178,8 @@ void ptimer_set_count(ptimer_state *s, uint64_t count);
  * @oneshot: non-zero if this timer should only count down once
  *
  * Start a ptimer counting down; when it reaches zero the bottom half
- * passed to ptimer_init() will be invoked. If the @oneshot argument is zero,
+ * passed to ptimer_init_with_bh() will be invoked.
+ * If the @oneshot argument is zero,
  * the counter value will then be reloaded from the limit and it will
  * start counting down again. If @oneshot is non-zero, then the counter
  * will disable itself when it reaches zero.
