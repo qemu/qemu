@@ -315,6 +315,7 @@ static void riscv_sifive_u_init(MachineState *machine)
     MemoryRegion *system_memory = get_system_memory();
     MemoryRegion *main_mem = g_new(MemoryRegion, 1);
     MemoryRegion *flash0 = g_new(MemoryRegion, 1);
+    target_ulong start_addr = memmap[SIFIVE_U_DRAM].base;
     int i;
 
     /* Initialize SoC */
@@ -357,6 +358,10 @@ static void riscv_sifive_u_init(MachineState *machine)
         }
     }
 
+    if (s->start_in_flash) {
+        start_addr = memmap[SIFIVE_U_FLASH0].base;
+    }
+
     /* reset vector */
     uint32_t reset_vec[8] = {
         0x00000297,                    /* 1:  auipc  t0, %pcrel_hi(dtb) */
@@ -369,7 +374,7 @@ static void riscv_sifive_u_init(MachineState *machine)
 #endif
         0x00028067,                    /*     jr     t0 */
         0x00000000,
-        memmap[SIFIVE_U_DRAM].base, /* start: .dword DRAM_BASE */
+        start_addr,                    /* start: .dword */
         0x00000000,
                                        /* dtb: */
     };
@@ -433,8 +438,31 @@ static void riscv_sifive_u_soc_init(Object *obj)
                           TYPE_CADENCE_GEM);
 }
 
+static bool sifive_u_get_start_in_flash(Object *obj, Error **errp)
+{
+    SiFiveUState *s = RISCV_U_MACHINE(obj);
+
+    return s->start_in_flash;
+}
+
+static void sifive_u_set_start_in_flash(Object *obj, bool value, Error **errp)
+{
+    SiFiveUState *s = RISCV_U_MACHINE(obj);
+
+    s->start_in_flash = value;
+}
+
 static void riscv_sifive_u_machine_instance_init(Object *obj)
 {
+    SiFiveUState *s = RISCV_U_MACHINE(obj);
+
+    s->start_in_flash = false;
+    object_property_add_bool(obj, "start-in-flash", sifive_u_get_start_in_flash,
+                             sifive_u_set_start_in_flash, NULL);
+    object_property_set_description(obj, "start-in-flash",
+                                    "Set on to tell QEMU's ROM to jump to " \
+                                    "flash. Otherwise QEMU will jump to DRAM",
+                                    NULL);
 }
 
 static void riscv_sifive_u_soc_realize(DeviceState *dev, Error **errp)
