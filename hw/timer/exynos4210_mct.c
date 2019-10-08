@@ -608,6 +608,7 @@ static uint64_t exynos4210_lfrc_get_count(Exynos4210MCTLT *s)
 
 /*
  * Set counter of FRC local timer.
+ * Must be called from within exynos4210_lfrc_tx_begin/commit block.
  */
 static void exynos4210_lfrc_update_count(Exynos4210MCTLT *s)
 {
@@ -620,6 +621,7 @@ static void exynos4210_lfrc_update_count(Exynos4210MCTLT *s)
 
 /*
  * Start local FRC timer
+ * Must be called from within exynos4210_lfrc_tx_begin/commit block.
  */
 static void exynos4210_lfrc_start(Exynos4210MCTLT *s)
 {
@@ -628,10 +630,23 @@ static void exynos4210_lfrc_start(Exynos4210MCTLT *s)
 
 /*
  * Stop local FRC timer
+ * Must be called from within exynos4210_lfrc_tx_begin/commit block.
  */
 static void exynos4210_lfrc_stop(Exynos4210MCTLT *s)
 {
     ptimer_stop(s->ptimer_frc);
+}
+
+/* Start ptimer transaction for local FRC timer */
+static void exynos4210_lfrc_tx_begin(Exynos4210MCTLT *s)
+{
+    ptimer_transaction_begin(s->ptimer_frc);
+}
+
+/* Commit ptimer transaction for local FRC timer */
+static void exynos4210_lfrc_tx_commit(Exynos4210MCTLT *s)
+{
+    ptimer_transaction_commit(s->ptimer_frc);
 }
 
 /*
@@ -981,9 +996,9 @@ static void exynos4210_mct_update_freq(Exynos4210MCTState *s)
 
         /* local timer */
         ptimer_set_freq(s->l_timer[0].tick_timer.ptimer_tick, s->freq);
-        ptimer_set_freq(s->l_timer[0].ptimer_frc, s->freq);
+        tx_ptimer_set_freq(s->l_timer[0].ptimer_frc, s->freq);
         ptimer_set_freq(s->l_timer[1].tick_timer.ptimer_tick, s->freq);
-        ptimer_set_freq(s->l_timer[1].ptimer_frc, s->freq);
+        tx_ptimer_set_freq(s->l_timer[1].ptimer_frc, s->freq);
     }
 }
 
@@ -1012,7 +1027,9 @@ static void exynos4210_mct_reset(DeviceState *d)
         s->l_timer[i].tick_timer.count = 0;
         s->l_timer[i].tick_timer.distance = 0;
         s->l_timer[i].tick_timer.progress = 0;
+        exynos4210_lfrc_tx_begin(&s->l_timer[i]);
         ptimer_stop(s->l_timer[i].ptimer_frc);
+        exynos4210_lfrc_tx_commit(&s->l_timer[i]);
 
         exynos4210_ltick_timer_init(&s->l_timer[i].tick_timer);
     }
@@ -1316,6 +1333,7 @@ static void exynos4210_mct_write(void *opaque, hwaddr offset,
         }
 
         /* Start or Stop local FRC if TCON changed */
+        exynos4210_lfrc_tx_begin(&s->l_timer[lt_i]);
         if ((value & L_TCON_FRC_START) >
         (s->l_timer[lt_i].reg.tcon & L_TCON_FRC_START)) {
             DPRINTF("local timer[%d] start frc\n", lt_i);
@@ -1326,6 +1344,7 @@ static void exynos4210_mct_write(void *opaque, hwaddr offset,
             DPRINTF("local timer[%d] stop frc\n", lt_i);
             exynos4210_lfrc_stop(&s->l_timer[lt_i]);
         }
+        exynos4210_lfrc_tx_commit(&s->l_timer[lt_i]);
         break;
 
     case L0_TCNTB: case L1_TCNTB:
@@ -1477,11 +1496,11 @@ static void exynos4210_mct_init(Object *obj)
     /* Local timers */
     for (i = 0; i < 2; i++) {
         bh[0] = qemu_bh_new(exynos4210_ltick_event, &s->l_timer[i]);
-        bh[1] = qemu_bh_new(exynos4210_lfrc_event, &s->l_timer[i]);
         s->l_timer[i].tick_timer.ptimer_tick =
             ptimer_init_with_bh(bh[0], PTIMER_POLICY_DEFAULT);
         s->l_timer[i].ptimer_frc =
-            ptimer_init_with_bh(bh[1], PTIMER_POLICY_DEFAULT);
+            ptimer_init(exynos4210_lfrc_event, &s->l_timer[i],
+                        PTIMER_POLICY_DEFAULT);
         s->l_timer[i].id = i;
     }
 
