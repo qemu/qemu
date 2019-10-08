@@ -29,7 +29,6 @@
 
 #include "qemu/osdep.h"
 #include "qemu/log.h"
-#include "qemu/main-loop.h"
 #include "qemu/module.h"
 #include "qapi/error.h"
 #include "trace.h"
@@ -121,14 +120,17 @@ static void cmsdk_apb_timer_write(void *opaque, hwaddr offset, uint64_t value,
                           "CMSDK APB timer: EXTIN input not supported\n");
         }
         s->ctrl = value & 0xf;
+        ptimer_transaction_begin(s->timer);
         if (s->ctrl & R_CTRL_EN_MASK) {
             ptimer_run(s->timer, ptimer_get_limit(s->timer) == 0);
         } else {
             ptimer_stop(s->timer);
         }
+        ptimer_transaction_commit(s->timer);
         break;
     case A_RELOAD:
         /* Writing to reload also sets the current timer value */
+        ptimer_transaction_begin(s->timer);
         if (!value) {
             ptimer_stop(s->timer);
         }
@@ -140,8 +142,10 @@ static void cmsdk_apb_timer_write(void *opaque, hwaddr offset, uint64_t value,
              */
             ptimer_run(s->timer, 0);
         }
+        ptimer_transaction_commit(s->timer);
         break;
     case A_VALUE:
+        ptimer_transaction_begin(s->timer);
         if (!value && !ptimer_get_limit(s->timer)) {
             ptimer_stop(s->timer);
         }
@@ -149,6 +153,7 @@ static void cmsdk_apb_timer_write(void *opaque, hwaddr offset, uint64_t value,
         if (value && (s->ctrl & R_CTRL_EN_MASK)) {
             ptimer_run(s->timer, ptimer_get_limit(s->timer) == 0);
         }
+        ptimer_transaction_commit(s->timer);
         break;
     case A_INTSTATUS:
         /* Just one bit, which is W1C. */
@@ -191,9 +196,11 @@ static void cmsdk_apb_timer_reset(DeviceState *dev)
     trace_cmsdk_apb_timer_reset();
     s->ctrl = 0;
     s->intstatus = 0;
+    ptimer_transaction_begin(s->timer);
     ptimer_stop(s->timer);
     /* Set the limit and the count */
     ptimer_set_limit(s->timer, 0, 1);
+    ptimer_transaction_commit(s->timer);
 }
 
 static void cmsdk_apb_timer_init(Object *obj)
@@ -210,21 +217,21 @@ static void cmsdk_apb_timer_init(Object *obj)
 static void cmsdk_apb_timer_realize(DeviceState *dev, Error **errp)
 {
     CMSDKAPBTIMER *s = CMSDK_APB_TIMER(dev);
-    QEMUBH *bh;
 
     if (s->pclk_frq == 0) {
         error_setg(errp, "CMSDK APB timer: pclk-frq property must be set");
         return;
     }
 
-    bh = qemu_bh_new(cmsdk_apb_timer_tick, s);
-    s->timer = ptimer_init_with_bh(bh,
+    s->timer = ptimer_init(cmsdk_apb_timer_tick, s,
                            PTIMER_POLICY_WRAP_AFTER_ONE_PERIOD |
                            PTIMER_POLICY_TRIGGER_ONLY_ON_DECREMENT |
                            PTIMER_POLICY_NO_IMMEDIATE_RELOAD |
                            PTIMER_POLICY_NO_COUNTER_ROUND_DOWN);
 
+    ptimer_transaction_begin(s->timer);
     ptimer_set_freq(s->timer, s->pclk_frq);
+    ptimer_transaction_commit(s->timer);
 }
 
 static const VMStateDescription cmsdk_apb_timer_vmstate = {
