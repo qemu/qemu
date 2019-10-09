@@ -254,6 +254,11 @@ quite a bit. It will be removed without replacement unless some users speaks
 up at the @email{qemu-devel@@nongnu.org} mailing list with information about
 their usecases.
 
+@subsection ide-drive (since 4.2)
+
+The 'ide-drive' device is deprecated. Users should use 'ide-hd' or
+'ide-cd' as appropriate to get an IDE hard disk or CD-ROM as needed.
+
 @section System emulator machines
 
 @subsection pc-0.12, pc-0.13, pc-0.14 and pc-0.15 (since 4.0)
