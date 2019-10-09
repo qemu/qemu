@@ -273,10 +273,29 @@ void qemu_co_rwlock_wrlock(CoRwlock *lock);
  */
 void qemu_co_rwlock_unlock(CoRwlock *lock);
 
+typedef struct QemuCoSleepState QemuCoSleepState;
+
 /**
- * Yield the coroutine for a given duration
+ * Yield the coroutine for a given duration. During this yield, @sleep_state
+ * (if not NULL) is set to an opaque pointer, which may be used for
+ * qemu_co_sleep_wake(). Be careful, the pointer is set back to zero when the
+ * timer fires. Don't save the obtained value to other variables and don't call
+ * qemu_co_sleep_wake from another aio context.
  */
-void coroutine_fn qemu_co_sleep_ns(QEMUClockType type, int64_t ns);
+void coroutine_fn qemu_co_sleep_ns_wakeable(QEMUClockType type, int64_t ns,
+                                            QemuCoSleepState **sleep_state);
+static inline void coroutine_fn qemu_co_sleep_ns(QEMUClockType type, int64_t ns)
+{
+    qemu_co_sleep_ns_wakeable(type, ns, NULL);
+}
+
+/**
+ * Wake a coroutine if it is sleeping in qemu_co_sleep_ns. The timer will be
+ * deleted. @sleep_state must be the variable whose address was given to
+ * qemu_co_sleep_ns() and should be checked to be non-NULL before calling
+ * qemu_co_sleep_wake().
+ */
+void qemu_co_sleep_wake(QemuCoSleepState *sleep_state);
 
 /**
  * Yield until a file descriptor becomes readable
