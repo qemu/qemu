@@ -592,9 +592,9 @@ static void kvm_mce_inject(X86CPU *cpu, hwaddr paddr, int code)
                        (MCM_ADDR_PHYS << 6) | 0xc, flags);
 }
 
-static void hardware_memory_error(void)
+static void hardware_memory_error(void *host_addr)
 {
-    fprintf(stderr, "Hardware memory error!\n");
+    error_report("QEMU got Hardware memory error at addr %p", host_addr);
     exit(1);
 }
 
@@ -618,15 +618,34 @@ void kvm_arch_on_sigbus_vcpu(CPUState *c, int code, void *addr)
             kvm_physical_memory_addr_from_host(c->kvm_state, addr, &paddr)) {
             kvm_hwpoison_page_add(ram_addr);
             kvm_mce_inject(cpu, paddr, code);
+
+            /*
+             * Use different logging severity based on error type.
+             * If there is additional MCE reporting on the hypervisor, QEMU VA
+             * could be another source to identify the PA and MCE details.
+             */
+            if (code == BUS_MCEERR_AR) {
+                error_report("Guest MCE Memory Error at QEMU addr %p and "
+                    "GUEST addr 0x%" HWADDR_PRIx " of type %s injected",
+                    addr, paddr, "BUS_MCEERR_AR");
+            } else {
+                 warn_report("Guest MCE Memory Error at QEMU addr %p and "
+                     "GUEST addr 0x%" HWADDR_PRIx " of type %s injected",
+                     addr, paddr, "BUS_MCEERR_AO");
+            }
+
             return;
         }
 
-        fprintf(stderr, "Hardware memory error for memory used by "
-                "QEMU itself instead of guest system!\n");
+        if (code == BUS_MCEERR_AO) {
+            warn_report("Hardware memory error at addr %p of type %s "
+                "for memory used by QEMU itself instead of guest system!",
+                 addr, "BUS_MCEERR_AO");
+        }
     }
 
     if (code == BUS_MCEERR_AR) {
-        hardware_memory_error();
+        hardware_memory_error(addr);
     }
 
     /* Hope we are lucky for AO MCE */
