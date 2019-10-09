@@ -1,14 +1,36 @@
 /*
- * Xtensa processor core configuration information.
+ * xtensa/config/core-isa.h -- HAL definitions that are dependent on Xtensa
+ *				processor CORE configuration
  *
- * This file is subject to the terms and conditions of version 2.1 of the GNU
- * Lesser General Public License as published by the Free Software Foundation.
- *
- * Copyright (c) 1999-2009 Tensilica Inc.
+ *  See <xtensa/config/core.h>, which includes this file, for more details.
  */
+
+/* Xtensa processor core configuration information.
+
+   Copyright (c) 1999-2019 Tensilica Inc.
+
+   Permission is hereby granted, free of charge, to any person obtaining
+   a copy of this software and associated documentation files (the
+   "Software"), to deal in the Software without restriction, including
+   without limitation the rights to use, copy, modify, merge, publish,
+   distribute, sublicense, and/or sell copies of the Software, and to
+   permit persons to whom the Software is furnished to do so, subject to
+   the following conditions:
+
+   The above copyright notice and this permission notice shall be included
+   in all copies or substantial portions of the Software.
+
+   THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
+   EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
+   MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.
+   IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY
+   CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT,
+   TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE
+   SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.  */
 
 #ifndef XTENSA_CORE_TEST_MMUHIFI_C3_CORE_ISA_H
 #define XTENSA_CORE_TEST_MMUHIFI_C3_CORE_ISA_H
+
 
 /****************************************************************************
 	    Parameters Useful for Any Code, USER or PRIVILEGED
@@ -32,6 +54,7 @@
 #define XCHAL_HAVE_DEBUG		1	/* debug option */
 #define XCHAL_HAVE_DENSITY		1	/* 16-bit instructions */
 #define XCHAL_HAVE_LOOPS		1	/* zero-overhead loops */
+#define XCHAL_LOOP_BUFFER_SIZE		0	/* zero-ov. loop instr buffer size */
 #define XCHAL_HAVE_NSA			1	/* NSA/NSAU instructions */
 #define XCHAL_HAVE_MINMAX		1	/* MIN/MAX instructions */
 #define XCHAL_HAVE_SEXT			1	/* SEXT instruction */
@@ -59,44 +82,73 @@
 #define XCHAL_HAVE_TAP_MASTER		0	/* JTAG TAP control instr's */
 #define XCHAL_HAVE_PRID			1	/* processor ID register */
 #define XCHAL_HAVE_EXTERN_REGS		1	/* WER/RER instructions */
+#define XCHAL_HAVE_MX			1	/* MX core (Tensilica internal) */
 #define XCHAL_HAVE_MP_INTERRUPTS	1	/* interrupt distributor port */
 #define XCHAL_HAVE_MP_RUNSTALL		1	/* core RunStall control port */
+#define XCHAL_HAVE_PSO			0	/* Power Shut-Off */
+#define XCHAL_HAVE_PSO_CDM		0	/* core/debug/mem pwr domains */
+#define XCHAL_HAVE_PSO_FULL_RETENTION	0	/* all regs preserved on PSO */
 #define XCHAL_HAVE_THREADPTR		1	/* THREADPTR register */
 #define XCHAL_HAVE_BOOLEANS		1	/* boolean registers */
 #define XCHAL_HAVE_CP			1	/* CPENABLE reg (coprocessor) */
 #define XCHAL_CP_MAXCFG			2	/* max allowed cp id plus one */
 #define XCHAL_HAVE_MAC16		0	/* MAC16 package */
 #define XCHAL_HAVE_VECTORFPU2005	0	/* vector floating-point pkg */
-#define XCHAL_HAVE_FP			0	/* floating point pkg */
+#define XCHAL_HAVE_FP			0	/* single prec floating point */
+#define XCHAL_HAVE_FP_DIV		0	/* FP with DIV instructions */
+#define XCHAL_HAVE_FP_RECIP		0	/* FP with RECIP instructions */
+#define XCHAL_HAVE_FP_SQRT		0	/* FP with SQRT instructions */
+#define XCHAL_HAVE_FP_RSQRT		0	/* FP with RSQRT instructions */
 #define XCHAL_HAVE_DFP			0	/* double precision FP pkg */
+#define XCHAL_HAVE_DFP_DIV		0	/* DFP with DIV instructions */
+#define XCHAL_HAVE_DFP_RECIP		0	/* DFP with RECIP instructions*/
+#define XCHAL_HAVE_DFP_SQRT		0	/* DFP with SQRT instructions */
+#define XCHAL_HAVE_DFP_RSQRT		0	/* DFP with RSQRT instructions*/
 #define XCHAL_HAVE_DFP_accel		0	/* double precision FP acceleration pkg */
 #define XCHAL_HAVE_VECTRA1		0	/* Vectra I  pkg */
 #define XCHAL_HAVE_VECTRALX		0	/* Vectra LX pkg */
 #define XCHAL_HAVE_HIFIPRO		0	/* HiFiPro Audio Engine pkg */
+#define XCHAL_HAVE_HIFI3		0	/* HiFi3 Audio Engine pkg */
 #define XCHAL_HAVE_HIFI2		1	/* HiFi2 Audio Engine pkg */
+#define XCHAL_HAVE_HIFI2EP		0	/* HiFi2EP */
+#define XCHAL_HAVE_HIFI_MINI		0	
 #define XCHAL_HAVE_CONNXD2		0	/* ConnX D2 pkg */
+#define XCHAL_HAVE_BBE16		0	/* ConnX BBE16 pkg */
+#define XCHAL_HAVE_BBE16_RSQRT		0	/* BBE16 & vector recip sqrt */
+#define XCHAL_HAVE_BBE16_VECDIV		0	/* BBE16 & vector divide */
+#define XCHAL_HAVE_BBE16_DESPREAD	0	/* BBE16 & despread */
+#define XCHAL_HAVE_BBENEP		0	/* ConnX BBENEP pkgs */
+#define XCHAL_HAVE_BSP3			0	/* ConnX BSP3 pkg */
+#define XCHAL_HAVE_BSP3_TRANSPOSE	0	/* BSP3 & transpose32x32 */
+#define XCHAL_HAVE_SSP16		0	/* ConnX SSP16 pkg */
+#define XCHAL_HAVE_SSP16_VITERBI	0	/* SSP16 & viterbi */
+#define XCHAL_HAVE_TURBO16		0	/* ConnX Turbo16 pkg */
+#define XCHAL_HAVE_BBP16		0	/* ConnX BBP16 pkg */
+#define XCHAL_HAVE_FLIX3		0	/* basic 3-way FLIX option */
 
 
 /*----------------------------------------------------------------------
 				MISC
   ----------------------------------------------------------------------*/
 
+#define XCHAL_NUM_LOADSTORE_UNITS	1	/* load/store units */
 #define XCHAL_NUM_WRITEBUFFER_ENTRIES	8	/* size of write buffer */
 #define XCHAL_INST_FETCH_WIDTH		8	/* instr-fetch width in bytes */
 #define XCHAL_DATA_WIDTH		8	/* data width in bytes */
+#define XCHAL_DATA_PIPE_DELAY		1	/* d-side pipeline delay
+						   (1 = 5-stage, 2 = 7-stage) */
 /*  In T1050, applies to selected core load and store instructions (see ISA): */
 #define XCHAL_UNALIGNED_LOAD_EXCEPTION	1	/* unaligned loads cause exc. */
 #define XCHAL_UNALIGNED_STORE_EXCEPTION	1	/* unaligned stores cause exc.*/
 #define XCHAL_UNALIGNED_LOAD_HW		0	/* unaligned loads work in hw */
 #define XCHAL_UNALIGNED_STORE_HW	0	/* unaligned stores work in hw*/
 
-#define XCHAL_SW_VERSION		800000	/* sw version of this header */
+#define XCHAL_SW_VERSION		1000006	/* sw version of this header */
 
 #define XCHAL_CORE_ID			"test_mmuhifi_c3"	/* alphanum core name
 						   (CoreID) set in the Xtensa
 						   Processor Generator */
 
-#define XCHAL_CORE_DESCRIPTION		"test_mmuhifi_c3"
 #define XCHAL_BUILD_UNIQUE_ID		0x00005A6A	/* 22-bit sw build ID */
 
 /*
@@ -136,6 +188,10 @@
 #define XCHAL_DCACHE_IS_WRITEBACK	1	/* writeback feature */
 #define XCHAL_DCACHE_IS_COHERENT	1	/* MP coherence feature */
 
+#define XCHAL_HAVE_PREFETCH		0	/* PREFCTL register */
+#define XCHAL_HAVE_PREFETCH_L1		0	/* prefetch to L1 dcache */
+#define XCHAL_PREFETCH_CASTOUT_LINES	0	/* dcache pref. castout bufsz */
+
 
 
 
@@ -172,6 +228,8 @@
 #define XCHAL_ICACHE_ACCESS_SIZE	8
 #define XCHAL_DCACHE_ACCESS_SIZE	8
 
+#define XCHAL_DCACHE_BANKS		1	/* number of banks */
+
 /*  Number of encoded cache attr bits (see <xtensa/hal.h> for decoded bits):  */
 #define XCHAL_CA_BITS			4
 
@@ -186,6 +244,8 @@
 #define XCHAL_NUM_DATARAM		0	/* number of core data RAMs */
 #define XCHAL_NUM_URAM			0	/* number of core unified RAMs*/
 #define XCHAL_NUM_XLMI			0	/* number of core XLMI ports */
+
+#define XCHAL_HAVE_IMEM_LOADSTORE	1	/* can load/store to IROM/IRAM*/
 
 
 /*----------------------------------------------------------------------
@@ -261,6 +321,7 @@
 #define XCHAL_INTTYPE_MASK_TIMER	0x00000140
 #define XCHAL_INTTYPE_MASK_NMI		0x00000000
 #define XCHAL_INTTYPE_MASK_WRITE_ERROR	0x00000000
+#define XCHAL_INTTYPE_MASK_PROFILING	0x00000000
 
 /*  Interrupt numbers assigned to specific interrupt sources:  */
 #define XCHAL_TIMER0_INTERRUPT		6	/* CCOMPARE0 */
@@ -273,7 +334,7 @@
 
 
 /*
- *  External interrupt vectors/levels.
+ *  External interrupt mapping.
  *  These macros describe how Xtensa processor interrupt numbers
  *  (as numbered internally, eg. in INTERRUPT and INTENABLE registers)
  *  map to external BInterrupt<n> pins, for those interrupts
@@ -281,7 +342,7 @@
  *  See the Xtensa processor databook for more details.
  */
 
-/*  Core interrupt numbers mapped to each EXTERNAL interrupt number:  */
+/*  Core interrupt numbers mapped to each EXTERNAL BInterrupt pin number:  */
 #define XCHAL_EXTINT0_NUM		0	/* (intlevel 1) */
 #define XCHAL_EXTINT1_NUM		1	/* (intlevel 1) */
 #define XCHAL_EXTINT2_NUM		2	/* (intlevel 1) */
@@ -291,6 +352,16 @@
 #define XCHAL_EXTINT6_NUM		9	/* (intlevel 1) */
 #define XCHAL_EXTINT7_NUM		10	/* (intlevel 1) */
 #define XCHAL_EXTINT8_NUM		11	/* (intlevel 1) */
+/*  EXTERNAL BInterrupt pin numbers mapped to each core interrupt number:  */
+#define XCHAL_INT0_EXTNUM		0	/* (intlevel 1) */
+#define XCHAL_INT1_EXTNUM		1	/* (intlevel 1) */
+#define XCHAL_INT2_EXTNUM		2	/* (intlevel 1) */
+#define XCHAL_INT3_EXTNUM		3	/* (intlevel 1) */
+#define XCHAL_INT4_EXTNUM		4	/* (intlevel 1) */
+#define XCHAL_INT5_EXTNUM		5	/* (intlevel 1) */
+#define XCHAL_INT9_EXTNUM		6	/* (intlevel 1) */
+#define XCHAL_INT10_EXTNUM		7	/* (intlevel 1) */
+#define XCHAL_INT11_EXTNUM		8	/* (intlevel 1) */
 
 
 /*----------------------------------------------------------------------
@@ -300,11 +371,13 @@
 #define XCHAL_XEA_VERSION		2	/* Xtensa Exception Architecture
 						   number: 1 == XEA1 (old)
 							   2 == XEA2 (new)
-							   0 == XEAX (extern) */
+							   0 == XEAX (extern) or TX */
 #define XCHAL_HAVE_XEA1			0	/* Exception Architecture 1 */
 #define XCHAL_HAVE_XEA2			1	/* Exception Architecture 2 */
 #define XCHAL_HAVE_XEAX			0	/* External Exception Arch. */
 #define XCHAL_HAVE_EXCEPTIONS		1	/* exception option */
+#define XCHAL_HAVE_HALT			0	/* halt architecture option */
+#define XCHAL_HAVE_BOOTLOADER		0	/* boot loader (for TX) */
 #define XCHAL_HAVE_MEM_ECC_PARITY	0	/* local memory ECC/parity */
 #define XCHAL_HAVE_VECTOR_SELECT	1	/* relocatable vectors */
 #define XCHAL_HAVE_VECBASE		1	/* relocatable vectors */
@@ -344,13 +417,30 @@
 
 
 /*----------------------------------------------------------------------
-				DEBUG
+				DEBUG MODULE
   ----------------------------------------------------------------------*/
 
+/*  Misc  */
+#define XCHAL_HAVE_DEBUG_ERI		0	/* ERI to debug module */
+#define XCHAL_HAVE_DEBUG_APB		0	/* APB to debug module */
+#define XCHAL_HAVE_DEBUG_JTAG		0	/* JTAG to debug module */
+
+/*  On-Chip Debug (OCD)  */
 #define XCHAL_HAVE_OCD			1	/* OnChipDebug option */
 #define XCHAL_NUM_IBREAK		0	/* number of IBREAKn regs */
 #define XCHAL_NUM_DBREAK		0	/* number of DBREAKn regs */
-#define XCHAL_HAVE_OCD_DIR_ARRAY	0	/* faster OCD option */
+#define XCHAL_HAVE_OCD_DIR_ARRAY	0	/* faster OCD option (to LX4) */
+#define XCHAL_HAVE_OCD_LS32DDR		0	/* L32DDR/S32DDR (faster OCD) */
+
+/*  TRAX (in core)  */
+#define XCHAL_HAVE_TRAX			0	/* TRAX in debug module */
+#define XCHAL_TRAX_MEM_SIZE		0	/* TRAX memory size in bytes */
+#define XCHAL_TRAX_MEM_SHAREABLE	0	/* start/end regs; ready sig. */
+#define XCHAL_TRAX_ATB_WIDTH		0	/* ATB width (bits), 0=no ATB */
+#define XCHAL_TRAX_TIME_WIDTH		0	/* timestamp bitwidth, 0=none */
+
+/*  Perf counters  */
+#define XCHAL_NUM_PERF_COUNTERS		0	/* performance counters */
 
 
 /*----------------------------------------------------------------------
