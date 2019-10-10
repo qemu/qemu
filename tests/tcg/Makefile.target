@@ -30,7 +30,7 @@
 #
 
 all:
--include ../../config-host.mak
+-include ../../../config-host.mak
 -include ../config-$(TARGET).mak
 
 # for including , in command strings
