@@ -203,24 +203,28 @@ periodic_timer_update(RTCState *s, int64_t current_time, uint32_t old_period)
 
     period = rtc_periodic_clock_ticks(s);
 
-    if (period) {
-        /* compute 32 khz clock */
-        cur_clock =
-            muldiv64(current_time, RTC_CLOCK_RATE, NANOSECONDS_PER_SECOND);
+    if (!period) {
+        s->irq_coalesced = 0;
+        timer_del(s->periodic_timer);
+        return;
+    }
 
-        /*
-        * if the periodic timer's update is due to period re-configuration,
-        * we should count the clock since last interrupt.
-        */
-        if (old_period) {
-            int64_t last_periodic_clock, next_periodic_clock;
+    /* compute 32 khz clock */
+    cur_clock =
+        muldiv64(current_time, RTC_CLOCK_RATE, NANOSECONDS_PER_SECOND);
 
-            next_periodic_clock = muldiv64(s->next_periodic_time,
-                                    RTC_CLOCK_RATE, NANOSECONDS_PER_SECOND);
-            last_periodic_clock = next_periodic_clock - old_period;
-            lost_clock = cur_clock - last_periodic_clock;
-            assert(lost_clock >= 0);
-        }
+    /*
+     * if the periodic timer's update is due to period re-configuration,
+     * we should count the clock since last interrupt.
+     */
+    if (old_period) {
+        int64_t last_periodic_clock, next_periodic_clock;
+
+        next_periodic_clock = muldiv64(s->next_periodic_time,
+                                RTC_CLOCK_RATE, NANOSECONDS_PER_SECOND);
+        last_periodic_clock = next_periodic_clock - old_period;
+        lost_clock = cur_clock - last_periodic_clock;
+        assert(lost_clock >= 0);
 
         /*
          * s->irq_coalesced can change for two reasons:
@@ -251,22 +255,19 @@ periodic_timer_update(RTCState *s, int64_t current_time, uint32_t old_period)
                 rtc_coalesced_timer_update(s);
             }
         } else {
-           /*
+            /*
              * no way to compensate the interrupt if LOST_TICK_POLICY_SLEW
              * is not used, we should make the time progress anyway.
              */
             lost_clock = MIN(lost_clock, period);
         }
-
-        assert(lost_clock >= 0 && lost_clock <= period);
-
-        next_irq_clock = cur_clock + period - lost_clock;
-        s->next_periodic_time = periodic_clock_to_ns(next_irq_clock) + 1;
-        timer_mod(s->periodic_timer, s->next_periodic_time);
-    } else {
-        s->irq_coalesced = 0;
-        timer_del(s->periodic_timer);
     }
+
+    assert(lost_clock >= 0 && lost_clock <= period);
+
+    next_irq_clock = cur_clock + period - lost_clock;
+    s->next_periodic_time = periodic_clock_to_ns(next_irq_clock) + 1;
+    timer_mod(s->periodic_timer, s->next_periodic_time);
 }
 
 static void rtc_periodic_timer(void *opaque)
