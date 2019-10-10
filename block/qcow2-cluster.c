@@ -1330,6 +1330,9 @@ static int handle_alloc(BlockDriverState *bs, uint64_t guest_offset,
     nb_clusters = MIN(nb_clusters, s->l2_slice_size - l2_index);
     assert(nb_clusters <= INT_MAX);
 
+    /* Limit total allocation byte count to INT_MAX */
+    nb_clusters = MIN(nb_clusters, INT_MAX >> s->cluster_bits);
+
     /* Find L2 entry for the first involved cluster */
     ret = get_cluster_table(bs, guest_offset, &l2_slice, &l2_index);
     if (ret < 0) {
@@ -1412,7 +1415,7 @@ static int handle_alloc(BlockDriverState *bs, uint64_t guest_offset,
      * request actually writes to (excluding COW at the end)
      */
     uint64_t requested_bytes = *bytes + offset_into_cluster(s, guest_offset);
-    int avail_bytes = MIN(INT_MAX, nb_clusters << s->cluster_bits);
+    int avail_bytes = nb_clusters << s->cluster_bits;
     int nb_bytes = MIN(requested_bytes, avail_bytes);
     QCowL2Meta *old_m = *m;
 
