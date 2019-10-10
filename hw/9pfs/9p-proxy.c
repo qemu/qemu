@@ -1185,6 +1185,10 @@ static void proxy_cleanup(FsContext *ctx)
 {
     V9fsProxy *proxy = ctx->private;
 
+    if (!proxy) {
+        return;
+    }
+
     g_free(proxy->out_iovec.iov_base);
     g_free(proxy->in_iovec.iov_base);
     if (ctx->export_flags & V9FS_PROXY_SOCK_NAME) {

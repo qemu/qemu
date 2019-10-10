@@ -3637,27 +3637,23 @@ int v9fs_device_realize_common(V9fsState *s, const V9fsTransport *t,
     s->ctx.fst = &fse->fst;
     fsdev_throttle_init(s->ctx.fst);
 
-    v9fs_path_free(&path);
-
     rc = 0;
 out:
     if (rc) {
-        if (s->ops && s->ops->cleanup && s->ctx.private) {
-            s->ops->cleanup(&s->ctx);
-        }
-        g_free(s->tag);
-        g_free(s->ctx.fs_root);
-        v9fs_path_free(&path);
+        v9fs_device_unrealize_common(s, NULL);
     }
+    v9fs_path_free(&path);
     return rc;
 }
 
 void v9fs_device_unrealize_common(V9fsState *s, Error **errp)
 {
-    if (s->ops->cleanup) {
+    if (s->ops && s->ops->cleanup) {
         s->ops->cleanup(&s->ctx);
     }
-    fsdev_throttle_cleanup(s->ctx.fst);
+    if (s->ctx.fst) {
+        fsdev_throttle_cleanup(s->ctx.fst);
+    }
     g_free(s->tag);
     g_free(s->ctx.fs_root);
 }

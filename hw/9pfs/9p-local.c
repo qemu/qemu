@@ -1465,6 +1465,10 @@ static void local_cleanup(FsContext *ctx)
 {
     LocalData *data = ctx->private;
 
+    if (!data) {
+        return;
+    }
+
     close(data->mountfd);
     g_free(data);
 }
