@@ -3335,7 +3335,8 @@ int main(int argc, char **argv, char **envp)
             case QEMU_OPTION_virtfs: {
                 QemuOpts *fsdev;
                 QemuOpts *device;
-                const char *writeout, *sock_fd, *socket, *path, *security_model;
+                const char *writeout, *sock_fd, *socket, *path, *security_model,
+                           *multidevs;
 
                 olist = qemu_find_opts("virtfs");
                 if (!olist) {
@@ -3395,6 +3396,10 @@ int main(int argc, char **argv, char **envp)
                 qemu_opt_set_bool(fsdev, "readonly",
                                   qemu_opt_get_bool(opts, "readonly", 0),
                                   &error_abort);
+                multidevs = qemu_opt_get(opts, "multidevs");
+                if (multidevs) {
+                    qemu_opt_set(fsdev, "multidevs", multidevs, &error_abort);
+                }
                 device = qemu_opts_create(qemu_find_opts("device"), NULL, 0,
                                           &error_abort);
                 qemu_opt_set(device, "driver", "virtio-9p-pci", &error_abort);

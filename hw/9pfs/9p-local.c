@@ -1483,6 +1483,7 @@ static int local_parse_opts(QemuOpts *opts, FsDriverEntry *fse, Error **errp)
 {
     const char *sec_model = qemu_opt_get(opts, "security_model");
     const char *path = qemu_opt_get(opts, "path");
+    const char *multidevs = qemu_opt_get(opts, "multidevs");
     Error *local_err = NULL;
 
     if (!sec_model) {
@@ -1504,6 +1505,26 @@ static int local_parse_opts(QemuOpts *opts, FsDriverEntry *fse, Error **errp)
         error_setg(errp, "invalid security_model property '%s'", sec_model);
         error_append_security_model_hint(errp);
         return -1;
+    }
+
+    if (multidevs) {
+        if (!strcmp(multidevs, "remap")) {
+            fse->export_flags &= ~V9FS_FORBID_MULTIDEVS;
+            fse->export_flags |= V9FS_REMAP_INODES;
+        } else if (!strcmp(multidevs, "forbid")) {
+            fse->export_flags &= ~V9FS_REMAP_INODES;
+            fse->export_flags |= V9FS_FORBID_MULTIDEVS;
+        } else if (!strcmp(multidevs, "warn")) {
+            fse->export_flags &= ~V9FS_FORBID_MULTIDEVS;
+            fse->export_flags &= ~V9FS_REMAP_INODES;
+        } else {
+            error_setg(&local_err, "invalid multidevs property '%s'",
+                       multidevs);
+            error_append_hint(&local_err, "Valid options are: multidevs="
+                              "[remap|forbid|warn]\n");
+            error_propagate(errp, local_err);
+            return -1;
+        }
     }
 
     if (!path) {

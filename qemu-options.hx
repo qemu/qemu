@@ -1339,7 +1339,7 @@ ETEXI
 
 DEF("virtfs", HAS_ARG, QEMU_OPTION_virtfs,
     "-virtfs local,path=path,mount_tag=tag,security_model=mapped-xattr|mapped-file|passthrough|none\n"
-    "        [,id=id][,writeout=immediate][,readonly][,fmode=fmode][,dmode=dmode]\n"
+    "        [,id=id][,writeout=immediate][,readonly][,fmode=fmode][,dmode=dmode][,multidevs=remap|forbid|warn]\n"
     "-virtfs proxy,mount_tag=tag,socket=socket[,id=id][,writeout=immediate][,readonly]\n"
     "-virtfs proxy,mount_tag=tag,sock_fd=sock_fd[,id=id][,writeout=immediate][,readonly]\n"
     "-virtfs synth,mount_tag=tag[,id=id][,readonly]\n",
@@ -1347,7 +1347,7 @@ DEF("virtfs", HAS_ARG, QEMU_OPTION_virtfs,
 
 STEXI
 
-@item -virtfs local,path=@var{path},mount_tag=@var{mount_tag} ,security_model=@var{security_model}[,writeout=@var{writeout}][,readonly] [,fmode=@var{fmode}][,dmode=@var{dmode}]
+@item -virtfs local,path=@var{path},mount_tag=@var{mount_tag} ,security_model=@var{security_model}[,writeout=@var{writeout}][,readonly] [,fmode=@var{fmode}][,dmode=@var{dmode}][,multidevs=@var{multidevs}]
 @itemx -virtfs proxy,socket=@var{socket},mount_tag=@var{mount_tag} [,writeout=@var{writeout}][,readonly]
 @itemx -virtfs proxy,sock_fd=@var{sock_fd},mount_tag=@var{mount_tag} [,writeout=@var{writeout}][,readonly]
 @itemx -virtfs synth,mount_tag=@var{mount_tag}
@@ -1403,6 +1403,28 @@ Specifies the default mode for newly created directories on the host. Works
 only with security models "mapped-xattr" and "mapped-file".
 @item mount_tag=@var{mount_tag}
 Specifies the tag name to be used by the guest to mount this export point.
+@item multidevs=@var{multidevs}
+Specifies how to deal with multiple devices being shared with a 9p export.
+Supported behaviours are either "remap", "forbid" or "warn". The latter is
+the default behaviour on which virtfs 9p expects only one device to be
+shared with the same export, and if more than one device is shared and
+accessed via the same 9p export then only a warning message is logged
+(once) by qemu on host side. In order to avoid file ID collisions on guest
+you should either create a separate virtfs export for each device to be
+shared with guests (recommended way) or you might use "remap" instead which
+allows you to share multiple devices with only one export instead, which is
+achieved by remapping the original inode numbers from host to guest in a
+way that would prevent such collisions. Remapping inodes in such use cases
+is required because the original device IDs from host are never passed and
+exposed on guest. Instead all files of an export shared with virtfs always
+share the same device id on guest. So two files with identical inode
+numbers but from actually different devices on host would otherwise cause a
+file ID collision and hence potential misbehaviours on guest. "forbid" on
+the other hand assumes like "warn" that only one device is shared by the
+same export, however it will not only log a warning message but also
+deny access to additional devices on guest. Note though that "forbid" does
+currently not block all possible file access operations (e.g. readdir()
+would still return entries from other devices).
 @end table
 ETEXI
 

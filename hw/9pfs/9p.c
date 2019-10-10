@@ -26,6 +26,7 @@
 #include "trace.h"
 #include "migration/blocker.h"
 #include "sysemu/qtest.h"
+#include "qemu/xxhash.h"
 
 int open_fd_hw;
 int total_open_fd;
@@ -572,23 +573,117 @@ static void coroutine_fn virtfs_reset(V9fsPDU *pdu)
                                 P9_STAT_MODE_NAMED_PIPE |   \
                                 P9_STAT_MODE_SOCKET)
 
-/* This is the algorithm from ufs in spfs */
-static int stat_to_qid(V9fsPDU *pdu, const struct stat *stbuf, V9fsQID *qidp)
+/* creative abuse of tb_hash_func7, which is based on xxhash */
+static uint32_t qpp_hash(QppEntry e)
 {
-    size_t size;
+    return qemu_xxhash7(e.ino_prefix, e.dev, 0, 0, 0);
+}
 
-    if (pdu->s->dev_id != stbuf->st_dev) {
-        warn_report_once(
-            "9p: Multiple devices detected in same VirtFS export, "
-            "which might lead to file ID collisions and severe "
-            "misbehaviours on guest! You should use a separate "
-            "export for each device shared from host."
-        );
+static bool qpp_lookup_func(const void *obj, const void *userp)
+{
+    const QppEntry *e1 = obj, *e2 = userp;
+    return e1->dev == e2->dev && e1->ino_prefix == e2->ino_prefix;
+}
+
+static void qpp_table_remove(void *p, uint32_t h, void *up)
+{
+    g_free(p);
+}
+
+static void qpp_table_destroy(struct qht *ht)
+{
+    if (!ht || !ht->map) {
+        return;
+    }
+    qht_iter(ht, qpp_table_remove, NULL);
+    qht_destroy(ht);
+}
+
+static void qpp_table_init(struct qht *ht)
+{
+    qht_init(ht, qpp_lookup_func, 1, QHT_MODE_AUTO_RESIZE);
+}
+
+/*
+ * stat_to_qid needs to map inode number (64 bits) and device id (32 bits)
+ * to a unique QID path (64 bits). To avoid having to map and keep track
+ * of up to 2^64 objects, we map only the 16 highest bits of the inode plus
+ * the device id to the 16 highest bits of the QID path. The 48 lowest bits
+ * of the QID path equal to the lowest bits of the inode number.
+ *
+ * This takes advantage of the fact that inode number are usually not
+ * random but allocated sequentially, so we have fewer items to keep
+ * track of.
+ */
+static int qid_path_prefixmap(V9fsPDU *pdu, const struct stat *stbuf,
+                              uint64_t *path)
+{
+    QppEntry lookup = {
+        .dev = stbuf->st_dev,
+        .ino_prefix = (uint16_t) (stbuf->st_ino >> 48)
+    }, *val;
+    uint32_t hash = qpp_hash(lookup);
+
+    val = qht_lookup(&pdu->s->qpp_table, &lookup, hash);
+
+    if (!val) {
+        if (pdu->s->qp_prefix_next == 0) {
+            /* we ran out of prefixes */
+            error_report_once(
+                "9p: No more prefixes available for remapping inodes from "
+                "host to guest."
+            );
+            return -ENFILE;
+        }
+
+        val = g_malloc0(sizeof(QppEntry));
+        *val = lookup;
+
+        /* new unique inode prefix and device combo */
+        val->qp_prefix = pdu->s->qp_prefix_next++;
+        qht_insert(&pdu->s->qpp_table, val, hash, NULL);
     }
 
-    memset(&qidp->path, 0, sizeof(qidp->path));
-    size = MIN(sizeof(stbuf->st_ino), sizeof(qidp->path));
-    memcpy(&qidp->path, &stbuf->st_ino, size);
+    *path = ((uint64_t)val->qp_prefix << 48) | (stbuf->st_ino & QPATH_INO_MASK);
+    return 0;
+}
+
+static int stat_to_qid(V9fsPDU *pdu, const struct stat *stbuf, V9fsQID *qidp)
+{
+    int err;
+    size_t size;
+
+    if (pdu->s->ctx.export_flags & V9FS_REMAP_INODES) {
+        /* map inode+device to qid path (fast path) */
+        err = qid_path_prefixmap(pdu, stbuf, &qidp->path);
+        if (err) {
+            return err;
+        }
+    } else {
+        if (pdu->s->dev_id != stbuf->st_dev) {
+            if (pdu->s->ctx.export_flags & V9FS_FORBID_MULTIDEVS) {
+                error_report_once(
+                    "9p: Multiple devices detected in same VirtFS export. "
+                    "Access of guest to additional devices is (partly) "
+                    "denied due to virtfs option 'multidevs=forbid' being "
+                    "effective."
+                );
+                return -ENODEV;
+            } else {
+                warn_report_once(
+                    "9p: Multiple devices detected in same VirtFS export, "
+                    "which might lead to file ID collisions and severe "
+                    "misbehaviours on guest! You should either use a "
+                    "separate export for each device shared from host or "
+                    "use virtfs option 'multidevs=remap'!"
+                );
+            }
+        }
+        memset(&qidp->path, 0, sizeof(qidp->path));
+        size = MIN(sizeof(stbuf->st_ino), sizeof(qidp->path));
+        memcpy(&qidp->path, &stbuf->st_ino, size);
+    }
+
     qidp->version = stbuf->st_mtime ^ (stbuf->st_size << 8);
     qidp->type = 0;
     if (S_ISDIR(stbuf->st_mode)) {
@@ -616,6 +711,30 @@ static int coroutine_fn fid_to_qid(V9fsPDU *pdu, V9fsFidState *fidp,
         return err;
     }
     return 0;
+}
+
+static int coroutine_fn dirent_to_qid(V9fsPDU *pdu, V9fsFidState *fidp,
+                                      struct dirent *dent, V9fsQID *qidp)
+{
+    struct stat stbuf;
+    V9fsPath path;
+    int err;
+
+    v9fs_path_init(&path);
+
+    err = v9fs_co_name_to_path(pdu, &fidp->path, dent->d_name, &path);
+    if (err < 0) {
+        goto out;
+    }
+    err = v9fs_co_lstat(pdu, &path, &stbuf);
+    if (err < 0) {
+        goto out;
+    }
+    err = stat_to_qid(pdu, &stbuf, qidp);
+
+out:
+    v9fs_path_free(&path);
+    return err;
 }
 
 V9fsPDU *pdu_alloc(V9fsState *s)
@@ -1966,16 +2085,39 @@ static int coroutine_fn v9fs_do_readdir(V9fsPDU *pdu, V9fsFidState *fidp,
             v9fs_string_free(&name);
             return count;
         }
-        /*
-         * Fill up just the path field of qid because the client uses
-         * only that. To fill the entire qid structure we will have
-         * to stat each dirent found, which is expensive
-         */
-        size = MIN(sizeof(dent->d_ino), sizeof(qid.path));
-        memcpy(&qid.path, &dent->d_ino, size);
-        /* Fill the other fields with dummy values */
-        qid.type = 0;
-        qid.version = 0;
+
+        if (pdu->s->ctx.export_flags & V9FS_REMAP_INODES) {
+            /*
+             * dirent_to_qid() implies expensive stat call for each entry,
+             * we must do that here though since inode remapping requires
+             * the device id, which in turn might be different for
+             * different entries; we cannot make any assumption to avoid
+             * that here.
+             */
+            err = dirent_to_qid(pdu, fidp, dent, &qid);
+            if (err < 0) {
+                v9fs_readdir_unlock(&fidp->fs.dir);
+                v9fs_co_seekdir(pdu, fidp, saved_dir_pos);
+                v9fs_string_free(&name);
+                return err;
+            }
+        } else {
+            /*
+             * Fill up just the path field of qid because the client uses
+             * only that. To fill the entire qid structure we will have
+             * to stat each dirent found, which is expensive. For the
+             * latter reason we don't call dirent_to_qid() here. Only drawback
+             * is that no multi-device export detection of stat_to_qid()
+             * would be done and provided as error to the user here. But
+             * user would get that error anyway when accessing those
+             * files/dirs through other ways.
+             */
+            size = MIN(sizeof(dent->d_ino), sizeof(qid.path));
+            memcpy(&qid.path, &dent->d_ino, size);
+            /* Fill the other fields with dummy values */
+            qid.type = 0;
+            qid.version = 0;
+        }
 
         /* 11 = 7 + 4 (7 = start offset, 4 = space for storing count) */
         len = pdu_marshal(pdu, 11 + count, "Qqbs",
@@ -3676,6 +3818,9 @@ int v9fs_device_realize_common(V9fsState *s, const V9fsTransport *t,
 
     s->dev_id = stat.st_dev;
 
+    qpp_table_init(&s->qpp_table);
+    s->qp_prefix_next = 1; /* reserve 0 to detect overflow */
+
     s->ctx.fst = &fse->fst;
     fsdev_throttle_init(s->ctx.fst);
 
@@ -3697,6 +3842,7 @@ void v9fs_device_unrealize_common(V9fsState *s, Error **errp)
         fsdev_throttle_cleanup(s->ctx.fst);
     }
     g_free(s->tag);
+    qpp_table_destroy(&s->qpp_table);
     g_free(s->ctx.fs_root);
 }
 
