@@ -61,6 +61,10 @@ static void vmcoreinfo_realize(DeviceState *dev, Error **errp)
                              NULL, fw_cfg_vmci_write, s,
                              &s->vmcoreinfo, sizeof(s->vmcoreinfo), false);
 
+    /*
+     * This device requires to register a global reset because it is
+     * not plugged to a bus (which, as its QOM parent, would reset it).
+     */
     qemu_register_reset(vmcoreinfo_reset, dev);
     vmcoreinfo_state = s;
 }
