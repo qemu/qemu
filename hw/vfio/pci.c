@@ -651,6 +651,7 @@ retry:
         }
 
         g_free(vdev->msi_vectors);
+        vdev->msi_vectors = NULL;
 
         if (ret > 0 && ret != vdev->nr_vectors) {
             vdev->nr_vectors = ret;
