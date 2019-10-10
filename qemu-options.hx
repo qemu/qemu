@@ -4167,13 +4167,17 @@ DEF("no-kvm", 0, QEMU_OPTION_no_kvm, "", QEMU_ARCH_I386)
 
 DEF("msg", HAS_ARG, QEMU_OPTION_msg,
     "-msg timestamp[=on|off]\n"
-    "                change the format of messages\n"
-    "                on|off controls leading timestamps (default:on)\n",
+    "                control error message format\n"
+    "                timestamp=on enables timestamps (default: off)\n",
     QEMU_ARCH_ALL)
 STEXI
 @item -msg timestamp[=on|off]
 @findex -msg
-prepend a timestamp to each log message.(default:on)
+Control error message format.
+@table @option
+@item timestamp=on|off
+Prefix messages with a timestamp.  Default is off.
+@end table
 ETEXI
 
 DEF("dump-vmstate", HAS_ARG, QEMU_OPTION_dump_vmstate,
