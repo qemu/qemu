@@ -866,7 +866,8 @@ static void handle_a20_line_change(void *opaque, int irq, int level)
     x86_cpu_set_a20(cpu, level);
 }
 
-/* Calculates initial APIC ID for a specific CPU index
+/*
+ * Calculates initial APIC ID for a specific CPU index
  *
  * Currently we need to be able to calculate the APIC ID from the CPU index
  * alone (without requiring a CPU object), as the QEMU<->Seabios interfaces have
@@ -1039,7 +1040,7 @@ static void x86_load_linux(PCMachineState *pcms,
     const char *kernel_cmdline = machine->kernel_cmdline;
 
     /* Align to 16 bytes as a paranoia measure */
-    cmdline_size = (strlen(kernel_cmdline)+16) & ~15;
+    cmdline_size = (strlen(kernel_cmdline) + 16) & ~15;
 
     /* load the kernel header */
     f = fopen(kernel_filename, "rb");
@@ -1055,8 +1056,8 @@ static void x86_load_linux(PCMachineState *pcms,
 #if 0
     fprintf(stderr, "header magic: %#x\n", ldl_p(header+0x202));
 #endif
-    if (ldl_p(header+0x202) == 0x53726448) {
-        protocol = lduw_p(header+0x206);
+    if (ldl_p(header + 0x202) == 0x53726448) {
+        protocol = lduw_p(header + 0x206);
     } else {
         /*
          * This could be a multiboot kernel. If it is, let's stop treating it
@@ -1158,7 +1159,7 @@ static void x86_load_linux(PCMachineState *pcms,
 
     /* highest address for loading the initrd */
     if (protocol >= 0x20c &&
-        lduw_p(header+0x236) & XLF_CAN_BE_LOADED_ABOVE_4G) {
+        lduw_p(header + 0x236) & XLF_CAN_BE_LOADED_ABOVE_4G) {
         /*
          * Linux has supported initrd up to 4 GB for a very long time (2007,
          * long before XLF_CAN_BE_LOADED_ABOVE_4G which was added in 2013),
@@ -1177,7 +1178,7 @@ static void x86_load_linux(PCMachineState *pcms,
          */
         initrd_max = UINT32_MAX;
     } else if (protocol >= 0x203) {
-        initrd_max = ldl_p(header+0x22c);
+        initrd_max = ldl_p(header + 0x22c);
     } else {
         initrd_max = 0x37ffffff;
     }
@@ -1187,14 +1188,14 @@ static void x86_load_linux(PCMachineState *pcms,
     }
 
     fw_cfg_add_i32(fw_cfg, FW_CFG_CMDLINE_ADDR, cmdline_addr);
-    fw_cfg_add_i32(fw_cfg, FW_CFG_CMDLINE_SIZE, strlen(kernel_cmdline)+1);
+    fw_cfg_add_i32(fw_cfg, FW_CFG_CMDLINE_SIZE, strlen(kernel_cmdline) + 1);
     fw_cfg_add_string(fw_cfg, FW_CFG_CMDLINE_DATA, kernel_cmdline);
 
     if (protocol >= 0x202) {
-        stl_p(header+0x228, cmdline_addr);
+        stl_p(header + 0x228, cmdline_addr);
     } else {
-        stw_p(header+0x20, 0xA33F);
-        stw_p(header+0x22, cmdline_addr-real_addr);
+        stw_p(header + 0x20, 0xA33F);
+        stw_p(header + 0x22, cmdline_addr - real_addr);
     }
 
     /* handle vga= parameter */
@@ -1212,20 +1213,22 @@ static void x86_load_linux(PCMachineState *pcms,
         } else {
             video_mode = strtol(vmode, NULL, 0);
         }
-        stw_p(header+0x1fa, video_mode);
+        stw_p(header + 0x1fa, video_mode);
     }
 
     /* loader type */
-    /* High nybble = B reserved for QEMU; low nybble is revision number.
-       If this code is substantially changed, you may want to consider
-       incrementing the revision. */
+    /*
+     * High nybble = B reserved for QEMU; low nybble is revision number.
+     * If this code is substantially changed, you may want to consider
+     * incrementing the revision.
+     */
     if (protocol >= 0x200) {
         header[0x210] = 0xB0;
     }
     /* heap */
     if (protocol >= 0x201) {
-        header[0x211] |= 0x80;	/* CAN_USE_HEAP */
-        stw_p(header+0x224, cmdline_addr-real_addr-0x200);
+        header[0x211] |= 0x80; /* CAN_USE_HEAP */
+        stw_p(header + 0x224, cmdline_addr - real_addr - 0x200);
     }
 
     /* load initrd */
@@ -1257,14 +1260,14 @@ static void x86_load_linux(PCMachineState *pcms,
             exit(1);
         }
 
-        initrd_addr = (initrd_max-initrd_size) & ~4095;
+        initrd_addr = (initrd_max - initrd_size) & ~4095;
 
         fw_cfg_add_i32(fw_cfg, FW_CFG_INITRD_ADDR, initrd_addr);
         fw_cfg_add_i32(fw_cfg, FW_CFG_INITRD_SIZE, initrd_size);
         fw_cfg_add_bytes(fw_cfg, FW_CFG_INITRD_DATA, initrd_data, initrd_size);
 
-        stl_p(header+0x218, initrd_addr);
-        stl_p(header+0x21c, initrd_size);
+        stl_p(header + 0x218, initrd_addr);
+        stl_p(header + 0x21c, initrd_size);
     }
 
     /* load kernel and setup */
@@ -1272,7 +1275,7 @@ static void x86_load_linux(PCMachineState *pcms,
     if (setup_size == 0) {
         setup_size = 4;
     }
-    setup_size = (setup_size+1)*512;
+    setup_size = (setup_size + 1) * 512;
     if (setup_size > kernel_size) {
         fprintf(stderr, "qemu: invalid kernel header\n");
         exit(1);
@@ -1310,7 +1313,7 @@ static void x86_load_linux(PCMachineState *pcms,
         kernel_size = setup_data_offset + sizeof(struct setup_data) + dtb_size;
         kernel = g_realloc(kernel, kernel_size);
 
-        stq_p(header+0x250, prot_addr + setup_data_offset);
+        stq_p(header + 0x250, prot_addr + setup_data_offset);
 
         setup_data = (struct setup_data *)(kernel + setup_data_offset);
         setup_data->next = 0;
@@ -1507,7 +1510,8 @@ void x86_cpus_init(PCMachineState *pcms)
 
     x86_cpu_set_default_version(pcmc->default_cpu_version);
 
-    /* Calculates the limit to CPU APIC ID values
+    /*
+     * Calculates the limit to CPU APIC ID values
      *
      * Limit for the APIC ID value, so that all
      * CPU APIC IDs are < pcms->apic_id_limit.
@@ -2712,7 +2716,7 @@ static const CPUArchIdList *x86_possible_cpu_arch_ids(MachineState *ms)
         /*
          * make sure that max_cpus hasn't changed since the first use, i.e.
          * -smp hasn't been parsed after it
-        */
+         */
         assert(ms->possible_cpus->len == max_cpus);
         return ms->possible_cpus;
     }
@@ -2725,7 +2729,8 @@ static const CPUArchIdList *x86_possible_cpu_arch_ids(MachineState *ms)
 
         ms->possible_cpus->cpus[i].type = ms->cpu_type;
         ms->possible_cpus->cpus[i].vcpus_count = 1;
-        ms->possible_cpus->cpus[i].arch_id = x86_cpu_apic_id_from_index(pcms, i);
+        ms->possible_cpus->cpus[i].arch_id =
+            x86_cpu_apic_id_from_index(pcms, i);
         x86_topo_ids_from_apicid(ms->possible_cpus->cpus[i].arch_id,
                                  pcms->smp_dies, ms->smp.cores,
                                  ms->smp.threads, &topo);
