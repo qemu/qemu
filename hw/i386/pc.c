@@ -1061,9 +1061,6 @@ static void x86_load_linux(PCMachineState *pcms,
     }
 
     /* kernel protocol version */
-#if 0
-    fprintf(stderr, "header magic: %#x\n", ldl_p(header+0x202));
-#endif
     if (ldl_p(header + 0x202) == 0x53726448) {
         protocol = lduw_p(header + 0x206);
     } else {
@@ -1154,16 +1151,6 @@ static void x86_load_linux(PCMachineState *pcms,
         cmdline_addr = 0x20000;
         prot_addr    = 0x100000;
     }
-
-#if 0
-    fprintf(stderr,
-            "qemu: real_addr     = 0x" TARGET_FMT_plx "\n"
-            "qemu: cmdline_addr  = 0x" TARGET_FMT_plx "\n"
-            "qemu: prot_addr     = 0x" TARGET_FMT_plx "\n",
-            real_addr,
-            cmdline_addr,
-            prot_addr);
-#endif
 
     /* highest address for loading the initrd */
     if (protocol >= 0x20c &&
