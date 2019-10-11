@@ -721,6 +721,9 @@ int qcow2_write_snapshots(BlockDriverState *bs);
 int coroutine_fn qcow2_check_read_snapshot_table(BlockDriverState *bs,
                                                  BdrvCheckResult *result,
                                                  BdrvCheckMode fix);
+int coroutine_fn qcow2_check_fix_snapshot_table(BlockDriverState *bs,
+                                                BdrvCheckResult *result,
+                                                BdrvCheckMode fix);
 
 /* qcow2-cache.c functions */
 Qcow2Cache *qcow2_cache_create(BlockDriverState *bs, int num_tables,

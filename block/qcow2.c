@@ -597,13 +597,20 @@ static int coroutine_fn qcow2_co_check_locked(BlockDriverState *bs,
     memset(result, 0, sizeof(*result));
 
     ret = qcow2_check_read_snapshot_table(bs, &snapshot_res, fix);
-    qcow2_add_check_result(result, &snapshot_res, false);
     if (ret < 0) {
+        qcow2_add_check_result(result, &snapshot_res, false);
         return ret;
     }
 
     ret = qcow2_check_refcounts(bs, &refcount_res, fix);
     qcow2_add_check_result(result, &refcount_res, true);
+    if (ret < 0) {
+        qcow2_add_check_result(result, &snapshot_res, false);
+        return ret;
+    }
+
+    ret = qcow2_check_fix_snapshot_table(bs, &snapshot_res, fix);
+    qcow2_add_check_result(result, &snapshot_res, false);
     if (ret < 0) {
         return ret;
     }
