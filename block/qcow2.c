@@ -4922,7 +4922,9 @@ static int qcow2_upgrade(BlockDriverState *bs, int target_version,
                          Error **errp)
 {
     BDRVQcow2State *s = bs->opaque;
+    bool need_snapshot_update;
     int current_version = s->qcow_version;
+    int i;
     int ret;
 
     /* This is qcow2_upgrade(), not qcow2_downgrade() */
@@ -4931,7 +4933,33 @@ static int qcow2_upgrade(BlockDriverState *bs, int target_version,
     /* There are no other versions (yet) that you can upgrade to */
     assert(target_version == 3);
 
-    status_cb(bs, 0, 1, cb_opaque);
+    status_cb(bs, 0, 2, cb_opaque);
+
+    /*
+     * In v2, snapshots do not need to have extra data.  v3 requires
+     * the 64-bit VM state size and the virtual disk size to be
+     * present.
+     * qcow2_write_snapshots() will always write the list in the
+     * v3-compliant format.
+     */
+    need_snapshot_update = false;
+    for (i = 0; i < s->nb_snapshots; i++) {
+        if (s->snapshots[i].extra_data_size <
+            sizeof_field(QCowSnapshotExtraData, vm_state_size_large) +
+            sizeof_field(QCowSnapshotExtraData, disk_size))
+        {
+            need_snapshot_update = true;
+            break;
+        }
+    }
+    if (need_snapshot_update) {
+        ret = qcow2_write_snapshots(bs);
+        if (ret < 0) {
+            error_setg_errno(errp, -ret, "Failed to update the snapshot table");
+            return ret;
+        }
+    }
+    status_cb(bs, 1, 2, cb_opaque);
 
     s->qcow_version = target_version;
     ret = qcow2_update_header(bs);
@@ -4940,7 +4968,7 @@ static int qcow2_upgrade(BlockDriverState *bs, int target_version,
         error_setg_errno(errp, -ret, "Failed to update the image header");
         return ret;
     }
-    status_cb(bs, 1, 1, cb_opaque);
+    status_cb(bs, 2, 2, cb_opaque);
 
     return 0;
 }
