@@ -43,7 +43,7 @@ void qcow2_free_snapshots(BlockDriverState *bs)
     s->nb_snapshots = 0;
 }
 
-int qcow2_read_snapshots(BlockDriverState *bs)
+int qcow2_read_snapshots(BlockDriverState *bs, Error **errp)
 {
     BDRVQcow2State *s = bs->opaque;
     QCowSnapshotHeader h;
@@ -68,6 +68,7 @@ int qcow2_read_snapshots(BlockDriverState *bs)
         offset = ROUND_UP(offset, 8);
         ret = bdrv_pread(bs->file, offset, &h, sizeof(h));
         if (ret < 0) {
+            error_setg_errno(errp, -ret, "Failed to read snapshot table");
             goto fail;
         }
 
@@ -88,6 +89,7 @@ int qcow2_read_snapshots(BlockDriverState *bs)
         ret = bdrv_pread(bs->file, offset, &extra,
                          MIN(sizeof(extra), extra_data_size));
         if (ret < 0) {
+            error_setg_errno(errp, -ret, "Failed to read snapshot table");
             goto fail;
         }
         offset += extra_data_size;
@@ -107,6 +109,7 @@ int qcow2_read_snapshots(BlockDriverState *bs)
         sn->id_str = g_malloc(id_str_size + 1);
         ret = bdrv_pread(bs->file, offset, sn->id_str, id_str_size);
         if (ret < 0) {
+            error_setg_errno(errp, -ret, "Failed to read snapshot table");
             goto fail;
         }
         offset += id_str_size;
@@ -116,6 +119,7 @@ int qcow2_read_snapshots(BlockDriverState *bs)
         sn->name = g_malloc(name_size + 1);
         ret = bdrv_pread(bs->file, offset, sn->name, name_size);
         if (ret < 0) {
+            error_setg_errno(errp, -ret, "Failed to read snapshot table");
             goto fail;
         }
         offset += name_size;
@@ -123,6 +127,7 @@ int qcow2_read_snapshots(BlockDriverState *bs)
 
         if (offset - s->snapshots_offset > QCOW_MAX_SNAPSHOTS_SIZE) {
             ret = -EFBIG;
+            error_setg(errp, "Snapshot table is too big");
             goto fail;
         }
     }

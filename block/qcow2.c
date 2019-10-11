@@ -1584,9 +1584,8 @@ static int coroutine_fn qcow2_do_open(BlockDriverState *bs, QDict *options,
     s->snapshots_offset = header.snapshots_offset;
     s->nb_snapshots = header.nb_snapshots;
 
-    ret = qcow2_read_snapshots(bs);
+    ret = qcow2_read_snapshots(bs, errp);
     if (ret < 0) {
-        error_setg_errno(errp, -ret, "Could not read snapshots");
         goto fail;
     }
 
