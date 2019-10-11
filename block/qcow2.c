@@ -4912,12 +4912,46 @@ static int qcow2_downgrade(BlockDriverState *bs, int target_version,
     return 0;
 }
 
+/*
+ * Upgrades an image's version.  While newer versions encompass all
+ * features of older versions, some things may have to be presented
+ * differently.
+ */
+static int qcow2_upgrade(BlockDriverState *bs, int target_version,
+                         BlockDriverAmendStatusCB *status_cb, void *cb_opaque,
+                         Error **errp)
+{
+    BDRVQcow2State *s = bs->opaque;
+    int current_version = s->qcow_version;
+    int ret;
+
+    /* This is qcow2_upgrade(), not qcow2_downgrade() */
+    assert(target_version > current_version);
+
+    /* There are no other versions (yet) that you can upgrade to */
+    assert(target_version == 3);
+
+    status_cb(bs, 0, 1, cb_opaque);
+
+    s->qcow_version = target_version;
+    ret = qcow2_update_header(bs);
+    if (ret < 0) {
+        s->qcow_version = current_version;
+        error_setg_errno(errp, -ret, "Failed to update the image header");
+        return ret;
+    }
+    status_cb(bs, 1, 1, cb_opaque);
+
+    return 0;
+}
+
 typedef enum Qcow2AmendOperation {
     /* This is the value Qcow2AmendHelperCBInfo::last_operation will be
      * statically initialized to so that the helper CB can discern the first
      * invocation from an operation change */
     QCOW2_NO_OPERATION = 0,
 
+    QCOW2_UPGRADING,
     QCOW2_CHANGING_REFCOUNT_ORDER,
     QCOW2_DOWNGRADING,
 } Qcow2AmendOperation;
@@ -5100,17 +5134,16 @@ static int qcow2_amend_options(BlockDriverState *bs, QemuOpts *opts,
     helper_cb_info = (Qcow2AmendHelperCBInfo){
         .original_status_cb = status_cb,
         .original_cb_opaque = cb_opaque,
-        .total_operations = (new_version < old_version)
+        .total_operations = (new_version != old_version)
                           + (s->refcount_bits != refcount_bits)
     };
 
     /* Upgrade first (some features may require compat=1.1) */
     if (new_version > old_version) {
-        s->qcow_version = new_version;
-        ret = qcow2_update_header(bs);
+        helper_cb_info.current_operation = QCOW2_UPGRADING;
+        ret = qcow2_upgrade(bs, new_version, &qcow2_amend_helper_cb,
+                            &helper_cb_info, errp);
         if (ret < 0) {
-            s->qcow_version = old_version;
-            error_setg_errno(errp, -ret, "Failed to update the image header");
             return ret;
         }
     }
