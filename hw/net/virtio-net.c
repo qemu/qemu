@@ -90,15 +90,15 @@ static inline __virtio16 *virtio_net_rsc_ext_num_dupacks(
 
 static VirtIOFeature feature_sizes[] = {
     {.flags = 1ULL << VIRTIO_NET_F_MAC,
-     .end = virtio_endof(struct virtio_net_config, mac)},
+     .end = endof(struct virtio_net_config, mac)},
     {.flags = 1ULL << VIRTIO_NET_F_STATUS,
-     .end = virtio_endof(struct virtio_net_config, status)},
+     .end = endof(struct virtio_net_config, status)},
     {.flags = 1ULL << VIRTIO_NET_F_MQ,
-     .end = virtio_endof(struct virtio_net_config, max_virtqueue_pairs)},
+     .end = endof(struct virtio_net_config, max_virtqueue_pairs)},
     {.flags = 1ULL << VIRTIO_NET_F_MTU,
-     .end = virtio_endof(struct virtio_net_config, mtu)},
+     .end = endof(struct virtio_net_config, mtu)},
     {.flags = 1ULL << VIRTIO_NET_F_SPEED_DUPLEX,
-     .end = virtio_endof(struct virtio_net_config, duplex)},
+     .end = endof(struct virtio_net_config, duplex)},
     {}
 };
 

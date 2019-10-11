@@ -42,9 +42,9 @@
  */
 static VirtIOFeature feature_sizes[] = {
     {.flags = 1ULL << VIRTIO_BLK_F_DISCARD,
-     .end = virtio_endof(struct virtio_blk_config, discard_sector_alignment)},
+     .end = endof(struct virtio_blk_config, discard_sector_alignment)},
     {.flags = 1ULL << VIRTIO_BLK_F_WRITE_ZEROES,
-     .end = virtio_endof(struct virtio_blk_config, write_zeroes_may_unmap)},
+     .end = endof(struct virtio_blk_config, write_zeroes_may_unmap)},
     {}
 };
 
