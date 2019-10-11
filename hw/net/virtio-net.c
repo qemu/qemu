@@ -2333,9 +2333,13 @@ static int virtio_net_post_load_device(void *opaque, int version_id)
         n->curr_guest_offloads = virtio_net_supported_guest_offloads(n);
     }
 
-    if (peer_has_vnet_hdr(n)) {
-        virtio_net_apply_guest_offloads(n);
-    }
+    /*
+     * curr_guest_offloads will be later overwritten by the
+     * virtio_set_features_nocheck call done from the virtio_load.
+     * Here we make sure it is preserved and restored accordingly
+     * in the virtio_net_post_load_virtio callback.
+     */
+    n->saved_guest_offloads = n->curr_guest_offloads;
 
     virtio_net_set_queues(n);
 
@@ -2365,6 +2369,22 @@ static int virtio_net_post_load_device(void *opaque, int version_id)
         } else {
             qemu_announce_timer_del(&n->announce_timer, false);
         }
+    }
+
+    return 0;
+}
+
+static int virtio_net_post_load_virtio(VirtIODevice *vdev)
+{
+    VirtIONet *n = VIRTIO_NET(vdev);
+    /*
+     * The actual needed state is now in saved_guest_offloads,
+     * see virtio_net_post_load_device for detail.
+     * Restore it back and apply the desired offloads.
+     */
+    n->curr_guest_offloads = n->saved_guest_offloads;
+    if (peer_has_vnet_hdr(n)) {
+        virtio_net_apply_guest_offloads(n);
     }
 
     return 0;
@@ -2912,6 +2932,7 @@ static void virtio_net_class_init(ObjectClass *klass, void *data)
     vdc->guest_notifier_mask = virtio_net_guest_notifier_mask;
     vdc->guest_notifier_pending = virtio_net_guest_notifier_pending;
     vdc->legacy_features |= (0x1 << VIRTIO_NET_F_GSO);
+    vdc->post_load = virtio_net_post_load_virtio;
     vdc->vmsd = &vmstate_virtio_net_device;
 }
 
