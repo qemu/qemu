@@ -570,11 +570,40 @@ int qcow2_mark_consistent(BlockDriverState *bs)
     return 0;
 }
 
+static void qcow2_add_check_result(BdrvCheckResult *out,
+                                   const BdrvCheckResult *src,
+                                   bool set_allocation_info)
+{
+    out->corruptions += src->corruptions;
+    out->leaks += src->leaks;
+    out->check_errors += src->check_errors;
+    out->corruptions_fixed += src->corruptions_fixed;
+    out->leaks_fixed += src->leaks_fixed;
+
+    if (set_allocation_info) {
+        out->image_end_offset = src->image_end_offset;
+        out->bfi = src->bfi;
+    }
+}
+
 static int coroutine_fn qcow2_co_check_locked(BlockDriverState *bs,
                                               BdrvCheckResult *result,
                                               BdrvCheckMode fix)
 {
-    int ret = qcow2_check_refcounts(bs, result, fix);
+    BdrvCheckResult snapshot_res = {};
+    BdrvCheckResult refcount_res = {};
+    int ret;
+
+    memset(result, 0, sizeof(*result));
+
+    ret = qcow2_check_read_snapshot_table(bs, &snapshot_res, fix);
+    qcow2_add_check_result(result, &snapshot_res, false);
+    if (ret < 0) {
+        return ret;
+    }
+
+    ret = qcow2_check_refcounts(bs, &refcount_res, fix);
+    qcow2_add_check_result(result, &refcount_res, true);
     if (ret < 0) {
         return ret;
     }
@@ -1410,17 +1439,22 @@ static int coroutine_fn qcow2_do_open(BlockDriverState *bs, QDict *options,
         goto fail;
     }
 
-    /* The total size in bytes of the snapshot table is checked in
-     * qcow2_read_snapshots() because the size of each snapshot is
-     * variable and we don't know it yet.
-     * Here we only check the offset and number of snapshots. */
-    ret = qcow2_validate_table(bs, header.snapshots_offset,
-                               header.nb_snapshots,
-                               sizeof(QCowSnapshotHeader),
-                               sizeof(QCowSnapshotHeader) * QCOW_MAX_SNAPSHOTS,
-                               "Snapshot table", errp);
-    if (ret < 0) {
-        goto fail;
+    if (!(flags & BDRV_O_CHECK)) {
+        /*
+         * The total size in bytes of the snapshot table is checked in
+         * qcow2_read_snapshots() because the size of each snapshot is
+         * variable and we don't know it yet.
+         * Here we only check the offset and number of snapshots.
+         */
+        ret = qcow2_validate_table(bs, header.snapshots_offset,
+                                   header.nb_snapshots,
+                                   sizeof(QCowSnapshotHeader),
+                                   sizeof(QCowSnapshotHeader) *
+                                       QCOW_MAX_SNAPSHOTS,
+                                   "Snapshot table", errp);
+        if (ret < 0) {
+            goto fail;
+        }
     }
 
     /* read the level 1 table */
@@ -1580,13 +1614,19 @@ static int coroutine_fn qcow2_do_open(BlockDriverState *bs, QDict *options,
         s->image_backing_file = g_strdup(bs->auto_backing_file);
     }
 
-    /* Internal snapshots */
-    s->snapshots_offset = header.snapshots_offset;
-    s->nb_snapshots = header.nb_snapshots;
+    /*
+     * Internal snapshots; skip reading them in check mode, because
+     * we do not need them then, and we do not want to abort because
+     * of a broken table.
+     */
+    if (!(flags & BDRV_O_CHECK)) {
+        s->snapshots_offset = header.snapshots_offset;
+        s->nb_snapshots = header.nb_snapshots;
 
-    ret = qcow2_read_snapshots(bs, errp);
-    if (ret < 0) {
-        goto fail;
+        ret = qcow2_read_snapshots(bs, errp);
+        if (ret < 0) {
+            goto fail;
+        }
     }
 
     /* Clear unknown autoclear feature bits */

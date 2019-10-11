@@ -322,6 +322,64 @@ fail:
     return ret;
 }
 
+int coroutine_fn qcow2_check_read_snapshot_table(BlockDriverState *bs,
+                                                 BdrvCheckResult *result,
+                                                 BdrvCheckMode fix)
+{
+    BDRVQcow2State *s = bs->opaque;
+    Error *local_err = NULL;
+    int ret;
+    struct {
+        uint32_t nb_snapshots;
+        uint64_t snapshots_offset;
+    } QEMU_PACKED snapshot_table_pointer;
+
+    /* qcow2_do_open() discards this information in check mode */
+    ret = bdrv_pread(bs->file, offsetof(QCowHeader, nb_snapshots),
+                     &snapshot_table_pointer, sizeof(snapshot_table_pointer));
+    if (ret < 0) {
+        result->check_errors++;
+        fprintf(stderr, "ERROR failed to read the snapshot table pointer from "
+                "the image header: %s\n", strerror(-ret));
+        return ret;
+    }
+
+    s->snapshots_offset = be64_to_cpu(snapshot_table_pointer.snapshots_offset);
+    s->nb_snapshots = be32_to_cpu(snapshot_table_pointer.nb_snapshots);
+
+    ret = qcow2_validate_table(bs, s->snapshots_offset, s->nb_snapshots,
+                               sizeof(QCowSnapshotHeader),
+                               sizeof(QCowSnapshotHeader) * QCOW_MAX_SNAPSHOTS,
+                               "snapshot table", &local_err);
+    if (ret < 0) {
+        result->check_errors++;
+        error_reportf_err(local_err, "ERROR ");
+
+        /* We did not read the snapshot table, so invalidate this information */
+        s->snapshots_offset = 0;
+        s->nb_snapshots = 0;
+
+        return ret;
+    }
+
+    qemu_co_mutex_unlock(&s->lock);
+    ret = qcow2_read_snapshots(bs, &local_err);
+    qemu_co_mutex_lock(&s->lock);
+    if (ret < 0) {
+        result->check_errors++;
+        error_reportf_err(local_err,
+                          "ERROR failed to read the snapshot table: ");
+
+        /* We did not read the snapshot table, so invalidate this information */
+        s->snapshots_offset = 0;
+        s->nb_snapshots = 0;
+
+        return ret;
+    }
+
+    return 0;
+}
+
 static void find_new_snapshot_id(BlockDriverState *bs,
                                  char *id_str, int id_str_size)
 {
