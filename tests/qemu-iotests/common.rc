@@ -53,6 +53,26 @@ poke_file()
     printf "$3" | dd "of=$1" bs=1 "seek=$2" conv=notrunc &>/dev/null
 }
 
+# peek_file_le 'test.img' 512 2 => 65534
+peek_file_le()
+{
+    # Wrap in echo $() to strip spaces
+    echo $(od -j"$2" -N"$3" --endian=little -An -vtu"$3" "$1")
+}
+
+# peek_file_be 'test.img' 512 2 => 65279
+peek_file_be()
+{
+    # Wrap in echo $() to strip spaces
+    echo $(od -j"$2" -N"$3" --endian=big -An -vtu"$3" "$1")
+}
+
+# peek_file_raw 'test.img' 512 2 => '\xff\xfe'
+peek_file_raw()
+{
+    dd if="$1" bs=1 skip="$2" count="$3" status=none
+}
+
 
 if ! . ./common.config
     then
