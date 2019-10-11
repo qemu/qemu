@@ -387,6 +387,10 @@ void hbitmap_set(HBitmap *hb, uint64_t start, uint64_t count)
     uint64_t first, n;
     uint64_t last = start + count - 1;
 
+    if (count == 0) {
+        return;
+    }
+
     trace_hbitmap_set(hb, start, count,
                       start >> hb->granularity, last >> hb->granularity);
 
@@ -477,6 +481,10 @@ void hbitmap_reset(HBitmap *hb, uint64_t start, uint64_t count)
     uint64_t first;
     uint64_t last = start + count - 1;
     uint64_t gran = 1ULL << hb->granularity;
+
+    if (count == 0) {
+        return;
+    }
 
     assert(QEMU_IS_ALIGNED(start, gran));
     assert(QEMU_IS_ALIGNED(count, gran) || (start + count == hb->orig_size));
