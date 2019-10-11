@@ -838,7 +838,7 @@ static int multifd_recv_unfill_packet(MultiFDRecvParams *p, Error **errp)
 
     packet->pages_alloc = be32_to_cpu(packet->pages_alloc);
     /*
-     * If we recevied a packet that is 100 times bigger than expected
+     * If we received a packet that is 100 times bigger than expected
      * just stop migration.  It is a magic number.
      */
     if (packet->pages_alloc > pages_max * 100) {
