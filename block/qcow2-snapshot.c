@@ -44,7 +44,23 @@ void qcow2_free_snapshots(BlockDriverState *bs)
     s->nb_snapshots = 0;
 }
 
-int qcow2_read_snapshots(BlockDriverState *bs, Error **errp)
+/*
+ * If @repair is true, try to repair a broken snapshot table instead
+ * of just returning an error:
+ *
+ * - If there were snapshots with too much extra metadata, increment
+ *   *extra_data_dropped for each.
+ *   This requires the caller to eventually rewrite the whole snapshot
+ *   table, which requires cluster allocation.  Therefore, this should
+ *   be done only after qcow2_check_refcounts() made sure the refcount
+ *   structures are valid.
+ *   (In the meantime, the image is still valid because
+ *   qcow2_check_refcounts() does not do anything with snapshots'
+ *   extra data.)
+ */
+static int qcow2_do_read_snapshots(BlockDriverState *bs, bool repair,
+                                   int *extra_data_dropped,
+                                   Error **errp)
 {
     BDRVQcow2State *s = bs->opaque;
     QCowSnapshotHeader h;
@@ -64,6 +80,8 @@ int qcow2_read_snapshots(BlockDriverState *bs, Error **errp)
     s->snapshots = g_new0(QCowSnapshot, s->nb_snapshots);
 
     for(i = 0; i < s->nb_snapshots; i++) {
+        bool truncate_unknown_extra_data = false;
+
         /* Read statically sized part of the snapshot header */
         offset = ROUND_UP(offset, 8);
         ret = bdrv_pread(bs->file, offset, &h, sizeof(h));
@@ -86,10 +104,21 @@ int qcow2_read_snapshots(BlockDriverState *bs, Error **errp)
         name_size = be16_to_cpu(h.name_size);
 
         if (sn->extra_data_size > QCOW_MAX_SNAPSHOT_EXTRA_DATA) {
-            ret = -EFBIG;
-            error_setg(errp, "Too much extra metadata in snapshot table "
-                       "entry %i", i);
-            goto fail;
+            if (!repair) {
+                ret = -EFBIG;
+                error_setg(errp, "Too much extra metadata in snapshot table "
+                           "entry %i", i);
+                error_append_hint(errp, "You can force-remove this extra "
+                                  "metadata with qemu-img check -r all\n");
+                goto fail;
+            }
+
+            fprintf(stderr, "Discarding too much extra metadata in snapshot "
+                    "table entry %i (%" PRIu32 " > %u)\n",
+                    i, sn->extra_data_size, QCOW_MAX_SNAPSHOT_EXTRA_DATA);
+
+            (*extra_data_dropped)++;
+            truncate_unknown_extra_data = true;
         }
 
         /* Read known extra data */
@@ -113,18 +142,26 @@ int qcow2_read_snapshots(BlockDriverState *bs, Error **errp)
         }
 
         if (sn->extra_data_size > sizeof(extra)) {
-            /* Store unknown extra data */
-            size_t unknown_extra_data_size =
-                sn->extra_data_size - sizeof(extra);
+            uint64_t extra_data_end;
+            size_t unknown_extra_data_size;
 
+            extra_data_end = offset + sn->extra_data_size - sizeof(extra);
+
+            if (truncate_unknown_extra_data) {
+                sn->extra_data_size = QCOW_MAX_SNAPSHOT_EXTRA_DATA;
+            }
+
+            /* Store unknown extra data */
+            unknown_extra_data_size = sn->extra_data_size - sizeof(extra);
             sn->unknown_extra_data = g_malloc(unknown_extra_data_size);
             ret = bdrv_pread(bs->file, offset, sn->unknown_extra_data,
                              unknown_extra_data_size);
             if (ret < 0) {
-                error_setg_errno(errp, -ret, "Failed to read snapshot table");
+                error_setg_errno(errp, -ret,
+                                 "Failed to read snapshot table");
                 goto fail;
             }
-            offset += unknown_extra_data_size;
+            offset = extra_data_end;
         }
 
         /* Read snapshot ID */
@@ -161,6 +198,11 @@ int qcow2_read_snapshots(BlockDriverState *bs, Error **errp)
 fail:
     qcow2_free_snapshots(bs);
     return ret;
+}
+
+int qcow2_read_snapshots(BlockDriverState *bs, Error **errp)
+{
+    return qcow2_do_read_snapshots(bs, false, NULL, errp);
 }
 
 /* add at the end of the file a new list of snapshots */
@@ -328,6 +370,7 @@ int coroutine_fn qcow2_check_read_snapshot_table(BlockDriverState *bs,
 {
     BDRVQcow2State *s = bs->opaque;
     Error *local_err = NULL;
+    int extra_data_dropped = 0;
     int ret;
     struct {
         uint32_t nb_snapshots;
@@ -363,7 +406,8 @@ int coroutine_fn qcow2_check_read_snapshot_table(BlockDriverState *bs,
     }
 
     qemu_co_mutex_unlock(&s->lock);
-    ret = qcow2_read_snapshots(bs, &local_err);
+    ret = qcow2_do_read_snapshots(bs, fix & BDRV_FIX_ERRORS,
+                                  &extra_data_dropped, &local_err);
     qemu_co_mutex_lock(&s->lock);
     if (ret < 0) {
         result->check_errors++;
@@ -376,6 +420,7 @@ int coroutine_fn qcow2_check_read_snapshot_table(BlockDriverState *bs,
 
         return ret;
     }
+    result->corruptions += extra_data_dropped;
 
     return 0;
 }
