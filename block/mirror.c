@@ -1181,84 +1181,45 @@ do_sync_target_write(MirrorBlockJob *job, MirrorMethod method,
                      uint64_t offset, uint64_t bytes,
                      QEMUIOVector *qiov, int flags)
 {
-    QEMUIOVector target_qiov;
-    uint64_t dirty_offset = offset;
-    uint64_t dirty_bytes;
+    int ret;
 
-    if (qiov) {
-        qemu_iovec_init(&target_qiov, qiov->niov);
+    bdrv_reset_dirty_bitmap(job->dirty_bitmap, offset, bytes);
+
+    job_progress_increase_remaining(&job->common.job, bytes);
+
+    switch (method) {
+    case MIRROR_METHOD_COPY:
+        ret = blk_co_pwritev(job->target, offset, bytes, qiov, flags);
+        break;
+
+    case MIRROR_METHOD_ZERO:
+        assert(!qiov);
+        ret = blk_co_pwrite_zeroes(job->target, offset, bytes, flags);
+        break;
+
+    case MIRROR_METHOD_DISCARD:
+        assert(!qiov);
+        ret = blk_co_pdiscard(job->target, offset, bytes);
+        break;
+
+    default:
+        abort();
     }
 
-    while (true) {
-        bool valid_area;
-        int ret;
+    if (ret >= 0) {
+        job_progress_update(&job->common.job, bytes);
+    } else {
+        BlockErrorAction action;
 
-        bdrv_dirty_bitmap_lock(job->dirty_bitmap);
-        dirty_bytes = MIN(offset + bytes - dirty_offset, INT_MAX);
-        valid_area = bdrv_dirty_bitmap_next_dirty_area(job->dirty_bitmap,
-                                                       &dirty_offset,
-                                                       &dirty_bytes);
-        if (!valid_area) {
-            bdrv_dirty_bitmap_unlock(job->dirty_bitmap);
-            break;
-        }
+        bdrv_set_dirty_bitmap(job->dirty_bitmap, offset, bytes);
+        job->actively_synced = false;
 
-        bdrv_reset_dirty_bitmap_locked(job->dirty_bitmap,
-                                       dirty_offset, dirty_bytes);
-        bdrv_dirty_bitmap_unlock(job->dirty_bitmap);
-
-        job_progress_increase_remaining(&job->common.job, dirty_bytes);
-
-        assert(dirty_offset - offset <= SIZE_MAX);
-        if (qiov) {
-            qemu_iovec_reset(&target_qiov);
-            qemu_iovec_concat(&target_qiov, qiov,
-                              dirty_offset - offset, dirty_bytes);
-        }
-
-        switch (method) {
-        case MIRROR_METHOD_COPY:
-            ret = blk_co_pwritev(job->target, dirty_offset, dirty_bytes,
-                                 qiov ? &target_qiov : NULL, flags);
-            break;
-
-        case MIRROR_METHOD_ZERO:
-            assert(!qiov);
-            ret = blk_co_pwrite_zeroes(job->target, dirty_offset, dirty_bytes,
-                                       flags);
-            break;
-
-        case MIRROR_METHOD_DISCARD:
-            assert(!qiov);
-            ret = blk_co_pdiscard(job->target, dirty_offset, dirty_bytes);
-            break;
-
-        default:
-            abort();
-        }
-
-        if (ret >= 0) {
-            job_progress_update(&job->common.job, dirty_bytes);
-        } else {
-            BlockErrorAction action;
-
-            bdrv_set_dirty_bitmap(job->dirty_bitmap, dirty_offset, dirty_bytes);
-            job->actively_synced = false;
-
-            action = mirror_error_action(job, false, -ret);
-            if (action == BLOCK_ERROR_ACTION_REPORT) {
-                if (!job->ret) {
-                    job->ret = ret;
-                }
-                break;
+        action = mirror_error_action(job, false, -ret);
+        if (action == BLOCK_ERROR_ACTION_REPORT) {
+            if (!job->ret) {
+                job->ret = ret;
             }
         }
-
-        dirty_offset += dirty_bytes;
-    }
-
-    if (qiov) {
-        qemu_iovec_destroy(&target_qiov);
     }
 }
 
