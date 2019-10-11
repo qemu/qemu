@@ -331,3 +331,11 @@ int qemu_plugin_n_max_vcpus(void)
     return get_ms()->smp.max_cpus;
 #endif
 }
+
+/*
+ * Plugin output
+ */
+void qemu_plugin_outs(const char *string)
+{
+    qemu_log_mask(CPU_LOG_PLUGIN, "%s", string);
+}

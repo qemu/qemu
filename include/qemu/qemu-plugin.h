@@ -384,4 +384,10 @@ int qemu_plugin_n_vcpus(void);
 /* returns -1 in user-mode */
 int qemu_plugin_n_max_vcpus(void);
 
+/**
+ * qemu_plugin_outs() - output string via QEMU's logging system
+ * @string: a string
+ */
+void qemu_plugin_outs(const char *string);
+
 #endif /* QEMU_PLUGIN_API_H */
