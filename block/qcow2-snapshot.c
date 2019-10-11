@@ -164,7 +164,7 @@ fail:
 }
 
 /* add at the end of the file a new list of snapshots */
-static int qcow2_write_snapshots(BlockDriverState *bs)
+int qcow2_write_snapshots(BlockDriverState *bs)
 {
     BDRVQcow2State *s = bs->opaque;
     QCowSnapshot *sn;
