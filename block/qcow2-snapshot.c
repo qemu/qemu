@@ -444,6 +444,14 @@ int coroutine_fn qcow2_check_read_snapshot_table(BlockDriverState *bs,
     s->snapshots_offset = be64_to_cpu(snapshot_table_pointer.snapshots_offset);
     s->nb_snapshots = be32_to_cpu(snapshot_table_pointer.nb_snapshots);
 
+    if (s->nb_snapshots > QCOW_MAX_SNAPSHOTS && (fix & BDRV_FIX_ERRORS)) {
+        fprintf(stderr, "Discarding %u overhanging snapshots\n",
+                s->nb_snapshots - QCOW_MAX_SNAPSHOTS);
+
+        nb_clusters_reduced += s->nb_snapshots - QCOW_MAX_SNAPSHOTS;
+        s->nb_snapshots = QCOW_MAX_SNAPSHOTS;
+    }
+
     ret = qcow2_validate_table(bs, s->snapshots_offset, s->nb_snapshots,
                                sizeof(QCowSnapshotHeader),
                                sizeof(QCowSnapshotHeader) * QCOW_MAX_SNAPSHOTS,
@@ -451,6 +459,12 @@ int coroutine_fn qcow2_check_read_snapshot_table(BlockDriverState *bs,
     if (ret < 0) {
         result->check_errors++;
         error_reportf_err(local_err, "ERROR ");
+
+        if (s->nb_snapshots > QCOW_MAX_SNAPSHOTS) {
+            fprintf(stderr, "You can force-remove all %u overhanging snapshots "
+                    "with qemu-img check -r all\n",
+                    s->nb_snapshots - QCOW_MAX_SNAPSHOTS);
+        }
 
         /* We did not read the snapshot table, so invalidate this information */
         s->snapshots_offset = 0;
