@@ -1,0 +1,346 @@
+QA output created by 261
+
+=== Create v2 template ===
+
+Formatting 'TEST_DIR/t.IMGFMT.v2.orig', fmt=IMGFMT size=67108864
+No errors were found on the image.
+Snapshots in TEST_DIR/t.IMGFMT.v2.orig:
+  [0]
+    ID: 1
+    Name: sn0
+    Extra data size: 0
+  [1]
+    ID: 2
+    Name: sn1
+    Extra data size: 42
+    VM state size: 0
+    Disk size: 67108864
+    Unknown extra data: very important data
+  [2]
+    ID: 3
+    Name: sn2
+    Extra data size: 8
+    VM state size: 0
+
+=== Upgrade to v3 ===
+
+No errors were found on the image.
+Snapshots in TEST_DIR/t.IMGFMT.v3.orig:
+  [0]
+    ID: 1
+    Name: sn0
+    Extra data size: 16
+    VM state size: 0
+    Disk size: 67108864
+  [1]
+    ID: 2
+    Name: sn1
+    Extra data size: 42
+    VM state size: 0
+    Disk size: 67108864
+    Unknown extra data: very important data
+  [2]
+    ID: 3
+    Name: sn2
+    Extra data size: 16
+    VM state size: 0
+    Disk size: 67108864
+
+=== Repair botched v3 ===
+
+Repairing snapshot table entry 0 is incomplete
+Repairing snapshot table entry 2 is incomplete
+The following inconsistencies were found and repaired:
+
+    0 leaked clusters
+    2 corruptions
+
+Double checking the fixed image now...
+No errors were found on the image.
+Snapshots in TEST_DIR/t.IMGFMT:
+  [0]
+    ID: 1
+    Name: sn0
+    Extra data size: 16
+    VM state size: 0
+    Disk size: 67108864
+  [1]
+    ID: 2
+    Name: sn1
+    Extra data size: 42
+    VM state size: 0
+    Disk size: 67108864
+    Unknown extra data: very important data
+  [2]
+    ID: 3
+    Name: sn2
+    Extra data size: 16
+    VM state size: 0
+    Disk size: 67108864
+
+=== Add new snapshot ===
+
+No errors were found on the image.
+Snapshots in TEST_DIR/t.IMGFMT:
+  [0]
+    ID: 1
+    Name: sn0
+    Extra data size: 16
+    VM state size: 0
+    Disk size: 67108864
+  [1]
+    ID: 2
+    Name: sn1
+    Extra data size: 42
+    VM state size: 0
+    Disk size: 67108864
+    Unknown extra data: very important data
+  [2]
+    ID: 3
+    Name: sn2
+    Extra data size: 16
+    VM state size: 0
+    Disk size: 67108864
+  [3]
+    ID: 4
+    Name: sn3
+    Extra data size: 16
+    VM state size: 0
+    Disk size: 67108864
+
+=== Remove different snapshots ===
+
+--- sn0 ---
+No errors were found on the image.
+Snapshots in TEST_DIR/t.IMGFMT:
+  [0]
+    ID: 2
+    Name: sn1
+    Extra data size: 42
+    VM state size: 0
+    Disk size: 67108864
+    Unknown extra data: very important data
+  [1]
+    ID: 3
+    Name: sn2
+    Extra data size: 16
+    VM state size: 0
+    Disk size: 67108864
+
+--- sn1 ---
+No errors were found on the image.
+Snapshots in TEST_DIR/t.IMGFMT:
+  [0]
+    ID: 1
+    Name: sn0
+    Extra data size: 16
+    VM state size: 0
+    Disk size: 67108864
+  [1]
+    ID: 3
+    Name: sn2
+    Extra data size: 16
+    VM state size: 0
+    Disk size: 67108864
+
+--- sn2 ---
+No errors were found on the image.
+Snapshots in TEST_DIR/t.IMGFMT:
+  [0]
+    ID: 1
+    Name: sn0
+    Extra data size: 16
+    VM state size: 0
+    Disk size: 67108864
+  [1]
+    ID: 2
+    Name: sn1
+    Extra data size: 42
+    VM state size: 0
+    Disk size: 67108864
+    Unknown extra data: very important data
+
+=== Reject too much unknown extra data ===
+
+qemu-img: Could not open 'TEST_DIR/t.IMGFMT': Too much extra metadata in snapshot table entry 3
+You can force-remove this extra metadata with qemu-img check -r all
+
+qemu-img: ERROR failed to read the snapshot table: Too much extra metadata in snapshot table entry 3
+You can force-remove this extra metadata with qemu-img check -r all
+qemu-img: Check failed: File too large
+
+Discarding too much extra metadata in snapshot table entry 3 (65536 > 1024)
+ERROR cluster 10 refcount=0 reference=1
+Rebuilding refcount structure
+Repairing cluster 1 refcount=1 reference=0
+Repairing cluster 2 refcount=1 reference=0
+The following inconsistencies were found and repaired:
+
+    0 leaked clusters
+    2 corruptions
+
+Double checking the fixed image now...
+No errors were found on the image.
+
+=== Snapshot table too big ===
+
+Formatting 'TEST_DIR/t.IMGFMT', fmt=IMGFMT size=67108864
+qemu-img: Could not open 'TEST_DIR/t.IMGFMT': Snapshot table is too big
+You can force-remove all 1 overhanging snapshots with qemu-img check -r all
+
+qemu-img: ERROR failed to read the snapshot table: Snapshot table is too big
+You can force-remove all 1 overhanging snapshots with qemu-img check -r all
+qemu-img: Check failed: File too large
+
+Discarding 1 overhanging snapshots (snapshot table is too big)
+Leaked cluster 14 refcount=1 reference=0
+Leaked cluster 15 refcount=1 reference=0
+Leaked cluster 1039 refcount=1 reference=0
+Leaked cluster 1040 refcount=1 reference=0
+Repairing cluster 14 refcount=1 reference=0
+Repairing cluster 15 refcount=1 reference=0
+Repairing cluster 1039 refcount=1 reference=0
+Repairing cluster 1040 refcount=1 reference=0
+The following inconsistencies were found and repaired:
+
+    4 leaked clusters
+    1 corruptions
+
+Double checking the fixed image now...
+No errors were found on the image.
+
+507 snapshots should remain:
+  qemu-img info reports 507 snapshots
+  Image header reports 507 snapshots
+
+=== Snapshot table too big with one entry with too much extra data ===
+
+Snapshot table size should equal 67108872: 67108872
+
+qemu-img: Could not open 'TEST_DIR/t.IMGFMT': Too much extra metadata in snapshot table entry 505
+You can force-remove this extra metadata with qemu-img check -r all
+
+qemu-img: ERROR failed to read the snapshot table: Too much extra metadata in snapshot table entry 505
+You can force-remove this extra metadata with qemu-img check -r all
+qemu-img: Check failed: File too large
+
+Discarding too much extra metadata in snapshot table entry 505 (116944 > 1024)
+Discarding 1 overhanging snapshots (snapshot table is too big)
+Leaked cluster 1041 refcount=1 reference=0
+Leaked cluster 1042 refcount=1 reference=0
+Repairing cluster 1041 refcount=1 reference=0
+Repairing cluster 1042 refcount=1 reference=0
+The following inconsistencies were found and repaired:
+
+    2 leaked clusters
+    2 corruptions
+
+Double checking the fixed image now...
+No errors were found on the image.
+
+=== Too many snapshots ===
+
+Formatting 'TEST_DIR/t.IMGFMT', fmt=IMGFMT size=67108864
+qemu-img: Could not open 'TEST_DIR/t.IMGFMT': Snapshot table too large
+
+qemu-img: ERROR snapshot table too large
+You can force-remove all 65536 overhanging snapshots with qemu-img check -r all
+qemu-img: Check failed: File too large
+
+Discarding 65536 overhanging snapshots
+Leaked cluster 14 refcount=1 reference=0
+Leaked cluster 15 refcount=1 reference=0
+Leaked cluster 56 refcount=1 reference=0
+Leaked cluster 57 refcount=1 reference=0
+Leaked cluster 58 refcount=1 reference=0
+Leaked cluster 59 refcount=1 reference=0
+Leaked cluster 60 refcount=1 reference=0
+Leaked cluster 61 refcount=1 reference=0
+Leaked cluster 62 refcount=1 reference=0
+Leaked cluster 63 refcount=1 reference=0
+Leaked cluster 64 refcount=1 reference=0
+Leaked cluster 65 refcount=1 reference=0
+Leaked cluster 66 refcount=1 reference=0
+Leaked cluster 67 refcount=1 reference=0
+Leaked cluster 68 refcount=1 reference=0
+Leaked cluster 69 refcount=1 reference=0
+Leaked cluster 70 refcount=1 reference=0
+Leaked cluster 71 refcount=1 reference=0
+Leaked cluster 72 refcount=1 reference=0
+Leaked cluster 73 refcount=1 reference=0
+Leaked cluster 74 refcount=1 reference=0
+Leaked cluster 75 refcount=1 reference=0
+Leaked cluster 76 refcount=1 reference=0
+Leaked cluster 77 refcount=1 reference=0
+Leaked cluster 78 refcount=1 reference=0
+Leaked cluster 79 refcount=1 reference=0
+Leaked cluster 80 refcount=1 reference=0
+Leaked cluster 81 refcount=1 reference=0
+Leaked cluster 82 refcount=1 reference=0
+Leaked cluster 83 refcount=1 reference=0
+Leaked cluster 84 refcount=1 reference=0
+Leaked cluster 85 refcount=1 reference=0
+Leaked cluster 86 refcount=1 reference=0
+Leaked cluster 87 refcount=1 reference=0
+Leaked cluster 88 refcount=1 reference=0
+Leaked cluster 89 refcount=1 reference=0
+Leaked cluster 90 refcount=1 reference=0
+Leaked cluster 91 refcount=1 reference=0
+Leaked cluster 92 refcount=1 reference=0
+Leaked cluster 93 refcount=1 reference=0
+Leaked cluster 94 refcount=1 reference=0
+Leaked cluster 95 refcount=1 reference=0
+Repairing cluster 14 refcount=1 reference=0
+Repairing cluster 15 refcount=1 reference=0
+Repairing cluster 56 refcount=1 reference=0
+Repairing cluster 57 refcount=1 reference=0
+Repairing cluster 58 refcount=1 reference=0
+Repairing cluster 59 refcount=1 reference=0
+Repairing cluster 60 refcount=1 reference=0
+Repairing cluster 61 refcount=1 reference=0
+Repairing cluster 62 refcount=1 reference=0
+Repairing cluster 63 refcount=1 reference=0
+Repairing cluster 64 refcount=1 reference=0
+Repairing cluster 65 refcount=1 reference=0
+Repairing cluster 66 refcount=1 reference=0
+Repairing cluster 67 refcount=1 reference=0
+Repairing cluster 68 refcount=1 reference=0
+Repairing cluster 69 refcount=1 reference=0
+Repairing cluster 70 refcount=1 reference=0
+Repairing cluster 71 refcount=1 reference=0
+Repairing cluster 72 refcount=1 reference=0
+Repairing cluster 73 refcount=1 reference=0
+Repairing cluster 74 refcount=1 reference=0
+Repairing cluster 75 refcount=1 reference=0
+Repairing cluster 76 refcount=1 reference=0
+Repairing cluster 77 refcount=1 reference=0
+Repairing cluster 78 refcount=1 reference=0
+Repairing cluster 79 refcount=1 reference=0
+Repairing cluster 80 refcount=1 reference=0
+Repairing cluster 81 refcount=1 reference=0
+Repairing cluster 82 refcount=1 reference=0
+Repairing cluster 83 refcount=1 reference=0
+Repairing cluster 84 refcount=1 reference=0
+Repairing cluster 85 refcount=1 reference=0
+Repairing cluster 86 refcount=1 reference=0
+Repairing cluster 87 refcount=1 reference=0
+Repairing cluster 88 refcount=1 reference=0
+Repairing cluster 89 refcount=1 reference=0
+Repairing cluster 90 refcount=1 reference=0
+Repairing cluster 91 refcount=1 reference=0
+Repairing cluster 92 refcount=1 reference=0
+Repairing cluster 93 refcount=1 reference=0
+Repairing cluster 94 refcount=1 reference=0
+Repairing cluster 95 refcount=1 reference=0
+The following inconsistencies were found and repaired:
+
+    42 leaked clusters
+    65536 corruptions
+
+Double checking the fixed image now...
+No errors were found on the image.
+
+65536 snapshots should remain:
+  qemu-img info reports 65536 snapshots
+  Image header reports 65536 snapshots
+*** done
