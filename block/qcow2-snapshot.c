@@ -92,11 +92,12 @@ int qcow2_read_snapshots(BlockDriverState *bs)
         }
         offset += extra_data_size;
 
-        if (extra_data_size >= 8) {
+        if (extra_data_size >= endof(QCowSnapshotExtraData,
+                                     vm_state_size_large)) {
             sn->vm_state_size = be64_to_cpu(extra.vm_state_size_large);
         }
 
-        if (extra_data_size >= 16) {
+        if (extra_data_size >= endof(QCowSnapshotExtraData, disk_size)) {
             sn->disk_size = be64_to_cpu(extra.disk_size);
         } else {
             sn->disk_size = bs->total_sectors * BDRV_SECTOR_SIZE;
@@ -251,7 +252,7 @@ static int qcow2_write_snapshots(BlockDriverState *bs)
     }
 
     QEMU_BUILD_BUG_ON(offsetof(QCowHeader, snapshots_offset) !=
-        offsetof(QCowHeader, nb_snapshots) + sizeof(header_data.nb_snapshots));
+                      endof(QCowHeader, nb_snapshots));
 
     header_data.nb_snapshots        = cpu_to_be32(s->nb_snapshots);
     header_data.snapshots_offset    = cpu_to_be64(snapshots_offset);
