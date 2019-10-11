@@ -691,3 +691,155 @@ const VMStateInfo vmstate_info_qtailq = {
     .get  = get_qtailq,
     .put  = put_qtailq,
 };
+
+struct put_gtree_data {
+    QEMUFile *f;
+    const VMStateDescription *key_vmsd;
+    const VMStateDescription *val_vmsd;
+    QJSON *vmdesc;
+    int ret;
+};
+
+static gboolean put_gtree_elem(gpointer key, gpointer value, gpointer data)
+{
+    struct put_gtree_data *capsule = (struct put_gtree_data *)data;
+    QEMUFile *f = capsule->f;
+    int ret;
+
+    qemu_put_byte(f, true);
+
+    /* put the key */
+    if (!capsule->key_vmsd) {
+        qemu_put_be64(f, (uint64_t)(uintptr_t)(key)); /* direct key */
+    } else {
+        ret = vmstate_save_state(f, capsule->key_vmsd, key, capsule->vmdesc);
+        if (ret) {
+            capsule->ret = ret;
+            return true;
+        }
+    }
+
+    /* put the data */
+    ret = vmstate_save_state(f, capsule->val_vmsd, value, capsule->vmdesc);
+    if (ret) {
+        capsule->ret = ret;
+        return true;
+    }
+    return false;
+}
+
+static int put_gtree(QEMUFile *f, void *pv, size_t unused_size,
+                     const VMStateField *field, QJSON *vmdesc)
+{
+    bool direct_key = (!field->start);
+    const VMStateDescription *key_vmsd = direct_key ? NULL : &field->vmsd[1];
+    const VMStateDescription *val_vmsd = &field->vmsd[0];
+    const char *key_vmsd_name = direct_key ? "direct" : key_vmsd->name;
+    struct put_gtree_data capsule = {
+        .f = f,
+        .key_vmsd = key_vmsd,
+        .val_vmsd = val_vmsd,
+        .vmdesc = vmdesc,
+        .ret = 0};
+    GTree **pval = pv;
+    GTree *tree = *pval;
+    uint32_t nnodes = g_tree_nnodes(tree);
+    int ret;
+
+    trace_put_gtree(field->name, key_vmsd_name, val_vmsd->name, nnodes);
+    qemu_put_be32(f, nnodes);
+    g_tree_foreach(tree, put_gtree_elem, (gpointer)&capsule);
+    qemu_put_byte(f, false);
+    ret = capsule.ret;
+    if (ret) {
+        error_report("%s : failed to save gtree (%d)", field->name, ret);
+    }
+    trace_put_gtree_end(field->name, key_vmsd_name, val_vmsd->name, ret);
+    return ret;
+}
+
+static int get_gtree(QEMUFile *f, void *pv, size_t unused_size,
+                     const VMStateField *field)
+{
+    bool direct_key = (!field->start);
+    const VMStateDescription *key_vmsd = direct_key ? NULL : &field->vmsd[1];
+    const VMStateDescription *val_vmsd = &field->vmsd[0];
+    const char *key_vmsd_name = direct_key ? "direct" : key_vmsd->name;
+    int version_id = field->version_id;
+    size_t key_size = field->start;
+    size_t val_size = field->size;
+    int nnodes, count = 0;
+    GTree **pval = pv;
+    GTree *tree = *pval;
+    void *key, *val;
+    int ret = 0;
+
+    /* in case of direct key, the key vmsd can be {}, ie. check fields */
+    if (!direct_key && version_id > key_vmsd->version_id) {
+        error_report("%s %s",  key_vmsd->name, "too new");
+        return -EINVAL;
+    }
+    if (!direct_key && version_id < key_vmsd->minimum_version_id) {
+        error_report("%s %s",  key_vmsd->name, "too old");
+        return -EINVAL;
+    }
+    if (version_id > val_vmsd->version_id) {
+        error_report("%s %s",  val_vmsd->name, "too new");
+        return -EINVAL;
+    }
+    if (version_id < val_vmsd->minimum_version_id) {
+        error_report("%s %s",  val_vmsd->name, "too old");
+        return -EINVAL;
+    }
+
+    nnodes = qemu_get_be32(f);
+    trace_get_gtree(field->name, key_vmsd_name, val_vmsd->name, nnodes);
+
+    while (qemu_get_byte(f)) {
+        if ((++count) > nnodes) {
+            ret = -EINVAL;
+            break;
+        }
+        if (direct_key) {
+            key = (void *)(uintptr_t)qemu_get_be64(f);
+        } else {
+            key = g_malloc0(key_size);
+            ret = vmstate_load_state(f, key_vmsd, key, version_id);
+            if (ret) {
+                error_report("%s : failed to load %s (%d)",
+                             field->name, key_vmsd->name, ret);
+                goto key_error;
+            }
+        }
+        val = g_malloc0(val_size);
+        ret = vmstate_load_state(f, val_vmsd, val, version_id);
+        if (ret) {
+            error_report("%s : failed to load %s (%d)",
+                         field->name, val_vmsd->name, ret);
+            goto val_error;
+        }
+        g_tree_insert(tree, key, val);
+    }
+    if (count != nnodes) {
+        error_report("%s inconsistent stream when loading the gtree",
+                     field->name);
+        return -EINVAL;
+    }
+    trace_get_gtree_end(field->name, key_vmsd_name, val_vmsd->name, ret);
+    return ret;
+val_error:
+    g_free(val);
+key_error:
+    if (!direct_key) {
+        g_free(key);
+    }
+    trace_get_gtree_end(field->name, key_vmsd_name, val_vmsd->name, ret);
+    return ret;
+}
+
+
+const VMStateInfo vmstate_info_gtree = {
+    .name = "gtree",
+    .get  = get_gtree,
+    .put  = put_gtree,
+};

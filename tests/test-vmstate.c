@@ -812,6 +812,423 @@ static void test_load_q(void)
     qemu_fclose(fload);
 }
 
+/* interval (key) */
+typedef struct TestGTreeInterval {
+    uint64_t low;
+    uint64_t high;
+} TestGTreeInterval;
+
+#define VMSTATE_INTERVAL                               \
+{                                                      \
+    .name = "interval",                                \
+    .version_id = 1,                                   \
+    .minimum_version_id = 1,                           \
+    .fields = (VMStateField[]) {                       \
+        VMSTATE_UINT64(low, TestGTreeInterval),        \
+        VMSTATE_UINT64(high, TestGTreeInterval),       \
+        VMSTATE_END_OF_LIST()                          \
+    }                                                  \
+}
+
+/* mapping (value) */
+typedef struct TestGTreeMapping {
+    uint64_t phys_addr;
+    uint32_t flags;
+} TestGTreeMapping;
+
+#define VMSTATE_MAPPING                               \
+{                                                     \
+    .name = "mapping",                                \
+    .version_id = 1,                                  \
+    .minimum_version_id = 1,                          \
+    .fields = (VMStateField[]) {                      \
+        VMSTATE_UINT64(phys_addr, TestGTreeMapping),  \
+        VMSTATE_UINT32(flags, TestGTreeMapping),      \
+        VMSTATE_END_OF_LIST()                         \
+    },                                                \
+}
+
+static const VMStateDescription vmstate_interval_mapping[2] = {
+    VMSTATE_MAPPING,   /* value */
+    VMSTATE_INTERVAL   /* key   */
+};
+
+typedef struct TestGTreeDomain {
+    int32_t  id;
+    GTree    *mappings;
+} TestGTreeDomain;
+
+typedef struct TestGTreeIOMMU {
+    int32_t  id;
+    GTree    *domains;
+} TestGTreeIOMMU;
+
+/* Interval comparison function */
+static gint interval_cmp(gconstpointer a, gconstpointer b, gpointer user_data)
+{
+    TestGTreeInterval *inta = (TestGTreeInterval *)a;
+    TestGTreeInterval *intb = (TestGTreeInterval *)b;
+
+    if (inta->high < intb->low) {
+        return -1;
+    } else if (intb->high < inta->low) {
+        return 1;
+    } else {
+        return 0;
+    }
+}
+
+/* ID comparison function */
+static gint int_cmp(gconstpointer a, gconstpointer b, gpointer user_data)
+{
+    uint ua = GPOINTER_TO_UINT(a);
+    uint ub = GPOINTER_TO_UINT(b);
+    return (ua > ub) - (ua < ub);
+}
+
+static void destroy_domain(gpointer data)
+{
+    TestGTreeDomain *domain = (TestGTreeDomain *)data;
+
+    g_tree_destroy(domain->mappings);
+    g_free(domain);
+}
+
+static int domain_preload(void *opaque)
+{
+    TestGTreeDomain *domain = opaque;
+
+    domain->mappings = g_tree_new_full((GCompareDataFunc)interval_cmp,
+                                       NULL, g_free, g_free);
+    return 0;
+}
+
+static int iommu_preload(void *opaque)
+{
+    TestGTreeIOMMU *iommu = opaque;
+
+    iommu->domains = g_tree_new_full((GCompareDataFunc)int_cmp,
+                                     NULL, NULL, destroy_domain);
+    return 0;
+}
+
+static const VMStateDescription vmstate_domain = {
+    .name = "domain",
+    .version_id = 1,
+    .minimum_version_id = 1,
+    .pre_load = domain_preload,
+    .fields = (VMStateField[]) {
+        VMSTATE_INT32(id, TestGTreeDomain),
+        VMSTATE_GTREE_V(mappings, TestGTreeDomain, 1,
+                        vmstate_interval_mapping,
+                        TestGTreeInterval, TestGTreeMapping),
+        VMSTATE_END_OF_LIST()
+    }
+};
+
+static const VMStateDescription vmstate_iommu = {
+    .name = "iommu",
+    .version_id = 1,
+    .minimum_version_id = 1,
+    .pre_load = iommu_preload,
+    .fields = (VMStateField[]) {
+        VMSTATE_INT32(id, TestGTreeIOMMU),
+        VMSTATE_GTREE_DIRECT_KEY_V(domains, TestGTreeIOMMU, 1,
+                                   &vmstate_domain, TestGTreeDomain),
+        VMSTATE_END_OF_LIST()
+    }
+};
+
+uint8_t first_domain_dump[] = {
+    /* id */
+    0x00, 0x0, 0x0, 0x6,
+    0x00, 0x0, 0x0, 0x2, /* 2 mappings */
+    0x1, /* start of a */
+    /* a */
+    0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x10, 0x00,
+    0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x1F, 0xFF,
+    /* map_a */
+    0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0xa0, 0x00,
+    0x00, 0x00, 0x00, 0x01,
+    0x1, /* start of b */
+    /* b */
+    0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x40, 0x00,
+    0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x4F, 0xFF,
+    /* map_b */
+    0x00, 0x00, 0x00, 0x00, 0x00, 0x0e, 0x00, 0x00,
+    0x00, 0x00, 0x00, 0x02,
+    0x0, /* end of gtree */
+    QEMU_VM_EOF, /* just to ensure we won't get EOF reported prematurely */
+};
+
+static TestGTreeDomain *create_first_domain(void)
+{
+    TestGTreeDomain *domain;
+    TestGTreeMapping *map_a, *map_b;
+    TestGTreeInterval *a, *b;
+
+    domain = g_malloc0(sizeof(TestGTreeDomain));
+    domain->id = 6;
+
+    a = g_malloc0(sizeof(TestGTreeInterval));
+    a->low = 0x1000;
+    a->high = 0x1FFF;
+
+    b = g_malloc0(sizeof(TestGTreeInterval));
+    b->low = 0x4000;
+    b->high = 0x4FFF;
+
+    map_a = g_malloc0(sizeof(TestGTreeMapping));
+    map_a->phys_addr = 0xa000;
+    map_a->flags = 1;
+
+    map_b = g_malloc0(sizeof(TestGTreeMapping));
+    map_b->phys_addr = 0xe0000;
+    map_b->flags = 2;
+
+    domain->mappings = g_tree_new_full((GCompareDataFunc)interval_cmp, NULL,
+                                        (GDestroyNotify)g_free,
+                                        (GDestroyNotify)g_free);
+    g_tree_insert(domain->mappings, a, map_a);
+    g_tree_insert(domain->mappings, b, map_b);
+    return domain;
+}
+
+static void test_gtree_save_domain(void)
+{
+    TestGTreeDomain *first_domain = create_first_domain();
+
+    save_vmstate(&vmstate_domain, first_domain);
+    compare_vmstate(first_domain_dump, sizeof(first_domain_dump));
+    destroy_domain(first_domain);
+}
+
+struct match_node_data {
+    GTree *tree;
+    gpointer key;
+    gpointer value;
+};
+
+struct tree_cmp_data {
+    GTree *tree1;
+    GTree *tree2;
+    GTraverseFunc match_node;
+};
+
+static gboolean match_interval_mapping_node(gpointer key,
+                                            gpointer value, gpointer data)
+{
+    TestGTreeMapping *map_a, *map_b;
+    TestGTreeInterval *a, *b;
+    struct match_node_data *d = (struct match_node_data *)data;
+    char *str = g_strdup_printf("dest");
+
+    g_free(str);
+    a = (TestGTreeInterval *)key;
+    b = (TestGTreeInterval *)d->key;
+
+    map_a = (TestGTreeMapping *)value;
+    map_b = (TestGTreeMapping *)d->value;
+
+    assert(a->low == b->low);
+    assert(a->high == b->high);
+    assert(map_a->phys_addr == map_b->phys_addr);
+    assert(map_a->flags == map_b->flags);
+    g_tree_remove(d->tree, key);
+    return true;
+}
+
+static gboolean diff_tree(gpointer key, gpointer value, gpointer data)
+{
+    struct tree_cmp_data *tp = (struct tree_cmp_data *)data;
+    struct match_node_data d = {tp->tree2, key, value};
+
+    g_tree_foreach(tp->tree2, tp->match_node, &d);
+    g_tree_remove(tp->tree1, key);
+    return false;
+}
+
+static void compare_trees(GTree *tree1, GTree *tree2,
+                          GTraverseFunc function)
+{
+    struct tree_cmp_data tp = {tree1, tree2, function};
+
+    g_tree_foreach(tree1, diff_tree, &tp);
+    assert(g_tree_nnodes(tree1) == 0);
+    assert(g_tree_nnodes(tree2) == 0);
+}
+
+static void diff_domain(TestGTreeDomain *d1, TestGTreeDomain *d2)
+{
+    assert(d1->id == d2->id);
+    compare_trees(d1->mappings, d2->mappings, match_interval_mapping_node);
+}
+
+static gboolean match_domain_node(gpointer key, gpointer value, gpointer data)
+{
+    uint64_t id1, id2;
+    TestGTreeDomain *d1, *d2;
+    struct match_node_data *d = (struct match_node_data *)data;
+
+    id1 = (uint64_t)(uintptr_t)key;
+    id2 = (uint64_t)(uintptr_t)d->key;
+    d1 = (TestGTreeDomain *)value;
+    d2 = (TestGTreeDomain *)d->value;
+    assert(id1 == id2);
+    diff_domain(d1, d2);
+    g_tree_remove(d->tree, key);
+    return true;
+}
+
+static void diff_iommu(TestGTreeIOMMU *iommu1, TestGTreeIOMMU *iommu2)
+{
+    assert(iommu1->id == iommu2->id);
+    compare_trees(iommu1->domains, iommu2->domains, match_domain_node);
+}
+
+static void test_gtree_load_domain(void)
+{
+    TestGTreeDomain *dest_domain = g_malloc0(sizeof(TestGTreeDomain));
+    TestGTreeDomain *orig_domain = create_first_domain();
+    QEMUFile *fload, *fsave;
+    char eof;
+
+    fsave = open_test_file(true);
+    qemu_put_buffer(fsave, first_domain_dump, sizeof(first_domain_dump));
+    g_assert(!qemu_file_get_error(fsave));
+    qemu_fclose(fsave);
+
+    fload = open_test_file(false);
+
+    vmstate_load_state(fload, &vmstate_domain, dest_domain, 1);
+    eof = qemu_get_byte(fload);
+    g_assert(!qemu_file_get_error(fload));
+    g_assert_cmpint(orig_domain->id, ==, dest_domain->id);
+    g_assert_cmpint(eof, ==, QEMU_VM_EOF);
+
+    diff_domain(orig_domain, dest_domain);
+    destroy_domain(orig_domain);
+    destroy_domain(dest_domain);
+    qemu_fclose(fload);
+}
+
+uint8_t iommu_dump[] = {
+    /* iommu id */
+    0x00, 0x0, 0x0, 0x7,
+    0x00, 0x0, 0x0, 0x2, /* 2 domains */
+    0x1,/* start of domain 5 */
+        0x00, 0x00, 0x00, 0x00, 0x00, 0x0, 0x0, 0x5, /* key = 5 */
+        0x00, 0x0, 0x0, 0x5, /* domain1 id */
+        0x00, 0x0, 0x0, 0x1, /* 1 mapping */
+        0x1, /* start of mappings */
+            /* c */
+            0x00, 0x00, 0x00, 0x00, 0x01, 0x00, 0x00, 0x00,
+            0x00, 0x00, 0x00, 0x00, 0x01, 0xFF, 0xFF, 0xFF,
+            /* map_c */
+            0x00, 0x00, 0x00, 0x00, 0x0F, 0x00, 0x00, 0x00,
+            0x00, 0x0, 0x0, 0x3,
+            0x0, /* end of domain1 mappings*/
+    0x1,/* start of domain 6 */
+        0x00, 0x00, 0x00, 0x00, 0x00, 0x0, 0x0, 0x6, /* key = 6 */
+        0x00, 0x0, 0x0, 0x6, /* domain6 id */
+            0x00, 0x0, 0x0, 0x2, /* 2 mappings */
+            0x1, /* start of a */
+            /* a */
+            0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x10, 0x00,
+            0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x1F, 0xFF,
+            /* map_a */
+            0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0xa0, 0x00,
+            0x00, 0x00, 0x00, 0x01,
+            0x1, /* start of b */
+            /* b */
+            0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x40, 0x00,
+            0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x4F, 0xFF,
+            /* map_b */
+            0x00, 0x00, 0x00, 0x00, 0x00, 0x0e, 0x00, 0x00,
+            0x00, 0x00, 0x00, 0x02,
+            0x0, /* end of domain6 mappings*/
+    0x0, /* end of domains */
+    QEMU_VM_EOF, /* just to ensure we won't get EOF reported prematurely */
+};
+
+static TestGTreeIOMMU *create_iommu(void)
+{
+    TestGTreeIOMMU *iommu = g_malloc0(sizeof(TestGTreeIOMMU));
+    TestGTreeDomain *first_domain = create_first_domain();
+    TestGTreeDomain *second_domain;
+    TestGTreeMapping *map_c;
+    TestGTreeInterval *c;
+
+    iommu->id = 7;
+    iommu->domains = g_tree_new_full((GCompareDataFunc)int_cmp, NULL,
+                                     NULL,
+                                     destroy_domain);
+
+    second_domain = g_malloc0(sizeof(TestGTreeDomain));
+    second_domain->id = 5;
+    second_domain->mappings = g_tree_new_full((GCompareDataFunc)interval_cmp,
+                                              NULL,
+                                              (GDestroyNotify)g_free,
+                                              (GDestroyNotify)g_free);
+
+    g_tree_insert(iommu->domains, GUINT_TO_POINTER(6), first_domain);
+    g_tree_insert(iommu->domains, (gpointer)0x0000000000000005, second_domain);
+
+    c = g_malloc0(sizeof(TestGTreeInterval));
+    c->low = 0x1000000;
+    c->high = 0x1FFFFFF;
+
+    map_c = g_malloc0(sizeof(TestGTreeMapping));
+    map_c->phys_addr = 0xF000000;
+    map_c->flags = 0x3;
+
+    g_tree_insert(second_domain->mappings, c, map_c);
+    return iommu;
+}
+
+static void destroy_iommu(TestGTreeIOMMU *iommu)
+{
+    g_tree_destroy(iommu->domains);
+    g_free(iommu);
+}
+
+static void test_gtree_save_iommu(void)
+{
+    TestGTreeIOMMU *iommu = create_iommu();
+
+    save_vmstate(&vmstate_iommu, iommu);
+    compare_vmstate(iommu_dump, sizeof(iommu_dump));
+    destroy_iommu(iommu);
+}
+
+static void test_gtree_load_iommu(void)
+{
+    TestGTreeIOMMU *dest_iommu = g_malloc0(sizeof(TestGTreeIOMMU));
+    TestGTreeIOMMU *orig_iommu = create_iommu();
+    QEMUFile *fsave, *fload;
+    char eof;
+    int ret;
+
+    fsave = open_test_file(true);
+    qemu_put_buffer(fsave, iommu_dump, sizeof(iommu_dump));
+    g_assert(!qemu_file_get_error(fsave));
+    qemu_fclose(fsave);
+
+    fload = open_test_file(false);
+    vmstate_load_state(fload, &vmstate_iommu, dest_iommu, 1);
+    ret = qemu_file_get_error(fload);
+    eof = qemu_get_byte(fload);
+    ret = qemu_file_get_error(fload);
+    g_assert(!ret);
+    g_assert_cmpint(orig_iommu->id, ==, dest_iommu->id);
+    g_assert_cmpint(eof, ==, QEMU_VM_EOF);
+
+    diff_iommu(orig_iommu, dest_iommu);
+    destroy_iommu(orig_iommu);
+    destroy_iommu(dest_iommu);
+    qemu_fclose(fload);
+}
+
 typedef struct TmpTestStruct {
     TestStruct *parent;
     int64_t diff;
@@ -932,6 +1349,10 @@ int main(int argc, char **argv)
                     test_arr_ptr_prim_0_load);
     g_test_add_func("/vmstate/qtailq/save/saveq", test_save_q);
     g_test_add_func("/vmstate/qtailq/load/loadq", test_load_q);
+    g_test_add_func("/vmstate/gtree/save/savedomain", test_gtree_save_domain);
+    g_test_add_func("/vmstate/gtree/load/loaddomain", test_gtree_load_domain);
+    g_test_add_func("/vmstate/gtree/save/saveiommu", test_gtree_save_iommu);
+    g_test_add_func("/vmstate/gtree/load/loadiommu", test_gtree_load_iommu);
     g_test_add_func("/vmstate/tmp_struct", test_tmp_struct);
     g_test_run();
 
