@@ -68,6 +68,7 @@ static int qcow2_do_read_snapshots(BlockDriverState *bs, bool repair,
     QCowSnapshot *sn;
     int i, id_str_size, name_size;
     int64_t offset;
+    uint64_t table_length = 0;
     int ret;
 
     if (!s->nb_snapshots) {
@@ -81,6 +82,8 @@ static int qcow2_do_read_snapshots(BlockDriverState *bs, bool repair,
 
     for(i = 0; i < s->nb_snapshots; i++) {
         bool truncate_unknown_extra_data = false;
+
+        table_length = ROUND_UP(table_length, 8);
 
         /* Read statically sized part of the snapshot header */
         offset = ROUND_UP(offset, 8);
@@ -184,7 +187,16 @@ static int qcow2_do_read_snapshots(BlockDriverState *bs, bool repair,
         offset += name_size;
         sn->name[name_size] = '\0';
 
-        if (offset - s->snapshots_offset > QCOW_MAX_SNAPSHOTS_SIZE) {
+        /* Note that the extra data may have been truncated */
+        table_length += sizeof(h) + sn->extra_data_size + id_str_size +
+                        name_size;
+        if (!repair) {
+            assert(table_length == offset - s->snapshots_offset);
+        }
+
+        if (table_length > QCOW_MAX_SNAPSHOTS_SIZE ||
+            offset - s->snapshots_offset > INT_MAX)
+        {
             ret = -EFBIG;
             error_setg(errp, "Snapshot table is too big");
             goto fail;
