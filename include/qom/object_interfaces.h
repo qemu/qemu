@@ -133,6 +133,18 @@ int user_creatable_add_opts_foreach(void *opaque,
                                     QemuOpts *opts, Error **errp);
 
 /**
+ * user_creatable_print_help:
+ * @type: the QOM type to be added
+ * @opts: options to create
+ *
+ * Prints help if requested in @opts.
+ *
+ * Returns: true if @opts contained a help option and help was printed, false
+ * if no help option was found.
+ */
+bool user_creatable_print_help(const char *type, QemuOpts *opts);
+
+/**
  * user_creatable_del:
  * @id: the unique ID for the object
  * @errp: if an error occurs, a pointer to an area to store the error
