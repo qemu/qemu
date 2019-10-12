@@ -1210,6 +1210,34 @@ static void mips_create_cpu(MachineState *ms, MaltaState *s,
     }
 }
 
+static DeviceState *piix4_create(PCIBus *pci_bus, ISABus **isa_bus,
+                                 I2CBus **smbus, size_t ide_buses)
+{
+    const size_t ide_drives = ide_buses * MAX_IDE_DEVS;
+    DriveInfo **hd;
+    PCIDevice *pci;
+    DeviceState *dev;
+
+    pci = pci_create_simple_multifunction(pci_bus, PCI_DEVFN(10, 0),
+                                          true, TYPE_PIIX4_PCI_DEVICE);
+    dev = DEVICE(pci);
+    if (isa_bus) {
+        *isa_bus = ISA_BUS(qdev_get_child_bus(dev, "isa.0"));
+    }
+
+    hd = g_new(DriveInfo *, ide_drives);
+    ide_drive_get(hd, ide_drives);
+    pci_piix4_ide_init(pci_bus, hd, pci->devfn + 1);
+    g_free(hd);
+    pci_create_simple(pci_bus, pci->devfn + 2, "piix4-usb-uhci");
+    if (smbus) {
+        *smbus = piix4_pm_init(pci_bus, pci->devfn + 3, 0x1100,
+                               isa_get_irq(NULL, 9), NULL, 0, NULL);
+   }
+
+    return dev;
+}
+
 static
 void mips_malta_init(MachineState *machine)
 {
@@ -1231,12 +1259,8 @@ void mips_malta_init(MachineState *machine)
     PCIBus *pci_bus;
     ISABus *isa_bus;
     qemu_irq cbus_irq, i8259_irq;
-    PCIDevice *pci;
-    int piix4_devfn;
     I2CBus *smbus;
     DriveInfo *dinfo;
-    const size_t ide_drives = MAX_IDE_BUS * MAX_IDE_DEVS;
-    DriveInfo **hd;
     int fl_idx = 0;
     int be;
 
@@ -1407,26 +1431,13 @@ void mips_malta_init(MachineState *machine)
     pci_bus = gt64120_register(s->i8259);
 
     /* Southbridge */
-    hd = g_new(DriveInfo *, ide_drives);
-    ide_drive_get(hd, ide_drives);
-
-    pci = pci_create_simple_multifunction(pci_bus, PCI_DEVFN(10, 0),
-                                          true, TYPE_PIIX4_PCI_DEVICE);
-    dev = DEVICE(pci);
-    isa_bus = ISA_BUS(qdev_get_child_bus(dev, "isa.0"));
-    piix4_devfn = pci->devfn;
+    dev = piix4_create(pci_bus, &isa_bus, &smbus, MAX_IDE_BUS);
 
     /* Interrupt controller */
     qdev_connect_gpio_out_named(dev, "intr", 0, i8259_irq);
     for (int i = 0; i < ISA_NUM_IRQS; i++) {
         s->i8259[i] = qdev_get_gpio_in_named(dev, "isa", i);
     }
-
-    pci_piix4_ide_init(pci_bus, hd, piix4_devfn + 1);
-    g_free(hd);
-    pci_create_simple(pci_bus, piix4_devfn + 2, "piix4-usb-uhci");
-    smbus = piix4_pm_init(pci_bus, piix4_devfn + 3, 0x1100,
-                          isa_get_irq(NULL, 9), NULL, 0, NULL);
 
     /* generate SPD EEPROM data */
     generate_eeprom_spd(&smbus_eeprom_buf[0 * 256], ram_size);
