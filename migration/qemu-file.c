@@ -764,11 +764,8 @@ static int qemu_compress_data(z_stream *stream, uint8_t *dest, size_t dest_len,
 /* Compress size bytes of data start at p and store the compressed
  * data to the buffer of f.
  *
- * When f is not writable, return -1 if f has no space to save the
- * compressed data.
- * When f is wirtable and it has no space to save the compressed data,
- * do fflush first, if f still has no space to save the compressed
- * data, return -1.
+ * Since the file is dummy file with empty_ops, return -1 if f has no space to
+ * save the compressed data.
  */
 ssize_t qemu_put_compression_data(QEMUFile *f, z_stream *stream,
                                   const uint8_t *p, size_t size)
@@ -776,14 +773,7 @@ ssize_t qemu_put_compression_data(QEMUFile *f, z_stream *stream,
     ssize_t blen = IO_BUF_SIZE - f->buf_index - sizeof(int32_t);
 
     if (blen < compressBound(size)) {
-        if (!qemu_file_is_writable(f)) {
-            return -1;
-        }
-        qemu_fflush(f);
-        blen = IO_BUF_SIZE - sizeof(int32_t);
-        if (blen < compressBound(size)) {
-            return -1;
-        }
+        return -1;
     }
 
     blen = qemu_compress_data(stream, f->buf + f->buf_index + sizeof(int32_t),
