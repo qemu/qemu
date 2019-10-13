@@ -339,17 +339,59 @@ static pa_stream *qpa_simple_new (
         pa_stream_direction_t dir,
         const char *dev,
         const pa_sample_spec *ss,
-        const pa_channel_map *map,
         const pa_buffer_attr *attr,
         int *rerror)
 {
     int r;
-    pa_stream *stream;
+    pa_stream *stream = NULL;
     pa_stream_flags_t flags;
+    pa_channel_map map;
 
     pa_threaded_mainloop_lock(c->mainloop);
 
-    stream = pa_stream_new(c->context, name, ss, map);
+    pa_channel_map_init(&map);
+    map.channels = ss->channels;
+
+    /*
+     * TODO: This currently expects the only frontend supporting more than 2
+     * channels is the usb-audio.  We will need some means to set channel
+     * order when a new frontend gains multi-channel support.
+     */
+    switch (ss->channels) {
+    case 1:
+        map.map[0] = PA_CHANNEL_POSITION_MONO;
+        break;
+
+    case 2:
+        map.map[0] = PA_CHANNEL_POSITION_LEFT;
+        map.map[1] = PA_CHANNEL_POSITION_RIGHT;
+        break;
+
+    case 6:
+        map.map[0] = PA_CHANNEL_POSITION_FRONT_LEFT;
+        map.map[1] = PA_CHANNEL_POSITION_FRONT_RIGHT;
+        map.map[2] = PA_CHANNEL_POSITION_CENTER;
+        map.map[3] = PA_CHANNEL_POSITION_LFE;
+        map.map[4] = PA_CHANNEL_POSITION_REAR_LEFT;
+        map.map[5] = PA_CHANNEL_POSITION_REAR_RIGHT;
+        break;
+
+    case 8:
+        map.map[0] = PA_CHANNEL_POSITION_FRONT_LEFT;
+        map.map[1] = PA_CHANNEL_POSITION_FRONT_RIGHT;
+        map.map[2] = PA_CHANNEL_POSITION_CENTER;
+        map.map[3] = PA_CHANNEL_POSITION_LFE;
+        map.map[4] = PA_CHANNEL_POSITION_REAR_LEFT;
+        map.map[5] = PA_CHANNEL_POSITION_REAR_RIGHT;
+        map.map[6] = PA_CHANNEL_POSITION_SIDE_LEFT;
+        map.map[7] = PA_CHANNEL_POSITION_SIDE_RIGHT;
+
+    default:
+        dolog("Internal error: unsupported channel count %d\n", ss->channels);
+        goto fail;
+    }
+
+    stream = pa_stream_new(c->context, name, ss, &map);
     if (!stream) {
         goto fail;
     }
@@ -422,7 +464,6 @@ static int qpa_init_out(HWVoiceOut *hw, struct audsettings *as,
         PA_STREAM_PLAYBACK,
         ppdo->has_name ? ppdo->name : NULL,
         &ss,
-        NULL,                   /* channel map */
         &ba,                    /* buffering attributes */
         &error
         );
@@ -471,7 +512,6 @@ static int qpa_init_in(HWVoiceIn *hw, struct audsettings *as, void *drv_opaque)
         PA_STREAM_RECORD,
         ppdo->has_name ? ppdo->name : NULL,
         &ss,
-        NULL,                   /* channel map */
         &ba,                    /* buffering attributes */
         &error
         );
