@@ -48,7 +48,7 @@ size_t qemu_fd_getpagesize(int fd)
 #endif
 #endif
 
-    return getpagesize();
+    return qemu_real_host_page_size;
 }
 
 size_t qemu_mempath_getpagesize(const char *mem_path)
@@ -79,7 +79,7 @@ size_t qemu_mempath_getpagesize(const char *mem_path)
 #endif
 #endif
 
-    return getpagesize();
+    return qemu_real_host_page_size;
 }
 
 void *qemu_ram_mmap(int fd,
@@ -114,7 +114,7 @@ void *qemu_ram_mmap(int fd,
      */
     flags = MAP_PRIVATE;
     pagesize = qemu_fd_getpagesize(fd);
-    if (fd == -1 || pagesize == getpagesize()) {
+    if (fd == -1 || pagesize == qemu_real_host_page_size) {
         guardfd = -1;
         flags |= MAP_ANONYMOUS;
     } else {
@@ -123,7 +123,7 @@ void *qemu_ram_mmap(int fd,
     }
 #else
     guardfd = -1;
-    pagesize = getpagesize();
+    pagesize = qemu_real_host_page_size;
     flags = MAP_PRIVATE | MAP_ANONYMOUS;
 #endif
 
@@ -205,7 +205,7 @@ void qemu_ram_munmap(int fd, void *ptr, size_t size)
 #if defined(__powerpc64__) && defined(__linux__)
         pagesize = qemu_fd_getpagesize(fd);
 #else
-        pagesize = getpagesize();
+        pagesize = qemu_real_host_page_size;
 #endif
         munmap(ptr, size + pagesize);
     }

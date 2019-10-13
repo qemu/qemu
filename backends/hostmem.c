@@ -304,7 +304,7 @@ size_t host_memory_backend_pagesize(HostMemoryBackend *memdev)
 #else
 size_t host_memory_backend_pagesize(HostMemoryBackend *memdev)
 {
-    return getpagesize();
+    return qemu_real_host_page_size;
 }
 #endif
 

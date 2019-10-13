@@ -52,7 +52,7 @@
 /* KVM uses PAGE_SIZE in its definition of KVM_COALESCED_MMIO_MAX. We
  * need to use the real host PAGE_SIZE, as that's what KVM will use.
  */
-#define PAGE_SIZE getpagesize()
+#define PAGE_SIZE qemu_real_host_page_size
 
 //#define DEBUG_KVM
 
@@ -507,7 +507,7 @@ static int kvm_get_dirty_pages_log_range(MemoryRegionSection *section,
 {
     ram_addr_t start = section->offset_within_region +
                        memory_region_get_ram_addr(section->mr);
-    ram_addr_t pages = int128_get64(section->size) / getpagesize();
+    ram_addr_t pages = int128_get64(section->size) / qemu_real_host_page_size;
 
     cpu_physical_memory_set_dirty_lebitmap(bitmap, start, pages);
     return 0;
@@ -1841,7 +1841,7 @@ static int kvm_init(MachineState *ms)
      * even with KVM.  TARGET_PAGE_SIZE is assumed to be the minimum
      * page size for the system though.
      */
-    assert(TARGET_PAGE_SIZE <= getpagesize());
+    assert(TARGET_PAGE_SIZE <= qemu_real_host_page_size);
 
     s->sigmask_len = 8;
 

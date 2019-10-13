@@ -514,9 +514,9 @@ static IOVAMapping *qemu_vfio_add_mapping(QEMUVFIOState *s,
     IOVAMapping m = {.host = host, .size = size, .iova = iova};
     IOVAMapping *insert;
 
-    assert(QEMU_IS_ALIGNED(size, getpagesize()));
-    assert(QEMU_IS_ALIGNED(s->low_water_mark, getpagesize()));
-    assert(QEMU_IS_ALIGNED(s->high_water_mark, getpagesize()));
+    assert(QEMU_IS_ALIGNED(size, qemu_real_host_page_size));
+    assert(QEMU_IS_ALIGNED(s->low_water_mark, qemu_real_host_page_size));
+    assert(QEMU_IS_ALIGNED(s->high_water_mark, qemu_real_host_page_size));
     trace_qemu_vfio_new_mapping(s, host, size, index, iova);
 
     assert(index >= 0);
@@ -567,7 +567,7 @@ static void qemu_vfio_undo_mapping(QEMUVFIOState *s, IOVAMapping *mapping,
 
     index = mapping - s->mappings;
     assert(mapping->size > 0);
-    assert(QEMU_IS_ALIGNED(mapping->size, getpagesize()));
+    assert(QEMU_IS_ALIGNED(mapping->size, qemu_real_host_page_size));
     assert(index >= 0 && index < s->nr_mappings);
     if (ioctl(s->container, VFIO_IOMMU_UNMAP_DMA, &unmap)) {
         error_setg(errp, "VFIO_UNMAP_DMA failed: %d", -errno);
@@ -613,8 +613,8 @@ int qemu_vfio_dma_map(QEMUVFIOState *s, void *host, size_t size,
     IOVAMapping *mapping;
     uint64_t iova0;
 
-    assert(QEMU_PTR_IS_ALIGNED(host, getpagesize()));
-    assert(QEMU_IS_ALIGNED(size, getpagesize()));
+    assert(QEMU_PTR_IS_ALIGNED(host, qemu_real_host_page_size));
+    assert(QEMU_IS_ALIGNED(size, qemu_real_host_page_size));
     trace_qemu_vfio_dma_map(s, host, size, temporary, iova);
     qemu_mutex_lock(&s->lock);
     mapping = qemu_vfio_find_mapping(s, host, &index);

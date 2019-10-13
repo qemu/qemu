@@ -196,14 +196,15 @@ int vfio_spapr_create_window(VFIOContainer *container,
      * bits_per_level is a safe guess of how much we can allocate per level:
      * 8 is the current minimum for CONFIG_FORCE_MAX_ZONEORDER and MAX_ORDER
      * is usually bigger than that.
-     * Below we look at getpagesize() as TCEs are allocated from system pages.
+     * Below we look at qemu_real_host_page_size as TCEs are allocated from
+     * system pages.
      */
-    bits_per_level = ctz64(getpagesize()) + 8;
+    bits_per_level = ctz64(qemu_real_host_page_size) + 8;
     create.levels = bits_total / bits_per_level;
     if (bits_total % bits_per_level) {
         ++create.levels;
     }
-    max_levels = (64 - create.page_shift) / ctz64(getpagesize());
+    max_levels = (64 - create.page_shift) / ctz64(qemu_real_host_page_size);
     for ( ; create.levels <= max_levels; ++create.levels) {
         ret = ioctl(container->fd, VFIO_IOMMU_SPAPR_TCE_CREATE, &create);
         if (!ret) {

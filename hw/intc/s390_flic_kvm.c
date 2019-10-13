@@ -25,7 +25,7 @@
 #include "migration/qemu-file-types.h"
 #include "trace.h"
 
-#define FLIC_SAVE_INITIAL_SIZE getpagesize()
+#define FLIC_SAVE_INITIAL_SIZE qemu_real_host_page_size
 #define FLIC_FAILED (-1UL)
 #define FLIC_SAVEVM_VERSION 1
 
