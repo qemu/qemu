@@ -433,6 +433,7 @@ DEF("audiodev", HAS_ARG, QEMU_OPTION_audiodev,
     "                specifies the audio backend to use\n"
     "                id= identifier of the backend\n"
     "                timer-period= timer period in microseconds\n"
+    "                in|out.mixing-engine= use mixing engine to mix streams inside QEMU\n"
     "                in|out.fixed-settings= use fixed settings for host audio\n"
     "                in|out.frequency= frequency to use with fixed settings\n"
     "                in|out.channels= number of channels to use with fixed settings\n"
@@ -493,6 +494,10 @@ output's property with @code{out.@var{prop}}. For example:
 -audiodev alsa,id=example,out.channels=1 # leaves in.channels unspecified
 @end example
 
+NOTE: parameter validation is known to be incomplete, in many cases
+specifying an invalid option causes QEMU to print an error message and
+continue emulation without sound.
+
 Valid global options are:
 
 @table @option
@@ -502,6 +507,16 @@ Identifies the audio backend.
 @item timer-period=@var{period}
 Sets the timer @var{period} used by the audio subsystem in microseconds.
 Default is 10000 (10 ms).
+
+@item in|out.mixing-engine=on|off
+Use QEMU's mixing engine to mix all streams inside QEMU and convert
+audio formats when not supported by the backend.  When off,
+@var{fixed-settings} must be off too.  Note that disabling this option
+means that the selected backend must support multiple streams and the
+audio formats used by the virtual cards, otherwise you'll get no sound.
+It's not recommended to disable this option unless you want to use 5.1
+or 7.1 audio, as mixing engine only supports mono and stereo audio.
+Default is on.
 
 @item in|out.fixed-settings=on|off
 Use fixed settings for host audio.  When off, it will change based on
