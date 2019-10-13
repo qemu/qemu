@@ -5519,6 +5519,21 @@ if compile_prog "" "" ; then
 fi
 
 ########################################
+# See if __attribute__((alias)) is supported.
+# This false for Xcode 9, but has been remedied for Xcode 10.
+# Unfortunately, travis uses Xcode 9 by default.
+
+attralias=no
+cat > $TMPC << EOF
+int x = 1;
+extern const int y __attribute__((alias("x")));
+int main(void) { return 0; }
+EOF
+if compile_prog "" "" ; then
+    attralias=yes
+fi
+
+########################################
 # check if getauxval is available.
 
 getauxval=no
@@ -7081,6 +7096,10 @@ fi
 
 if test "$vector16" = "yes" ; then
   echo "CONFIG_VECTOR16=y" >> $config_host_mak
+fi
+
+if test "$attralias" = "yes" ; then
+  echo "CONFIG_ATTRIBUTE_ALIAS=y" >> $config_host_mak
 fi
 
 if test "$getauxval" = "yes" ; then
