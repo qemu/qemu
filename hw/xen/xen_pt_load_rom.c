@@ -3,12 +3,8 @@
  */
 #include "qemu/osdep.h"
 #include "qapi/error.h"
-#include "hw/i386/pc.h"
 #include "qemu/error-report.h"
-#include "ui/console.h"
 #include "hw/loader.h"
-#include "monitor/monitor.h"
-#include "qemu/range.h"
 #include "hw/pci/pci.h"
 #include "xen_pt.h"
 
