@@ -1,6 +1,10 @@
 /*
  * S/390 virtual CPU header
  *
+ * For details on the s390x architecture and used definitions (e.g.,
+ * PSW, PER and DAT (Dynamic Address Translation)), please refer to
+ * the "z/Architecture Principles of Operations" - a.k.a. PoP.
+ *
  *  Copyright (c) 2009 Ulrich Hecht
  *  Copyright IBM Corp. 2012, 2018
  *
@@ -30,7 +34,7 @@
 /* The z/Architecture has a strong memory model with some store-after-load re-ordering */
 #define TCG_GUEST_DEFAULT_MO      (TCG_MO_ALL & ~TCG_MO_ST_LD)
 
-#define TARGET_INSN_START_EXTRA_WORDS 1
+#define TARGET_INSN_START_EXTRA_WORDS 2
 
 #define MMU_MODE0_SUFFIX _primary
 #define MMU_MODE1_SUFFIX _secondary
@@ -311,6 +315,7 @@ extern const VMStateDescription vmstate_s390_cpu;
 #define CR0_EDAT                0x0000000000800000ULL
 #define CR0_AFP                 0x0000000000040000ULL
 #define CR0_VECTOR              0x0000000000020000ULL
+#define CR0_IEP                 0x0000000000100000ULL
 #define CR0_EMERGENCY_SIGNAL_SC 0x0000000000004000ULL
 #define CR0_EXTERNAL_CALL_SC    0x0000000000002000ULL
 #define CR0_CKC_SC              0x0000000000000800ULL
@@ -558,26 +563,60 @@ QEMU_BUILD_BUG_ON(sizeof(SysIB) != 4096);
 #define ASCE_TYPE_SEGMENT     0x00        /* segment table type               */
 #define ASCE_TABLE_LENGTH     0x03        /* region table length              */
 
-#define REGION_ENTRY_ORIGIN   (~0xfffULL) /* region/segment table origin    */
-#define REGION_ENTRY_RO       0x200       /* region/segment protection bit  */
-#define REGION_ENTRY_TF       0xc0        /* region/segment table offset    */
-#define REGION_ENTRY_INV      0x20        /* invalid region table entry     */
-#define REGION_ENTRY_TYPE_MASK 0x0c       /* region/segment table type mask */
-#define REGION_ENTRY_TYPE_R1  0x0c        /* region first table type        */
-#define REGION_ENTRY_TYPE_R2  0x08        /* region second table type       */
-#define REGION_ENTRY_TYPE_R3  0x04        /* region third table type        */
-#define REGION_ENTRY_LENGTH   0x03        /* region third length            */
+#define REGION_ENTRY_ORIGIN         0xfffffffffffff000ULL
+#define REGION_ENTRY_P              0x0000000000000200ULL
+#define REGION_ENTRY_TF             0x00000000000000c0ULL
+#define REGION_ENTRY_I              0x0000000000000020ULL
+#define REGION_ENTRY_TT             0x000000000000000cULL
+#define REGION_ENTRY_TL             0x0000000000000003ULL
 
-#define SEGMENT_ENTRY_ORIGIN  (~0x7ffULL) /* segment table origin        */
-#define SEGMENT_ENTRY_FC      0x400       /* format control              */
-#define SEGMENT_ENTRY_RO      0x200       /* page protection bit         */
-#define SEGMENT_ENTRY_INV     0x20        /* invalid segment table entry */
+#define REGION_ENTRY_TT_REGION1     0x000000000000000cULL
+#define REGION_ENTRY_TT_REGION2     0x0000000000000008ULL
+#define REGION_ENTRY_TT_REGION3     0x0000000000000004ULL
 
-#define VADDR_PX              0xff000     /* page index bits   */
+#define REGION3_ENTRY_RFAA          0xffffffff80000000ULL
+#define REGION3_ENTRY_AV            0x0000000000010000ULL
+#define REGION3_ENTRY_ACC           0x000000000000f000ULL
+#define REGION3_ENTRY_F             0x0000000000000800ULL
+#define REGION3_ENTRY_FC            0x0000000000000400ULL
+#define REGION3_ENTRY_IEP           0x0000000000000100ULL
+#define REGION3_ENTRY_CR            0x0000000000000010ULL
 
-#define PAGE_RO               0x200       /* HW read-only bit  */
-#define PAGE_INVALID          0x400       /* HW invalid bit    */
-#define PAGE_RES0             0x800       /* bit must be zero  */
+#define SEGMENT_ENTRY_ORIGIN        0xfffffffffffff800ULL
+#define SEGMENT_ENTRY_SFAA          0xfffffffffff00000ULL
+#define SEGMENT_ENTRY_AV            0x0000000000010000ULL
+#define SEGMENT_ENTRY_ACC           0x000000000000f000ULL
+#define SEGMENT_ENTRY_F             0x0000000000000800ULL
+#define SEGMENT_ENTRY_FC            0x0000000000000400ULL
+#define SEGMENT_ENTRY_P             0x0000000000000200ULL
+#define SEGMENT_ENTRY_IEP           0x0000000000000100ULL
+#define SEGMENT_ENTRY_I             0x0000000000000020ULL
+#define SEGMENT_ENTRY_CS            0x0000000000000010ULL
+#define SEGMENT_ENTRY_TT            0x000000000000000cULL
+
+#define SEGMENT_ENTRY_TT_SEGMENT    0x0000000000000000ULL
+
+#define PAGE_ENTRY_0                0x0000000000000800ULL
+#define PAGE_ENTRY_I                0x0000000000000400ULL
+#define PAGE_ENTRY_P                0x0000000000000200ULL
+#define PAGE_ENTRY_IEP              0x0000000000000100ULL
+
+#define VADDR_REGION1_TX_MASK       0xffe0000000000000ULL
+#define VADDR_REGION2_TX_MASK       0x001ffc0000000000ULL
+#define VADDR_REGION3_TX_MASK       0x000003ff80000000ULL
+#define VADDR_SEGMENT_TX_MASK       0x000000007ff00000ULL
+#define VADDR_PAGE_TX_MASK          0x00000000000ff000ULL
+
+#define VADDR_REGION1_TX(vaddr)     (((vaddr) & VADDR_REGION1_TX_MASK) >> 53)
+#define VADDR_REGION2_TX(vaddr)     (((vaddr) & VADDR_REGION2_TX_MASK) >> 42)
+#define VADDR_REGION3_TX(vaddr)     (((vaddr) & VADDR_REGION3_TX_MASK) >> 31)
+#define VADDR_SEGMENT_TX(vaddr)     (((vaddr) & VADDR_SEGMENT_TX_MASK) >> 20)
+#define VADDR_PAGE_TX(vaddr)        (((vaddr) & VADDR_PAGE_TX_MASK) >> 12)
+
+#define VADDR_REGION1_TL(vaddr)     (((vaddr) & 0xc000000000000000ULL) >> 62)
+#define VADDR_REGION2_TL(vaddr)     (((vaddr) & 0x0018000000000000ULL) >> 51)
+#define VADDR_REGION3_TL(vaddr)     (((vaddr) & 0x0000030000000000ULL) >> 40)
+#define VADDR_SEGMENT_TL(vaddr)     (((vaddr) & 0x0000000060000000ULL) >> 29)
 
 #define SK_C                    (0x1 << 1)
 #define SK_R                    (0x1 << 2)
@@ -765,11 +804,8 @@ int cpu_s390x_signal_handler(int host_signum, void *pinfo, void *puc);
 void s390_crw_mchk(void);
 void s390_io_interrupt(uint16_t subchannel_id, uint16_t subchannel_nr,
                        uint32_t io_int_parm, uint32_t io_int_word);
-/* automatically detect the instruction length */
-#define ILEN_AUTO                   0xff
 #define RA_IGNORED                  0
-void s390_program_interrupt(CPUS390XState *env, uint32_t code, int ilen,
-                            uintptr_t ra);
+void s390_program_interrupt(CPUS390XState *env, uint32_t code, uintptr_t ra);
 /* service interrupts are floating therefore we must not pass an cpustate */
 void s390_sclp_extint(uint32_t parm);
 
