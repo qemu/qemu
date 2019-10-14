@@ -472,6 +472,7 @@ gtk_gl="no"
 tls_priority="NORMAL"
 gnutls=""
 nettle=""
+nettle_xts="no"
 gcrypt=""
 gcrypt_hmac="no"
 gcrypt_xts="no"
@@ -2869,6 +2870,19 @@ if test "$nettle" != "no"; then
                gcrypt="no"
             fi
             pass="yes"
+        fi
+    fi
+    if test "$pass" = "yes"
+    then
+        cat > $TMPC << EOF
+#include <nettle/xts.h>
+int main(void) {
+  return 0;
+}
+EOF
+        if compile_prog "$nettle_cflags" "$nettle_libs" ; then
+            nettle_xts=yes
+            qemu_private_xts=no
         fi
     fi
     if test "$pass" = "no" && test "$nettle" = "yes"; then
@@ -6346,6 +6360,10 @@ then
    echo "  XTS             $gcrypt_xts"
 fi
 echo "nettle            $nettle $(echo_version $nettle $nettle_version)"
+if test "$nettle" = "yes"
+then
+   echo "  XTS             $nettle_xts"
+fi
 echo "libtasn1          $tasn1"
 echo "PAM               $auth_pam"
 echo "iconv support     $iconv"
