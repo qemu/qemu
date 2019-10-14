@@ -88,7 +88,6 @@ static uint32_t known_capabilities = RDMA_CAPABILITY_PIN_ALL;
                                 " to abort!"); \
                 rdma->error_reported = 1; \
             } \
-            rcu_read_unlock(); \
             return rdma->error_state; \
         } \
     } while (0)
@@ -2678,11 +2677,10 @@ static ssize_t qio_channel_rdma_writev(QIOChannel *ioc,
     size_t i;
     size_t len = 0;
 
-    rcu_read_lock();
+    RCU_READ_LOCK_GUARD();
     rdma = atomic_rcu_read(&rioc->rdmaout);
 
     if (!rdma) {
-        rcu_read_unlock();
         return -EIO;
     }
 
@@ -2695,7 +2693,6 @@ static ssize_t qio_channel_rdma_writev(QIOChannel *ioc,
     ret = qemu_rdma_write_flush(f, rdma);
     if (ret < 0) {
         rdma->error_state = ret;
-        rcu_read_unlock();
         return ret;
     }
 
@@ -2715,7 +2712,6 @@ static ssize_t qio_channel_rdma_writev(QIOChannel *ioc,
 
             if (ret < 0) {
                 rdma->error_state = ret;
-                rcu_read_unlock();
                 return ret;
             }
 
@@ -2724,7 +2720,6 @@ static ssize_t qio_channel_rdma_writev(QIOChannel *ioc,
         }
     }
 
-    rcu_read_unlock();
     return done;
 }
 
@@ -2764,11 +2759,10 @@ static ssize_t qio_channel_rdma_readv(QIOChannel *ioc,
     ssize_t i;
     size_t done = 0;
 
-    rcu_read_lock();
+    RCU_READ_LOCK_GUARD();
     rdma = atomic_rcu_read(&rioc->rdmain);
 
     if (!rdma) {
-        rcu_read_unlock();
         return -EIO;
     }
 
@@ -2805,7 +2799,6 @@ static ssize_t qio_channel_rdma_readv(QIOChannel *ioc,
 
         if (ret < 0) {
             rdma->error_state = ret;
-            rcu_read_unlock();
             return ret;
         }
 
@@ -2819,14 +2812,12 @@ static ssize_t qio_channel_rdma_readv(QIOChannel *ioc,
         /* Still didn't get enough, so lets just return */
         if (want) {
             if (done == 0) {
-                rcu_read_unlock();
                 return QIO_CHANNEL_ERR_BLOCK;
             } else {
                 break;
             }
         }
     }
-    rcu_read_unlock();
     return done;
 }
 
@@ -2882,7 +2873,7 @@ qio_channel_rdma_source_prepare(GSource *source,
     GIOCondition cond = 0;
     *timeout = -1;
 
-    rcu_read_lock();
+    RCU_READ_LOCK_GUARD();
     if (rsource->condition == G_IO_IN) {
         rdma = atomic_rcu_read(&rsource->rioc->rdmain);
     } else {
@@ -2891,7 +2882,6 @@ qio_channel_rdma_source_prepare(GSource *source,
 
     if (!rdma) {
         error_report("RDMAContext is NULL when prepare Gsource");
-        rcu_read_unlock();
         return FALSE;
     }
 
@@ -2900,7 +2890,6 @@ qio_channel_rdma_source_prepare(GSource *source,
     }
     cond |= G_IO_OUT;
 
-    rcu_read_unlock();
     return cond & rsource->condition;
 }
 
@@ -2911,7 +2900,7 @@ qio_channel_rdma_source_check(GSource *source)
     RDMAContext *rdma;
     GIOCondition cond = 0;
 
-    rcu_read_lock();
+    RCU_READ_LOCK_GUARD();
     if (rsource->condition == G_IO_IN) {
         rdma = atomic_rcu_read(&rsource->rioc->rdmain);
     } else {
@@ -2920,7 +2909,6 @@ qio_channel_rdma_source_check(GSource *source)
 
     if (!rdma) {
         error_report("RDMAContext is NULL when check Gsource");
-        rcu_read_unlock();
         return FALSE;
     }
 
@@ -2929,7 +2917,6 @@ qio_channel_rdma_source_check(GSource *source)
     }
     cond |= G_IO_OUT;
 
-    rcu_read_unlock();
     return cond & rsource->condition;
 }
 
@@ -2943,7 +2930,7 @@ qio_channel_rdma_source_dispatch(GSource *source,
     RDMAContext *rdma;
     GIOCondition cond = 0;
 
-    rcu_read_lock();
+    RCU_READ_LOCK_GUARD();
     if (rsource->condition == G_IO_IN) {
         rdma = atomic_rcu_read(&rsource->rioc->rdmain);
     } else {
@@ -2952,7 +2939,6 @@ qio_channel_rdma_source_dispatch(GSource *source,
 
     if (!rdma) {
         error_report("RDMAContext is NULL when dispatch Gsource");
-        rcu_read_unlock();
         return FALSE;
     }
 
@@ -2961,7 +2947,6 @@ qio_channel_rdma_source_dispatch(GSource *source,
     }
     cond |= G_IO_OUT;
 
-    rcu_read_unlock();
     return (*func)(QIO_CHANNEL(rsource->rioc),
                    (cond & rsource->condition),
                    user_data);
@@ -3073,7 +3058,7 @@ qio_channel_rdma_shutdown(QIOChannel *ioc,
     QIOChannelRDMA *rioc = QIO_CHANNEL_RDMA(ioc);
     RDMAContext *rdmain, *rdmaout;
 
-    rcu_read_lock();
+    RCU_READ_LOCK_GUARD();
 
     rdmain = atomic_rcu_read(&rioc->rdmain);
     rdmaout = atomic_rcu_read(&rioc->rdmain);
@@ -3100,7 +3085,6 @@ qio_channel_rdma_shutdown(QIOChannel *ioc,
         break;
     }
 
-    rcu_read_unlock();
     return 0;
 }
 
@@ -3146,18 +3130,16 @@ static size_t qemu_rdma_save_page(QEMUFile *f, void *opaque,
     RDMAContext *rdma;
     int ret;
 
-    rcu_read_lock();
+    RCU_READ_LOCK_GUARD();
     rdma = atomic_rcu_read(&rioc->rdmaout);
 
     if (!rdma) {
-        rcu_read_unlock();
         return -EIO;
     }
 
     CHECK_ERROR_STATE();
 
     if (migration_in_postcopy()) {
-        rcu_read_unlock();
         return RAM_SAVE_CONTROL_NOT_SUPP;
     }
 
@@ -3242,11 +3224,9 @@ static size_t qemu_rdma_save_page(QEMUFile *f, void *opaque,
         }
     }
 
-    rcu_read_unlock();
     return RAM_SAVE_CONTROL_DELAYED;
 err:
     rdma->error_state = ret;
-    rcu_read_unlock();
     return ret;
 }
 
@@ -3470,11 +3450,10 @@ static int qemu_rdma_registration_handle(QEMUFile *f, void *opaque)
     int count = 0;
     int i = 0;
 
-    rcu_read_lock();
+    RCU_READ_LOCK_GUARD();
     rdma = atomic_rcu_read(&rioc->rdmain);
 
     if (!rdma) {
-        rcu_read_unlock();
         return -EIO;
     }
 
@@ -3717,7 +3696,6 @@ out:
     if (ret < 0) {
         rdma->error_state = ret;
     }
-    rcu_read_unlock();
     return ret;
 }
 
@@ -3735,11 +3713,10 @@ rdma_block_notification_handle(QIOChannelRDMA *rioc, const char *name)
     int curr;
     int found = -1;
 
-    rcu_read_lock();
+    RCU_READ_LOCK_GUARD();
     rdma = atomic_rcu_read(&rioc->rdmain);
 
     if (!rdma) {
-        rcu_read_unlock();
         return -EIO;
     }
 
@@ -3753,7 +3730,6 @@ rdma_block_notification_handle(QIOChannelRDMA *rioc, const char *name)
 
     if (found == -1) {
         error_report("RAMBlock '%s' not found on destination", name);
-        rcu_read_unlock();
         return -ENOENT;
     }
 
@@ -3761,7 +3737,6 @@ rdma_block_notification_handle(QIOChannelRDMA *rioc, const char *name)
     trace_rdma_block_notification_handle(name, rdma->next_src_index);
     rdma->next_src_index++;
 
-    rcu_read_unlock();
     return 0;
 }
 
@@ -3786,17 +3761,15 @@ static int qemu_rdma_registration_start(QEMUFile *f, void *opaque,
     QIOChannelRDMA *rioc = QIO_CHANNEL_RDMA(opaque);
     RDMAContext *rdma;
 
-    rcu_read_lock();
+    RCU_READ_LOCK_GUARD();
     rdma = atomic_rcu_read(&rioc->rdmaout);
     if (!rdma) {
-        rcu_read_unlock();
         return -EIO;
     }
 
     CHECK_ERROR_STATE();
 
     if (migration_in_postcopy()) {
-        rcu_read_unlock();
         return 0;
     }
 
@@ -3804,7 +3777,6 @@ static int qemu_rdma_registration_start(QEMUFile *f, void *opaque,
     qemu_put_be64(f, RAM_SAVE_FLAG_HOOK);
     qemu_fflush(f);
 
-    rcu_read_unlock();
     return 0;
 }
 
@@ -3821,17 +3793,15 @@ static int qemu_rdma_registration_stop(QEMUFile *f, void *opaque,
     RDMAControlHeader head = { .len = 0, .repeat = 1 };
     int ret = 0;
 
-    rcu_read_lock();
+    RCU_READ_LOCK_GUARD();
     rdma = atomic_rcu_read(&rioc->rdmaout);
     if (!rdma) {
-        rcu_read_unlock();
         return -EIO;
     }
 
     CHECK_ERROR_STATE();
 
     if (migration_in_postcopy()) {
-        rcu_read_unlock();
         return 0;
     }
 
@@ -3863,7 +3833,6 @@ static int qemu_rdma_registration_stop(QEMUFile *f, void *opaque,
                     qemu_rdma_reg_whole_ram_blocks : NULL);
         if (ret < 0) {
             ERROR(errp, "receiving remote info!");
-            rcu_read_unlock();
             return ret;
         }
 
@@ -3887,7 +3856,6 @@ static int qemu_rdma_registration_stop(QEMUFile *f, void *opaque,
                         "not identical on both the source and destination.",
                         local->nb_blocks, nb_dest_blocks);
             rdma->error_state = -EINVAL;
-            rcu_read_unlock();
             return -EINVAL;
         }
 
@@ -3904,7 +3872,6 @@ static int qemu_rdma_registration_stop(QEMUFile *f, void *opaque,
                             local->block[i].length,
                             rdma->dest_blocks[i].length);
                 rdma->error_state = -EINVAL;
-                rcu_read_unlock();
                 return -EINVAL;
             }
             local->block[i].remote_host_addr =
@@ -3922,11 +3889,9 @@ static int qemu_rdma_registration_stop(QEMUFile *f, void *opaque,
         goto err;
     }
 
-    rcu_read_unlock();
     return 0;
 err:
     rdma->error_state = ret;
-    rcu_read_unlock();
     return ret;
 }
 

@@ -71,6 +71,11 @@ get_qtailq_end(const char *name, const char *reason, int val) "%s %s/%d"
 put_qtailq(const char *name, int version_id) "%s v%d"
 put_qtailq_end(const char *name, const char *reason) "%s %s"
 
+get_gtree(const char *field_name, const char *key_vmsd_name, const char *val_vmsd_name, uint32_t nnodes) "%s(%s/%s) nnodes=%d"
+get_gtree_end(const char *field_name, const char *key_vmsd_name, const char *val_vmsd_name, int ret) "%s(%s/%s) %d"
+put_gtree(const char *field_name, const char *key_vmsd_name, const char *val_vmsd_name, uint32_t nnodes) "%s(%s/%s) nnodes=%d"
+put_gtree_end(const char *field_name, const char *key_vmsd_name, const char *val_vmsd_name, int ret) "%s(%s/%s) %d"
+
 # qemu-file.c
 qemu_file_fclose(void) ""
 

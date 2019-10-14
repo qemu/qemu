@@ -187,6 +187,22 @@ The following APIs must be used before RCU is used in a thread:
 Note that these APIs are relatively heavyweight, and should _not_ be
 nested.
 
+Convenience macros
+==================
+
+Two macros are provided that automatically release the read lock at the
+end of the scope.
+
+      RCU_READ_LOCK_GUARD()
+
+         Takes the lock and will release it at the end of the block it's
+         used in.
+
+      WITH_RCU_READ_LOCK_GUARD()  { code }
+
+         Is used at the head of a block to protect the code within the block.
+
+Note that 'goto'ing out of the guarded block will also drop the lock.
 
 DIFFERENCES WITH LINUX
 ======================

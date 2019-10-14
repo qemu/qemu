@@ -154,6 +154,31 @@ extern void call_rcu1(struct rcu_head *head, RCUCBFunc *func);
       }),                                                                \
       (RCUCBFunc *)g_free);
 
+typedef void RCUReadAuto;
+static inline RCUReadAuto *rcu_read_auto_lock(void)
+{
+    rcu_read_lock();
+    /* Anything non-NULL causes the cleanup function to be called */
+    return (void *)(uintptr_t)0x1;
+}
+
+static inline void rcu_read_auto_unlock(RCUReadAuto *r)
+{
+    rcu_read_unlock();
+}
+
+G_DEFINE_AUTOPTR_CLEANUP_FUNC(RCUReadAuto, rcu_read_auto_unlock)
+
+#define WITH_RCU_READ_LOCK_GUARD() \
+    WITH_RCU_READ_LOCK_GUARD_(_rcu_read_auto##__COUNTER__)
+
+#define WITH_RCU_READ_LOCK_GUARD_(var) \
+    for (g_autoptr(RCUReadAuto) var = rcu_read_auto_lock(); \
+        (var); rcu_read_auto_unlock(var), (var) = NULL)
+
+#define RCU_READ_LOCK_GUARD() \
+    g_autoptr(RCUReadAuto) _rcu_read_auto __attribute__((unused)) = rcu_read_auto_lock()
+
 #ifdef __cplusplus
 }
 #endif
