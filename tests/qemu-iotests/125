@@ -34,8 +34,7 @@ trap "_cleanup; exit \$status" 0 1 2 3 15
 
 get_image_size_on_host()
 {
-    $QEMU_IMG info -f "$IMGFMT" "$TEST_IMG" | grep "disk size" \
-        | sed -e 's/^[^0-9]*\([0-9]\+\).*$/\1/'
+    echo $(($(stat -c '%b * %B' "$TEST_IMG_FILE")))
 }
 
 # get standard environment and filters
@@ -48,6 +47,46 @@ _supported_proto file
 if [ -z "$TEST_IMG_FILE" ]; then
     TEST_IMG_FILE=$TEST_IMG
 fi
+
+# Test whether we are running on a broken XFS version.  There is this
+# bug:
+
+# $ rm -f foo
+# $ touch foo
+# $ block_size=4096 # Your FS's block size
+# $ fallocate -o $((block_size / 2)) -l $block_size foo
+# $ LANG=C xfs_bmap foo | grep hole
+#         1: [8..15]: hole
+#
+# The problem is that the XFS driver rounds down the offset and
+# rounds up the length to the block size, but independently.  As
+# such, it only allocates the first block in the example above,
+# even though it should allocate the first two blocks (because our
+# request is to fallocate something that touches both the first
+# two blocks).
+#
+# This means that when you then write to the beginning of the
+# second block, the disk usage of the first two blocks grows.
+#
+# That is precisely what fallocate() promises, though: That when you
+# write to an area that you have fallocated, no new blocks will have
+# to be allocated.
+
+touch "$TEST_IMG_FILE"
+# Assuming there is no FS with a block size greater than 64k
+fallocate -o 65535 -l 2 "$TEST_IMG_FILE"
+len0=$(get_image_size_on_host)
+
+# Write to something that in theory we have just fallocated
+# (Thus, the on-disk size should not increase)
+poke_file "$TEST_IMG_FILE" 65536 42
+len1=$(get_image_size_on_host)
+
+if [ $len1 -gt $len0 ]; then
+    _notrun "the test filesystem's fallocate() is broken"
+fi
+
+rm -f "$TEST_IMG_FILE"
 
 # Generally, we create some image with or without existing preallocation and
 # then resize it. Then we write some data into the image and verify that its
@@ -111,7 +150,7 @@ for GROWTH_SIZE in 16 48 80; do
                 if [ $file_length_2 -gt $file_length_1 ]; then
                     echo "ERROR (grow): Image length has grown from $file_length_1 to $file_length_2"
                 fi
-                if [ $create_mode != metadata ]; then
+                if [ $growth_mode != metadata ]; then
                     # The host size should not have grown either
                     if [ $host_size_2 -gt $host_size_1 ]; then
                         echo "ERROR (grow): Host size has grown from $host_size_1 to $host_size_2"

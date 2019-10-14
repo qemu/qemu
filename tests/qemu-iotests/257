@@ -148,11 +148,6 @@ class Drive:
         self.fmt = None
         self.size = None
         self.node = None
-        self.device = None
-
-    @property
-    def name(self):
-        return self.node or self.device
 
     def img_create(self, fmt, size):
         self.fmt = fmt
@@ -188,25 +183,6 @@ class Drive:
         self.size = size
         self.node = name
 
-def query_bitmaps(vm):
-    res = vm.qmp("query-block")
-    return {"bitmaps": {device['device'] or device['qdev']:
-                        device.get('dirty-bitmaps', []) for
-                        device in res['return']}}
-
-def get_bitmap(bitmaps, drivename, name, recording=None):
-    """
-    get a specific bitmap from the object returned by query_bitmaps.
-    :param recording: If specified, filter results by the specified value.
-    """
-    for bitmap in bitmaps['bitmaps'][drivename]:
-        if bitmap.get('name', '') == name:
-            if recording is None:
-                return bitmap
-            elif bitmap.get('recording') == recording:
-                return bitmap
-    return None
-
 def blockdev_backup(vm, device, target, sync, **kwargs):
     # Strip any arguments explicitly nulled by the caller:
     kwargs = {key: val for key, val in kwargs.items() if val is not None}
@@ -214,13 +190,14 @@ def blockdev_backup(vm, device, target, sync, **kwargs):
                         device=device,
                         target=target,
                         sync=sync,
+                        filter_node_name='backup-top',
                         **kwargs)
     return result
 
 def blockdev_backup_mktarget(drive, target_id, filepath, sync, **kwargs):
     target_drive = Drive(filepath, vm=drive.vm)
     target_drive.create_target(target_id, drive.fmt, drive.size)
-    blockdev_backup(drive.vm, drive.name, target_id, sync, **kwargs)
+    blockdev_backup(drive.vm, drive.node, target_id, sync, **kwargs)
 
 def reference_backup(drive, n, filepath):
     log("--- Reference Backup #{:d} ---\n".format(n))
@@ -240,7 +217,7 @@ def backup(drive, n, filepath, sync, **kwargs):
                              job_id=job_id, **kwargs)
     return job_id
 
-def perform_writes(drive, n):
+def perform_writes(drive, n, filter_node_name=None):
     log("--- Write #{:d} ---\n".format(n))
     for pattern in GROUPS[n].patterns:
         cmd = "write -P{:s} 0x{:07x} 0x{:x}".format(
@@ -248,9 +225,9 @@ def perform_writes(drive, n):
             pattern.offset,
             pattern.size)
         log(cmd)
-        log(drive.vm.hmp_qemu_io(drive.name, cmd))
-    bitmaps = query_bitmaps(drive.vm)
-    log(bitmaps, indent=2)
+        log(drive.vm.hmp_qemu_io(filter_node_name or drive.node, cmd))
+    bitmaps = drive.vm.query_bitmaps()
+    log({'bitmaps': bitmaps}, indent=2)
     log('')
     return bitmaps
 
@@ -343,26 +320,19 @@ def test_bitmap_sync(bsync_mode, msync_mode='bitmap', failure=None):
                 }]
             }
 
+        drive0.node = 'drive0'
         vm.qmp_log('blockdev-add',
                    filters=[iotests.filter_qmp_testfiles],
-                   node_name="drive0",
+                   node_name=drive0.node,
                    driver=drive0.fmt,
                    file=file_config)
-        drive0.node = 'drive0'
-        drive0.device = 'device0'
-        # Use share-rw to allow writes directly to the node;
-        # The anonymous block-backend for this configuration prevents us
-        # from using HMP's qemu-io commands to address the device.
-        vm.qmp_log("device_add", id=drive0.device,
-                   drive=drive0.name, driver="scsi-hd",
-                   share_rw=True)
         log('')
 
         # 0 - Writes and Reference Backup
         perform_writes(drive0, 0)
         reference_backup(drive0, 0, fbackup0)
         log('--- Add Bitmap ---\n')
-        vm.qmp_log("block-dirty-bitmap-add", node=drive0.name,
+        vm.qmp_log("block-dirty-bitmap-add", node=drive0.node,
                    name="bitmap0", granularity=GRANULARITY)
         log('')
         ebitmap = EmulatedBitmap()
@@ -370,14 +340,14 @@ def test_bitmap_sync(bsync_mode, msync_mode='bitmap', failure=None):
         # 1 - Writes and Reference Backup
         bitmaps = perform_writes(drive0, 1)
         ebitmap.dirty_group(1)
-        bitmap = get_bitmap(bitmaps, drive0.device, 'bitmap0')
+        bitmap = vm.get_bitmap(drive0.node, 'bitmap0', bitmaps=bitmaps)
         ebitmap.compare(bitmap)
         reference_backup(drive0, 1, fbackup1)
 
         # 1 - Test Backup (w/ Optional induced failure)
         if failure == 'intermediate':
             # Activate blkdebug induced failure for second-to-next read
-            log(vm.hmp_qemu_io(drive0.name, 'flush'))
+            log(vm.hmp_qemu_io(drive0.node, 'flush'))
             log('')
         job = backup(drive0, 1, bsync1, msync_mode,
                      bitmap="bitmap0", bitmap_mode=bsync_mode)
@@ -386,14 +356,15 @@ def test_bitmap_sync(bsync_mode, msync_mode='bitmap', failure=None):
             """Issue writes while the job is open to test bitmap divergence."""
             # Note: when `failure` is 'intermediate', this isn't called.
             log('')
-            bitmaps = perform_writes(drive0, 2)
+            bitmaps = perform_writes(drive0, 2, filter_node_name='backup-top')
             # Named bitmap (static, should be unchanged)
-            ebitmap.compare(get_bitmap(bitmaps, drive0.device, 'bitmap0'))
+            ebitmap.compare(vm.get_bitmap(drive0.node, 'bitmap0',
+                                          bitmaps=bitmaps))
             # Anonymous bitmap (dynamic, shows new writes)
             anonymous = EmulatedBitmap()
             anonymous.dirty_group(2)
-            anonymous.compare(get_bitmap(bitmaps, drive0.device, '',
-                                         recording=True))
+            anonymous.compare(vm.get_bitmap(drive0.node, '', recording=True,
+                                            bitmaps=bitmaps))
 
             # Simulate the order in which this will happen:
             # group 1 gets cleared first, then group two gets written.
@@ -405,8 +376,8 @@ def test_bitmap_sync(bsync_mode, msync_mode='bitmap', failure=None):
         vm.run_job(job, auto_dismiss=True, auto_finalize=False,
                    pre_finalize=_callback,
                    cancel=(failure == 'simulated'))
-        bitmaps = query_bitmaps(vm)
-        log(bitmaps, indent=2)
+        bitmaps = vm.query_bitmaps()
+        log({'bitmaps': bitmaps}, indent=2)
         log('')
 
         if bsync_mode == 'always' and failure == 'intermediate':
@@ -423,29 +394,30 @@ def test_bitmap_sync(bsync_mode, msync_mode='bitmap', failure=None):
                 ebitmap.clear()
                 ebitmap.dirty_bits(range(fail_bit, SIZE // GRANULARITY))
 
-        ebitmap.compare(get_bitmap(bitmaps, drive0.device, 'bitmap0'))
+        ebitmap.compare(vm.get_bitmap(drive0.node, 'bitmap0', bitmaps=bitmaps))
 
         # 2 - Writes and Reference Backup
         bitmaps = perform_writes(drive0, 3)
         ebitmap.dirty_group(3)
-        ebitmap.compare(get_bitmap(bitmaps, drive0.device, 'bitmap0'))
+        ebitmap.compare(vm.get_bitmap(drive0.node, 'bitmap0', bitmaps=bitmaps))
         reference_backup(drive0, 2, fbackup2)
 
         # 2 - Bitmap Backup (In failure modes, this is a recovery.)
         job = backup(drive0, 2, bsync2, "bitmap",
                      bitmap="bitmap0", bitmap_mode=bsync_mode)
         vm.run_job(job, auto_dismiss=True, auto_finalize=False)
-        bitmaps = query_bitmaps(vm)
-        log(bitmaps, indent=2)
+        bitmaps = vm.query_bitmaps()
+        log({'bitmaps': bitmaps}, indent=2)
         log('')
         if bsync_mode != 'never':
             ebitmap.clear()
-        ebitmap.compare(get_bitmap(bitmaps, drive0.device, 'bitmap0'))
+        ebitmap.compare(vm.get_bitmap(drive0.node, 'bitmap0', bitmaps=bitmaps))
 
         log('--- Cleanup ---\n')
         vm.qmp_log("block-dirty-bitmap-remove",
-                   node=drive0.name, name="bitmap0")
-        log(query_bitmaps(vm), indent=2)
+                   node=drive0.node, name="bitmap0")
+        bitmaps = vm.query_bitmaps()
+        log({'bitmaps': bitmaps}, indent=2)
         vm.shutdown()
         log('')
 
@@ -484,22 +456,19 @@ def test_backup_api():
             'filename': drive0.path
         }
 
+        drive0.node = 'drive0'
         vm.qmp_log('blockdev-add',
                    filters=[iotests.filter_qmp_testfiles],
-                   node_name="drive0",
+                   node_name=drive0.node,
                    driver=drive0.fmt,
                    file=file_config)
-        drive0.node = 'drive0'
-        drive0.device = 'device0'
-        vm.qmp_log("device_add", id=drive0.device,
-                   drive=drive0.name, driver="scsi-hd")
         log('')
 
         target0 = Drive(backup_path, vm=vm)
         target0.create_target("backup_target", drive0.fmt, drive0.size)
         log('')
 
-        vm.qmp_log("block-dirty-bitmap-add", node=drive0.name,
+        vm.qmp_log("block-dirty-bitmap-add", node=drive0.node,
                    name="bitmap0", granularity=GRANULARITY)
         log('')
 
@@ -538,7 +507,7 @@ def test_backup_api():
             log("-- Sync mode {:s} tests --\n".format(sync_mode))
             for bitmap in (None, 'bitmap404', 'bitmap0'):
                 for policy in error_cases[sync_mode][bitmap]:
-                    blockdev_backup(drive0.vm, drive0.name, "backup_target",
+                    blockdev_backup(drive0.vm, drive0.node, "backup_target",
                                     sync_mode, job_id='api_job',
                                     bitmap=bitmap, bitmap_mode=policy)
                     log('')

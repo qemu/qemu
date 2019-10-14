@@ -405,6 +405,23 @@ _check_test_img()
             $QEMU_IMG check "$@" -f $IMGFMT "$TEST_IMG" 2>&1
         fi
     ) | _filter_testdir | _filter_qemu_img_check
+
+    # return real qemu_img check status, to analyze in
+    # _check_test_img_ignore_leaks
+    return ${PIPESTATUS[0]}
+}
+
+_check_test_img_ignore_leaks()
+{
+    out=$(_check_test_img "$@")
+    status=$?
+    if [ $status = 3 ]; then
+        # This must correspond to success output in dump_human_image_check()
+        echo "No errors were found on the image."
+        return 0
+    fi
+    echo "$out"
+    return $status
 }
 
 _img_info()

@@ -37,8 +37,12 @@ block-obj-y += write-threshold.o
 block-obj-y += backup.o
 block-obj-$(CONFIG_REPLICATION) += replication.o
 block-obj-y += throttle.o copy-on-read.o
+block-obj-y += block-copy.o
 
 block-obj-y += crypto.o
+
+block-obj-y += aio_task.o
+block-obj-y += backup-top.o
 
 common-obj-y += stream.o
 
