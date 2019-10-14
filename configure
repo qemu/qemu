@@ -474,6 +474,8 @@ gnutls=""
 nettle=""
 gcrypt=""
 gcrypt_hmac="no"
+gcrypt_xts="no"
+qemu_private_xts="yes"
 auth_pam=""
 vte=""
 virglrenderer=""
@@ -2910,6 +2912,18 @@ int main(void) {
 EOF
         if compile_prog "$gcrypt_cflags" "$gcrypt_libs" ; then
             gcrypt_hmac=yes
+        fi
+        cat > $TMPC << EOF
+#include <gcrypt.h>
+int main(void) {
+  gcry_cipher_hd_t handle;
+  gcry_cipher_open(&handle, GCRY_CIPHER_AES, GCRY_CIPHER_MODE_XTS, 0);
+  return 0;
+}
+EOF
+        if compile_prog "$gcrypt_cflags" "$gcrypt_libs" ; then
+            gcrypt_xts=yes
+            qemu_private_xts=no
         fi
     elif test "$gcrypt" = "yes"; then
         feature_not_found "gcrypt" "Install gcrypt devel >= 1.5.0"
@@ -6326,6 +6340,11 @@ echo "VTE support       $vte $(echo_version $vte $vteversion)"
 echo "TLS priority      $tls_priority"
 echo "GNUTLS support    $gnutls"
 echo "libgcrypt         $gcrypt"
+if test "$gcrypt" = "yes"
+then
+   echo "  hmac            $gcrypt_hmac"
+   echo "  XTS             $gcrypt_xts"
+fi
 echo "nettle            $nettle $(echo_version $nettle $nettle_version)"
 echo "libtasn1          $tasn1"
 echo "PAM               $auth_pam"
@@ -6803,6 +6822,9 @@ fi
 if test "$nettle" = "yes" ; then
   echo "CONFIG_NETTLE=y" >> $config_host_mak
   echo "CONFIG_NETTLE_VERSION_MAJOR=${nettle_version%%.*}" >> $config_host_mak
+fi
+if test "$qemu_private_xts" = "yes" ; then
+  echo "CONFIG_QEMU_PRIVATE_XTS=y" >> $config_host_mak
 fi
 if test "$tasn1" = "yes" ; then
   echo "CONFIG_TASN1=y" >> $config_host_mak
