@@ -161,14 +161,25 @@ static void test_cipher_speed_xts_aes_256(const void *opaque)
 
 int main(int argc, char **argv)
 {
+    char *alg = NULL;
+    char *size = NULL;
     g_test_init(&argc, &argv, NULL);
     g_assert(qcrypto_init(NULL) == 0);
 
 #define ADD_TEST(mode, cipher, keysize, chunk)                          \
-    g_test_add_data_func(                                               \
+    if ((!alg || g_str_equal(alg, #mode)) &&                            \
+        (!size || g_str_equal(size, #chunk)))                           \
+        g_test_add_data_func(                                           \
         "/crypto/cipher/" #mode "-" #cipher "-" #keysize "/chunk-" #chunk, \
         (void *)chunk,                                                  \
         test_cipher_speed_ ## mode ## _ ## cipher ## _ ## keysize)
+
+    if (argc >= 2) {
+        alg = argv[1];
+    }
+    if (argc >= 3) {
+        size = argv[2];
+    }
 
 #define ADD_TESTS(chunk)                        \
     do {                                        \
