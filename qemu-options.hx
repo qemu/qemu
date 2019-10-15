@@ -864,7 +864,8 @@ ETEXI
 DEF("blockdev", HAS_ARG, QEMU_OPTION_blockdev,
     "-blockdev [driver=]driver[,node-name=N][,discard=ignore|unmap]\n"
     "          [,cache.direct=on|off][,cache.no-flush=on|off]\n"
-    "          [,read-only=on|off][,detect-zeroes=on|off|unmap]\n"
+    "          [,read-only=on|off][,auto-read-only=on|off]\n"
+    "          [,force-share=on|off][,detect-zeroes=on|off|unmap]\n"
     "          [,driver specific parameters...]\n"
     "                configure a block backend\n", QEMU_ARCH_ALL)
 STEXI
@@ -900,6 +901,25 @@ name is not intended to be predictable and changes between QEMU invocations.
 For the top level, an explicit node name must be specified.
 @item read-only
 Open the node read-only. Guest write attempts will fail.
+
+Note that some block drivers support only read-only access, either generally or
+in certain configurations. In this case, the default value
+@option{read-only=off} does not work and the option must be specified
+explicitly.
+@item auto-read-only
+If @option{auto-read-only=on} is set, QEMU may fall back to read-only usage
+even when @option{read-only=off} is requested, or even switch between modes as
+needed, e.g. depending on whether the image file is writable or whether a
+writing user is attached to the node.
+@item force-share
+Override the image locking system of QEMU by forcing the node to utilize
+weaker shared access for permissions where it would normally request exclusive
+access.  When there is the potential for multiple instances to have the same
+file open (whether this invocation of QEMU is the first or the second
+instance), both instances must permit shared access for the second instance to
+succeed at opening the file.
+
+Enabling @option{force-share=on} requires @option{read-only=on}.
 @item cache.direct
 The host page cache can be avoided with @option{cache.direct=on}. This will
 attempt to do disk IO directly to the guest's memory. QEMU may still perform an
