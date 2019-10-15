@@ -61,7 +61,6 @@ typedef struct I440FXState {
 #define PIIX_NUM_PIC_IRQS       16      /* i8259 * 2 */
 #define PIIX_NUM_PIRQS          4ULL    /* PIRQ[A-D] */
 #define XEN_PIIX_NUM_PIRQS      128ULL
-#define PIIX_PIRQC              0x60
 
 typedef struct PIIX3State {
     PCIDevice dev;
@@ -468,7 +467,7 @@ static void piix3_set_irq_level_internal(PIIX3State *piix3, int pirq, int level)
     int pic_irq;
     uint64_t mask;
 
-    pic_irq = piix3->dev.config[PIIX_PIRQC + pirq];
+    pic_irq = piix3->dev.config[PIIX_PIRQCA + pirq];
     if (pic_irq >= PIIX_NUM_PIC_IRQS) {
         return;
     }
@@ -482,7 +481,7 @@ static void piix3_set_irq_level(PIIX3State *piix3, int pirq, int level)
 {
     int pic_irq;
 
-    pic_irq = piix3->dev.config[PIIX_PIRQC + pirq];
+    pic_irq = piix3->dev.config[PIIX_PIRQCA + pirq];
     if (pic_irq >= PIIX_NUM_PIC_IRQS) {
         return;
     }
@@ -501,7 +500,7 @@ static void piix3_set_irq(void *opaque, int pirq, int level)
 static PCIINTxRoute piix3_route_intx_pin_to_irq(void *opaque, int pin)
 {
     PIIX3State *piix3 = opaque;
-    int irq = piix3->dev.config[PIIX_PIRQC + pin];
+    int irq = piix3->dev.config[PIIX_PIRQCA + pin];
     PCIINTxRoute route;
 
     if (irq < PIIX_NUM_PIC_IRQS) {
@@ -530,7 +529,7 @@ static void piix3_write_config(PCIDevice *dev,
                                uint32_t address, uint32_t val, int len)
 {
     pci_default_write_config(dev, address, val, len);
-    if (ranges_overlap(address, len, PIIX_PIRQC, 4)) {
+    if (ranges_overlap(address, len, PIIX_PIRQCA, 4)) {
         PIIX3State *piix3 = PIIX3_PCI_DEVICE(dev);
         int pic_irq;
 
