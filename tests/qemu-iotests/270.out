@@ -1,0 +1,9 @@
+QA output created by 270
+Formatting 'TEST_DIR/t.IMGFMT.base', fmt=IMGFMT size=4294967296
+wrote 512/512 bytes at offset 0
+512 bytes, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
+Formatting 'TEST_DIR/t.IMGFMT', fmt=IMGFMT size=4294967296 backing_file=TEST_DIR/t.IMGFMT.base data_file=TEST_DIR/t.IMGFMT.orig
+wrote 2147483136/2147483136 bytes at offset 768
+2 GiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
+No errors were found on the image.
+*** done

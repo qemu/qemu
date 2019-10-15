@@ -24,6 +24,7 @@
 #include "qemu/option.h"
 #include "qemu/crc32c.h"
 #include "qemu/bswap.h"
+#include "qemu/error-report.h"
 #include "vhdx.h"
 #include "migration/blocker.h"
 #include "qemu/uuid.h"
@@ -235,6 +236,9 @@ static int vhdx_region_check(BDRVVHDXState *s, uint64_t start, uint64_t length)
     end = start + length;
     QLIST_FOREACH(r, &s->regions, entries) {
         if (!((start >= r->end) || (end <= r->start))) {
+            error_report("VHDX region %" PRIu64 "-%" PRIu64 " overlaps with "
+                         "region %" PRIu64 "-%." PRIu64, start, end, r->start,
+                         r->end);
             ret = -EINVAL;
             goto exit;
         }
@@ -877,6 +881,95 @@ static void vhdx_calc_bat_entries(BDRVVHDXState *s)
 
 }
 
+static int vhdx_check_bat_entries(BlockDriverState *bs, int *errcnt)
+{
+    BDRVVHDXState *s = bs->opaque;
+    int64_t image_file_size = bdrv_getlength(bs->file->bs);
+    uint64_t payblocks = s->chunk_ratio;
+    uint64_t i;
+    int ret = 0;
+
+    if (image_file_size < 0) {
+        error_report("Could not determinate VHDX image file size.");
+        return image_file_size;
+    }
+
+    for (i = 0; i < s->bat_entries; i++) {
+        if ((s->bat[i] & VHDX_BAT_STATE_BIT_MASK) ==
+            PAYLOAD_BLOCK_FULLY_PRESENT) {
+            uint64_t offset = s->bat[i] & VHDX_BAT_FILE_OFF_MASK;
+            /*
+             * Allow that the last block exists only partially. The VHDX spec
+             * states that the image file can only grow in blocksize increments,
+             * but QEMU created images with partial last blocks in the past.
+             */
+            uint32_t block_length = MIN(s->block_size,
+                bs->total_sectors * BDRV_SECTOR_SIZE - i * s->block_size);
+            /*
+             * Check for BAT entry overflow.
+             */
+            if (offset > INT64_MAX - s->block_size) {
+                error_report("VHDX BAT entry %" PRIu64 " offset overflow.", i);
+                ret = -EINVAL;
+                if (!errcnt) {
+                    break;
+                }
+                (*errcnt)++;
+            }
+            /*
+             * Check if fully allocated BAT entries do not reside after
+             * end of the image file.
+             */
+            if (offset >= image_file_size) {
+                error_report("VHDX BAT entry %" PRIu64 " start offset %" PRIu64
+                             " points after end of file (%" PRIi64 "). Image"
+                             " has probably been truncated.",
+                             i, offset, image_file_size);
+                ret = -EINVAL;
+                if (!errcnt) {
+                    break;
+                }
+                (*errcnt)++;
+            } else if (offset + block_length > image_file_size) {
+                error_report("VHDX BAT entry %" PRIu64 " end offset %" PRIu64
+                             " points after end of file (%" PRIi64 "). Image"
+                             " has probably been truncated.",
+                             i, offset + block_length - 1, image_file_size);
+                ret = -EINVAL;
+                if (!errcnt) {
+                    break;
+                }
+                (*errcnt)++;
+            }
+
+            /*
+             * verify populated BAT field file offsets against
+             * region table and log entries
+             */
+            if (payblocks--) {
+                /* payload bat entries */
+                int ret2;
+                ret2 = vhdx_region_check(s, offset, s->block_size);
+                if (ret2 < 0) {
+                    ret = -EINVAL;
+                    if (!errcnt) {
+                        break;
+                    }
+                    (*errcnt)++;
+                }
+            } else {
+                payblocks = s->chunk_ratio;
+                /*
+                 * Once differencing files are supported, verify sector bitmap
+                 * blocks here
+                 */
+            }
+        }
+    }
+
+    return ret;
+}
+
 static void vhdx_close(BlockDriverState *bs)
 {
     BDRVVHDXState *s = bs->opaque;
@@ -981,25 +1074,15 @@ static int vhdx_open(BlockDriverState *bs, QDict *options, int flags,
         goto fail;
     }
 
-    uint64_t payblocks = s->chunk_ratio;
-    /* endian convert, and verify populated BAT field file offsets against
-     * region table and log entries */
+    /* endian convert populated BAT field entires */
     for (i = 0; i < s->bat_entries; i++) {
         s->bat[i] = le64_to_cpu(s->bat[i]);
-        if (payblocks--) {
-            /* payload bat entries */
-            if ((s->bat[i] & VHDX_BAT_STATE_BIT_MASK) ==
-                    PAYLOAD_BLOCK_FULLY_PRESENT) {
-                ret = vhdx_region_check(s, s->bat[i] & VHDX_BAT_FILE_OFF_MASK,
-                                        s->block_size);
-                if (ret < 0) {
-                    goto fail;
-                }
-            }
-        } else {
-            payblocks = s->chunk_ratio;
-            /* Once differencing files are supported, verify sector bitmap
-             * blocks here */
+    }
+
+    if (!(flags & BDRV_O_CHECK)) {
+        ret = vhdx_check_bat_entries(bs, NULL);
+        if (ret < 0) {
+            goto fail;
         }
     }
 
@@ -2072,6 +2155,9 @@ static int coroutine_fn vhdx_co_check(BlockDriverState *bs,
     if (s->log_replayed_on_open) {
         result->corruptions_fixed++;
     }
+
+    vhdx_check_bat_entries(bs, &result->corruptions);
+
     return 0;
 }
 

@@ -507,6 +507,13 @@ static QemuOptsList qemu_object_opts = {
     },
 };
 
+static bool qemu_nbd_object_print_help(const char *type, QemuOpts *opts)
+{
+    if (user_creatable_print_help(type, opts)) {
+        exit(0);
+    }
+    return true;
+}
 
 
 static QCryptoTLSCreds *nbd_get_tls_creds(const char *id, bool list,
@@ -902,7 +909,7 @@ int main(int argc, char **argv)
 
     qemu_opts_foreach(&qemu_object_opts,
                       user_creatable_add_opts_foreach,
-                      NULL, &error_fatal);
+                      qemu_nbd_object_print_help, &error_fatal);
 
     if (!trace_init_backends()) {
         exit(1);
