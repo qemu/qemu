@@ -33,7 +33,6 @@
 #include "qapi/error.h"
 #include "qemu/range.h"
 #include "hw/xen/xen.h"
-#include "migration/qemu-file-types.h"
 #include "migration/vmstate.h"
 #include "hw/pci-host/pam.h"
 #include "sysemu/reset.h"
@@ -174,28 +173,6 @@ static void i440fx_write_config(PCIDevice *dev,
     }
 }
 
-static int i440fx_load_old(QEMUFile* f, void *opaque, int version_id)
-{
-    PCII440FXState *d = opaque;
-    PCIDevice *pd = PCI_DEVICE(d);
-    int ret, i;
-    uint8_t smm_enabled;
-
-    ret = pci_device_load(pd, f);
-    if (ret < 0)
-        return ret;
-    i440fx_update_memory_mappings(d);
-    qemu_get_8s(f, &smm_enabled);
-
-    if (version_id == 2) {
-        for (i = 0; i < PIIX_NUM_PIRQS; i++) {
-            qemu_get_be32(f); /* dummy load for compatibility */
-        }
-    }
-
-    return 0;
-}
-
 static int i440fx_post_load(void *opaque, int version_id)
 {
     PCII440FXState *d = opaque;
@@ -208,8 +185,6 @@ static const VMStateDescription vmstate_i440fx = {
     .name = "I440FX",
     .version_id = 3,
     .minimum_version_id = 3,
-    .minimum_version_id_old = 1,
-    .load_state_old = i440fx_load_old,
     .post_load = i440fx_post_load,
     .fields = (VMStateField[]) {
         VMSTATE_PCI_DEVICE(parent_obj, PCII440FXState),

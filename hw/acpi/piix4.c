@@ -41,7 +41,6 @@
 #include "hw/acpi/memory_hotplug.h"
 #include "hw/acpi/acpi_dev_interface.h"
 #include "hw/xen/xen.h"
-#include "migration/qemu-file-types.h"
 #include "migration/vmstate.h"
 #include "hw/core/cpu.h"
 #include "trace.h"
@@ -204,43 +203,6 @@ static const VMStateDescription vmstate_pci_status = {
     }
 };
 
-static int acpi_load_old(QEMUFile *f, void *opaque, int version_id)
-{
-    PIIX4PMState *s = opaque;
-    int ret, i;
-    uint16_t temp;
-
-    ret = pci_device_load(PCI_DEVICE(s), f);
-    if (ret < 0) {
-        return ret;
-    }
-    qemu_get_be16s(f, &s->ar.pm1.evt.sts);
-    qemu_get_be16s(f, &s->ar.pm1.evt.en);
-    qemu_get_be16s(f, &s->ar.pm1.cnt.cnt);
-
-    ret = vmstate_load_state(f, &vmstate_apm, &s->apm, 1);
-    if (ret) {
-        return ret;
-    }
-
-    timer_get(f, s->ar.tmr.timer);
-    qemu_get_sbe64s(f, &s->ar.tmr.overflow_time);
-
-    qemu_get_be16s(f, (uint16_t *)s->ar.gpe.sts);
-    for (i = 0; i < 3; i++) {
-        qemu_get_be16s(f, &temp);
-    }
-
-    qemu_get_be16s(f, (uint16_t *)s->ar.gpe.en);
-    for (i = 0; i < 3; i++) {
-        qemu_get_be16s(f, &temp);
-    }
-
-    ret = vmstate_load_state(f, &vmstate_pci_status,
-        &s->acpi_pci_hotplug.acpi_pcihp_pci_status[ACPI_PCIHP_BSEL_DEFAULT], 1);
-    return ret;
-}
-
 static bool vmstate_test_use_acpi_pci_hotplug(void *opaque, int version_id)
 {
     PIIX4PMState *s = opaque;
@@ -312,8 +274,6 @@ static const VMStateDescription vmstate_acpi = {
     .name = "piix4_pm",
     .version_id = 3,
     .minimum_version_id = 3,
-    .minimum_version_id_old = 1,
-    .load_state_old = acpi_load_old,
     .post_load = vmstate_acpi_post_load,
     .fields = (VMStateField[]) {
         VMSTATE_PCI_DEVICE(parent_obj, PIIX4PMState),
