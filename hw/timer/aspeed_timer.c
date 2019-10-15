@@ -160,7 +160,9 @@ static uint64_t calculate_next(struct AspeedTimer *t)
     timer_del(&t->timer);
 
     if (timer_overflow_interrupt(t)) {
+        AspeedTimerCtrlState *s = timer_to_ctrl(t);
         t->level = !t->level;
+        s->irq_sts |= BIT(t->id);
         qemu_set_irq(t->irq, t->level);
     }
 
@@ -199,7 +201,9 @@ static void aspeed_timer_expire(void *opaque)
     }
 
     if (interrupt) {
+        AspeedTimerCtrlState *s = timer_to_ctrl(t);
         t->level = !t->level;
+        s->irq_sts |= BIT(t->id);
         qemu_set_irq(t->irq, t->level);
     }
 
@@ -244,22 +248,14 @@ static uint64_t aspeed_timer_read(void *opaque, hwaddr offset, unsigned size)
     case 0x30: /* Control Register */
         value = s->ctrl;
         break;
-    case 0x34: /* Control Register 2 */
-        value = s->ctrl2;
-        break;
     case 0x00 ... 0x2c: /* Timers 1 - 4 */
         value = aspeed_timer_get_value(&s->timers[(offset >> 4)], reg);
         break;
     case 0x40 ... 0x8c: /* Timers 5 - 8 */
         value = aspeed_timer_get_value(&s->timers[(offset >> 4) - 1], reg);
         break;
-    /* Illegal */
-    case 0x38:
-    case 0x3C:
     default:
-        qemu_log_mask(LOG_GUEST_ERROR, "%s: Bad offset 0x%" HWADDR_PRIx "\n",
-                __func__, offset);
-        value = 0;
+        value = ASPEED_TIMER_GET_CLASS(s)->read(s, offset);
         break;
     }
     trace_aspeed_timer_read(offset, size, value);
@@ -443,9 +439,6 @@ static void aspeed_timer_write(void *opaque, hwaddr offset, uint64_t value,
     case 0x30:
         aspeed_timer_set_ctrl(s, tv);
         break;
-    case 0x34:
-        aspeed_timer_set_ctrl2(s, tv);
-        break;
     /* Timer Registers */
     case 0x00 ... 0x2c:
         aspeed_timer_set_value(s, (offset >> TIMER_NR_REGS), reg, tv);
@@ -453,12 +446,8 @@ static void aspeed_timer_write(void *opaque, hwaddr offset, uint64_t value,
     case 0x40 ... 0x8c:
         aspeed_timer_set_value(s, (offset >> TIMER_NR_REGS) - 1, reg, tv);
         break;
-    /* Illegal */
-    case 0x38:
-    case 0x3C:
     default:
-        qemu_log_mask(LOG_GUEST_ERROR, "%s: Bad offset 0x%" HWADDR_PRIx "\n",
-                __func__, offset);
+        ASPEED_TIMER_GET_CLASS(s)->write(s, offset, value);
         break;
     }
 }
@@ -471,6 +460,135 @@ static const MemoryRegionOps aspeed_timer_ops = {
     .valid.max_access_size = 4,
     .valid.unaligned = false,
 };
+
+static uint64_t aspeed_2400_timer_read(AspeedTimerCtrlState *s, hwaddr offset)
+{
+    uint64_t value;
+
+    switch (offset) {
+    case 0x34:
+        value = s->ctrl2;
+        break;
+    case 0x38:
+    case 0x3C:
+    default:
+        qemu_log_mask(LOG_GUEST_ERROR, "%s: Bad offset 0x%" HWADDR_PRIx "\n",
+                __func__, offset);
+        value = 0;
+        break;
+    }
+    return value;
+}
+
+static void aspeed_2400_timer_write(AspeedTimerCtrlState *s, hwaddr offset,
+                                    uint64_t value)
+{
+    const uint32_t tv = (uint32_t)(value & 0xFFFFFFFF);
+
+    switch (offset) {
+    case 0x34:
+        aspeed_timer_set_ctrl2(s, tv);
+        break;
+    case 0x38:
+    case 0x3C:
+    default:
+        qemu_log_mask(LOG_GUEST_ERROR, "%s: Bad offset 0x%" HWADDR_PRIx "\n",
+                __func__, offset);
+        break;
+    }
+}
+
+static uint64_t aspeed_2500_timer_read(AspeedTimerCtrlState *s, hwaddr offset)
+{
+    uint64_t value;
+
+    switch (offset) {
+    case 0x34:
+        value = s->ctrl2;
+        break;
+    case 0x38:
+        value = s->ctrl3 & BIT(0);
+        break;
+    case 0x3C:
+    default:
+        qemu_log_mask(LOG_GUEST_ERROR, "%s: Bad offset 0x%" HWADDR_PRIx "\n",
+                __func__, offset);
+        value = 0;
+        break;
+    }
+    return value;
+}
+
+static void aspeed_2500_timer_write(AspeedTimerCtrlState *s, hwaddr offset,
+                                    uint64_t value)
+{
+    const uint32_t tv = (uint32_t)(value & 0xFFFFFFFF);
+    uint8_t command;
+
+    switch (offset) {
+    case 0x34:
+        aspeed_timer_set_ctrl2(s, tv);
+        break;
+    case 0x38:
+        command = (value >> 1) & 0xFF;
+        if (command == 0xAE) {
+            s->ctrl3 = 0x1;
+        } else if (command == 0xEA) {
+            s->ctrl3 = 0x0;
+        }
+        break;
+    case 0x3C:
+        if (s->ctrl3 & BIT(0)) {
+            aspeed_timer_set_ctrl(s, s->ctrl & ~tv);
+        }
+        break;
+
+    default:
+        qemu_log_mask(LOG_GUEST_ERROR, "%s: Bad offset 0x%" HWADDR_PRIx "\n",
+                __func__, offset);
+        break;
+    }
+}
+
+static uint64_t aspeed_2600_timer_read(AspeedTimerCtrlState *s, hwaddr offset)
+{
+    uint64_t value;
+
+    switch (offset) {
+    case 0x34:
+        value = s->irq_sts;
+        break;
+    case 0x38:
+    case 0x3C:
+    default:
+        qemu_log_mask(LOG_GUEST_ERROR, "%s: Bad offset 0x%" HWADDR_PRIx "\n",
+                __func__, offset);
+        value = 0;
+        break;
+    }
+    return value;
+}
+
+static void aspeed_2600_timer_write(AspeedTimerCtrlState *s, hwaddr offset,
+                                    uint64_t value)
+{
+    const uint32_t tv = (uint32_t)(value & 0xFFFFFFFF);
+
+    switch (offset) {
+    case 0x34:
+        s->irq_sts &= tv;
+        break;
+    case 0x3C:
+        aspeed_timer_set_ctrl(s, s->ctrl & ~tv);
+        break;
+
+    case 0x38:
+    default:
+        qemu_log_mask(LOG_GUEST_ERROR, "%s: Bad offset 0x%" HWADDR_PRIx "\n",
+                __func__, offset);
+        break;
+    }
+}
 
 static void aspeed_init_one_timer(AspeedTimerCtrlState *s, uint8_t id)
 {
@@ -525,6 +643,8 @@ static void aspeed_timer_reset(DeviceState *dev)
     }
     s->ctrl = 0;
     s->ctrl2 = 0;
+    s->ctrl3 = 0;
+    s->irq_sts = 0;
 }
 
 static const VMStateDescription vmstate_aspeed_timer = {
@@ -543,11 +663,13 @@ static const VMStateDescription vmstate_aspeed_timer = {
 
 static const VMStateDescription vmstate_aspeed_timer_state = {
     .name = "aspeed.timerctrl",
-    .version_id = 1,
-    .minimum_version_id = 1,
+    .version_id = 2,
+    .minimum_version_id = 2,
     .fields = (VMStateField[]) {
         VMSTATE_UINT32(ctrl, AspeedTimerCtrlState),
         VMSTATE_UINT32(ctrl2, AspeedTimerCtrlState),
+        VMSTATE_UINT32(ctrl3, AspeedTimerCtrlState),
+        VMSTATE_UINT32(irq_sts, AspeedTimerCtrlState),
         VMSTATE_STRUCT_ARRAY(timers, AspeedTimerCtrlState,
                              ASPEED_TIMER_NR_TIMERS, 1, vmstate_aspeed_timer,
                              AspeedTimer),
@@ -570,11 +692,64 @@ static const TypeInfo aspeed_timer_info = {
     .parent = TYPE_SYS_BUS_DEVICE,
     .instance_size = sizeof(AspeedTimerCtrlState),
     .class_init = timer_class_init,
+    .class_size = sizeof(AspeedTimerClass),
+    .abstract   = true,
+};
+
+static void aspeed_2400_timer_class_init(ObjectClass *klass, void *data)
+{
+    DeviceClass *dc = DEVICE_CLASS(klass);
+    AspeedTimerClass *awc = ASPEED_TIMER_CLASS(klass);
+
+    dc->desc = "ASPEED 2400 Timer";
+    awc->read = aspeed_2400_timer_read;
+    awc->write = aspeed_2400_timer_write;
+}
+
+static const TypeInfo aspeed_2400_timer_info = {
+    .name = TYPE_ASPEED_2400_TIMER,
+    .parent = TYPE_ASPEED_TIMER,
+    .class_init = aspeed_2400_timer_class_init,
+};
+
+static void aspeed_2500_timer_class_init(ObjectClass *klass, void *data)
+{
+    DeviceClass *dc = DEVICE_CLASS(klass);
+    AspeedTimerClass *awc = ASPEED_TIMER_CLASS(klass);
+
+    dc->desc = "ASPEED 2500 Timer";
+    awc->read = aspeed_2500_timer_read;
+    awc->write = aspeed_2500_timer_write;
+}
+
+static const TypeInfo aspeed_2500_timer_info = {
+    .name = TYPE_ASPEED_2500_TIMER,
+    .parent = TYPE_ASPEED_TIMER,
+    .class_init = aspeed_2500_timer_class_init,
+};
+
+static void aspeed_2600_timer_class_init(ObjectClass *klass, void *data)
+{
+    DeviceClass *dc = DEVICE_CLASS(klass);
+    AspeedTimerClass *awc = ASPEED_TIMER_CLASS(klass);
+
+    dc->desc = "ASPEED 2600 Timer";
+    awc->read = aspeed_2600_timer_read;
+    awc->write = aspeed_2600_timer_write;
+}
+
+static const TypeInfo aspeed_2600_timer_info = {
+    .name = TYPE_ASPEED_2600_TIMER,
+    .parent = TYPE_ASPEED_TIMER,
+    .class_init = aspeed_2600_timer_class_init,
 };
 
 static void aspeed_timer_register_types(void)
 {
     type_register_static(&aspeed_timer_info);
+    type_register_static(&aspeed_2400_timer_info);
+    type_register_static(&aspeed_2500_timer_info);
+    type_register_static(&aspeed_2600_timer_info);
 }
 
 type_init(aspeed_timer_register_types)

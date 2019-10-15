@@ -28,6 +28,7 @@
 /* Control/Status Register #1 (ast2500) */
 #define R_STATUS1         (0x60 / 4)
 #define   PHY_BUSY_STATE      BIT(0)
+#define   PHY_PLL_LOCK_STATUS BIT(4)
 
 #define R_ECC_TEST_CTRL   (0x70 / 4)
 #define   ECC_TEST_FINISHED   BIT(12)
@@ -85,6 +86,11 @@
 #define     ASPEED_SDMC_AST2500_512MB       0x2
 #define     ASPEED_SDMC_AST2500_1024MB      0x3
 
+#define     ASPEED_SDMC_AST2600_256MB       0x0
+#define     ASPEED_SDMC_AST2600_512MB       0x1
+#define     ASPEED_SDMC_AST2600_1024MB      0x2
+#define     ASPEED_SDMC_AST2600_2048MB      0x3
+
 #define ASPEED_SDMC_AST2500_READONLY_MASK                               \
     (ASPEED_SDMC_HW_VERSION(0xf) | ASPEED_SDMC_CACHE_INITIAL_DONE |     \
      ASPEED_SDMC_AST2500_RESERVED | ASPEED_SDMC_VGA_COMPAT |            \
@@ -110,6 +116,7 @@ static void aspeed_sdmc_write(void *opaque, hwaddr addr, uint64_t data,
                              unsigned int size)
 {
     AspeedSDMCState *s = ASPEED_SDMC(opaque);
+    AspeedSDMCClass *asc = ASPEED_SDMC_GET_CLASS(s);
 
     addr >>= 2;
 
@@ -130,41 +137,7 @@ static void aspeed_sdmc_write(void *opaque, hwaddr addr, uint64_t data,
         return;
     }
 
-    if (addr == R_CONF) {
-        /* Make sure readonly bits are kept */
-        switch (s->silicon_rev) {
-        case AST2400_A0_SILICON_REV:
-        case AST2400_A1_SILICON_REV:
-            data &= ~ASPEED_SDMC_READONLY_MASK;
-            data |= s->fixed_conf;
-            break;
-        case AST2500_A0_SILICON_REV:
-        case AST2500_A1_SILICON_REV:
-            data &= ~ASPEED_SDMC_AST2500_READONLY_MASK;
-            data |= s->fixed_conf;
-            break;
-        default:
-            g_assert_not_reached();
-        }
-    }
-    if (s->silicon_rev == AST2500_A0_SILICON_REV ||
-            s->silicon_rev == AST2500_A1_SILICON_REV) {
-        switch (addr) {
-        case R_STATUS1:
-            /* Will never return 'busy' */
-            data &= ~PHY_BUSY_STATE;
-            break;
-        case R_ECC_TEST_CTRL:
-            /* Always done, always happy */
-            data |= ECC_TEST_FINISHED;
-            data &= ~ECC_TEST_FAIL;
-            break;
-        default:
-            break;
-        }
-    }
-
-    s->regs[addr] = data;
+    asc->write(s, addr, data);
 }
 
 static const MemoryRegionOps aspeed_sdmc_ops = {
@@ -219,47 +192,46 @@ static int ast2500_rambits(AspeedSDMCState *s)
     return ASPEED_SDMC_AST2500_512MB;
 }
 
+static int ast2600_rambits(AspeedSDMCState *s)
+{
+    switch (s->ram_size >> 20) {
+    case 256:
+        return ASPEED_SDMC_AST2600_256MB;
+    case 512:
+        return ASPEED_SDMC_AST2600_512MB;
+    case 1024:
+        return ASPEED_SDMC_AST2600_1024MB;
+    case 2048:
+        return ASPEED_SDMC_AST2600_2048MB;
+    default:
+        break;
+    }
+
+    /* use a common default */
+    warn_report("Invalid RAM size 0x%" PRIx64 ". Using default 512M",
+                s->ram_size);
+    s->ram_size = 512 << 20;
+    return ASPEED_SDMC_AST2600_512MB;
+}
+
 static void aspeed_sdmc_reset(DeviceState *dev)
 {
     AspeedSDMCState *s = ASPEED_SDMC(dev);
+    AspeedSDMCClass *asc = ASPEED_SDMC_GET_CLASS(s);
 
     memset(s->regs, 0, sizeof(s->regs));
 
     /* Set ram size bit and defaults values */
-    s->regs[R_CONF] = s->fixed_conf;
+    s->regs[R_CONF] = asc->compute_conf(s, 0);
 }
 
 static void aspeed_sdmc_realize(DeviceState *dev, Error **errp)
 {
     SysBusDevice *sbd = SYS_BUS_DEVICE(dev);
     AspeedSDMCState *s = ASPEED_SDMC(dev);
+    AspeedSDMCClass *asc = ASPEED_SDMC_GET_CLASS(s);
 
-    if (!is_supported_silicon_rev(s->silicon_rev)) {
-        error_setg(errp, "Unknown silicon revision: 0x%" PRIx32,
-                s->silicon_rev);
-        return;
-    }
-
-    switch (s->silicon_rev) {
-    case AST2400_A0_SILICON_REV:
-    case AST2400_A1_SILICON_REV:
-        s->ram_bits = ast2400_rambits(s);
-        s->max_ram_size = 512 << 20;
-        s->fixed_conf = ASPEED_SDMC_VGA_COMPAT |
-            ASPEED_SDMC_DRAM_SIZE(s->ram_bits);
-        break;
-    case AST2500_A0_SILICON_REV:
-    case AST2500_A1_SILICON_REV:
-        s->ram_bits = ast2500_rambits(s);
-        s->max_ram_size = 1024 << 20;
-        s->fixed_conf = ASPEED_SDMC_HW_VERSION(1) |
-            ASPEED_SDMC_VGA_APERTURE(ASPEED_SDMC_VGA_64MB) |
-            ASPEED_SDMC_CACHE_INITIAL_DONE |
-            ASPEED_SDMC_DRAM_SIZE(s->ram_bits);
-        break;
-    default:
-        g_assert_not_reached();
-    }
+    s->max_ram_size = asc->max_ram_size;
 
     memory_region_init_io(&s->iomem, OBJECT(s), &aspeed_sdmc_ops, s,
                           TYPE_ASPEED_SDMC, 0x1000);
@@ -277,7 +249,6 @@ static const VMStateDescription vmstate_aspeed_sdmc = {
 };
 
 static Property aspeed_sdmc_properties[] = {
-    DEFINE_PROP_UINT32("silicon-rev", AspeedSDMCState, silicon_rev, 0),
     DEFINE_PROP_UINT64("ram-size", AspeedSDMCState, ram_size, 0),
     DEFINE_PROP_UINT64("max-ram-size", AspeedSDMCState, max_ram_size, 0),
     DEFINE_PROP_END_OF_LIST(),
@@ -298,11 +269,164 @@ static const TypeInfo aspeed_sdmc_info = {
     .parent = TYPE_SYS_BUS_DEVICE,
     .instance_size = sizeof(AspeedSDMCState),
     .class_init = aspeed_sdmc_class_init,
+    .class_size = sizeof(AspeedSDMCClass),
+    .abstract   = true,
+};
+
+static uint32_t aspeed_2400_sdmc_compute_conf(AspeedSDMCState *s, uint32_t data)
+{
+    uint32_t fixed_conf = ASPEED_SDMC_VGA_COMPAT |
+        ASPEED_SDMC_DRAM_SIZE(ast2400_rambits(s));
+
+    /* Make sure readonly bits are kept */
+    data &= ~ASPEED_SDMC_READONLY_MASK;
+
+    return data | fixed_conf;
+}
+
+static void aspeed_2400_sdmc_write(AspeedSDMCState *s, uint32_t reg,
+                                   uint32_t data)
+{
+    switch (reg) {
+    case R_CONF:
+        data = aspeed_2400_sdmc_compute_conf(s, data);
+        break;
+    default:
+        break;
+    }
+
+    s->regs[reg] = data;
+}
+
+static void aspeed_2400_sdmc_class_init(ObjectClass *klass, void *data)
+{
+    DeviceClass *dc = DEVICE_CLASS(klass);
+    AspeedSDMCClass *asc = ASPEED_SDMC_CLASS(klass);
+
+    dc->desc = "ASPEED 2400 SDRAM Memory Controller";
+    asc->max_ram_size = 512 << 20;
+    asc->compute_conf = aspeed_2400_sdmc_compute_conf;
+    asc->write = aspeed_2400_sdmc_write;
+}
+
+static const TypeInfo aspeed_2400_sdmc_info = {
+    .name = TYPE_ASPEED_2400_SDMC,
+    .parent = TYPE_ASPEED_SDMC,
+    .class_init = aspeed_2400_sdmc_class_init,
+};
+
+static uint32_t aspeed_2500_sdmc_compute_conf(AspeedSDMCState *s, uint32_t data)
+{
+    uint32_t fixed_conf = ASPEED_SDMC_HW_VERSION(1) |
+        ASPEED_SDMC_VGA_APERTURE(ASPEED_SDMC_VGA_64MB) |
+        ASPEED_SDMC_CACHE_INITIAL_DONE |
+        ASPEED_SDMC_DRAM_SIZE(ast2500_rambits(s));
+
+    /* Make sure readonly bits are kept */
+    data &= ~ASPEED_SDMC_AST2500_READONLY_MASK;
+
+    return data | fixed_conf;
+}
+
+static void aspeed_2500_sdmc_write(AspeedSDMCState *s, uint32_t reg,
+                                   uint32_t data)
+{
+    switch (reg) {
+    case R_CONF:
+        data = aspeed_2500_sdmc_compute_conf(s, data);
+        break;
+    case R_STATUS1:
+        /* Will never return 'busy' */
+        data &= ~PHY_BUSY_STATE;
+        break;
+    case R_ECC_TEST_CTRL:
+        /* Always done, always happy */
+        data |= ECC_TEST_FINISHED;
+        data &= ~ECC_TEST_FAIL;
+        break;
+    default:
+        break;
+    }
+
+    s->regs[reg] = data;
+}
+
+static void aspeed_2500_sdmc_class_init(ObjectClass *klass, void *data)
+{
+    DeviceClass *dc = DEVICE_CLASS(klass);
+    AspeedSDMCClass *asc = ASPEED_SDMC_CLASS(klass);
+
+    dc->desc = "ASPEED 2500 SDRAM Memory Controller";
+    asc->max_ram_size = 1024 << 20;
+    asc->compute_conf = aspeed_2500_sdmc_compute_conf;
+    asc->write = aspeed_2500_sdmc_write;
+}
+
+static const TypeInfo aspeed_2500_sdmc_info = {
+    .name = TYPE_ASPEED_2500_SDMC,
+    .parent = TYPE_ASPEED_SDMC,
+    .class_init = aspeed_2500_sdmc_class_init,
+};
+
+static uint32_t aspeed_2600_sdmc_compute_conf(AspeedSDMCState *s, uint32_t data)
+{
+    uint32_t fixed_conf = ASPEED_SDMC_HW_VERSION(3) |
+        ASPEED_SDMC_VGA_APERTURE(ASPEED_SDMC_VGA_64MB) |
+        ASPEED_SDMC_DRAM_SIZE(ast2600_rambits(s));
+
+    /* Make sure readonly bits are kept (use ast2500 mask) */
+    data &= ~ASPEED_SDMC_AST2500_READONLY_MASK;
+
+    return data | fixed_conf;
+}
+
+static void aspeed_2600_sdmc_write(AspeedSDMCState *s, uint32_t reg,
+                                   uint32_t data)
+{
+    switch (reg) {
+    case R_CONF:
+        data = aspeed_2600_sdmc_compute_conf(s, data);
+        break;
+    case R_STATUS1:
+        /* Will never return 'busy'. 'lock status' is always set */
+        data &= ~PHY_BUSY_STATE;
+        data |= PHY_PLL_LOCK_STATUS;
+        break;
+    case R_ECC_TEST_CTRL:
+        /* Always done, always happy */
+        data |= ECC_TEST_FINISHED;
+        data &= ~ECC_TEST_FAIL;
+        break;
+    default:
+        break;
+    }
+
+    s->regs[reg] = data;
+}
+
+static void aspeed_2600_sdmc_class_init(ObjectClass *klass, void *data)
+{
+    DeviceClass *dc = DEVICE_CLASS(klass);
+    AspeedSDMCClass *asc = ASPEED_SDMC_CLASS(klass);
+
+    dc->desc = "ASPEED 2600 SDRAM Memory Controller";
+    asc->max_ram_size = 2048 << 20;
+    asc->compute_conf = aspeed_2600_sdmc_compute_conf;
+    asc->write = aspeed_2600_sdmc_write;
+}
+
+static const TypeInfo aspeed_2600_sdmc_info = {
+    .name = TYPE_ASPEED_2600_SDMC,
+    .parent = TYPE_ASPEED_SDMC,
+    .class_init = aspeed_2600_sdmc_class_init,
 };
 
 static void aspeed_sdmc_register_types(void)
 {
     type_register_static(&aspeed_sdmc_info);
+    type_register_static(&aspeed_2400_sdmc_info);
+    type_register_static(&aspeed_2500_sdmc_info);
+    type_register_static(&aspeed_2600_sdmc_info);
 }
 
 type_init(aspeed_sdmc_register_types);

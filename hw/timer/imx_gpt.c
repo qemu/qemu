@@ -16,7 +16,6 @@
 #include "hw/irq.h"
 #include "hw/timer/imx_gpt.h"
 #include "migration/vmstate.h"
-#include "qemu/main-loop.h"
 #include "qemu/module.h"
 #include "qemu/log.h"
 
@@ -127,6 +126,7 @@ static const IMXClk imx7_gpt_clocks[] = {
     CLK_NONE,      /* 111 not defined */
 };
 
+/* Must be called from within ptimer_transaction_begin/commit block */
 static void imx_gpt_set_freq(IMXGPTState *s)
 {
     uint32_t clksrc = extract32(s->cr, GPT_CR_CLKSRC_SHIFT, 3);
@@ -167,6 +167,7 @@ static inline uint32_t imx_gpt_find_limit(uint32_t count, uint32_t reg,
     return timeout;
 }
 
+/* Must be called from within ptimer_transaction_begin/commit block */
 static void imx_gpt_compute_next_timeout(IMXGPTState *s, bool event)
 {
     uint32_t timeout = GPT_TIMER_MAX;
@@ -313,6 +314,7 @@ static uint64_t imx_gpt_read(void *opaque, hwaddr offset, unsigned size)
 
 static void imx_gpt_reset_common(IMXGPTState *s, bool is_soft_reset)
 {
+    ptimer_transaction_begin(s->timer);
     /* stop timer */
     ptimer_stop(s->timer);
 
@@ -350,6 +352,7 @@ static void imx_gpt_reset_common(IMXGPTState *s, bool is_soft_reset)
     if (s->freq && (s->cr & GPT_CR_EN)) {
         ptimer_run(s->timer, 1);
     }
+    ptimer_transaction_commit(s->timer);
 }
 
 static void imx_gpt_soft_reset(DeviceState *dev)
@@ -382,6 +385,7 @@ static void imx_gpt_write(void *opaque, hwaddr offset, uint64_t value,
             imx_gpt_soft_reset(DEVICE(s));
         } else {
             /* set our freq, as the source might have changed */
+            ptimer_transaction_begin(s->timer);
             imx_gpt_set_freq(s);
 
             if ((oldreg ^ s->cr) & GPT_CR_EN) {
@@ -397,12 +401,15 @@ static void imx_gpt_write(void *opaque, hwaddr offset, uint64_t value,
                     ptimer_stop(s->timer);
                 }
             }
+            ptimer_transaction_commit(s->timer);
         }
         break;
 
     case 1: /* Prescaler */
         s->pr = value & 0xfff;
+        ptimer_transaction_begin(s->timer);
         imx_gpt_set_freq(s);
+        ptimer_transaction_commit(s->timer);
         break;
 
     case 2: /* SR */
@@ -414,13 +421,16 @@ static void imx_gpt_write(void *opaque, hwaddr offset, uint64_t value,
         s->ir = value & 0x3f;
         imx_gpt_update_int(s);
 
+        ptimer_transaction_begin(s->timer);
         imx_gpt_compute_next_timeout(s, false);
+        ptimer_transaction_commit(s->timer);
 
         break;
 
     case 4: /* OCR1 -- output compare register */
         s->ocr1 = value;
 
+        ptimer_transaction_begin(s->timer);
         /* In non-freerun mode, reset count when this register is written */
         if (!(s->cr & GPT_CR_FRR)) {
             s->next_timeout = GPT_TIMER_MAX;
@@ -429,6 +439,7 @@ static void imx_gpt_write(void *opaque, hwaddr offset, uint64_t value,
 
         /* compute the new timeout */
         imx_gpt_compute_next_timeout(s, false);
+        ptimer_transaction_commit(s->timer);
 
         break;
 
@@ -436,7 +447,9 @@ static void imx_gpt_write(void *opaque, hwaddr offset, uint64_t value,
         s->ocr2 = value;
 
         /* compute the new timeout */
+        ptimer_transaction_begin(s->timer);
         imx_gpt_compute_next_timeout(s, false);
+        ptimer_transaction_commit(s->timer);
 
         break;
 
@@ -444,7 +457,9 @@ static void imx_gpt_write(void *opaque, hwaddr offset, uint64_t value,
         s->ocr3 = value;
 
         /* compute the new timeout */
+        ptimer_transaction_begin(s->timer);
         imx_gpt_compute_next_timeout(s, false);
+        ptimer_transaction_commit(s->timer);
 
         break;
 
@@ -484,15 +499,13 @@ static void imx_gpt_realize(DeviceState *dev, Error **errp)
 {
     IMXGPTState *s = IMX_GPT(dev);
     SysBusDevice *sbd = SYS_BUS_DEVICE(dev);
-    QEMUBH *bh;
 
     sysbus_init_irq(sbd, &s->irq);
     memory_region_init_io(&s->iomem, OBJECT(s), &imx_gpt_ops, s, TYPE_IMX_GPT,
                           0x00001000);
     sysbus_init_mmio(sbd, &s->iomem);
 
-    bh = qemu_bh_new(imx_gpt_timeout, s);
-    s->timer = ptimer_init(bh, PTIMER_POLICY_DEFAULT);
+    s->timer = ptimer_init(imx_gpt_timeout, s, PTIMER_POLICY_DEFAULT);
 }
 
 static void imx_gpt_class_init(ObjectClass *klass, void *data)

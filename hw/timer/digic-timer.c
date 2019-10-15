@@ -29,7 +29,6 @@
 #include "qemu/osdep.h"
 #include "hw/sysbus.h"
 #include "hw/ptimer.h"
-#include "qemu/main-loop.h"
 #include "qemu/module.h"
 #include "qemu/log.h"
 
@@ -52,7 +51,9 @@ static void digic_timer_reset(DeviceState *dev)
 {
     DigicTimerState *s = DIGIC_TIMER(dev);
 
+    ptimer_transaction_begin(s->ptimer);
     ptimer_stop(s->ptimer);
+    ptimer_transaction_commit(s->ptimer);
     s->control = 0;
     s->relvalue = 0;
 }
@@ -93,16 +94,20 @@ static void digic_timer_write(void *opaque, hwaddr offset,
             break;
         }
 
+        ptimer_transaction_begin(s->ptimer);
         if (value & DIGIC_TIMER_CONTROL_EN) {
             ptimer_run(s->ptimer, 0);
         }
 
         s->control = (uint32_t)value;
+        ptimer_transaction_commit(s->ptimer);
         break;
 
     case DIGIC_TIMER_RELVALUE:
         s->relvalue = extract32(value, 0, 16);
+        ptimer_transaction_begin(s->ptimer);
         ptimer_set_limit(s->ptimer, s->relvalue, 1);
+        ptimer_transaction_commit(s->ptimer);
         break;
 
     case DIGIC_TIMER_VALUE:
@@ -125,17 +130,24 @@ static const MemoryRegionOps digic_timer_ops = {
     .endianness = DEVICE_NATIVE_ENDIAN,
 };
 
+static void digic_timer_tick(void *opaque)
+{
+    /* Nothing to do on timer rollover */
+}
+
 static void digic_timer_init(Object *obj)
 {
     DigicTimerState *s = DIGIC_TIMER(obj);
 
-    s->ptimer = ptimer_init(NULL, PTIMER_POLICY_DEFAULT);
+    s->ptimer = ptimer_init(digic_timer_tick, NULL, PTIMER_POLICY_DEFAULT);
 
     /*
      * FIXME: there is no documentation on Digic timer
      * frequency setup so let it always run at 1 MHz
      */
+    ptimer_transaction_begin(s->ptimer);
     ptimer_set_freq(s->ptimer, 1 * 1000 * 1000);
+    ptimer_transaction_commit(s->ptimer);
 
     memory_region_init_io(&s->iomem, OBJECT(s), &digic_timer_ops, s,
                           TYPE_DIGIC_TIMER, 0x100);

@@ -17,8 +17,10 @@
 #define ASPEED_SCU(obj) OBJECT_CHECK(AspeedSCUState, (obj), TYPE_ASPEED_SCU)
 #define TYPE_ASPEED_2400_SCU TYPE_ASPEED_SCU "-ast2400"
 #define TYPE_ASPEED_2500_SCU TYPE_ASPEED_SCU "-ast2500"
+#define TYPE_ASPEED_2600_SCU TYPE_ASPEED_SCU "-ast2600"
 
 #define ASPEED_SCU_NR_REGS (0x1A8 >> 2)
+#define ASPEED_AST2600_SCU_NR_REGS (0xE20 >> 2)
 
 typedef struct AspeedSCUState {
     /*< private >*/
@@ -27,7 +29,7 @@ typedef struct AspeedSCUState {
     /*< public >*/
     MemoryRegion iomem;
 
-    uint32_t regs[ASPEED_SCU_NR_REGS];
+    uint32_t regs[ASPEED_AST2600_SCU_NR_REGS];
     uint32_t silicon_rev;
     uint32_t hw_strap1;
     uint32_t hw_strap2;
@@ -38,6 +40,7 @@ typedef struct AspeedSCUState {
 #define AST2400_A1_SILICON_REV   0x02010303U
 #define AST2500_A0_SILICON_REV   0x04000303U
 #define AST2500_A1_SILICON_REV   0x04010303U
+#define AST2600_A0_SILICON_REV   0x05000303U
 
 #define ASPEED_IS_AST2500(si_rev)     ((((si_rev) >> 24) & 0xff) == 0x04)
 
@@ -54,6 +57,8 @@ typedef struct  AspeedSCUClass {
     const uint32_t *resets;
     uint32_t (*calc_hpll)(AspeedSCUState *s, uint32_t hpll_reg);
     uint32_t apb_divider;
+    uint32_t nr_regs;
+    const MemoryRegionOps *ops;
 }  AspeedSCUClass;
 
 #define ASPEED_SCU_PROT_KEY      0x1688A8A8

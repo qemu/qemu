@@ -20,7 +20,6 @@
 #include "qemu/log.h"
 #include "trace.h"
 #include "qapi/error.h"
-#include "qemu/main-loop.h"
 #include "qemu/module.h"
 #include "hw/sysbus.h"
 #include "hw/irq.h"
@@ -111,6 +110,8 @@ static void cmsdk_dualtimermod_write_control(CMSDKAPBDualTimerModule *m,
 {
     /* Handle a write to the CONTROL register */
     uint32_t changed;
+
+    ptimer_transaction_begin(m->timer);
 
     newctrl &= R_CONTROL_VALID_MASK;
 
@@ -213,6 +214,8 @@ static void cmsdk_dualtimermod_write_control(CMSDKAPBDualTimerModule *m,
     }
 
     m->control = newctrl;
+
+    ptimer_transaction_commit(m->timer);
 }
 
 static uint64_t cmsdk_apb_dualtimer_read(void *opaque, hwaddr offset,
@@ -330,6 +333,7 @@ static void cmsdk_apb_dualtimer_write(void *opaque, hwaddr offset,
             if (!(m->control & R_CONTROL_SIZE_MASK)) {
                 value &= 0xffff;
             }
+            ptimer_transaction_begin(m->timer);
             if (!(m->control & R_CONTROL_MODE_MASK)) {
                 /*
                  * In free-running mode this won't set the limit but will
@@ -346,6 +350,7 @@ static void cmsdk_apb_dualtimer_write(void *opaque, hwaddr offset,
                     ptimer_run(m->timer, 1);
                 }
             }
+            ptimer_transaction_commit(m->timer);
             break;
         case A_TIMER1BGLOAD:
             /* Set the limit, but not the current count */
@@ -357,7 +362,9 @@ static void cmsdk_apb_dualtimer_write(void *opaque, hwaddr offset,
             if (!(m->control & R_CONTROL_SIZE_MASK)) {
                 value &= 0xffff;
             }
+            ptimer_transaction_begin(m->timer);
             ptimer_set_limit(m->timer, value, 0);
+            ptimer_transaction_commit(m->timer);
             break;
         case A_TIMER1CONTROL:
             cmsdk_dualtimermod_write_control(m, value);
@@ -398,6 +405,7 @@ static void cmsdk_dualtimermod_reset(CMSDKAPBDualTimerModule *m)
     m->intstatus = 0;
     m->load = 0;
     m->value = 0xffffffff;
+    ptimer_transaction_begin(m->timer);
     ptimer_stop(m->timer);
     /*
      * We start in free-running mode, with VALUE at 0xffffffff, and
@@ -406,6 +414,7 @@ static void cmsdk_dualtimermod_reset(CMSDKAPBDualTimerModule *m)
      */
     ptimer_set_limit(m->timer, 0xffff, 1);
     ptimer_set_freq(m->timer, m->parent->pclk_frq);
+    ptimer_transaction_commit(m->timer);
 }
 
 static void cmsdk_apb_dualtimer_reset(DeviceState *dev)
@@ -450,10 +459,9 @@ static void cmsdk_apb_dualtimer_realize(DeviceState *dev, Error **errp)
 
     for (i = 0; i < ARRAY_SIZE(s->timermod); i++) {
         CMSDKAPBDualTimerModule *m = &s->timermod[i];
-        QEMUBH *bh = qemu_bh_new(cmsdk_dualtimermod_tick, m);
 
         m->parent = s;
-        m->timer = ptimer_init(bh,
+        m->timer = ptimer_init(cmsdk_dualtimermod_tick, m,
                                PTIMER_POLICY_WRAP_AFTER_ONE_PERIOD |
                                PTIMER_POLICY_TRIGGER_ONLY_ON_DECREMENT |
                                PTIMER_POLICY_NO_IMMEDIATE_RELOAD |

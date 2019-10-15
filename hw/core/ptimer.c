@@ -31,6 +31,16 @@ struct ptimer_state
     uint8_t policy_mask;
     QEMUBH *bh;
     QEMUTimer *timer;
+    ptimer_cb callback;
+    void *callback_opaque;
+    /*
+     * These track whether we're in a transaction block, and if we
+     * need to do a timer reload when the block finishes. They don't
+     * need to be migrated because migration can never happen in the
+     * middle of a transaction block.
+     */
+    bool in_transaction;
+    bool need_reload;
 };
 
 /* Use a bottom-half routine to avoid reentrancy issues.  */
@@ -39,13 +49,16 @@ static void ptimer_trigger(ptimer_state *s)
     if (s->bh) {
         replay_bh_schedule_event(s->bh);
     }
+    if (s->callback) {
+        s->callback(s->callback_opaque);
+    }
 }
 
 static void ptimer_reload(ptimer_state *s, int delta_adjust)
 {
-    uint32_t period_frac = s->period_frac;
-    uint64_t period = s->period;
-    uint64_t delta = s->delta;
+    uint32_t period_frac;
+    uint64_t period;
+    uint64_t delta;
     bool suppress_trigger = false;
 
     /*
@@ -58,10 +71,19 @@ static void ptimer_reload(ptimer_state *s, int delta_adjust)
         (s->policy_mask & PTIMER_POLICY_TRIGGER_ONLY_ON_DECREMENT)) {
         suppress_trigger = true;
     }
-    if (delta == 0 && !(s->policy_mask & PTIMER_POLICY_NO_IMMEDIATE_TRIGGER)
+    if (s->delta == 0 && !(s->policy_mask & PTIMER_POLICY_NO_IMMEDIATE_TRIGGER)
         && !suppress_trigger) {
         ptimer_trigger(s);
     }
+
+    /*
+     * Note that ptimer_trigger() might call the device callback function,
+     * which can then modify timer state, so we must not cache any fields
+     * from ptimer_state until after we have called it.
+     */
+    delta = s->delta;
+    period = s->period;
+    period_frac = s->period_frac;
 
     if (delta == 0 && !(s->policy_mask & PTIMER_POLICY_NO_IMMEDIATE_RELOAD)) {
         delta = s->delta = s->limit;
@@ -136,6 +158,15 @@ static void ptimer_tick(void *opaque)
     ptimer_state *s = (ptimer_state *)opaque;
     bool trigger = true;
 
+    /*
+     * We perform all the tick actions within a begin/commit block
+     * because the callback function that ptimer_trigger() calls
+     * might make calls into the ptimer APIs that provoke another
+     * trigger, and we want that to cause the callback function
+     * to be called iteratively, not recursively.
+     */
+    ptimer_transaction_begin(s);
+
     if (s->enabled == 2) {
         s->delta = 0;
         s->enabled = 0;
@@ -164,6 +195,8 @@ static void ptimer_tick(void *opaque)
     if (trigger) {
         ptimer_trigger(s);
     }
+
+    ptimer_transaction_commit(s);
 }
 
 uint64_t ptimer_get_count(ptimer_state *s)
@@ -263,16 +296,23 @@ uint64_t ptimer_get_count(ptimer_state *s)
 
 void ptimer_set_count(ptimer_state *s, uint64_t count)
 {
+    assert(s->in_transaction || !s->callback);
     s->delta = count;
     if (s->enabled) {
-        s->next_event = qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL);
-        ptimer_reload(s, 0);
+        if (!s->callback) {
+            s->next_event = qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL);
+            ptimer_reload(s, 0);
+        } else {
+            s->need_reload = true;
+        }
     }
 }
 
 void ptimer_run(ptimer_state *s, int oneshot)
 {
     bool was_disabled = !s->enabled;
+
+    assert(s->in_transaction || !s->callback);
 
     if (was_disabled && s->period == 0) {
         if (!qtest_enabled()) {
@@ -282,8 +322,12 @@ void ptimer_run(ptimer_state *s, int oneshot)
     }
     s->enabled = oneshot ? 2 : 1;
     if (was_disabled) {
-        s->next_event = qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL);
-        ptimer_reload(s, 0);
+        if (!s->callback) {
+            s->next_event = qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL);
+            ptimer_reload(s, 0);
+        } else {
+            s->need_reload = true;
+        }
     }
 }
 
@@ -291,35 +335,50 @@ void ptimer_run(ptimer_state *s, int oneshot)
    is immediately restarted.  */
 void ptimer_stop(ptimer_state *s)
 {
+    assert(s->in_transaction || !s->callback);
+
     if (!s->enabled)
         return;
 
     s->delta = ptimer_get_count(s);
     timer_del(s->timer);
     s->enabled = 0;
+    if (s->callback) {
+        s->need_reload = false;
+    }
 }
 
 /* Set counter increment interval in nanoseconds.  */
 void ptimer_set_period(ptimer_state *s, int64_t period)
 {
+    assert(s->in_transaction || !s->callback);
     s->delta = ptimer_get_count(s);
     s->period = period;
     s->period_frac = 0;
     if (s->enabled) {
-        s->next_event = qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL);
-        ptimer_reload(s, 0);
+        if (!s->callback) {
+            s->next_event = qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL);
+            ptimer_reload(s, 0);
+        } else {
+            s->need_reload = true;
+        }
     }
 }
 
 /* Set counter frequency in Hz.  */
 void ptimer_set_freq(ptimer_state *s, uint32_t freq)
 {
+    assert(s->in_transaction || !s->callback);
     s->delta = ptimer_get_count(s);
     s->period = 1000000000ll / freq;
     s->period_frac = (1000000000ll << 32) / freq;
     if (s->enabled) {
-        s->next_event = qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL);
-        ptimer_reload(s, 0);
+        if (!s->callback) {
+            s->next_event = qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL);
+            ptimer_reload(s, 0);
+        } else {
+            s->need_reload = true;
+        }
     }
 }
 
@@ -327,18 +386,49 @@ void ptimer_set_freq(ptimer_state *s, uint32_t freq)
    count = limit.  */
 void ptimer_set_limit(ptimer_state *s, uint64_t limit, int reload)
 {
+    assert(s->in_transaction || !s->callback);
     s->limit = limit;
     if (reload)
         s->delta = limit;
     if (s->enabled && reload) {
-        s->next_event = qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL);
-        ptimer_reload(s, 0);
+        if (!s->callback) {
+            s->next_event = qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL);
+            ptimer_reload(s, 0);
+        } else {
+            s->need_reload = true;
+        }
     }
 }
 
 uint64_t ptimer_get_limit(ptimer_state *s)
 {
     return s->limit;
+}
+
+void ptimer_transaction_begin(ptimer_state *s)
+{
+    assert(!s->in_transaction || !s->callback);
+    s->in_transaction = true;
+    s->need_reload = false;
+}
+
+void ptimer_transaction_commit(ptimer_state *s)
+{
+    assert(s->in_transaction);
+    /*
+     * We must loop here because ptimer_reload() can call the callback
+     * function, which might then update ptimer state in a way that
+     * means we need to do another reload and possibly another callback.
+     * A disabled timer never needs reloading (and if we don't check
+     * this then we loop forever if ptimer_reload() disables the timer).
+     */
+    while (s->need_reload && s->enabled) {
+        s->need_reload = false;
+        s->next_event = qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL);
+        ptimer_reload(s, 0);
+    }
+    /* Now we've finished reload we can leave the transaction block. */
+    s->in_transaction = false;
 }
 
 const VMStateDescription vmstate_ptimer = {
@@ -358,7 +448,7 @@ const VMStateDescription vmstate_ptimer = {
     }
 };
 
-ptimer_state *ptimer_init(QEMUBH *bh, uint8_t policy_mask)
+ptimer_state *ptimer_init_with_bh(QEMUBH *bh, uint8_t policy_mask)
 {
     ptimer_state *s;
 
@@ -377,9 +467,41 @@ ptimer_state *ptimer_init(QEMUBH *bh, uint8_t policy_mask)
     return s;
 }
 
+ptimer_state *ptimer_init(ptimer_cb callback, void *callback_opaque,
+                          uint8_t policy_mask)
+{
+    ptimer_state *s;
+
+    /*
+     * The callback function is mandatory; so we use it to distinguish
+     * old-style QEMUBH ptimers from new transaction API ptimers.
+     * (ptimer_init_with_bh() allows a NULL bh pointer and at least
+     * one device (digic-timer) passes NULL, so it's not the case
+     * that either s->bh != NULL or s->callback != NULL.)
+     */
+    assert(callback);
+
+    s = g_new0(ptimer_state, 1);
+    s->timer = timer_new_ns(QEMU_CLOCK_VIRTUAL, ptimer_tick, s);
+    s->policy_mask = policy_mask;
+    s->callback = callback;
+    s->callback_opaque = callback_opaque;
+
+    /*
+     * These two policies are incompatible -- trigger-on-decrement implies
+     * a timer trigger when the count becomes 0, but no-immediate-trigger
+     * implies a trigger when the count stops being 0.
+     */
+    assert(!((policy_mask & PTIMER_POLICY_TRIGGER_ONLY_ON_DECREMENT) &&
+             (policy_mask & PTIMER_POLICY_NO_IMMEDIATE_TRIGGER)));
+    return s;
+}
+
 void ptimer_free(ptimer_state *s)
 {
-    qemu_bh_delete(s->bh);
+    if (s->bh) {
+        qemu_bh_delete(s->bh);
+    }
     timer_free(s->timer);
     g_free(s);
 }

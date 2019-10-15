@@ -182,6 +182,7 @@ int kvm_arm_get_max_vm_ipa_size(MachineState *ms)
 
 int kvm_arch_init(MachineState *ms, KVMState *s)
 {
+    int ret = 0;
     /* For ARM interrupt delivery is always asynchronous,
      * whether we are using an in-kernel VGIC or not.
      */
@@ -195,7 +196,14 @@ int kvm_arch_init(MachineState *ms, KVMState *s)
 
     cap_has_mp_state = kvm_check_extension(s, KVM_CAP_MP_STATE);
 
-    return 0;
+    if (ms->smp.cpus > 256 &&
+        !kvm_check_extension(s, KVM_CAP_ARM_IRQ_LINE_LAYOUT_2)) {
+        error_report("Using more than 256 vcpus requires a host kernel "
+                     "with KVM_CAP_ARM_IRQ_LINE_LAYOUT_2");
+        ret = -EINVAL;
+    }
+
+    return ret;
 }
 
 unsigned long kvm_arch_vcpu_id(CPUState *cpu)
@@ -742,6 +750,18 @@ int kvm_arm_vgic_probe(void)
     } else {
         return 0;
     }
+}
+
+int kvm_arm_set_irq(int cpu, int irqtype, int irq, int level)
+{
+    int kvm_irq = (irqtype << KVM_ARM_IRQ_TYPE_SHIFT) | irq;
+    int cpu_idx1 = cpu % 256;
+    int cpu_idx2 = cpu / 256;
+
+    kvm_irq |= (cpu_idx1 << KVM_ARM_IRQ_VCPU_SHIFT) |
+               (cpu_idx2 << KVM_ARM_IRQ_VCPU2_SHIFT);
+
+    return kvm_set_irq(kvm_state, kvm_irq, !!level);
 }
 
 int kvm_arch_fixup_msi_route(struct kvm_irq_routing_entry *route,

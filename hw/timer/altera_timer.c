@@ -184,7 +184,7 @@ static void altera_timer_realize(DeviceState *dev, Error **errp)
     }
 
     t->bh = qemu_bh_new(timer_hit, t);
-    t->ptimer = ptimer_init(t->bh, PTIMER_POLICY_DEFAULT);
+    t->ptimer = ptimer_init_with_bh(t->bh, PTIMER_POLICY_DEFAULT);
     ptimer_set_freq(t->ptimer, t->freq_hz);
 
     memory_region_init_io(&t->mmio, OBJECT(t), &timer_ops, t,

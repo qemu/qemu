@@ -196,7 +196,7 @@ static void lm32_timer_realize(DeviceState *dev, Error **errp)
     LM32TimerState *s = LM32_TIMER(dev);
 
     s->bh = qemu_bh_new(timer_hit, s);
-    s->ptimer = ptimer_init(s->bh, PTIMER_POLICY_DEFAULT);
+    s->ptimer = ptimer_init_with_bh(s->bh, PTIMER_POLICY_DEFAULT);
 
     ptimer_set_freq(s->ptimer, s->freq_hz);
 }

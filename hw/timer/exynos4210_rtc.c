@@ -28,7 +28,6 @@
 #include "qemu/osdep.h"
 #include "qemu-common.h"
 #include "qemu/log.h"
-#include "qemu/main-loop.h"
 #include "qemu/module.h"
 #include "hw/sysbus.h"
 #include "migration/vmstate.h"
@@ -195,6 +194,7 @@ static void check_alarm_raise(Exynos4210RTCState *s)
  * RTC update frequency
  * Parameters:
  *     reg_value - current RTCCON register or his new value
+ * Must be called within a ptimer_transaction_begin/commit block for s->ptimer.
  */
 static void exynos4210_rtc_update_freq(Exynos4210RTCState *s,
                                        uint32_t reg_value)
@@ -401,6 +401,8 @@ static void exynos4210_rtc_write(void *opaque, hwaddr offset,
         }
         break;
     case RTCCON:
+        ptimer_transaction_begin(s->ptimer_1Hz);
+        ptimer_transaction_begin(s->ptimer);
         if (value & RTC_ENABLE) {
             exynos4210_rtc_update_freq(s, value);
         }
@@ -430,6 +432,8 @@ static void exynos4210_rtc_write(void *opaque, hwaddr offset,
                 ptimer_stop(s->ptimer);
             }
         }
+        ptimer_transaction_commit(s->ptimer_1Hz);
+        ptimer_transaction_commit(s->ptimer);
         s->reg_rtccon = value;
         break;
     case TICCNT:
@@ -537,9 +541,13 @@ static void exynos4210_rtc_reset(DeviceState *d)
 
     s->reg_curticcnt = 0;
 
+    ptimer_transaction_begin(s->ptimer);
     exynos4210_rtc_update_freq(s, s->reg_rtccon);
     ptimer_stop(s->ptimer);
+    ptimer_transaction_commit(s->ptimer);
+    ptimer_transaction_begin(s->ptimer_1Hz);
     ptimer_stop(s->ptimer_1Hz);
+    ptimer_transaction_commit(s->ptimer_1Hz);
 }
 
 static const MemoryRegionOps exynos4210_rtc_ops = {
@@ -555,16 +563,18 @@ static void exynos4210_rtc_init(Object *obj)
 {
     Exynos4210RTCState *s = EXYNOS4210_RTC(obj);
     SysBusDevice *dev = SYS_BUS_DEVICE(obj);
-    QEMUBH *bh;
 
-    bh = qemu_bh_new(exynos4210_rtc_tick, s);
-    s->ptimer = ptimer_init(bh, PTIMER_POLICY_DEFAULT);
+    s->ptimer = ptimer_init(exynos4210_rtc_tick, s, PTIMER_POLICY_DEFAULT);
+    ptimer_transaction_begin(s->ptimer);
     ptimer_set_freq(s->ptimer, RTC_BASE_FREQ);
     exynos4210_rtc_update_freq(s, 0);
+    ptimer_transaction_commit(s->ptimer);
 
-    bh = qemu_bh_new(exynos4210_rtc_1Hz_tick, s);
-    s->ptimer_1Hz = ptimer_init(bh, PTIMER_POLICY_DEFAULT);
+    s->ptimer_1Hz = ptimer_init(exynos4210_rtc_1Hz_tick,
+                                s, PTIMER_POLICY_DEFAULT);
+    ptimer_transaction_begin(s->ptimer_1Hz);
     ptimer_set_freq(s->ptimer_1Hz, RTC_BASE_FREQ);
+    ptimer_transaction_commit(s->ptimer_1Hz);
 
     sysbus_init_irq(dev, &s->alm_irq);
     sysbus_init_irq(dev, &s->tick_irq);

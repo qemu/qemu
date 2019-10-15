@@ -25,10 +25,13 @@
 #include "hw/sysbus.h"
 
 #define TYPE_ASPEED_I2C "aspeed.i2c"
+#define TYPE_ASPEED_2400_I2C TYPE_ASPEED_I2C "-ast2400"
+#define TYPE_ASPEED_2500_I2C TYPE_ASPEED_I2C "-ast2500"
+#define TYPE_ASPEED_2600_I2C TYPE_ASPEED_I2C "-ast2600"
 #define ASPEED_I2C(obj) \
     OBJECT_CHECK(AspeedI2CState, (obj), TYPE_ASPEED_I2C)
 
-#define ASPEED_I2C_NR_BUSSES 14
+#define ASPEED_I2C_NR_BUSSES 16
 
 struct AspeedI2CState;
 
@@ -39,6 +42,7 @@ typedef struct AspeedI2CBus {
 
     I2CBus *bus;
     uint8_t id;
+    qemu_irq irq;
 
     uint32_t ctrl;
     uint32_t timing[2];
@@ -58,6 +62,20 @@ typedef struct AspeedI2CState {
 
     AspeedI2CBus busses[ASPEED_I2C_NR_BUSSES];
 } AspeedI2CState;
+
+#define ASPEED_I2C_CLASS(klass) \
+     OBJECT_CLASS_CHECK(AspeedI2CClass, (klass), TYPE_ASPEED_I2C)
+#define ASPEED_I2C_GET_CLASS(obj) \
+     OBJECT_GET_CLASS(AspeedI2CClass, (obj), TYPE_ASPEED_I2C)
+
+typedef struct AspeedI2CClass {
+    SysBusDeviceClass parent_class;
+
+    uint8_t num_busses;
+    uint8_t reg_size;
+    uint8_t gap;
+    qemu_irq (*bus_get_irq)(AspeedI2CBus *);
+} AspeedI2CClass;
 
 I2CBus *aspeed_i2c_get_bus(DeviceState *dev, int busnr);
 
