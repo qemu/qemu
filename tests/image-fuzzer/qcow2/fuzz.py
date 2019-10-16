@@ -27,14 +27,14 @@ UINT64 = 0xffffffffffffffff
 UINT32_M = 31
 UINT64_M = 63
 # Fuzz vectors
-UINT8_V = [0, 0x10, UINT8/4, UINT8/2 - 1, UINT8/2, UINT8/2 + 1, UINT8 - 1,
+UINT8_V = [0, 0x10, UINT8//4, UINT8//2 - 1, UINT8//2, UINT8//2 + 1, UINT8 - 1,
            UINT8]
-UINT16_V = [0, 0x100, 0x1000, UINT16/4, UINT16/2 - 1, UINT16/2, UINT16/2 + 1,
+UINT16_V = [0, 0x100, 0x1000, UINT16//4, UINT16//2 - 1, UINT16//2, UINT16//2 + 1,
             UINT16 - 1, UINT16]
-UINT32_V = [0, 0x100, 0x1000, 0x10000, 0x100000, UINT32/4, UINT32/2 - 1,
-            UINT32/2, UINT32/2 + 1, UINT32 - 1, UINT32]
-UINT64_V = UINT32_V + [0x1000000, 0x10000000, 0x100000000, UINT64/4,
-                       UINT64/2 - 1, UINT64/2, UINT64/2 + 1, UINT64 - 1,
+UINT32_V = [0, 0x100, 0x1000, 0x10000, 0x100000, UINT32//4, UINT32//2 - 1,
+            UINT32//2, UINT32//2 + 1, UINT32 - 1, UINT32]
+UINT64_V = UINT32_V + [0x1000000, 0x10000000, 0x100000000, UINT64//4,
+                       UINT64//2 - 1, UINT64//2, UINT64//2 + 1, UINT64 - 1,
                        UINT64]
 STRING_V = ['%s%p%x%d', '.1024d', '%.2049d', '%p%p%p%p', '%x%x%x%x',
             '%d%d%d%d', '%s%s%s%s', '%99999999999s', '%08x', '%%20d', '%%20n',
