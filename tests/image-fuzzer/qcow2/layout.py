@@ -602,8 +602,8 @@ class Image(object):
 def create_image(test_img_path, backing_file_name=None, backing_file_fmt=None,
                  fields_to_fuzz=None):
     """Create a fuzzed image and write it to the specified file."""
-    image = Image(backing_file_name)
-    image.set_backing_file_format(backing_file_fmt)
+    image = Image(backing_file_name.encode())
+    image.set_backing_file_format(backing_file_fmt.encode())
     image.create_feature_name_table()
     image.set_end_of_extension_area()
     image.create_l_structures()
