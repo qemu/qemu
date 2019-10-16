@@ -28,7 +28,7 @@ import shutil
 from itertools import count
 import time
 import getopt
-import StringIO
+import io
 import resource
 
 try:
@@ -84,8 +84,12 @@ def run_app(fd, q_args):
     try:
         out, err = process.communicate()
         signal.alarm(0)
-        fd.write(out)
-        fd.write(err)
+        # fd is a text file, so we need to decode the process output before
+        # writing to it.
+        # We could be simply using the `errors` parameter of subprocess.Popen(),
+        # but this will be possible only after migrating to Python 3
+        fd.write(out.decode(errors='replace'))
+        fd.write(err.decode(errors='replace'))
         fd.flush()
         return process.returncode
 
@@ -183,7 +187,7 @@ class TestEnv(object):
                                            MAX_BACKING_FILE_SIZE) * (1 << 20)
         cmd = self.qemu_img + ['create', '-f', backing_file_fmt,
                                backing_file_name, str(backing_file_size)]
-        temp_log = StringIO.StringIO()
+        temp_log = io.StringIO()
         retcode = run_app(temp_log, cmd)
         if retcode == 0:
             temp_log.close()
@@ -240,7 +244,7 @@ class TestEnv(object):
                            "Backing file: %s\n" \
                            % (self.seed, " ".join(current_cmd),
                               self.current_dir, backing_file_name)
-            temp_log = StringIO.StringIO()
+            temp_log = io.StringIO()
             try:
                 retcode = run_app(temp_log, current_cmd)
             except OSError as e:
