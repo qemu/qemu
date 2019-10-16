@@ -385,7 +385,7 @@ static void ioportF0_write(void *opaque, hwaddr addr, uint64_t data,
                            unsigned size)
 {
     if (tcg_enabled()) {
-        cpu_clear_ferr();
+        cpu_set_ignne();
     }
 }
 

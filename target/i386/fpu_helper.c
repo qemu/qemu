@@ -70,14 +70,24 @@ void x86_register_ferr_irq(qemu_irq irq)
     ferr_irq = irq;
 }
 
-void cpu_clear_ferr(void)
+static void cpu_clear_ignne(void)
 {
-    qemu_irq_lower(ferr_irq);
+    CPUX86State *env = &X86_CPU(first_cpu)->env;
+    env->hflags2 &= ~HF2_IGNNE_MASK;
 }
 
-static void cpu_set_ferr(void)
+void cpu_set_ignne(void)
 {
-    qemu_irq_raise(ferr_irq);
+    CPUX86State *env = &X86_CPU(first_cpu)->env;
+    env->hflags2 |= HF2_IGNNE_MASK;
+    /*
+     * We get here in response to a write to port F0h.  The chipset should
+     * deassert FP_IRQ and FERR# instead should stay signaled until FPSW_SE is
+     * cleared, because FERR# and FP_IRQ are two separate pins on real
+     * hardware.  However, we don't model FERR# as a qemu_irq, so we just
+     * do directly what the chipset would do, i.e. deassert FP_IRQ.
+     */
+    qemu_irq_lower(ferr_irq);
 }
 #endif
 
@@ -160,8 +170,8 @@ static void fpu_raise_exception(CPUX86State *env, uintptr_t retaddr)
         raise_exception_ra(env, EXCP10_COPR, retaddr);
     }
 #if !defined(CONFIG_USER_ONLY)
-    else {
-        cpu_set_ferr();
+    else if (ferr_irq && !(env->hflags2 & HF2_IGNNE_MASK)) {
+        qemu_irq_raise(ferr_irq);
     }
 #endif
 }
@@ -1056,7 +1066,17 @@ void helper_fstenv(CPUX86State *env, target_ulong ptr, int data32)
 static void cpu_set_fpus(CPUX86State *env, uint16_t fpus)
 {
     env->fpstt = (fpus >> 11) & 7;
-    env->fpus = fpus & ~0x3800;
+    env->fpus = fpus & ~0x3800 & ~FPUS_B;
+    env->fpus |= env->fpus & FPUS_SE ? FPUS_B : 0;
+#if !defined(CONFIG_USER_ONLY)
+    if (!(env->fpus & FPUS_SE)) {
+        /*
+         * Here the processor deasserts FERR#; in response, the chipset deasserts
+         * IGNNE#.
+         */
+        cpu_clear_ignne();
+    }
+#endif
 }
 
 static void do_fldenv(CPUX86State *env, target_ulong ptr, int data32,
