@@ -1053,6 +1053,12 @@ void helper_fstenv(CPUX86State *env, target_ulong ptr, int data32)
     do_fstenv(env, ptr, data32, GETPC());
 }
 
+static void cpu_set_fpus(CPUX86State *env, uint16_t fpus)
+{
+    env->fpstt = (fpus >> 11) & 7;
+    env->fpus = fpus & ~0x3800;
+}
+
 static void do_fldenv(CPUX86State *env, target_ulong ptr, int data32,
                       uintptr_t retaddr)
 {
@@ -1067,8 +1073,7 @@ static void do_fldenv(CPUX86State *env, target_ulong ptr, int data32,
         fpus = cpu_lduw_data_ra(env, ptr + 2, retaddr);
         fptag = cpu_lduw_data_ra(env, ptr + 4, retaddr);
     }
-    env->fpstt = (fpus >> 11) & 7;
-    env->fpus = fpus & ~0x3800;
+    cpu_set_fpus(env, fpus);
     for (i = 0; i < 8; i++) {
         env->fptags[i] = ((fptag & 3) == 3);
         fptag >>= 2;
@@ -1316,8 +1321,7 @@ static void do_xrstor_fpu(CPUX86State *env, target_ulong ptr, uintptr_t ra)
     fpus = cpu_lduw_data_ra(env, ptr + XO(legacy.fsw), ra);
     fptag = cpu_lduw_data_ra(env, ptr + XO(legacy.ftw), ra);
     cpu_set_fpuc(env, fpuc);
-    env->fpstt = (fpus >> 11) & 7;
-    env->fpus = fpus & ~0x3800;
+    cpu_set_fpus(env, fpus);
     fptag ^= 0xff;
     for (i = 0; i < 8; i++) {
         env->fptags[i] = ((fptag >> i) & 1);
