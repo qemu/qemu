@@ -405,3 +405,34 @@ void del_boot_device_lchs(DeviceState *dev, const char *suffix)
         }
     }
 }
+
+char *get_boot_devices_lchs_list(size_t *size)
+{
+    FWLCHSEntry *i;
+    size_t total = 0;
+    char *list = NULL;
+
+    QTAILQ_FOREACH(i, &fw_lchs, link) {
+        char *bootpath;
+        char *chs_string;
+        size_t len;
+
+        bootpath = get_boot_device_path(i->dev, false, i->suffix);
+        chs_string = g_strdup_printf("%s %" PRIu32 " %" PRIu32 " %" PRIu32,
+                                     bootpath, i->lcyls, i->lheads, i->lsecs);
+
+        if (total) {
+            list[total - 1] = '\n';
+        }
+        len = strlen(chs_string) + 1;
+        list = g_realloc(list, total + len);
+        memcpy(&list[total], chs_string, len);
+        total += len;
+        g_free(chs_string);
+        g_free(bootpath);
+    }
+
+    *size = total;
+
+    return list;
+}
