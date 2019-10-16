@@ -268,7 +268,10 @@ static void apic_common_realize(DeviceState *dev, Error **errp)
     APICCommonState *s = APIC_COMMON(dev);
     APICCommonClass *info;
     static DeviceState *vapic;
-    uint32_t instance_id = s->id;
+    uint32_t instance_id = s->initial_apic_id;
+
+    /* Normally initial APIC ID should be no more than hundreds */
+    assert(instance_id != VMSTATE_INSTANCE_ID_ANY);
 
     info = APIC_COMMON_GET_CLASS(s);
     info->realize(dev, errp);
