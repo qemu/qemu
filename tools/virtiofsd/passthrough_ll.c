@@ -51,7 +51,10 @@
 #include <string.h>
 #include <sys/file.h>
 #include <sys/mount.h>
+#include <sys/prctl.h>
 #include <sys/syscall.h>
+#include <sys/types.h>
+#include <sys/wait.h>
 #include <sys/xattr.h>
 #include <unistd.h>
 
@@ -1945,24 +1948,95 @@ static void print_capabilities(void)
 }
 
 /*
- * Called after our UNIX domain sockets have been created, now we can move to
- * an empty network namespace to prevent TCP/IP and other network activity in
- * case this process is compromised.
+ * Move to a new mount, net, and pid namespaces to isolate this process.
  */
-static void setup_net_namespace(void)
+static void setup_namespaces(struct lo_data *lo, struct fuse_session *se)
 {
-    if (unshare(CLONE_NEWNET) != 0) {
-        fuse_log(FUSE_LOG_ERR, "unshare(CLONE_NEWNET): %m\n");
+    pid_t child;
+
+    /*
+     * Create a new pid namespace for *child* processes.  We'll have to
+     * fork in order to enter the new pid namespace.  A new mount namespace
+     * is also needed so that we can remount /proc for the new pid
+     * namespace.
+     *
+     * Our UNIX domain sockets have been created.  Now we can move to
+     * an empty network namespace to prevent TCP/IP and other network
+     * activity in case this process is compromised.
+     */
+    if (unshare(CLONE_NEWPID | CLONE_NEWNS | CLONE_NEWNET) != 0) {
+        fuse_log(FUSE_LOG_ERR, "unshare(CLONE_NEWPID | CLONE_NEWNS): %m\n");
+        exit(1);
+    }
+
+    child = fork();
+    if (child < 0) {
+        fuse_log(FUSE_LOG_ERR, "fork() failed: %m\n");
+        exit(1);
+    }
+    if (child > 0) {
+        pid_t waited;
+        int wstatus;
+
+        /* The parent waits for the child */
+        do {
+            waited = waitpid(child, &wstatus, 0);
+        } while (waited < 0 && errno == EINTR && !se->exited);
+
+        /* We were terminated by a signal, see fuse_signals.c */
+        if (se->exited) {
+            exit(0);
+        }
+
+        if (WIFEXITED(wstatus)) {
+            exit(WEXITSTATUS(wstatus));
+        }
+
+        exit(1);
+    }
+
+    /* Send us SIGTERM when the parent thread terminates, see prctl(2) */
+    prctl(PR_SET_PDEATHSIG, SIGTERM);
+
+    /*
+     * If the mounts have shared propagation then we want to opt out so our
+     * mount changes don't affect the parent mount namespace.
+     */
+    if (mount(NULL, "/", NULL, MS_REC | MS_SLAVE, NULL) < 0) {
+        fuse_log(FUSE_LOG_ERR, "mount(/, MS_REC|MS_SLAVE): %m\n");
+        exit(1);
+    }
+
+    /* The child must remount /proc to use the new pid namespace */
+    if (mount("proc", "/proc", "proc",
+              MS_NODEV | MS_NOEXEC | MS_NOSUID | MS_RELATIME, NULL) < 0) {
+        fuse_log(FUSE_LOG_ERR, "mount(/proc): %m\n");
+        exit(1);
+    }
+
+    /* Now we can get our /proc/self/fd directory file descriptor */
+    lo->proc_self_fd = open("/proc/self/fd", O_PATH);
+    if (lo->proc_self_fd == -1) {
+        fuse_log(FUSE_LOG_ERR, "open(/proc/self/fd, O_PATH): %m\n");
         exit(1);
     }
 }
 
-/* This magic is based on lxc's lxc_pivot_root() */
-static void setup_pivot_root(const char *source)
+/*
+ * Make the source directory our root so symlinks cannot escape and no other
+ * files are accessible.  Assumes unshare(CLONE_NEWNS) was already called.
+ */
+static void setup_mounts(const char *source)
 {
     int oldroot;
     int newroot;
 
+    if (mount(source, source, NULL, MS_BIND, NULL) < 0) {
+        fuse_log(FUSE_LOG_ERR, "mount(%s, %s, MS_BIND): %m\n", source, source);
+        exit(1);
+    }
+
+    /* This magic is based on lxc's lxc_pivot_root() */
     oldroot = open("/", O_DIRECTORY | O_RDONLY | O_CLOEXEC);
     if (oldroot < 0) {
         fuse_log(FUSE_LOG_ERR, "open(/): %m\n");
@@ -2009,47 +2083,14 @@ static void setup_pivot_root(const char *source)
     close(oldroot);
 }
 
-static void setup_proc_self_fd(struct lo_data *lo)
-{
-    lo->proc_self_fd = open("/proc/self/fd", O_PATH);
-    if (lo->proc_self_fd == -1) {
-        fuse_log(FUSE_LOG_ERR, "open(/proc/self/fd, O_PATH): %m\n");
-        exit(1);
-    }
-}
-
-/*
- * Make the source directory our root so symlinks cannot escape and no other
- * files are accessible.
- */
-static void setup_mount_namespace(const char *source)
-{
-    if (unshare(CLONE_NEWNS) != 0) {
-        fuse_log(FUSE_LOG_ERR, "unshare(CLONE_NEWNS): %m\n");
-        exit(1);
-    }
-
-    if (mount(NULL, "/", NULL, MS_REC | MS_SLAVE, NULL) < 0) {
-        fuse_log(FUSE_LOG_ERR, "mount(/, MS_REC|MS_PRIVATE): %m\n");
-        exit(1);
-    }
-
-    if (mount(source, source, NULL, MS_BIND, NULL) < 0) {
-        fuse_log(FUSE_LOG_ERR, "mount(%s, %s, MS_BIND): %m\n", source, source);
-        exit(1);
-    }
-
-    setup_pivot_root(source);
-}
-
 /*
  * Lock down this process to prevent access to other processes or files outside
  * source directory.  This reduces the impact of arbitrary code execution bugs.
  */
-static void setup_sandbox(struct lo_data *lo)
+static void setup_sandbox(struct lo_data *lo, struct fuse_session *se)
 {
-    setup_net_namespace();
-    setup_mount_namespace(lo->source);
+    setup_namespaces(lo, se);
+    setup_mounts(lo->source);
 }
 
 int main(int argc, char *argv[])
@@ -2173,10 +2214,7 @@ int main(int argc, char *argv[])
 
     fuse_daemonize(opts.foreground);
 
-    /* Must be after daemonize to get the right /proc/self/fd */
-    setup_proc_self_fd(&lo);
-
-    setup_sandbox(&lo);
+    setup_sandbox(&lo, se);
 
     /* Block until ctrl+c or fusermount -u */
     ret = virtio_loop(se);
