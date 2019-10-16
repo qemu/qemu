@@ -503,7 +503,7 @@ class Image(object):
 
     def write(self, filename):
         """Write an entire image to the file."""
-        image_file = open(filename, 'w')
+        image_file = open(filename, 'wb')
         for field in self:
             image_file.seek(field.offset)
             image_file.write(struct.pack(field.fmt, field.value))
