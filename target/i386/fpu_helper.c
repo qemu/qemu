@@ -26,6 +26,10 @@
 #include "exec/cpu_ldst.h"
 #include "fpu/softfloat.h"
 
+#ifdef CONFIG_SOFTMMU
+#include "hw/irq.h"
+#endif
+
 #define FPU_RC_MASK         0xc00
 #define FPU_RC_NEAR         0x000
 #define FPU_RC_DOWN         0x400
@@ -57,6 +61,26 @@
 #define floatx80_lg2 make_floatx80(0x3ffd, 0x9a209a84fbcff799LL)
 #define floatx80_l2e make_floatx80(0x3fff, 0xb8aa3b295c17f0bcLL)
 #define floatx80_l2t make_floatx80(0x4000, 0xd49a784bcd1b8afeLL)
+
+#if !defined(CONFIG_USER_ONLY)
+static qemu_irq ferr_irq;
+
+void x86_register_ferr_irq(qemu_irq irq)
+{
+    ferr_irq = irq;
+}
+
+void cpu_clear_ferr(void)
+{
+    qemu_irq_lower(ferr_irq);
+}
+
+static void cpu_set_ferr(void)
+{
+    qemu_irq_raise(ferr_irq);
+}
+#endif
+
 
 static inline void fpush(CPUX86State *env)
 {
@@ -137,7 +161,7 @@ static void fpu_raise_exception(CPUX86State *env, uintptr_t retaddr)
     }
 #if !defined(CONFIG_USER_ONLY)
     else {
-        cpu_set_ferr(env);
+        cpu_set_ferr();
     }
 #endif
 }

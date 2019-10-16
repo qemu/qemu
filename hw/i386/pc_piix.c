@@ -213,7 +213,9 @@ static void pc_init1(MachineState *machine,
         ioapic_init_gsi(gsi_state, "i440fx");
     }
 
-    pc_register_ferr_irq(x86ms->gsi[13]);
+    if (tcg_enabled()) {
+        x86_register_ferr_irq(x86ms->gsi[13]);
+    }
 
     pc_vga_init(isa_bus, pcmc->pci_enabled ? pci_bus : NULL);
 
