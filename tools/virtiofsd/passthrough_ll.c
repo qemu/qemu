@@ -1944,6 +1944,19 @@ static void print_capabilities(void)
     printf("}\n");
 }
 
+/*
+ * Called after our UNIX domain sockets have been created, now we can move to
+ * an empty network namespace to prevent TCP/IP and other network activity in
+ * case this process is compromised.
+ */
+static void setup_net_namespace(void)
+{
+    if (unshare(CLONE_NEWNET) != 0) {
+        fuse_log(FUSE_LOG_ERR, "unshare(CLONE_NEWNET): %m\n");
+        exit(1);
+    }
+}
+
 /* This magic is based on lxc's lxc_pivot_root() */
 static void setup_pivot_root(const char *source)
 {
@@ -2035,6 +2048,7 @@ static void setup_mount_namespace(const char *source)
  */
 static void setup_sandbox(struct lo_data *lo)
 {
+    setup_net_namespace();
     setup_mount_namespace(lo->source);
 }
 
