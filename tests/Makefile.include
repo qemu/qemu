@@ -1157,7 +1157,6 @@ TESTS_RESULTS_DIR=$(BUILD_DIR)/tests/results
 AVOCADO_SHOW=app
 AVOCADO_TAGS=$(patsubst %-softmmu,-t arch:%, $(filter %-softmmu,$(TARGET_DIRS)))
 
-ifneq ($(PYTHON2),y)
 $(TESTS_VENV_DIR): $(TESTS_VENV_REQ)
 	$(call quiet-command, \
             $(PYTHON) -m venv --system-site-packages $@, \
@@ -1166,10 +1165,6 @@ $(TESTS_VENV_DIR): $(TESTS_VENV_REQ)
             $(TESTS_VENV_DIR)/bin/python -m pip -q install -r $(TESTS_VENV_REQ), \
             PIP, $(TESTS_VENV_REQ))
 	$(call quiet-command, touch $@)
-else
-$(TESTS_VENV_DIR):
-	$(error "venv directory for tests requires Python 3")
-endif
 
 $(TESTS_RESULTS_DIR):
 	$(call quiet-command, mkdir -p $@, \
