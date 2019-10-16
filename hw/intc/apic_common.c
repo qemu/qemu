@@ -268,7 +268,7 @@ static void apic_common_realize(DeviceState *dev, Error **errp)
     APICCommonState *s = APIC_COMMON(dev);
     APICCommonClass *info;
     static DeviceState *vapic;
-    int instance_id = s->id;
+    uint32_t instance_id = s->id;
 
     info = APIC_COMMON_GET_CLASS(s);
     info->realize(dev, errp);
