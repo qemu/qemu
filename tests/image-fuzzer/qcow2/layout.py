@@ -518,7 +518,7 @@ class Image(object):
         rounded = (size + self.cluster_size - 1) & ~(self.cluster_size - 1)
         if rounded > size:
             image_file.seek(rounded - 1)
-            image_file.write("\0")
+            image_file.write(b'\x00')
         image_file.close()
 
     @staticmethod
