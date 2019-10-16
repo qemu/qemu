@@ -53,8 +53,8 @@ class Field(object):
         return iter([self.fmt, self.offset, self.value, self.name])
 
     def __repr__(self):
-        return "Field(fmt='%s', offset=%d, value=%s, name=%s)" % \
-            (self.fmt, self.offset, str(self.value), self.name)
+        return "Field(fmt=%r, offset=%r, value=%r, name=%r)" % \
+            (self.fmt, self.offset, self.value, self.name)
 
 
 class FieldsList(object):
