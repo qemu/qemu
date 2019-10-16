@@ -2883,12 +2883,13 @@
 # @nvme: Since 2.12
 # @copy-on-read: Since 3.0
 # @blklogwrites: Since 3.0
+# @blkreplay: Since 4.2
 #
 # Since: 2.9
 ##
 { 'enum': 'BlockdevDriver',
-  'data': [ 'blkdebug', 'blklogwrites', 'blkverify', 'bochs', 'cloop',
-            'copy-on-read', 'dmg', 'file', 'ftp', 'ftps', 'gluster',
+  'data': [ 'blkdebug', 'blklogwrites', 'blkreplay', 'blkverify', 'bochs',
+            'cloop', 'copy-on-read', 'dmg', 'file', 'ftp', 'ftps', 'gluster',
             'host_cdrom', 'host_device', 'http', 'https', 'iscsi', 'luks',
             'nbd', 'nfs', 'null-aio', 'null-co', 'nvme', 'parallels', 'qcow',
             'qcow2', 'qed', 'quorum', 'raw', 'rbd',
@@ -3502,6 +3503,18 @@
             'raw': 'BlockdevRef' } }
 
 ##
+# @BlockdevOptionsBlkreplay:
+#
+# Driver specific block device options for blkreplay.
+#
+# @image:     disk image which should be controlled with blkreplay
+#
+# Since: 4.2
+##
+{ 'struct': 'BlockdevOptionsBlkreplay',
+  'data': { 'image': 'BlockdevRef' } }
+
+##
 # @QuorumReadPattern:
 #
 # An enumeration of quorum read patterns.
@@ -4028,6 +4041,7 @@
       'blkdebug':   'BlockdevOptionsBlkdebug',
       'blklogwrites':'BlockdevOptionsBlklogwrites',
       'blkverify':  'BlockdevOptionsBlkverify',
+      'blkreplay':  'BlockdevOptionsBlkreplay',
       'bochs':      'BlockdevOptionsGenericFormat',
       'cloop':      'BlockdevOptionsGenericFormat',
       'copy-on-read':'BlockdevOptionsGenericFormat',
