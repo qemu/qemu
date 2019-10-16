@@ -122,7 +122,7 @@ class Image(object):
     def create_header(self, cluster_bits, backing_file_name=None):
         """Generate a random valid header."""
         meta_header = [
-            ['>4s', 0, "QFI\xfb", 'magic'],
+            ['>4s', 0, b"QFI\xfb", 'magic'],
             ['>I', 4, random.randint(2, 3), 'version'],
             ['>Q', 8, 0, 'backing_file_offset'],
             ['>I', 16, 0, 'backing_file_size'],
@@ -231,7 +231,7 @@ class Image(object):
             feature_tables = []
             feature_ids = []
             inner_offset = self.ext_offset + ext_header_len
-            feat_name = 'some cool feature'
+            feat_name = b'some cool feature'
             while len(feature_tables) < num_fnt_entries * 3:
                 feat_type, feat_bit = gen_feat_ids()
                 # Remove duplicates
