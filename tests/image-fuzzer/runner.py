@@ -79,16 +79,13 @@ def run_app(fd, q_args):
     devnull = open('/dev/null', 'r+')
     process = subprocess.Popen(q_args, stdin=devnull,
                                stdout=subprocess.PIPE,
-                               stderr=subprocess.PIPE)
+                               stderr=subprocess.PIPE,
+                               errors='replace')
     try:
         out, err = process.communicate()
         signal.alarm(0)
-        # fd is a text file, so we need to decode the process output before
-        # writing to it.
-        # We could be simply using the `errors` parameter of subprocess.Popen(),
-        # but this will be possible only after migrating to Python 3
-        fd.write(out.decode(errors='replace'))
-        fd.write(err.decode(errors='replace'))
+        fd.write(out)
+        fd.write(err)
         fd.flush()
         return process.returncode
 
