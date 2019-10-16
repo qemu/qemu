@@ -1157,6 +1157,8 @@ int vmstate_save_state_v(QEMUFile *f, const VMStateDescription *vmsd,
 
 bool vmstate_save_needed(const VMStateDescription *vmsd, void *opaque);
 
+#define  VMSTATE_INSTANCE_ID_ANY  -1
+
 /* Returns: 0 on success, -1 on failure */
 int vmstate_register_with_alias_id(VMStateIf *obj, int instance_id,
                                    const VMStateDescription *vmsd,

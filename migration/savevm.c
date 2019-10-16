@@ -775,7 +775,7 @@ int register_savevm_live(const char *idstr,
 
     pstrcat(se->idstr, sizeof(se->idstr), idstr);
 
-    if (instance_id == -1) {
+    if (instance_id == VMSTATE_INSTANCE_ID_ANY) {
         se->instance_id = calculate_new_instance_id(se->idstr);
     } else {
         se->instance_id = instance_id;
@@ -842,14 +842,14 @@ int vmstate_register_with_alias_id(VMStateIf *obj, int instance_id,
 
             se->compat = g_new0(CompatEntry, 1);
             pstrcpy(se->compat->idstr, sizeof(se->compat->idstr), vmsd->name);
-            se->compat->instance_id = instance_id == -1 ?
+            se->compat->instance_id = instance_id == VMSTATE_INSTANCE_ID_ANY ?
                          calculate_compat_instance_id(vmsd->name) : instance_id;
-            instance_id = -1;
+            instance_id = VMSTATE_INSTANCE_ID_ANY;
         }
     }
     pstrcat(se->idstr, sizeof(se->idstr), vmsd->name);
 
-    if (instance_id == -1) {
+    if (instance_id == VMSTATE_INSTANCE_ID_ANY) {
         se->instance_id = calculate_new_instance_id(se->idstr);
     } else {
         se->instance_id = instance_id;

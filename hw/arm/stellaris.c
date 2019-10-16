@@ -708,7 +708,7 @@ static int stellaris_sys_init(uint32_t base, qemu_irq irq,
     memory_region_init_io(&s->iomem, NULL, &ssys_ops, s, "ssys", 0x00001000);
     memory_region_add_subregion(get_system_memory(), base, &s->iomem);
     ssys_reset(s);
-    vmstate_register(NULL, -1, &vmstate_stellaris_sys, s);
+    vmstate_register(NULL, VMSTATE_INSTANCE_ID_ANY, &vmstate_stellaris_sys, s);
     return 0;
 }
 

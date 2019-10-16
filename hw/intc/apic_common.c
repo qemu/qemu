@@ -284,7 +284,7 @@ static void apic_common_realize(DeviceState *dev, Error **errp)
     }
 
     if (s->legacy_instance_id) {
-        instance_id = -1;
+        instance_id = VMSTATE_INSTANCE_ID_ANY;
     }
     vmstate_register_with_alias_id(NULL, instance_id, &vmstate_apic_common,
                                    s, -1, 0, NULL);
