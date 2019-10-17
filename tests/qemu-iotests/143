@@ -29,7 +29,7 @@ status=1	# failure is the default!
 _cleanup()
 {
     _cleanup_qemu
-    rm -f "$TEST_DIR/nbd"
+    rm -f "$SOCK_DIR/nbd"
 }
 trap "_cleanup; exit \$status" 0 1 2 3 15
 
@@ -51,12 +51,12 @@ _send_qemu_cmd $QEMU_HANDLE \
 _send_qemu_cmd $QEMU_HANDLE \
     "{ 'execute': 'nbd-server-start',
        'arguments': { 'addr': { 'type': 'unix',
-                                'data': { 'path': '$TEST_DIR/nbd' }}}}" \
+                                'data': { 'path': '$SOCK_DIR/nbd' }}}}" \
     'return'
 
 # This should just result in a client error, not in the server crashing
 $QEMU_IO_PROG -f raw -c quit \
-    "nbd+unix:///no_such_export?socket=$TEST_DIR/nbd" 2>&1 \
+    "nbd+unix:///no_such_export?socket=$SOCK_DIR/nbd" 2>&1 \
     | _filter_qemu_io | _filter_nbd
 
 _send_qemu_cmd $QEMU_HANDLE \
