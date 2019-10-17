@@ -660,6 +660,18 @@ void qtest_cb_for_every_machine(void (*cb)(const char *machine),
                                 bool skip_old_versioned);
 
 /**
+ * qtest_qmp_device_add_qdict:
+ * @qts: QTestState instance to operate on
+ * @drv: Name of the device that should be added
+ * @arguments: QDict with properties for the device to intialize
+ *
+ * Generic hot-plugging test via the device_add QMP command with properties
+ * supplied in form of QDict. Use NULL for empty properties list.
+ */
+void qtest_qmp_device_add_qdict(QTestState *qts, const char *drv,
+                                const QDict *arguments);
+
+/**
  * qtest_qmp_device_add:
  * @qts: QTestState instance to operate on
  * @driver: Name of the device that should be added

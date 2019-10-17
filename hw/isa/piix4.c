@@ -28,7 +28,6 @@
 #include "hw/isa/isa.h"
 #include "hw/sysbus.h"
 #include "migration/vmstate.h"
-#include "sysemu/reset.h"
 
 PCIDevice *piix4_dev;
 
@@ -40,9 +39,9 @@ typedef struct PIIX4State {
 #define PIIX4_PCI_DEVICE(obj) \
     OBJECT_CHECK(PIIX4State, (obj), TYPE_PIIX4_PCI_DEVICE)
 
-static void piix4_reset(void *opaque)
+static void piix4_isa_reset(DeviceState *dev)
 {
-    PIIX4State *d = opaque;
+    PIIX4State *d = PIIX4_PCI_DEVICE(dev);
     uint8_t *pci_conf = d->dev.config;
 
     pci_conf[0x04] = 0x07; // master, memory and I/O
@@ -97,7 +96,6 @@ static void piix4_realize(PCIDevice *dev, Error **errp)
         return;
     }
     piix4_dev = &d->dev;
-    qemu_register_reset(piix4_reset, d);
 }
 
 int piix4_init(PCIBus *bus, ISABus **isa_bus, int devfn)
@@ -118,6 +116,7 @@ static void piix4_class_init(ObjectClass *klass, void *data)
     k->vendor_id = PCI_VENDOR_ID_INTEL;
     k->device_id = PCI_DEVICE_ID_INTEL_82371AB_0;
     k->class_id = PCI_CLASS_BRIDGE_ISA;
+    dc->reset = piix4_isa_reset;
     dc->desc = "ISA bridge";
     dc->vmsd = &vmstate_piix4;
     /*
