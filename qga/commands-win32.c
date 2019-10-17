@@ -1894,7 +1894,7 @@ GList *ga_command_blacklist_init(GList *blacklist)
         "guest-suspend-hybrid",
         "guest-set-vcpus",
         "guest-get-memory-blocks", "guest-set-memory-blocks",
-        "guest-get-memory-block-size",
+        "guest-get-memory-block-size", "guest-get-memory-block-info",
         NULL};
     char **p = (char **)list_unsupported;
 
