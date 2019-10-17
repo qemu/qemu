@@ -37,12 +37,12 @@
 #include "hw/timer/mc146818rtc.h"
 #include "migration/vmstate.h"
 #include "qapi/error.h"
-#include "qapi/qapi-commands-misc-target.h"
 #include "qapi/qapi-events-misc-target.h"
 #include "qapi/visitor.h"
 #include "exec/address-spaces.h"
 
 #ifdef TARGET_I386
+#include "qapi/qapi-commands-misc-target.h"
 #include "hw/i386/apic.h"
 #endif
 
