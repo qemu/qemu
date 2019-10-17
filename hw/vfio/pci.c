@@ -216,30 +216,18 @@ static void vfio_intx_disable_kvm(VFIOPCIDevice *vdev)
 #endif
 }
 
-static void vfio_intx_update(PCIDevice *pdev)
+static void vfio_intx_update(VFIOPCIDevice *vdev, PCIINTxRoute *route)
 {
-    VFIOPCIDevice *vdev = PCI_VFIO(pdev);
-    PCIINTxRoute route;
     Error *err = NULL;
 
-    if (vdev->interrupt != VFIO_INT_INTx) {
-        return;
-    }
-
-    route = pci_device_route_intx_to_irq(&vdev->pdev, vdev->intx.pin);
-
-    if (!pci_intx_route_changed(&vdev->intx.route, &route)) {
-        return; /* Nothing changed */
-    }
-
     trace_vfio_intx_update(vdev->vbasedev.name,
-                           vdev->intx.route.irq, route.irq);
+                           vdev->intx.route.irq, route->irq);
 
     vfio_intx_disable_kvm(vdev);
 
-    vdev->intx.route = route;
+    vdev->intx.route = *route;
 
-    if (route.mode != PCI_INTX_ENABLED) {
+    if (route->mode != PCI_INTX_ENABLED) {
         return;
     }
 
@@ -250,6 +238,22 @@ static void vfio_intx_update(PCIDevice *pdev)
 
     /* Re-enable the interrupt in cased we missed an EOI */
     vfio_intx_eoi(&vdev->vbasedev);
+}
+
+static void vfio_intx_routing_notifier(PCIDevice *pdev)
+{
+    VFIOPCIDevice *vdev = PCI_VFIO(pdev);
+    PCIINTxRoute route;
+
+    if (vdev->interrupt != VFIO_INT_INTx) {
+        return;
+    }
+
+    route = pci_device_route_intx_to_irq(&vdev->pdev, vdev->intx.pin);
+
+    if (pci_intx_route_changed(&vdev->intx.route, &route)) {
+        vfio_intx_update(vdev, &route);
+    }
 }
 
 static int vfio_intx_enable(VFIOPCIDevice *vdev, Error **errp)
@@ -2967,7 +2971,8 @@ static void vfio_realize(PCIDevice *pdev, Error **errp)
     if (vfio_pci_read_config(&vdev->pdev, PCI_INTERRUPT_PIN, 1)) {
         vdev->intx.mmap_timer = timer_new_ms(QEMU_CLOCK_VIRTUAL,
                                                   vfio_intx_mmap_enable, vdev);
-        pci_device_set_intx_routing_notifier(&vdev->pdev, vfio_intx_update);
+        pci_device_set_intx_routing_notifier(&vdev->pdev,
+                                             vfio_intx_routing_notifier);
         ret = vfio_intx_enable(vdev, errp);
         if (ret) {
             goto out_teardown;
