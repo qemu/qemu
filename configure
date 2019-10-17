@@ -381,6 +381,7 @@ vhost_crypto=""
 vhost_scsi=""
 vhost_vsock=""
 vhost_user=""
+vhost_user_fs=""
 kvm="no"
 hax="no"
 hvf="no"
@@ -1292,6 +1293,10 @@ for opt do
   --disable-vhost-vsock) vhost_vsock="no"
   ;;
   --enable-vhost-vsock) vhost_vsock="yes"
+  ;;
+  --disable-vhost-user-fs) vhost_user_fs="no"
+  ;;
+  --enable-vhost-user-fs) vhost_user_fs="yes"
   ;;
   --disable-opengl) opengl="no"
   ;;
@@ -2235,6 +2240,10 @@ fi
 test "$vhost_crypto" = "" && vhost_crypto=$vhost_user
 if test "$vhost_crypto" = "yes" && test "$vhost_user" = "no"; then
   error_exit "--enable-vhost-crypto requires --enable-vhost-user"
+fi
+test "$vhost_user_fs" = "" && vhost_user_fs=$vhost_user
+if test "$vhost_user_fs" = "yes" && test "$vhost_user" = "no"; then
+  error_exit "--enable-vhost-user-fs requires --enable-vhost-user"
 fi
 
 # OR the vhost-kernel and vhost-user values for simplicity
@@ -6374,6 +6383,7 @@ echo "vhost-crypto support $vhost_crypto"
 echo "vhost-scsi support $vhost_scsi"
 echo "vhost-vsock support $vhost_vsock"
 echo "vhost-user support $vhost_user"
+echo "vhost-user-fs support $vhost_user_fs"
 echo "Trace backends    $trace_backends"
 if have_backend "simple"; then
 echo "Trace output file $trace_file-<pid>"
@@ -6869,6 +6879,9 @@ if test "$vhost_kernel" = "yes" ; then
 fi
 if test "$vhost_user" = "yes" ; then
   echo "CONFIG_VHOST_USER=y" >> $config_host_mak
+fi
+if test "$vhost_user_fs" = "yes" ; then
+  echo "CONFIG_VHOST_USER_FS=y" >> $config_host_mak
 fi
 if test "$blobs" = "yes" ; then
   echo "INSTALL_BLOBS=yes" >> $config_host_mak
