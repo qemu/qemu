@@ -474,10 +474,7 @@ BlockJob *backup_job_create(const char *job_id, BlockDriverState *bs,
     if (sync_bitmap) {
         bdrv_reclaim_dirty_bitmap(sync_bitmap, NULL);
     }
-    if (job) {
-        backup_clean(&job->common.job);
-        job_early_fail(&job->common.job);
-    } else if (backup_top) {
+    if (backup_top) {
         bdrv_backup_top_drop(backup_top);
     }
 
