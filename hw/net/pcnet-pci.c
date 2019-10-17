@@ -231,7 +231,7 @@ static void pci_pcnet_realize(PCIDevice *pci_dev, Error **errp)
     s->irq = pci_allocate_irq(pci_dev);
     s->phys_mem_read = pci_physical_memory_read;
     s->phys_mem_write = pci_physical_memory_write;
-    s->dma_opaque = pci_dev;
+    s->dma_opaque = DEVICE(pci_dev);
 
     pcnet_common_init(DEVICE(pci_dev), s, &net_pci_pcnet_info);
 }
