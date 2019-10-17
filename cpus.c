@@ -949,8 +949,8 @@ static inline int64_t qemu_tcg_next_kick(void)
     return qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL) + TCG_KICK_PERIOD;
 }
 
-/* Kick the currently round-robin scheduled vCPU */
-static void qemu_cpu_kick_rr_cpu(void)
+/* Kick the currently round-robin scheduled vCPU to next */
+static void qemu_cpu_kick_rr_next_cpu(void)
 {
     CPUState *cpu;
     do {
@@ -959,6 +959,16 @@ static void qemu_cpu_kick_rr_cpu(void)
             cpu_exit(cpu);
         }
     } while (cpu != atomic_mb_read(&tcg_current_rr_cpu));
+}
+
+/* Kick all RR vCPUs */
+static void qemu_cpu_kick_rr_cpus(void)
+{
+    CPUState *cpu;
+
+    CPU_FOREACH(cpu) {
+        cpu_exit(cpu);
+    };
 }
 
 static void do_nothing(CPUState *cpu, run_on_cpu_data unused)
@@ -993,7 +1003,7 @@ void qemu_timer_notify_cb(void *opaque, QEMUClockType type)
 static void kick_tcg_thread(void *opaque)
 {
     timer_mod(tcg_kick_vcpu_timer, qemu_tcg_next_kick());
-    qemu_cpu_kick_rr_cpu();
+    qemu_cpu_kick_rr_next_cpu();
 }
 
 static void start_tcg_kick_timer(void)
@@ -1827,9 +1837,11 @@ void qemu_cpu_kick(CPUState *cpu)
 {
     qemu_cond_broadcast(cpu->halt_cond);
     if (tcg_enabled()) {
-        cpu_exit(cpu);
-        /* NOP unless doing single-thread RR */
-        qemu_cpu_kick_rr_cpu();
+        if (qemu_tcg_mttcg_enabled()) {
+            cpu_exit(cpu);
+        } else {
+            qemu_cpu_kick_rr_cpus();
+        }
     } else {
         if (hax_enabled()) {
             /*
