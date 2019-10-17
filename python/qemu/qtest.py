@@ -84,14 +84,17 @@ class QEMUQtestMachine(QEMUMachine):
     '''A QEMU VM'''
 
     def __init__(self, binary, args=None, name=None, test_dir="/var/tmp",
-                 socket_scm_helper=None):
+                 socket_scm_helper=None, sock_dir=None):
         if name is None:
             name = "qemu-%d" % os.getpid()
+        if sock_dir is None:
+            sock_dir = test_dir
         super(QEMUQtestMachine,
               self).__init__(binary, args, name=name, test_dir=test_dir,
-                             socket_scm_helper=socket_scm_helper)
+                             socket_scm_helper=socket_scm_helper,
+                             sock_dir=sock_dir)
         self._qtest = None
-        self._qtest_path = os.path.join(test_dir, name + "-qtest.sock")
+        self._qtest_path = os.path.join(sock_dir, name + "-qtest.sock")
 
     def _base_args(self):
         args = super(QEMUQtestMachine, self)._base_args()

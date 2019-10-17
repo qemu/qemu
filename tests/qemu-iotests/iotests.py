@@ -57,6 +57,7 @@ qemu_opts = os.environ.get('QEMU_OPTIONS', '').strip().split(' ')
 imgfmt = os.environ.get('IMGFMT', 'raw')
 imgproto = os.environ.get('IMGPROTO', 'file')
 test_dir = os.environ.get('TEST_DIR')
+sock_dir = os.environ.get('SOCK_DIR')
 output_dir = os.environ.get('OUTPUT_DIR', '.')
 cachemode = os.environ.get('CACHEMODE')
 qemu_default_machine = os.environ.get('QEMU_DEFAULT_MACHINE')
@@ -456,7 +457,8 @@ class VM(qtest.QEMUQtestMachine):
         name = "qemu%s-%d" % (path_suffix, os.getpid())
         super(VM, self).__init__(qemu_prog, qemu_opts, name=name,
                                  test_dir=test_dir,
-                                 socket_scm_helper=socket_scm_helper)
+                                 socket_scm_helper=socket_scm_helper,
+                                 sock_dir=sock_dir)
         self._num_drives = 0
 
     def add_object(self, opts):
