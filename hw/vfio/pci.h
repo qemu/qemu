@@ -169,6 +169,7 @@ typedef struct VFIOPCIDevice {
     bool enable_ramfb;
     VFIODisplay *dpy;
     Error *migration_blocker;
+    Notifier irqchip_change_notifier;
 } VFIOPCIDevice;
 
 uint32_t vfio_pci_read_config(PCIDevice *pdev, uint32_t addr, int len);

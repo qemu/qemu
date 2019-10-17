@@ -256,6 +256,14 @@ static void vfio_intx_routing_notifier(PCIDevice *pdev)
     }
 }
 
+static void vfio_irqchip_change(Notifier *notify, void *data)
+{
+    VFIOPCIDevice *vdev = container_of(notify, VFIOPCIDevice,
+                                       irqchip_change_notifier);
+
+    vfio_intx_update(vdev, &vdev->intx.route);
+}
+
 static int vfio_intx_enable(VFIOPCIDevice *vdev, Error **errp)
 {
     uint8_t pin = vfio_pci_read_config(&vdev->pdev, PCI_INTERRUPT_PIN, 1);
@@ -2973,30 +2981,32 @@ static void vfio_realize(PCIDevice *pdev, Error **errp)
                                                   vfio_intx_mmap_enable, vdev);
         pci_device_set_intx_routing_notifier(&vdev->pdev,
                                              vfio_intx_routing_notifier);
+        vdev->irqchip_change_notifier.notify = vfio_irqchip_change;
+        kvm_irqchip_add_change_notifier(&vdev->irqchip_change_notifier);
         ret = vfio_intx_enable(vdev, errp);
         if (ret) {
-            goto out_teardown;
+            goto out_deregister;
         }
     }
 
     if (vdev->display != ON_OFF_AUTO_OFF) {
         ret = vfio_display_probe(vdev, errp);
         if (ret) {
-            goto out_teardown;
+            goto out_deregister;
         }
     }
     if (vdev->enable_ramfb && vdev->dpy == NULL) {
         error_setg(errp, "ramfb=on requires display=on");
-        goto out_teardown;
+        goto out_deregister;
     }
     if (vdev->display_xres || vdev->display_yres) {
         if (vdev->dpy == NULL) {
             error_setg(errp, "xres and yres properties require display=on");
-            goto out_teardown;
+            goto out_deregister;
         }
         if (vdev->dpy->edid_regs == NULL) {
             error_setg(errp, "xres and yres properties need edid support");
-            goto out_teardown;
+            goto out_deregister;
         }
     }
 
@@ -3020,8 +3030,10 @@ static void vfio_realize(PCIDevice *pdev, Error **errp)
 
     return;
 
-out_teardown:
+out_deregister:
     pci_device_set_intx_routing_notifier(&vdev->pdev, NULL);
+    kvm_irqchip_remove_change_notifier(&vdev->irqchip_change_notifier);
+out_teardown:
     vfio_teardown_msi(vdev);
     vfio_bars_exit(vdev);
 error:
@@ -3064,6 +3076,7 @@ static void vfio_exitfn(PCIDevice *pdev)
     vfio_unregister_req_notifier(vdev);
     vfio_unregister_err_notifier(vdev);
     pci_device_set_intx_routing_notifier(&vdev->pdev, NULL);
+    kvm_irqchip_remove_change_notifier(&vdev->irqchip_change_notifier);
     vfio_disable_interrupts(vdev);
     if (vdev->intx.mmap_timer) {
         timer_free(vdev->intx.mmap_timer);
