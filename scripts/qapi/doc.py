@@ -249,12 +249,14 @@ class QAPISchemaGenDocVisitor(QAPISchemaVisitor):
                                body=texi_entity(doc, 'Members', ifcond)))
 
     def visit_command(self, name, info, ifcond, arg_type, ret_type, gen,
-                      success_response, boxed, allow_oob, allow_preconfig):
+                      success_response, boxed, allow_oob, allow_preconfig,
+                      features):
         doc = self.cur_doc
         if boxed:
             body = texi_body(doc)
             body += ('\n@b{Arguments:} the members of @code{%s}\n'
                      % arg_type.name)
+            body += texi_features(doc)
             body += texi_sections(doc, ifcond)
         else:
             body = texi_entity(doc, 'Arguments', ifcond)

@@ -185,6 +185,22 @@ def normalize_features(features):
                        for f in features]
 
 
+def check_features(features, info):
+    if features is None:
+        return
+    if not isinstance(features, list):
+        raise QAPISemError(info, "'features' must be an array")
+    for f in features:
+        source = "'features' member"
+        assert isinstance(f, dict)
+        check_keys(f, info, source, ['name'], ['if'])
+        check_name_is_str(f['name'], info, source)
+        source = "%s '%s'" % (source, f['name'])
+        check_name_str(f['name'], info, source)
+        check_if(f, info, source)
+        normalize_if(f)
+
+
 def normalize_enum(expr):
     if isinstance(expr['data'], list):
         expr['data'] = [m if isinstance(m, dict) else {'name': m}
@@ -217,23 +233,10 @@ def check_enum(expr, info):
 def check_struct(expr, info):
     name = expr['struct']
     members = expr['data']
-    features = expr.get('features')
 
     check_type(members, info, "'data'", allow_dict=name)
     check_type(expr.get('base'), info, "'base'")
-
-    if features:
-        if not isinstance(features, list):
-            raise QAPISemError(info, "'features' must be an array")
-        for f in features:
-            source = "'features' member"
-            assert isinstance(f, dict)
-            check_keys(f, info, source, ['name'], ['if'])
-            check_name_is_str(f['name'], info, source)
-            source = "%s '%s'" % (source, f['name'])
-            check_name_str(f['name'], info, source)
-            check_if(f, info, source)
-            normalize_if(f)
+    check_features(expr.get('features'), info)
 
 
 def check_union(expr, info):
@@ -283,6 +286,7 @@ def check_command(expr, info):
         raise QAPISemError(info, "'boxed': true requires 'data'")
     check_type(args, info, "'data'", allow_dict=not boxed)
     check_type(rets, info, "'returns'", allow_array=True)
+    check_features(expr.get('features'), info)
 
 
 def check_event(expr, info):
@@ -358,10 +362,11 @@ def check_exprs(exprs):
         elif meta == 'command':
             check_keys(expr, info, meta,
                        ['command'],
-                       ['data', 'returns', 'boxed', 'if',
+                       ['data', 'returns', 'boxed', 'if', 'features',
                         'gen', 'success-response', 'allow-oob',
                         'allow-preconfig'])
             normalize_members(expr.get('data'))
+            normalize_features(expr.get('features'))
             check_command(expr, info)
         elif meta == 'event':
             check_keys(expr, info, meta,
