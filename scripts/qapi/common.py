@@ -21,25 +21,28 @@ import string
 import sys
 from collections import OrderedDict
 
-# Are documentation comments required?
-doc_required = False
-
-# Whitelist of commands allowed to return a non-dictionary
-returns_whitelist = []
-
-# Whitelist of entities allowed to violate case conventions
-name_case_whitelist = []
-
 
 #
 # Parsing the schema into expressions
 #
+
+
+class QAPISchemaPragma(object):
+    def __init__(self):
+        # Are documentation comments required?
+        self.doc_required = False
+        # Whitelist of commands allowed to return a non-dictionary
+        self.returns_whitelist = []
+        # Whitelist of entities allowed to violate case conventions
+        self.name_case_whitelist = []
+
 
 class QAPISourceInfo(object):
     def __init__(self, fname, line, parent):
         self.fname = fname
         self.line = line
         self.parent = parent
+        self.pragma = parent.pragma if parent else QAPISchemaPragma()
         self.defn_meta = None
         self.defn_name = None
 
@@ -486,26 +489,25 @@ class QAPISchemaParser(object):
         return QAPISchemaParser(incl_fname, previously_included, info)
 
     def _pragma(self, name, value, info):
-        global doc_required, returns_whitelist, name_case_whitelist
         if name == 'doc-required':
             if not isinstance(value, bool):
                 raise QAPISemError(info,
                                    "pragma 'doc-required' must be boolean")
-            doc_required = value
+            info.pragma.doc_required = value
         elif name == 'returns-whitelist':
             if (not isinstance(value, list)
                     or any([not isinstance(elt, str) for elt in value])):
                 raise QAPISemError(
                     info,
                     "pragma returns-whitelist must be a list of strings")
-            returns_whitelist = value
+            info.pragma.returns_whitelist = value
         elif name == 'name-case-whitelist':
             if (not isinstance(value, list)
                     or any([not isinstance(elt, str) for elt in value])):
                 raise QAPISemError(
                     info,
                     "pragma name-case-whitelist must be a list of strings")
-            name_case_whitelist = value
+            info.pragma.name_case_whitelist = value
         else:
             raise QAPISemError(info, "unknown pragma '%s'" % name)
 
@@ -757,7 +759,7 @@ def check_type(value, info, source,
         raise QAPISemError(info,
                            "%s should be an object or type name" % source)
 
-    permit_upper = allow_dict in name_case_whitelist
+    permit_upper = allow_dict in info.pragma.name_case_whitelist
 
     # value is a dictionary, check that each member is okay
     for (key, arg) in value.items():
@@ -840,7 +842,7 @@ def check_enum(expr, info):
     if prefix is not None and not isinstance(prefix, str):
         raise QAPISemError(info, "'prefix' must be a string")
 
-    permit_upper = name in name_case_whitelist
+    permit_upper = name in info.pragma.name_case_whitelist
 
     for member in members:
         source = "'data' member"
@@ -968,7 +970,7 @@ def check_exprs(exprs):
                 raise QAPISemError(
                     info, "documentation comment is for '%s'" % doc.symbol)
             doc.check_expr(expr)
-        elif doc_required:
+        elif info.pragma.doc_required:
             raise QAPISemError(info,
                                "documentation comment required")
 
@@ -1690,7 +1692,7 @@ class QAPISchemaCommand(QAPISchemaEntity):
         if self._ret_type_name:
             self.ret_type = schema.resolve_type(
                 self._ret_type_name, self.info, "command's 'returns'")
-            if self.name not in returns_whitelist:
+            if self.name not in self.info.pragma.returns_whitelist:
                 if not (isinstance(self.ret_type, QAPISchemaObjectType)
                         or (isinstance(self.ret_type, QAPISchemaArrayType)
                             and isinstance(self.ret_type.element_type,
