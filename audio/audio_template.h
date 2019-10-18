@@ -78,13 +78,17 @@ static void glue (audio_pcm_hw_free_resources_, TYPE) (HW *hw)
 
 static void glue(audio_pcm_hw_alloc_resources_, TYPE)(HW *hw)
 {
-    size_t samples = hw->samples;
-    if (audio_bug(__func__, samples == 0)) {
-        dolog("Attempted to allocate empty buffer\n");
-    }
+    if (glue(audio_get_pdo_, TYPE)(hw->s->dev)->mixing_engine) {
+        size_t samples = hw->samples;
+        if (audio_bug(__func__, samples == 0)) {
+            dolog("Attempted to allocate empty buffer\n");
+        }
 
-    HWBUF = g_malloc0(sizeof(STSampleBuffer) + sizeof(st_sample) * samples);
-    HWBUF->size = samples;
+        HWBUF = g_malloc0(sizeof(STSampleBuffer) + sizeof(st_sample) * samples);
+        HWBUF->size = samples;
+    } else {
+        HWBUF = NULL;
+    }
 }
 
 static void glue (audio_pcm_sw_free_resources_, TYPE) (SW *sw)
@@ -102,6 +106,10 @@ static void glue (audio_pcm_sw_free_resources_, TYPE) (SW *sw)
 static int glue (audio_pcm_sw_alloc_resources_, TYPE) (SW *sw)
 {
     int samples;
+
+    if (!glue(audio_get_pdo_, TYPE)(sw->s->dev)->mixing_engine) {
+        return 0;
+    }
 
     samples = ((int64_t) sw->HWBUF->size << 32) / sw->ratio;
 
@@ -328,9 +336,9 @@ static HW *glue(audio_pcm_hw_add_, TYPE)(AudioState *s, struct audsettings *as)
     HW *hw;
     AudiodevPerDirectionOptions *pdo = glue(audio_get_pdo_, TYPE)(s->dev);
 
-    if (pdo->fixed_settings) {
+    if (!pdo->mixing_engine || pdo->fixed_settings) {
         hw = glue(audio_pcm_hw_add_new_, TYPE)(s, as);
-        if (hw) {
+        if (!pdo->mixing_engine || hw) {
             return hw;
         }
     }
@@ -425,14 +433,17 @@ SW *glue (AUD_open_, TYPE) (
     struct audsettings *as
     )
 {
-    AudioState *s = card->state;
-    AudiodevPerDirectionOptions *pdo = glue(audio_get_pdo_, TYPE)(s->dev);
+    AudioState *s;
+    AudiodevPerDirectionOptions *pdo;
 
     if (audio_bug(__func__, !card || !name || !callback_fn || !as)) {
         dolog ("card=%p name=%p callback_fn=%p as=%p\n",
                card, name, callback_fn, as);
         goto fail;
     }
+
+    s = card->state;
+    pdo = glue(audio_get_pdo_, TYPE)(s->dev);
 
     ldebug ("open %s, freq %d, nchannels %d, fmt %d\n",
             name, as->freq, as->nchannels, as->fmt);
