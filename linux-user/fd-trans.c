@@ -279,6 +279,7 @@ static abi_long host_to_target_for_each_nlmsg(struct nlmsghdr *nlh,
                                                        (struct nlmsghdr *))
 {
     uint32_t nlmsg_len;
+    uint32_t aligned_nlmsg_len;
     abi_long ret;
 
     while (len > sizeof(struct nlmsghdr)) {
@@ -312,8 +313,13 @@ static abi_long host_to_target_for_each_nlmsg(struct nlmsghdr *nlh,
             break;
         }
         tswap_nlmsghdr(nlh);
-        len -= NLMSG_ALIGN(nlmsg_len);
-        nlh = (struct nlmsghdr *)(((char*)nlh) + NLMSG_ALIGN(nlmsg_len));
+
+        aligned_nlmsg_len = NLMSG_ALIGN(nlmsg_len);
+        if (aligned_nlmsg_len >= len) {
+            break;
+        }
+        len -= aligned_nlmsg_len;
+        nlh = (struct nlmsghdr *)(((char*)nlh) + aligned_nlmsg_len);
     }
     return 0;
 }
@@ -323,6 +329,7 @@ static abi_long target_to_host_for_each_nlmsg(struct nlmsghdr *nlh,
                                               abi_long (*target_to_host_nlmsg)
                                                        (struct nlmsghdr *))
 {
+    uint32_t aligned_nlmsg_len;
     int ret;
 
     while (len > sizeof(struct nlmsghdr)) {
@@ -349,8 +356,13 @@ static abi_long target_to_host_for_each_nlmsg(struct nlmsghdr *nlh,
                 return ret;
             }
         }
-        len -= NLMSG_ALIGN(nlh->nlmsg_len);
-        nlh = (struct nlmsghdr *)(((char *)nlh) + NLMSG_ALIGN(nlh->nlmsg_len));
+
+        aligned_nlmsg_len = NLMSG_ALIGN(nlh->nlmsg_len);
+        if (aligned_nlmsg_len >= len) {
+            break;
+        }
+        len -= aligned_nlmsg_len;
+        nlh = (struct nlmsghdr *)(((char *)nlh) + aligned_nlmsg_len);
     }
     return 0;
 }
@@ -363,6 +375,7 @@ static abi_long host_to_target_for_each_nlattr(struct nlattr *nlattr,
                                                          void *context))
 {
     unsigned short nla_len;
+    unsigned short aligned_nla_len;
     abi_long ret;
 
     while (len > sizeof(struct nlattr)) {
@@ -377,8 +390,13 @@ static abi_long host_to_target_for_each_nlattr(struct nlattr *nlattr,
         if (ret < 0) {
             return ret;
         }
-        len -= NLA_ALIGN(nla_len);
-        nlattr = (struct nlattr *)(((char *)nlattr) + NLA_ALIGN(nla_len));
+
+        aligned_nla_len = NLA_ALIGN(nla_len);
+        if (aligned_nla_len >= len) {
+            break;
+        }
+        len -= aligned_nla_len;
+        nlattr = (struct nlattr *)(((char *)nlattr) + aligned_nla_len);
     }
     return 0;
 }
@@ -389,6 +407,7 @@ static abi_long host_to_target_for_each_rtattr(struct rtattr *rtattr,
                                                         (struct rtattr *))
 {
     unsigned short rta_len;
+    unsigned short aligned_rta_len;
     abi_long ret;
 
     while (len > sizeof(struct rtattr)) {
@@ -403,8 +422,13 @@ static abi_long host_to_target_for_each_rtattr(struct rtattr *rtattr,
         if (ret < 0) {
             return ret;
         }
-        len -= RTA_ALIGN(rta_len);
-        rtattr = (struct rtattr *)(((char *)rtattr) + RTA_ALIGN(rta_len));
+
+        aligned_rta_len = RTA_ALIGN(rta_len);
+        if (aligned_rta_len >= len) {
+            break;
+        }
+        len -= aligned_rta_len;
+        rtattr = (struct rtattr *)(((char *)rtattr) + aligned_rta_len);
     }
     return 0;
 }
@@ -1058,6 +1082,7 @@ static abi_long target_to_host_for_each_rtattr(struct rtattr *rtattr,
                                                abi_long (*target_to_host_rtattr)
                                                         (struct rtattr *))
 {
+    unsigned short aligned_rta_len;
     abi_long ret;
 
     while (len >= sizeof(struct rtattr)) {
@@ -1071,9 +1096,13 @@ static abi_long target_to_host_for_each_rtattr(struct rtattr *rtattr,
         if (ret < 0) {
             return ret;
         }
-        len -= RTA_ALIGN(rtattr->rta_len);
-        rtattr = (struct rtattr *)(((char *)rtattr) +
-                 RTA_ALIGN(rtattr->rta_len));
+
+        aligned_rta_len = RTA_ALIGN(rtattr->rta_len);
+        if (aligned_rta_len >= len) {
+            break;
+        }
+        len -= aligned_rta_len;
+        rtattr = (struct rtattr *)(((char *)rtattr) + aligned_rta_len);
     }
     return 0;
 }
