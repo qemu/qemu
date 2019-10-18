@@ -1767,21 +1767,10 @@ static target_ulong h_client_architecture_support(PowerPCCPU *cpu,
     }
     spapr->cas_pre_isa3_guest = !spapr_ovec_test(ov1_guest, OV1_PPC_3_00);
     spapr_ovec_cleanup(ov1_guest);
-    if (!spapr->cas_reboot) {
-        /* If spapr_machine_reset() did not set up a HPT but one is necessary
-         * (because the guest isn't going to use radix) then set it up here. */
-        if ((spapr->patb_entry & PATE1_GR) && !guest_radix) {
-            /* legacy hash or new hash: */
-            spapr_setup_hpt_and_vrma(spapr);
-        }
-        spapr->cas_reboot =
-            (spapr_h_cas_compose_response(spapr, args[1], args[2],
-                                          ov5_updates) != 0);
-    }
 
     /*
-     * Ensure the guest asks for an interrupt mode we support; otherwise
-     * terminate the boot.
+     * Ensure the guest asks for an interrupt mode we support;
+     * otherwise terminate the boot.
      */
     if (guest_xive) {
         if (!spapr->irq->xive) {
@@ -1797,14 +1786,18 @@ static target_ulong h_client_architecture_support(PowerPCCPU *cpu,
         }
     }
 
-    /*
-     * Generate a machine reset when we have an update of the
-     * interrupt mode. Only required when the machine supports both
-     * modes.
-     */
+    spapr_irq_update_active_intc(spapr);
+
     if (!spapr->cas_reboot) {
-        spapr->cas_reboot = spapr_ovec_test(ov5_updates, OV5_XIVE_EXPLOIT)
-            && spapr->irq->xics && spapr->irq->xive;
+        /* If spapr_machine_reset() did not set up a HPT but one is necessary
+         * (because the guest isn't going to use radix) then set it up here. */
+        if ((spapr->patb_entry & PATE1_GR) && !guest_radix) {
+            /* legacy hash or new hash: */
+            spapr_setup_hpt_and_vrma(spapr);
+        }
+        spapr->cas_reboot =
+            (spapr_h_cas_compose_response(spapr, args[1], args[2],
+                                          ov5_updates) != 0);
     }
 
     spapr_ovec_cleanup(ov5_updates);
