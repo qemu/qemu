@@ -917,7 +917,8 @@ static bool spapr_hotplugged_dev_before_cas(void)
     return false;
 }
 
-static void *spapr_build_fdt(SpaprMachineState *spapr, bool reset);
+static void *spapr_build_fdt(SpaprMachineState *spapr, bool reset,
+                             size_t space);
 
 int spapr_h_cas_compose_response(SpaprMachineState *spapr,
                                  target_ulong addr, target_ulong size,
@@ -930,23 +931,16 @@ int spapr_h_cas_compose_response(SpaprMachineState *spapr,
         return 1;
     }
 
-    if (size < sizeof(hdr) || size > FW_MAX_SIZE) {
-        error_report("SLOF provided an unexpected CAS buffer size "
-                     TARGET_FMT_lu " (min: %zu, max: %u)",
-                     size, sizeof(hdr), FW_MAX_SIZE);
+    if (size < sizeof(hdr)) {
+        error_report("SLOF provided insufficient CAS buffer "
+                     TARGET_FMT_lu " (min: %zu)", size, sizeof(hdr));
         exit(EXIT_FAILURE);
     }
 
     size -= sizeof(hdr);
 
-    fdt = spapr_build_fdt(spapr, false);
+    fdt = spapr_build_fdt(spapr, false, size);
     _FDT((fdt_pack(fdt)));
-
-    if (fdt_totalsize(fdt) + sizeof(hdr) > size) {
-        g_free(fdt);
-        trace_spapr_cas_failed(size);
-        return -1;
-    }
 
     cpu_physical_memory_write(addr, &hdr, sizeof(hdr));
     cpu_physical_memory_write(addr + sizeof(hdr), fdt, fdt_totalsize(fdt));
@@ -1197,7 +1191,8 @@ static void spapr_dt_hypervisor(SpaprMachineState *spapr, void *fdt)
     }
 }
 
-static void *spapr_build_fdt(SpaprMachineState *spapr, bool reset)
+static void *spapr_build_fdt(SpaprMachineState *spapr, bool reset,
+                             size_t space)
 {
     MachineState *machine = MACHINE(spapr);
     MachineClass *mc = MACHINE_GET_CLASS(machine);
@@ -1207,8 +1202,8 @@ static void *spapr_build_fdt(SpaprMachineState *spapr, bool reset)
     SpaprPhbState *phb;
     char *buf;
 
-    fdt = g_malloc0(FDT_MAX_SIZE);
-    _FDT((fdt_create_empty_tree(fdt, FDT_MAX_SIZE)));
+    fdt = g_malloc0(space);
+    _FDT((fdt_create_empty_tree(fdt, space)));
 
     /* Root node */
     _FDT(fdt_setprop_string(fdt, 0, "device_type", "chrp"));
@@ -1723,18 +1718,12 @@ static void spapr_machine_reset(MachineState *machine)
      */
     fdt_addr = MIN(spapr->rma_size, RTAS_MAX_ADDR) - FDT_MAX_SIZE;
 
-    fdt = spapr_build_fdt(spapr, true);
+    fdt = spapr_build_fdt(spapr, true, FDT_MAX_SIZE);
 
     rc = fdt_pack(fdt);
 
     /* Should only fail if we've built a corrupted tree */
     assert(rc == 0);
-
-    if (fdt_totalsize(fdt) > FDT_MAX_SIZE) {
-        error_report("FDT too big ! 0x%x bytes (max is 0x%x)",
-                     fdt_totalsize(fdt), FDT_MAX_SIZE);
-        exit(1);
-    }
 
     /* Load the fdt */
     qemu_fdt_dumpdtb(fdt, fdt_totalsize(fdt));
