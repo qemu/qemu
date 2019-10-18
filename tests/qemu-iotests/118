@@ -446,6 +446,7 @@ class TestChangeReadOnly(ChangeBaseClass):
         self.assert_qmp(result, 'return[0]/inserted/ro', True)
         self.assert_qmp(result, 'return[0]/inserted/image/filename', new_img)
 
+    @iotests.skip_if_user_is_root
     def test_rw_ro_retain(self):
         os.chmod(new_img, 0o444)
         self.vm.add_drive(old_img, 'media=disk', 'none')
@@ -530,6 +531,7 @@ class TestChangeReadOnly(ChangeBaseClass):
         self.assert_qmp(result, 'return[0]/inserted/ro', True)
         self.assert_qmp(result, 'return[0]/inserted/image/filename', new_img)
 
+    @iotests.skip_if_user_is_root
     def test_make_ro_rw(self):
         os.chmod(new_img, 0o444)
         self.vm.add_drive(old_img, 'media=disk', 'none')
@@ -571,6 +573,7 @@ class TestChangeReadOnly(ChangeBaseClass):
         self.assert_qmp(result, 'return[0]/inserted/ro', True)
         self.assert_qmp(result, 'return[0]/inserted/image/filename', new_img)
 
+    @iotests.skip_if_user_is_root
     def test_make_ro_rw_by_retain(self):
         os.chmod(new_img, 0o444)
         self.vm.add_drive(old_img, 'media=disk', 'none')
