@@ -27,8 +27,6 @@
 
 #include "qemu/timer.h"
 
-#define RTC_ISA_IRQ 8
-
 #define RTC_SECONDS             0
 #define RTC_SECONDS_ALARM       1
 #define RTC_MINUTES             2

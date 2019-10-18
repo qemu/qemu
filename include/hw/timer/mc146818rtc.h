@@ -39,6 +39,8 @@ typedef struct RTCState {
     QLIST_ENTRY(RTCState) link;
 } RTCState;
 
+#define RTC_ISA_IRQ 8
+
 ISADevice *mc146818_rtc_init(ISABus *bus, int base_year,
                              qemu_irq intercept_irq);
 void rtc_set_memory(ISADevice *dev, int addr, int val);
