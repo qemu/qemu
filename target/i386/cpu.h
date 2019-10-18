@@ -24,6 +24,7 @@
 #include "cpu-qom.h"
 #include "hyperv-proto.h"
 #include "exec/cpu-defs.h"
+#include "qapi/qapi-types-common.h"
 
 /* The x86 has a strong memory model with some store-after-load re-ordering */
 #define TCG_GUEST_DEFAULT_MO      (TCG_MO_ALL & ~TCG_MO_ST_LD)
@@ -1614,6 +1615,7 @@ struct X86CPU {
     bool hyperv_synic_kvm_only;
     uint64_t hyperv_features;
     bool hyperv_passthrough;
+    OnOffAuto hyperv_no_nonarch_cs;
 
     bool check_cpuid;
     bool enforce_cpuid;

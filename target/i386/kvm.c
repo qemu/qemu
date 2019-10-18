@@ -1227,6 +1227,16 @@ static int hyperv_handle_properties(CPUState *cs,
         }
     }
 
+    if (cpu->hyperv_no_nonarch_cs == ON_OFF_AUTO_ON) {
+        env->features[FEAT_HV_RECOMM_EAX] |= HV_NO_NONARCH_CORESHARING;
+    } else if (cpu->hyperv_no_nonarch_cs == ON_OFF_AUTO_AUTO) {
+        c = cpuid_find_entry(cpuid, HV_CPUID_ENLIGHTMENT_INFO, 0);
+        if (c) {
+            env->features[FEAT_HV_RECOMM_EAX] |=
+                c->eax & HV_NO_NONARCH_CORESHARING;
+        }
+    }
+
     /* Features */
     r = hv_cpuid_check_and_set(cs, cpuid, HYPERV_FEAT_RELAXED);
     r |= hv_cpuid_check_and_set(cs, cpuid, HYPERV_FEAT_VAPIC);
@@ -1340,6 +1350,7 @@ free:
 }
 
 static Error *hv_passthrough_mig_blocker;
+static Error *hv_no_nonarch_cs_mig_blocker;
 
 static int hyperv_init_vcpu(X86CPU *cpu)
 {
@@ -1355,6 +1366,21 @@ static int hyperv_init_vcpu(X86CPU *cpu)
         if (local_err) {
             error_report_err(local_err);
             error_free(hv_passthrough_mig_blocker);
+            return ret;
+        }
+    }
+
+    if (cpu->hyperv_no_nonarch_cs == ON_OFF_AUTO_AUTO &&
+        hv_no_nonarch_cs_mig_blocker == NULL) {
+        error_setg(&hv_no_nonarch_cs_mig_blocker,
+                   "'hv-no-nonarch-coresharing=auto' CPU flag prevents migration"
+                   " use explicit 'hv-no-nonarch-coresharing=on' instead (but"
+                   " make sure SMT is disabled and/or that vCPUs are properly"
+                   " pinned)");
+        ret = migrate_add_blocker(hv_no_nonarch_cs_mig_blocker, &local_err);
+        if (local_err) {
+            error_report_err(local_err);
+            error_free(hv_no_nonarch_cs_mig_blocker);
             return ret;
         }
     }
