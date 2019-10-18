@@ -283,8 +283,6 @@ class QAPISchemaGenDocVisitor(qapi.common.QAPISchemaVisitor):
 
 
 def gen_doc(schema, output_dir, prefix):
-    if not qapi.common.doc_required:
-        return
     vis = QAPISchemaGenDocVisitor(prefix)
     vis.visit_begin(schema)
     for doc in schema.docs:
