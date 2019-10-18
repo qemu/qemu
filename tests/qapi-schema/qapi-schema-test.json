@@ -290,3 +290,21 @@
             'cfs1': 'CondFeatureStruct1',
             'cfs2': 'CondFeatureStruct2',
             'cfs3': 'CondFeatureStruct3' } }
+
+# test 'features' for command
+
+{ 'command': 'test-command-features0',
+  'features': [] }
+{ 'command': 'test-command-features1',
+  'features': [ 'feature1' ] }
+{ 'command': 'test-command-features3',
+  'features': [ 'feature1', 'feature2' ] }
+
+{ 'command': 'test-command-cond-features1',
+  'features': [ { 'name': 'feature1', 'if': 'defined(TEST_IF_FEATURE_1)'} ] }
+{ 'command': 'test-command-cond-features2',
+  'features': [ { 'name': 'feature1', 'if': 'defined(TEST_IF_FEATURE_1)'},
+                { 'name': 'feature2', 'if': 'defined(TEST_IF_FEATURE_2)'} ] }
+{ 'command': 'test-command-cond-features3',
+  'features': [ { 'name': 'feature1', 'if': [ 'defined(TEST_IF_COND_1)',
+                                              'defined(TEST_IF_COND_2)'] } ] }
