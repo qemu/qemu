@@ -1,0 +1,17 @@
+obj-y += \
+    cpu.o \
+    translate.o \
+    op_helper.o \
+    gdbstub.o \
+    decode.o \
+    opcodes.o \
+    iclass.o \
+    genptr.o \
+    printinsn.o \
+    utils.o \
+    arch.o \
+    fma_emu.o \
+    conv_emu.o \
+    regs.o \
+    mmvec/decode_ext_mmvec.o \
+    mmvec/system_ext_mmvec.o

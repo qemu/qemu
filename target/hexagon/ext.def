@@ -1,0 +1,6 @@
+DEF_EXT(noext,0,4)
+DEF_EXT(mmvec,4,4)
+//DEF_EXT(mmvec)
+//DEF_EXT(noext)
+//DEF_EXT(mmvec)
+//DEF_EXT(noext)
