@@ -391,8 +391,9 @@ class QAPIDoc(object):
 
 class QAPISchemaParser(object):
 
-    def __init__(self, fname, previously_included=[], incl_info=None):
-        previously_included.append(os.path.abspath(fname))
+    def __init__(self, fname, previously_included=None, incl_info=None):
+        previously_included = previously_included or set()
+        previously_included.add(os.path.abspath(fname))
 
         try:
             if sys.version_info[0] >= 3:
