@@ -157,6 +157,8 @@ typedef struct GSIState {
 
 void gsi_handler(void *opaque, int n, int level);
 
+GSIState *pc_gsi_create(qemu_irq **irqs, bool pci_enabled);
+
 /* vmport.c */
 #define TYPE_VMPORT "vmport"
 typedef uint32_t (VMPortReadFunc)(void *opaque, uint32_t address);
