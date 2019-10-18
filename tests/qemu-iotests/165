@@ -43,10 +43,10 @@ class TestPersistentDirtyBitmap(iotests.QMPTestCase):
         os.remove(disk)
 
     def mkVm(self):
-        return iotests.VM().add_drive(disk)
+        return iotests.VM().add_drive(disk, opts='node-name=node0')
 
     def mkVmRo(self):
-        return iotests.VM().add_drive(disk, opts='readonly=on')
+        return iotests.VM().add_drive(disk, opts='readonly=on,node-name=node0')
 
     def getSha256(self):
         result = self.vm.qmp('x-debug-block-dirty-bitmap-sha256',
@@ -101,6 +101,59 @@ class TestPersistentDirtyBitmap(iotests.QMPTestCase):
         self.checkBitmap(sha256)
 
         self.vm.shutdown()
+
+    def test_reopen_rw(self):
+        self.vm = self.mkVm()
+        self.vm.launch()
+        self.qmpAddBitmap()
+
+        # Calculate hashes
+
+        self.writeRegions(regions1)
+        sha256_1 = self.getSha256()
+
+        self.writeRegions(regions2)
+        sha256_2 = self.getSha256()
+        assert sha256_1 != sha256_2 # Otherwise, it's not very interesting.
+
+        result = self.vm.qmp('block-dirty-bitmap-clear', node='drive0',
+                             name='bitmap0')
+        self.assert_qmp(result, 'return', {})
+
+        # Start with regions1
+
+        self.writeRegions(regions1)
+        assert sha256_1 == self.getSha256()
+
+        self.vm.shutdown()
+
+        self.vm = self.mkVmRo()
+        self.vm.launch()
+
+        assert sha256_1 == self.getSha256()
+
+        # Check that we are in RO mode and can't modify bitmap.
+        self.writeRegions(regions2)
+        assert sha256_1 == self.getSha256()
+
+        # Reopen to RW
+        result = self.vm.qmp('x-blockdev-reopen', **{
+            'node-name': 'node0',
+            'driver': iotests.imgfmt,
+            'file': {
+                'driver': 'file',
+                'filename': disk
+            },
+            'read-only': False
+        })
+        self.assert_qmp(result, 'return', {})
+
+        # Check that bitmap is reopened to RW and we can write to it.
+        self.writeRegions(regions2)
+        assert sha256_2 == self.getSha256()
+
+        self.vm.shutdown()
+
 
 if __name__ == '__main__':
     iotests.main(supported_fmts=['qcow2'],

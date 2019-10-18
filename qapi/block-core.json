@@ -2052,10 +2052,6 @@
 #              Qcow2 disks support persistent bitmaps. Default is false for
 #              block-dirty-bitmap-add. (Since: 2.10)
 #
-# @autoload: ignored and deprecated since 2.12.
-#            Currently, all dirty tracking bitmaps are loaded from Qcow2 on
-#            open.
-#
 # @disabled: the bitmap is created in the disabled state, which means that
 #            it will not track drive changes. The bitmap may be enabled with
 #            block-dirty-bitmap-enable. Default is false. (Since: 4.0)
@@ -2064,7 +2060,7 @@
 ##
 { 'struct': 'BlockDirtyBitmapAdd',
   'data': { 'node': 'str', 'name': 'str', '*granularity': 'uint32',
-            '*persistent': 'bool', '*autoload': 'bool', '*disabled': 'bool' } }
+            '*persistent': 'bool', '*disabled': 'bool' } }
 
 ##
 # @BlockDirtyBitmapMergeSource:

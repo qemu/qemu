@@ -149,11 +149,6 @@ QEMU 4.1 has three options, please migrate to one of these three:
 
 @section QEMU Machine Protocol (QMP) commands
 
-@subsection block-dirty-bitmap-add "autoload" parameter (since 2.12.0)
-
-"autoload" parameter is now ignored. All bitmaps are automatically loaded
-from qcow2 images.
-
 @subsection query-block result field dirty-bitmaps[i].status (since 4.0)
 
 The ``status'' field of the ``BlockDirtyInfo'' structure, returned by
@@ -356,3 +351,18 @@ existing CPU models.  Management software that needs runnability
 guarantees must resolve the CPU model aliases using te
 ``alias-of'' field returned by the ``query-cpu-definitions'' QMP
 command.
+
+
+@node Recently removed features
+@appendix Recently removed features
+
+What follows is a record of recently removed, formerly deprecated
+features that serves as a record for users who have encountered
+trouble after a recent upgrade.
+
+@section QEMU Machine Protocol (QMP) commands
+
+@subsection block-dirty-bitmap-add "autoload" parameter (since 4.2.0)
+
+The "autoload" parameter has been ignored since 2.12.0. All bitmaps
+are automatically loaded from qcow2 images.

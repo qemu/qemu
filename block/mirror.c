@@ -638,7 +638,7 @@ static int mirror_exit_common(Job *job)
         bdrv_unfreeze_backing_chain(mirror_top_bs, target_bs);
     }
 
-    bdrv_release_dirty_bitmap(src, s->dirty_bitmap);
+    bdrv_release_dirty_bitmap(s->dirty_bitmap);
 
     /* Make sure that the source BDS doesn't go away during bdrv_replace_node,
      * before we can call bdrv_drained_end */
@@ -1709,7 +1709,7 @@ fail:
         blk_unref(s->target);
         bs_opaque->job = NULL;
         if (s->dirty_bitmap) {
-            bdrv_release_dirty_bitmap(bs, s->dirty_bitmap);
+            bdrv_release_dirty_bitmap(s->dirty_bitmap);
         }
         job_early_fail(&s->common.job);
     }

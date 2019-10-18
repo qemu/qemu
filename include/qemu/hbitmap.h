@@ -132,6 +132,11 @@ void hbitmap_set(HBitmap *hb, uint64_t start, uint64_t count);
  * @count: Number of bits to reset.
  *
  * Reset a consecutive range of bits in an HBitmap.
+ * @start and @count must be aligned to bitmap granularity. The only exception
+ * is resetting the tail of the bitmap: @count may be equal to hb->orig_size -
+ * @start, in this case @count may be not aligned. The sum of @start + @count is
+ * allowed to be greater than hb->orig_size, but only if @start < hb->orig_size
+ * and @start + @count = ALIGN_UP(hb->orig_size, granularity).
  */
 void hbitmap_reset(HBitmap *hb, uint64_t start, uint64_t count);
 

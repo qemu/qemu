@@ -361,7 +361,7 @@ static int set_dirty_tracking(void)
 fail:
     QSIMPLEQ_FOREACH(bmds, &block_mig_state.bmds_list, entry) {
         if (bmds->dirty_bitmap) {
-            bdrv_release_dirty_bitmap(blk_bs(bmds->blk), bmds->dirty_bitmap);
+            bdrv_release_dirty_bitmap(bmds->dirty_bitmap);
         }
     }
     return ret;
@@ -374,7 +374,7 @@ static void unset_dirty_tracking(void)
     BlkMigDevState *bmds;
 
     QSIMPLEQ_FOREACH(bmds, &block_mig_state.bmds_list, entry) {
-        bdrv_release_dirty_bitmap(blk_bs(bmds->blk), bmds->dirty_bitmap);
+        bdrv_release_dirty_bitmap(bmds->dirty_bitmap);
     }
 }
 
