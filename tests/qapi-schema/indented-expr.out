@@ -11,6 +11,6 @@ enum QType
     member qbool
 module indented-expr.json
 command eins None -> None
-   gen=True success_response=True boxed=False oob=False preconfig=False
+    gen=True success_response=True boxed=False oob=False preconfig=False
 command zwei None -> None
-   gen=True success_response=True boxed=False oob=False preconfig=False
+    gen=True success_response=True boxed=False oob=False preconfig=False

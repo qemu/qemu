@@ -33,7 +33,7 @@ object Union
     case value3: q_empty
     case value4: q_empty
 command user_def_cmd0 Empty2 -> Empty2
-   gen=True success_response=True boxed=False oob=False preconfig=False
+    gen=True success_response=True boxed=False oob=False preconfig=False
 enum QEnumTwo
     prefix QENUM_TWO
     member value1
@@ -205,35 +205,35 @@ object SecondArrayRef
     member s: StatusList optional=False
 module qapi-schema-test.json
 command user_def_cmd None -> None
-   gen=True success_response=True boxed=False oob=False preconfig=False
+    gen=True success_response=True boxed=False oob=False preconfig=False
 object q_obj_user_def_cmd1-arg
     member ud1a: UserDefOne optional=False
 command user_def_cmd1 q_obj_user_def_cmd1-arg -> None
-   gen=True success_response=True boxed=False oob=False preconfig=False
+    gen=True success_response=True boxed=False oob=False preconfig=False
 object q_obj_user_def_cmd2-arg
     member ud1a: UserDefOne optional=False
     member ud1b: UserDefOne optional=True
 command user_def_cmd2 q_obj_user_def_cmd2-arg -> UserDefTwo
-   gen=True success_response=True boxed=False oob=False preconfig=False
+    gen=True success_response=True boxed=False oob=False preconfig=False
 command cmd-success-response None -> None
-   gen=True success_response=False boxed=False oob=False preconfig=False
+    gen=True success_response=False boxed=False oob=False preconfig=False
 object q_obj_guest-get-time-arg
     member a: int optional=False
     member b: int optional=True
 command guest-get-time q_obj_guest-get-time-arg -> int
-   gen=True success_response=True boxed=False oob=False preconfig=False
+    gen=True success_response=True boxed=False oob=False preconfig=False
 object q_obj_guest-sync-arg
     member arg: any optional=False
 command guest-sync q_obj_guest-sync-arg -> any
-   gen=True success_response=True boxed=False oob=False preconfig=False
+    gen=True success_response=True boxed=False oob=False preconfig=False
 command boxed-struct UserDefZero -> None
-   gen=True success_response=True boxed=True oob=False preconfig=False
+    gen=True success_response=True boxed=True oob=False preconfig=False
 command boxed-union UserDefListUnion -> None
-   gen=True success_response=True boxed=True oob=False preconfig=False
+    gen=True success_response=True boxed=True oob=False preconfig=False
 command boxed-empty Empty1 -> None
-   gen=True success_response=True boxed=True oob=False preconfig=False
+    gen=True success_response=True boxed=True oob=False preconfig=False
 command test-flags-command None -> None
-   gen=True success_response=True boxed=False oob=True preconfig=True
+    gen=True success_response=True boxed=False oob=True preconfig=True
 object UserDefOptions
     member i64: intList optional=True
     member u64: uint64List optional=True
@@ -245,28 +245,28 @@ object EventStructOne
     member string: str optional=False
     member enum2: EnumOne optional=True
 event EVENT_A None
-   boxed=False
+    boxed=False
 event EVENT_B None
-   boxed=False
+    boxed=False
 object q_obj_EVENT_C-arg
     member a: int optional=True
     member b: UserDefOne optional=True
     member c: str optional=False
 event EVENT_C q_obj_EVENT_C-arg
-   boxed=False
+    boxed=False
 object q_obj_EVENT_D-arg
     member a: EventStructOne optional=False
     member b: str optional=False
     member c: str optional=True
     member enum3: EnumOne optional=True
 event EVENT_D q_obj_EVENT_D-arg
-   boxed=False
+    boxed=False
 event EVENT_E UserDefZero
-   boxed=True
+    boxed=True
 event EVENT_F UserDefFlatUnion
-   boxed=True
+    boxed=True
 event EVENT_G Empty1
-   boxed=True
+    boxed=True
 enum __org.qemu_x-Enum
     member __org.qemu_x-value
 object __org.qemu_x-Base
@@ -297,7 +297,7 @@ alternate __org.qemu_x-Alt
     tag type
     case __org.qemu_x-branch: __org.qemu_x-Base
 event __ORG.QEMU_X-EVENT __org.qemu_x-Struct
-   boxed=False
+    boxed=False
 array __org.qemu_x-EnumList __org.qemu_x-Enum
 array __org.qemu_x-StructList __org.qemu_x-Struct
 object q_obj___org.qemu_x-command-arg
@@ -306,7 +306,7 @@ object q_obj___org.qemu_x-command-arg
     member c: __org.qemu_x-Union2 optional=False
     member d: __org.qemu_x-Alt optional=False
 command __org.qemu_x-command q_obj___org.qemu_x-command-arg -> __org.qemu_x-Union1
-   gen=True success_response=True boxed=False oob=False preconfig=False
+    gen=True success_response=True boxed=False oob=False preconfig=False
 object TestIfStruct
     member foo: int optional=False
     member bar: int optional=False
@@ -335,7 +335,7 @@ object q_obj_TestIfUnionCmd-arg
     member union_cmd_arg: TestIfUnion optional=False
     if ['defined(TEST_IF_UNION)']
 command TestIfUnionCmd q_obj_TestIfUnionCmd-arg -> None
-   gen=True success_response=True boxed=False oob=False preconfig=False
+    gen=True success_response=True boxed=False oob=False preconfig=False
     if ['defined(TEST_IF_UNION)']
 alternate TestIfAlternate
     tag type
@@ -347,7 +347,7 @@ object q_obj_TestIfAlternateCmd-arg
     member alt_cmd_arg: TestIfAlternate optional=False
     if ['defined(TEST_IF_ALT)']
 command TestIfAlternateCmd q_obj_TestIfAlternateCmd-arg -> None
-   gen=True success_response=True boxed=False oob=False preconfig=False
+    gen=True success_response=True boxed=False oob=False preconfig=False
     if ['defined(TEST_IF_ALT)']
 object q_obj_TestIfCmd-arg
     member foo: TestIfStruct optional=False
@@ -355,10 +355,10 @@ object q_obj_TestIfCmd-arg
         if ['defined(TEST_IF_CMD_BAR)']
     if ['defined(TEST_IF_CMD)', 'defined(TEST_IF_STRUCT)']
 command TestIfCmd q_obj_TestIfCmd-arg -> UserDefThree
-   gen=True success_response=True boxed=False oob=False preconfig=False
+    gen=True success_response=True boxed=False oob=False preconfig=False
     if ['defined(TEST_IF_CMD)', 'defined(TEST_IF_STRUCT)']
 command TestCmdReturnDefThree None -> UserDefThree
-   gen=True success_response=True boxed=False oob=False preconfig=False
+    gen=True success_response=True boxed=False oob=False preconfig=False
 array TestIfEnumList TestIfEnum
     if ['defined(TEST_IF_ENUM)']
 object q_obj_TestIfEvent-arg
@@ -367,7 +367,7 @@ object q_obj_TestIfEvent-arg
         if ['defined(TEST_IF_EVT_BAR)']
     if ['defined(TEST_IF_EVT) && defined(TEST_IF_STRUCT)']
 event TestIfEvent q_obj_TestIfEvent-arg
-   boxed=False
+    boxed=False
     if ['defined(TEST_IF_EVT) && defined(TEST_IF_STRUCT)']
 object FeatureStruct0
     member foo: int optional=False
@@ -411,4 +411,4 @@ object q_obj_test-features-arg
     member cfs2: CondFeatureStruct2 optional=False
     member cfs3: CondFeatureStruct3 optional=False
 command test-features q_obj_test-features-arg -> None
-   gen=True success_response=True boxed=False oob=False preconfig=False
+    gen=True success_response=True boxed=False oob=False preconfig=False

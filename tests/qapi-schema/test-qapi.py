@@ -76,13 +76,13 @@ class QAPISchemaTestVisitor(QAPISchemaVisitor):
         print('command %s %s -> %s'
               % (name, arg_type and arg_type.name,
                  ret_type and ret_type.name))
-        print('   gen=%s success_response=%s boxed=%s oob=%s preconfig=%s'
+        print('    gen=%s success_response=%s boxed=%s oob=%s preconfig=%s'
               % (gen, success_response, boxed, allow_oob, allow_preconfig))
         self._print_if(ifcond)
 
     def visit_event(self, name, info, ifcond, arg_type, boxed):
         print('event %s %s' % (name, arg_type and arg_type.name))
-        print('   boxed=%s' % boxed)
+        print('    boxed=%s' % boxed)
         self._print_if(ifcond)
 
     @staticmethod
