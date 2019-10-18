@@ -2239,65 +2239,6 @@ def _wrap_ifcond(ifcond, before, after):
     return out
 
 
-def gen_enum_lookup(name, members, prefix=None):
-    ret = mcgen('''
-
-const QEnumLookup %(c_name)s_lookup = {
-    .array = (const char *const[]) {
-''',
-                c_name=c_name(name))
-    for m in members:
-        ret += gen_if(m.ifcond)
-        index = c_enum_const(name, m.name, prefix)
-        ret += mcgen('''
-        [%(index)s] = "%(name)s",
-''',
-                     index=index, name=m.name)
-        ret += gen_endif(m.ifcond)
-
-    ret += mcgen('''
-    },
-    .size = %(max_index)s
-};
-''',
-                 max_index=c_enum_const(name, '_MAX', prefix))
-    return ret
-
-
-def gen_enum(name, members, prefix=None):
-    # append automatically generated _MAX value
-    enum_members = members + [QAPISchemaEnumMember('_MAX', None)]
-
-    ret = mcgen('''
-
-typedef enum %(c_name)s {
-''',
-                c_name=c_name(name))
-
-    for m in enum_members:
-        ret += gen_if(m.ifcond)
-        ret += mcgen('''
-    %(c_enum)s,
-''',
-                     c_enum=c_enum_const(name, m.name, prefix))
-        ret += gen_endif(m.ifcond)
-
-    ret += mcgen('''
-} %(c_name)s;
-''',
-                 c_name=c_name(name))
-
-    ret += mcgen('''
-
-#define %(c_name)s_str(val) \\
-    qapi_enum_lookup(&%(c_name)s_lookup, (val))
-
-extern const QEnumLookup %(c_name)s_lookup;
-''',
-                 c_name=c_name(name))
-    return ret
-
-
 def build_params(arg_type, boxed, extra=None):
     ret = ''
     sep = ''
