@@ -1,1 +1,1 @@
-tests/qapi-schema/unclosed-object.json:1:21: expected ',' or '}'
+unclosed-object.json:1:21: expected ',' or '}'

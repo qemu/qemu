@@ -1,2 +1,2 @@
-tests/qapi-schema/bad-base.json: In struct 'MyType':
-tests/qapi-schema/bad-base.json:3: 'base' requires a struct type, union type 'Union' isn't
+bad-base.json: In struct 'MyType':
+bad-base.json:3: 'base' requires a struct type, union type 'Union' isn't

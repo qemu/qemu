@@ -1,4 +1,4 @@
-tests/qapi-schema/redefined-type.json: In enum 'foo':
-tests/qapi-schema/redefined-type.json:3: 'foo' is already defined
-tests/qapi-schema/redefined-type.json: In struct 'foo':
-tests/qapi-schema/redefined-type.json:2: previous definition
+redefined-type.json: In enum 'foo':
+redefined-type.json:3: 'foo' is already defined
+redefined-type.json: In struct 'foo':
+redefined-type.json:2: previous definition

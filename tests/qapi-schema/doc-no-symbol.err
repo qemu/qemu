@@ -1,1 +1,1 @@
-tests/qapi-schema/doc-no-symbol.json:3: definition documentation required
+doc-no-symbol.json:3: definition documentation required

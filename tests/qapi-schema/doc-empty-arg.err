@@ -1,1 +1,1 @@
-tests/qapi-schema/doc-empty-arg.json:5:1: invalid parameter name
+doc-empty-arg.json:5:1: invalid parameter name

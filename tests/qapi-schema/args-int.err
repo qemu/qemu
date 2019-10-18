@@ -1,2 +1,2 @@
-tests/qapi-schema/args-int.json: In command 'oops':
-tests/qapi-schema/args-int.json:2: command's 'data' cannot take built-in type 'int'
+args-int.json: In command 'oops':
+args-int.json:2: command's 'data' cannot take built-in type 'int'

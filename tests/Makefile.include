@@ -1102,17 +1102,11 @@ check-tests/check-block.sh: tests/check-block.sh qemu-img$(EXESUF) \
 		$(patsubst %,%/all,$(filter %-softmmu,$(TARGET_DIRS)))
 	@$<
 
-.PHONY: $(patsubst %, check-%, $(check-qapi-schema-y))
-$(patsubst %, check-%, $(check-qapi-schema-y)): check-%.json: $(SRC_PATH)/%.json
+.PHONY: check-tests/qapi-schema/frontend
+check-tests/qapi-schema/frontend: $(addprefix $(SRC_PATH)/, $(check-qapi-schema-y))
 	$(call quiet-command, PYTHONPATH=$(SRC_PATH)/scripts \
-		PYTHONIOENCODING=utf-8 $(PYTHON) $(SRC_PATH)/tests/qapi-schema/test-qapi.py \
-		$^ >$*.test.out 2>$*.test.err; \
-		echo $$? >$*.test.exit, \
-		"TEST","$*.out")
-	@# Sanitize error messages (make them independent of build directory)
-	@perl -p -e 's|\Q$(SRC_PATH)\E/||g' $*.test.err | diff -u $(SRC_PATH)/$*.err -
-	@diff -u $(SRC_PATH)/$*.out $*.test.out
-	@diff -u $(SRC_PATH)/$*.exit $*.test.exit
+	  PYTHONIOENCODING=utf-8 $(PYTHON) $(SRC_PATH)/tests/qapi-schema/test-qapi.py $^, \
+	  TEST, check-qapi-schema)
 
 .PHONY: check-tests/qapi-schema/doc-good.texi
 check-tests/qapi-schema/doc-good.texi: tests/qapi-schema/doc-good.test.texi
@@ -1170,7 +1164,7 @@ check-acceptance: check-venv $(TESTS_RESULTS_DIR)
 # Consolidated targets
 
 .PHONY: check-block check-qapi-schema check-qtest check-unit check check-clean
-check-qapi-schema: $(patsubst %,check-%, $(check-qapi-schema-y)) check-tests/qapi-schema/doc-good.texi
+check-qapi-schema: check-tests/qapi-schema/frontend check-tests/qapi-schema/doc-good.texi
 check-qtest: $(patsubst %,check-qtest-%, $(QTEST_TARGETS))
 check-block: $(patsubst %,check-%, $(check-block-y))
 check: check-block check-qapi-schema check-unit check-softfloat check-qtest check-decodetree

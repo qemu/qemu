@@ -1,1 +1,1 @@
-tests/qapi-schema/doc-bad-command-arg.json:3: the following documented members are not in the declaration: b
+doc-bad-command-arg.json:3: the following documented members are not in the declaration: b

@@ -1,1 +1,1 @@
-tests/qapi-schema/pragma-unknown.json:1: unknown pragma 'no-such-pragma'
+pragma-unknown.json:1: unknown pragma 'no-such-pragma'

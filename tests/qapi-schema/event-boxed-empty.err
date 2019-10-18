@@ -1,2 +1,2 @@
-tests/qapi-schema/event-boxed-empty.json: In event 'FOO':
-tests/qapi-schema/event-boxed-empty.json:2: 'boxed': true requires 'data'
+event-boxed-empty.json: In event 'FOO':
+event-boxed-empty.json:2: 'boxed': true requires 'data'

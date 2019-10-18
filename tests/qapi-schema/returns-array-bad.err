@@ -1,2 +1,2 @@
-tests/qapi-schema/returns-array-bad.json: In command 'oops':
-tests/qapi-schema/returns-array-bad.json:2: 'returns': array type must contain single type name
+returns-array-bad.json: In command 'oops':
+returns-array-bad.json:2: 'returns': array type must contain single type name

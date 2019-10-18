@@ -1,2 +1,2 @@
-tests/qapi-schema/base-cycle-direct.json: In struct 'Loopy':
-tests/qapi-schema/base-cycle-direct.json:2: object Loopy contains itself
+base-cycle-direct.json: In struct 'Loopy':
+base-cycle-direct.json:2: object Loopy contains itself

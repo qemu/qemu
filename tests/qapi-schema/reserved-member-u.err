@@ -1,2 +1,2 @@
-tests/qapi-schema/reserved-member-u.json: In struct 'Oops':
-tests/qapi-schema/reserved-member-u.json:7: 'data' member 'u' uses reserved name
+reserved-member-u.json: In struct 'Oops':
+reserved-member-u.json:7: 'data' member 'u' uses reserved name

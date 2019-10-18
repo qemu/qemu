@@ -1,1 +1,1 @@
-tests/qapi-schema/include-before-err.json:2:13: expected ':'
+include-before-err.json:2:13: expected ':'

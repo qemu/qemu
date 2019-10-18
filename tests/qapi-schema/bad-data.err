@@ -1,2 +1,2 @@
-tests/qapi-schema/bad-data.json: In command 'oops':
-tests/qapi-schema/bad-data.json:2: 'data' cannot be an array
+bad-data.json: In command 'oops':
+bad-data.json:2: 'data' cannot be an array

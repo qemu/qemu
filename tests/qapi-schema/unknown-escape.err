@@ -1,1 +1,1 @@
-tests/qapi-schema/unknown-escape.json:3:21: unknown escape \x
+unknown-escape.json:3:21: unknown escape \x

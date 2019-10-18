@@ -1,2 +1,2 @@
-tests/qapi-schema/features-duplicate-name.json: In struct 'FeatureStruct0':
-tests/qapi-schema/features-duplicate-name.json:1: feature 'foo' collides with feature 'foo'
+features-duplicate-name.json: In struct 'FeatureStruct0':
+features-duplicate-name.json:1: feature 'foo' collides with feature 'foo'

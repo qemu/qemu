@@ -1,2 +1,2 @@
-tests/qapi-schema/alternate-empty.json: In alternate 'Alt':
-tests/qapi-schema/alternate-empty.json:2: 'data' must not be empty
+alternate-empty.json: In alternate 'Alt':
+alternate-empty.json:2: 'data' must not be empty
