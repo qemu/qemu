@@ -130,7 +130,6 @@ static void pc_q35_init(MachineState *machine)
     MemoryRegion *ram_memory;
     GSIState *gsi_state;
     ISABus *isa_bus;
-    qemu_irq *i8259;
     int i;
     ICH9LPCState *ich9_lpc;
     PCIDevice *ahci;
@@ -257,18 +256,7 @@ static void pc_q35_init(MachineState *machine)
     pci_bus_set_route_irq_fn(host_bus, ich9_route_intx_pin_to_irq);
     isa_bus = ich9_lpc->isa_bus;
 
-    if (kvm_pic_in_kernel()) {
-        i8259 = kvm_i8259_init(isa_bus);
-    } else if (xen_enabled()) {
-        i8259 = xen_interrupt_controller_init();
-    } else {
-        i8259 = i8259_init(isa_bus, pc_allocate_cpu_irq());
-    }
-
-    for (i = 0; i < ISA_NUM_IRQS; i++) {
-        gsi_state->i8259_irq[i] = i8259[i];
-    }
-    g_free(i8259);
+    pc_i8259_create(isa_bus, gsi_state->i8259_irq);
 
     if (pcmc->pci_enabled) {
         ioapic_init_gsi(gsi_state, "q35");
