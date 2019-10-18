@@ -44,7 +44,7 @@
 typedef struct SMBusEEPROMDevice {
     SMBusDevice smbusdev;
     uint8_t data[SMBUS_EEPROM_SIZE];
-    void *init_data;
+    uint8_t *init_data;
     uint8_t offset;
     bool accessed;
 } SMBusEEPROMDevice;
@@ -129,13 +129,13 @@ static void smbus_eeprom_reset(DeviceState *dev)
 
 static void smbus_eeprom_realize(DeviceState *dev, Error **errp)
 {
-    smbus_eeprom_reset(dev);
-}
+    SMBusEEPROMDevice *eeprom = SMBUS_EEPROM(dev);
 
-static Property smbus_eeprom_properties[] = {
-    DEFINE_PROP_PTR("data", SMBusEEPROMDevice, init_data),
-    DEFINE_PROP_END_OF_LIST(),
-};
+    smbus_eeprom_reset(dev);
+    if (eeprom->init_data == NULL) {
+        error_setg(errp, "init_data cannot be NULL");
+    }
+}
 
 static void smbus_eeprom_class_initfn(ObjectClass *klass, void *data)
 {
@@ -146,9 +146,8 @@ static void smbus_eeprom_class_initfn(ObjectClass *klass, void *data)
     dc->reset = smbus_eeprom_reset;
     sc->receive_byte = eeprom_receive_byte;
     sc->write_data = eeprom_write_data;
-    dc->props = smbus_eeprom_properties;
     dc->vmsd = &vmstate_smbus_eeprom;
-    /* Reason: pointer property "data" */
+    /* Reason: init_data */
     dc->user_creatable = false;
 }
 
@@ -172,7 +171,8 @@ void smbus_eeprom_init_one(I2CBus *smbus, uint8_t address, uint8_t *eeprom_buf)
 
     dev = qdev_create((BusState *) smbus, TYPE_SMBUS_EEPROM);
     qdev_prop_set_uint8(dev, "address", address);
-    qdev_prop_set_ptr(dev, "data", eeprom_buf);
+    /* FIXME: use an array of byte or block backend property? */
+    SMBUS_EEPROM(dev)->init_data = eeprom_buf;
     qdev_init_nofail(dev);
 }
 
