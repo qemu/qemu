@@ -31,13 +31,20 @@ ifneq ($(wildcard config-host.mak),)
 export SRC_PATH
 
 # TODO don't duplicate $(SRC_PATH)/Makefile's qapi-py here
-qapi-py = $(SRC_PATH)/scripts/qapi/commands.py \
-$(SRC_PATH)/scripts/qapi/events.py \
-$(SRC_PATH)/scripts/qapi/introspect.py \
-$(SRC_PATH)/scripts/qapi/types.py \
-$(SRC_PATH)/scripts/qapi/visit.py \
+qapi-py = $(SRC_PATH)/scripts/qapi/__init__.py \
+$(SRC_PATH)/scripts/qapi/commands.py \
 $(SRC_PATH)/scripts/qapi/common.py \
 $(SRC_PATH)/scripts/qapi/doc.py \
+$(SRC_PATH)/scripts/qapi/error.py \
+$(SRC_PATH)/scripts/qapi/events.py \
+$(SRC_PATH)/scripts/qapi/expr.py \
+$(SRC_PATH)/scripts/qapi/gen.py \
+$(SRC_PATH)/scripts/qapi/introspect.py \
+$(SRC_PATH)/scripts/qapi/parser.py \
+$(SRC_PATH)/scripts/qapi/schema.py \
+$(SRC_PATH)/scripts/qapi/source.py \
+$(SRC_PATH)/scripts/qapi/types.py \
+$(SRC_PATH)/scripts/qapi/visit.py \
 $(SRC_PATH)/scripts/qapi-gen.py
 
 # Get the list of all supported sysemu targets

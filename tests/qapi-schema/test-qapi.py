@@ -12,15 +12,19 @@
 #
 
 from __future__ import print_function
+
 import argparse
 import difflib
 import os
 import sys
+
+from qapi.error import QAPIError
+from qapi.schema import QAPISchema, QAPISchemaVisitor
+
 if sys.version_info[0] < 3:
     from cStringIO import StringIO
 else:
     from io import StringIO
-from qapi.common import QAPIError, QAPISchema, QAPISchemaVisitor
 
 
 class QAPISchemaTestVisitor(QAPISchemaVisitor):

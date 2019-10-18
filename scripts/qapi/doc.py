@@ -7,7 +7,8 @@
 
 from __future__ import print_function
 import re
-import qapi.common
+from qapi.gen import QAPIGenDoc, QAPISchemaVisitor
+
 
 MSG_FMT = """
 @deftypefn {type} {{}} {name}
@@ -216,10 +217,10 @@ def texi_entity(doc, what, ifcond, base=None, variants=None,
             + texi_sections(doc, ifcond))
 
 
-class QAPISchemaGenDocVisitor(qapi.common.QAPISchemaVisitor):
+class QAPISchemaGenDocVisitor(QAPISchemaVisitor):
     def __init__(self, prefix):
         self._prefix = prefix
-        self._gen = qapi.common.QAPIGenDoc(self._prefix + 'qapi-doc.texi')
+        self._gen = QAPIGenDoc(self._prefix + 'qapi-doc.texi')
         self.cur_doc = None
 
     def write(self, output_dir):

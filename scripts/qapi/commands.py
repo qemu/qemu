@@ -14,6 +14,7 @@ See the COPYING file in the top-level directory.
 """
 
 from qapi.common import *
+from qapi.gen import QAPIGenCCode, QAPISchemaModularCVisitor, ifcontext
 
 
 def gen_command_decl(name, arg_type, boxed, ret_type):

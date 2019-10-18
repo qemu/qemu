@@ -14,6 +14,8 @@ This work is licensed under the terms of the GNU GPL, version 2.
 """
 
 from qapi.common import *
+from qapi.gen import QAPISchemaModularCVisitor, ifcontext
+from qapi.schema import QAPISchemaEnumMember, QAPISchemaObjectType
 
 
 # variants must be emitted before their container; track what has already
