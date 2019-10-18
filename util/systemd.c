@@ -60,8 +60,8 @@ unsigned int check_socket_activation(void)
              * and we should exit.
              */
             error_report("Socket activation failed: "
-                         "invalid file descriptor fd = %d: %m",
-                         fd);
+                         "invalid file descriptor fd = %d: %s",
+                         fd, g_strerror(errno));
             exit(EXIT_FAILURE);
         }
     }
