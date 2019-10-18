@@ -498,6 +498,16 @@ void signal_init(void)
         target_to_host_signal_table[j] = i;
     }
 
+#ifdef TARGET_HEXAGON
+    /*
+     * Hexagon uses signal 33 for pthread cancel, but this is also
+     * used by the host pthreads, so cannot be overridden.
+     * Therefore, we map Hexagon signal 33 to host signal 35.
+     */
+    host_to_target_signal_table[35] = 33;
+    target_to_host_signal_table[33] = 35;
+#endif
+
     /* Set the signal mask from the host mask. */
     sigprocmask(0, 0, &ts->signal_mask);
 
