@@ -102,7 +102,7 @@ class LinuxSSH(Test):
         self.vm.add_args('-no-reboot',
                          '-kernel', kernel_path,
                          '-append', kernel_command_line,
-                         '-hda', image_path,
+                         '-drive', 'file=%s,snapshot=on' % image_path,
                          '-netdev', 'user,id=vnet,hostfwd=:127.0.0.1:0-:22',
                          '-device', 'pcnet,netdev=vnet')
         self.vm.launch()
