@@ -51,8 +51,9 @@ static void bcm2836_init(Object *obj)
     int n;
 
     for (n = 0; n < BCM283X_NCPUS; n++) {
-        object_initialize_child(obj, "cpu[*]", &s->cpus[n], sizeof(s->cpus[n]),
-                                info->cpu_type, &error_abort, NULL);
+        object_initialize_child(obj, "cpu[*]", &s->cpu[n].core,
+                                sizeof(s->cpu[n].core), info->cpu_type,
+                                &error_abort, NULL);
     }
 
     sysbus_init_child_obj(obj, "control", &s->control, sizeof(s->control),
@@ -122,10 +123,10 @@ static void bcm2836_realize(DeviceState *dev, Error **errp)
 
     for (n = 0; n < BCM283X_NCPUS; n++) {
         /* TODO: this should be converted to a property of ARM_CPU */
-        s->cpus[n].mp_affinity = (info->clusterid << 8) | n;
+        s->cpu[n].core.mp_affinity = (info->clusterid << 8) | n;
 
         /* set periphbase/CBAR value for CPU-local registers */
-        object_property_set_int(OBJECT(&s->cpus[n]),
+        object_property_set_int(OBJECT(&s->cpu[n].core),
                                 info->peri_base,
                                 "reset-cbar", &err);
         if (err) {
@@ -134,14 +135,15 @@ static void bcm2836_realize(DeviceState *dev, Error **errp)
         }
 
         /* start powered off if not enabled */
-        object_property_set_bool(OBJECT(&s->cpus[n]), n >= s->enabled_cpus,
+        object_property_set_bool(OBJECT(&s->cpu[n].core), n >= s->enabled_cpus,
                                  "start-powered-off", &err);
         if (err) {
             error_propagate(errp, err);
             return;
         }
 
-        object_property_set_bool(OBJECT(&s->cpus[n]), true, "realized", &err);
+        object_property_set_bool(OBJECT(&s->cpu[n].core), true,
+                                 "realized", &err);
         if (err) {
             error_propagate(errp, err);
             return;
@@ -149,18 +151,18 @@ static void bcm2836_realize(DeviceState *dev, Error **errp)
 
         /* Connect irq/fiq outputs from the interrupt controller. */
         qdev_connect_gpio_out_named(DEVICE(&s->control), "irq", n,
-                qdev_get_gpio_in(DEVICE(&s->cpus[n]), ARM_CPU_IRQ));
+                qdev_get_gpio_in(DEVICE(&s->cpu[n].core), ARM_CPU_IRQ));
         qdev_connect_gpio_out_named(DEVICE(&s->control), "fiq", n,
-                qdev_get_gpio_in(DEVICE(&s->cpus[n]), ARM_CPU_FIQ));
+                qdev_get_gpio_in(DEVICE(&s->cpu[n].core), ARM_CPU_FIQ));
 
         /* Connect timers from the CPU to the interrupt controller */
-        qdev_connect_gpio_out(DEVICE(&s->cpus[n]), GTIMER_PHYS,
+        qdev_connect_gpio_out(DEVICE(&s->cpu[n].core), GTIMER_PHYS,
                 qdev_get_gpio_in_named(DEVICE(&s->control), "cntpnsirq", n));
-        qdev_connect_gpio_out(DEVICE(&s->cpus[n]), GTIMER_VIRT,
+        qdev_connect_gpio_out(DEVICE(&s->cpu[n].core), GTIMER_VIRT,
                 qdev_get_gpio_in_named(DEVICE(&s->control), "cntvirq", n));
-        qdev_connect_gpio_out(DEVICE(&s->cpus[n]), GTIMER_HYP,
+        qdev_connect_gpio_out(DEVICE(&s->cpu[n].core), GTIMER_HYP,
                 qdev_get_gpio_in_named(DEVICE(&s->control), "cnthpirq", n));
-        qdev_connect_gpio_out(DEVICE(&s->cpus[n]), GTIMER_SEC,
+        qdev_connect_gpio_out(DEVICE(&s->cpu[n].core), GTIMER_SEC,
                 qdev_get_gpio_in_named(DEVICE(&s->control), "cntpsirq", n));
     }
 }
