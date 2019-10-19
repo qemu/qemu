@@ -43,8 +43,8 @@ class LinuxSSH(Test):
               }
         }
     CPU_INFO = {
-        32: {'kernel_release': '3.2.0-4-4kc-malta'},
-        64: {'kernel_release': '3.2.0-4-5kc-malta'}
+        32: {'cpu': 'MIPS 24Kc', 'kernel_release': '3.2.0-4-4kc-malta'},
+        64: {'cpu': 'MIPS 20Kc', 'kernel_release': '3.2.0-4-5kc-malta'}
         }
 
     def get_url(self, endianess, path=''):
@@ -155,16 +155,16 @@ class LinuxSSH(Test):
         else:
             self.fail('"%s" output does not contain "%s"' % (cmd, exp))
 
-    def run_common_commands(self):
+    def run_common_commands(self, wordsize):
         self.ssh_command_output_contains(
             'cat /proc/cpuinfo',
-            '24Kc')
+            self.CPU_INFO[wordsize]['cpu'])
         self.ssh_command_output_contains(
             'uname -m',
             'mips')
         self.ssh_command_output_contains(
             'uname -r',
-            '3.2.0-4-4kc-malta')
+            self.CPU_INFO[wordsize]['kernel_release'])
         self.ssh_command_output_contains(
             'cat /proc/interrupts',
             'XT-PIC  timer')
@@ -221,7 +221,7 @@ class LinuxSSH(Test):
         stdout, _ = self.ssh_command('uname -a')
         self.assertIn(True, [uname_m + " GNU/Linux" in line for line in stdout])
 
-        self.run_common_commands()
+        self.run_common_commands(wordsize)
         self.shutdown_via_ssh()
 
     def test_mips_malta32eb_kernel3_2_0(self):
