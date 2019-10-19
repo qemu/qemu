@@ -153,9 +153,6 @@ class LinuxSSH(Test):
             'cat /proc/interrupts',
             'eth0')
         self.ssh_command_output_contains(
-            'cat /proc/interrupts',
-            'eth0')
-        self.ssh_command_output_contains(
             'cat /proc/devices',
             'input')
         self.ssh_command_output_contains(
