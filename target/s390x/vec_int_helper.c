@@ -488,7 +488,7 @@ void HELPER(gvec_vmlo##BITS)(void *v1, const void *v2, const void *v3,         \
 {                                                                              \
     int i, j;                                                                  \
                                                                                \
-    for (i = 0, j = 0; i < (128 / TBITS); i++, j += 2) {                       \
+    for (i = 0, j = 1; i < (128 / TBITS); i++, j += 2) {                       \
         const uint##TBITS##_t a = s390_vec_read_element##BITS(v2, j);          \
         const uint##TBITS##_t b = s390_vec_read_element##BITS(v3, j);          \
                                                                                \
