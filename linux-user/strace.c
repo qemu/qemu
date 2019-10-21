@@ -1707,7 +1707,7 @@ print_socket(const struct syscallname *name,
 
 #endif
 
-#if defined(TARGET_NR_socketcall)
+#if defined(TARGET_NR_socketcall) || defined(TARGET_NR_bind)
 
 static void print_sockfd(abi_long sockfd, int last)
 {
@@ -2050,6 +2050,19 @@ print_socketcall(const struct syscallname *name,
     print_raw_param(TARGET_ABI_FMT_ld, arg3, 0);
     print_raw_param(TARGET_ABI_FMT_ld, arg4, 0);
     print_raw_param(TARGET_ABI_FMT_ld, arg5, 0);
+    print_syscall_epilogue(name);
+}
+#endif
+
+#if defined(TARGET_NR_bind)
+static void
+print_bind(const struct syscallname *name,
+           abi_long arg0, abi_long arg1, abi_long arg2,
+           abi_long arg3, abi_long arg4, abi_long arg5)
+{
+    print_syscall_prologue(name);
+    print_sockfd(arg0, 0);
+    print_sockaddr(arg1, arg2, 1);
     print_syscall_epilogue(name);
 }
 #endif

@@ -41,7 +41,7 @@
 { TARGET_NR_bdflush, "bdflush" , NULL, NULL, NULL },
 #endif
 #ifdef TARGET_NR_bind
-{ TARGET_NR_bind, "bind" , NULL, NULL, NULL },
+{ TARGET_NR_bind, "bind" , NULL, print_bind, NULL },
 #endif
 #ifdef TARGET_NR_bpf
 { TARGET_NR_bpf, "bpf" , NULL, NULL, NULL },
