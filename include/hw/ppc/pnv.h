@@ -24,6 +24,7 @@
 #include "hw/sysbus.h"
 #include "hw/ipmi/ipmi.h"
 #include "hw/ppc/pnv_lpc.h"
+#include "hw/ppc/pnv_pnor.h"
 #include "hw/ppc/pnv_psi.h"
 #include "hw/ppc/pnv_occ.h"
 #include "hw/ppc/pnv_homer.h"
@@ -175,6 +176,8 @@ typedef struct PnvMachineState {
 
     IPMIBmc      *bmc;
     Notifier     powerdown_notifier;
+
+    PnvPnor      *pnor;
 } PnvMachineState;
 
 static inline bool pnv_chip_is_power9(const PnvChip *chip)

@@ -44,6 +44,7 @@
 #include "hw/ppc/xics.h"
 #include "hw/qdev-properties.h"
 #include "hw/ppc/pnv_xscom.h"
+#include "hw/ppc/pnv_pnor.h"
 
 #include "hw/isa/isa.h"
 #include "hw/boards.h"
@@ -633,6 +634,8 @@ static void pnv_init(MachineState *machine)
     long fw_size;
     int i;
     char *chip_typename;
+    DriveInfo *pnor = drive_get(IF_MTD, 0, 0);
+    DeviceState *dev;
 
     /* allocate RAM */
     if (machine->ram_size < (1 * GiB)) {
@@ -643,6 +646,17 @@ static void pnv_init(MachineState *machine)
     memory_region_allocate_system_memory(ram, NULL, "pnv.ram",
                                          machine->ram_size);
     memory_region_add_subregion(get_system_memory(), 0, ram);
+
+    /*
+     * Create our simple PNOR device
+     */
+    dev = qdev_create(NULL, TYPE_PNV_PNOR);
+    if (pnor) {
+        qdev_prop_set_drive(dev, "drive", blk_by_legacy_dinfo(pnor),
+                            &error_abort);
+    }
+    qdev_init_nofail(dev);
+    pnv->pnor = PNV_PNOR(dev);
 
     /* load skiboot firmware  */
     if (bios_name == NULL) {
