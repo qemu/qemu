@@ -84,7 +84,7 @@ typedef struct SerialMM {
 
     SerialState serial;
 
-    int it_shift;
+    uint8_t regshift;
 } SerialMM;
 
 extern const VMStateDescription vmstate_serial;
@@ -101,7 +101,7 @@ void serial_set_frequency(SerialState *s, uint32_t frequency);
 SerialState *serial_init(int base, qemu_irq irq, int baudbase,
                          Chardev *chr, MemoryRegion *system_io);
 SerialMM *serial_mm_init(MemoryRegion *address_space,
-                         hwaddr base, int it_shift,
+                         hwaddr base, int regshift,
                          qemu_irq irq, int baudbase,
                          Chardev *chr, enum device_endian end);
 
