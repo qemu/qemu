@@ -58,7 +58,7 @@ typedef struct SerialState {
     CharBackend chr;
     int last_break_enable;
     int it_shift;
-    int baudbase;
+    uint32_t baudbase;
     uint32_t tsr_retry;
     guint watch_tag;
     uint32_t wakeup;

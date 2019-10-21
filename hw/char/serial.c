@@ -988,7 +988,7 @@ SerialState *serial_init(int base, qemu_irq irq, int baudbase,
     SerialState *s = SERIAL(dev);
 
     s->irq = irq;
-    s->baudbase = baudbase;
+    qdev_prop_set_uint32(dev, "baudbase", baudbase);
     qdev_prop_set_chr(dev, "chardev", chr);
     serial_realize_core(s, &error_fatal);
     qdev_set_legacy_instance_id(dev, base, 2);
@@ -1002,6 +1002,7 @@ SerialState *serial_init(int base, qemu_irq irq, int baudbase,
 
 static Property serial_properties[] = {
     DEFINE_PROP_CHR("chardev", SerialState, chr),
+    DEFINE_PROP_UINT32("baudbase", SerialState, baudbase, 115200),
     DEFINE_PROP_END_OF_LIST(),
 };
 
@@ -1072,7 +1073,7 @@ SerialState *serial_mm_init(MemoryRegion *address_space,
 
     s->it_shift = it_shift;
     s->irq = irq;
-    s->baudbase = baudbase;
+    qdev_prop_set_uint32(dev, "baudbase", baudbase);
     qdev_prop_set_chr(dev, "chardev", chr);
 
     serial_realize_core(s, &error_fatal);

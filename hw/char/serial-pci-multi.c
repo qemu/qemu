@@ -106,7 +106,6 @@ static void multi_serial_pci_realize(PCIDevice *dev, Error **errp)
 
     for (i = 0; i < nports; i++) {
         s = pci->state + i;
-        s->baudbase = 115200;
         serial_realize_core(s, &err);
         if (err != NULL) {
             error_propagate(errp, err);
