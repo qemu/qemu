@@ -159,7 +159,7 @@ class TestEnv(object):
             os.makedirs(self.current_dir)
         except OSError as e:
             print("Error: The working directory '%s' cannot be used. Reason: %s"\
-                % (self.work_dir, e[1]), file=sys.stderr)
+                % (self.work_dir, e.strerror), file=sys.stderr)
             raise TestException
         self.log = open(os.path.join(self.current_dir, "test.log"), "w")
         self.parent_log = open(run_log, "a")
@@ -246,7 +246,7 @@ class TestEnv(object):
             except OSError as e:
                 multilog("%sError: Start of '%s' failed. Reason: %s\n\n"
                          % (test_summary, os.path.basename(current_cmd[0]),
-                            e[1]),
+                            e.strerror),
                          sys.stderr, self.log, self.parent_log)
                 raise TestException
 
