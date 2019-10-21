@@ -990,8 +990,7 @@ SerialState *serial_init(int base, qemu_irq irq, int baudbase,
     s->baudbase = baudbase;
     qemu_chr_fe_init(&s->chr, chr, &error_abort);
     serial_realize_core(s, &error_fatal);
-
-    vmstate_register(NULL, base, &vmstate_serial, s);
+    qdev_set_legacy_instance_id(dev, base, 2);
     qdev_init_nofail(dev);
 
     memory_region_init_io(&s->io, NULL, &serial_io_ops, s, "serial", 8);
@@ -1006,6 +1005,7 @@ static void serial_class_init(ObjectClass *klass, void *data)
 
     /* internal device for serialio/serialmm, not user-creatable */
     dc->user_creatable = false;
+    dc->vmsd = &vmstate_serial;
 }
 
 static const TypeInfo serial_info = {
@@ -1069,7 +1069,7 @@ SerialState *serial_mm_init(MemoryRegion *address_space,
     qemu_chr_fe_init(&s->chr, chr, &error_abort);
 
     serial_realize_core(s, &error_fatal);
-    vmstate_register(NULL, base, &vmstate_serial, s);
+    qdev_set_legacy_instance_id(dev, base, 2);
     qdev_init_nofail(dev);
 
     memory_region_init_io(&s->io, NULL, &serial_mm_ops[end], s,
