@@ -2187,13 +2187,13 @@ static void gen_sbi2_i64(TCGv_i64 dl, TCGv_i64 dh, TCGv_i64 al, TCGv_i64 ah,
                          TCGv_i64 bl, TCGv_i64 bh, TCGv_i64 cl, TCGv_i64 ch)
 {
     TCGv_i64 tl = tcg_temp_new_i64();
-    TCGv_i64 zero = tcg_const_i64(0);
+    TCGv_i64 th = tcg_temp_new_i64();
 
-    tcg_gen_andi_i64(tl, cl, 1);
-    tcg_gen_sub2_i64(dl, dh, al, ah, bl, bh);
-    tcg_gen_sub2_i64(dl, dh, dl, dh, tl, zero);
+    tcg_gen_not_i64(tl, bl);
+    tcg_gen_not_i64(th, bh);
+    gen_ac2_i64(dl, dh, al, ah, tl, th, cl, ch);
     tcg_temp_free_i64(tl);
-    tcg_temp_free_i64(zero);
+    tcg_temp_free_i64(th);
 }
 
 static DisasJumpType op_vsbi(DisasContext *s, DisasOps *o)
