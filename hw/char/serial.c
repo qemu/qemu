@@ -934,8 +934,10 @@ static int serial_be_change(void *opaque)
     return 0;
 }
 
-void serial_realize_core(SerialState *s, Error **errp)
+static void serial_realize(DeviceState *dev, Error **errp)
 {
+    SerialState *s = SERIAL(dev);
+
     s->modem_status_poll = timer_new_ns(QEMU_CLOCK_VIRTUAL, (QEMUTimerCB *) serial_update_msl, s);
 
     s->fifo_timeout_timer = timer_new_ns(QEMU_CLOCK_VIRTUAL, (QEMUTimerCB *) fifo_timeout_int, s);
@@ -990,7 +992,6 @@ SerialState *serial_init(int base, qemu_irq irq, int baudbase,
     s->irq = irq;
     qdev_prop_set_uint32(dev, "baudbase", baudbase);
     qdev_prop_set_chr(dev, "chardev", chr);
-    serial_realize_core(s, &error_fatal);
     qdev_set_legacy_instance_id(dev, base, 2);
     qdev_init_nofail(dev);
 
@@ -1012,6 +1013,7 @@ static void serial_class_init(ObjectClass *klass, void* data)
 
     /* internal device for serialio/serialmm, not user-creatable */
     dc->user_creatable = false;
+    dc->realize = serial_realize;
     dc->vmsd = &vmstate_serial;
     dc->props = serial_properties;
 }
@@ -1075,8 +1077,6 @@ SerialState *serial_mm_init(MemoryRegion *address_space,
     s->irq = irq;
     qdev_prop_set_uint32(dev, "baudbase", baudbase);
     qdev_prop_set_chr(dev, "chardev", chr);
-
-    serial_realize_core(s, &error_fatal);
     qdev_set_legacy_instance_id(dev, base, 2);
     qdev_init_nofail(dev);
 
