@@ -4381,6 +4381,9 @@ int main(int argc, char **argv, char **envp)
     ds = init_displaystate();
     qemu_display_init(ds, &dpy);
 
+    /* connect semihosting console input if requested */
+    qemu_semihosting_console_init();
+
     /* must be after terminal init, SDL library changes signal handlers */
     os_setup_signal_handling();
 
