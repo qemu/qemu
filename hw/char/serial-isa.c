@@ -111,10 +111,19 @@ static void serial_isa_class_initfn(ObjectClass *klass, void *data)
     set_bit(DEVICE_CATEGORY_INPUT, dc->categories);
 }
 
+static void serial_isa_initfn(Object *o)
+{
+    ISASerialState *self = ISA_SERIAL(o);
+
+    object_initialize_child(o, "serial", &self->state, sizeof(self->state),
+                            TYPE_SERIAL, &error_abort, NULL);
+}
+
 static const TypeInfo serial_isa_info = {
     .name          = TYPE_ISA_SERIAL,
     .parent        = TYPE_ISA_DEVICE,
     .instance_size = sizeof(ISASerialState),
+    .instance_init = serial_isa_initfn,
     .class_init    = serial_isa_class_initfn,
 };
 

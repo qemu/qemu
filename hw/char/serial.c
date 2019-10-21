@@ -983,9 +983,8 @@ const MemoryRegionOps serial_io_ops = {
 SerialState *serial_init(int base, qemu_irq irq, int baudbase,
                          Chardev *chr, MemoryRegion *system_io)
 {
-    SerialState *s;
-
-    s = g_malloc0(sizeof(SerialState));
+    DeviceState *dev = DEVICE(object_new(TYPE_SERIAL));
+    SerialState *s = SERIAL(dev);
 
     s->irq = irq;
     s->baudbase = baudbase;
@@ -993,12 +992,28 @@ SerialState *serial_init(int base, qemu_irq irq, int baudbase,
     serial_realize_core(s, &error_fatal);
 
     vmstate_register(NULL, base, &vmstate_serial, s);
+    qdev_init_nofail(dev);
 
     memory_region_init_io(&s->io, NULL, &serial_io_ops, s, "serial", 8);
     memory_region_add_subregion(system_io, base, &s->io);
 
     return s;
 }
+
+static void serial_class_init(ObjectClass *klass, void *data)
+{
+    DeviceClass *dc = DEVICE_CLASS(klass);
+
+    /* internal device for serialio/serialmm, not user-creatable */
+    dc->user_creatable = false;
+}
+
+static const TypeInfo serial_info = {
+    .name = TYPE_SERIAL,
+    .parent = TYPE_DEVICE,
+    .instance_size = sizeof(SerialState),
+    .class_init = serial_class_init,
+};
 
 /* Memory mapped interface */
 static uint64_t serial_mm_read(void *opaque, hwaddr addr,
@@ -1045,9 +1060,8 @@ SerialState *serial_mm_init(MemoryRegion *address_space,
                             qemu_irq irq, int baudbase,
                             Chardev *chr, enum device_endian end)
 {
-    SerialState *s;
-
-    s = g_malloc0(sizeof(SerialState));
+    DeviceState *dev = DEVICE(object_new(TYPE_SERIAL));
+    SerialState *s = SERIAL(dev);
 
     s->it_shift = it_shift;
     s->irq = irq;
@@ -1056,9 +1070,17 @@ SerialState *serial_mm_init(MemoryRegion *address_space,
 
     serial_realize_core(s, &error_fatal);
     vmstate_register(NULL, base, &vmstate_serial, s);
+    qdev_init_nofail(dev);
 
     memory_region_init_io(&s->io, NULL, &serial_mm_ops[end], s,
                           "serial", 8 << it_shift);
     memory_region_add_subregion(address_space, base, &s->io);
     return s;
 }
+
+static void serial_register_types(void)
+{
+    type_register_static(&serial_info);
+}
+
+type_init(serial_register_types)
