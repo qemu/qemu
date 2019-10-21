@@ -70,15 +70,17 @@ static void s390_vec_sar(S390Vector *d, const S390Vector *a, uint64_t count)
         d->doubleword[0] = a->doubleword[0];
         d->doubleword[1] = a->doubleword[1];
     } else if (count == 64) {
+        tmp = (int64_t)a->doubleword[0] >> 63;
         d->doubleword[1] = a->doubleword[0];
-        d->doubleword[0] = 0;
+        d->doubleword[0] = tmp;
     } else if (count < 64) {
         tmp = a->doubleword[1] >> count;
         d->doubleword[1] = deposit64(tmp, 64 - count, count, a->doubleword[0]);
         d->doubleword[0] = (int64_t)a->doubleword[0] >> count;
     } else {
+        tmp = (int64_t)a->doubleword[0] >> 63;
         d->doubleword[1] = (int64_t)a->doubleword[0] >> (count - 64);
-        d->doubleword[0] = 0;
+        d->doubleword[0] = tmp;
     }
 }
 
