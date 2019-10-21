@@ -227,13 +227,11 @@ static void slavio_timer_mem_writel(void *opaque, hwaddr addr,
             // set limit, reset counter
             qemu_irq_lower(t->irq);
             t->limit = val & TIMER_MAX_COUNT32;
-            if (t->timer) {
-                if (t->limit == 0) { /* free-run */
-                    ptimer_set_limit(t->timer,
-                                     LIMIT_TO_PERIODS(TIMER_MAX_COUNT32), 1);
-                } else {
-                    ptimer_set_limit(t->timer, LIMIT_TO_PERIODS(t->limit), 1);
-                }
+            if (t->limit == 0) { /* free-run */
+                ptimer_set_limit(t->timer,
+                                 LIMIT_TO_PERIODS(TIMER_MAX_COUNT32), 1);
+            } else {
+                ptimer_set_limit(t->timer, LIMIT_TO_PERIODS(t->limit), 1);
             }
         }
         break;
