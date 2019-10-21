@@ -950,8 +950,10 @@ static void serial_realize(DeviceState *dev, Error **errp)
     serial_reset(s);
 }
 
-void serial_exit_core(SerialState *s)
+static void serial_unrealize(DeviceState *dev, Error **errp)
 {
+    SerialState *s = SERIAL(dev);
+
     qemu_chr_fe_deinit(&s->chr, false);
 
     timer_del(s->modem_status_poll);
@@ -1014,6 +1016,7 @@ static void serial_class_init(ObjectClass *klass, void* data)
     /* internal device for serialio/serialmm, not user-creatable */
     dc->user_creatable = false;
     dc->realize = serial_realize;
+    dc->unrealize = serial_unrealize;
     dc->vmsd = &vmstate_serial;
     dc->props = serial_properties;
 }
