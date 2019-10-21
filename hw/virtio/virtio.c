@@ -3665,14 +3665,6 @@ static void virtio_device_stop_ioeventfd_impl(VirtIODevice *vdev)
     }
 }
 
-void virtio_device_stop_ioeventfd(VirtIODevice *vdev)
-{
-    BusState *qbus = qdev_get_parent_bus(DEVICE(vdev));
-    VirtioBusState *vbus = VIRTIO_BUS(qbus);
-
-    virtio_bus_stop_ioeventfd(vbus);
-}
-
 int virtio_device_grab_ioeventfd(VirtIODevice *vdev)
 {
     BusState *qbus = qdev_get_parent_bus(DEVICE(vdev));
