@@ -30,7 +30,6 @@
 #include "hw/sysbus.h"
 #include "migration/vmstate.h"
 #include "trace.h"
-#include "qemu/main-loop.h"
 #include "qemu/module.h"
 
 /*
@@ -213,6 +212,7 @@ static void slavio_timer_mem_writel(void *opaque, hwaddr addr,
     saddr = addr >> 2;
     switch (saddr) {
     case TIMER_LIMIT:
+        ptimer_transaction_begin(t->timer);
         if (slavio_timer_is_user(tc)) {
             uint64_t count;
 
@@ -234,6 +234,7 @@ static void slavio_timer_mem_writel(void *opaque, hwaddr addr,
                 ptimer_set_limit(t->timer, LIMIT_TO_PERIODS(t->limit), 1);
             }
         }
+        ptimer_transaction_commit(t->timer);
         break;
     case TIMER_COUNTER:
         if (slavio_timer_is_user(tc)) {
@@ -245,7 +246,9 @@ static void slavio_timer_mem_writel(void *opaque, hwaddr addr,
             t->reached = 0;
             count = ((uint64_t)t->counthigh) << 32 | t->count;
             trace_slavio_timer_mem_writel_limit(timer_index, count);
+            ptimer_transaction_begin(t->timer);
             ptimer_set_count(t->timer, LIMIT_TO_PERIODS(t->limit - count));
+            ptimer_transaction_commit(t->timer);
         } else {
             trace_slavio_timer_mem_writel_counter_invalid();
         }
@@ -253,13 +256,16 @@ static void slavio_timer_mem_writel(void *opaque, hwaddr addr,
     case TIMER_COUNTER_NORST:
         // set limit without resetting counter
         t->limit = val & TIMER_MAX_COUNT32;
+        ptimer_transaction_begin(t->timer);
         if (t->limit == 0) { /* free-run */
             ptimer_set_limit(t->timer, LIMIT_TO_PERIODS(TIMER_MAX_COUNT32), 0);
         } else {
             ptimer_set_limit(t->timer, LIMIT_TO_PERIODS(t->limit), 0);
         }
+        ptimer_transaction_commit(t->timer);
         break;
     case TIMER_STATUS:
+        ptimer_transaction_begin(t->timer);
         if (slavio_timer_is_user(tc)) {
             // start/stop user counter
             if (val & 1) {
@@ -271,6 +277,7 @@ static void slavio_timer_mem_writel(void *opaque, hwaddr addr,
             }
         }
         t->run = val & 1;
+        ptimer_transaction_commit(t->timer);
         break;
     case TIMER_MODE:
         if (timer_index == 0) {
@@ -280,6 +287,7 @@ static void slavio_timer_mem_writel(void *opaque, hwaddr addr,
                 unsigned int processor = 1 << i;
                 CPUTimerState *curr_timer = &s->cputimer[i + 1];
 
+                ptimer_transaction_begin(curr_timer->timer);
                 // check for a change in timer mode for this processor
                 if ((val & processor) != (s->cputimer_mode & processor)) {
                     if (val & processor) { // counter -> user timer
@@ -306,6 +314,7 @@ static void slavio_timer_mem_writel(void *opaque, hwaddr addr,
                         trace_slavio_timer_mem_writel_mode_counter(timer_index);
                     }
                 }
+                ptimer_transaction_commit(curr_timer->timer);
             }
         } else {
             trace_slavio_timer_mem_writel_mode_invalid();
@@ -365,10 +374,12 @@ static void slavio_timer_reset(DeviceState *d)
         curr_timer->count = 0;
         curr_timer->reached = 0;
         if (i <= s->num_cpus) {
+            ptimer_transaction_begin(curr_timer->timer);
             ptimer_set_limit(curr_timer->timer,
                              LIMIT_TO_PERIODS(TIMER_MAX_COUNT32), 1);
             ptimer_run(curr_timer->timer, 0);
             curr_timer->run = 1;
+            ptimer_transaction_commit(curr_timer->timer);
         }
     }
     s->cputimer_mode = 0;
@@ -378,7 +389,6 @@ static void slavio_timer_init(Object *obj)
 {
     SLAVIO_TIMERState *s = SLAVIO_TIMER(obj);
     SysBusDevice *dev = SYS_BUS_DEVICE(obj);
-    QEMUBH *bh;
     unsigned int i;
     TimerContext *tc;
 
@@ -390,9 +400,11 @@ static void slavio_timer_init(Object *obj)
         tc->s = s;
         tc->timer_index = i;
 
-        bh = qemu_bh_new(slavio_timer_irq, tc);
-        s->cputimer[i].timer = ptimer_init_with_bh(bh, PTIMER_POLICY_DEFAULT);
+        s->cputimer[i].timer = ptimer_init(slavio_timer_irq, tc,
+                                           PTIMER_POLICY_DEFAULT);
+        ptimer_transaction_begin(s->cputimer[i].timer);
         ptimer_set_period(s->cputimer[i].timer, TIMER_PERIOD);
+        ptimer_transaction_commit(s->cputimer[i].timer);
 
         size = i == 0 ? SYS_TIMER_SIZE : CPU_TIMER_SIZE;
         snprintf(timer_name, sizeof(timer_name), "timer-%i", i);
