@@ -593,7 +593,7 @@ void HELPER(gvec_vscbi##BITS)(void *v1, const void *v2, const void *v3,        \
         const uint##BITS##_t a = s390_vec_read_element##BITS(v2, i);           \
         const uint##BITS##_t b = s390_vec_read_element##BITS(v3, i);           \
                                                                                \
-        s390_vec_write_element##BITS(v1, i, a < b);                            \
+        s390_vec_write_element##BITS(v1, i, a >= b);                           \
     }                                                                          \
 }
 DEF_VSCBI(8)
