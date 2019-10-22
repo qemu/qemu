@@ -250,38 +250,6 @@ DeviceState *sysbus_create_varargs(const char *name,
     return dev;
 }
 
-DeviceState *sysbus_try_create_varargs(const char *name,
-                                       hwaddr addr, ...)
-{
-    DeviceState *dev;
-    SysBusDevice *s;
-    va_list va;
-    qemu_irq irq;
-    int n;
-
-    dev = qdev_try_create(NULL, name);
-    if (!dev) {
-        return NULL;
-    }
-    s = SYS_BUS_DEVICE(dev);
-    qdev_init_nofail(dev);
-    if (addr != (hwaddr)-1) {
-        sysbus_mmio_map(s, 0, addr);
-    }
-    va_start(va, addr);
-    n = 0;
-    while (1) {
-        irq = va_arg(va, qemu_irq);
-        if (!irq) {
-            break;
-        }
-        sysbus_connect_irq(s, n, irq);
-        n++;
-    }
-    va_end(va);
-    return dev;
-}
-
 static void sysbus_dev_print(Monitor *mon, DeviceState *dev, int indent)
 {
     SysBusDevice *s = SYS_BUS_DEVICE(dev);
