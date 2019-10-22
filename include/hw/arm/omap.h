@@ -823,7 +823,6 @@ struct omap_mpu_state_s {
     MemoryRegion mpui_io_iomem;
     MemoryRegion tap_iomem;
     MemoryRegion imif_ram;
-    MemoryRegion emiff_ram;
     MemoryRegion sram;
 
     struct omap_dma_port_if_s {
@@ -835,7 +834,7 @@ struct omap_mpu_state_s {
                         hwaddr addr);
     } port[__omap_dma_port_last];
 
-    unsigned long sdram_size;
+    uint64_t sdram_size;
     unsigned long sram_size;
 
     /* MPUI-TIPB peripherals */
@@ -932,8 +931,7 @@ struct omap_mpu_state_s {
 };
 
 /* omap1.c */
-struct omap_mpu_state_s *omap310_mpu_init(MemoryRegion *system_memory,
-                unsigned long sdram_size,
+struct omap_mpu_state_s *omap310_mpu_init(MemoryRegion *sdram,
                 const char *core);
 
 /* omap2.c */
