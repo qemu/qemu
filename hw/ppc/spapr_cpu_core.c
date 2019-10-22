@@ -32,6 +32,7 @@ static void spapr_reset_vcpu(PowerPCCPU *cpu)
     PowerPCCPUClass *pcc = POWERPC_CPU_GET_CLASS(cpu);
     SpaprCpuState *spapr_cpu = spapr_cpu_state(cpu);
     target_ulong lpcr;
+    SpaprMachineState *spapr = SPAPR_MACHINE(qdev_get_machine());
 
     cpu_reset(cs);
 
@@ -76,9 +77,11 @@ static void spapr_reset_vcpu(PowerPCCPU *cpu)
     spapr_cpu->dtl_addr = 0;
     spapr_cpu->dtl_size = 0;
 
-    spapr_caps_cpu_apply(SPAPR_MACHINE(qdev_get_machine()), cpu);
+    spapr_caps_cpu_apply(spapr, cpu);
 
     kvm_check_mmu(cpu, &error_fatal);
+
+    spapr_irq_cpu_intc_reset(spapr, cpu);
 }
 
 void spapr_cpu_set_entry_state(PowerPCCPU *cpu, target_ulong nip, target_ulong r3)

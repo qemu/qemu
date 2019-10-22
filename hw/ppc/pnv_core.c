@@ -40,10 +40,11 @@ static const char *pnv_core_cpu_typename(PnvCore *pc)
     return cpu_type;
 }
 
-static void pnv_core_cpu_reset(PowerPCCPU *cpu)
+static void pnv_core_cpu_reset(PowerPCCPU *cpu, PnvChip *chip)
 {
     CPUState *cs = CPU(cpu);
     CPUPPCState *env = &cpu->env;
+    PnvChipClass *pcc = PNV_CHIP_GET_CLASS(chip);
 
     cpu_reset(cs);
 
@@ -54,6 +55,8 @@ static void pnv_core_cpu_reset(PowerPCCPU *cpu)
     env->gpr[3] = PNV_FDT_ADDR;
     env->nip = 0x10;
     env->msr |= MSR_HVB; /* Hypervisor mode */
+
+    pcc->intc_reset(chip, cpu);
 }
 
 /*
@@ -200,7 +203,7 @@ static void pnv_core_reset(void *dev)
     int i;
 
     for (i = 0; i < cc->nr_threads; i++) {
-        pnv_core_cpu_reset(pc->threads[i]);
+        pnv_core_cpu_reset(pc->threads[i], pc->chip);
     }
 }
 

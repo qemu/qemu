@@ -547,10 +547,8 @@ void xive_tctx_pic_print_info(XiveTCTX *tctx, Monitor *mon)
     }
 }
 
-static void xive_tctx_reset(void *dev)
+void xive_tctx_reset(XiveTCTX *tctx)
 {
-    XiveTCTX *tctx = XIVE_TCTX(dev);
-
     memset(tctx->regs, 0, sizeof(tctx->regs));
 
     /* Set some defaults */
@@ -607,13 +605,6 @@ static void xive_tctx_realize(DeviceState *dev, Error **errp)
             return;
         }
     }
-
-    qemu_register_reset(xive_tctx_reset, dev);
-}
-
-static void xive_tctx_unrealize(DeviceState *dev, Error **errp)
-{
-    qemu_unregister_reset(xive_tctx_reset, dev);
 }
 
 static int vmstate_xive_tctx_pre_save(void *opaque)
@@ -668,7 +659,6 @@ static void xive_tctx_class_init(ObjectClass *klass, void *data)
 
     dc->desc = "XIVE Interrupt Thread Context";
     dc->realize = xive_tctx_realize;
-    dc->unrealize = xive_tctx_unrealize;
     dc->vmsd = &vmstate_xive_tctx;
     /*
      * Reason: part of XIVE interrupt controller, needs to be wired up

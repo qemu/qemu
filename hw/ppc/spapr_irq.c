@@ -220,6 +220,20 @@ int spapr_irq_cpu_intc_create(SpaprMachineState *spapr,
     return 0;
 }
 
+void spapr_irq_cpu_intc_reset(SpaprMachineState *spapr, PowerPCCPU *cpu)
+{
+    SpaprInterruptController *intcs[] = ALL_INTCS(spapr);
+    int i;
+
+    for (i = 0; i < ARRAY_SIZE(intcs); i++) {
+        SpaprInterruptController *intc = intcs[i];
+        if (intc) {
+            SpaprInterruptControllerClass *sicc = SPAPR_INTC_GET_CLASS(intc);
+            sicc->cpu_intc_reset(intc, cpu);
+        }
+    }
+}
+
 static void spapr_set_irq(void *opaque, int irq, int level)
 {
     SpaprMachineState *spapr = SPAPR_MACHINE(opaque);

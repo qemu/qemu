@@ -553,6 +553,14 @@ static int spapr_xive_cpu_intc_create(SpaprInterruptController *intc,
     return 0;
 }
 
+static void spapr_xive_cpu_intc_reset(SpaprInterruptController *intc,
+                                     PowerPCCPU *cpu)
+{
+    XiveTCTX *tctx = spapr_cpu_state(cpu)->tctx;
+
+    xive_tctx_reset(tctx);
+}
+
 static void spapr_xive_set_irq(SpaprInterruptController *intc, int irq, int val)
 {
     SpaprXive *xive = SPAPR_XIVE(intc);
@@ -697,6 +705,7 @@ static void spapr_xive_class_init(ObjectClass *klass, void *data)
     sicc->activate = spapr_xive_activate;
     sicc->deactivate = spapr_xive_deactivate;
     sicc->cpu_intc_create = spapr_xive_cpu_intc_create;
+    sicc->cpu_intc_reset = spapr_xive_cpu_intc_reset;
     sicc->claim_irq = spapr_xive_claim_irq;
     sicc->free_irq = spapr_xive_free_irq;
     sicc->set_irq = spapr_xive_set_irq;
