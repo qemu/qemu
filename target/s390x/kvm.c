@@ -320,11 +320,17 @@ void kvm_s390_set_max_pagesize(uint64_t pagesize, Error **errp)
     cap_hpage_1m = 1;
 }
 
-int kvm_arch_init(MachineState *ms, KVMState *s)
+static void ccw_machine_class_foreach(ObjectClass *oc, void *opaque)
 {
-    MachineClass *mc = MACHINE_GET_CLASS(ms);
+    MachineClass *mc = MACHINE_CLASS(oc);
 
     mc->default_cpu_type = S390_CPU_TYPE_NAME("host");
+}
+
+int kvm_arch_init(MachineState *ms, KVMState *s)
+{
+    object_class_foreach(ccw_machine_class_foreach, TYPE_S390_CCW_MACHINE,
+                         false, NULL);
 
     if (!kvm_check_extension(kvm_state, KVM_CAP_DEVICE_CTRL)) {
         error_report("KVM is missing capability KVM_CAP_DEVICE_CTRL - "

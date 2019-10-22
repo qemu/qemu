@@ -70,15 +70,17 @@ static void s390_vec_sar(S390Vector *d, const S390Vector *a, uint64_t count)
         d->doubleword[0] = a->doubleword[0];
         d->doubleword[1] = a->doubleword[1];
     } else if (count == 64) {
+        tmp = (int64_t)a->doubleword[0] >> 63;
         d->doubleword[1] = a->doubleword[0];
-        d->doubleword[0] = 0;
+        d->doubleword[0] = tmp;
     } else if (count < 64) {
         tmp = a->doubleword[1] >> count;
         d->doubleword[1] = deposit64(tmp, 64 - count, count, a->doubleword[0]);
         d->doubleword[0] = (int64_t)a->doubleword[0] >> count;
     } else {
+        tmp = (int64_t)a->doubleword[0] >> 63;
         d->doubleword[1] = (int64_t)a->doubleword[0] >> (count - 64);
-        d->doubleword[0] = 0;
+        d->doubleword[0] = tmp;
     }
 }
 
@@ -336,7 +338,7 @@ void HELPER(gvec_vmae##BITS)(void *v1, const void *v2, const void *v3,         \
     for (i = 0, j = 0; i < (128 / TBITS); i++, j += 2) {                       \
         int##TBITS##_t a = (int##BITS##_t)s390_vec_read_element##BITS(v2, j);  \
         int##TBITS##_t b = (int##BITS##_t)s390_vec_read_element##BITS(v3, j);  \
-        int##TBITS##_t c = (int##BITS##_t)s390_vec_read_element##BITS(v4, j);  \
+        int##TBITS##_t c = s390_vec_read_element##TBITS(v4, i);                \
                                                                                \
         s390_vec_write_element##TBITS(v1, i, a * b + c);                       \
     }                                                                          \
@@ -354,7 +356,7 @@ void HELPER(gvec_vmale##BITS)(void *v1, const void *v2, const void *v3,        \
     for (i = 0, j = 0; i < (128 / TBITS); i++, j += 2) {                       \
         uint##TBITS##_t a = s390_vec_read_element##BITS(v2, j);                \
         uint##TBITS##_t b = s390_vec_read_element##BITS(v3, j);                \
-        uint##TBITS##_t c = s390_vec_read_element##BITS(v4, j);                \
+        uint##TBITS##_t c = s390_vec_read_element##TBITS(v4, i);               \
                                                                                \
         s390_vec_write_element##TBITS(v1, i, a * b + c);                       \
     }                                                                          \
@@ -372,7 +374,7 @@ void HELPER(gvec_vmao##BITS)(void *v1, const void *v2, const void *v3,         \
     for (i = 0, j = 1; i < (128 / TBITS); i++, j += 2) {                       \
         int##TBITS##_t a = (int##BITS##_t)s390_vec_read_element##BITS(v2, j);  \
         int##TBITS##_t b = (int##BITS##_t)s390_vec_read_element##BITS(v3, j);  \
-        int##TBITS##_t c = (int##BITS##_t)s390_vec_read_element##BITS(v4, j);  \
+        int##TBITS##_t c = s390_vec_read_element##TBITS(v4, i);                \
                                                                                \
         s390_vec_write_element##TBITS(v1, i, a * b + c);                       \
     }                                                                          \
@@ -390,7 +392,7 @@ void HELPER(gvec_vmalo##BITS)(void *v1, const void *v2, const void *v3,        \
     for (i = 0, j = 1; i < (128 / TBITS); i++, j += 2) {                       \
         uint##TBITS##_t a = s390_vec_read_element##BITS(v2, j);                \
         uint##TBITS##_t b = s390_vec_read_element##BITS(v3, j);                \
-        uint##TBITS##_t c = s390_vec_read_element##BITS(v4, j);                \
+        uint##TBITS##_t c = s390_vec_read_element##TBITS(v4, i);               \
                                                                                \
         s390_vec_write_element##TBITS(v1, i, a * b + c);                       \
     }                                                                          \
@@ -488,7 +490,7 @@ void HELPER(gvec_vmlo##BITS)(void *v1, const void *v2, const void *v3,         \
 {                                                                              \
     int i, j;                                                                  \
                                                                                \
-    for (i = 0, j = 0; i < (128 / TBITS); i++, j += 2) {                       \
+    for (i = 0, j = 1; i < (128 / TBITS); i++, j += 2) {                       \
         const uint##TBITS##_t a = s390_vec_read_element##BITS(v2, j);          \
         const uint##TBITS##_t b = s390_vec_read_element##BITS(v3, j);          \
                                                                                \
@@ -591,7 +593,7 @@ void HELPER(gvec_vscbi##BITS)(void *v1, const void *v2, const void *v3,        \
         const uint##BITS##_t a = s390_vec_read_element##BITS(v2, i);           \
         const uint##BITS##_t b = s390_vec_read_element##BITS(v3, i);           \
                                                                                \
-        s390_vec_write_element##BITS(v1, i, a < b);                            \
+        s390_vec_write_element##BITS(v1, i, a >= b);                           \
     }                                                                          \
 }
 DEF_VSCBI(8)

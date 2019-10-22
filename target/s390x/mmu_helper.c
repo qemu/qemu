@@ -556,9 +556,7 @@ int mmu_translate_real(CPUS390XState *env, target_ulong raddr, int rw,
         *flags |= PAGE_WRITE_INV;
         if (is_low_address(raddr) && rw == MMU_DATA_STORE) {
             /* LAP sets bit 56 */
-            *tec = (raddr & TARGET_PAGE_MASK)
-                 | (rw == MMU_DATA_STORE ? FS_WRITE : FS_READ)
-                 | 0x80;
+            *tec = (raddr & TARGET_PAGE_MASK) | FS_WRITE | 0x80;
             return PGM_PROTECTION;
         }
     }
