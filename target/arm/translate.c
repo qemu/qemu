@@ -8045,7 +8045,9 @@ static bool op_smlaxxx(DisasContext *s, arg_rrrr *a,
     case 2:
         tl = load_reg(s, a->ra);
         th = load_reg(s, a->rd);
-        t1 = tcg_const_i32(0);
+        /* Sign-extend the 32-bit product to 64 bits.  */
+        t1 = tcg_temp_new_i32();
+        tcg_gen_sari_i32(t1, t0, 31);
         tcg_gen_add2_i32(tl, th, tl, th, t0, t1);
         tcg_temp_free_i32(t0);
         tcg_temp_free_i32(t1);
