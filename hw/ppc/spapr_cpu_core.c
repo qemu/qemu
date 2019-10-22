@@ -234,12 +234,15 @@ static void spapr_realize_vcpu(PowerPCCPU *cpu, SpaprMachineState *spapr,
     cpu_ppc_set_vhyp(cpu, PPC_VIRTUAL_HYPERVISOR(spapr));
     kvmppc_set_papr(cpu);
 
+    if (spapr_irq_cpu_intc_create(spapr, cpu, &local_err) < 0) {
+        goto error_intc_create;
+    }
+
+    /*
+     * FIXME: Hot-plugged CPUs are not reset. Do it at realize.
+     */
     qemu_register_reset(spapr_cpu_reset, cpu);
     spapr_cpu_reset(cpu);
-
-    if (spapr_irq_cpu_intc_create(spapr, cpu, &local_err) < 0) {
-        goto error_unregister;
-    }
 
     if (!sc->pre_3_0_migration) {
         vmstate_register(NULL, cs->cpu_index, &vmstate_spapr_cpu_state,
@@ -248,8 +251,7 @@ static void spapr_realize_vcpu(PowerPCCPU *cpu, SpaprMachineState *spapr,
 
     return;
 
-error_unregister:
-    qemu_unregister_reset(spapr_cpu_reset, cpu);
+error_intc_create:
     cpu_remove_sync(CPU(cpu));
 error:
     error_propagate(errp, local_err);
