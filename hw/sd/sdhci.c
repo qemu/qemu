@@ -1532,6 +1532,8 @@ static const TypeInfo sdhci_bus_info = {
     .class_init = sdhci_bus_class_init,
 };
 
+/* --- qdev i.MX eSDHC --- */
+
 static uint64_t usdhc_read(void *opaque, hwaddr offset, unsigned size)
 {
     SDHCIState *s = SYSBUS_SDHCI(opaque);
@@ -1733,7 +1735,6 @@ usdhc_write(void *opaque, hwaddr offset, uint64_t val, unsigned size)
         break;
     }
 }
-
 
 static const MemoryRegionOps usdhc_mmio_ops = {
     .read = usdhc_read,
