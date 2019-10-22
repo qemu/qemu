@@ -18,6 +18,9 @@
 #include "qapi/error.h"
 #include "block/block-copy.h"
 #include "sysemu/block-backend.h"
+#include "qemu/units.h"
+
+#define BLOCK_COPY_MAX_COPY_RANGE (16 * MiB)
 
 static void coroutine_fn block_copy_wait_inflight_reqs(BlockCopyState *s,
                                                        int64_t start,
@@ -70,9 +73,12 @@ BlockCopyState *block_copy_state_new(BdrvChild *source, BdrvChild *target,
 {
     BlockCopyState *s;
     BdrvDirtyBitmap *copy_bitmap;
+
+    /* Ignore BLOCK_COPY_MAX_COPY_RANGE if requested cluster_size is larger */
     uint32_t max_transfer =
-            MIN_NON_ZERO(INT_MAX, MIN_NON_ZERO(source->bs->bl.max_transfer,
-                                               target->bs->bl.max_transfer));
+            MIN_NON_ZERO(MAX(cluster_size, BLOCK_COPY_MAX_COPY_RANGE),
+                         MIN_NON_ZERO(source->bs->bl.max_transfer,
+                                      target->bs->bl.max_transfer));
 
     copy_bitmap = bdrv_create_dirty_bitmap(source->bs, cluster_size, NULL,
                                            errp);
