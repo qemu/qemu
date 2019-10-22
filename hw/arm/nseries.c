@@ -47,6 +47,7 @@
 
 /* Nokia N8x0 support */
 struct n800_s {
+    MemoryRegion sdram;
     struct omap_mpu_state_s *mpu;
 
     struct rfbi_chip_s blizzard;
@@ -1311,11 +1312,14 @@ static int n810_atag_setup(const struct arm_boot_info *info, void *p)
 static void n8x0_init(MachineState *machine,
                       struct arm_boot_info *binfo, int model)
 {
-    MemoryRegion *sysmem = get_system_memory();
     struct n800_s *s = (struct n800_s *) g_malloc0(sizeof(*s));
-    int sdram_size = binfo->ram_size;
+    uint64_t sdram_size = binfo->ram_size;
 
-    s->mpu = omap2420_mpu_init(sysmem, sdram_size, machine->cpu_type);
+    memory_region_allocate_system_memory(&s->sdram, NULL, "omap2.dram",
+                                         sdram_size);
+    memory_region_add_subregion(get_system_memory(), OMAP2_Q2_BASE, &s->sdram);
+
+    s->mpu = omap2420_mpu_init(&s->sdram, machine->cpu_type);
 
     /* Setup peripherals
      *
