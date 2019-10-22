@@ -30,7 +30,6 @@
 #include "hw/ptimer.h"
 #include "hw/qdev-properties.h"
 #include "qemu/error-report.h"
-#include "qemu/main-loop.h"
 #include "qemu/module.h"
 
 #define DEFAULT_FREQUENCY (50*1000000)
@@ -63,7 +62,6 @@ struct LM32TimerState {
 
     MemoryRegion iomem;
 
-    QEMUBH *bh;
     ptimer_state *ptimer;
 
     qemu_irq irq;
@@ -119,6 +117,7 @@ static void timer_write(void *opaque, hwaddr addr,
         s->regs[R_SR] &= ~SR_TO;
         break;
     case R_CR:
+        ptimer_transaction_begin(s->ptimer);
         s->regs[R_CR] = value;
         if (s->regs[R_CR] & CR_START) {
             ptimer_run(s->ptimer, 1);
@@ -126,10 +125,13 @@ static void timer_write(void *opaque, hwaddr addr,
         if (s->regs[R_CR] & CR_STOP) {
             ptimer_stop(s->ptimer);
         }
+        ptimer_transaction_commit(s->ptimer);
         break;
     case R_PERIOD:
         s->regs[R_PERIOD] = value;
+        ptimer_transaction_begin(s->ptimer);
         ptimer_set_count(s->ptimer, value);
+        ptimer_transaction_commit(s->ptimer);
         break;
     case R_SNAPSHOT:
         error_report("lm32_timer: write access to read only register 0x"
@@ -176,7 +178,9 @@ static void timer_reset(DeviceState *d)
     for (i = 0; i < R_MAX; i++) {
         s->regs[i] = 0;
     }
+    ptimer_transaction_begin(s->ptimer);
     ptimer_stop(s->ptimer);
+    ptimer_transaction_commit(s->ptimer);
 }
 
 static void lm32_timer_init(Object *obj)
@@ -195,10 +199,11 @@ static void lm32_timer_realize(DeviceState *dev, Error **errp)
 {
     LM32TimerState *s = LM32_TIMER(dev);
 
-    s->bh = qemu_bh_new(timer_hit, s);
-    s->ptimer = ptimer_init_with_bh(s->bh, PTIMER_POLICY_DEFAULT);
+    s->ptimer = ptimer_init(timer_hit, s, PTIMER_POLICY_DEFAULT);
 
+    ptimer_transaction_begin(s->ptimer);
     ptimer_set_freq(s->ptimer, s->freq_hz);
+    ptimer_transaction_commit(s->ptimer);
 }
 
 static const VMStateDescription vmstate_lm32_timer = {
