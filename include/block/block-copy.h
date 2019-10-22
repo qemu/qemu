@@ -38,7 +38,7 @@ typedef struct BlockCopyState {
     BdrvDirtyBitmap *copy_bitmap;
     int64_t cluster_size;
     bool use_copy_range;
-    int64_t copy_range_size;
+    int64_t copy_size;
     uint64_t len;
     QLIST_HEAD(, BlockCopyInFlightReq) inflight_reqs;
 
