@@ -17,7 +17,63 @@
 #ifndef HW_I386_X86_H
 #define HW_I386_X86_H
 
+#include "qemu-common.h"
+#include "exec/hwaddr.h"
+#include "qemu/notify.h"
+
 #include "hw/boards.h"
+#include "hw/nmi.h"
+
+typedef struct {
+    /*< private >*/
+    MachineClass parent;
+
+    /*< public >*/
+
+    /* Enables contiguous-apic-ID mode */
+    bool compat_apic_id_mode;
+} X86MachineClass;
+
+typedef struct {
+    /*< private >*/
+    MachineState parent;
+
+    /*< public >*/
+
+    /* Pointers to devices and objects: */
+    ISADevice *rtc;
+    FWCfgState *fw_cfg;
+    qemu_irq *gsi;
+    GMappedFile *initrd_mapped_file;
+
+    /* Configuration options: */
+    uint64_t max_ram_below_4g;
+
+    /* RAM information (sizes, addresses, configuration): */
+    ram_addr_t below_4g_mem_size, above_4g_mem_size;
+
+    /* CPU and apic information: */
+    bool apic_xrupt_override;
+    unsigned apic_id_limit;
+    uint16_t boot_cpus;
+    unsigned smp_dies;
+
+    /*
+     * Address space used by IOAPIC device. All IOAPIC interrupts
+     * will be translated to MSI messages in the address space.
+     */
+    AddressSpace *ioapic_as;
+} X86MachineState;
+
+#define X86_MACHINE_MAX_RAM_BELOW_4G "max-ram-below-4g"
+
+#define TYPE_X86_MACHINE   MACHINE_TYPE_NAME("x86")
+#define X86_MACHINE(obj) \
+    OBJECT_CHECK(X86MachineState, (obj), TYPE_X86_MACHINE)
+#define X86_MACHINE_GET_CLASS(obj) \
+    OBJECT_GET_CLASS(X86MachineClass, obj, TYPE_X86_MACHINE)
+#define X86_MACHINE_CLASS(class) \
+    OBJECT_CLASS_CHECK(X86MachineClass, class, TYPE_X86_MACHINE)
 
 uint32_t x86_cpu_apic_id_from_index(PCMachineState *pcms,
                                     unsigned int cpu_index);
@@ -30,6 +86,6 @@ const CPUArchIdList *x86_possible_cpu_arch_ids(MachineState *ms);
 
 void x86_bios_rom_init(MemoryRegion *rom_memory, bool isapc_ram_fw);
 
-void x86_load_linux(PCMachineState *x86ms, FWCfgState *fw_cfg);
+void x86_load_linux(PCMachineState *pcms, FWCfgState *fw_cfg);
 
 #endif

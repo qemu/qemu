@@ -361,6 +361,7 @@ static void
 build_madt(GArray *table_data, BIOSLinker *linker, PCMachineState *pcms)
 {
     MachineClass *mc = MACHINE_GET_CLASS(pcms);
+    X86MachineState *x86ms = X86_MACHINE(pcms);
     const CPUArchIdList *apic_ids = mc->possible_cpu_arch_ids(MACHINE(pcms));
     int madt_start = table_data->len;
     AcpiDeviceIfClass *adevc = ACPI_DEVICE_IF_GET_CLASS(pcms->acpi_dev);
@@ -390,7 +391,7 @@ build_madt(GArray *table_data, BIOSLinker *linker, PCMachineState *pcms)
     io_apic->address = cpu_to_le32(IO_APIC_DEFAULT_ADDRESS);
     io_apic->interrupt = cpu_to_le32(0);
 
-    if (pcms->apic_xrupt_override) {
+    if (x86ms->apic_xrupt_override) {
         intsrcovr = acpi_data_push(table_data, sizeof *intsrcovr);
         intsrcovr->type   = ACPI_APIC_XRUPT_OVERRIDE;
         intsrcovr->length = sizeof(*intsrcovr);
@@ -1831,6 +1832,7 @@ build_dsdt(GArray *table_data, BIOSLinker *linker,
     CrsRangeSet crs_range_set;
     PCMachineState *pcms = PC_MACHINE(machine);
     PCMachineClass *pcmc = PC_MACHINE_GET_CLASS(machine);
+    X86MachineState *x86ms = X86_MACHINE(machine);
     AcpiMcfgInfo mcfg;
     uint32_t nr_mem = machine->ram_slots;
     int root_bus_limit = 0xFF;
@@ -2103,7 +2105,7 @@ build_dsdt(GArray *table_data, BIOSLinker *linker,
          * with half of the 16-bit control register. Hence, the total size
          * of the i/o region used is FW_CFG_CTL_SIZE; when using DMA, the
          * DMA control register is located at FW_CFG_DMA_IO_BASE + 4 */
-        uint8_t io_size = object_property_get_bool(OBJECT(pcms->fw_cfg),
+        uint8_t io_size = object_property_get_bool(OBJECT(x86ms->fw_cfg),
                                                    "dma_enabled", NULL) ?
                           ROUND_UP(FW_CFG_CTL_SIZE, 4) + sizeof(dma_addr_t) :
                           FW_CFG_CTL_SIZE;
@@ -2336,6 +2338,7 @@ build_srat(GArray *table_data, BIOSLinker *linker, MachineState *machine)
     int srat_start, numa_start, slots;
     uint64_t mem_len, mem_base, next_base;
     MachineClass *mc = MACHINE_GET_CLASS(machine);
+    X86MachineState *x86ms = X86_MACHINE(machine);
     const CPUArchIdList *apic_ids = mc->possible_cpu_arch_ids(machine);
     PCMachineState *pcms = PC_MACHINE(machine);
     ram_addr_t hotplugabble_address_space_size =
@@ -2406,16 +2409,16 @@ build_srat(GArray *table_data, BIOSLinker *linker, MachineState *machine)
         }
 
         /* Cut out the ACPI_PCI hole */
-        if (mem_base <= pcms->below_4g_mem_size &&
-            next_base > pcms->below_4g_mem_size) {
-            mem_len -= next_base - pcms->below_4g_mem_size;
+        if (mem_base <= x86ms->below_4g_mem_size &&
+            next_base > x86ms->below_4g_mem_size) {
+            mem_len -= next_base - x86ms->below_4g_mem_size;
             if (mem_len > 0) {
                 numamem = acpi_data_push(table_data, sizeof *numamem);
                 build_srat_memory(numamem, mem_base, mem_len, i - 1,
                                   MEM_AFFINITY_ENABLED);
             }
             mem_base = 1ULL << 32;
-            mem_len = next_base - pcms->below_4g_mem_size;
+            mem_len = next_base - x86ms->below_4g_mem_size;
             next_base = mem_base + mem_len;
         }
 
@@ -2634,6 +2637,7 @@ void acpi_build(AcpiBuildTables *tables, MachineState *machine)
 {
     PCMachineState *pcms = PC_MACHINE(machine);
     PCMachineClass *pcmc = PC_MACHINE_GET_CLASS(pcms);
+    X86MachineState *x86ms = X86_MACHINE(machine);
     GArray *table_offsets;
     unsigned facs, dsdt, rsdt, fadt;
     AcpiPmInfo pm;
@@ -2795,7 +2799,7 @@ void acpi_build(AcpiBuildTables *tables, MachineState *machine)
          */
         int legacy_aml_len =
             pcmc->legacy_acpi_table_size +
-            ACPI_BUILD_LEGACY_CPU_AML_SIZE * pcms->apic_id_limit;
+            ACPI_BUILD_LEGACY_CPU_AML_SIZE * x86ms->apic_id_limit;
         int legacy_table_size =
             ROUND_UP(tables_blob->len - aml_len + legacy_aml_len,
                      ACPI_BUILD_ALIGN_SIZE);
@@ -2885,13 +2889,14 @@ void acpi_setup(void)
 {
     PCMachineState *pcms = PC_MACHINE(qdev_get_machine());
     PCMachineClass *pcmc = PC_MACHINE_GET_CLASS(pcms);
+    X86MachineState *x86ms = X86_MACHINE(pcms);
     AcpiBuildTables tables;
     AcpiBuildState *build_state;
     Object *vmgenid_dev;
     TPMIf *tpm;
     static FwCfgTPMConfig tpm_config;
 
-    if (!pcms->fw_cfg) {
+    if (!x86ms->fw_cfg) {
         ACPI_BUILD_DPRINTF("No fw cfg. Bailing out.\n");
         return;
     }
@@ -2922,7 +2927,7 @@ void acpi_setup(void)
         acpi_add_rom_blob(acpi_build_update, build_state,
                           tables.linker->cmd_blob, "etc/table-loader", 0);
 
-    fw_cfg_add_file(pcms->fw_cfg, ACPI_BUILD_TPMLOG_FILE,
+    fw_cfg_add_file(x86ms->fw_cfg, ACPI_BUILD_TPMLOG_FILE,
                     tables.tcpalog->data, acpi_data_len(tables.tcpalog));
 
     tpm = tpm_find();
@@ -2932,13 +2937,13 @@ void acpi_setup(void)
             .tpm_version = tpm_get_version(tpm),
             .tpmppi_version = TPM_PPI_VERSION_1_30
         };
-        fw_cfg_add_file(pcms->fw_cfg, "etc/tpm/config",
+        fw_cfg_add_file(x86ms->fw_cfg, "etc/tpm/config",
                         &tpm_config, sizeof tpm_config);
     }
 
     vmgenid_dev = find_vmgenid_dev();
     if (vmgenid_dev) {
-        vmgenid_add_fw_cfg(VMGENID(vmgenid_dev), pcms->fw_cfg,
+        vmgenid_add_fw_cfg(VMGENID(vmgenid_dev), x86ms->fw_cfg,
                            tables.vmgenid);
     }
 
@@ -2951,7 +2956,7 @@ void acpi_setup(void)
         uint32_t rsdp_size = acpi_data_len(tables.rsdp);
 
         build_state->rsdp = g_memdup(tables.rsdp->data, rsdp_size);
-        fw_cfg_add_file_callback(pcms->fw_cfg, ACPI_BUILD_RSDP_FILE,
+        fw_cfg_add_file_callback(x86ms->fw_cfg, ACPI_BUILD_RSDP_FILE,
                                  acpi_build_update, NULL, build_state,
                                  build_state->rsdp, rsdp_size, true);
         build_state->rsdp_mr = NULL;

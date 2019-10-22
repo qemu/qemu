@@ -65,13 +65,14 @@ uint32_t x86_cpu_apic_id_from_index(PCMachineState *pcms,
                                     unsigned int cpu_index)
 {
     MachineState *ms = MACHINE(pcms);
-    PCMachineClass *pcmc = PC_MACHINE_GET_CLASS(pcms);
+    X86MachineState *x86ms = X86_MACHINE(pcms);
+    X86MachineClass *x86mc = X86_MACHINE_GET_CLASS(x86ms);
     uint32_t correct_id;
     static bool warned;
 
-    correct_id = x86_apicid_from_cpu_idx(pcms->smp_dies, ms->smp.cores,
+    correct_id = x86_apicid_from_cpu_idx(x86ms->smp_dies, ms->smp.cores,
                                          ms->smp.threads, cpu_index);
-    if (pcmc->compat_apic_id_mode) {
+    if (x86mc->compat_apic_id_mode) {
         if (cpu_index != correct_id && !warned && !qtest_enabled()) {
             error_report("APIC IDs set in compatibility mode, "
                          "CPU topology won't match the configuration");
@@ -88,11 +89,12 @@ void x86_cpu_new(PCMachineState *pcms, int64_t apic_id, Error **errp)
     Object *cpu = NULL;
     Error *local_err = NULL;
     CPUX86State *env = NULL;
+    X86MachineState *x86ms = X86_MACHINE(pcms);
 
     cpu = object_new(MACHINE(pcms)->cpu_type);
 
     env = &X86_CPU(cpu)->env;
-    env->nr_dies = pcms->smp_dies;
+    env->nr_dies = x86ms->smp_dies;
 
     object_property_set_uint(cpu, apic_id, "apic-id", &local_err);
     object_property_set_bool(cpu, true, "realized", &local_err);
@@ -108,6 +110,7 @@ void x86_cpus_init(PCMachineState *pcms)
     MachineState *ms = MACHINE(pcms);
     MachineClass *mc = MACHINE_GET_CLASS(pcms);
     PCMachineClass *pcmc = PC_MACHINE_CLASS(mc);
+    X86MachineState *x86ms = X86_MACHINE(pcms);
 
     x86_cpu_set_default_version(pcmc->default_cpu_version);
 
@@ -119,8 +122,8 @@ void x86_cpus_init(PCMachineState *pcms)
      *
      * This is used for FW_CFG_MAX_CPUS. See comments on fw_cfg_arch_create().
      */
-    pcms->apic_id_limit = x86_cpu_apic_id_from_index(pcms,
-                                                     ms->smp.max_cpus - 1) + 1;
+    x86ms->apic_id_limit = x86_cpu_apic_id_from_index(pcms,
+                                                      ms->smp.max_cpus - 1) + 1;
     possible_cpus = mc->possible_cpu_arch_ids(ms);
     for (i = 0; i < ms->smp.cpus; i++) {
         x86_cpu_new(pcms, possible_cpus->cpus[i].arch_id, &error_fatal);
@@ -140,11 +143,11 @@ x86_cpu_index_to_props(MachineState *ms, unsigned cpu_index)
 int64_t x86_get_default_cpu_node_id(const MachineState *ms, int idx)
 {
    X86CPUTopoInfo topo;
-   PCMachineState *pcms = PC_MACHINE(ms);
+   X86MachineState *x86ms = X86_MACHINE(ms);
 
    assert(idx < ms->possible_cpus->len);
    x86_topo_ids_from_apicid(ms->possible_cpus->cpus[idx].arch_id,
-                            pcms->smp_dies, ms->smp.cores,
+                            x86ms->smp_dies, ms->smp.cores,
                             ms->smp.threads, &topo);
    return topo.pkg_id % ms->numa_state->num_nodes;
 }
@@ -152,6 +155,7 @@ int64_t x86_get_default_cpu_node_id(const MachineState *ms, int idx)
 const CPUArchIdList *x86_possible_cpu_arch_ids(MachineState *ms)
 {
     PCMachineState *pcms = PC_MACHINE(ms);
+    X86MachineState *x86ms = X86_MACHINE(ms);
     int i;
     unsigned int max_cpus = ms->smp.max_cpus;
 
@@ -175,11 +179,11 @@ const CPUArchIdList *x86_possible_cpu_arch_ids(MachineState *ms)
         ms->possible_cpus->cpus[i].arch_id =
             x86_cpu_apic_id_from_index(pcms, i);
         x86_topo_ids_from_apicid(ms->possible_cpus->cpus[i].arch_id,
-                                 pcms->smp_dies, ms->smp.cores,
+                                 x86ms->smp_dies, ms->smp.cores,
                                  ms->smp.threads, &topo);
         ms->possible_cpus->cpus[i].props.has_socket_id = true;
         ms->possible_cpus->cpus[i].props.socket_id = topo.pkg_id;
-        if (pcms->smp_dies > 1) {
+        if (x86ms->smp_dies > 1) {
             ms->possible_cpus->cpus[i].props.has_die_id = true;
             ms->possible_cpus->cpus[i].props.die_id = topo.die_id;
         }
@@ -189,6 +193,22 @@ const CPUArchIdList *x86_possible_cpu_arch_ids(MachineState *ms)
         ms->possible_cpus->cpus[i].props.thread_id = topo.smt_id;
     }
     return ms->possible_cpus;
+}
+
+static void x86_nmi(NMIState *n, int cpu_index, Error **errp)
+{
+    /* cpu index isn't used */
+    CPUState *cs;
+
+    CPU_FOREACH(cs) {
+        X86CPU *cpu = X86_CPU(cs);
+
+        if (!cpu->apic_state) {
+            cpu_interrupt(cs, CPU_INTERRUPT_NMI);
+        } else {
+            apic_deliver_nmi(cpu->apic_state);
+        }
+    }
 }
 
 static long get_file_size(FILE *f)
@@ -328,6 +348,7 @@ void x86_load_linux(PCMachineState *pcms,
     char *vmode;
     MachineState *machine = MACHINE(pcms);
     PCMachineClass *pcmc = PC_MACHINE_GET_CLASS(pcms);
+    X86MachineState *x86ms = X86_MACHINE(pcms);
     struct setup_data *setup_data;
     const char *kernel_filename = machine->kernel_filename;
     const char *initrd_filename = machine->initrd_filename;
@@ -400,11 +421,12 @@ void x86_load_linux(PCMachineState *pcms,
                             initrd_filename, gerr->message);
                     exit(1);
                 }
-                pcms->initrd_mapped_file = mapped_file;
+                x86ms->initrd_mapped_file = mapped_file;
 
                 initrd_data = g_mapped_file_get_contents(mapped_file);
                 initrd_size = g_mapped_file_get_length(mapped_file);
-                initrd_max = pcms->below_4g_mem_size - pcmc->acpi_data_size - 1;
+                initrd_max =
+                    x86ms->below_4g_mem_size - pcmc->acpi_data_size - 1;
                 if (initrd_size >= initrd_max) {
                     fprintf(stderr, "qemu: initrd is too large, cannot support."
                             "(max: %"PRIu32", need %"PRId64")\n",
@@ -472,8 +494,8 @@ void x86_load_linux(PCMachineState *pcms,
         initrd_max = 0x37ffffff;
     }
 
-    if (initrd_max >= pcms->below_4g_mem_size - pcmc->acpi_data_size) {
-        initrd_max = pcms->below_4g_mem_size - pcmc->acpi_data_size - 1;
+    if (initrd_max >= x86ms->below_4g_mem_size - pcmc->acpi_data_size) {
+        initrd_max = x86ms->below_4g_mem_size - pcmc->acpi_data_size - 1;
     }
 
     fw_cfg_add_i32(fw_cfg, FW_CFG_CMDLINE_ADDR, cmdline_addr);
@@ -544,7 +566,7 @@ void x86_load_linux(PCMachineState *pcms,
                     initrd_filename, gerr->message);
             exit(1);
         }
-        pcms->initrd_mapped_file = mapped_file;
+        x86ms->initrd_mapped_file = mapped_file;
 
         initrd_data = g_mapped_file_get_contents(mapped_file);
         initrd_size = g_mapped_file_get_length(mapped_file);
@@ -688,3 +710,91 @@ void x86_bios_rom_init(MemoryRegion *rom_memory, bool isapc_ram_fw)
                                 (uint32_t)(-bios_size),
                                 bios);
 }
+
+static void x86_machine_get_max_ram_below_4g(Object *obj, Visitor *v,
+                                             const char *name, void *opaque,
+                                             Error **errp)
+{
+    X86MachineState *x86ms = X86_MACHINE(obj);
+    uint64_t value = x86ms->max_ram_below_4g;
+
+    visit_type_size(v, name, &value, errp);
+}
+
+static void x86_machine_set_max_ram_below_4g(Object *obj, Visitor *v,
+                                             const char *name, void *opaque,
+                                             Error **errp)
+{
+    X86MachineState *x86ms = X86_MACHINE(obj);
+    Error *error = NULL;
+    uint64_t value;
+
+    visit_type_size(v, name, &value, &error);
+    if (error) {
+        error_propagate(errp, error);
+        return;
+    }
+    if (value > 4 * GiB) {
+        error_setg(&error,
+                   "Machine option 'max-ram-below-4g=%"PRIu64
+                   "' expects size less than or equal to 4G", value);
+        error_propagate(errp, error);
+        return;
+    }
+
+    if (value < 1 * MiB) {
+        warn_report("Only %" PRIu64 " bytes of RAM below the 4GiB boundary,"
+                    "BIOS may not work with less than 1MiB", value);
+    }
+
+    x86ms->max_ram_below_4g = value;
+}
+
+static void x86_machine_initfn(Object *obj)
+{
+    X86MachineState *x86ms = X86_MACHINE(obj);
+
+    x86ms->max_ram_below_4g = 0; /* use default */
+    x86ms->smp_dies = 1;
+}
+
+static void x86_machine_class_init(ObjectClass *oc, void *data)
+{
+    MachineClass *mc = MACHINE_CLASS(oc);
+    X86MachineClass *x86mc = X86_MACHINE_CLASS(oc);
+    NMIClass *nc = NMI_CLASS(oc);
+
+    mc->cpu_index_to_instance_props = x86_cpu_index_to_props;
+    mc->get_default_cpu_node_id = x86_get_default_cpu_node_id;
+    mc->possible_cpu_arch_ids = x86_possible_cpu_arch_ids;
+    x86mc->compat_apic_id_mode = false;
+    nc->nmi_monitor_handler = x86_nmi;
+
+    object_class_property_add(oc, X86_MACHINE_MAX_RAM_BELOW_4G, "size",
+        x86_machine_get_max_ram_below_4g, x86_machine_set_max_ram_below_4g,
+        NULL, NULL, &error_abort);
+
+    object_class_property_set_description(oc, X86_MACHINE_MAX_RAM_BELOW_4G,
+        "Maximum ram below the 4G boundary (32bit boundary)", &error_abort);
+}
+
+static const TypeInfo x86_machine_info = {
+    .name = TYPE_X86_MACHINE,
+    .parent = TYPE_MACHINE,
+    .abstract = true,
+    .instance_size = sizeof(X86MachineState),
+    .instance_init = x86_machine_initfn,
+    .class_size = sizeof(X86MachineClass),
+    .class_init = x86_machine_class_init,
+    .interfaces = (InterfaceInfo[]) {
+         { TYPE_NMI },
+         { }
+    },
+};
+
+static void x86_machine_register_types(void)
+{
+    type_register_static(&x86_machine_info);
+}
+
+type_init(x86_machine_register_types)

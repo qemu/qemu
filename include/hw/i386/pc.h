@@ -8,6 +8,7 @@
 #include "hw/block/flash.h"
 #include "net/net.h"
 #include "hw/i386/ioapic.h"
+#include "hw/i386/x86.h"
 
 #include "qemu/range.h"
 #include "qemu/bitmap.h"
@@ -27,7 +28,7 @@
  */
 struct PCMachineState {
     /*< private >*/
-    MachineState parent_obj;
+    X86MachineState parent_obj;
 
     /* <public> */
 
@@ -36,16 +37,11 @@ struct PCMachineState {
 
     /* Pointers to devices and objects: */
     HotplugHandler *acpi_dev;
-    ISADevice *rtc;
     PCIBus *bus;
     I2CBus *smbus;
-    FWCfgState *fw_cfg;
-    qemu_irq *gsi;
     PFlashCFI01 *flash[2];
-    GMappedFile *initrd_mapped_file;
 
     /* Configuration options: */
-    uint64_t max_ram_below_4g;
     OnOffAuto vmport;
     OnOffAuto smm;
 
@@ -54,22 +50,9 @@ struct PCMachineState {
     bool sata_enabled;
     bool pit_enabled;
 
-    /* RAM information (sizes, addresses, configuration): */
-    ram_addr_t below_4g_mem_size, above_4g_mem_size;
-
-    /* CPU and apic information: */
-    bool apic_xrupt_override;
-    unsigned apic_id_limit;
-    uint16_t boot_cpus;
-    unsigned smp_dies;
-
     /* NUMA information: */
     uint64_t numa_nodes;
     uint64_t *node_mem;
-
-    /* Address space used by IOAPIC device. All IOAPIC interrupts
-     * will be translated to MSI messages in the address space. */
-    AddressSpace *ioapic_as;
 
     /* ACPI Memory hotplug IO base address */
     hwaddr memhp_io_base;
@@ -77,7 +60,6 @@ struct PCMachineState {
 
 #define PC_MACHINE_ACPI_DEVICE_PROP "acpi-device"
 #define PC_MACHINE_DEVMEM_REGION_SIZE "device-memory-region-size"
-#define PC_MACHINE_MAX_RAM_BELOW_4G "max-ram-below-4g"
 #define PC_MACHINE_VMPORT           "vmport"
 #define PC_MACHINE_SMM              "smm"
 #define PC_MACHINE_SMBUS            "smbus"
@@ -102,7 +84,7 @@ struct PCMachineState {
  */
 typedef struct PCMachineClass {
     /*< private >*/
-    MachineClass parent_class;
+    X86MachineClass parent_class;
 
     /*< public >*/
 
@@ -144,9 +126,6 @@ typedef struct PCMachineClass {
 
     /* use PVH to load kernels that support this feature */
     bool pvh_enabled;
-
-    /* Enables contiguous-apic-ID mode */
-    bool compat_apic_id_mode;
 } PCMachineClass;
 
 #define TYPE_PC_MACHINE "generic-pc-machine"
