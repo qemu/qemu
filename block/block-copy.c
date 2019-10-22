@@ -21,6 +21,7 @@
 #include "qemu/units.h"
 
 #define BLOCK_COPY_MAX_COPY_RANGE (16 * MiB)
+#define BLOCK_COPY_MAX_MEM (128 * MiB)
 
 static void coroutine_fn block_copy_wait_inflight_reqs(BlockCopyState *s,
                                                        int64_t start,
@@ -64,6 +65,7 @@ void block_copy_state_free(BlockCopyState *s)
     }
 
     bdrv_release_dirty_bitmap(s->copy_bitmap);
+    shres_destroy(s->mem);
     g_free(s);
 }
 
@@ -95,6 +97,7 @@ BlockCopyState *block_copy_state_new(BdrvChild *source, BdrvChild *target,
         .cluster_size = cluster_size,
         .len = bdrv_dirty_bitmap_size(copy_bitmap),
         .write_flags = write_flags,
+        .mem = shres_create(BLOCK_COPY_MAX_MEM),
     };
 
     s->copy_range_size = QEMU_ALIGN_DOWN(max_transfer, cluster_size),
@@ -313,7 +316,9 @@ int coroutine_fn block_copy(BlockCopyState *s,
 
         bdrv_reset_dirty_bitmap(s->copy_bitmap, start, chunk_end - start);
 
+        co_get_from_shres(s->mem, chunk_end - start);
         ret = block_copy_do_copy(s, start, chunk_end, error_is_read);
+        co_put_to_shres(s->mem, chunk_end - start);
         if (ret < 0) {
             bdrv_set_dirty_bitmap(s->copy_bitmap, start, chunk_end - start);
             break;
