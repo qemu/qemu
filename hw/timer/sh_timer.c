@@ -13,7 +13,6 @@
 #include "hw/irq.h"
 #include "hw/sh4/sh.h"
 #include "qemu/timer.h"
-#include "qemu/main-loop.h"
 #include "hw/ptimer.h"
 
 //#define DEBUG_TIMER
@@ -91,13 +90,18 @@ static void sh_timer_write(void *opaque, hwaddr offset,
     switch (offset >> 2) {
     case OFFSET_TCOR:
         s->tcor = value;
+        ptimer_transaction_begin(s->timer);
         ptimer_set_limit(s->timer, s->tcor, 0);
+        ptimer_transaction_commit(s->timer);
         break;
     case OFFSET_TCNT:
         s->tcnt = value;
+        ptimer_transaction_begin(s->timer);
         ptimer_set_count(s->timer, s->tcnt);
+        ptimer_transaction_commit(s->timer);
         break;
     case OFFSET_TCR:
+        ptimer_transaction_begin(s->timer);
         if (s->enabled) {
             /* Pause the timer if it is running.  This may cause some
                inaccuracy dure to rounding, but avoids a whole lot of other
@@ -148,6 +152,7 @@ static void sh_timer_write(void *opaque, hwaddr offset,
             /* Restart the timer if still enabled.  */
             ptimer_run(s->timer, 0);
         }
+        ptimer_transaction_commit(s->timer);
         break;
     case OFFSET_TCPR:
         if (s->feat & TIMER_FEAT_CAPT) {
@@ -168,12 +173,14 @@ static void sh_timer_start_stop(void *opaque, int enable)
     printf("sh_timer_start_stop %d (%d)\n", enable, s->enabled);
 #endif
 
+    ptimer_transaction_begin(s->timer);
     if (s->enabled && !enable) {
         ptimer_stop(s->timer);
     }
     if (!s->enabled && enable) {
         ptimer_run(s->timer, 0);
     }
+    ptimer_transaction_commit(s->timer);
     s->enabled = !!enable;
 
 #ifdef DEBUG_TIMER
@@ -191,7 +198,6 @@ static void sh_timer_tick(void *opaque)
 static void *sh_timer_init(uint32_t freq, int feat, qemu_irq irq)
 {
     sh_timer_state *s;
-    QEMUBH *bh;
 
     s = (sh_timer_state *)g_malloc0(sizeof(sh_timer_state));
     s->freq = freq;
@@ -203,8 +209,7 @@ static void *sh_timer_init(uint32_t freq, int feat, qemu_irq irq)
     s->enabled = 0;
     s->irq = irq;
 
-    bh = qemu_bh_new(sh_timer_tick, s);
-    s->timer = ptimer_init_with_bh(bh, PTIMER_POLICY_DEFAULT);
+    s->timer = ptimer_init(sh_timer_tick, s, PTIMER_POLICY_DEFAULT);
 
     sh_timer_write(s, OFFSET_TCOR >> 2, s->tcor);
     sh_timer_write(s, OFFSET_TCNT >> 2, s->tcnt);
