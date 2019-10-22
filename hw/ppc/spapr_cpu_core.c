@@ -25,9 +25,8 @@
 #include "sysemu/hw_accel.h"
 #include "qemu/error-report.h"
 
-static void spapr_cpu_reset(void *opaque)
+static void spapr_reset_vcpu(PowerPCCPU *cpu)
 {
-    PowerPCCPU *cpu = opaque;
     CPUState *cs = CPU(cpu);
     CPUPPCState *env = &cpu->env;
     PowerPCCPUClass *pcc = POWERPC_CPU_GET_CLASS(cpu);
@@ -193,7 +192,6 @@ static void spapr_unrealize_vcpu(PowerPCCPU *cpu, SpaprCpuCore *sc)
     if (!sc->pre_3_0_migration) {
         vmstate_unregister(NULL, &vmstate_spapr_cpu_state, cpu->machine_data);
     }
-    qemu_unregister_reset(spapr_cpu_reset, cpu);
     if (spapr_cpu_state(cpu)->icp) {
         object_unparent(OBJECT(spapr_cpu_state(cpu)->icp));
     }
@@ -204,11 +202,35 @@ static void spapr_unrealize_vcpu(PowerPCCPU *cpu, SpaprCpuCore *sc)
     object_unparent(OBJECT(cpu));
 }
 
+/*
+ * Called when CPUs are hot-plugged.
+ */
+static void spapr_cpu_core_reset(DeviceState *dev)
+{
+    CPUCore *cc = CPU_CORE(dev);
+    SpaprCpuCore *sc = SPAPR_CPU_CORE(dev);
+    int i;
+
+    for (i = 0; i < cc->nr_threads; i++) {
+        spapr_reset_vcpu(sc->threads[i]);
+    }
+}
+
+/*
+ * Called by the machine reset.
+ */
+static void spapr_cpu_core_reset_handler(void *opaque)
+{
+    spapr_cpu_core_reset(opaque);
+}
+
 static void spapr_cpu_core_unrealize(DeviceState *dev, Error **errp)
 {
     SpaprCpuCore *sc = SPAPR_CPU_CORE(OBJECT(dev));
     CPUCore *cc = CPU_CORE(dev);
     int i;
+
+    qemu_unregister_reset(spapr_cpu_core_reset_handler, sc);
 
     for (i = 0; i < cc->nr_threads; i++) {
         spapr_unrealize_vcpu(sc->threads[i], sc);
@@ -237,12 +259,6 @@ static void spapr_realize_vcpu(PowerPCCPU *cpu, SpaprMachineState *spapr,
     if (spapr_irq_cpu_intc_create(spapr, cpu, &local_err) < 0) {
         goto error_intc_create;
     }
-
-    /*
-     * FIXME: Hot-plugged CPUs are not reset. Do it at realize.
-     */
-    qemu_register_reset(spapr_cpu_reset, cpu);
-    spapr_cpu_reset(cpu);
 
     if (!sc->pre_3_0_migration) {
         vmstate_register(NULL, cs->cpu_index, &vmstate_spapr_cpu_state,
@@ -338,6 +354,8 @@ static void spapr_cpu_core_realize(DeviceState *dev, Error **errp)
             goto err_unrealize;
         }
     }
+
+    qemu_register_reset(spapr_cpu_core_reset_handler, sc);
     return;
 
 err_unrealize:
@@ -366,6 +384,7 @@ static void spapr_cpu_core_class_init(ObjectClass *oc, void *data)
 
     dc->realize = spapr_cpu_core_realize;
     dc->unrealize = spapr_cpu_core_unrealize;
+    dc->reset = spapr_cpu_core_reset;
     dc->props = spapr_cpu_core_properties;
     scc->cpu_type = data;
 }
