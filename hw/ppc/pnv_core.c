@@ -162,7 +162,7 @@ static const MemoryRegionOps pnv_core_power9_xscom_ops = {
     .endianness = DEVICE_BIG_ENDIAN,
 };
 
-static void pnv_realize_vcpu(PowerPCCPU *cpu, PnvChip *chip, Error **errp)
+static void pnv_core_cpu_realize(PowerPCCPU *cpu, PnvChip *chip, Error **errp)
 {
     CPUPPCState *env = &cpu->env;
     int core_pir;
@@ -247,7 +247,7 @@ static void pnv_core_realize(DeviceState *dev, Error **errp)
     }
 
     for (j = 0; j < cc->nr_threads; j++) {
-        pnv_realize_vcpu(pc->threads[j], pc->chip, &local_err);
+        pnv_core_cpu_realize(pc->threads[j], pc->chip, &local_err);
         if (local_err) {
             goto err;
         }
@@ -269,7 +269,7 @@ err:
     error_propagate(errp, local_err);
 }
 
-static void pnv_unrealize_vcpu(PowerPCCPU *cpu)
+static void pnv_core_cpu_unrealize(PowerPCCPU *cpu)
 {
     PnvCPUState *pnv_cpu = pnv_cpu_state(cpu);
 
@@ -289,7 +289,7 @@ static void pnv_core_unrealize(DeviceState *dev, Error **errp)
     qemu_unregister_reset(pnv_core_reset, pc);
 
     for (i = 0; i < cc->nr_threads; i++) {
-        pnv_unrealize_vcpu(pc->threads[i]);
+        pnv_core_cpu_unrealize(pc->threads[i]);
     }
     g_free(pc->threads);
 }
