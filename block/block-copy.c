@@ -126,20 +126,17 @@ void block_copy_set_callbacks(
 static int coroutine_fn block_copy_with_bounce_buffer(BlockCopyState *s,
                                                       int64_t start,
                                                       int64_t end,
-                                                      bool *error_is_read,
-                                                      void **bounce_buffer)
+                                                      bool *error_is_read)
 {
     int ret;
     int nbytes;
+    void *bounce_buffer = qemu_blockalign(s->source->bs, s->cluster_size);
 
     assert(QEMU_IS_ALIGNED(start, s->cluster_size));
     bdrv_reset_dirty_bitmap(s->copy_bitmap, start, s->cluster_size);
     nbytes = MIN(s->cluster_size, s->len - start);
-    if (!*bounce_buffer) {
-        *bounce_buffer = qemu_blockalign(s->source->bs, s->cluster_size);
-    }
 
-    ret = bdrv_co_pread(s->source, start, nbytes, *bounce_buffer, 0);
+    ret = bdrv_co_pread(s->source, start, nbytes, bounce_buffer, 0);
     if (ret < 0) {
         trace_block_copy_with_bounce_buffer_read_fail(s, start, ret);
         if (error_is_read) {
@@ -148,7 +145,7 @@ static int coroutine_fn block_copy_with_bounce_buffer(BlockCopyState *s,
         goto fail;
     }
 
-    ret = bdrv_co_pwrite(s->target, start, nbytes, *bounce_buffer,
+    ret = bdrv_co_pwrite(s->target, start, nbytes, bounce_buffer,
                          s->write_flags);
     if (ret < 0) {
         trace_block_copy_with_bounce_buffer_write_fail(s, start, ret);
@@ -158,8 +155,11 @@ static int coroutine_fn block_copy_with_bounce_buffer(BlockCopyState *s,
         goto fail;
     }
 
+    qemu_vfree(bounce_buffer);
+
     return nbytes;
 fail:
+    qemu_vfree(bounce_buffer);
     bdrv_set_dirty_bitmap(s->copy_bitmap, start, s->cluster_size);
     return ret;
 
@@ -271,7 +271,6 @@ int coroutine_fn block_copy(BlockCopyState *s,
 {
     int ret = 0;
     int64_t end = bytes + start; /* bytes */
-    void *bounce_buffer = NULL;
     int64_t status_bytes;
     BlockCopyInFlightReq req;
 
@@ -324,7 +323,7 @@ int coroutine_fn block_copy(BlockCopyState *s,
         }
         if (!s->use_copy_range) {
             ret = block_copy_with_bounce_buffer(s, start, dirty_end,
-                                                error_is_read, &bounce_buffer);
+                                                error_is_read);
         }
         if (ret < 0) {
             break;
@@ -333,10 +332,6 @@ int coroutine_fn block_copy(BlockCopyState *s,
         start += ret;
         s->progress_bytes_callback(ret, s->progress_opaque);
         ret = 0;
-    }
-
-    if (bounce_buffer) {
-        qemu_vfree(bounce_buffer);
     }
 
     block_copy_inflight_req_end(&req);
