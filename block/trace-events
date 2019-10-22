@@ -45,9 +45,9 @@ backup_do_cow_return(void *job, int64_t offset, uint64_t bytes, int ret) "job %p
 block_copy_skip(void *bcs, int64_t start) "bcs %p start %"PRId64
 block_copy_skip_range(void *bcs, int64_t start, uint64_t bytes) "bcs %p start %"PRId64" bytes %"PRId64
 block_copy_process(void *bcs, int64_t start) "bcs %p start %"PRId64
-block_copy_with_bounce_buffer_read_fail(void *bcs, int64_t start, int ret) "bcs %p start %"PRId64" ret %d"
-block_copy_with_bounce_buffer_write_fail(void *bcs, int64_t start, int ret) "bcs %p start %"PRId64" ret %d"
-block_copy_with_offload_fail(void *bcs, int64_t start, int ret) "bcs %p start %"PRId64" ret %d"
+block_copy_copy_range_fail(void *bcs, int64_t start, int ret) "bcs %p start %"PRId64" ret %d"
+block_copy_read_fail(void *bcs, int64_t start, int ret) "bcs %p start %"PRId64" ret %d"
+block_copy_write_fail(void *bcs, int64_t start, int ret) "bcs %p start %"PRId64" ret %d"
 
 # ../blockdev.c
 qmp_block_job_cancel(void *job) "job %p"
