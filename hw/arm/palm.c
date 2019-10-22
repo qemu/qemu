@@ -190,16 +190,20 @@ static void palmte_init(MachineState *machine)
     MemoryRegion *address_space_mem = get_system_memory();
     struct omap_mpu_state_s *mpu;
     int flash_size = 0x00800000;
-    int sdram_size = palmte_binfo.ram_size;
     static uint32_t cs0val = 0xffffffff;
     static uint32_t cs1val = 0x0000e1a0;
     static uint32_t cs2val = 0x0000e1a0;
     static uint32_t cs3val = 0xe1a0e1a0;
     int rom_size, rom_loaded = 0;
+    MemoryRegion *dram = g_new(MemoryRegion, 1);
     MemoryRegion *flash = g_new(MemoryRegion, 1);
     MemoryRegion *cs = g_new(MemoryRegion, 4);
 
-    mpu = omap310_mpu_init(address_space_mem, sdram_size, machine->cpu_type);
+    memory_region_allocate_system_memory(dram, NULL, "omap1.dram",
+                                         palmte_binfo.ram_size);
+    memory_region_add_subregion(address_space_mem, OMAP_EMIFF_BASE, dram);
+
+    mpu = omap310_mpu_init(dram, machine->cpu_type);
 
     /* External Flash (EMIFS) */
     memory_region_init_ram(flash, NULL, "palmte.flash", flash_size,
