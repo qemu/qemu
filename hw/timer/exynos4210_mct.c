@@ -1254,7 +1254,7 @@ static void exynos4210_mct_write(void *opaque, hwaddr offset,
         /* Start FRC if transition from disabled to enabled */
         if ((value & G_TCON_TIMER_ENABLE) > (old_val &
                 G_TCON_TIMER_ENABLE)) {
-            exynos4210_gfrc_start(&s->g_timer);
+            exynos4210_gfrc_restart(s);
         }
         if ((value & G_TCON_TIMER_ENABLE) < (old_val &
                 G_TCON_TIMER_ENABLE)) {
