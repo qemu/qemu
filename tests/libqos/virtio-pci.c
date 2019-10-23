@@ -207,8 +207,9 @@ static void qvirtio_pci_set_queue_address(QVirtioDevice *d, QVirtQueue *vq)
     qpci_io_writel(dev->pdev, dev->bar, VIRTIO_PCI_QUEUE_PFN, pfn);
 }
 
-static QVirtQueue *qvirtio_pci_virtqueue_setup(QVirtioDevice *d,
-                                        QGuestAllocator *alloc, uint16_t index)
+QVirtQueue *qvirtio_pci_virtqueue_setup_common(QVirtioDevice *d,
+                                               QGuestAllocator *alloc,
+                                               uint16_t index)
 {
     uint64_t feat;
     uint64_t addr;
@@ -216,12 +217,12 @@ static QVirtQueue *qvirtio_pci_virtqueue_setup(QVirtioDevice *d,
     QVirtioPCIDevice *qvpcidev = container_of(d, QVirtioPCIDevice, vdev);
 
     vqpci = g_malloc0(sizeof(*vqpci));
-    feat = qvirtio_pci_get_guest_features(d);
+    feat = d->bus->get_guest_features(d);
 
-    qvirtio_pci_queue_select(d, index);
+    d->bus->queue_select(d, index);
     vqpci->vq.vdev = d;
     vqpci->vq.index = index;
-    vqpci->vq.size = qvirtio_pci_get_queue_size(d);
+    vqpci->vq.size = d->bus->get_queue_size(d);
     vqpci->vq.free_head = 0;
     vqpci->vq.num_free = vqpci->vq.size;
     vqpci->vq.align = VIRTIO_PCI_VRING_ALIGN;
@@ -241,12 +242,12 @@ static QVirtQueue *qvirtio_pci_virtqueue_setup(QVirtioDevice *d,
     addr = guest_alloc(alloc, qvring_size(vqpci->vq.size,
                                           VIRTIO_PCI_VRING_ALIGN));
     qvring_init(qvpcidev->pdev->bus->qts, alloc, &vqpci->vq, addr);
-    qvirtio_pci_set_queue_address(d, &vqpci->vq);
+    d->bus->set_queue_address(d, &vqpci->vq);
 
     return &vqpci->vq;
 }
 
-static void qvirtio_pci_virtqueue_cleanup(QVirtQueue *vq,
+void qvirtio_pci_virtqueue_cleanup_common(QVirtQueue *vq,
                                           QGuestAllocator *alloc)
 {
     QVirtQueuePCI *vqpci = container_of(vq, QVirtQueuePCI, vq);
@@ -276,8 +277,8 @@ const QVirtioBus qvirtio_pci = {
     .queue_select = qvirtio_pci_queue_select,
     .get_queue_size = qvirtio_pci_get_queue_size,
     .set_queue_address = qvirtio_pci_set_queue_address,
-    .virtqueue_setup = qvirtio_pci_virtqueue_setup,
-    .virtqueue_cleanup = qvirtio_pci_virtqueue_cleanup,
+    .virtqueue_setup = qvirtio_pci_virtqueue_setup_common,
+    .virtqueue_cleanup = qvirtio_pci_virtqueue_cleanup_common,
     .virtqueue_kick = qvirtio_pci_virtqueue_kick,
 };
 
