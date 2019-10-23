@@ -33,12 +33,12 @@ uint64_t qvirtio_config_readq(QVirtioDevice *d, uint64_t addr)
     return d->bus->config_readq(d, addr);
 }
 
-uint32_t qvirtio_get_features(QVirtioDevice *d)
+uint64_t qvirtio_get_features(QVirtioDevice *d)
 {
     return d->bus->get_features(d);
 }
 
-void qvirtio_set_features(QVirtioDevice *d, uint32_t features)
+void qvirtio_set_features(QVirtioDevice *d, uint64_t features)
 {
     d->features = features;
     d->bus->set_features(d, features);

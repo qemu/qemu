@@ -13,7 +13,7 @@
 #include "libqos/malloc.h"
 #include "standard-headers/linux/virtio_ring.h"
 
-#define QVIRTIO_F_BAD_FEATURE           0x40000000
+#define QVIRTIO_F_BAD_FEATURE           0x40000000ull
 
 typedef struct QVirtioBus QVirtioBus;
 
@@ -52,13 +52,13 @@ struct QVirtioBus {
     uint64_t (*config_readq)(QVirtioDevice *d, uint64_t addr);
 
     /* Get features of the device */
-    uint32_t (*get_features)(QVirtioDevice *d);
+    uint64_t (*get_features)(QVirtioDevice *d);
 
     /* Set features of the device */
-    void (*set_features)(QVirtioDevice *d, uint32_t features);
+    void (*set_features)(QVirtioDevice *d, uint64_t features);
 
     /* Get features of the guest */
-    uint32_t (*get_guest_features)(QVirtioDevice *d);
+    uint64_t (*get_guest_features)(QVirtioDevice *d);
 
     /* Get status of the device */
     uint8_t (*get_status)(QVirtioDevice *d);
@@ -103,8 +103,8 @@ uint8_t qvirtio_config_readb(QVirtioDevice *d, uint64_t addr);
 uint16_t qvirtio_config_readw(QVirtioDevice *d, uint64_t addr);
 uint32_t qvirtio_config_readl(QVirtioDevice *d, uint64_t addr);
 uint64_t qvirtio_config_readq(QVirtioDevice *d, uint64_t addr);
-uint32_t qvirtio_get_features(QVirtioDevice *d);
-void qvirtio_set_features(QVirtioDevice *d, uint32_t features);
+uint64_t qvirtio_get_features(QVirtioDevice *d);
+void qvirtio_set_features(QVirtioDevice *d, uint64_t features);
 bool qvirtio_is_big_endian(QVirtioDevice *d);
 
 void qvirtio_reset(QVirtioDevice *d);

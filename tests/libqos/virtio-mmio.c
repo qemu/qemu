@@ -40,22 +40,38 @@ static uint64_t qvirtio_mmio_config_readq(QVirtioDevice *d, uint64_t off)
     return qtest_readq(dev->qts, dev->addr + QVIRTIO_MMIO_DEVICE_SPECIFIC + off);
 }
 
-static uint32_t qvirtio_mmio_get_features(QVirtioDevice *d)
+static uint64_t qvirtio_mmio_get_features(QVirtioDevice *d)
 {
     QVirtioMMIODevice *dev = container_of(d, QVirtioMMIODevice, vdev);
+    uint64_t lo;
+    uint64_t hi = 0;
+
     qtest_writel(dev->qts, dev->addr + QVIRTIO_MMIO_HOST_FEATURES_SEL, 0);
-    return qtest_readl(dev->qts, dev->addr + QVIRTIO_MMIO_HOST_FEATURES);
+    lo = qtest_readl(dev->qts, dev->addr + QVIRTIO_MMIO_HOST_FEATURES);
+
+    if (dev->version >= 2) {
+        qtest_writel(dev->qts, dev->addr + QVIRTIO_MMIO_HOST_FEATURES_SEL, 1);
+        hi = qtest_readl(dev->qts, dev->addr + QVIRTIO_MMIO_HOST_FEATURES);
+    }
+
+    return (hi << 32) | lo;
 }
 
-static void qvirtio_mmio_set_features(QVirtioDevice *d, uint32_t features)
+static void qvirtio_mmio_set_features(QVirtioDevice *d, uint64_t features)
 {
     QVirtioMMIODevice *dev = container_of(d, QVirtioMMIODevice, vdev);
     dev->features = features;
     qtest_writel(dev->qts, dev->addr + QVIRTIO_MMIO_GUEST_FEATURES_SEL, 0);
     qtest_writel(dev->qts, dev->addr + QVIRTIO_MMIO_GUEST_FEATURES, features);
+
+    if (dev->version >= 2) {
+        qtest_writel(dev->qts, dev->addr + QVIRTIO_MMIO_GUEST_FEATURES_SEL, 1);
+        qtest_writel(dev->qts, dev->addr + QVIRTIO_MMIO_GUEST_FEATURES,
+                     features >> 32);
+    }
 }
 
-static uint32_t qvirtio_mmio_get_guest_features(QVirtioDevice *d)
+static uint64_t qvirtio_mmio_get_guest_features(QVirtioDevice *d)
 {
     QVirtioMMIODevice *dev = container_of(d, QVirtioMMIODevice, vdev);
     return dev->features;
@@ -149,8 +165,8 @@ static QVirtQueue *qvirtio_mmio_virtqueue_setup(QVirtioDevice *d,
     vq->free_head = 0;
     vq->num_free = vq->size;
     vq->align = dev->page_size;
-    vq->indirect = (dev->features & (1u << VIRTIO_RING_F_INDIRECT_DESC)) != 0;
-    vq->event = (dev->features & (1u << VIRTIO_RING_F_EVENT_IDX)) != 0;
+    vq->indirect = dev->features & (1ull << VIRTIO_RING_F_INDIRECT_DESC);
+    vq->event = dev->features & (1ull << VIRTIO_RING_F_EVENT_IDX);
 
     qtest_writel(dev->qts, dev->addr + QVIRTIO_MMIO_QUEUE_NUM, vq->size);
 

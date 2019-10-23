@@ -96,19 +96,19 @@ static uint64_t qvirtio_pci_config_readq(QVirtioDevice *d, uint64_t off)
     return val;
 }
 
-static uint32_t qvirtio_pci_get_features(QVirtioDevice *d)
+static uint64_t qvirtio_pci_get_features(QVirtioDevice *d)
 {
     QVirtioPCIDevice *dev = container_of(d, QVirtioPCIDevice, vdev);
     return qpci_io_readl(dev->pdev, dev->bar, VIRTIO_PCI_HOST_FEATURES);
 }
 
-static void qvirtio_pci_set_features(QVirtioDevice *d, uint32_t features)
+static void qvirtio_pci_set_features(QVirtioDevice *d, uint64_t features)
 {
     QVirtioPCIDevice *dev = container_of(d, QVirtioPCIDevice, vdev);
     qpci_io_writel(dev->pdev, dev->bar, VIRTIO_PCI_GUEST_FEATURES, features);
 }
 
-static uint32_t qvirtio_pci_get_guest_features(QVirtioDevice *d)
+static uint64_t qvirtio_pci_get_guest_features(QVirtioDevice *d)
 {
     QVirtioPCIDevice *dev = container_of(d, QVirtioPCIDevice, vdev);
     return qpci_io_readl(dev->pdev, dev->bar, VIRTIO_PCI_GUEST_FEATURES);
@@ -208,7 +208,7 @@ static void qvirtio_pci_set_queue_address(QVirtioDevice *d, uint32_t pfn)
 static QVirtQueue *qvirtio_pci_virtqueue_setup(QVirtioDevice *d,
                                         QGuestAllocator *alloc, uint16_t index)
 {
-    uint32_t feat;
+    uint64_t feat;
     uint64_t addr;
     QVirtQueuePCI *vqpci;
     QVirtioPCIDevice *qvpcidev = container_of(d, QVirtioPCIDevice, vdev);
@@ -222,8 +222,8 @@ static QVirtQueue *qvirtio_pci_virtqueue_setup(QVirtioDevice *d,
     vqpci->vq.free_head = 0;
     vqpci->vq.num_free = vqpci->vq.size;
     vqpci->vq.align = VIRTIO_PCI_VRING_ALIGN;
-    vqpci->vq.indirect = (feat & (1u << VIRTIO_RING_F_INDIRECT_DESC)) != 0;
-    vqpci->vq.event = (feat & (1u << VIRTIO_RING_F_EVENT_IDX)) != 0;
+    vqpci->vq.indirect = feat & (1ull << VIRTIO_RING_F_INDIRECT_DESC);
+    vqpci->vq.event = feat & (1ull << VIRTIO_RING_F_EVENT_IDX);
 
     vqpci->msix_entry = -1;
     vqpci->msix_addr = 0;

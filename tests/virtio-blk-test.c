@@ -119,7 +119,7 @@ static void test_basic(QVirtioDevice *dev, QGuestAllocator *alloc,
     QVirtioBlkReq req;
     uint64_t req_addr;
     uint64_t capacity;
-    uint32_t features;
+    uint64_t features;
     uint32_t free_head;
     uint8_t status;
     char *data;
@@ -352,7 +352,7 @@ static void indirect(void *obj, void *u_data, QGuestAllocator *t_alloc)
     QVRingIndirectDesc *indirect;
     uint64_t req_addr;
     uint64_t capacity;
-    uint32_t features;
+    uint64_t features;
     uint32_t free_head;
     uint8_t status;
     char *data;
@@ -467,7 +467,7 @@ static void msix(void *obj, void *u_data, QGuestAllocator *t_alloc)
     int n_size = TEST_IMAGE_SIZE / 2;
     uint64_t req_addr;
     uint64_t capacity;
-    uint32_t features;
+    uint64_t features;
     uint32_t free_head;
     uint8_t status;
     char *data;
@@ -574,7 +574,7 @@ static void idx(void *obj, void *u_data, QGuestAllocator *t_alloc)
     QVirtioBlkReq req;
     uint64_t req_addr;
     uint64_t capacity;
-    uint32_t features;
+    uint64_t features;
     uint32_t free_head;
     uint32_t write_head;
     uint32_t desc_idx;
