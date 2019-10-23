@@ -1028,22 +1028,6 @@ static const TypeInfo serial_io_info = {
     .class_init = serial_io_class_init,
 };
 
-SerialIO *serial_init(int base, qemu_irq irq, int baudbase,
-                         Chardev *chr, MemoryRegion *system_io)
-{
-    SerialIO *sio = SERIAL_IO(qdev_create(NULL, TYPE_SERIAL_IO));
-
-    qdev_prop_set_uint32(DEVICE(sio), "baudbase", baudbase);
-    qdev_prop_set_chr(DEVICE(sio), "chardev", chr);
-    qdev_set_legacy_instance_id(DEVICE(sio), base, 2);
-    qdev_init_nofail(DEVICE(sio));
-
-    sysbus_connect_irq(SYS_BUS_DEVICE(sio), 0, irq);
-    memory_region_add_subregion(system_io, base, &sio->serial.io);
-
-    return sio;
-}
-
 static Property serial_properties[] = {
     DEFINE_PROP_CHR("chardev", SerialState, chr),
     DEFINE_PROP_UINT32("baudbase", SerialState, baudbase, 115200),
