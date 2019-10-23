@@ -1156,23 +1156,6 @@ void tcg_exec_init(unsigned long tb_size)
 #endif
 }
 
-/*
- * Allocate a new translation block. Flush the translation buffer if
- * too many translation blocks or too much generated code.
- */
-static TranslationBlock *tb_alloc(target_ulong pc)
-{
-    TranslationBlock *tb;
-
-    assert_memory_lock();
-
-    tb = tcg_tb_alloc(tcg_ctx);
-    if (unlikely(tb == NULL)) {
-        return NULL;
-    }
-    return tb;
-}
-
 /* call with @p->lock held */
 static inline void invalidate_page_bitmap(PageDesc *p)
 {
@@ -1681,6 +1664,7 @@ TranslationBlock *tb_gen_code(CPUState *cpu,
     TCGProfile *prof = &tcg_ctx->prof;
     int64_t ti;
 #endif
+
     assert_memory_lock();
 
     phys_pc = get_page_addr_code(env, pc);
@@ -1706,7 +1690,7 @@ TranslationBlock *tb_gen_code(CPUState *cpu,
     }
 
  buffer_overflow:
-    tb = tb_alloc(pc);
+    tb = tcg_tb_alloc(tcg_ctx);
     if (unlikely(!tb)) {
         /* flush must be done */
         tb_flush(cpu);
