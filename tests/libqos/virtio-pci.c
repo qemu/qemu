@@ -35,14 +35,6 @@
  * original qvirtio_pci_destructor and qvirtio_pci_start_hw.
  */
 
-static inline bool qvirtio_pci_is_big_endian(QVirtioPCIDevice *dev)
-{
-    QPCIBus *bus = dev->pdev->bus;
-
-    /* FIXME: virtio 1.0 is always little-endian */
-    return qtest_big_endian(bus->qts);
-}
-
 #define CONFIG_BASE(dev) (VIRTIO_PCI_CONFIG_OFF((dev)->pdev->msix_enabled))
 
 static uint8_t qvirtio_pci_config_readb(QVirtioDevice *d, uint64_t off)
@@ -55,8 +47,7 @@ static uint8_t qvirtio_pci_config_readb(QVirtioDevice *d, uint64_t off)
  * but virtio ( < 1.0) is in guest order
  * so with a big-endian guest the order has been reversed,
  * reverse it again
- * virtio-1.0 is always little-endian, like PCI, but this
- * case will be managed inside qvirtio_pci_is_big_endian()
+ * virtio-1.0 is always little-endian, like PCI
  */
 
 static uint16_t qvirtio_pci_config_readw(QVirtioDevice *d, uint64_t off)
@@ -262,7 +253,7 @@ static void qvirtio_pci_virtqueue_kick(QVirtioDevice *d, QVirtQueue *vq)
     qpci_io_writew(dev->pdev, dev->bar, VIRTIO_PCI_QUEUE_NOTIFY, vq->index);
 }
 
-const QVirtioBus qvirtio_pci = {
+static const QVirtioBus qvirtio_pci_legacy = {
     .config_readb = qvirtio_pci_config_readb,
     .config_readw = qvirtio_pci_config_readw,
     .config_readl = qvirtio_pci_config_readl,
@@ -396,17 +387,21 @@ void qvirtio_pci_start_hw(QOSGraphObject *obj)
     qvirtio_start_device(&dev->vdev);
 }
 
+static void qvirtio_pci_init_legacy(QVirtioPCIDevice *dev)
+{
+    dev->vdev.device_type = qpci_config_readw(dev->pdev, PCI_SUBSYSTEM_ID);
+    dev->bar_idx = 0;
+    dev->vdev.bus = &qvirtio_pci_legacy;
+    dev->msix_ops = &qvirtio_pci_msix_ops_legacy;
+    dev->vdev.big_endian = qtest_big_endian(dev->pdev->bus->qts);
+}
+
 static void qvirtio_pci_init_from_pcidev(QVirtioPCIDevice *dev, QPCIDevice *pci_dev)
 {
     dev->pdev = pci_dev;
-    dev->vdev.device_type = qpci_config_readw(pci_dev, PCI_SUBSYSTEM_ID);
-    dev->bar_idx = 0;
-
     dev->config_msix_entry = -1;
-    dev->msix_ops = &qvirtio_pci_msix_ops_legacy;
 
-    dev->vdev.bus = &qvirtio_pci;
-    dev->vdev.big_endian = qvirtio_pci_is_big_endian(dev);
+    qvirtio_pci_init_legacy(dev);
 
     /* each virtio-xxx-pci device should override at least this function */
     dev->obj.get_driver = NULL;
