@@ -29107,6 +29107,32 @@ static void gen_msa_3r(CPUMIPSState *env, DisasContext *ctx)
                 break;
             }
             break;
+        case OPC_HSUB_S_df:
+            switch (df) {
+            case DF_HALF:
+                gen_helper_msa_hsub_s_h(cpu_env, twd, tws, twt);
+                break;
+            case DF_WORD:
+                gen_helper_msa_hsub_s_w(cpu_env, twd, tws, twt);
+                break;
+            case DF_DOUBLE:
+                gen_helper_msa_hsub_s_d(cpu_env, twd, tws, twt);
+                break;
+            }
+            break;
+        case OPC_HSUB_U_df:
+            switch (df) {
+            case DF_HALF:
+                gen_helper_msa_hsub_u_h(cpu_env, twd, tws, twt);
+                break;
+            case DF_WORD:
+                gen_helper_msa_hsub_u_w(cpu_env, twd, tws, twt);
+                break;
+            case DF_DOUBLE:
+                gen_helper_msa_hsub_u_d(cpu_env, twd, tws, twt);
+                break;
+            }
+            break;
         case OPC_DOTP_S_df:
             gen_helper_msa_dotp_s_df(cpu_env, tdf, twd, tws, twt);
             break;
@@ -29124,12 +29150,6 @@ static void gen_msa_3r(CPUMIPSState *env, DisasContext *ctx)
             break;
         case OPC_DPSUB_U_df:
             gen_helper_msa_dpsub_u_df(cpu_env, tdf, twd, tws, twt);
-            break;
-        case OPC_HSUB_S_df:
-            gen_helper_msa_hsub_s_df(cpu_env, tdf, twd, tws, twt);
-            break;
-        case OPC_HSUB_U_df:
-            gen_helper_msa_hsub_u_df(cpu_env, tdf, twd, tws, twt);
             break;
         }
         break;
