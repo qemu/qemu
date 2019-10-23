@@ -3298,6 +3298,12 @@ void arm_register_el_change_hook(ARMCPU *cpu, ARMELChangeHookFn *hook, void
         *opaque);
 
 /**
+ * arm_rebuild_hflags:
+ * Rebuild the cached TBFLAGS for arbitrary changed processor state.
+ */
+void arm_rebuild_hflags(CPUARMState *env);
+
+/**
  * aa32_vfp_dreg:
  * Return a pointer to the Dn register within env in 32-bit mode.
  */
