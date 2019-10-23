@@ -15,21 +15,25 @@
 
 uint8_t qvirtio_config_readb(QVirtioDevice *d, uint64_t addr)
 {
+    g_assert_true(d->features_negotiated);
     return d->bus->config_readb(d, addr);
 }
 
 uint16_t qvirtio_config_readw(QVirtioDevice *d, uint64_t addr)
 {
+    g_assert_true(d->features_negotiated);
     return d->bus->config_readw(d, addr);
 }
 
 uint32_t qvirtio_config_readl(QVirtioDevice *d, uint64_t addr)
 {
+    g_assert_true(d->features_negotiated);
     return d->bus->config_readl(d, addr);
 }
 
 uint64_t qvirtio_config_readq(QVirtioDevice *d, uint64_t addr)
 {
+    g_assert_true(d->features_negotiated);
     return d->bus->config_readq(d, addr);
 }
 
@@ -42,11 +46,13 @@ void qvirtio_set_features(QVirtioDevice *d, uint64_t features)
 {
     d->features = features;
     d->bus->set_features(d, features);
+    d->features_negotiated = true;
 }
 
 QVirtQueue *qvirtqueue_setup(QVirtioDevice *d,
                              QGuestAllocator *alloc, uint16_t index)
 {
+    g_assert_true(d->features_negotiated);
     return d->bus->virtqueue_setup(d, alloc, index);
 }
 
@@ -60,6 +66,7 @@ void qvirtio_reset(QVirtioDevice *d)
 {
     d->bus->set_status(d, 0);
     g_assert_cmphex(d->bus->get_status(d), ==, 0);
+    d->features_negotiated = false;
 }
 
 void qvirtio_set_acknowledge(QVirtioDevice *d)

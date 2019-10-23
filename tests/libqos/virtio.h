@@ -23,6 +23,7 @@ typedef struct QVirtioDevice {
     uint16_t device_type;
     uint64_t features;
     bool big_endian;
+    bool features_negotiated;
 } QVirtioDevice;
 
 typedef struct QVirtQueue {
