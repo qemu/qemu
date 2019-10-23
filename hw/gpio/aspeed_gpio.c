@@ -733,13 +733,13 @@ static void aspeed_gpio_get_pin(Object *obj, Visitor *v, const char *name,
 {
     int pin = 0xfff;
     bool level = true;
-    char group[3];
+    char group[4];
     AspeedGPIOState *s = ASPEED_GPIO(obj);
     int set_idx, group_idx = 0;
 
     if (sscanf(name, "gpio%2[A-Z]%1d", group, &pin) != 2) {
         /* 1.8V gpio */
-        if (sscanf(name, "gpio%3s%1d", group, &pin) != 2) {
+        if (sscanf(name, "gpio%3[18A-E]%1d", group, &pin) != 2) {
             error_setg(errp, "%s: error reading %s", __func__, name);
             return;
         }
@@ -760,7 +760,7 @@ static void aspeed_gpio_set_pin(Object *obj, Visitor *v, const char *name,
     Error *local_err = NULL;
     bool level;
     int pin = 0xfff;
-    char group[3];
+    char group[4];
     AspeedGPIOState *s = ASPEED_GPIO(obj);
     int set_idx, group_idx = 0;
 
@@ -771,7 +771,7 @@ static void aspeed_gpio_set_pin(Object *obj, Visitor *v, const char *name,
     }
     if (sscanf(name, "gpio%2[A-Z]%1d", group, &pin) != 2) {
         /* 1.8V gpio */
-        if (sscanf(name, "gpio%3s%1d", group, &pin) != 2) {
+        if (sscanf(name, "gpio%3[18A-E]%1d", group, &pin) != 2) {
             error_setg(errp, "%s: error reading %s", __func__, name);
             return;
         }
