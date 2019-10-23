@@ -1093,6 +1093,7 @@ SerialMM *serial_mm_init(MemoryRegion *address_space,
     qdev_prop_set_uint32(DEVICE(s), "baudbase", baudbase);
     qdev_prop_set_chr(DEVICE(s), "chardev", chr);
     qdev_set_legacy_instance_id(DEVICE(s), base, 2);
+    qdev_prop_set_uint8(DEVICE(self), "endianness", end);
 
     qdev_init_nofail(DEVICE(smm));
 
@@ -1118,6 +1119,7 @@ static Property serial_mm_properties[] = {
      * previous one.
      */
     DEFINE_PROP_UINT8("regshift", SerialMM, regshift, 0),
+    DEFINE_PROP_UINT8("endianness", SerialMM, endianness, DEVICE_NATIVE_ENDIAN),
     DEFINE_PROP_END_OF_LIST(),
 };
 
