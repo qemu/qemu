@@ -985,22 +985,63 @@ const MemoryRegionOps serial_io_ops = {
     .endianness = DEVICE_LITTLE_ENDIAN,
 };
 
-SerialState *serial_init(int base, qemu_irq irq, int baudbase,
-                         Chardev *chr, MemoryRegion *system_io)
+static void serial_io_realize(DeviceState *dev, Error **errp)
 {
-    DeviceState *dev = DEVICE(object_new(TYPE_SERIAL));
-    SerialState *s = SERIAL(dev);
+    SerialIO *sio = SERIAL_IO(dev);
+    SerialState *s = &sio->serial;
+    Error *local_err = NULL;
 
-    s->irq = irq;
-    qdev_prop_set_uint32(dev, "baudbase", baudbase);
-    qdev_prop_set_chr(dev, "chardev", chr);
-    qdev_set_legacy_instance_id(dev, base, 2);
-    qdev_init_nofail(dev);
+    object_property_set_bool(OBJECT(s), true, "realized", &local_err);
+    if (local_err) {
+        error_propagate(errp, local_err);
+        return;
+    }
 
     memory_region_init_io(&s->io, NULL, &serial_io_ops, s, "serial", 8);
-    memory_region_add_subregion(system_io, base, &s->io);
+    sysbus_init_irq(SYS_BUS_DEVICE(sio), &s->irq);
+}
 
-    return s;
+static void serial_io_class_init(ObjectClass *klass, void* data)
+{
+    DeviceClass *dc = DEVICE_CLASS(klass);
+
+    dc->realize = serial_io_realize;
+    /* No dc->vmsd: class has no migratable state */
+}
+
+static void serial_io_instance_init(Object *o)
+{
+    SerialIO *sio = SERIAL_IO(o);
+
+    object_initialize_child(o, "serial", &sio->serial, sizeof(sio->serial),
+                            TYPE_SERIAL, &error_abort, NULL);
+
+    qdev_alias_all_properties(DEVICE(&sio->serial), o);
+}
+
+
+static const TypeInfo serial_io_info = {
+    .name = TYPE_SERIAL_IO,
+    .parent = TYPE_SYS_BUS_DEVICE,
+    .instance_size = sizeof(SerialIO),
+    .instance_init = serial_io_instance_init,
+    .class_init = serial_io_class_init,
+};
+
+SerialIO *serial_init(int base, qemu_irq irq, int baudbase,
+                         Chardev *chr, MemoryRegion *system_io)
+{
+    SerialIO *sio = SERIAL_IO(qdev_create(NULL, TYPE_SERIAL_IO));
+
+    qdev_prop_set_uint32(DEVICE(sio), "baudbase", baudbase);
+    qdev_prop_set_chr(DEVICE(sio), "chardev", chr);
+    qdev_set_legacy_instance_id(DEVICE(sio), base, 2);
+    qdev_init_nofail(DEVICE(sio));
+
+    sysbus_connect_irq(SYS_BUS_DEVICE(sio), 0, irq);
+    memory_region_add_subregion(system_io, base, &sio->serial.io);
+
+    return sio;
 }
 
 static Property serial_properties[] = {
@@ -1149,6 +1190,7 @@ static const TypeInfo serial_mm_info = {
 static void serial_register_types(void)
 {
     type_register_static(&serial_info);
+    type_register_static(&serial_io_info);
     type_register_static(&serial_mm_info);
 }
 
