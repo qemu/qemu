@@ -14,15 +14,27 @@
 #include "libqos/pci.h"
 #include "libqos/qgraph.h"
 
+typedef struct QVirtioPCIMSIXOps QVirtioPCIMSIXOps;
+
 typedef struct QVirtioPCIDevice {
     QOSGraphObject obj;
     QVirtioDevice vdev;
     QPCIDevice *pdev;
     QPCIBar bar;
+    const QVirtioPCIMSIXOps *msix_ops;
     uint16_t config_msix_entry;
     uint64_t config_msix_addr;
     uint32_t config_msix_data;
 } QVirtioPCIDevice;
+
+struct QVirtioPCIMSIXOps {
+    /* Set the Configuration Vector for MSI-X */
+    void (*set_config_vector)(QVirtioPCIDevice *d, uint16_t entry);
+
+    /* Set the Queue Vector for MSI-X */
+    void (*set_queue_vector)(QVirtioPCIDevice *d, uint16_t vq_idx,
+                             uint16_t entry);
+};
 
 typedef struct QVirtQueuePCI {
     QVirtQueue vq;
