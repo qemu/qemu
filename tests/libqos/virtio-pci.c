@@ -22,6 +22,8 @@
 #include "hw/pci/pci.h"
 #include "hw/pci/pci_regs.h"
 
+#include "virtio-pci-modern.h"
+
 /* virtio-pci is a superclass of all virtio-xxx-pci devices;
  * the relation between virtio-pci and virtio-xxx-pci is implicit,
  * and therefore virtio-pci does not produce virtio and is not
@@ -401,7 +403,9 @@ static void qvirtio_pci_init_from_pcidev(QVirtioPCIDevice *dev, QPCIDevice *pci_
     dev->pdev = pci_dev;
     dev->config_msix_entry = -1;
 
-    qvirtio_pci_init_legacy(dev);
+    if (!qvirtio_pci_init_virtio_1(dev)) {
+        qvirtio_pci_init_legacy(dev);
+    }
 
     /* each virtio-xxx-pci device should override at least this function */
     dev->obj.get_driver = NULL;

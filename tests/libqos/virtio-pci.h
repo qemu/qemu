@@ -27,6 +27,13 @@ typedef struct QVirtioPCIDevice {
     uint32_t config_msix_data;
 
     int bar_idx;
+
+    /* VIRTIO 1.0 */
+    uint32_t common_cfg_offset;
+    uint32_t notify_cfg_offset;
+    uint32_t notify_off_multiplier;
+    uint32_t isr_cfg_offset;
+    uint32_t device_cfg_offset;
 } QVirtioPCIDevice;
 
 struct QVirtioPCIMSIXOps {
@@ -43,6 +50,9 @@ typedef struct QVirtQueuePCI {
     uint16_t msix_entry;
     uint64_t msix_addr;
     uint32_t msix_data;
+
+    /* VIRTIO 1.0 */
+    uint64_t notify_offset;
 } QVirtQueuePCI;
 
 void virtio_pci_init(QVirtioPCIDevice *dev, QPCIBus *bus, QPCIAddress * addr);
