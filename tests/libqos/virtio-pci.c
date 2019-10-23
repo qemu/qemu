@@ -217,6 +217,7 @@ static QVirtQueue *qvirtio_pci_virtqueue_setup(QVirtioDevice *d,
     feat = qvirtio_pci_get_guest_features(d);
 
     qvirtio_pci_queue_select(d, index);
+    vqpci->vq.vdev = d;
     vqpci->vq.index = index;
     vqpci->vq.size = qvirtio_pci_get_queue_size(d);
     vqpci->vq.free_head = 0;

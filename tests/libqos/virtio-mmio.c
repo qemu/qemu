@@ -157,6 +157,7 @@ static QVirtQueue *qvirtio_mmio_virtqueue_setup(QVirtioDevice *d,
     uint64_t addr;
 
     vq = g_malloc0(sizeof(*vq));
+    vq->vdev = d;
     qvirtio_mmio_queue_select(d, index);
     qtest_writel(dev->qts, dev->addr + QVIRTIO_MMIO_QUEUE_ALIGN, dev->page_size);
 

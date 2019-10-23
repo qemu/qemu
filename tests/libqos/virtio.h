@@ -27,6 +27,7 @@ typedef struct QVirtioDevice {
 } QVirtioDevice;
 
 typedef struct QVirtQueue {
+    QVirtioDevice *vdev;
     uint64_t desc; /* This points to an array of struct vring_desc */
     uint64_t avail; /* This points to a struct vring_avail */
     uint64_t used; /* This points to a struct vring_used */
@@ -135,7 +136,8 @@ void qvring_init(QTestState *qts, const QGuestAllocator *alloc, QVirtQueue *vq,
 QVRingIndirectDesc *qvring_indirect_desc_setup(QTestState *qs, QVirtioDevice *d,
                                                QGuestAllocator *alloc,
                                                uint16_t elem);
-void qvring_indirect_desc_add(QTestState *qts, QVRingIndirectDesc *indirect,
+void qvring_indirect_desc_add(QVirtioDevice *d, QTestState *qts,
+                              QVRingIndirectDesc *indirect,
                               uint64_t data, uint32_t len, bool write);
 uint32_t qvirtqueue_add(QTestState *qts, QVirtQueue *vq, uint64_t data,
                         uint32_t len, bool write, bool next);

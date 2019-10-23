@@ -388,8 +388,8 @@ static void indirect(void *obj, void *u_data, QGuestAllocator *t_alloc)
     g_free(req.data);
 
     indirect = qvring_indirect_desc_setup(qts, dev, t_alloc, 2);
-    qvring_indirect_desc_add(qts, indirect, req_addr, 528, false);
-    qvring_indirect_desc_add(qts, indirect, req_addr + 528, 1, true);
+    qvring_indirect_desc_add(dev, qts, indirect, req_addr, 528, false);
+    qvring_indirect_desc_add(dev, qts, indirect, req_addr + 528, 1, true);
     free_head = qvirtqueue_add_indirect(qts, vq, indirect);
     qvirtqueue_kick(qts, dev, vq, free_head);
 
@@ -413,8 +413,8 @@ static void indirect(void *obj, void *u_data, QGuestAllocator *t_alloc)
     g_free(req.data);
 
     indirect = qvring_indirect_desc_setup(qts, dev, t_alloc, 2);
-    qvring_indirect_desc_add(qts, indirect, req_addr, 16, false);
-    qvring_indirect_desc_add(qts, indirect, req_addr + 16, 513, true);
+    qvring_indirect_desc_add(dev, qts, indirect, req_addr, 16, false);
+    qvring_indirect_desc_add(dev, qts, indirect, req_addr + 16, 513, true);
     free_head = qvirtqueue_add_indirect(qts, vq, indirect);
     qvirtqueue_kick(qts, dev, vq, free_head);
 
