@@ -115,10 +115,28 @@ void qpci_device_enable(QPCIDevice *dev)
     g_assert_cmphex(cmd & PCI_COMMAND_MASTER, ==, PCI_COMMAND_MASTER);
 }
 
-uint8_t qpci_find_capability(QPCIDevice *dev, uint8_t id)
+/**
+ * qpci_find_capability:
+ * @dev: the PCI device
+ * @id: the PCI Capability ID (PCI_CAP_ID_*)
+ * @start_addr: 0 to begin iteration or the last return value to continue
+ *              iteration
+ *
+ * Iterate over the PCI Capabilities List.
+ *
+ * Returns: PCI Configuration Space offset of the capabililty structure or
+ *          0 if no further matching capability is found
+ */
+uint8_t qpci_find_capability(QPCIDevice *dev, uint8_t id, uint8_t start_addr)
 {
     uint8_t cap;
-    uint8_t addr = qpci_config_readb(dev, PCI_CAPABILITY_LIST);
+    uint8_t addr;
+
+    if (start_addr) {
+        addr = qpci_config_readb(dev, start_addr + PCI_CAP_LIST_NEXT);
+    } else {
+        addr = qpci_config_readb(dev, PCI_CAPABILITY_LIST);
+    }
 
     do {
         cap = qpci_config_readb(dev, addr);
@@ -138,7 +156,7 @@ void qpci_msix_enable(QPCIDevice *dev)
     uint8_t bir_table;
     uint8_t bir_pba;
 
-    addr = qpci_find_capability(dev, PCI_CAP_ID_MSIX);
+    addr = qpci_find_capability(dev, PCI_CAP_ID_MSIX, 0);
     g_assert_cmphex(addr, !=, 0);
 
     val = qpci_config_readw(dev, addr + PCI_MSIX_FLAGS);
@@ -167,7 +185,7 @@ void qpci_msix_disable(QPCIDevice *dev)
     uint16_t val;
 
     g_assert(dev->msix_enabled);
-    addr = qpci_find_capability(dev, PCI_CAP_ID_MSIX);
+    addr = qpci_find_capability(dev, PCI_CAP_ID_MSIX, 0);
     g_assert_cmphex(addr, !=, 0);
     val = qpci_config_readw(dev, addr + PCI_MSIX_FLAGS);
     qpci_config_writew(dev, addr + PCI_MSIX_FLAGS,
@@ -203,7 +221,7 @@ bool qpci_msix_masked(QPCIDevice *dev, uint16_t entry)
     uint64_t vector_off = dev->msix_table_off + entry * PCI_MSIX_ENTRY_SIZE;
 
     g_assert(dev->msix_enabled);
-    addr = qpci_find_capability(dev, PCI_CAP_ID_MSIX);
+    addr = qpci_find_capability(dev, PCI_CAP_ID_MSIX, 0);
     g_assert_cmphex(addr, !=, 0);
     val = qpci_config_readw(dev, addr + PCI_MSIX_FLAGS);
 
@@ -221,7 +239,7 @@ uint16_t qpci_msix_table_size(QPCIDevice *dev)
     uint8_t addr;
     uint16_t control;
 
-    addr = qpci_find_capability(dev, PCI_CAP_ID_MSIX);
+    addr = qpci_find_capability(dev, PCI_CAP_ID_MSIX, 0);
     g_assert_cmphex(addr, !=, 0);
 
     control = qpci_config_readw(dev, addr + PCI_MSIX_FLAGS);
