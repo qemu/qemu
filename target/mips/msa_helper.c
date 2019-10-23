@@ -3430,7 +3430,214 @@ void helper_msa_move_v(CPUMIPSState *env, uint32_t wd, uint32_t ws)
  * +---------------+----------------------------------------------------------+
  */
 
-/* TODO: insert Pack group helpers here */
+
+void helper_msa_pckev_b(CPUMIPSState *env,
+                        uint32_t wd, uint32_t ws, uint32_t wt)
+{
+    wr_t *pwd = &(env->active_fpu.fpr[wd].wr);
+    wr_t *pws = &(env->active_fpu.fpr[ws].wr);
+    wr_t *pwt = &(env->active_fpu.fpr[wt].wr);
+
+#if defined(HOST_WORDS_BIGENDIAN)
+    pwd->b[8]  = pws->b[9];
+    pwd->b[10] = pws->b[13];
+    pwd->b[12] = pws->b[1];
+    pwd->b[14] = pws->b[5];
+    pwd->b[0]  = pwt->b[9];
+    pwd->b[2]  = pwt->b[13];
+    pwd->b[4]  = pwt->b[1];
+    pwd->b[6]  = pwt->b[5];
+    pwd->b[9]  = pws->b[11];
+    pwd->b[13] = pws->b[3];
+    pwd->b[1]  = pwt->b[11];
+    pwd->b[5]  = pwt->b[3];
+    pwd->b[11] = pws->b[15];
+    pwd->b[3]  = pwt->b[15];
+    pwd->b[15] = pws->b[7];
+    pwd->b[7]  = pwt->b[7];
+#else
+    pwd->b[15] = pws->b[14];
+    pwd->b[13] = pws->b[10];
+    pwd->b[11] = pws->b[6];
+    pwd->b[9]  = pws->b[2];
+    pwd->b[7]  = pwt->b[14];
+    pwd->b[5]  = pwt->b[10];
+    pwd->b[3]  = pwt->b[6];
+    pwd->b[1]  = pwt->b[2];
+    pwd->b[14] = pws->b[12];
+    pwd->b[10] = pws->b[4];
+    pwd->b[6]  = pwt->b[12];
+    pwd->b[2]  = pwt->b[4];
+    pwd->b[12] = pws->b[8];
+    pwd->b[4]  = pwt->b[8];
+    pwd->b[8]  = pws->b[0];
+    pwd->b[0]  = pwt->b[0];
+#endif
+}
+
+void helper_msa_pckev_h(CPUMIPSState *env,
+                        uint32_t wd, uint32_t ws, uint32_t wt)
+{
+    wr_t *pwd = &(env->active_fpu.fpr[wd].wr);
+    wr_t *pws = &(env->active_fpu.fpr[ws].wr);
+    wr_t *pwt = &(env->active_fpu.fpr[wt].wr);
+
+#if defined(HOST_WORDS_BIGENDIAN)
+    pwd->h[4] = pws->h[5];
+    pwd->h[6] = pws->h[1];
+    pwd->h[0] = pwt->h[5];
+    pwd->h[2] = pwt->h[1];
+    pwd->h[5] = pws->h[7];
+    pwd->h[1] = pwt->h[7];
+    pwd->h[7] = pws->h[3];
+    pwd->h[3] = pwt->h[3];
+#else
+    pwd->h[7] = pws->h[6];
+    pwd->h[5] = pws->h[2];
+    pwd->h[3] = pwt->h[6];
+    pwd->h[1] = pwt->h[2];
+    pwd->h[6] = pws->h[4];
+    pwd->h[2] = pwt->h[4];
+    pwd->h[4] = pws->h[0];
+    pwd->h[0] = pwt->h[0];
+#endif
+}
+
+void helper_msa_pckev_w(CPUMIPSState *env,
+                        uint32_t wd, uint32_t ws, uint32_t wt)
+{
+    wr_t *pwd = &(env->active_fpu.fpr[wd].wr);
+    wr_t *pws = &(env->active_fpu.fpr[ws].wr);
+    wr_t *pwt = &(env->active_fpu.fpr[wt].wr);
+
+#if defined(HOST_WORDS_BIGENDIAN)
+    pwd->w[2] = pws->w[3];
+    pwd->w[0] = pwt->w[3];
+    pwd->w[3] = pws->w[1];
+    pwd->w[1] = pwt->w[1];
+#else
+    pwd->w[3] = pws->w[2];
+    pwd->w[1] = pwt->w[2];
+    pwd->w[2] = pws->w[0];
+    pwd->w[0] = pwt->w[0];
+#endif
+}
+
+void helper_msa_pckev_d(CPUMIPSState *env,
+                        uint32_t wd, uint32_t ws, uint32_t wt)
+{
+    wr_t *pwd = &(env->active_fpu.fpr[wd].wr);
+    wr_t *pws = &(env->active_fpu.fpr[ws].wr);
+    wr_t *pwt = &(env->active_fpu.fpr[wt].wr);
+
+    pwd->d[1] = pws->d[0];
+    pwd->d[0] = pwt->d[0];
+}
+
+
+void helper_msa_pckod_b(CPUMIPSState *env,
+                        uint32_t wd, uint32_t ws, uint32_t wt)
+{
+    wr_t *pwd = &(env->active_fpu.fpr[wd].wr);
+    wr_t *pws = &(env->active_fpu.fpr[ws].wr);
+    wr_t *pwt = &(env->active_fpu.fpr[wt].wr);
+
+#if defined(HOST_WORDS_BIGENDIAN)
+    pwd->b[7]  = pwt->b[6];
+    pwd->b[5]  = pwt->b[2];
+    pwd->b[3]  = pwt->b[14];
+    pwd->b[1]  = pwt->b[10];
+    pwd->b[15] = pws->b[6];
+    pwd->b[13] = pws->b[2];
+    pwd->b[11] = pws->b[14];
+    pwd->b[9]  = pws->b[10];
+    pwd->b[6]  = pwt->b[4];
+    pwd->b[2]  = pwt->b[12];
+    pwd->b[14] = pws->b[4];
+    pwd->b[10] = pws->b[12];
+    pwd->b[4]  = pwt->b[0];
+    pwd->b[12] = pws->b[0];
+    pwd->b[0]  = pwt->b[8];
+    pwd->b[8]  = pws->b[8];
+#else
+    pwd->b[0]  = pwt->b[1];
+    pwd->b[2]  = pwt->b[5];
+    pwd->b[4]  = pwt->b[9];
+    pwd->b[6]  = pwt->b[13];
+    pwd->b[8]  = pws->b[1];
+    pwd->b[10] = pws->b[5];
+    pwd->b[12] = pws->b[9];
+    pwd->b[14] = pws->b[13];
+    pwd->b[1]  = pwt->b[3];
+    pwd->b[5]  = pwt->b[11];
+    pwd->b[9]  = pws->b[3];
+    pwd->b[13] = pws->b[11];
+    pwd->b[3]  = pwt->b[7];
+    pwd->b[11] = pws->b[7];
+    pwd->b[7]  = pwt->b[15];
+    pwd->b[15] = pws->b[15];
+#endif
+
+}
+
+void helper_msa_pckod_h(CPUMIPSState *env,
+                        uint32_t wd, uint32_t ws, uint32_t wt)
+{
+    wr_t *pwd = &(env->active_fpu.fpr[wd].wr);
+    wr_t *pws = &(env->active_fpu.fpr[ws].wr);
+    wr_t *pwt = &(env->active_fpu.fpr[wt].wr);
+
+#if defined(HOST_WORDS_BIGENDIAN)
+    pwd->h[3] = pwt->h[2];
+    pwd->h[1] = pwt->h[6];
+    pwd->h[7] = pws->h[2];
+    pwd->h[5] = pws->h[6];
+    pwd->h[2] = pwt->h[0];
+    pwd->h[6] = pws->h[0];
+    pwd->h[0] = pwt->h[4];
+    pwd->h[4] = pws->h[4];
+#else
+    pwd->h[0] = pwt->h[1];
+    pwd->h[2] = pwt->h[5];
+    pwd->h[4] = pws->h[1];
+    pwd->h[6] = pws->h[5];
+    pwd->h[1] = pwt->h[3];
+    pwd->h[5] = pws->h[3];
+    pwd->h[3] = pwt->h[7];
+    pwd->h[7] = pws->h[7];
+#endif
+}
+
+void helper_msa_pckod_w(CPUMIPSState *env,
+                        uint32_t wd, uint32_t ws, uint32_t wt)
+{
+    wr_t *pwd = &(env->active_fpu.fpr[wd].wr);
+    wr_t *pws = &(env->active_fpu.fpr[ws].wr);
+    wr_t *pwt = &(env->active_fpu.fpr[wt].wr);
+
+#if defined(HOST_WORDS_BIGENDIAN)
+    pwd->w[1] = pwt->w[0];
+    pwd->w[3] = pws->w[0];
+    pwd->w[0] = pwt->w[2];
+    pwd->w[2] = pws->w[2];
+#else
+    pwd->w[0] = pwt->w[1];
+    pwd->w[2] = pws->w[1];
+    pwd->w[1] = pwt->w[3];
+    pwd->w[3] = pws->w[3];
+#endif
+}
+
+void helper_msa_pckod_d(CPUMIPSState *env,
+                        uint32_t wd, uint32_t ws, uint32_t wt)
+{
+    wr_t *pwd = &(env->active_fpu.fpr[wd].wr);
+    wr_t *pws = &(env->active_fpu.fpr[ws].wr);
+    wr_t *pwt = &(env->active_fpu.fpr[wt].wr);
+
+    pwd->d[0] = pwt->d[1];
+    pwd->d[1] = pws->d[1];
+}
 
 
 /*
@@ -4673,183 +4880,6 @@ MSA_FN_DF(vshf_df)
 #undef MSA_DO
 #undef MSA_LOOP_COND
 #undef MSA_FN_DF
-
-
-void helper_msa_pckev_df(CPUMIPSState *env, uint32_t df, uint32_t wd,
-                         uint32_t ws, uint32_t wt)
-{
-    wr_t *pwd = &(env->active_fpu.fpr[wd].wr);
-    wr_t *pws = &(env->active_fpu.fpr[ws].wr);
-    wr_t *pwt = &(env->active_fpu.fpr[wt].wr);
-
-    switch (df) {
-    case DF_BYTE:
-#if defined(HOST_WORDS_BIGENDIAN)
-        pwd->b[8]  = pws->b[9];
-        pwd->b[10] = pws->b[13];
-        pwd->b[12] = pws->b[1];
-        pwd->b[14] = pws->b[5];
-        pwd->b[0]  = pwt->b[9];
-        pwd->b[2]  = pwt->b[13];
-        pwd->b[4]  = pwt->b[1];
-        pwd->b[6]  = pwt->b[5];
-        pwd->b[9]  = pws->b[11];
-        pwd->b[13] = pws->b[3];
-        pwd->b[1]  = pwt->b[11];
-        pwd->b[5]  = pwt->b[3];
-        pwd->b[11] = pws->b[15];
-        pwd->b[3]  = pwt->b[15];
-        pwd->b[15] = pws->b[7];
-        pwd->b[7]  = pwt->b[7];
-#else
-        pwd->b[15] = pws->b[14];
-        pwd->b[13] = pws->b[10];
-        pwd->b[11] = pws->b[6];
-        pwd->b[9]  = pws->b[2];
-        pwd->b[7]  = pwt->b[14];
-        pwd->b[5]  = pwt->b[10];
-        pwd->b[3]  = pwt->b[6];
-        pwd->b[1]  = pwt->b[2];
-        pwd->b[14] = pws->b[12];
-        pwd->b[10] = pws->b[4];
-        pwd->b[6]  = pwt->b[12];
-        pwd->b[2]  = pwt->b[4];
-        pwd->b[12] = pws->b[8];
-        pwd->b[4]  = pwt->b[8];
-        pwd->b[8]  = pws->b[0];
-        pwd->b[0]  = pwt->b[0];
-#endif
-        break;
-    case DF_HALF:
-#if defined(HOST_WORDS_BIGENDIAN)
-        pwd->h[4] = pws->h[5];
-        pwd->h[6] = pws->h[1];
-        pwd->h[0] = pwt->h[5];
-        pwd->h[2] = pwt->h[1];
-        pwd->h[5] = pws->h[7];
-        pwd->h[1] = pwt->h[7];
-        pwd->h[7] = pws->h[3];
-        pwd->h[3] = pwt->h[3];
-#else
-        pwd->h[7] = pws->h[6];
-        pwd->h[5] = pws->h[2];
-        pwd->h[3] = pwt->h[6];
-        pwd->h[1] = pwt->h[2];
-        pwd->h[6] = pws->h[4];
-        pwd->h[2] = pwt->h[4];
-        pwd->h[4] = pws->h[0];
-        pwd->h[0] = pwt->h[0];
-#endif
-        break;
-    case DF_WORD:
-#if defined(HOST_WORDS_BIGENDIAN)
-        pwd->w[2] = pws->w[3];
-        pwd->w[0] = pwt->w[3];
-        pwd->w[3] = pws->w[1];
-        pwd->w[1] = pwt->w[1];
-#else
-        pwd->w[3] = pws->w[2];
-        pwd->w[1] = pwt->w[2];
-        pwd->w[2] = pws->w[0];
-        pwd->w[0] = pwt->w[0];
-#endif
-        break;
-    case DF_DOUBLE:
-        pwd->d[1] = pws->d[0];
-        pwd->d[0] = pwt->d[0];
-        break;
-    default:
-        assert(0);
-    }
-}
-
-void helper_msa_pckod_df(CPUMIPSState *env, uint32_t df, uint32_t wd,
-                         uint32_t ws, uint32_t wt)
-{
-    wr_t *pwd = &(env->active_fpu.fpr[wd].wr);
-    wr_t *pws = &(env->active_fpu.fpr[ws].wr);
-    wr_t *pwt = &(env->active_fpu.fpr[wt].wr);
-
-    switch (df) {
-    case DF_BYTE:
-#if defined(HOST_WORDS_BIGENDIAN)
-        pwd->b[7]  = pwt->b[6];
-        pwd->b[5]  = pwt->b[2];
-        pwd->b[3]  = pwt->b[14];
-        pwd->b[1]  = pwt->b[10];
-        pwd->b[15] = pws->b[6];
-        pwd->b[13] = pws->b[2];
-        pwd->b[11] = pws->b[14];
-        pwd->b[9]  = pws->b[10];
-        pwd->b[6]  = pwt->b[4];
-        pwd->b[2]  = pwt->b[12];
-        pwd->b[14] = pws->b[4];
-        pwd->b[10] = pws->b[12];
-        pwd->b[4]  = pwt->b[0];
-        pwd->b[12] = pws->b[0];
-        pwd->b[0]  = pwt->b[8];
-        pwd->b[8]  = pws->b[8];
-#else
-        pwd->b[0]  = pwt->b[1];
-        pwd->b[2]  = pwt->b[5];
-        pwd->b[4]  = pwt->b[9];
-        pwd->b[6]  = pwt->b[13];
-        pwd->b[8]  = pws->b[1];
-        pwd->b[10] = pws->b[5];
-        pwd->b[12] = pws->b[9];
-        pwd->b[14] = pws->b[13];
-        pwd->b[1]  = pwt->b[3];
-        pwd->b[5]  = pwt->b[11];
-        pwd->b[9]  = pws->b[3];
-        pwd->b[13] = pws->b[11];
-        pwd->b[3]  = pwt->b[7];
-        pwd->b[11] = pws->b[7];
-        pwd->b[7]  = pwt->b[15];
-        pwd->b[15] = pws->b[15];
-#endif
-        break;
-    case DF_HALF:
-#if defined(HOST_WORDS_BIGENDIAN)
-        pwd->h[3] = pwt->h[2];
-        pwd->h[1] = pwt->h[6];
-        pwd->h[7] = pws->h[2];
-        pwd->h[5] = pws->h[6];
-        pwd->h[2] = pwt->h[0];
-        pwd->h[6] = pws->h[0];
-        pwd->h[0] = pwt->h[4];
-        pwd->h[4] = pws->h[4];
-#else
-        pwd->h[0] = pwt->h[1];
-        pwd->h[2] = pwt->h[5];
-        pwd->h[4] = pws->h[1];
-        pwd->h[6] = pws->h[5];
-        pwd->h[1] = pwt->h[3];
-        pwd->h[5] = pws->h[3];
-        pwd->h[3] = pwt->h[7];
-        pwd->h[7] = pws->h[7];
-#endif
-        break;
-    case DF_WORD:
-#if defined(HOST_WORDS_BIGENDIAN)
-        pwd->w[1] = pwt->w[0];
-        pwd->w[3] = pws->w[0];
-        pwd->w[0] = pwt->w[2];
-        pwd->w[2] = pws->w[2];
-#else
-        pwd->w[0] = pwt->w[1];
-        pwd->w[2] = pws->w[1];
-        pwd->w[1] = pwt->w[3];
-        pwd->w[3] = pws->w[3];
-#endif
-        break;
-    case DF_DOUBLE:
-        pwd->d[0] = pwt->d[1];
-        pwd->d[1] = pws->d[1];
-        break;
-    default:
-        assert(0);
-    }
-}
 
 
 void helper_msa_sldi_df(CPUMIPSState *env, uint32_t df, uint32_t wd,
