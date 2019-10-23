@@ -223,6 +223,9 @@ void qvirtio_mmio_init_device(QVirtioMMIODevice *dev, QTestState *qts,
     magic = qtest_readl(qts, addr + QVIRTIO_MMIO_MAGIC_VALUE);
     g_assert(magic == ('v' | 'i' << 8 | 'r' << 16 | 't' << 24));
 
+    dev->version = qtest_readl(qts, addr + QVIRTIO_MMIO_VERSION);
+    g_assert(dev->version == 1 || dev->version == 2);
+
     dev->qts = qts;
     dev->addr = addr;
     dev->page_size = page_size;
