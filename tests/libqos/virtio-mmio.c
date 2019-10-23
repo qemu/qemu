@@ -143,9 +143,11 @@ static uint16_t qvirtio_mmio_get_queue_size(QVirtioDevice *d)
     return (uint16_t)qtest_readl(dev->qts, dev->addr + QVIRTIO_MMIO_QUEUE_NUM_MAX);
 }
 
-static void qvirtio_mmio_set_queue_address(QVirtioDevice *d, uint32_t pfn)
+static void qvirtio_mmio_set_queue_address(QVirtioDevice *d, QVirtQueue *vq)
 {
     QVirtioMMIODevice *dev = container_of(d, QVirtioMMIODevice, vdev);
+    uint64_t pfn = vq->desc / dev->page_size;
+
     qtest_writel(dev->qts, dev->addr + QVIRTIO_MMIO_QUEUE_PFN, pfn);
 }
 
@@ -179,7 +181,7 @@ static QVirtQueue *qvirtio_mmio_virtqueue_setup(QVirtioDevice *d,
 
     addr = guest_alloc(alloc, qvring_size(vq->size, dev->page_size));
     qvring_init(dev->qts, alloc, vq, addr);
-    qvirtio_mmio_set_queue_address(d, vq->desc / dev->page_size);
+    qvirtio_mmio_set_queue_address(d, vq);
 
     return vq;
 }

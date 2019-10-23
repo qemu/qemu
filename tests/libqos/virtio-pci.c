@@ -199,9 +199,11 @@ static uint16_t qvirtio_pci_get_queue_size(QVirtioDevice *d)
     return qpci_io_readw(dev->pdev, dev->bar, VIRTIO_PCI_QUEUE_NUM);
 }
 
-static void qvirtio_pci_set_queue_address(QVirtioDevice *d, uint32_t pfn)
+static void qvirtio_pci_set_queue_address(QVirtioDevice *d, QVirtQueue *vq)
 {
     QVirtioPCIDevice *dev = container_of(d, QVirtioPCIDevice, vdev);
+    uint64_t pfn = vq->desc / VIRTIO_PCI_VRING_ALIGN;
+
     qpci_io_writel(dev->pdev, dev->bar, VIRTIO_PCI_QUEUE_PFN, pfn);
 }
 
@@ -239,7 +241,7 @@ static QVirtQueue *qvirtio_pci_virtqueue_setup(QVirtioDevice *d,
     addr = guest_alloc(alloc, qvring_size(vqpci->vq.size,
                                           VIRTIO_PCI_VRING_ALIGN));
     qvring_init(qvpcidev->pdev->bus->qts, alloc, &vqpci->vq, addr);
-    qvirtio_pci_set_queue_address(d, vqpci->vq.desc / VIRTIO_PCI_VRING_ALIGN);
+    qvirtio_pci_set_queue_address(d, &vqpci->vq);
 
     return &vqpci->vq;
 }
