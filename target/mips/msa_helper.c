@@ -1641,28 +1641,38 @@ static inline int64_t msa_ceq_df(uint32_t df, int64_t arg1, int64_t arg2)
     return arg1 == arg2 ? -1 : 0;
 }
 
+static inline int8_t msa_ceq_b(int8_t arg1, int8_t arg2)
+{
+    return arg1 == arg2 ? -1 : 0;
+}
+
 void helper_msa_ceq_b(CPUMIPSState *env, uint32_t wd, uint32_t ws, uint32_t wt)
 {
     wr_t *pwd = &(env->active_fpu.fpr[wd].wr);
     wr_t *pws = &(env->active_fpu.fpr[ws].wr);
     wr_t *pwt = &(env->active_fpu.fpr[wt].wr);
 
-    pwd->b[0]  = msa_ceq_df(DF_BYTE, pws->b[0],  pwt->b[0]);
-    pwd->b[1]  = msa_ceq_df(DF_BYTE, pws->b[1],  pwt->b[1]);
-    pwd->b[2]  = msa_ceq_df(DF_BYTE, pws->b[2],  pwt->b[2]);
-    pwd->b[3]  = msa_ceq_df(DF_BYTE, pws->b[3],  pwt->b[3]);
-    pwd->b[4]  = msa_ceq_df(DF_BYTE, pws->b[4],  pwt->b[4]);
-    pwd->b[5]  = msa_ceq_df(DF_BYTE, pws->b[5],  pwt->b[5]);
-    pwd->b[6]  = msa_ceq_df(DF_BYTE, pws->b[6],  pwt->b[6]);
-    pwd->b[7]  = msa_ceq_df(DF_BYTE, pws->b[7],  pwt->b[7]);
-    pwd->b[8]  = msa_ceq_df(DF_BYTE, pws->b[8],  pwt->b[8]);
-    pwd->b[9]  = msa_ceq_df(DF_BYTE, pws->b[9],  pwt->b[9]);
-    pwd->b[10] = msa_ceq_df(DF_BYTE, pws->b[10], pwt->b[10]);
-    pwd->b[11] = msa_ceq_df(DF_BYTE, pws->b[11], pwt->b[11]);
-    pwd->b[12] = msa_ceq_df(DF_BYTE, pws->b[12], pwt->b[12]);
-    pwd->b[13] = msa_ceq_df(DF_BYTE, pws->b[13], pwt->b[13]);
-    pwd->b[14] = msa_ceq_df(DF_BYTE, pws->b[14], pwt->b[14]);
-    pwd->b[15] = msa_ceq_df(DF_BYTE, pws->b[15], pwt->b[15]);
+    pwd->b[0]  = msa_ceq_b(pws->b[0],  pwt->b[0]);
+    pwd->b[1]  = msa_ceq_b(pws->b[1],  pwt->b[1]);
+    pwd->b[2]  = msa_ceq_b(pws->b[2],  pwt->b[2]);
+    pwd->b[3]  = msa_ceq_b(pws->b[3],  pwt->b[3]);
+    pwd->b[4]  = msa_ceq_b(pws->b[4],  pwt->b[4]);
+    pwd->b[5]  = msa_ceq_b(pws->b[5],  pwt->b[5]);
+    pwd->b[6]  = msa_ceq_b(pws->b[6],  pwt->b[6]);
+    pwd->b[7]  = msa_ceq_b(pws->b[7],  pwt->b[7]);
+    pwd->b[8]  = msa_ceq_b(pws->b[8],  pwt->b[8]);
+    pwd->b[9]  = msa_ceq_b(pws->b[9],  pwt->b[9]);
+    pwd->b[10] = msa_ceq_b(pws->b[10], pwt->b[10]);
+    pwd->b[11] = msa_ceq_b(pws->b[11], pwt->b[11]);
+    pwd->b[12] = msa_ceq_b(pws->b[12], pwt->b[12]);
+    pwd->b[13] = msa_ceq_b(pws->b[13], pwt->b[13]);
+    pwd->b[14] = msa_ceq_b(pws->b[14], pwt->b[14]);
+    pwd->b[15] = msa_ceq_b(pws->b[15], pwt->b[15]);
+}
+
+static inline int16_t msa_ceq_h(int16_t arg1, int16_t arg2)
+{
+    return arg1 == arg2 ? -1 : 0;
 }
 
 void helper_msa_ceq_h(CPUMIPSState *env, uint32_t wd, uint32_t ws, uint32_t wt)
@@ -1671,14 +1681,19 @@ void helper_msa_ceq_h(CPUMIPSState *env, uint32_t wd, uint32_t ws, uint32_t wt)
     wr_t *pws = &(env->active_fpu.fpr[ws].wr);
     wr_t *pwt = &(env->active_fpu.fpr[wt].wr);
 
-    pwd->h[0]  = msa_ceq_df(DF_HALF, pws->h[0],  pwt->h[0]);
-    pwd->h[1]  = msa_ceq_df(DF_HALF, pws->h[1],  pwt->h[1]);
-    pwd->h[2]  = msa_ceq_df(DF_HALF, pws->h[2],  pwt->h[2]);
-    pwd->h[3]  = msa_ceq_df(DF_HALF, pws->h[3],  pwt->h[3]);
-    pwd->h[4]  = msa_ceq_df(DF_HALF, pws->h[4],  pwt->h[4]);
-    pwd->h[5]  = msa_ceq_df(DF_HALF, pws->h[5],  pwt->h[5]);
-    pwd->h[6]  = msa_ceq_df(DF_HALF, pws->h[6],  pwt->h[6]);
-    pwd->h[7]  = msa_ceq_df(DF_HALF, pws->h[7],  pwt->h[7]);
+    pwd->h[0]  = msa_ceq_h(pws->h[0],  pwt->h[0]);
+    pwd->h[1]  = msa_ceq_h(pws->h[1],  pwt->h[1]);
+    pwd->h[2]  = msa_ceq_h(pws->h[2],  pwt->h[2]);
+    pwd->h[3]  = msa_ceq_h(pws->h[3],  pwt->h[3]);
+    pwd->h[4]  = msa_ceq_h(pws->h[4],  pwt->h[4]);
+    pwd->h[5]  = msa_ceq_h(pws->h[5],  pwt->h[5]);
+    pwd->h[6]  = msa_ceq_h(pws->h[6],  pwt->h[6]);
+    pwd->h[7]  = msa_ceq_h(pws->h[7],  pwt->h[7]);
+}
+
+static inline int32_t msa_ceq_w(int32_t arg1, int32_t arg2)
+{
+    return arg1 == arg2 ? -1 : 0;
 }
 
 void helper_msa_ceq_w(CPUMIPSState *env, uint32_t wd, uint32_t ws, uint32_t wt)
@@ -1687,10 +1702,15 @@ void helper_msa_ceq_w(CPUMIPSState *env, uint32_t wd, uint32_t ws, uint32_t wt)
     wr_t *pws = &(env->active_fpu.fpr[ws].wr);
     wr_t *pwt = &(env->active_fpu.fpr[wt].wr);
 
-    pwd->w[0]  = msa_ceq_df(DF_WORD, pws->w[0],  pwt->w[0]);
-    pwd->w[1]  = msa_ceq_df(DF_WORD, pws->w[1],  pwt->w[1]);
-    pwd->w[2]  = msa_ceq_df(DF_WORD, pws->w[2],  pwt->w[2]);
-    pwd->w[3]  = msa_ceq_df(DF_WORD, pws->w[3],  pwt->w[3]);
+    pwd->w[0]  = msa_ceq_w(pws->w[0],  pwt->w[0]);
+    pwd->w[1]  = msa_ceq_w(pws->w[1],  pwt->w[1]);
+    pwd->w[2]  = msa_ceq_w(pws->w[2],  pwt->w[2]);
+    pwd->w[3]  = msa_ceq_w(pws->w[3],  pwt->w[3]);
+}
+
+static inline int64_t msa_ceq_d(int64_t arg1, int64_t arg2)
+{
+    return arg1 == arg2 ? -1 : 0;
 }
 
 void helper_msa_ceq_d(CPUMIPSState *env, uint32_t wd, uint32_t ws, uint32_t wt)
@@ -1699,8 +1719,8 @@ void helper_msa_ceq_d(CPUMIPSState *env, uint32_t wd, uint32_t ws, uint32_t wt)
     wr_t *pws = &(env->active_fpu.fpr[ws].wr);
     wr_t *pwt = &(env->active_fpu.fpr[wt].wr);
 
-    pwd->d[0]  = msa_ceq_df(DF_DOUBLE, pws->d[0],  pwt->d[0]);
-    pwd->d[1]  = msa_ceq_df(DF_DOUBLE, pws->d[1],  pwt->d[1]);
+    pwd->d[0]  = msa_ceq_d(pws->d[0],  pwt->d[0]);
+    pwd->d[1]  = msa_ceq_d(pws->d[1],  pwt->d[1]);
 }
 
 static inline int64_t msa_cle_s_df(uint32_t df, int64_t arg1, int64_t arg2)
