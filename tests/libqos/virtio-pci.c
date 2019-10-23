@@ -310,7 +310,7 @@ static const QVirtioPCIMSIXOps qvirtio_pci_msix_ops_legacy = {
 void qvirtio_pci_device_enable(QVirtioPCIDevice *d)
 {
     qpci_device_enable(d->pdev);
-    d->bar = qpci_iomap(d->pdev, 0, NULL);
+    d->bar = qpci_iomap(d->pdev, d->bar_idx, NULL);
 }
 
 void qvirtio_pci_device_disable(QVirtioPCIDevice *d)
@@ -400,6 +400,7 @@ static void qvirtio_pci_init_from_pcidev(QVirtioPCIDevice *dev, QPCIDevice *pci_
 {
     dev->pdev = pci_dev;
     dev->vdev.device_type = qpci_config_readw(pci_dev, PCI_SUBSYSTEM_ID);
+    dev->bar_idx = 0;
 
     dev->config_msix_entry = -1;
     dev->msix_ops = &qvirtio_pci_msix_ops_legacy;
