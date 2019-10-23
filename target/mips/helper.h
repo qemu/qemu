@@ -847,6 +847,14 @@ DEF_HELPER_4(msa_addv_h, void, env, i32, i32, i32)
 DEF_HELPER_4(msa_addv_w, void, env, i32, i32, i32)
 DEF_HELPER_4(msa_addv_d, void, env, i32, i32, i32)
 
+DEF_HELPER_4(msa_hadd_s_h, void, env, i32, i32, i32)
+DEF_HELPER_4(msa_hadd_s_w, void, env, i32, i32, i32)
+DEF_HELPER_4(msa_hadd_s_d, void, env, i32, i32, i32)
+
+DEF_HELPER_4(msa_hadd_u_h, void, env, i32, i32, i32)
+DEF_HELPER_4(msa_hadd_u_w, void, env, i32, i32, i32)
+DEF_HELPER_4(msa_hadd_u_d, void, env, i32, i32, i32)
+
 DEF_HELPER_4(msa_ave_s_b, void, env, i32, i32, i32)
 DEF_HELPER_4(msa_ave_s_h, void, env, i32, i32, i32)
 DEF_HELPER_4(msa_ave_s_w, void, env, i32, i32, i32)
@@ -1024,8 +1032,6 @@ DEF_HELPER_5(msa_pckod_df, void, env, i32, i32, i32, i32)
 DEF_HELPER_5(msa_vshf_df, void, env, i32, i32, i32, i32)
 DEF_HELPER_5(msa_srar_df, void, env, i32, i32, i32, i32)
 DEF_HELPER_5(msa_srlr_df, void, env, i32, i32, i32, i32)
-DEF_HELPER_5(msa_hadd_s_df, void, env, i32, i32, i32, i32)
-DEF_HELPER_5(msa_hadd_u_df, void, env, i32, i32, i32, i32)
 DEF_HELPER_5(msa_hsub_s_df, void, env, i32, i32, i32, i32)
 DEF_HELPER_5(msa_hsub_u_df, void, env, i32, i32, i32, i32)
 

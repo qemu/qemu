@@ -1184,6 +1184,113 @@ void helper_msa_addv_d(CPUMIPSState *env,
 }
 
 
+#define SIGNED_EVEN(a, df) \
+        ((((int64_t)(a)) << (64 - DF_BITS(df) / 2)) >> (64 - DF_BITS(df) / 2))
+
+#define UNSIGNED_EVEN(a, df) \
+        ((((uint64_t)(a)) << (64 - DF_BITS(df) / 2)) >> (64 - DF_BITS(df) / 2))
+
+#define SIGNED_ODD(a, df) \
+        ((((int64_t)(a)) << (64 - DF_BITS(df))) >> (64 - DF_BITS(df) / 2))
+
+#define UNSIGNED_ODD(a, df) \
+        ((((uint64_t)(a)) << (64 - DF_BITS(df))) >> (64 - DF_BITS(df) / 2))
+
+
+static inline int64_t msa_hadd_s_df(uint32_t df, int64_t arg1, int64_t arg2)
+{
+    return SIGNED_ODD(arg1, df) + SIGNED_EVEN(arg2, df);
+}
+
+void helper_msa_hadd_s_h(CPUMIPSState *env,
+                         uint32_t wd, uint32_t ws, uint32_t wt)
+{
+    wr_t *pwd = &(env->active_fpu.fpr[wd].wr);
+    wr_t *pws = &(env->active_fpu.fpr[ws].wr);
+    wr_t *pwt = &(env->active_fpu.fpr[wt].wr);
+
+    pwd->h[0]  = msa_hadd_s_df(DF_HALF, pws->h[0],  pwt->h[0]);
+    pwd->h[1]  = msa_hadd_s_df(DF_HALF, pws->h[1],  pwt->h[1]);
+    pwd->h[2]  = msa_hadd_s_df(DF_HALF, pws->h[2],  pwt->h[2]);
+    pwd->h[3]  = msa_hadd_s_df(DF_HALF, pws->h[3],  pwt->h[3]);
+    pwd->h[4]  = msa_hadd_s_df(DF_HALF, pws->h[4],  pwt->h[4]);
+    pwd->h[5]  = msa_hadd_s_df(DF_HALF, pws->h[5],  pwt->h[5]);
+    pwd->h[6]  = msa_hadd_s_df(DF_HALF, pws->h[6],  pwt->h[6]);
+    pwd->h[7]  = msa_hadd_s_df(DF_HALF, pws->h[7],  pwt->h[7]);
+}
+
+void helper_msa_hadd_s_w(CPUMIPSState *env,
+                         uint32_t wd, uint32_t ws, uint32_t wt)
+{
+    wr_t *pwd = &(env->active_fpu.fpr[wd].wr);
+    wr_t *pws = &(env->active_fpu.fpr[ws].wr);
+    wr_t *pwt = &(env->active_fpu.fpr[wt].wr);
+
+    pwd->w[0]  = msa_hadd_s_df(DF_WORD, pws->w[0],  pwt->w[0]);
+    pwd->w[1]  = msa_hadd_s_df(DF_WORD, pws->w[1],  pwt->w[1]);
+    pwd->w[2]  = msa_hadd_s_df(DF_WORD, pws->w[2],  pwt->w[2]);
+    pwd->w[3]  = msa_hadd_s_df(DF_WORD, pws->w[3],  pwt->w[3]);
+}
+
+void helper_msa_hadd_s_d(CPUMIPSState *env,
+                         uint32_t wd, uint32_t ws, uint32_t wt)
+{
+    wr_t *pwd = &(env->active_fpu.fpr[wd].wr);
+    wr_t *pws = &(env->active_fpu.fpr[ws].wr);
+    wr_t *pwt = &(env->active_fpu.fpr[wt].wr);
+
+    pwd->d[0]  = msa_hadd_s_df(DF_DOUBLE, pws->d[0],  pwt->d[0]);
+    pwd->d[1]  = msa_hadd_s_df(DF_DOUBLE, pws->d[1],  pwt->d[1]);
+}
+
+
+static inline int64_t msa_hadd_u_df(uint32_t df, int64_t arg1, int64_t arg2)
+{
+    return UNSIGNED_ODD(arg1, df) + UNSIGNED_EVEN(arg2, df);
+}
+
+void helper_msa_hadd_u_h(CPUMIPSState *env,
+                         uint32_t wd, uint32_t ws, uint32_t wt)
+{
+    wr_t *pwd = &(env->active_fpu.fpr[wd].wr);
+    wr_t *pws = &(env->active_fpu.fpr[ws].wr);
+    wr_t *pwt = &(env->active_fpu.fpr[wt].wr);
+
+    pwd->h[0]  = msa_hadd_u_df(DF_HALF, pws->h[0],  pwt->h[0]);
+    pwd->h[1]  = msa_hadd_u_df(DF_HALF, pws->h[1],  pwt->h[1]);
+    pwd->h[2]  = msa_hadd_u_df(DF_HALF, pws->h[2],  pwt->h[2]);
+    pwd->h[3]  = msa_hadd_u_df(DF_HALF, pws->h[3],  pwt->h[3]);
+    pwd->h[4]  = msa_hadd_u_df(DF_HALF, pws->h[4],  pwt->h[4]);
+    pwd->h[5]  = msa_hadd_u_df(DF_HALF, pws->h[5],  pwt->h[5]);
+    pwd->h[6]  = msa_hadd_u_df(DF_HALF, pws->h[6],  pwt->h[6]);
+    pwd->h[7]  = msa_hadd_u_df(DF_HALF, pws->h[7],  pwt->h[7]);
+}
+
+void helper_msa_hadd_u_w(CPUMIPSState *env,
+                         uint32_t wd, uint32_t ws, uint32_t wt)
+{
+    wr_t *pwd = &(env->active_fpu.fpr[wd].wr);
+    wr_t *pws = &(env->active_fpu.fpr[ws].wr);
+    wr_t *pwt = &(env->active_fpu.fpr[wt].wr);
+
+    pwd->w[0]  = msa_hadd_u_df(DF_WORD, pws->w[0],  pwt->w[0]);
+    pwd->w[1]  = msa_hadd_u_df(DF_WORD, pws->w[1],  pwt->w[1]);
+    pwd->w[2]  = msa_hadd_u_df(DF_WORD, pws->w[2],  pwt->w[2]);
+    pwd->w[3]  = msa_hadd_u_df(DF_WORD, pws->w[3],  pwt->w[3]);
+}
+
+void helper_msa_hadd_u_d(CPUMIPSState *env,
+                         uint32_t wd, uint32_t ws, uint32_t wt)
+{
+    wr_t *pwd = &(env->active_fpu.fpr[wd].wr);
+    wr_t *pws = &(env->active_fpu.fpr[ws].wr);
+    wr_t *pwt = &(env->active_fpu.fpr[wt].wr);
+
+    pwd->d[0]  = msa_hadd_u_df(DF_DOUBLE, pws->d[0],  pwt->d[0]);
+    pwd->d[1]  = msa_hadd_u_df(DF_DOUBLE, pws->d[1],  pwt->d[1]);
+}
+
+
 /*
  * Int Average
  * -----------
@@ -3727,18 +3834,6 @@ static inline int64_t msa_mulv_df(uint32_t df, int64_t arg1, int64_t arg2)
     return arg1 * arg2;
 }
 
-#define SIGNED_EVEN(a, df) \
-        ((((int64_t)(a)) << (64 - DF_BITS(df) / 2)) >> (64 - DF_BITS(df) / 2))
-
-#define UNSIGNED_EVEN(a, df) \
-        ((((uint64_t)(a)) << (64 - DF_BITS(df) / 2)) >> (64 - DF_BITS(df) / 2))
-
-#define SIGNED_ODD(a, df) \
-        ((((int64_t)(a)) << (64 - DF_BITS(df))) >> (64 - DF_BITS(df) / 2))
-
-#define UNSIGNED_ODD(a, df) \
-        ((((uint64_t)(a)) << (64 - DF_BITS(df))) >> (64 - DF_BITS(df) / 2))
-
 #define SIGNED_EXTRACT(e, o, a, df)     \
     do {                                \
         e = SIGNED_EVEN(a, df);         \
@@ -3813,16 +3908,6 @@ static inline void msa_sld_df(uint32_t df, wr_t *pwd,
     default:
         assert(0);
     }
-}
-
-static inline int64_t msa_hadd_s_df(uint32_t df, int64_t arg1, int64_t arg2)
-{
-    return SIGNED_ODD(arg1, df) + SIGNED_EVEN(arg2, df);
-}
-
-static inline int64_t msa_hadd_u_df(uint32_t df, int64_t arg1, int64_t arg2)
-{
-    return UNSIGNED_ODD(arg1, df) + UNSIGNED_EVEN(arg2, df);
 }
 
 static inline int64_t msa_hsub_s_df(uint32_t df, int64_t arg1, int64_t arg2)
@@ -3925,8 +4010,6 @@ MSA_BINOP_DF(dotp_s)
 MSA_BINOP_DF(dotp_u)
 MSA_BINOP_DF(srar)
 MSA_BINOP_DF(srlr)
-MSA_BINOP_DF(hadd_s)
-MSA_BINOP_DF(hadd_u)
 MSA_BINOP_DF(hsub_s)
 MSA_BINOP_DF(hsub_u)
 
