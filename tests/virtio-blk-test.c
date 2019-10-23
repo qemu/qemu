@@ -113,8 +113,8 @@ static uint64_t virtio_blk_request(QGuestAllocator *alloc, QVirtioDevice *d,
     return addr;
 }
 
-static void test_basic(QVirtioDevice *dev, QGuestAllocator *alloc,
-                       QVirtQueue *vq)
+/* Returns the request virtqueue so the caller can perform further tests */
+static QVirtQueue *test_basic(QVirtioDevice *dev, QGuestAllocator *alloc)
 {
     QVirtioBlkReq req;
     uint64_t req_addr;
@@ -124,6 +124,7 @@ static void test_basic(QVirtioDevice *dev, QGuestAllocator *alloc,
     uint8_t status;
     char *data;
     QTestState *qts = global_qtest;
+    QVirtQueue *vq;
 
     features = qvirtio_get_features(dev);
     features = features & ~(QVIRTIO_F_BAD_FEATURE |
@@ -134,6 +135,8 @@ static void test_basic(QVirtioDevice *dev, QGuestAllocator *alloc,
 
     capacity = qvirtio_config_readq(dev, 0);
     g_assert_cmpint(capacity, ==, TEST_IMAGE_SIZE / 512);
+
+    vq = qvirtqueue_setup(dev, alloc, 0);
 
     qvirtio_set_driver_ok(dev);
 
@@ -331,14 +334,16 @@ static void test_basic(QVirtioDevice *dev, QGuestAllocator *alloc,
 
         guest_free(alloc, req_addr);
     }
+
+    return vq;
 }
 
 static void basic(void *obj, void *data, QGuestAllocator *t_alloc)
 {
     QVirtioBlk *blk_if = obj;
     QVirtQueue *vq;
-    vq = qvirtqueue_setup(blk_if->vdev, t_alloc, 0);
-    test_basic(blk_if->vdev, t_alloc, vq);
+
+    vq = test_basic(blk_if->vdev, t_alloc);
     qvirtqueue_cleanup(blk_if->vdev->bus, vq, t_alloc);
 
 }
@@ -746,9 +751,7 @@ static void resize(void *obj, void *data, QGuestAllocator *t_alloc)
     QVirtQueue *vq;
     QTestState *qts = global_qtest;
 
-    vq = qvirtqueue_setup(dev, t_alloc, 0);
-
-    test_basic(dev, t_alloc, vq);
+    vq = test_basic(dev, t_alloc);
 
     qmp_discard_response("{ 'execute': 'block_resize', "
                          " 'arguments': { 'device': 'drive0', "
