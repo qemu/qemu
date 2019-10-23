@@ -3741,9 +3741,10 @@ void spapr_core_unplug_request(HotplugHandler *hotplug_dev, DeviceState *dev,
                           spapr_vcpu_id(spapr, cc->core_id));
     g_assert(drc);
 
-    spapr_drc_detach(drc);
-
-    spapr_hotplug_req_remove_by_index(drc);
+    if (!spapr_drc_unplug_requested(drc)) {
+        spapr_drc_detach(drc);
+        spapr_hotplug_req_remove_by_index(drc);
+    }
 }
 
 int spapr_core_dt_populate(SpaprDrc *drc, SpaprMachineState *spapr,
