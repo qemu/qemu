@@ -2646,12 +2646,49 @@ AddressSpace *pci_device_iommu_address_space(PCIDevice *dev)
 {
     PCIBus *bus = pci_get_bus(dev);
     PCIBus *iommu_bus = bus;
+    uint8_t devfn = dev->devfn;
 
-    while(iommu_bus && !iommu_bus->iommu_fn && iommu_bus->parent_dev) {
-        iommu_bus = pci_get_bus(iommu_bus->parent_dev);
+    while (iommu_bus && !iommu_bus->iommu_fn && iommu_bus->parent_dev) {
+        PCIBus *parent_bus = pci_get_bus(iommu_bus->parent_dev);
+
+        /*
+         * The requester ID of the provided device may be aliased, as seen from
+         * the IOMMU, due to topology limitations.  The IOMMU relies on a
+         * requester ID to provide a unique AddressSpace for devices, but
+         * conventional PCI buses pre-date such concepts.  Instead, the PCIe-
+         * to-PCI bridge creates and accepts transactions on behalf of down-
+         * stream devices.  When doing so, all downstream devices are masked
+         * (aliased) behind a single requester ID.  The requester ID used
+         * depends on the format of the bridge devices.  Proper PCIe-to-PCI
+         * bridges, with a PCIe capability indicating such, follow the
+         * guidelines of chapter 2.3 of the PCIe-to-PCI/X bridge specification,
+         * where the bridge uses the seconary bus as the bridge portion of the
+         * requester ID and devfn of 00.0.  For other bridges, typically those
+         * found on the root complex such as the dmi-to-pci-bridge, we follow
+         * the convention of typical bare-metal hardware, which uses the
+         * requester ID of the bridge itself.  There are device specific
+         * exceptions to these rules, but these are the defaults that the
+         * Linux kernel uses when determining DMA aliases itself and believed
+         * to be true for the bare metal equivalents of the devices emulated
+         * in QEMU.
+         */
+        if (!pci_bus_is_express(iommu_bus)) {
+            PCIDevice *parent = iommu_bus->parent_dev;
+
+            if (pci_is_express(parent) &&
+                pcie_cap_get_type(parent) == PCI_EXP_TYPE_PCI_BRIDGE) {
+                devfn = PCI_DEVFN(0, 0);
+                bus = iommu_bus;
+            } else {
+                devfn = parent->devfn;
+                bus = parent_bus;
+            }
+        }
+
+        iommu_bus = parent_bus;
     }
     if (iommu_bus && iommu_bus->iommu_fn) {
-        return iommu_bus->iommu_fn(bus, iommu_bus->iommu_opaque, dev->devfn);
+        return iommu_bus->iommu_fn(bus, iommu_bus->iommu_opaque, devfn);
     }
     return &address_space_memory;
 }
