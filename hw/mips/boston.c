@@ -50,7 +50,7 @@ typedef struct {
 
     MachineState *mach;
     MIPSCPSState cps;
-    SerialState *uart;
+    SerialMM *uart;
 
     CharBackend lcd_display;
     char lcd_content[8];
