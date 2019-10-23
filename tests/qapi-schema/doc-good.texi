@@ -122,6 +122,12 @@ Not documented
 @*@b{If:} @code{defined(IFSTR)}
 @end table
 
+@b{Features:}
+@table @asis
+@item @code{variant1-feat}
+a feature
+@end table
+
 @end deftp
 
 
@@ -182,6 +188,14 @@ argument
 Not documented
 @end table
 
+@b{Features:}
+@table @asis
+@item @code{cmd-feat1}
+a feature
+@item @code{cmd-feat2}
+another feature
+@end table
+
 @b{Note:}
 @code{arg3} is undocumented
 
@@ -226,6 +240,14 @@ Duis aute irure dolor
 If you're bored enough to read this, go see a video of boxed cats
 
 @b{Arguments:} the members of @code{Object}
+
+@b{Features:}
+@table @asis
+@item @code{cmd-feat1}
+a feature
+@item @code{cmd-feat2}
+another feature
+@end table
 
 @b{Example:}
 @example

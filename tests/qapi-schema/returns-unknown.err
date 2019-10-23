@@ -1,2 +1,2 @@
-tests/qapi-schema/returns-unknown.json: In command 'oops':
-tests/qapi-schema/returns-unknown.json:2: command's 'returns' uses unknown type 'NoSuchType'
+returns-unknown.json: In command 'oops':
+returns-unknown.json:2: command's 'returns' uses unknown type 'NoSuchType'

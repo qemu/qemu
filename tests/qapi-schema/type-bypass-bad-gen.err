@@ -1,2 +1,2 @@
-tests/qapi-schema/type-bypass-bad-gen.json: In command 'foo':
-tests/qapi-schema/type-bypass-bad-gen.json:2: flag 'gen' may only use false value
+type-bypass-bad-gen.json: In command 'foo':
+type-bypass-bad-gen.json:2: flag 'gen' may only use false value

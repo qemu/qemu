@@ -1,2 +1,2 @@
-tests/qapi-schema/flat-union-optional-discriminator.json: In union 'MyUnion':
-tests/qapi-schema/flat-union-optional-discriminator.json:6: discriminator member 'switch' of base type 'Base' must not be optional
+flat-union-optional-discriminator.json: In union 'MyUnion':
+flat-union-optional-discriminator.json:6: discriminator member 'switch' of base type 'Base' must not be optional

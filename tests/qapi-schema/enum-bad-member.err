@@ -1,2 +1,2 @@
-tests/qapi-schema/enum-bad-member.json: In enum 'MyEnum':
-tests/qapi-schema/enum-bad-member.json:2: 'data' member requires a string name
+enum-bad-member.json: In enum 'MyEnum':
+enum-bad-member.json:2: 'data' member requires a string name

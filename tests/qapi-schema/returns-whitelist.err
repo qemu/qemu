@@ -1,2 +1,2 @@
-tests/qapi-schema/returns-whitelist.json: In command 'no-way-this-will-get-whitelisted':
-tests/qapi-schema/returns-whitelist.json:14: command's 'returns' cannot take array type ['int']
+returns-whitelist.json: In command 'no-way-this-will-get-whitelisted':
+returns-whitelist.json:14: command's 'returns' cannot take array type ['int']

@@ -1,1 +1,1 @@
-tests/qapi-schema/pragma-non-dict.json:3: value of 'pragma' must be an object
+pragma-non-dict.json:3: value of 'pragma' must be an object

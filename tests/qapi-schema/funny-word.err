@@ -1,1 +1,1 @@
-tests/qapi-schema/funny-word.json:1:3: stray 'command'
+funny-word.json:1:3: stray 'command'

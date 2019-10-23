@@ -1,2 +1,2 @@
-tests/qapi-schema/returns-dict.json: In command 'oops':
-tests/qapi-schema/returns-dict.json:2: 'returns' should be a type name
+returns-dict.json: In command 'oops':
+returns-dict.json:2: 'returns' should be a type name

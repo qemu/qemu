@@ -1,2 +1,2 @@
-tests/qapi-schema/reserved-member-q.json: In struct 'Foo':
-tests/qapi-schema/reserved-member-q.json:4: 'data' member 'q-unix' has an invalid name
+reserved-member-q.json: In struct 'Foo':
+reserved-member-q.json:4: 'data' member 'q-unix' has an invalid name

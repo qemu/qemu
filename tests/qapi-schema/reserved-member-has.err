@@ -1,2 +1,2 @@
-tests/qapi-schema/reserved-member-has.json: In command 'oops':
-tests/qapi-schema/reserved-member-has.json:5: 'data' member 'has-a' uses reserved name
+reserved-member-has.json: In command 'oops':
+reserved-member-has.json:5: 'data' member 'has-a' uses reserved name

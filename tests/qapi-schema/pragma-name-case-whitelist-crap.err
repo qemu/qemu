@@ -1,1 +1,1 @@
-tests/qapi-schema/pragma-name-case-whitelist-crap.json:3: pragma name-case-whitelist must be a list of strings
+pragma-name-case-whitelist-crap.json:3: pragma name-case-whitelist must be a list of strings

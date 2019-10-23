@@ -1,2 +1,2 @@
-tests/qapi-schema/struct-data-invalid.json: In struct 'foo':
-tests/qapi-schema/struct-data-invalid.json:1: 'data' should be an object or type name
+struct-data-invalid.json: In struct 'foo':
+struct-data-invalid.json:1: 'data' should be an object or type name

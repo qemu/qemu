@@ -71,8 +71,12 @@
 # A paragraph
 #
 # Another paragraph (but no @var: line)
+#
+# Features:
+# @variant1-feat: a feature
 ##
 { 'struct': 'Variant1',
+  'features': [ 'variant1-feat' ],
   'data': { 'var1': { 'type': 'str', 'if': 'defined(IFSTR)' } } }
 
 ##
@@ -104,6 +108,10 @@
 #
 # @arg2: the second
 # argument
+#
+# Features:
+# @cmd-feat1: a feature
+# @cmd-feat2: another feature
 # Note: @arg3 is undocumented
 # Returns: @Object
 # TODO: frobnicate
@@ -123,11 +131,15 @@
 ##
 { 'command': 'cmd',
   'data': { 'arg1': 'int', '*arg2': 'str', 'arg3': 'bool' },
-  'returns': 'Object' }
+  'returns': 'Object',
+  'features': [ 'cmd-feat1', 'cmd-feat2' ] }
 
 ##
 # @cmd-boxed:
 # If you're bored enough to read this, go see a video of boxed cats
+# Features:
+# @cmd-feat1: a feature
+# @cmd-feat2: another feature
 # Example:
 #
 # -> in
@@ -135,4 +147,5 @@
 # <- out
 ##
 { 'command': 'cmd-boxed', 'boxed': true,
-  'data': 'Object' }
+  'data': 'Object',
+  'features': [ 'cmd-feat1', 'cmd-feat2' ] }

@@ -1,2 +1,2 @@
-tests/qapi-schema/struct-base-clash-deep.json: In struct 'Sub':
-tests/qapi-schema/struct-base-clash-deep.json:10: member 'name' collides with member 'name' of type 'Base'
+struct-base-clash-deep.json: In struct 'Sub':
+struct-base-clash-deep.json:10: member 'name' collides with member 'name' of type 'Base'

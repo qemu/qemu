@@ -1,2 +1,2 @@
-tests/qapi-schema/oob-test.json: In command 'oob-command-1':
-tests/qapi-schema/oob-test.json:2: flag 'allow-oob' may only use true value
+oob-test.json: In command 'oob-command-1':
+oob-test.json:2: flag 'allow-oob' may only use true value

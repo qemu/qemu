@@ -1,4 +1,3 @@
-#!/usr/bin/env python
 # QAPI texi generator
 #
 # This work is licensed under the terms of the GNU LGPL, version 2+.
@@ -7,7 +6,8 @@
 
 from __future__ import print_function
 import re
-import qapi.common
+from qapi.gen import QAPIGenDoc, QAPISchemaVisitor
+
 
 MSG_FMT = """
 @deftypefn {type} {{}} {name}
@@ -216,10 +216,10 @@ def texi_entity(doc, what, ifcond, base=None, variants=None,
             + texi_sections(doc, ifcond))
 
 
-class QAPISchemaGenDocVisitor(qapi.common.QAPISchemaVisitor):
+class QAPISchemaGenDocVisitor(QAPISchemaVisitor):
     def __init__(self, prefix):
         self._prefix = prefix
-        self._gen = qapi.common.QAPIGenDoc(self._prefix + 'qapi-doc.texi')
+        self._gen = QAPIGenDoc(self._prefix + 'qapi-doc.texi')
         self.cur_doc = None
 
     def write(self, output_dir):
@@ -249,12 +249,14 @@ class QAPISchemaGenDocVisitor(qapi.common.QAPISchemaVisitor):
                                body=texi_entity(doc, 'Members', ifcond)))
 
     def visit_command(self, name, info, ifcond, arg_type, ret_type, gen,
-                      success_response, boxed, allow_oob, allow_preconfig):
+                      success_response, boxed, allow_oob, allow_preconfig,
+                      features):
         doc = self.cur_doc
         if boxed:
             body = texi_body(doc)
             body += ('\n@b{Arguments:} the members of @code{%s}\n'
                      % arg_type.name)
+            body += texi_features(doc)
             body += texi_sections(doc, ifcond)
         else:
             body = texi_entity(doc, 'Arguments', ifcond)
@@ -283,8 +285,6 @@ class QAPISchemaGenDocVisitor(qapi.common.QAPISchemaVisitor):
 
 
 def gen_doc(schema, output_dir, prefix):
-    if not qapi.common.doc_required:
-        return
     vis = QAPISchemaGenDocVisitor(prefix)
     vis.visit_begin(schema)
     for doc in schema.docs:

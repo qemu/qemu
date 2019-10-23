@@ -1,2 +1,2 @@
-tests/qapi-schema/base-cycle-indirect.json: In struct 'Base1':
-tests/qapi-schema/base-cycle-indirect.json:2: object Base1 contains itself
+base-cycle-indirect.json: In struct 'Base1':
+base-cycle-indirect.json:2: object Base1 contains itself

@@ -1,2 +1,2 @@
-tests/qapi-schema/alternate-conflict-dict.json: In alternate 'Alt':
-tests/qapi-schema/alternate-conflict-dict.json:6: branch 'two' can't be distinguished from 'one'
+alternate-conflict-dict.json: In alternate 'Alt':
+alternate-conflict-dict.json:6: branch 'two' can't be distinguished from 'one'

@@ -1,2 +1,2 @@
-tests/qapi-schema/union-clash-branches.json: In union 'TestUnion':
-tests/qapi-schema/union-clash-branches.json:4: branch 'a_b' collides with branch 'a-b'
+union-clash-branches.json: In union 'TestUnion':
+union-clash-branches.json:4: branch 'a_b' collides with branch 'a-b'

@@ -1,3 +1,3 @@
-tests/qapi-schema/alternate-base.json: In alternate 'Alt':
-tests/qapi-schema/alternate-base.json:4: alternate has unknown key 'base'
+alternate-base.json: In alternate 'Alt':
+alternate-base.json:4: alternate has unknown key 'base'
 Valid keys are 'alternate', 'data', 'if'.

@@ -20,6 +20,7 @@ object Base
 object Variant1
     member var1: str optional=False
         if ['defined(IFSTR)']
+    feature variant1-feat
 object Variant2
 object Object
     base Base
@@ -46,9 +47,13 @@ object q_obj_cmd-arg
     member arg2: str optional=True
     member arg3: bool optional=False
 command cmd q_obj_cmd-arg -> Object
-   gen=True success_response=True boxed=False oob=False preconfig=False
+    gen=True success_response=True boxed=False oob=False preconfig=False
+    feature cmd-feat1
+    feature cmd-feat2
 command cmd-boxed Object -> None
-   gen=True success_response=True boxed=True oob=False preconfig=False
+    gen=True success_response=True boxed=True oob=False preconfig=False
+    feature cmd-feat1
+    feature cmd-feat2
 doc freeform
     body=
 = Section

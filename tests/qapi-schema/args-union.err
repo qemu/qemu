@@ -1,2 +1,2 @@
-tests/qapi-schema/args-union.json: In command 'oops':
-tests/qapi-schema/args-union.json:3: command's 'data' can take union type 'Uni' only with 'boxed': true
+args-union.json: In command 'oops':
+args-union.json:3: command's 'data' can take union type 'Uni' only with 'boxed': true

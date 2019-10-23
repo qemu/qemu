@@ -1,1 +1,1 @@
-tests/qapi-schema/bad-type-dict.json:2: 'command' requires a string name
+bad-type-dict.json:2: 'command' requires a string name

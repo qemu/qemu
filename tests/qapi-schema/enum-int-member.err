@@ -1,1 +1,1 @@
-tests/qapi-schema/enum-int-member.json:3:31: stray '1'
+enum-int-member.json:3:31: stray '1'

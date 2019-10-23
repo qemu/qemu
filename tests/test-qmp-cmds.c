@@ -51,6 +51,30 @@ void qmp_test_features(FeatureStruct0 *fs0, FeatureStruct1 *fs1,
 {
 }
 
+void qmp_test_command_features0(Error **errp)
+{
+}
+
+void qmp_test_command_features1(Error **errp)
+{
+}
+
+void qmp_test_command_features3(Error **errp)
+{
+}
+
+void qmp_test_command_cond_features1(Error **errp)
+{
+}
+
+void qmp_test_command_cond_features2(Error **errp)
+{
+}
+
+void qmp_test_command_cond_features3(Error **errp)
+{
+}
+
 UserDefTwo *qmp_user_def_cmd2(UserDefOne *ud1a,
                               bool has_udb1, UserDefOne *ud1b,
                               Error **errp)

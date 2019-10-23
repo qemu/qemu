@@ -1,2 +1,2 @@
-tests/qapi-schema/args-bad-boxed.json: In command 'foo':
-tests/qapi-schema/args-bad-boxed.json:2: flag 'boxed' may only use true value
+args-bad-boxed.json: In command 'foo':
+args-bad-boxed.json:2: flag 'boxed' may only use true value

@@ -1,1 +1,1 @@
-tests/qapi-schema/string-code-point-31.json:2:14: funny character in string
+string-code-point-31.json:2:14: funny character in string

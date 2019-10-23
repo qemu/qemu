@@ -1,2 +1,2 @@
-tests/qapi-schema/bad-ident.json: In struct '*oops':
-tests/qapi-schema/bad-ident.json:2: struct has an invalid name
+bad-ident.json: In struct '*oops':
+bad-ident.json:2: struct has an invalid name

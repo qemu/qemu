@@ -1,1 +1,1 @@
-tests/qapi-schema/missing-type.json:2: expression is missing metatype
+missing-type.json:2: expression is missing metatype

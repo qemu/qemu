@@ -1,2 +1,2 @@
-tests/qapi-schema/union-unknown.json: In union 'Union':
-tests/qapi-schema/union-unknown.json:2: union uses unknown type 'MissingType'
+union-unknown.json: In union 'Union':
+union-unknown.json:2: union uses unknown type 'MissingType'

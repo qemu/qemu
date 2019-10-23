@@ -1,1 +1,1 @@
-tests/qapi-schema/escape-outside-string.json:3:27: stray '\'
+escape-outside-string.json:3:27: stray '\'

@@ -1,2 +1,2 @@
-tests/qapi-schema/flat-union-invalid-branch-key.json: In union 'TestUnion':
-tests/qapi-schema/flat-union-invalid-branch-key.json:13: branch 'value_wrong' is not a value of enum type 'TestEnum'
+flat-union-invalid-branch-key.json: In union 'TestUnion':
+flat-union-invalid-branch-key.json:13: branch 'value_wrong' is not a value of enum type 'TestEnum'

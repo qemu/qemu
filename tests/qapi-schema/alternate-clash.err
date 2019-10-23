@@ -1,2 +1,2 @@
-tests/qapi-schema/alternate-clash.json: In alternate 'Alt1':
-tests/qapi-schema/alternate-clash.json:7: branch 'a_b' collides with branch 'a-b'
+alternate-clash.json: In alternate 'Alt1':
+alternate-clash.json:7: branch 'a_b' collides with branch 'a-b'
