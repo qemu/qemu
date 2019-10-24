@@ -170,6 +170,23 @@ One of @t{"one"}, @t{"two"}
 @end deftp
 
 
+
+@deftp {Alternate} Alternate
+
+
+
+@b{Members:}
+@table @asis
+@item @code{i: int}
+an integer
+@code{b} is undocumented
+@item @code{b: boolean}
+Not documented
+@end table
+
+@end deftp
+
+
 @subsection Another subsection
 
 

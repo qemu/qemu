@@ -99,6 +99,14 @@
   'data': { 'one': 'Variant1', 'two': { 'type': 'Variant2', 'if': 'IFTWO' } } }
 
 ##
+# @Alternate:
+# @i: an integer
+# @b is undocumented
+##
+{ 'alternate': 'Alternate',
+  'data': { 'i': 'int', 'b': 'bool' } }
+
+##
 # == Another subsection
 ##
 

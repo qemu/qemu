@@ -42,6 +42,10 @@ object SugaredUnion
     case one: q_obj_Variant1-wrapper
     case two: q_obj_Variant2-wrapper
         if ['IFTWO']
+alternate Alternate
+    tag type
+    case i: int
+    case b: bool
 object q_obj_cmd-arg
     member arg1: int optional=False
     member arg2: str optional=True
@@ -132,6 +136,14 @@ doc symbol=SugaredUnion
     body=
 
     arg=type
+
+doc symbol=Alternate
+    body=
+
+    arg=i
+an integer
+@b is undocumented
+    arg=b
 
 doc freeform
     body=
