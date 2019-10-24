@@ -739,6 +739,16 @@ class QAPISchemaCommand(QAPISchemaEntity):
         for f in self.features:
             f.check_clash(self.info, seen)
 
+    def connect_doc(self, doc=None):
+        doc = doc or self.doc
+        if doc:
+            if self.arg_type and self.arg_type.is_implicit():
+                self.arg_type.connect_doc(doc)
+
+    def check_doc(self):
+        if self.doc:
+            self.doc.check()
+
     def visit(self, visitor):
         QAPISchemaEntity.visit(self, visitor)
         visitor.visit_command(self.name, self.info, self.ifcond,
@@ -774,6 +784,16 @@ class QAPISchemaEvent(QAPISchemaEntity):
                     self.info,
                     "event's 'data' can take %s only with 'boxed': true"
                     % self.arg_type.describe())
+
+    def connect_doc(self, doc=None):
+        doc = doc or self.doc
+        if doc:
+            if self.arg_type and self.arg_type.is_implicit():
+                self.arg_type.connect_doc(doc)
+
+    def check_doc(self):
+        if self.doc:
+            self.doc.check()
 
     def visit(self, visitor):
         QAPISchemaEntity.visit(self, visitor)
@@ -1026,7 +1046,7 @@ class QAPISchema(object):
         features = expr.get('features', [])
         if isinstance(data, OrderedDict):
             data = self._make_implicit_object_type(
-                name, info, doc, ifcond, 'arg', self._make_members(data, info))
+                name, info, None, ifcond, 'arg', self._make_members(data, info))
         if isinstance(rets, list):
             assert len(rets) == 1
             rets = self._make_array_type(rets[0], info)
@@ -1042,7 +1062,7 @@ class QAPISchema(object):
         ifcond = expr.get('if')
         if isinstance(data, OrderedDict):
             data = self._make_implicit_object_type(
-                name, info, doc, ifcond, 'arg', self._make_members(data, info))
+                name, info, None, ifcond, 'arg', self._make_members(data, info))
         self._def_entity(QAPISchemaEvent(name, info, doc, ifcond, data, boxed))
 
     def _def_exprs(self, exprs):

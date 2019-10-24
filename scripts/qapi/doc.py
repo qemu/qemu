@@ -185,6 +185,7 @@ def texi_members(doc, what, base=None, variants=None,
 
 def texi_arguments(doc, boxed_arg_type):
     if boxed_arg_type:
+        assert not doc.args
         return ('\n@b{Arguments:} the members of @code{%s}\n'
                 % boxed_arg_type.name)
     return texi_members(doc, 'Arguments')
