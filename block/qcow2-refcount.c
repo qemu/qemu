@@ -3455,6 +3455,8 @@ int qcow2_detect_metadata_preallocation(BlockDriverState *bs)
     int64_t i, end_cluster, cluster_count = 0, threshold;
     int64_t file_length, real_allocation, real_clusters;
 
+    qemu_co_mutex_assert_locked(&s->lock);
+
     file_length = bdrv_getlength(bs->file->bs);
     if (file_length < 0) {
         return file_length;
