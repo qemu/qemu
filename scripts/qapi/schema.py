@@ -56,6 +56,8 @@ class QAPISchemaEntity(object):
         seen = {}
         for f in self.features:
             f.check_clash(self.info, seen)
+            if self.doc:
+                self.doc.connect_feature(f)
 
         self._checked = True
 
