@@ -126,6 +126,8 @@ A paragraph
 Another paragraph (but no @var: line)
     arg=var1
 
+    feature=variant1-feat
+a feature
 doc symbol=Variant2
     body=
 
@@ -158,6 +160,10 @@ the second
 argument
     arg=arg3
 
+    feature=cmd-feat1
+a feature
+    feature=cmd-feat2
+another feature
     section=Note
 @arg3 is undocumented
     section=Returns
@@ -180,6 +186,10 @@ Duis aute irure dolor
 doc symbol=cmd-boxed
     body=
 If you're bored enough to read this, go see a video of boxed cats
+    feature=cmd-feat1
+a feature
+    feature=cmd-feat2
+another feature
     section=Example
 -> in
 

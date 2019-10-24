@@ -15,3 +15,5 @@ command foo None -> None
 doc symbol=foo
     body=
 
+    feature=a
+a
