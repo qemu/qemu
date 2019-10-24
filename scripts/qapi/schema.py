@@ -51,7 +51,7 @@ class QAPISchemaEntity(object):
                                            os.path.dirname(schema.fname))
         self._checked = True
 
-    def connect_doc(self):
+    def connect_doc(self, doc=None):
         pass
 
     def check_doc(self):
@@ -224,10 +224,11 @@ class QAPISchemaEnumType(QAPISchemaType):
         for m in self.members:
             m.check_clash(self.info, seen)
 
-    def connect_doc(self):
-        if self.doc:
+    def connect_doc(self, doc=None):
+        doc = doc or self.doc
+        if doc:
             for m in self.members:
-                self.doc.connect_member(m)
+                doc.connect_member(m)
 
     def check_doc(self):
         if self.doc:
@@ -380,10 +381,13 @@ class QAPISchemaObjectType(QAPISchemaType):
         for m in self.members:
             m.check_clash(info, seen)
 
-    def connect_doc(self):
-        if self.doc:
+    def connect_doc(self, doc=None):
+        doc = doc or self.doc
+        if doc:
+            if self.base and self.base.is_implicit():
+                self.base.connect_doc(doc)
             for m in self.local_members:
-                self.doc.connect_member(m)
+                doc.connect_member(m)
 
     def check_doc(self):
         if self.doc:
@@ -657,10 +661,11 @@ class QAPISchemaAlternateType(QAPISchemaType):
                         % (v.describe(self.info), types_seen[qt]))
                 types_seen[qt] = v.name
 
-    def connect_doc(self):
-        if self.doc:
+    def connect_doc(self, doc=None):
+        doc = doc or self.doc
+        if doc:
             for v in self.variants.variants:
-                self.doc.connect_member(v)
+                doc.connect_member(v)
 
     def check_doc(self):
         if self.doc:
@@ -974,7 +979,7 @@ class QAPISchema(object):
         tag_member = None
         if isinstance(base, dict):
             base = self._make_implicit_object_type(
-                name, info, doc, ifcond,
+                name, info, None, ifcond,
                 'base', self._make_members(base, info))
         if tag_name:
             variants = [self._make_variant(key, value['type'],
