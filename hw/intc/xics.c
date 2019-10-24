@@ -401,6 +401,11 @@ Object *icp_create(Object *cpu, const char *type, XICSFabric *xi, Error **errp)
     return obj;
 }
 
+void icp_destroy(ICPState *icp)
+{
+    object_unparent(OBJECT(icp));
+}
+
 /*
  * ICS: Source layer
  */

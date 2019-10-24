@@ -696,6 +696,11 @@ error:
     return NULL;
 }
 
+void xive_tctx_destroy(XiveTCTX *tctx)
+{
+    object_unparent(OBJECT(tctx));
+}
+
 /*
  * XIVE ESB helpers
  */
