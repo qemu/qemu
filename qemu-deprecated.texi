@@ -149,6 +149,18 @@ QEMU 4.1 has three options, please migrate to one of these three:
 
 @section QEMU Machine Protocol (QMP) commands
 
+@subsection change (since 2.5.0)
+
+Use ``blockdev-change-medium'' or ``change-vnc-password'' instead.
+
+@subsection migrate_set_downtime and migrate_set_speed (since 2.8.0)
+
+Use ``migrate-set-parameters'' instead.
+
+@subsection migrate-set-cache-size and query-migrate-cache-size (since 2.11.0)
+
+Use ``migrate-set-parameters'' and ``query-migrate-parameters'' instead.
+
 @subsection query-block result field dirty-bitmaps[i].status (since 4.0)
 
 The ``status'' field of the ``BlockDirtyInfo'' structure, returned by
