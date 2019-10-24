@@ -1,23 +1,25 @@
 /* Configuration for the Xtensa architecture for GDB, the GNU debugger.
 
-   Copyright (C) 2003, 2005, 2006, 2007, 2008 Free Software Foundation, Inc.
+   Copyright (c) 2003-2019 Tensilica Inc.
 
-   This file is part of GDB.
+   Permission is hereby granted, free of charge, to any person obtaining
+   a copy of this software and associated documentation files (the
+   "Software"), to deal in the Software without restriction, including
+   without limitation the rights to use, copy, modify, merge, publish,
+   distribute, sublicense, and/or sell copies of the Software, and to
+   permit persons to whom the Software is furnished to do so, subject to
+   the following conditions:
 
-   This program is free software; you can redistribute it and/or modify
-   it under the terms of the GNU General Public License as published by
-   the Free Software Foundation; either version 3 of the License, or
-   (at your option) any later version.
+   The above copyright notice and this permission notice shall be included
+   in all copies or substantial portions of the Software.
 
-   This program is distributed in the hope that it will be useful,
-   but WITHOUT ANY WARRANTY; without even the implied warranty of
-   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-   GNU General Public License for more details.
-
-   You should have received a copy of the GNU General Public License
-   along with this program.  If not, see <http://www.gnu.org/licenses/>.  */
-
-  /*    idx ofs bi sz al targno  flags cp typ group name  */
+   THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
+   EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
+   MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.
+   IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY
+   CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT,
+   TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE
+   SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.  */
   XTREG(  0,  0,32, 4, 4,0x0020,0x0006,-2, 9,0x0100,pc,          0,0,0,0,0,0)
   XTREG(  1,  4,32, 4, 4,0x0100,0x0006,-2, 1,0x0002,ar0,         0,0,0,0,0,0)
   XTREG(  2,  8,32, 4, 4,0x0101,0x0006,-2, 1,0x0002,ar1,         0,0,0,0,0,0)
@@ -58,8 +60,8 @@
   XTREG( 37,148,32, 4, 4,0x0205,0x0006,-2, 2,0x1100,litbase,     0,0,0,0,0,0)
   XTREG( 38,152, 3, 4, 4,0x0248,0x0006,-2, 2,0x1002,windowbase,  0,0,0,0,0,0)
   XTREG( 39,156, 8, 4, 4,0x0249,0x0006,-2, 2,0x1002,windowstart, 0,0,0,0,0,0)
-  XTREG( 40,160,32, 4, 4,0x02b0,0x0002,-2, 2,0x1000,sr176,       0,0,0,0,0,0)
-  XTREG( 41,164,32, 4, 4,0x02d0,0x0002,-2, 2,0x1000,sr208,       0,0,0,0,0,0)
+  XTREG( 40,160,32, 4, 4,0x02b0,0x0002,-2, 2,0x1000,configid0,   0,0,0,0,0,0)
+  XTREG( 41,164,32, 4, 4,0x02d0,0x0002,-2, 2,0x1000,configid1,   0,0,0,0,0,0)
   XTREG( 42,168,19, 4, 4,0x02e6,0x0006,-2, 2,0x1100,ps,          0,0,0,0,0,0)
   XTREG( 43,172,32, 4, 4,0x03e7,0x0006,-2, 3,0x0110,threadptr,   0,0,0,0,0,0)
   XTREG( 44,176,16, 4, 4,0x0204,0x0006,-1, 2,0x1100,br,          0,0,0,0,0,0)
@@ -137,4 +139,82 @@
   XTREG(104,464,32, 4, 4,0x000d,0x0006,-2, 8,0x0100,a13,         0,0,0,0,0,0)
   XTREG(105,468,32, 4, 4,0x000e,0x0006,-2, 8,0x0100,a14,         0,0,0,0,0,0)
   XTREG(106,472,32, 4, 4,0x000f,0x0006,-2, 8,0x0100,a15,         0,0,0,0,0,0)
+  XTREG(107,476, 1, 1, 1,0x0010,0x0006,-2, 6,0x1010,b0,
+            0,0,&xtensa_mask0,0,0,0)
+  XTREG(108,477, 1, 1, 1,0x0011,0x0006,-2, 6,0x1010,b1,
+            0,0,&xtensa_mask1,0,0,0)
+  XTREG(109,478, 1, 1, 1,0x0012,0x0006,-2, 6,0x1010,b2,
+            0,0,&xtensa_mask2,0,0,0)
+  XTREG(110,479, 1, 1, 1,0x0013,0x0006,-2, 6,0x1010,b3,
+            0,0,&xtensa_mask3,0,0,0)
+  XTREG(111,480, 1, 1, 1,0x0014,0x0006,-2, 6,0x1010,b4,
+            0,0,&xtensa_mask4,0,0,0)
+  XTREG(112,481, 1, 1, 1,0x0015,0x0006,-2, 6,0x1010,b5,
+            0,0,&xtensa_mask5,0,0,0)
+  XTREG(113,482, 1, 1, 1,0x0016,0x0006,-2, 6,0x1010,b6,
+            0,0,&xtensa_mask6,0,0,0)
+  XTREG(114,483, 1, 1, 1,0x0017,0x0006,-2, 6,0x1010,b7,
+            0,0,&xtensa_mask7,0,0,0)
+  XTREG(115,484, 1, 1, 1,0x0018,0x0006,-2, 6,0x1010,b8,
+            0,0,&xtensa_mask8,0,0,0)
+  XTREG(116,485, 1, 1, 1,0x0019,0x0006,-2, 6,0x1010,b9,
+            0,0,&xtensa_mask9,0,0,0)
+  XTREG(117,486, 1, 1, 1,0x001a,0x0006,-2, 6,0x1010,b10,
+            0,0,&xtensa_mask10,0,0,0)
+  XTREG(118,487, 1, 1, 1,0x001b,0x0006,-2, 6,0x1010,b11,
+            0,0,&xtensa_mask11,0,0,0)
+  XTREG(119,488, 1, 1, 1,0x001c,0x0006,-2, 6,0x1010,b12,
+            0,0,&xtensa_mask12,0,0,0)
+  XTREG(120,489, 1, 1, 1,0x001d,0x0006,-2, 6,0x1010,b13,
+            0,0,&xtensa_mask13,0,0,0)
+  XTREG(121,490, 1, 1, 1,0x001e,0x0006,-2, 6,0x1010,b14,
+            0,0,&xtensa_mask14,0,0,0)
+  XTREG(122,491, 1, 1, 1,0x001f,0x0006,-2, 6,0x1010,b15,
+            0,0,&xtensa_mask15,0,0,0)
+  XTREG(123,492, 4, 4, 4,0x2003,0x0006,-2, 6,0x1010,psintlevel,
+            0,0,&xtensa_mask16,0,0,0)
+  XTREG(124,496, 1, 4, 4,0x2004,0x0006,-2, 6,0x1010,psum,
+            0,0,&xtensa_mask17,0,0,0)
+  XTREG(125,500, 1, 4, 4,0x2005,0x0006,-2, 6,0x1010,pswoe,
+            0,0,&xtensa_mask18,0,0,0)
+  XTREG(126,504, 2, 4, 4,0x2006,0x0006,-2, 6,0x1010,psring,
+            0,0,&xtensa_mask19,0,0,0)
+  XTREG(127,508, 1, 4, 4,0x2007,0x0006,-2, 6,0x1010,psexcm,
+            0,0,&xtensa_mask20,0,0,0)
+  XTREG(128,512, 2, 4, 4,0x2008,0x0006,-2, 6,0x1010,pscallinc,
+            0,0,&xtensa_mask21,0,0,0)
+  XTREG(129,516, 4, 4, 4,0x2009,0x0006,-2, 6,0x1010,psowb,
+            0,0,&xtensa_mask22,0,0,0)
+  XTREG(130,520,20, 4, 4,0x200a,0x0006,-2, 6,0x1010,litbaddr,
+            0,0,&xtensa_mask23,0,0,0)
+  XTREG(131,524, 1, 4, 4,0x200b,0x0006,-2, 6,0x1010,litben,
+            0,0,&xtensa_mask24,0,0,0)
+  XTREG(132,528, 4, 4, 4,0x200e,0x0006,-2, 6,0x1010,dbnum,
+            0,0,&xtensa_mask25,0,0,0)
+  XTREG(133,532, 8, 4, 4,0x200f,0x0006,-2, 6,0x1010,asid3,
+            0,0,&xtensa_mask26,0,0,0)
+  XTREG(134,536, 8, 4, 4,0x2010,0x0006,-2, 6,0x1010,asid2,
+            0,0,&xtensa_mask27,0,0,0)
+  XTREG(135,540, 8, 4, 4,0x2011,0x0006,-2, 6,0x1010,asid1,
+            0,0,&xtensa_mask28,0,0,0)
+  XTREG(136,544, 2, 4, 4,0x2012,0x0006,-2, 6,0x1010,instpgszid4,
+            0,0,&xtensa_mask29,0,0,0)
+  XTREG(137,548, 2, 4, 4,0x2013,0x0006,-2, 6,0x1010,datapgszid4,
+            0,0,&xtensa_mask30,0,0,0)
+  XTREG(138,552,10, 4, 4,0x2014,0x0006,-2, 6,0x1010,ptbase,
+            0,0,&xtensa_mask31,0,0,0)
+  XTREG(139,556, 1, 4, 4,0x201a,0x0006, 1, 5,0x1010,ae_overflow,
+            0,0,&xtensa_mask32,0,0,0)
+  XTREG(140,560, 6, 4, 4,0x201b,0x0006, 1, 5,0x1010,ae_sar,
+            0,0,&xtensa_mask33,0,0,0)
+  XTREG(141,564, 4, 4, 4,0x201c,0x0006, 1, 5,0x1010,ae_bitptr,
+            0,0,&xtensa_mask34,0,0,0)
+  XTREG(142,568, 4, 4, 4,0x201d,0x0006, 1, 5,0x1010,ae_bitsused,
+            0,0,&xtensa_mask35,0,0,0)
+  XTREG(143,572, 4, 4, 4,0x201e,0x0006, 1, 5,0x1010,ae_tablesize,
+            0,0,&xtensa_mask36,0,0,0)
+  XTREG(144,576, 4, 4, 4,0x201f,0x0006, 1, 5,0x1010,ae_first_ts,
+            0,0,&xtensa_mask37,0,0,0)
+  XTREG(145,580,27, 4, 4,0x2020,0x0006, 1, 5,0x1010,ae_nextoffset,
+            0,0,&xtensa_mask38,0,0,0)
   XTREG_END

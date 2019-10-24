@@ -25,28 +25,10 @@
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#include "qemu/osdep.h"
-#include "cpu.h"
-#include "exec/gdbstub.h"
-#include "qemu-common.h"
-#include "qemu/host-utils.h"
+#ifndef XTENSA_SIM_H
+#define XTENSA_SIM_H
 
-#include "core-test_mmuhifi_c3/core-isa.h"
-#include "overlay_tool.h"
+XtensaCPU *xtensa_sim_common_init(MachineState *machine);
+void xtensa_sim_load_kernel(XtensaCPU *cpu, MachineState *machine);
 
-#define xtensa_modules xtensa_modules_test_mmuhifi_c3
-#include "core-test_mmuhifi_c3/xtensa-modules.inc.c"
-
-static XtensaConfig test_mmuhifi_c3 __attribute__((unused)) = {
-    .name = "test_mmuhifi_c3",
-    .gdb_regmap = {
-        .reg = {
-#include "core-test_mmuhifi_c3/gdb-config.inc.c"
-        }
-    },
-    .isa_internal = &xtensa_modules,
-    .clock_freq_khz = 40000,
-    DEFAULT_SECTIONS
-};
-
-REGISTER_CORE(test_mmuhifi_c3)
+#endif

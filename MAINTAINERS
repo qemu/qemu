@@ -1300,6 +1300,11 @@ M: Max Filippov <jcmvbkbc@gmail.com>
 S: Maintained
 F: hw/xtensa/sim.c
 
+virt
+M: Max Filippov <jcmvbkbc@gmail.com>
+S: Maintained
+F: hw/xtensa/virt.c
+
 XTFPGA (LX60, LX200, ML605, KC705)
 M: Max Filippov <jcmvbkbc@gmail.com>
 S: Maintained
