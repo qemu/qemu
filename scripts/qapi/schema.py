@@ -920,8 +920,7 @@ class QAPISchema(object):
             self._def_entity(QAPISchemaArrayType(name, info, element_type))
         return name
 
-    def _make_implicit_object_type(self, name, info, doc, ifcond,
-                                   role, members):
+    def _make_implicit_object_type(self, name, info, ifcond, role, members):
         if not members:
             return None
         # See also QAPISchemaObjectTypeMember.describe()
@@ -939,7 +938,7 @@ class QAPISchema(object):
             # TODO kill simple unions or implement the disjunction
             assert (ifcond or []) == typ._ifcond # pylint: disable=protected-access
         else:
-            self._def_entity(QAPISchemaObjectType(name, info, doc, ifcond,
+            self._def_entity(QAPISchemaObjectType(name, info, None, ifcond,
                                                   None, members, None, []))
         return name
 
@@ -986,7 +985,7 @@ class QAPISchema(object):
             assert len(typ) == 1
             typ = self._make_array_type(typ[0], info)
         typ = self._make_implicit_object_type(
-            typ, info, None, self.lookup_type(typ),
+            typ, info, self.lookup_type(typ),
             'wrapper', [self._make_member('data', typ, None, info)])
         return QAPISchemaObjectTypeVariant(case, info, typ, ifcond)
 
@@ -999,7 +998,7 @@ class QAPISchema(object):
         tag_member = None
         if isinstance(base, dict):
             base = self._make_implicit_object_type(
-                name, info, None, ifcond,
+                name, info, ifcond,
                 'base', self._make_members(base, info))
         if tag_name:
             variants = [self._make_variant(key, value['type'],
@@ -1046,7 +1045,7 @@ class QAPISchema(object):
         features = expr.get('features', [])
         if isinstance(data, OrderedDict):
             data = self._make_implicit_object_type(
-                name, info, None, ifcond, 'arg', self._make_members(data, info))
+                name, info, ifcond, 'arg', self._make_members(data, info))
         if isinstance(rets, list):
             assert len(rets) == 1
             rets = self._make_array_type(rets[0], info)
@@ -1062,7 +1061,7 @@ class QAPISchema(object):
         ifcond = expr.get('if')
         if isinstance(data, OrderedDict):
             data = self._make_implicit_object_type(
-                name, info, None, ifcond, 'arg', self._make_members(data, info))
+                name, info, ifcond, 'arg', self._make_members(data, info))
         self._def_entity(QAPISchemaEvent(name, info, doc, ifcond, data, boxed))
 
     def _def_exprs(self, exprs):
