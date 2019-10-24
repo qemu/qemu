@@ -54,6 +54,8 @@ command cmd-boxed Object -> None
     gen=True success_response=True boxed=True oob=False preconfig=False
     feature cmd-feat1
     feature cmd-feat2
+event EVT-BOXED Object
+    boxed=True
 doc freeform
     body=
 = Section
@@ -170,3 +172,6 @@ If you're bored enough to read this, go see a video of boxed cats
 -> in
 
 <- out
+doc symbol=EVT-BOXED
+    body=
+BUG: generated doc misses arguments

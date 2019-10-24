@@ -258,3 +258,11 @@ another feature
 
 @end deftypefn
 
+
+
+@deftypefn Event {} EVT-BOXED
+
+BUG: generated doc misses arguments
+
+@end deftypefn
+

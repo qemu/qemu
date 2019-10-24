@@ -1,0 +1,15 @@
+# Boxed arguments are not to be documented with the command
+# BUG: not rejected
+
+##
+# @Args:
+# @a: an argument
+##
+{ 'struct': 'Args', 'data': { 'a': 'int' } }
+
+##
+# @cmd-boxed:
+# @a: bogus
+##
+{ 'command': 'cmd-boxed', 'boxed': true,
+  'data': 'Args' }

@@ -1,0 +1,8 @@
+# Arguments listed in the doc comment must exist in the actual schema
+# BUG: nonexistent @a is not rejected
+
+##
+# @FOO:
+# @a: a
+##
+{ 'event': 'FOO' }

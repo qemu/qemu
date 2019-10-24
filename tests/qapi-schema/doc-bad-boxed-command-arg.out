@@ -1,0 +1,26 @@
+module None
+object q_empty
+enum QType
+    prefix QTYPE
+    member none
+    member qnull
+    member qnum
+    member qstring
+    member qdict
+    member qlist
+    member qbool
+module doc-bad-boxed-command-arg.json
+object Args
+    member a: int optional=False
+command cmd-boxed Args -> None
+    gen=True success_response=True boxed=True oob=False preconfig=False
+doc symbol=Args
+    body=
+
+    arg=a
+an argument
+doc symbol=cmd-boxed
+    body=
+
+    arg=a
+bogus
