@@ -388,8 +388,10 @@ Object *icp_create(Object *cpu, const char *type, XICSFabric *xi, Error **errp)
     obj = object_new(type);
     object_property_add_child(cpu, type, obj, &error_abort);
     object_unref(obj);
+    object_ref(OBJECT(xi));
     object_property_add_const_link(obj, ICP_PROP_XICS, OBJECT(xi),
                                    &error_abort);
+    object_ref(cpu);
     object_property_add_const_link(obj, ICP_PROP_CPU, cpu, &error_abort);
     object_property_set_bool(obj, true, "realized", &local_err);
     if (local_err) {
@@ -403,7 +405,11 @@ Object *icp_create(Object *cpu, const char *type, XICSFabric *xi, Error **errp)
 
 void icp_destroy(ICPState *icp)
 {
-    object_unparent(OBJECT(icp));
+    Object *obj = OBJECT(icp);
+
+    object_unref(object_property_get_link(obj, ICP_PROP_CPU, &error_abort));
+    object_unref(object_property_get_link(obj, ICP_PROP_XICS, &error_abort));
+    object_unparent(obj);
 }
 
 /*

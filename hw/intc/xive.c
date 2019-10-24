@@ -682,6 +682,7 @@ Object *xive_tctx_create(Object *cpu, XiveRouter *xrtr, Error **errp)
     obj = object_new(TYPE_XIVE_TCTX);
     object_property_add_child(cpu, TYPE_XIVE_TCTX, obj, &error_abort);
     object_unref(obj);
+    object_ref(cpu);
     object_property_add_const_link(obj, "cpu", cpu, &error_abort);
     object_property_set_bool(obj, true, "realized", &local_err);
     if (local_err) {
@@ -698,7 +699,10 @@ error:
 
 void xive_tctx_destroy(XiveTCTX *tctx)
 {
-    object_unparent(OBJECT(tctx));
+    Object *obj = OBJECT(tctx);
+
+    object_unref(object_property_get_link(obj, "cpu", &error_abort));
+    object_unparent(obj);
 }
 
 /*
