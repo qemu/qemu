@@ -583,6 +583,7 @@ static inline void gen_set_usr_fieldi(int field, int x)
 
 #define fWRAP_loadbXw2(GET_EA, fGB) \
 {\
+    TCGv ireg = tcg_temp_new(); \
     TCGv tmp = tcg_temp_new(); \
     TCGv tmpV = tcg_temp_new(); \
     TCGv BYTE = tcg_temp_new(); \
@@ -593,6 +594,7 @@ static inline void gen_set_usr_fieldi(int field, int x)
     for (i = 0; i < 2; i++) { \
         fSETHALF(i, RdV, fGB(i, tmpV)); \
     } \
+    tcg_temp_free(ireg); \
     tcg_temp_free(tmp); \
     tcg_temp_free(tmpV); \
     tcg_temp_free(BYTE); \
@@ -639,6 +641,7 @@ static inline void gen_set_usr_fieldi(int field, int x)
 
 #define fWRAP_loadbXw4(GET_EA, fGB) \
 { \
+    TCGv ireg = tcg_temp_new(); \
     TCGv tmp = tcg_temp_new(); \
     TCGv tmpV = tcg_temp_new(); \
     TCGv BYTE = tcg_temp_new(); \
@@ -649,6 +652,7 @@ static inline void gen_set_usr_fieldi(int field, int x)
     for (i = 0; i < 4; i++) { \
         fSETHALF(i, RddV, fGB(i, tmpV));  \
     }  \
+    tcg_temp_free(ireg); \
     tcg_temp_free(tmp); \
     tcg_temp_free(tmpV); \
     tcg_temp_free(BYTE); \
@@ -695,6 +699,7 @@ static inline void gen_set_usr_fieldi(int field, int x)
 
 #define fWRAP_loadalignh(GET_EA) \
 { \
+    TCGv ireg = tcg_temp_new(); \
     TCGv tmp = tcg_temp_new(); \
     TCGv tmpV = tcg_temp_new(); \
     TCGv_i64 tmp_i64 = tcg_temp_new_i64(); \
@@ -705,6 +710,7 @@ static inline void gen_set_usr_fieldi(int field, int x)
     tcg_gen_shli_i64(tmp_i64, tmp_i64, 48); \
     tcg_gen_shri_i64(RyyV, RyyV, 16); \
     tcg_gen_or_i64(RyyV, RyyV, tmp_i64); \
+    tcg_temp_free(ireg); \
     tcg_temp_free(tmp); \
     tcg_temp_free(tmpV); \
     tcg_temp_free_i64(tmp_i64); \
@@ -730,6 +736,7 @@ static inline void gen_set_usr_fieldi(int field, int x)
 
 #define fWRAP_loadalignb(GET_EA) \
 { \
+    TCGv ireg = tcg_temp_new(); \
     TCGv tmp = tcg_temp_new(); \
     TCGv tmpV = tcg_temp_new(); \
     TCGv_i64 tmp_i64 = tcg_temp_new_i64(); \
@@ -740,6 +747,7 @@ static inline void gen_set_usr_fieldi(int field, int x)
     tcg_gen_shli_i64(tmp_i64, tmp_i64, 56); \
     tcg_gen_shri_i64(RyyV, RyyV, 8); \
     tcg_gen_or_i64(RyyV, RyyV, tmp_i64); \
+    tcg_temp_free(ireg); \
     tcg_temp_free(tmp); \
     tcg_temp_free(tmpV); \
     tcg_temp_free_i64(tmp_i64); \
@@ -1026,6 +1034,23 @@ static inline void gen_set_usr_fieldi(int field, int x)
     tcg_temp_free(NEWREG_ST); \
 }
 
+#define fWRAP_STORE_pcr(SHIFT, STORE) \
+{ \
+    TCGv ireg = tcg_temp_new(); \
+    TCGv HALF = tcg_temp_new(); \
+    TCGv BYTE = tcg_temp_new(); \
+    TCGv NEWREG_ST = tcg_temp_new(); \
+    TCGv tmp = tcg_temp_new(); \
+    fEA_REG(RxV); \
+    fPM_CIRR(RxV, fREAD_IREG(MuV, SHIFT), MuV); \
+    STORE; \
+    tcg_temp_free(ireg); \
+    tcg_temp_free(HALF); \
+    tcg_temp_free(BYTE); \
+    tcg_temp_free(NEWREG_ST); \
+    tcg_temp_free(tmp); \
+}
+
 #define fWRAP_S2_storerb_io(GENHLPR, SHORTCODE) \
     fWRAP_STORE(SHORTCODE)
 #define fWRAP_S2_storerb_pi(GENHLPR, SHORTCODE) \
@@ -1041,7 +1066,7 @@ static inline void gen_set_usr_fieldi(int field, int x)
 #define fWRAP_S2_storerb_pci(GENHLPR, SHORTCODE) \
     fWRAP_STORE(SHORTCODE)
 #define fWRAP_S2_storerb_pcr(GENHLPR, SHORTCODE) \
-    fWRAP_STORE(SHORTCODE)
+    fWRAP_STORE_pcr(0, fSTORE(1, 1, EA, fGETBYTE(0, RtV)))
 #define fWRAP_S4_storerb_rr(GENHLPR, SHORTCODE) \
     fWRAP_STORE(SHORTCODE)
 #define fWRAP_S4_storerbnew_rr(GENHLPR, SHORTCODE) \
@@ -1070,7 +1095,7 @@ static inline void gen_set_usr_fieldi(int field, int x)
 #define fWRAP_S2_storerh_pci(GENHLPR, SHORTCODE) \
     fWRAP_STORE(SHORTCODE)
 #define fWRAP_S2_storerh_pcr(GENHLPR, SHORTCODE) \
-    fWRAP_STORE(SHORTCODE)
+    fWRAP_STORE_pcr(1, fSTORE(1, 2, EA, fGETHALF(0, RtV)))
 #define fWRAP_S4_storerh_rr(GENHLPR, SHORTCODE) \
     fWRAP_STORE(SHORTCODE)
 #define fWRAP_S4_storeirh_io(GENHLPR, SHORTCODE) \
@@ -1095,7 +1120,7 @@ static inline void gen_set_usr_fieldi(int field, int x)
 #define fWRAP_S2_storerf_pci(GENHLPR, SHORTCODE) \
     fWRAP_STORE(SHORTCODE)
 #define fWRAP_S2_storerf_pcr(GENHLPR, SHORTCODE) \
-    fWRAP_STORE(SHORTCODE)
+    fWRAP_STORE_pcr(1, fSTORE(1, 2, EA, fGETHALF(1, RtV)))
 #define fWRAP_S4_storerf_rr(GENHLPR, SHORTCODE) \
     fWRAP_STORE(SHORTCODE)
 #define fWRAP_S2_storerfgp(GENHLPR, SHORTCODE) \
@@ -1116,7 +1141,7 @@ static inline void gen_set_usr_fieldi(int field, int x)
 #define fWRAP_S2_storeri_pci(GENHLPR, SHORTCODE) \
     fWRAP_STORE(SHORTCODE)
 #define fWRAP_S2_storeri_pcr(GENHLPR, SHORTCODE) \
-    fWRAP_STORE(SHORTCODE)
+    fWRAP_STORE_pcr(2, fSTORE(1, 4, EA, RtV))
 #define fWRAP_S4_storeri_rr(GENHLPR, SHORTCODE) \
     fWRAP_STORE(SHORTCODE)
 #define fWRAP_S4_storerinew_rr(GENHLPR, SHORTCODE) \
@@ -1147,7 +1172,7 @@ static inline void gen_set_usr_fieldi(int field, int x)
 #define fWRAP_S2_storerd_pci(GENHLPR, SHORTCODE) \
     fWRAP_STORE(SHORTCODE)
 #define fWRAP_S2_storerd_pcr(GENHLPR, SHORTCODE) \
-    fWRAP_STORE(SHORTCODE)
+    fWRAP_STORE_pcr(3, fSTORE(1, 8, EA, RttV))
 #define fWRAP_S4_storerd_rr(GENHLPR, SHORTCODE) \
     fWRAP_STORE(SHORTCODE)
 #define fWRAP_S2_storerdgp(GENHLPR, SHORTCODE) \
@@ -1170,7 +1195,7 @@ static inline void gen_set_usr_fieldi(int field, int x)
 #define fWRAP_S2_storerbnew_pci(GENHLPR, SHORTCODE) \
     fWRAP_STORE(SHORTCODE)
 #define fWRAP_S2_storerbnew_pcr(GENHLPR, SHORTCODE) \
-    fWRAP_STORE(SHORTCODE)
+    fWRAP_STORE_pcr(0, fSTORE(1, 1, EA, fGETBYTE(0, fNEWREG_ST(NtN))))
 #define fWRAP_S2_storerbnewgp(GENHLPR, SHORTCODE) \
     fWRAP_STORE(SHORTCODE)
 
@@ -1189,7 +1214,7 @@ static inline void gen_set_usr_fieldi(int field, int x)
 #define fWRAP_S2_storerhnew_pci(GENHLPR, SHORTCODE) \
     fWRAP_STORE(SHORTCODE)
 #define fWRAP_S2_storerhnew_pcr(GENHLPR, SHORTCODE) \
-    fWRAP_STORE(SHORTCODE)
+    fWRAP_STORE_pcr(1, fSTORE(1, 2, EA, fGETHALF(0, fNEWREG_ST(NtN))))
 #define fWRAP_S2_storerhnewgp(GENHLPR, SHORTCODE) \
     fWRAP_STORE(SHORTCODE)
 
@@ -1208,7 +1233,7 @@ static inline void gen_set_usr_fieldi(int field, int x)
 #define fWRAP_S2_storerinew_pci(GENHLPR, SHORTCODE) \
     fWRAP_STORE(SHORTCODE)
 #define fWRAP_S2_storerinew_pcr(GENHLPR, SHORTCODE) \
-    fWRAP_STORE(SHORTCODE)
+    fWRAP_STORE_pcr(2, fSTORE(1, 4, EA, fNEWREG_ST(NtN)))
 #define fWRAP_S2_storerinewgp(GENHLPR, SHORTCODE) \
     fWRAP_STORE(SHORTCODE)
 
@@ -1549,24 +1574,30 @@ static inline void gen_cond_return(TCGv pred, TCGv addr)
 #define fWRAP_L2_loadrd_pci(GENHLPR, SHORTCODE) \
       fWRAP_PCI(SHORTCODE)
 
-#define fWRAP_PCR(SHORTCODE) \
+#define fWRAP_PCR(SHIFT, LOAD) \
 { \
-    printf("FIXME: PCR addressing mode not implemented\n"); \
-    g_assert_not_reached(); \
+    TCGv ireg = tcg_temp_new(); \
+    TCGv tmp = tcg_temp_new(); \
+    fEA_REG(RxV); \
+    fREAD_IREG(MuV, SHIFT); \
+    gen_fcircadd(RxV, ireg, MuV, fREAD_CSREG(MuN)); \
+    LOAD; \
+    tcg_temp_free(tmp); \
+    tcg_temp_free(ireg); \
 }
 
 #define fWRAP_L2_loadrub_pcr(GENHLPR, SHORTCODE) \
-      fWRAP_PCR(SHORTCODE)
+      fWRAP_PCR(0, fLOAD(1, 1, u, EA, RdV))
 #define fWRAP_L2_loadrb_pcr(GENHLPR, SHORTCODE) \
-      fWRAP_PCR(SHORTCODE)
+      fWRAP_PCR(0, fLOAD(1, 1, s, EA, RdV))
 #define fWRAP_L2_loadruh_pcr(GENHLPR, SHORTCODE) \
-      fWRAP_PCR(SHORTCODE)
+      fWRAP_PCR(1, fLOAD(1, 2, u, EA, RdV))
 #define fWRAP_L2_loadrh_pcr(GENHLPR, SHORTCODE) \
-      fWRAP_PCR(SHORTCODE)
+      fWRAP_PCR(1, fLOAD(1, 2, s, EA, RdV))
 #define fWRAP_L2_loadri_pcr(GENHLPR, SHORTCODE) \
-      fWRAP_PCR(SHORTCODE)
+      fWRAP_PCR(2, fLOAD(1, 4, u, EA, RdV))
 #define fWRAP_L2_loadrd_pcr(GENHLPR, SHORTCODE) \
-      fWRAP_PCR(SHORTCODE)
+      fWRAP_PCR(3, fLOAD(1, 8, u, EA, RddV))
 
 #define fWRAP_L2_loadrub_pr(GENHLPR, SHORTCODE) \
       SHORTCODE
