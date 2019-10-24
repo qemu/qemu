@@ -51,6 +51,12 @@ class QAPISchemaEntity(object):
                                            os.path.dirname(schema.fname))
         self._checked = True
 
+    def connect_doc(self):
+        pass
+
+    def check_doc(self):
+        pass
+
     @property
     def ifcond(self):
         assert self._checked
@@ -217,7 +223,10 @@ class QAPISchemaEnumType(QAPISchemaType):
         seen = {}
         for m in self.members:
             m.check_clash(self.info, seen)
-            if self.doc:
+
+    def connect_doc(self):
+        if self.doc:
+            for m in self.members:
                 self.doc.connect_member(m)
 
     def is_implicit(self):
@@ -345,8 +354,6 @@ class QAPISchemaObjectType(QAPISchemaType):
         for m in self.local_members:
             m.check(schema)
             m.check_clash(self.info, seen)
-            if self.doc:
-                self.doc.connect_member(m)
         members = seen.values()
 
         if self.variants:
@@ -358,9 +365,6 @@ class QAPISchemaObjectType(QAPISchemaType):
         for f in self.features:
             f.check_clash(self.info, seen)
 
-        if self.doc:
-            self.doc.check()
-
         self.members = members  # mark completed
 
     # Check that the members of this type do not cause duplicate JSON members,
@@ -371,6 +375,15 @@ class QAPISchemaObjectType(QAPISchemaType):
         assert not self.variants       # not implemented
         for m in self.members:
             m.check_clash(info, seen)
+
+    def connect_doc(self):
+        if self.doc:
+            for m in self.local_members:
+                self.doc.connect_member(m)
+
+    def check_doc(self):
+        if self.doc:
+            self.doc.check()
 
     @property
     def ifcond(self):
@@ -639,8 +652,13 @@ class QAPISchemaAlternateType(QAPISchemaType):
                         "%s can't be distinguished from '%s'"
                         % (v.describe(self.info), types_seen[qt]))
                 types_seen[qt] = v.name
-            if self.doc:
+
+    def connect_doc(self):
+        if self.doc:
+            for v in self.variants.variants:
                 self.doc.connect_member(v)
+
+    def check_doc(self):
         if self.doc:
             self.doc.check()
 
@@ -1043,6 +1061,8 @@ class QAPISchema(object):
     def check(self):
         for ent in self._entity_list:
             ent.check(self)
+            ent.connect_doc()
+            ent.check_doc()
 
     def visit(self, visitor):
         visitor.visit_begin(self)
