@@ -4546,7 +4546,7 @@ applications, they can do this through this parameter. Its format is
 a gnutls priority string as described at
 @url{https://gnutls.org/manual/html_node/Priority-Strings.html}.
 
-@item -object filter-buffer,id=@var{id},netdev=@var{netdevid},interval=@var{t}[,queue=@var{all|rx|tx}][,status=@var{on|off}]
+@item -object filter-buffer,id=@var{id},netdev=@var{netdevid},interval=@var{t}[,queue=@var{all|rx|tx}][,status=@var{on|off}][,position=@var{head|tail|id=<id>}][,insert=@var{behind|before}]
 
 Interval @var{t} can't be 0, this filter batches the packet delivery: all
 packets arriving in a given interval on netdev @var{netdevid} are delayed
@@ -4565,11 +4565,32 @@ queue @var{all|rx|tx} is an option that can be applied to any netfilter.
 @option{tx}: the filter is attached to the transmit queue of the netdev,
              where it will receive packets sent by the netdev.
 
-@item -object filter-mirror,id=@var{id},netdev=@var{netdevid},outdev=@var{chardevid},queue=@var{all|rx|tx}[,vnet_hdr_support]
+position @var{head|tail|id=<id>} is an option to specify where the
+filter should be inserted in the filter list. It can be applied to any
+netfilter.
+
+@option{head}: the filter is inserted at the head of the filter
+               list, before any existing filters.
+
+@option{tail}: the filter is inserted at the tail of the filter
+               list, behind any existing filters (default).
+
+@option{id=<id>}: the filter is inserted before or behind the filter
+                  specified by <id>, see the insert option below.
+
+insert @var{behind|before} is an option to specify where to insert the
+new filter relative to the one specified with position=id=<id>. It can
+be applied to any netfilter.
+
+@option{before}: insert before the specified filter.
+
+@option{behind}: insert behind the specified filter (default).
+
+@item -object filter-mirror,id=@var{id},netdev=@var{netdevid},outdev=@var{chardevid},queue=@var{all|rx|tx}[,vnet_hdr_support][,position=@var{head|tail|id=<id>}][,insert=@var{behind|before}]
 
 filter-mirror on netdev @var{netdevid},mirror net packet to chardev@var{chardevid}, if it has the vnet_hdr_support flag, filter-mirror will mirror packet with vnet_hdr_len.
 
-@item -object filter-redirector,id=@var{id},netdev=@var{netdevid},indev=@var{chardevid},outdev=@var{chardevid},queue=@var{all|rx|tx}[,vnet_hdr_support]
+@item -object filter-redirector,id=@var{id},netdev=@var{netdevid},indev=@var{chardevid},outdev=@var{chardevid},queue=@var{all|rx|tx}[,vnet_hdr_support][,position=@var{head|tail|id=<id>}][,insert=@var{behind|before}]
 
 filter-redirector on netdev @var{netdevid},redirect filter's net packet to chardev
 @var{chardevid},and redirect indev's packet to filter.if it has the vnet_hdr_support flag,
@@ -4578,7 +4599,7 @@ Create a filter-redirector we need to differ outdev id from indev id, id can not
 be the same. we can just use indev or outdev, but at least one of indev or outdev
 need to be specified.
 
-@item -object filter-rewriter,id=@var{id},netdev=@var{netdevid},queue=@var{all|rx|tx},[vnet_hdr_support]
+@item -object filter-rewriter,id=@var{id},netdev=@var{netdevid},queue=@var{all|rx|tx},[vnet_hdr_support][,position=@var{head|tail|id=<id>}][,insert=@var{behind|before}]
 
 Filter-rewriter is a part of COLO project.It will rewrite tcp packet to
 secondary from primary to keep secondary tcp connection,and rewrite
@@ -4591,7 +4612,7 @@ colo secondary:
 -object filter-redirector,id=f2,netdev=hn0,queue=rx,outdev=red1
 -object filter-rewriter,id=rew0,netdev=hn0,queue=all
 
-@item -object filter-dump,id=@var{id},netdev=@var{dev}[,file=@var{filename}][,maxlen=@var{len}]
+@item -object filter-dump,id=@var{id},netdev=@var{dev}[,file=@var{filename}][,maxlen=@var{len}][,position=@var{head|tail|id=<id>}][,insert=@var{behind|before}]
 
 Dump the network traffic on netdev @var{dev} to the file specified by
 @var{filename}. At most @var{len} bytes (64k by default) per packet are stored.
