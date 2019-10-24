@@ -65,12 +65,12 @@ blocks that are already in QEMU.
              ^            ||                            .----------
              |            ||                            | Secondary
         1 Quorum          ||                            '----------
-         /      \         ||
-        /        \        ||
-   Primary    2 filter
-     disk         ^                                                             virtio-blk
-                  |                                                                  ^
-                3 NBD  ------->  3 NBD                                               |
+         /      \         ||                                                           virtio-blk
+        /        \        ||                                                               ^
+   Primary    2 filter                                                                     |
+     disk         ^                                                                   7 Quorum
+                  |                                                                    /
+                3 NBD  ------->  3 NBD                                                /
                 client    ||     server                                          2 filter
                           ||        ^                                                ^
 --------.                 ||        |                                                |
@@ -105,6 +105,10 @@ and the driver supports bdrv_make_empty() and backing file.
 any state that would otherwise be lost by the speculative write-through
 of the NBD server into the secondary disk. So before block replication,
 the primary disk and secondary disk should contain the same data.
+
+7) The secondary also has a quorum node, so after secondary failover it
+can become the new primary and continue replication.
+
 
 == Failure Handling ==
 There are 7 internal errors when block replication is running:
@@ -171,16 +175,18 @@ Primary:
      leading whitespace.
   5. The qmp command line must be run after running qmp command line in
      secondary qemu.
-  6. After failover we need remove children.1 (replication driver).
+  6. After primary failover we need remove children.1 (replication driver).
 
 Secondary:
   -drive if=none,driver=raw,file.filename=1.raw,id=colo1 \
-  -drive if=xxx,id=topxxx,driver=replication,mode=secondary,top-id=topxxx\
+  -drive if=none,id=childs1,driver=replication,mode=secondary,top-id=childs1
          file.file.filename=active_disk.qcow2,\
          file.driver=qcow2,\
          file.backing.file.filename=hidden_disk.qcow2,\
          file.backing.driver=qcow2,\
          file.backing.backing=colo1
+  -drive if=xxx,driver=quorum,read-pattern=fifo,id=top-disk1,\
+         vote-threshold=1,children.0=childs1
 
   Then run qmp command in secondary qemu:
     { 'execute': 'nbd-server-start',
@@ -234,6 +240,8 @@ Secondary:
   The primary host is down, so we should do the following thing:
   { 'execute': 'nbd-server-stop' }
 
+Promote Secondary to Primary:
+  see COLO-FT.txt
+
 TODO:
-1. Continuous block replication
-2. Shared disk
+1. Shared disk
