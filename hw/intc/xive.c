@@ -523,8 +523,17 @@ static const char * const xive_tctx_ring_names[] = {
 
 void xive_tctx_pic_print_info(XiveTCTX *tctx, Monitor *mon)
 {
-    int cpu_index = tctx->cs ? tctx->cs->cpu_index : -1;
+    int cpu_index;
     int i;
+
+    /* Skip partially initialized vCPUs. This can happen on sPAPR when vCPUs
+     * are hot plugged or unplugged.
+     */
+    if (!tctx) {
+        return;
+    }
+
+    cpu_index = tctx->cs ? tctx->cs->cpu_index : -1;
 
     if (kvm_irqchip_in_kernel()) {
         Error *local_err = NULL;
