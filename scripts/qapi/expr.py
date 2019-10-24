@@ -173,17 +173,13 @@ def check_type(value, info, source,
         check_type(arg['type'], info, key_source, allow_array=True)
 
 
-def normalize_features(features):
-    if isinstance(features, list):
-        features[:] = [f if isinstance(f, dict) else {'name': f}
-                       for f in features]
-
-
 def check_features(features, info):
     if features is None:
         return
     if not isinstance(features, list):
         raise QAPISemError(info, "'features' must be an array")
+    features[:] = [f if isinstance(f, dict) else {'name': f}
+                   for f in features]
     for f in features:
         source = "'features' member"
         assert isinstance(f, dict)
@@ -347,7 +343,6 @@ def check_exprs(exprs):
             check_keys(expr, info, meta,
                        ['struct', 'data'], ['base', 'if', 'features'])
             normalize_members(expr['data'])
-            normalize_features(expr.get('features'))
             check_struct(expr, info)
         elif meta == 'command':
             check_keys(expr, info, meta,
@@ -356,7 +351,6 @@ def check_exprs(exprs):
                         'gen', 'success-response', 'allow-oob',
                         'allow-preconfig'])
             normalize_members(expr.get('data'))
-            normalize_features(expr.get('features'))
             check_command(expr, info)
         elif meta == 'event':
             check_keys(expr, info, meta,
