@@ -55,7 +55,8 @@ class QAPISchemaEntity(object):
         pass
 
     def check_doc(self):
-        pass
+        if self.doc:
+            self.doc.check()
 
     @property
     def ifcond(self):
@@ -230,10 +231,6 @@ class QAPISchemaEnumType(QAPISchemaType):
             for m in self.members:
                 doc.connect_member(m)
 
-    def check_doc(self):
-        if self.doc:
-            self.doc.check()
-
     def is_implicit(self):
         # See QAPISchema._make_implicit_enum_type() and ._def_predefineds()
         return self.name.endswith('Kind') or self.name == 'QType'
@@ -388,10 +385,6 @@ class QAPISchemaObjectType(QAPISchemaType):
                 self.base.connect_doc(doc)
             for m in self.local_members:
                 doc.connect_member(m)
-
-    def check_doc(self):
-        if self.doc:
-            self.doc.check()
 
     @property
     def ifcond(self):
@@ -667,10 +660,6 @@ class QAPISchemaAlternateType(QAPISchemaType):
             for v in self.variants.variants:
                 doc.connect_member(v)
 
-    def check_doc(self):
-        if self.doc:
-            self.doc.check()
-
     def c_type(self):
         return c_name(self.name) + pointer_suffix
 
@@ -745,10 +734,6 @@ class QAPISchemaCommand(QAPISchemaEntity):
             if self.arg_type and self.arg_type.is_implicit():
                 self.arg_type.connect_doc(doc)
 
-    def check_doc(self):
-        if self.doc:
-            self.doc.check()
-
     def visit(self, visitor):
         QAPISchemaEntity.visit(self, visitor)
         visitor.visit_command(self.name, self.info, self.ifcond,
@@ -790,10 +775,6 @@ class QAPISchemaEvent(QAPISchemaEntity):
         if doc:
             if self.arg_type and self.arg_type.is_implicit():
                 self.arg_type.connect_doc(doc)
-
-    def check_doc(self):
-        if self.doc:
-            self.doc.check()
 
     def visit(self, visitor):
         QAPISchemaEntity.visit(self, visitor)
