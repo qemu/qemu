@@ -660,10 +660,19 @@ static void pnv_psi_notify(XiveNotifier *xf, uint32_t srcno)
 
     uint32_t offset =
         (psi->regs[PSIHB_REG(PSIHB9_IVT_OFFSET)] >> PSIHB9_IVT_OFF_SHIFT);
-    uint64_t lisn = cpu_to_be64(offset + srcno);
+    uint64_t data = XIVE_TRIGGER_PQ | offset | srcno;
+    MemTxResult result;
 
-    if (valid) {
-        cpu_physical_memory_write(notify_addr, &lisn, sizeof(lisn));
+    if (!valid) {
+        return;
+    }
+
+    address_space_stq_be(&address_space_memory, notify_addr, data,
+                         MEMTXATTRS_UNSPECIFIED, &result);
+    if (result != MEMTX_OK) {
+        qemu_log_mask(LOG_GUEST_ERROR, "%s: trigger failed @%"
+                      HWADDR_PRIx "\n", __func__, notif_port);
+        return;
     }
 }
 

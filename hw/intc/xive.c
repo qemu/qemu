@@ -547,10 +547,8 @@ void xive_tctx_pic_print_info(XiveTCTX *tctx, Monitor *mon)
     }
 }
 
-static void xive_tctx_reset(void *dev)
+void xive_tctx_reset(XiveTCTX *tctx)
 {
-    XiveTCTX *tctx = XIVE_TCTX(dev);
-
     memset(tctx->regs, 0, sizeof(tctx->regs));
 
     /* Set some defaults */
@@ -607,13 +605,6 @@ static void xive_tctx_realize(DeviceState *dev, Error **errp)
             return;
         }
     }
-
-    qemu_register_reset(xive_tctx_reset, dev);
-}
-
-static void xive_tctx_unrealize(DeviceState *dev, Error **errp)
-{
-    qemu_unregister_reset(xive_tctx_reset, dev);
 }
 
 static int vmstate_xive_tctx_pre_save(void *opaque)
@@ -668,8 +659,12 @@ static void xive_tctx_class_init(ObjectClass *klass, void *data)
 
     dc->desc = "XIVE Interrupt Thread Context";
     dc->realize = xive_tctx_realize;
-    dc->unrealize = xive_tctx_unrealize;
     dc->vmsd = &vmstate_xive_tctx;
+    /*
+     * Reason: part of XIVE interrupt controller, needs to be wired up
+     * by xive_tctx_create().
+     */
+    dc->user_creatable = false;
 }
 
 static const TypeInfo xive_tctx_info = {
@@ -1118,6 +1113,11 @@ static void xive_source_class_init(ObjectClass *klass, void *data)
     dc->props   = xive_source_properties;
     dc->realize = xive_source_realize;
     dc->vmsd    = &vmstate_xive_source;
+    /*
+     * Reason: part of XIVE interrupt controller, needs to be wired up,
+     * e.g. by spapr_xive_instance_init().
+     */
+    dc->user_creatable = false;
 }
 
 static const TypeInfo xive_source_info = {
@@ -1648,8 +1648,8 @@ do_escalation:
 void xive_router_notify(XiveNotifier *xn, uint32_t lisn)
 {
     XiveRouter *xrtr = XIVE_ROUTER(xn);
-    uint8_t eas_blk = XIVE_SRCNO_BLOCK(lisn);
-    uint32_t eas_idx = XIVE_SRCNO_INDEX(lisn);
+    uint8_t eas_blk = XIVE_EAS_BLOCK(lisn);
+    uint32_t eas_idx = XIVE_EAS_INDEX(lisn);
     XiveEAS eas;
 
     /* EAS cache lookup */
@@ -1853,6 +1853,11 @@ static void xive_end_source_class_init(ObjectClass *klass, void *data)
     dc->desc    = "XIVE END Source";
     dc->props   = xive_end_source_properties;
     dc->realize = xive_end_source_realize;
+    /*
+     * Reason: part of XIVE interrupt controller, needs to be wired up,
+     * e.g. by spapr_xive_instance_init().
+     */
+    dc->user_creatable = false;
 }
 
 static const TypeInfo xive_end_source_info = {

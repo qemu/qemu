@@ -119,9 +119,11 @@ struct SpaprMachineClass {
     bool use_ohci_by_default;  /* use USB-OHCI instead of XHCI */
     bool pre_2_10_has_unused_icps;
     bool legacy_irq_allocation;
+    uint32_t nr_xirqs;
     bool broken_host_serial_model; /* present real host info to the guest */
     bool pre_4_1_migration; /* don't migrate hpt-max-page-size */
     bool linux_pci_probe;
+    bool smp_threads_vsmt; /* set VSMT to smp_threads by default */
 
     void (*phb_placement)(SpaprMachineState *spapr, uint32_t index,
                           uint64_t *buid, hwaddr *pio, 
@@ -143,7 +145,6 @@ struct SpaprMachineState {
     struct SpaprVioBus *vio_bus;
     QLIST_HEAD(, SpaprPhbState) phbs;
     struct SpaprNvram *nvram;
-    ICSState *ics;
     SpaprRtcState rtc;
 
     SpaprResizeHpt resize_hpt;
@@ -195,9 +196,11 @@ struct SpaprMachineState {
 
     int32_t irq_map_nr;
     unsigned long *irq_map;
-    SpaprXive  *xive;
     SpaprIrq *irq;
     qemu_irq *qirqs;
+    SpaprInterruptController *active_intc;
+    ICSState *ics;
+    SpaprXive *xive;
 
     bool cmd_line_caps[SPAPR_CAP_NUM];
     SpaprCapabilities def, eff, mig;

@@ -22,9 +22,29 @@
 /*
  * Interrupt source number encoding on PowerBUS
  */
-#define XIVE_SRCNO_BLOCK(srcno) (((srcno) >> 28) & 0xf)
-#define XIVE_SRCNO_INDEX(srcno) ((srcno) & 0x0fffffff)
-#define XIVE_SRCNO(blk, idx)    ((uint32_t)(blk) << 28 | (idx))
+/*
+ * Trigger data definition
+ *
+ * The trigger definition is used for triggers both for HW source
+ * interrupts (PHB, PSI), as well as for rerouting interrupts between
+ * Interrupt Controller.
+ *
+ * HW source controllers set bit0 of word0 to ‘0’ as they provide EAS
+ * information (EAS block + EAS index) in the 8 byte data and not END
+ * information, which is use for rerouting interrupts.
+ *
+ * bit1 of word0 to ‘1’ signals that the state bit check has been
+ * performed.
+ */
+#define XIVE_TRIGGER_END        PPC_BIT(0)
+#define XIVE_TRIGGER_PQ         PPC_BIT(1)
+
+/*
+ * QEMU macros to manipulate the trigger payload in native endian
+ */
+#define XIVE_EAS_BLOCK(n)       (((n) >> 28) & 0xf)
+#define XIVE_EAS_INDEX(n)       ((n) & 0x0fffffff)
+#define XIVE_EAS(blk, idx)      ((uint32_t)(blk) << 28 | (idx))
 
 #define TM_SHIFT                16
 

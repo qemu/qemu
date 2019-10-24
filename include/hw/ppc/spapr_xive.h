@@ -54,15 +54,9 @@ typedef struct SpaprXive {
  */
 #define SPAPR_XIVE_BLOCK_ID 0x0
 
-int spapr_xive_irq_claim(SpaprXive *xive, int lisn, bool lsi, Error **errp);
-void spapr_xive_irq_free(SpaprXive *xive, int lisn);
 void spapr_xive_pic_print_info(SpaprXive *xive, Monitor *mon);
-int spapr_xive_post_load(SpaprXive *xive, int version_id);
 
 void spapr_xive_hcall_init(SpaprMachineState *spapr);
-void spapr_dt_xive(SpaprMachineState *spapr, uint32_t nr_servers, void *fdt,
-                   uint32_t phandle);
-void spapr_xive_set_tctx_os_cam(XiveTCTX *tctx);
 void spapr_xive_mmio_set_enabled(SpaprXive *xive, bool enable);
 void spapr_xive_map_mmio(SpaprXive *xive);
 
@@ -72,8 +66,8 @@ int spapr_xive_end_to_target(uint8_t end_blk, uint32_t end_idx,
 /*
  * KVM XIVE device helpers
  */
-void kvmppc_xive_connect(SpaprXive *xive, Error **errp);
-void kvmppc_xive_disconnect(SpaprXive *xive, Error **errp);
+int kvmppc_xive_connect(SpaprInterruptController *intc, Error **errp);
+void kvmppc_xive_disconnect(SpaprInterruptController *intc);
 void kvmppc_xive_reset(SpaprXive *xive, Error **errp);
 void kvmppc_xive_set_source_config(SpaprXive *xive, uint32_t lisn, XiveEAS *eas,
                                    Error **errp);

@@ -740,8 +740,9 @@ static void *kvmppc_xive_mmap(SpaprXive *xive, int pgoff, size_t len,
  * All the XIVE memory regions are now backed by mappings from the KVM
  * XIVE device.
  */
-void kvmppc_xive_connect(SpaprXive *xive, Error **errp)
+int kvmppc_xive_connect(SpaprInterruptController *intc, Error **errp)
 {
+    SpaprXive *xive = SPAPR_XIVE(intc);
     XiveSource *xsrc = &xive->source;
     Error *local_err = NULL;
     size_t esb_len = (1ull << xsrc->esb_shift) * xsrc->nr_irqs;
@@ -753,19 +754,19 @@ void kvmppc_xive_connect(SpaprXive *xive, Error **errp)
      * rebooting under the XIVE-only interrupt mode.
      */
     if (xive->fd != -1) {
-        return;
+        return 0;
     }
 
     if (!kvmppc_has_cap_xive()) {
         error_setg(errp, "IRQ_XIVE capability must be present for KVM");
-        return;
+        return -1;
     }
 
     /* First, create the KVM XIVE device */
     xive->fd = kvm_create_device(kvm_state, KVM_DEV_TYPE_XIVE, false);
     if (xive->fd < 0) {
         error_setg_errno(errp, -xive->fd, "XIVE: error creating KVM device");
-        return;
+        return -1;
     }
 
     /*
@@ -821,25 +822,22 @@ void kvmppc_xive_connect(SpaprXive *xive, Error **errp)
     kvm_kernel_irqchip = true;
     kvm_msi_via_irqfd_allowed = true;
     kvm_gsi_direct_mapping = true;
-    return;
+    return 0;
 
 fail:
     error_propagate(errp, local_err);
-    kvmppc_xive_disconnect(xive, NULL);
+    kvmppc_xive_disconnect(intc);
+    return -1;
 }
 
-void kvmppc_xive_disconnect(SpaprXive *xive, Error **errp)
+void kvmppc_xive_disconnect(SpaprInterruptController *intc)
 {
+    SpaprXive *xive = SPAPR_XIVE(intc);
     XiveSource *xsrc;
     size_t esb_len;
 
     /* The KVM XIVE device is not in use */
     if (!xive || xive->fd == -1) {
-        return;
-    }
-
-    if (!kvmppc_has_cap_xive()) {
-        error_setg(errp, "IRQ_XIVE capability must be present for KVM");
         return;
     }
 

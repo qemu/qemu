@@ -2277,8 +2277,8 @@ static void spapr_phb_pci_enumerate(SpaprPhbState *phb)
 
 }
 
-int spapr_dt_phb(SpaprPhbState *phb, uint32_t intc_phandle, void *fdt,
-                 uint32_t nr_msis, int *node_offset)
+int spapr_dt_phb(SpaprMachineState *spapr, SpaprPhbState *phb,
+                 uint32_t intc_phandle, void *fdt, int *node_offset)
 {
     int bus_off, i, j, ret;
     uint32_t bus_range[] = { cpu_to_be32(0), cpu_to_be32(0xff) };
@@ -2343,7 +2343,8 @@ int spapr_dt_phb(SpaprPhbState *phb, uint32_t intc_phandle, void *fdt,
     _FDT(fdt_setprop(fdt, bus_off, "ranges", &ranges, sizeof_ranges));
     _FDT(fdt_setprop(fdt, bus_off, "reg", &bus_reg, sizeof(bus_reg)));
     _FDT(fdt_setprop_cell(fdt, bus_off, "ibm,pci-config-space-type", 0x1));
-    _FDT(fdt_setprop_cell(fdt, bus_off, "ibm,pe-total-#msi", nr_msis));
+    _FDT(fdt_setprop_cell(fdt, bus_off, "ibm,pe-total-#msi",
+                          spapr_irq_nr_msis(spapr)));
 
     /* Dynamic DMA window */
     if (phb->ddw_enabled) {

@@ -205,23 +205,6 @@ void spapr_xive_mmio_set_enabled(SpaprXive *xive, bool enable)
     memory_region_set_enabled(&xive->end_source.esb_mmio, false);
 }
 
-/*
- * When a Virtual Processor is scheduled to run on a HW thread, the
- * hypervisor pushes its identifier in the OS CAM line. Emulate the
- * same behavior under QEMU.
- */
-void spapr_xive_set_tctx_os_cam(XiveTCTX *tctx)
-{
-    uint8_t  nvt_blk;
-    uint32_t nvt_idx;
-    uint32_t nvt_cam;
-
-    spapr_xive_cpu_to_nvt(POWERPC_CPU(tctx->cs), &nvt_blk, &nvt_idx);
-
-    nvt_cam = cpu_to_be32(TM_QW1W2_VO | xive_nvt_cam_line(nvt_blk, nvt_idx));
-    memcpy(&tctx->regs[TM_QW1_OS + TM_WORD2], &nvt_cam, 4);
-}
-
 static void spapr_xive_end_reset(XiveEND *end)
 {
     memset(end, 0, sizeof(*end));
@@ -462,10 +445,10 @@ static int vmstate_spapr_xive_pre_save(void *opaque)
  * Called by the sPAPR IRQ backend 'post_load' method at the machine
  * level.
  */
-int spapr_xive_post_load(SpaprXive *xive, int version_id)
+static int spapr_xive_post_load(SpaprInterruptController *intc, int version_id)
 {
     if (kvm_irqchip_in_kernel()) {
-        return kvmppc_xive_post_load(xive, version_id);
+        return kvmppc_xive_post_load(SPAPR_XIVE(intc), version_id);
     }
 
     return 0;
@@ -487,49 +470,10 @@ static const VMStateDescription vmstate_spapr_xive = {
     },
 };
 
-static Property spapr_xive_properties[] = {
-    DEFINE_PROP_UINT32("nr-irqs", SpaprXive, nr_irqs, 0),
-    DEFINE_PROP_UINT32("nr-ends", SpaprXive, nr_ends, 0),
-    DEFINE_PROP_UINT64("vc-base", SpaprXive, vc_base, SPAPR_XIVE_VC_BASE),
-    DEFINE_PROP_UINT64("tm-base", SpaprXive, tm_base, SPAPR_XIVE_TM_BASE),
-    DEFINE_PROP_END_OF_LIST(),
-};
-
-static void spapr_xive_class_init(ObjectClass *klass, void *data)
+static int spapr_xive_claim_irq(SpaprInterruptController *intc, int lisn,
+                                bool lsi, Error **errp)
 {
-    DeviceClass *dc = DEVICE_CLASS(klass);
-    XiveRouterClass *xrc = XIVE_ROUTER_CLASS(klass);
-
-    dc->desc    = "sPAPR XIVE Interrupt Controller";
-    dc->props   = spapr_xive_properties;
-    dc->realize = spapr_xive_realize;
-    dc->vmsd    = &vmstate_spapr_xive;
-
-    xrc->get_eas = spapr_xive_get_eas;
-    xrc->get_end = spapr_xive_get_end;
-    xrc->write_end = spapr_xive_write_end;
-    xrc->get_nvt = spapr_xive_get_nvt;
-    xrc->write_nvt = spapr_xive_write_nvt;
-    xrc->get_tctx = spapr_xive_get_tctx;
-}
-
-static const TypeInfo spapr_xive_info = {
-    .name = TYPE_SPAPR_XIVE,
-    .parent = TYPE_XIVE_ROUTER,
-    .instance_init = spapr_xive_instance_init,
-    .instance_size = sizeof(SpaprXive),
-    .class_init = spapr_xive_class_init,
-};
-
-static void spapr_xive_register_types(void)
-{
-    type_register_static(&spapr_xive_info);
-}
-
-type_init(spapr_xive_register_types)
-
-int spapr_xive_irq_claim(SpaprXive *xive, int lisn, bool lsi, Error **errp)
-{
+    SpaprXive *xive = SPAPR_XIVE(intc);
     XiveSource *xsrc = &xive->source;
 
     assert(lisn < xive->nr_irqs);
@@ -554,12 +498,226 @@ int spapr_xive_irq_claim(SpaprXive *xive, int lisn, bool lsi, Error **errp)
     return 0;
 }
 
-void spapr_xive_irq_free(SpaprXive *xive, int lisn)
+static void spapr_xive_free_irq(SpaprInterruptController *intc, int lisn)
 {
+    SpaprXive *xive = SPAPR_XIVE(intc);
     assert(lisn < xive->nr_irqs);
 
     xive->eat[lisn].w &= cpu_to_be64(~EAS_VALID);
 }
+
+static Property spapr_xive_properties[] = {
+    DEFINE_PROP_UINT32("nr-irqs", SpaprXive, nr_irqs, 0),
+    DEFINE_PROP_UINT32("nr-ends", SpaprXive, nr_ends, 0),
+    DEFINE_PROP_UINT64("vc-base", SpaprXive, vc_base, SPAPR_XIVE_VC_BASE),
+    DEFINE_PROP_UINT64("tm-base", SpaprXive, tm_base, SPAPR_XIVE_TM_BASE),
+    DEFINE_PROP_END_OF_LIST(),
+};
+
+static int spapr_xive_cpu_intc_create(SpaprInterruptController *intc,
+                                      PowerPCCPU *cpu, Error **errp)
+{
+    SpaprXive *xive = SPAPR_XIVE(intc);
+    Object *obj;
+    SpaprCpuState *spapr_cpu = spapr_cpu_state(cpu);
+
+    obj = xive_tctx_create(OBJECT(cpu), XIVE_ROUTER(xive), errp);
+    if (!obj) {
+        return -1;
+    }
+
+    spapr_cpu->tctx = XIVE_TCTX(obj);
+    return 0;
+}
+
+static void xive_tctx_set_os_cam(XiveTCTX *tctx, uint32_t os_cam)
+{
+    uint32_t qw1w2 = cpu_to_be32(TM_QW1W2_VO | os_cam);
+    memcpy(&tctx->regs[TM_QW1_OS + TM_WORD2], &qw1w2, 4);
+}
+
+static void spapr_xive_cpu_intc_reset(SpaprInterruptController *intc,
+                                     PowerPCCPU *cpu)
+{
+    XiveTCTX *tctx = spapr_cpu_state(cpu)->tctx;
+    uint8_t  nvt_blk;
+    uint32_t nvt_idx;
+
+    xive_tctx_reset(tctx);
+
+    /*
+     * When a Virtual Processor is scheduled to run on a HW thread,
+     * the hypervisor pushes its identifier in the OS CAM line.
+     * Emulate the same behavior under QEMU.
+     */
+    spapr_xive_cpu_to_nvt(cpu, &nvt_blk, &nvt_idx);
+
+    xive_tctx_set_os_cam(tctx, xive_nvt_cam_line(nvt_blk, nvt_idx));
+}
+
+static void spapr_xive_set_irq(SpaprInterruptController *intc, int irq, int val)
+{
+    SpaprXive *xive = SPAPR_XIVE(intc);
+
+    if (kvm_irqchip_in_kernel()) {
+        kvmppc_xive_source_set_irq(&xive->source, irq, val);
+    } else {
+        xive_source_set_irq(&xive->source, irq, val);
+    }
+}
+
+static void spapr_xive_print_info(SpaprInterruptController *intc, Monitor *mon)
+{
+    SpaprXive *xive = SPAPR_XIVE(intc);
+    CPUState *cs;
+
+    CPU_FOREACH(cs) {
+        PowerPCCPU *cpu = POWERPC_CPU(cs);
+
+        xive_tctx_pic_print_info(spapr_cpu_state(cpu)->tctx, mon);
+    }
+
+    spapr_xive_pic_print_info(xive, mon);
+}
+
+static void spapr_xive_dt(SpaprInterruptController *intc, uint32_t nr_servers,
+                          void *fdt, uint32_t phandle)
+{
+    SpaprXive *xive = SPAPR_XIVE(intc);
+    int node;
+    uint64_t timas[2 * 2];
+    /* Interrupt number ranges for the IPIs */
+    uint32_t lisn_ranges[] = {
+        cpu_to_be32(0),
+        cpu_to_be32(nr_servers),
+    };
+    /*
+     * EQ size - the sizes of pages supported by the system 4K, 64K,
+     * 2M, 16M. We only advertise 64K for the moment.
+     */
+    uint32_t eq_sizes[] = {
+        cpu_to_be32(16), /* 64K */
+    };
+    /*
+     * The following array is in sync with the reserved priorities
+     * defined by the 'spapr_xive_priority_is_reserved' routine.
+     */
+    uint32_t plat_res_int_priorities[] = {
+        cpu_to_be32(7),    /* start */
+        cpu_to_be32(0xf8), /* count */
+    };
+
+    /* Thread Interrupt Management Area : User (ring 3) and OS (ring 2) */
+    timas[0] = cpu_to_be64(xive->tm_base +
+                           XIVE_TM_USER_PAGE * (1ull << TM_SHIFT));
+    timas[1] = cpu_to_be64(1ull << TM_SHIFT);
+    timas[2] = cpu_to_be64(xive->tm_base +
+                           XIVE_TM_OS_PAGE * (1ull << TM_SHIFT));
+    timas[3] = cpu_to_be64(1ull << TM_SHIFT);
+
+    _FDT(node = fdt_add_subnode(fdt, 0, xive->nodename));
+
+    _FDT(fdt_setprop_string(fdt, node, "device_type", "power-ivpe"));
+    _FDT(fdt_setprop(fdt, node, "reg", timas, sizeof(timas)));
+
+    _FDT(fdt_setprop_string(fdt, node, "compatible", "ibm,power-ivpe"));
+    _FDT(fdt_setprop(fdt, node, "ibm,xive-eq-sizes", eq_sizes,
+                     sizeof(eq_sizes)));
+    _FDT(fdt_setprop(fdt, node, "ibm,xive-lisn-ranges", lisn_ranges,
+                     sizeof(lisn_ranges)));
+
+    /* For Linux to link the LSIs to the interrupt controller. */
+    _FDT(fdt_setprop(fdt, node, "interrupt-controller", NULL, 0));
+    _FDT(fdt_setprop_cell(fdt, node, "#interrupt-cells", 2));
+
+    /* For SLOF */
+    _FDT(fdt_setprop_cell(fdt, node, "linux,phandle", phandle));
+    _FDT(fdt_setprop_cell(fdt, node, "phandle", phandle));
+
+    /*
+     * The "ibm,plat-res-int-priorities" property defines the priority
+     * ranges reserved by the hypervisor
+     */
+    _FDT(fdt_setprop(fdt, 0, "ibm,plat-res-int-priorities",
+                     plat_res_int_priorities, sizeof(plat_res_int_priorities)));
+}
+
+static int spapr_xive_activate(SpaprInterruptController *intc, Error **errp)
+{
+    SpaprXive *xive = SPAPR_XIVE(intc);
+
+    if (kvm_enabled()) {
+        int rc = spapr_irq_init_kvm(kvmppc_xive_connect, intc, errp);
+        if (rc < 0) {
+            return rc;
+        }
+    }
+
+    /* Activate the XIVE MMIOs */
+    spapr_xive_mmio_set_enabled(xive, true);
+
+    return 0;
+}
+
+static void spapr_xive_deactivate(SpaprInterruptController *intc)
+{
+    SpaprXive *xive = SPAPR_XIVE(intc);
+
+    spapr_xive_mmio_set_enabled(xive, false);
+
+    if (kvm_irqchip_in_kernel()) {
+        kvmppc_xive_disconnect(intc);
+    }
+}
+
+static void spapr_xive_class_init(ObjectClass *klass, void *data)
+{
+    DeviceClass *dc = DEVICE_CLASS(klass);
+    XiveRouterClass *xrc = XIVE_ROUTER_CLASS(klass);
+    SpaprInterruptControllerClass *sicc = SPAPR_INTC_CLASS(klass);
+
+    dc->desc    = "sPAPR XIVE Interrupt Controller";
+    dc->props   = spapr_xive_properties;
+    dc->realize = spapr_xive_realize;
+    dc->vmsd    = &vmstate_spapr_xive;
+
+    xrc->get_eas = spapr_xive_get_eas;
+    xrc->get_end = spapr_xive_get_end;
+    xrc->write_end = spapr_xive_write_end;
+    xrc->get_nvt = spapr_xive_get_nvt;
+    xrc->write_nvt = spapr_xive_write_nvt;
+    xrc->get_tctx = spapr_xive_get_tctx;
+
+    sicc->activate = spapr_xive_activate;
+    sicc->deactivate = spapr_xive_deactivate;
+    sicc->cpu_intc_create = spapr_xive_cpu_intc_create;
+    sicc->cpu_intc_reset = spapr_xive_cpu_intc_reset;
+    sicc->claim_irq = spapr_xive_claim_irq;
+    sicc->free_irq = spapr_xive_free_irq;
+    sicc->set_irq = spapr_xive_set_irq;
+    sicc->print_info = spapr_xive_print_info;
+    sicc->dt = spapr_xive_dt;
+    sicc->post_load = spapr_xive_post_load;
+}
+
+static const TypeInfo spapr_xive_info = {
+    .name = TYPE_SPAPR_XIVE,
+    .parent = TYPE_XIVE_ROUTER,
+    .instance_init = spapr_xive_instance_init,
+    .instance_size = sizeof(SpaprXive),
+    .class_init = spapr_xive_class_init,
+    .interfaces = (InterfaceInfo[]) {
+        { TYPE_SPAPR_INTC },
+        { }
+    },
+};
+
+static void spapr_xive_register_types(void)
+{
+    type_register_static(&spapr_xive_info);
+}
+
+type_init(spapr_xive_register_types)
 
 /*
  * XIVE hcalls
@@ -1539,66 +1697,4 @@ void spapr_xive_hcall_init(SpaprMachineState *spapr)
     spapr_register_hypercall(H_INT_ESB, h_int_esb);
     spapr_register_hypercall(H_INT_SYNC, h_int_sync);
     spapr_register_hypercall(H_INT_RESET, h_int_reset);
-}
-
-void spapr_dt_xive(SpaprMachineState *spapr, uint32_t nr_servers, void *fdt,
-                   uint32_t phandle)
-{
-    SpaprXive *xive = spapr->xive;
-    int node;
-    uint64_t timas[2 * 2];
-    /* Interrupt number ranges for the IPIs */
-    uint32_t lisn_ranges[] = {
-        cpu_to_be32(0),
-        cpu_to_be32(nr_servers),
-    };
-    /*
-     * EQ size - the sizes of pages supported by the system 4K, 64K,
-     * 2M, 16M. We only advertise 64K for the moment.
-     */
-    uint32_t eq_sizes[] = {
-        cpu_to_be32(16), /* 64K */
-    };
-    /*
-     * The following array is in sync with the reserved priorities
-     * defined by the 'spapr_xive_priority_is_reserved' routine.
-     */
-    uint32_t plat_res_int_priorities[] = {
-        cpu_to_be32(7),    /* start */
-        cpu_to_be32(0xf8), /* count */
-    };
-
-    /* Thread Interrupt Management Area : User (ring 3) and OS (ring 2) */
-    timas[0] = cpu_to_be64(xive->tm_base +
-                           XIVE_TM_USER_PAGE * (1ull << TM_SHIFT));
-    timas[1] = cpu_to_be64(1ull << TM_SHIFT);
-    timas[2] = cpu_to_be64(xive->tm_base +
-                           XIVE_TM_OS_PAGE * (1ull << TM_SHIFT));
-    timas[3] = cpu_to_be64(1ull << TM_SHIFT);
-
-    _FDT(node = fdt_add_subnode(fdt, 0, xive->nodename));
-
-    _FDT(fdt_setprop_string(fdt, node, "device_type", "power-ivpe"));
-    _FDT(fdt_setprop(fdt, node, "reg", timas, sizeof(timas)));
-
-    _FDT(fdt_setprop_string(fdt, node, "compatible", "ibm,power-ivpe"));
-    _FDT(fdt_setprop(fdt, node, "ibm,xive-eq-sizes", eq_sizes,
-                     sizeof(eq_sizes)));
-    _FDT(fdt_setprop(fdt, node, "ibm,xive-lisn-ranges", lisn_ranges,
-                     sizeof(lisn_ranges)));
-
-    /* For Linux to link the LSIs to the interrupt controller. */
-    _FDT(fdt_setprop(fdt, node, "interrupt-controller", NULL, 0));
-    _FDT(fdt_setprop_cell(fdt, node, "#interrupt-cells", 2));
-
-    /* For SLOF */
-    _FDT(fdt_setprop_cell(fdt, node, "linux,phandle", phandle));
-    _FDT(fdt_setprop_cell(fdt, node, "phandle", phandle));
-
-    /*
-     * The "ibm,plat-res-int-priorities" property defines the priority
-     * ranges reserved by the hypervisor
-     */
-    _FDT(fdt_setprop(fdt, 0, "ibm,plat-res-int-priorities",
-                     plat_res_int_priorities, sizeof(plat_res_int_priorities)));
 }
