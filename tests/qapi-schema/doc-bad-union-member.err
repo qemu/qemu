@@ -1,1 +1,1 @@
-doc-bad-union-member.json:3: the following documented members are not in the declaration: a, b
+doc-bad-union-member.json:3: documented members 'a', 'b' do not exist

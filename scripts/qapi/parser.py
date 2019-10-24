@@ -566,5 +566,7 @@ class QAPIDoc(object):
         if bogus:
             raise QAPISemError(
                 self.info,
-                "the following documented members are not in "
-                "the declaration: %s" % ", ".join(bogus))
+                "documented member%s '%s' %s not exist"
+                % ("s" if len(bogus) > 1 else "",
+                   "', '".join(bogus),
+                   "do" if len(bogus) > 1 else "does"))

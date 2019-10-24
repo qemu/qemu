@@ -1,1 +1,1 @@
-doc-bad-boxed-command-arg.json:9: the following documented members are not in the declaration: a
+doc-bad-boxed-command-arg.json:9: documented member 'a' does not exist
