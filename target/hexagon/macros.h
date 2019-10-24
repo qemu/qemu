@@ -335,11 +335,12 @@ static inline TCGv gen_read_ireg(TCGv tmp, TCGv val, int shift)
      *  #define fREAD_IREG(VAL) \
      *      (fSXTN(11,64,(((VAL) & 0xf0000000)>>21) | ((VAL>>17)&0x7f) ))
      */
-    printf("FIXME: gen_read_ireg not implemented\n");
-    g_assert_not_reached();
+    tcg_gen_sari_tl(tmp, val, 17);
+    tcg_gen_andi_tl(tmp, tmp, 0x7f);
+    tcg_gen_shli_tl(tmp, tmp, shift);
     return tmp;
 }
-#define fREAD_IREG(VAL, SHIFT) gen_read_ireg(tmp, (VAL), (SHIFT))
+#define fREAD_IREG(VAL, SHIFT) gen_read_ireg(ireg, (VAL), (SHIFT))
 #define fREAD_R0() (READ_RREG(tmp, 0))
 #define fREAD_LR() (READ_RREG(tmp, HEX_REG_LR))
 #define fREAD_SSR() (READ_RREG(tmp, HEX_REG_SSR))
@@ -564,13 +565,57 @@ static inline TCGv gen_read_ireg(TCGv tmp, TCGv val, int shift)
 #define fEA_REG(REG) tcg_gen_mov_tl(EA, REG)
 static inline void gen_fbrev(TCGv result, TCGv src)
 {
-    printf("FIXME - brev not implemented\n");
-    g_assert_not_reached();
+    TCGv result_hi = tcg_temp_new();
+    TCGv result_lo = tcg_temp_new();
+    TCGv tmp1 = tcg_temp_new();
+    TCGv tmp2 = tcg_temp_new();
+    int i;
+
+    /*
+     *  Bit reverse the low 16 bits of the address
+     */
+    tcg_gen_andi_tl(result_hi, src, 0xffff0000);
+    tcg_gen_movi_tl(result_lo, 0);
+    tcg_gen_mov_tl(tmp1, src);
+    for (i = 0; i < 16; i++) {
+        /*
+         * result_lo = (result_lo << 1) | (tmp1 & 1);
+         * tmp1 >>= 1;
+         */
+        tcg_gen_shli_tl(result_lo, result_lo, 1);
+        tcg_gen_andi_tl(tmp2, tmp1, 1);
+        tcg_gen_or_tl(result_lo, result_lo, tmp2);
+        tcg_gen_sari_tl(tmp1, tmp1, 1);
+    }
+    tcg_gen_or_tl(result, result_hi, result_lo);
+
+    tcg_temp_free(result_hi);
+    tcg_temp_free(result_lo);
+    tcg_temp_free(tmp1);
+    tcg_temp_free(tmp2);
 }
-static inline void gen_fcircadd(TCGv reg, TCGv incr, TCGv immed, TCGv mreg)
+static inline void gen_fcircadd(TCGv reg, TCGv incr, TCGv M, TCGv start_addr)
 {
-    printf("FIXME - circular add not implemented\n");
-    g_assert_not_reached();
+    TCGv length = tcg_temp_new();
+    TCGv new_ptr = tcg_temp_new();
+    TCGv end_addr = tcg_temp_new();
+    TCGv tmp = tcg_temp_new();
+
+    tcg_gen_andi_tl(length, M, 0x1ffff);
+    tcg_gen_add_tl(new_ptr, reg, incr);
+    tcg_gen_add_tl(end_addr, start_addr, length);
+
+    tcg_gen_sub_tl(tmp, new_ptr, length);
+    tcg_gen_movcond_tl(TCG_COND_GE, new_ptr, new_ptr, end_addr, tmp, new_ptr);
+    tcg_gen_add_tl(tmp, new_ptr, length);
+    tcg_gen_movcond_tl(TCG_COND_LT, new_ptr, new_ptr, start_addr, tmp, new_ptr);
+
+    tcg_gen_mov_tl(reg, new_ptr);
+
+    tcg_temp_free(length);
+    tcg_temp_free(new_ptr);
+    tcg_temp_free(end_addr);
+    tcg_temp_free(tmp);
 }
 
 #define fEA_BREVR(REG) gen_fbrev(EA, REG)
@@ -602,7 +647,10 @@ static inline void gen_fcircadd(TCGv reg, TCGv incr, TCGv immed, TCGv mreg)
     do { \
         fcirc_add(REG, siV, MuV); \
     } while (0)
-#define fPM_CIRR(REG, VAL, MVAL) printf("FIXME: CIRR not implemented\n")
+#define fPM_CIRR(REG, VAL, MVAL) \
+    do { \
+        fcirc_add(REG, VAL, MuV); \
+    } while (0)
 #define fMODCIRCU(N, P) ((N) & ((1 << (P)) - 1))
 #define fSCALE(N, A) (((size8s_t)(A)) << N)
 #define fVSATW(A) fVSATN(32, ((long long)A))
@@ -782,8 +830,8 @@ static inline void gen_fcircadd(TCGv reg, TCGv incr, TCGv immed, TCGv mreg)
 #define fMMU(ADDR) ADDR
 
 #ifdef QEMU_GENERATE
-#define fcirc_add(REG, INCR, IMMED) \
-    gen_fcircadd(REG, INCR, IMMED, fREAD_CSREG(MuN))
+#define fcirc_add(REG, INCR, MV) \
+    gen_fcircadd(REG, INCR, MV, fREAD_CSREG(MuN))
 #else
 #define fcirc_add(REG, INCR, IMMED)  /* Not possible in helpers */
 #endif
