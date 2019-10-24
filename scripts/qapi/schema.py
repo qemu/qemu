@@ -27,8 +27,11 @@ from qapi.parser import QAPISchemaParser
 class QAPISchemaEntity(object):
     meta = None
 
-    def __init__(self, name, info, doc, ifcond=None):
+    def __init__(self, name, info, doc, ifcond=None, features=None):
         assert name is None or isinstance(name, str)
+        for f in features or []:
+            assert isinstance(f, QAPISchemaFeature)
+            f.set_defined_in(name)
         self.name = name
         self._module = None
         # For explicitly defined entities, info points to the (explicit)
@@ -39,6 +42,7 @@ class QAPISchemaEntity(object):
         self.info = info
         self.doc = doc
         self._ifcond = ifcond or []
+        self.features = features or []
         self._checked = False
 
     def c_name(self):
@@ -49,6 +53,10 @@ class QAPISchemaEntity(object):
         if self.info:
             self._module = os.path.relpath(self.info.fname,
                                            os.path.dirname(schema.fname))
+        seen = {}
+        for f in self.features:
+            f.check_clash(self.info, seen)
+
         self._checked = True
 
     def connect_doc(self, doc=None):
@@ -307,7 +315,7 @@ class QAPISchemaObjectType(QAPISchemaType):
         # struct has local_members, optional base, and no variants
         # flat union has base, variants, and no local_members
         # simple union has local_members, variants, and no base
-        QAPISchemaType.__init__(self, name, info, doc, ifcond)
+        QAPISchemaType.__init__(self, name, info, doc, ifcond, features)
         self.meta = 'union' if variants else 'struct'
         assert base is None or isinstance(base, str)
         for m in local_members:
@@ -316,15 +324,11 @@ class QAPISchemaObjectType(QAPISchemaType):
         if variants is not None:
             assert isinstance(variants, QAPISchemaObjectTypeVariants)
             variants.set_defined_in(name)
-        for f in features:
-            assert isinstance(f, QAPISchemaFeature)
-            f.set_defined_in(name)
         self._base_name = base
         self.base = None
         self.local_members = local_members
         self.variants = variants
         self.members = None
-        self.features = features
 
     def check(self, schema):
         # This calls another type T's .check() exactly when the C
@@ -361,11 +365,6 @@ class QAPISchemaObjectType(QAPISchemaType):
         if self.variants:
             self.variants.check(schema, seen)
             self.variants.check_clash(self.info, seen)
-
-        # Features are in a name space separate from members
-        seen = {}
-        for f in self.features:
-            f.check_clash(self.info, seen)
 
         self.members = members  # mark completed
 
@@ -678,12 +677,9 @@ class QAPISchemaCommand(QAPISchemaEntity):
     def __init__(self, name, info, doc, ifcond, arg_type, ret_type,
                  gen, success_response, boxed, allow_oob, allow_preconfig,
                  features):
-        QAPISchemaEntity.__init__(self, name, info, doc, ifcond)
+        QAPISchemaEntity.__init__(self, name, info, doc, ifcond, features)
         assert not arg_type or isinstance(arg_type, str)
         assert not ret_type or isinstance(ret_type, str)
-        for f in features:
-            assert isinstance(f, QAPISchemaFeature)
-            f.set_defined_in(name)
         self._arg_type_name = arg_type
         self.arg_type = None
         self._ret_type_name = ret_type
@@ -693,7 +689,6 @@ class QAPISchemaCommand(QAPISchemaEntity):
         self.boxed = boxed
         self.allow_oob = allow_oob
         self.allow_preconfig = allow_preconfig
-        self.features = features
 
     def check(self, schema):
         QAPISchemaEntity.check(self, schema)
@@ -722,11 +717,6 @@ class QAPISchemaCommand(QAPISchemaEntity):
                         self.info,
                         "command's 'returns' cannot take %s"
                         % self.ret_type.describe())
-
-        # Features are in a name space separate from members
-        seen = {}
-        for f in self.features:
-            f.check_clash(self.info, seen)
 
     def connect_doc(self, doc=None):
         doc = doc or self.doc
