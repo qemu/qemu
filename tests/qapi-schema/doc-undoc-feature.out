@@ -1,0 +1,19 @@
+module None
+object q_empty
+enum QType
+    prefix QTYPE
+    member none
+    member qnull
+    member qnum
+    member qstring
+    member qdict
+    member qlist
+    member qbool
+module doc-undoc-feature.json
+command foo None -> None
+    gen=True success_response=True boxed=False oob=False preconfig=False
+    feature undoc
+    feature doc
+doc symbol=foo
+    body=
+
