@@ -229,6 +229,10 @@ class QAPISchemaEnumType(QAPISchemaType):
             for m in self.members:
                 self.doc.connect_member(m)
 
+    def check_doc(self):
+        if self.doc:
+            self.doc.check()
+
     def is_implicit(self):
         # See QAPISchema._make_implicit_enum_type() and ._def_predefineds()
         return self.name.endswith('Kind') or self.name == 'QType'
