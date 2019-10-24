@@ -279,7 +279,9 @@ another feature
 
 @deftypefn Event {} EVT-BOXED
 
-BUG: generated doc misses arguments
+
+
+@b{Arguments:} the members of @code{Object}
 
 @end deftypefn
 

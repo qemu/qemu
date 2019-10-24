@@ -266,9 +266,17 @@ class QAPISchemaGenDocVisitor(QAPISchemaVisitor):
 
     def visit_event(self, name, info, ifcond, arg_type, boxed):
         doc = self.cur_doc
+        if boxed:
+            body = texi_body(doc)
+            body += ('\n@b{Arguments:} the members of @code{%s}\n'
+                     % arg_type.name)
+            body += texi_features(doc)
+            body += texi_sections(doc, ifcond)
+        else:
+            body = texi_entity(doc, 'Arguments', ifcond)
         self._gen.add(MSG_FMT(type='Event',
                               name=doc.symbol,
-                              body=texi_entity(doc, 'Arguments', ifcond)))
+                              body=body))
 
     def symbol(self, doc, entity):
         if self._gen._body:

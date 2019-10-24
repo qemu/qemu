@@ -196,4 +196,4 @@ another feature
 <- out
 doc symbol=EVT-BOXED
     body=
-BUG: generated doc misses arguments
+

@@ -160,7 +160,6 @@
 
 ##
 # @EVT-BOXED:
-# BUG: generated doc misses arguments
 ##
 { 'event': 'EVT-BOXED',  'boxed': true,
   'data': 'Object' }
