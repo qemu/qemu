@@ -190,12 +190,6 @@ def check_features(features, info):
         check_if(f, info, source)
 
 
-def normalize_enum(expr):
-    if isinstance(expr['data'], list):
-        expr['data'] = [m if isinstance(m, dict) else {'name': m}
-                        for m in expr['data']]
-
-
 def check_enum(expr, info):
     name = expr['enum']
     members = expr['data']
@@ -208,6 +202,8 @@ def check_enum(expr, info):
 
     permit_upper = name in info.pragma.name_case_whitelist
 
+    members[:] = [m if isinstance(m, dict) else {'name': m}
+                  for m in members]
     for member in members:
         source = "'data' member"
         check_keys(member, info, source, ['name'], ['if'])
@@ -325,7 +321,6 @@ def check_exprs(exprs):
         if meta == 'enum':
             check_keys(expr, info, meta,
                        ['enum', 'data'], ['if', 'prefix'])
-            normalize_enum(expr)
             check_enum(expr, info)
         elif meta == 'union':
             check_keys(expr, info, meta,
