@@ -95,12 +95,6 @@ def check_flags(expr, info):
                 info, "flag '%s' may only use true value" % key)
 
 
-def normalize_if(expr):
-    ifcond = expr.get('if')
-    if isinstance(ifcond, str):
-        expr['if'] = [ifcond]
-
-
 def check_if(expr, info, source):
 
     def check_if_str(ifcond, info):
@@ -126,6 +120,7 @@ def check_if(expr, info, source):
             check_if_str(elt, info)
     else:
         check_if_str(ifcond, info)
+        expr['if'] = [ifcond]
 
 
 def normalize_members(members):
@@ -175,7 +170,6 @@ def check_type(value, info, source,
             raise QAPISemError(info, "%s uses reserved name" % key_source)
         check_keys(arg, info, key_source, ['type'], ['if'])
         check_if(arg, info, key_source)
-        normalize_if(arg)
         check_type(arg['type'], info, key_source, allow_array=True)
 
 
@@ -198,7 +192,6 @@ def check_features(features, info):
         source = "%s '%s'" % (source, f['name'])
         check_name_str(f['name'], info, source)
         check_if(f, info, source)
-        normalize_if(f)
 
 
 def normalize_enum(expr):
@@ -227,7 +220,6 @@ def check_enum(expr, info):
         check_name_str(member['name'], info, source,
                        enum_member=True, permit_upper=permit_upper)
         check_if(member, info, source)
-        normalize_if(member)
 
 
 def check_struct(expr, info):
@@ -259,7 +251,6 @@ def check_union(expr, info):
         check_name_str(key, info, source)
         check_keys(value, info, source, ['type'], ['if'])
         check_if(value, info, source)
-        normalize_if(value)
         check_type(value['type'], info, source, allow_array=not base)
 
 
@@ -273,7 +264,6 @@ def check_alternate(expr, info):
         check_name_str(key, info, source)
         check_keys(value, info, source, ['type'], ['if'])
         check_if(value, info, source)
-        normalize_if(value)
         check_type(value['type'], info, source)
 
 
@@ -376,7 +366,6 @@ def check_exprs(exprs):
         else:
             assert False, 'unexpected meta type'
 
-        normalize_if(expr)
         check_if(expr, info, meta)
         check_flags(expr, info)
 
