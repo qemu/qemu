@@ -805,7 +805,490 @@ void helper_msa_bset_d(CPUMIPSState *env, uint32_t wd, uint32_t ws, uint32_t wt)
  * +---------------+----------------------------------------------------------+
  */
 
-/* TODO: insert Int Add group helpers here */
+
+static inline int64_t msa_add_a_df(uint32_t df, int64_t arg1, int64_t arg2)
+{
+    uint64_t abs_arg1 = arg1 >= 0 ? arg1 : -arg1;
+    uint64_t abs_arg2 = arg2 >= 0 ? arg2 : -arg2;
+    return abs_arg1 + abs_arg2;
+}
+
+void helper_msa_add_a_b(CPUMIPSState *env,
+                        uint32_t wd, uint32_t ws, uint32_t wt)
+{
+    wr_t *pwd = &(env->active_fpu.fpr[wd].wr);
+    wr_t *pws = &(env->active_fpu.fpr[ws].wr);
+    wr_t *pwt = &(env->active_fpu.fpr[wt].wr);
+
+    pwd->b[0]  = msa_add_a_df(DF_BYTE, pws->b[0],  pwt->b[0]);
+    pwd->b[1]  = msa_add_a_df(DF_BYTE, pws->b[1],  pwt->b[1]);
+    pwd->b[2]  = msa_add_a_df(DF_BYTE, pws->b[2],  pwt->b[2]);
+    pwd->b[3]  = msa_add_a_df(DF_BYTE, pws->b[3],  pwt->b[3]);
+    pwd->b[4]  = msa_add_a_df(DF_BYTE, pws->b[4],  pwt->b[4]);
+    pwd->b[5]  = msa_add_a_df(DF_BYTE, pws->b[5],  pwt->b[5]);
+    pwd->b[6]  = msa_add_a_df(DF_BYTE, pws->b[6],  pwt->b[6]);
+    pwd->b[7]  = msa_add_a_df(DF_BYTE, pws->b[7],  pwt->b[7]);
+    pwd->b[8]  = msa_add_a_df(DF_BYTE, pws->b[8],  pwt->b[8]);
+    pwd->b[9]  = msa_add_a_df(DF_BYTE, pws->b[9],  pwt->b[9]);
+    pwd->b[10] = msa_add_a_df(DF_BYTE, pws->b[10], pwt->b[10]);
+    pwd->b[11] = msa_add_a_df(DF_BYTE, pws->b[11], pwt->b[11]);
+    pwd->b[12] = msa_add_a_df(DF_BYTE, pws->b[12], pwt->b[12]);
+    pwd->b[13] = msa_add_a_df(DF_BYTE, pws->b[13], pwt->b[13]);
+    pwd->b[14] = msa_add_a_df(DF_BYTE, pws->b[14], pwt->b[14]);
+    pwd->b[15] = msa_add_a_df(DF_BYTE, pws->b[15], pwt->b[15]);
+}
+
+void helper_msa_add_a_h(CPUMIPSState *env,
+                        uint32_t wd, uint32_t ws, uint32_t wt)
+{
+    wr_t *pwd = &(env->active_fpu.fpr[wd].wr);
+    wr_t *pws = &(env->active_fpu.fpr[ws].wr);
+    wr_t *pwt = &(env->active_fpu.fpr[wt].wr);
+
+    pwd->h[0]  = msa_add_a_df(DF_HALF, pws->h[0],  pwt->h[0]);
+    pwd->h[1]  = msa_add_a_df(DF_HALF, pws->h[1],  pwt->h[1]);
+    pwd->h[2]  = msa_add_a_df(DF_HALF, pws->h[2],  pwt->h[2]);
+    pwd->h[3]  = msa_add_a_df(DF_HALF, pws->h[3],  pwt->h[3]);
+    pwd->h[4]  = msa_add_a_df(DF_HALF, pws->h[4],  pwt->h[4]);
+    pwd->h[5]  = msa_add_a_df(DF_HALF, pws->h[5],  pwt->h[5]);
+    pwd->h[6]  = msa_add_a_df(DF_HALF, pws->h[6],  pwt->h[6]);
+    pwd->h[7]  = msa_add_a_df(DF_HALF, pws->h[7],  pwt->h[7]);
+}
+
+void helper_msa_add_a_w(CPUMIPSState *env,
+                        uint32_t wd, uint32_t ws, uint32_t wt)
+{
+    wr_t *pwd = &(env->active_fpu.fpr[wd].wr);
+    wr_t *pws = &(env->active_fpu.fpr[ws].wr);
+    wr_t *pwt = &(env->active_fpu.fpr[wt].wr);
+
+    pwd->w[0]  = msa_add_a_df(DF_WORD, pws->w[0],  pwt->w[0]);
+    pwd->w[1]  = msa_add_a_df(DF_WORD, pws->w[1],  pwt->w[1]);
+    pwd->w[2]  = msa_add_a_df(DF_WORD, pws->w[2],  pwt->w[2]);
+    pwd->w[3]  = msa_add_a_df(DF_WORD, pws->w[3],  pwt->w[3]);
+}
+
+void helper_msa_add_a_d(CPUMIPSState *env,
+                        uint32_t wd, uint32_t ws, uint32_t wt)
+{
+    wr_t *pwd = &(env->active_fpu.fpr[wd].wr);
+    wr_t *pws = &(env->active_fpu.fpr[ws].wr);
+    wr_t *pwt = &(env->active_fpu.fpr[wt].wr);
+
+    pwd->d[0]  = msa_add_a_df(DF_DOUBLE, pws->d[0],  pwt->d[0]);
+    pwd->d[1]  = msa_add_a_df(DF_DOUBLE, pws->d[1],  pwt->d[1]);
+}
+
+
+static inline int64_t msa_adds_a_df(uint32_t df, int64_t arg1, int64_t arg2)
+{
+    uint64_t max_int = (uint64_t)DF_MAX_INT(df);
+    uint64_t abs_arg1 = arg1 >= 0 ? arg1 : -arg1;
+    uint64_t abs_arg2 = arg2 >= 0 ? arg2 : -arg2;
+    if (abs_arg1 > max_int || abs_arg2 > max_int) {
+        return (int64_t)max_int;
+    } else {
+        return (abs_arg1 < max_int - abs_arg2) ? abs_arg1 + abs_arg2 : max_int;
+    }
+}
+
+void helper_msa_adds_a_b(CPUMIPSState *env,
+                         uint32_t wd, uint32_t ws, uint32_t wt)
+{
+    wr_t *pwd = &(env->active_fpu.fpr[wd].wr);
+    wr_t *pws = &(env->active_fpu.fpr[ws].wr);
+    wr_t *pwt = &(env->active_fpu.fpr[wt].wr);
+
+    pwd->b[0]  = msa_adds_a_df(DF_BYTE, pws->b[0],  pwt->b[0]);
+    pwd->b[1]  = msa_adds_a_df(DF_BYTE, pws->b[1],  pwt->b[1]);
+    pwd->b[2]  = msa_adds_a_df(DF_BYTE, pws->b[2],  pwt->b[2]);
+    pwd->b[3]  = msa_adds_a_df(DF_BYTE, pws->b[3],  pwt->b[3]);
+    pwd->b[4]  = msa_adds_a_df(DF_BYTE, pws->b[4],  pwt->b[4]);
+    pwd->b[5]  = msa_adds_a_df(DF_BYTE, pws->b[5],  pwt->b[5]);
+    pwd->b[6]  = msa_adds_a_df(DF_BYTE, pws->b[6],  pwt->b[6]);
+    pwd->b[7]  = msa_adds_a_df(DF_BYTE, pws->b[7],  pwt->b[7]);
+    pwd->b[8]  = msa_adds_a_df(DF_BYTE, pws->b[8],  pwt->b[8]);
+    pwd->b[9]  = msa_adds_a_df(DF_BYTE, pws->b[9],  pwt->b[9]);
+    pwd->b[10] = msa_adds_a_df(DF_BYTE, pws->b[10], pwt->b[10]);
+    pwd->b[11] = msa_adds_a_df(DF_BYTE, pws->b[11], pwt->b[11]);
+    pwd->b[12] = msa_adds_a_df(DF_BYTE, pws->b[12], pwt->b[12]);
+    pwd->b[13] = msa_adds_a_df(DF_BYTE, pws->b[13], pwt->b[13]);
+    pwd->b[14] = msa_adds_a_df(DF_BYTE, pws->b[14], pwt->b[14]);
+    pwd->b[15] = msa_adds_a_df(DF_BYTE, pws->b[15], pwt->b[15]);
+}
+
+void helper_msa_adds_a_h(CPUMIPSState *env,
+                         uint32_t wd, uint32_t ws, uint32_t wt)
+{
+    wr_t *pwd = &(env->active_fpu.fpr[wd].wr);
+    wr_t *pws = &(env->active_fpu.fpr[ws].wr);
+    wr_t *pwt = &(env->active_fpu.fpr[wt].wr);
+
+    pwd->h[0]  = msa_adds_a_df(DF_HALF, pws->h[0],  pwt->h[0]);
+    pwd->h[1]  = msa_adds_a_df(DF_HALF, pws->h[1],  pwt->h[1]);
+    pwd->h[2]  = msa_adds_a_df(DF_HALF, pws->h[2],  pwt->h[2]);
+    pwd->h[3]  = msa_adds_a_df(DF_HALF, pws->h[3],  pwt->h[3]);
+    pwd->h[4]  = msa_adds_a_df(DF_HALF, pws->h[4],  pwt->h[4]);
+    pwd->h[5]  = msa_adds_a_df(DF_HALF, pws->h[5],  pwt->h[5]);
+    pwd->h[6]  = msa_adds_a_df(DF_HALF, pws->h[6],  pwt->h[6]);
+    pwd->h[7]  = msa_adds_a_df(DF_HALF, pws->h[7],  pwt->h[7]);
+}
+
+void helper_msa_adds_a_w(CPUMIPSState *env,
+                         uint32_t wd, uint32_t ws, uint32_t wt)
+{
+    wr_t *pwd = &(env->active_fpu.fpr[wd].wr);
+    wr_t *pws = &(env->active_fpu.fpr[ws].wr);
+    wr_t *pwt = &(env->active_fpu.fpr[wt].wr);
+
+    pwd->w[0]  = msa_adds_a_df(DF_WORD, pws->w[0],  pwt->w[0]);
+    pwd->w[1]  = msa_adds_a_df(DF_WORD, pws->w[1],  pwt->w[1]);
+    pwd->w[2]  = msa_adds_a_df(DF_WORD, pws->w[2],  pwt->w[2]);
+    pwd->w[3]  = msa_adds_a_df(DF_WORD, pws->w[3],  pwt->w[3]);
+}
+
+void helper_msa_adds_a_d(CPUMIPSState *env,
+                         uint32_t wd, uint32_t ws, uint32_t wt)
+{
+    wr_t *pwd = &(env->active_fpu.fpr[wd].wr);
+    wr_t *pws = &(env->active_fpu.fpr[ws].wr);
+    wr_t *pwt = &(env->active_fpu.fpr[wt].wr);
+
+    pwd->d[0]  = msa_adds_a_df(DF_DOUBLE, pws->d[0],  pwt->d[0]);
+    pwd->d[1]  = msa_adds_a_df(DF_DOUBLE, pws->d[1],  pwt->d[1]);
+}
+
+
+static inline int64_t msa_adds_s_df(uint32_t df, int64_t arg1, int64_t arg2)
+{
+    int64_t max_int = DF_MAX_INT(df);
+    int64_t min_int = DF_MIN_INT(df);
+    if (arg1 < 0) {
+        return (min_int - arg1 < arg2) ? arg1 + arg2 : min_int;
+    } else {
+        return (arg2 < max_int - arg1) ? arg1 + arg2 : max_int;
+    }
+}
+
+void helper_msa_adds_s_b(CPUMIPSState *env,
+                         uint32_t wd, uint32_t ws, uint32_t wt)
+{
+    wr_t *pwd = &(env->active_fpu.fpr[wd].wr);
+    wr_t *pws = &(env->active_fpu.fpr[ws].wr);
+    wr_t *pwt = &(env->active_fpu.fpr[wt].wr);
+
+    pwd->b[0]  = msa_adds_s_df(DF_BYTE, pws->b[0],  pwt->b[0]);
+    pwd->b[1]  = msa_adds_s_df(DF_BYTE, pws->b[1],  pwt->b[1]);
+    pwd->b[2]  = msa_adds_s_df(DF_BYTE, pws->b[2],  pwt->b[2]);
+    pwd->b[3]  = msa_adds_s_df(DF_BYTE, pws->b[3],  pwt->b[3]);
+    pwd->b[4]  = msa_adds_s_df(DF_BYTE, pws->b[4],  pwt->b[4]);
+    pwd->b[5]  = msa_adds_s_df(DF_BYTE, pws->b[5],  pwt->b[5]);
+    pwd->b[6]  = msa_adds_s_df(DF_BYTE, pws->b[6],  pwt->b[6]);
+    pwd->b[7]  = msa_adds_s_df(DF_BYTE, pws->b[7],  pwt->b[7]);
+    pwd->b[8]  = msa_adds_s_df(DF_BYTE, pws->b[8],  pwt->b[8]);
+    pwd->b[9]  = msa_adds_s_df(DF_BYTE, pws->b[9],  pwt->b[9]);
+    pwd->b[10] = msa_adds_s_df(DF_BYTE, pws->b[10], pwt->b[10]);
+    pwd->b[11] = msa_adds_s_df(DF_BYTE, pws->b[11], pwt->b[11]);
+    pwd->b[12] = msa_adds_s_df(DF_BYTE, pws->b[12], pwt->b[12]);
+    pwd->b[13] = msa_adds_s_df(DF_BYTE, pws->b[13], pwt->b[13]);
+    pwd->b[14] = msa_adds_s_df(DF_BYTE, pws->b[14], pwt->b[14]);
+    pwd->b[15] = msa_adds_s_df(DF_BYTE, pws->b[15], pwt->b[15]);
+}
+
+void helper_msa_adds_s_h(CPUMIPSState *env,
+                         uint32_t wd, uint32_t ws, uint32_t wt)
+{
+    wr_t *pwd = &(env->active_fpu.fpr[wd].wr);
+    wr_t *pws = &(env->active_fpu.fpr[ws].wr);
+    wr_t *pwt = &(env->active_fpu.fpr[wt].wr);
+
+    pwd->h[0]  = msa_adds_s_df(DF_HALF, pws->h[0],  pwt->h[0]);
+    pwd->h[1]  = msa_adds_s_df(DF_HALF, pws->h[1],  pwt->h[1]);
+    pwd->h[2]  = msa_adds_s_df(DF_HALF, pws->h[2],  pwt->h[2]);
+    pwd->h[3]  = msa_adds_s_df(DF_HALF, pws->h[3],  pwt->h[3]);
+    pwd->h[4]  = msa_adds_s_df(DF_HALF, pws->h[4],  pwt->h[4]);
+    pwd->h[5]  = msa_adds_s_df(DF_HALF, pws->h[5],  pwt->h[5]);
+    pwd->h[6]  = msa_adds_s_df(DF_HALF, pws->h[6],  pwt->h[6]);
+    pwd->h[7]  = msa_adds_s_df(DF_HALF, pws->h[7],  pwt->h[7]);
+}
+
+void helper_msa_adds_s_w(CPUMIPSState *env,
+                         uint32_t wd, uint32_t ws, uint32_t wt)
+{
+    wr_t *pwd = &(env->active_fpu.fpr[wd].wr);
+    wr_t *pws = &(env->active_fpu.fpr[ws].wr);
+    wr_t *pwt = &(env->active_fpu.fpr[wt].wr);
+
+    pwd->w[0]  = msa_adds_s_df(DF_WORD, pws->w[0],  pwt->w[0]);
+    pwd->w[1]  = msa_adds_s_df(DF_WORD, pws->w[1],  pwt->w[1]);
+    pwd->w[2]  = msa_adds_s_df(DF_WORD, pws->w[2],  pwt->w[2]);
+    pwd->w[3]  = msa_adds_s_df(DF_WORD, pws->w[3],  pwt->w[3]);
+}
+
+void helper_msa_adds_s_d(CPUMIPSState *env,
+                         uint32_t wd, uint32_t ws, uint32_t wt)
+{
+    wr_t *pwd = &(env->active_fpu.fpr[wd].wr);
+    wr_t *pws = &(env->active_fpu.fpr[ws].wr);
+    wr_t *pwt = &(env->active_fpu.fpr[wt].wr);
+
+    pwd->d[0]  = msa_adds_s_df(DF_DOUBLE, pws->d[0],  pwt->d[0]);
+    pwd->d[1]  = msa_adds_s_df(DF_DOUBLE, pws->d[1],  pwt->d[1]);
+}
+
+
+static inline uint64_t msa_adds_u_df(uint32_t df, uint64_t arg1, uint64_t arg2)
+{
+    uint64_t max_uint = DF_MAX_UINT(df);
+    uint64_t u_arg1 = UNSIGNED(arg1, df);
+    uint64_t u_arg2 = UNSIGNED(arg2, df);
+    return (u_arg1 < max_uint - u_arg2) ? u_arg1 + u_arg2 : max_uint;
+}
+
+void helper_msa_adds_u_b(CPUMIPSState *env,
+                         uint32_t wd, uint32_t ws, uint32_t wt)
+{
+    wr_t *pwd = &(env->active_fpu.fpr[wd].wr);
+    wr_t *pws = &(env->active_fpu.fpr[ws].wr);
+    wr_t *pwt = &(env->active_fpu.fpr[wt].wr);
+
+    pwd->b[0]  = msa_adds_u_df(DF_BYTE, pws->b[0],  pwt->b[0]);
+    pwd->b[1]  = msa_adds_u_df(DF_BYTE, pws->b[1],  pwt->b[1]);
+    pwd->b[2]  = msa_adds_u_df(DF_BYTE, pws->b[2],  pwt->b[2]);
+    pwd->b[3]  = msa_adds_u_df(DF_BYTE, pws->b[3],  pwt->b[3]);
+    pwd->b[4]  = msa_adds_u_df(DF_BYTE, pws->b[4],  pwt->b[4]);
+    pwd->b[5]  = msa_adds_u_df(DF_BYTE, pws->b[5],  pwt->b[5]);
+    pwd->b[6]  = msa_adds_u_df(DF_BYTE, pws->b[6],  pwt->b[6]);
+    pwd->b[7]  = msa_adds_u_df(DF_BYTE, pws->b[7],  pwt->b[7]);
+    pwd->b[8]  = msa_adds_u_df(DF_BYTE, pws->b[8],  pwt->b[8]);
+    pwd->b[9]  = msa_adds_u_df(DF_BYTE, pws->b[9],  pwt->b[9]);
+    pwd->b[10] = msa_adds_u_df(DF_BYTE, pws->b[10], pwt->b[10]);
+    pwd->b[11] = msa_adds_u_df(DF_BYTE, pws->b[11], pwt->b[11]);
+    pwd->b[12] = msa_adds_u_df(DF_BYTE, pws->b[12], pwt->b[12]);
+    pwd->b[13] = msa_adds_u_df(DF_BYTE, pws->b[13], pwt->b[13]);
+    pwd->b[14] = msa_adds_u_df(DF_BYTE, pws->b[14], pwt->b[14]);
+    pwd->b[15] = msa_adds_u_df(DF_BYTE, pws->b[15], pwt->b[15]);
+}
+
+void helper_msa_adds_u_h(CPUMIPSState *env,
+                         uint32_t wd, uint32_t ws, uint32_t wt)
+{
+    wr_t *pwd = &(env->active_fpu.fpr[wd].wr);
+    wr_t *pws = &(env->active_fpu.fpr[ws].wr);
+    wr_t *pwt = &(env->active_fpu.fpr[wt].wr);
+
+    pwd->h[0]  = msa_adds_u_df(DF_HALF, pws->h[0],  pwt->h[0]);
+    pwd->h[1]  = msa_adds_u_df(DF_HALF, pws->h[1],  pwt->h[1]);
+    pwd->h[2]  = msa_adds_u_df(DF_HALF, pws->h[2],  pwt->h[2]);
+    pwd->h[3]  = msa_adds_u_df(DF_HALF, pws->h[3],  pwt->h[3]);
+    pwd->h[4]  = msa_adds_u_df(DF_HALF, pws->h[4],  pwt->h[4]);
+    pwd->h[5]  = msa_adds_u_df(DF_HALF, pws->h[5],  pwt->h[5]);
+    pwd->h[6]  = msa_adds_u_df(DF_HALF, pws->h[6],  pwt->h[6]);
+    pwd->h[7]  = msa_adds_u_df(DF_HALF, pws->h[7],  pwt->h[7]);
+}
+
+void helper_msa_adds_u_w(CPUMIPSState *env,
+                         uint32_t wd, uint32_t ws, uint32_t wt)
+{
+    wr_t *pwd = &(env->active_fpu.fpr[wd].wr);
+    wr_t *pws = &(env->active_fpu.fpr[ws].wr);
+    wr_t *pwt = &(env->active_fpu.fpr[wt].wr);
+
+    pwd->w[0]  = msa_adds_u_df(DF_WORD, pws->w[0],  pwt->w[0]);
+    pwd->w[1]  = msa_adds_u_df(DF_WORD, pws->w[1],  pwt->w[1]);
+    pwd->w[2]  = msa_adds_u_df(DF_WORD, pws->w[2],  pwt->w[2]);
+    pwd->w[3]  = msa_adds_u_df(DF_WORD, pws->w[3],  pwt->w[3]);
+}
+
+void helper_msa_adds_u_d(CPUMIPSState *env,
+                         uint32_t wd, uint32_t ws, uint32_t wt)
+{
+    wr_t *pwd = &(env->active_fpu.fpr[wd].wr);
+    wr_t *pws = &(env->active_fpu.fpr[ws].wr);
+    wr_t *pwt = &(env->active_fpu.fpr[wt].wr);
+
+    pwd->d[0]  = msa_adds_u_df(DF_DOUBLE, pws->d[0],  pwt->d[0]);
+    pwd->d[1]  = msa_adds_u_df(DF_DOUBLE, pws->d[1],  pwt->d[1]);
+}
+
+
+static inline int64_t msa_addv_df(uint32_t df, int64_t arg1, int64_t arg2)
+{
+    return arg1 + arg2;
+}
+
+void helper_msa_addv_b(CPUMIPSState *env,
+                       uint32_t wd, uint32_t ws, uint32_t wt)
+{
+    wr_t *pwd = &(env->active_fpu.fpr[wd].wr);
+    wr_t *pws = &(env->active_fpu.fpr[ws].wr);
+    wr_t *pwt = &(env->active_fpu.fpr[wt].wr);
+
+    pwd->b[0]  = msa_addv_df(DF_BYTE, pws->b[0],  pwt->b[0]);
+    pwd->b[1]  = msa_addv_df(DF_BYTE, pws->b[1],  pwt->b[1]);
+    pwd->b[2]  = msa_addv_df(DF_BYTE, pws->b[2],  pwt->b[2]);
+    pwd->b[3]  = msa_addv_df(DF_BYTE, pws->b[3],  pwt->b[3]);
+    pwd->b[4]  = msa_addv_df(DF_BYTE, pws->b[4],  pwt->b[4]);
+    pwd->b[5]  = msa_addv_df(DF_BYTE, pws->b[5],  pwt->b[5]);
+    pwd->b[6]  = msa_addv_df(DF_BYTE, pws->b[6],  pwt->b[6]);
+    pwd->b[7]  = msa_addv_df(DF_BYTE, pws->b[7],  pwt->b[7]);
+    pwd->b[8]  = msa_addv_df(DF_BYTE, pws->b[8],  pwt->b[8]);
+    pwd->b[9]  = msa_addv_df(DF_BYTE, pws->b[9],  pwt->b[9]);
+    pwd->b[10] = msa_addv_df(DF_BYTE, pws->b[10], pwt->b[10]);
+    pwd->b[11] = msa_addv_df(DF_BYTE, pws->b[11], pwt->b[11]);
+    pwd->b[12] = msa_addv_df(DF_BYTE, pws->b[12], pwt->b[12]);
+    pwd->b[13] = msa_addv_df(DF_BYTE, pws->b[13], pwt->b[13]);
+    pwd->b[14] = msa_addv_df(DF_BYTE, pws->b[14], pwt->b[14]);
+    pwd->b[15] = msa_addv_df(DF_BYTE, pws->b[15], pwt->b[15]);
+}
+
+void helper_msa_addv_h(CPUMIPSState *env,
+                       uint32_t wd, uint32_t ws, uint32_t wt)
+{
+    wr_t *pwd = &(env->active_fpu.fpr[wd].wr);
+    wr_t *pws = &(env->active_fpu.fpr[ws].wr);
+    wr_t *pwt = &(env->active_fpu.fpr[wt].wr);
+
+    pwd->h[0]  = msa_addv_df(DF_HALF, pws->h[0],  pwt->h[0]);
+    pwd->h[1]  = msa_addv_df(DF_HALF, pws->h[1],  pwt->h[1]);
+    pwd->h[2]  = msa_addv_df(DF_HALF, pws->h[2],  pwt->h[2]);
+    pwd->h[3]  = msa_addv_df(DF_HALF, pws->h[3],  pwt->h[3]);
+    pwd->h[4]  = msa_addv_df(DF_HALF, pws->h[4],  pwt->h[4]);
+    pwd->h[5]  = msa_addv_df(DF_HALF, pws->h[5],  pwt->h[5]);
+    pwd->h[6]  = msa_addv_df(DF_HALF, pws->h[6],  pwt->h[6]);
+    pwd->h[7]  = msa_addv_df(DF_HALF, pws->h[7],  pwt->h[7]);
+}
+
+void helper_msa_addv_w(CPUMIPSState *env,
+                       uint32_t wd, uint32_t ws, uint32_t wt)
+{
+    wr_t *pwd = &(env->active_fpu.fpr[wd].wr);
+    wr_t *pws = &(env->active_fpu.fpr[ws].wr);
+    wr_t *pwt = &(env->active_fpu.fpr[wt].wr);
+
+    pwd->w[0]  = msa_addv_df(DF_WORD, pws->w[0],  pwt->w[0]);
+    pwd->w[1]  = msa_addv_df(DF_WORD, pws->w[1],  pwt->w[1]);
+    pwd->w[2]  = msa_addv_df(DF_WORD, pws->w[2],  pwt->w[2]);
+    pwd->w[3]  = msa_addv_df(DF_WORD, pws->w[3],  pwt->w[3]);
+}
+
+void helper_msa_addv_d(CPUMIPSState *env,
+                       uint32_t wd, uint32_t ws, uint32_t wt)
+{
+    wr_t *pwd = &(env->active_fpu.fpr[wd].wr);
+    wr_t *pws = &(env->active_fpu.fpr[ws].wr);
+    wr_t *pwt = &(env->active_fpu.fpr[wt].wr);
+
+    pwd->d[0]  = msa_addv_df(DF_DOUBLE, pws->d[0],  pwt->d[0]);
+    pwd->d[1]  = msa_addv_df(DF_DOUBLE, pws->d[1],  pwt->d[1]);
+}
+
+
+#define SIGNED_EVEN(a, df) \
+        ((((int64_t)(a)) << (64 - DF_BITS(df) / 2)) >> (64 - DF_BITS(df) / 2))
+
+#define UNSIGNED_EVEN(a, df) \
+        ((((uint64_t)(a)) << (64 - DF_BITS(df) / 2)) >> (64 - DF_BITS(df) / 2))
+
+#define SIGNED_ODD(a, df) \
+        ((((int64_t)(a)) << (64 - DF_BITS(df))) >> (64 - DF_BITS(df) / 2))
+
+#define UNSIGNED_ODD(a, df) \
+        ((((uint64_t)(a)) << (64 - DF_BITS(df))) >> (64 - DF_BITS(df) / 2))
+
+
+static inline int64_t msa_hadd_s_df(uint32_t df, int64_t arg1, int64_t arg2)
+{
+    return SIGNED_ODD(arg1, df) + SIGNED_EVEN(arg2, df);
+}
+
+void helper_msa_hadd_s_h(CPUMIPSState *env,
+                         uint32_t wd, uint32_t ws, uint32_t wt)
+{
+    wr_t *pwd = &(env->active_fpu.fpr[wd].wr);
+    wr_t *pws = &(env->active_fpu.fpr[ws].wr);
+    wr_t *pwt = &(env->active_fpu.fpr[wt].wr);
+
+    pwd->h[0]  = msa_hadd_s_df(DF_HALF, pws->h[0],  pwt->h[0]);
+    pwd->h[1]  = msa_hadd_s_df(DF_HALF, pws->h[1],  pwt->h[1]);
+    pwd->h[2]  = msa_hadd_s_df(DF_HALF, pws->h[2],  pwt->h[2]);
+    pwd->h[3]  = msa_hadd_s_df(DF_HALF, pws->h[3],  pwt->h[3]);
+    pwd->h[4]  = msa_hadd_s_df(DF_HALF, pws->h[4],  pwt->h[4]);
+    pwd->h[5]  = msa_hadd_s_df(DF_HALF, pws->h[5],  pwt->h[5]);
+    pwd->h[6]  = msa_hadd_s_df(DF_HALF, pws->h[6],  pwt->h[6]);
+    pwd->h[7]  = msa_hadd_s_df(DF_HALF, pws->h[7],  pwt->h[7]);
+}
+
+void helper_msa_hadd_s_w(CPUMIPSState *env,
+                         uint32_t wd, uint32_t ws, uint32_t wt)
+{
+    wr_t *pwd = &(env->active_fpu.fpr[wd].wr);
+    wr_t *pws = &(env->active_fpu.fpr[ws].wr);
+    wr_t *pwt = &(env->active_fpu.fpr[wt].wr);
+
+    pwd->w[0]  = msa_hadd_s_df(DF_WORD, pws->w[0],  pwt->w[0]);
+    pwd->w[1]  = msa_hadd_s_df(DF_WORD, pws->w[1],  pwt->w[1]);
+    pwd->w[2]  = msa_hadd_s_df(DF_WORD, pws->w[2],  pwt->w[2]);
+    pwd->w[3]  = msa_hadd_s_df(DF_WORD, pws->w[3],  pwt->w[3]);
+}
+
+void helper_msa_hadd_s_d(CPUMIPSState *env,
+                         uint32_t wd, uint32_t ws, uint32_t wt)
+{
+    wr_t *pwd = &(env->active_fpu.fpr[wd].wr);
+    wr_t *pws = &(env->active_fpu.fpr[ws].wr);
+    wr_t *pwt = &(env->active_fpu.fpr[wt].wr);
+
+    pwd->d[0]  = msa_hadd_s_df(DF_DOUBLE, pws->d[0],  pwt->d[0]);
+    pwd->d[1]  = msa_hadd_s_df(DF_DOUBLE, pws->d[1],  pwt->d[1]);
+}
+
+
+static inline int64_t msa_hadd_u_df(uint32_t df, int64_t arg1, int64_t arg2)
+{
+    return UNSIGNED_ODD(arg1, df) + UNSIGNED_EVEN(arg2, df);
+}
+
+void helper_msa_hadd_u_h(CPUMIPSState *env,
+                         uint32_t wd, uint32_t ws, uint32_t wt)
+{
+    wr_t *pwd = &(env->active_fpu.fpr[wd].wr);
+    wr_t *pws = &(env->active_fpu.fpr[ws].wr);
+    wr_t *pwt = &(env->active_fpu.fpr[wt].wr);
+
+    pwd->h[0]  = msa_hadd_u_df(DF_HALF, pws->h[0],  pwt->h[0]);
+    pwd->h[1]  = msa_hadd_u_df(DF_HALF, pws->h[1],  pwt->h[1]);
+    pwd->h[2]  = msa_hadd_u_df(DF_HALF, pws->h[2],  pwt->h[2]);
+    pwd->h[3]  = msa_hadd_u_df(DF_HALF, pws->h[3],  pwt->h[3]);
+    pwd->h[4]  = msa_hadd_u_df(DF_HALF, pws->h[4],  pwt->h[4]);
+    pwd->h[5]  = msa_hadd_u_df(DF_HALF, pws->h[5],  pwt->h[5]);
+    pwd->h[6]  = msa_hadd_u_df(DF_HALF, pws->h[6],  pwt->h[6]);
+    pwd->h[7]  = msa_hadd_u_df(DF_HALF, pws->h[7],  pwt->h[7]);
+}
+
+void helper_msa_hadd_u_w(CPUMIPSState *env,
+                         uint32_t wd, uint32_t ws, uint32_t wt)
+{
+    wr_t *pwd = &(env->active_fpu.fpr[wd].wr);
+    wr_t *pws = &(env->active_fpu.fpr[ws].wr);
+    wr_t *pwt = &(env->active_fpu.fpr[wt].wr);
+
+    pwd->w[0]  = msa_hadd_u_df(DF_WORD, pws->w[0],  pwt->w[0]);
+    pwd->w[1]  = msa_hadd_u_df(DF_WORD, pws->w[1],  pwt->w[1]);
+    pwd->w[2]  = msa_hadd_u_df(DF_WORD, pws->w[2],  pwt->w[2]);
+    pwd->w[3]  = msa_hadd_u_df(DF_WORD, pws->w[3],  pwt->w[3]);
+}
+
+void helper_msa_hadd_u_d(CPUMIPSState *env,
+                         uint32_t wd, uint32_t ws, uint32_t wt)
+{
+    wr_t *pwd = &(env->active_fpu.fpr[wd].wr);
+    wr_t *pws = &(env->active_fpu.fpr[ws].wr);
+    wr_t *pwt = &(env->active_fpu.fpr[wt].wr);
+
+    pwd->d[0]  = msa_hadd_u_df(DF_DOUBLE, pws->d[0],  pwt->d[0]);
+    pwd->d[1]  = msa_hadd_u_df(DF_DOUBLE, pws->d[1],  pwt->d[1]);
+}
 
 
 /*
@@ -1158,28 +1641,38 @@ static inline int64_t msa_ceq_df(uint32_t df, int64_t arg1, int64_t arg2)
     return arg1 == arg2 ? -1 : 0;
 }
 
+static inline int8_t msa_ceq_b(int8_t arg1, int8_t arg2)
+{
+    return arg1 == arg2 ? -1 : 0;
+}
+
 void helper_msa_ceq_b(CPUMIPSState *env, uint32_t wd, uint32_t ws, uint32_t wt)
 {
     wr_t *pwd = &(env->active_fpu.fpr[wd].wr);
     wr_t *pws = &(env->active_fpu.fpr[ws].wr);
     wr_t *pwt = &(env->active_fpu.fpr[wt].wr);
 
-    pwd->b[0]  = msa_ceq_df(DF_BYTE, pws->b[0],  pwt->b[0]);
-    pwd->b[1]  = msa_ceq_df(DF_BYTE, pws->b[1],  pwt->b[1]);
-    pwd->b[2]  = msa_ceq_df(DF_BYTE, pws->b[2],  pwt->b[2]);
-    pwd->b[3]  = msa_ceq_df(DF_BYTE, pws->b[3],  pwt->b[3]);
-    pwd->b[4]  = msa_ceq_df(DF_BYTE, pws->b[4],  pwt->b[4]);
-    pwd->b[5]  = msa_ceq_df(DF_BYTE, pws->b[5],  pwt->b[5]);
-    pwd->b[6]  = msa_ceq_df(DF_BYTE, pws->b[6],  pwt->b[6]);
-    pwd->b[7]  = msa_ceq_df(DF_BYTE, pws->b[7],  pwt->b[7]);
-    pwd->b[8]  = msa_ceq_df(DF_BYTE, pws->b[8],  pwt->b[8]);
-    pwd->b[9]  = msa_ceq_df(DF_BYTE, pws->b[9],  pwt->b[9]);
-    pwd->b[10] = msa_ceq_df(DF_BYTE, pws->b[10], pwt->b[10]);
-    pwd->b[11] = msa_ceq_df(DF_BYTE, pws->b[11], pwt->b[11]);
-    pwd->b[12] = msa_ceq_df(DF_BYTE, pws->b[12], pwt->b[12]);
-    pwd->b[13] = msa_ceq_df(DF_BYTE, pws->b[13], pwt->b[13]);
-    pwd->b[14] = msa_ceq_df(DF_BYTE, pws->b[14], pwt->b[14]);
-    pwd->b[15] = msa_ceq_df(DF_BYTE, pws->b[15], pwt->b[15]);
+    pwd->b[0]  = msa_ceq_b(pws->b[0],  pwt->b[0]);
+    pwd->b[1]  = msa_ceq_b(pws->b[1],  pwt->b[1]);
+    pwd->b[2]  = msa_ceq_b(pws->b[2],  pwt->b[2]);
+    pwd->b[3]  = msa_ceq_b(pws->b[3],  pwt->b[3]);
+    pwd->b[4]  = msa_ceq_b(pws->b[4],  pwt->b[4]);
+    pwd->b[5]  = msa_ceq_b(pws->b[5],  pwt->b[5]);
+    pwd->b[6]  = msa_ceq_b(pws->b[6],  pwt->b[6]);
+    pwd->b[7]  = msa_ceq_b(pws->b[7],  pwt->b[7]);
+    pwd->b[8]  = msa_ceq_b(pws->b[8],  pwt->b[8]);
+    pwd->b[9]  = msa_ceq_b(pws->b[9],  pwt->b[9]);
+    pwd->b[10] = msa_ceq_b(pws->b[10], pwt->b[10]);
+    pwd->b[11] = msa_ceq_b(pws->b[11], pwt->b[11]);
+    pwd->b[12] = msa_ceq_b(pws->b[12], pwt->b[12]);
+    pwd->b[13] = msa_ceq_b(pws->b[13], pwt->b[13]);
+    pwd->b[14] = msa_ceq_b(pws->b[14], pwt->b[14]);
+    pwd->b[15] = msa_ceq_b(pws->b[15], pwt->b[15]);
+}
+
+static inline int16_t msa_ceq_h(int16_t arg1, int16_t arg2)
+{
+    return arg1 == arg2 ? -1 : 0;
 }
 
 void helper_msa_ceq_h(CPUMIPSState *env, uint32_t wd, uint32_t ws, uint32_t wt)
@@ -1188,14 +1681,19 @@ void helper_msa_ceq_h(CPUMIPSState *env, uint32_t wd, uint32_t ws, uint32_t wt)
     wr_t *pws = &(env->active_fpu.fpr[ws].wr);
     wr_t *pwt = &(env->active_fpu.fpr[wt].wr);
 
-    pwd->h[0]  = msa_ceq_df(DF_HALF, pws->h[0],  pwt->h[0]);
-    pwd->h[1]  = msa_ceq_df(DF_HALF, pws->h[1],  pwt->h[1]);
-    pwd->h[2]  = msa_ceq_df(DF_HALF, pws->h[2],  pwt->h[2]);
-    pwd->h[3]  = msa_ceq_df(DF_HALF, pws->h[3],  pwt->h[3]);
-    pwd->h[4]  = msa_ceq_df(DF_HALF, pws->h[4],  pwt->h[4]);
-    pwd->h[5]  = msa_ceq_df(DF_HALF, pws->h[5],  pwt->h[5]);
-    pwd->h[6]  = msa_ceq_df(DF_HALF, pws->h[6],  pwt->h[6]);
-    pwd->h[7]  = msa_ceq_df(DF_HALF, pws->h[7],  pwt->h[7]);
+    pwd->h[0]  = msa_ceq_h(pws->h[0],  pwt->h[0]);
+    pwd->h[1]  = msa_ceq_h(pws->h[1],  pwt->h[1]);
+    pwd->h[2]  = msa_ceq_h(pws->h[2],  pwt->h[2]);
+    pwd->h[3]  = msa_ceq_h(pws->h[3],  pwt->h[3]);
+    pwd->h[4]  = msa_ceq_h(pws->h[4],  pwt->h[4]);
+    pwd->h[5]  = msa_ceq_h(pws->h[5],  pwt->h[5]);
+    pwd->h[6]  = msa_ceq_h(pws->h[6],  pwt->h[6]);
+    pwd->h[7]  = msa_ceq_h(pws->h[7],  pwt->h[7]);
+}
+
+static inline int32_t msa_ceq_w(int32_t arg1, int32_t arg2)
+{
+    return arg1 == arg2 ? -1 : 0;
 }
 
 void helper_msa_ceq_w(CPUMIPSState *env, uint32_t wd, uint32_t ws, uint32_t wt)
@@ -1204,10 +1702,15 @@ void helper_msa_ceq_w(CPUMIPSState *env, uint32_t wd, uint32_t ws, uint32_t wt)
     wr_t *pws = &(env->active_fpu.fpr[ws].wr);
     wr_t *pwt = &(env->active_fpu.fpr[wt].wr);
 
-    pwd->w[0]  = msa_ceq_df(DF_WORD, pws->w[0],  pwt->w[0]);
-    pwd->w[1]  = msa_ceq_df(DF_WORD, pws->w[1],  pwt->w[1]);
-    pwd->w[2]  = msa_ceq_df(DF_WORD, pws->w[2],  pwt->w[2]);
-    pwd->w[3]  = msa_ceq_df(DF_WORD, pws->w[3],  pwt->w[3]);
+    pwd->w[0]  = msa_ceq_w(pws->w[0],  pwt->w[0]);
+    pwd->w[1]  = msa_ceq_w(pws->w[1],  pwt->w[1]);
+    pwd->w[2]  = msa_ceq_w(pws->w[2],  pwt->w[2]);
+    pwd->w[3]  = msa_ceq_w(pws->w[3],  pwt->w[3]);
+}
+
+static inline int64_t msa_ceq_d(int64_t arg1, int64_t arg2)
+{
+    return arg1 == arg2 ? -1 : 0;
 }
 
 void helper_msa_ceq_d(CPUMIPSState *env, uint32_t wd, uint32_t ws, uint32_t wt)
@@ -1216,8 +1719,8 @@ void helper_msa_ceq_d(CPUMIPSState *env, uint32_t wd, uint32_t ws, uint32_t wt)
     wr_t *pws = &(env->active_fpu.fpr[ws].wr);
     wr_t *pwt = &(env->active_fpu.fpr[wt].wr);
 
-    pwd->d[0]  = msa_ceq_df(DF_DOUBLE, pws->d[0],  pwt->d[0]);
-    pwd->d[1]  = msa_ceq_df(DF_DOUBLE, pws->d[1],  pwt->d[1]);
+    pwd->d[0]  = msa_ceq_d(pws->d[0],  pwt->d[0]);
+    pwd->d[1]  = msa_ceq_d(pws->d[1],  pwt->d[1]);
 }
 
 static inline int64_t msa_cle_s_df(uint32_t df, int64_t arg1, int64_t arg2)
@@ -1369,6 +1872,11 @@ static inline int64_t msa_clt_s_df(uint32_t df, int64_t arg1, int64_t arg2)
     return arg1 < arg2 ? -1 : 0;
 }
 
+static inline int8_t msa_clt_s_b(int8_t arg1, int8_t arg2)
+{
+    return arg1 < arg2 ? -1 : 0;
+}
+
 void helper_msa_clt_s_b(CPUMIPSState *env,
                         uint32_t wd, uint32_t ws, uint32_t wt)
 {
@@ -1376,22 +1884,27 @@ void helper_msa_clt_s_b(CPUMIPSState *env,
     wr_t *pws = &(env->active_fpu.fpr[ws].wr);
     wr_t *pwt = &(env->active_fpu.fpr[wt].wr);
 
-    pwd->b[0]  = msa_clt_s_df(DF_BYTE, pws->b[0],  pwt->b[0]);
-    pwd->b[1]  = msa_clt_s_df(DF_BYTE, pws->b[1],  pwt->b[1]);
-    pwd->b[2]  = msa_clt_s_df(DF_BYTE, pws->b[2],  pwt->b[2]);
-    pwd->b[3]  = msa_clt_s_df(DF_BYTE, pws->b[3],  pwt->b[3]);
-    pwd->b[4]  = msa_clt_s_df(DF_BYTE, pws->b[4],  pwt->b[4]);
-    pwd->b[5]  = msa_clt_s_df(DF_BYTE, pws->b[5],  pwt->b[5]);
-    pwd->b[6]  = msa_clt_s_df(DF_BYTE, pws->b[6],  pwt->b[6]);
-    pwd->b[7]  = msa_clt_s_df(DF_BYTE, pws->b[7],  pwt->b[7]);
-    pwd->b[8]  = msa_clt_s_df(DF_BYTE, pws->b[8],  pwt->b[8]);
-    pwd->b[9]  = msa_clt_s_df(DF_BYTE, pws->b[9],  pwt->b[9]);
-    pwd->b[10] = msa_clt_s_df(DF_BYTE, pws->b[10], pwt->b[10]);
-    pwd->b[11] = msa_clt_s_df(DF_BYTE, pws->b[11], pwt->b[11]);
-    pwd->b[12] = msa_clt_s_df(DF_BYTE, pws->b[12], pwt->b[12]);
-    pwd->b[13] = msa_clt_s_df(DF_BYTE, pws->b[13], pwt->b[13]);
-    pwd->b[14] = msa_clt_s_df(DF_BYTE, pws->b[14], pwt->b[14]);
-    pwd->b[15] = msa_clt_s_df(DF_BYTE, pws->b[15], pwt->b[15]);
+    pwd->b[0]  = msa_clt_s_b(pws->b[0],  pwt->b[0]);
+    pwd->b[1]  = msa_clt_s_b(pws->b[1],  pwt->b[1]);
+    pwd->b[2]  = msa_clt_s_b(pws->b[2],  pwt->b[2]);
+    pwd->b[3]  = msa_clt_s_b(pws->b[3],  pwt->b[3]);
+    pwd->b[4]  = msa_clt_s_b(pws->b[4],  pwt->b[4]);
+    pwd->b[5]  = msa_clt_s_b(pws->b[5],  pwt->b[5]);
+    pwd->b[6]  = msa_clt_s_b(pws->b[6],  pwt->b[6]);
+    pwd->b[7]  = msa_clt_s_b(pws->b[7],  pwt->b[7]);
+    pwd->b[8]  = msa_clt_s_b(pws->b[8],  pwt->b[8]);
+    pwd->b[9]  = msa_clt_s_b(pws->b[9],  pwt->b[9]);
+    pwd->b[10] = msa_clt_s_b(pws->b[10], pwt->b[10]);
+    pwd->b[11] = msa_clt_s_b(pws->b[11], pwt->b[11]);
+    pwd->b[12] = msa_clt_s_b(pws->b[12], pwt->b[12]);
+    pwd->b[13] = msa_clt_s_b(pws->b[13], pwt->b[13]);
+    pwd->b[14] = msa_clt_s_b(pws->b[14], pwt->b[14]);
+    pwd->b[15] = msa_clt_s_b(pws->b[15], pwt->b[15]);
+}
+
+static inline int16_t msa_clt_s_h(int16_t arg1, int16_t arg2)
+{
+    return arg1 < arg2 ? -1 : 0;
 }
 
 void helper_msa_clt_s_h(CPUMIPSState *env,
@@ -1401,14 +1914,19 @@ void helper_msa_clt_s_h(CPUMIPSState *env,
     wr_t *pws = &(env->active_fpu.fpr[ws].wr);
     wr_t *pwt = &(env->active_fpu.fpr[wt].wr);
 
-    pwd->h[0]  = msa_clt_s_df(DF_HALF, pws->h[0],  pwt->h[0]);
-    pwd->h[1]  = msa_clt_s_df(DF_HALF, pws->h[1],  pwt->h[1]);
-    pwd->h[2]  = msa_clt_s_df(DF_HALF, pws->h[2],  pwt->h[2]);
-    pwd->h[3]  = msa_clt_s_df(DF_HALF, pws->h[3],  pwt->h[3]);
-    pwd->h[4]  = msa_clt_s_df(DF_HALF, pws->h[4],  pwt->h[4]);
-    pwd->h[5]  = msa_clt_s_df(DF_HALF, pws->h[5],  pwt->h[5]);
-    pwd->h[6]  = msa_clt_s_df(DF_HALF, pws->h[6],  pwt->h[6]);
-    pwd->h[7]  = msa_clt_s_df(DF_HALF, pws->h[7],  pwt->h[7]);
+    pwd->h[0]  = msa_clt_s_h(pws->h[0],  pwt->h[0]);
+    pwd->h[1]  = msa_clt_s_h(pws->h[1],  pwt->h[1]);
+    pwd->h[2]  = msa_clt_s_h(pws->h[2],  pwt->h[2]);
+    pwd->h[3]  = msa_clt_s_h(pws->h[3],  pwt->h[3]);
+    pwd->h[4]  = msa_clt_s_h(pws->h[4],  pwt->h[4]);
+    pwd->h[5]  = msa_clt_s_h(pws->h[5],  pwt->h[5]);
+    pwd->h[6]  = msa_clt_s_h(pws->h[6],  pwt->h[6]);
+    pwd->h[7]  = msa_clt_s_h(pws->h[7],  pwt->h[7]);
+}
+
+static inline int32_t msa_clt_s_w(int32_t arg1, int32_t arg2)
+{
+    return arg1 < arg2 ? -1 : 0;
 }
 
 void helper_msa_clt_s_w(CPUMIPSState *env,
@@ -1418,10 +1936,15 @@ void helper_msa_clt_s_w(CPUMIPSState *env,
     wr_t *pws = &(env->active_fpu.fpr[ws].wr);
     wr_t *pwt = &(env->active_fpu.fpr[wt].wr);
 
-    pwd->w[0]  = msa_clt_s_df(DF_WORD, pws->w[0],  pwt->w[0]);
-    pwd->w[1]  = msa_clt_s_df(DF_WORD, pws->w[1],  pwt->w[1]);
-    pwd->w[2]  = msa_clt_s_df(DF_WORD, pws->w[2],  pwt->w[2]);
-    pwd->w[3]  = msa_clt_s_df(DF_WORD, pws->w[3],  pwt->w[3]);
+    pwd->w[0]  = msa_clt_s_w(pws->w[0],  pwt->w[0]);
+    pwd->w[1]  = msa_clt_s_w(pws->w[1],  pwt->w[1]);
+    pwd->w[2]  = msa_clt_s_w(pws->w[2],  pwt->w[2]);
+    pwd->w[3]  = msa_clt_s_w(pws->w[3],  pwt->w[3]);
+}
+
+static inline int64_t msa_clt_s_d(int64_t arg1, int64_t arg2)
+{
+    return arg1 < arg2 ? -1 : 0;
 }
 
 void helper_msa_clt_s_d(CPUMIPSState *env,
@@ -1431,8 +1954,8 @@ void helper_msa_clt_s_d(CPUMIPSState *env,
     wr_t *pws = &(env->active_fpu.fpr[ws].wr);
     wr_t *pwt = &(env->active_fpu.fpr[wt].wr);
 
-    pwd->d[0]  = msa_clt_s_df(DF_DOUBLE, pws->d[0],  pwt->d[0]);
-    pwd->d[1]  = msa_clt_s_df(DF_DOUBLE, pws->d[1],  pwt->d[1]);
+    pwd->d[0]  = msa_clt_s_d(pws->d[0],  pwt->d[0]);
+    pwd->d[1]  = msa_clt_s_d(pws->d[1],  pwt->d[1]);
 }
 
 static inline int64_t msa_clt_u_df(uint32_t df, int64_t arg1, int64_t arg2)
@@ -1736,7 +2259,444 @@ void helper_msa_div_u_d(CPUMIPSState *env,
  * +---------------+----------------------------------------------------------+
  */
 
-/* TODO: insert Int Max Min group helpers here */
+static inline int64_t msa_max_a_df(uint32_t df, int64_t arg1, int64_t arg2)
+{
+    uint64_t abs_arg1 = arg1 >= 0 ? arg1 : -arg1;
+    uint64_t abs_arg2 = arg2 >= 0 ? arg2 : -arg2;
+    return abs_arg1 > abs_arg2 ? arg1 : arg2;
+}
+
+void helper_msa_max_a_b(CPUMIPSState *env,
+                        uint32_t wd, uint32_t ws, uint32_t wt)
+{
+    wr_t *pwd = &(env->active_fpu.fpr[wd].wr);
+    wr_t *pws = &(env->active_fpu.fpr[ws].wr);
+    wr_t *pwt = &(env->active_fpu.fpr[wt].wr);
+
+    pwd->b[0]  = msa_max_a_df(DF_BYTE, pws->b[0],  pwt->b[0]);
+    pwd->b[1]  = msa_max_a_df(DF_BYTE, pws->b[1],  pwt->b[1]);
+    pwd->b[2]  = msa_max_a_df(DF_BYTE, pws->b[2],  pwt->b[2]);
+    pwd->b[3]  = msa_max_a_df(DF_BYTE, pws->b[3],  pwt->b[3]);
+    pwd->b[4]  = msa_max_a_df(DF_BYTE, pws->b[4],  pwt->b[4]);
+    pwd->b[5]  = msa_max_a_df(DF_BYTE, pws->b[5],  pwt->b[5]);
+    pwd->b[6]  = msa_max_a_df(DF_BYTE, pws->b[6],  pwt->b[6]);
+    pwd->b[7]  = msa_max_a_df(DF_BYTE, pws->b[7],  pwt->b[7]);
+    pwd->b[8]  = msa_max_a_df(DF_BYTE, pws->b[8],  pwt->b[8]);
+    pwd->b[9]  = msa_max_a_df(DF_BYTE, pws->b[9],  pwt->b[9]);
+    pwd->b[10] = msa_max_a_df(DF_BYTE, pws->b[10], pwt->b[10]);
+    pwd->b[11] = msa_max_a_df(DF_BYTE, pws->b[11], pwt->b[11]);
+    pwd->b[12] = msa_max_a_df(DF_BYTE, pws->b[12], pwt->b[12]);
+    pwd->b[13] = msa_max_a_df(DF_BYTE, pws->b[13], pwt->b[13]);
+    pwd->b[14] = msa_max_a_df(DF_BYTE, pws->b[14], pwt->b[14]);
+    pwd->b[15] = msa_max_a_df(DF_BYTE, pws->b[15], pwt->b[15]);
+}
+
+void helper_msa_max_a_h(CPUMIPSState *env,
+                        uint32_t wd, uint32_t ws, uint32_t wt)
+{
+    wr_t *pwd = &(env->active_fpu.fpr[wd].wr);
+    wr_t *pws = &(env->active_fpu.fpr[ws].wr);
+    wr_t *pwt = &(env->active_fpu.fpr[wt].wr);
+
+    pwd->h[0]  = msa_max_a_df(DF_HALF, pws->h[0],  pwt->h[0]);
+    pwd->h[1]  = msa_max_a_df(DF_HALF, pws->h[1],  pwt->h[1]);
+    pwd->h[2]  = msa_max_a_df(DF_HALF, pws->h[2],  pwt->h[2]);
+    pwd->h[3]  = msa_max_a_df(DF_HALF, pws->h[3],  pwt->h[3]);
+    pwd->h[4]  = msa_max_a_df(DF_HALF, pws->h[4],  pwt->h[4]);
+    pwd->h[5]  = msa_max_a_df(DF_HALF, pws->h[5],  pwt->h[5]);
+    pwd->h[6]  = msa_max_a_df(DF_HALF, pws->h[6],  pwt->h[6]);
+    pwd->h[7]  = msa_max_a_df(DF_HALF, pws->h[7],  pwt->h[7]);
+}
+
+void helper_msa_max_a_w(CPUMIPSState *env,
+                        uint32_t wd, uint32_t ws, uint32_t wt)
+{
+    wr_t *pwd = &(env->active_fpu.fpr[wd].wr);
+    wr_t *pws = &(env->active_fpu.fpr[ws].wr);
+    wr_t *pwt = &(env->active_fpu.fpr[wt].wr);
+
+    pwd->w[0]  = msa_max_a_df(DF_WORD, pws->w[0],  pwt->w[0]);
+    pwd->w[1]  = msa_max_a_df(DF_WORD, pws->w[1],  pwt->w[1]);
+    pwd->w[2]  = msa_max_a_df(DF_WORD, pws->w[2],  pwt->w[2]);
+    pwd->w[3]  = msa_max_a_df(DF_WORD, pws->w[3],  pwt->w[3]);
+}
+
+void helper_msa_max_a_d(CPUMIPSState *env,
+                        uint32_t wd, uint32_t ws, uint32_t wt)
+{
+    wr_t *pwd = &(env->active_fpu.fpr[wd].wr);
+    wr_t *pws = &(env->active_fpu.fpr[ws].wr);
+    wr_t *pwt = &(env->active_fpu.fpr[wt].wr);
+
+    pwd->d[0]  = msa_max_a_df(DF_DOUBLE, pws->d[0],  pwt->d[0]);
+    pwd->d[1]  = msa_max_a_df(DF_DOUBLE, pws->d[1],  pwt->d[1]);
+}
+
+
+static inline int64_t msa_max_s_df(uint32_t df, int64_t arg1, int64_t arg2)
+{
+    return arg1 > arg2 ? arg1 : arg2;
+}
+
+void helper_msa_max_s_b(CPUMIPSState *env,
+                        uint32_t wd, uint32_t ws, uint32_t wt)
+{
+    wr_t *pwd = &(env->active_fpu.fpr[wd].wr);
+    wr_t *pws = &(env->active_fpu.fpr[ws].wr);
+    wr_t *pwt = &(env->active_fpu.fpr[wt].wr);
+
+    pwd->b[0]  = msa_max_s_df(DF_BYTE, pws->b[0],  pwt->b[0]);
+    pwd->b[1]  = msa_max_s_df(DF_BYTE, pws->b[1],  pwt->b[1]);
+    pwd->b[2]  = msa_max_s_df(DF_BYTE, pws->b[2],  pwt->b[2]);
+    pwd->b[3]  = msa_max_s_df(DF_BYTE, pws->b[3],  pwt->b[3]);
+    pwd->b[4]  = msa_max_s_df(DF_BYTE, pws->b[4],  pwt->b[4]);
+    pwd->b[5]  = msa_max_s_df(DF_BYTE, pws->b[5],  pwt->b[5]);
+    pwd->b[6]  = msa_max_s_df(DF_BYTE, pws->b[6],  pwt->b[6]);
+    pwd->b[7]  = msa_max_s_df(DF_BYTE, pws->b[7],  pwt->b[7]);
+    pwd->b[8]  = msa_max_s_df(DF_BYTE, pws->b[8],  pwt->b[8]);
+    pwd->b[9]  = msa_max_s_df(DF_BYTE, pws->b[9],  pwt->b[9]);
+    pwd->b[10] = msa_max_s_df(DF_BYTE, pws->b[10], pwt->b[10]);
+    pwd->b[11] = msa_max_s_df(DF_BYTE, pws->b[11], pwt->b[11]);
+    pwd->b[12] = msa_max_s_df(DF_BYTE, pws->b[12], pwt->b[12]);
+    pwd->b[13] = msa_max_s_df(DF_BYTE, pws->b[13], pwt->b[13]);
+    pwd->b[14] = msa_max_s_df(DF_BYTE, pws->b[14], pwt->b[14]);
+    pwd->b[15] = msa_max_s_df(DF_BYTE, pws->b[15], pwt->b[15]);
+}
+
+void helper_msa_max_s_h(CPUMIPSState *env,
+                        uint32_t wd, uint32_t ws, uint32_t wt)
+{
+    wr_t *pwd = &(env->active_fpu.fpr[wd].wr);
+    wr_t *pws = &(env->active_fpu.fpr[ws].wr);
+    wr_t *pwt = &(env->active_fpu.fpr[wt].wr);
+
+    pwd->h[0]  = msa_max_s_df(DF_HALF, pws->h[0],  pwt->h[0]);
+    pwd->h[1]  = msa_max_s_df(DF_HALF, pws->h[1],  pwt->h[1]);
+    pwd->h[2]  = msa_max_s_df(DF_HALF, pws->h[2],  pwt->h[2]);
+    pwd->h[3]  = msa_max_s_df(DF_HALF, pws->h[3],  pwt->h[3]);
+    pwd->h[4]  = msa_max_s_df(DF_HALF, pws->h[4],  pwt->h[4]);
+    pwd->h[5]  = msa_max_s_df(DF_HALF, pws->h[5],  pwt->h[5]);
+    pwd->h[6]  = msa_max_s_df(DF_HALF, pws->h[6],  pwt->h[6]);
+    pwd->h[7]  = msa_max_s_df(DF_HALF, pws->h[7],  pwt->h[7]);
+}
+
+void helper_msa_max_s_w(CPUMIPSState *env,
+                        uint32_t wd, uint32_t ws, uint32_t wt)
+{
+    wr_t *pwd = &(env->active_fpu.fpr[wd].wr);
+    wr_t *pws = &(env->active_fpu.fpr[ws].wr);
+    wr_t *pwt = &(env->active_fpu.fpr[wt].wr);
+
+    pwd->w[0]  = msa_max_s_df(DF_WORD, pws->w[0],  pwt->w[0]);
+    pwd->w[1]  = msa_max_s_df(DF_WORD, pws->w[1],  pwt->w[1]);
+    pwd->w[2]  = msa_max_s_df(DF_WORD, pws->w[2],  pwt->w[2]);
+    pwd->w[3]  = msa_max_s_df(DF_WORD, pws->w[3],  pwt->w[3]);
+}
+
+void helper_msa_max_s_d(CPUMIPSState *env,
+                        uint32_t wd, uint32_t ws, uint32_t wt)
+{
+    wr_t *pwd = &(env->active_fpu.fpr[wd].wr);
+    wr_t *pws = &(env->active_fpu.fpr[ws].wr);
+    wr_t *pwt = &(env->active_fpu.fpr[wt].wr);
+
+    pwd->d[0]  = msa_max_s_df(DF_DOUBLE, pws->d[0],  pwt->d[0]);
+    pwd->d[1]  = msa_max_s_df(DF_DOUBLE, pws->d[1],  pwt->d[1]);
+}
+
+
+static inline int64_t msa_max_u_df(uint32_t df, int64_t arg1, int64_t arg2)
+{
+    uint64_t u_arg1 = UNSIGNED(arg1, df);
+    uint64_t u_arg2 = UNSIGNED(arg2, df);
+    return u_arg1 > u_arg2 ? arg1 : arg2;
+}
+
+void helper_msa_max_u_b(CPUMIPSState *env,
+                        uint32_t wd, uint32_t ws, uint32_t wt)
+{
+    wr_t *pwd = &(env->active_fpu.fpr[wd].wr);
+    wr_t *pws = &(env->active_fpu.fpr[ws].wr);
+    wr_t *pwt = &(env->active_fpu.fpr[wt].wr);
+
+    pwd->b[0]  = msa_max_u_df(DF_BYTE, pws->b[0],  pwt->b[0]);
+    pwd->b[1]  = msa_max_u_df(DF_BYTE, pws->b[1],  pwt->b[1]);
+    pwd->b[2]  = msa_max_u_df(DF_BYTE, pws->b[2],  pwt->b[2]);
+    pwd->b[3]  = msa_max_u_df(DF_BYTE, pws->b[3],  pwt->b[3]);
+    pwd->b[4]  = msa_max_u_df(DF_BYTE, pws->b[4],  pwt->b[4]);
+    pwd->b[5]  = msa_max_u_df(DF_BYTE, pws->b[5],  pwt->b[5]);
+    pwd->b[6]  = msa_max_u_df(DF_BYTE, pws->b[6],  pwt->b[6]);
+    pwd->b[7]  = msa_max_u_df(DF_BYTE, pws->b[7],  pwt->b[7]);
+    pwd->b[8]  = msa_max_u_df(DF_BYTE, pws->b[8],  pwt->b[8]);
+    pwd->b[9]  = msa_max_u_df(DF_BYTE, pws->b[9],  pwt->b[9]);
+    pwd->b[10] = msa_max_u_df(DF_BYTE, pws->b[10], pwt->b[10]);
+    pwd->b[11] = msa_max_u_df(DF_BYTE, pws->b[11], pwt->b[11]);
+    pwd->b[12] = msa_max_u_df(DF_BYTE, pws->b[12], pwt->b[12]);
+    pwd->b[13] = msa_max_u_df(DF_BYTE, pws->b[13], pwt->b[13]);
+    pwd->b[14] = msa_max_u_df(DF_BYTE, pws->b[14], pwt->b[14]);
+    pwd->b[15] = msa_max_u_df(DF_BYTE, pws->b[15], pwt->b[15]);
+}
+
+void helper_msa_max_u_h(CPUMIPSState *env,
+                        uint32_t wd, uint32_t ws, uint32_t wt)
+{
+    wr_t *pwd = &(env->active_fpu.fpr[wd].wr);
+    wr_t *pws = &(env->active_fpu.fpr[ws].wr);
+    wr_t *pwt = &(env->active_fpu.fpr[wt].wr);
+
+    pwd->h[0]  = msa_max_u_df(DF_HALF, pws->h[0],  pwt->h[0]);
+    pwd->h[1]  = msa_max_u_df(DF_HALF, pws->h[1],  pwt->h[1]);
+    pwd->h[2]  = msa_max_u_df(DF_HALF, pws->h[2],  pwt->h[2]);
+    pwd->h[3]  = msa_max_u_df(DF_HALF, pws->h[3],  pwt->h[3]);
+    pwd->h[4]  = msa_max_u_df(DF_HALF, pws->h[4],  pwt->h[4]);
+    pwd->h[5]  = msa_max_u_df(DF_HALF, pws->h[5],  pwt->h[5]);
+    pwd->h[6]  = msa_max_u_df(DF_HALF, pws->h[6],  pwt->h[6]);
+    pwd->h[7]  = msa_max_u_df(DF_HALF, pws->h[7],  pwt->h[7]);
+}
+
+void helper_msa_max_u_w(CPUMIPSState *env,
+                        uint32_t wd, uint32_t ws, uint32_t wt)
+{
+    wr_t *pwd = &(env->active_fpu.fpr[wd].wr);
+    wr_t *pws = &(env->active_fpu.fpr[ws].wr);
+    wr_t *pwt = &(env->active_fpu.fpr[wt].wr);
+
+    pwd->w[0]  = msa_max_u_df(DF_WORD, pws->w[0],  pwt->w[0]);
+    pwd->w[1]  = msa_max_u_df(DF_WORD, pws->w[1],  pwt->w[1]);
+    pwd->w[2]  = msa_max_u_df(DF_WORD, pws->w[2],  pwt->w[2]);
+    pwd->w[3]  = msa_max_u_df(DF_WORD, pws->w[3],  pwt->w[3]);
+}
+
+void helper_msa_max_u_d(CPUMIPSState *env,
+                        uint32_t wd, uint32_t ws, uint32_t wt)
+{
+    wr_t *pwd = &(env->active_fpu.fpr[wd].wr);
+    wr_t *pws = &(env->active_fpu.fpr[ws].wr);
+    wr_t *pwt = &(env->active_fpu.fpr[wt].wr);
+
+    pwd->d[0]  = msa_max_u_df(DF_DOUBLE, pws->d[0],  pwt->d[0]);
+    pwd->d[1]  = msa_max_u_df(DF_DOUBLE, pws->d[1],  pwt->d[1]);
+}
+
+
+static inline int64_t msa_min_a_df(uint32_t df, int64_t arg1, int64_t arg2)
+{
+    uint64_t abs_arg1 = arg1 >= 0 ? arg1 : -arg1;
+    uint64_t abs_arg2 = arg2 >= 0 ? arg2 : -arg2;
+    return abs_arg1 < abs_arg2 ? arg1 : arg2;
+}
+
+void helper_msa_min_a_b(CPUMIPSState *env,
+                        uint32_t wd, uint32_t ws, uint32_t wt)
+{
+    wr_t *pwd = &(env->active_fpu.fpr[wd].wr);
+    wr_t *pws = &(env->active_fpu.fpr[ws].wr);
+    wr_t *pwt = &(env->active_fpu.fpr[wt].wr);
+
+    pwd->b[0]  = msa_min_a_df(DF_BYTE, pws->b[0],  pwt->b[0]);
+    pwd->b[1]  = msa_min_a_df(DF_BYTE, pws->b[1],  pwt->b[1]);
+    pwd->b[2]  = msa_min_a_df(DF_BYTE, pws->b[2],  pwt->b[2]);
+    pwd->b[3]  = msa_min_a_df(DF_BYTE, pws->b[3],  pwt->b[3]);
+    pwd->b[4]  = msa_min_a_df(DF_BYTE, pws->b[4],  pwt->b[4]);
+    pwd->b[5]  = msa_min_a_df(DF_BYTE, pws->b[5],  pwt->b[5]);
+    pwd->b[6]  = msa_min_a_df(DF_BYTE, pws->b[6],  pwt->b[6]);
+    pwd->b[7]  = msa_min_a_df(DF_BYTE, pws->b[7],  pwt->b[7]);
+    pwd->b[8]  = msa_min_a_df(DF_BYTE, pws->b[8],  pwt->b[8]);
+    pwd->b[9]  = msa_min_a_df(DF_BYTE, pws->b[9],  pwt->b[9]);
+    pwd->b[10] = msa_min_a_df(DF_BYTE, pws->b[10], pwt->b[10]);
+    pwd->b[11] = msa_min_a_df(DF_BYTE, pws->b[11], pwt->b[11]);
+    pwd->b[12] = msa_min_a_df(DF_BYTE, pws->b[12], pwt->b[12]);
+    pwd->b[13] = msa_min_a_df(DF_BYTE, pws->b[13], pwt->b[13]);
+    pwd->b[14] = msa_min_a_df(DF_BYTE, pws->b[14], pwt->b[14]);
+    pwd->b[15] = msa_min_a_df(DF_BYTE, pws->b[15], pwt->b[15]);
+}
+
+void helper_msa_min_a_h(CPUMIPSState *env,
+                        uint32_t wd, uint32_t ws, uint32_t wt)
+{
+    wr_t *pwd = &(env->active_fpu.fpr[wd].wr);
+    wr_t *pws = &(env->active_fpu.fpr[ws].wr);
+    wr_t *pwt = &(env->active_fpu.fpr[wt].wr);
+
+    pwd->h[0]  = msa_min_a_df(DF_HALF, pws->h[0],  pwt->h[0]);
+    pwd->h[1]  = msa_min_a_df(DF_HALF, pws->h[1],  pwt->h[1]);
+    pwd->h[2]  = msa_min_a_df(DF_HALF, pws->h[2],  pwt->h[2]);
+    pwd->h[3]  = msa_min_a_df(DF_HALF, pws->h[3],  pwt->h[3]);
+    pwd->h[4]  = msa_min_a_df(DF_HALF, pws->h[4],  pwt->h[4]);
+    pwd->h[5]  = msa_min_a_df(DF_HALF, pws->h[5],  pwt->h[5]);
+    pwd->h[6]  = msa_min_a_df(DF_HALF, pws->h[6],  pwt->h[6]);
+    pwd->h[7]  = msa_min_a_df(DF_HALF, pws->h[7],  pwt->h[7]);
+}
+
+void helper_msa_min_a_w(CPUMIPSState *env,
+                        uint32_t wd, uint32_t ws, uint32_t wt)
+{
+    wr_t *pwd = &(env->active_fpu.fpr[wd].wr);
+    wr_t *pws = &(env->active_fpu.fpr[ws].wr);
+    wr_t *pwt = &(env->active_fpu.fpr[wt].wr);
+
+    pwd->w[0]  = msa_min_a_df(DF_WORD, pws->w[0],  pwt->w[0]);
+    pwd->w[1]  = msa_min_a_df(DF_WORD, pws->w[1],  pwt->w[1]);
+    pwd->w[2]  = msa_min_a_df(DF_WORD, pws->w[2],  pwt->w[2]);
+    pwd->w[3]  = msa_min_a_df(DF_WORD, pws->w[3],  pwt->w[3]);
+}
+
+void helper_msa_min_a_d(CPUMIPSState *env,
+                        uint32_t wd, uint32_t ws, uint32_t wt)
+{
+    wr_t *pwd = &(env->active_fpu.fpr[wd].wr);
+    wr_t *pws = &(env->active_fpu.fpr[ws].wr);
+    wr_t *pwt = &(env->active_fpu.fpr[wt].wr);
+
+    pwd->d[0]  = msa_min_a_df(DF_DOUBLE, pws->d[0],  pwt->d[0]);
+    pwd->d[1]  = msa_min_a_df(DF_DOUBLE, pws->d[1],  pwt->d[1]);
+}
+
+
+static inline int64_t msa_min_s_df(uint32_t df, int64_t arg1, int64_t arg2)
+{
+    return arg1 < arg2 ? arg1 : arg2;
+}
+
+void helper_msa_min_s_b(CPUMIPSState *env,
+                        uint32_t wd, uint32_t ws, uint32_t wt)
+{
+    wr_t *pwd = &(env->active_fpu.fpr[wd].wr);
+    wr_t *pws = &(env->active_fpu.fpr[ws].wr);
+    wr_t *pwt = &(env->active_fpu.fpr[wt].wr);
+
+    pwd->b[0]  = msa_min_s_df(DF_BYTE, pws->b[0],  pwt->b[0]);
+    pwd->b[1]  = msa_min_s_df(DF_BYTE, pws->b[1],  pwt->b[1]);
+    pwd->b[2]  = msa_min_s_df(DF_BYTE, pws->b[2],  pwt->b[2]);
+    pwd->b[3]  = msa_min_s_df(DF_BYTE, pws->b[3],  pwt->b[3]);
+    pwd->b[4]  = msa_min_s_df(DF_BYTE, pws->b[4],  pwt->b[4]);
+    pwd->b[5]  = msa_min_s_df(DF_BYTE, pws->b[5],  pwt->b[5]);
+    pwd->b[6]  = msa_min_s_df(DF_BYTE, pws->b[6],  pwt->b[6]);
+    pwd->b[7]  = msa_min_s_df(DF_BYTE, pws->b[7],  pwt->b[7]);
+    pwd->b[8]  = msa_min_s_df(DF_BYTE, pws->b[8],  pwt->b[8]);
+    pwd->b[9]  = msa_min_s_df(DF_BYTE, pws->b[9],  pwt->b[9]);
+    pwd->b[10] = msa_min_s_df(DF_BYTE, pws->b[10], pwt->b[10]);
+    pwd->b[11] = msa_min_s_df(DF_BYTE, pws->b[11], pwt->b[11]);
+    pwd->b[12] = msa_min_s_df(DF_BYTE, pws->b[12], pwt->b[12]);
+    pwd->b[13] = msa_min_s_df(DF_BYTE, pws->b[13], pwt->b[13]);
+    pwd->b[14] = msa_min_s_df(DF_BYTE, pws->b[14], pwt->b[14]);
+    pwd->b[15] = msa_min_s_df(DF_BYTE, pws->b[15], pwt->b[15]);
+}
+
+void helper_msa_min_s_h(CPUMIPSState *env,
+                        uint32_t wd, uint32_t ws, uint32_t wt)
+{
+    wr_t *pwd = &(env->active_fpu.fpr[wd].wr);
+    wr_t *pws = &(env->active_fpu.fpr[ws].wr);
+    wr_t *pwt = &(env->active_fpu.fpr[wt].wr);
+
+    pwd->h[0]  = msa_min_s_df(DF_HALF, pws->h[0],  pwt->h[0]);
+    pwd->h[1]  = msa_min_s_df(DF_HALF, pws->h[1],  pwt->h[1]);
+    pwd->h[2]  = msa_min_s_df(DF_HALF, pws->h[2],  pwt->h[2]);
+    pwd->h[3]  = msa_min_s_df(DF_HALF, pws->h[3],  pwt->h[3]);
+    pwd->h[4]  = msa_min_s_df(DF_HALF, pws->h[4],  pwt->h[4]);
+    pwd->h[5]  = msa_min_s_df(DF_HALF, pws->h[5],  pwt->h[5]);
+    pwd->h[6]  = msa_min_s_df(DF_HALF, pws->h[6],  pwt->h[6]);
+    pwd->h[7]  = msa_min_s_df(DF_HALF, pws->h[7],  pwt->h[7]);
+}
+
+void helper_msa_min_s_w(CPUMIPSState *env,
+                        uint32_t wd, uint32_t ws, uint32_t wt)
+{
+    wr_t *pwd = &(env->active_fpu.fpr[wd].wr);
+    wr_t *pws = &(env->active_fpu.fpr[ws].wr);
+    wr_t *pwt = &(env->active_fpu.fpr[wt].wr);
+
+    pwd->w[0]  = msa_min_s_df(DF_WORD, pws->w[0],  pwt->w[0]);
+    pwd->w[1]  = msa_min_s_df(DF_WORD, pws->w[1],  pwt->w[1]);
+    pwd->w[2]  = msa_min_s_df(DF_WORD, pws->w[2],  pwt->w[2]);
+    pwd->w[3]  = msa_min_s_df(DF_WORD, pws->w[3],  pwt->w[3]);
+}
+
+void helper_msa_min_s_d(CPUMIPSState *env,
+                        uint32_t wd, uint32_t ws, uint32_t wt)
+{
+    wr_t *pwd = &(env->active_fpu.fpr[wd].wr);
+    wr_t *pws = &(env->active_fpu.fpr[ws].wr);
+    wr_t *pwt = &(env->active_fpu.fpr[wt].wr);
+
+    pwd->d[0]  = msa_min_s_df(DF_DOUBLE, pws->d[0],  pwt->d[0]);
+    pwd->d[1]  = msa_min_s_df(DF_DOUBLE, pws->d[1],  pwt->d[1]);
+}
+
+
+static inline int64_t msa_min_u_df(uint32_t df, int64_t arg1, int64_t arg2)
+{
+    uint64_t u_arg1 = UNSIGNED(arg1, df);
+    uint64_t u_arg2 = UNSIGNED(arg2, df);
+    return u_arg1 < u_arg2 ? arg1 : arg2;
+}
+
+void helper_msa_min_u_b(CPUMIPSState *env,
+                        uint32_t wd, uint32_t ws, uint32_t wt)
+{
+    wr_t *pwd = &(env->active_fpu.fpr[wd].wr);
+    wr_t *pws = &(env->active_fpu.fpr[ws].wr);
+    wr_t *pwt = &(env->active_fpu.fpr[wt].wr);
+
+    pwd->b[0]  = msa_min_u_df(DF_BYTE, pws->b[0],  pwt->b[0]);
+    pwd->b[1]  = msa_min_u_df(DF_BYTE, pws->b[1],  pwt->b[1]);
+    pwd->b[2]  = msa_min_u_df(DF_BYTE, pws->b[2],  pwt->b[2]);
+    pwd->b[3]  = msa_min_u_df(DF_BYTE, pws->b[3],  pwt->b[3]);
+    pwd->b[4]  = msa_min_u_df(DF_BYTE, pws->b[4],  pwt->b[4]);
+    pwd->b[5]  = msa_min_u_df(DF_BYTE, pws->b[5],  pwt->b[5]);
+    pwd->b[6]  = msa_min_u_df(DF_BYTE, pws->b[6],  pwt->b[6]);
+    pwd->b[7]  = msa_min_u_df(DF_BYTE, pws->b[7],  pwt->b[7]);
+    pwd->b[8]  = msa_min_u_df(DF_BYTE, pws->b[8],  pwt->b[8]);
+    pwd->b[9]  = msa_min_u_df(DF_BYTE, pws->b[9],  pwt->b[9]);
+    pwd->b[10] = msa_min_u_df(DF_BYTE, pws->b[10], pwt->b[10]);
+    pwd->b[11] = msa_min_u_df(DF_BYTE, pws->b[11], pwt->b[11]);
+    pwd->b[12] = msa_min_u_df(DF_BYTE, pws->b[12], pwt->b[12]);
+    pwd->b[13] = msa_min_u_df(DF_BYTE, pws->b[13], pwt->b[13]);
+    pwd->b[14] = msa_min_u_df(DF_BYTE, pws->b[14], pwt->b[14]);
+    pwd->b[15] = msa_min_u_df(DF_BYTE, pws->b[15], pwt->b[15]);
+}
+
+void helper_msa_min_u_h(CPUMIPSState *env,
+                        uint32_t wd, uint32_t ws, uint32_t wt)
+{
+    wr_t *pwd = &(env->active_fpu.fpr[wd].wr);
+    wr_t *pws = &(env->active_fpu.fpr[ws].wr);
+    wr_t *pwt = &(env->active_fpu.fpr[wt].wr);
+
+    pwd->h[0]  = msa_min_u_df(DF_HALF, pws->h[0],  pwt->h[0]);
+    pwd->h[1]  = msa_min_u_df(DF_HALF, pws->h[1],  pwt->h[1]);
+    pwd->h[2]  = msa_min_u_df(DF_HALF, pws->h[2],  pwt->h[2]);
+    pwd->h[3]  = msa_min_u_df(DF_HALF, pws->h[3],  pwt->h[3]);
+    pwd->h[4]  = msa_min_u_df(DF_HALF, pws->h[4],  pwt->h[4]);
+    pwd->h[5]  = msa_min_u_df(DF_HALF, pws->h[5],  pwt->h[5]);
+    pwd->h[6]  = msa_min_u_df(DF_HALF, pws->h[6],  pwt->h[6]);
+    pwd->h[7]  = msa_min_u_df(DF_HALF, pws->h[7],  pwt->h[7]);
+}
+
+void helper_msa_min_u_w(CPUMIPSState *env,
+                        uint32_t wd, uint32_t ws, uint32_t wt)
+{
+    wr_t *pwd = &(env->active_fpu.fpr[wd].wr);
+    wr_t *pws = &(env->active_fpu.fpr[ws].wr);
+    wr_t *pwt = &(env->active_fpu.fpr[wt].wr);
+
+    pwd->w[0]  = msa_min_u_df(DF_WORD, pws->w[0],  pwt->w[0]);
+    pwd->w[1]  = msa_min_u_df(DF_WORD, pws->w[1],  pwt->w[1]);
+    pwd->w[2]  = msa_min_u_df(DF_WORD, pws->w[2],  pwt->w[2]);
+    pwd->w[3]  = msa_min_u_df(DF_WORD, pws->w[3],  pwt->w[3]);
+}
+
+void helper_msa_min_u_d(CPUMIPSState *env,
+                        uint32_t wd, uint32_t ws, uint32_t wt)
+{
+    wr_t *pwd = &(env->active_fpu.fpr[wd].wr);
+    wr_t *pws = &(env->active_fpu.fpr[ws].wr);
+    wr_t *pwt = &(env->active_fpu.fpr[wt].wr);
+
+    pwd->d[0]  = msa_min_u_df(DF_DOUBLE, pws->d[0],  pwt->d[0]);
+    pwd->d[1]  = msa_min_u_df(DF_DOUBLE, pws->d[1],  pwt->d[1]);
+}
 
 
 /*
@@ -1968,7 +2928,252 @@ void helper_msa_mod_u_d(CPUMIPSState *env,
  * +---------------+----------------------------------------------------------+
  */
 
-/* TODO: insert Int Subtract group helpers here */
+
+static inline int64_t msa_asub_s_df(uint32_t df, int64_t arg1, int64_t arg2)
+{
+    /* signed compare */
+    return (arg1 < arg2) ?
+        (uint64_t)(arg2 - arg1) : (uint64_t)(arg1 - arg2);
+}
+
+void helper_msa_asub_s_b(CPUMIPSState *env,
+                         uint32_t wd, uint32_t ws, uint32_t wt)
+{
+    wr_t *pwd = &(env->active_fpu.fpr[wd].wr);
+    wr_t *pws = &(env->active_fpu.fpr[ws].wr);
+    wr_t *pwt = &(env->active_fpu.fpr[wt].wr);
+
+    pwd->b[0]  = msa_asub_s_df(DF_BYTE, pws->b[0],  pwt->b[0]);
+    pwd->b[1]  = msa_asub_s_df(DF_BYTE, pws->b[1],  pwt->b[1]);
+    pwd->b[2]  = msa_asub_s_df(DF_BYTE, pws->b[2],  pwt->b[2]);
+    pwd->b[3]  = msa_asub_s_df(DF_BYTE, pws->b[3],  pwt->b[3]);
+    pwd->b[4]  = msa_asub_s_df(DF_BYTE, pws->b[4],  pwt->b[4]);
+    pwd->b[5]  = msa_asub_s_df(DF_BYTE, pws->b[5],  pwt->b[5]);
+    pwd->b[6]  = msa_asub_s_df(DF_BYTE, pws->b[6],  pwt->b[6]);
+    pwd->b[7]  = msa_asub_s_df(DF_BYTE, pws->b[7],  pwt->b[7]);
+    pwd->b[8]  = msa_asub_s_df(DF_BYTE, pws->b[8],  pwt->b[8]);
+    pwd->b[9]  = msa_asub_s_df(DF_BYTE, pws->b[9],  pwt->b[9]);
+    pwd->b[10] = msa_asub_s_df(DF_BYTE, pws->b[10], pwt->b[10]);
+    pwd->b[11] = msa_asub_s_df(DF_BYTE, pws->b[11], pwt->b[11]);
+    pwd->b[12] = msa_asub_s_df(DF_BYTE, pws->b[12], pwt->b[12]);
+    pwd->b[13] = msa_asub_s_df(DF_BYTE, pws->b[13], pwt->b[13]);
+    pwd->b[14] = msa_asub_s_df(DF_BYTE, pws->b[14], pwt->b[14]);
+    pwd->b[15] = msa_asub_s_df(DF_BYTE, pws->b[15], pwt->b[15]);
+}
+
+void helper_msa_asub_s_h(CPUMIPSState *env,
+                         uint32_t wd, uint32_t ws, uint32_t wt)
+{
+    wr_t *pwd = &(env->active_fpu.fpr[wd].wr);
+    wr_t *pws = &(env->active_fpu.fpr[ws].wr);
+    wr_t *pwt = &(env->active_fpu.fpr[wt].wr);
+
+    pwd->h[0]  = msa_asub_s_df(DF_HALF, pws->h[0],  pwt->h[0]);
+    pwd->h[1]  = msa_asub_s_df(DF_HALF, pws->h[1],  pwt->h[1]);
+    pwd->h[2]  = msa_asub_s_df(DF_HALF, pws->h[2],  pwt->h[2]);
+    pwd->h[3]  = msa_asub_s_df(DF_HALF, pws->h[3],  pwt->h[3]);
+    pwd->h[4]  = msa_asub_s_df(DF_HALF, pws->h[4],  pwt->h[4]);
+    pwd->h[5]  = msa_asub_s_df(DF_HALF, pws->h[5],  pwt->h[5]);
+    pwd->h[6]  = msa_asub_s_df(DF_HALF, pws->h[6],  pwt->h[6]);
+    pwd->h[7]  = msa_asub_s_df(DF_HALF, pws->h[7],  pwt->h[7]);
+}
+
+void helper_msa_asub_s_w(CPUMIPSState *env,
+                         uint32_t wd, uint32_t ws, uint32_t wt)
+{
+    wr_t *pwd = &(env->active_fpu.fpr[wd].wr);
+    wr_t *pws = &(env->active_fpu.fpr[ws].wr);
+    wr_t *pwt = &(env->active_fpu.fpr[wt].wr);
+
+    pwd->w[0]  = msa_asub_s_df(DF_WORD, pws->w[0],  pwt->w[0]);
+    pwd->w[1]  = msa_asub_s_df(DF_WORD, pws->w[1],  pwt->w[1]);
+    pwd->w[2]  = msa_asub_s_df(DF_WORD, pws->w[2],  pwt->w[2]);
+    pwd->w[3]  = msa_asub_s_df(DF_WORD, pws->w[3],  pwt->w[3]);
+}
+
+void helper_msa_asub_s_d(CPUMIPSState *env,
+                         uint32_t wd, uint32_t ws, uint32_t wt)
+{
+    wr_t *pwd = &(env->active_fpu.fpr[wd].wr);
+    wr_t *pws = &(env->active_fpu.fpr[ws].wr);
+    wr_t *pwt = &(env->active_fpu.fpr[wt].wr);
+
+    pwd->d[0]  = msa_asub_s_df(DF_DOUBLE, pws->d[0],  pwt->d[0]);
+    pwd->d[1]  = msa_asub_s_df(DF_DOUBLE, pws->d[1],  pwt->d[1]);
+}
+
+
+static inline uint64_t msa_asub_u_df(uint32_t df, uint64_t arg1, uint64_t arg2)
+{
+    uint64_t u_arg1 = UNSIGNED(arg1, df);
+    uint64_t u_arg2 = UNSIGNED(arg2, df);
+    /* unsigned compare */
+    return (u_arg1 < u_arg2) ?
+        (uint64_t)(u_arg2 - u_arg1) : (uint64_t)(u_arg1 - u_arg2);
+}
+
+void helper_msa_asub_u_b(CPUMIPSState *env,
+                         uint32_t wd, uint32_t ws, uint32_t wt)
+{
+    wr_t *pwd = &(env->active_fpu.fpr[wd].wr);
+    wr_t *pws = &(env->active_fpu.fpr[ws].wr);
+    wr_t *pwt = &(env->active_fpu.fpr[wt].wr);
+
+    pwd->b[0]  = msa_asub_u_df(DF_BYTE, pws->b[0],  pwt->b[0]);
+    pwd->b[1]  = msa_asub_u_df(DF_BYTE, pws->b[1],  pwt->b[1]);
+    pwd->b[2]  = msa_asub_u_df(DF_BYTE, pws->b[2],  pwt->b[2]);
+    pwd->b[3]  = msa_asub_u_df(DF_BYTE, pws->b[3],  pwt->b[3]);
+    pwd->b[4]  = msa_asub_u_df(DF_BYTE, pws->b[4],  pwt->b[4]);
+    pwd->b[5]  = msa_asub_u_df(DF_BYTE, pws->b[5],  pwt->b[5]);
+    pwd->b[6]  = msa_asub_u_df(DF_BYTE, pws->b[6],  pwt->b[6]);
+    pwd->b[7]  = msa_asub_u_df(DF_BYTE, pws->b[7],  pwt->b[7]);
+    pwd->b[8]  = msa_asub_u_df(DF_BYTE, pws->b[8],  pwt->b[8]);
+    pwd->b[9]  = msa_asub_u_df(DF_BYTE, pws->b[9],  pwt->b[9]);
+    pwd->b[10] = msa_asub_u_df(DF_BYTE, pws->b[10], pwt->b[10]);
+    pwd->b[11] = msa_asub_u_df(DF_BYTE, pws->b[11], pwt->b[11]);
+    pwd->b[12] = msa_asub_u_df(DF_BYTE, pws->b[12], pwt->b[12]);
+    pwd->b[13] = msa_asub_u_df(DF_BYTE, pws->b[13], pwt->b[13]);
+    pwd->b[14] = msa_asub_u_df(DF_BYTE, pws->b[14], pwt->b[14]);
+    pwd->b[15] = msa_asub_u_df(DF_BYTE, pws->b[15], pwt->b[15]);
+}
+
+void helper_msa_asub_u_h(CPUMIPSState *env,
+                         uint32_t wd, uint32_t ws, uint32_t wt)
+{
+    wr_t *pwd = &(env->active_fpu.fpr[wd].wr);
+    wr_t *pws = &(env->active_fpu.fpr[ws].wr);
+    wr_t *pwt = &(env->active_fpu.fpr[wt].wr);
+
+    pwd->h[0]  = msa_asub_u_df(DF_HALF, pws->h[0],  pwt->h[0]);
+    pwd->h[1]  = msa_asub_u_df(DF_HALF, pws->h[1],  pwt->h[1]);
+    pwd->h[2]  = msa_asub_u_df(DF_HALF, pws->h[2],  pwt->h[2]);
+    pwd->h[3]  = msa_asub_u_df(DF_HALF, pws->h[3],  pwt->h[3]);
+    pwd->h[4]  = msa_asub_u_df(DF_HALF, pws->h[4],  pwt->h[4]);
+    pwd->h[5]  = msa_asub_u_df(DF_HALF, pws->h[5],  pwt->h[5]);
+    pwd->h[6]  = msa_asub_u_df(DF_HALF, pws->h[6],  pwt->h[6]);
+    pwd->h[7]  = msa_asub_u_df(DF_HALF, pws->h[7],  pwt->h[7]);
+}
+
+void helper_msa_asub_u_w(CPUMIPSState *env,
+                         uint32_t wd, uint32_t ws, uint32_t wt)
+{
+    wr_t *pwd = &(env->active_fpu.fpr[wd].wr);
+    wr_t *pws = &(env->active_fpu.fpr[ws].wr);
+    wr_t *pwt = &(env->active_fpu.fpr[wt].wr);
+
+    pwd->w[0]  = msa_asub_u_df(DF_WORD, pws->w[0],  pwt->w[0]);
+    pwd->w[1]  = msa_asub_u_df(DF_WORD, pws->w[1],  pwt->w[1]);
+    pwd->w[2]  = msa_asub_u_df(DF_WORD, pws->w[2],  pwt->w[2]);
+    pwd->w[3]  = msa_asub_u_df(DF_WORD, pws->w[3],  pwt->w[3]);
+}
+
+void helper_msa_asub_u_d(CPUMIPSState *env,
+                         uint32_t wd, uint32_t ws, uint32_t wt)
+{
+    wr_t *pwd = &(env->active_fpu.fpr[wd].wr);
+    wr_t *pws = &(env->active_fpu.fpr[ws].wr);
+    wr_t *pwt = &(env->active_fpu.fpr[wt].wr);
+
+    pwd->d[0]  = msa_asub_u_df(DF_DOUBLE, pws->d[0],  pwt->d[0]);
+    pwd->d[1]  = msa_asub_u_df(DF_DOUBLE, pws->d[1],  pwt->d[1]);
+}
+
+
+/* TODO: insert the rest of Int Subtract group helpers here */
+
+
+static inline int64_t msa_hsub_s_df(uint32_t df, int64_t arg1, int64_t arg2)
+{
+    return SIGNED_ODD(arg1, df) - SIGNED_EVEN(arg2, df);
+}
+
+void helper_msa_hsub_s_h(CPUMIPSState *env,
+                         uint32_t wd, uint32_t ws, uint32_t wt)
+{
+    wr_t *pwd = &(env->active_fpu.fpr[wd].wr);
+    wr_t *pws = &(env->active_fpu.fpr[ws].wr);
+    wr_t *pwt = &(env->active_fpu.fpr[wt].wr);
+
+    pwd->h[0]  = msa_hsub_s_df(DF_HALF, pws->h[0],  pwt->h[0]);
+    pwd->h[1]  = msa_hsub_s_df(DF_HALF, pws->h[1],  pwt->h[1]);
+    pwd->h[2]  = msa_hsub_s_df(DF_HALF, pws->h[2],  pwt->h[2]);
+    pwd->h[3]  = msa_hsub_s_df(DF_HALF, pws->h[3],  pwt->h[3]);
+    pwd->h[4]  = msa_hsub_s_df(DF_HALF, pws->h[4],  pwt->h[4]);
+    pwd->h[5]  = msa_hsub_s_df(DF_HALF, pws->h[5],  pwt->h[5]);
+    pwd->h[6]  = msa_hsub_s_df(DF_HALF, pws->h[6],  pwt->h[6]);
+    pwd->h[7]  = msa_hsub_s_df(DF_HALF, pws->h[7],  pwt->h[7]);
+}
+
+void helper_msa_hsub_s_w(CPUMIPSState *env,
+                         uint32_t wd, uint32_t ws, uint32_t wt)
+{
+    wr_t *pwd = &(env->active_fpu.fpr[wd].wr);
+    wr_t *pws = &(env->active_fpu.fpr[ws].wr);
+    wr_t *pwt = &(env->active_fpu.fpr[wt].wr);
+
+    pwd->w[0]  = msa_hsub_s_df(DF_WORD, pws->w[0],  pwt->w[0]);
+    pwd->w[1]  = msa_hsub_s_df(DF_WORD, pws->w[1],  pwt->w[1]);
+    pwd->w[2]  = msa_hsub_s_df(DF_WORD, pws->w[2],  pwt->w[2]);
+    pwd->w[3]  = msa_hsub_s_df(DF_WORD, pws->w[3],  pwt->w[3]);
+}
+
+void helper_msa_hsub_s_d(CPUMIPSState *env,
+                         uint32_t wd, uint32_t ws, uint32_t wt)
+{
+    wr_t *pwd = &(env->active_fpu.fpr[wd].wr);
+    wr_t *pws = &(env->active_fpu.fpr[ws].wr);
+    wr_t *pwt = &(env->active_fpu.fpr[wt].wr);
+
+    pwd->d[0]  = msa_hsub_s_df(DF_DOUBLE, pws->d[0],  pwt->d[0]);
+    pwd->d[1]  = msa_hsub_s_df(DF_DOUBLE, pws->d[1],  pwt->d[1]);
+}
+
+
+static inline int64_t msa_hsub_u_df(uint32_t df, int64_t arg1, int64_t arg2)
+{
+    return UNSIGNED_ODD(arg1, df) - UNSIGNED_EVEN(arg2, df);
+}
+
+void helper_msa_hsub_u_h(CPUMIPSState *env,
+                         uint32_t wd, uint32_t ws, uint32_t wt)
+{
+    wr_t *pwd = &(env->active_fpu.fpr[wd].wr);
+    wr_t *pws = &(env->active_fpu.fpr[ws].wr);
+    wr_t *pwt = &(env->active_fpu.fpr[wt].wr);
+
+    pwd->h[0]  = msa_hsub_u_df(DF_HALF, pws->h[0],  pwt->h[0]);
+    pwd->h[1]  = msa_hsub_u_df(DF_HALF, pws->h[1],  pwt->h[1]);
+    pwd->h[2]  = msa_hsub_u_df(DF_HALF, pws->h[2],  pwt->h[2]);
+    pwd->h[3]  = msa_hsub_u_df(DF_HALF, pws->h[3],  pwt->h[3]);
+    pwd->h[4]  = msa_hsub_u_df(DF_HALF, pws->h[4],  pwt->h[4]);
+    pwd->h[5]  = msa_hsub_u_df(DF_HALF, pws->h[5],  pwt->h[5]);
+    pwd->h[6]  = msa_hsub_u_df(DF_HALF, pws->h[6],  pwt->h[6]);
+    pwd->h[7]  = msa_hsub_u_df(DF_HALF, pws->h[7],  pwt->h[7]);
+}
+
+void helper_msa_hsub_u_w(CPUMIPSState *env,
+                         uint32_t wd, uint32_t ws, uint32_t wt)
+{
+    wr_t *pwd = &(env->active_fpu.fpr[wd].wr);
+    wr_t *pws = &(env->active_fpu.fpr[ws].wr);
+    wr_t *pwt = &(env->active_fpu.fpr[wt].wr);
+
+    pwd->w[0]  = msa_hsub_u_df(DF_WORD, pws->w[0],  pwt->w[0]);
+    pwd->w[1]  = msa_hsub_u_df(DF_WORD, pws->w[1],  pwt->w[1]);
+    pwd->w[2]  = msa_hsub_u_df(DF_WORD, pws->w[2],  pwt->w[2]);
+    pwd->w[3]  = msa_hsub_u_df(DF_WORD, pws->w[3],  pwt->w[3]);
+}
+
+void helper_msa_hsub_u_d(CPUMIPSState *env,
+                         uint32_t wd, uint32_t ws, uint32_t wt)
+{
+    wr_t *pwd = &(env->active_fpu.fpr[wd].wr);
+    wr_t *pws = &(env->active_fpu.fpr[ws].wr);
+    wr_t *pwt = &(env->active_fpu.fpr[wt].wr);
+
+    pwd->d[0]  = msa_hsub_u_df(DF_DOUBLE, pws->d[0],  pwt->d[0]);
+    pwd->d[1]  = msa_hsub_u_df(DF_DOUBLE, pws->d[1],  pwt->d[1]);
+}
 
 
 /*
@@ -1995,7 +3200,421 @@ void helper_msa_mod_u_d(CPUMIPSState *env,
  * +---------------+----------------------------------------------------------+
  */
 
-/* TODO: insert Interleave group helpers here */
+
+void helper_msa_ilvev_b(CPUMIPSState *env,
+                        uint32_t wd, uint32_t ws, uint32_t wt)
+{
+    wr_t *pwd = &(env->active_fpu.fpr[wd].wr);
+    wr_t *pws = &(env->active_fpu.fpr[ws].wr);
+    wr_t *pwt = &(env->active_fpu.fpr[wt].wr);
+
+#if defined(HOST_WORDS_BIGENDIAN)
+    pwd->b[8]  = pws->b[9];
+    pwd->b[9]  = pwt->b[9];
+    pwd->b[10] = pws->b[11];
+    pwd->b[11] = pwt->b[11];
+    pwd->b[12] = pws->b[13];
+    pwd->b[13] = pwt->b[13];
+    pwd->b[14] = pws->b[15];
+    pwd->b[15] = pwt->b[15];
+    pwd->b[0]  = pws->b[1];
+    pwd->b[1]  = pwt->b[1];
+    pwd->b[2]  = pws->b[3];
+    pwd->b[3]  = pwt->b[3];
+    pwd->b[4]  = pws->b[5];
+    pwd->b[5]  = pwt->b[5];
+    pwd->b[6]  = pws->b[7];
+    pwd->b[7]  = pwt->b[7];
+#else
+    pwd->b[15] = pws->b[14];
+    pwd->b[14] = pwt->b[14];
+    pwd->b[13] = pws->b[12];
+    pwd->b[12] = pwt->b[12];
+    pwd->b[11] = pws->b[10];
+    pwd->b[10] = pwt->b[10];
+    pwd->b[9]  = pws->b[8];
+    pwd->b[8]  = pwt->b[8];
+    pwd->b[7]  = pws->b[6];
+    pwd->b[6]  = pwt->b[6];
+    pwd->b[5]  = pws->b[4];
+    pwd->b[4]  = pwt->b[4];
+    pwd->b[3]  = pws->b[2];
+    pwd->b[2]  = pwt->b[2];
+    pwd->b[1]  = pws->b[0];
+    pwd->b[0]  = pwt->b[0];
+#endif
+}
+
+void helper_msa_ilvev_h(CPUMIPSState *env,
+                        uint32_t wd, uint32_t ws, uint32_t wt)
+{
+    wr_t *pwd = &(env->active_fpu.fpr[wd].wr);
+    wr_t *pws = &(env->active_fpu.fpr[ws].wr);
+    wr_t *pwt = &(env->active_fpu.fpr[wt].wr);
+
+#if defined(HOST_WORDS_BIGENDIAN)
+    pwd->h[4] = pws->h[5];
+    pwd->h[5] = pwt->h[5];
+    pwd->h[6] = pws->h[7];
+    pwd->h[7] = pwt->h[7];
+    pwd->h[0] = pws->h[1];
+    pwd->h[1] = pwt->h[1];
+    pwd->h[2] = pws->h[3];
+    pwd->h[3] = pwt->h[3];
+#else
+    pwd->h[7] = pws->h[6];
+    pwd->h[6] = pwt->h[6];
+    pwd->h[5] = pws->h[4];
+    pwd->h[4] = pwt->h[4];
+    pwd->h[3] = pws->h[2];
+    pwd->h[2] = pwt->h[2];
+    pwd->h[1] = pws->h[0];
+    pwd->h[0] = pwt->h[0];
+#endif
+}
+
+void helper_msa_ilvev_w(CPUMIPSState *env,
+                        uint32_t wd, uint32_t ws, uint32_t wt)
+{
+    wr_t *pwd = &(env->active_fpu.fpr[wd].wr);
+    wr_t *pws = &(env->active_fpu.fpr[ws].wr);
+    wr_t *pwt = &(env->active_fpu.fpr[wt].wr);
+
+#if defined(HOST_WORDS_BIGENDIAN)
+    pwd->w[2] = pws->w[3];
+    pwd->w[3] = pwt->w[3];
+    pwd->w[0] = pws->w[1];
+    pwd->w[1] = pwt->w[1];
+#else
+    pwd->w[3] = pws->w[2];
+    pwd->w[2] = pwt->w[2];
+    pwd->w[1] = pws->w[0];
+    pwd->w[0] = pwt->w[0];
+#endif
+}
+
+void helper_msa_ilvev_d(CPUMIPSState *env,
+                        uint32_t wd, uint32_t ws, uint32_t wt)
+{
+    wr_t *pwd = &(env->active_fpu.fpr[wd].wr);
+    wr_t *pws = &(env->active_fpu.fpr[ws].wr);
+    wr_t *pwt = &(env->active_fpu.fpr[wt].wr);
+
+    pwd->d[1] = pws->d[0];
+    pwd->d[0] = pwt->d[0];
+}
+
+
+void helper_msa_ilvod_b(CPUMIPSState *env,
+                        uint32_t wd, uint32_t ws, uint32_t wt)
+{
+    wr_t *pwd = &(env->active_fpu.fpr[wd].wr);
+    wr_t *pws = &(env->active_fpu.fpr[ws].wr);
+    wr_t *pwt = &(env->active_fpu.fpr[wt].wr);
+
+#if defined(HOST_WORDS_BIGENDIAN)
+    pwd->b[7]  = pwt->b[6];
+    pwd->b[6]  = pws->b[6];
+    pwd->b[5]  = pwt->b[4];
+    pwd->b[4]  = pws->b[4];
+    pwd->b[3]  = pwt->b[2];
+    pwd->b[2]  = pws->b[2];
+    pwd->b[1]  = pwt->b[0];
+    pwd->b[0]  = pws->b[0];
+    pwd->b[15] = pwt->b[14];
+    pwd->b[14] = pws->b[14];
+    pwd->b[13] = pwt->b[12];
+    pwd->b[12] = pws->b[12];
+    pwd->b[11] = pwt->b[10];
+    pwd->b[10] = pws->b[10];
+    pwd->b[9]  = pwt->b[8];
+    pwd->b[8]  = pws->b[8];
+#else
+    pwd->b[0]  = pwt->b[1];
+    pwd->b[1]  = pws->b[1];
+    pwd->b[2]  = pwt->b[3];
+    pwd->b[3]  = pws->b[3];
+    pwd->b[4]  = pwt->b[5];
+    pwd->b[5]  = pws->b[5];
+    pwd->b[6]  = pwt->b[7];
+    pwd->b[7]  = pws->b[7];
+    pwd->b[8]  = pwt->b[9];
+    pwd->b[9]  = pws->b[9];
+    pwd->b[10] = pwt->b[11];
+    pwd->b[11] = pws->b[11];
+    pwd->b[12] = pwt->b[13];
+    pwd->b[13] = pws->b[13];
+    pwd->b[14] = pwt->b[15];
+    pwd->b[15] = pws->b[15];
+#endif
+}
+
+void helper_msa_ilvod_h(CPUMIPSState *env,
+                        uint32_t wd, uint32_t ws, uint32_t wt)
+{
+    wr_t *pwd = &(env->active_fpu.fpr[wd].wr);
+    wr_t *pws = &(env->active_fpu.fpr[ws].wr);
+    wr_t *pwt = &(env->active_fpu.fpr[wt].wr);
+
+#if defined(HOST_WORDS_BIGENDIAN)
+    pwd->h[3] = pwt->h[2];
+    pwd->h[2] = pws->h[2];
+    pwd->h[1] = pwt->h[0];
+    pwd->h[0] = pws->h[0];
+    pwd->h[7] = pwt->h[6];
+    pwd->h[6] = pws->h[6];
+    pwd->h[5] = pwt->h[4];
+    pwd->h[4] = pws->h[4];
+#else
+    pwd->h[0] = pwt->h[1];
+    pwd->h[1] = pws->h[1];
+    pwd->h[2] = pwt->h[3];
+    pwd->h[3] = pws->h[3];
+    pwd->h[4] = pwt->h[5];
+    pwd->h[5] = pws->h[5];
+    pwd->h[6] = pwt->h[7];
+    pwd->h[7] = pws->h[7];
+#endif
+}
+
+void helper_msa_ilvod_w(CPUMIPSState *env,
+                        uint32_t wd, uint32_t ws, uint32_t wt)
+{
+    wr_t *pwd = &(env->active_fpu.fpr[wd].wr);
+    wr_t *pws = &(env->active_fpu.fpr[ws].wr);
+    wr_t *pwt = &(env->active_fpu.fpr[wt].wr);
+
+#if defined(HOST_WORDS_BIGENDIAN)
+    pwd->w[1] = pwt->w[0];
+    pwd->w[0] = pws->w[0];
+    pwd->w[3] = pwt->w[2];
+    pwd->w[2] = pws->w[2];
+#else
+    pwd->w[0] = pwt->w[1];
+    pwd->w[1] = pws->w[1];
+    pwd->w[2] = pwt->w[3];
+    pwd->w[3] = pws->w[3];
+#endif
+}
+
+void helper_msa_ilvod_d(CPUMIPSState *env,
+                        uint32_t wd, uint32_t ws, uint32_t wt)
+{
+    wr_t *pwd = &(env->active_fpu.fpr[wd].wr);
+    wr_t *pws = &(env->active_fpu.fpr[ws].wr);
+    wr_t *pwt = &(env->active_fpu.fpr[wt].wr);
+
+    pwd->d[0] = pwt->d[1];
+    pwd->d[1] = pws->d[1];
+}
+
+
+void helper_msa_ilvl_b(CPUMIPSState *env,
+                       uint32_t wd, uint32_t ws, uint32_t wt)
+{
+    wr_t *pwd = &(env->active_fpu.fpr[wd].wr);
+    wr_t *pws = &(env->active_fpu.fpr[ws].wr);
+    wr_t *pwt = &(env->active_fpu.fpr[wt].wr);
+
+#if defined(HOST_WORDS_BIGENDIAN)
+    pwd->b[7]  = pwt->b[15];
+    pwd->b[6]  = pws->b[15];
+    pwd->b[5]  = pwt->b[14];
+    pwd->b[4]  = pws->b[14];
+    pwd->b[3]  = pwt->b[13];
+    pwd->b[2]  = pws->b[13];
+    pwd->b[1]  = pwt->b[12];
+    pwd->b[0]  = pws->b[12];
+    pwd->b[15] = pwt->b[11];
+    pwd->b[14] = pws->b[11];
+    pwd->b[13] = pwt->b[10];
+    pwd->b[12] = pws->b[10];
+    pwd->b[11] = pwt->b[9];
+    pwd->b[10] = pws->b[9];
+    pwd->b[9]  = pwt->b[8];
+    pwd->b[8]  = pws->b[8];
+#else
+    pwd->b[0]  = pwt->b[8];
+    pwd->b[1]  = pws->b[8];
+    pwd->b[2]  = pwt->b[9];
+    pwd->b[3]  = pws->b[9];
+    pwd->b[4]  = pwt->b[10];
+    pwd->b[5]  = pws->b[10];
+    pwd->b[6]  = pwt->b[11];
+    pwd->b[7]  = pws->b[11];
+    pwd->b[8]  = pwt->b[12];
+    pwd->b[9]  = pws->b[12];
+    pwd->b[10] = pwt->b[13];
+    pwd->b[11] = pws->b[13];
+    pwd->b[12] = pwt->b[14];
+    pwd->b[13] = pws->b[14];
+    pwd->b[14] = pwt->b[15];
+    pwd->b[15] = pws->b[15];
+#endif
+}
+
+void helper_msa_ilvl_h(CPUMIPSState *env,
+                       uint32_t wd, uint32_t ws, uint32_t wt)
+{
+    wr_t *pwd = &(env->active_fpu.fpr[wd].wr);
+    wr_t *pws = &(env->active_fpu.fpr[ws].wr);
+    wr_t *pwt = &(env->active_fpu.fpr[wt].wr);
+
+#if defined(HOST_WORDS_BIGENDIAN)
+    pwd->h[3] = pwt->h[7];
+    pwd->h[2] = pws->h[7];
+    pwd->h[1] = pwt->h[6];
+    pwd->h[0] = pws->h[6];
+    pwd->h[7] = pwt->h[5];
+    pwd->h[6] = pws->h[5];
+    pwd->h[5] = pwt->h[4];
+    pwd->h[4] = pws->h[4];
+#else
+    pwd->h[0] = pwt->h[4];
+    pwd->h[1] = pws->h[4];
+    pwd->h[2] = pwt->h[5];
+    pwd->h[3] = pws->h[5];
+    pwd->h[4] = pwt->h[6];
+    pwd->h[5] = pws->h[6];
+    pwd->h[6] = pwt->h[7];
+    pwd->h[7] = pws->h[7];
+#endif
+}
+
+void helper_msa_ilvl_w(CPUMIPSState *env,
+                       uint32_t wd, uint32_t ws, uint32_t wt)
+{
+    wr_t *pwd = &(env->active_fpu.fpr[wd].wr);
+    wr_t *pws = &(env->active_fpu.fpr[ws].wr);
+    wr_t *pwt = &(env->active_fpu.fpr[wt].wr);
+
+#if defined(HOST_WORDS_BIGENDIAN)
+    pwd->w[1] = pwt->w[3];
+    pwd->w[0] = pws->w[3];
+    pwd->w[3] = pwt->w[2];
+    pwd->w[2] = pws->w[2];
+#else
+    pwd->w[0] = pwt->w[2];
+    pwd->w[1] = pws->w[2];
+    pwd->w[2] = pwt->w[3];
+    pwd->w[3] = pws->w[3];
+#endif
+}
+
+void helper_msa_ilvl_d(CPUMIPSState *env,
+                       uint32_t wd, uint32_t ws, uint32_t wt)
+{
+    wr_t *pwd = &(env->active_fpu.fpr[wd].wr);
+    wr_t *pws = &(env->active_fpu.fpr[ws].wr);
+    wr_t *pwt = &(env->active_fpu.fpr[wt].wr);
+
+    pwd->d[0] = pwt->d[1];
+    pwd->d[1] = pws->d[1];
+}
+
+
+void helper_msa_ilvr_b(CPUMIPSState *env,
+                       uint32_t wd, uint32_t ws, uint32_t wt)
+{
+    wr_t *pwd = &(env->active_fpu.fpr[wd].wr);
+    wr_t *pws = &(env->active_fpu.fpr[ws].wr);
+    wr_t *pwt = &(env->active_fpu.fpr[wt].wr);
+
+#if defined(HOST_WORDS_BIGENDIAN)
+    pwd->b[8]  = pws->b[0];
+    pwd->b[9]  = pwt->b[0];
+    pwd->b[10] = pws->b[1];
+    pwd->b[11] = pwt->b[1];
+    pwd->b[12] = pws->b[2];
+    pwd->b[13] = pwt->b[2];
+    pwd->b[14] = pws->b[3];
+    pwd->b[15] = pwt->b[3];
+    pwd->b[0]  = pws->b[4];
+    pwd->b[1]  = pwt->b[4];
+    pwd->b[2]  = pws->b[5];
+    pwd->b[3]  = pwt->b[5];
+    pwd->b[4]  = pws->b[6];
+    pwd->b[5]  = pwt->b[6];
+    pwd->b[6]  = pws->b[7];
+    pwd->b[7]  = pwt->b[7];
+#else
+    pwd->b[15] = pws->b[7];
+    pwd->b[14] = pwt->b[7];
+    pwd->b[13] = pws->b[6];
+    pwd->b[12] = pwt->b[6];
+    pwd->b[11] = pws->b[5];
+    pwd->b[10] = pwt->b[5];
+    pwd->b[9]  = pws->b[4];
+    pwd->b[8]  = pwt->b[4];
+    pwd->b[7]  = pws->b[3];
+    pwd->b[6]  = pwt->b[3];
+    pwd->b[5]  = pws->b[2];
+    pwd->b[4]  = pwt->b[2];
+    pwd->b[3]  = pws->b[1];
+    pwd->b[2]  = pwt->b[1];
+    pwd->b[1]  = pws->b[0];
+    pwd->b[0]  = pwt->b[0];
+#endif
+}
+
+void helper_msa_ilvr_h(CPUMIPSState *env,
+                       uint32_t wd, uint32_t ws, uint32_t wt)
+{
+    wr_t *pwd = &(env->active_fpu.fpr[wd].wr);
+    wr_t *pws = &(env->active_fpu.fpr[ws].wr);
+    wr_t *pwt = &(env->active_fpu.fpr[wt].wr);
+
+#if defined(HOST_WORDS_BIGENDIAN)
+    pwd->h[4] = pws->h[0];
+    pwd->h[5] = pwt->h[0];
+    pwd->h[6] = pws->h[1];
+    pwd->h[7] = pwt->h[1];
+    pwd->h[0] = pws->h[2];
+    pwd->h[1] = pwt->h[2];
+    pwd->h[2] = pws->h[3];
+    pwd->h[3] = pwt->h[3];
+#else
+    pwd->h[7] = pws->h[3];
+    pwd->h[6] = pwt->h[3];
+    pwd->h[5] = pws->h[2];
+    pwd->h[4] = pwt->h[2];
+    pwd->h[3] = pws->h[1];
+    pwd->h[2] = pwt->h[1];
+    pwd->h[1] = pws->h[0];
+    pwd->h[0] = pwt->h[0];
+#endif
+}
+
+void helper_msa_ilvr_w(CPUMIPSState *env,
+                       uint32_t wd, uint32_t ws, uint32_t wt)
+{
+    wr_t *pwd = &(env->active_fpu.fpr[wd].wr);
+    wr_t *pws = &(env->active_fpu.fpr[ws].wr);
+    wr_t *pwt = &(env->active_fpu.fpr[wt].wr);
+
+#if defined(HOST_WORDS_BIGENDIAN)
+    pwd->w[2] = pws->w[0];
+    pwd->w[3] = pwt->w[0];
+    pwd->w[0] = pws->w[1];
+    pwd->w[1] = pwt->w[1];
+#else
+    pwd->w[3] = pws->w[1];
+    pwd->w[2] = pwt->w[1];
+    pwd->w[1] = pws->w[0];
+    pwd->w[0] = pwt->w[0];
+#endif
+}
+
+void helper_msa_ilvr_d(CPUMIPSState *env,
+                       uint32_t wd, uint32_t ws, uint32_t wt)
+{
+    wr_t *pwd = &(env->active_fpu.fpr[wd].wr);
+    wr_t *pws = &(env->active_fpu.fpr[ws].wr);
+    wr_t *pwt = &(env->active_fpu.fpr[wt].wr);
+
+    pwd->d[1] = pws->d[0];
+    pwd->d[0] = pwt->d[0];
+}
 
 
 /*
@@ -2096,7 +3715,214 @@ void helper_msa_move_v(CPUMIPSState *env, uint32_t wd, uint32_t ws)
  * +---------------+----------------------------------------------------------+
  */
 
-/* TODO: insert Pack group helpers here */
+
+void helper_msa_pckev_b(CPUMIPSState *env,
+                        uint32_t wd, uint32_t ws, uint32_t wt)
+{
+    wr_t *pwd = &(env->active_fpu.fpr[wd].wr);
+    wr_t *pws = &(env->active_fpu.fpr[ws].wr);
+    wr_t *pwt = &(env->active_fpu.fpr[wt].wr);
+
+#if defined(HOST_WORDS_BIGENDIAN)
+    pwd->b[8]  = pws->b[9];
+    pwd->b[10] = pws->b[13];
+    pwd->b[12] = pws->b[1];
+    pwd->b[14] = pws->b[5];
+    pwd->b[0]  = pwt->b[9];
+    pwd->b[2]  = pwt->b[13];
+    pwd->b[4]  = pwt->b[1];
+    pwd->b[6]  = pwt->b[5];
+    pwd->b[9]  = pws->b[11];
+    pwd->b[13] = pws->b[3];
+    pwd->b[1]  = pwt->b[11];
+    pwd->b[5]  = pwt->b[3];
+    pwd->b[11] = pws->b[15];
+    pwd->b[3]  = pwt->b[15];
+    pwd->b[15] = pws->b[7];
+    pwd->b[7]  = pwt->b[7];
+#else
+    pwd->b[15] = pws->b[14];
+    pwd->b[13] = pws->b[10];
+    pwd->b[11] = pws->b[6];
+    pwd->b[9]  = pws->b[2];
+    pwd->b[7]  = pwt->b[14];
+    pwd->b[5]  = pwt->b[10];
+    pwd->b[3]  = pwt->b[6];
+    pwd->b[1]  = pwt->b[2];
+    pwd->b[14] = pws->b[12];
+    pwd->b[10] = pws->b[4];
+    pwd->b[6]  = pwt->b[12];
+    pwd->b[2]  = pwt->b[4];
+    pwd->b[12] = pws->b[8];
+    pwd->b[4]  = pwt->b[8];
+    pwd->b[8]  = pws->b[0];
+    pwd->b[0]  = pwt->b[0];
+#endif
+}
+
+void helper_msa_pckev_h(CPUMIPSState *env,
+                        uint32_t wd, uint32_t ws, uint32_t wt)
+{
+    wr_t *pwd = &(env->active_fpu.fpr[wd].wr);
+    wr_t *pws = &(env->active_fpu.fpr[ws].wr);
+    wr_t *pwt = &(env->active_fpu.fpr[wt].wr);
+
+#if defined(HOST_WORDS_BIGENDIAN)
+    pwd->h[4] = pws->h[5];
+    pwd->h[6] = pws->h[1];
+    pwd->h[0] = pwt->h[5];
+    pwd->h[2] = pwt->h[1];
+    pwd->h[5] = pws->h[7];
+    pwd->h[1] = pwt->h[7];
+    pwd->h[7] = pws->h[3];
+    pwd->h[3] = pwt->h[3];
+#else
+    pwd->h[7] = pws->h[6];
+    pwd->h[5] = pws->h[2];
+    pwd->h[3] = pwt->h[6];
+    pwd->h[1] = pwt->h[2];
+    pwd->h[6] = pws->h[4];
+    pwd->h[2] = pwt->h[4];
+    pwd->h[4] = pws->h[0];
+    pwd->h[0] = pwt->h[0];
+#endif
+}
+
+void helper_msa_pckev_w(CPUMIPSState *env,
+                        uint32_t wd, uint32_t ws, uint32_t wt)
+{
+    wr_t *pwd = &(env->active_fpu.fpr[wd].wr);
+    wr_t *pws = &(env->active_fpu.fpr[ws].wr);
+    wr_t *pwt = &(env->active_fpu.fpr[wt].wr);
+
+#if defined(HOST_WORDS_BIGENDIAN)
+    pwd->w[2] = pws->w[3];
+    pwd->w[0] = pwt->w[3];
+    pwd->w[3] = pws->w[1];
+    pwd->w[1] = pwt->w[1];
+#else
+    pwd->w[3] = pws->w[2];
+    pwd->w[1] = pwt->w[2];
+    pwd->w[2] = pws->w[0];
+    pwd->w[0] = pwt->w[0];
+#endif
+}
+
+void helper_msa_pckev_d(CPUMIPSState *env,
+                        uint32_t wd, uint32_t ws, uint32_t wt)
+{
+    wr_t *pwd = &(env->active_fpu.fpr[wd].wr);
+    wr_t *pws = &(env->active_fpu.fpr[ws].wr);
+    wr_t *pwt = &(env->active_fpu.fpr[wt].wr);
+
+    pwd->d[1] = pws->d[0];
+    pwd->d[0] = pwt->d[0];
+}
+
+
+void helper_msa_pckod_b(CPUMIPSState *env,
+                        uint32_t wd, uint32_t ws, uint32_t wt)
+{
+    wr_t *pwd = &(env->active_fpu.fpr[wd].wr);
+    wr_t *pws = &(env->active_fpu.fpr[ws].wr);
+    wr_t *pwt = &(env->active_fpu.fpr[wt].wr);
+
+#if defined(HOST_WORDS_BIGENDIAN)
+    pwd->b[7]  = pwt->b[6];
+    pwd->b[5]  = pwt->b[2];
+    pwd->b[3]  = pwt->b[14];
+    pwd->b[1]  = pwt->b[10];
+    pwd->b[15] = pws->b[6];
+    pwd->b[13] = pws->b[2];
+    pwd->b[11] = pws->b[14];
+    pwd->b[9]  = pws->b[10];
+    pwd->b[6]  = pwt->b[4];
+    pwd->b[2]  = pwt->b[12];
+    pwd->b[14] = pws->b[4];
+    pwd->b[10] = pws->b[12];
+    pwd->b[4]  = pwt->b[0];
+    pwd->b[12] = pws->b[0];
+    pwd->b[0]  = pwt->b[8];
+    pwd->b[8]  = pws->b[8];
+#else
+    pwd->b[0]  = pwt->b[1];
+    pwd->b[2]  = pwt->b[5];
+    pwd->b[4]  = pwt->b[9];
+    pwd->b[6]  = pwt->b[13];
+    pwd->b[8]  = pws->b[1];
+    pwd->b[10] = pws->b[5];
+    pwd->b[12] = pws->b[9];
+    pwd->b[14] = pws->b[13];
+    pwd->b[1]  = pwt->b[3];
+    pwd->b[5]  = pwt->b[11];
+    pwd->b[9]  = pws->b[3];
+    pwd->b[13] = pws->b[11];
+    pwd->b[3]  = pwt->b[7];
+    pwd->b[11] = pws->b[7];
+    pwd->b[7]  = pwt->b[15];
+    pwd->b[15] = pws->b[15];
+#endif
+
+}
+
+void helper_msa_pckod_h(CPUMIPSState *env,
+                        uint32_t wd, uint32_t ws, uint32_t wt)
+{
+    wr_t *pwd = &(env->active_fpu.fpr[wd].wr);
+    wr_t *pws = &(env->active_fpu.fpr[ws].wr);
+    wr_t *pwt = &(env->active_fpu.fpr[wt].wr);
+
+#if defined(HOST_WORDS_BIGENDIAN)
+    pwd->h[3] = pwt->h[2];
+    pwd->h[1] = pwt->h[6];
+    pwd->h[7] = pws->h[2];
+    pwd->h[5] = pws->h[6];
+    pwd->h[2] = pwt->h[0];
+    pwd->h[6] = pws->h[0];
+    pwd->h[0] = pwt->h[4];
+    pwd->h[4] = pws->h[4];
+#else
+    pwd->h[0] = pwt->h[1];
+    pwd->h[2] = pwt->h[5];
+    pwd->h[4] = pws->h[1];
+    pwd->h[6] = pws->h[5];
+    pwd->h[1] = pwt->h[3];
+    pwd->h[5] = pws->h[3];
+    pwd->h[3] = pwt->h[7];
+    pwd->h[7] = pws->h[7];
+#endif
+}
+
+void helper_msa_pckod_w(CPUMIPSState *env,
+                        uint32_t wd, uint32_t ws, uint32_t wt)
+{
+    wr_t *pwd = &(env->active_fpu.fpr[wd].wr);
+    wr_t *pws = &(env->active_fpu.fpr[ws].wr);
+    wr_t *pwt = &(env->active_fpu.fpr[wt].wr);
+
+#if defined(HOST_WORDS_BIGENDIAN)
+    pwd->w[1] = pwt->w[0];
+    pwd->w[3] = pws->w[0];
+    pwd->w[0] = pwt->w[2];
+    pwd->w[2] = pws->w[2];
+#else
+    pwd->w[0] = pwt->w[1];
+    pwd->w[2] = pws->w[1];
+    pwd->w[1] = pwt->w[3];
+    pwd->w[3] = pws->w[3];
+#endif
+}
+
+void helper_msa_pckod_d(CPUMIPSState *env,
+                        uint32_t wd, uint32_t ws, uint32_t wt)
+{
+    wr_t *pwd = &(env->active_fpu.fpr[wd].wr);
+    wr_t *pws = &(env->active_fpu.fpr[ws].wr);
+    wr_t *pwt = &(env->active_fpu.fpr[wt].wr);
+
+    pwd->d[0] = pwt->d[1];
+    pwd->d[1] = pws->d[1];
+}
 
 
 /*
@@ -2127,7 +3953,382 @@ void helper_msa_move_v(CPUMIPSState *env, uint32_t wd, uint32_t ws)
  * +---------------+----------------------------------------------------------+
  */
 
-/* TODO: insert Shift group helpers here */
+
+static inline int64_t msa_sll_df(uint32_t df, int64_t arg1, int64_t arg2)
+{
+    int32_t b_arg2 = BIT_POSITION(arg2, df);
+    return arg1 << b_arg2;
+}
+
+void helper_msa_sll_b(CPUMIPSState *env,
+                      uint32_t wd, uint32_t ws, uint32_t wt)
+{
+    wr_t *pwd = &(env->active_fpu.fpr[wd].wr);
+    wr_t *pws = &(env->active_fpu.fpr[ws].wr);
+    wr_t *pwt = &(env->active_fpu.fpr[wt].wr);
+
+    pwd->b[0]  = msa_sll_df(DF_BYTE, pws->b[0],  pwt->b[0]);
+    pwd->b[1]  = msa_sll_df(DF_BYTE, pws->b[1],  pwt->b[1]);
+    pwd->b[2]  = msa_sll_df(DF_BYTE, pws->b[2],  pwt->b[2]);
+    pwd->b[3]  = msa_sll_df(DF_BYTE, pws->b[3],  pwt->b[3]);
+    pwd->b[4]  = msa_sll_df(DF_BYTE, pws->b[4],  pwt->b[4]);
+    pwd->b[5]  = msa_sll_df(DF_BYTE, pws->b[5],  pwt->b[5]);
+    pwd->b[6]  = msa_sll_df(DF_BYTE, pws->b[6],  pwt->b[6]);
+    pwd->b[7]  = msa_sll_df(DF_BYTE, pws->b[7],  pwt->b[7]);
+    pwd->b[8]  = msa_sll_df(DF_BYTE, pws->b[8],  pwt->b[8]);
+    pwd->b[9]  = msa_sll_df(DF_BYTE, pws->b[9],  pwt->b[9]);
+    pwd->b[10] = msa_sll_df(DF_BYTE, pws->b[10], pwt->b[10]);
+    pwd->b[11] = msa_sll_df(DF_BYTE, pws->b[11], pwt->b[11]);
+    pwd->b[12] = msa_sll_df(DF_BYTE, pws->b[12], pwt->b[12]);
+    pwd->b[13] = msa_sll_df(DF_BYTE, pws->b[13], pwt->b[13]);
+    pwd->b[14] = msa_sll_df(DF_BYTE, pws->b[14], pwt->b[14]);
+    pwd->b[15] = msa_sll_df(DF_BYTE, pws->b[15], pwt->b[15]);
+}
+
+void helper_msa_sll_h(CPUMIPSState *env,
+                      uint32_t wd, uint32_t ws, uint32_t wt)
+{
+    wr_t *pwd = &(env->active_fpu.fpr[wd].wr);
+    wr_t *pws = &(env->active_fpu.fpr[ws].wr);
+    wr_t *pwt = &(env->active_fpu.fpr[wt].wr);
+
+    pwd->h[0]  = msa_sll_df(DF_HALF, pws->h[0],  pwt->h[0]);
+    pwd->h[1]  = msa_sll_df(DF_HALF, pws->h[1],  pwt->h[1]);
+    pwd->h[2]  = msa_sll_df(DF_HALF, pws->h[2],  pwt->h[2]);
+    pwd->h[3]  = msa_sll_df(DF_HALF, pws->h[3],  pwt->h[3]);
+    pwd->h[4]  = msa_sll_df(DF_HALF, pws->h[4],  pwt->h[4]);
+    pwd->h[5]  = msa_sll_df(DF_HALF, pws->h[5],  pwt->h[5]);
+    pwd->h[6]  = msa_sll_df(DF_HALF, pws->h[6],  pwt->h[6]);
+    pwd->h[7]  = msa_sll_df(DF_HALF, pws->h[7],  pwt->h[7]);
+}
+
+void helper_msa_sll_w(CPUMIPSState *env,
+                      uint32_t wd, uint32_t ws, uint32_t wt)
+{
+    wr_t *pwd = &(env->active_fpu.fpr[wd].wr);
+    wr_t *pws = &(env->active_fpu.fpr[ws].wr);
+    wr_t *pwt = &(env->active_fpu.fpr[wt].wr);
+
+    pwd->w[0]  = msa_sll_df(DF_WORD, pws->w[0],  pwt->w[0]);
+    pwd->w[1]  = msa_sll_df(DF_WORD, pws->w[1],  pwt->w[1]);
+    pwd->w[2]  = msa_sll_df(DF_WORD, pws->w[2],  pwt->w[2]);
+    pwd->w[3]  = msa_sll_df(DF_WORD, pws->w[3],  pwt->w[3]);
+}
+
+void helper_msa_sll_d(CPUMIPSState *env,
+                      uint32_t wd, uint32_t ws, uint32_t wt)
+{
+    wr_t *pwd = &(env->active_fpu.fpr[wd].wr);
+    wr_t *pws = &(env->active_fpu.fpr[ws].wr);
+    wr_t *pwt = &(env->active_fpu.fpr[wt].wr);
+
+    pwd->d[0]  = msa_sll_df(DF_DOUBLE, pws->d[0],  pwt->d[0]);
+    pwd->d[1]  = msa_sll_df(DF_DOUBLE, pws->d[1],  pwt->d[1]);
+}
+
+
+static inline int64_t msa_sra_df(uint32_t df, int64_t arg1, int64_t arg2)
+{
+    int32_t b_arg2 = BIT_POSITION(arg2, df);
+    return arg1 >> b_arg2;
+}
+
+void helper_msa_sra_b(CPUMIPSState *env,
+                      uint32_t wd, uint32_t ws, uint32_t wt)
+{
+    wr_t *pwd = &(env->active_fpu.fpr[wd].wr);
+    wr_t *pws = &(env->active_fpu.fpr[ws].wr);
+    wr_t *pwt = &(env->active_fpu.fpr[wt].wr);
+
+    pwd->b[0]  = msa_sra_df(DF_BYTE, pws->b[0],  pwt->b[0]);
+    pwd->b[1]  = msa_sra_df(DF_BYTE, pws->b[1],  pwt->b[1]);
+    pwd->b[2]  = msa_sra_df(DF_BYTE, pws->b[2],  pwt->b[2]);
+    pwd->b[3]  = msa_sra_df(DF_BYTE, pws->b[3],  pwt->b[3]);
+    pwd->b[4]  = msa_sra_df(DF_BYTE, pws->b[4],  pwt->b[4]);
+    pwd->b[5]  = msa_sra_df(DF_BYTE, pws->b[5],  pwt->b[5]);
+    pwd->b[6]  = msa_sra_df(DF_BYTE, pws->b[6],  pwt->b[6]);
+    pwd->b[7]  = msa_sra_df(DF_BYTE, pws->b[7],  pwt->b[7]);
+    pwd->b[8]  = msa_sra_df(DF_BYTE, pws->b[8],  pwt->b[8]);
+    pwd->b[9]  = msa_sra_df(DF_BYTE, pws->b[9],  pwt->b[9]);
+    pwd->b[10] = msa_sra_df(DF_BYTE, pws->b[10], pwt->b[10]);
+    pwd->b[11] = msa_sra_df(DF_BYTE, pws->b[11], pwt->b[11]);
+    pwd->b[12] = msa_sra_df(DF_BYTE, pws->b[12], pwt->b[12]);
+    pwd->b[13] = msa_sra_df(DF_BYTE, pws->b[13], pwt->b[13]);
+    pwd->b[14] = msa_sra_df(DF_BYTE, pws->b[14], pwt->b[14]);
+    pwd->b[15] = msa_sra_df(DF_BYTE, pws->b[15], pwt->b[15]);
+}
+
+void helper_msa_sra_h(CPUMIPSState *env,
+                      uint32_t wd, uint32_t ws, uint32_t wt)
+{
+    wr_t *pwd = &(env->active_fpu.fpr[wd].wr);
+    wr_t *pws = &(env->active_fpu.fpr[ws].wr);
+    wr_t *pwt = &(env->active_fpu.fpr[wt].wr);
+
+    pwd->h[0]  = msa_sra_df(DF_HALF, pws->h[0],  pwt->h[0]);
+    pwd->h[1]  = msa_sra_df(DF_HALF, pws->h[1],  pwt->h[1]);
+    pwd->h[2]  = msa_sra_df(DF_HALF, pws->h[2],  pwt->h[2]);
+    pwd->h[3]  = msa_sra_df(DF_HALF, pws->h[3],  pwt->h[3]);
+    pwd->h[4]  = msa_sra_df(DF_HALF, pws->h[4],  pwt->h[4]);
+    pwd->h[5]  = msa_sra_df(DF_HALF, pws->h[5],  pwt->h[5]);
+    pwd->h[6]  = msa_sra_df(DF_HALF, pws->h[6],  pwt->h[6]);
+    pwd->h[7]  = msa_sra_df(DF_HALF, pws->h[7],  pwt->h[7]);
+}
+
+void helper_msa_sra_w(CPUMIPSState *env,
+                      uint32_t wd, uint32_t ws, uint32_t wt)
+{
+    wr_t *pwd = &(env->active_fpu.fpr[wd].wr);
+    wr_t *pws = &(env->active_fpu.fpr[ws].wr);
+    wr_t *pwt = &(env->active_fpu.fpr[wt].wr);
+
+    pwd->w[0]  = msa_sra_df(DF_WORD, pws->w[0],  pwt->w[0]);
+    pwd->w[1]  = msa_sra_df(DF_WORD, pws->w[1],  pwt->w[1]);
+    pwd->w[2]  = msa_sra_df(DF_WORD, pws->w[2],  pwt->w[2]);
+    pwd->w[3]  = msa_sra_df(DF_WORD, pws->w[3],  pwt->w[3]);
+}
+
+void helper_msa_sra_d(CPUMIPSState *env,
+                      uint32_t wd, uint32_t ws, uint32_t wt)
+{
+    wr_t *pwd = &(env->active_fpu.fpr[wd].wr);
+    wr_t *pws = &(env->active_fpu.fpr[ws].wr);
+    wr_t *pwt = &(env->active_fpu.fpr[wt].wr);
+
+    pwd->d[0]  = msa_sra_df(DF_DOUBLE, pws->d[0],  pwt->d[0]);
+    pwd->d[1]  = msa_sra_df(DF_DOUBLE, pws->d[1],  pwt->d[1]);
+}
+
+
+static inline int64_t msa_srar_df(uint32_t df, int64_t arg1, int64_t arg2)
+{
+    int32_t b_arg2 = BIT_POSITION(arg2, df);
+    if (b_arg2 == 0) {
+        return arg1;
+    } else {
+        int64_t r_bit = (arg1 >> (b_arg2 - 1)) & 1;
+        return (arg1 >> b_arg2) + r_bit;
+    }
+}
+
+void helper_msa_srar_b(CPUMIPSState *env,
+                       uint32_t wd, uint32_t ws, uint32_t wt)
+{
+    wr_t *pwd = &(env->active_fpu.fpr[wd].wr);
+    wr_t *pws = &(env->active_fpu.fpr[ws].wr);
+    wr_t *pwt = &(env->active_fpu.fpr[wt].wr);
+
+    pwd->b[0]  = msa_srar_df(DF_BYTE, pws->b[0],  pwt->b[0]);
+    pwd->b[1]  = msa_srar_df(DF_BYTE, pws->b[1],  pwt->b[1]);
+    pwd->b[2]  = msa_srar_df(DF_BYTE, pws->b[2],  pwt->b[2]);
+    pwd->b[3]  = msa_srar_df(DF_BYTE, pws->b[3],  pwt->b[3]);
+    pwd->b[4]  = msa_srar_df(DF_BYTE, pws->b[4],  pwt->b[4]);
+    pwd->b[5]  = msa_srar_df(DF_BYTE, pws->b[5],  pwt->b[5]);
+    pwd->b[6]  = msa_srar_df(DF_BYTE, pws->b[6],  pwt->b[6]);
+    pwd->b[7]  = msa_srar_df(DF_BYTE, pws->b[7],  pwt->b[7]);
+    pwd->b[8]  = msa_srar_df(DF_BYTE, pws->b[8],  pwt->b[8]);
+    pwd->b[9]  = msa_srar_df(DF_BYTE, pws->b[9],  pwt->b[9]);
+    pwd->b[10] = msa_srar_df(DF_BYTE, pws->b[10], pwt->b[10]);
+    pwd->b[11] = msa_srar_df(DF_BYTE, pws->b[11], pwt->b[11]);
+    pwd->b[12] = msa_srar_df(DF_BYTE, pws->b[12], pwt->b[12]);
+    pwd->b[13] = msa_srar_df(DF_BYTE, pws->b[13], pwt->b[13]);
+    pwd->b[14] = msa_srar_df(DF_BYTE, pws->b[14], pwt->b[14]);
+    pwd->b[15] = msa_srar_df(DF_BYTE, pws->b[15], pwt->b[15]);
+}
+
+void helper_msa_srar_h(CPUMIPSState *env,
+                       uint32_t wd, uint32_t ws, uint32_t wt)
+{
+    wr_t *pwd = &(env->active_fpu.fpr[wd].wr);
+    wr_t *pws = &(env->active_fpu.fpr[ws].wr);
+    wr_t *pwt = &(env->active_fpu.fpr[wt].wr);
+
+    pwd->h[0]  = msa_srar_df(DF_HALF, pws->h[0],  pwt->h[0]);
+    pwd->h[1]  = msa_srar_df(DF_HALF, pws->h[1],  pwt->h[1]);
+    pwd->h[2]  = msa_srar_df(DF_HALF, pws->h[2],  pwt->h[2]);
+    pwd->h[3]  = msa_srar_df(DF_HALF, pws->h[3],  pwt->h[3]);
+    pwd->h[4]  = msa_srar_df(DF_HALF, pws->h[4],  pwt->h[4]);
+    pwd->h[5]  = msa_srar_df(DF_HALF, pws->h[5],  pwt->h[5]);
+    pwd->h[6]  = msa_srar_df(DF_HALF, pws->h[6],  pwt->h[6]);
+    pwd->h[7]  = msa_srar_df(DF_HALF, pws->h[7],  pwt->h[7]);
+}
+
+void helper_msa_srar_w(CPUMIPSState *env,
+                       uint32_t wd, uint32_t ws, uint32_t wt)
+{
+    wr_t *pwd = &(env->active_fpu.fpr[wd].wr);
+    wr_t *pws = &(env->active_fpu.fpr[ws].wr);
+    wr_t *pwt = &(env->active_fpu.fpr[wt].wr);
+
+    pwd->w[0]  = msa_srar_df(DF_WORD, pws->w[0],  pwt->w[0]);
+    pwd->w[1]  = msa_srar_df(DF_WORD, pws->w[1],  pwt->w[1]);
+    pwd->w[2]  = msa_srar_df(DF_WORD, pws->w[2],  pwt->w[2]);
+    pwd->w[3]  = msa_srar_df(DF_WORD, pws->w[3],  pwt->w[3]);
+}
+
+void helper_msa_srar_d(CPUMIPSState *env,
+                       uint32_t wd, uint32_t ws, uint32_t wt)
+{
+    wr_t *pwd = &(env->active_fpu.fpr[wd].wr);
+    wr_t *pws = &(env->active_fpu.fpr[ws].wr);
+    wr_t *pwt = &(env->active_fpu.fpr[wt].wr);
+
+    pwd->d[0]  = msa_srar_df(DF_DOUBLE, pws->d[0],  pwt->d[0]);
+    pwd->d[1]  = msa_srar_df(DF_DOUBLE, pws->d[1],  pwt->d[1]);
+}
+
+
+static inline int64_t msa_srl_df(uint32_t df, int64_t arg1, int64_t arg2)
+{
+    uint64_t u_arg1 = UNSIGNED(arg1, df);
+    int32_t b_arg2 = BIT_POSITION(arg2, df);
+    return u_arg1 >> b_arg2;
+}
+
+void helper_msa_srl_b(CPUMIPSState *env,
+                      uint32_t wd, uint32_t ws, uint32_t wt)
+{
+    wr_t *pwd = &(env->active_fpu.fpr[wd].wr);
+    wr_t *pws = &(env->active_fpu.fpr[ws].wr);
+    wr_t *pwt = &(env->active_fpu.fpr[wt].wr);
+
+    pwd->b[0]  = msa_srl_df(DF_BYTE, pws->b[0],  pwt->b[0]);
+    pwd->b[1]  = msa_srl_df(DF_BYTE, pws->b[1],  pwt->b[1]);
+    pwd->b[2]  = msa_srl_df(DF_BYTE, pws->b[2],  pwt->b[2]);
+    pwd->b[3]  = msa_srl_df(DF_BYTE, pws->b[3],  pwt->b[3]);
+    pwd->b[4]  = msa_srl_df(DF_BYTE, pws->b[4],  pwt->b[4]);
+    pwd->b[5]  = msa_srl_df(DF_BYTE, pws->b[5],  pwt->b[5]);
+    pwd->b[6]  = msa_srl_df(DF_BYTE, pws->b[6],  pwt->b[6]);
+    pwd->b[7]  = msa_srl_df(DF_BYTE, pws->b[7],  pwt->b[7]);
+    pwd->b[8]  = msa_srl_df(DF_BYTE, pws->b[8],  pwt->b[8]);
+    pwd->b[9]  = msa_srl_df(DF_BYTE, pws->b[9],  pwt->b[9]);
+    pwd->b[10] = msa_srl_df(DF_BYTE, pws->b[10], pwt->b[10]);
+    pwd->b[11] = msa_srl_df(DF_BYTE, pws->b[11], pwt->b[11]);
+    pwd->b[12] = msa_srl_df(DF_BYTE, pws->b[12], pwt->b[12]);
+    pwd->b[13] = msa_srl_df(DF_BYTE, pws->b[13], pwt->b[13]);
+    pwd->b[14] = msa_srl_df(DF_BYTE, pws->b[14], pwt->b[14]);
+    pwd->b[15] = msa_srl_df(DF_BYTE, pws->b[15], pwt->b[15]);
+}
+
+void helper_msa_srl_h(CPUMIPSState *env,
+                      uint32_t wd, uint32_t ws, uint32_t wt)
+{
+    wr_t *pwd = &(env->active_fpu.fpr[wd].wr);
+    wr_t *pws = &(env->active_fpu.fpr[ws].wr);
+    wr_t *pwt = &(env->active_fpu.fpr[wt].wr);
+
+    pwd->h[0]  = msa_srl_df(DF_HALF, pws->h[0],  pwt->h[0]);
+    pwd->h[1]  = msa_srl_df(DF_HALF, pws->h[1],  pwt->h[1]);
+    pwd->h[2]  = msa_srl_df(DF_HALF, pws->h[2],  pwt->h[2]);
+    pwd->h[3]  = msa_srl_df(DF_HALF, pws->h[3],  pwt->h[3]);
+    pwd->h[4]  = msa_srl_df(DF_HALF, pws->h[4],  pwt->h[4]);
+    pwd->h[5]  = msa_srl_df(DF_HALF, pws->h[5],  pwt->h[5]);
+    pwd->h[6]  = msa_srl_df(DF_HALF, pws->h[6],  pwt->h[6]);
+    pwd->h[7]  = msa_srl_df(DF_HALF, pws->h[7],  pwt->h[7]);
+}
+
+void helper_msa_srl_w(CPUMIPSState *env,
+                      uint32_t wd, uint32_t ws, uint32_t wt)
+{
+    wr_t *pwd = &(env->active_fpu.fpr[wd].wr);
+    wr_t *pws = &(env->active_fpu.fpr[ws].wr);
+    wr_t *pwt = &(env->active_fpu.fpr[wt].wr);
+
+    pwd->w[0]  = msa_srl_df(DF_WORD, pws->w[0],  pwt->w[0]);
+    pwd->w[1]  = msa_srl_df(DF_WORD, pws->w[1],  pwt->w[1]);
+    pwd->w[2]  = msa_srl_df(DF_WORD, pws->w[2],  pwt->w[2]);
+    pwd->w[3]  = msa_srl_df(DF_WORD, pws->w[3],  pwt->w[3]);
+}
+
+void helper_msa_srl_d(CPUMIPSState *env,
+                      uint32_t wd, uint32_t ws, uint32_t wt)
+{
+    wr_t *pwd = &(env->active_fpu.fpr[wd].wr);
+    wr_t *pws = &(env->active_fpu.fpr[ws].wr);
+    wr_t *pwt = &(env->active_fpu.fpr[wt].wr);
+
+    pwd->d[0]  = msa_srl_df(DF_DOUBLE, pws->d[0],  pwt->d[0]);
+    pwd->d[1]  = msa_srl_df(DF_DOUBLE, pws->d[1],  pwt->d[1]);
+}
+
+
+static inline int64_t msa_srlr_df(uint32_t df, int64_t arg1, int64_t arg2)
+{
+    uint64_t u_arg1 = UNSIGNED(arg1, df);
+    int32_t b_arg2 = BIT_POSITION(arg2, df);
+    if (b_arg2 == 0) {
+        return u_arg1;
+    } else {
+        uint64_t r_bit = (u_arg1 >> (b_arg2 - 1)) & 1;
+        return (u_arg1 >> b_arg2) + r_bit;
+    }
+}
+
+void helper_msa_srlr_b(CPUMIPSState *env,
+                       uint32_t wd, uint32_t ws, uint32_t wt)
+{
+    wr_t *pwd = &(env->active_fpu.fpr[wd].wr);
+    wr_t *pws = &(env->active_fpu.fpr[ws].wr);
+    wr_t *pwt = &(env->active_fpu.fpr[wt].wr);
+
+    pwd->b[0]  = msa_srlr_df(DF_BYTE, pws->b[0],  pwt->b[0]);
+    pwd->b[1]  = msa_srlr_df(DF_BYTE, pws->b[1],  pwt->b[1]);
+    pwd->b[2]  = msa_srlr_df(DF_BYTE, pws->b[2],  pwt->b[2]);
+    pwd->b[3]  = msa_srlr_df(DF_BYTE, pws->b[3],  pwt->b[3]);
+    pwd->b[4]  = msa_srlr_df(DF_BYTE, pws->b[4],  pwt->b[4]);
+    pwd->b[5]  = msa_srlr_df(DF_BYTE, pws->b[5],  pwt->b[5]);
+    pwd->b[6]  = msa_srlr_df(DF_BYTE, pws->b[6],  pwt->b[6]);
+    pwd->b[7]  = msa_srlr_df(DF_BYTE, pws->b[7],  pwt->b[7]);
+    pwd->b[8]  = msa_srlr_df(DF_BYTE, pws->b[8],  pwt->b[8]);
+    pwd->b[9]  = msa_srlr_df(DF_BYTE, pws->b[9],  pwt->b[9]);
+    pwd->b[10] = msa_srlr_df(DF_BYTE, pws->b[10], pwt->b[10]);
+    pwd->b[11] = msa_srlr_df(DF_BYTE, pws->b[11], pwt->b[11]);
+    pwd->b[12] = msa_srlr_df(DF_BYTE, pws->b[12], pwt->b[12]);
+    pwd->b[13] = msa_srlr_df(DF_BYTE, pws->b[13], pwt->b[13]);
+    pwd->b[14] = msa_srlr_df(DF_BYTE, pws->b[14], pwt->b[14]);
+    pwd->b[15] = msa_srlr_df(DF_BYTE, pws->b[15], pwt->b[15]);
+}
+
+void helper_msa_srlr_h(CPUMIPSState *env,
+                       uint32_t wd, uint32_t ws, uint32_t wt)
+{
+    wr_t *pwd = &(env->active_fpu.fpr[wd].wr);
+    wr_t *pws = &(env->active_fpu.fpr[ws].wr);
+    wr_t *pwt = &(env->active_fpu.fpr[wt].wr);
+
+    pwd->h[0]  = msa_srlr_df(DF_HALF, pws->h[0],  pwt->h[0]);
+    pwd->h[1]  = msa_srlr_df(DF_HALF, pws->h[1],  pwt->h[1]);
+    pwd->h[2]  = msa_srlr_df(DF_HALF, pws->h[2],  pwt->h[2]);
+    pwd->h[3]  = msa_srlr_df(DF_HALF, pws->h[3],  pwt->h[3]);
+    pwd->h[4]  = msa_srlr_df(DF_HALF, pws->h[4],  pwt->h[4]);
+    pwd->h[5]  = msa_srlr_df(DF_HALF, pws->h[5],  pwt->h[5]);
+    pwd->h[6]  = msa_srlr_df(DF_HALF, pws->h[6],  pwt->h[6]);
+    pwd->h[7]  = msa_srlr_df(DF_HALF, pws->h[7],  pwt->h[7]);
+}
+
+void helper_msa_srlr_w(CPUMIPSState *env,
+                       uint32_t wd, uint32_t ws, uint32_t wt)
+{
+    wr_t *pwd = &(env->active_fpu.fpr[wd].wr);
+    wr_t *pws = &(env->active_fpu.fpr[ws].wr);
+    wr_t *pwt = &(env->active_fpu.fpr[wt].wr);
+
+    pwd->w[0]  = msa_srlr_df(DF_WORD, pws->w[0],  pwt->w[0]);
+    pwd->w[1]  = msa_srlr_df(DF_WORD, pws->w[1],  pwt->w[1]);
+    pwd->w[2]  = msa_srlr_df(DF_WORD, pws->w[2],  pwt->w[2]);
+    pwd->w[3]  = msa_srlr_df(DF_WORD, pws->w[3],  pwt->w[3]);
+}
+
+void helper_msa_srlr_d(CPUMIPSState *env,
+                       uint32_t wd, uint32_t ws, uint32_t wt)
+{
+    wr_t *pwd = &(env->active_fpu.fpr[wd].wr);
+    wr_t *pws = &(env->active_fpu.fpr[ws].wr);
+    wr_t *pwt = &(env->active_fpu.fpr[wt].wr);
+
+    pwd->d[0]  = msa_srlr_df(DF_DOUBLE, pws->d[0],  pwt->d[0]);
+    pwd->d[1]  = msa_srlr_df(DF_DOUBLE, pws->d[1],  pwt->d[1]);
+}
 
 
 #define MSA_FN_IMM8(FUNC, DEST, OPERATION)                              \
@@ -2199,38 +4400,9 @@ void helper_msa_shf_df(CPUMIPSState *env, uint32_t df, uint32_t wd,
     msa_move_v(pwd, pwx);
 }
 
-static inline int64_t msa_addv_df(uint32_t df, int64_t arg1, int64_t arg2)
-{
-    return arg1 + arg2;
-}
-
 static inline int64_t msa_subv_df(uint32_t df, int64_t arg1, int64_t arg2)
 {
     return arg1 - arg2;
-}
-
-static inline int64_t msa_max_s_df(uint32_t df, int64_t arg1, int64_t arg2)
-{
-    return arg1 > arg2 ? arg1 : arg2;
-}
-
-static inline int64_t msa_max_u_df(uint32_t df, int64_t arg1, int64_t arg2)
-{
-    uint64_t u_arg1 = UNSIGNED(arg1, df);
-    uint64_t u_arg2 = UNSIGNED(arg2, df);
-    return u_arg1 > u_arg2 ? arg1 : arg2;
-}
-
-static inline int64_t msa_min_s_df(uint32_t df, int64_t arg1, int64_t arg2)
-{
-    return arg1 < arg2 ? arg1 : arg2;
-}
-
-static inline int64_t msa_min_u_df(uint32_t df, int64_t arg1, int64_t arg2)
-{
-    uint64_t u_arg1 = UNSIGNED(arg1, df);
-    uint64_t u_arg2 = UNSIGNED(arg2, df);
-    return u_arg1 < u_arg2 ? arg1 : arg2;
 }
 
 #define MSA_BINOP_IMM_DF(helper, func)                                  \
@@ -2312,25 +4484,6 @@ void helper_msa_ldi_df(CPUMIPSState *env, uint32_t df, uint32_t wd,
     }
 }
 
-static inline int64_t msa_sll_df(uint32_t df, int64_t arg1, int64_t arg2)
-{
-    int32_t b_arg2 = BIT_POSITION(arg2, df);
-    return arg1 << b_arg2;
-}
-
-static inline int64_t msa_sra_df(uint32_t df, int64_t arg1, int64_t arg2)
-{
-    int32_t b_arg2 = BIT_POSITION(arg2, df);
-    return arg1 >> b_arg2;
-}
-
-static inline int64_t msa_srl_df(uint32_t df, int64_t arg1, int64_t arg2)
-{
-    uint64_t u_arg1 = UNSIGNED(arg1, df);
-    int32_t b_arg2 = BIT_POSITION(arg2, df);
-    return u_arg1 >> b_arg2;
-}
-
 static inline int64_t msa_sat_s_df(uint32_t df, int64_t arg, uint32_t m)
 {
     return arg < M_MIN_INT(m + 1) ? M_MIN_INT(m + 1) :
@@ -2343,29 +4496,6 @@ static inline int64_t msa_sat_u_df(uint32_t df, int64_t arg, uint32_t m)
     uint64_t u_arg = UNSIGNED(arg, df);
     return  u_arg < M_MAX_UINT(m + 1) ? u_arg :
                                         M_MAX_UINT(m + 1);
-}
-
-static inline int64_t msa_srar_df(uint32_t df, int64_t arg1, int64_t arg2)
-{
-    int32_t b_arg2 = BIT_POSITION(arg2, df);
-    if (b_arg2 == 0) {
-        return arg1;
-    } else {
-        int64_t r_bit = (arg1 >> (b_arg2 - 1)) & 1;
-        return (arg1 >> b_arg2) + r_bit;
-    }
-}
-
-static inline int64_t msa_srlr_df(uint32_t df, int64_t arg1, int64_t arg2)
-{
-    uint64_t u_arg1 = UNSIGNED(arg1, df);
-    int32_t b_arg2 = BIT_POSITION(arg2, df);
-    if (b_arg2 == 0) {
-        return u_arg1;
-    } else {
-        uint64_t r_bit = (u_arg1 >> (b_arg2 - 1)) & 1;
-        return (u_arg1 >> b_arg2) + r_bit;
-    }
 }
 
 #define MSA_BINOP_IMMU_DF(helper, func)                                  \
@@ -2456,58 +4586,6 @@ MSA_TEROP_IMMU_DF(binsli, binsl)
 MSA_TEROP_IMMU_DF(binsri, binsr)
 #undef MSA_TEROP_IMMU_DF
 
-static inline int64_t msa_max_a_df(uint32_t df, int64_t arg1, int64_t arg2)
-{
-    uint64_t abs_arg1 = arg1 >= 0 ? arg1 : -arg1;
-    uint64_t abs_arg2 = arg2 >= 0 ? arg2 : -arg2;
-    return abs_arg1 > abs_arg2 ? arg1 : arg2;
-}
-
-static inline int64_t msa_min_a_df(uint32_t df, int64_t arg1, int64_t arg2)
-{
-    uint64_t abs_arg1 = arg1 >= 0 ? arg1 : -arg1;
-    uint64_t abs_arg2 = arg2 >= 0 ? arg2 : -arg2;
-    return abs_arg1 < abs_arg2 ? arg1 : arg2;
-}
-
-static inline int64_t msa_add_a_df(uint32_t df, int64_t arg1, int64_t arg2)
-{
-    uint64_t abs_arg1 = arg1 >= 0 ? arg1 : -arg1;
-    uint64_t abs_arg2 = arg2 >= 0 ? arg2 : -arg2;
-    return abs_arg1 + abs_arg2;
-}
-
-static inline int64_t msa_adds_a_df(uint32_t df, int64_t arg1, int64_t arg2)
-{
-    uint64_t max_int = (uint64_t)DF_MAX_INT(df);
-    uint64_t abs_arg1 = arg1 >= 0 ? arg1 : -arg1;
-    uint64_t abs_arg2 = arg2 >= 0 ? arg2 : -arg2;
-    if (abs_arg1 > max_int || abs_arg2 > max_int) {
-        return (int64_t)max_int;
-    } else {
-        return (abs_arg1 < max_int - abs_arg2) ? abs_arg1 + abs_arg2 : max_int;
-    }
-}
-
-static inline int64_t msa_adds_s_df(uint32_t df, int64_t arg1, int64_t arg2)
-{
-    int64_t max_int = DF_MAX_INT(df);
-    int64_t min_int = DF_MIN_INT(df);
-    if (arg1 < 0) {
-        return (min_int - arg1 < arg2) ? arg1 + arg2 : min_int;
-    } else {
-        return (arg2 < max_int - arg1) ? arg1 + arg2 : max_int;
-    }
-}
-
-static inline uint64_t msa_adds_u_df(uint32_t df, uint64_t arg1, uint64_t arg2)
-{
-    uint64_t max_uint = DF_MAX_UINT(df);
-    uint64_t u_arg1 = UNSIGNED(arg1, df);
-    uint64_t u_arg2 = UNSIGNED(arg2, df);
-    return (u_arg1 < max_uint - u_arg2) ? u_arg1 + u_arg2 : max_uint;
-}
-
 static inline int64_t msa_subs_s_df(uint32_t df, int64_t arg1, int64_t arg2)
 {
     int64_t max_int = DF_MAX_INT(df);
@@ -2560,38 +4638,10 @@ static inline int64_t msa_subsuu_s_df(uint32_t df, int64_t arg1, int64_t arg2)
     }
 }
 
-static inline int64_t msa_asub_s_df(uint32_t df, int64_t arg1, int64_t arg2)
-{
-    /* signed compare */
-    return (arg1 < arg2) ?
-        (uint64_t)(arg2 - arg1) : (uint64_t)(arg1 - arg2);
-}
-
-static inline uint64_t msa_asub_u_df(uint32_t df, uint64_t arg1, uint64_t arg2)
-{
-    uint64_t u_arg1 = UNSIGNED(arg1, df);
-    uint64_t u_arg2 = UNSIGNED(arg2, df);
-    /* unsigned compare */
-    return (u_arg1 < u_arg2) ?
-        (uint64_t)(u_arg2 - u_arg1) : (uint64_t)(u_arg1 - u_arg2);
-}
-
 static inline int64_t msa_mulv_df(uint32_t df, int64_t arg1, int64_t arg2)
 {
     return arg1 * arg2;
 }
-
-#define SIGNED_EVEN(a, df) \
-        ((((int64_t)(a)) << (64 - DF_BITS(df) / 2)) >> (64 - DF_BITS(df) / 2))
-
-#define UNSIGNED_EVEN(a, df) \
-        ((((uint64_t)(a)) << (64 - DF_BITS(df) / 2)) >> (64 - DF_BITS(df) / 2))
-
-#define SIGNED_ODD(a, df) \
-        ((((int64_t)(a)) << (64 - DF_BITS(df))) >> (64 - DF_BITS(df) / 2))
-
-#define UNSIGNED_ODD(a, df) \
-        ((((uint64_t)(a)) << (64 - DF_BITS(df))) >> (64 - DF_BITS(df) / 2))
 
 #define SIGNED_EXTRACT(e, o, a, df)     \
     do {                                \
@@ -2669,26 +4719,6 @@ static inline void msa_sld_df(uint32_t df, wr_t *pwd,
     }
 }
 
-static inline int64_t msa_hadd_s_df(uint32_t df, int64_t arg1, int64_t arg2)
-{
-    return SIGNED_ODD(arg1, df) + SIGNED_EVEN(arg2, df);
-}
-
-static inline int64_t msa_hadd_u_df(uint32_t df, int64_t arg1, int64_t arg2)
-{
-    return UNSIGNED_ODD(arg1, df) + UNSIGNED_EVEN(arg2, df);
-}
-
-static inline int64_t msa_hsub_s_df(uint32_t df, int64_t arg1, int64_t arg2)
-{
-    return SIGNED_ODD(arg1, df) - SIGNED_EVEN(arg2, df);
-}
-
-static inline int64_t msa_hsub_u_df(uint32_t df, int64_t arg1, int64_t arg2)
-{
-    return UNSIGNED_ODD(arg1, df) - UNSIGNED_EVEN(arg2, df);
-}
-
 static inline int64_t msa_mul_q_df(uint32_t df, int64_t arg1, int64_t arg2)
 {
     int64_t q_min = DF_MIN_INT(df);
@@ -2764,36 +4794,14 @@ void helper_msa_ ## func ## _df(CPUMIPSState *env, uint32_t df,         \
     }                                                                   \
 }
 
-MSA_BINOP_DF(sll)
-MSA_BINOP_DF(sra)
-MSA_BINOP_DF(srl)
-MSA_BINOP_DF(addv)
 MSA_BINOP_DF(subv)
-MSA_BINOP_DF(max_s)
-MSA_BINOP_DF(max_u)
-MSA_BINOP_DF(min_s)
-MSA_BINOP_DF(min_u)
-MSA_BINOP_DF(max_a)
-MSA_BINOP_DF(min_a)
-MSA_BINOP_DF(add_a)
-MSA_BINOP_DF(adds_a)
-MSA_BINOP_DF(adds_s)
-MSA_BINOP_DF(adds_u)
 MSA_BINOP_DF(subs_s)
 MSA_BINOP_DF(subs_u)
 MSA_BINOP_DF(subsus_u)
 MSA_BINOP_DF(subsuu_s)
-MSA_BINOP_DF(asub_s)
-MSA_BINOP_DF(asub_u)
 MSA_BINOP_DF(mulv)
 MSA_BINOP_DF(dotp_s)
 MSA_BINOP_DF(dotp_u)
-MSA_BINOP_DF(srar)
-MSA_BINOP_DF(srlr)
-MSA_BINOP_DF(hadd_s)
-MSA_BINOP_DF(hadd_u)
-MSA_BINOP_DF(hsub_s)
-MSA_BINOP_DF(hsub_u)
 
 MSA_BINOP_DF(mul_q)
 MSA_BINOP_DF(mulr_q)
@@ -3127,535 +5135,6 @@ MSA_FN_DF(vshf_df)
 #undef MSA_DO
 #undef MSA_LOOP_COND
 #undef MSA_FN_DF
-
-
-void helper_msa_ilvev_df(CPUMIPSState *env, uint32_t df, uint32_t wd,
-                         uint32_t ws, uint32_t wt)
-{
-    wr_t *pwd = &(env->active_fpu.fpr[wd].wr);
-    wr_t *pws = &(env->active_fpu.fpr[ws].wr);
-    wr_t *pwt = &(env->active_fpu.fpr[wt].wr);
-
-    switch (df) {
-    case DF_BYTE:
-#if defined(HOST_WORDS_BIGENDIAN)
-        pwd->b[8]  = pws->b[9];
-        pwd->b[9]  = pwt->b[9];
-        pwd->b[10] = pws->b[11];
-        pwd->b[11] = pwt->b[11];
-        pwd->b[12] = pws->b[13];
-        pwd->b[13] = pwt->b[13];
-        pwd->b[14] = pws->b[15];
-        pwd->b[15] = pwt->b[15];
-        pwd->b[0]  = pws->b[1];
-        pwd->b[1]  = pwt->b[1];
-        pwd->b[2]  = pws->b[3];
-        pwd->b[3]  = pwt->b[3];
-        pwd->b[4]  = pws->b[5];
-        pwd->b[5]  = pwt->b[5];
-        pwd->b[6]  = pws->b[7];
-        pwd->b[7]  = pwt->b[7];
-#else
-        pwd->b[15] = pws->b[14];
-        pwd->b[14] = pwt->b[14];
-        pwd->b[13] = pws->b[12];
-        pwd->b[12] = pwt->b[12];
-        pwd->b[11] = pws->b[10];
-        pwd->b[10] = pwt->b[10];
-        pwd->b[9]  = pws->b[8];
-        pwd->b[8]  = pwt->b[8];
-        pwd->b[7]  = pws->b[6];
-        pwd->b[6]  = pwt->b[6];
-        pwd->b[5]  = pws->b[4];
-        pwd->b[4]  = pwt->b[4];
-        pwd->b[3]  = pws->b[2];
-        pwd->b[2]  = pwt->b[2];
-        pwd->b[1]  = pws->b[0];
-        pwd->b[0]  = pwt->b[0];
-#endif
-        break;
-    case DF_HALF:
-#if defined(HOST_WORDS_BIGENDIAN)
-        pwd->h[4] = pws->h[5];
-        pwd->h[5] = pwt->h[5];
-        pwd->h[6] = pws->h[7];
-        pwd->h[7] = pwt->h[7];
-        pwd->h[0] = pws->h[1];
-        pwd->h[1] = pwt->h[1];
-        pwd->h[2] = pws->h[3];
-        pwd->h[3] = pwt->h[3];
-#else
-        pwd->h[7] = pws->h[6];
-        pwd->h[6] = pwt->h[6];
-        pwd->h[5] = pws->h[4];
-        pwd->h[4] = pwt->h[4];
-        pwd->h[3] = pws->h[2];
-        pwd->h[2] = pwt->h[2];
-        pwd->h[1] = pws->h[0];
-        pwd->h[0] = pwt->h[0];
-#endif
-        break;
-    case DF_WORD:
-#if defined(HOST_WORDS_BIGENDIAN)
-        pwd->w[2] = pws->w[3];
-        pwd->w[3] = pwt->w[3];
-        pwd->w[0] = pws->w[1];
-        pwd->w[1] = pwt->w[1];
-#else
-        pwd->w[3] = pws->w[2];
-        pwd->w[2] = pwt->w[2];
-        pwd->w[1] = pws->w[0];
-        pwd->w[0] = pwt->w[0];
-#endif
-        break;
-    case DF_DOUBLE:
-        pwd->d[1] = pws->d[0];
-        pwd->d[0] = pwt->d[0];
-        break;
-    default:
-        assert(0);
-    }
-}
-
-void helper_msa_ilvod_df(CPUMIPSState *env, uint32_t df, uint32_t wd,
-                         uint32_t ws, uint32_t wt)
-{
-    wr_t *pwd = &(env->active_fpu.fpr[wd].wr);
-    wr_t *pws = &(env->active_fpu.fpr[ws].wr);
-    wr_t *pwt = &(env->active_fpu.fpr[wt].wr);
-
-    switch (df) {
-    case DF_BYTE:
-#if defined(HOST_WORDS_BIGENDIAN)
-        pwd->b[7]  = pwt->b[6];
-        pwd->b[6]  = pws->b[6];
-        pwd->b[5]  = pwt->b[4];
-        pwd->b[4]  = pws->b[4];
-        pwd->b[3]  = pwt->b[2];
-        pwd->b[2]  = pws->b[2];
-        pwd->b[1]  = pwt->b[0];
-        pwd->b[0]  = pws->b[0];
-        pwd->b[15] = pwt->b[14];
-        pwd->b[14] = pws->b[14];
-        pwd->b[13] = pwt->b[12];
-        pwd->b[12] = pws->b[12];
-        pwd->b[11] = pwt->b[10];
-        pwd->b[10] = pws->b[10];
-        pwd->b[9]  = pwt->b[8];
-        pwd->b[8]  = pws->b[8];
-#else
-        pwd->b[0]  = pwt->b[1];
-        pwd->b[1]  = pws->b[1];
-        pwd->b[2]  = pwt->b[3];
-        pwd->b[3]  = pws->b[3];
-        pwd->b[4]  = pwt->b[5];
-        pwd->b[5]  = pws->b[5];
-        pwd->b[6]  = pwt->b[7];
-        pwd->b[7]  = pws->b[7];
-        pwd->b[8]  = pwt->b[9];
-        pwd->b[9]  = pws->b[9];
-        pwd->b[10] = pwt->b[11];
-        pwd->b[11] = pws->b[11];
-        pwd->b[12] = pwt->b[13];
-        pwd->b[13] = pws->b[13];
-        pwd->b[14] = pwt->b[15];
-        pwd->b[15] = pws->b[15];
-#endif
-        break;
-    case DF_HALF:
-#if defined(HOST_WORDS_BIGENDIAN)
-        pwd->h[3] = pwt->h[2];
-        pwd->h[2] = pws->h[2];
-        pwd->h[1] = pwt->h[0];
-        pwd->h[0] = pws->h[0];
-        pwd->h[7] = pwt->h[6];
-        pwd->h[6] = pws->h[6];
-        pwd->h[5] = pwt->h[4];
-        pwd->h[4] = pws->h[4];
-#else
-        pwd->h[0] = pwt->h[1];
-        pwd->h[1] = pws->h[1];
-        pwd->h[2] = pwt->h[3];
-        pwd->h[3] = pws->h[3];
-        pwd->h[4] = pwt->h[5];
-        pwd->h[5] = pws->h[5];
-        pwd->h[6] = pwt->h[7];
-        pwd->h[7] = pws->h[7];
-#endif
-        break;
-    case DF_WORD:
-#if defined(HOST_WORDS_BIGENDIAN)
-        pwd->w[1] = pwt->w[0];
-        pwd->w[0] = pws->w[0];
-        pwd->w[3] = pwt->w[2];
-        pwd->w[2] = pws->w[2];
-#else
-        pwd->w[0] = pwt->w[1];
-        pwd->w[1] = pws->w[1];
-        pwd->w[2] = pwt->w[3];
-        pwd->w[3] = pws->w[3];
-#endif
-        break;
-    case DF_DOUBLE:
-        pwd->d[0] = pwt->d[1];
-        pwd->d[1] = pws->d[1];
-        break;
-    default:
-        assert(0);
-    }
-}
-
-void helper_msa_ilvl_df(CPUMIPSState *env, uint32_t df, uint32_t wd,
-                        uint32_t ws, uint32_t wt)
-{
-    wr_t *pwd = &(env->active_fpu.fpr[wd].wr);
-    wr_t *pws = &(env->active_fpu.fpr[ws].wr);
-    wr_t *pwt = &(env->active_fpu.fpr[wt].wr);
-
-    switch (df) {
-    case DF_BYTE:
-#if defined(HOST_WORDS_BIGENDIAN)
-        pwd->b[7]  = pwt->b[15];
-        pwd->b[6]  = pws->b[15];
-        pwd->b[5]  = pwt->b[14];
-        pwd->b[4]  = pws->b[14];
-        pwd->b[3]  = pwt->b[13];
-        pwd->b[2]  = pws->b[13];
-        pwd->b[1]  = pwt->b[12];
-        pwd->b[0]  = pws->b[12];
-        pwd->b[15] = pwt->b[11];
-        pwd->b[14] = pws->b[11];
-        pwd->b[13] = pwt->b[10];
-        pwd->b[12] = pws->b[10];
-        pwd->b[11] = pwt->b[9];
-        pwd->b[10] = pws->b[9];
-        pwd->b[9]  = pwt->b[8];
-        pwd->b[8]  = pws->b[8];
-#else
-        pwd->b[0]  = pwt->b[8];
-        pwd->b[1]  = pws->b[8];
-        pwd->b[2]  = pwt->b[9];
-        pwd->b[3]  = pws->b[9];
-        pwd->b[4]  = pwt->b[10];
-        pwd->b[5]  = pws->b[10];
-        pwd->b[6]  = pwt->b[11];
-        pwd->b[7]  = pws->b[11];
-        pwd->b[8]  = pwt->b[12];
-        pwd->b[9]  = pws->b[12];
-        pwd->b[10] = pwt->b[13];
-        pwd->b[11] = pws->b[13];
-        pwd->b[12] = pwt->b[14];
-        pwd->b[13] = pws->b[14];
-        pwd->b[14] = pwt->b[15];
-        pwd->b[15] = pws->b[15];
-#endif
-        break;
-    case DF_HALF:
-#if defined(HOST_WORDS_BIGENDIAN)
-        pwd->h[3] = pwt->h[7];
-        pwd->h[2] = pws->h[7];
-        pwd->h[1] = pwt->h[6];
-        pwd->h[0] = pws->h[6];
-        pwd->h[7] = pwt->h[5];
-        pwd->h[6] = pws->h[5];
-        pwd->h[5] = pwt->h[4];
-        pwd->h[4] = pws->h[4];
-#else
-        pwd->h[0] = pwt->h[4];
-        pwd->h[1] = pws->h[4];
-        pwd->h[2] = pwt->h[5];
-        pwd->h[3] = pws->h[5];
-        pwd->h[4] = pwt->h[6];
-        pwd->h[5] = pws->h[6];
-        pwd->h[6] = pwt->h[7];
-        pwd->h[7] = pws->h[7];
-#endif
-        break;
-    case DF_WORD:
-#if defined(HOST_WORDS_BIGENDIAN)
-        pwd->w[1] = pwt->w[3];
-        pwd->w[0] = pws->w[3];
-        pwd->w[3] = pwt->w[2];
-        pwd->w[2] = pws->w[2];
-#else
-        pwd->w[0] = pwt->w[2];
-        pwd->w[1] = pws->w[2];
-        pwd->w[2] = pwt->w[3];
-        pwd->w[3] = pws->w[3];
-#endif
-        break;
-    case DF_DOUBLE:
-        pwd->d[0] = pwt->d[1];
-        pwd->d[1] = pws->d[1];
-        break;
-    default:
-        assert(0);
-    }
-}
-
-void helper_msa_ilvr_df(CPUMIPSState *env, uint32_t df, uint32_t wd,
-                        uint32_t ws, uint32_t wt)
-{
-    wr_t *pwd = &(env->active_fpu.fpr[wd].wr);
-    wr_t *pws = &(env->active_fpu.fpr[ws].wr);
-    wr_t *pwt = &(env->active_fpu.fpr[wt].wr);
-
-    switch (df) {
-    case DF_BYTE:
-#if defined(HOST_WORDS_BIGENDIAN)
-        pwd->b[8]  = pws->b[0];
-        pwd->b[9]  = pwt->b[0];
-        pwd->b[10] = pws->b[1];
-        pwd->b[11] = pwt->b[1];
-        pwd->b[12] = pws->b[2];
-        pwd->b[13] = pwt->b[2];
-        pwd->b[14] = pws->b[3];
-        pwd->b[15] = pwt->b[3];
-        pwd->b[0]  = pws->b[4];
-        pwd->b[1]  = pwt->b[4];
-        pwd->b[2]  = pws->b[5];
-        pwd->b[3]  = pwt->b[5];
-        pwd->b[4]  = pws->b[6];
-        pwd->b[5]  = pwt->b[6];
-        pwd->b[6]  = pws->b[7];
-        pwd->b[7]  = pwt->b[7];
-#else
-        pwd->b[15] = pws->b[7];
-        pwd->b[14] = pwt->b[7];
-        pwd->b[13] = pws->b[6];
-        pwd->b[12] = pwt->b[6];
-        pwd->b[11] = pws->b[5];
-        pwd->b[10] = pwt->b[5];
-        pwd->b[9]  = pws->b[4];
-        pwd->b[8]  = pwt->b[4];
-        pwd->b[7]  = pws->b[3];
-        pwd->b[6]  = pwt->b[3];
-        pwd->b[5]  = pws->b[2];
-        pwd->b[4]  = pwt->b[2];
-        pwd->b[3]  = pws->b[1];
-        pwd->b[2]  = pwt->b[1];
-        pwd->b[1]  = pws->b[0];
-        pwd->b[0]  = pwt->b[0];
-#endif
-        break;
-    case DF_HALF:
-#if defined(HOST_WORDS_BIGENDIAN)
-        pwd->h[4] = pws->h[0];
-        pwd->h[5] = pwt->h[0];
-        pwd->h[6] = pws->h[1];
-        pwd->h[7] = pwt->h[1];
-        pwd->h[0] = pws->h[2];
-        pwd->h[1] = pwt->h[2];
-        pwd->h[2] = pws->h[3];
-        pwd->h[3] = pwt->h[3];
-#else
-        pwd->h[7] = pws->h[3];
-        pwd->h[6] = pwt->h[3];
-        pwd->h[5] = pws->h[2];
-        pwd->h[4] = pwt->h[2];
-        pwd->h[3] = pws->h[1];
-        pwd->h[2] = pwt->h[1];
-        pwd->h[1] = pws->h[0];
-        pwd->h[0] = pwt->h[0];
-#endif
-        break;
-    case DF_WORD:
-#if defined(HOST_WORDS_BIGENDIAN)
-        pwd->w[2] = pws->w[0];
-        pwd->w[3] = pwt->w[0];
-        pwd->w[0] = pws->w[1];
-        pwd->w[1] = pwt->w[1];
-#else
-        pwd->w[3] = pws->w[1];
-        pwd->w[2] = pwt->w[1];
-        pwd->w[1] = pws->w[0];
-        pwd->w[0] = pwt->w[0];
-#endif
-        break;
-    case DF_DOUBLE:
-        pwd->d[1] = pws->d[0];
-        pwd->d[0] = pwt->d[0];
-        break;
-    default:
-        assert(0);
-    }
-}
-
-void helper_msa_pckev_df(CPUMIPSState *env, uint32_t df, uint32_t wd,
-                         uint32_t ws, uint32_t wt)
-{
-    wr_t *pwd = &(env->active_fpu.fpr[wd].wr);
-    wr_t *pws = &(env->active_fpu.fpr[ws].wr);
-    wr_t *pwt = &(env->active_fpu.fpr[wt].wr);
-
-    switch (df) {
-    case DF_BYTE:
-#if defined(HOST_WORDS_BIGENDIAN)
-        pwd->b[8]  = pws->b[9];
-        pwd->b[10] = pws->b[13];
-        pwd->b[12] = pws->b[1];
-        pwd->b[14] = pws->b[5];
-        pwd->b[0]  = pwt->b[9];
-        pwd->b[2]  = pwt->b[13];
-        pwd->b[4]  = pwt->b[1];
-        pwd->b[6]  = pwt->b[5];
-        pwd->b[9]  = pws->b[11];
-        pwd->b[13] = pws->b[3];
-        pwd->b[1]  = pwt->b[11];
-        pwd->b[5]  = pwt->b[3];
-        pwd->b[11] = pws->b[15];
-        pwd->b[3]  = pwt->b[15];
-        pwd->b[15] = pws->b[7];
-        pwd->b[7]  = pwt->b[7];
-#else
-        pwd->b[15] = pws->b[14];
-        pwd->b[13] = pws->b[10];
-        pwd->b[11] = pws->b[6];
-        pwd->b[9]  = pws->b[2];
-        pwd->b[7]  = pwt->b[14];
-        pwd->b[5]  = pwt->b[10];
-        pwd->b[3]  = pwt->b[6];
-        pwd->b[1]  = pwt->b[2];
-        pwd->b[14] = pws->b[12];
-        pwd->b[10] = pws->b[4];
-        pwd->b[6]  = pwt->b[12];
-        pwd->b[2]  = pwt->b[4];
-        pwd->b[12] = pws->b[8];
-        pwd->b[4]  = pwt->b[8];
-        pwd->b[8]  = pws->b[0];
-        pwd->b[0]  = pwt->b[0];
-#endif
-        break;
-    case DF_HALF:
-#if defined(HOST_WORDS_BIGENDIAN)
-        pwd->h[4] = pws->h[5];
-        pwd->h[6] = pws->h[1];
-        pwd->h[0] = pwt->h[5];
-        pwd->h[2] = pwt->h[1];
-        pwd->h[5] = pws->h[7];
-        pwd->h[1] = pwt->h[7];
-        pwd->h[7] = pws->h[3];
-        pwd->h[3] = pwt->h[3];
-#else
-        pwd->h[7] = pws->h[6];
-        pwd->h[5] = pws->h[2];
-        pwd->h[3] = pwt->h[6];
-        pwd->h[1] = pwt->h[2];
-        pwd->h[6] = pws->h[4];
-        pwd->h[2] = pwt->h[4];
-        pwd->h[4] = pws->h[0];
-        pwd->h[0] = pwt->h[0];
-#endif
-        break;
-    case DF_WORD:
-#if defined(HOST_WORDS_BIGENDIAN)
-        pwd->w[2] = pws->w[3];
-        pwd->w[0] = pwt->w[3];
-        pwd->w[3] = pws->w[1];
-        pwd->w[1] = pwt->w[1];
-#else
-        pwd->w[3] = pws->w[2];
-        pwd->w[1] = pwt->w[2];
-        pwd->w[2] = pws->w[0];
-        pwd->w[0] = pwt->w[0];
-#endif
-        break;
-    case DF_DOUBLE:
-        pwd->d[1] = pws->d[0];
-        pwd->d[0] = pwt->d[0];
-        break;
-    default:
-        assert(0);
-    }
-}
-
-void helper_msa_pckod_df(CPUMIPSState *env, uint32_t df, uint32_t wd,
-                         uint32_t ws, uint32_t wt)
-{
-    wr_t *pwd = &(env->active_fpu.fpr[wd].wr);
-    wr_t *pws = &(env->active_fpu.fpr[ws].wr);
-    wr_t *pwt = &(env->active_fpu.fpr[wt].wr);
-
-    switch (df) {
-    case DF_BYTE:
-#if defined(HOST_WORDS_BIGENDIAN)
-        pwd->b[7]  = pwt->b[6];
-        pwd->b[5]  = pwt->b[2];
-        pwd->b[3]  = pwt->b[14];
-        pwd->b[1]  = pwt->b[10];
-        pwd->b[15] = pws->b[6];
-        pwd->b[13] = pws->b[2];
-        pwd->b[11] = pws->b[14];
-        pwd->b[9]  = pws->b[10];
-        pwd->b[6]  = pwt->b[4];
-        pwd->b[2]  = pwt->b[12];
-        pwd->b[14] = pws->b[4];
-        pwd->b[10] = pws->b[12];
-        pwd->b[4]  = pwt->b[0];
-        pwd->b[12] = pws->b[0];
-        pwd->b[0]  = pwt->b[8];
-        pwd->b[8]  = pws->b[8];
-#else
-        pwd->b[0]  = pwt->b[1];
-        pwd->b[2]  = pwt->b[5];
-        pwd->b[4]  = pwt->b[9];
-        pwd->b[6]  = pwt->b[13];
-        pwd->b[8]  = pws->b[1];
-        pwd->b[10] = pws->b[5];
-        pwd->b[12] = pws->b[9];
-        pwd->b[14] = pws->b[13];
-        pwd->b[1]  = pwt->b[3];
-        pwd->b[5]  = pwt->b[11];
-        pwd->b[9]  = pws->b[3];
-        pwd->b[13] = pws->b[11];
-        pwd->b[3]  = pwt->b[7];
-        pwd->b[11] = pws->b[7];
-        pwd->b[7]  = pwt->b[15];
-        pwd->b[15] = pws->b[15];
-#endif
-        break;
-    case DF_HALF:
-#if defined(HOST_WORDS_BIGENDIAN)
-        pwd->h[3] = pwt->h[2];
-        pwd->h[1] = pwt->h[6];
-        pwd->h[7] = pws->h[2];
-        pwd->h[5] = pws->h[6];
-        pwd->h[2] = pwt->h[0];
-        pwd->h[6] = pws->h[0];
-        pwd->h[0] = pwt->h[4];
-        pwd->h[4] = pws->h[4];
-#else
-        pwd->h[0] = pwt->h[1];
-        pwd->h[2] = pwt->h[5];
-        pwd->h[4] = pws->h[1];
-        pwd->h[6] = pws->h[5];
-        pwd->h[1] = pwt->h[3];
-        pwd->h[5] = pws->h[3];
-        pwd->h[3] = pwt->h[7];
-        pwd->h[7] = pws->h[7];
-#endif
-        break;
-    case DF_WORD:
-#if defined(HOST_WORDS_BIGENDIAN)
-        pwd->w[1] = pwt->w[0];
-        pwd->w[3] = pws->w[0];
-        pwd->w[0] = pwt->w[2];
-        pwd->w[2] = pws->w[2];
-#else
-        pwd->w[0] = pwt->w[1];
-        pwd->w[2] = pws->w[1];
-        pwd->w[1] = pwt->w[3];
-        pwd->w[3] = pws->w[3];
-#endif
-        break;
-    case DF_DOUBLE:
-        pwd->d[0] = pwt->d[1];
-        pwd->d[1] = pws->d[1];
-        break;
-    default:
-        assert(0);
-    }
-}
 
 
 void helper_msa_sldi_df(CPUMIPSState *env, uint32_t df, uint32_t wd,
