@@ -88,6 +88,10 @@ struct AspeedBoardState {
 /* Witherspoon hardware value: 0xF10AD216 (but use romulus definition) */
 #define WITHERSPOON_BMC_HW_STRAP1 ROMULUS_BMC_HW_STRAP1
 
+/* AST2600 evb hardware value */
+#define AST2600_EVB_HW_STRAP1 0x000000C0
+#define AST2600_EVB_HW_STRAP2 0x00000003
+
 /*
  * The max ram region is for firmwares that scan the address space
  * with load/store to guess how much RAM the SoC has.
@@ -186,6 +190,8 @@ static void aspeed_board_init(MachineState *machine,
     object_property_set_uint(OBJECT(&bmc->soc), ram_size, "ram-size",
                              &error_abort);
     object_property_set_int(OBJECT(&bmc->soc), cfg->hw_strap1, "hw-strap1",
+                            &error_abort);
+    object_property_set_int(OBJECT(&bmc->soc), cfg->hw_strap2, "hw-strap2",
                             &error_abort);
     object_property_set_int(OBJECT(&bmc->soc), cfg->num_cs, "num-cs",
                             &error_abort);
@@ -306,6 +312,12 @@ static void ast2500_evb_i2c_init(AspeedBoardState *bmc)
     /* The AST2500 EVB does not have an RTC. Let's pretend that one is
      * plugged on the I2C bus header */
     i2c_create_slave(aspeed_i2c_get_bus(DEVICE(&soc->i2c), 11), "ds1338", 0x32);
+}
+
+static void ast2600_evb_i2c_init(AspeedBoardState *bmc)
+{
+    /* Start with some devices on our I2C busses */
+    ast2500_evb_i2c_init(bmc);
 }
 
 static void romulus_bmc_i2c_init(AspeedBoardState *bmc)
@@ -455,6 +467,17 @@ static const AspeedBoardConfig aspeed_boards[] = {
         .num_cs    = 2,
         .i2c_init  = witherspoon_bmc_i2c_init,
         .ram       = 512 * MiB,
+    }, {
+        .name      = MACHINE_TYPE_NAME("ast2600-evb"),
+        .desc      = "Aspeed AST2600 EVB (Cortex A7)",
+        .soc_name  = "ast2600-a0",
+        .hw_strap1 = AST2600_EVB_HW_STRAP1,
+        .hw_strap2 = AST2600_EVB_HW_STRAP2,
+        .fmc_model = "w25q512jv",
+        .spi_model = "mx66u51235f",
+        .num_cs    = 1,
+        .i2c_init  = ast2600_evb_i2c_init,
+        .ram       = 1 * GiB,
     },
 };
 

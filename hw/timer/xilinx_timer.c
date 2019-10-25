@@ -28,7 +28,6 @@
 #include "hw/ptimer.h"
 #include "hw/qdev-properties.h"
 #include "qemu/log.h"
-#include "qemu/main-loop.h"
 #include "qemu/module.h"
 
 #define D(x)
@@ -52,7 +51,6 @@
 
 struct xlx_timer
 {
-    QEMUBH *bh;
     ptimer_state *ptimer;
     void *parent;
     int nr; /* for debug.  */
@@ -134,6 +132,7 @@ timer_read(void *opaque, hwaddr addr, unsigned int size)
     return r;
 }
 
+/* Must be called inside ptimer transaction block */
 static void timer_enable(struct xlx_timer *xt)
 {
     uint64_t count;
@@ -174,8 +173,11 @@ timer_write(void *opaque, hwaddr addr,
                 value &= ~TCSR_TINT;
 
             xt->regs[addr] = value & 0x7ff;
-            if (value & TCSR_ENT)
+            if (value & TCSR_ENT) {
+                ptimer_transaction_begin(xt->ptimer);
                 timer_enable(xt);
+                ptimer_transaction_commit(xt->ptimer);
+            }
             break;
  
         default:
@@ -220,9 +222,10 @@ static void xilinx_timer_realize(DeviceState *dev, Error **errp)
 
         xt->parent = t;
         xt->nr = i;
-        xt->bh = qemu_bh_new(timer_hit, xt);
-        xt->ptimer = ptimer_init_with_bh(xt->bh, PTIMER_POLICY_DEFAULT);
+        xt->ptimer = ptimer_init(timer_hit, xt, PTIMER_POLICY_DEFAULT);
+        ptimer_transaction_begin(xt->ptimer);
         ptimer_set_freq(xt->ptimer, t->freq_hz);
+        ptimer_transaction_commit(xt->ptimer);
     }
 
     memory_region_init_io(&t->mmio, OBJECT(t), &timer_ops, t, "xlnx.xps-timer",

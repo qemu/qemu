@@ -34,7 +34,6 @@
 #include "etsec.h"
 #include "registers.h"
 #include "qemu/log.h"
-#include "qemu/main-loop.h"
 #include "qemu/module.h"
 
 /* #define HEX_DUMP */
@@ -195,9 +194,11 @@ static void write_dmactrl(eTSEC          *etsec,
 
     if (!(value & DMACTRL_WOP)) {
         /* Start polling */
+        ptimer_transaction_begin(etsec->ptimer);
         ptimer_stop(etsec->ptimer);
         ptimer_set_count(etsec->ptimer, 1);
         ptimer_run(etsec->ptimer, 1);
+        ptimer_transaction_commit(etsec->ptimer);
     }
 }
 
@@ -391,10 +392,10 @@ static void etsec_realize(DeviceState *dev, Error **errp)
                               object_get_typename(OBJECT(dev)), dev->id, etsec);
     qemu_format_nic_info_str(qemu_get_queue(etsec->nic), etsec->conf.macaddr.a);
 
-
-    etsec->bh     = qemu_bh_new(etsec_timer_hit, etsec);
-    etsec->ptimer = ptimer_init_with_bh(etsec->bh, PTIMER_POLICY_DEFAULT);
+    etsec->ptimer = ptimer_init(etsec_timer_hit, etsec, PTIMER_POLICY_DEFAULT);
+    ptimer_transaction_begin(etsec->ptimer);
     ptimer_set_freq(etsec->ptimer, 100);
+    ptimer_transaction_commit(etsec->ptimer);
 }
 
 static void etsec_instance_init(Object *obj)

@@ -440,6 +440,7 @@ void target_cpu_copy_regs(CPUArchState *env, struct target_pt_regs *regs)
     } else {
         env->cp15.sctlr_el[1] |= SCTLR_B;
     }
+    arm_rebuild_hflags(env);
 #endif
 
     ts->stack_base = info->start_stack;
