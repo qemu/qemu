@@ -1088,11 +1088,11 @@ void hmp_commit(Monitor *mon, const QDict *qdict)
 
         blk = blk_by_name(device);
         if (!blk) {
-            monitor_printf(mon, "Device '%s' not found\n", device);
+            error_report("Device '%s' not found", device);
             return;
         }
         if (!blk_is_available(blk)) {
-            monitor_printf(mon, "Device '%s' has no medium\n", device);
+            error_report("Device '%s' has no medium", device);
             return;
         }
 
@@ -1105,8 +1105,7 @@ void hmp_commit(Monitor *mon, const QDict *qdict)
         aio_context_release(aio_context);
     }
     if (ret < 0) {
-        monitor_printf(mon, "'commit' error for '%s': %s\n", device,
-                       strerror(-ret));
+        error_report("'commit' error for '%s': %s", device, strerror(-ret));
     }
 }
 
