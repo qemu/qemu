@@ -13,7 +13,7 @@
 
 #include "qemu/osdep.h"
 #include "qemu-common.h"
-#include "hw/timer/pl031.h"
+#include "hw/rtc/pl031.h"
 #include "migration/vmstate.h"
 #include "hw/irq.h"
 #include "hw/qdev-properties.h"

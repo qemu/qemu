@@ -322,11 +322,7 @@ int qemu_timeout_ns_to_ms(int64_t ns)
     ms = DIV_ROUND_UP(ns, SCALE_MS);
 
     /* To avoid overflow problems, limit this to 2^31, i.e. approx 25 days */
-    if (ms > (int64_t) INT32_MAX) {
-        ms = INT32_MAX;
-    }
-
-    return (int) ms;
+    return MIN(ms, INT32_MAX);
 }
 
 

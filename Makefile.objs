@@ -173,6 +173,7 @@ trace-events-subdirs += hw/pci-host
 trace-events-subdirs += hw/ppc
 trace-events-subdirs += hw/rdma
 trace-events-subdirs += hw/rdma/vmw
+trace-events-subdirs += hw/rtc
 trace-events-subdirs += hw/s390x
 trace-events-subdirs += hw/scsi
 trace-events-subdirs += hw/sd

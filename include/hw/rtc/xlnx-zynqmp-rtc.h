@@ -3,7 +3,7 @@
  *
  * Copyright (c) 2017 Xilinx Inc.
  *
- * Written-by: Alistair Francis <alistair.francis@xilinx.com>
+ * Written-by: Alistair Francis
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -24,8 +24,8 @@
  * THE SOFTWARE.
  */
 
-#ifndef HW_TIMER_XLNX_ZYNQMP_RTC_H
-#define HW_TIMER_XLNX_ZYNQMP_RTC_H
+#ifndef HW_RTC_XLNX_ZYNQMP_H
+#define HW_RTC_XLNX_ZYNQMP_H
 
 #include "hw/register.h"
 #include "hw/sysbus.h"

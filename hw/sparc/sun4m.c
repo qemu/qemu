@@ -31,7 +31,7 @@
 #include "qemu/error-report.h"
 #include "qemu/timer.h"
 #include "hw/sparc/sun4m_iommu.h"
-#include "hw/timer/m48t59.h"
+#include "hw/rtc/m48t59.h"
 #include "migration/vmstate.h"
 #include "hw/sparc/sparc32_dma.h"
 #include "hw/block/fdc.h"

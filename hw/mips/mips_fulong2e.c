@@ -39,7 +39,7 @@
 #include "hw/ide.h"
 #include "elf.h"
 #include "hw/isa/vt82c686.h"
-#include "hw/timer/mc146818rtc.h"
+#include "hw/rtc/mc146818rtc.h"
 #include "hw/timer/i8254.h"
 #include "exec/address-spaces.h"
 #include "sysemu/qtest.h"
