@@ -1490,12 +1490,9 @@ static ssize_t virtio_net_receive_rcu(NetClientState *nc, const uint8_t *buf,
 static ssize_t virtio_net_do_receive(NetClientState *nc, const uint8_t *buf,
                                   size_t size)
 {
-    ssize_t r;
+    RCU_READ_LOCK_GUARD();
 
-    rcu_read_lock();
-    r = virtio_net_receive_rcu(nc, buf, size);
-    rcu_read_unlock();
-    return r;
+    return virtio_net_receive_rcu(nc, buf, size);
 }
 
 static void virtio_net_rsc_extract_unit4(VirtioNetRscChain *chain,
