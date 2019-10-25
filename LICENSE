@@ -18,8 +18,9 @@ As of July 2013, contributions under version 2 of the GNU General Public
 License (and no later version) are only accepted for the following files
 or directories: bsd-user/, linux-user/, hw/vfio/, hw/xen/xen_pt*.
 
-3) The Tiny Code Generator (TCG) is released under the BSD license
-   (see license headers in files).
+3) The Tiny Code Generator (TCG) is mostly under the BSD or MIT licenses;
+   but some parts may be GPLv2 or other licenses. Again, see the
+   specific licensing information in each source file.
 
 4) QEMU is a trademark of Fabrice Bellard.
 
