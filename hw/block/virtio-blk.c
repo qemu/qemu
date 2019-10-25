@@ -1052,7 +1052,7 @@ static void virtio_blk_save_device(VirtIODevice *vdev, QEMUFile *f)
             qemu_put_be32(f, virtio_get_queue_index(req->vq));
         }
 
-        qemu_put_virtqueue_element(f, &req->elem);
+        qemu_put_virtqueue_element(vdev, f, &req->elem);
         req = req->next;
     }
     qemu_put_sbyte(f, 0);
