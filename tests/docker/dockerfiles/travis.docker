@@ -1,4 +1,8 @@
-FROM travisci/ci-sardonyx:packer-1546978056-2c98a19
+#
+# Travis Image - this is broadly the same image that we run our CI
+# tests on.
+#
+FROM travisci/ci-sardonyx:packer-1552557266-f909ac5
 ENV DEBIAN_FRONTEND noninteractive
 ENV LANG en_US.UTF-8
 ENV LC_ALL en_US.UTF-8

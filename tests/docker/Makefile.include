@@ -2,6 +2,8 @@
 
 .PHONY: docker docker-test docker-clean docker-image docker-qemu-src
 
+HOST_ARCH = $(if $(ARCH),$(ARCH),$(shell uname -m))
+
 DOCKER_SUFFIX := .docker
 DOCKER_FILES_DIR := $(SRC_PATH)/tests/docker/dockerfiles
 # we don't run tests on intermediate images (used as base by another image)
@@ -88,7 +90,7 @@ endif
 
 # Enforce dependencies for composite images
 docker-image-debian9-mxe: docker-image-debian9
-ifeq ($(ARCH),x86_64)
+ifeq ($(HOST_ARCH),x86_64)
 docker-image-debian-amd64: docker-image-debian9
 DOCKER_PARTIAL_IMAGES += debian-amd64-cross
 else
@@ -106,7 +108,7 @@ docker-image-debian-win32-cross: docker-image-debian9-mxe
 docker-image-debian-win64-cross: docker-image-debian9-mxe
 
 # For non-x86 hosts not all cross-compilers have been packaged
-ifneq ($(ARCH),x86_64)
+ifneq ($(HOST_ARCH),x86_64)
 DOCKER_PARTIAL_IMAGES += debian-mips-cross debian-mipsel-cross debian-mips64el-cross
 DOCKER_PARTIAL_IMAGES += debian-ppc64el-cross
 DOCKER_PARTIAL_IMAGES += debian-s390x-cross
