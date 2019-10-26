@@ -1869,6 +1869,8 @@ F: util/hbitmap.c
 F: block/dirty-bitmap.c
 F: include/qemu/hbitmap.h
 F: include/block/dirty-bitmap.h
+F: qcow2-bitmap.c
+F: migration/block-dirty-bitmap.c
 F: tests/test-hbitmap.c
 F: docs/interop/bitmaps.rst
 T: git https://github.com/jnsnow/qemu.git bitmaps
