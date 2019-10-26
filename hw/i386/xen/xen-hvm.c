@@ -197,11 +197,13 @@ qemu_irq *xen_interrupt_controller_init(void)
 static void xen_ram_init(PCMachineState *pcms,
                          ram_addr_t ram_size, MemoryRegion **ram_memory_p)
 {
+    X86MachineState *x86ms = X86_MACHINE(pcms);
     MemoryRegion *sysmem = get_system_memory();
     ram_addr_t block_len;
-    uint64_t user_lowmem = object_property_get_uint(qdev_get_machine(),
-                                                    PC_MACHINE_MAX_RAM_BELOW_4G,
-                                                    &error_abort);
+    uint64_t user_lowmem =
+        object_property_get_uint(qdev_get_machine(),
+                                 X86_MACHINE_MAX_RAM_BELOW_4G,
+                                 &error_abort);
 
     /* Handle the machine opt max-ram-below-4g.  It is basically doing
      * min(xen limit, user limit).
@@ -214,20 +216,20 @@ static void xen_ram_init(PCMachineState *pcms,
     }
 
     if (ram_size >= user_lowmem) {
-        pcms->above_4g_mem_size = ram_size - user_lowmem;
-        pcms->below_4g_mem_size = user_lowmem;
+        x86ms->above_4g_mem_size = ram_size - user_lowmem;
+        x86ms->below_4g_mem_size = user_lowmem;
     } else {
-        pcms->above_4g_mem_size = 0;
-        pcms->below_4g_mem_size = ram_size;
+        x86ms->above_4g_mem_size = 0;
+        x86ms->below_4g_mem_size = ram_size;
     }
-    if (!pcms->above_4g_mem_size) {
+    if (!x86ms->above_4g_mem_size) {
         block_len = ram_size;
     } else {
         /*
          * Xen does not allocate the memory continuously, it keeps a
          * hole of the size computed above or passed in.
          */
-        block_len = (1ULL << 32) + pcms->above_4g_mem_size;
+        block_len = (1ULL << 32) + x86ms->above_4g_mem_size;
     }
     memory_region_init_ram(&ram_memory, NULL, "xen.ram", block_len,
                            &error_fatal);
@@ -244,12 +246,12 @@ static void xen_ram_init(PCMachineState *pcms,
      */
     memory_region_init_alias(&ram_lo, NULL, "xen.ram.lo",
                              &ram_memory, 0xc0000,
-                             pcms->below_4g_mem_size - 0xc0000);
+                             x86ms->below_4g_mem_size - 0xc0000);
     memory_region_add_subregion(sysmem, 0xc0000, &ram_lo);
-    if (pcms->above_4g_mem_size > 0) {
+    if (x86ms->above_4g_mem_size > 0) {
         memory_region_init_alias(&ram_hi, NULL, "xen.ram.hi",
                                  &ram_memory, 0x100000000ULL,
-                                 pcms->above_4g_mem_size);
+                                 x86ms->above_4g_mem_size);
         memory_region_add_subregion(sysmem, 0x100000000ULL, &ram_hi);
     }
 }
@@ -265,7 +267,7 @@ void xen_ram_alloc(ram_addr_t ram_addr, ram_addr_t size, MemoryRegion *mr,
         /* RAM already populated in Xen */
         fprintf(stderr, "%s: do not alloc "RAM_ADDR_FMT
                 " bytes of ram at "RAM_ADDR_FMT" when runstate is INMIGRATE\n",
-                __func__, size, ram_addr); 
+                __func__, size, ram_addr);
         return;
     }
 

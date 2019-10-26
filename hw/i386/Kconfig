@@ -92,6 +92,16 @@ config Q35
     select SMBIOS
     select FW_CFG_DMA
 
+config MICROVM
+    bool
+    imply SERIAL_ISA
+    select ISA_BUS
+    select APIC
+    select IOAPIC
+    select I8259
+    select MC146818RTC
+    select VIRTIO_MMIO
+
 config VTD
     bool
 

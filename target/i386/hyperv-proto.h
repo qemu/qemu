@@ -63,6 +63,7 @@
 #define HV_CLUSTER_IPI_RECOMMENDED          (1u << 10)
 #define HV_EX_PROCESSOR_MASKS_RECOMMENDED   (1u << 11)
 #define HV_ENLIGHTENED_VMCS_RECOMMENDED     (1u << 14)
+#define HV_NO_NONARCH_CORESHARING           (1u << 18)
 
 /*
  * Basic virtualized MSRs

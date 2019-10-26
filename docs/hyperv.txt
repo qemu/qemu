@@ -184,6 +184,19 @@ enabled.
 
 Requires: hv-vpindex, hv-synic, hv-time, hv-stimer
 
+3.17. hv-no-nonarch-coresharing=on/off/auto
+===========================================
+This enlightenment tells guest OS that virtual processors will never share a
+physical core unless they are reported as sibling SMT threads. This information
+is required by Windows and Hyper-V guests to properly mitigate SMT related CPU
+vulnerabilities.
+When the option is set to 'auto' QEMU will enable the feature only when KVM
+reports that non-architectural coresharing is impossible, this means that
+hyper-threading is not supported or completely disabled on the host. This
+setting also prevents migration as SMT settings on the destination may differ.
+When the option is set to 'on' QEMU will always enable the feature, regardless
+of host setup. To keep guests secure, this can only be used in conjunction with
+exposing correct vCPU topology and vCPU pinning.
 
 4. Development features
 ========================
