@@ -921,7 +921,9 @@ q800
 M: Laurent Vivier <laurent@vivier.eu>
 S: Maintained
 F: hw/misc/mac_via.c
+F: hw/nubus/*
 F: include/hw/misc/mac_via.h
+F: include/hw/nubus/*
 
 MicroBlaze Machines
 -------------------

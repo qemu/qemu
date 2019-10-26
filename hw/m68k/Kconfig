@@ -16,3 +16,4 @@ config NEXTCUBE
 config Q800
     bool
     select MAC_VIA
+    select NUBUS
