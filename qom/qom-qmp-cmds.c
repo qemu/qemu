@@ -142,16 +142,6 @@ static ObjectPropertyInfo *make_device_property_info(ObjectClass *klass,
                 continue;
             }
 
-            /*
-             * TODO Properties without a parser are just for dirty hacks.
-             * qdev_prop_ptr is the only such PropertyInfo.  It's marked
-             * for removal.  This conditional should be removed along with
-             * it.
-             */
-            if (!prop->info->set && !prop->info->create) {
-                return NULL;           /* no way to set it, don't show */
-            }
-
             info = g_malloc0(sizeof(*info));
             info->name = g_strdup(prop->name);
             info->type = default_type ? g_strdup(default_type)
