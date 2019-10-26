@@ -84,6 +84,34 @@ void esp_request_cancelled(SCSIRequest *req)
     }
 }
 
+static int get_cmd_cb(ESPState *s)
+{
+    int target;
+
+    target = s->wregs[ESP_WBUSID] & BUSID_DID;
+
+    s->ti_size = 0;
+    s->ti_rptr = 0;
+    s->ti_wptr = 0;
+
+    if (s->current_req) {
+        /* Started a new command before the old one finished.  Cancel it.  */
+        scsi_req_cancel(s->current_req);
+        s->async_len = 0;
+    }
+
+    s->current_dev = scsi_device_find(&s->bus, 0, target, 0);
+    if (!s->current_dev) {
+        /* No such drive */
+        s->rregs[ESP_RSTAT] = 0;
+        s->rregs[ESP_RINTR] = INTR_DC;
+        s->rregs[ESP_RSEQ] = SEQ_0;
+        esp_raise_irq(s);
+        return -1;
+    }
+    return 0;
+}
+
 static uint32_t get_cmd(ESPState *s, uint8_t *buf, uint8_t buflen)
 {
     uint32_t dmalen;
@@ -108,23 +136,7 @@ static uint32_t get_cmd(ESPState *s, uint8_t *buf, uint8_t buflen)
     }
     trace_esp_get_cmd(dmalen, target);
 
-    s->ti_size = 0;
-    s->ti_rptr = 0;
-    s->ti_wptr = 0;
-
-    if (s->current_req) {
-        /* Started a new command before the old one finished.  Cancel it.  */
-        scsi_req_cancel(s->current_req);
-        s->async_len = 0;
-    }
-
-    s->current_dev = scsi_device_find(&s->bus, 0, target, 0);
-    if (!s->current_dev) {
-        // No such drive
-        s->rregs[ESP_RSTAT] = 0;
-        s->rregs[ESP_RINTR] = INTR_DC;
-        s->rregs[ESP_RSEQ] = SEQ_0;
-        esp_raise_irq(s);
+    if (get_cmd_cb(s) < 0) {
         return 0;
     }
     return dmalen;
