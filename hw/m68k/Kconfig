@@ -12,3 +12,7 @@ config NEXTCUBE
     bool
     select FRAMEBUFFER
     select ESCC
+
+config Q800
+    bool
+    select MAC_VIA

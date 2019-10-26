@@ -917,6 +917,12 @@ F: hw/m68k/next-*.c
 F: hw/display/next-fb.c
 F: include/hw/m68k/next-cube.h
 
+q800
+M: Laurent Vivier <laurent@vivier.eu>
+S: Maintained
+F: hw/misc/mac_via.c
+F: include/hw/misc/mac_via.h
+
 MicroBlaze Machines
 -------------------
 petalogix_s3adsp1800

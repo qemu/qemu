@@ -120,4 +120,8 @@ config AUX
 config UNIMP
     bool
 
+config MAC_VIA
+    bool
+    select MOS6522
+
 source macio/Kconfig
