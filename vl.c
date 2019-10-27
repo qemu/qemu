@@ -1744,6 +1744,9 @@ static bool main_loop_should_exit(void)
     RunState r;
     ShutdownCause request;
 
+    if (runstate_check(RUN_STATE_FINISH_MIGRATE)) {
+        return false;
+    }
     if (preconfig_exit_requested) {
         if (runstate_check(RUN_STATE_PRECONFIG)) {
             runstate_set(RUN_STATE_PRELAUNCH);

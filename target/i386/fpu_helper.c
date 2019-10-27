@@ -26,6 +26,10 @@
 #include "exec/cpu_ldst.h"
 #include "fpu/softfloat.h"
 
+#ifdef CONFIG_SOFTMMU
+#include "hw/irq.h"
+#endif
+
 #define FPU_RC_MASK         0xc00
 #define FPU_RC_NEAR         0x000
 #define FPU_RC_DOWN         0x400
@@ -57,6 +61,36 @@
 #define floatx80_lg2 make_floatx80(0x3ffd, 0x9a209a84fbcff799LL)
 #define floatx80_l2e make_floatx80(0x3fff, 0xb8aa3b295c17f0bcLL)
 #define floatx80_l2t make_floatx80(0x4000, 0xd49a784bcd1b8afeLL)
+
+#if !defined(CONFIG_USER_ONLY)
+static qemu_irq ferr_irq;
+
+void x86_register_ferr_irq(qemu_irq irq)
+{
+    ferr_irq = irq;
+}
+
+static void cpu_clear_ignne(void)
+{
+    CPUX86State *env = &X86_CPU(first_cpu)->env;
+    env->hflags2 &= ~HF2_IGNNE_MASK;
+}
+
+void cpu_set_ignne(void)
+{
+    CPUX86State *env = &X86_CPU(first_cpu)->env;
+    env->hflags2 |= HF2_IGNNE_MASK;
+    /*
+     * We get here in response to a write to port F0h.  The chipset should
+     * deassert FP_IRQ and FERR# instead should stay signaled until FPSW_SE is
+     * cleared, because FERR# and FP_IRQ are two separate pins on real
+     * hardware.  However, we don't model FERR# as a qemu_irq, so we just
+     * do directly what the chipset would do, i.e. deassert FP_IRQ.
+     */
+    qemu_irq_lower(ferr_irq);
+}
+#endif
+
 
 static inline void fpush(CPUX86State *env)
 {
@@ -136,8 +170,8 @@ static void fpu_raise_exception(CPUX86State *env, uintptr_t retaddr)
         raise_exception_ra(env, EXCP10_COPR, retaddr);
     }
 #if !defined(CONFIG_USER_ONLY)
-    else {
-        cpu_set_ferr(env);
+    else if (ferr_irq && !(env->hflags2 & HF2_IGNNE_MASK)) {
+        qemu_irq_raise(ferr_irq);
     }
 #endif
 }
@@ -1029,6 +1063,22 @@ void helper_fstenv(CPUX86State *env, target_ulong ptr, int data32)
     do_fstenv(env, ptr, data32, GETPC());
 }
 
+static void cpu_set_fpus(CPUX86State *env, uint16_t fpus)
+{
+    env->fpstt = (fpus >> 11) & 7;
+    env->fpus = fpus & ~0x3800 & ~FPUS_B;
+    env->fpus |= env->fpus & FPUS_SE ? FPUS_B : 0;
+#if !defined(CONFIG_USER_ONLY)
+    if (!(env->fpus & FPUS_SE)) {
+        /*
+         * Here the processor deasserts FERR#; in response, the chipset deasserts
+         * IGNNE#.
+         */
+        cpu_clear_ignne();
+    }
+#endif
+}
+
 static void do_fldenv(CPUX86State *env, target_ulong ptr, int data32,
                       uintptr_t retaddr)
 {
@@ -1043,8 +1093,7 @@ static void do_fldenv(CPUX86State *env, target_ulong ptr, int data32,
         fpus = cpu_lduw_data_ra(env, ptr + 2, retaddr);
         fptag = cpu_lduw_data_ra(env, ptr + 4, retaddr);
     }
-    env->fpstt = (fpus >> 11) & 7;
-    env->fpus = fpus & ~0x3800;
+    cpu_set_fpus(env, fpus);
     for (i = 0; i < 8; i++) {
         env->fptags[i] = ((fptag & 3) == 3);
         fptag >>= 2;
@@ -1292,8 +1341,7 @@ static void do_xrstor_fpu(CPUX86State *env, target_ulong ptr, uintptr_t ra)
     fpus = cpu_lduw_data_ra(env, ptr + XO(legacy.fsw), ra);
     fptag = cpu_lduw_data_ra(env, ptr + XO(legacy.ftw), ra);
     cpu_set_fpuc(env, fpuc);
-    env->fpstt = (fpus >> 11) & 7;
-    env->fpus = fpus & ~0x3800;
+    cpu_set_fpus(env, fpus);
     fptag ^= 0xff;
     for (i = 0; i < 8; i++) {
         env->fptags[i] = ((fptag >> i) & 1);

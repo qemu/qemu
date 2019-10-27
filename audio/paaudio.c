@@ -385,6 +385,7 @@ static pa_stream *qpa_simple_new (
         map.map[5] = PA_CHANNEL_POSITION_REAR_RIGHT;
         map.map[6] = PA_CHANNEL_POSITION_SIDE_LEFT;
         map.map[7] = PA_CHANNEL_POSITION_SIDE_RIGHT;
+        break;
 
     default:
         dolog("Internal error: unsupported channel count %d\n", ss->channels);
