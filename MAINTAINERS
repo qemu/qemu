@@ -2001,7 +2001,7 @@ Python scripts
 M: Eduardo Habkost <ehabkost@redhat.com>
 M: Cleber Rosa <crosa@redhat.com>
 S: Odd fixes
-F: scripts/qmp/*
+F: python/qemu/*py
 F: scripts/*.py
 F: tests/*.py
 
