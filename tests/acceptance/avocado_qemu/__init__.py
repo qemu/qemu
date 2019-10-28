@@ -11,6 +11,7 @@
 import os
 import sys
 import uuid
+import tempfile
 
 import avocado
 
@@ -69,7 +70,7 @@ class Test(avocado.Test):
             self.cancel("No QEMU binary defined or found in the source tree")
 
     def _new_vm(self, *args):
-        vm = QEMUMachine(self.qemu_bin)
+        vm = QEMUMachine(self.qemu_bin, sock_dir=tempfile.mkdtemp())
         if args:
             vm.add_args(*args)
         return vm
