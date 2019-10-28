@@ -13,7 +13,7 @@
 #include "libqos/malloc.h"
 #include "standard-headers/linux/virtio_ring.h"
 
-#define QVIRTIO_F_BAD_FEATURE           0x40000000
+#define QVIRTIO_F_BAD_FEATURE           0x40000000ull
 
 typedef struct QVirtioBus QVirtioBus;
 
@@ -23,9 +23,11 @@ typedef struct QVirtioDevice {
     uint16_t device_type;
     uint64_t features;
     bool big_endian;
+    bool features_negotiated;
 } QVirtioDevice;
 
 typedef struct QVirtQueue {
+    QVirtioDevice *vdev;
     uint64_t desc; /* This points to an array of struct vring_desc */
     uint64_t avail; /* This points to a struct vring_avail */
     uint64_t used; /* This points to a struct vring_used */
@@ -52,13 +54,13 @@ struct QVirtioBus {
     uint64_t (*config_readq)(QVirtioDevice *d, uint64_t addr);
 
     /* Get features of the device */
-    uint32_t (*get_features)(QVirtioDevice *d);
+    uint64_t (*get_features)(QVirtioDevice *d);
 
     /* Set features of the device */
-    void (*set_features)(QVirtioDevice *d, uint32_t features);
+    void (*set_features)(QVirtioDevice *d, uint64_t features);
 
     /* Get features of the guest */
-    uint32_t (*get_guest_features)(QVirtioDevice *d);
+    uint64_t (*get_guest_features)(QVirtioDevice *d);
 
     /* Get status of the device */
     uint8_t (*get_status)(QVirtioDevice *d);
@@ -79,7 +81,7 @@ struct QVirtioBus {
     uint16_t (*get_queue_size)(QVirtioDevice *d);
 
     /* Set the address of the selected queue */
-    void (*set_queue_address)(QVirtioDevice *d, uint32_t pfn);
+    void (*set_queue_address)(QVirtioDevice *d, QVirtQueue *vq);
 
     /* Setup the virtqueue specified by index */
     QVirtQueue *(*virtqueue_setup)(QVirtioDevice *d, QGuestAllocator *alloc,
@@ -103,8 +105,8 @@ uint8_t qvirtio_config_readb(QVirtioDevice *d, uint64_t addr);
 uint16_t qvirtio_config_readw(QVirtioDevice *d, uint64_t addr);
 uint32_t qvirtio_config_readl(QVirtioDevice *d, uint64_t addr);
 uint64_t qvirtio_config_readq(QVirtioDevice *d, uint64_t addr);
-uint32_t qvirtio_get_features(QVirtioDevice *d);
-void qvirtio_set_features(QVirtioDevice *d, uint32_t features);
+uint64_t qvirtio_get_features(QVirtioDevice *d);
+void qvirtio_set_features(QVirtioDevice *d, uint64_t features);
 bool qvirtio_is_big_endian(QVirtioDevice *d);
 
 void qvirtio_reset(QVirtioDevice *d);
@@ -134,7 +136,8 @@ void qvring_init(QTestState *qts, const QGuestAllocator *alloc, QVirtQueue *vq,
 QVRingIndirectDesc *qvring_indirect_desc_setup(QTestState *qs, QVirtioDevice *d,
                                                QGuestAllocator *alloc,
                                                uint16_t elem);
-void qvring_indirect_desc_add(QTestState *qts, QVRingIndirectDesc *indirect,
+void qvring_indirect_desc_add(QVirtioDevice *d, QTestState *qts,
+                              QVRingIndirectDesc *indirect,
                               uint64_t data, uint32_t len, bool write);
 uint32_t qvirtqueue_add(QTestState *qts, QVirtQueue *vq, uint64_t data,
                         uint32_t len, bool write, bool next);

@@ -40,22 +40,38 @@ static uint64_t qvirtio_mmio_config_readq(QVirtioDevice *d, uint64_t off)
     return qtest_readq(dev->qts, dev->addr + QVIRTIO_MMIO_DEVICE_SPECIFIC + off);
 }
 
-static uint32_t qvirtio_mmio_get_features(QVirtioDevice *d)
+static uint64_t qvirtio_mmio_get_features(QVirtioDevice *d)
 {
     QVirtioMMIODevice *dev = container_of(d, QVirtioMMIODevice, vdev);
+    uint64_t lo;
+    uint64_t hi = 0;
+
     qtest_writel(dev->qts, dev->addr + QVIRTIO_MMIO_HOST_FEATURES_SEL, 0);
-    return qtest_readl(dev->qts, dev->addr + QVIRTIO_MMIO_HOST_FEATURES);
+    lo = qtest_readl(dev->qts, dev->addr + QVIRTIO_MMIO_HOST_FEATURES);
+
+    if (dev->version >= 2) {
+        qtest_writel(dev->qts, dev->addr + QVIRTIO_MMIO_HOST_FEATURES_SEL, 1);
+        hi = qtest_readl(dev->qts, dev->addr + QVIRTIO_MMIO_HOST_FEATURES);
+    }
+
+    return (hi << 32) | lo;
 }
 
-static void qvirtio_mmio_set_features(QVirtioDevice *d, uint32_t features)
+static void qvirtio_mmio_set_features(QVirtioDevice *d, uint64_t features)
 {
     QVirtioMMIODevice *dev = container_of(d, QVirtioMMIODevice, vdev);
     dev->features = features;
     qtest_writel(dev->qts, dev->addr + QVIRTIO_MMIO_GUEST_FEATURES_SEL, 0);
     qtest_writel(dev->qts, dev->addr + QVIRTIO_MMIO_GUEST_FEATURES, features);
+
+    if (dev->version >= 2) {
+        qtest_writel(dev->qts, dev->addr + QVIRTIO_MMIO_GUEST_FEATURES_SEL, 1);
+        qtest_writel(dev->qts, dev->addr + QVIRTIO_MMIO_GUEST_FEATURES,
+                     features >> 32);
+    }
 }
 
-static uint32_t qvirtio_mmio_get_guest_features(QVirtioDevice *d)
+static uint64_t qvirtio_mmio_get_guest_features(QVirtioDevice *d)
 {
     QVirtioMMIODevice *dev = container_of(d, QVirtioMMIODevice, vdev);
     return dev->features;
@@ -127,9 +143,11 @@ static uint16_t qvirtio_mmio_get_queue_size(QVirtioDevice *d)
     return (uint16_t)qtest_readl(dev->qts, dev->addr + QVIRTIO_MMIO_QUEUE_NUM_MAX);
 }
 
-static void qvirtio_mmio_set_queue_address(QVirtioDevice *d, uint32_t pfn)
+static void qvirtio_mmio_set_queue_address(QVirtioDevice *d, QVirtQueue *vq)
 {
     QVirtioMMIODevice *dev = container_of(d, QVirtioMMIODevice, vdev);
+    uint64_t pfn = vq->desc / dev->page_size;
+
     qtest_writel(dev->qts, dev->addr + QVIRTIO_MMIO_QUEUE_PFN, pfn);
 }
 
@@ -141,6 +159,7 @@ static QVirtQueue *qvirtio_mmio_virtqueue_setup(QVirtioDevice *d,
     uint64_t addr;
 
     vq = g_malloc0(sizeof(*vq));
+    vq->vdev = d;
     qvirtio_mmio_queue_select(d, index);
     qtest_writel(dev->qts, dev->addr + QVIRTIO_MMIO_QUEUE_ALIGN, dev->page_size);
 
@@ -149,8 +168,8 @@ static QVirtQueue *qvirtio_mmio_virtqueue_setup(QVirtioDevice *d,
     vq->free_head = 0;
     vq->num_free = vq->size;
     vq->align = dev->page_size;
-    vq->indirect = (dev->features & (1u << VIRTIO_RING_F_INDIRECT_DESC)) != 0;
-    vq->event = (dev->features & (1u << VIRTIO_RING_F_EVENT_IDX)) != 0;
+    vq->indirect = dev->features & (1ull << VIRTIO_RING_F_INDIRECT_DESC);
+    vq->event = dev->features & (1ull << VIRTIO_RING_F_EVENT_IDX);
 
     qtest_writel(dev->qts, dev->addr + QVIRTIO_MMIO_QUEUE_NUM, vq->size);
 
@@ -162,7 +181,7 @@ static QVirtQueue *qvirtio_mmio_virtqueue_setup(QVirtioDevice *d,
 
     addr = guest_alloc(alloc, qvring_size(vq->size, dev->page_size));
     qvring_init(dev->qts, alloc, vq, addr);
-    qvirtio_mmio_set_queue_address(d, vq->desc / dev->page_size);
+    qvirtio_mmio_set_queue_address(d, vq);
 
     return vq;
 }
@@ -222,6 +241,9 @@ void qvirtio_mmio_init_device(QVirtioMMIODevice *dev, QTestState *qts,
     uint32_t magic;
     magic = qtest_readl(qts, addr + QVIRTIO_MMIO_MAGIC_VALUE);
     g_assert(magic == ('v' | 'i' << 8 | 'r' << 16 | 't' << 24));
+
+    dev->version = qtest_readl(qts, addr + QVIRTIO_MMIO_VERSION);
+    g_assert(dev->version == 1 || dev->version == 2);
 
     dev->qts = qts;
     dev->addr = addr;

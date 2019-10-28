@@ -1052,7 +1052,7 @@ static void virtio_blk_save_device(VirtIODevice *vdev, QEMUFile *f)
             qemu_put_be32(f, virtio_get_queue_index(req->vq));
         }
 
-        qemu_put_virtqueue_element(f, &req->elem);
+        qemu_put_virtqueue_element(vdev, f, &req->elem);
         req = req->next;
     }
     qemu_put_sbyte(f, 0);
@@ -1206,10 +1206,15 @@ static void virtio_blk_device_unrealize(DeviceState *dev, Error **errp)
 {
     VirtIODevice *vdev = VIRTIO_DEVICE(dev);
     VirtIOBlock *s = VIRTIO_BLK(dev);
+    VirtIOBlkConf *conf = &s->conf;
+    unsigned i;
 
     blk_drain(s->blk);
     virtio_blk_data_plane_destroy(s->dataplane);
     s->dataplane = NULL;
+    for (i = 0; i < conf->num_queues; i++) {
+        virtio_del_queue(vdev, i);
+    }
     qemu_del_vm_change_state_handler(s->change);
     blockdev_mark_auto_del(s->blk);
     virtio_cleanup(vdev);
