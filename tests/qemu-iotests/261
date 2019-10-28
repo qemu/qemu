@@ -1,0 +1,523 @@
+#!/usr/bin/env bash
+#
+# Test case for qcow2's handling of extra data in snapshot table entries
+# (and more generally, how certain cases of broken snapshot tables are
+# handled)
+#
+# Copyright (C) 2019 Red Hat, Inc.
+#
+# This program is free software; you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation; either version 2 of the License, or
+# (at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with this program.  If not, see <http://www.gnu.org/licenses/>.
+#
+
+# creator
+owner=mreitz@redhat.com
+
+seq=$(basename $0)
+echo "QA output created by $seq"
+
+status=1	# failure is the default!
+
+_cleanup()
+{
+    _cleanup_test_img
+    rm -f "$TEST_IMG".v{2,3}.orig
+    rm -f "$TEST_DIR"/sn{0,1,2}{,-pre,-extra,-post}
+}
+trap "_cleanup; exit \$status" 0 1 2 3 15
+
+# get standard environment, filters and checks
+. ./common.rc
+. ./common.filter
+
+# This tests qocw2-specific low-level functionality
+_supported_fmt qcow2
+_supported_proto file
+_supported_os Linux
+# (1) We create a v2 image that supports nothing but refcount_bits=16
+# (2) We do some refcount management on our own which expects
+#     refcount_bits=16
+_unsupported_imgopts 'refcount_bits=\([^1]\|.\([^6]\|$\)\)'
+
+# Parameters:
+#   $1: image filename
+#   $2: snapshot table entry offset in the image
+snapshot_table_entry_size()
+{
+    id_len=$(peek_file_be "$1" $(($2 + 12)) 2)
+    name_len=$(peek_file_be "$1" $(($2 + 14)) 2)
+    extra_len=$(peek_file_be "$1" $(($2 + 36)) 4)
+
+    full_len=$((40 + extra_len + id_len + name_len))
+    echo $(((full_len + 7) / 8 * 8))
+}
+
+# Parameter:
+#   $1: image filename
+print_snapshot_table()
+{
+    nb_entries=$(peek_file_be "$1" 60 4)
+    offset=$(peek_file_be "$1" 64 8)
+
+    echo "Snapshots in $1:" | _filter_testdir | _filter_imgfmt
+
+    for ((i = 0; i < nb_entries; i++)); do
+        id_len=$(peek_file_be "$1" $((offset + 12)) 2)
+        name_len=$(peek_file_be "$1" $((offset + 14)) 2)
+        extra_len=$(peek_file_be "$1" $((offset + 36)) 4)
+
+        extra_ofs=$((offset + 40))
+        id_ofs=$((extra_ofs + extra_len))
+        name_ofs=$((id_ofs + id_len))
+
+        echo "  [$i]"
+        echo "    ID: $(peek_file_raw "$1" $id_ofs $id_len)"
+        echo "    Name: $(peek_file_raw "$1" $name_ofs $name_len)"
+        echo "    Extra data size: $extra_len"
+        if [ $extra_len -ge 8 ]; then
+            echo "    VM state size: $(peek_file_be "$1" $extra_ofs 8)"
+        fi
+        if [ $extra_len -ge 16 ]; then
+            echo "    Disk size: $(peek_file_be "$1" $((extra_ofs + 8)) 8)"
+        fi
+        if [ $extra_len -gt 16 ]; then
+            echo '    Unknown extra data:' \
+                "$(peek_file_raw "$1" $((extra_ofs + 16)) $((extra_len - 16)) \
+                   | tr -d '\0')"
+        fi
+
+        offset=$((offset + $(snapshot_table_entry_size "$1" $offset)))
+    done
+}
+
+# Mark clusters as allocated; works only in refblock 0 (i.e. before
+# cluster #32768).
+# Parameters:
+#   $1: Start offset of what to allocate
+#   $2: End offset (exclusive)
+refblock0_allocate()
+{
+    reftable_ofs=$(peek_file_be "$TEST_IMG" 48 8)
+    refblock_ofs=$(peek_file_be "$TEST_IMG" $reftable_ofs 8)
+
+    cluster=$(($1 / 65536))
+    ecluster=$((($2 + 65535) / 65536))
+
+    while [ $cluster -lt $ecluster ]; do
+        if [ $cluster -ge 32768 ]; then
+            echo "*** Abort: Cluster $cluster exceeds refblock 0 ***"
+            exit 1
+        fi
+        poke_file "$TEST_IMG" $((refblock_ofs + cluster * 2)) '\x00\x01'
+        cluster=$((cluster + 1))
+    done
+}
+
+
+echo
+echo '=== Create v2 template ==='
+echo
+
+# Create v2 image with a snapshot table with three entries:
+# [0]: No extra data (valid with v2, not valid with v3)
+# [1]: Has extra data unknown to qemu
+# [2]: Has the 64-bit VM state size, but not the disk size (again,
+#      valid with v2, not valid with v3)
+
+TEST_IMG="$TEST_IMG.v2.orig" IMGOPTS='compat=0.10' _make_test_img 64M
+$QEMU_IMG snapshot -c sn0 "$TEST_IMG.v2.orig"
+$QEMU_IMG snapshot -c sn1 "$TEST_IMG.v2.orig"
+$QEMU_IMG snapshot -c sn2 "$TEST_IMG.v2.orig"
+
+# Copy out all existing snapshot table entries
+sn_table_ofs=$(peek_file_be "$TEST_IMG.v2.orig" 64 8)
+
+# ofs: Snapshot table entry offset
+# eds: Extra data size
+# ids: Name + ID size
+# len: Total entry length
+sn0_ofs=$sn_table_ofs
+sn0_eds=$(peek_file_be "$TEST_IMG.v2.orig" $((sn0_ofs + 36)) 4)
+sn0_ids=$(($(peek_file_be "$TEST_IMG.v2.orig" $((sn0_ofs + 12)) 2) +
+           $(peek_file_be "$TEST_IMG.v2.orig" $((sn0_ofs + 14)) 2)))
+sn0_len=$(snapshot_table_entry_size "$TEST_IMG.v2.orig" $sn0_ofs)
+sn1_ofs=$((sn0_ofs + sn0_len))
+sn1_eds=$(peek_file_be "$TEST_IMG.v2.orig" $((sn1_ofs + 36)) 4)
+sn1_ids=$(($(peek_file_be "$TEST_IMG.v2.orig" $((sn1_ofs + 12)) 2) +
+           $(peek_file_be "$TEST_IMG.v2.orig" $((sn1_ofs + 14)) 2)))
+sn1_len=$(snapshot_table_entry_size "$TEST_IMG.v2.orig" $sn1_ofs)
+sn2_ofs=$((sn1_ofs + sn1_len))
+sn2_eds=$(peek_file_be "$TEST_IMG.v2.orig" $((sn2_ofs + 36)) 4)
+sn2_ids=$(($(peek_file_be "$TEST_IMG.v2.orig" $((sn2_ofs + 12)) 2) +
+           $(peek_file_be "$TEST_IMG.v2.orig" $((sn2_ofs + 14)) 2)))
+sn2_len=$(snapshot_table_entry_size "$TEST_IMG.v2.orig" $sn2_ofs)
+
+# Data before extra data
+dd if="$TEST_IMG.v2.orig" of="$TEST_DIR/sn0-pre" bs=1 skip=$sn0_ofs count=40 \
+    &> /dev/null
+dd if="$TEST_IMG.v2.orig" of="$TEST_DIR/sn1-pre" bs=1 skip=$sn1_ofs count=40 \
+    &> /dev/null
+dd if="$TEST_IMG.v2.orig" of="$TEST_DIR/sn2-pre" bs=1 skip=$sn2_ofs count=40 \
+    &> /dev/null
+
+# Extra data
+dd if="$TEST_IMG.v2.orig" of="$TEST_DIR/sn0-extra" bs=1 \
+    skip=$((sn0_ofs + 40)) count=$sn0_eds &> /dev/null
+dd if="$TEST_IMG.v2.orig" of="$TEST_DIR/sn1-extra" bs=1 \
+    skip=$((sn1_ofs + 40)) count=$sn1_eds &> /dev/null
+dd if="$TEST_IMG.v2.orig" of="$TEST_DIR/sn2-extra" bs=1 \
+    skip=$((sn2_ofs + 40)) count=$sn2_eds &> /dev/null
+
+# Data after extra data
+dd if="$TEST_IMG.v2.orig" of="$TEST_DIR/sn0-post" bs=1 \
+    skip=$((sn0_ofs + 40 + sn0_eds)) count=$sn0_ids \
+    &> /dev/null
+dd if="$TEST_IMG.v2.orig" of="$TEST_DIR/sn1-post" bs=1 \
+    skip=$((sn1_ofs + 40 + sn1_eds)) count=$sn1_ids \
+    &> /dev/null
+dd if="$TEST_IMG.v2.orig" of="$TEST_DIR/sn2-post" bs=1 \
+    skip=$((sn2_ofs + 40 + sn2_eds)) count=$sn2_ids \
+    &> /dev/null
+
+# Amend them, one by one
+# Set sn0's extra data size to 0
+poke_file "$TEST_DIR/sn0-pre" 36 '\x00\x00\x00\x00'
+truncate -s 0 "$TEST_DIR/sn0-extra"
+# Grow sn0-post to pad
+truncate -s $(($(snapshot_table_entry_size "$TEST_DIR/sn0-pre") - 40)) \
+    "$TEST_DIR/sn0-post"
+
+# Set sn1's extra data size to 42
+poke_file "$TEST_DIR/sn1-pre" 36 '\x00\x00\x00\x2a'
+truncate -s 42 "$TEST_DIR/sn1-extra"
+poke_file "$TEST_DIR/sn1-extra" 16 'very important data'
+# Grow sn1-post to pad
+truncate -s $(($(snapshot_table_entry_size "$TEST_DIR/sn1-pre") - 82)) \
+    "$TEST_DIR/sn1-post"
+
+# Set sn2's extra data size to 8
+poke_file "$TEST_DIR/sn2-pre" 36 '\x00\x00\x00\x08'
+truncate -s 8 "$TEST_DIR/sn2-extra"
+# Grow sn2-post to pad
+truncate -s $(($(snapshot_table_entry_size "$TEST_DIR/sn2-pre") - 48)) \
+    "$TEST_DIR/sn2-post"
+
+# Construct snapshot table
+cat "$TEST_DIR"/sn0-{pre,extra,post} \
+    "$TEST_DIR"/sn1-{pre,extra,post} \
+    "$TEST_DIR"/sn2-{pre,extra,post} \
+    | dd of="$TEST_IMG.v2.orig" bs=1 seek=$sn_table_ofs conv=notrunc \
+          &> /dev/null
+
+# Done!
+TEST_IMG="$TEST_IMG.v2.orig" _check_test_img
+print_snapshot_table "$TEST_IMG.v2.orig"
+
+echo
+echo '=== Upgrade to v3 ==='
+echo
+
+cp "$TEST_IMG.v2.orig" "$TEST_IMG.v3.orig"
+$QEMU_IMG amend -o compat=1.1 "$TEST_IMG.v3.orig"
+TEST_IMG="$TEST_IMG.v3.orig" _check_test_img
+print_snapshot_table "$TEST_IMG.v3.orig"
+
+echo
+echo '=== Repair botched v3 ==='
+echo
+
+# Force the v2 file to be v3.  v3 requires each snapshot table entry
+# to have at least 16 bytes of extra data, so it will not comply to
+# the qcow2 v3 specification; but we can fix that.
+cp "$TEST_IMG.v2.orig" "$TEST_IMG"
+
+# Set version
+poke_file "$TEST_IMG" 4 '\x00\x00\x00\x03'
+# Increase header length (necessary for v3)
+poke_file "$TEST_IMG" 100 '\x00\x00\x00\x68'
+# Set refcount order (necessary for v3)
+poke_file "$TEST_IMG" 96 '\x00\x00\x00\x04'
+
+_check_test_img -r all
+print_snapshot_table "$TEST_IMG"
+
+
+# From now on, just test the qcow2 version we are supposed to test.
+# (v3 by default, v2 by choice through $IMGOPTS.)
+# That works because we always write all known extra data when
+# updating the snapshot table, independent of the version.
+
+if echo "$IMGOPTS" | grep -q 'compat=\(0\.10\|v2\)' 2> /dev/null; then
+    subver=v2
+else
+    subver=v3
+fi
+
+echo
+echo '=== Add new snapshot ==='
+echo
+
+cp "$TEST_IMG.$subver.orig" "$TEST_IMG"
+$QEMU_IMG snapshot -c sn3 "$TEST_IMG"
+_check_test_img
+print_snapshot_table "$TEST_IMG"
+
+echo
+echo '=== Remove different snapshots ==='
+
+for sn in sn0 sn1 sn2; do
+    echo
+    echo "--- $sn ---"
+
+    cp "$TEST_IMG.$subver.orig" "$TEST_IMG"
+    $QEMU_IMG snapshot -d $sn "$TEST_IMG"
+    _check_test_img
+    print_snapshot_table "$TEST_IMG"
+done
+
+echo
+echo '=== Reject too much unknown extra data ==='
+echo
+
+cp "$TEST_IMG.$subver.orig" "$TEST_IMG"
+$QEMU_IMG snapshot -c sn3 "$TEST_IMG"
+
+sn_table_ofs=$(peek_file_be "$TEST_IMG" 64 8)
+sn0_ofs=$sn_table_ofs
+sn1_ofs=$((sn0_ofs + $(snapshot_table_entry_size "$TEST_IMG" $sn0_ofs)))
+sn2_ofs=$((sn1_ofs + $(snapshot_table_entry_size "$TEST_IMG" $sn1_ofs)))
+sn3_ofs=$((sn2_ofs + $(snapshot_table_entry_size "$TEST_IMG" $sn2_ofs)))
+
+# 64 kB of extra data should be rejected
+# (Note that this also induces a refcount error, because it spills
+# over to the next cluster.  That's a good way to test that we can
+# handle simultaneous snapshot table and refcount errors.)
+poke_file "$TEST_IMG" $((sn3_ofs + 36)) '\x00\x01\x00\x00'
+
+# Print error
+_img_info
+echo
+_check_test_img
+echo
+
+# Should be repairable
+_check_test_img -r all
+
+echo
+echo '=== Snapshot table too big ==='
+echo
+
+sn_table_ofs=$(peek_file_be "$TEST_IMG.v3.orig" 64 8)
+
+# Fill a snapshot with 1 kB of extra data, a 65535-char ID, and a
+# 65535-char name, and repeat it as many times as necessary to fill
+# 64 MB (the maximum supported by qemu)
+
+touch "$TEST_DIR/sn0"
+
+# Full size (fixed + extra + ID + name + padding)
+sn_size=$((40 + 1024 + 65535 + 65535 + 2))
+
+# We only need the fixed part, though.
+truncate -s 40 "$TEST_DIR/sn0"
+
+# 65535-char ID string
+poke_file "$TEST_DIR/sn0" 12 '\xff\xff'
+# 65535-char name
+poke_file "$TEST_DIR/sn0" 14 '\xff\xff'
+# 1 kB of extra data
+poke_file "$TEST_DIR/sn0" 36 '\x00\x00\x04\x00'
+
+# Create test image
+_make_test_img 64M
+
+# Hook up snapshot table somewhere safe (at 1 MB)
+poke_file "$TEST_IMG" 64 '\x00\x00\x00\x00\x00\x10\x00\x00'
+
+offset=1048576
+size_written=0
+sn_count=0
+while [ $size_written -le $((64 * 1048576)) ]; do
+    dd if="$TEST_DIR/sn0" of="$TEST_IMG" bs=1 seek=$offset conv=notrunc \
+        &> /dev/null
+    offset=$((offset + sn_size))
+    size_written=$((size_written + sn_size))
+    sn_count=$((sn_count + 1))
+done
+truncate -s "$offset" "$TEST_IMG"
+
+# Give the last snapshot (the one to be removed) an L1 table so we can
+# see how that is handled when repairing the image
+# (Put it two clusters before 1 MB, and one L2 table one cluster
+# before 1 MB)
+poke_file "$TEST_IMG" $((offset - sn_size + 0)) \
+    '\x00\x00\x00\x00\x00\x0e\x00\x00'
+poke_file "$TEST_IMG" $((offset - sn_size + 8)) \
+    '\x00\x00\x00\x01'
+
+# Hook up the L2 table
+poke_file "$TEST_IMG" $((1048576 - 2 * 65536)) \
+    '\x80\x00\x00\x00\x00\x0f\x00\x00'
+
+# Make sure all of the clusters we just hooked up are allocated:
+# - The snapshot table
+# - The last snapshot's L1 and L2 table
+refblock0_allocate $((1048576 - 2 * 65536)) $offset
+
+poke_file "$TEST_IMG" 60 \
+    "$(printf '%08x' $sn_count | sed -e 's/\(..\)/\\x\1/g')"
+
+# Print error
+_img_info
+echo
+_check_test_img
+echo
+
+# Should be repairable
+_check_test_img -r all
+
+echo
+echo "$((sn_count - 1)) snapshots should remain:"
+echo "  qemu-img info reports $(_img_info | grep -c '^ \{34\}') snapshots"
+echo "  Image header reports $(peek_file_be "$TEST_IMG" 60 4) snapshots"
+
+echo
+echo '=== Snapshot table too big with one entry with too much extra data ==='
+echo
+
+# For this test, we reuse the image from the previous case, which has
+# a snapshot table that is right at the limit.
+# Our layout looks like this:
+# - (a number of snapshot table entries)
+# - One snapshot with $extra_data_size extra data
+# - One normal snapshot that breaks the 64 MB boundary
+# - One normal snapshot beyond the 64 MB boundary
+#
+# $extra_data_size is calculated so that simply by virtue of it
+# decreasing to 1 kB, the penultimate snapshot will fit into 64 MB
+# limit again.  The final snapshot will always be beyond the limit, so
+# that we can see that the repair algorithm does still determine the
+# limit to be somewhere, even when truncating one snapshot's extra
+# data.
+
+# The last case has removed the last snapshot, so calculate
+# $old_offset to get the current image's real length
+old_offset=$((offset - sn_size))
+
+# The layout from the previous test had one snapshot beyond the 64 MB
+# limit; we want the same (after the oversized extra data has been
+# truncated to 1 kB), so we drop the last three snapshots and
+# construct them from scratch.
+offset=$((offset - 3 * sn_size))
+sn_count=$((sn_count - 3))
+
+# Assuming we had already written one of the three snapshots
+# (necessary so we can calculate $extra_data_size next).
+size_written=$((size_written - 2 * sn_size))
+
+# Increase the extra data size so we go past the limit
+# (The -1024 comes from the 1 kB of extra data we already have)
+extra_data_size=$((64 * 1048576 + 8 - sn_size - (size_written - 1024)))
+
+poke_file "$TEST_IMG" $((offset + 36)) \
+    "$(printf '%08x' $extra_data_size | sed -e 's/\(..\)/\\x\1/g')"
+
+offset=$((offset + sn_size - 1024 + extra_data_size))
+size_written=$((size_written - 1024 + extra_data_size))
+sn_count=$((sn_count + 1))
+
+# Write the two normal snapshots
+for ((i = 0; i < 2; i++)); do
+    dd if="$TEST_DIR/sn0" of="$TEST_IMG" bs=1 seek=$offset conv=notrunc \
+        &> /dev/null
+    offset=$((offset + sn_size))
+    size_written=$((size_written + sn_size))
+    sn_count=$((sn_count + 1))
+
+    if [ $i = 0 ]; then
+        # Check that the penultimate snapshot is beyond the 64 MB limit
+        echo "Snapshot table size should equal $((64 * 1048576 + 8)):" \
+            $size_written
+        echo
+    fi
+done
+
+truncate -s $offset "$TEST_IMG"
+refblock0_allocate $old_offset $offset
+
+poke_file "$TEST_IMG" 60 \
+    "$(printf '%08x' $sn_count | sed -e 's/\(..\)/\\x\1/g')"
+
+# Print error
+_img_info
+echo
+_check_test_img
+echo
+
+# Just truncating the extra data should be sufficient to shorten the
+# snapshot table so only one snapshot exceeds the extra size
+_check_test_img -r all
+
+echo
+echo '=== Too many snapshots ==='
+echo
+
+# Create a v2 image, for speeds' sake: All-zero snapshot table entries
+# are only valid in v2.
+IMGOPTS='compat=0.10' _make_test_img 64M
+
+# Hook up snapshot table somewhere safe (at 1 MB)
+poke_file "$TEST_IMG" 64 '\x00\x00\x00\x00\x00\x10\x00\x00'
+# "Create" more than 65536 snapshots (twice that many here)
+poke_file "$TEST_IMG" 60 '\x00\x02\x00\x00'
+
+# 40-byte all-zero snapshot table entries are valid snapshots, but
+# only in v2 (v3 needs 16 bytes of extra data, so we would have to
+# write 131072x '\x10').
+truncate -s $((1048576 + 40 * 131072)) "$TEST_IMG"
+
+# But let us give one of the snapshots to be removed an L1 table so
+# we can see how that is handled when repairing the image.
+# (Put it two clusters before 1 MB, and one L2 table one cluster
+# before 1 MB)
+poke_file "$TEST_IMG" $((1048576 + 40 * 65536 + 0)) \
+    '\x00\x00\x00\x00\x00\x0e\x00\x00'
+poke_file "$TEST_IMG" $((1048576 + 40 * 65536 + 8)) \
+    '\x00\x00\x00\x01'
+
+# Hook up the L2 table
+poke_file "$TEST_IMG" $((1048576 - 2 * 65536)) \
+    '\x80\x00\x00\x00\x00\x0f\x00\x00'
+
+# Make sure all of the clusters we just hooked up are allocated:
+# - The snapshot table
+# - The last snapshot's L1 and L2 table
+refblock0_allocate $((1048576 - 2 * 65536)) $((1048576 + 40 * 131072))
+
+# Print error
+_img_info
+echo
+_check_test_img
+echo
+
+# Should be repairable
+_check_test_img -r all
+
+echo
+echo '65536 snapshots should remain:'
+echo "  qemu-img info reports $(_img_info | grep -c '^ \{34\}') snapshots"
+echo "  Image header reports $(peek_file_be "$TEST_IMG" 60 4) snapshots"
+
+# success, all done
+echo "*** done"
+status=0

@@ -468,7 +468,8 @@ static void raw_close(BlockDriverState *bs)
 }
 
 static int coroutine_fn raw_co_truncate(BlockDriverState *bs, int64_t offset,
-                                        PreallocMode prealloc, Error **errp)
+                                        bool exact, PreallocMode prealloc,
+                                        Error **errp)
 {
     BDRVRawState *s = bs->opaque;
     LONG low, high;

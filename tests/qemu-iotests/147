@@ -32,7 +32,7 @@ NBD_IPV6_PORT_START = NBD_PORT_END
 NBD_IPV6_PORT_END   = NBD_IPV6_PORT_START + 1024
 
 test_img = os.path.join(iotests.test_dir, 'test.img')
-unix_socket = os.path.join(iotests.test_dir, 'nbd.socket')
+unix_socket = os.path.join(iotests.sock_dir, 'nbd.socket')
 
 
 def flatten_sock_addr(crumpled_address):

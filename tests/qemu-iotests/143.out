@@ -1,7 +1,7 @@
 QA output created by 143
 {"return": {}}
 {"return": {}}
-qemu-io: can't open device nbd+unix:///no_such_export?socket=TEST_DIR/nbd: Requested export not available
+qemu-io: can't open device nbd+unix:///no_such_export?socket=SOCK_DIR/nbd: Requested export not available
 server reported: export 'no_such_export' not present
 {"return": {}}
 {"timestamp": {"seconds":  TIMESTAMP, "microseconds":  TIMESTAMP}, "event": "SHUTDOWN", "data": {"guest": false, "reason": "host-qmp-quit"}}

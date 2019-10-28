@@ -19,7 +19,7 @@
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #
 
-nbd_unix_socket="${TEST_DIR}/qemu-nbd.sock"
+nbd_unix_socket="${SOCK_DIR}/qemu-nbd.sock"
 nbd_tcp_addr="127.0.0.1"
 nbd_pid_file="${TEST_DIR}/qemu-nbd.pid"
 nbd_stderr_fifo="${TEST_DIR}/qemu-nbd.fifo"

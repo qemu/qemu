@@ -73,13 +73,6 @@ static int64_t cor_getlength(BlockDriverState *bs)
 }
 
 
-static int coroutine_fn cor_co_truncate(BlockDriverState *bs, int64_t offset,
-                                        PreallocMode prealloc, Error **errp)
-{
-    return bdrv_co_truncate(bs->file, offset, prealloc, errp);
-}
-
-
 static int coroutine_fn cor_co_preadv(BlockDriverState *bs,
                                       uint64_t offset, uint64_t bytes,
                                       QEMUIOVector *qiov, int flags)
@@ -139,7 +132,6 @@ static BlockDriver bdrv_copy_on_read = {
     .bdrv_child_perm                    = cor_child_perm,
 
     .bdrv_getlength                     = cor_getlength,
-    .bdrv_co_truncate                   = cor_co_truncate,
 
     .bdrv_co_preadv                     = cor_co_preadv,
     .bdrv_co_pwritev                    = cor_co_pwritev,

@@ -97,6 +97,7 @@ IMGFMT        -- $FULL_IMGFMT_DETAILS
 IMGPROTO      -- $IMGPROTO
 PLATFORM      -- $FULL_HOST_DETAILS
 TEST_DIR      -- $TEST_DIR
+SOCK_DIR      -- $SOCK_DIR
 SOCKET_SCM_HELPER -- $SOCKET_SCM_HELPER
 
 EOF
@@ -116,10 +117,14 @@ set_prog_path()
 if [ -z "$TEST_DIR" ]; then
         TEST_DIR=$PWD/scratch
 fi
+mkdir -p "$TEST_DIR" || _init_error 'Failed to create TEST_DIR'
 
-if [ ! -e "$TEST_DIR" ]; then
-        mkdir "$TEST_DIR"
+tmp_sock_dir=false
+if [ -z "$SOCK_DIR" ]; then
+    SOCK_DIR=$(mktemp -d)
+    tmp_sock_dir=true
 fi
+mkdir -p "$SOCK_DIR" || _init_error 'Failed to create SOCK_DIR'
 
 diff="diff -u"
 verbose=false
@@ -534,6 +539,7 @@ if [ -z "$SAMPLE_IMG_DIR" ]; then
 fi
 
 export TEST_DIR
+export SOCK_DIR
 export SAMPLE_IMG_DIR
 
 if [ -s $tmp.list ]
@@ -716,6 +722,11 @@ END        { if (NR > 0) {
     rm -f "${TEST_DIR}"/*.out "${TEST_DIR}"/*.err "${TEST_DIR}"/*.time
     rm -f "${TEST_DIR}"/check.pid "${TEST_DIR}"/check.sts
     rm -f $tmp.*
+
+    if $tmp_sock_dir
+    then
+        rm -rf "$SOCK_DIR"
+    fi
 }
 
 trap "_wrapup; exit \$status" 0 1 2 3 15

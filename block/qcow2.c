@@ -570,11 +570,47 @@ int qcow2_mark_consistent(BlockDriverState *bs)
     return 0;
 }
 
+static void qcow2_add_check_result(BdrvCheckResult *out,
+                                   const BdrvCheckResult *src,
+                                   bool set_allocation_info)
+{
+    out->corruptions += src->corruptions;
+    out->leaks += src->leaks;
+    out->check_errors += src->check_errors;
+    out->corruptions_fixed += src->corruptions_fixed;
+    out->leaks_fixed += src->leaks_fixed;
+
+    if (set_allocation_info) {
+        out->image_end_offset = src->image_end_offset;
+        out->bfi = src->bfi;
+    }
+}
+
 static int coroutine_fn qcow2_co_check_locked(BlockDriverState *bs,
                                               BdrvCheckResult *result,
                                               BdrvCheckMode fix)
 {
-    int ret = qcow2_check_refcounts(bs, result, fix);
+    BdrvCheckResult snapshot_res = {};
+    BdrvCheckResult refcount_res = {};
+    int ret;
+
+    memset(result, 0, sizeof(*result));
+
+    ret = qcow2_check_read_snapshot_table(bs, &snapshot_res, fix);
+    if (ret < 0) {
+        qcow2_add_check_result(result, &snapshot_res, false);
+        return ret;
+    }
+
+    ret = qcow2_check_refcounts(bs, &refcount_res, fix);
+    qcow2_add_check_result(result, &refcount_res, true);
+    if (ret < 0) {
+        qcow2_add_check_result(result, &snapshot_res, false);
+        return ret;
+    }
+
+    ret = qcow2_check_fix_snapshot_table(bs, &snapshot_res, fix);
+    qcow2_add_check_result(result, &snapshot_res, false);
     if (ret < 0) {
         return ret;
     }
@@ -1410,17 +1446,22 @@ static int coroutine_fn qcow2_do_open(BlockDriverState *bs, QDict *options,
         goto fail;
     }
 
-    /* The total size in bytes of the snapshot table is checked in
-     * qcow2_read_snapshots() because the size of each snapshot is
-     * variable and we don't know it yet.
-     * Here we only check the offset and number of snapshots. */
-    ret = qcow2_validate_table(bs, header.snapshots_offset,
-                               header.nb_snapshots,
-                               sizeof(QCowSnapshotHeader),
-                               sizeof(QCowSnapshotHeader) * QCOW_MAX_SNAPSHOTS,
-                               "Snapshot table", errp);
-    if (ret < 0) {
-        goto fail;
+    if (!(flags & BDRV_O_CHECK)) {
+        /*
+         * The total size in bytes of the snapshot table is checked in
+         * qcow2_read_snapshots() because the size of each snapshot is
+         * variable and we don't know it yet.
+         * Here we only check the offset and number of snapshots.
+         */
+        ret = qcow2_validate_table(bs, header.snapshots_offset,
+                                   header.nb_snapshots,
+                                   sizeof(QCowSnapshotHeader),
+                                   sizeof(QCowSnapshotHeader) *
+                                       QCOW_MAX_SNAPSHOTS,
+                                   "Snapshot table", errp);
+        if (ret < 0) {
+            goto fail;
+        }
     }
 
     /* read the level 1 table */
@@ -1580,14 +1621,19 @@ static int coroutine_fn qcow2_do_open(BlockDriverState *bs, QDict *options,
         s->image_backing_file = g_strdup(bs->auto_backing_file);
     }
 
-    /* Internal snapshots */
-    s->snapshots_offset = header.snapshots_offset;
-    s->nb_snapshots = header.nb_snapshots;
+    /*
+     * Internal snapshots; skip reading them in check mode, because
+     * we do not need them then, and we do not want to abort because
+     * of a broken table.
+     */
+    if (!(flags & BDRV_O_CHECK)) {
+        s->snapshots_offset = header.snapshots_offset;
+        s->nb_snapshots = header.nb_snapshots;
 
-    ret = qcow2_read_snapshots(bs);
-    if (ret < 0) {
-        error_setg_errno(errp, -ret, "Could not read snapshots");
-        goto fail;
+        ret = qcow2_read_snapshots(bs, errp);
+        if (ret < 0) {
+            goto fail;
+        }
     }
 
     /* Clear unknown autoclear feature bits */
@@ -3028,8 +3074,8 @@ static int coroutine_fn preallocate_co(BlockDriverState *bs, uint64_t offset,
         if (mode == PREALLOC_MODE_METADATA) {
             mode = PREALLOC_MODE_OFF;
         }
-        ret = bdrv_co_truncate(s->data_file, host_offset + cur_bytes, mode,
-                               errp);
+        ret = bdrv_co_truncate(s->data_file, host_offset + cur_bytes, false,
+                               mode, errp);
         if (ret < 0) {
             return ret;
         }
@@ -3345,12 +3391,6 @@ qcow2_co_create(BlockdevCreateOptions *create_options, Error **errp)
     }
     blk_set_allow_write_beyond_eof(blk, true);
 
-    /* Clear the protocol layer and preallocate it if necessary */
-    ret = blk_truncate(blk, 0, PREALLOC_MODE_OFF, errp);
-    if (ret < 0) {
-        goto out;
-    }
-
     /* Write the header */
     QEMU_BUILD_BUG_ON((1 << MIN_CLUSTER_BITS) < sizeof(*header));
     header = g_malloc0(cluster_size);
@@ -3449,7 +3489,8 @@ qcow2_co_create(BlockdevCreateOptions *create_options, Error **errp)
     }
 
     /* Okay, now that we have a valid image, let's give it the right size */
-    ret = blk_truncate(blk, qcow2_opts->size, qcow2_opts->preallocation, errp);
+    ret = blk_truncate(blk, qcow2_opts->size, false, qcow2_opts->preallocation,
+                       errp);
     if (ret < 0) {
         error_prepend(errp, "Could not resize image: ");
         goto out;
@@ -3897,7 +3938,8 @@ fail:
 }
 
 static int coroutine_fn qcow2_co_truncate(BlockDriverState *bs, int64_t offset,
-                                          PreallocMode prealloc, Error **errp)
+                                          bool exact, PreallocMode prealloc,
+                                          Error **errp)
 {
     BDRVQcow2State *s = bs->opaque;
     uint64_t old_length;
@@ -3985,8 +4027,15 @@ static int coroutine_fn qcow2_co_truncate(BlockDriverState *bs, int64_t offset,
         if ((last_cluster + 1) * s->cluster_size < old_file_size) {
             Error *local_err = NULL;
 
+            /*
+             * Do not pass @exact here: It will not help the user if
+             * we get an error here just because they wanted to shrink
+             * their qcow2 image (on a block device) with qemu-img.
+             * (And on the qcow2 layer, the @exact requirement is
+             * always fulfilled, so there is no need to pass it on.)
+             */
             bdrv_co_truncate(bs->file, (last_cluster + 1) * s->cluster_size,
-                             PREALLOC_MODE_OFF, &local_err);
+                             false, PREALLOC_MODE_OFF, &local_err);
             if (local_err) {
                 warn_reportf_err(local_err,
                                  "Failed to truncate the tail of the image: ");
@@ -4003,7 +4052,12 @@ static int coroutine_fn qcow2_co_truncate(BlockDriverState *bs, int64_t offset,
     switch (prealloc) {
     case PREALLOC_MODE_OFF:
         if (has_data_file(bs)) {
-            ret = bdrv_co_truncate(s->data_file, offset, prealloc, errp);
+            /*
+             * If the caller wants an exact resize, the external data
+             * file should be resized to the exact target size, too,
+             * so we pass @exact here.
+             */
+            ret = bdrv_co_truncate(s->data_file, offset, exact, prealloc, errp);
             if (ret < 0) {
                 goto fail;
             }
@@ -4088,7 +4142,8 @@ static int coroutine_fn qcow2_co_truncate(BlockDriverState *bs, int64_t offset,
         /* Allocate the data area */
         new_file_size = allocation_start +
                         nb_new_data_clusters * s->cluster_size;
-        ret = bdrv_co_truncate(bs->file, new_file_size, prealloc, errp);
+        /* Image file grows, so @exact does not matter */
+        ret = bdrv_co_truncate(bs->file, new_file_size, false, prealloc, errp);
         if (ret < 0) {
             error_prepend(errp, "Failed to resize underlying file: ");
             qcow2_free_clusters(bs, allocation_start,
@@ -4191,7 +4246,7 @@ qcow2_co_pwritev_compressed_part(BlockDriverState *bs,
         if (len < 0) {
             return len;
         }
-        return bdrv_co_truncate(bs->file, len, PREALLOC_MODE_OFF, NULL);
+        return bdrv_co_truncate(bs->file, len, false, PREALLOC_MODE_OFF, NULL);
     }
 
     if (offset_into_cluster(s, offset)) {
@@ -4428,7 +4483,7 @@ static int make_completely_empty(BlockDriverState *bs)
         goto fail;
     }
 
-    ret = bdrv_truncate(bs->file, (3 + l1_clusters) * s->cluster_size,
+    ret = bdrv_truncate(bs->file, (3 + l1_clusters) * s->cluster_size, false,
                         PREALLOC_MODE_OFF, &local_err);
     if (ret < 0) {
         error_report_err(local_err);
@@ -4913,12 +4968,74 @@ static int qcow2_downgrade(BlockDriverState *bs, int target_version,
     return 0;
 }
 
+/*
+ * Upgrades an image's version.  While newer versions encompass all
+ * features of older versions, some things may have to be presented
+ * differently.
+ */
+static int qcow2_upgrade(BlockDriverState *bs, int target_version,
+                         BlockDriverAmendStatusCB *status_cb, void *cb_opaque,
+                         Error **errp)
+{
+    BDRVQcow2State *s = bs->opaque;
+    bool need_snapshot_update;
+    int current_version = s->qcow_version;
+    int i;
+    int ret;
+
+    /* This is qcow2_upgrade(), not qcow2_downgrade() */
+    assert(target_version > current_version);
+
+    /* There are no other versions (yet) that you can upgrade to */
+    assert(target_version == 3);
+
+    status_cb(bs, 0, 2, cb_opaque);
+
+    /*
+     * In v2, snapshots do not need to have extra data.  v3 requires
+     * the 64-bit VM state size and the virtual disk size to be
+     * present.
+     * qcow2_write_snapshots() will always write the list in the
+     * v3-compliant format.
+     */
+    need_snapshot_update = false;
+    for (i = 0; i < s->nb_snapshots; i++) {
+        if (s->snapshots[i].extra_data_size <
+            sizeof_field(QCowSnapshotExtraData, vm_state_size_large) +
+            sizeof_field(QCowSnapshotExtraData, disk_size))
+        {
+            need_snapshot_update = true;
+            break;
+        }
+    }
+    if (need_snapshot_update) {
+        ret = qcow2_write_snapshots(bs);
+        if (ret < 0) {
+            error_setg_errno(errp, -ret, "Failed to update the snapshot table");
+            return ret;
+        }
+    }
+    status_cb(bs, 1, 2, cb_opaque);
+
+    s->qcow_version = target_version;
+    ret = qcow2_update_header(bs);
+    if (ret < 0) {
+        s->qcow_version = current_version;
+        error_setg_errno(errp, -ret, "Failed to update the image header");
+        return ret;
+    }
+    status_cb(bs, 2, 2, cb_opaque);
+
+    return 0;
+}
+
 typedef enum Qcow2AmendOperation {
     /* This is the value Qcow2AmendHelperCBInfo::last_operation will be
      * statically initialized to so that the helper CB can discern the first
      * invocation from an operation change */
     QCOW2_NO_OPERATION = 0,
 
+    QCOW2_UPGRADING,
     QCOW2_CHANGING_REFCOUNT_ORDER,
     QCOW2_DOWNGRADING,
 } Qcow2AmendOperation;
@@ -5101,17 +5218,16 @@ static int qcow2_amend_options(BlockDriverState *bs, QemuOpts *opts,
     helper_cb_info = (Qcow2AmendHelperCBInfo){
         .original_status_cb = status_cb,
         .original_cb_opaque = cb_opaque,
-        .total_operations = (new_version < old_version)
+        .total_operations = (new_version != old_version)
                           + (s->refcount_bits != refcount_bits)
     };
 
     /* Upgrade first (some features may require compat=1.1) */
     if (new_version > old_version) {
-        s->qcow_version = new_version;
-        ret = qcow2_update_header(bs);
+        helper_cb_info.current_operation = QCOW2_UPGRADING;
+        ret = qcow2_upgrade(bs, new_version, &qcow2_amend_helper_cb,
+                            &helper_cb_info, errp);
         if (ret < 0) {
-            s->qcow_version = old_version;
-            error_setg_errno(errp, -ret, "Failed to update the image header");
             return ret;
         }
     }
@@ -5207,7 +5323,11 @@ static int qcow2_amend_options(BlockDriverState *bs, QemuOpts *opts,
             return ret;
         }
 
-        ret = blk_truncate(blk, new_size, PREALLOC_MODE_OFF, errp);
+        /*
+         * Amending image options should ensure that the image has
+         * exactly the given new values, so pass exact=true here.
+         */
+        ret = blk_truncate(blk, new_size, true, PREALLOC_MODE_OFF, errp);
         blk_unref(blk);
         if (ret < 0) {
             return ret;

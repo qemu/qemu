@@ -24,7 +24,7 @@ echo "QA output created by $seq"
 
 status=1	# failure is the default!
 
-MIG_SOCKET="${TEST_DIR}/migrate"
+MIG_SOCKET="${SOCK_DIR}/migrate"
 
 # get standard environment, filters and checks
 . ./common.rc

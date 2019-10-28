@@ -16,6 +16,7 @@
 #define BLOCK_COPY_H
 
 #include "block/block.h"
+#include "qemu/co-shared-resource.h"
 
 typedef struct BlockCopyInFlightReq {
     int64_t start_byte;
@@ -37,7 +38,7 @@ typedef struct BlockCopyState {
     BdrvDirtyBitmap *copy_bitmap;
     int64_t cluster_size;
     bool use_copy_range;
-    int64_t copy_range_size;
+    int64_t copy_size;
     uint64_t len;
     QLIST_HEAD(, BlockCopyInFlightReq) inflight_reqs;
 
@@ -69,6 +70,8 @@ typedef struct BlockCopyState {
      */
     ProgressResetCallbackFunc progress_reset_callback;
     void *progress_opaque;
+
+    SharedResource *mem;
 } BlockCopyState;
 
 BlockCopyState *block_copy_state_new(BdrvChild *source, BdrvChild *target,

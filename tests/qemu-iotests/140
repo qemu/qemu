@@ -34,7 +34,7 @@ _cleanup()
 {
     _cleanup_qemu
     _cleanup_test_img
-    rm -f "$TEST_DIR/nbd"
+    rm -f "$SOCK_DIR/nbd"
 }
 trap "_cleanup; exit \$status" 0 1 2 3 15
 
@@ -69,7 +69,7 @@ _send_qemu_cmd $QEMU_HANDLE \
 _send_qemu_cmd $QEMU_HANDLE \
     "{ 'execute': 'nbd-server-start',
        'arguments': { 'addr': { 'type': 'unix',
-                                'data': { 'path': '$TEST_DIR/nbd' }}}}" \
+                                'data': { 'path': '$SOCK_DIR/nbd' }}}}" \
     'return'
 
 _send_qemu_cmd $QEMU_HANDLE \
@@ -78,7 +78,7 @@ _send_qemu_cmd $QEMU_HANDLE \
     'return'
 
 $QEMU_IO_PROG -f raw -r -c 'read -P 42 0 64k' \
-    "nbd+unix:///drv?socket=$TEST_DIR/nbd" 2>&1 \
+    "nbd+unix:///drv?socket=$SOCK_DIR/nbd" 2>&1 \
     | _filter_qemu_io | _filter_nbd
 
 _send_qemu_cmd $QEMU_HANDLE \
@@ -87,7 +87,7 @@ _send_qemu_cmd $QEMU_HANDLE \
     'return'
 
 $QEMU_IO_PROG -f raw -r -c close \
-    "nbd+unix:///drv?socket=$TEST_DIR/nbd" 2>&1 \
+    "nbd+unix:///drv?socket=$SOCK_DIR/nbd" 2>&1 \
     | _filter_qemu_io | _filter_nbd
 
 _send_qemu_cmd $QEMU_HANDLE \

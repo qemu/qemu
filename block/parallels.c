@@ -203,7 +203,7 @@ static int64_t allocate_clusters(BlockDriverState *bs, int64_t sector_num,
         } else {
             ret = bdrv_truncate(bs->file,
                                 (s->data_end + space) << BDRV_SECTOR_BITS,
-                                PREALLOC_MODE_OFF, NULL);
+                                false, PREALLOC_MODE_OFF, NULL);
         }
         if (ret < 0) {
             return ret;
@@ -487,7 +487,12 @@ static int coroutine_fn parallels_co_check(BlockDriverState *bs,
         res->leaks += count;
         if (fix & BDRV_FIX_LEAKS) {
             Error *local_err = NULL;
-            ret = bdrv_truncate(bs->file, res->image_end_offset,
+
+            /*
+             * In order to really repair the image, we must shrink it.
+             * That means we have to pass exact=true.
+             */
+            ret = bdrv_truncate(bs->file, res->image_end_offset, true,
                                 PREALLOC_MODE_OFF, &local_err);
             if (ret < 0) {
                 error_report_err(local_err);
@@ -563,11 +568,6 @@ static int coroutine_fn parallels_co_create(BlockdevCreateOptions* opts,
     blk_set_allow_write_beyond_eof(blk, true);
 
     /* Create image format */
-    ret = blk_truncate(blk, 0, PREALLOC_MODE_OFF, errp);
-    if (ret < 0) {
-        goto out;
-    }
-
     bat_entries = DIV_ROUND_UP(total_size, cl_size);
     bat_sectors = DIV_ROUND_UP(bat_entry_off(bat_entries), cl_size);
     bat_sectors = (bat_sectors *  cl_size) >> BDRV_SECTOR_BITS;
@@ -885,7 +885,9 @@ static void parallels_close(BlockDriverState *bs)
     if ((bs->open_flags & BDRV_O_RDWR) && !(bs->open_flags & BDRV_O_INACTIVE)) {
         s->header->inuse = 0;
         parallels_update_header(bs);
-        bdrv_truncate(bs->file, s->data_end << BDRV_SECTOR_BITS,
+
+        /* errors are ignored, so we might as well pass exact=true */
+        bdrv_truncate(bs->file, s->data_end << BDRV_SECTOR_BITS, true,
                       PREALLOC_MODE_OFF, NULL);
     }
 

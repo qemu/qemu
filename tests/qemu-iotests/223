@@ -28,7 +28,7 @@ _cleanup()
     nbd_server_stop
     _cleanup_test_img
     _cleanup_qemu
-    rm -f "$TEST_DIR/nbd"
+    rm -f "$SOCK_DIR/nbd"
 }
 trap "_cleanup; exit \$status" 0 1 2 3 15
 
@@ -125,11 +125,11 @@ _send_qemu_cmd $QEMU_HANDLE '{"execute":"nbd-server-add",
   "arguments":{"device":"n"}}' "error" # Attempt add without server
 _send_qemu_cmd $QEMU_HANDLE '{"execute":"nbd-server-start",
   "arguments":{"addr":{"type":"unix",
-    "data":{"path":"'"$TEST_DIR/nbd"'"}}}}' "return"
+    "data":{"path":"'"$SOCK_DIR/nbd"'"}}}}' "return"
 _send_qemu_cmd $QEMU_HANDLE '{"execute":"nbd-server-start",
   "arguments":{"addr":{"type":"unix",
-    "data":{"path":"'"$TEST_DIR/nbd"1'"}}}}' "error" # Attempt second server
-$QEMU_NBD_PROG -L -k "$TEST_DIR/nbd"
+    "data":{"path":"'"$SOCK_DIR/nbd"1'"}}}}' "error" # Attempt second server
+$QEMU_NBD_PROG -L -k "$SOCK_DIR/nbd"
 _send_qemu_cmd $QEMU_HANDLE '{"execute":"nbd-server-add",
   "arguments":{"device":"n", "bitmap":"b"}}' "return"
 _send_qemu_cmd $QEMU_HANDLE '{"execute":"nbd-server-add",
@@ -145,14 +145,14 @@ _send_qemu_cmd $QEMU_HANDLE '{"execute":"nbd-server-add",
 _send_qemu_cmd $QEMU_HANDLE '{"execute":"nbd-server-add",
   "arguments":{"device":"n", "name":"n2", "writable":true,
   "bitmap":"b2"}}' "return"
-$QEMU_NBD_PROG -L -k "$TEST_DIR/nbd"
+$QEMU_NBD_PROG -L -k "$SOCK_DIR/nbd"
 
 echo
 echo "=== Contrast normal status to large granularity dirty-bitmap ==="
 echo
 
 QEMU_IO_OPTIONS=$QEMU_IO_OPTIONS_NO_FMT
-IMG="driver=nbd,export=n,server.type=unix,server.path=$TEST_DIR/nbd"
+IMG="driver=nbd,export=n,server.type=unix,server.path=$SOCK_DIR/nbd"
 $QEMU_IO -r -c 'r -P 0x22 512 512' -c 'r -P 0 512k 512k' -c 'r -P 0x11 1m 1m' \
   -c 'r -P 0x33 2m 2m' --image-opts "$IMG" | _filter_qemu_io
 $QEMU_IMG map --output=json --image-opts \
@@ -164,7 +164,7 @@ echo
 echo "=== Contrast to small granularity dirty-bitmap ==="
 echo
 
-IMG="driver=nbd,export=n2,server.type=unix,server.path=$TEST_DIR/nbd"
+IMG="driver=nbd,export=n2,server.type=unix,server.path=$SOCK_DIR/nbd"
 $QEMU_IMG map --output=json --image-opts \
   "$IMG,x-dirty-bitmap=qemu:dirty-bitmap:b2" | _filter_qemu_img_map
 

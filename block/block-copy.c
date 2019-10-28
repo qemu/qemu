@@ -18,6 +18,11 @@
 #include "qapi/error.h"
 #include "block/block-copy.h"
 #include "sysemu/block-backend.h"
+#include "qemu/units.h"
+
+#define BLOCK_COPY_MAX_COPY_RANGE (16 * MiB)
+#define BLOCK_COPY_MAX_BUFFER (1 * MiB)
+#define BLOCK_COPY_MAX_MEM (128 * MiB)
 
 static void coroutine_fn block_copy_wait_inflight_reqs(BlockCopyState *s,
                                                        int64_t start,
@@ -61,6 +66,7 @@ void block_copy_state_free(BlockCopyState *s)
     }
 
     bdrv_release_dirty_bitmap(s->copy_bitmap);
+    shres_destroy(s->mem);
     g_free(s);
 }
 
@@ -71,8 +77,9 @@ BlockCopyState *block_copy_state_new(BdrvChild *source, BdrvChild *target,
     BlockCopyState *s;
     BdrvDirtyBitmap *copy_bitmap;
     uint32_t max_transfer =
-            MIN_NON_ZERO(INT_MAX, MIN_NON_ZERO(source->bs->bl.max_transfer,
-                                               target->bs->bl.max_transfer));
+            MIN_NON_ZERO(INT_MAX,
+                         MIN_NON_ZERO(source->bs->bl.max_transfer,
+                                      target->bs->bl.max_transfer));
 
     copy_bitmap = bdrv_create_dirty_bitmap(source->bs, cluster_size, NULL,
                                            errp);
@@ -89,19 +96,31 @@ BlockCopyState *block_copy_state_new(BdrvChild *source, BdrvChild *target,
         .cluster_size = cluster_size,
         .len = bdrv_dirty_bitmap_size(copy_bitmap),
         .write_flags = write_flags,
+        .mem = shres_create(BLOCK_COPY_MAX_MEM),
     };
 
-    s->copy_range_size = QEMU_ALIGN_DOWN(max_transfer, cluster_size),
-    /*
-     * Set use_copy_range, consider the following:
-     * 1. Compression is not supported for copy_range.
-     * 2. copy_range does not respect max_transfer (it's a TODO), so we factor
-     *    that in here. If max_transfer is smaller than the job->cluster_size,
-     *    we do not use copy_range (in that case it's zero after aligning down
-     *    above).
-     */
-    s->use_copy_range =
-        !(write_flags & BDRV_REQ_WRITE_COMPRESSED) && s->copy_range_size > 0;
+    if (max_transfer < cluster_size) {
+        /*
+         * copy_range does not respect max_transfer. We don't want to bother
+         * with requests smaller than block-copy cluster size, so fallback to
+         * buffered copying (read and write respect max_transfer on their
+         * behalf).
+         */
+        s->use_copy_range = false;
+        s->copy_size = cluster_size;
+    } else if (write_flags & BDRV_REQ_WRITE_COMPRESSED) {
+        /* Compression is not supported for copy_range */
+        s->use_copy_range = false;
+        s->copy_size = MAX(cluster_size, BLOCK_COPY_MAX_BUFFER);
+    } else {
+        /*
+         * copy_range does not respect max_transfer (it's a TODO), so we factor
+         * that in here.
+         */
+        s->use_copy_range = true;
+        s->copy_size = MIN(MAX(cluster_size, BLOCK_COPY_MAX_COPY_RANGE),
+                           QEMU_ALIGN_DOWN(max_transfer, cluster_size));
+    }
 
     QLIST_INIT(&s->inflight_reqs);
 
@@ -120,79 +139,71 @@ void block_copy_set_callbacks(
 }
 
 /*
- * Copy range to target with a bounce buffer and return the bytes copied. If
- * error occurred, return a negative error number
+ * block_copy_do_copy
+ *
+ * Do copy of cluser-aligned chunk. @end is allowed to exceed s->len only to
+ * cover last cluster when s->len is not aligned to clusters.
+ *
+ * No sync here: nor bitmap neighter intersecting requests handling, only copy.
+ *
+ * Returns 0 on success.
  */
-static int coroutine_fn block_copy_with_bounce_buffer(BlockCopyState *s,
-                                                      int64_t start,
-                                                      int64_t end,
-                                                      bool *error_is_read,
-                                                      void **bounce_buffer)
+static int coroutine_fn block_copy_do_copy(BlockCopyState *s,
+                                           int64_t start, int64_t end,
+                                           bool *error_is_read)
 {
     int ret;
-    int nbytes;
+    int nbytes = MIN(end, s->len) - start;
+    void *bounce_buffer = NULL;
 
     assert(QEMU_IS_ALIGNED(start, s->cluster_size));
-    bdrv_reset_dirty_bitmap(s->copy_bitmap, start, s->cluster_size);
-    nbytes = MIN(s->cluster_size, s->len - start);
-    if (!*bounce_buffer) {
-        *bounce_buffer = qemu_blockalign(s->source->bs, s->cluster_size);
+    assert(QEMU_IS_ALIGNED(end, s->cluster_size));
+    assert(end < s->len || end == QEMU_ALIGN_UP(s->len, s->cluster_size));
+
+    if (s->use_copy_range) {
+        ret = bdrv_co_copy_range(s->source, start, s->target, start, nbytes,
+                                 0, s->write_flags);
+        if (ret < 0) {
+            trace_block_copy_copy_range_fail(s, start, ret);
+            s->use_copy_range = false;
+            s->copy_size = MAX(s->cluster_size, BLOCK_COPY_MAX_BUFFER);
+            /* Fallback to read+write with allocated buffer */
+        } else {
+            goto out;
+        }
     }
 
-    ret = bdrv_co_pread(s->source, start, nbytes, *bounce_buffer, 0);
+    /*
+     * In case of failed copy_range request above, we may proceed with buffered
+     * request larger than BLOCK_COPY_MAX_BUFFER. Still, further requests will
+     * be properly limited, so don't care too much.
+     */
+
+    bounce_buffer = qemu_blockalign(s->source->bs, nbytes);
+
+    ret = bdrv_co_pread(s->source, start, nbytes, bounce_buffer, 0);
     if (ret < 0) {
-        trace_block_copy_with_bounce_buffer_read_fail(s, start, ret);
+        trace_block_copy_read_fail(s, start, ret);
         if (error_is_read) {
             *error_is_read = true;
         }
-        goto fail;
+        goto out;
     }
 
-    ret = bdrv_co_pwrite(s->target, start, nbytes, *bounce_buffer,
+    ret = bdrv_co_pwrite(s->target, start, nbytes, bounce_buffer,
                          s->write_flags);
     if (ret < 0) {
-        trace_block_copy_with_bounce_buffer_write_fail(s, start, ret);
+        trace_block_copy_write_fail(s, start, ret);
         if (error_is_read) {
             *error_is_read = false;
         }
-        goto fail;
+        goto out;
     }
 
-    return nbytes;
-fail:
-    bdrv_set_dirty_bitmap(s->copy_bitmap, start, s->cluster_size);
+out:
+    qemu_vfree(bounce_buffer);
+
     return ret;
-
-}
-
-/*
- * Copy range to target and return the bytes copied. If error occurred, return a
- * negative error number.
- */
-static int coroutine_fn block_copy_with_offload(BlockCopyState *s,
-                                                int64_t start,
-                                                int64_t end)
-{
-    int ret;
-    int nr_clusters;
-    int nbytes;
-
-    assert(QEMU_IS_ALIGNED(s->copy_range_size, s->cluster_size));
-    assert(QEMU_IS_ALIGNED(start, s->cluster_size));
-    nbytes = MIN(s->copy_range_size, MIN(end, s->len) - start);
-    nr_clusters = DIV_ROUND_UP(nbytes, s->cluster_size);
-    bdrv_reset_dirty_bitmap(s->copy_bitmap, start,
-                            s->cluster_size * nr_clusters);
-    ret = bdrv_co_copy_range(s->source, start, s->target, start, nbytes,
-                             0, s->write_flags);
-    if (ret < 0) {
-        trace_block_copy_with_offload_fail(s, start, ret);
-        bdrv_set_dirty_bitmap(s->copy_bitmap, start,
-                              s->cluster_size * nr_clusters);
-        return ret;
-    }
-
-    return nbytes;
 }
 
 /*
@@ -271,7 +282,6 @@ int coroutine_fn block_copy(BlockCopyState *s,
 {
     int ret = 0;
     int64_t end = bytes + start; /* bytes */
-    void *bounce_buffer = NULL;
     int64_t status_bytes;
     BlockCopyInFlightReq req;
 
@@ -289,7 +299,7 @@ int coroutine_fn block_copy(BlockCopyState *s,
     block_copy_inflight_req_begin(s, &req, start, end);
 
     while (start < end) {
-        int64_t dirty_end;
+        int64_t next_zero, chunk_end;
 
         if (!bdrv_dirty_bitmap_get(s->copy_bitmap, start)) {
             trace_block_copy_skip(s, start);
@@ -297,10 +307,14 @@ int coroutine_fn block_copy(BlockCopyState *s,
             continue; /* already copied */
         }
 
-        dirty_end = bdrv_dirty_bitmap_next_zero(s->copy_bitmap, start,
-                                                (end - start));
-        if (dirty_end < 0) {
-            dirty_end = end;
+        chunk_end = MIN(end, start + s->copy_size);
+
+        next_zero = bdrv_dirty_bitmap_next_zero(s->copy_bitmap, start,
+                                                chunk_end - start);
+        if (next_zero >= 0) {
+            assert(next_zero > start); /* start is dirty */
+            assert(next_zero < chunk_end); /* no need to do MIN() */
+            chunk_end = next_zero;
         }
 
         if (s->skip_unallocated) {
@@ -311,32 +325,24 @@ int coroutine_fn block_copy(BlockCopyState *s,
                 continue;
             }
             /* Clamp to known allocated region */
-            dirty_end = MIN(dirty_end, start + status_bytes);
+            chunk_end = MIN(chunk_end, start + status_bytes);
         }
 
         trace_block_copy_process(s, start);
 
-        if (s->use_copy_range) {
-            ret = block_copy_with_offload(s, start, dirty_end);
-            if (ret < 0) {
-                s->use_copy_range = false;
-            }
-        }
-        if (!s->use_copy_range) {
-            ret = block_copy_with_bounce_buffer(s, start, dirty_end,
-                                                error_is_read, &bounce_buffer);
-        }
+        bdrv_reset_dirty_bitmap(s->copy_bitmap, start, chunk_end - start);
+
+        co_get_from_shres(s->mem, chunk_end - start);
+        ret = block_copy_do_copy(s, start, chunk_end, error_is_read);
+        co_put_to_shres(s->mem, chunk_end - start);
         if (ret < 0) {
+            bdrv_set_dirty_bitmap(s->copy_bitmap, start, chunk_end - start);
             break;
         }
 
-        start += ret;
-        s->progress_bytes_callback(ret, s->progress_opaque);
+        s->progress_bytes_callback(chunk_end - start, s->progress_opaque);
+        start = chunk_end;
         ret = 0;
-    }
-
-    if (bounce_buffer) {
-        qemu_vfree(bounce_buffer);
     }
 
     block_copy_inflight_req_end(&req);

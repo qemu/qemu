@@ -37,13 +37,6 @@ static inline hwaddr vring_align(hwaddr addr,
     return QEMU_ALIGN_UP(addr, align);
 }
 
-/*
- * Calculate the number of bytes up to and including the given 'field' of
- * 'container'.
- */
-#define virtio_endof(container, field) \
-    (offsetof(container, field) + sizeof_field(container, field))
-
 typedef struct VirtIOFeature {
     uint64_t flags;
     size_t end;

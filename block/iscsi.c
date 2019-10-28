@@ -2123,9 +2123,11 @@ static void iscsi_reopen_commit(BDRVReopenState *reopen_state)
 }
 
 static int coroutine_fn iscsi_co_truncate(BlockDriverState *bs, int64_t offset,
-                                          PreallocMode prealloc, Error **errp)
+                                          bool exact, PreallocMode prealloc,
+                                          Error **errp)
 {
     IscsiLun *iscsilun = bs->opaque;
+    int64_t cur_length;
     Error *local_err = NULL;
 
     if (prealloc != PREALLOC_MODE_OFF) {
@@ -2145,7 +2147,11 @@ static int coroutine_fn iscsi_co_truncate(BlockDriverState *bs, int64_t offset,
         return -EIO;
     }
 
-    if (offset > iscsi_getlength(bs)) {
+    cur_length = iscsi_getlength(bs);
+    if (offset != cur_length && exact) {
+        error_setg(errp, "Cannot resize iSCSI devices");
+        return -ENOTSUP;
+    } else if (offset > cur_length) {
         error_setg(errp, "Cannot grow iSCSI devices");
         return -EINVAL;
     }

@@ -61,6 +61,9 @@
  * space for snapshot names and IDs */
 #define QCOW_MAX_SNAPSHOTS_SIZE (1024 * QCOW_MAX_SNAPSHOTS)
 
+/* Maximum amount of extra data per snapshot table entry to accept */
+#define QCOW_MAX_SNAPSHOT_EXTRA_DATA 1024
+
 /* Bitmap header extension constraints */
 #define QCOW2_MAX_BITMAPS 65535
 #define QCOW2_MAX_BITMAP_DIRECTORY_SIZE (1024 * QCOW2_MAX_BITMAPS)
@@ -181,6 +184,10 @@ typedef struct QCowSnapshot {
     uint32_t date_sec;
     uint32_t date_nsec;
     uint64_t vm_clock_nsec;
+    /* Size of all extra data, including QCowSnapshotExtraData if available */
+    uint32_t extra_data_size;
+    /* Data beyond QCowSnapshotExtraData, if any */
+    void *unknown_extra_data;
 } QCowSnapshot;
 
 struct Qcow2Cache;
@@ -708,7 +715,15 @@ int qcow2_snapshot_load_tmp(BlockDriverState *bs,
                             Error **errp);
 
 void qcow2_free_snapshots(BlockDriverState *bs);
-int qcow2_read_snapshots(BlockDriverState *bs);
+int qcow2_read_snapshots(BlockDriverState *bs, Error **errp);
+int qcow2_write_snapshots(BlockDriverState *bs);
+
+int coroutine_fn qcow2_check_read_snapshot_table(BlockDriverState *bs,
+                                                 BdrvCheckResult *result,
+                                                 BdrvCheckMode fix);
+int coroutine_fn qcow2_check_fix_snapshot_table(BlockDriverState *bs,
+                                                BdrvCheckResult *result,
+                                                BdrvCheckMode fix);
 
 /* qcow2-cache.c functions */
 Qcow2Cache *qcow2_cache_create(BlockDriverState *bs, int num_tables,

@@ -71,7 +71,7 @@ class QEMUMachine(object):
 
     def __init__(self, binary, args=None, wrapper=None, name=None,
                  test_dir="/var/tmp", monitor_address=None,
-                 socket_scm_helper=None):
+                 socket_scm_helper=None, sock_dir=None):
         '''
         Initialize a QEMUMachine
 
@@ -90,6 +90,8 @@ class QEMUMachine(object):
             wrapper = []
         if name is None:
             name = "qemu-%d" % os.getpid()
+        if sock_dir is None:
+            sock_dir = test_dir
         self._name = name
         self._monitor_address = monitor_address
         self._vm_monitor = None
@@ -106,12 +108,14 @@ class QEMUMachine(object):
         self._qemu_full_args = None
         self._test_dir = test_dir
         self._temp_dir = None
+        self._sock_dir = sock_dir
         self._launched = False
         self._machine = None
         self._console_set = False
         self._console_device_type = None
         self._console_address = None
         self._console_socket = None
+        self._remove_files = []
 
         # just in case logging wasn't configured by the main script:
         logging.basicConfig()
@@ -236,8 +240,9 @@ class QEMUMachine(object):
         if self._machine is not None:
             args.extend(['-machine', self._machine])
         if self._console_set:
-            self._console_address = os.path.join(self._temp_dir,
+            self._console_address = os.path.join(self._sock_dir,
                                                  self._name + "-console.sock")
+            self._remove_files.append(self._console_address)
             chardev = ('socket,id=console,path=%s,server,nowait' %
                        self._console_address)
             args.extend(['-chardev', chardev])
@@ -253,8 +258,9 @@ class QEMUMachine(object):
         if self._monitor_address is not None:
             self._vm_monitor = self._monitor_address
         else:
-            self._vm_monitor = os.path.join(self._temp_dir,
+            self._vm_monitor = os.path.join(self._sock_dir,
                                             self._name + "-monitor.sock")
+            self._remove_files.append(self._vm_monitor)
         self._qemu_log_path = os.path.join(self._temp_dir, self._name + ".log")
         self._qemu_log_file = open(self._qemu_log_path, 'wb')
 
@@ -278,6 +284,9 @@ class QEMUMachine(object):
         if self._temp_dir is not None:
             shutil.rmtree(self._temp_dir)
             self._temp_dir = None
+
+        while len(self._remove_files) > 0:
+            self._remove_if_exists(self._remove_files.pop())
 
     def launch(self):
         """
