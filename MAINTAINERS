@@ -1068,6 +1068,7 @@ F: hw/rtc/m48t59-isa.c
 F: include/hw/isa/pc87312.h
 F: include/hw/rtc/m48t59.h
 F: pc-bios/ppc_rom.bin
+F: tests/acceptance/ppc_prep_40p.py
 
 sPAPR
 M: David Gibson <david@gibson.dropbear.id.au>
