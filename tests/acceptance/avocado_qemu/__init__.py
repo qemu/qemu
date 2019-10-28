@@ -8,6 +8,7 @@
 # This work is licensed under the terms of the GNU GPL, version 2 or
 # later.  See the COPYING file in the top-level directory.
 
+import logging
 import os
 import sys
 import uuid
@@ -52,6 +53,30 @@ def pick_default_qemu_bin(arch=None):
                                               qemu_bin_relative_path)
     if is_readable_executable_file(qemu_bin_from_src_dir_path):
         return qemu_bin_from_src_dir_path
+
+
+def wait_for_console_pattern(test, success_message, failure_message=None):
+    """
+    Waits for messages to appear on the console, while logging the content
+
+    :param test: an Avocado test containing a VM that will have its console
+                 read and probed for a success or failure message
+    :type test: :class:`avocado_qemu.Test`
+    :param success_message: if this message appears, test succeeds
+    :param failure_message: if this message appears, test fails
+    """
+    console = test.vm.console_socket.makefile()
+    console_logger = logging.getLogger('console')
+    while True:
+        msg = console.readline().strip()
+        if not msg:
+            continue
+        console_logger.debug(msg)
+        if success_message in msg:
+            break
+        if failure_message and failure_message in msg:
+            fail = 'Failure message found in console: %s' % failure_message
+            test.fail(fail)
 
 
 class Test(avocado.Test):
