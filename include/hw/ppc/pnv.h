@@ -198,6 +198,7 @@ static inline bool pnv_is_power9(PnvMachineState *pnv)
  */
 void pnv_dt_bmc_sensors(IPMIBmc *bmc, void *fdt);
 void pnv_bmc_powerdown(IPMIBmc *bmc);
+int pnv_bmc_hiomap(IPMIBmc *bmc);
 
 /*
  * POWER8 MMIO base addresses

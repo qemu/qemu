@@ -569,6 +569,7 @@ static void pnv_reset(MachineState *machine)
     obj = object_resolve_path_type("", "ipmi-bmc-sim", NULL);
     if (obj) {
         pnv->bmc = IPMI_BMC(obj);
+        pnv_bmc_hiomap(pnv->bmc);
     }
 
     fdt = pnv_dt_create(machine);

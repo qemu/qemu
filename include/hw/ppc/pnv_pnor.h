@@ -9,6 +9,11 @@
 #ifndef _PPC_PNV_PNOR_H
 #define _PPC_PNV_PNOR_H
 
+/*
+ * PNOR offset on the LPC FW address space
+ */
+#define PNOR_SPI_OFFSET         0x0c000000UL
+
 #define TYPE_PNV_PNOR  "pnv-pnor"
 #define PNV_PNOR(obj)  OBJECT_CHECK(PnvPnor, (obj), TYPE_PNV_PNOR)
 

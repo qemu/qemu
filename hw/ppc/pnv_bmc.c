@@ -114,3 +114,105 @@ void pnv_dt_bmc_sensors(IPMIBmc *bmc, void *fdt)
                                sdr->sensor_type)));
     }
 }
+
+/*
+ * HIOMAP protocol handler
+ */
+#define HIOMAP_C_RESET                  1
+#define HIOMAP_C_GET_INFO               2
+#define HIOMAP_C_GET_FLASH_INFO         3
+#define HIOMAP_C_CREATE_READ_WINDOW     4
+#define HIOMAP_C_CLOSE_WINDOW           5
+#define HIOMAP_C_CREATE_WRITE_WINDOW    6
+#define HIOMAP_C_MARK_DIRTY             7
+#define HIOMAP_C_FLUSH                  8
+#define HIOMAP_C_ACK                    9
+#define HIOMAP_C_ERASE                  10
+#define HIOMAP_C_DEVICE_NAME            11
+#define HIOMAP_C_LOCK                   12
+
+#define BLOCK_SHIFT                     12 /* 4K */
+
+static uint16_t bytes_to_blocks(uint32_t bytes)
+{
+    return bytes >> BLOCK_SHIFT;
+}
+
+static void hiomap_cmd(IPMIBmcSim *ibs, uint8_t *cmd, unsigned int cmd_len,
+                       RspBuffer *rsp)
+{
+    PnvMachineState *pnv = PNV_MACHINE(qdev_get_machine());
+    PnvPnor *pnor = pnv->pnor;
+    uint32_t pnor_size = pnor->size;
+    uint32_t pnor_addr = PNOR_SPI_OFFSET;
+    bool readonly = false;
+
+    rsp_buffer_push(rsp, cmd[2]);
+    rsp_buffer_push(rsp, cmd[3]);
+
+    switch (cmd[2]) {
+    case HIOMAP_C_MARK_DIRTY:
+    case HIOMAP_C_FLUSH:
+    case HIOMAP_C_ERASE:
+    case HIOMAP_C_ACK:
+        break;
+
+    case HIOMAP_C_GET_INFO:
+        rsp_buffer_push(rsp, 2);  /* Version 2 */
+        rsp_buffer_push(rsp, BLOCK_SHIFT); /* block size */
+        rsp_buffer_push(rsp, 0);  /* Timeout */
+        rsp_buffer_push(rsp, 0);  /* Timeout */
+        break;
+
+    case HIOMAP_C_GET_FLASH_INFO:
+        rsp_buffer_push(rsp, bytes_to_blocks(pnor_size) & 0xFF);
+        rsp_buffer_push(rsp, bytes_to_blocks(pnor_size) >> 8);
+        rsp_buffer_push(rsp, 0x01);  /* erase size */
+        rsp_buffer_push(rsp, 0x00);  /* erase size */
+        break;
+
+    case HIOMAP_C_CREATE_READ_WINDOW:
+        readonly = true;
+        /* Fall through */
+
+    case HIOMAP_C_CREATE_WRITE_WINDOW:
+        memory_region_set_readonly(&pnor->mmio, readonly);
+        memory_region_set_enabled(&pnor->mmio, true);
+
+        rsp_buffer_push(rsp, bytes_to_blocks(pnor_addr) & 0xFF);
+        rsp_buffer_push(rsp, bytes_to_blocks(pnor_addr) >> 8);
+        rsp_buffer_push(rsp, bytes_to_blocks(pnor_size) & 0xFF);
+        rsp_buffer_push(rsp, bytes_to_blocks(pnor_size) >> 8);
+        rsp_buffer_push(rsp, 0x00); /* offset */
+        rsp_buffer_push(rsp, 0x00); /* offset */
+        break;
+
+    case HIOMAP_C_CLOSE_WINDOW:
+        memory_region_set_enabled(&pnor->mmio, false);
+        break;
+
+    case HIOMAP_C_DEVICE_NAME:
+    case HIOMAP_C_RESET:
+    case HIOMAP_C_LOCK:
+    default:
+        qemu_log_mask(LOG_GUEST_ERROR, "HIOMAP: unknow command %02X\n", cmd[2]);
+        break;
+    }
+}
+
+#define HIOMAP   0x5a
+
+static const IPMICmdHandler hiomap_cmds[] = {
+    [HIOMAP] = { hiomap_cmd, 3 },
+};
+
+static const IPMINetfn hiomap_netfn = {
+    .cmd_nums = ARRAY_SIZE(hiomap_cmds),
+    .cmd_handlers = hiomap_cmds
+};
+
+int pnv_bmc_hiomap(IPMIBmc *bmc)
+{
+    return ipmi_sim_register_netfn(IPMI_BMC_SIMULATOR(bmc),
+                                   IPMI_NETFN_OEM, &hiomap_netfn);
+}
