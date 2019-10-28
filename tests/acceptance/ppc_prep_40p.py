@@ -47,3 +47,36 @@ class IbmPrep40pMachine(Test):
         os_banner = 'NetBSD 4.0 (GENERIC) #0: Sun Dec 16 00:49:40 PST 2007'
         wait_for_console_pattern(self, os_banner)
         wait_for_console_pattern(self, 'Model: IBM PPS Model 6015')
+
+    def test_openbios_192m(self):
+        """
+        :avocado: tags=arch:ppc
+        :avocado: tags=machine:40p
+        """
+        self.vm.set_machine('40p')
+        self.vm.set_console()
+        self.vm.add_args('-m', '192') # test fw_cfg
+
+        self.vm.launch()
+        wait_for_console_pattern(self, '>> OpenBIOS')
+        wait_for_console_pattern(self, '>> Memory: 192M')
+        wait_for_console_pattern(self, '>> CPU type PowerPC,604')
+
+    @skipIf(os.getenv('CONTINUOUS_INTEGRATION'), 'Running on Travis-CI')
+    def test_openbios_and_netbsd(self):
+        """
+        :avocado: tags=arch:ppc
+        :avocado: tags=machine:40p
+        """
+        drive_url = ('https://ftp.netbsd.org/pub/NetBSD/iso/7.1.2/'
+                     'NetBSD-7.1.2-prep.iso')
+        drive_hash = 'ac6fa2707d888b36d6fa64de6e7fe48e'
+        drive_path = self.fetch_asset(drive_url, asset_hash=drive_hash,
+                                      algorithm='md5')
+        self.vm.set_machine('40p')
+        self.vm.set_console()
+        self.vm.add_args('-cdrom', drive_path,
+                         '-boot', 'd')
+
+        self.vm.launch()
+        wait_for_console_pattern(self, 'NetBSD/prep BOOT, Revision 1.9')
