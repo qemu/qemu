@@ -75,6 +75,7 @@ def wait_for_console_pattern(test, success_message, failure_message=None):
         if success_message in msg:
             break
         if failure_message and failure_message in msg:
+            console.close()
             fail = 'Failure message found in console: %s' % failure_message
             test.fail(fail)
 
