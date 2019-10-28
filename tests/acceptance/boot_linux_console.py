@@ -14,6 +14,7 @@ import gzip
 import shutil
 
 from avocado_qemu import Test
+from avocado_qemu import exec_command_and_wait_for_pattern
 from avocado_qemu import wait_for_console_pattern
 from avocado.utils import process
 from avocado.utils import archive
@@ -32,11 +33,6 @@ class BootLinuxConsole(Test):
     def wait_for_console_pattern(self, success_message):
         wait_for_console_pattern(self, success_message,
                                  failure_message='Kernel panic - not syncing')
-
-    def exec_command_and_wait_for_pattern(self, command, success_message):
-        command += '\r'
-        self.vm.console_socket.sendall(command.encode())
-        wait_for_console_pattern(self, success_message)
 
     def extract_from_deb(self, deb, path):
         """
@@ -166,12 +162,12 @@ class BootLinuxConsole(Test):
         self.vm.launch()
         self.wait_for_console_pattern('Boot successful.')
 
-        self.exec_command_and_wait_for_pattern('cat /proc/cpuinfo',
-                                               'BogoMIPS')
-        self.exec_command_and_wait_for_pattern('uname -a',
-                                               'Debian')
-        self.exec_command_and_wait_for_pattern('reboot',
-                                               'reboot: Restarting system')
+        exec_command_and_wait_for_pattern(self, 'cat /proc/cpuinfo',
+                                                'BogoMIPS')
+        exec_command_and_wait_for_pattern(self, 'uname -a',
+                                                'Debian')
+        exec_command_and_wait_for_pattern(self, 'reboot',
+                                                'reboot: Restarting system')
 
     def do_test_mips_malta32el_nanomips(self, kernel_url, kernel_hash):
         kernel_path_xz = self.fetch_asset(kernel_url, asset_hash=kernel_hash)

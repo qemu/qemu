@@ -80,6 +80,25 @@ def wait_for_console_pattern(test, success_message, failure_message=None):
             test.fail(fail)
 
 
+def exec_command_and_wait_for_pattern(test, command,
+                                      success_message, failure_message=None):
+    """
+    Send a command to a console (appending CRLF characters), then wait
+    for success_message to appear on the console, while logging the.
+    content. Mark the test as failed if failure_message is found instead.
+
+    :param test: an Avocado test containing a VM that will have its console
+                 read and probed for a success or failure message
+    :type test: :class:`avocado_qemu.Test`
+    :param command: the command to send
+    :param success_message: if this message appears, test succeeds
+    :param failure_message: if this message appears, test fails
+    """
+    command += '\r'
+    test.vm.console_socket.sendall(command.encode())
+    wait_for_console_pattern(test, success_message, failure_message)
+
+
 class Test(avocado.Test):
     def setUp(self):
         self._vms = {}
