@@ -34,7 +34,7 @@ class BootLinuxConsole(Test):
                                  failure_message='Kernel panic - not syncing')
 
     def exec_command_and_wait_for_pattern(self, command, success_message):
-        command += '\n'
+        command += '\r'
         self.vm.console_socket.sendall(command.encode())
         wait_for_console_pattern(self, success_message)
 
