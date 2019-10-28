@@ -55,6 +55,7 @@ enum ipmi_op {
 #define IPMI_CC_COMMAND_NOT_SUPPORTED                    0xd5
 
 #define IPMI_NETFN_APP                0x06
+#define IPMI_NETFN_OEM                0x3a
 
 #define IPMI_DEBUG 1
 
@@ -264,5 +265,46 @@ typedef uint8_t ipmi_sdr_compact_buffer[sizeof(struct ipmi_sdr_compact)];
 int ipmi_bmc_sdr_find(IPMIBmc *b, uint16_t recid,
                       const struct ipmi_sdr_compact **sdr, uint16_t *nextrec);
 void ipmi_bmc_gen_event(IPMIBmc *b, uint8_t *evt, bool log);
+
+#define TYPE_IPMI_BMC_SIMULATOR "ipmi-bmc-sim"
+#define IPMI_BMC_SIMULATOR(obj) OBJECT_CHECK(IPMIBmcSim, (obj), \
+                                        TYPE_IPMI_BMC_SIMULATOR)
+
+typedef struct IPMIBmcSim IPMIBmcSim;
+
+typedef struct RspBuffer {
+    uint8_t buffer[MAX_IPMI_MSG_SIZE];
+    unsigned int len;
+} RspBuffer;
+
+static inline void rsp_buffer_set_error(RspBuffer *rsp, uint8_t byte)
+{
+    rsp->buffer[2] = byte;
+}
+
+/* Add a byte to the response. */
+static inline void rsp_buffer_push(RspBuffer *rsp, uint8_t byte)
+{
+    if (rsp->len >= sizeof(rsp->buffer)) {
+        rsp_buffer_set_error(rsp, IPMI_CC_REQUEST_DATA_TRUNCATED);
+        return;
+    }
+    rsp->buffer[rsp->len++] = byte;
+}
+
+typedef struct IPMICmdHandler {
+    void (*cmd_handler)(IPMIBmcSim *s,
+                        uint8_t *cmd, unsigned int cmd_len,
+                        RspBuffer *rsp);
+    unsigned int cmd_len_min;
+} IPMICmdHandler;
+
+typedef struct IPMINetfn {
+    unsigned int cmd_nums;
+    const IPMICmdHandler *cmd_handlers;
+} IPMINetfn;
+
+int ipmi_sim_register_netfn(IPMIBmcSim *s, unsigned int netfn,
+                            const IPMINetfn *netfnd);
 
 #endif

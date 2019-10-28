@@ -167,22 +167,7 @@ typedef struct IPMISensor {
 #define MAX_SENSORS 20
 #define IPMI_WATCHDOG_SENSOR 0
 
-typedef struct IPMIBmcSim IPMIBmcSim;
-typedef struct RspBuffer RspBuffer;
-
 #define MAX_NETFNS 64
-
-typedef struct IPMICmdHandler {
-    void (*cmd_handler)(IPMIBmcSim *s,
-                        uint8_t *cmd, unsigned int cmd_len,
-                        RspBuffer *rsp);
-    unsigned int cmd_len_min;
-} IPMICmdHandler;
-
-typedef struct IPMINetfn {
-    unsigned int cmd_nums;
-    const IPMICmdHandler *cmd_handlers;
-} IPMINetfn;
 
 typedef struct IPMIRcvBufEntry {
     QTAILQ_ENTRY(IPMIRcvBufEntry) entry;
@@ -190,9 +175,6 @@ typedef struct IPMIRcvBufEntry {
     uint8_t buf[MAX_IPMI_MSG_SIZE];
 } IPMIRcvBufEntry;
 
-#define TYPE_IPMI_BMC_SIMULATOR "ipmi-bmc-sim"
-#define IPMI_BMC_SIMULATOR(obj) OBJECT_CHECK(IPMIBmcSim, (obj), \
-                                        TYPE_IPMI_BMC_SIMULATOR)
 struct IPMIBmcSim {
     IPMIBmc parent;
 
@@ -279,27 +261,7 @@ struct IPMIBmcSim {
 #define IPMI_BMC_WATCHDOG_ACTION_POWER_DOWN      2
 #define IPMI_BMC_WATCHDOG_ACTION_POWER_CYCLE     3
 
-struct RspBuffer {
-    uint8_t buffer[MAX_IPMI_MSG_SIZE];
-    unsigned int len;
-};
-
 #define RSP_BUFFER_INITIALIZER { }
-
-static inline void rsp_buffer_set_error(RspBuffer *rsp, uint8_t byte)
-{
-    rsp->buffer[2] = byte;
-}
-
-/* Add a byte to the response. */
-static inline void rsp_buffer_push(RspBuffer *rsp, uint8_t byte)
-{
-    if (rsp->len >= sizeof(rsp->buffer)) {
-        rsp_buffer_set_error(rsp, IPMI_CC_REQUEST_DATA_TRUNCATED);
-        return;
-    }
-    rsp->buffer[rsp->len++] = byte;
-}
 
 static inline void rsp_buffer_pushmore(RspBuffer *rsp, uint8_t *bytes,
                                        unsigned int n)
@@ -630,8 +592,8 @@ static void ipmi_init_sensors_from_sdrs(IPMIBmcSim *s)
     }
 }
 
-static int ipmi_register_netfn(IPMIBmcSim *s, unsigned int netfn,
-                               const IPMINetfn *netfnd)
+int ipmi_sim_register_netfn(IPMIBmcSim *s, unsigned int netfn,
+                        const IPMINetfn *netfnd)
 {
     if ((netfn & 1) || (netfn >= MAX_NETFNS) || (s->netfns[netfn / 2])) {
         return -1;
@@ -1860,10 +1822,10 @@ static const IPMINetfn storage_netfn = {
 
 static void register_cmds(IPMIBmcSim *s)
 {
-    ipmi_register_netfn(s, IPMI_NETFN_CHASSIS, &chassis_netfn);
-    ipmi_register_netfn(s, IPMI_NETFN_SENSOR_EVENT, &sensor_event_netfn);
-    ipmi_register_netfn(s, IPMI_NETFN_APP, &app_netfn);
-    ipmi_register_netfn(s, IPMI_NETFN_STORAGE, &storage_netfn);
+    ipmi_sim_register_netfn(s, IPMI_NETFN_CHASSIS, &chassis_netfn);
+    ipmi_sim_register_netfn(s, IPMI_NETFN_SENSOR_EVENT, &sensor_event_netfn);
+    ipmi_sim_register_netfn(s, IPMI_NETFN_APP, &app_netfn);
+    ipmi_sim_register_netfn(s, IPMI_NETFN_STORAGE, &storage_netfn);
 }
 
 static uint8_t init_sdrs[] = {
