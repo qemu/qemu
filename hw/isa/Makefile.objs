@@ -3,6 +3,7 @@ common-obj-$(CONFIG_ISA_SUPERIO) += isa-superio.o
 common-obj-$(CONFIG_APM) += apm.o
 common-obj-$(CONFIG_I82378) += i82378.o
 common-obj-$(CONFIG_PC87312) += pc87312.o
+common-obj-$(CONFIG_PIIX3) += piix3.o
 common-obj-$(CONFIG_PIIX4) += piix4.o
 common-obj-$(CONFIG_VT82C686) += vt82c686.o
 common-obj-$(CONFIG_SMC37C669) += smc37c669-superio.o

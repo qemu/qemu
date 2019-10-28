@@ -61,6 +61,7 @@ config I440FX
     select PC_ACPI
     select ACPI_SMBUS
     select PCI_PIIX
+    select PIIX3
     select IDE_PIIX
     select DIMM
     select SMBIOS

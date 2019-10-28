@@ -29,6 +29,10 @@ config PC87312
     select FDC
     select IDE_ISA
 
+config PIIX3
+    bool
+    select ISA_BUS
+
 config PIIX4
     bool
     # For historical reasons, SuperIO devices are created in the board

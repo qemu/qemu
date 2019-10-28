@@ -32,7 +32,6 @@ config PCI_PIIX
     bool
     select PCI
     select PAM
-    select ISA_BUS
 
 config PCI_EXPRESS_Q35
     bool
