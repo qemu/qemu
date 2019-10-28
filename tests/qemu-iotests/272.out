@@ -1,0 +1,10 @@
+QA output created by 272
+Formatting 'TEST_DIR/t.IMGFMT', fmt=IMGFMT size=67108864
+wrote 2097152/2097152 bytes at offset 0
+2 MiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
+
+--- Check ---
+
+2044 leaked clusters were found on the image.
+This means waste of disk space, but no harm to data.
+*** done
