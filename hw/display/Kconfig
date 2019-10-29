@@ -132,3 +132,8 @@ config ATI_VGA
     select VGA
     select BITBANG_I2C
     select DDC
+
+config MACFB
+    bool
+    select FRAMEBUFFER
+    depends on NUBUS

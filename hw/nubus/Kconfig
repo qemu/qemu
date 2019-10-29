@@ -1,0 +1,2 @@
+config NUBUS
+    bool
