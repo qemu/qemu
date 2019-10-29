@@ -735,3 +735,22 @@
 ##
 { 'command': 'announce-self', 'boxed': true,
   'data' : 'AnnounceParameters'}
+
+##
+# @FAILOVER_NEGOTIATED:
+#
+# Emitted when VIRTIO_NET_F_STANDBY was enabled during feature negotiation.
+# Failover primary devices which were hidden (not hotplugged when requested)
+# before will now be hotplugged by the virtio-net standby device.
+#
+# device-id: QEMU device id of the unplugged device
+# Since: 4.2
+#
+# Example:
+#
+# <- { "event": "FAILOVER_NEGOTIATED",
+#      "data": "net1" }
+#
+##
+{ 'event': 'FAILOVER_NEGOTIATED',
+  'data': {'device-id': 'str'} }
