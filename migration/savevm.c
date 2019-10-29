@@ -1113,6 +1113,37 @@ void qemu_savevm_state_header(QEMUFile *f)
     }
 }
 
+int qemu_savevm_nr_failover_devices(void)
+{
+    SaveStateEntry *se;
+    int n = 0;
+
+    QTAILQ_FOREACH(se, &savevm_state.handlers, entry) {
+        if (se->vmsd && se->vmsd->dev_unplug_pending) {
+            n++;
+        }
+    }
+
+    return n;
+}
+
+bool qemu_savevm_state_guest_unplug_pending(void)
+{
+    SaveStateEntry *se;
+    int n = 0;
+
+    QTAILQ_FOREACH(se, &savevm_state.handlers, entry) {
+        if (!se->vmsd || !se->vmsd->dev_unplug_pending) {
+            continue;
+        }
+        if (se->vmsd->dev_unplug_pending(se->opaque)) {
+            n++;
+        }
+    }
+
+    return n > 0;
+}
+
 void qemu_savevm_state_setup(QEMUFile *f)
 {
     SaveStateEntry *se;

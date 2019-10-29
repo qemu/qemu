@@ -133,6 +133,9 @@
 # @device: During device serialisation when pause-before-switchover is enabled
 #        (since 2.11)
 #
+# @wait-unplug: wait for device unplug request by guest OS to be completed.
+#               (since 4.2)
+#
 # Since: 2.3
 #
 ##
@@ -140,7 +143,7 @@
   'data': [ 'none', 'setup', 'cancelling', 'cancelled',
             'active', 'postcopy-active', 'postcopy-paused',
             'postcopy-recover', 'completed', 'failed', 'colo',
-            'pre-switchover', 'device' ] }
+            'pre-switchover', 'device', 'wait-unplug' ] }
 
 ##
 # @MigrationInfo:
