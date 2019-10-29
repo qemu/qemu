@@ -1666,6 +1666,12 @@ M: Stefan Weil <sw@weilnetz.de>
 S: Maintained
 F: hw/net/eepro100.c
 
+tulip
+M: Sven Schnelle <svens@stackframe.org>
+S: Maintained
+F: hw/net/tulip.c
+F: hw/net/tulip.h
+
 Generic Loader
 M: Alistair Francis <alistair@alistair23.me>
 S: Maintained
