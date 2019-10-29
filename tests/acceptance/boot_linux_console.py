@@ -482,7 +482,10 @@ class BootLinuxConsole(Test):
         deb_url = ('http://ftp.ports.debian.org/debian-ports/pool-m68k/main'
                    '/l/linux/kernel-image-5.2.0-2-m68k-di_5.2.9-2_m68k.udeb')
         deb_hash = '0797e05129595f22f3c0142db5e199769a723bf9'
-        deb_path = self.fetch_asset(deb_url, asset_hash=deb_hash)
+        try:
+            deb_path = self.fetch_asset(deb_url, asset_hash=deb_hash)
+        except OSError as exp:
+            self.cancel(exp)
         kernel_path = self.extract_from_deb(deb_path,
                                             '/boot/vmlinux-5.2.0-2-m68k')
 
