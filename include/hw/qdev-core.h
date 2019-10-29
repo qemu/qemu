@@ -78,6 +78,19 @@ typedef void (*BusUnrealize)(BusState *bus, Error **errp);
  * respective parent types.
  *   </para>
  * </note>
+ *
+ * # Hiding a device #
+ * To hide a device, a DeviceListener function should_be_hidden() needs to
+ * be registered.
+ * It can be used to defer adding a device and therefore hide it from the
+ * guest. The handler registering to this DeviceListener can save the QOpts
+ * passed to it for re-using it later and must return that it wants the device
+ * to be/remain hidden or not. When the handler function decides the device
+ * shall not be hidden it will be added in qdev_device_add() and
+ * realized as any other device. Otherwise qdev_device_add() will return early
+ * without adding the device. The guest will not see a "hidden" device
+ * until it was marked don't hide and qdev_device_add called again.
+ *
  */
 typedef struct DeviceClass {
     /*< private >*/
@@ -154,6 +167,12 @@ struct DeviceState {
 struct DeviceListener {
     void (*realize)(DeviceListener *listener, DeviceState *dev);
     void (*unrealize)(DeviceListener *listener, DeviceState *dev);
+    /*
+     * This callback is called upon init of the DeviceState and allows to
+     * inform qdev that a device should be hidden, depending on the device
+     * opts, for example, to hide a standby device.
+     */
+    int (*should_be_hidden)(DeviceListener *listener, QemuOpts *device_opts);
     QTAILQ_ENTRY(DeviceListener) link;
 };
 
@@ -450,5 +469,15 @@ static inline bool qbus_is_hotpluggable(BusState *bus)
 
 void device_listener_register(DeviceListener *listener);
 void device_listener_unregister(DeviceListener *listener);
+
+/**
+ * @qdev_should_hide_device:
+ * @opts: QemuOpts as passed on cmdline.
+ *
+ * Check if a device should be added.
+ * When a device is added via qdev_device_add() this will be called,
+ * and return if the device should be added now or not.
+ */
+bool qdev_should_hide_device(QemuOpts *opts);
 
 #endif
