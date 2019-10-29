@@ -265,6 +265,7 @@ typedef struct PCIReqIDCache PCIReqIDCache;
 
 struct PCIDevice {
     DeviceState qdev;
+    bool partially_hotplugged;
 
     /* PCI config space */
     uint8_t *config;

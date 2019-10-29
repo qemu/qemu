@@ -456,6 +456,9 @@ static void pcie_unplug_device(PCIBus *bus, PCIDevice *dev, void *opaque)
 {
     HotplugHandler *hotplug_ctrl = qdev_get_hotplug_handler(DEVICE(dev));
 
+    if (dev->partially_hotplugged) {
+        return;
+    }
     hotplug_handler_unplug(hotplug_ctrl, DEVICE(dev), &error_abort);
     object_unparent(OBJECT(dev));
 }
