@@ -75,6 +75,8 @@ static Property pci_props[] = {
                     QEMU_PCIE_LNKSTA_DLLLA_BITNR, true),
     DEFINE_PROP_BIT("x-pcie-extcap-init", PCIDevice, cap_present,
                     QEMU_PCIE_EXTCAP_INIT_BITNR, true),
+    DEFINE_PROP_STRING("failover_pair_id", PCIDevice,
+                       failover_pair_id),
     DEFINE_PROP_END_OF_LIST()
 };
 
@@ -2077,6 +2079,7 @@ static void pci_qdev_realize(DeviceState *qdev, Error **errp)
     ObjectClass *klass = OBJECT_CLASS(pc);
     Error *local_err = NULL;
     bool is_default_rom;
+    uint16_t class_id;
 
     /* initialize cap_present for pci_is_express() and pci_config_size(),
      * Note that hybrid PCIs are not set automatically and need to manage
@@ -2097,6 +2100,34 @@ static void pci_qdev_realize(DeviceState *qdev, Error **errp)
         if (local_err) {
             error_propagate(errp, local_err);
             do_pci_unregister_device(pci_dev);
+            return;
+        }
+    }
+
+    if (pci_dev->failover_pair_id) {
+        if (!pci_bus_is_express(pci_get_bus(pci_dev))) {
+            error_setg(errp, "failover primary device must be on "
+                             "PCIExpress bus");
+            error_propagate(errp, local_err);
+            pci_qdev_unrealize(DEVICE(pci_dev), NULL);
+            return;
+        }
+        class_id = pci_get_word(pci_dev->config + PCI_CLASS_DEVICE);
+        if (class_id != PCI_CLASS_NETWORK_ETHERNET) {
+            error_setg(errp, "failover primary device is not an "
+                             "Ethernet device");
+            error_propagate(errp, local_err);
+            pci_qdev_unrealize(DEVICE(pci_dev), NULL);
+            return;
+        }
+        if (!(pci_dev->cap_present & QEMU_PCI_CAP_MULTIFUNCTION)
+            && (PCI_FUNC(pci_dev->devfn) == 0)) {
+            qdev->allow_unplug_during_migration = true;
+        } else {
+            error_setg(errp, "failover: primary device must be in its own "
+                              "PCI slot");
+            error_propagate(errp, local_err);
+            pci_qdev_unrealize(DEVICE(pci_dev), NULL);
             return;
         }
     }
