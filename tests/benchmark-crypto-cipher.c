@@ -21,11 +21,12 @@ static void test_cipher_speed(size_t chunk_size,
 {
     QCryptoCipher *cipher;
     Error *err = NULL;
-    double total = 0.0;
     uint8_t *key = NULL, *iv = NULL;
     uint8_t *plaintext = NULL, *ciphertext = NULL;
     size_t nkey;
     size_t niv;
+    const size_t total = 2 * GiB;
+    size_t remain;
 
     if (!qcrypto_cipher_supports(alg, mode)) {
         return;
@@ -58,33 +59,34 @@ static void test_cipher_speed(size_t chunk_size,
                                       &err) == 0);
 
     g_test_timer_start();
-    do {
+    remain = total;
+    while (remain) {
         g_assert(qcrypto_cipher_encrypt(cipher,
                                         plaintext,
                                         ciphertext,
                                         chunk_size,
                                         &err) == 0);
-        total += chunk_size;
-    } while (g_test_timer_elapsed() < 1.0);
+        remain -= chunk_size;
+    }
+    g_test_timer_elapsed();
 
-    total /= MiB;
     g_print("Enc chunk %zu bytes ", chunk_size);
-    g_print("%.2f MB/sec ", total / g_test_timer_last());
+    g_print("%.2f MB/sec ", (double)total / MiB / g_test_timer_last());
 
-    total = 0.0;
     g_test_timer_start();
-    do {
+    remain = total;
+    while (remain) {
         g_assert(qcrypto_cipher_decrypt(cipher,
                                         plaintext,
                                         ciphertext,
                                         chunk_size,
                                         &err) == 0);
-        total += chunk_size;
-    } while (g_test_timer_elapsed() < 1.0);
+        remain -= chunk_size;
+    }
+    g_test_timer_elapsed();
 
-    total /= MiB;
     g_print("Dec chunk %zu bytes ", chunk_size);
-    g_print("%.2f MB/sec ", total / g_test_timer_last());
+    g_print("%.2f MB/sec ", (double)total / MiB / g_test_timer_last());
 
     qcrypto_cipher_free(cipher);
     g_free(plaintext);
@@ -161,14 +163,25 @@ static void test_cipher_speed_xts_aes_256(const void *opaque)
 
 int main(int argc, char **argv)
 {
+    char *alg = NULL;
+    char *size = NULL;
     g_test_init(&argc, &argv, NULL);
     g_assert(qcrypto_init(NULL) == 0);
 
 #define ADD_TEST(mode, cipher, keysize, chunk)                          \
-    g_test_add_data_func(                                               \
+    if ((!alg || g_str_equal(alg, #mode)) &&                            \
+        (!size || g_str_equal(size, #chunk)))                           \
+        g_test_add_data_func(                                           \
         "/crypto/cipher/" #mode "-" #cipher "-" #keysize "/chunk-" #chunk, \
         (void *)chunk,                                                  \
         test_cipher_speed_ ## mode ## _ ## cipher ## _ ## keysize)
+
+    if (argc >= 2) {
+        alg = argv[1];
+    }
+    if (argc >= 3) {
+        size = argv[2];
+    }
 
 #define ADD_TESTS(chunk)                        \
     do {                                        \
