@@ -42,6 +42,10 @@ object SugaredUnion
     case one: q_obj_Variant1-wrapper
     case two: q_obj_Variant2-wrapper
         if ['IFTWO']
+alternate Alternate
+    tag type
+    case i: int
+    case b: bool
 object q_obj_cmd-arg
     member arg1: int optional=False
     member arg2: str optional=True
@@ -54,6 +58,8 @@ command cmd-boxed Object -> None
     gen=True success_response=True boxed=True oob=False preconfig=False
     feature cmd-feat1
     feature cmd-feat2
+event EVT-BOXED Object
+    boxed=True
 doc freeform
     body=
 = Section
@@ -120,6 +126,8 @@ A paragraph
 Another paragraph (but no @var: line)
     arg=var1
 
+    feature=variant1-feat
+a feature
 doc symbol=Variant2
     body=
 
@@ -130,6 +138,14 @@ doc symbol=SugaredUnion
     body=
 
     arg=type
+
+doc symbol=Alternate
+    body=
+
+    arg=i
+an integer
+@b is undocumented
+    arg=b
 
 doc freeform
     body=
@@ -144,6 +160,10 @@ the second
 argument
     arg=arg3
 
+    feature=cmd-feat1
+a feature
+    feature=cmd-feat2
+another feature
     section=Note
 @arg3 is undocumented
     section=Returns
@@ -166,7 +186,14 @@ Duis aute irure dolor
 doc symbol=cmd-boxed
     body=
 If you're bored enough to read this, go see a video of boxed cats
+    feature=cmd-feat1
+a feature
+    feature=cmd-feat2
+another feature
     section=Example
 -> in
 
 <- out
+doc symbol=EVT-BOXED
+    body=
+

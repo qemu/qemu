@@ -555,16 +555,31 @@ class QAPIDoc(object):
             self.args[member.name] = QAPIDoc.ArgSection(member.name)
         self.args[member.name].connect(member)
 
+    def connect_feature(self, feature):
+        if feature.name not in self.features:
+            raise QAPISemError(feature.info,
+                               "feature '%s' lacks documentation"
+                               % feature.name)
+            self.features[feature.name] = QAPIDoc.ArgSection(feature.name)
+        self.features[feature.name].connect(feature)
+
     def check_expr(self, expr):
         if self.has_section('Returns') and 'command' not in expr:
             raise QAPISemError(self.info,
                                "'Returns:' is only valid for commands")
 
     def check(self):
-        bogus = [name for name, section in self.args.items()
-                 if not section.member]
-        if bogus:
-            raise QAPISemError(
-                self.info,
-                "the following documented members are not in "
-                "the declaration: %s" % ", ".join(bogus))
+
+        def check_args_section(args, info, what):
+            bogus = [name for name, section in args.items()
+                     if not section.member]
+            if bogus:
+                raise QAPISemError(
+                    self.info,
+                    "documented member%s '%s' %s not exist"
+                    % ("s" if len(bogus) > 1 else "",
+                       "', '".join(bogus),
+                       "do" if len(bogus) > 1 else "does"))
+
+        check_args_section(self.args, self.info, 'members')
+        check_args_section(self.features, self.info, 'features')

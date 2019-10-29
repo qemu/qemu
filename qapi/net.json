@@ -723,8 +723,6 @@
 # Trigger generation of broadcast RARP frames to update network switches.
 # This can be useful when network bonds fail-over the active slave.
 #
-# @params: AnnounceParameters giving timing and repetition count of announce
-#
 # Example:
 #
 # -> { "execute": "announce-self",

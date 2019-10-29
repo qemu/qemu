@@ -117,6 +117,8 @@ def test_frontend(fname):
         print('    body=\n%s' % doc.body.text)
         for arg, section in doc.args.items():
             print('    arg=%s\n%s' % (arg, section.text))
+        for feat, section in doc.features.items():
+            print('    feature=%s\n%s' % (feat, section.text))
         for section in doc.sections:
             print('    section=%s\n%s' % (section.name, section.text))
 

@@ -1,0 +1,8 @@
+# Members listed in the doc comment must exist in the actual schema
+
+##
+# @Foo:
+# @a: a
+# @b: b
+##
+{ 'enum': 'Foo', 'data': [ 'b' ] }

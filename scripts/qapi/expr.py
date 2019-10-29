@@ -95,12 +95,6 @@ def check_flags(expr, info):
                 info, "flag '%s' may only use true value" % key)
 
 
-def normalize_if(expr):
-    ifcond = expr.get('if')
-    if isinstance(ifcond, str):
-        expr['if'] = [ifcond]
-
-
 def check_if(expr, info, source):
 
     def check_if_str(ifcond, info):
@@ -126,6 +120,7 @@ def check_if(expr, info, source):
             check_if_str(elt, info)
     else:
         check_if_str(ifcond, info)
+        expr['if'] = [ifcond]
 
 
 def normalize_members(members):
@@ -175,14 +170,7 @@ def check_type(value, info, source,
             raise QAPISemError(info, "%s uses reserved name" % key_source)
         check_keys(arg, info, key_source, ['type'], ['if'])
         check_if(arg, info, key_source)
-        normalize_if(arg)
         check_type(arg['type'], info, key_source, allow_array=True)
-
-
-def normalize_features(features):
-    if isinstance(features, list):
-        features[:] = [f if isinstance(f, dict) else {'name': f}
-                       for f in features]
 
 
 def check_features(features, info):
@@ -190,6 +178,8 @@ def check_features(features, info):
         return
     if not isinstance(features, list):
         raise QAPISemError(info, "'features' must be an array")
+    features[:] = [f if isinstance(f, dict) else {'name': f}
+                   for f in features]
     for f in features:
         source = "'features' member"
         assert isinstance(f, dict)
@@ -198,13 +188,6 @@ def check_features(features, info):
         source = "%s '%s'" % (source, f['name'])
         check_name_str(f['name'], info, source)
         check_if(f, info, source)
-        normalize_if(f)
-
-
-def normalize_enum(expr):
-    if isinstance(expr['data'], list):
-        expr['data'] = [m if isinstance(m, dict) else {'name': m}
-                        for m in expr['data']]
 
 
 def check_enum(expr, info):
@@ -219,6 +202,8 @@ def check_enum(expr, info):
 
     permit_upper = name in info.pragma.name_case_whitelist
 
+    members[:] = [m if isinstance(m, dict) else {'name': m}
+                  for m in members]
     for member in members:
         source = "'data' member"
         check_keys(member, info, source, ['name'], ['if'])
@@ -227,7 +212,6 @@ def check_enum(expr, info):
         check_name_str(member['name'], info, source,
                        enum_member=True, permit_upper=permit_upper)
         check_if(member, info, source)
-        normalize_if(member)
 
 
 def check_struct(expr, info):
@@ -259,7 +243,6 @@ def check_union(expr, info):
         check_name_str(key, info, source)
         check_keys(value, info, source, ['type'], ['if'])
         check_if(value, info, source)
-        normalize_if(value)
         check_type(value['type'], info, source, allow_array=not base)
 
 
@@ -273,7 +256,6 @@ def check_alternate(expr, info):
         check_name_str(key, info, source)
         check_keys(value, info, source, ['type'], ['if'])
         check_if(value, info, source)
-        normalize_if(value)
         check_type(value['type'], info, source)
 
 
@@ -339,7 +321,6 @@ def check_exprs(exprs):
         if meta == 'enum':
             check_keys(expr, info, meta,
                        ['enum', 'data'], ['if', 'prefix'])
-            normalize_enum(expr)
             check_enum(expr, info)
         elif meta == 'union':
             check_keys(expr, info, meta,
@@ -357,7 +338,6 @@ def check_exprs(exprs):
             check_keys(expr, info, meta,
                        ['struct', 'data'], ['base', 'if', 'features'])
             normalize_members(expr['data'])
-            normalize_features(expr.get('features'))
             check_struct(expr, info)
         elif meta == 'command':
             check_keys(expr, info, meta,
@@ -366,7 +346,6 @@ def check_exprs(exprs):
                         'gen', 'success-response', 'allow-oob',
                         'allow-preconfig'])
             normalize_members(expr.get('data'))
-            normalize_features(expr.get('features'))
             check_command(expr, info)
         elif meta == 'event':
             check_keys(expr, info, meta,
@@ -376,7 +355,6 @@ def check_exprs(exprs):
         else:
             assert False, 'unexpected meta type'
 
-        normalize_if(expr)
         check_if(expr, info, meta)
         check_flags(expr, info)
 
