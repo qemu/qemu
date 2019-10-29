@@ -996,6 +996,7 @@ static void device_initfn(Object *obj)
 
     dev->instance_id_alias = -1;
     dev->realized = false;
+    dev->allow_unplug_during_migration = false;
 
     object_property_add_bool(obj, "realized",
                              device_get_realized, device_set_realized, NULL);
