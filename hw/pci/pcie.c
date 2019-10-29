@@ -457,6 +457,7 @@ static void pcie_unplug_device(PCIBus *bus, PCIDevice *dev, void *opaque)
     HotplugHandler *hotplug_ctrl = qdev_get_hotplug_handler(DEVICE(dev));
 
     if (dev->partially_hotplugged) {
+        dev->qdev.pending_deleted_event = false;
         return;
     }
     hotplug_handler_unplug(hotplug_ctrl, DEVICE(dev), &error_abort);
@@ -475,6 +476,8 @@ void pcie_cap_slot_unplug_request_cb(HotplugHandler *hotplug_dev,
         error_propagate(errp, local_err);
         return;
     }
+
+    dev->pending_deleted_event = true;
 
     /* In case user cancel the operation of multi-function hot-add,
      * remove the function that is unexposed to guest individually,
