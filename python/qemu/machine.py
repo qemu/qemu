@@ -277,10 +277,6 @@ class QEMUMachine(object):
 
         self._qemu_log_path = None
 
-        if self._console_socket is not None:
-            self._console_socket.close()
-            self._console_socket = None
-
         if self._temp_dir is not None:
             shutil.rmtree(self._temp_dir)
             self._temp_dir = None
@@ -342,6 +338,13 @@ class QEMUMachine(object):
         """
         Terminate the VM and clean up
         """
+        # If we keep the console socket open, we may deadlock waiting
+        # for QEMU to exit, while QEMU is waiting for the socket to
+        # become writeable.
+        if self._console_socket is not None:
+            self._console_socket.close()
+            self._console_socket = None
+
         if self.is_running():
             try:
                 if not has_quit:

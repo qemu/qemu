@@ -13,6 +13,7 @@ import time
 
 from avocado import skipUnless
 from avocado_qemu import Test
+from avocado_qemu import wait_for_console_pattern
 from avocado.utils import process
 from avocado.utils import archive
 from avocado.utils import ssh
@@ -69,19 +70,6 @@ class LinuxSSH(Test):
     def setUp(self):
         super(LinuxSSH, self).setUp()
 
-    def wait_for_console_pattern(self, success_message,
-                                 failure_message='Oops'):
-        console = self.vm.console_socket.makefile()
-        console_logger = logging.getLogger('console')
-        while True:
-            msg = console.readline()
-            console_logger.debug(msg.strip())
-            if success_message in msg:
-                break
-            if failure_message in msg:
-                fail = 'Failure message found in console: %s' % failure_message
-                self.fail(fail)
-
     def get_portfwd(self):
         res = self.vm.command('human-monitor-command',
                               command_line='info usernet')
@@ -137,7 +125,7 @@ class LinuxSSH(Test):
 
         self.log.info('VM launched, waiting for sshd')
         console_pattern = 'Starting OpenBSD Secure Shell server: sshd'
-        self.wait_for_console_pattern(console_pattern)
+        wait_for_console_pattern(self, console_pattern, 'Oops')
         self.log.info('sshd ready')
 
         self.ssh_connect('root', 'root')
@@ -145,7 +133,7 @@ class LinuxSSH(Test):
     def shutdown_via_ssh(self):
         self.ssh_command('poweroff')
         self.ssh_disconnect_vm()
-        self.wait_for_console_pattern('Power down')
+        wait_for_console_pattern(self, 'Power down', 'Oops')
 
     def ssh_command_output_contains(self, cmd, exp):
         stdout, _ = self.ssh_command(cmd)
