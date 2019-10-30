@@ -29,6 +29,7 @@
 #include "exec/memop.h"
 #include "exec/tb-context.h"
 #include "qemu/bitops.h"
+#include "qemu/plugin.h"
 #include "qemu/queue.h"
 #include "tcg-mo.h"
 #include "tcg-target.h"
@@ -538,6 +539,9 @@ typedef struct TCGOp {
 
     /* Next and previous opcodes.  */
     QTAILQ_ENTRY(TCGOp) link;
+#ifdef CONFIG_PLUGIN
+    QSIMPLEQ_ENTRY(TCGOp) plugin_link;
+#endif
 
     /* Arguments for the opcode.  */
     TCGArg args[MAX_OPC_PARAM];
@@ -638,6 +642,23 @@ struct TCGContext {
 #endif
 
     TCGLabel *exitreq_label;
+
+#ifdef CONFIG_PLUGIN
+    /*
+     * We keep one plugin_tb struct per TCGContext. Note that on every TB
+     * translation we clear but do not free its contents; this way we
+     * avoid a lot of malloc/free churn, since after a few TB's it's
+     * unlikely that we'll need to allocate either more instructions or more
+     * space for instructions (for variable-instruction-length ISAs).
+     */
+    struct qemu_plugin_tb *plugin_tb;
+
+    /* descriptor of the instruction being translated */
+    struct qemu_plugin_insn *plugin_insn;
+
+    /* list to quickly access the injected ops */
+    QSIMPLEQ_HEAD(, TCGOp) plugin_ops;
+#endif
 
     TCGTempSet free_temps[TCG_TYPE_COUNT * 2];
     TCGTemp temps[TCG_MAX_TEMPS]; /* globals first, temps after */

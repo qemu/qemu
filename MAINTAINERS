@@ -2360,6 +2360,12 @@ M: Richard Henderson <rth@twiddle.net>
 S: Maintained
 F: tcg/
 
+TCG Plugins
+M: Alex Bennée <alex.bennee@linaro.org>
+S: Maintained
+F: plugins/
+F: tests/plugin
+
 AArch64 TCG target
 M: Claudio Fontana <claudio.fontana@huawei.com>
 M: Claudio Fontana <claudio.fontana@gmail.com>

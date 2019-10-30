@@ -28,6 +28,7 @@
 #include "trace-root.h"
 #endif
 
+#include "qemu/plugin.h"
 #include "trace/mem.h"
 
 #if DATA_SIZE == 8
@@ -84,17 +85,14 @@ glue(glue(glue(cpu_ld, USUFFIX), MEMSUFFIX), _ra)(CPUArchState *env,
     CPUTLBEntry *entry;
     RES_TYPE res;
     target_ulong addr;
-    int mmu_idx;
+    int mmu_idx = CPU_MMU_INDEX;
     TCGMemOpIdx oi;
-
 #if !defined(SOFTMMU_CODE_ACCESS)
-    trace_guest_mem_before_exec(
-        env_cpu(env), ptr,
-        trace_mem_build_info(SHIFT, false, MO_TE, false));
+    uint16_t meminfo = trace_mem_build_info(SHIFT, false, MO_TE, false, mmu_idx);
+    trace_guest_mem_before_exec(env_cpu(env), ptr, meminfo);
 #endif
 
     addr = ptr;
-    mmu_idx = CPU_MMU_INDEX;
     entry = tlb_entry(env, mmu_idx, addr);
     if (unlikely(entry->ADDR_READ !=
                  (addr & (TARGET_PAGE_MASK | (DATA_SIZE - 1))))) {
@@ -105,6 +103,9 @@ glue(glue(glue(cpu_ld, USUFFIX), MEMSUFFIX), _ra)(CPUArchState *env,
         uintptr_t hostaddr = addr + entry->addend;
         res = glue(glue(ld, USUFFIX), _p)((uint8_t *)hostaddr);
     }
+#ifndef SOFTMMU_CODE_ACCESS
+    qemu_plugin_vcpu_mem_cb(env_cpu(env), ptr, meminfo);
+#endif
     return res;
 }
 
@@ -123,17 +124,14 @@ glue(glue(glue(cpu_lds, SUFFIX), MEMSUFFIX), _ra)(CPUArchState *env,
     CPUTLBEntry *entry;
     int res;
     target_ulong addr;
-    int mmu_idx;
+    int mmu_idx = CPU_MMU_INDEX;
     TCGMemOpIdx oi;
-
 #if !defined(SOFTMMU_CODE_ACCESS)
-    trace_guest_mem_before_exec(
-        env_cpu(env), ptr,
-        trace_mem_build_info(SHIFT, true, MO_TE, false));
+    uint16_t meminfo = trace_mem_build_info(SHIFT, true, MO_TE, false, mmu_idx);
+    trace_guest_mem_before_exec(env_cpu(env), ptr, meminfo);
 #endif
 
     addr = ptr;
-    mmu_idx = CPU_MMU_INDEX;
     entry = tlb_entry(env, mmu_idx, addr);
     if (unlikely(entry->ADDR_READ !=
                  (addr & (TARGET_PAGE_MASK | (DATA_SIZE - 1))))) {
@@ -144,6 +142,9 @@ glue(glue(glue(cpu_lds, SUFFIX), MEMSUFFIX), _ra)(CPUArchState *env,
         uintptr_t hostaddr = addr + entry->addend;
         res = glue(glue(lds, SUFFIX), _p)((uint8_t *)hostaddr);
     }
+#ifndef SOFTMMU_CODE_ACCESS
+    qemu_plugin_vcpu_mem_cb(env_cpu(env), ptr, meminfo);
+#endif
     return res;
 }
 
@@ -165,17 +166,14 @@ glue(glue(glue(cpu_st, SUFFIX), MEMSUFFIX), _ra)(CPUArchState *env,
 {
     CPUTLBEntry *entry;
     target_ulong addr;
-    int mmu_idx;
+    int mmu_idx = CPU_MMU_INDEX;
     TCGMemOpIdx oi;
-
 #if !defined(SOFTMMU_CODE_ACCESS)
-    trace_guest_mem_before_exec(
-        env_cpu(env), ptr,
-        trace_mem_build_info(SHIFT, false, MO_TE, true));
+    uint16_t meminfo = trace_mem_build_info(SHIFT, false, MO_TE, true, mmu_idx);
+    trace_guest_mem_before_exec(env_cpu(env), ptr, meminfo);
 #endif
 
     addr = ptr;
-    mmu_idx = CPU_MMU_INDEX;
     entry = tlb_entry(env, mmu_idx, addr);
     if (unlikely(tlb_addr_write(entry) !=
                  (addr & (TARGET_PAGE_MASK | (DATA_SIZE - 1))))) {
@@ -186,6 +184,9 @@ glue(glue(glue(cpu_st, SUFFIX), MEMSUFFIX), _ra)(CPUArchState *env,
         uintptr_t hostaddr = addr + entry->addend;
         glue(glue(st, SUFFIX), _p)((uint8_t *)hostaddr, v);
     }
+#ifndef SOFTMMU_CODE_ACCESS
+    qemu_plugin_vcpu_mem_cb(env_cpu(env), ptr, meminfo);
+#endif
 }
 
 static inline void

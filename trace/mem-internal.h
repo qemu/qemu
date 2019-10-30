@@ -10,15 +10,17 @@
 #ifndef TRACE__MEM_INTERNAL_H
 #define TRACE__MEM_INTERNAL_H
 
-#define TRACE_MEM_SZ_SHIFT_MASK 0x7 /* size shift mask */
-#define TRACE_MEM_SE (1ULL << 3)    /* sign extended (y/n) */
-#define TRACE_MEM_BE (1ULL << 4)    /* big endian (y/n) */
-#define TRACE_MEM_ST (1ULL << 5)    /* store (y/n) */
+#define TRACE_MEM_SZ_SHIFT_MASK 0xf /* size shift mask */
+#define TRACE_MEM_SE (1ULL << 4)    /* sign extended (y/n) */
+#define TRACE_MEM_BE (1ULL << 5)    /* big endian (y/n) */
+#define TRACE_MEM_ST (1ULL << 6)    /* store (y/n) */
+#define TRACE_MEM_MMU_SHIFT 8       /* mmu idx */
 
-static inline uint8_t trace_mem_build_info(
-    int size_shift, bool sign_extend, MemOp endianness, bool store)
+static inline uint16_t trace_mem_build_info(
+    int size_shift, bool sign_extend, MemOp endianness,
+    bool store, unsigned int mmu_idx)
 {
-    uint8_t res;
+    uint16_t res;
 
     res = size_shift & TRACE_MEM_SZ_SHIFT_MASK;
     if (sign_extend) {
@@ -30,25 +32,36 @@ static inline uint8_t trace_mem_build_info(
     if (store) {
         res |= TRACE_MEM_ST;
     }
+#ifdef CONFIG_SOFTMMU
+    res |= mmu_idx << TRACE_MEM_MMU_SHIFT;
+#endif
     return res;
 }
 
-static inline uint8_t trace_mem_get_info(MemOp op, bool store)
+static inline uint16_t trace_mem_get_info(MemOp op,
+                                          unsigned int mmu_idx,
+                                          bool store)
 {
     return trace_mem_build_info(op & MO_SIZE, !!(op & MO_SIGN),
-                                op & MO_BSWAP, store);
+                                op & MO_BSWAP, store,
+                                mmu_idx);
+}
+
+/* Used by the atomic helpers */
+static inline
+uint16_t trace_mem_build_info_no_se_be(int size_shift, bool store,
+                                       TCGMemOpIdx oi)
+{
+    return trace_mem_build_info(size_shift, false, MO_BE, store,
+                                get_mmuidx(oi));
 }
 
 static inline
-uint8_t trace_mem_build_info_no_se_be(int size_shift, bool store)
+uint16_t trace_mem_build_info_no_se_le(int size_shift, bool store,
+                                       TCGMemOpIdx oi)
 {
-    return trace_mem_build_info(size_shift, false, MO_BE, store);
-}
-
-static inline
-uint8_t trace_mem_build_info_no_se_le(int size_shift, bool store)
-{
-    return trace_mem_build_info(size_shift, false, MO_LE, store);
+    return trace_mem_build_info(size_shift, false, MO_LE, store,
+                                get_mmuidx(oi));
 }
 
 #endif /* TRACE__MEM_INTERNAL_H */

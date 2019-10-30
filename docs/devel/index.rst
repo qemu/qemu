@@ -22,3 +22,4 @@ Contents:
    decodetree
    secure-coding-practices
    tcg
+   plugins

@@ -7,10 +7,8 @@ VPATH 		+= $(I386_SRC)
 
 I386_SRCS=$(notdir $(wildcard $(I386_SRC)/*.c))
 ALL_X86_TESTS=$(I386_SRCS:.c=)
-I386_TESTS:=$(filter-out test-i386-ssse3, $(ALL_X86_TESTS))
+SKIP_I386_TESTS=test-i386-ssse3
 X86_64_TESTS:=$(filter test-i386-ssse3, $(ALL_X86_TESTS))
-# Update TESTS
-TESTS=$(MULTIARCH_TESTS) $(I386_TESTS)
 
 #
 # hello-i386 is a barebones app
@@ -36,9 +34,12 @@ run-test-i386-fprem: test-i386-fprem test-i386-fprem.ref
 	$(call run-test,test-i386-fprem, $(QEMU) $<,"$< on $(TARGET_NAME)")
 	$(call diff-out,test-i386-fprem, test-i386-fprem.ref)
 else
-run-test-i386-fprem: test-i386-fprem
-	$(call skip-test, $<, "SLOW")
+SKIP_I386_TESTS+=test-i386-fprem
 endif
+
+# Update TESTS
+I386_TESTS:=$(filter-out $(SKIP_I386_TESTS), $(ALL_X86_TESTS))
+TESTS=$(MULTIARCH_TESTS) $(I386_TESTS)
 
 # On i386 and x86_64 Linux only supports 4k pages (large pages are a different hack)
 EXTRA_RUNS+=run-test-mmap-4096

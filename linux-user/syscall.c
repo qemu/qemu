@@ -112,6 +112,7 @@
 
 #include "qemu.h"
 #include "qemu/guest-random.h"
+#include "user/syscall-trace.h"
 #include "qapi/error.h"
 #include "fd-trans.h"
 
@@ -11984,8 +11985,8 @@ abi_long do_syscall(void *cpu_env, int num, abi_long arg1,
     }
 #endif
 
-    trace_guest_user_syscall(cpu, num, arg1, arg2, arg3, arg4,
-                             arg5, arg6, arg7, arg8);
+    record_syscall_start(cpu, num, arg1,
+                         arg2, arg3, arg4, arg5, arg6, arg7, arg8);
 
     if (unlikely(do_strace)) {
         print_syscall(num, arg1, arg2, arg3, arg4, arg5, arg6);
@@ -11997,6 +11998,6 @@ abi_long do_syscall(void *cpu_env, int num, abi_long arg1,
                           arg5, arg6, arg7, arg8);
     }
 
-    trace_guest_user_syscall_ret(cpu, num, ret);
+    record_syscall_return(cpu, num, ret);
     return ret;
 }

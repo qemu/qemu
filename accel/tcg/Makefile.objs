@@ -6,3 +6,4 @@ obj-y += translator.o
 
 obj-$(CONFIG_USER_ONLY) += user-exec.o
 obj-$(call lnot,$(CONFIG_SOFTMMU)) += user-exec-stub.o
+obj-$(CONFIG_PLUGIN) += plugin-gen.o
