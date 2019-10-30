@@ -2207,10 +2207,12 @@ static int device_init_func(void *opaque, QemuOpts *opts, Error **errp)
     DeviceState *dev;
 
     dev = qdev_device_add(opts, errp);
-    if (!dev) {
+    if (!dev && *errp) {
+        error_report_err(*errp);
         return -1;
+    } else if (dev) {
+        object_unref(OBJECT(dev));
     }
-    object_unref(OBJECT(dev));
     return 0;
 }
 

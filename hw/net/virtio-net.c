@@ -12,6 +12,7 @@
  */
 
 #include "qemu/osdep.h"
+#include "qemu/atomic.h"
 #include "qemu/iov.h"
 #include "qemu/main-loop.h"
 #include "qemu/module.h"
@@ -21,6 +22,10 @@
 #include "net/tap.h"
 #include "qemu/error-report.h"
 #include "qemu/timer.h"
+#include "qemu/option.h"
+#include "qemu/option_int.h"
+#include "qemu/config-file.h"
+#include "qapi/qmp/qdict.h"
 #include "hw/virtio/virtio-net.h"
 #include "net/vhost_net.h"
 #include "net/announce.h"
@@ -28,11 +33,15 @@
 #include "qapi/error.h"
 #include "qapi/qapi-events-net.h"
 #include "hw/qdev-properties.h"
+#include "qapi/qapi-types-migration.h"
+#include "qapi/qapi-events-migration.h"
 #include "hw/virtio/virtio-access.h"
 #include "migration/misc.h"
 #include "standard-headers/linux/ethtool.h"
 #include "sysemu/sysemu.h"
 #include "trace.h"
+#include "monitor/qdev.h"
+#include "hw/pci/pci.h"
 
 #define VIRTIO_NET_VM_VERSION    11
 
@@ -746,9 +755,99 @@ static inline uint64_t virtio_net_supported_guest_offloads(VirtIONet *n)
     return virtio_net_guest_offloads_by_features(vdev->guest_features);
 }
 
+static void failover_add_primary(VirtIONet *n, Error **errp)
+{
+    Error *err = NULL;
+
+    n->primary_device_opts = qemu_opts_find(qemu_find_opts("device"),
+            n->primary_device_id);
+    if (n->primary_device_opts) {
+        n->primary_dev = qdev_device_add(n->primary_device_opts, &err);
+        if (err) {
+            qemu_opts_del(n->primary_device_opts);
+        }
+        if (n->primary_dev) {
+            n->primary_bus = n->primary_dev->parent_bus;
+            if (err) {
+                qdev_unplug(n->primary_dev, &err);
+                qdev_set_id(n->primary_dev, "");
+
+            }
+        }
+    } else {
+        error_setg(errp, "Primary device not found");
+        error_append_hint(errp, "Virtio-net failover will not work. Make "
+            "sure primary device has parameter"
+            " failover_pair_id=<virtio-net-id>\n");
+}
+    if (err) {
+        error_propagate(errp, err);
+    }
+}
+
+static int is_my_primary(void *opaque, QemuOpts *opts, Error **errp)
+{
+    VirtIONet *n = opaque;
+    int ret = 0;
+
+    const char *standby_id = qemu_opt_get(opts, "failover_pair_id");
+
+    if (standby_id != NULL && (g_strcmp0(standby_id, n->netclient_name) == 0)) {
+        n->primary_device_id = g_strdup(opts->id);
+        ret = 1;
+    }
+
+    return ret;
+}
+
+static DeviceState *virtio_net_find_primary(VirtIONet *n, Error **errp)
+{
+    DeviceState *dev = NULL;
+    Error *err = NULL;
+
+    if (qemu_opts_foreach(qemu_find_opts("device"),
+                         is_my_primary, n, &err)) {
+        if (err) {
+            error_propagate(errp, err);
+            return NULL;
+        }
+        if (n->primary_device_id) {
+            dev = qdev_find_recursive(sysbus_get_default(),
+                    n->primary_device_id);
+        } else {
+            error_setg(errp, "Primary device id not found");
+            return NULL;
+        }
+    }
+    return dev;
+}
+
+
+
+static DeviceState *virtio_connect_failover_devices(VirtIONet *n,
+                                                    DeviceState *dev,
+                                                    Error **errp)
+{
+    DeviceState *prim_dev = NULL;
+    Error *err = NULL;
+
+    prim_dev = virtio_net_find_primary(n, &err);
+    if (prim_dev) {
+        n->primary_device_id = g_strdup(prim_dev->id);
+        n->primary_device_opts = prim_dev->opts;
+    } else {
+        if (err) {
+            error_propagate(errp, err);
+        }
+    }
+
+    return prim_dev;
+}
+
 static void virtio_net_set_features(VirtIODevice *vdev, uint64_t features)
 {
     VirtIONet *n = VIRTIO_NET(vdev);
+    Error *err = NULL;
     int i;
 
     if (n->mtu_bypass_backend &&
@@ -789,6 +888,28 @@ static void virtio_net_set_features(VirtIODevice *vdev, uint64_t features)
         memset(n->vlans, 0, MAX_VLAN >> 3);
     } else {
         memset(n->vlans, 0xff, MAX_VLAN >> 3);
+    }
+
+    if (virtio_has_feature(features, VIRTIO_NET_F_STANDBY)) {
+        qapi_event_send_failover_negotiated(n->netclient_name);
+        atomic_set(&n->primary_should_be_hidden, false);
+        failover_add_primary(n, &err);
+        if (err) {
+            n->primary_dev = virtio_connect_failover_devices(n, n->qdev, &err);
+            if (err) {
+                goto out_err;
+            }
+            failover_add_primary(n, &err);
+            if (err) {
+                goto out_err;
+            }
+        }
+    }
+    return;
+
+out_err:
+    if (err) {
+        warn_report_err(err);
     }
 }
 
@@ -1369,12 +1490,9 @@ static ssize_t virtio_net_receive_rcu(NetClientState *nc, const uint8_t *buf,
 static ssize_t virtio_net_do_receive(NetClientState *nc, const uint8_t *buf,
                                   size_t size)
 {
-    ssize_t r;
+    RCU_READ_LOCK_GUARD();
 
-    rcu_read_lock();
-    r = virtio_net_receive_rcu(nc, buf, size);
-    rcu_read_unlock();
-    return r;
+    return virtio_net_receive_rcu(nc, buf, size);
 }
 
 static void virtio_net_rsc_extract_unit4(VirtioNetRscChain *chain,
@@ -2650,6 +2768,150 @@ void virtio_net_set_netclient_name(VirtIONet *n, const char *name,
     n->netclient_type = g_strdup(type);
 }
 
+static bool failover_unplug_primary(VirtIONet *n)
+{
+    HotplugHandler *hotplug_ctrl;
+    PCIDevice *pci_dev;
+    Error *err = NULL;
+
+    hotplug_ctrl = qdev_get_hotplug_handler(n->primary_dev);
+    if (hotplug_ctrl) {
+        pci_dev = PCI_DEVICE(n->primary_dev);
+        pci_dev->partially_hotplugged = true;
+        hotplug_handler_unplug_request(hotplug_ctrl, n->primary_dev, &err);
+        if (err) {
+            error_report_err(err);
+            return false;
+        }
+    } else {
+        return false;
+    }
+    return true;
+}
+
+static bool failover_replug_primary(VirtIONet *n, Error **errp)
+{
+    HotplugHandler *hotplug_ctrl;
+    PCIDevice *pdev = PCI_DEVICE(n->primary_dev);
+
+    if (!pdev->partially_hotplugged) {
+        return true;
+    }
+    if (!n->primary_device_opts) {
+        n->primary_device_opts = qemu_opts_from_qdict(
+                qemu_find_opts("device"),
+                n->primary_device_dict, errp);
+    }
+    if (n->primary_device_opts) {
+        if (n->primary_dev) {
+            n->primary_bus = n->primary_dev->parent_bus;
+        }
+        qdev_set_parent_bus(n->primary_dev, n->primary_bus);
+        n->primary_should_be_hidden = false;
+        qemu_opt_set_bool(n->primary_device_opts,
+                "partially_hotplugged", true, errp);
+        hotplug_ctrl = qdev_get_hotplug_handler(n->primary_dev);
+        if (hotplug_ctrl) {
+            hotplug_handler_pre_plug(hotplug_ctrl, n->primary_dev, errp);
+            hotplug_handler_plug(hotplug_ctrl, n->primary_dev, errp);
+        }
+        if (!n->primary_dev) {
+            error_setg(errp, "virtio_net: couldn't find primary device");
+        }
+    }
+    return *errp != NULL;
+}
+
+static void virtio_net_handle_migration_primary(VirtIONet *n,
+                                                MigrationState *s)
+{
+    bool should_be_hidden;
+    Error *err = NULL;
+
+    should_be_hidden = atomic_read(&n->primary_should_be_hidden);
+
+    if (!n->primary_dev) {
+        n->primary_dev = virtio_connect_failover_devices(n, n->qdev, &err);
+        if (!n->primary_dev) {
+            return;
+        }
+    }
+
+    if (migration_in_setup(s) && !should_be_hidden &&
+        n->primary_dev) {
+        if (failover_unplug_primary(n)) {
+            vmstate_unregister(n->primary_dev, qdev_get_vmsd(n->primary_dev),
+                    n->primary_dev);
+            qapi_event_send_unplug_primary(n->primary_device_id);
+            atomic_set(&n->primary_should_be_hidden, true);
+        } else {
+            warn_report("couldn't unplug primary device");
+        }
+    } else if (migration_has_failed(s)) {
+        /* We already unplugged the device let's plugged it back */
+        if (!failover_replug_primary(n, &err)) {
+            if (err) {
+                error_report_err(err);
+            }
+        }
+    }
+}
+
+static void virtio_net_migration_state_notifier(Notifier *notifier, void *data)
+{
+    MigrationState *s = data;
+    VirtIONet *n = container_of(notifier, VirtIONet, migration_state);
+    virtio_net_handle_migration_primary(n, s);
+}
+
+static int virtio_net_primary_should_be_hidden(DeviceListener *listener,
+            QemuOpts *device_opts)
+{
+    VirtIONet *n = container_of(listener, VirtIONet, primary_listener);
+    bool match_found;
+    bool hide;
+
+    n->primary_device_dict = qemu_opts_to_qdict(device_opts,
+            n->primary_device_dict);
+    if (n->primary_device_dict) {
+        g_free(n->standby_id);
+        n->standby_id = g_strdup(qdict_get_try_str(n->primary_device_dict,
+                    "failover_pair_id"));
+    }
+    if (device_opts && g_strcmp0(n->standby_id, n->netclient_name) == 0) {
+        match_found = true;
+    } else {
+        match_found = false;
+        hide = false;
+        g_free(n->standby_id);
+        n->primary_device_dict = NULL;
+        goto out;
+    }
+
+    n->primary_device_opts = device_opts;
+
+    /* primary_should_be_hidden is set during feature negotiation */
+    hide = atomic_read(&n->primary_should_be_hidden);
+
+    if (n->primary_device_dict) {
+        g_free(n->primary_device_id);
+        n->primary_device_id = g_strdup(qdict_get_try_str(
+                    n->primary_device_dict, "id"));
+        if (!n->primary_device_id) {
+            warn_report("primary_device_id not set");
+        }
+    }
+
+out:
+    if (match_found && hide) {
+        return 1;
+    } else if (match_found && !hide) {
+        return 0;
+    } else {
+        return -1;
+    }
+}
+
 static void virtio_net_device_realize(DeviceState *dev, Error **errp)
 {
     VirtIODevice *vdev = VIRTIO_DEVICE(dev);
@@ -2678,6 +2940,16 @@ static void virtio_net_device_realize(DeviceState *dev, Error **errp)
         error_setg(errp, "'speed' must be between 0 and INT_MAX");
     } else if (n->net_conf.speed >= 0) {
         n->host_features |= (1ULL << VIRTIO_NET_F_SPEED_DUPLEX);
+    }
+
+    if (n->failover) {
+        n->primary_listener.should_be_hidden =
+            virtio_net_primary_should_be_hidden;
+        atomic_set(&n->primary_should_be_hidden, true);
+        device_listener_register(&n->primary_listener);
+        n->migration_state.notify = virtio_net_migration_state_notifier;
+        add_migration_state_change_notifier(&n->migration_state);
+        n->host_features |= (1ULL << VIRTIO_NET_F_STANDBY);
     }
 
     virtio_net_set_config_size(n, n->host_features);
@@ -2802,6 +3074,13 @@ static void virtio_net_device_unrealize(DeviceState *dev, Error **errp)
     g_free(n->mac_table.macs);
     g_free(n->vlans);
 
+    if (n->failover) {
+        g_free(n->primary_device_id);
+        g_free(n->standby_id);
+        qobject_unref(n->primary_device_dict);
+        n->primary_device_dict = NULL;
+    }
+
     max_queues = n->multiqueue ? n->max_queues : 1;
     for (i = 0; i < max_queues; i++) {
         virtio_net_del_queue(n, i);
@@ -2839,6 +3118,23 @@ static int virtio_net_pre_save(void *opaque)
     return 0;
 }
 
+static bool primary_unplug_pending(void *opaque)
+{
+    DeviceState *dev = opaque;
+    VirtIODevice *vdev = VIRTIO_DEVICE(dev);
+    VirtIONet *n = VIRTIO_NET(vdev);
+
+    return n->primary_dev ? n->primary_dev->pending_deleted_event : false;
+}
+
+static bool dev_unplug_pending(void *opaque)
+{
+    DeviceState *dev = opaque;
+    VirtioDeviceClass *vdc = VIRTIO_DEVICE_GET_CLASS(dev);
+
+    return vdc->primary_unplug_pending(dev);
+}
+
 static const VMStateDescription vmstate_virtio_net = {
     .name = "virtio-net",
     .minimum_version_id = VIRTIO_NET_VM_VERSION,
@@ -2848,6 +3144,7 @@ static const VMStateDescription vmstate_virtio_net = {
         VMSTATE_END_OF_LIST()
     },
     .pre_save = virtio_net_pre_save,
+    .dev_unplug_pending = dev_unplug_pending,
 };
 
 static Property virtio_net_properties[] = {
@@ -2909,6 +3206,7 @@ static Property virtio_net_properties[] = {
                      true),
     DEFINE_PROP_INT32("speed", VirtIONet, net_conf.speed, SPEED_UNKNOWN),
     DEFINE_PROP_STRING("duplex", VirtIONet, net_conf.duplex_str),
+    DEFINE_PROP_BOOL("failover", VirtIONet, failover, false),
     DEFINE_PROP_END_OF_LIST(),
 };
 
@@ -2934,6 +3232,7 @@ static void virtio_net_class_init(ObjectClass *klass, void *data)
     vdc->legacy_features |= (0x1 << VIRTIO_NET_F_GSO);
     vdc->post_load = virtio_net_post_load_virtio;
     vdc->vmsd = &vmstate_virtio_net_device;
+    vdc->primary_unplug_pending = primary_unplug_pending;
 }
 
 static const TypeInfo virtio_net_info = {
