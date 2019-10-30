@@ -305,6 +305,7 @@ struct MicroBlazeCPU {
         bool iopb_bus_exception;
         bool illegal_opcode_exception;
         bool opcode_0_illegal;
+        bool div_zero_exception;
         char *version;
         uint8_t pvr;
     } cfg;
