@@ -995,7 +995,7 @@ static void dec_load(DisasContext *dc)
     v = tcg_temp_new_i32();
     tcg_gen_qemu_ld_i32(v, addr, mem_index, mop);
 
-    if ((dc->cpu->env.pvr.regs[2] & PVR2_UNALIGNED_EXC_MASK) && size > 1) {
+    if (dc->cpu->cfg.unaligned_exceptions && size > 1) {
         TCGv_i32 t0 = tcg_const_i32(0);
         TCGv_i32 treg = tcg_const_i32(dc->rd);
         TCGv_i32 tsize = tcg_const_i32(size - 1);
@@ -1110,7 +1110,7 @@ static void dec_store(DisasContext *dc)
     tcg_gen_qemu_st_i32(cpu_R[dc->rd], addr, mem_index, mop);
 
     /* Verify alignment if needed.  */
-    if ((dc->cpu->env.pvr.regs[2] & PVR2_UNALIGNED_EXC_MASK) && size > 1) {
+    if (dc->cpu->cfg.unaligned_exceptions && size > 1) {
         TCGv_i32 t1 = tcg_const_i32(1);
         TCGv_i32 treg = tcg_const_i32(dc->rd);
         TCGv_i32 tsize = tcg_const_i32(size - 1);
