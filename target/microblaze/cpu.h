@@ -307,6 +307,7 @@ struct MicroBlazeCPU {
         bool opcode_0_illegal;
         bool div_zero_exception;
         bool unaligned_exceptions;
+        uint8_t pvr_user1;
         char *version;
         uint8_t pvr;
     } cfg;
