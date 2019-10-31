@@ -272,31 +272,36 @@ SVE CPU Property Examples
 
      $ qemu-system-aarch64 -M virt -cpu max
 
-  3) Only enable the 128-bit vector length::
+  3) When KVM is enabled, implicitly enable all host CPU supported vector
+     lengths with the `host` CPU type::
+
+     $ qemu-system-aarch64 -M virt,accel=kvm -cpu host
+
+  4) Only enable the 128-bit vector length::
 
      $ qemu-system-aarch64 -M virt -cpu max,sve128=on
 
-  4) Disable the 512-bit vector length and all larger vector lengths,
+  5) Disable the 512-bit vector length and all larger vector lengths,
      since 512 is a power-of-two.  This results in all the smaller,
      uninitialized lengths (128, 256, and 384) defaulting to enabled::
 
      $ qemu-system-aarch64 -M virt -cpu max,sve512=off
 
-  5) Enable the 128-bit, 256-bit, and 512-bit vector lengths::
+  6) Enable the 128-bit, 256-bit, and 512-bit vector lengths::
 
      $ qemu-system-aarch64 -M virt -cpu max,sve128=on,sve256=on,sve512=on
 
-  6) The same as (5), but since the 128-bit and 256-bit vector
+  7) The same as (6), but since the 128-bit and 256-bit vector
      lengths are required for the 512-bit vector length to be enabled,
      then allow them to be auto-enabled::
 
      $ qemu-system-aarch64 -M virt -cpu max,sve512=on
 
-  7) Do the same as (6), but by first disabling SVE and then re-enabling it::
+  8) Do the same as (7), but by first disabling SVE and then re-enabling it::
 
      $ qemu-system-aarch64 -M virt -cpu max,sve=off,sve512=on,sve=on
 
-  8) Force errors regarding the last vector length::
+  9) Force errors regarding the last vector length::
 
      $ qemu-system-aarch64 -M virt -cpu max,sve128=off
      $ qemu-system-aarch64 -M virt -cpu max,sve=off,sve128=off,sve=on
@@ -308,5 +313,5 @@ The examples in "SVE CPU Property Examples" exhibit many ways to select
 vector lengths which developers may find useful in order to avoid overly
 verbose command lines.  However, the recommended way to select vector
 lengths is to explicitly enable each desired length.  Therefore only
-example's (1), (3), and (5) exhibit recommended uses of the properties.
+example's (1), (4), and (6) exhibit recommended uses of the properties.
 
