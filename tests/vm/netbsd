@@ -93,7 +93,7 @@ class NetBSDVM(basevm.BaseVM):
         for char in list("5consdev com0\n"):
             time.sleep(0.2)
             self.console_send(char)
-            self.console_wait("")
+            self.console_consume()
         self.console_wait_send("> ", "boot\n")
 
         self.console_wait_send("Terminal type",            "xterm\n")
