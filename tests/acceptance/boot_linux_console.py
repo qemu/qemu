@@ -480,11 +480,14 @@ class BootLinuxConsole(Test):
         :avocado: tags=machine:q800
         """
         deb_url = ('http://ftp.ports.debian.org/debian-ports/pool-m68k/main'
-                   '/l/linux/kernel-image-5.2.0-2-m68k-di_5.2.9-2_m68k.udeb')
-        deb_hash = '0797e05129595f22f3c0142db5e199769a723bf9'
-        deb_path = self.fetch_asset(deb_url, asset_hash=deb_hash)
+                   '/l/linux/kernel-image-5.3.0-1-m68k-di_5.3.7-1_m68k.udeb')
+        deb_hash = '044954bb9be4160a3ce81f8bc1b5e856b75cccd1'
+        try:
+            deb_path = self.fetch_asset(deb_url, asset_hash=deb_hash)
+        except OSError as exp:
+            self.cancel(exp)
         kernel_path = self.extract_from_deb(deb_path,
-                                            '/boot/vmlinux-5.2.0-2-m68k')
+                                            '/boot/vmlinux-5.3.0-1-m68k')
 
         self.vm.set_machine('q800')
         self.vm.set_console()
