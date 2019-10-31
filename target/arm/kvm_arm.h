@@ -28,6 +28,20 @@
 int kvm_arm_vcpu_init(CPUState *cs);
 
 /**
+ * kvm_arm_vcpu_finalize
+ * @cs: CPUState
+ * @feature: int
+ *
+ * Finalizes the configuration of the specified VCPU feature by
+ * invoking the KVM_ARM_VCPU_FINALIZE ioctl. Features requiring
+ * this are documented in the "KVM_ARM_VCPU_FINALIZE" section of
+ * KVM's API documentation.
+ *
+ * Returns: 0 if success else < 0 error code
+ */
+int kvm_arm_vcpu_finalize(CPUState *cs, int feature);
+
+/**
  * kvm_arm_register_device:
  * @mr: memory region for this device
  * @devid: the KVM device ID
@@ -226,6 +240,14 @@ bool kvm_arm_aarch32_supported(CPUState *cs);
 bool kvm_arm_pmu_supported(CPUState *cs);
 
 /**
+ * bool kvm_arm_sve_supported:
+ * @cs: CPUState
+ *
+ * Returns true if the KVM VCPU can enable SVE and false otherwise.
+ */
+bool kvm_arm_sve_supported(CPUState *cs);
+
+/**
  * kvm_arm_get_max_vm_ipa_size - Returns the number of bits in the
  * IPA address space supported by KVM
  *
@@ -272,6 +294,11 @@ static inline bool kvm_arm_aarch32_supported(CPUState *cs)
 }
 
 static inline bool kvm_arm_pmu_supported(CPUState *cs)
+{
+    return false;
+}
+
+static inline bool kvm_arm_sve_supported(CPUState *cs)
 {
     return false;
 }
