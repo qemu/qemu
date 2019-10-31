@@ -48,18 +48,31 @@ block in the script for usage) is used to issue the QMP commands.
       (QEMU) query-cpu-model-expansion type=full model={"name":"max"}
       { "return": {
         "model": { "name": "max", "props": {
-        "pmu": true, "aarch64": true
+        "sve1664": true, "pmu": true, "sve1792": true, "sve1920": true,
+        "sve128": true, "aarch64": true, "sve1024": true, "sve": true,
+        "sve640": true, "sve768": true, "sve1408": true, "sve256": true,
+        "sve1152": true, "sve512": true, "sve384": true, "sve1536": true,
+        "sve896": true, "sve1280": true, "sve2048": true
       }}}}
 
-We see that the `max` CPU type has the `pmu` and `aarch64` CPU features.
-We also see that the CPU features are enabled, as they are all `true`.
+We see that the `max` CPU type has the `pmu`, `aarch64`, `sve`, and many
+`sve<N>` CPU features.  We also see that all the CPU features are
+enabled, as they are all `true`.  (The `sve<N>` CPU features are all
+optional SVE vector lengths (see "SVE CPU Properties").  While with TCG
+all SVE vector lengths can be supported, when KVM is in use it's more
+likely that only a few lengths will be supported, if SVE is supported at
+all.)
 
 (2) Let's try to disable the PMU::
 
       (QEMU) query-cpu-model-expansion type=full model={"name":"max","props":{"pmu":false}}
       { "return": {
         "model": { "name": "max", "props": {
-        "pmu": false, "aarch64": true
+        "sve1664": true, "pmu": false, "sve1792": true, "sve1920": true,
+        "sve128": true, "aarch64": true, "sve1024": true, "sve": true,
+        "sve640": true, "sve768": true, "sve1408": true, "sve256": true,
+        "sve1152": true, "sve512": true, "sve384": true, "sve1536": true,
+        "sve896": true, "sve1280": true, "sve2048": true
       }}}}
 
 We see it worked, as `pmu` is now `false`.
@@ -75,7 +88,22 @@ We see it worked, as `pmu` is now `false`.
 It looks like this feature is limited to a configuration we do not
 currently have.
 
-(4) Let's try probing CPU features for the Cortex-A15 CPU type::
+(4) Let's disable `sve` and see what happens to all the optional SVE
+    vector lengths::
+
+      (QEMU) query-cpu-model-expansion type=full model={"name":"max","props":{"sve":false}}
+      { "return": {
+        "model": { "name": "max", "props": {
+        "sve1664": false, "pmu": true, "sve1792": false, "sve1920": false,
+        "sve128": false, "aarch64": true, "sve1024": false, "sve": false,
+        "sve640": false, "sve768": false, "sve1408": false, "sve256": false,
+        "sve1152": false, "sve512": false, "sve384": false, "sve1536": false,
+        "sve896": false, "sve1280": false, "sve2048": false
+      }}}}
+
+As expected they are now all `false`.
+
+(5) Let's try probing CPU features for the Cortex-A15 CPU type::
 
       (QEMU) query-cpu-model-expansion type=full model={"name":"cortex-a15"}
       {"return": {"model": {"name": "cortex-a15", "props": {"pmu": true}}}}
@@ -131,7 +159,133 @@ After determining which CPU features are available and supported for a
 given CPU type, then they may be selectively enabled or disabled on the
 QEMU command line with that CPU type::
 
-  $ qemu-system-aarch64 -M virt -cpu max,pmu=off
+  $ qemu-system-aarch64 -M virt -cpu max,pmu=off,sve=on,sve128=on,sve256=on
 
-The example above disables the PMU for the `max` CPU type.
+The example above disables the PMU and enables the first two SVE vector
+lengths for the `max` CPU type.  Note, the `sve=on` isn't actually
+necessary, because, as we observed above with our probe of the `max` CPU
+type, `sve` is already on by default.  Also, based on our probe of
+defaults, it would seem we need to disable many SVE vector lengths, rather
+than only enabling the two we want.  This isn't the case, because, as
+disabling many SVE vector lengths would be quite verbose, the `sve<N>` CPU
+properties have special semantics (see "SVE CPU Property Parsing
+Semantics").
+
+SVE CPU Properties
+==================
+
+There are two types of SVE CPU properties: `sve` and `sve<N>`.  The first
+is used to enable or disable the entire SVE feature, just as the `pmu`
+CPU property completely enables or disables the PMU.  The second type
+is used to enable or disable specific vector lengths, where `N` is the
+number of bits of the length.  The `sve<N>` CPU properties have special
+dependencies and constraints, see "SVE CPU Property Dependencies and
+Constraints" below.  Additionally, as we want all supported vector lengths
+to be enabled by default, then, in order to avoid overly verbose command
+lines (command lines full of `sve<N>=off`, for all `N` not wanted), we
+provide the parsing semantics listed in "SVE CPU Property Parsing
+Semantics".
+
+SVE CPU Property Dependencies and Constraints
+---------------------------------------------
+
+  1) At least one vector length must be enabled when `sve` is enabled.
+
+  2) If a vector length `N` is enabled, then all power-of-two vector
+     lengths smaller than `N` must also be enabled.  E.g. if `sve512`
+     is enabled, then the 128-bit and 256-bit vector lengths must also
+     be enabled.
+
+SVE CPU Property Parsing Semantics
+----------------------------------
+
+  1) If SVE is disabled (`sve=off`), then which SVE vector lengths
+     are enabled or disabled is irrelevant to the guest, as the entire
+     SVE feature is disabled and that disables all vector lengths for
+     the guest.  However QEMU will still track any `sve<N>` CPU
+     properties provided by the user.  If later an `sve=on` is provided,
+     then the guest will get only the enabled lengths.  If no `sve=on`
+     is provided and there are explicitly enabled vector lengths, then
+     an error is generated.
+
+  2) If SVE is enabled (`sve=on`), but no `sve<N>` CPU properties are
+     provided, then all supported vector lengths are enabled, including
+     the non-power-of-two lengths.
+
+  3) If SVE is enabled, then an error is generated when attempting to
+     disable the last enabled vector length (see constraint (1) of "SVE
+     CPU Property Dependencies and Constraints").
+
+  4) If one or more vector lengths have been explicitly enabled and at
+     at least one of the dependency lengths of the maximum enabled length
+     has been explicitly disabled, then an error is generated (see
+     constraint (2) of "SVE CPU Property Dependencies and Constraints").
+
+  5) If one or more `sve<N>` CPU properties are set `off`, but no `sve<N>`,
+     CPU properties are set `on`, then the specified vector lengths are
+     disabled but the default for any unspecified lengths remains enabled.
+     Disabling a power-of-two vector length also disables all vector
+     lengths larger than the power-of-two length (see constraint (2) of
+     "SVE CPU Property Dependencies and Constraints").
+
+  6) If one or more `sve<N>` CPU properties are set to `on`, then they
+     are enabled and all unspecified lengths default to disabled, except
+     for the required lengths per constraint (2) of "SVE CPU Property
+     Dependencies and Constraints", which will even be auto-enabled if
+     they were not explicitly enabled.
+
+  7) If SVE was disabled (`sve=off`), allowing all vector lengths to be
+     explicitly disabled (i.e. avoiding the error specified in (3) of
+     "SVE CPU Property Parsing Semantics"), then if later an `sve=on` is
+     provided an error will be generated.  To avoid this error, one must
+     enable at least one vector length prior to enabling SVE.
+
+SVE CPU Property Examples
+-------------------------
+
+  1) Disable SVE::
+
+     $ qemu-system-aarch64 -M virt -cpu max,sve=off
+
+  2) Implicitly enable all vector lengths for the `max` CPU type::
+
+     $ qemu-system-aarch64 -M virt -cpu max
+
+  3) Only enable the 128-bit vector length::
+
+     $ qemu-system-aarch64 -M virt -cpu max,sve128=on
+
+  4) Disable the 512-bit vector length and all larger vector lengths,
+     since 512 is a power-of-two.  This results in all the smaller,
+     uninitialized lengths (128, 256, and 384) defaulting to enabled::
+
+     $ qemu-system-aarch64 -M virt -cpu max,sve512=off
+
+  5) Enable the 128-bit, 256-bit, and 512-bit vector lengths::
+
+     $ qemu-system-aarch64 -M virt -cpu max,sve128=on,sve256=on,sve512=on
+
+  6) The same as (5), but since the 128-bit and 256-bit vector
+     lengths are required for the 512-bit vector length to be enabled,
+     then allow them to be auto-enabled::
+
+     $ qemu-system-aarch64 -M virt -cpu max,sve512=on
+
+  7) Do the same as (6), but by first disabling SVE and then re-enabling it::
+
+     $ qemu-system-aarch64 -M virt -cpu max,sve=off,sve512=on,sve=on
+
+  8) Force errors regarding the last vector length::
+
+     $ qemu-system-aarch64 -M virt -cpu max,sve128=off
+     $ qemu-system-aarch64 -M virt -cpu max,sve=off,sve128=off,sve=on
+
+SVE CPU Property Recommendations
+--------------------------------
+
+The examples in "SVE CPU Property Examples" exhibit many ways to select
+vector lengths which developers may find useful in order to avoid overly
+verbose command lines.  However, the recommended way to select vector
+lengths is to explicitly enable each desired length.  Therefore only
+example's (1), (3), and (5) exhibit recommended uses of the properties.
 

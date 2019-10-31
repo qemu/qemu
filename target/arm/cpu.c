@@ -1198,6 +1198,19 @@ static void arm_cpu_finalizefn(Object *obj)
 #endif
 }
 
+void arm_cpu_finalize_features(ARMCPU *cpu, Error **errp)
+{
+    Error *local_err = NULL;
+
+    if (arm_feature(&cpu->env, ARM_FEATURE_AARCH64)) {
+        arm_cpu_sve_finalize(cpu, &local_err);
+        if (local_err != NULL) {
+            error_propagate(errp, local_err);
+            return;
+        }
+    }
+}
+
 static void arm_cpu_realizefn(DeviceState *dev, Error **errp)
 {
     CPUState *cs = CPU(dev);
@@ -1249,6 +1262,12 @@ static void arm_cpu_realizefn(DeviceState *dev, Error **errp)
 #endif
 
     cpu_exec_realizefn(cs, &local_err);
+    if (local_err != NULL) {
+        error_propagate(errp, local_err);
+        return;
+    }
+
+    arm_cpu_finalize_features(cpu, &local_err);
     if (local_err != NULL) {
         error_propagate(errp, local_err);
         return;

@@ -5361,6 +5361,13 @@ int sve_exception_el(CPUARMState *env, int el)
     return 0;
 }
 
+static uint32_t sve_zcr_get_valid_len(ARMCPU *cpu, uint32_t start_len)
+{
+    uint32_t start_vq = (start_len & 0xf) + 1;
+
+    return arm_cpu_vq_map_next_smaller(cpu, start_vq + 1) - 1;
+}
+
 /*
  * Given that SVE is enabled, return the vector length for EL.
  */
@@ -5378,7 +5385,8 @@ uint32_t sve_zcr_len_for_el(CPUARMState *env, int el)
     if (arm_feature(env, ARM_FEATURE_EL3)) {
         zcr_len = MIN(zcr_len, 0xf & (uint32_t)env->vfp.zcr_el[3]);
     }
-    return zcr_len;
+
+    return sve_zcr_get_valid_len(cpu, zcr_len);
 }
 
 static void zcr_write(CPUARMState *env, const ARMCPRegInfo *ri,

@@ -90,6 +90,8 @@ GICCapabilityList *qmp_query_gic_capabilities(Error **errp)
     return head;
 }
 
+QEMU_BUILD_BUG_ON(ARM_MAX_VQ > 16);
+
 /*
  * These are cpu model features we want to advertise. The order here
  * matters as this is the order in which qmp_query_cpu_model_expansion
@@ -98,6 +100,9 @@ GICCapabilityList *qmp_query_gic_capabilities(Error **errp)
  */
 static const char *cpu_model_advertised_features[] = {
     "aarch64", "pmu", "sve",
+    "sve128", "sve256", "sve384", "sve512",
+    "sve640", "sve768", "sve896", "sve1024", "sve1152", "sve1280",
+    "sve1408", "sve1536", "sve1664", "sve1792", "sve1920", "sve2048",
     NULL
 };
 
@@ -186,6 +191,9 @@ CpuModelExpansionInfo *qmp_query_cpu_model_expansion(CpuModelExpansionType type,
         if (!err) {
             visit_check_struct(visitor, &err);
         }
+        if (!err) {
+            arm_cpu_finalize_features(ARM_CPU(obj), &err);
+        }
         visit_end_struct(visitor, NULL);
         visit_free(visitor);
         if (err) {
@@ -193,6 +201,10 @@ CpuModelExpansionInfo *qmp_query_cpu_model_expansion(CpuModelExpansionType type,
             error_propagate(errp, err);
             return NULL;
         }
+    } else {
+        Error *err = NULL;
+        arm_cpu_finalize_features(ARM_CPU(obj), &err);
+        assert(err == NULL);
     }
 
     expansion_info = g_new0(CpuModelExpansionInfo, 1);
