@@ -254,8 +254,18 @@ SCSIDevice *scsi_bus_legacy_add_drive(SCSIBus *bus, BlockBackend *blk,
     char *name;
     DeviceState *dev;
     Error *err = NULL;
+    DriveInfo *dinfo;
 
-    driver = blk_is_sg(blk) ? "scsi-generic" : "scsi-disk";
+    if (blk_is_sg(blk)) {
+        driver = "scsi-generic";
+    } else {
+        dinfo = blk_legacy_dinfo(blk);
+        if (dinfo && dinfo->media_cd) {
+            driver = "scsi-cd";
+        } else {
+            driver = "scsi-hd";
+        }
+    }
     dev = qdev_create(&bus->qbus, driver);
     name = g_strdup_printf("legacy[%d]", unit);
     object_property_add_child(OBJECT(bus), name, OBJECT(dev), NULL);
