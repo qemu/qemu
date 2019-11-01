@@ -142,6 +142,13 @@ static int check_table_entry(uint64_t entry, int cluster_size)
     return 0;
 }
 
+static int64_t get_bitmap_bytes_needed(int64_t len, uint32_t granularity)
+{
+    int64_t num_bits = DIV_ROUND_UP(len, granularity);
+
+    return DIV_ROUND_UP(num_bits, 8);
+}
+
 static int check_constraints_on_bitmap(BlockDriverState *bs,
                                        const char *name,
                                        uint32_t granularity,
@@ -150,6 +157,7 @@ static int check_constraints_on_bitmap(BlockDriverState *bs,
     BDRVQcow2State *s = bs->opaque;
     int granularity_bits = ctz32(granularity);
     int64_t len = bdrv_getlength(bs);
+    int64_t bitmap_bytes;
 
     assert(granularity > 0);
     assert((granularity & (granularity - 1)) == 0);
@@ -171,9 +179,9 @@ static int check_constraints_on_bitmap(BlockDriverState *bs,
         return -EINVAL;
     }
 
-    if ((len > (uint64_t)BME_MAX_PHYS_SIZE << granularity_bits) ||
-        (len > (uint64_t)BME_MAX_TABLE_SIZE * s->cluster_size <<
-               granularity_bits))
+    bitmap_bytes = get_bitmap_bytes_needed(len, granularity);
+    if ((bitmap_bytes > (uint64_t)BME_MAX_PHYS_SIZE) ||
+        (bitmap_bytes > (uint64_t)BME_MAX_TABLE_SIZE * s->cluster_size))
     {
         error_setg(errp, "Too much space will be occupied by the bitmap. "
                    "Use larger granularity");
