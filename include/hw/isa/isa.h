@@ -56,7 +56,6 @@ typedef int (*IsaDmaTransferHandler)(void *opaque, int nchan, int pos,
 typedef struct IsaDmaClass {
     InterfaceClass parent;
 
-    IsaDmaTransferMode (*get_transfer_mode)(IsaDma *obj, int nchan);
     bool (*has_autoinitialization)(IsaDma *obj, int nchan);
     int (*read_memory)(IsaDma *obj, int nchan, void *buf, int pos, int len);
     int (*write_memory)(IsaDma *obj, int nchan, void *buf, int pos, int len);
