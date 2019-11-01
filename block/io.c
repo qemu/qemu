@@ -743,6 +743,24 @@ static bool is_request_serialising_and_aligned(BdrvTrackedRequest *req)
 }
 
 /**
+ * Return the tracked request on @bs for the current coroutine, or
+ * NULL if there is none.
+ */
+BdrvTrackedRequest *coroutine_fn bdrv_co_get_self_request(BlockDriverState *bs)
+{
+    BdrvTrackedRequest *req;
+    Coroutine *self = qemu_coroutine_self();
+
+    QLIST_FOREACH(req, &bs->tracked_requests, list) {
+        if (req->co == self) {
+            return req;
+        }
+    }
+
+    return NULL;
+}
+
+/**
  * Round a region to cluster boundaries
  */
 void bdrv_round_to_clusters(BlockDriverState *bs,
