@@ -259,7 +259,7 @@ F: include/hw/ppc/
 F: disas/ppc.c
 
 RISC-V TCG CPUs
-M: Palmer Dabbelt <palmer@sifive.com>
+M: Palmer Dabbelt <palmer@dabbelt.com>
 M: Alistair Francis <Alistair.Francis@wdc.com>
 M: Sagar Karandikar <sagark@eecs.berkeley.edu>
 M: Bastian Koppelmann <kbastian@mail.uni-paderborn.de>
@@ -2401,7 +2401,7 @@ F: tcg/ppc/
 F: disas/ppc.c
 
 RISC-V TCG target
-M: Palmer Dabbelt <palmer@sifive.com>
+M: Palmer Dabbelt <palmer@dabbelt.com>
 M: Alistair Francis <Alistair.Francis@wdc.com>
 L: qemu-riscv@nongnu.org
 S: Maintained
