@@ -23,6 +23,7 @@ class NetBSDVM(basevm.BaseVM):
     arch = "x86_64"
 
     link = "https://cdn.netbsd.org/pub/NetBSD/NetBSD-8.1/images/NetBSD-8.1-amd64.iso"
+    csum = "718f275b7e0879599bdac95630c5e3f2184700032fdb6cdebf3bdd63687898c48ff3f08f57b89f4437a86cdd8ea07c01a39d432dbb37e1e4b008f4985f98da3f"
     size = "20G"
     pkgs = [
         # tools
@@ -70,7 +71,7 @@ class NetBSDVM(basevm.BaseVM):
     ipv6 = False
 
     def build_image(self, img):
-        cimg = self._download_with_cache(self.link)
+        cimg = self._download_with_cache(self.link, sha512sum=self.csum)
         img_tmp = img + ".tmp"
         iso = img + ".install.iso"
 

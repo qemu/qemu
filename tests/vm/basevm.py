@@ -95,19 +95,25 @@ class BaseVM(object):
             logging.info("KVM not available, not using -enable-kvm")
         self._data_args = []
 
-    def _download_with_cache(self, url, sha256sum=None):
+    def _download_with_cache(self, url, sha256sum=None, sha512sum=None):
         def check_sha256sum(fname):
             if not sha256sum:
                 return True
             checksum = subprocess.check_output(["sha256sum", fname]).split()[0]
             return sha256sum == checksum.decode("utf-8")
 
+        def check_sha512sum(fname):
+            if not sha512sum:
+                return True
+            checksum = subprocess.check_output(["sha512sum", fname]).split()[0]
+            return sha512sum == checksum.decode("utf-8")
+
         cache_dir = os.path.expanduser("~/.cache/qemu-vm/download")
         if not os.path.exists(cache_dir):
             os.makedirs(cache_dir)
         fname = os.path.join(cache_dir,
                              hashlib.sha1(url.encode("utf-8")).hexdigest())
-        if os.path.exists(fname) and check_sha256sum(fname):
+        if os.path.exists(fname) and check_sha256sum(fname) and check_sha512sum(fname):
             return fname
         logging.debug("Downloading %s to %s...", url, fname)
         subprocess.check_call(["wget", "-c", url, "-O", fname + ".download"],
