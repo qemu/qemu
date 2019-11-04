@@ -60,14 +60,19 @@
 #define MACH_MAC        3
 #define Q800_MAC_CPU_ID 2
 
-#define VIA_BASE              0x50f00000
-#define SONIC_PROM_BASE       0x50f08000
-#define SONIC_BASE            0x50f0a000
-#define SCC_BASE              0x50f0c020
-#define ESP_BASE              0x50f10000
-#define ESP_PDMA              0x50f10100
-#define ASC_BASE              0x50F14000
-#define SWIM_BASE             0x50F1E000
+#define IO_BASE               0x50000000
+#define IO_SLICE              0x00040000
+#define IO_SIZE               0x04000000
+
+#define VIA_BASE              (IO_BASE + 0x00000)
+#define SONIC_PROM_BASE       (IO_BASE + 0x08000)
+#define SONIC_BASE            (IO_BASE + 0x0a000)
+#define SCC_BASE              (IO_BASE + 0x0c020)
+#define ESP_BASE              (IO_BASE + 0x10000)
+#define ESP_PDMA              (IO_BASE + 0x10100)
+#define ASC_BASE              (IO_BASE + 0x14000)
+#define SWIM_BASE             (IO_BASE + 0x1E000)
+
 #define NUBUS_SUPER_SLOT_BASE 0x60000000
 #define NUBUS_SLOT_BASE       0xf0000000
 
@@ -135,6 +140,9 @@ static void q800_init(MachineState *machine)
     int32_t initrd_size;
     MemoryRegion *rom;
     MemoryRegion *ram;
+    MemoryRegion *io;
+    const int io_slice_nb = (IO_SIZE / IO_SLICE) - 1;
+    int i;
     ram_addr_t ram_size = machine->ram_size;
     const char *kernel_filename = machine->kernel_filename;
     const char *initrd_filename = machine->initrd_filename;
@@ -163,9 +171,25 @@ static void q800_init(MachineState *machine)
     cpu = M68K_CPU(cpu_create(machine->cpu_type));
     qemu_register_reset(main_cpu_reset, cpu);
 
+    /* RAM */
     ram = g_malloc(sizeof(*ram));
     memory_region_init_ram(ram, NULL, "m68k_mac.ram", ram_size, &error_abort);
     memory_region_add_subregion(get_system_memory(), 0, ram);
+
+    /*
+     * Memory from IO_BASE to IO_BASE + IO_SLICE is repeated
+     * from IO_BASE + IO_SLICE to IO_BASE + IO_SIZE
+     */
+    io = g_new(MemoryRegion, io_slice_nb);
+    for (i = 0; i < io_slice_nb; i++) {
+        char *name = g_strdup_printf("mac_m68k.io[%d]", i + 1);
+
+        memory_region_init_alias(&io[i], NULL, name, get_system_memory(),
+                                 IO_BASE, IO_SLICE);
+        memory_region_add_subregion(get_system_memory(),
+                                    IO_BASE + (i + 1) * IO_SLICE, &io[i]);
+        g_free(name);
+    }
 
     /* IRQ Glue */
 
