@@ -14,6 +14,8 @@
 
 #include <gmodule.h>
 
+#define QEMU_PLUGIN_MIN_VERSION 0
+
 /* global state */
 struct qemu_plugin_state {
     QTAILQ_HEAD(, qemu_plugin_ctx) ctxs;
