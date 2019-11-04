@@ -75,12 +75,15 @@ class X86CPUModelAliases(avocado_qemu.Test):
                          "EPYC-IBPB shouldn't be versioned")
 
     def test_4_0_alias_compatibility(self):
-        """Check if pc-*-4.0 unversioned CPU model won't be reported as aliases"""
+        """
+        Check if pc-*-4.0 unversioned CPU model won't be reported as aliases
+
+        :avocado: tags=machine:pc-i440fx-4.0
+        """
         # pc-*-4.0 won't expose non-versioned CPU models as aliases
         # We do this to help management software to keep compatibility
         # with older QEMU versions that didn't have the versioned CPU model
         self.vm.add_args('-S')
-        self.vm.set_machine('pc-i440fx-4.0')
         self.vm.launch()
         cpus = dict((m['name'], m) for m in self.vm.command('query-cpu-definitions'))
 
@@ -105,9 +108,12 @@ class X86CPUModelAliases(avocado_qemu.Test):
             self.assertNotIn('alias-of', c, "%s shouldn't be an alias" % (name))
 
     def test_4_1_alias(self):
-        """Check if unversioned CPU model is an alias pointing to right version"""
+        """
+        Check if unversioned CPU model is an alias pointing to right version
+
+        :avocado: tags=machine:pc-i440fx-4.1
+        """
         self.vm.add_args('-S')
-        self.vm.set_machine('pc-i440fx-4.1')
         self.vm.launch()
 
         cpus = dict((m['name'], m) for m in self.vm.command('query-cpu-definitions'))
@@ -207,9 +213,12 @@ class X86CPUModelAliases(avocado_qemu.Test):
         self.validate_aliases(cpus)
 
     def test_none_alias(self):
-        """Check if unversioned CPU model is an alias pointing to some version"""
+        """
+        Check if unversioned CPU model is an alias pointing to some version
+
+        :avocado: tags=machine:none
+        """
         self.vm.add_args('-S')
-        self.vm.set_machine('none')
         self.vm.launch()
 
         cpus = dict((m['name'], m) for m in self.vm.command('query-cpu-definitions'))
@@ -242,68 +251,84 @@ class CascadelakeArchCapabilities(avocado_qemu.Test):
         return self.vm.command('qom-get', path=cpu_path, property=prop)
 
     def test_4_1(self):
+        """
+        :avocado: tags=machine:pc-i440fx-4.1
+        """
         # machine-type only:
         self.vm.add_args('-S')
-        self.vm.set_machine('pc-i440fx-4.1')
         self.vm.add_args('-cpu', 'Cascadelake-Server,x-force-features=on,check=off,enforce=off')
         self.vm.launch()
         self.assertFalse(self.get_cpu_prop('arch-capabilities'),
                          'pc-i440fx-4.1 + Cascadelake-Server should not have arch-capabilities')
 
     def test_4_0(self):
+        """
+        :avocado: tags=machine:pc-i440fx-4.0
+        """
         self.vm.add_args('-S')
-        self.vm.set_machine('pc-i440fx-4.0')
         self.vm.add_args('-cpu', 'Cascadelake-Server,x-force-features=on,check=off,enforce=off')
         self.vm.launch()
         self.assertFalse(self.get_cpu_prop('arch-capabilities'),
                          'pc-i440fx-4.0 + Cascadelake-Server should not have arch-capabilities')
 
     def test_set_4_0(self):
+        """
+        :avocado: tags=machine:pc-i440fx-4.0
+        """
         # command line must override machine-type if CPU model is not versioned:
         self.vm.add_args('-S')
-        self.vm.set_machine('pc-i440fx-4.0')
         self.vm.add_args('-cpu', 'Cascadelake-Server,x-force-features=on,check=off,enforce=off,+arch-capabilities')
         self.vm.launch()
         self.assertTrue(self.get_cpu_prop('arch-capabilities'),
                         'pc-i440fx-4.0 + Cascadelake-Server,+arch-capabilities should have arch-capabilities')
 
     def test_unset_4_1(self):
+        """
+        :avocado: tags=machine:pc-i440fx-4.1
+        """
         self.vm.add_args('-S')
-        self.vm.set_machine('pc-i440fx-4.1')
         self.vm.add_args('-cpu', 'Cascadelake-Server,x-force-features=on,check=off,enforce=off,-arch-capabilities')
         self.vm.launch()
         self.assertFalse(self.get_cpu_prop('arch-capabilities'),
                          'pc-i440fx-4.1 + Cascadelake-Server,-arch-capabilities should not have arch-capabilities')
 
     def test_v1_4_0(self):
+        """
+        :avocado: tags=machine:pc-i440fx-4.0
+        """
         # versioned CPU model overrides machine-type:
         self.vm.add_args('-S')
-        self.vm.set_machine('pc-i440fx-4.0')
         self.vm.add_args('-cpu', 'Cascadelake-Server-v1,x-force-features=on,check=off,enforce=off')
         self.vm.launch()
         self.assertFalse(self.get_cpu_prop('arch-capabilities'),
                          'pc-i440fx-4.0 + Cascadelake-Server-v1 should not have arch-capabilities')
 
     def test_v2_4_0(self):
+        """
+        :avocado: tags=machine:pc-i440fx-4.0
+        """
         self.vm.add_args('-S')
-        self.vm.set_machine('pc-i440fx-4.0')
         self.vm.add_args('-cpu', 'Cascadelake-Server-v2,x-force-features=on,check=off,enforce=off')
         self.vm.launch()
         self.assertTrue(self.get_cpu_prop('arch-capabilities'),
                         'pc-i440fx-4.0 + Cascadelake-Server-v2 should have arch-capabilities')
 
     def test_v1_set_4_0(self):
+        """
+        :avocado: tags=machine:pc-i440fx-4.0
+        """
         # command line must override machine-type and versioned CPU model:
         self.vm.add_args('-S')
-        self.vm.set_machine('pc-i440fx-4.0')
         self.vm.add_args('-cpu', 'Cascadelake-Server-v1,x-force-features=on,check=off,enforce=off,+arch-capabilities')
         self.vm.launch()
         self.assertTrue(self.get_cpu_prop('arch-capabilities'),
                         'pc-i440fx-4.0 + Cascadelake-Server-v1,+arch-capabilities should have arch-capabilities')
 
     def test_v2_unset_4_1(self):
+        """
+        :avocado: tags=machine:pc-i440fx-4.1
+        """
         self.vm.add_args('-S')
-        self.vm.set_machine('pc-i440fx-4.1')
         self.vm.add_args('-cpu', 'Cascadelake-Server-v2,x-force-features=on,check=off,enforce=off,-arch-capabilities')
         self.vm.launch()
         self.assertFalse(self.get_cpu_prop('arch-capabilities'),

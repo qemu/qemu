@@ -19,6 +19,7 @@ class LinuxInitrd(Test):
     Checks QEMU evaluates correctly the initrd file passed as -initrd option.
 
     :avocado: tags=arch:x86_64
+    :avocado: tags=machine:pc
     """
 
     timeout = 300
@@ -67,7 +68,6 @@ class LinuxInitrd(Test):
             initrd.write(b'\0')
             initrd.flush()
 
-            self.vm.set_machine('pc')
             self.vm.set_console()
             kernel_command_line = 'console=ttyS0'
             self.vm.add_args('-kernel', kernel_path,

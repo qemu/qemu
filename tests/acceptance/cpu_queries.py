@@ -20,8 +20,8 @@ class QueryCPUModelExpansion(Test):
     def test(self):
         """
         :avocado: tags=arch:x86_64
+        :avocado: tags=machine:none
         """
-        self.vm.set_machine('none')
         self.vm.add_args('-S')
         self.vm.launch()
 

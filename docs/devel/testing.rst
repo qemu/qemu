@@ -746,6 +746,17 @@ name.  If one is not given explicitly, it will either be set to
 ``None``, or, if the test is tagged with one (and only one)
 ``:avocado: tags=arch:VALUE`` tag, it will be set to ``VALUE``.
 
+machine
+~~~~~~~
+
+The machine type that will be set to all QEMUMachine instances created
+by the test.
+
+The ``machine`` attribute will be set to the test parameter of the same
+name.  If one is not given explicitly, it will either be set to
+``None``, or, if the test is tagged with one (and only one)
+``:avocado: tags=machine:VALUE`` tag, it will be set to ``VALUE``.
+
 qemu_bin
 ~~~~~~~~
 
@@ -780,6 +791,13 @@ architecture of a kernel or disk image to boot a VM with.
 
 This parameter has a direct relation with the ``arch`` attribute.  If
 not given, it will default to None.
+
+machine
+~~~~~~~
+
+The machine type that will be set to all QEMUMachine instances created
+by the test.
+
 
 qemu_bin
 ~~~~~~~~

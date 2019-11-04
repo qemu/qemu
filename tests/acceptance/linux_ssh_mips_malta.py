@@ -111,7 +111,6 @@ class LinuxSSH(Test):
         image_url, image_hash = self.get_image_info(endianess)
         image_path = self.fetch_asset(image_url, asset_hash=image_hash)
 
-        self.vm.set_machine('malta')
         self.vm.set_console()
         kernel_command_line = (self.KERNEL_COMMON_COMMAND_LINE
                                + 'console=ttyS0 root=/dev/sda1')
@@ -215,7 +214,6 @@ class LinuxSSH(Test):
     def test_mips_malta32eb_kernel3_2_0(self):
         """
         :avocado: tags=arch:mips
-        :avocado: tags=machine:malta
         :avocado: tags=endian:big
         :avocado: tags=device:pcnet32
         """
@@ -224,7 +222,6 @@ class LinuxSSH(Test):
     def test_mips_malta32el_kernel3_2_0(self):
         """
         :avocado: tags=arch:mipsel
-        :avocado: tags=machine:malta
         :avocado: tags=endian:little
         :avocado: tags=device:pcnet32
         """
@@ -233,7 +230,6 @@ class LinuxSSH(Test):
     def test_mips_malta64eb_kernel3_2_0(self):
         """
         :avocado: tags=arch:mips64
-        :avocado: tags=machine:malta
         :avocado: tags=endian:big
         :avocado: tags=device:pcnet32
         """
@@ -242,7 +238,6 @@ class LinuxSSH(Test):
     def test_mips_malta64el_kernel3_2_0(self):
         """
         :avocado: tags=arch:mips64el
-        :avocado: tags=machine:malta
         :avocado: tags=endian:little
         :avocado: tags=device:pcnet32
         """
