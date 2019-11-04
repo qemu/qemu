@@ -1185,7 +1185,7 @@ check-acceptance: check-venv $(TESTS_RESULTS_DIR)
             --show=$(AVOCADO_SHOW) run --job-results-dir=$(TESTS_RESULTS_DIR) \
             --filter-by-tags-include-empty --filter-by-tags-include-empty-key \
             $(AVOCADO_TAGS) \
-            --failfast=on $(SRC_PATH)/tests/acceptance, \
+            --failfast=on tests/acceptance, \
             "AVOCADO", "tests/acceptance")
 
 # Consolidated targets
