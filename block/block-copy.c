@@ -109,9 +109,9 @@ BlockCopyState *block_copy_state_new(BdrvChild *source, BdrvChild *target,
         s->use_copy_range = false;
         s->copy_size = cluster_size;
     } else if (write_flags & BDRV_REQ_WRITE_COMPRESSED) {
-        /* Compression is not supported for copy_range */
+        /* Compression supports only cluster-size writes and no copy-range. */
         s->use_copy_range = false;
-        s->copy_size = MAX(cluster_size, BLOCK_COPY_MAX_BUFFER);
+        s->copy_size = cluster_size;
     } else {
         /*
          * copy_range does not respect max_transfer (it's a TODO), so we factor
