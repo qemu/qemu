@@ -249,6 +249,28 @@ static void hexagon_cpu_init(Object *obj)
     cpu_set_cpustate_pointers(cpu);
 }
 
+static bool hexagon_tlb_fill(CPUState *cs, vaddr address, int size,
+                             MMUAccessType access_type, int mmu_idx,
+                             bool probe, uintptr_t retaddr)
+{
+#ifdef CONFIG_USER_ONLY
+    switch (access_type) {
+        case MMU_INST_FETCH:
+            cs->exception_index = HEX_EXCP_FETCH_NO_UPAGE;
+            break;
+        case MMU_DATA_LOAD:
+            cs->exception_index = HEX_EXCP_PRIV_NO_UREAD;
+            break;
+        case MMU_DATA_STORE:
+            cs->exception_index = HEX_EXCP_PRIV_NO_UWRITE;
+            break;
+    }
+    cpu_loop_exit_restore(cs, retaddr);
+#else
+#error System mode not implemented for Hexagon
+#endif
+}
+
 static const VMStateDescription vmstate_hexagon_cpu = {
     .name = "cpu",
     .unmigratable = 1,
@@ -279,6 +301,7 @@ static void hexagon_cpu_class_init(ObjectClass *c, void *data)
     cc->disas_set_info = hexagon_cpu_disas_set_info;
 #ifdef CONFIG_TCG
     cc->tcg_initialize = hexagon_translate_init;
+    cc->tlb_fill = hexagon_tlb_fill;
 #endif
     /* For now, mark unmigratable: */
     cc->vmsd = &vmstate_hexagon_cpu;

@@ -58,6 +58,8 @@ fi
 : ${cross_cc_cflags_s390x="-m64"}
 : ${cross_cc_cflags_sparc="-m32 -mv8plus -mcpu=ultrasparc"}
 : ${cross_cc_cflags_sparc64="-m64 -mcpu=ultrasparc"}
+: ${cross_cc_hexagon="hexagon-linux-clang"}
+: ${cross_cc_cflags_hexagon="-mv67"}
 
 for target in $target_list; do
   arch=${target%%-*}
@@ -83,7 +85,7 @@ for target in $target_list; do
     xtensa|xtensaeb)
       arches=xtensa
       ;;
-    alpha|cris|hppa|i386|lm32|m68k|openrisc|riscv64|s390x|sh4|sparc64)
+    alpha|cris|hppa|i386|lm32|m68k|openrisc|riscv64|s390x|sh4|sparc64|hexagon)
       arches=$target
       ;;
     *)

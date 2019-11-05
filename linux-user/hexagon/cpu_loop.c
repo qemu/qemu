@@ -179,6 +179,12 @@ void cpu_loop(CPUHexagonState *env)
                 queue_signal(env, info.si_signo, QEMU_SI_FAULT, &info);
             }
             break;
+        case HEX_EXCP_FETCH_NO_UPAGE:
+        case HEX_EXCP_PRIV_NO_UREAD:
+        case HEX_EXCP_PRIV_NO_UWRITE:
+            signum = TARGET_SIGSEGV;
+            sigcode = TARGET_SEGV_MAPERR;
+            break;
         default:
             EXCP_DUMP(env, "\nqemu: unhandled CPU exception %#x - aborting\n",
                      trapnr);
