@@ -645,6 +645,7 @@ static void ccw_machine_4_2_instance_options(MachineState *machine)
 
 static void ccw_machine_4_2_class_options(MachineClass *mc)
 {
+    compat_props_add(mc->compat_props, hw_compat_4_2, hw_compat_4_2_len);
 }
 DEFINE_CCW_MACHINE(4_2, "4.2", true);
 

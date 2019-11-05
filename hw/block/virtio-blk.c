@@ -991,7 +991,9 @@ static uint64_t virtio_blk_get_features(VirtIODevice *vdev, uint64_t features,
         virtio_add_feature(&features, VIRTIO_BLK_F_SCSI);
     }
 
-    if (blk_enable_write_cache(s->blk)) {
+    if (blk_enable_write_cache(s->blk) ||
+        (s->conf.x_enable_wce_if_config_wce &&
+         virtio_has_feature(features, VIRTIO_BLK_F_CONFIG_WCE))) {
         virtio_add_feature(&features, VIRTIO_BLK_F_WCE);
     }
     if (blk_is_read_only(s->blk)) {
@@ -1270,6 +1272,8 @@ static Property virtio_blk_properties[] = {
                        conf.max_discard_sectors, BDRV_REQUEST_MAX_SECTORS),
     DEFINE_PROP_UINT32("max-write-zeroes-sectors", VirtIOBlock,
                        conf.max_write_zeroes_sectors, BDRV_REQUEST_MAX_SECTORS),
+    DEFINE_PROP_BOOL("x-enable-wce-if-config-wce", VirtIOBlock,
+                     conf.x_enable_wce_if_config_wce, true),
     DEFINE_PROP_END_OF_LIST(),
 };
 
