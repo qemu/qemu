@@ -1,7 +1,7 @@
 /* from asm/termbits.h */
-/* Copied from i386 */
+/* Copied/modified from i386 */
 
-#define TARGET_NCCS 19
+#define TARGET_NCCS 32
 
 struct target_termios {
     unsigned int c_iflag;               /* input mode flags */

@@ -318,8 +318,8 @@
 #define  TARGET_NR_fork 1079
 #define  TARGET_NR_syscalls (TARGET_NR_fork + 1)
 #define  TARGET_NR_fstatfs  TARGET_NR3264_fstatfs
-#define  TARGET_NR_truncate  TARGET_NR3264_truncate
-#define  TARGET_NR_ftruncate  TARGET_NR3264_ftruncate
+#define  TARGET_NR_truncate64  TARGET_NR3264_truncate
+#define  TARGET_NR_ftruncate64  TARGET_NR3264_ftruncate
 #define  TARGET_NR_sendfile  TARGET_NR3264_sendfile
 #define  TARGET_NR_newfstatat  TARGET_NR3264_fstatat
 #define  TARGET_NR_lstat  TARGET_NR3264_lstat
