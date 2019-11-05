@@ -128,6 +128,7 @@ struct VirtQueue
     VirtIODevice *vdev;
     EventNotifier guest_notifier;
     EventNotifier host_notifier;
+    bool host_notifier_enabled;
     QLIST_ENTRY(VirtQueue) node;
 };
 
@@ -2271,7 +2272,7 @@ void virtio_queue_notify(VirtIODevice *vdev, int n)
     }
 
     trace_virtio_queue_notify(vdev, vq - vdev->vq, vq);
-    if (vq->handle_aio_output) {
+    if (vq->host_notifier_enabled) {
         event_notifier_set(&vq->host_notifier);
     } else if (vq->handle_output) {
         vq->handle_output(vdev, vq);
@@ -3145,6 +3146,7 @@ void virtio_init(VirtIODevice *vdev, const char *name,
         vdev->vq[i].vector = VIRTIO_NO_VECTOR;
         vdev->vq[i].vdev = vdev;
         vdev->vq[i].queue_index = i;
+        vdev->vq[i].host_notifier_enabled = false;
     }
 
     vdev->name = name;
@@ -3434,6 +3436,11 @@ void virtio_queue_host_notifier_read(EventNotifier *n)
 EventNotifier *virtio_queue_get_host_notifier(VirtQueue *vq)
 {
     return &vq->host_notifier;
+}
+
+void virtio_queue_set_host_notifier_enabled(VirtQueue *vq, bool enabled)
+{
+    vq->host_notifier_enabled = enabled;
 }
 
 int virtio_queue_set_host_notifier_mr(VirtIODevice *vdev, int n,
