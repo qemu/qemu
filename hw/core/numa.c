@@ -503,7 +503,7 @@ static void allocate_system_memory_nonnuma(MemoryRegion *mr, Object *owner,
             warn_report("falling back to regular RAM allocation");
             error_printf("This is deprecated. Make sure that -mem-path "
                          " specified path has sufficient resources to allocate"
-                         " -m specified RAM amount");
+                         " -m specified RAM amount\n");
             /* Legacy behavior: if allocation failed, fall back to
              * regular RAM allocation.
              */
