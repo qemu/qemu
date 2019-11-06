@@ -41,7 +41,8 @@ static inline unsigned long arm_max_reserved_va(CPUState *cs)
 }
 #define MAX_RESERVED_VA  arm_max_reserved_va
 
-static inline void cpu_clone_regs(CPUARMState *env, target_ulong newsp)
+static inline void cpu_clone_regs_child(CPUARMState *env, target_ulong newsp,
+                                        unsigned flags)
 {
     if (newsp) {
         env->regs[13] = newsp;
