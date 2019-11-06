@@ -87,7 +87,7 @@ struct target_signal_frame {
     struct sparc_stackf ss;
     __siginfo_t         info;
     abi_ulong           fpu_save;
-    abi_ulong           insns[2] __attribute__ ((aligned (8)));
+    uint32_t            insns[2] QEMU_ALIGNED(8);
     abi_ulong           extramask[TARGET_NSIG_WORDS - 1];
     abi_ulong           extra_size; /* Should be 0 */
     qemu_siginfo_fpu_t fpu_state;
@@ -98,7 +98,7 @@ struct target_rt_signal_frame {
     abi_ulong           regs[20];
     sigset_t            mask;
     abi_ulong           fpu_save;
-    unsigned int        insns[2];
+    uint32_t            insns[2];
     stack_t             stack;
     unsigned int        extra_size; /* Should be 0 */
     qemu_siginfo_fpu_t  fpu_state;
