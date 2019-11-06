@@ -1177,6 +1177,17 @@ static void eval_cond_jmp(DisasContext *dc, TCGv_i64 pc_true, TCGv_i64 pc_false)
     tcg_temp_free_i64(tmp_zero);
 }
 
+static void dec_setup_dslot(DisasContext *dc)
+{
+        TCGv_i32 tmp = tcg_const_i32(dc->type_b && (dc->tb_flags & IMM_FLAG));
+
+        dc->delayed_branch = 2;
+        dc->tb_flags |= D_FLAG;
+
+        tcg_gen_st_i32(tmp, cpu_env, offsetof(CPUMBState, bimm));
+        tcg_temp_free_i32(tmp);
+}
+
 static void dec_bcc(DisasContext *dc)
 {
     unsigned int cc;
@@ -1188,10 +1199,7 @@ static void dec_bcc(DisasContext *dc)
 
     dc->delayed_branch = 1;
     if (dslot) {
-        dc->delayed_branch = 2;
-        dc->tb_flags |= D_FLAG;
-        tcg_gen_st_i32(tcg_const_i32(dc->type_b && (dc->tb_flags & IMM_FLAG)),
-                      cpu_env, offsetof(CPUMBState, bimm));
+        dec_setup_dslot(dc);
     }
 
     if (dec_alu_op_b_is_small_imm(dc)) {
@@ -1250,10 +1258,7 @@ static void dec_br(DisasContext *dc)
 
     dc->delayed_branch = 1;
     if (dslot) {
-        dc->delayed_branch = 2;
-        dc->tb_flags |= D_FLAG;
-        tcg_gen_st_i32(tcg_const_i32(dc->type_b && (dc->tb_flags & IMM_FLAG)),
-                      cpu_env, offsetof(CPUMBState, bimm));
+        dec_setup_dslot(dc);
     }
     if (link && dc->rd)
         tcg_gen_movi_i32(cpu_R[dc->rd], dc->pc);
@@ -1355,10 +1360,7 @@ static void dec_rts(DisasContext *dc)
         return;
     }
 
-    dc->delayed_branch = 2;
-    dc->tb_flags |= D_FLAG;
-    tcg_gen_st_i32(tcg_const_i32(dc->type_b && (dc->tb_flags & IMM_FLAG)),
-                  cpu_env, offsetof(CPUMBState, bimm));
+    dec_setup_dslot(dc);
 
     if (i_bit) {
         LOG_DIS("rtid ir=%x\n", dc->ir);
