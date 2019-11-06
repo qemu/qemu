@@ -23,22 +23,51 @@
 static inline void cpu_clone_regs_child(CPUSPARCState *env, target_ulong newsp,
                                         unsigned flags)
 {
-    if (newsp) {
-        env->regwptr[22] = newsp;
-    }
-    /* syscall return for clone child: 0, and clear CF since
-     * this counts as a success return value.
+    /*
+     * After cpu_copy, env->regwptr is pointing into the old env.
+     * Update the new cpu to use its own register window.
      */
-    env->regwptr[0] = 0;
-#if defined(TARGET_SPARC64) && !defined(TARGET_ABI32)
-    env->xcc &= ~PSR_CARRY;
+    env->regwptr = env->regbase + (env->cwp * 16);
+
+    if (newsp) {
+        /* When changing stacks, do it with clean register windows.  */
+#ifdef TARGET_SPARC64
+        env->cansave = env->nwindows - 2;
+        env->cleanwin = env->nwindows - 2;
+        env->canrestore = 0;
 #else
-    env->psr &= ~PSR_CARRY;
+        env->wim = 1 << env->cwp;
 #endif
+        /* ??? The kernel appears to copy one stack frame to the new stack. */
+        /* ??? The kernel force aligns the new stack. */
+        env->regwptr[WREG_SP] = newsp;
+    }
+
+    if (flags & CLONE_VM) {
+        /*
+         * Syscall return for clone child: %o0 = 0 and clear CF since this
+         * counts as a success return value.  Advance the PC past the syscall.
+         * For fork child, all of this happens in cpu_loop, and we must not
+         * do the pc advance twice.
+         */
+        env->regwptr[WREG_O0] = 0;
+#if defined(TARGET_SPARC64) && !defined(TARGET_ABI32)
+        env->xcc &= ~PSR_CARRY;
+#else
+        env->psr &= ~PSR_CARRY;
+#endif
+        env->pc = env->npc;
+        env->npc = env->npc + 4;
+    }
+
+    /* Set the second return value for the child: %o1 = 1.  */
+    env->regwptr[WREG_O1] = 1;
 }
 
 static inline void cpu_clone_regs_parent(CPUSPARCState *env, unsigned flags)
 {
+    /* Set the second return value for the parent: %o1 = 0.  */
+    env->regwptr[WREG_O1] = 0;
 }
 
 static inline void cpu_set_tls(CPUSPARCState *env, target_ulong newtls)
