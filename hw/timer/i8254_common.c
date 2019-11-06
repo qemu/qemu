@@ -29,7 +29,6 @@
 #include "qemu/timer.h"
 #include "hw/timer/i8254.h"
 #include "hw/timer/i8254_internal.h"
-#include "migration/qemu-file-types.h"
 #include "migration/vmstate.h"
 
 /* val must be 0 or 1 */
@@ -202,43 +201,6 @@ static const VMStateDescription vmstate_pit_channel = {
     }
 };
 
-static int pit_load_old(QEMUFile *f, void *opaque, int version_id)
-{
-    PITCommonState *pit = opaque;
-    PITCommonClass *c = PIT_COMMON_GET_CLASS(pit);
-    PITChannelState *s;
-    int i;
-
-    if (version_id != 1) {
-        return -EINVAL;
-    }
-
-    for (i = 0; i < 3; i++) {
-        s = &pit->channels[i];
-        s->count = qemu_get_be32(f);
-        qemu_get_be16s(f, &s->latched_count);
-        qemu_get_8s(f, &s->count_latched);
-        qemu_get_8s(f, &s->status_latched);
-        qemu_get_8s(f, &s->status);
-        qemu_get_8s(f, &s->read_state);
-        qemu_get_8s(f, &s->write_state);
-        qemu_get_8s(f, &s->write_latch);
-        qemu_get_8s(f, &s->rw_mode);
-        qemu_get_8s(f, &s->mode);
-        qemu_get_8s(f, &s->bcd);
-        qemu_get_8s(f, &s->gate);
-        s->count_load_time = qemu_get_be64(f);
-        s->irq_disabled = 0;
-        if (i == 0) {
-            s->next_transition_time = qemu_get_be64(f);
-        }
-    }
-    if (c->post_load) {
-        c->post_load(pit);
-    }
-    return 0;
-}
-
 static int pit_dispatch_pre_save(void *opaque)
 {
     PITCommonState *s = opaque;
@@ -266,8 +228,6 @@ static const VMStateDescription vmstate_pit_common = {
     .name = "i8254",
     .version_id = 3,
     .minimum_version_id = 2,
-    .minimum_version_id_old = 1,
-    .load_state_old = pit_load_old,
     .pre_save = pit_dispatch_pre_save,
     .post_load = pit_dispatch_post_load,
     .fields = (VMStateField[]) {

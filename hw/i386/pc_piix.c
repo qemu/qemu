@@ -30,6 +30,8 @@
 #include "hw/i386/x86.h"
 #include "hw/i386/pc.h"
 #include "hw/i386/apic.h"
+#include "hw/pci-host/i440fx.h"
+#include "hw/southbridge/piix.h"
 #include "hw/display/ramfb.h"
 #include "hw/firmware/smbios.h"
 #include "hw/pci/pci.h"
@@ -190,14 +192,20 @@ static void pc_init1(MachineState *machine,
     gsi_state = pc_gsi_create(&x86ms->gsi, pcmc->pci_enabled);
 
     if (pcmc->pci_enabled) {
+        PIIX3State *piix3;
+
         pci_bus = i440fx_init(host_type,
                               pci_type,
-                              &i440fx_state, &piix3_devfn, &isa_bus, x86ms->gsi,
+                              &i440fx_state,
                               system_memory, system_io, machine->ram_size,
                               x86ms->below_4g_mem_size,
                               x86ms->above_4g_mem_size,
                               pci_memory, ram_memory);
         pcms->bus = pci_bus;
+
+        piix3 = piix3_create(pci_bus, &isa_bus);
+        piix3->pic = x86ms->gsi;
+        piix3_devfn = piix3->dev.devfn;
     } else {
         pci_bus = NULL;
         i440fx_state = NULL;
