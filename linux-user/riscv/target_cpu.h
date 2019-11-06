@@ -1,13 +1,18 @@
 #ifndef RISCV_TARGET_CPU_H
 #define RISCV_TARGET_CPU_H
 
-static inline void cpu_clone_regs(CPURISCVState *env, target_ulong newsp)
+static inline void cpu_clone_regs_child(CPURISCVState *env, target_ulong newsp,
+                                        unsigned flags)
 {
     if (newsp) {
         env->gpr[xSP] = newsp;
     }
 
     env->gpr[xA0] = 0;
+}
+
+static inline void cpu_clone_regs_parent(CPURISCVState *env, unsigned flags)
+{
 }
 
 static inline void cpu_set_tls(CPURISCVState *env, target_ulong newtls)
