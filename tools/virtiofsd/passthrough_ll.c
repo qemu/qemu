@@ -43,6 +43,7 @@
 #include <cap-ng.h>
 #include <dirent.h>
 #include <errno.h>
+#include <glib.h>
 #include <inttypes.h>
 #include <limits.h>
 #include <pthread.h>
@@ -2268,8 +2269,15 @@ static void setup_nofile_rlimit(void)
 
 static void log_func(enum fuse_log_level level, const char *fmt, va_list ap)
 {
+    g_autofree char *localfmt = NULL;
+
     if (current_log_level < level) {
         return;
+    }
+
+    if (current_log_level == FUSE_LOG_DEBUG) {
+        localfmt = g_strdup_printf("[ID: %08ld] %s", syscall(__NR_gettid), fmt);
+        fmt = localfmt;
     }
 
     if (use_syslog) {
