@@ -1546,26 +1546,38 @@ STEXI
 ETEXI
 
 DEF("display", HAS_ARG, QEMU_OPTION_display,
+#if defined(CONFIG_SPICE)
     "-display spice-app[,gl=on|off]\n"
-    "-display sdl[,frame=on|off][,alt_grab=on|off][,ctrl_grab=on|off]\n"
+#endif
+#if defined(CONFIG_SDL)
+    "-display sdl[,alt_grab=on|off][,ctrl_grab=on|off]\n"
     "            [,window_close=on|off][,gl=on|core|es|off]\n"
-    "-display gtk[,grab_on_hover=on|off][,gl=on|off]|\n"
-    "-display vnc=<display>[,<optargs>]\n"
-    "-display curses[,charset=<encoding>]\n"
-    "-display none\n"
-    "-display egl-headless[,rendernode=<file>]"
-    "                select display type\n"
-    "The default display is equivalent to\n"
+#endif
 #if defined(CONFIG_GTK)
-            "\t\"-display gtk\"\n"
+    "-display gtk[,grab_on_hover=on|off][,gl=on|off]|\n"
+#endif
+#if defined(CONFIG_VNC)
+    "-display vnc=<display>[,<optargs>]\n"
+#endif
+#if defined(CONFIG_CURSES)
+    "-display curses[,charset=<encoding>]\n"
+#endif
+#if defined(CONFIG_OPENGL)
+    "-display egl-headless[,rendernode=<file>]\n"
+#endif
+    "-display none\n"
+    "                select display backend type\n"
+    "                The default display is equivalent to\n                "
+#if defined(CONFIG_GTK)
+            "\"-display gtk\"\n"
 #elif defined(CONFIG_SDL)
-            "\t\"-display sdl\"\n"
+            "\"-display sdl\"\n"
 #elif defined(CONFIG_COCOA)
-            "\t\"-display cocoa\"\n"
+            "\"-display cocoa\"\n"
 #elif defined(CONFIG_VNC)
-            "\t\"-vnc localhost:0,to=99,id=default\"\n"
+            "\"-vnc localhost:0,to=99,id=default\"\n"
 #else
-            "\t\"-display none\"\n"
+            "\"-display none\"\n"
 #endif
     , QEMU_ARCH_ALL)
 STEXI
