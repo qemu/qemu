@@ -480,6 +480,9 @@ static void *pnv_dt_create(MachineState *machine)
     fdt = g_malloc0(FDT_MAX_SIZE);
     _FDT((fdt_create_empty_tree(fdt, FDT_MAX_SIZE)));
 
+    /* /qemu node */
+    _FDT((fdt_add_subnode(fdt, 0, "qemu")));
+
     /* Root node */
     _FDT((fdt_setprop_cell(fdt, 0, "#address-cells", 0x2)));
     _FDT((fdt_setprop_cell(fdt, 0, "#size-cells", 0x2)));
