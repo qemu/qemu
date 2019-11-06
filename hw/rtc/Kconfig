@@ -22,3 +22,6 @@ config MC146818RTC
 
 config SUN4V_RTC
     bool
+
+config GOLDFISH_RTC
+    bool
