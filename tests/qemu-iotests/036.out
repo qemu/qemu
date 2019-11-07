@@ -16,9 +16,9 @@ refcount_table_offset     0x10000
 refcount_table_clusters   1
 nb_snapshots              0
 snapshot_offset           0x0
-incompatible_features     0x8000000000000000
-compatible_features       0x0
-autoclear_features        0x0
+incompatible_features     [63]
+compatible_features       []
+autoclear_features        []
 refcount_order            4
 header_length             104
 
@@ -50,9 +50,9 @@ refcount_table_offset     0x10000
 refcount_table_clusters   1
 nb_snapshots              0
 snapshot_offset           0x0
-incompatible_features     0x0
-compatible_features       0x0
-autoclear_features        0x8000000000000000
+incompatible_features     []
+compatible_features       []
+autoclear_features        [63]
 refcount_order            4
 header_length             104
 
@@ -78,9 +78,9 @@ refcount_table_offset     0x10000
 refcount_table_clusters   1
 nb_snapshots              0
 snapshot_offset           0x0
-incompatible_features     0x0
-compatible_features       0x0
-autoclear_features        0x0
+incompatible_features     []
+compatible_features       []
+autoclear_features        []
 refcount_order            4
 header_length             104
 
