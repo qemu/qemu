@@ -43,6 +43,8 @@ trap "_cleanup; exit \$status" 0 1 2 3 15
 
 _supported_fmt qcow2
 _supported_proto file
+# An external data file would change the query-named-block-nodes output
+_unsupported_imgopts data_file
 
 size=64M
 

@@ -39,7 +39,8 @@ _supported_proto file
 
 # Repairing the corrupted image requires qemu-img check to store a
 # refcount up to 3, which requires at least two refcount bits.
-_unsupported_imgopts 'refcount_bits=1[^0-9]'
+# External data files do not support compressed clusters.
+_unsupported_imgopts 'refcount_bits=1[^0-9]' data_file
 
 
 echo

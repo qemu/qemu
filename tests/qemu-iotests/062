@@ -41,7 +41,7 @@ trap "_cleanup; exit \$status" 0 1 2 3 15
 _supported_fmt qcow2
 _supported_proto generic
 # We need zero clusters and snapshots
-_unsupported_imgopts 'compat=0.10' 'refcount_bits=1[^0-9]'
+_unsupported_imgopts 'compat=0.10' 'refcount_bits=1[^0-9]' data_file
 
 IMG_SIZE=64M
 

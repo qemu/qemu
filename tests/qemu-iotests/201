@@ -43,9 +43,9 @@ _supported_fmt qcow2
 _supported_proto generic
 _supported_os Linux
 
-# Internal snapshots are (currently) impossible with refcount_bits=1
-# This was taken from test 080
-_unsupported_imgopts 'refcount_bits=1[^0-9]'
+# Internal snapshots are (currently) impossible with refcount_bits=1,
+# and generally impossible with external data files
+_unsupported_imgopts 'refcount_bits=1[^0-9]' data_file
 
 size=64M
 _make_test_img $size

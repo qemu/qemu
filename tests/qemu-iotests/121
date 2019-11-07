@@ -39,6 +39,9 @@ trap "_cleanup; exit \$status" 0 1 2 3 15
 _supported_fmt qcow2
 _supported_proto file
 _supported_os Linux
+# Refcount structures are used much differently with external data
+# files
+_unsupported_imgopts data_file
 
 echo
 echo '=== New refcount structures may not conflict with existing structures ==='

@@ -46,8 +46,9 @@ _supported_fmt qcow qcow2 qed vdi vhdx vmdk vpc
 _supported_proto file
 _supported_os Linux
 _require_drivers blkdebug blkverify
+# data_file would change the json:{} filenames
 _unsupported_imgopts "subformat=monolithicFlat" "subformat=twoGbMaxExtentFlat" \
-    "subformat=twoGbMaxExtentSparse"
+    "subformat=twoGbMaxExtentSparse" data_file
 
 do_run_qemu()
 {

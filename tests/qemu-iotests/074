@@ -50,6 +50,8 @@ _compare()
 _supported_fmt qcow2
 _supported_proto file
 _supported_os Linux
+# blkdebug can only inject errors on bs->file
+_unsupported_imgopts data_file
 
 # Setup test basic parameters
 TEST_IMG2=$TEST_IMG.2

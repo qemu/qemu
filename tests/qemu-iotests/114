@@ -39,6 +39,8 @@ trap "_cleanup; exit \$status" 0 1 2 3 15
 _supported_fmt qcow2
 _supported_proto generic
 _unsupported_proto vxhs
+# qcow2.py does not work too well with external data files
+_unsupported_imgopts data_file
 
 
 TEST_IMG="$TEST_IMG.base" _make_test_img 64M

@@ -32,8 +32,10 @@ status=1	# failure is the default!
 
 _supported_fmt qcow2
 _supported_proto file
-# Because anything other than 16 would change the output of query-block
-_unsupported_imgopts 'refcount_bits=\([^1]\|.\([^6]\|$\)\)'
+# Because anything other than 16 would change the output of query-block,
+# and external data files would change the output of
+# query-named-block-nodes
+_unsupported_imgopts 'refcount_bits=\([^1]\|.\([^6]\|$\)\)' data_file
 
 do_run_qemu()
 {

@@ -39,6 +39,8 @@ trap "_cleanup; exit \$status" 0 1 2 3 15
 _supported_fmt qcow2
 _supported_proto file
 _supported_os Linux
+# This test does not make much sense with external data files
+_unsupported_imgopts data_file
 
 # This test checks that qcow2_process_discards does not truncate a discard
 # request > 2G.

@@ -40,8 +40,10 @@ trap "_cleanup; exit \$status" 0 1 2 3 15
 
 _supported_fmt qcow2
 _supported_proto file
-# The code path we want to test here only works for compat=1.1 images
-_unsupported_imgopts 'compat=0.10'
+# The code path we want to test here only works for compat=1.1 images;
+# blkdebug can only inject errors on bs->file, so external data files
+# do not work with this test
+_unsupported_imgopts 'compat=0.10' data_file
 
 for event in l1_update empty_image_prepare reftable_update refblock_alloc; do
 

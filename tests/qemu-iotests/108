@@ -41,8 +41,10 @@ trap "_cleanup; exit \$status" 0 1 2 3 15
 _supported_fmt qcow2
 _supported_proto file
 _supported_os Linux
-# This test directly modifies a refblock so it relies on refcount_bits being 16
-_unsupported_imgopts 'refcount_bits=\([^1]\|.\([^6]\|$\)\)'
+# This test directly modifies a refblock so it relies on refcount_bits being 16;
+# and the low-level modification it performs are not tuned for external data
+# files
+_unsupported_imgopts 'refcount_bits=\([^1]\|.\([^6]\|$\)\)' data_file
 
 echo
 echo '=== Repairing an image without any refcount table ==='

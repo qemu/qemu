@@ -43,6 +43,8 @@ trap "_cleanup; exit \$status" 0 1 2 3 15
 _supported_fmt qcow2
 _supported_proto file
 _supported_os Linux
+# Compression and snapshots do not work with external data files
+_unsupported_imgopts data_file
 
 TEST_OFFSETS="0 4294967296"
 TEST_OPS="writev read write readv"

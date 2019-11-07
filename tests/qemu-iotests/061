@@ -42,8 +42,10 @@ _supported_fmt qcow2
 _supported_proto file
 _supported_os Linux
 # Conversion between different compat versions can only really work
-# with refcount_bits=16
-_unsupported_imgopts 'refcount_bits=\([^1]\|.\([^6]\|$\)\)'
+# with refcount_bits=16;
+# we have explicit tests for data_file here, but the whole test does
+# not work with it
+_unsupported_imgopts 'refcount_bits=\([^1]\|.\([^6]\|$\)\)' data_file
 
 echo
 echo "=== Testing version downgrade with zero expansion ==="

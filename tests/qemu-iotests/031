@@ -40,9 +40,9 @@ trap "_cleanup; exit \$status" 0 1 2 3 15
 # This tests qcow2-specific low-level functionality
 _supported_fmt qcow2
 _supported_proto file
-# We want to test compat=0.10, which does not support refcount widths
-# other than 16
-_unsupported_imgopts 'refcount_bits=\([^1]\|.\([^6]\|$\)\)'
+# We want to test compat=0.10, which does not support external data
+# files or refcount widths other than 16
+_unsupported_imgopts data_file 'refcount_bits=\([^1]\|.\([^6]\|$\)\)'
 
 CLUSTER_SIZE=65536
 

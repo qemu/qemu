@@ -47,7 +47,8 @@ _supported_os Linux
 # (1) We create a v2 image that supports nothing but refcount_bits=16
 # (2) We do some refcount management on our own which expects
 #     refcount_bits=16
-_unsupported_imgopts 'refcount_bits=\([^1]\|.\([^6]\|$\)\)'
+# As for data files, they do not support snapshots at all.
+_unsupported_imgopts 'refcount_bits=\([^1]\|.\([^6]\|$\)\)' data_file
 
 # Parameters:
 #   $1: image filename

@@ -40,6 +40,9 @@ trap "_cleanup; exit \$status" 0 1 2 3 15
 _supported_fmt qcow2
 _supported_proto file
 _supported_os Linux
+# With an external data file, data clusters are not refcounted
+# (and so qemu-img check does not check their refcount)
+_unsupported_imgopts data_file
 
 echo
 echo '=== Check on an image with a multiple of 2^32 clusters ==='

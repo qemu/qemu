@@ -40,8 +40,9 @@ trap "_cleanup; exit \$status" 0 1 2 3 15
 _supported_fmt qcow2
 _supported_proto file
 # This test will set refcount_bits on its own which would conflict with the
-# manual setting; compat will be overridden as well
-_unsupported_imgopts refcount_bits 'compat=0.10'
+# manual setting; compat will be overridden as well;
+# and external data files do not work well with our refcount testing
+_unsupported_imgopts refcount_bits 'compat=0.10' data_file
 
 print_refcount_bits()
 {

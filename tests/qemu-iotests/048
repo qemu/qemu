@@ -49,6 +49,8 @@ _compare()
 _supported_fmt raw qcow2 qed luks
 _supported_proto file
 _supported_os Linux
+# Using 'cp' is incompatible with external data files
+_unsupported_imgopts data_file
 
 # Remove once all tests are fixed to use TEST_IMG_FILE
 # correctly and common.rc sets it unconditionally

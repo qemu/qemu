@@ -44,6 +44,9 @@ _supported_proto file
 _supported_os Linux
 _default_cache_mode writethrough
 _supported_cache_modes writethrough
+# Some of these test cases expect no external data file so that all
+# clusters are part of the qcow2 image and refcounted
+_unsupported_imgopts data_file
 
 size=128M
 

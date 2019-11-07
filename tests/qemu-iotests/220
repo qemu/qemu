@@ -37,8 +37,9 @@ trap "_cleanup; exit \$status" 0 1 2 3 15
 _supported_fmt qcow2
 _supported_proto file
 _supported_os Linux
-# To use a different refcount width but 16 bits we need compat=1.1
-_unsupported_imgopts 'compat=0.10'
+# To use a different refcount width but 16 bits we need compat=1.1,
+# and external data files do not support compressed clusters.
+_unsupported_imgopts 'compat=0.10' data_file
 
 echo "== Creating huge file =="
 
