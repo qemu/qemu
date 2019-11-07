@@ -4052,6 +4052,7 @@ static int ram_load_postcopy(QEMUFile *f)
     void *postcopy_host_page = mis->postcopy_tmp_page;
     void *last_host = NULL;
     bool all_zero = false;
+    int target_pages = 0;
 
     while (!ret && !(flags & RAM_SAVE_FLAG_EOS)) {
         ram_addr_t addr;
@@ -4086,6 +4087,7 @@ static int ram_load_postcopy(QEMUFile *f)
                 ret = -EINVAL;
                 break;
             }
+            target_pages++;
             matches_target_page_size = block->page_size == TARGET_PAGE_SIZE;
             /*
              * Postcopy requires that we place whole host pages atomically;
@@ -4117,8 +4119,10 @@ static int ram_load_postcopy(QEMUFile *f)
              * If it's the last part of a host page then we place the host
              * page
              */
-            place_needed = (((uintptr_t)host + TARGET_PAGE_SIZE) &
-                                     (block->page_size - 1)) == 0;
+            if (target_pages == (block->page_size / TARGET_PAGE_SIZE)) {
+                place_needed = true;
+                target_pages = 0;
+            }
             place_source = postcopy_host_page;
         }
         last_host = host;
