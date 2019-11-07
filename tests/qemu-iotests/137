@@ -138,14 +138,21 @@ $QEMU_IO \
     "$TEST_IMG" 2>&1 | _filter_qemu_io
 
 # The dirty bit must not be set
-$PYTHON qcow2.py "$TEST_IMG" dump-header | grep incompatible_features
+# (Filter the external data file bit)
+if $PYTHON qcow2.py "$TEST_IMG" dump-header | grep incompatible_features \
+    | grep -q '\<0\>'
+then
+    echo 'ERROR: Dirty bit set'
+else
+    echo 'OK: Dirty bit not set'
+fi
 
 # Similarly we can test whether corruption detection has been enabled:
-# Create L1/L2, overwrite first entry in refcount block, allocate something.
+# Create L1, overwrite refcounts, force allocation of L2 by writing
+# data.
 # Disabling the checks should fail, so the corruption must be detected.
 _make_test_img 64M
-$QEMU_IO -c "write 0 64k" "$TEST_IMG" | _filter_qemu_io
-poke_file "$TEST_IMG" "$((0x20000))" "\x00\x00"
+poke_file "$TEST_IMG" "$((0x20000))" "\x00\x00\x00\x00\x00\x00\x00\x00"
 $QEMU_IO \
     -c "reopen -o overlap-check=none,lazy-refcounts=42" \
     -c "write 64k 64k" \
