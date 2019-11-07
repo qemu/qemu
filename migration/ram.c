@@ -4050,7 +4050,7 @@ static int ram_load_postcopy(QEMUFile *f)
     MigrationIncomingState *mis = migration_incoming_get_current();
     /* Temporary page that is later 'placed' */
     void *postcopy_host_page = mis->postcopy_tmp_page;
-    void *last_host = NULL;
+    void *this_host = NULL;
     bool all_zero = false;
     int target_pages = 0;
 
@@ -4097,23 +4097,25 @@ static int ram_load_postcopy(QEMUFile *f)
              * that's moved into place later.
              * The migration protocol uses,  possibly smaller, target-pages
              * however the source ensures it always sends all the components
-             * of a host page in order.
+             * of a host page in one chunk.
              */
             page_buffer = postcopy_host_page +
                           ((uintptr_t)host & (block->page_size - 1));
             /* If all TP are zero then we can optimise the place */
             if (target_pages == 1) {
                 all_zero = true;
+                this_host = (void *)QEMU_ALIGN_DOWN((uintptr_t)host,
+                                                    block->page_size);
             } else {
                 /* not the 1st TP within the HP */
-                if (host != (last_host + TARGET_PAGE_SIZE)) {
-                    error_report("Non-sequential target page %p/%p",
-                                  host, last_host);
+                if (QEMU_ALIGN_DOWN((uintptr_t)host, block->page_size) !=
+                    (uintptr_t)this_host) {
+                    error_report("Non-same host page %p/%p",
+                                  host, this_host);
                     ret = -EINVAL;
                     break;
                 }
             }
-
 
             /*
              * If it's the last part of a host page then we place the host
@@ -4125,7 +4127,6 @@ static int ram_load_postcopy(QEMUFile *f)
             }
             place_source = postcopy_host_page;
         }
-        last_host = host;
 
         switch (flags & ~RAM_SAVE_FLAG_CONTINUE) {
         case RAM_SAVE_FLAG_ZERO:
@@ -4178,7 +4179,8 @@ static int ram_load_postcopy(QEMUFile *f)
 
         if (!ret && place_needed) {
             /* This gets called at the last target page in the host page */
-            void *place_dest = host + TARGET_PAGE_SIZE - block->page_size;
+            void *place_dest = (void *)QEMU_ALIGN_DOWN((uintptr_t)host,
+                                                       block->page_size);
 
             if (all_zero) {
                 ret = postcopy_place_page_zero(mis, place_dest,
