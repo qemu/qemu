@@ -246,9 +246,15 @@ static bool whpx_allowed;
 static bool whp_dispatch_initialized;
 static HMODULE hWinHvPlatform, hWinHvEmulation;
 static uint32_t max_vcpu_index;
+static WHV_PROCESSOR_XSAVE_FEATURES whpx_xsave_cap;
+
 struct whpx_state whpx_global;
 struct WHPDispatch whp_dispatch;
 
+static bool whpx_has_xsave(void)
+{
+    return whpx_xsave_cap.XsaveSupport;
+}
 
 /*
  * VP support
@@ -298,6 +304,28 @@ static SegmentCache whpx_seg_h2q(const WHV_X64_SEGMENT_REGISTER *hs)
     qs.flags = ((uint32_t)hs->Attributes) << DESC_TYPE_SHIFT;
 
     return qs;
+}
+
+/* X64 Extended Control Registers */
+static void whpx_set_xcrs(CPUState *cpu)
+{
+    CPUX86State *env = cpu->env_ptr;
+    HRESULT hr;
+    struct whpx_state *whpx = &whpx_global;
+    WHV_REGISTER_VALUE xcr0;
+    WHV_REGISTER_NAME xcr0_name = WHvX64RegisterXCr0;
+
+    if (!whpx_has_xsave()) {
+        return;
+    }
+
+    /* Only xcr0 is supported by the hypervisor currently */
+    xcr0.Reg64 = env->xcr0;
+    hr = whp_dispatch.WHvSetVirtualProcessorRegisters(
+        whpx->partition, cpu->cpu_index, &xcr0_name, 1, &xcr0);
+    if (FAILED(hr)) {
+        error_report("WHPX: Failed to set register xcr0, hr=%08lx", hr);
+    }
 }
 
 static int whpx_set_tsc(CPUState *cpu)
@@ -435,6 +463,12 @@ static void whpx_set_registers(CPUState *cpu, int level)
 
     /* 8 Debug Registers - Skipped */
 
+    /*
+     * Extended control registers needs to be handled separately depending
+     * on whether xsave is supported/enabled or not.
+     */
+    whpx_set_xcrs(cpu);
+
     /* 16 XMM registers */
     assert(whpx_register_names[idx] == WHvX64RegisterXmm0);
     idx_next = idx + 16;
@@ -541,6 +575,30 @@ static int whpx_get_tsc(CPUState *cpu)
     return 0;
 }
 
+/* X64 Extended Control Registers */
+static void whpx_get_xcrs(CPUState *cpu)
+{
+    CPUX86State *env = cpu->env_ptr;
+    HRESULT hr;
+    struct whpx_state *whpx = &whpx_global;
+    WHV_REGISTER_VALUE xcr0;
+    WHV_REGISTER_NAME xcr0_name = WHvX64RegisterXCr0;
+
+    if (!whpx_has_xsave()) {
+        return;
+    }
+
+    /* Only xcr0 is supported by the hypervisor currently */
+    hr = whp_dispatch.WHvGetVirtualProcessorRegisters(
+        whpx->partition, cpu->cpu_index, &xcr0_name, 1, &xcr0);
+    if (FAILED(hr)) {
+        error_report("WHPX: Failed to get register xcr0, hr=%08lx", hr);
+        return;
+    }
+
+    env->xcr0 = xcr0.Reg64;
+}
+
 static void whpx_get_registers(CPUState *cpu)
 {
     struct whpx_state *whpx = &whpx_global;
@@ -633,6 +691,12 @@ static void whpx_get_registers(CPUState *cpu)
     }
 
     /* 8 Debug Registers - Skipped */
+
+    /*
+     * Extended control registers needs to be handled separately depending
+     * on whether xsave is supported/enabled or not.
+     */
+    whpx_get_xcrs(cpu);
 
     /* 16 XMM registers */
     assert(whpx_register_names[idx] == WHvX64RegisterXmm0);
@@ -2511,6 +2575,29 @@ static int whpx_accel_init(MachineState *ms)
         error_report("WHPX: Failed to create partition, hr=%08lx", hr);
         ret = -EINVAL;
         goto error;
+    }
+
+    /*
+     * Query the XSAVE capability of the partition. Any error here is not
+     * considered fatal.
+     */
+    hr = whp_dispatch.WHvGetPartitionProperty(
+        whpx->partition,
+        WHvPartitionPropertyCodeProcessorXsaveFeatures,
+        &whpx_xsave_cap,
+        sizeof(whpx_xsave_cap),
+        &whpx_cap_size);
+
+    /*
+     * Windows version which don't support this property will return with the
+     * specific error code.
+     */
+    if (FAILED(hr) && hr != WHV_E_UNKNOWN_PROPERTY) {
+        error_report("WHPX: Failed to query XSAVE capability, hr=%08lx", hr);
+    }
+
+    if (!whpx_has_xsave()) {
+        printf("WHPX: Partition is not XSAVE capable\n");
     }
 
     memset(&prop, 0, sizeof(WHV_PARTITION_PROPERTY));
