@@ -288,6 +288,10 @@ int virtio_bus_set_host_notifier(VirtioBusState *bus, int n, bool assign)
         k->ioeventfd_assign(proxy, notifier, n, false);
     }
 
+    if (r == 0) {
+        virtio_queue_set_host_notifier_enabled(vq, assign);
+    }
+
     return r;
 }
 
