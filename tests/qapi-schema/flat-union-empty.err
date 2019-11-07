@@ -1,1 +1,2 @@
-tests/qapi-schema/flat-union-empty.json:4: Union 'Union' cannot have empty 'data'
+flat-union-empty.json: In union 'Union':
+flat-union-empty.json:4: union has no branches

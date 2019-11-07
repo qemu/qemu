@@ -11,10 +11,11 @@ RUN dpkg --add-architecture armel && \
     apt update && \
     apt install -yy crossbuild-essential-armel && \
     DEBIAN_FRONTEND=noninteractive eatmydata \
-    apt build-dep -yy -a armel qemu
+    apt build-dep -yy -a armel --arch-only qemu
 
 # Specify the cross prefix for this image (see tests/docker/common.rc)
 ENV QEMU_CONFIGURE_OPTS --cross-prefix=arm-linux-gnueabi-
+ENV DEF_TARGET_LIST arm-softmmu,arm-linux-user,armeb-linux-user
 
 RUN apt update && \
     DEBIAN_FRONTEND=noninteractive eatmydata \

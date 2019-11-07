@@ -2052,15 +2052,11 @@ void helper_vsubecuq(ppc_avr_t *r, ppc_avr_t *a, ppc_avr_t *b, ppc_avr_t *c)
 #define NATIONAL_PLUS   0x2B
 #define NATIONAL_NEG    0x2D
 
-#if defined(HOST_WORDS_BIGENDIAN)
 #define BCD_DIG_BYTE(n) (15 - ((n) / 2))
-#else
-#define BCD_DIG_BYTE(n) ((n) / 2)
-#endif
 
 static int bcd_get_sgn(ppc_avr_t *bcd)
 {
-    switch (bcd->u8[BCD_DIG_BYTE(0)] & 0xF) {
+    switch (bcd->VsrB(BCD_DIG_BYTE(0)) & 0xF) {
     case BCD_PLUS_PREF_1:
     case BCD_PLUS_PREF_2:
     case BCD_PLUS_ALT_1:
@@ -2095,9 +2091,9 @@ static uint8_t bcd_get_digit(ppc_avr_t *bcd, int n, int *invalid)
 {
     uint8_t result;
     if (n & 1) {
-        result = bcd->u8[BCD_DIG_BYTE(n)] >> 4;
+        result = bcd->VsrB(BCD_DIG_BYTE(n)) >> 4;
     } else {
-       result = bcd->u8[BCD_DIG_BYTE(n)] & 0xF;
+       result = bcd->VsrB(BCD_DIG_BYTE(n)) & 0xF;
     }
 
     if (unlikely(result > 9)) {
@@ -2109,11 +2105,11 @@ static uint8_t bcd_get_digit(ppc_avr_t *bcd, int n, int *invalid)
 static void bcd_put_digit(ppc_avr_t *bcd, uint8_t digit, int n)
 {
     if (n & 1) {
-        bcd->u8[BCD_DIG_BYTE(n)] &= 0x0F;
-        bcd->u8[BCD_DIG_BYTE(n)] |= (digit << 4);
+        bcd->VsrB(BCD_DIG_BYTE(n)) &= 0x0F;
+        bcd->VsrB(BCD_DIG_BYTE(n)) |= (digit << 4);
     } else {
-        bcd->u8[BCD_DIG_BYTE(n)] &= 0xF0;
-        bcd->u8[BCD_DIG_BYTE(n)] |= digit;
+        bcd->VsrB(BCD_DIG_BYTE(n)) &= 0xF0;
+        bcd->VsrB(BCD_DIG_BYTE(n)) |= digit;
     }
 }
 
@@ -2228,21 +2224,21 @@ uint32_t helper_bcdadd(ppc_avr_t *r,  ppc_avr_t *a, ppc_avr_t *b, uint32_t ps)
 
     if (!invalid) {
         if (sgna == sgnb) {
-            result.u8[BCD_DIG_BYTE(0)] = bcd_preferred_sgn(sgna, ps);
+            result.VsrB(BCD_DIG_BYTE(0)) = bcd_preferred_sgn(sgna, ps);
             bcd_add_mag(&result, a, b, &invalid, &overflow);
             cr = bcd_cmp_zero(&result);
         } else {
             int magnitude = bcd_cmp_mag(a, b);
             if (magnitude > 0) {
-                result.u8[BCD_DIG_BYTE(0)] = bcd_preferred_sgn(sgna, ps);
+                result.VsrB(BCD_DIG_BYTE(0)) = bcd_preferred_sgn(sgna, ps);
                 bcd_sub_mag(&result, a, b, &invalid, &overflow);
                 cr = (sgna > 0) ? CRF_GT : CRF_LT;
             } else if (magnitude < 0) {
-                result.u8[BCD_DIG_BYTE(0)] = bcd_preferred_sgn(sgnb, ps);
+                result.VsrB(BCD_DIG_BYTE(0)) = bcd_preferred_sgn(sgnb, ps);
                 bcd_sub_mag(&result, b, a, &invalid, &overflow);
                 cr = (sgnb > 0) ? CRF_GT : CRF_LT;
             } else {
-                result.u8[BCD_DIG_BYTE(0)] = bcd_preferred_sgn(0, ps);
+                result.VsrB(BCD_DIG_BYTE(0)) = bcd_preferred_sgn(0, ps);
                 cr = CRF_EQ;
             }
         }
@@ -2353,15 +2349,15 @@ uint32_t helper_bcdcfz(ppc_avr_t *r, ppc_avr_t *b, uint32_t ps)
     int zone_lead = ps ? 0xF : 0x3;
     int digit = 0;
     ppc_avr_t ret = { .u64 = { 0, 0 } };
-    int sgnb = b->u8[BCD_DIG_BYTE(0)] >> 4;
+    int sgnb = b->VsrB(BCD_DIG_BYTE(0)) >> 4;
 
     if (unlikely((sgnb < 0xA) && ps)) {
         invalid = 1;
     }
 
     for (i = 0; i < 16; i++) {
-        zone_digit = i ? b->u8[BCD_DIG_BYTE(i * 2)] >> 4 : zone_lead;
-        digit = b->u8[BCD_DIG_BYTE(i * 2)] & 0xF;
+        zone_digit = i ? b->VsrB(BCD_DIG_BYTE(i * 2)) >> 4 : zone_lead;
+        digit = b->VsrB(BCD_DIG_BYTE(i * 2)) & 0xF;
         if (unlikely(zone_digit != zone_lead || digit > 0x9)) {
             invalid = 1;
             break;
@@ -2407,7 +2403,7 @@ uint32_t helper_bcdctz(ppc_avr_t *r, ppc_avr_t *b, uint32_t ps)
             break;
         }
 
-        ret.u8[BCD_DIG_BYTE(i * 2)] = zone_lead + digit;
+        ret.VsrB(BCD_DIG_BYTE(i * 2)) = zone_lead + digit;
     }
 
     if (ps) {
@@ -2519,7 +2515,7 @@ uint32_t helper_bcdcpsgn(ppc_avr_t *r, ppc_avr_t *a, ppc_avr_t *b, uint32_t ps)
     }
 
     *r = *a;
-    bcd_put_digit(r, b->u8[BCD_DIG_BYTE(0)] & 0xF, 0);
+    bcd_put_digit(r, b->VsrB(BCD_DIG_BYTE(0)) & 0xF, 0);
 
     for (i = 1; i < 32; i++) {
         bcd_get_digit(a, i, &invalid);
@@ -2549,11 +2545,7 @@ uint32_t helper_bcdsetsgn(ppc_avr_t *r, ppc_avr_t *b, uint32_t ps)
 uint32_t helper_bcds(ppc_avr_t *r, ppc_avr_t *a, ppc_avr_t *b, uint32_t ps)
 {
     int cr;
-#if defined(HOST_WORDS_BIGENDIAN)
-    int i = a->s8[7];
-#else
-    int i = a->s8[8];
-#endif
+    int i = a->VsrSB(7);
     bool ox_flag = false;
     int sgnb = bcd_get_sgn(b);
     ppc_avr_t ret = *b;
@@ -2602,11 +2594,7 @@ uint32_t helper_bcdus(ppc_avr_t *r, ppc_avr_t *a, ppc_avr_t *b, uint32_t ps)
         }
     }
 
-#if defined(HOST_WORDS_BIGENDIAN)
-    i = a->s8[7];
-#else
-    i = a->s8[8];
-#endif
+    i = a->VsrSB(7);
     if (i >= 32) {
         ox_flag = true;
         ret.VsrD(1) = ret.VsrD(0) = 0;
@@ -2637,13 +2625,11 @@ uint32_t helper_bcdsr(ppc_avr_t *r, ppc_avr_t *a, ppc_avr_t *b, uint32_t ps)
     ppc_avr_t ret = *b;
     ret.VsrD(1) &= ~0xf;
 
-#if defined(HOST_WORDS_BIGENDIAN)
-    int i = a->s8[7];
-    ppc_avr_t bcd_one = { .u64 = { 0, 0x10 } };
-#else
-    int i = a->s8[8];
-    ppc_avr_t bcd_one = { .u64 = { 0x10, 0 } };
-#endif
+    int i = a->VsrSB(7);
+    ppc_avr_t bcd_one;
+
+    bcd_one.VsrD(0) = 0;
+    bcd_one.VsrD(1) = 0x10;
 
     if (bcd_is_valid(b) == false) {
         return CRF_SO;
@@ -2679,11 +2665,7 @@ uint32_t helper_bcdtrunc(ppc_avr_t *r, ppc_avr_t *a, ppc_avr_t *b, uint32_t ps)
 {
     uint64_t mask;
     uint32_t ox_flag = 0;
-#if defined(HOST_WORDS_BIGENDIAN)
-    int i = a->s16[3] + 1;
-#else
-    int i = a->s16[4] + 1;
-#endif
+    int i = a->VsrSH(3) + 1;
     ppc_avr_t ret = *b;
 
     if (bcd_is_valid(b) == false) {
@@ -2728,11 +2710,7 @@ uint32_t helper_bcdutrunc(ppc_avr_t *r, ppc_avr_t *a, ppc_avr_t *b, uint32_t ps)
         }
     }
 
-#if defined(HOST_WORDS_BIGENDIAN)
-    i = a->s16[3];
-#else
-    i = a->s16[4];
-#endif
+    i = a->VsrSH(3);
     if (i > 16 && i < 33) {
         mask = (uint64_t)-1 >> (128 - i * 4);
         if (ret.VsrD(0) & ~mask) {

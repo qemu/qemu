@@ -151,7 +151,7 @@
 127 rw backing quick
 128 rw quick
 129 rw quick
-130 rw auto quick
+130 rw quick
 131 rw quick
 132 rw quick
 133 auto quick
@@ -273,4 +273,13 @@
 256 rw quick
 257 rw
 258 rw quick
+260 rw quick
+261 rw
 262 rw quick migration
+263 rw quick
+264 rw
+265 rw auto quick
+266 rw quick
+267 rw auto quick snapshot
+268 rw auto quick
+270 rw backing quick

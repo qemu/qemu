@@ -1,0 +1,97 @@
+#!/usr/bin/env python
+#
+# Test nbd reconnect
+#
+# Copyright (c) 2019 Virtuozzo International GmbH.
+#
+# This program is free software; you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation; either version 2 of the License, or
+# (at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with this program.  If not, see <http://www.gnu.org/licenses/>.
+#
+
+import time
+
+import iotests
+from iotests import qemu_img_create, qemu_io_silent_check, file_path, \
+        qemu_nbd_popen, log
+
+iotests.verify_image_format(supported_fmts=['qcow2'])
+
+disk_a, disk_b, nbd_sock = file_path('disk_a', 'disk_b', 'nbd-sock')
+nbd_uri = 'nbd+unix:///?socket=' + nbd_sock
+size = 5 * 1024 * 1024
+wait_limit = 3
+wait_step = 0.2
+
+qemu_img_create('-f', iotests.imgfmt, disk_a, str(size))
+qemu_img_create('-f', iotests.imgfmt, disk_b, str(size))
+srv = qemu_nbd_popen('-k', nbd_sock, '-f', iotests.imgfmt, disk_b)
+
+# Wait for NBD server availability
+t = 0
+ok = False
+while t < wait_limit:
+    ok = qemu_io_silent_check('-f', 'raw', '-c', 'read 0 512', nbd_uri)
+    if ok:
+        break
+    time.sleep(wait_step)
+    t += wait_step
+
+assert ok
+
+vm = iotests.VM().add_drive(disk_a)
+vm.launch()
+vm.hmp_qemu_io('drive0', 'write 0 {}'.format(size))
+
+vm.qmp_log('blockdev-add', filters=[iotests.filter_qmp_testfiles],
+           **{'node_name': 'backup0',
+              'driver': 'raw',
+              'file': {'driver': 'nbd',
+                       'server': {'type': 'unix', 'path': nbd_sock},
+                       'reconnect-delay': 10}})
+vm.qmp_log('blockdev-backup', device='drive0', sync='full', target='backup0',
+           speed=(1 * 1024 * 1024))
+
+# Wait for some progress
+t = 0
+while t < wait_limit:
+    jobs = vm.qmp('query-block-jobs')['return']
+    if jobs and jobs[0]['offset'] > 0:
+        break
+    time.sleep(wait_step)
+    t += wait_step
+
+if jobs and jobs[0]['offset'] > 0:
+    log('Backup job is started')
+
+log('Kill NBD server')
+srv.kill()
+srv.wait()
+
+jobs = vm.qmp('query-block-jobs')['return']
+if jobs and jobs[0]['offset'] < jobs[0]['len']:
+    log('Backup job is still in progress')
+
+vm.qmp_log('block-job-set-speed', device='drive0', speed=0)
+
+# Emulate server down time for 1 second
+time.sleep(1)
+
+log('Start NBD server')
+srv = qemu_nbd_popen('-k', nbd_sock, '-f', iotests.imgfmt, disk_b)
+
+e = vm.event_wait('BLOCK_JOB_COMPLETED')
+log('Backup completed: {}'.format(e['data']['offset']))
+
+vm.qmp_log('blockdev-del', node_name='backup0')
+srv.kill()
+vm.shutdown()

@@ -19,13 +19,18 @@
 #ifndef MIPS_TARGET_CPU_H
 #define MIPS_TARGET_CPU_H
 
-static inline void cpu_clone_regs(CPUMIPSState *env, target_ulong newsp)
+static inline void cpu_clone_regs_child(CPUMIPSState *env, target_ulong newsp,
+                                        unsigned flags)
 {
     if (newsp) {
         env->active_tc.gpr[29] = newsp;
     }
     env->active_tc.gpr[7] = 0;
     env->active_tc.gpr[2] = 0;
+}
+
+static inline void cpu_clone_regs_parent(CPUMIPSState *env, unsigned flags)
+{
 }
 
 static inline void cpu_set_tls(CPUMIPSState *env, target_ulong newtls)

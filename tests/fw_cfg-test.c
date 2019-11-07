@@ -194,6 +194,26 @@ static void test_fw_cfg_reboot_timeout(void)
     qtest_quit(s);
 }
 
+static void test_fw_cfg_no_reboot_timeout(void)
+{
+    QFWCFG *fw_cfg;
+    QTestState *s;
+    uint32_t reboot_timeout = 0;
+    size_t filesize;
+
+    /* Special value -1 means "don't reboot" */
+    s = qtest_init("-boot reboot-timeout=-1");
+    fw_cfg = pc_fw_cfg_init(s);
+
+    filesize = qfw_cfg_get_file(fw_cfg, "etc/boot-fail-wait",
+                                &reboot_timeout, sizeof(reboot_timeout));
+    g_assert_cmpint(filesize, ==, sizeof(reboot_timeout));
+    reboot_timeout = le32_to_cpu(reboot_timeout);
+    g_assert_cmpint(reboot_timeout, ==, UINT32_MAX);
+    pc_fw_cfg_uninit(fw_cfg);
+    qtest_quit(s);
+}
+
 static void test_fw_cfg_splash_time(void)
 {
     QFWCFG *fw_cfg;
@@ -233,6 +253,7 @@ int main(int argc, char **argv)
     qtest_add_func("fw_cfg/numa", test_fw_cfg_numa);
     qtest_add_func("fw_cfg/boot_menu", test_fw_cfg_boot_menu);
     qtest_add_func("fw_cfg/reboot_timeout", test_fw_cfg_reboot_timeout);
+    qtest_add_func("fw_cfg/no_reboot_timeout", test_fw_cfg_no_reboot_timeout);
     qtest_add_func("fw_cfg/splash_time", test_fw_cfg_splash_time);
 
     return g_test_run();

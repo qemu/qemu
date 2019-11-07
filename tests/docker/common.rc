@@ -11,6 +11,10 @@
 # or (at your option) any later version. See the COPYING file in
 # the top-level directory.
 
+# This might be set by ENV of a docker container... it is always
+# overriden by TARGET_LIST if the user sets it.
+DEF_TARGET_LIST=${DEF_TARGET_LIST:-"x86_64-softmmu,aarch64-softmmu"}
+
 requires()
 {
     for c in $@; do

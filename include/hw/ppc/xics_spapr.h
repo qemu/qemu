@@ -29,13 +29,11 @@
 
 #include "hw/ppc/spapr.h"
 
-#define XICS_NODENAME "interrupt-controller"
+#define TYPE_ICS_SPAPR "ics-spapr"
+#define ICS_SPAPR(obj) OBJECT_CHECK(ICSState, (obj), TYPE_ICS_SPAPR)
 
-void spapr_dt_xics(SpaprMachineState *spapr, uint32_t nr_servers, void *fdt,
-                   uint32_t phandle);
-int xics_kvm_connect(SpaprMachineState *spapr, Error **errp);
-void xics_kvm_disconnect(SpaprMachineState *spapr, Error **errp);
+int xics_kvm_connect(SpaprInterruptController *intc, Error **errp);
+void xics_kvm_disconnect(SpaprInterruptController *intc);
 bool xics_kvm_has_broken_disconnect(SpaprMachineState *spapr);
-void xics_spapr_init(SpaprMachineState *spapr);
 
 #endif /* XICS_SPAPR_H */

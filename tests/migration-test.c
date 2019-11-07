@@ -240,6 +240,17 @@ static int64_t read_ram_property_int(QTestState *who, const char *property)
     return result;
 }
 
+static int64_t read_migrate_property_int(QTestState *who, const char *property)
+{
+    QDict *rsp_return;
+    int64_t result;
+
+    rsp_return = migrate_query(who);
+    result = qdict_get_try_int(rsp_return, property, 0);
+    qobject_unref(rsp_return);
+    return result;
+}
+
 static uint64_t get_migration_pass(QTestState *who)
 {
     return read_ram_property_int(who, "dirty-sync-count");
@@ -254,27 +265,46 @@ static void read_blocktime(QTestState *who)
     qobject_unref(rsp_return);
 }
 
-static void wait_for_migration_status(QTestState *who,
-                                      const char *goal)
+static bool check_migration_status(QTestState *who, const char *goal,
+                                   const char **ungoals)
 {
-    while (true) {
-        bool completed;
-        char *status;
+    bool ready;
+    char *current_status;
+    const char **ungoal;
 
-        status = migrate_query_status(who);
-        completed = strcmp(status, goal) == 0;
-        g_assert_cmpstr(status, !=,  "failed");
-        g_free(status);
-        if (completed) {
-            return;
+    current_status = migrate_query_status(who);
+    ready = strcmp(current_status, goal) == 0;
+    if (!ungoals) {
+        g_assert_cmpstr(current_status, !=, "failed");
+        /*
+         * If looking for a state other than completed,
+         * completion of migration would cause the test to
+         * hang.
+         */
+        if (strcmp(goal, "completed") != 0) {
+            g_assert_cmpstr(current_status, !=, "completed");
         }
+    } else {
+        for (ungoal = ungoals; *ungoal; ungoal++) {
+            g_assert_cmpstr(current_status, !=,  *ungoal);
+        }
+    }
+    g_free(current_status);
+    return ready;
+}
+
+static void wait_for_migration_status(QTestState *who,
+                                      const char *goal,
+                                      const char **ungoals)
+{
+    while (!check_migration_status(who, goal, ungoals)) {
         usleep(1000);
     }
 }
 
 static void wait_for_migration_complete(QTestState *who)
 {
-    wait_for_migration_status(who, "completed");
+    wait_for_migration_status(who, "completed", NULL);
 }
 
 static void wait_for_migration_pass(QTestState *who)
@@ -445,6 +475,17 @@ static void migrate_pause(QTestState *who)
     qobject_unref(rsp);
 }
 
+static void migrate_continue(QTestState *who, const char *state)
+{
+    QDict *rsp;
+
+    rsp = wait_command(who,
+                       "{ 'execute': 'migrate-continue',"
+                       "  'arguments': { 'state': %s } }",
+                       state);
+    qobject_unref(rsp);
+}
+
 static void migrate_recover(QTestState *who, const char *uri)
 {
     QDict *rsp;
@@ -512,7 +553,8 @@ static void migrate_postcopy_start(QTestState *from, QTestState *to)
 
 static int test_migrate_start(QTestState **from, QTestState **to,
                                const char *uri, bool hide_stderr,
-                               bool use_shmem)
+                               bool use_shmem, const char *opts_src,
+                               const char *opts_dst)
 {
     gchar *cmd_src, *cmd_dst;
     char *bootpath = NULL;
@@ -520,6 +562,9 @@ static int test_migrate_start(QTestState **from, QTestState **to,
     char *shmem_path = NULL;
     const char *arch = qtest_get_arch();
     const char *accel = "kvm:tcg";
+
+    opts_src = opts_src ? opts_src : "";
+    opts_dst = opts_dst ? opts_dst : "";
 
     if (use_shmem) {
         if (!g_file_test("/dev/shm", G_FILE_TEST_IS_DIR)) {
@@ -539,16 +584,16 @@ static int test_migrate_start(QTestState **from, QTestState **to,
         cmd_src = g_strdup_printf("-machine accel=%s -m 150M"
                                   " -name source,debug-threads=on"
                                   " -serial file:%s/src_serial"
-                                  " -drive file=%s,format=raw %s",
+                                  " -drive file=%s,format=raw %s %s",
                                   accel, tmpfs, bootpath,
-                                  extra_opts ? extra_opts : "");
+                                  extra_opts ? extra_opts : "", opts_src);
         cmd_dst = g_strdup_printf("-machine accel=%s -m 150M"
                                   " -name target,debug-threads=on"
                                   " -serial file:%s/dest_serial"
                                   " -drive file=%s,format=raw"
-                                  " -incoming %s %s",
+                                  " -incoming %s %s %s",
                                   accel, tmpfs, bootpath, uri,
-                                  extra_opts ? extra_opts : "");
+                                  extra_opts ? extra_opts : "", opts_dst);
         start_address = X86_TEST_MEM_START;
         end_address = X86_TEST_MEM_END;
     } else if (g_str_equal(arch, "s390x")) {
@@ -556,15 +601,15 @@ static int test_migrate_start(QTestState **from, QTestState **to,
         extra_opts = use_shmem ? get_shmem_opts("128M", shmem_path) : NULL;
         cmd_src = g_strdup_printf("-machine accel=%s -m 128M"
                                   " -name source,debug-threads=on"
-                                  " -serial file:%s/src_serial -bios %s %s",
+                                  " -serial file:%s/src_serial -bios %s %s %s",
                                   accel, tmpfs, bootpath,
-                                  extra_opts ? extra_opts : "");
+                                  extra_opts ? extra_opts : "", opts_src);
         cmd_dst = g_strdup_printf("-machine accel=%s -m 128M"
                                   " -name target,debug-threads=on"
                                   " -serial file:%s/dest_serial -bios %s"
-                                  " -incoming %s %s",
+                                  " -incoming %s %s %s",
                                   accel, tmpfs, bootpath, uri,
-                                  extra_opts ? extra_opts : "");
+                                  extra_opts ? extra_opts : "", opts_dst);
         start_address = S390_TEST_MEM_START;
         end_address = S390_TEST_MEM_END;
     } else if (strcmp(arch, "ppc64") == 0) {
@@ -575,14 +620,15 @@ static int test_migrate_start(QTestState **from, QTestState **to,
                                   " -prom-env 'use-nvramrc?=true' -prom-env "
                                   "'nvramrc=hex .\" _\" begin %x %x "
                                   "do i c@ 1 + i c! 1000 +loop .\" B\" 0 "
-                                  "until' %s",  accel, tmpfs, end_address,
-                                  start_address, extra_opts ? extra_opts : "");
+                                  "until' %s %s",  accel, tmpfs, end_address,
+                                  start_address, extra_opts ? extra_opts : "",
+                                  opts_src);
         cmd_dst = g_strdup_printf("-machine accel=%s -m 256M"
                                   " -name target,debug-threads=on"
                                   " -serial file:%s/dest_serial"
-                                  " -incoming %s %s",
+                                  " -incoming %s %s %s",
                                   accel, tmpfs, uri,
-                                  extra_opts ? extra_opts : "");
+                                  extra_opts ? extra_opts : "", opts_dst);
 
         start_address = PPC_TEST_MEM_START;
         end_address = PPC_TEST_MEM_END;
@@ -592,16 +638,16 @@ static int test_migrate_start(QTestState **from, QTestState **to,
         cmd_src = g_strdup_printf("-machine virt,accel=%s,gic-version=max "
                                   "-name vmsource,debug-threads=on -cpu max "
                                   "-m 150M -serial file:%s/src_serial "
-                                  "-kernel %s %s",
+                                  "-kernel %s %s %s",
                                   accel, tmpfs, bootpath,
-                                  extra_opts ? extra_opts : "");
+                                  extra_opts ? extra_opts : "", opts_src);
         cmd_dst = g_strdup_printf("-machine virt,accel=%s,gic-version=max "
                                   "-name vmdest,debug-threads=on -cpu max "
                                   "-m 150M -serial file:%s/dest_serial "
                                   "-kernel %s "
-                                  "-incoming %s %s",
+                                  "-incoming %s %s %s",
                                   accel, tmpfs, bootpath, uri,
-                                  extra_opts ? extra_opts : "");
+                                  extra_opts ? extra_opts : "", opts_dst);
 
         start_address = ARM_TEST_MEM_START;
         end_address = ARM_TEST_MEM_END;
@@ -731,7 +777,7 @@ static int migrate_postcopy_prepare(QTestState **from_ptr,
     char *uri = g_strdup_printf("unix:%s/migsocket", tmpfs);
     QTestState *from, *to;
 
-    if (test_migrate_start(&from, &to, uri, hide_error, false)) {
+    if (test_migrate_start(&from, &to, uri, hide_error, false, NULL, NULL)) {
         return -1;
     }
 
@@ -743,7 +789,7 @@ static int migrate_postcopy_prepare(QTestState **from_ptr,
      * quickly, but that it doesn't complete precopy even on a slow
      * machine, so also set the downtime.
      */
-    migrate_set_parameter_int(from, "max-bandwidth", 100000000);
+    migrate_set_parameter_int(from, "max-bandwidth", 30000000);
     migrate_set_parameter_int(from, "downtime-limit", 1);
 
     /* Wait for the first serial output from the source */
@@ -804,7 +850,7 @@ static void test_postcopy_recovery(void)
      * Wait until postcopy is really started; we can only run the
      * migrate-pause command during a postcopy
      */
-    wait_for_migration_status(from, "postcopy-active");
+    wait_for_migration_status(from, "postcopy-active", NULL);
 
     /*
      * Manually stop the postcopy migration. This emulates a network
@@ -817,7 +863,9 @@ static void test_postcopy_recovery(void)
      * migrate-recover command can only succeed if destination machine
      * is in the paused state
      */
-    wait_for_migration_status(to, "postcopy-paused");
+    wait_for_migration_status(to, "postcopy-paused",
+                              (const char * []) { "failed", "active",
+                                                  "completed", NULL });
 
     /*
      * Create a new socket to emulate a new channel that is different
@@ -831,7 +879,9 @@ static void test_postcopy_recovery(void)
      * Try to rebuild the migration channel using the resume flag and
      * the newly created channel
      */
-    wait_for_migration_status(from, "postcopy-paused");
+    wait_for_migration_status(from, "postcopy-paused",
+                              (const char * []) { "failed", "active",
+                                                  "completed", NULL });
     migrate(from, uri, "{'resume': true}");
     g_free(uri);
 
@@ -841,20 +891,16 @@ static void test_postcopy_recovery(void)
     migrate_postcopy_complete(from, to);
 }
 
-static void test_baddest(void)
+static void wait_for_migration_fail(QTestState *from, bool allow_active)
 {
-    QTestState *from, *to;
     QDict *rsp_return;
     char *status;
     bool failed;
 
-    if (test_migrate_start(&from, &to, "tcp:0:0", true, false)) {
-        return;
-    }
-    migrate(from, "tcp:0:0", "{}");
     do {
         status = migrate_query_status(from);
-        g_assert(!strcmp(status, "setup") || !(strcmp(status, "failed")));
+        g_assert(!strcmp(status, "setup") || !strcmp(status, "failed") ||
+                 (allow_active && !strcmp(status, "active")));
         failed = !strcmp(status, "failed");
         g_free(status);
     } while (!failed);
@@ -864,7 +910,17 @@ static void test_baddest(void)
     g_assert(qdict_haskey(rsp_return, "running"));
     g_assert(qdict_get_bool(rsp_return, "running"));
     qobject_unref(rsp_return);
+}
 
+static void test_baddest(void)
+{
+    QTestState *from, *to;
+
+    if (test_migrate_start(&from, &to, "tcp:0:0", true, false, NULL, NULL)) {
+        return;
+    }
+    migrate(from, "tcp:0:0", "{}");
+    wait_for_migration_fail(from, false);
     test_migrate_end(from, to, false);
 }
 
@@ -873,7 +929,7 @@ static void test_precopy_unix(void)
     char *uri = g_strdup_printf("unix:%s/migsocket", tmpfs);
     QTestState *from, *to;
 
-    if (test_migrate_start(&from, &to, uri, false, false)) {
+    if (test_migrate_start(&from, &to, uri, false, false, NULL, NULL)) {
         return;
     }
 
@@ -916,7 +972,7 @@ static void test_ignore_shared(void)
     char *uri = g_strdup_printf("unix:%s/migsocket", tmpfs);
     QTestState *from, *to;
 
-    if (test_migrate_start(&from, &to, uri, false, true)) {
+    if (test_migrate_start(&from, &to, uri, false, true, NULL, NULL)) {
         return;
     }
 
@@ -951,7 +1007,7 @@ static void test_xbzrle(const char *uri)
 {
     QTestState *from, *to;
 
-    if (test_migrate_start(&from, &to, uri, false, false)) {
+    if (test_migrate_start(&from, &to, uri, false, false, NULL, NULL)) {
         return;
     }
 
@@ -1003,7 +1059,8 @@ static void test_precopy_tcp(void)
     char *uri;
     QTestState *from, *to;
 
-    if (test_migrate_start(&from, &to, "tcp:127.0.0.1:0", false, false)) {
+    if (test_migrate_start(&from, &to, "tcp:127.0.0.1:0", false, false,
+                           NULL, NULL)) {
         return;
     }
 
@@ -1049,7 +1106,7 @@ static void test_migrate_fd_proto(void)
     QDict *rsp;
     const char *error_desc;
 
-    if (test_migrate_start(&from, &to, "defer", false, false)) {
+    if (test_migrate_start(&from, &to, "defer", false, false, NULL, NULL)) {
         return;
     }
 
@@ -1125,6 +1182,151 @@ static void test_migrate_fd_proto(void)
     test_migrate_end(from, to, true);
 }
 
+static void do_test_validate_uuid(const char *uuid_arg_src,
+                                  const char *uuid_arg_dst,
+                                  bool should_fail, bool hide_stderr)
+{
+    char *uri = g_strdup_printf("unix:%s/migsocket", tmpfs);
+    QTestState *from, *to;
+
+    if (test_migrate_start(&from, &to, uri, hide_stderr, false,
+                           uuid_arg_src, uuid_arg_dst)) {
+        return;
+    }
+
+    /*
+     * UUID validation is at the begin of migration. So, the main process of
+     * migration is not interesting for us here. Thus, set huge downtime for
+     * very fast migration.
+     */
+    migrate_set_parameter_int(from, "downtime-limit", 1000000);
+    migrate_set_capability(from, "validate-uuid", true);
+
+    /* Wait for the first serial output from the source */
+    wait_for_serial("src_serial");
+
+    migrate(from, uri, "{}");
+
+    if (should_fail) {
+        qtest_set_expected_status(to, 1);
+        wait_for_migration_fail(from, true);
+    } else {
+        wait_for_migration_complete(from);
+    }
+
+    test_migrate_end(from, to, false);
+    g_free(uri);
+}
+
+static void test_validate_uuid(void)
+{
+    do_test_validate_uuid("-uuid 11111111-1111-1111-1111-111111111111",
+                          "-uuid 11111111-1111-1111-1111-111111111111",
+                          false, false);
+}
+
+static void test_validate_uuid_error(void)
+{
+    do_test_validate_uuid("-uuid 11111111-1111-1111-1111-111111111111",
+                          "-uuid 22222222-2222-2222-2222-222222222222",
+                          true, true);
+}
+
+static void test_validate_uuid_src_not_set(void)
+{
+    do_test_validate_uuid(NULL, "-uuid 11111111-1111-1111-1111-111111111111",
+                          false, true);
+}
+
+static void test_validate_uuid_dst_not_set(void)
+{
+    do_test_validate_uuid("-uuid 11111111-1111-1111-1111-111111111111", NULL,
+                          false, true);
+}
+
+static void test_migrate_auto_converge(void)
+{
+    char *uri = g_strdup_printf("unix:%s/migsocket", tmpfs);
+    QTestState *from, *to;
+    int64_t remaining, percentage;
+
+    /*
+     * We want the test to be stable and as fast as possible.
+     * E.g., with 1Gb/s bandwith migration may pass without throttling,
+     * so we need to decrease a bandwidth.
+     */
+    const int64_t init_pct = 5, inc_pct = 50, max_pct = 95;
+    const int64_t max_bandwidth = 400000000; /* ~400Mb/s */
+    const int64_t downtime_limit = 250; /* 250ms */
+    /*
+     * We migrate through unix-socket (> 500Mb/s).
+     * Thus, expected migration speed ~= bandwidth limit (< 500Mb/s).
+     * So, we can predict expected_threshold
+     */
+    const int64_t expected_threshold = max_bandwidth * downtime_limit / 1000;
+
+    if (test_migrate_start(&from, &to, uri, false, false, NULL, NULL)) {
+        return;
+    }
+
+    migrate_set_capability(from, "auto-converge", true);
+    migrate_set_parameter_int(from, "cpu-throttle-initial", init_pct);
+    migrate_set_parameter_int(from, "cpu-throttle-increment", inc_pct);
+    migrate_set_parameter_int(from, "max-cpu-throttle", max_pct);
+
+    /*
+     * Set the initial parameters so that the migration could not converge
+     * without throttling.
+     */
+    migrate_set_parameter_int(from, "downtime-limit", 1);
+    migrate_set_parameter_int(from, "max-bandwidth", 100000000); /* ~100Mb/s */
+
+    /* To check remaining size after precopy */
+    migrate_set_capability(from, "pause-before-switchover", true);
+
+    /* Wait for the first serial output from the source */
+    wait_for_serial("src_serial");
+
+    migrate(from, uri, "{}");
+
+    /* Wait for throttling begins */
+    percentage = 0;
+    while (percentage == 0) {
+        percentage = read_migrate_property_int(from, "cpu-throttle-percentage");
+        usleep(100);
+        g_assert_false(got_stop);
+    }
+    /* The first percentage of throttling should be equal to init_pct */
+    g_assert_cmpint(percentage, ==, init_pct);
+    /* Now, when we tested that throttling works, let it converge */
+    migrate_set_parameter_int(from, "downtime-limit", downtime_limit);
+    migrate_set_parameter_int(from, "max-bandwidth", max_bandwidth);
+
+    /*
+     * Wait for pre-switchover status to check last throttle percentage
+     * and remaining. These values will be zeroed later
+     */
+    wait_for_migration_status(from, "pre-switchover", NULL);
+
+    /* The final percentage of throttling shouldn't be greater than max_pct */
+    percentage = read_migrate_property_int(from, "cpu-throttle-percentage");
+    g_assert_cmpint(percentage, <=, max_pct);
+
+    remaining = read_ram_property_int(from, "remaining");
+    g_assert_cmpint(remaining, <, expected_threshold);
+
+    migrate_continue(from, "pre-switchover");
+
+    qtest_qmp_eventwait(to, "RESUME");
+
+    wait_for_serial("dest_serial");
+    wait_for_migration_complete(from);
+
+    g_free(uri);
+
+    test_migrate_end(from, to, true);
+}
+
 int main(int argc, char **argv)
 {
     char template[] = "/tmp/migration-test-XXXXXX";
@@ -1180,6 +1382,14 @@ int main(int argc, char **argv)
     /* qtest_add_func("/migration/ignore_shared", test_ignore_shared); */
     qtest_add_func("/migration/xbzrle/unix", test_xbzrle_unix);
     qtest_add_func("/migration/fd_proto", test_migrate_fd_proto);
+    qtest_add_func("/migration/validate_uuid", test_validate_uuid);
+    qtest_add_func("/migration/validate_uuid_error", test_validate_uuid_error);
+    qtest_add_func("/migration/validate_uuid_src_not_set",
+                   test_validate_uuid_src_not_set);
+    qtest_add_func("/migration/validate_uuid_dst_not_set",
+                   test_validate_uuid_dst_not_set);
+
+    qtest_add_func("/migration/auto_converge", test_migrate_auto_converge);
 
     ret = g_test_run();
 

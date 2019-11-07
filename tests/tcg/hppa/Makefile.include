@@ -1,2 +1,0 @@
-DOCKER_IMAGE=debian-hppa-cross
-DOCKER_CROSS_COMPILER=hppa-linux-gnu-gcc

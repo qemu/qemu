@@ -1,1 +1,2 @@
-tests/qapi-schema/args-array-unknown.json:2: Member 'array' of 'data' for command 'oops' uses unknown type 'NoSuchType'
+args-array-unknown.json: In command 'oops':
+args-array-unknown.json:2: command uses unknown type 'NoSuchType'

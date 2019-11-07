@@ -388,5 +388,7 @@
 #define __NR_fsconfig (__NR_SYSCALL_BASE + 431)
 #define __NR_fsmount (__NR_SYSCALL_BASE + 432)
 #define __NR_fspick (__NR_SYSCALL_BASE + 433)
+#define __NR_pidfd_open (__NR_SYSCALL_BASE + 434)
+#define __NR_clone3 (__NR_SYSCALL_BASE + 435)
 
 #endif /* _ASM_ARM_UNISTD_COMMON_H */

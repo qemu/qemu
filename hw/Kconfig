@@ -21,12 +21,14 @@ source isa/Kconfig
 source mem/Kconfig
 source misc/Kconfig
 source net/Kconfig
+source nubus/Kconfig
 source nvram/Kconfig
 source pci-bridge/Kconfig
 source pci-host/Kconfig
 source pcmcia/Kconfig
 source pci/Kconfig
 source rdma/Kconfig
+source rtc/Kconfig
 source scsi/Kconfig
 source sd/Kconfig
 source semihosting/Kconfig

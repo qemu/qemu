@@ -28,7 +28,7 @@ status=1	# failure is the default!
 
 _cleanup()
 {
-	rm -f nbd.sock
+	rm -f "$SOCK_DIR/nbd.sock"
 	rm -f nbd-fault-injector.out
 	rm -f nbd-fault-injector.conf
 }
@@ -80,10 +80,10 @@ EOF
 	if [ "$proto" = "tcp" ]; then
 		nbd_addr="127.0.0.1:0"
 	else
-		nbd_addr="$TEST_DIR/nbd.sock"
+		nbd_addr="$SOCK_DIR/nbd.sock"
 	fi
 
-	rm -f "$TEST_DIR/nbd.sock"
+	rm -f "$SOCK_DIR/nbd.sock"
 
         echo > "$TEST_DIR/nbd-fault-injector.out"
 	$PYTHON nbd-fault-injector.py $extra_args "$nbd_addr" "$TEST_DIR/nbd-fault-injector.conf" >"$TEST_DIR/nbd-fault-injector.out" 2>&1 &

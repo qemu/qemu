@@ -2242,12 +2242,9 @@ static void vmxnet3_instance_init(Object *obj)
 
 static void vmxnet3_pci_uninit(PCIDevice *pci_dev)
 {
-    DeviceState *dev = DEVICE(pci_dev);
     VMXNET3State *s = VMXNET3(pci_dev);
 
     VMW_CBPRN("Starting uninit...");
-
-    unregister_savevm(dev, "vmxnet3-msix", s);
 
     vmxnet3_net_uninit(s);
 

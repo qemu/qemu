@@ -2,12 +2,14 @@
 #
 # AArch64 specific tweaks
 
+ARM_SRC=$(SRC_PATH)/tests/tcg/arm
+VPATH 		+= $(ARM_SRC)
+
 AARCH64_SRC=$(SRC_PATH)/tests/tcg/aarch64
 VPATH 		+= $(AARCH64_SRC)
 
-# we don't build any of the ARM tests
-AARCH64_TESTS=$(filter-out $(ARM_TESTS), $(TESTS))
-AARCH64_TESTS+=fcvt
+# Float-convert Tests
+AARCH64_TESTS=fcvt
 
 fcvt: LDFLAGS+=-lm
 
@@ -15,7 +17,19 @@ run-fcvt: fcvt
 	$(call run-test,$<,$(QEMU) $<, "$< on $(TARGET_NAME)")
 	$(call diff-out,$<,$(AARCH64_SRC)/fcvt.ref)
 
+# Pauth Tests
 AARCH64_TESTS += pauth-1 pauth-2
-run-pauth-%: QEMU += -cpu max
+run-pauth-%: QEMU_OPTS += -cpu max
 
-TESTS:=$(AARCH64_TESTS)
+# Semihosting smoke test for linux-user
+AARCH64_TESTS += semihosting
+run-semihosting: semihosting
+	$(call run-test,$<,$(QEMU) $< 2> $<.err, "$< on $(TARGET_NAME)")
+
+run-plugin-semihosting-with-%:
+	$(call run-test, $@, $(QEMU) $(QEMU_OPTS) \
+		-plugin $(PLUGIN_DIR)/$(call extract-plugin,$@) \
+		 $(call strip-plugin,$<) 2> $<.err, \
+		"$< on $(TARGET_NAME) with $*")
+
+TESTS += $(AARCH64_TESTS)

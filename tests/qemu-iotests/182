@@ -31,7 +31,7 @@ _cleanup()
 {
     _cleanup_test_img
     rm -f "$TEST_IMG.overlay"
-    rm -f "$TEST_DIR/nbd.socket"
+    rm -f "$SOCK_DIR/nbd.socket"
 }
 trap "_cleanup; exit \$status" 0 1 2 3 15
 
@@ -133,7 +133,7 @@ success_or_failure=y _send_qemu_cmd $QEMU_HANDLE \
           'addr': {
               'type': 'unix',
               'data': {
-                  'path': '$TEST_DIR/nbd.socket'
+                  'path': '$SOCK_DIR/nbd.socket'
               } } } }" \
     'return' \
     'error'

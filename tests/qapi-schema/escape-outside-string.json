@@ -1,3 +1,0 @@
-# escape sequences are permitted only inside strings
-# { 'command': 'foo', 'data': {} }
-{ 'command': 'foo', 'data'\u003a{} }

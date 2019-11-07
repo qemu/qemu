@@ -1,0 +1,23 @@
+config DS1338
+    bool
+    depends on I2C
+
+config M41T80
+    bool
+    depends on I2C
+
+config M48T59
+    bool
+
+config PL031
+    bool
+
+config TWL92230
+    bool
+    depends on I2C
+
+config MC146818RTC
+    bool
+
+config SUN4V_RTC
+    bool

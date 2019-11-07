@@ -590,40 +590,38 @@ static void trans_vsl(DisasContext *ctx)
     int VT = rD(ctx->opcode);
     int VA = rA(ctx->opcode);
     int VB = rB(ctx->opcode);
-    TCGv_i64 avrA = tcg_temp_new_i64();
-    TCGv_i64 avrB = tcg_temp_new_i64();
+    TCGv_i64 avr = tcg_temp_new_i64();
     TCGv_i64 sh = tcg_temp_new_i64();
-    TCGv_i64 shifted = tcg_temp_new_i64();
+    TCGv_i64 carry = tcg_temp_new_i64();
     TCGv_i64 tmp = tcg_temp_new_i64();
 
-    /* Place bits 125-127 of vB in sh. */
-    get_avr64(avrB, VB, false);
-    tcg_gen_andi_i64(sh, avrB, 0x07ULL);
+    /* Place bits 125-127 of vB in 'sh'. */
+    get_avr64(avr, VB, false);
+    tcg_gen_andi_i64(sh, avr, 0x07ULL);
 
     /*
-     * Save highest sh bits of lower doubleword element of vA in variable
-     * shifted and perform shift on lower doubleword.
+     * Save highest 'sh' bits of lower doubleword element of vA in variable
+     * 'carry' and perform shift on lower doubleword.
      */
-    get_avr64(avrA, VA, false);
-    tcg_gen_subfi_i64(tmp, 64, sh);
-    tcg_gen_shr_i64(shifted, avrA, tmp);
-    tcg_gen_andi_i64(shifted, shifted, 0x7fULL);
-    tcg_gen_shl_i64(avrA, avrA, sh);
-    set_avr64(VT, avrA, false);
+    get_avr64(avr, VA, false);
+    tcg_gen_subfi_i64(tmp, 32, sh);
+    tcg_gen_shri_i64(carry, avr, 32);
+    tcg_gen_shr_i64(carry, carry, tmp);
+    tcg_gen_shl_i64(avr, avr, sh);
+    set_avr64(VT, avr, false);
 
     /*
      * Perform shift on higher doubleword element of vA and replace lowest
-     * sh bits with shifted.
+     * 'sh' bits with 'carry'.
      */
-    get_avr64(avrA, VA, true);
-    tcg_gen_shl_i64(avrA, avrA, sh);
-    tcg_gen_or_i64(avrA, avrA, shifted);
-    set_avr64(VT, avrA, true);
+    get_avr64(avr, VA, true);
+    tcg_gen_shl_i64(avr, avr, sh);
+    tcg_gen_or_i64(avr, avr, carry);
+    set_avr64(VT, avr, true);
 
-    tcg_temp_free_i64(avrA);
-    tcg_temp_free_i64(avrB);
+    tcg_temp_free_i64(avr);
     tcg_temp_free_i64(sh);
-    tcg_temp_free_i64(shifted);
+    tcg_temp_free_i64(carry);
     tcg_temp_free_i64(tmp);
 }
 
@@ -639,39 +637,37 @@ static void trans_vsr(DisasContext *ctx)
     int VT = rD(ctx->opcode);
     int VA = rA(ctx->opcode);
     int VB = rB(ctx->opcode);
-    TCGv_i64 avrA = tcg_temp_new_i64();
-    TCGv_i64 avrB = tcg_temp_new_i64();
+    TCGv_i64 avr = tcg_temp_new_i64();
     TCGv_i64 sh = tcg_temp_new_i64();
-    TCGv_i64 shifted = tcg_temp_new_i64();
+    TCGv_i64 carry = tcg_temp_new_i64();
     TCGv_i64 tmp = tcg_temp_new_i64();
 
-    /* Place bits 125-127 of vB in sh. */
-    get_avr64(avrB, VB, false);
-    tcg_gen_andi_i64(sh, avrB, 0x07ULL);
+    /* Place bits 125-127 of vB in 'sh'. */
+    get_avr64(avr, VB, false);
+    tcg_gen_andi_i64(sh, avr, 0x07ULL);
 
     /*
-     * Save lowest sh bits of higher doubleword element of vA in variable
-     * shifted and perform shift on higher doubleword.
+     * Save lowest 'sh' bits of higher doubleword element of vA in variable
+     * 'carry' and perform shift on higher doubleword.
      */
-    get_avr64(avrA, VA, true);
-    tcg_gen_subfi_i64(tmp, 64, sh);
-    tcg_gen_shl_i64(shifted, avrA, tmp);
-    tcg_gen_andi_i64(shifted, shifted, 0xfe00000000000000ULL);
-    tcg_gen_shr_i64(avrA, avrA, sh);
-    set_avr64(VT, avrA, true);
+    get_avr64(avr, VA, true);
+    tcg_gen_subfi_i64(tmp, 32, sh);
+    tcg_gen_shli_i64(carry, avr, 32);
+    tcg_gen_shl_i64(carry, carry, tmp);
+    tcg_gen_shr_i64(avr, avr, sh);
+    set_avr64(VT, avr, true);
     /*
      * Perform shift on lower doubleword element of vA and replace highest
-     * sh bits with shifted.
+     * 'sh' bits with 'carry'.
      */
-    get_avr64(avrA, VA, false);
-    tcg_gen_shr_i64(avrA, avrA, sh);
-    tcg_gen_or_i64(avrA, avrA, shifted);
-    set_avr64(VT, avrA, false);
+    get_avr64(avr, VA, false);
+    tcg_gen_shr_i64(avr, avr, sh);
+    tcg_gen_or_i64(avr, avr, carry);
+    set_avr64(VT, avr, false);
 
-    tcg_temp_free_i64(avrA);
-    tcg_temp_free_i64(avrB);
+    tcg_temp_free_i64(avr);
     tcg_temp_free_i64(sh);
-    tcg_temp_free_i64(shifted);
+    tcg_temp_free_i64(carry);
     tcg_temp_free_i64(tmp);
 }
 

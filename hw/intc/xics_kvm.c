@@ -190,6 +190,10 @@ void ics_get_kvm_state(ICSState *ics)
     for (i = 0; i < ics->nr_irqs; i++) {
         ICSIRQState *irq = &ics->irqs[i];
 
+        if (ics_irq_free(ics, i)) {
+            continue;
+        }
+
         kvm_device_access(kernel_xics_fd, KVM_DEV_XICS_GRP_SOURCES,
                           i + ics->offset, &state, false, &error_fatal);
 
@@ -301,6 +305,10 @@ int ics_set_kvm_state(ICSState *ics, Error **errp)
         Error *local_err = NULL;
         int ret;
 
+        if (ics_irq_free(ics, i)) {
+            continue;
+        }
+
         ret = ics_set_kvm_state_one(ics, i, &local_err);
         if (ret < 0) {
             error_propagate(errp, local_err);
@@ -334,8 +342,9 @@ void ics_kvm_set_irq(ICSState *ics, int srcno, int val)
     }
 }
 
-int xics_kvm_connect(SpaprMachineState *spapr, Error **errp)
+int xics_kvm_connect(SpaprInterruptController *intc, Error **errp)
 {
+    ICSState *ics = ICS_SPAPR(intc);
     int rc;
     CPUState *cs;
     Error *local_err = NULL;
@@ -405,7 +414,7 @@ int xics_kvm_connect(SpaprMachineState *spapr, Error **errp)
     }
 
     /* Update the KVM sources */
-    ics_set_kvm_state(spapr->ics, &local_err);
+    ics_set_kvm_state(ics, &local_err);
     if (local_err) {
         goto fail;
     }
@@ -423,11 +432,11 @@ int xics_kvm_connect(SpaprMachineState *spapr, Error **errp)
 
 fail:
     error_propagate(errp, local_err);
-    xics_kvm_disconnect(spapr, NULL);
+    xics_kvm_disconnect(intc);
     return -1;
 }
 
-void xics_kvm_disconnect(SpaprMachineState *spapr, Error **errp)
+void xics_kvm_disconnect(SpaprInterruptController *intc)
 {
     /*
      * Only on P9 using the XICS-on XIVE KVM device:

@@ -1,2 +1,0 @@
-DOCKER_IMAGE=debian-sparc64-cross
-DOCKER_CROSS_COMPILER=sparc64-linux-gnu-gcc

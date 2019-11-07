@@ -27,8 +27,7 @@ shift $num_args
 
 cd edk2
 
-# Work around <https://bugzilla.tianocore.org/show_bug.cgi?id=1607>.
-export PYTHON_COMMAND=python2
+export PYTHON_COMMAND=${EDK2_PYTHON_COMMAND:-python3}
 
 # Source "edksetup.sh" carefully.
 set +e +u +C
@@ -43,6 +42,7 @@ fi
 # any), for the edk2 "build" utility.
 source ../edk2-funcs.sh
 edk2_toolchain=$(qemu_edk2_get_toolchain "$emulation_target")
+MAKEFLAGS=$(qemu_edk2_quirk_tianocore_1607 "$MAKEFLAGS")
 edk2_thread_count=$(qemu_edk2_get_thread_count "$MAKEFLAGS")
 qemu_edk2_set_cross_env "$emulation_target"
 

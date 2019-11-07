@@ -8,6 +8,7 @@
 #include "hw/block/flash.h"
 #include "net/net.h"
 #include "hw/i386/ioapic.h"
+#include "hw/i386/x86.h"
 
 #include "qemu/range.h"
 #include "qemu/bitmap.h"
@@ -27,7 +28,7 @@
  */
 struct PCMachineState {
     /*< private >*/
-    MachineState parent_obj;
+    X86MachineState parent_obj;
 
     /* <public> */
 
@@ -36,15 +37,11 @@ struct PCMachineState {
 
     /* Pointers to devices and objects: */
     HotplugHandler *acpi_dev;
-    ISADevice *rtc;
     PCIBus *bus;
-    FWCfgState *fw_cfg;
-    qemu_irq *gsi;
+    I2CBus *smbus;
     PFlashCFI01 *flash[2];
-    GMappedFile *initrd_mapped_file;
 
     /* Configuration options: */
-    uint64_t max_ram_below_4g;
     OnOffAuto vmport;
     OnOffAuto smm;
 
@@ -53,27 +50,16 @@ struct PCMachineState {
     bool sata_enabled;
     bool pit_enabled;
 
-    /* RAM information (sizes, addresses, configuration): */
-    ram_addr_t below_4g_mem_size, above_4g_mem_size;
-
-    /* CPU and apic information: */
-    bool apic_xrupt_override;
-    unsigned apic_id_limit;
-    uint16_t boot_cpus;
-    unsigned smp_dies;
-
     /* NUMA information: */
     uint64_t numa_nodes;
     uint64_t *node_mem;
 
-    /* Address space used by IOAPIC device. All IOAPIC interrupts
-     * will be translated to MSI messages in the address space. */
-    AddressSpace *ioapic_as;
+    /* ACPI Memory hotplug IO base address */
+    hwaddr memhp_io_base;
 };
 
 #define PC_MACHINE_ACPI_DEVICE_PROP "acpi-device"
 #define PC_MACHINE_DEVMEM_REGION_SIZE "device-memory-region-size"
-#define PC_MACHINE_MAX_RAM_BELOW_4G "max-ram-below-4g"
 #define PC_MACHINE_VMPORT           "vmport"
 #define PC_MACHINE_SMM              "smm"
 #define PC_MACHINE_SMBUS            "smbus"
@@ -98,7 +84,7 @@ struct PCMachineState {
  */
 typedef struct PCMachineClass {
     /*< private >*/
-    MachineClass parent_class;
+    X86MachineClass parent_class;
 
     /*< public >*/
 
@@ -117,6 +103,7 @@ typedef struct PCMachineClass {
     bool rsdp_in_ram;
     int legacy_acpi_table_size;
     unsigned acpi_data_size;
+    bool do_not_add_smb_acpi;
 
     /* SMBIOS compat: */
     bool smbios_defaults;
@@ -139,9 +126,6 @@ typedef struct PCMachineClass {
 
     /* use PVH to load kernels that support this feature */
     bool pvh_enabled;
-
-    /* Enables contiguous-apic-ID mode */
-    bool compat_apic_id_mode;
 } PCMachineClass;
 
 #define TYPE_PC_MACHINE "generic-pc-machine"
@@ -173,6 +157,8 @@ typedef struct GSIState {
 
 void gsi_handler(void *opaque, int n, int level);
 
+GSIState *pc_gsi_create(qemu_irq **irqs, bool pci_enabled);
+
 /* vmport.c */
 #define TYPE_VMPORT "vmport"
 typedef uint32_t (VMPortReadFunc)(void *opaque, uint32_t address);
@@ -190,10 +176,8 @@ void vmmouse_set_data(const uint32_t *data);
 extern int fd_bootchk;
 
 bool pc_machine_is_smm_enabled(PCMachineState *pcms);
-void pc_register_ferr_irq(qemu_irq irq);
 void pc_acpi_smi_interrupt(void *opaque, int irq, int level);
 
-void pc_cpus_init(PCMachineState *pcms);
 void pc_hot_add_cpu(MachineState *ms, const int64_t id, Error **errp);
 void pc_smp_parse(MachineState *ms, QemuOpts *opts);
 
@@ -234,6 +218,7 @@ void pc_pci_device_init(PCIBus *pci_bus);
 
 typedef void (*cpu_set_smm_t)(int smm, void *arg);
 
+void pc_i8259_create(ISABus *isa_bus, qemu_irq *i8259_irqs);
 void ioapic_init_gsi(GSIState *gsi_state, const char *parent_name);
 
 ISADevice *pc_find_fdc0(void);
@@ -243,45 +228,8 @@ int cmos_get_fd_drive_type(FloppyDriveType fd0);
 
 #define PORT92_A20_LINE "a20"
 
-/* acpi_piix.c */
-
-I2CBus *piix4_pm_init(PCIBus *bus, int devfn, uint32_t smb_io_base,
-                      qemu_irq sci_irq, qemu_irq smi_irq,
-                      int smm_enabled, DeviceState **piix4_pm);
-
 /* hpet.c */
 extern int no_hpet;
-
-/* piix_pci.c */
-struct PCII440FXState;
-typedef struct PCII440FXState PCII440FXState;
-
-#define TYPE_I440FX_PCI_HOST_BRIDGE "i440FX-pcihost"
-#define TYPE_I440FX_PCI_DEVICE "i440FX"
-
-#define TYPE_IGD_PASSTHROUGH_I440FX_PCI_DEVICE "igd-passthrough-i440FX"
-
-/*
- * Reset Control Register: PCI-accessible ISA-Compatible Register at address
- * 0xcf9, provided by the PCI/ISA bridge (PIIX3 PCI function 0, 8086:7000).
- */
-#define RCR_IOPORT 0xcf9
-
-PCIBus *i440fx_init(const char *host_type, const char *pci_type,
-                    PCII440FXState **pi440fx_state, int *piix_devfn,
-                    ISABus **isa_bus, qemu_irq *pic,
-                    MemoryRegion *address_space_mem,
-                    MemoryRegion *address_space_io,
-                    ram_addr_t ram_size,
-                    ram_addr_t below_4g_mem_size,
-                    ram_addr_t above_4g_mem_size,
-                    MemoryRegion *pci_memory,
-                    MemoryRegion *ram_memory);
-
-PCIBus *find_i440fx(void);
-/* piix4.c */
-extern PCIDevice *piix4_dev;
-int piix4_init(PCIBus *bus, ISABus **isa_bus, int devfn);
 
 /* pc_sysfw.c */
 void pc_system_flash_create(PCMachineState *pcms);
@@ -290,17 +238,6 @@ void pc_system_firmware_init(PCMachineState *pcms, MemoryRegion *rom_memory);
 /* acpi-build.c */
 void pc_madt_cpu_entry(AcpiDeviceIf *adev, int uid,
                        const CPUArchIdList *apic_ids, GArray *entry);
-
-/* e820 types */
-#define E820_RAM        1
-#define E820_RESERVED   2
-#define E820_ACPI       3
-#define E820_NVS        4
-#define E820_UNUSABLE   5
-
-int e820_add_entry(uint64_t, uint64_t, uint32_t);
-int e820_get_num_entries(void);
-bool e820_get_entry(int, uint32_t, uint64_t *, uint64_t *);
 
 extern GlobalProperty pc_compat_4_1[];
 extern const size_t pc_compat_4_1_len;

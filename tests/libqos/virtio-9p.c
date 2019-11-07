@@ -32,6 +32,12 @@ static void virtio_9p_cleanup(QVirtio9P *interface)
 
 static void virtio_9p_setup(QVirtio9P *interface)
 {
+    uint64_t features;
+
+    features = qvirtio_get_features(interface->vdev);
+    features &= ~(QVIRTIO_F_BAD_FEATURE | (1ull << VIRTIO_RING_F_EVENT_IDX));
+    qvirtio_set_features(interface->vdev, features);
+
     interface->vq = qvirtqueue_setup(interface->vdev, alloc, 0);
     qvirtio_set_driver_ok(interface->vdev);
 }

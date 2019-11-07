@@ -1,0 +1,95 @@
+# -*- Mode: makefile -*-
+#
+# TCG tests (per-target rules)
+#
+# This Makefile fragment is included from the build-tcg target, once
+# for each target we build. We have two options for compiling, either
+# using a configured guest compiler or calling one of our docker images
+# to do it for us.
+#
+
+include $(SRC_PATH)/rules.mak
+
+# The configure script fills in extra information about
+# useful docker images or alternative compiler flags.
+
+CROSS_CC_GUEST:=
+DOCKER_IMAGE:=
+-include $(BUILD_DIR)/tests/tcg/config-$(TARGET).mak
+
+GUEST_BUILD=
+TCG_MAKE=../Makefile.target
+
+# We also need the Docker make rules to depend on
+SKIP_DOCKER_BUILD=1
+include $(SRC_PATH)/tests/docker/Makefile.include
+
+# Support installed Cross Compilers
+
+ifdef CROSS_CC_GUEST
+
+.PHONY: cross-build-guest-tests
+cross-build-guest-tests:
+	$(call quiet-command, \
+	   (mkdir -p tests/tcg/$(TARGET) && cd tests/tcg/$(TARGET) && \
+	    $(MAKE) -f $(TCG_MAKE) TARGET="$(TARGET)" CC="$(CROSS_CC_GUEST)" \
+			SRC_PATH="$(SRC_PATH)" BUILD_STATIC=$(CROSS_CC_GUEST_STATIC) \
+			EXTRA_CFLAGS="$(CROSS_CC_GUEST_CFLAGS)"), \
+	"BUILD","$(TARGET) guest-tests with $(CROSS_CC_GUEST)")
+
+GUEST_BUILD=cross-build-guest-tests
+
+endif
+
+# Support building with Docker
+
+ifneq ($(DOCKER_IMAGE),)
+
+DOCKER_COMPILE_CMD="$(DOCKER_SCRIPT) cc \
+		--cc $(DOCKER_CROSS_CC_GUEST) \
+		-i qemu:$(DOCKER_IMAGE) \
+		-s $(SRC_PATH) -- "
+
+.PHONY: docker-build-guest-tests
+docker-build-guest-tests: docker-image-$(DOCKER_IMAGE)
+	$(call quiet-command, \
+	  (mkdir -p tests/tcg/$(TARGET) && cd tests/tcg/$(TARGET) && \
+	   $(MAKE) -f $(TCG_MAKE) TARGET="$(TARGET)" CC=$(DOCKER_COMPILE_CMD) \
+			SRC_PATH="$(SRC_PATH)" BUILD_STATIC=y \
+			EXTRA_CFLAGS="$(CROSS_CC_GUEST_CFLAGS)"), \
+	"BUILD","$(TARGET) guest-tests with docker qemu:$(DOCKER_IMAGE)")
+
+GUEST_BUILD=docker-build-guest-tests
+
+endif
+
+# Final targets
+all:
+	@echo "Do not invoke this Makefile directly"; exit 1
+
+.PHONY: guest-tests
+
+ifneq ($(GUEST_BUILD),)
+guest-tests: $(GUEST_BUILD)
+
+run-guest-tests: guest-tests
+	$(call quiet-command, \
+	(cd tests/tcg/$(TARGET) && \
+	 $(MAKE) -f $(TCG_MAKE) TARGET="$(TARGET)" \
+	 		SRC_PATH="$(SRC_PATH)" SPEED=$(SPEED) run), \
+	"RUN", "tests for $(TARGET_NAME)")
+
+else
+guest-tests:
+	$(call quiet-command, /bin/true, "BUILD", \
+		"$(TARGET) guest-tests SKIPPED")
+
+run-guest-tests:
+	$(call quiet-command, /bin/true, "RUN", \
+		"tests for $(TARGET) SKIPPED")
+endif
+
+# It doesn't matter if these don't exits
+.PHONY: clean-guest-tests
+clean-guest-tests:
+	rm -rf tests/tcg/$(TARGET)

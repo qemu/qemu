@@ -15,7 +15,6 @@
 
 cd "$BUILD_DIR"
 
-DEF_TARGET_LIST="x86_64-softmmu,aarch64-softmmu"
 TARGET_LIST=${TARGET_LIST:-$DEF_TARGET_LIST} \
 build_qemu
 install_qemu

@@ -142,4 +142,5 @@ class TestActiveMirror(iotests.QMPTestCase):
 
 
 if __name__ == '__main__':
-    iotests.main(supported_fmts=['qcow2', 'raw'])
+    iotests.main(supported_fmts=['qcow2', 'raw'],
+                 supported_protocols=['file'])

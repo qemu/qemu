@@ -167,6 +167,21 @@ void coroutine_fn qemu_co_mutex_lock(CoMutex *mutex);
  */
 void coroutine_fn qemu_co_mutex_unlock(CoMutex *mutex);
 
+/**
+ * Assert that the current coroutine holds @mutex.
+ */
+static inline coroutine_fn void qemu_co_mutex_assert_locked(CoMutex *mutex)
+{
+    /*
+     * mutex->holder doesn't need any synchronisation if the assertion holds
+     * true because the mutex protects it. If it doesn't hold true, we still
+     * don't mind if another thread takes or releases mutex behind our back,
+     * because the condition will be false no matter whether we read NULL or
+     * the pointer for any other coroutine.
+     */
+    assert(atomic_read(&mutex->locked) &&
+           mutex->holder == qemu_coroutine_self());
+}
 
 /**
  * CoQueues are a mechanism to queue coroutines in order to continue executing
@@ -273,10 +288,29 @@ void qemu_co_rwlock_wrlock(CoRwlock *lock);
  */
 void qemu_co_rwlock_unlock(CoRwlock *lock);
 
+typedef struct QemuCoSleepState QemuCoSleepState;
+
 /**
- * Yield the coroutine for a given duration
+ * Yield the coroutine for a given duration. During this yield, @sleep_state
+ * (if not NULL) is set to an opaque pointer, which may be used for
+ * qemu_co_sleep_wake(). Be careful, the pointer is set back to zero when the
+ * timer fires. Don't save the obtained value to other variables and don't call
+ * qemu_co_sleep_wake from another aio context.
  */
-void coroutine_fn qemu_co_sleep_ns(QEMUClockType type, int64_t ns);
+void coroutine_fn qemu_co_sleep_ns_wakeable(QEMUClockType type, int64_t ns,
+                                            QemuCoSleepState **sleep_state);
+static inline void coroutine_fn qemu_co_sleep_ns(QEMUClockType type, int64_t ns)
+{
+    qemu_co_sleep_ns_wakeable(type, ns, NULL);
+}
+
+/**
+ * Wake a coroutine if it is sleeping in qemu_co_sleep_ns. The timer will be
+ * deleted. @sleep_state must be the variable whose address was given to
+ * qemu_co_sleep_ns() and should be checked to be non-NULL before calling
+ * qemu_co_sleep_wake().
+ */
+void qemu_co_sleep_wake(QemuCoSleepState *sleep_state);
 
 /**
  * Yield until a file descriptor becomes readable

@@ -21,7 +21,6 @@
 #include "hw/ptimer.h"
 #include "hw/qdev-properties.h"
 #include "qemu/log.h"
-#include "qemu/main-loop.h"
 #include "qemu/module.h"
 /* For crc32 */
 #include <zlib.h>
@@ -450,8 +449,10 @@ static void lan9118_reset(DeviceState *d)
     s->e2p_data = 0;
     s->free_timer_start = qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL) / 40;
 
+    ptimer_transaction_begin(s->timer);
     ptimer_stop(s->timer);
     ptimer_set_count(s->timer, 0xffff);
+    ptimer_transaction_commit(s->timer);
     s->gpt_cfg = 0xffff;
 
     s->mac_cr = MAC_CR_PRMS;
@@ -1100,6 +1101,7 @@ static void lan9118_writel(void *opaque, hwaddr offset,
         break;
     case CSR_GPT_CFG:
         if ((s->gpt_cfg ^ val) & GPT_TIMER_EN) {
+            ptimer_transaction_begin(s->timer);
             if (val & GPT_TIMER_EN) {
                 ptimer_set_count(s->timer, val & 0xffff);
                 ptimer_run(s->timer, 0);
@@ -1107,6 +1109,7 @@ static void lan9118_writel(void *opaque, hwaddr offset,
                 ptimer_stop(s->timer);
                 ptimer_set_count(s->timer, 0xffff);
             }
+            ptimer_transaction_commit(s->timer);
         }
         s->gpt_cfg = val & (GPT_TIMER_EN | 0xffff);
         break;
@@ -1328,7 +1331,6 @@ static void lan9118_realize(DeviceState *dev, Error **errp)
 {
     SysBusDevice *sbd = SYS_BUS_DEVICE(dev);
     lan9118_state *s = LAN9118(dev);
-    QEMUBH *bh;
     int i;
     const MemoryRegionOps *mem_ops =
             s->mode_16bit ? &lan9118_16bit_mem_ops : &lan9118_mem_ops;
@@ -1349,10 +1351,11 @@ static void lan9118_realize(DeviceState *dev, Error **errp)
     s->pmt_ctrl = 1;
     s->txp = &s->tx_packet;
 
-    bh = qemu_bh_new(lan9118_tick, s);
-    s->timer = ptimer_init(bh, PTIMER_POLICY_DEFAULT);
+    s->timer = ptimer_init(lan9118_tick, s, PTIMER_POLICY_DEFAULT);
+    ptimer_transaction_begin(s->timer);
     ptimer_set_freq(s->timer, 10000);
     ptimer_set_limit(s->timer, 0xffff, 1);
+    ptimer_transaction_commit(s->timer);
 }
 
 static Property lan9118_properties[] = {

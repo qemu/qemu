@@ -1297,6 +1297,11 @@ static coroutine_fn int nbd_negotiate(NBDClient *client, Error **errp)
         return ret;
     }
 
+    /* Attach the channel to the same AioContext as the export */
+    if (client->exp && client->exp->ctx) {
+        qio_channel_attach_aio_context(client->ioc, client->exp->ctx);
+    }
+
     assert(!client->optlen);
     trace_nbd_negotiate_success();
 
@@ -1456,7 +1461,12 @@ static void blk_aio_detach(void *opaque)
 static void nbd_eject_notifier(Notifier *n, void *data)
 {
     NBDExport *exp = container_of(n, NBDExport, eject_notifier);
+    AioContext *aio_context;
+
+    aio_context = exp->ctx;
+    aio_context_acquire(aio_context);
     nbd_export_close(exp);
+    aio_context_release(aio_context);
 }
 
 NBDExport *nbd_export_new(BlockDriverState *bs, uint64_t dev_offset,
@@ -1475,12 +1485,11 @@ NBDExport *nbd_export_new(BlockDriverState *bs, uint64_t dev_offset,
      * NBD exports are used for non-shared storage migration.  Make sure
      * that BDRV_O_INACTIVE is cleared and the image is ready for write
      * access since the export could be available before migration handover.
+     * ctx was acquired in the caller.
      */
     assert(name);
     ctx = bdrv_get_aio_context(bs);
-    aio_context_acquire(ctx);
     bdrv_invalidate_cache(bs, NULL);
-    aio_context_release(ctx);
 
     /* Don't allow resize while the NBD server is running, otherwise we don't
      * care what happens with the node. */
@@ -1488,7 +1497,7 @@ NBDExport *nbd_export_new(BlockDriverState *bs, uint64_t dev_offset,
     if (!readonly) {
         perm |= BLK_PERM_WRITE;
     }
-    blk = blk_new(bdrv_get_aio_context(bs), perm,
+    blk = blk_new(ctx, perm,
                   BLK_PERM_CONSISTENT_READ | BLK_PERM_WRITE_UNCHANGED |
                   BLK_PERM_WRITE | BLK_PERM_GRAPH_MOD);
     ret = blk_insert_bs(blk, bs, errp);
@@ -1555,7 +1564,7 @@ NBDExport *nbd_export_new(BlockDriverState *bs, uint64_t dev_offset,
     }
 
     exp->close = close;
-    exp->ctx = blk_get_aio_context(blk);
+    exp->ctx = ctx;
     blk_add_aio_context_notifier(blk, blk_aio_attached, blk_aio_detach, exp);
 
     if (on_eject_blk) {
@@ -1586,6 +1595,12 @@ NBDExport *nbd_export_find(const char *name)
     }
 
     return NULL;
+}
+
+AioContext *
+nbd_export_aio_context(NBDExport *exp)
+{
+    return exp->ctx;
 }
 
 void nbd_export_close(NBDExport *exp)
@@ -1682,9 +1697,13 @@ BlockBackend *nbd_export_get_blockdev(NBDExport *exp)
 void nbd_export_close_all(void)
 {
     NBDExport *exp, *next;
+    AioContext *aio_context;
 
     QTAILQ_FOREACH_SAFE(exp, &exports, next, next) {
+        aio_context = exp->ctx;
+        aio_context_acquire(aio_context);
         nbd_export_close(exp);
+        aio_context_release(aio_context);
     }
 }
 

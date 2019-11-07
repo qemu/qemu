@@ -40,6 +40,7 @@ typedef struct QVirtioMMIODevice {
     uint64_t addr;
     uint32_t page_size;
     uint32_t features; /* As it cannot be read later, save it */
+    uint32_t version;
 } QVirtioMMIODevice;
 
 extern const QVirtioBus qvirtio_mmio;

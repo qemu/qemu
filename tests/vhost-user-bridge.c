@@ -468,8 +468,8 @@ vubr_queue_set_started(VuDev *dev, int qidx, bool started)
 
     if (started && vubr->notifier.fd >= 0) {
         vu_set_queue_host_notifier(dev, vq, vubr->notifier.fd,
-                                   getpagesize(),
-                                   qidx * getpagesize());
+                                   qemu_real_host_page_size,
+                                   qidx * qemu_real_host_page_size);
     }
 
     if (qidx % 2 == 1) {
@@ -594,7 +594,7 @@ static void *notifier_thread(void *arg)
 {
     VuDev *dev = (VuDev *)arg;
     VubrDev *vubr = container_of(dev, VubrDev, vudev);
-    int pagesize = getpagesize();
+    int pagesize = qemu_real_host_page_size;
     int qidx;
 
     while (true) {
@@ -630,7 +630,7 @@ vubr_host_notifier_setup(VubrDev *dev)
     void *addr;
     int fd;
 
-    length = getpagesize() * VHOST_USER_BRIDGE_MAX_QUEUES;
+    length = qemu_real_host_page_size * VHOST_USER_BRIDGE_MAX_QUEUES;
 
     fd = mkstemp(template);
     if (fd < 0) {

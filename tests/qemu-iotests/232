@@ -74,6 +74,12 @@ if [ -n "$TEST_IMG_FILE" ]; then
     TEST_IMG=$TEST_IMG_FILE
 fi
 
+chmod a-w $TEST_IMG
+(echo test > $TEST_IMG) 2>/dev/null && \
+    _notrun "Readonly attribute is ignored, probably you run this test as" \
+            "root, which is unsupported."
+chmod a+w $TEST_IMG
+
 echo
 echo "=== -drive with read-write image: read-only/auto-read-only combinations ==="
 echo

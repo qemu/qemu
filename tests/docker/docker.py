@@ -111,7 +111,7 @@ def _get_so_libs(executable):
     libs = []
     ldd_re = re.compile(r"(/.*/)(\S*)")
     try:
-        ldd_output = subprocess.check_output(["ldd", executable])
+        ldd_output = subprocess.check_output(["ldd", executable]).decode('utf-8')
         for line in ldd_output.split("\n"):
             search = ldd_re.search(line)
             if search and len(search.groups()) == 2:
@@ -215,7 +215,7 @@ class Docker(object):
     """ Running Docker commands """
     def __init__(self):
         self._command = _guess_engine_command()
-        self._instances = []
+        self._instance = None
         atexit.register(self._kill_instances)
         signal.signal(signal.SIGTERM, self._kill_instances)
         signal.signal(signal.SIGHUP, self._kill_instances)
@@ -234,21 +234,19 @@ class Docker(object):
         cmd = ["ps", "-q"]
         if not only_active:
             cmd.append("-a")
+
+        filter = "--filter=label=com.qemu.instance.uuid"
+        if only_known:
+            if self._instance:
+                filter += "=%s" % (self._instance)
+            else:
+                # no point trying to kill, we finished
+                return
+
+        print("filter=%s" % (filter))
+        cmd.append(filter)
         for i in self._output(cmd).split():
-            resp = self._output(["inspect", i])
-            labels = json.loads(resp)[0]["Config"]["Labels"]
-            active = json.loads(resp)[0]["State"]["Running"]
-            if not labels:
-                continue
-            instance_uuid = labels.get("com.qemu.instance.uuid", None)
-            if not instance_uuid:
-                continue
-            if only_known and instance_uuid not in self._instances:
-                continue
-            print("Terminating", i)
-            if active:
-                self._do(["kill", i])
-            self._do(["rm", i])
+            self._do(["rm", "-f", i])
 
     def clean(self):
         self._do_kill_instances(False, False)
@@ -258,10 +256,16 @@ class Docker(object):
         return self._do_kill_instances(True)
 
     def _output(self, cmd, **kwargs):
-        return subprocess.check_output(self._command + cmd,
-                                       stderr=subprocess.STDOUT,
-                                       encoding='utf-8',
-                                       **kwargs)
+        if sys.version_info[1] >= 6:
+            return subprocess.check_output(self._command + cmd,
+                                           stderr=subprocess.STDOUT,
+                                           encoding='utf-8',
+                                           **kwargs)
+        else:
+            return subprocess.check_output(self._command + cmd,
+                                           stderr=subprocess.STDOUT,
+                                           **kwargs).decode('utf-8')
+
 
     def inspect_tag(self, tag):
         try:
@@ -318,15 +322,23 @@ class Docker(object):
             return False
         return checksum == _text_checksum(_dockerfile_preprocess(dockerfile))
 
-    def run(self, cmd, keep, quiet):
-        label = uuid.uuid1().hex
+    def run(self, cmd, keep, quiet, as_user=False):
+        label = uuid.uuid4().hex
         if not keep:
-            self._instances.append(label)
+            self._instance = label
+
+        if as_user:
+            uid = os.getuid()
+            cmd = [ "-u", str(uid) ] + cmd
+            # podman requires a bit more fiddling
+            if self._command[0] == "podman":
+                cmd.insert(0, '--userns=keep-id')
+
         ret = self._do_check(["run", "--label",
                              "com.qemu.instance.uuid=" + label] + cmd,
                              quiet=quiet)
         if not keep:
-            self._instances.remove(label)
+            self._instance = None
         return ret
 
     def command(self, cmd, argv, quiet):
@@ -364,15 +376,8 @@ class RunCommand(SubCommand):
                             help="Run container using the current user's uid")
 
     def run(self, args, argv):
-        if args.run_as_current_user:
-            uid = os.getuid()
-            argv = [ "-u", str(uid) ] + argv
-            docker = Docker()
-            if docker._command[0] == "podman":
-                argv = [ "--uidmap", "%d:0:1" % uid,
-                         "--uidmap", "0:1:%d" % uid,
-                         "--uidmap", "%d:%d:64536" % (uid + 1, uid + 1)] + argv
-        return Docker().run(argv, args.keep, quiet=args.quiet)
+        return Docker().run(argv, args.keep, quiet=args.quiet,
+                            as_user=args.run_as_current_user)
 
 
 class BuildCommand(SubCommand):
@@ -536,9 +541,9 @@ class ProbeCommand(SubCommand):
         try:
             docker = Docker()
             if docker._command[0] == "docker":
-                print("yes")
+                print("docker")
             elif docker._command[0] == "sudo":
-                print("sudo")
+                print("sudo docker")
             elif docker._command[0] == "podman":
                 print("podman")
         except Exception:
@@ -556,8 +561,6 @@ class CcCommand(SubCommand):
                             help="The docker image in which to run cc")
         parser.add_argument("--cc", default="cc",
                             help="The compiler executable to call")
-        parser.add_argument("--user",
-                            help="The user-id to run under")
         parser.add_argument("--source-path", "-s", nargs="*", dest="paths",
                             help="""Extra paths to (ro) mount into container for
                             reading sources""")
@@ -571,11 +574,10 @@ class CcCommand(SubCommand):
         if args.paths:
             for p in args.paths:
                 cmd += ["-v", "%s:%s:ro,z" % (p, p)]
-        if args.user:
-            cmd += ["-u", args.user]
         cmd += [args.image, args.cc]
         cmd += argv
-        return Docker().command("run", cmd, args.quiet)
+        return Docker().run(cmd, False, quiet=args.quiet,
+                            as_user=True)
 
 
 class CheckCommand(SubCommand):
@@ -651,7 +653,8 @@ def main():
         cmd.args(subp)
         subp.set_defaults(cmdobj=cmd)
     args, argv = parser.parse_known_args()
-    USE_ENGINE = args.engine
+    if args.engine:
+        USE_ENGINE = args.engine
     return args.cmdobj.run(args, argv)
 
 

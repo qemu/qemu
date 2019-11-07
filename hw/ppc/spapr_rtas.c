@@ -477,47 +477,6 @@ void spapr_dt_rtas_tokens(void *fdt, int rtas)
     }
 }
 
-void spapr_load_rtas(SpaprMachineState *spapr, void *fdt, hwaddr addr)
-{
-    int rtas_node;
-    int ret;
-
-    /* Copy RTAS blob into guest RAM */
-    cpu_physical_memory_write(addr, spapr->rtas_blob, spapr->rtas_size);
-
-    ret = fdt_add_mem_rsv(fdt, addr, spapr->rtas_size);
-    if (ret < 0) {
-        error_report("Couldn't add RTAS reserve entry: %s",
-                     fdt_strerror(ret));
-        exit(1);
-    }
-
-    /* Update the device tree with the blob's location */
-    rtas_node = fdt_path_offset(fdt, "/rtas");
-    assert(rtas_node >= 0);
-
-    ret = fdt_setprop_cell(fdt, rtas_node, "linux,rtas-base", addr);
-    if (ret < 0) {
-        error_report("Couldn't add linux,rtas-base property: %s",
-                     fdt_strerror(ret));
-        exit(1);
-    }
-
-    ret = fdt_setprop_cell(fdt, rtas_node, "linux,rtas-entry", addr);
-    if (ret < 0) {
-        error_report("Couldn't add linux,rtas-entry property: %s",
-                     fdt_strerror(ret));
-        exit(1);
-    }
-
-    ret = fdt_setprop_cell(fdt, rtas_node, "rtas-size", spapr->rtas_size);
-    if (ret < 0) {
-        error_report("Couldn't add rtas-size property: %s",
-                     fdt_strerror(ret));
-        exit(1);
-    }
-}
-
 static void core_rtas_register_types(void)
 {
     spapr_rtas_register(RTAS_DISPLAY_CHARACTER, "display-character",

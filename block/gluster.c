@@ -1225,6 +1225,7 @@ static coroutine_fn int qemu_gluster_co_rw(BlockDriverState *bs,
 
 static coroutine_fn int qemu_gluster_co_truncate(BlockDriverState *bs,
                                                  int64_t offset,
+                                                 bool exact,
                                                  PreallocMode prealloc,
                                                  Error **errp)
 {

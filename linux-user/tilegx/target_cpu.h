@@ -19,12 +19,17 @@
 #ifndef TILEGX_TARGET_CPU_H
 #define TILEGX_TARGET_CPU_H
 
-static inline void cpu_clone_regs(CPUTLGState *env, target_ulong newsp)
+static inline void cpu_clone_regs_child(CPUTLGState *env, target_ulong newsp,
+                                        unsigned flags)
 {
     if (newsp) {
         env->regs[TILEGX_R_SP] = newsp;
     }
     env->regs[TILEGX_R_RE] = 0;
+}
+
+static inline void cpu_clone_regs_parent(CPUTLGState *env, unsigned flags)
+{
 }
 
 static inline void cpu_set_tls(CPUTLGState *env, target_ulong newtls)

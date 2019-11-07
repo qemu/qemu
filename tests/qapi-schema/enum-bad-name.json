@@ -1,2 +1,3 @@
 # we ensure all enum names can map to C
-{ 'enum': 'MyEnum', 'data': [ 'not^possible' ] }
+# FIXME reports 'not\possible' instead of 'not\\possible'
+{ 'enum': 'MyEnum', 'data': [ 'not\\possible' ] }

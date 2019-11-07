@@ -70,6 +70,7 @@ static inline void glue(gen_helper_, name)(dh_retvar_decl(ret)          \
 #include "trace/generated-helpers.h"
 #include "trace/generated-helpers-wrappers.h"
 #include "tcg-runtime.h"
+#include "plugin-helpers.h"
 
 #undef DEF_HELPER_FLAGS_0
 #undef DEF_HELPER_FLAGS_1

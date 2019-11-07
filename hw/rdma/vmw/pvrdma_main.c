@@ -601,7 +601,7 @@ static void pvrdma_realize(PCIDevice *pdev, Error **errp)
     rdma_info_report("Initializing device %s %x.%x", pdev->name,
                      PCI_SLOT(pdev->devfn), PCI_FUNC(pdev->devfn));
 
-    if (TARGET_PAGE_SIZE != getpagesize()) {
+    if (TARGET_PAGE_SIZE != qemu_real_host_page_size) {
         error_setg(errp, "Target page size must be the same as host page size");
         return;
     }
@@ -663,6 +663,12 @@ static void pvrdma_realize(PCIDevice *pdev, Error **errp)
 
     dev->shutdown_notifier.notify = pvrdma_shutdown_notifier;
     qemu_register_shutdown_notifier(&dev->shutdown_notifier);
+
+#ifdef LEGACY_RDMA_REG_MR
+    rdma_info_report("Using legacy reg_mr");
+#else
+    rdma_info_report("Using iova reg_mr");
+#endif
 
 out:
     if (rc) {

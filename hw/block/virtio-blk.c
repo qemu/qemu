@@ -16,6 +16,7 @@
 #include "qemu/iov.h"
 #include "qemu/module.h"
 #include "qemu/error-report.h"
+#include "qemu/main-loop.h"
 #include "trace.h"
 #include "hw/block/block.h"
 #include "hw/qdev-properties.h"
@@ -41,9 +42,9 @@
  */
 static VirtIOFeature feature_sizes[] = {
     {.flags = 1ULL << VIRTIO_BLK_F_DISCARD,
-     .end = virtio_endof(struct virtio_blk_config, discard_sector_alignment)},
+     .end = endof(struct virtio_blk_config, discard_sector_alignment)},
     {.flags = 1ULL << VIRTIO_BLK_F_WRITE_ZEROES,
-     .end = virtio_endof(struct virtio_blk_config, write_zeroes_may_unmap)},
+     .end = endof(struct virtio_blk_config, write_zeroes_may_unmap)},
     {}
 };
 
@@ -1051,7 +1052,7 @@ static void virtio_blk_save_device(VirtIODevice *vdev, QEMUFile *f)
             qemu_put_be32(f, virtio_get_queue_index(req->vq));
         }
 
-        qemu_put_virtqueue_element(f, &req->elem);
+        qemu_put_virtqueue_element(vdev, f, &req->elem);
         req = req->next;
     }
     qemu_put_sbyte(f, 0);
@@ -1086,11 +1087,24 @@ static int virtio_blk_load_device(VirtIODevice *vdev, QEMUFile *f,
     return 0;
 }
 
+static void virtio_resize_cb(void *opaque)
+{
+    VirtIODevice *vdev = opaque;
+
+    assert(qemu_get_current_aio_context() == qemu_get_aio_context());
+    virtio_notify_config(vdev);
+}
+
 static void virtio_blk_resize(void *opaque)
 {
     VirtIODevice *vdev = VIRTIO_DEVICE(opaque);
 
-    virtio_notify_config(vdev);
+    /*
+     * virtio_notify_config() needs to acquire the global mutex,
+     * so it can't be called from an iothread. Instead, schedule
+     * it to be run in the main context BH.
+     */
+    aio_bh_schedule_oneshot(qemu_get_aio_context(), virtio_resize_cb, vdev);
 }
 
 static const BlockDevOps virtio_block_ops = {
@@ -1186,15 +1200,27 @@ static void virtio_blk_device_realize(DeviceState *dev, Error **errp)
     blk_set_guest_block_size(s->blk, s->conf.conf.logical_block_size);
 
     blk_iostatus_enable(s->blk);
+
+    add_boot_device_lchs(dev, "/disk@0,0",
+                         conf->conf.lcyls,
+                         conf->conf.lheads,
+                         conf->conf.lsecs);
 }
 
 static void virtio_blk_device_unrealize(DeviceState *dev, Error **errp)
 {
     VirtIODevice *vdev = VIRTIO_DEVICE(dev);
     VirtIOBlock *s = VIRTIO_BLK(dev);
+    VirtIOBlkConf *conf = &s->conf;
+    unsigned i;
 
+    blk_drain(s->blk);
+    del_boot_device_lchs(dev, "/disk@0,0");
     virtio_blk_data_plane_destroy(s->dataplane);
     s->dataplane = NULL;
+    for (i = 0; i < conf->num_queues; i++) {
+        virtio_del_queue(vdev, i);
+    }
     qemu_del_vm_change_state_handler(s->change);
     blockdev_mark_auto_del(s->blk);
     virtio_cleanup(vdev);

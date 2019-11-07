@@ -1,9 +1,6 @@
 { 'enum': 'TestEnum',
   'data': [ 'value1', 'value2' ] }
 
-{ 'struct': 'TestBase',
-  'data': { 'enum1': 'TestEnum' } }
-
 { 'struct': 'TestTypeA',
   'data': { 'string': 'str' } }
 
@@ -11,7 +8,7 @@
   'data': { 'integer': 'int' } }
 
 { 'union': 'TestUnion',
-  'base': 'TestBase',
+  'base': { 'enum1': 'TestEnum' },
   'discriminator': 'enum_wrong',
   'data': { 'value1': 'TestTypeA',
             'value2': 'TestTypeB' } }

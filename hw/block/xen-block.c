@@ -313,6 +313,7 @@ static void xen_block_frontend_changed(XenDevice *xendev,
         break;
 
     case XenbusStateClosed:
+    case XenbusStateUnknown:
         xen_block_disconnect(xendev, &local_err);
         if (local_err) {
             error_propagate(errp, local_err);

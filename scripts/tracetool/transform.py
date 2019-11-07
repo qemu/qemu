@@ -83,6 +83,7 @@ TCG_2_HOST = {
 
 HOST_2_TCG_COMPAT = {
     "uint8_t": "uint32_t",
+    "uint16_t": "uint32_t",
     }
 
 

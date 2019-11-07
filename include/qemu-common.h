@@ -75,6 +75,12 @@ void cpu_exec_step_atomic(CPUState *cpu);
 bool set_preferred_target_page_bits(int bits);
 
 /**
+ * finalize_target_page_bits:
+ * Commit the final value set by set_preferred_target_page_bits.
+ */
+void finalize_target_page_bits(void);
+
+/**
  * Sends a (part of) iovec down a socket, yielding when the socket is full, or
  * Receives data into a (part of) iovec from a socket,
  * yielding when there is no data in the socket.
@@ -123,7 +129,6 @@ void qemu_hexdump(const char *buf, FILE *fp, const char *prefix, size_t size);
 int parse_debug_env(const char *name, int max, int initial);
 
 const char *qemu_ether_ntoa(const MACAddr *mac);
-char *size_to_str(uint64_t val);
 void page_size_init(void);
 
 /* returns non-zero if dump is in progress, otherwise zero is

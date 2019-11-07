@@ -736,6 +736,15 @@ void tcg_region_init(void)
 #endif
 }
 
+static void alloc_tcg_plugin_context(TCGContext *s)
+{
+#ifdef CONFIG_PLUGIN
+    s->plugin_tb = g_new0(struct qemu_plugin_tb, 1);
+    s->plugin_tb->insns =
+        g_ptr_array_new_with_free_func(qemu_plugin_insn_cleanup_fn);
+#endif
+}
+
 /*
  * All TCG threads except the parent (i.e. the one that called tcg_context_init
  * and registered the target's TCG globals) must register with this function
@@ -779,6 +788,10 @@ void tcg_register_thread(void)
     n = atomic_fetch_inc(&n_tcg_ctxs);
     g_assert(n < ms->smp.max_cpus);
     atomic_set(&tcg_ctxs[n], s);
+
+    if (n > 0) {
+        alloc_tcg_plugin_context(s);
+    }
 
     tcg_ctx = s;
     qemu_mutex_lock(&region.lock);
@@ -975,6 +988,8 @@ void tcg_context_init(TCGContext *s)
     for (; i < ARRAY_SIZE(tcg_target_reg_alloc_order); ++i) {
         indirect_reg_alloc_order[i] = tcg_target_reg_alloc_order[i];
     }
+
+    alloc_tcg_plugin_context(s);
 
     tcg_ctx = s;
     /*
@@ -1680,6 +1695,13 @@ void tcg_gen_callN(void *func, TCGTemp *ret, int nargs, TCGTemp **args)
     info = g_hash_table_lookup(helper_table, (gpointer)func);
     flags = info->flags;
     sizemask = info->sizemask;
+
+#ifdef CONFIG_PLUGIN
+    /* detect non-plugin helpers */
+    if (tcg_ctx->plugin_insn && unlikely(strncmp(info->name, "plugin_", 7))) {
+        tcg_ctx->plugin_insn->calls_helpers = true;
+    }
+#endif
 
 #if defined(__sparc__) && !defined(__arch64__) \
     && !defined(CONFIG_TCG_INTERPRETER)

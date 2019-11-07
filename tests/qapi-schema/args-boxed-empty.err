@@ -1,1 +1,0 @@
-tests/qapi-schema/args-boxed-empty.json:3: Cannot use 'boxed' with empty type

@@ -1,9 +1,9 @@
 #
 # Docker arm64 cross-compiler target
 #
-# This docker target builds on the debian Stretch base image.
+# This docker target builds on the debian Buster base image.
 #
-FROM qemu:debian9
+FROM qemu:debian10
 
 # Add the foreign architecture we want and install dependencies
 RUN dpkg --add-architecture arm64
@@ -13,10 +13,11 @@ RUN apt update && \
         crossbuild-essential-arm64
 RUN apt update && \
     DEBIAN_FRONTEND=noninteractive eatmydata \
-    apt build-dep -yy -a arm64 qemu
+    apt build-dep -yy -a arm64 --arch-only qemu
 
 # Specify the cross prefix for this image (see tests/docker/common.rc)
 ENV QEMU_CONFIGURE_OPTS --cross-prefix=aarch64-linux-gnu-
+ENV DEF_TARGET_LIST aarch64-softmmu,aarch64-linux-user
 
 RUN apt update && \
     DEBIAN_FRONTEND=noninteractive eatmydata \

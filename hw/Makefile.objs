@@ -26,6 +26,7 @@ devices-dirs-y += nvram/
 devices-dirs-y += pci/
 devices-dirs-$(CONFIG_PCI) += pci-bridge/ pci-host/
 devices-dirs-y += pcmcia/
+devices-dirs-y += rtc/
 devices-dirs-$(CONFIG_SCSI) += scsi/
 devices-dirs-y += sd/
 devices-dirs-y += ssi/
@@ -37,6 +38,7 @@ devices-dirs-y += virtio/
 devices-dirs-y += watchdog/
 devices-dirs-y += xen/
 devices-dirs-$(CONFIG_MEM_DEVICE) += mem/
+devices-dirs-$(CONFIG_NUBUS) += nubus/
 devices-dirs-y += semihosting/
 devices-dirs-y += smbios/
 endif

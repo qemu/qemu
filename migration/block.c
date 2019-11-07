@@ -361,7 +361,7 @@ static int set_dirty_tracking(void)
 fail:
     QSIMPLEQ_FOREACH(bmds, &block_mig_state.bmds_list, entry) {
         if (bmds->dirty_bitmap) {
-            bdrv_release_dirty_bitmap(blk_bs(bmds->blk), bmds->dirty_bitmap);
+            bdrv_release_dirty_bitmap(bmds->dirty_bitmap);
         }
     }
     return ret;
@@ -374,7 +374,7 @@ static void unset_dirty_tracking(void)
     BlkMigDevState *bmds;
 
     QSIMPLEQ_FOREACH(bmds, &block_mig_state.bmds_list, entry) {
-        bdrv_release_dirty_bitmap(blk_bs(bmds->blk), bmds->dirty_bitmap);
+        bdrv_release_dirty_bitmap(bmds->dirty_bitmap);
     }
 }
 
@@ -906,7 +906,7 @@ static int block_load(QEMUFile *f, void *opaque, int version_id)
     do {
         addr = qemu_get_be64(f);
 
-        flags = addr & ~BDRV_SECTOR_MASK;
+        flags = addr & (BDRV_SECTOR_SIZE - 1);
         addr >>= BDRV_SECTOR_BITS;
 
         if (flags & BLK_MIG_FLAG_DEVICE_BLOCK) {
@@ -1030,6 +1030,6 @@ void blk_mig_init(void)
     QSIMPLEQ_INIT(&block_mig_state.blk_list);
     qemu_mutex_init(&block_mig_state.lock);
 
-    register_savevm_live(NULL, "block", 0, 1, &savevm_block_handlers,
+    register_savevm_live("block", 0, 1, &savevm_block_handlers,
                          &block_mig_state);
 }

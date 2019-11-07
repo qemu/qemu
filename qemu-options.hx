@@ -327,8 +327,8 @@ format(true color). The resolution should be supported by the SVGA mode, so
 the recommended is 320x240, 640x480, 800x640.
 
 A timeout could be passed to bios, guest will pause for @var{rb_timeout} ms
-when boot failed, then reboot. If @var{rb_timeout} is '-1', guest will not
-reboot, qemu passes '-1' to bios by default. Currently Seabios for X86
+when boot failed, then reboot. If @option{reboot-timeout} is not set,
+guest will not reboot by default. Currently Seabios for X86
 system support it.
 
 Do strict boot via @option{strict=on} as far as firmware/BIOS
@@ -433,19 +433,20 @@ DEF("audiodev", HAS_ARG, QEMU_OPTION_audiodev,
     "                specifies the audio backend to use\n"
     "                id= identifier of the backend\n"
     "                timer-period= timer period in microseconds\n"
+    "                in|out.mixing-engine= use mixing engine to mix streams inside QEMU\n"
     "                in|out.fixed-settings= use fixed settings for host audio\n"
     "                in|out.frequency= frequency to use with fixed settings\n"
     "                in|out.channels= number of channels to use with fixed settings\n"
     "                in|out.format= sample format to use with fixed settings\n"
     "                valid values: s8, s16, s32, u8, u16, u32\n"
     "                in|out.voices= number of voices to use\n"
-    "                in|out.buffer-len= length of buffer in microseconds\n"
+    "                in|out.buffer-length= length of buffer in microseconds\n"
     "-audiodev none,id=id,[,prop[=value][,...]]\n"
     "                dummy driver that discards all output\n"
 #ifdef CONFIG_AUDIO_ALSA
     "-audiodev alsa,id=id[,prop[=value][,...]]\n"
     "                in|out.dev= name of the audio device to use\n"
-    "                in|out.period-len= length of period in microseconds\n"
+    "                in|out.period-length= length of period in microseconds\n"
     "                in|out.try-poll= attempt to use poll mode\n"
     "                threshold= threshold (in microseconds) when playback starts\n"
 #endif
@@ -470,6 +471,7 @@ DEF("audiodev", HAS_ARG, QEMU_OPTION_audiodev,
     "-audiodev pa,id=id[,prop[=value][,...]]\n"
     "                server= PulseAudio server address\n"
     "                in|out.name= source/sink device name\n"
+    "                in|out.latency= desired latency in microseconds\n"
 #endif
 #ifdef CONFIG_AUDIO_SDL
     "-audiodev sdl,id=id[,prop[=value][,...]]\n"
@@ -493,6 +495,10 @@ output's property with @code{out.@var{prop}}. For example:
 -audiodev alsa,id=example,out.channels=1 # leaves in.channels unspecified
 @end example
 
+NOTE: parameter validation is known to be incomplete, in many cases
+specifying an invalid option causes QEMU to print an error message and
+continue emulation without sound.
+
 Valid global options are:
 
 @table @option
@@ -502,6 +508,16 @@ Identifies the audio backend.
 @item timer-period=@var{period}
 Sets the timer @var{period} used by the audio subsystem in microseconds.
 Default is 10000 (10 ms).
+
+@item in|out.mixing-engine=on|off
+Use QEMU's mixing engine to mix all streams inside QEMU and convert
+audio formats when not supported by the backend.  When off,
+@var{fixed-settings} must be off too.  Note that disabling this option
+means that the selected backend must support multiple streams and the
+audio formats used by the virtual cards, otherwise you'll get no sound.
+It's not recommended to disable this option unless you want to use 5.1
+or 7.1 audio, as mixing engine only supports mono and stereo audio.
+Default is on.
 
 @item in|out.fixed-settings=on|off
 Use fixed settings for host audio.  When off, it will change based on
@@ -524,7 +540,7 @@ Valid values are: @code{s8}, @code{s16}, @code{s32}, @code{u8},
 @item in|out.voices=@var{voices}
 Specify the number of @var{voices} to use.  Default is 1.
 
-@item in|out.buffer=@var{usecs}
+@item in|out.buffer-length=@var{usecs}
 Sets the size of the buffer in microseconds.
 
 @end table
@@ -545,7 +561,7 @@ ALSA specific options are:
 Specify the ALSA @var{device} to use for input and/or output.  Default
 is @code{default}.
 
-@item in|out.period-len=@var{usecs}
+@item in|out.period-length=@var{usecs}
 Sets the period length in microseconds.
 
 @item in|out.try-poll=on|off
@@ -630,6 +646,10 @@ Sets the PulseAudio @var{server} to connect to.
 @item in|out.name=@var{sink}
 Use the specified source/sink for recording/playback.
 
+@item in|out.latency=@var{usecs}
+Desired latency in microseconds.  The PulseAudio server will try to honor this
+value but actual latencies may be lower or higher.
+
 @end table
 
 @item -audiodev sdl,id=@var{id}[,@var{prop}[=@var{value}][,...]]
@@ -701,7 +721,7 @@ possible drivers and properties, use @code{-device help} and
 @code{-device @var{driver},help}.
 
 Some drivers are:
-@item -device ipmi-bmc-sim,id=@var{id}[,slave_addr=@var{val}][,sdrfile=@var{file}][,furareasize=@var{val}][,furdatafile=@var{file}]
+@item -device ipmi-bmc-sim,id=@var{id}[,slave_addr=@var{val}][,sdrfile=@var{file}][,furareasize=@var{val}][,furdatafile=@var{file}][,guid=@var{uuid}]
 
 Add an IPMI BMC.  This is a simulation of a hardware management
 interface processor that normally sits on a system.  It provides
@@ -714,8 +734,8 @@ controllers.  If you don't know what this means, it is safe to ignore
 it.
 
 @table @option
-@item bmc=@var{id}
-The BMC to connect to, one of ipmi-bmc-sim or ipmi-bmc-extern above.
+@item id=@var{id}
+The BMC id for interfaces to use this device.
 @item slave_addr=@var{val}
 Define slave address to use for the BMC.  The default is 0x20.
 @item sdrfile=@var{file}
@@ -724,6 +744,10 @@ file containing raw Sensor Data Records (SDR) data. The default is none.
 size of a Field Replaceable Unit (FRU) area.  The default is 1024.
 @item frudatafile=@var{file}
 file containing raw Field Replaceable Unit (FRU) inventory data. The default is none.
+@item guid=@var{uuid}
+value for the GUID for the BMC, in standard UUID format.  If this is set,
+get "Get GUID" command to the BMC will return it.  Otherwise "Get GUID"
+will return an error.
 @end table
 
 @item -device ipmi-bmc-extern,id=@var{id},chardev=@var{id}[,slave_addr=@var{val}]
@@ -845,7 +869,8 @@ ETEXI
 DEF("blockdev", HAS_ARG, QEMU_OPTION_blockdev,
     "-blockdev [driver=]driver[,node-name=N][,discard=ignore|unmap]\n"
     "          [,cache.direct=on|off][,cache.no-flush=on|off]\n"
-    "          [,read-only=on|off][,detect-zeroes=on|off|unmap]\n"
+    "          [,read-only=on|off][,auto-read-only=on|off]\n"
+    "          [,force-share=on|off][,detect-zeroes=on|off|unmap]\n"
     "          [,driver specific parameters...]\n"
     "                configure a block backend\n", QEMU_ARCH_ALL)
 STEXI
@@ -881,6 +906,25 @@ name is not intended to be predictable and changes between QEMU invocations.
 For the top level, an explicit node name must be specified.
 @item read-only
 Open the node read-only. Guest write attempts will fail.
+
+Note that some block drivers support only read-only access, either generally or
+in certain configurations. In this case, the default value
+@option{read-only=off} does not work and the option must be specified
+explicitly.
+@item auto-read-only
+If @option{auto-read-only=on} is set, QEMU may fall back to read-only usage
+even when @option{read-only=off} is requested, or even switch between modes as
+needed, e.g. depending on whether the image file is writable or whether a
+writing user is attached to the node.
+@item force-share
+Override the image locking system of QEMU by forcing the node to utilize
+weaker shared access for permissions where it would normally request exclusive
+access.  When there is the potential for multiple instances to have the same
+file open (whether this invocation of QEMU is the first or the second
+instance), both instances must permit shared access for the second instance to
+succeed at opening the file.
+
+Enabling @option{force-share=on} requires @option{read-only=on}.
 @item cache.direct
 The host page cache can be avoided with @option{cache.direct=on}. This will
 attempt to do disk IO directly to the guest's memory. QEMU may still perform an
@@ -1335,7 +1379,7 @@ ETEXI
 
 DEF("virtfs", HAS_ARG, QEMU_OPTION_virtfs,
     "-virtfs local,path=path,mount_tag=tag,security_model=mapped-xattr|mapped-file|passthrough|none\n"
-    "        [,id=id][,writeout=immediate][,readonly][,fmode=fmode][,dmode=dmode]\n"
+    "        [,id=id][,writeout=immediate][,readonly][,fmode=fmode][,dmode=dmode][,multidevs=remap|forbid|warn]\n"
     "-virtfs proxy,mount_tag=tag,socket=socket[,id=id][,writeout=immediate][,readonly]\n"
     "-virtfs proxy,mount_tag=tag,sock_fd=sock_fd[,id=id][,writeout=immediate][,readonly]\n"
     "-virtfs synth,mount_tag=tag[,id=id][,readonly]\n",
@@ -1343,7 +1387,7 @@ DEF("virtfs", HAS_ARG, QEMU_OPTION_virtfs,
 
 STEXI
 
-@item -virtfs local,path=@var{path},mount_tag=@var{mount_tag} ,security_model=@var{security_model}[,writeout=@var{writeout}][,readonly] [,fmode=@var{fmode}][,dmode=@var{dmode}]
+@item -virtfs local,path=@var{path},mount_tag=@var{mount_tag} ,security_model=@var{security_model}[,writeout=@var{writeout}][,readonly] [,fmode=@var{fmode}][,dmode=@var{dmode}][,multidevs=@var{multidevs}]
 @itemx -virtfs proxy,socket=@var{socket},mount_tag=@var{mount_tag} [,writeout=@var{writeout}][,readonly]
 @itemx -virtfs proxy,sock_fd=@var{sock_fd},mount_tag=@var{mount_tag} [,writeout=@var{writeout}][,readonly]
 @itemx -virtfs synth,mount_tag=@var{mount_tag}
@@ -1399,6 +1443,28 @@ Specifies the default mode for newly created directories on the host. Works
 only with security models "mapped-xattr" and "mapped-file".
 @item mount_tag=@var{mount_tag}
 Specifies the tag name to be used by the guest to mount this export point.
+@item multidevs=@var{multidevs}
+Specifies how to deal with multiple devices being shared with a 9p export.
+Supported behaviours are either "remap", "forbid" or "warn". The latter is
+the default behaviour on which virtfs 9p expects only one device to be
+shared with the same export, and if more than one device is shared and
+accessed via the same 9p export then only a warning message is logged
+(once) by qemu on host side. In order to avoid file ID collisions on guest
+you should either create a separate virtfs export for each device to be
+shared with guests (recommended way) or you might use "remap" instead which
+allows you to share multiple devices with only one export instead, which is
+achieved by remapping the original inode numbers from host to guest in a
+way that would prevent such collisions. Remapping inodes in such use cases
+is required because the original device IDs from host are never passed and
+exposed on guest. Instead all files of an export shared with virtfs always
+share the same device id on guest. So two files with identical inode
+numbers but from actually different devices on host would otherwise cause a
+file ID collision and hence potential misbehaviours on guest. "forbid" on
+the other hand assumes like "warn" that only one device is shared by the
+same export, however it will not only log a warning message but also
+deny access to additional devices on guest. Note though that "forbid" does
+currently not block all possible file access operations (e.g. readdir()
+would still return entries from other devices).
 @end table
 ETEXI
 
@@ -1485,26 +1551,38 @@ STEXI
 ETEXI
 
 DEF("display", HAS_ARG, QEMU_OPTION_display,
+#if defined(CONFIG_SPICE)
     "-display spice-app[,gl=on|off]\n"
-    "-display sdl[,frame=on|off][,alt_grab=on|off][,ctrl_grab=on|off]\n"
+#endif
+#if defined(CONFIG_SDL)
+    "-display sdl[,alt_grab=on|off][,ctrl_grab=on|off]\n"
     "            [,window_close=on|off][,gl=on|core|es|off]\n"
-    "-display gtk[,grab_on_hover=on|off][,gl=on|off]|\n"
-    "-display vnc=<display>[,<optargs>]\n"
-    "-display curses[,charset=<encoding>]\n"
-    "-display none\n"
-    "-display egl-headless[,rendernode=<file>]"
-    "                select display type\n"
-    "The default display is equivalent to\n"
+#endif
 #if defined(CONFIG_GTK)
-            "\t\"-display gtk\"\n"
+    "-display gtk[,grab_on_hover=on|off][,gl=on|off]|\n"
+#endif
+#if defined(CONFIG_VNC)
+    "-display vnc=<display>[,<optargs>]\n"
+#endif
+#if defined(CONFIG_CURSES)
+    "-display curses[,charset=<encoding>]\n"
+#endif
+#if defined(CONFIG_OPENGL)
+    "-display egl-headless[,rendernode=<file>]\n"
+#endif
+    "-display none\n"
+    "                select display backend type\n"
+    "                The default display is equivalent to\n                "
+#if defined(CONFIG_GTK)
+            "\"-display gtk\"\n"
 #elif defined(CONFIG_SDL)
-            "\t\"-display sdl\"\n"
+            "\"-display sdl\"\n"
 #elif defined(CONFIG_COCOA)
-            "\t\"-display cocoa\"\n"
+            "\"-display cocoa\"\n"
 #elif defined(CONFIG_VNC)
-            "\t\"-vnc localhost:0,to=99,id=default\"\n"
+            "\"-vnc localhost:0,to=99,id=default\"\n"
 #else
-            "\t\"-display none\"\n"
+            "\"-display none\"\n"
 #endif
     , QEMU_ARCH_ALL)
 STEXI
@@ -1798,7 +1876,7 @@ ETEXI
 
 DEF("g", 1, QEMU_OPTION_g ,
     "-g WxH[xDEPTH]  Set the initial graphical resolution and depth\n",
-    QEMU_ARCH_PPC | QEMU_ARCH_SPARC)
+    QEMU_ARCH_PPC | QEMU_ARCH_SPARC | QEMU_ARCH_M68K)
 STEXI
 @item -g @var{width}x@var{height}[x@var{depth}]
 @findex -g
@@ -4140,6 +4218,23 @@ HXCOMM HX does not support conditional compilation of text.
 @findex -trace
 @include qemu-option-trace.texi
 ETEXI
+DEF("plugin", HAS_ARG, QEMU_OPTION_plugin,
+    "-plugin [file=]<file>[,arg=<string>]\n"
+    "                load a plugin\n",
+    QEMU_ARCH_ALL)
+STEXI
+@item -plugin file=@var{file}[,arg=@var{string}]
+@findex -plugin
+
+Load a plugin.
+
+@table @option
+@item file=@var{file}
+Load the given plugin from a shared library file.
+@item arg=@var{string}
+Argument string passed to the plugin. (Can be given multiple times.)
+@end table
+ETEXI
 
 HXCOMM Internal use
 DEF("qtest", HAS_ARG, QEMU_OPTION_qtest, "", QEMU_ARCH_ALL)
@@ -4156,7 +4251,7 @@ STEXI
 Enable FIPS 140-2 compliance mode.
 ETEXI
 
-HXCOMM Deprecated by -machine accel=tcg property
+HXCOMM Deprecated by -accel tcg
 DEF("no-kvm", 0, QEMU_OPTION_no_kvm, "", QEMU_ARCH_I386)
 
 DEF("msg", HAS_ARG, QEMU_OPTION_msg,

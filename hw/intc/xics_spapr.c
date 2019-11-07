@@ -179,7 +179,7 @@ static void rtas_set_xive(PowerPCCPU *cpu, SpaprMachineState *spapr,
     }
 
     srcno = nr - ics->offset;
-    ics_simple_write_xive(ics, srcno, server, priority, priority);
+    ics_write_xive(ics, srcno, server, priority, priority);
 
     rtas_st(rets, 0, RTAS_OUT_SUCCESS);
 }
@@ -243,8 +243,8 @@ static void rtas_int_off(PowerPCCPU *cpu, SpaprMachineState *spapr,
     }
 
     srcno = nr - ics->offset;
-    ics_simple_write_xive(ics, srcno, ics->irqs[srcno].server, 0xff,
-                          ics->irqs[srcno].priority);
+    ics_write_xive(ics, srcno, ics->irqs[srcno].server, 0xff,
+                   ics->irqs[srcno].priority);
 
     rtas_st(rets, 0, RTAS_OUT_SUCCESS);
 }
@@ -276,15 +276,25 @@ static void rtas_int_on(PowerPCCPU *cpu, SpaprMachineState *spapr,
     }
 
     srcno = nr - ics->offset;
-    ics_simple_write_xive(ics, srcno, ics->irqs[srcno].server,
-                          ics->irqs[srcno].saved_priority,
-                          ics->irqs[srcno].saved_priority);
+    ics_write_xive(ics, srcno, ics->irqs[srcno].server,
+                   ics->irqs[srcno].saved_priority,
+                   ics->irqs[srcno].saved_priority);
 
     rtas_st(rets, 0, RTAS_OUT_SUCCESS);
 }
 
-void xics_spapr_init(SpaprMachineState *spapr)
+static void ics_spapr_realize(DeviceState *dev, Error **errp)
 {
+    ICSState *ics = ICS_SPAPR(dev);
+    ICSStateClass *icsc = ICS_GET_CLASS(ics);
+    Error *local_err = NULL;
+
+    icsc->parent_realize(dev, &local_err);
+    if (local_err) {
+        error_propagate(errp, local_err);
+        return;
+    }
+
     spapr_rtas_register(RTAS_IBM_SET_XIVE, "ibm,set-xive", rtas_set_xive);
     spapr_rtas_register(RTAS_IBM_GET_XIVE, "ibm,get-xive", rtas_get_xive);
     spapr_rtas_register(RTAS_IBM_INT_OFF, "ibm,int-off", rtas_int_off);
@@ -298,15 +308,15 @@ void xics_spapr_init(SpaprMachineState *spapr)
     spapr_register_hypercall(H_IPOLL, h_ipoll);
 }
 
-void spapr_dt_xics(SpaprMachineState *spapr, uint32_t nr_servers, void *fdt,
-                   uint32_t phandle)
+static void xics_spapr_dt(SpaprInterruptController *intc, uint32_t nr_servers,
+                          void *fdt, uint32_t phandle)
 {
     uint32_t interrupt_server_ranges_prop[] = {
         0, cpu_to_be32(nr_servers),
     };
     int node;
 
-    _FDT(node = fdt_add_subnode(fdt, 0, XICS_NODENAME));
+    _FDT(node = fdt_add_subnode(fdt, 0, "interrupt-controller"));
 
     _FDT(fdt_setprop_string(fdt, node, "device_type",
                             "PowerPC-External-Interrupt-Presentation"));
@@ -319,3 +329,138 @@ void spapr_dt_xics(SpaprMachineState *spapr, uint32_t nr_servers, void *fdt,
     _FDT(fdt_setprop_cell(fdt, node, "linux,phandle", phandle));
     _FDT(fdt_setprop_cell(fdt, node, "phandle", phandle));
 }
+
+static int xics_spapr_cpu_intc_create(SpaprInterruptController *intc,
+                                       PowerPCCPU *cpu, Error **errp)
+{
+    ICSState *ics = ICS_SPAPR(intc);
+    Object *obj;
+    SpaprCpuState *spapr_cpu = spapr_cpu_state(cpu);
+
+    obj = icp_create(OBJECT(cpu), TYPE_ICP, ics->xics, errp);
+    if (!obj) {
+        return -1;
+    }
+
+    spapr_cpu->icp = ICP(obj);
+    return 0;
+}
+
+static void xics_spapr_cpu_intc_reset(SpaprInterruptController *intc,
+                                     PowerPCCPU *cpu)
+{
+    icp_reset(spapr_cpu_state(cpu)->icp);
+}
+
+static int xics_spapr_claim_irq(SpaprInterruptController *intc, int irq,
+                                bool lsi, Error **errp)
+{
+    ICSState *ics = ICS_SPAPR(intc);
+
+    assert(ics);
+    assert(ics_valid_irq(ics, irq));
+
+    if (!ics_irq_free(ics, irq - ics->offset)) {
+        error_setg(errp, "IRQ %d is not free", irq);
+        return -EBUSY;
+    }
+
+    ics_set_irq_type(ics, irq - ics->offset, lsi);
+    return 0;
+}
+
+static void xics_spapr_free_irq(SpaprInterruptController *intc, int irq)
+{
+    ICSState *ics = ICS_SPAPR(intc);
+    uint32_t srcno = irq - ics->offset;
+
+    assert(ics_valid_irq(ics, irq));
+
+    memset(&ics->irqs[srcno], 0, sizeof(ICSIRQState));
+}
+
+static void xics_spapr_set_irq(SpaprInterruptController *intc, int irq, int val)
+{
+    ICSState *ics = ICS_SPAPR(intc);
+    uint32_t srcno = irq - ics->offset;
+
+    ics_set_irq(ics, srcno, val);
+}
+
+static void xics_spapr_print_info(SpaprInterruptController *intc, Monitor *mon)
+{
+    ICSState *ics = ICS_SPAPR(intc);
+    CPUState *cs;
+
+    CPU_FOREACH(cs) {
+        PowerPCCPU *cpu = POWERPC_CPU(cs);
+
+        icp_pic_print_info(spapr_cpu_state(cpu)->icp, mon);
+    }
+
+    ics_pic_print_info(ics, mon);
+}
+
+static int xics_spapr_post_load(SpaprInterruptController *intc, int version_id)
+{
+    if (!kvm_irqchip_in_kernel()) {
+        CPUState *cs;
+        CPU_FOREACH(cs) {
+            PowerPCCPU *cpu = POWERPC_CPU(cs);
+            icp_resend(spapr_cpu_state(cpu)->icp);
+        }
+    }
+    return 0;
+}
+
+static int xics_spapr_activate(SpaprInterruptController *intc, Error **errp)
+{
+    if (kvm_enabled()) {
+        return spapr_irq_init_kvm(xics_kvm_connect, intc, errp);
+    }
+    return 0;
+}
+
+static void xics_spapr_deactivate(SpaprInterruptController *intc)
+{
+    if (kvm_irqchip_in_kernel()) {
+        xics_kvm_disconnect(intc);
+    }
+}
+
+static void ics_spapr_class_init(ObjectClass *klass, void *data)
+{
+    DeviceClass *dc = DEVICE_CLASS(klass);
+    ICSStateClass *isc = ICS_CLASS(klass);
+    SpaprInterruptControllerClass *sicc = SPAPR_INTC_CLASS(klass);
+
+    device_class_set_parent_realize(dc, ics_spapr_realize,
+                                    &isc->parent_realize);
+    sicc->activate = xics_spapr_activate;
+    sicc->deactivate = xics_spapr_deactivate;
+    sicc->cpu_intc_create = xics_spapr_cpu_intc_create;
+    sicc->cpu_intc_reset = xics_spapr_cpu_intc_reset;
+    sicc->claim_irq = xics_spapr_claim_irq;
+    sicc->free_irq = xics_spapr_free_irq;
+    sicc->set_irq = xics_spapr_set_irq;
+    sicc->print_info = xics_spapr_print_info;
+    sicc->dt = xics_spapr_dt;
+    sicc->post_load = xics_spapr_post_load;
+}
+
+static const TypeInfo ics_spapr_info = {
+    .name = TYPE_ICS_SPAPR,
+    .parent = TYPE_ICS,
+    .class_init = ics_spapr_class_init,
+    .interfaces = (InterfaceInfo[]) {
+        { TYPE_SPAPR_INTC },
+        { }
+    },
+};
+
+static void xics_spapr_register_types(void)
+{
+    type_register_static(&ics_spapr_info);
+}
+
+type_init(xics_spapr_register_types)

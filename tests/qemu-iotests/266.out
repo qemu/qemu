@@ -1,0 +1,137 @@
+--- Creating empty file ---
+{"execute": "blockdev-create", "arguments": {"job-id": "job0", "options": {"driver": "file", "filename": "TEST_DIR/PID-t.vpc", "size": 0}}}
+{"return": {}}
+{"execute": "job-dismiss", "arguments": {"id": "job0"}}
+{"return": {}}
+{"execute": "blockdev-add", "arguments": {"driver": "file", "filename": "TEST_DIR/PID-t.vpc", "node-name": "protocol-node"}}
+{"return": {}}
+
+=== Successful image creation (defaults) ===
+
+{"execute": "blockdev-create", "arguments": {"job-id": "job0", "options": {"driver": "vpc", "file": "protocol-node", "size": 67125248}}}
+{"return": {}}
+{"execute": "job-dismiss", "arguments": {"id": "job0"}}
+{"return": {}}
+
+image: TEST_IMG
+file format: IMGFMT
+virtual size: 64 MiB (67125248 bytes)
+cluster_size: 2097152
+
+--- Creating empty file ---
+{"execute": "blockdev-create", "arguments": {"job-id": "job0", "options": {"driver": "file", "filename": "TEST_DIR/PID-t.vpc", "size": 0}}}
+{"return": {}}
+{"execute": "job-dismiss", "arguments": {"id": "job0"}}
+{"return": {}}
+{"execute": "blockdev-add", "arguments": {"driver": "file", "filename": "TEST_DIR/PID-t.vpc", "node-name": "protocol-node"}}
+{"return": {}}
+
+=== Successful image creation (explicit defaults) ===
+
+{"execute": "blockdev-create", "arguments": {"job-id": "job0", "options": {"driver": "vpc", "file": "protocol-node", "force-size": false, "size": 134250496, "subformat": "dynamic"}}}
+{"return": {}}
+{"execute": "job-dismiss", "arguments": {"id": "job0"}}
+{"return": {}}
+
+image: TEST_IMG
+file format: IMGFMT
+virtual size: 128 MiB (134250496 bytes)
+cluster_size: 2097152
+
+--- Creating empty file ---
+{"execute": "blockdev-create", "arguments": {"job-id": "job0", "options": {"driver": "file", "filename": "TEST_DIR/PID-t.vpc", "size": 0}}}
+{"return": {}}
+{"execute": "job-dismiss", "arguments": {"id": "job0"}}
+{"return": {}}
+{"execute": "blockdev-add", "arguments": {"driver": "file", "filename": "TEST_DIR/PID-t.vpc", "node-name": "protocol-node"}}
+{"return": {}}
+
+=== Successful image creation (non-default options) ===
+
+{"execute": "blockdev-create", "arguments": {"job-id": "job0", "options": {"driver": "vpc", "file": "protocol-node", "force-size": true, "size": 1048576, "subformat": "fixed"}}}
+{"return": {}}
+{"execute": "job-dismiss", "arguments": {"id": "job0"}}
+{"return": {}}
+
+image: TEST_IMG
+file format: IMGFMT
+virtual size: 1 MiB (1048576 bytes)
+
+--- Creating empty file ---
+{"execute": "blockdev-create", "arguments": {"job-id": "job0", "options": {"driver": "file", "filename": "TEST_DIR/PID-t.vpc", "size": 0}}}
+{"return": {}}
+{"execute": "job-dismiss", "arguments": {"id": "job0"}}
+{"return": {}}
+{"execute": "blockdev-add", "arguments": {"driver": "file", "filename": "TEST_DIR/PID-t.vpc", "node-name": "protocol-node"}}
+{"return": {}}
+
+=== Size not representable in CHS ===
+
+{"execute": "blockdev-create", "arguments": {"job-id": "job0", "options": {"driver": "vpc", "file": "protocol-node", "force-size": false, "size": 1048576}}}
+{"return": {}}
+Job failed: The requested image size cannot be represented in CHS geometry
+{"execute": "job-dismiss", "arguments": {"id": "job0"}}
+{"return": {}}
+
+qemu-img: Could not open 'TEST_IMG': File too small for a VHD header
+
+--- Creating empty file ---
+{"execute": "blockdev-create", "arguments": {"job-id": "job0", "options": {"driver": "file", "filename": "TEST_DIR/PID-t.vpc", "size": 0}}}
+{"return": {}}
+{"execute": "job-dismiss", "arguments": {"id": "job0"}}
+{"return": {}}
+{"execute": "blockdev-add", "arguments": {"driver": "file", "filename": "TEST_DIR/PID-t.vpc", "node-name": "protocol-node"}}
+{"return": {}}
+
+=== Zero size===
+
+{"execute": "blockdev-create", "arguments": {"job-id": "job0", "options": {"driver": "vpc", "file": "protocol-node", "size": 0}}}
+{"return": {}}
+{"execute": "job-dismiss", "arguments": {"id": "job0"}}
+{"return": {}}
+
+image: TEST_IMG
+file format: IMGFMT
+virtual size: 0 B (0 bytes)
+cluster_size: 2097152
+
+--- Creating empty file ---
+{"execute": "blockdev-create", "arguments": {"job-id": "job0", "options": {"driver": "file", "filename": "TEST_DIR/PID-t.vpc", "size": 0}}}
+{"return": {}}
+{"execute": "job-dismiss", "arguments": {"id": "job0"}}
+{"return": {}}
+{"execute": "blockdev-add", "arguments": {"driver": "file", "filename": "TEST_DIR/PID-t.vpc", "node-name": "protocol-node"}}
+{"return": {}}
+
+=== Maximum CHS size===
+
+{"execute": "blockdev-create", "arguments": {"job-id": "job0", "options": {"driver": "vpc", "file": "protocol-node", "size": 136899993600}}}
+{"return": {}}
+{"execute": "job-dismiss", "arguments": {"id": "job0"}}
+{"return": {}}
+
+image: TEST_IMG
+file format: IMGFMT
+virtual size: 127 GiB (136899993600 bytes)
+cluster_size: 2097152
+
+--- Creating empty file ---
+{"execute": "blockdev-create", "arguments": {"job-id": "job0", "options": {"driver": "file", "filename": "TEST_DIR/PID-t.vpc", "size": 0}}}
+{"return": {}}
+{"execute": "job-dismiss", "arguments": {"id": "job0"}}
+{"return": {}}
+{"execute": "blockdev-add", "arguments": {"driver": "file", "filename": "TEST_DIR/PID-t.vpc", "node-name": "protocol-node"}}
+{"return": {}}
+
+=== Actual maximum size===
+
+{"execute": "blockdev-create", "arguments": {"job-id": "job0", "options": {"driver": "vpc", "file": "protocol-node", "force-size": true, "size": 2190433320960}}}
+{"return": {}}
+{"execute": "job-dismiss", "arguments": {"id": "job0"}}
+{"return": {}}
+
+image: TEST_IMG
+file format: IMGFMT
+virtual size: 1.99 TiB (2190433320960 bytes)
+cluster_size: 2097152
+

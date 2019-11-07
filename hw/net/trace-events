@@ -367,3 +367,17 @@ virtio_net_announce_notify(void) ""
 virtio_net_announce_timer(int round) "%d"
 virtio_net_handle_announce(int round) "%d"
 virtio_net_post_load_device(void)
+
+# tulip.c
+tulip_reg_write(uint64_t addr, const char *name, int size, uint64_t val) "addr 0x%02"PRIx64" (%s) size %d value 0x%08"PRIx64
+tulip_reg_read(uint64_t addr, const char *name, int size, uint64_t val) "addr 0x%02"PRIx64" (%s) size %d value 0x%08"PRIx64
+tulip_receive(const uint8_t *buf, size_t len) "buf %p size %zu"
+tulip_descriptor(const char *prefix, uint32_t addr, uint32_t status, uint32_t control, uint32_t len1, uint32_t len2, uint32_t buf1, uint32_t buf2) "%s 0x%08x: status 0x%08x control 0x%03x len1 %4d len2 %4d buf1 0x%08x buf2 0x%08x"
+tulip_rx_state(const char *state) "RX %s"
+tulip_tx_state(const char *state) "TX %s"
+tulip_irq(uint32_t mask, uint32_t en, const char *state) "mask 0x%08x ie 0x%08x %s"
+tulip_mii_write(int phy, int reg, uint16_t data) "phy 0x%x reg 0x%x data 0x%04x"
+tulip_mii_read(int phy, int reg, uint16_t data) "phy 0x%x, reg 0x%x data 0x%04x"
+tulip_reset(void) ""
+tulip_setup_frame(void) ""
+tulip_setup_filter(int n, uint8_t a, uint8_t b, uint8_t c, uint8_t d, uint8_t e, uint8_t f) "%d: %02x:%02x:%02x:%02x:%02x:%02x"

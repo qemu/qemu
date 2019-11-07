@@ -238,6 +238,7 @@ static void virtio_rng_device_unrealize(DeviceState *dev, Error **errp)
     qemu_del_vm_change_state_handler(vrng->vmstate);
     timer_del(vrng->rate_limit_timer);
     timer_free(vrng->rate_limit_timer);
+    virtio_del_queue(vdev, 0);
     virtio_cleanup(vdev);
 }
 

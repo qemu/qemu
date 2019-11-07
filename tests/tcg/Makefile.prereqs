@@ -1,0 +1,18 @@
+# -*- Mode: makefile -*-
+#
+# TCG Compiler Probe
+#
+# This Makefile fragment is included multiple times in the main make
+# script to probe for available compilers. This is used to build up a
+# selection of required docker targets before we invoke a sub-make for
+# each target.
+
+DOCKER_IMAGE:=
+
+-include $(BUILD_DIR)/tests/tcg/config-$(PROBE_TARGET).mak
+
+ifneq ($(DOCKER_IMAGE),)
+build-tcg-tests-$(PROBE_TARGET): docker-image-$(DOCKER_IMAGE)
+$(BUILD_DIR)/tests/tcg/config_$(PROBE_TARGET).mak: config-host.mak
+config-host.mak: $(SRC_PATH)/tests/tcg/configure.sh
+endif

@@ -101,7 +101,7 @@ static void s390_tod_realize(DeviceState *dev, Error **errp)
     S390TODState *td = S390_TOD(dev);
 
     /* Legacy migration interface */
-    register_savevm_live(NULL, "todclock", 0, 1, &savevm_tod, td);
+    register_savevm_live("todclock", 0, 1, &savevm_tod, td);
 }
 
 static void s390_tod_class_init(ObjectClass *oc, void *data)

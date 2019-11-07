@@ -1,0 +1,146 @@
+/*
+ * QEMU PCI IPMI BT emulation
+ *
+ * Copyright (c) 2017 Corey Minyard, MontaVista Software, LLC
+ *
+ * Permission is hereby granted, free of charge, to any person obtaining a copy
+ * of this software and associated documentation files (the "Software"), to deal
+ * in the Software without restriction, including without limitation the rights
+ * to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+ * copies of the Software, and to permit persons to whom the Software is
+ * furnished to do so, subject to the following conditions:
+ *
+ * The above copyright notice and this permission notice shall be included in
+ * all copies or substantial portions of the Software.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+ * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL
+ * THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+ * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+ * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
+ * THE SOFTWARE.
+ */
+#include "qemu/osdep.h"
+#include "migration/vmstate.h"
+#include "qapi/error.h"
+#include "hw/ipmi/ipmi_bt.h"
+#include "hw/pci/pci.h"
+
+#define TYPE_PCI_IPMI_BT "pci-ipmi-bt"
+#define PCI_IPMI_BT(obj) OBJECT_CHECK(PCIIPMIBTDevice, (obj), \
+                                       TYPE_PCI_IPMI_BT)
+
+typedef struct PCIIPMIBTDevice {
+    PCIDevice dev;
+    IPMIBT bt;
+    bool irq_enabled;
+    uint32_t uuid;
+} PCIIPMIBTDevice;
+
+static void pci_ipmi_raise_irq(IPMIBT *ik)
+{
+    PCIIPMIBTDevice *pik = ik->opaque;
+
+    pci_set_irq(&pik->dev, true);
+}
+
+static void pci_ipmi_lower_irq(IPMIBT *ik)
+{
+    PCIIPMIBTDevice *pik = ik->opaque;
+
+    pci_set_irq(&pik->dev, false);
+}
+
+static void pci_ipmi_bt_realize(PCIDevice *pd, Error **errp)
+{
+    PCIIPMIBTDevice *pik = PCI_IPMI_BT(pd);
+    IPMIInterface *ii = IPMI_INTERFACE(pd);
+    IPMIInterfaceClass *iic = IPMI_INTERFACE_GET_CLASS(ii);
+
+    if (!pik->bt.bmc) {
+        error_setg(errp, "IPMI device requires a bmc attribute to be set");
+        return;
+    }
+
+    pik->uuid = ipmi_next_uuid();
+
+    pik->bt.bmc->intf = ii;
+    pik->bt.opaque = pik;
+
+    pci_config_set_prog_interface(pd->config, 0x02); /* BT */
+    pci_config_set_interrupt_pin(pd->config, 0x01);
+    pik->bt.use_irq = 1;
+    pik->bt.raise_irq = pci_ipmi_raise_irq;
+    pik->bt.lower_irq = pci_ipmi_lower_irq;
+
+    iic->init(ii, 8, errp);
+    if (*errp) {
+        return;
+    }
+    pci_register_bar(pd, 0, PCI_BASE_ADDRESS_SPACE_IO, &pik->bt.io);
+}
+
+const VMStateDescription vmstate_PCIIPMIBTDevice = {
+    .name = TYPE_IPMI_INTERFACE_PREFIX "pci-bt",
+    .version_id = 1,
+    .minimum_version_id = 1,
+    .fields      = (VMStateField[]) {
+        VMSTATE_PCI_DEVICE(dev, PCIIPMIBTDevice),
+        VMSTATE_STRUCT(bt, PCIIPMIBTDevice, 1, vmstate_IPMIBT, IPMIBT),
+        VMSTATE_END_OF_LIST()
+    }
+};
+
+static void pci_ipmi_bt_instance_init(Object *obj)
+{
+    PCIIPMIBTDevice *pik = PCI_IPMI_BT(obj);
+
+    ipmi_bmc_find_and_link(obj, (Object **) &pik->bt.bmc);
+}
+
+static void *pci_ipmi_bt_get_backend_data(IPMIInterface *ii)
+{
+    PCIIPMIBTDevice *pik = PCI_IPMI_BT(ii);
+
+    return &pik->bt;
+}
+
+static void pci_ipmi_bt_class_init(ObjectClass *oc, void *data)
+{
+    DeviceClass *dc = DEVICE_CLASS(oc);
+    PCIDeviceClass *pdc = PCI_DEVICE_CLASS(oc);
+    IPMIInterfaceClass *iic = IPMI_INTERFACE_CLASS(oc);
+
+    pdc->vendor_id = PCI_VENDOR_ID_QEMU;
+    pdc->device_id = PCI_DEVICE_ID_QEMU_IPMI;
+    pdc->revision = 1;
+    pdc->class_id = PCI_CLASS_SERIAL_IPMI;
+
+    dc->vmsd = &vmstate_PCIIPMIBTDevice;
+    dc->desc = "PCI IPMI BT";
+    pdc->realize = pci_ipmi_bt_realize;
+
+    iic->get_backend_data = pci_ipmi_bt_get_backend_data;
+    ipmi_bt_class_init(iic);
+}
+
+static const TypeInfo pci_ipmi_bt_info = {
+    .name          = TYPE_PCI_IPMI_BT,
+    .parent        = TYPE_PCI_DEVICE,
+    .instance_size = sizeof(PCIIPMIBTDevice),
+    .instance_init = pci_ipmi_bt_instance_init,
+    .class_init    = pci_ipmi_bt_class_init,
+    .interfaces = (InterfaceInfo[]) {
+        { TYPE_IPMI_INTERFACE },
+        { INTERFACE_CONVENTIONAL_PCI_DEVICE },
+        { }
+    }
+};
+
+static void pci_ipmi_bt_register_types(void)
+{
+    type_register_static(&pci_ipmi_bt_info);
+}
+
+type_init(pci_ipmi_bt_register_types)

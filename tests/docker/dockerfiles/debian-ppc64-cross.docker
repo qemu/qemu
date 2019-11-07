@@ -1,12 +1,11 @@
 #
 # Docker ppc64 cross-compiler target
 #
-# This docker target builds on the debian sid base image which
-# contains cross compilers for Debian "ports" targets.
-FROM qemu:debian-sid
+# This docker target builds on the debian Buster base image.
+FROM qemu:debian10
 
 RUN apt update && \
     DEBIAN_FRONTEND=noninteractive eatmydata \
     apt install -y --no-install-recommends \
        gcc-powerpc64-linux-gnu \
-       libc6-dev-ppc64-cross || { echo "Failed to build - see debian-sid.docker notes"; exit 1; }
+       libc6-dev-ppc64-cross

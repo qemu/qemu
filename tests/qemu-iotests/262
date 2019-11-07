@@ -54,18 +54,18 @@ with iotests.FilePath('img') as img_path, \
 
     os.mkfifo(fifo)
 
-    iotests.log('Launching source VM...')
-    add_opts(vm_a)
-    vm_a.launch()
-
-    vm_a.enable_migration_events('A')
-
     iotests.log('Launching destination VM...')
     add_opts(vm_b)
     vm_b.add_incoming("exec: cat '%s'" % (fifo))
     vm_b.launch()
 
     vm_b.enable_migration_events('B')
+
+    iotests.log('Launching source VM...')
+    add_opts(vm_a)
+    vm_a.launch()
+
+    vm_a.enable_migration_events('A')
 
     iotests.log('Starting migration to B...')
     iotests.log(vm_a.qmp('migrate', uri='exec:cat >%s' % (fifo)))

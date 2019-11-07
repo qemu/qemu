@@ -346,5 +346,7 @@
 #define __NR_fsconfig 431
 #define __NR_fsmount 432
 #define __NR_fspick 433
+#define __NR_pidfd_open 434
+#define __NR_clone3 435
 
 #endif /* _ASM_X86_UNISTD_64_H */

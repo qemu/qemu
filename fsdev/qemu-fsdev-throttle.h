@@ -26,7 +26,7 @@ typedef struct FsThrottle {
     CoQueue      throttled_reqs[2];
 } FsThrottle;
 
-void fsdev_throttle_parse_opts(QemuOpts *, FsThrottle *, Error **);
+int fsdev_throttle_parse_opts(QemuOpts *, FsThrottle *, Error **);
 
 void fsdev_throttle_init(FsThrottle *);
 

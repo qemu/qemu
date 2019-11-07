@@ -198,6 +198,9 @@ DEF(goto_tb, 0, 0, 1, TCG_OPF_BB_EXIT | TCG_OPF_BB_END)
 DEF(goto_ptr, 0, 1, 0,
     TCG_OPF_BB_EXIT | TCG_OPF_BB_END | IMPL(TCG_TARGET_HAS_goto_ptr))
 
+DEF(plugin_cb_start, 0, 0, 3, TCG_OPF_NOT_PRESENT)
+DEF(plugin_cb_end, 0, 0, 0, TCG_OPF_NOT_PRESENT)
+
 DEF(qemu_ld_i32, 1, TLADDR_ARGS, 1,
     TCG_OPF_CALL_CLOBBER | TCG_OPF_SIDE_EFFECTS)
 DEF(qemu_st_i32, 0, TLADDR_ARGS + 1, 1,

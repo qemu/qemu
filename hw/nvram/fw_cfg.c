@@ -237,7 +237,7 @@ static void fw_cfg_bootsplash(FWCfgState *s)
 static void fw_cfg_reboot(FWCfgState *s)
 {
     const char *reboot_timeout = NULL;
-    int64_t rt_val = -1;
+    uint64_t rt_val = -1;
     uint32_t rt_le32;
 
     /* get user configuration */
@@ -247,10 +247,11 @@ static void fw_cfg_reboot(FWCfgState *s)
 
     if (reboot_timeout) {
         rt_val = qemu_opt_get_number(opts, "reboot-timeout", -1);
+
         /* validate the input */
-        if (rt_val < 0 || rt_val > 0xffff) {
+        if (rt_val > 0xffff && rt_val != (uint64_t)-1) {
             error_report("reboot timeout is invalid,"
-                         "it should be a value between 0 and 65535");
+                         "it should be a value between -1 and 65535");
             exit(1);
         }
     }
@@ -690,6 +691,15 @@ void fw_cfg_add_string(FWCfgState *s, uint16_t key, const char *value)
     fw_cfg_add_bytes(s, key, g_memdup(value, sz), sz);
 }
 
+void fw_cfg_modify_string(FWCfgState *s, uint16_t key, const char *value)
+{
+    size_t sz = strlen(value) + 1;
+    char *old;
+
+    old = fw_cfg_modify_bytes_read(s, key, g_memdup(value, sz), sz);
+    g_free(old);
+}
+
 void fw_cfg_add_i16(FWCfgState *s, uint16_t key, uint16_t value)
 {
     uint16_t *copy;
@@ -720,6 +730,16 @@ void fw_cfg_add_i32(FWCfgState *s, uint16_t key, uint32_t value)
     fw_cfg_add_bytes(s, key, copy, sizeof(value));
 }
 
+void fw_cfg_modify_i32(FWCfgState *s, uint16_t key, uint32_t value)
+{
+    uint32_t *copy, *old;
+
+    copy = g_malloc(sizeof(value));
+    *copy = cpu_to_le32(value);
+    old = fw_cfg_modify_bytes_read(s, key, copy, sizeof(value));
+    g_free(old);
+}
+
 void fw_cfg_add_i64(FWCfgState *s, uint16_t key, uint64_t value)
 {
     uint64_t *copy;
@@ -728,6 +748,16 @@ void fw_cfg_add_i64(FWCfgState *s, uint16_t key, uint64_t value)
     *copy = cpu_to_le64(value);
     trace_fw_cfg_add_i64(key, trace_key_name(key), value);
     fw_cfg_add_bytes(s, key, copy, sizeof(value));
+}
+
+void fw_cfg_modify_i64(FWCfgState *s, uint16_t key, uint64_t value)
+{
+    uint64_t *copy, *old;
+
+    copy = g_malloc(sizeof(value));
+    *copy = cpu_to_le64(value);
+    old = fw_cfg_modify_bytes_read(s, key, copy, sizeof(value));
+    g_free(old);
 }
 
 void fw_cfg_set_order_override(FWCfgState *s, int order)
@@ -920,13 +950,21 @@ void *fw_cfg_modify_file(FWCfgState *s, const char *filename,
 
 static void fw_cfg_machine_reset(void *opaque)
 {
+    MachineClass *mc = MACHINE_GET_CLASS(qdev_get_machine());
+    FWCfgState *s = opaque;
     void *ptr;
     size_t len;
-    FWCfgState *s = opaque;
-    char *bootindex = get_boot_devices_list(&len);
+    char *buf;
 
-    ptr = fw_cfg_modify_file(s, "bootorder", (uint8_t *)bootindex, len);
+    buf = get_boot_devices_list(&len);
+    ptr = fw_cfg_modify_file(s, "bootorder", (uint8_t *)buf, len);
     g_free(ptr);
+
+    if (!mc->legacy_fw_cfg_order) {
+        buf = get_boot_devices_lchs_list(&len);
+        ptr = fw_cfg_modify_file(s, "bios-geometry", (uint8_t *)buf, len);
+        g_free(ptr);
+    }
 }
 
 static void fw_cfg_machine_ready(struct Notifier *n, void *data)

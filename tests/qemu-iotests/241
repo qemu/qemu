@@ -23,8 +23,6 @@ echo "QA output created by $seq"
 
 status=1 # failure is the default!
 
-nbd_unix_socket=$TEST_DIR/test_qemu_nbd_socket
-
 _cleanup()
 {
     _cleanup_test_img

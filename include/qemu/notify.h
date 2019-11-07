@@ -40,6 +40,8 @@ void notifier_remove(Notifier *notifier);
 
 void notifier_list_notify(NotifierList *list, void *data);
 
+bool notifier_list_empty(NotifierList *list);
+
 /* Same as Notifier but allows .notify() to return errors */
 typedef struct NotifierWithReturn NotifierWithReturn;
 

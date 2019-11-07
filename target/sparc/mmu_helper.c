@@ -98,6 +98,7 @@ static int get_physical_address(CPUSPARCState *env, hwaddr *physical,
     int error_code = 0, is_dirty, is_user;
     unsigned long page_offset;
     CPUState *cs = env_cpu(env);
+    MemTxResult result;
 
     is_user = mmu_idx == MMU_USER_IDX;
 
@@ -120,7 +121,10 @@ static int get_physical_address(CPUSPARCState *env, hwaddr *physical,
     /* SPARC reference MMU table walk: Context table->L1->L2->PTE */
     /* Context base + context number */
     pde_ptr = (env->mmuregs[1] << 4) + (env->mmuregs[2] << 2);
-    pde = ldl_phys(cs->as, pde_ptr);
+    pde = address_space_ldl(cs->as, pde_ptr, MEMTXATTRS_UNSPECIFIED, &result);
+    if (result != MEMTX_OK) {
+        return 4 << 2; /* Translation fault, L = 0 */
+    }
 
     /* Ctx pde */
     switch (pde & PTE_ENTRYTYPE_MASK) {
@@ -132,7 +136,11 @@ static int get_physical_address(CPUSPARCState *env, hwaddr *physical,
         return 4 << 2;
     case 1: /* L0 PDE */
         pde_ptr = ((address >> 22) & ~3) + ((pde & ~3) << 4);
-        pde = ldl_phys(cs->as, pde_ptr);
+        pde = address_space_ldl(cs->as, pde_ptr,
+                                MEMTXATTRS_UNSPECIFIED, &result);
+        if (result != MEMTX_OK) {
+            return (1 << 8) | (4 << 2); /* Translation fault, L = 1 */
+        }
 
         switch (pde & PTE_ENTRYTYPE_MASK) {
         default:
@@ -142,7 +150,11 @@ static int get_physical_address(CPUSPARCState *env, hwaddr *physical,
             return (1 << 8) | (4 << 2);
         case 1: /* L1 PDE */
             pde_ptr = ((address & 0xfc0000) >> 16) + ((pde & ~3) << 4);
-            pde = ldl_phys(cs->as, pde_ptr);
+            pde = address_space_ldl(cs->as, pde_ptr,
+                                    MEMTXATTRS_UNSPECIFIED, &result);
+            if (result != MEMTX_OK) {
+                return (2 << 8) | (4 << 2); /* Translation fault, L = 2 */
+            }
 
             switch (pde & PTE_ENTRYTYPE_MASK) {
             default:
@@ -152,7 +164,11 @@ static int get_physical_address(CPUSPARCState *env, hwaddr *physical,
                 return (2 << 8) | (4 << 2);
             case 1: /* L2 PDE */
                 pde_ptr = ((address & 0x3f000) >> 10) + ((pde & ~3) << 4);
-                pde = ldl_phys(cs->as, pde_ptr);
+                pde = address_space_ldl(cs->as, pde_ptr,
+                                        MEMTXATTRS_UNSPECIFIED, &result);
+                if (result != MEMTX_OK) {
+                    return (3 << 8) | (4 << 2); /* Translation fault, L = 3 */
+                }
 
                 switch (pde & PTE_ENTRYTYPE_MASK) {
                 default:
@@ -272,11 +288,20 @@ target_ulong mmu_probe(CPUSPARCState *env, target_ulong address, int mmulev)
     CPUState *cs = env_cpu(env);
     hwaddr pde_ptr;
     uint32_t pde;
+    MemTxResult result;
+
+    /*
+     * TODO: MMU probe operations are supposed to set the fault
+     * status registers, but we don't do this.
+     */
 
     /* Context base + context number */
     pde_ptr = (hwaddr)(env->mmuregs[1] << 4) +
         (env->mmuregs[2] << 2);
-    pde = ldl_phys(cs->as, pde_ptr);
+    pde = address_space_ldl(cs->as, pde_ptr, MEMTXATTRS_UNSPECIFIED, &result);
+    if (result != MEMTX_OK) {
+        return 0;
+    }
 
     switch (pde & PTE_ENTRYTYPE_MASK) {
     default:
@@ -289,7 +314,11 @@ target_ulong mmu_probe(CPUSPARCState *env, target_ulong address, int mmulev)
             return pde;
         }
         pde_ptr = ((address >> 22) & ~3) + ((pde & ~3) << 4);
-        pde = ldl_phys(cs->as, pde_ptr);
+        pde = address_space_ldl(cs->as, pde_ptr,
+                                MEMTXATTRS_UNSPECIFIED, &result);
+        if (result != MEMTX_OK) {
+            return 0;
+        }
 
         switch (pde & PTE_ENTRYTYPE_MASK) {
         default:
@@ -303,7 +332,11 @@ target_ulong mmu_probe(CPUSPARCState *env, target_ulong address, int mmulev)
                 return pde;
             }
             pde_ptr = ((address & 0xfc0000) >> 16) + ((pde & ~3) << 4);
-            pde = ldl_phys(cs->as, pde_ptr);
+            pde = address_space_ldl(cs->as, pde_ptr,
+                                    MEMTXATTRS_UNSPECIFIED, &result);
+            if (result != MEMTX_OK) {
+                return 0;
+            }
 
             switch (pde & PTE_ENTRYTYPE_MASK) {
             default:
@@ -317,7 +350,11 @@ target_ulong mmu_probe(CPUSPARCState *env, target_ulong address, int mmulev)
                     return pde;
                 }
                 pde_ptr = ((address & 0x3f000) >> 10) + ((pde & ~3) << 4);
-                pde = ldl_phys(cs->as, pde_ptr);
+                pde = address_space_ldl(cs->as, pde_ptr,
+                                        MEMTXATTRS_UNSPECIFIED, &result);
+                if (result != MEMTX_OK) {
+                    return 0;
+                }
 
                 switch (pde & PTE_ENTRYTYPE_MASK) {
                 default:
@@ -339,11 +376,9 @@ void dump_mmu(CPUSPARCState *env)
     CPUState *cs = env_cpu(env);
     target_ulong va, va1, va2;
     unsigned int n, m, o;
-    hwaddr pde_ptr, pa;
+    hwaddr pa;
     uint32_t pde;
 
-    pde_ptr = (env->mmuregs[1] << 4) + (env->mmuregs[2] << 2);
-    pde = ldl_phys(cs->as, pde_ptr);
     qemu_printf("Root ptr: " TARGET_FMT_plx ", ctx: %d\n",
                 (hwaddr)env->mmuregs[1] << 4, env->mmuregs[2]);
     for (n = 0, va = 0; n < 256; n++, va += 16 * 1024 * 1024) {

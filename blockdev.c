@@ -1088,11 +1088,11 @@ void hmp_commit(Monitor *mon, const QDict *qdict)
 
         blk = blk_by_name(device);
         if (!blk) {
-            monitor_printf(mon, "Device '%s' not found\n", device);
+            error_report("Device '%s' not found", device);
             return;
         }
         if (!blk_is_available(blk)) {
-            monitor_printf(mon, "Device '%s' has no medium\n", device);
+            error_report("Device '%s' has no medium", device);
             return;
         }
 
@@ -1105,8 +1105,7 @@ void hmp_commit(Monitor *mon, const QDict *qdict)
         aio_context_release(aio_context);
     }
     if (ret < 0) {
-        monitor_printf(mon, "'commit' error for '%s': %s\n", device,
-                       strerror(-ret));
+        error_report("'commit' error for '%s': %s", device, strerror(-ret));
     }
 }
 
@@ -1966,7 +1965,6 @@ static void block_dirty_bitmap_add_prepare(BlkActionState *common,
     qmp_block_dirty_bitmap_add(action->node, action->name,
                                action->has_granularity, action->granularity,
                                action->has_persistent, action->persistent,
-                               action->has_autoload, action->autoload,
                                action->has_disabled, action->disabled,
                                &local_err);
 
@@ -2178,7 +2176,7 @@ static void block_dirty_bitmap_remove_commit(BlkActionState *common)
                                              common, common);
 
     bdrv_dirty_bitmap_set_busy(state->bitmap, false);
-    bdrv_release_dirty_bitmap(state->bs, state->bitmap);
+    bdrv_release_dirty_bitmap(state->bitmap);
 }
 
 static void abort_prepare(BlkActionState *common, Error **errp)
@@ -2858,7 +2856,6 @@ out:
 void qmp_block_dirty_bitmap_add(const char *node, const char *name,
                                 bool has_granularity, uint32_t granularity,
                                 bool has_persistent, bool persistent,
-                                bool has_autoload, bool autoload,
                                 bool has_disabled, bool disabled,
                                 Error **errp)
 {
@@ -2890,24 +2887,14 @@ void qmp_block_dirty_bitmap_add(const char *node, const char *name,
         persistent = false;
     }
 
-    if (has_autoload) {
-        warn_report("Autoload option is deprecated and its value is ignored");
-    }
-
     if (!has_disabled) {
         disabled = false;
     }
 
-    if (persistent) {
-        AioContext *aio_context = bdrv_get_aio_context(bs);
-        bool ok;
-
-        aio_context_acquire(aio_context);
-        ok = bdrv_can_store_new_dirty_bitmap(bs, name, granularity, errp);
-        aio_context_release(aio_context);
-        if (!ok) {
-            return;
-        }
+    if (persistent &&
+        !bdrv_can_store_new_dirty_bitmap(bs, name, granularity, errp))
+    {
+        return;
     }
 
     bitmap = bdrv_create_dirty_bitmap(bs, granularity, name, errp);
@@ -2939,22 +2926,14 @@ static BdrvDirtyBitmap *do_block_dirty_bitmap_remove(
         return NULL;
     }
 
-    if (bdrv_dirty_bitmap_get_persistence(bitmap)) {
-        AioContext *aio_context = bdrv_get_aio_context(bs);
-        Error *local_err = NULL;
-
-        aio_context_acquire(aio_context);
-        bdrv_remove_persistent_dirty_bitmap(bs, name, &local_err);
-        aio_context_release(aio_context);
-
-        if (local_err != NULL) {
-            error_propagate(errp, local_err);
+    if (bdrv_dirty_bitmap_get_persistence(bitmap) &&
+        bdrv_remove_persistent_dirty_bitmap(bs, name, errp) < 0)
+    {
             return NULL;
-        }
     }
 
     if (release) {
-        bdrv_release_dirty_bitmap(bs, bitmap);
+        bdrv_release_dirty_bitmap(bitmap);
     }
 
     if (bitmap_bs) {
@@ -3086,7 +3065,7 @@ static BdrvDirtyBitmap *do_block_dirty_bitmap_merge(
     bdrv_merge_dirty_bitmap(dst, anon, backup, errp);
 
  out:
-    bdrv_release_dirty_bitmap(bs, anon);
+    bdrv_release_dirty_bitmap(anon);
     return dst;
 }
 
@@ -3225,7 +3204,7 @@ void qmp_block_resize(bool has_device, const char *device,
     }
 
     bdrv_drained_begin(bs);
-    ret = blk_truncate(blk, size, PREALLOC_MODE_OFF, errp);
+    ret = blk_truncate(blk, size, false, PREALLOC_MODE_OFF, errp);
     bdrv_drained_end(bs);
 
 out:
@@ -3601,6 +3580,7 @@ static BlockJob *do_backup_common(BackupCommon *backup,
     job = backup_job_create(backup->job_id, bs, target_bs, backup->speed,
                             backup->sync, bmap, backup->bitmap_mode,
                             backup->compress,
+                            backup->filter_node_name,
                             backup->on_source_error,
                             backup->on_target_error,
                             job_flags, NULL, NULL, txn, errp);

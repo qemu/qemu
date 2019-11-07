@@ -19,7 +19,9 @@
  */
 
 #include "qemu/osdep.h"
+#ifdef CONFIG_QEMU_PRIVATE_XTS
 #include "crypto/xts.h"
+#endif
 #include "cipherpriv.h"
 
 #include <nettle/nettle-types.h>
@@ -30,6 +32,9 @@
 #include <nettle/serpent.h>
 #include <nettle/twofish.h>
 #include <nettle/ctr.h>
+#ifndef CONFIG_QEMU_PRIVATE_XTS
+#include <nettle/xts.h>
+#endif
 
 typedef void (*QCryptoCipherNettleFuncWrapper)(const void *ctx,
                                                size_t length,
@@ -626,9 +631,15 @@ qcrypto_nettle_cipher_encrypt(QCryptoCipher *cipher,
         break;
 
     case QCRYPTO_CIPHER_MODE_XTS:
+#ifdef CONFIG_QEMU_PRIVATE_XTS
         xts_encrypt(ctx->ctx, ctx->ctx_tweak,
                     ctx->alg_encrypt_wrapper, ctx->alg_encrypt_wrapper,
                     ctx->iv, len, out, in);
+#else
+        xts_encrypt_message(ctx->ctx, ctx->ctx_tweak,
+                            ctx->alg_encrypt_native,
+                            ctx->iv, len, out, in);
+#endif
         break;
 
     case QCRYPTO_CIPHER_MODE_CTR:
@@ -673,9 +684,16 @@ qcrypto_nettle_cipher_decrypt(QCryptoCipher *cipher,
         break;
 
     case QCRYPTO_CIPHER_MODE_XTS:
+#ifdef CONFIG_QEMU_PRIVATE_XTS
         xts_decrypt(ctx->ctx, ctx->ctx_tweak,
                     ctx->alg_encrypt_wrapper, ctx->alg_decrypt_wrapper,
                     ctx->iv, len, out, in);
+#else
+        xts_decrypt_message(ctx->ctx, ctx->ctx_tweak,
+                            ctx->alg_decrypt_native,
+                            ctx->alg_encrypt_native,
+                            ctx->iv, len, out, in);
+#endif
         break;
     case QCRYPTO_CIPHER_MODE_CTR:
         ctr_crypt(ctx->ctx, ctx->alg_encrypt_native,

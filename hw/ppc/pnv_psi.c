@@ -311,7 +311,7 @@ static void pnv_psi_set_xivr(PnvPsi *psi, uint32_t reg, uint64_t val)
      * do for now but a more accurate implementation would instead
      * use a fixed server/prio and a remapper of the generated irq.
      */
-    ics_simple_write_xive(ics, src, server, prio, prio);
+    ics_write_xive(ics, src, server, prio, prio);
 }
 
 static uint64_t pnv_psi_reg_read(PnvPsi *psi, uint32_t offset, bool mmio)
@@ -469,7 +469,7 @@ static void pnv_psi_power8_instance_init(Object *obj)
     Pnv8Psi *psi8 = PNV8_PSI(obj);
 
     object_initialize_child(obj, "ics-psi",  &psi8->ics, sizeof(psi8->ics),
-                            TYPE_ICS_SIMPLE, &error_abort, NULL);
+                            TYPE_ICS, &error_abort, NULL);
 }
 
 static const uint8_t irq_to_xivr[] = {
@@ -514,7 +514,7 @@ static void pnv_psi_power8_realize(DeviceState *dev, Error **errp)
         ics_set_irq_type(ics, i, true);
     }
 
-    psi->qirqs = qemu_allocate_irqs(ics_simple_set_irq, ics, ics->nr_irqs);
+    psi->qirqs = qemu_allocate_irqs(ics_set_irq, ics, ics->nr_irqs);
 
     /* XSCOM region for PSI registers */
     pnv_xscom_region_init(&psi->xscom_regs, OBJECT(dev), &pnv_psi_xscom_ops,
@@ -660,10 +660,19 @@ static void pnv_psi_notify(XiveNotifier *xf, uint32_t srcno)
 
     uint32_t offset =
         (psi->regs[PSIHB_REG(PSIHB9_IVT_OFFSET)] >> PSIHB9_IVT_OFF_SHIFT);
-    uint64_t lisn = cpu_to_be64(offset + srcno);
+    uint64_t data = XIVE_TRIGGER_PQ | offset | srcno;
+    MemTxResult result;
 
-    if (valid) {
-        cpu_physical_memory_write(notify_addr, &lisn, sizeof(lisn));
+    if (!valid) {
+        return;
+    }
+
+    address_space_stq_be(&address_space_memory, notify_addr, data,
+                         MEMTXATTRS_UNSPECIFIED, &result);
+    if (result != MEMTX_OK) {
+        qemu_log_mask(LOG_GUEST_ERROR, "%s: trigger failed @%"
+                      HWADDR_PRIx "\n", __func__, notif_port);
+        return;
     }
 }
 

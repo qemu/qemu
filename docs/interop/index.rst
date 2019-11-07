@@ -15,5 +15,6 @@ Contents:
    bitmaps
    live-block-operations
    pr-helper
+   qemu-ga
    vhost-user
    vhost-user-gpu

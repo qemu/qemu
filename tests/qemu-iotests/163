@@ -21,9 +21,6 @@
 import os, random, iotests, struct, qcow2, sys
 from iotests import qemu_img, qemu_io, image_size
 
-if sys.version_info.major == 2:
-    range = xrange
-
 test_img = os.path.join(iotests.test_dir, 'test.img')
 check_img = os.path.join(iotests.test_dir, 'check.img')
 
@@ -170,4 +167,5 @@ class TestShrink1M(ShrinkBaseClass):
 ShrinkBaseClass = None
 
 if __name__ == '__main__':
-    iotests.main(supported_fmts=['raw', 'qcow2'])
+    iotests.main(supported_fmts=['raw', 'qcow2'],
+                 supported_protocols=['file'])

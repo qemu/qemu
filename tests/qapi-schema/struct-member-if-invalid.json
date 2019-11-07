@@ -1,0 +1,3 @@
+# Cover member with invalid 'if'
+{ 'struct': 'Stru',
+  'data': { 'member': { 'type': 'int', 'if': true } } }

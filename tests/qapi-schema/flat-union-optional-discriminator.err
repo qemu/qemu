@@ -1,1 +1,2 @@
-tests/qapi-schema/flat-union-optional-discriminator.json:6: Discriminator of flat union 'MyUnion' does not allow optional name '*switch'
+flat-union-optional-discriminator.json: In union 'MyUnion':
+flat-union-optional-discriminator.json:6: discriminator member 'switch' of base type 'Base' must not be optional

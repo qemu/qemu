@@ -1,8 +1,11 @@
 #ifndef QEMU_MIPS_DEFS_H
 #define QEMU_MIPS_DEFS_H
 
-/* If we want to use host float regs... */
-//#define USE_HOST_FLOAT_REGS
+/*
+ * If we want to use host float regs...
+ *
+ * #define USE_HOST_FLOAT_REGS
+ */
 
 /* Real pages are variable size... */
 #define MIPS_TLB_MAX 128
@@ -57,43 +60,46 @@
 #define ASE_MXU           0x0200000000000000ULL
 
 /* MIPS CPU defines. */
-#define		CPU_MIPS1	(ISA_MIPS1)
-#define		CPU_MIPS2	(CPU_MIPS1 | ISA_MIPS2)
-#define		CPU_MIPS3	(CPU_MIPS2 | ISA_MIPS3)
-#define		CPU_MIPS4	(CPU_MIPS3 | ISA_MIPS4)
-#define		CPU_VR54XX	(CPU_MIPS4 | INSN_VR54XX)
-#define         CPU_R5900       (CPU_MIPS3 | INSN_R5900)
-#define		CPU_LOONGSON2E  (CPU_MIPS3 | INSN_LOONGSON2E)
-#define		CPU_LOONGSON2F  (CPU_MIPS3 | INSN_LOONGSON2F)
+#define CPU_MIPS1       (ISA_MIPS1)
+#define CPU_MIPS2       (CPU_MIPS1 | ISA_MIPS2)
+#define CPU_MIPS3       (CPU_MIPS2 | ISA_MIPS3)
+#define CPU_MIPS4       (CPU_MIPS3 | ISA_MIPS4)
+#define CPU_VR54XX      (CPU_MIPS4 | INSN_VR54XX)
+#define CPU_R5900       (CPU_MIPS3 | INSN_R5900)
+#define CPU_LOONGSON2E  (CPU_MIPS3 | INSN_LOONGSON2E)
+#define CPU_LOONGSON2F  (CPU_MIPS3 | INSN_LOONGSON2F)
 
-#define		CPU_MIPS5	(CPU_MIPS4 | ISA_MIPS5)
+#define CPU_MIPS5       (CPU_MIPS4 | ISA_MIPS5)
 
 /* MIPS Technologies "Release 1" */
-#define		CPU_MIPS32	(CPU_MIPS2 | ISA_MIPS32)
-#define		CPU_MIPS64	(CPU_MIPS5 | CPU_MIPS32 | ISA_MIPS64)
+#define CPU_MIPS32      (CPU_MIPS2 | ISA_MIPS32)
+#define CPU_MIPS64      (CPU_MIPS5 | CPU_MIPS32 | ISA_MIPS64)
 
 /* MIPS Technologies "Release 2" */
-#define		CPU_MIPS32R2	(CPU_MIPS32 | ISA_MIPS32R2)
-#define		CPU_MIPS64R2	(CPU_MIPS64 | CPU_MIPS32R2 | ISA_MIPS64R2)
+#define CPU_MIPS32R2    (CPU_MIPS32 | ISA_MIPS32R2)
+#define CPU_MIPS64R2    (CPU_MIPS64 | CPU_MIPS32R2 | ISA_MIPS64R2)
 
 /* MIPS Technologies "Release 3" */
-#define CPU_MIPS32R3 (CPU_MIPS32R2 | ISA_MIPS32R3)
-#define CPU_MIPS64R3 (CPU_MIPS64R2 | CPU_MIPS32R3 | ISA_MIPS64R3)
+#define CPU_MIPS32R3    (CPU_MIPS32R2 | ISA_MIPS32R3)
+#define CPU_MIPS64R3    (CPU_MIPS64R2 | CPU_MIPS32R3 | ISA_MIPS64R3)
 
 /* MIPS Technologies "Release 5" */
-#define CPU_MIPS32R5 (CPU_MIPS32R3 | ISA_MIPS32R5)
-#define CPU_MIPS64R5 (CPU_MIPS64R3 | CPU_MIPS32R5 | ISA_MIPS64R5)
+#define CPU_MIPS32R5    (CPU_MIPS32R3 | ISA_MIPS32R5)
+#define CPU_MIPS64R5    (CPU_MIPS64R3 | CPU_MIPS32R5 | ISA_MIPS64R5)
 
 /* MIPS Technologies "Release 6" */
-#define CPU_MIPS32R6 (CPU_MIPS32R5 | ISA_MIPS32R6)
-#define CPU_MIPS64R6 (CPU_MIPS64R5 | CPU_MIPS32R6 | ISA_MIPS64R6)
+#define CPU_MIPS32R6    (CPU_MIPS32R5 | ISA_MIPS32R6)
+#define CPU_MIPS64R6    (CPU_MIPS64R5 | CPU_MIPS32R6 | ISA_MIPS64R6)
 
 /* Wave Computing: "nanoMIPS" */
-#define CPU_NANOMIPS32 (CPU_MIPS32R6 | ISA_NANOMIPS32)
+#define CPU_NANOMIPS32  (CPU_MIPS32R6 | ISA_NANOMIPS32)
 
-/* Strictly follow the architecture standard:
-   - Disallow "special" instruction handling for PMON/SPIM.
-   Note that we still maintain Count/Compare to match the host clock. */
-//#define MIPS_STRICT_STANDARD 1
+/*
+ * Strictly follow the architecture standard:
+ * - Disallow "special" instruction handling for PMON/SPIM.
+ * Note that we still maintain Count/Compare to match the host clock.
+ *
+ * #define MIPS_STRICT_STANDARD 1
+ */
 
 #endif /* QEMU_MIPS_DEFS_H */

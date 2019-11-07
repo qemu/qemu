@@ -1,1 +1,2 @@
-tests/qapi-schema/enum-missing-data.json:2: Key 'data' is missing from enum 'MyEnum'
+enum-missing-data.json: In enum 'MyEnum':
+enum-missing-data.json:2: enum misses key 'data'

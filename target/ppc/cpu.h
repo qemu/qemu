@@ -235,6 +235,7 @@ typedef union _ppc_vsr_t {
 } ppc_vsr_t;
 
 typedef ppc_vsr_t ppc_avr_t;
+typedef ppc_vsr_t ppc_fprp_t;
 
 #if !defined(CONFIG_USER_ONLY)
 /* Software TLB cache */
@@ -559,6 +560,9 @@ enum {
 
 /*****************************************************************************/
 /* Floating point status and control register                                */
+#define FPSCR_DRN2   34 /* Decimal Floating-Point rounding control           */
+#define FPSCR_DRN1   33 /* Decimal Floating-Point rounding control           */
+#define FPSCR_DRN0   32 /* Decimal Floating-Point rounding control           */
 #define FPSCR_FX     31 /* Floating-point exception summary                  */
 #define FPSCR_FEX    30 /* Floating-point enabled exception summary          */
 #define FPSCR_VX     29 /* Floating-point invalid operation exception summ.  */
@@ -592,6 +596,7 @@ enum {
 #define FPSCR_NI     2  /* Floating-point non-IEEE mode                      */
 #define FPSCR_RN1    1
 #define FPSCR_RN0    0  /* Floating-point rounding control                   */
+#define fpscr_drn    (((env->fpscr) & FP_DRN) >> FPSCR_DRN0)
 #define fpscr_fex    (((env->fpscr) >> FPSCR_FEX)    & 0x1)
 #define fpscr_vx     (((env->fpscr) >> FPSCR_VX)     & 0x1)
 #define fpscr_ox     (((env->fpscr) >> FPSCR_OX)     & 0x1)
@@ -627,6 +632,10 @@ enum {
 #define fpscr_eex (((env->fpscr) >> FPSCR_XX) & ((env->fpscr) >> FPSCR_XE) &  \
                    0x1F)
 
+#define FP_DRN2         (1ull << FPSCR_DRN2)
+#define FP_DRN1         (1ull << FPSCR_DRN1)
+#define FP_DRN0         (1ull << FPSCR_DRN0)
+#define FP_DRN          (FP_DRN2 | FP_DRN1 | FP_DRN0)
 #define FP_FX           (1ull << FPSCR_FX)
 #define FP_FEX          (1ull << FPSCR_FEX)
 #define FP_VX           (1ull << FPSCR_VX)
@@ -662,7 +671,6 @@ enum {
 #define FP_RN0          (1ull << FPSCR_RN0)
 #define FP_RN           (FP_RN1 | FP_RN0)
 
-#define FP_MODE         FP_RN
 #define FP_ENABLES      (FP_VE | FP_OE | FP_UE | FP_ZE | FP_XE)
 #define FP_STATUS       (FP_FR | FP_FI | FP_FPRF)
 

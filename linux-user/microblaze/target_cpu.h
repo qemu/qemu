@@ -19,12 +19,17 @@
 #ifndef MICROBLAZE_TARGET_CPU_H
 #define MICROBLAZE_TARGET_CPU_H
 
-static inline void cpu_clone_regs(CPUMBState *env, target_ulong newsp)
+static inline void cpu_clone_regs_child(CPUMBState *env, target_ulong newsp,
+                                        unsigned flags)
 {
     if (newsp) {
         env->regs[R_SP] = newsp;
     }
     env->regs[3] = 0;
+}
+
+static inline void cpu_clone_regs_parent(CPUMBState *env, unsigned flags)
+{
 }
 
 static inline void cpu_set_tls(CPUMBState *env, target_ulong newtls)

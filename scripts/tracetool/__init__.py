@@ -277,6 +277,9 @@ class Event(object):
         if fmt.find("%m") != -1 or fmt_trans.find("%m") != -1:
             raise ValueError("Event format '%m' is forbidden, pass the error "
                              "as an explicit trace argument")
+        if fmt.endswith(r'\n"'):
+            raise ValueError("Event format must not end with a newline "
+                             "character")
 
         if len(fmt_trans) > 0:
             fmt = [fmt_trans, fmt]
@@ -453,12 +456,12 @@ def generate(events, group, format, backends,
     import tracetool
 
     format = str(format)
-    if len(format) is 0:
+    if len(format) == 0:
         raise TracetoolError("format not set")
     if not tracetool.format.exists(format):
         raise TracetoolError("unknown format: %s" % format)
 
-    if len(backends) is 0:
+    if len(backends) == 0:
         raise TracetoolError("no backends specified")
     for backend in backends:
         if not tracetool.backend.exists(backend):

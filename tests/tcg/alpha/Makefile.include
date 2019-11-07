@@ -1,2 +1,0 @@
-DOCKER_IMAGE=debian-alpha-cross
-DOCKER_CROSS_COMPILER=alpha-linux-gnu-gcc

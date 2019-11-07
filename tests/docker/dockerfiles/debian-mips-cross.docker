@@ -1,9 +1,9 @@
 #
 # Docker mips cross-compiler target
 #
-# This docker target builds on the debian Stretch base image.
+# This docker target builds on the debian Buster base image.
 #
-FROM qemu:debian9
+FROM qemu:debian10
 
 MAINTAINER Philippe Mathieu-Daudé <f4bug@amsat.org>
 
@@ -16,10 +16,11 @@ RUN apt update && \
 
 RUN apt update && \
     DEBIAN_FRONTEND=noninteractive eatmydata \
-    apt build-dep -yy -a mips qemu
+    apt build-dep -yy -a mips --arch-only qemu
 
 # Specify the cross prefix for this image (see tests/docker/common.rc)
 ENV QEMU_CONFIGURE_OPTS --cross-prefix=mips-linux-gnu-
+ENV DEF_TARGET_LIST mips-softmmu,mipsel-linux-user
 
 # Install extra libraries to increase code coverage
 RUN apt update && \

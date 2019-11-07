@@ -1,1 +1,2 @@
-tests/qapi-schema/alternate-unknown.json:2: Member 'unknown' of alternate 'Alt' uses unknown type 'MissingType'
+alternate-unknown.json: In alternate 'Alt':
+alternate-unknown.json:2: branch 'unknown' uses unknown type 'MissingType'

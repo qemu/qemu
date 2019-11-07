@@ -183,8 +183,7 @@ another to load the state back.
 
 .. code:: c
 
-  int register_savevm_live(DeviceState *dev,
-                           const char *idstr,
+  int register_savevm_live(const char *idstr,
                            int instance_id,
                            int version_id,
                            SaveVMHandlers *ops,

@@ -12,10 +12,11 @@ RUN dpkg --add-architecture ppc64el && \
 
 RUN apt update && \
     DEBIAN_FRONTEND=noninteractive eatmydata \
-    apt build-dep -yy -a ppc64el qemu
+    apt build-dep -yy -a ppc64el --arch-only qemu
 
 # Specify the cross prefix for this image (see tests/docker/common.rc)
 ENV QEMU_CONFIGURE_OPTS --cross-prefix=powerpc64le-linux-gnu-
+ENV DEF_TARGET_LIST ppc64-softmmu,ppc64-linux-user,ppc64abi32-linux-user
 
 # Install extra libraries to increase code coverage
 RUN apt update && \

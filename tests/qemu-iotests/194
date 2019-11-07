@@ -26,8 +26,8 @@ iotests.verify_platform(['linux'])
 
 with iotests.FilePath('source.img') as source_img_path, \
      iotests.FilePath('dest.img') as dest_img_path, \
-     iotests.FilePath('migration.sock') as migration_sock_path, \
-     iotests.FilePath('nbd.sock') as nbd_sock_path, \
+     iotests.FilePaths(['migration.sock', 'nbd.sock'], iotests.sock_dir) as \
+         [migration_sock_path, nbd_sock_path], \
      iotests.VM('source') as source_vm, \
      iotests.VM('dest') as dest_vm:
 

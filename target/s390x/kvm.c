@@ -28,6 +28,7 @@
 #include "cpu.h"
 #include "internal.h"
 #include "kvm_s390x.h"
+#include "sysemu/kvm_int.h"
 #include "qapi/error.h"
 #include "qemu/error-report.h"
 #include "qemu/timer.h"
@@ -122,6 +123,14 @@
  */
 #define VCPU_IRQ_BUF_SIZE(max_cpus) (sizeof(struct kvm_s390_irq) * \
                                      (max_cpus + NR_LOCAL_IRQS))
+/*
+ * KVM does only support memory slots up to KVM_MEM_MAX_NR_PAGES pages
+ * as the dirty bitmap must be managed by bitops that take an int as
+ * position indicator. This would end at an unaligned  address
+ * (0x7fffff00000). As future variants might provide larger pages
+ * and to make all addresses properly aligned, let us split at 4TB.
+ */
+#define KVM_SLOT_MAX_BYTES (4UL * TiB)
 
 static CPUWatchpoint hw_watchpoint;
 /*
@@ -311,11 +320,24 @@ void kvm_s390_set_max_pagesize(uint64_t pagesize, Error **errp)
     cap_hpage_1m = 1;
 }
 
-int kvm_arch_init(MachineState *ms, KVMState *s)
+static void ccw_machine_class_foreach(ObjectClass *oc, void *opaque)
 {
-    MachineClass *mc = MACHINE_GET_CLASS(ms);
+    MachineClass *mc = MACHINE_CLASS(oc);
 
     mc->default_cpu_type = S390_CPU_TYPE_NAME("host");
+}
+
+int kvm_arch_init(MachineState *ms, KVMState *s)
+{
+    object_class_foreach(ccw_machine_class_foreach, TYPE_S390_CCW_MACHINE,
+                         false, NULL);
+
+    if (!kvm_check_extension(kvm_state, KVM_CAP_DEVICE_CTRL)) {
+        error_report("KVM is missing capability KVM_CAP_DEVICE_CTRL - "
+                     "please use kernel 3.15 or newer");
+        return -1;
+    }
+
     cap_sync_regs = kvm_check_extension(s, KVM_CAP_SYNC_REGS);
     cap_async_pf = kvm_check_extension(s, KVM_CAP_ASYNC_PF);
     cap_mem_op = kvm_check_extension(s, KVM_CAP_S390_MEM_OP);
@@ -348,6 +370,7 @@ int kvm_arch_init(MachineState *ms, KVMState *s)
      */
     /* kvm_vm_enable_cap(s, KVM_CAP_S390_AIS, 0); */
 
+    kvm_set_max_memslot_size(KVM_SLOT_MAX_BYTES);
     return 0;
 }
 

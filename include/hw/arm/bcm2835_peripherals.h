@@ -20,9 +20,12 @@
 #include "hw/misc/bcm2835_property.h"
 #include "hw/misc/bcm2835_rng.h"
 #include "hw/misc/bcm2835_mbox.h"
+#include "hw/misc/bcm2835_thermal.h"
 #include "hw/sd/sdhci.h"
 #include "hw/sd/bcm2835_sdhost.h"
 #include "hw/gpio/bcm2835_gpio.h"
+#include "hw/timer/bcm2835_systmr.h"
+#include "hw/misc/unimp.h"
 
 #define TYPE_BCM2835_PERIPHERALS "bcm2835-peripherals"
 #define BCM2835_PERIPHERALS(obj) \
@@ -37,6 +40,10 @@ typedef struct BCM2835PeripheralState {
     MemoryRegion ram_alias[4];
     qemu_irq irq, fiq;
 
+    BCM2835SystemTimerState systmr;
+    UnimplementedDeviceState armtmr;
+    UnimplementedDeviceState cprman;
+    UnimplementedDeviceState a2w;
     PL011State uart0;
     BCM2835AuxState aux;
     BCM2835FBState fb;
@@ -48,6 +55,17 @@ typedef struct BCM2835PeripheralState {
     SDHCIState sdhci;
     BCM2835SDHostState sdhost;
     BCM2835GpioState gpio;
+    Bcm2835ThermalState thermal;
+    UnimplementedDeviceState i2s;
+    UnimplementedDeviceState spi[1];
+    UnimplementedDeviceState i2c[3];
+    UnimplementedDeviceState otp;
+    UnimplementedDeviceState dbus;
+    UnimplementedDeviceState ave0;
+    UnimplementedDeviceState bscsl;
+    UnimplementedDeviceState smi;
+    UnimplementedDeviceState dwc2;
+    UnimplementedDeviceState sdramc;
 } BCM2835PeripheralState;
 
 #endif /* BCM2835_PERIPHERALS_H */

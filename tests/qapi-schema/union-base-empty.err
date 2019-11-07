@@ -1,1 +1,2 @@
-tests/qapi-schema/union-base-empty.json:5: Discriminator 'type' is not a member of base struct 'Empty'
+union-base-empty.json: In union 'TestUnion':
+union-base-empty.json:5: discriminator 'type' is not a member of 'base'

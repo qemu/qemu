@@ -251,3 +251,20 @@ qemu_edk2_get_thread_count()
     printf '1\n'
   fi
 }
+
+
+# Work around <https://bugzilla.tianocore.org/show_bug.cgi?id=1607> by
+# filtering jobserver-related flags out of MAKEFLAGS. Print the result to the
+# standard output.
+#
+# Parameters:
+#   $1: the value of the MAKEFLAGS variable
+qemu_edk2_quirk_tianocore_1607()
+{
+  local makeflags="$1"
+
+  printf %s "$makeflags" \
+  | LC_ALL=C sed --regexp-extended \
+      --expression='s/--jobserver-(auth|fds)=[0-9]+,[0-9]+//' \
+      --expression='s/-j([0-9]+)?//'
+}

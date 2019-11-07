@@ -1,1 +1,2 @@
-tests/qapi-schema/struct-member-invalid-dict.json:2: Key 'type' is missing from member '*a' of 'data' for struct 'foo'
+struct-member-invalid-dict.json: In struct 'foo':
+struct-member-invalid-dict.json:2: 'data' member '*a' misses key 'type'

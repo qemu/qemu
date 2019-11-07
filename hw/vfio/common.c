@@ -509,6 +509,7 @@ static void vfio_listener_region_add(MemoryListener *listener,
     int ret;
     VFIOHostDMAWindow *hostwin;
     bool hostwin_found;
+    Error *err = NULL;
 
     if (vfio_listener_skipped_section(section)) {
         trace_vfio_listener_region_add_skip(
@@ -543,13 +544,20 @@ static void vfio_listener_region_add(MemoryListener *listener,
                                hostwin->max_iova - hostwin->min_iova + 1,
                                section->offset_within_address_space,
                                int128_get64(section->size))) {
-                ret = -1;
+                error_setg(&err,
+                    "region [0x%"PRIx64",0x%"PRIx64"] overlaps with existing"
+                    "host DMA window [0x%"PRIx64",0x%"PRIx64"]",
+                    section->offset_within_address_space,
+                    section->offset_within_address_space +
+                        int128_get64(section->size) - 1,
+                    hostwin->min_iova, hostwin->max_iova);
                 goto fail;
             }
         }
 
         ret = vfio_spapr_create_window(container, section, &pgsize);
         if (ret) {
+            error_setg_errno(&err, -ret, "Failed to create SPAPR window");
             goto fail;
         }
 
@@ -594,10 +602,8 @@ static void vfio_listener_region_add(MemoryListener *listener,
     }
 
     if (!hostwin_found) {
-        error_report("vfio: IOMMU container %p can't map guest IOVA region"
-                     " 0x%"HWADDR_PRIx"..0x%"HWADDR_PRIx,
-                     container, iova, end);
-        ret = -EFAULT;
+        error_setg(&err, "Container %p can't map guest IOVA region"
+                   " 0x%"HWADDR_PRIx"..0x%"HWADDR_PRIx, container, iova, end);
         goto fail;
     }
 
@@ -630,9 +636,14 @@ static void vfio_listener_region_add(MemoryListener *listener,
                             section->offset_within_region,
                             int128_get64(llend),
                             iommu_idx);
-        QLIST_INSERT_HEAD(&container->giommu_list, giommu, giommu_next);
 
-        memory_region_register_iommu_notifier(section->mr, &giommu->n);
+        ret = memory_region_register_iommu_notifier(section->mr, &giommu->n,
+                                                    &err);
+        if (ret) {
+            g_free(giommu);
+            goto fail;
+        }
+        QLIST_INSERT_HEAD(&container->giommu_list, giommu, giommu_next);
         memory_region_iommu_replay(giommu->iommu, &giommu->n);
 
         return;
@@ -664,11 +675,12 @@ static void vfio_listener_region_add(MemoryListener *listener,
     ret = vfio_dma_map(container, iova, int128_get64(llsize),
                        vaddr, section->readonly);
     if (ret) {
-        error_report("vfio_dma_map(%p, 0x%"HWADDR_PRIx", "
-                     "0x%"HWADDR_PRIx", %p) = %d (%m)",
-                     container, iova, int128_get64(llsize), vaddr, ret);
+        error_setg(&err, "vfio_dma_map(%p, 0x%"HWADDR_PRIx", "
+                   "0x%"HWADDR_PRIx", %p) = %d (%m)",
+                   container, iova, int128_get64(llsize), vaddr, ret);
         if (memory_region_is_ram_device(section->mr)) {
             /* Allow unexpected mappings not to be fatal for RAM devices */
+            error_report_err(err);
             return;
         }
         goto fail;
@@ -688,9 +700,14 @@ fail:
      */
     if (!container->initialized) {
         if (!container->error) {
-            container->error = ret;
+            error_propagate_prepend(&container->error, err,
+                                    "Region %s: ",
+                                    memory_region_name(section->mr));
+        } else {
+            error_free(err);
         }
     } else {
+        error_report_err(err);
         hw_error("vfio: DMA mapping failed, unable to continue");
     }
 }
@@ -1251,6 +1268,7 @@ static int vfio_connect_container(VFIOGroup *group, AddressSpace *as,
     container = g_malloc0(sizeof(*container));
     container->space = space;
     container->fd = fd;
+    container->error = NULL;
     QLIST_INIT(&container->giommu_list);
     QLIST_INIT(&container->hostwin_list);
 
@@ -1308,9 +1326,9 @@ static int vfio_connect_container(VFIOGroup *group, AddressSpace *as,
                                      &address_space_memory);
             if (container->error) {
                 memory_listener_unregister(&container->prereg_listener);
-                ret = container->error;
-                error_setg(errp,
-                    "RAM memory listener initialization failed for container");
+                ret = -1;
+                error_propagate_prepend(errp, container->error,
+                    "RAM memory listener initialization failed: ");
                 goto free_container_exit;
             }
         }
@@ -1365,9 +1383,9 @@ static int vfio_connect_container(VFIOGroup *group, AddressSpace *as,
     memory_listener_register(&container->listener, container->space->as);
 
     if (container->error) {
-        ret = container->error;
-        error_setg_errno(errp, -ret,
-                         "memory listener initialization failed for container");
+        ret = -1;
+        error_propagate_prepend(errp, container->error,
+            "memory listener initialization failed: ");
         goto listener_release_exit;
     }
 

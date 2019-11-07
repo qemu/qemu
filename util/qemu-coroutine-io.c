@@ -67,6 +67,7 @@ qemu_co_send_recv(int sockfd, void *buf, size_t bytes, bool do_send)
 }
 
 typedef struct {
+    AioContext *ctx;
     Coroutine *co;
     int fd;
 } FDYieldUntilData;
@@ -74,7 +75,7 @@ typedef struct {
 static void fd_coroutine_enter(void *opaque)
 {
     FDYieldUntilData *data = opaque;
-    qemu_set_fd_handler(data->fd, NULL, NULL, NULL);
+    aio_set_fd_handler(data->ctx, data->fd, false, NULL, NULL, NULL, NULL);
     qemu_coroutine_enter(data->co);
 }
 
@@ -83,8 +84,10 @@ void coroutine_fn yield_until_fd_readable(int fd)
     FDYieldUntilData data;
 
     assert(qemu_in_coroutine());
+    data.ctx = qemu_get_current_aio_context();
     data.co = qemu_coroutine_self();
     data.fd = fd;
-    qemu_set_fd_handler(fd, fd_coroutine_enter, NULL, &data);
+    aio_set_fd_handler(
+        data.ctx, fd, false, fd_coroutine_enter, NULL, NULL, &data);
     qemu_coroutine_yield();
 }

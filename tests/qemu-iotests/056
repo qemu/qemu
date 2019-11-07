@@ -133,6 +133,7 @@ class BackupTest(iotests.QMPTestCase):
         self.vm = iotests.VM()
         self.test_img = img_create('test')
         self.dest_img = img_create('dest')
+        self.dest_img2 = img_create('dest2')
         self.ref_img = img_create('ref')
         self.vm.add_drive(self.test_img)
         self.vm.launch()
@@ -141,6 +142,7 @@ class BackupTest(iotests.QMPTestCase):
         self.vm.shutdown()
         try_remove(self.test_img)
         try_remove(self.dest_img)
+        try_remove(self.dest_img2)
         try_remove(self.ref_img)
 
     def hmp_io_writes(self, drive, patterns):
@@ -253,9 +255,9 @@ class BackupTest(iotests.QMPTestCase):
         res = self.vm.qmp('query-block-jobs')
         self.assert_qmp(res, 'return[0]/status', 'concluded')
         # Leave zombie job un-dismissed, observe a failure:
-        res = self.qmp_backup_and_wait(serror="Node 'drive0' is busy: block device is in use by block job: backup",
+        res = self.qmp_backup_and_wait(serror="Job ID 'drive0' already in use",
                                        device='drive0', format=iotests.imgfmt,
-                                       sync='full', target=self.dest_img,
+                                       sync='full', target=self.dest_img2,
                                        auto_dismiss=False)
         self.assertEqual(res, False)
         # OK, dismiss the zombie.
@@ -265,7 +267,7 @@ class BackupTest(iotests.QMPTestCase):
         self.assert_qmp(res, 'return', [])
         # Ensure it's really gone.
         self.qmp_backup_and_wait(device='drive0', format=iotests.imgfmt,
-                                 sync='full', target=self.dest_img,
+                                 sync='full', target=self.dest_img2,
                                  auto_dismiss=False)
 
     def dismissal_failure(self, dismissal_opt):
@@ -335,4 +337,5 @@ class BackupTest(iotests.QMPTestCase):
         self.dismissal_failure(True)
 
 if __name__ == '__main__':
-    iotests.main(supported_fmts=['qcow2', 'qed'])
+    iotests.main(supported_fmts=['qcow2', 'qed'],
+                 supported_protocols=['file'])

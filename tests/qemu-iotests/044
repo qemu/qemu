@@ -28,9 +28,6 @@ import struct
 import subprocess
 import sys
 
-if sys.version_info.major == 2:
-    range = xrange
-
 test_img = os.path.join(iotests.test_dir, 'test.img')
 
 class TestRefcountTableGrowth(iotests.QMPTestCase):
@@ -118,4 +115,5 @@ class TestRefcountTableGrowth(iotests.QMPTestCase):
         pass
 
 if __name__ == '__main__':
-    iotests.main(supported_fmts=['qcow2'])
+    iotests.main(supported_fmts=['qcow2'],
+                 supported_protocols=['file'])

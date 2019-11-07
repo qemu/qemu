@@ -2285,7 +2285,8 @@ static int64_t sd_getlength(BlockDriverState *bs)
 }
 
 static int coroutine_fn sd_co_truncate(BlockDriverState *bs, int64_t offset,
-                                       PreallocMode prealloc, Error **errp)
+                                       bool exact, PreallocMode prealloc,
+                                       Error **errp)
 {
     BDRVSheepdogState *s = bs->opaque;
     int ret, fd;
@@ -2601,7 +2602,7 @@ static coroutine_fn int sd_co_writev(BlockDriverState *bs, int64_t sector_num,
 
     assert(!flags);
     if (offset > s->inode.vdi_size) {
-        ret = sd_co_truncate(bs, offset, PREALLOC_MODE_OFF, NULL);
+        ret = sd_co_truncate(bs, offset, false, PREALLOC_MODE_OFF, NULL);
         if (ret < 0) {
             return ret;
         }

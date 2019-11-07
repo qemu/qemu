@@ -848,7 +848,6 @@ BlockJobDriver test_job_driver = {
         .instance_size  = sizeof(TestBlockJob),
         .free           = block_job_free,
         .user_resume    = block_job_user_resume,
-        .drain          = block_job_drain,
         .run            = test_job_run,
         .complete       = test_job_complete,
         .prepare        = test_job_prepare,
@@ -1574,7 +1573,6 @@ static const BlockJobDriver test_drop_backing_job_driver = {
         .instance_size  = sizeof(TestDropBackingBlockJob),
         .free           = block_job_free,
         .user_resume    = block_job_user_resume,
-        .drain          = block_job_drain,
         .run            = test_drop_backing_job_run,
         .commit         = test_drop_backing_job_commit,
     }
@@ -1711,7 +1709,6 @@ static const BlockJobDriver test_simple_job_driver = {
         .instance_size  = sizeof(TestSimpleBlockJob),
         .free           = block_job_free,
         .user_resume    = block_job_user_resume,
-        .drain          = block_job_drain,
         .run            = test_simple_job_run,
         .clean          = test_simple_job_clean,
     },

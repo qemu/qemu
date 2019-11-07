@@ -1,2 +1,2 @@
-# unions cannot be empty
+# simple unions cannot be empty
 { 'union': 'Union', 'data': { } }

@@ -1,1 +1,2 @@
-tests/qapi-schema/enum-clash-member.json:2: 'one_two' (member of MyEnum) collides with 'one-two' (member of MyEnum)
+enum-clash-member.json: In enum 'MyEnum':
+enum-clash-member.json:2: value 'one_two' collides with value 'one-two'

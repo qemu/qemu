@@ -118,7 +118,12 @@ typedef struct IPMIInterface IPMIInterface;
 typedef struct IPMIInterfaceClass {
     InterfaceClass parent;
 
-    void (*init)(struct IPMIInterface *s, Error **errp);
+    /*
+     * min_size is the requested I/O size and must be a power of 2.
+     * This is so PCI (or other busses) can request a bigger range.
+     * Use 0 for the default.
+     */
+    void (*init)(struct IPMIInterface *s, unsigned int min_size, Error **errp);
 
     /*
      * Perform various operations on the hardware.  If checkonly is

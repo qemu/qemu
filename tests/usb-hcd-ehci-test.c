@@ -8,7 +8,7 @@
  */
 
 #include "qemu/osdep.h"
-#include "libqtest.h"
+#include "libqtest-single.h"
 #include "libqos/pci-pc.h"
 #include "hw/usb/uhci-regs.h"
 #include "hw/usb/ehci-regs.h"
@@ -139,7 +139,7 @@ static void pci_ehci_port_3_hotplug(void)
 
 static void pci_ehci_port_hotplug(void)
 {
-    usb_test_hotplug("ich9-ehci-1", "3", pci_ehci_port_3_hotplug);
+    usb_test_hotplug(global_qtest, "ich9-ehci-1", "3", pci_ehci_port_3_hotplug);
 }
 
 

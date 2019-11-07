@@ -20,12 +20,17 @@
 #ifndef NIOS2_TARGET_CPU_H
 #define NIOS2_TARGET_CPU_H
 
-static inline void cpu_clone_regs(CPUNios2State *env, target_ulong newsp)
+static inline void cpu_clone_regs_child(CPUNios2State *env, target_ulong newsp,
+                                        unsigned flags)
 {
     if (newsp) {
         env->regs[R_SP] = newsp;
     }
     env->regs[R_RET0] = 0;
+}
+
+static inline void cpu_clone_regs_parent(CPUNios2State *env, unsigned flags)
+{
 }
 
 static inline void cpu_set_tls(CPUNios2State *env, target_ulong newtls)

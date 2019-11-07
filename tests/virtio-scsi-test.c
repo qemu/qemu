@@ -123,10 +123,16 @@ static QVirtioSCSIQueues *qvirtio_scsi_init(QVirtioDevice *dev)
     QVirtioSCSIQueues *vs;
     const uint8_t test_unit_ready_cdb[VIRTIO_SCSI_CDB_SIZE] = {};
     struct virtio_scsi_cmd_resp resp;
+    uint64_t features;
     int i;
 
     vs = g_new0(QVirtioSCSIQueues, 1);
     vs->dev = dev;
+
+    features = qvirtio_get_features(dev);
+    features &= ~(QVIRTIO_F_BAD_FEATURE | (1ull << VIRTIO_RING_F_EVENT_IDX));
+    qvirtio_set_features(dev, features);
+
     vs->num_queues = qvirtio_config_readl(dev, 0);
 
     g_assert_cmpint(vs->num_queues, <, MAX_NUM_QUEUES);
@@ -134,6 +140,8 @@ static QVirtioSCSIQueues *qvirtio_scsi_init(QVirtioDevice *dev)
     for (i = 0; i < vs->num_queues + 2; i++) {
         vs->vq[i] = qvirtqueue_setup(dev, alloc, i);
     }
+
+    qvirtio_set_driver_ok(dev);
 
     /* Clear the POWER ON OCCURRED unit attention */
     g_assert_cmpint(virtio_scsi_do_command(vs, test_unit_ready_cdb,

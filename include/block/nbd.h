@@ -340,6 +340,7 @@ void nbd_export_put(NBDExport *exp);
 
 BlockBackend *nbd_export_get_blockdev(NBDExport *exp);
 
+AioContext *nbd_export_aio_context(NBDExport *exp);
 NBDExport *nbd_export_find(const char *name);
 void nbd_export_close_all(void);
 

@@ -1,0 +1,9 @@
+# Features listed in the doc comment must exist in the actual schema
+
+##
+# @foo:
+#
+# Features:
+# @a: a
+##
+{ 'command': 'foo' }

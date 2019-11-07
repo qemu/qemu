@@ -58,3 +58,6 @@
 [submodule "roms/opensbi"]
 	path = roms/opensbi
 	url = 	https://git.qemu.org/git/opensbi.git
+[submodule "roms/qboot"]
+	path = roms/qboot
+	url = https://github.com/bonzini/qboot

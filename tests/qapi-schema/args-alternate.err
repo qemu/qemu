@@ -1,1 +1,2 @@
-tests/qapi-schema/args-alternate.json:3: 'data' for command 'oops' cannot use alternate type 'Alt'
+args-alternate.json: In command 'oops':
+args-alternate.json:3: command's 'data' cannot take alternate type 'Alt'

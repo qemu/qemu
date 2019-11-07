@@ -1,1 +1,2 @@
-tests/qapi-schema/features-no-list.json:1: Struct 'FeatureStruct0' requires an array for 'features'
+features-no-list.json: In struct 'FeatureStruct0':
+features-no-list.json:1: 'features' must be an array

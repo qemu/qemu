@@ -55,10 +55,16 @@ static void *iothread_run(void *opaque)
     return NULL;
 }
 
+static void iothread_stop_bh(void *opaque)
+{
+    IOThread *iothread = opaque;
+
+    iothread->stopping = true;
+}
+
 void iothread_join(IOThread *iothread)
 {
-    iothread->stopping = true;
-    aio_notify(iothread->ctx);
+    aio_bh_schedule_oneshot(iothread->ctx, iothread_stop_bh, iothread);
     qemu_thread_join(&iothread->thread);
     qemu_cond_destroy(&iothread->init_done_cond);
     qemu_mutex_destroy(&iothread->init_done_lock);

@@ -423,7 +423,7 @@ void qemu_iovec_init_extended(
 {
     size_t mid_head, mid_tail;
     int total_niov, mid_niov = 0;
-    struct iovec *p, *mid_iov;
+    struct iovec *p, *mid_iov = NULL;
 
     if (mid_len) {
         mid_iov = qiov_slice(mid_qiov, mid_offset, mid_len,
@@ -446,7 +446,8 @@ void qemu_iovec_init_extended(
         p++;
     }
 
-    if (mid_len) {
+    assert(!mid_niov == !mid_len);
+    if (mid_niov) {
         memcpy(p, mid_iov, mid_niov * sizeof(*p));
         p[0].iov_base = (uint8_t *)p[0].iov_base + mid_head;
         p[0].iov_len -= mid_head;

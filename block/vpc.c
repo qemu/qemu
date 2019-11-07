@@ -885,6 +885,7 @@ static int create_dynamic_disk(BlockBackend *blk, uint8_t *buf,
         goto fail;
     }
 
+    ret = 0;
  fail:
     return ret;
 }
@@ -897,7 +898,7 @@ static int create_fixed_disk(BlockBackend *blk, uint8_t *buf,
     /* Add footer to total size */
     total_size += HEADER_SIZE;
 
-    ret = blk_truncate(blk, total_size, PREALLOC_MODE_OFF, errp);
+    ret = blk_truncate(blk, total_size, false, PREALLOC_MODE_OFF, errp);
     if (ret < 0) {
         return ret;
     }
@@ -908,7 +909,7 @@ static int create_fixed_disk(BlockBackend *blk, uint8_t *buf,
         return ret;
     }
 
-    return ret;
+    return 0;
 }
 
 static int calculate_rounded_image_size(BlockdevCreateOptionsVpc *vpc_opts,

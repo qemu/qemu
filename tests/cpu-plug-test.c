@@ -12,6 +12,7 @@
 #include "qemu-common.h"
 #include "libqtest-single.h"
 #include "qapi/qmp/qdict.h"
+#include "qapi/qmp/qlist.h"
 
 struct PlugTestData {
     char *machine;
@@ -72,12 +73,15 @@ static void test_plug_without_cpu_add(gconstpointer data)
     g_free(args);
 }
 
-static void test_plug_with_device_add_x86(gconstpointer data)
+static void test_plug_with_device_add(gconstpointer data)
 {
     const PlugTestData *td = data;
     char *args;
-    unsigned int s, c, t;
     QTestState *qts;
+    QDict *resp;
+    QList *cpus;
+    QObject *e;
+    int hotplugged = 0;
 
     args = g_strdup_printf("-machine %s -cpu %s "
                            "-smp 1,sockets=%u,cores=%u,threads=%u,maxcpus=%u",
@@ -85,43 +89,29 @@ static void test_plug_with_device_add_x86(gconstpointer data)
                            td->sockets, td->cores, td->threads, td->maxcpus);
     qts = qtest_init(args);
 
-    for (s = 1; s < td->sockets; s++) {
-        for (c = 0; c < td->cores; c++) {
-            for (t = 0; t < td->threads; t++) {
-                char *id = g_strdup_printf("id-%i-%i-%i", s, c, t);
-                qtest_qmp_device_add(qts, td->device_model, id,
-                                     "{'socket-id':%u, 'core-id':%u,"
-                                     " 'thread-id':%u}",
-                                     s, c, t);
-                g_free(id);
-            }
+    resp = qtest_qmp(qts, "{ 'execute': 'query-hotpluggable-cpus'}");
+    g_assert(qdict_haskey(resp, "return"));
+    cpus = qdict_get_qlist(resp, "return");
+    g_assert(cpus);
+
+    while ((e = qlist_pop(cpus))) {
+        const QDict *cpu, *props;
+
+        cpu = qobject_to(QDict, e);
+        if (qdict_haskey(cpu, "qom-path")) {
+            continue;
         }
+
+        g_assert(qdict_haskey(cpu, "props"));
+        props = qdict_get_qdict(cpu, "props");
+
+        qtest_qmp_device_add_qdict(qts, td->device_model, props);
+        hotplugged++;
     }
 
-    qtest_quit(qts);
-    g_free(args);
-}
-
-static void test_plug_with_device_add_coreid(gconstpointer data)
-{
-    const PlugTestData *td = data;
-    char *args;
-    unsigned int c;
-    QTestState *qts;
-
-    args = g_strdup_printf("-machine %s -cpu %s "
-                           "-smp 1,sockets=%u,cores=%u,threads=%u,maxcpus=%u",
-                           td->machine, td->cpu_model,
-                           td->sockets, td->cores, td->threads, td->maxcpus);
-    qts = qtest_init(args);
-
-    for (c = 1; c < td->cores; c++) {
-        char *id = g_strdup_printf("id-%i", c);
-        qtest_qmp_device_add(qts, td->device_model, id,
-                             "{'core-id':%u}", c);
-        g_free(id);
-    }
-
+    /* make sure that there were hotplugged CPUs */
+    g_assert(hotplugged);
+    qobject_unref(resp);
     qtest_quit(qts);
     g_free(args);
 }
@@ -182,7 +172,7 @@ static void add_pc_test_case(const char *mname)
         path = g_strdup_printf("cpu-plug/%s/device-add/%ux%ux%u&maxcpus=%u",
                                mname, data2->sockets, data2->cores,
                                data2->threads, data2->maxcpus);
-        qtest_add_data_func_full(path, data2, test_plug_with_device_add_x86,
+        qtest_add_data_func_full(path, data2, test_plug_with_device_add,
                                  test_data_free);
         g_free(path);
     }
@@ -209,7 +199,7 @@ static void add_pseries_test_case(const char *mname)
     path = g_strdup_printf("cpu-plug/%s/device-add/%ux%ux%u&maxcpus=%u",
                            mname, data->sockets, data->cores,
                            data->threads, data->maxcpus);
-    qtest_add_data_func_full(path, data, test_plug_with_device_add_coreid,
+    qtest_add_data_func_full(path, data, test_plug_with_device_add,
                              test_data_free);
     g_free(path);
 }
@@ -246,7 +236,7 @@ static void add_s390x_test_case(const char *mname)
     path = g_strdup_printf("cpu-plug/%s/device-add/%ux%ux%u&maxcpus=%u",
                            mname, data2->sockets, data2->cores,
                            data2->threads, data2->maxcpus);
-    qtest_add_data_func_full(path, data2, test_plug_with_device_add_coreid,
+    qtest_add_data_func_full(path, data2, test_plug_with_device_add,
                              test_data_free);
     g_free(path);
 }

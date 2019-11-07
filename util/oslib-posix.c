@@ -514,60 +514,6 @@ void os_mem_prealloc(int fd, char *area, size_t memory, int smp_cpus,
     }
 }
 
-uint64_t qemu_get_pmem_size(const char *filename, Error **errp)
-{
-    struct stat st;
-
-    if (stat(filename, &st) < 0) {
-        error_setg(errp, "unable to stat pmem file \"%s\"", filename);
-        return 0;
-    }
-
-#if defined(__linux__)
-    /* Special handling for devdax character devices */
-    if (S_ISCHR(st.st_mode)) {
-        char *subsystem_path = NULL;
-        char *subsystem = NULL;
-        char *size_path = NULL;
-        char *size_str = NULL;
-        uint64_t ret = 0;
-
-        subsystem_path = g_strdup_printf("/sys/dev/char/%d:%d/subsystem",
-                                         major(st.st_rdev), minor(st.st_rdev));
-        subsystem = g_file_read_link(subsystem_path, NULL);
-        if (!subsystem) {
-            error_setg(errp, "unable to read subsystem for pmem file \"%s\"",
-                       filename);
-            goto devdax_err;
-        }
-
-        if (!g_str_has_suffix(subsystem, "/dax")) {
-            error_setg(errp, "pmem file \"%s\" is not a dax device", filename);
-            goto devdax_err;
-        }
-
-        size_path = g_strdup_printf("/sys/dev/char/%d:%d/size",
-                                    major(st.st_rdev), minor(st.st_rdev));
-        if (!g_file_get_contents(size_path, &size_str, NULL, NULL)) {
-            error_setg(errp, "unable to read size for pmem file \"%s\"",
-                       size_path);
-            goto devdax_err;
-        }
-
-        ret = g_ascii_strtoull(size_str, NULL, 0);
-
-devdax_err:
-        g_free(size_str);
-        g_free(size_path);
-        g_free(subsystem);
-        g_free(subsystem_path);
-        return ret;
-    }
-#endif /* defined(__linux__) */
-
-    return st.st_size;
-}
-
 char *qemu_get_pid_name(pid_t pid)
 {
     char *name = NULL;
@@ -671,7 +617,7 @@ void *qemu_alloc_stack(size_t *sz)
 #ifdef CONFIG_DEBUG_STACK_USAGE
     void *ptr2;
 #endif
-    size_t pagesz = getpagesize();
+    size_t pagesz = qemu_real_host_page_size;
 #ifdef _SC_THREAD_STACK_MIN
     /* avoid stacks smaller than _SC_THREAD_STACK_MIN */
     long min_stack_sz = sysconf(_SC_THREAD_STACK_MIN);
@@ -733,7 +679,7 @@ void qemu_free_stack(void *stack, size_t sz)
     unsigned int usage;
     void *ptr;
 
-    for (ptr = stack + getpagesize(); ptr < stack + sz;
+    for (ptr = stack + qemu_real_host_page_size; ptr < stack + sz;
          ptr += sizeof(uint32_t)) {
         if (*(uint32_t *)ptr != 0xdeadbeaf) {
             break;

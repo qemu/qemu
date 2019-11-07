@@ -40,6 +40,11 @@ void notifier_list_notify(NotifierList *list, void *data)
     }
 }
 
+bool notifier_list_empty(NotifierList *list)
+{
+    return QLIST_EMPTY(&list->notifiers);
+}
+
 void notifier_with_return_list_init(NotifierWithReturnList *list)
 {
     QLIST_INIT(&list->notifiers);

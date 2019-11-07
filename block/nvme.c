@@ -23,6 +23,7 @@
 #include "qemu/option.h"
 #include "qemu/vfio-helpers.h"
 #include "block/block_int.h"
+#include "sysemu/replay.h"
 #include "trace.h"
 
 #include "block/nvme.h"
@@ -110,6 +111,9 @@ typedef struct {
 
     uint64_t max_transfer;
     bool plugged;
+
+    bool supports_write_zeroes;
+    bool supports_discard;
 
     CoMutex dma_map_lock;
     CoQueue dma_flush_queue;
@@ -351,7 +355,8 @@ static bool nvme_process_completion(BDRVNVMeState *s, NVMeQueuePair *q)
         smp_mb_release();
         *q->cq.doorbell = cpu_to_le32(q->cq.head);
         if (!qemu_co_queue_empty(&q->free_req_queue)) {
-            aio_bh_schedule_oneshot(s->aio_context, nvme_free_req_queue_cb, q);
+            replay_bh_schedule_oneshot_event(s->aio_context,
+                                             nvme_free_req_queue_cb, q);
         }
     }
     q->busy = false;
@@ -421,6 +426,7 @@ static void nvme_identify(BlockDriverState *bs, int namespace, Error **errp)
     NvmeIdNs *idns;
     NvmeLBAF *lbaf;
     uint8_t *resp;
+    uint16_t oncs;
     int r;
     uint64_t iova;
     NvmeCmd cmd = {
@@ -458,6 +464,10 @@ static void nvme_identify(BlockDriverState *bs, int namespace, Error **errp)
     s->max_transfer = MIN_NON_ZERO(s->max_transfer,
                           s->page_size / sizeof(uint64_t) * s->page_size);
 
+    oncs = le16_to_cpu(idctrl->oncs);
+    s->supports_write_zeroes = !!(oncs & NVME_ONCS_WRITE_ZEROS);
+    s->supports_discard = !!(oncs & NVME_ONCS_DSM);
+
     memset(resp, 0, 4096);
 
     cmd.cdw10 = 0;
@@ -469,6 +479,12 @@ static void nvme_identify(BlockDriverState *bs, int namespace, Error **errp)
 
     s->nsze = le64_to_cpu(idns->nsze);
     lbaf = &idns->lbaf[NVME_ID_NS_FLBAS_INDEX(idns->flbas)];
+
+    if (NVME_ID_NS_DLFEAT_WRITE_ZEROES(idns->dlfeat) &&
+            NVME_ID_NS_DLFEAT_READ_BEHAVIOR(idns->dlfeat) ==
+                    NVME_ID_NS_DLFEAT_READ_BEHAVIOR_ZEROES) {
+        bs->supported_write_flags |= BDRV_REQ_MAY_UNMAP;
+    }
 
     if (lbaf->ms) {
         error_setg(errp, "Namespaces with metadata are not yet supported");
@@ -764,6 +780,8 @@ static int nvme_file_open(BlockDriverState *bs, QDict *options, int flags,
     int ret;
     BDRVNVMeState *s = bs->opaque;
 
+    bs->supported_write_flags = BDRV_REQ_FUA;
+
     opts = qemu_opts_create(&runtime_opts, NULL, 0, &error_abort);
     qemu_opts_absorb_qdict(opts, options, &error_abort);
     device = qemu_opt_get(opts, NVME_BLOCK_OPT_DEVICE);
@@ -792,7 +810,6 @@ static int nvme_file_open(BlockDriverState *bs, QDict *options, int flags,
             goto fail;
         }
     }
-    bs->supported_write_flags = BDRV_REQ_FUA;
     return 0;
 fail:
     nvme_close(bs);
@@ -935,7 +952,7 @@ static void nvme_rw_cb(void *opaque, int ret)
         /* The rw coroutine hasn't yielded, don't try to enter. */
         return;
     }
-    aio_bh_schedule_oneshot(data->ctx, nvme_rw_cb_bh, data);
+    replay_bh_schedule_oneshot_event(data->ctx, nvme_rw_cb_bh, data);
 }
 
 static coroutine_fn int nvme_co_prw_aligned(BlockDriverState *bs,
@@ -1086,6 +1103,140 @@ static coroutine_fn int nvme_co_flush(BlockDriverState *bs)
 }
 
 
+static coroutine_fn int nvme_co_pwrite_zeroes(BlockDriverState *bs,
+                                              int64_t offset,
+                                              int bytes,
+                                              BdrvRequestFlags flags)
+{
+    BDRVNVMeState *s = bs->opaque;
+    NVMeQueuePair *ioq = s->queues[1];
+    NVMeRequest *req;
+
+    uint32_t cdw12 = ((bytes >> s->blkshift) - 1) & 0xFFFF;
+
+    if (!s->supports_write_zeroes) {
+        return -ENOTSUP;
+    }
+
+    NvmeCmd cmd = {
+        .opcode = NVME_CMD_WRITE_ZEROS,
+        .nsid = cpu_to_le32(s->nsid),
+        .cdw10 = cpu_to_le32((offset >> s->blkshift) & 0xFFFFFFFF),
+        .cdw11 = cpu_to_le32(((offset >> s->blkshift) >> 32) & 0xFFFFFFFF),
+    };
+
+    NVMeCoData data = {
+        .ctx = bdrv_get_aio_context(bs),
+        .ret = -EINPROGRESS,
+    };
+
+    if (flags & BDRV_REQ_MAY_UNMAP) {
+        cdw12 |= (1 << 25);
+    }
+
+    if (flags & BDRV_REQ_FUA) {
+        cdw12 |= (1 << 30);
+    }
+
+    cmd.cdw12 = cpu_to_le32(cdw12);
+
+    trace_nvme_write_zeroes(s, offset, bytes, flags);
+    assert(s->nr_queues > 1);
+    req = nvme_get_free_req(ioq);
+    assert(req);
+
+    nvme_submit_command(s, ioq, req, &cmd, nvme_rw_cb, &data);
+
+    data.co = qemu_coroutine_self();
+    while (data.ret == -EINPROGRESS) {
+        qemu_coroutine_yield();
+    }
+
+    trace_nvme_rw_done(s, true, offset, bytes, data.ret);
+    return data.ret;
+}
+
+
+static int coroutine_fn nvme_co_pdiscard(BlockDriverState *bs,
+                                         int64_t offset,
+                                         int bytes)
+{
+    BDRVNVMeState *s = bs->opaque;
+    NVMeQueuePair *ioq = s->queues[1];
+    NVMeRequest *req;
+    NvmeDsmRange *buf;
+    QEMUIOVector local_qiov;
+    int ret;
+
+    NvmeCmd cmd = {
+        .opcode = NVME_CMD_DSM,
+        .nsid = cpu_to_le32(s->nsid),
+        .cdw10 = cpu_to_le32(0), /*number of ranges - 0 based*/
+        .cdw11 = cpu_to_le32(1 << 2), /*deallocate bit*/
+    };
+
+    NVMeCoData data = {
+        .ctx = bdrv_get_aio_context(bs),
+        .ret = -EINPROGRESS,
+    };
+
+    if (!s->supports_discard) {
+        return -ENOTSUP;
+    }
+
+    assert(s->nr_queues > 1);
+
+    buf = qemu_try_blockalign0(bs, s->page_size);
+    if (!buf) {
+        return -ENOMEM;
+    }
+
+    buf->nlb = cpu_to_le32(bytes >> s->blkshift);
+    buf->slba = cpu_to_le64(offset >> s->blkshift);
+    buf->cattr = 0;
+
+    qemu_iovec_init(&local_qiov, 1);
+    qemu_iovec_add(&local_qiov, buf, 4096);
+
+    req = nvme_get_free_req(ioq);
+    assert(req);
+
+    qemu_co_mutex_lock(&s->dma_map_lock);
+    ret = nvme_cmd_map_qiov(bs, &cmd, req, &local_qiov);
+    qemu_co_mutex_unlock(&s->dma_map_lock);
+
+    if (ret) {
+        req->busy = false;
+        goto out;
+    }
+
+    trace_nvme_dsm(s, offset, bytes);
+
+    nvme_submit_command(s, ioq, req, &cmd, nvme_rw_cb, &data);
+
+    data.co = qemu_coroutine_self();
+    while (data.ret == -EINPROGRESS) {
+        qemu_coroutine_yield();
+    }
+
+    qemu_co_mutex_lock(&s->dma_map_lock);
+    ret = nvme_cmd_unmap_qiov(bs, &local_qiov);
+    qemu_co_mutex_unlock(&s->dma_map_lock);
+
+    if (ret) {
+        goto out;
+    }
+
+    ret = data.ret;
+    trace_nvme_dsm_done(s, offset, bytes, ret);
+out:
+    qemu_iovec_destroy(&local_qiov);
+    qemu_vfree(buf);
+    return ret;
+
+}
+
+
 static int nvme_reopen_prepare(BDRVReopenState *reopen_state,
                                BlockReopenQueue *queue, Error **errp)
 {
@@ -1190,6 +1341,10 @@ static BlockDriver bdrv_nvme = {
 
     .bdrv_co_preadv           = nvme_co_preadv,
     .bdrv_co_pwritev          = nvme_co_pwritev,
+
+    .bdrv_co_pwrite_zeroes    = nvme_co_pwrite_zeroes,
+    .bdrv_co_pdiscard         = nvme_co_pdiscard,
+
     .bdrv_co_flush_to_disk    = nvme_co_flush,
     .bdrv_reopen_prepare      = nvme_reopen_prepare,
 

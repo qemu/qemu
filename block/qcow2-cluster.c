@@ -462,27 +462,6 @@ static int coroutine_fn do_perform_cow_read(BlockDriverState *bs,
     return 0;
 }
 
-static bool coroutine_fn do_perform_cow_encrypt(BlockDriverState *bs,
-                                                uint64_t src_cluster_offset,
-                                                uint64_t cluster_offset,
-                                                unsigned offset_in_cluster,
-                                                uint8_t *buffer,
-                                                unsigned bytes)
-{
-    if (bytes && bs->encrypted) {
-        BDRVQcow2State *s = bs->opaque;
-        assert((offset_in_cluster & ~BDRV_SECTOR_MASK) == 0);
-        assert((bytes & ~BDRV_SECTOR_MASK) == 0);
-        assert(s->crypto);
-        if (qcow2_co_encrypt(bs, cluster_offset,
-                             src_cluster_offset + offset_in_cluster,
-                             buffer, bytes) < 0) {
-            return false;
-        }
-    }
-    return true;
-}
-
 static int coroutine_fn do_perform_cow_write(BlockDriverState *bs,
                                              uint64_t cluster_offset,
                                              unsigned offset_in_cluster,
@@ -890,12 +869,19 @@ static int perform_cow(BlockDriverState *bs, QCowL2Meta *m)
 
     /* Encrypt the data if necessary before writing it */
     if (bs->encrypted) {
-        if (!do_perform_cow_encrypt(bs, m->offset, m->alloc_offset,
-                                    start->offset, start_buffer,
-                                    start->nb_bytes) ||
-            !do_perform_cow_encrypt(bs, m->offset, m->alloc_offset,
-                                    end->offset, end_buffer, end->nb_bytes)) {
-            ret = -EIO;
+        ret = qcow2_co_encrypt(bs,
+                               m->alloc_offset + start->offset,
+                               m->offset + start->offset,
+                               start_buffer, start->nb_bytes);
+        if (ret < 0) {
+            goto fail;
+        }
+
+        ret = qcow2_co_encrypt(bs,
+                               m->alloc_offset + end->offset,
+                               m->offset + end->offset,
+                               end_buffer, end->nb_bytes);
+        if (ret < 0) {
             goto fail;
         }
     }
@@ -1344,6 +1330,9 @@ static int handle_alloc(BlockDriverState *bs, uint64_t guest_offset,
     nb_clusters = MIN(nb_clusters, s->l2_slice_size - l2_index);
     assert(nb_clusters <= INT_MAX);
 
+    /* Limit total allocation byte count to INT_MAX */
+    nb_clusters = MIN(nb_clusters, INT_MAX >> s->cluster_bits);
+
     /* Find L2 entry for the first involved cluster */
     ret = get_cluster_table(bs, guest_offset, &l2_slice, &l2_index);
     if (ret < 0) {
@@ -1351,13 +1340,7 @@ static int handle_alloc(BlockDriverState *bs, uint64_t guest_offset,
     }
 
     entry = be64_to_cpu(l2_slice[l2_index]);
-
-    /* For the moment, overwrite compressed clusters one by one */
-    if (entry & QCOW_OFLAG_COMPRESSED) {
-        nb_clusters = 1;
-    } else {
-        nb_clusters = count_cow_clusters(bs, nb_clusters, l2_slice, l2_index);
-    }
+    nb_clusters = count_cow_clusters(bs, nb_clusters, l2_slice, l2_index);
 
     /* This function is only called when there were no non-COW clusters, so if
      * we can't find any unallocated or COW clusters either, something is
@@ -1432,7 +1415,7 @@ static int handle_alloc(BlockDriverState *bs, uint64_t guest_offset,
      * request actually writes to (excluding COW at the end)
      */
     uint64_t requested_bytes = *bytes + offset_into_cluster(s, guest_offset);
-    int avail_bytes = MIN(INT_MAX, nb_clusters << s->cluster_bits);
+    int avail_bytes = nb_clusters << s->cluster_bits;
     int nb_bytes = MIN(requested_bytes, avail_bytes);
     QCowL2Meta *old_m = *m;
 

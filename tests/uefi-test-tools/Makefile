@@ -99,7 +99,10 @@ Build/bios-tables-test.%.efi: build-edk2-tools
 	+./build.sh $(edk2_dir) BiosTablesTest $* $@
 
 build-edk2-tools:
-	$(MAKE) -C $(edk2_dir)/BaseTools
+	$(MAKE) -C $(edk2_dir)/BaseTools \
+		PYTHON_COMMAND=$${EDK2_PYTHON_COMMAND:-python3} \
+		EXTRA_OPTFLAGS='$(EDK2_BASETOOLS_OPTFLAGS)' \
+		EXTRA_LDFLAGS='$(EDK2_BASETOOLS_LDFLAGS)'
 
 clean:
 	rm -rf Build Conf log

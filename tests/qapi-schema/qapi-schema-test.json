@@ -25,6 +25,11 @@
 { 'struct': 'Empty1', 'data': { } }
 { 'struct': 'Empty2', 'base': 'Empty1', 'data': { } }
 
+# Likewise for an empty flat union
+{ 'union': 'Union',
+  'base': { 'type': 'EnumOne' }, 'discriminator': 'type',
+  'data': { } }
+
 { 'command': 'user_def_cmd0', 'data': 'Empty2', 'returns': 'Empty2' }
 
 # for testing override of default naming heuristic
@@ -149,6 +154,7 @@
 { 'command': 'guest-sync', 'data': { 'arg': 'any' }, 'returns': 'any' }
 { 'command': 'boxed-struct', 'boxed': true, 'data': 'UserDefZero' }
 { 'command': 'boxed-union', 'data': 'UserDefListUnion', 'boxed': true }
+{ 'command': 'boxed-empty', 'boxed': true, 'data': 'Empty1' }
 
 # Smoke test on out-of-band and allow-preconfig-test
 { 'command': 'test-flags-command', 'allow-oob': true, 'allow-preconfig': true }
@@ -180,23 +186,26 @@
 { 'event': 'EVENT_D',
   'data': { 'a' : 'EventStructOne', 'b' : 'str', '*c': 'str', '*enum3': 'EnumOne' } }
 { 'event': 'EVENT_E', 'boxed': true, 'data': 'UserDefZero' }
-{ 'event': 'EVENT_F', 'boxed': true, 'data': 'UserDefAlternate' }
+{ 'event': 'EVENT_F', 'boxed': true, 'data': 'UserDefFlatUnion' }
+{ 'event': 'EVENT_G', 'boxed': true, 'data': 'Empty1' }
 
 # test that we correctly compile downstream extensions, as well as munge
 # ticklish names
+# also test union and alternate with just one branch
 { 'enum': '__org.qemu_x-Enum', 'data': [ '__org.qemu_x-value' ] }
 { 'struct': '__org.qemu_x-Base',
   'data': { '__org.qemu_x-member1': '__org.qemu_x-Enum' } }
 { 'struct': '__org.qemu_x-Struct', 'base': '__org.qemu_x-Base',
   'data': { '__org.qemu_x-member2': 'str', '*wchar-t': 'int' } }
 { 'union': '__org.qemu_x-Union1', 'data': { '__org.qemu_x-branch': 'str' } }
+{ 'alternate': '__org.qemu_x-Alt1', 'data': { '__org.qemu_x-branch': 'str' } }
 { 'struct': '__org.qemu_x-Struct2',
   'data': { 'array': ['__org.qemu_x-Union1'] } }
 { 'union': '__org.qemu_x-Union2', 'base': '__org.qemu_x-Base',
   'discriminator': '__org.qemu_x-member1',
   'data': { '__org.qemu_x-value': '__org.qemu_x-Struct2' } }
 { 'alternate': '__org.qemu_x-Alt',
-  'data': { '__org.qemu_x-branch': 'str', 'b': '__org.qemu_x-Base' } }
+  'data': { '__org.qemu_x-branch': '__org.qemu_x-Base' } }
 { 'event': '__ORG.QEMU_X-EVENT', 'data': '__org.qemu_x-Struct' }
 { 'command': '__org.qemu_x-command',
   'data': { 'a': ['__org.qemu_x-Enum'], 'b': ['__org.qemu_x-Struct'],
@@ -281,3 +290,21 @@
             'cfs1': 'CondFeatureStruct1',
             'cfs2': 'CondFeatureStruct2',
             'cfs3': 'CondFeatureStruct3' } }
+
+# test 'features' for command
+
+{ 'command': 'test-command-features0',
+  'features': [] }
+{ 'command': 'test-command-features1',
+  'features': [ 'feature1' ] }
+{ 'command': 'test-command-features3',
+  'features': [ 'feature1', 'feature2' ] }
+
+{ 'command': 'test-command-cond-features1',
+  'features': [ { 'name': 'feature1', 'if': 'defined(TEST_IF_FEATURE_1)'} ] }
+{ 'command': 'test-command-cond-features2',
+  'features': [ { 'name': 'feature1', 'if': 'defined(TEST_IF_FEATURE_1)'},
+                { 'name': 'feature2', 'if': 'defined(TEST_IF_FEATURE_2)'} ] }
+{ 'command': 'test-command-cond-features3',
+  'features': [ { 'name': 'feature1', 'if': [ 'defined(TEST_IF_COND_1)',
+                                              'defined(TEST_IF_COND_2)'] } ] }

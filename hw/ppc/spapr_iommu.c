@@ -205,9 +205,10 @@ static int spapr_tce_get_attr(IOMMUMemoryRegion *iommu,
     return -EINVAL;
 }
 
-static void spapr_tce_notify_flag_changed(IOMMUMemoryRegion *iommu,
-                                          IOMMUNotifierFlag old,
-                                          IOMMUNotifierFlag new)
+static int spapr_tce_notify_flag_changed(IOMMUMemoryRegion *iommu,
+                                         IOMMUNotifierFlag old,
+                                         IOMMUNotifierFlag new,
+                                         Error **errp)
 {
     struct SpaprTceTable *tbl = container_of(iommu, SpaprTceTable, iommu);
 
@@ -216,6 +217,7 @@ static void spapr_tce_notify_flag_changed(IOMMUMemoryRegion *iommu,
     } else if (old != IOMMU_NOTIFIER_NONE && new == IOMMU_NOTIFIER_NONE) {
         spapr_tce_set_need_vfio(tbl, false);
     }
+    return 0;
 }
 
 static int spapr_tce_table_post_load(void *opaque, int version_id)

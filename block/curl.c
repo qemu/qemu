@@ -80,6 +80,7 @@ static CURLMcode __curl_multi_socket_action(CURLM *multi_handle,
 #define CURL_BLOCK_OPT_TIMEOUT_DEFAULT 5
 
 struct BDRVCURLState;
+struct CURLState;
 
 static bool libcurl_initialized;
 
@@ -97,6 +98,7 @@ typedef struct CURLAIOCB {
 
 typedef struct CURLSocket {
     int fd;
+    struct CURLState *state;
     QLIST_ENTRY(CURLSocket) next;
 } CURLSocket;
 
@@ -137,7 +139,6 @@ typedef struct BDRVCURLState {
 
 static void curl_clean_state(CURLState *s);
 static void curl_multi_do(void *arg);
-static void curl_multi_read(void *arg);
 
 #ifdef NEED_CURL_TIMER_CALLBACK
 /* Called from curl_multi_do_locked, with s->mutex held.  */
@@ -170,38 +171,39 @@ static int curl_sock_cb(CURL *curl, curl_socket_t fd, int action,
 
     QLIST_FOREACH(socket, &state->sockets, next) {
         if (socket->fd == fd) {
-            if (action == CURL_POLL_REMOVE) {
-                QLIST_REMOVE(socket, next);
-                g_free(socket);
-            }
             break;
         }
     }
     if (!socket) {
         socket = g_new0(CURLSocket, 1);
         socket->fd = fd;
+        socket->state = state;
         QLIST_INSERT_HEAD(&state->sockets, socket, next);
     }
-    socket = NULL;
 
     trace_curl_sock_cb(action, (int)fd);
     switch (action) {
         case CURL_POLL_IN:
             aio_set_fd_handler(s->aio_context, fd, false,
-                               curl_multi_read, NULL, NULL, state);
+                               curl_multi_do, NULL, NULL, socket);
             break;
         case CURL_POLL_OUT:
             aio_set_fd_handler(s->aio_context, fd, false,
-                               NULL, curl_multi_do, NULL, state);
+                               NULL, curl_multi_do, NULL, socket);
             break;
         case CURL_POLL_INOUT:
             aio_set_fd_handler(s->aio_context, fd, false,
-                               curl_multi_read, curl_multi_do, NULL, state);
+                               curl_multi_do, curl_multi_do, NULL, socket);
             break;
         case CURL_POLL_REMOVE:
             aio_set_fd_handler(s->aio_context, fd, false,
                                NULL, NULL, NULL, NULL);
             break;
+    }
+
+    if (action == CURL_POLL_REMOVE) {
+        QLIST_REMOVE(socket, next);
+        g_free(socket);
     }
 
     return 0;
@@ -227,7 +229,6 @@ static size_t curl_read_cb(void *ptr, size_t size, size_t nmemb, void *opaque)
 {
     CURLState *s = ((CURLState*)opaque);
     size_t realsize = size * nmemb;
-    int i;
 
     trace_curl_read_cb(realsize);
 
@@ -242,32 +243,6 @@ static size_t curl_read_cb(void *ptr, size_t size, size_t nmemb, void *opaque)
     realsize = MIN(realsize, s->buf_len - s->buf_off);
     memcpy(s->orig_buf + s->buf_off, ptr, realsize);
     s->buf_off += realsize;
-
-    for(i=0; i<CURL_NUM_ACB; i++) {
-        CURLAIOCB *acb = s->acb[i];
-
-        if (!acb)
-            continue;
-
-        if ((s->buf_off >= acb->end)) {
-            size_t request_length = acb->bytes;
-
-            qemu_iovec_from_buf(acb->qiov, 0, s->orig_buf + acb->start,
-                                acb->end - acb->start);
-
-            if (acb->end - acb->start < request_length) {
-                size_t offset = acb->end - acb->start;
-                qemu_iovec_memset(acb->qiov, offset, 0,
-                                  request_length - offset);
-            }
-
-            acb->ret = 0;
-            s->acb[i] = NULL;
-            qemu_mutex_unlock(&s->s->mutex);
-            aio_co_wake(acb->co);
-            qemu_mutex_lock(&s->s->mutex);
-        }
-    }
 
 read_end:
     /* curl will error out if we do not return this value */
@@ -349,13 +324,14 @@ static void curl_multi_check_completion(BDRVCURLState *s)
             break;
 
         if (msg->msg == CURLMSG_DONE) {
+            int i;
             CURLState *state = NULL;
+            bool error = msg->data.result != CURLE_OK;
+
             curl_easy_getinfo(msg->easy_handle, CURLINFO_PRIVATE,
                               (char **)&state);
 
-            /* ACBs for successful messages get completed in curl_read_cb */
-            if (msg->data.result != CURLE_OK) {
-                int i;
+            if (error) {
                 static int errcount = 100;
 
                 /* Don't lose the original error message from curl, since
@@ -367,20 +343,35 @@ static void curl_multi_check_completion(BDRVCURLState *s)
                         error_report("curl: further errors suppressed");
                     }
                 }
+            }
 
-                for (i = 0; i < CURL_NUM_ACB; i++) {
-                    CURLAIOCB *acb = state->acb[i];
+            for (i = 0; i < CURL_NUM_ACB; i++) {
+                CURLAIOCB *acb = state->acb[i];
 
-                    if (acb == NULL) {
-                        continue;
-                    }
-
-                    acb->ret = -EIO;
-                    state->acb[i] = NULL;
-                    qemu_mutex_unlock(&s->mutex);
-                    aio_co_wake(acb->co);
-                    qemu_mutex_lock(&s->mutex);
+                if (acb == NULL) {
+                    continue;
                 }
+
+                if (!error) {
+                    /* Assert that we have read all data */
+                    assert(state->buf_off >= acb->end);
+
+                    qemu_iovec_from_buf(acb->qiov, 0,
+                                        state->orig_buf + acb->start,
+                                        acb->end - acb->start);
+
+                    if (acb->end - acb->start < acb->bytes) {
+                        size_t offset = acb->end - acb->start;
+                        qemu_iovec_memset(acb->qiov, offset, 0,
+                                          acb->bytes - offset);
+                    }
+                }
+
+                acb->ret = error ? -EIO : 0;
+                state->acb[i] = NULL;
+                qemu_mutex_unlock(&s->mutex);
+                aio_co_wake(acb->co);
+                qemu_mutex_lock(&s->mutex);
             }
 
             curl_clean_state(state);
@@ -390,42 +381,30 @@ static void curl_multi_check_completion(BDRVCURLState *s)
 }
 
 /* Called with s->mutex held.  */
-static void curl_multi_do_locked(CURLState *s)
+static void curl_multi_do_locked(CURLSocket *socket)
 {
-    CURLSocket *socket, *next_socket;
+    BDRVCURLState *s = socket->state->s;
     int running;
     int r;
 
-    if (!s->s->multi) {
+    if (!s->multi) {
         return;
     }
 
-    /* Need to use _SAFE because curl_multi_socket_action() may trigger
-     * curl_sock_cb() which might modify this list */
-    QLIST_FOREACH_SAFE(socket, &s->sockets, next, next_socket) {
-        do {
-            r = curl_multi_socket_action(s->s->multi, socket->fd, 0, &running);
-        } while (r == CURLM_CALL_MULTI_PERFORM);
-    }
+    do {
+        r = curl_multi_socket_action(s->multi, socket->fd, 0, &running);
+    } while (r == CURLM_CALL_MULTI_PERFORM);
 }
 
 static void curl_multi_do(void *arg)
 {
-    CURLState *s = (CURLState *)arg;
+    CURLSocket *socket = arg;
+    BDRVCURLState *s = socket->state->s;
 
-    qemu_mutex_lock(&s->s->mutex);
-    curl_multi_do_locked(s);
-    qemu_mutex_unlock(&s->s->mutex);
-}
-
-static void curl_multi_read(void *arg)
-{
-    CURLState *s = (CURLState *)arg;
-
-    qemu_mutex_lock(&s->s->mutex);
-    curl_multi_do_locked(s);
-    curl_multi_check_completion(s->s);
-    qemu_mutex_unlock(&s->s->mutex);
+    qemu_mutex_lock(&s->mutex);
+    curl_multi_do_locked(socket);
+    curl_multi_check_completion(s);
+    qemu_mutex_unlock(&s->mutex);
 }
 
 static void curl_multi_timeout_do(void *arg)
@@ -903,7 +882,13 @@ static void curl_setup_preadv(BlockDriverState *bs, CURLAIOCB *acb)
     trace_curl_setup_preadv(acb->bytes, start, state->range);
     curl_easy_setopt(state->curl, CURLOPT_RANGE, state->range);
 
-    curl_multi_add_handle(s->multi, state->curl);
+    if (curl_multi_add_handle(s->multi, state->curl) != CURLM_OK) {
+        state->acb[0] = NULL;
+        acb->ret = -EIO;
+
+        curl_clean_state(state);
+        goto out;
+    }
 
     /* Tell curl it needs to kick things off */
     curl_multi_socket_action(s->multi, CURL_SOCKET_TIMEOUT, 0, &running);

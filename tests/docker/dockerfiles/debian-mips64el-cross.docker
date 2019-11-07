@@ -17,10 +17,11 @@ RUN dpkg --add-architecture mips64el && \
 
 RUN apt update && \
     DEBIAN_FRONTEND=noninteractive eatmydata \
-    apt build-dep -yy -a mips64el qemu
+    apt build-dep -yy -a mips64el --arch-only qemu
 
 # Specify the cross prefix for this image (see tests/docker/common.rc)
 ENV QEMU_CONFIGURE_OPTS --cross-prefix=mips64el-linux-gnuabi64-
+ENV DEF_TARGET_LIST mips64el-softmmu,mips64el-linux-user
 
 # Install extra libraries to increase code coverage
 RUN apt update && \

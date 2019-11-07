@@ -385,7 +385,7 @@ static int pnv_xive_get_eas(XiveRouter *xrtr, uint8_t blk, uint32_t idx,
     PnvXive *xive = PNV_XIVE(xrtr);
 
     if (pnv_xive_get_ic(blk) != xive) {
-        xive_error(xive, "VST: EAS %x is remote !?", XIVE_SRCNO(blk, idx));
+        xive_error(xive, "VST: EAS %x is remote !?", XIVE_EAS(blk, idx));
         return -1;
     }
 
@@ -431,7 +431,7 @@ static void pnv_xive_notify(XiveNotifier *xn, uint32_t srcno)
     PnvXive *xive = PNV_XIVE(xn);
     uint8_t blk = xive->chip->chip_id;
 
-    xive_router_notify(xn, XIVE_SRCNO(blk, srcno));
+    xive_router_notify(xn, XIVE_EAS(blk, srcno));
 }
 
 /*
@@ -1225,12 +1225,24 @@ static const MemoryRegionOps pnv_xive_ic_reg_ops = {
 
 static void pnv_xive_ic_hw_trigger(PnvXive *xive, hwaddr addr, uint64_t val)
 {
+    uint8_t blk;
+    uint32_t idx;
+
+    if (val & XIVE_TRIGGER_END) {
+        xive_error(xive, "IC: END trigger at @0x%"HWADDR_PRIx" data 0x%"PRIx64,
+                   addr, val);
+        return;
+    }
+
     /*
      * Forward the source event notification directly to the Router.
      * The source interrupt number should already be correctly encoded
      * with the chip block id by the sending device (PHB, PSI).
      */
-    xive_router_notify(XIVE_NOTIFIER(xive), val);
+    blk = XIVE_EAS_BLOCK(val);
+    idx = XIVE_EAS_INDEX(val);
+
+    xive_router_notify(XIVE_NOTIFIER(xive), XIVE_EAS(blk, idx));
 }
 
 static void pnv_xive_ic_notify_write(void *opaque, hwaddr addr, uint64_t val,
@@ -1566,7 +1578,7 @@ void pnv_xive_pic_print_info(PnvXive *xive, Monitor *mon)
 {
     XiveRouter *xrtr = XIVE_ROUTER(xive);
     uint8_t blk = xive->chip->chip_id;
-    uint32_t srcno0 = XIVE_SRCNO(blk, 0);
+    uint32_t srcno0 = XIVE_EAS(blk, 0);
     uint32_t nr_ipis = pnv_xive_nr_ipis(xive);
     uint32_t nr_ends = pnv_xive_nr_ends(xive);
     XiveEAS eas;

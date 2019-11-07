@@ -1,0 +1,168 @@
+#!/usr/bin/env bash
+#
+# Test which nodes are involved in internal snapshots
+#
+# Copyright (C) 2019 Red Hat, Inc.
+#
+# This program is free software; you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation; either version 2 of the License, or
+# (at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with this program.  If not, see <http://www.gnu.org/licenses/>.
+#
+
+# creator
+owner=kwolf@redhat.com
+
+seq=`basename $0`
+echo "QA output created by $seq"
+
+status=1	# failure is the default!
+
+_cleanup()
+{
+    _cleanup_test_img
+    rm -f "$SOCK_DIR/nbd"
+}
+trap "_cleanup; exit \$status" 0 1 2 3 15
+
+# get standard environment, filters and checks
+. ./common.rc
+. ./common.filter
+
+_supported_fmt qcow2
+_supported_proto file
+_supported_os Linux
+
+# Internal snapshots are (currently) impossible with refcount_bits=1
+_unsupported_imgopts 'refcount_bits=1[^0-9]'
+
+do_run_qemu()
+{
+    echo Testing: "$@"
+    (
+        if ! test -t 0; then
+            while read cmd; do
+                echo $cmd
+            done
+        fi
+        echo quit
+    ) | $QEMU -nographic -monitor stdio -nodefaults "$@"
+    echo
+}
+
+run_qemu()
+{
+    do_run_qemu "$@" 2>&1 | _filter_testdir | _filter_qemu | _filter_hmp |
+        _filter_generated_node_ids | _filter_imgfmt | _filter_vmstate_size
+}
+
+size=128M
+
+run_test()
+{
+    _make_test_img $size
+    printf "savevm snap0\ninfo snapshots\nloadvm snap0\n" | run_qemu "$@" | _filter_date
+}
+
+
+echo
+echo "=== No block devices at all ==="
+echo
+
+run_test
+
+echo
+echo "=== -drive if=none ==="
+echo
+
+run_test -drive driver=file,file="$TEST_IMG",if=none
+run_test -drive driver=$IMGFMT,file="$TEST_IMG",if=none
+run_test -drive driver=$IMGFMT,file="$TEST_IMG",if=none -device virtio-blk,drive=none0
+
+echo
+echo "=== -drive if=virtio ==="
+echo
+
+run_test -drive driver=file,file="$TEST_IMG",if=virtio
+run_test -drive driver=$IMGFMT,file="$TEST_IMG",if=virtio
+
+echo
+echo "=== Simple -blockdev ==="
+echo
+
+run_test -blockdev driver=file,filename="$TEST_IMG",node-name=file
+run_test -blockdev driver=file,filename="$TEST_IMG",node-name=file \
+         -blockdev driver=$IMGFMT,file=file,node-name=fmt
+run_test -blockdev driver=file,filename="$TEST_IMG",node-name=file \
+         -blockdev driver=raw,file=file,node-name=raw \
+         -blockdev driver=$IMGFMT,file=raw,node-name=fmt
+
+echo
+echo "=== -blockdev with a filter on top ==="
+echo
+
+run_test -blockdev driver=file,filename="$TEST_IMG",node-name=file \
+         -blockdev driver=$IMGFMT,file=file,node-name=fmt \
+         -blockdev driver=copy-on-read,file=fmt,node-name=filter
+
+echo
+echo "=== -blockdev with a backing file ==="
+echo
+
+TEST_IMG="$TEST_IMG.base" _make_test_img $size
+
+IMGOPTS="backing_file=$TEST_IMG.base" \
+run_test -blockdev driver=file,filename="$TEST_IMG.base",node-name=backing-file \
+         -blockdev driver=file,filename="$TEST_IMG",node-name=file \
+         -blockdev driver=$IMGFMT,file=file,backing=backing-file,node-name=fmt
+
+IMGOPTS="backing_file=$TEST_IMG.base" \
+run_test -blockdev driver=file,filename="$TEST_IMG.base",node-name=backing-file \
+         -blockdev driver=$IMGFMT,file=backing-file,node-name=backing-fmt \
+         -blockdev driver=file,filename="$TEST_IMG",node-name=file \
+         -blockdev driver=$IMGFMT,file=file,backing=backing-fmt,node-name=fmt
+
+# A snapshot should be present on the overlay, but not the backing file
+echo Internal snapshots on overlay:
+$QEMU_IMG snapshot -l "$TEST_IMG" | _filter_date | _filter_vmstate_size
+
+echo Internal snapshots on backing file:
+$QEMU_IMG snapshot -l "$TEST_IMG.base" | _filter_date | _filter_vmstate_size
+
+echo
+echo "=== -blockdev with NBD server on the backing file ==="
+echo
+
+IMGOPTS="backing_file=$TEST_IMG.base" _make_test_img $size
+cat <<EOF |
+nbd_server_start unix:$SOCK_DIR/nbd
+nbd_server_add -w backing-fmt
+savevm snap0
+info snapshots
+loadvm snap0
+EOF
+run_qemu -blockdev driver=file,filename="$TEST_IMG.base",node-name=backing-file \
+         -blockdev driver=$IMGFMT,file=backing-file,node-name=backing-fmt \
+         -blockdev driver=file,filename="$TEST_IMG",node-name=file \
+         -blockdev driver=$IMGFMT,file=file,backing=backing-fmt,node-name=fmt |
+         _filter_date
+
+# This time, a snapshot should be created on both files
+echo Internal snapshots on overlay:
+$QEMU_IMG snapshot -l "$TEST_IMG" | _filter_date | _filter_vmstate_size
+
+echo Internal snapshots on backing file:
+$QEMU_IMG snapshot -l "$TEST_IMG.base" | _filter_date | _filter_vmstate_size
+
+# success, all done
+echo "*** done"
+rm -f $seq.full
+status=0

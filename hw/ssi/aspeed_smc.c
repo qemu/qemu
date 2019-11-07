@@ -28,6 +28,9 @@
 #include "qemu/log.h"
 #include "qemu/module.h"
 #include "qemu/error-report.h"
+#include "qapi/error.h"
+#include "exec/address-spaces.h"
+#include "qemu/units.h"
 
 #include "hw/irq.h"
 #include "hw/qdev-properties.h"
@@ -48,7 +51,7 @@
 #define   CONF_FLASH_TYPE0     0
 #define      CONF_FLASH_TYPE_NOR   0x0
 #define      CONF_FLASH_TYPE_NAND  0x1
-#define      CONF_FLASH_TYPE_SPI   0x2
+#define      CONF_FLASH_TYPE_SPI   0x2 /* AST2600 is SPI only */
 
 /* CE Control Register */
 #define R_CE_CTRL            (0x04 / 4)
@@ -69,12 +72,19 @@
 
 /* CEx Control Register */
 #define R_CTRL0           (0x10 / 4)
+#define   CTRL_IO_QPI              (1 << 31)
+#define   CTRL_IO_QUAD_DATA        (1 << 30)
 #define   CTRL_IO_DUAL_DATA        (1 << 29)
 #define   CTRL_IO_DUAL_ADDR_DATA   (1 << 28) /* Includes dummies */
+#define   CTRL_IO_QUAD_ADDR_DATA   (1 << 28) /* Includes dummies */
 #define   CTRL_CMD_SHIFT           16
 #define   CTRL_CMD_MASK            0xff
 #define   CTRL_DUMMY_HIGH_SHIFT    14
 #define   CTRL_AST2400_SPI_4BYTE   (1 << 13)
+#define CE_CTRL_CLOCK_FREQ_SHIFT   8
+#define CE_CTRL_CLOCK_FREQ_MASK    0xf
+#define CE_CTRL_CLOCK_FREQ(div)                                         \
+    (((div) & CE_CTRL_CLOCK_FREQ_MASK) << CE_CTRL_CLOCK_FREQ_SHIFT)
 #define   CTRL_DUMMY_LOW_SHIFT     6 /* 2 bits [7:6] */
 #define   CTRL_CE_STOP_ACTIVE      (1 << 2)
 #define   CTRL_CMD_MODE_MASK       0x3
@@ -110,10 +120,10 @@
 #define   DMA_CTRL_DELAY_SHIFT  8
 #define   DMA_CTRL_FREQ_MASK    0xf
 #define   DMA_CTRL_FREQ_SHIFT   4
-#define   DMA_CTRL_MODE         (1 << 3)
+#define   DMA_CTRL_CALIB        (1 << 3)
 #define   DMA_CTRL_CKSUM        (1 << 2)
-#define   DMA_CTRL_DIR          (1 << 1)
-#define   DMA_CTRL_EN           (1 << 0)
+#define   DMA_CTRL_WRITE        (1 << 1)
+#define   DMA_CTRL_ENABLE       (1 << 0)
 
 /* DMA Flash Side Address */
 #define R_DMA_FLASH_ADDR  (0x84 / 4)
@@ -130,7 +140,7 @@
 /* Misc Control Register #2 */
 #define R_TIMINGS         (0x94 / 4)
 
-/* SPI controller registers and bits */
+/* SPI controller registers and bits (AST2400) */
 #define R_SPI_CONF        (0x00 / 4)
 #define   SPI_CONF_ENABLE_W0   0
 #define R_SPI_CTRL0       (0x4 / 4)
@@ -144,6 +154,24 @@
 #define ASPEED_SOC_FMC_FLASH_BASE   0x20000000
 #define ASPEED_SOC_SPI_FLASH_BASE   0x30000000
 #define ASPEED_SOC_SPI2_FLASH_BASE  0x38000000
+
+/*
+ * DMA DRAM addresses should be 4 bytes aligned and the valid address
+ * range is 0x40000000 - 0x5FFFFFFF (AST2400)
+ *          0x80000000 - 0xBFFFFFFF (AST2500)
+ *
+ * DMA flash addresses should be 4 bytes aligned and the valid address
+ * range is 0x20000000 - 0x2FFFFFFF.
+ *
+ * DMA length is from 4 bytes to 32MB
+ *   0: 4 bytes
+ *   0x7FFFFF: 32M bytes
+ */
+#define DMA_DRAM_ADDR(s, val)   ((s)->sdram_base | \
+                                 ((val) & (s)->ctrl->dma_dram_mask))
+#define DMA_FLASH_ADDR(s, val)  ((s)->ctrl->flash_window_base | \
+                                ((val) & (s)->ctrl->dma_flash_mask))
+#define DMA_LENGTH(val)         ((val) & 0x01FFFFFC)
 
 /* Flash opcodes. */
 #define SPI_OP_READ       0x03    /* Read data bytes (low frequency) */
@@ -187,10 +215,43 @@ static const AspeedSegments aspeed_segments_ast2500_spi2[] = {
     { 0x38000000, 32 * 1024 * 1024 }, /* start address is readonly */
     { 0x3A000000, 96 * 1024 * 1024 }, /* end address is readonly */
 };
+static uint32_t aspeed_smc_segment_to_reg(const AspeedSMCState *s,
+                                          const AspeedSegments *seg);
+static void aspeed_smc_reg_to_segment(const AspeedSMCState *s, uint32_t reg,
+                                      AspeedSegments *seg);
+
+/*
+ * AST2600 definitions
+ */
+#define ASPEED26_SOC_FMC_FLASH_BASE   0x20000000
+#define ASPEED26_SOC_SPI_FLASH_BASE   0x30000000
+#define ASPEED26_SOC_SPI2_FLASH_BASE  0x50000000
+
+static const AspeedSegments aspeed_segments_ast2600_fmc[] = {
+    { 0x0, 128 * MiB }, /* start address is readonly */
+    { 0x0, 0 }, /* disabled */
+    { 0x0, 0 }, /* disabled */
+};
+
+static const AspeedSegments aspeed_segments_ast2600_spi1[] = {
+    { 0x0, 128 * MiB }, /* start address is readonly */
+    { 0x0, 0 }, /* disabled */
+};
+
+static const AspeedSegments aspeed_segments_ast2600_spi2[] = {
+    { 0x0, 128 * MiB }, /* start address is readonly */
+    { 0x0, 0 }, /* disabled */
+    { 0x0, 0 }, /* disabled */
+};
+
+static uint32_t aspeed_2600_smc_segment_to_reg(const AspeedSMCState *s,
+                                               const AspeedSegments *seg);
+static void aspeed_2600_smc_reg_to_segment(const AspeedSMCState *s,
+                                           uint32_t reg, AspeedSegments *seg);
 
 static const AspeedSMCController controllers[] = {
     {
-        .name              = "aspeed.smc.smc",
+        .name              = "aspeed.smc-ast2400",
         .r_conf            = R_CONF,
         .r_ce_ctrl         = R_CE_CTRL,
         .r_ctrl0           = R_CTRL0,
@@ -202,8 +263,10 @@ static const AspeedSMCController controllers[] = {
         .flash_window_size = 0x6000000,
         .has_dma           = false,
         .nregs             = ASPEED_SMC_R_SMC_MAX,
+        .segment_to_reg    = aspeed_smc_segment_to_reg,
+        .reg_to_segment    = aspeed_smc_reg_to_segment,
     }, {
-        .name              = "aspeed.smc.fmc",
+        .name              = "aspeed.fmc-ast2400",
         .r_conf            = R_CONF,
         .r_ce_ctrl         = R_CE_CTRL,
         .r_ctrl0           = R_CTRL0,
@@ -214,9 +277,13 @@ static const AspeedSMCController controllers[] = {
         .flash_window_base = ASPEED_SOC_FMC_FLASH_BASE,
         .flash_window_size = 0x10000000,
         .has_dma           = true,
+        .dma_flash_mask    = 0x0FFFFFFC,
+        .dma_dram_mask     = 0x1FFFFFFC,
         .nregs             = ASPEED_SMC_R_MAX,
+        .segment_to_reg    = aspeed_smc_segment_to_reg,
+        .reg_to_segment    = aspeed_smc_reg_to_segment,
     }, {
-        .name              = "aspeed.smc.spi",
+        .name              = "aspeed.spi1-ast2400",
         .r_conf            = R_SPI_CONF,
         .r_ce_ctrl         = 0xff,
         .r_ctrl0           = R_SPI_CTRL0,
@@ -228,8 +295,10 @@ static const AspeedSMCController controllers[] = {
         .flash_window_size = 0x10000000,
         .has_dma           = false,
         .nregs             = ASPEED_SMC_R_SPI_MAX,
+        .segment_to_reg    = aspeed_smc_segment_to_reg,
+        .reg_to_segment    = aspeed_smc_reg_to_segment,
     }, {
-        .name              = "aspeed.smc.ast2500-fmc",
+        .name              = "aspeed.fmc-ast2500",
         .r_conf            = R_CONF,
         .r_ce_ctrl         = R_CE_CTRL,
         .r_ctrl0           = R_CTRL0,
@@ -240,9 +309,13 @@ static const AspeedSMCController controllers[] = {
         .flash_window_base = ASPEED_SOC_FMC_FLASH_BASE,
         .flash_window_size = 0x10000000,
         .has_dma           = true,
+        .dma_flash_mask    = 0x0FFFFFFC,
+        .dma_dram_mask     = 0x3FFFFFFC,
         .nregs             = ASPEED_SMC_R_MAX,
+        .segment_to_reg    = aspeed_smc_segment_to_reg,
+        .reg_to_segment    = aspeed_smc_reg_to_segment,
     }, {
-        .name              = "aspeed.smc.ast2500-spi1",
+        .name              = "aspeed.spi1-ast2500",
         .r_conf            = R_CONF,
         .r_ce_ctrl         = R_CE_CTRL,
         .r_ctrl0           = R_CTRL0,
@@ -254,8 +327,10 @@ static const AspeedSMCController controllers[] = {
         .flash_window_size = 0x8000000,
         .has_dma           = false,
         .nregs             = ASPEED_SMC_R_MAX,
+        .segment_to_reg    = aspeed_smc_segment_to_reg,
+        .reg_to_segment    = aspeed_smc_reg_to_segment,
     }, {
-        .name              = "aspeed.smc.ast2500-spi2",
+        .name              = "aspeed.spi2-ast2500",
         .r_conf            = R_CONF,
         .r_ce_ctrl         = R_CE_CTRL,
         .r_ctrl0           = R_CTRL0,
@@ -267,19 +342,64 @@ static const AspeedSMCController controllers[] = {
         .flash_window_size = 0x8000000,
         .has_dma           = false,
         .nregs             = ASPEED_SMC_R_MAX,
+        .segment_to_reg    = aspeed_smc_segment_to_reg,
+        .reg_to_segment    = aspeed_smc_reg_to_segment,
+    }, {
+        .name              = "aspeed.fmc-ast2600",
+        .r_conf            = R_CONF,
+        .r_ce_ctrl         = R_CE_CTRL,
+        .r_ctrl0           = R_CTRL0,
+        .r_timings         = R_TIMINGS,
+        .conf_enable_w0    = CONF_ENABLE_W0,
+        .max_slaves        = 3,
+        .segments          = aspeed_segments_ast2600_fmc,
+        .flash_window_base = ASPEED26_SOC_FMC_FLASH_BASE,
+        .flash_window_size = 0x10000000,
+        .has_dma           = true,
+        .nregs             = ASPEED_SMC_R_MAX,
+        .segment_to_reg    = aspeed_2600_smc_segment_to_reg,
+        .reg_to_segment    = aspeed_2600_smc_reg_to_segment,
+    }, {
+        .name              = "aspeed.spi1-ast2600",
+        .r_conf            = R_CONF,
+        .r_ce_ctrl         = R_CE_CTRL,
+        .r_ctrl0           = R_CTRL0,
+        .r_timings         = R_TIMINGS,
+        .conf_enable_w0    = CONF_ENABLE_W0,
+        .max_slaves        = 2,
+        .segments          = aspeed_segments_ast2600_spi1,
+        .flash_window_base = ASPEED26_SOC_SPI_FLASH_BASE,
+        .flash_window_size = 0x10000000,
+        .has_dma           = false,
+        .nregs             = ASPEED_SMC_R_MAX,
+        .segment_to_reg    = aspeed_2600_smc_segment_to_reg,
+        .reg_to_segment    = aspeed_2600_smc_reg_to_segment,
+    }, {
+        .name              = "aspeed.spi2-ast2600",
+        .r_conf            = R_CONF,
+        .r_ce_ctrl         = R_CE_CTRL,
+        .r_ctrl0           = R_CTRL0,
+        .r_timings         = R_TIMINGS,
+        .conf_enable_w0    = CONF_ENABLE_W0,
+        .max_slaves        = 3,
+        .segments          = aspeed_segments_ast2600_spi2,
+        .flash_window_base = ASPEED26_SOC_SPI2_FLASH_BASE,
+        .flash_window_size = 0x10000000,
+        .has_dma           = false,
+        .nregs             = ASPEED_SMC_R_MAX,
+        .segment_to_reg    = aspeed_2600_smc_segment_to_reg,
+        .reg_to_segment    = aspeed_2600_smc_reg_to_segment,
     },
 };
 
 /*
- * The Segment Register uses a 8MB unit to encode the start address
- * and the end address of the mapping window of a flash SPI slave :
- *
- *        | byte 1 | byte 2 | byte 3 | byte 4 |
- *        +--------+--------+--------+--------+
- *        |  end   |  start |   0    |   0    |
- *
+ * The Segment Registers of the AST2400 and AST2500 have a 8MB
+ * unit. The address range of a flash SPI slave is encoded with
+ * absolute addresses which should be part of the overall controller
+ * window.
  */
-static inline uint32_t aspeed_smc_segment_to_reg(const AspeedSegments *seg)
+static uint32_t aspeed_smc_segment_to_reg(const AspeedSMCState *s,
+                                          const AspeedSegments *seg)
 {
     uint32_t reg = 0;
     reg |= ((seg->addr >> 23) & SEG_START_MASK) << SEG_START_SHIFT;
@@ -287,10 +407,45 @@ static inline uint32_t aspeed_smc_segment_to_reg(const AspeedSegments *seg)
     return reg;
 }
 
-static inline void aspeed_smc_reg_to_segment(uint32_t reg, AspeedSegments *seg)
+static void aspeed_smc_reg_to_segment(const AspeedSMCState *s,
+                                      uint32_t reg, AspeedSegments *seg)
 {
     seg->addr = ((reg >> SEG_START_SHIFT) & SEG_START_MASK) << 23;
     seg->size = (((reg >> SEG_END_SHIFT) & SEG_END_MASK) << 23) - seg->addr;
+}
+
+/*
+ * The Segment Registers of the AST2600 have a 1MB unit. The address
+ * range of a flash SPI slave is encoded with offsets in the overall
+ * controller window. The previous SoC AST2400 and AST2500 used
+ * absolute addresses. Only bits [27:20] are relevant and the end
+ * address is an upper bound limit.
+ */
+#define AST2600_SEG_ADDR_MASK 0x0ff00000
+
+static uint32_t aspeed_2600_smc_segment_to_reg(const AspeedSMCState *s,
+                                               const AspeedSegments *seg)
+{
+    uint32_t reg = 0;
+
+    /* Disabled segments have a nil register */
+    if (!seg->size) {
+        return 0;
+    }
+
+    reg |= (seg->addr & AST2600_SEG_ADDR_MASK) >> 16; /* start offset */
+    reg |= (seg->addr + seg->size - 1) & AST2600_SEG_ADDR_MASK; /* end offset */
+    return reg;
+}
+
+static void aspeed_2600_smc_reg_to_segment(const AspeedSMCState *s,
+                                           uint32_t reg, AspeedSegments *seg)
+{
+    uint32_t start_offset = (reg << 16) & AST2600_SEG_ADDR_MASK;
+    uint32_t end_offset = reg & AST2600_SEG_ADDR_MASK;
+
+    seg->addr = s->ctrl->flash_window_base + start_offset;
+    seg->size = end_offset + MiB - start_offset;
 }
 
 static bool aspeed_smc_flash_overlap(const AspeedSMCState *s,
@@ -305,7 +460,7 @@ static bool aspeed_smc_flash_overlap(const AspeedSMCState *s,
             continue;
         }
 
-        aspeed_smc_reg_to_segment(s->regs[R_SEG_ADDR0 + i], &seg);
+        s->ctrl->reg_to_segment(s, s->regs[R_SEG_ADDR0 + i], &seg);
 
         if (new->addr + new->size > seg.addr &&
             new->addr < seg.addr + seg.size) {
@@ -326,7 +481,7 @@ static void aspeed_smc_flash_set_segment(AspeedSMCState *s, int cs,
     AspeedSMCFlash *fl = &s->flashes[cs];
     AspeedSegments seg;
 
-    aspeed_smc_reg_to_segment(new, &seg);
+    s->ctrl->reg_to_segment(s, new, &seg);
 
     /* The start address of CS0 is read-only */
     if (cs == 0 && seg.addr != s->ctrl->flash_window_base) {
@@ -334,7 +489,7 @@ static void aspeed_smc_flash_set_segment(AspeedSMCState *s, int cs,
                       "%s: Tried to change CS0 start address to 0x%"
                       HWADDR_PRIx "\n", s->ctrl->name, seg.addr);
         seg.addr = s->ctrl->flash_window_base;
-        new = aspeed_smc_segment_to_reg(&seg);
+        new = s->ctrl->segment_to_reg(s, &seg);
     }
 
     /*
@@ -351,7 +506,7 @@ static void aspeed_smc_flash_set_segment(AspeedSMCState *s, int cs,
                       HWADDR_PRIx "\n", s->ctrl->name, cs, seg.addr + seg.size);
         seg.size = s->ctrl->segments[cs].addr + s->ctrl->segments[cs].size -
             seg.addr;
-        new = aspeed_smc_segment_to_reg(&seg);
+        new = s->ctrl->segment_to_reg(s, &seg);
     }
 
     /* Keep the segment in the overall flash window */
@@ -427,8 +582,12 @@ static inline int aspeed_smc_flash_cmd(const AspeedSMCFlash *fl)
     const AspeedSMCState *s = fl->controller;
     int cmd = (s->regs[s->r_ctrl0 + fl->id] >> CTRL_CMD_SHIFT) & CTRL_CMD_MASK;
 
-    /* In read mode, the default SPI command is READ (0x3). In other
-     * modes, the command should necessarily be defined */
+    /*
+     * In read mode, the default SPI command is READ (0x3). In other
+     * modes, the command should necessarily be defined
+     *
+     * TODO: add support for READ4 (0x13) on AST2600
+     */
     if (aspeed_smc_flash_mode(fl) == CTRL_READMODE) {
         cmd = SPI_OP_READ;
     }
@@ -481,7 +640,7 @@ static uint32_t aspeed_smc_check_segment_addr(const AspeedSMCFlash *fl,
     const AspeedSMCState *s = fl->controller;
     AspeedSegments seg;
 
-    aspeed_smc_reg_to_segment(s->regs[R_SEG_ADDR0 + fl->id], &seg);
+    s->ctrl->reg_to_segment(s, s->regs[R_SEG_ADDR0 + fl->id], &seg);
     if ((addr % seg.size) != addr) {
         qemu_log_mask(LOG_GUEST_ERROR,
                       "%s: invalid address 0x%08x for CS%d segment : "
@@ -732,9 +891,6 @@ static void aspeed_smc_reset(DeviceState *d)
 
     memset(s->regs, 0, sizeof s->regs);
 
-    /* Pretend DMA is done (u-boot initialization) */
-    s->regs[R_INTR_CTRL] = INTR_CTRL_DMA_STATUS;
-
     /* Unselect all slaves */
     for (i = 0; i < s->num_cs; ++i) {
         s->regs[s->r_ctrl0 + i] |= CTRL_CE_STOP_ACTIVE;
@@ -744,7 +900,15 @@ static void aspeed_smc_reset(DeviceState *d)
     /* setup default segment register values for all */
     for (i = 0; i < s->ctrl->max_slaves; ++i) {
         s->regs[R_SEG_ADDR0 + i] =
-            aspeed_smc_segment_to_reg(&s->ctrl->segments[i]);
+            s->ctrl->segment_to_reg(s, &s->ctrl->segments[i]);
+    }
+
+    /* HW strapping flash type for the AST2600 controllers  */
+    if (s->ctrl->segments == aspeed_segments_ast2600_fmc) {
+        /* flash type is fixed to SPI for all */
+        s->regs[s->r_conf] |= (CONF_FLASH_TYPE_SPI << CONF_FLASH_TYPE0);
+        s->regs[s->r_conf] |= (CONF_FLASH_TYPE_SPI << CONF_FLASH_TYPE1);
+        s->regs[s->r_conf] |= (CONF_FLASH_TYPE_SPI << CONF_FLASH_TYPE2);
     }
 
     /* HW strapping flash type for FMC controllers  */
@@ -775,6 +939,11 @@ static uint64_t aspeed_smc_read(void *opaque, hwaddr addr, unsigned int size)
         addr == s->r_ce_ctrl ||
         addr == R_INTR_CTRL ||
         addr == R_DUMMY_DATA ||
+        (s->ctrl->has_dma && addr == R_DMA_CTRL) ||
+        (s->ctrl->has_dma && addr == R_DMA_FLASH_ADDR) ||
+        (s->ctrl->has_dma && addr == R_DMA_DRAM_ADDR) ||
+        (s->ctrl->has_dma && addr == R_DMA_LEN) ||
+        (s->ctrl->has_dma && addr == R_DMA_CHECKSUM) ||
         (addr >= R_SEG_ADDR0 && addr < R_SEG_ADDR0 + s->ctrl->max_slaves) ||
         (addr >= s->r_ctrl0 && addr < s->r_ctrl0 + s->ctrl->max_slaves)) {
         return s->regs[addr];
@@ -783,6 +952,243 @@ static uint64_t aspeed_smc_read(void *opaque, hwaddr addr, unsigned int size)
                       __func__, addr);
         return -1;
     }
+}
+
+static uint8_t aspeed_smc_hclk_divisor(uint8_t hclk_mask)
+{
+    /* HCLK/1 .. HCLK/16 */
+    const uint8_t hclk_divisors[] = {
+        15, 7, 14, 6, 13, 5, 12, 4, 11, 3, 10, 2, 9, 1, 8, 0
+    };
+    int i;
+
+    for (i = 0; i < ARRAY_SIZE(hclk_divisors); i++) {
+        if (hclk_mask == hclk_divisors[i]) {
+            return i + 1;
+        }
+    }
+
+    qemu_log_mask(LOG_GUEST_ERROR, "invalid HCLK mask %x", hclk_mask);
+    return 0;
+}
+
+/*
+ * When doing calibration, the SPI clock rate in the CE0 Control
+ * Register and the read delay cycles in the Read Timing Compensation
+ * Register are set using bit[11:4] of the DMA Control Register.
+ */
+static void aspeed_smc_dma_calibration(AspeedSMCState *s)
+{
+    uint8_t delay =
+        (s->regs[R_DMA_CTRL] >> DMA_CTRL_DELAY_SHIFT) & DMA_CTRL_DELAY_MASK;
+    uint8_t hclk_mask =
+        (s->regs[R_DMA_CTRL] >> DMA_CTRL_FREQ_SHIFT) & DMA_CTRL_FREQ_MASK;
+    uint8_t hclk_div = aspeed_smc_hclk_divisor(hclk_mask);
+    uint32_t hclk_shift = (hclk_div - 1) << 2;
+    uint8_t cs;
+
+    /*
+     * The Read Timing Compensation Register values apply to all CS on
+     * the SPI bus and only HCLK/1 - HCLK/5 can have tunable delays
+     */
+    if (hclk_div && hclk_div < 6) {
+        s->regs[s->r_timings] &= ~(0xf << hclk_shift);
+        s->regs[s->r_timings] |= delay << hclk_shift;
+    }
+
+    /*
+     * TODO: compute the CS from the DMA address and the segment
+     * registers. This is not really a problem for now because the
+     * Timing Register values apply to all CS and software uses CS0 to
+     * do calibration.
+     */
+    cs = 0;
+    s->regs[s->r_ctrl0 + cs] &=
+        ~(CE_CTRL_CLOCK_FREQ_MASK << CE_CTRL_CLOCK_FREQ_SHIFT);
+    s->regs[s->r_ctrl0 + cs] |= CE_CTRL_CLOCK_FREQ(hclk_div);
+}
+
+/*
+ * Emulate read errors in the DMA Checksum Register for high
+ * frequencies and optimistic settings of the Read Timing Compensation
+ * Register. This will help in tuning the SPI timing calibration
+ * algorithm.
+ */
+static bool aspeed_smc_inject_read_failure(AspeedSMCState *s)
+{
+    uint8_t delay =
+        (s->regs[R_DMA_CTRL] >> DMA_CTRL_DELAY_SHIFT) & DMA_CTRL_DELAY_MASK;
+    uint8_t hclk_mask =
+        (s->regs[R_DMA_CTRL] >> DMA_CTRL_FREQ_SHIFT) & DMA_CTRL_FREQ_MASK;
+
+    /*
+     * Typical values of a palmetto-bmc machine.
+     */
+    switch (aspeed_smc_hclk_divisor(hclk_mask)) {
+    case 4 ... 16:
+        return false;
+    case 3: /* at least one HCLK cycle delay */
+        return (delay & 0x7) < 1;
+    case 2: /* at least two HCLK cycle delay */
+        return (delay & 0x7) < 2;
+    case 1: /* (> 100MHz) is above the max freq of the controller */
+        return true;
+    default:
+        g_assert_not_reached();
+    }
+}
+
+/*
+ * Accumulate the result of the reads to provide a checksum that will
+ * be used to validate the read timing settings.
+ */
+static void aspeed_smc_dma_checksum(AspeedSMCState *s)
+{
+    MemTxResult result;
+    uint32_t data;
+
+    if (s->regs[R_DMA_CTRL] & DMA_CTRL_WRITE) {
+        qemu_log_mask(LOG_GUEST_ERROR,
+                      "%s: invalid direction for DMA checksum\n",  __func__);
+        return;
+    }
+
+    if (s->regs[R_DMA_CTRL] & DMA_CTRL_CALIB) {
+        aspeed_smc_dma_calibration(s);
+    }
+
+    while (s->regs[R_DMA_LEN]) {
+        data = address_space_ldl_le(&s->flash_as, s->regs[R_DMA_FLASH_ADDR],
+                                    MEMTXATTRS_UNSPECIFIED, &result);
+        if (result != MEMTX_OK) {
+            qemu_log_mask(LOG_GUEST_ERROR, "%s: Flash read failed @%08x\n",
+                          __func__, s->regs[R_DMA_FLASH_ADDR]);
+            return;
+        }
+
+        /*
+         * When the DMA is on-going, the DMA registers are updated
+         * with the current working addresses and length.
+         */
+        s->regs[R_DMA_CHECKSUM] += data;
+        s->regs[R_DMA_FLASH_ADDR] += 4;
+        s->regs[R_DMA_LEN] -= 4;
+    }
+
+    if (s->inject_failure && aspeed_smc_inject_read_failure(s)) {
+        s->regs[R_DMA_CHECKSUM] = 0xbadc0de;
+    }
+
+}
+
+static void aspeed_smc_dma_rw(AspeedSMCState *s)
+{
+    MemTxResult result;
+    uint32_t data;
+
+    while (s->regs[R_DMA_LEN]) {
+        if (s->regs[R_DMA_CTRL] & DMA_CTRL_WRITE) {
+            data = address_space_ldl_le(&s->dram_as, s->regs[R_DMA_DRAM_ADDR],
+                                        MEMTXATTRS_UNSPECIFIED, &result);
+            if (result != MEMTX_OK) {
+                qemu_log_mask(LOG_GUEST_ERROR, "%s: DRAM read failed @%08x\n",
+                              __func__, s->regs[R_DMA_DRAM_ADDR]);
+                return;
+            }
+
+            address_space_stl_le(&s->flash_as, s->regs[R_DMA_FLASH_ADDR],
+                                 data, MEMTXATTRS_UNSPECIFIED, &result);
+            if (result != MEMTX_OK) {
+                qemu_log_mask(LOG_GUEST_ERROR, "%s: Flash write failed @%08x\n",
+                              __func__, s->regs[R_DMA_FLASH_ADDR]);
+                return;
+            }
+        } else {
+            data = address_space_ldl_le(&s->flash_as, s->regs[R_DMA_FLASH_ADDR],
+                                        MEMTXATTRS_UNSPECIFIED, &result);
+            if (result != MEMTX_OK) {
+                qemu_log_mask(LOG_GUEST_ERROR, "%s: Flash read failed @%08x\n",
+                              __func__, s->regs[R_DMA_FLASH_ADDR]);
+                return;
+            }
+
+            address_space_stl_le(&s->dram_as, s->regs[R_DMA_DRAM_ADDR],
+                                 data, MEMTXATTRS_UNSPECIFIED, &result);
+            if (result != MEMTX_OK) {
+                qemu_log_mask(LOG_GUEST_ERROR, "%s: DRAM write failed @%08x\n",
+                              __func__, s->regs[R_DMA_DRAM_ADDR]);
+                return;
+            }
+        }
+
+        /*
+         * When the DMA is on-going, the DMA registers are updated
+         * with the current working addresses and length.
+         */
+        s->regs[R_DMA_FLASH_ADDR] += 4;
+        s->regs[R_DMA_DRAM_ADDR] += 4;
+        s->regs[R_DMA_LEN] -= 4;
+        s->regs[R_DMA_CHECKSUM] += data;
+    }
+}
+
+static void aspeed_smc_dma_stop(AspeedSMCState *s)
+{
+    /*
+     * When the DMA is disabled, INTR_CTRL_DMA_STATUS=0 means the
+     * engine is idle
+     */
+    s->regs[R_INTR_CTRL] &= ~INTR_CTRL_DMA_STATUS;
+    s->regs[R_DMA_CHECKSUM] = 0;
+
+    /*
+     * Lower the DMA irq in any case. The IRQ control register could
+     * have been cleared before disabling the DMA.
+     */
+    qemu_irq_lower(s->irq);
+}
+
+/*
+ * When INTR_CTRL_DMA_STATUS=1, the DMA has completed and a new DMA
+ * can start even if the result of the previous was not collected.
+ */
+static bool aspeed_smc_dma_in_progress(AspeedSMCState *s)
+{
+    return s->regs[R_DMA_CTRL] & DMA_CTRL_ENABLE &&
+        !(s->regs[R_INTR_CTRL] & INTR_CTRL_DMA_STATUS);
+}
+
+static void aspeed_smc_dma_done(AspeedSMCState *s)
+{
+    s->regs[R_INTR_CTRL] |= INTR_CTRL_DMA_STATUS;
+    if (s->regs[R_INTR_CTRL] & INTR_CTRL_DMA_EN) {
+        qemu_irq_raise(s->irq);
+    }
+}
+
+static void aspeed_smc_dma_ctrl(AspeedSMCState *s, uint64_t dma_ctrl)
+{
+    if (!(dma_ctrl & DMA_CTRL_ENABLE)) {
+        s->regs[R_DMA_CTRL] = dma_ctrl;
+
+        aspeed_smc_dma_stop(s);
+        return;
+    }
+
+    if (aspeed_smc_dma_in_progress(s)) {
+        qemu_log_mask(LOG_GUEST_ERROR, "%s: DMA in progress\n",  __func__);
+        return;
+    }
+
+    s->regs[R_DMA_CTRL] = dma_ctrl;
+
+    if (s->regs[R_DMA_CTRL] & DMA_CTRL_CKSUM) {
+        aspeed_smc_dma_checksum(s);
+    } else {
+        aspeed_smc_dma_rw(s);
+    }
+
+    aspeed_smc_dma_done(s);
 }
 
 static void aspeed_smc_write(void *opaque, hwaddr addr, uint64_t data,
@@ -810,6 +1216,16 @@ static void aspeed_smc_write(void *opaque, hwaddr addr, uint64_t data,
         }
     } else if (addr == R_DUMMY_DATA) {
         s->regs[addr] = value & 0xff;
+    } else if (addr == R_INTR_CTRL) {
+        s->regs[addr] = value;
+    } else if (s->ctrl->has_dma && addr == R_DMA_CTRL) {
+        aspeed_smc_dma_ctrl(s, value);
+    } else if (s->ctrl->has_dma && addr == R_DMA_DRAM_ADDR) {
+        s->regs[addr] = DMA_DRAM_ADDR(s, value);
+    } else if (s->ctrl->has_dma && addr == R_DMA_FLASH_ADDR) {
+        s->regs[addr] = DMA_FLASH_ADDR(s, value);
+    } else if (s->ctrl->has_dma && addr == R_DMA_LEN) {
+        s->regs[addr] = DMA_LENGTH(value);
     } else {
         qemu_log_mask(LOG_UNIMP, "%s: not implemented: 0x%" HWADDR_PRIx "\n",
                       __func__, addr);
@@ -823,6 +1239,28 @@ static const MemoryRegionOps aspeed_smc_ops = {
     .endianness = DEVICE_LITTLE_ENDIAN,
     .valid.unaligned = true,
 };
+
+
+/*
+ * Initialize the custom address spaces for DMAs
+ */
+static void aspeed_smc_dma_setup(AspeedSMCState *s, Error **errp)
+{
+    char *name;
+
+    if (!s->dram_mr) {
+        error_setg(errp, TYPE_ASPEED_SMC ": 'dram' link not set");
+        return;
+    }
+
+    name = g_strdup_printf("%s-dma-flash", s->ctrl->name);
+    address_space_init(&s->flash_as, &s->mmio_flash, name);
+    g_free(name);
+
+    name = g_strdup_printf("%s-dma-dram", s->ctrl->name);
+    address_space_init(&s->dram_as, s->dram_mr, name);
+    g_free(name);
+}
 
 static void aspeed_smc_realize(DeviceState *dev, Error **errp)
 {
@@ -849,10 +1287,12 @@ static void aspeed_smc_realize(DeviceState *dev, Error **errp)
         s->num_cs = s->ctrl->max_slaves;
     }
 
+    /* DMA irq. Keep it first for the initialization in the SoC */
+    sysbus_init_irq(sbd, &s->irq);
+
     s->spi = ssi_create_bus(dev, "spi");
 
     /* Setup cs_lines for slaves */
-    sysbus_init_irq(sbd, &s->irq);
     s->cs_lines = g_new0(qemu_irq, s->num_cs);
     ssi_auto_connect_slaves(dev, s->cs_lines, s->spi);
 
@@ -899,6 +1339,11 @@ static void aspeed_smc_realize(DeviceState *dev, Error **errp)
         memory_region_add_subregion(&s->mmio_flash, offset, &fl->mmio);
         offset += fl->size;
     }
+
+    /* DMA support */
+    if (s->ctrl->has_dma) {
+        aspeed_smc_dma_setup(s, errp);
+    }
 }
 
 static const VMStateDescription vmstate_aspeed_smc = {
@@ -915,7 +1360,10 @@ static const VMStateDescription vmstate_aspeed_smc = {
 
 static Property aspeed_smc_properties[] = {
     DEFINE_PROP_UINT32("num-cs", AspeedSMCState, num_cs, 1),
+    DEFINE_PROP_BOOL("inject-failure", AspeedSMCState, inject_failure, false),
     DEFINE_PROP_UINT64("sdram-base", AspeedSMCState, sdram_base, 0),
+    DEFINE_PROP_LINK("dram", AspeedSMCState, dram_mr,
+                     TYPE_MEMORY_REGION, MemoryRegion *),
     DEFINE_PROP_END_OF_LIST(),
 };
 

@@ -1,1 +1,2 @@
-tests/qapi-schema/alternate-empty.json:2: Alternate 'Alt' should have at least two branches in 'data'
+alternate-empty.json: In alternate 'Alt':
+alternate-empty.json:2: 'data' must not be empty

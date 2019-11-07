@@ -214,6 +214,14 @@ static QemuOptsList qemu_object_opts = {
     },
 };
 
+static bool qemu_img_object_print_help(const char *type, QemuOpts *opts)
+{
+    if (user_creatable_print_help(type, opts)) {
+        exit(0);
+    }
+    return true;
+}
+
 static QemuOptsList qemu_source_opts = {
     .name = "source",
     .implied_opt_name = "file",
@@ -516,7 +524,7 @@ static int img_create(int argc, char **argv)
 
     if (qemu_opts_foreach(&qemu_object_opts,
                           user_creatable_add_opts_foreach,
-                          NULL, &error_fatal)) {
+                          qemu_img_object_print_help, &error_fatal)) {
         goto fail;
     }
 
@@ -766,7 +774,7 @@ static int img_check(int argc, char **argv)
 
     if (qemu_opts_foreach(&qemu_object_opts,
                           user_creatable_add_opts_foreach,
-                          NULL, &error_fatal)) {
+                          qemu_img_object_print_help, &error_fatal)) {
         return 1;
     }
 
@@ -979,7 +987,7 @@ static int img_commit(int argc, char **argv)
 
     if (qemu_opts_foreach(&qemu_object_opts,
                           user_creatable_add_opts_foreach,
-                          NULL, &error_fatal)) {
+                          qemu_img_object_print_help, &error_fatal)) {
         return 1;
     }
 
@@ -1362,7 +1370,7 @@ static int img_compare(int argc, char **argv)
 
     if (qemu_opts_foreach(&qemu_object_opts,
                           user_creatable_add_opts_foreach,
-                          NULL, &error_fatal)) {
+                          qemu_img_object_print_help, &error_fatal)) {
         ret = 2;
         goto out4;
     }
@@ -2141,7 +2149,7 @@ static int img_convert(int argc, char **argv)
             int64_t sval;
 
             sval = cvtnum(optarg);
-            if (sval < 0 || sval & (BDRV_SECTOR_SIZE - 1) ||
+            if (sval < 0 || !QEMU_IS_ALIGNED(sval, BDRV_SECTOR_SIZE) ||
                 sval / BDRV_SECTOR_SIZE > MAX_BUF_SECTORS) {
                 error_report("Invalid buffer size for sparse output specified. "
                     "Valid sizes are multiples of %llu up to %llu. Select "
@@ -2210,7 +2218,7 @@ static int img_convert(int argc, char **argv)
 
     if (qemu_opts_foreach(&qemu_object_opts,
                           user_creatable_add_opts_foreach,
-                          NULL, &error_fatal)) {
+                          qemu_img_object_print_help, &error_fatal)) {
         goto fail_getopt;
     }
 
@@ -2776,7 +2784,7 @@ static int img_info(int argc, char **argv)
 
     if (qemu_opts_foreach(&qemu_object_opts,
                           user_creatable_add_opts_foreach,
-                          NULL, &error_fatal)) {
+                          qemu_img_object_print_help, &error_fatal)) {
         return 1;
     }
 
@@ -3002,7 +3010,7 @@ static int img_map(int argc, char **argv)
 
     if (qemu_opts_foreach(&qemu_object_opts,
                           user_creatable_add_opts_foreach,
-                          NULL, &error_fatal)) {
+                          qemu_img_object_print_help, &error_fatal)) {
         return 1;
     }
 
@@ -3154,7 +3162,7 @@ static int img_snapshot(int argc, char **argv)
 
     if (qemu_opts_foreach(&qemu_object_opts,
                           user_creatable_add_opts_foreach,
-                          NULL, &error_fatal)) {
+                          qemu_img_object_print_help, &error_fatal)) {
         return 1;
     }
 
@@ -3321,7 +3329,7 @@ static int img_rebase(int argc, char **argv)
 
     if (qemu_opts_foreach(&qemu_object_opts,
                           user_creatable_add_opts_foreach,
-                          NULL, &error_fatal)) {
+                          qemu_img_object_print_help, &error_fatal)) {
         return 1;
     }
 
@@ -3648,7 +3656,7 @@ static int img_resize(int argc, char **argv)
     Error *err = NULL;
     int c, ret, relative;
     const char *filename, *fmt, *size;
-    int64_t n, total_size, current_size, new_size;
+    int64_t n, total_size, current_size;
     bool quiet = false;
     BlockBackend *blk = NULL;
     PreallocMode prealloc = PREALLOC_MODE_OFF;
@@ -3742,7 +3750,7 @@ static int img_resize(int argc, char **argv)
 
     if (qemu_opts_foreach(&qemu_object_opts,
                           user_creatable_add_opts_foreach,
-                          NULL, &error_fatal)) {
+                          qemu_img_object_print_help, &error_fatal)) {
         return 1;
     }
 
@@ -3823,43 +3831,17 @@ static int img_resize(int argc, char **argv)
         }
     }
 
-    ret = blk_truncate(blk, total_size, prealloc, &err);
-    if (ret < 0) {
+    /*
+     * The user expects the image to have the desired size after
+     * resizing, so pass @exact=true.  It is of no use to report
+     * success when the image has not actually been resized.
+     */
+    ret = blk_truncate(blk, total_size, true, prealloc, &err);
+    if (!ret) {
+        qprintf(quiet, "Image resized.\n");
+    } else {
         error_report_err(err);
-        goto out;
     }
-
-    new_size = blk_getlength(blk);
-    if (new_size < 0) {
-        error_report("Failed to verify truncated image length: %s",
-                     strerror(-new_size));
-        ret = -1;
-        goto out;
-    }
-
-    /* Some block drivers implement a truncation method, but only so
-     * the user can cause qemu to refresh the image's size from disk.
-     * The idea is that the user resizes the image outside of qemu and
-     * then invokes block_resize to inform qemu about it.
-     * (This includes iscsi and file-posix for device files.)
-     * Of course, that is not the behavior someone invoking
-     * qemu-img resize would find useful, so we catch that behavior
-     * here and tell the user. */
-    if (new_size != total_size && new_size == current_size) {
-        error_report("Image was not resized; resizing may not be supported "
-                     "for this image");
-        ret = -1;
-        goto out;
-    }
-
-    if (new_size != total_size) {
-        warn_report("Image should have been resized to %" PRIi64
-                    " bytes, but was resized to %" PRIi64 " bytes",
-                    total_size, new_size);
-    }
-
-    qprintf(quiet, "Image resized.\n");
-
 out:
     blk_unref(blk);
     if (ret) {
@@ -3986,7 +3968,7 @@ static int img_amend(int argc, char **argv)
 
     if (qemu_opts_foreach(&qemu_object_opts,
                           user_creatable_add_opts_foreach,
-                          NULL, &error_fatal)) {
+                          qemu_img_object_print_help, &error_fatal)) {
         ret = -1;
         goto out_no_progress;
     }
@@ -4630,7 +4612,7 @@ static int img_dd(int argc, char **argv)
 
     if (qemu_opts_foreach(&qemu_object_opts,
                           user_creatable_add_opts_foreach,
-                          NULL, &error_fatal)) {
+                          qemu_img_object_print_help, &error_fatal)) {
         ret = -1;
         goto out;
     }
@@ -4907,7 +4889,7 @@ static int img_measure(int argc, char **argv)
 
     if (qemu_opts_foreach(&qemu_object_opts,
                           user_creatable_add_opts_foreach,
-                          NULL, &error_fatal)) {
+                          qemu_img_object_print_help, &error_fatal)) {
         goto out;
     }
 

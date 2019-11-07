@@ -144,6 +144,7 @@ static void rs6000mc_realize(DeviceState *dev, Error **errp)
     RS6000MCState *s = RS6000MC_DEVICE(dev);
     int socket = 0;
     unsigned int ram_size = s->ram_size / MiB;
+    Error *local_err = NULL;
 
     while (socket < 6) {
         if (ram_size >= 64) {
@@ -165,19 +166,21 @@ static void rs6000mc_realize(DeviceState *dev, Error **errp)
         if (s->simm_size[socket]) {
             char name[] = "simm.?";
             name[5] = socket + '0';
-            memory_region_allocate_system_memory(&s->simm[socket], OBJECT(dev),
-                                                 name,
-                                                 s->simm_size[socket] * MiB);
+            memory_region_init_ram(&s->simm[socket], OBJECT(dev), name,
+                                   s->simm_size[socket] * MiB, &local_err);
+            if (local_err) {
+                goto out;
+            }
             memory_region_add_subregion_overlap(get_system_memory(), 0,
                                                 &s->simm[socket], socket);
         }
     }
     if (ram_size) {
         /* unable to push all requested RAM in SIMMs */
-        error_setg(errp, "RAM size incompatible with this board. "
+        error_setg(&local_err, "RAM size incompatible with this board. "
                    "Try again with something else, like %" PRId64 " MB",
                    s->ram_size / MiB - ram_size);
-        return;
+        goto out;
     }
 
     if (s->autoconfigure) {
@@ -193,6 +196,8 @@ static void rs6000mc_realize(DeviceState *dev, Error **errp)
 
     isa_register_portio_list(ISA_DEVICE(dev), &s->portio, 0x0,
                              rs6000mc_port_list, s, "rs6000mc");
+out:
+    error_propagate(errp, local_err);
 }
 
 static const VMStateDescription vmstate_rs6000mc = {

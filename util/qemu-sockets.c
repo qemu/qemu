@@ -461,11 +461,12 @@ int inet_connect_saddr(InetSocketAddress *saddr, Error **errp)
         }
     }
 
+    freeaddrinfo(res);
+
     if (sock < 0) {
         error_propagate(errp, local_err);
+        return sock;
     }
-
-    freeaddrinfo(res);
 
     if (saddr->keep_alive) {
         int val = 1;

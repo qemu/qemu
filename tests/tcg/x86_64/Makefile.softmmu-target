@@ -1,0 +1,36 @@
+#
+# x86 system tests
+#
+# This currently builds only for i386. The common C code is built
+# with standard compiler flags however so we can support both by
+# adding additional boot files for x86_64.
+#
+
+I386_SYSTEM_SRC=$(SRC_PATH)/tests/tcg/i386/system
+X64_SYSTEM_SRC=$(SRC_PATH)/tests/tcg/x86_64/system
+
+# These objects provide the basic boot code and helper functions for all tests
+CRT_OBJS=boot.o
+
+CRT_PATH=$(X64_SYSTEM_SRC)
+LINK_SCRIPT=$(X64_SYSTEM_SRC)/kernel.ld
+LDFLAGS=-Wl,-T$(LINK_SCRIPT) -Wl,-melf_x86_64
+CFLAGS+=-nostdlib -ggdb -O0 $(MINILIB_INC)
+LDFLAGS+=-static -nostdlib $(CRT_OBJS) $(MINILIB_OBJS) -lgcc
+
+TESTS+=$(MULTIARCH_TESTS)
+
+# building head blobs
+.PRECIOUS: $(CRT_OBJS)
+
+%.o: $(CRT_PATH)/%.S
+	$(CC) $(CFLAGS) $(EXTRA_CFLAGS) -c $< -o $@
+
+# Build and link the tests
+%: %.c $(LINK_SCRIPT) $(CRT_OBJS) $(MINILIB_OBJS)
+	$(CC) $(CFLAGS) $(EXTRA_CFLAGS) $< -o $@ $(LDFLAGS)
+
+memory: CFLAGS+=-DCHECK_UNALIGNED=1
+
+# Running
+QEMU_OPTS+=-device isa-debugcon,chardev=output -device isa-debug-exit,iobase=0xf4,iosize=0x4 -kernel

@@ -22,7 +22,6 @@ static const BlockJobDriver test_block_job_driver = {
         .instance_size = sizeof(BlockJob),
         .free          = block_job_free,
         .user_resume   = block_job_user_resume,
-        .drain         = block_job_drain,
     },
 };
 
@@ -196,7 +195,6 @@ static const BlockJobDriver test_cancel_driver = {
         .instance_size = sizeof(CancelJob),
         .free          = block_job_free,
         .user_resume   = block_job_user_resume,
-        .drain         = block_job_drain,
         .run           = cancel_job_run,
         .complete      = cancel_job_complete,
     },

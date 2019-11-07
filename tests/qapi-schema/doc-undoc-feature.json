@@ -1,0 +1,9 @@
+# Doc comment must cover all features
+
+##
+# @foo:
+#
+# Features:
+# @doc: documented feature
+##
+{ 'command': 'foo', 'features': ['undoc', 'doc'] }

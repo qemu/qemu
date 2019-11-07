@@ -118,11 +118,11 @@ iotkit_secctl_ns_read(uint32_t offset, uint64_t data, unsigned size) "IoTKit Sec
 iotkit_secctl_ns_write(uint32_t offset, uint64_t data, unsigned size) "IoTKit SecCtl NS regs write: offset 0x%x data 0x%" PRIx64 " size %u"
 
 # imx6ul_ccm.c
-ccm_entry(void) "\n"
-ccm_freq(uint32_t freq) "freq = %d\n"
-ccm_clock_freq(uint32_t clock, uint32_t freq) "(Clock = %d) = %d\n"
-ccm_read_reg(const char *reg_name, uint32_t value) "reg[%s] <= 0x%" PRIx32 "\n"
-ccm_write_reg(const char *reg_name, uint32_t value) "reg[%s] => 0x%" PRIx32 "\n"
+ccm_entry(void) ""
+ccm_freq(uint32_t freq) "freq = %d"
+ccm_clock_freq(uint32_t clock, uint32_t freq) "(Clock = %d) = %d"
+ccm_read_reg(const char *reg_name, uint32_t value) "reg[%s] <= 0x%" PRIx32
+ccm_write_reg(const char *reg_name, uint32_t value) "reg[%s] => 0x%" PRIx32
 
 # iotkit-sysinfo.c
 iotkit_sysinfo_read(uint64_t offset, uint64_t data, unsigned size) "IoTKit SysInfo read: offset 0x%" PRIx64 " data 0x%" PRIx64 " size %u"
@@ -143,3 +143,9 @@ armsse_mhu_write(uint64_t offset, uint64_t data, unsigned size) "SSE-200 MHU wri
 
 # aspeed_xdma.c
 aspeed_xdma_write(uint64_t offset, uint64_t data) "XDMA write: offset 0x%" PRIx64 " data 0x%" PRIx64
+
+# bcm2835_mbox.c
+bcm2835_mbox_write(unsigned int size, uint64_t addr, uint64_t value) "mbox write sz:%u addr:0x%"PRIx64" data:0x%"PRIx64
+bcm2835_mbox_read(unsigned int size, uint64_t addr, uint64_t value) "mbox read sz:%u addr:0x%"PRIx64" data:0x%"PRIx64
+bcm2835_mbox_irq(unsigned level) "mbox irq:ARM level:%u"
+bcm2835_mbox_property(uint32_t tag, uint32_t bufsize, size_t resplen) "mbox property tag:0x%08x in_sz:%u out_sz:%zu"

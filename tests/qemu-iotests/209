@@ -24,7 +24,8 @@ from iotests import qemu_img_create, qemu_io, qemu_img_verbose, qemu_nbd, \
 
 iotests.verify_image_format(supported_fmts=['qcow2'])
 
-disk, nbd_sock = file_path('disk', 'nbd-sock')
+disk = file_path('disk')
+nbd_sock = file_path('nbd-sock', base_dir=iotests.sock_dir)
 nbd_uri = 'nbd+unix:///exp?socket=' + nbd_sock
 
 qemu_img_create('-f', iotests.imgfmt, disk, '1M')

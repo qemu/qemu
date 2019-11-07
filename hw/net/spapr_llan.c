@@ -27,7 +27,6 @@
 
 #include "qemu/osdep.h"
 #include "cpu.h"
-#include "hw/irq.h"
 #include "qemu/log.h"
 #include "qemu/module.h"
 #include "net/net.h"
@@ -267,7 +266,7 @@ static ssize_t spapr_vlan_receive(NetClientState *nc, const uint8_t *buf,
     }
 
     if (sdev->signal_state & 1) {
-        qemu_irq_pulse(spapr_vio_qirq(sdev));
+        spapr_vio_irq_pulse(sdev);
     }
 
     return size;

@@ -24,6 +24,11 @@ config PCNET_PCI
 config PCNET_COMMON
     bool
 
+config TULIP
+    bool
+    default y if PCI_DEVICES
+    depends on PCI
+
 config E1000_PCI
     bool
     default y if PCI_DEVICES

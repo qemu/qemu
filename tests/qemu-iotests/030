@@ -957,4 +957,5 @@ class TestSetSpeed(iotests.QMPTestCase):
         self.cancel_and_wait(resume=True)
 
 if __name__ == '__main__':
-    iotests.main(supported_fmts=['qcow2', 'qed'])
+    iotests.main(supported_fmts=['qcow2', 'qed'],
+                 supported_protocols=['file'])

@@ -212,7 +212,6 @@ static const BlockJobDriver stream_job_driver = {
         .abort         = stream_abort,
         .clean         = stream_clean,
         .user_resume   = block_job_user_resume,
-        .drain         = block_job_drain,
     },
 };
 

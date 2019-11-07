@@ -456,7 +456,7 @@ static int net_slirp_init(NetClientState *peer, const char *model,
         error_setg(errp, "Failed to parse DNS");
         return -1;
     }
-    if ((dns.s_addr & mask.s_addr) != net.s_addr) {
+    if (restricted && (dns.s_addr & mask.s_addr) != net.s_addr) {
         error_setg(errp, "DNS doesn't belong to network");
         return -1;
     }
@@ -522,7 +522,7 @@ static int net_slirp_init(NetClientState *peer, const char *model,
             error_setg(errp, "Failed to parse IPv6 DNS");
             return -1;
         }
-        if (!in6_equal_net(&ip6_prefix, &ip6_dns, vprefix6_len)) {
+        if (restricted && !in6_equal_net(&ip6_prefix, &ip6_dns, vprefix6_len)) {
             error_setg(errp, "IPv6 DNS doesn't belong to network");
             return -1;
         }
@@ -576,7 +576,7 @@ static int net_slirp_init(NetClientState *peer, const char *model,
      * specific version?
      */
     g_assert(slirp_state_version() == 4);
-    register_savevm_live(NULL, "slirp", 0, slirp_state_version(),
+    register_savevm_live("slirp", 0, slirp_state_version(),
                          &savevm_slirp_state, s->slirp);
 
     s->poll_notifier.notify = net_slirp_poll_notify;

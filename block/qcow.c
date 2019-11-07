@@ -480,7 +480,7 @@ static int get_cluster_offset(BlockDriverState *bs,
                     return -E2BIG;
                 }
                 ret = bdrv_truncate(bs->file, cluster_offset + s->cluster_size,
-                                    PREALLOC_MODE_OFF, NULL);
+                                    false, PREALLOC_MODE_OFF, NULL);
                 if (ret < 0) {
                     return ret;
                 }
@@ -858,11 +858,6 @@ static int coroutine_fn qcow_co_create(BlockdevCreateOptions *opts,
     blk_set_allow_write_beyond_eof(qcow_blk, true);
 
     /* Create image format */
-    ret = blk_truncate(qcow_blk, 0, PREALLOC_MODE_OFF, errp);
-    if (ret < 0) {
-        goto exit;
-    }
-
     memset(&header, 0, sizeof(header));
     header.magic = cpu_to_be32(QCOW_MAGIC);
     header.version = cpu_to_be32(QCOW_VERSION);
@@ -1038,7 +1033,7 @@ static int qcow_make_empty(BlockDriverState *bs)
     if (bdrv_pwrite_sync(bs->file, s->l1_table_offset, s->l1_table,
             l1_length) < 0)
         return -1;
-    ret = bdrv_truncate(bs->file, s->l1_table_offset + l1_length,
+    ret = bdrv_truncate(bs->file, s->l1_table_offset + l1_length, false,
                         PREALLOC_MODE_OFF, NULL);
     if (ret < 0)
         return ret;

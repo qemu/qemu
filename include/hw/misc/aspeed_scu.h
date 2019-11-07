@@ -15,8 +15,12 @@
 
 #define TYPE_ASPEED_SCU "aspeed.scu"
 #define ASPEED_SCU(obj) OBJECT_CHECK(AspeedSCUState, (obj), TYPE_ASPEED_SCU)
+#define TYPE_ASPEED_2400_SCU TYPE_ASPEED_SCU "-ast2400"
+#define TYPE_ASPEED_2500_SCU TYPE_ASPEED_SCU "-ast2500"
+#define TYPE_ASPEED_2600_SCU TYPE_ASPEED_SCU "-ast2600"
 
 #define ASPEED_SCU_NR_REGS (0x1A8 >> 2)
+#define ASPEED_AST2600_SCU_NR_REGS (0xE20 >> 2)
 
 typedef struct AspeedSCUState {
     /*< private >*/
@@ -25,27 +29,41 @@ typedef struct AspeedSCUState {
     /*< public >*/
     MemoryRegion iomem;
 
-    uint32_t regs[ASPEED_SCU_NR_REGS];
+    uint32_t regs[ASPEED_AST2600_SCU_NR_REGS];
     uint32_t silicon_rev;
     uint32_t hw_strap1;
     uint32_t hw_strap2;
     uint32_t hw_prot_key;
-
-    uint32_t clkin;
-    uint32_t hpll;
-    uint32_t apb_freq;
 } AspeedSCUState;
 
 #define AST2400_A0_SILICON_REV   0x02000303U
 #define AST2400_A1_SILICON_REV   0x02010303U
 #define AST2500_A0_SILICON_REV   0x04000303U
 #define AST2500_A1_SILICON_REV   0x04010303U
+#define AST2600_A0_SILICON_REV   0x05000303U
 
 #define ASPEED_IS_AST2500(si_rev)     ((((si_rev) >> 24) & 0xff) == 0x04)
 
 extern bool is_supported_silicon_rev(uint32_t silicon_rev);
 
+#define ASPEED_SCU_CLASS(klass) \
+     OBJECT_CLASS_CHECK(AspeedSCUClass, (klass), TYPE_ASPEED_SCU)
+#define ASPEED_SCU_GET_CLASS(obj) \
+     OBJECT_GET_CLASS(AspeedSCUClass, (obj), TYPE_ASPEED_SCU)
+
+typedef struct  AspeedSCUClass {
+    SysBusDeviceClass parent_class;
+
+    const uint32_t *resets;
+    uint32_t (*calc_hpll)(AspeedSCUState *s, uint32_t hpll_reg);
+    uint32_t apb_divider;
+    uint32_t nr_regs;
+    const MemoryRegionOps *ops;
+}  AspeedSCUClass;
+
 #define ASPEED_SCU_PROT_KEY      0x1688A8A8
+
+uint32_t aspeed_scu_get_apb_freq(AspeedSCUState *s);
 
 /*
  * Extracted from Aspeed SDK v00.03.21. Fixes and extra definitions

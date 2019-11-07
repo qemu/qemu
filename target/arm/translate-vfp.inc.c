@@ -703,9 +703,10 @@ static bool trans_VMSR_VMRS(DisasContext *s, arg_VMSR_VMRS *a)
     if (arm_dc_feature(s, ARM_FEATURE_M)) {
         /*
          * The only M-profile VFP vmrs/vmsr sysreg is FPSCR.
-         * Writes to R15 are UNPREDICTABLE; we choose to undef.
+         * Accesses to R15 are UNPREDICTABLE; we choose to undef.
+         * (FPSCR -> r15 is a special case which writes to the PSR flags.)
          */
-        if (a->rt == 15 || a->reg != ARM_VFP_FPSCR) {
+        if (a->rt == 15 && (!a->l || a->reg != ARM_VFP_FPSCR)) {
             return false;
         }
     }

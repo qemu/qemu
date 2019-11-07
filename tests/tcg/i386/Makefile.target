@@ -6,14 +6,9 @@ I386_SRC=$(SRC_PATH)/tests/tcg/i386
 VPATH 		+= $(I386_SRC)
 
 I386_SRCS=$(notdir $(wildcard $(I386_SRC)/*.c))
-I386_TESTS=$(I386_SRCS:.c=)
-I386_ONLY_TESTS=$(filter-out test-i386-ssse3, $(I386_TESTS))
-# Update TESTS
-TESTS+=$(I386_ONLY_TESTS)
-
-ifneq ($(TARGET_NAME),x86_64)
-CFLAGS+=-m32
-endif
+ALL_X86_TESTS=$(I386_SRCS:.c=)
+SKIP_I386_TESTS=test-i386-ssse3
+X86_64_TESTS:=$(filter test-i386-ssse3, $(ALL_X86_TESTS))
 
 #
 # hello-i386 is a barebones app
@@ -26,7 +21,7 @@ hello-i386: LDFLAGS+=-nostdlib
 #
 
 test-i386: test-i386.c test-i386-code16.S test-i386-vm86.S test-i386.h test-i386-shift.h test-i386-muldiv.h
-	$(CC) $(CFLAGS) $(LDFLAGS) -o $@ \
+	$(CC) $(CFLAGS) $(LDFLAGS) $(EXTRA_CFLAGS) -o $@ \
 	   $(<D)/test-i386.c $(<D)/test-i386-code16.S $(<D)/test-i386-vm86.S -lm
 
 ifeq ($(SPEED), slow)
@@ -39,9 +34,12 @@ run-test-i386-fprem: test-i386-fprem test-i386-fprem.ref
 	$(call run-test,test-i386-fprem, $(QEMU) $<,"$< on $(TARGET_NAME)")
 	$(call diff-out,test-i386-fprem, test-i386-fprem.ref)
 else
-run-test-i386-fprem: test-i386-fprem
-	$(call skip-test, $<, "SLOW")
+SKIP_I386_TESTS+=test-i386-fprem
 endif
+
+# Update TESTS
+I386_TESTS:=$(filter-out $(SKIP_I386_TESTS), $(ALL_X86_TESTS))
+TESTS=$(MULTIARCH_TESTS) $(I386_TESTS)
 
 # On i386 and x86_64 Linux only supports 4k pages (large pages are a different hack)
 EXTRA_RUNS+=run-test-mmap-4096

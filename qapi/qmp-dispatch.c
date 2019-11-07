@@ -104,8 +104,9 @@ static QObject *do_qmp_dispatch(QmpCommandList *cmds, QObject *request,
         return NULL;
     }
     if (!cmd->enabled) {
-        error_setg(errp, "The command %s has been disabled for this instance",
-                   command);
+        error_set(errp, ERROR_CLASS_COMMAND_NOT_FOUND,
+                  "The command %s has been disabled for this instance",
+                  command);
         return NULL;
     }
     if (oob && !(cmd->options & QCO_ALLOW_OOB)) {

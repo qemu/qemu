@@ -1,1 +1,2 @@
-tests/qapi-schema/nested-struct-data-invalid-dict.json:2: Key 'type' is missing from member 'a' of 'data' for command 'foo'
+nested-struct-data-invalid-dict.json: In command 'foo':
+nested-struct-data-invalid-dict.json:2: 'data' member 'a' misses key 'type'

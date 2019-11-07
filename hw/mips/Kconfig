@@ -13,6 +13,7 @@ config R4K
 
 config MALTA
     bool
+    select ISA_SUPERIO
 
 config MIPSSIM
     bool

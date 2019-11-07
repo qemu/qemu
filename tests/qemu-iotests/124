@@ -105,7 +105,7 @@ class TestIncrementalBackupBase(iotests.QMPTestCase):
         # Create a base image with a distinctive patterning
         drive0 = self.add_node('drive0')
         self.img_create(drive0['file'], drive0['fmt'])
-        self.vm.add_drive(drive0['file'])
+        self.vm.add_drive(drive0['file'], opts='node-name=node0')
         self.write_default_pattern(drive0['file'])
         self.vm.launch()
 
@@ -348,12 +348,14 @@ class TestIncrementalBackup(TestIncrementalBackupBase):
                             ('0xfe', '16M', '256k'),
                             ('0x64', '32736k', '64k')))
         # Check the dirty bitmap stats
-        result = self.vm.qmp('query-block')
-        self.assert_qmp(result, 'return[0]/dirty-bitmaps[0]/name', 'bitmap0')
-        self.assert_qmp(result, 'return[0]/dirty-bitmaps[0]/count', 458752)
-        self.assert_qmp(result, 'return[0]/dirty-bitmaps[0]/granularity', 65536)
-        self.assert_qmp(result, 'return[0]/dirty-bitmaps[0]/status', 'active')
-        self.assert_qmp(result, 'return[0]/dirty-bitmaps[0]/persistent', False)
+        self.assertTrue(self.vm.check_bitmap_status(
+            'node0', bitmap0.name, {
+                'name': 'bitmap0',
+                'count': 458752,
+                'granularity': 65536,
+                'status': 'active',
+                'persistent': False
+            }))
 
         # Prepare a cluster_size=128k backup target without a backing file.
         (target, _) = bitmap0.new_target()
@@ -670,9 +672,8 @@ class TestIncrementalBackupBlkdebug(TestIncrementalBackupBase):
         """
 
         drive0 = self.drives[0]
-        # NB: The blkdebug script here looks for a "flush, read, read" pattern.
-        # The flush occurs in hmp_io_writes, the first read in device_add, and
-        # the last read during the block job.
+        # NB: The blkdebug script here looks for a "flush, read" pattern.
+        # The flush occurs in hmp_io_writes, and the read during the block job.
         result = self.vm.qmp('blockdev-add',
                              node_name=drive0['id'],
                              driver=drive0['fmt'],
@@ -686,15 +687,11 @@ class TestIncrementalBackupBlkdebug(TestIncrementalBackupBase):
                                      'event': 'flush_to_disk',
                                      'state': 1,
                                      'new_state': 2
-                                 },{
-                                     'event': 'read_aio',
-                                     'state': 2,
-                                     'new_state': 3
                                  }],
                                  'inject-error': [{
                                      'event': 'read_aio',
                                      'errno': 5,
-                                     'state': 3,
+                                     'state': 2,
                                      'immediately': False,
                                      'once': True
                                  }],
@@ -708,23 +705,15 @@ class TestIncrementalBackupBlkdebug(TestIncrementalBackupBase):
                                           ('0xfe', '16M', '256k'),
                                           ('0x64', '32736k', '64k')))
 
-        # For the purposes of query-block visibility of bitmaps, add a drive
-        # frontend after we've written data; otherwise we can't use hmp-io
-        result = self.vm.qmp("device_add",
-                             id="device0",
-                             drive=drive0['id'],
-                             driver="virtio-blk")
-        self.assert_qmp(result, 'return', {})
-
         # Bitmap Status Check
-        query = self.vm.qmp('query-block')
-        ret = [bmap for bmap in query['return'][0]['dirty-bitmaps']
-               if bmap.get('name') == bitmap.name][0]
-        self.assert_qmp(ret, 'count', 458752)
-        self.assert_qmp(ret, 'granularity', 65536)
-        self.assert_qmp(ret, 'status', 'active')
-        self.assert_qmp(ret, 'busy', False)
-        self.assert_qmp(ret, 'recording', True)
+        self.assertTrue(self.vm.check_bitmap_status(
+            drive0['id'], bitmap.name, {
+                'count': 458752,
+                'granularity': 65536,
+                'status': 'active',
+                'busy': False,
+                'recording': True
+            }))
 
         # Start backup
         parent, _ = bitmap.last_target()
@@ -748,14 +737,14 @@ class TestIncrementalBackupBlkdebug(TestIncrementalBackupBase):
                                         'operation': 'read'})
 
         # Bitmap Status Check
-        query = self.vm.qmp('query-block')
-        ret = [bmap for bmap in query['return'][0]['dirty-bitmaps']
-               if bmap.get('name') == bitmap.name][0]
-        self.assert_qmp(ret, 'count', 458752)
-        self.assert_qmp(ret, 'granularity', 65536)
-        self.assert_qmp(ret, 'status', 'frozen')
-        self.assert_qmp(ret, 'busy', True)
-        self.assert_qmp(ret, 'recording', True)
+        self.assertTrue(self.vm.check_bitmap_status(
+            drive0['id'], bitmap.name, {
+                'count': 458752,
+                'granularity': 65536,
+                'status': 'frozen',
+                'busy': True,
+                'recording': True
+            }))
 
         # Resume and check incremental backup for consistency
         res = self.vm.qmp('block-job-resume', device=bitmap.drive['id'])
@@ -763,14 +752,14 @@ class TestIncrementalBackupBlkdebug(TestIncrementalBackupBase):
         self.wait_qmp_backup(bitmap.drive['id'])
 
         # Bitmap Status Check
-        query = self.vm.qmp('query-block')
-        ret = [bmap for bmap in query['return'][0]['dirty-bitmaps']
-               if bmap.get('name') == bitmap.name][0]
-        self.assert_qmp(ret, 'count', 0)
-        self.assert_qmp(ret, 'granularity', 65536)
-        self.assert_qmp(ret, 'status', 'active')
-        self.assert_qmp(ret, 'busy', False)
-        self.assert_qmp(ret, 'recording', True)
+        self.assertTrue(self.vm.check_bitmap_status(
+            drive0['id'], bitmap.name, {
+                'count': 0,
+                'granularity': 65536,
+                'status': 'active',
+                'busy': False,
+                'recording': True
+            }))
 
         # Finalize / Cleanup
         self.make_reference_backup(bitmap)
@@ -779,4 +768,5 @@ class TestIncrementalBackupBlkdebug(TestIncrementalBackupBase):
 
 
 if __name__ == '__main__':
-    iotests.main(supported_fmts=['qcow2'])
+    iotests.main(supported_fmts=['qcow2'],
+                 supported_protocols=['file'])

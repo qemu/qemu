@@ -1,0 +1,2 @@
+struct-member-if-invalid.json: In struct 'Stru':
+struct-member-if-invalid.json:2: 'if' condition of 'data' member 'member' must be a string or a list of strings
