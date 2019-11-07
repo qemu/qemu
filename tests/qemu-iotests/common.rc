@@ -298,6 +298,20 @@ _stop_nbd_server()
     fi
 }
 
+# Gets the data_file value from IMGOPTS and replaces the '$TEST_IMG'
+# pattern by '$1'
+# Caution: The replacement is done with sed, so $1 must be escaped
+#          properly.  (The delimiter is '#'.)
+_get_data_file()
+{
+    if ! echo "$IMGOPTS" | grep -q 'data_file='; then
+        return 1
+    fi
+
+    echo "$IMGOPTS" | sed -e 's/.*data_file=\([^,]*\).*/\1/' \
+                    | sed -e "s#\\\$TEST_IMG#$1#"
+}
+
 _make_test_img()
 {
     # extra qemu-img options can be added by tests
@@ -318,7 +332,8 @@ _make_test_img()
     fi
 
     if [ -n "$IMGOPTS" ]; then
-        optstr=$(_optstr_add "$optstr" "$IMGOPTS")
+        imgopts_expanded=$(echo "$IMGOPTS" | sed -e "s#\\\$TEST_IMG#$img_name#")
+        optstr=$(_optstr_add "$optstr" "$imgopts_expanded")
     fi
     if [ -n "$IMGKEYSECRET" ]; then
         object_options="--object secret,id=keysec0,data=$IMGKEYSECRET"
@@ -400,6 +415,11 @@ _rm_test_img()
         # Remove all the extents for vmdk
         "$QEMU_IMG" info "$img" 2>/dev/null | grep 'filename:' | cut -f 2 -d: \
             | xargs -I {} rm -f "{}"
+    elif [ "$IMGFMT" = "qcow2" ]; then
+        # Remove external data file
+        if data_file=$(_get_data_file "$img"); then
+            rm -f "$data_file"
+        fi
     fi
     rm -f "$img"
 }
