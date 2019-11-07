@@ -62,8 +62,8 @@ $QEMU_IMG measure -O foo "$TEST_IMG" # unknown image file format
 
 make_test_img_with_fmt() {
     # Shadow global variables within this function
-    local IMGFMT="$1" IMGOPTS=""
-    _make_test_img "$2"
+    local IMGFMT="$1"
+    _make_test_img --no-opts "$2"
 }
 
 qemu_io_with_fmt() {

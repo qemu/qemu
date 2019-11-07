@@ -58,7 +58,7 @@ echo
 echo "=== Testing blkverify through filename ==="
 echo
 
-TEST_IMG="$TEST_IMG.base" IMGOPTS="" IMGFMT="raw" _make_test_img $IMG_SIZE |\
+TEST_IMG="$TEST_IMG.base" IMGFMT="raw" _make_test_img --no-opts $IMG_SIZE |\
     _filter_imgfmt
 _make_test_img $IMG_SIZE
 $QEMU_IO -c "open -o driver=raw,file.driver=blkverify,file.raw.filename=$TEST_IMG.base $TEST_IMG" \
@@ -73,7 +73,7 @@ echo
 echo "=== Testing blkverify through file blockref ==="
 echo
 
-TEST_IMG="$TEST_IMG.base" IMGOPTS="" IMGFMT="raw" _make_test_img $IMG_SIZE |\
+TEST_IMG="$TEST_IMG.base" IMGFMT="raw" _make_test_img --no-opts $IMG_SIZE |\
     _filter_imgfmt
 _make_test_img $IMG_SIZE
 $QEMU_IO -c "open -o driver=raw,file.driver=blkverify,file.raw.filename=$TEST_IMG.base,file.test.driver=$IMGFMT,file.test.file.filename=$TEST_IMG" \
