@@ -232,5 +232,29 @@ _filter_qmp_empty_return()
     grep -v '{"return": {}}'
 }
 
+_filter_json_filename()
+{
+    $PYTHON -c 'import sys
+result, *fnames = sys.stdin.read().split("json:{")
+depth = 0
+for fname in fnames:
+    depth += 1 # For the opening brace in the split separator
+    for chr_i, chr in enumerate(fname):
+        if chr == "{":
+            depth += 1
+        elif chr == "}":
+            depth -= 1
+            if depth == 0:
+                break
+
+    # json:{} filenames may be nested; filter out everything from
+    # inside the outermost one
+    if depth == 0:
+        chr_i += 1 # First character past the filename
+        result += "json:{ /* filtered */ }" + fname[chr_i:]
+
+sys.stdout.write(result)'
+}
+
 # make sure this script returns success
 true
