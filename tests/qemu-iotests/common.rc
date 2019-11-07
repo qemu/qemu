@@ -308,6 +308,7 @@ _make_test_img()
     local use_backing=0
     local backing_file=""
     local object_options=""
+    local opts_param=false
     local misc_params=()
 
     if [ -n "$TEST_IMG_FILE" ]; then
@@ -328,11 +329,23 @@ _make_test_img()
         if [ "$use_backing" = "1" -a -z "$backing_file" ]; then
             backing_file=$param
             continue
+        elif $opts_param; then
+            optstr=$(_optstr_add "$optstr" "$param")
+            opts_param=false
+            continue
         fi
 
         case "$param" in
             -b)
                 use_backing=1
+                ;;
+
+            -o)
+                opts_param=true
+                ;;
+
+            --no-opts)
+                optstr=""
                 ;;
 
             *)
