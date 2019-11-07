@@ -41,13 +41,15 @@ trap "_cleanup; exit \$status" 0 1 2 3 15
 _supported_fmt qcow2
 _supported_proto file
 _supported_os Linux
+# External data files do not work with compat=0.10
+_unsupported_imgopts 'compat=0.10'
 
 echo
 echo "=== Create and open image with external data file ==="
 echo
 
 echo "With data file name in the image:"
-IMGOPTS="data_file=$TEST_IMG.data" _make_test_img 64M
+_make_test_img -o "data_file=$TEST_IMG.data" 64M
 _check_test_img
 
 $QEMU_IO -c "open $TEST_IMG" -c "read -P 0 0 64k" 2>&1 | _filter_qemu_io | _filter_testdir
@@ -104,7 +106,7 @@ echo
 echo "=== Standalone image with external data file (efficient) ==="
 echo
 
-IMGOPTS="data_file=$TEST_IMG.data" _make_test_img 64M
+_make_test_img -o "data_file=$TEST_IMG.data" 64M
 
 echo -n "qcow2 file size before I/O: "
 du -b $TEST_IMG | cut -f1
@@ -154,7 +156,7 @@ echo
 echo "=== Standalone image with external data file (valid raw) ==="
 echo
 
-IMGOPTS="data_file=$TEST_IMG.data,data_file_raw=on" _make_test_img 64M
+_make_test_img -o "data_file=$TEST_IMG.data,data_file_raw=on" 64M
 
 echo -n "qcow2 file size before I/O: "
 du -b $TEST_IMG | cut -f1
@@ -187,7 +189,7 @@ echo
 echo "=== bdrv_co_block_status test for file and offset=0 ==="
 echo
 
-IMGOPTS="data_file=$TEST_IMG.data" _make_test_img 64M
+_make_test_img -o "data_file=$TEST_IMG.data" 64M
 
 $QEMU_IO -c 'write -P 0x11 0 1M' -f $IMGFMT "$TEST_IMG" | _filter_qemu_io
 $QEMU_IO -c 'read -P 0x11 0 1M' -f $IMGFMT "$TEST_IMG" | _filter_qemu_io

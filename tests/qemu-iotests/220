@@ -37,6 +37,8 @@ trap "_cleanup; exit \$status" 0 1 2 3 15
 _supported_fmt qcow2
 _supported_proto file
 _supported_os Linux
+# To use a different refcount width but 16 bits we need compat=1.1
+_unsupported_imgopts 'compat=0.10'
 
 echo "== Creating huge file =="
 
@@ -44,7 +46,7 @@ echo "== Creating huge file =="
 # of a HUGE (but very sparse) file.  tmpfs works, ext4 does not.
 _require_large_file 513T
 
-IMGOPTS='cluster_size=2M,refcount_bits=1' _make_test_img 513T
+_make_test_img -o 'cluster_size=2M,refcount_bits=1' 513T
 
 echo "== Populating refcounts =="
 # We want an image with 256M refcounts * 2M clusters = 512T referenced.

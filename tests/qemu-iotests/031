@@ -40,19 +40,22 @@ trap "_cleanup; exit \$status" 0 1 2 3 15
 # This tests qcow2-specific low-level functionality
 _supported_fmt qcow2
 _supported_proto file
+# We want to test compat=0.10, which does not support refcount widths
+# other than 16
+_unsupported_imgopts 'refcount_bits=\([^1]\|.\([^6]\|$\)\)'
 
 CLUSTER_SIZE=65536
 
 # qcow2.py output depends on the exact options used, so override the command
 # line here as an exception
-for IMGOPTS in "compat=0.10" "compat=1.1"; do
+for compat in "compat=0.10" "compat=1.1"; do
 
     echo
-    echo ===== Testing with -o $IMGOPTS =====
+    echo ===== Testing with -o $compat =====
     echo
     echo === Create image with unknown header extension ===
     echo
-    _make_test_img 64M
+    _make_test_img -o $compat 64M
     $PYTHON qcow2.py "$TEST_IMG" add-header-ext 0x12345678 "This is a test header extension"
     $PYTHON qcow2.py "$TEST_IMG" dump-header
     _check_test_img

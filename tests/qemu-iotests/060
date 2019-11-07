@@ -161,7 +161,7 @@ $QEMU_IO -c 'write 0k 64k' "$BACKING_IMG" | _filter_qemu_io
 # compat=0.10 is required in order to make the following discard actually
 # unallocate the sector rather than make it a zero sector - we want COW, after
 # all.
-IMGOPTS='compat=0.10' _make_test_img -b "$BACKING_IMG" 1G
+_make_test_img -o 'compat=0.10' -b "$BACKING_IMG" 1G
 # Write two clusters, the second one enforces creation of an L2 table after
 # the first data cluster.
 $QEMU_IO -c 'write 0k 64k' -c 'write 512M 64k' "$TEST_IMG" | _filter_qemu_io
@@ -401,7 +401,7 @@ echo
 echo "=== Discarding a non-covered in-bounds refblock ==="
 echo
 
-IMGOPTS='refcount_bits=1' _make_test_img 64M
+_make_test_img -o 'refcount_bits=1' 64M
 
 # Pretend there's a refblock somewhere where there is no refblock to
 # cover it (but the covering refblock has a valid index in the
@@ -425,7 +425,7 @@ echo
 echo "=== Discarding a refblock covered by an unaligned refblock ==="
 echo
 
-IMGOPTS='refcount_bits=1' _make_test_img 64M
+_make_test_img -o 'refcount_bits=1' 64M
 
 # Same as above
 poke_file "$TEST_IMG" "$(($rt_offset+8))" "\x00\x00\x00\x10\x00\x00\x00\x00"

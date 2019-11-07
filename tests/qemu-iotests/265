@@ -41,7 +41,7 @@ _supported_os Linux
 echo '--- Writing to the image ---'
 
 # Reduce cluster size so we get more and quicker I/O
-IMGOPTS='cluster_size=4096' _make_test_img 1M
+_make_test_img -o 'cluster_size=4096' 1M
 (for ((kb = 1024 - 4; kb >= 0; kb -= 4)); do \
      echo "aio_write -P 42 $((kb + 1))k 2k"; \
  done) \

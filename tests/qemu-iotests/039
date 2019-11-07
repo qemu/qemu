@@ -50,8 +50,7 @@ size=128M
 echo
 echo "== Checking that image is clean on shutdown =="
 
-IMGOPTS="compat=1.1,lazy_refcounts=on"
-_make_test_img $size
+_make_test_img -o "compat=1.1,lazy_refcounts=on" $size
 
 $QEMU_IO -c "write -P 0x5a 0 512" "$TEST_IMG" | _filter_qemu_io
 
@@ -62,8 +61,7 @@ _check_test_img
 echo
 echo "== Creating a dirty image file =="
 
-IMGOPTS="compat=1.1,lazy_refcounts=on"
-_make_test_img $size
+_make_test_img -o "compat=1.1,lazy_refcounts=on" $size
 
 _NO_VALGRIND \
 $QEMU_IO -c "write -P 0x5a 0 512" \
@@ -98,8 +96,7 @@ $QEMU_IO -c "read -P 0x5a 0 512" "$TEST_IMG" | _filter_qemu_io
 echo
 echo "== Opening a dirty image read/write should repair it =="
 
-IMGOPTS="compat=1.1,lazy_refcounts=on"
-_make_test_img $size
+_make_test_img -o "compat=1.1,lazy_refcounts=on" $size
 
 _NO_VALGRIND \
 $QEMU_IO -c "write -P 0x5a 0 512" \
@@ -117,8 +114,7 @@ $PYTHON qcow2.py "$TEST_IMG" dump-header | grep incompatible_features
 echo
 echo "== Creating an image file with lazy_refcounts=off =="
 
-IMGOPTS="compat=1.1,lazy_refcounts=off"
-_make_test_img $size
+_make_test_img -o "compat=1.1,lazy_refcounts=off" $size
 
 _NO_VALGRIND \
 $QEMU_IO -c "write -P 0x5a 0 512" \
@@ -132,11 +128,9 @@ _check_test_img
 echo
 echo "== Committing to a backing file with lazy_refcounts=on =="
 
-IMGOPTS="compat=1.1,lazy_refcounts=on"
-TEST_IMG="$TEST_IMG".base _make_test_img $size
+TEST_IMG="$TEST_IMG".base _make_test_img -o "compat=1.1,lazy_refcounts=on" $size
 
-IMGOPTS="compat=1.1,lazy_refcounts=on,backing_file=$TEST_IMG.base"
-_make_test_img $size
+_make_test_img -o "compat=1.1,lazy_refcounts=on,backing_file=$TEST_IMG.base" $size
 
 $QEMU_IO -c "write 0 512" "$TEST_IMG" | _filter_qemu_io
 $QEMU_IMG commit "$TEST_IMG"
@@ -151,8 +145,7 @@ TEST_IMG="$TEST_IMG".base _check_test_img
 echo
 echo "== Changing lazy_refcounts setting at runtime =="
 
-IMGOPTS="compat=1.1,lazy_refcounts=off"
-_make_test_img $size
+_make_test_img -o "compat=1.1,lazy_refcounts=off" $size
 
 _NO_VALGRIND \
 $QEMU_IO -c "reopen -o lazy-refcounts=on" \
@@ -164,8 +157,7 @@ $QEMU_IO -c "reopen -o lazy-refcounts=on" \
 $PYTHON qcow2.py "$TEST_IMG" dump-header | grep incompatible_features
 _check_test_img
 
-IMGOPTS="compat=1.1,lazy_refcounts=on"
-_make_test_img $size
+_make_test_img -o "compat=1.1,lazy_refcounts=on" $size
 
 _NO_VALGRIND \
 $QEMU_IO -c "reopen -o lazy-refcounts=off" \

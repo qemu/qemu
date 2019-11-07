@@ -45,8 +45,7 @@ echo
 echo '=== Check on an image with a multiple of 2^32 clusters ==='
 echo
 
-IMGOPTS=$(_optstr_add "$IMGOPTS" "cluster_size=512") \
-    _make_test_img 512
+_make_test_img -o "cluster_size=512" 512
 
 # Allocate L2 table
 $QEMU_IO -c 'write 0 512' "$TEST_IMG" | _filter_qemu_io

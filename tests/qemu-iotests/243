@@ -40,6 +40,8 @@ trap "_cleanup; exit \$status" 0 1 2 3 15
 _supported_fmt qcow2
 _supported_proto file
 _supported_os Linux
+# External data files do not work with compat=0.10
+_unsupported_imgopts 'compat=0.10'
 
 for mode in off metadata falloc full; do
 
@@ -47,7 +49,7 @@ for mode in off metadata falloc full; do
     echo "=== preallocation=$mode ==="
     echo
 
-    IMGOPTS="preallocation=$mode" _make_test_img 64M
+    _make_test_img -o "preallocation=$mode" 64M
 
     printf "File size: "
     du -b $TEST_IMG | cut -f1
@@ -64,7 +66,7 @@ for mode in off metadata falloc full; do
     echo "=== External data file: preallocation=$mode ==="
     echo
 
-    IMGOPTS="data_file=$TEST_IMG.data,preallocation=$mode" _make_test_img 64M
+    _make_test_img -o "data_file=$TEST_IMG.data,preallocation=$mode" 64M
 
     echo -n "qcow2 file size: "
     du -b $TEST_IMG | cut -f1

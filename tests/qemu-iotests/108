@@ -65,7 +65,7 @@ echo
 echo '=== Repairing unreferenced data cluster in new refblock area ==='
 echo
 
-IMGOPTS='cluster_size=512' _make_test_img 64M
+_make_test_img -o 'cluster_size=512' 64M
 # Allocate the first 128 kB in the image (first refblock)
 $QEMU_IO -c 'write 0 0x1b200' "$TEST_IMG" | _filter_qemu_io
 # should be 131072 == 0x20000

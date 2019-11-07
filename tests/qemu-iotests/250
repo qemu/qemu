@@ -55,9 +55,8 @@ disk_usage()
 }
 
 size=2100M
-IMGOPTS="cluster_size=1M,preallocation=metadata"
 
-_make_test_img $size
+_make_test_img -o "cluster_size=1M,preallocation=metadata" $size
 $QEMU_IO -c 'discard 0 10M' -c 'discard 2090M 10M' \
          -c 'write 2090M 10M' -c 'write 0 10M' "$TEST_IMG" | _filter_qemu_io
 
