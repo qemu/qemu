@@ -1274,6 +1274,7 @@ void qtest_qmp_device_add(QTestState *qts, const char *driver, const char *id,
     qdict_put_str(args, "id", id);
 
     qtest_qmp_device_add_qdict(qts, driver, args);
+    qobject_unref(args);
 }
 
 static void device_deleted_cb(void *opaque, const char *name, QDict *data)
