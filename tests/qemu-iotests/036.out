@@ -3,25 +3,9 @@ QA output created by 036
 === Image with unknown incompatible feature bit ===
 
 Formatting 'TEST_DIR/t.IMGFMT', fmt=IMGFMT size=67108864
-magic                     0x514649fb
-version                   3
-backing_file_offset       0x0
-backing_file_size         0x0
-cluster_bits              16
-size                      67108864
-crypt_method              0
-l1_size                   1
-l1_table_offset           0x30000
-refcount_table_offset     0x10000
-refcount_table_clusters   1
-nb_snapshots              0
-snapshot_offset           0x0
 incompatible_features     [63]
 compatible_features       []
 autoclear_features        []
-refcount_order            4
-header_length             104
-
 qemu-img: Could not open 'TEST_DIR/t.IMGFMT': Unsupported IMGFMT feature(s): Unknown incompatible feature: 8000000000000000
 qemu-img: Could not open 'TEST_DIR/t.IMGFMT': Unsupported IMGFMT feature(s): Test feature
 
@@ -37,25 +21,9 @@ qemu-img: Could not open 'TEST_DIR/t.IMGFMT': Unsupported IMGFMT feature(s): tes
 === Create image with unknown autoclear feature bit ===
 
 Formatting 'TEST_DIR/t.IMGFMT', fmt=IMGFMT size=67108864
-magic                     0x514649fb
-version                   3
-backing_file_offset       0x0
-backing_file_size         0x0
-cluster_bits              16
-size                      67108864
-crypt_method              0
-l1_size                   1
-l1_table_offset           0x30000
-refcount_table_offset     0x10000
-refcount_table_clusters   1
-nb_snapshots              0
-snapshot_offset           0x0
 incompatible_features     []
 compatible_features       []
 autoclear_features        [63]
-refcount_order            4
-header_length             104
-
 Header extension:
 magic                     0x6803f857
 length                    192
@@ -65,25 +33,9 @@ data                      <binary>
 === Repair image ===
 
 No errors were found on the image.
-magic                     0x514649fb
-version                   3
-backing_file_offset       0x0
-backing_file_size         0x0
-cluster_bits              16
-size                      67108864
-crypt_method              0
-l1_size                   1
-l1_table_offset           0x30000
-refcount_table_offset     0x10000
-refcount_table_clusters   1
-nb_snapshots              0
-snapshot_offset           0x0
 incompatible_features     []
 compatible_features       []
 autoclear_features        []
-refcount_order            4
-header_length             104
-
 Header extension:
 magic                     0x6803f857
 length                    192

@@ -55,7 +55,8 @@ $PYTHON qcow2.py "$TEST_IMG" set-feature-bit incompatible 63
 
 # Without feature table
 $PYTHON qcow2.py "$TEST_IMG" del-header-ext 0x6803f857
-$PYTHON qcow2.py "$TEST_IMG" dump-header
+$PYTHON qcow2.py "$TEST_IMG" dump-header | grep features
+$PYTHON qcow2.py "$TEST_IMG" dump-header-exts
 _img_info
 
 # With feature table containing bit 63
@@ -103,14 +104,16 @@ echo === Create image with unknown autoclear feature bit ===
 echo
 _make_test_img 64M
 $PYTHON qcow2.py "$TEST_IMG" set-feature-bit autoclear 63
-$PYTHON qcow2.py "$TEST_IMG" dump-header
+$PYTHON qcow2.py "$TEST_IMG" dump-header | grep features
+$PYTHON qcow2.py "$TEST_IMG" dump-header-exts
 
 echo
 echo === Repair image ===
 echo
 _check_test_img -r all
 
-$PYTHON qcow2.py "$TEST_IMG" dump-header
+$PYTHON qcow2.py "$TEST_IMG" dump-header | grep features
+$PYTHON qcow2.py "$TEST_IMG" dump-header-exts
 
 # success, all done
 echo "*** done"
