@@ -664,6 +664,12 @@ static void pvrdma_realize(PCIDevice *pdev, Error **errp)
     dev->shutdown_notifier.notify = pvrdma_shutdown_notifier;
     qemu_register_shutdown_notifier(&dev->shutdown_notifier);
 
+#ifdef LEGACY_RDMA_REG_MR
+    rdma_info_report("Using legacy reg_mr");
+#else
+    rdma_info_report("Using iova reg_mr");
+#endif
+
 out:
     if (rc) {
         pvrdma_fini(pdev);
