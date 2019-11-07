@@ -98,7 +98,7 @@ for opts1 in "" "read-only=on" "read-only=on,force-share=on"; do
 
     echo
     echo "== Creating test image =="
-    $QEMU_IMG create -f $IMGFMT "${TEST_IMG}" -b ${TEST_IMG}.base | _filter_img_create
+    _make_test_img -b "${TEST_IMG}.base"
 
     echo
     echo "== Launching QEMU, opts: '$opts1' =="

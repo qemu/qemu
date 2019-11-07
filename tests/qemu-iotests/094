@@ -45,7 +45,7 @@ _supported_proto nbd
 _unsupported_imgopts "subformat=monolithicFlat" "subformat=twoGbMaxExtentFlat"
 
 _make_test_img 64M
-$QEMU_IMG create -f $IMGFMT "$TEST_DIR/source.$IMGFMT" 64M | _filter_img_create
+TEST_IMG_FILE="$TEST_DIR/source.$IMGFMT" IMGPROTO=file _make_test_img 64M
 
 _launch_qemu -drive if=none,id=src,file="$TEST_DIR/source.$IMGFMT",format=raw \
              -nodefaults
