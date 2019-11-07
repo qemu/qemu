@@ -303,12 +303,12 @@ _make_test_img()
     # extra qemu-img options can be added by tests
     # at least one argument (the image size) needs to be added
     local extra_img_options=""
-    local image_size=$*
     local optstr=""
     local img_name=""
     local use_backing=0
     local backing_file=""
     local object_options=""
+    local misc_params=()
 
     if [ -n "$TEST_IMG_FILE" ]; then
         img_name=$TEST_IMG_FILE
@@ -324,11 +324,23 @@ _make_test_img()
         optstr=$(_optstr_add "$optstr" "key-secret=keysec0")
     fi
 
-    if [ "$1" = "-b" ]; then
-        use_backing=1
-        backing_file=$2
-        image_size=$3
-    fi
+    for param; do
+        if [ "$use_backing" = "1" -a -z "$backing_file" ]; then
+            backing_file=$param
+            continue
+        fi
+
+        case "$param" in
+            -b)
+                use_backing=1
+                ;;
+
+            *)
+                misc_params=("${misc_params[@]}" "$param")
+                ;;
+        esac
+    done
+
     if [ \( "$IMGFMT" = "qcow2" -o "$IMGFMT" = "qed" \) -a -n "$CLUSTER_SIZE" ]; then
         optstr=$(_optstr_add "$optstr" "cluster_size=$CLUSTER_SIZE")
     fi
@@ -344,9 +356,9 @@ _make_test_img()
     # XXX(hch): have global image options?
     (
      if [ $use_backing = 1 ]; then
-        $QEMU_IMG create $object_options -f $IMGFMT $extra_img_options -b "$backing_file" "$img_name" $image_size 2>&1
+        $QEMU_IMG create $object_options -f $IMGFMT $extra_img_options -b "$backing_file" "$img_name" "${misc_params[@]}" 2>&1
      else
-        $QEMU_IMG create $object_options -f $IMGFMT $extra_img_options "$img_name" $image_size 2>&1
+        $QEMU_IMG create $object_options -f $IMGFMT $extra_img_options "$img_name" "${misc_params[@]}" 2>&1
      fi
     ) | _filter_img_create
 
