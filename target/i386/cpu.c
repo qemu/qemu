@@ -3942,10 +3942,6 @@ static X86CPUDefinition builtin_x86_defs[] = {
             CPUID_7_0_EBX_SMEP | CPUID_7_0_EBX_BMI2 | CPUID_7_0_EBX_RDSEED |
             CPUID_7_0_EBX_ADX | CPUID_7_0_EBX_SMAP | CPUID_7_0_EBX_CLFLUSHOPT |
             CPUID_7_0_EBX_SHA_NI,
-        /* Missing: XSAVES (not supported by some Linux versions,
-         * including v4.1 to v4.12).
-         * KVM doesn't yet expose any XSAVES state save component.
-         */
         .features[FEAT_XSAVE] =
             CPUID_XSAVE_XSAVEOPT | CPUID_XSAVE_XSAVEC |
             CPUID_XSAVE_XGETBV1,
@@ -3965,6 +3961,19 @@ static X86CPUDefinition builtin_x86_defs[] = {
                     { "ibpb", "on" },
                     { "model-id",
                       "AMD EPYC Processor (with IBPB)" },
+                    { /* end of list */ }
+                }
+            },
+            {
+                .version = 3,
+                .props = (PropValue[]) {
+                    { "ibpb", "on" },
+                    { "perfctr-core", "on" },
+                    { "clzero", "on" },
+                    { "xsaveerptr", "on" },
+                    { "xsaves", "on" },
+                    { "model-id",
+                      "AMD EPYC Processor" },
                     { /* end of list */ }
                 }
             },
