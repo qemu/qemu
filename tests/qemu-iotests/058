@@ -42,7 +42,7 @@ _cleanup()
 {
     nbd_server_stop
     _cleanup_test_img
-    rm -f "$converted_image"
+    _rm_test_img "$converted_image"
 }
 trap "_cleanup; exit \$status" 0 1 2 3 15
 

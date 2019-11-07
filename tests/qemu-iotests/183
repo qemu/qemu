@@ -31,7 +31,7 @@ MIG_SOCKET="${SOCK_DIR}/migrate"
 _cleanup()
 {
     rm -f "${MIG_SOCKET}"
-    rm -f "${TEST_IMG}.dest"
+    _rm_test_img "${TEST_IMG}.dest"
     _cleanup_test_img
     _cleanup_qemu
 }

@@ -41,10 +41,13 @@ _cleanup()
     _cleanup_qemu
     for i in $(seq 1 ${SNAPSHOTS})
     do
-        rm -f "${TEST_DIR}/${i}-${snapshot_virt0}"
-        rm -f "${TEST_DIR}/${i}-${snapshot_virt1}"
+        _rm_test_img "${TEST_DIR}/${i}-${snapshot_virt0}"
+        _rm_test_img "${TEST_DIR}/${i}-${snapshot_virt1}"
     done
-    rm -f "${TEST_IMG}" "${TEST_IMG}.1" "${TEST_IMG}.2" "${TEST_IMG}.base"
+    for img in "${TEST_IMG}".{1,2,base}
+    do
+        _rm_test_img "$img"
+    done
 
 }
 trap "_cleanup; exit \$status" 0 1 2 3 15

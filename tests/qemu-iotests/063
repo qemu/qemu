@@ -29,8 +29,10 @@ status=1	# failure is the default!
 
 _cleanup()
 {
-	_cleanup_test_img
-	rm -f "$TEST_IMG.orig" "$TEST_IMG.raw1" "$TEST_IMG.raw2"
+    _cleanup_test_img
+    for img in "$TEST_IMG".{orig,raw1,raw2,target}; do
+        _rm_test_img "$img"
+    done
 }
 trap "_cleanup; exit \$status" 0 1 2 3 15
 

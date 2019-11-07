@@ -31,7 +31,8 @@ status=1    # failure is the default!
 _cleanup()
 {
     _cleanup_qemu
-    rm -f "${TEST_IMG}" "${BACKING_IMG}"
+    _rm_test_img "${TEST_IMG}"
+    _rm_test_img "${BACKING_IMG}"
 }
 trap "_cleanup; exit \$status" 0 1 2 3 15
 

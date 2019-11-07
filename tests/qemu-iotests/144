@@ -34,7 +34,9 @@ TMP_SNAP2=${TEST_DIR}/tmp2.qcow2
 _cleanup()
 {
     _cleanup_qemu
-    rm -f "${TEST_IMG}" "${TMP_SNAP1}" "${TMP_SNAP2}"
+    for img in "${TEST_IMG}" "${TMP_SNAP1}" "${TMP_SNAP2}"; do
+        _rm_test_img "$img"
+    done
 }
 
 trap "_cleanup; exit \$status" 0 1 2 3 15

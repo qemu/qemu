@@ -30,13 +30,9 @@ status=1	# failure is the default!
 _cleanup()
 {
     _cleanup_test_img
-    rm -f "${TEST_IMG}.base"
-    rm -f "${TEST_IMG}.overlay"
-    rm -f "${TEST_IMG}.convert"
-    rm -f "${TEST_IMG}.a"
-    rm -f "${TEST_IMG}.b"
-    rm -f "${TEST_IMG}.c"
-    rm -f "${TEST_IMG}.lnk"
+    for img in "${TEST_IMG}".{base,overlay,convert,a,b,c,lnk}; do
+        _rm_test_img "$img"
+    done
 }
 trap "_cleanup; exit \$status" 0 1 2 3 15
 

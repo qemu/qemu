@@ -29,7 +29,8 @@ status=1    # failure is the default!
 _cleanup()
 {
     _cleanup_qemu
-    rm  -f "${QEMU_TEST_DIR}/image.base" "${QEMU_TEST_DIR}/image.snp1"
+    _rm_test_img "${TEST_DIR}/image.base"
+    _rm_test_img "${TEST_DIR}/image.snp1"
     _cleanup_test_img
 }
 trap "_cleanup; exit \$status" 0 1 2 3 15

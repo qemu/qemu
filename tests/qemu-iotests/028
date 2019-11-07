@@ -32,7 +32,7 @@ status=1	# failure is the default!
 _cleanup()
 {
     _cleanup_qemu
-    rm -f "${TEST_IMG}.copy"
+    _rm_test_img "${TEST_IMG}.copy"
     _cleanup_test_img
 }
 trap "_cleanup; exit \$status" 0 1 2 3 15

@@ -29,12 +29,12 @@ status=1	# failure is the default!
 _cleanup()
 {
     _cleanup_test_img
-    rm -f "$TEST_DIR/t.$IMGFMT.base_old"
-    rm -f "$TEST_DIR/t.$IMGFMT.base_new"
+    _rm_test_img "$TEST_DIR/t.$IMGFMT.base_old"
+    _rm_test_img "$TEST_DIR/t.$IMGFMT.base_new"
 
-    rm -f "$TEST_DIR/subdir/t.$IMGFMT"
-    rm -f "$TEST_DIR/subdir/t.$IMGFMT.base_old"
-    rm -f "$TEST_DIR/subdir/t.$IMGFMT.base_new"
+    _rm_test_img "$TEST_DIR/subdir/t.$IMGFMT"
+    _rm_test_img "$TEST_DIR/subdir/t.$IMGFMT.base_old"
+    _rm_test_img "$TEST_DIR/subdir/t.$IMGFMT.base_new"
     rmdir "$TEST_DIR/subdir" 2> /dev/null
 }
 trap "_cleanup; exit \$status" 0 1 2 3 15
