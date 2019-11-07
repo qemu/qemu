@@ -48,6 +48,8 @@ _filter_io_error()
 _supported_fmt qcow2
 _supported_proto file
 _supported_os Linux
+# These tests only work for compat=1.1 images with refcount_bits=16
+_unsupported_imgopts 'compat=0.10' 'refcount_bits=\([^1]\|.\([^6]\|$\)\)'
 
 # The repair process will create a large file - so check for availability first
 _require_large_file 64G
@@ -57,8 +59,6 @@ rb_offset=131072 # 0x20000 (XXX: just an assumption)
 l1_offset=196608 # 0x30000 (XXX: just an assumption)
 l2_offset=262144 # 0x40000 (XXX: just an assumption)
 l2_offset_after_snapshot=524288 # 0x80000 (XXX: just an assumption)
-
-IMGOPTS="compat=1.1"
 
 OPEN_RW="open -o overlap-check=all $TEST_IMG"
 # Overlap checks are done before write operations only, therefore opening an

@@ -40,8 +40,8 @@ trap "_cleanup; exit \$status" 0 1 2 3 15
 
 _supported_fmt qcow2
 _supported_proto file
-
-IMGOPTS="compat=1.1"
+# The code path we want to test here only works for compat=1.1 images
+_unsupported_imgopts 'compat=0.10'
 
 for event in l1_update empty_image_prepare reftable_update refblock_alloc; do
 
