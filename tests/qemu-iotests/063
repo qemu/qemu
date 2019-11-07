@@ -51,15 +51,13 @@ _unsupported_imgopts "subformat=monolithicFlat" \
 _make_test_img 4M
 
 echo "== Testing conversion with -n fails with no target file =="
-# check .orig file does not exist
-rm -f "$TEST_IMG.orig"
 if $QEMU_IMG convert -f $IMGFMT -O $IMGFMT -n "$TEST_IMG" "$TEST_IMG.orig" >/dev/null 2>&1; then
     exit 1
 fi
 
 echo "== Testing conversion with -n succeeds with a target file =="
-rm -f "$TEST_IMG.orig"
-cp "$TEST_IMG" "$TEST_IMG.orig"
+_rm_test_img "$TEST_IMG.orig"
+TEST_IMG="$TEST_IMG.orig" _make_test_img 4M
 if ! $QEMU_IMG convert -f $IMGFMT -O $IMGFMT -n "$TEST_IMG" "$TEST_IMG.orig" ; then
     exit 1
 fi
@@ -85,10 +83,8 @@ fi
 _check_test_img
 
 echo "== Testing conversion to a smaller file fails =="
-rm -f "$TEST_IMG.orig"
-mv "$TEST_IMG" "$TEST_IMG.orig"
-_make_test_img 2M
-if $QEMU_IMG convert -f $IMGFMT -O $IMGFMT -n "$TEST_IMG.orig" "$TEST_IMG" >/dev/null 2>&1; then
+TEST_IMG="$TEST_IMG.target" _make_test_img 2M
+if $QEMU_IMG convert -f $IMGFMT -O $IMGFMT -n "$TEST_IMG" "$TEST_IMG.target" >/dev/null 2>&1; then
     exit 1
 fi
 

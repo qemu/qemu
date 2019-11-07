@@ -105,8 +105,7 @@ add_snapshot_image()
 {
     base_image="${TEST_DIR}/$((${1}-1))-${snapshot_virt0}"
     snapshot_file="${TEST_DIR}/${1}-${snapshot_virt0}"
-    _make_test_img -u -b "${base_image}" "$size"
-    mv "${TEST_IMG}" "${snapshot_file}"
+    TEST_IMG=$snapshot_file _make_test_img -u -b "${base_image}" "$size"
     do_blockdev_add "$1" "'backing': null, " "${snapshot_file}"
 }
 
@@ -122,10 +121,8 @@ blockdev_snapshot()
 
 size=128M
 
-_make_test_img $size
-mv "${TEST_IMG}" "${TEST_IMG}.1"
-_make_test_img $size
-mv "${TEST_IMG}" "${TEST_IMG}.2"
+TEST_IMG="$TEST_IMG.1" _make_test_img $size
+TEST_IMG="$TEST_IMG.2" _make_test_img $size
 
 echo
 echo === Running QEMU ===
