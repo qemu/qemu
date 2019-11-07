@@ -158,7 +158,7 @@ echo
 echo === With version 2 images enabling lazy refcounts must fail ===
 echo
 
-_make_test_img -ocompat=0.10 $size
+_make_test_img -o compat=0.10 $size
 
 run_qemu -drive file="$TEST_IMG",format=qcow2,lazy-refcounts=on
 run_qemu -drive file="$TEST_IMG",format=qcow2,lazy-refcounts=off
