@@ -90,4 +90,6 @@ void qemu_pixman_glyph_render(pixman_image_t *glyph,
                               pixman_color_t *bgcol,
                               int x, int y, int cw, int ch);
 
+G_DEFINE_AUTOPTR_CLEANUP_FUNC(pixman_image_t, qemu_pixman_image_unref)
+
 #endif /* QEMU_PIXMAN_H */
