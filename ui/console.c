@@ -380,7 +380,7 @@ void qmp_screendump(const char *filename, bool has_device, const char *device,
     }
 
     if (!ppm_save(fd, surface, errp)) {
-        unlink(filename);
+        qemu_unlink(filename);
     }
 }
 
