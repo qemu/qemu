@@ -2154,6 +2154,10 @@ for target in $target_list; do
       ;;
   esac
 done
+# The EDK2 binaries are compressed with bzip2
+if test "$edk2_blobs" = "yes" && ! has bzip2; then
+  error_exit "The bzip2 program is required for building QEMU"
+fi
 
 feature_not_found() {
   feature=$1
