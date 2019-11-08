@@ -280,6 +280,7 @@ enum {
 };
 
 char *bdrv_perm_names(uint64_t perm);
+uint64_t bdrv_qapi_perm_to_blk_perm(BlockPermission qapi_perm);
 
 /* disk I/O throttling */
 void bdrv_init(void);
