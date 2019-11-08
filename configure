@@ -427,6 +427,7 @@ softmmu="yes"
 linux_user="no"
 bsd_user="no"
 blobs="yes"
+edk2_blobs="no"
 pkgversion=""
 pie=""
 qom_cast_debug="yes"
@@ -2145,6 +2146,14 @@ case " $target_list " in
   *) softmmu=no
   ;;
 esac
+
+for target in $target_list; do
+  case "$target" in
+    arm-softmmu | aarch64-softmmu | i386-softmmu | x86_64-softmmu)
+      edk2_blobs="yes"
+      ;;
+  esac
+done
 
 feature_not_found() {
   feature=$1
@@ -7524,6 +7533,10 @@ fi
 if test "$libudev" != "no"; then
     echo "CONFIG_LIBUDEV=y" >> $config_host_mak
     echo "LIBUDEV_LIBS=$libudev_libs" >> $config_host_mak
+fi
+
+if test "$edk2_blobs" = "yes" ; then
+  echo "DECOMPRESS_EDK2_BLOBS=y" >> $config_host_mak
 fi
 
 # use included Linux headers
