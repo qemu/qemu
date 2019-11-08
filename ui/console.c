@@ -193,6 +193,7 @@ static void dpy_refresh(DisplayState *s);
 static DisplayState *get_alloc_displaystate(void);
 static void text_console_update_cursor_timer(void);
 static void text_console_update_cursor(void *opaque);
+static bool ppm_save(int fd, DisplaySurface *ds, Error **errp);
 
 static void gui_update(void *opaque)
 {
@@ -308,29 +309,22 @@ void graphic_hw_invalidate(QemuConsole *con)
     }
 }
 
-static void ppm_save(const char *filename, DisplaySurface *ds,
-                     Error **errp)
+static bool ppm_save(int fd, DisplaySurface *ds, Error **errp)
 {
     int width = pixman_image_get_width(ds->image);
     int height = pixman_image_get_height(ds->image);
-    int fd;
     FILE *f;
     int y;
     int ret;
     pixman_image_t *linebuf;
+    bool success = false;
 
-    trace_ppm_save(filename, ds);
-    fd = qemu_open(filename, O_WRONLY | O_CREAT | O_TRUNC | O_BINARY, 0666);
-    if (fd == -1) {
-        error_setg(errp, "failed to open file '%s': %s", filename,
-                   strerror(errno));
-        return;
-    }
+    trace_ppm_save(fd, ds);
     f = fdopen(fd, "wb");
     ret = fprintf(f, "P6\n%d %d\n%d\n", width, height, 255);
     if (ret < 0) {
         linebuf = NULL;
-        goto write_err;
+        goto end;
     }
     linebuf = qemu_pixman_linebuf_create(PIXMAN_BE_r8g8b8, width);
     for (y = 0; y < height; y++) {
@@ -339,21 +333,16 @@ static void ppm_save(const char *filename, DisplaySurface *ds,
         ret = fwrite(pixman_image_get_data(linebuf), 1,
                      pixman_image_get_stride(linebuf), f);
         (void)ret;
-        if (ferror(f)) {
-            goto write_err;
-        }
+        success = !ferror(f);
     }
 
-out:
+end:
+    if (!success) {
+        error_setg(errp, "failed to write to PPM file: %s", strerror(errno));
+    }
     qemu_pixman_image_unref(linebuf);
     fclose(f);
-    return;
-
-write_err:
-    error_setg(errp, "failed to write to file '%s': %s", filename,
-               strerror(errno));
-    unlink(filename);
-    goto out;
+    return success;
 }
 
 void qmp_screendump(const char *filename, bool has_device, const char *device,
@@ -361,6 +350,7 @@ void qmp_screendump(const char *filename, bool has_device, const char *device,
 {
     QemuConsole *con;
     DisplaySurface *surface;
+    int fd;
 
     if (has_device) {
         con = qemu_console_lookup_by_device_name(device, has_head ? head : 0,
@@ -387,7 +377,16 @@ void qmp_screendump(const char *filename, bool has_device, const char *device,
         return;
     }
 
-    ppm_save(filename, surface, errp);
+    fd = qemu_open(filename, O_WRONLY | O_CREAT | O_TRUNC | O_BINARY, 0666);
+    if (fd == -1) {
+        error_setg(errp, "failed to open file '%s': %s", filename,
+                   strerror(errno));
+        return;
+    }
+
+    if (!ppm_save(fd, surface, errp)) {
+        unlink(filename);
+    }
 }
 
 void graphic_hw_text_update(QemuConsole *con, console_ch_t *chardata)
