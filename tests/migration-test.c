@@ -899,8 +899,13 @@ static void wait_for_migration_fail(QTestState *from, bool allow_active)
 
     do {
         status = migrate_query_status(from);
-        g_assert(!strcmp(status, "setup") || !strcmp(status, "failed") ||
-                 (allow_active && !strcmp(status, "active")));
+        bool result = !strcmp(status, "setup") || !strcmp(status, "failed") ||
+                 (allow_active && !strcmp(status, "active"));
+        if (!result) {
+            fprintf(stderr, "%s: unexpected status status=%s allow_active=%d\n",
+                    __func__, status, allow_active);
+        }
+        g_assert(result);
         failed = !strcmp(status, "failed");
         g_free(status);
     } while (!failed);
