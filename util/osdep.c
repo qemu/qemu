@@ -371,6 +371,21 @@ int qemu_close(int fd)
 }
 
 /*
+ * Delete a file from the filesystem, unless the filename is /dev/fdset/...
+ *
+ * Returns: On success, zero is returned.  On error, -1 is returned,
+ * and errno is set appropriately.
+ */
+int qemu_unlink(const char *name)
+{
+    if (g_str_has_prefix(name, "/dev/fdset/")) {
+        return 0;
+    }
+
+    return unlink(name);
+}
+
+/*
  * A variant of write(2) which handles partial write.
  *
  * Return the number of bytes transferred.
