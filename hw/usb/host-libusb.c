@@ -86,7 +86,9 @@ struct USBHostDevice {
     uint32_t                         options;
     uint32_t                         loglevel;
     bool                             needs_autoscan;
-    bool                             allow_guest_reset;
+    bool                             allow_one_guest_reset;
+    bool                             allow_all_guest_resets;
+
     /* state */
     QTAILQ_ENTRY(USBHostDevice)      next;
     int                              seen, errcount;
@@ -1462,10 +1464,10 @@ static void usb_host_handle_reset(USBDevice *udev)
     USBHostDevice *s = USB_HOST_DEVICE(udev);
     int rc;
 
-    if (!s->allow_guest_reset) {
+    if (!s->allow_one_guest_reset && !s->allow_all_guest_resets) {
         return;
     }
-    if (udev->addr == 0) {
+    if (!s->allow_all_guest_resets && udev->addr == 0) {
         return;
     }
 
@@ -1586,7 +1588,10 @@ static Property usb_host_dev_properties[] = {
     DEFINE_PROP_UINT32("productid", USBHostDevice, match.product_id, 0),
     DEFINE_PROP_UINT32("isobufs",  USBHostDevice, iso_urb_count,    4),
     DEFINE_PROP_UINT32("isobsize", USBHostDevice, iso_urb_frames,   32),
-    DEFINE_PROP_BOOL("guest-reset", USBHostDevice, allow_guest_reset, true),
+    DEFINE_PROP_BOOL("guest-reset", USBHostDevice,
+                     allow_one_guest_reset, true),
+    DEFINE_PROP_BOOL("guest-resets-all", USBHostDevice,
+                     allow_all_guest_resets, false),
     DEFINE_PROP_UINT32("loglevel",  USBHostDevice, loglevel,
                        LIBUSB_LOG_LEVEL_WARNING),
     DEFINE_PROP_BIT("pipeline",    USBHostDevice, options,
