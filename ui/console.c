@@ -33,6 +33,7 @@
 #include "chardev/char-fe.h"
 #include "trace.h"
 #include "exec/memory.h"
+#include "io/channel-file.h"
 
 #define DEFAULT_BACKSCROLL 512
 #define CONSOLE_CURSOR_PERIOD 500
@@ -313,36 +314,30 @@ static bool ppm_save(int fd, DisplaySurface *ds, Error **errp)
 {
     int width = pixman_image_get_width(ds->image);
     int height = pixman_image_get_height(ds->image);
-    FILE *f;
+    g_autoptr(Object) ioc = OBJECT(qio_channel_file_new_fd(fd));
+    g_autofree char *header = NULL;
+    g_autoptr(pixman_image_t) linebuf = NULL;
     int y;
-    int ret;
-    pixman_image_t *linebuf;
-    bool success = false;
 
     trace_ppm_save(fd, ds);
-    f = fdopen(fd, "wb");
-    ret = fprintf(f, "P6\n%d %d\n%d\n", width, height, 255);
-    if (ret < 0) {
-        linebuf = NULL;
-        goto end;
+
+    header = g_strdup_printf("P6\n%d %d\n%d\n", width, height, 255);
+    if (qio_channel_write_all(QIO_CHANNEL(ioc),
+                              header, strlen(header), errp) < 0) {
+        return false;
     }
+
     linebuf = qemu_pixman_linebuf_create(PIXMAN_BE_r8g8b8, width);
     for (y = 0; y < height; y++) {
         qemu_pixman_linebuf_fill(linebuf, ds->image, width, 0, y);
-        clearerr(f);
-        ret = fwrite(pixman_image_get_data(linebuf), 1,
-                     pixman_image_get_stride(linebuf), f);
-        (void)ret;
-        success = !ferror(f);
+        if (qio_channel_write_all(QIO_CHANNEL(ioc),
+                                  (char *)pixman_image_get_data(linebuf),
+                                  pixman_image_get_stride(linebuf), errp) < 0) {
+            return false;
+        }
     }
 
-end:
-    if (!success) {
-        error_setg(errp, "failed to write to PPM file: %s", strerror(errno));
-    }
-    qemu_pixman_image_unref(linebuf);
-    fclose(f);
-    return success;
+    return true;
 }
 
 void qmp_screendump(const char *filename, bool has_device, const char *device,
