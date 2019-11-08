@@ -1121,6 +1121,50 @@ class TestOrphanedSource(iotests.QMPTestCase):
                              target='dest-ro')
         self.assert_qmp(result, 'error/class', 'GenericError')
 
+    def test_failing_permission_in_complete(self):
+        self.assert_no_active_block_jobs()
+
+        # Unshare consistent-read on the target
+        # (The mirror job does not care)
+        result = self.vm.qmp('blockdev-add',
+                             driver='blkdebug',
+                             node_name='dest-perm',
+                             image='dest',
+                             unshare_child_perms=['consistent-read'])
+        self.assert_qmp(result, 'return', {})
+
+        result = self.vm.qmp('blockdev-mirror', job_id='job', device='src',
+                             sync='full', target='dest',
+                             filter_node_name='mirror-filter')
+        self.assert_qmp(result, 'return', {})
+
+        # Require consistent-read on the source
+        # (We can only add this node once the job has started, or it
+        # will complain that it does not want to run on non-root nodes)
+        result = self.vm.qmp('blockdev-add',
+                             driver='blkdebug',
+                             node_name='src-perm',
+                             image='src',
+                             take_child_perms=['consistent-read'])
+        self.assert_qmp(result, 'return', {})
+
+        # While completing, mirror will attempt to replace src by
+        # dest, which must fail because src-perm requires
+        # consistent-read but dest-perm does not share it; thus
+        # aborting the job when it is supposed to complete
+        self.complete_and_wait('job',
+                               completion_error='Operation not permitted')
+
+        # Assert that all of our nodes are still there (except for the
+        # mirror filter, which should be gone despite the failure)
+        nodes = self.vm.qmp('query-named-block-nodes')['return']
+        nodes = [node['node-name'] for node in nodes]
+
+        for expect in ('src', 'src-perm', 'dest', 'dest-perm'):
+            self.assertTrue(expect in nodes, '%s disappeared' % expect)
+        self.assertFalse('mirror-filter' in nodes,
+                         'Mirror filter node did not disappear')
+
 if __name__ == '__main__':
     iotests.main(supported_fmts=['qcow2', 'qed'],
                  supported_protocols=['file'])
