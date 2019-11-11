@@ -216,8 +216,8 @@ enum reg_fields_enum {
             if (!is_preloaded(ctx, NUM)) { \
                 tcg_gen_mov_tl(hex_new_value[NUM], hex_gpr[NUM]); \
             } \
-            if (!is_preloaded(ctx, NUM+1)) { \
-                tcg_gen_mov_tl(hex_new_value[NUM+1], hex_gpr[NUM+1]); \
+            if (!is_preloaded(ctx, NUM + 1)) { \
+                tcg_gen_mov_tl(hex_new_value[NUM + 1], hex_gpr[NUM + 1]); \
             } \
         } \
     } while (0)
