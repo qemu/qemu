@@ -449,28 +449,29 @@ static void tlb_flush_page_locked(CPUArchState *env, int midx,
     }
 }
 
-/* As we are going to hijack the bottom bits of the page address for a
- * mmuidx bit mask we need to fail to build if we can't do that
+/**
+ * tlb_flush_page_by_mmuidx_async_0:
+ * @cpu: cpu on which to flush
+ * @addr: page of virtual address to flush
+ * @idxmap: set of mmu_idx to flush
+ *
+ * Helper for tlb_flush_page_by_mmuidx and friends, flush one page
+ * at @addr from the tlbs indicated by @idxmap from @cpu.
  */
-QEMU_BUILD_BUG_ON(NB_MMU_MODES > TARGET_PAGE_BITS_MIN);
-
-static void tlb_flush_page_by_mmuidx_async_work(CPUState *cpu,
-                                                run_on_cpu_data data)
+static void tlb_flush_page_by_mmuidx_async_0(CPUState *cpu,
+                                             target_ulong addr,
+                                             uint16_t idxmap)
 {
     CPUArchState *env = cpu->env_ptr;
-    target_ulong addr_and_mmuidx = (target_ulong) data.target_ptr;
-    target_ulong addr = addr_and_mmuidx & TARGET_PAGE_MASK;
-    unsigned long mmu_idx_bitmap = addr_and_mmuidx & ALL_MMUIDX_BITS;
     int mmu_idx;
 
     assert_cpu_is_self(cpu);
 
-    tlb_debug("page addr:" TARGET_FMT_lx " mmu_map:0x%lx\n",
-              addr, mmu_idx_bitmap);
+    tlb_debug("page addr:" TARGET_FMT_lx " mmu_map:0x%x\n", addr, idxmap);
 
     qemu_spin_lock(&env_tlb(env)->c.lock);
     for (mmu_idx = 0; mmu_idx < NB_MMU_MODES; mmu_idx++) {
-        if (test_bit(mmu_idx, &mmu_idx_bitmap)) {
+        if ((idxmap >> mmu_idx) & 1) {
             tlb_flush_page_locked(env, mmu_idx, addr);
         }
     }
@@ -479,22 +480,75 @@ static void tlb_flush_page_by_mmuidx_async_work(CPUState *cpu,
     tb_flush_jmp_cache(cpu, addr);
 }
 
+/**
+ * tlb_flush_page_by_mmuidx_async_1:
+ * @cpu: cpu on which to flush
+ * @data: encoded addr + idxmap
+ *
+ * Helper for tlb_flush_page_by_mmuidx and friends, called through
+ * async_run_on_cpu.  The idxmap parameter is encoded in the page
+ * offset of the target_ptr field.  This limits the set of mmu_idx
+ * that can be passed via this method.
+ */
+static void tlb_flush_page_by_mmuidx_async_1(CPUState *cpu,
+                                             run_on_cpu_data data)
+{
+    target_ulong addr_and_idxmap = (target_ulong) data.target_ptr;
+    target_ulong addr = addr_and_idxmap & TARGET_PAGE_MASK;
+    uint16_t idxmap = addr_and_idxmap & ~TARGET_PAGE_MASK;
+
+    tlb_flush_page_by_mmuidx_async_0(cpu, addr, idxmap);
+}
+
+typedef struct {
+    target_ulong addr;
+    uint16_t idxmap;
+} TLBFlushPageByMMUIdxData;
+
+/**
+ * tlb_flush_page_by_mmuidx_async_2:
+ * @cpu: cpu on which to flush
+ * @data: allocated addr + idxmap
+ *
+ * Helper for tlb_flush_page_by_mmuidx and friends, called through
+ * async_run_on_cpu.  The addr+idxmap parameters are stored in a
+ * TLBFlushPageByMMUIdxData structure that has been allocated
+ * specifically for this helper.  Free the structure when done.
+ */
+static void tlb_flush_page_by_mmuidx_async_2(CPUState *cpu,
+                                             run_on_cpu_data data)
+{
+    TLBFlushPageByMMUIdxData *d = data.host_ptr;
+
+    tlb_flush_page_by_mmuidx_async_0(cpu, d->addr, d->idxmap);
+    g_free(d);
+}
+
 void tlb_flush_page_by_mmuidx(CPUState *cpu, target_ulong addr, uint16_t idxmap)
 {
-    target_ulong addr_and_mmu_idx;
-
     tlb_debug("addr: "TARGET_FMT_lx" mmu_idx:%" PRIx16 "\n", addr, idxmap);
 
     /* This should already be page aligned */
-    addr_and_mmu_idx = addr & TARGET_PAGE_MASK;
-    addr_and_mmu_idx |= idxmap;
+    addr &= TARGET_PAGE_MASK;
 
-    if (!qemu_cpu_is_self(cpu)) {
-        async_run_on_cpu(cpu, tlb_flush_page_by_mmuidx_async_work,
-                         RUN_ON_CPU_TARGET_PTR(addr_and_mmu_idx));
+    if (qemu_cpu_is_self(cpu)) {
+        tlb_flush_page_by_mmuidx_async_0(cpu, addr, idxmap);
+    } else if (idxmap < TARGET_PAGE_SIZE) {
+        /*
+         * Most targets have only a few mmu_idx.  In the case where
+         * we can stuff idxmap into the low TARGET_PAGE_BITS, avoid
+         * allocating memory for this operation.
+         */
+        async_run_on_cpu(cpu, tlb_flush_page_by_mmuidx_async_1,
+                         RUN_ON_CPU_TARGET_PTR(addr | idxmap));
     } else {
-        tlb_flush_page_by_mmuidx_async_work(
-            cpu, RUN_ON_CPU_TARGET_PTR(addr_and_mmu_idx));
+        TLBFlushPageByMMUIdxData *d = g_new(TLBFlushPageByMMUIdxData, 1);
+
+        /* Otherwise allocate a structure, freed by the worker.  */
+        d->addr = addr;
+        d->idxmap = idxmap;
+        async_run_on_cpu(cpu, tlb_flush_page_by_mmuidx_async_2,
+                         RUN_ON_CPU_HOST_PTR(d));
     }
 }
 
@@ -506,17 +560,36 @@ void tlb_flush_page(CPUState *cpu, target_ulong addr)
 void tlb_flush_page_by_mmuidx_all_cpus(CPUState *src_cpu, target_ulong addr,
                                        uint16_t idxmap)
 {
-    const run_on_cpu_func fn = tlb_flush_page_by_mmuidx_async_work;
-    target_ulong addr_and_mmu_idx;
-
     tlb_debug("addr: "TARGET_FMT_lx" mmu_idx:%"PRIx16"\n", addr, idxmap);
 
     /* This should already be page aligned */
-    addr_and_mmu_idx = addr & TARGET_PAGE_MASK;
-    addr_and_mmu_idx |= idxmap;
+    addr &= TARGET_PAGE_MASK;
 
-    flush_all_helper(src_cpu, fn, RUN_ON_CPU_TARGET_PTR(addr_and_mmu_idx));
-    fn(src_cpu, RUN_ON_CPU_TARGET_PTR(addr_and_mmu_idx));
+    /*
+     * Allocate memory to hold addr+idxmap only when needed.
+     * See tlb_flush_page_by_mmuidx for details.
+     */
+    if (idxmap < TARGET_PAGE_SIZE) {
+        flush_all_helper(src_cpu, tlb_flush_page_by_mmuidx_async_1,
+                         RUN_ON_CPU_TARGET_PTR(addr | idxmap));
+    } else {
+        CPUState *dst_cpu;
+
+        /* Allocate a separate data block for each destination cpu.  */
+        CPU_FOREACH(dst_cpu) {
+            if (dst_cpu != src_cpu) {
+                TLBFlushPageByMMUIdxData *d
+                    = g_new(TLBFlushPageByMMUIdxData, 1);
+
+                d->addr = addr;
+                d->idxmap = idxmap;
+                async_run_on_cpu(dst_cpu, tlb_flush_page_by_mmuidx_async_2,
+                                 RUN_ON_CPU_HOST_PTR(d));
+            }
+        }
+    }
+
+    tlb_flush_page_by_mmuidx_async_0(src_cpu, addr, idxmap);
 }
 
 void tlb_flush_page_all_cpus(CPUState *src, target_ulong addr)
@@ -528,17 +601,41 @@ void tlb_flush_page_by_mmuidx_all_cpus_synced(CPUState *src_cpu,
                                               target_ulong addr,
                                               uint16_t idxmap)
 {
-    const run_on_cpu_func fn = tlb_flush_page_by_mmuidx_async_work;
-    target_ulong addr_and_mmu_idx;
-
     tlb_debug("addr: "TARGET_FMT_lx" mmu_idx:%"PRIx16"\n", addr, idxmap);
 
     /* This should already be page aligned */
-    addr_and_mmu_idx = addr & TARGET_PAGE_MASK;
-    addr_and_mmu_idx |= idxmap;
+    addr &= TARGET_PAGE_MASK;
 
-    flush_all_helper(src_cpu, fn, RUN_ON_CPU_TARGET_PTR(addr_and_mmu_idx));
-    async_safe_run_on_cpu(src_cpu, fn, RUN_ON_CPU_TARGET_PTR(addr_and_mmu_idx));
+    /*
+     * Allocate memory to hold addr+idxmap only when needed.
+     * See tlb_flush_page_by_mmuidx for details.
+     */
+    if (idxmap < TARGET_PAGE_SIZE) {
+        flush_all_helper(src_cpu, tlb_flush_page_by_mmuidx_async_1,
+                         RUN_ON_CPU_TARGET_PTR(addr | idxmap));
+        async_safe_run_on_cpu(src_cpu, tlb_flush_page_by_mmuidx_async_1,
+                              RUN_ON_CPU_TARGET_PTR(addr | idxmap));
+    } else {
+        CPUState *dst_cpu;
+        TLBFlushPageByMMUIdxData *d;
+
+        /* Allocate a separate data block for each destination cpu.  */
+        CPU_FOREACH(dst_cpu) {
+            if (dst_cpu != src_cpu) {
+                d = g_new(TLBFlushPageByMMUIdxData, 1);
+                d->addr = addr;
+                d->idxmap = idxmap;
+                async_run_on_cpu(dst_cpu, tlb_flush_page_by_mmuidx_async_2,
+                                 RUN_ON_CPU_HOST_PTR(d));
+            }
+        }
+
+        d = g_new(TLBFlushPageByMMUIdxData, 1);
+        d->addr = addr;
+        d->idxmap = idxmap;
+        async_safe_run_on_cpu(src_cpu, tlb_flush_page_by_mmuidx_async_2,
+                              RUN_ON_CPU_HOST_PTR(d));
+    }
 }
 
 void tlb_flush_page_all_cpus_synced(CPUState *src, target_ulong addr)
