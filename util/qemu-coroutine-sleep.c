@@ -68,5 +68,12 @@ void coroutine_fn qemu_co_sleep_ns_wakeable(QEMUClockType type, int64_t ns,
     }
     timer_mod(state.ts, qemu_clock_get_ns(type) + ns);
     qemu_coroutine_yield();
+    if (sleep_state) {
+        /*
+         * Note that *sleep_state is cleared during qemu_co_sleep_wake
+         * before resuming this coroutine.
+         */
+        assert(*sleep_state == NULL);
+    }
     timer_free(state.ts);
 }
