@@ -107,9 +107,12 @@ struct arm_boot_info {
     void (*write_board_setup)(ARMCPU *cpu,
                               const struct arm_boot_info *info);
 
-    /* If set, the board specific loader/setup blob will be run from secure
+    /*
+     * If set, the board specific loader/setup blob will be run from secure
      * mode, regardless of secure_boot. The blob becomes responsible for
-     * changing to non-secure state if implementing a non-secure boot
+     * changing to non-secure state if implementing a non-secure boot,
+     * including setting up EL3/Secure registers such as the NSACR as
+     * required by the Linux booting ABI before the switch to non-secure.
      */
     bool secure_board_setup;
 

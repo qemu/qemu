@@ -29,7 +29,6 @@ struct ptimer_state
     int64_t last_event;
     int64_t next_event;
     uint8_t policy_mask;
-    QEMUBH *bh;
     QEMUTimer *timer;
     ptimer_cb callback;
     void *callback_opaque;
@@ -46,12 +45,7 @@ struct ptimer_state
 /* Use a bottom-half routine to avoid reentrancy issues.  */
 static void ptimer_trigger(ptimer_state *s)
 {
-    if (s->bh) {
-        replay_bh_schedule_event(s->bh);
-    }
-    if (s->callback) {
-        s->callback(s->callback_opaque);
-    }
+    s->callback(s->callback_opaque);
 }
 
 static void ptimer_reload(ptimer_state *s, int delta_adjust)
@@ -296,15 +290,10 @@ uint64_t ptimer_get_count(ptimer_state *s)
 
 void ptimer_set_count(ptimer_state *s, uint64_t count)
 {
-    assert(s->in_transaction || !s->callback);
+    assert(s->in_transaction);
     s->delta = count;
     if (s->enabled) {
-        if (!s->callback) {
-            s->next_event = qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL);
-            ptimer_reload(s, 0);
-        } else {
-            s->need_reload = true;
-        }
+        s->need_reload = true;
     }
 }
 
@@ -312,7 +301,7 @@ void ptimer_run(ptimer_state *s, int oneshot)
 {
     bool was_disabled = !s->enabled;
 
-    assert(s->in_transaction || !s->callback);
+    assert(s->in_transaction);
 
     if (was_disabled && s->period == 0) {
         if (!qtest_enabled()) {
@@ -322,12 +311,7 @@ void ptimer_run(ptimer_state *s, int oneshot)
     }
     s->enabled = oneshot ? 2 : 1;
     if (was_disabled) {
-        if (!s->callback) {
-            s->next_event = qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL);
-            ptimer_reload(s, 0);
-        } else {
-            s->need_reload = true;
-        }
+        s->need_reload = true;
     }
 }
 
@@ -335,7 +319,7 @@ void ptimer_run(ptimer_state *s, int oneshot)
    is immediately restarted.  */
 void ptimer_stop(ptimer_state *s)
 {
-    assert(s->in_transaction || !s->callback);
+    assert(s->in_transaction);
 
     if (!s->enabled)
         return;
@@ -343,42 +327,30 @@ void ptimer_stop(ptimer_state *s)
     s->delta = ptimer_get_count(s);
     timer_del(s->timer);
     s->enabled = 0;
-    if (s->callback) {
-        s->need_reload = false;
-    }
+    s->need_reload = false;
 }
 
 /* Set counter increment interval in nanoseconds.  */
 void ptimer_set_period(ptimer_state *s, int64_t period)
 {
-    assert(s->in_transaction || !s->callback);
+    assert(s->in_transaction);
     s->delta = ptimer_get_count(s);
     s->period = period;
     s->period_frac = 0;
     if (s->enabled) {
-        if (!s->callback) {
-            s->next_event = qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL);
-            ptimer_reload(s, 0);
-        } else {
-            s->need_reload = true;
-        }
+        s->need_reload = true;
     }
 }
 
 /* Set counter frequency in Hz.  */
 void ptimer_set_freq(ptimer_state *s, uint32_t freq)
 {
-    assert(s->in_transaction || !s->callback);
+    assert(s->in_transaction);
     s->delta = ptimer_get_count(s);
     s->period = 1000000000ll / freq;
     s->period_frac = (1000000000ll << 32) / freq;
     if (s->enabled) {
-        if (!s->callback) {
-            s->next_event = qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL);
-            ptimer_reload(s, 0);
-        } else {
-            s->need_reload = true;
-        }
+        s->need_reload = true;
     }
 }
 
@@ -386,17 +358,12 @@ void ptimer_set_freq(ptimer_state *s, uint32_t freq)
    count = limit.  */
 void ptimer_set_limit(ptimer_state *s, uint64_t limit, int reload)
 {
-    assert(s->in_transaction || !s->callback);
+    assert(s->in_transaction);
     s->limit = limit;
     if (reload)
         s->delta = limit;
     if (s->enabled && reload) {
-        if (!s->callback) {
-            s->next_event = qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL);
-            ptimer_reload(s, 0);
-        } else {
-            s->need_reload = true;
-        }
+        s->need_reload = true;
     }
 }
 
@@ -407,7 +374,7 @@ uint64_t ptimer_get_limit(ptimer_state *s)
 
 void ptimer_transaction_begin(ptimer_state *s)
 {
-    assert(!s->in_transaction || !s->callback);
+    assert(!s->in_transaction);
     s->in_transaction = true;
     s->need_reload = false;
 }
@@ -448,37 +415,12 @@ const VMStateDescription vmstate_ptimer = {
     }
 };
 
-ptimer_state *ptimer_init_with_bh(QEMUBH *bh, uint8_t policy_mask)
-{
-    ptimer_state *s;
-
-    s = (ptimer_state *)g_malloc0(sizeof(ptimer_state));
-    s->bh = bh;
-    s->timer = timer_new_ns(QEMU_CLOCK_VIRTUAL, ptimer_tick, s);
-    s->policy_mask = policy_mask;
-
-    /*
-     * These two policies are incompatible -- trigger-on-decrement implies
-     * a timer trigger when the count becomes 0, but no-immediate-trigger
-     * implies a trigger when the count stops being 0.
-     */
-    assert(!((policy_mask & PTIMER_POLICY_TRIGGER_ONLY_ON_DECREMENT) &&
-             (policy_mask & PTIMER_POLICY_NO_IMMEDIATE_TRIGGER)));
-    return s;
-}
-
 ptimer_state *ptimer_init(ptimer_cb callback, void *callback_opaque,
                           uint8_t policy_mask)
 {
     ptimer_state *s;
 
-    /*
-     * The callback function is mandatory; so we use it to distinguish
-     * old-style QEMUBH ptimers from new transaction API ptimers.
-     * (ptimer_init_with_bh() allows a NULL bh pointer and at least
-     * one device (digic-timer) passes NULL, so it's not the case
-     * that either s->bh != NULL or s->callback != NULL.)
-     */
+    /* The callback function is mandatory. */
     assert(callback);
 
     s = g_new0(ptimer_state, 1);
@@ -499,9 +441,6 @@ ptimer_state *ptimer_init(ptimer_cb callback, void *callback_opaque,
 
 void ptimer_free(ptimer_state *s)
 {
-    if (s->bh) {
-        qemu_bh_delete(s->bh);
-    }
     timer_free(s->timer);
     g_free(s);
 }

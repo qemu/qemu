@@ -10,14 +10,23 @@
 
 #include "qemu/timer.h"
 
-/* The ptimer API implements a simple periodic countdown timer.
+/*
+ * The ptimer API implements a simple periodic countdown timer.
  * The countdown timer has a value (which can be read and written via
  * ptimer_get_count() and ptimer_set_count()). When it is enabled
  * using ptimer_run(), the value will count downwards at the frequency
  * which has been configured using ptimer_set_period() or ptimer_set_freq().
- * When it reaches zero it will trigger a QEMU bottom half handler, and
+ * When it reaches zero it will trigger a callback function, and
  * can be set to either reload itself from a specified limit value
  * and keep counting down, or to stop (as a one-shot timer).
+ *
+ * A transaction-based API is used for modifying ptimer state: all calls
+ * to functions which modify ptimer state must be between matched calls to
+ * ptimer_transaction_begin() and ptimer_transaction_commit().
+ * When ptimer_transaction_commit() is called it will evaluate the state
+ * of the timer after all the changes in the transaction, and call the
+ * callback if necessary. (See the ptimer_init() documentation for the full
+ * list of state-modifying functions and detailed semantics of the callback.)
  *
  * Forgetting to set the period/frequency (or setting it to zero) is a
  * bug in the QEMU device and will cause warning messages to be printed
@@ -72,24 +81,13 @@
  * ptimer_set_count() or ptimer_set_limit() will not trigger the timer
  * (though it will cause a reload). Only a counter decrement to "0"
  * will cause a trigger. Not compatible with NO_IMMEDIATE_TRIGGER;
- * ptimer_init_with_bh() will assert() that you don't set both.
+ * ptimer_init() will assert() that you don't set both.
  */
 #define PTIMER_POLICY_TRIGGER_ONLY_ON_DECREMENT (1 << 5)
 
 /* ptimer.c */
 typedef struct ptimer_state ptimer_state;
 typedef void (*ptimer_cb)(void *opaque);
-
-/**
- * ptimer_init_with_bh - Allocate and return a new ptimer
- * @bh: QEMU bottom half which is run on timer expiry
- * @policy: PTIMER_POLICY_* bits specifying behaviour
- *
- * The ptimer returned must be freed using ptimer_free().
- * The ptimer takes ownership of @bh and will delete it
- * when the ptimer is eventually freed.
- */
-ptimer_state *ptimer_init_with_bh(QEMUBH *bh, uint8_t policy_mask);
 
 /**
  * ptimer_init - Allocate and return a new ptimer
@@ -127,8 +125,7 @@ ptimer_state *ptimer_init(ptimer_cb callback,
  * ptimer_free - Free a ptimer
  * @s: timer to free
  *
- * Free a ptimer created using ptimer_init_with_bh() (including
- * deleting the bottom half which it is using).
+ * Free a ptimer created using ptimer_init().
  */
 void ptimer_free(ptimer_state *s);
 
@@ -164,7 +161,7 @@ void ptimer_transaction_commit(ptimer_state *s);
  * may be more appropriate.
  *
  * This function will assert if it is called outside a
- * ptimer_transaction_begin/commit block, unless this is a bottom-half ptimer.
+ * ptimer_transaction_begin/commit block.
  */
 void ptimer_set_period(ptimer_state *s, int64_t period);
 
@@ -180,7 +177,7 @@ void ptimer_set_period(ptimer_state *s, int64_t period);
  * precise to fractions of a nanosecond, avoiding rounding errors.
  *
  * This function will assert if it is called outside a
- * ptimer_transaction_begin/commit block, unless this is a bottom-half ptimer.
+ * ptimer_transaction_begin/commit block.
  */
 void ptimer_set_freq(ptimer_state *s, uint32_t freq);
 
@@ -210,7 +207,7 @@ uint64_t ptimer_get_limit(ptimer_state *s);
  * reload the counter when their reload register is written to.
  *
  * This function will assert if it is called outside a
- * ptimer_transaction_begin/commit block, unless this is a bottom-half ptimer.
+ * ptimer_transaction_begin/commit block.
  */
 void ptimer_set_limit(ptimer_state *s, uint64_t limit, int reload);
 
@@ -234,7 +231,7 @@ uint64_t ptimer_get_count(ptimer_state *s);
  * point in the future.
  *
  * This function will assert if it is called outside a
- * ptimer_transaction_begin/commit block, unless this is a bottom-half ptimer.
+ * ptimer_transaction_begin/commit block.
  */
 void ptimer_set_count(ptimer_state *s, uint64_t count);
 
@@ -243,15 +240,15 @@ void ptimer_set_count(ptimer_state *s, uint64_t count);
  * @s: ptimer
  * @oneshot: non-zero if this timer should only count down once
  *
- * Start a ptimer counting down; when it reaches zero the bottom half
- * passed to ptimer_init_with_bh() will be invoked.
+ * Start a ptimer counting down; when it reaches zero the callback function
+ * passed to ptimer_init() will be invoked.
  * If the @oneshot argument is zero,
  * the counter value will then be reloaded from the limit and it will
  * start counting down again. If @oneshot is non-zero, then the counter
  * will disable itself when it reaches zero.
  *
  * This function will assert if it is called outside a
- * ptimer_transaction_begin/commit block, unless this is a bottom-half ptimer.
+ * ptimer_transaction_begin/commit block.
  */
 void ptimer_run(ptimer_state *s, int oneshot);
 
@@ -266,7 +263,7 @@ void ptimer_run(ptimer_state *s, int oneshot);
  * restarted.
  *
  * This function will assert if it is called outside a
- * ptimer_transaction_begin/commit block, unless this is a bottom-half ptimer.
+ * ptimer_transaction_begin/commit block.
  */
 void ptimer_stop(ptimer_state *s);
 

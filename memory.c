@@ -1257,10 +1257,6 @@ static uint64_t unassigned_mem_read(void *opaque, hwaddr addr,
 #ifdef DEBUG_UNASSIGNED
     printf("Unassigned mem read " TARGET_FMT_plx "\n", addr);
 #endif
-    if (current_cpu != NULL) {
-        bool is_exec = current_cpu->mem_io_access_type == MMU_INST_FETCH;
-        cpu_unassigned_access(current_cpu, addr, false, is_exec, 0, size);
-    }
     return 0;
 }
 
@@ -1270,9 +1266,6 @@ static void unassigned_mem_write(void *opaque, hwaddr addr,
 #ifdef DEBUG_UNASSIGNED
     printf("Unassigned mem write " TARGET_FMT_plx " = 0x%"PRIx64"\n", addr, val);
 #endif
-    if (current_cpu != NULL) {
-        cpu_unassigned_access(current_cpu, addr, true, false, 0, size);
-    }
 }
 
 static bool unassigned_mem_accepts(void *opaque, hwaddr addr,

@@ -240,6 +240,9 @@ void arm_write_secure_board_setup_dummy_smc(ARMCPU *cpu,
     };
     uint32_t board_setup_blob[] = {
         /* board setup addr */
+        0xee110f51, /* mrc     p15, 0, r0, c1, c1, 2  ;read NSACR */
+        0xe3800b03, /* orr     r0, #0xc00             ;set CP11, CP10 */
+        0xee010f51, /* mcr     p15, 0, r0, c1, c1, 2  ;write NSACR */
         0xe3a00e00 + (mvbar_addr >> 4), /* mov r0, #mvbar_addr */
         0xee0c0f30, /* mcr     p15, 0, r0, c12, c0, 1 ;set MVBAR */
         0xee110f11, /* mrc     p15, 0, r0, c1 , c1, 0 ;read SCR */
