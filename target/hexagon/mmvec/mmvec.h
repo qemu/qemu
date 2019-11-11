@@ -6,7 +6,7 @@
 #define VECEXT 1
 #include "arch_types.h"
 #include <stdint.h>
-#include "../max.h"
+#include "max.h"
 #include "arch.h"
 
 /* From thread.h */

@@ -176,7 +176,6 @@ static inline HexagonCPU *hexagon_env_get_cpu(CPUHexagonState *env)
 }
 
 
-#include "cpu_user.h"
 #include "cpu_bits.h"
 
 extern const char * const hexagon_regnames[];
