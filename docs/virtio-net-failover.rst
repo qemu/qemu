@@ -1,6 +1,6 @@
-========================
+======================================
 QEMU virtio-net standby (net_failover)
-========================
+======================================
 
 This document explains the setup and usage of virtio-net standby feature which
 is used to create a net_failover pair of devices.

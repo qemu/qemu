@@ -41,9 +41,9 @@ CPU type is possible with the `query-cpu-model-expansion` QMP command.
 Below are some examples where `scripts/qmp/qmp-shell` (see the top comment
 block in the script for usage) is used to issue the QMP commands.
 
-(1) Determine which CPU features are available for the `max` CPU type
-    (Note, we started QEMU with qemu-system-aarch64, so `max` is
-     implementing the ARMv8-A reference manual in this case)::
+1. Determine which CPU features are available for the `max` CPU type
+   (Note, we started QEMU with qemu-system-aarch64, so `max` is
+   implementing the ARMv8-A reference manual in this case)::
 
       (QEMU) query-cpu-model-expansion type=full model={"name":"max"}
       { "return": {
