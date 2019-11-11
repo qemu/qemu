@@ -72,10 +72,6 @@ typedef enum MMUAccessType {
 
 typedef struct CPUWatchpoint CPUWatchpoint;
 
-typedef void (*CPUUnassignedAccess)(CPUState *cpu, hwaddr addr,
-                                    bool is_write, bool is_exec, int opaque,
-                                    unsigned size);
-
 struct TranslationBlock;
 
 /**
@@ -87,8 +83,6 @@ struct TranslationBlock;
  * @reset_dump_flags: #CPUDumpFlags to use for reset logging.
  * @has_work: Callback for checking if there is work to do.
  * @do_interrupt: Callback for interrupt handling.
- * @do_unassigned_access: Callback for unassigned access handling.
- * (this is deprecated: new targets should use do_transaction_failed instead)
  * @do_unaligned_access: Callback for unaligned access handling, if
  * the target defines #TARGET_ALIGNED_ONLY.
  * @do_transaction_failed: Callback for handling failed memory transactions
@@ -175,7 +169,6 @@ typedef struct CPUClass {
     int reset_dump_flags;
     bool (*has_work)(CPUState *cpu);
     void (*do_interrupt)(CPUState *cpu);
-    CPUUnassignedAccess do_unassigned_access;
     void (*do_unaligned_access)(CPUState *cpu, vaddr addr,
                                 MMUAccessType access_type,
                                 int mmu_idx, uintptr_t retaddr);
@@ -415,12 +408,6 @@ struct CPUState {
      * we store some rarely used information in the CPU context.
      */
     uintptr_t mem_io_pc;
-    /*
-     * This is only needed for the legacy cpu_unassigned_access() hook;
-     * when all targets using it have been converted to use
-     * cpu_transaction_failed() instead it can be removed.
-     */
-    MMUAccessType mem_io_access_type;
 
     int kvm_fd;
     struct KVMState *kvm_state;
@@ -896,17 +883,6 @@ void cpu_interrupt(CPUState *cpu, int mask);
 #ifdef NEED_CPU_H
 
 #ifdef CONFIG_SOFTMMU
-static inline void cpu_unassigned_access(CPUState *cpu, hwaddr addr,
-                                         bool is_write, bool is_exec,
-                                         int opaque, unsigned size)
-{
-    CPUClass *cc = CPU_GET_CLASS(cpu);
-
-    if (cc->do_unassigned_access) {
-        cc->do_unassigned_access(cpu, addr, is_write, is_exec, opaque, size);
-    }
-}
-
 static inline void cpu_unaligned_access(CPUState *cpu, vaddr addr,
                                         MMUAccessType access_type,
                                         int mmu_idx, uintptr_t retaddr)
