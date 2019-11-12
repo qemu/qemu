@@ -115,7 +115,8 @@ class FaultInjectionSocket(object):
             if rule.match(event, io):
                 if rule.when == 0 or bufsize is None:
                     print('Closing connection on rule match %s' % rule.name)
-                    self.sock.flush()
+                    self.sock.close()
+                    sys.stdout.flush()
                     sys.exit(0)
                 if rule.when != -1:
                     return rule.when
