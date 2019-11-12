@@ -223,8 +223,9 @@ main(int argc, char *argv[])
     sa_quit.sa_handler = ivshmem_server_quit_cb;
     sa_quit.sa_flags = 0;
     if (sigemptyset(&sa_quit.sa_mask) == -1 ||
-        sigaction(SIGTERM, &sa_quit, 0) == -1) {
-        perror("failed to add SIGTERM handler; sigaction");
+        sigaction(SIGTERM, &sa_quit, 0) == -1 ||
+        sigaction(SIGINT, &sa_quit, 0) == -1) {
+        perror("failed to add signal handler; sigaction");
         goto err;
     }
 
