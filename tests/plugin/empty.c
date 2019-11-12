@@ -13,6 +13,8 @@
 
 #include <qemu-plugin.h>
 
+QEMU_PLUGIN_EXPORT int qemu_plugin_version = QEMU_PLUGIN_VERSION;
+
 /*
  * Empty TB translation callback.
  * This allows us to measure the overhead of injecting and then

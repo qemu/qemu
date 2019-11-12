@@ -38,9 +38,28 @@
 
 typedef uint64_t qemu_plugin_id_t;
 
+/*
+ * Versioning plugins:
+ *
+ * The plugin API will pass a minimum and current API version that
+ * QEMU currently supports. The minimum API will be incremented if an
+ * API needs to be deprecated.
+ *
+ * The plugins export the API they were built against by exposing the
+ * symbol qemu_plugin_version which can be checked.
+ */
+
+extern QEMU_PLUGIN_EXPORT int qemu_plugin_version;
+
+#define QEMU_PLUGIN_VERSION 0
+
 typedef struct {
     /* string describing architecture */
     const char *target_name;
+    struct {
+        int min;
+        int cur;
+    } version;
     /* is this a full system emulation? */
     bool system_emulation;
     union {

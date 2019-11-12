@@ -15,6 +15,8 @@
 
 #include <qemu-plugin.h>
 
+QEMU_PLUGIN_EXPORT int qemu_plugin_version = QEMU_PLUGIN_VERSION;
+
 static bool do_inline;
 
 /* Plugins need to take care of their own locking */

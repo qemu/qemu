@@ -14,6 +14,8 @@
 
 #include <qemu-plugin.h>
 
+QEMU_PLUGIN_EXPORT int qemu_plugin_version = QEMU_PLUGIN_VERSION;
+
 static uint64_t mem_count;
 static uint64_t io_count;
 static bool do_inline;

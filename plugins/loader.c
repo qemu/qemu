@@ -178,6 +178,25 @@ static int plugin_load(struct qemu_plugin_desc *desc, const qemu_info_t *info)
         goto err_symbol;
     }
 
+    if (!g_module_symbol(ctx->handle, "qemu_plugin_version", &sym)) {
+        error_report("TCG plugin %s does not declare API version %s",
+                     desc->path, g_module_error());
+        goto err_symbol;
+    } else {
+        int version = *(int *)sym;
+        if (version < QEMU_PLUGIN_MIN_VERSION) {
+            error_report("TCG plugin %s requires API version %d, but "
+                         "this QEMU supports only a minimum version of %d",
+                         desc->path, version, QEMU_PLUGIN_MIN_VERSION);
+            goto err_symbol;
+        } else if (version > QEMU_PLUGIN_VERSION) {
+            error_report("TCG plugin %s requires API version %d, but "
+                         "this QEMU supports only up to version %d",
+                         desc->path, version, QEMU_PLUGIN_VERSION);
+            goto err_symbol;
+        }
+    }
+
     qemu_rec_mutex_lock(&plugin.lock);
 
     /* find an unused random id with &ctx as the seed */
@@ -248,6 +267,8 @@ int qemu_plugin_load_list(QemuPluginList *head)
     g_autofree qemu_info_t *info = g_new0(qemu_info_t, 1);
 
     info->target_name = TARGET_NAME;
+    info->version.min = QEMU_PLUGIN_MIN_VERSION;
+    info->version.cur = QEMU_PLUGIN_VERSION;
 #ifndef CONFIG_USER_ONLY
     MachineState *ms = MACHINE(qdev_get_machine());
     info->system_emulation = true;
