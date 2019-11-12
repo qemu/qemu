@@ -2632,6 +2632,7 @@ static abi_long do_getsockopt(int sockfd, int level, int optname,
         default:
             goto unimplemented;
         }
+        break;
 #endif /* SOL_NETLINK */
     default:
     unimplemented:
