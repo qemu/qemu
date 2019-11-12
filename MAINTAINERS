@@ -2371,6 +2371,7 @@ F: tcg/
 TCG Plugins
 M: Alex Bennée <alex.bennee@linaro.org>
 S: Maintained
+F: docs/devel/tcg-plugins.rst
 F: plugins/
 F: tests/plugin
 
