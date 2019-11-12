@@ -99,6 +99,7 @@ static void test_plug_with_device_add(gconstpointer data)
 
         cpu = qobject_to(QDict, e);
         if (qdict_haskey(cpu, "qom-path")) {
+            qobject_unref(e);
             continue;
         }
 
@@ -107,6 +108,7 @@ static void test_plug_with_device_add(gconstpointer data)
 
         qtest_qmp_device_add_qdict(qts, td->device_model, props);
         hotplugged++;
+        qobject_unref(e);
     }
 
     /* make sure that there were hotplugged CPUs */

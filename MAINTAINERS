@@ -2143,13 +2143,11 @@ F: include/hw/registerfields.h
 
 SLIRP
 M: Samuel Thibault <samuel.thibault@ens-lyon.org>
-M: Jan Kiszka <jan.kiszka@siemens.com>
 S: Maintained
 F: slirp/
 F: net/slirp.c
 F: include/net/slirp.h
 T: git https://people.debian.org/~sthibault/qemu.git slirp
-T: git git://git.kiszka.org/qemu.git queues/slirp
 
 Stubs
 M: Paolo Bonzini <pbonzini@redhat.com>
