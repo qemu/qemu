@@ -64,7 +64,8 @@ int main(int argc, char *argv[])
     g_test_init(&argc, &argv, NULL);
 
     for (i = 0; i < G_N_ELEMENTS(modules); i += 2) {
-        char *testname = g_strdup_printf("/module/load/%s", modules[i + 1]);
+        char *testname = g_strdup_printf("/module/load/%s%s",
+                                         modules[i], modules[i + 1]);
         qtest_add_data_func(testname, modules + i, test_modules_load);
         g_free(testname);
     }
