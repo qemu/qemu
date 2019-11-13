@@ -103,13 +103,6 @@ void cpu_loop(CPUHexagonState *env)
         case EXCP_INTERRUPT:
             /* just indicate that signals should be handled asap */
             break;
-        case EXCP_ATOMIC:
-            cpu_exec_step_atomic(cs);
-            break;
-        case EXCP_DEBUG:
-            signum = gdb_handlesig(cs, TARGET_SIGTRAP);
-            sigcode = TARGET_TRAP_BRKPT;
-            break;
         case HEX_EXCP_TRAP0:
             syscallnum = env->gpr[6];
             env->gpr[HEX_REG_PC] += 4;

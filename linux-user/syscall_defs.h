@@ -104,9 +104,7 @@
 
 #elif defined(TARGET_HEXAGON)
 
-/* TODO - Check this (copied from i386 above) */
 #define TARGET_IOC_SIZEBITS     14
-#define TARGET_IOC_DIRBITS      2
 
 #define TARGET_IOC_NONE   0U
 #define TARGET_IOC_WRITE  1U
