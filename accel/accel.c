@@ -48,9 +48,7 @@ AccelClass *accel_find(const char *opt_name)
 
 int accel_init_machine(AccelClass *acc, MachineState *ms)
 {
-    ObjectClass *oc = OBJECT_CLASS(acc);
-    const char *cname = object_class_get_name(oc);
-    AccelState *accel = ACCEL(object_new(cname));
+    AccelState *accel = ACCEL(object_new_with_class(OBJECT_CLASS(acc)));
     int ret;
     ms->accelerator = accel;
     *(acc->allowed) = true;

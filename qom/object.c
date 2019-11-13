@@ -658,6 +658,11 @@ static Object *object_new_with_type(Type type)
     return obj;
 }
 
+Object *object_new_with_class(ObjectClass *klass)
+{
+    return object_new_with_type(klass->type);
+}
+
 Object *object_new(const char *typename)
 {
     TypeImpl *ti = type_get_by_name(typename);
