@@ -73,6 +73,10 @@
 #define HEX_REG_IMASK 74
 #define HEX_REG_GEVB 75
 
+/*
+ * Not used in qemu
+ */
+#ifdef FIXME
 // New interrupts, keep old defines for the time being
 #define HEX_REG_GELR 80
 #define HEX_REG_GSR 81 
@@ -176,3 +180,4 @@
 #define GREG_ISDBCMD  61
 #define GREG_ISDBVER  62
 #define GREG_BRKPTINFO 63
+#endif
