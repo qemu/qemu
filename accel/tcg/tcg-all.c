@@ -34,7 +34,17 @@
 #include "include/qapi/error.h"
 #include "include/qemu/error-report.h"
 #include "include/hw/boards.h"
-#include "qemu/option.h"
+
+typedef struct TCGState {
+    AccelState parent_obj;
+
+    bool mttcg_enabled;
+} TCGState;
+
+#define TYPE_TCG_ACCEL ACCEL_CLASS_NAME("tcg")
+
+#define TCG_STATE(obj) \
+        OBJECT_CHECK(TCGState, (obj), TYPE_TCG_ACCEL)
 
 unsigned long tcg_tb_size;
 
@@ -107,23 +117,33 @@ static bool default_mttcg_enabled(void)
 
 static void tcg_accel_instance_init(Object *obj)
 {
-    mttcg_enabled = default_mttcg_enabled();
+    TCGState *s = TCG_STATE(obj);
+
+    s->mttcg_enabled = default_mttcg_enabled();
 }
 
 static int tcg_init(MachineState *ms)
 {
+    TCGState *s = TCG_STATE(current_machine->accelerator);
+
     tcg_exec_init(tcg_tb_size * 1024 * 1024);
     cpu_interrupt_handler = tcg_handle_interrupt;
+    mttcg_enabled = s->mttcg_enabled;
     return 0;
 }
 
-void qemu_tcg_configure(QemuOpts *opts, Error **errp)
+static char *tcg_get_thread(Object *obj, Error **errp)
 {
-    const char *t = qemu_opt_get(opts, "thread");
-    if (!t) {
-        return;
-    }
-    if (strcmp(t, "multi") == 0) {
+    TCGState *s = TCG_STATE(obj);
+
+    return g_strdup(s->mttcg_enabled ? "multi" : "single");
+}
+
+static void tcg_set_thread(Object *obj, const char *value, Error **errp)
+{
+    TCGState *s = TCG_STATE(obj);
+
+    if (strcmp(value, "multi") == 0) {
         if (TCG_OVERSIZED_GUEST) {
             error_setg(errp, "No MTTCG when guest word size > hosts");
         } else if (use_icount) {
@@ -138,12 +158,12 @@ void qemu_tcg_configure(QemuOpts *opts, Error **errp)
                             "than the host provides");
                 error_printf("This may cause strange/hard to debug errors\n");
             }
-            mttcg_enabled = true;
+            s->mttcg_enabled = true;
         }
-    } else if (strcmp(t, "single") == 0) {
-        mttcg_enabled = false;
+    } else if (strcmp(value, "single") == 0) {
+        s->mttcg_enabled = false;
     } else {
-        error_setg(errp, "Invalid 'thread' setting %s", t);
+        error_setg(errp, "Invalid 'thread' setting %s", value);
     }
 }
 
@@ -153,15 +173,19 @@ static void tcg_accel_class_init(ObjectClass *oc, void *data)
     ac->name = "tcg";
     ac->init_machine = tcg_init;
     ac->allowed = &tcg_allowed;
-}
 
-#define TYPE_TCG_ACCEL ACCEL_CLASS_NAME("tcg")
+    object_class_property_add_str(oc, "thread",
+                                  tcg_get_thread,
+                                  tcg_set_thread,
+                                  NULL);
+}
 
 static const TypeInfo tcg_accel_type = {
     .name = TYPE_TCG_ACCEL,
     .parent = TYPE_ACCEL,
     .instance_init = tcg_accel_instance_init,
     .class_init = tcg_accel_class_init,
+    .instance_size = sizeof(TCGState),
 };
 
 static void register_accel_types(void)
