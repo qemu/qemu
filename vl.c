@@ -1133,13 +1133,6 @@ static void configure_msg(QemuOpts *opts)
 }
 
 
-/* Now we still need this for compatibility with XEN. */
-bool has_igd_gfx_passthru;
-static void igd_gfx_passthru(void)
-{
-    has_igd_gfx_passthru = current_machine->igd_gfx_passthru;
-}
-
 /***********************************************************/
 /* USB devices */
 
@@ -2515,6 +2508,10 @@ static int machine_set_property(void *opaque,
 
     /* Legacy options do not correspond to MachineState properties.  */
     if (g_str_equal(qom_name, "accel")) {
+        return 0;
+    }
+    if (g_str_equal(qom_name, "igd-passthru")) {
+        object_register_sugar_prop(ACCEL_CLASS_NAME("xen"), qom_name, value);
         return 0;
     }
 
@@ -4296,9 +4293,6 @@ int main(int argc, char **argv, char **envp)
         if (foreach_device_config(DEV_USB, usb_parse) < 0)
             exit(1);
     }
-
-    /* Check if IGD GFX passthrough. */
-    igd_gfx_passthru();
 
     /* init generic devices */
     rom_set_order_override(FW_CFG_ORDER_OVERRIDE_DEVICE);
