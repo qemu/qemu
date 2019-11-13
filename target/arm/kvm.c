@@ -741,11 +741,11 @@ void kvm_arch_init_irq_routing(KVMState *s)
 {
 }
 
-int kvm_arch_irqchip_create(MachineState *ms, KVMState *s)
+int kvm_arch_irqchip_create(KVMState *s)
 {
-     if (machine_kernel_irqchip_split(ms)) {
-         perror("-machine kernel_irqchip=split is not supported on ARM.");
-         exit(1);
+    if (kvm_kernel_irqchip_split()) {
+        perror("-machine kernel_irqchip=split is not supported on ARM.");
+        exit(1);
     }
 
     /* If we can create the VGIC using the newer device control API, we

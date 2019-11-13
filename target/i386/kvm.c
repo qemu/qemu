@@ -4494,10 +4494,10 @@ void kvm_arch_init_irq_routing(KVMState *s)
     }
 }
 
-int kvm_arch_irqchip_create(MachineState *ms, KVMState *s)
+int kvm_arch_irqchip_create(KVMState *s)
 {
     int ret;
-    if (machine_kernel_irqchip_split(ms)) {
+    if (kvm_kernel_irqchip_split()) {
         ret = kvm_vm_enable_cap(s, KVM_CAP_SPLIT_IRQCHIP, 0, 24);
         if (ret) {
             error_report("Could not enable split irqchip mode: %s",

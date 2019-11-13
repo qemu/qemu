@@ -793,7 +793,6 @@ static DeviceState *ppce500_init_mpic(PPCE500MachineState *pms,
                                       MemoryRegion *ccsr,
                                       IrqLines *irqs)
 {
-    MachineState *machine = MACHINE(pms);
     const PPCE500MachineClass *pmc = PPCE500_MACHINE_GET_CLASS(pms);
     DeviceState *dev = NULL;
     SysBusDevice *s;
@@ -801,10 +800,10 @@ static DeviceState *ppce500_init_mpic(PPCE500MachineState *pms,
     if (kvm_enabled()) {
         Error *err = NULL;
 
-        if (machine_kernel_irqchip_allowed(machine)) {
+        if (kvm_kernel_irqchip_allowed()) {
             dev = ppce500_init_mpic_kvm(pmc, irqs, &err);
         }
-        if (machine_kernel_irqchip_required(machine) && !dev) {
+        if (kvm_kernel_irqchip_required() && !dev) {
             error_reportf_err(err,
                               "kernel_irqchip requested but unavailable: ");
             exit(1);

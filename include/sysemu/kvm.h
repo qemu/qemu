@@ -519,10 +519,13 @@ void kvm_pc_gsi_handler(void *opaque, int n, int level);
 void kvm_pc_setup_irq_routing(bool pci_enabled);
 void kvm_init_irq_routing(KVMState *s);
 
+bool kvm_kernel_irqchip_allowed(void);
+bool kvm_kernel_irqchip_required(void);
+bool kvm_kernel_irqchip_split(void);
+
 /**
  * kvm_arch_irqchip_create:
  * @KVMState: The KVMState pointer
- * @MachineState: The MachineState pointer
  *
  * Allow architectures to create an in-kernel irq chip themselves.
  *
@@ -530,7 +533,7 @@ void kvm_init_irq_routing(KVMState *s);
  *            0: irq chip was not created
  *          > 0: irq chip was created
  */
-int kvm_arch_irqchip_create(MachineState *ms, KVMState *s);
+int kvm_arch_irqchip_create(KVMState *s);
 
 /**
  * kvm_set_one_reg - set a register value in KVM via KVM_SET_ONE_REG ioctl
