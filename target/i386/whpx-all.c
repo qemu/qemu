@@ -1356,6 +1356,58 @@ static void whpx_handle_interrupt(CPUState *cpu, int mask)
 }
 
 /*
+ * Load the functions from the given library, using the given handle. If a
+ * handle is provided, it is used, otherwise the library is opened. The
+ * handle will be updated on return with the opened one.
+ */
+static bool load_whp_dispatch_fns(HMODULE *handle,
+    WHPFunctionList function_list)
+{
+    HMODULE hLib = *handle;
+
+    #define WINHV_PLATFORM_DLL "WinHvPlatform.dll"
+    #define WINHV_EMULATION_DLL "WinHvEmulation.dll"
+    #define WHP_LOAD_FIELD(return_type, function_name, signature) \
+        whp_dispatch.function_name = \
+            (function_name ## _t)GetProcAddress(hLib, #function_name); \
+        if (!whp_dispatch.function_name) { \
+            error_report("Could not load function %s", #function_name); \
+            goto error; \
+        } \
+
+    #define WHP_LOAD_LIB(lib_name, handle_lib) \
+    if (!handle_lib) { \
+        handle_lib = LoadLibrary(lib_name); \
+        if (!handle_lib) { \
+            error_report("Could not load library %s.", lib_name); \
+            goto error; \
+        } \
+    } \
+
+    switch (function_list) {
+    case WINHV_PLATFORM_FNS_DEFAULT:
+        WHP_LOAD_LIB(WINHV_PLATFORM_DLL, hLib)
+        LIST_WINHVPLATFORM_FUNCTIONS(WHP_LOAD_FIELD)
+        break;
+
+    case WINHV_EMULATION_FNS_DEFAULT:
+        WHP_LOAD_LIB(WINHV_EMULATION_DLL, hLib)
+        LIST_WINHVEMULATION_FUNCTIONS(WHP_LOAD_FIELD)
+        break;
+    }
+
+    *handle = hLib;
+    return true;
+
+error:
+    if (hLib) {
+        FreeLibrary(hLib);
+    }
+
+    return false;
+}
+
+/*
  * Partition support
  */
 
@@ -1490,51 +1542,30 @@ static void whpx_type_init(void)
 
 bool init_whp_dispatch(void)
 {
-    const char *lib_name;
-    HMODULE hLib;
-
     if (whp_dispatch_initialized) {
         return true;
     }
 
-    #define WHP_LOAD_FIELD(return_type, function_name, signature) \
-        whp_dispatch.function_name = \
-            (function_name ## _t)GetProcAddress(hLib, #function_name); \
-        if (!whp_dispatch.function_name) { \
-            error_report("Could not load function %s from library %s.", \
-                         #function_name, lib_name); \
-            goto error; \
-        } \
-
-    lib_name = "WinHvPlatform.dll";
-    hWinHvPlatform = LoadLibrary(lib_name);
-    if (!hWinHvPlatform) {
-        error_report("Could not load library %s.", lib_name);
+    if (!load_whp_dispatch_fns(&hWinHvPlatform, WINHV_PLATFORM_FNS_DEFAULT)) {
         goto error;
     }
-    hLib = hWinHvPlatform;
-    LIST_WINHVPLATFORM_FUNCTIONS(WHP_LOAD_FIELD)
 
-    lib_name = "WinHvEmulation.dll";
-    hWinHvEmulation = LoadLibrary(lib_name);
-    if (!hWinHvEmulation) {
-        error_report("Could not load library %s.", lib_name);
+    if (!load_whp_dispatch_fns(&hWinHvEmulation, WINHV_EMULATION_FNS_DEFAULT)) {
         goto error;
     }
-    hLib = hWinHvEmulation;
-    LIST_WINHVEMULATION_FUNCTIONS(WHP_LOAD_FIELD)
 
     whp_dispatch_initialized = true;
+
     return true;
-
-    error:
-
+error:
     if (hWinHvPlatform) {
         FreeLibrary(hWinHvPlatform);
     }
+
     if (hWinHvEmulation) {
         FreeLibrary(hWinHvEmulation);
     }
+
     return false;
 }
 
